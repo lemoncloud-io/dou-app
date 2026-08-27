@@ -16,6 +16,7 @@ import {
     MoreHorizontal,
     Plus,
     Search,
+    Settings,
     Sparkles,
     User,
     Users,
@@ -44,6 +45,8 @@ export const IconClose: LucideIcon = X;
 export const IconMore: LucideIcon = MoreHorizontal;
 export const IconPlus: LucideIcon = Plus;
 export const IconSearch: LucideIcon = Search;
+/** Gear — the MY hub's entry into the settings depth. */
+export const IconSettings: LucideIcon = Settings;
 export const IconSend: LucideIcon = ArrowUp;
 export const IconSpinner: LucideIcon = Loader2;
 export const IconPlan: LucideIcon = Sparkles;

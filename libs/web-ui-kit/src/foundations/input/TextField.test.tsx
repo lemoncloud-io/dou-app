@@ -74,7 +74,7 @@ describe('TextField', () => {
                 label="휴대폰 번호"
                 value=""
                 onChange={jest.fn()}
-                leading={<button type="button">🇰🇷 +82</button>}
+                leading={<button type="button">+82</button>}
                 trailing={<button type="button">인증 요청</button>}
             />
         );
@@ -82,7 +82,7 @@ describe('TextField', () => {
         // Order inside the bordered container is what makes it read as one input group.
         const box = container.querySelector('.rounded-\\[10px\\]');
         const order = Array.from(box?.children ?? []).map(child => child.textContent);
-        expect(order).toEqual(['🇰🇷 +82', '', '인증 요청']);
+        expect(order).toEqual(['+82', '', '인증 요청']);
     });
 
     it('omits the leading slot when nothing is passed', () => {
@@ -92,7 +92,7 @@ describe('TextField', () => {
 
     it('lets a focused leading control light the whole field', () => {
         const { container } = render(
-            <TextField label="휴대폰 번호" value="" onChange={jest.fn()} leading={<button type="button">🇰🇷</button>} />
+            <TextField label="휴대폰 번호" value="" onChange={jest.fn()} leading={<button type="button">+82</button>} />
         );
 
         // focus-within, not focus: the ring belongs to the container, so tapping the picker keeps

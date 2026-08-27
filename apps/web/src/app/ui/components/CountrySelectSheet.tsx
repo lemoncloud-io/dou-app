@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { BottomSheet, IconCheck, SearchInput } from '@chatic/web-ui-kit';
 import { cn } from '@chatic/lib/utils';
 
-import { listPhoneCountries, toFlagEmoji, type PhoneCountry } from '../../utils/phoneNumber';
+import { listPhoneCountries, type PhoneCountry } from '../../utils/phoneNumber';
 
 interface CountrySelectSheetProps {
     open: boolean;
@@ -18,7 +18,7 @@ interface CountrySelectSheetProps {
  * Country picker for a phone field — every country the number metadata knows (245), searchable.
  *
  * `LanguageSelectSheet` is not a model for this: two options fit in a plain `SheetOption` list,
- * 245 need a search box, and each row here carries three things (flag, name, dial code) where
+ * 245 need a search box, and each row here carries two things (name, dial code) where
  * `SheetOption` takes one label. Both differences are why this draws its own rows.
  *
  * The search box is the scroll container's first child, pinned with `sticky` — deliberately, rather
@@ -84,9 +84,6 @@ export const CountrySelectSheet = ({ open, onOpenChange, value, onSelect }: Coun
                             }}
                             className="flex w-full items-center gap-3 px-4 py-3 text-left"
                         >
-                            {/* Platforms that do not draw regional-indicator pairs show "KR"; the name
-                                beside it means nothing is lost there. */}
-                            <span className="w-7 shrink-0 text-[20px] leading-none">{toFlagEmoji(option.code)}</span>
                             <span
                                 className={cn(
                                     'min-w-0 flex-1 truncate text-[16px] font-medium text-foreground',

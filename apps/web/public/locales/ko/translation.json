@@ -166,8 +166,19 @@
         }
     },
     "mypage": {
-        "loginPrompt": "로그인하기",
-        "loginDescription": "로그인 하고, 대화내용을 안전하게 관리하세요.",
+        "title": "MY",
+        "loginPrompt": "로그인 필요",
+        "loginDescription": "대화 내용을 복구할 수 있어요",
+        "settings": {
+            "title": "설정",
+            "openLabel": "설정 열기",
+            "sections": {
+                "notification": "알림",
+                "app": "앱 설정",
+                "support": "지원 및 정보"
+            }
+        },
+        "notificationSettings": "알림 설정",
         "pushNotifications": "푸시 알림",
         "push": {
             "updateFailed": "푸시 알림 설정을 변경하지 못했습니다.",
@@ -269,6 +280,7 @@
             "termsOfService": "이용약관",
             "privacyPolicy": "개인정보처리방침",
             "inUse": "구독 이용 중",
+            "hubEntry": "구독 정보",
             "summaryLine": "{{plan}} 이용 중",
             "summaryLineWithQuota": "{{plan}} 이용 중 · 클라우드 {{used}}/{{max}}개",
             "socialLinkRequired": "구독은 소셜 계정 연동이 필요해요. 마이페이지 > 내 정보에서 연동해 주세요.",
@@ -368,6 +380,7 @@
         },
         "cloudManage": {
             "title": "클라우드 관리",
+            "hubEntry": "클라우드 정보",
             "noAccounts": "등록된 클라우드가 없어요",
             "delete": "삭제",
             "deleteConfirmTitle": "클라우드를 삭제할까요?",

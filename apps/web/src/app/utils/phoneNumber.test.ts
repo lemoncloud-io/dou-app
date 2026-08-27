@@ -6,7 +6,6 @@ import {
     rememberCountry,
     resolveDefaultCountry,
     toE164,
-    toFlagEmoji,
 } from './phoneNumber';
 
 const COUNTRY_STORAGE_KEY = 'dou.phoneInput.country.v1';
@@ -136,12 +135,5 @@ describe('phoneCountryDialCode', () => {
         expect(phoneCountryDialCode('KR')).toBe('+82');
         expect(phoneCountryDialCode('JP')).toBe('+81');
         expect(phoneCountryDialCode('ZZ')).toBeNull();
-    });
-});
-
-describe('toFlagEmoji', () => {
-    it('maps an ISO code onto its regional-indicator pair', () => {
-        expect(toFlagEmoji('KR')).toBe('🇰🇷');
-        expect(toFlagEmoji('jp')).toBe('🇯🇵');
     });
 });

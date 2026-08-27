@@ -7,10 +7,9 @@ jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k
 import { CountrySelect } from './CountrySelect';
 
 describe('CountrySelect', () => {
-    it('shows the flag and dial code of the current country', () => {
+    it('shows the dial code of the current country', () => {
         render(<CountrySelect value="KR" onChange={jest.fn()} />);
 
-        expect(screen.getByText('🇰🇷')).toBeInTheDocument();
         expect(screen.getByText('+82')).toBeInTheDocument();
     });
 

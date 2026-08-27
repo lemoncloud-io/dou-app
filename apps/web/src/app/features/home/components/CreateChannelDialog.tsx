@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { logger } from '@chatic/bridges';
+import { cn } from '@chatic/lib/utils';
 import { resizeImageToBase64, useNavigateWithTransition } from '@chatic/shared';
 
 import { AlertDialog, FloatingButton, ModalTopBar, ProfileAvatar, Text, TextField, Toast } from '@chatic/web-ui-kit';
@@ -43,6 +44,9 @@ export const CreateChannelDialog = ({ open, onOpenChange }: CreateChannelDialogP
     const [submitting, setSubmitting] = useState(false);
     const [alertOpen, setAlertOpen] = useState(false);
     const [notice, setNotice] = useState<Notice | null>(null);
+    // Whether the name field holds focus — i.e. the soft keyboard is up. Drives the compact layout;
+    // the rationale sits on the collapsing header below.
+    const [editing, setEditing] = useState(false);
 
     // Reset transient state each time the overlay opens.
     useEffect(() => {
@@ -52,6 +56,7 @@ export const CreateChannelDialog = ({ open, onOpenChange }: CreateChannelDialogP
             setSubmitting(false);
             setAlertOpen(false);
             setNotice(null);
+            setEditing(false);
         }
     }, [open]);
 
@@ -151,35 +156,83 @@ export const CreateChannelDialog = ({ open, onOpenChange }: CreateChannelDialogP
                             className="sticky top-0 z-20 shrink-0"
                         />
 
-                        {/* Title + subtitle */}
-                        <div className="flex flex-col gap-2 px-4 py-4 text-center">
-                            <Text
-                                as="h1"
-                                className="whitespace-pre-line break-keep text-[20px] font-semibold leading-[1.35] tracking-[-0.1px] text-foreground"
-                            >
-                                {t('createChannel.title')}
-                            </Text>
-                            <Text className="whitespace-pre-line break-keep text-[14px] font-medium leading-[1.45] tracking-[-0.07px] text-description">
-                                {t('createChannel.subtitle')}
-                            </Text>
+                        {/* Title + subtitle — folded away while the name field has focus.
+                            The keyboard rises over a WebView that is never resized (Android
+                            `adjustNothing`), so the field can only be kept readable by moving it UP.
+                            Collapsing the decorative header lands it just under the top bar, above
+                            any keyboard, without depending on `--keyboard-height` being reported or
+                            on the scroller having room to scroll — the two things that fail on the
+                            devices where the field stayed buried. Animated through a 0fr<->1fr grid
+                            row, the CollapsibleSection idiom. */}
+                        <div
+                            className={cn(
+                                'grid transition-[grid-template-rows] duration-200 ease-out',
+                                editing ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]'
+                            )}
+                            aria-hidden={editing}
+                        >
+                            <div className="min-h-0 overflow-hidden">
+                                <div className="flex flex-col gap-2 px-4 py-4 text-center">
+                                    <Text
+                                        as="h1"
+                                        className="whitespace-pre-line break-keep text-[20px] font-semibold leading-[1.35] tracking-[-0.1px] text-foreground"
+                                    >
+                                        {t('createChannel.title')}
+                                    </Text>
+                                    <Text className="whitespace-pre-line break-keep text-[14px] font-medium leading-[1.45] tracking-[-0.07px] text-description">
+                                        {t('createChannel.subtitle')}
+                                    </Text>
+                                </div>
+                            </div>
                         </div>
 
-                        {/* Avatar + name */}
-                        <div className="flex flex-col gap-8 py-10">
-                            <div className="flex flex-col items-center gap-4 px-[18px]">
-                                <ProfileAvatar
-                                    src={thumbnail || undefined}
-                                    glyph="group"
-                                    onSelect={handleImageClick}
-                                    selectLabel={t('createChannel.photoLabel')}
-                                />
-                                <div className="flex flex-col items-center gap-0.5">
-                                    <Text variant="label" className="text-label">
-                                        {t('createChannel.photoLabel')}
-                                    </Text>
-                                    <Text variant="caption" className="text-placeholder">
-                                        {t('createChannel.photoOptional')}
-                                    </Text>
+                        {/* Avatar + name. The paddings tighten with the same compact mode: folding
+                            the header alone is not enough on a short screen, so the avatar block
+                            gives up its generous spacing (and the avatar its size) while typing. */}
+                        <div
+                            className={cn(
+                                'flex flex-col transition-all duration-200 ease-out',
+                                editing ? 'gap-4 py-4' : 'gap-8 py-10'
+                            )}
+                        >
+                            <div
+                                className={cn(
+                                    'flex flex-col items-center px-[18px] transition-all duration-200 ease-out',
+                                    editing ? 'gap-0' : 'gap-4'
+                                )}
+                            >
+                                {/* Keeps focus on the input when the avatar is tapped: blurring
+                                    would expand the layout out from under the finger between
+                                    pointerdown and click, so the tap would land on whatever moved
+                                    into that spot. Preventing mousedown's default cancels the focus
+                                    change while still delivering the click. */}
+                                <span onMouseDown={event => event.preventDefault()}>
+                                    <ProfileAvatar
+                                        src={thumbnail || undefined}
+                                        glyph="group"
+                                        size={editing ? 56 : 86}
+                                        onSelect={handleImageClick}
+                                        selectLabel={t('createChannel.photoLabel')}
+                                        className="transition-[width,height] duration-200 ease-out"
+                                    />
+                                </span>
+                                <div
+                                    className={cn(
+                                        'grid transition-[grid-template-rows] duration-200 ease-out',
+                                        editing ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]'
+                                    )}
+                                    aria-hidden={editing}
+                                >
+                                    <div className="min-h-0 overflow-hidden">
+                                        <div className="flex flex-col items-center gap-0.5">
+                                            <Text variant="label" className="text-label">
+                                                {t('createChannel.photoLabel')}
+                                            </Text>
+                                            <Text variant="caption" className="text-placeholder">
+                                                {t('createChannel.photoOptional')}
+                                            </Text>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
@@ -193,6 +246,17 @@ export const CreateChannelDialog = ({ open, onOpenChange }: CreateChannelDialogP
                                 placeholder={t('createChannel.namePlaceholder')}
                                 description={t('createChannel.nameHint')}
                                 error={isOverLimit ? t('createChannel.nameHint') : undefined}
+                                onFocus={() => setEditing(true)}
+                                onBlur={() => setEditing(false)}
+                                // The docked CTA still sits behind the keyboard on a device that
+                                // reports no keyboard height, so the keyboard's own done key has to
+                                // be able to finish the form.
+                                enterKeyHint="done"
+                                onKeyDown={event => {
+                                    if (event.key !== 'Enter') return;
+                                    event.preventDefault();
+                                    void handleSubmit();
+                                }}
                             />
                         </div>
 

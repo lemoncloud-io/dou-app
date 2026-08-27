@@ -106,6 +106,14 @@ export const ROUTES = {
         cloud: {
             manage: '/mypage/cloud-manage',
         },
+        /**
+         * Device/app preferences, split out of the hub so `/mypage` can stay a short identity
+         * screen. A depth, not a tab: the floating nav only shows on `/mypage` itself.
+         */
+        settings: {
+            root: '/mypage/settings',
+            notifications: '/mypage/settings/notifications',
+        },
         policy: {
             root: '/mypage/policy',
             terms: '/mypage/policy/terms',
