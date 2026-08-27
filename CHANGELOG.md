@@ -1,5 +1,30 @@
 # Changelog
 
+## [2026-08-27] - No version updates
+
+### Features
+
+- (web/mypage) give the signed-out hub the same card as a profile
+- (web/mypage) split the MY hub into an identity root and a settings depth
+
+### Bug Fixes
+
+- (web/home) keep the create dialogs' name field visible over the keyboard
+
+### Documentation
+
+- (web/mypage) stamp the feature doc's last-updated date
+- (web/mypage) sync the feature docs with the shipped depth split
+- (web/mypage) plan the MY hub depth split
+
+### Refactor
+
+- (web/invite) drop the country flags from the phone field
+
+### Other
+
+- test: (web-ui-kit) drop the flag from the leading-slot fixtures
+
 ## [2026-08-25] - root@0.55.1, @chatic/web@0.46.1
 
 ### Bug Fixes
