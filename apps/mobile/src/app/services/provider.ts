@@ -1,10 +1,10 @@
 import type { ILogService } from './log';
 import { LogService, LogUploadQueueService } from './log';
-import { createConsoleListener, logHub } from '@chatic/logger';
+import { configurePerfMetrics, createConsoleListener, logHub, logger as coreLogger } from '@chatic/logger';
 // Deep path, per the barrel policy: this module imports react-native-mmkv.
 import { MmkvLogUploadQueuePersistence } from './log/uploadQueue/persistence';
 import { attachNativeLoggerBridge } from './log/native/nativeLoggerBridge';
-import { attachNativeLogContext } from './log/native/nativeLogContext';
+import { NATIVE_RUN_ID, attachNativeLogContext } from './log/native/nativeLogContext';
 import type { IPendingReportQueueService } from './report';
 import { PendingReportQueueService } from './report/PendingReportQueueService';
 import { checkCrashOnPreviousExecution, installNativeErrorDetection } from './report/nativeErrorDetection';
@@ -139,6 +139,11 @@ class DependencyProvider {
         // Context first: it is stamped at dispatch, so anything logged before
         // this would carry no runId and be unattributable to this app run.
         attachNativeLogContext();
+        // Performance metrics ride the same pipe (ADR-0071) and are decided from
+        // the same runId, so they are turned on right here — before anything can
+        // report — and the WebView reaches the identical sample verdict from the
+        // injected copy of this id, with no bridge message in between.
+        configurePerfMetrics({ logger: coreLogger, runId: NATIVE_RUN_ID });
         // The hub's listeners, wired before anything logs (principle 15). The app
         // keeps three: the console, the store, and Crashlytics (below).
         //

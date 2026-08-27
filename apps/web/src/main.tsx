@@ -4,7 +4,7 @@ import * as ReactDOM from 'react-dom/client';
 
 import '@lemoncloud/page-transition-core/styles.css';
 
-import { setupBridgeLogger } from '@chatic/bridges';
+import { configurePerfMetrics, logger, setupBridgeLogger } from '@chatic/bridges';
 import { configureDataRuntime, setNativeCacheSupport } from '@chatic/app-runtime';
 
 import App from './app/app';
@@ -12,7 +12,7 @@ import { appBridge, pendingNavigationStore } from './app/bridge';
 import { markBoot } from './app/features/debug/metrics/bootMarks';
 import { initLongTasks } from './app/features/debug/metrics/longTasks';
 import { attachConsoleListener } from './app/runtime/logging/consoleListener';
-import { attachLogContext } from './app/runtime/logging/logContext';
+import { attachLogContext, readInjectedRunId } from './app/runtime/logging/logContext';
 import { startLogUploader } from './app/runtime/logging/logUploader';
 import { createLogUploadSwitch } from './app/runtime/logging/logUploadSwitch';
 import { schedulePageCrashReport } from './app/runtime/pageCrashReporter';
@@ -68,6 +68,15 @@ configureDataRuntime({
 // include everything from here on (surfaced in the debug overlay).
 markBoot('main-start');
 initLongTasks();
+
+// Server-bound performance metrics (ADR-0071), on only inside the app WebView:
+// the native shell injects the run id and the sample verdict is a pure function
+// of it, so both runtimes decide alike without a bridge message. No injection —
+// this bundle opened in a plain browser tab — means no run id, which means off.
+// (The other shells never reach here at all: they have their own entry points and
+// none of them calls this.) Must precede `initWebVitals`, whose FCP/LCP report
+// through it.
+configurePerfMetrics({ logger, runId: readInjectedRunId() });
 
 // Initialize Web Vitals monitoring
 initWebVitals();

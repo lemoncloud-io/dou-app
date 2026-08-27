@@ -1,3 +1,4 @@
+import { perfNow, reportPerfMetric } from '@chatic/bridges';
 import { applySelectedSite, getGlobalSessionContext, getSelectedSiteId } from '@chatic/web-core';
 
 import { getSocketManager } from '../runtime';
@@ -13,6 +14,13 @@ import { getSocketManager } from '../runtime';
  * token+sid land back in web-core via the SDK `onTokenRefresh` writeback. On failure (sign reject /
  * server rejection / not-connected) the optimistic sid is rolled back to the previous site; the
  * committed token is untouched on failure, so the previous session stays intact.
+ *
+ * This is also where the `site-switch` budget is measured (ADR-0071), rather than in the mutation
+ * wrapper one level up: the no-op return below would otherwise contribute a stream of ~0ms samples
+ * and deflate the p95. Everything past that guard is real work, and since this function IS the
+ * mutation's `mutationFn`, "until the mutation resolves" still describes the endpoint exactly.
+ * Failures are reported too (`ok: false`) — a switch slow enough to fail is precisely the sample
+ * the tail is made of.
  */
 export const switchSite = async (siteId: string): Promise<void> => {
     const prevSiteId = getSelectedSiteId();
@@ -24,6 +32,8 @@ export const switchSite = async (siteId: string): Promise<void> => {
     if (!uid) {
         throw new Error('[switchSiteViaSocket] no active user id for site switch');
     }
+
+    const startedAt = perfNow();
 
     // Optimistic pre-apply (also the rollback target below).
     applySelectedSite(siteId);
@@ -39,9 +49,11 @@ export const switchSite = async (siteId: string): Promise<void> => {
             throw new Error('[switchSiteViaSocket] socket auth controller unavailable');
         }
         await auth.switch(`${uid}@${siteId}`);
+        reportPerfMetric('site-switch', perfNow() - startedAt, { ok: true });
     } catch (error) {
         // Roll the optimistic sid back to the previous site; the committed token was never changed.
         applySelectedSite(prevSiteId);
+        reportPerfMetric('site-switch', perfNow() - startedAt, { ok: false });
         throw error;
     }
 };

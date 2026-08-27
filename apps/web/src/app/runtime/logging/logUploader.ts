@@ -5,6 +5,7 @@ import {
     createQueueLogStore,
     isNative,
     logHub,
+    noteQueueDrops,
 } from '@chatic/bridges';
 import { registerSessionLogoutCallback, uploadLogBatch } from '@chatic/web-core';
 
@@ -71,6 +72,12 @@ export const startLogUploader = (options: LogUploaderOptions = {}): LogUploaderH
             // must not become the thing filling the queue.
 
             console.warn(`[logUploader] dropped ${dropped.length} queued entries under backpressure`);
+            // Rides out on the next performance metric so a distribution can be
+            // read knowing how much of it was filtered away (ADR-0071). In a
+            // hybrid run this queue stands down once the app answers a read, so
+            // what this covers is web-standalone and the boot window — leaving it
+            // unwired would make exactly those two spans blind.
+            noteQueueDrops(dropped.length);
         },
     });
 

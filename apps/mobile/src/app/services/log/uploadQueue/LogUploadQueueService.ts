@@ -1,4 +1,4 @@
-import { createLogUploadQueue, logHub } from '@chatic/logger';
+import { createLogUploadQueue, logHub, noteQueueDrops } from '@chatic/logger';
 import type { LogEntry, LogUploadQueue } from '@chatic/logger';
 
 import type { ILogUploadQueueService, LogUploadQueuePersistence } from './types';
@@ -51,7 +51,15 @@ export class LogUploadQueueService implements ILogUploadQueueService {
         private readonly persistence: LogUploadQueuePersistence,
         keepDebug = false
     ) {
-        this.queue = createLogUploadQueue({ acceptDebug: keepDebug });
+        this.queue = createLogUploadQueue({
+            acceptDebug: keepDebug,
+            // Backpressure loss is not random — a device that logs enough to fill
+            // this queue is generally a slow one, so the samples that make the p95
+            // are the first to go. Counting them lets the distribution be read
+            // with that in mind (ADR-0071). Nothing but the count may happen here:
+            // this runs inside a hub publish, where a `logger` call re-enters.
+            onDrop: dropped => noteQueueDrops(dropped.length),
+        });
     }
 
     public init(): void {

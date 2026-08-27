@@ -31,6 +31,17 @@ const nativeGlobals = (): NativeGlobals => window as unknown as NativeGlobals;
 let webRunId: string | undefined;
 
 /**
+ * The run id the native shell injected, or `undefined` outside the app WebView.
+ *
+ * Deliberately NOT the same thing as `resolveRunId()` below, which always
+ * answers with something. A caller that needs "is this the app, and does it
+ * share an id with us" — performance sampling does, since the two runtimes have
+ * to reach the same verdict — must see the absence rather than a locally issued
+ * substitute (ADR-0071).
+ */
+export const readInjectedRunId = (): string | undefined => nativeGlobals().CHATIC_APP_RUN_ID;
+
+/**
  * Identifier for one app run — the primary axis for exploring logs, since
  * sid/uid/cid are all tenancy axes and cannot group "one launch".
  *
@@ -41,7 +52,7 @@ let webRunId: string | undefined;
  * native side until the app ships.
  */
 const resolveRunId = (): string => {
-    const injected = nativeGlobals().CHATIC_APP_RUN_ID;
+    const injected = readInjectedRunId();
     if (injected) return injected;
 
     webRunId ??= createLogId();
