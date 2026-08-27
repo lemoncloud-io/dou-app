@@ -208,20 +208,3 @@ export const rememberCountry = (country: PhoneCountry): void => {
         // private mode / quota — the picker still works, it just reopens on the locale next time
     }
 };
-
-/** Offset from ASCII `A` to REGIONAL INDICATOR SYMBOL LETTER A. */
-const REGIONAL_INDICATOR_A = 0x1f1e6;
-
-/**
- * ISO code as a flag emoji, with no image assets.
- *
- * Platforms that do not draw regional-indicator pairs (Windows browsers) show the two letters
- * instead, which is why every place this appears also shows the country name or dial code.
- */
-export const toFlagEmoji = (country: PhoneCountry): string =>
-    country
-        .toUpperCase()
-        .replace(/[^A-Z]/g, '')
-        .split('')
-        .map(letter => String.fromCodePoint(REGIONAL_INDICATOR_A + letter.charCodeAt(0) - 65))
-        .join('');

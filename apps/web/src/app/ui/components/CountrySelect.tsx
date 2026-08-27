@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { IconChevronDown } from '@chatic/web-ui-kit';
 
-import { phoneCountryDialCode, toFlagEmoji, type PhoneCountry } from '../../utils/phoneNumber';
+import { phoneCountryDialCode, type PhoneCountry } from '../../utils/phoneNumber';
 import { CountrySelectSheet } from './CountrySelectSheet';
 
 interface CountrySelectProps {
@@ -13,7 +13,7 @@ interface CountrySelectProps {
 }
 
 /**
- * The country control that sits in a phone `TextField`'s `leading` slot: flag + dial code + caret,
+ * The country control that sits in a phone `TextField`'s `leading` slot: dial code + caret,
  * opening the search sheet.
  *
  * Trigger and sheet ship as one component so a consuming screen wires a country in a single prop
@@ -39,10 +39,7 @@ export const CountrySelect = ({ value, onChange, disabled = false }: CountrySele
                 className="flex items-center gap-1 text-[16px] font-medium text-foreground disabled:text-placeholder"
             >
                 {value ? (
-                    <>
-                        <span className="text-[18px] leading-none">{toFlagEmoji(value)}</span>
-                        <span>{dialCode ?? value}</span>
-                    </>
+                    <span>{dialCode ?? value}</span>
                 ) : (
                     <span className="text-placeholder">{t('phoneInput.countryPlaceholder')}</span>
                 )}
