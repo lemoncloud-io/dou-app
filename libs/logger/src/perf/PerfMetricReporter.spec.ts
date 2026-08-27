@@ -12,9 +12,9 @@ const createSink = () => {
     };
 };
 
-const build = (budgets: PerfBudgetCatalog = new StaticPerfBudgetCatalog(), droppedCount?: () => number) => {
+const build = (budgets: PerfBudgetCatalog = new StaticPerfBudgetCatalog()) => {
     const sink = createSink();
-    return { sink, reporter: new BudgetedPerfMetricReporter(sink, budgets, droppedCount) };
+    return { sink, reporter: new BudgetedPerfMetricReporter(sink, budgets) };
 };
 
 describe('BudgetedPerfMetricReporter', () => {
@@ -60,42 +60,6 @@ describe('BudgetedPerfMetricReporter', () => {
         expect(sink.emitted).toHaveLength(0);
     });
 
-    it('드롭 소스가 없으면 dropped 키 자체가 없다', () => {
-        const { sink, reporter } = build();
-
-        reporter.report('fcp', 900);
-
-        expect(sink.emitted[0]).not.toHaveProperty('dropped');
-    });
-
-    it('0이면 키를 붙이지 않고, 0을 넘으면 그 값을 싣는다', () => {
-        let dropped = 0;
-        const { sink, reporter } = build(new StaticPerfBudgetCatalog(), () => dropped);
-
-        reporter.report('fcp', 900);
-        expect(sink.emitted[0]).not.toHaveProperty('dropped');
-
-        dropped = 137;
-        reporter.report('lcp', 2400);
-        expect(sink.emitted[1].dropped).toBe(137);
-    });
-
-    it('보고할 때마다 소스를 다시 읽는다 — 세는 것은 큐 일이라 리포터는 상태가 없다', () => {
-        const reads: number[] = [];
-        let dropped = 5;
-        const { sink, reporter } = build(new StaticPerfBudgetCatalog(), () => {
-            reads.push(dropped);
-            return dropped;
-        });
-
-        reporter.report('lcp', 2400);
-        dropped = 20;
-        reporter.report('lcp', 2400);
-
-        expect(reads).toEqual([5, 20]);
-        expect(sink.emitted.map(record => record.dropped)).toEqual([5, 20]);
-    });
-
     it('예산 카탈로그를 갈아끼우면 판정이 그대로 따라온다', () => {
         const tightened: PerfBudgetCatalog = { budgetFor: () => ({ ms: 500, stat: 'p95' }) };
         const { sink, reporter } = build(tightened);
@@ -106,7 +70,7 @@ describe('BudgetedPerfMetricReporter', () => {
     });
 
     it('레코드의 직렬화 길이가 wire의 2000자 캡에서 멀찍이 떨어져 있다', () => {
-        const { sink, reporter } = build(new StaticPerfBudgetCatalog(), () => 999);
+        const { sink, reporter } = build();
 
         reporter.report('boot', 1099, {
             bootType: 'cold',

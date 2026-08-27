@@ -4,7 +4,7 @@ import { createPerfMetricReporter } from './createPerfMetricReporter';
 
 import type { Logger } from '../core/types';
 import type { PerfBudgetCatalog } from './budgets';
-import type { PerfMetricReporter, QueueDropCountProvider } from './PerfMetricReporter';
+import type { PerfMetricReporter } from './PerfMetricReporter';
 import type { PerfMetricSink } from './PerfMetricSink';
 import type { PerfMetricName, PerfMetricOptions } from './types';
 
@@ -37,14 +37,6 @@ export interface PerfMetricsConfig {
     sink?: PerfMetricSink;
     /** Swap the targets. Defaults to the shipped `PERF_BUDGETS`. */
     budgets?: PerfBudgetCatalog;
-    /**
-     * Reads what the upload queue has dropped this run.
-     *
-     * A thunk so the host can point at a queue that does not exist yet — the
-     * figure is read when a metric is reported, long after both are wired, so
-     * there is no ordering to get right in either direction.
-     */
-    droppedCount?: QueueDropCountProvider;
 }
 
 let reporter: PerfMetricReporter = NOOP_PERF_METRIC_REPORTER;
@@ -52,25 +44,16 @@ let reporter: PerfMetricReporter = NOOP_PERF_METRIC_REPORTER;
 /**
  * Turns metric reporting on for this run, if the run is sampled.
  *
- * Order-free with respect to the uploader: the queue keeps its own drop total
- * from its own construction, and `droppedCount` is read at report time. Only
- * one ordering still matters, and it is the pipeline's own — nothing may report
- * before this runs, or the record lands nowhere.
+ * One ordering matters, and it is the pipeline's own: nothing may report before
+ * this runs, or the record lands nowhere. Where the uploader is wired is of no
+ * concern here — this module does not know it exists.
  */
-export const configurePerfMetrics = ({
-    logger,
-    runId,
-    samplePercent,
-    sink,
-    budgets,
-    droppedCount,
-}: PerfMetricsConfig): void => {
+export const configurePerfMetrics = ({ logger, runId, samplePercent, sink, budgets }: PerfMetricsConfig): void => {
     reporter = createPerfMetricReporter({
         sink: sink ?? new LoggerPerfMetricSink(logger),
         runId,
         samplePercent,
         budgets,
-        droppedCount,
     });
 };
 

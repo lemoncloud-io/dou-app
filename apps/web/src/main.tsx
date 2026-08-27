@@ -40,7 +40,7 @@ attachLogContext();
 //
 // The build flag is read here rather than inside the switch: `import.meta` in a
 // runtime module would make that module unloadable under the test transform.
-const logUploader = startLogUploader({
+startLogUploader({
     isEnabled: createLogUploadSwitch(import.meta.env.VITE_LOG_UPLOAD_DISABLED === 'true'),
     // Same flag that decides whether the console listener runs: if someone is
     // watching this build, `debug` is worth keeping; if not, nothing can read it.
@@ -76,14 +76,10 @@ initLongTasks();
 // (The other shells never reach here at all: they have their own entry points
 // and none of them calls this.)
 //
-// The uploader's queue keeps its own drop total; this reads it when a metric is
-// reported, so the two can be wired in either order. What must hold is that this
-// precedes `initWebVitals` below, whose FCP/LCP report through it.
-configurePerfMetrics({
-    logger,
-    runId: readInjectedRunId(),
-    droppedCount: () => logUploader.droppedCount(),
-});
+// Only ordering that matters: this precedes `initWebVitals` below, whose
+// FCP/LCP report through it. Where the uploader is wired is irrelevant — perf
+// writes a log entry and stops there.
+configurePerfMetrics({ logger, runId: readInjectedRunId() });
 
 // Initialize Web Vitals monitoring
 initWebVitals();

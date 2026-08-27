@@ -80,12 +80,4 @@ export interface PerfMetricRecord {
     bootType?: 'cold' | 'reload';
     /** Intermediate milestones, in ms on the same baseline as `ms`. Boot only. */
     marks?: Record<string, number>;
-    /**
-     * Entries this run has lost to queue backpressure so far, cumulative.
-     *
-     * Absent when nothing has been dropped. Cumulative rather than a delta so a
-     * metric that is itself dropped does not take the count with it — the last
-     * surviving one still reports the total.
-     */
-    dropped?: number;
 }

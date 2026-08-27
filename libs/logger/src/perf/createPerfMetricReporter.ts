@@ -3,7 +3,7 @@ import { StaticPerfBudgetCatalog } from './budgets';
 import { PERF_SAMPLE_PERCENT, isSampledRun } from './sampling';
 
 import type { PerfBudgetCatalog } from './budgets';
-import type { PerfMetricReporter, QueueDropCountProvider } from './PerfMetricReporter';
+import type { PerfMetricReporter } from './PerfMetricReporter';
 import type { PerfMetricSink } from './PerfMetricSink';
 
 export interface PerfMetricReporterOptions {
@@ -18,12 +18,6 @@ export interface PerfMetricReporterOptions {
     samplePercent?: number;
     /** Overrides the shipped targets. Defaults to `PERF_BUDGETS`. */
     budgets?: PerfBudgetCatalog;
-    /**
-     * Reads how many entries the transport has lost this run, so the figure can
-     * ride out on each record. Omitted where nothing is dropping — a standalone
-     * reporter, a test — and then no record carries the key at all.
-     */
-    droppedCount?: QueueDropCountProvider;
 }
 
 /**
@@ -43,9 +37,8 @@ export const createPerfMetricReporter = ({
     runId,
     samplePercent,
     budgets,
-    droppedCount,
 }: PerfMetricReporterOptions): PerfMetricReporter => {
     if (!isSampledRun(runId, samplePercent ?? PERF_SAMPLE_PERCENT)) return NOOP_PERF_METRIC_REPORTER;
 
-    return new BudgetedPerfMetricReporter(sink, budgets ?? new StaticPerfBudgetCatalog(), droppedCount);
+    return new BudgetedPerfMetricReporter(sink, budgets ?? new StaticPerfBudgetCatalog());
 };

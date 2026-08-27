@@ -15,23 +15,6 @@ export interface PerfMetricReporter {
 }
 
 /**
- * Supplies the number of entries backpressure has eaten this run.
- *
- * A named function type rather than an object port, matching
- * `LogContextProvider`: one nullary read, and wrapping it would add a shape
- * without adding a contract.
- *
- * The reporter READS this and never advances it. Counting belongs to whatever
- * does the dropping — the upload queue owns its own statistic — and this is
- * only the seam that carries the number out, because a queue cannot log about
- * itself (unified-logging principles 8 and 11). Metrics are the carrier because
- * they are what the number changes the meaning of: losing a few diagnostic
- * lines is survivable, but a distribution whose losses are not random is a lie
- * (ADR-0071 §4).
- */
-export type QueueDropCountProvider = () => number;
-
-/**
  * The reporter for a run that is not sampled.
  *
  * A null object rather than an absent reporter, so nothing downstream needs an
@@ -46,25 +29,18 @@ export const NOOP_PERF_METRIC_REPORTER: PerfMetricReporter = Object.freeze({
 });
 
 /**
- * Turns measurements into records judged against a budget, and stamps each one
- * with how much the transport has lost so far.
+ * Turns measurements into records judged against a budget.
  *
- * Stateless: the drop figure is read from its source at report time rather than
- * accumulated here. That leaves counting where the dropping happens, and it
- * means this reporter can be built before or after the queue exists — there is
- * no wiring order to get right.
- *
- * `info` is evicted right after `debug` when the queue fills. That ordering is
- * correct — diagnostics should outrank measurements — but it is not random: a
- * device that logs a lot fills the queue, and such devices are generally the
- * slow ones, so the samples that make the p95 go first and the distribution
- * reads optimistic. Carrying the figure is what makes that readable.
+ * Stateless, and deliberately incurious about what happens to a record after
+ * the sink takes it. Measuring and writing down is the whole job: the entry
+ * then travels the ordinary log path — hub, listeners, store — and the uploader
+ * pulls from that store on its own schedule. Nothing here knows the transport
+ * exists, which is what keeps the module graph one-directional.
  */
 export class BudgetedPerfMetricReporter implements PerfMetricReporter {
     constructor(
         private readonly sink: PerfMetricSink,
-        private readonly budgets: PerfBudgetCatalog,
-        private readonly droppedCount: QueueDropCountProvider = () => 0
+        private readonly budgets: PerfBudgetCatalog
     ) {}
 
     public report(metric: PerfMetricName, ms: number, options: PerfMetricOptions = {}): void {
@@ -74,7 +50,6 @@ export class BudgetedPerfMetricReporter implements PerfMetricReporter {
         const rounded = Math.round(ms);
         const budget = this.budgets.budgetFor(metric);
         const marks = options.marks ? measuredMarks(options.marks) : undefined;
-        const dropped = this.droppedCount();
 
         this.sink.emit({
             metric,
@@ -84,7 +59,6 @@ export class BudgetedPerfMetricReporter implements PerfMetricReporter {
             ...(options.ok === undefined ? {} : { ok: options.ok }),
             ...(options.bootType ? { bootType: options.bootType } : {}),
             ...(marks && Object.keys(marks).length > 0 ? { marks } : {}),
-            ...(dropped > 0 ? { dropped } : {}),
         } satisfies PerfMetricRecord);
     }
 }

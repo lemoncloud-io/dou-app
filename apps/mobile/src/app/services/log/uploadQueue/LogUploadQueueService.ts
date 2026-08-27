@@ -101,16 +101,6 @@ export class LogUploadQueueService implements ILogUploadQueueService {
         return this.queue.size();
     }
 
-    /**
-     * Entries backpressure has evicted this run.
-     *
-     * Read by whatever carries the figure off the device — a queue cannot log
-     * about itself, so it cannot report its own losses (ADR-0071 §4).
-     */
-    public getDroppedCount(): number {
-        return this.queue.droppedCount();
-    }
-
     public getPreviousRunLastLogAt(): number | undefined {
         return this.previousRunLastLogAt;
     }

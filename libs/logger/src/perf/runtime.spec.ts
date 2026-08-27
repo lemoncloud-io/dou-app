@@ -51,39 +51,6 @@ describe('perf runtime', () => {
         expect(logger.info).not.toHaveBeenCalled();
     });
 
-    it('큐의 드롭 수를 읽어 실어 보낸다', () => {
-        let dropped = 0;
-        configurePerfMetrics({
-            logger: logger as Logger,
-            runId: 'run-1',
-            samplePercent: 100,
-            droppedCount: () => dropped,
-        });
-
-        reportPerfMetric('fcp', 900);
-        expect(logger.info.mock.calls[0][2]).not.toHaveProperty('dropped');
-
-        dropped = 12;
-        reportPerfMetric('fcp', 900);
-        expect(logger.info.mock.calls[1][2]).toEqual(expect.objectContaining({ dropped: 12 }));
-    });
-
-    it('구성보다 먼저 일어난 드롭도 실린다 — 세는 쪽이 큐라 배선 순서가 없다', () => {
-        // The queue has been counting since its own construction; this reader
-        // arrives afterwards and still sees the whole run's total.
-        const queueThatAlreadyDropped = () => 5;
-
-        configurePerfMetrics({
-            logger: logger as Logger,
-            runId: 'run-1',
-            samplePercent: 100,
-            droppedCount: queueThatAlreadyDropped,
-        });
-        reportPerfMetric('fcp', 900);
-
-        expect(logger.info.mock.calls[0][2]).toEqual(expect.objectContaining({ dropped: 5 }));
-    });
-
     it('resetPerfMetrics가 다시 끈다', () => {
         configurePerfMetrics({ logger: logger as Logger, runId: 'run-1', samplePercent: 100 });
         resetPerfMetrics();
