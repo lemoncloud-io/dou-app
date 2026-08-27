@@ -1,4 +1,4 @@
-import { configurePerfMetrics, noteQueueDrops, reportPerfMetric, resetPerfMetrics } from './runtime';
+import { configurePerfMetrics, reportPerfMetric, resetPerfMetrics } from './runtime';
 
 import type { Logger } from '../core/types';
 import type { PerfMetricRecord } from './types';
@@ -21,10 +21,7 @@ describe('perf runtime', () => {
     afterEach(() => resetPerfMetrics());
 
     it('구성되지 않은 호스트에서는 아무것도 내지 않는다 — 데스크톱·테스트베드·브라우저가 off인 근거', () => {
-        expect(() => {
-            noteQueueDrops(5);
-            reportPerfMetric('boot', 1099);
-        }).not.toThrow();
+        expect(() => reportPerfMetric('boot', 1099)).not.toThrow();
         expect(logger.info).not.toHaveBeenCalled();
     });
 
@@ -49,29 +46,42 @@ describe('perf runtime', () => {
     it('미샘플 런은 한 건도 만들지 않는다', () => {
         configurePerfMetrics({ logger: logger as Logger, runId: 'run-1', samplePercent: 0 });
 
-        reportQueueAndMetric();
+        reportPerfMetric('boot', 1099);
 
         expect(logger.info).not.toHaveBeenCalled();
     });
 
-    it('다시 구성하면 새 리포터가 서고 이전 런의 드롭이 넘어오지 않는다', () => {
-        configurePerfMetrics({ logger: logger as Logger, runId: 'run-1', samplePercent: 100 });
-        noteQueueDrops(12);
-        reportPerfMetric('fcp', 900);
-        expect(logger.info.mock.calls[0][2]).toEqual(expect.objectContaining({ dropped: 12 }));
+    it('큐의 드롭 수를 읽어 실어 보낸다', () => {
+        let dropped = 0;
+        configurePerfMetrics({
+            logger: logger as Logger,
+            runId: 'run-1',
+            samplePercent: 100,
+            droppedCount: () => dropped,
+        });
 
-        configurePerfMetrics({ logger: logger as Logger, runId: 'run-1', samplePercent: 100 });
         reportPerfMetric('fcp', 900);
-        expect(logger.info.mock.calls[1][2]).not.toHaveProperty('dropped');
+        expect(logger.info.mock.calls[0][2]).not.toHaveProperty('dropped');
+
+        dropped = 12;
+        reportPerfMetric('fcp', 900);
+        expect(logger.info.mock.calls[1][2]).toEqual(expect.objectContaining({ dropped: 12 }));
     });
 
-    it('구성 전의 드롭은 세지 않는다 — 호스트가 배선 순서로 책임진다', () => {
-        noteQueueDrops(5);
+    it('구성보다 먼저 일어난 드롭도 실린다 — 세는 쪽이 큐라 배선 순서가 없다', () => {
+        // The queue has been counting since its own construction; this reader
+        // arrives afterwards and still sees the whole run's total.
+        const queueThatAlreadyDropped = () => 5;
 
-        configurePerfMetrics({ logger: logger as Logger, runId: 'run-1', samplePercent: 100 });
+        configurePerfMetrics({
+            logger: logger as Logger,
+            runId: 'run-1',
+            samplePercent: 100,
+            droppedCount: queueThatAlreadyDropped,
+        });
         reportPerfMetric('fcp', 900);
 
-        expect(logger.info.mock.calls[0][2]).not.toHaveProperty('dropped');
+        expect(logger.info.mock.calls[0][2]).toEqual(expect.objectContaining({ dropped: 5 }));
     });
 
     it('resetPerfMetrics가 다시 끈다', () => {
@@ -82,9 +92,4 @@ describe('perf runtime', () => {
 
         expect(logger.info).not.toHaveBeenCalled();
     });
-
-    const reportQueueAndMetric = () => {
-        noteQueueDrops(3);
-        reportPerfMetric('boot', 1099);
-    };
 });

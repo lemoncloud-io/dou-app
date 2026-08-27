@@ -143,7 +143,15 @@ class DependencyProvider {
         // the same runId, so they are turned on right here — before anything can
         // report — and the WebView reaches the identical sample verdict from the
         // injected copy of this id, with no bridge message in between.
-        configurePerfMetrics({ logger: coreLogger, runId: NATIVE_RUN_ID });
+        //
+        // The queue's drop total travels with each metric: the queue cannot log
+        // about its own losses, so something written elsewhere has to carry the
+        // figure, and a distribution is what it changes the meaning of.
+        configurePerfMetrics({
+            logger: coreLogger,
+            runId: NATIVE_RUN_ID,
+            droppedCount: () => this.logUploadQueueService.getDroppedCount(),
+        });
         // The hub's listeners, wired before anything logs (principle 15). The app
         // keeps three: the console, the store, and Crashlytics (below).
         //

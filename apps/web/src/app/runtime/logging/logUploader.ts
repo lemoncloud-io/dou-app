@@ -5,7 +5,6 @@ import {
     createQueueLogStore,
     isNative,
     logHub,
-    noteQueueDrops,
 } from '@chatic/bridges';
 import { registerSessionLogoutCallback, uploadLogBatch } from '@chatic/web-core';
 
@@ -49,6 +48,15 @@ export interface LogUploaderOptions {
 export interface LogUploaderHandle {
     /** Sends whatever is pending right now. */
     flush(): Promise<void>;
+    /**
+     * Entries this tab's queue has evicted under backpressure, cumulative.
+     *
+     * Exposed because the queue cannot report its own losses — nothing on the
+     * upload path may log — so something else carries the figure out (ADR-0071).
+     * In a hybrid run this queue stands down once the app answers a read, so
+     * what it covers is web-standalone and the boot window.
+     */
+    droppedCount(): number;
     teardown(): void;
 }
 
@@ -72,12 +80,6 @@ export const startLogUploader = (options: LogUploaderOptions = {}): LogUploaderH
             // must not become the thing filling the queue.
 
             console.warn(`[logUploader] dropped ${dropped.length} queued entries under backpressure`);
-            // Rides out on the next performance metric so a distribution can be
-            // read knowing how much of it was filtered away (ADR-0071). In a
-            // hybrid run this queue stands down once the app answers a read, so
-            // what this covers is web-standalone and the boot window — leaving it
-            // unwired would make exactly those two spans blind.
-            noteQueueDrops(dropped.length);
         },
     });
 
@@ -309,6 +311,7 @@ export const startLogUploader = (options: LogUploaderOptions = {}): LogUploaderH
 
     return {
         flush,
+        droppedCount: () => queue.droppedCount(),
         teardown() {
             unsubscribeStore();
             unregisterView();

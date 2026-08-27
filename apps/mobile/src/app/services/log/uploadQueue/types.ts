@@ -48,6 +48,8 @@ export interface ILogUploadQueueService {
     clear(): number;
 
     getSize(): number;
+    /** Entries backpressure has evicted this run, cumulative. */
+    getDroppedCount(): number;
 
     /**
      * The last log timestamp of the run BEFORE this one, as restored at `init`.

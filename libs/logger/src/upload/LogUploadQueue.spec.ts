@@ -282,3 +282,37 @@ describe('LogUploadQueue — acceptDebug', () => {
         expect(watched.snapshot()).toHaveLength(2);
     });
 });
+
+describe('LogUploadQueue — 자기 드롭을 센다 (ADR-0071)', () => {
+    const entry = (id: string): LogEntry => ({ id, level: 'info', tag: 'T', message: 'm', timestamp: 1 });
+
+    it('아무것도 안 버렸으면 0이다', () => {
+        const queue = createLogUploadQueue();
+
+        queue.push(entry('a'));
+
+        expect(queue.droppedCount()).toBe(0);
+    });
+
+    it('상한을 넘긴 만큼 누적한다', () => {
+        const queue = createLogUploadQueue({ capacity: 3 });
+
+        for (let i = 0; i < 10; i += 1) queue.push(entry(`e-${i}`));
+
+        expect(queue.size()).toBe(3);
+        expect(queue.droppedCount()).toBe(7);
+    });
+
+    it('읽어도 줄지 않고, 큐를 비워도 남는다 — 런 전체의 유실률이라서', () => {
+        const queue = createLogUploadQueue({ capacity: 1 });
+
+        queue.push(entry('a'));
+        queue.push(entry('b'));
+        expect(queue.droppedCount()).toBe(1);
+        expect(queue.droppedCount()).toBe(1);
+
+        queue.clear();
+
+        expect(queue.droppedCount()).toBe(1);
+    });
+});

@@ -4,7 +4,7 @@ import { createPerfMetricReporter } from './createPerfMetricReporter';
 
 import type { Logger } from '../core/types';
 import type { PerfBudgetCatalog } from './budgets';
-import type { PerfMetricReporter } from './PerfMetricReporter';
+import type { PerfMetricReporter, QueueDropCountProvider } from './PerfMetricReporter';
 import type { PerfMetricSink } from './PerfMetricSink';
 import type { PerfMetricName, PerfMetricOptions } from './types';
 
@@ -37,6 +37,14 @@ export interface PerfMetricsConfig {
     sink?: PerfMetricSink;
     /** Swap the targets. Defaults to the shipped `PERF_BUDGETS`. */
     budgets?: PerfBudgetCatalog;
+    /**
+     * Reads what the upload queue has dropped this run.
+     *
+     * A thunk so the host can point at a queue that does not exist yet — the
+     * figure is read when a metric is reported, long after both are wired, so
+     * there is no ordering to get right in either direction.
+     */
+    droppedCount?: QueueDropCountProvider;
 }
 
 let reporter: PerfMetricReporter = NOOP_PERF_METRIC_REPORTER;
@@ -44,16 +52,25 @@ let reporter: PerfMetricReporter = NOOP_PERF_METRIC_REPORTER;
 /**
  * Turns metric reporting on for this run, if the run is sampled.
  *
- * Call this before anything that can report or drop — the reporter owns the drop
- * total, so entries lost before it exists are not counted. On the web that means
- * ahead of the log uploader, whose queue can evict on restore.
+ * Order-free with respect to the uploader: the queue keeps its own drop total
+ * from its own construction, and `droppedCount` is read at report time. Only
+ * one ordering still matters, and it is the pipeline's own — nothing may report
+ * before this runs, or the record lands nowhere.
  */
-export const configurePerfMetrics = ({ logger, runId, samplePercent, sink, budgets }: PerfMetricsConfig): void => {
+export const configurePerfMetrics = ({
+    logger,
+    runId,
+    samplePercent,
+    sink,
+    budgets,
+    droppedCount,
+}: PerfMetricsConfig): void => {
     reporter = createPerfMetricReporter({
         sink: sink ?? new LoggerPerfMetricSink(logger),
         runId,
         samplePercent,
         budgets,
+        droppedCount,
     });
 };
 
@@ -70,6 +87,3 @@ export const resetPerfMetrics = (): void => {
  */
 export const reportPerfMetric = (metric: PerfMetricName, ms: number, options?: PerfMetricOptions): void =>
     reporter.report(metric, ms, options);
-
-/** Records entries the upload queue dropped under backpressure. */
-export const noteQueueDrops = (count: number): void => reporter.noteQueueDrops(count);

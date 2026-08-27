@@ -71,6 +71,19 @@ export class LogUploadQueue {
     private readonly onDrop?: (dropped: LogEntry[]) => void;
     private entries: LogEntry[] = [];
     /**
+     * Entries this queue has evicted under backpressure, cumulative for the run.
+     *
+     * The queue counts its own losses because nothing else can: the drop happens
+     * inside `push`, which runs inside a hub publish, and the upload path may not
+     * log at all (principles 8 and 11) — so a drop cannot become a log entry of
+     * its own. A reader elsewhere picks the number up and carries it out on
+     * something that IS written (today a performance metric, ADR-0071).
+     *
+     * Never reset. A running total is what lets a reader that arrives late, or
+     * whose own entry gets dropped, still report the truth.
+     */
+    private droppedEntries = 0;
+    /**
      * Measured size per entry, so the byte total costs one serialization per
      * entry rather than one per check. Weak so a dropped entry's measurement
      * goes with it.
@@ -158,6 +171,11 @@ export class LogUploadQueue {
         return this.entries.length;
     }
 
+    /** Entries lost to backpressure so far this run. */
+    public droppedCount(): number {
+        return this.droppedEntries;
+    }
+
     /**
      * Slots left before backpressure starts dropping.
      *
@@ -227,6 +245,8 @@ export class LogUploadQueue {
 
         const dropped = this.entries.filter(entry => doomed.has(entry));
         this.entries = this.entries.filter(entry => !doomed.has(entry));
+
+        this.droppedEntries += dropped.length;
 
         // One summary per drop event — the queue's own failures must never
         // become a log storm of their own.

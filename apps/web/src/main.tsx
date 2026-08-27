@@ -32,18 +32,6 @@ attachConsoleListener({ isDev: import.meta.env.DEV });
 // so an entry written earlier would carry none and be unattributable.
 attachLogContext();
 
-// Server-bound performance metrics (ADR-0071), on only inside the app WebView:
-// the native shell injects the run id and the sample verdict is a pure function
-// of it, so both runtimes decide alike without a bridge message. No injection —
-// this bundle opened in a plain browser tab — means no run id, which means off.
-// (The other shells never reach here at all: they have their own entry points
-// and none of them calls this.)
-//
-// Ahead of the uploader below, not after it: the reporter owns the drop total,
-// and the uploader's queue can evict the moment it restores a persisted batch.
-// Configured later, those first evictions would go uncounted.
-configurePerfMetrics({ logger, runId: readInjectedRunId() });
-
 // Always-on log collection, wired BEFORE anything can log: the queue is filled
 // by a hub subscription, so an entry dispatched before this line lands nowhere.
 // Nothing above logs today and nothing below may be moved above it — that
@@ -52,7 +40,7 @@ configurePerfMetrics({ logger, runId: readInjectedRunId() });
 //
 // The build flag is read here rather than inside the switch: `import.meta` in a
 // runtime module would make that module unloadable under the test transform.
-startLogUploader({
+const logUploader = startLogUploader({
     isEnabled: createLogUploadSwitch(import.meta.env.VITE_LOG_UPLOAD_DISABLED === 'true'),
     // Same flag that decides whether the console listener runs: if someone is
     // watching this build, `debug` is worth keeping; if not, nothing can read it.
@@ -80,6 +68,22 @@ configureDataRuntime({
 // include everything from here on (surfaced in the debug overlay).
 markBoot('main-start');
 initLongTasks();
+
+// Server-bound performance metrics (ADR-0071), on only inside the app WebView:
+// the native shell injects the run id and the sample verdict is a pure function
+// of it, so both runtimes decide alike without a bridge message. No injection —
+// this bundle opened in a plain browser tab — means no run id, which means off.
+// (The other shells never reach here at all: they have their own entry points
+// and none of them calls this.)
+//
+// The uploader's queue keeps its own drop total; this reads it when a metric is
+// reported, so the two can be wired in either order. What must hold is that this
+// precedes `initWebVitals` below, whose FCP/LCP report through it.
+configurePerfMetrics({
+    logger,
+    runId: readInjectedRunId(),
+    droppedCount: () => logUploader.droppedCount(),
+});
 
 // Initialize Web Vitals monitoring
 initWebVitals();

@@ -12,9 +12,9 @@ const createSink = () => {
     };
 };
 
-const build = (budgets: PerfBudgetCatalog = new StaticPerfBudgetCatalog()) => {
+const build = (budgets: PerfBudgetCatalog = new StaticPerfBudgetCatalog(), droppedCount?: () => number) => {
     const sink = createSink();
-    return { sink, reporter: new BudgetedPerfMetricReporter(sink, budgets) };
+    return { sink, reporter: new BudgetedPerfMetricReporter(sink, budgets, droppedCount) };
 };
 
 describe('BudgetedPerfMetricReporter', () => {
@@ -60,44 +60,40 @@ describe('BudgetedPerfMetricReporter', () => {
         expect(sink.emitted).toHaveLength(0);
     });
 
-    it('드롭이 없으면 dropped 키가 없고, 있으면 누적값이 실린다', () => {
+    it('드롭 소스가 없으면 dropped 키 자체가 없다', () => {
         const { sink, reporter } = build();
+
+        reporter.report('fcp', 900);
+
+        expect(sink.emitted[0]).not.toHaveProperty('dropped');
+    });
+
+    it('0이면 키를 붙이지 않고, 0을 넘으면 그 값을 싣는다', () => {
+        let dropped = 0;
+        const { sink, reporter } = build(new StaticPerfBudgetCatalog(), () => dropped);
 
         reporter.report('fcp', 900);
         expect(sink.emitted[0]).not.toHaveProperty('dropped');
 
-        reporter.noteQueueDrops(100);
-        reporter.noteQueueDrops(37);
+        dropped = 137;
         reporter.report('lcp', 2400);
         expect(sink.emitted[1].dropped).toBe(137);
-
-        // Cumulative: reporting it did not consume it.
-        reporter.report('lcp', 2500);
-        expect(sink.emitted[2].dropped).toBe(137);
     });
 
-    it('0 이하의 드롭은 무시한다', () => {
-        const { sink, reporter } = build();
+    it('보고할 때마다 소스를 다시 읽는다 — 세는 것은 큐 일이라 리포터는 상태가 없다', () => {
+        const reads: number[] = [];
+        let dropped = 5;
+        const { sink, reporter } = build(new StaticPerfBudgetCatalog(), () => {
+            reads.push(dropped);
+            return dropped;
+        });
 
-        reporter.noteQueueDrops(0);
-        reporter.noteQueueDrops(-5);
-        reporter.report('fcp', 900);
+        reporter.report('lcp', 2400);
+        dropped = 20;
+        reporter.report('lcp', 2400);
 
-        expect(sink.emitted[0]).not.toHaveProperty('dropped');
-    });
-
-    it('드롭 총계는 인스턴스마다 따로다', () => {
-        const budgets = new StaticPerfBudgetCatalog();
-        const sink = createSink();
-        const first = new BudgetedPerfMetricReporter(sink, budgets);
-        const second = new BudgetedPerfMetricReporter(sink, budgets);
-
-        first.noteQueueDrops(9);
-        first.report('lcp', 2400);
-        second.report('lcp', 2400);
-
-        expect(sink.emitted[0].dropped).toBe(9);
-        expect(sink.emitted[1]).not.toHaveProperty('dropped');
+        expect(reads).toEqual([5, 20]);
+        expect(sink.emitted.map(record => record.dropped)).toEqual([5, 20]);
     });
 
     it('예산 카탈로그를 갈아끼우면 판정이 그대로 따라온다', () => {
@@ -110,9 +106,8 @@ describe('BudgetedPerfMetricReporter', () => {
     });
 
     it('레코드의 직렬화 길이가 wire의 2000자 캡에서 멀찍이 떨어져 있다', () => {
-        const { sink, reporter } = build();
+        const { sink, reporter } = build(new StaticPerfBudgetCatalog(), () => 999);
 
-        reporter.noteQueueDrops(999);
         reporter.report('boot', 1099, {
             bootType: 'cold',
             marks: {
@@ -133,10 +128,7 @@ describe('BudgetedPerfMetricReporter', () => {
 
 describe('NOOP_PERF_METRIC_REPORTER', () => {
     it('아무것도 하지 않고, 호출자는 그 사실을 몰라도 된다', () => {
-        expect(() => {
-            NOOP_PERF_METRIC_REPORTER.noteQueueDrops(10);
-            NOOP_PERF_METRIC_REPORTER.report('boot', 1099, { bootType: 'cold' });
-        }).not.toThrow();
+        expect(() => NOOP_PERF_METRIC_REPORTER.report('boot', 1099, { bootType: 'cold' })).not.toThrow();
     });
 
     it('얼어 있어 누가 바꿔칠 수 없다', () => {

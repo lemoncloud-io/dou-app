@@ -5,15 +5,31 @@ import type { PerfMetricName, PerfMetricOptions, PerfMetricRecord } from './type
 /**
  * What instrumentation points talk to.
  *
- * Two methods, and they are the two things a call site can know: it measured
- * something, or the queue lost something. Everything else — whether this run is
- * sampled, what the target is, where the record goes — is behind here, which is
- * what keeps each instrumentation point one line long.
+ * One method, because a call site knows exactly one thing: it measured
+ * something. Whether this run is sampled, what the target is, how much the
+ * transport has lost, where the record goes — all of it is behind here, which
+ * is what keeps each instrumentation point one line long.
  */
 export interface PerfMetricReporter {
     report(metric: PerfMetricName, ms: number, options?: PerfMetricOptions): void;
-    noteQueueDrops(count: number): void;
 }
+
+/**
+ * Supplies the number of entries backpressure has eaten this run.
+ *
+ * A named function type rather than an object port, matching
+ * `LogContextProvider`: one nullary read, and wrapping it would add a shape
+ * without adding a contract.
+ *
+ * The reporter READS this and never advances it. Counting belongs to whatever
+ * does the dropping — the upload queue owns its own statistic — and this is
+ * only the seam that carries the number out, because a queue cannot log about
+ * itself (unified-logging principles 8 and 11). Metrics are the carrier because
+ * they are what the number changes the meaning of: losing a few diagnostic
+ * lines is survivable, but a distribution whose losses are not random is a lie
+ * (ADR-0071 §4).
+ */
+export type QueueDropCountProvider = () => number;
 
 /**
  * The reporter for a run that is not sampled.
@@ -27,44 +43,29 @@ export interface PerfMetricReporter {
  */
 export const NOOP_PERF_METRIC_REPORTER: PerfMetricReporter = Object.freeze({
     report: () => undefined,
-    noteQueueDrops: () => undefined,
 });
 
 /**
- * Turns measurements into records, judged against a budget, and remembers what
- * the upload queue lost along the way.
+ * Turns measurements into records judged against a budget, and stamps each one
+ * with how much the transport has lost so far.
  *
- * The drop total lives here rather than in a module of its own because it is
- * only ever read to be attached to a record — keeping it outside made the
- * output depend on state the constructor never mentioned. Cumulative and never
- * consumed: a delta would vanish with the very record carrying it, whereas a
- * running total survives in whichever one gets through.
+ * Stateless: the drop figure is read from its source at report time rather than
+ * accumulated here. That leaves counting where the dropping happens, and it
+ * means this reporter can be built before or after the queue exists — there is
+ * no wiring order to get right.
+ *
+ * `info` is evicted right after `debug` when the queue fills. That ordering is
+ * correct — diagnostics should outrank measurements — but it is not random: a
+ * device that logs a lot fills the queue, and such devices are generally the
+ * slow ones, so the samples that make the p95 go first and the distribution
+ * reads optimistic. Carrying the figure is what makes that readable.
  */
 export class BudgetedPerfMetricReporter implements PerfMetricReporter {
-    private droppedTotal = 0;
-
     constructor(
         private readonly sink: PerfMetricSink,
-        private readonly budgets: PerfBudgetCatalog
+        private readonly budgets: PerfBudgetCatalog,
+        private readonly droppedCount: QueueDropCountProvider = () => 0
     ) {}
-
-    /**
-     * Records entries lost to queue backpressure, so a distribution can be read
-     * knowing how much of it was filtered away.
-     *
-     * `info` is dropped right after `debug` when the queue fills. That ordering
-     * is correct — diagnostics should outrank measurements — but it is not
-     * random: a device that logs a lot fills the queue, and such devices are
-     * generally the slow ones, so the samples that make the p95 go first and the
-     * distribution reads optimistic.
-     *
-     * A plain integer add is all this may ever do. It is called from inside
-     * `queue.push`, which runs inside a hub publish — anything that logs there
-     * re-enters and recurses (unified-logging principle 8).
-     */
-    public noteQueueDrops(count: number): void {
-        if (count > 0) this.droppedTotal += count;
-    }
 
     public report(metric: PerfMetricName, ms: number, options: PerfMetricOptions = {}): void {
         // A clock that went backwards, or an unmeasured value, is not a sample.
@@ -73,6 +74,7 @@ export class BudgetedPerfMetricReporter implements PerfMetricReporter {
         const rounded = Math.round(ms);
         const budget = this.budgets.budgetFor(metric);
         const marks = options.marks ? measuredMarks(options.marks) : undefined;
+        const dropped = this.droppedCount();
 
         this.sink.emit({
             metric,
@@ -82,7 +84,7 @@ export class BudgetedPerfMetricReporter implements PerfMetricReporter {
             ...(options.ok === undefined ? {} : { ok: options.ok }),
             ...(options.bootType ? { bootType: options.bootType } : {}),
             ...(marks && Object.keys(marks).length > 0 ? { marks } : {}),
-            ...(this.droppedTotal > 0 ? { dropped: this.droppedTotal } : {}),
+            ...(dropped > 0 ? { dropped } : {}),
         } satisfies PerfMetricRecord);
     }
 }
