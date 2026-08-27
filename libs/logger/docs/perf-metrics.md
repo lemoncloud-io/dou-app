@@ -2,7 +2,7 @@
 
 > 상태: **Live** · 최종 갱신: 2026-08-27 · 관련 ADR: [ADR-0071](../../../docs/adr/0071-performance-budget-and-metric-events-over-the-log-pipeline.md)
 >
-> 함께 읽을 것: [통합 로깅 아키텍처](./architecture.md) (이 지표가 올라타는 파이프) · [부팅 지표](../../../apps/mobile/docs/boot-metrics.md) (`totalMs`의 정의와 실측 베이스라인) · [ADR-0065](../../../docs/adr/0065-hybrid-performance-trace-profiler.md) (인앱 트레이스 프로파일러 — **병행 레인**, 계측 초크포인트만 공유하고 코드는 겹치지 않는다)
+> 함께 읽을 것: [통합 로깅 아키텍처](./architecture.md) (이 지표가 올라타는 파이프) · [부팅 지표](../../../apps/mobile/docs/boot-metrics.md) (`totalMs`의 정의와 실측 베이스라인) · [ADR-0065](../../../docs/adr/0065-hybrid-performance-trace-profiler.md) (인앱 트레이스 프로파일러 — **병행 레인**, 계측 초크포인트만 공유하고 코드는 겹치지 않는다. 아직 develop 미머지라 이 링크는 그 브랜치가 들어온 뒤에 열린다)
 
 ## 목적
 
@@ -22,7 +22,7 @@
 
 4. **샘플 단위는 세션(`runId`)이고, 판정은 순수함수다.** `hash(runId) % 100 < N`. 네이티브와 웹이 **조율 없이 같은 답에 도달**하므로 샘플 결정을 나르는 브릿지 메시지가 필요 없고, 따라서 "웹이 앱보다 먼저 배포된다" 제약도 발생하지 않는다. 이벤트 단위 샘플링은 쓰지 않는다 — 세션 내 상관("부팅이 느렸던 세션은 전환도 느렸나")이 끊기고, 두 런타임이 각자 주사위를 굴려 같은 세션에서 서로 다른 결정을 낸다.
 
-5. **기본값은 off이고, 켜는 것은 호스트다.** 공유 lib(`libs/logger`·`libs/web-core`·`libs/app-runtime`)에 계측이 얹히므로 기본값이 off가 아니면 `apps/desktop-web`·`apps/testbed`·브라우저 단독 접속으로 자동으로 번진다. `configurePerfMetrics()`를 부르지 않은 호스트에는 **리포터 자체가 없어서** 모든 `reportPerfMetric` 호출이 즉시 반환한다 — 조건문으로 막는 게 아니라 켜는 주체가 없어서 안 도는 것이다.
+5. **기본값은 off이고, 켜는 것은 호스트다.** 공유 lib(`libs/logger`·`libs/web-core`·`libs/app-runtime`)에 계측이 얹히므로 기본값이 off가 아니면 `apps/desktop-web`·`apps/testbed`·브라우저 단독 접속으로 자동으로 번진다. `configurePerfMetrics()`를 부르지 않은 호스트의 슬롯에는 **아무것도 하지 않는 리포터**(`NOOP_PERF_METRIC_REPORTER`)가 그대로 앉아 있다 — off가 부재가 아니라 **값**이라서, 조건문으로 막는 게 아니라 켜는 주체가 없어서 안 도는 것이다.
 
 6. **계측은 콜사이트가 아니라 초크포인트에 붙인다.** 같은 지표를 여는 문이 둘 이상이면 하나는 반드시 빠뜨린다. 대신 초크포인트를 고를 때는 **그 함수에 사용자 입력 외의 호출자가 있는지**를 본다 — 있으면 한 칸 위로 올라간다(§상세 구현의 전환 두 건이 그 사례다).
 
@@ -72,7 +72,7 @@
 
 ### ① 샘플에 뽑힌 콜드 부팅
 
-1. 앱이 뜨면서 `nativeLogContext`가 `NATIVE_RUN_ID`를 발급하고, provider가 `attachNativeLogContext()` 직후 `configurePerfMetrics({ logger, runId: NATIVE_RUN_ID })`를 부른다. **이때 샘플 판정이 끝난다** — `runId`는 프로세스 내내 고정이므로 지표마다 다시 물을 이유가 없고, 뽑히지 않았으면 리포터가 아예 생기지 않는다.
+1. 앱이 뜨면서 `nativeLogContext`가 `NATIVE_RUN_ID`를 발급하고, provider가 `attachNativeLogContext()` 직후 `configurePerfMetrics({ logger, runId: NATIVE_RUN_ID })`를 부른다. **이때 샘플 판정이 끝난다** — `runId`는 프로세스 내내 고정이므로 지표마다 다시 물을 이유가 없고, 뽑히지 않았으면 팩터리가 no-op 리포터를 돌려준다.
 2. `AppWebView`가 같은 `runId`를 `window.CHATIC_APP_RUN_ID`로 웹에 주입한다. `main.tsx`가 `readInjectedRunId()`로 그 값을 읽어 웹 쪽 `configurePerfMetrics`를 부른다 — 주입이 없으면 `undefined`가 넘어가고, 그게 곧 off다.
 3. 두 런타임이 같은 `runId`에 같은 순수함수를 적용했으므로 **같은 답**이 나온다. 여기서는 뽑혔다고 하자.
 4. 웹이 `WebAppReady`를 보내고 `BootMetricsService`가 레코드를 확정한다. 기존 진단 라인(`Boot record persisted (cold, total 1099ms)`)은 그대로 나가고, 그 옆에 지표 이벤트가 하나 더 붙는다:
@@ -83,7 +83,7 @@
 
 ### ② 뽑히지 않은 세션
 
-1번에서 리포터가 만들어지지 않으므로 `reportPerfMetric`은 **한 건도 만들지 않는다**. `BootMetricsService`의 기존 진단 라인은 샘플링과 무관하게 그대로 나간다 — 그건 이미 배포된 로그이고, 이 트랙이 건드리는 대상이 아니다.
+1번에서 슬롯에 no-op 리포터가 앉으므로 `reportPerfMetric`은 **한 건도 만들지 않는다** — 호출부는 그 사실을 모른 채 평소처럼 부른다. `BootMetricsService`의 기존 진단 라인은 샘플링과 무관하게 그대로 나간다 — 그건 이미 배포된 로그이고, 이 트랙이 건드리는 대상이 아니다.
 
 ### ③ 큐가 붐빈 기기
 
@@ -115,6 +115,7 @@ flowchart LR
 
     subgraph perf["libs/logger/src/perf"]
         CFG["createPerfMetricReporter()<br/>isSampledRun(runId) 1회 판정"]
+        SLOT["runtime.ts — 프로세스 슬롯<br/>reportPerfMetric() · noteQueueDrops()"]
         RPT["BudgetedPerfMetricReporter<br/>+ PerfBudgetCatalog<br/>droppedTotal (누적)"]
         SINK["LoggerPerfMetricSink<br/>(PerfMetricSink 구현)"]
     end
@@ -122,27 +123,105 @@ flowchart LR
     HUB["logHub"]
     UP["LogUploadScheduler<br/>→ POST /hello/report-bulk"]
 
-    CFG -->|"뽑힘: BudgetedPerfMetricReporter"| RPT
-    CFG -->|"미샘플·미구성: NOOP_PERF_METRIC_REPORTER"| X(["∅"])
+    CFG -->|"뽑힘"| RPT
+    CFG -->|"미샘플·미구성"| NOOP["NOOP_PERF_METRIC_REPORTER"]
+    RPT -.->|"슬롯을 채운다"| SLOT
+    NOOP -.->|"또는 이것이"| SLOT
 
-    BMS -->|"'boot', totalMs, marks"| RPT
-    WV -->|"'fcp' / 'lcp'"| RPT
-    CS -->|"'cloud-switch', ok"| RPT
-    SS -->|"'site-switch', ok"| RPT
+    BMS -->|"'boot', totalMs, marks"| SLOT
+    WV -->|"'fcp' / 'lcp'"| SLOT
+    CS -->|"'cloud-switch', ok"| SLOT
+    SS -->|"'site-switch', ok"| SLOT
 
+    SLOT --> RPT
     RPT -->|"PerfMetricRecord"| SINK
     SINK --> LOG["logger.info('PERF', msg, record)"]
 
     LOG --> HUB
     HUB --> NQ
-    NQ -->|"onDrop → noteQueueDrops"| RPT
+    NQ -->|"onDrop → noteQueueDrops"| SLOT
     NQ --> UP
 
     style CFG fill:#fff3cd,stroke:#856404
+    style SLOT fill:#d1ecf1,stroke:#0c5460
     style RPT fill:#f8d7da,stroke:#721c24
 ```
 
-### ② 샘플 결정이 조율 없이 일치하는 이유
+### ② 객체 그래프와 확장 지점
+
+인터페이스는 **실제로 갈릴 축**에만 있다. 점선이 "여기에 두 번째 구현이 올 자리"다.
+
+```mermaid
+classDiagram
+    class PerfMetricReporter {
+        <<interface>>
+        +report(metric, ms, options)
+        +noteQueueDrops(count)
+    }
+    class BudgetedPerfMetricReporter {
+        -droppedTotal
+    }
+    class NOOP_PERF_METRIC_REPORTER {
+        <<null object>>
+    }
+
+    class PerfMetricSink {
+        <<interface>>
+        +emit(record)
+    }
+    class LoggerPerfMetricSink {
+        -logger
+        -tag
+    }
+    class HttpPerfMetricSink {
+        <<ADR-0071 후속>>
+    }
+
+    class PerfBudgetCatalog {
+        <<interface>>
+        +budgetFor(metric) PerfBudget
+    }
+    class StaticPerfBudgetCatalog {
+        -budgets = PERF_BUDGETS
+    }
+
+    PerfMetricReporter <|.. BudgetedPerfMetricReporter
+    PerfMetricReporter <|.. NOOP_PERF_METRIC_REPORTER
+    PerfMetricSink <|.. LoggerPerfMetricSink
+    PerfMetricSink <|.. HttpPerfMetricSink
+    PerfBudgetCatalog <|.. StaticPerfBudgetCatalog
+
+    BudgetedPerfMetricReporter --> PerfMetricSink : emit(PerfMetricRecord)
+    BudgetedPerfMetricReporter --> PerfBudgetCatalog : budgetFor()
+
+    class createPerfMetricReporter {
+        <<factory>>
+        isSampledRun(runId) 판정
+    }
+    createPerfMetricReporter ..> BudgetedPerfMetricReporter : 뽑힘
+    createPerfMetricReporter ..> NOOP_PERF_METRIC_REPORTER : 미샘플
+
+    class runtime {
+        <<process slot>>
+        configurePerfMetrics()
+        reportPerfMetric()
+        noteQueueDrops()
+    }
+    runtime --> createPerfMetricReporter
+    runtime --> PerfMetricReporter : 위임
+
+    style HttpPerfMetricSink stroke-dasharray: 5 5
+```
+
+| 갈아끼우는 것         | 인터페이스           | 근거                                                                                                                                   |
+| --------------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| **어디로 보내나**     | `PerfMetricSink`     | ADR-0071이 후속을 지목했다 — 표본이 오프라인 집계를 넘어서면 전용 엔드포인트로. 그 이전은 두 번째 구현 하나이고 나머지는 그대로다      |
+| **목표치는 무엇인가** | `PerfBudgetCatalog`  | 카나리에서 조이거나 테스트가 둥근 수를 쓸 때 리포터를 안 건드린다                                                                      |
+| **이 런은 재는가**    | `PerfMetricReporter` | 미샘플은 "플래그 꺼진 리포터"가 아니라 **no-op 구현**이다. 덕분에 판정이 팩터리 한 곳에만 있고, 그 아래엔 `if (sampled)`도 `?.`도 없다 |
+
+일부러 인터페이스로 **안 만든 것**: 샘플링(`isSampledRun`)·시계(`perfNow`)·마크 정리. 상태가 없고 갈릴 축도 아니라 함수로 둔다 — ADR-0071이 이벤트 단위 샘플링을 기각했으므로 샘플링 정책이 갈릴 일 자체가 없다.
+
+### ③ 샘플 결정이 조율 없이 일치하는 이유
 
 ```mermaid
 sequenceDiagram
@@ -164,7 +243,7 @@ sequenceDiagram
     Note over S: 같은 runId로 한 세션의 부팅·전환·바이탈이 묶인다
 ```
 
-### ③ 클라우드 전환이 사이트 전환을 부르는 구간
+### ④ 클라우드 전환이 사이트 전환을 부르는 구간
 
 ```mermaid
 sequenceDiagram
@@ -245,12 +324,12 @@ interface PerfMetricRecord {
 
 ### 계측 지점 (초크포인트 4곳)
 
-| 지표           | 초크포인트                                                                                                  | 고른 이유                                                                                                                                                                                                                                                                  |
-| -------------- | ----------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `boot`         | [`BootMetricsService.reportBootMetric()`](../../../apps/mobile/src/app/services/perf/BootMetricsService.ts) | `finalize()`가 이미 `totalMs`를 확정하고 진단 라인을 낸다. 그 라인은 **건드리지 않고** 옆에 지표 이벤트를 추가한다 — 배포된 로그의 형태를 바꾸지 않으면서 emitter는 균일하게 유지한다. `WebAppReady`에 닿지 못한 세션은 저장은 되지만 `totalMs`가 없어 표본이 되지 않는다. |
-| `fcp` / `lcp`  | [`receiveVital()`](../../../apps/web/src/app/utils/webVitalsReporter.ts)                                    | `web-vitals`가 전 지표를 여기로 모은다. `webVitals.ts`에서 분리한 이유는 그쪽이 `import.meta.env`를 읽어 ts-jest의 CommonJS 변환에서 로드가 안 되기 때문이다(`buildEnv.ts`와 같은 사정) — 검증할 값어치가 있는 로직을 테스트 가능한 쪽으로 옮겼다.                         |
-| `cloud-switch` | [`useSwitchCloudSession`](../../web-core/src/hooks/session/actions/useSwitchCloudSession.ts) (뮤테이션 훅)  | 서비스 함수 `switchCloudSession`은 **실패 복구 경로에서도 호출된다**([services.ts:532](../../web-core/src/session/services.ts:532)) — 거기 붙이면 드물지만 느린 복구 재교환이 사용자 전환으로 집계돼 꼬리를 끈다. 뮤테이션 훅은 사용자 시작 전환만 통과한다(원칙 6).       |
-| `site-switch`  | [`switchSite()`](../../app-runtime/src/socket/auth/switchSite.ts) (서비스 함수)                             | 반대 방향의 이유다. 훅에 붙이면 **동일 사이트 조기 반환**이 0ms 표본을 만들어 p95를 깎는다. 조기 반환 **아래**에서 재면 no-op이 자연히 빠지고, 이 함수가 곧 뮤테이션의 `mutationFn`이라 끝점 정의도 그대로다.                                                              |
+| 지표           | 초크포인트                                                                                                  | 고른 이유                                                                                                                                                                                                                                                               |
+| -------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `boot`         | [`BootMetricsService.reportBootMetric()`](../../../apps/mobile/src/app/services/perf/BootMetricsService.ts) | `finalize()`가 이미 `totalMs`를 확정하고 진단 라인을 낸다. 그 라인은 **건드리지 않고** 옆에 지표 이벤트를 추가한다 — 배포된 로그의 형태를 바꾸지 않으면서 계측은 균일하게 유지한다. `WebAppReady`에 닿지 못한 세션은 저장은 되지만 `totalMs`가 없어 표본이 되지 않는다. |
+| `fcp` / `lcp`  | [`receiveVital()`](../../../apps/web/src/app/utils/webVitalsReporter.ts)                                    | `web-vitals`가 전 지표를 여기로 모은다. `webVitals.ts`에서 분리한 이유는 그쪽이 `import.meta.env`를 읽어 ts-jest의 CommonJS 변환에서 로드가 안 되기 때문이다(`buildEnv.ts`와 같은 사정) — 검증할 값어치가 있는 로직을 테스트 가능한 쪽으로 옮겼다.                      |
+| `cloud-switch` | [`useSwitchCloudSession`](../../web-core/src/hooks/session/actions/useSwitchCloudSession.ts) (뮤테이션 훅)  | 서비스 함수 `switchCloudSession`은 **실패 복구 경로에서도 호출된다**([services.ts:532](../../web-core/src/session/services.ts:532)) — 거기 붙이면 드물지만 느린 복구 재교환이 사용자 전환으로 집계돼 꼬리를 끈다. 뮤테이션 훅은 사용자 시작 전환만 통과한다(원칙 6).    |
+| `site-switch`  | [`switchSite()`](../../app-runtime/src/socket/auth/switchSite.ts) (서비스 함수)                             | 반대 방향의 이유다. 훅에 붙이면 **동일 사이트 조기 반환**이 0ms 표본을 만들어 p95를 깎는다. 조기 반환 **아래**에서 재면 no-op이 자연히 빠지고, 이 함수가 곧 뮤테이션의 `mutationFn`이라 끝점 정의도 그대로다.                                                           |
 
 `useSwitchCloudSession`을 고치면서 `useCallback` 의존을 매 렌더 새 참조인 `mutation` 객체에서 `mutateAsync`로 바꿨다 — 형제 훅([useSiteSwitch.ts](../../app-runtime/src/session/useSiteSwitch.ts))이 이미 같은 수정을 하고 이유를 주석으로 남겨 뒀다. 콜백 참조 안정성은 테스트가 고정한다.
 
