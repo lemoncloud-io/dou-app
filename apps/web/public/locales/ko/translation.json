@@ -167,8 +167,8 @@
     },
     "mypage": {
         "title": "MY",
-        "loginPrompt": "로그인하기",
-        "loginDescription": "로그인 하고, 대화내용을 안전하게 관리하세요.",
+        "loginPrompt": "로그인 필요",
+        "loginDescription": "대화 내용을 복구할 수 있어요",
         "settings": {
             "title": "설정",
             "openLabel": "설정 열기",

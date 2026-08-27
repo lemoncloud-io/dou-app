@@ -167,8 +167,8 @@
     },
     "mypage": {
         "title": "MY",
-        "loginPrompt": "Sign in",
-        "loginDescription": "Sign in to safely manage your conversations.",
+        "loginPrompt": "Sign in required",
+        "loginDescription": "Restore your conversations",
         "settings": {
             "title": "Settings",
             "openLabel": "Open settings",

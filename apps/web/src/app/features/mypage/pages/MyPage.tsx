@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/shared';
 
-import { IconChevronRight, IconSettings, IconUserOutline, ListRow, MenuCard } from '@chatic/web-ui-kit';
+import { DefaultAvatar, IconChevronRight, IconSettings, IconUserOutline, ListRow, MenuCard } from '@chatic/web-ui-kit';
 import { useCloudSessionCatalog, useMembershipInfo } from '@chatic/web-core';
 import { useRuntimeProfile } from '@chatic/app-runtime';
 
@@ -75,14 +75,19 @@ export const MyPage = () => {
             </header>
 
             <div className="flex flex-col gap-[18px] px-4 pt-2">
-                {/* Account profile card — account-level profile (name/email/photo), not cloud/site. */}
+                {/* Account profile card — account-level profile (name/email/photo), not cloud/site.
+                    Signed out, the same card shape carries the sign-in prompt: the default avatar
+                    stands in for the photo, so the row keeps its height and the card does not
+                    reflow the two below it when a session appears. */}
                 <MenuCard>
                     {isGuest ? (
                         <ListRow
+                            leading={<DefaultAvatar size={60} />}
                             title={t('mypage.loginPrompt')}
                             subtitle={t('mypage.loginDescription')}
                             trailing={<Chevron />}
                             onClick={goToLogin}
+                            className="py-3"
                         />
                     ) : (
                         <ListRow
