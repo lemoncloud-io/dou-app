@@ -16,6 +16,10 @@ import type { IChannelRemoteDataSource } from '../remote/data-sources';
 import type { DataContextProvider } from './types';
 import { BaseRepositoryV2, type DisposableRepositoryV2 } from './types';
 
+/** Merge id lists without duplicates, preserving the existing order. */
+const unionIds = (base: string[] | undefined, added: string[]): string[] =>
+    Array.from(new Set([...(base ?? []), ...added]));
+
 export interface SyncChannelsResult {
     syncedAt: number;
     removedCount: number;
@@ -253,11 +257,34 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
     }
 
     public async inviteChannel(payload: ChatInviteInput): Promise<DomainChannel> {
+        const channelId = payload.channelId || '';
+        const invitedIds = payload.userIds ?? [];
         const requestContext = this.getRequestContext();
         const normalizedContext = this.getNormalizedContext(requestContext);
-        const domain = await this.channelRemoteDataSource.inviteChannel(payload, normalizedContext);
-        await this.channelLocalDataSource.cacheWrite(domain, requestContext);
-        return domain;
+        const existing = channelId ? await this.channelLocalDataSource.cacheRead(channelId, requestContext) : null;
+        // Optimistic membership: the invited ids land in memberIds before the round trip,
+        // and the pre-invite record is restored on failure (mirrors updateChannel). Gated on
+        // an existing row — cacheWrite rejects a partial with no resolvable sid.
+        if (channelId && existing) {
+            await this.channelLocalDataSource.cacheWrite(
+                { id: channelId, memberIds: unionIds(existing?.memberIds, invitedIds) },
+                requestContext
+            );
+        }
+
+        try {
+            const domain = await this.channelRemoteDataSource.inviteChannel(payload, normalizedContext);
+            // The server response may omit a fresh member list — don't rely on that
+            // undocumented contract to carry the ids we just invited (same as leaveChannel).
+            const memberIds = unionIds(domain.memberIds ?? existing?.memberIds, invitedIds);
+            await this.channelLocalDataSource.cacheWrite({ ...domain, memberIds }, requestContext);
+            return { ...domain, memberIds };
+        } catch (error) {
+            if (channelId && existing) {
+                await this.channelLocalDataSource.cacheWrite(existing, requestContext);
+            }
+            throw error;
+        }
     }
 
     public async leaveChannel(payload: ChatLeaveInput): Promise<DomainChannel> {
