@@ -11,6 +11,17 @@ import type { UserDomainGateway } from '../gateways';
  * so we surface joins alongside users; `syncedAt` is the cursor for the next `since`, and
  * `ids` lists every currently-active member (for leave/kick detection).
  */
+/**
+ * Result of a channel roster fetch. The joins are harvested from the RAW views: `$join` is the
+ * member's read-state for THIS channel, and a user record is global (one row per user id across
+ * every channel), so the cursor has no place on it — it belongs in the join cache, keyed
+ * `channelId@userId`. Mirrors ChannelUsersSyncResult, which already worked this way.
+ */
+export interface ChannelUsersFetchResult {
+    users: DomainListResult<DomainUser>;
+    joins: DomainJoin[];
+}
+
 export interface ChannelUsersSyncResult {
     users: DomainUser[];
     joins: DomainJoin[];
@@ -35,8 +46,8 @@ export type UserInviteBatchPayload = Parameters<UserDomainGateway['inviteBatch']
 export type UserSyncChannelUsersInput = Parameters<UserDomainGateway['syncUsers']>[0];
 
 export interface IUserRemoteDataSource {
-    /** 특정 조건의 사용자 목록을 서버에 요청하고 도메인 모델로 반환합니다. */
-    fetchUsers(payload: UserFetchUsersInput, context: DataContext): Promise<DomainListResult<DomainUser>>;
+    /** 특정 조건의 사용자 목록을 서버에 요청하고, 도메인 user + 내장 join을 함께 반환합니다. */
+    fetchUsers(payload: UserFetchUsersInput, context: DataContext): Promise<ChannelUsersFetchResult>;
     /** 현재 세션 본인 프로필을 요청하고, 도메인 user와 내장 $site(place)를 함께 반환합니다. (랠리·클라우드 공통) */
     getMyProfile(context: DataContext): Promise<UserProfileResult>;
     /** 내 프로필 정보 수정을 요청합니다. */
@@ -58,10 +69,22 @@ export interface IUserRemoteDataSource {
 export class UserRemoteDataSource implements IUserRemoteDataSource {
     constructor(private readonly gateway: UserDomainGateway) {}
 
-    public async fetchUsers(payload: UserFetchUsersInput, context: DataContext): Promise<DomainListResult<DomainUser>> {
+    public async fetchUsers(payload: UserFetchUsersInput, context: DataContext): Promise<ChannelUsersFetchResult> {
         const remote = await this.gateway.listUser<ListResult<UserView>>(payload);
-        const list = (remote?.list || []).map(item => toDomainUser(item, context));
-        return createDomainListResult(list, { total: remote?.total ?? list.length, source: 'remote' });
+        const rawList = remote?.list || [];
+        const channelId = (payload as { channelId?: string }).channelId;
+
+        const list = rawList.map(item => toDomainUser(item, context));
+        // Each member carries its read-state in `$join`; take it off the raw view, because
+        // toDomainUser deliberately does not carry it onto the (global) user record.
+        const joins = rawList
+            .map(item => toDomainJoinFromUser(item, context, channelId))
+            .filter((join): join is DomainJoin => !!join);
+
+        return {
+            users: createDomainListResult(list, { total: remote?.total ?? list.length, source: 'remote' }),
+            joins,
+        };
     }
 
     public async getMyProfile(context: DataContext): Promise<UserProfileResult> {

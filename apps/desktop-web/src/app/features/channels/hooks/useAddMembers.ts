@@ -28,9 +28,10 @@ export const useAddMembers = (channelId: string) => {
             try {
                 await userRepository.cacheWriteMany(
                     members.map(candidate => {
-                        // A roster read leaves `$join` on the record even though UserView never
-                        // declares it — read it off through a narrow cast to drop it. It is the
-                        // read-state from the channel we found them in, not this one.
+                        // Records written before `toDomainUser` stopped carrying `$join` can still
+                        // hold one — a per-channel read cursor from wherever we found them, which
+                        // says nothing about this channel. Drop it through a narrow cast; the
+                        // field is not on UserView, so it has no declared type to name.
                         const {
                             viaChannels: _via,
                             $join: _join,

@@ -5,8 +5,7 @@ import type {
     UserUpdateProfileInput,
 } from '@lemoncloud/chatic-sockets-api';
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
-import type { DomainJoin, DomainListResult, DomainUser } from '../domain';
-import { toDomainJoinFromUser } from '../domain';
+import type { DomainListResult, DomainUser } from '../domain';
 import type { IJoinLocalDataSourceV2, IPlaceLocalDataSourceV2, IUserLocalDataSourceV2 } from '../local/data-sources-v2';
 import type { IUserRemoteDataSource, UserInviteBatchPayload } from '../remote/data-sources';
 import type { DataContext, DataContextProvider } from './types';
@@ -91,22 +90,17 @@ export class UserRepositoryV2 extends BaseRepositoryV2 implements IUserRepositor
     public async refreshList(query: ChatUsersInput): Promise<void> {
         const requestContext = this.getRequestContext();
         const normalizedContext = this.getNormalizedContext(requestContext);
-        const remote = await this.userRemoteDataSource.fetchUsers(
+        // listUser 응답의 각 user에 read-state가 `$join`으로 실려온다(detail: true). 데이터소스가
+        // raw view에서 그걸 뽑아 join으로 넘겨주므로, user 캐시와 join 캐시를 함께 hydrate해
+        // 멤버별 읽음 커서가 별도 join.get 없이 채워지게 한다.
+        const { users: remote, joins } = await this.userRemoteDataSource.fetchUsers(
             {
                 ...query,
                 detail: true,
             },
             normalizedContext
         );
-        const users = remote.list || [];
-        await this.userLocalDataSource.cacheWriteMany(users, requestContext);
-
-        // listUser 응답의 각 user에 read-state가 `$join`으로 실려온다(detail: true). user 캐시와
-        // 함께 join 캐시도 hydrate해, 멤버별 읽음 커서가 별도 join.get 없이 채워지게 한다.
-        const channelId = (query as { channelId?: string }).channelId;
-        const joins = users
-            .map(user => toDomainJoinFromUser(user, normalizedContext, channelId))
-            .filter((join): join is DomainJoin => !!join);
+        await this.userLocalDataSource.cacheWriteMany(remote.list || [], requestContext);
 
         if (joins.length > 0) {
             await this.joinLocalDataSource.cacheWriteMany(joins, requestContext);

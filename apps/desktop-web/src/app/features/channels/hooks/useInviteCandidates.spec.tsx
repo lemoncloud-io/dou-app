@@ -109,22 +109,6 @@ describe('useInviteCandidates', () => {
         expect(result.current.candidates).toEqual([]);
     });
 
-    it('loads the target roster last, so its $join wins the flat user cache', async () => {
-        channels = [
-            { id: 'ch-target', name: 'lemoncloud' },
-            { id: 'ch-a', name: 'design' },
-            { id: 'ch-b', name: 'random' },
-        ];
-        rostersByChannel = { 'ch-target': [{ id: 'me' }] };
-
-        const { result } = renderHook(() => useInviteCandidates('ch-target'));
-
-        await waitFor(() => expect(result.current.isLoading).toBe(false));
-        const order = refreshList.mock.calls.map(([query]) => query.channelId);
-        expect(order).toHaveLength(3);
-        expect(order[2]).toBe('ch-target');
-    });
-
     it('still loads the target roster when the channel list has not arrived yet', async () => {
         channels = [];
         rostersByChannel = { 'ch-target': [{ id: 'me' }] };

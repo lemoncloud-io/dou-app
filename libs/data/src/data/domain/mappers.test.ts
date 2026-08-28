@@ -75,6 +75,13 @@ describe('domain 매퍼 (API View → Domain)', () => {
             expect(domain.channelIds).toEqual(expect.arrayContaining(['ch-1', 'ch-2']));
             expect(domain.channelIds).toHaveLength(2);
         });
+
+        it('$join은 읽기만 하고 결과에 싣지 않는다', () => {
+            // 유저 레코드는 채널 전역이므로 채널별 읽음 커서가 얹히면 안 된다 —
+            // 커서는 join 캐시(`channelId@userId`)가 소유한다.
+            const domain = toDomainUser({ id: 'u1', $join: { channelId: 'ch-2', chatNo: 7 } } as any, context);
+            expect('$join' in domain).toBe(false);
+        });
     });
 
     describe('toDomainPlace', () => {

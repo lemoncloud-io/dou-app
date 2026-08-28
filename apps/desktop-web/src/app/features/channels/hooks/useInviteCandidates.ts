@@ -55,22 +55,19 @@ export const useInviteCandidates = (targetChannelId: string | null) => {
     const load = useCallback(
         async (fetch: boolean): Promise<InviteCandidate[]> => {
             if (!targetChannelId) return [];
-            const others = myChannelIds.filter(id => id !== targetChannelId);
-            const channelIds = [...others, targetChannelId];
+            const channelIds = myChannelIds.includes(targetChannelId)
+                ? myChannelIds
+                : [...myChannelIds, targetChannelId];
 
-            // One roster per channel. A channel that fails (permissions, transport) simply
-            // contributes nobody — a partial pool is more useful than an empty one.
-            //
-            // The target's roster is fetched LAST, after the others settle: a roster read writes
-            // each member's embedded `$join` onto their (flat, id-keyed) user record, so the
-            // channel that lands last owns that field. The target is the open channel, so it is
-            // the one whose read-state must survive this fan-out.
-            const refresh = (ids: string[]) =>
-                Promise.allSettled(ids.map(channelId => userRepository.refreshList({ channelId, detail: true })));
-            const results: PromiseSettledResult<void>[] = [];
-            if (fetch) {
-                results.push(...(await refresh(others)), ...(await refresh([targetChannelId])));
-            }
+            // One roster per channel, all at once — order does not matter. A roster read hydrates
+            // each member's read-state into the join cache, which is keyed `channelId@userId`, so
+            // no channel can overwrite another's. A channel that fails (permissions, transport)
+            // simply contributes nobody — a partial pool is more useful than an empty one.
+            const results = fetch
+                ? await Promise.allSettled(
+                      channelIds.map(channelId => userRepository.refreshList({ channelId, detail: true }))
+                  )
+                : [];
             if (results.length > 0 && results.every(r => r.status === 'rejected')) {
                 const { reason } = results[0] as PromiseRejectedResult;
                 throw reason instanceof Error ? reason : new Error(String(reason));

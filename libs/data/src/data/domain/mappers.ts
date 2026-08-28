@@ -163,6 +163,11 @@ export const toDomainJoinFromUser = (
 /**
  * API View -> DomainUser. Collects channel ids from the user's own `channelId`
  * and an optional embedded `$join`, neither of which is part of the typed UserView.
+ *
+ * `$join` is READ here and NOT carried onto the result: a user record is global (one row per
+ * user id, `channelIds` unioned across channels), so a per-channel read cursor riding on it
+ * would mean whichever channel was mapped last owns the field. The cursor's home is the join
+ * cache, keyed `channelId@userId` — `toDomainJoinFromUser` puts it there, off the raw view.
  */
 export const toDomainUser = (
     api: ApiInput<UserView, DomainUser> & { channelId?: string; $join?: { channelId?: string } },
@@ -173,8 +178,9 @@ export const toDomainUser = (
     const channelIds = [channelId, joinedChannelId].filter(Boolean);
     const cid = context.cid || 'default';
 
+    const { $join: _join, ...rest } = api;
     return {
-        ...api,
+        ...rest,
         id: toStringSafe(api.id),
         cid,
         channelIds: Array.from(new Set(channelIds)),

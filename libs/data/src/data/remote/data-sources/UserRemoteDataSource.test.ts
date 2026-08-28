@@ -63,11 +63,27 @@ describe('UserRemoteDataSource', () => {
                 total: 1,
             });
 
-            const result = await dataSource.fetchUsers({ channelId: 'ch-1' } as any, context);
+            const { users } = await dataSource.fetchUsers({ channelId: 'ch-1' } as any, context);
 
-            expect(result.list[0]).toMatchObject({ id: 'user-1', cid: 'cloud-a' });
-            expect(result.list[0].channelIds).toContain('ch-1');
-            expect(result.meta.source).toBe('remote');
+            expect(users.list[0]).toMatchObject({ id: 'user-1', cid: 'cloud-a' });
+            expect(users.list[0].channelIds).toContain('ch-1');
+            expect(users.meta.source).toBe('remote');
+        });
+
+        it('fetchUsers: 멤버의 $join을 join으로 뽑고 user 레코드에는 싣지 않는다', async () => {
+            // 유저 레코드는 채널 전역이라 채널별 읽음 커서가 얹히면 마지막에 매핑된 채널이 그 필드를
+            // 소유하게 된다. 커서의 집은 `channelId@userId`로 키잉되는 join 캐시다.
+            (mockGateways.user.listUser as jest.Mock).mockResolvedValue({
+                list: [{ id: 'user-1', $join: { channelId: 'ch-1', userId: 'user-1', chatNo: 5 } }, { id: 'user-2' }],
+                total: 2,
+            });
+
+            const { users, joins } = await dataSource.fetchUsers({ channelId: 'ch-1' } as any, context);
+
+            expect(joins).toEqual([expect.objectContaining({ id: 'ch-1@user-1', userId: 'user-1', chatNo: 5 })]);
+            expect(users.list.every(u => !('$join' in u))).toBe(true);
+            // $join.channelId는 여전히 channelIds 파생에 쓰인다.
+            expect(users.list[0].channelIds).toContain('ch-1');
         });
 
         it('getMyProfile: UserProfile$ 래퍼의 $user를 도메인 user로, $site를 도메인 place로 변환한다', async () => {

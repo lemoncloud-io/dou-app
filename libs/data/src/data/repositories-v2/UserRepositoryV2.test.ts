@@ -104,20 +104,30 @@ describe('UserRepositoryV2', () => {
         expect(joinLocalDataSource.cacheWriteMany).not.toHaveBeenCalled();
     });
 
-    it('hydrates the join cache from each user’s embedded $join on refreshList', async () => {
+    it('hydrates both the user cache and the join cache on refreshList', async () => {
         const { repository, userRemoteDataSource, userLocalDataSource, joinLocalDataSource } = createRepository();
+        // The read cursor rides in on the roster response but never on the user record — the
+        // data source hands it over separately (see ChannelUsersFetchResult).
         userRemoteDataSource.fetchUsers.mockResolvedValue({
-            list: [
-                { id: 'u1', cid: 'cloud-a', $join: { id: 'ch-1@u1', channelId: 'ch-1', userId: 'u1', chatNo: 5 } },
-                { id: 'u2', cid: 'cloud-a' }, // $join 없음 → join 캐시 대상 아님
-            ],
-            meta: { total: 2, source: 'remote' },
+            users: {
+                list: [
+                    { id: 'u1', cid: 'cloud-a' },
+                    { id: 'u2', cid: 'cloud-a' },
+                ],
+                meta: { total: 2, source: 'remote' },
+            },
+            joins: [{ id: 'ch-1@u1', channelId: 'ch-1', userId: 'u1', chatNo: 5 }],
         });
 
         await repository.refreshList({ channelId: 'ch-1' } as any);
 
-        // user는 전부 쓰고, $join이 있는 멤버의 join만 캐시에 hydrate한다.
-        expect(userLocalDataSource.cacheWriteMany).toHaveBeenCalled();
+        expect(userLocalDataSource.cacheWriteMany).toHaveBeenCalledWith(
+            [
+                { id: 'u1', cid: 'cloud-a' },
+                { id: 'u2', cid: 'cloud-a' },
+            ],
+            { cid: 'cloud-a', sid: 'site-1', uid: 'me' }
+        );
         expect(joinLocalDataSource.cacheWriteMany).toHaveBeenCalledWith(
             [expect.objectContaining({ id: 'ch-1@u1', channelId: 'ch-1', userId: 'u1' })],
             { cid: 'cloud-a', sid: 'site-1', uid: 'me' }
