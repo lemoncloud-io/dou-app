@@ -19,7 +19,7 @@ export const MemberList = ({ members, isLoading, error, myUid, canKick, onKick }
     const { t } = useTranslation();
 
     if (isLoading) {
-        return <AvatarRowsSkeleton label="Loading members" />;
+        return <AvatarRowsSkeleton label={t('channels.members.loading')} />;
     }
 
     if (error) {

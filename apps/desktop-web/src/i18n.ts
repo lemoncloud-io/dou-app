@@ -289,6 +289,7 @@ const resources = {
             'channels.rename.submit': 'Save',
             'channels.rename.saving': 'Saving...',
             'channels.rename.lengthHint': 'Use 2 to 20 characters.',
+            'channels.members.loading': 'Loading members…',
             'channels.members.empty': 'No members yet',
             'channels.members.failed': 'Could not load members.',
             'channels.members.search': 'Search members',
