@@ -42,10 +42,16 @@ export const useInviteCandidates = (targetChannelId: string | null) => {
     // array's identity. These string keys are the stable stand-ins the memos and the load
     // callback key on; the memos hand back the shapes the load actually wants.
     const channelKey = channels.map(c => c.id ?? '').join(',');
+    // Names are keyed separately: renaming a channel leaves the id set untouched, so keying the
+    // name map on channelKey alone would keep showing the old name under every candidate.
+    const channelNameKey = channels.map(c => `${c.id ?? ''}\u0000${c.name ?? ''}`).join(',');
     const targetMemberKey = (channels.find(c => c.id === targetChannelId)?.memberIds ?? []).join(',');
 
     const myChannelIds = useMemo(() => channelKey.split(',').filter(Boolean), [channelKey]);
-    const channelNameById = useMemo(() => new Map(channels.map(c => [c.id ?? '', c.name ?? c.id ?? ''])), [channelKey]);
+    const channelNameById = useMemo(
+        () => new Map(channels.map(c => [c.id ?? '', c.name ?? c.id ?? ''])),
+        [channelNameKey]
+    );
     // Second exclusion source, independent of the roster read: the channel record's own member
     // list. Without it a failed (or not-yet-run) target roster fetch leaves the exclusion set
     // empty and the picker offers people who are already in the channel.

@@ -83,6 +83,25 @@ describe('useInviteCandidates', () => {
         expect(result.current.candidates[0].viaChannels).toEqual(['design', 'random']);
     });
 
+    it('picks up a channel rename that leaves the id set unchanged', async () => {
+        channels = [
+            { id: 'ch-target', name: 'lemoncloud' },
+            { id: 'ch-other', name: 'design' },
+        ];
+        rostersByChannel = { 'ch-target': [{ id: 'me' }], 'ch-other': [{ id: 'u-2', name: 'SteveJ' }] };
+
+        const { result, rerender } = renderHook(() => useInviteCandidates('ch-target'));
+        await waitFor(() => expect(result.current.candidates[0]?.viaChannels).toEqual(['design']));
+
+        channels = [
+            { id: 'ch-target', name: 'lemoncloud' },
+            { id: 'ch-other', name: 'brand' },
+        ];
+        rerender();
+
+        await waitFor(() => expect(result.current.candidates[0]?.viaChannels).toEqual(['brand']));
+    });
+
     it('keeps the pool a partial one when a single channel roster fails', async () => {
         channels = [
             { id: 'ch-target', name: 'lemoncloud' },
