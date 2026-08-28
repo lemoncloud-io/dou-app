@@ -78,31 +78,15 @@ export const AddMembersDialog = ({ open, onOpenChange, channelId }: AddMembersDi
                     </div>
 
                     <div className="scrollbar-thin flex max-h-72 min-h-24 flex-col overflow-y-auto">
-                        {isLoading ? (
-                            <p className="px-2 py-2 text-callout text-muted-foreground">
-                                {t('channels.addMembers.loading')}
-                            </p>
-                        ) : error ? (
-                            <p className="px-2 py-2 text-callout text-destructive">
-                                {t('channels.addMembers.loadFailed')}
-                            </p>
-                        ) : filtered.length === 0 ? (
-                            <p className="px-2 py-2 text-callout text-muted-foreground">
-                                {candidates.length === 0
-                                    ? t('channels.addMembers.empty')
-                                    : t('channels.addMembers.noMatches')}
-                            </p>
-                        ) : (
-                            filtered.map(candidate => (
-                                <CandidateRow
-                                    key={candidate.id}
-                                    candidate={candidate}
-                                    isSelected={selected.includes(candidate.id ?? '')}
-                                    onToggle={() => toggle(candidate.id ?? '')}
-                                    disabled={isAdding}
-                                />
-                            ))
-                        )}
+                        <CandidateList
+                            candidates={filtered}
+                            isLoading={isLoading}
+                            error={error}
+                            hasNoCandidates={candidates.length === 0}
+                            selected={selected}
+                            onToggle={toggle}
+                            disabled={isAdding}
+                        />
                     </div>
 
                     <div className="flex items-center justify-between gap-2">
@@ -126,6 +110,58 @@ export const AddMembersDialog = ({ open, onOpenChange, channelId }: AddMembersDi
                 </div>
             </DialogContent>
         </Dialog>
+    );
+};
+
+interface CandidateListProps {
+    candidates: InviteCandidate[];
+    isLoading: boolean;
+    error: Error | null;
+    /** True when the pool itself is empty, as opposed to the search filtering it down to nothing. */
+    hasNoCandidates: boolean;
+    selected: string[];
+    onToggle: (userId: string) => void;
+    disabled: boolean;
+}
+
+/** Body of the picker — early returns per state, matching MemberList. */
+const CandidateList = ({
+    candidates,
+    isLoading,
+    error,
+    hasNoCandidates,
+    selected,
+    onToggle,
+    disabled,
+}: CandidateListProps) => {
+    const { t } = useTranslation();
+
+    if (isLoading) {
+        return <p className="px-2 py-2 text-callout text-muted-foreground">{t('channels.addMembers.loading')}</p>;
+    }
+    if (error) {
+        return <p className="px-2 py-2 text-callout text-destructive">{t('channels.addMembers.loadFailed')}</p>;
+    }
+    if (candidates.length === 0) {
+        return (
+            <p className="px-2 py-2 text-callout text-muted-foreground">
+                {t(hasNoCandidates ? 'channels.addMembers.empty' : 'channels.addMembers.noMatches')}
+            </p>
+        );
+    }
+
+    return (
+        <>
+            {candidates.map(candidate => (
+                <CandidateRow
+                    key={candidate.id}
+                    candidate={candidate}
+                    isSelected={selected.includes(candidate.id ?? '')}
+                    onToggle={() => onToggle(candidate.id ?? '')}
+                    disabled={disabled}
+                />
+            ))}
+        </>
     );
 };
 

@@ -267,7 +267,7 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
         // an existing row — cacheWrite rejects a partial with no resolvable sid.
         if (channelId && existing) {
             await this.channelLocalDataSource.cacheWrite(
-                { id: channelId, memberIds: unionIds(existing?.memberIds, invitedIds) },
+                { id: channelId, memberIds: unionIds(existing.memberIds, invitedIds) },
                 requestContext
             );
         }
