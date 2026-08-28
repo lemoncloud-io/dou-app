@@ -41,61 +41,78 @@ export const useInviteCandidates = (targetChannelId: string | null) => {
     const channelKey = channels.map(c => c.id ?? '').join(',');
     // Keyed on channelKey, not `channels`: the array is rebuilt on every unread re-derive.
     const channelNameById = useMemo(() => new Map(channels.map(c => [c.id ?? '', c.name ?? c.id ?? ''])), [channelKey]);
+    // Second exclusion source, independent of the roster read: the channel record's own member
+    // list. Without it a failed (or not-yet-run) target roster fetch leaves the exclusion set
+    // empty and the picker offers people who are already in the channel.
+    const targetMemberKey = (channels.find(c => c.id === targetChannelId)?.memberIds ?? []).join(',');
 
-    const load = useCallback(async (): Promise<InviteCandidate[]> => {
-        if (!targetChannelId) return [];
-        const channelIds = channelKey.split(',').filter(Boolean);
-        if (!channelIds.includes(targetChannelId)) channelIds.push(targetChannelId);
+    // `fetch` false = cache-only pass. The socket can sit unverified indefinitely after a
+    // sleep/wake wedge (see useChannels), and a picker that spins forever there is worse than
+    // one showing the rosters already cached; the effect re-runs on the false→true edge.
+    const load = useCallback(
+        async (fetch: boolean): Promise<InviteCandidate[]> => {
+            if (!targetChannelId) return [];
+            const channelIds = channelKey.split(',').filter(Boolean);
+            if (!channelIds.includes(targetChannelId)) channelIds.push(targetChannelId);
 
-        // One roster per channel. A channel that fails (permissions, transport) simply
-        // contributes nobody — a partial pool is more useful than an empty one.
-        //
-        // The target's roster is fetched LAST, after the others settle: a roster read writes
-        // each member's embedded `$join` onto their (flat, id-keyed) user record, so the
-        // channel that lands last owns that field. The target is the open channel, so it is
-        // the one whose read-state must survive this fan-out.
-        const others = channelIds.filter(id => id !== targetChannelId);
-        const results = [
-            ...(await Promise.allSettled(
-                others.map(channelId => userRepository.refreshList({ channelId, detail: true }))
-            )),
-            ...(await Promise.allSettled([userRepository.refreshList({ channelId: targetChannelId, detail: true })])),
-        ];
-        const firstRejection = results.find(r => r.status === 'rejected') as PromiseRejectedResult | undefined;
-        if (firstRejection && results.every(r => r.status === 'rejected')) {
-            const { reason } = firstRejection;
-            throw reason instanceof Error ? reason : new Error(String(reason));
-        }
-
-        const rosters = await Promise.all(
-            channelIds.map(async channelId => ({
-                channelId,
-                users: (await userRepository.cacheReadList({ channelId }))?.list ?? [],
-            }))
-        );
-
-        const targetMemberIds = new Set(rosters.find(r => r.channelId === targetChannelId)?.users.map(u => u.id) ?? []);
-
-        const byId = new Map<string, InviteCandidate>();
-        for (const { channelId, users } of rosters) {
-            if (channelId === targetChannelId) continue;
-            for (const user of users) {
-                if (!user.id || user.id === myUid || targetMemberIds.has(user.id)) continue;
-                const via = channelNameById.get(channelId) ?? channelId;
-                const existing = byId.get(user.id);
-                if (existing) existing.viaChannels.push(via);
-                else byId.set(user.id, { ...user, viaChannels: [via] });
+            // One roster per channel. A channel that fails (permissions, transport) simply
+            // contributes nobody — a partial pool is more useful than an empty one.
+            //
+            // The target's roster is fetched LAST, after the others settle: a roster read writes
+            // each member's embedded `$join` onto their (flat, id-keyed) user record, so the
+            // channel that lands last owns that field. The target is the open channel, so it is
+            // the one whose read-state must survive this fan-out.
+            const others = channelIds.filter(id => id !== targetChannelId);
+            const results = fetch
+                ? [
+                      ...(await Promise.allSettled(
+                          others.map(channelId => userRepository.refreshList({ channelId, detail: true }))
+                      )),
+                      ...(await Promise.allSettled([
+                          userRepository.refreshList({ channelId: targetChannelId, detail: true }),
+                      ])),
+                  ]
+                : [];
+            const firstRejection = results.find(r => r.status === 'rejected') as PromiseRejectedResult | undefined;
+            if (firstRejection && results.every(r => r.status === 'rejected')) {
+                const { reason } = firstRejection;
+                throw reason instanceof Error ? reason : new Error(String(reason));
             }
-        }
-        return [...byId.values()];
-    }, [userRepository, targetChannelId, channelKey, channelNameById, myUid]);
+
+            const rosters = await Promise.all(
+                channelIds.map(async channelId => ({
+                    channelId,
+                    users: (await userRepository.cacheReadList({ channelId }))?.list ?? [],
+                }))
+            );
+
+            const targetMemberIds = new Set([
+                ...(rosters.find(r => r.channelId === targetChannelId)?.users.map(u => u.id) ?? []),
+                ...targetMemberKey.split(',').filter(Boolean),
+            ]);
+
+            const byId = new Map<string, InviteCandidate>();
+            for (const { channelId, users } of rosters) {
+                if (channelId === targetChannelId) continue;
+                for (const user of users) {
+                    if (!user.id || user.id === myUid || targetMemberIds.has(user.id)) continue;
+                    const via = channelNameById.get(channelId) ?? channelId;
+                    const existing = byId.get(user.id);
+                    if (existing) existing.viaChannels.push(via);
+                    else byId.set(user.id, { ...user, viaChannels: [via] });
+                }
+            }
+            return [...byId.values()];
+        },
+        [userRepository, targetChannelId, channelKey, channelNameById, targetMemberKey, myUid]
+    );
 
     useEffect(() => {
-        if (!targetChannelId || !isVerified) return;
+        if (!targetChannelId) return;
         let cancelled = false;
         setIsLoading(true);
         setError(null);
-        load()
+        load(isVerified)
             .then(list => {
                 if (!cancelled) setCandidates(list);
             })

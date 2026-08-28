@@ -6,7 +6,8 @@ import { renderHook, waitFor } from '@testing-library/react';
 // pool is the union of my other channels' rosters. An unfiltered user-cache read would also
 // return chat authors and profile lookups, so the union must be assembled per channel id.
 let rostersByChannel: Record<string, Array<Record<string, unknown>>> = {};
-let channels: Array<{ id: string; name: string }> = [];
+let channels: Array<{ id: string; name: string; memberIds?: string[] }> = [];
+let isVerified = true;
 let refreshRejects: string[] = [];
 
 const refreshList = vi.fn((query: { channelId: string }) =>
@@ -25,7 +26,7 @@ const repositories = {
 
 vi.mock('@chatic/app-runtime', () => ({
     useRuntimeRepositories: () => repositories,
-    useSocketState: () => ({ isVerified: true }),
+    useSocketState: () => ({ isVerified }),
 }));
 vi.mock('@chatic/web-core', () => ({
     useSessionIdentity: () => ({ userId: 'me' }),
@@ -43,6 +44,7 @@ describe('useInviteCandidates', () => {
         rostersByChannel = {};
         channels = [];
         refreshRejects = [];
+        isVerified = true;
     });
 
     it('offers members of my other channels, minus the target roster and myself', async () => {
@@ -131,5 +133,41 @@ describe('useInviteCandidates', () => {
 
         await waitFor(() => expect(result.current.isLoading).toBe(false));
         expect(refreshList).toHaveBeenCalledWith({ channelId: 'ch-target', detail: true });
+    });
+    it('falls back to the cached rosters when the socket never verifies', async () => {
+        // A sleep/wake wedge can leave the socket unverified indefinitely (see useChannels).
+        // Gating the whole load on it pinned the picker on its loading state forever.
+        isVerified = false;
+        channels = [
+            { id: 'ch-target', name: 'lemoncloud' },
+            { id: 'ch-other', name: 'design' },
+        ];
+        rostersByChannel = { 'ch-target': [{ id: 'me' }], 'ch-other': [{ id: 'u-2', name: 'SteveJ' }] };
+
+        const { result } = renderHook(() => useInviteCandidates('ch-target'));
+
+        await waitFor(() => expect(result.current.isLoading).toBe(false));
+        expect(refreshList).not.toHaveBeenCalled();
+        expect(result.current.candidates.map(c => c.id)).toEqual(['u-2']);
+    });
+
+    it("excludes the target's members from the channel record when its roster read fails", async () => {
+        channels = [
+            { id: 'ch-target', name: 'lemoncloud', memberIds: ['me', 'u-1'] },
+            { id: 'ch-other', name: 'design' },
+        ];
+        refreshRejects = ['ch-target'];
+        rostersByChannel = {
+            'ch-other': [
+                { id: 'u-1', name: 'Aiden' },
+                { id: 'u-2', name: 'SteveJ' },
+            ],
+        };
+
+        const { result } = renderHook(() => useInviteCandidates('ch-target'));
+
+        await waitFor(() => expect(result.current.isLoading).toBe(false));
+        // u-1 is already in the channel; without the memberIds fallback the empty roster would offer them.
+        expect(result.current.candidates.map(c => c.id)).toEqual(['u-2']);
     });
 });

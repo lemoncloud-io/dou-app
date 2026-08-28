@@ -1,9 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Check, Search } from 'lucide-react';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
 import { cn } from '@chatic/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 import { Button } from '@chatic/ui-kit/components/ui/button';
@@ -11,8 +10,8 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/u
 import { Input } from '@chatic/ui-kit/components/ui/input';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { avatarStyle, displayName, extractErrorMessage, useDesktopChannelMutations } from '../../../shared';
-import { useInviteCandidates, type InviteCandidate } from '../hooks';
+import { avatarStyle, displayName, extractErrorMessage } from '../../../shared';
+import { useAddMembers, useInviteCandidates, type InviteCandidate } from '../hooks';
 
 interface AddMembersDialogProps {
     open: boolean;
@@ -31,20 +30,12 @@ interface AddMembersDialogProps {
  */
 export const AddMembersDialog = ({ open, onOpenChange, channelId }: AddMembersDialogProps) => {
     const { t } = useTranslation();
-    const { user: userRepository } = useRuntimeRepositories();
-    const { inviteChannel, isMutating } = useDesktopChannelMutations();
+    const { addMembers, isAdding } = useAddMembers(channelId);
     const { candidates, isLoading, error } = useInviteCandidates(channelId);
 
+    // The dialog is mounted only while open, so unmounting is what resets the picked set.
     const [query, setQuery] = useState('');
     const [selected, setSelected] = useState<string[]>([]);
-
-    // Drop the picked set + filter whenever the dialog closes, so a reopen starts clean.
-    useEffect(() => {
-        if (!open) {
-            setQuery('');
-            setSelected([]);
-        }
-    }, [open]);
 
     const filtered = useMemo(() => {
         const q = query.trim().toLowerCase();
@@ -58,27 +49,7 @@ export const AddMembersDialog = ({ open, onOpenChange, channelId }: AddMembersDi
     const handleInvite = async () => {
         if (!selected.length) return;
         try {
-            await inviteChannel({ channelId, userIds: selected });
-            // Direct local write, not a refetch: the picked records are already in hand, and
-            // the member list reads the user cache (channelIds), which the channel-side
-            // invite response does not touch. cacheWriteMany unions channelIds per user.
-            // `$join` is dropped with viaChannels — it is the read-state the candidate
-            // carries from the channel we found them in, and it says nothing about this one.
-            const picked = candidates.filter(c => selected.includes(c.id ?? ''));
-            await userRepository.cacheWriteMany(
-                picked.map(candidate => {
-                    // A roster read leaves `$join` on the record even though UserView never
-                    // declares it — read it off through a narrow cast to drop it.
-                    const {
-                        viaChannels: _via,
-                        $join: _join,
-                        ...user
-                    } = candidate as InviteCandidate & {
-                        $join?: unknown;
-                    };
-                    return { ...user, channelIds: [channelId] };
-                })
-            );
+            await addMembers(candidates.filter(c => selected.includes(c.id ?? '')));
             toast({ description: t('channels.addMembers.added', { count: selected.length }) });
             onOpenChange(false);
         } catch (e) {
@@ -87,7 +58,7 @@ export const AddMembersDialog = ({ open, onOpenChange, channelId }: AddMembersDi
     };
 
     return (
-        <Dialog open={open} onOpenChange={next => !isMutating && onOpenChange(next)}>
+        <Dialog open={open} onOpenChange={next => !isAdding && onOpenChange(next)}>
             <DialogContent className="sm:max-w-md">
                 <DialogTitle>{t('channels.addMembers.title')}</DialogTitle>
                 <DialogDescription>{t('channels.addMembers.description')}</DialogDescription>
@@ -102,7 +73,7 @@ export const AddMembersDialog = ({ open, onOpenChange, channelId }: AddMembersDi
                             onChange={e => setQuery(e.target.value)}
                             placeholder={t('channels.addMembers.searchPlaceholder')}
                             className="focus-ring h-9 border-hairline bg-well pl-8 text-callout shadow-well"
-                            disabled={isMutating}
+                            disabled={isAdding}
                         />
                     </div>
 
@@ -128,7 +99,7 @@ export const AddMembersDialog = ({ open, onOpenChange, channelId }: AddMembersDi
                                     candidate={candidate}
                                     isSelected={selected.includes(candidate.id ?? '')}
                                     onToggle={() => toggle(candidate.id ?? '')}
-                                    disabled={isMutating}
+                                    disabled={isAdding}
                                 />
                             ))
                         )}
@@ -143,12 +114,12 @@ export const AddMembersDialog = ({ open, onOpenChange, channelId }: AddMembersDi
                                 type="button"
                                 variant="ghost"
                                 onClick={() => onOpenChange(false)}
-                                disabled={isMutating}
+                                disabled={isAdding}
                             >
                                 {t('channels.addMembers.cancel')}
                             </Button>
-                            <Button type="button" onClick={handleInvite} disabled={isMutating || !selected.length}>
-                                {isMutating ? t('channels.addMembers.adding') : t('channels.addMembers.confirm')}
+                            <Button type="button" onClick={handleInvite} disabled={isAdding || !selected.length}>
+                                {isAdding ? t('channels.addMembers.adding') : t('channels.addMembers.confirm')}
                             </Button>
                         </div>
                     </div>
