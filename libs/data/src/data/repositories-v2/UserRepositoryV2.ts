@@ -93,14 +93,14 @@ export class UserRepositoryV2 extends BaseRepositoryV2 implements IUserRepositor
         // listUser 응답의 각 user에 read-state가 `$join`으로 실려온다(detail: true). 데이터소스가
         // raw view에서 그걸 뽑아 join으로 넘겨주므로, user 캐시와 join 캐시를 함께 hydrate해
         // 멤버별 읽음 커서가 별도 join.get 없이 채워지게 한다.
-        const { users: remote, joins } = await this.userRemoteDataSource.fetchUsers(
+        const { users, joins } = await this.userRemoteDataSource.fetchUsers(
             {
                 ...query,
                 detail: true,
             },
             normalizedContext
         );
-        await this.userLocalDataSource.cacheWriteMany(remote.list || [], requestContext);
+        await this.userLocalDataSource.cacheWriteMany(users.list || [], requestContext);
 
         if (joins.length > 0) {
             await this.joinLocalDataSource.cacheWriteMany(joins, requestContext);

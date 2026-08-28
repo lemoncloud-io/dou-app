@@ -21,8 +21,10 @@ export interface InviteCandidate extends DomainUser {
  * reads rather than an unfiltered one: the user cache is a flat table that also holds chat
  * authors and profile lookups, so an unscoped read is not "members of my channels".
  *
- * `isVerified` gates the fetch for the same reason it does in useChannelMembers — it defers
- * the read until the session is verified, avoiding a stale, mis-scoped roster mid-switch.
+ * `isVerified` decides whether the rosters are refreshed from the network or read straight from
+ * the cache — the socket can sit unverified indefinitely after a sleep/wake wedge, and a picker
+ * that waits it out shows a spinner forever. The cached pool is served either way, and the
+ * network pass re-runs on the false→true edge.
  * Mount this only while the picker is open; it fans out one request per channel.
  */
 export const useInviteCandidates = (targetChannelId: string | null) => {
