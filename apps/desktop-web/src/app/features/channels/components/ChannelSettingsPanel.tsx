@@ -180,7 +180,15 @@ export const ChannelSettingsPanel = ({
                             onKick={openKick}
                         />
                     )}
-                    {/* Invite is dev-only — hidden in production builds. */}
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="focus-ring tactile transition-colors"
+                        onClick={() => openDialog('add-members')}
+                    >
+                        {t('channels.addMembers.open')}
+                    </Button>
+                    {/* Phone-relay invite (for people with no account yet) is dev-only. */}
                     {import.meta.env.DEV && (
                         <Button
                             variant="outline"
