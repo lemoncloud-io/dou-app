@@ -188,17 +188,6 @@ export const ChannelSettingsPanel = ({
                     >
                         {t('channels.addMembers.open')}
                     </Button>
-                    {/* Phone-relay invite (for people with no account yet) is dev-only. */}
-                    {import.meta.env.DEV && (
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            className="focus-ring tactile transition-colors"
-                            onClick={() => openDialog('invite')}
-                        >
-                            {t('channels.settings.invite')}
-                        </Button>
-                    )}
                 </section>
 
                 <section className="flex flex-col gap-2 border-t border-hairline pt-4">

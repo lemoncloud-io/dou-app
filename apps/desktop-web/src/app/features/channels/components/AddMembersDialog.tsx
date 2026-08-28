@@ -23,8 +23,8 @@ interface AddMembersDialogProps {
 /**
  * Add existing members of my other channels to this one. The server call
  * (`channel.invite` via channelRepository.inviteChannel) adds the picked users
- * immediately — there is no link and no accept step; that is the phone-relay
- * InviteDialog's separate flow, for people who have no account yet.
+ * immediately — there is no link and no accept step, and no way to reach someone
+ * who has no account yet.
  *
  * Mounted only while open (see ChannelActionDialogs): the candidate hook fans out
  * one roster request per channel, which must not run on every panel mount.

@@ -2,7 +2,6 @@ export * from './ChannelActionDialogs';
 export * from './CreateChannelDialog';
 export * from './ConfirmDialog';
 export * from './RenameChannelDialog';
-export * from './InviteDialog';
 export * from './AddMembersDialog';
 export * from './AvatarRowsSkeleton';
 export * from './MemberRow';
