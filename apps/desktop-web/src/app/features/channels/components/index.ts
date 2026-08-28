@@ -4,6 +4,7 @@ export * from './ConfirmDialog';
 export * from './RenameChannelDialog';
 export * from './InviteDialog';
 export * from './AddMembersDialog';
+export * from './AvatarRowsSkeleton';
 export * from './MemberRow';
 export * from './MemberList';
 export * from './ChannelSettingsPanel';

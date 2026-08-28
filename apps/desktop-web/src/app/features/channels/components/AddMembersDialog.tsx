@@ -12,6 +12,7 @@ import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { avatarStyle, displayName, extractErrorMessage } from '../../../shared';
 import { useAddMembers, useInviteCandidates, type InviteCandidate } from '../hooks';
+import { AvatarRowsSkeleton } from './AvatarRowsSkeleton';
 
 interface AddMembersDialogProps {
     open: boolean;
@@ -137,7 +138,7 @@ const CandidateList = ({
     const { t } = useTranslation();
 
     if (isLoading) {
-        return <p className="px-2 py-2 text-callout text-muted-foreground">{t('channels.addMembers.loading')}</p>;
+        return <AvatarRowsSkeleton label={t('channels.addMembers.loading')} />;
     }
     if (error) {
         return <p className="px-2 py-2 text-callout text-destructive">{t('channels.addMembers.loadFailed')}</p>;
