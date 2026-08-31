@@ -1,19 +1,8 @@
 import { useTranslation } from 'react-i18next';
 
-import { Skeleton } from '../../../shared';
 import type { ChannelMember } from '../hooks';
+import { AvatarRowsSkeleton } from './AvatarRowsSkeleton';
 import { MemberRow } from './MemberRow';
-
-const MemberListSkeleton = () => (
-    <div className="flex flex-col gap-0.5" role="status" aria-label="Loading members">
-        {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="flex items-center gap-2 px-2 py-1.5">
-                <Skeleton className="h-8 w-8 shrink-0 rounded-full" />
-                <Skeleton className={i % 2 === 0 ? 'h-3.5 w-32' : 'h-3.5 w-24'} />
-            </div>
-        ))}
-    </div>
-);
 
 interface MemberListProps {
     members: ChannelMember[];
@@ -30,7 +19,7 @@ export const MemberList = ({ members, isLoading, error, myUid, canKick, onKick }
     const { t } = useTranslation();
 
     if (isLoading) {
-        return <MemberListSkeleton />;
+        return <AvatarRowsSkeleton label={t('channels.members.loading')} />;
     }
 
     if (error) {

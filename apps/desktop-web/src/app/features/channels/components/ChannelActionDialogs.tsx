@@ -1,8 +1,8 @@
 import { useTranslation } from 'react-i18next';
 
 import type { useChannelActions } from '../hooks';
+import { AddMembersDialog } from './AddMembersDialog';
 import { ConfirmDialog } from './ConfirmDialog';
-import { InviteDialog } from './InviteDialog';
 import { RenameChannelDialog } from './RenameChannelDialog';
 
 type ChannelActions = ReturnType<typeof useChannelActions>;
@@ -17,9 +17,9 @@ interface ChannelActionDialogsProps {
 }
 
 /**
- * Renders every dialog driven by useChannelActions (rename, invite, and the
- * delete/leave/kick confirmations). Single mount point shared by the header
- * menu and the settings panel.
+ * Renders every dialog driven by useChannelActions (rename, add-members and the
+ * delete/leave/kick confirmations). Single mount point shared by the header menu
+ * and the settings panel.
  */
 export const ChannelActionDialogs = ({ channelId, channelName, kickName, actions }: ChannelActionDialogsProps) => {
     const { t } = useTranslation();
@@ -35,7 +35,8 @@ export const ChannelActionDialogs = ({ channelId, channelName, kickName, actions
                 channelId={channelId}
                 currentName={channelName}
             />
-            <InviteDialog open={dialog === 'invite'} onOpenChange={onOpenChange} channelId={channelId} />
+            {/* Mounted only while open — its candidate hook fans out one roster request per channel. */}
+            {dialog === 'add-members' && <AddMembersDialog open onOpenChange={onOpenChange} channelId={channelId} />}
             <ConfirmDialog
                 open={dialog === 'delete'}
                 onOpenChange={onOpenChange}

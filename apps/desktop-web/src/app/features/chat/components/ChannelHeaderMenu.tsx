@@ -57,11 +57,9 @@ export const ChannelHeaderMenu = ({ channel, myUid }: ChannelHeaderMenuProps) =>
                         </DropdownMenuItem>
                     )}
                     {/* Invite is dev-only — hidden in production builds. */}
-                    {import.meta.env.DEV && (
-                        <DropdownMenuItem onClick={() => openDialog('invite')} className="cursor-pointer py-2">
-                            {t('channels.settings.invite')}
-                        </DropdownMenuItem>
-                    )}
+                    <DropdownMenuItem onClick={() => openDialog('add-members')} className="cursor-pointer py-2">
+                        {t('channels.addMembers.open')}
+                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={() => openDialog('leave')} className="cursor-pointer py-2">
                         {t('channels.settings.leave')}

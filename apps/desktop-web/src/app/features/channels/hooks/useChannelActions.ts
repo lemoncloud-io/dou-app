@@ -5,7 +5,7 @@ import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { extractErrorMessage, useDesktopChannelMutations } from '../../../shared';
 
-export type ChannelDialogKind = 'rename' | 'invite' | 'delete' | 'leave' | 'kick' | null;
+export type ChannelDialogKind = 'rename' | 'add-members' | 'delete' | 'leave' | 'kick' | null;
 
 interface UseChannelActionsOptions {
     /** Called after a successful delete or self-leave (e.g. clear selection). */

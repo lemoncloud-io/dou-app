@@ -64,6 +64,44 @@ describe('ChannelRepositoryV2', () => {
         });
     });
 
+    it('inviteChannel — 초대한 id를 라운드트립 전에 memberIds에 낙관적으로 쓴다', async () => {
+        const { repository, channelRemoteDataSource, channelLocalDataSource } = createRepository();
+        channelLocalDataSource.cacheRead.mockResolvedValue({ id: 'ch-1', sid: 'site-1', memberIds: ['me'] });
+        // 서버 응답이 멤버 목록을 생략해도 초대한 id가 유실되면 안 된다 (leaveChannel과 같은 방어).
+        channelRemoteDataSource.inviteChannel.mockResolvedValue({ id: 'ch-1', sid: 'site-1' });
+
+        const result = await repository.inviteChannel({ channelId: 'ch-1', userIds: ['u-2', 'u-3'] } as any);
+
+        expect(channelLocalDataSource.cacheWrite).toHaveBeenNthCalledWith(
+            1,
+            { id: 'ch-1', memberIds: ['me', 'u-2', 'u-3'] },
+            { cid: 'cloud-a', sid: 'site-1', uid: 'me' }
+        );
+        expect(channelLocalDataSource.cacheWrite).toHaveBeenNthCalledWith(
+            2,
+            { id: 'ch-1', sid: 'site-1', memberIds: ['me', 'u-2', 'u-3'] },
+            { cid: 'cloud-a', sid: 'site-1', uid: 'me' }
+        );
+        expect(result.memberIds).toEqual(['me', 'u-2', 'u-3']);
+    });
+
+    it('inviteChannel — 실패하면 초대 전 채널 레코드를 되돌린다', async () => {
+        const { repository, channelRemoteDataSource, channelLocalDataSource } = createRepository();
+        const existing = { id: 'ch-1', sid: 'site-1', memberIds: ['me'] };
+        channelLocalDataSource.cacheRead.mockResolvedValue(existing);
+        channelRemoteDataSource.inviteChannel.mockRejectedValue(new Error('denied'));
+
+        await expect(repository.inviteChannel({ channelId: 'ch-1', userIds: ['u-2'] } as any)).rejects.toThrow(
+            'denied'
+        );
+
+        expect(channelLocalDataSource.cacheWrite).toHaveBeenLastCalledWith(existing, {
+            cid: 'cloud-a',
+            sid: 'site-1',
+            uid: 'me',
+        });
+    });
+
     it('refreshList — fetchChannel 스냅샷을 로컬 캐시에 병합한다', async () => {
         const { repository, channelRemoteDataSource, channelLocalDataSource } = createRepository();
         channelRemoteDataSource.fetchChannel.mockResolvedValue({
