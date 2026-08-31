@@ -1,5 +1,29 @@
 # Changelog
 
+## [2026-08-31] - root@0.56.0, @chatic/desktop-web@0.7.0
+
+### Features
+
+- (desktop-web) add channel members picked from my other channels
+
+### Bug Fixes
+
+- (desktop-web) refresh the "via" labels when a channel is renamed
+- (desktop-web) translate the member list's loading label
+- (desktop-web) move the add-members write out of the dialog
+- (data) write invited members to the channel cache optimistically
+
+### Documentation
+
+- (adr) record the channel member-add decision and the join cursor move
+- (desktop-web,data) say what isVerified actually decides now
+
+### Refactor
+
+- (data) keep the per-channel read cursor off the global user record
+- (desktop-web) share one avatar-rows skeleton between both lists
+- (desktop-web,data) flatten the add-members candidate assembly
+
 ## [2026-08-27] - No version updates
 
 ### Features
