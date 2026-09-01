@@ -1,10 +1,17 @@
 # Relay 1:1 초대 — 발신자 흐름 (Contact Invite Sender)
 
-> 상태: Live · 최종 갱신: 2026-09-02 · 관련 ADR: [ADR-0052](../../../../../docs/adr/0052-invite-local-cache-and-native-table.md) (로컬 캐시·네이티브 테이블), [ADR-0043](../../../../../docs/adr/0043-relay-invite-cancel-reject-adoption.md) (취소·거절 실 API 전환), [ADR-0041](../../../../../docs/adr/0041-place-profile-as-invite-precondition.md) (프로필 전제조건), [ADR-0034](../../../../../docs/adr/0034-inviter-phone-verification-guest-gate-and-sheet.md) (게스트 게이트), [ADR-0033](../../../../../docs/adr/0033-relay-dm-invite-and-auth-parallel-tracks.md) · 로드맵: [relay-dm-invite-parallel-roadmap.md](../../../../../docs/plans/relay-dm-invite-parallel-roadmap.md) (Track B)
+> 상태: Live · 최종 갱신: 2026-09-02 · 관련 ADR: [ADR-0068](../../../../../docs/adr/0068-dm-peer-departure-and-reinvite.md) (재초대·24시간), [ADR-0052](../../../../../docs/adr/0052-invite-local-cache-and-native-table.md) (로컬 캐시·네이티브 테이블), [ADR-0043](../../../../../docs/adr/0043-relay-invite-cancel-reject-adoption.md) (취소·거절 실 API 전환), [ADR-0041](../../../../../docs/adr/0041-place-profile-as-invite-precondition.md) (프로필 전제조건), [ADR-0034](../../../../../docs/adr/0034-inviter-phone-verification-guest-gate-and-sheet.md) (게스트 게이트), [ADR-0033](../../../../../docs/adr/0033-relay-dm-invite-and-auth-parallel-tracks.md) · 로드맵: [relay-dm-invite-parallel-roadmap.md](../../../../../docs/plans/relay-dm-invite-parallel-roadmap.md) (Track B)
 >
 > 최근 개정(2026-09-02): 홈의 목록 신선도 책임이 `useRelayInvites`(마운트·포커스 조회)에서
 > `useBackgroundSync`(채널·플레이스·프로필과 같은 레인)로 넘어갔다 — 아래 설계 원칙 "목록 신선도"
 > 항목 참고. 화면 동작은 그대로고, 줄어든 것은 `invite.list` 패킷 수다.
+> 이전 개정(2026-08-25, [ADR-0068](../../../../../docs/adr/0068-dm-peer-departure-and-reinvite.md)):
+> 발급에 두 필드가 붙었다. **`expiresDays: 1`을 뮤테이션에서 기본값으로 얹어** 이 앱이 발급하는
+> 모든 링크가 24시간을 산다(서버 기본은 3일). 그리고 **`channelId`** 를 실을 수 있게 되어, 1:1 방에서
+> 오는 재초대는 새 방을 만들지 않고 기존 방으로 상대를 다시 들여보낸다 — 그 진입은
+> `ContactInvitePage`의 route-state 모드이고 확인 화면 없이 번호 입력에서 끝난다. 상세는
+> [dm-chat.md](../channels/dm-chat.md). `useRelayInvites`에는 `enabled` 옵션이 생겼다(호출부가
+> 화면 조건에 따라 조회 자체를 세울 수 있다).
 > 이전 개정(2026-08-13, ADR-0052): `invite.list`가 로컬 우선 읽기로 전환됐다 — 상세는
 > [invite-local-cache.md](../../../../../libs/app-runtime/docs/data/invite-local-cache.md) 참고.
 > 이전 개정(2026-08-04, ADR-0043): 백엔드 요청 1번(`invite.cancel` + `canceled`)·2번(`invite.reject` +
@@ -61,7 +68,9 @@
 - **번호 원문은 서버에 없다.** `MyInviteView`는 `last4`(뒷 4자리)만 돌려준다. 같은 번호 재초대
   감지·대기 화면 라벨은 로컬 발급 이력(`useSentInviteLog`)과 서버 뷰를 함께 봐서 판단한다.
 - **유효시간은 서버 값만 렌더한다.** `expiredAt` epoch(ms)를 그대로 카운트다운에 쓰고, 카피에
-  기간을 하드코딩하지 않는다(ADR-0033 D8 — 3일).
+  기간을 하드코딩하지 않는다. 요청하는 수명은 `expiresDays: 1`(24시간, ADR-0068 결정 4)이지만 그
+  숫자는 문구에 들어가지 않는다 — 서버가 다른 값을 주면 화면은 서버를 따른다. 요청 자체는
+  `useRelayInviteMutations`의 `createInvite`가 한 곳에서 붙이므로 호출부가 빠뜨릴 수 없다.
 - **기존 프리미티브를 최우선으로 재사용한다.** `web-ui-kit`에 이미 이 용도로 보이는 컴포넌트가
   있으면(`ChatRoomHeader`, `DateDivider`, `MessageInput`, `StatusBadge`, `TextField`,
   `BottomSheet`, `useInviteCountdown`) 새로 만들지 않는다.
@@ -82,6 +91,10 @@
 **포함**
 
 - 연락처로 초대 페이지(`ContactInvitePage`) — 게스트 게이트, 프로필 전제조건 게이트, 발급 폼.
+- **재초대 모드**(같은 페이지, route state `{ channelId, name?, phone? }`) — 1:1 방의 푸터/친구 정보
+  시트에서 들어온다. 이름·번호를 아는 만큼 프리필하고, `channelId`를 실어 발급하고, 대기 화면이
+  아니라 방으로 복귀한다. 같은-번호 다이얼로그는 타지 않되 **이 채널의** 이전 초대는 먼저 거둔다.
+  화면 소유는 [dm-chat.md](../channels/dm-chat.md)에 있다.
 - 발급 → SMS 작성기 전달(`appBridge.sendSms`, 비네이티브 폴백은 클립보드 복사).
 - 같은 번호 재초대 감지 다이얼로그 — pending(대기 화면 유도) / expired(재발급) / declined(재발급)
   세 실분기.

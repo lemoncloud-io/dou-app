@@ -22,6 +22,19 @@ interface UseChannelMembersParams {
      * hold four copies of one cache list.
      */
     joins: DomainJoin[];
+    /**
+     * Keep members who have left in the list instead of dropping them (default `false`).
+     *
+     * For 1:1 rooms only (ADR-0068 결정 6). A DM is one other person, so losing them from the roster
+     * loses the room's identity: the header would stop naming them and `useDmPeer` would return
+     * `null`, taking the departure notice and the re-invite CTA with it. Settings also owes the user
+     * a "대화방 나감" row rather than an empty 방 친구 section.
+     *
+     * A group stays filtered. Departed members piling up in an active group's member list is the
+     * problem the filter was added for — and the old bug where a `joined: 0` row read as a pending
+     * invite came from exactly that list (see utils/membership).
+     */
+    keepLeftMembers?: boolean;
 }
 
 /**
@@ -39,7 +52,13 @@ interface UseChannelMembersParams {
  * The active-membership set moved to {@link useChannelJoins} along with the join observation — it is
  * a reading of the join rows, and deriving it here as well would put two owners on one fact.
  */
-export const useChannelMembers = ({ channelId, detail = true, memberIds, joins }: UseChannelMembersParams) => {
+export const useChannelMembers = ({
+    channelId,
+    detail = true,
+    memberIds,
+    joins,
+    keepLeftMembers = false,
+}: UseChannelMembersParams) => {
     const { user: userRepository } = useRuntimeRepositories();
     const { isVerified } = useRuntimeSocketState();
 
@@ -123,12 +142,13 @@ export const useChannelMembers = ({ channelId, detail = true, memberIds, joins }
             const join = joinByUserId.get(id);
             // Someone who left keeps their join row in the cache, so without this they stay in the
             // list forever — and, since a departed row is `joined: 0` just like an invitee's, they
-            // were being badged as still-pending invites (see membership.ts).
-            if (hasLeftChannel(join)) continue;
+            // were being badged as still-pending invites (see membership.ts). A 1:1 opts out: there
+            // the departed member IS the room (see `keepLeftMembers`).
+            if (!keepLeftMembers && hasLeftChannel(join)) continue;
             rows.push({ ...userById.get(id), id, $join: join });
         }
         return rows;
-    }, [users, joins, memberIds]);
+    }, [users, joins, memberIds, keepLeftMembers]);
 
     return { members, total: members.length, isLoading, isError: false };
 };

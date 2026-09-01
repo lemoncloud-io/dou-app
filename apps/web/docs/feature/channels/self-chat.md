@@ -128,7 +128,7 @@ flowchart TD
 ### apps/web — 데이터/뮤테이션
 
 - **`useJoinMutations.updateJoin`** (재사용,
-  [useJoinMutations.ts](../../src/app/features/channels/hooks/useJoinMutations.ts)) —
+  [useJoinMutations.ts](../../../src/app/features/channels/hooks/useJoinMutations.ts)) —
   join.nick 쓰기는 ADR-0025에서 도입된 `useJoinMutations().updateJoin({ channelId, userId,
 nick })`를 그대로 쓴다(알림 토글이 쓰는 것과 동일 훅). 별도 뮤테이션을 새로 만들지 않는다.
   하위 계층은 이미 nick을 처리한다
@@ -136,7 +136,7 @@ nick })`를 그대로 쓴다(알림 토글이 쓰는 것과 동일 훅). 별도 
   — payload에 id/joinId 없으면 channelId+userId로 composite id resolve, 낙관적 반영 후
   실패 시 롤백). `userId`는 `channel.$join?.userId ?? 세션 userId`.
 - **`useChannel` 뷰모델**
-  ([useChannel.ts:10](../../src/app/features/channels/hooks/useChannel.ts)) — `isSelfChat`
+  ([useChannel.ts:10](../../../src/app/features/channels/hooks/useChannel.ts)) — `isSelfChat`
   파생은 유지. `$join`은 `...channel` 스프레드로 이미 노출되므로 컨테이너에서
   `channel.$join?.nick` 직접 접근 가능(뷰모델 변경 최소).
 
@@ -145,15 +145,15 @@ nick })`를 그대로 쓴다(알림 토글이 쓰는 것과 동일 훅). 별도 
 self 제목 파생을 순수 함수 + 훅으로 추출해 홈·룸·설정이 공유한다.
 
 - **`resolveSelfChatTitle(nick, siteProfileNick, fallbackLabel)`**
-  ([utils/selfChatTitle.ts](../../src/app/features/channels/utils/selfChatTitle.ts)) — 순수
+  ([utils/selfChatTitle.ts](../../../src/app/features/channels/utils/selfChatTitle.ts)) — 순수
   함수. `nick.trim()` → `siteProfileNick.trim()` → `fallbackLabel` 순으로 첫 비어있지 않은
   값을 반환.
 - **`resolveChannelTitle`**
-  ([lib/resolveChannelTitle.ts](../../src/app/features/channels/lib/resolveChannelTitle.ts)) —
+  ([lib/resolveChannelTitle.ts](../../../src/app/features/channels/lib/resolveChannelTitle.ts)) —
   `stereo`로 분기하는 **네 화면 공용** 진입점. self면 위 순수 함수로, dm이면 `resolveDmTitle`로
   보낸다(ADR-0039). self 전용이던 `useSelfChatTitle`은 여기에 흡수돼 사라졌다.
 - **`useChannelTitle(channel, { joinNick, peerNick })`**
-  ([hooks/useChannelTitle.ts](../../src/app/features/channels/hooks/useChannelTitle.ts)) —
+  ([hooks/useChannelTitle.ts](../../../src/app/features/channels/hooks/useChannelTitle.ts)) —
   단일 채널 화면(룸·설정)용 래퍼. 식별자와 `myNick`(`useMyProfile().profile?.nick`)·i18n 라벨을
   채워 `resolveChannelTitle`에 넘긴다. `myNick`은 계정(user 레코드) 이름이 아니라 **site 프로필의
   이름**이다 — user 레코드의 `name`은 `***<뒷4자리>`(전화번호 가입) 또는 raw UUID일 수 있어 쓰지
@@ -166,40 +166,41 @@ self 제목 파생을 순수 함수 + 훅으로 추출해 홈·룸·설정이 �
 ### apps/web — 화면
 
 - **홈 `ChannelList`**
-  ([ChannelList.tsx](../../src/app/features/home/components/ChannelList.tsx)) —
+  ([ChannelList.tsx](../../../src/app/features/home/components/ChannelList.tsx)) —
   `isSelf = channel.memberNo === 1` → `channel.stereo === 'self'`. self 행 제목은
   `resolveSelfChatTitle($join.nick, myNick, 라벨)`. `myNick`(= site 프로필 nick)은 부모
   `ChannelList`에서 `useMyProfile`로 1회 해석해 각 행에 prop으로 내린다(per-row fetch 회피).
   `MY` 배지·멤버수 pill 로직은 유지(self는 pill 없음). 관련 문서: [[components]](../home/components.md).
 - **룸 `ChannelRoomPage`**
-  ([ChannelRoomPage.tsx:349](../../src/app/features/channels/pages/ChannelRoomPage.tsx)) —
+  ([ChannelRoomPage.tsx:349](../../../src/app/features/channels/pages/ChannelRoomPage.tsx)) —
   헤더 title: `isSelfChat ? t('channelList.selfChannel') : …` → self는 공용 파생
   (`$join.nick || site 프로필 nick`). `kind='self'`·읽음표시 미노출·빈 상태(PenLine)는 유지.
   빈 상태 문구는 Figma(3185-13109)와 대조해 i18n(`chat.room.emptyState.selfLine1/2`)을
   맞춘다.
 - **설정 `ChannelSettingsPage`**
-  ([ChannelSettingsPage.tsx](../../src/app/features/channels/pages/ChannelSettingsPage.tsx)) — - 이름 행: self·비-self 모두 `trailing`에 `>`(ChevronRight)를 두고 탭 가능. 탭 시
+  ([ChannelSettingsPage.tsx](../../../src/app/features/channels/pages/ChannelSettingsPage.tsx)) — - 이름 행: self·비-self 모두 `trailing`에 `>`(ChevronRight)를 두고 탭 가능. 탭 시
   `openDialog(isSelfChat || isDmChat ? 'joinNick' : 'update')`로 self·DM은 `JoinNickDialog`,
   그룹은 `UpdateChannelDialog`(멤버는 `readOnly`)를 연다. 제목은 유형 무관하게 `useChannelTitle`
   (= 공용 체인)이다. - 이름 행 아바타(`roomAvatar`): 사진은 공용
-  [resolveChannelAvatar](../../src/app/features/channels/lib/resolveChannelAvatar.ts)가 정하고
+  [resolveChannelAvatar](../../../src/app/features/channels/lib/resolveChannelAvatar.ts)가 정하고
   (self → 내 플레이스 프로필 사진, dm → 상대 사진, 그룹 → `channel.thumbnail`), 사진이 없으면
   self·DM은 `DefaultAvatar`(사람 글리프), 그룹은 기존 `ChatAvatar`.
 
-    **self·DM은 `channel.thumbnail`을 쓰지 않는다.** 두 유형 모두 방 자체의 사진을 설정하는 UI가
-    없고(이름 행 탭이 `JoinNickDialog`로 간다) 행이 대표하는 것은 방이 아니라 사람이다. 같은 규칙을
-    홈 목록·룸 헤더·채팅방 관리 목록이 공유하므로 네 화면이 어긋날 수 없다 — 제목의
-    `resolveChannelTitle`과 같은 이유로 순수 함수로 분리했다. - 멤버 행 렌더는 `memberList` 지역 변수로 추출해 self "방 친구" 섹션과 그룹 멤버 섹션이
-    공유한다(로딩/멤버맵/빈 상태 동일). **내 행에 프로필이 없으면 이름 자리에 `프로필 설정 필요`가
-    오고 탭이 프로필 생성으로 간다** — self 전용이 아니라 세 유형 공통이며, 소유 문서는
-    [[place-profile-prompt]](../home/place-profile-prompt.md)다. - **self의 "방 친구"가 비어 보이던 원인 (2026-08-03 수정).** `useChannelMembers`가 멤버를
-    `users.map(...)`으로 만들어 **user 캐시에 행이 있는 멤버만** 존재했다. 런타임 sync plan은
-    channel·chat·join·profile에만 있고 **user에는 없어** `syncChannelUsers`가 유일한 적재
-    경로인데, self 방은 멤버가 나 하나여서 그 경로가 비면 목록이 영구히 `멤버가 없습니다`였다.
-    이제 멤버십은 **로스터(`channel.memberIds`) + join 행**이 정하고(둘 다 sync plan 있음) user
-    캐시는 신원만 장식한다. `ChannelMember`도 `Partial<DomainUser> & { id }`로 바뀌어 신원 없는
-    멤버를 표현할 수 있다. `isLoading`도 두 스트림 중 하나만 emit하면 풀린다. - self 분기: `{isSelfChat ? (<GroupLabel 방친구 /> + memberList) : (<>알림·친구추가·멤버·
-삭제/나가기</>)}`. self는 소유자 1명만 "방 친구"에 노출되고, 대화방 알림·친구 추가·방
+        **self·DM은 `channel.thumbnail`을 쓰지 않는다.** 두 유형 모두 방 자체의 사진을 설정하는 UI가
+        없고(이름 행 탭이 `JoinNickDialog`로 간다) 행이 대표하는 것은 방이 아니라 사람이다. 같은 규칙을
+        홈 목록·룸 헤더·채팅방 관리 목록이 공유하므로 네 화면이 어긋날 수 없다 — 제목의
+        `resolveChannelTitle`과 같은 이유로 순수 함수로 분리했다. - 멤버 행 렌더는 `memberList` 지역 변수로 추출해 self "방 친구" 섹션과 그룹 멤버 섹션이
+        공유한다(로딩/멤버맵/빈 상태 동일). **내 행에 프로필이 없으면 이름 자리에 `프로필 설정 필요`가
+        오고 탭이 프로필 생성으로 간다** — self 전용이 아니라 세 유형 공통이며, 소유 문서는
+        [[place-profile-prompt]](../home/place-profile-prompt.md)다. - **self의 "방 친구"가 비어 보이던 원인 (2026-08-03 수정).** `useChannelMembers`가 멤버를
+        `users.map(...)`으로 만들어 **user 캐시에 행이 있는 멤버만** 존재했다. 런타임 sync plan은
+        channel·chat·join·profile에만 있고 **user에는 없어** `syncChannelUsers`가 유일한 적재
+        경로인데, self 방은 멤버가 나 하나여서 그 경로가 비면 목록이 영구히 `멤버가 없습니다`였다.
+        이제 멤버십은 **로스터(`channel.memberIds`) + join 행**이 정하고(둘 다 sync plan 있음) user
+        캐시는 신원만 장식한다. `ChannelMember`도 `Partial<DomainUser> & { id }`로 바뀌어 신원 없는
+        멤버를 표현할 수 있다. `isLoading`도 두 스트림 중 하나만 emit하면 풀린다. - self 분기: `{isSelfChat ? (<GroupLabel 방친구 /> + memberList) : (<>알림·친구추가·멤버·
+
+    삭제/나가기</>)}`. self는 소유자 1명만 "방 친구"에 노출되고, 대화방 알림·친구 추가·방
     나가기/삭제는 미노출. `JoinNickDialog`는 다른 다이얼로그와 함께 배선.
 
 ### apps/web — 이름 편집 다이얼로그
@@ -249,15 +250,15 @@ self 제목 파생을 순수 함수 + 훅으로 추출해 홈·룸·설정이 �
 ## 검증 방법
 
 - **유닛 테스트(통과 — `channels` + 홈 `ChannelList`)**
-    - [selfChatTitle.test.ts](../../src/app/features/channels/utils/selfChatTitle.test.ts) —
+    - [selfChatTitle.test.ts](../../../src/app/features/channels/utils/selfChatTitle.test.ts) —
       파생 순서(nick → site 프로필 nick → 라벨), 트림/공백/누락 fallback.
-    - [JoinNickDialog.test.tsx](../../src/app/features/channels/components/JoinNickDialog.test.tsx) —
+    - [JoinNickDialog.test.tsx](../../../src/app/features/channels/components/JoinNickDialog.test.tsx) —
       현재 nick 프리필, 라벨/헬퍼/완료 노출, 저장 시 `$join.userId`+트림 nick 호출·닫힘, 빈 값 저장(nick 제거).
       dm 변형 케이스도 같은 파일에 있다.
-    - [ChannelSettingsPage.test.tsx](../../src/app/features/channels/pages/ChannelSettingsPage.test.tsx) —
+    - [ChannelSettingsPage.test.tsx](../../../src/app/features/channels/pages/ChannelSettingsPage.test.tsx) —
       self: 파생 제목 행 + "방 친구"(소유자) 렌더, 대화방 설정/친구추가/삭제/나가기 미노출, 이름 행
       탭 → `JoinNickDialog` 오픈. 비-self 소유자/멤버 회귀.
-    - [ChannelList.test.tsx](../../src/app/features/home/components/ChannelList.test.tsx) —
+    - [ChannelList.test.tsx](../../../src/app/features/home/components/ChannelList.test.tsx) —
       `stereo==='self'` 행은 파생 제목 + MY 배지, 그룹 행은 `channel.name` + MY 없음.
     - 명령: `npx jest --config apps/web/jest.config.js --rootDir apps/web channels ChannelList`.
 - **web-ui-kit 테스트(통과, self 아바타)**: `DefaultAvatar.test`(self 변형 = 링 +

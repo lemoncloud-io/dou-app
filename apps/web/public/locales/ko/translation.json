@@ -618,6 +618,15 @@
                 "title": "{{name}}님이 채팅방에 입장했습니다.",
                 "titleUnnamed": "대화 상대가 채팅방에 입장했습니다.",
                 "description": "1:1 대화를 시작해 보세요."
+            },
+            "footer": {
+                "leftHint": "다시 대화하려면 초대해 주세요.",
+                "inviteSent": "친구 초대가 완료되었습니다.",
+                "rejected": "친구 초대가 거절되었습니다.",
+                "rejectedHint": "다시 초대를 보낼 수 있어요.",
+                "expired": "초대 링크가 만료되었습니다.",
+                "expiredHint": "초대 링크를 다시 전송해 보세요.",
+                "reinvite": "다시 초대하기"
             }
         },
         "room": {
@@ -626,6 +635,9 @@
             "error": "채널 정보를 불러올 수 없습니다",
             "goBack": "뒤로 가기",
             "inputPlaceholder": "메시지를 입력해 주세요",
+            "attachment": {
+                "openSource": "원문 보기"
+            },
             "unknown": "알 수 없음",
             "am": "오전",
             "pm": "오후",
@@ -718,6 +730,12 @@
                 "description": "채팅방의 메시지를 확인할 수 없으며, 다시 초대를 받아야 참여할 수 있습니다.",
                 "confirm": "나가기"
             },
+            "dmLeaveDialog": {
+                "title": "1:1 대화방을 나가시겠습니까?",
+                "description": "방을 나가면 더 이상 대화에 참여할 수 없습니다.",
+                "confirm": "나가기"
+            },
+            "leftRoom": "대화방 나감",
             "noMembers": "멤버가 없습니다",
             "unknownUser": "알 수 없는 사용자",
             "notificationSettings": {
@@ -1142,14 +1160,16 @@
     },
     "dmChat": {
         "name": {
-            "title": "이름 수정",
-            "label": "방 이름",
-            "placeholder": "대화 상대",
+            "title": "친구 정보",
+            "label": "이름",
+            "placeholder": "설정된 이름으로 노출",
             "helper": "20글자 이내로 입력해 주세요.",
             "done": "완료",
             "saving": "저장 중...",
             "success": "이름이 변경되었습니다",
-            "error": "이름 변경에 실패했습니다"
+            "error": "이름 변경에 실패했습니다",
+            "privateNote": "설정한 친구 이름은 나에게만 표시됩니다.",
+            "reinvite": "다시 초대하기"
         }
     },
     "selfChat": {
@@ -1481,7 +1501,8 @@
             "note": "스팸과 타인 번호 도용을 방지하기 위한 절차이며,\n인증은 처음 한 번만 진행됩니다.",
             "cta": "휴대폰 번호 인증하기"
         },
-        "issueForbidden": "지금은 초대를 보낼 수 없어요. 인증을 마쳤는데도 계속되면 고객센터에 문의해 주세요"
+        "issueForbidden": "지금은 초대를 보낼 수 없어요. 인증을 마쳤는데도 계속되면 고객센터에 문의해 주세요",
+        "reinviteAlreadyAccepted": "상대가 이미 초대를 수락했어요"
     },
     "inviteWaiting": {
         "moreOptions": "더보기",

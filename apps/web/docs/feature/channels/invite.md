@@ -116,13 +116,14 @@ flowchart TD
 
 ### 페이지 (feature 레이어)
 
-- `pages/InvitePage.tsx` (신규) — 기존 [InviteFriendsDialog.tsx](../../../src/app/features/channels/components/InviteFriendsDialog.tsx)의
-  로직을 흡수. `useParams<{ channelId }>`, `PageHeader`(back), `SearchInput`(trailing=링크 버튼),
+- [`pages/InvitePage.tsx`](../../../src/app/features/channels/pages/InvitePage.tsx) —
+  `useParams<{ channelId }>`, `PageHeader`(back), `SearchInput`(trailing=링크 버튼),
   `SelectableUserItem` 목록, `SelectedAvatarRow`, 하단 `완료` 버튼. `isNative()` 분기로 연락처/웹 유도/권한거부 렌더.
-    - 선택 상한: `MAX_INVITE_SELECTION = 100`. 초과 선택 시 토스트(기존 `memberCount + 선택 ≤ 100` 정원 가드
-      [InviteFriendsDialog.tsx:189](../../../src/app/features/channels/components/InviteFriendsDialog.tsx) 대체).
-    - 배치 초대: 기존 `handleBatchInvite`
-      ([:174](../../../src/app/features/channels/components/InviteFriendsDialog.tsx)) 로직 이식.
+  이 화면이 흡수한 `InviteFriendsDialog`는 이전이 끝나면서 삭제됐다.
+    - 선택 상한: `MAX_INVITE_SELECTION = 100`. 초과 선택 시 토스트(`memberCount + 선택 ≤ 100` 정원 가드).
+    - 배치 초대: `handleBatchInvite` →
+      [`useCreateInviteBatch`](../../../src/app/features/channels/hooks/useCreateInviteBatch.ts)의
+      `createBatchInvite`.
 - `pages/InviteLinkPage.tsx` (신규) — `useLocation().state`에서 `{ inviteLink, channelName, avatar }` 수신.
   state가 없으면(리로드 등) 채널 룸으로 `navigate(replace)`. `PageHeader`(hideBack + rightAction=X),
   `InviteLinkCard`, 하단 `링크 공유하기` 버튼. 공유는 native `appBridge.openShareSheet` / 웹

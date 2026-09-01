@@ -5,6 +5,7 @@ export * from './useChannelMembers';
 export * from './useChannelProfiles';
 export * from './useDmPeer';
 export * from './useDmPeers';
+export * from './useDmInviteState';
 export * from './useJoinPositions';
 export * from './useReadMarker';
 export * from './useChatScroll';

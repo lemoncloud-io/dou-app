@@ -8,7 +8,7 @@ import { useSessionIdentity } from '@chatic/app-runtime';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { TextField } from '@chatic/web-ui-kit';
+import { DefaultAvatar, IconChevronRight, ImageAvatar, TextField } from '@chatic/web-ui-kit';
 
 // Direct path, not the `ui/layouts` barrel: the barrel reaches web-core / libs/shared, whose
 // `import.meta` the CommonJS test transform cannot parse (directory-structure.md §6).
@@ -27,6 +27,12 @@ interface JoinNickDialogProps {
      * defaults to my own place-profile nick, which is that room's fallback identity.
      */
     fallbackName?: string;
+    /** DM only: the peer's avatar for the friend-info header. */
+    peerThumbnail?: string | null;
+    /** DM only: renders the "대화방 나감" line under the avatar. */
+    peerHasLeft?: boolean;
+    /** DM only: opens the re-invite form. Omitted when re-inviting is not available (e.g. a guest). */
+    onReinvite?: () => void;
 }
 
 // Room names given by a member live on the per-user join `nick`, capped at 20 characters
@@ -48,6 +54,9 @@ export const JoinNickDialog = ({
     channelId,
     variant = 'self',
     fallbackName,
+    peerThumbnail,
+    peerHasLeft = false,
+    onReinvite,
 }: JoinNickDialogProps) => {
     const { t } = useTranslation();
     const { channel } = useChannel(channelId ?? null);
@@ -56,7 +65,8 @@ export const JoinNickDialog = ({
     const { profile } = useMyProfile();
     const { toast } = useToast();
 
-    const copy = variant === 'dm' ? 'dmChat.name' : 'selfChat.name';
+    const isDm = variant === 'dm';
+    const copy = isDm ? 'dmChat.name' : 'selfChat.name';
 
     // The name shown when no custom join nick is set — the caller's fallback, or for a self-chat my
     // place-profile nick (the identity the self-chat title chain falls back to — useChannelTitle).
@@ -125,6 +135,28 @@ export const JoinNickDialog = ({
                     className="flex flex-1 flex-col overflow-auto"
                 >
                     <div className="flex flex-col gap-6 pt-6">
+                        {/* DM only — the friend-info header (Figma 4052-12782). The note says out loud
+                            what the data already is: this name is written to MY join row, so nobody
+                            else ever sees it (ADR-0068 결정 8). */}
+                        {isDm && (
+                            <div className="flex flex-col gap-5">
+                                <p className="px-4 text-[14px] leading-[1.45] tracking-[-0.07px] text-description">
+                                    {t(`${copy}.privateNote`)}
+                                </p>
+                                <div className="flex flex-col items-center gap-2">
+                                    {peerThumbnail ? (
+                                        <ImageAvatar src={peerThumbnail} alt={placeholderName ?? ''} size={86} />
+                                    ) : (
+                                        <DefaultAvatar size={86} />
+                                    )}
+                                    {peerHasLeft && (
+                                        <p className="text-[14px] leading-[1.45] tracking-[-0.07px] text-description">
+                                            {t('chat.settings.leftRoom')}
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                        )}
                         <TextField
                             label={t(`${copy}.label`)}
                             value={name}
@@ -138,6 +170,18 @@ export const JoinNickDialog = ({
                     {/* Bottom Button */}
                     <div className="mt-auto">
                         <div className="flex flex-col gap-4 px-4 pb-4 pt-5">
+                            {/* Above the save button, and `type="button"` so it never submits the form
+                                on its way out. */}
+                            {isDm && onReinvite && (
+                                <button
+                                    type="button"
+                                    onClick={onReinvite}
+                                    className="flex h-[50px] items-center justify-center gap-1.5 rounded-full border border-input-border text-[16px] font-semibold text-foreground"
+                                >
+                                    {t(`${copy}.reinvite`)}
+                                    <IconChevronRight className="size-[18px]" />
+                                </button>
+                            )}
                             <Button
                                 type="submit"
                                 disabled={isPending.update}

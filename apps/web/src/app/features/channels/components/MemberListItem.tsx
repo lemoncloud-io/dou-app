@@ -19,6 +19,13 @@ interface MemberListItemProps {
      * name (ADR-0040). Underlines it to read as the actionable link Figma 3185-13278 shows.
      */
     needsProfileSetup?: boolean;
+    /**
+     * This member has left the room. Only 1:1 rooms list departed members at all, so this is the DM
+     * "대화방 나감" row (ADR-0068 결정 6). Distinct from `isPendingInvite`: one never arrived, the
+     * other arrived and left — the join counter alone cannot tell them apart (see utils/membership),
+     * which is why the caller decides and not this component.
+     */
+    hasLeft?: boolean;
     /** When set, the row becomes a button that opens the member profile. */
     onClick?: () => void;
 }
@@ -31,6 +38,7 @@ export const MemberListItem = ({
     isOwner = false,
     isPendingInvite = false,
     needsProfileSetup = false,
+    hasLeft = false,
     onClick,
 }: MemberListItemProps) => {
     const { t } = useTranslation();
@@ -45,10 +53,13 @@ export const MemberListItem = ({
             ? { variant: 'mine' as const, label: t('chat.settings.badge.mine') }
             : null;
 
+    // A departed member is dimmed the same way a pending invite is — both are "not here right now".
+    const isDimmed = isPendingInvite || hasLeft;
+
     const avatar = member.avatar ? (
         <ImageAvatar src={member.avatar} alt={member.name} size={AVATAR_SIZE} />
     ) : (
-        <DefaultAvatar size={AVATAR_SIZE} className={isPendingInvite ? 'opacity-50' : undefined} />
+        <DefaultAvatar size={AVATAR_SIZE} className={isDimmed ? 'opacity-50' : undefined} />
     );
 
     return (
@@ -70,6 +81,7 @@ export const MemberListItem = ({
                     </span>
                 </>
             }
+            subtitle={hasLeft ? t('chat.settings.leftRoom') : undefined}
         />
     );
 };
