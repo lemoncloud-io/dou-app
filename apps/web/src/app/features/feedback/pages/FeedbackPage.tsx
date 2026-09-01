@@ -124,21 +124,28 @@ export const FeedbackPage = () => {
                 />
             }
         >
-            <div className="flex flex-col gap-6 py-4">
+            {/* Figma 3293-40427: 16px above the heading, 40px from the notice down to the first
+                field, 30px of tail below the last one. */}
+            <div className="flex flex-col gap-10 pt-4">
                 <div className="flex flex-col gap-4 px-4">
                     <p className="whitespace-pre-line text-center text-[20px] font-semibold leading-[1.35] tracking-[-0.1px] text-foreground">
                         {t('feedback.heading')}
                     </p>
-                    <ul className="mx-auto w-fit list-disc pl-[21px] text-[14px] font-medium leading-[1.45] tracking-[-0.07px] text-description">
+                    {/* Markers ride INSIDE the line box so each bullet centers with its own
+                        sentence, the way the design sets them — a `w-fit` block would instead
+                        left-align both markers under the longer line. */}
+                    <ul className="list-inside list-disc text-center text-[14px] font-medium leading-[1.45] tracking-[-0.07px] text-description">
                         <li>{t('feedback.noticePurpose')}</li>
                         <li>{t('feedback.noticeNoReply')}</li>
                     </ul>
                 </div>
 
-                <div className="flex flex-col gap-6 pb-[30px] pt-2">
+                <div className="flex flex-col gap-8 pb-[30px]">
+                    {/* No `required`: both fields are mandatory (the submit button stays disabled
+                        until they are filled), but the design carries no asterisk — the empty-state
+                        button is what communicates it. */}
                     <TextField
                         label={t('feedback.titleLabel')}
-                        required
                         value={title}
                         // Clamp here rather than via TextField's `maxLength`, which would also render
                         // an "N/5000" counter — the design asks for no visible limit.
@@ -150,7 +157,6 @@ export const FeedbackPage = () => {
 
                     <Textarea
                         label={t('feedback.bodyLabel')}
-                        required
                         value={body}
                         onChange={value => setBody(value.slice(0, MAX_INPUT_LENGTH))}
                         placeholder={t('feedback.bodyPlaceholder')}

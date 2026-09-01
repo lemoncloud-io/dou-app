@@ -64,8 +64,10 @@ export const PhotoAttachField = ({
     };
 
     return (
-        <div className={cn('flex w-full flex-col gap-2 px-4', className)}>
-            <div className="flex w-full flex-col gap-4">
+        // 12px label→field and 16px field→caption, matching the labelled inputs this sits beside
+        // (TextField / Textarea use the same 12px) rather than inventing a third rhythm.
+        <div className={cn('flex w-full flex-col gap-4 px-4', className)}>
+            <div className="flex w-full flex-col gap-3">
                 {label && (
                     <span className="text-[14px] font-semibold leading-[18px] tracking-[0.07px] text-label">
                         {label}
@@ -80,7 +82,9 @@ export const PhotoAttachField = ({
                         className={cn(
                             // Figma BK_200 — the kit has no token between --input-border (BK_100)
                             // and --placeholder (BK_400).
-                            'flex h-[144px] w-full flex-col items-center justify-center gap-4 rounded-[24px] border border-dashed border-[#DFE0E2] bg-surface px-2 py-6 transition-colors',
+                            // 146 = 24 padding + 40 icon + 16 gap + 42 two-line hint + 24 padding,
+                            // so the box is exactly its content and `py-6` lands where Figma puts it.
+                            'flex h-[146px] w-full flex-col items-center justify-center gap-4 rounded-[24px] border border-dashed border-[#DFE0E2] bg-surface px-2 py-6 transition-colors',
                             disabled ? 'opacity-50' : 'hover:border-focus-border'
                         )}
                     >
