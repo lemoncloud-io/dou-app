@@ -1,7 +1,9 @@
 import { render } from '@testing-library/react';
 
 import { useGlobalCacheSearch, useRuntimeSocketState } from '@chatic/app-runtime';
-import { useCloudSessionCatalog, useSessionSelection } from '@chatic/web-core';
+import { useSessionSelection } from '@chatic/app-runtime';
+
+import { useCloudSessionCatalog } from '../../hooks/useCloudCatalog';
 
 import { appBridge } from '../../bridge/appBridge';
 import { useOnBackgroundStatusChanged, useOnReceiveNotification } from '../../bridge/useHandleAppMessage';
@@ -10,14 +12,13 @@ import { CloudPushMarkRunner } from './CloudPushMarkRunner';
 import { useCloudPushMarkStore } from './stores/useCloudPushMarkStore';
 import { resolvePushCloudId } from './utils/resolvePushCloudId';
 
+jest.mock('../../hooks/useCloudCatalog', () => ({ useCloudSessionCatalog: jest.fn() }));
 jest.mock('@chatic/app-runtime', () => ({
     useGlobalCacheSearch: jest.fn(),
     useRuntimeSocketState: jest.fn(),
-}));
-jest.mock('@chatic/web-core', () => ({
-    useCloudSessionCatalog: jest.fn(),
     useSessionSelection: jest.fn(),
 }));
+
 jest.mock('../../bridge/appBridge', () => ({ appBridge: { fetchPushMarks: jest.fn() } }));
 jest.mock('../../bridge/useHandleAppMessage', () => ({
     useOnReceiveNotification: jest.fn(),

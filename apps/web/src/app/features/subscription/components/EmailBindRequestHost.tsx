@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 
-import { cloudsKeys } from '@chatic/web-core';
+import { cloudsKeys } from '@chatic/app-runtime';
 
 import { useEmailBindRequest } from '../../../stores/useEmailBindRequest';
 import { useCloudEmailGuard } from '../hooks';

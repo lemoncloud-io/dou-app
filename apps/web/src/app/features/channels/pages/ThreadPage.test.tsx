@@ -17,8 +17,15 @@ jest.mock('react-i18next', () => ({
     useTranslation: () => ({ t: (k: string, o?: any) => (o && 'count' in o ? `${k}:${o.count}` : k) }),
 }));
 jest.mock('@chatic/bridges', () => ({ logger: { error: jest.fn() } }));
-jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => jest.fn() }));
-jest.mock('@chatic/web-core', () => ({ useSessionIdentity: () => ({ userId: 'me' }) }));
+// Partial mock: keep the real module for everything else. `@chatic/app-runtime`'s session hooks now
+// reach `createQueryKeys` at import time, and a fully-replaced module would drop it.
+jest.mock('@chatic/shared', () => ({
+    ...jest.requireActual('@chatic/shared'),
+    useNavigateWithTransition: () => jest.fn(),
+}));
+jest.mock('@chatic/app-runtime', () => ({
+    useSessionIdentity: () => ({ userId: 'me' }),
+}));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast: jest.fn() }));
 
 jest.mock('@chatic/web-ui-kit', () => ({

@@ -2,7 +2,7 @@ import { renderHook } from '@testing-library/react';
 import { useNavigate } from 'react-router-dom';
 
 import { getSocketManager, isNativeApp, recoverInvitedCloudIfMissing } from '@chatic/app-runtime';
-import { useGlobalSession, useSessionSelection, useSwitchCloudSession } from '@chatic/web-core';
+import { useGlobalSession, useSessionSelection, useSwitchCloudSession } from '@chatic/app-runtime';
 
 import { useLogoutCloudSession } from '../../runtime/useLogoutCloudSession';
 import { useSiteSwitch } from '../../runtime/useSiteSwitch';
@@ -24,13 +24,12 @@ jest.mock('@chatic/app-runtime', () => ({
     // `chat` backs the thread-hop leg (usePushNavigate.hopToThread); the mock functions are
     // hoisted above this factory so the suite can drive them.
     useRuntimeRepositories: jest.fn(() => ({ cloud: {}, chat: { cacheRead, getChat } })),
-}));
-jest.mock('@chatic/bridges', () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } }));
-jest.mock('@chatic/web-core', () => ({
     useGlobalSession: jest.fn(),
     useSessionSelection: jest.fn(),
     useSwitchCloudSession: jest.fn(),
 }));
+jest.mock('@chatic/bridges', () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } }));
+
 jest.mock('../../runtime/useLogoutCloudSession', () => ({ useLogoutCloudSession: jest.fn() }));
 jest.mock('../../runtime/useSiteSwitch', () => ({ useSiteSwitch: jest.fn() }));
 jest.mock('react-router-dom', () => ({ useNavigate: jest.fn() }));

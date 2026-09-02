@@ -64,5 +64,6 @@
 
 앱이 의존하는 라이브러리의 공식 가이드:
 
-- `libs/web-core/docs` — 세션/transport/hooks
-- `libs/app-runtime/docs` — runtime/data/socket
+- [`libs/app-runtime/docs`](../../../libs/app-runtime/docs/README.md) — 세션 허브 · runtime · socket · http · data
+- [`libs/data/docs`](../../../libs/data/docs) — repository · local/remote data source
+- [`libs/logger/docs`](../../../libs/logger/docs/architecture.md) — 통합 로깅

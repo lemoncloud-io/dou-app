@@ -1,5 +1,7 @@
 # 플레이스 생성·그룹방 생성 화면: web-ui-kit 재구축 + 생성 후 이동·owner 게이팅·이미지·한도
 
+> **이름 안내 (2026-09-01):** 이 문서가 쓰는 `*RemoteDataSource` · `RemoteGatewayBundle` · `*DomainGateway` · `remoteFactory` · `remote/data-sources/`는 **당시 이름**이다. 소켓 축이 `Socket` 접두로 옮겨간 뒤의 대응표는 [libs/data/docs/remote/README.md](../../libs/data/docs/remote/README.md#이름-규약-2026-09-01-리네임)에 있다. 기록이므로 본문은 그대로 둔다.
+
 ## Status
 
 accepted

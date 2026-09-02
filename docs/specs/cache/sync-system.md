@@ -25,7 +25,7 @@
 ### DomainGateway (도메인 계층)
 
 - `SocketClient`를 사용하여 특정 도메인(예: `chat`, `device`)의 API를 캡슐화하는 게이트웨이.
-- `RemoteDataSource`와 유사한 역할을 수행한다.
+- `SocketDataSource`와 유사한 역할을 수행한다.
 
 ### 서버
 

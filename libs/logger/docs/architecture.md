@@ -64,13 +64,13 @@
 
 **포함**: (0066 개정분) 수집기/리스너 분리(플랫폼당 셋) · 웹→앱 낱건 sender · 주기 전용 업로더 · `LogStore` 읽기/쓰기 포트 분리 · 저장소 상한(건수+바이트) · 콘솔 구현 통일 · 배치 충전 hop 철거. (배치 업로드 개정분) 엔트리 `id` + 발생 시점 컨텍스트 · 미전송 영속 큐(**유일한 로그 저장소**) · 업로더(3중 flush·백오프·응답 처리) · 전송 보류 토글 · 원격 스위치. (기존) 코어 계약 단일화(모바일 `LogService`를 코어 위임으로 대체) · `SendLog` 페이로드 보존 · 큐 영속화(모바일 MMKV · 웹 localStorage — 링버퍼용 `LogPersistence` 포트는 2026-08-24에 제거) · 감지 확장(리소스/CSP/페이지 크래시/WebView 크래시/RN 전역 예외/네이티브 크래시 사후) · 순수 네이티브 로그 합류(`ChaticNativeLogger` 이미터) · 지연 리포트 큐+웹 대리 전송 · 추적성(P1 정직화, P2 주입 스크립트 가드, 요청 URL·메서드 노출, 신규 카테고리 6종) · 레거시 `__console__` 제거.
 
-**제외**: (0066) 앱이 서버로 직접 전송(인증 클라이언트 부재 — ADR-0066 대안 참조) · 구버전 앱 폴백 · 앱→웹 flush 지시 메시지 · 낱건 sender의 스로틀(실측 후 판단 — `열린 항목` A). (기존) [triggers.md] 카탈로그 전면 적용(후속 트랙 — 이 개정은 운반 장치만 만든다) · 자동 error 리포트 제거(전환 조건 충족 후 별도 트랙) · 로그 보존·삭제 정책(서버 미정) · 동적 원격 로그 제어(스위치를 읽는 자리까지만) · P3 소스맵 심볼리케이션(이 트랙 밖에서 별도로 해결됐다 — [error-reporting.md의 "minified 스택 읽기"](../../web-core/docs/error-reporting.md#minified-스택-읽기)) · fingerprint 개선 · breadcrumb redact 정책 변경 · OS 전체 로그 스트림 · `apps/desktop` 일체.
+**제외**: (0066) 앱이 서버로 직접 전송(인증 클라이언트 부재 — ADR-0066 대안 참조) · 구버전 앱 폴백 · 앱→웹 flush 지시 메시지 · 낱건 sender의 스로틀(실측 후 판단 — `열린 항목` A). (기존) [triggers.md] 카탈로그 전면 적용(후속 트랙 — 이 개정은 운반 장치만 만든다) · ~~자동 error 리포트 제거~~(**2026-09에 완료** — `reportError` 삭제, [apps/web logging](../../../apps/web/docs/architecture/logging.md)의 "리포트와 로그의 관계" 참조) · 로그 보존·삭제 정책(서버 미정) · 동적 원격 로그 제어(스위치를 읽는 자리까지만) · P3 소스맵 심볼리케이션(이 트랙 밖에서 별도로 해결됐다 — error-reporting.md의 "minified 스택 읽기") · fingerprint 개선 · breadcrumb redact 정책 변경 · OS 전체 로그 스트림 · `apps/desktop` 일체.
 
 ## 시나리오
 
-**S1 — 웹 단독에서 에러 발생.** uncaught 예외 → [app.tsx](../../../apps/web/src/app/app.tsx)의 전역 핸들러가 ① `logger.error('GLOBAL', …)`로 버퍼 적재(발생 시각 스탬프) ② `reportError`가 `errorAt`을 기록해 POST(로그는 첨부하지 않는다 — 같은 엔트리를 업로더가 낱건으로 올린다).
+**S1 — 웹 단독에서 에러 발생.** uncaught 예외 → [app.tsx](../../../apps/web/src/app/app.tsx)의 전역 핸들러가 `logger.error('GLOBAL', '[window.onerror] …', { error, data })`로 큐에 적재(발생 시각 스탬프). **그게 전부다** — 2026-09에 자동 에러 리포트(`reportError`)가 폐지돼, 에러는 다른 엔트리와 구별 없이 업로더를 탄다. 경로 구분은 메시지 접두사로만 남는다.
 
-**S2 — 하이브리드(WebView)에서 에러 발생.** S1의 ①은 동일하고, 웹 로그는 이미 `SendLog`(timestamp·원본 tag·`source:'web'`)로 네이티브 통합 버퍼에 합류해 있다. `reportError`는 `LogSource`(=`nativeMergedLogSource`)로 통합 버퍼를 pull → `timestamp <= errorAt` 필터 → tail 50 첨부. 브리지 실패·1.5초 타임아웃 시 에러 시점 웹 스냅샷으로 폴백.
+**S2 — 하이브리드(WebView)에서 에러 발생.** S1과 동일하다. 엔트리는 `SendLog`(timestamp·원본 tag·`source:'web'`)로 네이티브 통합 버퍼에 합류하고, 거기서부터 네이티브 발원 엔트리와 구별되지 않는다. 리포트 쪽 장치(`LogSource`·통합 버퍼 pull·tail 50 첨부)는 첨부 폐지(2026-08-21)와 `reportError` 폐지(2026-09)로 차례로 사라졌다.
 
 **S3 — WebView 프로세스 크래시.** [AppWebView](../../../apps/mobile/src/app/webview/AppWebView.tsx)가 iOS `onContentProcessDidTerminate` / Android `onRenderProcessGone`에서 그 순간의 통합 버퍼 스냅샷 + 감지 시각 + `webview-crash`를 지연 리포트 큐(MMKV)에 저장 후 리로드 → 재부팅된 웹이 세션 준비 후 pull해 대리 전송.
 
@@ -257,23 +257,24 @@ flowchart TB
     srv -- "2xx → ack(ids)" --> reader
 ```
 
-reportError의 시퀀스(S2 기준):
+에러 감지의 시퀀스(S2 기준). `reportError` 폐지 후에는 **두 번째 경로가 없다** — 감지는 엔트리 하나를 남기고 끝나고, 서버로 나가는 것은 업로더의 주기가 결정한다:
 
 ```mermaid
 sequenceDiagram
     participant H as 전역 핸들러 (apps/web)
     participant L as 코어 logger
-    participant B as 웹 버퍼
+    participant Q as 미전송 큐
     participant N as 네이티브 통합 버퍼
-    participant R as reportError (web-core)
-    participant S as /hello/report
+    participant U as 업로더 (주기)
+    participant S as /hello/report-bulk
 
-    H->>L: logger.error('GLOBAL', msg, {error})
-    L->>B: push (발생 시각 스탬프)
-    L->>N: SendLog (timestamp·tag·source 보존)
-    H->>R: reportError(error, context)
-    R->>R: errorAt 기록 · 동기 peek 스냅샷 · 스로틀 체크
-    R->>S: POST (로그 미첨부 — runId로 업로드 로그와 대조)
+    H->>L: logger.error('GLOBAL', '[window.onerror] …', {error, data})
+    L->>Q: publish → 적재 (발생 시각·id·컨텍스트 스탬프)
+    L->>N: SendLog (timestamp·tag·source 보존, 하이브리드만)
+    Note over U: 다음 tick까지 대기 — error 앞당김은 ADR-0066에서 제거됐다
+    U->>Q: peek(batchSize)
+    U->>S: POST (평탄 리스트)
+    S-->>U: 2xx → ack(ids)
 ```
 
 업로드 파이프라인 (S8–S10). 요점은 **저장소가 업로더가 도는 쪽 기준으로 하나**이고,
@@ -435,7 +436,7 @@ RN 크래시는 한 종류가 아니고, **갈래마다 필요한 심볼과 그 
 | `libs/logger/src/upload/LogUploadQueue.ts` (신설)                                | 미전송 큐의 **순수** 부분 — 적재·배치 구성·ack·드랍 정책. 상한 초과 시 **debug 우선, 그다음 오래된 것부터**. 영속화는 소유자(웹 `logUploadStore` · 앱 `MmkvLogUploadQueuePersistence`)에게 위임                                                                                                                                                                                                                                               |
 | `libs/logger/src/upload/LogUploadScheduler.ts` (신설)                            | flush 트리거(보낼 엔트리 N ∨ T초 ∨ 외부 강제)·error 앞당김 하한·지수 백오프·**배치당 시도 상한 5회**(소진 시 배치 폐기 — 상태 코드와 무관한 종료성 보장). 큐를 건드린 뒤 `onSettled`로 소유자에게 알려 영속화를 맡긴다 — 배치 제거가 이 안에서 일어나므로 훅이 없으면 디스크 사본이 어긋난다. 시계와 전송 함수를 **주입**받아 순수하게 유지 — 타이머 테스트가 가능해진다                                                                      |
 | `libs/logger/src/serialization/wire.ts` (신설)                                   | 코어 `LogEntry` → 서버 wire 매핑. `data`/`error`를 `safeStringify` + 길이 제한으로 문자열화하고 허용 필드만 추린다. 서버 타입은 전 필드가 선택이라 **계약 준수 책임이 전적으로 클라이언트에 있다**                                                                                                                                                                                                                                            |
-| `libs/web-core/src/api/logBatch.ts` (신설)                                       | `POST /hello/report-bulk` 전송. **`webTransport.buildSignedRequest(...).execute()`를 직접 쓴다** — `executeSignedRelayRequest`를 쓰면 `withNetworkLog`가 걸려 피드백 루프가 생긴다([request.ts:102,125,148](../../web-core/src/transport/request.ts)에만 인터셉터가 걸려 있고, [common.ts:194](../../web-core/src/api/common.ts)의 `reportError`가 이미 같은 우회 관용구를 쓴다). 자기 실패는 `console`로만                                   |
+| `libs/web-core/src/api/logBatch.ts` (신설)                                       | `POST /hello/report-bulk` 전송. **`webTransport.buildSignedRequest(...).execute()`를 직접 쓴다** — `executeSignedRelayRequest`를 쓰면 `withNetworkLog`가 걸려 피드백 루프가 생긴다(request.ts:102,125,148에만 인터셉터가 걸려 있고, 당시 `common.ts:194`의 `reportError`가 같은 우회 관용구를 썼다 — 그 함수는 2026-09에 폐지됐고, 이 우회만 남았다). 자기 실패는 `console`로만                                                               |
 | `apps/web/src/app/runtime/logContext.ts` (신설)                                  | 컨텍스트 프로바이더 구성 — `getGlobalSessionContext()`(uid·cid·sid) · `getRouteTrail()` 말단(route) · `__APP_VERSION__`(webVersion) · `window.CHATIC_APP_*`(appVersion·os·model) · runId                                                                                                                                                                                                                                                      |
 | [logUploadStore.ts](../../../apps/web/src/app/runtime/logging/logUploadStore.ts) | 미전송 큐의 **localStorage 탭별 키** 어댑터 + alive 하트비트 + 부팅 시 **고아 큐 입양**(큐가 없는 유령 하트비트도 함께 청소). 탭 id는 sessionStorage에 둔다 — 로드마다 새로 만들면 새로고침마다 키 한 쌍이 새고 직전 로드의 큐가 고아가 된다                                                                                                                                                                                                  |
 | `apps/web/src/app/runtime/logUploader.ts` (신설)                                 | 배선 — 큐 + 스케줄러 + `logBatch` 전송 + 하이브리드 소스 주입 + `pagehide`/`visibilitychange` 강제 flush + 원격 스위치 + 전송 보류                                                                                                                                                                                                                                                                                                            |
@@ -443,7 +444,7 @@ RN 크래시는 한 종류가 아니고, **갈래마다 필요한 심볼과 그 
 | `apps/mobile/.../injectionScripts.ts` (개정)                                     | `window.CHATIC_APP_RUN_ID` 주입 — 네이티브가 앱 시작 시 발급. 웹은 값이 없으면 자체 발급으로 폴백하므로 구버전 앱에서도 깨지지 않는다                                                                                                                                                                                                                                                                                                         |
 | `libs/app-messages/.../common.ts` (개정)                                         | `SendLogPayload`에 `id`·컨텍스트 필드 추가 (additive — 구버전 앱은 모르는 필드를 무시)                                                                                                                                                                                                                                                                                                                                                        |
 | `libs/bridges/.../nativeForwarder.ts` (개정)                                     | 늘어난 필드를 `SendLog`에 실어 보냄                                                                                                                                                                                                                                                                                                                                                                                                           |
-| `libs/web-core/src/transport/networkLog.ts` (개정)                               | **성공** 요청의 `responseData` 첨부를 뗀다([networkLog.ts:85](../../web-core/src/transport/networkLog.ts)) — 부피 대비 진단 가치가 낮다. 실패 응답은 그대로 싣는다                                                                                                                                                                                                                                                                            |
+| `libs/web-core/src/transport/networkLog.ts` (개정)                               | **성공** 요청의 `responseData` 첨부를 뗀다(networkLog.ts:85) — 부피 대비 진단 가치가 낮다. 실패 응답은 그대로 싣는다                                                                                                                                                                                                                                                                                                                          |
 
 #### 하이브리드 경로의 최종 구성
 
@@ -489,8 +490,8 @@ RN 크래시는 한 종류가 아니고, **갈래마다 필요한 심볼과 그 
 | [runtime/pageCrashReporter.ts](../../../apps/web/src/app/runtime/pageCrashReporter.ts)       | `page-crash` 사후 리포트 (load+3s 지연 — 게스트 부팅 세션 준비 대기, 마지막 영속 엔트리 시각을 `occurredAt`으로)                                                                 |
 | [runtime/pendingReportFlusher.ts](../../../apps/web/src/app/runtime/pendingReportFlusher.ts) | 지연 큐 pull → 대리 전송 → 성공분만 Ack (실패분은 다음 부팅 재시도). 허용 카테고리 외는 unknown 강등                                                                             |
 | [app.tsx](../../../apps/web/src/app/app.tsx)                                                 | 전역 감지: `logger.error` 선행 + capture-phase 리소스 로드 실패 + `securitypolicyviolation`                                                                                      |
-| [web-core api/common.ts](../../web-core/src/api/common.ts)                                   | 로그 미첨부, `occurredAt`/`categoryOverride` 지원, P1 정직화(합성 stack 미첨부+`stackSynthetic`), script-error는 위치·요청 실패는 메서드+URL을 message에 노출, `http.url/method` |
-| [web-core api/reportCategory.ts](../../web-core/src/api/reportCategory.ts)                   | `categoryOverride` 최우선 + 신규 6종(`resource-error` `csp-violation` `page-crash` `webview-crash` `native-error` `native-crash`)                                                |
+| web-core api/common.ts                                                                       | 로그 미첨부, `occurredAt`/`categoryOverride` 지원, P1 정직화(합성 stack 미첨부+`stackSynthetic`), script-error는 위치·요청 실패는 메서드+URL을 message에 노출, `http.url/method` |
+| web-core api/reportCategory.ts                                                               | `categoryOverride` 최우선 + 신규 6종(`resource-error` `csp-violation` `page-crash` `webview-crash` `native-error` `native-crash`)                                                |
 
 디버그 화면(`LogBufferScreen`)은 **업로더와 같은 `LogStoreReader`를 주입받아** 저장소를 읽는다 — 하이브리드는 `FetchLogUploadQueue`(비파괴), 웹 단독은 로컬 `peek`. 모니터는 hub 구독자가 아니므로(원칙 16) 저장소에 없는 것은 보지 못한다. 앱에는 별도로 [MonitoringScreen](../../../apps/mobile/src/app/features/debug/screens/MonitoringScreen.tsx)이 같은 저장소를 직접 읽으며, 전송 보류 레버(`logUploadHold`)도 거기 있다.
 
@@ -499,7 +500,7 @@ RN 크래시는 한 종류가 아니고, **갈래마다 필요한 심볼과 그 
 - **유닛** (전부 통과 상태):
     - `libs/logger`: `runtime.spec.ts`(hub 발행·컨텍스트 스탬프·`ingest` 보존 — **구독 전 엔트리는 배달되지 않는다**는 원칙 15의 대가까지 고정), `upload/*`·`serializeLogs` spec
     - `libs/bridges`: [logSource.spec.ts](../../bridges/src/logger/logSource.spec.ts) (errorAt 필터·타임아웃·폴백), [setupBridgeLogger.spec.ts](../../bridges/src/logger/setupBridgeLogger.spec.ts) (timestamp·source 전송)
-    - `libs/web-core`: [common.spec.ts](../../web-core/src/api/common.spec.ts) (P1·요청 컨텍스트·override), [reportCategory.spec.ts](../../web-core/src/api/reportCategory.spec.ts)
+    - `libs/web-core`: common.spec.ts (P1·요청 컨텍스트·override), reportCategory.spec.ts
     - `apps/mobile`: `services/log/log.test.ts`(코어 위임·파사드), `persistence.test.ts`, `nativeLoggerBridge.test.ts`, `services/report/*.test.ts`(큐·감지), `webview/hooks/useLogHandler.test.ts`(보존·폴백)
     - `apps/web`: `runtime/webCrashSentinel.test.ts`(센티널·크래시 판정·옛 키 청소), `runtime/pendingReportFlusher.test.ts`(대리 전송·Ack), `feedback/lib/buildReportContext.test.ts`
 - **수동 (웹 단독)**: 게스트 부팅으로 로그인 없이 검증. 디버그 오버레이 `LogBufferScreen`에서 **전송 보류를 켜고** 큐를 확인, 강제 에러 후 payload 확인, 리로드로 localStorage 큐 복원·`page-crash` 확인.

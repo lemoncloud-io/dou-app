@@ -4,6 +4,7 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { AuthRoutes } from './features/auth/routes';
 import { ReportLogsRoutes } from './features/report-logs';
 import { SocketLabRoutes } from './features/socket-lab';
+import { UsersRoutes } from './features/users';
 import { PrivateLayout } from './layout/PrivateLayout';
 
 export const AppRoutes = () => (
@@ -19,6 +20,7 @@ export const AppRoutes = () => (
             <Route path="/" element={<Navigate to="/socket-lab" replace />} />
             <Route path="/socket-lab/*" element={<SocketLabRoutes />} />
             <Route path="/report-logs/*" element={<ReportLogsRoutes />} />
+            <Route path="/users/*" element={<UsersRoutes />} />
         </Route>
         <Route path="*" element={<Navigate to="/socket-lab" replace />} />
     </Routes>

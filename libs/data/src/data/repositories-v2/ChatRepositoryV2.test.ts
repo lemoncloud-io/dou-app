@@ -3,7 +3,7 @@ import { ChatRepositoryV2 } from './ChatRepositoryV2';
 describe('ChatRepositoryV2', () => {
     const createRepository = () => {
         // Split remote and local mocks so optimistic write and refresh behavior can be asserted independently.
-        const chatRemoteDataSource = {
+        const chatSocketDataSource = {
             fetchChat: jest.fn(),
             sendChat: jest.fn(),
             getChat: jest.fn(),
@@ -28,8 +28,8 @@ describe('ChatRepositoryV2', () => {
         };
 
         return {
-            repository: new ChatRepositoryV2(chatRemoteDataSource as any, chatLocalDataSource as any, contextProvider),
-            chatRemoteDataSource,
+            repository: new ChatRepositoryV2(chatSocketDataSource as any, chatLocalDataSource as any, contextProvider),
+            chatSocketDataSource,
             chatLocalDataSource,
         };
     };
@@ -37,8 +37,8 @@ describe('ChatRepositoryV2', () => {
     // Reactions are event-sourced: the server stores no state, so the optimistic write is
     // an event of our own rather than an edit to the target message.
     it('writes a provisional reaction event before the request, then swaps in the server one', async () => {
-        const { repository, chatRemoteDataSource, chatLocalDataSource } = createRepository();
-        chatRemoteDataSource.setReaction.mockResolvedValue({ id: 'ch-1:9', chatNo: 9 });
+        const { repository, chatSocketDataSource, chatLocalDataSource } = createRepository();
+        chatSocketDataSource.setReaction.mockResolvedValue({ id: 'ch-1:9', chatNo: 9 });
 
         await repository.setReaction({ chatId: 'ch-1:4', emoji: '\u{1F44D}', action: 'on' } as any);
 
@@ -57,8 +57,8 @@ describe('ChatRepositoryV2', () => {
     });
 
     it('removes the provisional reaction event when the request rejects', async () => {
-        const { repository, chatRemoteDataSource, chatLocalDataSource } = createRepository();
-        chatRemoteDataSource.setReaction.mockRejectedValue(new Error('offline'));
+        const { repository, chatSocketDataSource, chatLocalDataSource } = createRepository();
+        chatSocketDataSource.setReaction.mockRejectedValue(new Error('offline'));
 
         await expect(
             repository.setReaction({ chatId: 'ch-1:4', emoji: '\u{1F44D}', action: 'on' } as any)
@@ -71,8 +71,8 @@ describe('ChatRepositoryV2', () => {
     });
 
     it('marks the optimistic message as failed when sendChat rejects', async () => {
-        const { repository, chatRemoteDataSource, chatLocalDataSource } = createRepository();
-        chatRemoteDataSource.sendChat.mockRejectedValue(new Error('boom'));
+        const { repository, chatSocketDataSource, chatLocalDataSource } = createRepository();
+        chatSocketDataSource.sendChat.mockRejectedValue(new Error('boom'));
 
         await expect(repository.sendChat({ channelId: 'ch-1', content: 'hello' } as any)).rejects.toThrow('boom');
 
@@ -97,8 +97,8 @@ describe('ChatRepositoryV2', () => {
     });
 
     it('writes remote feed results into local cache and returns refresh metadata', async () => {
-        const { repository, chatRemoteDataSource, chatLocalDataSource } = createRepository();
-        chatRemoteDataSource.fetchChat.mockResolvedValue({
+        const { repository, chatSocketDataSource, chatLocalDataSource } = createRepository();
+        chatSocketDataSource.fetchChat.mockResolvedValue({
             list: [{ id: 'm1', channelId: 'ch-1', chatNo: 3, content: 'hello' }],
             cursorNo: 2,
             readNo: 3,
@@ -116,8 +116,8 @@ describe('ChatRepositoryV2', () => {
     });
 
     it('hydrates local cache when getChat resolves from remote', async () => {
-        const { repository, chatRemoteDataSource, chatLocalDataSource } = createRepository();
-        chatRemoteDataSource.getChat.mockResolvedValue({ id: 'm1', channelId: 'ch-1', content: 'hello' });
+        const { repository, chatSocketDataSource, chatLocalDataSource } = createRepository();
+        chatSocketDataSource.getChat.mockResolvedValue({ id: 'm1', channelId: 'ch-1', content: 'hello' });
 
         const result = await repository.getChat({ id: 'm1' } as any);
 
@@ -129,9 +129,9 @@ describe('ChatRepositoryV2', () => {
     });
 
     it('rolls back the optimistic patch when updateChat fails', async () => {
-        const { repository, chatRemoteDataSource, chatLocalDataSource } = createRepository();
+        const { repository, chatSocketDataSource, chatLocalDataSource } = createRepository();
         chatLocalDataSource.cacheRead.mockResolvedValue({ id: 'm1', content: 'before' });
-        chatRemoteDataSource.updateChat.mockRejectedValue(new Error('boom'));
+        chatSocketDataSource.updateChat.mockRejectedValue(new Error('boom'));
 
         await expect(repository.updateChat({ id: 'm1', content: 'after' } as any)).rejects.toThrow('boom');
 
@@ -146,9 +146,9 @@ describe('ChatRepositoryV2', () => {
     // sync brings it back, and a client that renders deleted messages shows nothing and
     // then a tombstone for the same message.
     it('marks the chat hidden rather than removing it when deleteChat is issued', async () => {
-        const { repository, chatRemoteDataSource, chatLocalDataSource } = createRepository();
+        const { repository, chatSocketDataSource, chatLocalDataSource } = createRepository();
         chatLocalDataSource.cacheRead.mockResolvedValue({ id: 'm1', content: 'before' });
-        chatRemoteDataSource.deleteChat.mockResolvedValue({ id: 'm1', content: 'before', hidden: true });
+        chatSocketDataSource.deleteChat.mockResolvedValue({ id: 'm1', content: 'before', hidden: true });
 
         await repository.deleteChat({ id: 'm1' } as any);
 
@@ -160,19 +160,22 @@ describe('ChatRepositoryV2', () => {
     });
 
     it('restores the deleted chat when deleteChat fails', async () => {
-        const { repository, chatRemoteDataSource, chatLocalDataSource } = createRepository();
+        const { repository, chatSocketDataSource, chatLocalDataSource } = createRepository();
         chatLocalDataSource.cacheRead.mockResolvedValue({ id: 'm1', content: 'before' });
-        chatRemoteDataSource.deleteChat.mockRejectedValue(new Error('boom'));
+        chatSocketDataSource.deleteChat.mockRejectedValue(new Error('boom'));
 
         await expect(repository.deleteChat({ id: 'm1' } as any)).rejects.toThrow('boom');
 
         // The record goes back exactly as it was — not merely un-hidden, which would
         // leave a `hidden: false` the server never sent.
-        expect(chatLocalDataSource.cacheWrite).toHaveBeenLastCalledWith({ id: 'm1', content: 'before' }, {
-            cid: 'cloud-a',
-            sid: 'site-1',
-            uid: 'me',
-        });
+        expect(chatLocalDataSource.cacheWrite).toHaveBeenLastCalledWith(
+            { id: 'm1', content: 'before' },
+            {
+                cid: 'cloud-a',
+                sid: 'site-1',
+                uid: 'me',
+            }
+        );
     });
 
     it('delegates cache helper methods to the local datasource', async () => {

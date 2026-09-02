@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 
 import type { DomainSite } from '@chatic/data';
 import { useRuntimeRepositories } from '@chatic/app-runtime';
-import { useGlobalSession } from '@chatic/web-core';
+import { useGlobalSession } from '@chatic/app-runtime';
 
 /**
  * Places (sites) for the active cloud. List discovery (fetch / delta sync) is owned globally by

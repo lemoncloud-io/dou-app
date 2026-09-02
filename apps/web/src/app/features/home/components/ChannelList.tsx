@@ -5,7 +5,7 @@ import { BellOff } from 'lucide-react';
 
 import { useNavigateWithTransition } from '@chatic/shared';
 import { useChannelSync } from '@chatic/app-runtime';
-import { useSessionIdentity } from '@chatic/web-core';
+import { useSessionIdentity } from '@chatic/app-runtime';
 import type { DomainChannel, DomainChat, DomainJoin } from '@chatic/data';
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 

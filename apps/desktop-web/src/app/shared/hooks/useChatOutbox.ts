@@ -10,7 +10,7 @@ import {
     type ChatOutbox,
     type OutboxEntry,
 } from '@chatic/app-runtime';
-import { useSessionIdentity } from '@chatic/web-core';
+import { useSessionIdentity } from '@chatic/app-runtime';
 
 /**
  * Desktop opt-in for the engine outbox: messages that failed to send go out on their own once

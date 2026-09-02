@@ -1,12 +1,11 @@
 import { useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
-import { createCredentialsByProvider, useRefreshRelaySession } from '@chatic/web-core';
+import { createCredentialsByProvider } from '@chatic/app-runtime';
 
 export const OAuthResponsePage = () => {
     const location = useLocation();
     const navigate = useNavigate();
-    const { refreshRelaySession } = useRefreshRelaySession();
     const handled = useRef(false);
 
     useEffect(() => {
@@ -28,12 +27,11 @@ export const OAuthResponsePage = () => {
                     return;
                 }
 
-                // `createCredentialsByProvider` only builds transport (SDK/AWS) credentials; it does
-                // not flip session auth state. `refreshRelaySession({ syncProfile: true })` applies
-                // the relay session (setSessionAuthenticated + notify) so `isAuthenticated` is true
-                // before we navigate — otherwise ProtectedRoute bounces back to /auth/login.
+                // `createCredentialsByProvider` applies the relay session (setSessionAuthenticated +
+                // notify) so `isAuthenticated` is true before we navigate — otherwise ProtectedRoute
+                // bounces back to /auth/login. It used to build transport credentials only, which is
+                // why this page followed it with a refresh call (ADR-0070 불변조건 1·2).
                 await createCredentialsByProvider(provider, code);
-                await refreshRelaySession({ syncProfile: true });
 
                 let redirectTo = '/socket-lab';
                 try {
@@ -51,7 +49,7 @@ export const OAuthResponsePage = () => {
         };
 
         void checkLoginResult();
-    }, [location.search, navigate, refreshRelaySession]);
+    }, [location.search, navigate]);
 
     return (
         <div className="flex h-screen items-center justify-center bg-background text-sm text-muted-foreground">

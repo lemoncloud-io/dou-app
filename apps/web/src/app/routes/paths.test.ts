@@ -86,6 +86,5 @@ describe('ROUTE_PARAMS — 파라미터 키', () => {
     it('파라미터 키를 리터럴 이름에 매핑한다', () => {
         expect(ROUTE_PARAMS.channelId).toBe('channelId');
         expect(ROUTE_PARAMS.placeId).toBe('placeId');
-        expect(ROUTE_PARAMS.token).toBe('token');
     });
 });

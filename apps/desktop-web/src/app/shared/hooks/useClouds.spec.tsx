@@ -20,11 +20,10 @@ vi.mock('@chatic/app-runtime', () => ({
             },
         },
     }),
-}));
-vi.mock('@chatic/web-core', () => ({
     useCloudSessionCatalog: () => ({ clouds: catalogClouds, isFetchingClouds: false }),
     useGlobalSession: () => ({ cloud: { cloudId: activeCloudId } }),
 }));
+
 vi.mock('../stores', () => ({
     useJoinedCloudsStore: (selector: (state: { joinedClouds: typeof joinedClouds }) => unknown) =>
         selector({ joinedClouds }),

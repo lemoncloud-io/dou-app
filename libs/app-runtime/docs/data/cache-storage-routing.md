@@ -13,7 +13,7 @@
 역사적으로 이 답은 Hot(IndexedDB)+Cold(NativeDB) 2-tier 전략 계층이 담당했지만, 네이티브가
 Cold-only로 전환된 뒤 실질 결정은 "타입별로 웹 저장소(IndexedDB)냐 네이티브 저장소(SQLite)냐"
 하나로 줄었다. 이제 그 결정은 선언적 라우팅 함수 하나(`resolveCacheBackend`)가 내리고, 죽은
-2-tier 기계는 제거됐으며, 조립부는 `remoteFactory` 결의 상태 없는 함수다.
+2-tier 기계는 제거됐으며, 조립부는 `socketFactory` 결의 상태 없는 함수다.
 
 ## 설계 원칙
 

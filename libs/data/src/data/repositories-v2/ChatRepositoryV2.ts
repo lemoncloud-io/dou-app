@@ -6,8 +6,8 @@ import type {
     ChatGetInput,
     ChatReactionInput,
     ChatUpdateInput,
-    IChatRemoteDataSource,
-} from '../remote/data-sources';
+    IChatSocketDataSource,
+} from '../remote/socket-data-sources';
 import type { DataContext, DataContextProvider } from './types';
 import { BaseRepositoryV2, type DisposableRepositoryV2 } from './types';
 
@@ -43,7 +43,7 @@ export interface IChatRepositoryV2 extends DisposableRepositoryV2 {
 /** Manages local-first chat timelines, pending states, and remote synchronization. */
 export class ChatRepositoryV2 extends BaseRepositoryV2 implements IChatRepositoryV2 {
     constructor(
-        private readonly chatRemoteDataSource: IChatRemoteDataSource,
+        private readonly chatSocketDataSource: IChatSocketDataSource,
         private readonly chatLocalDataSource: IChatLocalDataSourceV2,
         contextProvider: DataContextProvider
     ) {
@@ -101,7 +101,7 @@ export class ChatRepositoryV2 extends BaseRepositoryV2 implements IChatRepositor
         this.assertRequiredString(query.channelId, 'channelId');
         const requestContext = this.getRequestContext();
         const normalizedContext = this.getNormalizedContext(requestContext);
-        const remote = await this.chatRemoteDataSource.fetchChat(query, normalizedContext);
+        const remote = await this.chatSocketDataSource.fetchChat(query, normalizedContext);
         const domainList = remote.list || [];
         await this.chatLocalDataSource.cacheWriteMany(domainList, requestContext);
 
@@ -116,7 +116,7 @@ export class ChatRepositoryV2 extends BaseRepositoryV2 implements IChatRepositor
     public async getChat(payload: ChatGetInput): Promise<DomainChat> {
         const requestContext = this.getRequestContext();
         const normalizedContext = this.getNormalizedContext(requestContext);
-        const domainChat = await this.chatRemoteDataSource.getChat(payload, normalizedContext);
+        const domainChat = await this.chatSocketDataSource.getChat(payload, normalizedContext);
         await this.chatLocalDataSource.cacheWrite(domainChat, requestContext);
 
         return domainChat;
@@ -131,7 +131,7 @@ export class ChatRepositoryV2 extends BaseRepositoryV2 implements IChatRepositor
         await this.chatLocalDataSource.cacheWrite(optimisticChat, requestContext);
 
         try {
-            const remote = await this.chatRemoteDataSource.sendChat(payload, normalizedContext);
+            const remote = await this.chatSocketDataSource.sendChat(payload, normalizedContext);
             const domainChat: DomainChat = {
                 ...remote,
                 tempId: optimisticChat.id,
@@ -173,7 +173,7 @@ export class ChatRepositoryV2 extends BaseRepositoryV2 implements IChatRepositor
         );
 
         try {
-            const domainChat = await this.chatRemoteDataSource.updateChat(payload, normalizedContext);
+            const domainChat = await this.chatSocketDataSource.updateChat(payload, normalizedContext);
             await this.chatLocalDataSource.cacheWrite(domainChat, requestContext);
             return domainChat;
         } catch (error) {
@@ -224,7 +224,7 @@ export class ChatRepositoryV2 extends BaseRepositoryV2 implements IChatRepositor
         await this.chatLocalDataSource.cacheWrite(provisional, requestContext);
 
         try {
-            const event = await this.chatRemoteDataSource.setReaction(payload, normalizedContext);
+            const event = await this.chatSocketDataSource.setReaction(payload, normalizedContext);
             await this.chatLocalDataSource.cacheWrite(event, requestContext);
             if (event.id && event.id !== provisionalId) {
                 await this.chatLocalDataSource.cacheDelete(provisionalId, requestContext);
@@ -261,7 +261,7 @@ export class ChatRepositoryV2 extends BaseRepositoryV2 implements IChatRepositor
         }
 
         try {
-            const domainChat = await this.chatRemoteDataSource.deleteChat(payload, normalizedContext);
+            const domainChat = await this.chatSocketDataSource.deleteChat(payload, normalizedContext);
             await this.chatLocalDataSource.cacheWrite(domainChat, requestContext);
             return domainChat;
         } catch (error) {

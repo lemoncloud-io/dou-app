@@ -1,7 +1,8 @@
 import { useCallback, useState } from 'react';
 
 import { logger } from '@chatic/bridges';
-import { reportError, startWebCoreInit, useDynamicDeviceId, useLoginRelayGuestByDevice } from '@chatic/web-core';
+import { useDynamicDeviceId, useLoginRelayGuestByDevice } from '@chatic/app-runtime';
+import { startWebTransportInit } from '@chatic/app-runtime';
 
 import { toError } from '../../../shared';
 
@@ -21,13 +22,12 @@ export const useGuestLogin = () => {
     const submit = useCallback(async (): Promise<boolean> => {
         setIsError(false);
         try {
-            await startWebCoreInit();
+            await startWebTransportInit();
             await loginGuest(deviceId);
             return true;
         } catch (error) {
             const err = toError(error);
             logger.error('AUTH', '[useGuestLogin] device registration failed', { error: err });
-            reportError(err);
             setIsError(true);
             return false;
         }

@@ -12,13 +12,16 @@
     "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx"],
     "references": [
         {
-            "path": "../../libs/bridges/tsconfig.lib.json"
+            "path": "../../libs/ui-kit/tsconfig.lib.json"
         },
         {
-            "path": "../../libs/web-core/tsconfig.lib.json"
+            "path": "../../libs/shared/tsconfig.lib.json"
         },
         {
             "path": "../../libs/app-runtime/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/bridges/tsconfig.lib.json"
         }
     ]
 }

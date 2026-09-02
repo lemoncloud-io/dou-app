@@ -1,5 +1,5 @@
 import type { DeviceInfo, VersionInfo } from '@chatic/app-messages';
-import type { IssueReportExtras } from '@chatic/web-core';
+import type { IssueReportExtras } from '@chatic/app-runtime';
 
 // Direct paths, not the `app/utils` barrel: the barrel pulls in web-vitals / place-profile helpers
 // that reach web-core, whose `import.meta` the CommonJS test transform cannot parse

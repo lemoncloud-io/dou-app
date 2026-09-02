@@ -2,6 +2,8 @@
 
 > 상태: Accepted · 결정일: 2026-07-30 · 관련: [ADR-0033](./0033-relay-dm-invite-and-auth-parallel-tracks.md) (대안 1건 대체)
 
+> **이름 안내 (2026-09-01):** 이 문서가 쓰는 `*RemoteDataSource` · `RemoteGatewayBundle` · `*DomainGateway` · `remoteFactory` · `remote/data-sources/`는 **당시 이름**이다. 소켓 축이 `Socket` 접두로 옮겨간 뒤의 대응표는 [libs/data/docs/remote/README.md](../../libs/data/docs/remote/README.md#이름-규약-2026-09-01-리네임)에 있다. 기록이므로 본문은 그대로 둔다.
+
 ## 맥락 (Context)
 
 특정 기능 대비가 아니라 **전반 대비**다. "모든 데이터 콜은 repository를 거친다"는

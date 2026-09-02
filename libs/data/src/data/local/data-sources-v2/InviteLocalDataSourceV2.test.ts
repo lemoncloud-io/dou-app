@@ -1,4 +1,4 @@
-import type { CacheStorage } from '../storages';
+import type { CacheStorage } from '../ports';
 import { InviteLocalDataSourceV2 } from './InviteLocalDataSourceV2';
 
 const createMemoryStorage = (): CacheStorage<'invite'> => {

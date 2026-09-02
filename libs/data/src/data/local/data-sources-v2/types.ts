@@ -1,7 +1,7 @@
 import { logger } from '@chatic/bridges';
 
 import type { DataContext, DataContextProvider } from '../../repositories-v2/types';
-import { stableHash } from '../storages';
+import { stableHash } from '../stableHash';
 
 export type LocalDataSourceV2ContextOverride = Partial<DataContext>;
 export type LocalDataSourceV2Unsubscribe = () => void;

@@ -64,8 +64,8 @@ export const isAllowedBundleUrl = (url: string): boolean => /^https:\/\//i.test(
  * `/assets/index-abc.js` with HTML would turn a shipping mistake into a syntax error in an
  * unrelated place, and answering a bundle's own `fetch()` with HTML would do worse.
  *
- * Matched on Accept rather than on the path lacking an extension, because the routes that
- * need this most do not lack one — `/auth/token/<jwt>` ends in a dot-separated segment.
+ * Matched on Accept rather than on the path lacking an extension, because a route segment may
+ * legitimately contain dots (an invite code, a token) and would then be mistaken for an asset.
  */
 export const isDocumentRequest = (accept: string | null): boolean =>
     (accept ?? '').split(',').some(entry => entry.split(';')[0].trim() === 'text/html');

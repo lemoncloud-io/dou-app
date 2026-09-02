@@ -1,6 +1,9 @@
 # 초대 목록 로컬 캐시 (Invite Local Cache)
 
-> 상태: Live · 최종 갱신: 2026-08-13 · 관련 ADR: [ADR-0052](../../../../docs/adr/0052-invite-local-cache-and-native-table.md) (이 트랙), [ADR-0051](../../../../docs/adr/0051-cache-storage-routing-simplification.md) (스큐 게이트), [ADR-0043](../../../../docs/adr/0043-relay-invite-cancel-reject-adoption.md) (취소·거절 실 API), [ADR-0033](../../../../docs/adr/0033-relay-dm-invite-and-auth-parallel-tracks.md) (relay 고정)
+> 상태: Live · 최종 갱신: 2026-09-02 · 관련 ADR: [ADR-0052](../../../../docs/adr/0052-invite-local-cache-and-native-table.md) (이 트랙), [ADR-0051](../../../../docs/adr/0051-cache-storage-routing-simplification.md) (스큐 게이트), [ADR-0043](../../../../docs/adr/0043-relay-invite-cancel-reject-adoption.md) (취소·거절 실 API), [ADR-0033](../../../../docs/adr/0033-relay-dm-invite-and-auth-parallel-tracks.md) (relay 고정)
+
+> 최근 개정(2026-09-02): **원격 조회가 옵트인이 됐다.** 홈은 캐시만 그리고, 정기 갱신은
+> `useBackgroundSync`(채널·플레이스·프로필과 같은 레인)가 소유한다 — 아래 설계 원칙 1번과 §7 참고.
 
 ## 목적
 
@@ -19,8 +22,19 @@ relay 핸드셰이크가 끝날 때까지 목록이 비어 있던 문제와, 오
 ## 설계 원칙
 
 - **캐시는 즉시 렌더용이지 권위가 아니다.** 수락·거절은 남의 기기에서 일어나고 알림 패킷이 없다
-  (백엔드 요청 4번). 캐시를 읽어 먼저 그리고 `invite.list`는 **항상** 발사한다. 캐시 값만 보고
-  상태를 판정하는 경로는 없다(stale-while-revalidate).
+  (백엔드 요청 4번). 그러니 캐시 값만 보고 상태를 판정하는 경로는 없고, 서버 응답이 오면 그것이
+  권위다(stale-while-revalidate).
+- **다만 "항상 발사"는 소비자가 아니라 sync 레인의 몫이다**(2026-09-02 개정). `useRelayInvites`는
+  기본값이 **캐시 전용**이고, 원격 조회는 옵트인(`remote`/`pollIntervalMs`)이다. 정기 갱신은
+  `useBackgroundSync`가 채널·플레이스·프로필과 같은 트리거(verified 상승 엣지 · 포그라운드 복귀 ·
+  60초 틱)에서 `invite.list`를 부르고, 그 응답이 이 캐시로 미러되면서 홈 행이 갱신된다.
+  왜 옮겼나: 홈은 이 훅을 **전 유저에게** 마운트하는데(초대를 보낸 적 없는 다수 포함) `staleTime: 0`
+    - 포커스 refetch 조합이 마운트마다·포커스마다 relay-pinned `invite.list`를 쏘고 있었다. 그게 앱
+      전체에서 가장 자주 나가는 relay 읽기라, 연결 인증 desync가 생길 때마다
+      `401 UNAUTHORIZED - not authenticated invite.list`로 드러나는 카나리아였다. 60초 틱은 캐시에
+      `pending` 카드가 있을 때만 도는데(그 외 상태는 남의 기기에서 더 변할 수 없다), 엣지는 조건 없이
+      물어 이 기기가 본 적 없는 카드(다른 기기 발급·캐시 초기화)를 발견한다. 재시도도 끊었다 —
+      앱 전역 `retry: 1`은 실패 1건을 패킷 2건으로 만들고, 어차피 다음 엣지·틱이 다시 묻는다.
 - **자격증명은 타입에서 뺀다.** `CacheInviteView`에 `code`·`deeplink`가 **없다**. 저장 직전 변환은
   스프레드가 아니라 **허용 목록(allowlist) 매퍼**(`toCacheInviteView`)다 — 타입만으로는 런타임
   초과 프로퍼티를 막지 못하고, chat 경로에서 `{...query}` 스프레드가 키에 없는 필드를 저장소까지
@@ -34,8 +48,9 @@ relay 핸드셰이크가 끝날 때까지 목록이 비어 있던 문제와, 오
   아예 모르므로, 병합 시 옮겨 붙지 않으면 dismiss가 새 응답이 올 때마다 사라진다.
 - **로컬 상태의 원천은 하나다.** dismiss(로컬 숨김)는 캐시 행의 `dismissedAt` 필드이고,
   localStorage에 두 번째 원천을 남기지 않는다.
-- **초대 캐시의 로컬 쓰기는 전부 기본 클라우드에서만 한다.** 조회(`invite.list`)는 게이트되지
-  않아 클라우드 활성 중에도 돈다. 그때 쓰면 그 클라우드 파티션에 고아 행이 쌓이므로,
+- **초대 캐시의 로컬 쓰기는 전부 기본 클라우드에서만 한다.** 정기 조회는 sync 레인에서
+  `cid === 'default'`로 걸러지지만(초대 행 자체가 기본 클라우드에서만 렌더된다), 온디맨드
+  `refetch`와 대기 화면 폴링에는 클라우드 게이트가 없어 클라우드 활성 중에도 돌 수 있다. 그때 쓰면 그 클라우드 파티션에 고아 행이 쌓이므로,
   `list`의 캐시 미러링뿐 아니라 `dismiss`/`undismiss`/`cacheWriteMany`/`cacheWrite`/`cacheDelete`/
   `cacheClear` 전부가 `cid === 'default'`가 아니면 스킵한다. `contextOverride`로 물리 파티션을
   바꾸는 방식은 쓸 수 없다(읽기 경로가 override를 무시한다).
@@ -159,7 +174,7 @@ flowchart LR
   subgraph D["libs/data"]
     REPO["InviteRepositoryV2"]
     LDS["InviteLocalDataSourceV2"]
-    RDS["InviteRemoteDataSource<br/>(relay 고정)"]
+    RDS["InviteSocketDataSource<br/>(relay 고정)"]
     MAP["toCacheInviteView<br/>allowlist"]
   end
   subgraph S["storage"]
@@ -243,7 +258,7 @@ export type InviteQueryOptions = BaseQueryOptions;
 
 `Omit`은 컴파일 시점 보증일 뿐이고, 실제 방어는 §4의 허용 목록 매퍼다.
 
-TTL은 [storages/utils.ts](../../../data/src/data/local/storages/utils.ts)의 `CACHE_TTL_MS`에
+TTL은 [local/ports/policy.ts](../../../data/src/data/local/ports/policy.ts)의 `CACHE_TTL_MS`에
 `invite: 100 * 12 * 30 * DAY_MS`(무만료, `chat`·`invitecloud`와 동일)로 넣었다. 만료 판정은 서버
 `state`/`expiredAt`이 전부이고, 캐시 TTL로 행을 죽이면 즉시 렌더 목적이 훼손되기 때문이다.
 
@@ -265,8 +280,8 @@ TTL은 [storages/utils.ts](../../../data/src/data/local/storages/utils.ts)의 `C
 
 ### 3. 저장소 배선 — `libs/data` / `libs/app-runtime`
 
-- `LocalCacheStorages`에 `invite`, `createCacheStorages`에 `storageFactory('invite', ...)`
-  ([storages/index.ts](../../../data/src/data/local/storages/index.ts)).
+- `LocalCacheStorages`에 `invite`([local/ports/cacheStorage.ts](../../../data/src/data/local/ports/cacheStorage.ts)),
+  `createCacheStorages`에 `storageFactory('invite', ...)`([localFactory.ts](../../src/data/factories/localFactory.ts)).
 - `LocalDataSourcesV2`에 `invite`, `createLocalDataSourcesV2`에 생성
   ([data-sources-v2/index.ts](../../../data/src/data/local/data-sources-v2/index.ts)).
 - [localFactory.ts](../../src/data/factories/localFactory.ts)의 `createLocalDataSources`
@@ -334,8 +349,12 @@ cacheClear(); // 스코프 전체 삭제 — 디버그 패널 전용 (cid==='def
 ### 7. `useRelayInvites` — 캐시 우선화
 
 [useRelayInvites.ts](../../../../apps/web/src/app/hooks/useRelayInvites.ts).
-react-query 부분(게이트·`staleTime: 0`·포커스 refetch·`pollIntervalMs`)은 그대로 두고 로컬 관찰을
-더했다. 병합 함수(`mergeCachedAndRemoteInvites`)는:
+react-query 부분(relay 게이트·`staleTime: 0`·포커스 refetch·`pollIntervalMs`)은 그대로 두고 로컬
+관찰을 더했다. **2026-09-02 개정**: 여기에 게이트가 하나 더 붙었다 — `enabled`가
+`isRelayVerified && wantsRemote`이고, `wantsRemote`는 `remote ?? pollIntervalMs !== undefined`다.
+즉 기본 소비자(홈)에게는 쿼리 자체가 돌지 않아 위 react-query 옵션이 전부 무의미해지고, 원격
+조회를 요청한 소비자(대기 화면)에게만 예전 그대로 적용된다. `retry`도 이 쿼리에서만 `false`로
+내렸다. 병합 함수(`mergeCachedAndRemoteInvites`)는:
 
 ```
 merged = remote.map(row => 캐시에 같은 id가 있고 dismissedAt이 있으면 그 값을 이식)
@@ -349,7 +368,16 @@ merged = remote.map(row => 캐시에 같은 id가 있고 dismissedAt이 있으�
 잠갔다.
 
 - `isLoading`의 의미가 바뀌었다: `query.isLoading && invites.length === 0` — 캐시 행이 하나라도
-  있으면 로딩 스켈레톤을 띄우지 않는다.
+  있으면 로딩 스켈레톤을 띄우지 않는다. 캐시 전용 소비자에서는 쿼리가 disabled라 `isLoading`이
+  아예 false다(스피너에 갇히지 않는다).
+- **정기 갱신 배선(2026-09-02)**: [useBackgroundSync.ts](../../../../apps/web/src/app/runtime/useBackgroundSync.ts)의
+  `refreshActiveLists`에 초대 블록이 붙었다. 트리거는 다른 도메인과 동일하고, 주기 틱만
+  `{ periodic: true }`로 구분해 `invite.cacheReadList()`에 `pending` 행이 있는지 먼저 본다.
+  게스트 세션도 통째로 스킵한다 — 발급이 메인유저 전용이라(ADR-0034) 게스트의 목록은 항상 비고,
+  apps/web은 미로그인 방문자에게 게스트 세션을 자동 부팅하므로 홈 마운트의 큰 몫이 여기다.
+  `cid !== 'default'`면 역시 통째로 스킵하는데, 이건 렌더 조건과 맞추는 것 외에 게이트를 정직하게
+  만드는 효과도 있다 — 그 레인의 `isVerified`는 **액티브** 슬롯이고, `cid === 'default'`인 분기에서
+  액티브 슬롯은 곧 relay(이 호출이 고정된 슬롯)다.
 - `RelayInviteRow = MyInviteView & { dismissedAt?: number }` 타입을 새로 노출해 `dismissedAt`을
   읽는 소비자(`useLocallyCanceledInvites`, `useCanceledInviteReconcile`)가 캐스트 없이 접근한다.
 

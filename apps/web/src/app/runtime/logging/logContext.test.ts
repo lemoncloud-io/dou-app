@@ -1,6 +1,8 @@
-jest.mock('@chatic/web-core', () => ({ getGlobalSessionContext: jest.fn() }));
+jest.mock('@chatic/app-runtime', () => ({
+    getGlobalSessionContext: jest.fn(),
+}));
 
-import { getGlobalSessionContext } from '@chatic/web-core';
+import { getGlobalSessionContext } from '@chatic/app-runtime';
 import { setLogContextProvider } from '@chatic/bridges';
 
 import { attachLogContext, readLogContext, resetWebRunId } from './logContext';

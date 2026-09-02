@@ -1,7 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 
 import { logger } from '@chatic/bridges';
-import { reportError } from '@chatic/web-core';
 
 interface Props {
     children: ReactNode;
@@ -21,11 +20,9 @@ export default class ErrorBoundary extends Component<Props, State> {
         this.setState({ error, info: info.componentStack ?? '' });
 
         // The fallback below already shows the crash on screen, so this is for the
-        // record rather than the operator: `logger` puts it in the ring buffer,
-        // and `reportError` files it as `[admin] react-render` (componentStack is
-        // what drives that category).
+        // record rather than the operator: the entry joins the upload queue and
+        // reaches the collector with the component stack that identifies it.
         logger.error('GLOBAL', '[socket-lab] render crash', { error, data: { componentStack: info.componentStack } });
-        reportError(error, { source: 'error-boundary', componentStack: info.componentStack ?? undefined });
     }
 
     override render() {

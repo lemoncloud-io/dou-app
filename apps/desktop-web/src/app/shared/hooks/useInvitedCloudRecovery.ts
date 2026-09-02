@@ -6,7 +6,9 @@ import {
     useRuntimeRepositories,
     useRuntimeSocketState,
 } from '@chatic/app-runtime';
-import { useCloudSessionCatalog, useSessionSelection } from '@chatic/web-core';
+import { useSessionSelection } from '@chatic/app-runtime';
+
+import { useCloudSessionCatalog } from './useCloudCatalog';
 
 /**
  * Rebuilds the active invited cloud's local record, so the rail keeps it after you leave.

@@ -1,4 +1,4 @@
-import type { CacheStorage } from '../storages';
+import type { CacheStorage } from '../ports';
 import { UserLocalDataSourceV2 } from './UserLocalDataSourceV2';
 
 /**

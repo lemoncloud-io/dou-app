@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-import { useGlobalSession } from '@chatic/web-core';
+import { useGlobalSession } from '@chatic/app-runtime';
 
 import { useCloudPushBadgeStore } from '../stores';
 

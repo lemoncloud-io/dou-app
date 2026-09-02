@@ -5,7 +5,7 @@ import { useLocation, useParams } from 'react-router-dom';
 
 import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
-import { useSessionIdentity } from '@chatic/web-core';
+import { useSessionIdentity } from '@chatic/app-runtime';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 import { ChatRoomHeader, MessageInput } from '@chatic/web-ui-kit';
 

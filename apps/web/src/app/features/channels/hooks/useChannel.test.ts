@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 
 import { useChannelSync, useRuntimeRepositories } from '@chatic/app-runtime';
-import { useSessionIdentity } from '@chatic/web-core';
+import { useSessionIdentity } from '@chatic/app-runtime';
 import type { DomainChannel } from '@chatic/data';
 
 import { useChannel } from './useChannel';
@@ -9,8 +9,6 @@ import { useChannel } from './useChannel';
 jest.mock('@chatic/app-runtime', () => ({
     useRuntimeRepositories: jest.fn(),
     useChannelSync: jest.fn(),
-}));
-jest.mock('@chatic/web-core', () => ({
     useSessionIdentity: jest.fn(),
 }));
 

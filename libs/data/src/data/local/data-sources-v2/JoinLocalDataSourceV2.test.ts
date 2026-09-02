@@ -1,4 +1,4 @@
-import type { CacheStorage } from '../storages';
+import type { CacheStorage } from '../ports';
 import { JoinLocalDataSourceV2 } from './JoinLocalDataSourceV2';
 
 // Use a plain in-memory store so the test focuses on join-specific filtering and deletion rules.

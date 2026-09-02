@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { useRuntimeRepositories } from '@chatic/app-runtime';
-import { useSessionIdentity, useSessionSelection } from '@chatic/web-core';
+import { useSessionIdentity, useSessionSelection } from '@chatic/app-runtime';
 
 import { isPlaceProfileAbsent } from '../utils/placeProfile';
 

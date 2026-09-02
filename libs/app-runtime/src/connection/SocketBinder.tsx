@@ -14,6 +14,51 @@ export interface SocketBinderProps {
 }
 
 /**
+ * Detects the one cloud switch this design does not support: a switch to a cloud that shares the
+ * PREVIOUS cloud's wss host.
+ *
+ * The whole reboot path rests on the invariant that a cloud switch changes the wss URL, because no
+ * two clouds share a wss host (confirmed 2026-09-02). That is what makes `SocketBinder` alone
+ * sufficient: a URL change moves the reboot key, the slot is rebuilt, and `bootstrapSocketConnection`
+ * registers the new cloud's identity. `SocketReauthBinder` deliberately does not watch cloud for the
+ * same reason (see its `SLOT_KINDS`).
+ *
+ * Break the invariant and nothing errors — the reboot key holds, the socket stays up, and it keeps
+ * serving the OUTGOING cloud's identity while the app believes it switched. That silence is the
+ * problem, so this names it. The signature is exact: the slot's `cid` is the COMMITTED cloud, which
+ * only moves on a successful token exchange, while the reboot key is url/deviceId/wssType — so
+ * "committed cloud moved, socket did not" has no benign reading.
+ *
+ * Not a throw: the session is usable and a hard failure here would take down a working app over a
+ * backend topology change. Supporting the case is a small, known step if it ever arrives — put an
+ * `identityToken` on the cloud slot and add cloud back to `SocketReauthBinder`, whose
+ * `reauthenticateActiveSocket` already takes the `cid` and calls `rebindCid` before the handshake
+ * (§8-4).
+ */
+const useSameWssSwitchGuard = (kind: SocketKind, rebootKey: string, cid: string | undefined): void => {
+    const prevRef = useRef({ rebootKey, cid });
+
+    useEffect(() => {
+        const prev = prevRef.current;
+        prevRef.current = { rebootKey, cid };
+
+        if (kind !== 'cloud') return;
+        // Both sides must name a real cloud, so this is a switch between two live clouds rather than
+        // a slot turning on or off. `'default'` is the no-committed-cloud sentinel; it cannot appear
+        // while the slot is bound (the slot gates on `cloud.wss`, which comes off the delegation
+        // token that also supplies the committed cid), but treating it as absent keeps the guard
+        // honest if that ever changes.
+        const isCloud = (value: string | undefined): boolean => !!value && value !== 'default';
+        if (!isCloud(prev.cid) || !isCloud(cid)) return;
+        if (prev.rebootKey !== rebootKey || prev.cid === cid) return;
+
+        logger.error('SOCKET', '[SocketBinder] same-wss cloud switch is unsupported', {
+            data: { from: prev.cid, to: cid, rebootKey },
+        });
+    }, [kind, rebootKey, cid]);
+};
+
+/**
  * Manages ONE socket slot (relay or cloud) independently: (re)boots it via the pure
  * `bootstrapSocketConnection` on a socket-identity change, and tears just that slot down when it is
  * gated off. relay and cloud slots coexist (dual sockets) — a change to one never disturbs the other.
@@ -36,6 +81,8 @@ const useSocketSlot = (
     const rebootKey = socketRebootKey(config);
     const configRef = useRef(config);
     configRef.current = config;
+
+    useSameWssSwitchGuard(kind, rebootKey, config?.cid);
 
     useEffect(() => {
         // Detach the previous connection's SDK auth subscriptions before (re)booting / tearing down.

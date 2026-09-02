@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 
-import { useDynamicDeviceId, useRegisterDeviceTokenMutation, useSessionAuth } from '@chatic/web-core';
+import { useRegisterDeviceTokenMutation } from '../data/hooks';
+import { useDynamicDeviceId, useSessionAuth } from '../session';
 
 /**
  * Shell-provided contract for push device-token registration.

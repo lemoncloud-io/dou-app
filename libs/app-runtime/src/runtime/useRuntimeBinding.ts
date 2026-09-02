@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 
-import { useDynamicDeviceId, useGlobalSession } from '@chatic/web-core';
+import { getCommittedCloudId, useDynamicDeviceId, useGlobalSession } from '../session';
 
 import type { RuntimeBinding, RuntimeSocketSlot } from './types';
 
@@ -23,10 +23,12 @@ export const useRuntimeBinding = (): RuntimeBinding => {
         // carried as a sibling of `config` (NOT inside it): SocketBinder's reboot key reads only
         // `config`, so a token refresh leaves the config stable and does not reboot the socket, while
         // SocketReauthBinder watches this per-slot `identityToken` to re-authenticate in place on a
-        // same-connection identity swap (guest→social). The CLOUD slot deliberately carries no
-        // identityToken (a535055a): a cloud switch is assumed to change the wss URL and reboot via
-        // SocketBinder — see the same-wss caveat in SocketReauthBinder / 2026-08 session audit §5-7.
-        // Login (null→token) turns a slot on, logout off. (§6-3, §6-7)
+        // same-connection identity swap (guest→social). The CLOUD slot carries no identityToken
+        // (a535055a) and that is an invariant, not an assumption: no two clouds share a wss host
+        // (confirmed 2026-09-02), so every cloud switch changes the URL and reboots the slot through
+        // SocketBinder, leaving no live connection to re-authenticate. A violation would be silent,
+        // so SocketBinder's same-wss guard reports it. Login (null→token) turns a slot on, logout
+        // off. (§6-3, §6-7)
         const relaySlot: RuntimeSocketSlot | undefined =
             deviceId && relay.wss && relay.identityToken
                 ? {
@@ -34,11 +36,15 @@ export const useRuntimeBinding = (): RuntimeBinding => {
                       identityToken: relay.identityToken,
                   }
                 : undefined;
-        // Cloud slot only while a cloud session is active; its cid is the COMMITTED cloud (cloud
-        // context reads committed tokens), so it stays frozen through an optimistic cid pre-apply.
+        // Cloud slot only while a cloud session is active. Its cid is the COMMITTED cloud, read from
+        // the delegation token — NOT `cloud.cloudId`, which is the SELECTED id and flips at the start
+        // of a switch. The old code claimed committed in its comment but passed the selected value, so
+        // during the optimistic window the slot carried the TARGET cid next to the OUTGOING cloud's
+        // `wss`/`identityToken` — a config describing two different clouds (ADR-0070 결정 7의 세 뷰).
+        const committedCloudId = getCommittedCloudId();
         const cloudSlot: RuntimeSocketSlot | undefined =
             deviceId && cloud.isActive && cloud.wss && cloud.identityToken
-                ? { config: { url: cloud.wss, deviceId, wssType: 'cloud', cid: cloud.cloudId ?? 'default' } }
+                ? { config: { url: cloud.wss, deviceId, wssType: 'cloud', cid: committedCloudId ?? 'default' } }
                 : undefined;
 
         return {

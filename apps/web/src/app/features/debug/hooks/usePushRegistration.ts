@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 
 import { isNative } from '@chatic/bridges';
-import { useDynamicDeviceId, useRegisterDeviceTokenMutation } from '@chatic/web-core';
+import { useDynamicDeviceId, useRegisterDeviceTokenMutation } from '@chatic/app-runtime';
 import { useDeviceInfo } from '@chatic/device-utils';
 
 import { appBridge } from '../../../bridge';

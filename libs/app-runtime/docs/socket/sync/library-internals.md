@@ -55,7 +55,12 @@ plan을 읽어보면 구조가 **두 패밀리**로 갈린다. 이것이 동기�
 
 단일 `tick` 정수가 버전 축. scheduler가 `intervalMs` 주기로 `run` → `device.read` → tick mismatch면 갱신, **낮은 tick은 무시**(out-of-order 방지). 서버 `device.sync` trigger 수신 시 후속 `device.read`.
 
-### 2-B. Chat — append-only 이벤트 기반 (polling 없음)
+### 2-B. Chat — 이벤트 기반 (polling 없음)
+
+> **0.5.1부터 append-only가 아니다.** 이미 해소된 `chatNo`에 다시 온 payload는 그 메시지의
+> **변경**이고 `onUpdate`로 간다 — `hidden: true`면 삭제, 그 외는 편집. 창에서 밀려난 메시지에
+> 대해서도 발사되므로 id 기준으로 적용하고 반복을 예상해야 한다. `lastNo`의 의미도 함께 바뀌었다:
+> "받은 것"이 아니라 "해소된 것"의 최댓값이라 숨겨진 메시지가 남긴 구멍에서 멈추지 않는다.
 
 `src/client-socket-v2/plans/chat-sync-plan.ts`. `run`은 **no-op**이고 전적으로 이벤트로 동작한다:
 

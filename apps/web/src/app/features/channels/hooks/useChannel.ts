@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { useChannelSync, useRuntimeRepositories } from '@chatic/app-runtime';
-import { useSessionIdentity } from '@chatic/web-core';
+import { useSessionIdentity } from '@chatic/app-runtime';
 import type { DomainChannel } from '@chatic/data';
 
 import type { ClientChannelView } from '../types';

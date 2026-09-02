@@ -5,18 +5,17 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 
 import { logger } from '@chatic/bridges';
-import { cloudsKeys } from '@chatic/users';
+import { cloudsKeys } from '@chatic/app-runtime';
 import { useRuntimeRepositories } from '@chatic/app-runtime';
 import {
     getIdentityContext,
-    registerUserWithInviteCode,
-    reportError,
-    startWebCoreInit,
     useDynamicDeviceId,
     useLoginRelayGuestByDevice,
     useSiteSwitch,
     useSwitchCloudSession,
-} from '@chatic/web-core';
+} from '@chatic/app-runtime';
+import { startWebTransportInit } from '@chatic/app-runtime';
+import { registerUserWithInviteCode } from '@chatic/app-runtime';
 
 import { toError, useJoinedCloudsStore } from '../../../shared';
 import { fetchInviteCodeInfo } from '../apis';
@@ -61,7 +60,7 @@ export const useInviteLogin = () => {
             setError(null);
 
             try {
-                await startWebCoreInit();
+                await startWebTransportInit();
                 // The invite exchange is signed with a guest delegatorId. Reuse the existing
                 // guest session if there is one (the in-app "Join" dialog is reachable with a
                 // session already live) — only bootstrap a guest when none exists. A real,
@@ -129,7 +128,6 @@ export const useInviteLogin = () => {
             } catch (error) {
                 const err = toError(error);
                 logger.error('AUTH', '[useInviteLogin] login failed', { error: err });
-                reportError(err);
                 setError({ kind: 'server', message: extractServerErrorMessage(err) });
                 return false;
             } finally {

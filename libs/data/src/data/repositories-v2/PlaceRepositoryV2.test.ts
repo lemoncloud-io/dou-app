@@ -4,7 +4,7 @@ import { createRepositoriesV2 } from './index';
 describe('PlaceRepositoryV2', () => {
     const createRepository = () => {
         // Mock remote fetch/mutation calls independently from local cache writes to keep sequencing assertions simple.
-        const placeRemoteDataSource = {
+        const placeSocketDataSource = {
             fetchPlace: jest.fn(),
             createPlace: jest.fn(),
             getPlace: jest.fn(),
@@ -29,19 +29,19 @@ describe('PlaceRepositoryV2', () => {
 
         return {
             repository: new PlaceRepositoryV2(
-                placeRemoteDataSource as any,
+                placeSocketDataSource as any,
                 placeLocalDataSource as any,
                 contextProvider
             ),
-            placeRemoteDataSource,
+            placeSocketDataSource,
             placeLocalDataSource,
         };
     };
 
     it('restores the previous place when updatePlace fails after an optimistic cache patch', async () => {
-        const { repository, placeRemoteDataSource, placeLocalDataSource } = createRepository();
+        const { repository, placeSocketDataSource, placeLocalDataSource } = createRepository();
         placeLocalDataSource.cacheRead.mockResolvedValue({ id: 'place-1', name: 'Before' });
-        placeRemoteDataSource.updatePlace.mockRejectedValue(new Error('boom'));
+        placeSocketDataSource.updatePlace.mockRejectedValue(new Error('boom'));
 
         await expect(repository.updatePlace({ id: 'place-1', name: 'After' } as any)).rejects.toThrow('boom');
 
@@ -53,14 +53,14 @@ describe('PlaceRepositoryV2', () => {
     });
 
     it('normalizes a sid-only update payload to carry id (= sid) for remote and optimistic cache', async () => {
-        const { repository, placeRemoteDataSource, placeLocalDataSource } = createRepository();
+        const { repository, placeSocketDataSource, placeLocalDataSource } = createRepository();
         placeLocalDataSource.cacheRead.mockResolvedValue({ id: 'site-7', name: 'Before' });
-        placeRemoteDataSource.updatePlace.mockResolvedValue({ id: 'site-7', name: 'After' });
+        placeSocketDataSource.updatePlace.mockResolvedValue({ id: 'site-7', name: 'After' });
 
         await repository.updatePlace({ sid: 'site-7', name: 'After' } as any);
 
         // The backend rejects place.update without @id, so the outgoing payload must carry it.
-        expect(placeRemoteDataSource.updatePlace).toHaveBeenCalledWith(
+        expect(placeSocketDataSource.updatePlace).toHaveBeenCalledWith(
             expect.objectContaining({ id: 'site-7', sid: 'site-7', name: 'After' }),
             expect.anything()
         );
@@ -72,8 +72,8 @@ describe('PlaceRepositoryV2', () => {
     });
 
     it('writes ordered remote places into local cache during refreshList', async () => {
-        const { repository, placeRemoteDataSource, placeLocalDataSource } = createRepository();
-        placeRemoteDataSource.fetchPlace.mockResolvedValue({
+        const { repository, placeSocketDataSource, placeLocalDataSource } = createRepository();
+        placeSocketDataSource.fetchPlace.mockResolvedValue({
             list: [
                 { id: 'place-1', name: 'A' },
                 { id: 'place-2', name: 'B' },
@@ -94,9 +94,9 @@ describe('PlaceRepositoryV2', () => {
     });
 
     it('persists the created place into local cache after a successful remote create', async () => {
-        const { repository, placeRemoteDataSource, placeLocalDataSource } = createRepository();
-        placeRemoteDataSource.createPlace.mockResolvedValue({ id: 'place-3', name: 'Created' });
-        placeRemoteDataSource.fetchPlace.mockResolvedValue({ list: [{ id: 'place-3', name: 'Created' }] });
+        const { repository, placeSocketDataSource, placeLocalDataSource } = createRepository();
+        placeSocketDataSource.createPlace.mockResolvedValue({ id: 'place-3', name: 'Created' });
+        placeSocketDataSource.fetchPlace.mockResolvedValue({ list: [{ id: 'place-3', name: 'Created' }] });
 
         const result = await repository.createPlace({ name: 'Created' } as any);
 
@@ -110,10 +110,10 @@ describe('PlaceRepositoryV2', () => {
     });
 
     it('follows a successful create with an ordered snapshot that shields the new place from pruning', async () => {
-        const { repository, placeRemoteDataSource, placeLocalDataSource } = createRepository();
-        placeRemoteDataSource.createPlace.mockResolvedValue({ id: 'place-3', name: 'Created' });
+        const { repository, placeSocketDataSource, placeLocalDataSource } = createRepository();
+        placeSocketDataSource.createPlace.mockResolvedValue({ id: 'place-3', name: 'Created' });
         // The list response has not caught up with the just-created place yet.
-        placeRemoteDataSource.fetchPlace.mockResolvedValue({ list: [{ id: 'place-1', name: 'A' }] });
+        placeSocketDataSource.fetchPlace.mockResolvedValue({ list: [{ id: 'place-1', name: 'A' }] });
         placeLocalDataSource.cacheReadList.mockResolvedValue({
             list: [{ id: 'place-1' }, { id: 'place-3' }, { id: 'stale-row' }],
         });
@@ -134,9 +134,9 @@ describe('PlaceRepositoryV2', () => {
     });
 
     it('still resolves createPlace when the follow-up snapshot fails', async () => {
-        const { repository, placeRemoteDataSource } = createRepository();
-        placeRemoteDataSource.createPlace.mockResolvedValue({ id: 'place-3', name: 'Created' });
-        placeRemoteDataSource.fetchPlace.mockRejectedValue(new Error('snapshot down'));
+        const { repository, placeSocketDataSource } = createRepository();
+        placeSocketDataSource.createPlace.mockResolvedValue({ id: 'place-3', name: 'Created' });
+        placeSocketDataSource.fetchPlace.mockRejectedValue(new Error('snapshot down'));
 
         // The place exists on the server; a failed snapshot must not fail the create.
         await expect(repository.createPlace({ name: 'Created' } as any)).resolves.toEqual(
@@ -145,8 +145,8 @@ describe('PlaceRepositoryV2', () => {
     });
 
     it('prunes cached rows missing from a full refreshList snapshot', async () => {
-        const { repository, placeRemoteDataSource, placeLocalDataSource } = createRepository();
-        placeRemoteDataSource.fetchPlace.mockResolvedValue({ list: [{ id: 'place-1', name: 'A' }] });
+        const { repository, placeSocketDataSource, placeLocalDataSource } = createRepository();
+        placeSocketDataSource.fetchPlace.mockResolvedValue({ list: [{ id: 'place-1', name: 'A' }] });
         placeLocalDataSource.cacheReadList.mockResolvedValue({
             list: [{ id: 'place-1' }, { id: 'stale-default-place' }],
         });
@@ -163,8 +163,8 @@ describe('PlaceRepositoryV2', () => {
     });
 
     it('does not prune when refreshList was called with a filtering query', async () => {
-        const { repository, placeRemoteDataSource, placeLocalDataSource } = createRepository();
-        placeRemoteDataSource.fetchPlace.mockResolvedValue({ list: [{ id: 'place-1', name: 'A' }] });
+        const { repository, placeSocketDataSource, placeLocalDataSource } = createRepository();
+        placeSocketDataSource.fetchPlace.mockResolvedValue({ list: [{ id: 'place-1', name: 'A' }] });
         placeLocalDataSource.cacheReadList.mockResolvedValue({
             list: [{ id: 'place-1' }, { id: 'other-row' }],
         });
@@ -176,8 +176,8 @@ describe('PlaceRepositoryV2', () => {
     });
 
     it('leaves the cache entirely alone when the snapshot answers empty', async () => {
-        const { repository, placeRemoteDataSource, placeLocalDataSource } = createRepository();
-        placeRemoteDataSource.fetchPlace.mockResolvedValue({ list: [] });
+        const { repository, placeSocketDataSource, placeLocalDataSource } = createRepository();
+        placeSocketDataSource.fetchPlace.mockResolvedValue({ list: [] });
 
         await repository.refreshList();
 
@@ -187,8 +187,8 @@ describe('PlaceRepositoryV2', () => {
     });
 
     it('skips the snapshot entirely while the socket still serves another cloud', async () => {
-        const { placeRemoteDataSource, placeLocalDataSource } = createRepository();
-        const repository = new PlaceRepositoryV2(placeRemoteDataSource as any, placeLocalDataSource as any, {
+        const { placeSocketDataSource, placeLocalDataSource } = createRepository();
+        const repository = new PlaceRepositoryV2(placeSocketDataSource as any, placeLocalDataSource as any, {
             // cid already flipped optimistically, but the socket is still bound to the outgoing cloud.
             getContext: () => ({ cid: 'cloud-a', sid: 'site-1', uid: 'me', socketCid: 'cloud-b' }),
             setContext: () => undefined,
@@ -196,7 +196,7 @@ describe('PlaceRepositoryV2', () => {
 
         await repository.refreshList();
 
-        expect(placeRemoteDataSource.fetchPlace).not.toHaveBeenCalled();
+        expect(placeSocketDataSource.fetchPlace).not.toHaveBeenCalled();
         expect(placeLocalDataSource.cacheWriteMany).not.toHaveBeenCalled();
         expect(placeLocalDataSource.cacheDeleteMany).not.toHaveBeenCalled();
     });
@@ -204,7 +204,7 @@ describe('PlaceRepositoryV2', () => {
     it('writes to the request-time snapshot even if the global context changes before remote resolve', async () => {
         const mutableContext = { cid: 'cloud-a', sid: 'site-1', uid: 'me' };
         let resolveRemote: ((value: unknown) => void) | null = null;
-        const placeRemoteDataSource = {
+        const placeSocketDataSource = {
             fetchPlace: jest.fn().mockImplementation(
                 () =>
                     new Promise(resolve => {
@@ -226,7 +226,7 @@ describe('PlaceRepositoryV2', () => {
             cacheDelete: jest.fn(),
             cacheClear: jest.fn(),
         };
-        const repository = new PlaceRepositoryV2(placeRemoteDataSource as any, placeLocalDataSource as any, {
+        const repository = new PlaceRepositoryV2(placeSocketDataSource as any, placeLocalDataSource as any, {
             getContext: () => mutableContext,
             setContext: next => Object.assign(mutableContext, next),
         });
@@ -245,7 +245,7 @@ describe('PlaceRepositoryV2', () => {
     });
 
     it('supports a debug context-bound repository facade via withContext', async () => {
-        const placeRemoteDataSource = {
+        const placeSocketDataSource = {
             fetchPlace: jest.fn().mockResolvedValue({ list: [{ id: 'place-1', name: 'A' }] }),
             createPlace: jest.fn(),
             getPlace: jest.fn(),
@@ -265,9 +265,9 @@ describe('PlaceRepositoryV2', () => {
         const emptyRemote = {} as any;
         const emptyLocal = {} as any;
         const repositories = createRepositoriesV2({
-            remoteDataSources: {
+            socketDataSources: {
                 ...emptyRemote,
-                place: placeRemoteDataSource,
+                place: placeSocketDataSource,
             },
             localDataSources: {
                 ...emptyLocal,

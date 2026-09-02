@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 
 import { isNative } from '@chatic/bridges';
-import { useMembershipInfo, useProductPlans } from '@chatic/web-core';
+import { useMembershipInfo, useProductPlans } from '../../../hooks/useMembership';
 
 import type { ProductView } from '@lemoncloud/chatic-backend-api';
 

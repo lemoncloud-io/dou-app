@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
-import { useGlobalSession, useSessionIdentity } from '@chatic/web-core';
+import { useGlobalSession, useSessionIdentity } from '@chatic/app-runtime';
 import { useRuntimeRepositories } from '@chatic/app-runtime';
 import type { DataRepositoriesV2, DomainProfile } from '@chatic/data';
 

@@ -9,7 +9,10 @@ jest.mock('@chatic/bridges', () => ({
 // The web-core barrel executes `import.meta.env` at load (transport/webTransport), which this jest
 // config cannot parse — and this suite injects its own manager/delegate anyway. Stub the module the
 // same way public-surface.test.ts does.
-jest.mock('@chatic/web-core', () => new Proxy({}, { get: () => jest.fn() }));
+jest.mock('../../session', () => new Proxy({}, { get: () => jest.fn() }));
+// `@chatic/web-config` is the sole `import.meta` holder (ADR-0070 결정 6); ts-jest's CommonJS
+// transform cannot parse it, and HttpManager pulls it in transitively.
+jest.mock('@chatic/web-config', () => new Proxy({}, { get: () => jest.fn() }));
 
 /**
  * Fake per-slot client capturing the recovery sequence in `order` (prefixed by kind so the two

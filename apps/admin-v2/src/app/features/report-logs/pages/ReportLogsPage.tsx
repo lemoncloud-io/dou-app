@@ -126,8 +126,8 @@ export const ReportLogsPage = () => {
                     <h1 className="text-lg font-semibold">Report Logs</h1>
                     <p className="text-sm text-muted-foreground">
                         {isSampleView
-                            ? `reportError / reportIssue / 배치 로그 ${mode === 'group' ? '메시지별 집계' : '시간대별 추이'} · 최근 ${GROUP_SAMPLE_SIZE.toLocaleString()}건 표본`
-                            : 'reportError / reportIssue 리포트 + 배치 업로드 로그(같은 stereo=log) 조회 · 타입·기간·레벨은 서버 조회(KST), 검색·App은 페이지 내 필터'}
+                            ? `제보 / 배치 로그 / 구 에러 리포트 ${mode === 'group' ? '메시지별 집계' : '시간대별 추이'} · 최근 ${GROUP_SAMPLE_SIZE.toLocaleString()}건 표본`
+                            : '사용자 제보 + 배치 업로드 로그 + 폐지된 자동 에러 리포트(로그와 같은 stereo=log) 조회 · 타입·기간·레벨은 서버 조회(KST), 검색·App은 페이지 내 필터'}
                     </p>
                 </div>
                 <div className="flex items-center gap-2">

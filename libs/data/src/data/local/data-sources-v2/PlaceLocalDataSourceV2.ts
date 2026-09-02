@@ -2,8 +2,8 @@ import type { UserMySiteInput } from '@lemoncloud/chatic-sockets-api';
 import type { DomainListResult, DomainPlace } from '../../domain';
 import { createDomainListResult } from '../../domain';
 import type { DataContextProvider } from '../../repositories-v2/types';
-import { stableHash } from '../storages';
-import type { CacheStorage } from '../storages';
+import { stableHash } from '../stableHash';
+import type { CacheStorage } from '../ports';
 import {
     BaseLocalDataSourceV2,
     type ILocalDataSourceV2,

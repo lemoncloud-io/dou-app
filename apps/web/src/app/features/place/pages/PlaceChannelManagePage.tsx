@@ -4,7 +4,7 @@ import { useParams } from 'react-router-dom';
 
 import { logger } from '@chatic/bridges';
 import { useRuntimeRepositories } from '@chatic/app-runtime';
-import { reportError, useSessionIdentity, useSessionSelection } from '@chatic/web-core';
+import { useSessionIdentity, useSessionSelection } from '@chatic/app-runtime';
 import type { DomainChannel, DomainChat } from '@chatic/data';
 
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
@@ -13,7 +13,6 @@ import { Badge, Button, DefaultAvatar, ImageAvatar, ManageChannelItem } from '@c
 import type { MySiteView } from '@lemoncloud/chatic-backend-api';
 
 import { PageHeader } from '../../../ui';
-import { toError } from '../../../utils/errors';
 import { usePreferenceStore } from '../../../stores/usePreferenceStore';
 import { DEFAULT_CHANNEL_SORT, placeScopeKey } from '../../../stores/preferenceKeys';
 import { ConfirmDialog } from '../../channels/components';
@@ -204,7 +203,6 @@ export const PlaceChannelManagePage = () => {
                 error: firstError?.reason,
                 data: { failed, total: targets.length, mode: isOwner ? 'delete' : 'leave' },
             });
-            if (firstError) reportError(toError(firstError.reason));
         }
 
         if (succeeded > 0) {

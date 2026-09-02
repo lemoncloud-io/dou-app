@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
 import type { DomainProfile } from '@chatic/data';
-import { useSessionIdentity, useSessionSelection } from '@chatic/web-core';
+import { useSessionIdentity, useSessionSelection } from '@chatic/app-runtime';
 
 /**
  * In-flight `profile.get-mine` per profile id, shared across every mounted instance of this hook.

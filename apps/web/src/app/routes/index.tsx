@@ -3,7 +3,7 @@ import { Navigate, RouterProvider, createBrowserRouter } from 'react-router-dom'
 
 import { logger } from '@chatic/bridges';
 import { RouterErrorFallback } from '@chatic/shared';
-import { reportError, useSessionAuth } from '@chatic/web-core';
+import { useSessionAuth } from '@chatic/app-runtime';
 
 import { markBoot } from '../features/debug/metrics/bootMarks';
 import { scheduleBootMetricsReport } from '../features/debug/metrics/reportBootMetrics';
@@ -27,7 +27,6 @@ export const Router = () => {
 
     const handleRouterError = useCallback((error: Error): void => {
         logger.error('ROUTER', 'Router Error', { error });
-        reportError(error);
     }, []);
 
     const router = useMemo(() => {

@@ -108,7 +108,23 @@ export const bootstrapSocketConnection = async ({
     // Routed by THIS socket's kind so a refresh during a switch/teardown lands in the right store (§6-6).
     unsubscribes.push(
         auth.onTokenRefresh(view => {
-            void delegate.commitRefreshedToken(kind, view);
+            // ADR-0070 기준선 계측 ②: refresh 발화 횟수. 이제 refresh는 이 경로 하나뿐이라 이 줄이
+            // 유일한 계수원이다 — 예전에는 HTTP 경로가 네트워크 로그에 따로 찍혔고 소켓만
+            // NETWORK logs, and signature failures as `... failed (403)`. Logging the socket half here
+            // 보이지 않았다. 3단계 전후 비교는 이 한 줄로 센다.
+            logger.info('SOCKET', '[bootstrapSocketConnection] token refreshed', { data: { kind } });
+            // The writeback is what actually re-mints the HTTP/AWS signing material, and it is the
+            // only step that can fail AFTER `requestRelaySessionRefresh` has already reported success
+            // (this listener is what resolves it). Without this catch a rejected commit was an
+            // unhandled rejection: the caller believed the credentials were fresh while every
+            // signed request kept 403-ing. Never rethrow — one slot's failure must not break the
+            // others' listeners.
+            void Promise.resolve(delegate.commitRefreshedToken(kind, view)).catch(error => {
+                logger.error('SOCKET', '[bootstrapSocketConnection] token writeback failed', {
+                    error,
+                    data: { kind },
+                });
+            });
         })
     );
 

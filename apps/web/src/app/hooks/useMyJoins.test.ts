@@ -1,7 +1,7 @@
 import { renderHook } from '@testing-library/react';
 
 import { getSyncManager, useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
-import { useGlobalSession, useSessionSelection } from '@chatic/web-core';
+import { useGlobalSession, useSessionSelection } from '@chatic/app-runtime';
 import type { DomainChannel, DomainJoin } from '@chatic/data';
 
 import { useMyJoins } from './useMyJoins';
@@ -10,8 +10,9 @@ jest.mock('@chatic/app-runtime', () => ({
     getSyncManager: jest.fn(),
     useRuntimeRepositories: jest.fn(),
     useRuntimeSocketState: jest.fn(),
+    useGlobalSession: jest.fn(),
+    useSessionSelection: jest.fn(),
 }));
-jest.mock('@chatic/web-core', () => ({ useGlobalSession: jest.fn(), useSessionSelection: jest.fn() }));
 
 const channel = (id: string): DomainChannel => ({ id }) as unknown as DomainChannel;
 const join = (fields: Partial<DomainJoin>): DomainJoin => fields as DomainJoin;

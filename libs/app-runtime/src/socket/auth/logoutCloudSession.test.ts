@@ -1,12 +1,12 @@
 import { logoutCloudSession } from './logoutCloudSession';
-import { logoutCloudSession as clearCloudCoreSession } from '@chatic/web-core';
+import { logoutCloudSession as clearCloudCoreSession } from '../../session';
 import { getSocketManager } from '../runtime';
 
 jest.mock('@chatic/bridges', () => ({
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
 }));
 
-jest.mock('@chatic/web-core', () => ({
+jest.mock('../../session', () => ({
     logoutCloudSession: jest.fn(),
 }));
 

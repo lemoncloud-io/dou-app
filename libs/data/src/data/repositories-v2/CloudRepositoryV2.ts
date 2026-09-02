@@ -1,8 +1,10 @@
 import type { CloudUpdateInput } from '@lemoncloud/chatic-sockets-api';
+import type { CloudBody, CloudVerifyEmailBody, CloudVerifyEmailView } from '@lemoncloud/chatic-backend-api';
 import type { DomainCloud, DomainListResult } from '../domain';
 import { createDomainListResult } from '../domain';
 import type { ICloudLocalDataSourceV2 } from '../local/data-sources-v2';
-import type { CloudDeleteInput, CloudGetInput, ICloudRemoteDataSource } from '../remote/data-sources';
+import type { CloudDeleteInput, CloudGetInput, ICloudSocketDataSource } from '../remote/socket-data-sources';
+import type { CloudMakeOptions, CloudReleaseOptions, ICloudHttpDataSource } from '../remote/http-data-sources';
 import type { DataContext, DataContextProvider } from './types';
 import { BaseRepositoryV2, type DisposableRepositoryV2 } from './types';
 
@@ -20,6 +22,23 @@ export interface ICloudRepositoryV2 extends DisposableRepositoryV2 {
     cacheWriteMany(items: Array<Partial<DomainCloud>>): Promise<void>;
     cacheDelete(id: string): Promise<void>;
     cacheClear(): Promise<void>;
+
+    /**
+     * HTTP catalog/command surface (ADR-0070 결정 5, 2단계 후반). `ICloudHttpDataSource` injection
+     * is optional through 2단계 — existing `createRepositoriesV2` call sites stay green without
+     * it. **Never writes local cache** — the catalog mixes invited/owned clouds and would poison
+     * `cloudType` classification (see CloudHttpDataSource). React-query owns this read's cache.
+     */
+    fetchCloudCatalog(params?: Record<string, unknown>): Promise<DomainListResult<DomainCloud>>;
+    verifyCloudEmail(body: CloudVerifyEmailBody, opts?: { dryRun?: boolean }): Promise<CloudVerifyEmailView>;
+    /**
+     * `dryRun` mirrors the membership route's DEV behaviour (ADR-0060 §7) so a dev/local session
+     * never provisions real infrastructure; `cascade` drops the cloud's dependent records too.
+     * Both were `params` the REST hooks passed straight to the gateway — they are named options
+     * here so the app never spells wire params itself.
+     */
+    makeCloud(body: CloudBody, opts?: CloudMakeOptions): Promise<DomainCloud>;
+    releaseCloud(cloudId: string, opts?: CloudReleaseOptions): Promise<DomainCloud>;
 }
 
 const resolveCloudId = (payload: unknown): string | undefined => {
@@ -33,11 +52,38 @@ const resolveCloudId = (payload: unknown): string | undefined => {
  */
 export class CloudRepositoryV2 extends BaseRepositoryV2 implements ICloudRepositoryV2 {
     constructor(
-        private readonly cloudRemoteDataSource: ICloudRemoteDataSource,
+        private readonly cloudSocketDataSource: ICloudSocketDataSource,
         private readonly cloudLocalDataSource: ICloudLocalDataSourceV2,
-        contextProvider: DataContextProvider
+        contextProvider: DataContextProvider,
+        private readonly cloudHttpDataSource?: ICloudHttpDataSource
     ) {
         super(contextProvider);
+    }
+
+    private requireHttp(): ICloudHttpDataSource {
+        if (!this.cloudHttpDataSource) {
+            throw new Error('[CloudRepositoryV2] ICloudHttpDataSource is not injected — httpFactory not wired yet.');
+        }
+        return this.cloudHttpDataSource;
+    }
+
+    public async fetchCloudCatalog(params?: Record<string, unknown>): Promise<DomainListResult<DomainCloud>> {
+        return this.requireHttp().listClouds(params, this.getRequestContext());
+    }
+
+    public async verifyCloudEmail(
+        body: CloudVerifyEmailBody,
+        opts?: { dryRun?: boolean }
+    ): Promise<CloudVerifyEmailView> {
+        return this.requireHttp().verifyEmail(body, opts);
+    }
+
+    public async makeCloud(body: CloudBody, opts?: CloudMakeOptions): Promise<DomainCloud> {
+        return this.requireHttp().makeCloud(body, this.getRequestContext(), opts);
+    }
+
+    public async releaseCloud(cloudId: string, opts?: CloudReleaseOptions): Promise<DomainCloud> {
+        return this.requireHttp().releaseCloud(cloudId, this.getRequestContext(), opts);
     }
 
     public observeList(callback: (result: DomainListResult<DomainCloud> | null) => void): () => void {
@@ -52,7 +98,7 @@ export class CloudRepositoryV2 extends BaseRepositoryV2 implements ICloudReposit
         // Capture the request-time context so a late response never pollutes a switched scope.
         const requestContext = this.getRequestContext();
         const normalizedContext = this.getNormalizedContext(requestContext);
-        const cloud = await this.cloudRemoteDataSource.getCloud(payload, normalizedContext);
+        const cloud = await this.cloudSocketDataSource.getCloud(payload, normalizedContext);
         // Mirror the freshly loaded subscription cloud into the cache, overwriting its stale
         // name/fields so observers (name display, etc.) reflect the latest server value.
         await this.persistCloud(cloud, resolveCloudId(payload), requestContext);
@@ -81,7 +127,7 @@ export class CloudRepositoryV2 extends BaseRepositoryV2 implements ICloudReposit
         }
 
         try {
-            const updated = await this.cloudRemoteDataSource.updateCloud(payload, normalizedContext);
+            const updated = await this.cloudSocketDataSource.updateCloud(payload, normalizedContext);
             // Reconcile the cache with the authoritative response (name, etc.).
             await this.persistCloud(updated, id || undefined, requestContext);
             return updated;
@@ -105,7 +151,7 @@ export class CloudRepositoryV2 extends BaseRepositoryV2 implements ICloudReposit
             await this.cloudLocalDataSource.cacheDelete(id, requestContext);
         }
         try {
-            return await this.cloudRemoteDataSource.deleteCloud(payload, normalizedContext);
+            return await this.cloudSocketDataSource.deleteCloud(payload, normalizedContext);
         } catch (error) {
             if (existing) {
                 await this.cloudLocalDataSource.cacheWrite(existing, requestContext);

@@ -6,6 +6,8 @@
 독립 브랜치/워크트리에서 작업하고, 트랙 간 의존은 아래 **인터페이스 계약**으로만
 접촉한다.
 
+> **이름 안내 (2026-09-01):** 이 로드맵이 쓰는 `remote/gateways/index.ts` · `MockSocketClient` 등은 **작성 당시 이름**이다. 소켓 축 리네임 뒤의 대응표는 [libs/data/docs/remote/README.md](../../libs/data/docs/remote/README.md#이름-규약-2026-09-01-리네임)에 있고, `MockSocketClient`는 참조 0으로 삭제됐다(이 문서가 말하듯 테스트 seam은 게이트웨이다).
+
 ## 참조
 
 | 무엇             | 어디                                                                                                                                           |
@@ -140,13 +142,13 @@ useSentInviteLog(): {
    `@lemoncloud/chatic-backend-api` `^0.26.405 → ^0.26.704`.~~ **완료**
 2. ~~invite 게이트웨이 배선~~ **완료** — `libs/data/src/data/remote/gateways/index.ts`
    에 연결되고 `libs/app-runtime`의 `useRuntimeGateways`로 노출된다(현재는 폐지 — `useRuntimeRepositories().invite`)
-   (`remoteFactory`·`DataManager`·`MockRemoteGateways` 포함).
+   (`socketFactory`·`DataManager`·`MockSocketGateways` 포함).
 3. ~~위 인터페이스 계약의 훅 구현 + 단위 테스트.~~ **완료** — 훅은 통합 시점에,
    단위 테스트는 2026-07-30에 (`useRelayInvites.test.ts`·`useVerifyHashAlias.test.ts`·
    `useAttachSocial.test.ts`). 테스트 seam은 MockSocketClient가 아니라 **게이트웨이
    목**이다 — 훅이 소유한 것은 패킷 body(`step` 매핑·발송 스위치 생략·`invite.list`
    봉투)와 캐시 무효화 키이고, 패킷의 **목적지**(relay 고정)는 한 층 아래
-   `libs/app-runtime/.../remoteFactory.test.ts`가 이미 덮는다.
+   `libs/app-runtime/.../socketFactory.test.ts`가 이미 덮는다.
 4. ~~딥링크 파서 확장: `parseInviteDeeplink`(`apps/web/.../home/types/invite.ts`)가
    `relay` 마커를 읽어 `isRelayInvite`를 노출.~~ **완료**
 

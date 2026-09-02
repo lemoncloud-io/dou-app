@@ -1,6 +1,6 @@
 /**
  * `app/globalErrorCapture.ts`
- * - Routes admin-v2's own uncaught errors into the shared logger + report path.
+ * - Routes admin-v2's own uncaught errors into the shared logger.
  *
  * Until this existed admin-v2 caught nothing: no `window.onerror`, no
  * `unhandledrejection`, and the only ErrorBoundary (socket-lab) ended at a bare
@@ -15,18 +15,17 @@
  * that actually fires for admin: uncaught throws, rejected promises, and the
  * React Query caches every admin screen reads through.
  *
- * Reports arrive as `[admin] <category>` — `reportError` derives that bracket
- * from `VITE_PROJECT`, so admin's own noise stays filterable apart from the
- * frontend reports it is used to triage.
+ * Entries reach the collector through the batch uploader, stamped with this
+ * run's context — the `cid`/`runId` on them is what keeps admin's own noise
+ * separable from the frontend logs it is used to triage.
  */
 import { logger } from '@chatic/bridges';
-import { reportError } from '@chatic/web-core';
 
 let installed = false;
 
 /**
  * Idempotent: React 18 StrictMode double-invokes effects in dev, and a second
- * set of listeners would report every error twice.
+ * set of listeners would log every error twice.
  */
 export const installGlobalErrorCapture = (): void => {
     if (installed || typeof window === 'undefined') return;
@@ -38,15 +37,17 @@ export const installGlobalErrorCapture = (): void => {
         // real script exception.
         const error = event.error ?? new Error(event.message);
 
-        // Log before reporting so the error is a first-class buffer entry even
-        // when the report itself fails to send (ADR-0047).
-        logger.error('GLOBAL', `[window.onerror] ${event.message}`, { error });
-        reportError(error, {
-            source: 'window.onerror',
-            errorWasNull: event.error == null,
-            filename: event.filename || undefined,
-            lineno: event.lineno || undefined,
-            colno: event.colno || undefined,
+        // `errorWasNull` marks the Error above as ours, so its stack is this
+        // handler rather than the fault; the coordinates are then the only
+        // location an opaque cross-origin exception still carries.
+        logger.error('GLOBAL', `[window.onerror] ${event.message}`, {
+            error,
+            data: {
+                errorWasNull: event.error == null,
+                filename: event.filename || undefined,
+                lineno: event.lineno || undefined,
+                colno: event.colno || undefined,
+            },
         });
     });
 
@@ -54,6 +55,5 @@ export const installGlobalErrorCapture = (): void => {
         const error = event.reason instanceof Error ? event.reason : new Error(String(event.reason));
 
         logger.error('GLOBAL', `[unhandledrejection] ${error.message}`, { error });
-        reportError(error, { source: 'unhandledrejection' });
     });
 };

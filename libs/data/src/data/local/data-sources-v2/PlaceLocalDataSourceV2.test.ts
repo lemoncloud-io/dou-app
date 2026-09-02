@@ -1,4 +1,4 @@
-import type { CacheStorage } from '../storages';
+import type { CacheStorage } from '../ports';
 import { PlaceLocalDataSourceV2 } from './PlaceLocalDataSourceV2';
 
 // Keep storage unsorted so ordering guarantees are proven by the datasource, not the fixture.
@@ -70,11 +70,14 @@ describe('PlaceLocalDataSourceV2', () => {
         expect(result?.list.map(item => item.id)).toEqual(['1', '2', '10']);
     });
 
-    // Reemit routing is keyed by {cid, uid} scope. The observer's scope is fixed at SUBSCRIBE time,
-    // while the context provider (an ancestor RuntimeDataBinder) commits the new cloud AFTER the
-    // descendant home hook has already re-subscribed — so an observer that keys off the live provider
-    // registers under the pre-commit cid and never hears the post-commit write. An explicit
-    // contextOverride pins the observer's scope to the target cloud and closes that gap.
+    // Reemit routing is keyed by {cid, uid} scope. The observer's scope is fixed at SUBSCRIBE time, so
+    // any DataContextProvider whose reported cid lags behind a cloud switch (the mock `provider` below
+    // simulates that) leaves an observer that keys off the live provider registered under the
+    // pre-commit cid, never hearing the post-commit write. An explicit contextOverride pins the
+    // observer's scope to the target cloud and closes that gap. (This used to be caused in practice by
+    // `RuntimeDataBinder` pushing the provider in an effect that ran after the home hook subscribed;
+    // that binder is now an inert no-op and the real provider, `ActiveScope`, derives its value live
+    // from `session/store` with no such lag — this test guards the LocalDataSource-level defense.)
     describe('cloud-switch reemit routing (P1)', () => {
         const flush = async () => {
             await jest.advanceTimersByTimeAsync(60); // past the 50ms reemit debounce

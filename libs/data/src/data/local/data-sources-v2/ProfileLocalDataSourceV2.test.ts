@@ -1,4 +1,4 @@
-import type { CacheStorage } from '../storages';
+import type { CacheStorage } from '../ports';
 import { ProfileLocalDataSourceV2 } from './ProfileLocalDataSourceV2';
 
 // Flush pending microtasks after timer-driven observer re-emits.

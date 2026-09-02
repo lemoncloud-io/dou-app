@@ -16,6 +16,14 @@ jest.mock('@lemoncloud/chatic-sockets-lib', () => {
     return { ...actual, createDeviceRuntime: jest.fn() };
 });
 
+// SyncManager → ./plans → data/runtime.ts → DataManager.ts → httpFactory.ts가 `@chatic/web-core`를
+// 값으로 import한다(webTransport). 그 모듈은 `import.meta.env`를 로드 시점에 읽어 ts-jest(CJS)가
+// 파싱하지 못하므로, 이 테스트가 실제로 쓰지 않는 의존이어도 목으로 끊어야 한다.
+jest.mock('../../session', () => new Proxy({}, { get: () => jest.fn() }));
+// `@chatic/web-config` is the sole `import.meta` holder (ADR-0070 결정 6); ts-jest's CommonJS
+// transform cannot parse it, and HttpManager pulls it in transitively.
+jest.mock('@chatic/web-config', () => new Proxy({}, { get: () => jest.fn() }));
+
 const mockedCreateDeviceRuntime = createDeviceRuntime as jest.MockedFunction<typeof createDeviceRuntime>;
 
 const makeRuntime = (): jest.Mocked<ClientSocketRuntime> =>

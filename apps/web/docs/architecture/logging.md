@@ -29,14 +29,14 @@ interface LogEntry {
 
 ## 웹 배선 (`main.tsx`, 부팅 순서대로)
 
-| 순서 | 호출                                          | 역할                                                                                                        |
-| ---- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| 1    | `setupBridgeLogger({ consoleInNative: DEV })` | sink 배선: 네이티브면 SendLog 포워더(+dev 콘솔), 웹이면 콘솔                                                |
-| 2    | `attachLogContext()`                          | 발생 시점 컨텍스트 프로바이더 등록 — dispatch가 매번 읽으므로 첫 로그보다 앞이어야 한다                     |
-| 3    | `startLogUploader({ bridgeLogger })`          | **큐 + 업로더 배선.** 큐가 유일한 저장소이므로 이 줄보다 먼저 찍힌 로그는 어디에도 남지 않는다              |
-| 4    | `attachWebCrashSentinel()`                    | alive 센티널 + 직전 세션 크래시 판정                                                                        |
-| 5    | `schedulePageCrashReport(...)`                | 직전 세션이 pagehide 없이 죽었으면 `page-crash` 사후 리포트 (load+3s) — 로그는 싣지 않는다                  |
-| 6    | `schedulePendingReportFlush()`                | 하이브리드 한정 — 네이티브 지연 리포트 큐(WebView 크래시·RN 예외·네이티브 크래시)를 pull해 대리 전송 후 Ack |
+| 순서 | 호출                                          | 역할                                                                                                                          |
+| ---- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| 1    | `setupBridgeLogger({ consoleInNative: DEV })` | sink 배선: 네이티브면 SendLog 포워더(+dev 콘솔), 웹이면 콘솔                                                                  |
+| 2    | `attachLogContext()`                          | 발생 시점 컨텍스트 프로바이더 등록 — dispatch가 매번 읽으므로 첫 로그보다 앞이어야 한다                                       |
+| 3    | `startLogUploader({ bridgeLogger })`          | **큐 + 업로더 배선.** 큐가 유일한 저장소이므로 이 줄보다 먼저 찍힌 로그는 어디에도 남지 않는다                                |
+| 4    | `attachWebCrashSentinel()`                    | alive 센티널 + 직전 세션 크래시 판정                                                                                          |
+| 5    | `schedulePageCrashReport(...)`                | 직전 세션이 pagehide 없이 죽었으면 `[page-crash]` **로그 엔트리**를 남긴다 (지연 없음 — 3번이 먼저 걸려 있다)                 |
+| 6    | `schedulePendingReportFlush()`                | 하이브리드 한정 — 네이티브 지연 리포트 큐(WebView 크래시·RN 예외·네이티브 크래시)를 pull해 `ingestLogEntry`로 합류시킨 뒤 Ack |
 
 - **이 순서가 유실 방어 그 자체다(원칙 15).** 링버퍼 시절에는 코어가 `ingest`에서 직접 적재해 "구독과 무관하게 남는다"가 구성상 보장이었지만, 저장소가 큐 하나로 줄면서 큐는 hub **구독**으로 채워진다. 그래서 `startLogUploader`가 3번으로 올라왔고, 그 앞(1~2번)에 동기 로그가 없다는 것을 실측으로 확인했다. **부팅 경로에 로그를 추가할 때 확인해야 하는 것이 이것이다** — 순서를 깨면 조용히 사라진다.
 - **구독자가 하나도 없으면** facade가 콘솔 폴백으로 직접 출력한다 — `setupBridgeLogger`를 부르지 않는 앱(desktop-web·admin·landing·testbed)도 기존 콘솔 동작을 그대로 유지한다.
@@ -46,19 +46,32 @@ interface LogEntry {
 
 ## 전역 에러 감지 (`app.tsx`)
 
-모든 감지는 **로깅 먼저, 리포트는 그다음** — 에러 자체가 큐의 일급 엔트리가 되므로, 리포트가 생략돼도 그 엔트리는 업로드 파이프라인을 타고 서버에 남는다.
+**감지는 전부 `logger.error` 한 줄로 끝난다(2026-09).** 자동 에러 리포트(`reportError`)가 폐지돼서, 감지 경로가 하는 일은 엔트리를 남기는 것뿐이고 그 엔트리는 업로드 파이프라인을 타고 서버에 간다.
 
-| 경로                                    | 카테고리                                                                                                      |
-| --------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `window.onerror` (bubble)               | uncaught 예외 — opaque면 `script-error` (합성 stack은 싣지 않고 `stackSynthetic` 표시, 위치를 message에 노출) |
-| `unhandledrejection`                    | `unhandled-rejection` (http/network 성격이면 해당 분류 우선)                                                  |
-| `error` (capture)                       | `<img>`/`<script>`/`<link>` 등 리소스 로드 실패 → `resource-error`                                            |
-| `securitypolicyviolation`               | `csp-violation` — WebView 안 차단 스크립트는 Script Error 원인군 단서                                         |
-| Query/Mutation `onError`, ErrorBoundary | 기존 유지                                                                                                     |
+경로 구분은 **메시지 접두사**로 남는다 — admin이 message로 그룹을 묶으므로(`groupReportLogs`) 접두사가 곧 분류 축이다. 폐지된 `category` 필드와 `[app] <category>` 타이틀을 대신하는 자리이며, 그만큼 거칠다: HTTP status나 네트워크 성격으로 갈라주던 분류는 없다.
+
+| 경로                      | 남는 엔트리                                                                                                                     |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `window.onerror` (bubble) | `[window.onerror] …` — opaque면 stack이 핸들러를 가리키므로 `data.errorWasNull`로 표시하고 `filename`/`lineno`/`colno`를 싣는다 |
+| `unhandledrejection`      | `[unhandledrejection] …`                                                                                                        |
+| `error` (capture)         | `[resource-error] …` — `<img>`/`<script>`/`<link>` 등 로드 실패                                                                 |
+| `securitypolicyviolation` | `[csp-violation] …` — WebView 안 차단 스크립트는 Script Error 원인군 단서                                                       |
+| Query/Mutation `onError`  | `[query] …` / `[mutation] …`                                                                                                    |
+| ErrorBoundary             | `[error-boundary] …` (`data`에 `componentStack`)                                                                                |
 
 ## 리포트와 로그의 관계
 
-**리포트는 로그를 첨부하지 않는다(2026-08-21).** `reportError`·`reportIssue`·페이지 크래시·네이티브 대리 전송 어느 쪽도 마찬가지다. 로그는 배치 업로더가 엔트리 낱건으로 `/hello/report-bulk`에 올리므로, 리포트에 사본을 실으면 같은 로그가 두 벌 저장되고 그 사본만 공유 Slack 채널로도 나간다. 둘을 잇는 축은 엔트리마다 실려 있는 `runId`(+`uid`)다 — 어드민에서 리포트의 runId로 그 실행의 로그 전체를 좁힌다.
+**리포트로 남는 것은 사용자 제보(`reportIssue`)뿐이다(2026-09).** 자동 에러 리포트가 폐지되면서 `/hello/report`를 쓰는 클라이언트는 하나로 줄었다 — 로그 파이프라인이 옮길 수 없는 것(사용자가 쓴 본문, Slack 알림, 사진 첨부)만 남았다.
+
+폐지의 근거는 두 경로가 **같은 저장소에 두 벌을 쌓고 있었다**는 것이다. 리포트는 `stereo: 'log'`로, 로그 엔트리도 같은 버킷으로 들어가고(admin은 클라이언트에서 가른다), 감지 경로는 이미 `logger.error`를 먼저 부르고 있었다. 그래서 남긴 쪽은 이미 존재하던 엔트리다.
+
+**폐지로 잃은 것**(의도된 손실이다):
+
+- `category` 분류(`script-error`·`resource-error`·`csp-violation`·`http-4xx/5xx`·`auth`·`network` …)와 그것으로 만들던 `[app] <category>` 타이틀. 대체는 메시지 접두사이고, 이는 HTTP 성격을 갈라주지 못한다.
+- 실패한 요청의 전모(`describeHttp` — 메서드·URL·서버가 말한 사유·redact된 본문)와 `error.cause` 체인(`collectCauses`). 로그 엔트리의 `data`/`error`는 wire에서 `WIRE_FIELD_CHAR_LIMIT`(2000자) 문자열로 잘리므로 이 구조를 그대로 실을 자리가 없다.
+- 즉시 전송. `reportError`는 건당 즉시 POST였고, 로그 엔트리는 업로더의 다음 주기(60초)를 기다린다 — ADR-0066에서 error 앞당김 트리거가 제거된 뒤로는 앞당겨지지도 않는다.
+
+**리포트는 로그를 첨부하지 않는다(2026-08-21).** `reportIssue`도 네이티브 대리 전송도 마찬가지다. 둘을 잇는 축은 엔트리마다 실려 있는 `runId`(+`uid`)다 — 어드민에서 제보의 runId로 그 실행의 로그 전체를 좁힌다.
 
 `LogSource`·`collectBreadcrumbs`·`setReportLogSource`는 함께 제거됐다. 그리고 링버퍼는 **그 breadcrumb 저장소가 존재 이유였다** — 첨부가 폐지되자 마지막 독자를 잃어 함께 폐지됐다(2026-08-21). 남은 로그 저장소는 미전송 큐 하나다(ADR-0063).
 
@@ -75,4 +88,4 @@ interface LogEntry {
 - 통합 아키텍처 정본: [libs/logger/docs/architecture.md](../../../../libs/logger/docs/architecture.md)
 - 브릿지 메시지 규약은 [bridge](./bridge.md).
 - 디버그 오버레이·`LogBufferScreen`은 [debug feature](../feature/debug/README.md).
-- 에러 리포트 경로 상세는 [libs/web-core/docs/error-reporting.md](../../../../libs/web-core/docs/error-reporting.md).
+- 에러 리포트 경로 상세는 [docs/guides/trace-report.md](../../../../docs/guides/trace-report.md).

@@ -11,6 +11,7 @@ import { getDataManager, getRepositories } from '../../data/runtime';
 import { getSocketManager } from '../runtime';
 import type { ChannelView, ProfileView } from '@lemoncloud/chatic-socials-api';
 import type { MySiteView } from '@lemoncloud/chatic-backend-api';
+import { isForeignContext } from '@chatic/data';
 
 /**
  * Sync plans resolve runtime-heavy dependencies lazily so tests can inject
@@ -27,11 +28,8 @@ const getContext = () => getDataManager().getContext();
 // getBoundCid() is the cloud that socket was actually bound to; when it differs from the live
 // cache cid the frame belongs to a socket that outlived its cloud, so drop it rather than write
 // the old cloud's channels under the new cloud's partition (the cross-cloud flicker).
-const dropForeignFrame = (): boolean => {
-    const boundCid = getSocketManager().getBoundCid();
-    const cacheCid = getContext().cid ?? 'default';
-    return boundCid != null && boundCid !== cacheCid;
-};
+const dropForeignFrame = (): boolean =>
+    isForeignContext({ ...getContext(), socketCid: getSocketManager().getBoundCid() ?? undefined });
 
 /**
  * 폴링 plan 공통 옵션: 재연결 시 스냅샷을 리셋하지 않는다 (ADR-0059).
@@ -91,16 +89,35 @@ export const createSyncPlans = (): DomainSyncPlan[] => {
                 void profile.cacheDelete(target.id);
             },
         }),
-        // chat은 append-only event-driven plan. onApply가 적용된 메시지 델타(오름차순)를
-        // 넘기므로 chatNo 기준 idempotent 머지를 위해 cacheWriteMany로 일괄 반영한다.
+        // chat plan은 도착(onApply)과 변경(onUpdate)을 나눠 넘긴다. 아직 모르는 chatNo는 새 메시지,
+        // 이미 해소된 chatNo에 다시 온 payload는 그 메시지의 변경이다(sockets-lib 0.5.1).
         // onRemove는 두지 않는다 — chat plan은 자동 stop되지 않고, 메시지 이력은 lazy-load/오프라인을 위해 유지한다.
         new ChatSyncPlan({
+            // 적용된 메시지 델타(오름차순). chatNo 기준 idempotent 머지를 위해 일괄 반영한다.
             onApply: (_target, applied) => {
                 if (dropForeignFrame()) return;
                 if (!applied.length) return;
                 const { chat } = getRepositories();
                 const scope = getContext();
                 void chat.cacheWriteMany(applied.map(view => toDomainChat(view, scope)));
+            },
+            /**
+             * 남이 한 편집·삭제. 이게 없으면 sync로 들어온 변경은 어디에도 반영되지 않고 다음
+             * `chat.feed` 재조회에서야 수렴한다 — 0.5.1 전에는 그 경로 자체가 없었다.
+             *
+             * **삭제도 쓰기다.** `hidden: true`가 삭제인데, 행을 지우지 않고 그대로 쓴다 —
+             * `ChatRepositoryV2.deleteChat`이 내가 한 삭제에 대해 이미 그렇게 하고 그 주석이 이유를
+             * 적어뒀다: 지우면 다음 sync에 행이 되살아나므로, 삭제 메시지를 tombstone으로 그리는
+             * 화면이 같은 메시지를 잠깐 없음 → 이후 tombstone으로 두 번 보여준다. 즉 들어온 삭제와
+             * 내가 한 삭제가 같은 상태로 수렴한다.
+             *
+             * 창에서 밀려난 메시지에 대해서도 발사되고 같은 변경이 반복될 수 있으므로 id 기준으로
+             * 쓴다 — `cacheWrite`가 그렇게 동작하니 반복은 무해하다.
+             */
+            onUpdate: (_target, changed) => {
+                if (dropForeignFrame()) return;
+                const { chat } = getRepositories();
+                void chat.cacheWrite(toDomainChat(changed, getContext()));
             },
         }),
         // join은 single-join polling plan. join.get 응답의 updatedAt 변화 시 onUpdate가 호출되며,

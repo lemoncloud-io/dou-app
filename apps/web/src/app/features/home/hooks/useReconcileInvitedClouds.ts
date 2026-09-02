@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 
 import { useRuntimeRepositories } from '@chatic/app-runtime';
-import { useCloudSessionCatalog } from '@chatic/web-core';
+import { useCloudSessionCatalog } from '../../../hooks/useCloudCatalog';
 
 import { useInvitedClouds } from '../../../hooks/useInvitedClouds';
 

@@ -1,17 +1,20 @@
 /**
  * `api/report-logs/reportLogApi.ts`
- * - Reads stored error/issue reports from the DOU mocks list endpoint.
+ * - Reads stored reports and log entries from the DOU mocks list endpoint.
  *
- * Reports are produced by `reportError`/`reportIssue` (libs/web-core), which
- * POST a `SlackReportBody` to `${DOU_ENDPOINT}/hello/report` with `save: true`.
- * This is the read side over the same DOU backend.
+ * Two writers land here. `reportIssue` (libs/app-runtime) POSTs a
+ * `SlackReportBody` to `${DOU_ENDPOINT}/hello/report` with `save: true`, and the
+ * log uploader POSTs batches to `/hello/report-bulk`. A third is now historical:
+ * `reportError` filed automatic error reports until it was retired in 2026-09,
+ * and its records are still in the store — which is why the `error` kind below
+ * outlives the function that produced it.
  *
  * @see chatic-backend-api (deployed backend, `MockListParam` — this repo's installed
  *   `@lemoncloud/chatic-backend-api` SDK package is unrelated/older and does not need to
  *   match) — GET /dou-v1/mocks/0/list, query: `type` (stereo filter), `from`/`to`
  *   (createdAt range, `YYYY-MM-DD`, KST day boundaries, `to` inclusive) + `PaginateParam`.
  */
-import { webTransport } from '@chatic/web-core';
+import { webTransport } from '@chatic/app-runtime';
 
 /**
  * Minimal projection of `MockView` (chatic-backend-api) we actually consume.
@@ -63,13 +66,16 @@ const DOU_BASE = (import.meta.env.VITE_DOU_ENDPOINT ?? '').replace(/\/dou-[^/]*\
 export type ReportKind = 'all' | 'error' | 'issue' | 'log-entry';
 
 /**
- * UI kind → stored `stereo`. Errors save as `log` and user issues as `issue`
- * (see `reportError`/`reportIssue` in web-core) — the names deliberately differ, so keep
- * this mapping rather than passing the UI value straight through.
+ * UI kind → stored `stereo`. Errors saved as `log` and user issues as `issue` — the names
+ * deliberately differ, so keep this mapping rather than passing the UI value straight through.
  *
  * `log-entry` (batch-uploaded structured logs) shares the `log` stereo with `error` —
  * they are not separated server-side yet (log-batch-ingest SPEC.md D6) — so selecting
  * either fetches the same `stereo=log` bucket and `parseReportLog` splits it client-side.
+ *
+ * `error` is a **historical** kind since `reportError` was retired (2026-09): nothing writes
+ * those records any more, but the stored ones stay readable and the filter stays useful for
+ * anything before that date. New errors arrive as `log-entry`.
  */
 export const STEREO_BY_KIND: Record<ReportKind, string | undefined> = {
     all: undefined,
@@ -84,9 +90,9 @@ export interface FetchReportLogsParams {
     stage?: ReportStage;
     /**
      * (optional) server-side kind filter, matched against the record's `stereo.keyword`.
-     * Errors save as `log` and user issues as `issue` (see `reportError`/`reportIssue`);
-     * omit for no filter. Narrowing here also narrows `total`, so the caller's page count
-     * follows the filter instead of the full dataset.
+     * Errors and log entries save as `log`, user issues as `issue`; omit for no filter.
+     * Narrowing here also narrows `total`, so the caller's page count follows the filter
+     * instead of the full dataset.
      */
     type?: string;
     /** (optional) createdAt range start, `YYYY-MM-DD` (KST day start, server-side). */

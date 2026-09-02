@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import { useRuntimeRepositories } from '@chatic/app-runtime';
-import { useGlobalSession, useSessionSelection } from '@chatic/web-core';
+import { useGlobalSession, useSessionSelection } from '@chatic/app-runtime';
 
 /**
  * The places of the active cloud the user can actually get to — the same rows the home rail renders.

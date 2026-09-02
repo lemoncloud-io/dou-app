@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { useChatSync, useRuntimeRepositories } from '@chatic/app-runtime';
-import { useSessionIdentity } from '@chatic/web-core';
+import { useSessionIdentity } from '@chatic/app-runtime';
 import type { DomainChat, DomainUser } from '@chatic/data';
 
 import { isFeedVisible, isOwnSystemChat } from '../../../utils';

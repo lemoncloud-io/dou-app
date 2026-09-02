@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { useRuntimeRepositories } from '@chatic/app-runtime';
-import { useGlobalSession, useSessionSelection } from '@chatic/web-core';
+import { useGlobalSession, useSessionSelection } from '@chatic/app-runtime';
 import type { DomainChannel } from '@chatic/data';
 
 import { useAccessiblePlaceIds } from './useAccessiblePlaceIds';
@@ -35,10 +35,13 @@ import { useActiveCloudData } from './activeCloudDataContext';
  * every site — so this observer is not keyed on the active sid at all.
  *
  * SCOPE PINNING — the {cid, uid} override keys the observer off the React session directly instead of
- * the live DataContextProvider, whose ancestor (RuntimeDataBinder) commits the new cloud AFTER this
- * descendant hook subscribes. Without it, a cloud switch registers the observer under the stale
- * provider cid and the post-commit write reemit never reaches it (needs a manual refresh). See
- * PlaceLocalDataSourceV2 reemit-routing tests.
+ * the live DataContextProvider (`ActiveScope`). `ActiveScope` now derives its `intent` straight from
+ * `session/store` on every read (ADR-0070 결정 7), not from an ancestor effect, so the commit-lag this
+ * override originally guarded against — `RuntimeDataBinder` used to push `binding.context` into the
+ * provider in an effect that ran AFTER this descendant hook subscribed — can no longer happen through
+ * that path: that binder has been deleted. The override still matters
+ * because `ActiveScope.getContext()` also folds in the socket's bound cid as `socketCid`, which this
+ * cloud-wide observer does not want in its scope key. See PlaceLocalDataSourceV2 reemit-routing tests.
  */
 export const useActiveCloudChannelsSource = (): { channels: DomainChannel[]; isLoaded: boolean } => {
     const { channel } = useRuntimeRepositories();

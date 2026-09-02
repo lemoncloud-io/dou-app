@@ -1,7 +1,7 @@
 import type { DomainListResult, DomainProfile, DomainProfileListPayload } from '../../domain';
 import { createDomainListResult } from '../../domain';
 import type { DataContextProvider } from '../../repositories-v2/types';
-import type { CacheStorage } from '../storages';
+import type { CacheStorage } from '../ports';
 import {
     BaseLocalDataSourceV2,
     type ILocalDataSourceV2,

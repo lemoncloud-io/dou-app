@@ -23,6 +23,7 @@ jest.mock('@chatic/app-runtime', () => ({
     // The flow only hands this to isPlaceProfileAbsent, which is mocked — an opaque token is enough.
     useRuntimeRepositories: () => ({ profile: { id: 'profile-repo' } }),
     useRuntimeProfile: () => ({ isGuest: mockIsGuest }),
+    useSessionSelection: () => ({ selectedSiteId: mockSid }),
 }));
 jest.mock('@chatic/bridges', () => ({
     logger: {
@@ -32,7 +33,7 @@ jest.mock('@chatic/bridges', () => ({
     },
 }));
 jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
-jest.mock('@chatic/web-core', () => ({ useSessionSelection: () => ({ selectedSiteId: mockSid }) }));
+
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
 jest.mock('../../../../hooks', () => ({
     useRelayInviteMutations: () => ({ getInvite, acceptInvite, rejectInvite }),

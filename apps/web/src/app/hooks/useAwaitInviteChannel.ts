@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 
 import { useRuntimeRepositories } from '@chatic/app-runtime';
-import { useGlobalSession, useSessionSelection } from '@chatic/web-core';
+import { useGlobalSession, useSessionSelection } from '@chatic/app-runtime';
 import type { DomainChannel } from '@chatic/data';
 
 /** Give up after this long and let the caller fall back (home + a "it's on its way" notice). */

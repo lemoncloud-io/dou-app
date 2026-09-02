@@ -8,6 +8,8 @@
 
 참고 스펙(서버, 이미 확정): `chatic-sockets-api/docs/specs/update-remote-device/{00-requirement,01-spec,02-design}.md`
 
+> **이름 안내 (2026-09-01):** 이 문서가 쓰는 `*RemoteDataSource` · `RemoteGatewayBundle` · `*DomainGateway` · `remoteFactory` · `remote/data-sources/`는 **당시 이름**이다. 소켓 축이 `Socket` 접두로 옮겨간 뒤의 대응표는 [libs/data/docs/remote/README.md](../../libs/data/docs/remote/README.md#이름-규약-2026-09-01-리네임)에 있다. 기록이므로 본문은 그대로 둔다.
+
 ## 맥락 (Context)
 
 디바이스 **전역** 푸시 알림을 사용자가 켜고 끌 방법이 없다. 이 음소거(`muted`)의 소유처는
@@ -28,7 +30,7 @@
 **조사에서 확인한 프론트 아키텍처 제약(핵심):**
 
 - 모든 gateway는 `SocketManager`의 **active-slot 파사드**에 바인딩된다
-  ([remoteFactory.ts:21-26](../../libs/app-runtime/src/data/factories/remoteFactory.ts),
+  ([remoteFactory.ts:21-26](../../libs/app-runtime/src/data/factories/socketFactory.ts) — 지금은 `socketFactory.ts`,
   [SocketManager.ts:239](../../libs/app-runtime/src/socket/SocketManager.ts)).
   `request()`는 항상 활성 슬롯으로 나간다 — **클라우드가 켜져 있으면 cloud 슬롯**.
 - 따라서 lib 0.4.8의 `DeviceGateway.updateRemote`를 기존 device gateway로 그냥 호출하면

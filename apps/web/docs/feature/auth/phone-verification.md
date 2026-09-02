@@ -284,7 +284,7 @@ sequenceDiagram
 - SDK `register()`는 inactive면 resume하고 connected면 즉시 `auth.update`를 보낸다.
   `ready()`는 authenticated에 resolve, terminal expired에 reject.
 - 게이트웨이는 relay 슬롯에 고정돼 있다 —
-  `libs/app-runtime/src/data/factories/remoteFactory.ts:57-61`에서 invite + `linkAccount`가
+  `libs/app-runtime/src/data/factories/socketFactory.ts:57-61`에서 invite + `linkAccount`가
   `getScopedClient('relay')`. 자세한 것은 [account-linking.md](./account-linking.md).
 - `$token`의 필요 필드는 `Token.{authId,accountId,identityId,identityToken}` + `$auth.id` +
   `userRole`이다. 실서버 응답에 `$auth`가 없으면 커밋 전에 reject된다.

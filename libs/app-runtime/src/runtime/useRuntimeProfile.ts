@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import type { DomainUser } from '@chatic/data';
-import { getActiveSessionUser, useGlobalSession } from '@chatic/web-core';
+import { getActiveSessionUser, useGlobalSession } from '../session';
 
 import type { SessionProfile } from './types';
 import { useRuntimeRepositories } from './useRuntimeRepositories';

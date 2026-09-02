@@ -1,4 +1,4 @@
-import type { CacheStorage } from '../storages';
+import type { CacheStorage } from '../ports';
 import { CloudLocalDataSourceV2 } from './CloudLocalDataSourceV2';
 
 // Observer notifications are debounced, so flush the microtask queue after timers run.

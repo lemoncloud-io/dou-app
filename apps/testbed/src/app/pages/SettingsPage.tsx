@@ -6,7 +6,7 @@ import {
     useLogoutCloudSession,
     useSessionIdentity,
     useSessionSelection,
-} from '@chatic/web-core';
+} from '@chatic/app-runtime';
 import { useRuntimeRepositories, useRuntimeProfile } from '@chatic/app-runtime';
 import type { DataRepositoriesV2, DomainProfile } from '@chatic/data';
 

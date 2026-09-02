@@ -18,7 +18,7 @@ UI Hook
   write command ──────┐   │
                       ▼   │
   RepositoryV2  ──────────┤  remote 호출 + local cache 갱신
-    ├─ RemoteDataSource ──┘  gateway thin wrapper (outbound)
+    ├─ SocketDataSource ──┘  gateway thin wrapper (outbound)
     └─ LocalDataSourceV2 ◄── snapshot 저장 + observer 재발행
             │
        CacheStorage (IndexedDB / Native)

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
 import { cn } from '@chatic/lib/utils';
-import { useSessionAuth } from '@chatic/web-core';
+import { useSessionAuth } from '@chatic/app-runtime';
 
 import { AuthCard } from '../components';
 import { useInviteLogin } from '../hooks/useInviteLogin';

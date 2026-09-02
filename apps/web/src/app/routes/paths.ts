@@ -133,5 +133,4 @@ export const ROUTES = {
 export const ROUTE_PARAMS = {
     channelId: 'channelId',
     placeId: 'placeId',
-    token: 'token',
 } as const;

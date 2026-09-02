@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 
 import { useRuntimeRepositories } from '@chatic/app-runtime';
-import { useSessionIdentity } from '@chatic/web-core';
+import { useSessionIdentity } from '@chatic/app-runtime';
 import type { DomainChat, DomainUser } from '@chatic/data';
 
 import { useChats } from './useChats';
@@ -9,8 +9,9 @@ import { useChats } from './useChats';
 jest.mock('@chatic/app-runtime', () => ({
     useRuntimeRepositories: jest.fn(),
     useChatSync: jest.fn(),
+    useSessionIdentity: jest.fn(),
 }));
-jest.mock('@chatic/web-core', () => ({ useSessionIdentity: jest.fn() }));
+
 // Covered by its own test file; isolate useChats from the foreground-refresh side effects.
 jest.mock('./useForegroundChatRefresh', () => ({ useForegroundChatRefresh: jest.fn() }));
 

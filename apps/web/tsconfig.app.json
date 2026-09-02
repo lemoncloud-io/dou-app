@@ -50,9 +50,6 @@
             "path": "../../libs/bridges/tsconfig.lib.json"
         },
         {
-            "path": "../../libs/web-core/tsconfig.lib.json"
-        },
-        {
             "path": "../../libs/shared/tsconfig.lib.json"
         }
     ]

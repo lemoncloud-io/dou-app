@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
-import { useSessionSelection, useSwitchCloudSession } from '@chatic/web-core';
+import { useSessionSelection, useSwitchCloudSession } from '@chatic/app-runtime';
 
 /**
  * Step 1 of invite entry: switch into the invited cloud when the invite carries a `cloudId`.

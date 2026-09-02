@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { registerUserWithInviteCode, useSessionIdentity } from '@chatic/web-core';
+import { useSessionIdentity } from '@chatic/app-runtime';
+import { registerUserWithInviteCode } from '@chatic/app-runtime';
 import { useRuntimeRepositories } from '@chatic/app-runtime';
 import type { DataRepositoriesV2 } from '@chatic/data';
 import { decodeInvite } from '../features/invite/inviteCode';

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 
 import type { DomainChannel } from '@chatic/data';
-import { getSyncManager, useRuntimeRepositories, useSocketState } from '@chatic/app-runtime';
-import { useSessionIdentity, useSessionSelection } from '@chatic/web-core';
+import { getSyncManager, useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
+import { useSessionIdentity, useSessionSelection } from '@chatic/app-runtime';
 
 import type { ReadCursor } from '../utils';
 
@@ -24,7 +24,7 @@ export const useChannelReadCursors = (channels: DomainChannel[]): Record<string,
     const { join: joinRepository } = useRuntimeRepositories();
     const { userId } = useSessionIdentity();
     const { selectedSiteId } = useSessionSelection();
-    const { isVerified } = useSocketState();
+    const { isVerified } = useRuntimeSocketState();
 
     const [cursorByChannel, setCursorByChannel] = useState<Record<string, ReadCursor>>({});
 

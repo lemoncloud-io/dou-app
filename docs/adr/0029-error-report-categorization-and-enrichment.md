@@ -1,6 +1,8 @@
 # ADR-0029: 에러 리포트 분류·태깅 및 맥락 보강
 
-> 상태: Accepted · 결정일: 2026-07-24
+> 상태: **Superseded by [ADR-0073](./0073-retire-automatic-error-reporting-in-favor-of-log-entries.md)** (2026-09-02) · 결정일: 2026-07-24
+>
+> 이 ADR이 만든 것(카테고리 분류·`[app] <category>` 타이틀·HTTP 맥락·cause 체인)은 `reportError`와 함께 삭제됐다. 에러는 이제 `logger.error` 엔트리로만 남는다. 아래 서술은 그 전 상태의 기록이다.
 
 ## 맥락 (Context)
 

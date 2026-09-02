@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
-import { useSessionSelection } from '@chatic/web-core';
+import { useSessionSelection } from '@chatic/app-runtime';
 import type { DataRepositoriesV2, DomainChannel } from '@chatic/data';
 
 /**

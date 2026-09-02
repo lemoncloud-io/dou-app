@@ -3,10 +3,9 @@ import { useTranslation } from 'react-i18next';
 
 import { logger } from '@chatic/bridges';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { reportError, useLogoutCloudSession, useSessionSelection, useSwitchCloudSession } from '@chatic/web-core';
+import { useLogoutCloudSession, useSessionSelection, useSwitchCloudSession } from '@chatic/app-runtime';
 
 import { useSelectedChannelStore } from '../stores';
-import { toError } from '../utils';
 
 /**
  * Cloud switch (mirrors apps/web `CloudSessionSheet.handleSelectCloud`). `switchCloud` owns the
@@ -43,7 +42,6 @@ export const useCloudSwitchFlow = () => {
             } catch (e) {
                 // switchCloud / logoutCloudSession already rolled their own session back on failure.
                 logger.error('SESSION', '[CloudSwitchFlow] switchFailed', { error: e });
-                reportError(toError(e));
                 toast({ title: t('cloud.switchFailed'), variant: 'destructive' });
             }
         },

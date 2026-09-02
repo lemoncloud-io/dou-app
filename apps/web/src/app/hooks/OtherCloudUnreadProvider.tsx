@@ -1,6 +1,6 @@
 import { useMemo, type ReactNode } from 'react';
 
-import { useSessionSelection } from '@chatic/web-core';
+import { useSessionSelection } from '@chatic/app-runtime';
 
 import { OtherCloudUnreadContext, type OtherCloudUnreadValue } from './otherCloudUnreadContext';
 import { useOtherCloudUnreadSource } from './useOtherCloudUnread';

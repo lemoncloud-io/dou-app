@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { DomainChannel } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 import { useTick } from '@chatic/shared';
-import { useSessionIdentity } from '@chatic/web-core';
+import { useSessionIdentity } from '@chatic/app-runtime';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 
 import {

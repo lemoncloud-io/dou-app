@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 
 import { logger } from '@chatic/bridges';
-import { reportError, useLogin } from '@chatic/web-core';
+import { useLogin } from '@chatic/app-runtime';
 
 import { toError } from '../../../shared';
 
@@ -25,7 +25,6 @@ export const useDebugLogin = () => {
             } catch (error) {
                 const err = toError(error);
                 logger.error('AUTH', '[useDebugLogin] login failed', { error: err });
-                reportError(err);
                 setIsError(true);
                 return false;
             }

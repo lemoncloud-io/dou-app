@@ -1,13 +1,16 @@
 import { act, renderHook } from '@testing-library/react';
 
-import { useDynamicDeviceId, useRegisterDeviceTokenMutation, useSessionAuth } from '@chatic/web-core';
+import { useRegisterDeviceTokenMutation } from '../data/hooks';
+import { useDynamicDeviceId, useSessionAuth } from '../session';
 
 import { useDeviceTokenRegistration } from './useDeviceTokenRegistration';
 import type { DeviceTokenDelegate } from './useDeviceTokenRegistration';
 
-jest.mock('@chatic/web-core', () => ({
+jest.mock('../session', () => ({
     useSessionAuth: jest.fn(),
     useDynamicDeviceId: jest.fn(),
+}));
+jest.mock('../data/hooks', () => ({
     useRegisterDeviceTokenMutation: jest.fn(),
 }));
 

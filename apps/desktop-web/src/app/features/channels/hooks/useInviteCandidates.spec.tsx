@@ -26,9 +26,7 @@ const repositories = {
 
 vi.mock('@chatic/app-runtime', () => ({
     useRuntimeRepositories: () => repositories,
-    useSocketState: () => ({ isVerified }),
-}));
-vi.mock('@chatic/web-core', () => ({
+    useRuntimeSocketState: () => ({ isVerified }),
     useSessionIdentity: () => ({ userId: 'me' }),
 }));
 vi.mock('../../../shared', () => ({

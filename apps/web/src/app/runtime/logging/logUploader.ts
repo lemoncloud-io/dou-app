@@ -6,7 +6,8 @@ import {
     isNative,
     logHub,
 } from '@chatic/bridges';
-import { registerSessionLogoutCallback, uploadLogBatch } from '@chatic/web-core';
+import { registerSessionLogoutCallback } from '@chatic/app-runtime';
+import { uploadLogBatch } from '@chatic/app-runtime';
 
 import { clearNativeLogQueue, createNativeUploadSource, isNativeUploadQueueUnsupported } from './nativeUploadSource';
 import { registerLogQueueView } from './logQueueView';

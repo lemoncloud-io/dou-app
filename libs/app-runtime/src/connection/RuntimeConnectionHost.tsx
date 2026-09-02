@@ -1,7 +1,6 @@
 import React from 'react';
 
-import { useInitWebCore, useRelaySessionKeepAlive } from '@chatic/web-core';
-import { RuntimeDataBinder } from './RuntimeDataBinder';
+import { useRelaySessionInit, useRelaySessionKeepAlive } from '../session';
 import { SocketBinder } from './SocketBinder';
 import { SocketReauthBinder } from './SocketReauthBinder';
 import { useSocketSessionDelegate } from './useSocketSessionDelegate';
@@ -13,7 +12,7 @@ export interface RuntimeConnectionHostProps {
 }
 
 /**
- * Assembles the declarative connection host. It is the SINGLE web-core init driver: `useInitWebCore`
+ * Assembles the declarative connection host. It is the SINGLE web-core init driver: `useRelaySessionInit`
  * runs `initializeRelaySession` (transport + auth) once and gates the whole connection subtree until
  * ready — replacing the old separate `TransportBootstrap`, which independently re-triggered
  * `startWebCoreInit` (a duplicate initialization). The socket session delegate is owned here too, so
@@ -21,17 +20,16 @@ export interface RuntimeConnectionHostProps {
  * bootstrapSocketConnection.
  */
 export const RuntimeConnectionHost = ({ binding, children }: RuntimeConnectionHostProps) => {
-    const isWebCoreReady = useInitWebCore();
+    const isSessionReady = useRelaySessionInit();
     const delegate = useSocketSessionDelegate();
     useRelaySessionKeepAlive(true);
 
-    if (!isWebCoreReady) {
+    if (!isSessionReady) {
         return null;
     }
 
     return (
         <>
-            <RuntimeDataBinder binding={binding} />
             <SocketBinder binding={binding} delegate={delegate} />
             <SocketReauthBinder binding={binding} delegate={delegate} />
             {children}

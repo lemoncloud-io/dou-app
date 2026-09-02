@@ -22,7 +22,7 @@ describe('data runtime configuration', () => {
         configureDataRuntime({ cache: { maxChatsPerChannel: 1000 } });
         getDataRuntime();
 
-        expect(DataManagerMock).toHaveBeenCalledWith(undefined, undefined, { maxChatsPerChannel: 1000 });
+        expect(DataManagerMock).toHaveBeenCalledWith(undefined, { maxChatsPerChannel: 1000 });
     });
 
     it('passes repository options through to the DataManager', async () => {
@@ -32,7 +32,7 @@ describe('data runtime configuration', () => {
         configureDataRuntime({ repositories });
         getDataRuntime();
 
-        expect(DataManagerMock).toHaveBeenCalledWith(undefined, repositories, undefined);
+        expect(DataManagerMock).toHaveBeenCalledWith(repositories, undefined);
     });
 
     // Apps register the two policy kinds from different places, so a second call must not wipe the
@@ -45,7 +45,7 @@ describe('data runtime configuration', () => {
         configureDataRuntime({ cache: { maxChatsPerChannel: 1000 } });
         getDataRuntime();
 
-        expect(DataManagerMock).toHaveBeenCalledWith(undefined, repositories, { maxChatsPerChannel: 1000 });
+        expect(DataManagerMock).toHaveBeenCalledWith(repositories, { maxChatsPerChannel: 1000 });
     });
 
     it('ignores a late registration instead of rebuilding shared state', async () => {
@@ -56,6 +56,6 @@ describe('data runtime configuration', () => {
         getDataRuntime();
 
         expect(DataManagerMock).toHaveBeenCalledTimes(1);
-        expect(DataManagerMock).toHaveBeenCalledWith(undefined, undefined, undefined);
+        expect(DataManagerMock).toHaveBeenCalledWith(undefined, undefined);
     });
 });

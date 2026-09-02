@@ -1,6 +1,6 @@
 # 리포트 스택 추적하기 (`yarn trace`)
 
-> 상태: Live · 최종 갱신: 2026-08-11 · 설계 배경: [libs/web-core/docs/error-reporting.md](../../libs/web-core/docs/error-reporting.md) · 관련 ADR: [ADR-0029](../adr/0029-error-report-categorization-and-enrichment.md) · [ADR-0047](../adr/0047-unified-logging-core-and-report-traceability.md)
+> 상태: Live · 최종 갱신: 2026-09-02 · 관련 ADR: [ADR-0029](../adr/0029-error-report-categorization-and-enrichment.md) · [ADR-0047](../adr/0047-unified-logging-core-and-report-traceability.md)
 
 admin-v2에 쌓인 에러 리포트의 스택은 전 프레임이 `index-dJJnUF5m.js:2:845134` 꼴이다. 저장된 건 텍스트뿐이라 devtools가 없고, 소스맵은 보안상 배포에 실리지 않는다. 이 문서는 그 스택을 **내 IDE에서 원본 파일·줄로 여는 방법**을 다룬다.
 
@@ -129,7 +129,7 @@ gh run download <run-id> -n sourcemaps-web-<sha>
 - **PROD도 맵을 만든다.** `sourcemap: 'hidden'`이라 번들에 `sourceMappingURL` 주석이 남지 않는다 — 서비스되지 않는 파일을 devtools가 404로 찾아가는 일이 없다.
 - **검증은 번들 해시 일치다.** 다른 빌드의 맵은 실패하지 않고 **그럴듯하지만 틀린 줄**로 풀린다. 그래서 캐시 키가 콘텐츠 해시가 박힌 번들명이고, 이름이 안 맞으면 경고한다.
 
-자세한 배경은 [error-reporting.md의 "minified 스택 읽기"](../../libs/web-core/docs/error-reporting.md#minified-스택-읽기).
+설계 배경은 [ADR-0029](../adr/0029-error-report-categorization-and-enrichment.md)에 있다. (더 상세한 서술이 있던 `libs/web-core/docs/error-reporting.md`는 web-core 패키지와 함께 삭제됐다 — ADR-0070.)
 
 ## GitHub 없이 배포한 경우 (수동 배포)
 

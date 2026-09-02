@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { DomainChannel, DomainChannelListPayload } from '@chatic/data';
 import { webClient } from '@chatic/bridges';
-import { getSocketManager, useRuntimeRepositories, useSocketState } from '@chatic/app-runtime';
-import { useGlobalSession, useSessionIdentity } from '@chatic/web-core';
+import { getSocketManager, useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
+import { useGlobalSession, useSessionIdentity } from '@chatic/app-runtime';
 
 import { computeChannelUnread } from '../utils';
 import { useReadCursorStore } from '../stores';
@@ -30,7 +30,7 @@ const REFETCH_DEBOUNCE_MS = 300;
  */
 export const usePlaceUnreadCounts = (): Record<string, number> => {
     const { channel: channelRepository } = useRuntimeRepositories();
-    const { isVerified } = useSocketState();
+    const { isVerified } = useRuntimeSocketState();
     const session = useGlobalSession();
     const cloudId = session.activeServer.kind === 'cloud' ? session.activeServer.cloudId : null;
     const { userId: myUid } = useSessionIdentity();

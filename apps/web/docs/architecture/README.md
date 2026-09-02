@@ -44,7 +44,7 @@ features  ─────▶  횡단(ui/{components,layouts} · hooks · stores 
 
 - **`libs/socket`(`@chatic/socket`) 직접 접근 금지.** 소켓은 `@chatic/app-runtime`이 추상화한다. 앱은 `useRuntimeSocketState`/repository/sync 훅만 쓴다.
 - **web-core core 객체 직접 사용 금지**: `cloudCore`/`identityCore`/`relayCore`/`webCore`는 공개 API가 아니다. 공개 훅/서비스로만 접근.
-- **세션 선택 상태(cloud/site)를 직접 setter로 바꾸지 않는다.** 전환 훅(`useSwitchCloudSession`/`useSiteSwitch`/`useRefreshCloudSiteSession`)으로만 변경.
+- **세션 선택 상태(cloud/site)를 직접 setter로 바꾸지 않는다.** 전환 훅(`useSwitchCloudSession`/`useSiteSwitch`)으로만 변경 — `useRefreshCloudSiteSession`은 ADR-0070에서 죽은 HTTP refresh 체인과 함께 삭제됐다.
 - **코드 주석은 영어, 문서/대화는 한국어.**
 
 ## 참조 구현

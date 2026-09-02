@@ -18,8 +18,6 @@ vi.mock('@chatic/app-runtime', () => ({
     syncInvitedCloudName: (...args: unknown[]) => syncInvitedCloudName(...(args as [])),
     useRuntimeRepositories: () => ({ cloud: cloudRepository }),
     useRuntimeSocketState: () => ({ isVerified }),
-}));
-vi.mock('@chatic/web-core', () => ({
     useCloudSessionCatalog: () => ({ clouds: ownedClouds }),
     useSessionSelection: () => ({ selectedCloudId }),
 }));

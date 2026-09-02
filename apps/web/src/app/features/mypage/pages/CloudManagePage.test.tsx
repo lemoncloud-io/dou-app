@@ -13,11 +13,16 @@ const mockDeleteCloud = jest.fn();
 jest.mock('@chatic/bridges', () => ({
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
-jest.mock('@chatic/web-core', () => ({
+jest.mock('@chatic/app-runtime', () => ({
     cloudsKeys: { list: () => ['clouds', 'list'] },
-    useClouds: (...args: unknown[]) => useCloudsMock(...args),
-    useDeleteCloud: () => ({ mutateAsync: mockDeleteCloud, isPending: false }),
     useSessionSelection: () => ({ selectedCloudId: 'CL1' }),
+}));
+
+jest.mock('../../../hooks/useCloudCatalog', () => ({
+    useClouds: (...args: unknown[]) => useCloudsMock(...args),
+}));
+jest.mock('../hooks/useDeleteCloud', () => ({
+    useDeleteCloud: () => ({ mutateAsync: mockDeleteCloud, isPending: false }),
 }));
 
 jest.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({ setQueryData: jest.fn() }) }));

@@ -1,7 +1,7 @@
 import { renderHook, waitFor } from '@testing-library/react';
 
 import { useRuntimeRepositories } from '@chatic/app-runtime';
-import { useSessionSelection } from '@chatic/web-core';
+import { useSessionSelection } from '@chatic/app-runtime';
 
 const cacheWriteManyMock = jest.fn();
 let mockSelectedCloudId = 'default';
@@ -10,8 +10,11 @@ const clearCanceledMock = jest.fn((id: string) => {
     mockCanceledIds = mockCanceledIds.filter(existing => existing !== id);
 });
 
-jest.mock('@chatic/app-runtime', () => ({ useRuntimeRepositories: jest.fn() }));
-jest.mock('@chatic/web-core', () => ({ useSessionSelection: jest.fn() }));
+jest.mock('@chatic/app-runtime', () => ({
+    useRuntimeRepositories: jest.fn(),
+    useSessionSelection: jest.fn(),
+}));
+
 jest.mock('../../../stores/usePreferenceStore', () => ({
     usePreferenceStore: (selector: (state: unknown) => unknown) =>
         selector({ canceledInviteIds: mockCanceledIds, clearInviteCanceled: clearCanceledMock }),

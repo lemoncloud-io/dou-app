@@ -2,7 +2,7 @@
  * `api/deviceApi.ts`
  * - 실제 서버 디바이스 목록(signed).
  */
-import { webTransport } from '@chatic/web-core';
+import { webTransport } from '@chatic/app-runtime';
 
 export type DeviceStatus = 'green' | 'yellow' | 'red';
 

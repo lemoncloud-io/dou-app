@@ -40,8 +40,11 @@ export interface ReportPayload {
     user?: Record<string, unknown>;
     cloud?: Record<string, unknown>;
     /**
-     * 실패한 요청의 전모. web-core `describeHttp`가 채우며 body류는 이미
-     * redact + truncate 된 값이다 — 화면에서 다시 가릴 필요는 없다.
+     * 실패한 요청의 전모. body류는 저장 시점에 이미 redact + truncate 된 값이라
+     * 화면에서 다시 가릴 필요는 없다.
+     *
+     * 이 필드를 채우던 것은 폐지된 `reportError`(`describeHttp`)뿐이므로, 2026-09
+     * 이후 레코드에는 없다. 그 이전 레코드를 읽기 위해 남긴다.
      */
     http?: {
         url?: string;
@@ -134,8 +137,11 @@ const unwrapReport = (metaObj: Record<string, unknown>): { title?: string; paylo
 
 /**
  * Known error categories carried in the title as `[app] <category>` (ADR-0029).
- * Mirrors `ErrorCategory` in `@chatic/web-core` — kept as a runtime Set here
- * because the union type has no runtime value to iterate.
+ *
+ * This is now a **reader for historical records**: the client-side union it
+ * mirrored (`ErrorCategory`) was deleted with `reportError` in 2026-09, so
+ * nothing writes these titles any more. The list is frozen at what was written
+ * up to that point — do not extend it, and do not expect new records to match.
  */
 const ERROR_CATEGORIES = new Set([
     'script-error',

@@ -11,29 +11,28 @@ vi.mock('@chatic/bridges', () => ({
     isNative: vi.fn(() => true),
     logger: { warn: vi.fn(), info: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
-// v2: socket verification comes from app-runtime's `useSocketState()` (reactive) and
+// v2: socket verification comes from app-runtime's `useRuntimeSocketState()` (reactive) and
 // `getSocketManager().getSnapshot()` (imperative, re-checked inside the grace timer) —
 // back both with one zustand store so they stay consistent. Auth is `useSessionAuth()`.
 vi.mock('@chatic/app-runtime', async () => {
     const { create } = await vi.importActual<typeof ZustandModule>('zustand');
     const socketStore = create(() => ({ isVerified: false }));
     return {
-        useSocketState: socketStore,
+        useRuntimeSocketState: socketStore,
         getSocketManager: () => ({ getSnapshot: () => socketStore.getState() }),
+        // `useSessionAuth` moved from @chatic/web-core to the session hub (ADR-0070 3단계). Still a
+        // zustand store because the test drives it with setState.
+        useSessionAuth: create(() => ({ isAuthenticated: false })),
     };
-});
-vi.mock('@chatic/web-core', async () => {
-    const { create } = await vi.importActual<typeof ZustandModule>('zustand');
-    return { useSessionAuth: create(() => ({ isAuthenticated: false })) };
 });
 
 import { isNative } from '@chatic/bridges';
-import { useSocketState } from '@chatic/app-runtime';
-import { useSessionAuth } from '@chatic/web-core';
+import { useRuntimeSocketState } from '@chatic/app-runtime';
+import { useSessionAuth } from '@chatic/app-runtime';
 
 // The mocked exports ARE zustand stores (hook + setState); cast for the test driver.
 type MockStore<T> = { getState: () => T; setState: (partial: Partial<T>) => void };
-const socketStore = useSocketState as unknown as MockStore<{ isVerified: boolean }>;
+const socketStore = useRuntimeSocketState as unknown as MockStore<{ isVerified: boolean }>;
 const authStore = useSessionAuth as unknown as MockStore<{ isAuthenticated: boolean }>;
 
 import { useSocketWedgeReload } from './useSocketWedgeReload';

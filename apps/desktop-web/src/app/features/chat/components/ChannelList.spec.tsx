@@ -7,7 +7,7 @@ import { render, screen } from '@testing-library/react';
 import type { DomainChannel, DomainChat } from '@chatic/data';
 import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
 
-vi.mock('@chatic/web-core', () => ({
+vi.mock('@chatic/app-runtime', () => ({
     useSessionIdentity: () => ({ userId: 'me' }),
 }));
 

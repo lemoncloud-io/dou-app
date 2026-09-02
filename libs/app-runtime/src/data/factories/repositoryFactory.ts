@@ -2,25 +2,29 @@ import type {
     DataContextProvider,
     DataRepositoriesV2,
     DataRepositoriesV2Options,
+    HttpDataSources,
     LocalDataSourcesV2,
-    RemoteDataSources,
+    SocketDataSources,
 } from '@chatic/data';
 import { createRepositoriesV2 } from '@chatic/data';
 
 export const createRepositories = ({
-    remoteDataSources,
+    socketDataSources,
     localDataSources,
     contextProvider,
     options,
+    httpDataSources,
 }: {
-    remoteDataSources: RemoteDataSources;
+    socketDataSources: SocketDataSources;
     localDataSources: LocalDataSourcesV2;
     contextProvider: DataContextProvider;
     options?: DataRepositoriesV2Options;
+    httpDataSources?: HttpDataSources;
 }): DataRepositoriesV2 =>
     createRepositoriesV2({
-        remoteDataSources,
+        socketDataSources,
         localDataSources,
         context: contextProvider,
         options,
+        httpDataSources,
     });

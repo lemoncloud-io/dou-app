@@ -32,8 +32,7 @@ jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k
 jest.mock('@chatic/bridges', () => ({ logger: { error: jest.fn() } }));
 jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
-jest.mock('@chatic/web-core', () => ({
-    reportError: jest.fn(),
+jest.mock('@chatic/app-runtime', () => ({
     useSessionIdentity: () => ({ userId: 'me' }),
 }));
 

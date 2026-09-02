@@ -1,13 +1,8 @@
 import { useCallback, useRef, useState } from 'react';
 
 import { isNative, logger } from '@chatic/bridges';
-import {
-    createCredentialsByProvider,
-    getIdentityContext,
-    reportError,
-    startWebCoreInit,
-    useRefreshRelaySession,
-} from '@chatic/web-core';
+import { getIdentityContext } from '@chatic/app-runtime';
+import { createCredentialsByProvider, startWebTransportInit } from '@chatic/app-runtime';
 
 import { toError } from '../../../shared';
 import { buildAuthorizeUrl } from '../utils';
@@ -19,10 +14,9 @@ import { buildAuthorizeUrl } from '../utils';
  * will-navigate), in a plain browser by direct navigation (admin pattern).
  * `complete` exchanges the relay code for credentials then hydrates the relay
  * session — replacing whatever session (e.g. a Guest Session) was on the device.
- * Mirrors apps/web useOAuthLogin (createCredentialsByProvider + refreshRelaySession).
+ * Mirrors apps/web useOAuthLogin — createCredentialsByProvider commits the session by itself.
  */
 export const useSocialLogin = () => {
-    const { refreshRelaySession } = useRefreshRelaySession();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isError, setIsError] = useState(false);
     // The relay code is single-use: guard against double completion
@@ -35,38 +29,33 @@ export const useSocialLogin = () => {
         else window.location.assign(url);
     }, []);
 
-    const complete = useCallback(
-        async (provider: string, code: string): Promise<boolean> => {
-            if (completingRef.current) return false;
-            completingRef.current = true;
-            setIsSubmitting(true);
-            setIsError(false);
-            // In-app login (e.g. a Guest Session linking from the Profile page)
-            // swaps the live session — reload so the whole engine (socket, caches,
-            // cloud rail) re-bootstraps from the new credentials.
-            const wasAuthenticated = getIdentityContext().isAuthenticated;
-            try {
-                await startWebCoreInit();
-                await createCredentialsByProvider(provider, code);
-                // Credential exchange only builds transport credentials — refresh the
-                // relay session (syncProfile) to hydrate identity + auth state. Social
-                // Login replaces any prior (guest/cloud) session on this device.
-                await refreshRelaySession({ syncProfile: true });
-                if (wasAuthenticated) window.location.replace('/');
-                return true;
-            } catch (error) {
-                const err = toError(error);
-                logger.error('AUTH', '[useSocialLogin] code exchange failed', { error: err });
-                reportError(err);
-                setIsError(true);
-                completingRef.current = false; // allow a retry with a fresh code
-                return false;
-            } finally {
-                setIsSubmitting(false);
-            }
-        },
-        [refreshRelaySession]
-    );
+    const complete = useCallback(async (provider: string, code: string): Promise<boolean> => {
+        if (completingRef.current) return false;
+        completingRef.current = true;
+        setIsSubmitting(true);
+        setIsError(false);
+        // In-app login (e.g. a Guest Session linking from the Profile page)
+        // swaps the live session — reload so the whole engine (socket, caches,
+        // cloud rail) re-bootstraps from the new credentials.
+        const wasAuthenticated = getIdentityContext().isAuthenticated;
+        try {
+            await startWebTransportInit();
+            await createCredentialsByProvider(provider, code);
+            // Credential exchange only builds transport credentials — refresh the
+            // relay session (syncProfile) to hydrate identity + auth state. Social
+            // Login replaces any prior (guest/cloud) session on this device.
+            if (wasAuthenticated) window.location.replace('/');
+            return true;
+        } catch (error) {
+            const err = toError(error);
+            logger.error('AUTH', '[useSocialLogin] code exchange failed', { error: err });
+            setIsError(true);
+            completingRef.current = false; // allow a retry with a fresh code
+            return false;
+        } finally {
+            setIsSubmitting(false);
+        }
+    }, []);
 
     return { start, complete, isSubmitting, isError };
 };

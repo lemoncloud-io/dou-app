@@ -1,0 +1,9 @@
+{
+    "name": "@chatic/auth-sign",
+    "$schema": "../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "libs/auth-sign/src",
+    "projectType": "library",
+    "tags": [],
+    "// targets": "to see all targets run: nx show project auth-sign --web",
+    "targets": {}
+}

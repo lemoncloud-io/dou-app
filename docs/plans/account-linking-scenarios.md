@@ -135,10 +135,10 @@ await auth.linkAccount({ type: 'social', mode: 'link', step: 'confirm', provider
 게스트가 소셜로 메인유저가 되는 길은 `auth.link-account`가 아니다. backend의 기존 소셜 경로를
 **REST로** 부른다.
 
-| 맥락                    | 경로                                                                    |
-| ----------------------- | ----------------------------------------------------------------------- |
-| `LoginPage`의 소셜 버튼 | `appBridge.oauthLogin` → `useLoginRelaySocial` (`LoginPage.tsx:28`)     |
-| 브라우저 리다이렉트     | `useOAuthLogin` (`createCredentialsByProvider` + `refreshRelaySession`) |
+| 맥락                    | 경로                                                                                                                      |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `LoginPage`의 소셜 버튼 | `appBridge.oauthLogin` → `useLoginRelaySocial` (`LoginPage.tsx:28`)                                                       |
+| 브라우저 리다이렉트     | `useOAuthLogin` (`createCredentialsByProvider`가 세션 커밋까지 끝냄 — ADR-0070 이후 `refreshRelaySession` 후속 호출 없음) |
 
 **C와 혼동하지 않는다.** C는 이미 메인유저인 세션에 수단을 **더 다는** 것이고, D는 세션을 **여는**
 것이다.

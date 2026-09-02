@@ -89,8 +89,9 @@ describe('serving what is not there', () => {
     });
 
     it('falls back for a route whose last segment has dots', async () => {
-        // /auth/token/<jwt> — the reason the fallback keys on Accept and not on an extension.
-        const response = await handle(request('/auth/token/eyJhbG.eyJzdWI.sig', NAVIGATION));
+        // A dotted path segment (invite code, token) is the reason the fallback keys on Accept
+        // and not on an extension.
+        const response = await handle(request('/join/invt.1.abc', NAVIGATION));
         expect(response.status).toBe(200);
         await expect(response.text()).resolves.toContain('index.html');
     });

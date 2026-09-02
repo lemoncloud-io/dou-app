@@ -2,7 +2,9 @@ import { useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 
-import { cloudsKeys, subscriptionKeys, useValidateMembership } from '@chatic/web-core';
+import { cloudsKeys } from '@chatic/app-runtime';
+import { subscriptionKeys } from '../../../hooks/queryKeys';
+import { useValidateMembership } from '../../../hooks/useMembership';
 
 import type { IapProductSubscription } from '@chatic/app-messages';
 import { useRuntimeProfile } from '@chatic/app-runtime';

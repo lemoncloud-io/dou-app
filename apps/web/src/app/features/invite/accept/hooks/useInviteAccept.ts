@@ -7,7 +7,7 @@ import { useEnterInvitedChannel } from './useEnterInvitedChannel';
 import { useEnterInvitedCloud } from './useEnterInvitedCloud';
 import { useEnterInvitedSite } from './useEnterInvitedSite';
 import type { InviteContext } from '../types';
-import { useInviteFlow } from '@chatic/web-core';
+import { useInviteFlow } from '@chatic/app-runtime';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { useRuntimeRepositories } from '@chatic/app-runtime';
 

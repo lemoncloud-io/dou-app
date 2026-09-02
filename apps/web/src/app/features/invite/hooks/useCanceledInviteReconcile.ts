@@ -12,6 +12,12 @@ import { getSocketErrorCode } from '../../../utils/errors';
  * instead of the retired `canceledInviteIds` localStorage list — the one-time migration
  * (`useInviteDismissMigration`) seeds a dismiss stub for every legacy record before this ever runs.
  *
+ * Codes never reach the cache (they are credentials — ADR-0052) and home no longer fetches the
+ * list at all, so a drain with something to do re-asks the server ONCE up front and composes every
+ * code off that one response. No response (relay never verified inside `refetch`'s wait) leaves
+ * every record untouched for a later mount — clearing a dismiss stamp we could not act on would
+ * lose the legacy cancel silently.
+ *
  * This pass runs once per home mount, after the invite list settles, and for each dismissed row:
  *
  * - row has no `state` (a migration stub that never matched a server response — fell out of the
@@ -28,7 +34,7 @@ import { getSocketErrorCode } from '../../../utils/errors';
  */
 export const useCanceledInviteReconcile = (): void => {
     const { invite } = useRuntimeRepositories();
-    const { invites, isLoading } = useRelayInvites();
+    const { invites, isLoading, refetch } = useRelayInvites();
     const { cancelInvite } = useRelayInviteMutations();
 
     const ranRef = useRef(false);
@@ -41,17 +47,34 @@ export const useCanceledInviteReconcile = (): void => {
         ranRef.current = true;
 
         void (async () => {
-            for (const row of dismissedRows) {
-                if (!row.state) {
-                    await invite.cacheDelete(row.id);
-                    continue;
-                }
-                if (row.state === 'rejected') continue;
-                if (row.state === 'canceled' || row.state === 'accepted') {
-                    await invite.undismiss(row.id);
-                    continue;
-                }
-                const code = composeInviteCode(row);
+            // Stubs carry no state and need no code — drop them before spending a round trip.
+            const stubs = dismissedRows.filter(row => !row.state);
+            for (const row of stubs) {
+                await invite.cacheDelete(row.id);
+            }
+
+            // Already final on the server — the dismiss stamp has nothing left to replay, and
+            // clearing it needs no code, so these are settled before any round trip too.
+            const settled = dismissedRows.filter(row => row.state === 'canceled' || row.state === 'accepted');
+            for (const row of settled) {
+                await invite.undismiss(row.id);
+            }
+
+            // What is left is the actual legacy work: a still-live card whose cancel never reached
+            // the server. Only these need a `code`, so only these justify the re-ask.
+            const needsCancel = dismissedRows.filter(row => row.state === 'pending' || row.state === 'expired');
+            if (needsCancel.length === 0) return;
+
+            const { data: fresh } = await refetch();
+            if (!fresh) {
+                // The wait timed out — retry on a later mount rather than acting blind.
+                ranRef.current = false;
+                return;
+            }
+
+            for (const row of needsCancel) {
+                const match = fresh.find(item => item.id === row.id);
+                const code = match && composeInviteCode(match);
                 if (!code) {
                     await invite.undismiss(row.id);
                     continue;
@@ -64,5 +87,5 @@ export const useCanceledInviteReconcile = (): void => {
                 }
             }
         })();
-    }, [isLoading, invites, cancelInvite, invite]);
+    }, [isLoading, invites, cancelInvite, invite, refetch]);
 };

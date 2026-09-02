@@ -11,7 +11,7 @@
 
 ## 0. 한 줄 요약
 
-**인증 수명주기를 SDK `AuthController`가 소유한다.** app-runtime은 소켓 부팅 시 로그인 토큰·`authId`·서명 콜백을 `register`하고, 인증 상태와 갱신 토큰을 **구독만** 한다. 토큰 보관·만료 기반 재인증·재연결 재인증·백오프·in-flight 직렬화는 모두 SDK가 책임진다. **SDK가 토큰 SSoT**이며, refresh 결과는 `onTokenRefresh`를 통해 web-core 토큰 저장소로 단방향 writeback된다([signing.md](./signing.md)).
+**인증 수명주기를 SDK `AuthController`가 소유한다.** app-runtime은 소켓 부팅 시 로그인 토큰·`authId`·서명 콜백을 `register`하고, 인증 상태와 갱신 토큰을 **구독만** 한다. 토큰 보관·만료 기반 재인증·재연결 재인증·백오프·in-flight 직렬화는 모두 SDK가 책임진다. **SDK가 토큰 SSoT**이며, refresh 결과는 `onTokenRefresh`를 통해 `session/store`(세션 허브)로 단방향 writeback된다([signing.md](./signing.md)).
 
 relay·cloud **두 소켓이 동시에** 각자의 `AuthController`를 돌린다. 서명·seed·writeback은 전역 active server가 아니라 각 소켓의 **`kind`** 를 축으로 분기한다([signing.md §0](./signing.md)).
 
@@ -19,14 +19,26 @@ relay·cloud **두 소켓이 동시에** 각자의 `AuthController`를 돌린다
 
 ## 1. 소유 경계 (누가 무엇을 소유하나)
 
-| 항목                                                                              | 소유                                                                 |
-| --------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
-| 현재 토큰(SSoT), 인증/재인증/만료 타이밍, 백오프, 요청 직렬화, switch/logout 패킷 | **SDK `AuthController`** (client당·kind당 1개)                       |
-| 로그인 토큰, `authId`, **lemon hmac 서명 콜백**, refresh 결과 writeback           | **web-core 세션 레이어** → app-runtime delegate                      |
-| bootstrap 시퀀싱(`register`→`connect`), 구독 배선, same-connection 재인증         | **app-runtime** (`bootstrapSocketConnection` / `SocketReauthBinder`) |
-| `signature` 계산식, backend `/oauth/{authId}/refresh` 엔드포인트                  | 각각 web-core / 서버. SDK는 둘 다 모르고 전달만 한다.                |
+| 항목                                                                              | 소유                                                                   |
+| --------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| 현재 토큰(SSoT), 인증/재인증/만료 타이밍, 백오프, 요청 직렬화, switch/logout 패킷 | **SDK `AuthController`** (client당·kind당 1개)                         |
+| 로그인 토큰, `authId`, **lemon hmac 서명 콜백**, refresh 결과 writeback           | **app-runtime `session/`** (store 재료 + `auth` 유스케이스) → delegate |
+| bootstrap 시퀀싱(`register`→`connect`), 구독 배선, same-connection 재인증         | **app-runtime** (`bootstrapSocketConnection` / `SocketReauthBinder`)   |
+| `signature` 계산식, backend `/oauth/{authId}/refresh` 엔드포인트                  | 각각 `@chatic/auth-sign` / 서버. SDK는 둘 다 모르고 전달만 한다.       |
 
-> 핵심 제약: **app-runtime은 소켓 토큰을 따로 갱신하는 타이머를 돌리지 않는다.** SDK가 SSoT로 들고 있고, refresh한 토큰은 `onTokenRefresh`를 통해 web-core 저장소로 흘려보내(HTTP/AWS 서명용) 두 곳의 토큰을 일치시킨다.
+> 핵심 제약: **app-runtime은 소켓 토큰을 따로 갱신하는 타이머를 돌리지 않는다.** SDK가 SSoT로 들고 있고, refresh한 토큰은 `onTokenRefresh`를 통해 `session/store`로 흘려보내(HTTP/AWS 서명용) 두 곳의 토큰을 일치시킨다. 이 리포에 refresh 엔드포인트를 치는 코드는 없다([../../session/architecture.md](../../session/architecture.md) §refresh).
+
+### 수동 갱신 — `auth.refresh()` (sockets-lib 0.5.1)
+
+트리거가 SDK 독점이던 원래 설계에는 "지금 갱신하라"가 없었다. 그런데 우리는 HTTP 서명을 소켓 토큰에 물려놨고 갱신이 HTTP 채널로 건너가는 다리는 `onTokenRefresh` 하나다 — 그 다리가 놓이지 않는 구간에서는 **연결은 인증된 채 살아 있는데 HTTP만 옛 서명 재료로 나가 거절된다.** 0.5.1이 `refresh()`를 공개해 그 구간을 닫았다.
+
+- **인자가 없다.** 패킷의 `current`(서명 타임스탬프)·`signature`는 등록된 sign 콜백이 만들고 `authId`는 등록 시 받은 값이라 호출자가 넘길 것이 없다.
+- **single-flight다.** 주기 타이머와 수동 호출이 한 갱신을 공유한다. 이것이 예전 `epoch` 파일업(동시 시도가 서로를 무효화하고 앞선 것들이 타임아웃 뒤 실패로 집계돼 `maxFailures`를 채우던 경로)을 SDK 쪽에서 막는다.
+- **거부가 답이다.** 실패는 사유별 타입 없이 일반 `Error`이고 메시지에만 사유가 실린다(`not-registered`·`not-connected`·`sign`·`superseded`·전송 `408`) — 분기용이 아니다. 완료 상한도 SDK 것이다: 갱신이 소켓 `request`를 타므로 전송 타임아웃으로 거부된다.
+
+app-runtime 쪽 배선은 [`requestRelaySessionRefresh`](../../../src/socket/auth/requestRelaySessionRefresh.ts) 하나이고(relay 전용 — cloud는 재발급), 0.5.1 이전에는 private `runRefresh`를 타입 캐스팅으로 부른 뒤 완료를 `onTokenRefresh`/`onAuthState` 구독 + 자체 10초 천장으로 **추측**했다. 둘 다 사라졌다. 남은 코얼레싱은 SDK에 **닿지 않는** 시도(인증된 소켓 부재 판정)와 방금 끝난 답의 3초 메모뿐이다.
+
+HTTP 재시도 쪽 상한은 전송이 갖는다 — `libs/http`의 `run()`이 `recovered` 플래그로 **요청당 복구 1회**를 강제한다. SDK는 호출 간격을 억제하지 않으므로 이 상한은 우리 몫이다.
 
 ### 왜 SDK가 소유하는가 (결정 이력)
 
@@ -38,16 +50,17 @@ relay·cloud **두 소켓이 동시에** 각자의 `AuthController`를 돌린다
 
 `createClientSocketV2`가 만든 client에 `auth`로 노출된다(SDK `client-socket-v2/auth-controller.ts`). app-runtime은 이를 `SocketManager`/delegate 뒤로 감싸서 UI에 직접 노출하지 않는다.
 
-| 멤버             | 시그니처                                        | 용도                                                                                       |
-| ---------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| `register`       | `(opts: { token, authId, sign }) => void`       | 토큰·authId·서명 콜백 등록. 멱등. `expired`/`logout` 이후 호출 시 인증 재개.               |
-| `ready`          | `() => Promise<void>`                           | `authenticated`까지 대기. **bootstrap은 이를 호출하지 않는다**(§3) — 필요한 소비부만 사용. |
-| `switch`         | `(target, handlers?) => Promise<AuthTokenView>` | 사이트 전환. 일회성·명시 호출(`switchSite`가 래핑).                                        |
-| `logout`         | `() => Promise<void>`                           | 로컬 정리 + best-effort 서버 통지. 예외 안 던짐.                                           |
-| `onAuthState`    | `(listener) => unsubscribe`                     | 인증 상태 구독.                                                                            |
-| `onTokenRefresh` | `(listener) => unsubscribe`                     | refresh/switch 성공마다 full payload(credential 포함) 통지.                                |
-| `token`          | `get => string`                                 | 현재 토큰(identityToken 문자열).                                                           |
-| `state`          | `get => AuthControllerState`                    | 현재 상태.                                                                                 |
+| 멤버             | 시그니처                                        | 용도                                                                                                |
+| ---------------- | ----------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `register`       | `(opts: { token, authId, sign }) => void`       | 토큰·authId·서명 콜백 등록. 멱등. `expired`/`logout` 이후 호출 시 인증 재개.                        |
+| `ready`          | `() => Promise<void>`                           | `authenticated`까지 대기. **bootstrap은 이를 호출하지 않는다**(§3) — 필요한 소비부만 사용.          |
+| `refresh`        | `() => Promise<AuthTokenView>`                  | 수동 갱신. 진행 중인 갱신이 있으면 합류(single-flight). `requestRelaySessionRefresh`의 유일한 경로. |
+| `switch`         | `(target, handlers?) => Promise<AuthTokenView>` | 사이트 전환. 일회성·명시 호출(`switchSite`가 래핑).                                                 |
+| `logout`         | `() => Promise<void>`                           | 로컬 정리 + best-effort 서버 통지. 예외 안 던짐.                                                    |
+| `onAuthState`    | `(listener) => unsubscribe`                     | 인증 상태 구독.                                                                                     |
+| `onTokenRefresh` | `(listener) => unsubscribe`                     | refresh/switch 성공마다 full payload(credential 포함) 통지.                                         |
+| `token`          | `get => string`                                 | 현재 토큰(identityToken 문자열).                                                                    |
+| `state`          | `get => AuthControllerState`                    | 현재 상태.                                                                                          |
 
 `AuthControllerState = '' | pending | validating | authenticated | failed | disconnected | expired`. 앞 6개는 서버 상태(`AuthUpdateState`), `expired`는 백오프 소진 시 SDK가 만드는 **클라이언트 터미널 상태**다.
 
@@ -85,7 +98,7 @@ const AUTH_OPTIONS = { refreshRatio: 0.8, maxFailures: 3, refreshIntervalMs: 5 *
 
 1. `manager.ensure(config, kind)` — client 생성(= `AuthController` 부착).
 2. `onAuthState` 구독 → `manager.setAuthenticated(kind, state === 'authenticated')`; `state === 'expired'`면 `delegate.onAuthExpired(kind)`.
-3. `onTokenRefresh` 구독 → `delegate.commitRefreshedToken(kind, view)` (web-core writeback).
+3. `onTokenRefresh` 구독 → `delegate.commitRefreshedToken(kind, view)` (`session/store` writeback).
 4. `delegate.getAuthRegistration(kind)`로 `{ token, authId }`를 받아 **`connect` 전에** `client.auth.register({ token, authId, sign })`(토큰 시드)한 뒤 `auth.stop()`으로 컨트롤러를 비활성화(게이트 닫기).
 5. `client.onMessage`(‎`device.save:ok` 필터) → `auth.start()`; `client.onState` closed/closing/idle → `auth.stop()` 구독. (`device.save:ok`는 요청 응답이라 `onType`이 아닌 `onMessage`로 온다.)
 6. `manager.connect(kind)`.
@@ -95,19 +108,26 @@ const AUTH_OPTIONS = { refreshRatio: 0.8, maxFailures: 3, refreshIntervalMs: 5 *
 
 - **`auth.update`는 `device.save:ok`에 게이팅된다.** 백엔드는 해당 커넥션에 device가 등록(`device.save:ok`)돼야 `auth.update`를 처리하는데, SDK는 같은 `connected`에서 `device.save`와 `auth.update`를 함께 보내며 `auth.update`를 먼저 dispatch한다 → 기본 핸드셰이크는 device 등록보다 앞질러 실패한다. 실패한 최초 `auth.update`는 재시도되지 않고(SDK 백오프는 `auth.refresh`만 재실행하며 이는 최초 세션을 세우지 못함) 결국 `expired`(로그아웃)로 끝난다. 그래서 `register`가 토큰만 시드하고 `stop()`이 SDK의 connect-time 자동 발사를 억제한 뒤, `device.save:ok` 수신 시 `start()`가 connected+토큰 컨트롤러를 재활성화해 그 자리에서 `auth.update`를 보낸다. 매 disconnect마다 `stop()`으로 게이트를 재폐쇄해 재연결도 동일 순서를 지킨다.
 - `start()`/`stop()`은 SDK `AuthControllerImpl`의 public 메서드지만 `AuthController` 인터페이스엔 미노출이라 구조적 타입 캐스트로 접근한다(SDK 업그레이드 취약점 — SDK가 device-게이트 핸드셰이크를 자체 제공하면 그쪽으로 이전).
+- **SDK는 이 순서를 아직 보장하지 않는다 — 2026-09-02, 핀된 `0.5.1` 기준 재확인(0.4.13에서도 동일).** 게이트를 걷어낼 수 있는지 판단하려면 아래 두 지점을 보면 된다. `auth-controller.js`의 컨트롤러 생성 시 `client.onState`에서 `connected`면 `void this.sendUpdate()`, `create-device-runtime.js`의 런타임 생성 시 `client.onState`에서 `connected`면 `void saveCurrentDevice()` — **서로를 기다리지 않는 독립 리스너 둘**이고 순서는 등록 순서(컨트롤러가 client와 함께 먼저 붙는다)에만 달려 있다. 즉 기본 핸드셰이크는 여전히 device 등록을 앞지른다. 게이트 제거는 SDK가 device 선등록을 기다리는 핸드셰이크를 **명시적으로** 제공한 뒤, 그 버전으로 올리는 작업과 함께여야 한다. 그 전에 걷어내면 최초 인증이 실패하고 `expired`로 끝난다(재시도 불가 — 위 항목).
 - **`client.auth.ready()`를 부팅에서 호출하지 않는다.** 인증 완료 게이팅이 필요한 소비부(예: sync는 `requiresAuth` 게이트가 이미 있음)가 스스로 상태를 관측한다.
 
 ### same-connection 재인증 — `SocketReauthBinder` / `reauthenticateActiveSocket`
 
 같은 소켓 연결을 유지한 채 **신원(토큰)만 바뀌는** 두 경우가 있다:
 
-1. 게스트 → 소셜/이메일 승격 — relay 토큰 교체.
-2. 같은 wss의 cloud site 전환 — cid만 바뀌어 `SocketBinder`가 재부팅하지 않는 config 변경.
+1. 게스트 → 소셜/이메일 승격 — relay 토큰 교체. **`SocketReauthBinder`가 관측하는 유일한 경우다.**
+2. 같은 클라우드에 머문 채 cloud 토큰만 재발급 — 바인더가 보지 못한다(cloud 슬롯은 `identityToken`을
+   싣지 않는다). `useCloudCredentialGuard` → `renewCloudSession`이 `reauthenticateActiveSocket`을
+   **직접** 부른다.
+
+클라우드 **전환**은 이 목록에 없다. 두 클라우드가 wss 호스트를 공유하지 않으므로(2026-09-02 확인)
+전환은 항상 URL을 바꿔 `SocketBinder`가 슬롯을 다시 세우고, 재인증할 커넥션이 남지 않는다. 이 불변조건이
+깨지면 조용히 옛 신원이 유지되므로 `SocketBinder`의 같은-wss 가드가 에러로 보고한다.
 
 SDK의 bare `register`는 active 상태에서 토큰만 조용히 교체하고 `auth.update`를 재발사하지 않으므로, 이 경우 옛 신원이 유지된다. [`SocketReauthBinder`](../../../src/connection/SocketReauthBinder.tsx)는 `binding.auth.identityToken` 변화를 관측(reboot 중이 아닐 때만)해 [`reauthenticateActiveSocket`](../../../src/socket/auth/reauthenticateActiveSocket.ts)를 호출한다:
 
 - 대상은 `manager.getClient(kind)?.auth` — 전역 active가 아니라 그 **kind의 슬롯**.
-- **피드백 루프 가드**: `registration.token === auth.token`이면 no-op. SDK 자체 refresh/switch의 writeback(같은 토큰으로 web-core에 착지)이 재인증을 유발하지 않도록 막는다.
+- **피드백 루프 가드**: `registration.token === auth.token`이면 no-op. SDK 자체 refresh/switch의 writeback(같은 토큰으로 `session/store`에 착지)이 재인증을 유발하지 않도록 막는다.
 - 그 외에는 verified일 때 fire-and-forget `auth.logout()`(이전 backend 세션 revoke) 후 **무조건 `auth.register(...)`** — `logout → register`가 SDK가 같은 연결에서 `auth.update`를 재전송하는 resume 경로다.
 
 ---
@@ -127,7 +147,11 @@ isVerified = authenticated && connected
 delegate의 `onAuthExpired(kind)`([`useSocketSessionDelegate`](../../../src/connection/useSocketSessionDelegate.ts)):
 
 - **cloud** → `logoutCloudSession()` — cloud 세션만 정리(relay는 유지).
-- **relay** → `logger.warn`만. **자동 로그아웃하지 않는다** — relay 로그아웃은 수동(manual-only)이다([../../../web-core/docs/hooks/orchestration.md](../../../../web-core/docs/hooks/orchestration.md)).
+- **relay** → `logger.warn` **+ `logoutRelaySession()`** — 자동 로그아웃한다. SDK가 이 터미널 상태에
+  닿는 것은 `maxFailures`(현재 3) 연속 sign/refresh 실패 뒤뿐이고, 그건 기다린다고 풀리는 상태가
+  아니다. 로그아웃해야 런타임의 게스트 로그인 폴백이 깨끗한 세션을 집고, `isVerified=false`인데
+  relay 토큰은 스토어에 남아 있는 **좀비 상태**로 UI가 굳지 않는다. (이 정책은 과거의
+  manual-only 입장을 대체한다.)
 
 ---
 

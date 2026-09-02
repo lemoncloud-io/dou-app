@@ -5,7 +5,7 @@ import { getSocketManager } from '@chatic/app-runtime';
 /**
  * `user.*` pinned to the RELAY slot, for the account-level profile (MY page and what it opens).
  *
- * The composed `user` gateway in app-runtime's remoteFactory binds to the ACTIVE facade, so
+ * The composed `user` gateway in app-runtime's socketFactory binds to the ACTIVE facade, so
  * `user.profile` / `user.update` follow the user into a cloud and answer with the cloud-delegated
  * record — a different uid on a different backend (libs/web-core session services: the cloud token
  * is minted by `POST {cloudBackend}/oauth/exchange-token`). Account screens need the relay account
@@ -23,7 +23,7 @@ import { getSocketManager } from '@chatic/app-runtime';
  * no relay slot is bound — callers must gate on `useKindVerified('relay')` (or
  * `waitUntilKindVerified`) rather than firing hopefully, same as `useRelayInvites`.
  *
- * The `as any` on the scoped client mirrors remoteFactory: `ScopedSocketClient` is the request/send
+ * The `as any` on the scoped client mirrors socketFactory: `ScopedSocketClient` is the request/send
  * subset the gateways actually use, but the factory's parameter is typed as the full client.
  */
 let cachedGateway: ReturnType<typeof createUserGateway> | null = null;

@@ -37,7 +37,7 @@ export interface RelayInviteCreateInput {
  * offers the wrong copy). One larger page is the cheap fix; real paging stays open until the list
  * has a reason to grow past this.
  */
-const INVITE_LIST_LIMIT = 100;
+export const INVITE_LIST_LIMIT = 100;
 
 /**
  * How long a caller-driven `refetch` waits for the relay handshake before giving up (ms).
@@ -61,6 +61,26 @@ export interface RelayInvitesOptions {
      * window is in the background (`refetchIntervalInBackground` defaults to false).
      */
     pollIntervalMs?: number;
+
+    /**
+     * Whether to ask the SERVER at all (off by default; `pollIntervalMs` implies it).
+     *
+     * Off makes this a pure cache reader: it renders the local invite cache — which `invite.list`,
+     * `invite.create` and `invite.cancel` all mirror into — and never puts a packet on the wire.
+     * That is the right default because home mounts this for EVERY user, including the majority who
+     * have never sent an invite, and the old default (`staleTime: 0` + focus refetch, i.e. one
+     * `invite.list` per home mount AND per window focus, doubled by the app's `retry: 1`) made this
+     * the most frequently sent relay-pinned read in the app. It was therefore the packet that
+     * surfaced every connection-auth desync as `401 UNAUTHORIZED - not authenticated invite.list`.
+     *
+     * What keeps a cache reader fresh instead: `useBackgroundSync` re-asks `invite.list` on the same
+     * triggers as the channel/place/profile lane (verified rising edge, foreground return, and the
+     * 60s tick while a `pending` card is live), and the response mirrors back into the cache this
+     * hook observes. Surfaces needing a cadence of their own (the waiting screen) pass
+     * `pollIntervalMs`; surfaces needing the `code` a cache row never carries re-ask on demand
+     * through `refetch`.
+     */
+    remote?: boolean;
 }
 
 /** Read/write the same cache entries, so a mutation can invalidate what the list hook renders. */
@@ -104,14 +124,14 @@ const mergeCachedAndRemoteInvites = (cached: RelayInviteRow[], remote: MyInviteV
  *
  * Read through `InviteRepositoryV2` like every other data access (ADR-0036) — the repository is an
  * access surface, not a cache obligation, so each call still goes straight to the relay-pinned
- * gateway behind it. By default it only refetches on window focus, which covers "user came back to
- * the tab" (see the query options for why that needs an explicit opt-out of the app's global
- * `staleTime`); a caller that needs a cadence on top asks for it with `pollIntervalMs`.
+ * gateway behind it.
  *
  * Local-first since ADR-0052: a local cache observer renders instantly on cold boot (before the
- * relay handshake even completes) or offline, while the server read below still fires on every
- * call and stays the only source of truth for cards someone ELSE'S device changed — the cache is
- * never trusted for state, only for what to paint before the real answer arrives.
+ * relay handshake even completes) or offline. Since the invite lane moved into `useBackgroundSync`,
+ * the cache is ALL a default caller renders — the server read is opt-in (`remote`/`pollIntervalMs`)
+ * and the background lane owns the cadence that keeps cards someone ELSE's device changed
+ * converging. The cache is still never trusted for state; it is what to paint until the lane's next
+ * answer mirrors in.
  */
 export const useRelayInvites = (state?: InviteState, options: RelayInvitesOptions = {}) => {
     const { invite } = useRuntimeRepositories();
@@ -120,6 +140,9 @@ export const useRelayInvites = (state?: InviteState, options: RelayInvitesOption
     // firing before relay's own handshake completes is exactly what threw `503 SOCKET NOT
     // CONNECTED - relay.request(invite.list)` on cold boot / window-focus refetch.
     const isRelayVerified = useKindVerified('relay');
+    // Whether this consumer wants the server at all. Asking for a poll is asking for the server, so
+    // the waiting screen needs no second flag (see RelayInvitesOptions.remote).
+    const wantsRemote = options.remote ?? options.pollIntervalMs !== undefined;
 
     const [cachedInvites, setCachedInvites] = useState<RelayInviteRow[]>([]);
     useEffect(() => {
@@ -140,11 +163,17 @@ export const useRelayInvites = (state?: InviteState, options: RelayInvitesOption
         refetchOnWindowFocus: true,
         // Off unless a caller asks (see RelayInvitesOptions) — react-query skips it while disabled.
         refetchInterval: options.pollIntervalMs ?? false,
-        // Re-fires on the false→true edge (relay reconnecting drops this to false, then back), same
-        // as every other isVerified-gated read in the app. `refetch()` still works while disabled
-        // (TanStack v5), so the user-driven retry on InviteWaitingPage is unaffected — that is also
-        // why an automatic cadence must NOT be built on it (see RelayInvitesOptions.pollIntervalMs).
-        enabled: isRelayVerified,
+        // Never retried, against the app-wide `retry: 1`: a retry turns one failure into two packets
+        // (and two server-side error reports) for a read the next background-sync edge/tick or poll
+        // re-asks anyway. Nothing here needs its answer within a single attempt.
+        retry: false,
+        // Two gates, and both must hold. `isRelayVerified` re-fires on the false→true edge (relay
+        // reconnecting drops it, then restores it), same as every other verified-gated read in the
+        // app. `wantsRemote` is the stronger one: a cache-only consumer never opens the wire at all.
+        // `refetch()` still works while disabled (TanStack v5), which is what the on-demand
+        // code re-ask and the user-driven retry on InviteWaitingPage ride on — and also why an
+        // automatic cadence must NOT be built on it (see RelayInvitesOptions.pollIntervalMs).
+        enabled: isRelayVerified && wantsRemote,
     });
 
     const invites = mergeCachedAndRemoteInvites(cachedInvites, query.data ?? []);
@@ -176,7 +205,8 @@ export const useRelayInvites = (state?: InviteState, options: RelayInvitesOption
         invites,
         // A cache hit already has something to paint, so the loading spinner is reserved for the
         // genuinely empty case (nothing cached, response not back yet) — the cold-boot win ADR-0052
-        // exists for.
+        // exists for. A cache-only consumer never has a response pending, so this is simply false
+        // for it: nothing is on the way, and a spinner would wait forever.
         isLoading: query.isLoading && invites.length === 0,
         refetch,
     };

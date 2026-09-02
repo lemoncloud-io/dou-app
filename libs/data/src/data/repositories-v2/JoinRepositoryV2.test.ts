@@ -3,7 +3,7 @@ import { JoinRepositoryV2 } from './JoinRepositoryV2';
 describe('JoinRepositoryV2', () => {
     const createRepository = () => {
         // Keep join transport mocked separately from local cache so rollback behavior is explicit.
-        const joinRemoteDataSource = {
+        const joinSocketDataSource = {
             getJoin: jest.fn(),
             readChat: jest.fn(),
             updateJoin: jest.fn(),
@@ -26,18 +26,18 @@ describe('JoinRepositoryV2', () => {
         };
 
         return {
-            repository: new JoinRepositoryV2(joinRemoteDataSource as any, joinLocalDataSource as any, contextProvider),
-            joinRemoteDataSource,
+            repository: new JoinRepositoryV2(joinSocketDataSource as any, joinLocalDataSource as any, contextProvider),
+            joinSocketDataSource,
             joinLocalDataSource,
         };
     };
 
     it('restores the previous join snapshot when readChat fails after an optimistic update', async () => {
-        const { repository, joinRemoteDataSource, joinLocalDataSource } = createRepository();
+        const { repository, joinSocketDataSource, joinLocalDataSource } = createRepository();
         joinLocalDataSource.cacheReadList.mockResolvedValue({
             list: [{ id: 'join-1', channelId: 'ch-1', userId: 'me', readNo: 4 }],
         });
-        joinRemoteDataSource.readChat.mockRejectedValue(new Error('boom'));
+        joinSocketDataSource.readChat.mockRejectedValue(new Error('boom'));
 
         await expect(repository.readChat({ channelId: 'ch-1', chatNo: 9 } as any)).rejects.toThrow('boom');
 
@@ -57,7 +57,7 @@ describe('JoinRepositoryV2', () => {
     });
 
     it('returns the current local join snapshot from refreshList without touching remote transport', async () => {
-        const { repository, joinRemoteDataSource, joinLocalDataSource } = createRepository();
+        const { repository, joinSocketDataSource, joinLocalDataSource } = createRepository();
         joinLocalDataSource.cacheReadList.mockResolvedValue({
             list: [{ id: 'join-1', channelId: 'ch-1', userId: 'me' }],
             meta: { total: 1, source: 'local' },
@@ -66,13 +66,13 @@ describe('JoinRepositoryV2', () => {
         const result = await repository.refreshList({ channelId: 'ch-1', activeOnly: true });
 
         // refreshList is local-first in V2 and should not trigger remote I/O on its own.
-        expect(joinRemoteDataSource.readChat).not.toHaveBeenCalled();
+        expect(joinSocketDataSource.readChat).not.toHaveBeenCalled();
         expect(result.list.map((item: any) => item.id)).toEqual(['join-1']);
     });
 
     it('creates and then clears an optimistic join placeholder around joinChannel', async () => {
-        const { repository, joinRemoteDataSource, joinLocalDataSource } = createRepository();
-        joinRemoteDataSource.joinChannel.mockResolvedValue({
+        const { repository, joinSocketDataSource, joinLocalDataSource } = createRepository();
+        joinSocketDataSource.joinChannel.mockResolvedValue({
             id: 'join-2',
             channelId: 'ch-1',
             userId: 'me',

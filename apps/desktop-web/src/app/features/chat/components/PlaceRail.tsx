@@ -7,8 +7,8 @@ import { Home, User } from 'lucide-react';
 
 import type { DomainSite } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
-import { useSessionIdentity, useSessionLogout } from '@chatic/web-core';
-import { useSessionProfile } from '@chatic/app-runtime';
+import { useSessionIdentity, useSessionLogout } from '@chatic/app-runtime';
+import { useRuntimeProfile } from '@chatic/app-runtime';
 
 import { useJoinDialogStore } from '../../auth';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
@@ -115,7 +115,7 @@ export const PlaceRail = ({
     const navigate = useNavigate();
     const openJoinDialog = useJoinDialogStore(s => s.open);
     const { userId } = useSessionIdentity();
-    const { userName, photo } = useSessionProfile();
+    const { userName, photo } = useRuntimeProfile();
     const logout = useSessionLogout();
     const { resetAccount } = useAccountResetOnLogout();
 

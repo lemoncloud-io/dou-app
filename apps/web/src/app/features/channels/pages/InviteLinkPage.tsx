@@ -2,16 +2,14 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useParams } from 'react-router-dom';
 
-import { isNative } from '@chatic/bridges';
+import { isNative, logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
-import { reportError } from '@chatic/web-core';
 import { Button, IconClose, InviteLinkCard } from '@chatic/web-ui-kit';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { appBridge } from '../../../bridge';
 import { PageHeader } from '../../../ui/components';
 import { ROUTES } from '../../../routes/paths';
-import { toError } from '../../../utils/errors';
 import { useChannel } from '../hooks';
 import { copyMessageToClipboard } from '../utils/copyMessageToClipboard';
 import { getRoomDistance } from '../utils/roomDistance';
@@ -52,7 +50,7 @@ export const InviteLinkPage = () => {
             await copyMessageToClipboard(inviteLink);
             toast({ title: t('inviteLink.copyDone') });
         } catch (error) {
-            reportError(toError(error));
+            logger.error('INVITE', '[InviteLinkPage] copy failed', { error });
             toast({ title: t('inviteFriends.shareFailed'), variant: 'destructive' });
         }
     };
@@ -73,7 +71,7 @@ export const InviteLinkPage = () => {
             }
             setShared(true);
         } catch (error) {
-            reportError(toError(error));
+            logger.error('INVITE', '[InviteLinkPage] share failed', { error });
             toast({ title: t('inviteFriends.shareFailed'), variant: 'destructive' });
         }
     };

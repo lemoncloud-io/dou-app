@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 
 import { isNative, webClient } from '@chatic/bridges';
-import { useDynamicDeviceId, useRegisterDeviceTokenMutation, useSessionAuth } from '@chatic/web-core';
+import { useDynamicDeviceId, useRegisterDeviceTokenMutation, useSessionAuth } from '@chatic/app-runtime';
 
 declare global {
     interface Window {

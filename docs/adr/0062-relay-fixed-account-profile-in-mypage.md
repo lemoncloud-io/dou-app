@@ -5,6 +5,8 @@
 - 대체: [ADR-0045](0045-relay-default-place-scoping-profile-step-and-avatar-unification.md) 결정 5 (2026-08-06 되돌림)
 - 관련: [ADR-0034](0034-relay-home-cloud-sheet-and-cloud-guide-redesign.md), [ADR-0042](0042-account-linking-server-slots.md), [ADR-0052](0052-invite-local-cache.md), [kind-scoped-routing.md](../../libs/app-runtime/docs/socket/kind-scoped-routing.md)
 
+> **이름 안내 (2026-09-01):** 이 문서가 쓰는 `*RemoteDataSource` · `RemoteGatewayBundle` · `*DomainGateway` · `remoteFactory` · `remote/data-sources/`는 **당시 이름**이다. 소켓 축이 `Socket` 접두로 옮겨간 뒤의 대응표는 [libs/data/docs/remote/README.md](../../libs/data/docs/remote/README.md#이름-규약-2026-09-01-리네임)에 있다. 기록이므로 본문은 그대로 둔다.
+
 ## 맥락
 
 MY 페이지와 그 하위 화면(계정 정보 · 프로필 수정 · 계정 연동 · 탈퇴)은 전부 **계정 레벨** 화면이다. 그런데 표시·편집이 모두 활성 세션을 따르고 있어서, 클라우드에 접속한 동안에는 같은 화면이 **클라우드 위임 레코드**를 보여주고 고쳤다. 클라우드 위임은 별도 백엔드에서 **다른 uid**를 발급하므로(`POST {cloudBackend}/oauth/exchange-token`), 사용자에게는 "클라우드를 바꾸면 내 계정이 바뀌는" 화면이었다.

@@ -1,16 +1,13 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 
 import { useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
-import { useSessionIdentity, useSessionSelection } from '@chatic/web-core';
+import { useSessionIdentity, useSessionSelection } from '@chatic/app-runtime';
 
 import { useMyProfile } from './useMyProfile';
 
 jest.mock('@chatic/app-runtime', () => ({
     useRuntimeRepositories: jest.fn(),
     useRuntimeSocketState: jest.fn(),
-}));
-
-jest.mock('@chatic/web-core', () => ({
     useSessionSelection: jest.fn(),
     useSessionIdentity: jest.fn(),
 }));

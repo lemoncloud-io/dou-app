@@ -13,15 +13,17 @@ jest.mock('@chatic/bridges', () => ({
 jest.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({ invalidateQueries: jest.fn() }) }));
 
 const membershipMutate = jest.fn().mockResolvedValue({ isValid: true });
-jest.mock('@chatic/web-core', () => ({
-    cloudsKeys: { all: ['clouds'] },
-    subscriptionKeys: { all: ['subscription'] },
-    useValidateMembership: () => ({ mutateAsync: membershipMutate }),
-}));
 
 let mockIsGuest = false;
-jest.mock('@chatic/app-runtime', () => ({ useRuntimeProfile: () => ({ isGuest: mockIsGuest }) }));
+jest.mock('@chatic/app-runtime', () => ({
+    useRuntimeProfile: () => ({ isGuest: mockIsGuest }),
+    cloudsKeys: { all: ['clouds'] },
+}));
 
+jest.mock('../../../hooks/queryKeys', () => ({ subscriptionKeys: { all: ['subscription'] } }));
+jest.mock('../../../hooks/useMembership', () => ({
+    useValidateMembership: () => ({ mutateAsync: membershipMutate }),
+}));
 jest.mock('../../../hooks', () => ({ useLinkedAccounts: jest.fn() }));
 jest.mock('../../../bridge', () => ({
     appBridge: {

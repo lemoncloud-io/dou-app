@@ -1,6 +1,6 @@
 import React from 'react';
 
-import { useInitWebCore } from '@chatic/web-core';
+import { useRelaySessionInit } from '../session';
 import { SocketBinder } from './SocketBinder';
 import { SocketReauthBinder } from './SocketReauthBinder';
 import { useSocketSessionDelegate } from './useSocketSessionDelegate';
@@ -23,15 +23,15 @@ export interface RuntimeAuthHostProps {
  *   (e.g. admin consoles) must not silently acquire a guest session.
  * - `RuntimeDataBinder` — no chat/channel data scope; this host is purely for token lifecycle.
  *
- * Like `RuntimeConnectionHost`, it is a single web-core init driver: `useInitWebCore` runs
+ * Like `RuntimeConnectionHost`, it is a single web-core init driver: `useRelaySessionInit` runs
  * `initializeRelaySession` once and gates the subtree until ready. The socket only connects once the
  * binding carries an identity token, so mounting it before login is inert.
  */
 export const RuntimeAuthHost = ({ binding, children }: RuntimeAuthHostProps) => {
-    const isWebCoreReady = useInitWebCore();
+    const isSessionReady = useRelaySessionInit();
     const delegate = useSocketSessionDelegate();
 
-    if (!isWebCoreReady) {
+    if (!isSessionReady) {
         return null;
     }
 

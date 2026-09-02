@@ -7,7 +7,9 @@ import { JoinNickDialog } from './JoinNickDialog';
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
 jest.mock('@chatic/bridges', () => ({ logger: { error: jest.fn() } }));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: jest.fn() }) }));
-jest.mock('@chatic/web-core', () => ({ useSessionIdentity: () => ({ userId: 'session-me' }) }));
+jest.mock('@chatic/app-runtime', () => ({
+    useSessionIdentity: () => ({ userId: 'session-me' }),
+}));
 
 const updateJoin = jest.fn().mockResolvedValue({});
 // Stable channel reference so the prefill effect (`useEffect([open, channel])`) runs once.

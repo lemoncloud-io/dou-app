@@ -3,7 +3,7 @@ import { useIsMutating } from '@tanstack/react-query';
 
 import { cn } from '@chatic/lib/utils';
 import { useConnectivity } from '@chatic/app-runtime';
-import { SWITCH_CLOUD_MUTATION_KEY, SWITCH_SITE_MUTATION_KEY } from '@chatic/web-core';
+import { SWITCH_CLOUD_MUTATION_KEY, SWITCH_SITE_MUTATION_KEY } from '@chatic/app-runtime';
 
 /**
  * App-shell connection status bar. The engine's connectivity derivation composes

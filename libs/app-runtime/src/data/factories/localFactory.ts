@@ -1,18 +1,20 @@
 import type { CacheType } from '@chatic/app-messages';
-import type { DataContextProvider, IGlobalCacheSearchSource } from '@chatic/data';
+import type { CacheStorage, DataContextProvider, ICacheMetricsSource, IGlobalCacheSearchSource } from '@chatic/data';
 import {
-    type CacheStorage,
     type CacheStorageFactory,
-    ChatQueryExecutor,
     createCacheStorages,
     createLocalDataSourcesV2 as createDataLocalDataSources,
+    type LocalDataSourcesV2,
+} from '@chatic/data';
+import {
+    ChatQueryExecutor,
     IndexedDBAdapter,
     IndexedDBDatabase,
     IndexedDbGlobalSearchSource,
-    type LocalDataSourcesV2,
+    NativeCacheMetricsSource,
     NativeDBAdapter,
     NativeGlobalSearchSource,
-} from '@chatic/data';
+} from '@chatic/db';
 import { webClient } from '@chatic/bridges';
 import { isNativeApp, resolveCacheBackend } from '../cacheStorageRouting';
 
@@ -76,6 +78,10 @@ export const getCacheStorage = <TType extends CacheType>(
 // 검색도 그쪽을 향한다 — 웹 저장소는 핀/스큐 예외만 담는 파생 캐시라 검색 대상이 아니다.
 export const getGlobalCacheSearchSource = (): IGlobalCacheSearchSource =>
     isNativeApp() ? new NativeGlobalSearchSource(webClient) : new IndexedDbGlobalSearchSource(getSharedDatabase());
+
+/** 네이티브 캐시 계측의 읽기·리셋 표면 (ADR-0070 결정 5). 디버그 화면은 `@chatic/db`를 직접
+ * import하지 않고 이 포트 인스턴스만 받는다 — apps/web CacheMetricsScreen.tsx 참고. */
+export const getCacheMetricsSource = (): ICacheMetricsSource => new NativeCacheMetricsSource();
 
 /**
  * 환경에 맞는 스토리지를 판별하고 LocalDataSource 묶음을 조립하여 반환하는 훅입니다.

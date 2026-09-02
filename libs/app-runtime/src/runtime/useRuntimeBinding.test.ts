@@ -1,14 +1,20 @@
 import { renderHook } from '@testing-library/react';
 import { useRuntimeBinding } from './useRuntimeBinding';
-import { useGlobalSession, useDynamicDeviceId } from '@chatic/web-core';
+import { useGlobalSession, useDynamicDeviceId, getCommittedCloudId } from '../session';
 
-jest.mock('@chatic/web-core', () => ({
+jest.mock('../session', () => ({
     useGlobalSession: jest.fn(),
     useDynamicDeviceId: jest.fn(),
+    // COMMITTED cloud id — distinct from the SELECTED `cloud.cloudId` in the session snapshot.
+    getCommittedCloudId: jest.fn(),
 }));
 
 const RELAY = { wss: 'wss://relay.chatic.com', identityToken: 'relay-token', siteId: null, isAuthenticated: true };
 const relayConfig = { url: 'wss://relay.chatic.com', deviceId: 'test-device-id', wssType: 'relay', cid: 'default' };
+
+beforeEach(() => {
+    (getCommittedCloudId as jest.Mock).mockReturnValue('my-cloud-id');
+});
 
 describe('useRuntimeBinding', () => {
     beforeEach(() => {
@@ -51,6 +57,41 @@ describe('useRuntimeBinding', () => {
                 },
             },
         });
+    });
+
+    // 전환 낙관 창: 선택 cid는 target으로 이미 뒤집혔지만 delegation/cloud 토큰은 아직 옛 클라우드다.
+    // 예전에는 슬롯 config가 target cid + 옛 wss/identityToken을 함께 실어 서로 다른 두 클라우드를
+    // 가리켰다 (ADR-0070 결정 7의 intent vs committed).
+    it('전환 낙관 창에서 cloud 슬롯 cid는 선택값이 아니라 커밋된 클라우드를 따른다', () => {
+        (getCommittedCloudId as jest.Mock).mockReturnValue('outgoing-cloud');
+        (useGlobalSession as jest.Mock).mockReturnValue({
+            activeServer: {
+                kind: 'cloud',
+                siteId: 'my-site-id',
+                wss: 'wss://outgoing.chatic.com',
+                identityToken: 'outgoing-token',
+            },
+            relay: RELAY,
+            cloud: {
+                // 선택값은 이미 target
+                cloudId: 'target-cloud',
+                // 그러나 wss/identityToken은 아직 나가는 클라우드의 것 (delegation 토큰이 안 바뀜)
+                wss: 'wss://outgoing.chatic.com',
+                identityToken: 'outgoing-token',
+                isActive: true,
+            },
+            identity: { userId: 'user-123' },
+        });
+
+        const { result } = renderHook(() => useRuntimeBinding());
+
+        // 슬롯은 나가는 클라우드로 일관된다 — url과 cid가 같은 클라우드를 가리킨다
+        expect(result.current.socket.cloud?.config).toMatchObject({
+            url: 'wss://outgoing.chatic.com',
+            cid: 'outgoing-cloud',
+        });
+        // 캐시 스코프(intent)는 반대로 target을 먼저 따라간다 — 두 뷰는 갈라져야 한다
+        expect(result.current.context.cid).toBe('target-cloud');
     });
 
     it('relay only (no cloud active): relay slot present, cloud slot absent', () => {

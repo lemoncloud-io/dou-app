@@ -59,6 +59,19 @@ export interface ClientContainerOptions {
     connectionDraft: DemoConnectionDraft;
 }
 
+/**
+ * The lab's slice of the SDK `AuthGateway` — deliberately NOT the whole thing.
+ *
+ * `refresh` is excluded: refresh execution belongs to `ClientSocketAuth` alone (ADR-0070 결정 2
+ * 불변조건 1), and the raw gateway packet bypasses everything that makes it safe — the epoch
+ * serialization, the controller's own `_token`, the refresh timer rearm, and the `onTokenRefresh`
+ * writeback that re-mints the AWS credentials. Same Pick policy as `AuthSocketDomainGateway`
+ * (libs/data/src/data/remote/gateways/socket.ts): leaving an action out of the Pick is what keeps a
+ * caller from reaching it. `switch`/`logout` are out for the same reason — they move session state
+ * the lab does not own.
+ */
+type LabAuthGateway = Pick<AuthGateway, 'update' | 'linkAccount'>;
+
 export interface ClientContainer {
     readonly id: string;
     readonly deviceId: string;
@@ -70,7 +83,7 @@ export interface ClientContainer {
     readonly device: DeviceGateway;
     readonly channel: ChannelGateway;
     readonly chat: ChatGateway;
-    readonly auth: AuthGateway;
+    readonly auth: LabAuthGateway;
     getState(): ClientSocketState;
     setEndpoint(wsUrl: string): void;
     subscribe(listener: (event: ContainerEvent) => void): () => void;
@@ -412,7 +425,7 @@ export const createClientContainer = (opts: ClientContainerOptions): ClientConta
             return runtime ? createChatGateway(runtime.client) : (undefined as unknown as ChatGateway);
         },
         get auth() {
-            return runtime ? createAuthGateway(runtime.client) : (undefined as unknown as AuthGateway);
+            return runtime ? createAuthGateway(runtime.client) : (undefined as unknown as LabAuthGateway);
         },
         getState: () => state,
         setEndpoint: url => {

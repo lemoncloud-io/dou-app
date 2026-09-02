@@ -330,7 +330,7 @@ ADR 결정 1~4·6(기본 플레이스 스코핑, 생성 플로우 프로필 스�
   저장하면 **그 클라우드의 user 레코드**가 바뀌고 화면에는 아무 변화가 없었다. 그래서 저장을 막고 안내
   문구를 띄웠다. 이제 **저장도 relay 고정**이다 — 서버 소유권 때문이 아니라(invite·linkAccount와 그 점이
   다르다) 이 앱이 보여주고 편집하는 프로필이 relay user 프로필 하나뿐이기 때문이며, 합성 루트가
-  `user.update`를 relay 슬롯에 바인딩한다([remoteFactory](../../../../../libs/app-runtime/src/data/factories/remoteFactory.ts)).
+  `user.update`를 relay 슬롯에 바인딩한다([socketFactory](../../../../../libs/app-runtime/src/data/factories/socketFactory.ts)).
   비활성화·안내 문구(`profileEdit.relayOnlyNotice`)는 제거했다. 클라우드 쪽 user 레코드를 정말로 편집해야
   하는 기능이 생기면 이 바인딩을 재사용하지 말고 그 메서드에 `route`를 노출한다(kind-scoped-routing.md S4).
   캐시 파티션은 여전히 활성 컨텍스트를 따르므로, 클라우드 활성 중 저장은

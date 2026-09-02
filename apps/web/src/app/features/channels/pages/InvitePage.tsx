@@ -3,9 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { useLocation, useParams } from 'react-router-dom';
 
 import type { ContactInfo } from '@chatic/app-messages';
-import { isNative } from '@chatic/bridges';
+import { isNative, logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
-import { reportError } from '@chatic/web-core';
 import {
     Button,
     FloatingButton,
@@ -21,7 +20,6 @@ import { PageHeader } from '../../../ui/components';
 import { KeyboardSafeAreaSpacer } from '../../../ui/layouts/KeyboardSafeAreaSpacer';
 // Direct path for `phoneNumber`: it is deliberately kept out of the `utils` barrel (libphonenumber's
 // metadata — see that barrel's comment).
-import { toError } from '../../../utils/errors';
 import { toE164 } from '../../../utils/phoneNumber';
 import { useCreateInviteBatch } from '../hooks';
 import { AddFriendSheet } from '../components/AddFriendSheet';
@@ -190,7 +188,7 @@ export const InvitePage = () => {
             }
             navigate(-1);
         } catch (error) {
-            reportError(toError(error));
+            logger.error('INVITE', '[InvitePage] invite failed', { error });
             const message = error instanceof Error ? error.message : t('inviteFriends.batchFailed');
             toast({ title: message, variant: 'destructive' });
         } finally {

@@ -1,6 +1,6 @@
 import { useCallback, useEffect } from 'react';
 
-import { useSessionSelection } from '@chatic/web-core';
+import { useSessionSelection } from '@chatic/app-runtime';
 import type { DomainPlace } from '@chatic/data';
 
 import { useSiteSwitch } from '../../../runtime/useSiteSwitch';

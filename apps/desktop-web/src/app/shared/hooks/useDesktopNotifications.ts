@@ -2,8 +2,8 @@ import { useEffect, useRef } from 'react';
 
 import type { DomainChannel, DomainJoin } from '@chatic/data';
 import { isNative, webClient } from '@chatic/bridges';
-import { useRuntimeRepositories, useSocketState } from '@chatic/app-runtime';
-import { useSessionIdentity } from '@chatic/web-core';
+import { useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
+import { useSessionIdentity } from '@chatic/app-runtime';
 
 import { usePlaces } from './usePlaces';
 import { useChannelChatFeeds, type ChannelChatFeed, type ChannelLastChat } from './useChannelChatFeeds';
@@ -43,7 +43,7 @@ const isViewing = (channelId: string): boolean =>
 export const useDesktopNotifications = (): void => {
     const { channel: channelRepository, join: joinRepository } = useRuntimeRepositories();
     const { places } = usePlaces();
-    const { isVerified } = useSocketState();
+    const { isVerified } = useRuntimeSocketState();
     const { userId: myUid } = useSessionIdentity();
 
     // Read identity at notify/mirror time via a ref so a changing profile doesn't re-run the

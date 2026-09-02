@@ -35,10 +35,12 @@ let selectedCloudId: string | null = 'default';
 let invited: unknown[] = [];
 let promoVisible = true;
 
-jest.mock('@chatic/web-core', () => ({
-    useCloudSessionCatalog: () => ({ ...catalog, refetchClouds: jest.fn() }),
+jest.mock('@chatic/app-runtime', () => ({
     useSessionSelection: () => ({ selectedCloudId }),
     useSwitchCloudSession: () => ({ switchCloud, isPending: false }),
+}));
+jest.mock('../../../hooks/useCloudCatalog', () => ({
+    useCloudSessionCatalog: () => ({ ...catalog, refetchClouds: jest.fn() }),
 }));
 jest.mock('../../../runtime/useLogoutCloudSession', () => ({
     useLogoutCloudSession: () => ({ logoutCloudSession, isLoggingOutCloudSession: false }),

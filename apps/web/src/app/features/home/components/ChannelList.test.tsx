@@ -5,10 +5,18 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { ChannelList } from './ChannelList';
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k, i18n: { language: 'ko' } }) }));
-jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => jest.fn() }));
-jest.mock('@chatic/app-runtime', () => ({ useChannelSync: () => undefined }));
+// 부분 목: 나머지는 실물을 남긴다. `@chatic/app-runtime` 배럴이 import 시점에
+// `createQueryKeys`까지 닿으므로, 모듈을 통째로 갈아끼우면 그게 사라진다.
+jest.mock('@chatic/shared', () => ({
+    ...jest.requireActual('@chatic/shared'),
+    useNavigateWithTransition: () => jest.fn(),
+}));
+jest.mock('@chatic/app-runtime', () => ({
+    useChannelSync: () => undefined,
+    useSessionIdentity: () => ({ userId: 'me' }),
+}));
 // My user id drives the owner-vs-member title branch; 'me' owns channels tagged ownerId: 'me'.
-jest.mock('@chatic/web-core', () => ({ useSessionIdentity: () => ({ userId: 'me' }) }));
+
 jest.mock('../../../stores/usePreferenceStore', () => ({ usePreferenceStore: () => false }));
 // The rows' preview source — the list-level combined lookup (ADR-0057). Null by default (rows
 // under test have no messages); the preview cases below seed it for EVERY row. Preview picking

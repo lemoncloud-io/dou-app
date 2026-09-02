@@ -3,12 +3,10 @@ import { useTranslation } from 'react-i18next';
 
 import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
-import { reportError } from '@chatic/web-core';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { ROUTES } from '../../../routes/paths';
 import { useAddCloudRequest } from '../../../stores/useAddCloudRequest';
-import { toError } from '../../../utils/errors';
 import { useAddCloud, useCloudEmailGuard, useCloudQuota } from '../hooks';
 import { EmailVerifyDialog } from './EmailVerifyDialog';
 
@@ -65,10 +63,7 @@ const AddCloudFlow = () => {
             logger.info('CLOUD', 'cloud created', { withEmail: !!email });
             toast({ title: t('addAccount.success') });
         } catch (e) {
-            // `logger` before `reportError` (ADR-0047 S1): the entry survives even when the report is
-            // throttled or dropped.
             logger.error('CLOUD', 'cloud creation failed', { error: e });
-            reportError(toError(e));
             toast({ title: t('addAccount.addFailed'), variant: 'destructive' });
         } finally {
             closeAddCloud();

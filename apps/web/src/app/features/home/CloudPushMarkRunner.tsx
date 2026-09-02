@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo } from 'react';
 
 import { useGlobalCacheSearch, useRuntimeSocketState } from '@chatic/app-runtime';
-import { useCloudSessionCatalog, useSessionSelection } from '@chatic/web-core';
+import { useSessionSelection } from '@chatic/app-runtime';
+import { useCloudSessionCatalog } from '../../hooks/useCloudCatalog';
 import type { AppMessageData } from '@chatic/app-messages';
 
 import { appBridge } from '../../bridge/appBridge';

@@ -1,5 +1,5 @@
 import type { CacheTtlMeta } from '@chatic/app-messages';
-import type { CacheStorage } from '../storages';
+import type { CacheStorage } from '../ports';
 import { SyncMetaLocalDataSourceV2 } from './SyncMetaLocalDataSourceV2';
 
 const MINUTE_MS = 60 * 1000;

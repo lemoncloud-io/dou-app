@@ -4,7 +4,9 @@ import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
 
 import { useNavigateWithTransition } from '@chatic/shared';
-import { useCloudSessionCatalog, useMembershipInfo, useSessionSelection } from '@chatic/web-core';
+import { useSessionSelection } from '@chatic/app-runtime';
+import { useCloudSessionCatalog } from '../../../hooks/useCloudCatalog';
+import { useMembershipInfo } from '../../../hooks/useMembership';
 import { useRuntimeProfile } from '@chatic/app-runtime';
 
 import { AppHeader, EmptyState, ProfileAvatar, SubscriptionBadge } from '@chatic/web-ui-kit';

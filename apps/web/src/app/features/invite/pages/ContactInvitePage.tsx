@@ -1,9 +1,9 @@
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { logger } from '@chatic/bridges';
 import { useRuntimeProfile } from '@chatic/app-runtime';
 import { useNavigateWithTransition } from '@chatic/shared';
-import { reportError } from '@chatic/web-core';
 import { FloatingButton, TextField } from '@chatic/web-ui-kit';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
@@ -24,7 +24,7 @@ import { PageHeader } from '../../../ui/components';
 // `import.meta` the CommonJS test transform cannot parse (directory-structure.md §6).
 import { KeyboardAwareLayout } from '../../../ui/layouts/KeyboardAwareLayout';
 import { ROUTES } from '../../../routes/paths';
-import { getSocketErrorCode, toError } from '../../../utils/errors';
+import { getSocketErrorCode } from '../../../utils/errors';
 import {
     isValidMobileNumber,
     readInternationalInput,
@@ -184,7 +184,7 @@ export const ContactInvitePage = () => {
 
             navigate(ROUTES.invite.waiting(invite.id), { replace: true });
         } catch (error) {
-            reportError(toError(error));
+            logger.error('INVITE', '[ContactInvitePage] send failed', { error });
             // 403 covers more than "still a guest" — §에러 코드 also lists withdrawn/suspended
             // accounts, for which verifying resolves to the SAME user and would 403 again. So offer
             // verification once (the gate below normally catches a plain guest first, so reaching

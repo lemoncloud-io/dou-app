@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { LoadingFallback } from '@chatic/shared';
 import { ThemeProvider } from '@chatic/theme';
-import { useSessionAuth } from '@chatic/web-core';
+import { useSessionAuth } from '@chatic/app-runtime';
 
 import i18n from '../i18n';
 import { DesktopRuntime } from './runtime';
@@ -24,7 +24,7 @@ const queryClient = new QueryClient({
  * Provider assembly only. Session readiness and the runtime connection (transport bootstrap,
  * socket lifecycle, re-auth) are both owned by `DesktopRuntime` (see `./runtime`) — the app
  * no longer mounts `DataProvider` / `WebSocketV2Connection` / `GlobalChatSync` nor gates the
- * render on `useInitWebCore` / `useTokenRefresh`.
+ * render on `useRelaySessionInit` / `useTokenRefresh`.
  */
 export function App() {
     const { isAuthenticated } = useSessionAuth();

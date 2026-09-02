@@ -3,8 +3,9 @@ import {
     commitServerRefreshedToken,
     getServerAuthRegistration,
     logoutCloudSession,
+    logoutRelaySession,
     signServerAuth,
-} from '@chatic/web-core';
+} from '../../session';
 
 import type { SocketSessionDelegate } from './types';
 
@@ -30,10 +31,13 @@ export const createSocketSessionDelegate = (): SocketSessionDelegate => ({
             logoutCloudSession();
             return;
         }
-        // Relay terminal `expired`: POLICY = NO auto-logout — relay logout is manual-only. The
-        // socket is dead (isVerified→false) but the relay token stays in the store, so recovery
-        // is a manual logout or an app reload. With the 5min refresh fallback + reconnect
-        // re-auth (SocketManager AUTH_OPTIONS), terminal relay expiry is rare.
-        logger.warn('SOCKET', '[delegate] relay auth expired — no auto-logout (manual logout only)');
+        // Relay terminal `expired`: the SDK only reaches this after `maxFailures` consecutive
+        // sign/refresh attempts fail (SocketManager AUTH_OPTIONS, currently 3) — a wedged
+        // signature that no amount of waiting will fix on its own. Auto-logout here (POLICY,
+        // superseding the old manual-only stance) so the runtime's guest-login fallback picks
+        // up a clean session instead of leaving the UI in an authenticated-looking zombie state
+        // (isVerified=false forever, relay token still sitting in the store).
+        logger.warn('SOCKET', '[delegate] relay auth expired — auto-logging out');
+        return logoutRelaySession();
     },
 });

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { useSocketState } from '@chatic/app-runtime';
+import { useRuntimeSocketState } from '@chatic/app-runtime';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
 import { useSelectedChannelStore, useSocketFrameLogStore, VersionInfo } from '../../../shared';
@@ -354,7 +354,7 @@ const CacheExplorer = ({
 
 export const DebugSyncPage = () => {
     const navigate = useNavigate();
-    const { isConnected, isVerified } = useSocketState();
+    const { isConnected, isVerified } = useRuntimeSocketState();
     const selectedChannelId = useSelectedChannelStore(s => s.selectedChannelId);
     const frameCount = useSocketFrameLogStore(s => s.frames.length);
 

@@ -14,7 +14,7 @@ describe('InviteRepositoryV2', () => {
     });
 
     const createRepository = (context: { cid?: string; uid?: string } = { cid: 'default', uid: 'me' }) => {
-        const inviteRemoteDataSource = {
+        const inviteSocketDataSource = {
             listInvites: jest.fn().mockResolvedValue([]),
             createInvite: jest.fn().mockResolvedValue({}),
             getInvite: jest.fn().mockResolvedValue({}),
@@ -28,18 +28,18 @@ describe('InviteRepositoryV2', () => {
             setContext: () => undefined,
         };
         const repository = new InviteRepositoryV2(
-            inviteRemoteDataSource as any,
+            inviteSocketDataSource as any,
             inviteLocalDataSource as any,
             contextProvider as any
         );
 
-        return { repository, inviteRemoteDataSource, inviteLocalDataSource };
+        return { repository, inviteSocketDataSource, inviteLocalDataSource };
     };
 
     it('list는 원격 결과를 가공 없이 그대로 반환한다', async () => {
-        const { repository, inviteRemoteDataSource } = createRepository();
+        const { repository, inviteSocketDataSource } = createRepository();
         const invites = [{ id: 'invt-1' }, { id: 'invt-2' }];
-        inviteRemoteDataSource.listInvites.mockResolvedValue(invites);
+        inviteSocketDataSource.listInvites.mockResolvedValue(invites);
 
         const result = await repository.list();
 
@@ -47,97 +47,97 @@ describe('InviteRepositoryV2', () => {
     });
 
     it('list는 필터가 없으면 null로 위임한다', async () => {
-        const { repository, inviteRemoteDataSource } = createRepository();
+        const { repository, inviteSocketDataSource } = createRepository();
 
         await repository.list();
 
-        expect(inviteRemoteDataSource.listInvites).toHaveBeenCalledWith(null);
+        expect(inviteSocketDataSource.listInvites).toHaveBeenCalledWith(null);
     });
 
     it('list는 상태 필터를 그대로 넘긴다', async () => {
-        const { repository, inviteRemoteDataSource } = createRepository();
+        const { repository, inviteSocketDataSource } = createRepository();
 
         await repository.list({ state: 'accepted' } as any);
 
-        expect(inviteRemoteDataSource.listInvites).toHaveBeenCalledWith({ state: 'accepted' });
+        expect(inviteSocketDataSource.listInvites).toHaveBeenCalledWith({ state: 'accepted' });
     });
 
     it('create는 입력을 그대로 위임하고 발급 뷰를 반환한다', async () => {
-        const { repository, inviteRemoteDataSource } = createRepository();
+        const { repository, inviteSocketDataSource } = createRepository();
         const view = { id: 'invt-1', deeplink: 'https://x/s?code=y' };
-        inviteRemoteDataSource.createInvite.mockResolvedValue(view);
+        inviteSocketDataSource.createInvite.mockResolvedValue(view);
 
         const result = await repository.create({ phone: '01012345678', name: '홍길동' } as any);
 
-        expect(inviteRemoteDataSource.createInvite).toHaveBeenCalledWith({ phone: '01012345678', name: '홍길동' });
+        expect(inviteSocketDataSource.createInvite).toHaveBeenCalledWith({ phone: '01012345678', name: '홍길동' });
         expect(result).toBe(view);
     });
 
     it('get은 코드를 위임하고 needVerify를 보존한다', async () => {
-        const { repository, inviteRemoteDataSource } = createRepository();
-        inviteRemoteDataSource.getInvite.mockResolvedValue({ id: 'invt-1', state: 'pending', needVerify: true });
+        const { repository, inviteSocketDataSource } = createRepository();
+        inviteSocketDataSource.getInvite.mockResolvedValue({ id: 'invt-1', state: 'pending', needVerify: true });
 
         const result = await repository.get('invt:1:secret');
 
-        expect(inviteRemoteDataSource.getInvite).toHaveBeenCalledWith('invt:1:secret');
+        expect(inviteSocketDataSource.getInvite).toHaveBeenCalledWith('invt:1:secret');
         expect(result).toEqual({ id: 'invt-1', state: 'pending', needVerify: true });
     });
 
     it('accept는 코드를 위임하고 수락 뷰를 반환한다', async () => {
-        const { repository, inviteRemoteDataSource } = createRepository();
-        inviteRemoteDataSource.acceptInvite.mockResolvedValue({ id: 'invt-1', state: 'accepted' });
+        const { repository, inviteSocketDataSource } = createRepository();
+        inviteSocketDataSource.acceptInvite.mockResolvedValue({ id: 'invt-1', state: 'accepted' });
 
         const result = await repository.accept('invt:1:secret');
 
-        expect(inviteRemoteDataSource.acceptInvite).toHaveBeenCalledWith('invt:1:secret');
+        expect(inviteSocketDataSource.acceptInvite).toHaveBeenCalledWith('invt:1:secret');
         expect(result).toEqual({ id: 'invt-1', state: 'accepted' });
     });
 
     it('cancel은 코드를 위임하고 종국 뷰를 반환한다', async () => {
-        const { repository, inviteRemoteDataSource } = createRepository();
-        inviteRemoteDataSource.cancelInvite.mockResolvedValue({ id: 'invt-1', state: 'canceled', canceledAt: 1 });
+        const { repository, inviteSocketDataSource } = createRepository();
+        inviteSocketDataSource.cancelInvite.mockResolvedValue({ id: 'invt-1', state: 'canceled', canceledAt: 1 });
 
         const result = await repository.cancel('invt:1:secret');
 
-        expect(inviteRemoteDataSource.cancelInvite).toHaveBeenCalledWith('invt:1:secret');
+        expect(inviteSocketDataSource.cancelInvite).toHaveBeenCalledWith('invt:1:secret');
         expect(result).toMatchObject({ state: 'canceled' });
     });
 
     it('reject는 코드를 위임하고 종국 뷰를 반환한다', async () => {
-        const { repository, inviteRemoteDataSource } = createRepository();
-        inviteRemoteDataSource.rejectInvite.mockResolvedValue({ id: 'invt-1', state: 'rejected', rejectedAt: 1 });
+        const { repository, inviteSocketDataSource } = createRepository();
+        inviteSocketDataSource.rejectInvite.mockResolvedValue({ id: 'invt-1', state: 'rejected', rejectedAt: 1 });
 
         const result = await repository.reject('invt:1:secret');
 
-        expect(inviteRemoteDataSource.rejectInvite).toHaveBeenCalledWith('invt:1:secret');
+        expect(inviteSocketDataSource.rejectInvite).toHaveBeenCalledWith('invt:1:secret');
         expect(result).toMatchObject({ state: 'rejected' });
     });
 
     it('원격 실패는 삼키지 않고 그대로 reject한다 (호출부가 에러 코드로 분기한다)', async () => {
-        const { repository, inviteRemoteDataSource } = createRepository();
+        const { repository, inviteSocketDataSource } = createRepository();
         const failure = new Error('403');
-        inviteRemoteDataSource.acceptInvite.mockRejectedValue(failure);
+        inviteSocketDataSource.acceptInvite.mockRejectedValue(failure);
 
         await expect(repository.accept('invt:1:secret')).rejects.toBe(failure);
     });
 
     it('캐시를 거치지만 매 호출이 원격에 나간다 (캐시는 권위가 아니다)', async () => {
-        const { repository, inviteRemoteDataSource } = createRepository();
+        const { repository, inviteSocketDataSource } = createRepository();
 
         await repository.list();
         await repository.list();
 
         // 수락은 상대 기기에서 일어나고 알림 패킷이 없다 — 캐시가 권위면 낡은 카드만 보게 된다.
-        expect(inviteRemoteDataSource.listInvites).toHaveBeenCalledTimes(2);
+        expect(inviteSocketDataSource.listInvites).toHaveBeenCalledTimes(2);
     });
 
     describe('list의 캐시 미러링 (ADR-0052)', () => {
         it('기본 클라우드에서는 응답을 자격증명 제거 후 캐시에 쓴다', async () => {
-            const { repository, inviteRemoteDataSource, inviteLocalDataSource } = createRepository({
+            const { repository, inviteSocketDataSource, inviteLocalDataSource } = createRepository({
                 cid: 'default',
                 uid: 'me',
             });
-            inviteRemoteDataSource.listInvites.mockResolvedValue([
+            inviteSocketDataSource.listInvites.mockResolvedValue([
                 { id: 'invt-1', state: 'pending', code: 'secret', deeplink: 'https://x/s?code=secret' },
             ]);
 
@@ -151,11 +151,11 @@ describe('InviteRepositoryV2', () => {
         });
 
         it('활성 클라우드(cid !== default)에서는 조회는 하되 캐시에 쓰지 않는다', async () => {
-            const { repository, inviteRemoteDataSource, inviteLocalDataSource } = createRepository({
+            const { repository, inviteSocketDataSource, inviteLocalDataSource } = createRepository({
                 cid: 'cloud-a',
                 uid: 'me',
             });
-            inviteRemoteDataSource.listInvites.mockResolvedValue([{ id: 'invt-1', state: 'pending' }]);
+            inviteSocketDataSource.listInvites.mockResolvedValue([{ id: 'invt-1', state: 'pending' }]);
 
             const result = await repository.list();
 
@@ -164,9 +164,9 @@ describe('InviteRepositoryV2', () => {
         });
 
         it('반환값은 여전히 code/deeplink를 포함한 원본이다 (매핑은 저장 경로에만 적용)', async () => {
-            const { repository, inviteRemoteDataSource } = createRepository({ cid: 'default', uid: 'me' });
+            const { repository, inviteSocketDataSource } = createRepository({ cid: 'default', uid: 'me' });
             const view = { id: 'invt-1', state: 'pending', code: 'secret', deeplink: 'https://x/s?code=secret' };
-            inviteRemoteDataSource.listInvites.mockResolvedValue([view]);
+            inviteSocketDataSource.listInvites.mockResolvedValue([view]);
 
             const result = await repository.list();
 
@@ -180,12 +180,12 @@ describe('InviteRepositoryV2', () => {
     // 다음 list까지 pending이라고 주장한다. 내가 소유한 초대에 대한 서버의 답은 전부 미러한다.
     describe('커맨드 응답의 캐시 미러링', () => {
         it('create 응답을 자격증명 제거 후 캐시에 쓴다 (다음 list를 기다리지 않는다)', async () => {
-            const { repository, inviteRemoteDataSource, inviteLocalDataSource } = createRepository({
+            const { repository, inviteSocketDataSource, inviteLocalDataSource } = createRepository({
                 cid: 'default',
                 uid: 'me',
             });
             const view = { id: 'invt-9', state: 'pending', code: 'secret', deeplink: 'https://x/s?code=secret' };
-            inviteRemoteDataSource.createInvite.mockResolvedValue(view);
+            inviteSocketDataSource.createInvite.mockResolvedValue(view);
 
             const result = await repository.create({} as any);
 
@@ -198,11 +198,11 @@ describe('InviteRepositoryV2', () => {
         });
 
         it('cancel 응답을 캐시에 써서 캐시 행이 pending을 주장하지 못하게 한다', async () => {
-            const { repository, inviteRemoteDataSource, inviteLocalDataSource } = createRepository({
+            const { repository, inviteSocketDataSource, inviteLocalDataSource } = createRepository({
                 cid: 'default',
                 uid: 'me',
             });
-            inviteRemoteDataSource.cancelInvite.mockResolvedValue({ id: 'invt-9', state: 'canceled', canceledAt: 7 });
+            inviteSocketDataSource.cancelInvite.mockResolvedValue({ id: 'invt-9', state: 'canceled', canceledAt: 7 });
 
             await repository.cancel('invt:invt-9:secret');
 
@@ -213,12 +213,12 @@ describe('InviteRepositoryV2', () => {
         // 수신자 커맨드다. 수신자의 invite.list는 그 행을 돌려주지 않으므로(목록은 초대자의 카드다)
         // 캐시에 넣으면 아무도 다시 읽지 않는 고아 행만 생긴다.
         it('accept/reject는 미러하지 않는다 (수신자 측 커맨드)', async () => {
-            const { repository, inviteRemoteDataSource, inviteLocalDataSource } = createRepository({
+            const { repository, inviteSocketDataSource, inviteLocalDataSource } = createRepository({
                 cid: 'default',
                 uid: 'me',
             });
-            inviteRemoteDataSource.acceptInvite.mockResolvedValue({ id: 'invt-9', state: 'accepted' });
-            inviteRemoteDataSource.rejectInvite.mockResolvedValue({ id: 'invt-8', state: 'rejected' });
+            inviteSocketDataSource.acceptInvite.mockResolvedValue({ id: 'invt-9', state: 'accepted' });
+            inviteSocketDataSource.rejectInvite.mockResolvedValue({ id: 'invt-8', state: 'rejected' });
 
             await repository.accept('invt:invt-9:secret');
             await repository.reject('invt:invt-8:secret');
@@ -227,11 +227,11 @@ describe('InviteRepositoryV2', () => {
         });
 
         it('활성 클라우드(cid !== default)에서는 create도 캐시에 쓰지 않는다', async () => {
-            const { repository, inviteRemoteDataSource, inviteLocalDataSource } = createRepository({
+            const { repository, inviteSocketDataSource, inviteLocalDataSource } = createRepository({
                 cid: 'cloud-a',
                 uid: 'me',
             });
-            inviteRemoteDataSource.createInvite.mockResolvedValue({ id: 'invt-9', state: 'pending' });
+            inviteSocketDataSource.createInvite.mockResolvedValue({ id: 'invt-9', state: 'pending' });
 
             await repository.create({} as any);
 
@@ -241,11 +241,11 @@ describe('InviteRepositoryV2', () => {
         // id 없는 응답은 빈 문자열 id로 저장돼 다음 행과 같은 키에서 충돌한다 — 독이 되는 행을
         // 만들지 않고 그냥 건너뛴다.
         it('id 없는 응답은 캐시에 쓰지 않는다', async () => {
-            const { repository, inviteRemoteDataSource, inviteLocalDataSource } = createRepository({
+            const { repository, inviteSocketDataSource, inviteLocalDataSource } = createRepository({
                 cid: 'default',
                 uid: 'me',
             });
-            inviteRemoteDataSource.listInvites.mockResolvedValue([{ state: 'pending' }, { id: 'invt-1' }]);
+            inviteSocketDataSource.listInvites.mockResolvedValue([{ state: 'pending' }, { id: 'invt-1' }]);
 
             await repository.list();
 
