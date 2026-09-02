@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import type { DomainUser } from '@chatic/data';
-import { useRuntimeRepositories, useSocketState } from '@chatic/app-runtime';
-import { useSessionIdentity } from '@chatic/web-core';
+import { useRuntimeRepositories, useSessionIdentity, useRuntimeSocketState } from '@chatic/app-runtime';
 
 import { useChannels, useCurrentPlace } from '../../../shared';
 
@@ -29,7 +28,7 @@ export interface InviteCandidate extends DomainUser {
  */
 export const useInviteCandidates = (targetChannelId: string | null) => {
     const { user: userRepository } = useRuntimeRepositories();
-    const { isVerified } = useSocketState();
+    const { isVerified } = useRuntimeSocketState();
     const { userId: myUid } = useSessionIdentity();
     const { placeId } = useCurrentPlace();
     const { channels } = useChannels(placeId ?? undefined);

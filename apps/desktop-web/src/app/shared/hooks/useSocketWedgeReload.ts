@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react';
 
 import { isNative, logger } from '@chatic/bridges';
-import { getSocketManager, useSocketState } from '@chatic/app-runtime';
-import { useSessionAuth } from '@chatic/web-core';
+import { getSocketManager, useRuntimeSocketState } from '@chatic/app-runtime';
+import { useSessionAuth } from '@chatic/app-runtime';
 
 // After a long sleep the cloud token refresh 400s and the socket sticks at
 // isVerified=false: useCloudTokenRefresh's isAuthError path clears creds and
@@ -37,7 +37,7 @@ const readReloadAt = (): number => {
  */
 export const useSocketWedgeReload = (): void => {
     const { isAuthenticated } = useSessionAuth();
-    const { isVerified } = useSocketState();
+    const { isVerified } = useRuntimeSocketState();
     // Arm only against a regression: verified once, then lost it.
     const hasVerifiedRef = useRef(false);
 

@@ -6,24 +6,24 @@ import { toast } from 'sonner';
 
 import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
-import { createCredentialsByProvider, useRefreshRelaySession, useSessionIdentity } from '@chatic/web-core';
+import { createCredentialsByProvider, useSessionIdentity } from '@chatic/app-runtime';
 
 import { ROUTES } from '../../../routes/paths';
 
 /**
  * Handles the OAuth provider redirect: reads `code`/`provider`/`state` from the URL, exchanges them
- * for transport credentials, then hydrates the relay session before navigating to `state.from`.
+ * for a relay session, then navigates to `state.from`. Runs once on mount.
  *
- * Credential exchange (createCredentialsByProvider / loginWithInviteCode) only builds transport
- * credentials; `refreshRelaySession({ syncProfile: true })` hydrates identity + auth state.
- * Runs once on mount.
+ * The exchange commits the session by itself now. It used to build transport credentials only, so
+ * this hook followed it with `refreshRelaySession({ syncProfile: true })` to recover the identity
+ * fields the exchange had discarded — a refresh call made for its RESPONSE, not to renew anything
+ * (ADR-0070 불변조건 1·2).
  */
 export const useOAuthLogin = (): void => {
     const { t } = useTranslation();
     const location = useLocation();
     const navigate = useNavigateWithTransition();
     const { delegatorId } = useSessionIdentity();
-    const { refreshRelaySession } = useRefreshRelaySession();
     const handled = useRef(false);
 
     useEffect(() => {
@@ -52,7 +52,6 @@ export const useOAuthLogin = (): void => {
             } else {
                 await createCredentialsByProvider(provider, code);
             }
-            await refreshRelaySession({ syncProfile: true });
             logger.info('AUTH', '[useOAuthLogin] oauth login succeeded', { provider });
 
             let redirectTo = '/home';
@@ -69,5 +68,5 @@ export const useOAuthLogin = (): void => {
         // Without this catch the invite-branch throw above escapes as an unhandled rejection, so the
         // login failure reaches the global handler with no AUTH breadcrumb of its own.
         void run().catch(error => logger.error('AUTH', '[useOAuthLogin] oauth login failed', { error }));
-    }, [location.search, navigate, delegatorId, refreshRelaySession, t]);
+    }, [location.search, navigate, delegatorId, t]);
 };

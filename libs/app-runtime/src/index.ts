@@ -21,15 +21,34 @@ export type { SessionProfile } from './runtime';
 // independent of which slot is ACTIVE. See useKindVerified's doc comment.
 export { useKindVerified } from './runtime';
 
-// Back-compat aliases (pre-rename names) kept so desktop-web keeps compiling without churn while it is
-// mid-refactor. New code uses the useRuntime* names above; migrate desktop-web and drop these later.
-export { useRuntimeSocketState as useSocketState, useRuntimeProfile as useSessionProfile } from './runtime';
-
 // --- Session action hooks (socket-driven site switch / logout) ------------------------------
-export { useSiteSwitch, useSessionLogout, useLogoutCloudSession } from './session';
+// The session hub (ADR-0070) — store · auth use-cases · session hooks. This package is the single
+// session surface; `@chatic/web-core`, which used to hold half of it, has been deleted.
+export * from './session';
+
+// 사용자 이슈 제보 + 로그 배치 업로드 (ADR-0070 결정 6). `http/` 밖에 있는 이유는 여기가 전송
+// 계층이 아니기 때문이다 — 세션에서 payload를 조립하고 `report` repository로 부친다.
+export * from './report';
+// 에러 정규화 유틸 — 리포팅 호출부가 짝으로 쓴다. 앱이 `@chatic/http`를 직접 보지 않도록
+// 허브가 재수출한다 (ADR-0070 목표 그림: 앱이 보는 것은 app-runtime과 data 둘).
+export { toError } from '@chatic/http';
+
+// REST 데이터 훅 (구독·클라우드·사용자) — ADR-0070 4단계.
+export * from './data/hooks';
+
+// Web 런타임 설정·transport의 앱 대면 표면. env는 `@chatic/web-config`(import.meta 격리 leaf)에서,
+// transport는 `http/transport`(조립 지점 — 실체는 `@chatic/http`)에서 재수출한다. ADR-0070의 목표
+// 그림에서 앱이 보는 패키지는 app-runtime과 data 둘뿐이고, 나머지는 그 아래 조립 대상이기 때문이다.
+export {
+    LANGUAGE_KEY,
+    WEB_ENV as ENV,
+    WEB_PROJECT as PROJECT,
+    WEB_SOCIAL_OAUTH_ENDPOINT as SOCIAL_OAUTH_ENDPOINT,
+} from '@chatic/web-config';
+export { hasStoredRelaySession, isStoredSessionExpired, startWebTransportInit, webTransport } from './http/transport';
 
 // --- Session actions (non-hook) --------------------------------------------------------------
-// verify-hash-alias `$token` → web-core commit + same-connection relay socket re-auth. Consumed by
+// verify-hash-alias `$token` → session/store commit + same-connection relay socket re-auth. Consumed by
 // the phone-verification flow (roadmap ADR-0033 Track A contract; Track C imports it via apps/web).
 export { applySessionToken } from './socket/auth/applySessionToken';
 export type { ApplySessionTokenOptions } from './socket/auth/applySessionToken';
@@ -37,10 +56,14 @@ export type { ApplySessionTokenOptions } from './socket/auth/applySessionToken';
 // useSocketWakeRecovery; desktop-web keeps its local variant). See 2026-08 session audit §7 Phase 1.
 export { recoverUnverifiedSockets } from './socket/auth/recoverUnverifiedSockets';
 export type { RecoverUnverifiedSocketsDeps } from './socket/auth/recoverUnverifiedSockets';
-// The single "make this session's credentials fresh" entry point — socket-owned refresh first,
-// service-level HTTP fallback second. Replaces callers' own refresh engines (audit §7 Phase 2-3).
-export { requestSessionRefresh } from './socket/auth/requestSessionRefresh';
-export type { RequestSessionRefreshDeps } from './socket/auth/requestSessionRefresh';
+// The single "make the relay credentials fresh" entry point — socket-owned refresh ONLY; no HTTP
+// fallback (ADR-0070 불변조건 1·2). Returns false when there is no socket to ask, so callers recover
+// the socket instead of routing around it. Replaces callers' own refresh engines.
+// Relay only, by name: a cloud token is minted FROM the relay identity, so its recovery is a
+// RE-ISSUE (renewCloudSession), not a refresh. The old `kind` parameter offered a door nobody should
+// walk through.
+export { requestRelaySessionRefresh } from './socket/auth/requestRelaySessionRefresh';
+export type { RequestRelaySessionRefreshDeps } from './socket/auth/requestRelaySessionRefresh';
 
 // --- Cache tier helpers ---------------------------------------------------------------------
 // Storage routing: which physical store each cache type lands in. See docs/data/cache-storage-routing.md.
@@ -49,12 +72,13 @@ export { isNativeApp } from './data/cacheStorageRouting';
 // so a domain the installed app cannot store is routed to web storage instead of a silent void.
 export { setNativeCacheSupport, getNativeCacheSupport } from './data/nativeCacheSupport';
 export type { NativeCacheSupport } from './data/nativeCacheSupport';
-// App-level repository and cache-assembly policies for the lazily created data runtime; must run
-// before first access (apps/web: relay-only embedded-$site persistence, ADR-0045; desktop-web: the
-// per-channel chat cap).
-export { configureDataRuntime } from './data/runtime';
+// Data policies are no longer registered on their own — they ride `initAppRuntime({ data })` below,
+// so an app has ONE boot call instead of a set of configure-* functions it must remember and order.
 export type { DataRuntimeConfig } from './data/runtime';
 export type { CacheAssemblyOptions } from './data/factories/localFactory';
+// Native cache instrumentation read/reset — the debug overlay's only view into `@chatic/db`'s
+// metrics module (ADR-0070 결정 5); it never imports the engine lib directly.
+export { getCacheMetricsSource } from './data/factories/localFactory';
 export {
     useInvitedCloudNameSync,
     recoverInvitedCloudIfMissing,
@@ -77,6 +101,12 @@ export type { DeviceTokenDelegate } from './push';
 // manual resend button, so this export cannot change mobile behaviour by existing.
 export { createChatOutbox } from './data/outbox';
 export type { ChatOutbox, ChatOutboxOptions, OutboxEntry, OutboxEnqueueInput } from './data/outbox';
+
+// --- Boot ------------------------------------------------------------------------------------
+// The one call every app entry makes before render. Replaces the import side effects that used to
+// boot the session store and credential recovery; see its doc for the ordering contract.
+export { initAppRuntime } from './init';
+export type { AppRuntimeConfig } from './init';
 
 // --- Manager entry points -------------------------------------------------------------------
 export { getSocketManager, getSyncManager } from './socket/runtime';

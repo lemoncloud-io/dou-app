@@ -22,7 +22,7 @@ jest.mock('@chatic/shared', () => ({
     // contract (aspect-preserving downscale) and exercised in the browser.
     scaleImageToDataUrl: (file: File) => mockEncode(file),
 }));
-jest.mock('@chatic/web-core', () => ({
+jest.mock('@chatic/app-runtime', () => ({
     reportIssue: (...args: unknown[]) => mockReportIssue(...args),
 }));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: mockToast }) }));

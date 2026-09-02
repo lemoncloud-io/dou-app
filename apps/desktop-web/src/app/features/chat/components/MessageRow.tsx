@@ -10,7 +10,7 @@ import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@chatic/ui-kit/components/ui/popover';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@chatic/ui-kit/components/ui/tooltip';
 
-import { getActiveServerContext } from '@chatic/web-core';
+import { getActiveServerContext } from '@chatic/app-runtime';
 
 import { ConfirmDialog } from '../../channels';
 import {

@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 
 import { useRuntimeRepositories } from '@chatic/app-runtime';
-import { useSessionSelection } from '@chatic/web-core';
+import { useSessionSelection } from '@chatic/app-runtime';
 
 import { usePreferenceStore } from '../../../stores/usePreferenceStore';
 

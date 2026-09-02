@@ -18,11 +18,12 @@ jest.mock('@chatic/bridges', () => ({
         info: jest.fn(),
     },
 }));
-jest.mock('@chatic/web-core', () => ({
+
+jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: mockToast }) }));
+jest.mock('@chatic/app-runtime', () => ({
+    useRuntimeRepositories: () => ({ cloud: { cacheWrite: mockCacheWrite } }),
     useInviteFlow: () => ({ runInviteFlow: mockRunInviteFlow, isInviting: false }),
 }));
-jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: mockToast }) }));
-jest.mock('@chatic/app-runtime', () => ({ useRuntimeRepositories: () => ({ cloud: { cacheWrite: mockCacheWrite } }) }));
 jest.mock('./useEnterInvitedCloud', () => ({
     useEnterInvitedCloud: () => ({ enterCloud: mockEnterCloud, isEnteringCloud: false }),
 }));

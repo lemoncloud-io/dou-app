@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import type { DomainUser } from '@chatic/data';
-import { useRuntimeRepositories, useSocketState } from '@chatic/app-runtime';
+import { useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
 
 export interface ChannelMember extends DomainUser {
     /** True when this member is the channel owner (matched against ownerId). */
@@ -27,7 +27,7 @@ export interface ChannelMember extends DomainUser {
  */
 export const useChannelMembers = (channelId: string | null, ownerId?: string) => {
     const { user: userRepository } = useRuntimeRepositories();
-    const { isVerified } = useSocketState();
+    const { isVerified } = useRuntimeSocketState();
     const [rawMembers, setRawMembers] = useState<DomainUser[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<Error | null>(null);

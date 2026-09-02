@@ -1,4 +1,4 @@
-import type { CacheStorage } from '../storages';
+import type { CacheStorage } from '../ports';
 import { UserLocalDataSourceV2 } from './UserLocalDataSourceV2';
 
 // The storage fixture is deliberately naive so channel-member resolution is owned by the datasource.

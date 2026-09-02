@@ -1,13 +1,15 @@
 import { renderHook } from '@testing-library/react';
 
 import { useRuntimeRepositories } from '@chatic/app-runtime';
-import { useSessionIdentity } from '@chatic/web-core';
+import { useSessionIdentity } from '@chatic/app-runtime';
 import type { DomainJoin } from '@chatic/data';
 
 import { useChannelJoins } from './useChannelJoins';
 
-jest.mock('@chatic/app-runtime', () => ({ useRuntimeRepositories: jest.fn() }));
-jest.mock('@chatic/web-core', () => ({ useSessionIdentity: jest.fn() }));
+jest.mock('@chatic/app-runtime', () => ({
+    useRuntimeRepositories: jest.fn(),
+    useSessionIdentity: jest.fn(),
+}));
 
 const observeList = jest.fn();
 

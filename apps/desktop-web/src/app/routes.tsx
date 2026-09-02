@@ -2,7 +2,7 @@ import { Suspense, lazy, useEffect } from 'react';
 import { Navigate, Route, BrowserRouter as Router, Routes, useNavigate } from 'react-router-dom';
 
 import { isNative, webClient } from '@chatic/bridges';
-import { useSessionAuth } from '@chatic/web-core';
+import { useSessionAuth } from '@chatic/app-runtime';
 
 import { AppShellSkeleton, parsePushDeeplink, usePendingOpenStore } from './shared';
 
@@ -48,7 +48,6 @@ const ProfilePage = lazy(() => import('./features/profile').then(m => ({ default
 const SettingsPage = lazy(() => import('./features/settings').then(m => ({ default: m.SettingsPage })));
 const WelcomePage = lazy(() => import('./features/auth').then(m => ({ default: m.WelcomePage })));
 const InviteLoginPage = lazy(() => import('./features/auth').then(m => ({ default: m.InviteLoginPage })));
-const TokenLoginPage = lazy(() => import('./features/auth').then(m => ({ default: m.TokenLoginPage })));
 const DebugLoginPage = lazy(() => import('./features/auth').then(m => ({ default: m.DebugLoginPage })));
 const OAuthResponsePage = lazy(() => import('./features/auth').then(m => ({ default: m.OAuthResponsePage })));
 const OAuthDeeplinkListener = lazy(() => import('./features/auth').then(m => ({ default: m.OAuthDeeplinkListener })));
@@ -80,7 +79,6 @@ export const AppRouter = () => {
                         </>
                     ) : (
                         <>
-                            <Route path="/auth/token/:token" element={<TokenLoginPage />} />
                             <Route path="/auth/welcome" element={<WelcomePage />} />
                             <Route path="/auth/login" element={<InviteLoginPage />} />
                             <Route path="/auth/oauth-response" element={<OAuthResponsePage />} />

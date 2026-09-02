@@ -22,14 +22,14 @@ interface DeviceTokenDelegate {
 
 ## 소유 경계
 
-- **app-runtime 소유**: 등록 정책 전부 — 인증 게이팅, force 재등록, 60초 스로틀, 실패 재시도, 겹침 방지, `deviceId`(`useDynamicDeviceId`) 주입, web-core `useRegisterDeviceTokenMutation` 호출.
+- **app-runtime 소유**: 등록 정책 전부 — 인증 게이팅, force 재등록, 60초 스로틀, 실패 재시도, 겹침 방지, `deviceId`(`useDynamicDeviceId`) 주입, `data/hooks`의 `useRegisterDeviceTokenMutation` 호출.
 - **앱(셸 어댑터) 소유**: 셸 지식 전부 — 토큰 획득 방법(모바일은 `FetchFcmToken` request/response, Electron은 이벤트 응답), `CHATIC_APP_PLATFORM` 류 window 전역 판독, 그리고 "지금 네이티브 셸인가" 판정. 셸이 아니면 `delegate: null`을 넘겨 no-op으로 만든다.
 
 `SocketSessionDelegate`와 같은 역전 패턴이다 — 런타임은 셸을 모르고, 앱이 획득 경로만 주입한다.
 
 ## 등록 전략 (왜 force + 스로틀인가)
 
-토큰 동일성 dedup(과거 web-core `hooks/app/useRegisterDeviceToken` 방식)은 쓰지 않는다. SNS는 배달 실패 한 번으로 platform endpoint를 disable하는데, `CreatePlatformEndpoint`는 disabled endpoint를 되살리지 않으므로 토큰이 안 바뀌는 한 dedup이 재등록을 영원히 막아 디바이스가 푸시를 못 받는 상태로 고착된다. 그래서:
+토큰 동일성 dedup(과거 `hooks/app/useRegisterDeviceToken` 방식)은 쓰지 않는다. SNS는 배달 실패 한 번으로 platform endpoint를 disable하는데, `CreatePlatformEndpoint`는 disabled endpoint를 되살리지 않으므로 토큰이 안 바뀌는 한 dedup이 재등록을 영원히 막아 디바이스가 푸시를 못 받는 상태로 고착된다. 그래서:
 
 - 등록은 항상 `force: true` — 브로커가 endpoint를 재생성/재활성화할 기회를 준다. (전제: 브로커 `reg-dev`가 기존 endpoint에 `SetEndpointAttributes Enabled=true`를 수행해야 완전한 효과. apps/desktop-web의 운영 노트에서 검증된 전략이다.)
 - 재등록 트리거는 60초 스로틀로 묶어 `reg-dev` 호출량을 제한한다.
@@ -79,7 +79,7 @@ useDeviceTokenRegistration(delegate);
 
 - 셸에서 토큰을 만드는 방법(FCM/APNs 권한 요청·토큰 발급) — 네이티브 셸 소유.
 - 수신 푸시 라우팅/알림 표시 — 셸과 앱의 브리지 이벤트 경로 소유.
-- 등록 API 자체 — web-core `useRegisterDeviceTokenMutation`이 소유하며 여기서는 호출만 한다.
+- 등록 API 자체 — `data/hooks`의 `useRegisterDeviceTokenMutation`(→ repository → HTTP 게이트웨이)이 소유하며 여기서는 호출만 한다.
 
 ## 관련 코드
 

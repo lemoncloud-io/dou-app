@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { useSessionIdentity } from '@chatic/web-core';
-import { useSocketState } from '@chatic/app-runtime';
+import { useSessionIdentity } from '@chatic/app-runtime';
+import { useRuntimeSocketState } from '@chatic/app-runtime';
 
 import type { DomainChannel, DomainChat } from '@chatic/data';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
@@ -80,7 +80,7 @@ export const ChatPane = ({ channel, members, membersLoading, readCountOf }: Chat
     // Reactions fold from the UNFILTERED list on purpose: `isFeedVisible` removes exactly
     // the events this reads, so folding `topLevel` would always come back empty.
     const reactions = useMemo(() => foldReactions(messages, myUid), [messages, myUid]);
-    const { isVerified } = useSocketState();
+    const { isVerified } = useRuntimeSocketState();
     const [sendTick, setSendTick] = useState(0);
 
     // Snapshot the read position when the channel opens, before HomePage's

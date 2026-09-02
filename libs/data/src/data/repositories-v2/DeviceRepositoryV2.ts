@@ -1,5 +1,7 @@
 import type { DeviceStatus, ViewingType } from '@lemoncloud/chatic-sockets-lib';
-import type { IDeviceRemoteDataSource } from '../remote/data-sources';
+import type { RegisterDeviceResult } from '@lemoncloud/chatic-pushes-api';
+import type { IDeviceSocketDataSource } from '../remote/socket-data-sources';
+import type { IDeviceRegistrationHttpSource } from '../remote/http-data-sources';
 import type { DataContextProvider } from './types';
 import { BaseRepositoryV2, type DisposableRepositoryV2 } from './types';
 
@@ -23,9 +25,17 @@ export interface IDeviceRepositoryV2 extends DisposableRepositoryV2 {
      * settings owned by chatic-pushes-api) and return the server's authoritative `muted`. `id` is
      * intentionally omitted so the server targets the device linked to the current connection.
      * Always writes over the RELAY socket — the destination is pinned in the data source, not
-     * chosen by callers (see DeviceRemoteDataSource.updateRemoteDevice).
+     * chosen by callers (see DeviceSocketDataSource.updateRemoteDevice).
      */
     updateRemotePushMute(muted: boolean): Promise<boolean>;
+
+    /**
+     * `POST /users/0/reg-dev` — HTTP push-token registration (ADR-0070 결정 5, 2단계 후반). Distinct
+     * from `updateRemotePushMute` (소켓 `device.update-remote`, GLOBAL mute setting) — this
+     * registers the token itself. `IDeviceRegistrationHttpSource` injection is optional through
+     * 2단계.
+     */
+    registerPushDevice(body: Record<string, unknown>, opts?: { force?: boolean }): Promise<RegisterDeviceResult>;
 }
 
 /**
@@ -35,27 +45,40 @@ export interface IDeviceRepositoryV2 extends DisposableRepositoryV2 {
  */
 export class DeviceRepositoryV2 extends BaseRepositoryV2 implements IDeviceRepositoryV2 {
     constructor(
-        private readonly deviceRemoteDataSource: IDeviceRemoteDataSource,
-        contextProvider: DataContextProvider
+        private readonly deviceSocketDataSource: IDeviceSocketDataSource,
+        contextProvider: DataContextProvider,
+        private readonly deviceRegistrationHttpSource?: IDeviceRegistrationHttpSource
     ) {
         super(contextProvider);
     }
 
+    public async registerPushDevice(
+        body: Record<string, unknown>,
+        opts?: { force?: boolean }
+    ): Promise<RegisterDeviceResult> {
+        if (!this.deviceRegistrationHttpSource) {
+            throw new Error(
+                '[DeviceRepositoryV2] IDeviceRegistrationHttpSource is not injected — httpFactory not wired yet.'
+            );
+        }
+        return this.deviceRegistrationHttpSource.registerPushDevice(body, opts);
+    }
+
     public syncDevice(viewingType: ViewingType, viewingId: string): void {
         // `tick` is server-owned and must never be sent from the client; forward only the pair.
-        this.deviceRemoteDataSource.syncDevice({ viewingType, viewingId });
+        this.deviceSocketDataSource.syncDevice({ viewingType, viewingId });
     }
 
     public syncStatus(status: DeviceStatus): void {
         // Server-side partial merge: sending status alone keeps the viewing pair intact.
-        this.deviceRemoteDataSource.syncDevice({ status });
+        this.deviceSocketDataSource.syncDevice({ status });
     }
 
     public async updateRemotePushMute(muted: boolean): Promise<boolean> {
         // Omit `id`: the server resolves the device from the current connection. Return the server's
         // authoritative `muted` echo so the caller can sync its optimistic state to the real value;
         // fall back to the requested value if the response omits it.
-        const view = await this.deviceRemoteDataSource.updateRemoteDevice({ muted });
+        const view = await this.deviceSocketDataSource.updateRemoteDevice({ muted });
         return typeof view.muted === 'boolean' ? view.muted : muted;
     }
 }

@@ -1,9 +1,8 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 
-import { useCloudSessionCatalog } from '@chatic/web-core';
 import { useRuntimeRepositories } from '@chatic/app-runtime';
-import { useDeleteCloud } from '@chatic/subscriptions';
 
+import { useCloudSessionCatalog } from './useCloudCatalog';
 import { useJoinedCloudsStore } from '../stores';
 
 /**
@@ -17,7 +16,7 @@ export const useRemoveCloud = () => {
     const removeJoinedCloud = useJoinedCloudsStore(s => s.removeJoinedCloud);
     const { cloud: cloudRepository } = useRuntimeRepositories();
     const { refetchClouds } = useCloudSessionCatalog();
-    const { mutateAsync: deleteCloudMutation, isPending: isDeleting } = useDeleteCloud();
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const removeInvitedCloud = useCallback(
         (cloudId: string) => {
@@ -31,11 +30,16 @@ export const useRemoveCloud = () => {
 
     const deleteOwnedCloud = useCallback(
         async (cloudId: string) => {
-            await deleteCloudMutation({ id: cloudId, params: { cascade: 1 } });
-            void cloudRepository.cacheDelete(cloudId).catch(() => undefined);
-            await refetchClouds();
+            setIsDeleting(true);
+            try {
+                await cloudRepository.releaseCloud(cloudId, { cascade: true });
+                void cloudRepository.cacheDelete(cloudId).catch(() => undefined);
+                await refetchClouds();
+            } finally {
+                setIsDeleting(false);
+            }
         },
-        [deleteCloudMutation, refetchClouds, cloudRepository]
+        [refetchClouds, cloudRepository]
     );
 
     return { removeInvitedCloud, deleteOwnedCloud, isDeleting };

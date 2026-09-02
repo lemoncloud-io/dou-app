@@ -203,6 +203,31 @@ relay 기준으로 토큰/서명 재료가 **세 곳**에 있다:
 > - 이전 증상(`503 SOCKET NOT CONNECTED - relay.request(invite.list)`)을 고치며 붙인 `useKindVerified('relay')` 게이트는 **콜드 부팅**만 막았다. 재연결 창은 남아 있었고, 증상이 503에서 401로 바뀌었을 뿐이다. 같은 게이트를 쓰는 모든 소비자가 동일하게 노출된다.
 > - 수정: `SocketManager.bindEntry`에서 `connected`가 아닌 모든 전송 상태 전이에 `entry.authenticated = false`. 플래그 수명이 연결 수명과 같아지고, 복구는 컨트롤러의 다음 `authenticated` 방출이 담당한다. 부작용으로 `recoverUnverifiedSockets`가 진짜 끊긴 슬롯을 미검증으로 보게 되어 웨이크 킥이 더 정확해진다.
 > - 함께 고친 두 번째 경로: `useInviteWaitingStatus`의 30초 폴링이 `setInterval` + `refetch()`였는데, TanStack v5의 `refetch()`는 **disabled 쿼리도 발사**한다 — relay 미인증 구간에서 30초마다 게이트를 뚫고 나가 같은 401을 받았다. 폴링을 쿼리 옵션(`useRelayInvites(state, { pollIntervalMs })` → `refetchInterval`)으로 위임해 게이트 안으로 넣었다(백그라운드에서는 자동 정지). 사용자가 누르는 재시도 버튼은 그대로 `refetch()` — 의도된 우회다.
+>
+> **최종 반영 (2026-09-01, [ADR-0070](../adr/0070-app-runtime-session-hub.md) 3단계): 위 "역할 변경으로 존치" 결정이 뒤집혔다 — HTTP refresh 체인 전체가 삭제됐다.**
+>
+> 실측(9개 refresh 호출부 전수조사)해보니 정당한 소비자가 하나도 없었다. `refreshActiveCloudSession`이
+> 맡기로 했던 `requestSessionRefresh('cloud')`의 HTTP 폴백을 포함해 `switchSiteSession` ·
+> `useRefreshCurrentCloudSession` · `useRefreshCloudSiteSession`/`refreshCloudSession`/
+> `refreshCloudToken`(클라우드 HTTP refresh 체인 전체) · `useRefreshRelaySession`/`refreshRelaySession`
+> 이 함께 사라졌다 — 유일하게 남은 호출부는 testbed의 흔적기관 훅(캐시가 이미 구독 중)이었다.
+> `requestSessionRefresh(kind)`는 **소켓 경로만 남은 유일한 트리거 API**로 유지되고, 소켓이 없으면
+> `false`를 돌려주고 호출부(`useSocketWakeRecovery`)가 소켓을 되찾는다 — 이 문서 §7이 예고한 "2순위
+> HTTP 폴백"은 폐기됐다. `useRelaySessionGuard`/`useRelayCredentialRefresh`도 중복 재발명이라
+> `session/hooks/app/useSessionStalenessGuard(policy)`로 승격됐다. 상세는
+> [session/architecture.md §refresh](../../libs/app-runtime/docs/session/architecture.md)의
+> "사라진 것과 그 이유" 표.
+>
+> **정책 반전 (2026-09-01): relay 터미널 `expired`의 "warn-only, 수동 로그아웃만"이 자동
+> 로그아웃으로 뒤집혔다.** §0-3·§4(apps/web 행)가 적은 "복구 경로가 없다 · 좀비 세션"이 바로
+> 이 갭이었다 — `isAuthenticated` 플래그가 만료로 안 뒤집혀 UI는 로그인 상태로 보이는데 소켓은
+> 죽어 있고, 사용자가 수동 로그아웃하거나 앱을 리로드하기 전까지 그 상태가 지속됐다.
+> [sessionDelegate.ts](../../libs/app-runtime/src/socket/auth/sessionDelegate.ts)의 relay 분기가
+> `logger.warn(...)`만 하던 것을 `logoutRelaySession()` 호출로 바꿔, cloud 슬롯(이미 자동
+> `logoutCloudSession()`이던)과 정책을 맞췄다. SDK가 `expired`에 도달하는 조건 자체(연속
+> `maxFailures`회 서명/refresh 실패 — `SocketManager` `AUTH_OPTIONS`, 현재 3회)는 그대로이므로
+> 새 재시도 카운터는 없다 — 이미 있던 터미널 신호에 실제 로그아웃을 매달았을 뿐이다. 로그아웃
+> 후에는 런타임의 게스트 자동 로그인이 이어받아 다음 세션이 깨끗한 캐시로 시작한다.
 
 ### Phase 0 — 계측 (코드 변경 최소, 즉시)
 

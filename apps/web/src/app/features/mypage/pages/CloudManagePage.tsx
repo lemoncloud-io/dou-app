@@ -6,11 +6,13 @@ import { useQueryClient } from '@tanstack/react-query';
 
 import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
-import { cloudsKeys, useClouds, useDeleteCloud, useSessionSelection } from '@chatic/web-core';
+import { cloudsKeys, useSessionSelection } from '@chatic/app-runtime';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import type { CloudView } from '@lemoncloud/chatic-backend-api';
+import type { DomainCloud } from '@chatic/data';
 
+import { useClouds } from '../../../hooks/useCloudCatalog';
+import { useDeleteCloud } from '../hooks/useDeleteCloud';
 import { useEmailBindRequest } from '../../../stores/useEmailBindRequest';
 import { CloudMembershipSummary } from '../../subscription';
 import { useLogoutCloudSession } from '../../../runtime/useLogoutCloudSession';
@@ -37,7 +39,7 @@ export const CloudManagePage = () => {
     // shared with the cloud switcher and 구독 관리. This screen owns no verification flow of its own.
     const requestEmailBind = useEmailBindRequest(s => s.requestEmailBind);
 
-    const [confirmCloud, setConfirmCloud] = useState<CloudView | null>(null);
+    const [confirmCloud, setConfirmCloud] = useState<DomainCloud | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
 
     const handleDeleteConfirm = async () => {
@@ -46,11 +48,11 @@ export const CloudManagePage = () => {
         setDeletingId(confirmCloud.id);
         setConfirmCloud(null);
         try {
-            await deleteCloud.mutateAsync({ id: confirmCloud.id, params: { cascade: 1 } });
+            await deleteCloud.mutateAsync({ id: confirmCloud.id, cascade: true });
             queryClient.setQueryData(cloudsKeys.list({ limit: -1 }), (old: any) => ({
                 ...old,
                 list: old?.list?.filter((c: any) => c.id !== confirmCloud.id) ?? [],
-                total: (old?.total ?? 1) - 1,
+                meta: { ...old?.meta, total: (old?.meta?.total ?? 1) - 1 },
             }));
             logger.info('CLOUD', 'cloud released', { cloudId: confirmCloud.id, wasActive: isDeletingSelectedCloud });
             toast({ title: t('mypage.cloudManage.deleteSuccess') });

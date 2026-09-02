@@ -10,6 +10,7 @@ import { logger } from '@chatic/bridges';
 import type { ISocketManager, SocketKind } from '../types';
 import { createSyncPlans } from './plans';
 import type { ISyncManager, SyncManagerDeps, SyncRuntimeOptions, SyncWatchEntry } from './types';
+import { isCidActive as isCidActiveGuard } from '@chatic/data';
 
 const defaultBuildTargetKey = (target: SyncTargetDescriptor): string => `${target.type}:${target.id ?? ''}`;
 
@@ -291,7 +292,7 @@ export class SyncManager implements ISyncManager {
      * mid-switch same-url window, not a target replayed onto a genuinely different active client.
      */
     private isCidActive(cid: string | null): boolean {
-        return cid == null || cid === this.manager.getBoundCid();
+        return isCidActiveGuard(cid, this.manager.getBoundCid());
     }
 
     private getActiveEntry(): SlotRuntimeEntry | null {

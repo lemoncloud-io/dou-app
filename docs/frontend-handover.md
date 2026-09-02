@@ -88,7 +88,10 @@ main.tsx → App 마운트
 | `sync`    | `channel`, `chat`                    | 증분 동기화        |
 | `device`  | `save`                               | 디바이스 등록      |
 
-소켓 핸들러 위치: `libs/data/src/data/remote/sockets/handlers/`
+아웃바운드 게이트웨이 타입: `libs/data/src/data/remote/gateways/socket.ts` — 실제 호출은
+`libs/data/src/data/remote/socket-data-sources/`. 인바운드 메시지 구독(`onType`)은
+`libs/app-runtime/src/socket/SocketManager.ts`가 쥔다. (예전에 적혀 있던
+`remote/sockets/handlers/`는 존재한 적이 없다.)
 
 ### 주요 도메인 모델 필드
 

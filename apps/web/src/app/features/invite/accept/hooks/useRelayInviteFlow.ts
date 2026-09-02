@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { getSocketManager, useRuntimeProfile, useRuntimeRepositories } from '@chatic/app-runtime';
 import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
-import { useSessionSelection } from '@chatic/web-core';
+import { useSessionSelection } from '@chatic/app-runtime';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import type { AccountLinkMode } from '../../../../hooks/useLinkAccount';

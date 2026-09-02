@@ -6,7 +6,8 @@ import { Inbox } from 'lucide-react';
 import { logger } from '@chatic/bridges';
 import { useInterval } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { useCloudSessionCatalog, useSessionSelection, useSwitchCloudSession } from '@chatic/web-core';
+import { useSessionSelection, useSwitchCloudSession } from '@chatic/app-runtime';
+import { useCloudSessionCatalog } from '../../../hooks/useCloudCatalog';
 
 import { BottomSheet, CollapsibleSection, Divider } from '@chatic/web-ui-kit';
 

@@ -2,7 +2,7 @@ import type { ChannelJoinInput, ChannelUpdateJoinInput, ChatReadInput } from '@l
 import type { DomainJoin, DomainJoinListPayload, DomainListResult } from '../domain';
 import { createDomainListResult } from '../domain';
 import type { IJoinLocalDataSourceV2 } from '../local/data-sources-v2';
-import type { IJoinRemoteDataSource } from '../remote/data-sources';
+import type { IJoinSocketDataSource } from '../remote/socket-data-sources';
 import type { DataContext, DataContextProvider } from './types';
 import { BaseRepositoryV2, type DisposableRepositoryV2 } from './types';
 import type { JoinGetInput, JoinUpdateInput } from '@lemoncloud/chatic-sockets-lib';
@@ -32,7 +32,7 @@ export interface IJoinRepositoryV2 extends DisposableRepositoryV2 {
 /** Maintains join membership snapshots and read-state transitions for each channel context. */
 export class JoinRepositoryV2 extends BaseRepositoryV2 implements IJoinRepositoryV2 {
     constructor(
-        private readonly joinRemoteDataSource: IJoinRemoteDataSource,
+        private readonly joinSocketDataSource: IJoinSocketDataSource,
         private readonly joinLocalDataSource: IJoinLocalDataSourceV2,
         contextProvider: DataContextProvider
     ) {
@@ -64,7 +64,7 @@ export class JoinRepositoryV2 extends BaseRepositoryV2 implements IJoinRepositor
         const joinId = this.assertRequiredString(payload.id, 'id');
         const requestContext = this.getRequestContext();
         const normalizedContext = this.getNormalizedContext(requestContext);
-        const domain = await this.joinRemoteDataSource.getJoin({ id: joinId }, normalizedContext);
+        const domain = await this.joinSocketDataSource.getJoin({ id: joinId }, normalizedContext);
         await this.joinLocalDataSource.cacheWrite(domain, requestContext);
         return domain;
     }
@@ -113,7 +113,7 @@ export class JoinRepositoryV2 extends BaseRepositoryV2 implements IJoinRepositor
 
         await this.joinLocalDataSource.cacheWrite({ ...(current ?? {}), ...optimisticPatch }, requestContext);
         try {
-            const domain = await this.joinRemoteDataSource.readChat(payload, normalizedContext);
+            const domain = await this.joinSocketDataSource.readChat(payload, normalizedContext);
             await this.joinLocalDataSource.cacheWrite(domain, requestContext);
             return domain;
         } catch (error) {
@@ -153,7 +153,7 @@ export class JoinRepositoryV2 extends BaseRepositoryV2 implements IJoinRepositor
             requestContext
         );
         try {
-            const domain = await this.joinRemoteDataSource.updateJoin(updateBody, normalizedContext);
+            const domain = await this.joinSocketDataSource.updateJoin(updateBody, normalizedContext);
             await this.joinLocalDataSource.cacheWrite(domain, requestContext);
             return domain;
         } catch (error) {
@@ -179,7 +179,7 @@ export class JoinRepositoryV2 extends BaseRepositoryV2 implements IJoinRepositor
             requestContext
         );
         try {
-            const domain = await this.joinRemoteDataSource.joinChannel(payload, normalizedContext);
+            const domain = await this.joinSocketDataSource.joinChannel(payload, normalizedContext);
             await this.joinLocalDataSource.cacheWrite(domain, requestContext);
             await this.joinLocalDataSource.cacheDelete(optimisticId, requestContext);
             return domain;

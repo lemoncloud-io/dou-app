@@ -1,7 +1,7 @@
 import type { CacheMetaView } from '@chatic/app-messages';
 import type { DataContextProvider } from '../../repositories-v2/types';
-import type { CacheStorage } from '../storages';
-import { resolveTtlMs } from '../storages/utils';
+import type { CacheStorage } from '../ports';
+import { resolveTtlMs } from '../ports/policy';
 import { BaseLocalDataSourceV2 } from './types';
 
 export interface ISyncMetaLocalDataSourceV2 {

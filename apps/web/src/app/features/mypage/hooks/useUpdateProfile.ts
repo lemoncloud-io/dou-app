@@ -1,7 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 
 import type { UserView } from '@lemoncloud/chatic-backend-api';
-import { patchRelaySessionUser } from '@chatic/web-core';
+import { patchRelaySessionUser } from '@chatic/app-runtime';
 
 import { getRelayAccountGateway } from '../../../runtime/relayAccountGateway';
 

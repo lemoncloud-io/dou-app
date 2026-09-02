@@ -1,4 +1,4 @@
-import { useClouds } from '@chatic/web-core';
+import { useClouds } from '../../../hooks/useCloudCatalog';
 
 import { countOwnedClouds, evaluateCloudQuota, type CloudQuotaReason } from '../lib';
 import { usePlanCatalog } from './usePlanCatalog';

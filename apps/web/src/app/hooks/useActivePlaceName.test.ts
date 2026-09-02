@@ -1,15 +1,12 @@
 import { act, renderHook } from '@testing-library/react';
 
 import { useRuntimeRepositories } from '@chatic/app-runtime';
-import { useSessionSelection } from '@chatic/web-core';
+import { useSessionSelection } from '@chatic/app-runtime';
 
 import { useActivePlaceName } from './useActivePlaceName';
 
 jest.mock('@chatic/app-runtime', () => ({
     useRuntimeRepositories: jest.fn(),
-}));
-
-jest.mock('@chatic/web-core', () => ({
     useSessionSelection: jest.fn(),
 }));
 

@@ -1,20 +1,21 @@
 import { useEffect, useRef } from 'react';
 
 import type { DomainCloud, ICloudRepositoryV2 } from '@chatic/data';
-import { issueCloudDelegationToken, useSessionSelection } from '@chatic/web-core';
+import { useSessionSelection } from '../session';
 
 import { useRuntimeRepositories, useRuntimeSocketState } from '../runtime';
+import { getRepositories } from './runtime';
 import { isNativeApp } from './cacheStorageRouting';
 import type { CloudDelegationTokenView } from '@lemoncloud/chatic-backend-api';
 
 /**
  * Rebuild an invited-cloud cache row from re-derived endpoints (no name — the name is owned by
- * `syncInvitedCloudName`). `issueCloudDelegationToken` hits the relay and returns backend/wss/cloudId
+ * `syncInvitedCloudName`). `auth.delegateCloud` hits the relay and returns backend/wss/cloudId
  * for any cloud the user holds a grant to — the only frontend source of an invited cloud's endpoints
  * once the cache DB is gone. A revoked/expired grant rejects here and the caller skips that cloud.
  */
 const rehydrateInvitedCloud = async (cloud: ICloudRepositoryV2, cloudId: string): Promise<void> => {
-    const del: CloudDelegationTokenView = await issueCloudDelegationToken(cloudId);
+    const del: CloudDelegationTokenView = await getRepositories().auth.delegateCloud(cloudId);
     await cloud.cacheWrite({
         id: cloudId,
         cid: del.cloudId ?? cloudId,

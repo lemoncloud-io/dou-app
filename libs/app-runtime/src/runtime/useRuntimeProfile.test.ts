@@ -1,6 +1,6 @@
 import { renderHook } from '@testing-library/react';
 
-import { getActiveSessionUser, useGlobalSession } from '@chatic/web-core';
+import { getActiveSessionUser, useGlobalSession } from '../session';
 
 import { useRuntimeProfile } from './useRuntimeProfile';
 import { useRuntimeRepositories } from './useRuntimeRepositories';
@@ -8,7 +8,7 @@ import { useRuntimeRepositories } from './useRuntimeRepositories';
 // useRuntimeProfile sources uid/isCloudActive from useGlobalSession + the token seed accessor from
 // web-core. Mock the whole web-core module (avoids transport's import.meta under jest); the
 // repositories hook is mocked locally.
-jest.mock('@chatic/web-core', () => ({
+jest.mock('../session', () => ({
     getActiveSessionUser: jest.fn(),
     useGlobalSession: jest.fn(),
 }));

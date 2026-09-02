@@ -8,7 +8,7 @@ import {
     useRuntimeRepositories,
 } from '@chatic/app-runtime';
 import { logger } from '@chatic/bridges';
-import { useGlobalSession, useSessionSelection, useSwitchCloudSession } from '@chatic/web-core';
+import { useGlobalSession, useSessionSelection, useSwitchCloudSession } from '@chatic/app-runtime';
 
 import { useLogoutCloudSession } from '../../runtime/useLogoutCloudSession';
 import { useSiteSwitch } from '../../runtime/useSiteSwitch';

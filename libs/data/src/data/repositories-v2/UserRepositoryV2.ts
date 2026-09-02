@@ -4,10 +4,11 @@ import type {
     UserInviteInput,
     UserUpdateProfileInput,
 } from '@lemoncloud/chatic-sockets-api';
-import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
+import type { MyInviteView, UserProfile$ } from '@lemoncloud/chatic-backend-api';
 import type { DomainListResult, DomainUser } from '../domain';
 import type { IJoinLocalDataSourceV2, IPlaceLocalDataSourceV2, IUserLocalDataSourceV2 } from '../local/data-sources-v2';
-import type { IUserRemoteDataSource, UserInviteBatchPayload } from '../remote/data-sources';
+import type { IUserSocketDataSource, UserInviteBatchPayload } from '../remote/socket-data-sources';
+import type { IUserHttpDataSource } from '../remote/http-data-sources';
 import type { DataContext, DataContextProvider } from './types';
 import { BaseRepositoryV2, type DisposableRepositoryV2 } from './types';
 
@@ -37,19 +38,48 @@ export interface IUserRepositoryV2 extends DisposableRepositoryV2 {
     cacheWriteMany(items: Array<Partial<DomainUser>>): Promise<void>;
     cacheDelete(id: string): Promise<void>;
     cacheClear(): Promise<void>;
+
+    /**
+     * HTTP relay-user listing/profile surface (ADR-0070 결정 5, 2단계 후반). `IUserHttpDataSource`
+     * injection is optional through 2단계. `listRelayUsers`'s real-world consumer today is
+     * `apps/admin`(이미 안 붙는 앱) only — see libs/data/docs/http-data-path.md §미지수.
+     */
+    listRelayUsers(params?: Record<string, unknown>): Promise<DomainListResult<DomainUser>>;
+    tryFetchProfile(): Promise<UserProfile$>;
+    updateProfileHttp(uid: string, body: Record<string, unknown>): Promise<UserProfile$>;
 }
 
 /** Handles user cache hydration and optimistic profile edits inside the active cid/sid/uid context. */
 export class UserRepositoryV2 extends BaseRepositoryV2 implements IUserRepositoryV2 {
     constructor(
-        private readonly userRemoteDataSource: IUserRemoteDataSource,
+        private readonly userSocketDataSource: IUserSocketDataSource,
         private readonly userLocalDataSource: IUserLocalDataSourceV2,
         private readonly joinLocalDataSource: IJoinLocalDataSourceV2,
         private readonly placeLocalDataSource: IPlaceLocalDataSourceV2,
         contextProvider: DataContextProvider,
-        private readonly options?: UserRepositoryV2Options
+        private readonly options?: UserRepositoryV2Options,
+        private readonly userHttpDataSource?: IUserHttpDataSource
     ) {
         super(contextProvider);
+    }
+
+    private requireHttp(): IUserHttpDataSource {
+        if (!this.userHttpDataSource) {
+            throw new Error('[UserRepositoryV2] IUserHttpDataSource is not injected — httpFactory not wired yet.');
+        }
+        return this.userHttpDataSource;
+    }
+
+    public async listRelayUsers(params?: Record<string, unknown>): Promise<DomainListResult<DomainUser>> {
+        return this.requireHttp().listRelayUsers(params, this.getRequestContext());
+    }
+
+    public async tryFetchProfile(): Promise<UserProfile$> {
+        return this.requireHttp().tryFetchProfile();
+    }
+
+    public async updateProfileHttp(uid: string, body: Record<string, unknown>): Promise<UserProfile$> {
+        return this.requireHttp().updateProfileHttp(uid, body);
     }
 
     public observeList(
@@ -93,7 +123,7 @@ export class UserRepositoryV2 extends BaseRepositoryV2 implements IUserRepositor
         // listUser 응답의 각 user에 read-state가 `$join`으로 실려온다(detail: true). 데이터소스가
         // raw view에서 그걸 뽑아 join으로 넘겨주므로, user 캐시와 join 캐시를 함께 hydrate해
         // 멤버별 읽음 커서가 별도 join.get 없이 채워지게 한다.
-        const { users, joins } = await this.userRemoteDataSource.fetchUsers(
+        const { users, joins } = await this.userSocketDataSource.fetchUsers(
             {
                 ...query,
                 detail: true,
@@ -110,7 +140,7 @@ export class UserRepositoryV2 extends BaseRepositoryV2 implements IUserRepositor
     public async getMyProfile(): Promise<DomainUser> {
         const requestContext = this.getRequestContext();
         const normalizedContext = this.getNormalizedContext(requestContext);
-        const { user, site } = await this.userRemoteDataSource.getMyProfile(normalizedContext);
+        const { user, site } = await this.userSocketDataSource.getMyProfile(normalizedContext);
         // Hydrate the user cache so observeItem subscribers see the fetched profile.
 
         await this.userLocalDataSource.cacheWrite(user, requestContext);
@@ -133,7 +163,7 @@ export class UserRepositoryV2 extends BaseRepositoryV2 implements IUserRepositor
             await this.userLocalDataSource.cacheWrite({ id: uid, ...(payload as Partial<DomainUser>) }, requestContext);
         }
         try {
-            const domain = await this.userRemoteDataSource.updateProfile(payload, normalizedContext);
+            const domain = await this.userSocketDataSource.updateProfile(payload, normalizedContext);
             await this.userLocalDataSource.cacheWrite(domain, requestContext);
             return domain;
         } catch (error) {
@@ -145,7 +175,7 @@ export class UserRepositoryV2 extends BaseRepositoryV2 implements IUserRepositor
     }
 
     public requestInvite(payload: UserInviteInput): Promise<MyInviteView> {
-        return this.userRemoteDataSource.requestInvite(payload);
+        return this.userSocketDataSource.requestInvite(payload);
     }
 
     /**
@@ -156,14 +186,14 @@ export class UserRepositoryV2 extends BaseRepositoryV2 implements IUserRepositor
      * stays a list and `channelId` reaches the server instead of being dropped.
      */
     public async requestInviteBatch(payload: UserInviteBatchPayload): Promise<MyInviteView[]> {
-        const result = await this.userRemoteDataSource.inviteBatch(payload);
+        const result = await this.userSocketDataSource.inviteBatch(payload);
         return result.list || [];
     }
 
     public async syncChannelUsers(payload: ChannelSyncUsersInput): Promise<number> {
         const requestContext = this.getRequestContext();
         const normalizedContext = this.getNormalizedContext(requestContext);
-        const remote = await this.userRemoteDataSource.syncChannelUsers(payload, normalizedContext);
+        const remote = await this.userSocketDataSource.syncChannelUsers(payload, normalizedContext);
 
         await this.userLocalDataSource.cacheWriteMany(remote.users, requestContext);
         // Members arrive with their read-state embedded (`$join`); persist it so every

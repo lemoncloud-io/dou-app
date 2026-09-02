@@ -7,8 +7,7 @@ import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { DefaultAvatar, Divider, GroupLabel, ImageAvatar, ListRow, Switch } from '@chatic/web-ui-kit';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { reportError, useSessionIdentity } from '@chatic/web-core';
-import { toError } from '../../../utils/errors';
+import { useSessionIdentity } from '@chatic/app-runtime';
 
 import { useActivePlaceName } from '../../../hooks';
 import { PlaceProfileCreateDialog } from '../../../ui/components/PlaceProfileCreateDialog';
@@ -107,7 +106,6 @@ export const ChannelSettingsPage = () => {
         } catch (error) {
             setNotifyEnabled(previous);
             logger.error('CHAT', 'Failed to update room notification', { error, data: { channelId } });
-            reportError(toError(error));
             toast({ title: t('chat.settings.notifyFailed'), variant: 'destructive' });
         }
     };
@@ -130,7 +128,6 @@ export const ChannelSettingsPage = () => {
                 error,
                 data: { channelId, userId: selectedMember.id },
             });
-            reportError(toError(error));
             toast({ title: t('chat.settings.kickFailed'), variant: 'destructive' });
         }
     };
@@ -158,7 +155,6 @@ export const ChannelSettingsPage = () => {
             navigate(ROUTES.root, { replace: true });
         } catch (error) {
             logger.error('CHAT', 'Failed to leave room', { error, data: { channelId } });
-            reportError(toError(error));
             toast({ title: t('chat.settings.leaveFailed'), variant: 'destructive' });
         }
     };
@@ -173,7 +169,6 @@ export const ChannelSettingsPage = () => {
             navigate(ROUTES.root, { replace: true });
         } catch (error) {
             logger.error('CHAT', 'Failed to delete room', { error, data: { channelId } });
-            reportError(toError(error));
             toast({ title: t('chat.settings.deleteFailed'), variant: 'destructive' });
         }
     };

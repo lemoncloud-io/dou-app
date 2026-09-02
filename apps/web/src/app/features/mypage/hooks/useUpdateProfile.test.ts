@@ -3,12 +3,14 @@ import { createElement, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook } from '@testing-library/react';
 
-import { patchRelaySessionUser } from '@chatic/web-core';
+import { patchRelaySessionUser } from '@chatic/app-runtime';
 
 import { getRelayAccountGateway } from '../../../runtime/relayAccountGateway';
 import { useUpdateProfile } from './useUpdateProfile';
 
-jest.mock('@chatic/web-core', () => ({ patchRelaySessionUser: jest.fn() }));
+jest.mock('@chatic/app-runtime', () => ({
+    patchRelaySessionUser: jest.fn(),
+}));
 jest.mock('../../../runtime/relayAccountGateway', () => ({ getRelayAccountGateway: jest.fn() }));
 
 const updateMock = jest.fn();

@@ -1,20 +1,23 @@
 import { act, renderHook } from '@testing-library/react';
 import { useIsMutating } from '@tanstack/react-query';
 
-import { useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
-import { useGlobalSession, useSessionSelection } from '@chatic/web-core';
+import { useRuntimeProfile, useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
+import { useGlobalSession, useSessionSelection } from '@chatic/app-runtime';
 
 import { useBackgroundSync } from './useBackgroundSync';
 
 jest.mock('@tanstack/react-query', () => ({ useIsMutating: jest.fn() }));
-jest.mock('@chatic/app-runtime', () => ({ useRuntimeRepositories: jest.fn(), useRuntimeSocketState: jest.fn() }));
-jest.mock('@chatic/web-core', () => ({
+jest.mock('@chatic/app-runtime', () => ({
+    // 훅이 쓰는 키 상수 — 모듈을 목하면 실물 export가 사라진다.
+    SWITCH_SITE_MUTATION_KEY: ['session', 'switch-site'],
+    useRuntimeRepositories: jest.fn(),
+    useRuntimeSocketState: jest.fn(),
+    useRuntimeProfile: jest.fn(),
     useGlobalSession: jest.fn(),
     useSessionSelection: jest.fn(),
-    // The hook imports these key constants; mocking the module drops the real exports.
-    SWITCH_SITE_MUTATION_KEY: ['session', 'switch-site'],
     SWITCH_CLOUD_MUTATION_KEY: ['session', 'switch-cloud'],
 }));
+
 // Capture the foreground handler so tests can fire the signal directly.
 jest.mock('../bridge', () => ({ useAppForeground: jest.fn() }));
 
@@ -27,6 +30,14 @@ const syncProfiles = jest.fn();
 const getMyProfile = jest.fn();
 const getSyncedAt = jest.fn();
 const setSyncedAt = jest.fn();
+const inviteList = jest.fn();
+const inviteCacheReadList = jest.fn();
+
+/** A sent-invite cache holding rows in the given states (only `state` is read here). */
+const cachedInvites = (...states: string[]) => ({
+    list: states.map((state, index) => ({ id: `invt-${index}`, state })),
+    meta: { total: states.length, source: 'local' as const },
+});
 
 const setVerified = (isVerified: boolean) => (useRuntimeSocketState as jest.Mock).mockReturnValue({ isVerified });
 // The latest registered foreground handler (useAppForeground keeps handlers fresh via ref).
@@ -53,15 +64,19 @@ beforeEach(() => {
     getSyncedAt.mockResolvedValue(0);
     setSyncedAt.mockResolvedValue(undefined);
     getMyProfile.mockResolvedValue(undefined);
+    inviteList.mockResolvedValue([]);
+    inviteCacheReadList.mockResolvedValue(cachedInvites());
     (useRuntimeRepositories as jest.Mock).mockReturnValue({
         place: { refreshList },
         channel: { getSelfChannel, syncChannels },
         profile: { syncProfiles },
         user: { getMyProfile },
         syncMeta: { getSyncedAt, setSyncedAt },
+        invite: { list: inviteList, cacheReadList: inviteCacheReadList },
     });
     setSwitching(false);
     setSession('default', 's1');
+    (useRuntimeProfile as jest.Mock).mockReturnValue({ isGuest: false });
 });
 
 describe('useBackgroundSync — 백그라운드 동기화', () => {
@@ -307,6 +322,146 @@ describe('useBackgroundSync — 백그라운드 동기화', () => {
 
         expect(getSelfChannel).not.toHaveBeenCalled();
         expect(syncChannels).toHaveBeenCalledTimes(1);
+    });
+
+    /**
+     * 보낸 초대 레인. 홈은 초대 캐시만 그리고(useRelayInvites의 `remote` 기본 off) 그 캐시를 채우는
+     * 유일한 정기 경로가 여기다 — 옮긴 이유는 홈이 전 유저에게 마운트·포커스마다 relay-pinned
+     * `invite.list`를 쏘던 것이고, 그게 연결 인증 desync를 401로 드러내던 패킷이었다.
+     */
+    it('상승 엣지에서 보낸 초대 목록도 함께 갱신한다', async () => {
+        setVerified(false);
+        const { rerender } = renderHook(() => useBackgroundSync());
+
+        setVerified(true);
+        await act(async () => {
+            rerender();
+        });
+
+        expect(inviteList).toHaveBeenCalledWith({ limit: 100 });
+        expect(inviteList).toHaveBeenCalledTimes(1);
+        // 엣지는 캐시를 묻지 않는다 — 이 기기가 본 적 없는 카드(다른 기기 발급·캐시 초기화)를
+        // 발견하는 유일한 지점이라 조건 없이 쏜다.
+        expect(inviteCacheReadList).not.toHaveBeenCalled();
+    });
+
+    it('포그라운드 복귀에서도 초대 목록을 갱신한다', async () => {
+        setVerified(true);
+        renderHook(() => useBackgroundSync());
+        await act(async () => undefined); // 마운트 상승 엣지 flush
+        inviteList.mockClear();
+
+        await fireForeground();
+
+        expect(inviteList).toHaveBeenCalledTimes(1);
+    });
+
+    it('주기 틱은 살아있는 초대가 없으면 초대 목록을 건너뛴다 — 안 보낸 유저는 0건', async () => {
+        jest.useFakeTimers();
+        setVerified(true);
+        renderHook(() => useBackgroundSync());
+        await act(async () => undefined);
+        expect(inviteList).toHaveBeenCalledTimes(1); // 엣지 1회
+
+        await act(async () => {
+            jest.advanceTimersByTime(60_000);
+        });
+
+        expect(inviteCacheReadList).toHaveBeenCalled(); // 캐시로 판단하고
+        expect(inviteList).toHaveBeenCalledTimes(1); // 패킷은 추가하지 않는다
+        expect(syncChannels).toHaveBeenCalledTimes(2); // 다른 도메인은 평소대로 돈다
+
+        jest.useRealTimers();
+    });
+
+    it.each(['accepted', 'canceled', 'rejected', 'expired'] as const)(
+        '주기 틱은 %s만 남은 캐시도 건너뛴다 — 남의 기기에서 더 변할 수 없는 상태다',
+        async state => {
+            jest.useFakeTimers();
+            inviteCacheReadList.mockResolvedValue(cachedInvites(state));
+            setVerified(true);
+            renderHook(() => useBackgroundSync());
+            await act(async () => undefined);
+
+            await act(async () => {
+                jest.advanceTimersByTime(60_000);
+            });
+
+            expect(inviteList).toHaveBeenCalledTimes(1);
+            jest.useRealTimers();
+        }
+    );
+
+    it('주기 틱은 pending 카드가 캐시에 있으면 초대 목록을 갱신한다 — 수락은 남의 기기에서 일어난다', async () => {
+        jest.useFakeTimers();
+        inviteCacheReadList.mockResolvedValue(cachedInvites('rejected', 'pending'));
+        setVerified(true);
+        renderHook(() => useBackgroundSync());
+        await act(async () => undefined);
+
+        await act(async () => {
+            jest.advanceTimersByTime(60_000);
+        });
+
+        expect(inviteList).toHaveBeenCalledTimes(2);
+        jest.useRealTimers();
+    });
+
+    it('캐시를 못 읽으면 주기 틱은 쏘지 않는다 — 엣지가 어차피 다시 묻는다', async () => {
+        jest.useFakeTimers();
+        inviteCacheReadList.mockRejectedValue(new Error('boom'));
+        setVerified(true);
+        renderHook(() => useBackgroundSync());
+        await act(async () => undefined);
+
+        await act(async () => {
+            jest.advanceTimersByTime(60_000);
+        });
+
+        expect(inviteList).toHaveBeenCalledTimes(1);
+        jest.useRealTimers();
+    });
+
+    it('게스트 세션에서는 초대 목록을 아예 묻지 않는다 — 발급이 메인유저 전용이라 목록이 항상 빈다', async () => {
+        (useRuntimeProfile as jest.Mock).mockReturnValue({ isGuest: true });
+        setVerified(false);
+        const { rerender } = renderHook(() => useBackgroundSync());
+
+        setVerified(true);
+        await act(async () => {
+            rerender();
+        });
+
+        expect(inviteList).not.toHaveBeenCalled();
+        expect(syncChannels).toHaveBeenCalledTimes(1); // 나머지 레인은 그대로 돈다
+    });
+
+    it('클라우드 세션에서는 초대 목록을 갱신하지 않는다 — relay-pinned이고 default 클라우드에서만 렌더된다', async () => {
+        setSession('cloud-1', 's1');
+        setVerified(false);
+        const { rerender } = renderHook(() => useBackgroundSync());
+
+        setVerified(true);
+        await act(async () => {
+            rerender();
+        });
+
+        expect(inviteList).not.toHaveBeenCalled();
+        expect(syncChannels).toHaveBeenCalledTimes(1); // 나머지 레인은 그대로 돈다
+    });
+
+    it('초대 목록 조회 실패가 다른 동기화를 막지 않는다', async () => {
+        inviteList.mockRejectedValue(new Error('401 UNAUTHORIZED - not authenticated invite.list'));
+        setVerified(false);
+        const { rerender } = renderHook(() => useBackgroundSync());
+
+        setVerified(true);
+        await act(async () => {
+            rerender();
+        });
+
+        expect(syncChannels).toHaveBeenCalledTimes(1);
+        expect(syncProfiles).toHaveBeenCalledTimes(1);
     });
 
     it('전환 진행 중(isSwitching)에는 사이트 변경 트리거가 대기하고, 정착 후 발화한다', async () => {

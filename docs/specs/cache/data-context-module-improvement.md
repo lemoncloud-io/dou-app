@@ -87,7 +87,7 @@ flowchart LR
   Resolver --> Snapshot["RequestContextSnapshot"]
   Snapshot --> Repo["Repository V2 methods"]
   Repo --> Local["LocalDataSource V2"]
-  Repo --> Remote["RemoteDataSource"]
+  Repo --> Remote["SocketDataSource"]
 ```
 
 ### 5.3 책임 분리

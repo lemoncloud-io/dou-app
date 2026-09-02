@@ -10,7 +10,7 @@
  *
  * The header is one comment line of `key=value` pairs: `scripts/trace-report.js`
  * splits it on whitespace, and anyone reading the blob still sees a plain stack
- * underneath. See libs/web-core/docs/error-reporting.md.
+ * underneath. See docs/guides/trace-report.md.
  */
 import type { ReportPayload, ReportLogRow } from './parseReportLog';
 

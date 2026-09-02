@@ -1,4 +1,4 @@
-import type { CacheStorage } from '../storages';
+import type { CacheStorage } from '../ports';
 import { ChatLocalDataSourceV2 } from './ChatLocalDataSourceV2';
 
 // Emulate just enough query behavior to validate pagination and channel scoping.

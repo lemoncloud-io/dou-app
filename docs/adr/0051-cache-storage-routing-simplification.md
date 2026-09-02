@@ -12,6 +12,8 @@
 > 제거 및 호출처 이전*이 하루 뒤 채택된 셈이다 — 기각 사유가 기술적 판단이 아니라 외부 제약이었기
 > 때문이다.
 
+> **이름 안내 (2026-09-01):** 이 문서가 쓰는 `*RemoteDataSource` · `RemoteGatewayBundle` · `*DomainGateway` · `remoteFactory` · `remote/data-sources/`는 **당시 이름**이다. 소켓 축이 `Socket` 접두로 옮겨간 뒤의 대응표는 [libs/data/docs/remote/README.md](../../libs/data/docs/remote/README.md#이름-규약-2026-09-01-리네임)에 있다. 기록이므로 본문은 그대로 둔다.
+
 ## 맥락 (Context)
 
 `libs/app-runtime`의 캐시 저장소 조립부가 데이터 레이어의 다른 팩토리들과 구조적으로 동떨어져

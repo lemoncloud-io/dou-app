@@ -2,7 +2,7 @@
 
 > 상태: Live · 최종 갱신: 2026-08-03 · 관련 ADR: [ADR-0042](../../../../docs/adr/0042-account-linking-unified-path-migration.md) · 시나리오 전수표: [account-linking-scenarios.md](../../../../docs/plans/account-linking-scenarios.md)
 >
-> 대상: `AuthDomainGateway` · `AuthRemoteDataSource` · `AuthRepositoryV2` · `useLinkAccount` · `useLinkedAccounts`
+> 대상: `AuthSocketDomainGateway` · `AuthSocketDataSource` · `AuthRepositoryV2` · `useLinkAccount` · `useLinkedAccounts`
 
 ## 목적
 
@@ -55,8 +55,8 @@
 
 **포함**
 
-- `AuthDomainGateway`의 `linkAccount` + 컴포지션 루트의 relay 핀
-- `AuthRemoteDataSource`의 5개 메서드(번호 send/verify/confirm, 소셜 verify/confirm)
+- `AuthSocketDomainGateway`의 `linkAccount` + 컴포지션 루트의 relay 핀
+- `AuthSocketDataSource`의 5개 메서드(번호 send/verify/confirm, 소셜 verify/confirm)
 - `AuthRepositoryV2`의 같은 5개 위임
 - `useLinkAccount`(뮤테이션 묶음) · `useLinkedAccounts`(`link$` 3상태 판정)
 - `MyUser` 타입의 `link$` 확장
@@ -125,9 +125,9 @@ graph TD
     UI["화면<br/>PhoneVerifySheet · AccountLinkSection"]
     HK["useLinkAccount<br/>(뮤테이션 5개)"]
     RP["AuthRepositoryV2"]
-    DS["AuthRemoteDataSource<br/>type·mode·step 조립"]
-    GW["AuthDomainGateway<br/>Pick&lt;AuthGateway, 'update' | 'linkAccount'&gt;"]
-    RF["remoteFactory<br/>getScopedClient('relay')"]
+    DS["AuthSocketDataSource<br/>type·mode·step 조립"]
+    GW["AuthSocketDomainGateway<br/>Pick&lt;AuthGateway, 'update' | 'linkAccount'&gt;"]
+    RF["socketFactory<br/>getScopedClient('relay')"]
     SRV["relay 서버<br/>auth.link-account"]
 
     UI --> HK --> RP --> DS --> GW
@@ -137,7 +137,7 @@ graph TD
 
 `auth.update`는 **active 슬롯**에 남는다 — 어느 소켓이 살아 있든 그걸 인증하는 패킷이라서다.
 `linkAccount`만 relay에 고정된다: 그것이 해석하는 메인유저가 relay 뒤 중앙 백엔드에 살기 때문이다
-(`remoteFactory.ts:57-61`).
+(`socketFactory.ts:57-61`).
 
 ### 단계 × 모드 → 응답
 
@@ -158,7 +158,7 @@ stateDiagram-v2
 
 ```mermaid
 graph LR
-    SRV["서버<br/>UserProfile$"] --> RDS["UserRemoteDataSource:71<br/>$user 추출"]
+    SRV["서버<br/>UserProfile$"] --> RDS["UserSocketDataSource:71<br/>$user 추출"]
     RDS --> MAP["toDomainUser<br/>mappers.ts:172 (...api)"]
     MAP --> LDS["UserLocalDataSourceV2:96<br/>cacheWrite (...item)"]
     LDS --> IDB[(IndexedDB)]
@@ -173,12 +173,12 @@ graph LR
 
 ### 전송 계층
 
-| 파일                                                             | 역할                                                                                                                                                                                                      |
-| ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `libs/data/src/data/remote/gateways/index.ts:21`                 | `AuthDomainGateway = Pick<AuthGateway, 'update' \| 'linkAccount'>`. 구 둘을 **일부러 빼 둔다** — `AuthGateway`에는 아직 `@deprecated`로 남아 있고, 이 `Pick`이 호출부가 그걸 집는 것을 막는 유일한 장치다 |
-| `libs/app-runtime/src/data/factories/remoteFactory.ts:57-61`     | `linkAccount: relayAuthGateway.linkAccount`. 목적지를 컴포지션 시점에 고정해 호출부가 route 인자로 잊을 수 없게 한다                                                                                      |
-| `libs/data/src/data/remote/data-sources/AuthRemoteDataSource.ts` | `type`·`mode`·`step` 조립을 **독점**한다. `sendPhoneCode`(`resend`로 step 파생) · `verifyPhoneCode` · `confirmPhoneCode` · `verifySocialAccount` · `confirmSocialAccount`                                 |
-| `libs/data/src/data/repositories-v2/AuthRepositoryV2.ts`         | 같은 5개를 위임한다. remote-only — 여기엔 캐시할 엔티티가 없다(ADR-0036)                                                                                                                                  |
+| 파일                                                                    | 역할                                                                                                                                                                                                            |
+| ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `libs/data/src/data/remote/gateways/socket.ts:21`                       | `AuthSocketDomainGateway = Pick<AuthGateway, 'update' \| 'linkAccount'>`. 구 둘을 **일부러 빼 둔다** — `AuthGateway`에는 아직 `@deprecated`로 남아 있고, 이 `Pick`이 호출부가 그걸 집는 것을 막는 유일한 장치다 |
+| `libs/app-runtime/src/data/factories/socketFactory.ts:57-61`            | `linkAccount: relayAuthGateway.linkAccount`. 목적지를 컴포지션 시점에 고정해 호출부가 route 인자로 잊을 수 없게 한다                                                                                            |
+| `libs/data/src/data/remote/socket-data-sources/AuthSocketDataSource.ts` | `type`·`mode`·`step` 조립을 **독점**한다. `sendPhoneCode`(`resend`로 step 파생) · `verifyPhoneCode` · `confirmPhoneCode` · `verifySocialAccount` · `confirmSocialAccount`                                       |
+| `libs/data/src/data/repositories-v2/AuthRepositoryV2.ts`                | 같은 5개를 위임한다. remote-only — 여기엔 캐시할 엔티티가 없다(ADR-0036)                                                                                                                                        |
 
 **미지정 발송 스위치는 페이로드에서 빠진다.** `sms: false`를 리터럴로 실으면 채널이 꺼져 버리므로,
 지정한 것만 넘겨 서버 기본값(`dryRun=false`·`sms=true`·`slack=true`)이 살게 한다.
@@ -214,7 +214,7 @@ graph LR
 - `npx jest --config libs/data/jest.config.js --runInBand --watchman=false --testPathPatterns "Auth"` —
   데이터 소스의 조립(모드 축·step 파생·미지정 스위치 누락·증명 단계에 `code` 부재)과 리포지토리 위임.
   `linkable: false`를 에러로 바꾸지 않는다는 계약도 여기 고정돼 있다.
-- `npx jest --config libs/app-runtime/jest.config.js --runInBand --watchman=false --testPathPatterns "remoteFactory"` —
+- `npx jest --config libs/app-runtime/jest.config.js --runInBand --watchman=false --testPathPatterns "socketFactory"` —
   **relay 핀 계약**. 네 단계 전부가 relay 슬롯으로 가고 `auth.update`만 active에 남는지. 게이트웨이
   번들을 내주지 않으므로(ADR-0036) 데이터 소스 경유로 관측한다.
 - `npx jest --config apps/web/jest.config.js --runInBand --watchman=false --testPathPatterns "PhoneVerify|useSocialLinks|ContactInvitePage"` —

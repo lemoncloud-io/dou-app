@@ -10,10 +10,14 @@
 
 ```mermaid
 flowchart TD
-  SocketManager["SocketManager"] --> Gateways["Remote API Gateways"]
-  Gateways --> Remote["Remote Data Sources"]
-  Context["DataContext"] --> Local["Local Data Sources"]
-  Remote --> Repo["Repositories"]
+  SocketManager["SocketManager"] --> Gateways["socket gateways"]
+  Gateways --> Remote["socket data sources"]
+  HttpManager["HttpManager"] --> HttpGw["http gateways"]
+  HttpGw --> Http["http data sources"]
+  Scope["ActiveScope (session/scope)"] --> Local["local data sources"]
+  Scope --> Repo["Repositories"]
+  Remote --> Repo
+  Http --> Repo
   Local --> Repo
 ```
 
@@ -21,16 +25,28 @@ flowchart TD
 
 ### `DataManager`
 
-- data context 생명주기 관리 — `DataContextHolder`에 현재 `{ cid, sid?, uid? }` 보관
-- `ensure(context)`로 context 갱신 후 repository 반환
-- `destroy()`로 context를 `DEFAULT_CONTEXT`로 리셋 (**캐시는 비우지 않는다**)
-- **`socketAwareProvider`** — context holder를 감싸 `getContext()`마다 live `socketCid = getSocketManager().getBoundCid()`를 주입한다. repository가 socket이 붙은 클라우드와 캐시 컨텍스트 클라우드의 **불일치를 감지해 오염 쓰기를 스킵**하도록 한다(cross-cloud 가드).
+- local · socket · http 세 데이터소스 번들을 조립해 **생성자에서 1회** repository 그래프를 만든다
+- repository에 [`ActiveScope`](../../src/session/scope/ActiveScope.ts)를 `DataContextProvider`로
+  주입한다. scope는 매 read마다 intent(`{cid, sid, uid}`)에 live `socketCid`(= `getBoundCid()`)를
+  합성하므로, repository가 socket이 붙은 클라우드와 캐시 컨텍스트 클라우드의 **불일치를 감지해 오염
+  쓰기를 스킵**할 수 있다(cross-cloud 가드 — [../session/architecture.md](../session/architecture.md)).
+- **local 데이터소스는 intent만 받는다** — `socketCid` 없이. 그들의 일은 캐시 파티션 키
+  (`${type}:${cid}:${uid}:${id}`)를 만드는 것이고, bound-socket 관점의 판정은 repository 층의 몫이다.
+- `getSocketManager()`는 **매 호출마다 해석**한다(생성 시점에 캡처하지 않는다). 런타임이 지연 조립되므로
+  생성 시점 인스턴스를 붙들면 아직 없는 매니저를 고정하거나 재조립을 놓친다.
 
-### `remoteFactory`
+> **`ensure(context)`·`destroy()`는 없다.** 스코프가 매 read마다 `session/store`에서 파생되면서
+> 커밋할 것이 없어졌고, 컨텍스트를 받아 두고 무시하는 메서드는 "밀어 넣으면 반영된다"는 오해를
+> 초대하므로 표면에서 지웠다. 커밋을 되살리면 관측자가 stale cid로 구독하던 render-lag가 돌아온다.
+> 세션을 비우는 것은 로그아웃 경로의 일이지 이 매니저의 일이 아니다. 남은 표면은 `getRepositories()`와
+> `getContext()` 둘뿐이다.
 
-- socket 기반 gateway 조립
-- remote data source 조립
-- repository가 사용할 remote interface 제공
+### `socketFactory` · `httpFactory` · `localFactory`
+
+- `socketFactory` — socket 기반 gateway 조립 → socket data source 번들
+- `httpFactory` — `HttpManager`의 게이트웨이 → http data source 번들
+- `localFactory` — 캐시 백엔드 실체화(`getCacheStorage`) + 공유 IndexedDB 연결, `getCacheMetricsSource`
+- 셋 다 repository가 사용할 인터페이스만 반환한다. 게이트웨이 인스턴스는 밖으로 나오지 않는다.
 
 ### repository
 
@@ -47,15 +63,15 @@ flowchart TD
 - socket reconnect policy
 - sync runtime 생성/정지
 
-## socket 의존 규칙
+## transport 의존 규칙
 
-- `remoteFactory`는 raw client에 직접 의존하지 않는다.
-- `remoteFactory`는 `SocketManager`의 stable socket API를 사용한다.
+- `socketFactory`는 raw client에 직접 의존하지 않는다 — `SocketManager`의 stable active-facade를 쓴다.
+- `httpFactory`는 HTTP 클라이언트를 만들지 않는다 — `http/`가 조립한 게이트웨이를 받는다.
 
 이 규칙의 목적:
 
-- socket 교체가 data 조립 로직으로 새지 않게 하기 위함
-- retry/rebind 책임을 data가 떠안지 않게 하기 위함
+- socket 교체·슬롯 전환이 data 조립 로직으로 새지 않게 하기 위함
+- retry/rebind/서명 책임을 data가 떠안지 않게 하기 위함
 
 ## sync와의 경계
 
@@ -71,15 +87,16 @@ flowchart TD
 
 ### cloud/site 전환
 
-- `RuntimeDataBinder`가 `DataManager.ensure(context)`를 호출한다.
-- repository는 새 scope 기준 캐시를 읽는다.
+- 밀어넣는 단계가 없다. 선택 상태가 `session/store`에서 바뀌는 순간 `ActiveScope`가 다음 read부터
+  새 scope를 보고하고, repository는 그 기준으로 캐시를 읽는다.
+- 낙관 창(cid는 뒤집혔지만 소켓은 아직 옛 클라우드) 동안의 오염은 `socketCid` 합성 + scope guard가 막는다.
 - socket/session 계층의 재인증은 별도 책임이다.
 
 ### logout
 
-- 외부 세션 레이어가 필요 시 `DataManager.destroy()`를 호출한다.
-- data는 자기 리소스만 정리한다.
-- socket/session 상태를 직접 제어하지 않는다.
+- 세션 teardown은 세션 레이어가 소유한다. `DataManager`에는 teardown 표면이 없다 — 지울 로컬 상태가
+  없기 때문이다.
+- 로컬 캐시는 비우지 않는다 — scope가 바뀌면 다른 파티션을 읽을 뿐이다.
 
 ## 저장소 선택과 web↔app 배포 스큐
 
@@ -107,6 +124,6 @@ flowchart TD
 - [cache-contract-versions.md](cache-contract-versions.md) — 도메인별 캐시 계약 판번호 협상 (ADR-0053) — 위 3번 판정의 소유 문서
 - [invite-local-cache.md](invite-local-cache.md) — 초대 목록 로컬 캐시·자격증명 분리 (ADR-0052) — `invite` CacheType이 스큐 게이트를 실제로 처음 통과한 사례
 - [invite-cloud-durability.md](invite-cloud-durability.md) — 초대클라우드 푸시 복구·이름 동기화
-- [context-design.md](context-design.md) — 전역/요청 context 분리 설계
+- [../session/architecture.md](../session/architecture.md) — `ActiveScope` 세 뷰·판정 함수 소유자
 - [../architecture.md](../architecture.md) — 전체 아키텍처·소유 규칙
-- [../sync/README.md](../socket/sync/README.md) — sync 결과의 cache 반영 경계
+- [../socket/sync/README.md](../socket/sync/README.md) — sync 결과의 cache 반영 경계

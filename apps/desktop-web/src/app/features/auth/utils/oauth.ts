@@ -1,4 +1,4 @@
-import { SOCIAL_OAUTH_ENDPOINT } from '@chatic/web-core';
+import { SOCIAL_OAUTH_ENDPOINT } from '@chatic/app-runtime';
 
 /**
  * Social Login URL plumbing (ADR 0009). The OAuth Relay fronts every provider:

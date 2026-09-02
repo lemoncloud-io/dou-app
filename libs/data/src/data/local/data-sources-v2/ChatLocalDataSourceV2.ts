@@ -3,7 +3,7 @@ import type { CacheChatView, ChatQueryOptions, LastChatItem } from '@chatic/app-
 import type { DomainChat, DomainLastChat, DomainListResult } from '../../domain';
 import { createDomainListResult, isPreviewableChat, pickPreviewChat } from '../../domain';
 import type { DataContextProvider } from '../../repositories-v2/types';
-import type { CacheStorage } from '../storages';
+import type { CacheStorage } from '../ports';
 import {
     BaseLocalDataSourceV2,
     type ILocalDataSourceV2,

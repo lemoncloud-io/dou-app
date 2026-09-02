@@ -3,7 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { useNavigateWithTransition } from '@chatic/shared';
 
 import { DefaultAvatar, IconChevronRight, IconSettings, IconUserOutline, ListRow, MenuCard } from '@chatic/web-ui-kit';
-import { useCloudSessionCatalog, useMembershipInfo } from '@chatic/web-core';
+import { useCloudSessionCatalog } from '../../../hooks/useCloudCatalog';
+import { useMembershipInfo } from '../../../hooks/useMembership';
 import { useRuntimeProfile } from '@chatic/app-runtime';
 
 import { BottomNavSpacer } from '../../../ui/components';

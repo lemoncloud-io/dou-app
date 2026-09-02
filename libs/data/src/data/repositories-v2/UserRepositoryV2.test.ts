@@ -7,7 +7,7 @@ describe('UserRepositoryV2', () => {
         context: DataContext = { cid: 'cloud-a', sid: 'site-1', uid: 'me' }
     ) => {
         // User repository mixes cache writes and helper passthroughs, so keep each collaborator fully isolated.
-        const userRemoteDataSource = {
+        const userSocketDataSource = {
             fetchUsers: jest.fn(),
             getMyProfile: jest.fn(),
             updateProfile: jest.fn(),
@@ -52,14 +52,14 @@ describe('UserRepositoryV2', () => {
 
         return {
             repository: new UserRepositoryV2(
-                userRemoteDataSource as any,
+                userSocketDataSource as any,
                 userLocalDataSource as any,
                 joinLocalDataSource as any,
                 placeLocalDataSource as any,
                 contextProvider,
                 options
             ),
-            userRemoteDataSource,
+            userSocketDataSource,
             userLocalDataSource,
             joinLocalDataSource,
             placeLocalDataSource,
@@ -67,8 +67,8 @@ describe('UserRepositoryV2', () => {
     };
 
     it('writes synced channel users + their embedded joins and returns the next since cursor', async () => {
-        const { repository, userRemoteDataSource, userLocalDataSource, joinLocalDataSource } = createRepository();
-        userRemoteDataSource.syncChannelUsers.mockResolvedValue({
+        const { repository, userSocketDataSource, userLocalDataSource, joinLocalDataSource } = createRepository();
+        userSocketDataSource.syncChannelUsers.mockResolvedValue({
             users: [{ id: 'u1', cid: 'cloud-a', name: 'Alice' }],
             joins: [{ id: 'ch-1@u1', cid: 'cloud-a', channelId: 'ch-1', userId: 'u1', readNo: 7 }],
             ids: ['u1'],
@@ -91,8 +91,8 @@ describe('UserRepositoryV2', () => {
     });
 
     it('skips the join cache write when no members carry an embedded join', async () => {
-        const { repository, userRemoteDataSource, joinLocalDataSource } = createRepository();
-        userRemoteDataSource.syncChannelUsers.mockResolvedValue({
+        const { repository, userSocketDataSource, joinLocalDataSource } = createRepository();
+        userSocketDataSource.syncChannelUsers.mockResolvedValue({
             users: [{ id: 'u1', cid: 'cloud-a' }],
             joins: [],
             ids: ['u1'],
@@ -105,10 +105,10 @@ describe('UserRepositoryV2', () => {
     });
 
     it('hydrates both the user cache and the join cache on refreshList', async () => {
-        const { repository, userRemoteDataSource, userLocalDataSource, joinLocalDataSource } = createRepository();
+        const { repository, userSocketDataSource, userLocalDataSource, joinLocalDataSource } = createRepository();
         // The read cursor rides in on the roster response but never on the user record — the
         // data source hands it over separately (see ChannelUsersFetchResult).
-        userRemoteDataSource.fetchUsers.mockResolvedValue({
+        userSocketDataSource.fetchUsers.mockResolvedValue({
             users: {
                 list: [
                     { id: 'u1', cid: 'cloud-a' },
@@ -135,8 +135,8 @@ describe('UserRepositoryV2', () => {
     });
 
     it('hydrates the user cache and caches the embedded $site into the place store', async () => {
-        const { repository, userRemoteDataSource, userLocalDataSource, placeLocalDataSource } = createRepository();
-        userRemoteDataSource.getMyProfile.mockResolvedValue({
+        const { repository, userSocketDataSource, userLocalDataSource, placeLocalDataSource } = createRepository();
+        userSocketDataSource.getMyProfile.mockResolvedValue({
             user: { id: 'me', cid: 'cloud-a', name: 'Me' },
             site: { id: 'site-1', cid: 'cloud-a', name: 'My Site' },
         });
@@ -157,8 +157,8 @@ describe('UserRepositoryV2', () => {
     });
 
     it('skips the place cache write when the profile carries no $site', async () => {
-        const { repository, userRemoteDataSource, placeLocalDataSource } = createRepository();
-        userRemoteDataSource.getMyProfile.mockResolvedValue({ user: { id: 'me', cid: 'cloud-a' }, site: null });
+        const { repository, userSocketDataSource, placeLocalDataSource } = createRepository();
+        userSocketDataSource.getMyProfile.mockResolvedValue({ user: { id: 'me', cid: 'cloud-a' }, site: null });
 
         await repository.getMyProfile();
 
@@ -169,9 +169,9 @@ describe('UserRepositoryV2', () => {
         const relayOnly: UserRepositoryV2Options = {
             persistEmbeddedSite: context => (context.cid ?? 'default') === 'default',
         };
-        const { repository, userRemoteDataSource, userLocalDataSource, placeLocalDataSource } =
+        const { repository, userSocketDataSource, userLocalDataSource, placeLocalDataSource } =
             createRepository(relayOnly);
-        userRemoteDataSource.getMyProfile.mockResolvedValue({
+        userSocketDataSource.getMyProfile.mockResolvedValue({
             user: { id: 'me', cid: 'cloud-a' },
             site: { id: 'site-default', cid: 'cloud-a' },
         });
@@ -188,12 +188,12 @@ describe('UserRepositoryV2', () => {
         const relayOnly: UserRepositoryV2Options = {
             persistEmbeddedSite: context => (context.cid ?? 'default') === 'default',
         };
-        const { repository, userRemoteDataSource, placeLocalDataSource } = createRepository(relayOnly, {
+        const { repository, userSocketDataSource, placeLocalDataSource } = createRepository(relayOnly, {
             cid: 'default',
             sid: 'site-1',
             uid: 'me',
         });
-        userRemoteDataSource.getMyProfile.mockResolvedValue({
+        userSocketDataSource.getMyProfile.mockResolvedValue({
             user: { id: 'me', cid: 'default' },
             site: { id: 'site-default', cid: 'default' },
         });
@@ -208,9 +208,9 @@ describe('UserRepositoryV2', () => {
     });
 
     it('rolls back an optimistic profile patch when updateProfile fails', async () => {
-        const { repository, userRemoteDataSource, userLocalDataSource } = createRepository();
+        const { repository, userSocketDataSource, userLocalDataSource } = createRepository();
         userLocalDataSource.cacheRead.mockResolvedValue({ id: 'u1', name: 'Before' });
-        userRemoteDataSource.updateProfile.mockRejectedValue(new Error('boom'));
+        userSocketDataSource.updateProfile.mockRejectedValue(new Error('boom'));
 
         await expect(repository.updateProfile({ userId: 'u1', name: 'After' } as any)).rejects.toThrow('boom');
 
@@ -222,9 +222,9 @@ describe('UserRepositoryV2', () => {
     });
 
     it('passes invite helper calls straight to the remote datasource', async () => {
-        const { repository, userRemoteDataSource } = createRepository();
-        userRemoteDataSource.requestInvite.mockResolvedValue({ code: 'invite-1' });
-        userRemoteDataSource.inviteBatch.mockResolvedValue({ list: [{ code: 'invite-2' }] });
+        const { repository, userSocketDataSource } = createRepository();
+        userSocketDataSource.requestInvite.mockResolvedValue({ code: 'invite-1' });
+        userSocketDataSource.inviteBatch.mockResolvedValue({ list: [{ code: 'invite-2' }] });
 
         // Invite helpers should remain passthroughs so callers see the backend contract directly.
         await expect(repository.requestInvite({ alias: 'a' } as any)).resolves.toEqual({ code: 'invite-1' });
@@ -234,8 +234,8 @@ describe('UserRepositoryV2', () => {
     });
 
     it('forwards the batch payload untouched — the recipient list stays a list, channelId survives', async () => {
-        const { repository, userRemoteDataSource } = createRepository();
-        userRemoteDataSource.inviteBatch.mockResolvedValue({ list: [] });
+        const { repository, userSocketDataSource } = createRepository();
+        userSocketDataSource.inviteBatch.mockResolvedValue({ list: [] });
 
         await repository.requestInviteBatch({
             to: ['+821011112222', '+821033334444'],
@@ -244,9 +244,51 @@ describe('UserRepositoryV2', () => {
 
         // Folding the list into one comma-joined string is what made the server read it as a single
         // phone and reject it (`@phone[a,b] is invalid format`); dropping channelId lost the target.
-        expect(userRemoteDataSource.inviteBatch).toHaveBeenCalledWith({
+        expect(userSocketDataSource.inviteBatch).toHaveBeenCalledWith({
             to: ['+821011112222', '+821033334444'],
             channelId: 'ch-1',
         });
+    });
+});
+
+describe('UserRepositoryV2 — HTTP relay-user/profile surface (ADR-0070 2단계 후반)', () => {
+    const contextProvider = { getContext: () => ({ cid: 'cloud-a', uid: 'me' }), setContext: () => undefined };
+    const emptyLocal = () => ({
+        observeList: jest.fn(() => () => undefined),
+        observeItem: jest.fn(() => () => undefined),
+        cacheRead: jest.fn(),
+        cacheReadList: jest.fn(),
+        cacheWrite: jest.fn(),
+        cacheWriteMany: jest.fn(),
+        cacheDelete: jest.fn(),
+        cacheClear: jest.fn(),
+    });
+
+    it('throws a clear error when IUserHttpDataSource is not injected', async () => {
+        const repository = new UserRepositoryV2(
+            {} as any,
+            emptyLocal() as any,
+            emptyLocal() as any,
+            emptyLocal() as any,
+            contextProvider as any
+        );
+
+        await expect(repository.tryFetchProfile()).rejects.toThrow('not injected');
+    });
+
+    it('delegates to the injected http data source', async () => {
+        const http = { listRelayUsers: jest.fn(), tryFetchProfile: jest.fn(), updateProfileHttp: jest.fn() };
+        http.tryFetchProfile.mockResolvedValue({ id: 'u1' });
+        const repository = new UserRepositoryV2(
+            {} as any,
+            emptyLocal() as any,
+            emptyLocal() as any,
+            emptyLocal() as any,
+            contextProvider as any,
+            undefined,
+            http as any
+        );
+
+        await expect(repository.tryFetchProfile()).resolves.toEqual({ id: 'u1' });
     });
 });

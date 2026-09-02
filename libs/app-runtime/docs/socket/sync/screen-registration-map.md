@@ -30,14 +30,14 @@
 정하지 않고 타입별 캐시 반영만 담당한다. **`DeviceSyncPlan`은 plans.ts에 없다** — `createDeviceRuntime`가
 자체 주입한다.
 
-| 플랜              | 트리거                                                  | 캐시 반영                                            |
-| ----------------- | ------------------------------------------------------- | ---------------------------------------------------- |
-| `DeviceSyncPlan`  | createDeviceRuntime 주입, connect 시 `device.save` 소유 | (라이브러리)                                         |
-| `ChannelSyncPlan` | `onUpdate` / `onRemove`                                 | `channel.cacheWrite(toDomainChannel)` — `$join` 포함 |
-| `PlaceSyncPlan`   | `onUpdate` / `onRemove`                                 | `place.cacheWrite(toDomainPlace)`                    |
-| `ProfileSyncPlan` | `onUpdate` / `onRemove`                                 | `profile.cacheWrite(toDomainProfile)`                |
-| `ChatSyncPlan`    | `onApply` (append-only 델타, 오름차순)                  | `chat.cacheWriteMany(toDomainChat)`                  |
-| `JoinSyncPlan`    | `onUpdate` (single-join polling)                        | `join.cacheWrite(toDomainJoin)`                      |
+| 플랜              | 트리거                                                                      | 캐시 반영                                                                                      |
+| ----------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `DeviceSyncPlan`  | createDeviceRuntime 주입, connect 시 `device.save` 소유                     | (라이브러리)                                                                                   |
+| `ChannelSyncPlan` | `onUpdate` / `onRemove`                                                     | `channel.cacheWrite(toDomainChannel)` — `$join` 포함                                           |
+| `PlaceSyncPlan`   | `onUpdate` / `onRemove`                                                     | `place.cacheWrite(toDomainPlace)`                                                              |
+| `ProfileSyncPlan` | `onUpdate` / `onRemove`                                                     | `profile.cacheWrite(toDomainProfile)`                                                          |
+| `ChatSyncPlan`    | `onApply` (새 메시지 델타, 오름차순) · `onUpdate` (이미 아는 chatNo의 변경) | `onApply` → `chat.cacheWriteMany(toDomainChat)` · `onUpdate` → `chat.cacheWrite(toDomainChat)` |
+| `JoinSyncPlan`    | `onUpdate` (single-join polling)                                            | `join.cacheWrite(toDomainJoin)`                                                                |
 
 등록 API: `registerDevice/Channel/Place/Profile/Chat/Join(id)` — 키로 ref-count, 같은 id 중복
 등록은 dedup (`SyncManager.register`).

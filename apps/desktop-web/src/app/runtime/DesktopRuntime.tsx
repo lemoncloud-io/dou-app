@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from 'react';
 
-import { RuntimeConnectionHost, useRuntimeBinding } from '@chatic/app-runtime';
-import { useSessionAuth } from '@chatic/web-core';
+import { RuntimeConnectionHost, useCloudCredentialGuard, useRuntimeBinding } from '@chatic/app-runtime';
+import { useSessionAuth } from '@chatic/app-runtime';
 import { Toaster } from '@chatic/ui-kit/components/ui/toaster';
 import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
 
@@ -28,6 +28,7 @@ import {
 } from '../shared';
 import { BackgroundSyncRunner } from './BackgroundSyncRunner';
 import { useRealtimeProfileSync } from './useRealtimeProfileSync';
+import { useRelayCredentialRefresh } from './useRelayCredentialRefresh';
 
 // Debug frame log: start recording inbound socket envelopes for the whole session, so the
 // debug page opens onto a buffer that was already filling. Module-scope (not an effect) —
@@ -120,12 +121,36 @@ const ShellUnreadSync = () => {
 /**
  * Runtime layer — assembles the declarative `RuntimeConnectionHost` (transport bootstrap,
  * socket lifecycle and re-auth from the binding). Session readiness is owned by
- * `RuntimeConnectionHost`, which is the single web-core init driver (`useInitWebCore`) and builds
+ * `RuntimeConnectionHost`, which is the single web-core init driver (`useRelaySessionInit`) and builds
  * its own socket session delegate internally — apps no longer inject one. The desktop notification /
  * unread / connection runners self-gate on socket verification.
  */
 export const DesktopRuntime = () => {
     const binding = useRuntimeBinding();
+
+    // Ask the socket to re-mint stale relay HTTP signing credentials as soon as it verifies (and on
+    // return from sleep). The sealed transport init no longer refreshes them and the SDK's first
+    // writeback is a refresh cycle (5min) away, so without this every relay-signed request — the
+    // cloud switch's `delegate-cloud` first among them — 403s meanwhile, and a 403 with no CORS
+    // header reaches the app as a bare `Network Error`.
+    useRelayCredentialRefresh();
+
+    // The cloud half of the same problem. A cloud AWS credential also lives about an hour, and the
+    // only thing that re-mints it mid-session is the cloud socket's refresh writeback — so a session
+    // that stays inside one cloud (or whose cloud socket drops) simply lets it lapse, and every
+    // cloud-signed request 403s the same opaque way. Re-entering a cloud hid this, because entering
+    // re-issues.
+    //
+    // Called with no policy, unlike the relay hook next door, and the difference is not an oversight:
+    //  - The hub arms itself off the credential's own `Expiration`, so there is no cadence to pick.
+    //  - `checkOnVisible` defaults to true and this shell gets real `visibilitychange` events, so the
+    //    wake-from-sleep trigger needs no local wiring (apps/web only adds one because a native
+    //    WebView does not fire it reliably).
+    //  - It must NOT be gated on the cloud socket. Cloud recovery is a RE-ISSUE from the relay
+    //    identity, not a refresh, so it works precisely when that socket is down — which is the case
+    //    this guard exists for. Gating it the way the relay hook gates its visibility trigger would
+    //    disable it exactly when it is needed.
+    useCloudCredentialGuard();
 
     return (
         <RuntimeConnectionHost binding={binding}>

@@ -27,12 +27,14 @@ jest.mock('react-i18next', () => ({
     useTranslation: () => ({ t: (k: string) => k, i18n: { language: 'ko' } }),
 }));
 // Only the role gate is read here; the sheet itself is stubbed below.
-jest.mock('@chatic/app-runtime', () => ({ useRuntimeProfile: () => ({ isGuest: mockIsGuest }) }));
+jest.mock('@chatic/app-runtime', () => ({
+    useRuntimeProfile: () => ({ isGuest: mockIsGuest }),
+}));
 jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
 // The real barrel also exports CloudLogo, which needs `@chatic/assets` (not resolvable under
 // jest) — mocked the same way InvitePage.test.tsx does, since only PageHeader is used here.
 jest.mock('../../../ui/components', () => ({ PageHeader: (p: any) => <div>{p.title}</div> }));
-jest.mock('@chatic/web-core', () => ({ reportError: jest.fn() }));
+
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
 jest.mock('../../../hooks', () => ({
     useMyProfile: () => ({ profile: { nick: '보낸이' } }),

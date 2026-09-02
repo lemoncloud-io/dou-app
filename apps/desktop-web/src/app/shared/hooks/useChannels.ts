@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import type { DomainChannel } from '@chatic/data';
-import { useRuntimeRepositories, useSocketState } from '@chatic/app-runtime';
-import { useSessionIdentity } from '@chatic/web-core';
+import { useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
+import { useSessionIdentity } from '@chatic/app-runtime';
 
 import { computeChannelUnread } from '../utils';
 import { useReadCursorStore } from '../stores';
@@ -45,7 +45,7 @@ export const useChannels = (placeId: string | undefined) => {
     const { channel: channelRepository } = useRuntimeRepositories();
     const { userId: myUid } = useSessionIdentity();
     const readCursors = useReadCursorStore(s => s.cursors);
-    const { isVerified } = useSocketState();
+    const { isVerified } = useRuntimeSocketState();
     const [rawChannels, setRawChannels] = useState<DomainChannel[]>([]);
     const [rawLoading, setRawLoading] = useState(true);
 

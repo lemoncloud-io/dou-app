@@ -1,10 +1,9 @@
 import { useState } from 'react';
 
-import { reportError } from '@chatic/web-core';
+import { logger } from '@chatic/bridges';
 import type { DomainChannel } from '@chatic/data';
 import type { ChannelCreateInput } from '@lemoncloud/chatic-sockets-api';
 
-import { toError } from '../../../utils/errors';
 import { useChannelMutations } from './useChannelMutations';
 
 /**
@@ -27,7 +26,7 @@ export const useCreateChannel = () => {
             return newChannel;
         } catch (error) {
             setIsError(true);
-            reportError(toError(error));
+            logger.error('CHAT', '[useCreateChannel] create failed', { error });
             throw error;
         }
     };

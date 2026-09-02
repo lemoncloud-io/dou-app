@@ -4,7 +4,7 @@ import type { DomainInvite, DomainListResult } from '../domain';
 import { createDomainListResult } from '../domain';
 import { toCacheInviteView } from '../local/data-sources-v2/inviteCacheView';
 import type { IInviteLocalDataSourceV2 } from '../local/data-sources-v2';
-import type { IInviteRemoteDataSource, RelayInviteView } from '../remote/data-sources';
+import type { IInviteSocketDataSource, RelayInviteView } from '../remote/socket-data-sources';
 import type { DataContextProvider } from './types';
 import { BaseRepositoryV2, type DisposableRepositoryV2 } from './types';
 
@@ -97,7 +97,7 @@ export interface IInviteRepositoryV2 extends DisposableRepositoryV2 {
  */
 export class InviteRepositoryV2 extends BaseRepositoryV2 implements IInviteRepositoryV2 {
     constructor(
-        private readonly inviteRemoteDataSource: IInviteRemoteDataSource,
+        private readonly inviteSocketDataSource: IInviteSocketDataSource,
         private readonly inviteLocalDataSource: IInviteLocalDataSourceV2,
         contextProvider: DataContextProvider
     ) {
@@ -105,33 +105,33 @@ export class InviteRepositoryV2 extends BaseRepositoryV2 implements IInviteRepos
     }
 
     public async list(filter: InviteListInput | null = null): Promise<MyInviteView[]> {
-        const views = await this.inviteRemoteDataSource.listInvites(filter);
+        const views = await this.inviteSocketDataSource.listInvites(filter);
         await this.mirrorToCache(views);
         return views;
     }
 
     public async create(input: InviteCreateInput): Promise<MyInviteView> {
-        const view = await this.inviteRemoteDataSource.createInvite(input);
+        const view = await this.inviteSocketDataSource.createInvite(input);
         await this.mirrorToCache([view]);
         return view;
     }
 
     public async get(code: string): Promise<RelayInviteView> {
-        return this.inviteRemoteDataSource.getInvite(code);
+        return this.inviteSocketDataSource.getInvite(code);
     }
 
     public async accept(code: string): Promise<MyInviteView> {
-        return this.inviteRemoteDataSource.acceptInvite(code);
+        return this.inviteSocketDataSource.acceptInvite(code);
     }
 
     public async cancel(code: string): Promise<MyInviteView> {
-        const view = await this.inviteRemoteDataSource.cancelInvite(code);
+        const view = await this.inviteSocketDataSource.cancelInvite(code);
         await this.mirrorToCache([view]);
         return view;
     }
 
     public async reject(code: string): Promise<MyInviteView> {
-        return this.inviteRemoteDataSource.rejectInvite(code);
+        return this.inviteSocketDataSource.rejectInvite(code);
     }
 
     public async cacheReadList(): Promise<DomainListResult<DomainInvite>> {

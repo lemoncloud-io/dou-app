@@ -1,4 +1,4 @@
-import { getActiveSessionUser, getIdentityContext } from '@chatic/web-core';
+import { getActiveSessionUser, getIdentityContext } from '@chatic/app-runtime';
 
 import { useSiteProfilesStore } from '../stores';
 

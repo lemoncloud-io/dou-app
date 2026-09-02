@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { useRuntimeRepositories } from '@chatic/app-runtime';
 import type { DomainCloud } from '@chatic/data';
-import { useCloudSessionCatalog, useGlobalSession } from '@chatic/web-core';
+import { useGlobalSession } from '@chatic/app-runtime';
+
+import { useCloudSessionCatalog } from './useCloudCatalog';
 
 import { useJoinedCloudsStore } from '../stores';
 

@@ -77,7 +77,7 @@ flowchart TD
 
 ### `SocketReauthBinder` / `reauthenticateActiveSocket(...)`
 
-같은 연결에서 신원(토큰)만 바뀌는 경우(게스트→소셜 승격, 같은 wss cloud site 전환)를 재인증한다. 각 슬롯의 `identityToken` 변화를 reboot가 아닐 때만 관측 → `reauthenticateActiveSocket({ manager, delegate, kind })` 호출. `token===auth.token` no-op 가드 + `logout→register` resume 경로(상세 → [../auth/README.md §3](./auth/README.md)).
+같은 연결에서 신원(토큰)만 바뀌는 경우 — 실질적으로 **relay의 게스트→소셜 승격** 하나다 — 를 재인증한다. cloud는 감시하지 않는다: 전환이 항상 wss를 바꿔 리부트되기 때문이며(불변조건), 같은 클라우드의 토큰 재발급은 `renewCloudSession`이 직접 호출한다. relay 슬롯의 `identityToken` 변화를 reboot가 아닐 때만 관측 → `reauthenticateActiveSocket({ manager, delegate, kind })` 호출. `token===auth.token` no-op 가드 + `logout→register` resume 경로(상세 → [../auth/README.md §3](./auth/README.md)).
 
 ## 상태 모델
 
@@ -100,7 +100,7 @@ flowchart TD
 
 ## 인증 규칙 (요약)
 
-인증 수명주기는 SDK `AuthController`가 소유하고 socket 계층은 등록·구독·재인증 트리거만 배선한다. 만료 refresh·재연결 재인증·백오프는 모두 SDK 자동이며, socket 계층은 주기 타이머나 401 recovery를 두지 않는다. refresh/switch 성공분은 `onTokenRefresh` → `delegate.commitRefreshedToken(kind, view)`로 web-core에 단방향 writeback한다. 상세 상태 머신·파라미터 → [../auth/README.md §5](./auth/README.md).
+인증 수명주기는 SDK `AuthController`가 소유하고 socket 계층은 등록·구독·재인증 트리거만 배선한다. 만료 refresh·재연결 재인증·백오프는 모두 SDK 자동이며, socket 계층은 주기 타이머나 401 recovery를 두지 않는다. refresh/switch 성공분은 `onTokenRefresh` → `delegate.commitRefreshedToken(kind, view)`로 `session/store`에 단방향 writeback한다. 상세 상태 머신·파라미터 → [../auth/README.md §5](./auth/README.md).
 
 ## site 전환 / 로그아웃 헬퍼
 
@@ -108,11 +108,11 @@ socket 계층은 `client.auth`를 직접 노출하지 않고 `socket/auth/` 안�
 
 - **`switchSite(siteId)`** ([switchSite.ts](../../src/socket/auth/switchSite.ts)) — 같은 소켓 내 site 변경. optimistic `applySelectedSite` → `waitUntilVerified()` → `client.auth.switch(`${uid}@${siteId}`)` → 실패 시 롤백·rethrow. 종류 변경(relay↔cloud, wss URL 변경)은 switch가 아니라 **새 소켓 생성**이며 `SocketBinder` 재부팅이 처리한다.
 - **`logoutSession(options?)`** ([logoutSession.ts](../../src/socket/auth/logoutSession.ts)) — 두 슬롯 best-effort `auth.logout()` + `logoutRelaySession()`(전체 로컬 정리). relay 토큰 소멸 → 두 슬롯 tear down.
-- **`logoutCloudSession()`** ([logoutCloudSession.ts](../../src/socket/auth/logoutCloudSession.ts)) — cloud 슬롯 best-effort `auth.logout()` + web-core cloud teardown. cloud 슬롯만 tear down, relay 유지.
+- **`logoutCloudSession()`** ([logoutCloudSession.ts](../../src/socket/auth/logoutCloudSession.ts)) — cloud 슬롯 best-effort `auth.logout()` + cloud 세션 teardown. cloud 슬롯만 tear down, relay 유지.
 
 ## 외부 계약 — `SocketSessionDelegate`
 
-app-runtime과 web-core 세션 레이어를 잇는 계약. 모든 메서드가 소켓 **`kind`** 를 받는다(전역 active 참조 금지 — [../auth/signing.md §0](./auth/signing.md)). 배선은 app-runtime의 [`useSocketSessionDelegate`](../../src/connection/useSocketSessionDelegate.ts)가 소유하며, 앱이 주입하지 않는다.
+소켓 계층과 `session/`(세션 허브)을 잇는 계약. 모든 메서드가 소켓 **`kind`** 를 받는다(전역 active 참조 금지 — [../auth/signing.md §0](./auth/signing.md)). 배선은 app-runtime의 [`useSocketSessionDelegate`](../../src/connection/useSocketSessionDelegate.ts)가 소유하며, 앱이 주입하지 않는다.
 
 ```ts
 export interface SocketSessionDelegate {
@@ -122,7 +122,7 @@ export interface SocketSessionDelegate {
     signAuth(kind: SocketKind, token: string, target?: string): Promise<{ signature: string; current: string }>;
     // onTokenRefresh/switch 결과를 kind 저장소로 단방향 writeback
     commitRefreshedToken(kind: SocketKind, view: AuthTokenView): Promise<void> | void;
-    // AuthController가 expired에 도달했을 때: cloud→logoutCloudSession, relay→warn만(수동 로그아웃)
+    // AuthController가 expired에 도달했을 때: cloud→logoutCloudSession, relay→logoutRelaySession(자동 로그아웃)
     onAuthExpired?(kind: SocketKind): Promise<void> | void;
 }
 ```

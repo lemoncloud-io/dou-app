@@ -4,7 +4,7 @@
  * The seam under test is the gateway boundary: these hooks own the packet BODY they hand the
  * relay-pinned invite gateway, the `invite.list` envelope they unwrap, and which cache entries a
  * mutation invalidates. Where those packets are SENT is fixed one layer down and covered there
- * (`libs/app-runtime/.../remoteFactory.test.ts`), so it is not re-asserted here.
+ * (`libs/app-runtime/.../socketFactory.test.ts`), so it is not re-asserted here.
  *
  * Every downstream suite mocks these hooks, which is why they need direct coverage: nothing else
  * would notice if the envelope key, the state filter, or an invalidation key drifted.
@@ -42,6 +42,14 @@ const createAppQueryClient = () =>
         defaultOptions: { queries: { staleTime: Infinity, retry: false } },
     });
 
+/**
+ * Opting into the server read. The wire is opt-in since the invite lane moved into
+ * `useBackgroundSync` (see `RelayInvitesOptions.remote`), and most of this suite is about what the
+ * packet / merge / invalidation do once the wire is OPEN — so those cases render a remote consumer
+ * explicitly. The cache-only default has its own block below.
+ */
+const REMOTE = { remote: true } as const;
+
 let queryClient: QueryClient;
 const wrapper = ({ children }: { children: ReactNode }) =>
     createElement(QueryClientProvider, { client: queryClient }, children);
@@ -66,26 +74,26 @@ beforeEach(() => {
 });
 
 describe('useRelayInvites', () => {
-    // 봉투 벗기기는 InviteRemoteDataSource의 계약이고 거기서 검증된다 — 여기서는 리포지토리가
+    // 봉투 벗기기는 InviteSocketDataSource의 계약이고 거기서 검증된다 — 여기서는 리포지토리가
     // 준 배열이 그대로 노출되는지, 그리고 undefined가 UI로 새지 않는지만 본다.
     it('리포지토리가 준 배열을 그대로 노출한다', async () => {
         list.mockResolvedValue([{ id: 'a' }, { id: 'b' }]);
 
-        const { result } = renderHook(() => useRelayInvites(), { wrapper });
+        const { result } = renderHook(() => useRelayInvites(undefined, REMOTE), { wrapper });
 
         await waitFor(() => expect(result.current.isLoading).toBe(false));
         expect(result.current.invites).toEqual([{ id: 'a' }, { id: 'b' }]);
     });
 
     it('state 인자가 없어도 limit은 항상 실린다 — 서버 기본 페이지가 목록을 잘라먹지 않게', async () => {
-        const { result } = renderHook(() => useRelayInvites(), { wrapper });
+        const { result } = renderHook(() => useRelayInvites(undefined, REMOTE), { wrapper });
 
         await waitFor(() => expect(result.current.isLoading).toBe(false));
         expect(list).toHaveBeenCalledWith({ limit: 100 });
     });
 
     it('state 인자는 필터로 실려 나가고, 캐시 키도 state별로 갈린다', async () => {
-        const { result } = renderHook(() => useRelayInvites('pending'), { wrapper });
+        const { result } = renderHook(() => useRelayInvites('pending', REMOTE), { wrapper });
 
         await waitFor(() => expect(result.current.isLoading).toBe(false));
         expect(list).toHaveBeenCalledWith({ limit: 100, state: 'pending' });
@@ -93,10 +101,11 @@ describe('useRelayInvites', () => {
         expect(queryClient.getQueryData(relayInviteKeys.list('pending'))).toEqual([]);
     });
 
-    it('창 포커스 복귀 시 다시 조회한다 — 앱 전역 staleTime: Infinity 아래에서도', async () => {
+    it('원격 소비자는 창 포커스 복귀 시 다시 조회한다 — 앱 전역 staleTime: Infinity 아래에서도', async () => {
         // 수락은 남의 기기에서 일어나고 알림 패킷이 없다(백엔드 요청 #4). 전역 기본값만 믿으면
         // 쿼리가 영원히 fresh라 포커스 refetch가 죽는다 — 이 훅이 staleTime을 직접 끄는 이유다.
-        const { result } = renderHook(() => useRelayInvites(), { wrapper });
+        // 캐시 전용 소비자(기본값)에게는 애초에 쿼리가 돌지 않으므로 이 refetch도 없다 — 아래 블록.
+        const { result } = renderHook(() => useRelayInvites(undefined, REMOTE), { wrapper });
         await waitFor(() => expect(list).toHaveBeenCalledTimes(1));
 
         act(() => focusManager.setFocused(false));
@@ -112,7 +121,7 @@ describe('useRelayInvites', () => {
     it('relay가 아직 verified가 아니면 조회하지 않는다', () => {
         (useKindVerified as jest.Mock).mockReturnValue(false);
 
-        const { result } = renderHook(() => useRelayInvites(), { wrapper });
+        const { result } = renderHook(() => useRelayInvites(undefined, REMOTE), { wrapper });
 
         expect(list).not.toHaveBeenCalled();
         expect(result.current.isLoading).toBe(false); // not stuck in a spinner while gated off
@@ -144,7 +153,7 @@ describe('useRelayInvites', () => {
 
     it('폴링을 요청하지 않은 소비자는 주기 조회를 하지 않는다', async () => {
         jest.useFakeTimers();
-        const { result } = renderHook(() => useRelayInvites(), { wrapper });
+        const { result } = renderHook(() => useRelayInvites(undefined, REMOTE), { wrapper });
         await waitFor(() => expect(list).toHaveBeenCalledTimes(1));
 
         await act(async () => {
@@ -157,7 +166,7 @@ describe('useRelayInvites', () => {
 
     it('relay verified가 false→true로 바뀌는 순간 조회한다', async () => {
         (useKindVerified as jest.Mock).mockReturnValue(false);
-        const { result, rerender } = renderHook(() => useRelayInvites(), { wrapper });
+        const { result, rerender } = renderHook(() => useRelayInvites(undefined, REMOTE), { wrapper });
         expect(list).not.toHaveBeenCalled();
 
         (useKindVerified as jest.Mock).mockReturnValue(true);
@@ -176,7 +185,7 @@ describe('useRelayInvites — 캐시 우선 렌더 (ADR-0052)', () => {
         });
         list.mockReturnValue(new Promise(() => undefined)); // never resolves — simulates cold boot
 
-        const { result } = renderHook(() => useRelayInvites(), { wrapper });
+        const { result } = renderHook(() => useRelayInvites(undefined, REMOTE), { wrapper });
 
         expect(result.current.invites).toEqual([{ id: 'cached-1', state: 'pending' }]);
         expect(result.current.isLoading).toBe(false);
@@ -189,7 +198,7 @@ describe('useRelayInvites — 캐시 우선 렌더 (ADR-0052)', () => {
         });
         list.mockResolvedValue([{ id: 'invite-1', state: 'accepted', code: 'secret' }]);
 
-        const { result } = renderHook(() => useRelayInvites(), { wrapper });
+        const { result } = renderHook(() => useRelayInvites(undefined, REMOTE), { wrapper });
 
         // isLoading alone is no longer a reliable "remote responded" signal — a cache hit already
         // clears it before the server answers. Wait for the actual merged value instead.
@@ -211,7 +220,7 @@ describe('useRelayInvites — 캐시 우선 렌더 (ADR-0052)', () => {
         });
         list.mockResolvedValue([{ id: 'in-window', state: 'pending', code: 'secret' }]);
 
-        const { result } = renderHook(() => useRelayInvites(), { wrapper });
+        const { result } = renderHook(() => useRelayInvites(undefined, REMOTE), { wrapper });
 
         await waitFor(() =>
             expect(result.current.invites).toEqual([
@@ -224,7 +233,7 @@ describe('useRelayInvites — 캐시 우선 렌더 (ADR-0052)', () => {
     it('캐시가 비어 있고 원격 응답만 있으면 원격 순서를 그대로 통과시킨다', async () => {
         list.mockResolvedValue([{ id: 'a' }, { id: 'b' }]);
 
-        const { result } = renderHook(() => useRelayInvites(), { wrapper });
+        const { result } = renderHook(() => useRelayInvites(undefined, REMOTE), { wrapper });
 
         await waitFor(() => expect(result.current.isLoading).toBe(false));
         expect(result.current.invites).toEqual([{ id: 'a' }, { id: 'b' }]);
@@ -244,7 +253,7 @@ describe('useRelayInvites — 캐시 우선 렌더 (ADR-0052)', () => {
         // 서버는 여전히 이 초대를 rejected 상태로 목록에 실어 보낸다 — dismissedAt은 모른다.
         list.mockResolvedValue([{ id: 'invite-1', state: 'rejected' }]);
 
-        const { result } = renderHook(() => useRelayInvites(), { wrapper });
+        const { result } = renderHook(() => useRelayInvites(undefined, REMOTE), { wrapper });
 
         await waitFor(() =>
             expect(result.current.invites).toEqual([{ id: 'invite-1', state: 'rejected', dismissedAt: 12345 }])
@@ -252,11 +261,49 @@ describe('useRelayInvites — 캐시 우선 렌더 (ADR-0052)', () => {
     });
 });
 
+/**
+ * Why the default is cache-only: home mounts this hook for EVERY user (`useInviteListRows` →
+ * `ChannelList`), including the majority who never sent an invite. With `staleTime: 0` +
+ * `refetchOnWindowFocus` that was one relay-pinned `invite.list` per home mount and per window
+ * focus for the whole user base — the packet that surfaced every connection-auth desync as
+ * `401 UNAUTHORIZED - not authenticated invite.list`. The cadence moved to `useBackgroundSync`,
+ * which mirrors its response into the very cache these rows are rendered from.
+ */
+describe('useRelayInvites — 기본은 캐시 전용', () => {
+    it('remote를 요청하지 않으면 relay가 verified여도 소켓을 건드리지 않는다', async () => {
+        const { result } = renderHook(() => useRelayInvites(), { wrapper });
+
+        // 게이트가 아니라 의사(意思) 부재로 안 쏘는 것이다 — relay는 verified 상태다.
+        expect(useKindVerified).toHaveBeenCalledWith('relay');
+        await act(async () => undefined);
+        expect(list).not.toHaveBeenCalled();
+        expect(result.current.isLoading).toBe(false); // 스피너에 갇히지도 않는다
+    });
+
+    it('그래도 캐시 행은 그대로 그린다 — 홈 목록은 이 경로만으로 렌더된다', () => {
+        observeList.mockImplementation(cb => {
+            cb({ list: [{ id: 'cached-1', state: 'pending' }], meta: { total: 1, source: 'local' } });
+            return () => undefined;
+        });
+
+        const { result } = renderHook(() => useRelayInvites(), { wrapper });
+
+        expect(result.current.invites).toEqual([{ id: 'cached-1', state: 'pending' }]);
+        expect(list).not.toHaveBeenCalled();
+    });
+
+    it('pollIntervalMs만 줘도 서버 읽기가 켜진다 — 대기 화면은 remote를 따로 안 준다', async () => {
+        renderHook(() => useRelayInvites(undefined, { pollIntervalMs: 30_000 }), { wrapper });
+
+        await waitFor(() => expect(list).toHaveBeenCalledTimes(1));
+    });
+});
+
 describe('useRelayInviteMutations', () => {
     const renderBoth = () =>
         renderHook(
             () => ({
-                invites: useRelayInvites(),
+                invites: useRelayInvites(undefined, REMOTE),
                 mutations: useRelayInviteMutations(),
             }),
             { wrapper }
@@ -321,8 +368,8 @@ describe('useRelayInviteMutations', () => {
     it('무효화는 state별 목록 전부에 걸린다 — all 키가 접두사다', async () => {
         const { result } = renderHook(
             () => ({
-                any: useRelayInvites(),
-                pending: useRelayInvites('pending'),
+                any: useRelayInvites(undefined, REMOTE),
+                pending: useRelayInvites('pending', REMOTE),
                 mutations: useRelayInviteMutations(),
             }),
             { wrapper }
@@ -437,12 +484,14 @@ describe('useRelayInvites — 호출자 refetch도 relay 게이트를 지킨다'
     it('이미 인증돼 있으면 기다리지 않고 바로 조회한다', async () => {
         (useKindVerified as jest.Mock).mockReturnValue(true);
 
+        // 기본(캐시 전용) 소비자라 마운트 조회가 없다 — refetch()가 유일한 패킷이고, disabled
+        // 쿼리에도 발사된다는 TanStack v5 성질이 온디맨드 code 재조회를 떠받치는 바로 그 지점이다.
         const { result } = renderHook(() => useRelayInvites(), { wrapper });
-        await waitFor(() => expect(list).toHaveBeenCalledTimes(1));
+        expect(list).not.toHaveBeenCalled();
 
         await act(async () => result.current.refetch());
 
         expect(waitUntilKindVerified).not.toHaveBeenCalled();
-        expect(list).toHaveBeenCalledTimes(2);
+        expect(list).toHaveBeenCalledTimes(1);
     });
 });

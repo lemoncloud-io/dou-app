@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { matchPath } from 'react-router-dom';
 import { toast } from 'sonner';
 
-import { useSessionIdentity } from '@chatic/web-core';
+import { useSessionIdentity } from '@chatic/app-runtime';
 import type { AppMessageData } from '@chatic/app-messages';
 
 import { useOnReceiveNotification, usePushNavigate } from '../bridge';

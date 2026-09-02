@@ -1,19 +1,21 @@
 import { renderHook } from '@testing-library/react';
 
+/**
+ * The probe/refresh BODY moved to `@chatic/app-runtime`'s `useSessionStalenessGuard`
+ * (ADR-0070 3단계 체크리스트 7), and its own tests cover the offline skip, the "fresh → do nothing"
+ * path, the missing-session path, and the failure counting.
+ *
+ * What is apps/web's — and therefore what a regression here would break — is the POLICY: edge-driven
+ * rather than polled, gated on relay verification, and never tearing the session down.
+ */
 let relayVerified = false;
 
+const mockGuard = jest.fn(() => ({ check: mockCheck }));
+const mockCheck = jest.fn();
+
 jest.mock('@chatic/app-runtime', () => ({
-    requestSessionRefresh: jest.fn().mockResolvedValue(true),
+    useSessionStalenessGuard: (...args: unknown[]) => mockGuard(...(args as [])),
     useKindVerified: () => relayVerified,
-}));
-
-jest.mock('@chatic/web-core', () => ({
-    hasStoredRelaySession: jest.fn().mockResolvedValue(true),
-    isStoredSessionExpired: jest.fn().mockResolvedValue(true),
-}));
-
-jest.mock('@chatic/bridges', () => ({
-    logger: { warn: jest.fn(), info: jest.fn(), error: jest.fn() },
 }));
 
 // Capture the foreground handler instead of simulating the bridge/visibility sources — those merge
@@ -25,144 +27,58 @@ jest.mock('../bridge', () => ({
     },
 }));
 
-import { requestSessionRefresh } from '@chatic/app-runtime';
-import { hasStoredRelaySession, isStoredSessionExpired } from '@chatic/web-core';
-
 import { useRelayCredentialRefresh } from './useRelayCredentialRefresh';
 
-const mockRequestRefresh = requestSessionRefresh as jest.Mock;
-const mockHasSession = hasStoredRelaySession as jest.Mock;
-const mockIsExpired = isStoredSessionExpired as jest.Mock;
+const render = () => {
+    foregroundHandlers.length = 0;
+    mockGuard.mockClear();
+    mockCheck.mockClear();
+    renderHook(() => useRelayCredentialRefresh());
+    return mockGuard.mock.calls[0][0] as Record<string, unknown>;
+};
 
-// `useAppForeground` re-registers on every render, so only the latest closure is the live one.
-const emitForeground = () => foregroundHandlers[foregroundHandlers.length - 1]?.();
+beforeEach(() => {
+    relayVerified = false;
+});
 
-// The hook's effect body is async, so every assertion runs after the pending microtasks drain.
-const flush = () => new Promise(resolve => setTimeout(resolve, 0));
+describe('useRelayCredentialRefresh — apps/web 정책', () => {
+    it('주기 폴링을 쓰지 않고 relay 검증 상승 엣지로만 검사한다', () => {
+        const policy = render();
 
-describe('useRelayCredentialRefresh — 만료된 relay 자격증명 재발급', () => {
-    beforeEach(() => {
-        jest.clearAllMocks();
-        foregroundHandlers.length = 0;
+        // 폴링은 소켓이 뜨기 전에는 refresh 소유자에 닿지 못해 실패만 쌓는다
+        expect(policy).toMatchObject({ intervalMs: null, checkOnRelayVerified: true });
+    });
+
+    // Boot's `auth.update` emits no token, so without this the first writeback is one SDK refresh
+    // cycle (5분) away and relay-signed HTTP runs on the pre-sleep credential until then.
+    it('만료 여부와 무관하게 선제 refresh를 요청한다 (부팅/포그라운드 갱신)', () => {
+        const policy = render();
+
+        expect(policy.forceRefresh).toBe(true);
+    });
+
+    it('절대 teardown하지 않는다 — apps/web의 relay 로그아웃은 수동 전용이다', () => {
+        const policy = render();
+
+        expect(policy.consecutiveFailureLimit).toBeNull();
+        expect(policy.onTeardown).toBeUndefined();
+    });
+
+    it('포그라운드 복귀에서도 검사한다 — 서스펜션을 견딘 소켓은 상승 엣지가 없다', () => {
+        relayVerified = true;
+        render();
+
+        foregroundHandlers.forEach(h => h());
+
+        expect(mockCheck).toHaveBeenCalledTimes(1);
+    });
+
+    it('소켓이 미검증이면 포그라운드 복귀에서 검사하지 않는다 (엣지가 이후에 처리한다)', () => {
         relayVerified = false;
-        mockRequestRefresh.mockResolvedValue(true);
-        mockHasSession.mockResolvedValue(true);
-        mockIsExpired.mockResolvedValue(true);
-        Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
-    });
+        render();
 
-    it('relay 소켓이 아직 미검증이면 아무것도 하지 않는다 (부팅 HTTP 리프레시 금지)', async () => {
-        renderHook(() => useRelayCredentialRefresh());
-        await flush();
+        foregroundHandlers.forEach(h => h());
 
-        expect(mockHasSession).not.toHaveBeenCalled();
-        expect(mockRequestRefresh).not.toHaveBeenCalled();
-    });
-
-    it('relay 검증 상승 엣지에서 stale하면 리프레시를 요청한다', async () => {
-        const { rerender } = renderHook(() => useRelayCredentialRefresh());
-
-        relayVerified = true;
-        rerender();
-        await flush();
-
-        expect(mockRequestRefresh).toHaveBeenCalledWith('relay');
-    });
-
-    it('검증 상태가 유지되는 재렌더에서는 다시 쏘지 않는다', async () => {
-        const { rerender } = renderHook(() => useRelayCredentialRefresh());
-
-        relayVerified = true;
-        rerender();
-        await flush();
-        rerender();
-        await flush();
-
-        expect(mockRequestRefresh).toHaveBeenCalledTimes(1);
-    });
-
-    it('자격증명이 아직 신선하면 리프레시하지 않는다', async () => {
-        mockIsExpired.mockResolvedValue(false);
-
-        const { rerender } = renderHook(() => useRelayCredentialRefresh());
-        relayVerified = true;
-        rerender();
-        await flush();
-
-        expect(mockRequestRefresh).not.toHaveBeenCalled();
-    });
-
-    it('저장된 세션이 없으면(로그아웃/첫 방문) 아무것도 하지 않는다', async () => {
-        mockHasSession.mockResolvedValue(false);
-
-        const { rerender } = renderHook(() => useRelayCredentialRefresh());
-        relayVerified = true;
-        rerender();
-        await flush();
-
-        expect(mockIsExpired).not.toHaveBeenCalled();
-        expect(mockRequestRefresh).not.toHaveBeenCalled();
-    });
-
-    it('오프라인이면 프로브조차 하지 않는다', async () => {
-        Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
-
-        const { rerender } = renderHook(() => useRelayCredentialRefresh());
-        relayVerified = true;
-        rerender();
-        await flush();
-
-        expect(mockHasSession).not.toHaveBeenCalled();
-        expect(mockRequestRefresh).not.toHaveBeenCalled();
-    });
-
-    it('검증된 소켓으로 포그라운드 복귀하면 다시 확인한다', async () => {
-        relayVerified = true;
-        renderHook(() => useRelayCredentialRefresh());
-        await flush();
-        expect(mockRequestRefresh).toHaveBeenCalledTimes(1);
-
-        emitForeground();
-        await flush();
-
-        expect(mockRequestRefresh).toHaveBeenCalledTimes(2);
-    });
-
-    it('소켓이 죽은 채 포그라운드로 오면 건너뛴다 (검증 엣지가 맡는다)', async () => {
-        renderHook(() => useRelayCredentialRefresh());
-        await flush();
-
-        emitForeground();
-        await flush();
-
-        expect(mockRequestRefresh).not.toHaveBeenCalled();
-    });
-
-    it('진행 중인 확인이 있으면 겹쳐 실행하지 않는다', async () => {
-        let release: (value: boolean) => void = () => undefined;
-        mockRequestRefresh.mockReturnValue(
-            new Promise<boolean>(resolve => {
-                release = resolve;
-            })
-        );
-
-        relayVerified = true;
-        renderHook(() => useRelayCredentialRefresh());
-        await flush();
-
-        emitForeground();
-        emitForeground();
-        await flush();
-
-        expect(mockRequestRefresh).toHaveBeenCalledTimes(1);
-        release(true);
-    });
-
-    it('리프레시가 실패해도 throw하지 않는다 (로그아웃은 수동 전용)', async () => {
-        mockRequestRefresh.mockResolvedValue(false);
-
-        relayVerified = true;
-        renderHook(() => useRelayCredentialRefresh());
-        await expect(flush()).resolves.toBeUndefined();
+        expect(mockCheck).not.toHaveBeenCalled();
     });
 });

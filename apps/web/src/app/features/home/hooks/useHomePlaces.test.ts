@@ -1,13 +1,15 @@
 import { renderHook } from '@testing-library/react';
 
 import { useRuntimeRepositories } from '@chatic/app-runtime';
-import { useGlobalSession } from '@chatic/web-core';
+import { useGlobalSession } from '@chatic/app-runtime';
 import type { DomainPlace } from '@chatic/data';
 
 import { useHomePlaces } from './useHomePlaces';
 
-jest.mock('@chatic/app-runtime', () => ({ useRuntimeRepositories: jest.fn() }));
-jest.mock('@chatic/web-core', () => ({ useGlobalSession: jest.fn() }));
+jest.mock('@chatic/app-runtime', () => ({
+    useRuntimeRepositories: jest.fn(),
+    useGlobalSession: jest.fn(),
+}));
 
 const observeListMock = jest.fn();
 const refreshListMock = jest.fn();

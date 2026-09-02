@@ -1,4 +1,4 @@
-import { getGlobalSessionContext } from '@chatic/web-core';
+import { getGlobalSessionContext } from '@chatic/app-runtime';
 
 import { useChannelChatFeeds, type ChannelChatFeed, type ChannelLastChat } from './useChannelChatFeeds';
 import { isMentioned, isNotifiableChat, messagePlainText, resolveMyMentionNames } from '../utils';

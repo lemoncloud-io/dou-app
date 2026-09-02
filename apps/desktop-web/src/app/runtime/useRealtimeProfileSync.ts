@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 
 import { getSocketManager, useRuntimeRepositories } from '@chatic/app-runtime';
-import { useGlobalSession, useSessionSelection } from '@chatic/web-core';
+import { useGlobalSession, useSessionSelection } from '@chatic/app-runtime';
 
 // Inbound socket message pushed by the server when a reachable member edits their
 // place profile (nick / photo). Same channel-domain broadcast the v1 engine consumed

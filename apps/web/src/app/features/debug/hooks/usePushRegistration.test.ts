@@ -1,12 +1,15 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 
 jest.mock('@chatic/bridges', () => ({ isNative: jest.fn() }));
-jest.mock('@chatic/web-core', () => ({ useRegisterDeviceTokenMutation: jest.fn(), useDynamicDeviceId: jest.fn() }));
+jest.mock('@chatic/app-runtime', () => ({
+    useRegisterDeviceTokenMutation: jest.fn(),
+    useDynamicDeviceId: jest.fn(),
+}));
 jest.mock('@chatic/device-utils', () => ({ useDeviceInfo: jest.fn() }));
 jest.mock('../../../bridge', () => ({ appBridge: { fetchFcmToken: jest.fn() } }));
 
 import { isNative } from '@chatic/bridges';
-import { useDynamicDeviceId, useRegisterDeviceTokenMutation } from '@chatic/web-core';
+import { useDynamicDeviceId, useRegisterDeviceTokenMutation } from '@chatic/app-runtime';
 import { useDeviceInfo } from '@chatic/device-utils';
 
 import { appBridge } from '../../../bridge';

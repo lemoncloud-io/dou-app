@@ -2,12 +2,11 @@ import { render, waitFor } from '@testing-library/react';
 
 import { RuntimeConnectionHost } from './RuntimeConnectionHost';
 import { getSocketManager } from '../socket/runtime';
-import { getDataManager } from '../data/runtime';
 import { bootstrapSocketConnection } from '../socket';
 
-jest.mock('@chatic/web-core', () => ({
+jest.mock('../session', () => ({
     // RuntimeConnectionHost is the single init driver; gate returns ready so children render.
-    useInitWebCore: jest.fn().mockReturnValue(true),
+    useRelaySessionInit: jest.fn().mockReturnValue(true),
     useRelaySessionKeepAlive: jest.fn(),
     // Consumed by useSocketSessionDelegate (the delegate is now owned by app-runtime).
     getServerAuthRegistration: jest.fn(),
@@ -33,7 +32,7 @@ jest.mock('../socket/runtime', () => {
 });
 
 jest.mock('../data/runtime', () => {
-    const mockDataManager = { ensure: jest.fn() };
+    const mockDataManager = { getRepositories: jest.fn(), getContext: jest.fn() };
     return { getDataManager: jest.fn().mockReturnValue(mockDataManager) };
 });
 
@@ -45,7 +44,7 @@ describe('RuntimeConnectionHost', () => {
         mockedBootstrap.mockResolvedValue(jest.fn());
     });
 
-    it('binds the data context and boots the socket via bootstrapSocketConnection (no delegate prop)', async () => {
+    it('데이터 스코프를 밀어 넣지 않고 소켓만 부팅한다 (delegate prop 없이)', async () => {
         const binding = {
             context: { cid: 'my-cloud', sid: 'site-1', uid: 'user-1' },
             socket: {
@@ -60,10 +59,9 @@ describe('RuntimeConnectionHost', () => {
             </RuntimeConnectionHost>
         );
 
-        const dataManager = getDataManager();
-        await waitFor(() => {
-            expect(dataManager.ensure).toHaveBeenCalledWith(binding.context);
-        });
+        // 데이터 스코프는 더 이상 여기서 밀어 넣지 않는다 — ActiveScope가 session/store에서 읽는다
+        // (ADR-0070 결정 7). push가 effect에서 돌던 탓에 하위 훅이 낡은 cid로 구독하던 문제를 없앤 변경.
+        // 밀어 넣을 API 자체가 사라져서(IDataManager에 ensure 없음) 이제 타입이 그 사실을 지킨다.
         await waitFor(() => {
             // The delegate is created internally and passed through to bootstrap.
             expect(mockedBootstrap).toHaveBeenCalledWith(

@@ -50,7 +50,7 @@ describe('useDevicePushMute', () => {
         // mutate dispatches the write on a microtask; once it resolves the server's authoritative
         // echo reconciles the store.
         await waitFor(() => expect(setPushMutedMock).toHaveBeenLastCalledWith(false));
-        // The relay destination is pinned inside the data layer (DeviceRemoteDataSource), so the
+        // The relay destination is pinned inside the data layer (DeviceSocketDataSource), so the
         // hook passes only the value.
         expect(updateRemotePushMuteMock).toHaveBeenCalledWith(true);
     });

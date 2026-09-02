@@ -113,7 +113,8 @@ features/mypage/
 - 계정 프로필 표시 → `useMyUser()` (`name`, `email`, `photo`)
 - 구독 상태 → `useMembershipInfo()` (`isValid` 등)
 - 로그아웃 → `navigate(ROUTES.auth.logout)` ([auth](../auth/README.md)의 `LogoutPage`가 캐시 클리어 + 세션 종료를 담당)
-- 클라우드 프로필 저장 → `useUpdateCloud` + `useRefreshCurrentCloudSession`
+- 클라우드 프로필 저장 → `useUpdateCloudProfile` (`cloud.update` 소켓 액션, refresh 훅 불필요 —
+  캐시가 이미 `useRuntimeProfile` 구독 경로로 갱신된다)
 
 ## 세 종류의 프로필
 

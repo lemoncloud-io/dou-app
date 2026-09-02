@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
 
 import type { DomainChannel } from '@chatic/data';
-import { useSessionIdentity } from '@chatic/web-core';
-import { useSessionProfile } from '@chatic/app-runtime';
+import { useSessionIdentity } from '@chatic/app-runtime';
+import { useRuntimeProfile } from '@chatic/app-runtime';
 
 import { isPlaceholderName } from '../../../shared';
 import type { MessageViewer } from '../utils';
@@ -14,7 +14,7 @@ import type { MessageViewer } from '../utils';
  */
 export const useMessageViewer = (channel: DomainChannel | undefined): MessageViewer => {
     const { userId: myUid } = useSessionIdentity();
-    const { userName } = useSessionProfile();
+    const { userName } = useRuntimeProfile();
     const myName = isPlaceholderName(userName) ? '' : userName;
     const cloudUid = channel?.$join?.userId ?? null;
     return useMemo(() => ({ uid: myUid, name: myName, cloudUid }), [myUid, myName, cloudUid]);

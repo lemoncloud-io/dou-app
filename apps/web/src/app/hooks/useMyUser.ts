@@ -3,7 +3,8 @@ import { useEffect, useMemo } from 'react';
 import { useKindVerified } from '@chatic/app-runtime';
 import type { DomainUser } from '@chatic/data';
 import type { LinkedAccountsView, UserProfile$, UserView } from '@lemoncloud/chatic-backend-api';
-import { getRelaySessionUser, patchRelaySessionUser, useGlobalSession } from '@chatic/web-core';
+import { useGlobalSession } from '@chatic/app-runtime';
+import { getRelaySessionUser, patchRelaySessionUser } from '@chatic/app-runtime';
 
 import { getRelayAccountGateway } from '../runtime/relayAccountGateway';
 
@@ -80,7 +81,7 @@ export const useMyUser = (): MyUser | null => {
                 const response = await getRelayAccountGateway().profile<UserProfile$>();
                 if (cancelled) return;
                 // `user.profile` answers with a UserProfile$ wrapper ($user + $site); tolerate a flat
-                // user view, same as UserRemoteDataSource does. `$site` is deliberately ignored here —
+                // user view, same as UserSocketDataSource does. `$site` is deliberately ignored here —
                 // this hook is the ACCOUNT profile, and the relay site store has its own owner.
                 const view = (response?.$user ?? (response as unknown)) as UserView | undefined;
                 const patch = accountFieldsOf(view);

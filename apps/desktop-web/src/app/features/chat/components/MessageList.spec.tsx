@@ -12,8 +12,6 @@ import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
 // them — this file is about whether the list renders at all.
 vi.mock('@chatic/app-runtime', () => ({
     useRuntimeRepositories: () => ({ chat: { updateChat: vi.fn(), deleteChat: vi.fn(), setReaction: vi.fn() } }),
-}));
-vi.mock('@chatic/web-core', () => ({
     getActiveServerContext: () => ({ siteId: 'S1' }),
     useGlobalSession: () => ({ activeServer: { siteId: 'S1' } }),
 }));

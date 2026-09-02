@@ -54,14 +54,14 @@ off(); // 채널 이탈 (ref-count 0이면 내부 stopTarget)
 
 [`plans.ts`](../../../src/socket/sync/plans.ts)의 `createSyncPlans()`가 앱 도메인 plan을 1회 생성하고 콜백을 **data 레이어 repository**에 연결한다(`extraSyncPlans`로 주입). **`device` plan은 여기서 만들지 않는다** — `createDeviceRuntime`가 자체 주입한다:
 
-| plan    | 콜백 → repository                                                                 |
-| ------- | --------------------------------------------------------------------------------- |
-| device  | (createDeviceRuntime가 주입, 캐시 미연결·연결 유지용)                             |
-| channel | `onUpdate`/`onRemove` → `channel.cacheWrite`/`cacheDelete`                        |
-| place   | → `place.cacheWrite`/`cacheDelete`                                                |
-| profile | → `profile.cacheWrite`/`cacheDelete`                                              |
-| chat    | `onApply` → `chat.cacheWriteMany`(chatNo idempotent, `onRemove` 없음 — 이력 보존) |
-| join    | `onUpdate`/`onRemove` → `join.cacheWrite`/`cacheDelete` (v0.3.4 `JoinSyncPlan`)   |
+| plan    | 콜백 → repository                                                                                                                                                                    |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| device  | (createDeviceRuntime가 주입, 캐시 미연결·연결 유지용)                                                                                                                                |
+| channel | `onUpdate`/`onRemove` → `channel.cacheWrite`/`cacheDelete`                                                                                                                           |
+| place   | → `place.cacheWrite`/`cacheDelete`                                                                                                                                                   |
+| profile | → `profile.cacheWrite`/`cacheDelete`                                                                                                                                                 |
+| chat    | `onApply` → `chat.cacheWriteMany`(chatNo idempotent) · `onUpdate` → `chat.cacheWrite`(남의 편집·삭제. 삭제는 `hidden: true` 쓰기이지 행 제거가 아니다) · `onRemove` 없음 — 이력 보존 |
+| join    | `onUpdate`/`onRemove` → `join.cacheWrite`/`cacheDelete` (v0.3.4 `JoinSyncPlan`)                                                                                                      |
 
 > 등록은 2단계다: ① **앱 시작 시 1회** plan 인스턴스 등록(= 이 type 처리 능력 등록), ② **화면별 N회** `register*`로 watch 대상 on(= 그 능력으로 이 대상 동기화 시작).
 

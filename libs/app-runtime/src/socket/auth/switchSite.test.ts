@@ -1,11 +1,11 @@
 import { configurePerfMetrics, resetPerfMetrics } from '@chatic/bridges';
 import { switchSite } from './switchSite';
-import { applySelectedSite, getGlobalSessionContext, getSelectedSiteId } from '@chatic/web-core';
+import { applySelectedSite, getGlobalSessionContext, getSelectedSiteId } from '../../session';
 import { getSocketManager } from '../runtime';
 
 import type { Logger } from '@chatic/bridges';
 
-jest.mock('@chatic/web-core', () => ({
+jest.mock('../../session', () => ({
     applySelectedSite: jest.fn(),
     getGlobalSessionContext: jest.fn(),
     getSelectedSiteId: jest.fn(),

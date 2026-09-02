@@ -1,6 +1,8 @@
 # ADR-0047: 로깅 코어를 플랫폼 중립 libs/logger로 단일화하고, 리포트 추적성을 강화한다
 
-> 상태: Accepted · 결정일: 2026-08-10
+> 상태: Accepted (리포트 추적성 관련 결정은 Superseded) · 결정일: 2026-08-10
+>
+> **로깅 코어 단일화는 그대로 유효하다.** 다만 `reportError`에 걸려 있던 추적성 강화분(P1 합성 stack 정직화, 요청 URL·메서드 노출, 신규 카테고리, 지연 리포트의 리포트 전송)은 [ADR-0073](./0073-retire-automatic-error-reporting-in-favor-of-log-entries.md)으로 폐지·이관됐다.
 > 관련: [ADR-0029](./0029-error-report-categorization-and-enrichment.md) (에러 리포트 분류·컨텍스트) · [ADR-0017](./0017-issue-report-floating-widget.md) (이슈 제보 위젯) · [docs/plans/script-error-root-cause-proposal.md](../plans/script-error-root-cause-proposal.md) (P1~P4 제안)
 
 ## 맥락 (Context)

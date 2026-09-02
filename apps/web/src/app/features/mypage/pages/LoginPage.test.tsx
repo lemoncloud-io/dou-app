@@ -11,7 +11,7 @@ jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: jest.fn() }) }));
 
 const loginRelaySocial = jest.fn();
-jest.mock('@chatic/web-core', () => ({
+jest.mock('@chatic/app-runtime', () => ({
     useLoginRelaySocial: () => ({ mutateAsync: loginRelaySocial, isPending: false }),
 }));
 

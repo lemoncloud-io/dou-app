@@ -162,7 +162,7 @@ flowchart TD
   그 지적은 유효하다. 답은 `account$`가 아니라 `link$`였다.
 - **읽기 경로는 이미 열려 있었다.** 앱은 이미 `user.profile`을 부르고(`useMyUser.ts:39` →
   `UserRepositoryV2.getMyProfile`), 파이프라인 전 구간이 spread라 모르는 필드가 버려지지 않는다
-  (`UserRemoteDataSource.ts:71` → `mappers.ts:172` → `UserLocalDataSourceV2.ts:96` → IndexedDB).
+  (`UserSocketDataSource.ts:71` → `mappers.ts:172` → `UserLocalDataSourceV2.ts:96` → IndexedDB).
   **막던 것은 타입뿐이다** — 경계 타입이 socials-api의 `UserView`인데 페이로드는 backend-api의
   `MyUserView`다.
 - 그래서 `MyUser`(`useMyUser.ts:12`)에 `link$`를 더해 넓혔다. `photo`/`email`이 이미 쓰는 기법

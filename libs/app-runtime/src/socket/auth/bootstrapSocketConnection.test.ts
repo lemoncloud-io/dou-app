@@ -202,6 +202,43 @@ describe('bootstrapSocketConnection', () => {
         expect(delegate.commitRefreshedToken).toHaveBeenCalledWith('relay', view);
     });
 
+    // The writeback is the step that re-mints the signing material, and it runs AFTER
+    // requestRelaySessionRefresh has already reported success (this emission is what resolves it). A
+    // rejection here used to be an unhandled promise: caller thinks fresh, every signed request 403s.
+    it('writeback이 거부돼도 삼키지 않고 에러로 남긴다', async () => {
+        const { logger } = jest.requireMock('@chatic/bridges') as { logger: { error: jest.Mock } };
+        const auth = makeAuth([]);
+        const client = makeClient(auth);
+        const manager = makeManager(client, []);
+        const failure = new Error('.AccessKeyId (string) is required!');
+        const delegate = makeDelegate({ commitRefreshedToken: jest.fn().mockRejectedValue(failure) });
+
+        await bootstrapSocketConnection({ manager, kind: 'relay', config: CONFIG, delegate });
+
+        auth.emitTokenRefresh({ Token: {} });
+        // The catch is attached to the returned promise, so let the rejection settle.
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(logger.error).toHaveBeenCalledWith(
+            'SOCKET',
+            '[bootstrapSocketConnection] token writeback failed',
+            expect.objectContaining({ error: failure, data: { kind: 'relay' } })
+        );
+    });
+
+    it('writeback이 동기 함수여도(Promise가 아니어도) 그대로 동작한다', async () => {
+        const auth = makeAuth([]);
+        const client = makeClient(auth);
+        const manager = makeManager(client, []);
+        const delegate = makeDelegate({ commitRefreshedToken: jest.fn(() => undefined) });
+
+        await bootstrapSocketConnection({ manager, kind: 'relay', config: CONFIG, delegate });
+
+        expect(() => auth.emitTokenRefresh({ Token: {} })).not.toThrow();
+        expect(delegate.commitRefreshedToken).toHaveBeenCalled();
+    });
+
     it('routes the SDK sign callback to delegate.signAuth with the switch target', async () => {
         const auth = makeAuth([]);
         const client = makeClient(auth);

@@ -6,10 +6,11 @@ jest.mock('./cacheStorageRouting', () => ({ isNativeApp: () => true }));
 
 const mockIssue = jest.fn();
 
-jest.mock('@chatic/web-core', () => ({
-    issueCloudDelegationToken: (...args: unknown[]) => mockIssue(...args),
-    useSessionSelection: jest.fn(),
+// `delegateCloud`는 `auth` repository에서 온다 — data가 세션 폴더를 되짚을 이유가 없어졌다.
+jest.mock('./runtime', () => ({
+    getRepositories: () => ({ auth: { delegateCloud: (...args: unknown[]) => mockIssue(...args) } }),
 }));
+jest.mock('../session', () => ({ useSessionSelection: jest.fn() }));
 
 const createCloud = () => ({
     cacheReadList: jest.fn().mockResolvedValue({ list: [] }),

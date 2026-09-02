@@ -1,4 +1,4 @@
-import { useClouds } from '@chatic/web-core';
+import { useClouds } from '../../../hooks/useCloudCatalog';
 
 import type { CloudView } from '@lemoncloud/chatic-backend-api';
 

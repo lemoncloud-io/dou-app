@@ -1,9 +1,9 @@
 import { useTranslation } from 'react-i18next';
 
-import { useVerifyAlias } from '@chatic/web-core';
+import { useVerifyAlias } from '@chatic/app-runtime';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { useSessionIdentity } from '@chatic/web-core';
+import { useSessionIdentity } from '@chatic/app-runtime';
 
 import { EmailInputPage } from '../components';
 import { ROUTES } from '../../../routes/paths';

@@ -1,7 +1,9 @@
 module.exports = {
     testEnvironment: 'jsdom',
     setupFiles: ['<rootDir>/jest.setup.ts'],
-    transformIgnorePatterns: ['node_modules/(?!(@chatic|@lemoncloud)/)'],
+    // `uuid` ships ESM-only; the session hooks that moved into `@chatic/app-runtime` (ADR-0070 3단계)
+    // pull it in via `useDynamicDeviceId`, so it must be transformed rather than required as CJS.
+    transformIgnorePatterns: ['node_modules/(?!(@chatic|@lemoncloud|uuid)/)'],
     moduleNameMapper: {
         // Mirrors the `@chatic/lib/utils` path alias in tsconfig.base.json (ui-kit utils).
         '^@chatic/lib/utils$': '<rootDir>/../../libs/ui-kit/src/utils/index.ts',
@@ -15,6 +17,10 @@ module.exports = {
         // PrivateLayout -> @chatic/assets) fails to load, which is what pushed call sites onto
         // barrel-bypassing direct paths.
         '^@chatic/assets$': '<rootDir>/__mocks__/assetsMock.js',
+        // `@chatic/web-config` is the single `import.meta.env` holder (ADR-0070 결정 6) — same
+        // unparseable-by-CommonJS problem as `@chatic/assets`, and reached transitively by anything
+        // touching `@chatic/app-runtime`. See the mock file for why this is global rather than per-test.
+        '^@chatic/web-config$': '<rootDir>/__mocks__/webConfigMock.js',
         '^@chatic/(.*)$': '<rootDir>/../../libs/$1/src/index.ts',
         // web-ui-kit re-exports SVG/image assets from its barrel; stub them (and styles) so tests
         // importing @chatic/web-ui-kit don't choke on static asset imports.

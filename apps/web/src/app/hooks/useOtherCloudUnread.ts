@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { useGlobalCacheSearch, globalCacheRefKey } from '@chatic/app-runtime';
-import { useCloudSessionCatalog } from '@chatic/web-core';
+import { useCloudSessionCatalog } from './useCloudCatalog';
 
 import { countUnread, readCursorOf } from '../utils/countUnread';
 import { useOtherCloudUnreadContext } from './otherCloudUnreadContext';

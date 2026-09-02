@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-    useCloudSessionCatalog,
     useGlobalSession,
     useLogoutCloudSession,
     useSessionSelection,
     useSiteSwitch,
     useSwitchCloudSession,
-} from '@chatic/web-core';
+} from '@chatic/app-runtime';
 import { getSyncManager, useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
+import { useCloudSessionCatalog } from '../hooks/useCloudCatalog';
 import type { DataRepositoriesV2, DomainChannel, DomainCloud, DomainPlace } from '@chatic/data';
 import { metricsCollector } from '../metrics/MetricsCollector';
 import { useRenderCount } from '../metrics/useRuntimeMetrics';

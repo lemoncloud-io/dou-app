@@ -7,9 +7,6 @@
             "path": "./apps/mobile"
         },
         {
-            "path": "./apps/admin"
-        },
-        {
             "path": "./apps/web"
         },
         {
@@ -17,9 +14,6 @@
         },
         {
             "path": "./libs/device-utils"
-        },
-        {
-            "path": "./libs/web-core"
         },
         {
             "path": "./libs/shared"
@@ -35,15 +29,6 @@
         },
         {
             "path": "./assets"
-        },
-        {
-            "path": "./libs/socket"
-        },
-        {
-            "path": "./libs/users"
-        },
-        {
-            "path": "./libs/auth"
         },
         {
             "path": "./apps/landing"
@@ -74,6 +59,18 @@
         },
         {
             "path": "./apps/admin-v2"
+        },
+        {
+            "path": "./libs/web-config"
+        },
+        {
+            "path": "./libs/auth-sign"
+        },
+        {
+            "path": "./libs/http"
+        },
+        {
+            "path": "./libs/db"
         }
     ]
 }

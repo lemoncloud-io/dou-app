@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useLogin } from '@chatic/web-core';
+import { useLogin } from '@chatic/app-runtime';
 
 export const LoginPage = () => {
     const navigate = useNavigate();

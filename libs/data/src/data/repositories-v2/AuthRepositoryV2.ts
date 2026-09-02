@@ -1,12 +1,26 @@
-import type { LinkSentView, LinkVerifiedView, LinkedView } from '@lemoncloud/chatic-backend-api';
 import type {
-    IAuthRemoteDataSource,
+    CloudDelegationTokenView,
+    LinkSentView,
+    LinkVerifiedView,
+    LinkedView,
+    LoginUserBody,
+    MyInviteView,
+    RegisterUserV2Body,
+    UserBody,
+    UserTokenView,
+} from '@lemoncloud/chatic-backend-api';
+import type { VerifyNativeTokenBody } from '@lemoncloud/chatic-backend-api/dist/modules/auth/oauth2/oauth2-types';
+import type { FindAliasBody, FindAliasView, VerifyAliasBody, VerifyAliasView } from '@chatic/http';
+import type { DomainUser } from '../domain';
+import type {
+    IAuthSocketDataSource,
     PhoneCodeConfirmResult,
     PhoneCodeProveOptions,
     PhoneCodeSendOptions,
     PhoneCodeVerifyResult,
     SocialAccountTokens,
-} from '../remote/data-sources';
+} from '../remote/socket-data-sources';
+import type { IAuthHttpDataSource } from '../remote/http-data-sources';
 import type { DataContextProvider } from './types';
 import { BaseRepositoryV2, type DisposableRepositoryV2 } from './types';
 
@@ -40,8 +54,10 @@ export interface IAuthRepositoryV2 extends DisposableRepositoryV2 {
      * those calls come back 403. `isNew` says whether the user was minted just now (sign-up) or
      * recovered (return). On `mode: 'link'` no token comes back and the session is unchanged.
      *
-     * This repository does not interpret or install the token — session state stays web-core's
-     * (see data-access.md, "auth 승격의 경계").
+     * This repository does not interpret or install the token — session state belongs to
+     * `app-runtime`'s `session/auth` (see libs/app-runtime/docs/session/architecture.md,
+     * "session/auth — HTTP는 data 레이어를 지난다"). `data` performs the call; it never reads a
+     * `Token`, writes a store, or flips auth state.
      */
     confirmPhoneCode(phone: string, otp: string, options: PhoneCodeProveOptions): Promise<PhoneCodeConfirmResult>;
 
@@ -58,7 +74,37 @@ export interface IAuthRepositoryV2 extends DisposableRepositoryV2 {
      * has a different social account linked.
      */
     confirmSocialAccount(tokens: SocialAccountTokens): Promise<LinkedView>;
+
+    /**
+     * HTTP account/alias/invite commands (ADR-0070 결정 5, 2단계 후반). `IAuthHttpDataSource`
+     * injection is optional through 2단계 — every existing `createRepositoriesV2` call site stays
+     * green without it, and these methods throw a clear "not wired yet" error until it's injected.
+     * 4단계 promotes it to required once the REST hooks actually move behind it.
+     */
+    registerUser(body: UserBody): Promise<DomainUser>;
+    registerUserV2(body: RegisterUserV2Body, email?: boolean): Promise<DomainUser>;
+    findAlias(body: FindAliasBody): Promise<FindAliasView>;
+    verifyAlias(body: VerifyAliasBody): Promise<VerifyAliasView>;
+    loginWithInviteCode(input: { code: string; delegatorId: string; backend?: string }): Promise<UserTokenView>;
+    fetchInviteInfo(input: { code: string; backend: string }): Promise<MyInviteView>;
+
+    /**
+     * Session-material commands (`session/auth`의 유일한 HTTP 경로).
+     *
+     * Responses come back RAW — mapping to `DomainUser` would drop `Token`, and `Token` is why these
+     * are called. As with `confirmPhoneCode`, this repository performs the call and does NOT
+     * interpret or install what comes back; session state stays `session/auth`'s.
+     */
+    registerDevice(deviceId: string): Promise<UserTokenView>;
+    login(body: LoginUserBody, email?: boolean): Promise<UserTokenView>;
+    verifyNativeToken(body: VerifyNativeTokenBody): Promise<UserTokenView>;
+    exchangeCode(input: { provider: string; code: string }): Promise<UserTokenView>;
+    delegateCloud(target: string): Promise<CloudDelegationTokenView>;
+    exchangeToken(input: { baseURL: string; body: CloudExchangeTokenBody }): Promise<UserTokenView>;
 }
+
+/** `exchangeToken`의 body 타입 — 게이트웨이 계약에서 그대로 끌어온다. */
+type CloudExchangeTokenBody = Parameters<IAuthHttpDataSource['exchangeToken']>[0]['body'];
 
 /**
  * Session identity commands (account proof: phone, social). Remote-only by nature: nothing here is a
@@ -76,14 +122,76 @@ export interface IAuthRepositoryV2 extends DisposableRepositoryV2 {
  */
 export class AuthRepositoryV2 extends BaseRepositoryV2 implements IAuthRepositoryV2 {
     constructor(
-        private readonly authRemoteDataSource: IAuthRemoteDataSource,
-        contextProvider: DataContextProvider
+        private readonly authSocketDataSource: IAuthSocketDataSource,
+        contextProvider: DataContextProvider,
+        private readonly authHttpDataSource?: IAuthHttpDataSource
     ) {
         super(contextProvider);
     }
 
+    private requireHttp(): IAuthHttpDataSource {
+        if (!this.authHttpDataSource) {
+            throw new Error('[AuthRepositoryV2] IAuthHttpDataSource is not injected — httpFactory not wired yet.');
+        }
+        return this.authHttpDataSource;
+    }
+
+    public async registerUser(body: UserBody): Promise<DomainUser> {
+        return this.requireHttp().registerUser(body, this.getRequestContext());
+    }
+
+    public async registerUserV2(body: RegisterUserV2Body, email?: boolean): Promise<DomainUser> {
+        return this.requireHttp().registerUserV2(body, email, this.getRequestContext());
+    }
+
+    public async findAlias(body: FindAliasBody): Promise<FindAliasView> {
+        return this.requireHttp().findAlias(body);
+    }
+
+    public async verifyAlias(body: VerifyAliasBody): Promise<VerifyAliasView> {
+        return this.requireHttp().verifyAlias(body);
+    }
+
+    public async loginWithInviteCode(input: {
+        code: string;
+        delegatorId: string;
+        backend?: string;
+    }): Promise<UserTokenView> {
+        return this.requireHttp().loginWithInviteCode(input);
+    }
+
+    public async fetchInviteInfo(input: { code: string; backend: string }): Promise<MyInviteView> {
+        return this.requireHttp().fetchInviteInfo(input);
+    }
+
+    // --- session-material commands: perform, never interpret -------------------------------------
+
+    public registerDevice(deviceId: string): Promise<UserTokenView> {
+        return this.requireHttp().registerDevice(deviceId);
+    }
+
+    public login(body: LoginUserBody, email?: boolean): Promise<UserTokenView> {
+        return this.requireHttp().login(body, email);
+    }
+
+    public verifyNativeToken(body: VerifyNativeTokenBody): Promise<UserTokenView> {
+        return this.requireHttp().verifyNativeToken(body);
+    }
+
+    public exchangeCode(input: { provider: string; code: string }): Promise<UserTokenView> {
+        return this.requireHttp().exchangeCode(input);
+    }
+
+    public delegateCloud(target: string): Promise<CloudDelegationTokenView> {
+        return this.requireHttp().delegateCloud(target);
+    }
+
+    public exchangeToken(input: { baseURL: string; body: CloudExchangeTokenBody }): Promise<UserTokenView> {
+        return this.requireHttp().exchangeToken(input);
+    }
+
     public async sendPhoneCode(phone: string, options: PhoneCodeSendOptions): Promise<LinkSentView> {
-        return this.authRemoteDataSource.sendPhoneCode(phone, options);
+        return this.authSocketDataSource.sendPhoneCode(phone, options);
     }
 
     public async verifyPhoneCode(
@@ -91,7 +199,7 @@ export class AuthRepositoryV2 extends BaseRepositoryV2 implements IAuthRepositor
         otp: string,
         options: PhoneCodeProveOptions
     ): Promise<PhoneCodeVerifyResult> {
-        return this.authRemoteDataSource.verifyPhoneCode(phone, otp, options);
+        return this.authSocketDataSource.verifyPhoneCode(phone, otp, options);
     }
 
     public async confirmPhoneCode(
@@ -99,14 +207,14 @@ export class AuthRepositoryV2 extends BaseRepositoryV2 implements IAuthRepositor
         otp: string,
         options: PhoneCodeProveOptions
     ): Promise<PhoneCodeConfirmResult> {
-        return this.authRemoteDataSource.confirmPhoneCode(phone, otp, options);
+        return this.authSocketDataSource.confirmPhoneCode(phone, otp, options);
     }
 
     public async verifySocialAccount(tokens: SocialAccountTokens): Promise<LinkVerifiedView> {
-        return this.authRemoteDataSource.verifySocialAccount(tokens);
+        return this.authSocketDataSource.verifySocialAccount(tokens);
     }
 
     public async confirmSocialAccount(tokens: SocialAccountTokens): Promise<LinkedView> {
-        return this.authRemoteDataSource.confirmSocialAccount(tokens);
+        return this.authSocketDataSource.confirmSocialAccount(tokens);
     }
 }

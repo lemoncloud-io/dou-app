@@ -4,11 +4,14 @@
 
 ## 목적
 
-`reportError`(자동 수집)와 `reportIssue`(사용자 이슈 리포트)가 남긴 리포트를 admin-v2에서
-조회하는 관리자용 화면. 두 함수는 `${DOU_ENDPOINT}/hello/report`로 payload를 JSON 직렬화해
-저장하는데([common.ts:102](../../../../../libs/web-core/src/api/common.ts:102)), 지금까지는
-Slack 채널로만 흘러가 **한 곳에서 훑어볼 수단이 없었다.** 이 화면이 제품 에러/이슈 추적의
-단일 진입점이 된다.
+`reportIssue`(사용자 이슈 리포트)가 `${DOU_ENDPOINT}/hello/report`로 남긴 리포트와, 로그
+업로더가 `/hello/report-bulk`로 올린 배치 로그 엔트리를 admin-v2에서 조회하는 관리자용 화면.
+지금까지는 Slack 채널로만 흘러가 **한 곳에서 훑어볼 수단이 없었다.** 이 화면이 제품 에러/이슈
+추적의 단일 진입점이 된다.
+
+> **2026-09 갱신.** 자동 에러 리포트(`reportError`)는 폐지됐다. 에러는 `logger.error` 엔트리로
+> 배치 업로더를 타고 들어오므로, 이 화면에서는 `log-entry` 종류로 보인다. 아래에서 `reportError`를
+> 가리키는 서술은 **폐지 이전에 저장된 레코드**에 대한 것이며, 그 레코드는 그대로 조회된다.
 
 ## 설계 원칙
 
@@ -29,7 +32,7 @@ Slack 채널로만 흘러가 **한 곳에서 훑어볼 수단이 없었다.** �
 
 **포함**
 
-- 전체 리포트(모든 사용자) 목록 조회 — `reportError` + `reportIssue` 둘 다, type 구분 표시.
+- 전체 리포트(모든 사용자) 목록 조회 — 제보 · 배치 로그 · 구 에러 리포트, type 구분 표시.
 - 목록 컬럼: type · 제목 · 메시지 · 사용자(name/uid) · app · 시각(상대표기).
 - 필터: 텍스트 검색 + 기간(날짜) + type(error/issue) + app.
 - 3가지 뷰 토글: **목록**(페이지네이션) · **집계**(메시지별 건수, 표본) · **추이**(시간대별 막대 차트, 급증 강조).
@@ -73,7 +76,7 @@ flowchart TD
 
 ```mermaid
 sequenceDiagram
-    participant A as reportError/Issue
+    participant A as reportIssue / 로그 업로더
     participant H as /hello/report
     participant M as mocks store
     participant P as ReportLogsPage

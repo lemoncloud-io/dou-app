@@ -1,4 +1,4 @@
-import { useGlobalSession, useSessionAuth } from '@chatic/web-core';
+import { useGlobalSession, useSessionAuth } from '@chatic/app-runtime';
 import { useRuntimeSocketState, useRuntimeProfile } from '@chatic/app-runtime';
 
 import { Row } from '../../components/Row';

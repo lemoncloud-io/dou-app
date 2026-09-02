@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 
 import { webClient } from '@chatic/bridges';
-import { getGlobalSessionContext } from '@chatic/web-core';
+import { getGlobalSessionContext } from '@chatic/app-runtime';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import {

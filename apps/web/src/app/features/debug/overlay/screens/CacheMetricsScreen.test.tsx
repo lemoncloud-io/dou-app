@@ -2,14 +2,21 @@ import '@testing-library/jest-dom';
 
 import { render, screen, within } from '@testing-library/react';
 
-import { getNativeCacheMetrics } from '@chatic/data';
 import { CacheMetricsScreen } from './CacheMetricsScreen';
 
-jest.mock('@chatic/data', () => ({ getNativeCacheMetrics: jest.fn(), resetNativeCacheMetrics: jest.fn() }));
-jest.mock('@chatic/app-runtime', () => ({ isNativeApp: () => true }));
+const read = jest.fn();
+const reset = jest.fn();
+
+jest.mock('@chatic/app-runtime', () => ({
+    isNativeApp: () => true,
+    getCacheMetricsSource: () => ({
+        read: (...args: unknown[]) => read(...args),
+        reset: (...args: unknown[]) => reset(...args),
+    }),
+}));
 jest.mock('../../lib', () => ({ copyText: jest.fn() }));
 
-const metrics = getNativeCacheMetrics as jest.Mock;
+const metrics = read;
 
 const dataRows = () => screen.getAllByRole('row').slice(1); // drop the header row
 

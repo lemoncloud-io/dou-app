@@ -7,6 +7,8 @@
 > [ADR-0037](0037-invite-accept-popup-group-and-dm-variants.md)(수락 팝업 변형).
 > 본 ADR은 ADR-0033을 뒤집지 않는다 — 그 문서가 "백엔드 요청 1·2번"으로 미뤄 둔 자리가 채워진 것이다.
 
+> **이름 안내 (2026-09-01):** 이 문서가 쓰는 `*RemoteDataSource` · `RemoteGatewayBundle` · `*DomainGateway` · `remoteFactory` · `remote/data-sources/`는 **당시 이름**이다. 소켓 축이 `Socket` 접두로 옮겨간 뒤의 대응표는 [libs/data/docs/remote/README.md](../../libs/data/docs/remote/README.md#이름-규약-2026-09-01-리네임)에 있다. 기록이므로 본문은 그대로 둔다.
+
 ## 맥락 (Context)
 
 로드맵(`docs/plans/relay-dm-invite-parallel-roadmap.md`)의 **백엔드 요청 1번(취소)·2번(거절)이 도착했다.**

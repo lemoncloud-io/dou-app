@@ -46,7 +46,6 @@ export const ROUTES = {
         login: '/auth/login',
         logout: '/auth/logout',
         oauthResponse: '/auth/oauth-response',
-        token: (token: string) => `/auth/token/${token}`,
     },
     account: {
         signup: { root: '/account/signup', verify: '/account/signup/verify', password: '/account/signup/password' },

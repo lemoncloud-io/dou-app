@@ -4,6 +4,7 @@ import { NavLink, Outlet } from 'react-router-dom';
 const NAV_LINKS = [
     { to: '/socket-lab', label: 'Socket Lab' },
     { to: '/report-logs', label: 'Report Logs' },
+    { to: '/users', label: 'Users' },
 ];
 
 const linkClass = ({ isActive }: { isActive: boolean }): string =>

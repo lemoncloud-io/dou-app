@@ -1,4 +1,4 @@
-import type { CacheStorage } from '../storages';
+import type { CacheStorage } from '../ports';
 import { JoinLocalDataSourceV2 } from './JoinLocalDataSourceV2';
 
 /**

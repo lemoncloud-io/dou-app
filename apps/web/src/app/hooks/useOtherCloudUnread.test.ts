@@ -13,7 +13,8 @@ jest.mock('@chatic/app-runtime', () => ({
     useGlobalCacheSearch: () => ({ resolveContext }),
     globalCacheRefKey: (cid: string, id: string) => `${cid}:${id}`,
 }));
-jest.mock('@chatic/web-core', () => ({ useCloudSessionCatalog: () => ({ clouds: mockOwned }) }));
+
+jest.mock('./useCloudCatalog', () => ({ useCloudSessionCatalog: () => ({ clouds: mockOwned }) }));
 jest.mock('./useInvitedClouds', () => ({ useInvitedClouds: () => ({ invitedClouds: mockInvited }) }));
 
 /** A cross-cloud context: channels keyed `${cid}:${channelId}`, my join rows under the same keys. */

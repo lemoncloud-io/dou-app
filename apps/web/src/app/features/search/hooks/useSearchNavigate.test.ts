@@ -2,16 +2,18 @@ import { renderHook } from '@testing-library/react';
 import { useNavigate } from 'react-router-dom';
 
 import { getSocketManager, useSiteSwitch } from '@chatic/app-runtime';
-import { useSessionSelection, useSwitchCloudSession } from '@chatic/web-core';
+import { useSessionSelection, useSwitchCloudSession } from '@chatic/app-runtime';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { useSearchNavigate } from './useSearchNavigate';
 
-jest.mock('@chatic/app-runtime', () => ({ getSocketManager: jest.fn(), useSiteSwitch: jest.fn() }));
-jest.mock('@chatic/web-core', () => ({
+jest.mock('@chatic/app-runtime', () => ({
+    getSocketManager: jest.fn(),
+    useSiteSwitch: jest.fn(),
     useSessionSelection: jest.fn(),
     useSwitchCloudSession: jest.fn(),
 }));
+
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: jest.fn() }));
 jest.mock('react-router-dom', () => ({ useNavigate: jest.fn() }));
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (_key: string, fallback: string) => fallback }) }));

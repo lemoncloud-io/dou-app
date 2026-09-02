@@ -2,7 +2,7 @@
  * `api/unicastApi.ts`
  * - Observe 탭 unicast 전송 — 디바이스 상태별 푸시 전달 검증용.
  */
-import { webTransport } from '@chatic/web-core';
+import { webTransport } from '@chatic/app-runtime';
 
 import type { PushPayload, UnicastEvent, UnicastResult, ViewingTarget } from '@lemoncloud/chatic-sockets-api';
 

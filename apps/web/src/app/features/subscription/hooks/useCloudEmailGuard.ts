@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { logger } from '@chatic/bridges';
-import { useClouds } from '@chatic/web-core';
+import { useClouds } from '../../../hooks/useCloudCatalog';
 
 import { EmailVerifyRefusal, findCloudByEmail } from '../lib';
 import { useVerifyEmailCode, type EmailVerifyRequest } from './useVerifyEmailCode';

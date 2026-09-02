@@ -1,4 +1,4 @@
-import type { CacheStorage } from '../storages';
+import type { CacheStorage } from '../ports';
 import { ChannelLocalDataSourceV2 } from './ChannelLocalDataSourceV2';
 
 // Keep storage behavior intentionally minimal so list filtering/sorting is tested in the datasource itself.

@@ -5,7 +5,7 @@ import { useLocation } from 'react-router-dom';
 
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { BrandWordmark } from '@chatic/web-ui-kit';
-import { useLoginRelaySocial } from '@chatic/web-core';
+import { useLoginRelaySocial } from '@chatic/app-runtime';
 import { useNavigateWithTransition } from '@chatic/shared';
 
 import { isNative, logger } from '@chatic/bridges';

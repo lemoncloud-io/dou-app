@@ -19,7 +19,7 @@ Repository 계층에 `LocalDataSource`를 주입하여, 원격 서버 응답 및
 ### 2.1 계층별 책임
 
 - **Repository (중재자)**: Local/Remote 간의 캐싱 정책을 결정하며, 순수 도메인 모델(Domain Model)만 UI 계층에 반환합니다.
-- **RemoteDataSource**: 소켓/HTTP 요청 송신 및 원격 응답을 도메인 이벤트로 변환합니다.
+- **SocketDataSource**: 소켓/HTTP 요청 송신 및 원격 응답을 도메인 이벤트로 변환합니다.
 - **LocalDataSource**: 캐시 읽기/쓰기(CRUD)를 수행하며, 서버 스펙과 동일한 조건(페이징, 정렬)으로 데이터를 가공합니다. React Hooks가 아닌 순수 TypeScript로 구현됩니다.
 - **Storage (CacheStorage)**: 실제 로컬 DB(MMKV, SQLite 등)와 연동되는 드라이버로, Context 스코프 기반의 저장소를 운용합니다.
 - **DomainEventBus**: Repository 내부에서 원격 응답의 부수 효과(Side-effect)로 캐시를 갱신하기 위한 이벤트 파이프라인입니다.
@@ -28,7 +28,7 @@ Repository 계층에 `LocalDataSource`를 주입하여, 원격 서버 응답 및
 
 1. UI가 Repository의 Read API 호출 (파라미터로 `RepositoryOptions` 전달)
 2. **Local Hit**: `LocalDataSource`에서 스코프 기반 캐시 조회 후 즉시 반환 (옵션에 따라 동작)
-3. **Remote Fetch**: 캐시가 없거나 갱신이 필요하면 `RemoteDataSource`로 데이터 요청
+3. **Remote Fetch**: 캐시가 없거나 갱신이 필요하면 `SocketDataSource`로 데이터 요청
 4. **Event Receive**: 원격 응답이 `DomainEventBus`를 통해 Repository로 전달
 5. **Cache Upsert**: Repository가 이벤트를 내부적으로 수신(listen)하여 `LocalDataSource`에 갱신
 6. 갱신된 최신 데이터 반환
@@ -123,7 +123,7 @@ Stale-While-Revalidate, Optimistic Rollback, `hasGap()`/`checkContinuity()`,
 - **Repository 캐싱 정책 고도화 (Advanced Caching Strategy)**
     - **Stale-While-Revalidate**: 오래된 캐시(Stale)를 먼저 UI에 빠르게 보여주고, 백그라운드에서 조용히 원격(Remote) 데이터를 가져와 교체하는 정책 추가.
     - **Optimistic Updates & Rollback**: 쓰기(Write) 요청 시 서버 응답을 기다리지 않고 로컬 캐시를 먼저 업데이트하여 UI 반응성을 극대화하고, 네트워크 실패 시 이전 상태로 안전하게 되돌리는(Rollback) 기능 구현.
-    - BaseRepository의 추상 기능을 사용하여 실제 RemoteDataSource와 LocalDataSource를 조합합니다.
+    - BaseRepository의 추상 기능을 사용하여 실제 SocketDataSource와 LocalDataSource를 조합합니다.
     - Caching Flow Abstract: fetchWithCachePolicy<T>와 같은 공통 흐름 제어 메서드를 구현합니다.
     - Background Runner: 캐시 반환 후 백그라운드에서 원격 동기화를 수행하는 공통 유틸리티를 제공합니다.
 

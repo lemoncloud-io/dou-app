@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 
-import { getSocketManager, useSocketState } from '@chatic/app-runtime';
-import { useSessionIdentity, useSessionSelection } from '@chatic/web-core';
+import { getSocketManager, useRuntimeSocketState } from '@chatic/app-runtime';
+import { useSessionIdentity, useSessionSelection } from '@chatic/app-runtime';
 
 import { JoinWithInviteDialog } from '../../auth';
 import {
@@ -96,7 +96,7 @@ export const HomePage = () => {
     // re-verified on the new cloud — i.e. its data has actually loaded — not just until the
     // exchange resolves. isVerified is true whenever a cloud is settled, so this only bites during
     // the switch/reconnect window.
-    const { isVerified } = useSocketState();
+    const { isVerified } = useRuntimeSocketState();
     const railLocked = isSwitching || !isVerified;
 
     // Place Profiles: mirror the current place's overrides into the store (one

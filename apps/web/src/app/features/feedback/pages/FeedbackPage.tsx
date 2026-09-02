@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { logger } from '@chatic/bridges';
 import { useDeviceInfo } from '@chatic/device-utils';
 import { scaleImageToDataUrl, useNavigateWithTransition } from '@chatic/shared';
-import { reportIssue } from '@chatic/web-core';
+import { reportIssue } from '@chatic/app-runtime';
 import { FloatingButton, IconBack, ModalTopBar, PhotoAttachField, TextField, Textarea } from '@chatic/web-ui-kit';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 

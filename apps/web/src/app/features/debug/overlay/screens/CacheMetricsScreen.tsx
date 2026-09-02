@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Copy, Database, RotateCcw } from 'lucide-react';
 
-import { getNativeCacheMetrics, resetNativeCacheMetrics } from '@chatic/data';
-import { isNativeApp } from '@chatic/app-runtime';
+import { getCacheMetricsSource, isNativeApp } from '@chatic/app-runtime';
 
 import { copyText } from '../../lib';
 
@@ -27,15 +26,19 @@ export const CacheMetricsScreen = () => {
     const [rows, setRows] = useState<Row[]>([]);
     const [totalOps, setTotalOps] = useState(0);
 
+    // 화면은 @chatic/db를 직접 import하지 않는다 — app-runtime이 결합한 포트 인스턴스만 본다
+    // (ADR-0070 결정 5).
+    const metricsSource = useMemo(() => getCacheMetricsSource(), []);
+
     const read = useCallback(() => {
-        const { totalOps: ops, operations } = getNativeCacheMetrics();
+        const { totalOps: ops, operations } = metricsSource.read();
         setTotalOps(ops);
         setRows(
             Object.entries(operations)
                 .map(([key, stat]) => ({ key, ...stat, totalMs: stat.count * stat.avgMs }))
                 .sort((a, b) => b.totalMs - a.totalMs)
         );
-    }, []);
+    }, [metricsSource]);
 
     // 계측은 모듈 상태라 이벤트를 쏘지 않는다 — 열어둔 동안만 폴링한다.
     useEffect(() => {
@@ -45,7 +48,7 @@ export const CacheMetricsScreen = () => {
     }, [read]);
 
     const onReset = () => {
-        resetNativeCacheMetrics();
+        metricsSource.reset();
         read();
     };
 
@@ -61,7 +64,7 @@ export const CacheMetricsScreen = () => {
                 <div className="flex items-center gap-2">
                     <button
                         type="button"
-                        onClick={() => copyText(JSON.stringify(getNativeCacheMetrics(), null, 2))}
+                        onClick={() => copyText(JSON.stringify(metricsSource.read(), null, 2))}
                         className="flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-[12px] text-muted-foreground"
                     >
                         <Copy size={12} /> Copy

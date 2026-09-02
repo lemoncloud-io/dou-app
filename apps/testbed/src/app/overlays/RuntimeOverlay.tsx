@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useGlobalSession, useSessionAuth, useSessionIdentity } from '@chatic/web-core';
+import { useGlobalSession, useSessionAuth, useSessionIdentity } from '@chatic/app-runtime';
 import { useRuntimeSocketState, getSyncManager, useRuntimeRepositories, useRuntimeProfile } from '@chatic/app-runtime';
 import type { DataRepositoriesV2, DomainCloud, DomainProfile, DomainUser } from '@chatic/data';
 import type { SyncTargetDescriptor } from '@lemoncloud/chatic-sockets-lib';

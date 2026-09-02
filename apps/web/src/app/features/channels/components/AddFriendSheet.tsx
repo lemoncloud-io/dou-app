@@ -4,9 +4,7 @@ import { useTranslation } from 'react-i18next';
 
 import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
-import { reportError } from '@chatic/web-core';
 import { useFormKeyboardFlow } from '../../../ui/hooks';
-import { toError } from '../../../utils/errors';
 import { ROUTES } from '../../../routes/paths';
 import { Sheet, SheetContent } from '@chatic/ui-kit/components/ui/sheet';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
@@ -104,7 +102,6 @@ export const AddFriendSheet = ({ open, onOpenChange, channelId, roomDistance = 1
             navigate(ROUTES.channels.inviteLink(channelId), { state: { inviteLink, roomDistance: roomDistance + 1 } });
         } catch (error) {
             logger.error('INVITE', 'Failed to create invite', { error, data: { channelId } });
-            reportError(toError(error));
             const message =
                 error instanceof Error
                     ? error.message

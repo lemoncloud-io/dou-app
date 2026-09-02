@@ -1,5 +1,5 @@
 import { perfNow, reportPerfMetric } from '@chatic/bridges';
-import { applySelectedSite, getGlobalSessionContext, getSelectedSiteId } from '@chatic/web-core';
+import { applySelectedSite, getGlobalSessionContext, getSelectedSiteId } from '../../session';
 
 import { getSocketManager } from '../runtime';
 

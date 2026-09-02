@@ -2,14 +2,15 @@ import type { UserMySiteInput } from '@lemoncloud/chatic-sockets-api';
 import type { DomainListResult, DomainPlace } from '../domain';
 import type { IPlaceLocalDataSourceV2, LocalDataSourceV2ContextOverride } from '../local/data-sources-v2';
 import type {
-    IPlaceRemoteDataSource,
+    IPlaceSocketDataSource,
     PlaceCreateInput,
     PlaceDeleteInput,
     PlaceGetInput,
     PlaceUpdateInput,
-} from '../remote/data-sources';
+} from '../remote/socket-data-sources';
 import type { DataContextProvider } from './types';
 import { BaseRepositoryV2, type DisposableRepositoryV2 } from './types';
+import { isForeignContext } from './scopeGuards';
 
 export interface IPlaceRepositoryV2 extends DisposableRepositoryV2 {
     observeList(
@@ -36,7 +37,7 @@ export interface IPlaceRepositoryV2 extends DisposableRepositoryV2 {
 /** Keeps place cache in sync and rolls back optimistic mutations when remote writes fail. */
 export class PlaceRepositoryV2 extends BaseRepositoryV2 implements IPlaceRepositoryV2 {
     constructor(
-        private readonly placeRemoteDataSource: IPlaceRemoteDataSource,
+        private readonly placeSocketDataSource: IPlaceSocketDataSource,
         private readonly placeLocalDataSource: IPlaceLocalDataSourceV2,
         contextProvider: DataContextProvider
     ) {
@@ -97,11 +98,11 @@ export class PlaceRepositoryV2 extends BaseRepositoryV2 implements IPlaceReposit
         // switch (cache cid already flipped). Writing or pruning under the new cid would poison
         // the target partition, so skip when the socket's bound cloud differs from the active cid.
         const rawContext = this.getRepositoryContext();
-        if (rawContext.socketCid != null && (requestContext.cid || 'default') !== rawContext.socketCid) {
+        if (isForeignContext(rawContext)) {
             return;
         }
         const normalizedContext = this.getNormalizedContext(requestContext);
-        const remote = await this.placeRemoteDataSource.fetchPlace(query, normalizedContext);
+        const remote = await this.placeSocketDataSource.fetchPlace(query, normalizedContext);
         // Preserve the server-provided ordering by stamping the list index as `order`.
         const domainList = (remote.list || [])
             .filter(item => !!item.id)
@@ -130,7 +131,7 @@ export class PlaceRepositoryV2 extends BaseRepositoryV2 implements IPlaceReposit
     public async createPlace(payload: PlaceCreateInput): Promise<DomainPlace> {
         const requestContext = this.getRequestContext();
         const normalizedContext = this.getNormalizedContext(requestContext);
-        const domain = await this.placeRemoteDataSource.createPlace(payload, normalizedContext);
+        const domain = await this.placeSocketDataSource.createPlace(payload, normalizedContext);
         await this.placeLocalDataSource.cacheWrite(domain, requestContext);
         // Follow up with the server snapshot so the list lands ordered (`order` stamps only come
         // from the list response) — inside the repository so every caller benefits. The place
@@ -147,7 +148,7 @@ export class PlaceRepositoryV2 extends BaseRepositoryV2 implements IPlaceReposit
     public async getPlace(payload: PlaceGetInput): Promise<DomainPlace> {
         const requestContext = this.getRequestContext();
         const normalizedContext = this.getNormalizedContext(requestContext);
-        const domain = await this.placeRemoteDataSource.getPlace(payload, normalizedContext);
+        const domain = await this.placeSocketDataSource.getPlace(payload, normalizedContext);
         await this.placeLocalDataSource.cacheWrite(domain, requestContext);
         return domain;
     }
@@ -165,7 +166,7 @@ export class PlaceRepositoryV2 extends BaseRepositoryV2 implements IPlaceReposit
             await this.placeLocalDataSource.cacheWrite({ id, ...(normalized as Partial<DomainPlace>) }, requestContext);
         }
         try {
-            const domain = await this.placeRemoteDataSource.updatePlace(normalized, normalizedContext);
+            const domain = await this.placeSocketDataSource.updatePlace(normalized, normalizedContext);
             await this.placeLocalDataSource.cacheWrite(domain, requestContext);
             return domain;
         } catch (error) {
@@ -185,7 +186,7 @@ export class PlaceRepositoryV2 extends BaseRepositoryV2 implements IPlaceReposit
             await this.placeLocalDataSource.cacheDelete(id, requestContext);
         }
         try {
-            return await this.placeRemoteDataSource.deletePlace(payload, normalizedContext);
+            return await this.placeSocketDataSource.deletePlace(payload, normalizedContext);
         } catch (error) {
             if (existing) {
                 await this.placeLocalDataSource.cacheWrite(existing, requestContext);

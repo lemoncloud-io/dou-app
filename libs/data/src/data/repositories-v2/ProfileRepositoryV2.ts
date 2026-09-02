@@ -2,7 +2,7 @@ import type { ProfileSetInput } from '@lemoncloud/chatic-sockets-lib';
 import type { ProfileBody } from '@lemoncloud/chatic-socials-api';
 import type { DomainListResult, DomainProfile, DomainProfileListPayload } from '../domain';
 import type { IProfileLocalDataSourceV2 } from '../local/data-sources-v2';
-import type { IProfileRemoteDataSource } from '../remote/data-sources';
+import type { IProfileSocketDataSource } from '../remote/socket-data-sources';
 import type { DataContextProvider } from './types';
 import { BaseRepositoryV2, type DisposableRepositoryV2 } from './types';
 
@@ -40,7 +40,7 @@ export interface IProfileRepositoryV2 extends DisposableRepositoryV2 {
 /** Coordinates optimistic profile updates while keeping local cache keyed by normalized sid/uid pairs. */
 export class ProfileRepositoryV2 extends BaseRepositoryV2 implements IProfileRepositoryV2 {
     constructor(
-        private readonly profileRemoteDataSource: IProfileRemoteDataSource,
+        private readonly profileSocketDataSource: IProfileSocketDataSource,
         private readonly profileLocalDataSource: IProfileLocalDataSourceV2,
         contextProvider: DataContextProvider
     ) {
@@ -83,7 +83,7 @@ export class ProfileRepositoryV2 extends BaseRepositoryV2 implements IProfileRep
         const requestContext = this.getRequestContext();
         const normalizedContext = this.getNormalizedContext(requestContext);
 
-        const domain = await this.profileRemoteDataSource.get({ id: requiredId }, normalizedContext);
+        const domain = await this.profileSocketDataSource.get({ id: requiredId }, normalizedContext);
 
         await this.profileLocalDataSource.cacheWrite(domain, requestContext);
         return domain;
@@ -93,7 +93,7 @@ export class ProfileRepositoryV2 extends BaseRepositoryV2 implements IProfileRep
         const requestContext = this.getRequestContext();
         const normalizedContext = this.getNormalizedContext(requestContext);
 
-        const domain = await this.profileRemoteDataSource.getMine({}, normalizedContext);
+        const domain = await this.profileSocketDataSource.getMine({}, normalizedContext);
 
         await this.profileLocalDataSource.cacheWrite(domain, requestContext);
         return domain;
@@ -124,7 +124,7 @@ export class ProfileRepositoryV2 extends BaseRepositoryV2 implements IProfileRep
         }
 
         try {
-            const domain = await this.profileRemoteDataSource.set(
+            const domain = await this.profileSocketDataSource.set(
                 {
                     ...(payload as object),
                     siteId: sid,
@@ -157,7 +157,7 @@ export class ProfileRepositoryV2 extends BaseRepositoryV2 implements IProfileRep
         // Sync is scoped to the active site; fail fast if it is missing.
         this.assertRequiredString(normalizedContext.sid, 'sid');
 
-        const { upserts, removals, syncedAt } = await this.profileRemoteDataSource.sync({ since }, normalizedContext);
+        const { upserts, removals, syncedAt } = await this.profileSocketDataSource.sync({ since }, normalizedContext);
 
         if (upserts.length > 0) {
             await this.profileLocalDataSource.cacheWriteMany(upserts, requestContext);

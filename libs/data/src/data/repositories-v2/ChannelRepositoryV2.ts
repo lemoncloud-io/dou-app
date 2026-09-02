@@ -12,9 +12,10 @@ import type {
 import type { UnreadsSummaryView } from '@lemoncloud/chatic-socials-api';
 import type { DomainChannel, DomainChannelListPayload, DomainListResult } from '../domain';
 import type { IChannelLocalDataSourceV2, LocalDataSourceV2ContextOverride } from '../local/data-sources-v2';
-import type { IChannelRemoteDataSource } from '../remote/data-sources';
+import type { IChannelSocketDataSource } from '../remote/socket-data-sources';
 import type { DataContextProvider } from './types';
 import { BaseRepositoryV2, type DisposableRepositoryV2 } from './types';
+import { isForeignContext } from './scopeGuards';
 
 /** Merge id lists without duplicates, preserving the existing order. */
 const unionIds = (base: string[] | undefined, added: string[]): string[] =>
@@ -64,7 +65,7 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
     private readonly leftChannelIds = new Set<string>();
 
     constructor(
-        private readonly channelRemoteDataSource: IChannelRemoteDataSource,
+        private readonly channelSocketDataSource: IChannelSocketDataSource,
         private readonly channelLocalDataSource: IChannelLocalDataSourceV2,
         contextProvider: DataContextProvider
     ) {
@@ -122,12 +123,12 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
         // switch (cache cid already flipped). Writing its list under the new cid poisons the
         // target partition, so skip when the socket's bound cloud differs from the active cid.
         const rawContext = this.getRepositoryContext();
-        if (rawContext.socketCid != null && (requestContext.cid || 'default') !== rawContext.socketCid) {
+        if (isForeignContext(rawContext)) {
             return;
         }
         const targetSid = query.sid ?? requestContext.sid;
         const mappingContext = this.getNormalizedContext({ ...requestContext, sid: targetSid });
-        const remote = await this.channelRemoteDataSource.fetchChannel(
+        const remote = await this.channelSocketDataSource.fetchChannel(
             {
                 ...query,
                 detail: true,
@@ -168,18 +169,18 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
     public async fetchList(query: DomainChannelListPayload): Promise<DomainListResult<DomainChannel>> {
         const requestContext = this.getRequestContext();
         const normalizedContext = this.getNormalizedContext(requestContext);
-        return this.channelRemoteDataSource.fetchChannel({ ...query, detail: true }, normalizedContext);
+        return this.channelSocketDataSource.fetchChannel({ ...query, detail: true }, normalizedContext);
     }
 
     public async syncChannels(since: number): Promise<SyncChannelsResult> {
         const requestContext = this.getRequestContext();
         const rawContext = this.getRepositoryContext();
-        if (rawContext.socketCid != null && (requestContext.cid || 'default') !== rawContext.socketCid) {
+        if (isForeignContext(rawContext)) {
             return { syncedAt: since, removedCount: 0 };
         }
         const normalizedContext = this.getNormalizedContext(requestContext);
         // Sync ingests channels across all places, so map without binding to the active sid.
-        const remote = await this.channelRemoteDataSource.syncChannel({ since }, { ...normalizedContext, sid: '' });
+        const remote = await this.channelSocketDataSource.syncChannel({ since }, { ...normalizedContext, sid: '' });
 
         const domainList = (remote.list || []).filter(
             item => !!item.$?.sid && !!item.id && !this.leftChannelIds.has(item.id)
@@ -221,7 +222,7 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
         await this.channelLocalDataSource.cacheWrite(optimistic, requestContext);
 
         try {
-            const domain = await this.channelRemoteDataSource.createChannel(payload, normalizedContext);
+            const domain = await this.channelSocketDataSource.createChannel(payload, normalizedContext);
             await this.channelLocalDataSource.cacheWrite(domain, requestContext);
             await this.channelLocalDataSource.cacheDelete(tempId, requestContext);
             return domain;
@@ -245,7 +246,7 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
         }
 
         try {
-            const domain = await this.channelRemoteDataSource.updateChannel(payload, normalizedContext);
+            const domain = await this.channelSocketDataSource.updateChannel(payload, normalizedContext);
             await this.channelLocalDataSource.cacheWrite(domain, requestContext);
             return domain;
         } catch (error) {
@@ -273,7 +274,7 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
         }
 
         try {
-            const domain = await this.channelRemoteDataSource.inviteChannel(payload, normalizedContext);
+            const domain = await this.channelSocketDataSource.inviteChannel(payload, normalizedContext);
             // The server response may omit a fresh member list — don't rely on that
             // undocumented contract to carry the ids we just invited (same as leaveChannel).
             const memberIds = unionIds(domain.memberIds ?? existing?.memberIds, invitedIds);
@@ -302,7 +303,7 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
         }
 
         try {
-            const domain = await this.channelRemoteDataSource.leaveChannel(payload, normalizedContext);
+            const domain = await this.channelSocketDataSource.leaveChannel(payload, normalizedContext);
             if (!isSelfLeave && channelId) {
                 // The kicked member must drop out of memberIds even if the server response
                 // omits a fresh list — don't rely on that undocumented contract.
@@ -331,7 +332,7 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
         }
 
         try {
-            return await this.channelRemoteDataSource.deleteChannel(payload, normalizedContext);
+            return await this.channelSocketDataSource.deleteChannel(payload, normalizedContext);
         } catch (error) {
             if (existing) {
                 await this.channelLocalDataSource.cacheWrite(existing, requestContext);
@@ -346,17 +347,17 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
     public async getSelfChannel(payload?: ChannelGetSelfInput): Promise<DomainChannel> {
         const requestContext = this.getRequestContext();
         const normalizedContext = this.getNormalizedContext(requestContext);
-        const domain = await this.channelRemoteDataSource.getSelfChannel(payload ?? {}, normalizedContext);
+        const domain = await this.channelSocketDataSource.getSelfChannel(payload ?? {}, normalizedContext);
         // Skip the cache write when the answering socket is still bound to a different cloud (the
         // switch optimistic window) so we don't poison the target partition. Mirrors refreshList.
         const rawContext = this.getRepositoryContext();
-        if (rawContext.socketCid == null || (requestContext.cid || 'default') === rawContext.socketCid) {
+        if (!isForeignContext(rawContext)) {
             await this.channelLocalDataSource.cacheWrite(domain, requestContext);
         }
         return domain;
     }
 
     public getUnreads(payload?: ChannelUnreadsInput): Promise<UnreadsSummaryView> {
-        return this.channelRemoteDataSource.getUnreads(payload ?? {});
+        return this.channelSocketDataSource.getUnreads(payload ?? {});
     }
 }

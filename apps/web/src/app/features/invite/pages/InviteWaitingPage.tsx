@@ -4,8 +4,8 @@ import { useParams } from 'react-router-dom';
 
 import { ChevronRight } from 'lucide-react';
 
+import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
-import { reportError } from '@chatic/web-core';
 import { ChatRoomHeader, DateDivider, DefaultAvatar, EmptyState, IconClock, MessageInput } from '@chatic/web-ui-kit';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { cn } from '@chatic/lib/utils';
@@ -14,7 +14,7 @@ import { useMyProfile, useRelayInviteMutations, useSentInviteLog } from '../../.
 import { useInviteCountdown } from '../hooks/useInviteCountdown';
 import { ConfirmDialog } from '../../channels/components';
 import { ROUTES } from '../../../routes/paths';
-import { toError, getSocketErrorCode } from '../../../utils/errors';
+import { getSocketErrorCode } from '../../../utils/errors';
 import { readInternationalInput } from '../../../utils/phoneNumber';
 import { useAcceptedChannelSync } from '../hooks/useAcceptedChannelSync';
 import { useInviteWaitingStatus } from '../hooks/useInviteWaitingStatus';
@@ -131,7 +131,7 @@ export const InviteWaitingPage = () => {
             replaced = true;
             navigate(ROUTES.invite.waiting(newInvite.id), { replace: true });
         } catch (error) {
-            reportError(toError(error));
+            logger.error('INVITE', '[InviteWaitingPage] reissue failed', { error });
             toast({ title: t('inviteWaiting.reissueFailed'), variant: 'destructive' });
         } finally {
             // If we stayed on this screen, re-arm the redirect guard (a dismiss may have landed).
@@ -169,7 +169,7 @@ export const InviteWaitingPage = () => {
                 // Accepted in the meantime (01-spec L89) — re-ask and let the screen tell the truth.
                 void refetch();
             } else {
-                reportError(toError(error));
+                logger.error('INVITE', '[InviteWaitingPage] cancel failed', { error });
                 toast({ title: t('inviteWaiting.cancelFailed'), variant: 'destructive' });
             }
         } finally {

@@ -3,14 +3,17 @@ import { createElement, type ReactNode } from 'react';
 import { renderHook } from '@testing-library/react';
 
 import { useRuntimeRepositories } from '@chatic/app-runtime';
-import { useGlobalSession, useSessionSelection } from '@chatic/web-core';
+import { useGlobalSession, useSessionSelection } from '@chatic/app-runtime';
 import type { DomainChannel } from '@chatic/data';
 
 import { ActiveCloudDataContext } from './activeCloudDataContext';
 import { useActiveCloudChannels, useActiveCloudChannelsSource } from './useActiveCloudChannels';
 
-jest.mock('@chatic/app-runtime', () => ({ useRuntimeRepositories: jest.fn() }));
-jest.mock('@chatic/web-core', () => ({ useGlobalSession: jest.fn(), useSessionSelection: jest.fn() }));
+jest.mock('@chatic/app-runtime', () => ({
+    useRuntimeRepositories: jest.fn(),
+    useGlobalSession: jest.fn(),
+    useSessionSelection: jest.fn(),
+}));
 
 const observeListMock = jest.fn();
 

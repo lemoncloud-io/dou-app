@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 
-import { useGlobalSession } from '@chatic/web-core';
+import { useGlobalSession } from '@chatic/app-runtime';
 import { useRuntimeRepositories } from '@chatic/app-runtime';
 
 import { type PlaceProfileEntry, useSiteProfilesStore } from '../stores/useSiteProfilesStore';

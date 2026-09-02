@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 
-import { getActiveSessionUser, useSessionAuth, useSessionIdentity, useSessionSelection } from '@chatic/web-core';
-import { useSessionProfile, useSocketState } from '@chatic/app-runtime';
+import { getActiveSessionUser, useSessionAuth, useSessionIdentity, useSessionSelection } from '@chatic/app-runtime';
+import { useRuntimeProfile, useRuntimeSocketState } from '@chatic/app-runtime';
 
 import { useChannels, useClouds, usePlaces, useSelectedChannelStore } from '../../../shared';
 
@@ -22,10 +22,10 @@ const Section = ({ title, children }: { title: string; children: ReactNode }) =>
 /** Dev-only session/state inspector (desktop equivalent of apps/web DebugStatePage). */
 export const DebugStatePage = () => {
     const { userId } = useSessionIdentity();
-    const { userName } = useSessionProfile();
+    const { userName } = useRuntimeProfile();
     const accountUser = getActiveSessionUser() as { email?: string } | null;
     const { isAuthenticated } = useSessionAuth();
-    const { isConnected, isVerified, state } = useSocketState();
+    const { isConnected, isVerified, state } = useRuntimeSocketState();
     const { selectedCloudId, selectedSiteId } = useSessionSelection();
     const { clouds, activeCloudId } = useClouds();
     const { places } = usePlaces();

@@ -366,8 +366,8 @@ ADR-0047로 추가되는 키:
 
 - [package.json:119](../../../../../package.json) — `@lemoncloud/chatic-socials-api` `^0.26.721`.
   `apps/mobile`의 `"*"` 핀은 yarn.lock에서 0.26.129로 별도 잠겨 있어 영향 없음(확인함).
-- [gateways/index.ts:26](../../../../../libs/data/src/data/remote/gateways/index.ts) —
-  `ChatDomainGateway` Pick에 `'reaction'` 추가.
+- [gateways/socket.ts:26](../../../../../libs/data/src/data/remote/gateways/socket.ts) —
+  `ChatSocketDomainGateway` Pick에 `'reaction'` 추가.
 - [ChatRepositoryV2.ts](../../../../../libs/data/src/data/repositories-v2/ChatRepositoryV2.ts) —
   `setReaction`·`createOptimisticChat`의 `as DomainChat` 생캐스팅 제거. 캐스팅이 숨기던
   유령 필드 2개(`userId`, `isOwner` — `CacheChatView`에 없고 읽는 곳도 없음)를 함께 삭제.

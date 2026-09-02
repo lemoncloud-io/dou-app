@@ -1,7 +1,7 @@
 import type { UserTokenView } from '@lemoncloud/chatic-backend-api';
 
 import { logger } from '@chatic/bridges';
-import { loginRelayByToken } from '@chatic/web-core';
+import { loginRelayByToken } from '../../session';
 
 import { getSocketManager } from '../runtime';
 import { reauthenticateActiveSocket } from './reauthenticateActiveSocket';
@@ -34,7 +34,7 @@ type SessionTokenView = UserTokenView & { $auth?: { id?: string } };
  * - The store leads, the socket follows: web-core is committed first, so the React-side
  *   SocketReauthBinder observing the same token change converges to a no-op (token equality guard).
  * - Only the RELAY slot is touched: verify-hash-alias is a relay/backend identity and the invite +
- *   identity gateways are pinned to the relay slot (remoteFactory). An active cloud session keeps
+ *   identity gateways are pinned to the relay slot (socketFactory). An active cloud session keeps
  *   its own still-valid delegated identity.
  *
  * An EMPTY `$token` means the number was merely linked and the session did not change (client

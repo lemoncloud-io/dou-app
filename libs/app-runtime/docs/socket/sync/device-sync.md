@@ -45,15 +45,15 @@ device 모델 상태 필드(SDK `DeviceView`): `status('' | green | red | yellow
 
 ## 3. 현재 배선 상태 (코드 기준)
 
-| 경로                                                          | 상태                      | 위치                                                                                                               |
-| ------------------------------------------------------------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `DeviceRemoteDataSource.saveDevice / readDevice / syncDevice` | ✅ 존재                   | [libs/data/.../DeviceRemoteDataSource.ts](../../../../data/src/data/remote/data-sources/DeviceRemoteDataSource.ts) |
-| `SyncManager.registerDevice(id?)`                             | ✅ 존재                   | [SyncManager.ts](../../../src/socket/sync/SyncManager.ts)                                                          |
-| connect 시 자동 `device.save`                                 | ✅ runtime 소유           | `createDeviceRuntime`                                                                                              |
-| **viewing 통지 트리거** (채널 진입/이탈 → `syncDevice`)       | ✅ **배선됨**             | apps/web `useDeviceSync`(라우트 관측) → `DeviceRepositoryV2.syncDevice` (§4)                                       |
-| **status 통지 트리거** (포/백그라운드 → `syncStatus`)         | ✅ **배선됨**             | apps/web `useDeviceSync`(`useAppVisibility` 관측) → `DeviceRepositoryV2.syncStatus` (§4.3)                         |
-| **위치 변경 트리거** (`saveDevice({posX,posY})`)              | 🔴 **없음**(자동 save 외) | —                                                                                                                  |
-| device watch 결과 캐시 (`registerDevice` → repository)        | 🟡 미연결                 | plan `onUpdate`가 캐시에 안 붙음([usage.md](usage.md) §2 "device: 캐시 미연결")                                    |
+| 경로                                                          | 상태                      | 위치                                                                                                                      |
+| ------------------------------------------------------------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `DeviceSocketDataSource.saveDevice / readDevice / syncDevice` | ✅ 존재                   | [libs/data/.../DeviceSocketDataSource.ts](../../../../data/src/data/remote/socket-data-sources/DeviceSocketDataSource.ts) |
+| `SyncManager.registerDevice(id?)`                             | ✅ 존재                   | [SyncManager.ts](../../../src/socket/sync/SyncManager.ts)                                                                 |
+| connect 시 자동 `device.save`                                 | ✅ runtime 소유           | `createDeviceRuntime`                                                                                                     |
+| **viewing 통지 트리거** (채널 진입/이탈 → `syncDevice`)       | ✅ **배선됨**             | apps/web `useDeviceSync`(라우트 관측) → `DeviceRepositoryV2.syncDevice` (§4)                                              |
+| **status 통지 트리거** (포/백그라운드 → `syncStatus`)         | ✅ **배선됨**             | apps/web `useDeviceSync`(`useAppVisibility` 관측) → `DeviceRepositoryV2.syncStatus` (§4.3)                                |
+| **위치 변경 트리거** (`saveDevice({posX,posY})`)              | 🔴 **없음**(자동 save 외) | —                                                                                                                         |
+| device watch 결과 캐시 (`registerDevice` → repository)        | 🟡 미연결                 | plan `onUpdate`가 캐시에 안 붙음([usage.md](usage.md) §2 "device: 캐시 미연결")                                           |
 
 → **viewing·status 통지 트리거는 배선됐다**(§4). 남은 빈칸은 "내 위치(posX/posY)를 쏘는" 트리거와 "남의 디바이스 상태를 받는" watch 캐시 연결(§5)이다.
 
@@ -65,7 +65,7 @@ device 모델 상태 필드(SDK `DeviceView`): `status('' | green | red | yellow
 
 viewing 통지는 **쓰기(write)** 다 — sync target 등록(`register*`, 자동 유지)과 성격이 다르다([usage.md](usage.md) §1 "register=자동 / gateway=수동 콜"). 실제 배선:
 
-- **API**: `DeviceRemoteDataSource.syncDevice` (이미 존재) 를 재사용.
+- **API**: `DeviceSocketDataSource.syncDevice` (이미 존재) 를 재사용.
 - **repository**: `DeviceRepositoryV2.syncDevice(viewingType, viewingId)` / `syncStatus(status)` —
   캐시 없는 thin passthrough. `DataRepositoriesV2.device`로 노출되어 UI는 `useRuntimeRepositories().device`라는
   매니저 surface만 만진다(매니저 surface 규칙). [DeviceRepositoryV2.ts](../../../../data/src/data/repositories-v2/DeviceRepositoryV2.ts)
@@ -77,7 +77,7 @@ viewing 통지는 **쓰기(write)** 다 — sync target 등록(`register*`, 자�
   재assert한다(`device.sync`는 자가치유 없는 send라 끊긴 소켓에서 조용히 유실되기 때문). viewing은
   **채널 룸에서만**; settings·목록·기타 라우트는 clear.
 
-> ⚠️ **타입 출처 주의**: `DeviceRemoteDataSource`의 device 타입은 `@lemoncloud/chatic-sockets-lib`에서
+> ⚠️ **타입 출처 주의**: `DeviceSocketDataSource`의 device 타입은 `@lemoncloud/chatic-sockets-lib`에서
 > 가져온다(게이트웨이를 제공하는 패키지). `@lemoncloud/chatic-sockets-api`의 `DeviceSyncRequestData`는
 > 구버전이라 `viewingType`/`viewingId`가 없으므로 거기서 import하면 viewing 필드가 누락된다.
 

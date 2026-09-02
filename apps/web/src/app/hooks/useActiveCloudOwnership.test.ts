@@ -1,12 +1,17 @@
 import { renderHook } from '@testing-library/react';
 
 import { useRuntimeProfile } from '@chatic/app-runtime';
-import { useCloudSessionCatalog, useSessionSelection } from '@chatic/web-core';
+import { useSessionSelection } from '@chatic/app-runtime';
+
+import { useCloudSessionCatalog } from './useCloudCatalog';
 
 import { useActiveCloudOwnership } from './useActiveCloudOwnership';
 
-jest.mock('@chatic/app-runtime', () => ({ useRuntimeProfile: jest.fn() }));
-jest.mock('@chatic/web-core', () => ({ useCloudSessionCatalog: jest.fn(), useSessionSelection: jest.fn() }));
+jest.mock('./useCloudCatalog', () => ({ useCloudSessionCatalog: jest.fn() }));
+jest.mock('@chatic/app-runtime', () => ({
+    useRuntimeProfile: jest.fn(),
+    useSessionSelection: jest.fn(),
+}));
 
 const setup = (opts: {
     selectedCloudId?: string | null;

@@ -1,7 +1,7 @@
 import { render, renderHook, screen } from '@testing-library/react';
 import { toast } from 'sonner';
 
-import { useSessionIdentity } from '@chatic/web-core';
+import { useSessionIdentity } from '@chatic/app-runtime';
 
 import { useOnReceiveNotification, usePushNavigate } from '../bridge';
 import { useInAppPushMessage } from './useInAppPushMessage';
@@ -9,7 +9,9 @@ import { useInAppPushMessage } from './useInAppPushMessage';
 jest.mock('sonner', () => ({ toast: { custom: jest.fn(), dismiss: jest.fn() } }));
 // The banner card translates its "now" label; echo keys so assertions target the key.
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
-jest.mock('@chatic/web-core', () => ({ useSessionIdentity: jest.fn() }));
+jest.mock('@chatic/app-runtime', () => ({
+    useSessionIdentity: jest.fn(),
+}));
 jest.mock('../bridge', () => ({
     useOnReceiveNotification: jest.fn(),
     usePushNavigate: jest.fn(),

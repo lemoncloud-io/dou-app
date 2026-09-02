@@ -1,5 +1,6 @@
 import { useRuntimeProfile } from '@chatic/app-runtime';
-import { useCloudSessionCatalog, useSessionSelection } from '@chatic/web-core';
+import { useSessionSelection } from '@chatic/app-runtime';
+import { useCloudSessionCatalog } from './useCloudCatalog';
 
 import type { CloudView } from '@lemoncloud/chatic-backend-api';
 

@@ -7,7 +7,7 @@ import LocalStorageBackend from 'i18next-localstorage-backend';
 import Backend from 'i18next-xhr-backend';
 
 import { logger } from '@chatic/bridges';
-import { ENV, LANGUAGE_KEY, PROJECT } from '@chatic/web-core';
+import { ENV, LANGUAGE_KEY, PROJECT } from '@chatic/app-runtime';
 
 const I18N_VERSION = process.env.I18N_VERSION || 'fallback';
 const isDevelopment = process.env.NODE_ENV === 'development';

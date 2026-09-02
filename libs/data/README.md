@@ -51,7 +51,7 @@ flowchart TD
 
     Repo["RepositoryV2<br/><i>data facade</i>"]:::repository
     Local["LocalDataSourceV2 + CacheStorage<br/><i>snapshot 저장 · stream 발행</i>"]:::local
-    Remote["RemoteDataSource + Gateways<br/><i>outbound gateway thin wrapper</i>"]:::remote
+    Remote["SocketDataSource + Gateways<br/><i>outbound gateway thin wrapper</i>"]:::remote
     Domain["Domain<br/><i>models · mappers</i>"]:::domain
 
     UI -->|"observe* (읽기 stream)"| Repo
@@ -173,7 +173,7 @@ sequenceDiagram
     actor UI as React Hook
     participant Repo as ChatRepositoryV2
     participant LDS as ChatLocalDataSourceV2
-    participant RDS as ChatRemoteDataSource
+    participant RDS as ChatSocketDataSource
 
     UI->>Repo: sendChat(payload)
     Note over Repo,LDS: optimistic pending message 생성

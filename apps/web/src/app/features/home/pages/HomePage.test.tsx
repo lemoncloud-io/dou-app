@@ -21,12 +21,16 @@ let isMembershipLoading = false;
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
 const navigateMock = jest.fn();
 jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigateMock }));
-jest.mock('@chatic/app-runtime', () => ({ useRuntimeProfile: () => ({ isGuest: false }) }));
-jest.mock('@chatic/web-core', () => ({
-    useCloudSessionCatalog: () => ({ clouds: [] }),
-    useMembershipInfo: () => ({ data: membership, isLoading: isMembershipLoading }),
+jest.mock('@chatic/app-runtime', () => ({
+    useRuntimeProfile: () => ({ isGuest: false }),
     useSessionSelection: () => ({ selectedCloudId, selectedSiteId }),
 }));
+
+jest.mock('../../../hooks/useCloudCatalog', () => ({ useCloudSessionCatalog: () => ({ clouds: [] }) }));
+jest.mock('../../../hooks/useMembership', () => ({
+    useMembershipInfo: () => ({ data: membership, isLoading: isMembershipLoading }),
+}));
+
 jest.mock('@chatic/web-ui-kit', () => ({
     // The profile dropdown (and its tier pill) hangs off the header's `avatar` slot, so the stub has
     // to render it — otherwise the menu never mounts.

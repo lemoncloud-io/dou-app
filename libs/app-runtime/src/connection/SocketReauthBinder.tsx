@@ -11,8 +11,27 @@ export interface SocketReauthBinderProps {
     delegate: SocketSessionDelegate;
 }
 
-/** Both slots are watched independently; relay may change while cloud is the active socket. */
-const SLOT_KINDS: readonly SocketKind[] = ['relay', 'cloud'] as const;
+/**
+ * Only the RELAY slot is watched, and that is now a stated invariant rather than an accident.
+ *
+ * A same-connection identity change means the socket stays while the token under it is replaced.
+ * That happens on relay (guest→social/email promotion swaps the relay token while url/deviceId/
+ * wssType hold), and it must fire even while a cloud slot is the ACTIVE socket (§6-7).
+ *
+ * It cannot happen on cloud: **every cloud switch changes the wss URL**, because no two clouds share
+ * a wss host (confirmed 2026-09-02). A URL change moves the reboot key, so SocketBinder tears the
+ * slot down and `bootstrapSocketConnection` registers the new identity from scratch — there is no
+ * surviving connection to re-authenticate. The cloud entry that used to sit in this list was
+ * therefore inert: the binding deliberately carries no `identityToken` on the cloud slot (a535055a),
+ * so the token comparison below could never move for it.
+ *
+ * If that invariant ever breaks, the failure is silent here (a live cloud socket keeping the OLD
+ * cloud's identity), so the detection lives where it is observable instead — see the same-wss guard
+ * in `SocketBinder`. The machinery to support it already exists (`reauthenticateActiveSocket` takes
+ * a `cid` and calls `rebindCid` before the handshake, §8-4); what is missing is only the trigger,
+ * which is an `identityToken` on the cloud slot.
+ */
+const SLOT_KINDS: readonly SocketKind[] = ['relay'] as const;
 
 /**
  * Per-slot reboot key — the SAME key SocketBinder reboots on (socketRebootKey). When this key is
@@ -27,15 +46,9 @@ const emptySnapshot = (): SlotSnapshot => ({ reboot: '', token: '' });
 
 /**
  * Re-authenticates a live socket when its server identity changes ON THE SAME connection while the
- * socket is NOT rebooting. Watches EACH slot independently (not just the active one), but in
- * practice only the RELAY slot can fire today:
- *   - guest→social/email promotion: web-core swaps the relay token while url/deviceId/wssType stay —
- *     and this must fire even while a cloud slot is the active socket (§6-7).
- *   - cloud: the binding deliberately carries NO `identityToken` on the cloud slot (a535055a) on the
- *     assumption that a cloud switch always changes the wss URL and therefore reboots through
- *     SocketBinder. The cloud watch below is therefore inert — if two clouds ever share a wss, a
- *     same-wss switch would keep the OLD cloud identity on the socket. Decision to support-or-drop
- *     tracked as 2026-08 session audit §5-7 (Phase 3).
+ * socket is NOT rebooting. In practice that is the relay slot's guest→social/email promotion: the
+ * relay token is swapped while url/deviceId/wssType stay, and it must fire even while a cloud slot is
+ * the active socket (§6-7). Cloud is out of scope by invariant — see `SLOT_KINDS`.
  *
  * For each slot we compare the reboot key (cid/token-blind) and the identity token: a genuine reboot
  * (url/deviceId/wssType change) is handled by SocketBinder via bootstrapSocketConnection, so we skip
@@ -45,13 +58,12 @@ const emptySnapshot = (): SlotSnapshot => ({ reboot: '', token: '' });
  */
 export const SocketReauthBinder = ({ binding, delegate }: SocketReauthBinderProps) => {
     const socketManager = getSocketManager();
-    const prevRef = useRef<Record<SocketKind, SlotSnapshot>>({ relay: emptySnapshot(), cloud: emptySnapshot() });
+    const prevRef = useRef<Partial<Record<SocketKind, SlotSnapshot>>>({ relay: emptySnapshot() });
     const hasMountedRef = useRef(false);
 
     useEffect(() => {
-        const slots: Record<SocketKind, RuntimeSocketSlot | undefined> = {
+        const slots: Partial<Record<SocketKind, RuntimeSocketSlot | undefined>> = {
             relay: binding.socket.relay,
-            cloud: binding.socket.cloud,
         };
 
         const snapshotOf = (kind: SocketKind): SlotSnapshot => ({
@@ -71,7 +83,7 @@ export const SocketReauthBinder = ({ binding, delegate }: SocketReauthBinderProp
         for (const kind of SLOT_KINDS) {
             const slot = slots[kind];
             const next = snapshotOf(kind);
-            const prev = prevRef.current[kind];
+            const prev = prevRef.current[kind] ?? emptySnapshot();
             prevRef.current[kind] = next;
 
             const socketChanged = prev.reboot !== next.reboot;

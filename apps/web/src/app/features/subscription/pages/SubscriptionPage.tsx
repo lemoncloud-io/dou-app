@@ -7,7 +7,7 @@ import { useNavigateWithTransition } from '@chatic/shared';
 import { isNative } from '@chatic/bridges';
 import { useRuntimeProfile } from '@chatic/app-runtime';
 import { appBridge } from '../../../bridge';
-import { useMembershipInfo } from '@chatic/web-core';
+import { useMembershipInfo } from '../../../hooks/useMembership';
 
 import { EmailRequiredBanner, ExcessCloudBanner } from '../components';
 import { planDisplayName } from '../lib';

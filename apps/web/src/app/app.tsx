@@ -7,7 +7,6 @@ import { I18nextProvider } from 'react-i18next';
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { ErrorFallback, LoadingFallback } from '@chatic/shared';
-import { reportError } from '@chatic/web-core';
 import { logger } from '@chatic/bridges';
 
 import i18n from '../i18n';
@@ -19,26 +18,25 @@ import { ThemeApplier } from './runtime/ThemeApplier';
 import { DebugOverlayHost } from './features/debug/overlay/DebugOverlayHost';
 import { markBoot } from './features/debug/metrics/bootMarks';
 
-/** Resource-bearing elements whose load failures are worth reporting (ADR-0047). */
+/** Resource-bearing elements whose load failures are worth logging (ADR-0047). */
 const RESOURCE_TAGS = new Set(['img', 'script', 'link', 'audio', 'video', 'source']);
 
 if (typeof window !== 'undefined') {
     window.addEventListener('error', event => {
         // Cross-origin script exceptions arrive with a null `event.error` and an
-        // opaque "Script error." message. Forward that fact plus the position the
-        // browser still exposes (filename/lineno/colno) so web-core can tag it as
-        // a script-error and keep a location breadcrumb. @see ADR-0029
+        // opaque "Script error." message, so the Error below is ours, not the
+        // browser's — its stack points at this handler and means nothing. That is
+        // what `errorWasNull` records, and it is why `filename`/`lineno`/`colno`
+        // ride along: for an opaque exception they are the only location left.
         const error = event.error ?? new Error(event.message);
-        // Log BEFORE reporting (ADR-0047): the error becomes a first-class buffer
-        // entry — visible in future breadcrumbs and recorded even when the report
-        // itself is throttled.
-        logger.error('GLOBAL', `[window.onerror] ${event.message}`, { error });
-        reportError(error, {
-            source: 'window.onerror',
-            errorWasNull: event.error == null,
-            filename: event.filename || undefined,
-            lineno: event.lineno || undefined,
-            colno: event.colno || undefined,
+        logger.error('GLOBAL', `[window.onerror] ${event.message}`, {
+            error,
+            data: {
+                errorWasNull: event.error == null,
+                filename: event.filename || undefined,
+                lineno: event.lineno || undefined,
+                colno: event.colno || undefined,
+            },
         });
     });
     window.addEventListener('unhandledrejection', event => {
@@ -46,7 +44,6 @@ if (typeof window !== 'undefined') {
         // see toError's doc comment), which String() collapses to a useless "[object Event]".
         const error = toError(event.reason);
         logger.error('GLOBAL', `[unhandledrejection] ${error.message}`, { error });
-        reportError(error, { source: 'unhandledrejection' });
     });
     // Resource load failures (img/script/link/...) fire on the element and do
     // NOT bubble — only a capture-phase window listener sees them. There is no
@@ -61,7 +58,6 @@ if (typeof window !== 'undefined') {
             const url = (target as HTMLImageElement).src || (target as HTMLLinkElement).href || '(unknown url)';
             const message = `Resource load failed: <${tagName}> ${url}`;
             logger.error('GLOBAL', `[resource-error] ${message}`);
-            reportError(new Error(message), { source: 'resource-error', categoryOverride: 'resource-error' });
         },
         true
     );
@@ -72,24 +68,18 @@ if (typeof window !== 'undefined') {
         logger.error('GLOBAL', `[csp-violation] ${detail}`, {
             data: { sourceFile: event.sourceFile, lineNumber: event.lineNumber },
         });
-        reportError(new Error(`CSP violation: ${detail}`), {
-            source: 'csp-violation',
-            categoryOverride: 'csp-violation',
-            filename: event.sourceFile || undefined,
-            lineno: event.lineNumber || undefined,
-        });
     });
 }
 
 const queryCache = new QueryCache({
     onError: (error: Error): void => {
-        reportError(error, { source: 'query' });
+        logger.error('GLOBAL', `[query] ${error.message}`, { error });
     },
 });
 
 const mutationCache = new MutationCache({
     onError: (error: Error): void => {
-        reportError(error, { source: 'mutation' });
+        logger.error('GLOBAL', `[mutation] ${error.message}`, { error });
     },
 });
 
@@ -115,8 +105,7 @@ export function App() {
     }, []);
 
     const handleError = useCallback((error: Error, info: ErrorInfo): void => {
-        logger.error('APP', 'Application Error', { error, data: info });
-        reportError(error, { source: 'error-boundary', componentStack: info.componentStack ?? undefined });
+        logger.error('APP', '[error-boundary] Application Error', { error, data: info });
     }, []);
 
     return (

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { getSyncManager, useRuntimeRepositories, useSocketState } from '@chatic/app-runtime';
+import { getSyncManager, useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
 import type { DomainChannel, DomainJoin } from '@chatic/data';
 
 import { isSelfChannel, useReadCursorStore } from '../../../shared';
@@ -34,7 +34,7 @@ export type ReadCountOf = (chatNo: number, senderId?: string) => ReadCount | nul
  */
 export const useReadCounts = (channel: DomainChannel | undefined, viewer: MessageViewer): ReadCountOf => {
     const { join: joinRepository } = useRuntimeRepositories();
-    const { isVerified } = useSocketState();
+    const { isVerified } = useRuntimeSocketState();
     const channelId = channel?.id ?? null;
     const [joins, setJoins] = useState<DomainJoin[]>([]);
 

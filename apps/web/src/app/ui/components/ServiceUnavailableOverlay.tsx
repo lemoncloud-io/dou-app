@@ -1,7 +1,7 @@
 import { RefreshCw, ServerCrash } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-import { useServiceUnavailable } from '@chatic/web-core';
+import { useServiceUnavailable } from '@chatic/app-runtime';
 
 export const ServiceUnavailableOverlay = () => {
     const { t } = useTranslation();

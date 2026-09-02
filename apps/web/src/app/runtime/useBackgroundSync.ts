@@ -1,24 +1,25 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useIsMutating } from '@tanstack/react-query';
 
-import { useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
+import { useRuntimeProfile, useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
 import {
     SWITCH_CLOUD_MUTATION_KEY,
     SWITCH_SITE_MUTATION_KEY,
     useGlobalSession,
     useSessionSelection,
-} from '@chatic/web-core';
+} from '@chatic/app-runtime';
 
 import { useAppForeground } from '../bridge';
+import { INVITE_LIST_LIMIT } from '../hooks/useRelayInvites';
 
 // Periodic background-sync interval. The user-facing requirement is "about a minute"; lists
 // only re-discover added/removed entries here, so a coarse cadence is intentional.
 const BACKGROUND_SYNC_POLL_MS = 60_000;
 
 /**
- * Global background sync — keeps place/channel/profile lists fresh regardless of route.
- * Ported from the testbed ChatHomePage `refreshActiveLists`, but lifted into the runtime
- * layer so polling continues outside the home page.
+ * Global background sync — keeps place/channel/profile lists (and the sender's own relay invites)
+ * fresh regardless of route. Ported from the testbed ChatHomePage `refreshActiveLists`, but lifted
+ * into the runtime layer so polling continues outside the home page.
  *
  * Triggers:
  *  1. Rising edge of `isVerified` (false→true) — covers app entry, reconnect, and switch
@@ -26,6 +27,10 @@ const BACKGROUND_SYNC_POLL_MS = 60_000;
  *     re-authenticates (auth.switch / reconnect re-auth), so the rising edge fires exactly when
  *     the new session is verified — never against the stale pre-switch session.
  *  2. Periodic timer while verified — skipped during an in-flight switch.
+ *
+ * The periodic tick passes `{ periodic: true }` so a domain can opt out of it while staying on the
+ * edges. Only invites use that today: see the block for why polling on behalf of a user with no
+ * live card is pure waste.
  *
  * Switch detection is global via `useIsMutating` on the switch mutation keys: the switch is
  * triggered by other components, whose per-hook `isSwitching`/`isPending` is invisible here.
@@ -36,6 +41,9 @@ export const useBackgroundSync = (): void => {
     const session = useGlobalSession();
     const { selectedSiteId } = useSessionSelection();
     const { isVerified } = useRuntimeSocketState();
+    // Only for the invite block below — issuing an invite requires a phone-verified main user
+    // (ADR-0034), so a guest cannot own a card for `invite.list` to return.
+    const { isGuest } = useRuntimeProfile();
 
     const cid = session.activeServer.kind === 'cloud' ? session.activeServer.cloudId : 'default';
     const activeSiteId = selectedSiteId;
@@ -48,54 +56,118 @@ export const useBackgroundSync = (): void => {
             useIsMutating({ mutationKey: SWITCH_CLOUD_MUTATION_KEY }) >
         0;
 
-    // Place snapshot + channel/profile delta sync with watermarks. place.refreshList is a full
-    // snapshot (no cursor); channel.syncChannels / profile.syncProfiles are delta APIs, so the
-    // stored syncedAt is passed as `since` and the returned syncedAt is persisted back.
-    const refreshActiveLists = useCallback(async () => {
-        // These are three INDEPENDENT socket domains (user profile, channel delta, profile delta) plus
-        // the fire-and-forget place snapshot — they share no data dependency, so run them concurrently.
-        // Awaiting them serially cost ~3 sequential socket round trips on every switch / 60s poll /
-        // foreground; Promise.all collapses that to one round-trip depth. Each block keeps its own
-        // getSyncedAt → sync → setSyncedAt watermark ordering internally.
-        void repos.place.refreshList().catch(() => {
-            /* best-effort */
-        });
+    /**
+     * Whether the local invite cache holds a card whose state can still move (see the invite block
+     * in `refreshActiveLists`). A cache read, not a packet — the whole point is to decide whether a
+     * packet is worth sending. An unreadable cache answers "no": the edges re-ask regardless, so
+     * the cost of being wrong here is one delayed refresh, not a lost one.
+     */
+    const hasPendingSentInvite = useCallback(async (): Promise<boolean> => {
+        try {
+            const { list } = await repos.invite.cacheReadList();
+            return list.some(row => row.state === 'pending');
+        } catch {
+            return false;
+        }
+    }, [repos.invite]);
 
-        await Promise.all([
-            // Refresh the current-session user profile (User domain); the repository caches the embedded
-            // $site into the place store. Keeps the account profile + active site fresh.
-            repos.user.getMyProfile().catch(() => {
-                // best-effort: a failed profile refresh leaves the previous cache intact
-            }),
+    // Place snapshot + channel/profile delta sync with watermarks, plus the sent-invite list.
+    // place.refreshList and invite.list are full snapshots (no cursor); channel.syncChannels /
+    // profile.syncProfiles are delta APIs, so the stored syncedAt is passed as `since` and the
+    // returned syncedAt is persisted back.
+    const refreshActiveLists = useCallback(
+        async ({ periodic = false }: { periodic?: boolean } = {}) => {
+            // These are four INDEPENDENT socket domains (user profile, channel delta, profile delta,
+            // sent invites) plus the fire-and-forget place snapshot — they share no data dependency,
+            // so run them concurrently.
+            // Awaiting them serially cost ~3 sequential socket round trips on every switch / 60s poll /
+            // foreground; Promise.all collapses that to one round-trip depth. Each block keeps its own
+            // getSyncedAt → sync → setSyncedAt watermark ordering internally.
+            void repos.place.refreshList().catch(() => {
+                /* best-effort */
+            });
 
-            // Channel delta sync — channel.sync spans the whole cloud, so the cursor is keyed by cid.
-            // Each channel is stored tagged with its own sid, sgeo this is correct across site switches.
-            (async () => {
-                try {
-                    const channelSyncKind = `channel-sync:${cid}`;
-                    const since = await repos.syncMeta.getSyncedAt(channelSyncKind);
-                    const { syncedAt } = await repos.channel.syncChannels(since);
-                    await repos.syncMeta.setSyncedAt(channelSyncKind, syncedAt);
-                } catch {
-                    // best-effort: watermark not advanced → retried with the same since next tick
-                }
-            })(),
+            await Promise.all([
+                // Refresh the current-session user profile (User domain); the repository caches the embedded
+                // $site into the place store. Keeps the account profile + active site fresh.
+                repos.user.getMyProfile().catch(() => {
+                    // best-effort: a failed profile refresh leaves the previous cache intact
+                }),
 
-            // Profile delta sync — cursor keyed by {cid, sid}. Passing since=0 every tick would re-pull
-            // everything and lose removal deltas, so the watermark must advance. Skipped without a site.
-            (async () => {
-                if (!activeSiteId) return;
-                try {
-                    const profileSyncKind = `profile-sync:${cid}:${activeSiteId}`;
-                    const since = await repos.syncMeta.getSyncedAt(profileSyncKind);
-                    const { syncedAt } = await repos.profile.syncProfiles(since);
-                    await repos.syncMeta.setSyncedAt(profileSyncKind, syncedAt);
-                } catch {
-                    // best-effort: watermark not advanced → retried with the same since next tick
-                }
-            })(),
-        ]);
-    }, [repos.place, repos.user, repos.channel, repos.profile, repos.syncMeta, cid, activeSiteId]);
+                // Channel delta sync — channel.sync spans the whole cloud, so the cursor is keyed by cid.
+                // Each channel is stored tagged with its own sid, sgeo this is correct across site switches.
+                (async () => {
+                    try {
+                        const channelSyncKind = `channel-sync:${cid}`;
+                        const since = await repos.syncMeta.getSyncedAt(channelSyncKind);
+                        const { syncedAt } = await repos.channel.syncChannels(since);
+                        await repos.syncMeta.setSyncedAt(channelSyncKind, syncedAt);
+                    } catch {
+                        // best-effort: watermark not advanced → retried with the same since next tick
+                    }
+                })(),
+
+                // Sent relay invites (ADR-0052). The home rows render straight off the invite cache and
+                // `invite.list` mirrors its response there, so this block is now the only thing keeping
+                // them converging — the query itself no longer fetches on mount or focus
+                // (`useRelayInvites`'s `remote` option carries the why).
+                (async () => {
+                    // Relay-pinned, and the rows only ever render on the default cloud, so a cloud
+                    // session has nothing to refresh here. Skipping also keeps the `isVerified` gate on
+                    // the triggers honest for this call: with cid 'default' the ACTIVE slot IS relay,
+                    // which is the slot the invite gateway is pinned to.
+                    if (cid !== 'default') return;
+                    // A guest cannot have issued an invite (the form is main-user-only — ADR-0034),
+                    // so their list is guaranteed empty and asking is pure cost. Worth a line of its
+                    // own because apps/web auto-boots a guest session for anyone not signed in: they
+                    // are a large share of home mounts, and this takes them to zero packets rather
+                    // than one per edge. Guest-ness is seeded synchronously from the session token,
+                    // so it is already correct at the rising edge; a guest→main promotion commits a
+                    // new token, which re-authenticates and fires the edge again.
+                    if (isGuest) return;
+                    // An invite only changes on the RECIPIENT's device and no packet announces it
+                    // (백엔드 요청 #4), so freshness has to be asked for — but only while a card can
+                    // still change. `pending` is that set: `accepted`/`canceled`/`rejected` are final,
+                    // and an `expired` card cannot be accepted any more. A user with no pending card
+                    // (which is most users, most of the time) therefore sends nothing on the tick.
+                    // The EDGES still ask unconditionally, and that is what discovers a card this
+                    // device has never seen — one issued from another device, or a cleared cache.
+                    if (periodic && !(await hasPendingSentInvite())) return;
+                    try {
+                        await repos.invite.list({ limit: INVITE_LIST_LIMIT });
+                    } catch {
+                        // best-effort: the next edge or tick re-asks
+                    }
+                })(),
+
+                // Profile delta sync — cursor keyed by {cid, sid}. Passing since=0 every tick would re-pull
+                // everything and lose removal deltas, so the watermark must advance. Skipped without a site.
+                (async () => {
+                    if (!activeSiteId) return;
+                    try {
+                        const profileSyncKind = `profile-sync:${cid}:${activeSiteId}`;
+                        const since = await repos.syncMeta.getSyncedAt(profileSyncKind);
+                        const { syncedAt } = await repos.profile.syncProfiles(since);
+                        await repos.syncMeta.setSyncedAt(profileSyncKind, syncedAt);
+                    } catch {
+                        // best-effort: watermark not advanced → retried with the same since next tick
+                    }
+                })(),
+            ]);
+        },
+        [
+            repos.place,
+            repos.user,
+            repos.channel,
+            repos.profile,
+            repos.syncMeta,
+            repos.invite,
+            hasPendingSentInvite,
+            isGuest,
+            cid,
+            activeSiteId,
+        ]
+    );
 
     // Load the "나와의 채팅" (notes-to-self) channel for the active site via channel.get-self, which
     // caches it so it appears in the channel list. Runs on every place entry (rising edge + site
@@ -134,7 +206,7 @@ export const useBackgroundSync = (): void => {
     // window can leave the old session briefly verified=true; the rising edge handles completion).
     useEffect(() => {
         if (!isVerified || isSwitching) return;
-        const timer = setInterval(() => void refreshActiveLists(), BACKGROUND_SYNC_POLL_MS);
+        const timer = setInterval(() => void refreshActiveLists({ periodic: true }), BACKGROUND_SYNC_POLL_MS);
         return () => clearInterval(timer);
     }, [isVerified, isSwitching, refreshActiveLists]);
 

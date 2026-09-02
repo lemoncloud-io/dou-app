@@ -10,7 +10,7 @@ import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
 
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { cloudsKeys, useSessionSelection } from '@chatic/web-core';
+import { cloudsKeys, useSessionSelection } from '@chatic/app-runtime';
 
 import { FloatingButton, TextField } from '@chatic/web-ui-kit';
 

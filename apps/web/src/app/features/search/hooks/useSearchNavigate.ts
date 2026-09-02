@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 
 import { getSocketManager, useSiteSwitch } from '@chatic/app-runtime';
 import { logger } from '@chatic/bridges';
-import { useSessionSelection, useSwitchCloudSession } from '@chatic/web-core';
+import { useSessionSelection, useSwitchCloudSession } from '@chatic/app-runtime';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 /** Upper bound for awaiting the socket handshake before a search-driven cloud switch. */

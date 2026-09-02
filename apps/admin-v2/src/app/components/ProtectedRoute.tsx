@@ -1,9 +1,36 @@
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 
-import { tryFetchProfile, useSessionAuth, useSessionIdentity } from '@chatic/web-core';
+import { useRuntimeRepositories, useSessionAuth, useSessionIdentity } from '@chatic/app-runtime';
 
 import { useRelaySessionGuard } from '../hooks/useRelaySessionGuard';
+
+/**
+ * The user repository as the runtime hands it out. Derived from the hook rather than imported from
+ * `@chatic/data`, so this console depends on `@chatic/app-runtime` alone — the runtime is the single
+ * window an app looks through, and a type import is enough to make the second package part of this
+ * app's build surface.
+ */
+type UserRepository = ReturnType<typeof useRuntimeRepositories>['user'];
+
+/**
+ * Optimistic profile read for the gate: the profile if the current token still works, else null.
+ *
+ * The swallow lives HERE, in the caller, on purpose. `data`'s own layers reject on failure and say
+ * so (`UserHttpDataSource` — "errors bubble, matching the gateway (no swallow-and-null here
+ * either)"), because null-vs-throw is a screen policy: this gate renders its retry state on null
+ * and must never get an alert or a redirect out of the call. It used to be `tryFetchProfile` in
+ * `@chatic/app-runtime`, which made one app's gate policy part of the shared runtime surface
+ * (ADR-0070 결정 5, ②안 방향).
+ */
+const tryFetchProfile = async (user: UserRepository) => {
+    try {
+        const data = await user.tryFetchProfile();
+        return (data as { error?: string })?.error ? null : data;
+    } catch {
+        return null;
+    }
+};
 
 interface ProtectedRouteProps {
     children: React.ReactNode;
@@ -29,6 +56,7 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     const { userId } = useSessionIdentity();
     const location = useLocation();
     const navigate = useNavigate();
+    const { user } = useRuntimeRepositories();
 
     // Keep HTTP signing credentials fresh while the console is open (and kick truly dead
     // sessions back to the login screen instead of leaving pages to 403).
@@ -43,7 +71,7 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
         refetch,
     } = useQuery({
         queryKey: ['admin-v2', 'profile', userId ?? 'anonymous'],
-        queryFn: tryFetchProfile,
+        queryFn: () => tryFetchProfile(user),
         enabled: isAuthenticated,
         staleTime: Infinity,
     });

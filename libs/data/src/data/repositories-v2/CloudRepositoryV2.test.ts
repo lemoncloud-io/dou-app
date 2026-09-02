@@ -11,7 +11,7 @@ const createLocalDataSource = () => ({
     cacheClear: jest.fn(),
 });
 
-const createRemoteDataSource = () => ({
+const createSocketDataSource = () => ({
     getCloud: jest.fn(),
     updateCloud: jest.fn(),
     deleteCloud: jest.fn(),
@@ -25,7 +25,7 @@ const contextProvider = {
 describe('CloudRepositoryV2', () => {
     it('returns a stable empty local result when no clouds are cached yet', async () => {
         const local = createLocalDataSource();
-        const repository = new CloudRepositoryV2(createRemoteDataSource() as any, local as any, contextProvider);
+        const repository = new CloudRepositoryV2(createSocketDataSource() as any, local as any, contextProvider);
 
         const result = await repository.cacheReadList();
 
@@ -35,7 +35,7 @@ describe('CloudRepositoryV2', () => {
 
     it('delegates cache helpers to the local datasource with the bound context', async () => {
         const local = createLocalDataSource();
-        const repository = new CloudRepositoryV2(createRemoteDataSource() as any, local as any, contextProvider);
+        const repository = new CloudRepositoryV2(createSocketDataSource() as any, local as any, contextProvider);
 
         await repository.cacheRead('cloud-1');
         await repository.cacheWrite({ id: 'cloud-1' } as any);
@@ -46,7 +46,7 @@ describe('CloudRepositoryV2', () => {
 
     it('mirrors a remote get into the local cache', async () => {
         const local = createLocalDataSource();
-        const remote = createRemoteDataSource();
+        const remote = createSocketDataSource();
         remote.getCloud.mockResolvedValue({ id: 'cloud-1', name: 'Cloud One' });
         const repository = new CloudRepositoryV2(remote as any, local as any, contextProvider);
 
@@ -63,7 +63,7 @@ describe('CloudRepositoryV2', () => {
     it('optimistically writes the edit, then rolls back when the remote update fails', async () => {
         const local = createLocalDataSource();
         local.cacheRead.mockResolvedValue({ id: 'cloud-1', name: 'Old' });
-        const remote = createRemoteDataSource();
+        const remote = createSocketDataSource();
         remote.updateCloud.mockRejectedValue(new Error('boom'));
         const repository = new CloudRepositoryV2(remote as any, local as any, contextProvider);
 
@@ -82,7 +82,7 @@ describe('CloudRepositoryV2', () => {
     it('reflects the edit in the cache optimistically before the server responds', async () => {
         const local = createLocalDataSource();
         local.cacheRead.mockResolvedValue({ id: 'cloud-1', cid: 'cloud-1', name: 'Old', cloudType: 'owner' });
-        const remote = createRemoteDataSource();
+        const remote = createSocketDataSource();
         let resolveUpdate: (value: unknown) => void = () => undefined;
         remote.updateCloud.mockReturnValue(new Promise(resolve => (resolveUpdate = resolve)));
         const repository = new CloudRepositoryV2(remote as any, local as any, contextProvider);
@@ -104,7 +104,7 @@ describe('CloudRepositoryV2', () => {
     it('keeps an invited cloud invited on an optimistic edit', async () => {
         const local = createLocalDataSource();
         local.cacheRead.mockResolvedValue({ id: 'cloud-1', cid: 'cloud-1', name: 'Old', cloudType: 'invited' });
-        const remote = createRemoteDataSource();
+        const remote = createSocketDataSource();
         remote.updateCloud.mockResolvedValue({ id: 'cloud-1', name: 'New' });
         const repository = new CloudRepositoryV2(remote as any, local as any, contextProvider);
 
@@ -121,7 +121,7 @@ describe('CloudRepositoryV2', () => {
     it('types a freshly mirrored subscription cloud as owner (not the invited default)', async () => {
         const local = createLocalDataSource();
         local.cacheRead.mockResolvedValue(null);
-        const remote = createRemoteDataSource();
+        const remote = createSocketDataSource();
         remote.getCloud.mockResolvedValue({ id: 'cloud-1', name: 'Cloud One' });
         const repository = new CloudRepositoryV2(remote as any, local as any, contextProvider);
 
@@ -138,7 +138,7 @@ describe('CloudRepositoryV2', () => {
     it('preserves an existing invited type when mirroring a get', async () => {
         const local = createLocalDataSource();
         local.cacheRead.mockResolvedValue({ id: 'cloud-1', cid: 'cloud-1', name: 'Old', cloudType: 'invited' });
-        const remote = createRemoteDataSource();
+        const remote = createSocketDataSource();
         remote.getCloud.mockResolvedValue({ id: 'cloud-1', name: 'Fresh' });
         const repository = new CloudRepositoryV2(remote as any, local as any, contextProvider);
 
@@ -154,7 +154,7 @@ describe('CloudRepositoryV2', () => {
     it('persists the authoritative name into the cache on a successful update', async () => {
         const local = createLocalDataSource();
         local.cacheRead.mockResolvedValue(null);
-        const remote = createRemoteDataSource();
+        const remote = createSocketDataSource();
         remote.updateCloud.mockResolvedValue({ id: 'cloud-1', name: 'New' });
         const repository = new CloudRepositoryV2(remote as any, local as any, contextProvider);
 
@@ -169,7 +169,7 @@ describe('CloudRepositoryV2', () => {
     it('optimistically removes a cloud and restores it when the remote delete fails', async () => {
         const local = createLocalDataSource();
         local.cacheRead.mockResolvedValue({ id: 'cloud-1', name: 'Keep' });
-        const remote = createRemoteDataSource();
+        const remote = createSocketDataSource();
         remote.deleteCloud.mockRejectedValue(new Error('nope'));
         const repository = new CloudRepositoryV2(remote as any, local as any, contextProvider);
 
@@ -177,5 +177,47 @@ describe('CloudRepositoryV2', () => {
 
         expect(local.cacheDelete).toHaveBeenCalledWith('cloud-1', expect.anything());
         expect(local.cacheWrite).toHaveBeenLastCalledWith({ id: 'cloud-1', name: 'Keep' }, expect.anything());
+    });
+});
+
+describe('CloudRepositoryV2 — HTTP catalog surface (ADR-0070 2단계 후반)', () => {
+    const createHttpDataSource = () => ({
+        listClouds: jest.fn(),
+        updateCloud: jest.fn(),
+        makeCloud: jest.fn(),
+        releaseCloud: jest.fn(),
+        verifyEmail: jest.fn(),
+    });
+
+    it('throws a clear error when ICloudHttpDataSource is not injected', async () => {
+        const repository = new CloudRepositoryV2(
+            createSocketDataSource() as any,
+            createLocalDataSource() as any,
+            contextProvider
+        );
+
+        await expect(repository.fetchCloudCatalog()).rejects.toThrow('not injected');
+        await expect(repository.makeCloud({} as any)).rejects.toThrow('not injected');
+        await expect(repository.releaseCloud('c1')).rejects.toThrow('not injected');
+        await expect(repository.verifyCloudEmail({} as any)).rejects.toThrow('not injected');
+    });
+
+    it('delegates to the injected http data source and never touches the local cache', async () => {
+        const http = createHttpDataSource();
+        http.listClouds.mockResolvedValue({ list: [{ id: 'c1' }], meta: { total: 1, source: 'remote' } });
+        const local = createLocalDataSource();
+        const repository = new CloudRepositoryV2(
+            createSocketDataSource() as any,
+            local as any,
+            contextProvider,
+            http as any
+        );
+
+        const result = await repository.fetchCloudCatalog({ page: 1 });
+
+        expect(http.listClouds).toHaveBeenCalledWith({ page: 1 }, expect.anything());
+        expect(result.list).toEqual([{ id: 'c1' }]);
+        expect(local.cacheWrite).not.toHaveBeenCalled();
+        expect(local.cacheWriteMany).not.toHaveBeenCalled();
     });
 });

@@ -1,8 +1,8 @@
 import { useState } from 'react';
 
 import { cn } from '@chatic/lib/utils';
-import { useSessionIdentity } from '@chatic/web-core';
-import { useSessionProfile } from '@chatic/app-runtime';
+import { useSessionIdentity } from '@chatic/app-runtime';
+import { useRuntimeProfile } from '@chatic/app-runtime';
 
 import { useDebugLogin } from '../../auth/hooks';
 
@@ -20,7 +20,7 @@ const inputClass = cn(
  */
 export const DebugAuthPage = () => {
     const { userId } = useSessionIdentity();
-    const { userName } = useSessionProfile();
+    const { userName } = useRuntimeProfile();
     const currentUid = userId ?? '—';
     const currentName = userName ?? '';
     const { submit, isSubmitting, isError } = useDebugLogin();

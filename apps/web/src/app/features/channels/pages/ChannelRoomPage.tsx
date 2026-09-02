@@ -5,7 +5,7 @@ import { useLocation, useParams, useSearchParams } from 'react-router-dom';
 
 import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
-import { useSessionIdentity } from '@chatic/web-core';
+import { useSessionIdentity } from '@chatic/app-runtime';
 import type { DomainChannel } from '@chatic/data';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 import { DropdownMenuItem } from '@chatic/ui-kit/components/ui/dropdown-menu';

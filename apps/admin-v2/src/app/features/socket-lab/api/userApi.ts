@@ -2,7 +2,7 @@
  * `api/userApi.ts`
  * - 관측 유저 목록(실데이터).
  */
-import { webTransport } from '@chatic/web-core';
+import { webTransport } from '@chatic/app-runtime';
 
 import type { ObservedDevice, ObservedUser, Presence, UserSearchType } from '../mock/observed-users';
 

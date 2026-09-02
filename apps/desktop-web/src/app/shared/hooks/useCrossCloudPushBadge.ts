@@ -1,8 +1,8 @@
 import { useEffect } from 'react';
 
 import { webClient } from '@chatic/bridges';
-import { getGlobalSessionContext, useGlobalSession } from '@chatic/web-core';
-import { useSocketState } from '@chatic/app-runtime';
+import { getGlobalSessionContext, useGlobalSession } from '@chatic/app-runtime';
+import { useRuntimeSocketState } from '@chatic/app-runtime';
 
 import { useCloudPushBadgeStore } from '../stores';
 import { resolvePushCloudId } from '../utils';
@@ -31,7 +31,7 @@ export const useCrossCloudPushBadge = (): void => {
     // `cloudId` is gone from socket state in v2 — derive the active cloud from the session.
     const session = useGlobalSession();
     const cloudId = session.activeServer.kind === 'cloud' ? session.activeServer.cloudId : null;
-    const { isVerified } = useSocketState();
+    const { isVerified } = useRuntimeSocketState();
     const mark = useCloudPushBadgeStore(s => s.mark);
     const clear = useCloudPushBadgeStore(s => s.clear);
 

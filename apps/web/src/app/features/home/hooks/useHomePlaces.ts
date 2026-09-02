@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import { useRuntimeRepositories } from '@chatic/app-runtime';
-import { useGlobalSession } from '@chatic/web-core';
+import { useGlobalSession } from '@chatic/app-runtime';
 import type { DomainPlace } from '@chatic/data';
 
 export interface HomePlacesResult {
@@ -25,12 +25,15 @@ export interface HomePlacesResult {
  * that gap.
  *
  * SCOPE PINNING — the observer's scope key must be derived from THESE {cid, uid} values, not the
- * live DataContextProvider. The provider is updated by an ancestor (RuntimeDataBinder), whose effect
- * runs AFTER this descendant hook has already subscribed, so on a cloud switch the provider still
- * reports the previous cid when observeList() runs → the observer registers under the stale scope and
- * misses the post-commit write (needs a manual refresh to show up). Passing an explicit contextOverride
- * keys the observer off the React session directly, independent of that effect ordering. See
- * PlaceLocalDataSourceV2 reemit-routing tests.
+ * live DataContextProvider (`ActiveScope`). `ActiveScope` derives its `intent` straight from
+ * `session/store` on every read (ADR-0070 결정 7) rather than being pushed by an ancestor effect, so
+ * the commit-lag this override originally guarded against — `RuntimeDataBinder` used to push
+ * `binding.context` into the provider in an effect that ran AFTER this descendant hook had already
+ * subscribed — can no longer happen through that path: that binder has been deleted, so there is no
+ * mount point left to reintroduce the push. The explicit contextOverride stays because
+ * `ActiveScope.getContext()` also folds in the socket's bound cid as `socketCid`, which this hook does
+ * not want mixed into its scope key — passing {cid, uid} keeps the observer keyed purely on the
+ * session-selected cloud. See PlaceLocalDataSourceV2 reemit-routing tests.
  */
 export const useHomePlaces = (): HomePlacesResult => {
     const { place } = useRuntimeRepositories();

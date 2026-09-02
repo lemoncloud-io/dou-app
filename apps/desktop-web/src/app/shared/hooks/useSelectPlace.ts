@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 
 import { useSiteSwitch } from '@chatic/app-runtime';
-import { useSessionSelection } from '@chatic/web-core';
+import { useSessionSelection } from '@chatic/app-runtime';
 
 /**
  * Switch the active place. The place IS the session's selected site, so this just forwards to

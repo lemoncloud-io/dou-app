@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
-import { useInviteInfo } from '@chatic/web-core';
+import { useInviteInfo } from '@chatic/app-runtime';
 import { AlertDialog } from '@chatic/web-ui-kit';
 
 import { InviteAcceptScreen } from './InviteAcceptScreen';

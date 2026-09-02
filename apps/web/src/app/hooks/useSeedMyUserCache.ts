@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
 
 import { useRuntimeRepositories } from '@chatic/app-runtime';
-import { getActiveSessionUser, useSessionIdentity } from '@chatic/web-core';
+import { useSessionIdentity } from '@chatic/app-runtime';
+import { getActiveSessionUser } from '@chatic/app-runtime';
 
 /**
  * Seeds the user cache from the ACTIVE session profile so cache-observing profile readers have a row

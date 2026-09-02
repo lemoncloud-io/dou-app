@@ -1,4 +1,4 @@
-import { fetchInviteInfoWithCode } from '@chatic/web-core';
+import { fetchInviteInfoWithCode } from '@chatic/app-runtime';
 
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 

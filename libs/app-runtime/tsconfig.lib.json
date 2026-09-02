@@ -28,16 +28,31 @@
     "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx"],
     "references": [
         {
-            "path": "../app-messages/tsconfig.lib.json"
+            "path": "../auth-sign/tsconfig.lib.json"
         },
         {
-            "path": "../bridges/tsconfig.lib.json"
+            "path": "../http/tsconfig.lib.json"
+        },
+        {
+            "path": "../web-config/tsconfig.lib.json"
+        },
+        {
+            "path": "../logger/tsconfig.lib.json"
+        },
+        {
+            "path": "../shared/tsconfig.lib.json"
+        },
+        {
+            "path": "../db/tsconfig.lib.json"
+        },
+        {
+            "path": "../app-messages/tsconfig.lib.json"
         },
         {
             "path": "../data/tsconfig.lib.json"
         },
         {
-            "path": "../web-core/tsconfig.lib.json"
+            "path": "../bridges/tsconfig.lib.json"
         }
     ]
 }

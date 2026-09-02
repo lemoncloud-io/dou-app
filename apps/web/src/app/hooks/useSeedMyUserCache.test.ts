@@ -1,12 +1,16 @@
 import { renderHook, waitFor } from '@testing-library/react';
 
 import { useRuntimeRepositories } from '@chatic/app-runtime';
-import { getActiveSessionUser, useSessionIdentity } from '@chatic/web-core';
+import { useSessionIdentity } from '@chatic/app-runtime';
+import { getActiveSessionUser } from '@chatic/app-runtime';
 
 import { useSeedMyUserCache } from './useSeedMyUserCache';
 
-jest.mock('@chatic/app-runtime', () => ({ useRuntimeRepositories: jest.fn() }));
-jest.mock('@chatic/web-core', () => ({ useSessionIdentity: jest.fn(), getActiveSessionUser: jest.fn() }));
+jest.mock('@chatic/app-runtime', () => ({
+    useRuntimeRepositories: jest.fn(),
+    useSessionIdentity: jest.fn(),
+    getActiveSessionUser: jest.fn(),
+}));
 
 const cacheReadMock = jest.fn();
 const cacheWriteMock = jest.fn();

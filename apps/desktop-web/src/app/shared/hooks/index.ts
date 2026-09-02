@@ -17,6 +17,7 @@ export * from './useCrossCloudPushNotifications';
 export * from './useCloudSwitchFlow';
 export * from './useSelectPlace';
 export * from './usePlaceUnreadCounts';
+export * from './useCloudCatalog';
 export * from './useClouds';
 export * from './useInvitedCloudRecovery';
 export * from './useRemoveCloud';

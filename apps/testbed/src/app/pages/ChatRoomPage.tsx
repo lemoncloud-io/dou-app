@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useSessionIdentity, useSessionSelection } from '@chatic/web-core';
+import { useSessionIdentity, useSessionSelection } from '@chatic/app-runtime';
 import {
     getSyncManager,
     useChannelSync,

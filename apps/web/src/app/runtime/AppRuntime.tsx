@@ -19,6 +19,7 @@ import { BackgroundSyncRunner } from './BackgroundSyncRunner';
 import { InvitedCloudDurabilityRunner } from './InvitedCloudDurabilityRunner';
 import { MyUserSeedRunner } from './MyUserSeedRunner';
 import { PreferenceLoader } from './PreferenceLoader';
+import { useCloudCredentialRenewal } from './useCloudCredentialRenewal';
 import { useRelayCredentialRefresh } from './useRelayCredentialRefresh';
 import { useSocketWakeRecovery } from './useSocketWakeRecovery';
 
@@ -28,7 +29,7 @@ import { useSocketWakeRecovery } from './useSocketWakeRecovery';
  * site/cloud switch is handled internally — the app never sends `auth:update` itself, and the
  * socket session delegate is now owned by app-runtime (no delegate prop).
  *
- * Session readiness: `RuntimeConnectionHost` is the SINGLE web-core init driver (`useInitWebCore` →
+ * Session readiness: `RuntimeConnectionHost` is the SINGLE web-core init driver (`useRelaySessionInit` →
  * `initializeRelaySession`) and gates its subtree until ready; `SessionBackgroundRunner` inside it
  * runs the background guest login when the relay session is absent. `AppReadyGate` then holds the UI
  * until the profile is ready so it never renders profile-less.
@@ -49,6 +50,11 @@ export const AppRuntime = () => {
     // cycle (5min) away, so without this every relay-signed request — notably the cloud entry
     // calls — 403s meanwhile.
     useRelayCredentialRefresh();
+
+    // Cloud half of the same problem, different cure: a cloud credential that lapses while its socket
+    // is down is RE-ISSUED from the relay identity (there is no refresh to ask for). Arms itself off
+    // the credential's own expiry; no-op in a relay-only session.
+    useCloudCredentialRenewal();
 
     return (
         <RuntimeConnectionHost binding={binding}>

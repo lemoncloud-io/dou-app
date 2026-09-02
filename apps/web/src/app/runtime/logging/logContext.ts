@@ -1,5 +1,5 @@
 import { createLogId, setLogContextProvider } from '@chatic/bridges';
-import { getGlobalSessionContext } from '@chatic/web-core';
+import { getGlobalSessionContext } from '@chatic/app-runtime';
 
 import { getRouteTrail } from '../../utils/routeTrail';
 

@@ -1,17 +1,19 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 
 import { useKindVerified } from '@chatic/app-runtime';
-import { getRelaySessionUser, patchRelaySessionUser, useGlobalSession } from '@chatic/web-core';
+import { useGlobalSession } from '@chatic/app-runtime';
+import { getRelaySessionUser, patchRelaySessionUser } from '@chatic/app-runtime';
 
 import { getRelayAccountGateway } from '../runtime/relayAccountGateway';
 import { useMyUser } from './useMyUser';
 
-jest.mock('@chatic/app-runtime', () => ({ useKindVerified: jest.fn() }));
-jest.mock('@chatic/web-core', () => ({
+jest.mock('@chatic/app-runtime', () => ({
+    useKindVerified: jest.fn(),
+    useGlobalSession: jest.fn(),
     getRelaySessionUser: jest.fn(),
     patchRelaySessionUser: jest.fn(),
-    useGlobalSession: jest.fn(),
 }));
+
 jest.mock('../runtime/relayAccountGateway', () => ({ getRelayAccountGateway: jest.fn() }));
 
 const profileMock = jest.fn();

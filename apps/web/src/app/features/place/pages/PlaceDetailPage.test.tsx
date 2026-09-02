@@ -15,11 +15,12 @@ jest.mock('react-i18next', () => ({
 }));
 jest.mock('@chatic/app-runtime', () => ({
     useRuntimeRepositories: () => ({ place: { observeItem } }),
+    useSessionSelection: () => ({ selectedCloudId: mockCloudId }),
 }));
 // The page deliberately does NOT read the session — the URL's place decides everything. The mock
 // stays wired so that if it ever starts reading `selectedCloudId` again, the two regression tests at
 // the end of the cloud block fail instead of passing silently.
-jest.mock('@chatic/web-core', () => ({ useSessionSelection: () => ({ selectedCloudId: mockCloudId }) }));
+
 jest.mock('react-router-dom', () => ({ useParams: () => ({ placeId: 'p1' }) }));
 // The real `ui` barrel pulls `@chatic/assets` through PrivateLayout, which jest cannot parse.
 jest.mock('../../../ui', () => ({ PageHeader: ({ title }: { title: string }) => <div>header:{title}</div> }));

@@ -5,7 +5,7 @@ import * as ReactDOM from 'react-dom/client';
 import '@lemoncloud/page-transition-core/styles.css';
 
 import { configurePerfMetrics, logger, setupBridgeLogger } from '@chatic/bridges';
-import { configureDataRuntime, setNativeCacheSupport } from '@chatic/app-runtime';
+import { initAppRuntime, setNativeCacheSupport } from '@chatic/app-runtime';
 
 import App from './app/app';
 import { appBridge, pendingNavigationStore } from './app/bridge';
@@ -47,22 +47,33 @@ startLogUploader({
     keepDebug: import.meta.env.DEV,
 });
 
+// Boot the runtime. Placed HERE by contract, between two boundaries:
+//   - AFTER the log wiring above, because this call can log (duplicate boot, late data policy).
+//   - BEFORE anything below that can read the session. Nothing currently does before render, and
+//     the relay store throws rather than guessing when its resolvers are missing, so a future line
+//     that moves above this one fails loudly instead of signing requests against an empty host.
+// This replaces the import side effects that used to boot the session store and credential recovery
+// (ADR-0070 5단계 follow-up); it touches no network.
+//
+// Repository policy rides along: the embedded `$site` of user.profile is persisted into the place
+// cache only on the relay scope, so a cloud partition never receives the default place row
+// (ADR-0045). It must land before the data runtime is lazily created on first repository access.
+initAppRuntime({
+    data: {
+        repositories: { user: { persistEmbeddedSite: context => (context.cid ?? 'default') === 'default' } },
+    },
+});
+
 // Read the previous session's fate — a session that died without a clean
-// pagehide is reported as page-crash (ADR-0047 S7). The report carries no
-// buffer: the run's entries reach the collector through the batch uploader.
+// pagehide is logged as page-crash (ADR-0047 S7). It carries no buffer: the dead
+// run's entries reach the collector through the batch uploader on their own.
+// Must stay after `startLogUploader`, which owns the only log store.
 const webLogBoot = attachWebCrashSentinel();
 schedulePageCrashReport(webLogBoot);
 
-// Relay reports the native side detected while the web was down (WebView
-// crash, RN exceptions, native crashes) through the signed web reporter.
+// Drain the reports the native side detected while the web was down (WebView
+// crash, RN exceptions, native crashes) into the log pipeline.
 schedulePendingReportFlush();
-
-// Repository policies must land before the data runtime is lazily created (first render):
-// the embedded `$site` of user.profile is persisted into the place cache only on the relay
-// scope, so a cloud partition never receives the default place row (ADR-0045).
-configureDataRuntime({
-    repositories: { user: { persistEmbeddedSite: context => (context.cid ?? 'default') === 'default' } },
-});
 
 // Boot/perf collectors first so buffered long tasks and the boot timeline
 // include everything from here on (surfaced in the debug overlay).

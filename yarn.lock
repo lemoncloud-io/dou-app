@@ -3513,10 +3513,10 @@
   dependencies:
     lemon-model "^1.2.2"
 
-"@lemoncloud/chatic-sockets-lib@0.4.13":
-  version "0.4.13"
-  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-sockets-lib/-/chatic-sockets-lib-0.4.13.tgz#085e3ed312ca34f4eeb76778d5a1edcdcafb58c4"
-  integrity sha512-dUbEHBZIvFBbYOL4QxqrADv4EEQE3jDb9KONNaMWupUmzl5h3EAgxFxBgEDp2NKLRdp1VMN1gRkUbHurtgXwyg==
+"@lemoncloud/chatic-sockets-lib@0.5.1":
+  version "0.5.1"
+  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-sockets-lib/-/chatic-sockets-lib-0.5.1.tgz#37aa740ba73d9b936a5f2cbd2f72a4716b004413"
+  integrity sha512-5UpOWcqS0BvYnYSFg2OnJss8L/f71Htw3ikowI4rCROCYb0fjtVHPNM8dJ/Y1dsgsdGcgA8CmY7IXwIWuqjrKA==
 
 "@lemoncloud/lemon-boards-api@^2.25.109":
   version "2.25.608"
@@ -17428,19 +17428,19 @@ promise.series@^0.2.0:
   resolved "https://registry.yarnpkg.com/promise.series/-/promise.series-0.2.0.tgz#2cc7ebe959fc3a6619c04ab4dbdc9e452d864bbd"
   integrity sha512-VWQJyU2bcDTgZw8kpfBpB/ejZASlCrzwz5f2hjb/zlujOEB4oeiAhHygAWq8ubsX2GVkD4kCU5V2dwOTaCY5EQ==
 
+promise@*, promise@^8.3.0:
+  version "8.3.0"
+  resolved "https://registry.yarnpkg.com/promise/-/promise-8.3.0.tgz#8cb333d1edeb61ef23869fbb8a4ea0279ab60e0a"
+  integrity sha512-rZPNPKTOYVNEEKFaq1HqTgOwZD+4/YHS5ukLzQCypkj+OkYx7iv0mA91lJlpPPZ8vMau3IIGj5Qlwrx+8iiSmg==
+  dependencies:
+    asap "~2.0.6"
+
 promise@^7.1.1:
   version "7.3.1"
   resolved "https://registry.yarnpkg.com/promise/-/promise-7.3.1.tgz#064b72602b18f90f29192b8b1bc418ffd1ebd3bf"
   integrity sha512-nolQXZ/4L+bP/UGlkfaIujX9BKxGwmQ9OT4mOt5yvy8iK1h3wqTEJCijzGANTCCl9nWjY41juyAn2K3Q1hLLTg==
   dependencies:
     asap "~2.0.3"
-
-promise@^8.3.0:
-  version "8.3.0"
-  resolved "https://registry.yarnpkg.com/promise/-/promise-8.3.0.tgz#8cb333d1edeb61ef23869fbb8a4ea0279ab60e0a"
-  integrity sha512-rZPNPKTOYVNEEKFaq1HqTgOwZD+4/YHS5ukLzQCypkj+OkYx7iv0mA91lJlpPPZ8vMau3IIGj5Qlwrx+8iiSmg==
-  dependencies:
-    asap "~2.0.6"
 
 prompts@^2.4.2:
   version "2.4.2"
