@@ -1,6 +1,6 @@
 import { toBlocks, type KnownBlock } from '@chatic/block-kit';
 
-export interface BuilderTemplate {
+interface BuilderTemplate {
     id: 'error' | 'attendance' | 'deployment';
     label: string;
     /** A dot in the rail, so the three read as a set rather than a list of words. */

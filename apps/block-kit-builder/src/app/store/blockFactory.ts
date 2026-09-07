@@ -16,7 +16,7 @@ import type { KnownBlock } from '@chatic/block-kit';
  */
 export type BlockKind = 'header' | 'section' | 'fields' | 'divider' | 'context';
 
-export interface PaletteEntry {
+interface PaletteEntry {
     kind: BlockKind;
     label: string;
     /** What this draws, in the reader's terms rather than the schema's. */

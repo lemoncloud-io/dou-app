@@ -5,7 +5,7 @@ import { toBlocks, type KnownBlock } from '@chatic/block-kit';
  * `blocks$` and the same one `parseBlocks` reads out of `content`, so a payload
  * this tool produces is one a real message can be built from.
  */
-export interface BlockKitPayload {
+interface BlockKitPayload {
     blocks: KnownBlock[];
 }
 
@@ -21,7 +21,7 @@ export const blocksToPayloadJson = (blocks: KnownBlock[]): string =>
     `${JSON.stringify({ blocks } satisfies BlockKitPayload, null, 2)}\n`;
 
 /** What went wrong reading a payload back, in the words the pane shows. */
-export type PayloadParseResult = { ok: true; blocks: KnownBlock[] } | { ok: false; error: string };
+type PayloadParseResult = { ok: true; blocks: KnownBlock[] } | { ok: false; error: string };
 
 /**
  * The JSON pane → blocks.

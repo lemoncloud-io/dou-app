@@ -10,9 +10,9 @@ import { parseBlocks, toBlocks, type KnownBlock } from '@chatic/block-kit';
  * in that case, or they discard the summary the server promised. `content`
  * means the blocks *are* what `content` parsed into.
  */
-export type ChatBlocksSource = 'field' | 'content';
+type ChatBlocksSource = 'field' | 'content';
 
-export interface ResolvedChatBlocks {
+interface ResolvedChatBlocks {
     blocks: KnownBlock[] | null;
     source: ChatBlocksSource | null;
 }
