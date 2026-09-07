@@ -1,6 +1,9 @@
 # mypage
 
-> 상태: Live · 최종 갱신: 2026-08-27 · 관련 ADR: [ADR-0011](../../../../../docs/adr/0011-web-layout-shell-and-floating-bottom-nav.md)
+> 상태: Live · 최종 갱신: 2026-09-07 · 관련 ADR: [ADR-0011](../../../../../docs/adr/0011-web-layout-shell-and-floating-bottom-nav.md)
+>
+> 최근 개정(2026-09-07): 허브의 게스트 판정이 **계정(relay) 스코프**로 바뀌었다 — 클라우드 접속
+> 중에 로그인한 사용자에게 "로그인 필요" 카드가 뜨던 문제. 아래 [상태 분기](#상태-분기) 참고.
 >
 > 대상: `apps/web/src/app/features/mypage`
 >
@@ -36,7 +39,12 @@
 
 ### 상태 분기
 
-인증(`isGuest`)과 구독(`useMembershipInfo().isValid`)으로 분기한다. **무료 구독 D-N(잔여일) 상태는 이번 범위 제외** — 서버에 "현재 체험 중" 신뢰 플래그가 없어 보류(→ [리스크](#리스크와-미지수-임시)).
+인증(`isGuest`)과 구독(`useMembershipInfo().isValid`)으로 분기한다. 여기서 `isGuest`는
+**`useIsAccountGuest()`** — 활성 세션이 아니라 **relay 계정**의 게스트 여부다. 허브의 세 행이 전부
+계정 스코프이므로(프로필·구독·내가 가진 클라우드) 헤더의 이름과 같은 주체를 봐야 한다.
+`useRuntimeProfile().isGuest`는 활성 토큰을 읽어서, 클라우드에 접속하는 순간 **위임된 클라우드
+유저의 role**을 답한다 — 로그인한 사용자 이름 바로 옆에 "로그인 필요" 카드가 뜨던 원인이다.
+relay 토큰이 유일한 답인 이유는 아래 [세 종류의 프로필](#세-종류의-프로필)의 캐시 키 설명과 같다. **무료 구독 D-N(잔여일) 상태는 이번 범위 제외** — 서버에 "현재 체험 중" 신뢰 플래그가 없어 보류(→ [리스크](#리스크와-미지수-임시)).
 
 | 상태             | 조건                   | 루트(`/mypage`) 구성                                         |
 | ---------------- | ---------------------- | ------------------------------------------------------------ |
@@ -108,7 +116,9 @@ features/mypage/
 
 세션 상태는 web-core / app-runtime 훅으로만 읽는다(core 객체 직접 접근 금지, [architecture/README.md](../../architecture/README.md)).
 
-- 인증/클라우드 활성 → `useRuntimeProfile()` (`isGuest`, `isCloudActive`)
+- 계정 게스트 여부 → `useIsAccountGuest()` (relay 토큰 기준, 허브 분기가 쓰는 것)
+- 클라우드 활성 → `useRuntimeProfile()` (`isCloudActive`). 이 훅의 `isGuest`는 "지금 접속한
+  클라우드에서 내가 뭘 할 수 있나"를 묻는 화면(권한·룸·홈)의 것이지, 계정 화면의 것이 아니다
 - 선택 상태 → `useSessionSelection()` (`selectedCloudId`)
 - 계정 프로필 표시 → `useMyUser()` (`name`, `email`, `photo`)
 - 구독 상태 → `useMembershipInfo()` (`isValid` 등)
@@ -163,6 +173,7 @@ flowchart TD
 - `libs/web-ui-kit`: `MenuCard.test.tsx`/`.stories.tsx`(라운드 카드 + 다중 ListRow 조합).
 - `apps/web`: 브라우저 프리뷰에서 렌더 확인 — 게스트(로그인하기 카드), 로그인(프로필+구독 정보), 기어→설정→알림 depth 왕복, 언어 전환(ko/en), 다크모드. (apps/web 페이지는 유닛 테스트 대상이 아니며 프리뷰로 검증한다.)
     - 게스트 부팅으로 로그인 없이 `/mypage`까지 들어간다. 로그인 분기는 게스트 세션에서 재현되지 않는다 — 부팅 때마다 guest keepAlive가 relay 토큰을 다시 써서 스토리지 시드가 덮인다.
+    - 그래서 **게스트 판정 규칙 자체는 훅 단위로 검증한다**: [useMyUser.test.ts](../../../src/app/hooks/useMyUser.test.ts)의 `useIsAccountGuest` — role별 판정, relay 세션 부재, role 미부여. 클라우드 접속 중 화면은 실계정 수동 확인이 필요하다(클라우드 전환 후 `/mypage`에 이름이 그대로 남아 있는지).
 - 회귀: 설정 기능(다크모드·미리보기·언어·앱아이콘·온보딩·디버그 언락) 동작 유지.
 
 ## 미해결
