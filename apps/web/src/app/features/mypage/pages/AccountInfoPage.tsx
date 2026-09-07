@@ -22,7 +22,7 @@ export const AccountInfoPage = () => {
     const { t } = useTranslation();
 
     return (
-        <div className="flex h-full flex-col bg-background pt-safe-top">
+        <div className="flex h-full flex-col bg-background">
             <PageHeader title={t('mypage.accountInfo.title')} />
 
             {/* Menu Cards */}

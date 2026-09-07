@@ -40,7 +40,7 @@ export const PlaceProfilePage = () => {
     // decision 7 opened, where an empty form is the correct thing to show.
     if (absent === undefined || (absent === false && !myProfile)) {
         return (
-            <div className="flex h-full flex-col bg-background pt-safe-top">
+            <div className="flex h-full flex-col bg-background">
                 <PageHeader title={title} onBack={close} />
             </div>
         );

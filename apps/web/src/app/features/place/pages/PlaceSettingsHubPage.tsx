@@ -44,7 +44,7 @@ export const PlaceSettingsHubPage = () => {
     const go = (to: string) => () => navigate(to);
 
     return (
-        <div className="flex h-full flex-col bg-background pt-safe-top">
+        <div className="flex h-full flex-col bg-background">
             <PageHeader title={t('placeSettings.title')} />
             <div className="flex flex-1 flex-col gap-[18px] overflow-y-auto px-4 py-2.5">
                 <MenuCard title={t('placeSettings.sectionSettings')}>

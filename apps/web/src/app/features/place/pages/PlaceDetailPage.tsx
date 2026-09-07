@@ -51,7 +51,7 @@ export const PlaceDetailPage = () => {
 
     if (!place) {
         return (
-            <div className="flex h-full flex-col bg-background pt-safe-top">
+            <div className="flex h-full flex-col bg-background">
                 <PageHeader title={title} />
                 <div className="flex flex-1 items-center justify-center">
                     <Text className="text-muted-foreground">{t('placeDetail.notFound')}</Text>
@@ -81,7 +81,7 @@ export const PlaceDetailPage = () => {
             : null;
 
     return (
-        <div className="flex h-full flex-col bg-background pt-safe-top">
+        <div className="flex h-full flex-col bg-background">
             <PageHeader title={title} />
             <div className="flex flex-1 flex-col gap-8 overflow-y-auto py-10">
                 <div className="flex flex-col items-center px-[18px]">

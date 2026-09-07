@@ -285,7 +285,7 @@ export const ChannelSettingsPage = () => {
     );
 
     return (
-        <div className="flex h-full flex-col bg-background pt-safe-top">
+        <div className="flex h-full flex-col bg-background">
             <PageHeader title={t('chat.settings.title')} />
 
             {/* Content — scrolls when the member list grows past the viewport. */}
