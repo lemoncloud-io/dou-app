@@ -21,6 +21,15 @@ export interface MessageRowProps {
      * sits on the outer edge and the status toward the bubble.
      */
     status?: React.ReactNode;
+    /**
+     * Let the content column use the full row width instead of the 75% bubble cap.
+     *
+     * For content that lays itself out and has no bubble — a Block Kit message draws a
+     * header, fields and rules of its own, and 75% of a phone viewport is not enough
+     * room for any of it. Off by default: an ordinary bubble still needs the cap so a
+     * long line wraps well short of the opposite edge.
+     */
+    wide?: boolean;
     className?: string;
 }
 
@@ -36,6 +45,7 @@ export const MessageRow = ({
     time,
     unread,
     status,
+    wide = false,
     className,
 }: MessageRowProps) => {
     const mine = variant === 'mine';
@@ -58,7 +68,13 @@ export const MessageRow = ({
         <div className={cn('flex w-full gap-[5px] px-4', mine ? 'justify-end' : 'items-start', className)}>
             {!mine && <span className="shrink-0">{avatar}</span>}
             {/* Cap the bubble column so long messages wrap instead of overflowing the row. */}
-            <div className={cn('flex min-w-0 max-w-[75%] flex-col gap-1.5', mine ? 'items-end' : 'items-start')}>
+            <div
+                className={cn(
+                    'flex min-w-0 flex-col gap-1.5',
+                    wide ? 'flex-1' : 'max-w-[75%]',
+                    mine ? 'items-end' : 'items-start'
+                )}
+            >
                 {children}
                 {meta}
             </div>

@@ -43,6 +43,17 @@ export interface UnknownBlock {
 
 export type KnownBlock = SectionBlock | HeaderBlock | DividerBlock | ContextBlock | UnknownBlock;
 
+/**
+ * Whether this list has anything worth drawing as Block Kit.
+ *
+ * The one place the SPEC §5 "nothing drawable" rule lives. `BlockKitMessage`
+ * reads it to decide between blocks and the raw body; a caller reads it to
+ * decide whether the message needs Block Kit's layout at all — and on
+ * `apps/web`, whether it leaves the speech bubble. Two answers to that question
+ * would let a row change shape for a message the renderer then declines to draw.
+ */
+export const hasDrawableBlocks = (blocks: KnownBlock[]): boolean => blocks.some(block => block.type !== 'unknown');
+
 /** Slack escapes exactly these three on the wire. */
 export const decodeSlackEntities = (text: string): string =>
     text.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');

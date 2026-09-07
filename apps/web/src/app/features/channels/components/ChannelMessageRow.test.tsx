@@ -45,8 +45,11 @@ jest.mock('@chatic/web-ui-kit', () => ({
             {children}
         </div>
     ),
-    MessageRow: ({ avatar, status, children }: any) => (
-        <div>
+    // `data-wide` surfaces the row's decision to release the 75% bubble cap — a Block Kit
+    // message lays itself out and has no bubble to cap. The REAL MessageRow honouring the
+    // prop is pinned in the kit's own test.
+    MessageRow: ({ avatar, status, children, wide }: any) => (
+        <div data-testid="message-row" data-wide={wide ? 'true' : 'false'}>
             <div data-testid="avatar-slot">{avatar}</div>
             <div data-testid="status-slot">{status}</div>
             {children}
@@ -448,6 +451,73 @@ describe('ChannelMessageRow', () => {
             } finally {
                 jest.useRealTimers();
             }
+        });
+    });
+
+    // A webhook send arrives as ordinary `stereo: 'user'` chat whose `content` is Block Kit
+    // JSON (docs/specs/block-kit-messages.md §2). Without this branch the row hands that JSON
+    // to MessageText and the reader sees the payload.
+    describe('Block Kit content', () => {
+        const blockMessage = (blocks: unknown[]) =>
+            ({ ...message, content: JSON.stringify({ blocks }) }) as unknown as ClientChatView;
+
+        it('draws the blocks instead of the payload JSON', () => {
+            render(
+                <ChannelMessageRow
+                    {...baseProps}
+                    message={blockMessage([
+                        { type: 'header', text: { type: 'plain_text', text: '배포 실패' } },
+                        { type: 'section', text: { type: 'mrkdwn', text: '*503* upstream' } },
+                    ])}
+                />
+            );
+
+            expect(screen.getByText('배포 실패')).toBeInTheDocument();
+            expect(screen.getByText('503')).toBeInTheDocument();
+            expect(screen.queryByText(/"blocks"/)).not.toBeInTheDocument();
+        });
+
+        it('releases the bubble width cap and drops the bubble', () => {
+            render(<ChannelMessageRow {...baseProps} message={blockMessage([{ type: 'divider' }])} />);
+
+            expect(screen.getByTestId('message-row')).toHaveAttribute('data-wide', 'true');
+            expect(screen.queryByTestId('bubble')).not.toBeInTheDocument();
+        });
+
+        // Two shapes of failure, one rule (SPEC §5): nothing drawable falls back to the original
+        // body rather than stacking JSON fragments — and on this app the body is a bubble.
+        it('falls back to the plain body when no block can be drawn', () => {
+            render(<ChannelMessageRow {...baseProps} message={blockMessage([{ type: 'image', image_url: 'x' }])} />);
+
+            expect(screen.getByTestId('bubble')).toBeInTheDocument();
+            expect(screen.getByTestId('message-row')).toHaveAttribute('data-wide', 'false');
+        });
+
+        it('leaves an ordinary text message in its bubble', () => {
+            render(<ChannelMessageRow {...baseProps} />);
+
+            expect(screen.getByTestId('bubble')).toBeInTheDocument();
+            expect(screen.getByTestId('message-row')).toHaveAttribute('data-wide', 'false');
+        });
+
+        // Three states the card must not take. A tombstone shows nothing of the body; a
+        // pending or failed send is drawn BY the bubble (spinner, retry, destructive tint), and
+        // a card would present an unlanded message as a finished one.
+        it.each([
+            ['deleted', { hidden: true }],
+            ['pending', { isPending: true }],
+            ['failed', { isFailed: true }],
+        ])('keeps a %s message in its bubble even when the body is Block Kit', (_label, state) => {
+            const withBlocks = {
+                ...blockMessage([{ type: 'header', text: { type: 'plain_text', text: '배포 실패' } }]),
+                ...state,
+            } as unknown as ClientChatView;
+
+            render(<ChannelMessageRow {...baseProps} message={withBlocks} />);
+
+            expect(screen.getByTestId('bubble')).toBeInTheDocument();
+            expect(screen.getByTestId('message-row')).toHaveAttribute('data-wide', 'false');
+            expect(screen.queryByText('배포 실패')).not.toBeInTheDocument();
         });
     });
 });

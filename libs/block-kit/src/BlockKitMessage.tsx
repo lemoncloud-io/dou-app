@@ -2,7 +2,7 @@ import { type ReactNode } from 'react';
 
 import { cn } from '@chatic/lib/utils';
 
-import { decodeSlackEntities, type BlockTextObject, type KnownBlock } from './blockKit';
+import { decodeSlackEntities, hasDrawableBlocks, type BlockTextObject, type KnownBlock } from './blockKit';
 import { MSG_CODE_BLOCK_CLASS } from './messageClasses';
 import { renderMrkdwn } from './renderMrkdwn';
 
@@ -103,7 +103,7 @@ interface BlockKitMessageProps {
  * one unreadable thing beats several.
  */
 export const BlockKitMessage = ({ blocks, raw, renderFallback }: BlockKitMessageProps): ReactNode => {
-    if (blocks.every(block => block.type === 'unknown')) {
+    if (!hasDrawableBlocks(blocks)) {
         return (
             <p className={cn('select-text break-words text-body text-foreground', TEXT_FLOW)}>
                 {renderFallback ? renderFallback(raw) : raw}
