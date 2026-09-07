@@ -18,8 +18,13 @@ vi.mock('@chatic/app-runtime', () => ({
     syncInvitedCloudName: (...args: unknown[]) => syncInvitedCloudName(...(args as [])),
     useRuntimeRepositories: () => ({ cloud: cloudRepository }),
     useRuntimeSocketState: () => ({ isVerified }),
-    useCloudSessionCatalog: () => ({ clouds: ownedClouds }),
     useSessionSelection: () => ({ selectedCloudId }),
+}));
+
+// See the note in useClouds.spec.tsx: ADR-0070 moved this hook out of the runtime
+// and into this folder.
+vi.mock('./useCloudCatalog', () => ({
+    useCloudSessionCatalog: () => ({ clouds: ownedClouds }),
 }));
 
 import { useInvitedCloudRecovery } from './useInvitedCloudRecovery';
