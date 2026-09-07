@@ -72,7 +72,7 @@ export const useGlobalSearch = (query: string) => {
     const debounced = useDebounce(trimmed, DEBOUNCE_MS);
     const { search } = useGlobalCacheSearch();
     const { selectedCloudId } = useSessionSelection();
-    // The relay session's rows live under the 'default' partition (useRuntimeBinding.ts:17).
+    // The relay session's rows live under the 'default' partition (see `deriveSelectedContext`).
     const activeCid = selectedCloudId ?? 'default';
     const { clouds: ownedClouds } = useCloudSessionCatalog();
     const { invitedClouds } = useInvitedClouds();

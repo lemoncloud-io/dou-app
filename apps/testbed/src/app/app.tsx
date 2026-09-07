@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { RuntimeConnectionHost, useRuntimeBinding, useRuntimeSocketState } from '@chatic/app-runtime';
+import { RuntimeConnectionHost, useRuntimeSocketState } from '@chatic/app-runtime';
 import { BrowserRouter } from 'react-router-dom';
 import { Routes } from './routes';
 import { metricsCollector } from './metrics/MetricsCollector';
@@ -25,10 +25,8 @@ function MetricsSocketReporter() {
 }
 
 function AppInner() {
-    const binding = useRuntimeBinding();
-
     return (
-        <RuntimeConnectionHost binding={binding}>
+        <RuntimeConnectionHost>
             <MetricsSocketReporter />
             <BrowserRouter>
                 <Routes />

@@ -4,7 +4,7 @@ const mockLoginRelayGuestByDevice = jest.fn();
 const mockUseSessionAuth = jest.fn();
 const mockUseDynamicDeviceId = jest.fn();
 
-jest.mock('../../auth/services', () => ({
+jest.mock('../../auth/relaySession', () => ({
     loginRelayGuestByDevice: (...args: unknown[]) => mockLoginRelayGuestByDevice(...args),
 }));
 

@@ -8,6 +8,7 @@ import type {
     IdentityContext,
 } from './types';
 import { sessionContextStore } from './contextStore';
+import type { SocketSlotContext } from './contextStore';
 
 export const getCloudSessionContext = (): CloudContext => sessionContextStore.getCloudContext();
 
@@ -19,6 +20,12 @@ export const getActiveServerContext = (): ActiveServerContext =>
     sessionContextStore.getGlobalSessionContext().activeServer;
 
 export const getGlobalSessionContext = (): GlobalSessionContext => sessionContextStore.getGlobalSessionContext();
+
+/**
+ * The narrowed snapshot for socket-slot derivation — see `SocketSlotContext` in `contextStore.ts`
+ * for why it is narrow (ADR-0074 E5).
+ */
+export const getSocketSlotContext = (): SocketSlotContext => sessionContextStore.getSocketSlotContext();
 
 // The active session token's user fields — the synchronous seed for useProfileFacts.
 export { getActiveSessionUser };

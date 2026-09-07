@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react';
 
-import { RuntimeConnectionHost, useCloudCredentialGuard, useRuntimeBinding } from '@chatic/app-runtime';
+import { RuntimeConnectionHost, useCloudCredentialGuard } from '@chatic/app-runtime';
 import { useSessionAuth } from '@chatic/app-runtime';
 import { Toaster } from '@chatic/ui-kit/components/ui/toaster';
 import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
@@ -120,14 +120,12 @@ const ShellUnreadSync = () => {
 
 /**
  * Runtime layer — assembles the declarative `RuntimeConnectionHost` (transport bootstrap,
- * socket lifecycle and re-auth from the binding). Session readiness is owned by
+ * socket lifecycle and re-auth from the session's own socket slots). Session readiness is owned by
  * `RuntimeConnectionHost`, which is the single web-core init driver (`useRelaySessionInit`) and builds
  * its own socket session delegate internally — apps no longer inject one. The desktop notification /
  * unread / connection runners self-gate on socket verification.
  */
 export const DesktopRuntime = () => {
-    const binding = useRuntimeBinding();
-
     // Ask the socket to re-mint stale relay HTTP signing credentials as soon as it verifies (and on
     // return from sleep). The sealed transport init no longer refreshes them and the SDK's first
     // writeback is a refresh cycle (5min) away, so without this every relay-signed request — the
@@ -153,7 +151,7 @@ export const DesktopRuntime = () => {
     useCloudCredentialGuard();
 
     return (
-        <RuntimeConnectionHost binding={binding}>
+        <RuntimeConnectionHost>
             {/* One provider for the whole app: Radix tooltip roots require an ancestor
                 provider, and a chat pane renders dozens of message toolbars at once.
                 `delayDuration` is short because these tooltips name icon-only controls —

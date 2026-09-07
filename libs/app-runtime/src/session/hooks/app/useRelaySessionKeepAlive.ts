@@ -3,7 +3,7 @@ import { useEffect, useRef } from 'react';
 import { logger } from '@chatic/bridges';
 
 import { Coalescer } from '../../../utils/coalescer';
-import { loginRelayGuestByDevice } from '../../auth/services';
+import { loginRelayGuestByDevice } from '../../auth/relaySession';
 import { useSessionAuth } from '../session';
 import { useDynamicDeviceId } from './useDynamicDeviceId';
 

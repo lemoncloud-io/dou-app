@@ -1,5 +1,6 @@
 import { createSocketSessionDelegate } from './sessionDelegate';
-import { clearCloudStores, clearSessionAndRedirect } from '../../session/auth/services';
+import { clearCloudStores } from '../../session/auth/cloudSession';
+import { clearSessionAndRedirect } from '../../session/auth/relaySession';
 
 jest.mock('@chatic/bridges', () => ({
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
@@ -13,8 +14,8 @@ jest.mock('../../session', () => ({
 
 // The teardown halves come from the concrete module, not the session barrel: they are deliberately
 // off it (ADR-0074 결정 7) so the app cannot reach a socket-silent logout.
-jest.mock('../../session/auth/services', () => ({
-    clearCloudStores: jest.fn(),
+jest.mock('../../session/auth/cloudSession', () => ({ clearCloudStores: jest.fn() }));
+jest.mock('../../session/auth/relaySession', () => ({
     clearSessionAndRedirect: jest.fn().mockResolvedValue(undefined),
 }));
 

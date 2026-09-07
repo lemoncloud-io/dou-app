@@ -11,18 +11,16 @@
 
 ## 시작 지점
 
-- [architecture.md](./architecture.md) — 확정 아키텍처, 5축 소유 규칙, 스코프 세 뷰, 모듈 구조 (**전체 그림은 여기부터**)
+- [architecture.md](./architecture.md) — 확정 아키텍처, 5축 소유 규칙, 스코프 세 뷰, 인증 단일 판정,
+  타입 시그널, 모듈 구조 (**전체 그림은 여기부터**)
 - [public-surface.md](./public-surface.md) — 앱이 사용하는 공개 API 표면 / 노출하지 않는 내부
-- [architecture-v2.md](./architecture-v2.md) — **Proposed 개정안** ([ADR-0074](../../../docs/adr/0074-app-runtime-auth-single-verdict-and-typed-session-events.md):
-  인증 단일 판정 · 세션 이벤트 타입화 · 자격증명 Strategy). 승인·구현 완료 시 위 `architecture.md`를
-  대체·삭제한다. **그때까지 코드의 진실은 `architecture.md`다.**
 
 ## 기능 폴더
 
 | 폴더                                    | 개요                                                                         | 그 외 문서                                                                                                                                                                                                                                                                                                                          |
 | --------------------------------------- | ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [session/](./session/architecture.md)   | 세션 허브 — store·auth·scope·hooks, refresh 소유, `ActiveScope`              | —                                                                                                                                                                                                                                                                                                                                   |
-| [runtime/](./runtime/README.md)         | value-deriving 훅, `RuntimeBinding`, binder 역할                             | [session-lifecycle.md](./runtime/session-lifecycle.md) — Host 마운트 라이프사이클                                                                                                                                                                                                                                                   |
+| [runtime/](./runtime/README.md)         | value-deriving 훅, `RuntimeSocketSlots`, binder 역할                         | [session-lifecycle.md](./runtime/session-lifecycle.md) — Host 마운트 라이프사이클                                                                                                                                                                                                                                                   |
 | [socket/](./socket/README.md)           | `SocketManager` 듀얼 슬롯·active-facade, bootstrap·reauth·switch/logout 헬퍼 | [kind-scoped-routing.md](./socket/kind-scoped-routing.md) — relay/cloud kind 고정 라우팅                                                                                                                                                                                                                                            |
 | [socket/auth/](./socket/auth/README.md) | SDK `ClientSocketAuth` 소유·표면·부팅/재인증 배선                            | [usage.md](./socket/auth/usage.md) — 배선/사용 패턴·트러블슈팅 · [signing.md](./socket/auth/signing.md) — per-kind authId/sign/writeback 계약                                                                                                                                                                                       |
 | [socket/sync/](./socket/sync/README.md) | sync 도메인 스펙, `SyncManager` 소유 경계                                    | [usage.md](./socket/sync/usage.md) · [chat-sync.md](./socket/sync/chat-sync.md) · [device-sync.md](./socket/sync/device-sync.md) · [library-internals.md](./socket/sync/library-internals.md) · [gateway-reference.md](./socket/sync/gateway-reference.md) · [screen-registration-map.md](./socket/sync/screen-registration-map.md) |

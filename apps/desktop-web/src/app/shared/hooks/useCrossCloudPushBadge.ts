@@ -18,7 +18,7 @@ import { resolvePushCloudId } from '../utils';
  * Source cloud — which id space? The rail keys tiles (and the active highlight,
  * and `clear` below) by the RELAY cloud id (`session.activeServer.cloudId`). The
  * reliable resolver is `resolvePushCloudId`: the engine partitions the channel
- * cache by that same relay cloud id (`useRuntimeBinding` cid = selectedCloudId),
+ * cache by that same relay cloud id (`deriveSelectedContext` cid = selectedCloudId),
  * so a channel-cache reverse-lookup returns the rail's id directly. It also
  * handles invited clouds via the source-cloud uid when that uid is UNIQUE to one
  * cloud. (A push's `data.uid` is the account id — identical across your own

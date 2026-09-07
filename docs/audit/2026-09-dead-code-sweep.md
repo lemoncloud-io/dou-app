@@ -259,11 +259,11 @@ ADR-0070 결정 1·4의 근거를 서술한 헤더 주석이 이 파일에 있�
   `useJoinSync`와 한 가족으로 문서화된 대칭 API이고 `useSyncTarget`은 같은 파일에서 실제로 쓰인다.
   `useProfileSync`만 떼면 가족이 깨진다.
 - **테스트 시임 유지** — `resetGateways` · `resetNativeCacheSupport` · `getNativeCacheSupport`.
-- **후속 문서 2건(다른 세션 소유라 손대지 않음):**
-  `libs/app-runtime/docs/architecture.md:154`가 방금 지운 `http/index.ts`를 "존재할 수 있다"의
-  근거로 든다 — 그 문서는 지금 다른 세션이 전면 개정 중이라 건드리지 않았다. 그리고
-  `apps/web/docs/architecture/data-flow.md:28`은 **코드에 존재하지 않는** `useSocketDelegate`가
-  `getActiveServerIdentityToken()`을 쓴다고 적어 놨다(심볼 삭제 이전부터 이미 틀린 문장).
+- **후속 문서 2건 — 2026-09-07 둘 다 해소됨.** ADR-0074 트랙이 `libs/app-runtime/docs/architecture.md`를
+  전면 재작성하면서 `http/index.ts`를 근거로 들던 문장이 사라졌고, 같은 트랙이
+  `apps/web/docs/architecture/data-flow.md`의 조립 예시를 고치면서 **코드에 존재하지 않는**
+  `useSocketDelegate` / `getActiveServerIdentityToken()` 서술도 함께 사라졌다(심볼 삭제 이전부터 이미
+  틀린 문장이었다). 두 심볼 모두 리포 전체에 참조 0을 재확인했다.
 
 ---
 

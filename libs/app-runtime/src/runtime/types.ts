@@ -1,5 +1,3 @@
-import type { DataContext } from '@chatic/data';
-
 import type { SocketBindingConfig } from '../socket';
 
 /** One socket slot's binding config (undefined when that slot is gated off). */
@@ -13,16 +11,18 @@ export interface RuntimeSocketSlot {
     identityToken?: string;
 }
 
-export interface RuntimeBinding {
-    context: DataContext;
-    /**
-     * Dual sockets: relay is always-on (once a relay token exists), cloud is present only while a
-     * cloud session is active. SocketBinder boots each slot independently. (multi-socket-design.md §5-2)
-     */
-    socket: {
-        relay?: RuntimeSocketSlot;
-        cloud?: RuntimeSocketSlot;
-    };
+/**
+ * Dual sockets: relay is always-on (once a relay token exists), cloud is present only while a cloud
+ * session is active. SocketBinder boots each slot independently. (multi-socket-design.md §5-2)
+ *
+ * This used to be `RuntimeBinding` and carried a second field, `context: DataContext` — the cache
+ * scope. No production code read it: `deriveSelectedContext` derives that formula and consumers read
+ * it from the store (ADR-0074 결정 1), so the field was a duplicate that could only agree or silently
+ * disagree. What is left is exactly the socket slots, which is what the name now says.
+ */
+export interface RuntimeSocketSlots {
+    relay?: RuntimeSocketSlot;
+    cloud?: RuntimeSocketSlot;
 }
 
 /**

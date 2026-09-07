@@ -166,10 +166,12 @@ const identityStateRef = (): IdentityContext => {
 
 let cachedGlobalSessionContext: GlobalSessionContext | null = null;
 let cachedSessionAuthSnapshot: ReturnType<typeof getSessionAuthSnapshotRaw> | null = null;
+let cachedSocketSlotContext: SocketSlotContext | null = null;
 
 sessionSignal.registerInvalidator(() => {
     cachedGlobalSessionContext = null;
     cachedSessionAuthSnapshot = null;
+    cachedSocketSlotContext = null;
 });
 
 const getSessionAuthSnapshotRaw = () => {
@@ -190,8 +192,33 @@ const getGlobalSessionContext = (): GlobalSessionContext => {
     return cachedGlobalSessionContext;
 };
 
+/**
+ * The two slices `useRuntimeSocketSlots` reads — and nothing else (ADR-0074 E5).
+ *
+ * That hook subscribes to `['relay:token', 'cloud:token', 'selection']` only, because the socket
+ * slots are derived from those three and identity moves on its own signal (boot alone emits
+ * `identity` twice through `setSessionIdentityState`, and every login adds one). Narrowing the
+ * SUBSCRIPTION without narrowing the SNAPSHOT is the dangerous half: reaching `identity` through a
+ * wide snapshot while not listening for it renders a stale value, and nothing would say so. This
+ * type is what makes that a compile error instead — a reader that needs identity has to widen both
+ * halves together.
+ */
+export interface SocketSlotContext {
+    relay: RelayContext;
+    cloud: CloudContext;
+}
+
+/** Built off the SAME cached context, so it can never disagree with a global reader in one tick. */
+const getSocketSlotContext = (): SocketSlotContext => {
+    if (cachedSocketSlotContext) return cachedSocketSlotContext;
+    const { relay, cloud } = getGlobalSessionContext();
+    cachedSocketSlotContext = { relay, cloud };
+    return cachedSocketSlotContext;
+};
+
 export const sessionContextStore = {
     getCloudContext: (): CloudContext => getGlobalSessionContext().cloud,
+    getSocketSlotContext,
     getIdentityContext: (): IdentityContext => identityStateRef(),
     getGlobalSessionContext,
     // Reads through the CACHED context, not a fresh `buildCloudContext()`. Building directly meant

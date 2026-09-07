@@ -9,7 +9,7 @@ jest.mock('@chatic/bridges', () => ({
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
 }));
 
-// `session/auth/services` is the store boundary: applySessionToken commits through
+// `session/auth/relaySession` is the store boundary: applySessionToken commits through
 // loginRelayByToken, and the session delegate reads the committed registration back via
 // getServerAuthRegistration.
 const mockLoginRelayByToken = jest.fn();
@@ -17,13 +17,19 @@ const mockGetServerAuthRegistration = jest.fn();
 const mockSignServerAuth = jest.fn();
 // Mocked at the CONCRETE module: the commit + Auth SDK bridge trio are runtime-internal and off the
 // session barrel now (ADR-0074 결정 6).
-jest.mock('../../session/auth/services', () => ({
+jest.mock('../../session/auth/relaySession', () => ({
     loginRelayByToken: (...args: unknown[]) => mockLoginRelayByToken(...args),
-    getServerAuthRegistration: (...args: unknown[]) => mockGetServerAuthRegistration(...args),
-    signServerAuth: (...args: unknown[]) => mockSignServerAuth(...args),
-    commitServerRefreshedToken: jest.fn(),
     clearCloudStores: jest.fn(),
     clearSessionAndRedirect: jest.fn(),
+}));
+// The seed/sign/writeback trio moved to the adapter (ADR-0074 결정 5), so the delegate reaches them
+// there — mocking `services` alone would leave the real adapter loaded.
+jest.mock('../../session/auth/sessionAuthAdapter', () => ({
+    sessionAuthAdapter: {
+        getAuthRegistration: (...args: unknown[]) => mockGetServerAuthRegistration(...args),
+        signAuth: (...args: unknown[]) => mockSignServerAuth(...args),
+        commitRefreshedToken: jest.fn(),
+    },
 }));
 
 jest.mock('../runtime', () => ({ getSocketManager: jest.fn() }));

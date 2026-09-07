@@ -7,8 +7,12 @@
 // See docs/public-surface.md.
 
 // --- Value-deriving hooks -------------------------------------------------------------------
+// `useRuntimeSocketSlots` is deliberately NOT here. It used to be (as `useRuntimeBinding`) because
+// every app called it and handed the result back to the host; ADR-0074 G5 moved that derivation
+// into the host, so app consumers dropped to zero — which is the exact category 결정 6 removed 32
+// symbols from. Internal callers reach it by concrete path (`../runtime`), the convention this
+// package already follows. Re-export it the day an app genuinely needs to inject slots.
 export {
-    useRuntimeBinding,
     useRuntimeRepositories,
     useRuntimeSocketState,
     useRuntimeProfile,

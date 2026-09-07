@@ -10,7 +10,7 @@
 // and the test worked against it.
 //
 // "Internal" now means: NOT on this list. Runtime code reaches those symbols by concrete module path
-// (`../session/store`, `../session/auth/services`, `../session/hooks/app/...`) — the convention
+// (`../session/store`, `../session/auth/relaySession`, `../session/hooks/app/...`) — the convention
 // `connection/useSocketSessionDelegate.ts` already followed to bypass a barrel. No second barrel and
 // no subpath export: no lib in this repo exposes one.
 
@@ -42,15 +42,15 @@ export type {
 } from './store';
 
 // --- auth use-cases (비-React) -----------------------------------------------------------------
-export type { LogoutOptions, ServerKind } from './auth/services';
+export type { LogoutOptions, ServerKind } from './auth/relaySession';
 export {
     createCredentialsByProvider,
     initializeRelaySession,
     loginRelaySocial,
     loginRelayUser,
     registerSessionLogoutCallback,
-    switchCloudSession,
-} from './auth/services';
+} from './auth/relaySession';
+export { switchCloudSession } from './auth/cloudSession';
 // Invite login/lookup — ordinary auth actions; the module they live in is what stays off the barrel.
 export { fetchInviteInfoWithCode, registerUserWithInviteCode } from './auth/authActions';
 

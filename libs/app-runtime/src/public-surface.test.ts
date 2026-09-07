@@ -85,7 +85,6 @@ describe('@chatic/app-runtime public surface', () => {
             'usePlaceSync',
             'useRegisterDeviceTokenMutation',
             'useRegisterUserV2',
-            'useRuntimeBinding',
             'useRuntimeProfile',
             'useRuntimeRepositories',
             'useRuntimeSocketState',

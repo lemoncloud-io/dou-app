@@ -76,7 +76,7 @@ sequenceDiagram
 flowchart TD
     App[app.tsx] --> Host[RuntimeAuthHost · app-runtime]
     Host -->|useInitWebCore gate| Init[initializeRelaySession]
-    Host -->|binding=useRuntimeBinding| SB[SocketBinder]
+    Host -->|useRuntimeSocketSlots| SB[SocketBinder]
     Host --> SRB[SocketReauthBinder]
     Host -.->|omit| KA[useRelaySessionKeepAlive]
     SB -->|bootstrapSocketConnection| Sock[(relay socket)]
@@ -92,8 +92,8 @@ flowchart TD
 - **`libs/app-runtime/src/connection/RuntimeAuthHost.tsx`** (신규) — `RuntimeConnectionHost`
   ([RuntimeConnectionHost.tsx:23](../../../../../libs/app-runtime/src/connection/RuntimeConnectionHost.tsx))를
   본떠 `useInitWebCore` 게이트 + `useSocketSessionDelegate` + `SocketBinder` + `SocketReauthBinder`만
-  마운트. **`useRelaySessionKeepAlive`는 마운트하지 않는다.** `binding`은
-  `useRuntimeBinding()`(클라우드 미선택 시 relay 슬롯만; 채팅 동기화 미포함)로 받는다.
+  마운트. **`useRelaySessionKeepAlive`는 마운트하지 않는다.** 소켓 슬롯은 호스트가
+  `useRuntimeSocketSlots()`로 스스로 파생한다(클라우드 미선택 시 relay 슬롯만; 채팅 동기화 미포함).
 - **`libs/app-runtime/src/index.ts`** — `RuntimeAuthHost`를 public export에 추가(순수 추가).
   SocketBinder/Reauth/delegate는 내부로 유지.
 
@@ -104,7 +104,7 @@ flowchart TD
   교환 응답을 버리지 않게 고치면서 제거됨). apps/web
   [useOAuthLogin.ts](../../../../../apps/web/src/app/features/auth/hooks/useOAuthLogin.ts)와 동일 패턴.
 - **`apps/admin-v2/src/app/app.tsx`** — 수동 `startWebCoreInit()` 이펙트/게이트를 제거하고
-  `<RuntimeAuthHost binding={useRuntimeBinding()}>`가 `AppRoutes`를 감싸도록 변경(호스트가
+  `<RuntimeAuthHost>`가 `AppRoutes`를 감싸도록 변경(호스트가
   `useInitWebCore`로 게이트). 미인증 상태에선 relay 슬롯 identityToken이 없어 소켓을 안 열고,
   로그인 후 열리며 리프레시 루프가 붙는다.
 

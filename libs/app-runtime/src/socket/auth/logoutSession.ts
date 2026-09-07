@@ -1,5 +1,5 @@
 import { logger } from '@chatic/bridges';
-import { clearSessionAndRedirect, type LogoutOptions } from '../../session/auth/services';
+import { clearSessionAndRedirect, type LogoutOptions } from '../../session/auth/relaySession';
 
 import { getSocketManager } from '../runtime';
 import type { SocketKind } from '../types';

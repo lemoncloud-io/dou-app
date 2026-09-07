@@ -1,7 +1,8 @@
 import type { UserTokenView } from '@lemoncloud/chatic-backend-api';
 
 import { storage } from '@chatic/shared';
-import { sessionSignal } from './signal';
+import { JsonSlot, type StorageLike } from './jsonSlot';
+import { sessionSignal, type ISessionSignal } from './signal';
 
 /**
  * Endpoint resolution is INJECTED, not imported (ADR-0070 결정 1 규칙 2). The pre-move `relayStore`
@@ -22,18 +23,14 @@ const notConfigured = (name: string): EndpointResolver => {
     };
 };
 
-let resolveBackend: EndpointResolver = notConfigured('backend');
-let resolveWss: EndpointResolver = notConfigured('wss');
-
-/** Injects endpoint resolution. Called by `session/store/configure.ts`; not part of the read surface. */
-export const configureRelayEndpoints = (resolvers: { backend: EndpointResolver; wss: EndpointResolver }): void => {
-    resolveBackend = resolvers.backend;
-    resolveWss = resolvers.wss;
-};
 export const RELAY_SELECTED_SITE_KEY = 'chatic-relay-selected-site-id';
 export const RELAY_TOKEN_KEY = 'chatic-relay-token';
 
-interface RelayCore {
+/**
+ * The relay slot of the session store. Renamed off `RelayCore` — that name came from web-core's
+ * `session/core` folder and sat outside this repo's `I*` contract convention (ADR-0074 결정 0).
+ */
+export interface IRelayStore {
     getBackend(): string;
     getWss(): string;
     getSelectedSiteId(): string | null;
@@ -43,33 +40,73 @@ interface RelayCore {
     getRelayToken(): UserTokenView | null;
     getIdentityToken(): string | null;
     clearToken(): void;
+    /** Injects endpoint resolution. Called by `session/store/configure.ts`; not part of the read surface. */
+    configureEndpoints(resolvers: { backend: EndpointResolver; wss: EndpointResolver }): void;
 }
 
-export const relayStore: RelayCore = {
-    getBackend: (): string => resolveBackend(),
-    getWss: (): string => resolveWss(),
-    getSelectedSiteId: (): string | null => storage.get(RELAY_SELECTED_SITE_KEY),
-    saveSelectedSiteId: (siteId: string): void => {
-        storage.set(RELAY_SELECTED_SITE_KEY, siteId);
-        sessionSignal.emit('selection');
-    },
-    clearSelectedSite: (): void => {
-        storage.remove(RELAY_SELECTED_SITE_KEY);
-        sessionSignal.emit('selection');
-    },
-    saveRelayToken: (token: UserTokenView): void => {
-        storage.set(RELAY_TOKEN_KEY, JSON.stringify(token));
-        sessionSignal.emit('relay:token');
-    },
-    getRelayToken: (): UserTokenView | null => {
-        const raw = storage.get(RELAY_TOKEN_KEY);
-        return raw ? (JSON.parse(raw) as UserTokenView) : null;
-    },
-    getIdentityToken: (): string | null => {
-        return relayStore.getRelayToken()?.Token?.identityToken ?? null;
-    },
-    clearToken: (): void => {
-        storage.remove(RELAY_TOKEN_KEY);
-        sessionSignal.emit('relay:token');
-    },
-};
+class RelayStore implements IRelayStore {
+    private resolveBackend: EndpointResolver = notConfigured('backend');
+    private resolveWss: EndpointResolver = notConfigured('wss');
+    private readonly token: JsonSlot<UserTokenView>;
+
+    constructor(
+        private readonly storage: StorageLike,
+        private readonly signal: ISessionSignal
+    ) {
+        this.token = new JsonSlot(storage, RELAY_TOKEN_KEY);
+    }
+
+    configureEndpoints(resolvers: { backend: EndpointResolver; wss: EndpointResolver }): void {
+        this.resolveBackend = resolvers.backend;
+        this.resolveWss = resolvers.wss;
+    }
+
+    getBackend(): string {
+        return this.resolveBackend();
+    }
+
+    getWss(): string {
+        return this.resolveWss();
+    }
+
+    getSelectedSiteId(): string | null {
+        return this.storage.get(RELAY_SELECTED_SITE_KEY);
+    }
+
+    saveSelectedSiteId(siteId: string): void {
+        this.storage.set(RELAY_SELECTED_SITE_KEY, siteId);
+        this.signal.emit('selection');
+    }
+
+    clearSelectedSite(): void {
+        this.storage.remove(RELAY_SELECTED_SITE_KEY);
+        this.signal.emit('selection');
+    }
+
+    saveRelayToken(token: UserTokenView): void {
+        this.token.write(token);
+        this.signal.emit('relay:token');
+    }
+
+    getRelayToken(): UserTokenView | null {
+        return this.token.read();
+    }
+
+    getIdentityToken(): string | null {
+        return this.getRelayToken()?.Token?.identityToken ?? null;
+    }
+
+    clearToken(): void {
+        this.token.clear();
+        this.signal.emit('relay:token');
+    }
+}
+
+export const relayStore: IRelayStore = new RelayStore(storage, sessionSignal);
+
+/**
+ * @deprecated Call `relayStore.configureEndpoints` — kept so `configure.ts` reads unchanged while
+ * the seam is documented in one place.
+ */
+export const configureRelayEndpoints = (resolvers: { backend: EndpointResolver; wss: EndpointResolver }): void =>
+    relayStore.configureEndpoints(resolvers);

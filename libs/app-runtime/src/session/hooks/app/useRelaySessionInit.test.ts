@@ -4,7 +4,7 @@ const mockInitialize = jest.fn();
 const mockMarkSessionInitialized = jest.fn();
 const mockIsInitialized = { current: false };
 
-jest.mock('../../auth/services', () => ({
+jest.mock('../../auth/relaySession', () => ({
     initializeRelaySession: (...args: unknown[]) => mockInitialize(...args),
 }));
 

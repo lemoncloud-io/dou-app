@@ -1,12 +1,12 @@
 import { logoutCloudSession } from './logoutCloudSession';
-import { clearCloudStores } from '../../session/auth/services';
+import { clearCloudStores } from '../../session/auth/cloudSession';
 import { getSocketManager } from '../runtime';
 
 jest.mock('@chatic/bridges', () => ({
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
 }));
 
-jest.mock('../../session/auth/services', () => ({
+jest.mock('../../session/auth/cloudSession', () => ({
     clearCloudStores: jest.fn(),
 }));
 

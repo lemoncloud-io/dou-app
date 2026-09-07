@@ -4,10 +4,12 @@ import { useRelaySessionInit } from '../session';
 import { SocketBinder } from './SocketBinder';
 import { SocketReauthBinder } from './SocketReauthBinder';
 import { useSocketSessionDelegate } from './useSocketSessionDelegate';
-import type { RuntimeBinding } from '../runtime';
+import { useRuntimeSocketSlots } from '../runtime';
+import type { RuntimeSocketSlots } from '../runtime';
 
 export interface RuntimeAuthHostProps {
-    binding: RuntimeBinding;
+    /** Override for the slots this host derives itself. See `RuntimeConnectionHostProps.slots`. */
+    slots?: RuntimeSocketSlots;
     children?: React.ReactNode;
 }
 
@@ -25,11 +27,13 @@ export interface RuntimeAuthHostProps {
  *
  * Like `RuntimeConnectionHost`, it is a single web-core init driver: `useRelaySessionInit` runs
  * `initializeRelaySession` once and gates the subtree until ready. The socket only connects once the
- * binding carries an identity token, so mounting it before login is inert.
+ * relay slot carries an identity token, so mounting it before login is inert.
  */
-export const RuntimeAuthHost = ({ binding, children }: RuntimeAuthHostProps) => {
+export const RuntimeAuthHost = ({ slots, children }: RuntimeAuthHostProps) => {
     const isSessionReady = useRelaySessionInit();
     const delegate = useSocketSessionDelegate();
+    const derivedSlots = useRuntimeSocketSlots();
+    const activeSlots = slots ?? derivedSlots;
 
     if (!isSessionReady) {
         return null;
@@ -37,8 +41,8 @@ export const RuntimeAuthHost = ({ binding, children }: RuntimeAuthHostProps) => 
 
     return (
         <>
-            <SocketBinder binding={binding} delegate={delegate} />
-            <SocketReauthBinder binding={binding} delegate={delegate} />
+            <SocketBinder slots={activeSlots} delegate={delegate} />
+            <SocketReauthBinder slots={activeSlots} delegate={delegate} />
             {children}
         </>
     );

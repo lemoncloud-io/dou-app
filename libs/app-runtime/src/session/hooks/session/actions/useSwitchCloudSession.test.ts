@@ -8,7 +8,7 @@ import type { Logger } from '@chatic/bridges';
 
 const mockSwitchCloudSession = jest.fn();
 
-jest.mock('../../../auth/services', () => ({
+jest.mock('../../../auth/cloudSession', () => ({
     switchCloudSession: (...args: unknown[]) => mockSwitchCloudSession(...args),
 }));
 

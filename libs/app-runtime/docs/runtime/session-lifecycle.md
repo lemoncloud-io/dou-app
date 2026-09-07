@@ -81,7 +81,7 @@ flowchart TD
 ```
 
 1. **세션 유지** — Host의 인라인 `useRelaySessionKeepAlive`가 relay 세션을 유지·복구한다.
-2. **반영** — 세션이 갱신되면 `useRuntimeBinding`을 거쳐 `SocketBinder`/`SocketReauthBinder`가 이를
+2. **반영** — 세션이 갱신되면 `useRuntimeSocketSlots`를 거쳐 `SocketBinder`/`SocketReauthBinder`가 이를
    소켓 슬롯에 반영한다. 데이터 스코프는 별도 반영 없이 `ActiveScope`가 read 시점에 파생한다.
 
 ---
@@ -89,6 +89,6 @@ flowchart TD
 ## 관련 문서
 
 - [../architecture.md](../architecture.md) — 전체 아키텍처·오케스트레이션 매핑
-- [./README.md](./README.md) — `RuntimeBinding` 파생 규칙 + 바인더 역할
+- [./README.md](./README.md) — `RuntimeSocketSlots` 파생 규칙 + 바인더 역할
 - [../session/architecture.md](../session/architecture.md) — 세션 허브·refresh 소유·가드 둘
 - [../socket/README.md](../socket/README.md) — 소켓 부팅·재인증·switch/logout

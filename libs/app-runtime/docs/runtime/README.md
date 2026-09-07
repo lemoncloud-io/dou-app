@@ -5,12 +5,14 @@
 `runtime` 도메인은 세션 상태를 앱이 소비할 **값**으로 파생시키는 훅 층이다. transport 엔진을 직접
 만들지 않고, 생성 책임은 하위 manager들에 위임한다.
 
-## 핵심 개념: `RuntimeBinding`
+## 핵심 개념: `RuntimeSocketSlots`
 
-[`useRuntimeBinding()`](../../src/runtime/useRuntimeBinding.ts)이 `useGlobalSession()`(세션 허브) +
-`useDynamicDeviceId()`를 관측해 파생한다. 현재 앱이 어떤 데이터 문맥·소켓 슬롯으로 동작해야 하는지를
-나타낸다. (프로필 파생값은 `useRuntimeProfile`이 `useGlobalSession`에서 직접 계산한다 — 이 binding을
-거치지 않는다.)
+[`useRuntimeSocketSlots()`](../../src/runtime/useRuntimeSocketSlots.ts)이 `useGlobalSession()`(세션
+허브) + `useDynamicDeviceId()`를 관측해 파생한다. 현재 어떤 relay/cloud 소켓 슬롯이 떠 있어야 하는지를
+나타낸다. **캐시 문맥은 여기 없다** — 예전 `RuntimeBinding` 은 `context: DataContext` 도 실었는데 읽는
+프로덕션 코드가 없었고 공식이 `deriveSelectedContext` 와 중복이었다(ADR-0074 G5). 호스트가 이 훅을
+직접 부르므로 앱은 아무것도 넘기지 않는다. (프로필 파생값은 `useRuntimeProfile`이 `useGlobalSession`
+에서 직접 계산한다 — 이 슬롯을 거치지 않는다.)
 
 ```ts
 export interface RuntimeSocketSlot {
@@ -19,27 +21,22 @@ export interface RuntimeSocketSlot {
     identityToken?: string;
 }
 
-export interface RuntimeBinding {
-    context: DataContext; // { cid, sid?, uid? }
-    // 듀얼 소켓: relay는 relay 토큰이 생기면 상시, cloud는 cloud 세션 활성 동안만.
-    socket: {
-        relay?: RuntimeSocketSlot;
-        cloud?: RuntimeSocketSlot;
-    };
+// 듀얼 소켓: relay는 relay 토큰이 생기면 상시, cloud는 cloud 세션 활성 동안만.
+export interface RuntimeSocketSlots {
+    relay?: RuntimeSocketSlot;
+    cloud?: RuntimeSocketSlot;
 }
 ```
 
 파생 규칙:
 
-- **context** — `cid`는 **선택된** cloud(`cloud.cloudId`, optimistic)를 따른다. cloud 전환 시 토큰
-  교환 전에 cid를 선반영해 cid-scoped observe 스트림이 즉시 재구독된다. `sid`=`activeServer.siteId`,
-  `uid`=`identity.userId`.
+> **캐시 문맥(`{cid, sid, uid}`)은 이 훅의 출력이 아니다.** 예전 `RuntimeBinding` 은 `context` 필드로
+> 그것도 실었지만 읽는 프로덕션 코드가 없었고, 공식이
+> [`deriveSelectedContext`](../../src/session/scope/selectedContext.ts) 와 글자 단위로 같았다. 데이터
+> 스코프의 원천은 [`ActiveScope`](../../src/session/scope/ActiveScope.ts) 가 매 read 마다
+> `session/store` 에서 파생하는 값 하나다(ADR-0070 결정 7 · ADR-0074 G5).
 
-    > `binding.context`는 **소비되지 않는다.** 데이터 스코프의 실제 원천은
-    > [`ActiveScope`](../../src/session/scope/ActiveScope.ts)가 매 read마다 `session/store`에서
-    > 파생하는 값이다(ADR-0070 결정 7). 이 필드는 호출부 호환을 위해 남아 있다.
-
-- **socket** — 두 슬롯은 **각자의 서버가 토큰을 가질 때만** 켜진다(relay wss는 로그인 전에도
+- **슬롯** — 두 슬롯은 **각자의 서버가 토큰을 가질 때만** 켜진다(relay wss는 로그인 전에도
   존재하는 env 값이라 wss만으로 게이팅하면 토큰 전에 부팅됨). 로그인(null→token)이 슬롯을 켜고
   로그아웃이 끈다.
     - **relay 슬롯**은 `identityToken`을 슬롯에 싣되 **config에 넣지 않는다** — 토큰 refresh(값 변경)가

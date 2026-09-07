@@ -23,7 +23,6 @@
 
 | 심볼                                           | 설명                                                                                      |
 | ---------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| `useRuntimeBinding()`                          | 세션 기준 `RuntimeBinding` 파생(데이터 컨텍스트 + relay/cloud 듀얼 슬롯)                  |
 | `useRuntimeRepositories()`                     | 현재 스코프에 바인딩된 repository 조회                                                    |
 | `useRuntimeProfile()`                          | 파생 세션 프로필(`SessionProfile`: userRole/isGuest/isCloudActive/userName/photo)         |
 | `useRuntimeSocketState()`                      | socket 연결/인증 상태(`isConnected`/`isVerified`)                                         |
@@ -125,18 +124,20 @@ clouds·subscription·users·profile 훅 13종은 소비자가 화면뿐이고 r
 - `useSyncTarget` · `useProfileSync` — 내부 전용(앱 미사용).
 - `getSocketRuntime()` · `getDataRuntime()` · `getDataManager()` — 조립체 접근자. **export하지 않는다**.
 - `DataManager` · `SyncManager` · `SocketManager` 클래스, `createSyncPlans()`, `ActiveScope`.
-- `RuntimeBinding` / `RuntimeSocketSlot` **타입** — `useRuntimeBinding()` 반환값으로만 소비.
+- `useRuntimeSocketSlots()` + `RuntimeSocketSlots` / `RuntimeSocketSlot` **타입** — 호스트
+  (`RuntimeConnectionHost`·`RuntimeAuthHost`)가 내부에서 파생하므로 앱 소비자가 0이다. 예전엔
+  `useRuntimeBinding`으로 공개돼 있었고 앱 4곳이 불러 호스트에 되돌려 줬다 (ADR-0074 G5).
 - `createClientSocketV2` · `createDeviceRuntime` · raw `ClientSocketV2` · raw sync runtime.
 
 ## 앱 조립 예시
 
 ```tsx
-import { RuntimeConnectionHost, useRuntimeBinding } from '@chatic/app-runtime';
+import { RuntimeConnectionHost } from '@chatic/app-runtime';
 
 const App = () => {
-    const binding = useRuntimeBinding();
+    // Host가 소켓 슬롯을 스스로 파생한다 — 앱은 넘기지 않는다.
     return (
-        <RuntimeConnectionHost binding={binding}>
+        <RuntimeConnectionHost>
             <MainLayout />
         </RuntimeConnectionHost>
     );

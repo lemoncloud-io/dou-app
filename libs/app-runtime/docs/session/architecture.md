@@ -104,11 +104,11 @@ endpoint resolver(`getDynamicRelayBackend`/`getDynamicRelayWss`)를 `relayStore`
 ## session/auth — HTTP는 data 레이어를 지난다
 
 `session/auth`의 유스케이스(login·발급·전환·로그아웃·OAuth 교환)는 HTTP를 쳐야 하는 코드다.
-**게이트웨이를 직접 잡지 않는다** — [`services.ts`](../../src/session/auth/services.ts)는
+**게이트웨이를 직접 잡지 않는다** — [`relaySession.ts`](../../src/session/auth/relaySession.ts) · [`cloudSession.ts`](../../src/session/auth/cloudSession.ts) 는
 `AuthRepositoryV2`를 부르고, 게이트웨이 인스턴스를 아는 코드는 전부 `data/` 안에 있다.
 
 ```
-session/auth/services.ts ──> data(AuthRepositoryV2) ──> http/gateways ──> HttpManager
+session/auth/{relay,cloud}Session ──> data(AuthRepositoryV2) ──> http/gateways ──> HttpManager
 ```
 
 비-React 코드라 `getRepositories()`로 잡는다 — `socket/sync/plans.ts`와 같은 접근자이고,
@@ -331,7 +331,7 @@ lemon transport 초기화는 `http/transport`가 소유한다. 위치가 leaf로
 - **표면 잠금** — [`src/public-surface.test.ts`](../../src/public-surface.test.ts)가 공개 값 심볼 집합을
   목록으로 고정한다. 심볼 추가/삭제는 그 목록을 고치는 의도적 행위여야 한다.
 - **refresh 부재** — [`src/http/refreshAbsence.test.ts`](../../src/http/refreshAbsence.test.ts).
-- **스코프** — [`intent.test.ts`](../../src/session/scope/intent.test.ts) + `data`의 scopeGuards 테이블
+- **스코프** — [`selectedContext.test.ts`](../../src/session/scope/selectedContext.test.ts) + `data`의 scopeGuards 테이블
   테스트. 판정 6곳의 스킵/통과 케이스를 1:1 보존한다(특히 `ChannelRepositoryV2`의 부정 반전).
 
 ```bash
@@ -374,5 +374,5 @@ cloud refresh 400 시 relay 재발급 → cloud 재교환 → 1회 재시도하�
 - [../architecture.md](../architecture.md) — 5축 소유 규칙·모듈 구조
 - [../public-surface.md](../public-surface.md) — 세션 허브가 배럴로 내는 것
 - [../socket/auth/README.md](../socket/auth/README.md) · [signing.md](../socket/auth/signing.md) — SDK 소유 경계·서명 계약
-- [../runtime/README.md](../runtime/README.md) — `RuntimeBinding`의 소켓 슬롯 파생
+- [../runtime/README.md](../runtime/README.md) — `RuntimeSocketSlots`의 소켓 슬롯 파생
 - [`libs/http/docs/architecture.md`](../../../http/docs/architecture.md) — HTTP 실행기·정책

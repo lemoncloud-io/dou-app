@@ -3,7 +3,7 @@ import { useCallback } from 'react';
 
 import { perfNow, reportPerfMetric } from '@chatic/bridges';
 
-import { switchCloudSession } from '../../../auth/services';
+import { switchCloudSession } from '../../../auth/cloudSession';
 
 /**
  * Stable key for the cloud-switch mutation. Exported so a global observer (e.g. the

@@ -39,17 +39,16 @@ initAppRuntime({ data: { cache: { maxChatsPerChannel: 1000 } } }); // data는 �
 
 ```tsx
 import React from 'react';
-import { RuntimeConnectionHost, useRuntimeBinding } from '@chatic/app-runtime';
+import { RuntimeConnectionHost } from '@chatic/app-runtime';
 
 export const App = () => {
-    // 세션 상태를 관측해 데이터 컨텍스트 + relay/cloud 소켓 슬롯을 파생시킵니다.
-    const binding = useRuntimeBinding();
-
+    // 소켓 슬롯은 Host가 세션에서 스스로 파생합니다(`useRuntimeSocketSlots`) — 앱은 아무것도
+    // 넘기지 않습니다. 캐시 스코프(cid/sid/uid)는 소비자가 스토어에서 읽습니다.
     return (
         // Host가 세션 init을 게이트하고, 완료 후 아래를 마운트합니다:
         //   SocketBinder · SocketReauthBinder
         //   (relay keep-alive는 Host가 게이트 위에서 useRelaySessionKeepAlive로 인라인 호출)
-        <RuntimeConnectionHost binding={binding}>
+        <RuntimeConnectionHost>
             <MainLayout />
         </RuntimeConnectionHost>
     );
@@ -95,7 +94,7 @@ const ConnectionStatusBadge = () => {
 
 ### 3. 그 외 공개 표면
 
-- 값 파생 훅: `useRuntimeBinding` · `useRuntimeRepositories` · `useRuntimeProfile` ·
+- 값 파생 훅: `useRuntimeRepositories` · `useRuntimeProfile` ·
   `useRuntimeSocketState` · `useKindVerified` · `useGlobalCacheSearch`
 - 세션 훅: readers(`useGlobalSession` · `useSessionAuth` · `useSessionIdentity` ·
   `useSessionSelection`) · 액션(`useSiteSwitch` · `useSessionLogout` · `useLogoutCloudSession` ·
@@ -117,6 +116,6 @@ const ConnectionStatusBadge = () => {
 - **[세션 허브](docs/session/architecture.md)** — store·auth·scope·hooks, refresh 소유, `ActiveScope`
 - **[소켓 도메인](docs/socket/README.md)** — 듀얼 슬롯·active-facade·bootstrap·switch/logout
 - **[인증(SDK ClientSocketAuth)](docs/socket/auth/README.md)** — 소유 경계·상태 머신·서명/writeback
-- **[런타임 바인딩](docs/runtime/README.md)** — `RuntimeBinding` 파생·바인더 역할
+- **[런타임 바인딩](docs/runtime/README.md)** — `RuntimeSocketSlots` 파생·바인더 역할
 - **[데이터 런타임 및 캐싱](docs/data/README.md)** — 레포지토리 조립·캐시 정책
 - **[Sync 도메인](docs/socket/sync/README.md)** — `SyncManager`·plan·target 등록

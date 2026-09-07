@@ -12,10 +12,10 @@
 
 ```tsx
 function AppInner() {
-    const binding = useRuntimeBinding(); // 세션 관측 → cid/sid/uid + relay/cloud 소켓 슬롯
-
+    // Host가 세션에서 relay/cloud 소켓 슬롯을 스스로 파생한다 (`useRuntimeSocketSlots`).
+    // 캐시 스코프(cid/sid/uid)는 여기로 흐르지 않는다 — 소비자가 스토어에서 읽는다.
     return (
-        <RuntimeConnectionHost binding={binding}>
+        <RuntimeConnectionHost>
             <BrowserRouter>
                 <Routes />
             </BrowserRouter>
@@ -24,7 +24,7 @@ function AppInner() {
 }
 ```
 
-**Host props는 `{ binding, children }`뿐이다.** 소켓 인증 delegate는 Host 내부(`useSocketSessionDelegate`)가 소유하므로 앱이 주입하지 않는다.
+**Host props는 `{ slots?, children }`뿐이고 앱은 둘 다 넘기지 않는다.** 소켓 인증 delegate는 Host 내부(`useSocketSessionDelegate`)가, 소켓 슬롯은 `useRuntimeSocketSlots()`가 소유한다. `slots`는 테스트·특수 진입점용 optional 오버라이드다.
 
 **재인증은 자동이다.** 만료 refresh·재연결 재인증은 SDK `ClientSocketAuth`가, 물리 소켓을 유지한 채 신원만 바뀌는 경우(게스트→소셜 승격)는 `SocketReauthBinder`가 처리한다. 앱이 수동으로 `auth.update`를 보내면 안 된다(이중 발화).
 

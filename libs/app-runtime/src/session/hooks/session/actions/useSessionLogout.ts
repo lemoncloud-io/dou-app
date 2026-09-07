@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 
-import type { LogoutOptions } from '../../../auth/services';
+import type { LogoutOptions } from '../../../auth/relaySession';
 
 import { logoutSession } from '../../../../socket/auth';
 

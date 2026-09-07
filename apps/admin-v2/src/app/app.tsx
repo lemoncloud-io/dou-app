@@ -2,7 +2,7 @@ import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@ta
 import { BrowserRouter } from 'react-router-dom';
 
 import { logger } from '@chatic/bridges';
-import { RuntimeAuthHost, useRuntimeBinding } from '@chatic/app-runtime';
+import { RuntimeAuthHost } from '@chatic/app-runtime';
 
 import { installGlobalErrorCapture } from './globalErrorCapture';
 import { AppRoutes } from './routes';
@@ -45,10 +45,8 @@ const queryClient = new QueryClient({
  * login and needs no data scope. The host renders null until web-core is ready.
  */
 const AppInner = () => {
-    const binding = useRuntimeBinding();
-
     return (
-        <RuntimeAuthHost binding={binding}>
+        <RuntimeAuthHost>
             <BrowserRouter>
                 <AppRoutes />
             </BrowserRouter>

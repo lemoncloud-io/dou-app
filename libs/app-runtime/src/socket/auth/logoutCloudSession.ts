@@ -1,4 +1,4 @@
-import { clearCloudStores } from '../../session/auth/services';
+import { clearCloudStores } from '../../session/auth/cloudSession';
 
 import { notifySocketLogout } from './logoutSession';
 

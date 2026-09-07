@@ -1,5 +1,5 @@
 export * from './types';
-export * from './useRuntimeBinding';
+export * from './useRuntimeSocketSlots';
 export * from './useRuntimeRepositories';
 export * from './useRuntimeSocketState';
 export * from './useRuntimeProfile';

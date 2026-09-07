@@ -2,7 +2,8 @@ import { logger } from '@chatic/bridges';
 
 import { credentialFreshness } from '../../session/auth/credentialFreshness';
 import type { CredentialOwner } from '../../session/auth/credentialFreshness';
-import { clearCloudStores, clearSessionAndRedirect } from '../../session/auth/services';
+import { clearCloudStores } from '../../session/auth/cloudSession';
+import { clearSessionAndRedirect } from '../../session/auth/relaySession';
 import type { SocketKind } from '../types';
 import { renewCloudSession } from './renewCloudSession';
 import { requestRelaySessionRefresh } from './requestRelaySessionRefresh';

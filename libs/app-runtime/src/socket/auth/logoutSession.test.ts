@@ -1,12 +1,12 @@
 import { logoutSession } from './logoutSession';
-import { clearSessionAndRedirect } from '../../session/auth/services';
+import { clearSessionAndRedirect } from '../../session/auth/relaySession';
 import { getSocketManager } from '../runtime';
 
 jest.mock('@chatic/bridges', () => ({
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
 }));
 
-jest.mock('../../session/auth/services', () => ({
+jest.mock('../../session/auth/relaySession', () => ({
     clearSessionAndRedirect: jest.fn().mockResolvedValue(undefined),
 }));
 
