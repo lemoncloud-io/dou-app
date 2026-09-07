@@ -28,6 +28,11 @@ jest.mock('../../../ui/components', () => ({ PageHeader: (p: any) => <div>{p.tit
 jest.mock('../../../bridge', () => ({ appBridge: { getContacts, openSettings } }));
 jest.mock('../hooks', () => ({
     useCreateInviteBatch: () => ({ createSingleInvite, createBatchInvite }),
+    useChannel: () => ({ channel: { id: 'ch1', sid: 'site-1' } }),
+}));
+// 플레이스 탭은 자기 테스트가 따로 있다 — 여기서는 "탭이 그것을 건다"까지만 본다.
+jest.mock('../components/PlaceInviteTab', () => ({
+    PlaceInviteTab: (p: any) => <div data-testid="place-tab" data-sid={String(p.sid)} />,
 }));
 jest.mock('../components/AddFriendSheet', () => ({
     AddFriendSheet: (p: any) => <div data-testid="add-friend-sheet" data-open={String(p.open)} />,
@@ -37,6 +42,20 @@ jest.mock('../components/PermissionDeniedBanner', () => ({
 }));
 jest.mock('@chatic/web-ui-kit', () => ({
     IconLink: () => <span />,
+    SegmentedTabs: ({ items, value, onChange }: any) => (
+        <div>
+            {items.map((item: any) => (
+                <button
+                    key={item.id}
+                    data-testid={`tab-${item.id}`}
+                    data-active={String(item.id === value)}
+                    onClick={() => onChange(item.id)}
+                >
+                    {item.label}
+                </button>
+            ))}
+        </div>
+    ),
     SearchInput: ({ value, onChange, trailing }: any) => (
         <div>
             <input aria-label="search" value={value} onChange={e => onChange(e.target.value)} />
@@ -63,6 +82,16 @@ jest.mock('@chatic/web-ui-kit', () => ({
 
 import { InvitePage } from './InvitePage';
 
+/**
+ * 기본 탭은 플레이스다(ADR-0075). 연락처 흐름을 보는 테스트는 탭을 먼저 넘긴다 — 연락처
+ * 페치도 그 시점에 시작되므로, 이 전환이 곧 `getContacts()`의 트리거이기도 하다.
+ */
+const renderOnContactTab = () => {
+    const result = render(<InvitePage />);
+    fireEvent.click(screen.getByTestId('tab-contact'));
+    return result;
+};
+
 const contact = (id: string, phone = '010-1234-5678') => ({
     recordID: id,
     displayName: `N${id}`,
@@ -79,7 +108,7 @@ beforeEach(() => {
 
 describe('InvitePage (native)', () => {
     it('renders fetched contacts and batch-invites the selection', async () => {
-        render(<InvitePage />);
+        renderOnContactTab();
         await screen.findByTestId('user-N1');
 
         fireEvent.click(screen.getByTestId('user-N1'));
@@ -99,7 +128,7 @@ describe('InvitePage (native)', () => {
     });
 
     it('uses single invite when exactly one is selected', async () => {
-        render(<InvitePage />);
+        renderOnContactTab();
         await screen.findByTestId('user-N1');
         fireEvent.click(screen.getByTestId('user-N1'));
         fireEvent.click(screen.getByTestId('cta'));
@@ -107,7 +136,7 @@ describe('InvitePage (native)', () => {
     });
 
     it('docks the CTA disabled until something is selected', async () => {
-        render(<InvitePage />);
+        renderOnContactTab();
         await screen.findByTestId('user-N1');
 
         expect(screen.getByTestId('cta')).toBeDisabled();
@@ -117,14 +146,14 @@ describe('InvitePage (native)', () => {
 
     it('shows the permission banner when contacts are denied', async () => {
         getContacts.mockRejectedValueOnce(new Error('denied'));
-        render(<InvitePage />);
+        renderOnContactTab();
         expect(await screen.findByTestId('permission-banner')).toBeInTheDocument();
     });
 
     // 목록이 채워진 상태에서는 OS 설정 경로를 두지 않는다. 부분 연락처 접근으로 목록이
     // 잘렸을 때의 탈출구는 링크 초대다(아래 share-link availability 참고).
     it('opens the invite sheet from the populated list instead of the OS settings', async () => {
-        render(<InvitePage />);
+        renderOnContactTab();
         await screen.findByTestId('user-N1');
 
         fireEvent.click(screen.getByRole('button', { name: 'inviteFriends.sendLink' }));
@@ -136,7 +165,7 @@ describe('InvitePage (native)', () => {
     it('caps the selection at 100 and toasts', async () => {
         const many = Array.from({ length: 101 }, (_, i) => contact(String(i)));
         getContacts.mockResolvedValue({ data: { contacts: many } });
-        render(<InvitePage />);
+        renderOnContactTab();
         await screen.findByTestId('user-N0');
 
         for (let i = 0; i < 100; i++) fireEvent.click(screen.getByTestId(`user-N${i}`));
@@ -151,7 +180,7 @@ describe('share-link availability', () => {
     // 링크 초대는 한때 DEV/LOCAL 빌드에서만 열려 있었다(임시 기획). 그 제한이 풀렸으므로
     // 운영 앱에서도 세 진입점이 모두 살아 있어야 한다.
     it('exposes every share-link entry on a release app build', async () => {
-        render(<InvitePage />);
+        renderOnContactTab();
         await screen.findByTestId('user-N1');
 
         expect(screen.getByRole('button', { name: 'inviteFriends.sendLink' })).toBeInTheDocument();
@@ -162,7 +191,7 @@ describe('share-link availability', () => {
     // 직접 넣는 링크 초대가 목록에 없는 사람에게 닿는 경로가 된다 — 이 경로가 운영 앱에서
     // 열려 있다는 것이 위 테스트가 지키는 전제다.
     it('leaves the link button alone in the search row', async () => {
-        render(<InvitePage />);
+        renderOnContactTab();
         await screen.findByTestId('user-N1');
 
         expect(screen.getByRole('button', { name: 'inviteFriends.sendLink' })).toBeInTheDocument();
@@ -171,7 +200,7 @@ describe('share-link availability', () => {
 
     it('offers the link CTA from the permission-denied state too', async () => {
         getContacts.mockRejectedValueOnce(new Error('denied'));
-        render(<InvitePage />);
+        renderOnContactTab();
         await screen.findByTestId('permission-banner');
 
         expect(screen.getByTestId('link-cta')).toBeInTheDocument();
@@ -189,7 +218,7 @@ describe('contacts that carry no display name', () => {
         getContacts.mockResolvedValue({
             data: { contacts: [ios({ familyName: '김', phoneNumbers: [{ number: '010-1234-5678' }] })] },
         });
-        render(<InvitePage />);
+        renderOnContactTab();
         expect(await screen.findByTestId('user-김')).toBeEnabled();
     });
 
@@ -197,13 +226,13 @@ describe('contacts that carry no display name', () => {
         getContacts.mockResolvedValue({
             data: { contacts: [ios({ company: '동네치킨', phoneNumbers: [{ number: '010-1234-5678' }] })] },
         });
-        render(<InvitePage />);
+        renderOnContactTab();
         expect(await screen.findByTestId('user-동네치킨')).toBeInTheDocument();
     });
 
     it('labels a nameless contact by its number and still invites it', async () => {
         getContacts.mockResolvedValue({ data: { contacts: [ios({ phoneNumbers: [{ number: '01012345678' }] })] } });
-        render(<InvitePage />);
+        renderOnContactTab();
 
         const row = await screen.findByTestId('user-010-1234-5678');
         expect(row).toBeEnabled();
@@ -232,7 +261,7 @@ describe('contacts that carry no display name', () => {
                 ],
             },
         });
-        render(<InvitePage />);
+        renderOnContactTab();
         await screen.findByTestId('user-김민수');
 
         expect(screen.queryByTestId('user-inviteFriends.unnamedContact')).not.toBeInTheDocument();
@@ -242,7 +271,7 @@ describe('contacts that carry no display name', () => {
     // its number, so it stays on the list and only the checkbox is off.
     it('keeps a contact whose only number is not an invitable mobile', async () => {
         getContacts.mockResolvedValue({ data: { contacts: [ios({ phoneNumbers: [{ number: '02-123-4567' }] })] } });
-        render(<InvitePage />);
+        renderOnContactTab();
 
         expect(await screen.findByTestId('user-02-123-4567')).toBeDisabled();
     });
@@ -251,7 +280,7 @@ describe('contacts that carry no display name', () => {
         getContacts.mockResolvedValue({
             data: { contacts: [ios({}), ios({ recordID: 'ios-2', company: '동네치킨' })] },
         });
-        render(<InvitePage />);
+        renderOnContactTab();
 
         expect(await screen.findByText('inviteFriends.noInvitableContacts')).toBeInTheDocument();
     });
@@ -268,7 +297,7 @@ describe('contacts that carry no display name', () => {
                 ],
             },
         });
-        render(<InvitePage />);
+        renderOnContactTab();
 
         const row = await screen.findByTestId('user-김민수');
         expect(row).toBeEnabled();
@@ -288,7 +317,7 @@ describe('contacts that carry no display name', () => {
                 ],
             },
         });
-        render(<InvitePage />);
+        renderOnContactTab();
         await screen.findByTestId('user-동네치킨');
 
         fireEvent.change(screen.getByLabelText('search'), { target: { value: '치킨' } });
@@ -301,9 +330,85 @@ describe('contacts that carry no display name', () => {
 describe('InvitePage (web)', () => {
     it('shows the invite-link guide instead of a contact list', async () => {
         isNativeValue = false;
-        render(<InvitePage />);
+        renderOnContactTab();
         expect(await screen.findByText('inviteFriends.sendLink')).toBeInTheDocument();
         expect(screen.queryByTestId('user-N1')).not.toBeInTheDocument();
+        expect(getContacts).not.toHaveBeenCalled();
+    });
+});
+
+describe('InvitePage — 탭 셸', () => {
+    it('플레이스 탭으로 열린다', () => {
+        render(<InvitePage />);
+
+        expect(screen.getByTestId('tab-place')).toHaveAttribute('data-active', 'true');
+        expect(screen.getByTestId('place-tab')).toBeInTheDocument();
+    });
+
+    it('플레이스 탭에는 채널의 sid를 넘긴다', () => {
+        render(<InvitePage />);
+
+        expect(screen.getByTestId('place-tab')).toHaveAttribute('data-sid', 'site-1');
+    });
+
+    it('연락처 탭으로 넘기면 플레이스 탭 본문이 사라진다', async () => {
+        render(<InvitePage />);
+        fireEvent.click(screen.getByTestId('tab-contact'));
+
+        expect(screen.queryByTestId('place-tab')).not.toBeInTheDocument();
+        expect(await screen.findByTestId('user-N1')).toBeInTheDocument();
+    });
+
+    /**
+     * `getContacts()`는 OS 권한 팝업을 띄운다. 기본 탭이 플레이스가 된 뒤로 마운트 시 호출하면
+     * 연락처를 쓸 생각도 없는 사용자에게 권한을 묻게 되므로, 탭에 들어올 때까지 미룬다.
+     */
+    it('플레이스 탭에 머무는 동안에는 연락처를 요청하지 않는다', () => {
+        render(<InvitePage />);
+
+        expect(getContacts).not.toHaveBeenCalled();
+    });
+
+    it('연락처 탭에 들어와야 연락처를 요청한다', () => {
+        render(<InvitePage />);
+        fireEvent.click(screen.getByTestId('tab-contact'));
+
+        expect(getContacts).toHaveBeenCalledTimes(1);
+    });
+
+    /**
+     * 회귀 방어: 트리거를 `activeTab`에 직접 걸면 탭을 되돌릴 때 cleanup이 진행 중인 요청을
+     * 취소하고, 재요청 가드만 남아 연락처 탭이 영영 빈 화면이 된다.
+     */
+    it('응답 전에 탭을 되돌려도 연락처가 결국 도착한다', async () => {
+        let resolveContacts: (v: unknown) => void = () => undefined;
+        getContacts.mockReturnValue(new Promise(res => (resolveContacts = res)));
+        render(<InvitePage />);
+        fireEvent.click(screen.getByTestId('tab-contact'));
+        fireEvent.click(screen.getByTestId('tab-place'));
+        resolveContacts({ data: { contacts: [contact('1')] } });
+
+        fireEvent.click(screen.getByTestId('tab-contact'));
+
+        expect(await screen.findByTestId('user-N1')).toBeInTheDocument();
+    });
+
+    it('탭을 오가도 연락처를 다시 요청하지 않는다', async () => {
+        render(<InvitePage />);
+        fireEvent.click(screen.getByTestId('tab-contact'));
+        await screen.findByTestId('user-N1');
+        fireEvent.click(screen.getByTestId('tab-place'));
+        fireEvent.click(screen.getByTestId('tab-contact'));
+
+        expect(getContacts).toHaveBeenCalledTimes(1);
+    });
+
+    // 웹에는 디바이스 연락처가 없다 — 그래도 플레이스 탭은 고를 것이 있는 화면으로 열린다.
+    it('웹에서도 기본 탭은 플레이스다', () => {
+        isNativeValue = false;
+        render(<InvitePage />);
+
+        expect(screen.getByTestId('place-tab')).toBeInTheDocument();
         expect(getContacts).not.toHaveBeenCalled();
     });
 });

@@ -1089,6 +1089,12 @@
     "inviteFriends": {
         "title": "Invite Friends",
         "selectTitle": "Select Friends",
+        "tabPlace": "Place",
+        "tabContact": "Contacts",
+        "placeSuccess": "Added {{count}} member(s)",
+        "placeFailed": "Could not add members",
+        "noPlaceCandidates": "No one to add",
+        "noPlaceCandidatesHint": "Use the Contacts tab to invite by link.",
         "addFriend": "Add Friend",
         "searchPlaceholder": "Search friends",
         "unnamedContact": "No name",

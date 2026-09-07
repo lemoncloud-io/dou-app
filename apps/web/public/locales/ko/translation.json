@@ -1089,6 +1089,12 @@
     "inviteFriends": {
         "title": "친구 초대",
         "selectTitle": "친구 선택",
+        "tabPlace": "플레이스",
+        "tabContact": "연락처",
+        "placeSuccess": "{{count}}명을 초대했어요",
+        "placeFailed": "초대에 실패했어요",
+        "noPlaceCandidates": "초대할 수 있는 사람이 없어요",
+        "noPlaceCandidatesHint": "연락처 탭에서 링크로 초대할 수 있어요.",
         "addFriend": "친구 추가",
         "searchPlaceholder": "친구 검색",
         "unnamedContact": "이름 없음",

@@ -10,6 +10,7 @@ import {
     FloatingButton,
     IconLink,
     SearchInput,
+    SegmentedTabs,
     SelectableUserItem,
     SelectedAvatarRow,
 } from '@chatic/web-ui-kit';
@@ -18,8 +19,9 @@ import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { appBridge } from '../../../bridge';
 import { PageHeader } from '../../../ui/components';
 import { KeyboardSafeAreaSpacer } from '../../../ui/layouts/KeyboardSafeAreaSpacer';
-import { useCreateInviteBatch } from '../hooks';
+import { useChannel, useCreateInviteBatch } from '../hooks';
 import { AddFriendSheet } from '../components/AddFriendSheet';
+import { PlaceInviteTab } from '../components/PlaceInviteTab';
 import { PermissionDeniedBanner } from '../components/PermissionDeniedBanner';
 import {
     contactSearchText,
@@ -29,8 +31,10 @@ import {
 } from '../utils/deviceContact';
 import { getRoomDistance } from '../utils/roomDistance';
 
-/** A single invite batch selects at most this many friends. */
+/** A single invite batch selects at most this many friends. Shared with the place tab. */
 const MAX_INVITE_SELECTION = 100;
+
+type InviteTab = 'place' | 'contact';
 
 /**
  * 채널 친구 초대 페이지 — 기존 InviteFriendsDialog를 라우팅 페이지로 전환한 것.
@@ -45,6 +49,10 @@ export const InvitePage = () => {
     const roomDistance = getRoomDistance(useLocation().state, 1);
 
     const isOnMobileApp = isNative();
+    // Place first: most people worth adding are already here, and on web the contact tab is only a
+    // link-invite prompt (there is no device contacts access). See ADR-0075.
+    const [activeTab, setActiveTab] = useState<InviteTab>('place');
+    const { channel } = useChannel(channelId ?? null);
     const [search, setSearch] = useState('');
     const [addFriendOpen, setAddFriendOpen] = useState(false);
     const [contacts, setContacts] = useState<ContactInfo[]>([]);
@@ -62,9 +70,26 @@ export const InvitePage = () => {
         [t]
     );
 
-    // 네이티브에서만 연락처를 불러온다. 웹은 연락처 접근 불가 → 초대 링크 유도.
+    /**
+     * 네이티브에서만 연락처를 불러온다. 웹은 연락처 접근 불가 → 초대 링크 유도.
+     *
+     * 연락처 탭에 실제로 들어왔을 때만 부른다. `getContacts()`는 OS 권한 팝업을 띄우므로, 기본
+     * 탭이 플레이스가 된 뒤로는 마운트 시 호출하면 **연락처를 쓸 생각도 없는 사용자에게 권한을
+     * 묻게 된다.**
+     *
+     * 트리거는 `activeTab`이 아니라 **한 번이라도 열렸는가**(`contactsRequested`)다. 탭 값에
+     * 직접 의존시키면 탭을 되돌릴 때 cleanup이 돌아 진행 중인 요청이 취소되는데, 그 사이
+     * 응답이 오면 아무 상태도 세팅되지 않은 채 재요청 가드만 남아 연락처 탭이 영영 빈 화면이
+     * 된다. 이 플래그는 false→true로 한 번만 바뀌므로 effect도 한 번만 돌고, cleanup은
+     * 언마운트에서만 실행된다.
+     */
+    const [contactsRequested, setContactsRequested] = useState(false);
     useEffect(() => {
-        if (!isOnMobileApp) return;
+        if (activeTab === 'contact') setContactsRequested(true);
+    }, [activeTab]);
+
+    useEffect(() => {
+        if (!isOnMobileApp || !contactsRequested) return;
         let cancelled = false;
         setIsWaitingForContacts(true);
         appBridge
@@ -88,7 +113,7 @@ export const InvitePage = () => {
         return () => {
             cancelled = true;
         };
-    }, [isOnMobileApp]);
+    }, [isOnMobileApp, contactsRequested]);
 
     /**
      * 번호가 하나도 저장돼 있지 않은 연락처는 목록에서 빼둔다.
@@ -207,11 +232,25 @@ export const InvitePage = () => {
     const isListEmpty = showContactList && filteredContacts.length === 0;
     const hasSelection = selectedIds.size > 0;
 
+    const tabs = [
+        { id: 'place', label: t('inviteFriends.tabPlace') },
+        { id: 'contact', label: t('inviteFriends.tabContact') },
+    ];
+    const isContactTab = activeTab === 'contact';
+
     return (
-        <div className="flex h-full flex-col bg-background pt-safe-top">
+        <div className="flex h-full flex-col bg-background">
             <PageHeader title={t('inviteFriends.selectTitle')} />
 
-            {showContactList && (
+            <SegmentedTabs items={tabs} value={activeTab} onChange={id => setActiveTab(id as InviteTab)} />
+
+            {/* Each tab keeps its own selection and its own confirm action, so they are separate
+                subtrees rather than one body with a switch inside — see ADR-0075. */}
+            {!isContactTab && channelId && (
+                <PlaceInviteTab channelId={channelId} sid={channel?.sid ?? null} maxSelection={MAX_INVITE_SELECTION} />
+            )}
+
+            {isContactTab && showContactList && (
                 <div className="shrink-0 px-4 pt-2">
                     <SearchInput
                         value={search}
@@ -268,7 +307,7 @@ export const InvitePage = () => {
                 </div>
             )}
 
-            {showContactList && (
+            {isContactTab && showContactList && (
                 <div className="flex flex-1 flex-col overflow-y-auto overscroll-none px-2 pt-2">
                     {isListEmpty ? (
                         <div className="flex flex-1 items-center justify-center">
@@ -298,7 +337,7 @@ export const InvitePage = () => {
                 </div>
             )}
 
-            {showGuide && (
+            {isContactTab && showGuide && (
                 <div className="flex flex-1 flex-col overflow-y-auto pb-safe-bottom">
                     {isOnMobileApp ? (
                         <PermissionDeniedBanner />
@@ -321,7 +360,7 @@ export const InvitePage = () => {
                 </div>
             )}
 
-            {showContactList && (
+            {isContactTab && showContactList && (
                 <>
                     {/* Docked from the moment the list appears (disabled until something is picked),
                         matching the Figma "완료" CTA. */}
