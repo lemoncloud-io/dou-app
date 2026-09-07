@@ -5,7 +5,7 @@ import { useParams } from 'react-router-dom';
 import { resizeImageToBase64, useNavigateWithTransition } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { AlertDialog, FloatingButton, ProfileAvatar, Text, TextField } from '@chatic/web-ui-kit';
+import { AlertDialog, FloatingButton, ProfileAvatar, Text, TextField, Textarea } from '@chatic/web-ui-kit';
 
 import { PageHeader } from '../../../ui';
 import { KeyboardAwareLayout, fixedViewportScreen } from '../../../ui/layouts';
@@ -15,10 +15,17 @@ import type { MySiteView } from '@lemoncloud/chatic-backend-api';
 import { useRuntimeRepositories } from '@chatic/app-runtime';
 
 const MAX_NAME_LENGTH = 20;
+const MAX_DESC_LENGTH = 100;
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
+// Shorter than Textarea's 198px default, which is sized for long-form input (feedback's 5000
+// characters). Sized so a FULL 100 characters still fits without scrolling: worst case is all-CJK,
+// which wraps to four 20.3px lines (81px) inside the box's 16px vertical padding — measured, not
+// guessed. At 96px the last line was cut off and a maxed-out field had to be scrolled to reread.
+const DESC_BOX_HEIGHT = 116;
 
 /**
- * Edit a place's own name + profile image — owner-only (server `isOwner`). Reached from the settings
+ * Edit a place's own name, introduction text and profile image — owner-only (server `isOwner`).
+ * Reached from the settings
  * hub, whose row is already disabled for non-owners; the redirect here is a defensive backstop.
  * Save goes through the shared {@link useUpdatePlace} (optimistic cache write). See ADR-0031.
  */
@@ -34,11 +41,13 @@ export const PlaceEditPage = () => {
 
     const [place, setPlace] = useState<MySiteView | null>(null);
     const [name, setName] = useState('');
+    const [desc, setDesc] = useState('');
     const [imageUrl, setImageUrl] = useState('');
     const [imageSizeError, setImageSizeError] = useState(false);
     const [isExitGuardOpen, setIsExitGuardOpen] = useState(false);
 
     const initialName = place?.name ?? '';
+    const initialDesc = place?.desc ?? '';
     const initialThumbnail = place?.thumbnail ?? '';
 
     useEffect(() => {
@@ -63,13 +72,15 @@ export const PlaceEditPage = () => {
         if (place && seededPlaceIdRef.current !== placeId) {
             seededPlaceIdRef.current = placeId ?? null;
             setName(place.name ?? '');
+            setDesc(place.desc ?? '');
             setImageUrl(place.thumbnail ?? '');
         }
     }, [place, placeId]);
 
     const isNameDirty = name !== initialName;
+    const isDescDirty = desc !== initialDesc;
     const isImageDirty = imageUrl !== initialThumbnail;
-    const isDirty = isNameDirty || isImageDirty;
+    const isDirty = isNameDirty || isDescDirty || isImageDirty;
     const isNameValid = name.length > 0 && name.length <= MAX_NAME_LENGTH;
     const canSubmit = isDirty && isNameValid && !isPending;
 
@@ -107,6 +118,10 @@ export const PlaceEditPage = () => {
                 id: placeId,
                 sid: placeId,
                 name,
+                // Sent only when touched, so saving a name edit never rewrites the other two
+                // fields. An emptied box sends `''` on purpose — that is how a place clears its
+                // introduction.
+                ...(isDescDirty && { desc }),
                 ...(isImageDirty && { thumbnail: imageUrl }),
             });
             navigate(-1);
@@ -181,6 +196,18 @@ export const PlaceEditPage = () => {
                             e.currentTarget.blur();
                         }
                     }}
+                />
+
+                {/* `Textarea` deliberately ships no counter and no hard cap — its doc comment sends
+                    callers that need one to clamp in `onChange`, which is what the feedback form
+                    does too. Adding a counter belongs in the component as an opt-in prop, not here. */}
+                <Textarea
+                    label={t('placeEdit.descLabel')}
+                    value={desc}
+                    onChange={value => setDesc(value.slice(0, MAX_DESC_LENGTH))}
+                    placeholder={t('placeEdit.descPlaceholder')}
+                    description={t('placeEdit.descDescription')}
+                    height={DESC_BOX_HEIGHT}
                 />
 
                 <input

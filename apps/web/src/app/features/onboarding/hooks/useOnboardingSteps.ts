@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { Images } from '@chatic/assets';
 
+import { MAX_CHANNELS_PER_PLACE, MAX_PLACES } from '../../../utils';
 import type { OnboardingStep } from '../types';
 
 export const useOnboardingSteps = (): OnboardingStep[] => {
@@ -15,9 +16,12 @@ export const useOnboardingSteps = (): OnboardingStep[] => {
             {
                 id: 'private-community',
                 title: isKorean ? '프라이빗 커뮤니티' : 'Private Community',
+                // Both numbers come from the creation limits themselves (consts.ts), not from copy:
+                // this slide is a promise about what the app allows, and it said 5 and 5 long after
+                // the limits moved — the pair ADR-0018 discarded as 죽은 코드.
                 description: isKorean
-                    ? '최대 5개의 대화공간과, 5개의 채팅방으로\n필요한 사람들과 필요한 이야기를 나눠요'
-                    : 'Create up to 5 spaces and 5 chat rooms\nto talk with the people you need',
+                    ? `최대 ${MAX_PLACES}개의 대화공간과, ${MAX_CHANNELS_PER_PLACE}개의 채팅방으로\n필요한 사람들과 필요한 이야기를 나눠요`
+                    : `Create up to ${MAX_PLACES} spaces and ${MAX_CHANNELS_PER_PLACE} chat rooms\nto talk with the people you need`,
                 image: isKorean ? Images.onboardingStep1 : Images.onboardingEnStep1,
             },
             {
@@ -31,6 +35,10 @@ export const useOnboardingSteps = (): OnboardingStep[] => {
             {
                 id: 'group-communication',
                 title: isKorean ? '그룹 소통' : 'Group Communication',
+                // The 100 stays a literal on purpose: no constant owns a room's member capacity.
+                // The only 100 in the client is `MAX_INVITE_SELECTION`, which caps how many people
+                // one invite batch may SELECT — a different rule that would drift into a lie the
+                // moment either number moved on its own.
                 description: isKorean
                     ? '최대 100명의 적정 규모로 더 집중된\n대화와 활발한 참여가 가능해요.'
                     : 'With up to 100 members, enjoy more focused\nconversations and active participation.',

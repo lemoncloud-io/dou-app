@@ -444,7 +444,7 @@
         "noCloudsError": "설정할 수 있는 클라우드가 없어요",
         "selectCloud": "클라우드 선택하기",
         "cannotCreatePlace": "이 클라우드에서는 플레이스를 만들 수 없어요",
-        "placeLimitReached": "플레이스는 최대 5개까지 만들 수 있어요",
+        "placeLimitReached": "플레이스는 최대 10개까지 만들 수 있어요",
         "placeLimit": {
             "title": "플레이스를 더 이상 추가할 수 없어요",
             "description": "플레이스는 <strong>클라우드당 최대 {{max}}개</strong>까지 추가할 수 있습니다.\n플레이스를 삭제하거나\n<strong>새로운 클라우드</strong>를 만들어 주세요.",
@@ -820,6 +820,7 @@
         "notFound": "플레이스를 찾을 수 없습니다",
         "nameLabel": "플레이스 이름",
         "invitedNameLabel": "초대된 플레이스 이름",
+        "descLabel": "플레이스 소개",
         "createdAtLabel": "플레이스 만든 날짜",
         "ownerLabel": "소유자 정보"
     },
@@ -830,6 +831,9 @@
         "nameLabel": "플레이스 이름",
         "namePlaceholder": "플레이스 이름을 입력해 주세요",
         "nameDescription": "20글자 이내로 입력해 주세요.",
+        "descLabel": "플레이스 소개",
+        "descPlaceholder": "플레이스를 소개해 주세요",
+        "descDescription": "100글자 이내로 입력해 주세요.",
         "photoLabel": "플레이스 사진",
         "photoOptional": "[선택]",
         "imageSizeError": "이미지 크기가 10MB를 초과합니다",

@@ -443,7 +443,7 @@
         "noCloudsError": "No clouds available to configure",
         "selectCloud": "Select a cloud",
         "cannotCreatePlace": "Can't create place in this cloud",
-        "placeLimitReached": "You can create up to 5 places",
+        "placeLimitReached": "You can create up to 10 places",
         "placeLimit": {
             "title": "You can't add more places",
             "description": "Each cloud can hold up to <strong>{{max}} places</strong>.\nDelete a place, or create a <strong>new cloud</strong>.",
@@ -820,6 +820,7 @@
         "notFound": "Place not found",
         "nameLabel": "Place Name",
         "invitedNameLabel": "Invited Place Name",
+        "descLabel": "Place Introduction",
         "createdAtLabel": "Date Created",
         "ownerLabel": "Owner"
     },
@@ -830,6 +831,9 @@
         "nameLabel": "Place Name",
         "namePlaceholder": "Enter place name",
         "nameDescription": "Please enter up to 20 characters.",
+        "descLabel": "Place Introduction",
+        "descPlaceholder": "Introduce your place",
+        "descDescription": "Please enter up to 100 characters.",
         "photoLabel": "Place Photo",
         "photoOptional": "[Optional]",
         "imageSizeError": "Image size exceeds 10MB",

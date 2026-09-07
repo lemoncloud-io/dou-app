@@ -16,7 +16,9 @@ const SWIPE_THRESHOLD = 50;
 
 export const OnboardingModal = ({ open, onComplete }: OnboardingModalProps) => {
     const onboardingSteps = useOnboardingSteps();
-    const { currentStep, totalSteps, isFirstStep, isLastStep, handleNext, handlePrev } = useOnboardingNavigation();
+    const { currentStep, totalSteps, isFirstStep, isLastStep, handleNext, handlePrev } = useOnboardingNavigation(
+        onboardingSteps.length
+    );
     const [dragOffset, setDragOffset] = useState(0);
     const [isDragging, setIsDragging] = useState(false);
     const touchStartX = useRef(0);
