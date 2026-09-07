@@ -157,7 +157,7 @@ owner 게이팅은 클라우드 컨텍스트(렐리 1:1 vs 클라우드 그룹)�
 
 ### 2) 한도 상수 단일화
 
-- [consts.ts](../../../src/app/utils/consts.ts)를 **단일 소스**로 교정: `MAX_PLACES=5`,
+- [consts.ts](../../../src/app/utils/consts.ts)를 **단일 소스**로 교정: `MAX_PLACES=10`,
   `MAX_CHANNELS_PER_PLACE=100`, `GUEST_MAX_CHANNELS=3`(이전 값 5/5/1은 죽은 코드 + 요구사항 상충이라 폐기).
 - [useUserPermissions.ts](../../../src/app/hooks/useUserPermissions.ts)의 로컬 리터럴을 지우고 consts에서
   import한다. `maxChannels`는 게스트면 `GUEST_MAX_CHANNELS`, 아니면 `MAX_CHANNELS_PER_PLACE`. `canCreateChannel`

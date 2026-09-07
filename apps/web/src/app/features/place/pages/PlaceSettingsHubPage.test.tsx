@@ -44,6 +44,21 @@ describe('PlaceSettingsHubPage — 설정 카드', () => {
         expect(navigate).toHaveBeenCalledWith('/place/p1/settings/detail');
     });
 
+    it('"플레이스 정보" 행 부제로 소개 문구를 미리 보여준다', () => {
+        mockPlace = { id: 'p1', desc: '개발자들이 모이는 곳' };
+        render(<PlaceSettingsHubPage />);
+
+        expect(screen.getByText('개발자들이 모이는 곳')).toBeInTheDocument();
+    });
+
+    // 빈 문자열은 부제를 렌더하지 않는다 — `subtitle=""`이면 행 높이만 늘고 보이는 것은 없다.
+    it('소개 문구가 비어 있으면 부제를 그리지 않는다', () => {
+        mockPlace = { id: 'p1', desc: '' };
+        render(<PlaceSettingsHubPage />);
+
+        expect(rowButton('placeSettings.placeDetail')).toHaveTextContent(/^placeSettings\.placeDetail$/);
+    });
+
     it('"플레이스 프로필" 행이 편집 화면으로 이동한다', () => {
         mockPlace = { id: 'p1', isOwner: true };
         render(<PlaceSettingsHubPage />);

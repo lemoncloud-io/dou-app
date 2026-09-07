@@ -8,11 +8,18 @@ jest.mock('../../session', () => new Proxy({}, { get: () => jest.fn() }));
 // 런타임 접근자만 끊는다 — `toDomainChat`은 진짜를 써야 `hidden`이 매핑을 타고 살아남는지 볼 수 있다.
 // `jest.mock`은 파일 최상단에서만 호이스팅되므로 describe 안이 아니라 여기에 둔다. 위의 스냅샷
 // 계약 테스트는 이 접근자들을 부르지 않으므로 영향받지 않는다.
+//
+// 등록은 모듈당 **한 번**이다. 같은 모듈에 두 번 등록하면 뒤엣것이 조용히 이기므로, 스위트별로
+// 답을 갈아끼워야 하는 값은 팩토리가 읽는 홀더에 둔다 — 그게 이 파일이 두 스위트를 함께 담는 방법이다.
 const mockCacheWrite = jest.fn();
-const mockBoundCid = { current: 'cloud-1' };
+const mockBoundCid: { current: string | null } = { current: 'cloud-1' };
+const mockDataContext: { current: { cid: string; uid?: string } } = { current: { cid: 'cloud-1', uid: 'user-1' } };
+/** `null`이면 chat 변경 스위트의 기본 리포지토리를 쓴다. */
+const mockRepositories: { current: Record<string, unknown> | null } = { current: null };
 jest.mock('../../data/runtime', () => ({
-    getDataManager: () => ({ getContext: () => ({ cid: 'cloud-1', uid: 'user-1' }) }),
-    getRepositories: () => ({ chat: { cacheWrite: mockCacheWrite, cacheWriteMany: jest.fn() } }),
+    getDataManager: () => ({ getContext: () => mockDataContext.current }),
+    getRepositories: () =>
+        mockRepositories.current ?? { chat: { cacheWrite: mockCacheWrite, cacheWriteMany: jest.fn() } },
 }));
 jest.mock('../runtime', () => ({ getSocketManager: () => ({ getBoundCid: () => mockBoundCid.current }) }));
 // `@chatic/web-config` is the sole `import.meta` holder (ADR-0070 결정 6); ts-jest's CommonJS
@@ -61,6 +68,8 @@ describe('createSyncPlans — chat 변경 반영 (sockets-lib 0.5.1 onUpdate)', 
     beforeEach(() => {
         mockCacheWrite.mockClear();
         mockBoundCid.current = 'cloud-1';
+        mockDataContext.current = { cid: 'cloud-1', uid: 'user-1' };
+        mockRepositories.current = null;
     });
 
     it('배선돼 있다 — 없으면 변경이 다음 chat.feed까지 반영되지 않는다', () => {
@@ -101,5 +110,59 @@ describe('createSyncPlans — chat 변경 반영 (sockets-lib 0.5.1 onUpdate)', 
         );
 
         expect(mockCacheWrite).not.toHaveBeenCalled();
+    });
+});
+
+describe('join plan onRemove — 퇴장한 방의 메시지 캐시 정리 (ADR-0067)', () => {
+    // onRemove는 plan 생성자 옵션으로만 들어가고 lib이 public으로 노출하지 않는다. 여기서 검증하려는
+    // 것은 lib의 디스패치가 아니라 우리가 넘긴 콜백의 판단이므로, 그 콜백을 직접 꺼내 부른다.
+    const onRemoveOf = (uid: string | undefined, boundCid: string | null) => {
+        const cacheDelete = jest.fn();
+        const cacheClearByChannelId = jest.fn();
+        mockRepositories.current = { join: { cacheDelete }, chat: { cacheClearByChannelId } };
+        mockDataContext.current = { cid: 'cloud-a', uid };
+        mockBoundCid.current = boundCid;
+
+        const plan = createSyncPlans().find(candidate => candidate.domain === 'join');
+        const onRemove = (plan as unknown as { options: { onRemove: (target: { id: string }) => void } }).options
+            .onRemove;
+        return { onRemove, cacheDelete, cacheClearByChannelId };
+    };
+
+    it('내 join이 사라지면 그 채널의 chat 캐시를 비운다', () => {
+        const { onRemove, cacheDelete, cacheClearByChannelId } = onRemoveOf('me', 'cloud-a');
+
+        onRemove({ id: 'ch-1@me' });
+
+        expect(cacheDelete).toHaveBeenCalledWith('ch-1@me');
+        expect(cacheClearByChannelId).toHaveBeenCalledWith('ch-1');
+    });
+
+    it('다른 멤버의 join이 사라지면 내 chat 캐시는 건드리지 않는다', () => {
+        const { onRemove, cacheDelete, cacheClearByChannelId } = onRemoveOf('me', 'cloud-a');
+
+        onRemove({ id: 'ch-1@someone-else' });
+
+        expect(cacheDelete).toHaveBeenCalledWith('ch-1@someone-else');
+        expect(cacheClearByChannelId).not.toHaveBeenCalled();
+    });
+
+    it('소켓이 다른 클라우드에 묶여 있으면 비우지 않는다', () => {
+        // 메시지 삭제는 되돌릴 수 없다 — 자기 클라우드보다 오래 산 소켓의 프레임이 현재 클라우드의
+        // 파티션을 겨누게 두면 안 된다. 툼스톤은 기존 동작대로 남긴다.
+        const { onRemove, cacheDelete, cacheClearByChannelId } = onRemoveOf('me', 'cloud-b');
+
+        onRemove({ id: 'ch-1@me' });
+
+        expect(cacheDelete).toHaveBeenCalledWith('ch-1@me');
+        expect(cacheClearByChannelId).not.toHaveBeenCalled();
+    });
+
+    it('합성 id가 아니면 아무것도 비우지 않는다', () => {
+        const { onRemove, cacheClearByChannelId } = onRemoveOf('me', 'cloud-a');
+
+        onRemove({ id: 'not-a-composite-id' });
+
+        expect(cacheClearByChannelId).not.toHaveBeenCalled();
     });
 });

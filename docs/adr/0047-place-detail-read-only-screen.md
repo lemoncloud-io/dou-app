@@ -1,6 +1,7 @@
 # ADR-0047: 플레이스 정보(읽기 전용) 화면을 신설하고, 기존 편집 화면을 `edit`으로 개명한다
 
-> 상태: Accepted · 결정일: 2026-08-07
+> 상태: Accepted (일부 개정됨) · 결정일: 2026-08-07
+> · **개정**: [ADR-0074](./0074-place-introduction-text.md)가 아래 §범위의 소개 문구(`desc`) 배제를 취소했다. 나머지 결정은 그대로 유효하다.
 > 관련: [ADR-0045](./0045-relay-default-place-scoping-profile-step-and-avatar-unification.md) (기본플레이스 relay 스코핑·아바타 통합) · [ADR-0031](./0031-place-settings-hub.md) (플레이스 설정 허브·`isOwner` 권위) · [ADR-0013](./0013-home-screen-web-ui-kit-migration.md) (web-ui-kit 우선)
 
 ## 맥락 (Context)
@@ -84,8 +85,10 @@ Figma를 따라 "프로필" → "설정"으로 바꾼다.
 web-ui-kit에 정보 행(라벨 + 값) 컴포넌트 신설, ko/en 번역 키.
 
 **제외**: 플레이스 나가기 · 플레이스 삭제 · 신고 관리(사용자 지시로 보류). 하단 액션 영역과
-구분선은 이번에 렌더하지 않는다 — 자리만 비우지 않고 아예 두지 않는다. 소개 문구(`desc`)는
-Figma에 없어 넣지 않는다.
+구분선은 이번에 렌더하지 않는다 — 자리만 비우지 않고 아예 두지 않는다. ~~소개 문구(`desc`)는
+Figma에 없어 넣지 않는다.~~ → **[ADR-0074](./0074-place-introduction-text.md)로 취소** (2026-09-07):
+배제 사유가 "디자인에 없다"였고 그 조건이 해소됐다. 소개 문구는 정보·수정·허브 세 곳에 노출하며,
+relay 기본플레이스에서도 그린다 — 만든 날짜·소유자를 지운 아래 결정과 갈리는 지점이다.
 
 **~~미결(구현 착수 시 실측 후 확정)~~ → 해소(2026-08-07).** 실측 결과: `createdAt`은 relay·cloud
 양쪽에 온다. `ownerId`·`owner$`·`isOwner`는 **cloud에만** 있고 relay 기본플레이스에는 전부 없다

@@ -22,7 +22,8 @@ export type NativeCacheOperation =
     | 'loadLast'
     | 'delete'
     | 'deleteAll'
-    | 'clearAll';
+    | 'clearAll'
+    | 'clearByChannel';
 
 /** 이 시간을 넘긴 단일 호출만 로그로 남깁니다. 전수 로깅은 링버퍼(500)를 금방 밀어냅니다. */
 const SLOW_OPERATION_MS = 50;

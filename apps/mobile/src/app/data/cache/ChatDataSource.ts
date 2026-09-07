@@ -226,6 +226,26 @@ export class ChatDataSource implements ICacheDataSource<CacheChatView, ChatQuery
         await this.database.executeBatch(ids.map(id => [sql, [id, cid, uid]]));
     }
 
+    /**
+     * 한 채널의 행만 지웁니다 (ADR-0067). `channel_id`는 조회에 쓰는 추출 컬럼이라 조건이 그대로 선다.
+     *
+     * 스코프(cid/uid)는 조건에 함께 걸린다 — 같은 기기의 다른 클라우드·다른 계정에 같은 채널 id가
+     * 있을 수 있고, 방 하나를 나간 것이 그쪽 이력까지 지울 이유는 없다.
+     */
+    public async clearByChannel(channelId: string, cid?: string, uid?: string): Promise<void> {
+        const conditions: string[] = ['channel_id = ?'];
+        const params: string[] = [channelId];
+        if (cid) {
+            conditions.push('cid = ?');
+            params.push(cid);
+        }
+        if (uid) {
+            conditions.push('uid = ?');
+            params.push(uid);
+        }
+        await this.database.execute(`DELETE FROM ${this.tableName} WHERE ${conditions.join(' AND ')}`, params);
+    }
+
     public async clear(cid?: string, uid?: string): Promise<void> {
         const conditions: string[] = [];
         const params: string[] = [];

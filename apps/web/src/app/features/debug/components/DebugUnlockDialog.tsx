@@ -53,7 +53,12 @@ export const DebugUnlockDialog = ({ isOpen, hasError, onSubmit, onCancel }: Debu
                     Enter the debug entry code to unlock debug tools.
                 </AlertDialogDescription>
                 <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                    {/* `px-0` because this dialog carries its own padding. `TextField` ships a 16px
+                        gutter of its own for full-bleed form screens, where the field IS the screen's
+                        edge — inside a padded card that gutter is a second one, and the field ended
+                        up 32px narrower than the button below it. */}
                     <TextField
+                        className="px-0"
                         value={code}
                         onChange={setCode}
                         error={hasError ? 'Wrong code' : undefined}

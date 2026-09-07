@@ -26,6 +26,18 @@ export interface RelayInviteCreateInput {
     phone: string;
     name: string;
     countryCode?: string;
+    /**
+     * The channel this code lets the recipient into. Omitted for a brand-new 1:1 — the server makes
+     * the room on accept. Supplied when re-inviting somebody back into a room that already exists,
+     * which is what keeps a 1:1 one room instead of a new one per invite (ADR-0068 결정 2).
+     */
+    channelId?: string;
+    /**
+     * Link lifetime in days from issue. Omitting it takes the server default of 3; the app sends 1,
+     * so every link this client issues lives 24 hours (ADR-0068 결정 4). The number never reaches
+     * the copy — screens read the returned `expiredAt` instead.
+     */
+    expiresDays?: number;
 }
 
 /**
@@ -38,6 +50,15 @@ export interface RelayInviteCreateInput {
  * has a reason to grow past this.
  */
 export const INVITE_LIST_LIMIT = 100;
+
+/**
+ * Lifetime, in days, of every relay invite this client issues — 24 hours (ADR-0068 결정 4).
+ *
+ * Applied centrally rather than per call site so a new invite and a re-invite cannot drift apart,
+ * and so there is exactly one place to move it. The server's own default is 3 days (ADR-0033 D8);
+ * sending this narrows the window a phone-bound link is exposed for. Callers may still override.
+ */
+const INVITE_EXPIRES_DAYS = 1;
 
 /**
  * How long a caller-driven `refetch` waits for the relay handshake before giving up (ms).
@@ -81,6 +102,17 @@ export interface RelayInvitesOptions {
      * through `refetch`.
      */
     remote?: boolean;
+
+    /**
+     * Set `false` to stand the hook down entirely — no cache observer, no server read (default
+     * `true`).
+     *
+     * For callers that live on a screen where invites are only *sometimes* relevant. The 1:1 room
+     * asks for this: it is one page shared by every channel stereo, so mounting the hook
+     * unconditionally would make opening any group or self room fire `invite.list` for nothing.
+     * A conditional hook call is not an option, so the condition comes in as a flag.
+     */
+    enabled?: boolean;
 }
 
 /** Read/write the same cache entries, so a mutation can invalidate what the list hook renders. */
@@ -144,12 +176,24 @@ export const useRelayInvites = (state?: InviteState, options: RelayInvitesOption
     // the waiting screen needs no second flag (see RelayInvitesOptions.remote).
     const wantsRemote = options.remote ?? options.pollIntervalMs !== undefined;
 
+    const isEnabled = options.enabled ?? true;
+
     const [cachedInvites, setCachedInvites] = useState<RelayInviteRow[]>([]);
     useEffect(() => {
+        // Stood down: release the observer and drop the cache half we were holding. Note this does
+        // NOT empty the hook's return — `query.data` is react-query's, keyed per query rather than
+        // per observer, so a list another screen already fetched still comes through. Standing down
+        // stops the WORK (observer + request), it is not a promise of an empty answer; a caller that
+        // must ignore invites while disabled has to gate on its own condition, as `useDmInviteState`
+        // does with `peerLeft`.
+        if (!isEnabled) {
+            setCachedInvites([]);
+            return;
+        }
         return invite.observeList(result => {
             setCachedInvites((result?.list ?? []) as RelayInviteRow[]);
         });
-    }, [invite]);
+    }, [invite, isEnabled]);
 
     const query = useQuery({
         queryKey: relayInviteKeys.list(state),
@@ -167,13 +211,14 @@ export const useRelayInvites = (state?: InviteState, options: RelayInvitesOption
         // (and two server-side error reports) for a read the next background-sync edge/tick or poll
         // re-asks anyway. Nothing here needs its answer within a single attempt.
         retry: false,
-        // Two gates, and both must hold. `isRelayVerified` re-fires on the false→true edge (relay
+        // Three gates, and all must hold. `isRelayVerified` re-fires on the false→true edge (relay
         // reconnecting drops it, then restores it), same as every other verified-gated read in the
         // app. `wantsRemote` is the stronger one: a cache-only consumer never opens the wire at all.
-        // `refetch()` still works while disabled (TanStack v5), which is what the on-demand
+        // `isEnabled` stands the whole hook down for a caller that only sometimes cares (the 1:1
+        // room). `refetch()` still works while disabled (TanStack v5), which is what the on-demand
         // code re-ask and the user-driven retry on InviteWaitingPage ride on — and also why an
         // automatic cadence must NOT be built on it (see RelayInvitesOptions.pollIntervalMs).
-        enabled: isRelayVerified && wantsRemote,
+        enabled: isRelayVerified && wantsRemote && isEnabled,
     });
 
     const invites = mergeCachedAndRemoteInvites(cachedInvites, query.data ?? []);
@@ -230,7 +275,11 @@ export const useRelayInviteMutations = () => {
     const invalidateList = () => queryClient.invalidateQueries({ queryKey: relayInviteKeys.all });
 
     const createMutation = useMutation({
-        mutationFn: (input: RelayInviteCreateInput) => invite.create(input),
+        // `expiresDays` is defaulted here, not at the call sites: every link this app issues has the
+        // same lifetime, and a caller that forgot the field would silently fall back to the server's
+        // 3 days. `??` rather than spread order, so an explicit `undefined` still gets the default.
+        mutationFn: (input: RelayInviteCreateInput) =>
+            invite.create({ ...input, expiresDays: input.expiresDays ?? INVITE_EXPIRES_DAYS }),
         onSuccess: invalidateList,
     });
 

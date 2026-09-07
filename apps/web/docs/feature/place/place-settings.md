@@ -1,6 +1,6 @@
 # 플레이스 설정 (Place Settings)
 
-> 상태: Live · 최종 갱신: 2026-08-07 · 관련 ADR: [[ADR-0031]](../../../../docs/adr/0031-place-settings-hub.md) (설정 허브) · [[ADR-0047]](../../../../docs/adr/0047-place-detail-read-only-screen.md) (플레이스 정보 화면·개명)
+> 상태: Live · 최종 갱신: 2026-09-07 · 관련 ADR: [[ADR-0031]](../../../../docs/adr/0031-place-settings-hub.md) (설정 허브) · [[ADR-0047]](../../../../docs/adr/0047-place-detail-read-only-screen.md) (플레이스 정보 화면·개명) · [[ADR-0074]](../../../../docs/adr/0074-place-introduction-text.md) (소개 문구 — 0047의 `desc` 배제 취소)
 
 ## 목적
 
@@ -22,29 +22,28 @@
 
 - 홈 프로필 드롭다운에 "플레이스 설정" 진입 항목.
 - 설정 허브 페이지(계층형 목록) — `설정` / `알림` / `채팅방` 세 카드.
-- 플레이스 이름/이미지 편집 페이지(`PlaceEditPage`) — 오너 전용, 비오너 disabled.
+- 플레이스 이름/소개 문구/이미지 편집 페이지(`PlaceEditPage`) — 오너 전용, 비오너 disabled. 소개는 100자 상한.
 - 플레이스 유저 프로필 설정 페이지 — 폼 본문 공유(다이얼로그 진입도 유지).
-- **플레이스 정보 페이지(`PlaceDetailPage`) — 읽기 전용**: 아바타, 플레이스 이름, 만든 날짜, 소유자 정보. relay 기본플레이스(DoU홈)와 클라우드 플레이스 분기 — DoU홈은 만든 날짜·소유자 정보 없이 이름만(기획 결정, §시나리오 8).
+- **플레이스 정보 페이지(`PlaceDetailPage`) — 읽기 전용**: 아바타, 플레이스 이름, 소개 문구, 만든 날짜, 소유자 정보. relay 기본플레이스(DoU홈)와 클라우드 플레이스 분기 — DoU홈은 만든 날짜·소유자 정보를 빼고 이름(+소개)만(기획 결정, §시나리오 8). 소개 문구는 이 분기를 타지 않는다(ADR-0074).
 - 채팅방 정렬(허브에서 바텀시트) · 채팅방 관리 페이지.
 - 필요한 i18n 키, 아이콘·이미지 리소스.
 
 **제외**
 
 - **플레이스 나가기 · 플레이스 삭제 · 신고 관리** — 보류(ADR-0047). 하단 액션 영역과 그 위 구분선을 아예 렌더하지 않는다. 비활성 상태로 미리 노출하지도 않는다.
-- 플레이스 소개 문구(`desc`) — Figma에 없다.
 - 플레이스 알림(백엔드 미구현) — 허브에 disabled 스위치 + 설명문으로만 노출.
 - 정렬 서버 동기화·수동 드래그 재배치(@dnd-kit).
 
 ## 시나리오
 
 1. **허브 진입** — 홈 우상단 프로필 아바타 탭 → 드롭다운에서 **플레이스 설정** → `/place/:placeId/settings` 허브. 활성 플레이스가 없으면(`!selectedSiteId`) 항목 disabled.
-2. **이름/이미지 편집(오너)** — 허브 `설정` 카드의 "플레이스 프로필" 행 → `PlaceEditPage`. 이름 1–20자, 이미지 ≤10MB(150px 리사이즈). 저장 시 `useUpdatePlace` → 낙관적 반영, 완료 후 뒤로. 미저장 상태로 뒤로 가면 이탈 가드 다이얼로그.
+2. **이름/소개/이미지 편집(오너)** — 허브 `설정` 카드의 "플레이스 프로필" 행 → `PlaceEditPage`. 이름 1–20자, 소개 ≤100자(호출부 클램프), 이미지 ≤10MB(150px 리사이즈). 소개는 바뀌었을 때만 페이로드에 실리고, 비우면 `''`를 보내 지운다. 저장 시 `useUpdatePlace` → 낙관적 반영, 완료 후 뒤로. 미저장 상태로 뒤로 가면 이탈 가드 다이얼로그.
 3. **이름/이미지 편집(비오너)** — 허브의 그 행이 disabled(탭 불가) + "오너만 변경할 수 있습니다" 부제. 직접 URL 진입은 `PlaceEditPage`가 `navigate(-1)`로 되돌린다(방어적 백스톱).
 4. **유저 프로필 — 드롭다운 경로** — 홈 드롭다운의 **프로필** → 풀팝업 다이얼로그(`PlaceProfileEditDialog`).
 5. **유저 프로필 — 설정 경로** — 허브 `설정` 카드의 "내 프로필" 행 → 라우트 페이지. 본문/저장은 다이얼로그와 동일(`PlaceProfileFormDialog` + `setMyProfile`).
-6. **플레이스 정보 — 클라우드 플레이스(오너)** — 허브 `설정` 카드의 "플레이스 정보" 행 → `PlaceDetailPage`. 썸네일이 있으면 그 사진, 없으면 네이비 풍경 기본 아바타. 라벨 "플레이스 이름" + 플레이스 이름, "플레이스 만든 날짜" + `createdAt` 날짜, "소유자 정보" + 오너 행(아바타 · 방장 뱃지 · 플레이스 프로필 닉).
+6. **플레이스 정보 — 클라우드 플레이스(오너)** — 허브 `설정` 카드의 "플레이스 정보" 행 → `PlaceDetailPage`. 썸네일이 있으면 그 사진, 없으면 네이비 풍경 기본 아바타. 라벨 "플레이스 이름" + 플레이스 이름, "플레이스 소개" + 소개 문구(값이 없거나 빈 문자열이면 행 자체가 없다), "플레이스 만든 날짜" + `createdAt` 날짜, "소유자 정보" + 오너 행(아바타 · 방장 뱃지 · 플레이스 프로필 닉).
 7. **플레이스 정보 — 클라우드 플레이스(비오너)** — 같은 화면. 이름 라벨만 "초대된 플레이스 이름"으로 바뀐다. 소유자 정보는 동일하게 `ownerId`의 플레이스 프로필을 보여준다.
-8. **플레이스 정보 — DoU홈(relay 기본플레이스)** — 아바타는 DoU 캐릭터(고스트) 일러스트, 이름은 `resolvePlaceDisplayName`이 브랜딩한 "두유 홈"(백엔드 원본 `default`를 노출하지 않는다). 라벨은 `isOwner`가 없어도 **"플레이스 이름"**(Figma 3769-34207, 오너 변형) — relay는 기본플레이스 하나뿐이라 "초대돼 들어온 곳"이 아니라는 기획 결정이다(ADR-0047). **만든 날짜·소유자 정보 행은 렌더하지 않는다** — `createdAt`은 실측상 relay에도 오지만 이 화면엔 보이지 않기로 정했고(데이터 유무와 무관), 소유자 정보는 relay가 `ownerId`·`owner$`·`isOwner`를 애초에 안 실어 오므로(§실측) 자연히 없다.
+8. **플레이스 정보 — DoU홈(relay 기본플레이스)** — 아바타는 DoU 캐릭터(고스트) 일러스트, 이름은 `resolvePlaceDisplayName`이 브랜딩한 "두유 홈"(백엔드 원본 `default`를 노출하지 않는다). 라벨은 `isOwner`가 없어도 **"플레이스 이름"**(Figma 3769-34207, 오너 변형) — relay는 기본플레이스 하나뿐이라 "초대돼 들어온 곳"이 아니라는 기획 결정이다(ADR-0047). **만든 날짜·소유자 정보 행은 렌더하지 않는다** — `createdAt`은 실측상 relay에도 오지만 이 화면엔 보이지 않기로 정했고(데이터 유무와 무관), 소유자 정보는 relay가 `ownerId`·`owner$`·`isOwner`를 애초에 안 실어 오므로(§실측) 자연히 없다. **소개 문구는 이 예외에 포함되지 않는다** — 값이 있으면 DoU홈에서도 그린다(ADR-0074). 다만 relay 기본플레이스는 편집 진입 경로가 없어 현재로선 값이 채워질 길이 없다.
 9. **소유자 프로필이 캐시에 없을 때** — 이름 · 날짜가 먼저 그려지고, `profile.refreshItem`이 돌아오면 소유자 행이 채워진다. 조회가 실패하면 그 행만 비고 나머지는 남는다.
 10. **채팅방 정렬** — 허브 `채팅방` 카드의 "채팅방 정렬" 행 → 바텀시트(`ChannelSortSheet`)에서 **최근 활동순**(기본) / **안읽은 메시지 우선** 선택 → 즉시 저장(플레이스별). 홈 채팅방 목록이 그 기준으로 정렬된다.
 11. **채팅방 관리** — 허브 `채팅방` 카드의 "채팅방 관리" 행 → `PlaceChannelManagePage`.
@@ -73,7 +72,7 @@ flowchart TD
 ```mermaid
 flowchart TD
     P["place.observeItem(placeId)"] --> H{"id === HOME_PLACE_ID<br/>('0000')"}
-    H -->|"예 · DoU홈"| HA["아바타: 고스트 일러스트<br/>이름: resolvePlaceDisplayName → '두유 홈'<br/>라벨: '플레이스 이름' (isOwner 무관, 명시적 예외)<br/>만든 날짜 행: 렌더 안 함 (기획 결정, 데이터 유무 무관)<br/>소유자 섹션: 렌더 안 함"]
+    H -->|"예 · DoU홈"| HA["아바타: 고스트 일러스트<br/>이름: resolvePlaceDisplayName → '두유 홈'<br/>라벨: '플레이스 이름' (isOwner 무관, 명시적 예외)<br/>만든 날짜 행: 렌더 안 함 (기획 결정, 데이터 유무 무관)<br/>소유자 섹션: 렌더 안 함<br/>소개 행: desc 있으면 렌더 (분기 없음)"]
     H -->|"아니오 · 클라우드"| CA["아바타: thumbnail ?? 네이비 풍경<br/>이름: place.name"]
     CA --> O{"ownerId 있나?"}
     O -->|예| OP["profile.observeItem('placeId@ownerId')<br/>+ 캐시 미스면 refreshItem"]
@@ -177,9 +176,12 @@ ADR-0047이 미결로 남긴 항목의 실측 결과다(`user.mySite` → Indexe
 - **유닛 테스트** — `npx nx test web` 187 스위트 / 1642 테스트 그린(develop 리베이스로 스위트 수 증가), `npx nx test web-ui-kit` 62 스위트 / 261 테스트 그린. 이번 라운드 신규:
     - `features/place/pages/PlaceDetailPage.test.tsx` (17) — 클라우드: 오너면 "플레이스 이름"·비오너면 "초대된 플레이스 이름"·`isOwner` 부재도 비오너, `ownerId` 있으면 방장 뱃지+닉, 소유자 프로필이 늦게 와도 섹션 유지, 썸네일 우선, 날짜 zero-padding 형식, `createdAt` 부재 시 날짜 행 부재. DoU홈: `isOwner` 부재에도 "플레이스 이름" 라벨, 소유자 섹션 부재(`ownerId`가 있어도 부재), 원본 `default` 미노출·브랜딩, 밝은 원반 아바타, **`createdAt`이 있어도 날짜 행 렌더 안 함**(2026-08-07 기획 결정 반영). 행 없으면 안내 문구만.
     - `features/place/hooks/usePlaceOwnerProfile.test.ts` (7) — `ownerId`/`placeId` 부재 시 구독·조회 안 함, `${placeId}@${ownerId}` 구독, 캐시 히트면 `refreshItem` 미호출, 캐시 미스면 호출, 조회 실패를 삼키고 `null` 유지, 언마운트 시 해제.
-    - `features/place/pages/PlaceSettingsHubPage.test.tsx` (4) — 첫 카드 제목이 "설정", "플레이스 정보"→`settingsDetail`, "플레이스 프로필"→`settingsEdit`, 비오너에게 정보 행은 활성·프로필 행만 disabled.
+    - `features/place/pages/PlaceSettingsHubPage.test.tsx` (4) — 첫 카드 제목이 "설정", "플레이스 정보"→`settingsDetail`, "플레이스 프로필"→`settingsEdit`, 비오너에게 정보 행은 활성·프로필 행만 disabled. 2026-09-07 +2 — 소개 문구를 "플레이스 정보" 행 부제로 미리보기, 빈 소개면 부제 없음.
     - `libs/web-ui-kit`: `InfoField.test.tsx` (3 — 라벨/문자열 값, 색 토큰, 노드 값은 감싸지 않음), `ProfileAvatar.test.tsx`에 `glyph="home"` 4건(밝은 원반 + 58/86 inset, 사이즈 비례 축소, 사진 있으면 어두운 shell 복귀, 밝은 원반에서 배지 반전).
     - 편집 화면에는 기존 테스트가 없었고(`PlaceInfoPage.test.tsx` 부재) 개명은 순수 rename이라 새로 쓰지 않았다.
+- **유닛 테스트 (2026-09-07 소개 문구 추가분)** — `npx nx test web` 244 스위트 / 2362 테스트 그린.
+    - `features/place/pages/PlaceEditPage.test.tsx` (8, **신규** — 위 항목의 "편집 화면에 테스트 없음"을 해소) — 소개 초기값 시드, 값 없으면 빈 값, 100자 클램프, 소개만 고쳐도 저장 활성, 바뀐 소개만 페이로드에 실림, 이름만 고치면 `desc` 미전송, 비우면 `''` 전송, 배경 재방출이 편집 중 입력을 덮지 않음. 클램프와 dirty 게이팅은 뮤테이션으로 검증(둘 다 제거 시 실패 확인).
+    - `PlaceDetailPage.test.tsx` +5 — 소개 있으면 행 렌더, 없으면 행 부재, **빈 문자열도 행 부재**, 줄바꿈 보존, **DoU홈에서도 렌더**(만든 날짜·소유자의 relay 예외를 소개에 실수로 적용하면 깨지는 회귀 방어).
 - **정적 검사** — 변경 파일 eslint 클린(`*.stories.tsx`의 `@nx/enforce-module-boundaries`는 기존 스토리 전부와 동일한 선재 패턴).
     - **`nx typecheck web`은 이 리포에서 게이트가 아니다.** `libs/data:typecheck`의 선재 에러 2건이 `libs/app-runtime` 빌드를 막고, 그 결과 `apps/web` 전체가 TS6305("deps not built")로 덮여 실제 에러가 묻힌다. 개명 누락은 대신 **grep으로 검증했다** — `placeInfo|PlaceInfoPage|settingsInfo|settings/info`가 `apps/web/src`·`libs`·locales에서 0건. 이 방식이 실제로 세 곳을 더 잡았다(라우트 path 리터럴, mypage 주석 2건, `UpdateChannelDialog`의 `placeInfo.imageSizeError` 크로스 피처 키 재사용).
     - `web-ui-kit:typecheck`는 스토리 3건의 선재 에러만 남고 신규 파일은 클린.

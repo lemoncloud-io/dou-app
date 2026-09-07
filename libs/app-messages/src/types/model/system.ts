@@ -123,7 +123,8 @@ export type PostalAddress = {
 export type Birthday = {
     day: number;
     month: number;
-    year: number;
+    /** 연도 없이 월·일만 저장한 연락처가 있어 선택 필드다 — iOS는 그 경우 `year`를 아예 빼고 내려보낸다. */
+    year?: number;
 };
 
 /** 인스턴트 메신저 계정 정보 */

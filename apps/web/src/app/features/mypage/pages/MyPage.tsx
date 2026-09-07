@@ -5,10 +5,9 @@ import { useNavigateWithTransition } from '@chatic/shared';
 import { DefaultAvatar, IconChevronRight, IconSettings, IconUserOutline, ListRow, MenuCard } from '@chatic/web-ui-kit';
 import { useCloudSessionCatalog } from '../../../hooks/useCloudCatalog';
 import { useMembershipInfo } from '../../../hooks/useMembership';
-import { useRuntimeProfile } from '@chatic/app-runtime';
 
 import { BottomNavSpacer } from '../../../ui/components';
-import { useMyUser } from '../../../hooks';
+import { useIsAccountGuest, useMyUser } from '../../../hooks';
 import { ROUTES } from '../../../routes/paths';
 import { useNavigateToLogin } from '../../auth/hooks';
 
@@ -23,7 +22,11 @@ export const MyPage = () => {
     const navigate = useNavigateWithTransition();
     const goToLogin = useNavigateToLogin();
     const { t } = useTranslation();
-    const { isGuest } = useRuntimeProfile();
+    // The ACCOUNT's guest-ness, not the active session's. Every row on this screen is account-scoped
+    // — the profile, the subscription, the clouds you own — and they must read the same subject the
+    // header's name does, which is the relay account whichever cloud is connected. `useRuntimeProfile`
+    // would answer for the delegated cloud user instead (see useIsAccountGuest).
+    const isGuest = useIsAccountGuest();
     const { data: membership } = useMembershipInfo();
     // Owned clouds only (the relay catalog); invited clouds are deliberately absent — you cannot
     // release someone else's cloud, so they must not summon the 클라우드 정보 row.

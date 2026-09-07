@@ -55,10 +55,14 @@
 | [debug](./feature/debug/README.md)               | 개발자 도구(런타임 언락)                 |
 | [feedback](./feature/feedback/README.md)         | 의견 보내기(로그 · 디바이스 자동 첨부)   |
 | [home](./feature/home/README.md)                 | 메인 탭 · 목록 · 클라우드 전환 시트      |
+| [invite](./feature/invite/README.md)             | relay 1:1 초대 — 발신 · 수락             |
 | [mypage](./feature/mypage/README.md)             | 계정 · 정책 허브                         |
 | [onboarding](./feature/onboarding/README.md)     | 최초 실행 온보딩 게이트                  |
 | [place](./feature/place/README.md)               | Place(=Site) 상세·편집                   |
 | [subscription](./feature/subscription/README.md) | 구독 현황 · 플랜 · IAP                   |
+
+예외 하나: [notifications](./feature/notifications/README.md)(푸시 탭 라우팅 · 디바이스 토큰)는
+`features/` 폴더가 없다 — `src/app/bridge/navigation`을 기술한다.
 
 ## 라이브러리 문서
 

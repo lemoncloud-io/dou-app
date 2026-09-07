@@ -105,3 +105,31 @@ describe('ChatDataSource.fetchLastPerChannel (ADR-0057)', () => {
         expect(sqlite.execute).toHaveBeenCalledTimes(3);
     });
 });
+
+describe('ChatDataSource.clearByChannel (ADR-0067)', () => {
+    it('채널과 스코프를 모두 조건에 걸어 지운다', async () => {
+        const sqlite = createSqliteMock();
+        const dataSource = new ChatDataSource(sqlite, TABLE);
+        (sqlite.execute as jest.Mock).mockResolvedValue({ rows: [] });
+
+        await dataSource.clearByChannel('ch-1', 'c1', 'u1');
+
+        const [sql, params] = (sqlite.execute as jest.Mock).mock.calls[0];
+        expect(sql).toBe(`DELETE FROM ${TABLE} WHERE channel_id = ? AND cid = ? AND uid = ?`);
+        // 같은 기기의 다른 클라우드·다른 계정에 같은 채널 id가 있을 수 있다 — 방 하나를 나간 것이
+        // 그쪽 이력까지 지울 이유는 없다.
+        expect(params).toEqual(['ch-1', 'c1', 'u1']);
+    });
+
+    it('스코프가 없으면 채널 조건만 건다', async () => {
+        const sqlite = createSqliteMock();
+        const dataSource = new ChatDataSource(sqlite, TABLE);
+        (sqlite.execute as jest.Mock).mockResolvedValue({ rows: [] });
+
+        await dataSource.clearByChannel('ch-1');
+
+        const [sql, params] = (sqlite.execute as jest.Mock).mock.calls[0];
+        expect(sql).toBe(`DELETE FROM ${TABLE} WHERE channel_id = ?`);
+        expect(params).toEqual(['ch-1']);
+    });
+});

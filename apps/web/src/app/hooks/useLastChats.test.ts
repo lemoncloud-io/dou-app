@@ -73,3 +73,39 @@ describe('useLastChats — 홈 목록의 결합 프리뷰 관측 (ADR-0057)', ()
         expect(result.current.size).toBe(0);
     });
 });
+
+describe('useLastChats — 재입장 이력 숨기기 (ADR-0067)', () => {
+    const join = (channelId: string, joinedNo: number) => [channelId, { channelId, joinedNo } as never] as const;
+
+    it('joinedNo 이하의 프리뷰는 맵에서 빠진다', () => {
+        const { result } = renderHook(() =>
+            useLastChats([channel('ch-a'), channel('ch-b')], new Map([join('ch-a', 5), join('ch-b', 5)]))
+        );
+
+        emitRows([row('ch-a', 3, 3), row('ch-b', 9, 9)]);
+
+        // ch-a의 마지막 캐시 행은 퇴장 전 것이다 — 프리뷰 없는 채널이 된다.
+        expect(result.current.get('ch-a')).toBeUndefined();
+        expect(result.current.get('ch-b')).toEqual(expect.objectContaining({ chatNo: 9 }));
+    });
+
+    it('join 맵을 주지 않으면 아무것도 숨기지 않는다', () => {
+        const { result } = renderHook(() => useLastChats([channel('ch-a')]));
+
+        emitRows([row('ch-a', 3, 3)]);
+
+        expect(result.current.get('ch-a')).toEqual(expect.objectContaining({ chatNo: 3 }));
+    });
+
+    it('새 join 맵 아이덴티티가 구독을 다시 열지 않는다', () => {
+        // A read cursor moving rebuilds this map on the caller's side every time; re-subscribing
+        // there would tear down the whole list's observation on each keystroke of activity.
+        const { rerender } = renderHook(({ joins }) => useLastChats([channel('ch-a')], joins), {
+            initialProps: { joins: new Map([join('ch-a', 1)]) },
+        });
+
+        rerender({ joins: new Map([join('ch-a', 1)]) });
+
+        expect(observeLastList).toHaveBeenCalledTimes(1);
+    });
+});

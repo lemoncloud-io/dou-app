@@ -69,7 +69,15 @@ const buildRepositories = (
         // command-shaped calls (create/accept/cancel/reject/get). `subscription` (ADR-0070 2단계
         // 후반) is remote-only too, and HTTP-only — it has no socket data source either.
         auth: new AuthRepositoryV2(socketDataSources.auth, context, httpDataSources?.auth),
-        channel: new ChannelRepositoryV2(socketDataSources.channel, localDataSources.channel, context),
+        // `localDataSources.chat` so a leave can purge the room's messages, not just the channel
+        // row — the cache is what the screen renders, so the server's rejoin cursor reset alone
+        // changed nothing (ADR-0067).
+        channel: new ChannelRepositoryV2(
+            socketDataSources.channel,
+            localDataSources.channel,
+            localDataSources.chat,
+            context
+        ),
         chat: new ChatRepositoryV2(socketDataSources.chat, localDataSources.chat, context),
         cloud: new CloudRepositoryV2(socketDataSources.cloud, localDataSources.cloud, context, httpDataSources?.cloud),
         device: new DeviceRepositoryV2(socketDataSources.device, context, httpDataSources?.user),

@@ -1,4 +1,13 @@
+import { logger } from '@chatic/bridges';
+
 import { ChannelRepositoryV2 } from './ChannelRepositoryV2';
+
+// The swallowed purge failure is only observable through the logger, and the real one routes to a
+// sink that is not installed under jest — asserting on `console.warn` would pass or fail depending
+// on sink wiring rather than on this repository's behavior.
+jest.mock('@chatic/bridges', () => ({
+    logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+}));
 
 describe('ChannelRepositoryV2', () => {
     const createRepository = () => {
@@ -25,6 +34,9 @@ describe('ChannelRepositoryV2', () => {
             cacheDeleteMany: jest.fn(),
             cacheClear: jest.fn(),
         };
+        const chatLocalDataSource = {
+            cacheClearByChannelId: jest.fn(),
+        };
         const contextProvider = {
             getContext: () => ({ cid: 'cloud-a', sid: 'site-1', uid: 'me' }),
             setContext: () => undefined,
@@ -34,10 +46,12 @@ describe('ChannelRepositoryV2', () => {
             repository: new ChannelRepositoryV2(
                 channelSocketDataSource as any,
                 channelLocalDataSource as any,
+                chatLocalDataSource as any,
                 contextProvider
             ),
             channelSocketDataSource,
             channelLocalDataSource,
+            chatLocalDataSource,
         };
     };
 
@@ -143,6 +157,93 @@ describe('ChannelRepositoryV2', () => {
             [{ id: 'ch-3', sid: 'site-1' }],
             expect.anything()
         );
+    });
+
+    it('나가기 가드는 시한부다 — 만료 후에는 재입장한 채널을 refreshList/syncChannels가 다시 받아들인다', async () => {
+        const { repository, channelSocketDataSource, channelLocalDataSource } = createRepository();
+        // The guard covers ONE race (a snapshot issued before the leave answering after it). Held
+        // forever it would also block a re-invite from ever reaching the cache — the room would stay
+        // invisible for the rest of the session (ADR-0067).
+        const now = Date.now();
+        const clock = jest.spyOn(Date, 'now').mockReturnValue(now);
+        channelSocketDataSource.leaveChannel.mockResolvedValue({ id: 'ch-left' });
+        await repository.leaveChannel({ channelId: 'ch-left' } as any);
+        channelLocalDataSource.cacheWriteMany.mockClear();
+
+        channelSocketDataSource.fetchChannel.mockResolvedValue({ list: [{ id: 'ch-left', sid: 'site-1' }] });
+        channelSocketDataSource.syncChannel.mockResolvedValue({
+            list: [{ id: 'ch-left', sid: 'site-1', $: { sid: 'site-1' } }],
+            syncedAt: 1,
+        });
+
+        // Still inside the window: both ingestion paths drop it.
+        await repository.refreshList({ sid: 'site-1' } as any);
+        await repository.syncChannels(0);
+        expect(channelLocalDataSource.cacheWriteMany).not.toHaveBeenCalled();
+
+        clock.mockReturnValue(now + 10_001);
+
+        await repository.refreshList({ sid: 'site-1' } as any);
+        expect(channelLocalDataSource.cacheWriteMany).toHaveBeenCalledWith(
+            [{ id: 'ch-left', sid: 'site-1' }],
+            expect.anything()
+        );
+
+        channelLocalDataSource.cacheWriteMany.mockClear();
+        await repository.syncChannels(0);
+        expect(channelLocalDataSource.cacheWriteMany).toHaveBeenCalledWith(
+            [{ id: 'ch-left', sid: 'site-1', $: { sid: 'site-1' } }],
+            expect.anything()
+        );
+
+        clock.mockRestore();
+    });
+
+    it('leaveChannel — 본인 나가기가 성공하면 그 채널의 chat 캐시를 비운다', async () => {
+        const { repository, channelSocketDataSource, chatLocalDataSource } = createRepository();
+        channelSocketDataSource.leaveChannel.mockResolvedValue({ id: 'ch-1' });
+
+        await repository.leaveChannel({ channelId: 'ch-1' } as any);
+
+        expect(chatLocalDataSource.cacheClearByChannelId).toHaveBeenCalledWith('ch-1', {
+            cid: 'cloud-a',
+            sid: 'site-1',
+            uid: 'me',
+        });
+    });
+
+    it('leaveChannel — 나가기가 실패하면 chat 캐시는 건드리지 않는다', async () => {
+        const { repository, channelSocketDataSource, chatLocalDataSource } = createRepository();
+        // Messages are not restorable: the feed is windowed by joinedNo, so anything dropped in
+        // error is gone for good. The purge therefore waits for the server to confirm the leave.
+        channelSocketDataSource.leaveChannel.mockRejectedValue(new Error('nope'));
+
+        await expect(repository.leaveChannel({ channelId: 'ch-1' } as any)).rejects.toThrow('nope');
+
+        expect(chatLocalDataSource.cacheClearByChannelId).not.toHaveBeenCalled();
+    });
+
+    it('leaveChannel — 멤버 추방은 내 chat 캐시를 비우지 않는다', async () => {
+        const { repository, channelSocketDataSource, chatLocalDataSource } = createRepository();
+        channelSocketDataSource.leaveChannel.mockResolvedValue({ id: 'ch-1' });
+
+        await repository.leaveChannel({ channelId: 'ch-1', userId: 'other-user' } as any);
+
+        expect(chatLocalDataSource.cacheClearByChannelId).not.toHaveBeenCalled();
+    });
+
+    it('leaveChannel — chat 캐시 정리가 실패해도 나가기는 성공으로 끝난다', async () => {
+        const { repository, channelSocketDataSource, chatLocalDataSource } = createRepository();
+        // The leave already happened server-side; reporting it as failed would be the bigger lie.
+        // Rows that outlive their room are covered by isInJoinWindow on every screen.
+        (logger.warn as jest.Mock).mockClear();
+        channelSocketDataSource.leaveChannel.mockResolvedValue({ id: 'ch-1' });
+        chatLocalDataSource.cacheClearByChannelId.mockRejectedValue(new Error('bridge timeout'));
+
+        await expect(repository.leaveChannel({ channelId: 'ch-1' } as any)).resolves.toEqual({ id: 'ch-1' });
+
+        // Swallowed, but not silently — a purge that never happened has to be findable in the logs.
+        expect(logger.warn).toHaveBeenCalled();
     });
 
     it('refreshList — 요청한 site의 목록이 응답에 없으면 그 site의 캐시를 지우지 않는다', async () => {

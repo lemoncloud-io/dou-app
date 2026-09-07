@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { Linking } from 'react-native';
 import { FileManagerBridge } from '../../bridge';
 import { useServices } from '../../hooks';
+import { toContactInfo } from '../../utils';
 import type { WebMessageData } from '@chatic/app-messages';
 import type { Asset } from 'react-native-image-picker';
 
@@ -139,31 +140,9 @@ export const useDeviceHandler = () => {
                 return {
                     type: 'OnGetContacts' as const,
                     success: true,
-                    data: {
-                        contacts: contacts.map(contact => ({
-                            recordID: contact.recordID,
-                            backTitle: contact.backTitle || '',
-                            company: contact.company || '',
-                            emailAddresses: contact.emailAddresses,
-                            displayName: contact.displayName || '',
-                            familyName: contact.familyName,
-                            givenName: contact.givenName || '',
-                            middleName: contact.middleName || '',
-                            jobTitle: contact.jobTitle || '',
-                            phoneNumbers: contact.phoneNumbers,
-                            hasThumbnail: contact.hasThumbnail,
-                            thumbnailPath: contact.thumbnailPath || '',
-                            isStarred: contact.isStarred,
-                            postalAddresses: contact.postalAddresses,
-                            prefix: contact.prefix || '',
-                            suffix: contact.suffix || '',
-                            department: contact.department || '',
-                            birthday: (contact.birthday || undefined) as any,
-                            imAddresses: contact.imAddresses,
-                            urlAddresses: contact.urlAddresses,
-                            note: contact.note || '',
-                        })),
-                    },
+                    // Every field is defaulted in `toContactInfo` — iOS omits a key outright where
+                    // Android sends an empty value, and `ContactInfo` promises the web a value.
+                    data: { contacts: contacts.map(toContactInfo) },
                 };
             } catch (e: any) {
                 logger.error('DEVICE', 'GetContacts error', e);

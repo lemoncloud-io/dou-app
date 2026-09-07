@@ -70,6 +70,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
         handleDeleteCache,
         handleDeleteAllCache,
         handleClearCache,
+        handleClearCacheByChannel,
     } = useCrudCacheHandler();
 
     const { handleFetchPreference, handleSavePreference, handleDeletePreference } = usePreferenceCacheHandler();
@@ -144,6 +145,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
         handleDeleteAllCache,
         handleSearchGlobalCache,
         handleClearCache,
+        handleClearCacheByChannel,
         handleFetchPreference,
         handleSavePreference,
         handleDeletePreference,
@@ -216,6 +218,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             handleDeleteAllCache,
             handleSearchGlobalCache,
             handleClearCache,
+            handleClearCacheByChannel,
             handleFetchPreference,
             handleSavePreference,
             handleDeletePreference,
@@ -291,6 +294,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             DeleteAllCacheData: message => handlersRef.current.handleDeleteAllCache(message),
             SearchGlobalCacheData: message => handlersRef.current.handleSearchGlobalCache(message),
             ClearCacheData: message => handlersRef.current.handleClearCache(message),
+            ClearCacheDataByChannel: message => handlersRef.current.handleClearCacheByChannel(message),
             FetchTestRecord: message => handlersRef.current.handleFetchTestRecord(message),
             FetchAllTestRecords: message => handlersRef.current.handleFetchAllTestRecords(message),
             SaveTestRecord: message => handlersRef.current.handleSaveTestRecord(message),

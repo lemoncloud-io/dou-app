@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { useChatSync, useRuntimeRepositories } from '@chatic/app-runtime';
 import { useSessionIdentity } from '@chatic/app-runtime';
+import { isInJoinWindow } from '@chatic/data';
 import type { DomainChat, DomainUser } from '@chatic/data';
 
 import { isFeedVisible, isOwnSystemChat } from '../../../utils';
@@ -20,6 +21,13 @@ const JUMP_WINDOW_PADDING = 20;
 interface UseChatsParams {
     channelId: string;
     limit: number;
+    /**
+     * My join cursor (`join.joinedNo`) — rows at or below it predate my current membership and are
+     * dropped from everything this hook exposes (ADR-0067). Deliberately NOT part of the paging
+     * reset below: it arrives from the join cache slightly after mount, and treating a late arrival
+     * as a channel change would throw away the window the reader is already looking at.
+     */
+    joinedNo?: number;
 }
 
 /** Build the uid → display-name map used to resolve a message owner's name. */
@@ -33,7 +41,7 @@ const nameOf = (chat: DomainChat, userMap: Map<string, DomainUser>): string =>
  * are mapped to `ClientChatView` (owner identity, parsed timestamp, flags),
  * sorted oldest → newest so the last element is the latest message.
  */
-export const useChats = ({ channelId, limit }: UseChatsParams) => {
+export const useChats = ({ channelId, limit, joinedNo }: UseChatsParams) => {
     const { chat: chatRepository, user: userRepository } = useRuntimeRepositories();
     const { userId } = useSessionIdentity();
     const myUid = userId ?? '';
@@ -47,7 +55,7 @@ export const useChats = ({ channelId, limit }: UseChatsParams) => {
     // plan doesn't poll), so warm rooms refetch the newest page on entry and foreground return.
     useForegroundChatRefresh(channelId);
 
-    const [chats, setChats] = useState<DomainChat[]>([]);
+    const [cachedChats, setCachedChats] = useState<DomainChat[]>([]);
     const [users, setUsers] = useState<DomainUser[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -59,6 +67,13 @@ export const useChats = ({ channelId, limit }: UseChatsParams) => {
     const [jumpLimit, setJumpLimit] = useState(0);
     const observeLimit = Math.max(pageLimit, jumpLimit);
 
+    // The join window is applied at the hook's boundary, not just before rendering: leaving does not
+    // clear rows already cached, so everything derived from this window — the feed, the paging
+    // cursor, `rawChats` (reaction folding, thread building, "is row 1 loaded") — has to agree on
+    // where my CURRENT membership starts. Windowing only `messages` left `rawChats` claiming the
+    // conversation began at row 1 for someone who re-joined mid-thread (ADR-0067).
+    const chats = useMemo(() => cachedChats.filter(chat => isInJoinWindow(chat, joinedNo)), [cachedChats, joinedNo]);
+
     // Latest chats snapshot for loadMore — keeps the callback identity stable (a `chats`/`messages`
     // dependency would rebuild loadMore on every live message append, re-attaching scroll listeners).
     const chatsRef = useRef<DomainChat[]>(chats);
@@ -69,7 +84,7 @@ export const useChats = ({ channelId, limit }: UseChatsParams) => {
 
     // Reset paging/scroll guards on channel change or window-size change — treat it as a fresh entry.
     useEffect(() => {
-        setChats([]);
+        setCachedChats([]);
         setIsLoading(true);
         setHasMore(true);
         setPageLimit(limit);
@@ -80,7 +95,7 @@ export const useChats = ({ channelId, limit }: UseChatsParams) => {
     useEffect(() => {
         if (!channelId) return;
         return chatRepository.observeList({ channelId, limit: observeLimit }, result => {
-            setChats(result?.list ?? []);
+            setCachedChats(result?.list ?? []);
             setIsLoading(false);
         });
     }, [chatRepository, channelId, observeLimit]);
@@ -107,6 +122,7 @@ export const useChats = ({ channelId, limit }: UseChatsParams) => {
     // covers a hidden newest row.
     // isFeedVisible additionally drops reaction events (they fold into chips — as rows they were
     // the empty-pill bug ADR-0045 fixes) and thread replies (they live on the thread page).
+    // Rows predating my current membership are already gone — `chats` is windowed above (ADR-0067).
     const messages = useMemo<ClientChatView[]>(() => {
         const sortKey = (chat: DomainChat): number =>
             chat.chatNo && chat.chatNo > 0 ? chat.chatNo : Number.POSITIVE_INFINITY;
@@ -188,9 +204,12 @@ export const useChats = ({ channelId, limit }: UseChatsParams) => {
     return {
         messages,
         /**
-         * The unfiltered cache window. Reaction folding and thread derivation MUST read
+         * The cache window before the FEED filter. Reaction folding and thread derivation MUST read
          * this list — `messages` has the reaction events and replies filtered out, so
          * deriving from it would silently yield nothing (ADR-0045).
+         *
+         * "Raw" is about the feed filter only: the join window (ADR-0067) is already applied, so
+         * nothing here predates my current membership.
          */
         rawChats: chats,
         isLoading,

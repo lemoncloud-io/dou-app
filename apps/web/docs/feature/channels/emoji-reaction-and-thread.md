@@ -324,7 +324,7 @@ home과 channels가 함께 쓰는 술어는 (ADR-0045가 지목한 `channels/uti
 
 | 파일                                                                                                  | 역할                                                                                                                                                                                                                      |
 | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [hooks/useLastChat.ts](../../../src/app/hooks/useLastChat.ts)                                         | `observeList({channelId, limit: PREVIEW_LOOKBACK})` + `pickPreviewChat`. **`PREVIEW_LOOKBACK = 30`** — 리액션 버스트가 최근 행을 채워도 마지막 실제 메시지까지 닿게 하는 창. 비용은 홈 행 수만큼 곱해지는 캐시 관측 범위. |
+| [hooks/useLastChat.ts](../../../src/app/hooks/useLastChats.ts)                                        | `observeList({channelId, limit: PREVIEW_LOOKBACK})` + `pickPreviewChat`. **`PREVIEW_LOOKBACK = 30`** — 리액션 버스트가 최근 행을 채워도 마지막 실제 메시지까지 닿게 하는 창. 비용은 홈 행 수만큼 곱해지는 캐시 관측 범위. |
 | [features/home/components/ChannelList.tsx](../../../src/app/features/home/components/ChannelList.tsx) | `preview = lastChat.hidden ? t('chat.room.deletedMessage') : (lastChat.content ?? '')`. time은 그대로 `lastChat.createdAt` — preview와 time이 같은 행에서 나오므로 어긋나지 않는다.                                       |
 
 ### 푸시 → 스레드 내비게이션 (`apps/web/src/app/bridge/navigation/`)
@@ -333,12 +333,12 @@ home과 channels가 함께 쓰는 술어는 (ADR-0045가 지목한 `channels/uti
 `usePushNavigate`로 수렴하므로 로직은 한 곳에만 둔다. 인앱 배너가 모바일
 `resolvePushTapPath`를 미러링한다는 기존 불변식이 유지된다.
 
-| 파일                                                                                               | 변경                                                                                                                                                                                                                                                                                                                        |
-| -------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [resolvePushNavigation.ts](../../../src/app/bridge/navigation/resolvePushNavigation.ts)            | `chatId`를 `cid`/`sid`와 같은 방식으로 추출하고 `target`에서 제거한다. 방 URL이 정규형을 유지해야 `navigateNormalized`의 "이미 그 화면" 비교가 두 번의 탭을 서로 다른 목적지로 오판하지 않는다. **추출을 `/channel` 폴백 분기보다 앞에 둔 것이 핵심** — 그 분기는 `channelId`만으로 타깃을 재구성해 남은 파라미터를 버린다. |
-| [resolveThreadTarget.ts](../../../src/app/bridge/navigation/resolveThreadTarget.ts)                | 조회된 chat이 답글이면 스레드 경로, 아니면 `null`(방에 머문다). `parentId`가 곧 `rootNo`이고, full id 인코딩이 들어와도 chatNo만 떼어 쓴다.                                                                                                                                                                                 |
-| [usePushNavigate.ts](../../../src/app/bridge/navigation/usePushNavigate.ts)                        | `hopToThread` 추가 + 모든 종료 경로를 `land()`로 통일(전환 실패·best-effort 경로에서도 홉이 시도된다). **스레드 홉은 `navigateNormalized`를 쓰지 않고 직접 push한다** — 그 헬퍼는 현재 위치가 채널방이면 `replace`하므로, 방금 깔아둔 방이 스택에서 사라진다.                                                               |
-| [resolveInAppPushRoute.ts](../../../src/app/features/notifications/utils/resolveInAppPushRoute.ts) | `extractPushContext`가 `chatId`도 반환하고(이미 `payload` JSON을 파싱해 병합하던 자리), 두 분기 모두 쿼리에 실어 공용 하류로 넘긴다.                                                                                                                                                                                        |
+| 파일                                                                                    | 변경                                                                                                                                                                                                                                                                                                                        |
+| --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [resolvePushNavigation.ts](../../../src/app/bridge/navigation/resolvePushNavigation.ts) | `chatId`를 `cid`/`sid`와 같은 방식으로 추출하고 `target`에서 제거한다. 방 URL이 정규형을 유지해야 `navigateNormalized`의 "이미 그 화면" 비교가 두 번의 탭을 서로 다른 목적지로 오판하지 않는다. **추출을 `/channel` 폴백 분기보다 앞에 둔 것이 핵심** — 그 분기는 `channelId`만으로 타깃을 재구성해 남은 파라미터를 버린다. |
+| [resolveThreadTarget.ts](../../../src/app/bridge/navigation/resolveThreadTarget.ts)     | 조회된 chat이 답글이면 스레드 경로, 아니면 `null`(방에 머문다). `parentId`가 곧 `rootNo`이고, full id 인코딩이 들어와도 chatNo만 떼어 쓴다.                                                                                                                                                                                 |
+| [usePushNavigate.ts](../../../src/app/bridge/navigation/usePushNavigate.ts)             | `hopToThread` 추가 + 모든 종료 경로를 `land()`로 통일(전환 실패·best-effort 경로에서도 홉이 시도된다). **스레드 홉은 `navigateNormalized`를 쓰지 않고 직접 push한다** — 그 헬퍼는 현재 위치가 채널방이면 `replace`하므로, 방금 깔아둔 방이 스택에서 사라진다.                                                               |
+| [resolveInAppPushRoute.ts](../../../src/app/utils/resolveInAppPushRoute.ts)             | `extractPushContext`가 `chatId`도 반환하고(이미 `payload` JSON을 파싱해 병합하던 자리), 두 분기 모두 쿼리에 실어 공용 하류로 넘긴다.                                                                                                                                                                                        |
 
 **남은 서버 의존성** — OS 푸시 **탭** 경로는 네이티브가 `{ path, replace }`만 브리지로 넘기고
 raw `data`(여기에 `chatId`가 있다)를 버린다. 그래서 클라 쪽 준비는 끝났지만, 실제로 동작하려면
@@ -374,7 +374,7 @@ ADR-0047로 추가되는 키:
 
 ### 건드리지 않는 것
 
-- [useChannelUnreads.ts:36](../../../src/app/features/home/hooks/useChannelUnreads.ts) —
+- [useChannelUnreads.ts:36](../../../src/app/hooks/useChannelUnreads.ts) —
   `chatNo - metaNo` 상계가 리액션 이벤트(`stereo:'system'` → `metaNo` 포함)를 이미 걸러낸다.
   답글은 여전히 배지에 잡히는 의도된 한계(완화책 = ThreadFooter 미열람 강조).
 - `sortChannels` — `'recent'`의 1차 키가 내 join의 `updatedAt`이라 남의 활동(리액션이든

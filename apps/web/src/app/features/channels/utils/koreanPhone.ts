@@ -8,12 +8,24 @@ export const KOREAN_MOBILE_PREFIXES = ['010', '011', '016', '017', '018', '019']
 /** Digits a Korean mobile number is expected to have once normalized (local `0…` form). */
 export const KOREAN_PHONE_DIGITS_MAX = 11;
 
-/** Normalize the +82 international form (`82…`) to the local form (`0…`). Already-local input passes through. */
+/**
+ * Normalize the +82 international form (`82…`) to the local form (`0…`). Already-local input passes
+ * through.
+ *
+ * Two shapes both have to land on the same local number, because the contacts app accepts both and
+ * people save both: `+82 10-1234-5678` (the country code replacing the trunk `0`) and
+ * `+82 010-1234-5678` (the country code in FRONT of a local number the owner left intact). The
+ * leading `0` is therefore stripped when it is already there rather than being prepended blindly.
+ *
+ * The length window is the local number minus its trunk `0`, i.e. 9 or 10 digits, plus one for the
+ * `0` when it was kept. Outside it the `82` is not a country code — a partially typed number, or a
+ * foreign one — and the digits pass through untouched for validation to reject.
+ */
 export const normalizeKoreanPhone = (digits: string): string => {
-    if (digits.startsWith('82') && digits.length >= 12) {
-        return '0' + digits.slice(2);
-    }
-    return digits;
+    if (!digits.startsWith('82')) return digits;
+    const rest = digits.slice(2);
+    if (rest.length < 9 || rest.length > 11) return digits;
+    return rest.startsWith('0') ? rest : '0' + rest;
 };
 
 /** True when `digits` (after normalization) is a plausible Korean mobile number. */

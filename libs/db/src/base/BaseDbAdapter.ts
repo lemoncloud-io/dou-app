@@ -43,16 +43,16 @@ export abstract class BaseDbAdapter<TType extends CacheType> implements CacheSto
     }
 
     /**
-     * 기본 구현은 테이블 전체를 읽어 id를 골라내고 지웁니다. `IndexedDBAdapter`는 채널 인덱스 범위로
-     * 재정의하지만, 네이티브에는 채널 필터가 있는 삭제 메시지가 없어서 이 경로를 그대로 씁니다.
+     * 기본 구현은 읽어서 고르고 지웁니다 — 삭제 자체를 채널로 좁히는 수단이 없는 저장소를 위한
+     * 경로입니다. `IndexedDBAdapter`는 채널 인덱스 범위로, `NativeDBAdapter`는 전용 브릿지
+     * 메시지로 재정의하며, 그 메시지를 모르는 구버전 앱에서 여기로 되돌아옵니다(ADR-0067).
      *
-     * **네이티브에서는 이게 해당 scope의 채팅 전량을 브릿지로 끌어옵니다.** 지금은 프로덕션 호출자가
-     * 없어서(테스트만 부릅니다) 실제 비용이 발생하지 않으므로 그대로 둡니다. 이걸 실사용 경로에
-     * 붙이려면 먼저 `ClearCacheData`에 channelId 필터를 추가하고 구버전 폴백을 갖춰야 합니다 —
-     * 그 전에 호출하면 채널 하나 비우는 데 테이블 전체 전송이 붙습니다.
+     * **읽기는 채널로 좁혀서 합니다.** `channelId`를 쿼리로 선언한 도메인(chat·join)에서는 그 채널의
+     * 행만 오므로, 방 하나를 비우는 데 테이블 전체가 브릿지를 건너오지 않습니다. 그 외 도메인에는
+     * 좁힐 근거가 없어 예전처럼 전량을 훑습니다 — 실제 호출자는 chat 하나뿐입니다.
      */
     async clearByChannelId(channelId: string): Promise<void> {
-        const items = await this.loadAll();
+        const items = await this.loadAll(this.asChannelQuery(channelId));
         const ids = items
             .filter(item => (item as any).channelId === channelId)
             .map(item => (item as any).id as string)
@@ -60,5 +60,17 @@ export abstract class BaseDbAdapter<TType extends CacheType> implements CacheSto
         if (ids.length > 0) {
             await this.deleteAll(ids);
         }
+    }
+
+    /**
+     * 이 도메인의 조회 쿼리가 `channelId`를 받는다면 그 필터를, 아니면 `undefined`를 줍니다.
+     *
+     * 캐스트가 필요한 이유: `CacheQueryOf<TType>`은 도메인별 매핑 타입이라 제네릭 `TType` 안에서는
+     * 좁혀지지 않습니다. 런타임 가드가 그 안전성을 대신 보증하며, 이건 `loadLastPerChannel`이
+     * `this.type !== 'chat'`으로 chat 전용 경로를 가르는 것과 같은 관용구입니다.
+     */
+    private asChannelQuery(channelId: string): CacheQueryOf<TType> | undefined {
+        const isChannelScoped = this.type === 'chat' || this.type === 'join';
+        return isChannelScoped ? ({ channelId } as CacheQueryOf<TType>) : undefined;
     }
 }

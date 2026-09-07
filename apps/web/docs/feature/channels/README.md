@@ -12,8 +12,11 @@
 | --------------------- | ------------------------------------- | ------------------------------------- |
 | `ChannelRoomPage`     | `/channels/:channelId/room`           | 채팅방 — 메시지 목록·입력·스크롤·읽음 |
 | `ThreadPage`          | `/channels/:channelId/thread/:rootNo` | 스레드 — 루트 + 답글 목록·답글 전송   |
-| `ChannelSettingsPage` | `/channels/:channelId/settings`       | 채널 설정 — 멤버·초대·나가기/삭제     |
+| `ChannelSettingsPage` | `/channels/:channelId/settings`       | 채널 설정 — 멤버·초대·나가기/삭제¹    |
 | `CreateRoomPage`      | `/channels/create`                    | 방 생성                               |
+
+¹ 삭제는 그룹 전용이다 — 1:1은 owner도 나가기뿐이고, 재초대가 그 방을 계속 쓰기 때문이다
+([dm-chat.md](./dm-chat.md)).
 
 ## 구조
 
@@ -30,7 +33,7 @@ features/channels/
 
 ## 데이터 흐름
 
-repository observe + sync 등록 모델을 따른다([architecture/data-flow.md](../../architecture/data-flow.md)). 훅별 상세는 [data-layer.md](./data-layer.md). 입퇴장 시스템 메시지 모델·렌더는 [system-message.md](./system-message.md). 채팅방 화면 UI는 [chat-room-ui.md](./chat-room-ui.md), 이모지 리액션·스레드는 [emoji-reaction-and-thread.md](./emoji-reaction-and-thread.md), 채널 설정·프로필·알림 UI는 [channel-settings-ui.md](./channel-settings-ui.md). 채널 유형별 상세는 나와의 채팅 [self-chat.md](./self-chat.md), 1:1(DM) [dm-chat.md](./dm-chat.md).
+repository observe + sync 등록 모델을 따른다([architecture/data-flow.md](../../architecture/data-flow.md)). 훅별 상세는 [data-layer.md](./data-layer.md). 입퇴장 시스템 메시지 모델·렌더는 [system-message.md](./system-message.md), 메시지에 딸려 오는 구조화 첨부(`attach$`)는 [message-attachment.md](./message-attachment.md). 채팅방 화면 UI는 [chat-room-ui.md](./chat-room-ui.md), 이모지 리액션·스레드는 [emoji-reaction-and-thread.md](./emoji-reaction-and-thread.md), 채널 설정·프로필·알림 UI는 [channel-settings-ui.md](./channel-settings-ui.md). 채널 유형별 상세는 나와의 채팅 [self-chat.md](./self-chat.md), 1:1(DM) [dm-chat.md](./dm-chat.md).
 
 요약:
 
@@ -46,7 +49,7 @@ repository observe + sync 등록 모델을 따른다([architecture/data-flow.md]
 ## 미구현(의도적 부재)
 
 - **UI만 있고 미연동** — 알림 설정(토글 로컬 상태), 멤버 프로필의 `신고`·`친구 설정`(인라인 리스트 행, 토스트만).
-  백엔드 뮤테이션이 없어 표시/행만 둔다([channel-settings-ui.md](./channel-settings-ui.md), [ADR-0022](../../../../docs/adr/0022-channel-detail-dialogs-figma-redesign.md)).
+  백엔드 뮤테이션이 없어 표시/행만 둔다([channel-settings-ui.md](./channel-settings-ui.md), [ADR-0023](../../../../../docs/adr/0023-channel-detail-dialogs-figma-redesign.md)).
 - **연동됨** — 초대받은 멤버의 **개인 방 이름**(`join.update` nick, "나에게만 표시")과 멤버 추방(kick,
-  `leaveChannel({channelId, userId})`, 소유자만)은 실제 연동([channel-settings-ui.md](./channel-settings-ui.md), [ADR-0022](../../../../docs/adr/0022-channel-detail-dialogs-figma-redesign.md)).
+  `leaveChannel({channelId, userId})`, 소유자만)은 실제 연동([channel-settings-ui.md](./channel-settings-ui.md), [ADR-0023](../../../../../docs/adr/0023-channel-detail-dialogs-figma-redesign.md)).
 - **범위 밖** — 타 멤버 별명 편집(`친구 설정` 보류), 멤버 차단, 방 생성 사진 업로드. 필요해지면 재도입한다.

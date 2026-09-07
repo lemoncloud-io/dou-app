@@ -12,7 +12,8 @@ repository V2는 서버에서 온 변경분을 local read-model로 해석하는 
 
 - `syncChannels(since)` — `channel.sync({ since })` 결과를 해석한다. `since: 0`은 full sync, `since > 0`은 변경분이다. 응답의 `list`는 변경된 채널 스냅샷, `ids`는 현재 내가 속한 전체 채널 id, `syncedAt`은 다음 `since`로 저장할 값이다. repository는 `list`를 local에 write하고, `ids`에 없는 채널을 **stale remove**한다.
 - `refreshList(query)` — `channel.mine` 기반 보조 초기 조회 경로. sync 중심 구조에서 canonical source는 `syncChannels`다.
-- `leaveChannel` / `deleteChannel` — optimistic local remove 후 실패 시 복구.
+- `leaveChannel` / `deleteChannel` — optimistic local remove 후 실패 시 복구. 본인 나가기는 **서버 응답이 온 뒤에** 그 채널의 chat 캐시까지 비운다 → [퇴장과 재입장](#퇴장과-재입장).
+- 나간 직후 짧은 시간(`LEFT_CHANNEL_GUARD_MS`, 10초) 동안은 `refreshList`/`syncChannels` 응답에 그 채널이 들어 있어도 캐시에 다시 쓰지 않는다. 나가기 직전에 발행된 in-flight 응답이 방금 지운 채널을 되살리는 것을 막는 가드다. **시한부인 것이 핵심** — 영구히 잡아 두면 재입장한 채널도 세션 내내 목록에 돌아오지 못한다.
 - **chat 메시지는 fetch하지 않는다.** channel sync는 각 채널의 `chatNo` / `lastChat$`만 포함한 **채널 목록**만 갱신한다. 실제 메시지는 chat 화면이 `ChatRepositoryV2.refreshList`(=`chat.feed`)로 따로 가져온다.
 
 ## Chat
@@ -23,6 +24,7 @@ repository V2는 서버에서 온 변경분을 local read-model로 해석하는 
 - `refreshList` — `chat.feed` 응답을 local에 merge한다. `ChatRefreshResult`로 cursor 메타(`cursorNo`, `readNo` 등)를 반환할 수 있지만, **메시지 렌더 source는 항상 local stream**이다. 반환 메타는 pagination 입력에만 쓴다.
 - list query key는 `channelId + cursorNo + limit`로 구분된다(이전 페이지와 최신 페이지는 다른 query).
 - 커서 책임 분리 → [채팅 커서](#채팅-커서) 참조.
+- `cacheClearByChannelId(channelId)` — 한 채널의 메시지만 비운다. 호출자는 `ChannelRepositoryV2`(본인 나가기)와 join sync plan(강퇴·타 기기 퇴장) 둘뿐이다 → [퇴장과 재입장](#퇴장과-재입장).
 
 ## Cloud
 
@@ -91,6 +93,38 @@ repository V2는 서버에서 온 변경분을 local read-model로 해석하는 
 - `cacheClear()`는 현재 repository scope 기준 clear다(전체 clear 아님).
 - `ChatRepositoryV2`는 `cacheClearByChannelId(channelId)`를 추가로 제공한다.
 - 로그아웃 · cloud 전환 · 테스트 초기화에서 clear 범위를 명확히 결정해야 한다.
+- **chat 삭제는 되돌릴 수 없다.** 다른 도메인은 잘못 지워도 서버가 다시 채워 주지만, 메시지 피드는 `join.joinedNo`로 창이 잡혀 있어 그 이전은 서버도 주지 않는다. 그래서 chat 삭제는 추론이 아니라 명시 신호에만 건다 → 아래.
+
+## 퇴장과 재입장
+
+재입장은 처음 들어온 것과 같아야 한다. 서버는 재입장 시 join 커서를 리셋하고 피드를 `chatNo > joinedNo`로 창을 잡지만, **클라이언트는 서버 응답이 아니라 로컬 chat 캐시를 렌더한다.** 퇴장해도 그 방의 메시지 행은 캐시에 남으므로(chat sync plan에는 `onRemove`가 없다 — 이력은 lazy-load/오프라인을 위해 유지된다) 두 장치가 함께 필요하다. 결정 근거는 [ADR-0067](../../../../docs/adr/0067-rejoin-hides-prior-messages.md).
+
+**① 표시 게이트 — `isInJoinWindow(chat, joinedNo)`** (`src/data/domain/joinWindow.ts`)
+
+서버와 같은 규칙(`chatNo > joinedNo`)을 캐시를 읽는 자리에 건다. 예외 둘이 의미를 갖는다:
+
+- `joinedNo`가 없으면 아무것도 숨기지 않는다. 서버가 이 필드를 싣기 전에 쓰인 행이 있고, 없는 값을 대신 추측하면 멀쩡한 이력이 사라진다.
+- `chatNo`가 falsy면 통과시킨다. 낙관적 전송 행은 서버 번호를 받기 전까지 `chatNo: 0`이라, 이 예외가 없으면 **방금 보낸 메시지가 사라진다.**
+
+소비자는 apps/web의 방 피드·홈 프리뷰·전역 검색 셋이다. 이 게이트는 ②의 중복이 아니라 ②가 닿지 못하는 것(이미 캐시를 쌓아 둔 기존 설치, 강퇴, 타 기기 퇴장)을 덮는 소급 방어선이다.
+
+방 피드에서는 **렌더 직전이 아니라 `useChats`가 캐시를 받는 자리**에 건다. 표시용 목록에만 걸면 같은 훅이 내보내는 `rawChats`(리액션 폴딩·스레드 구성·"1번 행이 로드됐나")가 다른 경계를 갖게 되고, 그러면 캐시에 남은 퇴장 전 1번 행 때문에 **중간에 재입장한 사람에게만 "대화의 시작" 블록이 뜬다** — 처음 초대받은 사람은 못 보는 것을. 페이징 커서도 같은 이유로 참여 이전 `chatNo`를 잡으면 안 된다.
+
+**② purge — 명시 신호에만**
+
+| 신호              | 위치                                      |
+| ----------------- | ----------------------------------------- |
+| 본인 나가기 성공  | `ChannelRepositoryV2.leaveChannel`        |
+| 내 join 행의 제거 | join sync plan의 `onRemove` (app-runtime) |
+
+`ChannelSyncPlan.onRemove`와 `syncChannels`의 stale prune에는 **붙이지 않는다.** 추론 기반 정리의 오판 한 번이 복구 불가능한 이력 손실이 되기 때문이다.
+
+purge는 낙관적으로 하지 않고 서버 확인 뒤에 하며, 실패해도 나가기 자체는 성공으로 끝난다 — 이미 일어난 퇴장을 실패로 보고하는 쪽이 더 큰 거짓말이고, 남은 행은 ①이 가린다.
+
+## 더 읽기
+
+- [local/architecture.md](../local/architecture.md) — 이 정책을 storage가 어떻게 수행하는지(어댑터별 채널 한정 삭제 경로, 브릿지 메시지와 구버전 폴백).
+- [socket sync usage](../../../app-runtime/docs/socket/sync/usage.md) — join 행 제거가 purge 신호가 되는 경로(app-runtime 소관).
 
 ## 구현 / 테스트 시 주의
 

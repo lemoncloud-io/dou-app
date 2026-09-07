@@ -22,6 +22,7 @@ import {
 } from '@chatic/web-ui-kit';
 
 import { ChannelMessageRow } from '../components/ChannelMessageRow';
+import { DmInviteFooter } from '../components/DmInviteFooter';
 import { EmojiPickerSheet } from '../components/EmojiPickerSheet';
 import { MessageDetailDialog } from '../components/MessageDetailDialog';
 import { MessageActionSheet } from '../components/MessageActionSheet';
@@ -30,6 +31,7 @@ import { RoomIntro } from '../components/RoomIntro';
 import { RoomSkeleton } from '../components/RoomSkeleton';
 import { resolveChannelAvatar } from '../lib';
 import { orderMemberIdsOwnerFirst } from '../utils/orderMemberIds';
+import { pickDmPeerId } from '../utils/dmPeer';
 import {
     useChannel,
     useChannelJoins,
@@ -39,6 +41,7 @@ import {
     useChatMutations,
     useChats,
     useChatScroll,
+    useDmInviteState,
     useDmPeer,
     useJoinPositions,
     useMessageJump,
@@ -124,9 +127,28 @@ export const ChannelRoomPage = () => {
         detail: true,
         memberIds: channel?.memberIds,
         joins,
+        // A 1:1 keeps its departed peer on the roster — the header still names them and `useDmPeer`
+        // still resolves, which is what the departure notice and the re-invite CTA hang off. The
+        // stereo is read inline because this call sits above the `isDmChat` derivation.
+        keepLeftMembers: channel?.stereo === 'dm',
     });
 
-    const { profileMap } = useChannelProfiles(channel?.sid ?? null, activeMemberIds);
+    // A 1:1's peer needs a profile target even after they leave, because the header keeps naming them
+    // (Figma 4041-33606). `activeMemberIds` drops them, and while `profileMap` is the site-wide cache
+    // — so a peer seen earlier stays resolvable — a cold cache would otherwise never fetch them and
+    // the header would fall to "대화 상대" HERE while the settings screen (whose member list keeps
+    // departed peers, so it registers them) shows the real name. Two screens, two answers, which is
+    // exactly what ADR-0039 exists to prevent.
+    //
+    // The peer id is taken straight off the roster rather than from `useDmPeer`: that hook consumes
+    // `profileMap`, so reading it here would be circular.
+    const profileTargetIds = useMemo(() => {
+        if (channel?.stereo !== 'dm') return activeMemberIds;
+        const peerId = pickDmPeerId(channel.memberIds ?? [], userId);
+        return peerId && !activeMemberIds.includes(peerId) ? [...activeMemberIds, peerId] : activeMemberIds;
+    }, [channel?.stereo, channel?.memberIds, activeMemberIds, userId]);
+
+    const { profileMap } = useChannelProfiles(channel?.sid ?? null, profileTargetIds);
 
     const memberById = useMemo(() => {
         const map = new Map<string, (typeof members)[number]>();
@@ -180,17 +202,36 @@ export const ChannelRoomPage = () => {
     // One title chain for every surface (see useChannelTitle): the header must read exactly what
     // the home list row reads, so neither the branch nor the fallback label lives here.
     const roomTitle = useChannelTitle(channel, { joinNick: myJoin?.nick, peerNick: dmPeer?.profileNick });
+    // Whether there is still somebody on the other side, and where their invite stands (ADR-0068).
+    // `present` for every non-DM room, and the invite read stands itself down there, so this costs a
+    // group or self room nothing.
+    const {
+        state: dmInviteState,
+        countdown: dmInviteCountdown,
+        resolveReinvitePrefill,
+    } = useDmInviteState({
+        channelId: stableChannelId,
+        isDm: isDmChat,
+        peerId: dmPeer?.id,
+        joins,
+    });
+    // One flag behind both the footer and the composer lock, so they cannot disagree about whether
+    // there is anyone to talk to.
+    const isPeerGone = dmInviteState.kind !== 'present';
     // Read receipts show for real groups only; the mode follows the active roster size
     // (the getReadCount denominator): 2 members read as a 1:1 (binary), 3+ as counts.
     const activeCount = activeMemberIds.length;
     const showReadReceipt = !isSelfChat && activeCount >= 2;
 
+    // `joinedNo` windows the feed to my CURRENT membership (ADR-0067) — cached rows from before a
+    // leave stay in the chat cache, and the server stops serving them after a re-join.
     const memoizedChatParams = useMemo(
         () => ({
             channelId: stableChannelId,
             limit: 100,
+            joinedNo: myJoin?.joinedNo,
         }),
-        [stableChannelId]
+        [stableChannelId, myJoin?.joinedNo]
     );
 
     const {
@@ -633,6 +674,37 @@ export const ChannelRoomPage = () => {
         />
     );
 
+    // Everything the room says about a peer who left, plus the way back (ADR-0068). Renders nothing
+    // while the peer is here, so it can sit in the stream unconditionally.
+    //
+    // The CTA is withheld from a guest for the same reason the group invite is: issuing takes a main
+    // user and the server answers 403 (ADR-0034). Unlike the group invite it does NOT ask for an
+    // active cloud — a 1:1 lives on relay, so requiring one would disable the normal case.
+    const dmInviteFooter = (
+        <DmInviteFooter
+            state={dmInviteState}
+            countdown={dmInviteCountdown}
+            onReinvite={
+                isGuest
+                    ? undefined
+                    : () => {
+                          const prefill = resolveReinvitePrefill();
+                          navigate(ROUTES.invite.contact, {
+                              state: {
+                                  reinvite: {
+                                      channelId: stableChannelId,
+                                      // The peer's own nick is the fallback when this device never
+                                      // issued the invite (so the log has no name for them).
+                                      name: prefill.name ?? dmPeer?.profileNick,
+                                      phone: prefill.phone,
+                                  },
+                              },
+                          });
+                      }
+            }
+        />
+    );
+
     return (
         <div className="relative flex h-full flex-col overflow-hidden bg-background">
             <div ref={headerRef} className="absolute inset-x-0 top-0 z-20">
@@ -686,6 +758,10 @@ export const ChannelRoomPage = () => {
                         <div className="flex min-h-full flex-1 flex-col">
                             <DateDivider label={formatDateSeparator(new Date())} />
                             {roomIntro}
+                            {/* A 1:1 whose peer left before anyone said anything is a real room, and
+                                this branch is a separate tree from the live list below — mounting the
+                                footer only there would leave it invisible here. */}
+                            {dmInviteFooter}
                         </div>
                     ) : (
                         <>
@@ -697,6 +773,10 @@ export const ChannelRoomPage = () => {
                                 to 0 as soon as the messages overflow, so tall threads scroll normally
                                 — unlike `justify-end`, which clips overflowing content. */}
                             <div aria-hidden className="flex-1" />
+                            {/* Second DOM child, so it lands directly above the spacer — i.e. below
+                                the newest message, which is what "pinned to the bottom of the stream"
+                                means in a `flex-col-reverse` container. */}
+                            {dmInviteFooter}
                             {Object.entries(groupedMessages)
                                 .sort(([a], [b]) => b.localeCompare(a))
                                 .map(([dateKey, dateMessages]) => {
@@ -720,7 +800,19 @@ export const ChannelRoomPage = () => {
                                                             : undefined;
                                                         const systemName = systemProfile?.nick ?? message.ownerName;
                                                         return (
-                                                            <SystemNotice key={message.id}>
+                                                            // A 1:1 losing its only other participant
+                                                            // is the one notice this room is not
+                                                            // neutral about, so Figma reddens it and
+                                                            // drops the pill. A group leave stays a
+                                                            // plain chip.
+                                                            <SystemNotice
+                                                                key={message.id}
+                                                                tone={
+                                                                    isDmChat && message.subType === 'leave'
+                                                                        ? 'alert'
+                                                                        : 'default'
+                                                                }
+                                                            >
                                                                 <span className="font-semibold">{systemName}</span>
                                                                 {t(suffixKey)}
                                                             </SystemNotice>
@@ -890,6 +982,9 @@ export const ChannelRoomPage = () => {
                     onKeyDown={handleKeyDown}
                     inputRef={inputRef}
                     placeholder={t('chat.room.inputPlaceholder')}
+                    // Nobody left to receive it: a message sent into an empty 1:1 would carry an
+                    // unread badge of `1` forever. Lifts the moment the peer is back (ADR-0068 결정 5).
+                    disabled={isPeerGone}
                 />
             </div>
 

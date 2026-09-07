@@ -63,9 +63,23 @@ local의 역할은 cursor를 계산하는 게 아니라, repository가 준 query
 
 ## cache clear 원칙
 
-- `cacheClear()`는 전체가 아니라 현재 storage scope 기준 clear다.
-- `chat`은 `cacheClearByChannelId(channelId)`를 별도 지원한다.
-- 로그아웃 · cloud 전환 · 테스트 초기화에서 clear 범위를 명확히 정한다.
+무엇을 언제 지우는가(스코프 의미, chat 삭제의 비가역성, 퇴장·재입장 시 purge 트리거)는 repository
+계층의 정책이고 정본은 [repositories/domains.md의 cache clear 원칙](../repositories/domains.md#cache-clear-원칙)이다.
+여기서는 storage가 그 요청을 **어떻게 수행하는지**만 적는다.
+
+### 채널 한정 삭제의 세 경로
+
+`clearByChannelId`는 어댑터마다 다른 방식으로 같은 일을 한다 ([ADR-0067](../../../../docs/adr/0067-rejoin-hides-prior-messages.md)):
+
+| 어댑터                 | 방식                                                                                                               |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `IndexedDBAdapter`     | 채널 인덱스 범위 cursor                                                                                            |
+| `NativeDBAdapter`      | 브릿지 메시지 `ClearCacheDataByChannel` → `DELETE … WHERE cid=? AND uid=? AND channel_id=?` (왕복 1회, 페이로드 0) |
+| `BaseDbAdapter` (폴백) | `loadAll({ channelId })` → `deleteAll(ids)`                                                                        |
+
+새 메시지를 기존 `ClearCacheData`에 `channelId` 필드를 얹는 방식으로 하지 않은 이유: 웹이 앱보다 먼저 배포되므로 **구버전 앱은 모르는 필드를 무시하고 해당 스코프의 테이블 전체를 지운다.** 새 타입이면 같은 상황이 `NOT_FOUND`가 되고, 어댑터가 그걸 1회 학습해(`resetNativeClearByChannelSupport`가 테스트 seam) 폴백으로 내려간다. `FetchManyCacheData`·`FetchLastChatsData`와 같은 관용구지만 폴백의 성격은 다르다 — 읽기는 못 하면 빈손으로 돌아가면 되지만, 삭제는 폴백이 실제로 같은 일을 마쳐야 한다.
+
+폴백 읽기는 `channelId`를 쿼리로 선언한 도메인(chat·join)에서 그 채널로 좁혀 나간다. 그래서 방 하나를 비우는 데 테이블 전체가 브릿지를 건너오지 않는다. `NOT_FOUND`가 아닌 실패(타임아웃 등)는 학습하지 않고 그대로 던진다.
 
 ## 구현 / 테스트 시 주의
 

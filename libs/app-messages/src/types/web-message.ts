@@ -1,6 +1,7 @@
 import type {
     ChangeAppIconPayload,
     CheckAppUpdatePayload,
+    ClearCacheDataByChannelPayload,
     ClearCacheDataPayload,
     ClearTestRecordsPayload,
     DeleteAllCacheDataPayload,
@@ -137,6 +138,7 @@ export type WebMessagePayloadMap = {
     DeleteCacheData: DeleteCacheDataPayload;
     DeleteAllCacheData: DeleteAllCacheDataPayload;
     ClearCacheData: ClearCacheDataPayload;
+    ClearCacheDataByChannel: ClearCacheDataByChannelPayload;
     SearchGlobalCacheData: SearchGlobalCacheDataPayload;
 
     // 5. Preference

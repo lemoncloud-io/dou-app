@@ -1,4 +1,9 @@
-import { NativeDBAdapter, resetNativeBatchReadSupport, resetNativeLastChatsSupport } from './NativeDBAdapter';
+import {
+    NativeDBAdapter,
+    resetNativeBatchReadSupport,
+    resetNativeClearByChannelSupport,
+    resetNativeLastChatsSupport,
+} from './NativeDBAdapter';
 import type { IWebBridgeClient } from '@chatic/bridges';
 import type { DataContextProvider } from '@chatic/data';
 
@@ -157,6 +162,71 @@ describe('NativeDBAdapter', () => {
                 type: 'ClearCacheData',
                 data: { type: 'chat', cid: mockScope.cid, uid: mockScope.uid },
             });
+        });
+    });
+
+    describe('clearByChannelId (ADR-0067)', () => {
+        beforeEach(() => {
+            resetNativeClearByChannelSupport();
+        });
+
+        it('채널과 scope로 ClearCacheDataByChannel을 왕복 1회 요청한다', async () => {
+            mockBridge.request.mockResolvedValue({} as never);
+
+            await adapter.clearByChannelId('ch-1');
+
+            expect(mockBridge.request).toHaveBeenCalledTimes(1);
+            expect(mockBridge.request).toHaveBeenCalledWith({
+                type: 'ClearCacheDataByChannel',
+                data: { type: 'chat', cid: mockScope.cid, uid: mockScope.uid, channelId: 'ch-1' },
+            });
+        });
+
+        it('핸들러가 없는 구버전 앱(NOT_FOUND)은 읽고-지우는 폴백으로 실제로 삭제를 끝낸다', async () => {
+            // 읽기와 달리 삭제는 "못 했다"로 끝낼 수 없다 — 폴백이 같은 일을 마쳐야 한다.
+            mockBridge.request.mockImplementation((message: any) => {
+                if (message.type === 'ClearCacheDataByChannel') return Promise.reject({ code: 'NOT_FOUND' });
+                if (message.type === 'FetchAllCacheData') {
+                    return Promise.resolve({ data: { items: [{ id: 'm-1', channelId: 'ch-1' }] } } as never);
+                }
+                return Promise.resolve({} as never);
+            });
+
+            await adapter.clearByChannelId('ch-1');
+
+            const types = mockBridge.request.mock.calls.map(([message]: any) => message.type);
+            expect(types).toEqual(['ClearCacheDataByChannel', 'FetchAllCacheData', 'DeleteAllCacheData']);
+            // 폴백 읽기도 채널로 좁힌다 — 방 하나 비우는 데 테이블 전체가 건너오지 않는다.
+            expect(mockBridge.request).toHaveBeenCalledWith({
+                type: 'FetchAllCacheData',
+                data: {
+                    type: 'chat',
+                    cid: mockScope.cid,
+                    uid: mockScope.uid,
+                    query: { cid: mockScope.cid, uid: mockScope.uid, channelId: 'ch-1' },
+                },
+            });
+        });
+
+        it('NOT_FOUND를 한 번 배우면 이후로는 시도조차 하지 않는다', async () => {
+            mockBridge.request.mockImplementation((message: any) => {
+                if (message.type === 'ClearCacheDataByChannel') return Promise.reject({ code: 'NOT_FOUND' });
+                if (message.type === 'FetchAllCacheData') return Promise.resolve({ data: { items: [] } } as never);
+                return Promise.resolve({} as never);
+            });
+
+            await adapter.clearByChannelId('ch-1');
+            mockBridge.request.mockClear();
+            await adapter.clearByChannelId('ch-2');
+
+            const types = mockBridge.request.mock.calls.map(([message]: any) => message.type);
+            expect(types).not.toContain('ClearCacheDataByChannel');
+        });
+
+        it('NOT_FOUND가 아닌 실패는 폴백으로 감추지 않고 그대로 던진다', async () => {
+            mockBridge.request.mockRejectedValue({ code: 'TIMEOUT' });
+
+            await expect(adapter.clearByChannelId('ch-1')).rejects.toEqual({ code: 'TIMEOUT' });
         });
     });
 

@@ -63,6 +63,8 @@ off(); // 채널 이탈 (ref-count 0이면 내부 stopTarget)
 | chat    | `onApply` → `chat.cacheWriteMany`(chatNo idempotent) · `onUpdate` → `chat.cacheWrite`(남의 편집·삭제. 삭제는 `hidden: true` 쓰기이지 행 제거가 아니다) · `onRemove` 없음 — 이력 보존 |
 | join    | `onUpdate`/`onRemove` → `join.cacheWrite`/`cacheDelete` (v0.3.4 `JoinSyncPlan`)                                                                                                      |
 
+`join`의 `onRemove`는 캐시 툼스톤 하나만 남기지 않는다. 사라진 행이 **내 것이면** 그 채널의 chat 캐시까지 비운다 — 강퇴와 타 기기 퇴장은 `leaveChannel`을 거치지 않으므로 이 신호가 유일한 통로다. 삭제는 되돌릴 수 없어서 `dropForeignFrame()`으로 한 번 더 거른다(자기 클라우드보다 오래 산 소켓의 프레임이 현재 파티션을 겨누면 안 된다). 툼스톤은 그 게이트 앞에서 기존대로 남긴다. 근거는 [ADR-0067](../../../../../docs/adr/0067-rejoin-hides-prior-messages.md).
+
 > 등록은 2단계다: ① **앱 시작 시 1회** plan 인스턴스 등록(= 이 type 처리 능력 등록), ② **화면별 N회** `register*`로 watch 대상 on(= 그 능력으로 이 대상 동기화 시작).
 
 ---

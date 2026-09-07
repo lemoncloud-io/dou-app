@@ -56,6 +56,7 @@ export const WEB_MESSAGE_RESPONSE_TYPE = {
     DeleteCacheData: 'OnDeleteCacheData',
     DeleteAllCacheData: 'OnDeleteAllCacheData',
     ClearCacheData: 'OnClearCacheData',
+    ClearCacheDataByChannel: 'OnClearCacheDataByChannel',
     SearchGlobalCacheData: 'OnSearchGlobalCacheData',
     FetchPreference: 'OnFetchPreference',
     SavePreference: 'OnSavePreference',

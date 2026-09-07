@@ -5,7 +5,7 @@
         "noticePurpose": "Your feedback is used only to improve the service.",
         "noticeNoReply": "We do not send individual replies to feedback.",
         "titleLabel": "Title",
-        "titlePlaceholder": "Enter a title.",
+        "titlePlaceholder": "Briefly describe your feedback.",
         "bodyLabel": "Share your thoughts",
         "bodyPlaceholder": "Write your feedback here.",
         "photoLabel": "Attach photos",
@@ -443,7 +443,7 @@
         "noCloudsError": "No clouds available to configure",
         "selectCloud": "Select a cloud",
         "cannotCreatePlace": "Can't create place in this cloud",
-        "placeLimitReached": "You can create up to 5 places",
+        "placeLimitReached": "You can create up to 10 places",
         "placeLimit": {
             "title": "You can't add more places",
             "description": "Each cloud can hold up to <strong>{{max}} places</strong>.\nDelete a place, or create a <strong>new cloud</strong>.",
@@ -618,6 +618,15 @@
                 "title": "{{name}} entered the chat room.",
                 "titleUnnamed": "Your chat partner entered the chat room.",
                 "description": "Start a 1:1 conversation."
+            },
+            "footer": {
+                "leftHint": "Send an invite to talk again.",
+                "inviteSent": "The invite has been sent.",
+                "rejected": "The invite was declined.",
+                "rejectedHint": "You can send another invite.",
+                "expired": "The invite link has expired.",
+                "expiredHint": "Try sending the invite link again.",
+                "reinvite": "Invite again"
             }
         },
         "room": {
@@ -626,6 +635,9 @@
             "error": "Unable to load channel info",
             "goBack": "Go Back",
             "inputPlaceholder": "Enter a message",
+            "attachment": {
+                "openSource": "View source"
+            },
             "unknown": "Unknown",
             "am": "AM",
             "pm": "PM",
@@ -718,6 +730,12 @@
                 "description": "You won't be able to view messages, and you'll need a new invite to rejoin.",
                 "confirm": "Leave"
             },
+            "dmLeaveDialog": {
+                "title": "Leave this 1:1 chat?",
+                "description": "Once you leave, you can no longer take part in the conversation.",
+                "confirm": "Leave"
+            },
+            "leftRoom": "Left the room",
             "noMembers": "No members",
             "unknownUser": "Unknown User",
             "notificationSettings": {
@@ -820,6 +838,7 @@
         "notFound": "Place not found",
         "nameLabel": "Place Name",
         "invitedNameLabel": "Invited Place Name",
+        "descLabel": "Place Introduction",
         "createdAtLabel": "Date Created",
         "ownerLabel": "Owner"
     },
@@ -830,6 +849,9 @@
         "nameLabel": "Place Name",
         "namePlaceholder": "Enter place name",
         "nameDescription": "Please enter up to 20 characters.",
+        "descLabel": "Place Introduction",
+        "descPlaceholder": "Introduce your place",
+        "descDescription": "Please enter up to 100 characters.",
         "photoLabel": "Place Photo",
         "photoOptional": "[Optional]",
         "imageSizeError": "Image size exceeds 10MB",
@@ -1067,8 +1089,16 @@
     "inviteFriends": {
         "title": "Invite Friends",
         "selectTitle": "Select Friends",
+        "tabPlace": "Place",
+        "tabContact": "Contacts",
+        "placeSuccess": "Added {{count}} member(s)",
+        "placeFailed": "Could not add members",
+        "noPlaceCandidates": "No one to add",
+        "noPlaceCandidatesHint": "Use the Contacts tab to invite by link.",
         "addFriend": "Add Friend",
         "searchPlaceholder": "Search friends",
+        "unnamedContact": "No name",
+        "noInvitableContacts": "No contacts you can invite",
         "invite": "Invite",
         "deselectAll": "Deselect all",
         "done": "Done",
@@ -1138,14 +1168,16 @@
     },
     "dmChat": {
         "name": {
-            "title": "Edit name",
-            "label": "Room name",
-            "placeholder": "Chat partner",
+            "title": "Friend info",
+            "label": "Name",
+            "placeholder": "Shown with their own name",
             "helper": "Enter up to 20 characters.",
             "done": "Done",
             "saving": "Saving...",
             "success": "Name updated",
-            "error": "Failed to update name"
+            "error": "Failed to update name",
+            "privateNote": "The name you set here is only visible to you.",
+            "reinvite": "Invite again"
         }
     },
     "selfChat": {
@@ -1477,7 +1509,8 @@
             "note": "This prevents spam and number misuse,\nand is only needed once.",
             "cta": "Verify phone number"
         },
-        "issueForbidden": "You can't send invites right now. If this persists after verifying, please contact support"
+        "issueForbidden": "You can't send invites right now. If this persists after verifying, please contact support",
+        "reinviteAlreadyAccepted": "They have already accepted the invite"
     },
     "inviteWaiting": {
         "moreOptions": "More options",

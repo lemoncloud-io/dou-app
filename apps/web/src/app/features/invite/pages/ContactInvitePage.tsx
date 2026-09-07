@@ -1,5 +1,6 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useLocation } from 'react-router-dom';
 
 import { logger } from '@chatic/bridges';
 import { useRuntimeProfile } from '@chatic/app-runtime';
@@ -38,7 +39,7 @@ import { PlaceProfileCreateDialog } from '../../../ui/components/PlaceProfileCre
 import { useSetMyPlaceProfile } from '../../../hooks';
 import { InviterVerifyPrompt } from '../components/InviterVerifyPrompt';
 import { ReinviteDialog } from '../components/ReinviteDialog';
-import { useRetireInvite } from '../hooks/useRetireInvite';
+import { useRetireInvite, type RetireOutcome } from '../hooks/useRetireInvite';
 import { resolveReinviteVariant, type ReinviteVariant } from '../utils/inviteStatus';
 import { composeInviteSmsBody } from '../utils/inviteMessageCopy';
 import { sendInviteMessage } from '../utils/sendInviteMessage';
@@ -68,6 +69,21 @@ interface PendingReinvite {
 }
 
 /**
+ * Route state that turns this page into "invite this person back into that room" (ADR-0068 결정 3).
+ *
+ * Arrives from the 1:1 room's own footer CTA. `name`/`phone` are best-effort prefill — the server
+ * never returns a full number, so a device that did not issue the original invite has nothing to
+ * seed the field with and the user types it. That is a normal path, not an error: reaching the form
+ * with an empty number IS the feature.
+ */
+interface ReinviteEntry {
+    channelId: string;
+    name?: string;
+    /** E.164, as the issue log stores it. */
+    phone?: string;
+}
+
+/**
  * 연락처로 초대 페이지 (ADR-0033 Track B) — the home ＋menu "1:1 대화" destination.
  * Figma 3266-35386 (입력됨) / 3268-35795 (검증 에러) / 3578-67319 (게스트 인증 유도).
  *
@@ -86,10 +102,23 @@ export const ContactInvitePage = () => {
      *  withdrawn/suspended account) explains itself instead of reopening the sheet forever. */
     const verifyOfferedRef = useRef(false);
 
-    const [name, setName] = useState('');
-    const [phoneInput, setPhoneInput] = useState('');
-    // Last explicit pick, else the device locale's region, else nothing (ADR-0044 §4).
-    const [country, setCountry] = useState<PhoneCountry | null>(resolveDefaultCountry);
+    // Present only when the 1:1 room sent us here to bring somebody back (see ReinviteEntry).
+    const reinviteEntry = (useLocation().state as { reinvite?: ReinviteEntry } | null)?.reinvite;
+    // A logged number is E.164, so it is split the same way a pasted `+81…` is — picker and field
+    // never end up pointing at different countries. Memoized because only the state initializers
+    // below read it: without this, libphonenumber re-parses on every keystroke for nothing.
+    const prefilledPhone = useMemo(
+        () => (reinviteEntry?.phone ? readInternationalInput(reinviteEntry.phone) : null),
+        [reinviteEntry?.phone]
+    );
+
+    const [name, setName] = useState(reinviteEntry?.name ?? '');
+    const [phoneInput, setPhoneInput] = useState(() => prefilledPhone?.national ?? '');
+    // The prefilled number's own country wins; otherwise the last explicit pick, else the device
+    // locale's region, else nothing (ADR-0044 §4).
+    const [country, setCountry] = useState<PhoneCountry | null>(
+        () => prefilledPhone?.country ?? resolveDefaultCountry()
+    );
     const [phoneError, setPhoneError] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [pendingReinvite, setPendingReinvite] = useState<PendingReinvite | null>(null);
@@ -164,6 +193,10 @@ export const ContactInvitePage = () => {
                 phone: target.e164,
                 name: recipientName,
                 countryCode: target.country,
+                // Naming the channel is what keeps a 1:1 ONE room across a leave and a return, instead
+                // of a fresh room per invite (ADR-0068 결정 2). Omitted for a first-time invite — the
+                // server makes the room on accept.
+                channelId: reinviteEntry?.channelId,
             });
             if (!invite.id) throw new Error('invite.create response is missing an id');
 
@@ -182,7 +215,12 @@ export const ContactInvitePage = () => {
                           : t('contactInvite.sentToast.deliveryFailed'),
             });
 
-            navigate(ROUTES.invite.waiting(invite.id), { replace: true });
+            // A re-invite goes back where it was launched from: the room already narrates the
+            // invite's state in its footer, so the standalone waiting screen would be a second,
+            // redundant place to watch the same thing.
+            navigate(reinviteEntry ? ROUTES.channels.room(reinviteEntry.channelId) : ROUTES.invite.waiting(invite.id), {
+                replace: true,
+            });
         } catch (error) {
             logger.error('INVITE', '[ContactInvitePage] send failed', { error });
             // 403 covers more than "still a guest" — §에러 코드 also lists withdrawn/suspended
@@ -208,12 +246,68 @@ export const ContactInvitePage = () => {
         }
     };
 
+    /**
+     * Re-invite: retire whatever code this room still has out, then issue a fresh one.
+     *
+     * The same-number dialog is deliberately skipped here. It exists to stop a user who came to
+     * "check on" an invite from silently issuing a second one — but arriving from the room's own
+     * "다시 초대하기" IS the intent to send again, and the room's footer has already told them where
+     * the last invite stands. What must not be skipped is the retire: two live codes for one person
+     * is the state the sender flow has always avoided (ADR-0043 결정 5).
+     */
+    const reissueIntoChannel = async (channelId: string, target: IssueTarget, recipientName: string) => {
+        const prior = invites.find(
+            row =>
+                row.channelId === channelId &&
+                !row.dismissedAt &&
+                (row.state === 'pending' || row.state === 'expired' || row.state === 'rejected')
+        );
+        if (!prior) {
+            await finishIssue(target, recipientName);
+            return;
+        }
+
+        // Held across the retire round trip, which `finishIssue` does not cover. Unlike the dialog
+        // path (whose sheet closes on the way in), the form's submit button stays on screen here — a
+        // second tap during the cancel would retire twice and issue two codes, the very state the
+        // retire exists to prevent.
+        setIsSubmitting(true);
+        let outcome: RetireOutcome;
+        try {
+            outcome = await retire(prior);
+        } catch (error) {
+            // `retire` reports failure as an outcome rather than throwing, so this is the unforeseen
+            // case; give the button back rather than leaving the form wedged.
+            logger.error('INVITE', '[ContactInvitePage] retire failed', { error });
+            toast({ title: t('contactInvite.issueFailed'), variant: 'destructive' });
+            setIsSubmitting(false);
+            return;
+        }
+
+        // 409 — the recipient accepted while we were on this screen. Issuing now would hand out a
+        // code nobody needs, so go look at the room instead.
+        if (outcome === 'conflict') {
+            setIsSubmitting(false);
+            toast({ title: t('contactInvite.reinviteAlreadyAccepted') });
+            navigate(ROUTES.channels.room(channelId), { replace: true });
+            return;
+        }
+
+        // `finishIssue` owns the flag from here — it sets it again and clears it in its `finally`.
+        await finishIssue(target, recipientName);
+    };
+
     const handleSubmit = () => {
         if (isSubmitting) return;
         const trimmedName = name.trim();
         if (!trimmedName) return;
         const target = validatePhone();
         if (!target) return;
+
+        if (reinviteEntry) {
+            void reissueIntoChannel(reinviteEntry.channelId, target, trimmedName);
+            return;
+        }
 
         const priorEntry = findByPhone(target.e164);
         if (priorEntry) {

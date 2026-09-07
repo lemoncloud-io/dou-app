@@ -116,6 +116,37 @@ describe('PlaceDetailPage — 클라우드 플레이스', () => {
         expect(screen.queryByText('placeDetail.createdAtLabel')).not.toBeInTheDocument();
     });
 
+    it('소개 문구가 있으면 그 행을 보여준다', () => {
+        mockPlace = { id: '10014', name: '우리 플레이스', ownerId: 'u1', desc: '개발자들이 모이는 곳' };
+        render(<PlaceDetailPage />);
+
+        expect(screen.getByText('placeDetail.descLabel')).toBeInTheDocument();
+        expect(screen.getByText('개발자들이 모이는 곳')).toBeInTheDocument();
+    });
+
+    it('desc가 없으면 소개 행을 그리지 않는다', () => {
+        mockPlace = { id: '10014', name: '우리 플레이스', ownerId: 'u1' };
+        render(<PlaceDetailPage />);
+
+        expect(screen.queryByText('placeDetail.descLabel')).not.toBeInTheDocument();
+    });
+
+    // 소개를 지우면 서버는 ''를 돌려준다. 빈 문자열은 "값 없음"과 같게 취급해 행을 없앤다 —
+    // 라벨만 남은 빈 행을 그리면 만든 날짜·소유자 행의 규칙과 어긋난다.
+    it('desc가 빈 문자열이면 소개 행을 그리지 않는다', () => {
+        mockPlace = { id: '10014', name: '우리 플레이스', ownerId: 'u1', desc: '' };
+        render(<PlaceDetailPage />);
+
+        expect(screen.queryByText('placeDetail.descLabel')).not.toBeInTheDocument();
+    });
+
+    it('줄바꿈이 들어간 소개 문구도 그대로 보존한다', () => {
+        mockPlace = { id: '10014', name: '우리 플레이스', ownerId: 'u1', desc: '첫 줄\n둘째 줄' };
+        const { container } = render(<PlaceDetailPage />);
+
+        expect(container.querySelector('.whitespace-pre-wrap')).toHaveTextContent('첫 줄');
+    });
+
     // 회귀 방지: 표시 이름의 근거는 URL의 플레이스지 활성 세션이 아니다. resolvePlaceDisplayName이
     // isDefaultCloud와 id를 OR하므로, 세션의 `selectedCloudId === 'default'`를 넘기면 relay 활성 중에
     // 직접 URL로 열린 클라우드 플레이스까지 "두유 홈"으로 브랜딩된다.
@@ -194,6 +225,16 @@ describe('PlaceDetailPage — DoU홈(relay 기본플레이스)', () => {
         render(<PlaceDetailPage />);
 
         expect(screen.queryByText('placeDetail.createdAtLabel')).not.toBeInTheDocument();
+    });
+
+    // 회귀 방지: 소개 문구는 만든 날짜·소유자와 달리 relay 제외 대상이 아니다(ADR-0074). 위 두 행을
+    // 숨기는 isHomePlace 분기를 소개 행에도 실수로 걸면 이 테스트가 깨진다.
+    it('소개 문구는 DoU홈에서도 렌더한다', () => {
+        mockPlace = { ...RELAY_PLACE, desc: '두유 홈입니다' };
+        render(<PlaceDetailPage />);
+
+        expect(screen.getByText('placeDetail.descLabel')).toBeInTheDocument();
+        expect(screen.getByText('두유 홈입니다')).toBeInTheDocument();
     });
 });
 
