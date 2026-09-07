@@ -80,6 +80,18 @@ export interface ICacheCrudService {
      * [초기화] 특정 도메인 전체 삭제
      */
     clear<K extends CacheType>(payload: { type: K; cid?: string; uid?: string }): Promise<void>;
+
+    /**
+     * [초기화] 한 채널의 행만 삭제 (ADR-0067)
+     *
+     * 지금은 chat만 받는다 — 그 외 타입과 빈 channelId는 거부한다.
+     */
+    clearByChannel<K extends CacheType>(payload: {
+        type: K;
+        channelId: string;
+        cid?: string;
+        uid?: string;
+    }): Promise<void>;
 }
 
 export interface ICacheSearchService {

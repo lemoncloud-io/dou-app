@@ -223,12 +223,15 @@ export const ChannelRoomPage = () => {
     const activeCount = activeMemberIds.length;
     const showReadReceipt = !isSelfChat && activeCount >= 2;
 
+    // `joinedNo` windows the feed to my CURRENT membership (ADR-0067) — cached rows from before a
+    // leave stay in the chat cache, and the server stops serving them after a re-join.
     const memoizedChatParams = useMemo(
         () => ({
             channelId: stableChannelId,
             limit: 100,
+            joinedNo: myJoin?.joinedNo,
         }),
-        [stableChannelId]
+        [stableChannelId, myJoin?.joinedNo]
     );
 
     const {

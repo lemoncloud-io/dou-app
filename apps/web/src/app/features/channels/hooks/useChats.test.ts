@@ -248,3 +248,54 @@ describe('useChats — loadUntil (점프용 캐시 윈도우 확장)', () => {
         expect(result.current.isThreadStartLoaded).toBe(before);
     });
 });
+
+describe('useChats — 재입장 이력 숨기기 (ADR-0067)', () => {
+    it('joinedNo 이하의 캐시 행은 피드에서 빠진다', () => {
+        seedChats([
+            chat({ id: 'old', chatNo: 3, ownerId: 'u1', createdAtMs: 300 }),
+            chat({ id: 'new', chatNo: 8, ownerId: 'u1', createdAtMs: 800 }),
+        ]);
+
+        const { result } = renderHook(() => useChats({ channelId: 'c1', limit: 100, joinedNo: 7 }));
+
+        expect(result.current.messages.map(message => message.id)).toEqual(['new']);
+    });
+
+    it('전송 중인 낙관적 행(chatNo 0)은 joinedNo와 무관하게 남는다', () => {
+        // The optimistic row has no server number yet; hiding it would erase the message the user
+        // just typed — the whole reason the helper exempts a falsy chatNo.
+        seedChats([
+            chat({ id: 'old', chatNo: 3, ownerId: 'u1', createdAtMs: 300 }),
+            chat({ id: 'pending', chatNo: 0, ownerId: 'me', createdAtMs: 900, isPending: true }),
+        ]);
+
+        const { result } = renderHook(() => useChats({ channelId: 'c1', limit: 100, joinedNo: 7 }));
+
+        expect(result.current.messages.map(message => message.id)).toEqual(['pending']);
+    });
+
+    it('rawChats에서도 빠진다 — 재입장 유저에게 "대화의 시작"이 잘못 뜨지 않는다', () => {
+        // ChannelRoomPage는 `rawChats.some(chat => chat.chatNo === 1)`로 RoomIntro를 켠다. 캐시에
+        // 남은 퇴장 전 1번 행이 여기 보이면, 중간에 재입장한 사람에게만 대화 시작 블록이 뜬다 —
+        // 처음 초대받은 사람은 못 보는 것을. 리액션 폴딩·스레드 구성도 같은 목록을 읽는다.
+        seedChats([
+            chat({ id: 'first', chatNo: 1, ownerId: 'u1', createdAtMs: 100 }),
+            chat({ id: 'new', chatNo: 8, ownerId: 'u1', createdAtMs: 800 }),
+        ]);
+
+        const { result } = renderHook(() => useChats({ channelId: 'c1', limit: 100, joinedNo: 7 }));
+
+        expect(result.current.rawChats.map(row => row.id)).toEqual(['new']);
+    });
+
+    it('joinedNo가 없으면 (아직 join 행이 안 왔거나 서버가 안 준 경우) 아무것도 숨기지 않는다', () => {
+        seedChats([
+            chat({ id: 'old', chatNo: 3, ownerId: 'u1', createdAtMs: 300 }),
+            chat({ id: 'new', chatNo: 8, ownerId: 'u1', createdAtMs: 800 }),
+        ]);
+
+        const { result } = renderHook(() => useChats({ channelId: 'c1', limit: 100 }));
+
+        expect(result.current.messages.map(message => message.id)).toEqual(['old', 'new']);
+    });
+});

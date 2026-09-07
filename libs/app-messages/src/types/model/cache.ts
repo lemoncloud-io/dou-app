@@ -406,6 +406,22 @@ export type OnClearCacheDataPayload = {
     [K in CacheType]: CacheBasePayload<K> & { success: boolean };
 }[CacheType];
 
+/**
+ * [요청] 한 채널의 행만 삭제 (ADR-0067).
+ *
+ * `ClearCacheData`에 `channelId`를 얹지 않고 별도 메시지로 두는 이유: 웹이 앱보다 먼저 배포되므로
+ * 이 필드를 모르는 구버전 앱은 그냥 무시하고 **해당 스코프의 테이블 전체를 지운다**. 새 타입이면
+ * 같은 상황이 `NOT_FOUND`가 되고, 웹은 그걸 1회 학습해 읽고-지우는 폴백으로 내려간다.
+ */
+export type ClearCacheDataByChannelPayload = {
+    [K in CacheType]: CacheBasePayload<K> & { channelId: string };
+}[CacheType];
+
+/** [응답] 채널 한정 삭제 결과 */
+export type OnClearCacheDataByChannelPayload = {
+    [K in CacheType]: CacheBasePayload<K> & { channelId: string; success: boolean };
+}[CacheType];
+
 /** [요청] 키워드 기반 전역 검색 */
 export type SearchGlobalCacheDataPayload = {
     keyword: string;

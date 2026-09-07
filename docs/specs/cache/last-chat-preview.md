@@ -14,8 +14,8 @@
 
 ## 범위
 
-- 포함: 브릿지 메시지 `FetchLastChatsData`/`OnFetchLastChatsData`, 네이티브 SQL 프로브, `@chatic/data`의 `cacheReadLastList`/`observeLastList` + 폴백, 프리뷰 유틸의 `@chatic/data` 이동(웹 재수출), 홈 `useLastChats` 훅과 `ChannelList` 배선.
-- 제외: `PlaceChannelManagePage`의 행별 `useLastChat`(후속 과제), sync 타깃 unregister 유예(P0-2), 옵저버 그룹 유예 캐시(P0-3), `useChannel` 캐시 시드(P1-2), IndexedDB 어댑터의 네이티브 동등 구현(폴백이 정답).
+- 포함: 참여 창(`isInJoinWindow`) 적용, 브릿지 메시지 `FetchLastChatsData`/`OnFetchLastChatsData`, 네이티브 SQL 프로브, `@chatic/data`의 `cacheReadLastList`/`observeLastList` + 폴백, 프리뷰 유틸의 `@chatic/data` 이동(웹 재수출), 홈 `useLastChats` 훅과 `ChannelList` 배선.
+- 제외: sync 타깃 unregister 유예(P0-2), 옵저버 그룹 유예 캐시(P0-3), `useChannel` 캐시 시드(P1-2), IndexedDB 어댑터의 네이티브 동등 구현(폴백이 정답).
 
 ## 시나리오
 
@@ -24,6 +24,7 @@
 3. **홈 체류 중 새 메시지**: 홈이 마운트한 `useChatSyncRegistration`이 활성 사이트의 채널마다 chat 타깃을 등록해 두므로 `chat.sync` push가 그 채널에 append되고, push가 오지 않아도 폴링으로 앞선 `channel.chatNo`가 캐시 `lastNo`를 넘어선 채널만 head-트리거로 소량 페이지를 당긴다. 어느 쪽이든 chat 캐시 쓰기 → `chats-last` 리이밋 → 결합 관측이 새 프리뷰를 그린다 — **목록 컴포넌트 자체는 네트워크를 만들지 않는다**(적재는 화면이 소유하는 sync 등록 훅의 책임).
 4. **구버전 앱**: 첫 `FetchLastChatsData`가 `NOT_FOUND` → 모듈 플래그 학습 → 이후 채널별 30행 윈도우 읽기 + `pickPreviewChat`(오늘의 동작). 브라우저(IndexedDB)는 항상 이 경로다.
 5. **네이티브 일시 오류**: `items: null` 응답 → 그 읽기 1회만 윈도우 폴백(학습하지 않음).
+6. **나갔다 재입장한 채널**: 캐시가 답한 마지막 행이 내 현재 참여(`join.joinedNo`) 이전이면 프리뷰로 쓰지 않는다 — 프리뷰 없는 채널이 되고 `sortChannels`는 활동 시각이 없는 채널로 정렬한다. 재입장 직후의 올바른 상태다 ([ADR-0067](../../adr/0067-rejoin-hides-prior-messages.md)).
 
 ## 다이어그램
 

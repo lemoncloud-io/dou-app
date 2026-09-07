@@ -56,6 +56,8 @@ cid 오버라이드가 아니라 **sid 오버라이드**다.
 **포함**
 
 - 검색 소스 계약 `IGlobalCacheSearchSource` 정의 (libs/data).
+- 결과에 **참여 창** 적용: 내 현재 참여(`join.joinedNo`) 이전의 메시지 행과 채널 프리뷰는
+  결과에서 뺀다 ([ADR-0067](../../adr/0067-rejoin-hides-prior-messages.md)).
 - 웹 구현: IndexedDB 크로스 파티션 스캔 (`IndexedDbGlobalSearchSource`).
 - 네이티브 구현: 기존 `SearchGlobalCacheData` 브리지 메시지 클라이언트
   (`NativeGlobalSearchSource`) — 네이티브(RN) 측 신규 작업 없음.

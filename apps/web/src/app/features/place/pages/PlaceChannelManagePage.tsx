@@ -69,7 +69,7 @@ export const PlaceChannelManagePage = () => {
     const dmPeers = useDmPeers(placeId ?? null, channels, uid);
     // Last-message previews from ONE combined observation (ADR-0057) — the same source as the home
     // list, replacing the per-row cache-window subscription this page used to make per rendered row.
-    const lastChats = useLastChats(channels);
+    const lastChats = useLastChats(channels, myJoins);
 
     // Sort + pins are scoped to cid:sid (see placeScopeKey) — the route only carries the sid, so the
     // cloud half comes from the active session.

@@ -88,11 +88,16 @@ export interface ICacheDataSource<T, Q = void> {
 }
 
 /**
- * chat 전용 확장 — 채널별 최신 프리뷰 1건 + 최대 chat_no 일괄 조회 (ADR-0057).
+ * chat 전용 확장.
  *
- * 홈 채널 목록의 `FetchLastChatsData`가 이 메서드 하나로 답합니다. chat 외 도메인에는 프리뷰
- * 개념이 없으므로 공통 인터페이스가 아니라 확장으로 둡니다.
+ * - `fetchLastPerChannel` — 채널별 최신 프리뷰 1건 + 최대 chat_no 일괄 조회 (ADR-0057). 홈 채널
+ *   목록의 `FetchLastChatsData`가 이 메서드 하나로 답합니다.
+ * - `clearByChannel` — 한 채널의 행만 삭제 (ADR-0067). 방을 나가면 그 방의 메시지도 함께 사라져야
+ *   하는데, 스코프 전체를 지우는 `clear`로는 그걸 표현할 수 없습니다.
+ *
+ * 둘 다 chat 외 도메인에는 성립하지 않거나 부르는 곳이 없으므로 공통 인터페이스가 아니라 확장입니다.
  */
 export interface IChatCacheDataSource<T, Q = void> extends ICacheDataSource<T, Q> {
     fetchLastPerChannel: (channelIds: string[], cid?: string, uid?: string) => Promise<LastChatItem[]>;
+    clearByChannel: (channelId: string, cid?: string, uid?: string) => Promise<void>;
 }
