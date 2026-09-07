@@ -9,6 +9,7 @@
         "lint": "npx nx run-many --target=lint",
         "lint:fix": "npx nx run-many --target=lint --fix",
         "check:undefined-names": "node scripts/check-undefined-names.js",
+        "block-kit:test": "cd libs/block-kit && ../../node_modules/.bin/vitest run",
         "trace": "node scripts/trace-report.js",
         "prettier": "prettier --config ./.prettierrc --write \"**/*.{js,jsx,ts,json,tsx,scss,css,html}\"",
         "prettier:staged": "prettier --config ./.prettierrc --write $(git diff --name-only --cached --diff-filter=AM | egrep '^(.*).(.ts*|.js*|.html|.json|.css|.scss)$')",

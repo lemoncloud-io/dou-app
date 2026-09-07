@@ -32,11 +32,12 @@ import {
 } from '../../../shared';
 import { useMessageActions, useReactions } from '../hooks';
 import { QUICK_REACTIONS, useRecentEmojiStore } from '../stores';
-import { BlockKitMessage } from '../blocks';
 import { EmojiPicker } from './EmojiPicker';
 import { LinkPreviewCard } from './LinkPreviewCard';
 import { ReactionBar } from './ReactionBar';
 import { ReadReceipt } from './ReadReceipt';
+import { BlockKitMessage } from '@chatic/block-kit';
+
 import { RichText } from './RichText';
 
 // Active place id (with the relay 'default' sentinel), read at call time so a saved item is
@@ -445,7 +446,11 @@ export const MessageRow = memo(
                                         // nested in a paragraph is invalid markup and the browser
                                         // would close the <p> out from under the rest of the row.
                                         <div className={cn(isPending && 'opacity-50')}>
-                                            <BlockKitMessage blocks={blocks} raw={content} selfNames={selfNames} />
+                                            <BlockKitMessage
+                                                blocks={blocks}
+                                                raw={content}
+                                                renderFallback={raw => <RichText content={raw} selfNames={selfNames} />}
+                                            />
                                         </div>
                                     ) : (
                                         <p

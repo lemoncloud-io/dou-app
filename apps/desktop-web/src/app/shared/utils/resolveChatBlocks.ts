@@ -1,6 +1,6 @@
 import type { DomainChat } from '@chatic/data';
 
-import { parseBlocks, toBlocks, type KnownBlock } from './blockKit';
+import { parseBlocks, toBlocks, type KnownBlock } from '@chatic/block-kit';
 
 /**
  * Which read path produced the blocks. `field` means `content` is already the

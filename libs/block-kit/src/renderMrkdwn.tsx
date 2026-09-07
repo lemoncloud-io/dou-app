@@ -1,7 +1,7 @@
 import { Fragment, type ReactNode } from 'react';
 
-import { SLACK_MARKS, decodeSlackEntities, markPattern } from '../../../shared';
-import { MSG_BOLD_CLASS, MSG_CODE_BLOCK_CLASS, MSG_CODE_INLINE_CLASS, MSG_MENTION_CLASS } from '../components/RichText';
+import { SLACK_MARKS, decodeSlackEntities, markPattern } from './blockKit';
+import { MSG_BOLD_CLASS, MSG_CODE_BLOCK_CLASS, MSG_CODE_INLINE_CLASS, MSG_MENTION_CLASS } from './messageClasses';
 
 /**
  * Slack's mrkdwn, which is not the dialect the composer writes. `*x*` is bold

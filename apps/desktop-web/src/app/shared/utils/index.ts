@@ -10,9 +10,10 @@ export * from './mentionMatch';
 export * from './myNames';
 export * from './dnd';
 export * from './stripMarkdown';
-export * from './blockKit';
+// Re-exported so desktop-web keeps one import site for message utilities; the
+// block types and reader themselves now live in the shared lib.
+export * from '@chatic/block-kit';
 export * from './resolveChatBlocks';
-export * from './blocksToPlainText';
 export * from './messagePlainText';
 export * from './notifiableChat';
 export * from './dmDisplay';

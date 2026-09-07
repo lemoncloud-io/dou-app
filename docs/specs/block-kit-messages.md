@@ -2,8 +2,8 @@
 
 작성: 2026-08-14 · 브랜치 `feat/desktop-web-block-kit` · PR #422
 대상: chatic-socials-api / webhook 발신 측
-클라이언트 구현: `apps/desktop-web/src/app/shared/utils/blockKit.ts`,
-`apps/desktop-web/src/app/features/chat/blocks/`
+클라이언트 구현: `libs/block-kit/`(타입·리더·렌더러 — desktop-web과 블록킷 빌더가 공유),
+`apps/desktop-web/src/app/shared/utils/resolveChatBlocks.ts`(읽기 우선순위)
 
 ## 1. 무엇을 하려는 것인가
 
@@ -174,7 +174,7 @@ webhook 메시지의 `content`는 서버가 이미 만들어 둔 평문 요약�
 부탁드릴 것:
 
 1. 실제로 보내실 **블록 타입 목록**
-2. **샘플 payload 하나** — 이걸로 `apps/desktop-web/src/app/shared/utils/blockKit.spec.ts`의
+2. **샘플 payload 하나** — 이걸로 `libs/block-kit/src/blockKit.spec.ts`의
    픽스처를 고정한다
 3. `image`가 필요하신지 여부 — 필요하면 지원 추가한다
 
