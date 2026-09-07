@@ -23,7 +23,7 @@ export const BlockPalette = () => {
                         title={entry.hint}
                         className={cn(
                             'focus-ring tactile flex w-full items-center gap-2 rounded-md border border-hairline',
-                            'bg-background px-2 py-1.5 text-left text-caption text-foreground',
+                            'bg-background px-2 py-2.5 text-left text-caption text-foreground lg:py-1.5',
                             'transition-colors ease-tactile hover:border-primary/40 hover:bg-accent'
                         )}
                     >

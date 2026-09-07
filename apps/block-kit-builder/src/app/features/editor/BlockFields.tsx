@@ -3,12 +3,14 @@ import { useLayoutEffect, useRef } from 'react';
 import type { BlockTextObject, KnownBlock } from '@chatic/block-kit';
 import { cn } from '@chatic/lib/utils';
 
+// 16px on a phone, the design size once there is a pointer: iOS Safari zooms the
+// page when a focused field's text is smaller than 16px, and it does not zoom back.
 // No border: the card already draws one, and a box inside a box reads as two
 // things when it is one. The well is what separates the field from the card.
 // No resize handle either — the field sizes itself.
 const INPUT = cn(
     'focus-ring block w-full resize-none overflow-hidden rounded bg-well px-2 py-1.5',
-    'font-mono text-caption leading-relaxed text-foreground'
+    'font-mono text-[16px] leading-relaxed text-foreground lg:text-caption'
 );
 
 /**

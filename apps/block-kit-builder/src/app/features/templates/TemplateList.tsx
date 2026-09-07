@@ -27,7 +27,7 @@ export const TemplateList = () => {
                             setActive(template.id);
                         }}
                         className={cn(
-                            'focus-ring tactile flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left',
+                            'focus-ring tactile flex w-full items-center gap-2 rounded-md px-2 py-2.5 text-left lg:py-1.5',
                             'text-caption transition-colors ease-tactile hover:bg-accent',
                             // Bold marks the current pick, per the design note. It is not
                             // a filter — the message keeps changing after it is chosen —

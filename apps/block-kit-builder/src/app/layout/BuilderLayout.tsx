@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 
 import { cn } from '@chatic/lib/utils';
 
@@ -15,22 +15,40 @@ interface BuilderLayoutProps {
 
 const PANE_HEADING = 'px-4 py-3 text-caption font-medium text-muted-foreground';
 
+/** Which pane a narrow screen is showing. Wide screens show all three at once. */
+type PaneId = 'compose' | 'message' | 'payload';
+
+const PANES: { id: PaneId; title: string }[] = [
+    { id: 'compose', title: 'Compose' },
+    { id: 'message', title: 'Message' },
+    { id: 'payload', title: 'Payload' },
+];
+
 interface PaneProps {
     title: string;
     children: ReactNode;
     className?: string;
     /** Controls that act on this pane's content, shown beside its heading. */
     actions?: ReactNode;
+    /** False on a narrow screen when another pane is the one being shown. */
+    shown: boolean;
 }
 
 /**
  * One column. The heading is a landmark, not decoration — three unlabelled
  * columns of similar-looking text leave the reader counting to work out which is
- * the source and which is the result.
+ * the source and which is the result. On a narrow screen the tab bar already
+ * names the pane, so the heading would say it twice and is dropped.
+ *
+ * A pane that is not being shown is hidden rather than unmounted: the payload
+ * editor holds an unparsed draft, and switching tabs is not a reason to lose it.
  */
-const Pane = ({ title, children, className, actions }: PaneProps) => (
-    <section aria-label={title} className={cn('flex min-w-0 flex-col overflow-hidden', className)}>
-        <div className="flex shrink-0 items-center justify-between gap-2 pr-2">
+const Pane = ({ title, children, className, actions, shown }: PaneProps) => (
+    <section
+        aria-label={title}
+        className={cn('min-w-0 flex-col overflow-hidden', shown ? 'flex' : 'hidden lg:flex', className)}
+    >
+        <div className="hidden shrink-0 items-center justify-between gap-2 pr-2 lg:flex">
             <h2 className={PANE_HEADING}>{title}</h2>
             {actions}
         </div>
@@ -39,7 +57,7 @@ const Pane = ({ title, children, className, actions }: PaneProps) => (
 );
 
 /**
- * Compose · message · payload, side by side.
+ * Compose · message · payload, side by side on a wide screen.
  *
  * The middle pane keeps the app's own background while the two instrument panes
  * sit on the well, so the boundary between "the message" and "the controls that
@@ -49,24 +67,66 @@ const Pane = ({ title, children, className, actions }: PaneProps) => (
  * of the tool is watching the JSON and the rendered card change together. The
  * rail is fixed-width because its content is a fixed list; the other two split
  * what is left, with the preview favoured — it is the thing being judged.
+ *
+ * Below `lg` there is no width to spend on watching two things at once, so the
+ * panes become tabs. Undo/redo/clear move up beside the tabs there: they act on
+ * the message from whichever pane the edit was made in, and a control that
+ * disappears when you switch tabs is a control you cannot rely on.
  */
-export const BuilderLayout = ({ rail, preview, previewActions, payload }: BuilderLayoutProps) => (
-    <div className="flex h-screen flex-col bg-background text-foreground">
-        <header className="flex shrink-0 items-center gap-2 border-b border-hairline px-4 py-3">
-            <span className="text-heading">
-                DoU <span className="text-muted-foreground">Block Kit Builder</span>
-            </span>
-        </header>
-        <div className="flex min-h-0 flex-1">
-            <Pane title="Compose" className="w-80 shrink-0 border-r border-hairline bg-well">
-                {rail}
-            </Pane>
-            <Pane title="Message" className="flex-[3] border-r border-hairline" actions={previewActions}>
-                {preview}
-            </Pane>
-            <Pane title="Payload" className="flex-[2] bg-well">
-                {payload}
-            </Pane>
+export const BuilderLayout = ({ rail, preview, previewActions, payload }: BuilderLayoutProps) => {
+    const [active, setActive] = useState<PaneId>('compose');
+
+    return (
+        <div className="flex h-[100dvh] flex-col bg-background text-foreground">
+            <header className="flex shrink-0 items-center gap-2 border-b border-hairline px-4 py-3">
+                <span className="text-heading">
+                    DoU <span className="text-muted-foreground">Block Kit Builder</span>
+                </span>
+            </header>
+
+            <div className="flex shrink-0 items-center justify-between gap-2 border-b border-hairline pr-2 lg:hidden">
+                <div role="tablist" aria-label="Builder panes" className="flex">
+                    {PANES.map(pane => (
+                        <button
+                            key={pane.id}
+                            type="button"
+                            role="tab"
+                            aria-selected={active === pane.id}
+                            onClick={() => setActive(pane.id)}
+                            className={cn(
+                                'focus-ring -mb-px border-b-2 px-4 py-2.5 text-caption transition-colors ease-tactile',
+                                active === pane.id
+                                    ? 'border-primary font-semibold text-foreground'
+                                    : 'border-transparent text-muted-foreground'
+                            )}
+                        >
+                            {pane.title}
+                        </button>
+                    ))}
+                </div>
+                {previewActions}
+            </div>
+
+            <div className="flex min-h-0 flex-1">
+                <Pane
+                    title="Compose"
+                    shown={active === 'compose'}
+                    className="w-full shrink-0 border-hairline bg-well lg:w-80 lg:border-r"
+                >
+                    {rail}
+                </Pane>
+                <Pane
+                    title="Message"
+                    shown={active === 'message'}
+                    className="w-full border-hairline lg:w-auto lg:flex-[3] lg:border-r"
+                    actions={previewActions}
+                >
+                    {preview}
+                </Pane>
+                <Pane title="Payload" shown={active === 'payload'} className="w-full bg-well lg:w-auto lg:flex-[2]">
+                    {payload}
+                </Pane>
+            </div>
         </div>
-    </div>
-);
+    );
+};

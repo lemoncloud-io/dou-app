@@ -12,12 +12,13 @@ export interface BlockKitPayload {
 /**
  * Blocks → the JSON shown in the payload pane.
  *
- * Four-space indent to match what a reader pasting into a webhook body would see
- * from `JSON.stringify(x, null, 4)`, and a trailing newline so the pane's last
- * line is not flush against the edge.
+ * Two-space indent: a block's text sits four levels deep, so a wider one spends
+ * the pane's whole width on whitespace — on a phone the values were wrapping
+ * before they started. A trailing newline so the last line is not flush against
+ * the edge.
  */
 export const blocksToPayloadJson = (blocks: KnownBlock[]): string =>
-    `${JSON.stringify({ blocks } satisfies BlockKitPayload, null, 4)}\n`;
+    `${JSON.stringify({ blocks } satisfies BlockKitPayload, null, 2)}\n`;
 
 /** What went wrong reading a payload back, in the words the pane shows. */
 export type PayloadParseResult = { ok: true; blocks: KnownBlock[] } | { ok: false; error: string };

@@ -82,11 +82,17 @@ export const PayloadPane = ({ json, onBlocks }: PayloadPaneProps) => {
             <textarea
                 aria-label="Payload JSON"
                 spellCheck={false}
+                // Structure over line length. Wrapped JSON puts a continuation at
+                // column zero, where the eye reads it as a new key at the outermost
+                // level; scrolling sideways keeps the indent telling the truth.
+                wrap="off"
                 value={draft}
                 onChange={event => edit(event.target.value)}
+                // 16px on a phone for the same reason as the block fields: below that,
+                // iOS Safari zooms in on focus and stays zoomed.
                 className={cn(
-                    'focus-ring min-h-0 flex-1 resize-none bg-transparent px-4 font-mono',
-                    'text-caption leading-relaxed text-foreground'
+                    'focus-ring min-h-0 flex-1 resize-none overflow-auto bg-transparent px-4 font-mono',
+                    'text-[16px] leading-relaxed text-foreground lg:text-caption'
                 )}
             />
 

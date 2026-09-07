@@ -20,21 +20,35 @@ const SENDER = { name: '릴리즈봇', initial: 'R', time: '오후 11:11' };
  * `MessageRow` also carries hover actions, reactions, read receipts and a thread
  * footer, none of which mean anything for a payload that was never sent.
  */
-export const PreviewPane = ({ blocks, raw }: PreviewPaneProps) => (
-    <div className="px-4 py-2">
-        <div className="flex gap-3 rounded-md px-2 py-1">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary text-caption font-semibold text-foreground">
-                {SENDER.initial}
-            </div>
-            <div className="flex min-w-0 flex-1 flex-col">
-                <div className="flex items-baseline gap-1.5">
-                    <span className="truncate text-heading text-foreground">{SENDER.name}</span>
-                    <span className="text-caption tabular-nums text-muted-foreground">{SENDER.time}</span>
+export const PreviewPane = ({ blocks, raw }: PreviewPaneProps) => {
+    // An empty message has no bubble. `BlockKitMessage` falls back to the raw body
+    // when nothing is drawable, which for no blocks at all is the empty payload —
+    // a card showing `{"blocks": []}` under a sender's name reads as a message that
+    // was sent, not as one that has not been written.
+    if (!blocks.length) {
+        return (
+            <p className="px-6 py-4 text-caption text-muted-foreground">
+                Nothing to preview yet. Pick a template or add a block, and the message appears here.
+            </p>
+        );
+    }
+
+    return (
+        <div className="px-4 py-2">
+            <div className="flex gap-3 rounded-md px-2 py-1">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary text-caption font-semibold text-foreground">
+                    {SENDER.initial}
                 </div>
-                <div className="flex flex-col gap-0.5">
-                    <BlockKitMessage blocks={blocks} raw={raw} />
+                <div className="flex min-w-0 flex-1 flex-col">
+                    <div className="flex items-baseline gap-1.5">
+                        <span className="truncate text-heading text-foreground">{SENDER.name}</span>
+                        <span className="text-caption tabular-nums text-muted-foreground">{SENDER.time}</span>
+                    </div>
+                    <div className="flex flex-col gap-0.5">
+                        <BlockKitMessage blocks={blocks} raw={raw} />
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
-);
+    );
+};
