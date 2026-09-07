@@ -3,7 +3,7 @@
 작성: 2026-08-14 · 브랜치 `feat/desktop-web-block-kit` · PR #422
 대상: chatic-socials-api / webhook 발신 측
 클라이언트 구현: `libs/block-kit/`(타입·리더·렌더러 — desktop-web과 블록킷 빌더가 공유),
-`apps/desktop-web/src/app/shared/utils/resolveChatBlocks.ts`(읽기 우선순위)
+`libs/block-kit/src/resolveChatBlocks.ts`(읽기 우선순위)
 
 ## 1. 무엇을 하려는 것인가
 
@@ -23,7 +23,7 @@
 경로는 폴백으로 그대로 남는다.
 
 읽는 순서는 `chat.blocks$` → `content` 판정 → 평문이고, 정본은
-`resolveChatBlocks`(`apps/desktop-web/src/app/shared/utils/resolveChatBlocks.ts`) 하나다.
+`resolveChatBlocks`(`libs/block-kit/src/resolveChatBlocks.ts`) 하나다.
 
 | 항목          | 규칙                                                                                                                                                           |
 | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |

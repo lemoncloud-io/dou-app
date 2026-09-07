@@ -10,7 +10,6 @@ export * from './mentionMatch';
 export * from './myNames';
 export * from './dnd';
 export * from './stripMarkdown';
-export * from './resolveChatBlocks';
 export * from './messagePlainText';
 export * from './notifiableChat';
 export * from './dmDisplay';

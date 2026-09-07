@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { DomainChat } from '@chatic/data';
-
-import { WEBHOOK_BLOCKS_ERROR_REPORT, WEBHOOK_SEND_ERROR_REPORT } from '@chatic/block-kit';
+import { WEBHOOK_BLOCKS_ERROR_REPORT, WEBHOOK_SEND_ERROR_REPORT } from './sampleWebhookBlocks';
 import { resolveChatBlocks } from './resolveChatBlocks';
 
 // The fields this derivation reads. `blocks$` is re-declared as its wire shape
@@ -14,7 +12,7 @@ interface ChatFields {
     blocks$?: unknown[];
 }
 
-const chat = (fields: ChatFields): DomainChat => ({ id: 'C1:1', channelId: 'C1', chatNo: 1, ...fields }) as DomainChat;
+const chat = (fields: ChatFields) => ({ id: 'C1:1', channelId: 'C1', chatNo: 1, ...fields });
 
 describe('resolveChatBlocks', () => {
     // Tracer bullet: the server fixture is the client contract (knowledge#319

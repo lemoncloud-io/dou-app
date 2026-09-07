@@ -6,6 +6,7 @@
 // of the renderer would let the builder's preview drift from what a channel
 // actually shows, which is the one thing the preview exists to rule out.
 export * from './blockKit';
+export * from './resolveChatBlocks';
 export * from './blocksToPlainText';
 export * from './messageClasses';
 export * from './renderMrkdwn';
