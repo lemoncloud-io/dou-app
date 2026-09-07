@@ -4,6 +4,16 @@
 
 ### Features
 
+- (web/place,web/ui) step the place photo aside while someone types
+
+### Bug Fixes
+
+- (web/ui,web/mypage,web/place) let the glass bar own the notch inset
+
+## [2026-09-07] - No version updates
+
+### Features
+
 - (web/channels,web-ui-kit) add people who are already here from the invite page (ADR-0075)
 - (web,mobile,data) hide what happened before I rejoined (ADR-0067)
 - (web/channels,web-ui-kit) give a 1:1 a way back and render what a message carries (ADR-0068)
