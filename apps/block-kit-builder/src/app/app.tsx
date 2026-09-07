@@ -36,7 +36,7 @@ export const App = () => {
         <BuilderLayout
             rail={<BuilderRail />}
             preview={<PreviewPane blocks={blocks} raw={json} />}
-            payload={<PayloadPane json={json} />}
+            payload={<PayloadPane json={json} onBlocks={useBuilderStore.getState().setBlocks} />}
         />
     );
 };

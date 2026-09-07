@@ -1,25 +1,63 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
-import { Check, Copy } from 'lucide-react';
+import { AlertTriangle, Check, Copy } from 'lucide-react';
 
+import type { KnownBlock } from '@chatic/block-kit';
 import { cn } from '@chatic/lib/utils';
 
+import { blocksToPayloadJson, payloadJsonToBlocks } from './payloadCodec';
+
 interface PayloadPaneProps {
+    /** The payload the current blocks compile to. */
     json: string;
+    /** Accept an edited payload. Only called with a payload that parsed. */
+    onBlocks: (blocks: KnownBlock[]) => void;
 }
 
 /**
- * The JSON the blocks compile to.
+ * The JSON the blocks compile to, and an editor for it.
  *
- * Read-only for now — slice 06 makes it an editor. Copy is the export: the
- * builder sends nothing itself, so the payload leaving through the clipboard is
- * how it reaches a webhook body.
+ * Editing runs both ways: the rail writes here through `json`, and a paste here
+ * writes back through `onBlocks`. Pasting is the point — checking a payload
+ * someone already has is a different job from composing one, and it is the one
+ * this pane does better than the rail.
+ *
+ * A payload that does not parse leaves the preview alone and shows why. Blanking
+ * the message on a half-typed brace would destroy the thing being edited, and
+ * every keystroke in the middle of a paste is half-typed.
  */
-export const PayloadPane = ({ json }: PayloadPaneProps) => {
+export const PayloadPane = ({ json, onBlocks }: PayloadPaneProps) => {
+    const [draft, setDraft] = useState(json);
+    const [error, setError] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
 
+    // What this pane last put into the store, formatted the way the store would
+    // hand it back. Without it, the effect below would reformat mid-keystroke and
+    // move the caret: typing changes the blocks, which changes `json`, which would
+    // look like an outside edit.
+    const lastEmitted = useRef(json);
+
+    useEffect(() => {
+        if (json === lastEmitted.current) return;
+        lastEmitted.current = json;
+        setDraft(json);
+        setError(null);
+    }, [json]);
+
+    const edit = (value: string) => {
+        setDraft(value);
+        const result = payloadJsonToBlocks(value);
+        if (!result.ok) {
+            setError(result.error);
+            return;
+        }
+        setError(null);
+        lastEmitted.current = blocksToPayloadJson(result.blocks);
+        onBlocks(result.blocks);
+    };
+
     const copy = () => {
-        void navigator.clipboard?.writeText(json).then(() => {
+        void navigator.clipboard?.writeText(draft).then(() => {
             setCopied(true);
             setTimeout(() => setCopied(false), 1200);
         });
@@ -40,11 +78,32 @@ export const PayloadPane = ({ json }: PayloadPaneProps) => {
                     {copied ? <Check size={16} className="text-primary-ink" /> : <Copy size={16} />}
                 </button>
             </div>
-            {/* `pre` keeps the indentation the codec produced. Horizontal scroll is
-                on the block itself so a long line never widens the pane. */}
-            <pre className="min-h-0 flex-1 overflow-auto px-4 pb-4 font-mono text-caption leading-relaxed text-foreground">
-                {json}
-            </pre>
+
+            <textarea
+                aria-label="Payload JSON"
+                spellCheck={false}
+                value={draft}
+                onChange={event => edit(event.target.value)}
+                className={cn(
+                    'focus-ring min-h-0 flex-1 resize-none bg-transparent px-4 font-mono',
+                    'text-caption leading-relaxed text-foreground'
+                )}
+            />
+
+            {/* Below the editor, not over it: an overlay would hide the line the
+                reader is being told about. */}
+            {error && (
+                <p
+                    role="status"
+                    className="flex shrink-0 items-start gap-1.5 border-t border-hairline px-4 py-2 text-caption text-destructive"
+                >
+                    <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+                    <span>
+                        {error}{' '}
+                        <span className="text-muted-foreground">Preview still shows the last valid payload.</span>
+                    </span>
+                </p>
+            )}
         </div>
     );
 };
