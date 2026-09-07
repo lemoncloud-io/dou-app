@@ -47,7 +47,7 @@ export const BuilderLayout = ({ rail, preview, payload }: BuilderLayoutProps) =>
             </span>
         </header>
         <div className="flex min-h-0 flex-1">
-            <Pane title="Blocks" className="w-56 shrink-0 border-r border-hairline">
+            <Pane title="Blocks" className="w-80 shrink-0 border-r border-hairline">
                 {rail}
             </Pane>
             <Pane title="Message preview" className="flex-[3] border-r border-hairline">

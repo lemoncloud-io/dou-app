@@ -1,11 +1,13 @@
+import { useEffect } from 'react';
+
 import { toBlocks, type KnownBlock } from '@chatic/block-kit';
 
-import { PayloadPane, PreviewPane, blocksToPayloadJson } from './features';
+import { BuilderRail, PayloadPane, PreviewPane, blocksToPayloadJson } from './features';
 import { BuilderLayout } from './layout';
+import { useBuilderStore } from './store';
 
-// A fixed starting payload until slice 05 makes the rail write to a store. Goes
-// through `toBlocks` like anything else the app draws, so the seed cannot be a
-// shape a real message could not carry.
+// What an empty builder opens on. Goes through `toBlocks` like anything else the
+// app draws, so the starting point cannot be a shape a real message could not carry.
 const SEED: KnownBlock[] = toBlocks([
     { type: 'header', text: { type: 'plain_text', text: '🟠 error-report: carrot-pools2-api' } },
     { type: 'section', text: { type: 'mrkdwn', text: '*503 Service Unavailable* — ECONNRESET' } },
@@ -19,17 +21,21 @@ const SEED: KnownBlock[] = toBlocks([
     },
 ]);
 
-const Empty = ({ children }: { children: string }) => (
-    <p className="px-4 py-2 text-callout text-muted-foreground">{children}</p>
-);
-
 export const App = () => {
-    const json = blocksToPayloadJson(SEED);
+    const blocks = useBuilderStore(state => state.blocks);
+
+    // Seed once, and only into an empty store — a later slice restores saved work,
+    // and overwriting that on every mount would throw the reader's message away.
+    useEffect(() => {
+        if (!useBuilderStore.getState().blocks.length) useBuilderStore.getState().setBlocks(SEED);
+    }, []);
+
+    const json = blocksToPayloadJson(blocks);
 
     return (
         <BuilderLayout
-            rail={<Empty>The palette lands in the next slice.</Empty>}
-            preview={<PreviewPane blocks={SEED} raw={json} />}
+            rail={<BuilderRail />}
+            preview={<PreviewPane blocks={blocks} raw={json} />}
             payload={<PayloadPane json={json} />}
         />
     );
