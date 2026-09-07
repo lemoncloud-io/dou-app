@@ -1,5 +1,5 @@
 import { logoutSession } from './logoutSession';
-import { clearSessionAndRedirect } from '../../session/auth/relaySession';
+import { relaySession } from '../../session/auth/relaySession';
 import { getSocketManager } from '../runtime';
 
 jest.mock('@chatic/bridges', () => ({
@@ -7,14 +7,14 @@ jest.mock('@chatic/bridges', () => ({
 }));
 
 jest.mock('../../session/auth/relaySession', () => ({
-    clearSessionAndRedirect: jest.fn().mockResolvedValue(undefined),
+    relaySession: { clearAndRedirect: jest.fn().mockResolvedValue(undefined) },
 }));
 
 jest.mock('../runtime', () => ({
     getSocketManager: jest.fn(),
 }));
 
-const mockedLogoutRelay = clearSessionAndRedirect as jest.MockedFunction<typeof clearSessionAndRedirect>;
+const mockedLogoutRelay = relaySession.clearAndRedirect as jest.Mock;
 const mockedGetManager = getSocketManager as jest.MockedFunction<typeof getSocketManager>;
 
 /** Manager whose getClient(kind) resolves a per-kind auth stub (null when that slot is absent). */

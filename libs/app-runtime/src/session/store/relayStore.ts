@@ -23,12 +23,12 @@ const notConfigured = (name: string): EndpointResolver => {
     };
 };
 
-export const RELAY_SELECTED_SITE_KEY = 'chatic-relay-selected-site-id';
-export const RELAY_TOKEN_KEY = 'chatic-relay-token';
+const RELAY_SELECTED_SITE_KEY = 'chatic-relay-selected-site-id';
+const RELAY_TOKEN_KEY = 'chatic-relay-token';
 
 /**
  * The relay slot of the session store. Renamed off `RelayCore` — that name came from web-core's
- * `session/core` folder and sat outside this repo's `I*` contract convention (ADR-0074 결정 0).
+ * `session/core` folder and sat outside this repo's `I*` contract convention (ADR-0076 결정 0).
  */
 export interface IRelayStore {
     getBackend(): string;
@@ -103,10 +103,3 @@ class RelayStore implements IRelayStore {
 }
 
 export const relayStore: IRelayStore = new RelayStore(storage, sessionSignal);
-
-/**
- * @deprecated Call `relayStore.configureEndpoints` — kept so `configure.ts` reads unchanged while
- * the seam is documented in one place.
- */
-export const configureRelayEndpoints = (resolvers: { backend: EndpointResolver; wss: EndpointResolver }): void =>
-    relayStore.configureEndpoints(resolvers);

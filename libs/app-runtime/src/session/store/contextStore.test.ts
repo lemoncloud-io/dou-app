@@ -41,7 +41,7 @@ jest.mock('./stores', () => ({
 }));
 
 // `mockNotify` now stands for `sessionSignal.emit` — the store announces a KIND instead of
-// broadcasting (ADR-0074 결정 2), so "was the session announced" is "was emit called". `batch` runs
+// broadcasting (ADR-0076 결정 2), so "was the session announced" is "was emit called". `batch` runs
 // its callback straight through: the collapsing itself is covered by signal.test.ts.
 jest.mock('./signal', () => ({
     sessionSignal: {
@@ -105,7 +105,7 @@ describe('rebuildSessionIdentity — notify 게이팅 (#8)', () => {
         });
     });
 
-    // 게이트는 이제 IDENTITY만 본다 (ADR-0074 결정 2). 토큰 교체 자체는 스토어가 `cloud:token`으로
+    // 게이트는 이제 IDENTITY만 본다 (ADR-0076 결정 2). 토큰 교체 자체는 스토어가 `cloud:token`으로
     // 알리므로, uid가 그대로인 자격증명 refresh에서 이 함수는 조용해야 한다 — 그게 목적이다.
     it('cloud 토큰만 교체되고 uid가 그대로면 identity를 알리지 않는다', () => {
         jest.isolateModules(() => {
@@ -244,7 +244,7 @@ const seedCloudActive = () => {
     mockCloudGetCloudToken.mockReturnValue({ uid: 'cu1', Token: 'ct1' });
 };
 
-describe('getCloudSessionSnapshot — 같은 tick 안의 일관성 (ADR-0074 배치 A12)', () => {
+describe('getCloudSessionSnapshot — 같은 tick 안의 일관성 (ADR-0076 배치 A12)', () => {
     beforeEach(() => {
         jest.clearAllMocks();
     });

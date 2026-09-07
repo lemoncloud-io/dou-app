@@ -52,7 +52,7 @@ const run = async (): Promise<boolean> => {
 };
 
 /**
- * Single-flight at MODULE level, not per caller (ADR-0074 결정 4 — was a bespoke `let inFlight`).
+ * Single-flight at MODULE level, not per caller (ADR-0076 결정 4 — was a bespoke `let inFlight`).
  * The renewal is two HTTP round trips against the same parent identity, so the timer, the foreground
  * trigger and any future 403 handler must collapse into one exchange rather than race each other's
  * writes into the cloud store. No result memo: unlike the relay refresh there is no burst to absorb

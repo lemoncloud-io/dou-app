@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { Home, User } from 'lucide-react';
 
-import type { DomainSite } from '@chatic/data';
+import type { DomainPlace } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 import { useSessionIdentity, useSessionLogout } from '@chatic/app-runtime';
 import { useRuntimeProfile } from '@chatic/app-runtime';
@@ -24,7 +24,7 @@ import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 import { isPlaceholderName, useAccountResetOnLogout, useDebugModeStore, useDisplayProfile } from '../../../shared';
 
 interface PlaceRailProps {
-    places: DomainSite[];
+    places: DomainPlace[];
     selectedPlaceId: string | null;
     unreadByPlace: Record<string, number>;
     /** Default Cloud (Guest Session): no joinable places — render the profile only. */

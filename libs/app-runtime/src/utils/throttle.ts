@@ -1,5 +1,5 @@
 /**
- * A synchronous "may I fire now?" gate with a minimum gap, optionally growing (ADR-0074 결정 4).
+ * A synchronous "may I fire now?" gate with a minimum gap, optionally growing (ADR-0076 결정 4).
  *
  * **Why this is a second primitive and not part of `Coalescer`.** The runtime's seven hand-rolled
  * concurrency guards are two mechanisms, not one:

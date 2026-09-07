@@ -8,14 +8,14 @@ import type { ISocketManager, SocketKind } from '../types';
 
 /**
  * What the runtime should DO about one socket kind's authentication, as a single named value
- * (ADR-0074 결정 1).
+ * (ADR-0076 결정 1).
  *
  * Before this, answering "is relay's auth healthy?" meant reading seven values from seven modules
  * and combining them — and that combination was written out three separate times
  * (`useSessionStalenessGuard` · `requestRelaySessionRefresh` · `recoverUnverifiedSockets`), each with
  * its own 20~40 line justification that did not reference the others. (`useConnectivity` looked like
  * a fourth but is not: it answers what to TELL THE USER, and the credential clock has no place in
- * that answer — ADR-0074 §결정 1.)
+ * that answer — ADR-0076 §결정 1.)
  * Nothing downstream — logs, the debug overlay — could reuse any of them, so reproducing an incident
  * meant lining the seven up by hand.
  *
@@ -87,7 +87,7 @@ export interface SocketAuthSnapshot extends AuthSignals {
  *  1. **No token wins.** Without one there is nothing to authenticate, whatever the socket says.
  *  2. **Terminal `expired` outranks the handshake.** The controller reaching `expired` means it
  *     burned `maxFailures` and stopped on its own; waiting for a handshake that will not be
- *     attempted is the zombie state ADR-0074 §맥락 1 describes.
+ *     attempted is the zombie state ADR-0076 §맥락 1 describes.
  *  3. **Unverified-on-this-connection is `handshaking`.** See the `wedged` note on {@link AuthStatus}.
  *  4. **The stored-session clock counts as stale on its own.** It is the relay guard's primary
  *     trigger today and it can fire while the credential still looks fine.
@@ -154,7 +154,7 @@ export interface AuthSignalDeps {
 }
 
 /** Collects {@link AuthSignals} for one slot from the stores, the manager and the SDK controller. */
-export const readAuthSignals = (kind: SocketKind, deps: AuthSignalDeps = {}): AuthSignals => {
+const readAuthSignals = (kind: SocketKind, deps: AuthSignalDeps = {}): AuthSignals => {
     const manager = deps.manager ?? getSocketManager();
     const freshness = deps.freshness ?? credentialFreshness;
     const identityToken = kind === 'cloud' ? cloudStore.getIdentityToken() : relayStore.getIdentityToken();

@@ -1,7 +1,7 @@
 import { useMemo, useSyncExternalStore } from 'react';
 
 import { useDynamicDeviceId } from '../session';
-// Off the session barrel (ADR-0074 결정 6): the committed cloud id and the narrowed slot snapshot
+// Off the session barrel (ADR-0076 결정 6): the committed cloud id and the narrowed slot snapshot
 // are runtime-internal.
 import { getCommittedCloudId, getSocketSlotContext, sessionSignal } from '../session/store';
 import type { SessionSignalKind } from '../session/store';
@@ -9,7 +9,7 @@ import type { SessionSignalKind } from '../session/store';
 import type { RuntimeSocketSlots } from './types';
 
 /**
- * The slices the slots are derived from — deliberately NOT `identity` (ADR-0074 E5).
+ * The slices the slots are derived from — deliberately NOT `identity` (ADR-0076 E5).
  *
  * Every input below moves on one of these three: relay `wss`/`identityToken` on `relay:token`,
  * `cloud.isActive`/`wss`/`identityToken` and the committed cloud id on `cloud:token`, and the
@@ -29,7 +29,7 @@ const subscribeSlotSignals = (listener: () => void): (() => void) => sessionSign
  * Derives the two socket slots from the live session. This is the whole job — it used to ALSO derive
  * the cache scope (`{cid, sid, uid}`) and hand it back as `RuntimeBinding.context`, which no
  * production code read: `deriveSelectedContext` owns that formula now and consumers READ it from the
- * store instead of receiving a pushed copy (ADR-0070 결정 7 · ADR-0074 결정 1). The duplicate was
+ * store instead of receiving a pushed copy (ADR-0070 결정 7 · ADR-0076 결정 1). The duplicate was
  * character-for-character identical, so the two could only ever agree or silently disagree.
  *
  * Hosts call this themselves (`RuntimeConnectionHost` · `RuntimeAuthHost`), so an app no longer

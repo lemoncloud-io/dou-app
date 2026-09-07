@@ -3,7 +3,7 @@
 // React surface. Env wiring is NOT an import side effect — `initAppRuntime()` runs
 // `store/configure.ts` from the app entry point (ADR-0070 5단계).
 //
-// **This barrel publishes the APP surface only** (ADR-0074 결정 6). It used to `export *` the store,
+// **This barrel publishes the APP surface only** (ADR-0076 결정 6). It used to `export *` the store,
 // the services and the hooks, which put 27 runtime-internal symbols on the package's public API —
 // every store writer among them. The docs said "this is not an invitation to drive the session
 // directly" while `public-surface.test.ts` locked those symbols in as a contract; the rule was prose
@@ -21,11 +21,6 @@ export {
     getGlobalSessionContext,
     getIdentityContext,
     getRelaySessionUser,
-    // `getSelectedCloudId` is public but `getSelectedSiteId` is not, and that asymmetry is measured
-    // rather than designed: apps read the cloud id directly (deep links, cache scoping) while the
-    // site id only ever reaches them through `useSessionSelection`. Add the sibling back the day a
-    // real consumer appears, not to make the pair look tidy.
-    getSelectedCloudId,
     // The account-profile read/write pair. Kept public because the local cache cannot answer this
     // question — its physical key is `${type}:${cid}:${uid}:${id}` and the read path ignores context
     // overrides, so while a cloud is active the relay `user` row is unreachable (ADR-0062). apps/web
@@ -43,26 +38,18 @@ export type {
 
 // --- auth use-cases (비-React) -----------------------------------------------------------------
 export type { LogoutOptions, ServerKind } from './auth/relaySession';
-export {
-    createCredentialsByProvider,
-    initializeRelaySession,
-    loginRelaySocial,
-    loginRelayUser,
-    registerSessionLogoutCallback,
-} from './auth/relaySession';
-export { switchCloudSession } from './auth/cloudSession';
+// Only these two. The other use-cases reach apps through their hooks (`useLogin` ·
+// `useLoginRelaySocial` · `useSwitchCloudSession` · `useRelaySessionInit`), and 결정 6's rule is
+// "the barrel sells what apps import" — so the raw functions stay internal. OAuth exchange and the
+// logout-callback registry have no hook because their callers are not React (an OAuth redirect
+// page's effect, a log uploader's module init).
+export { createCredentialsByProvider, registerSessionLogoutCallback } from './auth/relaySession';
 // Invite login/lookup — ordinary auth actions; the module they live in is what stays off the barrel.
 export { fetchInviteInfoWithCode, registerUserWithInviteCode } from './auth/authActions';
 
 // --- React 표면 --------------------------------------------------------------------------------
 export { SWITCH_SITE_MUTATION_KEY } from './hooks/mutationKeys';
-export {
-    useCloudCredentialGuard,
-    useDynamicDeviceId,
-    useRelaySessionInit,
-    useServiceUnavailable,
-    useSessionStalenessGuard,
-} from './hooks/app';
+export { useCloudCredentialGuard, useDynamicDeviceId, useSessionStalenessGuard } from './hooks/app';
 export type { CloudCredentialPolicy, SessionStalenessPolicy } from './hooks/app';
 export {
     useFindAlias,

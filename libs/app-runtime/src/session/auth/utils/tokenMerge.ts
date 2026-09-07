@@ -1,7 +1,7 @@
 import type { UserTokenView } from '@lemoncloud/chatic-backend-api';
 
 /**
- * How an Auth-SDK-refreshed token view is merged into the stored one, per server (ADR-0074 결정 5).
+ * How an Auth-SDK-refreshed token view is merged into the stored one, per server (ADR-0076 결정 5).
  *
  * These were 45 lines of justification inside `commitServerRefreshedToken`, and that comment was the
  * ONLY thing holding the three relay preservation rules in place — no test named any of them. They

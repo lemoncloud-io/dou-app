@@ -193,7 +193,7 @@ const getGlobalSessionContext = (): GlobalSessionContext => {
 };
 
 /**
- * The two slices `useRuntimeSocketSlots` reads — and nothing else (ADR-0074 E5).
+ * The two slices `useRuntimeSocketSlots` reads — and nothing else (ADR-0076 E5).
  *
  * That hook subscribes to `['relay:token', 'cloud:token', 'selection']` only, because the socket
  * slots are derived from those three and identity moves on its own signal (boot alone emits
@@ -256,10 +256,6 @@ export const getSelectedCloudId = (): string => cloudStore.getSelectedCloudId() 
 export const getSelectedSiteId = (): string | null =>
     getSelectedCloudId() === 'default' ? relayStore.getSelectedSiteId() : cloudStore.getSelectedSiteId();
 
-export const setSelectedCloudId = (cloudId: string): void => {
-    cloudStore.saveSelectedCloudId(cloudId);
-};
-
 export const setSelectedSiteId = (siteId: string | null): void => {
     const selectedCloudId = getSelectedCloudId();
     if (siteId) {
@@ -289,7 +285,7 @@ export const setSessionAuthenticated = (isAuthenticated: boolean): void => {
 // The relay and cloud comparators that used to sit here are gone with the gate that needed them:
 // when the notify was one payload-less broadcast, `rebuildSessionIdentity` had to prove that NOTHING
 // observable moved before staying quiet. Now the stores announce their own kinds, so the only thing
-// this file still gates is the derived identity (ADR-0074 결정 2).
+// this file still gates is the derived identity (ADR-0076 결정 2).
 const sameIdentityContext = (a: IdentityContext, b: IdentityContext): boolean =>
     a.userId === b.userId &&
     a.delegatorId === b.delegatorId &&
@@ -310,7 +306,7 @@ const sameIdentityContext = (a: IdentityContext, b: IdentityContext): boolean =>
 // The gate now compares IDENTITY ONLY. It used to also compare the relay and cloud contexts, and it
 // had to: the notify was a single payload-less broadcast, so this function was indistinguishable
 // from "some token moved" and had to check everything before staying quiet. With kinds
-// (ADR-0074 결정 2) the token moves announce themselves — every caller of this function has already
+// (ADR-0076 결정 2) the token moves announce themselves — every caller of this function has already
 // written through a store, which emitted `relay:token`/`cloud:token` on the way in. All that is left
 // for this function to announce is whether the DERIVED identity moved.
 export const rebuildSessionIdentity = (): void => {

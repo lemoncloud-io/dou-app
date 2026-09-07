@@ -16,7 +16,7 @@ export interface RecoverUnverifiedSocketsDeps {
     delegate?: SocketSessionDelegate;
 }
 
-/** Concurrent kicks collapse onto the in-flight run (ADR-0074 결정 4 — was a bespoke `let inFlight`). */
+/** Concurrent kicks collapse onto the in-flight run (ADR-0076 결정 4 — was a bespoke `let inFlight`). */
 const coalescer = new Coalescer<void>();
 
 /**
@@ -52,7 +52,7 @@ const doRecover = async ({ manager, delegate }: RecoverUnverifiedSocketsDeps): P
             continue;
         }
 
-        // One judgement instead of two reads (ADR-0074 결정 1): `needsSocketKick` is true for
+        // One judgement instead of two reads (ADR-0076 결정 1): `needsSocketKick` is true for
         // `handshaking` and `expired` — exactly the "bound but not verified on this connection"
         // set this used to express as `!isKindVerified(kind)`. A healthy-looking slot is skipped
         // deliberately; kicking it on every foreground would churn warm reconnects.

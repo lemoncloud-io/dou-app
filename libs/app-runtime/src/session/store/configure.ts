@@ -1,6 +1,6 @@
 import { getDynamicRelayBackend, getDynamicRelayWss } from '@chatic/web-config';
 
-import { configureRelayEndpoints } from './relayStore';
+import { relayStore } from './relayStore';
 
 /**
  * The one place `session/store` is wired to env — kept OUT of the store files themselves so the
@@ -16,5 +16,5 @@ import { configureRelayEndpoints } from './relayStore';
  * a deeplink override (`?_backend=`) captured after module load still takes effect.
  */
 export const configureSessionStore = (): void => {
-    configureRelayEndpoints({ backend: getDynamicRelayBackend, wss: getDynamicRelayWss });
+    relayStore.configureEndpoints({ backend: getDynamicRelayBackend, wss: getDynamicRelayWss });
 };

@@ -64,8 +64,3 @@ export const initAppRuntime = (config: AppRuntimeConfig = {}): void => {
         configureDataRuntime(config.data);
     }
 };
-
-/** Test seam — lets a case assert the duplicate-boot warning from a clean slate. */
-export const resetAppRuntimeBootFlag = (): void => {
-    booted = false;
-};

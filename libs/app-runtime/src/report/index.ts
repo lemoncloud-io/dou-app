@@ -8,6 +8,6 @@
 // with its Slack ping and its photo attachments.
 export * from './reportIssue';
 // `./reportUrl` is NOT re-exported: `redactQueryString`/`sanitizeReportUrl` are the payload builder's
-// own scrubbers (`reportIssue` calls them) and no app has ever used them (ADR-0074 결정 6).
+// own scrubbers (`reportIssue` calls them) and no app has ever used them (ADR-0076 결정 6).
 export * from './logBatch';
 export * from './types';

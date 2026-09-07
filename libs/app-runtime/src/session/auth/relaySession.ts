@@ -16,9 +16,9 @@ import {
 import { cloudStore, identityStore, relayStore } from '../store/stores';
 import { clearRelaySession, sessionSignal, setSessionAuthenticated, setSessionIdentityState } from '../store';
 // NOTE: everything above comes from `../store` (the concrete module), not the session barrel — the
-// session barrel now publishes only the app surface (ADR-0074 결정 6).
+// session barrel now publishes only the app surface (ADR-0076 결정 6).
 
-// `ServerKind` and the Auth SDK bridge moved to `sessionAuthAdapter` (ADR-0074 결정 5). Re-exported
+// `ServerKind` and the Auth SDK bridge moved to `sessionAuthAdapter` (ADR-0076 결정 5). Re-exported
 // here for the barrel's type surface only — the bridge itself is not re-exported.
 export type { ServerKind } from './sessionAuthAdapter';
 
@@ -27,7 +27,7 @@ export interface LogoutOptions {
 }
 
 /**
- * The RELAY half of the session hub's use-cases (ADR-0074 결정 5) — booting the relay session,
+ * The RELAY half of the session hub's use-cases (ADR-0076 결정 5) — booting the relay session,
  * the five ways into it, and the teardown out of it. `./cloudSession` is the other half.
  *
  * **Why the teardown lives on the RELAY class.** `clearAndRedirect` clears cloud stores too, which
@@ -148,7 +148,7 @@ class RelaySession implements IRelaySession {
      * the raw write landed in a slot with no reader on the web and duplicated the store's write
      * inside a shell.
      *
-     * Whether the web's device id SHOULD be per-tab-session is a separate open question (ADR-0074
+     * Whether the web's device id SHOULD be per-tab-session is a separate open question (ADR-0076
      * §열린 질문 4) — it is load-bearing because push registration and socket identity must share
      * one id.
      */
@@ -244,7 +244,7 @@ class RelaySession implements IRelaySession {
      * It used to be called `logoutRelaySession`, one of two same-named pairs inside this package: the
      * root barrel published THIS (socket-silent) half while the docs declared the socket half the
      * public one, and `apps/admin-v2` really did call the silent half. ADR-0070 §맥락 named that
-     * failure mode for the pre-merge `web-core`/`app-runtime` barrels and ADR-0074 결정 7 closes it
+     * failure mode for the pre-merge `web-core`/`app-runtime` barrels and ADR-0076 결정 7 closes it
      * here — the weak halves lose their global names so the collision cannot be re-created.
      */
     async clearAndRedirect(options?: LogoutOptions): Promise<void> {
@@ -270,7 +270,7 @@ class RelaySession implements IRelaySession {
         // `registerLogoutCallback` (it owns the provider it logged in with).
         await webTransport.logout();
 
-        // The whole store teardown is ONE observable change (ADR-0074 결정 2). Every write inside
+        // The whole store teardown is ONE observable change (ADR-0076 결정 2). Every write inside
         // announces its own kind — `cloud:token` + `selection` from `clearSession`, `selection` from
         // `clearSelectedSite`, `relay:token` + `identity` from `clearRelaySession` — so the batch is
         // what keeps observers from re-rendering through a half-torn-down session on the way to the
@@ -319,28 +319,19 @@ class RelaySession implements IRelaySession {
 export const relaySession: IRelaySession = new RelaySession();
 
 /**
- * The established names, kept as wrappers. Five of these are PUBLISHED (`session/index.ts` → the
- * root barrel → apps), and the other four are called from `socket/auth`; renaming a public symbol is
- * not what this refactor is for, so consumer migration stays a pure path rename. Same shape as
- * `cloudSession.ts`'s `switchCloudSession`.
+ * The two APP-FACING names, and only those.
+ *
+ * Everything else reaches the class through `relaySession` directly, because the repo's own pattern
+ * for an `I*` + class + singleton module is to export the singleton and nothing else
+ * (`credentialRecovery` · `credentialFreshness` · `sessionAuthAdapter` all do). A fleet of
+ * name-preserving wrappers was the anomaly, not the convention — it existed only so this
+ * refactor's consumer migration could be a pure path rename, and that migration is done.
+ *
+ * These two stay because their callers are apps, and an app should not hold a singleton: the OAuth
+ * exchange runs in a redirect page's effect and the logout-callback registry is wired at a log
+ * uploader's module init — neither is React, so neither can go through a hook (결정 6).
  */
-export const initializeRelaySession = (): Promise<void> => relaySession.initialize();
-export const persistDeviceId = (deviceId: string): string => relaySession.persistDeviceId(deviceId);
-export const loginRelayGuestByDevice = (deviceId: string): Promise<UserTokenView> =>
-    relaySession.loginGuestByDevice(deviceId);
-export const loginRelayUser = (params: {
-    body: Parameters<IAuthRepositoryV2['login']>[0];
-    email?: boolean;
-}): Promise<UserTokenView> => relaySession.loginUser(params);
 export const createCredentialsByProvider = (provider = 'google', code: string): Promise<UserTokenView> =>
     relaySession.loginByOAuthCode(provider, code);
-export const loginRelaySocial = (params: {
-    body: VerifyNativeTokenBody;
-    provider?: OAuthLoginProvider | null;
-}): Promise<UserTokenView> => relaySession.loginBySocialToken(params);
-export const loginRelayByToken = (tokenView: UserTokenView): Promise<UserTokenView> =>
-    relaySession.loginByToken(tokenView);
-export const clearSessionAndRedirect = (options?: LogoutOptions): Promise<void> =>
-    relaySession.clearAndRedirect(options);
 export const registerSessionLogoutCallback = (callback: () => void): (() => void) =>
     relaySession.registerLogoutCallback(callback);

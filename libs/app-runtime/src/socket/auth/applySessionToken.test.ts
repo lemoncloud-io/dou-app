@@ -16,13 +16,14 @@ const mockLoginRelayByToken = jest.fn();
 const mockGetServerAuthRegistration = jest.fn();
 const mockSignServerAuth = jest.fn();
 // Mocked at the CONCRETE module: the commit + Auth SDK bridge trio are runtime-internal and off the
-// session barrel now (ADR-0074 결정 6).
+// session barrel now (ADR-0076 결정 6).
 jest.mock('../../session/auth/relaySession', () => ({
-    loginRelayByToken: (...args: unknown[]) => mockLoginRelayByToken(...args),
-    clearCloudStores: jest.fn(),
-    clearSessionAndRedirect: jest.fn(),
+    relaySession: {
+        loginByToken: (...args: unknown[]) => mockLoginRelayByToken(...args),
+        clearAndRedirect: jest.fn(),
+    },
 }));
-// The seed/sign/writeback trio moved to the adapter (ADR-0074 결정 5), so the delegate reaches them
+// The seed/sign/writeback trio moved to the adapter (ADR-0076 결정 5), so the delegate reaches them
 // there — mocking `services` alone would leave the real adapter loaded.
 jest.mock('../../session/auth/sessionAuthAdapter', () => ({
     sessionAuthAdapter: {

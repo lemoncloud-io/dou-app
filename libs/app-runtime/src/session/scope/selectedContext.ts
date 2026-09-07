@@ -4,7 +4,7 @@ import { getGlobalSessionContext } from '../store';
 
 /**
  * The cache scope the SELECTED session implies — `{cid, sid, uid}`. The first of `ActiveScope`'s three
- * views (ADR-0070 결정 7, renamed from `intent` by ADR-0074 결정 8 — the repo already calls this
+ * views (ADR-0070 결정 7, renamed from `intent` by ADR-0076 결정 8 — the repo already calls this
  * concept `selected`: `getSelectedCloudId` · `applySelectedSite` · `useSessionSelection`).
  *
  * Moved here from `useRuntimeBinding`, which used to derive it on every session render and push it

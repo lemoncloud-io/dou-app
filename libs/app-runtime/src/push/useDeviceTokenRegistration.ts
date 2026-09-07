@@ -68,7 +68,7 @@ export const useDeviceTokenRegistration = (delegate: DeviceTokenDelegate | null)
     const mutateRef = useRef(mutateAsync);
     mutateRef.current = mutateAsync;
 
-    // In-flight share + the re-register floor, as the two extracted primitives (ADR-0074 결정 4).
+    // In-flight share + the re-register floor, as the two extracted primitives (ADR-0076 결정 4).
     // Numbers unchanged: REREGISTER_THROTTLE_MS stays the floor and the first attempt always runs.
     const attempt = useRef<Coalescer<void>>(new Coalescer<void>()).current;
     const floor = useRef<Throttle>(new Throttle({ intervalMs: REREGISTER_THROTTLE_MS })).current;

@@ -6,8 +6,7 @@ module.exports = {
     transformIgnorePatterns: ['node_modules/(?!(@chatic|@lemoncloud|uuid)/)'],
     moduleNameMapper: {
         // Mirrors the `@chatic/ui-kit/*` path alias so subpath imports resolve to real files instead
-        // of the greedy `libs/$1/src/index.ts` fallback below. Reached through the migrated session
-        // hooks (`useServiceUnavailable` renders a fallback screen).
+        // of the greedy `libs/$1/src/index.ts` fallback below.
         '^@chatic/lib/utils$': '<rootDir>/../ui-kit/src/utils/index.ts',
         '^@chatic/ui-kit/(.*)$': '<rootDir>/../ui-kit/src/$1',
         // `@chatic/assets` lives at the repo ROOT (not libs/) and resolves image URLs with

@@ -34,7 +34,7 @@ export const useRelaySessionGuard = (enabled: boolean): void => {
         consecutiveFailureLimit: CONSECUTIVE_FAILURE_LIMIT,
         // `logoutSession`, not the store-only teardown: it fires a best-effort `auth.logout` on
         // both socket slots before clearing, so the server ends the auth session instead of being
-        // left with a live connection for a session the console just abandoned (ADR-0074 결정 7).
+        // left with a live connection for a session the console just abandoned (ADR-0076 결정 7).
         onTeardown: () => logoutSession(),
     });
 };

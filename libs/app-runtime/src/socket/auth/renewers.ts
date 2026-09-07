@@ -2,15 +2,15 @@ import { logger } from '@chatic/bridges';
 
 import { credentialFreshness } from '../../session/auth/credentialFreshness';
 import type { CredentialOwner } from '../../session/auth/credentialFreshness';
-import { clearCloudStores } from '../../session/auth/cloudSession';
-import { clearSessionAndRedirect } from '../../session/auth/relaySession';
+import { cloudSession } from '../../session/auth/cloudSession';
+import { relaySession } from '../../session/auth/relaySession';
 import type { SocketKind } from '../types';
 import { renewCloudSession } from './renewCloudSession';
 import { requestRelaySessionRefresh } from './requestRelaySessionRefresh';
 
 /**
  * "How do I keep THIS server's credential alive, and what do I do when it is beyond saving?"
- * (ADR-0074 결정 3).
+ * (ADR-0076 결정 3).
  *
  * relay and cloud answer both questions differently, and that asymmetry was previously expressed
  * only in prose — the same 20~30 line justification repeated at eight branch points
@@ -70,7 +70,7 @@ class RelayCredentialRenewer implements ICredentialRenewer {
      */
     onTerminalExpiry(): Promise<void> {
         logger.warn('SOCKET', '[relayRenewer] relay auth expired — auto-logging out');
-        return clearSessionAndRedirect();
+        return relaySession.clearAndRedirect();
     }
 }
 
@@ -92,7 +92,7 @@ class CloudCredentialRenewer implements ICredentialRenewer {
 
     /** Cloud expiry costs only the cloud: relay stays the baseline and re-entry re-issues. */
     onTerminalExpiry(): void {
-        clearCloudStores();
+        cloudSession.clearStores();
     }
 }
 

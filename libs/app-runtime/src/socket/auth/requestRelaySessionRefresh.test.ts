@@ -9,7 +9,7 @@ jest.mock('@chatic/bridges', () => ({
 // transform cannot parse it, and HttpManager pulls it in transitively.
 jest.mock('@chatic/web-config', () => new Proxy({}, { get: () => jest.fn() }));
 
-// `getAuthStatus` (ADR-0074 결정 1) reads the store's token and the credential clock on top of the
+// `getAuthStatus` (ADR-0076 결정 1) reads the store's token and the credential clock on top of the
 // socket, so both have to be seeded here. That is a real input the pre-refactor condition did NOT
 // have — see the commit message; a bound socket with no stored token now reads `absent`, which is
 // the safe direction.
@@ -51,7 +51,7 @@ type FakeAuth = ReturnType<typeof makeAuth>;
 // `authenticated && connState === 'connected'` and clears it on every non-connected transition, so a
 // fake that reports `verified` for a closed socket describes a state the manager cannot produce.
 // That mattered once `deriveAuthStatus` started trusting this flag instead of re-reading the
-// transport (ADR-0074 결정 1): the stale fake was the only thing claiming a closed socket could
+// transport (ADR-0076 결정 1): the stale fake was the only thing claiming a closed socket could
 // carry a refresh. `verified` can still be forced to false to model a mid-handshake connection.
 const makeManager = (client: { auth?: FakeAuth; state?: string } | null, { verified = true } = {}): ISocketManager =>
     ({

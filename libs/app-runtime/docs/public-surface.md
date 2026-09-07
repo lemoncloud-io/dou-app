@@ -34,27 +34,26 @@
 
 세션은 이 패키지가 소유한다([session/architecture.md](./session/architecture.md)). 배럴은 세 층을 낸다.
 
-| 층                      | 대표 심볼                                                                                                                                                                                                |
-| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **readers (훅)**        | `useGlobalSession` · `useSessionAuth` · `useSessionIdentity` · `useSessionSelection`                                                                                                                     |
-| **액션 (훅)**           | `useSiteSwitch` · `useSessionLogout` · `useLogoutCloudSession` · `useSwitchCloudSession` · `useInviteFlow`                                                                                               |
-| **로그인·인증 (훅)**    | `useLogin` · `useLoginRelayGuestByDevice` · `useLoginRelaySocial` · `useRegisterUser` · `useRegisterUserV2` · `useFindAlias` · `useVerifyAlias` · `useInviteInfo`                                        |
-| **앱 lifecycle (훅)**   | `useRelaySessionInit` · `useRelaySessionKeepAlive` · `useDynamicDeviceId` · `useRegisterDeviceToken` · `useServiceUnavailable` · `useSessionStalenessGuard`(relay) · `useCloudCredentialGuard`(cloud)    |
-| **비-React 유스케이스** | `loginRelay*` · `logoutRelaySession` · `logoutCloudSession` · `switchCloudSession` · `initializeRelaySession` · `createCredentialsByProvider` · `registerUserWithInviteCode` · `fetchInviteInfoWithCode` |
-| **스토어 리더**         | `getGlobalSessionContext` · `getCloudSessionContext` · `getIdentityContext` · `getSelectedCloudId` · `getCommittedCloudId` · `getActiveServerContext` …                                                  |
-| **SDK 브리지**          | `getServerAuthRegistration` · `signServerAuth` · `commitServerRefreshedToken`                                                                                                                            |
+| 층                      | 대표 심볼                                                                                                                                                         |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **readers (훅)**        | `useGlobalSession` · `useSessionAuth` · `useSessionIdentity` · `useSessionSelection`                                                                              |
+| **액션 (훅)**           | `useSiteSwitch` · `useSessionLogout` · `useLogoutCloudSession` · `useSwitchCloudSession` · `useInviteFlow`                                                        |
+| **로그인·인증 (훅)**    | `useLogin` · `useLoginRelayGuestByDevice` · `useLoginRelaySocial` · `useRegisterUser` · `useRegisterUserV2` · `useFindAlias` · `useVerifyAlias` · `useInviteInfo` |
+| **앱 lifecycle (훅)**   | `useDynamicDeviceId` · `useSessionStalenessGuard`(relay) · `useCloudCredentialGuard`(cloud)                                                                       |
+| **비-React 유스케이스** | `createCredentialsByProvider` · `registerSessionLogoutCallback` · `logoutSession` · `registerUserWithInviteCode` · `fetchInviteInfoWithCode`                      |
+| **스토어 리더**         | `getGlobalSessionContext` · `getIdentityContext` · `getCommittedCloudId` · `getActiveServerContext` …                                                             |
+| **SDK 브리지**          | `getServerAuthRegistration` · `signServerAuth` · `commitServerRefreshedToken`                                                                                     |
 
-스토어 **쓰기** 심볼 일부(`setSelectedCloudId` · `setSessionAuthenticated` · `rebuildSessionIdentity` …)도
+스토어 **쓰기** 심볼 일부(`setSessionAuthenticated` · `setSelectedSiteId` · `rebuildSessionIdentity` …)도
 배럴에 있다. 이건 앱이 세션을 직접 조작하라는 초대가 아니라 런타임 내부·테스트·특수 진입점을 위한
 표면이다 — **앱 화면 코드는 훅 층만 소비한다.**
 
 ### 3. 소켓 액션 (비-훅)
 
-| 심볼                             | 용도                                                                                                                                                                                        |
-| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `applySessionToken(options)`     | verify-hash-alias `$token` 커밋 + same-connection relay 소켓 재인증                                                                                                                         |
-| `recoverUnverifiedSockets(deps)` | 포그라운드/wake 시 물린 소켓 킥 — 앱이 자기 포그라운드 신호에서 호출                                                                                                                        |
-| `requestRelaySessionRefresh()`   | "relay 자격증명을 신선하게" 유일 진입점. **소켓 소유 refresh만** — 소켓이 없거나 이번 연결의 핸드셰이크(`device.save:ok` → `auth.update`)가 안 끝났으면 `false`. relay 전용(cloud는 재발급) |
+| 심볼                             | 용도                                                                 |
+| -------------------------------- | -------------------------------------------------------------------- |
+| `applySessionToken(options)`     | verify-hash-alias `$token` 커밋 + same-connection relay 소켓 재인증  |
+| `recoverUnverifiedSockets(deps)` | 포그라운드/wake 시 물린 소켓 킥 — 앱이 자기 포그라운드 신호에서 호출 |
 
 ### 4. 매니저 진입점 · 타입
 
@@ -89,8 +88,8 @@
 
 앱이 `@chatic/http`·`@chatic/web-config`를 직접 보지 않도록 허브가 재수출한다.
 
-- **리포팅**: `reportIssue` · `uploadLogBatch` · `sanitizeReportUrl` · `redactQueryString` ·
-  `toError` — 자동 에러 리포트(`reportError`·`classifyReport`)는 2026-09에 폐지됐다. 에러는
+- **리포팅**: `reportIssue` · `uploadLogBatch` · `sanitizeReportUrl` · `redactQueryString` —
+  자동 에러 리포트(`reportError`·`classifyReport`)는 2026-09에 폐지됐다. 에러는
   이제 `logger.error` 엔트리로 배치 업로더가 올린다. 표면은 그대로지만 구현은 `src/report/`로
   옮겼다(2026-09-02): 전송을 `data`의 `report` repository에 넘겼으므로 이 모듈은 더 이상
   `http/` 소속이 아니고, `http/**`는 세션·data가 함께 의존하는 leaf로 남는다
@@ -107,9 +106,15 @@ clouds·subscription·users·profile 훅 13종은 소비자가 화면뿐이고 r
 
 ## 외부에서 알 필요 없는 것 (비공개)
 
-- **소켓 세션 액션 원함수** `switchSite` · `logoutSession` · `logoutCloudSession`(소켓 판) —
-  `src/socket/auth/`에 있고 루트에서 export하지 않는다. 앱은 `useSiteSwitch`/`useSessionLogout`/
-  `useLogoutCloudSession` 훅으로만 소비한다.
+- **소켓 세션 액션 원함수** `switchSite` · `logoutCloudSession`(소켓 판) ·
+  `requestRelaySessionRefresh` — `src/socket/auth/`에 있고 루트에서 export하지 않는다. 앱은
+  `useSiteSwitch` / `useLogoutCloudSession` / `useSessionStalenessGuard` 훅으로만 소비한다.
+  **`logoutSession`은 예외로 공개다** — admin-v2의 `useRelaySessionGuard`가 React 밖(좀비 세션
+  정리 타이머)에서 부르므로 훅이 답이 될 수 없다.
+- **세션 유스케이스 원함수** `initializeRelaySession` · `loginRelayUser` · `loginRelaySocial` ·
+  `loginRelayGuestByDevice` · `switchCloudSession` · `getSelectedCloudId` · `useRelaySessionInit` —
+  앱은 전부 훅으로 쓴다(`useLogin` · `useLoginRelaySocial` · `useSwitchCloudSession` ·
+  `useSessionSelection`). 부팅 게이트는 호스트가 소유한다.
 - **소켓 배선 함수** `bootstrapSocketConnection` · `reauthenticateActiveSocket` ·
   `renewCloudSession` — 바인더/가드가 내부에서만 호출한다.
 - **connection 바인더** `<SocketBinder>` · `<SocketReauthBinder>` — `RuntimeConnectionHost`가
@@ -121,12 +126,15 @@ clouds·subscription·users·profile 훅 13종은 소비자가 화면뿐이고 r
   `subscriptionGateway` — `data/`의 데이터소스만 잡는다. 앱이 게이트웨이를 보지 않는다.
 - **cloud 토큰 재발급** `session/auth/cloudTokens` — `useCloudCredentialGuard`와
   `switchCloudSession`이 내부에서 공유한다.
-- `useSyncTarget` · `useProfileSync` — 내부 전용(앱 미사용).
+- `useSyncTarget` — 내부 전용(앱 미사용). 같은 파일의 `useChatSync`/`useChannelSync`/`usePlaceSync`가
+  이것을 감싸고, 그 셋은 앱이 쓴다. `useProfileSync`는 소비자가 0이어서 2026-09-07에 삭제했다 —
+  프로필 동기화가 필요한 앱은 `syncManager.registerProfile()`을 직접 부른다(`apps/web`의
+  `useChannelProfiles`).
 - `getSocketRuntime()` · `getDataRuntime()` · `getDataManager()` — 조립체 접근자. **export하지 않는다**.
 - `DataManager` · `SyncManager` · `SocketManager` 클래스, `createSyncPlans()`, `ActiveScope`.
 - `useRuntimeSocketSlots()` + `RuntimeSocketSlots` / `RuntimeSocketSlot` **타입** — 호스트
   (`RuntimeConnectionHost`·`RuntimeAuthHost`)가 내부에서 파생하므로 앱 소비자가 0이다. 예전엔
-  `useRuntimeBinding`으로 공개돼 있었고 앱 4곳이 불러 호스트에 되돌려 줬다 (ADR-0074 G5).
+  `useRuntimeBinding`으로 공개돼 있었고 앱 4곳이 불러 호스트에 되돌려 줬다 (ADR-0076 G5).
 - `createClientSocketV2` · `createDeviceRuntime` · raw `ClientSocketV2` · raw sync runtime.
 
 ## 앱 조립 예시

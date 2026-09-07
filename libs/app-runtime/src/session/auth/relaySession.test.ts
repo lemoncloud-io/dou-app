@@ -1,14 +1,6 @@
 import type { UserTokenView } from '@lemoncloud/chatic-backend-api';
 
-import {
-    createCredentialsByProvider,
-    initializeRelaySession,
-    loginRelayByToken,
-    loginRelayGuestByDevice,
-    loginRelayUser,
-    loginRelaySocial,
-    persistDeviceId,
-} from './relaySession';
+import { createCredentialsByProvider, relaySession } from './relaySession';
 
 const mockExchangeOAuthCode = jest.fn();
 const mockLoginRelayRequest = jest.fn();
@@ -122,12 +114,11 @@ jest.mock('../store', () => ({
     getActiveServerContext: (...args: unknown[]) => mockGetActiveServerContext(...args),
     setSessionIdentityState: (...args: unknown[]) => mockSetSessionIdentityState(...args),
     setSessionAuthenticated: (...args: unknown[]) => mockSetSessionAuthenticated(...args),
-    setSelectedCloudId: jest.fn(),
     setSelectedSiteId: jest.fn(),
     getSelectedSiteId: (...args: unknown[]) => mockGetSelectedSiteId(...args),
     clearRelaySession: jest.fn(),
     rebuildSessionIdentity: jest.fn(),
-    // The store announces KINDS now (ADR-0074 결정 2). `mockNotifySessionStateChanged` stands for
+    // The store announces KINDS now (ADR-0076 결정 2). `mockNotifySessionStateChanged` stands for
     // `emit`, so the existing "was the session announced" assertions keep their meaning; `batch`
     // runs straight through because the collapsing is covered by signal.test.ts.
     sessionSignal: {
@@ -182,7 +173,7 @@ describe('session/auth/relaySession', () => {
     it('initializes relay session and updates runtime state from the read-only session probe', async () => {
         mockHasStoredRelaySession.mockResolvedValue(true);
 
-        await initializeRelaySession();
+        await relaySession.initialize();
 
         expect(mockSetSessionIdentityState).toHaveBeenNthCalledWith(1, {
             isInitialized: false,
@@ -200,7 +191,7 @@ describe('session/auth/relaySession', () => {
     it('boot never fires lemon isAuthenticated (its internal refresh is the sealed second engine)', async () => {
         mockHasStoredRelaySession.mockResolvedValue(true);
 
-        await initializeRelaySession();
+        await relaySession.initialize();
 
         // audit §7 Phase 2-2: the boot probe is read-only; refresh belongs to the socket
         // AuthController (or an explicit requestRelaySessionRefresh) — never to boot.
@@ -210,7 +201,7 @@ describe('session/auth/relaySession', () => {
     it('reports unauthenticated when no relay session is stored (guest boot)', async () => {
         mockHasStoredRelaySession.mockResolvedValue(false);
 
-        await initializeRelaySession();
+        await relaySession.initialize();
 
         expect(mockSetSessionIdentityState).toHaveBeenNthCalledWith(2, {
             isInitialized: true,
@@ -226,10 +217,10 @@ describe('session/auth/relaySession', () => {
         } as unknown as UserTokenView;
         mockRegisterDevice.mockResolvedValue(tokenView);
 
-        const result = await loginRelayGuestByDevice('device-1');
+        const result = await relaySession.loginGuestByDevice('device-1');
 
         expect(result).toBe(tokenView);
-        // deviceId goes through identityStore only — the raw localStorage copy had no reader (ADR-0074 A8).
+        // deviceId goes through identityStore only — the raw localStorage copy had no reader (ADR-0076 A8).
         expect(mockIdentitySetDeviceId).toHaveBeenCalledWith('device-1');
         // Guest role → delegator id is the guest's own uid (for invite acceptance); session authed.
         expect(mockIdentitySetDelegatorId).toHaveBeenCalledWith('guest-1');
@@ -244,7 +235,7 @@ describe('session/auth/relaySession', () => {
         } as unknown as UserTokenView;
         mockVerifyNativeAppToken.mockResolvedValue(tokenView);
 
-        await loginRelaySocial({
+        await relaySession.loginBySocialToken({
             body: { accessToken: 'token' } as never,
             provider: 'google' as never,
         });
@@ -264,7 +255,7 @@ describe('session/auth/relaySession', () => {
             $user: { userRole: 'user', name: 'Main' },
         } as unknown as UserTokenView;
 
-        const result = await loginRelayByToken(tokenView);
+        const result = await relaySession.loginByToken(tokenView);
 
         expect(result).toBe(tokenView);
         // Same commit as the HTTP login paths: creds rebuilt, token persisted, session authed.
@@ -287,7 +278,7 @@ describe('session/auth/relaySession', () => {
         } as unknown as UserTokenView;
         mockLoginRelayRequest.mockResolvedValue(tokenView);
 
-        const result = await loginRelayUser({
+        const result = await relaySession.loginUser({
             body: { loginId: 'user@example.com', password: 'pw' } as never,
             email: true,
         });
@@ -332,12 +323,12 @@ describe('session/auth/relaySession', () => {
 
     // ⑪ device registration: deviceId persisted through identityStore ONLY
     it('persists deviceId through identityStore and writes no raw localStorage copy', () => {
-        persistDeviceId('device-42');
+        relaySession.persistDeviceId('device-42');
 
         expect(mockIdentitySetDeviceId).toHaveBeenCalledWith('device-42');
         // The raw `localStorage.setItem('chatic-device-id', …)` is gone: nothing read that slot on the
         // web (the reader is useSessionDeviceId → sessionStorage) and inside a shell it merely
-        // duplicated the store's own write (ADR-0074 A8).
+        // duplicated the store's own write (ADR-0076 A8).
         expect(localStorage.getItem('chatic-device-id')).toBeNull();
     });
 });

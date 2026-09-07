@@ -75,17 +75,8 @@ export type ScopedSocketClient = Pick<ISocketManager, 'request' | 'send'>;
  * the switch·logout·reauth helpers) stay socket-count-agnostic. Only slot lifecycle — ensure /
  * connect / setAuthenticated / destroy — is addressed per `kind`.
  */
-/**
- * `ISocketManager` split by concern (ADR-0074 §상세 구현 5). The implementation is unchanged — this
- * is a type-only split so a consumer can declare the slice it actually binds to instead of the whole
- * 20-member surface. A gateway that only sends requests should not have the slot lifecycle in its
- * type.
- *
- * `ISocketManager` stays as the composition of all four, so every existing consumer is unaffected.
- * [`ActiveScope.BoundCidSource`](../session/scope/ActiveScope.ts) already demonstrated the pattern
- * with a one-method `Pick`; these are the named form of it.
- */
-export interface ISocketSlotLifecycle {
+export interface ISocketManager {
+    // ── Slot lifecycle — the only per-`kind` addressed group.
     /** Creates/reuses the slot for `kind` bound to `config`; returns that slot's client. */
     ensure(config: SocketBindingConfig, kind: SocketKind): ClientSocketV2;
     /** Connects the slot for `kind` if idle/closed. */
@@ -102,10 +93,8 @@ export interface ISocketSlotLifecycle {
      * switch (§8-4), where the url is unchanged so ensure() never re-runs to refresh boundCid.
      */
     rebindCid(kind: SocketKind, cid: string | null): void;
-}
 
-/** The request/push surface gateways bind to. Active-facade: cloud when present, else relay. */
-export interface ISocketTransport {
+    // ── Request/push surface gateways bind to. Active-facade: cloud when present, else relay.
     request<T = unknown>(type: string, data?: unknown, options?: { timeoutMs?: number }): Promise<T>;
     send<T = unknown>(type: string | SocketMessage<T>, data?: T): void;
     onType<T = unknown>(type: string, listener: (message: SocketMessage<T>) => void): () => void;
@@ -113,10 +102,8 @@ export interface ISocketTransport {
     onState(listener: (event: ClientSocketStateEvent) => void): () => void;
     onError(listener: (event: ClientSocketErrorEvent) => void): () => void;
     disconnect(code?: number, reason?: string): Promise<void>;
-}
 
-/** Everything an observer reads or subscribes to — no lifecycle, no sending. */
-export interface ISocketObservability {
+    // ── Everything an observer reads or subscribes to — no lifecycle, no sending.
     /**
      * A specific slot's client when `kind` is given (null if that slot is not bound), else the ACTIVE
      * slot's client (cloud when present, else relay). The per-kind form backs logout, which must
@@ -164,12 +151,8 @@ export interface ISocketObservability {
      * connect/disconnect — not just the first time, like the one-shot wait does.
      */
     subscribeKindVerified(kind: SocketKind, listener: (verified: boolean) => void): () => void;
-}
 
-/** The cache-attribution observation `ActiveScope` needs. */
-export interface ISocketScope {
+    // ── The cache-attribution observation `ActiveScope` needs.
     /** The cloud id the ACTIVE slot was bound to (frozen at bind), or null before the first bind. */
     getBoundCid(): string | null;
 }
-
-export interface ISocketManager extends ISocketSlotLifecycle, ISocketTransport, ISocketObservability, ISocketScope {}

@@ -78,7 +78,7 @@ export const reissueCommittedCloudTokens = async (): Promise<boolean> => {
     // own 60s margin would happily serve it back — a renewal that renews nothing.
     const { delegationToken, cloudToken } = await issueCloudTokens(cloudId, { allowCache: false });
 
-    // One observable change (ADR-0074 결정 2): a renewal is not a cloud CHANGE, so observers must
+    // One observable change (ADR-0076 결정 2): a renewal is not a cloud CHANGE, so observers must
     // not see a window where the delegation token moved but the cloud token had not.
     sessionSignal.batch(() => {
         cloudStore.saveDelegationToken(delegationToken);

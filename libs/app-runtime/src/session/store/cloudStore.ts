@@ -6,15 +6,15 @@ import { msUntilExpiration } from './expiry';
 import { JsonSlot, type StorageLike } from './jsonSlot';
 import { sessionSignal, type ISessionSignal } from './signal';
 
-export const CLOUD_DELEGATION_TOKEN_KEY = 'chatic-cloud-delegation-token';
-export const CLOUD_TOKEN_KEY = 'chatic-cloud-token';
-export const CLOUD_SELECTED_CLOUD_KEY = 'chatic-selected-cloud-id';
-export const CLOUD_SELECTED_PLACE_KEY = 'chatic-selected-place-id';
-export const CLOUD_INVITED_BUNDLES_KEY = 'chatic-invited-clouds';
+const CLOUD_DELEGATION_TOKEN_KEY = 'chatic-cloud-delegation-token';
+const CLOUD_TOKEN_KEY = 'chatic-cloud-token';
+const CLOUD_SELECTED_CLOUD_KEY = 'chatic-selected-cloud-id';
+const CLOUD_SELECTED_PLACE_KEY = 'chatic-selected-place-id';
+const CLOUD_INVITED_BUNDLES_KEY = 'chatic-invited-clouds';
 // Per-cloud token cache: lets a re-switch to a recently-visited cloud reuse its delegation + cloud
 // token instead of re-issuing them over 2 HTTP round trips, so the cloud identity (uid) — and thus
 // the cid+uid-scoped local cache — is available instantly on switch.
-export const CLOUD_TOKEN_CACHE_KEY = 'chatic-cloud-token-cache';
+const CLOUD_TOKEN_CACHE_KEY = 'chatic-cloud-token-cache';
 // Skip a cached cloud token whose AWS credential expires within this margin — the fresh token is
 // re-issued instead so the socket never connects with a credential about to lapse.
 const CLOUD_TOKEN_CACHE_MARGIN_MS = 60_000;
@@ -27,7 +27,7 @@ export interface CachedCloudTokens {
 
 /**
  * The cloud slot of the session store. Renamed off `CloudCore` — that name came from web-core's
- * `session/core` folder and sat outside this repo's `I*` contract convention (ADR-0074 결정 0).
+ * `session/core` folder and sat outside this repo's `I*` contract convention (ADR-0076 결정 0).
  */
 export interface ICloudStore {
     saveDelegationToken(token: CloudDelegationTokenView): void;
@@ -98,7 +98,7 @@ class CloudStore implements ICloudStore {
 
     setCachedCloudTokens(cloudId: string, tokens: CachedCloudTokens): void {
         // No signal: this is a pure cache write, not session state. The kinds regulation
-        // (ADR-0074 결정 2) names this the one legitimate exception, and the name says so.
+        // (ADR-0076 결정 2) names this the one legitimate exception, and the name says so.
         const map = this.cache.read() ?? {};
         map[cloudId] = tokens;
         this.cache.write(map);

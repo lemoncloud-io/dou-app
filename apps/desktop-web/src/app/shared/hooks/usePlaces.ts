@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import type { DomainSite } from '@chatic/data';
+import type { DomainPlace } from '@chatic/data';
 import { useRuntimeRepositories } from '@chatic/app-runtime';
 import { useGlobalSession } from '@chatic/app-runtime';
 
@@ -20,7 +20,7 @@ export const usePlaces = () => {
     const session = useGlobalSession();
     const cid = session.activeServer.kind === 'cloud' ? session.activeServer.cloudId : 'default';
     const uid = session.identity.userId;
-    const [places, setPlaces] = useState<DomainSite[]>([]);
+    const [places, setPlaces] = useState<DomainPlace[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     // Re-subscribe on cloud/user change and drop the prior cloud's rows.

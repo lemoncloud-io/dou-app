@@ -1,7 +1,7 @@
 /**
- * The session change signal (ADR-0074 결정 2).
+ * The session change signal (ADR-0076 결정 2).
  *
- * It used to be one payload-less broadcast — `notifySessionStateChanged()` from 24 call sites, and
+ * It used to be one payload-less broadcast — a `notifySessionStateChanged()` from 24 call sites, and
  * every subscriber re-deriving everything because "something changed" is all they were told. One
  * cloud switch fired it **eight times**, so seven inconsistent intermediate states were observable
  * (selected cloud moved but tokens had not; tokens landed but identity had not re-derived …). The
@@ -58,7 +58,7 @@ type Entry = { kinds: ReadonlySet<SessionSignalKind>; listener: () => void };
  * treat them differently:
  *
  * - An invalidator drops the derived-context cache. Code INSIDE the batch reads that cache —
- *   `getCloudSessionSnapshot` does, since ADR-0074 배치 A12 routed it through the cache for same-tick
+ *   `getCloudSessionSnapshot` does, since ADR-0076 배치 A12 routed it through the cache for same-tick
  *   consistency — so deferring invalidation would make `switchCloudSession` return a snapshot of the
  *   cloud it just left. Internal consistency cannot wait for the flush.
  * - A listener is external fan-out (a React re-render, a binding rebuild). That is exactly what the
@@ -121,25 +121,9 @@ class SessionSignal implements ISessionSignal {
 export const sessionSignal: ISessionSignal = new SessionSignal();
 
 /**
- * Subscribes to EVERY kind — the pre-ADR-0074 behavior, kept so `useGlobalSession` ·
+ * Subscribes to EVERY kind — the pre-ADR-0076 behavior, kept so `useGlobalSession` ·
  * `useSessionAuth` · `useSessionIdentity` do not change. A consumer that only needs some slices
  * should call `sessionSignal.subscribe([...])` instead.
  */
 export const subscribeSessionSignal = (listener: () => void): (() => void) =>
     sessionSignal.subscribe(ALL_SESSION_SIGNALS, listener);
-
-/** @deprecated Use `sessionSignal.registerInvalidator`. Kept while call sites move. */
-export const registerSessionCacheInvalidator = (fn: () => void): void => sessionSignal.registerInvalidator(fn);
-
-/**
- * @deprecated Emit the specific {@link SessionSignalKind} instead — this fans out to every
- * subscriber whatever moved, which is the fan-out ADR-0074 결정 2 is removing. Kept while the 24
- * call sites move over, so this commit adds the bus without changing any behavior.
- */
-export const notifySessionStateChanged = (): void => {
-    // Batched on purpose: emitting the four kinds one by one would flush four times and make the
-    // fan-out WORSE than the single broadcast this replaces. One batch = one flush = today's behavior.
-    sessionSignal.batch(() => {
-        for (const kind of ALL_SESSION_SIGNALS) sessionSignal.emit(kind);
-    });
-};

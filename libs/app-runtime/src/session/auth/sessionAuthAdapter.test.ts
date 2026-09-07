@@ -91,12 +91,11 @@ jest.mock('../store', () => ({
     getActiveServerContext: (...args: unknown[]) => mockGetActiveServerContext(...args),
     setSessionIdentityState: jest.fn(),
     setSessionAuthenticated: jest.fn(),
-    setSelectedCloudId: jest.fn(),
     setSelectedSiteId: jest.fn(),
     getSelectedSiteId: (...args: unknown[]) => mockGetSelectedSiteId(...args),
     clearRelaySession: jest.fn(),
     rebuildSessionIdentity: jest.fn(),
-    // The store announces KINDS now (ADR-0074 결정 2). `mockNotifySessionStateChanged` stands for
+    // The store announces KINDS now (ADR-0076 결정 2). `mockNotifySessionStateChanged` stands for
     // `emit`, so the existing "was the session announced" assertions keep their meaning; `batch`
     // runs straight through because the collapsing is covered by signal.test.ts.
     sessionSignal: {

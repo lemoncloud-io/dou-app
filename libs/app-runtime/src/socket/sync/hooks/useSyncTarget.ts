@@ -84,6 +84,3 @@ export const useChannelSync = (channelId?: string, intervalMs?: number): void =>
 
 export const usePlaceSync = (placeId?: string, intervalMs?: number): void =>
     useSyncTarget(placeId ? { type: 'place', id: placeId, ...(intervalMs ? { intervalMs } : {}) } : null);
-
-export const useProfileSync = (profileId?: string, intervalMs?: number): void =>
-    useSyncTarget(profileId ? { type: 'profile', id: profileId, ...(intervalMs ? { intervalMs } : {}) } : null);

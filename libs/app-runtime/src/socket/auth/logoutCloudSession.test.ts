@@ -1,5 +1,5 @@
 import { logoutCloudSession } from './logoutCloudSession';
-import { clearCloudStores } from '../../session/auth/cloudSession';
+import { cloudSession } from '../../session/auth/cloudSession';
 import { getSocketManager } from '../runtime';
 
 jest.mock('@chatic/bridges', () => ({
@@ -7,14 +7,14 @@ jest.mock('@chatic/bridges', () => ({
 }));
 
 jest.mock('../../session/auth/cloudSession', () => ({
-    clearCloudStores: jest.fn(),
+    cloudSession: { clearStores: jest.fn() },
 }));
 
 jest.mock('../runtime', () => ({
     getSocketManager: jest.fn(),
 }));
 
-const mockedLogoutCloud = clearCloudStores as jest.MockedFunction<typeof clearCloudStores>;
+const mockedLogoutCloud = cloudSession.clearStores as jest.Mock;
 const mockedGetManager = getSocketManager as jest.MockedFunction<typeof getSocketManager>;
 
 const managerWith = (byKind: { relay?: unknown; cloud?: unknown }) =>

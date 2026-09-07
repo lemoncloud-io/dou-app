@@ -1,7 +1,9 @@
 import React from 'react';
 
-import { useRelaySessionInit } from '../session';
-// Guest keep-alive is a runtime behavior, not an app surface (ADR-0074 결정 6).
+// Concrete path, not the session barrel: the boot gate is a runtime internal (결정 6) —
+// the same convention `useRelaySessionKeepAlive` already follows below.
+import { useRelaySessionInit } from '../session/hooks/app/useRelaySessionInit';
+// Guest keep-alive is a runtime behavior, not an app surface (ADR-0076 결정 6).
 import { useRelaySessionKeepAlive } from '../session/hooks/app/useRelaySessionKeepAlive';
 import { SocketBinder } from './SocketBinder';
 import { SocketReauthBinder } from './SocketReauthBinder';
@@ -13,7 +15,7 @@ export interface RuntimeConnectionHostProps {
     /**
      * Override for the slots this host would derive itself. Normally OMITTED — every app used to
      * repeat `const binding = useRuntimeBinding()` and hand it straight back down, which is why the
-     * host derives them now (ADR-0074 G5). Kept for tests and for a host that must inject slots.
+     * host derives them now (ADR-0076 G5). Kept for tests and for a host that must inject slots.
      */
     slots?: RuntimeSocketSlots;
     children?: React.ReactNode;

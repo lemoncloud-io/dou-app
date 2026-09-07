@@ -6,9 +6,9 @@ import { getCommittedCloudId, getSocketSlotContext, sessionSignal } from '../ses
 jest.mock('../session', () => ({
     useDynamicDeviceId: jest.fn(),
 }));
-// Both are runtime-internal and off the session barrel (ADR-0074 결정 6), so the mock is at the
+// Both are runtime-internal and off the session barrel (ADR-0076 결정 6), so the mock is at the
 // concrete module. `getSocketSlotContext` is the NARROW snapshot this hook reads — it carries relay
-// and cloud only, matching the three signals it subscribes to (ADR-0074 E5). The committed cloud id
+// and cloud only, matching the three signals it subscribes to (ADR-0076 E5). The committed cloud id
 // is distinct from the SELECTED `cloud.cloudId` in that snapshot.
 jest.mock('../session/store', () => ({
     getCommittedCloudId: jest.fn(),
@@ -50,7 +50,7 @@ describe('useRuntimeSocketSlots', () => {
         const { result } = renderHook(() => useRuntimeSocketSlots());
 
         // The cache scope is no longer this hook's output — `deriveSelectedContext` owns that formula
-        // and `selectedContext.test.ts` pins it (ADR-0074 G5).
+        // and `selectedContext.test.ts` pins it (ADR-0076 G5).
         // relay carries identityToken (SocketReauthBinder watches it for a same-connection
         // guest→social swap); the cloud slot does NOT — a cloud change reboots the socket (wss URL
         // differs → SocketBinder rebuilds), so no in-place cloud re-auth key is needed.
@@ -172,7 +172,7 @@ describe('useRuntimeSocketSlots', () => {
         expect(result.current.cloud).toBeUndefined();
     });
 
-    // ADR-0074 E5. `identity` is deliberately absent: none of the inputs above move on it, and boot
+    // ADR-0076 E5. `identity` is deliberately absent: none of the inputs above move on it, and boot
     // alone emits it twice (`setSessionIdentityState`) with every login adding one. Subscribing to it
     // meant a re-render plus a fresh-but-equal slots object handed to both binders each time. The
     // pairing that keeps this safe is the NARROW snapshot (`getSocketSlotContext`, relay+cloud only):

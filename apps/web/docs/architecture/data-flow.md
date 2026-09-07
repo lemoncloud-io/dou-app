@@ -54,7 +54,11 @@ function AppInner() {
 - **observe**: UI는 `repos.<entity>.observeList(query, cb)` / `observeItem(id, cb)`만 구독한다. 캐시가 바뀌면(스스로의 refresh로든 sync push로든) 콜백이 다시 불린다.
     - **스코프 고정(scope pinning)**: observe의 재emit 라우팅은 `{cid, uid}` 스코프 키로 이뤄진다(캐시 스토리지 파티션과 동일; place·channel은 sid를 스코프 키에서 제외). 이 키는 기본적으로 `DataContextProvider`에서 계산된다. **원래의 함정은 사라졌다** — 예전에는 조상 `RuntimeDataBinder`가 effect에서 provider를 갱신했고, 그 effect가 자식 화면의 구독 effect보다 **뒤에** 돌아서 클라우드 전환 시 화면이 옛 cid 스코프로 구독을 걸었다(전환 확정 후의 write 재emit을 놓쳐 새로고침 전엔 안 보임). 지금은 `ActiveScope`가 매 read마다 `session/store`에서 파생하고 그 바인더는 삭제됐으므로 커밋 지연 자체가 없다. 그럼에도 홈 리스트 훅(`useHomePlaces`/`useHomeChannels`/`useActiveCloudChannels`)은 `observeList(query, cb, { cid, uid })`로 **React 세션이 아는 대상 클라우드의 스코프를 명시 전달**해 provider 커밋 지연과 무관하게 키를 고정한다. 근거: `libs/data/.../PlaceLocalDataSourceV2.test.ts`(reemit 라우팅).
 - **sync 등록**: 화면 수명에 맞춰 sync 타깃을 등록하면 polling + push + 재연결 catch-up이 자동으로 돈다.
-    - 단일 고정 id: `useChatSync(channelId)` / `useChannelSync(channelId)` / `usePlaceSync(placeId)` / `useProfileSync(profileId)` / `useJoinSync(channelId)`
+    - 단일 고정 id: `useChatSync(channelId)` / `useChannelSync(channelId)` / `usePlaceSync(placeId)`
+      — `@chatic/app-runtime`이 제공하는 훅은 이 셋이다. profile·join은 훅이 아니라
+      `syncManager.registerProfile()` / `registerJoin()`을 앱이 직접 부른다(`useChannelProfiles` ·
+      `useJoinSyncRegistration`). 이전 판이 적어 둔 `useProfileSync`는 2026-09-07에 삭제됐고
+      `useJoinSync`는 그 이름으로 존재한 적이 없다.
     - 동적 목록: `getSyncManager().registerChannel(id)` / `registerPlace(id)`를 id 배열에 등록하고 dispose 반환값으로 정리
 
 ```tsx

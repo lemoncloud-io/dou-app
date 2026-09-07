@@ -87,7 +87,7 @@ export const bootstrapSocketConnection = async ({
 
     // Expired-resume throttle (see the cooldown constants above). Per bootstrap instance: a reboot
     // is a fresh identity attempt, so it deliberately starts with a clean budget. The growing gate
-    // is `Throttle` now (ADR-0074 결정 4) — the numbers are unchanged.
+    // is `Throttle` now (ADR-0076 결정 4) — the numbers are unchanged.
     const resumeThrottle = new Throttle({
         intervalMs: EXPIRED_RESUME_INITIAL_COOLDOWN_MS,
         maxIntervalMs: EXPIRED_RESUME_MAX_COOLDOWN_MS,

@@ -1,5 +1,5 @@
 import { logger } from '@chatic/bridges';
-import { clearSessionAndRedirect, type LogoutOptions } from '../../session/auth/relaySession';
+import { relaySession, type LogoutOptions } from '../../session/auth/relaySession';
 
 import { getSocketManager } from '../runtime';
 import type { SocketKind } from '../types';
@@ -38,5 +38,5 @@ export const logoutSession = async (options?: LogoutOptions): Promise<void> => {
     notifySocketLogout('relay');
     notifySocketLogout('cloud');
 
-    await clearSessionAndRedirect(options);
+    await relaySession.clearAndRedirect(options);
 };

@@ -132,7 +132,7 @@ export const useSessionStalenessGuard = (policy: SessionStalenessPolicy = {}): {
     } = policy;
 
     // Concurrent triggers (interval + visibility + the verified edge) share one probe, and the
-    // preemptive path keeps its own growing-free floor — the two primitives ADR-0074 결정 4 extracted.
+    // preemptive path keeps its own growing-free floor — the two primitives ADR-0076 결정 4 extracted.
     // Numbers unchanged: FORCE_REFRESH_COOLDOWN_MS stays the floor and the first trigger always runs.
     const probe = useRef<Coalescer<void>>(new Coalescer<void>()).current;
     const forceRefreshFloor = useRef<Throttle>(new Throttle({ intervalMs: FORCE_REFRESH_COOLDOWN_MS })).current;

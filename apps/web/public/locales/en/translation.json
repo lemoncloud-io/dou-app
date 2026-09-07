@@ -1334,11 +1334,6 @@
     "error": {
         "unknownError": "An unknown error occurred"
     },
-    "serviceUnavailable": {
-        "title": "Service Unavailable",
-        "description": "The server is currently under maintenance. Please try again later.",
-        "retry": "Reload"
-    },
     "phoneVerify": {
         "socialFirstTitle": "Already have an account? Sign in with social first",
         "socialFirstDescription": "Verifying only your number creates a new account that can never be merged",

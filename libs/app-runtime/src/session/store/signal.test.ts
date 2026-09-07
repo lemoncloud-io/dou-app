@@ -1,6 +1,6 @@
-import { ALL_SESSION_SIGNALS, notifySessionStateChanged, sessionSignal, subscribeSessionSignal } from './signal';
+import { ALL_SESSION_SIGNALS, sessionSignal, subscribeSessionSignal } from './signal';
 
-describe('SessionSignal — 종류별 구독 (ADR-0074 결정 2)', () => {
+describe('SessionSignal — 종류별 구독 (ADR-0076 결정 2)', () => {
     it('구독한 종류가 움직일 때만 부른다', () => {
         const relayOnly = jest.fn();
         const off = sessionSignal.subscribe(['relay:token'], relayOnly);
@@ -83,20 +83,28 @@ describe('SessionSignal — batch', () => {
     });
 });
 
-describe('notifySessionStateChanged — 호환 시임', () => {
-    it('전 종류를 알리지만 fan-out은 한 번이다', () => {
+// `subscribeSessionSignal` is the all-kinds wrapper the three reader hooks use (`useGlobalSession` ·
+// `useSessionAuth` · `useSessionIdentity`). It used to be covered only through the deprecated
+// `notifySessionStateChanged` shim; that shim is gone, so the wrapper gets its own case.
+describe('subscribeSessionSignal — 전 종류 구독 래퍼', () => {
+    it('어느 종류가 움직여도 받는다', () => {
         const listener = jest.fn();
         const off = subscribeSessionSignal(listener);
-        notifySessionStateChanged();
-        expect(listener).toHaveBeenCalledTimes(1);
+
+        for (const kind of ALL_SESSION_SIGNALS) {
+            sessionSignal.emit(kind);
+        }
+
+        expect(listener).toHaveBeenCalledTimes(ALL_SESSION_SIGNALS.length);
         off();
     });
 
-    it('종류를 좁혀 구독한 쪽도 한 번만 받는다', () => {
-        const relayOnly = jest.fn();
-        const off = sessionSignal.subscribe(['relay:token'], relayOnly);
-        notifySessionStateChanged();
-        expect(relayOnly).toHaveBeenCalledTimes(1);
-        off();
+    it('해지하면 더 받지 않는다', () => {
+        const listener = jest.fn();
+        subscribeSessionSignal(listener)();
+
+        sessionSignal.emit('relay:token');
+
+        expect(listener).not.toHaveBeenCalled();
     });
 });

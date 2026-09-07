@@ -11,8 +11,8 @@ admin-v2가 (1) 소셜 로그인 후 세션 인증 상태를 올바르게 하이
 ## 설계 원칙
 
 - **세션 인증 상태는 web-core setter/notify로만 바뀐다.** `isAuthenticated`는 `useSyncExternalStore`
-  로 관측되며, `setSessionAuthenticated`/`applyRelaySession` 등이 `notifySessionStateChanged()`를
-  부를 때만 반영된다. 자격증명(SDK/AWS) 생성만으로는 안 켜진다 — 로그인 경로는 반드시 relay 세션
+  로 관측되며, `setSessionAuthenticated` 등 스토어 쓰기가 자기 `SessionSignalKind`를 emit할 때만
+  반영된다(ADR-0076 결정 2 — payload 없는 `notifySessionStateChanged()` 브로드캐스트는 폐지됐다). 자격증명(SDK/AWS) 생성만으로는 안 켜진다 — 로그인 경로는 반드시 relay 세션
   적용까지 해야 한다.
 - **admin은 실제 로그인만 허용한다.** 게스트 자동 로그인(`useRelaySessionKeepAlive`)은 켜지 않는다
   — ProtectedRoute의 "관리자 인증" 모델과 충돌하기 때문.

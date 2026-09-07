@@ -155,6 +155,10 @@ types"). 현재 어떤 navigator에도 등록돼 있지 않다.
 
 ### 4-1. 서비스 장애 오버레이 — 기능이 통째로 배선을 잃었다
 
+> **해소됨 (2026-09-07, ADR-0076 트랙).** 사용자가 **(b) 기능 폐기**를 택했다. 훅 3심볼 ·
+> `ServiceUnavailableOverlay` · 배럴 3곳 · `jest.config.js` 주석 · `ko`/`en` 번역 키를 지웠다.
+> 아래는 판단 근거의 기록이다.
+
 - `setServiceUnavailable`(`libs/app-runtime/src/session/hooks/app/useServiceUnavailable.ts:13`)을
   호출하는 곳이 **하나도 없다.** 도입 커밋은 `8641140cf` "block app access on server 5xx errors
   during cloud token refresh" — 5xx 감지 지점이 web-core refresh 체인이었고, 그 체인은
@@ -204,8 +208,10 @@ ADR-0070 결정 1·4의 근거를 서술한 헤더 주석이 이 파일에 있�
 - **`libs/ui-kit`의 나머지 shadcn 컴포넌트** — 딥 임포트 소비자가 있다.
 
 한편 **테스트만이 붙잡고 있으나 프로덕션 경로가 없는** 것들은 삭제 후보로 남긴다:
-`useSyncTarget` · `useProfileSync`(`libs/app-runtime/src/socket/sync/hooks/useSyncTarget.ts:19,88` —
-`libs/app-runtime/docs/public-surface.md:43`이 이미 "내부 전용(앱 미사용)"이라고 적어 둠) ·
+`useSyncTarget`(`libs/app-runtime/src/socket/sync/hooks/useSyncTarget.ts:19` —
+`libs/app-runtime/docs/public-surface.md`가 이미 "내부 전용(앱 미사용)"이라고 적어 둠. 같은 파일의
+`useChatSync`/`useChannelSync`/`usePlaceSync`가 이것을 감싸므로 유지) ·
+~~`useProfileSync`~~(2026-09-07 삭제 — 아래 §판단 정정) ·
 `formatPhoneNumber`(`apps/web/.../auth/utils/phone.ts:16`) ·
 `RoomNotificationDialog`(`apps/web/.../channels/components/RoomNotificationDialog.tsx:19`) ·
 `ButtonGroup`(`libs/web-ui-kit/.../ButtonGroup.tsx:15`) · admin-v2 `demo-model.ts`의 포맷터 8개.
@@ -252,14 +258,21 @@ ADR-0070 결정 1·4의 근거를 서술한 헤더 주석이 이 파일에 있�
 
 **남긴 것 / 넘긴 것:**
 
-- **§4-1 ServiceUnavailable 클러스터 보류.** `getServiceUnavailable`·`setServiceUnavailable`·
-  `useServiceUnavailable`은 삭제하려면 `apps/web`의 오버레이까지 같이 지워야 해서, 이번 범위 밖이자
+- ~~**§4-1 ServiceUnavailable 클러스터 보류.**~~ **2026-09-07 해소 — (b) 폐기로 삭제됐다.**
+  당시 보류 이유는 그대로 유효했다: `getServiceUnavailable`·`setServiceUnavailable`·
+  `useServiceUnavailable`은 삭제하려면 `apps/web`의 오버레이까지 같이 지워야 해서, 그때 범위 밖이자
   "되살릴지" 결정이 먼저다. 허브 표면 목록에도 그대로 남겨 뒀다.
-- **`useSyncTarget`·`useProfileSync` 유지.** `useChatSync`/`useChannelSync`/`usePlaceSync`/
-  `useJoinSync`와 한 가족으로 문서화된 대칭 API이고 `useSyncTarget`은 같은 파일에서 실제로 쓰인다.
-  `useProfileSync`만 떼면 가족이 깨진다.
+- **`useSyncTarget` 유지 · `useProfileSync`는 삭제로 뒤집었다 (2026-09-07).** 당시 유지 근거는
+  "`useChatSync`/`useChannelSync`/`usePlaceSync`/`useJoinSync`와 한 가족으로 문서화된 대칭 API라
+  `useProfileSync`만 떼면 가족이 깨진다"였다. **그 근거의 전제가 틀렸다** — `useJoinSync`는 그
+  이름으로 존재한 적이 없다(리포 전체에 정의 0. 실물은 앱 레이어의
+  `useJoinSyncRegistration`, `apps/web/src/app/hooks/useMyJoins.ts:28`). 즉 문서가 5형제라고 적은
+  가족은 실제로 3형제였고, 대칭은 이미 깨져 있었다. 그 셋은 앱 소비자가 있고
+  `useProfileSync`만 0이며, 프로필 동기화를 실제로 하는 `apps/web`의 `useChannelProfiles`는
+  훅이 아니라 `sync.registerProfile()`을 직접 부른다. `useSyncTarget`은 같은 파일의 세 래퍼가
+  쓰므로 유지한다.
 - **테스트 시임 유지** — `resetGateways` · `resetNativeCacheSupport` · `getNativeCacheSupport`.
-- **후속 문서 2건 — 2026-09-07 둘 다 해소됨.** ADR-0074 트랙이 `libs/app-runtime/docs/architecture.md`를
+- **후속 문서 2건 — 2026-09-07 둘 다 해소됨.** ADR-0076 트랙이 `libs/app-runtime/docs/architecture.md`를
   전면 재작성하면서 `http/index.ts`를 근거로 들던 문장이 사라졌고, 같은 트랙이
   `apps/web/docs/architecture/data-flow.md`의 조립 예시를 고치면서 **코드에 존재하지 않는**
   `useSocketDelegate` / `getActiveServerIdentityToken()` 서술도 함께 사라졌다(심볼 삭제 이전부터 이미

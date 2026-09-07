@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
 import type { VerifyNativeTokenBody } from '@lemoncloud/chatic-backend-api/dist/modules/auth/oauth2/oauth2-types';
-import { loginRelaySocial } from '../../auth/relaySession';
+import { relaySession } from '../../auth/relaySession';
 
 /**
  * Promotes relay authentication with a verified native provider token.
@@ -8,7 +8,7 @@ import { loginRelaySocial } from '../../auth/relaySession';
 export const useLoginRelaySocial = () =>
     useMutation({
         mutationFn: ({ body, provider }: { body: VerifyNativeTokenBody; provider?: string | null }) =>
-            loginRelaySocial({
+            relaySession.loginBySocialToken({
                 body,
                 provider: provider as never,
             }),

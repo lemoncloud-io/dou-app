@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 
-import { useChatSync, useProfileSync, useSyncTarget } from './useSyncTarget';
+import { useChatSync, useSyncTarget } from './useSyncTarget';
 
 const mockDispose = jest.fn();
 const mockRegister = jest.fn().mockReturnValue(mockDispose);
@@ -104,22 +104,5 @@ describe('useChatSync — prime', () => {
         expect(mockCacheReadList).not.toHaveBeenCalled();
         expect(mockUpdateLocalSnapshot).not.toHaveBeenCalled();
         expect(mockRefreshList).not.toHaveBeenCalled();
-    });
-});
-
-describe('useProfileSync', () => {
-    beforeEach(() => {
-        socketState = { isVerified: false };
-        mockRegister.mockClear();
-    });
-
-    it('id가 있으면 profile 타깃을 등록한다', () => {
-        renderHook(() => useProfileSync('site-1:me'));
-        expect(mockRegister).toHaveBeenCalledWith({ type: 'profile', id: 'site-1:me' });
-    });
-
-    it('id가 없으면 등록하지 않는다', () => {
-        renderHook(() => useProfileSync(undefined));
-        expect(mockRegister).not.toHaveBeenCalled();
     });
 });

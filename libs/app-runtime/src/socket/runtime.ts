@@ -19,7 +19,7 @@ let socketRuntimeSingleton: SocketRuntime | null = null;
  * each client's AuthController drives that state authoritatively; the transitional `false` override
  * from the pre-SDK-auth adoption has been removed (multi-socket-design.md §2f/§10).
  */
-export const createSocketRuntime = (): SocketRuntime => {
+const createSocketRuntime = (): SocketRuntime => {
     const socketManager = new SocketManager();
     const syncManager = new SyncManager(socketManager);
 

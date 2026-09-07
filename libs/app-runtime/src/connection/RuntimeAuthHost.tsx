@@ -1,6 +1,8 @@
 import React from 'react';
 
-import { useRelaySessionInit } from '../session';
+// Concrete path, not the session barrel: the boot gate is a runtime internal (결정 6) —
+// the same convention `useRelaySessionKeepAlive` already follows below.
+import { useRelaySessionInit } from '../session/hooks/app/useRelaySessionInit';
 import { SocketBinder } from './SocketBinder';
 import { SocketReauthBinder } from './SocketReauthBinder';
 import { useSocketSessionDelegate } from './useSocketSessionDelegate';

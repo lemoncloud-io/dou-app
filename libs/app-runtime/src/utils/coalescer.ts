@@ -1,6 +1,6 @@
 /**
  * Shares one in-flight attempt among concurrent askers, and optionally lets a just-settled answer
- * serve the next caller for a moment (ADR-0074 결정 4).
+ * serve the next caller for a moment (ADR-0076 결정 4).
  *
  * Generalized from `RelayRefreshCoalescer`, which was the only one of the runtime's seven
  * hand-rolled concurrency guards that had grown into a real class. The other coalescing sites were

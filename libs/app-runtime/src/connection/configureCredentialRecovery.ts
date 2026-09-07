@@ -22,6 +22,6 @@ import type { HttpRoute } from '@chatic/http';
  */
 export const configureCredentialRecovery = (): void => {
     // Every route recovers through the RELAY renewer — relay is the only credential that signs
-    // (ADR-0074 결정 3).
+    // (ADR-0076 결정 3).
     credentialRecovery.register((_route: HttpRoute) => credentialRenewers.relay.renew());
 };

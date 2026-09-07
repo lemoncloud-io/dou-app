@@ -17,7 +17,7 @@ export interface RuntimeSocketSlot {
  *
  * This used to be `RuntimeBinding` and carried a second field, `context: DataContext` — the cache
  * scope. No production code read it: `deriveSelectedContext` derives that formula and consumers read
- * it from the store (ADR-0074 결정 1), so the field was a duplicate that could only agree or silently
+ * it from the store (ADR-0076 결정 1), so the field was a duplicate that could only agree or silently
  * disagree. What is left is exactly the socket slots, which is what the name now says.
  */
 export interface RuntimeSocketSlots {

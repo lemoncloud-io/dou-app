@@ -1,6 +1,6 @@
 import { createSocketSessionDelegate } from './sessionDelegate';
-import { clearCloudStores } from '../../session/auth/cloudSession';
-import { clearSessionAndRedirect } from '../../session/auth/relaySession';
+import { cloudSession } from '../../session/auth/cloudSession';
+import { relaySession } from '../../session/auth/relaySession';
 
 jest.mock('@chatic/bridges', () => ({
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
@@ -13,14 +13,14 @@ jest.mock('../../session', () => ({
 }));
 
 // The teardown halves come from the concrete module, not the session barrel: they are deliberately
-// off it (ADR-0074 결정 7) so the app cannot reach a socket-silent logout.
-jest.mock('../../session/auth/cloudSession', () => ({ clearCloudStores: jest.fn() }));
+// off it (ADR-0076 결정 7) so the app cannot reach a socket-silent logout.
+jest.mock('../../session/auth/cloudSession', () => ({ cloudSession: { clearStores: jest.fn() } }));
 jest.mock('../../session/auth/relaySession', () => ({
-    clearSessionAndRedirect: jest.fn().mockResolvedValue(undefined),
+    relaySession: { clearAndRedirect: jest.fn().mockResolvedValue(undefined) },
 }));
 
-const mockedLogoutCloud = clearCloudStores as jest.MockedFunction<typeof clearCloudStores>;
-const mockedLogoutRelay = clearSessionAndRedirect as jest.MockedFunction<typeof clearSessionAndRedirect>;
+const mockedLogoutCloud = cloudSession.clearStores as jest.Mock;
+const mockedLogoutRelay = relaySession.clearAndRedirect as jest.Mock;
 
 describe('createSocketSessionDelegate — onAuthExpired', () => {
     beforeEach(() => jest.clearAllMocks());

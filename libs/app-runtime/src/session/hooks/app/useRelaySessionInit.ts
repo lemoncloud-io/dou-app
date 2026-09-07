@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { logger } from '@chatic/bridges';
 
 import { markSessionInitialized } from '../../store';
-import { initializeRelaySession } from '../../auth/relaySession';
+import { relaySession } from '../../auth/relaySession';
 import { useSessionAuth } from '../session/readers/useSessionAuth';
 
 type InitState = 'idle' | 'initializing' | 'completed';
@@ -25,7 +25,7 @@ export const useRelaySessionInit = () => {
             logger.debug('WEB_CORE', 'Starting initialization attempt', {
                 data: { retry: retryCountRef.current },
             });
-            await initializeRelaySession();
+            await relaySession.initialize();
             logger.debug('WEB_CORE', 'Initialization completed successfully');
             setLocalInitState('completed');
             retryCountRef.current = 0;

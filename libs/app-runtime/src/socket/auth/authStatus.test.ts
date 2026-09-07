@@ -14,7 +14,7 @@ const healthy = (over: Partial<AuthSignals> = {}): AuthSignals => ({
     ...over,
 });
 
-describe('deriveAuthStatus — 진리표 (ADR-0074 결정 1)', () => {
+describe('deriveAuthStatus — 진리표 (ADR-0076 결정 1)', () => {
     it('토큰이 없으면 absent — 소켓이 무슨 말을 하든', () => {
         expect(deriveAuthStatus(healthy({ hasToken: false }))).toBe('absent');
         // Even a fully verified socket cannot outvote "there is no token to authenticate".

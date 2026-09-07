@@ -6,11 +6,15 @@ import { bootstrapSocketConnection } from '../socket';
 import { useDynamicDeviceId } from '../session';
 import { getSocketSlotContext } from '../session/store';
 
-jest.mock('../session', () => ({
-    // RuntimeConnectionHost is the single init driver; gate returns ready so children render.
+// The boot gate now comes from its concrete module (the session barrel stopped selling it), so it
+// gets its own mock — gate returns ready so children render.
+jest.mock('../session/hooks/app/useRelaySessionInit', () => ({
     useRelaySessionInit: jest.fn().mockReturnValue(true),
+}));
+
+jest.mock('../session', () => ({
     useRelaySessionKeepAlive: jest.fn(),
-    // The host derives its own slots now (ADR-0074 G5), so `useRuntimeSocketSlots` runs even when a
+    // The host derives its own slots now (ADR-0076 G5), so `useRuntimeSocketSlots` runs even when a
     // test passes `slots` explicitly. The device id is one of its two inputs; the other is the
     // narrow session snapshot, overridden on `../session/store` below.
     useDynamicDeviceId: jest.fn(() => ({ deviceId: 'device-1' })),

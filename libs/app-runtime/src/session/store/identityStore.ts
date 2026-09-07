@@ -20,7 +20,7 @@ const DEVICE_ID_KEY = 'chatic-device-id';
  * registers with `force: true` instead (see its doc), which needs no stored copy.
  *
  * Renamed off `IdentityCore` — web-core's `session/core` residue, outside the `I*` convention
- * (ADR-0074 결정 0).
+ * (ADR-0076 결정 0).
  */
 export interface IIdentityStore {
     getDelegatorId(): string | null;

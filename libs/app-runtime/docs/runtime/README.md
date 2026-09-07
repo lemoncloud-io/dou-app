@@ -10,7 +10,7 @@
 [`useRuntimeSocketSlots()`](../../src/runtime/useRuntimeSocketSlots.ts)이 `useGlobalSession()`(세션
 허브) + `useDynamicDeviceId()`를 관측해 파생한다. 현재 어떤 relay/cloud 소켓 슬롯이 떠 있어야 하는지를
 나타낸다. **캐시 문맥은 여기 없다** — 예전 `RuntimeBinding` 은 `context: DataContext` 도 실었는데 읽는
-프로덕션 코드가 없었고 공식이 `deriveSelectedContext` 와 중복이었다(ADR-0074 G5). 호스트가 이 훅을
+프로덕션 코드가 없었고 공식이 `deriveSelectedContext` 와 중복이었다(ADR-0076 G5). 호스트가 이 훅을
 직접 부르므로 앱은 아무것도 넘기지 않는다. (프로필 파생값은 `useRuntimeProfile`이 `useGlobalSession`
 에서 직접 계산한다 — 이 슬롯을 거치지 않는다.)
 
@@ -34,7 +34,7 @@ export interface RuntimeSocketSlots {
 > 그것도 실었지만 읽는 프로덕션 코드가 없었고, 공식이
 > [`deriveSelectedContext`](../../src/session/scope/selectedContext.ts) 와 글자 단위로 같았다. 데이터
 > 스코프의 원천은 [`ActiveScope`](../../src/session/scope/ActiveScope.ts) 가 매 read 마다
-> `session/store` 에서 파생하는 값 하나다(ADR-0070 결정 7 · ADR-0074 G5).
+> `session/store` 에서 파생하는 값 하나다(ADR-0070 결정 7 · ADR-0076 G5).
 
 - **슬롯** — 두 슬롯은 **각자의 서버가 토큰을 가질 때만** 켜진다(relay wss는 로그인 전에도
   존재하는 env 값이라 wss만으로 게이팅하면 토큰 전에 부팅됨). 로그인(null→token)이 슬롯을 켜고

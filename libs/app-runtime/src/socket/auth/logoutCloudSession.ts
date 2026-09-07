@@ -1,4 +1,4 @@
-import { clearCloudStores } from '../../session/auth/cloudSession';
+import { cloudSession } from '../../session/auth/cloudSession';
 
 import { notifySocketLogout } from './logoutSession';
 
@@ -14,5 +14,5 @@ import { notifySocketLogout } from './logoutSession';
  */
 export const logoutCloudSession = async (): Promise<void> => {
     notifySocketLogout('cloud');
-    clearCloudStores();
+    cloudSession.clearStores();
 };

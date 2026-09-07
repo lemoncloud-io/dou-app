@@ -8,7 +8,7 @@
 
 // --- Value-deriving hooks -------------------------------------------------------------------
 // `useRuntimeSocketSlots` is deliberately NOT here. It used to be (as `useRuntimeBinding`) because
-// every app called it and handed the result back to the host; ADR-0074 G5 moved that derivation
+// every app called it and handed the result back to the host; ADR-0076 G5 moved that derivation
 // into the host, so app consumers dropped to zero — which is the exact category 결정 6 removed 32
 // symbols from. Internal callers reach it by concrete path (`../runtime`), the convention this
 // package already follows. Re-export it the day an app genuinely needs to inject slots.
@@ -33,10 +33,6 @@ export * from './session';
 // 사용자 이슈 제보 + 로그 배치 업로드 (ADR-0070 결정 6). `http/` 밖에 있는 이유는 여기가 전송
 // 계층이 아니기 때문이다 — 세션에서 payload를 조립하고 `report` repository로 부친다.
 export * from './report';
-// 에러 정규화 유틸 — 리포팅 호출부가 짝으로 쓴다. 앱이 `@chatic/http`를 직접 보지 않도록
-// 허브가 재수출한다 (ADR-0070 목표 그림: 앱이 보는 것은 app-runtime과 data 둘).
-export { toError } from '@chatic/http';
-
 // REST 데이터 훅 (구독·클라우드·사용자) — ADR-0070 4단계.
 export * from './data/hooks';
 
@@ -50,7 +46,7 @@ export {
     WEB_SOCIAL_OAUTH_ENDPOINT as SOCIAL_OAUTH_ENDPOINT,
 } from '@chatic/web-config';
 // `hasStoredRelaySession`/`isStoredSessionExpired`는 내려갔다 — 읽기 전용 프로브이고 소비자가
-// 런타임 내부(가드·부팅)뿐이다 (ADR-0074 결정 6).
+// 런타임 내부(가드·부팅)뿐이다 (ADR-0076 결정 6).
 export { startWebTransportInit, webTransport } from './http/transport';
 
 // --- Session actions (non-hook) --------------------------------------------------------------
@@ -60,10 +56,12 @@ export { applySessionToken } from './socket/auth/applySessionToken';
 export type { ApplySessionTokenOptions } from './socket/auth/applySessionToken';
 // The app-facing LOGOUTS — the socket halves. They notify each server's socket (`auth.logout`)
 // before the local store teardown, which is why they and not the `session/auth` primitives are the
-// public names (ADR-0074 결정 7; the primitives are now `clearSessionAndRedirect`/`clearCloudStores`
+// public names (ADR-0076 결정 7; the primitives are now `clearSessionAndRedirect`/`clearCloudStores`
 // and stay internal). `useSessionLogout`/`useLogoutCloudSession` wrap these for screens.
+// `logoutSession` only: apps reach the cloud half through `useLogoutCloudSession`, so the raw
+// `logoutCloudSession` stays internal (결정 6). `useRelaySessionGuard` in admin-v2 is the one
+// non-React caller and it uses the relay half.
 export { logoutSession } from './socket/auth/logoutSession';
-export { logoutCloudSession } from './socket/auth/logoutCloudSession';
 // Foreground/wake kick for wedged sockets — apps call it on their own foreground signal (apps/web
 // useSocketWakeRecovery; desktop-web keeps its local variant). See 2026-08 session audit §7 Phase 1.
 export { recoverUnverifiedSockets } from './socket/auth/recoverUnverifiedSockets';
@@ -74,7 +72,8 @@ export type { RecoverUnverifiedSocketsDeps } from './socket/auth/recoverUnverifi
 // Relay only, by name: a cloud token is minted FROM the relay identity, so its recovery is a
 // RE-ISSUE (renewCloudSession), not a refresh. The old `kind` parameter offered a door nobody should
 // walk through.
-export { requestRelaySessionRefresh } from './socket/auth/requestRelaySessionRefresh';
+// Internal: apps ask for freshness through `useSessionStalenessGuard` (apps/web
+// `useRelayCredentialRefresh` does exactly that), never by calling the primitive.
 export type { RequestRelaySessionRefreshDeps } from './socket/auth/requestRelaySessionRefresh';
 
 // --- Cache tier helpers ---------------------------------------------------------------------

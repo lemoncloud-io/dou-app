@@ -9,7 +9,7 @@ import type { Logger } from '@chatic/bridges';
 const mockSwitchCloudSession = jest.fn();
 
 jest.mock('../../../auth/cloudSession', () => ({
-    switchCloudSession: (...args: unknown[]) => mockSwitchCloudSession(...args),
+    cloudSession: { switchTo: (...args: unknown[]) => mockSwitchCloudSession(...args) },
 }));
 
 const { useSwitchCloudSession } = require('./useSwitchCloudSession');
@@ -34,7 +34,7 @@ describe('useSwitchCloudSession', () => {
         const { result } = renderHook(() => useSwitchCloudSession(), { wrapper: createWrapper() });
 
         await expect(result.current.switchCloud('cloud-1')).resolves.toEqual({ cloudId: 'cloud-1' });
-        expect(mockSwitchCloudSession).toHaveBeenCalledWith({ cloudId: 'cloud-1' });
+        expect(mockSwitchCloudSession).toHaveBeenCalledWith('cloud-1');
     });
 
     it('성공한 전환을 cloud-switch 지표 한 건으로 보고한다', async () => {

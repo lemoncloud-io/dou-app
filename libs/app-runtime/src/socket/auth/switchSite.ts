@@ -1,5 +1,5 @@
 import { perfNow, reportPerfMetric } from '@chatic/bridges';
-import { applySelectedSite } from '../../session/auth/cloudSession';
+import { cloudSession } from '../../session/auth/cloudSession';
 import { getGlobalSessionContext, getSelectedSiteId } from '../../session/store';
 
 import { getSocketManager } from '../runtime';
@@ -37,7 +37,7 @@ export const switchSite = async (siteId: string): Promise<void> => {
     const startedAt = perfNow();
 
     // Optimistic pre-apply (also the rollback target below).
-    applySelectedSite(siteId);
+    cloudSession.applySelectedSite(siteId);
 
     try {
         const manager = getSocketManager();
@@ -53,7 +53,7 @@ export const switchSite = async (siteId: string): Promise<void> => {
         reportPerfMetric('site-switch', perfNow() - startedAt, { ok: true });
     } catch (error) {
         // Roll the optimistic sid back to the previous site; the committed token was never changed.
-        applySelectedSite(prevSiteId);
+        cloudSession.applySelectedSite(prevSiteId);
         reportPerfMetric('site-switch', perfNow() - startedAt, { ok: false });
         throw error;
     }

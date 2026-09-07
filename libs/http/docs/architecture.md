@@ -1,6 +1,6 @@
 # @chatic/http — HTTP 통신 lib + HttpManager
 
-> 상태: Live · 최종 갱신: 2026-09-02 · 관련 ADR: [ADR-0070](../../../docs/adr/0070-app-runtime-session-hub.md) (결정 3·4)
+> 상태: Live · 최종 갱신: 2026-09-07(드리프트 정정) · 관련 ADR: [ADR-0070](../../../docs/adr/0070-app-runtime-session-hub.md) (결정 3·4)
 
 ## 목적
 
@@ -70,20 +70,30 @@ HTTP 통신의 전부 — 요청 실행기, 전송 규칙(리트라이·에러 �
 
 ## 시나리오
 
-현재 web-core 코드가 실제로 수행하는 네 가지 요청 형태가 그대로 lib의 유스케이스다.
+lib이 실제로 수행하는 요청 형태다. **1단계 서술을 현행으로 갱신했다** — 아래 심볼과 경로는
+`libs/http/src/gateways/**`의 것이고, 이관 전 `web-core`의 `api/auth.ts`·`transport/request.ts`
+좌표는 더 이상 존재하지 않는다(§web-core 위임 껍데기는 그 기록).
 
-1. **relay 비서명 요청** — 로그인(`POST /oauth/login-user`,
-   api/auth.ts:56). lemon adapter의 `buildRequest`로 실행,
-   크레덴셜 없음. `withNetworkLog`로 감싸고 200 본문의 `error` 필드는 `throwIfApiError`로
-   승격한다 (request.ts:96).
-2. **relay 서명 요청** — `generateToken`(`POST /auth/0/generate-token`,
-   api/auth.ts:117). lemon adapter의 `buildSignedRequest`가
-   lemon 자체 저장소의 signing material로 서명한다. **1단계에서 이 이중 저장소 현실은
-   그대로다** — 스토어 통합은 3단계.
-3. **cloud 서명 요청** — `issueCloudToken`(`POST {대상 backend}/oauth/exchange-token`,
-   api/auth.ts:65). `x-lemon-identity` 헤더 + 위임된 AWS
-   크레덴셜로 SigV4 서명 (request.ts:61-91).
+1. **relay 비서명 요청** — `oauthGateway.login`(`POST {relay}/oauth/login-user`,
+   [gateways/oauth.ts:96](../src/gateways/oauth.ts)). `executeRelayRequest`로 실행, 크레덴셜
+   없음. `withNetworkLog`로 감싸고 200 본문의 `error` 필드는 `throwIfApiError`로 승격한다.
+2. **relay 서명 요청** — `executeSignedRelayRequest`. lemon adapter의 `buildSignedRequest`가
+   lemon 자체 저장소의 signing material로 서명한다.
+
+    > 1단계가 이 자리에 적어 둔 `generateToken`(`POST /auth/0/generate-token`)은 **이관되지
+    > 않았다** — 리포 전체 소비가 0이어서다([http-data-path.md](../../data/docs/http-data-path.md)
+    > §실측이 삭제 후보로 올려 뒀고, `apps/admin-v2`의 주석 한 줄만 그 엔드포인트를 언급한다).
+    > 서명 실행기의 현행 소비자는 3번이다.
+
+3. **클라우드 backend로 가는 서명 요청** — `oauthGateway.exchangeToken`
+   (`POST {baseURL}/oauth/exchange-token`, [gateways/oauth.ts:104](../src/gateways/oauth.ts)).
    호출부가 요청 단위 `baseURL`을 넘긴다 — endpoint 포트의 override 케이스.
+
+    > **`'cloud'` route가 아니다.** 서명은 relay 실행기(`executeSignedRelayRequest`)가 하고
+    > 목적지만 클라우드 backend다. `HttpRoute`는 `'relay' | 'oauth' | 'iap'` 셋이며
+    > ([ports.ts:16](../src/ports.ts)), SigV4 실행기는 클라우드 HTTP refresh와 함께 사라졌다
+    > (§경로 표).
+
 4. **bypass 요청** — 로그 업로드(`POST /hello/report-bulk`,
    [gateways/report.ts](../src/gateways/report.ts))는 `withNetworkLog`를 건너뛴다.
    업로드 실패를 로깅하면 그 로그가 다음 flush를 밀어 무한 루프가 되기 때문이다. 예전에는
@@ -156,7 +166,12 @@ libs/http/src/
 ├── error/
 │   ├── classify.ts           classifyError · ErrorType · extractErrorMessage — error.ts 이관 (순수)
 │   ├── credentialStale.ts    IStaleCredentialMarker — 실패에 "이 라우트 자격증명이 만료였다"를 찍는 스탬프
-│   └── attribution.ts        IFailureAttributor — 서명 실패를 만료 탓으로 볼지 판정 (포트·마커 주입)
+│   ├── attribution.ts        IFailureAttributor — 서명 실패를 만료 탓으로 볼지 판정 (포트·마커 주입)
+│   └── recovery.ts           ICredentialRecoverer + PortCredentialRecoverer · NoCredentialRecovery
+├── gateways/                 도메인별 HTTP 액션 (`data` 의 데이터소스만 잡는다)
+│   ├── types.ts · index.ts
+│   ├── oauth.ts · users.ts · clouds.ts · subscriptions.ts · report.ts
+│   └── refreshAbsence.spec.ts   이 lib에도 refresh 경로가 없음을 지키는 부재 검사
 ├── log/
 │   └── networkLog.ts         withNetworkLog · NetworkLogFields — networkLog.ts 이관 (sink 주입)
 └── utils/
@@ -168,21 +183,27 @@ libs/http/src/
 ADR-0070 결정 3의 스케치를 기반으로 하되, 실제 코드가 강제하는 두 가지를 추가한다.
 
 ```ts
-export type HttpRoute = 'relay' | 'cloud' | 'oauth' | 'iap';
+// 현행 (`src/ports.ts` 실측)
+export type HttpRoute = 'relay' | 'oauth' | 'iap';
 
 export interface HttpRuntimePorts {
     resolveEndpoint(route: HttpRoute): string;
-    getCredential(route: HttpRoute): AwsCredentialLike | null;
-    getIdentityToken(route: HttpRoute): string | null;
-    /** 이 라우트의 서명 자격증명이 이미 만료됐는지 — 서명 실패를 회선 장애와 가르는 근거.
-     *  없으면 귀속만 못 할 뿐 요청·에러는 이전과 동일하다. 구현은 세션 쪽(app-runtime)이 갖는다. */
+    /** 이 라우트의 서명 자격증명이 이미 만료됐는지 — 서명 실패를 회선 장애와 가르는 근거. */
     isCredentialStale?(route: HttpRoute): boolean;
+    /** 자격증명을 재발급하고 재시도 가능 여부를 답한다. 요청당 최대 1회. */
+    recoverCredential?(route: HttpRoute): Promise<boolean>;
     /** 성공/실패 구조화 로그의 목적지. 없으면 로깅하지 않는다 (bypass의 전역판). */
     logSink?: HttpLogSink;
-    /** classify가 shouldLogout을 낸 인증 실패의 반응 — alert·리다이렉트는 여기 구현이 소유한다. */
+    /** classify가 shouldLogout을 낸 인증 실패의 반응 — throw하면 재시도 루프를 끊는다. */
     onAuthFailure?(error: unknown, message: string): void;
 }
 ```
+
+> **초안과 달라진 세 가지 (실측 2026-09-07).** ① `'cloud'` 라우트가 없다 — 클라우드 자격증명으로
+> 서명하던 유일한 요청(클라우드 HTTP refresh)을 ADR-0070이 지우면서 SigV4 실행기와 그 자격증명
+> 포트가 함께 사라졌다. 클라우드 backend는 여전히 목적지지만 `baseURL` 로 싣고 **relay 서명**을
+> 탄다. ② 그래서 `getCredential` · `getIdentityToken` 포트도 없다 — 서명은 lemon adapter 안에서
+> 끝난다. ③ `recoverCredential` 이 추가됐다(자격증명 만료 트랙).
 
 - **`onAuthFailure` 추가**: 현재 `handleAuthError`(error.ts:167)가
   `alert(...)` + `window.location.href = '/auth/logout'`을 직접 수행한다. 플랫폼 비종속 lib에
@@ -194,19 +215,20 @@ export interface HttpRuntimePorts {
   "`@chatic/*` 런타임 의존 0"과 모순된다. 해소: `withNetworkLog`는 원시 필드를 sink에 넘기고,
   redact/truncate는 sink 구현(HttpManager가 조립, `@chatic/logger` 사용)이 적용한다.
   **ADR 스케치에서 의도적으로 벗어나는 지점이며, ADR의 상위 원칙(의존 0)을 지키기 위해서다.**
-- 서명 함수 포트(`sign`)는 1단계에 두지 않는다: lemon HMAC은 `calcSignature`가 web-core에
-  남고(3단계 `@chatic/auth-sign` 소관), SigV4는 lib 내부(`sign/awsSigV4.ts`)가 소유하므로
-  1단계에서 주입할 서명이 없다.
+- 서명 함수 포트(`sign`)는 없다. lemon HMAC은 `@chatic/auth-sign`(3단계에 신설)이 소유하고,
+  SigV4는 그것을 쓰던 요청과 함께 사라졌으므로 이 lib이 주입받을 서명이 없다.
 
-### 실행기 두 개 (`client.ts` · `adapters/lemonWebCore.ts`)
+### 실행기 (`client.ts` · `adapters/lemonWebCore.ts`)
 
-현재 request.ts의 실행 경로가 둘로 갈라져 있는
-것을 그대로 계승한다:
+이관 전 `request.ts` 의 실행 경로가 둘로 갈라져 있던 것을 계승했고, 그 뒤 하나가 없어졌다:
 
-| 경로                | 현재                                               | lib에서                                                            |
+| 경로                | 이관 전                                            | 현행                                                               |
 | ------------------- | -------------------------------------------------- | ------------------------------------------------------------------ |
 | relay (비서명/서명) | `webTransport.buildRequest` / `buildSignedRequest` | `LemonHttpExecutor` — 주입된 lemon builder 표면을 구동하는 adapter |
-| cloud               | 인라인 builder + `signAwsRequest` (request.ts:61)  | `SigV4HttpExecutor` — `getCredential`·`getIdentityToken` 포트 소비 |
+| ~~cloud~~           | 인라인 builder + `signAwsRequest`                  | **없음** — SigV4 실행기는 클라우드 HTTP refresh와 함께 사라졌다    |
+
+**실행기는 둘인데 경로가 둘이어서가 아니다** — 같은 `LemonHttpExecutor` 를 서명/비서명 두 벌로
+인스턴스화한 것이다(`client.ts` 의 `lemonUnsigned` · `lemonSigned`).
 
 lemon 인스턴스(`WebCoreFactory.create`, webTransport.ts:151)는
 **web-core에 남는다** — 생성에 `import.meta` env와 storage 선택이 필요하고, 그 격리는
@@ -285,7 +307,12 @@ lemon 자체 HTTP refresh를 부르거나 부를 수단을 넘겨주는 API이�
   존재하는 키만 골라 갱신해야 한다. web-core 기존 spec(`networkLog.spec.ts`)이 이 회귀를
   그대로 잡아냈다 — `httpLogSink.ts`와 `HttpManager.ts` 양쪽에 같은 가드가 있다.
 
-### web-core 위임 껍데기
+### web-core 위임 껍데기 (역사 — `@chatic/web-core` 는 삭제됐다)
+
+> **이 절 전체가 1단계 이관 기록이다.** `@chatic/web-core` 패키지는 ADR-0070 5단계에서 삭제됐고,
+> 그 안에 있던 스토어·유스케이스·훅은 `@chatic/app-runtime` 으로 들어갔다. 포트 조립은 이제
+> `app-runtime/src/http/factory.ts` 하나다. 아래 표는 "무엇을 어디로 위임했는가"의 기록으로만
+> 읽을 것 — 지금 그 파일들은 존재하지 않는다.
 
 `transport/index.ts`의 배럴 5줄(`webTransport`·`request`·`awsSigning`·`authRuntime`·`networkLog`)은
 불변이다. 각 파일의 처리:
@@ -318,17 +345,29 @@ export 심볼 집합을 diff해 확인(바이트 단위 동일).
 
 ```ts
 // libs/app-runtime/src/http/HttpManager.ts
-export const createHttpManager = (lemonSurface: LemonRequestSurface, cloud: CloudCredentialPort): HttpClient => {
+export const createHttpManager = (
+    lemonSurface: LemonRequestSurface,
+    // Optional so a test can build a manager without a session behind it; omitting it only costs the
+    // failure ATTRIBUTION, never the request itself.
+    credentials?: CredentialStalenessPort
+): HttpClient => {
     const ports: HttpRuntimePorts = {
         resolveEndpoint: route => ENDPOINT_RESOLVERS[route](),
-        getCredential: route => (route === 'cloud' ? cloud.getCredential() : null),
-        getIdentityToken: route => (route === 'cloud' ? cloud.getIdentityToken() : null),
+        isCredentialStale: credentials ? route => credentials.isStale(route) : undefined,
+        recoverCredential: credentials ? route => credentials.recover(route) : undefined,
         logSink: createNetworkLogSink(), // redactSensitive·truncate 적용 후 @chatic/bridges logger로
         onAuthFailure, // handleAuthError를 import하지 않고 인라인 재구현(아래 이유)
     };
+
     return createHttpClient(lemonSurface, ports);
 };
 ```
+
+> **이 샘플은 갱신된 것이다.** ADR-0070 시점 스케치는 `cloud: CloudCredentialPort` 를 받아
+> `route === 'cloud'` 로 분기했다. 클라우드 자격증명으로 서명하던 유일한 요청이 사라지면서 그
+> 포트도 `'cloud'` route도 없어졌고, 남은 것은 **신선도 판정과 회복** 두 짝
+> (`CredentialStalenessPort`)이다 — 진단만 배선하고 처치를 안 배선하면 쓸모가 없으므로 한
+> 인터페이스에 묶여 있다.
 
 자격증명이 포트인 이유는 순환이다. `HttpManager`가 세션 스토어를 직접 읽던 동안
 `session/auth`도 HTTP 클라이언트를 필요로 해서 `session` · `data` · `http`가 서로를 가리켰고,
@@ -337,10 +376,15 @@ export const createHttpManager = (lemonSurface: LemonRequestSurface, cloud: Clou
 
 두 지점이 원래 스케치와 다르다:
 
-1. **포트 구현은 `getCloudSessionContext()`로 읽는다** (`factory.ts`). 개별 스토어가 아니라
-   공개 배럴을 지나므로 모양이 바뀌어도 한 곳만 고치면 된다. `AWSCredentials`의 `AccessKeyId`/`SecretKey`가 optional이라
-   `AwsCredentialLike`(필수)로 좁히는 `toAwsCredentialLike` 어댑터가 필요했다 — 값이 없으면
-   "크레덴셜 없음"으로 취급해 unsigned 요청으로 폴백한다(기존 `buildCloudRequest`와 동일).
+1. **포트 구현은 `credentialFreshness`를 주입받는다** (`factory.ts` →
+   `new SessionCredentialAdapter(credentialFreshness)`). 어댑터가 존재하는 이유는 키가 다르기
+   때문이다 — 포트는 route로 묻고(`relay`/`cloud`/`oauth`/`iap`) 신선도는 `CredentialOwner`로
+   답하는데, 서명되는 route는 relay 하나뿐이어서 어댑터가 전부 relay로 접는다. 읽기는 매 호출마다
+   세션을 지난다(생성 시점에 캡처하지 않는다) — 자격증명 회전이 바로 다음 요청에 반영돼야 한다.
+
+    > 1단계 스케치에 있던 `toAwsCredentialLike`·`CloudCredentialPort`는 위 샘플 아래 주석대로
+    > 함께 없어졌다.
+
 2. **`onAuthFailure`는 `handleAuthError`를 import하지 않고 인라인 재구현.** `handleAuthError`는
    지금 `web-core`에 있고, 세션이 `app-runtime`으로 이관되는 3단계에서 이 포트 뒤로 재홈될
    예정이다 — 지금 import했다가 곧 옮겨질 함수에 의존을 거는 대신, 같은 반응(logger.error →
@@ -353,36 +397,43 @@ http-data-source)는 2단계에서 붙는다. relay 경로 executor에는 web-co
 
 ## 검증 방법
 
-전부 실행 완료(2026-08-27). 아래 4개 lib이 project reference로 연결돼 있어(`tsconfig.lib.json`의
-`references`), 하나를 빌드하면 의존 그래프 전체가 함께 검증된다.
+아래 4개 lib이 project reference로 연결돼 있어(`tsconfig.lib.json`의 `references`), 하나를 빌드하면
+의존 그래프 전체가 함께 검증된다.
 
-- **`libs/http` 유닛 테스트 — 6 suites·37 tests green.** `error/classify.spec.ts`(기존 이관) ·
-  `log/networkLog.spec.ts`(sink 목, redact는 sink 책임이라 raw 값으로 검증) ·
-  `client.spec.ts`(lemon 실행기 라우팅) · `client.cloud.spec.ts`(SigV4 실행기, axios 목) ·
-  `sign/awsSigV4.spec.ts`(신규 — 헤더 구조 검증, 서명 자체는 clock-dependent라 바이트 스냅샷
-  아님) · `policy/retry.spec.ts`(신규 — `onAuthFailure` throw가 루프를 즉시 탈출하는지 등
-  hook 계약 고정).
-- **`libs/web-core` 기존 spec green — 17 suites·189 tests, 무변경 통과.** 위임 껍데기가 배럴
-  동작을 보존한다는 통합 가드. `transport/index.ts`의 export 심볼 집합을 이관 전/후로 diff해
-  바이트 단위 동일함을 확인(§web-core 위임 껍데기).
-- **`libs/app-runtime` 기존 spec green — 28 suites·250 tests**, `libs/data` — 43 suites·401
-  tests. `HttpManager.test.ts`(신규 4 tests)는 `getCloudSessionContext()` 배선·크레덴셜
-  결측 폴백·redact 경유를 axios 목으로 검증.
-- **타입체크는 `tsc -b`** — libs에서 `tsc --noEmit`은 0건 검사 no-op이다(리포 기존 함정).
-  `tsc -b libs/app-runtime/tsconfig.lib.json` 하나로 http→web-core→app-runtime 전체가
-  project reference로 빌드된다. **실제로 걸린 함정**: `app-runtime`·`web-core`
-  `tsconfig.lib.json`의 `references`에 `../http/tsconfig.lib.json`을 추가하지 않으면
-  `TS6059/TS6307`(rootDir 위반)로 http의 소스 파일이 느슨하게 끌려들어온다 — path mapping만으론
-  부족하고 project reference 등록이 필수다. `dist/out-tsc` 잔재가 있으면 무관한 파일
-  (`reportPerfMetric` 등)에서 유령 에러가 나므로 `rm -rf dist/out-tsc libs/*/dist` 후 재실행.
-- **ESLint 클린** — `libs/http/src`·`libs/web-core/src/transport`·`libs/app-runtime/src/http`
-  0 errors.
-- **의존 0은 코드 리뷰로 확인, 자동 게이트는 미구현**: `libs/http/src`에 `@chatic/*` import가
-  없고 `import.meta`도 없음을 수동 확인했다. ESLint `no-restricted-imports` 규칙 자체는
-  아직 추가하지 않았다 — 후속 단계 항목.
+**실측 (2026-09-07)** — 1단계 당시 값에서 갱신했다. `libs/web-core` 행은 사라졌다(패키지 삭제).
+
+| 대상               | 결과                     |
+| ------------------ | ------------------------ |
+| `libs/http` jest   | **13스위트 / 84케이스**  |
+| `libs/app-runtime` | **62스위트 / 517케이스** |
+| `tsc -b`           | 0건                      |
+
+`libs/http` 스펙이 지키는 것: `error/classify.spec.ts`(분류) · `log/networkLog.spec.ts`(sink 목 —
+redact는 sink 책임이라 raw 값으로 검증) · `client.spec.ts`(실행기 라우팅) ·
+`client.credentialAttribution.spec.ts` · `client.credentialRetry.spec.ts`(자격증명 만료 귀속과
+요청당 1회 회복) · `policy/retry.spec.ts`(`onAuthFailure` throw가 루프를 즉시 탈출하는지) ·
+`gateways/refreshAbsence.spec.ts`(이 lib에도 refresh 경로가 없음) · 게이트웨이별 스펙 5개 ·
+`transport/lemonTransport.spec.ts`.
+
+> 1단계 문서가 들고 있던 `client.cloud.spec.ts` · `sign/awsSigV4.spec.ts` 는 없다 — SigV4 실행기와
+> 함께 사라졌다.
+
+**타입체크는 `tsc -b`** — libs에서 `tsc --noEmit`은 0건 검사 no-op이다(리포 기존 함정).
+`tsc -b libs/app-runtime/tsconfig.lib.json` 하나로 http→app-runtime 전체가 project reference로
+빌드된다. **실제로 걸린 함정**: `app-runtime` `tsconfig.lib.json`의 `references`에
+`../http/tsconfig.lib.json`을 추가하지 않으면 `TS6059/TS6307`(rootDir 위반)로 http의 소스 파일이
+느슨하게 끌려들어온다 — path mapping만으론 부족하고 project reference 등록이 필수다.
+`dist/out-tsc` 잔재가 있으면 무관한 파일에서 유령 에러가 나므로 `rm -rf` 후 재실행. 반대로 참조
+lib 을 **빌드하지 않으면** 새 export 가 "has no exported member" 로 뜬다 — `composite` 프로젝트는
+path mapping 이 `src` 를 가리켜도 산출물(`dist/out-tsc/libs/<lib>/…`)을 읽기 때문이다. 파일을 지운
+뒤에는 그 고아 `.d.ts` 도 직접 지울 것 — `tsc -b` 는 그것을 정리하지 않는다.
+
+**의존 0은 코드 리뷰로 확인, 자동 게이트는 미구현**: `libs/http/src`에 `@chatic/*` import가 없고
+`import.meta`도 없음을 수동 확인했다. ESLint `no-restricted-imports` 규칙 자체는 아직 추가하지
+않았다 — 후속 항목.
 
 ```bash
 rm -rf dist/out-tsc libs/*/dist
 npx tsc -b libs/app-runtime/tsconfig.lib.json
-for lib in http web-core app-runtime data; do (cd libs/$lib && npx jest); done
+for lib in http app-runtime data; do (cd libs/$lib && npx jest); done
 ```

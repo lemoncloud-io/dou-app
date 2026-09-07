@@ -2,6 +2,23 @@
 
 > 화면별 훅 구성과 데이터 흐름 중심 지침서
 
+> ⚠️ **상태: Stale · 실측 2026-09-07.** 이 문서가 서술하는 세션·소켓 계층은 ADR-0070이 대체했다.
+> **이 문서가 이름 부르는 심볼 중 코드에 존재하지 않는 것이 50개다** (2026-09-07 전수 대조 —
+> 문서의 백틱 식별자를 `apps/**`·`libs/**` 소스 전체와 맞춰 셌다). 초판 배너는 8개라고 적었는데
+> 그건 세션·소켓 계층만 손으로 센 것이었다. 나머지는 스토어·리포지토리·화면 훅 이름까지 걸쳐 있다
+> — `useWebCoreStore` · `useServiceStatusStore` · `webCore` · `ServiceUnavailableOverlay` ·
+> `useRepositories` · `useCacheMutations` · `useAutoSelectCloud` · `fetchLocal`/`fetchRemote` ·
+> `upsertMany` 등. 남은 참조는 "no longer mounts" · "legacy" · "Replaces the old" 같은 주석뿐이다. 특히 아래 서술은 지금 **거짓**이다:
+> 앱이 `auth:update` 를 보낸다(SDK 단독이다) · 60초 간격 토큰 갱신(폴링 엔진은 없다) ·
+> 5xx → ServiceUnavailable 오버레이(기능이 2026-09-07에 폐기됐다).
+>
+> **현행 정본:** 세션·소켓·인증은
+> [libs/app-runtime/docs/architecture.md](../libs/app-runtime/docs/architecture.md) ·
+> HTTP는 [libs/http/docs/architecture.md](../libs/http/docs/architecture.md) ·
+> 앱 조립은 [apps/web/docs/architecture/data-flow.md](../apps/web/docs/architecture/data-flow.md).
+> 화면별 훅 구성 부분은 여전히 참고 가치가 있으나 **심볼 이름은 신뢰하지 말 것.**
+> 전면 갱신은 별도 트랙이다.
+
 ---
 
 ## 기초 개념
@@ -45,7 +62,6 @@ main.tsx → App 마운트
       → DataProvider (Repository 인스턴스 생성, Context 제공)
         ├── WebSocketV2Connection     WebSocket 연결 관리
         ├── GlobalChatSync            전역 채팅 동기화
-        ├── ServiceUnavailableOverlay 서비스 장애 표시
         └── Router                    인증 분기 라우팅
 ```
 
@@ -434,7 +450,7 @@ Repository 이벤트 구독(`onChannelCreated` 등)으로 실시간 갱신도 �
 | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | 미인증 (`!isVerified`) | relay: `webCore.getTokenSignature()`, cloud: `cloudCore.getIdentityToken()` → `auth:update` 전송, 실패 시 exponential backoff (최대 3회) |
 | 인증 완료              | 60초 간격 갱신. relay: `webCore.getTokenSignature()`, cloud: `cloudCore.refreshToken()`                                                  |
-| 서버 에러 (5xx)        | `ServiceUnavailable` 오버레이 표시                                                                                                       |
+| 서버 에러 (5xx)        | (없음 — 차단 화면은 2026-09-07에 폐기됐다)                                                                                               |
 | 인증 에러 (4xx)        | default cloud로 fallback                                                                                                                 |
 
 ---
@@ -578,7 +594,7 @@ Repository 이벤트 구독(`onChannelCreated` 등)으로 실시간 갱신도 �
 #### useCloudTokenRefresh()
 
 - **반환**: void (부수 효과)
-- 토큰 자동 갱신. 미인증 시 `auth:update` 전송 (exponential backoff). 인증 후 60초 간격 갱신. 5xx → ServiceUnavailable, 4xx → default cloud fallback.
+- 토큰 자동 갱신. 미인증 시 `auth:update` 전송 (exponential backoff). 인증 후 60초 간격 갱신. 4xx → default cloud fallback. **(전부 대체됨 — 상단 배너 참고)**
 - **의존**: `useWebSocketV2`, `useWebCoreStore`, `useServiceStatusStore`, `cloudCore`, `webCore`
 
 #### useSocketAuth()
@@ -1066,7 +1082,7 @@ isVerified=true 상태에서 60초 간격:
         │
         ├── 성공 → identityToken 획득 → auth:update
         │
-        ├── 5xx 서버 에러 → ServiceUnavailable 오버레이 표시
+        ├── 5xx 서버 에러 → (차단 화면 없음 — 기능 폐기)
         │     (auth:update 보내지 않음, fallback 없음)
         │
         └── 4xx 인증 에러 → default 모드 fallback:
