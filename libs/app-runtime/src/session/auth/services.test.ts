@@ -10,7 +10,7 @@ import {
     loginRelayGuestByDevice,
     loginRelayUser,
     loginRelaySocial,
-    logoutCloudSession,
+    clearCloudStores,
     persistDeviceId,
     signServerAuth,
     switchCloudSession,
@@ -44,7 +44,6 @@ const mockGetSelectedCloudId = jest.fn();
 const mockSaveSelectedSiteId = jest.fn();
 const mockGetSelectedSiteId = jest.fn();
 const mockClearSelectedSite = jest.fn();
-const mockClearPlaceOrder = jest.fn();
 const mockClearDelegationToken = jest.fn();
 const mockClearSession = jest.fn();
 const mockGetIdentityToken = jest.fn();
@@ -74,6 +73,8 @@ const mockRebuildSessionIdentity = jest.fn();
 
 const mockGetCloudSessionSnapshot = jest.fn();
 const mockNotifySessionStateChanged = jest.fn();
+/** Counts `sessionSignal.batch` — one logical use-case must be one batch (ADR-0074 결정 2). */
+const mockBatch = jest.fn();
 const mockIsNative = jest.fn();
 const mockLoggerDebug = jest.fn();
 const mockLoggerInfo = jest.fn();
@@ -147,7 +148,6 @@ jest.mock('../store/stores', () => ({
         saveSelectedSiteId: (...args: unknown[]) => mockSaveSelectedSiteId(...args),
         getSelectedSiteId: (...args: unknown[]) => mockGetSelectedSiteId(...args),
         clearSelectedSite: (...args: unknown[]) => mockClearSelectedSite(...args),
-        clearPlaceOrder: (...args: unknown[]) => mockClearPlaceOrder(...args),
         clearDelegationToken: (...args: unknown[]) => mockClearDelegationToken(...args),
         clearSession: (...args: unknown[]) => mockClearSession(...args),
         getIdentityToken: (...args: unknown[]) => mockGetIdentityToken(...args),
@@ -176,7 +176,18 @@ jest.mock('../store', () => ({
     getSelectedSiteId: (...args: unknown[]) => mockGetSelectedSiteId(...args),
     clearRelaySession: (...args: unknown[]) => mockClearRelaySession(...args),
     rebuildSessionIdentity: (...args: unknown[]) => mockRebuildSessionIdentity(...args),
-    notifySessionStateChanged: (...args: unknown[]) => mockNotifySessionStateChanged(...args),
+    // The store announces KINDS now (ADR-0074 결정 2). `mockNotifySessionStateChanged` stands for
+    // `emit`, so the existing "was the session announced" assertions keep their meaning; `batch`
+    // runs straight through because the collapsing is covered by signal.test.ts.
+    sessionSignal: {
+        emit: (...args: unknown[]) => mockNotifySessionStateChanged(...args),
+        batch: (fn: () => unknown) => {
+            mockBatch();
+            return fn();
+        },
+        subscribe: jest.fn(() => () => undefined),
+        registerInvalidator: jest.fn(),
+    },
 }));
 
 jest.mock('@chatic/shared', () => ({
@@ -276,7 +287,8 @@ describe('session/services', () => {
         const result = await loginRelayGuestByDevice('device-1');
 
         expect(result).toBe(tokenView);
-        expect(localStorage.getItem('chatic-device-id')).toBe('device-1');
+        // deviceId goes through identityStore only — the raw localStorage copy had no reader (ADR-0074 A8).
+        expect(mockIdentitySetDeviceId).toHaveBeenCalledWith('device-1');
         // Guest role → delegator id is the guest's own uid (for invite acceptance); session authed.
         expect(mockIdentitySetDelegatorId).toHaveBeenCalledWith('guest-1');
         expect(mockSetSessionAuthenticated).toHaveBeenCalledWith(true);
@@ -380,10 +392,17 @@ describe('session/services', () => {
             cloudToken: userToken,
         });
         expect(mockClearSelectedSite).toHaveBeenCalledTimes(1);
-        expect(mockClearPlaceOrder).toHaveBeenCalledWith('cloud-new');
         // Cloud token saved above; identity is rebuilt (uid re-derives from the active cloud token).
         expect(mockRebuildSessionIdentity).toHaveBeenCalled();
-        expect(mockSetSelectedCloudId).toHaveBeenCalledWith('cloud-new');
+        // The selected cloud id is written by `cloudStore.saveSelectedCloudId` — twice on this path
+        // (the optimistic pre-apply, then the post-exchange commit) and NOT a third time through
+        // `setSelectedCloudId`, which is that same call and only cost one more fan-out (ADR-0074 A4).
+        expect(mockSetSelectedCloudId).not.toHaveBeenCalled();
+        expect(mockSaveSelectedCloudId).toHaveBeenCalledWith('cloud-new');
+        // The commit is ONE batch — this is the measurement ADR-0074 결정 2 exists for. Before it the
+        // success path fired the session signal eight times and seven inconsistent intermediate
+        // states were observable.
+        expect(mockBatch).toHaveBeenCalledTimes(1);
         expect(result).toEqual({
             cloudId: 'cloud-1',
             siteId: 'site-1',
@@ -453,29 +472,34 @@ describe('session/services', () => {
     });
 
     describe('applySelectedSite (optimistic sid primitive for the app-runtime socket switch)', () => {
-        it('applies the selected site and notifies (used for optimistic pre-apply and rollback)', () => {
+        // It no longer announces anything itself: `setSelectedSiteId` routes to the relay or cloud
+        // store by active cloud and BOTH emit `selection` (ADR-0074 결정 2). A broadcast here was a
+        // second fan-out for one write.
+        it('applies the selected site through the store, without a second announcement', () => {
             applySelectedSite('site-new');
 
             expect(mockSetSelectedSiteId).toHaveBeenCalledWith('site-new');
-            expect(mockNotifySessionStateChanged).toHaveBeenCalled();
+            expect(mockNotifySessionStateChanged).not.toHaveBeenCalled();
         });
 
         it('clears the selected site when passed null', () => {
             applySelectedSite(null);
 
             expect(mockSetSelectedSiteId).toHaveBeenCalledWith(null);
-            expect(mockNotifySessionStateChanged).toHaveBeenCalled();
+            expect(mockNotifySessionStateChanged).not.toHaveBeenCalled();
         });
     });
 
-    it('fully clears the cloud session (returns to default) during cloud logout, leaving relay intact', () => {
-        logoutCloudSession();
+    it('fully clears the cloud stores (returns to default), leaving relay intact', () => {
+        clearCloudStores();
 
         // Clears the whole cloud session (delegation + cloud token + selected cloud/site) so
         // cloud.isActive → false and uid/activeServer fall back to relay.
         expect(mockClearSession).toHaveBeenCalledTimes(1);
         expect(mockRebuildSessionIdentity).toHaveBeenCalledTimes(1);
-        expect(mockNotifySessionStateChanged).toHaveBeenCalledTimes(1);
+        // ONE batch: leaving the cloud is one observable change. The kinds themselves come from the
+        // store writes inside (`clearSession` announces `cloud:token` + `selection`).
+        expect(mockBatch).toHaveBeenCalledTimes(1);
         // Relay session is untouched during cloud logout.
         expect(mockClearRelaySession).not.toHaveBeenCalled();
     });
@@ -511,12 +535,15 @@ describe('session/services', () => {
         );
     });
 
-    // ⑪ device registration: deviceId persisted to identityStore (and localStorage)
-    it('persists deviceId to identityStore and localStorage', () => {
+    // ⑪ device registration: deviceId persisted through identityStore ONLY
+    it('persists deviceId through identityStore and writes no raw localStorage copy', () => {
         persistDeviceId('device-42');
 
-        expect(localStorage.getItem('chatic-device-id')).toBe('device-42');
         expect(mockIdentitySetDeviceId).toHaveBeenCalledWith('device-42');
+        // The raw `localStorage.setItem('chatic-device-id', …)` is gone: nothing read that slot on the
+        // web (the reader is useSessionDeviceId → sessionStorage) and inside a shell it merely
+        // duplicated the store's own write (ADR-0074 A8).
+        expect(localStorage.getItem('chatic-device-id')).toBeNull();
     });
 });
 

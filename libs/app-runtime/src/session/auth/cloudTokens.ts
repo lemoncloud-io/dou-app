@@ -4,7 +4,7 @@ import { logger } from '@chatic/bridges';
 
 import { getRepositories } from '../../data/runtime';
 import { cloudStore } from '../store/stores';
-import { notifySessionStateChanged, rebuildSessionIdentity } from '../store';
+import { rebuildSessionIdentity, sessionSignal } from '../store';
 import type { IAuthRepositoryV2 } from '@chatic/data';
 
 /**
@@ -78,15 +78,18 @@ export const reissueCommittedCloudTokens = async (): Promise<boolean> => {
     // own 60s margin would happily serve it back — a renewal that renews nothing.
     const { delegationToken, cloudToken } = await issueCloudTokens(cloudId, { allowCache: false });
 
-    cloudStore.saveDelegationToken(delegationToken);
-    // Merge, mirroring switchCloudSession's same-cloud branch: a re-issue is not guaranteed to carry
-    // every field the stored view holds (profile fields notably), and this is not a cloud CHANGE.
-    const existing = cloudStore.getCloudToken();
-    cloudStore.saveCloudToken(existing ? ({ ...existing, ...cloudToken } as UserTokenView) : cloudToken);
+    // One observable change (ADR-0074 결정 2): a renewal is not a cloud CHANGE, so observers must
+    // not see a window where the delegation token moved but the cloud token had not.
+    sessionSignal.batch(() => {
+        cloudStore.saveDelegationToken(delegationToken);
+        // Merge, mirroring switchCloudSession's same-cloud branch: a re-issue is not guaranteed to
+        // carry every field the stored view holds (profile fields notably).
+        const existing = cloudStore.getCloudToken();
+        cloudStore.saveCloudToken(existing ? ({ ...existing, ...cloudToken } as UserTokenView) : cloudToken);
 
-    // Re-derive uid/identity from the freshly written token, same as every other commit path.
-    rebuildSessionIdentity();
-    notifySessionStateChanged();
+        // Re-derive uid/identity from the freshly written token, same as every other commit path.
+        rebuildSessionIdentity();
+    });
     logger.info('SESSION', '[cloudTokens] committed cloud tokens re-issued', { data: { cloudId } });
     return true;
 };

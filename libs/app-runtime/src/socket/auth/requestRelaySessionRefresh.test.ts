@@ -9,6 +9,18 @@ jest.mock('@chatic/bridges', () => ({
 // transform cannot parse it, and HttpManager pulls it in transitively.
 jest.mock('@chatic/web-config', () => new Proxy({}, { get: () => jest.fn() }));
 
+// `getAuthStatus` (ADR-0074 결정 1) reads the store's token and the credential clock on top of the
+// socket, so both have to be seeded here. That is a real input the pre-refactor condition did NOT
+// have — see the commit message; a bound socket with no stored token now reads `absent`, which is
+// the safe direction.
+jest.mock('../../session/store/stores', () => ({
+    relayStore: { getIdentityToken: () => 'relay-idt' },
+    cloudStore: { getIdentityToken: () => 'cloud-idt' },
+}));
+jest.mock('../../session/auth/credentialFreshness', () => ({
+    credentialFreshness: { timeToExpiry: () => 30 * 60_000, isStale: () => false },
+}));
+
 /**
  * Fake AuthController. `refresh()` is the SDK's public call (sockets-lib 0.5.1) and its promise IS
  * the answer, so the fake needs no listener emitters — the old one had them because this module used
@@ -35,10 +47,18 @@ const makeAuth = ({ state = 'authenticated' } = {}) => {
 
 type FakeAuth = ReturnType<typeof makeAuth>;
 
+// `isKindVerified` is DERIVED here, not a free knob. The real SocketManager computes it as
+// `authenticated && connState === 'connected'` and clears it on every non-connected transition, so a
+// fake that reports `verified` for a closed socket describes a state the manager cannot produce.
+// That mattered once `deriveAuthStatus` started trusting this flag instead of re-reading the
+// transport (ADR-0074 결정 1): the stale fake was the only thing claiming a closed socket could
+// carry a refresh. `verified` can still be forced to false to model a mid-handshake connection.
 const makeManager = (client: { auth?: FakeAuth; state?: string } | null, { verified = true } = {}): ISocketManager =>
     ({
         getClient: jest.fn(() => client),
-        isKindVerified: jest.fn(() => verified),
+        isKindVerified: jest.fn(
+            () => verified && client?.state === 'connected' && client?.auth?.state === 'authenticated'
+        ),
     }) as unknown as ISocketManager;
 
 describe('requestRelaySessionRefresh', () => {
@@ -229,9 +249,15 @@ describe('requestRelaySessionRefresh — 중복 억제', () => {
         const manager = makeManager(null);
 
         await expect(requestRelaySessionRefresh({ manager })).resolves.toBe(false);
+        // How many manager reads ONE attempt costs is an implementation detail (the status snapshot
+        // reads the client more than once). What this case is about is that the SECOND request runs
+        // no attempt at all, so measure the delta rather than an absolute count.
+        const readsAfterFirstAttempt = (manager.getClient as jest.Mock).mock.calls.length;
+        expect(readsAfterFirstAttempt).toBeGreaterThan(0);
+
         await expect(requestRelaySessionRefresh({ manager })).resolves.toBe(false);
 
-        expect(manager.getClient).toHaveBeenCalledTimes(1);
+        expect(manager.getClient).toHaveBeenCalledTimes(readsAfterFirstAttempt);
     });
 
     it('메모 창이 지나면 다시 시도한다 — 캐시가 아니라 버스트 흡수기다', async () => {

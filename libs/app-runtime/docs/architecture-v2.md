@@ -98,7 +98,7 @@ v2가 추가로 책임지는 것은 하나다: **"지금 인증·세션 상태�
 | `IRelayStore` / `RelayStore` (외 2)                                        | 계약+구현             | `I*` 55쌍. 기존 `RelayCore`는 web-core `session/core` 잔재라 관례 밖                                                                                                                                                                                                           |
 | `useRuntimeSocketSlots` + `RuntimeSocketSlots`                             | `runtime/` 훅         | `useRuntime*` 4                                                                                                                                                                                                                                                                |
 | `useCredentialGuard` + `CredentialGuardPolicy`                             | 가드 훅 + 정책        | `use*Guard` 3 · `*Policy` 5                                                                                                                                                                                                                                                    |
-| `relaySession.clearLocal()` · `cloudSession.clearStores()`                 | `clear*` 동사         | `clearSession` · `clearToken` · `clearSelectedSite` 등 다수                                                                                                                                                                                                                    |
+| `relaySession.clearSessionAndRedirect()` · `cloudSession.clearStores()`    | `clear*` 동사         | `clearSession` · `clearToken` · `clearSelectedSite` 등 다수                                                                                                                                                                                                                    |
 | `SessionSignalKind`                                                        | 문자열 유니온 키      | `SocketKind` · `CredentialOwner`                                                                                                                                                                                                                                               |
 | `AuthStatus` · `AuthSignals` · `deriveAuthStatus`                          | 순수 판정 함수 + 결과 | `deriveConnectivity`/`ConnectivityStatus`/`ConnectivitySignals` — **직계 형제 1쌍뿐이지만 미러링 대상이 바로 그것**                                                                                                                                                            |
 | `readAuthSignals` · `getAuthStatus` (+ `AuthSignalDeps`)                   | 함수 + 주입 인자      | 같은 폴더의 `requestRelaySessionRefresh(deps)` · `recoverUnverifiedSockets(deps)`                                                                                                                                                                                              |
@@ -130,18 +130,18 @@ v2가 추가로 책임지는 것은 하나다: **"지금 인증·세션 상태�
 
 ### 바뀌는 것
 
-| 변경                                  | ADR-0074 | 앱 영향      |
-| ------------------------------------- | -------- | ------------ |
-| 인증 판정 → `deriveAuthStatus` 단일   | 결정 1   | 없음         |
-| 세션 통지 → `ISessionSignal` + 배치   | 결정 2   | 없음         |
-| 자격증명 갱신 → renewer 2개           | 결정 3   | 없음         |
-| 동시성 가드 7종 → `Coalescer` 1종     | 결정 4   | 없음         |
-| `session/auth/services.ts` 클래스화   | 결정 0·5 | 없음         |
-| 스토어 인터페이스 `*Core` → `I*Store` | 결정 0·5 | 없음         |
-| 배럴에서 앱 미사용 31개 제거          | 결정 6   | 없음         |
-| 스코프 첫 뷰 `intent` → `selected`    | 결정 8   | 없음         |
-| 이름 충돌 제거 (logout 2벌)           | 결정 7   | admin-v2 1곳 |
-| `RuntimeBinding.context` 제거         | v2 §상세 | 앱 4개       |
+| 변경                                     | ADR-0074 | 앱 영향      |
+| ---------------------------------------- | -------- | ------------ |
+| 인증 판정 → `deriveAuthStatus` 단일      | 결정 1   | 없음         |
+| 세션 통지 → `ISessionSignal` + 배치      | 결정 2   | 없음         |
+| 자격증명 갱신 → renewer 2개              | 결정 3   | 없음         |
+| 동시성 가드 7종 → `Coalescer`+`Throttle` | 결정 4   | 없음         |
+| `session/auth/services.ts` 클래스화      | 결정 0·5 | 없음         |
+| 스토어 인터페이스 `*Core` → `I*Store`    | 결정 0·5 | 없음         |
+| 배럴에서 앱 미사용 32개 제거             | 결정 6   | 없음         |
+| 스코프 첫 뷰 `intent` → `selected`       | 결정 8   | 없음         |
+| 이름 충돌 제거 (logout 2벌)              | 결정 7   | admin-v2 1곳 |
+| `RuntimeBinding.context` 제거            | v2 §상세 | 앱 4개       |
 
 ### 제외
 
@@ -347,14 +347,19 @@ SDK의 `AuthControllerState`(`'' | pending | validating | authenticated | failed
 그대로 싣는다 — 단, `disconnected`는 컨트롤러가 방출하지 않으므로 판정에 쓰지 않는다
 ([socket/auth/README.md §2](./socket/auth/README.md)).
 
-**이관 대상 — 지금 판정을 중복하는 4곳**
+**이관 대상 — 같은 인증 판정을 중복하는 2곳**
 
-| 현재 위치                                                                                                       | 이관 후                                                   |
-| --------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
-| [`useSessionStalenessGuard`](../src/session/hooks/app/useSessionStalenessGuard.ts) 의 probe                     | `status === 'stale'`                                      |
-| [`requestRelaySessionRefresh`](../src/socket/auth/requestRelaySessionRefresh.ts) 의 사전 조건 4개               | `status === 'verified' \| 'stale'`                        |
-| [`recoverUnverifiedSockets`](../src/socket/auth/recoverUnverifiedSockets.ts) 의 `isKindVerified`/`expired` 조합 | `status === 'wedged' \| 'expired'`                        |
-| [`useConnectivity`](../src/connection/useConnectivity.ts)                                                       | `SocketAuthSnapshot`을 입력으로 받아 브라우저 신호와 합성 |
+| 현재 위치                                                                                                       | 이관 후                           |
+| --------------------------------------------------------------------------------------------------------------- | --------------------------------- |
+| [`requestRelaySessionRefresh`](../src/socket/auth/requestRelaySessionRefresh.ts) 의 사전 조건 두 블록           | `canRefreshThroughSocket(status)` |
+| [`recoverUnverifiedSockets`](../src/socket/auth/recoverUnverifiedSockets.ts) 의 `isKindVerified`/`expired` 조합 | `needsSocketKick(status)`         |
+
+**[`useConnectivity`](../src/connection/useConnectivity.ts)는 이관 대상이 아니다.** 최초 계획은 4곳이
+었지만 이것은 인증 판정이 아니라 **표시 판정**이다 — 그것이 답하는 질문은 "사용자에게 무엇을 말할지"
+이고 `AuthStatus`는 "런타임이 무엇을 할지"다. `AuthStatus`가 추가로 주는 입력은 배너에서 전부 같은
+값으로 접히고(`credentialMs`·`storedSessionExpired`는 사용자에게 할 말이 아니다), 스냅샷은 구독 가능한
+값이 아니라서 지금 구독 하나로 되는 것을 셋으로 늘려야 하며, ACTIVE 슬롯 축을 kind 축으로 바꾸려면
+`getActiveKind()`를 공개해야 한다. 근거 전문은 ADR-0074 §결정 1.
 
 ### 2. `session/store` — 타입 시그널 + 클래스 스토어 (파일 이동 없음)
 
@@ -387,35 +392,47 @@ session/store/
 session/auth/
   relaySession.ts        IRelaySession · RelaySession
                          initialize · loginAsGuest · loginWithCredential · loginWithNativeToken
-                         · loginWithCode · applyToken · logout · clearLocal
+                         · loginWithCode · applyToken · logout · clearSessionAndRedirect
   cloudSession.ts        ICloudSession · CloudSession
                          switchTo · leave · clearStores · applySelectedSite · reissueCommitted
   sessionAuthAdapter.ts  SessionAuthAdapter implements SocketSessionDelegate
                          getAuthRegistration · signAuth · commitRefreshedToken · onAuthExpired
-  renewers/
-    credentialRenewer.ts       ICredentialRenewer
-    relayCredentialRenewer.ts  RelayCredentialRenewer   (renew = Auth SDK refresh)
-    cloudCredentialRenewer.ts  CloudCredentialRenewer   (renew = 재발급 + 소켓 재등록)
+  (renewer 는 `socket/auth/renewers.ts` — 두 갱신 동작이 이미 그 폴더에 있고
+   `socket/auth → session` 은 있는 엣지, `session/auth → socket` 은 0이라 반대로 두면 순환이다)
   cloudTokens.ts         issueCloudTokens 유지 (CloudSession·CloudCredentialRenewer 공유)
   utils/
     signature.ts         calcSignature
     tokenMerge.ts        mergeRefreshedRelayToken · mergeRefreshedCloudToken
-    expiry.ts            msUntilExpiration — 지금 3벌인 계산을 1벌로
+                         (msUntilExpiration은 `session/store/expiry.ts` — 스토어도 써야 하고
+                          store 수동성 eslint가 store → auth import를 막는다)
 ```
 
 `credentialFreshness.ts`는 사라지고 `ICredentialRenewer.timeToExpiry()`로 흡수된다 — 지금
 `CredentialOwner`로 키를 잡는 별도 축인데, 그 축이 곧 renewer의 축이다. `CredentialOwner` 타입 자체는
 유지한다(renewer의 `owner` 필드).
 
-### 4. `utils/coalescer.ts` — 동시성 가드 1종
+### 4. `utils/` — 동시성 프리미티브 2종
 
 ```ts
+// utils/coalescer.ts — 진행 중인 시도를 공유하고, 방금 정산된 답을 잠깐 재사용한다
 export class Coalescer<T> {
-    constructor(opts?: { memoMs?: number; cooldownMs?: number; backoff?: 'none' | 'exponential' });
+    constructor(opts?: { memoMs?: number; now?: () => number });
     run(attempt: () => Promise<T>): Promise<T>;
     reset(): void;
 }
+
+// utils/throttle.ts — 동기 "지금 발사해도 되나" 게이트. 고정 간격 또는 지수 성장
+export class Throttle {
+    constructor(opts: { intervalMs: number; maxIntervalMs?: number; now?: () => number });
+    tryAcquire(): boolean;
+    reset(): void;
+}
 ```
+
+**둘로 나눈 이유**는 7개가 두 메커니즘이기 때문이다 — 코얼레싱은 값을 공유하고(전부 Promise 반환),
+쓰로틀링은 허가를 묻는다(거부는 "건너뛴다"이고, 종단 `expired` 재개 게이트는 **Promise 조차 아니다** —
+소켓 메시지 핸들러 안의 동기 판정이다). 하나로 접으면 Promise 호출부마다 `skipped` 센티널이 필요하고
+그 동기 게이트는 여전히 담기지 않는다. 근거 전문은 ADR-0074 §결정 4.
 
 호출부 7곳이 이것을 쓴다. **각 호출부의 현재 숫자는 옮기되 바꾸지 않는다** — 메모 3초
 (`requestRelaySessionRefresh`) · 쿨다운 60초(staleness `forceRefresh`, 푸시 재등록) · 지수 30초~5분
@@ -465,7 +482,7 @@ export interface ISocketManager extends ISocketSlotLifecycle, ISocketTransport, 
 [`ActiveScope.BoundCidSource`](../src/session/scope/ActiveScope.ts)가 이미 이 패턴(`Pick` 하나)을
 시연하므로, 그것을 규칙으로 올리는 것이다.
 
-**이름 충돌 제거(ADR-0074 결정 7)**: 약한 판은 `relaySession.clearLocal()` ·
+**이름 충돌 제거(ADR-0074 결정 7)**: 약한 판은 `relaySession.clearSessionAndRedirect()` ·
 `cloudSession.clearStores()` 메서드로 들어가 전역 이름을 잃는다. 공개되는 `logoutSession` ·
 `logoutCloudSession`은 소켓 통지를 포함한 `socket/auth` 판에만 부여한다.
 
@@ -473,7 +490,7 @@ export interface ISocketManager extends ISocketSlotLifecycle, ISocketTransport, 
 
 지금 앱 4개가 전부 `const binding = useRuntimeBinding(); <RuntimeConnectionHost binding={binding} />`를
 반복하는데, 호스트는 `binding.socket`만 읽는다. 그리고 `RuntimeBinding.context`는 **테스트만 읽는 죽은
-필드**이고, 그 생성 코드는 [`deriveSelectedContext`](../src/session/scope/intent.ts)(구 `deriveIntent`)를 글자 단위로 중복한다
+필드**이고, 그 생성 코드는 [`deriveSelectedContext`](../src/session/scope/selectedContext.ts)를 글자 단위로 중복한다
 (같은 공식 2개 구현, 하나는 죽음 — `RuntimeDataBinder` 삭제 시 소비자가 사라졌다).
 
 ```ts
@@ -499,7 +516,7 @@ src/index.ts                 앱 표면만 (약 80). "내부"의 정의는 여�
 src/public-surface.test.ts   EXPECTED 단일 목록이 그것을 잠근다 (구조 변경 없음)
 ```
 
-앱이 쓰지 않는 31개를 `index.ts`에서 제거한다. 내부 소비자는 구체 모듈 경로로 import하는 기존 관례를
+앱이 쓰지 않는 32개를 `index.ts`에서 제거한다. 내부 소비자는 구체 모듈 경로로 import하는 기존 관례를
 따른다([`useSocketSessionDelegate.ts`](../src/connection/useSocketSessionDelegate.ts)가 배럴을 우회해
 `../socket/auth/sessionDelegate`를 직접 잡는 것이 선례). `patchRelaySessionUser` /
 `getRelaySessionUser`는 계정 프로필 읽기·쓰기 짝(ADR-0062)이고 `apps/web`이 실제로 쓰므로 **남는다**.
@@ -576,6 +593,50 @@ npx -y @mermaid-js/mermaid-cli@11 -i block.mmd -o block.svg
 
 ---
 
+## 실행 기록
+
+> **임시 섹션** — `Live` 전환 시 §구현 체크리스트와 함께 삭제한다.
+
+| 단계 | 배치                                         | 커밋                                | 상태                              |
+| ---- | -------------------------------------------- | ----------------------------------- | --------------------------------- |
+| 0    | A — 죽은 코드·중복·주석·`intent`→`selected`  | `9e8a1b107`                         | ✅ 완료                           |
+| 1    | B — 이름 충돌 제거 (logout 2벌)              | `df897adec`                         | ✅ 완료                           |
+| 2    | C — 배럴에서 앱 미사용 32개 제거             | `e38be8c98`                         | ✅ 완료                           |
+| —    | 리뷰 반영 (근접 이름 충돌 · A12 회귀 테스트) | `ccbb35fb2`                         | ✅ 완료                           |
+| 3    | D — `deriveAuthStatus`                       | 추가 `cbbe94c7e` · 이관 `81e44162e` | ✅ 완료 (D3·D6 철회)              |
+| 4    | E — `SessionSignal` + `batch`                | 추가 `07fc8e57a` · 이관 `3d1f161f1` | ✅ 완료 (E5 → G5)                 |
+| 5    | F — 동시성 프리미티브 + renewer              | `62f08eaf8` · `aa3ba989d` · renewer | ✅ 완료 (F2 철회)                 |
+| 6    | G — 클래스화 + `RuntimeBinding` 정리         | —                                   | 미착수 (앱 4개, desktop-web 포함) |
+
+**현재 기준선**: `tsc -b` app-runtime+http **0건** · jest **58스위트 500케이스** · eslint app-runtime
+**0 error / 1 warning**(선재 `services.ts`의 `target`) · `apps/admin-v2`·`apps/testbed`·`apps/web` tsc는
+app-runtime 관련 **0건**(web은 `@chatic/web-ui-kit` stale dist 선재 8건) · `apps/desktop-web` tsc
+**17건 = 2026-09-02 기준선과 동일**(8개 파일, app-runtime 관련 0건) · admin-v2
+`useRelaySessionGuard.spec` 5케이스 통과.
+
+**실행이 계획을 정정한 것 (누적)**
+
+| #   | 계획                                      | 실제                                                                                                                                                                         |
+| --- | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | 만료 계산을 `auth/utils/expiry.ts`로 통합 | `store/expiry.ts`로. 스토어 수동성 eslint가 `store/**` → `../auth`를 막아 방향상 store 쪽만 가능하다                                                                         |
+| 2   | 앱 미사용 공개 표면 31개                  | **32개**. `setSessionAuthenticated`의 앱 '참조'가 주석 한 줄이었다                                                                                                           |
+| 3   | `AuthStatus`에 `wedged` 포함              | 제외. "미검증 지속"은 시간 축이 필요해 읽기 전용 투영으로 파생 불가 — 상태는 5개                                                                                             |
+| 4   | 인증 판정 사본 4곳 이관                   | **2곳**. `useConnectivity`는 표시 판정, relay 가드는 두 시계를 다른 정책으로 쓴다                                                                                            |
+| 5   | 동시성 가드 7 → 1                         | **7 → 2**. 코얼레싱(값 공유·Promise)과 쓰로틀링(허가·동기 게이트)은 다른 메커니즘이다                                                                                        |
+| 6   | E5 `useRuntimeBinding` 부분집합 구독      | G5로 이동 — `context.uid` 때문에 지금은 부분집합이 곧 전체 종류다                                                                                                            |
+| 7   | 두 가드를 `useCredentialGuard` 하나로     | **철회**. 트리거 모델이 다르다 — relay는 폴링(30초 + 검증 엣지), cloud는 `Expiration`에서 파생한 자가 무장 마감. 합치면 `mode` 스위치가 되고 그것이 ADR-0070이 거부한 형태다 |
+
+5단계에서 **테스트가 잡은 것**: `Coalescer`가 `Date.now`를 생성 시점에 참조로 캡처하면 jest 의 fake
+timer 가 나중에 교체한 전역을 못 본다 — 호출 시점 조회로 고쳤다.
+
+3단계 이관이 만든 **동작 델타 1건**: `requestRelaySessionRefresh`·`recoverUnverifiedSockets`가 이제
+스토어의 토큰 유무까지 본다. 실무상 같지만(바인딩됐다 = 토큰이 있었다) 둘이 어긋나는 순간에는
+refresh를 시도하지 않고 킥도 하지 않는다 — 스토어가 authority이므로 안전한 방향으로 채택했다.
+
+**4단계부터 남은 위험**: 0~3은 삭제·개명·판정 이관이라 revert로 복구되지만, 4~5는 통지 경로를 옮기므로
+회귀 형태가 "조용한 오작동"이다. §리스크와 미지수의 롤백 전략대로 "추가"와 "제거"를 분리하고, 3단계가
+그랬듯 **동등성 확인이 델타를 잡으면 숨기지 말고 커밋 메시지에 적는다.**
+
 ## 구현 체크리스트
 
 > **임시 섹션** — `Live` 전환 시 섹션째 삭제한다.
@@ -592,21 +653,21 @@ npx -y @mermaid-js/mermaid-cli@11 -i block.mmd -o block.svg
 
 ### 배치 A — 0단계: 죽은 코드 · 중복 · 낡은 주석 · 이름 정정 (앱 무변경)
 
-| #   | 대상                                                                                                                                                                                                                                                                                | 조치                                                                                                                                                                                                               |
-| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| A1  | [`session/hooks/app/useRegisterDeviceToken.ts`](../src/session/hooks/app/useRegisterDeviceToken.ts)                                                                                                                                                                                 | 파일 삭제. 소비자 0(주석 언급 1건뿐)이고 토큰 동일성 dedup은 desktop-web이 위험하다고 기록한 전략이다(SNS가 1회 실패로 엔드포인트 비활성화)                                                                        |
-| A2  | `identityStore.{getRegisteredDeviceToken,setRegisteredDeviceToken}` + `REGISTERED_DEVICE_TOKEN_KEY`                                                                                                                                                                                 | A1의 유일한 소비자였으므로 동반 삭제                                                                                                                                                                               |
-| A3  | [`session/auth/utils/expiry.ts`](../src/session/auth/utils/expiry.ts) `msUntilExpiration`                                                                                                                                                                                           | 리포 전체 import 0. `CredentialFreshness.remainingFrom` · `getCachedCloudTokens` 인라인과 합쳐 **1벌**로                                                                                                           |
-| A4  | [`services.ts` `switchCloudSession`](../src/session/auth/services.ts) 의 `setSelectedCloudId(cloudId)`                                                                                                                                                                              | 직전 `cloudStore.saveSelectedCloudId(cloudId)`와 같은 호출 — 삭제 (통지 1회 감소)                                                                                                                                  |
-| A5  | `services.ts` `localStorage.removeItem('chatic-device-token')`                                                                                                                                                                                                                      | 이 키의 writer/reader가 리포에 없다 — 삭제. 대신 A2로 실제 키가 정리된다                                                                                                                                           |
-| A6  | `cloudStore.{clearDelegationToken,clearSelectedPlace,getSelectedPlaceId,savePlaceOrder,getPlaceOrder}`                                                                                                                                                                              | 참조 0 — 삭제. `clearDelegationToken`은 `clearSession`과 clear 의미가 다른 두 번째 경로라 특히 제거 가치가 있다                                                                                                    |
-| A7  | `identityStore.{clearIdentity,getDeviceId}` · `sessionContextStore.{updateIdentityState,getRelayContext}`                                                                                                                                                                           | 참조 0 — 삭제                                                                                                                                                                                                      |
-| A8  | `persistDeviceId`의 생 `localStorage.setItem` + 중복 리터럴 `DEVICE_ID_STORAGE_KEY`                                                                                                                                                                                                 | A7로 reader가 없어지는 죽은 쓰기 — 삭제하고 스토어 경유만 남긴다. **웹의 디바이스 id가 탭 세션 단위인 것이 의도인지는 별개 결정**(ADR-0074 §열린 질문 4)                                                           |
-| A9  | [`bootstrapSocketConnection.ts`](../src/socket/auth/bootstrapSocketConnection.ts) `onTokenRefresh` 주석                                                                                                                                                                             | 한국어 문장 중간에 영어 조각이 끼어 문장이 성립하지 않는다(편집 중 두 주석 병합) — 재작성                                                                                                                          |
-| A10 | [`relayStore.ts`](../src/session/store/relayStore.ts) 헤더 "세션 배럴이 module load에 configure를 돌린다" · [`session/index.ts`](../src/session/index.ts) "`./store`를 먼저 import하면 env 배선이 돌아간다"                                                                         | ADR-0070 5단계 이후 **거짓**. `configure.ts` 자신의 헤더가 정확한 설명을 담고 있으므로 그쪽에 맞춘다                                                                                                               |
-| A11 | [`store/index.ts`](../src/session/store/index.ts) 가 2번 지칭하는 `./cores`                                                                                                                                                                                                         | 실제 파일명은 `stores.ts` — 정정                                                                                                                                                                                   |
-| A12 | [`contextStore.ts`](../src/session/store/contextStore.ts) `getCloudSessionSnapshot`                                                                                                                                                                                                 | 캐시를 우회해 `buildCloudContext()`를 직접 부르므로 같은 tick에서 다른 독자보다 새로운 값을 낼 수 있다 — 캐시 경유로 통일                                                                                          |
-| A13 | `intent` → `selected` 개명 (ADR-0074 §결정 8) — `scope/intent.ts` → `selectedContext.ts` · `deriveIntent` → `deriveSelectedContext` · `ActiveScope.get intent` → `get selected` · ctor `readIntent` → `readSelected` · `DataManager`의 `intentProvider` → `selectedContextProvider` | 코드 4파일 + 테스트 1개, **앱 0곳**. 동작 변화 없음. 문서 동반 갱신: `architecture.md`(4) · `session/architecture.md`(6) · `data/README.md`(1) · `docs/adr/0070`(2 — 개명 사실만 각주로, ADR 본문은 고치지 않는다) |
+| #   | 대상                                                                                                                                                                                                                                                                                | 조치                                                                                                                                                                                                                                                      |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A1  | `session/hooks/app/useRegisterDeviceToken.ts`                                                                                                                                                                                                                                       | 파일 삭제. 소비자 0(주석 언급 1건뿐)이고 토큰 동일성 dedup은 desktop-web이 위험하다고 기록한 전략이다(SNS가 1회 실패로 엔드포인트 비활성화)                                                                                                               |
+| A2  | `identityStore.{getRegisteredDeviceToken,setRegisteredDeviceToken}` + `REGISTERED_DEVICE_TOKEN_KEY`                                                                                                                                                                                 | A1의 유일한 소비자였으므로 동반 삭제                                                                                                                                                                                                                      |
+| A3  | [`session/store/expiry.ts`](../src/session/store/expiry.ts) `msUntilExpiration` (구 `session/auth/utils/expiry.ts`)                                                                                                                                                                 | 리포 전체 import 0. `CredentialFreshness.remainingFrom` · `getCachedCloudTokens` 인라인과 합쳐 **1벌**로. **공유 지점은 `store/` 쪽이다** — 스토어 수동성 eslint가 `store/**` → `../auth` import를 막으므로 두 소비자가 함께 물 수 있는 방향은 그쪽뿐이다 |
+| A4  | [`services.ts` `switchCloudSession`](../src/session/auth/services.ts) 의 `setSelectedCloudId(cloudId)`                                                                                                                                                                              | 직전 `cloudStore.saveSelectedCloudId(cloudId)`와 같은 호출 — 삭제 (통지 1회 감소)                                                                                                                                                                         |
+| A5  | `services.ts` `localStorage.removeItem('chatic-device-token')`                                                                                                                                                                                                                      | 이 키의 writer/reader가 리포에 없다 — 삭제. 대신 A2로 실제 키가 정리된다                                                                                                                                                                                  |
+| A6  | `cloudStore.{clearDelegationToken,clearSelectedPlace,getSelectedPlaceId,savePlaceOrder,getPlaceOrder}`                                                                                                                                                                              | 참조 0 — 삭제. `clearDelegationToken`은 `clearSession`과 clear 의미가 다른 두 번째 경로라 특히 제거 가치가 있다                                                                                                                                           |
+| A7  | `identityStore.{clearIdentity,getDeviceId}` · `sessionContextStore.{updateIdentityState,getRelayContext}`                                                                                                                                                                           | 참조 0 — 삭제                                                                                                                                                                                                                                             |
+| A8  | `persistDeviceId`의 생 `localStorage.setItem` + 중복 리터럴 `DEVICE_ID_STORAGE_KEY`                                                                                                                                                                                                 | A7로 reader가 없어지는 죽은 쓰기 — 삭제하고 스토어 경유만 남긴다. **웹의 디바이스 id가 탭 세션 단위인 것이 의도인지는 별개 결정**(ADR-0074 §열린 질문 4)                                                                                                  |
+| A9  | [`bootstrapSocketConnection.ts`](../src/socket/auth/bootstrapSocketConnection.ts) `onTokenRefresh` 주석                                                                                                                                                                             | 한국어 문장 중간에 영어 조각이 끼어 문장이 성립하지 않는다(편집 중 두 주석 병합) — 재작성                                                                                                                                                                 |
+| A10 | [`relayStore.ts`](../src/session/store/relayStore.ts) 헤더 "세션 배럴이 module load에 configure를 돌린다" · [`session/index.ts`](../src/session/index.ts) "`./store`를 먼저 import하면 env 배선이 돌아간다"                                                                         | ADR-0070 5단계 이후 **거짓**. `configure.ts` 자신의 헤더가 정확한 설명을 담고 있으므로 그쪽에 맞춘다                                                                                                                                                      |
+| A11 | [`store/index.ts`](../src/session/store/index.ts) 가 2번 지칭하는 `./cores`                                                                                                                                                                                                         | 실제 파일명은 `stores.ts` — 정정                                                                                                                                                                                                                          |
+| A12 | [`contextStore.ts`](../src/session/store/contextStore.ts) `getCloudSessionSnapshot`                                                                                                                                                                                                 | 캐시를 우회해 `buildCloudContext()`를 직접 부르므로 같은 tick에서 다른 독자보다 새로운 값을 낼 수 있다 — 캐시 경유로 통일                                                                                                                                 |
+| A13 | `intent` → `selected` 개명 (ADR-0074 §결정 8) — `scope/intent.ts` → `selectedContext.ts` · `deriveIntent` → `deriveSelectedContext` · `ActiveScope.get intent` → `get selected` · ctor `readIntent` → `readSelected` · `DataManager`의 `intentProvider` → `selectedContextProvider` | 코드 4파일 + 테스트 1개, **앱 0곳**. 동작 변화 없음. 문서 동반 갱신: `architecture.md`(4) · `session/architecture.md`(6) · `data/README.md`(1) · `docs/adr/0070`(2 — 개명 사실만 각주로, ADR 본문은 고치지 않는다)                                        |
 
 ### 배치 B — 1단계: 이름 충돌 (ADR-0074 결정 7)
 
@@ -617,7 +678,7 @@ npx -y @mermaid-js/mermaid-cli@11 -i block.mmd -o block.svg
 
 ### 배치 C — 2단계: 배럴 정리 (ADR-0074 결정 6)
 
-- C1. 앱 미사용 31개를 `index.ts`에서 제거 (목록은 ADR-0074 §맥락 6).
+- C1. 앱 미사용 **32개**를 `index.ts`에서 제거 (ADR-0074 §맥락 6 + `setSessionAuthenticated`).
 - C2. `public-surface.test.ts` EXPECTED 갱신 — **목록 구조는 그대로**(단일 목록).
 - C3. 표면 스캔(공개 심볼 × 앱 참조)을 스크립트 → 테스트로 승격.
 - C4. `patchRelaySessionUser` / `getRelaySessionUser`는 유지 (근거를 주석에 남긴다).
@@ -626,10 +687,11 @@ npx -y @mermaid-js/mermaid-cli@11 -i block.mmd -o block.svg
 
 - D1. `socket/auth/authStatus.ts`에 타입 + `deriveAuthStatus` 신설 + 진리표 테스트(§다이어그램 2 전이 전부).
 - D2. 같은 파일에 `readAuthSignals` · `getAuthStatus` · `AuthSignalDeps` 추가 (주입 인자 형태).
-- D3. `useConnectivity`가 `SocketAuthSnapshot`을 입력으로 받게 변경 (기존 진리표 테스트 유지).
+- ~~D3. `useConnectivity` 이관~~ — **철회**(ADR-0074 §결정 1). 표시 판정이라 인증 판정의 사본이 아니다.
+- ~~D6. `useSessionStalenessGuard` 이관~~ — **철회**(ADR-0074 §맥락 1 정정 블록). 두 시계를 서로 다른
+  정책으로 쓰므로 `stale` 하나로 접으면 admin-v2의 좀비 teardown이 사라진다.
 - D4. `recoverUnverifiedSockets` → `status` 기반으로.
 - D5. `requestRelaySessionRefresh`의 사전 조건 4개 → `status` 기반으로.
-- D6. `useSessionStalenessGuard`의 probe → `status` 기반으로.
 - D7. 이관 완료 후 옛 조건문 삭제. **각 이관은 "같은 답을 낸다"를 테스트로 확인한 뒤에만 삭제한다.**
 
 ### 배치 E — 4단계: `SessionSignal`
@@ -646,7 +708,8 @@ npx -y @mermaid-js/mermaid-cli@11 -i block.mmd -o block.svg
 ### 배치 F — 5단계: renewer + Coalescer
 
 - F1. `renewers/credentialRenewer.ts` 인터페이스 + 구현 2개. `credentialFreshness.ts` 흡수·삭제.
-- F2. `useCredentialGuard(renewer, policy: CredentialGuardPolicy)` — 두 가드의 스케줄링 공통부만.
+- ~~F2. `useCredentialGuard` 병합~~ — **철회**(ADR-0074 §결정 3). 트리거 모델이 폴링 대 자가 무장
+  마감이라 공통부가 `enabled`·`visibilitychange` 뿐이고, 합치면 `mode` 스위치가 된다.
   `useSessionStalenessGuard`/`useCloudCredentialGuard`는 그 위의 얇은 프리셋으로 **이름을 남긴다**
   (앱 3곳 호출부 무변경 — ADR-0074 §열린 질문 2).
 - F3. `sessionDelegate.onAuthExpired` → `renewers[kind].onTerminalExpiry()`.
@@ -700,7 +763,7 @@ npx -y @mermaid-js/mermaid-cli@11 -i block.mmd -o block.svg
 
 | 가정                                                                                  | 확인 방법                                                                                                 |
 | ------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| 앱 미사용 31개가 진짜 미사용이다 (문자열 동적 참조·네이티브 브릿지 경로 없음)         | 삭제 전 심볼 이름으로 전수 재검색. 2026-09 스윕이 `as` 재수출에서 오탐 1건을 낸 전례가 있다               |
+| 앱 미사용 32개가 진짜 미사용이다 (문자열 동적 참조·네이티브 브릿지 경로 없음)         | 삭제 전 심볼 이름으로 전수 재검색. 2026-09 스윕이 `as` 재수출에서 오탐 1건을 낸 전례가 있다               |
 | §다이어그램 2의 전이가 실제 SDK 동작과 일치한다                                       | [socket/auth/README.md §5](./socket/auth/README.md)(SDK 내부 동작)와 대조 + 실기기에서 슬립 복귀 1회 관측 |
 | 통지 8 → 1이 관측자에게 회귀를 만들지 않는다 (중간 상태에 **의존**하던 구독자가 없다) | 4단계에서 전환 시나리오 수동 확인 (홈 레일 · 채널 목록 · MY 헤더)                                         |
 | `Coalescer` 통합이 타이밍을 바꾸지 않는다                                             | 각 호출부의 현재 숫자를 테스트로 먼저 고정한 뒤 이관                                                      |

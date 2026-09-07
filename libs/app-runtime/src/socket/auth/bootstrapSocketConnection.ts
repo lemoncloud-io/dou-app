@@ -1,5 +1,7 @@
 import { logger } from '@chatic/bridges';
 
+import { Throttle } from '../../utils/throttle';
+
 import type { ISocketManager, SocketBindingConfig, SocketKind } from '../types';
 import type { SocketSessionDelegate } from './types';
 
@@ -83,10 +85,13 @@ export const bootstrapSocketConnection = async ({
 
     const gate = auth as unknown as AuthActivationGate;
 
-    // Expired-resume throttle state (see the cooldown constants above). Per bootstrap instance:
-    // a reboot is a fresh identity attempt, so it deliberately starts with a clean budget.
-    let resumeHoldUntil = 0;
-    let resumeCooldownMs = EXPIRED_RESUME_INITIAL_COOLDOWN_MS;
+    // Expired-resume throttle (see the cooldown constants above). Per bootstrap instance: a reboot
+    // is a fresh identity attempt, so it deliberately starts with a clean budget. The growing gate
+    // is `Throttle` now (ADR-0074 결정 4) — the numbers are unchanged.
+    const resumeThrottle = new Throttle({
+        intervalMs: EXPIRED_RESUME_INITIAL_COOLDOWN_MS,
+        maxIntervalMs: EXPIRED_RESUME_MAX_COOLDOWN_MS,
+    });
 
     // Mirror the SDK auth state into the manager's isVerified (per slot), run teardown on terminal expiry.
     unsubscribes.push(
@@ -94,8 +99,7 @@ export const bootstrapSocketConnection = async ({
             manager.setAuthenticated(kind, state === 'authenticated');
             if (state === 'authenticated') {
                 // Healthy again — the next terminal expiry gets a fresh resume budget.
-                resumeHoldUntil = 0;
-                resumeCooldownMs = EXPIRED_RESUME_INITIAL_COOLDOWN_MS;
+                resumeThrottle.reset();
             }
             if (state === 'expired') {
                 void delegate.onAuthExpired?.(kind);
@@ -109,9 +113,9 @@ export const bootstrapSocketConnection = async ({
     unsubscribes.push(
         auth.onTokenRefresh(view => {
             // ADR-0070 기준선 계측 ②: refresh 발화 횟수. 이제 refresh는 이 경로 하나뿐이라 이 줄이
-            // 유일한 계수원이다 — 예전에는 HTTP 경로가 네트워크 로그에 따로 찍혔고 소켓만
-            // NETWORK logs, and signature failures as `... failed (403)`. Logging the socket half here
-            // 보이지 않았다. 3단계 전후 비교는 이 한 줄로 센다.
+            // 유일한 계수원이다 — 예전에는 HTTP refresh가 NETWORK 로그에 따로 찍히고 서명 거부는
+            // `... failed (403)`으로 남는 반면 소켓 쪽 발화는 아무데도 보이지 않았다. 3단계 전후
+            // 비교는 이 한 줄로 센다.
             logger.info('SOCKET', '[bootstrapSocketConnection] token refreshed', { data: { kind } });
             // The writeback is what actually re-mints the HTTP/AWS signing material, and it is the
             // only step that can fail AFTER `requestRelaySessionRefresh` has already reported success
@@ -157,15 +161,12 @@ export const bootstrapSocketConnection = async ({
                 // expired controller costs exactly one auth.update (failures are NOT reset, so a
                 // rejection re-expires immediately), and reconnect-churn environments deliver a
                 // device.save:ok per connection. Success resets the budget via onAuthState.
+                if (auth.state === 'expired' && !resumeThrottle.tryAcquire()) {
+                    return;
+                }
                 if (auth.state === 'expired') {
-                    const now = Date.now();
-                    if (now < resumeHoldUntil) {
-                        return;
-                    }
-                    resumeHoldUntil = now + resumeCooldownMs;
-                    resumeCooldownMs = Math.min(resumeCooldownMs * 2, EXPIRED_RESUME_MAX_COOLDOWN_MS);
                     logger.warn('SOCKET', '[bootstrapSocketConnection] resuming terminally-expired auth', {
-                        data: { kind, nextCooldownMs: resumeCooldownMs },
+                        data: { kind },
                     });
                 }
                 gate.start();

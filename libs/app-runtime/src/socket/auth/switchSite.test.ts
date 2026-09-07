@@ -1,12 +1,15 @@
 import { configurePerfMetrics, resetPerfMetrics } from '@chatic/bridges';
 import { switchSite } from './switchSite';
-import { applySelectedSite, getGlobalSessionContext, getSelectedSiteId } from '../../session';
+import { applySelectedSite } from '../../session/auth/services';
+import { getGlobalSessionContext, getSelectedSiteId } from '../../session/store';
 import { getSocketManager } from '../runtime';
 
 import type { Logger } from '@chatic/bridges';
 
-jest.mock('../../session', () => ({
-    applySelectedSite: jest.fn(),
+// Mocked at the CONCRETE modules, not the session barrel: these three are runtime-internal and off
+// that barrel now (ADR-0074 결정 6).
+jest.mock('../../session/auth/services', () => ({ applySelectedSite: jest.fn() }));
+jest.mock('../../session/store', () => ({
     getGlobalSessionContext: jest.fn(),
     getSelectedSiteId: jest.fn(),
 }));

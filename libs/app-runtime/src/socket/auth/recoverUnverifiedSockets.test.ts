@@ -14,6 +14,18 @@ jest.mock('../../session', () => new Proxy({}, { get: () => jest.fn() }));
 // transform cannot parse it, and HttpManager pulls it in transitively.
 jest.mock('@chatic/web-config', () => new Proxy({}, { get: () => jest.fn() }));
 
+// `getAuthStatus` (ADR-0074 결정 1) reads the store's token and the credential clock on top of the
+// socket, so both have to be seeded here. That is a real input the pre-refactor condition did NOT
+// have — see the commit message; a bound socket with no stored token now reads `absent`, which is
+// the safe direction.
+jest.mock('../../session/store/stores', () => ({
+    relayStore: { getIdentityToken: () => 'relay-idt' },
+    cloudStore: { getIdentityToken: () => 'cloud-idt' },
+}));
+jest.mock('../../session/auth/credentialFreshness', () => ({
+    credentialFreshness: { timeToExpiry: () => 30 * 60_000, isStale: () => false },
+}));
+
 /**
  * Fake per-slot client capturing the recovery sequence in `order` (prefixed by kind so the two
  * slots stay distinguishable). `authState` mirrors AuthController.state.

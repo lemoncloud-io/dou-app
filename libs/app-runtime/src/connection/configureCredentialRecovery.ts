@@ -1,5 +1,5 @@
 import { credentialRecovery } from '../http/credentialRecovery';
-import { requestRelaySessionRefresh } from '../socket/auth/requestRelaySessionRefresh';
+import { credentialRenewers } from '../socket/auth/renewers';
 
 import type { HttpRoute } from '@chatic/http';
 
@@ -21,5 +21,7 @@ import type { HttpRoute } from '@chatic/http';
  * ring described in `http/credentialRecovery.ts`.
  */
 export const configureCredentialRecovery = (): void => {
-    credentialRecovery.register((_route: HttpRoute) => requestRelaySessionRefresh());
+    // Every route recovers through the RELAY renewer — relay is the only credential that signs
+    // (ADR-0074 결정 3).
+    credentialRecovery.register((_route: HttpRoute) => credentialRenewers.relay.renew());
 };

@@ -1,6 +1,8 @@
 import { useMemo } from 'react';
 
-import { getCommittedCloudId, useDynamicDeviceId, useGlobalSession } from '../session';
+import { useDynamicDeviceId, useGlobalSession } from '../session';
+// Off the session barrel (ADR-0074 결정 6): the committed cloud id is runtime-internal.
+import { getCommittedCloudId } from '../session/store';
 
 import type { RuntimeBinding, RuntimeSocketSlot } from './types';
 

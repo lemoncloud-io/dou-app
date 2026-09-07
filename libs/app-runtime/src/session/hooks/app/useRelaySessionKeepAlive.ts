@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 
 import { logger } from '@chatic/bridges';
 
+import { Coalescer } from '../../../utils/coalescer';
 import { loginRelayGuestByDevice } from '../../auth/services';
 import { useSessionAuth } from '../session';
 import { useDynamicDeviceId } from './useDynamicDeviceId';
@@ -16,19 +17,21 @@ import { useDynamicDeviceId } from './useDynamicDeviceId';
 export const useRelaySessionKeepAlive = (enabled: boolean): void => {
     const { isAuthenticated } = useSessionAuth();
     const { deviceId } = useDynamicDeviceId();
-    const runningRef = useRef(false);
+    // One background login at a time — the effect can re-run before the previous attempt settles
+    // (ADR-0074 결정 4; this was a bespoke `runningRef`). A failed attempt frees the slot, so the
+    // next trigger retries.
+    const login = useRef<Coalescer<void>>(new Coalescer<void>()).current;
 
     useEffect(() => {
-        if (!enabled || isAuthenticated || !deviceId || runningRef.current) {
+        if (!enabled || isAuthenticated || !deviceId) {
             return;
         }
 
-        runningRef.current = true;
         logger.debug('AUTH', '[keepAlive] relay session absent, running background guest login');
-        loginRelayGuestByDevice(deviceId)
-            .catch(error => logger.error('AUTH', '[keepAlive] guest login failed', { error }))
-            .finally(() => {
-                runningRef.current = false;
-            });
-    }, [enabled, isAuthenticated, deviceId]);
+        void login.run(() =>
+            loginRelayGuestByDevice(deviceId)
+                .then(() => undefined)
+                .catch(error => logger.error('AUTH', '[keepAlive] guest login failed', { error }))
+        );
+    }, [enabled, isAuthenticated, deviceId, login]);
 };

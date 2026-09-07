@@ -1,7 +1,7 @@
 import type { UserTokenView } from '@lemoncloud/chatic-backend-api';
 
 import { logger } from '@chatic/bridges';
-import { loginRelayByToken } from '../../session';
+import { loginRelayByToken } from '../../session/auth/services';
 
 import { getSocketManager } from '../runtime';
 import { reauthenticateActiveSocket } from './reauthenticateActiveSocket';

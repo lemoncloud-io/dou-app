@@ -1,5 +1,7 @@
 import { logger } from '@chatic/bridges';
 
+import { Coalescer } from '../../utils/coalescer';
+import { canRefreshThroughSocket, getAuthSnapshot } from './authStatus';
 import { getSocketManager } from '../runtime';
 import type { ISocketManager } from '../types';
 
@@ -12,73 +14,27 @@ import type { ISocketManager } from '../types';
  * seconds — asking again only burns another attempt.
  *
  * Short on purpose: this is a burst absorber, not a cache. Anything longer starts answering for a
- * session state it can no longer vouch for (a socket that came up right after a failure, a writeback
- * that carried no credential), and the honest recovery for those is to actually ask again.
+ * session state it can no longer vouch for, and the honest recovery for those is to actually ask again.
  */
 const RESULT_MEMO_MS = 3_000;
+
+/**
+ * One slot, not a per-kind map: this trigger is relay-only (see `requestRelaySessionRefresh`).
+ *
+ * The bespoke `RelayRefreshCoalescer` this replaces was the only one of the runtime's seven
+ * hand-rolled concurrency guards that had grown into a real class; `Coalescer` is that class with
+ * the domain prefix removed (ADR-0074 결정 4). Half of what it once did is the SDK's now:
+ * `auth.refresh()` joins an in-flight refresh instead of starting a second one (sockets-lib 0.5.1),
+ * so the epoch pile-up it was built to prevent cannot happen through the controller any more. What
+ * stays ours is what never reaches the controller — a "no authenticated socket" verdict.
+ */
+const coalescer = new Coalescer<boolean>({ memoMs: RESULT_MEMO_MS });
 
 export interface RequestRelaySessionRefreshDeps {
     manager?: ISocketManager;
 }
 
-/**
- * Coalesces refresh attempts: concurrent askers share one, and a just-settled answer serves the next
- * caller for `RESULT_MEMO_MS`.
- *
- * **Half of this used to be load-bearing and is now the SDK's.** `auth.refresh()` joins an in-flight
- * refresh instead of starting a second one (sockets-lib 0.5.1), so the epoch pile-up this class was
- * built to prevent — N concurrent attempts, each bump invalidating the previous response, the first
- * N-1 timing out and counting toward `maxFailures` until the controller went terminal `expired` —
- * cannot happen through the controller any more.
- *
- * What stays ours is what never reaches the controller. A "no authenticated socket" verdict is
- * decided here and returns before `auth.refresh()` is called, so the SDK's join cannot coalesce it:
- * without the in-flight slot, N simultaneous askers on a dead socket each log their own warning. And
- * the settled-result memo answers a question the SDK does not — "we asked three seconds ago" — which
- * is what keeps a burst of failures from spending an attempt each.
- *
- * One slot, not a per-kind map: this trigger is relay-only (see `requestRelaySessionRefresh`).
- */
-class RelayRefreshCoalescer {
-    private inFlight: Promise<boolean> | null = null;
-    private lastResult: { at: number; ok: boolean } | null = null;
-
-    /** Runs `attempt`, or hands back the shared/remembered answer. */
-    request(attempt: () => Promise<boolean>): Promise<boolean> {
-        if (this.inFlight) {
-            return this.inFlight;
-        }
-
-        if (this.lastResult && Date.now() - this.lastResult.at < RESULT_MEMO_MS) {
-            return Promise.resolve(this.lastResult.ok);
-        }
-
-        // Started synchronously (nothing awaits before the field write) so the attempt is registered
-        // before any caller in the same tick can look for it — two failures resolving in one
-        // microtask queue must find each other.
-        const running = attempt()
-            .then(ok => {
-                this.lastResult = { at: Date.now(), ok };
-                return ok;
-            })
-            .finally(() => {
-                this.inFlight = null;
-            });
-
-        this.inFlight = running;
-        return running;
-    }
-
-    /** Test seam: a case must not inherit the previous one's shared attempt or memoized answer. */
-    reset(): void {
-        this.inFlight = null;
-        this.lastResult = null;
-    }
-}
-
-const coalescer = new RelayRefreshCoalescer();
-
-/** Drops the coalescing state. Tests only — see `RelayRefreshCoalescer.reset`. */
+/** Drops the coalescing state. Tests only — a case must not inherit the previous one's answer. */
 export const resetRelayRefreshCoalescing = (): void => coalescer.reset();
 
 /**
@@ -90,34 +46,31 @@ class RelayRefreshAttempt {
 
     async run(): Promise<boolean> {
         const manager = this.deps.manager ?? getSocketManager();
-        const client = manager.getClient('relay');
-        const auth = client?.auth;
 
-        if (!client || !auth || client.state !== 'connected' || auth.state !== 'authenticated') {
-            logger.warn('SOCKET', '[requestRelaySessionRefresh] no authenticated relay socket to refresh through', {
-                data: { clientState: client?.state ?? null, authState: auth?.state ?? null },
+        // ONE judgement, from the single truth table (ADR-0074 결정 1). This used to be two separate
+        // condition blocks here — "is there an authenticated socket" and "did the handshake complete
+        // on THIS connection" — and the second existed because `auth.state` cannot answer it: a
+        // transport drop leaves the SDK controller's state untouched (`stop()` clears `active` and the
+        // timers, never `_state`), so right after a reconnect it still reads `authenticated` from the
+        // connection that just died while the new one has not run `device.save` yet. Refreshing into
+        // that window reaches the server on a connection row with no device linked and is rejected
+        // (`400 BAD REQUEST - no device linked @auth.refresh(...)`), burning an attempt for a race.
+        // `deriveAuthStatus` folds that reasoning in: only `verified`/`stale` imply
+        // verified-on-this-connection.
+        const snapshot = getAuthSnapshot('relay', { manager });
+        if (!canRefreshThroughSocket(snapshot.status)) {
+            logger.warn('SOCKET', '[requestRelaySessionRefresh] relay cannot carry a refresh right now', {
+                data: {
+                    status: snapshot.status,
+                    transport: snapshot.transport,
+                    controller: snapshot.controller,
+                },
             });
             return false;
         }
 
-        // The handshake must have completed on THIS connection, and `auth.state` alone cannot say so.
-        // A transport drop leaves the SDK controller's state untouched (`stop()` clears `active` and
-        // the timers, never `_state`), so right after a reconnect it still reads `authenticated` from
-        // the connection that just died — while the new connection has not run `device.save` yet.
-        // Refreshing into that window reaches the server on a connection row with no device linked,
-        // and the server rejects it (`400 BAD REQUEST - no device linked @auth.refresh(...)`), burning
-        // an attempt for a race rather than for a session problem.
-        //
-        // `isKindVerified` is the flag that does track the current connection: SocketManager clears it
-        // on every non-`connected` transition and only the controller's own `authenticated` emission
-        // sets it again — which the bootstrap gate holds until `device.save:ok` (bootstrapSocketConnection
-        // §ordering). So true here means device registration already landed on this very connection.
-        if (!manager.isKindVerified('relay')) {
-            logger.warn('SOCKET', '[requestRelaySessionRefresh] relay handshake not complete on this connection', {
-                data: { clientState: client.state, authState: auth.state },
-            });
-            return false;
-        }
+        const auth = manager.getClient('relay')?.auth;
+        if (!auth) return false;
 
         try {
             // Resolves after the controller's own `onTokenRefresh` has fired, which is the emission
@@ -167,4 +120,4 @@ class RelayRefreshAttempt {
  * socket is back but its handshake has not completed yet"). Never throws.
  */
 export const requestRelaySessionRefresh = (deps: RequestRelaySessionRefreshDeps = {}): Promise<boolean> =>
-    coalescer.request(() => new RelayRefreshAttempt(deps).run());
+    coalescer.run(() => new RelayRefreshAttempt(deps).run());

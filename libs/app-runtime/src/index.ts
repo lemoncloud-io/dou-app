@@ -45,13 +45,21 @@ export {
     WEB_PROJECT as PROJECT,
     WEB_SOCIAL_OAUTH_ENDPOINT as SOCIAL_OAUTH_ENDPOINT,
 } from '@chatic/web-config';
-export { hasStoredRelaySession, isStoredSessionExpired, startWebTransportInit, webTransport } from './http/transport';
+// `hasStoredRelaySession`/`isStoredSessionExpired`는 내려갔다 — 읽기 전용 프로브이고 소비자가
+// 런타임 내부(가드·부팅)뿐이다 (ADR-0074 결정 6).
+export { startWebTransportInit, webTransport } from './http/transport';
 
 // --- Session actions (non-hook) --------------------------------------------------------------
 // verify-hash-alias `$token` → session/store commit + same-connection relay socket re-auth. Consumed by
 // the phone-verification flow (roadmap ADR-0033 Track A contract; Track C imports it via apps/web).
 export { applySessionToken } from './socket/auth/applySessionToken';
 export type { ApplySessionTokenOptions } from './socket/auth/applySessionToken';
+// The app-facing LOGOUTS — the socket halves. They notify each server's socket (`auth.logout`)
+// before the local store teardown, which is why they and not the `session/auth` primitives are the
+// public names (ADR-0074 결정 7; the primitives are now `clearSessionAndRedirect`/`clearCloudStores`
+// and stay internal). `useSessionLogout`/`useLogoutCloudSession` wrap these for screens.
+export { logoutSession } from './socket/auth/logoutSession';
+export { logoutCloudSession } from './socket/auth/logoutCloudSession';
 // Foreground/wake kick for wedged sockets — apps call it on their own foreground signal (apps/web
 // useSocketWakeRecovery; desktop-web keeps its local variant). See 2026-08 session audit §7 Phase 1.
 export { recoverUnverifiedSockets } from './socket/auth/recoverUnverifiedSockets';
@@ -70,7 +78,8 @@ export type { RequestRelaySessionRefreshDeps } from './socket/auth/requestRelayS
 export { isNativeApp } from './data/cacheStorageRouting';
 // Native local-cache capability reported in the bridge handshake. The web ships ahead of the app,
 // so a domain the installed app cannot store is routed to web storage instead of a silent void.
-export { setNativeCacheSupport, getNativeCacheSupport } from './data/nativeCacheSupport';
+// `getNativeCacheSupport`는 내려갔다 — 읽기는 런타임 내부(로컬 팩토리)와 테스트 시임뿐이다.
+export { setNativeCacheSupport } from './data/nativeCacheSupport';
 export type { NativeCacheSupport } from './data/nativeCacheSupport';
 // Data policies are no longer registered on their own — they ride `initAppRuntime({ data })` below,
 // so an app has ONE boot call instead of a set of configure-* functions it must remember and order.

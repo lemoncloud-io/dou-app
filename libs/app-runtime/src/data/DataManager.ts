@@ -1,6 +1,6 @@
 import type { DataContext, DataContextProvider, DataRepositoriesV2, DataRepositoriesV2Options } from '@chatic/data';
 
-import { ActiveScope, deriveIntent } from '../session/scope';
+import { ActiveScope, deriveSelectedContext } from '../session/scope';
 import { getCommittedCloudId } from '../session/store';
 import { createHttpDataSources } from './factories/httpFactory';
 import { type CacheAssemblyOptions, createLocalDataSources } from './factories/localFactory';
@@ -14,10 +14,16 @@ export class DataManager implements IDataManager {
 
     constructor(repositoryOptions?: DataRepositoriesV2Options, cacheOptions?: CacheAssemblyOptions) {
         const { socketDataSources } = createSocketDataSources();
-        // Local sources get the INTENT only — no `socketCid`. Their job is to key cache partitions
+        // Local sources get the SELECTED scope only — no `socketCid`. Their job is to key cache partitions
         // (`${type}:${cid}:${uid}:${id}`), and the bound-socket view is a repository-level judgement.
-        const intentProvider: DataContextProvider = { getContext: deriveIntent, setContext: () => undefined };
-        const localDataSources = createLocalDataSources({ contextProvider: intentProvider, cache: cacheOptions });
+        const selectedContextProvider: DataContextProvider = {
+            getContext: deriveSelectedContext,
+            setContext: () => undefined,
+        };
+        const localDataSources = createLocalDataSources({
+            contextProvider: selectedContextProvider,
+            cache: cacheOptions,
+        });
         // 2단계 후반(ADR-0070) — REST 훅이 실제로 옮겨오는 4단계 전까지는 앱 무변경: repository는
         // 이 데이터소스가 있는 채로 조립되지만, 4단계 전 소비자는 없다.
         const { httpDataSources } = createHttpDataSources();
@@ -31,7 +37,7 @@ export class DataManager implements IDataManager {
         // so holding the instance from construction time would pin a manager that may not exist yet
         // (and would miss a runtime re-configure). Mirrors the previous inline glue exactly.
         const scope = new ActiveScope(
-            deriveIntent,
+            deriveSelectedContext,
             { getBoundCid: () => getSocketManager().getBoundCid() },
             getCommittedCloudId
         );
@@ -50,6 +56,6 @@ export class DataManager implements IDataManager {
     }
 
     public getContext(): DataContext {
-        return deriveIntent();
+        return deriveSelectedContext();
     }
 }

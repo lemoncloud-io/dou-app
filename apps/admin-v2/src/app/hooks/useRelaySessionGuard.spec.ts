@@ -15,10 +15,10 @@ import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('@chatic/app-runtime', () => ({
     useSessionStalenessGuard: vi.fn(() => ({ check: vi.fn() })),
-    logoutRelaySession: vi.fn(),
+    logoutSession: vi.fn(),
 }));
 
-import { logoutRelaySession, useSessionStalenessGuard } from '@chatic/app-runtime';
+import { logoutSession, useSessionStalenessGuard } from '@chatic/app-runtime';
 
 import { useRelaySessionGuard } from './useRelaySessionGuard';
 
@@ -50,7 +50,7 @@ describe('useRelaySessionGuard — admin-v2 정책', () => {
 
         await policy.onTeardown?.();
 
-        expect(logoutRelaySession).toHaveBeenCalled();
+        expect(logoutSession).toHaveBeenCalled();
     });
 
     it('enabled를 그대로 전달한다 — 로그인 전에는 감시하지 않는다', () => {

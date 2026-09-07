@@ -1,13 +1,15 @@
 import { renderHook } from '@testing-library/react';
 import { useRuntimeBinding } from './useRuntimeBinding';
-import { useGlobalSession, useDynamicDeviceId, getCommittedCloudId } from '../session';
+import { useGlobalSession, useDynamicDeviceId } from '../session';
+import { getCommittedCloudId } from '../session/store';
 
 jest.mock('../session', () => ({
     useGlobalSession: jest.fn(),
     useDynamicDeviceId: jest.fn(),
-    // COMMITTED cloud id — distinct from the SELECTED `cloud.cloudId` in the session snapshot.
-    getCommittedCloudId: jest.fn(),
 }));
+// COMMITTED cloud id — distinct from the SELECTED `cloud.cloudId` in the session snapshot. Mocked at
+// the concrete module: it is runtime-internal and off the session barrel (ADR-0074 결정 6).
+jest.mock('../session/store', () => ({ getCommittedCloudId: jest.fn() }));
 
 const RELAY = { wss: 'wss://relay.chatic.com', identityToken: 'relay-token', siteId: null, isAuthenticated: true };
 const relayConfig = { url: 'wss://relay.chatic.com', deviceId: 'test-device-id', wssType: 'relay', cid: 'default' };
@@ -61,7 +63,7 @@ describe('useRuntimeBinding', () => {
 
     // 전환 낙관 창: 선택 cid는 target으로 이미 뒤집혔지만 delegation/cloud 토큰은 아직 옛 클라우드다.
     // 예전에는 슬롯 config가 target cid + 옛 wss/identityToken을 함께 실어 서로 다른 두 클라우드를
-    // 가리켰다 (ADR-0070 결정 7의 intent vs committed).
+    // 가리켰다 (ADR-0070 결정 7의 selected vs committed).
     it('전환 낙관 창에서 cloud 슬롯 cid는 선택값이 아니라 커밋된 클라우드를 따른다', () => {
         (getCommittedCloudId as jest.Mock).mockReturnValue('outgoing-cloud');
         (useGlobalSession as jest.Mock).mockReturnValue({
@@ -90,7 +92,7 @@ describe('useRuntimeBinding', () => {
             url: 'wss://outgoing.chatic.com',
             cid: 'outgoing-cloud',
         });
-        // 캐시 스코프(intent)는 반대로 target을 먼저 따라간다 — 두 뷰는 갈라져야 한다
+        // 캐시 스코프(selected)는 반대로 target을 먼저 따라간다 — 두 뷰는 갈라져야 한다
         expect(result.current.context.cid).toBe('target-cloud');
     });
 

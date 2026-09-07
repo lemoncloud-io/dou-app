@@ -1,11 +1,9 @@
-import { logger } from '@chatic/bridges';
-import {
-    commitServerRefreshedToken,
-    getServerAuthRegistration,
-    logoutCloudSession,
-    logoutRelaySession,
-    signServerAuth,
-} from '../../session';
+// The Auth SDK bridge trio is runtime-internal and off the session barrel (ADR-0074 결정 6).
+import { commitServerRefreshedToken, getServerAuthRegistration, signServerAuth } from '../../session/auth/services';
+// Terminal-expiry policy belongs to the per-server renewer (ADR-0074 결정 3), which takes the
+// store-only teardown path on purpose: `onAuthExpired` runs on the socket that just died, so
+// notifying it again (what the app-facing `logoutSession`/`logoutCloudSession` do) is pointless.
+import { credentialRenewers } from './renewers';
 
 import type { SocketSessionDelegate } from './types';
 
@@ -25,19 +23,7 @@ export const createSocketSessionDelegate = (): SocketSessionDelegate => ({
     // package root; web-core casts it to its own UserTokenView at this boundary.
     commitRefreshedToken: (kind, view) =>
         commitServerRefreshedToken(kind, view as Parameters<typeof commitServerRefreshedToken>[1]),
-    onAuthExpired: kind => {
-        if (kind === 'cloud') {
-            // cloud expiry: tear down only the cloud session; relay stays the baseline.
-            logoutCloudSession();
-            return;
-        }
-        // Relay terminal `expired`: the SDK only reaches this after `maxFailures` consecutive
-        // sign/refresh attempts fail (SocketManager AUTH_OPTIONS, currently 3) — a wedged
-        // signature that no amount of waiting will fix on its own. Auto-logout here (POLICY,
-        // superseding the old manual-only stance) so the runtime's guest-login fallback picks
-        // up a clean session instead of leaving the UI in an authenticated-looking zombie state
-        // (isVerified=false forever, relay token still sitting in the store).
-        logger.warn('SOCKET', '[delegate] relay auth expired — auto-logging out');
-        return logoutRelaySession();
-    },
+    // One line instead of a kind branch: the asymmetry (relay logs out, cloud only leaves the
+    // cloud) is now typed as two renewers rather than explained in a comment here.
+    onAuthExpired: kind => credentialRenewers[kind].onTerminalExpiry(),
 });

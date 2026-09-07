@@ -3,10 +3,12 @@ import type { DataContext } from '@chatic/data';
 import { getGlobalSessionContext } from '../store';
 
 /**
- * The cache scope the session implies — `{cid, sid, uid}`.
+ * The cache scope the SELECTED session implies — `{cid, sid, uid}`. The first of `ActiveScope`'s three
+ * views (ADR-0070 결정 7, renamed from `intent` by ADR-0074 결정 8 — the repo already calls this
+ * concept `selected`: `getSelectedCloudId` · `applySelectedSite` · `useSessionSelection`).
  *
  * Moved here from `useRuntimeBinding`, which used to derive it on every session render and push it
- * into a holder through `DataManager.ensure` (ADR-0070 결정 7의 "의도 계산" 조각). The formula is
+ * into a holder through `DataManager.ensure` (ADR-0070 결정 7의 "선택 계산" 조각). The formula is
  * unchanged; what changes is WHEN consumers see it.
  *
  * **Why reading beats pushing.** The push landed in a React effect, so on a cloud switch the provider
@@ -17,7 +19,7 @@ import { getGlobalSessionContext } from '../store';
  * the store directly removes the lag those workarounds exist to dodge; the overrides keep working
  * unchanged because they pass their own values.
  */
-export const deriveIntent = (): DataContext => {
+export const deriveSelectedContext = (): DataContext => {
     const { activeServer, cloud, identity } = getGlobalSessionContext();
 
     // Cache scope follows the SELECTED cloud, not the committed one — a switch pre-applies the cid

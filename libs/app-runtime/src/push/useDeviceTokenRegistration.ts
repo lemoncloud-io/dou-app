@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef } from 'react';
 
 import { useRegisterDeviceTokenMutation } from '../data/hooks';
 import { useDynamicDeviceId, useSessionAuth } from '../session';
+import { Coalescer } from '../utils/coalescer';
+import { Throttle } from '../utils/throttle';
 
 /**
  * Shell-provided contract for push device-token registration.
@@ -66,42 +68,41 @@ export const useDeviceTokenRegistration = (delegate: DeviceTokenDelegate | null)
     const mutateRef = useRef(mutateAsync);
     mutateRef.current = mutateAsync;
 
-    const pendingRef = useRef(false);
-    const lastRegisterAtRef = useRef(0);
+    // In-flight share + the re-register floor, as the two extracted primitives (ADR-0074 결정 4).
+    // Numbers unchanged: REREGISTER_THROTTLE_MS stays the floor and the first attempt always runs.
+    const attempt = useRef<Coalescer<void>>(new Coalescer<void>()).current;
+    const floor = useRef<Throttle>(new Throttle({ intervalMs: REREGISTER_THROTTLE_MS })).current;
 
     const register = useCallback(() => {
         const currentDelegate = delegateRef.current;
         if (!currentDelegate || !isAuthenticatedRef.current) return;
-        if (pendingRef.current) return;
-        const now = Date.now();
-        if (now - lastRegisterAtRef.current < REREGISTER_THROTTLE_MS) return;
-        pendingRef.current = true;
-        lastRegisterAtRef.current = now;
+        // The floor is consumed only when we are actually going to try — `tryAcquire` arms as it grants.
+        if (!floor.tryAcquire()) return;
 
-        currentDelegate
-            .fetchDeviceToken()
-            .then(deviceToken => {
-                // An empty token (permission denied, FCM not ready) is a failure:
-                // fall through to the catch so the next trigger retries immediately.
-                if (!deviceToken) throw new Error('empty device token');
-                return mutateRef.current({
-                    // useDynamicDeviceId is the single device-identity source shared
-                    // with the socket side — registration must never derive its own.
-                    deviceId: deviceIdRef.current ?? undefined,
-                    deviceToken,
-                    platform: currentDelegate.platform,
-                    installId: currentDelegate.installId ?? firebaseInstallationIdRef.current,
-                    application: currentDelegate.application ?? DEFAULT_APPLICATION,
-                    force: true,
-                });
-            })
-            .catch(() => {
-                lastRegisterAtRef.current = 0; // allow an immediate retry
-            })
-            .finally(() => {
-                pendingRef.current = false;
-            });
-    }, []);
+        void attempt.run(() =>
+            currentDelegate
+                .fetchDeviceToken()
+                .then(deviceToken => {
+                    // An empty token (permission denied, FCM not ready) is a failure:
+                    // fall through to the catch so the next trigger retries immediately.
+                    if (!deviceToken) throw new Error('empty device token');
+                    return mutateRef.current({
+                        // useDynamicDeviceId is the single device-identity source shared
+                        // with the socket side — registration must never derive its own.
+                        deviceId: deviceIdRef.current ?? undefined,
+                        deviceToken,
+                        platform: currentDelegate.platform,
+                        installId: currentDelegate.installId ?? firebaseInstallationIdRef.current,
+                        application: currentDelegate.application ?? DEFAULT_APPLICATION,
+                        force: true,
+                    });
+                })
+                .then(() => undefined)
+                .catch(() => {
+                    floor.reset(); // allow an immediate retry
+                })
+        );
+    }, [attempt, floor]);
 
     // Launch / login path. A fresh login (including an account switch shortly
     // after logout) must register right away, so drop any leftover throttle
@@ -109,9 +110,9 @@ export const useDeviceTokenRegistration = (delegate: DeviceTokenDelegate | null)
     const hasDelegate = !!delegate;
     useEffect(() => {
         if (!isAuthenticated || !hasDelegate) return;
-        lastRegisterAtRef.current = 0;
+        floor.reset();
         register();
-    }, [isAuthenticated, hasDelegate, register]);
+    }, [isAuthenticated, hasDelegate, register, floor]);
 
     // Return-to-app path: re-register (throttled) so an endpoint disabled
     // mid-session comes back without a restart.

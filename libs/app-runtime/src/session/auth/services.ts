@@ -16,13 +16,14 @@ import { cloudStore, identityStore, relayStore } from '../store/stores';
 import {
     clearRelaySession,
     getCloudSessionSnapshot,
-    notifySessionStateChanged,
     rebuildSessionIdentity,
-    setSelectedCloudId,
+    sessionSignal,
     setSelectedSiteId,
     setSessionAuthenticated,
     setSessionIdentityState,
 } from '../store';
+// NOTE: everything above comes from `../store` (the concrete module), not the session barrel — the
+// session barrel now publishes only the app surface (ADR-0074 결정 6).
 import type { CloudSessionSnapshot } from '../store';
 import type { IAuthRepositoryV2 } from '@chatic/data';
 import { issueCloudTokens } from './cloudTokens';
@@ -64,7 +65,6 @@ export interface LogoutOptions {
 }
 
 const logoutCallbacks = new Set<() => void>();
-const DEVICE_ID_STORAGE_KEY = 'chatic-device-id';
 
 const buildSnapshotFallback = (cloudId: string, siteId: string | null): CloudSessionSnapshot => {
     return {
@@ -129,9 +129,17 @@ export const initializeRelaySession = async (): Promise<void> => {
 
 /**
  * Persists the current device identifier for later relay login and restore flows.
+ *
+ * Writes through `identityStore` only. It used to ALSO write the same `chatic-device-id` key straight
+ * to `localStorage`, which nothing read: the store writes through the `storage` adapter (sessionStorage
+ * on the web, localStorage inside a native/desktop shell) and the reader is `useDynamicDeviceId` →
+ * `useSessionDeviceId('chatic-device-id')`, which reads sessionStorage. So the raw write landed in a
+ * slot with no reader on the web and duplicated the store's write inside a shell.
+ *
+ * Whether the web's device id SHOULD be per-tab-session is a separate open question (ADR-0074
+ * §열린 질문 4) — it is load-bearing because push registration and socket identity must share one id.
  */
 export const persistDeviceId = (deviceId: string): string => {
-    localStorage.setItem(DEVICE_ID_STORAGE_KEY, deviceId);
     identityStore.setDeviceId(deviceId);
     return deviceId;
 };
@@ -199,7 +207,7 @@ export const loginRelaySocial = async ({
 }: {
     body: VerifyNativeTokenBody;
     // `provider` is still accepted for caller compatibility but no longer stored — the OAuth provider
-    // is no longer session state (native OAuth logout is an app/bridge concern; see logoutRelaySession).
+    // is no longer session state (native OAuth logout is an app/bridge concern; see clearSessionAndRedirect).
     provider?: OAuthLoginProvider | null;
 }): Promise<UserTokenView> => {
     const tokenView = await authRepository().verifyNativeToken(body);
@@ -221,9 +229,23 @@ export const loginRelayByToken = async (tokenView: UserTokenView): Promise<UserT
 };
 
 /**
- * Tears down the relay session and clears dependent cloud state while preserving deeplink logout redirects when needed.
+ * The FULL local session teardown + redirect: relay token, cloud stores, lemon transport state and
+ * selection all go, then the document reloads at `/`. **Not the app-facing logout** — that is
+ * `socket/auth/logoutSession`, which notifies both sockets first and then calls this.
+ *
+ * Named for what it clears (the whole session, not just relay) and for the redirect, because the
+ * store-level [`clearRelaySession`](../store/contextStore.ts) is a DIFFERENT and much smaller
+ * operation — it drops the relay token and rebuilds identity, nothing else. An earlier pass called
+ * this `clearRelaySessionLocal`, one suffix away from that one; a near-collision is the weak form of
+ * the very defect 결정 7 removed.
+ *
+ * It used to be called `logoutRelaySession`, one of two same-named pairs inside this package: the
+ * root barrel published THIS (socket-silent) half while the docs declared the socket half the public
+ * one, and `apps/admin-v2` really did call the silent half. ADR-0070 §맥락 named that failure mode
+ * for the pre-merge `web-core`/`app-runtime` barrels and ADR-0074 결정 7 closes it here — the weak
+ * halves lose their global names so the collision cannot be re-created.
  */
-export const logoutRelaySession = async (options?: LogoutOptions): Promise<void> => {
+export const clearSessionAndRedirect = async (options?: LogoutOptions): Promise<void> => {
     const searchBeforeCleanup = window.location.search;
 
     // No server-side logout: there is no backend session-revoke endpoint (the old POST /users/logout
@@ -244,16 +266,21 @@ export const logoutRelaySession = async (options?: LogoutOptions): Promise<void>
     // A native shell that needs to sign out of the provider SDK should register that via
     // registerSessionLogoutCallback (it owns the provider it logged in with).
     await webTransport.logout();
-    cloudStore.clearSession();
-    relayStore.clearSelectedSite();
-    clearRelayTransportOverrides();
-    resetWebTransportInit();
-    localStorage.removeItem('chatic-device-token');
 
-    // Cloud tokens were dropped by cloudStore.clearSession() above; clearRelaySession drops the relay
-    // token and rebuilds identity as unauthenticated (uid → null).
-    clearRelaySession();
-    notifySessionStateChanged();
+    // The whole store teardown is ONE observable change (ADR-0074 결정 2). Every write inside
+    // announces its own kind — `cloud:token` + `selection` from `clearSession`, `selection` from
+    // `clearSelectedSite`, `relay:token` + `identity` from `clearRelaySession` — so the batch is what
+    // keeps observers from re-rendering through a half-torn-down session on the way to the redirect.
+    sessionSignal.batch(() => {
+        cloudStore.clearSession();
+        relayStore.clearSelectedSite();
+        clearRelayTransportOverrides();
+        resetWebTransportInit();
+
+        // Cloud tokens were dropped by cloudStore.clearSession() above; clearRelaySession drops the
+        // relay token and rebuilds identity as unauthenticated (uid → null).
+        clearRelaySession();
+    });
 
     // Land on home directly. `/auth/login` is only a shim that forwards to `/` (see apps/web
     // LoginPage), so routing through it just added a redirect hop. We also do NOT rewind the
@@ -276,16 +303,21 @@ export const logoutRelaySession = async (options?: LogoutOptions): Promise<void>
 };
 
 /**
- * Clears the active cloud session while keeping relay authentication intact.
+ * Clears the cloud stores while keeping relay authentication intact. **Not the app-facing cloud
+ * logout** — that is `socket/auth/logoutCloudSession`, which notifies the cloud socket first.
+ * Renamed off `logoutCloudSession` by ADR-0074 결정 7 (see `clearSessionAndRedirect`).
  */
-export const logoutCloudSession = (): void => {
+export const clearCloudStores = (): void => {
     // Fully leave the cloud: clear the delegation + cloud token AND the selected cloud/site so
     // `cloud.isActive` flips to false and uid / activeServer fall back to relay ("return to default
     // cloud, keep relay"). Clearing only the delegation token left cloud.isActive true — the session
     // stayed pinned to the cloud (stale uid/activeServer). Re-entry re-issues fresh tokens anyway.
-    cloudStore.clearSession();
-    rebuildSessionIdentity();
-    notifySessionStateChanged();
+    // One observable change: `clearSession` announces `cloud:token` + `selection` inside its own
+    // batch, and `rebuildSessionIdentity` adds `identity` only if the derived identity actually moved.
+    sessionSignal.batch(() => {
+        cloudStore.clearSession();
+        rebuildSessionIdentity();
+    });
 };
 
 /**
@@ -327,18 +359,25 @@ export const switchCloudSession = async ({ cloudId }: { cloudId: string }): Prom
             allowCache: true,
         });
 
-        cloudStore.saveDelegationToken(cloudDelegationToken);
-        const existingToken = isCloudChange ? null : cloudStore.getCloudToken();
-        cloudStore.saveCloudToken(existingToken ? ({ ...existingToken, ...userToken } as typeof userToken) : userToken);
-        cloudStore.saveSelectedCloudId(cloudId);
+        // The commit is ONE observable change (ADR-0074 결정 2). Before this batch the success path
+        // fired the session signal eight times, so seven inconsistent intermediate states were
+        // visible to every observer — selected cloud moved but tokens had not, tokens landed but the
+        // identity had not re-derived, and so on. The optimistic pre-apply above stays OUTSIDE the
+        // batch on purpose: flipping the cid early is the whole point of optimistic switching, so it
+        // must be observable immediately.
+        sessionSignal.batch(() => {
+            cloudStore.saveDelegationToken(cloudDelegationToken);
+            const existingToken = isCloudChange ? null : cloudStore.getCloudToken();
+            cloudStore.saveCloudToken(
+                existingToken ? ({ ...existingToken, ...userToken } as typeof userToken) : userToken
+            );
+            cloudStore.saveSelectedCloudId(cloudId);
 
-        if (isCloudChange) {
-            cloudStore.clearPlaceOrder(cloudId);
-        }
-
-        // Cloud token is saved above; rebuild identity so uid re-derives from the now-active cloud.
-        rebuildSessionIdentity();
-        setSelectedCloudId(cloudId);
+            // Cloud token is saved above; rebuild identity so uid re-derives from the now-active
+            // cloud. The selected cloud id is NOT re-applied here: `saveSelectedCloudId` above
+            // already wrote it, and `setSelectedCloudId` is that same call.
+            rebuildSessionIdentity();
+        });
 
         return getCloudSessionSnapshot() ?? buildSnapshotFallback(cloudId, cloudStore.getSelectedSiteId());
     } catch (error) {
@@ -369,8 +408,9 @@ export const switchCloudSession = async ({ cloudId }: { cloudId: string }): Prom
  * uses to move the read model.
  */
 export const applySelectedSite = (siteId: string | null): void => {
+    // `setSelectedSiteId` routes to the relay or cloud store by active cloud, and both emit
+    // `selection` — no extra broadcast needed.
     setSelectedSiteId(siteId);
-    notifySessionStateChanged();
 };
 
 // ---------------------------------------------------------------------------

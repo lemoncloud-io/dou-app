@@ -1,6 +1,8 @@
 import React from 'react';
 
-import { useRelaySessionInit, useRelaySessionKeepAlive } from '../session';
+import { useRelaySessionInit } from '../session';
+// Guest keep-alive is a runtime behavior, not an app surface (ADR-0074 결정 6).
+import { useRelaySessionKeepAlive } from '../session/hooks/app/useRelaySessionKeepAlive';
 import { SocketBinder } from './SocketBinder';
 import { SocketReauthBinder } from './SocketReauthBinder';
 import { useSocketSessionDelegate } from './useSocketSessionDelegate';

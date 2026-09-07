@@ -1,24 +1,25 @@
 import { storage } from '@chatic/shared';
 
-import { notifySessionStateChanged } from './signal';
+import { sessionSignal } from './signal';
 
 const DELEGATOR_ID_KEY = 'chatic-delegator-id';
 const DEVICE_ID_KEY = 'chatic-device-id';
-const REGISTERED_DEVICE_TOKEN_KEY = 'chatic-registered-device-token';
 
 // Profile payloads, the guest flag, the invite flag, and the OAuth provider are no longer stored
 // here — the raw session token (relayStore/cloudStore) is the persisted credential, profile facts
 // (guest/role) are tracked from the token + repo cache (useProfileFacts), and invited-ness lives in
-// the cached cloud (`cloudType: 'invited'`). Only the delegator id, device id, and registered
-// device token remain as session-level identity state.
+// the cached cloud (`cloudType: 'invited'`). Only the delegator id remains as session-level identity
+// state.
+//
+// The registered push token is NOT stored here any more. It backed a token-equality dedup in the
+// deleted `useRegisterDeviceToken`, and that dedup is the strategy this runtime deliberately rejects:
+// SNS disables a platform endpoint after a single failed delivery, so skipping a re-register because
+// the token string matched left the device permanently dark. `push/useDeviceTokenRegistration` always
+// registers with `force: true` instead (see its doc), which needs no stored copy.
 interface IdentityCore {
     getDelegatorId(): string | null;
     setDelegatorId(value: string | null): void;
-    getDeviceId(): string | null;
     setDeviceId(value: string | null): void;
-    getRegisteredDeviceToken(): string | null;
-    setRegisteredDeviceToken(token: string | null): void;
-    clearIdentity(): void;
 }
 
 export const identityStore: IdentityCore = {
@@ -29,27 +30,14 @@ export const identityStore: IdentityCore = {
         } else {
             storage.remove(DELEGATOR_ID_KEY);
         }
-        notifySessionStateChanged();
+        sessionSignal.emit('identity');
     },
-    getDeviceId: (): string | null => storage.get(DEVICE_ID_KEY),
     setDeviceId: (value: string | null): void => {
         if (value) {
             storage.set(DEVICE_ID_KEY, value);
         } else {
             storage.remove(DEVICE_ID_KEY);
         }
-        notifySessionStateChanged();
-    },
-    getRegisteredDeviceToken: (): string | null => storage.get(REGISTERED_DEVICE_TOKEN_KEY),
-    setRegisteredDeviceToken: (token: string | null): void => {
-        if (token) {
-            storage.set(REGISTERED_DEVICE_TOKEN_KEY, token);
-        } else {
-            storage.remove(REGISTERED_DEVICE_TOKEN_KEY);
-        }
-    },
-    clearIdentity: (): void => {
-        storage.remove(DELEGATOR_ID_KEY);
-        notifySessionStateChanged();
+        sessionSignal.emit('identity');
     },
 };

@@ -36,13 +36,30 @@ ADR-0070은 세션의 **소유**를 정리했다 — 스토어 하나, refresh �
 | 6   | `isStoredSessionExpired()`                                                                               | lemon 스토어의 별개 시계        |
 | 7   | `hasStoredRelaySession()`                                                                                | lemon 스토어 존재 여부          |
 
-이 7개의 조합 규칙이 네 곳에 **각각 다시** 쓰여 있다 —
+이 7개의 조합 규칙이 **두 곳**에 각각 다시 쓰여 있다 —
 [`useSessionStalenessGuard`](../../libs/app-runtime/src/session/hooks/app/useSessionStalenessGuard.ts) ·
 [`requestRelaySessionRefresh`](../../libs/app-runtime/src/socket/auth/requestRelaySessionRefresh.ts) ·
-[`recoverUnverifiedSockets`](../../libs/app-runtime/src/socket/auth/recoverUnverifiedSockets.ts) ·
-[`useConnectivity`](../../libs/app-runtime/src/connection/useConnectivity.ts). 각 사본은 20~40줄 주석으로
-자기 판정을 정당화하는데, 그 주석들이 서로를 참조하지 않는다. 디버그 오버레이도 로그도 이 판정을 재사용할
-수 없어서, 장애를 재현할 때 사람이 7개를 손으로 맞춰 봐야 한다.
+[`recoverUnverifiedSockets`](../../libs/app-runtime/src/socket/auth/recoverUnverifiedSockets.ts). 둘 다
+"이 슬롯의 소켓 인증을 지금 쓸 수 있나"를 묻는 같은 판정이고, 각자 20~40줄 주석으로 자기를 정당화하는데
+그 주석들이 서로를 참조하지 않는다. 디버그 오버레이도 로그도 이 판정을 재사용할 수 없어서, 장애를
+재현할 때 사람이 7개를 손으로 맞춰 봐야 한다.
+
+> **최초에 4곳으로 셌고, 3단계 실행이 그것을 2곳으로 정정했다.** 나머지 둘은 같은 판정의 사본이
+> 아니었다 —
+>
+> - [`useConnectivity`](../../libs/app-runtime/src/connection/useConnectivity.ts)는 **표시 판정**이다
+>   (§결정 1의 근거 셋).
+> - [`useSessionStalenessGuard`](../../libs/app-runtime/src/session/hooks/app/useSessionStalenessGuard.ts)는
+>   두 시계를 **서로 다른 정책으로** 쓴다: 저장 세션 만료는 무조건 갱신하고 실패를 teardown 스트릭에
+>   계수하지만(admin-v2가 3연속 실패로 로그아웃), 자격증명 마진은 `forceRefresh` opt-in + 쿨다운일
+>   때만 발사하고 실패를 계수하지 않는다("아직 유효한 자격증명은 세션 건강에 대해 아무 말도 하지
+>   않는다" — 가드 자기 주석). `AuthStatus`는 그 둘을 `stale` 하나로 접고 `handshaking`을 `stale`보다
+>   우선하므로, 상태 기반으로 바꾸면 소켓이 미검증일 때 가드가 조기 반환하며 스트릭을 리셋한다 —
+>   죽은 소켓 + 만료 세션이라는, 가드가 존재하는 바로 그 시나리오에서 좀비 정리가 사라진다.
+>   공유할 만한 것은 자격증명 마진 비교 한 줄뿐이고 그것은 이미 `msUntilExpiration` 하나를 쓴다(배치 A3).
+>
+> 즉 **줄어드는 것은 2 → 1**이다. 판정을 억지로 하나로 만드는 것이 목표가 아니라, *같은 질문*을 두 번
+> 쓰지 않는 것이 목표다.
 
 `deriveConnectivity`는 이미 정답 형태다 — 입력(`ConnectivitySignals`)을 구조체로 받는 순수 진리표라서
 소켓 매니저 없이 테스트된다. **그 패턴이 연결 상태에만 적용돼 있고 인증 상태에는 적용돼 있지 않다.**
@@ -128,6 +145,11 @@ ADR-0070 §0은 명시했다 — _"함수 모음(export 함수 뭉치)으로 경
 `rebuildSessionIdentity` · `clearRelaySession` · `setSessionIdentityState` · `markSessionInitialized` ·
 `notifySessionStateChanged` · `sessionContextStore` · `setSelectedCloudId` · `setSelectedSiteId` ·
 `applySelectedSite` · `persistDeviceId` …
+
+> **측정 정정 (2단계 실행 시): 31 → 32.** `setSessionAuthenticated`는 앱 참조가 있는 것으로 셌는데,
+> 그 '참조'가 `apps/admin-v2` OAuthResponsePage의 **주석 한 줄**이 전부였다. 식별자 빈도 기반 탐지가
+> 주석을 가리지 못하는 한계이고, 같은 함정이 `useRegisterDeviceToken`도 숨겼다(0단계) — 2026-09 스윕이
+> 스스로 인정한 그 한계다. 실제로 내린 것은 32개이고 공개 값 export는 110 → 78이 됐다.
 
 ### 7. ADR-0070이 고쳤다고 선언한 결함이 패키지 **내부**에 남아 있다
 
@@ -224,8 +246,24 @@ export const getAuthStatus = (kind: SocketKind, deps?: AuthSignalDeps): AuthStat
 `requestRelaySessionRefresh`의 사전 조건 · 연결 상태 훅 · 디버그 오버레이 · 로그는 전부 `status`(또는
 그것을 만든 `AuthSignals` 필드)를 **읽기만** 한다. 새 판정 분기를 다른 파일에 쓰는 것은 회귀다.
 
-`deriveConnectivity`는 유지한다 — 그것은 *사용자에게 무엇을 말할지*이고 이것은 *런타임이 무엇을 할지*다.
-다만 입력을 `SocketAuthSnapshot`에서 받아 브라우저 온라인 신호와 합성하는 형태로 바꾼다.
+**`deriveConnectivity`는 입력까지 그대로 유지한다.** 그것은 *사용자에게 무엇을 말할지*이고 이것은
+*런타임이 무엇을 할지*다 — 이 문장은 처음부터 옳았고, 뒤에 붙어 있던 "다만 입력을
+`SocketAuthSnapshot`에서 받는다"가 그 문장과 어긋났으므로 3단계 실행 시 철회했다. 근거 셋:
+
+- **`AuthStatus`가 추가로 주는 입력이 배너에서 전부 같은 값으로 접힌다.** `hasToken`(로그아웃이면
+  슬롯이 바인딩되지 않아 이미 `idle`→`online`) · `controller: 'expired'`(이미 `isVerified=false`→
+  `reconnecting`) · `credentialMs`·`storedSessionExpired`(**사용자에게 할 말이 아니다** — 소켓은
+  연결돼 있고 쓸 수 있다). `stale`은 `online`으로 매핑돼야 하므로 입력을 바꿔도 출력이 안 바뀐다.
+- **`AuthStatus`는 구독 가능한 값이 아니다.** 배너는 지금 `manager.subscribe` 구독 하나로 반응한다.
+  스냅샷을 쓰면 구독 셋(소켓 상태 · `subscribeKindVerified` · 세션 시그널)을 합성해야 하고, 하나를
+  빠뜨리면 **배너가 조용히 멈춘다**.
+- **축이 다르다.** 배너는 ACTIVE 슬롯을 묻고 스냅샷은 kind별이다. 합치려면
+  `SocketManager.getActiveKind()`를 공개해야 하는데, 결정 6이 표면을 110→78로 줄인 직후에 그것을
+  되돌리는 방향이다.
+
+그래서 `deriveConnectivity`는 인증 판정의 **사본이 아니다** — 표시 판정이고, 원칙 6은 인증 판정에만
+적용된다. 합치는 것이 옳아지는 시점은 배너가 `expired`를 구분해 다른 문구를 보여줘야 할 **UI 요구가
+실제로 생길 때**다. 그때는 구독 배선 비용을 낼 이유가 생긴다.
 
 ### 2. 세션 통지는 타입 있는 시그널이다 — 그리고 유스케이스 1회 = fan-out 1회
 
@@ -283,10 +321,17 @@ export interface ICredentialRenewer {
 }
 ```
 
-`RelayCredentialRenewer` · `CloudCredentialRenewer` 두 구현을 두고, **스케줄링 공통부만**
-`useCredentialGuard(renewer, policy: CredentialGuardPolicy)` 하나로 합친다.
-`sessionDelegate.onAuthExpired`는 `renewers[kind].onTerminalExpiry()` 한 줄이 되고,
-`configureCredentialRecovery`는 relay renewer의 `renew`를 등록한다.
+`RelayCredentialRenewer` · `CloudCredentialRenewer` 두 구현을 둔다.
+
+> **`useCredentialGuard` 병합은 철회한다 (5단계 실행).** "스케줄링 공통부만 합친다"고 적었지만
+> 공통부가 거의 없다 — 두 가드의 **트리거 모델이 다르다**. relay 는 폴링이고(`setInterval` 30초 +
+> `visibilitychange` + relay 검증 상승 엣지), cloud 는 자격증명의 `Expiration` 에서 sleep 을 파생하는
+> **자가 무장 마감**이다(`setTimeout` + 상한/하한 clamp + 재시도 sleep). 남는 공통부는 `enabled`
+> 가드와 `visibilitychange` 뿐이고, in-flight 공유는 결정 4의 `Coalescer` 가 이미 통합했다. 합치면
+> `mode: 'interval' | 'deadline'` 스위치가 되는데, 그것이 ADR-0070 이후의 가드 주석이 거부한 형태
+> 그대로다. 두 훅은 각자의 트리거를 유지하고, **공유하는 것은 renewer 다.**
+> `sessionDelegate.onAuthExpired`는 `renewers[kind].onTerminalExpiry()` 한 줄이 되고,
+> `configureCredentialRecovery`는 relay renewer의 `renew`를 등록한다.
 
 > **ADR-0070 이후의 판단과 충돌하지 않는다 — 차이를 명시한다.** 거부된 것은 _한 함수 본문 안의 `kind`
 > 스위치_(정책 둘이 한 스위치 뒤에 숨는 형태)다. 이 결정은 반대 방향이다: 정책을 **두 클래스로 갈라
@@ -294,13 +339,23 @@ export interface ICredentialRenewer {
 > 타입으로 승격되므로 강해진다. 관측 가능한 동작(마진 · 쿨다운 · 재시도 sleep · 실패가 teardown 스트릭에
 > 계수되는지)은 **불변**이며, 그 불변성을 진리표 테스트로 잠근다.
 
-기존 훅 이름은 유지 여부를 구현 시점에 정한다 — `useSessionStalenessGuard`/`useCloudCredentialGuard`를
-`useCredentialGuard` 위의 얇은 프리셋으로 남기면 앱 호출부(`apps/web` · `admin-v2` · `desktop-web`)가
-바뀌지 않는다. **기본은 남기는 쪽이다.**
+기존 훅 이름·시그니처는 그대로다 — 앱 호출부(`apps/web` · `admin-v2` · `desktop-web`)가 바뀌지 않는다.
 
-### 4. 동시성 가드는 `Coalescer` 하나다
+### 4. 동시성 가드는 `Coalescer`와 `Throttle` 둘이다
 
-`RelayRefreshCoalescer`를 일반화해 나머지 6곳이 쓴다. 도메인 접두사만 떼는 것이므로 새 개념어가 아니다.
+손으로 만든 7개는 **한 종류가 아니라 두 종류**다 — 5단계 실행이 확인한 정정이다.
+
+- **코얼레싱**: 진행 중인 시도 하나를 동시 요청자가 공유하고, 모두 같은 답을 받는다.
+  `RelayRefreshCoalescer`(3초 결과 메모) · `renewCloudSession` · `recoverUnverifiedSockets` ·
+  keepAlive `runningRef` · staleness `inFlight`. 전부 Promise 를 돌려준다.
+- **쓰로틀링**: 마지막 발사가 너무 최근이면 **아예 시작하지 않는다**. 호출자가 원하는 것은 값이 아니라
+  허가이고, 거부는 "이번 트리거를 건너뛴다"다. staleness `forceRefresh` 60초 · 푸시 재등록 60초 ·
+  종단 `expired` 재개 30초→5분 지수. 그중 마지막은 **Promise 조차 아니다** — 소켓 메시지 핸들러 안의
+  동기 게이트다.
+
+하나로 접으려면 Promise 를 돌려주는 모든 호출부에 `skipped` 센티널을 덧붙여야 하고, 비동기가 아닌
+그 게이트는 여전히 담을 수 없다. 서로 무관한 회복 전략을 `kind` 스위치 하나로 접는 것과 같은 실수라
+**두 프리미티브로 나눈다**: `Coalescer<T>` + `Throttle`.
 
 ```ts
 // utils/coalescer.ts
@@ -325,12 +380,12 @@ export class Coalescer<T> {
 > 개념 명사) 하나이고, 단어 자체는 이미 명사구로 흔하다 — `CloudSessionSnapshot` · `switchCloudSession` ·
 > `initializeRelaySession` · `logoutRelaySession`. 그 명사구를 클래스로 승격하는 것이므로 새 어휘는 아니다.
 
-| 인터페이스 / 클래스                                   | 파일                                 | 소유                                                               |
-| ----------------------------------------------------- | ------------------------------------ | ------------------------------------------------------------------ |
-| `IRelaySession` / `RelaySession`                      | `session/auth/relaySession.ts`       | `initialize` · `loginAs*` · `applyToken` · `logout` · `clearLocal` |
-| `ICloudSession` / `CloudSession`                      | `session/auth/cloudSession.ts`       | `switchTo` · `leave` · `applySelectedSite` · `reissueCommitted`    |
-| `SessionAuthAdapter implements SocketSessionDelegate` | `session/auth/sessionAuthAdapter.ts` | Auth SDK 브리지 — seed · sign · writeback · expiry                 |
-| 순수 함수                                             | `session/auth/utils/tokenMerge.ts`   | `mergeRefreshedRelayToken` · `mergeRefreshedCloudToken`            |
+| 인터페이스 / 클래스                                   | 파일                                 | 소유                                                                            |
+| ----------------------------------------------------- | ------------------------------------ | ------------------------------------------------------------------------------- |
+| `IRelaySession` / `RelaySession`                      | `session/auth/relaySession.ts`       | `initialize` · `loginAs*` · `applyToken` · `logout` · `clearSessionAndRedirect` |
+| `ICloudSession` / `CloudSession`                      | `session/auth/cloudSession.ts`       | `switchTo` · `leave` · `applySelectedSite` · `reissueCommitted`                 |
+| `SessionAuthAdapter implements SocketSessionDelegate` | `session/auth/sessionAuthAdapter.ts` | Auth SDK 브리지 — seed · sign · writeback · expiry                              |
+| 순수 함수                                             | `session/auth/utils/tokenMerge.ts`   | `mergeRefreshedRelayToken` · `mergeRefreshedCloudToken`                         |
 
 `SessionAuthAdapter`의 접미사 근거는 [`SessionCredentialAdapter implements CredentialStalenessPort`](../../libs/app-runtime/src/http/factory.ts)다
 — 같은 패키지에서 세션 상태를 포트에 맞춰 주는 클래스에 이미 쓰고 있는 이름이다. `*Impl`은 리포에 0건이다.
@@ -361,7 +416,7 @@ export class Coalescer<T> {
 ### 7. 이름 충돌을 제거한다 — 공개되는 것은 강한 판이다
 
 `session/auth`의 약한 판은 클래스 메서드로 들어가면서 전역 이름을 잃는다 —
-`relaySession.clearLocal()` · `cloudSession.clearStores()`. 동사는 리포의 `clear*`
+`relaySession.clearSessionAndRedirect()` · `cloudSession.clearStores()`. 동사는 리포의 `clear*`
 계열(`clearSession` · `clearToken` · `clearIdentity` · `clearSelectedSite`)을 따른다. 루트 배럴이
 공개하는 `logoutSession` · `logoutCloudSession`은 소켓 통지를 포함한 `socket/auth` 판에만 부여한다.
 
@@ -415,7 +470,7 @@ SSoT이고, 그 문서가 `Live`가 되는 시점에 기존 `architecture.md`를
 | 0    | 죽은 코드 · 중복 쓰기 · 낡은 주석 · `intent`→`selected` 개명 (v2 §체크리스트 A) | 없음         |
 | 1    | 결정 7 — 이름 충돌 제거                                                         | admin-v2 1곳 |
 | 2    | 결정 6 — 배럴 정리                                                              | 없음         |
-| 3    | 결정 1 — `deriveAuthStatus` 도입 후 4개 판정 사본 이관                          | 없음         |
+| 3    | 결정 1 — `deriveAuthStatus` 도입 후 2개 판정 사본 이관                          | 없음         |
 | 4    | 결정 2 — `ISessionSignal` + `batch`                                             | 없음         |
 | 5    | 결정 3·4 — renewer 2개 + `useCredentialGuard` + `Coalescer`                     | 없음         |
 | 6    | 결정 0·5 — 스토어/세션 클래스화, `RuntimeBinding` 정리                          | 앱 4개       |
@@ -467,8 +522,10 @@ renewer 안과의 차이를 명시한다.
 **측정**
 
 - `notifySessionStateChanged` 호출 지점 24 → 0 (`sessionSignal.emit`으로 대체), 전환당 fan-out 8 → 1.
-- 인증 판정 분기 사본 4 → 1 (`deriveAuthStatus`).
-- 손으로 만든 동시성 가드 7 → 1 (`Coalescer`).
+- 인증 판정 분기 사본 **2 → 1** (`deriveAuthStatus`). 최초에 4로 셌고 3단계 실행이 2로 정정했다 —
+  `useConnectivity`는 표시 판정이고, relay 가드는 두 시계를 다른 정책으로 쓴다(§맥락 1의 정정 블록).
+- 손으로 만든 동시성 가드 7 → **2** (`Coalescer` + `Throttle`). 7이 실은 두 메커니즘이었다 —
+  코얼레싱(값을 공유)과 쓰로틀링(허가를 묻는 동기 게이트).
 - 공개 값 export 111 → 약 80 (앱 미사용 31 제거).
 - `session/auth/services.ts` 539줄 → 클래스 3개 + 순수 utils.
 - 리포 관례 밖 이름 0건 (`*Core` 3개 제거 · 새 접미사 0개 도입 · `intent` → `selected`).

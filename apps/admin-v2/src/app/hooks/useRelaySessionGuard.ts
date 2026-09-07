@@ -16,7 +16,7 @@
  * indistinguishable from a dead session, and logging an admin out over a blip is worse than three
  * extra ticks of 403s. Any success resets the streak (the shared hook owns that counting).
  */
-import { logoutRelaySession, useSessionStalenessGuard } from '@chatic/app-runtime';
+import { logoutSession, useSessionStalenessGuard } from '@chatic/app-runtime';
 
 /** Cheap when not expired, so a tight cadence keeps the 403 window small. */
 const CHECK_INTERVAL_MS = 30_000;
@@ -32,6 +32,9 @@ export const useRelaySessionGuard = (enabled: boolean): void => {
         // No stored session at all is a definitive failure here — the console cannot run signed out.
         missingSessionCountsAsFailure: true,
         consecutiveFailureLimit: CONSECUTIVE_FAILURE_LIMIT,
-        onTeardown: () => logoutRelaySession(),
+        // `logoutSession`, not the store-only teardown: it fires a best-effort `auth.logout` on
+        // both socket slots before clearing, so the server ends the auth session instead of being
+        // left with a live connection for a session the console just abandoned (ADR-0074 결정 7).
+        onTeardown: () => logoutSession(),
     });
 };
