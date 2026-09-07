@@ -174,4 +174,27 @@ describe('ThreadPage — 긴 메시지 전체보기', () => {
         expect(screen.getByText('chat.room.messageDetail')).toBeInTheDocument();
         expect(screen.getAllByText('아주 긴 답글 본문').length).toBeGreaterThan(1);
     });
+
+    // 전문 다이얼로그는 평문만 그린다. 페이로드를 그대로 넘기면 JSON 이 열린다.
+    it('Block Kit 답글의 전체보기는 평문을 넘긴다', () => {
+        mockChats = [
+            chat(),
+            chat({
+                id: 'ch1:9',
+                chatNo: 9,
+                parentId: '7',
+                content: JSON.stringify({
+                    blocks: [{ type: 'section', text: { type: 'mrkdwn', text: '*503* upstream timeout' } }],
+                }),
+            }),
+        ];
+
+        render(<ThreadPage />);
+        fireEvent.click(screen.getByTestId('expand-ch1:9'));
+
+        // The dialog is what this asserts — the row is a stub here and prints whatever
+        // `content` it is handed, so its JSON is the harness, not the app.
+        expect(screen.getByText('chat.room.messageDetail')).toBeInTheDocument();
+        expect(screen.getByText('503 upstream timeout')).toBeInTheDocument();
+    });
 });

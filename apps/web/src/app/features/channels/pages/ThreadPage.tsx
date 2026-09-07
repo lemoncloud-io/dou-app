@@ -28,6 +28,7 @@ import {
 } from '../hooks';
 import type { ClientChatView, DomainChat } from '../types';
 import { copyMessageToClipboard } from '../utils/copyMessageToClipboard';
+import { messagePlainText } from '../utils/messagePlainText';
 import { buildThread } from '../utils/buildThread';
 import { foldReactions, hasMyReaction } from '../utils/foldReactions';
 import { useRecentEmojiStore } from '../stores/useRecentEmojiStore';
@@ -201,7 +202,9 @@ export const ThreadPage = () => {
     };
 
     const handleCopy = async () => {
-        const text = actionMessage?.content ?? '';
+        // What the message SAYS, not what it is made of — a Block Kit body would otherwise
+        // put its payload on the clipboard.
+        const text = messagePlainText(actionMessage?.content);
         if (!text || isCopying) return;
         setIsCopying(true);
         try {
@@ -252,7 +255,7 @@ export const ThreadPage = () => {
             time={formatTime(message.timestamp)}
             read={{ show: false, isReady: false, readCount: 0, unreadCount: 0 }}
             onLongPress={() => message.content && setActionMessage(message)}
-            onExpand={() => setExpandedMessage({ content: message.content ?? '' })}
+            onExpand={() => setExpandedMessage({ content: messagePlainText(message.content) })}
             onRetry={() => undefined}
             onDelete={() => undefined}
             reactions={message.id ? reactions.get(message.id) : undefined}
