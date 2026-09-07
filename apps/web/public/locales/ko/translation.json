@@ -1091,6 +1091,8 @@
         "selectTitle": "친구 선택",
         "addFriend": "친구 추가",
         "searchPlaceholder": "친구 검색",
+        "unnamedContact": "이름 없음",
+        "noInvitableContacts": "초대할 수 있는 연락처가 없어요",
         "invite": "초대하기",
         "deselectAll": "전체 선택 해제",
         "done": "완료",

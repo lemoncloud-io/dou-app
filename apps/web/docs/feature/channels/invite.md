@@ -1,6 +1,9 @@
 # 채널 초대 화면 (Channel Invite Page)
 
-> 상태: Live · 최종 갱신: 2026-08-07 · 관련 ADR: [ADR-0022](../../../../../docs/adr/0022-channel-invite-page-web-ui-kit.md)
+> 상태: Live · 최종 갱신: 2026-09-07 · 관련 ADR: [ADR-0022](../../../../../docs/adr/0022-channel-invite-page-web-ui-kit.md)
+>
+> 최근 개정(2026-09-07): 연락처 행이 빈 이름으로 그려지던 문제를 고쳤다 — 아래
+> "연락처 필드 계약과 폴백" 참고. 화면 구조는 그대로다.
 
 ## 목적
 
@@ -129,6 +132,61 @@ flowchart TD
   `InviteLinkCard`, 하단 `링크 공유하기` 버튼. 공유는 native `appBridge.openShareSheet` / 웹
   `copyMessageToClipboard`.
 
+### 연락처 필드 계약과 폴백
+
+연락처 앱의 필드는 **하나도 필수가 아니고**, 두 플랫폼이 "비어 있음"을 다르게 표현한다.
+`react-native-contacts` 8.0.10 네이티브 소스 기준:
+
+| 필드                                                           | Android (`ContactsProvider.java`)    | iOS (`RCTContacts.mm`)                                                                                  |
+| -------------------------------------------------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------- |
+| `displayName`                                                  | 구조화 이름 → 없으면 조직명으로 채움 | **키를 아예 보내지 않는다**                                                                             |
+| `givenName`                                                    | 비면 `displayName`으로 대체(:624)    | 값이 nil이면 **키를 생략**(:337)                                                                        |
+| `familyName` / `middleName` / `company` / `jobTitle`           | 채움                                 | nil이면 **키를 생략**                                                                                   |
+| `backTitle` · `isStarred` · `prefix` · `suffix` · `department` | 채움                                 | **보내지 않는다**                                                                                       |
+| `birthday.year`                                                | 채움                                 | 연도 없이 저장했으면 **생략**                                                                           |
+| 별명(nickname)                                                 | —                                    | 라이브러리가 `CNContactNicknameKey`를 **fetch하지 않는다** — 별명만 저장한 연락처는 이름을 알 길이 없다 |
+
+그래서 규칙이 둘로 나뉜다.
+
+**① 앱은 정규화만 한다** —
+[`toContactInfo`](../../../../mobile/src/app/utils/contactInfo.ts)가 누락 키를 전부 기본값으로
+채운다. `ContactInfo`는 대부분의 필드를 non-optional로 선언하는데 iOS 페이로드는 그보다 좁아서,
+정규화가 없으면 웹은 타입이 `string`이라고 약속한 자리에서 `undefined`를 읽는다.
+표시 이름을 **지어내지는 않는다** — 어느 조각이 앞에 오는지는 표현 규칙이고, 그건 웹이 한 곳에서 소유한다.
+
+**② 웹이 이름을 만든다** —
+[`resolveContactName`](../../../src/app/features/channels/utils/deviceContact.ts)의 폴백 체인:
+
+`displayName` → 이름 조각 조합 → `company` → **전화번호** → `inviteFriends.unnamedContact`
+
+- 조각 조합은 한글·한자·가나가 섞여 있으면 `성+중간+이름`을 **공백 없이**, 아니면 라틴 관례대로
+  `given middle family`를 공백으로 잇는다.
+- 번호는 자리를 메우는 문구가 아니라 **실제 답**이다. 사용자가 걸 번호이고, 그것만으로 누구 행인지
+  알아본다.
+- 마지막 라벨(`unnamedContact`)은 **방어용이고 실제로는 도달하지 않는다.** 조건이 "이름도 회사도
+  번호도 없음"인데, 아래 ④가 그런 연락처를 목록에서 빼기 때문이다. 남겨 두는 이유는 빈 행이 다시
+  렌더되는 것이 이 체인이 없애려던 바로 그 버그라서 — 누군가 이 함수가 이름 붙일 수 없는 연락처를
+  목록에 올린다면, 고장이 아니라 의도로 읽혀야 한다.
+- 검색(`contactSearchText`)은 회사명과 번호(표시형·숫자만)까지 훑는다. 화면에 보이는 라벨로 검색했는데
+  안 나오는 것은 그 자체로 버그다.
+
+**③ 번호는 전부 훑는다** — `resolveContactPhone`은 저장된 번호를 **처음부터 끝까지** 보고 첫 유효
+한국 휴대폰을 고른다. 첫 칸만 읽던 이전 구현은 집·회사 번호가 앞에 있는 연락처를 "번호 없음"으로
+취급해 초대 자체를 막았다. 연락처 앱은 번호 순서를 보장하지 않는다. 반환은 E.164다(위 §S1 근거와 동일).
+
+**④ 번호가 없는 연락처는 목록에서 뺀다** — `listedContacts`가 `resolveContactDisplayPhone(c) !== ''`로
+거른다. 초대는 번호로 나가므로 그런 행은 초대할 수도, 번호로 알아볼 수도 없다 — 눌리지 않는 행을
+남기는 것보다 안 보이는 게 낫다. 텔레그램도 전화번호가 계정 식별자라 번호 없는 연락처는 애초에
+목록에 들어오지 않는다.
+
+판정은 **라벨을 만드는 함수와 같은 것**을 쓴다. "보여줄 번호가 없다"와 "목록에서 뺀다"가 어긋나면
+안 되기 때문이다.
+
+**유효한 한국 휴대폰이 아닌 번호(집전화·해외번호)는 걸러내지 않는다.** 그 행은 번호로 식별되고 초대만
+비활성이다 — "저장돼 있는데 안 보인다"와 "초대할 수 없다"는 사용자에게 다른 이야기다. 목록이 이 필터로
+비게 되면(받은 연락처 전부가 번호 없음) 빈 패널 대신 `inviteFriends.noInvitableContacts`를 띄운다.
+검색바와 링크 초대는 그대로 남는다 — 부분 연락처 접근으로 잘린 목록의 탈출구가 링크 초대이기 때문이다.
+
 ### 바텀시트 동작 변경
 
 - [AddFriendSheet.tsx:96-120](../../../src/app/features/channels/components/AddFriendSheet.tsx) `handleShare`:
@@ -179,14 +237,18 @@ flowchart TD
       렌더/`onRemove` 콜백/빈 목록 미렌더.
     - [InviteLinkCard.test.tsx](../../../../../libs/web-ui-kit/src/composites/list/InviteLinkCard.test.tsx) —
       URL 노출/`onCopy` 콜백.
-    - [InvitePage.test.tsx](../../../src/app/features/channels/pages/InvitePage.test.tsx) — 연락처 렌더, 1명=단건/2명+=배치
-      호출 후 `navigate(-1)`, 권한 거부 배너, 100 선택 상한 토스트, 웹 가이드 분기.
-    - [AddFriendSheet.test.tsx](../../../src/app/features/channels/components/AddFriendSheet.test.tsx) — 공유 제출 시
-      `requestInviteLink` 호출 + 초대 링크 페이지로 `navigate`(state 포함).
-    - [ChannelSettingsPage.test.tsx](../../../src/app/features/channels/pages/ChannelSettingsPage.test.tsx) — 친구 추가 행
-      탭 시 `/channels/ch1/invite`로 이동.
-    - 실행: `npx jest --config apps/web/jest.config.js features/channels` (65 passed) +
-      `npx jest --config libs/web-ui-kit/jest.config.js SelectedAvatarRow InviteLinkCard` (5 passed).
+    - [InvitePage.test.tsx](../../../src/app/features/channels/pages/InvitePage.test.tsx) — 연락처 렌더,
+      1명=단건/2명+=배치 호출 후 `navigate(-1)`, 권한 거부 배너, 100 선택 상한 토스트, 웹 가이드 분기.
+      `describe('contacts that carry no display name')`이 iOS 페이로드 모양(성만·회사만·번호만·집전화
+      우선)과 목록 제외 규칙(번호 없음은 숨김, 집전화만 있으면 남김, 전부 번호 없으면 안내 문구)을 덮는다.
+    - [deviceContact.test.ts](../../../src/app/features/channels/utils/deviceContact.test.ts) — 이름 폴백
+      체인, 번호 선택(저장 형태 매트릭스), 표시 포맷, 검색 텍스트.
+    - [contactInfo.test.ts](../../../../mobile/src/app/utils/contactInfo.test.ts) — 앱 쪽 누락 키 정규화.
+    - [AddFriendSheet.test.tsx](../../../src/app/features/channels/components/AddFriendSheet.test.tsx) —
+      공유 제출 시 `requestInviteLink` 호출 + 초대 링크 페이지로 `navigate`(state 포함).
+    - [ChannelSettingsPage.test.tsx](../../../src/app/features/channels/pages/ChannelSettingsPage.test.tsx) —
+      친구 추가 행 탭 시 `/channels/ch1/invite`로 이동.
+    - 실행: `npx nx test web --testPathPatterns=features/channels`.
 - **수동 확인**(인증 세션 필요, 웹 프리뷰로는 네이티브 연락처·실제 초대 API 미실행): 네이티브 연락처 선택→배치 초대,
   웹 초대 링크 흐름, 권한 꺼짐 상태, 100 상한 토스트, 링크 복사/공유 토스트 및 버튼 상태.
 - **참고**: worktree에는 `@nx/react/typings/*`가 없어 `nx typecheck`가 환경상 실패한다(코드 무관). jest는

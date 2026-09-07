@@ -18,34 +18,19 @@ import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { appBridge } from '../../../bridge';
 import { PageHeader } from '../../../ui/components';
 import { KeyboardSafeAreaSpacer } from '../../../ui/layouts/KeyboardSafeAreaSpacer';
-// Direct path for `phoneNumber`: it is deliberately kept out of the `utils` barrel (libphonenumber's
-// metadata — see that barrel's comment).
-import { toE164 } from '../../../utils/phoneNumber';
 import { useCreateInviteBatch } from '../hooks';
 import { AddFriendSheet } from '../components/AddFriendSheet';
 import { PermissionDeniedBanner } from '../components/PermissionDeniedBanner';
-import { isValidKoreanPhone, normalizeKoreanPhone } from '../utils/koreanPhone';
+import {
+    contactSearchText,
+    resolveContactDisplayPhone,
+    resolveContactName,
+    resolveContactPhone,
+} from '../utils/deviceContact';
 import { getRoomDistance } from '../utils/roomDistance';
 
 /** A single invite batch selects at most this many friends. */
 const MAX_INVITE_SELECTION = 100;
-
-/**
- * 연락처에서 유효한 휴대폰 번호를 **E.164**(`+8210…`)로 추출합니다. 유효하지 않으면 null.
- *
- * wire 값은 로컬형(`010…`)이 아니라 E.164다: 백엔드 해셔(`asE164Phone`)는 로컬형일 때만
- * `countryCode`를 읽는데, `user.invite-batch` 페이로드에는 국가를 실을 자리가 아예 없다
- * (`to`/`channelId`/`cloudId`/`cloudName`). 즉 국가가 번호 안에 들어 있어야 한다 (ADR-0044 §5).
- * 이 화면은 연락처가 국가를 알려주지 않으므로 한국 번호 검증을 그대로 유지하고 KR로 변환한다.
- */
-const extractValidPhone = (contact: ContactInfo): string | null => {
-    const phoneNumber = contact.phoneNumbers?.[0]?.number;
-    if (!phoneNumber) return null;
-    const normalized = normalizeKoreanPhone(phoneNumber.replace(/\D/g, ''));
-    return isValidKoreanPhone(normalized) ? toE164(normalized, 'KR') : null;
-};
-
-const contactName = (contact: ContactInfo): string => contact.displayName || contact.givenName || '';
 
 /**
  * 채널 친구 초대 페이지 — 기존 InviteFriendsDialog를 라우팅 페이지로 전환한 것.
@@ -69,6 +54,13 @@ export const InvitePage = () => {
     const [isBatchInviting, setIsBatchInviting] = useState(false);
 
     const { createSingleInvite, createBatchInvite } = useCreateInviteBatch();
+
+    // Bound here because the chain's last resort is a translated label: a contact with no name, no
+    // company and no number would otherwise render as an empty row (see resolveContactName).
+    const nameOf = useCallback(
+        (contact: ContactInfo) => resolveContactName(contact, t('inviteFriends.unnamedContact')),
+        [t]
+    );
 
     // 네이티브에서만 연락처를 불러온다. 웹은 연락처 접근 불가 → 초대 링크 유도.
     useEffect(() => {
@@ -98,26 +90,37 @@ export const InvitePage = () => {
         };
     }, [isOnMobileApp]);
 
+    /**
+     * 번호가 하나도 저장돼 있지 않은 연락처는 목록에서 빼둔다.
+     *
+     * 초대는 번호로 나가므로 그런 행은 초대할 수도, 심지어 이름 대신 번호로 알아볼 수도 없다 —
+     * 눌리지 않는 행을 남겨두는 것보다 아예 보이지 않는 게 낫다. 판정은 라벨을 만드는 함수와
+     * **같은 것**을 쓴다(`resolveContactDisplayPhone`): 보여줄 번호가 없다는 것과 목록에서 뺀다는
+     * 것이 어긋나지 않게.
+     *
+     * 유효한 한국 휴대폰이 아닌 번호(집전화·해외번호)는 여기서 걸러내지 **않는다**. 그 행은 번호로
+     * 식별되고, 초대만 비활성이다 — "저장돼 있는데 안 보인다"와 "초대할 수 없다"는 다른 이야기다.
+     */
+    const listedContacts = useMemo(() => contacts.filter(c => resolveContactDisplayPhone(c) !== ''), [contacts]);
+
     // 선택된 연락처는 필터 무관하게 상단, 나머지는 검색 필터 적용.
     const filteredContacts = useMemo(() => {
         const selected: ContactInfo[] = [];
         const unselected: ContactInfo[] = [];
-        for (const contact of contacts) {
+        for (const contact of listedContacts) {
             (selectedIds.has(contact.recordID) ? selected : unselected).push(contact);
         }
         let rest = unselected;
         if (search.trim()) {
             const q = search.toLowerCase();
-            rest = unselected.filter(c =>
-                [c.displayName, c.givenName, c.familyName].some(n => n?.toLowerCase().includes(q))
-            );
+            rest = unselected.filter(c => contactSearchText(c).includes(q));
         }
         return [...selected, ...rest];
-    }, [contacts, search, selectedIds]);
+    }, [listedContacts, search, selectedIds]);
 
     const selectedItems = useMemo(
-        () => contacts.filter(c => selectedIds.has(c.recordID)).map(c => ({ id: c.recordID, name: contactName(c) })),
-        [contacts, selectedIds]
+        () => listedContacts.filter(c => selectedIds.has(c.recordID)).map(c => ({ id: c.recordID, name: nameOf(c) })),
+        [listedContacts, selectedIds, nameOf]
     );
 
     const handleToggle = useCallback(
@@ -154,10 +157,10 @@ export const InvitePage = () => {
         if (!channelId || selectedIds.size === 0 || isBatchInviting) return;
 
         const recipients: { name: string; phone: string }[] = [];
-        for (const contact of contacts) {
+        for (const contact of listedContacts) {
             if (!selectedIds.has(contact.recordID)) continue;
-            const phone = extractValidPhone(contact);
-            if (phone) recipients.push({ name: contactName(contact), phone });
+            const phone = resolveContactPhone(contact);
+            if (phone) recipients.push({ name: nameOf(contact), phone });
         }
         if (recipients.length === 0) return;
 
@@ -198,7 +201,10 @@ export const InvitePage = () => {
 
     const showContactList = isOnMobileApp && contacts.length > 0;
     const showGuide = !isOnMobileApp || (permissionDenied && !isWaitingForContacts);
-    const showNoResults = showContactList && !!search.trim() && filteredContacts.length === 0;
+    // The list can now come out empty without a search term — every contact received may lack a
+    // number. The screen still belongs to the picker (search + link invite), so say why instead of
+    // rendering a blank panel.
+    const isListEmpty = showContactList && filteredContacts.length === 0;
     const hasSelection = selectedIds.size > 0;
 
     return (
@@ -264,20 +270,24 @@ export const InvitePage = () => {
 
             {showContactList && (
                 <div className="flex flex-1 flex-col overflow-y-auto overscroll-none px-2 pt-2">
-                    {showNoResults ? (
+                    {isListEmpty ? (
                         <div className="flex flex-1 items-center justify-center">
                             <p className="text-center text-[16px] text-description">
-                                {t('inviteFriends.noSearchResults')}
+                                {t(
+                                    search.trim()
+                                        ? 'inviteFriends.noSearchResults'
+                                        : 'inviteFriends.noInvitableContacts'
+                                )}
                             </p>
                         </div>
                     ) : (
                         filteredContacts.map(contact => {
                             const selected = selectedIds.has(contact.recordID);
-                            const hasValidPhone = extractValidPhone(contact) !== null;
+                            const hasValidPhone = resolveContactPhone(contact) !== null;
                             return (
                                 <SelectableUserItem
                                     key={contact.recordID}
-                                    name={contactName(contact)}
+                                    name={nameOf(contact)}
                                     checked={selected}
                                     onToggle={next => handleToggle(contact, next)}
                                     disabled={(!hasValidPhone && !selected) || isBatchInviting}

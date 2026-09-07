@@ -12,6 +12,20 @@ describe('normalizeKoreanPhone', () => {
     it('82로 시작해도 길이가 짧으면(국가번호가 아닐 수 있음) 건드리지 않는다', () => {
         expect(normalizeKoreanPhone('8212')).toBe('8212');
     });
+
+    // 연락처 앱은 둘 다 받아주고, 사람들은 둘 다 저장한다.
+    it('국가번호 뒤에 로컬 0이 남아 있어도 같은 번호로 본다 (+82 010-…)', () => {
+        expect(normalizeKoreanPhone('8201012345678')).toBe('01012345678');
+    });
+
+    it('국번이 짧은 옛 번호(011-234-5678)의 국제형도 되돌린다', () => {
+        expect(normalizeKoreanPhone('82112345678')).toBe('0112345678');
+        expect(normalizeKoreanPhone('820112345678')).toBe('0112345678');
+    });
+
+    it('82로 시작하되 자릿수가 한국 번호 범위를 벗어나면 그대로 둔다', () => {
+        expect(normalizeKoreanPhone('8212345678901234')).toBe('8212345678901234');
+    });
 });
 
 describe('isValidKoreanPhone', () => {

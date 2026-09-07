@@ -1091,6 +1091,8 @@
         "selectTitle": "Select Friends",
         "addFriend": "Add Friend",
         "searchPlaceholder": "Search friends",
+        "unnamedContact": "No name",
+        "noInvitableContacts": "No contacts you can invite",
         "invite": "Invite",
         "deselectAll": "Deselect all",
         "done": "Done",

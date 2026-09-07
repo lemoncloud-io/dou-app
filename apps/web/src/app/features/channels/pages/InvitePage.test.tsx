@@ -178,6 +178,126 @@ describe('share-link availability', () => {
     });
 });
 
+/**
+ * The payload an iPhone actually sends. iOS never fills `displayName` and omits a name key outright
+ * when the field is empty, so every one of these rows used to render with a blank label.
+ */
+describe('contacts that carry no display name', () => {
+    const ios = (partial: any) => ({ recordID: 'ios-1', ...partial });
+
+    it('labels a contact that has only a family name', async () => {
+        getContacts.mockResolvedValue({
+            data: { contacts: [ios({ familyName: '김', phoneNumbers: [{ number: '010-1234-5678' }] })] },
+        });
+        render(<InvitePage />);
+        expect(await screen.findByTestId('user-김')).toBeEnabled();
+    });
+
+    it('labels a business contact by its company', async () => {
+        getContacts.mockResolvedValue({
+            data: { contacts: [ios({ company: '동네치킨', phoneNumbers: [{ number: '010-1234-5678' }] })] },
+        });
+        render(<InvitePage />);
+        expect(await screen.findByTestId('user-동네치킨')).toBeInTheDocument();
+    });
+
+    it('labels a nameless contact by its number and still invites it', async () => {
+        getContacts.mockResolvedValue({ data: { contacts: [ios({ phoneNumbers: [{ number: '01012345678' }] })] } });
+        render(<InvitePage />);
+
+        const row = await screen.findByTestId('user-010-1234-5678');
+        expect(row).toBeEnabled();
+        fireEvent.click(row);
+        fireEvent.click(screen.getByTestId('cta'));
+
+        await waitFor(() => expect(createSingleInvite).toHaveBeenCalledTimes(1));
+        expect(createSingleInvite).toHaveBeenCalledWith(
+            expect.objectContaining({ name: '010-1234-5678', phone: '+821012345678' })
+        );
+    });
+
+    // A contact with no number at all can neither be invited nor identified, so it is left out
+    // rather than shown as a row nobody can tap.
+    it('leaves out a contact that has no number at all', async () => {
+        getContacts.mockResolvedValue({
+            data: {
+                contacts: [
+                    ios({}),
+                    ios({
+                        recordID: 'ios-2',
+                        givenName: '민수',
+                        familyName: '김',
+                        phoneNumbers: [{ number: '010-1234-5678' }],
+                    }),
+                ],
+            },
+        });
+        render(<InvitePage />);
+        await screen.findByTestId('user-김민수');
+
+        expect(screen.queryByTestId('user-inviteFriends.unnamedContact')).not.toBeInTheDocument();
+    });
+
+    // Not the same thing as "cannot be invited": a landline-only contact is still recognisable by
+    // its number, so it stays on the list and only the checkbox is off.
+    it('keeps a contact whose only number is not an invitable mobile', async () => {
+        getContacts.mockResolvedValue({ data: { contacts: [ios({ phoneNumbers: [{ number: '02-123-4567' }] })] } });
+        render(<InvitePage />);
+
+        expect(await screen.findByTestId('user-02-123-4567')).toBeDisabled();
+    });
+
+    it('explains an empty list when nothing received carries a number', async () => {
+        getContacts.mockResolvedValue({
+            data: { contacts: [ios({}), ios({ recordID: 'ios-2', company: '동네치킨' })] },
+        });
+        render(<InvitePage />);
+
+        expect(await screen.findByText('inviteFriends.noInvitableContacts')).toBeInTheDocument();
+    });
+
+    it('invites by the mobile even when a landline is stored first', async () => {
+        getContacts.mockResolvedValue({
+            data: {
+                contacts: [
+                    ios({
+                        givenName: '민수',
+                        familyName: '김',
+                        phoneNumbers: [{ number: '02-123-4567' }, { number: '010-1234-5678' }],
+                    }),
+                ],
+            },
+        });
+        render(<InvitePage />);
+
+        const row = await screen.findByTestId('user-김민수');
+        expect(row).toBeEnabled();
+        fireEvent.click(row);
+        fireEvent.click(screen.getByTestId('cta'));
+
+        await waitFor(() => expect(createSingleInvite).toHaveBeenCalledTimes(1));
+        expect(createSingleInvite).toHaveBeenCalledWith(expect.objectContaining({ phone: '+821012345678' }));
+    });
+
+    it('finds a company-labelled row by search', async () => {
+        getContacts.mockResolvedValue({
+            data: {
+                contacts: [
+                    ios({ company: '동네치킨', phoneNumbers: [{ number: '010-1234-5678' }] }),
+                    { recordID: 'ios-2', givenName: '민수', familyName: '김' },
+                ],
+            },
+        });
+        render(<InvitePage />);
+        await screen.findByTestId('user-동네치킨');
+
+        fireEvent.change(screen.getByLabelText('search'), { target: { value: '치킨' } });
+
+        expect(screen.getByTestId('user-동네치킨')).toBeInTheDocument();
+        expect(screen.queryByTestId('user-김민수')).not.toBeInTheDocument();
+    });
+});
+
 describe('InvitePage (web)', () => {
     it('shows the invite-link guide instead of a contact list', async () => {
         isNativeValue = false;
