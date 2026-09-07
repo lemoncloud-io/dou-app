@@ -182,7 +182,6 @@ sync_static_assets() {
 
     if ! aws s3 ${AWS_PROFILE} sync "${DIST_DIR}" "${s3_target}" \
         --metadata-directive REPLACE \
-        --acl public-read \
         --exclude "index.html" \
         --exclude "version.json" \
         --exclude "*.css" \
@@ -210,7 +209,6 @@ sync_css_js_files() {
 
     if ! aws s3 ${AWS_PROFILE} sync "${DIST_DIR}" "${s3_target}" \
         --metadata-directive REPLACE \
-        --acl public-read \
         --exclude "*" \
         --include "*.css" \
         --include "*.js" \
@@ -236,7 +234,6 @@ sync_asset_files() {
 
     if ! aws s3 ${AWS_PROFILE} sync "${DIST_DIR}" "${s3_target}" \
         --metadata-directive REPLACE \
-        --acl public-read \
         --exclude "*" \
         --include "assets/*" \
         --exclude "*.map"; then
@@ -263,7 +260,6 @@ sync_locales() {
 
         if ! aws s3 ${AWS_PROFILE} sync "${locales_dir}" "${s3_target}" \
             --metadata-directive REPLACE \
-            --acl public-read \
             --cache-control "${CACHE_CONTROL_LOCALES}"; then
             log_error "Failed to sync locale files"
             return 1
@@ -290,8 +286,7 @@ upload_index_html() {
     if ! aws s3 ${AWS_PROFILE} cp "${DIST_DIR}/index.html" "${s3_target}" \
         --metadata-directive REPLACE \
         --cache-control "${CACHE_CONTROL_NO_CACHE}" \
-        --content-type "text/html" \
-        --acl public-read; then
+        --content-type "text/html"; then
         log_error "Failed to upload index.html"
         return 1
     fi
@@ -342,8 +337,7 @@ upload_version_json() {
     if ! aws s3 ${AWS_PROFILE} cp "${DIST_DIR}/version.json" "${s3_target}" \
         --metadata-directive REPLACE \
         --cache-control "${CACHE_CONTROL_NO_CACHE}" \
-        --content-type "application/json" \
-        --acl public-read; then
+        --content-type "application/json"; then
         log_error "Failed to upload version.json"
         return 1
     fi
