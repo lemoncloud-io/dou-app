@@ -13,6 +13,9 @@
 
 - [architecture.md](./architecture.md) — 확정 아키텍처, 5축 소유 규칙, 스코프 세 뷰, 모듈 구조 (**전체 그림은 여기부터**)
 - [public-surface.md](./public-surface.md) — 앱이 사용하는 공개 API 표면 / 노출하지 않는 내부
+- [architecture-v2.md](./architecture-v2.md) — **Proposed 개정안** ([ADR-0074](../../../docs/adr/0074-app-runtime-auth-single-verdict-and-typed-session-events.md):
+  인증 단일 판정 · 세션 이벤트 타입화 · 자격증명 Strategy). 승인·구현 완료 시 위 `architecture.md`를
+  대체·삭제한다. **그때까지 코드의 진실은 `architecture.md`다.**
 
 ## 기능 폴더
 

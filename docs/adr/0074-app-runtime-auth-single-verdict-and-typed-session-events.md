@@ -1,0 +1,497 @@
+# ADR-0074: 인증 상태는 하나가 판정한다 — 세션 시그널 타입화 · 자격증명 renewer · ADR-0070 §0 완결
+
+> 상태: Proposed · 작성일: 2026-09-07 · 기준 트리: `claude/app-runtime-auth-architecture-31b5a3` (`76a601410`)
+> 범위: `libs/app-runtime/**` (앱은 `apps/admin-v2` 1곳만 영향 — §결정 7)
+> 관련: [ADR-0070](./0070-app-runtime-session-hub.md) (세션 허브 — 이 문서는 그 §0 원칙을 잔여분에 적용하고
+> 결정 2·7의 표현을 갱신한다) · [ADR-0036](./0036-data-surface-unification-app-runtime-cleanup.md) ·
+> [2026-08 세션 관리 감사](../audit/2026-08-session-management-audit.md) ·
+> [2026-09 죽은 코드 스윕](../audit/2026-09-dead-code-sweep.md)
+
+> **용어 고정:** ADR-0070과 동일하다. **Auth SDK**는 `@lemoncloud/chatic-sockets-lib`의
+> `ClientSocketAuth`(`AuthController`)를 뜻한다.
+>
+> **이름은 리포 관례에서 왔고, 선례의 강도는 이름마다 다르다.** 아래 등장하는 심볼은 현 트리에서 실측한
+> 형태(`I*` 인터페이스+클래스 55쌍 · `deriveConnectivity`/`ConnectivityStatus` · `*Adapter` 265 ·
+> `*Snapshot` 234 · `*Policy` · `useRuntime*`)를 따르되, 리포에 **단어 자체가 없는 것 하나**
+> (`ICredentialRenewer` — 기존 동사 `renew*`에서 파생)는 그렇게 표시했다. 이름별 실측 등장 수와 근거는
+> [architecture-v2.md §네이밍 규약](../../libs/app-runtime/docs/architecture-v2.md)이 표로 소유한다.
+
+## 맥락 (Context)
+
+ADR-0070은 세션의 **소유**를 정리했다 — 스토어 하나, refresh 주인 하나, 스코프 소유자 하나. 그 목표는
+달성됐고 되돌릴 것이 없다. 이 문서가 다루는 것은 그 다음 층이다: **소유는 하나인데, 상태를 읽는 방법이
+여전히 여러 개다.**
+
+### 1. "지금 relay 인증 상태가 뭐냐"에 답하는 지점이 없다
+
+한 질문에 답하려면 서로 다른 7개 모듈에서 7개 값을 읽어야 한다.
+
+| #   | 원천                                                                                                     | 의미                            |
+| --- | -------------------------------------------------------------------------------------------------------- | ------------------------------- |
+| 1   | `identity.isAuthenticated` ([contextStore.ts](../../libs/app-runtime/src/session/store/contextStore.ts)) | 세션 **존재** (유효성 아님)     |
+| 2   | `relayStore.getRelayToken()`                                                                             | 토큰 유무                       |
+| 3   | `credentialFreshness.timeToExpiry('relay')`                                                              | AWS 자격증명 잔여 수명          |
+| 4   | `client.auth.state` (Auth SDK)                                                                           | 컨트롤러 상태 (종단 `expired`)  |
+| 5   | `manager.isKindVerified(kind)`                                                                           | **이 연결에서** 핸드셰이크 완료 |
+| 6   | `isStoredSessionExpired()`                                                                               | lemon 스토어의 별개 시계        |
+| 7   | `hasStoredRelaySession()`                                                                                | lemon 스토어 존재 여부          |
+
+이 7개의 조합 규칙이 네 곳에 **각각 다시** 쓰여 있다 —
+[`useSessionStalenessGuard`](../../libs/app-runtime/src/session/hooks/app/useSessionStalenessGuard.ts) ·
+[`requestRelaySessionRefresh`](../../libs/app-runtime/src/socket/auth/requestRelaySessionRefresh.ts) ·
+[`recoverUnverifiedSockets`](../../libs/app-runtime/src/socket/auth/recoverUnverifiedSockets.ts) ·
+[`useConnectivity`](../../libs/app-runtime/src/connection/useConnectivity.ts). 각 사본은 20~40줄 주석으로
+자기 판정을 정당화하는데, 그 주석들이 서로를 참조하지 않는다. 디버그 오버레이도 로그도 이 판정을 재사용할
+수 없어서, 장애를 재현할 때 사람이 7개를 손으로 맞춰 봐야 한다.
+
+`deriveConnectivity`는 이미 정답 형태다 — 입력(`ConnectivitySignals`)을 구조체로 받는 순수 진리표라서
+소켓 매니저 없이 테스트된다. **그 패턴이 연결 상태에만 적용돼 있고 인증 상태에는 적용돼 있지 않다.**
+
+### 2. 세션 통지가 무정보 방송이라 유스케이스 하나가 fan-out을 8번 낸다
+
+`notifySessionStateChanged()`는 payload가 없고 호출 지점이 **24곳**이다(스토어 15 · contextStore 5 ·
+유스케이스 4). 구독자는 "무언가 바뀌었다"만 듣고 전부 다시 파생한다.
+
+클라우드 전환 1회([services.ts `switchCloudSession`](../../libs/app-runtime/src/session/auth/services.ts))의
+성공 경로가 내는 통지:
+
+```
+saveSelectedCloudId(1) → clearSelectedSite(2) → saveDelegationToken(3) → saveCloudToken(4)
+→ saveSelectedCloudId(5) → clearPlaceOrder(6) → rebuildSessionIdentity(7) → setSelectedCloudId(8)
+```
+
+각 통지가 `cachedGlobalSessionContext`를 버리고 `useGlobalSession` 구독자 전원을 리렌더하며
+`useRuntimeBinding`을 재조립한다. 즉 **일관되지 않은 중간 상태 7개가 관측자에게 그대로 노출된다.**
+(5번과 8번은 같은 함수다 — `setSelectedCloudId`는 `cloudStore.saveSelectedCloudId` 그 자체. 순수 중복.)
+
+`rebuildSessionIdentity`는 이 문제를 알고 있어서 [동등성 게이트](../../libs/app-runtime/src/session/store/contextStore.ts)를
+손으로 달아 놨다. 그런데 같은 상태를 쓰는 다른 진입점 4개(`setSessionAuthenticated` ·
+`clearRelaySession` · `setSessionIdentityState` · `markSessionInitialized`)는 무조건 통지한다. 한 상태,
+5개 진입점, 2개 통지 정책. 그리고 `sessionContextStore.setIdentityState`는 **통지하지 않으므로** 호출자가
+따로 기억해야 한다 — 규약이 아니라 관습이다.
+
+### 3. relay/cloud 회복 비대칭이 8곳에서 각각 분기한다
+
+"relay는 refresh밖에 없고(부모 토큰이 없다), cloud는 relay 신원으로부터 **재발급**된다"는 **하나의 사실**이
+여덟 곳에서 분기하고, 각 곳이 20~30줄 주석으로 같은 근거를 다시 설명한다:
+`sessionDelegate.onAuthExpired` · `configureCredentialRecovery` · `credentialFreshness` ·
+`useSessionStalenessGuard` · `useCloudCredentialGuard` · `SessionCredentialAdapter` ·
+`requestRelaySessionRefresh` · `renewCloudSession`.
+
+두 가드는 **정책만 다르고 스케줄링은 같다** — `enabled` · 마진 · `visibilitychange` 엣지 · in-flight 가드 ·
+실패 후 재시도 sleep이 양쪽에 복제돼 있다.
+
+ADR-0070 이후 두 가드를 분리한 판단은 문서에 남아 있고(["`kind` 옵션을 여기 추가하면 서로 무관한 회복 전략
+둘이 한 스위치 뒤에 놓인다"](../../libs/app-runtime/src/session/hooks/app/useSessionStalenessGuard.ts)),
+그 판단은 지금도 옳다. 문제는 그것이 **정책 분리를 주석으로만** 표현한다는 것이다. `libs/http`는 같은
+문제를 이미 타입으로 풀어 놨다 — `ICredentialRecoverer`에 `NoCredentialRecovery` ·
+`PortCredentialRecoverer` 두 구현이 붙어 있다. app-runtime 쪽에는 그 층이 없다.
+
+### 4. 손으로 만든 동시성 가드가 7종, 전부 다른 모양이다
+
+| 위치                         | 형태                                                |
+| ---------------------------- | --------------------------------------------------- |
+| `RelayRefreshCoalescer`      | class · `inFlight` + 3초 결과 메모 + `reset()` 시임 |
+| `renewCloudSession`          | 모듈 `let inFlight`                                 |
+| `recoverUnverifiedSockets`   | 모듈 `let inFlight`                                 |
+| `useSessionStalenessGuard`   | `useRef inFlight` + `lastForcedAt` 60초 쿨다운      |
+| `bootstrapSocketConnection`  | 인스턴스별 `resumeHoldUntil` + 지수 백오프          |
+| `useRelaySessionKeepAlive`   | `runningRef`                                        |
+| `useDeviceTokenRegistration` | `pendingRef` + 60초 throttle                        |
+
+"이 경로가 두 번 발사될 수 있나?"에 답하려면 일곱 개를 다 읽어야 한다. `RelayRefreshCoalescer`는 이미
+필요한 클래스이고, 나머지 여섯이 그것의 열등한 사본이다.
+
+### 5. ADR-0070 §0이 세션 허브에는 적용되지 않았다
+
+ADR-0070 §0은 명시했다 — _"함수 모음(export 함수 뭉치)으로 경계를 넘는 기존 web-core 식 표면은 이관하면서
+인터페이스+클래스로 재구성한다."_ `data` · `@chatic/http` · `@chatic/db` · scope는 그렇게 됐다
+(`I*` 인터페이스 55쌍 + 대응 클래스가 그 결과다).
+[`session/auth/services.ts`](../../libs/app-runtime/src/session/auth/services.ts)는 **539줄 · 느슨한 export
+함수 20개**로 web-core에서 그대로 이관됐다. 이 파일이 세션 허브에서 유일하게 §0을 지키지 않은 지점이고,
+동시에 가장 자주 읽히는 지점이다.
+
+스토어 3형제도 절반만 갔다 — 인터페이스는 있는데 이름이 `RelayCore`/`CloudCore`/`IdentityCore`로
+**web-core 시절 `session/core` 폴더명을 그대로 물고 있고**(리포의 `I*` 관례 밖), 구현이 객체 리터럴이라
+생성자 주입이 없고(스토리지가 모듈 전역) 매 읽기가 `JSON.parse`다(`buildRelayContext()` 한 번이 relay
+토큰을 3번 파싱한다).
+
+### 6. 경계가 문서에만 있다 — 공개 표면 111개 중 31개는 어떤 앱도 쓰지 않는다
+
+[public-surface.md](../../libs/app-runtime/docs/public-surface.md)는 스토어 writer가 배럴에 있는 것을
+인정하면서 *"이건 앱이 세션을 직접 조작하라는 초대가 아니다"*라고 적어 놨다. 그러나
+`public-surface.test.ts`는 그 심볼들을 **공개 계약으로 잠근다**. 즉 규율이 산문이고 테스트는 반대 방향으로
+작동한다.
+
+실측: 공개 값 export 111개 중 **31개가 비테스트 앱 코드에서 참조 0**이고, 그 31개에 위험한 것이 다 들어 있다 —
+`commitServerRefreshedToken` · `signServerAuth` · `getServerAuthRegistration`(Auth SDK 브리지 내부) ·
+`rebuildSessionIdentity` · `clearRelaySession` · `setSessionIdentityState` · `markSessionInitialized` ·
+`notifySessionStateChanged` · `sessionContextStore` · `setSelectedCloudId` · `setSelectedSiteId` ·
+`applySelectedSite` · `persistDeviceId` …
+
+### 7. ADR-0070이 고쳤다고 선언한 결함이 패키지 **내부**에 남아 있다
+
+ADR-0070 §맥락은 배럴 두 개가 같은 이름을 내놓던 결함을 표로 적고 이렇게 결론했다 — _"배럴 두 개가 같은
+이름을 내놓으면 호출부는 어느 쪽이 진짜인지 알 방법이 없다 — 창구를 하나로 만드는 것 자체가 이 결함의
+수정이다."_ `web-core`는 삭제됐다. 그런데 **같은 충돌이 합쳐진 패키지 안에 그대로 있다.**
+
+| 이름                                   | 약한 판 (스토어만)                                                                | 강한 판 (소켓 통지 + 스토어)                                                                        | 루트 배럴이 내보내는 것 |
+| -------------------------------------- | --------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- | ----------------------- |
+| `logoutCloudSession`                   | [`session/auth/services.ts`](../../libs/app-runtime/src/session/auth/services.ts) | [`socket/auth/logoutCloudSession.ts`](../../libs/app-runtime/src/socket/auth/logoutCloudSession.ts) | **약한 판**             |
+| `logoutRelaySession` / `logoutSession` | `session/auth/services.ts` (`logoutRelaySession`)                                 | `socket/auth/logoutSession.ts` (`logoutSession`)                                                    | **약한 판**             |
+
+훅(`useLogoutCloudSession` · `useSessionLogout`)은 강한 판을 쓰므로 화면 경로는 정상이다. 그러나
+public-surface.md가 강한 판을 "비공개"로 선언한 상태에서 **루트 배럴이 약한 판을 같은 이름으로 공개**하고
+있고, 실제로 [`apps/admin-v2`의 `useRelaySessionGuard`](../../apps/admin-v2/src/app/hooks/useRelaySessionGuard.ts)가
+teardown으로 약한 판을 호출한다 — 그 로그아웃은 두 슬롯의 `auth.logout`을 건너뛴다.
+
+## 결정 (Decision)
+
+### 0. ADR-0070 §0을 세션 허브 잔여분에 적용한다 — 이름은 기존 관례를 따른다
+
+새 결정이 아니라 **미적용분의 집행**이다. 계약은 `I*` 인터페이스, 구현은 클래스 + 생성자 주입, 경계를
+넘는 것은 인터페이스와 도메인 타입뿐. 대상은 §맥락 5가 지목한 `session/auth/services.ts`와 스토어 3형제다.
+
+**새 이름은 발명하지 않는다.** 리포에 이미 있는 접미사·형태만 쓴다 — `I*`+클래스(55쌍)와 그중
+camelCase 모듈 싱글턴까지 가는 형태(**4건**: `credentialRecovery` · `credentialFreshness` ·
+`staleCredentialMarker` · `webClient`), `derive*`+`*Status`+`*Signals`
+(`deriveConnectivity`/`ConnectivityStatus`/`ConnectivitySignals`), `-er` 행위자 명사
+(`ICredentialRecoverer` · `IAuthSigner` · `IFailureAttributor`), `*Policy` · `*Snapshot` · `*Adapter` ·
+`useRuntime*` · `use*Guard`. 리포에 0건인 접미사(`*Impl` · `*Service` · `*Strategy` · `*Bus` ·
+`*Verdict`)는 쓰지 않는다. 대응표는
+[architecture-v2.md §네이밍 규약](../../libs/app-runtime/docs/architecture-v2.md)에 있다.
+
+### 1. 인증 상태 판정은 `deriveAuthStatus` 하나가 소유한다
+
+7개 원천을 읽어 **이름 붙은 상태 하나**를 낸다. 판정은 순수 함수(`deriveConnectivity`와 같은 형태의
+진리표)이고, 원천 수집은 그 옆의 함수가 맡는다 — **새 명사(클래스·싱글턴)를 만들지 않는다.** 같은
+폴더의 `requestRelaySessionRefresh(deps)` · `recoverUnverifiedSockets(deps)`가 이미 쓰는
+"함수 + optional `*Deps` + lazy 기본값" 형태를 그대로 따르므로 지연 싱글턴도 `reset*` 시임도 필요 없다.
+
+```ts
+// socket/auth/authStatus.ts — 순수 판정 (deriveConnectivity와 동형)
+export type AuthStatus =
+    | 'absent' // 토큰 없음 — 로그인 전
+    | 'handshaking' // 토큰 있고 이 연결의 device.save → auth.update 진행 중
+    | 'verified' // isKindVerified
+    | 'stale' // 검증됨, 자격증명이 마진 이하 → 갱신 대상
+    | 'wedged' // 바인딩됐지만 미검증 (좀비) → wake 킥 대상
+    | 'expired'; // Auth SDK 종단 → onTerminalExpiry 대상
+
+export interface AuthSignals {
+    readonly hasToken: boolean;
+    readonly transport: ClientSocketState;
+    readonly controller: AuthControllerState | null;
+    readonly verifiedOnThisConnection: boolean;
+    readonly credentialMs: number | null;
+    readonly marginMs: number;
+}
+
+export const deriveAuthStatus = (signals: AuthSignals): AuthStatus => {
+    /* 진리표 */
+};
+
+export interface SocketAuthSnapshot extends AuthSignals {
+    readonly kind: SocketKind;
+    readonly status: AuthStatus;
+}
+```
+
+```ts
+// socket/auth/authStatus.ts — 원천 수집 (같은 파일, 순수 함수 바로 아래)
+export interface AuthSignalDeps {
+    manager?: Pick<ISocketManager, 'isKindVerified' | 'getClient'>;
+    renewer?: ICredentialRenewer;
+}
+
+/** 스토어·소켓·SDK에서 `AuthSignals`를 모은다. 주입이 없으면 런타임 기본값을 지연 해석한다. */
+export const readAuthSignals = (kind: SocketKind, deps?: AuthSignalDeps): AuthSignals => {
+    /* ... */
+};
+
+/** 호출부가 쓰는 것. `readAuthSignals` → `deriveAuthStatus` 두 줄. */
+export const getAuthStatus = (kind: SocketKind, deps?: AuthSignalDeps): AuthStatus =>
+    deriveAuthStatus(readAuthSignals(kind, deps));
+```
+
+`*Deps`를 optional로 받아 기본값을 lazy 해석하는 것은 같은 폴더의
+[`requestRelaySessionRefresh`](../../libs/app-runtime/src/socket/auth/requestRelaySessionRefresh.ts) ·
+[`recoverUnverifiedSockets`](../../libs/app-runtime/src/socket/auth/recoverUnverifiedSockets.ts)가 이미
+쓰는 형태다. 이 투영도 스토어와 `SocketManager`를 둘 다 알아야 하므로 모듈 로드 시점에는 조립할 수
+없는데, 함수 인자로 미루면 지연 싱글턴(`get*`/`reset*`)이 필요 없다 — 테스트는 `deps`로 직접 넣는다.
+
+**규칙:** `AuthStatus`를 다시 계산하는 코드는 `deriveAuthStatus` 하나뿐이다. 가드 · wake 복구 ·
+`requestRelaySessionRefresh`의 사전 조건 · 연결 상태 훅 · 디버그 오버레이 · 로그는 전부 `status`(또는
+그것을 만든 `AuthSignals` 필드)를 **읽기만** 한다. 새 판정 분기를 다른 파일에 쓰는 것은 회귀다.
+
+`deriveConnectivity`는 유지한다 — 그것은 *사용자에게 무엇을 말할지*이고 이것은 *런타임이 무엇을 할지*다.
+다만 입력을 `SocketAuthSnapshot`에서 받아 브라우저 온라인 신호와 합성하는 형태로 바꾼다.
+
+### 2. 세션 통지는 타입 있는 시그널이다 — 그리고 유스케이스 1회 = fan-out 1회
+
+payload 없는 전역 방송을 타입 시그널로 교체하고 **배치 경계**를 제공한다. 기존
+[`session/store/signal.ts`](../../libs/app-runtime/src/session/store/signal.ts)의 어휘("session signal")를
+그대로 쓰므로 새 개념어를 도입하지 않는다.
+
+```ts
+// session/store/signal.ts
+export type SessionSignalKind = 'relay:token' | 'cloud:token' | 'selection' | 'identity';
+
+export interface ISessionSignal {
+    emit(kind: SessionSignalKind): void;
+    subscribe(kinds: readonly SessionSignalKind[], listener: () => void): () => void;
+    /** 중첩 가능. depth가 0으로 돌아올 때 모인 시그널을 한 번만 flush한다. */
+    batch<T>(fn: () => T): T;
+}
+class SessionSignal implements ISessionSignal {}
+export const sessionSignal: ISessionSignal = new SessionSignal();
+```
+
+- `switchCloudSession` · `reissueCommittedCloudTokens` · cloud/relay teardown은 `sessionSignal.batch`로
+  감싼다 → 전환 통지 8 → **1**. 중간 상태는 관측 불가가 된다.
+- `useRuntimeSocketSlots`는 `['relay:token','cloud:token','selection']`만 구독한다 → identity 전용 변경에
+  재조립하지 않는다. 손으로 만든 동등성 게이트는 구조가 대신하므로 제거한다.
+- 기존 `subscribeSessionSignal`은 전 종류 구독의 얇은 래퍼로 남긴다 — `useGlobalSession`의 호출부가
+  바뀌지 않는다.
+- **낙관적 전환의 3뷰(`selected`/`bound`/`committed` — §결정 8에서 개명)는 건드리지 않는다.**
+  ADR-0070 결정 7은 유효하다 —
+  합치는 것은 값이 아니라 *통지 시점*이다. 이것을 값 통합으로 읽으면 크로스 클라우드 캐시 오염이 돌아온다.
+- 통지 정책의 일관성을 규약으로 고정한다: **쓰기 메서드는 예외 없이 자기 시그널을 emit한다.** 현재의
+  불일치(`savePlaceOrder` 무통지 / `clearPlaceOrder` 통지, `setIdentityState` 무통지)는 버그로 취급한다.
+  순수 캐시 쓰기(`setCachedCloudTokens`)만 예외이고, 그 예외는 이름으로 드러낸다.
+
+### 3. 자격증명 갱신은 `ICredentialRenewer` 구현 2개이고, 스케줄러는 하나다
+
+`libs/http`가 같은 문제를 푼 방식(`ICredentialRecoverer` + `NoCredentialRecovery` ·
+`PortCredentialRecoverer`)과 같은 형태를 app-runtime 쪽에 둔다.
+
+> **`Renewer`는 리포에 없는 새 단어다** (실측 0건 — `Recoverer` 9건은 `libs/http` 전용). 형태만 파생이다:
+> `-er` 행위자 명사는 `ICredentialRecoverer` · `IAuthSigner` · `IFailureAttributor`가 쓰는 관례이고,
+> `renew`는 이미 이 패키지의 동사다(`renewCloudSession`). `Recoverer`를 그대로 재사용하지 않는 이유는
+> `libs/http`의 동명 계약과 독자가 헷갈리기 때문이다 — 그쪽은 요청 재시도를 위한 회복이고, 이쪽은 토큰
+> 갱신이다.
+
+```ts
+// session/auth/renewers/credentialRenewer.ts
+export interface ICredentialRenewer {
+    readonly owner: CredentialOwner; // 'relay' | 'cloud' (기존 타입 재사용)
+    timeToExpiry(now?: number): number | null; // credentialFreshness가 흡수된다
+    /** relay: Auth SDK auth.refresh · cloud: delegate-cloud + exchange-token + 소켓 재등록 */
+    renew(): Promise<boolean>;
+    /** relay: 로그아웃 · cloud: 클라우드만 이탈 */
+    onTerminalExpiry(): Promise<void>;
+}
+```
+
+`RelayCredentialRenewer` · `CloudCredentialRenewer` 두 구현을 두고, **스케줄링 공통부만**
+`useCredentialGuard(renewer, policy: CredentialGuardPolicy)` 하나로 합친다.
+`sessionDelegate.onAuthExpired`는 `renewers[kind].onTerminalExpiry()` 한 줄이 되고,
+`configureCredentialRecovery`는 relay renewer의 `renew`를 등록한다.
+
+> **ADR-0070 이후의 판단과 충돌하지 않는다 — 차이를 명시한다.** 거부된 것은 _한 함수 본문 안의 `kind`
+> 스위치_(정책 둘이 한 스위치 뒤에 숨는 형태)다. 이 결정은 반대 방향이다: 정책을 **두 클래스로 갈라
+> 타입으로 고정**하고, 양쪽에 복제된 타이머·visibility·in-flight 코드만 공유한다. 정책 분리는 주석에서
+> 타입으로 승격되므로 강해진다. 관측 가능한 동작(마진 · 쿨다운 · 재시도 sleep · 실패가 teardown 스트릭에
+> 계수되는지)은 **불변**이며, 그 불변성을 진리표 테스트로 잠근다.
+
+기존 훅 이름은 유지 여부를 구현 시점에 정한다 — `useSessionStalenessGuard`/`useCloudCredentialGuard`를
+`useCredentialGuard` 위의 얇은 프리셋으로 남기면 앱 호출부(`apps/web` · `admin-v2` · `desktop-web`)가
+바뀌지 않는다. **기본은 남기는 쪽이다.**
+
+### 4. 동시성 가드는 `Coalescer` 하나다
+
+`RelayRefreshCoalescer`를 일반화해 나머지 6곳이 쓴다. 도메인 접두사만 떼는 것이므로 새 개념어가 아니다.
+
+```ts
+// utils/coalescer.ts
+export class Coalescer<T> {
+    constructor(opts?: { memoMs?: number; cooldownMs?: number; backoff?: 'none' | 'exponential' });
+    run(attempt: () => Promise<T>): Promise<T>;
+    reset(): void; // 테스트 이음매 — 케이스가 이전 케이스의 답을 물려받지 않게
+}
+```
+
+`bootstrapSocketConnection`의 지수 백오프(종단 `expired` 재개 쓰로틀)는 `backoff: 'exponential'`로
+표현한다. 그 값(초기 30초 · 상한 5분 · `authenticated`에서 리셋)은 2026-08 감사 §5-1이 정한 것이므로
+**숫자를 바꾸지 않는다.** 각 도메인의 `*Attempt` 클래스(`RelayRefreshAttempt`)는 그대로 남는다.
+
+### 5. `session/auth/services.ts`를 클래스로 재구성한다
+
+접미사는 리포에 없는 `*Service`(libs 실측 0건)가 아니라,
+[`ActiveScope`](../../libs/app-runtime/src/session/scope/ActiveScope.ts)처럼 **개념 명사 그대로**다.
+`*Manager`도 쓰지 않는다 — ADR-0070이 "엔진은 넷"으로 고정한 이름이라 두 개를 더 붙이면 그 경계가 흐려진다.
+
+> `*Session`으로 끝나는 클래스·인터페이스는 리포에 아직 없다. 근거는 `ActiveScope`의 **형태**(접미사 없는
+> 개념 명사) 하나이고, 단어 자체는 이미 명사구로 흔하다 — `CloudSessionSnapshot` · `switchCloudSession` ·
+> `initializeRelaySession` · `logoutRelaySession`. 그 명사구를 클래스로 승격하는 것이므로 새 어휘는 아니다.
+
+| 인터페이스 / 클래스                                   | 파일                                 | 소유                                                               |
+| ----------------------------------------------------- | ------------------------------------ | ------------------------------------------------------------------ |
+| `IRelaySession` / `RelaySession`                      | `session/auth/relaySession.ts`       | `initialize` · `loginAs*` · `applyToken` · `logout` · `clearLocal` |
+| `ICloudSession` / `CloudSession`                      | `session/auth/cloudSession.ts`       | `switchTo` · `leave` · `applySelectedSite` · `reissueCommitted`    |
+| `SessionAuthAdapter implements SocketSessionDelegate` | `session/auth/sessionAuthAdapter.ts` | Auth SDK 브리지 — seed · sign · writeback · expiry                 |
+| 순수 함수                                             | `session/auth/utils/tokenMerge.ts`   | `mergeRefreshedRelayToken` · `mergeRefreshedCloudToken`            |
+
+`SessionAuthAdapter`의 접미사 근거는 [`SessionCredentialAdapter implements CredentialStalenessPort`](../../libs/app-runtime/src/http/factory.ts)다
+— 같은 패키지에서 세션 상태를 포트에 맞춰 주는 클래스에 이미 쓰고 있는 이름이다. `*Impl`은 리포에 0건이다.
+
+`commitServerRefreshedToken`은 73줄 중 45줄이 **필드 보존 불변식 3개**(`identityToken` ·
+`identityPoolId` · `credential`)의 근거 주석이다. 이것을 `mergeRefreshedRelayToken`으로 분리해 불변식
+하나당 테스트 하나를 붙인다 — 지금은 주석만이 그 불변식을 지킨다. 클래스가 아니라 함수인 이유는 순수
+헬퍼의 리포 관례(`calcSignature` · `deriveConnectivity` · `msUntilExpiration`)를 따르기 때문이다.
+
+스토어 3형제도 같은 규칙으로 정리한다 — 인터페이스 이름만 관례로 옮기고(`RelayCore` → `IRelayStore`),
+클래스를 붙이고, **싱글턴 이름(`relayStore` · `cloudStore` · `identityStore`)과 파일명은 그대로 둔다**.
+호출부가 바뀌지 않는다.
+
+### 6. 공개 표면은 `index.ts`에서 내리는 것으로 충분하다
+
+- 앱이 쓰지 않는 31개를 루트 배럴에서 제거한다 (앱 코드 변경 0).
+- **두 번째 배럴(`internal.ts`)이나 서브패스 export는 만들지 않는다.** 리포의 어떤 lib도 `.`과
+  `./package.json` 외의 subpath를 노출하지 않으므로 새 패턴이 되고, 필요도 없다 — 내부 소비자는 이미
+  구체 모듈 경로로 import하는 관례가 있다([`useSocketSessionDelegate.ts`](../../libs/app-runtime/src/connection/useSocketSessionDelegate.ts)가
+  배럴을 우회해 `../socket/auth/sessionDelegate`를 직접 잡는 것이 그 선례다). "내부"의 정의는 **`index.ts`에
+  없다**는 것이고, `public-surface.test.ts`의 `EXPECTED` 단일 목록이 그것을 그대로 잠근다.
+- 표면 스캔(공개 심볼 × 앱 참조)을 테스트로 승격해 미사용 export가 다시 쌓이지 않게 한다.
+
+`patchRelaySessionUser` / `getRelaySessionUser`는 예외로 **공개 표면에 남긴다** — 계정 프로필의 읽기·쓰기
+짝이고 [로컬 캐시가 답할 수 없는 질문](../../libs/app-runtime/src/session/store/contextStore.ts)이라는
+근거가 문서화돼 있으며, `apps/web`이 실제로 쓴다(ADR-0062).
+
+### 7. 이름 충돌을 제거한다 — 공개되는 것은 강한 판이다
+
+`session/auth`의 약한 판은 클래스 메서드로 들어가면서 전역 이름을 잃는다 —
+`relaySession.clearLocal()` · `cloudSession.clearStores()`. 동사는 리포의 `clear*`
+계열(`clearSession` · `clearToken` · `clearIdentity` · `clearSelectedSite`)을 따른다. 루트 배럴이
+공개하는 `logoutSession` · `logoutCloudSession`은 소켓 통지를 포함한 `socket/auth` 판에만 부여한다.
+
+`apps/admin-v2`의 `useRelaySessionGuard` teardown은 강한 판으로 옮긴다 — **이 ADR에서 앱 코드가 바뀌는
+유일한 지점이다.**
+
+### 8. 스코프 세 뷰의 첫 이름을 `selected`로 바꾼다 (ADR-0070 결정 7의 어휘 갱신)
+
+ADR-0070 결정 7은 낙관적 전환의 세 뷰를 `intent` · `bound` · `committed`로 이름 붙였다. 그 **구조는
+유효하고 이 ADR도 유지한다**(§결정 2) — 바꾸는 것은 첫 뷰의 이름 하나다.
+
+| 지금                             | 바꿀 이름                          |
+| -------------------------------- | ---------------------------------- |
+| `ActiveScope.get intent`         | `get selected`                     |
+| `ActiveScope` ctor `readIntent`  | `readSelected`                     |
+| `deriveIntent()`                 | `deriveSelectedContext()`          |
+| `session/scope/intent.ts`        | `session/scope/selectedContext.ts` |
+| `DataManager`의 `intentProvider` | `selectedContextProvider`          |
+
+근거 둘:
+
+- **리포가 이 개념을 부르는 말이 이미 `selected`다** — `getSelectedCloudId` · `getSelectedSiteId` ·
+  `applySelectedSite` · `clearSelectedSite` · `selectedCloudId` · `selectedSiteId` ·
+  `useSessionSelection` · `CLOUD_SELECTED_*` 키. §결정 2가 도입하는 `SessionSignalKind`에도 이미
+  `'selection'`이 있다. 반면 `intent`는 스코프 뜻으로 **3파일**에만 있고, 리포의 다른 `intent` 등장은
+  전부 **안드로이드 `Intent`**(딥링크 — `apps/mobile` · `apps/landing` · `docs/DEEP-LINKING*`)라 검색이
+  섞인다.
+- **세 뷰의 품사가 나란해진다.** `selected` / `bound` / `committed`는 전부 "이 값에 무슨 일이
+  일어났는가"를 말하는 과거분사다. `intent`만 명사여서 셋을 한 줄로 읽을 때 축이 어긋났다.
+
+`deriveSelectedScope`가 아니라 `deriveSelectedContext`인 이유: 스코프는 `ActiveScope` 자신이고 이 셋은
+그 **뷰**이므로 `Scope`를 쓰면 소유자 이름과 겹친다. 돌려주는 값이 `DataContext`라 `*Context`(리포 14건)가
+맞는 접미사다.
+
+반경은 작다 — 코드 4파일 + 테스트 1개이고 **앱은 0곳**, `@chatic/data`도 이 이름을 모른다. 동작 변화가
+없으므로 0단계(배치 A)에 넣는다.
+
+## 최종 구조 (Target Structure)
+
+`libs/app-runtime`의 아키텍처 문서는 이 결정을 반영해 **새로 쓴다** — 상세 구조 · 다이어그램 · 시나리오 ·
+네이밍 규약 · 검증 방법은 [`libs/app-runtime/docs/architecture-v2.md`](../../libs/app-runtime/docs/architecture-v2.md)가
+SSoT이고, 그 문서가 `Live`가 되는 시점에 기존 `architecture.md`를 삭제한다.
+
+## 단계 (Phasing)
+
+단계 구분의 기준은 **되돌리기 비용**이다. 0~2는 앱을 건드리지 않고 언제든 되돌릴 수 있으며, 3부터
+판정·통지 경로가 바뀐다.
+
+| 단계 | 내용                                                                            | 앱 영향      |
+| ---- | ------------------------------------------------------------------------------- | ------------ |
+| 0    | 죽은 코드 · 중복 쓰기 · 낡은 주석 · `intent`→`selected` 개명 (v2 §체크리스트 A) | 없음         |
+| 1    | 결정 7 — 이름 충돌 제거                                                         | admin-v2 1곳 |
+| 2    | 결정 6 — 배럴 정리                                                              | 없음         |
+| 3    | 결정 1 — `deriveAuthStatus` 도입 후 4개 판정 사본 이관                          | 없음         |
+| 4    | 결정 2 — `ISessionSignal` + `batch`                                             | 없음         |
+| 5    | 결정 3·4 — renewer 2개 + `useCredentialGuard` + `Coalescer`                     | 없음         |
+| 6    | 결정 0·5 — 스토어/세션 클래스화, `RuntimeBinding` 정리                          | 앱 4개       |
+
+## 대안 (Alternatives)
+
+**(a) 아무것도 하지 않는다 — 문서를 더 쓴다.** 지금 구조의 정당화 주석은 이미 코드보다 길다
+(`useSessionStalenessGuard` 228줄 중 100줄이 주석). 산문을 더 얹는 것은 §맥락 1의 7개 원천을 줄이지
+않으므로, 다음 장애 때도 사람이 7개를 손으로 맞춰야 한다.
+
+**(b) 상태를 하나로 합친다 — `selected`/`bound`/`committed`를 단일 값으로.** 기각. ADR-0070 결정 7의
+근거가 그대로 유효하다(낙관적 전환이 깨지고 크로스 클라우드 캐시 오염이 돌아온다). 이 ADR은 **판정과
+통지 시점**만 통합하고 값은 건드리지 않는다.
+
+**(c) 판정을 구독 가능한 리액티브 스토어로 만든다.** 기각(현 라운드). 판정의 입력이 이미
+각자 구독 가능하고(`subscribeKindVerified` · `sessionSignal`), 또 하나의 구독 가능한 사본을 만들면
+§맥락 1이 부른 "토큰 사본 3벌"의 판정 버전이 된다. **읽기 전용 투영**으로 두고, 반응성은 기존 구독에서
+얻는다 — `credentialFreshness`가 이미 그 형태다.
+
+**(d) 두 가드를 완전히 합친다(`kind` 파라미터).** 기각 — ADR-0070 이후의 판단 그대로. 결정 3의 각주가
+renewer 안과의 차이를 명시한다.
+
+**(e) 새 접미사를 도입한다(`*Service` · `*Strategy` · `*Impl`).** 기각. 리포 실측 0건이고, 이름은
+경계를 읽는 첫 신호다. 이미 55쌍이 지키는 `I*`+클래스 관례를 따르는 쪽이 새 독자에게 싸다.
+
+## 결과 (Consequences)
+
+**좋아지는 것**
+
+- 인증 상태에 이름이 붙는다(`AuthStatus` 6값). 로그·오버레이·가드가 같은 어휘를 쓰므로 장애 재현이
+  "status가 무엇이었나" 하나로 좁혀진다.
+- 클라우드 전환의 관측 가능한 중간 상태가 7개 → 0개. 리렌더 fan-out 8회 → 1회.
+- 동시성 질문("두 번 발사되나?")이 파일 7개 읽기 → 클래스 1개 읽기.
+- ADR-0070 §0이 세션 허브에서도 성립한다 — 예외가 없어지므로 원칙이 규칙이 된다.
+- 공개 표면 111 → 약 80. 스토어 직접 쓰기 금지가 문서에서 타입으로 승격된다.
+- 스토어 인터페이스에서 `*Core`(web-core 잔재)가 사라져 리포 전체가 한 가지 명명 규칙을 갖는다.
+
+**감수하는 것**
+
+- 3~5단계는 인증 경로의 판정을 옮긴다. 회귀 형태는 "조용한 오작동"(갱신이 안 도는데 UI는 정상)이므로,
+  각 판정 이관은 **기존 사본을 지우기 전에 새 판정과 같은 답을 내는지 진리표 테스트로 잠근 뒤** 지운다.
+- `Coalescer` 통합은 6개 호출부의 타이밍을 한 클래스에 위임한다. 각 호출부의 현재 숫자(메모 3초 ·
+  쿨다운 60초 · 지수 30초~5분)는 근거가 있는 값이므로 **옮기되 바꾸지 않는다.**
+- 6단계는 앱 4개를 건드린다. `apps/desktop-web`은 다른 세션의 미커밋 작업이 있으므로 이 트랙에서
+  **참조만** 하고, 필요한 변경은 별도 조율로 넘긴다.
+- `RelayCore` → `IRelayStore` 개명은 타입 이름만 바뀌는 기계적 변경이지만, 그 타입을 import하는
+  파일(현재 `stores.ts` 경유 소비자 전부)을 한 커밋에서 같이 만져야 한다.
+
+**측정**
+
+- `notifySessionStateChanged` 호출 지점 24 → 0 (`sessionSignal.emit`으로 대체), 전환당 fan-out 8 → 1.
+- 인증 판정 분기 사본 4 → 1 (`deriveAuthStatus`).
+- 손으로 만든 동시성 가드 7 → 1 (`Coalescer`).
+- 공개 값 export 111 → 약 80 (앱 미사용 31 제거).
+- `session/auth/services.ts` 539줄 → 클래스 3개 + 순수 utils.
+- 리포 관례 밖 이름 0건 (`*Core` 3개 제거 · 새 접미사 0개 도입 · `intent` → `selected`).
+
+## 열린 질문 (Open Questions)
+
+1. **`session/architecture.md`를 v2 문서가 흡수할지.** 지금 두 문서는 세션 허브 설명이 상당 부분
+   중복이다. v2를 `architecture.md`의 대체로 쓰기로 했으므로(§최종 구조), 세션 상세 문서를 함께 흡수할지
+   아니면 v2에서 링크하는 하위 문서로 유지할지는 v2 승인 시점에 결정한다.
+2. **`useSessionStalenessGuard`/`useCloudCredentialGuard` 이름 존폐.** 결정 3은 "기본은 남기는 쪽"으로
+   두었다 — 앱 3곳이 그 이름을 쓰고, 프리셋으로 남기면 호출부가 안 바뀐다. 다만 `useCredentialGuard`
+   하나만 남기는 편이 표면이 작다. 5단계 착수 시 결정.
+3. **`ServiceUnavailable` 클러스터.** 2026-09 스윕 §4-1이 "되살릴지 먼저 결정"으로 남긴 항목이고,
+   `getServiceUnavailable`/`setServiceUnavailable`은 결정 6의 31개 목록에 들어 있다. 배럴에서 내리는
+   것과 기능을 지우는 것은 별개이므로, 이 트랙은 **배럴에서만 내리고** 기능 판단은 그 스윕에 남긴다.
+4. **디바이스 id의 물리 원천.** 지금 `chatic-device-id`는 writer 3명(`identityStore.setDeviceId` →
+   `storage` 어댑터 · `persistDeviceId` → 생 `localStorage` · `useSessionDeviceId` → 하드코딩
+   `sessionStorage`)이 서로 다른 저장소에 쓰는데 `identityStore.getDeviceId`는 호출자가 0이다. 0단계는
+   **죽은 쓰기만 제거**하고, "웹에서 디바이스 id가 탭 세션 단위인 것이 의도인가"는 별개 결정으로 남긴다
+   (푸시 등록과 소켓 신원이 같은 id를 써야 한다는 계약에 걸린다).
+5. **`expiresIn` 서버 보고.** `AUTH_OPTIONS.refreshIntervalMs = 5분`은 서버가 `expiresIn`을 주지 않아서
+   쓰는 폴백이고, 두 renewer의 마진 5분도 거기서 파생됐다. 서버가 보고하기 시작하면 마진의 근거가 바뀐다 —
+   ADR-0070 §열린 질문과 같은 대기 항목.
+6. **`Coalescer`의 최종 위치.** `utils/coalescer.ts`(app-runtime 안, `session/auth/utils/` 선례)로 두었지만,
+   소비자가 7곳이고 그중 하나(`useDeviceTokenRegistration`)는 push 도메인이다. `@chatic/shared`의
+   `utils/`(이미 `storage.ts`가 있는 자리)로 올릴지는 5단계에서 판단한다.
