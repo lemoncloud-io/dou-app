@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { WEBHOOK_SEND_ERROR_REPORT } from '../../features/chat/components/fixtures';
+import { WEBHOOK_SEND_ERROR_REPORT } from '@chatic/block-kit';
 import { messagePlainText } from './messagePlainText';
 
 describe('messagePlainText', () => {

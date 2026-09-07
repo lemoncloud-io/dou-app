@@ -2,10 +2,8 @@ import { Fragment, type ReactNode } from 'react';
 
 import { GROUP_MENTIONS, MENTION_TOKEN_SOURCE } from '../../../shared';
 
-// The message styles live in `@chatic/block-kit` — the block renderer needs them
-// and that renderer is what got shared. Re-exported here because this file is
-// where the composer theme and MentionNode have always reached for them, and
-// moving those import sites would say the composer changed when it did not.
+// The message styles live in `@chatic/block-kit`: the block renderer needs them
+// and that renderer is what got shared.
 import {
     MSG_BOLD_CLASS,
     MSG_CODE_BLOCK_CLASS,
@@ -13,15 +11,6 @@ import {
     MSG_MENTION_CLASS,
     MSG_MENTION_SELF_CLASS,
     MSG_QUOTE_CLASS,
-} from '@chatic/block-kit';
-
-export {
-    MSG_BOLD_CLASS,
-    MSG_CODE_INLINE_CLASS,
-    MSG_CODE_BLOCK_CLASS,
-    MSG_QUOTE_CLASS,
-    MSG_MENTION_CLASS,
-    MSG_MENTION_SELF_CLASS,
 } from '@chatic/block-kit';
 
 // One pass over a non-code run: bold, italic, strikethrough, links, @mentions.

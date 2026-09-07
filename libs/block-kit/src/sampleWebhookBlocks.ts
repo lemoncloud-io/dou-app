@@ -1,5 +1,5 @@
 /**
- * Server fixtures, byte-for-byte -- copied via `gh api` from
+ * The reference webhook message, byte-for-byte -- copied via `gh api` from
  * `chatic-socials-api@feat/webhook-message-blocks` `sample/chats/`, not
  * hand-typed (SPEC.md Sec.3.5, Sec.6-9: knowledge#319
  * projects/@lemoncloud-io/chatic-socials-api/webhook-message-blocks/SPEC.md).
@@ -10,6 +10,12 @@
  * (`webhook-blocks-error-report.json`). Together they are the ChatView SPEC
  * Sec.6-9 describes: `stereo: 'webhook'`, `content` from the send file,
  * `blocks$` from the blocks file.
+ *
+ * It lives in the lib because two things need to be the same bytes as the
+ * server's: desktop-web's render specs, and the builder's Error template. Kept
+ * as two copies they would drift together and agree about being wrong, which is
+ * exactly what `sampleWebhookBlocks.spec.ts` exists to catch -- and it can only
+ * catch it while there is one copy to check.
  */
 
 export const WEBHOOK_SEND_ERROR_REPORT = {

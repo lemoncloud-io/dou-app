@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { DomainChat } from '@chatic/data';
 
-import { WEBHOOK_BLOCKS_ERROR_REPORT, WEBHOOK_SEND_ERROR_REPORT } from '../../features/chat/components/fixtures';
+import { WEBHOOK_BLOCKS_ERROR_REPORT, WEBHOOK_SEND_ERROR_REPORT } from '@chatic/block-kit';
 import { resolveChatBlocks } from './resolveChatBlocks';
 
 // The fields this derivation reads. `blocks$` is re-declared as its wire shape

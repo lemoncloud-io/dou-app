@@ -1,4 +1,4 @@
-import type { ContextBlock, DividerBlock, HeaderBlock, KnownBlock, SectionBlock } from '@chatic/block-kit';
+import type { KnownBlock } from '@chatic/block-kit';
 
 /**
  * The block kinds the palette offers.
@@ -31,33 +31,26 @@ export const PALETTE: readonly PaletteEntry[] = [
     { kind: 'context', label: 'Context', hint: 'A small grey line — source, version, author.' },
 ] as const;
 
-const header = (): HeaderBlock => ({ type: 'header', text: { type: 'plain_text', text: 'Heading' } });
-const section = (): SectionBlock => ({ type: 'section', text: { type: 'mrkdwn', text: 'Some *text*.' } });
-const fields = (): SectionBlock => ({
-    type: 'section',
-    fields: [
-        { type: 'mrkdwn', text: '*Service*\napi' },
-        { type: 'mrkdwn', text: '*Stage*\nproduction' },
-    ],
-});
-const divider = (): DividerBlock => ({ type: 'divider' });
-const context = (): ContextBlock => ({ type: 'context', elements: [{ type: 'mrkdwn', text: 'context' }] });
+/**
+ * What each kind starts as. A record rather than a switch so adding a kind to
+ * `BlockKind` fails to compile until it has a shape here.
+ */
+const FACTORY: Record<BlockKind, () => KnownBlock> = {
+    header: () => ({ type: 'header', text: { type: 'plain_text', text: 'Heading' } }),
+    section: () => ({ type: 'section', text: { type: 'mrkdwn', text: 'Some *text*.' } }),
+    fields: () => ({
+        type: 'section',
+        fields: [
+            { type: 'mrkdwn', text: '*Service*\napi' },
+            { type: 'mrkdwn', text: '*Stage*\nproduction' },
+        ],
+    }),
+    divider: () => ({ type: 'divider' }),
+    context: () => ({ type: 'context', elements: [{ type: 'mrkdwn', text: 'context' }] }),
+};
 
 /** A new block of the chosen kind, filled in so the preview shows something at once. */
-export const createBlock = (kind: BlockKind): KnownBlock => {
-    switch (kind) {
-        case 'header':
-            return header();
-        case 'section':
-            return section();
-        case 'fields':
-            return fields();
-        case 'divider':
-            return divider();
-        case 'context':
-            return context();
-    }
-};
+export const createBlock = (kind: BlockKind): KnownBlock => FACTORY[kind]();
 
 /** What to call a block already in the list. `fields` and `section` share a type. */
 export const describeBlock = (block: KnownBlock): string => {

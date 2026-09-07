@@ -2,11 +2,11 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import type { KnownBlock } from '@chatic/block-kit';
 
-import { BUILDER_STORAGE_KEY, useBuilderStore } from './builderStore';
+import { useBuilderStore } from './builderStore';
 
 const reset = () => {
     localStorage.clear();
-    useBuilderStore.setState({ blocks: [], past: [], future: [] });
+    useBuilderStore.setState({ blocks: [], past: [], future: [], lastEdit: null, seeded: false });
 };
 const blocks = (): KnownBlock[] => useBuilderStore.getState().blocks;
 
@@ -97,9 +97,57 @@ describe('useBuilderStore', () => {
     // edits from a session the reader cannot see, and grow without bound.
     it('persists the blocks and nothing else', () => {
         useBuilderStore.getState().addBlock('divider');
-        const stored = JSON.parse(localStorage.getItem(BUILDER_STORAGE_KEY) ?? '{}');
-        expect(Object.keys(stored.state)).toEqual(['blocks']);
+        const stored = JSON.parse(localStorage.getItem('dou-block-kit-builder') ?? '{}');
+        expect(Object.keys(stored.state).sort()).toEqual(['blocks', 'seeded']);
         expect(stored.state.blocks).toEqual([{ type: 'divider' }]);
+    });
+
+    // A typed word is one undo, not one per letter. Without this the stack grows
+    // with the message and undo walks back a character at a time.
+    it('joins consecutive edits of the same block into one history entry', () => {
+        useBuilderStore.getState().addBlock('header');
+        const depth = useBuilderStore.getState().past.length;
+        for (const text of ['H', 'He', 'Hel']) {
+            useBuilderStore.getState().replaceBlock(0, { type: 'header', text: { type: 'plain_text', text } });
+        }
+        expect(useBuilderStore.getState().past.length).toBe(depth + 1);
+        useBuilderStore.getState().undo();
+        expect(blocks()).toEqual([{ type: 'header', text: { type: 'plain_text', text: 'Heading' } }]);
+    });
+
+    it('starts a new entry when the edit moves to another block', () => {
+        const store = useBuilderStore.getState();
+        store.addBlock('header');
+        store.addBlock('header');
+        const depth = useBuilderStore.getState().past.length;
+        useBuilderStore.getState().replaceBlock(0, { type: 'divider' });
+        useBuilderStore.getState().replaceBlock(1, { type: 'divider' });
+        expect(useBuilderStore.getState().past.length).toBe(depth + 2);
+    });
+
+    // Otherwise the next keystroke would extend a snapshot the reader has already
+    // walked away from, and the edit they just undid would be unreachable.
+    it('breaks the run on undo', () => {
+        useBuilderStore.getState().addBlock('header');
+        useBuilderStore.getState().replaceBlock(0, { type: 'divider' });
+        useBuilderStore.getState().undo();
+        const depth = useBuilderStore.getState().past.length;
+        useBuilderStore.getState().replaceBlock(0, { type: 'divider' });
+        expect(useBuilderStore.getState().past.length).toBe(depth + 1);
+    });
+
+    it('caps the history so a session that never reloads cannot grow without bound', () => {
+        for (let i = 0; i < 150; i += 1) useBuilderStore.getState().addBlock('divider');
+        expect(useBuilderStore.getState().past.length).toBe(100);
+    });
+
+    it('seeds an unused builder once and never again', () => {
+        const seed = [{ type: 'divider' } as const];
+        useBuilderStore.getState().seed(seed);
+        expect(blocks()).toEqual(seed);
+        useBuilderStore.getState().clear();
+        useBuilderStore.getState().seed(seed);
+        expect(blocks()).toEqual([]);
     });
 
     // The payload editor re-commits what it just rendered on every keystroke.

@@ -3,11 +3,9 @@ import { Redo2, Trash2, Undo2 } from 'lucide-react';
 import { cn } from '@chatic/lib/utils';
 
 import { useBuilderStore } from '../../store';
+import { ICON_CONTROL } from './controlStyles';
 
-const BUTTON = cn(
-    'focus-ring tactile flex h-7 w-7 items-center justify-center rounded',
-    'text-muted-foreground transition-colors ease-tactile hover:bg-accent disabled:opacity-30'
-);
+const BUTTON = cn(ICON_CONTROL, 'h-7 w-7');
 
 /**
  * Undo, redo and clear.

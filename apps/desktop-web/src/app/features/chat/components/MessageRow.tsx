@@ -22,21 +22,14 @@ import {
     type ReactionTally,
     type ReadCount,
 } from '../utils';
-import {
-    Skeleton,
-    UserProfilePopover,
-    avatarStyle,
-    blocksToPlainText,
-    resolveChatBlocks,
-    useSavedItemsStore,
-} from '../../../shared';
+import { Skeleton, UserProfilePopover, avatarStyle, resolveChatBlocks, useSavedItemsStore } from '../../../shared';
 import { useMessageActions, useReactions } from '../hooks';
 import { QUICK_REACTIONS, useRecentEmojiStore } from '../stores';
 import { EmojiPicker } from './EmojiPicker';
 import { LinkPreviewCard } from './LinkPreviewCard';
 import { ReactionBar } from './ReactionBar';
 import { ReadReceipt } from './ReadReceipt';
-import { BlockKitMessage } from '@chatic/block-kit';
+import { BlockKitMessage, blocksToPlainText } from '@chatic/block-kit';
 
 import { RichText } from './RichText';
 

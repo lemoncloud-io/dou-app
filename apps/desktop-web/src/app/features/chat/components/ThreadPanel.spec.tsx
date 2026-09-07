@@ -35,7 +35,7 @@ vi.mock('./Composer', () => ({ Composer: () => null }));
 import '../../../../i18n';
 
 import { ThreadPanel } from './ThreadPanel';
-import { WEBHOOK_BLOCKS_ERROR_REPORT, WEBHOOK_SEND_ERROR_REPORT } from './fixtures';
+import { WEBHOOK_BLOCKS_ERROR_REPORT, WEBHOOK_SEND_ERROR_REPORT } from '@chatic/block-kit';
 
 Element.prototype.scrollIntoView = vi.fn();
 

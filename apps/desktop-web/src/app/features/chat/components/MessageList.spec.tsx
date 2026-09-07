@@ -22,7 +22,7 @@ import '../../../../i18n';
 
 import { MessageList } from './MessageList';
 import type { ThreadMeta } from '../utils';
-import { WEBHOOK_BLOCKS_ERROR_REPORT, WEBHOOK_SEND_ERROR_REPORT } from './fixtures';
+import { WEBHOOK_BLOCKS_ERROR_REPORT, WEBHOOK_SEND_ERROR_REPORT } from '@chatic/block-kit';
 
 // jsdom implements no layout, so it ships no scrollIntoView. The list calls it from a
 // layout effect to land on the newest message.

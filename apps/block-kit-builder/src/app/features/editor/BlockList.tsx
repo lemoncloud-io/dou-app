@@ -3,12 +3,10 @@ import { ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
 import { cn } from '@chatic/lib/utils';
 
 import { describeBlock, useBuilderStore } from '../../store';
+import { ICON_CONTROL } from './controlStyles';
 import { BlockFields } from './BlockFields';
 
-const ICON_BUTTON = cn(
-    'focus-ring tactile flex h-6 w-6 items-center justify-center rounded',
-    'text-muted-foreground transition-colors ease-tactile hover:bg-accent disabled:opacity-30'
-);
+const ICON_BUTTON = cn(ICON_CONTROL, 'h-6 w-6');
 
 /**
  * The blocks in the message, in order, each with its own inputs.

@@ -1,4 +1,4 @@
-import { parseBlocks, type KnownBlock } from '@chatic/block-kit';
+import { toBlocks, type KnownBlock } from '@chatic/block-kit';
 
 /**
  * The wire shape a channel message carries. Same object the server stores in
@@ -25,10 +25,13 @@ export type PayloadParseResult = { ok: true; blocks: KnownBlock[] } | { ok: fals
 /**
  * The JSON pane → blocks.
  *
- * Goes through `parseBlocks` rather than `JSON.parse` alone so the builder reads
- * a payload exactly the way desktop-web does: an element the renderer cannot
- * draw comes back as `unknown` and shows its source, instead of being accepted
- * here and failing in a channel.
+ * Reads the array through `toBlocks`, the same door desktop-web's reader uses,
+ * so an element the renderer cannot draw comes back as `unknown` and shows its
+ * source here instead of being accepted and failing in a channel.
+ *
+ * Parses once and checks the shape once. `parseBlocks` would do both again and
+ * then answer every failure with the same `null`, leaving this function to
+ * rediscover the reason it already had.
  *
  * Never throws. An unreadable payload is a message to show, not a crash — the
  * pane keeps the last good blocks and displays the reason.
@@ -36,19 +39,22 @@ export type PayloadParseResult = { ok: true; blocks: KnownBlock[] } | { ok: fals
 export const payloadJsonToBlocks = (json: string): PayloadParseResult => {
     const trimmed = json.trim();
     if (!trimmed) return { ok: false, error: 'Payload is empty.' };
-    const blocks = parseBlocks(trimmed);
-    if (blocks) return { ok: true, blocks };
 
-    // `parseBlocks` answers with one `null` for every failure, so say which.
+    let parsed: unknown;
     try {
-        const parsed: unknown = JSON.parse(trimmed);
-        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-            return { ok: false, error: 'Top level must be an object.' };
-        }
-        const { blocks: raw } = parsed as { blocks?: unknown };
-        if (!Array.isArray(raw)) return { ok: false, error: 'Missing a "blocks" array.' };
-        return { ok: false, error: '"blocks" is empty.' };
+        parsed = JSON.parse(trimmed);
     } catch (error) {
         return { ok: false, error: error instanceof Error ? error.message : 'Invalid JSON.' };
     }
+
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        return { ok: false, error: 'Top level must be an object.' };
+    }
+    const { blocks } = parsed as { blocks?: unknown };
+    // Kept apart from the emptiness check below: a `blocks` that is a string is
+    // missing, not empty, and one message for both would say the wrong thing.
+    if (!Array.isArray(blocks)) return { ok: false, error: 'Missing a "blocks" array.' };
+    if (!blocks.length) return { ok: false, error: '"blocks" is empty.' };
+
+    return { ok: true, blocks: toBlocks(blocks) };
 };

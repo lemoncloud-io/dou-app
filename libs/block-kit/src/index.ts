@@ -10,3 +10,4 @@ export * from './blocksToPlainText';
 export * from './messageClasses';
 export * from './renderMrkdwn';
 export * from './BlockKitMessage';
+export * from './sampleWebhookBlocks';

@@ -5,14 +5,32 @@ import type { KnownBlock } from '@chatic/block-kit';
 
 import { createBlock, type BlockKind } from './blockFactory';
 
-/** Where the message is kept between visits. Read directly to tell a first visit from a cleared one. */
-export const BUILDER_STORAGE_KEY = 'dou-block-kit-builder';
+/** Where the message is kept between visits. */
+const STORAGE_KEY = 'dou-block-kit-builder';
+
+/**
+ * Which edit produced the current blocks, when consecutive edits of that kind
+ * should read as one. Typing into a block is the case that matters: without it
+ * every character is its own history entry, so undo walks back a letter at a
+ * time and the stack grows with the message.
+ */
+type EditKey = `replace:${number}` | null;
 
 interface BuilderState {
     blocks: KnownBlock[];
     /** Snapshots behind and ahead of `blocks` — what undo and redo walk. */
     past: KnownBlock[][];
     future: KnownBlock[][];
+    /** What the last commit was, so the next one can decide to join it. */
+    lastEdit: EditKey;
+    /**
+     * Has this builder ever held a message?
+     *
+     * Persisted, because an empty block list cannot answer it: "never opened" and
+     * "the reader cleared it" look identical and want opposite treatment — one
+     * gets the example, the other gets left alone.
+     */
+    seeded: boolean;
 
     addBlock: (kind: BlockKind) => void;
     removeBlock: (index: number) => void;
@@ -20,6 +38,8 @@ interface BuilderState {
     replaceBlock: (index: number, block: KnownBlock) => void;
     /** Wholesale replacement — the payload editor and the templates use it. */
     setBlocks: (blocks: KnownBlock[]) => void;
+    /** Fill a builder that has never held a message. A no-op on every later visit. */
+    seed: (blocks: KnownBlock[]) => void;
 
     undo: () => void;
     redo: () => void;
@@ -35,12 +55,26 @@ interface BuilderState {
  * Every mutation goes through `commit`, so the history is a property of the
  * store rather than something each action remembers to maintain.
  */
-const commit = (state: BuilderState, blocks: KnownBlock[]): Partial<BuilderState> => ({
-    blocks,
-    past: [...state.past, state.blocks],
-    // A new edit invalidates the redo stack: the branch it belonged to is gone.
-    future: [],
-});
+
+/**
+ * How many edits back the reader can walk. A message is a few dozen blocks, so
+ * the cap is a backstop against a session that never reloads rather than a limit
+ * anyone should reach.
+ */
+const HISTORY_LIMIT = 100;
+
+const commit = (state: BuilderState, blocks: KnownBlock[], edit: EditKey = null): Partial<BuilderState> => {
+    // Consecutive edits of the same kind extend the entry already on the stack
+    // instead of adding one, so a typed word is one undo rather than five.
+    const past = edit !== null && edit === state.lastEdit ? state.past : [...state.past, state.blocks];
+    return {
+        blocks,
+        past: past.slice(-HISTORY_LIMIT),
+        // A new edit invalidates the redo stack: the branch it belonged to is gone.
+        future: [],
+        lastEdit: edit,
+    };
+};
 
 export const useBuilderStore = create<BuilderState>()(
     persist(
@@ -72,7 +106,8 @@ export const useBuilderStore = create<BuilderState>()(
                 set(state =>
                     commit(
                         state,
-                        state.blocks.map((current, i) => (i === index ? block : current))
+                        state.blocks.map((current, i) => (i === index ? block : current)),
+                        `replace:${index}`
                     )
                 ),
 
@@ -83,28 +118,38 @@ export const useBuilderStore = create<BuilderState>()(
                 set(state => commit(state, blocks));
             },
 
+            seed: blocks => {
+                if (get().seeded) return;
+                set({ blocks, seeded: true });
+            },
+
             undo: () =>
                 set(state => {
                     const previous = state.past.at(-1);
                     if (!previous) return {};
-                    return { blocks: previous, past: state.past.slice(0, -1), future: [state.blocks, ...state.future] };
+                    return {
+                        blocks: previous,
+                        past: state.past.slice(0, -1),
+                        future: [state.blocks, ...state.future],
+                        lastEdit: null,
+                    };
                 }),
 
             redo: () =>
                 set(state => {
                     const [next, ...rest] = state.future;
                     if (!next) return {};
-                    return { blocks: next, past: [...state.past, state.blocks], future: rest };
+                    return { blocks: next, past: [...state.past, state.blocks], future: rest, lastEdit: null };
                 }),
 
             clear: () => set(state => (state.blocks.length ? commit(state, []) : {})),
         }),
         {
-            name: BUILDER_STORAGE_KEY,
+            name: STORAGE_KEY,
             // Only the message survives a reload. The history is a record of one
             // sitting; restoring it would offer to undo edits the reader cannot see
             // and, on a long session, would grow the stored value without bound.
-            partialize: state => ({ blocks: state.blocks }),
+            partialize: state => ({ blocks: state.blocks, seeded: state.seeded }),
         }
     )
 );
