@@ -120,26 +120,28 @@ export const UpdateChannelDialog = ({ open, onOpenChange, channelId }: UpdateCha
                 className="flex h-full max-h-[100dvh] w-full flex-col rounded-none bg-background p-0"
                 hideClose
                 variant="slide-up"
+                // Top: the slide-up variant's own `pt-safe-top` renders the status-bar band as
+                // opaque `bg-background` ABOVE the glass bar, so only the 44px bar looked
+                // frosted. The bar carries the inset itself (ModalTopBar's default `safeArea`),
+                // which puts the whole band inside the translucent, blurred header.
+                //
                 // The slide-up variant bakes in `pb-safe-bottom`, but KeyboardSafeAreaSpacer below the
                 // CTA already reserves max(safe-bottom - CTA padding, keyboard-height). Keeping both
                 // applies the home-indicator inset twice, and with the keyboard up it floats the CTA a
                 // full inset above the keyboard. Inline rather than a `pb-0` class: `pb-safe-bottom` is
                 // a custom spacing key tailwind-merge doesn't classify as padding-bottom, so both would
                 // survive and utility order would decide the winner.
-                style={{ paddingBottom: 0 }}
+                style={{ paddingTop: 0, paddingBottom: 0 }}
             >
                 <DialogTitle className="sr-only">{t('updateChannel.readOnlyTitle')}</DialogTitle>
                 <DialogDescription className="sr-only">Update room info</DialogDescription>
 
                 {/* Full-bleed on phones, capped to a phone-width column on wider screens. */}
                 <div className="flex h-full w-full flex-col">
-                    {/* safeArea={false}: the native WebView is already inset below the status bar,
-                        so adding the safe-top inset here would double the top gap. */}
                     <ModalTopBar
                         title={t('updateChannel.readOnlyTitle')}
                         onClose={() => onOpenChange(false)}
                         closeLabel={t('updateChannel.close')}
-                        safeArea={false}
                     />
 
                     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">

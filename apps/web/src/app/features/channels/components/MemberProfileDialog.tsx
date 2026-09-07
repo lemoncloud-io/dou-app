@@ -81,18 +81,22 @@ export const MemberProfileDialog = ({
                     className="flex h-full max-h-[100dvh] w-full flex-col rounded-none bg-background p-0"
                     hideClose
                     variant="slide-up"
+                    // The slide-up variant's own `pt-safe-top` renders the status-bar band as opaque
+                    // `bg-background` ABOVE the glass bar, so only the 44px bar looked frosted. The
+                    // bar carries the inset itself (ModalTopBar's default `safeArea`), which puts the
+                    // whole band inside the translucent, blurred header. Inline rather than a `pt-0`
+                    // class: `pt-safe-top` is a custom spacing key tailwind-merge does not classify
+                    // as padding-top, so both would survive and utility order would decide.
+                    style={{ paddingTop: 0 }}
                 >
                     <DialogTitle className="sr-only">{t('chat.settings.profileHeader')}</DialogTitle>
                     <DialogDescription className="sr-only">Member profile</DialogDescription>
 
                     <div className="flex h-full w-full flex-col">
-                        {/* safeArea={false}: the native WebView is already inset below the status bar,
-                            so the safe-top inset would double the top gap — match the other modals. */}
                         <ModalTopBar
                             title={t('chat.settings.profileHeader')}
                             onClose={() => onOpenChange(false)}
                             closeLabel={t('chat.settings.close')}
-                            safeArea={false}
                         />
 
                         {/* Avatar + name */}

@@ -291,7 +291,7 @@ export const PlaceProfileForm = ({
     // Page container: a full-screen route with a back-button header (no overlay / esc dismissal).
     if (container === 'page') {
         return (
-            <div className="flex h-full flex-col bg-background pt-safe-top">
+            <div className="flex h-full flex-col bg-background">
                 <div className="flex h-full w-full flex-col">
                     <PageHeader title={title} onBack={requestClose} />
                     {body}
@@ -311,6 +311,11 @@ export const PlaceProfileForm = ({
                 className="flex h-full max-h-[100dvh] w-full flex-col rounded-none bg-background p-0"
                 hideClose
                 variant="slide-up"
+                // Top: the slide-up variant's own `pt-safe-top` renders the status-bar band as
+                // opaque `bg-background` ABOVE the glass bar, so only the 44px bar looked
+                // frosted. The bar carries the inset itself (ModalTopBar's default `safeArea`),
+                // which puts the whole band inside the translucent, blurred header.
+                //
                 // The slide-up variant bakes in `pb-safe-bottom`, but KeyboardSafeAreaSpacer below the
                 // CTA already reserves max(safe-bottom - CTA padding, keyboard-height). Keeping both
                 // applies the home-indicator inset twice, and with the keyboard up it floats the CTA a
@@ -318,7 +323,7 @@ export const PlaceProfileForm = ({
                 // inset, matching this same form's `container="page"` branch. Inline rather than a
                 // `pb-0` class: `pb-safe-bottom` is a custom spacing key tailwind-merge doesn't
                 // classify as padding-bottom, so both would survive and utility order would decide.
-                style={{ paddingBottom: 0 }}
+                style={{ paddingTop: 0, paddingBottom: 0 }}
             >
                 <DialogTitle className="sr-only">{title}</DialogTitle>
                 <DialogDescription className="sr-only">{subtitle ?? title}</DialogDescription>
@@ -326,14 +331,8 @@ export const PlaceProfileForm = ({
                 {/* Responsive: full-bleed on phones, capped to a phone-width column centered on wider
                     screens so the layout (and the full-width CTA) never stretches. */}
                 <div className="flex h-full w-full flex-col">
-                    {/* Omit onClose when mandatory so ModalTopBar hides the close (X) button.
-                        safeArea={false}: the native WebView is already inset below the status bar,
-                        so adding the safe-top inset here would double the top gap. */}
-                    <ModalTopBar
-                        onClose={dismissible ? requestClose : undefined}
-                        closeLabel={closeLabel}
-                        safeArea={false}
-                    />
+                    {/* Omit onClose when mandatory so ModalTopBar hides the close (X) button. */}
+                    <ModalTopBar onClose={dismissible ? requestClose : undefined} closeLabel={closeLabel} />
                     {body}
                     {noticeEl}
                     {footer}

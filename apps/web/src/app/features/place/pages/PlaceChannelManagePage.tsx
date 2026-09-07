@@ -226,7 +226,7 @@ export const PlaceChannelManagePage = () => {
     const hasSelection = selectedCount > 0;
 
     return (
-        <div className="flex h-full flex-col bg-background pt-safe-top">
+        <div className="flex h-full flex-col bg-background">
             <PageHeader
                 title={t('channelManage.title')}
                 rightAction={

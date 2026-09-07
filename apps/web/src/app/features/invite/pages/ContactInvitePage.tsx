@@ -354,6 +354,10 @@ export const ContactInvitePage = () => {
     // mid-switch and throw away its `pendingToken` retry.
     return (
         <KeyboardAwareLayout
+            // PageHeader frosts its own notch strip, so the scaffold must not pad above it —
+            // that would push the glass down and leave the inset bare, with the body
+            // scrolling through it unblurred.
+            headerSafeArea={false}
             header={<PageHeader title={t('contactInvite.title')} />}
             // The guest branch carries its own inline CTA (Figma 3578-67319), so no docked panel there.
             // No CTA either while a gate is unresolved or open — the form it submits is not on screen.

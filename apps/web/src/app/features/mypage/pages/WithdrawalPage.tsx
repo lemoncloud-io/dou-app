@@ -31,6 +31,10 @@ export const WithdrawalPage = () => {
 
     return (
         <KeyboardAwareLayout
+            // PageHeader frosts its own notch strip, so the scaffold must not pad above it —
+            // that would push the glass down and leave the inset bare, with the body
+            // scrolling through it unblurred.
+            headerSafeArea={false}
             header={<PageHeader title={t('mypage.withdrawal.title')} />}
             footer={
                 <div className="px-5 pt-4">

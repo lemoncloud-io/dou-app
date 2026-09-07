@@ -129,7 +129,7 @@ export const LoginPage = () => {
     const isLoading = isOAuthPending || isLoginRelaySocialPending;
 
     return (
-        <div className="flex h-full flex-col bg-background pt-safe-top">
+        <div className="flex h-full flex-col bg-background">
             <PageHeader title="" />
 
             <div className="flex flex-1 flex-col justify-center overflow-y-auto overscroll-none px-6 pb-safe-bottom">

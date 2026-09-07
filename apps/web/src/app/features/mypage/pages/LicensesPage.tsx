@@ -100,7 +100,7 @@ export const LicensesPage = () => {
     }, []);
 
     return (
-        <div className="flex h-full flex-col bg-background pt-safe-top">
+        <div className="flex h-full flex-col bg-background">
             <PageHeader title={t('mypage.policy.licenses')} />
 
             <div className="flex-1 overflow-y-auto pb-8">

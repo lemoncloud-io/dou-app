@@ -11,7 +11,7 @@ export const TermsPage = () => {
     const currentVersion = content.versions.find(v => v.version === content.currentVersion);
 
     return (
-        <div className="flex h-full flex-col bg-background pt-safe-top">
+        <div className="flex h-full flex-col bg-background">
             <PageHeader title={t('mypage.policy.terms')} />
 
             {/* Content */}

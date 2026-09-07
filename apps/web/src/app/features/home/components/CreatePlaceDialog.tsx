@@ -116,6 +116,11 @@ export const CreatePlaceDialog = ({ open, onOpenChange }: CreatePlaceDialogProps
                 className="flex h-full max-h-[100dvh] w-full flex-col rounded-none bg-background p-0"
                 hideClose
                 variant="slide-up"
+                // Top: the slide-up variant's own `pt-safe-top` renders the status-bar band as
+                // opaque `bg-background` ABOVE the glass bar, so only the 44px bar looked
+                // frosted. The bar carries the inset itself (ModalTopBar's default `safeArea`),
+                // which puts the whole band inside the translucent, blurred header.
+                //
                 // The slide-up variant bakes in `pb-safe-bottom`, but KeyboardSafeAreaSpacer below the
                 // CTA already reserves max(safe-bottom - CTA padding, keyboard-height). Keeping both
                 // applies the home-indicator inset twice, and with the keyboard up it floats the CTA a
@@ -124,7 +129,7 @@ export const CreatePlaceDialog = ({ open, onOpenChange }: CreatePlaceDialogProps
                 // container, which has no dialog padding to begin with. Inline rather than a `pb-0`
                 // class: `pb-safe-bottom` is a custom spacing key tailwind-merge doesn't recognise, so
                 // the two classes would both survive and the utility order would decide the winner.
-                style={{ paddingBottom: 0 }}
+                style={{ paddingTop: 0, paddingBottom: 0 }}
             >
                 <DialogTitle className="sr-only">{t('createPlace.title')}</DialogTitle>
                 <DialogDescription className="sr-only">{t('createPlace.subtitle')}</DialogDescription>
@@ -135,15 +140,13 @@ export const CreatePlaceDialog = ({ open, onOpenChange }: CreatePlaceDialogProps
                             occupying a band of its own, so the content passes under the translucent bar
                             while the close button stays on top and tappable (Figma 3421-59848, the
                             overlay chrome idiom from e5a0a19d). Sticky rather than KeyboardAwareLayout's
-                            absolute + measured padding: dialogs can't nest that layout (slide-up already
-                            applies the safe-area insets), and with safeArea={false} this bar carries no
-                            variable inset to measure — its flow position is exactly the space to reserve.
-                            safeArea={false}: the native WebView is already inset below the status bar,
-                            so adding the safe-top inset here would double the top gap. */}
+                            absolute + measured padding: dialogs can't nest that layout, and a sticky bar
+                            in flow reserves exactly its own height at the top of the scroller.
+                            safeArea: the bar owns the status-bar inset (the dialog's `pt-safe-top` is
+                            zeroed above) so the blur covers the notch band too, not just the 44px bar. */}
                         <ModalTopBar
                             onClose={requestClose}
                             closeLabel={t('createPlace.close')}
-                            safeArea={false}
                             className="sticky top-0 z-20 shrink-0"
                         />
 
