@@ -2,9 +2,9 @@ import { useEffect } from 'react';
 
 import { toBlocks, type KnownBlock } from '@chatic/block-kit';
 
-import { BuilderRail, PayloadPane, PreviewPane, blocksToPayloadJson } from './features';
+import { BuilderRail, HistoryControls, PayloadPane, PreviewPane, blocksToPayloadJson } from './features';
 import { BuilderLayout } from './layout';
-import { useBuilderStore } from './store';
+import { BUILDER_STORAGE_KEY, useBuilderStore } from './store';
 
 // What an empty builder opens on. Goes through `toBlocks` like anything else the
 // app draws, so the starting point cannot be a shape a real message could not carry.
@@ -21,13 +21,29 @@ const SEED: KnownBlock[] = toBlocks([
     },
 ]);
 
+/**
+ * Has this browser ever stored a message? Reading the key directly rather than
+ * asking the store, because "no blocks" and "never opened the app" are the same
+ * state to it and they call for opposite behaviour.
+ */
+const isFirstVisit = (): boolean => {
+    try {
+        return localStorage.getItem(BUILDER_STORAGE_KEY) === null;
+    } catch {
+        // Private mode, or storage blocked. Nothing was saved, so the example applies.
+        return true;
+    }
+};
+
 export const App = () => {
     const blocks = useBuilderStore(state => state.blocks);
 
-    // Seed once, and only into an empty store — a later slice restores saved work,
-    // and overwriting that on every mount would throw the reader's message away.
+    // Seed only a builder that has never been used. Testing for an empty block
+    // list instead would undo a deliberate Clear on the next reload: the reader
+    // emptied the message, and the app would hand the example back.
     useEffect(() => {
-        if (!useBuilderStore.getState().blocks.length) useBuilderStore.getState().setBlocks(SEED);
+        if (!useBuilderStore.persist.hasHydrated()) return;
+        if (isFirstVisit()) useBuilderStore.getState().setBlocks(SEED);
     }, []);
 
     const json = blocksToPayloadJson(blocks);
@@ -36,6 +52,7 @@ export const App = () => {
         <BuilderLayout
             rail={<BuilderRail />}
             preview={<PreviewPane blocks={blocks} raw={json} />}
+            previewActions={<HistoryControls />}
             payload={<PayloadPane json={json} onBlocks={useBuilderStore.getState().setBlocks} />}
         />
     );

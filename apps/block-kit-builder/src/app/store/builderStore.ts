@@ -1,12 +1,16 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
 import type { KnownBlock } from '@chatic/block-kit';
 
 import { createBlock, type BlockKind } from './blockFactory';
 
+/** Where the message is kept between visits. Read directly to tell a first visit from a cleared one. */
+export const BUILDER_STORAGE_KEY = 'dou-block-kit-builder';
+
 interface BuilderState {
     blocks: KnownBlock[];
-    /** Snapshots behind and ahead of `blocks`. Undo/redo land in a later slice. */
+    /** Snapshots behind and ahead of `blocks` — what undo and redo walk. */
     past: KnownBlock[][];
     future: KnownBlock[][];
 
@@ -16,6 +20,11 @@ interface BuilderState {
     replaceBlock: (index: number, block: KnownBlock) => void;
     /** Wholesale replacement — the payload editor and the templates use it. */
     setBlocks: (blocks: KnownBlock[]) => void;
+
+    undo: () => void;
+    redo: () => void;
+    /** Empty the message. Undoable like any other edit. */
+    clear: () => void;
 }
 
 /**
@@ -33,42 +42,69 @@ const commit = (state: BuilderState, blocks: KnownBlock[]): Partial<BuilderState
     future: [],
 });
 
-export const useBuilderStore = create<BuilderState>((set, get) => ({
-    blocks: [],
-    past: [],
-    future: [],
+export const useBuilderStore = create<BuilderState>()(
+    persist(
+        (set, get) => ({
+            blocks: [],
+            past: [],
+            future: [],
 
-    addBlock: kind => set(state => commit(state, [...state.blocks, createBlock(kind)])),
+            addBlock: kind => set(state => commit(state, [...state.blocks, createBlock(kind)])),
 
-    removeBlock: index =>
-        set(state =>
-            commit(
-                state,
-                state.blocks.filter((_, i) => i !== index)
-            )
-        ),
+            removeBlock: index =>
+                set(state =>
+                    commit(
+                        state,
+                        state.blocks.filter((_, i) => i !== index)
+                    )
+                ),
 
-    moveBlock: (index, direction) =>
-        set(state => {
-            const target = index + direction;
-            if (target < 0 || target >= state.blocks.length) return {};
-            const blocks = [...state.blocks];
-            [blocks[index], blocks[target]] = [blocks[target], blocks[index]];
-            return commit(state, blocks);
+            moveBlock: (index, direction) =>
+                set(state => {
+                    const target = index + direction;
+                    if (target < 0 || target >= state.blocks.length) return {};
+                    const blocks = [...state.blocks];
+                    [blocks[index], blocks[target]] = [blocks[target], blocks[index]];
+                    return commit(state, blocks);
+                }),
+
+            replaceBlock: (index, block) =>
+                set(state =>
+                    commit(
+                        state,
+                        state.blocks.map((current, i) => (i === index ? block : current))
+                    )
+                ),
+
+            setBlocks: blocks => {
+                // Guard against the payload editor committing a value it just rendered:
+                // an identical array would otherwise push a history entry per keystroke.
+                if (JSON.stringify(get().blocks) === JSON.stringify(blocks)) return;
+                set(state => commit(state, blocks));
+            },
+
+            undo: () =>
+                set(state => {
+                    const previous = state.past.at(-1);
+                    if (!previous) return {};
+                    return { blocks: previous, past: state.past.slice(0, -1), future: [state.blocks, ...state.future] };
+                }),
+
+            redo: () =>
+                set(state => {
+                    const [next, ...rest] = state.future;
+                    if (!next) return {};
+                    return { blocks: next, past: [...state.past, state.blocks], future: rest };
+                }),
+
+            clear: () => set(state => (state.blocks.length ? commit(state, []) : {})),
         }),
-
-    replaceBlock: (index, block) =>
-        set(state =>
-            commit(
-                state,
-                state.blocks.map((current, i) => (i === index ? block : current))
-            )
-        ),
-
-    setBlocks: blocks => {
-        // Guard against the payload editor committing a value it just rendered:
-        // an identical array would otherwise push a history entry per keystroke.
-        if (JSON.stringify(get().blocks) === JSON.stringify(blocks)) return;
-        set(state => commit(state, blocks));
-    },
-}));
+        {
+            name: BUILDER_STORAGE_KEY,
+            // Only the message survives a reload. The history is a record of one
+            // sitting; restoring it would offer to undo edits the reader cannot see
+            // and, on a long session, would grow the stored value without bound.
+            partialize: state => ({ blocks: state.blocks }),
+        }
+    )
+);
