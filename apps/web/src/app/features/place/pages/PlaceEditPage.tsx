@@ -2,12 +2,14 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 
+import { cn } from '@chatic/lib/utils';
 import { resizeImageToBase64, useNavigateWithTransition } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { AlertDialog, FloatingButton, ProfileAvatar, Text, TextField, Textarea } from '@chatic/web-ui-kit';
 
 import { PageHeader } from '../../../ui';
+import { useKeyboardOpen } from '../../../ui/hooks';
 import { KeyboardAwareLayout, fixedViewportScreen } from '../../../ui/layouts';
 import { useUpdatePlace } from '../../home';
 
@@ -22,6 +24,17 @@ const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
 // which wraps to four 20.3px lines (81px) inside the box's 16px vertical padding — measured, not
 // guessed. At 96px the last line was cut off and a maxed-out field had to be scrolled to reread.
 const DESC_BOX_HEIGHT = 116;
+
+/** Avatar diameter at rest (the ProfileAvatar / Figma default) and while the keyboard is up. */
+const PHOTO_SIZE = 86;
+const PHOTO_SIZE_TYPING = 56;
+
+/**
+ * Timing shared by every part of the photo block's collapse, so the avatar, its caption and the
+ * padding around them move as one. 250ms is matched to the keyboard's own rise — long enough to
+ * read as the photo stepping aside, short enough not to trail behind it.
+ */
+const SHRINK_TRANSITION = 'duration-[250ms] ease-out motion-reduce:transition-none';
 
 /**
  * Edit a place's own name, introduction text and profile image — owner-only (server `isOwner`).
@@ -38,6 +51,9 @@ export const PlaceEditPage = () => {
 
     const { updatePlace, isPending } = useUpdatePlace();
     const fileInputRef = useRef<HTMLInputElement>(null);
+    // The photo is the least useful thing on screen while someone is typing into the fields below
+    // it, and on a short phone it is what pushes the introduction box behind the keyboard.
+    const isTyping = useKeyboardOpen();
 
     const [place, setPlace] = useState<MySiteView | null>(null);
     const [name, setName] = useState('');
@@ -134,7 +150,11 @@ export const PlaceEditPage = () => {
 
     if (!place) {
         return (
-            <KeyboardAwareLayout className={fixedViewportScreen} header={<PageHeader title={title} />}>
+            <KeyboardAwareLayout
+                className={fixedViewportScreen}
+                headerSafeArea={false}
+                header={<PageHeader title={title} />}
+            >
                 <div className="flex min-h-full items-center justify-center">
                     <Text className="text-muted-foreground">{t('placeEdit.notFound')}</Text>
                 </div>
@@ -145,6 +165,10 @@ export const PlaceEditPage = () => {
     return (
         <KeyboardAwareLayout
             className={fixedViewportScreen}
+            // PageHeader frosts its own notch strip, so the scaffold must not pad above it —
+            // that would push the glass down and leave the inset bare, with the avatar scrolling
+            // through it unblurred.
+            headerSafeArea={false}
             header={<PageHeader title={title} onBack={requestClose} />}
             footer={
                 <FloatingButton
@@ -156,16 +180,47 @@ export const PlaceEditPage = () => {
             }
         >
             {/* Centered photo above the name field (Figma 3408-27580) — the place profile reads as a
-                profile screen, not a details list, so there is no created-date row. */}
-            <div className="flex flex-col gap-8 py-10">
-                <div className="flex flex-col items-center gap-4 px-[18px]">
+                profile screen, not a details list, so there is no created-date row.
+
+                The whole block collapses while the keyboard is up: the avatar shrinks, its caption
+                folds away, and the surrounding padding tightens — animated, so it reads as the
+                photo stepping aside rather than the form jumping. Sizes and paddings are what
+                move (not a `scale` transform), because the point is to hand the reclaimed height
+                to the fields below. */}
+            <div
+                className={cn(
+                    'flex flex-col transition-[gap,padding]',
+                    SHRINK_TRANSITION,
+                    isTyping ? 'gap-6 py-4' : 'gap-8 py-10'
+                )}
+            >
+                <div
+                    className={cn(
+                        'flex flex-col items-center px-[18px] transition-[gap]',
+                        SHRINK_TRANSITION,
+                        isTyping ? 'gap-0' : 'gap-4'
+                    )}
+                >
                     <ProfileAvatar
                         src={imageUrl || undefined}
                         glyph="place"
+                        size={isTyping ? PHOTO_SIZE_TYPING : PHOTO_SIZE}
                         onSelect={handleImageClick}
                         selectLabel={t('placeEdit.changeImage')}
+                        // The diameter is an inline width/height, so the transition has to name
+                        // those two properties rather than ride on a class change.
+                        className={cn('transition-[width,height]', SHRINK_TRANSITION)}
                     />
-                    <div className="flex flex-col items-center gap-0.5">
+                    {/* `max-h` + `overflow-hidden` rather than unmounting: a removed node cannot
+                        animate, and the caption has to give its height back as smoothly as it took
+                        it. The cap is generous enough for two wrapped lines. */}
+                    <div
+                        className={cn(
+                            'flex flex-col items-center gap-0.5 overflow-hidden transition-all',
+                            SHRINK_TRANSITION,
+                            isTyping ? 'max-h-0 opacity-0' : 'max-h-24 opacity-100'
+                        )}
+                    >
                         <Text variant="label" className="text-label">
                             {t('placeEdit.photoLabel')}
                         </Text>
