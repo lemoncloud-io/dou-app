@@ -1,17 +1,43 @@
+import { useLayoutEffect, useRef } from 'react';
+
 import type { BlockTextObject, KnownBlock } from '@chatic/block-kit';
 import { cn } from '@chatic/lib/utils';
 
+// No border: the card already draws one, and a box inside a box reads as two
+// things when it is one. The well is what separates the field from the card.
+// No resize handle either — the field sizes itself.
 const INPUT = cn(
-    'focus-ring w-full rounded-md border border-hairline bg-background px-2 py-1.5',
+    'focus-ring block w-full resize-none overflow-hidden rounded bg-well px-2 py-1.5',
     'font-mono text-caption leading-relaxed text-foreground'
 );
+
+/**
+ * Tall enough for what is in it.
+ *
+ * A stack trace and a one-word label are both legitimate contents of the same
+ * field, so any fixed height is wrong for one of them — and a clipped field in a
+ * tool whose whole job is showing you what you wrote is the wrong thing to clip.
+ * Capped, because a rail that scrolls past the message it is editing is no better.
+ */
+const MAX_HEIGHT = 220;
+
+const useAutoHeight = (value: string) => {
+    const ref = useRef<HTMLTextAreaElement>(null);
+    useLayoutEffect(() => {
+        const node = ref.current;
+        if (!node) return;
+        node.style.height = 'auto';
+        node.style.height = `${Math.min(node.scrollHeight, MAX_HEIGHT)}px`;
+        node.style.overflowY = node.scrollHeight > MAX_HEIGHT ? 'auto' : 'hidden';
+    }, [value]);
+    return ref;
+};
 
 const text = (value: string, type: BlockTextObject['type']): BlockTextObject => ({ type, text: value });
 
 interface TextInputProps {
     label: string;
     value: string;
-    rows: number;
     onValue: (value: string) => void;
 }
 
@@ -22,11 +48,12 @@ interface TextInputProps {
  * Slack text object — a grid cell is routinely `*Label*\nvalue` — so a control
  * that swallowed Enter would put half the contract out of reach.
  */
-const TextInput = ({ label, value, rows, onValue }: TextInputProps) => (
+const TextInput = ({ label, value, onValue }: TextInputProps) => (
     <textarea
+        ref={useAutoHeight(value)}
         aria-label={label}
         className={INPUT}
-        rows={rows}
+        rows={1}
         value={value}
         onChange={event => onValue(event.target.value)}
     />
@@ -45,7 +72,6 @@ const TextList = ({ label, items, onItems }: TextListProps) => (
             <TextInput
                 key={index}
                 label={`${label} ${index + 1}`}
-                rows={2}
                 value={item.text}
                 onValue={value => onItems(items.map((current, i) => (i === index ? text(value, 'mrkdwn') : current)))}
             />
@@ -65,7 +91,6 @@ export const BlockFields = ({ block, onChange }: BlockFieldsProps) => {
             return (
                 <TextInput
                     label="Header text"
-                    rows={2}
                     value={block.text.text}
                     onValue={value => onChange({ ...block, text: text(value, 'plain_text') })}
                 />
@@ -77,7 +102,6 @@ export const BlockFields = ({ block, onChange }: BlockFieldsProps) => {
             ) : (
                 <TextInput
                     label="Section text"
-                    rows={3}
                     value={block.text?.text ?? ''}
                     onValue={value => onChange({ ...block, text: text(value, 'mrkdwn') })}
                 />

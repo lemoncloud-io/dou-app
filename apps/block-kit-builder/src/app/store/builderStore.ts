@@ -41,6 +41,21 @@ interface BuilderState {
     /** Fill a builder that has never held a message. A no-op on every later visit. */
     seed: (blocks: KnownBlock[]) => void;
 
+    /**
+     * A drag, as three calls.
+     *
+     * The message reorders under the pointer rather than on drop, so the reader
+     * judges the arrangement while choosing it. That means many block arrays for
+     * one decision, and only the first and last are worth remembering: `begin`
+     * keeps the arrangement being left, `preview` moves blocks without touching
+     * history, and `end` records the whole drag as a single undo.
+     */
+    beginDrag: (index: number) => void;
+    previewDrag: (index: number) => void;
+    endDrag: () => void;
+    /** Which block is under the pointer, or null when nothing is being dragged. */
+    dragIndex: number | null;
+
     undo: () => void;
     redo: () => void;
     /** Empty the message. Undoable like any other edit. */
@@ -62,6 +77,13 @@ interface BuilderState {
  * anyone should reach.
  */
 const HISTORY_LIMIT = 100;
+
+/**
+ * The arrangement a drag started from. Outside the store because it is scaffolding
+ * for one gesture, not state any pane reads — and persisting it would restore a
+ * half-finished drag from a previous visit.
+ */
+let dragOrigin: KnownBlock[] | null = null;
 
 const commit = (state: BuilderState, blocks: KnownBlock[], edit: EditKey = null): Partial<BuilderState> => {
     // Consecutive edits of the same kind extend the entry already on the stack
@@ -121,6 +143,34 @@ export const useBuilderStore = create<BuilderState>()(
             seed: blocks => {
                 if (get().seeded) return;
                 set({ blocks, seeded: true });
+            },
+
+            beginDrag: index => {
+                dragOrigin = get().blocks;
+                set({ dragIndex: index });
+            },
+
+            previewDrag: index => {
+                const { dragIndex, blocks } = get();
+                if (dragIndex === null || dragIndex === index || index < 0 || index >= blocks.length) return;
+                const next = [...blocks];
+                next.splice(index, 0, ...next.splice(dragIndex, 1));
+                set({ blocks: next, dragIndex: index });
+            },
+
+            endDrag: () => {
+                const origin = dragOrigin;
+                dragOrigin = null;
+                set(state => {
+                    if (!origin || origin === state.blocks) return { dragIndex: null };
+                    // One entry for the whole drag: the arrangement the reader left.
+                    return {
+                        dragIndex: null,
+                        past: [...state.past, origin].slice(-HISTORY_LIMIT),
+                        future: [],
+                        lastEdit: null,
+                    };
+                });
             },
 
             undo: () =>

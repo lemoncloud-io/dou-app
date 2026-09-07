@@ -28,7 +28,7 @@ export const TemplateList = () => {
                         }}
                         className={cn(
                             'focus-ring tactile flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left',
-                            'text-callout transition-colors ease-tactile hover:bg-accent',
+                            'text-caption transition-colors ease-tactile hover:bg-accent',
                             // Bold marks the current pick, per the design note. It is not
                             // a filter — the message keeps changing after it is chosen —
                             // so it fades to normal weight as soon as another is picked.

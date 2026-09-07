@@ -13,7 +13,7 @@ interface BuilderLayoutProps {
     payload: ReactNode;
 }
 
-const PANE_HEADING = 'px-4 py-3 text-overline uppercase text-muted-foreground';
+const PANE_HEADING = 'px-4 py-3 text-caption font-medium text-muted-foreground';
 
 interface PaneProps {
     title: string;
@@ -39,7 +39,11 @@ const Pane = ({ title, children, className, actions }: PaneProps) => (
 );
 
 /**
- * Rail · preview · payload, side by side.
+ * Compose · message · payload, side by side.
+ *
+ * The middle pane keeps the app's own background while the two instrument panes
+ * sit on the well, so the boundary between "the message" and "the controls that
+ * make it" is visible without a label saying so.
  *
  * All three read the same edit, so they are one row rather than tabs: the point
  * of the tool is watching the JSON and the rendered card change together. The
@@ -54,10 +58,10 @@ export const BuilderLayout = ({ rail, preview, previewActions, payload }: Builde
             </span>
         </header>
         <div className="flex min-h-0 flex-1">
-            <Pane title="Blocks" className="w-80 shrink-0 border-r border-hairline">
+            <Pane title="Compose" className="w-80 shrink-0 border-r border-hairline bg-well">
                 {rail}
             </Pane>
-            <Pane title="Message preview" className="flex-[3] border-r border-hairline" actions={previewActions}>
+            <Pane title="Message" className="flex-[3] border-r border-hairline" actions={previewActions}>
                 {preview}
             </Pane>
             <Pane title="Payload" className="flex-[2] bg-well">

@@ -1,65 +1,139 @@
-import { ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+
+import { GripVertical, Trash2 } from 'lucide-react';
 
 import { cn } from '@chatic/lib/utils';
 
-import { describeBlock, useBuilderStore } from '../../store';
-import { ICON_CONTROL } from './controlStyles';
+import { blockKindOf, describeBlock, useBuilderStore } from '../../store';
 import { BlockFields } from './BlockFields';
+import { BlockGlyph } from './BlockGlyph';
+import { ICON_CONTROL } from './controlStyles';
 
 const ICON_BUTTON = cn(ICON_CONTROL, 'h-6 w-6');
 
 /**
  * The blocks in the message, in order, each with its own inputs.
  *
- * Reordering is two buttons rather than a drag handle: the list is short, the
- * moves are one step at a time, and a keyboard reaches buttons.
+ * Dragging reorders the message under the pointer rather than on drop, so the
+ * arrangement is judged while it is being chosen — the middle pane is the answer
+ * to the question the drag is asking.
+ *
+ * The handle is also the keyboard path: focus it and the arrow keys move the
+ * block, which is why there are no arrow buttons. A drag is a pointer gesture,
+ * and reordering cannot be pointer-only.
+ *
+ * A row is only draggable while its handle is held. Making the whole card
+ * draggable would take the pointer away from selecting text in its inputs.
  */
 export const BlockList = () => {
     const blocks = useBuilderStore(state => state.blocks);
-    const { removeBlock, moveBlock, replaceBlock } = useBuilderStore.getState();
+    const dragIndex = useBuilderStore(state => state.dragIndex);
+    const [handleHeld, setHandleHeld] = useState(false);
+    const { removeBlock, moveBlock, replaceBlock, beginDrag, previewDrag, endDrag } = useBuilderStore.getState();
+
+    // Where to put focus after a keyboard move: the handle travels with its block,
+    // so following it means focusing the row it landed on, not the one left behind.
+    const handles = useRef(new Map<number, HTMLButtonElement>());
+    const landing = useRef<number | null>(null);
+    useEffect(() => {
+        if (landing.current === null) return;
+        handles.current.get(landing.current)?.focus();
+        landing.current = null;
+    });
 
     if (!blocks.length) {
-        return <p className="px-4 py-2 text-callout text-muted-foreground">No blocks yet. Add one above.</p>;
+        return (
+            <p className="px-4 py-3 text-caption text-muted-foreground">
+                Pick a template above, or add a block to start from nothing.
+            </p>
+        );
     }
 
+    const release = () => {
+        setHandleHeld(false);
+        endDrag();
+    };
+
+    const nudge = (index: number, direction: -1 | 1) => {
+        const target = index + direction;
+        if (target < 0 || target >= blocks.length) return;
+        landing.current = target;
+        moveBlock(index, direction);
+    };
+
     return (
-        <ol className="flex flex-col gap-2 px-2 py-2">
-            {blocks.map((block, index) => (
-                <li key={index} className="rounded-md border border-hairline bg-background p-2">
-                    <div className="mb-1.5 flex items-center justify-between gap-1">
-                        <span className="text-overline uppercase text-muted-foreground">{describeBlock(block)}</span>
-                        <div className="flex items-center gap-0.5">
+        <ol className="flex flex-col gap-1.5 px-3 pb-3">
+            {blocks.map((block, index) => {
+                const kind = blockKindOf(block);
+                const name = describeBlock(block);
+                const dragging = dragIndex === index;
+                const body = <BlockFields block={block} onChange={next => replaceBlock(index, next)} />;
+
+                return (
+                    <li
+                        key={index}
+                        draggable={handleHeld}
+                        onDragStart={() => beginDrag(index)}
+                        onDragOver={event => {
+                            event.preventDefault();
+                            previewDrag(index);
+                        }}
+                        onDragEnd={release}
+                        onDrop={release}
+                        className={cn(
+                            'group rounded-md border bg-background transition-colors ease-tactile',
+                            // The row being carried loses its edge so the gap it will
+                            // land in is the thing the eye follows, not the row itself.
+                            dragging ? 'border-primary/60 opacity-60 shadow-raised' : 'border-hairline'
+                        )}
+                    >
+                        <div className={cn('flex items-center gap-1.5 px-1.5', body ? 'pt-1.5' : 'py-1')}>
                             <button
                                 type="button"
-                                aria-label={`Move ${describeBlock(block)} up`}
-                                className={ICON_BUTTON}
-                                disabled={index === 0}
-                                onClick={() => moveBlock(index, -1)}
+                                ref={node => {
+                                    if (node) handles.current.set(index, node);
+                                    else handles.current.delete(index);
+                                }}
+                                aria-label={`Move ${name}. Arrow keys reorder.`}
+                                onMouseDown={() => setHandleHeld(true)}
+                                onMouseUp={() => setHandleHeld(false)}
+                                onKeyDown={event => {
+                                    if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+                                    event.preventDefault();
+                                    nudge(index, event.key === 'ArrowUp' ? -1 : 1);
+                                }}
+                                className={cn(
+                                    'focus-ring cursor-grab rounded text-muted-foreground/50',
+                                    'transition-colors hover:text-muted-foreground active:cursor-grabbing'
+                                )}
                             >
-                                <ChevronUp size={14} />
+                                <GripVertical size={14} />
                             </button>
+
+                            <span className="text-muted-foreground/70">{kind ? <BlockGlyph kind={kind} /> : null}</span>
+                            <span className="flex-1 truncate text-caption text-muted-foreground">{name}</span>
+
+                            {/* Dimmed until the row is touched: one control per row,
+                                five rows deep, competes with the text it acts on.
+                                Opacity, not display, so it stays in the tab order. */}
                             <button
                                 type="button"
-                                aria-label={`Move ${describeBlock(block)} down`}
-                                className={ICON_BUTTON}
-                                disabled={index === blocks.length - 1}
-                                onClick={() => moveBlock(index, 1)}
-                            >
-                                <ChevronDown size={14} />
-                            </button>
-                            <button
-                                type="button"
-                                aria-label={`Remove ${describeBlock(block)}`}
-                                className={cn(ICON_BUTTON, 'hover:text-destructive')}
+                                aria-label={`Remove ${name}`}
+                                className={cn(
+                                    ICON_BUTTON,
+                                    'opacity-0 transition-opacity hover:text-destructive',
+                                    'group-focus-within:opacity-100 group-hover:opacity-100'
+                                )}
                                 onClick={() => removeBlock(index)}
                             >
                                 <Trash2 size={14} />
                             </button>
                         </div>
-                    </div>
-                    <BlockFields block={block} onChange={next => replaceBlock(index, next)} />
-                </li>
-            ))}
+
+                        {body && <div className="px-1.5 pb-1.5 pt-1">{body}</div>}
+                    </li>
+                );
+            })}
         </ol>
     );
 };

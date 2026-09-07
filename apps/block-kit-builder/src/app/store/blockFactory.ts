@@ -52,18 +52,33 @@ const FACTORY: Record<BlockKind, () => KnownBlock> = {
 /** A new block of the chosen kind, filled in so the preview shows something at once. */
 export const createBlock = (kind: BlockKind): KnownBlock => FACTORY[kind]();
 
-/** What to call a block already in the list. `fields` and `section` share a type. */
-export const describeBlock = (block: KnownBlock): string => {
+/**
+ * Which palette entry a block in the list came from, or null for one the payload
+ * editor introduced that the renderer cannot draw. `fields` and `section` share a
+ * block type, so the distinction is the presence of `fields` rather than `type`.
+ */
+export const blockKindOf = (block: KnownBlock): BlockKind | null => {
     switch (block.type) {
         case 'header':
-            return 'Header';
+            return 'header';
         case 'section':
-            return block.fields?.length ? 'Fields' : 'Section';
+            return block.fields?.length ? 'fields' : 'section';
         case 'divider':
-            return 'Divider';
+            return 'divider';
         case 'context':
-            return 'Context';
+            return 'context';
         default:
-            return 'Unsupported';
+            return null;
     }
+};
+
+const LABELS: Record<BlockKind, string> = Object.fromEntries(PALETTE.map(entry => [entry.kind, entry.label])) as Record<
+    BlockKind,
+    string
+>;
+
+/** What to call a block already in the list. */
+export const describeBlock = (block: KnownBlock): string => {
+    const kind = blockKindOf(block);
+    return kind ? LABELS[kind] : 'Unsupported';
 };

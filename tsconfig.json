@@ -71,6 +71,12 @@
         },
         {
             "path": "./libs/db"
+        },
+        {
+            "path": "./apps/block-kit-builder"
+        },
+        {
+            "path": "./libs/block-kit"
         }
     ]
 }

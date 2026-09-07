@@ -6,7 +6,7 @@ import { useBuilderStore } from './builderStore';
 
 const reset = () => {
     localStorage.clear();
-    useBuilderStore.setState({ blocks: [], past: [], future: [], lastEdit: null, seeded: false });
+    useBuilderStore.setState({ blocks: [], past: [], future: [], lastEdit: null, seeded: false, dragIndex: null });
 };
 const blocks = (): KnownBlock[] => useBuilderStore.getState().blocks;
 
@@ -148,6 +148,55 @@ describe('useBuilderStore', () => {
         useBuilderStore.getState().clear();
         useBuilderStore.getState().seed(seed);
         expect(blocks()).toEqual([]);
+    });
+
+    // A drag asks "does it read better here?", and the message has to answer while
+    // the block is still moving — so the array reorders on every hover, not on drop.
+    it('reorders under the pointer without recording each step', () => {
+        const store = useBuilderStore.getState();
+        store.addBlock('header');
+        store.addBlock('section');
+        store.addBlock('divider');
+        const depth = useBuilderStore.getState().past.length;
+
+        useBuilderStore.getState().beginDrag(2);
+        useBuilderStore.getState().previewDrag(1);
+        useBuilderStore.getState().previewDrag(0);
+        expect(blocks().map(block => block.type)).toEqual(['divider', 'header', 'section']);
+        expect(useBuilderStore.getState().past.length).toBe(depth);
+
+        useBuilderStore.getState().endDrag();
+        expect(useBuilderStore.getState().past.length).toBe(depth + 1);
+        expect(useBuilderStore.getState().dragIndex).toBeNull();
+    });
+
+    // One entry for the whole gesture: undo returns to where the drag began, not to
+    // the halfway arrangement the pointer happened to pass through.
+    it('undoes a whole drag at once', () => {
+        const store = useBuilderStore.getState();
+        store.addBlock('header');
+        store.addBlock('divider');
+        useBuilderStore.getState().beginDrag(1);
+        useBuilderStore.getState().previewDrag(0);
+        useBuilderStore.getState().endDrag();
+        useBuilderStore.getState().undo();
+        expect(blocks().map(block => block.type)).toEqual(['header', 'divider']);
+    });
+
+    // Picking a block up and putting it back is not an edit.
+    it('records nothing when a drag ends where it started', () => {
+        useBuilderStore.getState().addBlock('header');
+        const depth = useBuilderStore.getState().past.length;
+        useBuilderStore.getState().beginDrag(0);
+        useBuilderStore.getState().endDrag();
+        expect(useBuilderStore.getState().past.length).toBe(depth);
+    });
+
+    it('ignores a hover outside the list', () => {
+        useBuilderStore.getState().addBlock('header');
+        useBuilderStore.getState().beginDrag(0);
+        useBuilderStore.getState().previewDrag(5);
+        expect(useBuilderStore.getState().dragIndex).toBe(0);
     });
 
     // The payload editor re-commits what it just rendered on every keystroke.
