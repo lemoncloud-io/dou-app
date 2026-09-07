@@ -61,10 +61,12 @@ export const buttonSurfaceClass = ({
         // solid defaults to green, outline/ghost to gray (neutral).
         (() => {
             const resolvedTone = tone ?? (accent ? 'green' : variant === 'solid' ? 'green' : 'gray');
-            if (variant === 'solid')
+            if (variant === 'solid') {
                 return cn(SOLID_TONE[resolvedTone], 'disabled:bg-control-idle disabled:text-placeholder');
-            if (variant === 'outline')
+            }
+            if (variant === 'outline') {
                 return cn('border text-foreground disabled:opacity-50', OUTLINE_TONE[resolvedTone]);
+            }
             return 'text-foreground disabled:opacity-50';
         })(),
         SIZE[size],
