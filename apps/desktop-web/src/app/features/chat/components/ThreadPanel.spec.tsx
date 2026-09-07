@@ -35,6 +35,7 @@ vi.mock('./Composer', () => ({ Composer: () => null }));
 import '../../../../i18n';
 
 import { ThreadPanel } from './ThreadPanel';
+import { WEBHOOK_BLOCKS_ERROR_REPORT, WEBHOOK_SEND_ERROR_REPORT } from './fixtures';
 
 Element.prototype.scrollIntoView = vi.fn();
 
@@ -98,6 +99,27 @@ describe('ThreadPanel', () => {
         render(<ThreadPanel channel={CHANNEL} rootId="C1:1" members={[]} />, { wrapper });
 
         expect(screen.getByRole('heading', { name: 'Error report' })).toBeTruthy();
+    });
+
+    // Same renderer, and `blocks$` (server field) outranks `content` JSON — priority:
+    // knowledge#319 SPEC.md §6-1. `MessageList.spec` asserts the same thing through
+    // the feed; this pins that the thread panel does not grow a second reader.
+    it('draws a blocks$ reply ahead of its content', () => {
+        messages = [
+            chat(1, { content: 'root' }),
+            chat(2, {
+                parentId: 'C1:1',
+                content: WEBHOOK_SEND_ERROR_REPORT.content,
+                blocks$: [...WEBHOOK_BLOCKS_ERROR_REPORT],
+                // Pins buildMessageRows' `stereo === 'system'` branch: a webhook chat is a
+                // user bubble, not a system notice (knowledge#319 SPEC 6-3).
+                stereo: WEBHOOK_SEND_ERROR_REPORT.stereo,
+            } as Partial<DomainChat>),
+        ];
+
+        render(<ThreadPanel channel={CHANNEL} rootId="C1:1" members={[]} />, { wrapper });
+
+        expect(screen.getByRole('heading', { name: /error-report/ })).toBeTruthy();
     });
 
     // The read counts are mounted once by the host and handed to both surfaces. The panel

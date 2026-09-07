@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
 
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 
 import type { DomainChat } from '@chatic/data';
 import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
@@ -22,6 +22,7 @@ import '../../../../i18n';
 
 import { MessageList } from './MessageList';
 import type { ThreadMeta } from '../utils';
+import { WEBHOOK_BLOCKS_ERROR_REPORT, WEBHOOK_SEND_ERROR_REPORT } from './fixtures';
 
 // jsdom implements no layout, so it ships no scrollIntoView. The list calls it from a
 // layout effect to land on the newest message.
@@ -128,6 +129,66 @@ describe('MessageList', () => {
 
         expect(screen.getByText('403').tagName).toBe('STRONG');
         expect(screen.queryByText(payload)).toBeNull();
+    });
+
+    // `blocks$` (server field) outranks the `content` JSON fallback above — priority:
+    // knowledge#319 SPEC.md §6-1. Fixture is the server's own sample payload
+    // (resolveChatBlocks.spec.ts uses the same two files).
+    it('draws blocks$ ahead of content — header, sections and context all reach the DOM', () => {
+        const withBlocksField = {
+            ...message(1, 'ada', WEBHOOK_SEND_ERROR_REPORT.content),
+            blocks$: [...WEBHOOK_BLOCKS_ERROR_REPORT],
+            // Pins buildMessageRows' `stereo === 'system'` branch: a webhook chat is a
+            // user bubble, not a system notice (knowledge#319 SPEC 6-3).
+            stereo: WEBHOOK_SEND_ERROR_REPORT.stereo,
+        } as DomainChat;
+
+        render(
+            <MessageList
+                messages={[withBlocksField]}
+                isLoading={false}
+                viewer={VIEWER}
+                names={new Map([['ada', 'Ada']])}
+            />,
+            { wrapper }
+        );
+
+        // header 1 + section 2 + context 1 — the shape the plan's Success Criteria names.
+        // Asserting only the ends would pass while the middle silently went missing.
+        expect(screen.getByRole('heading', { name: /error-report/ })).toBeDefined();
+        // Anchored: the third block is the raw error JSON, which quotes the same
+        // sentence inside it. An unanchored match would find both and prove neither.
+        expect(
+            screen.getByText(/^TypeError: Cannot read properties of undefined \(reading 'channelId'\)$/)
+        ).toBeDefined();
+        expect(screen.getByText(/^\{"service":/)).toBeDefined();
+        expect(screen.getAllByText(/원문 보기/).length).toBeGreaterThan(0);
+    });
+
+    // `content` on a `blocks$` message is already the server's plain-text summary
+    // (SPEC §6-5). Folding `blocks$` through `blocksToPlainText` here instead would
+    // pull this fixture's context line ("hello-alarm") and section-3 raw error JSON
+    // into the dialog — neither is in `content`, so their absence proves which one
+    // the dialog quotes. Scoped to the dialog: the row underneath legitimately shows
+    // both, since they are real section/context content, not a leak.
+    it('quotes the server summary, not the folded blocks, when deleting a blocks$ message', () => {
+        const withBlocksField = {
+            ...message(1, 'me', WEBHOOK_SEND_ERROR_REPORT.content),
+            blocks$: [...WEBHOOK_BLOCKS_ERROR_REPORT],
+            // Pins buildMessageRows' `stereo === 'system'` branch: a webhook chat is a
+            // user bubble, not a system notice (knowledge#319 SPEC 6-3).
+            stereo: WEBHOOK_SEND_ERROR_REPORT.stereo,
+        } as DomainChat;
+
+        render(<MessageList messages={[withBlocksField]} isLoading={false} viewer={VIEWER} names={new Map()} />, {
+            wrapper,
+        });
+        fireEvent.click(screen.getByLabelText('Delete message'));
+
+        const dialog = within(screen.getByRole('alertdialog'));
+        expect(dialog.getByText(/TypeError: Cannot read properties/)).toBeDefined();
+        expect(dialog.queryByText(/hello-alarm/)).toBeNull();
+        expect(dialog.queryByText(/"service":/)).toBeNull();
     });
 
     // The dialog quotes the message so the answer is about *this* message. Quoting the

@@ -27,7 +27,7 @@ import {
     UserProfilePopover,
     avatarStyle,
     blocksToPlainText,
-    parseBlocks,
+    resolveChatBlocks,
     useSavedItemsStore,
 } from '../../../shared';
 import { useMessageActions, useReactions } from '../hooks';
@@ -227,13 +227,19 @@ export const MessageRow = memo(
             () =>
                 group.messages.map(message => {
                     const content = message.content ?? '';
-                    // A structured message the server sent as Block Kit; null for
-                    // everything else, which is still the overwhelming majority.
-                    const blocks = parseBlocks(content);
+                    // A structured message, either the server's own `blocks$` field
+                    // (webhook sends) or one it sent as Block Kit JSON in `content`;
+                    // null for everything else, which is still the overwhelming
+                    // majority. Priority: knowledge#319 SPEC.md §6-1.
+                    const { blocks, source } = resolveChatBlocks(message);
                     // What the row *says*, as opposed to what it is made of. Copy,
                     // Save and the link unfurl all mean the former — reading `content`
-                    // there would hand the reader the payload's JSON.
-                    return { content, blocks, plain: blocks ? blocksToPlainText(blocks) : content };
+                    // there would hand the reader the payload's JSON. On the `field`
+                    // path `content` is already the server's plain-text summary
+                    // (SPEC §6-5); folding `blocks` back through `blocksToPlainText`
+                    // there would throw that summary away.
+                    const plain = !blocks || source === 'field' ? content : blocksToPlainText(blocks);
+                    return { content, blocks, plain };
                 }),
             [group.messages]
         );
@@ -672,10 +678,15 @@ export const MessageRow = memo(
                                             )}
                                             {canModifyMessage(message, group.isMine) && (
                                                 <>
-                                                    {/* No Edit on a Block Kit message: the editor is
-                                                        a plain textarea, so it would hand back the
-                                                        payload's JSON to edit by hand. Delete still
-                                                        applies — the message can still be wrong. */}
+                                                    {/* No Edit on a Block Kit message, whichever way the
+                                                        blocks arrived. From `content` JSON, the editor is
+                                                        a plain textarea and would hand back the payload to
+                                                        edit by hand. From `blocks$`, `content` is only the
+                                                        server's summary — editing it would leave the card
+                                                        saying one thing and the summary another, and the
+                                                        server does not rebuild `blocks$` on update
+                                                        (knowledge#319 SPEC §4.3). Delete still applies —
+                                                        the message can still be wrong. */}
                                                     {!blocks && (
                                                         <>
                                                             <ToolbarButton

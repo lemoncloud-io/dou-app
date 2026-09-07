@@ -107,6 +107,13 @@ const toBlock = (element: unknown): KnownBlock => {
 };
 
 /**
+ * One wire array → one block list. The entry point `resolveChatBlocks` uses for
+ * `chat.blocks$` (server field), where the array has already been located —
+ * unlike `parseBlocks`, this does no JSON parsing or shape-sniffing of its own.
+ */
+export const toBlocks = (elements: unknown[]): KnownBlock[] => elements.map(toBlock);
+
+/**
  * Is this message body a Block Kit payload? Decided by content alone.
  *
  * The `contentType` marker is deliberately not consulted: its value is not
@@ -131,5 +138,5 @@ export const parseBlocks = (content?: string): KnownBlock[] | null => {
     if (!payload || typeof payload !== 'object') return null;
     const { blocks } = payload as { blocks?: unknown };
     if (!Array.isArray(blocks) || !blocks.length) return null;
-    return blocks.map(toBlock);
+    return toBlocks(blocks);
 };
