@@ -1,5 +1,28 @@
 # Changelog
 
+## [2026-09-07] - No version updates
+
+### Features
+
+- (web/channels,web-ui-kit) add people who are already here from the invite page (ADR-0075)
+- (web,mobile,data) hide what happened before I rejoined (ADR-0067)
+- (web/channels,web-ui-kit) give a 1:1 a way back and render what a message carries (ADR-0068)
+- (web/place,web/home) raise the place limit and let a place introduce itself (ADR-0074)
+
+### Bug Fixes
+
+- (web/mypage) judge the MY hub by the account's role, not the session's
+- (web,web-config,mobile) keep the invite flow off the wrong number and the wrong endpoint
+- (web,web-ui-kit) align the form fields with their design
+
+### Documentation
+
+- (adr,web) record the place-member picker and open the invite doc for it (ADR-0075)
+
+### Other
+
+- style: (web-ui-kit) brace the two ifs that fail the repo's curly rule
+
 ## [2026-08-31] - root@0.56.0, @chatic/desktop-web@0.7.0
 
 ### Features
