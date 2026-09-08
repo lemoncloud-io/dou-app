@@ -1,8 +1,16 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 import { toBlocks, type KnownBlock } from '@chatic/block-kit';
 
-import { BuilderRail, HistoryControls, PayloadPane, PreviewPane, blocksToPayloadJson } from './features';
+import {
+    BuilderRail,
+    DeviceToggle,
+    HistoryControls,
+    PayloadPane,
+    PreviewPane,
+    blocksToPayloadJson,
+    type PreviewDevice,
+} from './features';
 import { BuilderLayout } from './layout';
 import { useBuilderStore } from './store';
 
@@ -23,6 +31,10 @@ const SEED: KnownBlock[] = toBlocks([
 
 export const App = () => {
     const blocks = useBuilderStore(state => state.blocks);
+    // Which width the preview draws at. Deliberately outside the store: it is not
+    // part of the message, so it must not land in the undo stack or be persisted
+    // alongside a payload it says nothing about.
+    const [device, setDevice] = useState<PreviewDevice>('desktop');
 
     // The store decides whether this builder has ever held a message; `seed` is a
     // no-op once it has. Waiting for hydration first, or the check runs against
@@ -36,8 +48,18 @@ export const App = () => {
     return (
         <BuilderLayout
             rail={<BuilderRail />}
-            preview={<PreviewPane blocks={blocks} raw={json} />}
-            previewActions={<HistoryControls />}
+            preview={<PreviewPane blocks={blocks} raw={json} device={device} />}
+            previewActions={
+                <div className="flex items-center gap-2">
+                    {/* Nothing to choose below `lg`: the pane is already narrower
+                        than the mobile clamp, so both settings draw the same card. */}
+                    <span className="hidden items-center gap-2 lg:flex">
+                        <DeviceToggle value={device} onValue={setDevice} />
+                        <span aria-hidden className="h-4 w-px bg-hairline" />
+                    </span>
+                    <HistoryControls />
+                </div>
+            }
             payload={<PayloadPane json={json} onBlocks={useBuilderStore.getState().setBlocks} />}
         />
     );

@@ -25,13 +25,36 @@ const MAX_HEIGHT = 220;
 
 const useAutoHeight = (value: string) => {
     const ref = useRef<HTMLTextAreaElement>(null);
+
     useLayoutEffect(() => {
         const node = ref.current;
         if (!node) return;
-        node.style.height = 'auto';
-        node.style.height = `${Math.min(node.scrollHeight, MAX_HEIGHT)}px`;
-        node.style.overflowY = node.scrollHeight > MAX_HEIGHT ? 'auto' : 'hidden';
+
+        const fit = () => {
+            node.style.height = 'auto';
+            node.style.height = `${Math.min(node.scrollHeight, MAX_HEIGHT)}px`;
+            node.style.overflowY = node.scrollHeight > MAX_HEIGHT ? 'auto' : 'hidden';
+        };
+        fit();
+
+        // The text is not the only thing that decides how tall it needs to be.
+        // The rail is 20rem beside the panes and the full viewport under `lg`, so
+        // crossing that breakpoint rewraps every line without `value` moving —
+        // and a field still holding its old height clips what the reader typed,
+        // in a tool whose whole job is showing you what you wrote.
+        //
+        // Width only. `fit` sets the height, so reacting to a height change would
+        // be reacting to this observer's own last move.
+        let width = node.clientWidth;
+        const observer = new ResizeObserver(() => {
+            if (node.clientWidth === width) return;
+            width = node.clientWidth;
+            fit();
+        });
+        observer.observe(node);
+        return () => observer.disconnect();
     }, [value]);
+
     return ref;
 };
 

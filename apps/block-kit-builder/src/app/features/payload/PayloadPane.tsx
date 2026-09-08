@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { AlertTriangle, Check, Copy } from 'lucide-react';
 
@@ -13,6 +13,11 @@ interface PayloadPaneProps {
     /** Accept an edited payload. Only called with a payload that parsed. */
     onBlocks: (blocks: KnownBlock[]) => void;
 }
+
+// One string for the gutter and the editor: they are two elements drawing one
+// grid of text, and a line that disagrees on height puts the numbers out of step
+// with what they count.
+const CODE = 'font-mono text-[16px] leading-relaxed lg:text-caption';
 
 /**
  * The JSON the blocks compile to, and an editor for it.
@@ -63,38 +68,53 @@ export const PayloadPane = ({ json, onBlocks }: PayloadPaneProps) => {
         });
     };
 
+    // The gutter is not decoration: `JSON.parse` reports a failure by line, and
+    // without numbers to count against, "line 24" is a line the reader has to find
+    // by hand in a payload that is mostly punctuation.
+    const lines = useMemo(() => draft.split('\n').length, [draft]);
+
+    // The gutter does not scroll itself; it follows the editor. Two scrollers side
+    // by side drift the moment one of them is flung, and a number beside the wrong
+    // line is worse than no number.
+    const gutter = useRef<HTMLDivElement>(null);
+
     return (
-        <div className="flex h-full flex-col">
-            <div className="flex shrink-0 justify-end px-4 pb-2">
-                <button
-                    type="button"
-                    onClick={copy}
-                    aria-label="Copy payload"
+        <div className="flex h-full min-h-0 flex-col">
+            <div className="flex min-h-0 flex-1">
+                <div
+                    ref={gutter}
+                    aria-hidden
                     className={cn(
-                        'focus-ring tactile flex h-8 w-8 items-center justify-center rounded-md',
-                        'text-muted-foreground transition-colors ease-tactile hover:bg-accent'
+                        CODE,
+                        'shrink-0 select-none overflow-hidden py-0 pl-4 pr-2 text-right',
+                        'tabular-nums text-muted-foreground/40'
                     )}
                 >
-                    {copied ? <Check size={16} className="text-primary-ink" /> : <Copy size={16} />}
-                </button>
-            </div>
+                    {Array.from({ length: lines }, (_, index) => (
+                        <div key={index}>{index + 1}</div>
+                    ))}
+                </div>
 
-            <textarea
-                aria-label="Payload JSON"
-                spellCheck={false}
-                // Structure over line length. Wrapped JSON puts a continuation at
-                // column zero, where the eye reads it as a new key at the outermost
-                // level; scrolling sideways keeps the indent telling the truth.
-                wrap="off"
-                value={draft}
-                onChange={event => edit(event.target.value)}
-                // 16px on a phone for the same reason as the block fields: below that,
-                // iOS Safari zooms in on focus and stays zoomed.
-                className={cn(
-                    'focus-ring min-h-0 flex-1 resize-none overflow-auto bg-transparent px-4 font-mono',
-                    'text-[16px] leading-relaxed text-foreground lg:text-caption'
-                )}
-            />
+                <textarea
+                    aria-label="Payload JSON"
+                    spellCheck={false}
+                    // Structure over line length. Wrapped JSON puts a continuation at
+                    // column zero, where the eye reads it as a new key at the outermost
+                    // level; scrolling sideways keeps the indent telling the truth.
+                    wrap="off"
+                    value={draft}
+                    onChange={event => edit(event.target.value)}
+                    onScroll={event => {
+                        if (gutter.current) gutter.current.scrollTop = event.currentTarget.scrollTop;
+                    }}
+                    // 16px on a phone for the same reason as the block fields: below that,
+                    // iOS Safari zooms in on focus and stays zoomed.
+                    className={cn(
+                        CODE,
+                        'focus-ring min-h-0 flex-1 resize-none overflow-auto bg-transparent pr-4 text-foreground'
+                    )}
+                />
+            </div>
 
             {/* Below the editor, not over it: an overlay would hide the line the
                 reader is being told about. */}
@@ -110,6 +130,24 @@ export const PayloadPane = ({ json, onBlocks }: PayloadPaneProps) => {
                     </span>
                 </p>
             )}
+
+            <div className="flex shrink-0 items-center justify-between gap-2 border-t border-hairline px-4 py-1.5">
+                <span className="text-micro tabular-nums text-muted-foreground/70">
+                    {lines} {lines === 1 ? 'line' : 'lines'}
+                </span>
+                <button
+                    type="button"
+                    onClick={copy}
+                    aria-label="Copy payload"
+                    className={cn(
+                        'focus-ring tactile flex items-center gap-1.5 rounded px-2 py-1 text-micro',
+                        'text-muted-foreground transition-colors ease-tactile hover:bg-accent hover:text-foreground'
+                    )}
+                >
+                    {copied ? <Check size={13} className="text-primary-ink" /> : <Copy size={13} />}
+                    {copied ? 'Copied' : 'Copy'}
+                </button>
+            </div>
         </div>
     );
 };

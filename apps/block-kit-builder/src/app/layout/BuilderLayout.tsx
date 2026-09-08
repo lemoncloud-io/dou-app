@@ -42,26 +42,32 @@ interface PaneProps {
  *
  * A pane that is not being shown is hidden rather than unmounted: the payload
  * editor holds an unparsed draft, and switching tabs is not a reason to lose it.
+ *
+ * The body does not scroll; its content does. All three panes have something
+ * inside them that has to stay put while the rest moves — the rail's palette,
+ * the payload's gutter and footer — and a scroller here would carry those away.
  */
 const Pane = ({ title, children, className, actions, shown }: PaneProps) => (
     <section
         aria-label={title}
         className={cn('min-w-0 flex-col overflow-hidden', shown ? 'flex' : 'hidden lg:flex', className)}
     >
-        <div className="hidden shrink-0 items-center justify-between gap-2 pr-2 lg:flex">
+        <div className="hidden shrink-0 items-center justify-between gap-2 border-b border-hairline pr-3 lg:flex">
             <h2 className={PANE_HEADING}>{title}</h2>
             {actions}
         </div>
-        <div className="min-h-0 flex-1 overflow-auto">{children}</div>
+        <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
     </section>
 );
 
 /**
  * Compose · message · payload, side by side on a wide screen.
  *
- * The middle pane keeps the app's own background while the two instrument panes
- * sit on the well, so the boundary between "the message" and "the controls that
- * make it" is visible without a label saying so.
+ * Every pane sits on the well, and the message card inside the middle one is the
+ * only lit surface on the screen. The boundary between "the message" and "the
+ * controls that make it" is then figure against ground rather than a label
+ * saying which is which — and the card's edges are where the reader is being
+ * asked to look, since its width is what the message has to survive.
  *
  * All three read the same edit, so they are one row rather than tabs: the point
  * of the tool is watching the JSON and the rendered card change together. The
@@ -118,7 +124,7 @@ export const BuilderLayout = ({ rail, preview, previewActions, payload }: Builde
                 <Pane
                     title="Message"
                     shown={active === 'message'}
-                    className="w-full border-hairline lg:w-auto lg:flex-[3] lg:border-r"
+                    className="w-full border-hairline bg-well lg:w-auto lg:flex-[3] lg:border-r"
                     actions={previewActions}
                 >
                     {preview}
