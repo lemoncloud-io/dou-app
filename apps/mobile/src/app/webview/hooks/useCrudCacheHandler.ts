@@ -217,6 +217,28 @@ export const useCrudCacheHandler = () => {
         [logger]
     );
 
+    const handleClearCacheByChannel = useCallback(
+        async (message: WebMessageData<'ClearCacheDataByChannel'>) => {
+            const data = message.data;
+            try {
+                await provider.cacheCrudService.clearByChannel(data);
+                return {
+                    type: 'OnClearCacheDataByChannel' as const,
+                    success: true,
+                    data: { type: data.type, cid: data.cid, uid: data.uid, channelId: data.channelId, success: true },
+                };
+            } catch (e) {
+                logger.error('CACHE', `ClearByChannel error: ${data.type}`, e);
+                return {
+                    type: 'OnClearCacheDataByChannel' as const,
+                    success: true,
+                    data: { type: data.type, cid: data.cid, uid: data.uid, channelId: data.channelId, success: false },
+                };
+            }
+        },
+        [logger]
+    );
+
     return {
         handleFetchAllCache,
         handleFetchCache,
@@ -227,5 +249,6 @@ export const useCrudCacheHandler = () => {
         handleDeleteCache,
         handleDeleteAllCache,
         handleClearCache,
+        handleClearCacheByChannel,
     };
 };

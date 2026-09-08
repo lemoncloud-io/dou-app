@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom';
 
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 const navigate = jest.fn();
 const toast = jest.fn();
@@ -22,6 +22,8 @@ let mockProfileAbsent: boolean | undefined = false;
 const markPresent = jest.fn(() => {
     mockProfileAbsent = false;
 });
+/** Route state — carries the `reinvite` entry when the 1:1 room sent us here (ADR-0068). */
+let mockRouteState: unknown = null;
 
 jest.mock('react-i18next', () => ({
     useTranslation: () => ({ t: (k: string) => k, i18n: { language: 'ko' } }),
@@ -31,6 +33,9 @@ jest.mock('@chatic/app-runtime', () => ({
     useRuntimeProfile: () => ({ isGuest: mockIsGuest }),
 }));
 jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
+// Only `useLocation` is read (the re-invite entry rides in route state); rendering without a Router
+// would otherwise throw its "may be used only in the context of a Router" invariant.
+jest.mock('react-router-dom', () => ({ useLocation: () => ({ state: mockRouteState }) }));
 // The real barrel also exports CloudLogo, which needs `@chatic/assets` (not resolvable under
 // jest) — mocked the same way InvitePage.test.tsx does, since only PageHeader is used here.
 jest.mock('../../../ui/components', () => ({ PageHeader: (p: any) => <div>{p.title}</div> }));
@@ -112,6 +117,7 @@ describe('ContactInvitePage', () => {
         mockIsGuest = false;
         mockLinkedPhone = 'linked';
         mockProfileAbsent = false;
+        mockRouteState = null;
         findByPhone.mockReturnValue(undefined);
         sendInviteMessage.mockResolvedValue('sms');
         retire.mockResolvedValue('canceled');
@@ -351,6 +357,7 @@ describe('ContactInvitePage — 국가 (ADR-0044)', () => {
         mockIsGuest = false;
         mockLinkedPhone = 'linked';
         mockProfileAbsent = false;
+        mockRouteState = null;
         findByPhone.mockReturnValue(undefined);
         sendInviteMessage.mockResolvedValue('sms');
         seedCountry();
@@ -415,6 +422,7 @@ describe('ContactInvitePage — 번호 연결 전제조건 게이트 (ADR-0042)'
         mockIsGuest = false;
         mockLinkedPhone = 'linked';
         mockProfileAbsent = false;
+        mockRouteState = null;
         findByPhone.mockReturnValue(undefined);
         sendInviteMessage.mockResolvedValue('sms');
         seedCountry();
@@ -475,6 +483,7 @@ describe('ContactInvitePage — 프로필 전제조건 게이트 (ADR-0041)', ()
         mockIsGuest = false;
         mockLinkedPhone = 'linked';
         mockProfileAbsent = false;
+        mockRouteState = null;
         findByPhone.mockReturnValue(undefined);
         sendInviteMessage.mockResolvedValue('sms');
         seedCountry();
@@ -555,5 +564,132 @@ describe('ContactInvitePage — 프로필 전제조건 게이트 (ADR-0041)', ()
 
         expect(screen.queryByText(/^profile-dialog:/)).not.toBeInTheDocument();
         expect(screen.getByPlaceholderText('contactInvite.namePlaceholder')).toBeInTheDocument();
+    });
+});
+
+/**
+ * 방에서 온 재초대 (ADR-0068 결정 2·3). 같은 폼을 재사용하되 채널을 지정하고, 확인 화면 없이
+ * 번호 입력에서 바로 끝내고, 대기 화면이 아니라 방으로 돌아간다.
+ */
+describe('ContactInvitePage — 재초대 모드 (ADR-0068)', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockInvites = [];
+        mockIsGuest = false;
+        mockLinkedPhone = 'linked';
+        mockProfileAbsent = false;
+        mockRouteState = null;
+        findByPhone.mockReturnValue(undefined);
+        sendInviteMessage.mockResolvedValue('sms');
+        retire.mockResolvedValue('canceled');
+        seedCountry();
+    });
+
+    it('이름과 번호를 프리필한다 — 번호는 E.164에서 국가와 로컬 번호로 갈라진다', () => {
+        mockRouteState = { reinvite: { channelId: 'ch-1', name: '레몬', phone: '+821012345678' } };
+
+        render(<ContactInvitePage />);
+
+        expect(screen.getByPlaceholderText('contactInvite.namePlaceholder')).toHaveValue('레몬');
+        expect(screen.getByPlaceholderText('contactInvite.phonePlaceholder')).toHaveValue('01012345678');
+    });
+
+    // 이 기기가 그 초대를 보낸 적이 없으면 번호를 모른다 — 막지 않고 빈 칸으로 물어본다.
+    it('번호를 모르면 이름만 채운 빈 폼으로 시작한다', () => {
+        mockRouteState = { reinvite: { channelId: 'ch-1', name: '레몬' } };
+
+        render(<ContactInvitePage />);
+
+        expect(screen.getByPlaceholderText('contactInvite.namePlaceholder')).toHaveValue('레몬');
+        expect(screen.getByPlaceholderText('contactInvite.phonePlaceholder')).toHaveValue('');
+    });
+
+    it('channelId와 24시간 만료를 실어 발급하고 방으로 돌아간다', async () => {
+        mockRouteState = { reinvite: { channelId: 'ch-1', name: '레몬', phone: '+821012345678' } };
+        createInvite.mockResolvedValue({ id: 'invite-new', deeplink: 'https://dou.chatic.io/s?code=abc' });
+
+        render(<ContactInvitePage />);
+        fireEvent.click(screen.getByText('contactInvite.submit'));
+
+        await waitFor(() =>
+            expect(createInvite).toHaveBeenCalledWith({
+                phone: '+821012345678',
+                name: '레몬',
+                countryCode: 'KR',
+                channelId: 'ch-1',
+            })
+        );
+        // 대기 화면이 아니다 — 방의 푸터가 이미 같은 상태를 말한다.
+        await waitFor(() => expect(navigate).toHaveBeenCalledWith('/channels/ch-1/room', { replace: true }));
+    });
+
+    // "다시 초대하기"를 누른 것 자체가 다시 보내겠다는 뜻이고, 방 푸터가 지난 초대의 상태를 이미
+    // 보여줬다. 대신 retire는 건너뛰지 않는다 — 같은 사람에게 살아 있는 코드가 둘이면 안 된다.
+    it('같은 번호 다이얼로그를 띄우지 않고, 이 방의 이전 초대를 거둔 뒤 발급한다', async () => {
+        mockRouteState = { reinvite: { channelId: 'ch-1', name: '레몬', phone: '+821012345678' } };
+        mockInvites = [{ id: 'invite-old', state: 'rejected', channelId: 'ch-1' } as never];
+        findByPhone.mockReturnValue({ inviteId: 'invite-old', name: '레몬' });
+        createInvite.mockResolvedValue({ id: 'invite-new', deeplink: 'https://dou.chatic.io/s?code=abc' });
+
+        render(<ContactInvitePage />);
+        fireEvent.click(screen.getByText('contactInvite.submit'));
+
+        expect(screen.queryByText(/^reinvite-dialog:/)).not.toBeInTheDocument();
+        await waitFor(() => expect(retire).toHaveBeenCalledWith(mockInvites[0]));
+        await waitFor(() => expect(createInvite).toHaveBeenCalled());
+        expect(retire.mock.invocationCallOrder[0]).toBeLessThan(createInvite.mock.invocationCallOrder[0]);
+    });
+
+    it('다른 방의 초대는 거두지 않는다', async () => {
+        mockRouteState = { reinvite: { channelId: 'ch-1', name: '레몬', phone: '+821012345678' } };
+        mockInvites = [{ id: 'invite-other', state: 'pending', channelId: 'ch-other' } as never];
+        createInvite.mockResolvedValue({ id: 'invite-new', deeplink: 'https://dou.chatic.io/s?code=abc' });
+
+        render(<ContactInvitePage />);
+        fireEvent.click(screen.getByText('contactInvite.submit'));
+
+        await waitFor(() => expect(createInvite).toHaveBeenCalled());
+        expect(retire).not.toHaveBeenCalled();
+    });
+
+    // retire 왕복 동안 제출 버튼이 화면에 남아 있다 — 잠그지 않으면 두 번 탭에 코드가 둘 발급된다
+    // (retire가 막으려던 바로 그 상태).
+    it('retire가 도는 동안 두 번 탭해도 한 번만 발급한다', async () => {
+        mockRouteState = { reinvite: { channelId: 'ch-1', name: '레몬', phone: '+821012345678' } };
+        mockInvites = [{ id: 'invite-old', state: 'pending', channelId: 'ch-1' } as never];
+        createInvite.mockResolvedValue({ id: 'invite-new', deeplink: 'https://dou.chatic.io/s?code=abc' });
+        // 취소가 즉시 끝나지 않도록 붙잡아 둔다 — 실제 왕복과 같은 창을 만든다.
+        let releaseRetire: (value: string) => void = () => undefined;
+        retire.mockReturnValue(
+            new Promise<string>(resolve => {
+                releaseRetire = resolve;
+            })
+        );
+
+        render(<ContactInvitePage />);
+        const submit = screen.getByText('contactInvite.submit');
+        fireEvent.click(submit);
+        fireEvent.click(submit);
+
+        await act(async () => {
+            releaseRetire('canceled');
+        });
+
+        await waitFor(() => expect(createInvite).toHaveBeenCalledTimes(1));
+        expect(retire).toHaveBeenCalledTimes(1);
+    });
+
+    // 409 = 화면에 머무는 동안 상대가 수락했다. 필요 없는 코드를 뿌리지 않고 방을 보여준다.
+    it('retire가 409면 발급하지 않고 방으로 보낸다', async () => {
+        mockRouteState = { reinvite: { channelId: 'ch-1', name: '레몬', phone: '+821012345678' } };
+        mockInvites = [{ id: 'invite-old', state: 'pending', channelId: 'ch-1' } as never];
+        retire.mockResolvedValue('conflict');
+
+        render(<ContactInvitePage />);
+        fireEvent.click(screen.getByText('contactInvite.submit'));
+
+        await waitFor(() => expect(toast).toHaveBeenCalledWith({ title: 'contactInvite.reinviteAlreadyAccepted' }));
+        expect(createInvite).not.toHaveBeenCalled();
+        expect(navigate).toHaveBeenCalledWith('/channels/ch-1/room', { replace: true });
     });
 });

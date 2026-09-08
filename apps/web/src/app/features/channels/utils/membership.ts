@@ -14,12 +14,15 @@ import type { DomainJoin } from '@chatic/data';
  * entered cannot have one. `reason` (the leave/kick reason) is checked too, so a row recording why
  * it ended counts as ended even without `joinedNo`.
  *
- * NOT VERIFIED against a live payload — no other code in the repo reads either field. If the server
- * omits both, this returns false and departed members stay listed, exactly as before: it can only
- * help, never make things worse. That is also why nothing badges pending invites any more — see
- * ChannelSettingsPage. Guessing wrong there was visible to users; guessing wrong here is not.
+ * If the server omits both, this returns false and departed members stay listed, exactly as before:
+ * it can only help, never make things worse. That is also why nothing badges pending invites any
+ * more — see ChannelSettingsPage. Guessing wrong there was visible to users; guessing wrong here is
+ * not.
+ *
+ * `joinedNo` is also what windows the message feed after a re-join (`isInJoinWindow`, ADR-0067), so
+ * the two readings of the field stay consistent: it marks where my current membership starts.
  */
-type MembershipJoin = Pick<DomainJoin, 'joined'> & { joinedNo?: number; reason?: string };
+type MembershipJoin = Pick<DomainJoin, 'joined' | 'joinedNo' | 'reason'>;
 
 export const hasLeftChannel = (join?: MembershipJoin | null): boolean =>
     !!join && join.joined === 0 && (!!join.joinedNo || !!join.reason);

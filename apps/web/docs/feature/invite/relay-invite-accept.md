@@ -82,7 +82,7 @@ ADR-0033 D10이 세우고, ADR-0039 결정 5가 "수락 앞에 세울 값이 아
 - 채널 sync 대기 유틸(`useAwaitInviteChannel`) — **Track B와 공유**(로드맵 Track B-4).
 - 거절 — 확인 다이얼로그(Figma 3446-17487) → `invite.reject` → 홈. 인증 없이(디바이스 유저
   상태에서) 가능하다.
-- Track A 계약 목(`trackAMock.tsx`) 1파일.
+- Track A(인증·세션) 계약은 실 API로 대체됐다 — 도입 당시 두었던 목 파일은 없다.
 
 **제외**
 
@@ -190,7 +190,7 @@ ADR-0033 D10이 세우고, ADR-0039 결정 5가 "수락 앞에 세울 값이 아
   (백엔드에 해제 엔드포인트가 없고 이후 `type-linked`로 막힌다), 서버의 초대 대조는 `login`에만 있다
   (`link-account.ts`가 `mode === 'login'`일 때만 `code`를 읽는다). 그래서 `link` 경로에서는 `last4`가
   유일한 대조 수단이고, 그것마저 없으면 인증을 아예 시작하지 않는다. `link`에서도 초대를 대조해
-  달라는 요청은 [ADR-0042](../../../../docs/adr/0042-account-linking-unified-path-migration.md) 후속에 있다.
+  달라는 요청은 [ADR-0042](../../../../../docs/adr/0042-account-linking-unified-path-migration.md) 후속에 있다.
 
 ### 8. 거절 (실 API — ADR-0043)
 
@@ -371,20 +371,20 @@ sequenceDiagram
 
 ### 진입 라우터
 
-[`components/InviteDialog.tsx`](../../../src/app/features/home/components/InviteDialog.tsx) —
+[`components/InviteDialog.tsx`](../../../src/app/features/invite/accept/components/InviteAcceptScreen.tsx) —
 `useLocation` + `parseInviteDeeplink` + 세 조건만 남은 순수 라우터다. **데이터 훅을 하나도 부르지
 않는다**: 기존 구조(훅 전부 호출 후 early return)를 유지한 채 relay 분기만 얹으면 relay 딥링크에서도
 클라우드 `useInviteInfo(code, backend)`가 발사돼 존재하지 않는 클라우드 초대를 조회한다.
 `HomePage.tsx:340`의 `<InviteDialog suppressed={isFirstRun} />`는 그대로다.
 
-- [`invite/CloudInviteDialog.tsx`](../../../src/app/features/home/components/invite/CloudInviteDialog.tsx)
+- [`invite/CloudInviteDialog.tsx`](../../../src/app/features/invite/accept/components/CloudInviteAccept.tsx)
   — 기존 `InviteDialog` 본문을 그대로 옮긴 것(`resolveDialogVariant` 포함). URL 판정만 라우터로
   올라가 `params`를 prop으로 받는다.
-- [`invite/RelayInviteDialog.tsx`](../../../src/app/features/home/components/invite/RelayInviteDialog.tsx)
+- [`invite/RelayInviteDialog.tsx`](../../../src/app/features/invite/accept/components/RelayInviteAccept.tsx)
   — relay 오케스트레이터. 판단은 전부 훅에 있고 여기 남은 것은 `phase` 스위치뿐이다. 수락 화면과
   인증 스텝이 같은 풀스크린 서피스를 쓰므로 둘 사이에 홈이 번쩍이지 않는다.
 
-### 상태 머신 — [`hooks/useRelayInviteFlow.ts`](../../../src/app/features/home/hooks/useRelayInviteFlow.ts)
+### 상태 머신 — [`hooks/useRelayInviteFlow.ts`](../../../src/app/features/invite/accept/hooks/useRelayInviteFlow.ts)
 
 ```ts
 useRelayInviteFlow(code: string): {
@@ -460,7 +460,7 @@ const accepted = await mutations.acceptInvite(code);
 - 수락 `403`은 `verifiedRef`로 갈린다 — 인증 전이면 "아직 디바이스 유저"라서 인증 스텝으로, 인증
   후면 번호 불일치라서 종료. 서버는 `needVerify`와 무관하게 다시 판정하므로 이 경로가 필요하다.
 - `expiredAt`은 발행된 `MyInviteView`에 선언돼 있지 않다(런타임에는 온다) — 기존
-  `InviteInfo`([types/invite.ts](../../../src/app/features/home/types/invite.ts))의 확장 지점을
+  `InviteInfo`([types/invite.ts](../../../src/app/features/invite/accept/types.ts))의 확장 지점을
   재사용한다.
 - 세대 카운터(`runIdRef`) + `aliveRef`로, 흐름이 앞서 나간 뒤 늦게 도착한 응답은 아무것도 쓰지
   않는다. 최신값(게이트웨이·네비게이션)은 `latest` ref로 읽어 콜백 identity를 고정한다.
@@ -469,7 +469,7 @@ const accepted = await mutations.acceptInvite(code);
   `setPendingChannel` + 홈 이동, `null`이면 안내 토스트 + 홈 이동으로 수렴한다. **1단이 맞으면
   `awaitingChannel` 페이즈를 아예 거치지 않는다** — 보여 줄 대기가 없기 때문이다.
 
-### 채널 해소 3단 — [`features/home/hooks/useResolveInviteChannel.ts`](../../../src/app/features/home/hooks/useResolveInviteChannel.ts)
+### 채널 해소 3단 — [`features/home/hooks/useResolveInviteChannel.ts`](../../../src/app/features/invite/accept/hooks/useResolveInviteChannel.ts)
 
 1·2단을 담고 3단은 공유 훅에 위임한다. 이 파일에 모은 이유는 1·2단이 **초대 의미론에 묶여**
 있기 때문이다 — 1단은 수락 응답의 필드고 2단은 `invite.get`이다. 반면 3단은 초대를 모르는 순수
@@ -573,7 +573,7 @@ useAwaitInviteChannel(): {
 
 > **jest 함정** — 이 다이얼로그는 `@chatic/app-runtime`을 import하고, 그 config 배럴을 jest가
 > 파싱하지 못한다. 그래서 `features/home/components` **배럴이 아니라 직접 파일 경로로** import한다
-> ([PlaceProfileForm.tsx:9-12](../../../src/app/features/home/components/PlaceProfileForm.tsx)의 같은
+> ([PlaceProfileForm.tsx:9-12](../../../src/app/ui/components/PlaceProfileForm.tsx)의 같은
 > 경고와 동일한 이유). 소비 스위트에서는 `PhoneVerifyScreen`처럼 스텁한다.
 
 **카피는 `placeProfileCreate.*` 16키를 그대로 쓴다.** 삭제된 `relayInviteAccept.profile.*` 6키는
@@ -591,50 +591,12 @@ useAwaitInviteChannel(): {
 
 - `features/invite/flags.ts`의 `RELAY_INVITE_DECLINE_ENABLED` — 플래그 파일째 삭제(발신자 문서
   체크리스트 12).
-- [`accept/lib/relayInviteDecline.ts`](../../../src/app/features/invite/accept/lib/relayInviteDecline.ts)
+- [`accept/lib/relayInviteDecline.ts`](../../../src/app/features/invite/accept/hooks/useRelayInviteFlow.ts)
   — `recordDeclinedInvite`/`isInviteDeclined` 모듈 삭제. `isInviteDeclined`는 원래 읽는 곳이 없던
   반쪽이었고, 이제 `invite.get`의 `state === 'rejected'`가 그 역할이다(§6).
 - `usePreferenceStore`의 `declinedInviteIds` 슬라이스 + `markInviteDeclined` 액션 +
   `preferenceKeys.ts`의 `declinedInvites` 항목(로컬 키 `chatic-web-relay-invite-declined`) —
   전부 삭제. 남는 localStorage 고아 항목은 무해하다(등록이 사라지면 읽는 코드가 없다).
-
-### Track A 목 — 교체 지점
-
-[`invite/trackAMock.tsx`](../../../src/app/features/home/components/invite/trackAMock.tsx) **한
-파일**이다. 로드맵 "인터페이스 계약" 시그니처 그대로:
-
-```ts
-applySessionToken($token: unknown): Promise<void>
-<PhoneVerifyScreen context={'invite-accept'|'invite-create'} inviteCode?: string
-                   onVerified(): void onClose(): void />
-```
-
-**교체 절차** — (1) 이 파일을 지우고 (2) `RelayInviteDialog.tsx`의 `PhoneVerifyScreen` import를
-Track A 모듈로 돌리고 (3) 두 스위트를 다시 돌린다. 소비처가 한 곳뿐이라 그게 전부다.
-
-`applySessionToken`은 Track C가 직접 부르지 않는다 — 계약상 `onVerified` 시점에는 이미 세션 전환이
-끝나 있다. 그래도 목에 함께 둔 것은, A가 그 책임 분담을 바꾸면 `onVerified` 핸들러에 한 줄
-추가하면 되도록 계약을 한자리에 보이게 하기 위해서다.
-
-### 파일 목록
-
-| 파일                                                        | 상태 | 역할                                                             |
-| ----------------------------------------------------------- | ---- | ---------------------------------------------------------------- |
-| `features/home/components/InviteDialog.tsx`                 | 수정 | 훅 없는 진입 라우터                                              |
-| `features/home/components/invite/CloudInviteDialog.tsx`     | 신규 | 기존 본문 이동(로직 무변경)                                      |
-| `features/home/components/invite/RelayInviteDialog.tsx`     | 신규 | relay 오케스트레이터(뷰)                                         |
-| `features/home/components/invite/trackAMock.tsx`            | 신규 | Track A 계약 목 (교체 지점)                                      |
-| `features/home/components/invite/InviteAcceptScreen.tsx`    | 수정 | optional prop 4종                                                |
-| `features/home/components/invite/InviteTargetCard.tsx`      | 수정 | optional `kind`                                                  |
-| `features/home/hooks/useRelayInviteFlow.ts`                 | 수정 | 상태 머신 · 3단 해소 위임 · **`declining`/종국 분기(ADR-0043)**  |
-| `invite/accept/components/RelayInviteAccept.tsx`            | 수정 | `profiling` 분기 (ADR-0041) · **거절 확인 다이얼로그(ADR-0043)** |
-| `utils/placeProfile.ts`                                     | 신규 | `isPlaceProfileAbsent` — 발신자 흐름과 **공유**                  |
-| `features/home/hooks/useResolveInviteChannel.ts`            | 신규 | 채널 해소 1·2단 (ADR-0035)                                       |
-| `features/invite/flags.ts`                                  | 삭제 | 스텁 게이팅 — 갭 소멸(ADR-0043)                                  |
-| `features/invite/accept/lib/relayInviteDecline.ts`          | 삭제 | 거절 로컬 기록(스텁) — `state`가 대체                            |
-| `stores/usePreferenceStore.ts` · `stores/preferenceKeys.ts` | 수정 | `declinedInvites` 슬라이스·키 삭제                               |
-| `hooks/useAwaitInviteChannel.ts`                            | 신규 | 채널 sync 대기(Track B 공유)                                     |
-| `public/locales/{ko,en}/translation.json`                   | 수정 | 거절 확인·거절 재진입 키 추가, notFound 카피 수정                |
 
 ## 검증 방법
 

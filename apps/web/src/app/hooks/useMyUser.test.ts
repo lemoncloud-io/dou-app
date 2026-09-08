@@ -5,7 +5,7 @@ import { useGlobalSession } from '@chatic/app-runtime';
 import { getRelaySessionUser, patchRelaySessionUser } from '@chatic/app-runtime';
 
 import { getRelayAccountGateway } from '../runtime/relayAccountGateway';
-import { useMyUser } from './useMyUser';
+import { useIsAccountGuest, useMyUser } from './useMyUser';
 
 jest.mock('@chatic/app-runtime', () => ({
     useKindVerified: jest.fn(),
@@ -134,5 +134,53 @@ describe('useMyUser', () => {
         });
 
         expect(result.current).toMatchObject({ name: 'Renamed' });
+    });
+});
+
+describe('useIsAccountGuest', () => {
+    // The hub already mounts `useMyUser` for its header, so this hook must not drag a second
+    // `user.profile` onto the wire just to read a role the refresh never writes back.
+    it('reads the token without triggering the profile refresh', () => {
+        (getRelaySessionUser as jest.Mock).mockReturnValue({ id: 'relay-uid', userRole: 'user' });
+
+        renderHook(() => useIsAccountGuest());
+
+        expect(profileMock).not.toHaveBeenCalled();
+    });
+
+    it('reports a guest when the relay account carries the guest role', () => {
+        (getRelaySessionUser as jest.Mock).mockReturnValue({ id: 'relay-uid', userRole: 'guest' });
+
+        expect(renderHook(() => useIsAccountGuest()).result.current).toBe(true);
+    });
+
+    it('reports a signed-in account when the relay role is anything else', () => {
+        (getRelaySessionUser as jest.Mock).mockReturnValue({ id: 'relay-uid', name: 'Me', userRole: 'user' });
+
+        expect(renderHook(() => useIsAccountGuest()).result.current).toBe(false);
+    });
+
+    // The bug this hook exists for: while a cloud is connected the ACTIVE token is the cloud's, so
+    // `useRuntimeProfile` reports the delegated cloud user's role. The relay token is untouched by
+    // the switch, so reading it keeps the answer about the account.
+    it('ignores the active session and answers from the relay token', () => {
+        (getRelaySessionUser as jest.Mock).mockReturnValue({ id: 'relay-uid', name: 'Me', userRole: 'user' });
+
+        expect(renderHook(() => useIsAccountGuest()).result.current).toBe(false);
+        expect(getRelaySessionUser).toHaveBeenCalled();
+    });
+
+    // Safe direction: the guest card invites a sign-in, while the signed-in card would render a
+    // profile row with no name in it.
+    it('treats a missing relay account as a guest', () => {
+        (getRelaySessionUser as jest.Mock).mockReturnValue(null);
+
+        expect(renderHook(() => useIsAccountGuest()).result.current).toBe(true);
+    });
+
+    it('treats an account with no role yet as a signed-in one, not a guest', () => {
+        (getRelaySessionUser as jest.Mock).mockReturnValue({ id: 'relay-uid', name: 'Me' });
+
+        expect(renderHook(() => useIsAccountGuest()).result.current).toBe(false);
     });
 });

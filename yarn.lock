@@ -3492,10 +3492,10 @@
   dependencies:
     lemon-model "^1.1.1"
 
-"@lemoncloud/chatic-socials-api@^0.26.721":
-  version "0.26.721"
-  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-socials-api/-/chatic-socials-api-0.26.721.tgz#65ed0b0dbf125e887fcc85edbe2699c153a963ab"
-  integrity sha512-ix468CxsRuKo4vRYKErhkv54DmzALZ64L4InApctM49PMxv2kB0BL+z4mq2sDXhI5lNT3n1nwWhHpc92o1brAA==
+"@lemoncloud/chatic-socials-api@^0.26.810":
+  version "0.26.810"
+  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-socials-api/-/chatic-socials-api-0.26.810.tgz#6d8cfd5d478737c51efa488bd9f6ac61c99d2e6a"
+  integrity sha512-cbsid3d2dxhoHpl15ZPrXAe6ub2aKbm0DOcW0NE1e/IGOk+FdJzM6aKfZq8N+c4hLIxQE/dJT+TNmnbVqMY80Q==
   dependencies:
     lemon-model "^1.1.1"
 

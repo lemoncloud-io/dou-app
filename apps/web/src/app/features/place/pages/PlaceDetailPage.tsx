@@ -15,9 +15,9 @@ import type { MySiteView } from '@lemoncloud/chatic-backend-api';
 const OWNER_AVATAR_SIZE = 36;
 
 /**
- * Place information — read-only. Shows the place avatar and its name; a cloud place also shows when
- * it was created and who owns it. Reached from the settings hub by everyone, owner or not; the
- * writable twin is {@link PlaceEditPage}.
+ * Place information — read-only. Shows the place avatar, its name and its introduction text; a cloud
+ * place also shows when it was created and who owns it. Reached from the settings hub by everyone,
+ * owner or not; the writable twin is {@link PlaceEditPage}.
  *
  * The relay only ever has the one place — its default place, DoU Home — so it is not "someone else's
  * place I was invited into" the way a cloud place can be, and product decided its screen is the owner
@@ -26,6 +26,9 @@ const OWNER_AVATAR_SIZE = 36;
  * either wrong or empty. A cloud place keeps the general rule: `isOwner` picks the name label (a
  * missing field counts as non-owner, matching the hub), and every fact row is conditional on the
  * server having actually sent it.
+ *
+ * The introduction row is the one fact that does NOT follow that relay carve-out: product asked for
+ * it on every place, DoU Home included, so it is gated on the value alone. See ADR-0074.
  */
 export const PlaceDetailPage = () => {
     const { t, i18n } = useTranslation();
@@ -48,7 +51,7 @@ export const PlaceDetailPage = () => {
 
     if (!place) {
         return (
-            <div className="flex h-full flex-col bg-background pt-safe-top">
+            <div className="flex h-full flex-col bg-background">
                 <PageHeader title={title} />
                 <div className="flex flex-1 items-center justify-center">
                     <Text className="text-muted-foreground">{t('placeDetail.notFound')}</Text>
@@ -78,7 +81,7 @@ export const PlaceDetailPage = () => {
             : null;
 
     return (
-        <div className="flex h-full flex-col bg-background pt-safe-top">
+        <div className="flex h-full flex-col bg-background">
             <PageHeader title={title} />
             <div className="flex flex-1 flex-col gap-8 overflow-y-auto py-10">
                 <div className="flex flex-col items-center px-[18px]">
@@ -87,6 +90,17 @@ export const PlaceDetailPage = () => {
 
                 <div className="flex flex-col gap-6">
                     <InfoField label={t(nameLabel)}>{displayName}</InfoField>
+
+                    {/* No `isHomePlace` branch, unlike the two rows below — the introduction shows on
+                        every place. An empty string is falsy, so clearing it removes the row, which is
+                        the same "don't state what the server didn't send" rule the others follow. */}
+                    {place.desc && (
+                        <InfoField label={t('placeDetail.descLabel')}>
+                            <Text variant="body" className="whitespace-pre-wrap text-foreground">
+                                {place.desc}
+                            </Text>
+                        </InfoField>
+                    )}
 
                     {createdAt && <InfoField label={t('placeDetail.createdAtLabel')}>{createdAt}</InfoField>}
 

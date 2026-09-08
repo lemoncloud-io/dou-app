@@ -7,6 +7,7 @@ import type {
     WebMessageData,
     WebMessageResponse,
     WebMessageType,
+    ClearCacheDataByChannelPayload,
     ClearCacheDataPayload,
     DeleteAllCacheDataPayload,
     DeleteCacheDataPayload,
@@ -26,7 +27,7 @@ import { stableHash, withCacheMeta } from '@chatic/data';
 import { BaseDbAdapter } from '../base/BaseDbAdapter';
 import { type NativeCacheOperation, recordNativeCacheOperation } from './nativeCacheMetrics';
 
-/** 브릿지 메시지 → 계측 연산명. 이 어댑터가 보내는 9종이 전부입니다. */
+/** 브릿지 메시지 → 계측 연산명. 이 어댑터가 보내는 10종이 전부입니다. */
 const OPERATION_BY_MESSAGE: Record<string, NativeCacheOperation> = {
     SaveCacheData: 'save',
     SaveAllCacheData: 'saveAll',
@@ -37,6 +38,7 @@ const OPERATION_BY_MESSAGE: Record<string, NativeCacheOperation> = {
     DeleteCacheData: 'delete',
     DeleteAllCacheData: 'deleteAll',
     ClearCacheData: 'clearAll',
+    ClearCacheDataByChannel: 'clearByChannel',
 };
 
 /**
@@ -69,6 +71,20 @@ let lastChatsUnsupported = false;
 /** 테스트 seam — 배운 폴백 상태를 되돌립니다. */
 export const resetNativeLastChatsSupport = (): void => {
     lastChatsUnsupported = false;
+};
+
+/**
+ * `ClearCacheDataByChannel`(ADR-0067)을 모르는 앱 빌드가 설치되어 있는가.
+ *
+ * 위 둘과 같은 근거의 모듈 스코프 학습 플래그입니다. 다만 폴백의 성격이 다릅니다 — 읽기는 못 하면
+ * 빈손으로 돌아가면 되지만 삭제는 반드시 일어나야 하므로, 여기서는 `super`의 읽고-지우는 경로로
+ * 실제로 내려가 같은 일을 마칩니다.
+ */
+let clearByChannelUnsupported = false;
+
+/** 테스트 seam — 배운 폴백 상태를 되돌립니다. */
+export const resetNativeClearByChannelSupport = (): void => {
+    clearByChannelUnsupported = false;
 };
 
 /**
@@ -324,5 +340,49 @@ export class NativeDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTyp
                 uid: scope.uid,
             } as Extract<ClearCacheDataPayload, { type: TType }>,
         });
+    }
+
+    /**
+     * 한 채널의 행을 네이티브에서 바로 지웁니다 (ADR-0067) — `channel_id` 조건 하나짜리 DELETE라
+     * 왕복 1회, 페이로드 0입니다.
+     *
+     * 이 메시지를 모르는 구버전 앱은 `NOT_FOUND`로 거절하므로, 그걸 1회 학습하고 `super`의
+     * 읽고-지우는 경로로 내려갑니다. 그쪽도 `channelId`로 좁혀 읽으므로(base 참조) 폴백이
+     * 테이블 전체를 끌어오지는 않습니다.
+     *
+     * 그 외 실패(타임아웃 등)는 학습하지 않고 던집니다 — 삭제는 읽기와 달리 "이번엔 못 했다"를
+     * 조용히 삼키면 안 되고, 호출자가 그 실패를 어떻게 다룰지 정합니다.
+     *
+     * 다만 네이티브가 **거절 대신 `success: false`로 답하는 경우**(SQL 오류)는 여기서 구분하지
+     * 않습니다 — 이 어댑터의 다른 쓰기 경로도 그렇습니다. 남은 행은 `isInJoinWindow`가 화면에서
+     * 가리므로 사용자에게 보이는 결과는 같고, 같은 DB에 폴백을 한 번 더 태워봐야 같은 이유로
+     * 실패할 뿐입니다.
+     */
+    override async clearByChannelId(channelId: string): Promise<void> {
+        if (clearByChannelUnsupported) return super.clearByChannelId(channelId);
+
+        const scope = this.getScope();
+        try {
+            await this.send({
+                type: 'ClearCacheDataByChannel',
+                data: {
+                    type: this.type,
+                    cid: scope.cid,
+                    uid: scope.uid,
+                    channelId,
+                } as Extract<ClearCacheDataByChannelPayload, { type: TType }>,
+            });
+        } catch (error) {
+            if ((error as { code?: string })?.code !== 'NOT_FOUND') throw error;
+            clearByChannelUnsupported = true;
+            logger.info(
+                'CACHE',
+                '[NativeDBAdapter] channel-scoped clear unsupported by this app build — falling back',
+                {
+                    data: { type: this.type },
+                }
+            );
+            await super.clearByChannelId(channelId);
+        }
     }
 }

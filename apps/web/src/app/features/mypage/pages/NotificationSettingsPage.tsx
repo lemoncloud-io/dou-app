@@ -18,8 +18,13 @@ export const NotificationSettingsPage = () => {
     const { blurLastMessage, setBlurLastMessage } = usePreferenceStore();
 
     return (
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-background pt-safe-top">
-            <PageHeader title={t('mypage.notificationSettings')} />
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-background">
+            {/* The page itself is the scrollport, so the bar has to stick: left in the flow it
+                would scroll away and take the frosted notch strip with it, and the rows passing
+                the status bar would pass it unblurred. */}
+            <div className="sticky top-0 z-20 shrink-0">
+                <PageHeader title={t('mypage.notificationSettings')} />
+            </div>
 
             <div className="flex flex-col gap-[18px] px-4 pb-8 pt-4">
                 <MenuCard>

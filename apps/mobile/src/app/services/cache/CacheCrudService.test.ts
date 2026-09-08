@@ -15,6 +15,7 @@ const makeDataSourceMock = (): jest.Mocked<AnyDataSource> =>
         remove: jest.fn(),
         removeAll: jest.fn(),
         clear: jest.fn(),
+        clearByChannel: jest.fn(),
     }) as any;
 
 const makeLoggerMock = (): ILogService =>
@@ -49,7 +50,7 @@ const setup = () => {
         meta,
         invite
     );
-    return { service, profile, meta, user, invite };
+    return { service, chat, profile, meta, user, invite };
 };
 
 describe('CacheCrudService — profile/meta 라우팅', () => {
@@ -201,5 +202,33 @@ describe('CacheCrudService — fetchMany', () => {
         profile.fetchMany!.mockRejectedValueOnce(new Error('sqlite exploded'));
 
         await expect(service.fetchMany({ type: 'profile', ids: ['s1@u1'] })).resolves.toEqual([]);
+    });
+});
+
+describe('CacheCrudService.clearByChannel (ADR-0067)', () => {
+    it('chat은 chatDataSource.clearByChannel로 위임한다', async () => {
+        const { service, chat } = setup();
+
+        await service.clearByChannel({ type: 'chat', channelId: 'ch-1', cid: 'c1', uid: 'u1' });
+
+        expect(chat.clearByChannel).toHaveBeenCalledWith('ch-1', 'c1', 'u1');
+    });
+
+    it('chat 외의 타입은 거부한다', async () => {
+        const { service } = setup();
+
+        // clear와 달리 오류를 삼키지 않는다 — 웹이 "지워졌다"고 잘못 믿으면 안 된다.
+        await expect(service.clearByChannel({ type: 'user', channelId: 'ch-1' })).rejects.toThrow(
+            'clearByChannel is not supported for type: user'
+        );
+    });
+
+    it('빈 channelId도 거부한다 — 조용한 성공이 되면 안 된다', async () => {
+        const { service, chat } = setup();
+
+        await expect(service.clearByChannel({ type: 'chat', channelId: '' })).rejects.toThrow(
+            'clearByChannel requires a channelId'
+        );
+        expect(chat.clearByChannel).not.toHaveBeenCalled();
     });
 });

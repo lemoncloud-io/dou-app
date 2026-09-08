@@ -10,10 +10,15 @@ import type {
     ChannelUpdateInput,
 } from '@lemoncloud/chatic-sockets-api/dist/lib/channel/types';
 import type { UnreadsSummaryView } from '@lemoncloud/chatic-socials-api';
+import { logger } from '@chatic/bridges';
 import type { DomainChannel, DomainChannelListPayload, DomainListResult } from '../domain';
-import type { IChannelLocalDataSourceV2, LocalDataSourceV2ContextOverride } from '../local/data-sources-v2';
+import type {
+    IChannelLocalDataSourceV2,
+    IChatLocalDataSourceV2,
+    LocalDataSourceV2ContextOverride,
+} from '../local/data-sources-v2';
 import type { IChannelSocketDataSource } from '../remote/socket-data-sources';
-import type { DataContextProvider } from './types';
+import type { DataContext, DataContextProvider } from './types';
 import { BaseRepositoryV2, type DisposableRepositoryV2 } from './types';
 import { isForeignContext } from './scopeGuards';
 
@@ -60,16 +65,65 @@ export interface IChannelRepositoryV2 extends DisposableRepositoryV2 {
     cacheClear(): Promise<void>;
 }
 
+/**
+ * How long a just-left channel stays barred from re-entering the cache.
+ *
+ * The guard exists for ONE race: a `refreshList`/`syncChannels` request issued before the leave
+ * answers after it, and its snapshot still contains the channel I just removed. That window is the
+ * lifetime of one in-flight request, so the guard is bounded by it.
+ *
+ * It must NOT outlive that. Held forever (as it was), the id also blocks the channel from coming
+ * BACK — being re-invited leaves the room invisible until the next reload, because both ingestion
+ * paths filter against this set and the repository instance lives for the whole session
+ * (`DataManager` builds it once and only swaps context). ADR-0067.
+ */
+const LEFT_CHANNEL_GUARD_MS = 10_000;
+
 /** Orchestrates channel list/detail caching and derived state updates for the active context. */
 export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRepositoryV2 {
-    private readonly leftChannelIds = new Set<string>();
+    /** channelId → the moment its leave guard lapses (see {@link LEFT_CHANNEL_GUARD_MS}). */
+    private readonly leftChannelGuards = new Map<string, number>();
 
     constructor(
         private readonly channelSocketDataSource: IChannelSocketDataSource,
         private readonly channelLocalDataSource: IChannelLocalDataSourceV2,
+        // Leaving a room has to clear that room's messages too, and they live in the chat cache —
+        // the same cross-domain wiring UserRepositoryV2 uses for join/place (ADR-0067).
+        private readonly chatLocalDataSource: IChatLocalDataSourceV2,
         contextProvider: DataContextProvider
     ) {
         super(contextProvider);
+    }
+
+    /**
+     * Drop the channel's cached messages once I am confirmed out of it.
+     *
+     * Called only AFTER the remote leave succeeds, never optimistically: the channel row is cheap to
+     * restore on failure (the server re-serves it) but messages are not — the feed is windowed by
+     * `joinedNo`, so history dropped in error is gone for good. ADR-0067.
+     *
+     * A failure here does not fail the leave. The leave already happened; the worst case is cache
+     * rows that outlive their room, and `isInJoinWindow` keeps those off every screen that could
+     * show them. Reporting a completed leave as failed would be the bigger lie.
+     */
+    private async purgeChatHistory(channelId: string, requestContext: DataContext): Promise<void> {
+        try {
+            await this.chatLocalDataSource.cacheClearByChannelId(channelId, requestContext);
+        } catch (error) {
+            logger.warn('CACHE', '[ChannelRepositoryV2] leaving a channel could not clear its chat cache', {
+                error,
+                data: { channelId },
+            });
+        }
+    }
+
+    /** Whether the leave guard on this channel is still standing; lapsed entries are dropped here. */
+    private isGuardedAfterLeave(channelId: string): boolean {
+        const until = this.leftChannelGuards.get(channelId);
+        if (until === undefined) return false;
+        if (Date.now() < until) return true;
+        this.leftChannelGuards.delete(channelId);
+        return false;
     }
 
     public observeList(
@@ -140,7 +194,7 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
         // An id-less row cannot be keyed, so it is dropped here rather than passed on for
         // `cacheWriteMany` to filter: it would otherwise still count toward `domainList.length` below
         // and let a response carrying nothing usable authorize the prune.
-        const domainList = (remote.list || []).filter(item => !!item.id && !this.leftChannelIds.has(item.id));
+        const domainList = (remote.list || []).filter(item => !!item.id && !this.isGuardedAfterLeave(item.id));
 
         // Nothing usable came back — leave the cache entirely alone. Right after a switch the socket
         // is bound to the new cloud but its session/site may not be ready, so `channel.mine` answers
@@ -183,7 +237,7 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
         const remote = await this.channelSocketDataSource.syncChannel({ since }, { ...normalizedContext, sid: '' });
 
         const domainList = (remote.list || []).filter(
-            item => !!item.$?.sid && !!item.id && !this.leftChannelIds.has(item.id)
+            item => !!item.$?.sid && !!item.id && !this.isGuardedAfterLeave(item.id)
         );
 
         if (domainList.length > 0) {
@@ -298,7 +352,7 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
         const normalizedContext = this.getNormalizedContext(requestContext);
         const existing = channelId ? await this.channelLocalDataSource.cacheRead(channelId, requestContext) : null;
         if (isSelfLeave && channelId) {
-            this.leftChannelIds.add(channelId);
+            this.leftChannelGuards.set(channelId, Date.now() + LEFT_CHANNEL_GUARD_MS);
             await this.channelLocalDataSource.cacheDelete(channelId, requestContext);
         }
 
@@ -310,10 +364,11 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
                 const memberIds = (domain.memberIds ?? existing?.memberIds ?? []).filter(id => id !== payload.userId);
                 await this.channelLocalDataSource.cacheWrite({ ...domain, memberIds }, requestContext);
             }
+            if (isSelfLeave && channelId) await this.purgeChatHistory(channelId, requestContext);
             return domain;
         } catch (error) {
             if (isSelfLeave && channelId) {
-                this.leftChannelIds.delete(channelId);
+                this.leftChannelGuards.delete(channelId);
                 if (existing) {
                     await this.channelLocalDataSource.cacheWrite(existing, requestContext);
                 }

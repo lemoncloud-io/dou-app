@@ -288,3 +288,44 @@ describe('useSearchContext', () => {
         expect(result.current.channels[0].placeName).toBeUndefined();
     });
 });
+
+describe('useSearchContext — 재입장 이력 숨기기 (ADR-0067)', () => {
+    it('joinedNo 이하의 메시지 결과와 채널 프리뷰를 모두 뺀다', async () => {
+        // The global scan reads the chat table whole, so rooms I left still match. Before this
+        // window they surfaced as results with no channel name attached.
+        const input = results({
+            channels: [{ id: 'ch-left', cid: 'cloud-a', sid: 'site-1', name: 'Lounge' }] as any,
+            messages: [
+                { id: 'chat-old', cid: 'cloud-a', channelId: 'ch-left', chatNo: 3, content: '옛 대화' },
+                { id: 'chat-new', cid: 'cloud-a', channelId: 'ch-left', chatNo: 9, content: '새 대화' },
+            ] as any,
+        });
+        resolveContext.mockResolvedValue({
+            ...EMPTY_CONTEXT,
+            channelsByRef: { 'cloud-a:ch-left': { id: 'ch-left', sid: 'site-1', name: 'Lounge' } },
+            joinsByRef: { 'cloud-a:ch-left': { channelId: 'ch-left', joinedNo: 7, chatNo: 9 } },
+            lastChatsByRef: { 'cloud-a:ch-left': { id: 'chat-old', chatNo: 3, content: '옛 대화' } },
+        });
+
+        const { result } = renderHook(() => useSearchContext(input));
+
+        await waitFor(() => expect(result.current.chats).toHaveLength(1));
+        expect(result.current.chats[0].chatId).toBe('chat-new');
+        expect(result.current.channels[0].lastMessage).toBeUndefined();
+    });
+
+    it('joinedNo가 없으면 아무것도 숨기지 않는다', async () => {
+        const input = results({
+            messages: [{ id: 'chat-old', cid: 'cloud-a', channelId: 'ch-1', chatNo: 3, content: 'hi' }] as any,
+        });
+        resolveContext.mockResolvedValue({
+            ...EMPTY_CONTEXT,
+            joinsByRef: { 'cloud-a:ch-1': { channelId: 'ch-1', chatNo: 9 } },
+        });
+
+        const { result } = renderHook(() => useSearchContext(input));
+
+        await waitFor(() => expect(result.current.chats).toHaveLength(1));
+        expect(result.current.chats.map(row => row.chatId)).toEqual(['chat-old']);
+    });
+});

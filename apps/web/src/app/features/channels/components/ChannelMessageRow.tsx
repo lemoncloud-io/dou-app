@@ -11,6 +11,7 @@ import type { ReactionTally } from '../utils/foldReactions';
 import type { ThreadMeta } from '../utils/buildThread';
 import { extractFirstUrl } from '../utils/messageTokens';
 import { openExternalUrl } from '../utils/openExternalUrl';
+import { MessageAttachment } from './MessageAttachment';
 import { MessageCodeBlock } from './MessageCodeBlock';
 import { MessageText } from './MessageText';
 import { MessageLinkPreview } from './MessageLinkPreview';
@@ -357,6 +358,9 @@ export const ChannelMessageRow = ({
                 content, reactions and the thread footer comment on it. All three sit outside the
                 long-press target — inside it the gesture would eat taps on the card — so each
                 becomes its own row in MessageRow's column, inheriting the 75% cap and side. */}
+            {/* Before the unfurl card: `attach$` IS the sender's structured body, while the unfurl
+                is something we derived from a URL we found in the text. */}
+            <MessageAttachment attach={message.attach$} />
             {previewUrl && <MessageLinkPreview url={previewUrl} />}
             {tallies && tallies.length > 0 && onToggleReaction && (
                 <ReactionChips

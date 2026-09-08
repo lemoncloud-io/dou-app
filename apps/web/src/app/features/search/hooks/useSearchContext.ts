@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import { globalCacheRefKey, useGlobalCacheSearch } from '@chatic/app-runtime';
+import { isInJoinWindow } from '@chatic/data';
 import type { GlobalCacheContext, GlobalCacheRef } from '@chatic/data';
 import { logger } from '@chatic/bridges';
 
@@ -138,10 +139,14 @@ export const useSearchContext = (results: GlobalSearchResults): SearchResultRows
     const senderRefs = useMemo<SenderProfileRef[]>(
         () =>
             results.messages.flatMap(chat => {
-                const sid = context.channelsByRef[globalCacheRefKey(chat.cid, chat.channelId)]?.sid;
+                const ref = globalCacheRefKey(chat.cid, chat.channelId);
+                // Same window the rows below apply — a message that will be dropped must not cost a
+                // profile read (ADR-0067).
+                if (!isInJoinWindow(chat, context.joinsByRef[ref]?.joinedNo)) return [];
+                const sid = context.channelsByRef[ref]?.sid;
                 return sid && chat.ownerId ? [{ sid, userId: chat.ownerId }] : [];
             }),
-        [results.messages, context.channelsByRef]
+        [results.messages, context.channelsByRef, context.joinsByRef]
     );
     const senderProfiles = useSenderProfiles(senderRefs);
 
@@ -159,7 +164,11 @@ export const useSearchContext = (results: GlobalSearchResults): SearchResultRows
             })),
             channels: results.channels.map(channel => {
                 const ref = globalCacheRefKey(channel.cid, channel.id);
-                const lastChat = context.lastChatsByRef[ref];
+                const cached = context.lastChatsByRef[ref];
+                // Same window as the message rows below: a preview from before my current
+                // membership must not survive into search either (ADR-0067).
+                const lastChat =
+                    cached && isInJoinWindow(cached, context.joinsByRef[ref]?.joinedNo) ? cached : undefined;
                 return {
                     cid: channel.cid,
                     sid: channel.sid,
@@ -178,29 +187,37 @@ export const useSearchContext = (results: GlobalSearchResults): SearchResultRows
                     placeName: placeName(channel.cid, channel.sid),
                 };
             }),
-            chats: results.messages.map(chat => {
-                // A chat row has no sid of its own — its place comes via the owning channel, and the
-                // author's display profile is scoped to that place.
-                const owner = context.channelsByRef[globalCacheRefKey(chat.cid, chat.channelId)];
-                const profile =
-                    owner?.sid && chat.ownerId ? senderProfiles.get(`${owner.sid}@${chat.ownerId}`) : undefined;
-                return {
-                    cid: chat.cid,
-                    sid: owner?.sid,
-                    chatId: chat.id,
-                    channelId: chat.channelId,
-                    chatNo: chat.chatNo,
-                    // The row shows this and `SearchPage` highlights the query inside it, so a
-                    // Block Kit body has to arrive flattened — a match inside a block's text is
-                    // still a match the reader should be able to see.
-                    content: messagePlainText(chat.content),
-                    createdAt: chat.createdAtMs,
-                    channelName: owner?.name,
-                    placeName: placeName(chat.cid, owner?.sid),
-                    senderName: profile?.nick,
-                    senderThumbnail: profile?.thumbnail,
-                };
-            }),
+            chats: results.messages
+                // The cache keeps a channel's messages after I leave it (the chat sync plan has no
+                // onRemove), and the global scan reads the chat table whole — so without this
+                // window, messages from rooms I am no longer in surface as results, historically
+                // with no channel name attached (ADR-0067).
+                .filter(chat =>
+                    isInJoinWindow(chat, context.joinsByRef[globalCacheRefKey(chat.cid, chat.channelId)]?.joinedNo)
+                )
+                .map(chat => {
+                    // A chat row has no sid of its own — its place comes via the owning channel, and the
+                    // author's display profile is scoped to that place.
+                    const owner = context.channelsByRef[globalCacheRefKey(chat.cid, chat.channelId)];
+                    const profile =
+                        owner?.sid && chat.ownerId ? senderProfiles.get(`${owner.sid}@${chat.ownerId}`) : undefined;
+                    return {
+                        cid: chat.cid,
+                        sid: owner?.sid,
+                        chatId: chat.id,
+                        channelId: chat.channelId,
+                        chatNo: chat.chatNo,
+                        // The row shows this and `SearchPage` highlights the query inside it, so a
+                        // Block Kit body has to arrive flattened — a match inside a block's text is
+                        // still a match the reader should be able to see.
+                        content: messagePlainText(chat.content),
+                        createdAt: chat.createdAtMs,
+                        channelName: owner?.name,
+                        placeName: placeName(chat.cid, owner?.sid),
+                        senderName: profile?.nick,
+                        senderThumbnail: profile?.thumbnail,
+                    };
+                }),
         };
     }, [results, context, senderProfiles]);
 };

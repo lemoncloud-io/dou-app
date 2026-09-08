@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useLocation, useParams } from 'react-router-dom';
 
 import { logger } from '@chatic/bridges';
+import { useRuntimeProfile } from '@chatic/app-runtime';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { DefaultAvatar, Divider, GroupLabel, ImageAvatar, ListRow, Switch } from '@chatic/web-ui-kit';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
@@ -26,11 +27,14 @@ import {
     useChannelMutations,
     useChannelProfiles,
     useChannelTitle,
+    useDmInviteState,
     useDmPeer,
     useJoinMutations,
 } from '../hooks';
 import { resolveChannelAvatar } from '../lib';
 import { getRoomDistance } from '../utils/roomDistance';
+import { canReinviteDm } from '../utils/dmInviteState';
+import { hasLeftChannel } from '../utils/membership';
 import { ROUTES } from '../../../routes/paths';
 
 type DialogType = 'update' | 'delete' | 'leave' | 'profile' | 'profileSettings' | 'profileCreate' | 'joinNick' | null;
@@ -54,6 +58,8 @@ export const ChannelSettingsPage = () => {
     const { toast } = useToast();
 
     const { userId } = useSessionIdentity();
+    // Issuing a relay invite takes a main user, so a device user never gets the re-invite CTA.
+    const { isGuest } = useRuntimeProfile();
 
     const { channel, isError } = useChannel(channelId ?? null);
     const activePlaceName = useActivePlaceName();
@@ -69,6 +75,9 @@ export const ChannelSettingsPage = () => {
         // an empty "방 친구", since its one member has no user-cache row to be found by.
         memberIds: channel?.memberIds,
         joins,
+        // 1:1 only — "방 친구" keeps the peer with a "대화방 나감" line instead of emptying out
+        // (Figma 4052-12242). Read inline: `isDmChat` is derived after the early returns below.
+        keepLeftMembers: channel?.stereo === 'dm',
     });
 
     const { leaveChannel, deleteChannel, isPending } = useChannelMutations();
@@ -141,6 +150,15 @@ export const ChannelSettingsPage = () => {
     const dmPeer = useDmPeer(channel, members, profileMap, userId);
     // The same chain the room header and the home list use — settings must not invent a third one.
     const roomTitle = useChannelTitle(channel, { joinNick: myJoin?.nick, peerNick: dmPeer?.profileNick });
+    // The same derivation the room's footer runs, so the friend sheet's "대화방 나감" line and its
+    // re-invite prefill cannot disagree with what the room just said. Stands itself down for every
+    // non-DM channel, so a group's settings screen reads no invites.
+    const { state: dmInviteState, resolveReinvitePrefill } = useDmInviteState({
+        channelId: channelId ?? null,
+        isDm: channel?.stereo === 'dm',
+        peerId: dmPeer?.id,
+        joins,
+    });
 
     const openDialog = (type: DialogType) => setActiveDialog(type);
     const closeDialog = () => setActiveDialog(null);
@@ -251,6 +269,9 @@ export const ChannelSettingsPage = () => {
                     isMe={memberId === userId}
                     isOwner={memberId === channel?.ownerId}
                     needsProfileSetup={needsProfileSetup}
+                    // Only a DM keeps departed members in this list at all (see useChannelMembers),
+                    // so this reads false everywhere else without needing the stereo here.
+                    hasLeft={hasLeftChannel(member.$join)}
                     // With no profile, skip the member-profile sheet and go straight to creating one —
                     // that sheet's only self action is "프로필 설정" anyway, so it would be a dead tap.
                     onClick={() => (needsProfileSetup ? openDialog('profileCreate') : openMemberProfile(memberView))}
@@ -264,7 +285,7 @@ export const ChannelSettingsPage = () => {
     );
 
     return (
-        <div className="flex h-full flex-col bg-background pt-safe-top">
+        <div className="flex h-full flex-col bg-background">
             <PageHeader title={t('chat.settings.title')} />
 
             {/* Content — scrolls when the member list grows past the viewport. */}
@@ -324,12 +345,15 @@ export const ChannelSettingsPage = () => {
                         )}
                         {memberList}
 
-                        {/* Destructive action — owner deletes the room, members leave it. */}
+                        {/* Destructive action — owner deletes the room, members leave it. A DM has no
+                            delete at ALL, not even for the inviter: re-inviting needs the room to
+                            still be there, and letting one side erase it takes that away (ADR-0068
+                            결정 7, reversing ADR-0032's reuse of the ownership branch here). */}
                         <Divider variant="block" className="my-2" />
                         <ListRow
                             destructive
-                            title={isOwner ? t('chat.settings.deleteRoom') : t('chat.settings.leaveRoom')}
-                            onClick={() => openDialog(isOwner ? 'delete' : 'leave')}
+                            title={isOwner && !isDmChat ? t('chat.settings.deleteRoom') : t('chat.settings.leaveRoom')}
+                            onClick={() => openDialog(isOwner && !isDmChat ? 'delete' : 'leave')}
                         />
                     </>
                 )}
@@ -351,6 +375,28 @@ export const ChannelSettingsPage = () => {
                 channelId={channelId}
                 variant={isSelfChat ? 'self' : 'dm'}
                 fallbackName={isSelfChat ? undefined : dmPeer?.profileNick || channel?.name || t('chat.dm.unnamedPeer')}
+                peerThumbnail={dmPeer?.thumbnail}
+                peerHasLeft={dmInviteState.kind !== 'present'}
+                // Two gates, both shared with the room's footer so the two surfaces cannot offer
+                // different things: issuing takes a main user (the server answers 403 for anyone
+                // else, ADR-0034), and there is nothing to re-invite while the peer is here or a
+                // live code is already out (`canReinviteDm`).
+                onReinvite={
+                    isDmChat && !isGuest && channelId && canReinviteDm(dmInviteState)
+                        ? () => {
+                              const prefill = resolveReinvitePrefill();
+                              navigate(ROUTES.invite.contact, {
+                                  state: {
+                                      reinvite: {
+                                          channelId,
+                                          name: prefill.name ?? dmPeer?.profileNick,
+                                          phone: prefill.phone,
+                                      },
+                                  },
+                              });
+                          }
+                        : undefined
+                }
             />
             <ConfirmDialog
                 open={activeDialog === 'delete'}
@@ -362,12 +408,17 @@ export const ChannelSettingsPage = () => {
                 isPending={isPending.delete}
                 variant="danger"
             />
+            {/* A 1:1 says so, and says what leaving costs in its own terms (Figma 4068-16586) — the
+                group copy talks about needing a new invite, which is not the point when the room is
+                one other person. */}
             <ConfirmDialog
                 open={activeDialog === 'leave'}
                 onOpenChange={open => (open ? openDialog('leave') : closeDialog())}
-                title={t('chat.settings.leaveDialog.title')}
-                description={t('chat.settings.leaveDialog.description')}
-                confirmLabel={t('chat.settings.leaveDialog.confirm')}
+                title={t(isDmChat ? 'chat.settings.dmLeaveDialog.title' : 'chat.settings.leaveDialog.title')}
+                description={t(
+                    isDmChat ? 'chat.settings.dmLeaveDialog.description' : 'chat.settings.leaveDialog.description'
+                )}
+                confirmLabel={t(isDmChat ? 'chat.settings.dmLeaveDialog.confirm' : 'chat.settings.leaveDialog.confirm')}
                 onConfirm={handleLeaveRoom}
                 isPending={isPending.leave}
                 variant="warning"

@@ -486,4 +486,26 @@ export class CacheCrudService implements ICacheCrudService {
             this.logService.error('CACHE', `Clear error for type: ${payload.type}`, error as Error);
         }
     }
+
+    /**
+     * 한 채널의 행만 지웁니다 (ADR-0067). 방을 나가면 그 방의 메시지도 함께 사라져야 하는데,
+     * 스코프 전체를 지우는 `clear`로는 그걸 표현할 수 없다.
+     *
+     * chat만 받는다. `channel_id` 추출 컬럼은 join에도 있지만 웹이 join으로 이 메시지를 보내는
+     * 경로가 없어서, 생기면 그때 arm을 하나 더 연다.
+     *
+     * `clear`와 달리 오류를 삼키지 않는다 — 호출자(핸들러)가 응답의 `success`로 실패를 알려야
+     * 웹이 "지워졌다"고 잘못 믿지 않는다. 같은 이유로 빈 channelId도 조용히 넘기지 않는다.
+     */
+    public async clearByChannel<K extends CacheType>(payload: {
+        type: K;
+        channelId: string;
+        cid?: string;
+        uid?: string;
+    }): Promise<void> {
+        const { type, channelId, cid, uid } = payload;
+        if (!channelId) throw new Error('clearByChannel requires a channelId');
+        if (type !== 'chat') throw new Error(`clearByChannel is not supported for type: ${type}`);
+        await this.chatDataSource.clearByChannel(channelId, cid, uid);
+    }
 }

@@ -133,8 +133,21 @@ export const createSyncPlans = (): DomainSyncPlan[] => {
             // read-state observers (home unread, room read positions) stop counting it.
             onRemove: target => {
                 if (!target.id) return;
-                const { join } = getRepositories();
+                const { join, chat } = getRepositories();
                 void join.cacheDelete(target.id);
+
+                // When the dropped row is MINE, I am out of that room and its cached messages must
+                // go with it (ADR-0067). `leaveChannel` covers only the leave I initiate here; a
+                // kick or a leave from another device arrives as this removal and nothing else.
+                // Checked after the tombstone above, and only for the purge: clearing messages is
+                // not undoable, so a frame from a socket that outlived its cloud must not aim it at
+                // the live cloud's partition.
+                if (dropForeignFrame()) return;
+                const separator = target.id.lastIndexOf('@');
+                if (separator <= 0) return;
+                const channelId = target.id.slice(0, separator);
+                const userId = target.id.slice(separator + 1);
+                if (userId && userId === getContext().uid) void chat.cacheClearByChannelId(channelId);
             },
         }),
     ];

@@ -85,6 +85,10 @@ export const ProfileEditPage = () => {
     return (
         <KeyboardAwareLayout
             className={fixedViewportScreen}
+            // PageHeader frosts its own notch strip, so the scaffold must not pad above it —
+            // that would push the glass down and leave the inset bare, with the body
+            // scrolling through it unblurred.
+            headerSafeArea={false}
             header={<PageHeader title={t('profileEdit.title')} />}
             footer={
                 <FloatingButton

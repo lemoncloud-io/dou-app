@@ -8,6 +8,8 @@ interface UpdatePlacePayload {
     sid: string;
     name?: string;
     thumbnail?: string;
+    /** Place introduction text. An empty string clears it. */
+    desc?: string;
 }
 
 export const useUpdatePlace = () => {

@@ -23,6 +23,10 @@ let profilesValue: any;
 // two are separate sources by design (they trade immediacy against safety), so a test that conflates
 // them would hide a real drift.
 let myProfileValue: any;
+/** Only a main user may issue an invite (ADR-0034), so this gates the friend sheet's re-invite CTA. */
+let mockIsGuest = false;
+/** What `useDmInviteState` reports — the friend sheet's "대화방 나감" line and the re-invite prefill. */
+let dmInviteStateValue: any;
 
 jest.mock('react-router-dom', () => ({
     useParams: () => ({ channelId: 'ch1' }),
@@ -32,8 +36,12 @@ jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k
 jest.mock('@chatic/bridges', () => ({ logger: { error: jest.fn() } }));
 jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
+// One factory for the whole module: the page reads the session identity here, and the role gate too
+// (only a main user gets the re-invite CTA). Importing the real module would load the data layer,
+// whose IndexedDB open crashes outside a browser.
 jest.mock('@chatic/app-runtime', () => ({
     useSessionIdentity: () => ({ userId: 'me' }),
+    useRuntimeProfile: () => ({ isGuest: mockIsGuest }),
 }));
 
 // Avoid pulling the ui barrel (which imports @chatic/assets, unmapped in jest).
@@ -104,6 +112,8 @@ jest.mock('../components/JoinNickDialog', () => ({
             data-testid={p.variant === 'dm' ? 'dm-name' : 'self-name'}
             data-open={String(p.open)}
             data-fallback={p.fallbackName ?? ''}
+            data-left={String(p.peerHasLeft ?? false)}
+            data-reinvite={p.onReinvite ? 'on' : 'off'}
         />
     ),
 }));
@@ -178,6 +188,8 @@ beforeEach(() => {
     placeCreateProps = undefined;
     profilesValue = { profileMap: new Map([['me', { nick: '내멤버프로필' }]]), hasSnapshot: true };
     myProfileValue = { profile: { nick: '내프로필' } };
+    mockIsGuest = false;
+    dmInviteStateValue = { state: { kind: 'present' }, countdown: null, resolveReinvitePrefill: () => ({}) };
 });
 
 jest.mock('../hooks', () => ({
@@ -186,6 +198,7 @@ jest.mock('../hooks', () => ({
     useChannelMutations: () => ({ leaveChannel, deleteChannel, isPending: { delete: false, leave: false } }),
     useChannelProfiles: () => profilesValue,
     useDmPeer: () => dmPeerValue,
+    useDmInviteState: () => dmInviteStateValue,
     useJoinMutations: () => ({ updateJoin, isPending: { update: false } }),
     // 방의 단일 join 관측: 내 행(닉/알림)과 로스터용 행 목록이 한 출처에서 나온다.
     useChannelJoins: () => ({
@@ -282,6 +295,60 @@ describe('ChannelSettingsPage', () => {
             render(<ChannelSettingsPage />);
 
             expect(screen.getByTestId('dm-name')).toHaveAttribute('data-fallback', '토끼');
+        });
+
+        // 상대가 방에 있는데 "다시 초대하기"를 내밀면, 눌렀을 때 이미 있는 사람에게 살아 있는
+        // 코드를 하나 더 발급한다. 방 푸터와 같은 규칙(canReinviteDm)으로 잠근다.
+        it('상대가 참여 중이면 친구 정보 시트에 재초대를 내밀지 않는다', () => {
+            channelValue = DM_CHANNEL;
+            dmPeerValue = { id: 'peer', profileNick: '토끼' };
+            render(<ChannelSettingsPage />);
+
+            expect(screen.getByTestId('dm-name')).toHaveAttribute('data-left', 'false');
+            expect(screen.getByTestId('dm-name')).toHaveAttribute('data-reinvite', 'off');
+        });
+
+        it('상대가 나갔으면 "대화방 나감"과 재초대를 넘긴다', () => {
+            channelValue = DM_CHANNEL;
+            dmPeerValue = { id: 'peer', profileNick: '토끼' };
+            dmInviteStateValue = {
+                state: { kind: 'absent' },
+                countdown: null,
+                resolveReinvitePrefill: () => ({}),
+            };
+            render(<ChannelSettingsPage />);
+
+            expect(screen.getByTestId('dm-name')).toHaveAttribute('data-left', 'true');
+            expect(screen.getByTestId('dm-name')).toHaveAttribute('data-reinvite', 'on');
+        });
+
+        // 살아 있는 초대가 하나 있는 동안에는 나갔더라도 두 번째를 만들지 않는다.
+        it('초대가 진행 중이면 나갔어도 재초대를 내밀지 않는다', () => {
+            channelValue = DM_CHANNEL;
+            dmPeerValue = { id: 'peer', profileNick: '토끼' };
+            dmInviteStateValue = {
+                state: { kind: 'pending', expiredAt: 1 },
+                countdown: null,
+                resolveReinvitePrefill: () => ({}),
+            };
+            render(<ChannelSettingsPage />);
+
+            expect(screen.getByTestId('dm-name')).toHaveAttribute('data-left', 'true');
+            expect(screen.getByTestId('dm-name')).toHaveAttribute('data-reinvite', 'off');
+        });
+
+        it('게스트는 재초대를 받지 못한다 — 발급은 메인유저만 한다', () => {
+            channelValue = DM_CHANNEL;
+            dmPeerValue = { id: 'peer', profileNick: '토끼' };
+            dmInviteStateValue = {
+                state: { kind: 'absent' },
+                countdown: null,
+                resolveReinvitePrefill: () => ({}),
+            };
+            mockIsGuest = true;
+            render(<ChannelSettingsPage />);
+
+            expect(screen.getByTestId('dm-name')).toHaveAttribute('data-reinvite', 'off');
         });
 
         it('"친구 추가" 행은 여전히 숨는다 (ADR-0032 유지)', () => {

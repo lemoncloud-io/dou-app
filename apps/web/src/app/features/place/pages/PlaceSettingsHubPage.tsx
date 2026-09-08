@@ -15,11 +15,11 @@ import type { MySiteView } from '@lemoncloud/chatic-backend-api';
 
 /**
  * Place settings hub — the landing screen reached from the home profile dropdown. Three titled
- * cards: "설정" (my profile / place profile / place information), "알림" (place push toggle) and
- * "채팅방" (chat sort / chat management). The place-profile row writes, so it is owner-only and
- * disabled for non-owners (server `isOwner` is the authority — ADR-0031); the place-information row
- * only reads, so it stays open to everyone (ADR-0047). The notification toggle is still a
- * placeholder (no backend support).
+ * cards: "설정" (my profile / place profile / place information, previewing its introduction),
+ * "알림" (place push toggle) and "채팅방" (chat sort / chat management). The place-profile row
+ * writes, so it is owner-only and disabled for non-owners (server `isOwner` is the authority —
+ * ADR-0031); the place-information row only reads, so it stays open to everyone (ADR-0047). The
+ * notification toggle is still a placeholder (no backend support).
  */
 export const PlaceSettingsHubPage = () => {
     const { t } = useTranslation();
@@ -44,7 +44,7 @@ export const PlaceSettingsHubPage = () => {
     const go = (to: string) => () => navigate(to);
 
     return (
-        <div className="flex h-full flex-col bg-background pt-safe-top">
+        <div className="flex h-full flex-col bg-background">
             <PageHeader title={t('placeSettings.title')} />
             <div className="flex flex-1 flex-col gap-[18px] overflow-y-auto px-4 py-2.5">
                 <MenuCard title={t('placeSettings.sectionSettings')}>
@@ -60,9 +60,12 @@ export const PlaceSettingsHubPage = () => {
                         disabled={!isOwner}
                         onClick={placeId ? go(ROUTES.place.settingsEdit(placeId)) : undefined}
                     />
-                    {/* Read-only, so no owner gate — a member is entitled to see whose place this is. */}
+                    {/* Read-only, so no owner gate — a member is entitled to see whose place this is.
+                        The introduction previews here as the subtitle; `ListRow` truncates it to one
+                        line on its own, so the row keeps its height whatever the place wrote. */}
                     <ListRow
                         title={t('placeSettings.placeDetail')}
+                        subtitle={place?.desc || undefined}
                         trailing={chevron}
                         onClick={placeId ? go(ROUTES.place.settingsDetail(placeId)) : undefined}
                     />

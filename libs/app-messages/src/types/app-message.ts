@@ -5,6 +5,7 @@ import type {
     OnChangeAppIconPayload,
     OnCheckAppUpdatePayload,
     OnClearAppLogBufferPayload,
+    OnClearCacheDataByChannelPayload,
     OnClearCacheDataPayload,
     OnClearTestRecordsPayload,
     OnCloseModalPayload,
@@ -158,6 +159,7 @@ export type AppMessageDataMap = {
     OnDeleteCacheData: OnDeleteCacheDataPayload;
     OnDeleteAllCacheData: OnDeleteAllCacheDataPayload;
     OnClearCacheData: OnClearCacheDataPayload;
+    OnClearCacheDataByChannel: OnClearCacheDataByChannelPayload;
     OnSearchGlobalCacheData: OnSearchGlobalCacheDataPayload;
 
     // 5. Preference

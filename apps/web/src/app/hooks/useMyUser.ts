@@ -14,7 +14,13 @@ import { getRelayAccountGateway } from '../runtime/relayAccountGateway';
  * slots (`link$`) are surfaced explicitly — they ride along because every hop is a spread, not a field
  * allowlist (ADR-0042 §5).
  */
-export type MyUser = DomainUser & { photo?: string; email?: string; link$?: LinkedAccountsView };
+export type MyUser = DomainUser & {
+    photo?: string;
+    email?: string;
+    link$?: LinkedAccountsView;
+    /** `'guest'` until the account is verified (ADR-0034). Surfaced for {@link useIsAccountGuest}. */
+    userRole?: string;
+};
 
 /** Display fields a relay `user.profile` / `user.update` response may carry back into the token. */
 const ACCOUNT_FIELDS = ['name', 'nick', 'photo', 'thumbnail', 'email', 'link$'] as const;
@@ -96,4 +102,41 @@ export const useMyUser = (): MyUser | null => {
     }, [isRelayVerified]);
 
     return me;
+};
+
+/**
+ * Is the ACCOUNT a guest — the relay account, not whatever session happens to be active.
+ *
+ * `useRuntimeProfile().isGuest` answers a different question: it reads the ACTIVE token, which is
+ * the cloud's while a cloud is connected, so it reports the role of the delegated cloud user. On an
+ * account screen that is the wrong subject — the MY header showed "로그인 필요" to a signed-in user
+ * the moment they switched into a cloud, right beside their own name, which comes from the relay
+ * token via `useMyUser` and was correct all along.
+ *
+ * Reading the relay token is what makes it right, and it is the only thing that can: the local cache
+ * is keyed `${type}:${cid}:${uid}:${id}` with a read path that ignores context overrides, so while a
+ * cloud is active the relay `user` row is physically unreachable (ADR-0045 결정 5, reverted; see
+ * apps/web/docs/feature/mypage/README.md).
+ *
+ * No relay account at all counts as a guest. That is the safe direction rather than a third state:
+ * the guest card invites a sign-in and recovers, while the signed-in card would render a profile row
+ * with no name in it.
+ *
+ * Screens asking "what may I do in the cloud I am connected to" — permissions, the room, home —
+ * must keep using `useRuntimeProfile`. This is for account-scoped screens only.
+ *
+ * Reads the token directly rather than through `useMyUser`, deliberately. `useMyUser` carries a
+ * `user.profile` refresh, and MY already mounts it for the header — going through it here would put
+ * a SECOND copy of that packet on the wire on every visit to the hub. Nothing is lost by skipping
+ * it: `userRole` is not among the fields that refresh writes back (`ACCOUNT_FIELDS`), because a
+ * role only ever changes by minting a new token, and that notifies the session either way.
+ */
+export const useIsAccountGuest = (): boolean => {
+    // Same refresh trigger as `useMyUser`: the store rebuilds its context object on every session
+    // notify, so the token is re-read on a promotion, a refresh and our own writes alike.
+    const session = useGlobalSession();
+    return useMemo(() => {
+        const account = getRelaySessionUser() as MyUser | null;
+        return !account || account.userRole === 'guest';
+    }, [session]);
 };

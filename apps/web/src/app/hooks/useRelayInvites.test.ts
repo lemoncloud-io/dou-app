@@ -309,13 +309,37 @@ describe('useRelayInviteMutations', () => {
             { wrapper }
         );
 
-    it('createInvite는 { phone, name }을 그대로 보내고 발급된 뷰를 돌려준다', async () => {
+    // 만료는 호출부마다 적기지 않고 여기서 한 번 붙인다 — 빠뜨리면 서버 기본값(3일)으로 조용히
+    // 늘어난다 (ADR-0068 결정 4).
+    it('createInvite는 입력을 그대로 보내고 24시간 만료를 얹는다', async () => {
         const { result } = renderHook(() => useRelayInviteMutations(), { wrapper });
 
         const issued = await result.current.createInvite({ phone: '01012345678', name: '홍길동' });
 
-        expect(create).toHaveBeenCalledWith({ phone: '01012345678', name: '홍길동' });
+        expect(create).toHaveBeenCalledWith({ phone: '01012345678', name: '홍길동', expiresDays: 1 });
         expect(issued).toEqual({ id: 'invite-1' });
+    });
+
+    it('호출부가 만료를 지정하면 그것을 쓴다', async () => {
+        const { result } = renderHook(() => useRelayInviteMutations(), { wrapper });
+
+        await result.current.createInvite({ phone: '01012345678', name: '홍길동', expiresDays: 7 });
+
+        expect(create).toHaveBeenCalledWith({ phone: '01012345678', name: '홍길동', expiresDays: 7 });
+    });
+
+    // 재초대는 새 방을 만들지 않고 기존 방으로 들여보낸다 (ADR-0068 결정 2).
+    it('channelId를 실으면 그대로 전달한다', async () => {
+        const { result } = renderHook(() => useRelayInviteMutations(), { wrapper });
+
+        await result.current.createInvite({ phone: '01012345678', name: '홍길동', channelId: 'ch-1' });
+
+        expect(create).toHaveBeenCalledWith({
+            phone: '01012345678',
+            name: '홍길동',
+            channelId: 'ch-1',
+            expiresDays: 1,
+        });
     });
 
     it('getInvite는 코드를 body에만 담아 보내고 needVerify를 그대로 통과시킨다', async () => {
