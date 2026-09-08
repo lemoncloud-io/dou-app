@@ -3,7 +3,7 @@ import { useRef, type PointerEvent as ReactPointerEvent, type MouseEvent as Reac
 import { useTranslation } from 'react-i18next';
 
 import { DefaultAvatar, ImageAvatar, MessageBubble, MessageRow, ReadReceipt } from '@chatic/web-ui-kit';
-import { BlockKitMessage, hasDrawableBlocks, resolveChatBlocks } from '@chatic/block-kit';
+import { BlockKitMessage, blocksToPlainText, hasDrawableBlocks, resolveChatBlocks } from '@chatic/block-kit';
 import { cn } from '@chatic/ui-kit';
 
 import type { ClientChatView } from '../types';
@@ -121,12 +121,26 @@ export const ChannelMessageRow = ({
     // the destructive tint — and a card would show a finished-looking message for a send that
     // has not landed, or has failed. Those bodies stay in the bubble as text.
     const skipBlocks = isDeleted || message.isPending || message.isFailed;
-    const { blocks } = skipBlocks ? { blocks: null } : resolveChatBlocks(message);
+    const { blocks, source } = skipBlocks ? { blocks: null, source: null } : resolveChatBlocks(message);
     // Nothing drawable falls back to the plain body (SPEC §5), and on this app the plain body
     // is a bubble — so the row leaves the bubble only when the renderer will actually draw.
     // The predicate is the lib's so the two decisions cannot disagree.
     const asBlocks = !!blocks && hasDrawableBlocks(blocks);
-    const isLong = !isDeleted && !message.isPending && !message.isFailed && content.length > MAX_MESSAGE_LENGTH;
+    // What the message SAYS, as opposed to what it is made of. The link unfurl means the
+    // former: hunting a URL inside a Block Kit payload reads a string no one is shown, and
+    // Slack's `<url|label>` token would hand the card a "URL" with the label still attached.
+    //
+    // Folded from the blocks already resolved above, not by parsing `content` a second time,
+    // and only on the `content` read path: when the blocks came from `blocks$` the server put
+    // its own plain-text summary in `content` (SPEC §6-5), and folding them back would throw
+    // that summary away. Everything else — every ordinary message, and the all-unknown
+    // fallback whose body the bubble prints verbatim — is `content` itself.
+    const plain = asBlocks && blocks && source === 'content' ? blocksToPlainText(blocks) : content;
+    // Truncation is the bubble's own affordance, so it measures what the bubble renders —
+    // and a card has no bubble to cut, which is why it never truncates. The all-unknown
+    // fallback does: it puts the original body in a bubble (SPEC §5), long JSON included.
+    const isLong =
+        !isDeleted && !message.isPending && !message.isFailed && !asBlocks && content.length > MAX_MESSAGE_LENGTH;
     // Found in the full content, not the truncated bubble text: a long message still deserves a
     // card for the link it had to cut — and the card is then the only way to reach it.
     // Skipped on a tombstone for the same reason chips are (see `tallies`): a deleted message must
@@ -137,7 +151,7 @@ export const ChannelMessageRow = ({
     const previewUrl =
         message.isPending || message.isFailed || message.isSystem || isDeleted
             ? undefined
-            : extractFirstUrl(content, isLong);
+            : extractFirstUrl(plain, isLong);
 
     // Chips are hidden on a tombstone — the reactions still exist in the fold, but a
     // deleted message must not keep a live social surface.

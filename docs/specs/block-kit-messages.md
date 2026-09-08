@@ -1,8 +1,9 @@
-# Block Kit 메시지 — 서버 ↔ desktop-web 수신 규격 v1
+# Block Kit 메시지 — 서버 ↔ 클라이언트 수신 규격 v1
 
 작성: 2026-08-14 · 브랜치 `feat/desktop-web-block-kit` · PR #422
+모바일(`apps/web`) 확대: 2026-09-08 · 브랜치 `feat/mobile-block-kit`
 대상: chatic-socials-api / webhook 발신 측
-클라이언트 구현: `libs/block-kit/`(타입·리더·렌더러 — desktop-web과 블록킷 빌더가 공유),
+클라이언트 구현: `libs/block-kit/`(타입·리더·렌더러 — desktop-web·`apps/web`·블록킷 빌더가 공유),
 `libs/block-kit/src/resolveChatBlocks.ts`(읽기 우선순위)
 
 ## 1. 무엇을 하려는 것인가
@@ -180,10 +181,19 @@ webhook 메시지의 `content`는 서버가 이미 만들어 둔 평문 요약�
 
 ## 9. 적용 범위
 
-desktop-web 전용이다. `apps/web`(모바일)은 아직 이 렌더러가 없어 블록 메시지가 오면 원문
-JSON을 그대로 보여준다. 모바일에도 필요해지면 타입과 파서를 `libs/`로 올려 공유한다.
-`blocks$` 필드도 같은 범위다 — 서버 계약(knowledge#319 SPEC.md §6-10)이 모바일을 대상에서
-명시적으로 뺐다.
+**두 클라이언트 모두 그린다.** desktop-web과 `apps/web`(모바일)이 `libs/block-kit`의 같은
+타입·파서·렌더러(`BlockKitMessage`)를 쓴다 — 렌더러를 플랫폼별로 다시 만들지 않는 이유는
+블록킷 빌더의 프리뷰가 실제 메시지와 어긋나는 것을 막기 위해서다(`libs/block-kit/src/index.ts`).
+플랫폼이 다른 것은 **Tailwind 토큰 값**뿐이다: 두 앱이 같은 이름의 스케일을 각자의 config에
+정의하고, 렌더러는 이름만 부른다(모바일 `body`는 16px, desktop은 15px — 각 앱의 본문 크기).
+
+모바일의 표현이 desktop과 다른 지점 하나: desktop은 메시지 행이 전폭이라 블록을 그 자리에
+그리지만, `apps/web`은 말풍선 UI라 블록 메시지가 말풍선을 벗어나 **전폭 카드**로 그려진다
+(390px에서 말풍선 폭 상한 75%는 헤더·필드 그리드가 들어갈 자리가 못 된다).
+
+`blocks$` 필드도 두 앱이 같이 읽는다 — 읽기 우선순위가 `libs/block-kit/src/resolveChatBlocks.ts`
+하나에 있다. 서버 계약(knowledge#319 SPEC.md §6-10)은 이 필드의 대상에서 모바일을 뺀 상태이므로,
+모바일이 실제로 받는 것은 지금은 `content` 경로뿐이다.
 
 서버 쪽 계약(모델·변환 템플릿·API 변경 범위)의 정본은 이 문서가 아니라
 `lemoncloud-io/knowledge#319`

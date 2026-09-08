@@ -493,11 +493,39 @@ describe('ChannelMessageRow', () => {
             expect(screen.getByTestId('message-row')).toHaveAttribute('data-wide', 'false');
         });
 
+        // That fallback bubble is a bubble like any other, so a long one still truncates —
+        // the card is the only thing exempt, and exempting it must not exempt this too.
+        it('still truncates the fallback bubble when the payload is long', () => {
+            const long = blockMessage([{ type: 'image', image_url: 'x'.repeat(400) }]);
+
+            render(<ChannelMessageRow {...baseProps} message={long} />);
+
+            expect(screen.getByTestId('bubble')).toHaveAttribute('data-expandable', 'true');
+        });
+
         it('leaves an ordinary text message in its bubble', () => {
             render(<ChannelMessageRow {...baseProps} />);
 
             expect(screen.getByTestId('bubble')).toBeInTheDocument();
             expect(screen.getByTestId('message-row')).toHaveAttribute('data-wide', 'false');
+        });
+
+        // The unfurl reads what the reader can see, not the payload. A Slack link token
+        // (`<url|label>`) shows only its label, so the URL inside it was never on screen —
+        // unfurling it would card a page nobody was offered.
+        it('unfurls a URL the blocks actually show, not one hidden in a link token', () => {
+            render(
+                <ChannelMessageRow
+                    {...baseProps}
+                    message={blockMessage([
+                        { type: 'section', text: { type: 'mrkdwn', text: '<https://runbook.example.com|런북>' } },
+                        { type: 'section', text: { type: 'mrkdwn', text: '상세: https://status.example.com' } },
+                    ])}
+                />
+            );
+
+            const preview = screen.getByTestId('link-preview');
+            expect(preview).toHaveAttribute('data-url', 'https://status.example.com');
         });
 
         // Three states the card must not take. A tombstone shows nothing of the body; a
