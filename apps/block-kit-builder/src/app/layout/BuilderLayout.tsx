@@ -15,6 +15,8 @@ interface BuilderLayoutProps {
     previewActions?: ReactNode;
     /** The JSON the blocks compile to. */
     payload: ReactNode;
+    /** Copy — it acts on the payload, so it sits over the payload. */
+    payloadActions?: ReactNode;
 }
 
 const PANE_HEADING = 'px-4 py-3 text-caption font-medium text-muted-foreground';
@@ -22,6 +24,13 @@ const PANE_HEADING = 'px-4 py-3 text-caption font-medium text-muted-foreground';
 /** Which pane a narrow screen is showing. Wide screens show all three at once. */
 type PaneId = 'compose' | 'message' | 'payload';
 
+/**
+ * The tab bar's own wording, which is not the pane headings above.
+ *
+ * Three tabs share a 390px row, and "Message Preview" in that row wraps or
+ * truncates. The heading has a whole column to itself and can afford the longer
+ * name the design asks for.
+ */
 const PANES: { id: PaneId; title: string }[] = [
     { id: 'compose', title: 'Compose' },
     { id: 'message', title: 'Message' },
@@ -30,6 +39,13 @@ const PANES: { id: PaneId; title: string }[] = [
 
 interface PaneProps {
     title: string;
+    /**
+     * What assistive tech calls this column, when the visible heading names only
+     * the first thing in it. The compose pane is headed "Template" because that
+     * is where the design puts the word, but a landmark called "Template" would
+     * hide the palette and the block editor living under it.
+     */
+    label?: string;
     children: ReactNode;
     className?: string;
     /** Controls that act on this pane's content, shown beside its heading. */
@@ -50,12 +66,12 @@ interface PaneProps {
  * editor holds an unparsed draft, and switching tabs is not a reason to lose it.
  *
  * The body does not scroll; its content does. All three panes have something
- * inside them that has to stay put while the rest moves — the rail's palette,
- * the payload's gutter and footer — and a scroller here would carry those away.
+ * inside them that has to stay put while the rest moves — the rail's palette and
+ * the payload's gutter — and a scroller here would carry those away.
  */
-const Pane = ({ title, children, className, actions, shown, style }: PaneProps) => (
+const Pane = ({ title, label, children, className, actions, shown, style }: PaneProps) => (
     <section
-        aria-label={title}
+        aria-label={label ?? title}
         style={style}
         className={cn('min-w-0 flex-col overflow-hidden', shown ? 'flex' : 'hidden lg:flex', className)}
     >
@@ -70,11 +86,11 @@ const Pane = ({ title, children, className, actions, shown, style }: PaneProps) 
 /**
  * Compose · message · payload, side by side on a wide screen.
  *
- * Every pane sits on the well, and the message card inside the middle one is the
- * only lit surface on the screen. The boundary between "the message" and "the
- * controls that make it" is then figure against ground rather than a label
- * saying which is which — and the card's edges are where the reader is being
- * asked to look, since its width is what the message has to survive.
+ * Every pane sits on the well, and the middle one holds the only lit surface on
+ * the screen: the stage the message stands on. The boundary between "the
+ * message" and "the controls that make it" is then figure against ground rather
+ * than a label saying which is which — and the card's edges are where the reader
+ * is being asked to look, since its width is what the message has to survive.
  *
  * All three read the same edit, so they are one row rather than tabs: the point
  * of the tool is watching the JSON and the rendered card change together.
@@ -91,15 +107,21 @@ const Pane = ({ title, children, className, actions, shown, style }: PaneProps) 
  * the message from whichever pane the edit was made in, and a control that
  * disappears when you switch tabs is a control you cannot rely on.
  */
-export const BuilderLayout = ({ rail, preview, previewActions, payload }: BuilderLayoutProps) => {
+export const BuilderLayout = ({ rail, preview, previewActions, payload, payloadActions }: BuilderLayoutProps) => {
     const [active, setActive] = useState<PaneId>('compose');
     const { sizes, setSize } = usePaneSizes();
 
     return (
         <div className="flex h-[100dvh] flex-col bg-background text-foreground">
-            <header className="flex shrink-0 items-center justify-between gap-2 border-b border-hairline py-1.5 pl-4 pr-2">
-                <span className="text-heading">
-                    DoU <span className="text-muted-foreground">Block Kit Builder</span>
+            {/* The mark is the same file the tab shows, so the window and the page
+                agree on what this is. `alt` is empty because the words beside it
+                already say the name — a reader hearing both hears it twice. */}
+            <header className="flex shrink-0 items-center justify-between gap-2 border-b border-hairline py-1.5 pl-4 pr-2 lg:h-[5.5rem] lg:px-6">
+                <span className="flex items-center gap-2 lg:gap-3">
+                    <img src="/favicon.svg" alt="" className="h-7 w-7 shrink-0 lg:h-10 lg:w-10" />
+                    <span className="text-heading lg:text-[1.25rem] lg:leading-7">
+                        <span className="text-primary-ink">DoU</span> Block Kit Builder
+                    </span>
                 </span>
                 <ThemeToggle />
             </header>
@@ -133,7 +155,8 @@ export const BuilderLayout = ({ rail, preview, previewActions, payload }: Builde
                     did not exist yet. Only `lg:w-[var(--pane-w)]` reads it, so the
                     tab layout below `lg` keeps its full width and ignores the drag. */}
                 <Pane
-                    title="Compose"
+                    title="Template"
+                    label="Compose"
                     shown={active === 'compose'}
                     style={{ ['--pane-w' as string]: `${sizes.rail}px` }}
                     className="w-full shrink-0 bg-well lg:w-[var(--pane-w)]"
@@ -148,7 +171,8 @@ export const BuilderLayout = ({ rail, preview, previewActions, payload }: Builde
                     {...PANE_LIMITS.rail}
                 />
                 <Pane
-                    title="Message"
+                    title="Message Preview"
+                    label="Message"
                     shown={active === 'message'}
                     className="w-full bg-well lg:w-auto lg:flex-1"
                     actions={previewActions}
@@ -165,6 +189,7 @@ export const BuilderLayout = ({ rail, preview, previewActions, payload }: Builde
                 <Pane
                     title="Payload"
                     shown={active === 'payload'}
+                    actions={payloadActions}
                     style={{ ['--pane-w' as string]: `${sizes.payload}px` }}
                     className="w-full shrink-0 bg-well lg:w-[var(--pane-w)]"
                 >

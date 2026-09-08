@@ -4,6 +4,7 @@ import { toBlocks, type KnownBlock } from '@chatic/block-kit';
 
 import {
     BuilderRail,
+    CopyPayloadButton,
     DeviceToggle,
     HistoryControls,
     PayloadPane,
@@ -66,6 +67,7 @@ export const App = () => {
                 </div>
             }
             payload={<PayloadPane json={json} onBlocks={useBuilderStore.getState().setBlocks} onError={setFailure} />}
+            payloadActions={<CopyPayloadButton json={json} />}
         />
     );
 };

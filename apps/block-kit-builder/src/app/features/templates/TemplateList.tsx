@@ -16,7 +16,7 @@ export const TemplateList = () => {
     const setBlocks = useBuilderStore(state => state.setBlocks);
 
     return (
-        <ul className="flex flex-col gap-0.5 px-2">
+        <ul className="flex flex-col px-2">
             {TEMPLATES.map(template => (
                 <li key={template.id}>
                     <button
@@ -27,7 +27,7 @@ export const TemplateList = () => {
                             setActive(template.id);
                         }}
                         className={cn(
-                            'focus-ring tactile flex w-full items-center gap-2 rounded-md px-2 py-2.5 text-left lg:py-1.5',
+                            'focus-ring tactile flex w-full items-center gap-2 rounded-md px-2 py-2.5 text-left lg:py-2',
                             'text-caption transition-colors ease-tactile hover:bg-accent',
                             // Bold marks the current pick, per the design note. It is not
                             // a filter — the message keeps changing after it is chosen —

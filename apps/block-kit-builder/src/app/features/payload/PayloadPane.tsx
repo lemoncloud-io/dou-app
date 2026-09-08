@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { Check, Copy, XCircle } from 'lucide-react';
+import { XCircle } from 'lucide-react';
 
 import type { KnownBlock } from '@chatic/block-kit';
 import { cn } from '@chatic/lib/utils';
@@ -47,7 +47,6 @@ const CODE = 'font-mono text-[16px] leading-relaxed lg:text-caption';
 export const PayloadPane = ({ json, onBlocks, onError }: PayloadPaneProps) => {
     const [draft, setDraft] = useState(json);
     const [failure, setFailure] = useState<PayloadParseFailure | null>(null);
-    const [copied, setCopied] = useState(false);
 
     // What this pane last put into the store, formatted the way the store would
     // hand it back. Without it, the effect below would reformat mid-keystroke and
@@ -71,7 +70,6 @@ export const PayloadPane = ({ json, onBlocks, onError }: PayloadPaneProps) => {
         // `report` is recreated every render and calling it is the whole point of
         // this effect; listing it would run the effect on every render instead of
         // when the payload actually changed underneath.
-         
     }, [json]);
 
     const edit = (value: string) => {
@@ -84,13 +82,6 @@ export const PayloadPane = ({ json, onBlocks, onError }: PayloadPaneProps) => {
         report(null);
         lastEmitted.current = blocksToPayloadJson(result.blocks);
         onBlocks(result.blocks);
-    };
-
-    const copy = () => {
-        void navigator.clipboard?.writeText(draft).then(() => {
-            setCopied(true);
-            setTimeout(() => setCopied(false), 1200);
-        });
     };
 
     const lines = useMemo(() => draft.split('\n'), [draft]);
@@ -190,24 +181,6 @@ export const PayloadPane = ({ json, onBlocks, onError }: PayloadPaneProps) => {
                         )}
                     />
                 </div>
-            </div>
-
-            <div className="flex shrink-0 items-center justify-between gap-2 border-t border-hairline px-4 py-1.5">
-                <span className="text-micro tabular-nums text-muted-foreground/70">
-                    {lines.length} {lines.length === 1 ? 'line' : 'lines'}
-                </span>
-                <button
-                    type="button"
-                    onClick={copy}
-                    aria-label="Copy payload"
-                    className={cn(
-                        'focus-ring tactile flex items-center gap-1.5 rounded px-2 py-1 text-micro',
-                        'text-muted-foreground transition-colors ease-tactile hover:bg-accent hover:text-foreground'
-                    )}
-                >
-                    {copied ? <Check size={13} className="text-primary-ink" /> : <Copy size={13} />}
-                    {copied ? 'Copied' : 'Copy'}
-                </button>
             </div>
         </div>
     );

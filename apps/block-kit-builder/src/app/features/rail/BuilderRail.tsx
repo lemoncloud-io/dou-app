@@ -3,7 +3,10 @@ import { BlockList } from '../editor';
 import { TemplateList } from '../templates';
 import { BlockPalette } from './BlockPalette';
 
-const SECTION_HEADING = 'px-4 pb-1.5 pt-3 text-caption font-medium text-muted-foreground';
+// Matched to the pane headings across the top of the three columns, so "UI
+// Components" and "Message Preview" read as the same rank rather than as a
+// subheading of the rail.
+const SECTION_HEADING = 'px-4 pb-2 pt-7 text-caption font-medium text-muted-foreground';
 
 /**
  * Template, then palette, then the message being built.
@@ -21,10 +24,11 @@ export const BuilderRail = () => {
 
     return (
         <div className="flex h-full flex-col">
+            {/* The pane heading above already says "Template", so this list opens the
+                rail without a second word for the same thing. */}
             <div className="shrink-0">
-                <h3 className={SECTION_HEADING}>Start from</h3>
                 <TemplateList />
-                <h3 className={SECTION_HEADING}>Add a block</h3>
+                <h3 className={SECTION_HEADING}>UI Components</h3>
                 <BlockPalette />
             </div>
 

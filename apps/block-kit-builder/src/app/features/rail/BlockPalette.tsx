@@ -1,20 +1,25 @@
 import { cn } from '@chatic/lib/utils';
 
 import { PALETTE, useBuilderStore } from '../../store';
-import { BlockGlyph } from '../editor';
 
 /**
  * What you can add.
  *
- * Each row shows the block at thumbnail size beside its name, so the choice can
- * be made by shape. The hint is the row's title rather than always-on helper
- * text — five permanent explanations would outweigh the five things they explain.
+ * A plain list of names, per the design: the rail is already three stacked
+ * lists, and boxing one of them makes the palette read as the pane's subject
+ * rather than as one step of the work. The hint is the row's title rather than
+ * always-on helper text — five permanent explanations would outweigh the five
+ * things they explain.
+ *
+ * The glyph the bordered version carried is not lost with the box: the block
+ * list below draws the same glyph beside every block already in the message,
+ * which is where telling two `section`s apart by shape actually matters.
  */
 export const BlockPalette = () => {
     const addBlock = useBuilderStore(state => state.addBlock);
 
     return (
-        <ul className="grid grid-cols-2 gap-1 px-3">
+        <ul className="flex flex-col px-2">
             {PALETTE.map(entry => (
                 <li key={entry.kind}>
                     <button
@@ -22,14 +27,10 @@ export const BlockPalette = () => {
                         onClick={() => addBlock(entry.kind)}
                         title={entry.hint}
                         className={cn(
-                            'focus-ring tactile flex w-full items-center gap-2 rounded-md border border-hairline',
-                            'bg-background px-2 py-2.5 text-left text-caption text-foreground lg:py-1.5',
-                            'transition-colors ease-tactile hover:border-primary/40 hover:bg-accent'
+                            'focus-ring tactile flex w-full items-center rounded-md px-2 py-2.5 text-left lg:py-2',
+                            'text-caption text-foreground transition-colors ease-tactile hover:bg-accent'
                         )}
                     >
-                        <span className="text-muted-foreground">
-                            <BlockGlyph kind={entry.kind} />
-                        </span>
                         {entry.label}
                     </button>
                 </li>

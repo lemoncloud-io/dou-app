@@ -105,8 +105,14 @@ const DEPLOYMENT_BLOCKS = [
  * comes through, so a template cannot contain a block the preview would have to
  * draw as `unsupported`.
  */
+/**
+ * The dots are raw palette colours rather than theme tokens on purpose: they
+ * identify which of the three you are looking at, they do not report a state.
+ * `bg-warning` and `bg-primary` would say "this template is a warning" and "this
+ * template is the primary action", neither of which is true.
+ */
 export const TEMPLATES: readonly BuilderTemplate[] = [
-    { id: 'error', label: 'Error (오류)', dotClass: 'bg-destructive', blocks: toBlocks(ERROR_BLOCKS) },
-    { id: 'attendance', label: 'Attendance (근태)', dotClass: 'bg-warning', blocks: toBlocks(ATTENDANCE_BLOCKS) },
-    { id: 'deployment', label: 'Deployment (배포)', dotClass: 'bg-primary', blocks: toBlocks(DEPLOYMENT_BLOCKS) },
+    { id: 'error', label: 'Error(오류)', dotClass: 'bg-red-500', blocks: toBlocks(ERROR_BLOCKS) },
+    { id: 'attendance', label: 'Attendance(근태)', dotClass: 'bg-emerald-600', blocks: toBlocks(ATTENDANCE_BLOCKS) },
+    { id: 'deployment', label: 'Deployment(배포)', dotClass: 'bg-indigo-500', blocks: toBlocks(DEPLOYMENT_BLOCKS) },
 ] as const;
