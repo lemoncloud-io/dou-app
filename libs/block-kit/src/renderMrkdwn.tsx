@@ -1,7 +1,8 @@
 import { Fragment, type ReactNode } from 'react';
 
 import { SLACK_MARKS, decodeSlackEntities, markPattern } from './blockKit';
-import { MSG_BOLD_CLASS, MSG_CODE_BLOCK_CLASS, MSG_CODE_INLINE_CLASS, MSG_MENTION_CLASS } from './messageClasses';
+import { CollapsibleCode } from './CollapsibleCode';
+import { MSG_BOLD_CLASS, MSG_CODE_INLINE_CLASS, MSG_MENTION_CLASS } from './messageClasses';
 
 /**
  * Slack's mrkdwn, which is not the dialect the composer writes. `*x*` is bold
@@ -97,11 +98,10 @@ export const renderMrkdwn = (text: string): ReactNode =>
     text.split(/(```[\s\S]*?```)/g).map((part, idx) => {
         if (idx % 2 === 1) {
             const inner = part.slice(3, -3).replace(/^\n/, '').replace(/\n$/, '');
-            return (
-                <span key={idx} className={MSG_CODE_BLOCK_CLASS}>
-                    {decodeSlackEntities(inner)}
-                </span>
-            );
+            // The fence is the one run long enough to be worth folding, and the one
+            // whose length says so on its own — `CollapsibleCode` draws it plainly
+            // until it is.
+            return <CollapsibleCode key={idx} text={decodeSlackEntities(inner)} />;
         }
         return <Fragment key={idx}>{renderCodeRuns(part, String(idx))}</Fragment>;
     });

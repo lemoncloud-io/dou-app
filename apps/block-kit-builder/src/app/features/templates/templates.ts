@@ -37,7 +37,10 @@ const ERROR_BLOCKS = [
         type: 'section',
         text: {
             type: 'mrkdwn',
-            text: '```Error: socket hang up\n    at connResetException (node:internal/errors:720:14)\n    at Socket.socketCloseListener (node:_http_client:474:25)\n    at TCP.&lt;anonymous&gt; (node:net:350:12)```',
+            // Six lines, which is the design's trace and the length at which the
+            // renderer folds one. A four-line stand-in would have shown a fence the
+            // reader never meets — real traces are this long or longer.
+            text: '```Error: socket hang up\n    at connResetException (node:internal/errors:720:14)\n    at Socket.socketCloseListener (node:_http_client:474:25)\n    at Socket.emit (node:events:529:35)\n    at Socket.emit (node:domain:489:12)\n    at TCP.&lt;anonymous&gt; (node:net:350:12)```',
         },
     },
     {
