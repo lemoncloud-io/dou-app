@@ -1,8 +1,12 @@
 import { useState, type CSSProperties, type ReactNode } from 'react';
 
+import { Toaster } from 'sonner';
+
 import { cn } from '@chatic/lib/utils';
+import { useTheme } from '@chatic/theme';
 
 import { PaneDivider } from './PaneDivider';
+import { SendToDou } from './SendToDou';
 import { ThemeToggle } from './ThemeToggle';
 import { PANE_LIMITS, usePaneSizes } from './usePaneSizes';
 
@@ -110,9 +114,14 @@ const Pane = ({ title, label, children, className, actions, shown, style }: Pane
 export const BuilderLayout = ({ rail, preview, previewActions, payload, payloadActions }: BuilderLayoutProps) => {
     const [active, setActive] = useState<PaneId>('compose');
     const { sizes, setSize } = usePaneSizes();
+    // The toaster follows the tool's own theme rather than the OS: this builder
+    // is switched to dark to read a message against dark, and a light toast over
+    // that is the one surface not answering the question being asked.
+    const { isDarkTheme } = useTheme();
 
     return (
         <div className="flex h-[100dvh] flex-col bg-background text-foreground">
+            <Toaster theme={isDarkTheme ? 'dark' : 'light'} position="bottom-right" />
             {/* The mark is the same file the tab shows, so the window and the page
                 agree on what this is. `alt` is empty because the words beside it
                 already say the name — a reader hearing both hears it twice. */}
@@ -123,7 +132,10 @@ export const BuilderLayout = ({ rail, preview, previewActions, payload, payloadA
                         <span className="text-primary-ink">DoU</span> Block Kit Builder
                     </span>
                 </span>
-                <ThemeToggle />
+                <span className="flex items-center gap-1 lg:gap-3">
+                    <ThemeToggle />
+                    <SendToDou />
+                </span>
             </header>
 
             <div className="flex shrink-0 items-center justify-between gap-2 border-b border-hairline pr-2 lg:hidden">
