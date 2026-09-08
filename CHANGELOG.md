@@ -1,5 +1,23 @@
 # Changelog
 
+## [2026-09-08] - root@0.58.0, @chatic/web@0.48.0
+
+### Features
+
+- (app-runtime) register the push device once per install, not on every launch
+- (web) surface cloud activation from the relay socket
+- (app-runtime) pin a push subscription to one socket slot
+- (mobile) send a linkless cloud push tap to the root on both platforms
+- (mobile,i18n-mobile) land the cloud-activation push copy in four locale sets
+
+### Documentation
+
+- (adr) decide how the app receives the cloud-activation notification
+
+### Chores
+
+- (mobile) bump app versions 0.24.0
+
 ## [2026-09-08] - No version updates
 
 ### Bug Fixes
