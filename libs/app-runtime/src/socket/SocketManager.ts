@@ -29,6 +29,9 @@ type TypeListenerEntry = {
     unsubscribe?: () => void;
 };
 
+/** The same, pinned to ONE slot: re-bound on that slot's rebuild rather than on active change. */
+type SlotTypeListenerEntry = TypeListenerEntry & { kind: SocketKind };
+
 /** One managed socket slot (relay or cloud). Each slot owns its own SDK client + connection state. */
 interface ClientEntry {
     client: ClientSocketV2;
@@ -74,6 +77,10 @@ export class SocketManager implements ISocketManager {
     // Push subscriptions registered via onType. Owned here so they survive active-client changes —
     // re-bound to the active client whenever the active slot changes.
     private readonly typeListeners = new Set<TypeListenerEntry>();
+    // Push subscriptions registered via onSlotType. Owned here for the same reason, but keyed to ONE
+    // slot: re-bound from notifySlotClient (the single choke point both ensure() and teardownEntry()
+    // pass through) instead of from active-slot changes.
+    private readonly slotTypeListeners = new Set<SlotTypeListenerEntry>();
 
     /**
      * Ensures the slot for `kind` is bound to `config`. Reuses the slot when its config is unchanged;
@@ -133,9 +140,9 @@ export class SocketManager implements ISocketManager {
      * slot. Every call re-resolves the slot's client (lazy), so it survives slot teardown/rebuild
      * via ensure() — capturing the client eagerly would leave callers on a stale socket. Used for
      * requests that must target a specific server regardless of which slot is active (e.g. a
-     * relay-only write while a cloud slot is active). `send` is supported symmetrically; the surface
-     * is request/send only (a kind-pinned onType would need the active facade's owned-subscription
-     * rebinding — add when a consumer exists, see socket/kind-scoped-routing.md).
+     * relay-only write while a cloud slot is active). `send` is supported symmetrically, and `onType`
+     * delegates to the manager-owned onSlotType so a pinned subscription survives slot rebuilds.
+     * See socket/kind-scoped-routing.md.
      */
     public getScopedClient(kind: SocketKind): ScopedSocketClient {
         const requireSlot = (action: string): ClientSocketV2 => {
@@ -167,6 +174,9 @@ export class SocketManager implements ISocketManager {
                     throw annotateSocketError(error, kind, 'send', typeof type === 'string' ? type : type.type);
                 }
             },
+            // No requireSlot: a subscription waits for its slot instead of throwing (see onSlotType).
+            onType: <T = unknown>(type: string, listener: (message: SocketMessage<T>) => void): (() => void) =>
+                this.onSlotType<T>(kind, type, listener),
         };
     }
 
@@ -380,6 +390,34 @@ export class SocketManager implements ISocketManager {
         };
     }
 
+    /**
+     * Registers a push subscription pinned to ONE slot kind, for events a specific server delivers
+     * regardless of which slot is active. The entry is owned by the manager and re-bound whenever
+     * that slot is rebuilt — capturing the client here would leave the listener on a dead socket
+     * after the first reconnect.
+     *
+     * Registering against an unbound slot is NOT an error (unlike getScopedClient's request/send):
+     * the entry waits and binds when the slot appears. It never falls back to another slot.
+     */
+    public onSlotType<T = unknown>(
+        kind: SocketKind,
+        type: string,
+        listener: (message: SocketMessage<T>) => void
+    ): () => void {
+        const entry: SlotTypeListenerEntry = {
+            kind,
+            type,
+            listener: listener as (message: SocketMessage<any>) => void,
+        };
+        this.slotTypeListeners.add(entry);
+        this.bindSlotTypeListener(entry, this.entries.get(kind)?.client ?? null);
+
+        return () => {
+            entry.unsubscribe?.();
+            this.slotTypeListeners.delete(entry);
+        };
+    }
+
     public onMessage(listener: (event: ClientSocketMessageEvent) => void): () => void {
         return this.requireActiveClient('onMessage()').onMessage(listener);
     }
@@ -579,6 +617,13 @@ export class SocketManager implements ISocketManager {
     }
 
     private notifySlotClient(kind: SocketKind, client: ClientSocketV2 | null): void {
+        // Re-bind owned slot subscriptions FIRST: teardownEntry notifies while the old client is
+        // still alive, so this is the one moment the previous subscription can be released cleanly.
+        for (const entry of this.slotTypeListeners) {
+            if (entry.kind === kind) {
+                this.bindSlotTypeListener(entry, client);
+            }
+        }
         for (const listener of this.slotClientListeners) {
             listener(kind, client);
         }
@@ -591,6 +636,17 @@ export class SocketManager implements ISocketManager {
             entry.unsubscribe = undefined;
             this.bindTypeListener(entry, client);
         }
+    }
+
+    /**
+     * (Re-)binds one slot-pinned subscription to the given client. A null client means the slot is
+     * gone: drop the old subscription and wait — never throw, never bind elsewhere.
+     */
+    private bindSlotTypeListener(entry: SlotTypeListenerEntry, client: ClientSocketV2 | null): void {
+        entry.unsubscribe?.();
+        entry.unsubscribe = undefined;
+        if (!client) return;
+        entry.unsubscribe = client.onType(entry.type, entry.listener);
     }
 
     private bindTypeListener(entry: TypeListenerEntry, client: ClientSocketV2 | null): void {

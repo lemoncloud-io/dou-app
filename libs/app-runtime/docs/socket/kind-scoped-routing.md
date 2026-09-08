@@ -1,6 +1,6 @@
 # Kind-scoped 소켓 라우팅 — 목적지 선택형 요청 (relay / cloud / active)
 
-> 상태: Live · 최종 갱신: 2026-07-23 · 관련 ADR: [[ADR-0027]](../../../../docs/adr/0027-device-push-mute-setting.md)
+> 상태: Live · 최종 갱신: 2026-09-07 · 관련 ADR: [[ADR-0027]](../../../../docs/adr/0027-device-push-mute-setting.md) · [[ADR-0075]](../../../../docs/adr/0075-cloud-activated-notification-app-readiness.md)
 
 ## 목적
 
@@ -11,7 +11,11 @@
 첫 사례는 **디바이스 전역 푸시 음소거**(`device.update-remote`) — 설정 소유처가 relay 뒤의
 `chatic-pushes-api`라서, 클라우드가 켜져 있어도 **relay 소켓으로만** 요청해야 한다.
 
-이 기능은 그런 "슬롯을 지정해 요청" 능력을 **1급 재사용 프리미티브**로 제공한다. relay-while-cloud,
+두 번째 사례는 **클라우드 활성 알림 구독**(`cloud.activated`, [[ADR-0075]](../../../../docs/adr/0075-cloud-activated-notification-app-readiness.md)) —
+서버가 이 unicast를 중계서버 배포에서 `targetType: 'user'`로 보내므로, 클라우드가 켜져 있어도
+**relay 소켓에서만** 도착한다. 첫 사례가 요청(outbound)이었다면 이쪽은 구독(inbound)이다.
+
+이 기능은 그런 "슬롯을 지정해 요청·구독" 능력을 **1급 재사용 프리미티브**로 제공한다. relay-while-cloud,
 cloud-specific 같은 케이스가 반복될 것이므로, 도메인마다 배선을 새로 짜는 대신 코어 하나로 흡수한다.
 
 ## 설계 원칙
@@ -26,6 +30,14 @@ cloud-specific 같은 케이스가 반복될 것이므로, 도메인마다 배�
   파사드는 클라이언트를 캡처하지 않고 매 호출 `getClient(kind)`로 다시 얻는다. 이걸 어기면 재바인드 후 stale client를 잡는다.
 - **조용한 폴백 금지.** relay 슬롯이 없으면 request 시점에 throw한다. "relay로 갔다"는
   계약을 지키기 위한 의도적 실패다 — active로 몰래 새지 않는다.
+- **구독은 매니저가 소유한다.** (2026-09-07 추가, ADR-0075) request/send는 호출 시점에 슬롯을 다시
+  조회하면 끝이지만, 구독은 **호출 이후에도 살아 있어야** 한다. 슬롯이 teardown/rebuild되면 구독은
+  끊긴 클라이언트에 남는다. 그래서 kind 고정 구독은 파사드가 아니라 매니저가 엔트리를 소유하고,
+  그 슬롯이 다시 바인드될 때 매니저가 다시 붙인다 — active 구독(`rebindTypeListeners`)과 같은
+  구조를, 다른 트리거(active 전환이 아니라 **그 슬롯의 재바인드**)로 건다.
+- **구독은 슬롯이 비어도 던지지 않는다.** request와 반대다. 구독 등록은 "이 슬롯이 생기면 붙여라"는
+  선언이고, relay 슬롯은 부팅 중 잠깐 비어 있을 수 있다. 미바인드면 조용히 대기했다가 바인드 시
+  붙는다 — 폴백이 아니라 지연이며, 다른 슬롯으로 새지 않으므로 위 원칙과 충돌하지 않는다.
 
 ## 범위
 
@@ -36,11 +48,12 @@ cloud-specific 같은 케이스가 반복될 것이므로, 도메인마다 배�
   (route 인자 미노출 — 위 설계 원칙 개정 참조).
 - 첫 소비자: device `update-remote`(muted) 경로 + 마이페이지 푸시 음소거 토글.
 - 라이브러리 업그레이드: `chatic-sockets-lib@0.4.8`, `chatic-sockets-api@0.26.704`.
+- **(2026-09-07 추가)** 코어: `SocketManager.onSlotType(kind, type, listener)` — kind 고정 push 구독.
+  매니저 소유 + 그 슬롯의 재바인드에 반응. `ScopedSocketClient`에 `onType`으로도 노출.
+- **(2026-09-07 추가)** 두 번째 소비자: `cloud.activated` relay 고정 구독([[ADR-0075]](../../../../docs/adr/0075-cloud-activated-notification-app-readiness.md)).
 
 **제외**
 
-- 코어 파사드의 `onType`(kind 고정 push 구독) — 타입 표면에서 제외. 소비자가 생길 때 active 파사드의
-  owned-subscription 재바인딩과 같은 방식으로 추가한다.
 - 서버 `muted` 읽기 경로(read-remote). 초기 상태는 web에서 기본 ON 가정.
 - device gateway의 `save`/`read`/`sync` 목적지 변경 — 뷰잉/프레즌스는 계속 active.
 - per-channel 알림(notify, [[ADR-0025]](../../../../docs/adr/0025-channel-notification-mute-toggle.md)).
@@ -71,6 +84,22 @@ cloud-specific 같은 케이스가 반복될 것이므로, 도메인마다 배�
 
 - 호출 시점에 목적지가 정말 달라지는 메서드가 생기면, 코어/gateway 변경 없이 그 메서드에만 `route`
   인자를 노출한다(기본 `'active'`). 단일-목적지 메서드는 계속 데이터 소스에 고정.
+
+### S5. 클라우드 안에서 다른 클라우드가 활성이 된다 (2026-09-07 추가)
+
+1. 사용자가 클라우드 A에 있다 → active 슬롯 = `cloud`. relay 슬롯도 여전히 바인드돼 있다.
+2. 사용자가 추가한 클라우드 B의 배포가 끝나 서버가 승격한다.
+3. 서버가 `targetType: 'user'`로 중계서버 배포에 unicast를 던진다 → **relay 소켓**에 `cloud.activated` 도착.
+4. `onSlotType('relay', 'cloud.activated', …)`로 등록된 리스너가 발화한다. active 구독이었다면
+   여기서 놓쳤다 — active는 지금 cloud A다.
+5. 소비자가 클라우드 목록 캐시를 무효화하고 인앱 배너를 띄운다(웹 쪽 처리, ADR-0075).
+
+### S6. 구독 등록 시점에 relay 슬롯이 아직 없다 (2026-09-07 추가)
+
+1. 부팅 중 소비자가 먼저 마운트되어 `onSlotType('relay', …)`을 호출한다.
+2. relay 슬롯 미바인드 → 엔트리만 등록하고 **던지지 않는다**(설계 원칙: 구독은 지연).
+3. `ensure(config, 'relay')`가 슬롯을 만들면 매니저가 그 엔트리를 붙인다.
+4. 이후 relay가 재연결로 teardown/rebuild돼도 같은 경로로 다시 붙는다.
 
 ## 다이어그램
 
@@ -111,10 +140,15 @@ flowchart LR
 
 - [`SocketManager.ts`](../../src/socket/SocketManager.ts) `getScopedClient(kind): ScopedSocketClient` — 반환 객체의
   `request`/`send`는 매 호출 `this.entries.get(kind)?.client`를 조회(지연 해석)하고, 슬롯 미바인드면 throw한다.
-  kind 고정 push 구독(onType)은 표면에 없다 — 소비자가 생길 때 active 파사드의 owned-subscription
-  재바인딩([SocketManager.ts](../../src/socket/SocketManager.ts) `rebindTypeListeners`)과 동일한 방식으로 추가한다(**extension point**).
-- [`types.ts`](../../src/socket/types.ts) — `ScopedSocketClient = Pick<ISocketManager, 'request'|'send'>` 정의 +
-  `ISocketManager`에 `getScopedClient(kind): ScopedSocketClient` 시그니처.
+- [`SocketManager.ts`](../../src/socket/SocketManager.ts) `onSlotType(kind, type, listener): () => void` — kind 고정
+  push 구독. active 구독(`onType`/`typeListeners`)과 같은 owned-subscription 구조를 쓰되, 엔트리에 `kind`를
+  실어 별도 집합(`slotTypeListeners`)에 담는다. 재바인드는 **`notifySlotClient`** 한 곳에서 일어난다 —
+  `ensure()`(바인드)와 `teardownEntry()`(해체)가 **둘 다 지나는 유일한 길목**이라, 여기 걸면 두 경로를
+  따로 손댈 필요가 없다. teardown 쪽은 클라이언트가 아직 살아 있을 때 통지하므로 옛 구독이 깨끗이 끊긴다.
+  그래서 재바인드를 슬롯 리스너 통지보다 **먼저** 돌린다.
+- [`types.ts`](../../src/socket/types.ts) — `ScopedSocketClient = Pick<ISocketManager, 'request'|'send'|'onType'>`로
+  확장(파사드의 `onType`은 `requireSlot`을 타지 않고 그 kind로 고정된 `onSlotType`에 위임) +
+  `ISocketManager`에 `onSlotType` 시그니처.
 - [`data/factories/socketFactory.ts`](../../src/data/factories/socketFactory.ts) — `SocketRoute` 타입 +
   `routed(create)` 헬퍼. `routed(createDeviceGateway)` → `{ active: create(manager),
 relay: create(manager.getScopedClient('relay')), cloud: create(manager.getScopedClient('cloud')) }`.
@@ -156,6 +190,12 @@ relay: create(manager.getScopedClient('relay')), cloud: create(manager.getScoped
     - `getScopedClient('relay').request(...)`가 **relay 슬롯** 클라이언트로 위임(cloud 슬롯이 active여도).
     - 슬롯 재바인드(`ensure` 재호출) 후에도 최신 relay 클라이언트로 위임(**지연 해석** 회귀 방지).
     - 슬롯 미바인드 시 request throw.
+    - `onSlotType('relay', …)`이 cloud 슬롯 active 상태에서도 relay 클라이언트에 붙는다 — 이 회귀가 곧
+      "클라우드 안에서 알림을 놓친다"(S5).
+    - 슬롯 재바인드 후 새 클라이언트에 다시 붙고 **옛 구독은 해지된다**.
+    - 슬롯 미바인드 시 등록이 **throw하지 않고**, 이후 `ensure`에서 붙는다(S6).
+    - 반환된 해지 함수가 재바인드 이후에도 구독을 끊고, 이후 재빌드가 그 엔트리를 되살리지 않는다.
+    - `destroy(kind)` 시 구독이 해지되고 다른 슬롯으로 새지 않는다.
 - **라우팅/도메인 테스트** — [`DeviceSocketDataSource.test.ts`](../../../../libs/data/src/data/remote/socket-data-sources/DeviceSocketDataSource.test.ts)
     - [`DeviceRepositoryV2.test.ts`](../../../../libs/data/src/data/repositories-v2/DeviceRepositoryV2.test.ts):
     * `updateRemoteDevice(payload)` → 항상 routed `device.relay.updateRemote`, active/cloud 미호출(정책 고정 회귀).
