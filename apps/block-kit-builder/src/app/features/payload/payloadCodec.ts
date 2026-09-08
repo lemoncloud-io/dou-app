@@ -20,8 +20,39 @@ interface BlockKitPayload {
 export const blocksToPayloadJson = (blocks: KnownBlock[]): string =>
     `${JSON.stringify({ blocks } satisfies BlockKitPayload, null, 2)}\n`;
 
-/** What went wrong reading a payload back, in the words the pane shows. */
-type PayloadParseResult = { ok: true; blocks: KnownBlock[] } | { ok: false; error: string };
+/**
+ * What went wrong reading a payload back, in the words the pane shows.
+ *
+ * `line` only for a failure that has one. A missing `"blocks"` key is wrong
+ * about the payload as a whole, and pointing at a line for it would send the
+ * reader to look for a mistake that is not there.
+ */
+export type PayloadParseFailure = { ok: false; error: string; line?: number };
+type PayloadParseResult = { ok: true; blocks: KnownBlock[] } | PayloadParseFailure;
+
+/**
+ * The line `JSON.parse` blamed, if it named one.
+ *
+ * V8 ends a syntax error with `at position 118 (line 8 column 3)`; older engines
+ * and `Unexpected end of JSON input` carry no position at all. The tail is read
+ * off rather than shown, so the pane can put the number in the gutter — beside
+ * the line — instead of spelling out a coordinate the reader then has to find.
+ */
+const LINE_IN_MESSAGE = /\(line (\d+) column \d+\)\s*$/;
+
+const readFailure = (error: unknown): PayloadParseFailure => {
+    const message = error instanceof Error ? error.message : 'Invalid JSON.';
+    const at = LINE_IN_MESSAGE.exec(message);
+    if (!at) return { ok: false, error: message };
+    return {
+        ok: false,
+        error: message
+            .slice(0, at.index)
+            .replace(/\s*(in JSON)?\s*at position \d+\s*$/, '')
+            .trim(),
+        line: Number(at[1]),
+    };
+};
 
 /**
  * The JSON pane → blocks.
@@ -38,14 +69,16 @@ type PayloadParseResult = { ok: true; blocks: KnownBlock[] } | { ok: false; erro
  * pane keeps the last good blocks and displays the reason.
  */
 export const payloadJsonToBlocks = (json: string): PayloadParseResult => {
-    const trimmed = json.trim();
-    if (!trimmed) return { ok: false, error: 'Payload is empty.' };
+    if (!json.trim()) return { ok: false, error: 'Payload is empty.' };
 
     let parsed: unknown;
     try {
-        parsed = JSON.parse(trimmed);
+        // The untrimmed string, so the line the failure names is the line the
+        // editor is showing. Trimming first would slide every number up by
+        // however many blank lines the paste happened to start with.
+        parsed = JSON.parse(json);
     } catch (error) {
-        return { ok: false, error: error instanceof Error ? error.message : 'Invalid JSON.' };
+        return readFailure(error);
     }
 
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {

@@ -9,6 +9,7 @@ import {
     PayloadPane,
     PreviewPane,
     blocksToPayloadJson,
+    type PayloadParseFailure,
     type PreviewDevice,
 } from './features';
 import { BuilderLayout } from './layout';
@@ -35,6 +36,10 @@ export const App = () => {
     // part of the message, so it must not land in the undo stack or be persisted
     // alongside a payload it says nothing about.
     const [device, setDevice] = useState<PreviewDevice>('desktop');
+    // Why the card is behind the payload pane. Held here because two panes need
+    // it: the editor marks the line, the preview says what happened. Neither owns
+    // the other, so the thing they share sits above both.
+    const [failure, setFailure] = useState<PayloadParseFailure | null>(null);
 
     // The store decides whether this builder has ever held a message; `seed` is a
     // no-op once it has. Waiting for hydration first, or the check runs against
@@ -48,7 +53,7 @@ export const App = () => {
     return (
         <BuilderLayout
             rail={<BuilderRail />}
-            preview={<PreviewPane blocks={blocks} raw={json} device={device} />}
+            preview={<PreviewPane blocks={blocks} raw={json} device={device} failure={failure} />}
             previewActions={
                 <div className="flex items-center gap-2">
                     {/* Nothing to choose below `lg`: the pane is already narrower
@@ -60,7 +65,7 @@ export const App = () => {
                     <HistoryControls />
                 </div>
             }
-            payload={<PayloadPane json={json} onBlocks={useBuilderStore.getState().setBlocks} />}
+            payload={<PayloadPane json={json} onBlocks={useBuilderStore.getState().setBlocks} onError={setFailure} />}
         />
     );
 };
