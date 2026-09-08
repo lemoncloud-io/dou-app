@@ -34,12 +34,10 @@ jest.mock('../socket', () => ({
 
 jest.mock('../socket/runtime', () => {
     const mockManager = { destroy: jest.fn() };
-    return {
-        getSocketManager: jest.fn().mockReturnValue(mockManager),
-        getSyncManager: jest.fn(),
-        getSocketRuntime: jest.fn(),
-    };
+    return { getSocketManager: jest.fn().mockReturnValue(mockManager) };
 });
+// Sync has its own creation point now (socket/sync/runtime.ts); SocketBinder reaches it directly.
+jest.mock('../socket/sync/runtime', () => ({ getSyncManager: jest.fn() }));
 
 // SPREAD the real module: `useRelaySessionKeepAlive` (mounted by this host, from its concrete path)
 // reaches `useSessionAuth` → `subscribeSessionSignal` + `getSessionAuthSnapshot`, which live here. A

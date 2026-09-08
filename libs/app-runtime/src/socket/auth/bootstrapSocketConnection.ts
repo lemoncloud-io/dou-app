@@ -1,6 +1,7 @@
 import { logger } from '@chatic/bridges';
 
 import { Throttle } from '../../utils/throttle';
+import { authIdRegistry } from './authIdRegistry';
 
 import type { ISocketManager, SocketBindingConfig, SocketKind } from '../types';
 import type { SocketSessionDelegate } from './types';
@@ -107,6 +108,42 @@ export const bootstrapSocketConnection = async ({
         })
     );
 
+    const sign = (token: string, ctx?: { target?: string }) => delegate.signAuth(kind, token, ctx?.target);
+
+    /**
+     * Commit a refreshed token view, then re-align the controller with what the store now says.
+     *
+     * The second half is not bookkeeping. The writeback replaces `$auth` wholesale, while the packet's
+     * `authId` lives in a private controller field that only `register()` writes — so a rotated
+     * `$auth.id` leaves the signature keyed on the NEW id and the packet quoting the OLD one, and the
+     * server answers `403 NOT ALLOWED - invalid sign @refreshAccessToken(<old id>)` for every refresh
+     * from then on. This is the one place that sees both sides right after they can diverge
+     * (`authIdRegistry`).
+     */
+    const applyRefreshedToken = async (view: unknown): Promise<void> => {
+        try {
+            await delegate.commitRefreshedToken(kind, view);
+        } catch (error) {
+            logger.error('SOCKET', '[bootstrapSocketConnection] token writeback failed', {
+                error,
+                data: { kind },
+            });
+            // The store still carries the PREVIOUS `$auth`, so there is nothing newer to re-sync to.
+            return;
+        }
+
+        try {
+            const next = await delegate.getAuthRegistration(kind);
+            if (next && authIdRegistry.resync(kind, auth, next, sign) && client.state !== 'connected') {
+                // Same ordering rule as every other register(): a re-activated controller must not
+                // auto-send auth.update ahead of the next connection's device.save:ok.
+                gate.stop();
+            }
+        } catch (error) {
+            logger.warn('SOCKET', '[bootstrapSocketConnection] authId re-sync failed', { error, data: { kind } });
+        }
+    };
+
     // Every refresh/switch success carries the full token view — write it back to web-core so the
     // HTTP/AWS signing layers stay fresh (SDK is the socket-token SSoT; web-core is the read model).
     // Routed by THIS socket's kind so a refresh during a switch/teardown lands in the right store (§6-6).
@@ -119,16 +156,11 @@ export const bootstrapSocketConnection = async ({
             logger.info('SOCKET', '[bootstrapSocketConnection] token refreshed', { data: { kind } });
             // The writeback is what actually re-mints the HTTP/AWS signing material, and it is the
             // only step that can fail AFTER `requestRelaySessionRefresh` has already reported success
-            // (this listener is what resolves it). Without this catch a rejected commit was an
+            // (this listener is what resolves it). Without a catch a rejected commit was an
             // unhandled rejection: the caller believed the credentials were fresh while every
-            // signed request kept 403-ing. Never rethrow — one slot's failure must not break the
-            // others' listeners.
-            void Promise.resolve(delegate.commitRefreshedToken(kind, view)).catch(error => {
-                logger.error('SOCKET', '[bootstrapSocketConnection] token writeback failed', {
-                    error,
-                    data: { kind },
-                });
-            });
+            // signed request kept 403-ing. `applyRefreshedToken` swallows both halves — one slot's
+            // failure must never break the others' listeners.
+            void applyRefreshedToken(view);
         })
     );
 
@@ -139,11 +171,9 @@ export const bootstrapSocketConnection = async ({
     // then deactivates so the imminent `connected` event does NOT auto-send `auth.update`.
     const registration = await delegate.getAuthRegistration(kind);
     if (registration) {
-        auth.register({
-            token: registration.token,
-            authId: registration.authId,
-            sign: (token, ctx) => delegate.signAuth(kind, token, ctx?.target),
-        });
+        auth.register({ token: registration.token, authId: registration.authId, sign });
+        // Mirror the seeded authId so the writeback above can tell a rotation from a match.
+        authIdRegistry.record(kind, registration.authId);
         gate.stop();
 
         // Open the gate once the device is registered for this connection: re-activating a connected

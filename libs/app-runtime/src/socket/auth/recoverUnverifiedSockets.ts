@@ -1,6 +1,7 @@
 import { logger } from '@chatic/bridges';
 
 import { Coalescer } from '../../utils/coalescer';
+import { authIdRegistry } from './authIdRegistry';
 import { getAuthStatus, needsSocketKick } from './authStatus';
 import { getSocketManager } from '../runtime';
 import { createSocketSessionDelegate } from './sessionDelegate';
@@ -79,6 +80,8 @@ const doRecover = async ({ manager, delegate }: RecoverUnverifiedSocketsDeps): P
                     authId: registration.authId,
                     sign: (token, ctx) => sessionDelegate.signAuth(kind, token, ctx?.target),
                 });
+                // Mirror the seeded authId — every register() site must, or the drift check goes blind.
+                authIdRegistry.record(kind, registration.authId);
                 // register() re-activated the controller; close the gate so the reconnect keeps
                 // the device.save:ok → auth.update order (same rationale as reauthenticateActiveSocket).
                 (auth as unknown as AuthActivationGate).stop();

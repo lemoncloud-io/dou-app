@@ -4,7 +4,7 @@ import type { SyncTargetDescriptor } from '@lemoncloud/chatic-sockets-lib';
 
 import { logger } from '@chatic/bridges';
 
-import { getSyncManager } from '../../runtime';
+import { getSyncManager } from '../runtime';
 import { useRuntimeSocketState } from '../../../runtime/useRuntimeSocketState';
 import { getRepositories } from '../../../data/runtime';
 

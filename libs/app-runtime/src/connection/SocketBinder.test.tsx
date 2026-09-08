@@ -16,6 +16,12 @@ jest.mock('../socket/runtime', () => ({
     getSocketManager: jest.fn(),
 }));
 
+// The binder reaches the sync engine so it exists before slots bind; the assertion here is only that
+// a slot boots, so the engine itself is stubbed.
+jest.mock('../socket/sync/runtime', () => ({
+    getSyncManager: jest.fn(),
+}));
+
 jest.mock('../socket', () => ({
     bootstrapSocketConnection: jest.fn(),
 }));

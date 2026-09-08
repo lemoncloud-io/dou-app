@@ -5,7 +5,8 @@
 import { createSyncPlans } from './plans';
 
 jest.mock('../../session', () => new Proxy({}, { get: () => jest.fn() }));
-// 런타임 접근자만 끊는다 — `toDomainChat`은 진짜를 써야 `hidden`이 매핑을 타고 살아남는지 볼 수 있다.
+// 데이터 런타임 접근자만 끊는다 — `toDomainChat`은 진짜를 써야 `hidden`이 매핑을 타고 살아남는지
+// 볼 수 있다. 소켓 런타임은 목이 필요 없다: 바인딩된 클라우드는 `createSyncPlans`의 인자로 들어온다.
 // `jest.mock`은 파일 최상단에서만 호이스팅되므로 describe 안이 아니라 여기에 둔다. 위의 스냅샷
 // 계약 테스트는 이 접근자들을 부르지 않으므로 영향받지 않는다.
 //
@@ -21,7 +22,6 @@ jest.mock('../../data/runtime', () => ({
     getRepositories: () =>
         mockRepositories.current ?? { chat: { cacheWrite: mockCacheWrite, cacheWriteMany: jest.fn() } },
 }));
-jest.mock('../runtime', () => ({ getSocketManager: () => ({ getBoundCid: () => mockBoundCid.current }) }));
 // `@chatic/web-config` is the sole `import.meta` holder (ADR-0070 결정 6); ts-jest's CommonJS
 // transform cannot parse it, and HttpManager pulls it in transitively.
 jest.mock('@chatic/web-config', () => new Proxy({}, { get: () => jest.fn() }));
@@ -32,7 +32,7 @@ describe('createSyncPlans — 재연결 스냅샷 유지 (ADR-0059)', () => {
     it.each(['channel', 'place', 'profile', 'join'] as const)(
         '%s plan은 onConnected에서 스냅샷을 리셋하지 않는다',
         domain => {
-            const plan = createSyncPlans().find(candidate => candidate.domain === domain);
+            const plan = createSyncPlans(() => mockBoundCid.current).find(candidate => candidate.domain === domain);
             expect(plan).toBeDefined();
 
             const writeSnapshot = jest.fn();
@@ -59,7 +59,9 @@ describe('createSyncPlans — chat 변경 반영 (sockets-lib 0.5.1 onUpdate)', 
      * 실제 이음매이고, 배선 누락(옵션 자체가 없음)도 여기서 잡힌다.
      */
     const chatOnUpdate = () => {
-        const plan = createSyncPlans().find(candidate => candidate.domain === 'chat') as unknown as {
+        const plan = createSyncPlans(() => mockBoundCid.current).find(
+            candidate => candidate.domain === 'chat'
+        ) as unknown as {
             options?: { onUpdate?: (target: unknown, changed: unknown, snapshot: unknown) => void };
         };
         return plan?.options?.onUpdate;
@@ -123,7 +125,7 @@ describe('join plan onRemove — 퇴장한 방의 메시지 캐시 정리 (ADR-0
         mockDataContext.current = { cid: 'cloud-a', uid };
         mockBoundCid.current = boundCid;
 
-        const plan = createSyncPlans().find(candidate => candidate.domain === 'join');
+        const plan = createSyncPlans(() => mockBoundCid.current).find(candidate => candidate.domain === 'join');
         const onRemove = (plan as unknown as { options: { onRemove: (target: { id: string }) => void } }).options
             .onRemove;
         return { onRemove, cacheDelete, cacheClearByChannelId };

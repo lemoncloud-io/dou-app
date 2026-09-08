@@ -130,7 +130,8 @@ clouds·subscription·users·profile 훅 13종은 소비자가 화면뿐이고 r
   이것을 감싸고, 그 셋은 앱이 쓴다. `useProfileSync`는 소비자가 0이어서 2026-09-07에 삭제했다 —
   프로필 동기화가 필요한 앱은 `syncManager.registerProfile()`을 직접 부른다(`apps/web`의
   `useChannelProfiles`).
-- `getSocketRuntime()` · `getDataRuntime()` · `getDataManager()` — 조립체 접근자. **export하지 않는다**.
+- `getDataRuntime()` · `getDataManager()` — 조립체 접근자. **export하지 않는다**. (`getSocketRuntime()`은
+  아예 없어졌다 — 소켓과 sync는 각자 생성 지점을 갖는다.)
 - `DataManager` · `SyncManager` · `SocketManager` 클래스, `createSyncPlans()`, `ActiveScope`.
 - `useRuntimeSocketSlots()` + `RuntimeSocketSlots` / `RuntimeSocketSlot` **타입** — 호스트
   (`RuntimeConnectionHost`·`RuntimeAuthHost`)가 내부에서 파생하므로 앱 소비자가 0이다. 예전엔

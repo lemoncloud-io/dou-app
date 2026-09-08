@@ -1,12 +1,14 @@
 import { logger } from '@chatic/bridges';
 
+import { authIdRegistry } from './authIdRegistry';
+
 import type { AuthActivationGate } from './bootstrapSocketConnection';
 import type { ISocketManager, SocketKind } from '../types';
-import type { SocketSessionDelegate } from './types';
+import type { ReauthDelegate } from './types';
 
 export interface ReauthenticateActiveSocketArgs {
     manager: ISocketManager;
-    delegate: SocketSessionDelegate;
+    delegate: ReauthDelegate;
     /** The server kind whose identity changed — used to seed/sign the re-register and target the slot. */
     kind: SocketKind;
     /**
@@ -28,10 +30,15 @@ export interface ReauthenticateActiveSocketArgs {
  * session) and then `register()` the new token — the controller resumes and re-sends `auth.update`
  * on the same connection. (multi-socket-design.md §6-7)
  *
- * Guard (feedback-loop safety): proceed ONLY when the registration token differs from the token the
- * SDK already holds. The SDK's own refresh/switch writeback lands in web-core with the SAME token
- * the controller holds, so this is a no-op there; only a genuine re-login (a new token the SDK was
- * never told about) triggers the logout→register.
+ * Guard (feedback-loop safety): take the logout→register path ONLY when the registration token
+ * differs from the token the SDK already holds. The SDK's own refresh/switch writeback lands in
+ * web-core with the SAME token the controller holds, so that path is skipped there; only a genuine
+ * re-login (a new token the SDK was never told about) triggers it.
+ *
+ * The skipped case still gets one narrow correction: a matching token can hide a STALE `authId`,
+ * because the controller seeds that field only from register() while our signature is recomputed from
+ * the store per packet. That divergence is what makes every later refresh 403 with `invalid sign`, so
+ * a bare re-seed fixes the field without revoking the live session (see `authIdRegistry`).
  */
 export const reauthenticateActiveSocket = async ({
     manager,
@@ -52,9 +59,29 @@ export const reauthenticateActiveSocket = async ({
         return;
     }
 
+    const sign = (token: string, ctx?: { target?: string }) => delegate.signAuth(kind, token, ctx?.target);
+
+    // register() re-activates an inactive controller, which auto-sends `auth.update` on the next
+    // `connected` — BEFORE that connection's device.save:ok, the ordering failure the bootstrap gate
+    // exists for. Re-close the gate whenever we register on a socket that is not connected.
+    const closeGateIfDisconnected = (): void => {
+        if (client && client.state !== 'connected') {
+            (auth as unknown as AuthActivationGate).stop();
+        }
+    };
+
     // The SDK already holds this token (its own refresh/switch writeback, or an unrelated re-render) —
-    // nothing to do. This is what keeps the SDK-driven writeback from looping back into a re-auth.
+    // so this is NOT an identity change, and the logout→register below would be wrong. This is what
+    // keeps the SDK-driven writeback from looping back into a re-auth.
+    //
+    // It is not automatically a no-op, though. The controller's `authId` is seeded ONLY by register()
+    // and no writeback ever touches it, so a matching token can still hide a stale authId — the exact
+    // state that makes every later refresh 403 with `invalid sign`. Correct that field alone here
+    // (authIdRegistry), and leave the identity path untouched.
     if (registration.token === auth.token) {
+        if (authIdRegistry.resync(kind, auth, registration, sign)) {
+            closeGateIfDisconnected();
+        }
         return;
     }
 
@@ -88,11 +115,9 @@ export const reauthenticateActiveSocket = async ({
         manager.setAuthenticated(kind, false);
     }
 
-    auth.register({
-        token: registration.token,
-        authId: registration.authId,
-        sign: (token, ctx) => delegate.signAuth(kind, token, ctx?.target),
-    });
+    auth.register({ token: registration.token, authId: registration.authId, sign });
+    // Mirror what the controller now signs with, so a later writeback can tell drift from a match.
+    authIdRegistry.record(kind, registration.authId);
 
     // register() on an inactive controller re-activates it. On a LIVE connection that fires
     // auth.update right here — in order, since device.save:ok already ran for this connection. But
@@ -101,7 +126,5 @@ export const reauthenticateActiveSocket = async ({
     // ordering failure the bootstrap gate exists for (a failed initial update is never retried as
     // update → terminal `expired`). Re-close the gate; the bootstrap's device.save:ok handler
     // start()s it at the right time. (2026-08 session audit — found alongside §5-1.)
-    if (client && client.state !== 'connected') {
-        (auth as unknown as AuthActivationGate).stop();
-    }
+    closeGateIfDisconnected();
 };

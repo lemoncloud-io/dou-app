@@ -5,7 +5,7 @@ import { useChatSync, useSyncTarget } from './useSyncTarget';
 const mockDispose = jest.fn();
 const mockRegister = jest.fn().mockReturnValue(mockDispose);
 const mockUpdateLocalSnapshot = jest.fn();
-jest.mock('../../runtime', () => ({
+jest.mock('../runtime', () => ({
     getSyncManager: () => ({ register: mockRegister, updateLocalSnapshot: mockUpdateLocalSnapshot }),
 }));
 

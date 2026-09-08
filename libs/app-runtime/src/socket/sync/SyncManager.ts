@@ -63,7 +63,9 @@ export class SyncManager implements ISyncManager {
         private readonly manager: ISocketManager,
         deps: SyncManagerDeps = {}
     ) {
-        this.buildPlans = deps.buildSyncPlans ?? createSyncPlans;
+        // Plans read the bound cloud through the manager THIS instance owns, so `plans` never
+        // imports `socket/runtime` (that import closed a cycle back through this file).
+        this.buildPlans = deps.buildSyncPlans ?? (() => createSyncPlans(() => this.manager.getBoundCid()));
         this.runtimeOptions = deps.runtimeOptions ?? {};
         // createDeviceRuntime injects a DeviceSyncPlan and owns connect-driven device
         // save; app domain plans are passed as `extraSyncPlans` and tuning options

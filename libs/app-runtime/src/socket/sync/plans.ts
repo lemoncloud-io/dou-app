@@ -8,7 +8,6 @@ import {
 } from '@lemoncloud/chatic-sockets-lib';
 import { toDomainChannel, toDomainChat, toDomainJoin, toDomainPlace, toDomainProfile } from '@chatic/data';
 import { getDataManager, getRepositories } from '../../data/runtime';
-import { getSocketManager } from '../runtime';
 import type { ChannelView, ProfileView } from '@lemoncloud/chatic-socials-api';
 import type { MySiteView } from '@lemoncloud/chatic-backend-api';
 import { isForeignContext } from '@chatic/data';
@@ -22,14 +21,6 @@ import { isForeignContext } from '@chatic/data';
  * scope object.
  */
 const getContext = () => getDataManager().getContext();
-
-// A cloud switch flips the cache cid to the target optimistically, but the outgoing cloud's
-// socket stays attached (same url) until the target's wss commits — and keeps delivering frames.
-// getBoundCid() is the cloud that socket was actually bound to; when it differs from the live
-// cache cid the frame belongs to a socket that outlived its cloud, so drop it rather than write
-// the old cloud's channels under the new cloud's partition (the cross-cloud flicker).
-const dropForeignFrame = (): boolean =>
-    isForeignContext({ ...getContext(), socketCid: getSocketManager().getBoundCid() ?? undefined });
 
 /**
  * 폴링 plan 공통 옵션: 재연결 시 스냅샷을 리셋하지 않는다 (ADR-0059).
@@ -45,7 +36,21 @@ const KEEP_SNAPSHOT_ON_RECONNECT = { resetSnapshotOnConnected: false } as const;
 
 // DeviceSyncPlan is no longer created here: createDeviceRuntime injects its own
 // DeviceSyncPlan and owns device save, so these plans are passed as `extraSyncPlans`.
-export const createSyncPlans = (): DomainSyncPlan[] => {
+//
+// `getBoundCid` is injected rather than read from `socket/runtime`: importing the runtime here
+// closed a cycle (`socket/runtime` → `SyncManager` → `plans` → `socket/runtime`). The owner already
+// holds the manager — `SyncManager` passes its own accessor — so nothing needs the singleton.
+export const createSyncPlans = (getBoundCid: () => string | null): DomainSyncPlan[] => {
+    // A cloud switch flips the cache cid to the target optimistically, but the outgoing cloud's
+    // socket stays attached (same url) until the target's wss commits — and keeps delivering frames.
+    // getBoundCid() is the cloud that socket was actually bound to; when it differs from the live
+    // cache cid the frame belongs to a socket that outlived its cloud, so drop it rather than write
+    // the old cloud's channels under the new cloud's partition (the cross-cloud flicker).
+    //
+    // Read per frame, never captured: the bound cloud changes under a live plan.
+    const dropForeignFrame = (): boolean =>
+        isForeignContext({ ...getContext(), socketCid: getBoundCid() ?? undefined });
+
     return [
         new ChannelSyncPlan<ChannelView>({
             ...KEEP_SNAPSHOT_ON_RECONNECT,

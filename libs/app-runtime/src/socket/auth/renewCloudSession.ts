@@ -5,7 +5,7 @@ import { Coalescer } from '../../utils/coalescer';
 
 import { getSocketManager } from '../runtime';
 import { reauthenticateActiveSocket } from './reauthenticateActiveSocket';
-import { createSocketSessionDelegate } from './sessionDelegate';
+import { createReauthDelegate } from './reauthDelegate';
 
 /**
  * Renews the ACTIVE cloud session end to end: re-issue the cloud tokens, then hand the new identity
@@ -39,7 +39,7 @@ const run = async (): Promise<boolean> => {
     try {
         await reauthenticateActiveSocket({
             manager: getSocketManager(),
-            delegate: createSocketSessionDelegate(),
+            delegate: createReauthDelegate(),
             kind: 'cloud',
         });
     } catch (error) {

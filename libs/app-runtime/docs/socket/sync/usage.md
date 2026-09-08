@@ -35,7 +35,7 @@
 
 ## 2. app-runtime 통합 — `SyncManager`
 
-`libs/app-runtime`는 라이브러리를 직접 노출하지 않고 `SyncManager`(`src/socket/sync/`)로 감싼다. UI/앱은 `getSyncManager()`(또는 `useSyncTarget` 계열 훅)의 `register*` 메서드만 쓴다. (`getSocketRuntime`은 **export하지 않는다** — 매니저는 `getSyncManager()`로 접근.)
+`libs/app-runtime`는 라이브러리를 직접 노출하지 않고 `SyncManager`(`src/socket/sync/`)로 감싼다. UI/앱은 `getSyncManager()`(또는 `useSyncTarget` 계열 훅)의 `register*` 메서드만 쓴다. 매니저의 생성 지점은 `src/socket/sync/runtime.ts`이고, 소켓 쪽 `socket/runtime.ts`는 sync를 만들지 않는다(순환 방지 — `src/importCycleAbsence.test.ts`).
 
 ```ts
 import { getSyncManager } from '@chatic/app-runtime';

@@ -11,8 +11,8 @@ jest.mock('../../session/auth/cloudTokens', () => ({
 jest.mock('./reauthenticateActiveSocket', () => ({
     reauthenticateActiveSocket: (...args: unknown[]) => mockReauthenticate(...args),
 }));
-jest.mock('./sessionDelegate', () => ({
-    createSocketSessionDelegate: () => ({ delegate: true }),
+jest.mock('./reauthDelegate', () => ({
+    createReauthDelegate: () => ({ delegate: true }),
 }));
 jest.mock('../runtime', () => ({
     getSocketManager: (...args: unknown[]) => mockGetSocketManager(...args),

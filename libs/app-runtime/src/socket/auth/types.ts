@@ -22,3 +22,12 @@ export interface SocketSessionDelegate {
     commitRefreshedToken(kind: SocketKind, view: unknown): Promise<void> | void;
     onAuthExpired?(kind: SocketKind): Promise<void> | void;
 }
+
+/**
+ * The re-authentication subset: seed a registration, sign it. `reauthenticateActiveSocket` uses
+ * exactly these two — the refresh writeback and the terminal-expiry escalation are no business of
+ * that path — and narrowing the parameter is what lets its callers build a delegate without
+ * reaching the renewers (see `reauthDelegate.ts`). Same `Pick` shape as
+ * `ActiveScope.BoundCidSource`: the narrow type is made where it is needed, not declared up front.
+ */
+export type ReauthDelegate = Pick<SocketSessionDelegate, 'getAuthRegistration' | 'signAuth'>;

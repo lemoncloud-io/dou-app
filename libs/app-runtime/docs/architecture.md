@@ -668,15 +668,23 @@ src/public-surface.test.ts   EXPECTED 단일 목록이 그것을 잠근다
 
 ## 조립 (composition root)
 
-### `createSocketRuntime()` ([`src/socket/runtime.ts`](../src/socket/runtime.ts))
+### 엔진 축마다 생성 지점 하나
 
 ```ts
-const socketManager = new SocketManager();
-const syncManager = new SyncManager(socketManager);
-// 인증은 SDK ClientSocketAuth가 client당 소유(SocketManager가 auth: AUTH_OPTIONS로 부착).
-// bootstrap/reauth 배선은 SocketBinder/SocketReauthBinder가 순수 함수로 수행 — controller 인스턴스 없음.
-return { socketManager, syncManager };
+// src/socket/runtime.ts — 소켓 축
+export const getSocketManager = (): ISocketManager => (socketManagerSingleton ??= new SocketManager());
+
+// src/socket/sync/runtime.ts — sync 축. socket/runtime.ts가 이걸 만들지 않는 것이 계약이다
+// (§순환 import 부재의 두 번째 링).
+export const getSyncManager = (): ISyncManager => (syncManagerSingleton ??= new SyncManager(getSocketManager()));
 ```
+
+인증은 SDK `ClientSocketAuth`가 client당 소유하고(`SocketManager`가 `auth: AUTH_OPTIONS`로 부착),
+bootstrap/reauth 배선은 `SocketBinder`/`SocketReauthBinder`가 순수 함수로 수행한다 — controller
+인스턴스는 없다. 그래서 여기 주입할 세션 컨트롤러나 recovery/reconnect 정책이 없다.
+
+둘을 한 파일에서 `SocketRuntime` 조립체로 만들던 판은 걷었다: 그 파일이 `socket → socket/sync`
+간선이었고 그것이 두 엔진에 걸친 순환을 닫았다.
 
 ### `RuntimeConnectionHost` (React 조립 루트)
 
@@ -764,7 +772,7 @@ libs/app-runtime/src/
     coalescer.ts · throttle.ts     # 진행 중 시도 공유 / 동기 발사 허가 게이트
   socket/
     SocketManager.ts               # transport (듀얼 슬롯 + active-facade)
-    runtime.ts                     # getSocketManager/getSyncManager 싱글턴
+    runtime.ts                     # getSocketManager 싱글턴 — sync는 여기서 만들지 않는다
     types.ts                       # SocketKind/SocketBindingConfig/SocketState
                                    # ISocketManager = 관심사 4개 인터페이스의 합성
     authUpdateAbsence.test.ts      # auth.update 부재 검사 (경로 lint 대체)
@@ -775,7 +783,9 @@ libs/app-runtime/src/
       applySessionToken.ts · requestRelaySessionRefresh.ts · renewCloudSession.ts
       switchSite.ts · logoutSession.ts · logoutCloudSession.ts
       sessionDelegate.ts · types.ts   # SocketSessionDelegate 계약
+      reauthDelegate.ts            #   seed+sign 절반 (재인증 경로 전용 — renewer 간선 없음)
     sync/
+      runtime.ts                   # getSyncManager 싱글턴 (엔진 축마다 생성 지점 하나)
       SyncManager.ts · plans.ts · types.ts · hooks/useSyncTarget.ts
   http/
     HttpManager.ts                 # route별 endpoint·크레덴셜 (SocketManager와 대칭)
@@ -796,7 +806,27 @@ libs/app-runtime/src/
     useDeviceTokenRegistration.ts
   index.ts                         # 앱 표면 (값 export 68)
   public-surface.test.ts           # 그 목록을 잠그는 EXPECTED
+  importCycleAbsence.test.ts       # 순환 import 부재 검사 (아래 참고)
 ```
+
+### 순환 import 부재
+
+이 패키지에는 값 import 순환이 없고, [`src/importCycleAbsence.test.ts`](../src/importCycleAbsence.test.ts)가
+매 실행 트리를 재측정해 그 사실을 지킨다. `refreshAbsence` · `authUpdateAbsence`와 같은 부재 검사
+계열이며, 이유도 같다 — 경로 기반 lint는 심볼이 옮겨가면 조용히 죽는다.
+
+두 개를 끊고 도입했다. 둘 다 런타임에서는 깨지지 않았고(문제의 참조가 전부 함수 본문 안이라
+모듈이 다 채워진 뒤에 읽힌다) 그래서 두 ADR의 리뷰를 그대로 통과했다:
+
+| 링                                                                                                                                   | 끊은 방법                                                                                                 |
+| ------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
+| `sessionDelegate` → `renewers` → `renewCloudSession` → `sessionDelegate` (ADR-0076이 만든 것, 링 안에 모듈 로드 시점 `new` 2개)      | `reauthDelegate.ts`로 seed+sign 절반 분리 · `reauthenticateActiveSocket`의 인자를 `ReauthDelegate`로 좁힘 |
+| `socket/runtime` → `SyncManager` → `plans` → `data/runtime` → `DataManager` → `socketFactory` → `socket/runtime` (두 엔진에 걸친 것) | 엔진 축마다 생성 지점 하나 — `sync/runtime.ts` 분리로 `socket → socket/sync` 간선 제거                    |
+
+두 번째 것의 부수 계약: `SyncManager`는 슬롯이 바인딩되기 **전에** 존재해야 한다(슬롯마다 device
+runtime을 붙이고, 그 runtime이 connect 기반 `device.save`를 소유한다). 예전에는 리포지토리를 처음
+만진 코드가 `DataManager` → 소켓 런타임 → sync를 연쇄로 만들어서 **우연히** 성립했다. 지금은
+`SocketBinder`가 렌더 본문에서 `getSyncManager()`를 불러 그 요구를 명시한다.
 
 ## 검증 방법
 

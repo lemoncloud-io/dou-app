@@ -121,5 +121,6 @@ export { initAppRuntime } from './init';
 export type { AppRuntimeConfig } from './init';
 
 // --- Manager entry points -------------------------------------------------------------------
-export { getSocketManager, getSyncManager } from './socket/runtime';
+export { getSocketManager } from './socket/runtime';
+export { getSyncManager } from './socket/sync/runtime';
 export type { ISocketManager } from './socket';

@@ -86,7 +86,9 @@ export interface RuntimeSocketSlots {
 
 `runtime`이 직접 생성하지 않는 것: `createClientSocketV2`, `createDeviceRuntime`.
 
-`runtime`이 조립하는 것: `SocketManager`·`SyncManager`(`createSocketRuntime()`), `DataManager`.
+`runtime`이 조립하는 것: `SocketManager`(`socket/runtime.ts`) · `SyncManager`(`socket/sync/runtime.ts`) ·
+`DataManager`. 엔진 축마다 생성 지점이 하나이고, 소켓 파일이 sync를 만들지 않는 것은 순환 방지
+계약이다 — `src/importCycleAbsence.test.ts`.
 
 인증은 별도 조립 객체 없이 SDK `ClientSocketAuth`(`client.auth`)가 소유하고, bootstrap 시퀀싱은
 `SocketBinder`가 `bootstrapSocketConnection(...)`으로 수행한다.

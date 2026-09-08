@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react';
 import { logger } from '@chatic/bridges';
 
 import { getSocketManager } from '../socket/runtime';
+import { getSyncManager } from '../socket/sync/runtime';
 import { bootstrapSocketConnection } from '../socket';
 import type { ISocketManager, SocketBindingConfig, SocketKind, SocketSessionDelegate } from '../socket';
 import type { RuntimeSocketSlots } from '../runtime';
@@ -136,6 +137,12 @@ const useSocketSlot = (
  */
 export const SocketBinder = ({ slots, delegate }: SocketBinderProps) => {
     const socketManager = getSocketManager();
+    // The sync engine must exist BEFORE a slot binds: it attaches a device runtime per bound slot,
+    // and that runtime owns the slot's connect-driven `device.save` (whose `:ok` is what opens the
+    // bootstrap's auth gate). Render runs before the binding effects below, so naming it here is the
+    // guarantee. It used to be luck — the first repository read built the DataManager, which built
+    // the socket runtime, which built the sync manager (see socket/sync/runtime.ts).
+    getSyncManager();
     useSocketSlot(socketManager, 'relay', slots.relay?.config, delegate);
     useSocketSlot(socketManager, 'cloud', slots.cloud?.config, delegate);
     return null;

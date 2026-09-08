@@ -5,7 +5,7 @@ import { relaySession } from '../../session/auth/relaySession';
 
 import { getSocketManager } from '../runtime';
 import { reauthenticateActiveSocket } from './reauthenticateActiveSocket';
-import { createSocketSessionDelegate } from './sessionDelegate';
+import { createReauthDelegate } from './reauthDelegate';
 
 /** Upper bound for the relay slot to re-verify the new identity before we give up waiting. */
 const DEFAULT_APPLY_TIMEOUT_MS = 10_000;
@@ -58,7 +58,7 @@ export const applySessionToken = async ($token: unknown, options?: ApplySessionT
     await relaySession.loginByToken(view);
 
     const manager = getSocketManager();
-    await reauthenticateActiveSocket({ manager, delegate: createSocketSessionDelegate(), kind: 'relay' });
+    await reauthenticateActiveSocket({ manager, delegate: createReauthDelegate(), kind: 'relay' });
 
     const auth = manager.getClient('relay')?.auth;
     if (!auth) {
