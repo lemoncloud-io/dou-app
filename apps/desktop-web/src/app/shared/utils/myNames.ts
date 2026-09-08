@@ -1,4 +1,4 @@
-import { getActiveSessionUser, getIdentityContext } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { useSiteProfilesStore } from '../stores';
 
@@ -9,8 +9,8 @@ import { useSiteProfilesStore } from '../stores';
  * identically.
  */
 export const resolveMyMentionNames = (): Array<string | undefined> => {
-    const uid = getIdentityContext().userId ?? undefined;
-    const user = getActiveSessionUser() as { name?: string } | null;
+    const uid = runtime.session.getIdentityContext().userId ?? undefined;
+    const user = runtime.session.getActiveSessionUser() as { name?: string } | null;
     const placeProfiles = useSiteProfilesStore.getState().profiles;
     return [user?.name, uid ? placeProfiles[uid]?.nick : undefined];
 };

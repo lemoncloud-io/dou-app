@@ -40,8 +40,12 @@ jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ 
 // (only a main user gets the re-invite CTA). Importing the real module would load the data layer,
 // whose IndexedDB open crashes outside a browser.
 jest.mock('@chatic/app-runtime', () => ({
-    useSessionIdentity: () => ({ userId: 'me' }),
-    useRuntimeProfile: () => ({ isGuest: mockIsGuest }),
+    runtime: {
+        session: {
+            useSessionIdentity: () => ({ userId: 'me' }),
+            useRuntimeProfile: () => ({ isGuest: mockIsGuest }),
+        },
+    },
 }));
 
 // Avoid pulling the ui barrel (which imports @chatic/assets, unmapped in jest).

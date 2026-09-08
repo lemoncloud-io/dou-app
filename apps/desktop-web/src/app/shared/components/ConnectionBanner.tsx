@@ -2,8 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { useIsMutating } from '@tanstack/react-query';
 
 import { cn } from '@chatic/lib/utils';
-import { useConnectivity } from '@chatic/app-runtime';
-import { SWITCH_CLOUD_MUTATION_KEY, SWITCH_SITE_MUTATION_KEY } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 /**
  * App-shell connection status bar. The engine's connectivity derivation composes
@@ -13,13 +12,13 @@ import { SWITCH_CLOUD_MUTATION_KEY, SWITCH_SITE_MUTATION_KEY } from '@chatic/app
  */
 export const ConnectionBanner = () => {
     const { t } = useTranslation();
-    const status = useConnectivity();
+    const status = runtime.connection.useConnectivity();
     // A cloud/place switch intentionally tears the socket down and re-verifies; surfacing
     // "Reconnecting…" during a deliberate switch reads as a failure, so stay quiet while one
     // is in flight (detected via the switch mutations, the same signal useBackgroundSync uses).
     const isSwitching =
-        useIsMutating({ mutationKey: SWITCH_SITE_MUTATION_KEY }) +
-            useIsMutating({ mutationKey: SWITCH_CLOUD_MUTATION_KEY }) >
+        useIsMutating({ mutationKey: runtime.session.SWITCH_SITE_MUTATION_KEY }) +
+            useIsMutating({ mutationKey: runtime.session.SWITCH_CLOUD_MUTATION_KEY }) >
         0;
 
     // 'offline' is claimed only when the browser itself reports no network. A down socket on a

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
-import { useSessionIdentity, useSessionSelection } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { isPlaceProfileAbsent } from '../utils/placeProfile';
 
@@ -29,9 +28,9 @@ export interface PlaceProfileGate {
  * it matters most.
  */
 export const usePlaceProfileAbsent = (): PlaceProfileGate => {
-    const { profile: profileRepository } = useRuntimeRepositories();
-    const { selectedSiteId: sid } = useSessionSelection();
-    const { userId: uid } = useSessionIdentity();
+    const { profile: profileRepository } = runtime.data.useRuntimeRepositories();
+    const { selectedSiteId: sid } = runtime.session.useSessionSelection();
+    const { userId: uid } = runtime.session.useSessionIdentity();
 
     const [absent, setAbsent] = useState<boolean | undefined>(undefined);
 

@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 
 import type { DomainChannel } from '@chatic/data';
-import { getSyncManager, useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { usePlaces } from './usePlaces';
 import { lastChatNoOf } from '../utils/channelMerge';
@@ -32,9 +32,9 @@ export interface ChannelChatFeed {
  * own-message, mention filtering) inside the callback.
  */
 export const useChannelChatFeeds = (onChat: (feed: ChannelChatFeed) => void): void => {
-    const { channel: channelRepository } = useRuntimeRepositories();
+    const { channel: channelRepository } = runtime.data.useRuntimeRepositories();
     const { places } = usePlaces();
-    const { isVerified } = useRuntimeSocketState();
+    const { isVerified } = runtime.connection.useRuntimeSocketState();
 
     // Per-channel high-water mark of the newest chatNo already emitted.
     const seen = useRef<Map<string, number>>(new Map());
@@ -49,7 +49,7 @@ export const useChannelChatFeeds = (onChat: (feed: ChannelChatFeed) => void): vo
     useEffect(() => {
         if (!isVerified || places.length === 0) return;
         let active = true;
-        const sync = getSyncManager();
+        const sync = runtime.sync.getSyncManager();
 
         // channelId → unregister its channel sync target.
         const subs = new Map<string, () => void>();

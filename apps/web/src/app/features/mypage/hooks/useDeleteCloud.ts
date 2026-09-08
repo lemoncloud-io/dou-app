@@ -1,4 +1,4 @@
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import { useCustomMutation } from '@chatic/shared';
 
 import type { DomainCloud } from '@chatic/data';
@@ -12,7 +12,7 @@ import type { DomainCloud } from '@chatic/data';
  * `data`.
  */
 export const useDeleteCloud = () => {
-    const { cloud } = useRuntimeRepositories();
+    const { cloud } = runtime.data.useRuntimeRepositories();
 
     return useCustomMutation<DomainCloud, string, { id: string; cascade?: boolean }>(({ id, cascade }) =>
         cloud.releaseCloud(id, { cascade })

@@ -1,7 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 
-import { useGlobalCacheSearch } from '@chatic/app-runtime';
-import { useSessionSelection } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { useCloudSessionCatalog } from '../../../hooks/useCloudCatalog';
 import { logger } from '@chatic/bridges';
@@ -11,10 +10,16 @@ import { useGlobalSearch } from './useGlobalSearch';
 
 jest.mock('../../../hooks/useCloudCatalog', () => ({ useCloudSessionCatalog: jest.fn() }));
 jest.mock('@chatic/app-runtime', () => ({
-    useGlobalCacheSearch: jest.fn(),
-    // useCachedCloudNames observes the cloud cache through the repositories.
-    useRuntimeRepositories: () => ({ cloud: { observeList: () => () => undefined } }),
-    useSessionSelection: jest.fn(() => ({ selectedCloudId: 'cloud-a' })),
+    runtime: {
+        data: {
+            useGlobalCacheSearch: jest.fn(),
+            // useCachedCloudNames observes the cloud cache through the repositories.
+            useRuntimeRepositories: () => ({ cloud: { observeList: () => () => undefined } }),
+        },
+        session: {
+            useSessionSelection: jest.fn(() => ({ selectedCloudId: 'cloud-a' })),
+        },
+    },
 }));
 
 jest.mock('@chatic/bridges', () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } }));
@@ -26,9 +31,9 @@ beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers();
     search.mockResolvedValue({ channels: [], sites: [], chats: [] });
-    (useGlobalCacheSearch as jest.Mock).mockReturnValue({ search });
+    (runtime.data.useGlobalCacheSearch as jest.Mock).mockReturnValue({ search });
     (useCloudSessionCatalog as jest.Mock).mockReturnValue({ clouds: [] });
-    (useSessionSelection as jest.Mock).mockReturnValue({ selectedCloudId: 'cloud-a' });
+    (runtime.session.useSessionSelection as jest.Mock).mockReturnValue({ selectedCloudId: 'cloud-a' });
     (useInvitedClouds as jest.Mock).mockReturnValue({ invitedClouds: [], hasInvitedClouds: false });
 });
 
@@ -76,7 +81,7 @@ describe('useGlobalSearch', () => {
     });
 
     it('scopes the scan to the relay partition when no cloud is selected', async () => {
-        (useSessionSelection as jest.Mock).mockReturnValue({ selectedCloudId: null });
+        (runtime.session.useSessionSelection as jest.Mock).mockReturnValue({ selectedCloudId: null });
 
         renderHook(() => useGlobalSearch('lemon'));
         act(() => jest.advanceTimersByTime(300));

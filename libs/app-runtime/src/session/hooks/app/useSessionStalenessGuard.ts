@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { logger } from '@chatic/bridges';
 import { hasStoredRelaySession, isStoredSessionExpired } from '../../../http/transport';
 
-import { useKindVerified } from '../../../runtime/hooks/useKindVerified';
+import { useKindVerified } from '../../../connection/hooks/useKindVerified';
 import { SDK_REFRESH_CYCLE_MS } from '../../../socket/constants';
 import { credentialRenewers } from '../../../socket/auth/renewers';
 import { Coalescer } from '../../../utils/coalescer';

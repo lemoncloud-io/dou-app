@@ -3,7 +3,7 @@ import { render, waitFor } from '@testing-library/react';
 import { RuntimeAuthHost, RuntimeConnectionHost } from './RuntimeConnectionHost';
 import { getSocketManager } from '../socket/runtime';
 import { bootstrapSocketConnection } from '../socket';
-import { useDynamicDeviceId } from '../session';
+import { useDynamicDeviceId } from '../session/hooks/app/useDynamicDeviceId';
 import { getSocketSlotContext } from '../session/store';
 
 // The boot gate now comes from its concrete module (the session barrel stopped selling it), so it
@@ -20,12 +20,16 @@ jest.mock('../session/hooks/app/useRelaySessionKeepAlive', () => ({
     useRelaySessionKeepAlive: (enabled: boolean) => mockKeepAlive(enabled),
 }));
 
+// The host derives its own slots now (ADR-0076 G5), so `useRuntimeSocketSlots` runs even when a
+// test passes `slots` explicitly. The device id is one of its two inputs; the other is the narrow
+// session snapshot, overridden on `../session/store` below. Mocked at the hook's CONCRETE path
+// because that is what the slots hook imports — the session barrel publishes it outward only.
+jest.mock('../session/hooks/app/useDynamicDeviceId', () => ({
+    useDynamicDeviceId: jest.fn(() => ({ deviceId: 'device-1' })),
+}));
+
 jest.mock('../session', () => ({
     useRelaySessionKeepAlive: jest.fn(),
-    // The host derives its own slots now (ADR-0076 G5), so `useRuntimeSocketSlots` runs even when a
-    // test passes `slots` explicitly. The device id is one of its two inputs; the other is the
-    // narrow session snapshot, overridden on `../session/store` below.
-    useDynamicDeviceId: jest.fn(() => ({ deviceId: 'device-1' })),
     // Consumed by useSocketSessionDelegate (the delegate is now owned by app-runtime).
     getServerAuthRegistration: jest.fn(),
     signServerAuth: jest.fn(),

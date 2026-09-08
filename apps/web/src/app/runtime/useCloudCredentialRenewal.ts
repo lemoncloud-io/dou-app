@@ -1,4 +1,4 @@
-import { useCloudCredentialGuard } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { useAppForeground } from '../bridge';
 
@@ -16,7 +16,7 @@ import { useAppForeground } from '../bridge';
  * decision.
  */
 export const useCloudCredentialRenewal = (): void => {
-    const { check } = useCloudCredentialGuard();
+    const { check } = runtime.session.useCloudCredentialGuard();
 
     useAppForeground(() => {
         void check();

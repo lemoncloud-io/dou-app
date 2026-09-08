@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { useRelayInviteMutations, useRelayInvites, type RelayInviteRow } from '../../../hooks';
 import { composeInviteCode } from '../utils/inviteCode';
@@ -33,7 +33,7 @@ import { getSocketErrorCode } from '../../../utils/errors';
  * race the list invalidation each mutation already triggers.
  */
 export const useCanceledInviteReconcile = (): void => {
-    const { invite } = useRuntimeRepositories();
+    const { invite } = runtime.data.useRuntimeRepositories();
     const { invites, isLoading, refetch } = useRelayInvites();
     const { cancelInvite } = useRelayInviteMutations();
 

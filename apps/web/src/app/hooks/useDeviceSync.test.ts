@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { useMatch } from 'react-router-dom';
 
-import { useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { useAppVisibility } from '../bridge';
 import { useDeviceSync } from './useDeviceSync';
@@ -11,8 +11,14 @@ jest.mock('react-router-dom', () => ({
 }));
 
 jest.mock('@chatic/app-runtime', () => ({
-    useRuntimeRepositories: jest.fn(),
-    useRuntimeSocketState: jest.fn(),
+    runtime: {
+        data: {
+            useRuntimeRepositories: jest.fn(),
+        },
+        connection: {
+            useRuntimeSocketState: jest.fn(),
+        },
+    },
 }));
 
 // The bridge hook is unit-tested on its own; here we only need to drive its handler.
@@ -21,8 +27,8 @@ jest.mock('../bridge', () => ({
 }));
 
 const useMatchMock = useMatch as jest.Mock;
-const useRuntimeRepositoriesMock = useRuntimeRepositories as jest.Mock;
-const useRuntimeSocketStateMock = useRuntimeSocketState as jest.Mock;
+const useRuntimeRepositoriesMock = runtime.data.useRuntimeRepositories as jest.Mock;
+const useRuntimeSocketStateMock = runtime.connection.useRuntimeSocketState as jest.Mock;
 const useAppVisibilityMock = useAppVisibility as jest.Mock;
 
 const syncDevice = jest.fn();

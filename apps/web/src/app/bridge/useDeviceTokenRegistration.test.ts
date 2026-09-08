@@ -1,7 +1,11 @@
 import { renderHook } from '@testing-library/react';
 
 jest.mock('@chatic/app-runtime', () => ({
-    useDeviceTokenRegistration: jest.fn(),
+    runtime: {
+        push: {
+            useDeviceTokenRegistration: jest.fn(),
+        },
+    },
 }));
 
 jest.mock('./appBridge', () => ({
@@ -10,12 +14,12 @@ jest.mock('./appBridge', () => ({
     },
 }));
 
-import { useDeviceTokenRegistration as useRuntimeDeviceTokenRegistration } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { appBridge } from './appBridge';
 import { useDeviceTokenRegistration } from './useDeviceTokenRegistration';
 
-const mockRuntimeHook = useRuntimeDeviceTokenRegistration as jest.Mock;
+const mockRuntimeHook = runtime.push.useDeviceTokenRegistration as jest.Mock;
 const mockFetchFcmToken = appBridge.fetchFcmToken as jest.Mock;
 
 // The adapter's job is delegate construction only; registration policy is

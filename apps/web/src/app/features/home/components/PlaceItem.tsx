@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 
 import { Loader2 } from 'lucide-react';
 
-import { usePlaceSync } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import type { DomainPlace } from '@chatic/data';
 
 import { ImageAvatar, ListRow, PlaceAvatar, VerifiedBadge } from '@chatic/web-ui-kit';
@@ -42,7 +42,7 @@ export const PlaceItem = ({
     const { t } = useTranslation();
     // Register this place as a sync target while it is rendered; the runtime keeps its
     // metadata (name, thumbnail, …) live and unregisters on unmount.
-    usePlaceSync(place.id);
+    runtime.sync.usePlaceSync(place.id);
 
     // Shared with useActivePlaceName so the row and the profile dialog titles can't drift.
     // Relay never renders this row any more (ADR-0034), so the default-cloud context is always

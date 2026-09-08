@@ -2,8 +2,7 @@ import { useEffect, useRef } from 'react';
 
 import type { DomainChannel, DomainJoin } from '@chatic/data';
 import { isNative, webClient } from '@chatic/bridges';
-import { useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
-import { useSessionIdentity } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { usePlaces } from './usePlaces';
 import { useChannelChatFeeds, type ChannelChatFeed, type ChannelLastChat } from './useChannelChatFeeds';
@@ -41,10 +40,10 @@ const isViewing = (channelId: string): boolean =>
  * win at notify time) so devices don't drift.
  */
 export const useDesktopNotifications = (): void => {
-    const { channel: channelRepository, join: joinRepository } = useRuntimeRepositories();
+    const { channel: channelRepository, join: joinRepository } = runtime.data.useRuntimeRepositories();
     const { places } = usePlaces();
-    const { isVerified } = useRuntimeSocketState();
-    const { userId: myUid } = useSessionIdentity();
+    const { isVerified } = runtime.connection.useRuntimeSocketState();
+    const { userId: myUid } = runtime.session.useSessionIdentity();
 
     // Read identity at notify/mirror time via a ref so a changing profile doesn't re-run the
     // join effect (which would drop every live join subscription).

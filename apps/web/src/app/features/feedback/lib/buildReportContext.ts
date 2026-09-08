@@ -1,5 +1,5 @@
 import type { DeviceInfo, VersionInfo } from '@chatic/app-messages';
-import type { IssueReportExtras } from '@chatic/app-runtime';
+import type { runtime } from '@chatic/app-runtime';
 
 // Direct paths, not the `app/utils` barrel: the barrel pulls in web-vitals / place-profile helpers
 // that reach web-core, whose `import.meta` the CommonJS test transform cannot parse
@@ -46,7 +46,10 @@ const pickDeviceFields = (deviceInfo: DeviceInfo) => ({
  * so `routeTrail` carries the diagnostic weight: its second-to-last entry is the
  * screen the user was actually on.
  */
-export const buildReportContext = ({ deviceInfo, versionInfo }: BuildReportContextArgs): IssueReportExtras => {
+export const buildReportContext = ({
+    deviceInfo,
+    versionInfo,
+}: BuildReportContextArgs): runtime.report.IssueReportExtras => {
     const viewport = getViewportSize();
     const routeTrail = getRouteTrail();
 

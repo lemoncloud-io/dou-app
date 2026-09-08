@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 interface UpdateCloudProfileData {
     /** Target cloud id (the active/selected cloud). */
@@ -17,7 +17,7 @@ interface UpdateCloudProfileData {
  * inline rename (and the home `useUpdateCloud` it used) were removed in ADR-0034.
  */
 export const useUpdateCloudProfile = () => {
-    const { cloud } = useRuntimeRepositories();
+    const { cloud } = runtime.data.useRuntimeRepositories();
 
     return useMutation({
         mutationFn: ({ id, name }: UpdateCloudProfileData) =>

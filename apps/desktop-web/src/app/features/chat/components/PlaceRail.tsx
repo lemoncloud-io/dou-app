@@ -7,8 +7,7 @@ import { Home, User } from 'lucide-react';
 
 import type { DomainPlace } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
-import { useSessionIdentity, useSessionLogout } from '@chatic/app-runtime';
-import { useRuntimeProfile } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { useJoinDialogStore } from '../../auth';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
@@ -114,9 +113,9 @@ export const PlaceRail = ({
     const { t } = useTranslation();
     const navigate = useNavigate();
     const openJoinDialog = useJoinDialogStore(s => s.open);
-    const { userId } = useSessionIdentity();
-    const { userName, photo } = useRuntimeProfile();
-    const logout = useSessionLogout();
+    const { userId } = runtime.session.useSessionIdentity();
+    const { userName, photo } = runtime.session.useRuntimeProfile();
+    const logout = runtime.session.useSessionLogout();
     const { resetAccount } = useAccountResetOnLogout();
 
     // Self Display Profile: show my Place nick/photo here when set for this place.

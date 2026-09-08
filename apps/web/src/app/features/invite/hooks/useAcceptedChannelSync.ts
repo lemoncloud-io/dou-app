@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 /**
  * How long the waiting screen waits for a locally-synced channel record before giving up and
@@ -28,7 +28,7 @@ export type AcceptedChannelSyncStatus =
  * caller can show a "check back from home" fallback instead of spinning forever.
  */
 export const useAcceptedChannelSync = (channelId: string | undefined): { status: AcceptedChannelSyncStatus } => {
-    const { channel } = useRuntimeRepositories();
+    const { channel } = runtime.data.useRuntimeRepositories();
     const [status, setStatus] = useState<AcceptedChannelSyncStatus>(channelId ? 'waiting' : 'unknown');
 
     useEffect(() => {

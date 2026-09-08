@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 
-import type { DeviceTokenDelegate } from '@chatic/app-runtime';
-import { useDeviceTokenRegistration as useRuntimeDeviceTokenRegistration } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { appBridge } from './appBridge';
 
@@ -11,7 +10,7 @@ const APPLICATION = 'chatic';
  * Bridge-side adapter for app-runtime's push registration.
  *
  * Only the native app shell can resolve an FCM token, so this wires
- * `appBridge.fetchFcmToken()` into the runtime's DeviceTokenDelegate. All
+ * `appBridge.fetchFcmToken()` into the runtime's runtime.push.DeviceTokenDelegate. All
  * registration policy (auth gating, force re-register, throttle, retry) lives
  * in app-runtime — this file only supplies the shell-specific pieces: the
  * token fetch and the window-injected platform identifier. Device identity
@@ -23,7 +22,7 @@ const APPLICATION = 'chatic';
  */
 export const useDeviceTokenRegistration = (): void => {
     // Shell globals are injected before the web app boots, so resolving once is safe.
-    const delegate = useMemo<DeviceTokenDelegate | null>(() => {
+    const delegate = useMemo<runtime.push.DeviceTokenDelegate | null>(() => {
         const platform = typeof window !== 'undefined' ? window.CHATIC_APP_PLATFORM : undefined;
         if (!platform) return null;
         return {
@@ -38,5 +37,5 @@ export const useDeviceTokenRegistration = (): void => {
         };
     }, []);
 
-    useRuntimeDeviceTokenRegistration(delegate);
+    runtime.push.useDeviceTokenRegistration(delegate);
 };

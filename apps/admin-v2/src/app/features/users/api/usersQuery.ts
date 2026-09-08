@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import { createQueryKeys } from '@chatic/shared';
 
 import type { Params } from '@lemoncloud/lemon-web-core';
@@ -15,7 +15,7 @@ import type { Params } from '@lemoncloud/lemon-web-core';
 export const usersKeys = createQueryKeys('users');
 
 export const useUsers = (params: Params = {}) => {
-    const { user } = useRuntimeRepositories();
+    const { user } = runtime.data.useRuntimeRepositories();
 
     return useQuery({
         queryKey: usersKeys.list(params),

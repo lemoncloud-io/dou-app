@@ -25,9 +25,17 @@ const repositories = {
 };
 
 vi.mock('@chatic/app-runtime', () => ({
-    useRuntimeRepositories: () => repositories,
-    useRuntimeSocketState: () => ({ isVerified }),
-    useSessionIdentity: () => ({ userId: 'me' }),
+    runtime: {
+        data: {
+            useRuntimeRepositories: () => repositories,
+        },
+        connection: {
+            useRuntimeSocketState: () => ({ isVerified }),
+        },
+        session: {
+            useSessionIdentity: () => ({ userId: 'me' }),
+        },
+    },
 }));
 vi.mock('../../../shared', () => ({
     useChannels: () => ({ channels, isLoading: false }),

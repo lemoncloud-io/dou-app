@@ -1,13 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useSessionIdentity, useSessionSelection } from '@chatic/app-runtime';
-import {
-    getSyncManager,
-    useChannelSync,
-    useChatSync,
-    useRuntimeRepositories,
-    useRuntimeSocketState,
-} from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import type {
     DataRepositoriesV2,
     DomainChannel,
@@ -38,12 +31,12 @@ export const ChatRoomPage = () => {
     const { channelId } = useParams<{ channelId: string }>();
     const navigate = useNavigate();
     // Cast to V2 — app-runtime dist is stale (V1 return type), source is V2
-    const repos = useRuntimeRepositories() as unknown as DataRepositoriesV2;
+    const repos = runtime.data.useRuntimeRepositories() as unknown as DataRepositoriesV2;
 
-    const identity = useSessionIdentity();
-    const { selectedSiteId } = useSessionSelection();
+    const identity = runtime.session.useSessionIdentity();
+    const { selectedSiteId } = runtime.session.useSessionSelection();
     const myUid = identity.userId ?? '';
-    const { isVerified } = useRuntimeSocketState();
+    const { isVerified } = runtime.connection.useRuntimeSocketState();
 
     const [chats, setChats] = useState<DomainChat[]>([]);
     const [channel, setChannel] = useState<DomainChannel | null>(null);
@@ -74,8 +67,8 @@ export const ChatRoomPage = () => {
 
     // 채팅 메시지(실시간 append + 초기 prime)와 채널 메타를 sync 타깃으로 등록.
     // 초기 로딩 fetch는 sync 등록 계층이 소유하므로 페이지는 refreshList를 호출하지 않는다.
-    useChatSync(channelId);
-    useChannelSync(channelId);
+    runtime.sync.useChatSync(channelId);
+    runtime.sync.useChannelSync(channelId);
 
     // 채널 메타 구독 — register가 channel.get을 채워 넣고 polling으로 갱신한다.
     useEffect(() => {
@@ -190,7 +183,7 @@ export const ChatRoomPage = () => {
     const memberKey = memberIds.join(',');
     useEffect(() => {
         if (!isVerified) return;
-        const sync = getSyncManager();
+        const sync = runtime.sync.getSyncManager();
         const disposers = memberIds.map(userId => sync.registerJoin(`${channelId}@${userId}`));
         return () => disposers.forEach(dispose => dispose());
         // memberKey가 멤버 집합을 대표한다(memberIds는 키당 1회 읽음).
@@ -238,7 +231,7 @@ export const ChatRoomPage = () => {
                 .filter(userId => cachedProfileUserIds.has(userId))
                 .map(userId => `${sid}@${userId}`);
 
-            const sync = getSyncManager();
+            const sync = runtime.sync.getSyncManager();
 
             // join(read-state) 등록은 위의 전용 effect(memberIds 기준, sid 무관)가 소유한다.
             // 여기서는 profile sync만 등록한다.

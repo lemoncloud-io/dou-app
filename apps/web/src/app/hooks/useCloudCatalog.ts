@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 
-import { cloudsKeys, useRuntimeRepositories, useSessionAuth } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import type { Params } from '@lemoncloud/lemon-web-core';
 
@@ -13,7 +13,7 @@ import type { Params } from '@lemoncloud/lemon-web-core';
  * would poison `cloudType` classification if it landed in the local cache. The staleness policy
  * below is therefore the whole policy, and it belongs to the app that renders it.
  *
- * `cloudsKeys` still comes from the runtime on purpose: `useLogin` invalidates the catalog right
+ * `runtime.data.cloudsKeys` still comes from the runtime on purpose: `useLogin` invalidates the catalog right
  * after a relay login, so that key is shared vocabulary between the lib and the apps.
  */
 export type UseCloudsParams = Params & {
@@ -25,13 +25,13 @@ export type UseCloudsOptions = {
 };
 
 export const useClouds = (params: UseCloudsParams = {}, options?: UseCloudsOptions) => {
-    const { isAuthenticated } = useSessionAuth();
-    const { cloud } = useRuntimeRepositories();
+    const { isAuthenticated } = runtime.session.useSessionAuth();
+    const { cloud } = runtime.data.useRuntimeRepositories();
     const { enabled: legacyEnabled, ...requestParams } = params;
     const enabled = options?.enabled ?? legacyEnabled ?? true;
 
     return useQuery({
-        queryKey: cloudsKeys.list(requestParams),
+        queryKey: runtime.data.cloudsKeys.list(requestParams),
         queryFn: () => cloud.fetchCloudCatalog(requestParams),
         enabled: isAuthenticated && enabled,
         refetchOnWindowFocus: false,
@@ -44,7 +44,7 @@ export const useClouds = (params: UseCloudsParams = {}, options?: UseCloudsOptio
  * Fetches the relay-visible cloud catalog for authenticated users.
  */
 export const useCloudSessionCatalog = () => {
-    const { isAuthenticated } = useSessionAuth();
+    const { isAuthenticated } = runtime.session.useSessionAuth();
     const {
         data,
         isError: isFetchError,

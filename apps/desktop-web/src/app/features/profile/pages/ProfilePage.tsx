@@ -3,8 +3,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { ChevronLeft } from 'lucide-react';
 
-import { getActiveSessionUser, useSessionIdentity } from '@chatic/app-runtime';
-import { useRuntimeProfile } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
@@ -60,11 +59,11 @@ const SectionTitle = ({ children }: { children: string }) => (
 export const ProfilePage = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
-    // Identity is uid-only now; profile facts (name/photo) come from useRuntimeProfile
+    // Identity is uid-only now; profile facts (name/photo) come from runtime.session.useRuntimeProfile
     // and the account email from the active session token.
-    const { userId } = useSessionIdentity();
-    const { userName, photo } = useRuntimeProfile();
-    const accountUser = getActiveSessionUser() as { email?: string } | null;
+    const { userId } = runtime.session.useSessionIdentity();
+    const { userName, photo } = runtime.session.useRuntimeProfile();
+    const accountUser = runtime.session.getActiveSessionUser() as { email?: string } | null;
     const [copied, copy] = useCopyToClipboard();
     const openEditPlaceProfile = useEditPlaceProfileDialogStore(s => s.open);
     const { start: startSocialLogin } = useSocialLogin();

@@ -14,7 +14,7 @@ import { KeyboardAwareLayout, fixedViewportScreen } from '../../../ui/layouts';
 import { useUpdatePlace } from '../../home';
 
 import type { MySiteView } from '@lemoncloud/chatic-backend-api';
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 const MAX_NAME_LENGTH = 20;
 const MAX_DESC_LENGTH = 100;
@@ -47,7 +47,7 @@ export const PlaceEditPage = () => {
     const navigate = useNavigateWithTransition();
     const { toast } = useToast();
     const { placeId } = useParams<{ placeId: string }>();
-    const { place: placeRepo } = useRuntimeRepositories();
+    const { place: placeRepo } = runtime.data.useRuntimeRepositories();
 
     const { updatePlace, isPending } = useUpdatePlace();
     const fileInputRef = useRef<HTMLInputElement>(null);

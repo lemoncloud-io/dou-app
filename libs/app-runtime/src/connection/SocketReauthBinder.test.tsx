@@ -2,7 +2,7 @@ import { render } from '@testing-library/react';
 
 import { SocketReauthBinder } from './SocketReauthBinder';
 import { reauthenticateActiveSocket } from '../socket';
-import type { RuntimeSocketSlots } from '../runtime';
+import type { RuntimeSocketSlots } from './types';
 import type { SocketSessionDelegate } from '../socket';
 
 jest.mock('../socket/runtime', () => ({

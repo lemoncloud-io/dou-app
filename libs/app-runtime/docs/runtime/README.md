@@ -1,13 +1,17 @@
-# Runtime Domain Spec
+# Connection / Runtime Composition Spec
 
 ## 목적
 
-`runtime` 도메인은 세션 상태를 앱이 소비할 **값**으로 파생시키는 훅 층이다. transport 엔진을 직접
-만들지 않고, 생성 책임은 하위 manager들에 위임한다.
+호스트가 세션 상태를 **소켓 슬롯**으로 파생시키고 바인더를 조립하는 층을 서술한다. transport 엔진을
+직접 만들지 않고, 생성 책임은 하위 manager들에 위임한다.
+
+> 이 문서는 한때 `src/runtime/` 모듈의 스펙이었다. 그 모듈은 해체됐다(엔진 축이 아니었고, 훅 6개가
+> 각각 `connection`·`data`·`session` 소속이었다) — 슬롯 파생과 바인더는 `src/connection/`에 있다.
+> 폴더명(`docs/runtime/`)은 인바운드 링크 5개 때문에 그대로 뒀다.
 
 ## 핵심 개념: `RuntimeSocketSlots`
 
-[`useRuntimeSocketSlots()`](../../src/runtime/useRuntimeSocketSlots.ts)이 `useGlobalSession()`(세션
+[`useRuntimeSocketSlots()`](../../src/connection/hooks/useRuntimeSocketSlots.ts)이 `useGlobalSession()`(세션
 허브) + `useDynamicDeviceId()`를 관측해 파생한다. 현재 어떤 relay/cloud 소켓 슬롯이 떠 있어야 하는지를
 나타낸다. **캐시 문맥은 여기 없다** — 예전 `RuntimeBinding` 은 `context: DataContext` 도 실었는데 읽는
 프로덕션 코드가 없었고 공식이 `deriveSelectedContext` 와 중복이었다(ADR-0076 G5). 호스트가 이 훅을
@@ -84,9 +88,9 @@ export interface RuntimeSocketSlots {
 
 ## 조립 규칙
 
-`runtime`이 직접 생성하지 않는 것: `createClientSocketV2`, `createDeviceRuntime`.
+이 층이 직접 생성하지 않는 것: `createClientSocketV2`, `createDeviceRuntime`.
 
-`runtime`이 조립하는 것: `SocketManager`(`socket/runtime.ts`) · `SyncManager`(`socket/sync/runtime.ts`) ·
+이 층이 조립하는 것: `SocketManager`(`socket/runtime.ts`) · `SyncManager`(`socket/sync/runtime.ts`) ·
 `DataManager`. 엔진 축마다 생성 지점이 하나이고, 소켓 파일이 sync를 만들지 않는 것은 순환 방지
 계약이다 — `src/importCycleAbsence.test.ts`.
 

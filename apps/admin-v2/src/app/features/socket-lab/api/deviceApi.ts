@@ -2,7 +2,7 @@
  * `api/deviceApi.ts`
  * - 실제 서버 디바이스 목록(signed).
  */
-import { webTransport } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 export type DeviceStatus = 'green' | 'yellow' | 'red';
 
@@ -38,7 +38,7 @@ export const fetchDeviceList = async ({
     limit = 20,
     status,
 }: FetchDeviceListParams = {}): Promise<DeviceListResponse> => {
-    const { data } = await webTransport
+    const { data } = await runtime.boot.webTransport
         .buildSignedRequest({
             method: 'GET',
             baseURL: `${getSocketApiEndpoint()}/skt-d1/hello/device/list`,

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import type { DomainJoin, DomainUser } from '@chatic/data';
 
 import type { ChannelMember } from '../types';
@@ -59,8 +59,8 @@ export const useChannelMembers = ({
     joins,
     keepLeftMembers = false,
 }: UseChannelMembersParams) => {
-    const { user: userRepository } = useRuntimeRepositories();
-    const { isVerified } = useRuntimeSocketState();
+    const { user: userRepository } = runtime.data.useRuntimeRepositories();
+    const { isVerified } = runtime.connection.useRuntimeSocketState();
 
     const [users, setUsers] = useState<DomainUser[]>([]);
     // Cleared by the user stream emitting OR by join rows arriving. Keying it to the user stream

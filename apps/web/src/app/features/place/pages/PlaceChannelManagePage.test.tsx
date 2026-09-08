@@ -41,16 +41,22 @@ jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ 
 
 // app-runtime pulls the socket lib (needs TextEncoder, unavailable in jsdom) — stub the repos.
 jest.mock('@chatic/app-runtime', () => ({
-    useRuntimeRepositories: () => ({
-        place: {
-            observeItem: (_id: string, cb: (value: any) => void) => {
-                cb(placeValue);
-                return () => undefined;
-            },
+    runtime: {
+        data: {
+            useRuntimeRepositories: () => ({
+                place: {
+                    observeItem: (_id: string, cb: (value: any) => void) => {
+                        cb(placeValue);
+                        return () => undefined;
+                    },
+                },
+            }),
         },
-    }),
-    useSessionIdentity: () => ({ userId: 'me' }),
-    useSessionSelection: () => ({ selectedCloudId }),
+        session: {
+            useSessionIdentity: () => ({ userId: 'me' }),
+            useSessionSelection: () => ({ selectedCloudId }),
+        },
+    },
 }));
 
 // Avoid the ui barrel (it imports @chatic/assets, unmapped in jest).

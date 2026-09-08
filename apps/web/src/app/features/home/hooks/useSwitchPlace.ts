@@ -1,6 +1,6 @@
 import { useCallback, useEffect } from 'react';
 
-import { useSessionSelection } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import type { DomainPlace } from '@chatic/data';
 
 import { useSiteSwitch } from '../../../runtime/useSiteSwitch';
@@ -17,7 +17,7 @@ export interface SwitchPlaceResult {
  * only forwards the click and auto-selects the first place when none is active yet.
  */
 export const useSwitchPlace = (places: DomainPlace[]): SwitchPlaceResult => {
-    const { selectedSiteId } = useSessionSelection();
+    const { selectedSiteId } = runtime.session.useSessionSelection();
     const { switchSite, isSwitching } = useSiteSwitch();
 
     const switchPlace = useCallback(

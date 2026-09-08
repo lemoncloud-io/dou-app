@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 
 import { useQueryClient } from '@tanstack/react-query';
 
-import { cloudsKeys, useRuntimeRepositories } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import { useCustomMutation } from '@chatic/shared';
 
 import { subscriptionKeys } from '../../../hooks/queryKeys';
@@ -29,7 +29,7 @@ import type { DomainCloud } from '@chatic/data';
  * for a dry run and no longer spells the relay's wire encoding.
  */
 const useMakeCloud = () => {
-    const { cloud } = useRuntimeRepositories();
+    const { cloud } = runtime.data.useRuntimeRepositories();
 
     return useCustomMutation<DomainCloud, string, { body: CloudBody; dryRun?: boolean }>(({ body, dryRun }) =>
         cloud.makeCloud(body, { dryRun })
@@ -52,7 +52,7 @@ export const useAddCloud = (): ((email?: string) => Promise<void>) => {
                 // real infrastructure.
                 ...(IS_DEV && { dryRun: true }),
             });
-            await queryClient.invalidateQueries({ queryKey: cloudsKeys.all });
+            await queryClient.invalidateQueries({ queryKey: runtime.data.cloudsKeys.all });
             await queryClient.invalidateQueries({ queryKey: subscriptionKeys.all });
         },
         [makeCloud, membership?.receiptId, queryClient]

@@ -12,7 +12,11 @@ const mockGuard = jest.fn(() => ({ check: mockCheck }));
 const mockCheck = jest.fn();
 
 jest.mock('@chatic/app-runtime', () => ({
-    useCloudCredentialGuard: (...args: unknown[]) => mockGuard(...(args as [])),
+    runtime: {
+        session: {
+            useCloudCredentialGuard: (...args: unknown[]) => mockGuard(...(args as [])),
+        },
+    },
 }));
 
 const foregroundHandlers: Array<() => void> = [];

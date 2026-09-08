@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { DefaultAvatar, ImageAvatar, InfoField, ProfileAvatar, StatusBadge, Text } from '@chatic/web-ui-kit';
 
@@ -33,7 +33,7 @@ const OWNER_AVATAR_SIZE = 36;
 export const PlaceDetailPage = () => {
     const { t, i18n } = useTranslation();
     const { placeId } = useParams<{ placeId: string }>();
-    const { place: placeRepo } = useRuntimeRepositories();
+    const { place: placeRepo } = runtime.data.useRuntimeRepositories();
 
     const [place, setPlace] = useState<MySiteView | null>(null);
 

@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 
-import { useRuntimeSocketState } from '../../runtime/hooks/useRuntimeSocketState';
+import { useRuntimeSocketState } from './useRuntimeSocketState';
 import type { SocketState } from '../../socket';
 
 /** What the app should TELL THE USER about the connection. `online` means "nothing to warn about". */

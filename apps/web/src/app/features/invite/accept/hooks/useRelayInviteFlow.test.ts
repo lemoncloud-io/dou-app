@@ -19,11 +19,19 @@ const loggerWarn = jest.fn();
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
 jest.mock('@chatic/app-runtime', () => ({
-    getSocketManager: () => ({ waitUntilKindVerified }),
-    // The flow only hands this to isPlaceProfileAbsent, which is mocked — an opaque token is enough.
-    useRuntimeRepositories: () => ({ profile: { id: 'profile-repo' } }),
-    useRuntimeProfile: () => ({ isGuest: mockIsGuest }),
-    useSessionSelection: () => ({ selectedSiteId: mockSid }),
+    runtime: {
+        connection: {
+            getSocketManager: () => ({ waitUntilKindVerified }),
+        },
+        data: {
+            // The flow only hands this to isPlaceProfileAbsent, which is mocked — an opaque token is enough.
+            useRuntimeRepositories: () => ({ profile: { id: 'profile-repo' } }),
+        },
+        session: {
+            useRuntimeProfile: () => ({ isGuest: mockIsGuest }),
+            useSessionSelection: () => ({ selectedSiteId: mockSid }),
+        },
+    },
 }));
 jest.mock('@chatic/bridges', () => ({
     logger: {

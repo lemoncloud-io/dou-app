@@ -1,14 +1,19 @@
 import { renderHook } from '@testing-library/react';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
-import { useGlobalSession } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import type { DomainPlace } from '@chatic/data';
 
 import { useHomePlaces } from './useHomePlaces';
 
 jest.mock('@chatic/app-runtime', () => ({
-    useRuntimeRepositories: jest.fn(),
-    useGlobalSession: jest.fn(),
+    runtime: {
+        data: {
+            useRuntimeRepositories: jest.fn(),
+        },
+        session: {
+            useGlobalSession: jest.fn(),
+        },
+    },
 }));
 
 const observeListMock = jest.fn();
@@ -27,7 +32,7 @@ const emit = (rows: DomainPlace[]) => {
 };
 
 const setActiveServer = (kind: 'relay' | 'cloud', cloudId?: string, userId: string | null = 'u1') =>
-    (useGlobalSession as jest.Mock).mockReturnValue({
+    (runtime.session.useGlobalSession as jest.Mock).mockReturnValue({
         activeServer: kind === 'cloud' ? { kind, cloudId } : { kind },
         // useHomePlaces keys its cache-scope cid on the OPTIMISTIC selected cloud (session.cloud.cloudId),
         // not the committed activeServer.cloudId — mirror that here.
@@ -37,7 +42,7 @@ const setActiveServer = (kind: 'relay' | 'cloud', cloudId?: string, userId: stri
 
 beforeEach(() => {
     jest.clearAllMocks();
-    (useRuntimeRepositories as jest.Mock).mockReturnValue({
+    (runtime.data.useRuntimeRepositories as jest.Mock).mockReturnValue({
         place: { observeList: observeListMock, refreshList: refreshListMock },
     });
     setActiveServer('relay');

@@ -4,10 +4,9 @@ import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
 
 import { useNavigateWithTransition } from '@chatic/shared';
-import { useSessionSelection } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import { useCloudSessionCatalog } from '../../../hooks/useCloudCatalog';
 import { useMembershipInfo } from '../../../hooks/useMembership';
-import { useRuntimeProfile } from '@chatic/app-runtime';
 
 import { AppHeader, EmptyState, ProfileAvatar, SubscriptionBadge } from '@chatic/web-ui-kit';
 
@@ -61,12 +60,12 @@ export const HomePage = () => {
 
     // Profile facts track the cached profile (seeded synchronously from the active session payload,
     // then reactive on cache emits), so a profile edit fans out here without a session refresh.
-    const { isGuest } = useRuntimeProfile();
+    const { isGuest } = runtime.session.useRuntimeProfile();
     const permissions = useUserPermissions();
     // useInvitedClouds hides clouds the signed-in account now owns, so an invited cloud that became
     // owned (guest → owner) no longer counts here and is shown only as an owned cloud.
     const { invitedClouds } = useInvitedClouds();
-    const { selectedCloudId, selectedSiteId } = useSessionSelection();
+    const { selectedCloudId, selectedSiteId } = runtime.session.useSessionSelection();
     const isDefaultCloud = selectedCloudId === 'default';
     // Connected to an invited cloud → drives the place-type caption.
     const isInvitedCloud = !isDefaultCloud && invitedClouds.some(cloud => cloud.id === selectedCloudId);

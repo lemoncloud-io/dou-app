@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import type { DomainJoin } from '@chatic/data';
 import type { ChannelUpdateJoinInput } from '@lemoncloud/chatic-sockets-api';
 
@@ -16,7 +16,7 @@ const INITIAL_PENDING: PendingState = { update: false };
  * from useChannelMutations because it talks to a different repository.
  */
 export const useJoinMutations = () => {
-    const { join: joinRepository } = useRuntimeRepositories();
+    const { join: joinRepository } = runtime.data.useRuntimeRepositories();
     const [isPending, setIsPending] = useState<PendingState>(INITIAL_PENDING);
 
     // Toggle the pending flag around the promise (mirrors useChannelMutations).

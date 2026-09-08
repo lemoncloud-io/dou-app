@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 
-import { useSessionIdentity } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import type { DomainChannel } from '@chatic/data';
 
 import { useHomeChannels } from '../../../hooks';
@@ -30,7 +30,7 @@ export interface UseInviteCandidatesResult {
  * cache, not from the channel rows (ADR-0075 결정 3).
  */
 export const useInviteCandidates = (channelId: string | null, sid: string | null): UseInviteCandidatesResult => {
-    const { userId } = useSessionIdentity();
+    const { userId } = runtime.session.useSessionIdentity();
     const { channels, isLoading } = useHomeChannels(sid);
 
     const candidateIds = useMemo(() => {

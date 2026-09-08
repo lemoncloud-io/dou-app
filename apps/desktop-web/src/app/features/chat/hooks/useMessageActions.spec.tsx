@@ -8,7 +8,11 @@ const updateChat = vi.fn();
 const deleteChat = vi.fn();
 
 vi.mock('@chatic/app-runtime', () => ({
-    useRuntimeRepositories: () => ({ chat: { updateChat, deleteChat } }),
+    runtime: {
+        data: {
+            useRuntimeRepositories: () => ({ chat: { updateChat, deleteChat } }),
+        },
+    },
 }));
 
 import { useMessageActions } from './useMessageActions';

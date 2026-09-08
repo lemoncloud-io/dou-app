@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
 
 import { logger } from '@chatic/bridges';
-import { useRuntimeProfile } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { FloatingButton, TextField } from '@chatic/web-ui-kit';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
@@ -130,7 +130,7 @@ export const ContactInvitePage = () => {
      */
     const [verifyMode, setVerifyMode] = useState<AccountLinkMode | null>(null);
 
-    const { isGuest } = useRuntimeProfile();
+    const { isGuest } = runtime.session.useRuntimeProfile();
     // A main user with no number of their own can still be asked for one (guide §A-1 left this open),
     // but only when the server actually SAID so: `'unknown'` covers both "profile not loaded" and
     // "the slot was never built", and treating either as absent would demand a number the user

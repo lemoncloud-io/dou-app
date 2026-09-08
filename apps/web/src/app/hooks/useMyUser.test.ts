@@ -1,17 +1,21 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 
-import { useKindVerified } from '@chatic/app-runtime';
-import { useGlobalSession } from '@chatic/app-runtime';
-import { getRelaySessionUser, patchRelaySessionUser } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { getRelayAccountGateway } from '../runtime/relayAccountGateway';
 import { useIsAccountGuest, useMyUser } from './useMyUser';
 
 jest.mock('@chatic/app-runtime', () => ({
-    useKindVerified: jest.fn(),
-    useGlobalSession: jest.fn(),
-    getRelaySessionUser: jest.fn(),
-    patchRelaySessionUser: jest.fn(),
+    runtime: {
+        connection: {
+            useKindVerified: jest.fn(),
+        },
+        session: {
+            useGlobalSession: jest.fn(),
+            getRelaySessionUser: jest.fn(),
+            patchRelaySessionUser: jest.fn(),
+        },
+    },
 }));
 
 jest.mock('../runtime/relayAccountGateway', () => ({ getRelayAccountGateway: jest.fn() }));
@@ -20,11 +24,11 @@ const profileMock = jest.fn();
 
 beforeEach(() => {
     jest.clearAllMocks();
-    (useKindVerified as jest.Mock).mockReturnValue(true);
+    (runtime.connection.useKindVerified as jest.Mock).mockReturnValue(true);
     // The real store hands back a NEW context object per session signal; a stable object here is the
     // "nothing changed" case, which is what makes the re-read memo observable.
-    (useGlobalSession as jest.Mock).mockReturnValue({ session: 1 });
-    (getRelaySessionUser as jest.Mock).mockReturnValue({ id: 'relay-uid', name: 'Relay Me' });
+    (runtime.session.useGlobalSession as jest.Mock).mockReturnValue({ session: 1 });
+    (runtime.session.getRelaySessionUser as jest.Mock).mockReturnValue({ id: 'relay-uid', name: 'Relay Me' });
     profileMock.mockResolvedValue({ $user: { name: 'Server Me' } });
     (getRelayAccountGateway as jest.Mock).mockReturnValue({ profile: profileMock });
 });
@@ -33,12 +37,12 @@ describe('useMyUser', () => {
     it('returns the RELAY account from the token, with no cache read', () => {
         const { result } = renderHook(() => useMyUser());
 
-        expect(getRelaySessionUser).toHaveBeenCalled();
+        expect(runtime.session.getRelaySessionUser).toHaveBeenCalled();
         expect(result.current).toMatchObject({ id: 'relay-uid', name: 'Relay Me' });
     });
 
     it('is null when there is no relay session', () => {
-        (getRelaySessionUser as jest.Mock).mockReturnValue(null);
+        (runtime.session.getRelaySessionUser as jest.Mock).mockReturnValue(null);
 
         const { result } = renderHook(() => useMyUser());
 
@@ -48,7 +52,7 @@ describe('useMyUser', () => {
     // The scoped relay client THROWS when its slot is unbound, and firing before the relay handshake
     // is what produced `503 SOCKET NOT CONNECTED` elsewhere — so the fetch waits, the token does not.
     it('holds the refresh until the RELAY slot is verified, but still renders the token value', () => {
-        (useKindVerified as jest.Mock).mockReturnValue(false);
+        (runtime.connection.useKindVerified as jest.Mock).mockReturnValue(false);
 
         const { result } = renderHook(() => useMyUser());
 
@@ -59,14 +63,14 @@ describe('useMyUser', () => {
     it('gates on the relay slot specifically, not the active one', () => {
         renderHook(() => useMyUser());
 
-        expect(useKindVerified).toHaveBeenCalledWith('relay');
+        expect(runtime.connection.useKindVerified).toHaveBeenCalledWith('relay');
     });
 
     it('writes the relay profile response back into the token — the token IS the fan-out', async () => {
         renderHook(() => useMyUser());
 
         await waitFor(() => expect(profileMock).toHaveBeenCalledTimes(1));
-        expect(patchRelaySessionUser).toHaveBeenCalledWith({ name: 'Server Me' });
+        expect(runtime.session.patchRelaySessionUser).toHaveBeenCalledWith({ name: 'Server Me' });
     });
 
     it('tolerates a flat user view (no $user wrapper)', async () => {
@@ -74,7 +78,9 @@ describe('useMyUser', () => {
 
         renderHook(() => useMyUser());
 
-        await waitFor(() => expect(patchRelaySessionUser).toHaveBeenCalledWith({ name: 'Flat Me', photo: 'p.png' }));
+        await waitFor(() =>
+            expect(runtime.session.patchRelaySessionUser).toHaveBeenCalledWith({ name: 'Flat Me', photo: 'p.png' })
+        );
     });
 
     // A response that simply omits a field must not erase it; only ids/bookkeeping are dropped.
@@ -84,7 +90,7 @@ describe('useMyUser', () => {
         renderHook(() => useMyUser());
 
         await waitFor(() => expect(profileMock).toHaveBeenCalled());
-        expect(patchRelaySessionUser).not.toHaveBeenCalled();
+        expect(runtime.session.patchRelaySessionUser).not.toHaveBeenCalled();
     });
 
     // The scoped relay client throws SYNCHRONOUSLY on an unbound slot (no silent fallback), and the
@@ -97,7 +103,7 @@ describe('useMyUser', () => {
         const { result } = renderHook(() => useMyUser());
 
         await waitFor(() => expect(profileMock).toHaveBeenCalled());
-        expect(patchRelaySessionUser).not.toHaveBeenCalled();
+        expect(runtime.session.patchRelaySessionUser).not.toHaveBeenCalled();
         expect(result.current).toMatchObject({ name: 'Relay Me' });
     });
 
@@ -117,7 +123,7 @@ describe('useMyUser', () => {
         const { result } = renderHook(() => useMyUser());
 
         await waitFor(() => expect(profileMock).toHaveBeenCalled());
-        expect(patchRelaySessionUser).not.toHaveBeenCalled();
+        expect(runtime.session.patchRelaySessionUser).not.toHaveBeenCalled();
         expect(result.current).toMatchObject({ name: 'Relay Me' });
     });
 
@@ -127,8 +133,8 @@ describe('useMyUser', () => {
 
         // A token refresh (or our own patch) invalidates the session context; the store then returns a
         // fresh object, which is the hook's re-read trigger.
-        (getRelaySessionUser as jest.Mock).mockReturnValue({ id: 'relay-uid', name: 'Renamed' });
-        (useGlobalSession as jest.Mock).mockReturnValue({ session: 2 });
+        (runtime.session.getRelaySessionUser as jest.Mock).mockReturnValue({ id: 'relay-uid', name: 'Renamed' });
+        (runtime.session.useGlobalSession as jest.Mock).mockReturnValue({ session: 2 });
         await act(async () => {
             rerender();
         });
@@ -141,7 +147,7 @@ describe('useIsAccountGuest', () => {
     // The hub already mounts `useMyUser` for its header, so this hook must not drag a second
     // `user.profile` onto the wire just to read a role the refresh never writes back.
     it('reads the token without triggering the profile refresh', () => {
-        (getRelaySessionUser as jest.Mock).mockReturnValue({ id: 'relay-uid', userRole: 'user' });
+        (runtime.session.getRelaySessionUser as jest.Mock).mockReturnValue({ id: 'relay-uid', userRole: 'user' });
 
         renderHook(() => useIsAccountGuest());
 
@@ -149,13 +155,17 @@ describe('useIsAccountGuest', () => {
     });
 
     it('reports a guest when the relay account carries the guest role', () => {
-        (getRelaySessionUser as jest.Mock).mockReturnValue({ id: 'relay-uid', userRole: 'guest' });
+        (runtime.session.getRelaySessionUser as jest.Mock).mockReturnValue({ id: 'relay-uid', userRole: 'guest' });
 
         expect(renderHook(() => useIsAccountGuest()).result.current).toBe(true);
     });
 
     it('reports a signed-in account when the relay role is anything else', () => {
-        (getRelaySessionUser as jest.Mock).mockReturnValue({ id: 'relay-uid', name: 'Me', userRole: 'user' });
+        (runtime.session.getRelaySessionUser as jest.Mock).mockReturnValue({
+            id: 'relay-uid',
+            name: 'Me',
+            userRole: 'user',
+        });
 
         expect(renderHook(() => useIsAccountGuest()).result.current).toBe(false);
     });
@@ -164,22 +174,26 @@ describe('useIsAccountGuest', () => {
     // `useRuntimeProfile` reports the delegated cloud user's role. The relay token is untouched by
     // the switch, so reading it keeps the answer about the account.
     it('ignores the active session and answers from the relay token', () => {
-        (getRelaySessionUser as jest.Mock).mockReturnValue({ id: 'relay-uid', name: 'Me', userRole: 'user' });
+        (runtime.session.getRelaySessionUser as jest.Mock).mockReturnValue({
+            id: 'relay-uid',
+            name: 'Me',
+            userRole: 'user',
+        });
 
         expect(renderHook(() => useIsAccountGuest()).result.current).toBe(false);
-        expect(getRelaySessionUser).toHaveBeenCalled();
+        expect(runtime.session.getRelaySessionUser).toHaveBeenCalled();
     });
 
     // Safe direction: the guest card invites a sign-in, while the signed-in card would render a
     // profile row with no name in it.
     it('treats a missing relay account as a guest', () => {
-        (getRelaySessionUser as jest.Mock).mockReturnValue(null);
+        (runtime.session.getRelaySessionUser as jest.Mock).mockReturnValue(null);
 
         expect(renderHook(() => useIsAccountGuest()).result.current).toBe(true);
     });
 
     it('treats an account with no role yet as a signed-in one, not a guest', () => {
-        (getRelaySessionUser as jest.Mock).mockReturnValue({ id: 'relay-uid', name: 'Me' });
+        (runtime.session.getRelaySessionUser as jest.Mock).mockReturnValue({ id: 'relay-uid', name: 'Me' });
 
         expect(renderHook(() => useIsAccountGuest()).result.current).toBe(false);
     });

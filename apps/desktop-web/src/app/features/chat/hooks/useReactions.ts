@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 /**
  * Turn a reaction on or off.
@@ -25,7 +25,7 @@ import { useRuntimeRepositories } from '@chatic/app-runtime';
  * to say which row it belongs to.
  */
 export const useReactions = () => {
-    const { chat: chatRepository } = useRuntimeRepositories();
+    const { chat: chatRepository } = runtime.data.useRuntimeRepositories();
     const [failedId, setFailedId] = useState<string | null>(null);
 
     const mutation = useMutation({

@@ -1,21 +1,28 @@
 import { act, renderHook } from '@testing-library/react';
 import { useIsMutating } from '@tanstack/react-query';
 
-import { useRuntimeProfile, useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
-import { useGlobalSession, useSessionSelection } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { useBackgroundSync } from './useBackgroundSync';
 
 jest.mock('@tanstack/react-query', () => ({ useIsMutating: jest.fn() }));
 jest.mock('@chatic/app-runtime', () => ({
-    // 훅이 쓰는 키 상수 — 모듈을 목하면 실물 export가 사라진다.
-    SWITCH_SITE_MUTATION_KEY: ['session', 'switch-site'],
-    useRuntimeRepositories: jest.fn(),
-    useRuntimeSocketState: jest.fn(),
-    useRuntimeProfile: jest.fn(),
-    useGlobalSession: jest.fn(),
-    useSessionSelection: jest.fn(),
-    SWITCH_CLOUD_MUTATION_KEY: ['session', 'switch-cloud'],
+    runtime: {
+        session: {
+            // 훅이 쓰는 키 상수 — 모듈을 목하면 실물 export가 사라진다.
+            SWITCH_SITE_MUTATION_KEY: ['session', 'switch-site'],
+            useRuntimeProfile: jest.fn(),
+            useGlobalSession: jest.fn(),
+            useSessionSelection: jest.fn(),
+            SWITCH_CLOUD_MUTATION_KEY: ['session', 'switch-cloud'],
+        },
+        data: {
+            useRuntimeRepositories: jest.fn(),
+        },
+        connection: {
+            useRuntimeSocketState: jest.fn(),
+        },
+    },
 }));
 
 // Capture the foreground handler so tests can fire the signal directly.
@@ -39,7 +46,8 @@ const cachedInvites = (...states: string[]) => ({
     meta: { total: states.length, source: 'local' as const },
 });
 
-const setVerified = (isVerified: boolean) => (useRuntimeSocketState as jest.Mock).mockReturnValue({ isVerified });
+const setVerified = (isVerified: boolean) =>
+    (runtime.connection.useRuntimeSocketState as jest.Mock).mockReturnValue({ isVerified });
 // The latest registered foreground handler (useAppForeground keeps handlers fresh via ref).
 const fireForeground = async () => {
     const handler = (useAppForeground as jest.Mock).mock.calls.at(-1)?.[0];
@@ -49,10 +57,10 @@ const fireForeground = async () => {
 };
 const setSwitching = (switching: boolean) => (useIsMutating as jest.Mock).mockReturnValue(switching ? 1 : 0);
 const setSession = (cid: string, selectedSiteId: string | null) => {
-    (useGlobalSession as jest.Mock).mockReturnValue({
+    (runtime.session.useGlobalSession as jest.Mock).mockReturnValue({
         activeServer: cid === 'default' ? { kind: 'relay' } : { kind: 'cloud', cloudId: cid },
     });
-    (useSessionSelection as jest.Mock).mockReturnValue({ selectedSiteId });
+    (runtime.session.useSessionSelection as jest.Mock).mockReturnValue({ selectedSiteId });
 };
 
 beforeEach(() => {
@@ -66,7 +74,7 @@ beforeEach(() => {
     getMyProfile.mockResolvedValue(undefined);
     inviteList.mockResolvedValue([]);
     inviteCacheReadList.mockResolvedValue(cachedInvites());
-    (useRuntimeRepositories as jest.Mock).mockReturnValue({
+    (runtime.data.useRuntimeRepositories as jest.Mock).mockReturnValue({
         place: { refreshList },
         channel: { getSelfChannel, syncChannels },
         profile: { syncProfiles },
@@ -76,7 +84,7 @@ beforeEach(() => {
     });
     setSwitching(false);
     setSession('default', 's1');
-    (useRuntimeProfile as jest.Mock).mockReturnValue({ isGuest: false });
+    (runtime.session.useRuntimeProfile as jest.Mock).mockReturnValue({ isGuest: false });
 });
 
 describe('useBackgroundSync — 백그라운드 동기화', () => {
@@ -423,7 +431,7 @@ describe('useBackgroundSync — 백그라운드 동기화', () => {
     });
 
     it('게스트 세션에서는 초대 목록을 아예 묻지 않는다 — 발급이 메인유저 전용이라 목록이 항상 빈다', async () => {
-        (useRuntimeProfile as jest.Mock).mockReturnValue({ isGuest: true });
+        (runtime.session.useRuntimeProfile as jest.Mock).mockReturnValue({ isGuest: true });
         setVerified(false);
         const { rerender } = renderHook(() => useBackgroundSync());
 

@@ -28,18 +28,23 @@ app-runtime은 부팅 시 토큰을 `register`하고 상태를 구독만 하며,
 먼저 엔트리(`main.tsx`)에서 런타임을 **부팅**합니다. render 전에 한 번, 앱의 로깅 배선 뒤에,
 세션을 읽는 어떤 코드보다 앞에 옵니다 — 자세한 순서 계약은 [docs/architecture.md §부팅](docs/architecture.md).
 
-```ts
-import { initAppRuntime } from '@chatic/app-runtime';
+이 패키지가 공개하는 이름은 **`runtime` 하나**이고, 그 아래 그룹 7개(`boot` · `session` ·
+`connection` · `data` · `sync` · `push` · `report`)가 표면 전부입니다. 그룹은 폴더가 아니라
+"무엇을 하려는가"로 묶여 있으므로, 내부 구조를 몰라도 하려는 일로 찾아갈 수 있습니다
+([docs/public-surface.md](docs/public-surface.md)).
 
-initAppRuntime({ data: { cache: { maxChatsPerChannel: 1000 } } }); // data는 선택
+```ts
+import { runtime } from '@chatic/app-runtime';
+
+runtime.boot.initAppRuntime({ data: { cache: { maxChatsPerChannel: 1000 } } }); // data는 선택
 ```
 
-그다음 컴포넌트 트리에서 런타임을 조립합니다. `RuntimeConnectionHost`는 **`binding`만** 받으며,
+그다음 컴포넌트 트리에서 런타임을 조립합니다. `RuntimeConnectionHost`는 **`children`만** 받으며,
 소켓 인증 delegate는 Host가 내부에서(`useSocketSessionDelegate`) 소유하므로 앱이 주입하지 않습니다.
 
 ```tsx
 import React from 'react';
-import { RuntimeConnectionHost } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 export const App = () => {
     // 소켓 슬롯은 Host가 세션에서 스스로 파생합니다(`useRuntimeSocketSlots`) — 앱은 아무것도
@@ -48,9 +53,9 @@ export const App = () => {
         // Host가 세션 init을 게이트하고, 완료 후 아래를 마운트합니다:
         //   SocketBinder · SocketReauthBinder
         //   (relay keep-alive는 Host가 게이트 위에서 useRelaySessionKeepAlive로 인라인 호출)
-        <RuntimeConnectionHost>
+        <runtime.connection.RuntimeConnectionHost>
             <MainLayout />
-        </RuntimeConnectionHost>
+        </runtime.connection.RuntimeConnectionHost>
     );
 };
 ```
@@ -61,29 +66,29 @@ export const App = () => {
 
 ## 주요 API 및 Hooks
 
-### 1. 데이터 리포지토리 획득 (`useRuntimeRepositories`)
+### 1. 데이터 리포지토리 획득 (`runtime.data.useRuntimeRepositories`)
 
 현재 활성 스코프(`cid`/`sid`/`uid`)에 바인딩된 Chatic 리포지토리 묶음을 가져옵니다.
 
 ```tsx
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 const ChannelListPage = () => {
-    const { channel } = useRuntimeRepositories();
+    const { channel } = runtime.data.useRuntimeRepositories();
     // channel 등 도메인 리포지토리로 조회/구독. 조립 규칙은 docs/data/README.md 참조.
     return <div>Channel List</div>;
 };
 ```
 
-### 2. 소켓 연결 상태 관측 (`useRuntimeSocketState`)
+### 2. 소켓 연결 상태 관측 (`runtime.connection.useRuntimeSocketState`)
 
 물리 소켓의 연결 여부와 핸드셰이크 인증 성공 여부를 관측합니다.
 
 ```tsx
-import { useRuntimeSocketState } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 const ConnectionStatusBadge = () => {
-    const { isConnected, isVerified } = useRuntimeSocketState();
+    const { isConnected, isVerified } = runtime.connection.useRuntimeSocketState();
     return (
         <span className={isVerified ? 'bg-green-500' : 'bg-red-500'}>
             {isConnected ? (isVerified ? 'Online' : 'Authenticating') : 'Offline'}
@@ -94,14 +99,20 @@ const ConnectionStatusBadge = () => {
 
 ### 3. 그 외 공개 표면
 
-- 값 파생 훅: `useRuntimeRepositories` · `useRuntimeProfile` ·
-  `useRuntimeSocketState` · `useKindVerified` · `useGlobalCacheSearch`
-- 세션 훅: readers(`useGlobalSession` · `useSessionAuth` · `useSessionIdentity` ·
-  `useSessionSelection`) · 액션(`useSiteSwitch` · `useSessionLogout` · `useLogoutCloudSession` ·
-  `useSwitchCloudSession` · `useInviteFlow`) · 로그인(`useLogin` · `useLoginRelaySocial` …)
-- sync 등록 훅: `useChatSync` · `useChannelSync` · `usePlaceSync`
-- lifecycle: `<RuntimeConnectionHost>` · `<RuntimeAuthHost>` · `useDeviceTokenRegistration(delegate)`
-- 매니저: `getSocketManager` · `getSyncManager`
+- `runtime.boot`: `initAppRuntime` · 부팅 옵션 타입 전부 · `setNativeCacheSupport` · `isNativeApp` ·
+  env 상수 · `webTransport`
+- `runtime.session`: readers(`useGlobalSession` · `useSessionAuth` · `useSessionIdentity` ·
+  `useSessionSelection` · `useRuntimeProfile`) · 액션(`useSiteSwitch` · `useSessionLogout` ·
+  `useLogoutCloudSession` · `useSwitchCloudSession` · `useInviteFlow`) ·
+  로그인(`useLogin` · `useLoginRelaySocial` …) · 가드(`useSessionStalenessGuard` ·
+  `useCloudCredentialGuard`) · 스토어 리더
+- `runtime.connection`: `<RuntimeConnectionHost>` · `<RuntimeAuthHost>` · `useRuntimeSocketState` ·
+  `useKindVerified` · `useConnectivity` · `recoverUnverifiedSockets` · `getSocketManager`
+- `runtime.data`: `useRuntimeRepositories` · `useGlobalCacheSearch` · 캐시 계측 · 초대클라우드
+  내구성 · `createChatOutbox`
+- `runtime.sync`: `useChatSync` · `useChannelSync` · `usePlaceSync` · `getSyncManager`
+- `runtime.push`: `useDeviceTokenRegistration(delegate)` · `useRegisterDeviceTokenMutation`
+- `runtime.report`: `reportIssue` · `uploadLogBatch`
 
 전체 목록·비공개 항목은 [docs/public-surface.md](docs/public-surface.md).
 

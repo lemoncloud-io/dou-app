@@ -149,7 +149,7 @@ isVerified = authenticated && connected
 
 ### `onAuthExpired` 정책 (kind별)
 
-delegate의 `onAuthExpired(kind)`([`useSocketSessionDelegate`](../../../src/connection/useSocketSessionDelegate.ts)):
+delegate의 `onAuthExpired(kind)`([`useSocketSessionDelegate`](../../../src/connection/hooks/useSocketSessionDelegate.ts)):
 
 - **cloud** → `logoutCloudSession()` — cloud 세션만 정리(relay는 유지).
 - **relay** → `logger.warn` **+ `logoutRelaySession()`** — 자동 로그아웃한다. SDK가 이 터미널 상태에

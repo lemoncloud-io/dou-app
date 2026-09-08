@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 
 import type { DomainChannel } from '@chatic/data';
-import { useSessionIdentity } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { useMyProfile } from '../../../hooks';
 import { resolveChannelTitle } from '../lib';
@@ -29,7 +29,7 @@ export const useChannelTitle = (
 ): string => {
     const { t } = useTranslation();
     const { profile } = useMyProfile();
-    const { userId } = useSessionIdentity();
+    const { userId } = runtime.session.useSessionIdentity();
 
     const unnamedLabel = t('channelList.unnamedChannel');
     if (!channel) return unnamedLabel;

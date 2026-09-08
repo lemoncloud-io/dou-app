@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Copy, Database, RotateCcw } from 'lucide-react';
 
-import { getCacheMetricsSource, isNativeApp } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { copyText } from '../../lib';
 
@@ -28,7 +28,7 @@ export const CacheMetricsScreen = () => {
 
     // 화면은 @chatic/db를 직접 import하지 않는다 — app-runtime이 결합한 포트 인스턴스만 본다
     // (ADR-0070 결정 5).
-    const metricsSource = useMemo(() => getCacheMetricsSource(), []);
+    const metricsSource = useMemo(() => runtime.data.getCacheMetricsSource(), []);
 
     const read = useCallback(() => {
         const { totalOps: ops, operations } = metricsSource.read();
@@ -79,7 +79,7 @@ export const CacheMetricsScreen = () => {
                 </div>
             </div>
 
-            {!isNativeApp() && (
+            {!runtime.boot.isNativeApp() && (
                 <p className="mb-3 rounded-[12px] bg-muted px-3 py-2 text-[12px] text-muted-foreground">
                     브라우저에서는 네이티브 저장소를 쓰지 않아 계측이 비어 있습니다. 앱(WebView)에서 확인하세요.
                 </p>

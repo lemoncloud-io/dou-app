@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import { useCustomMutation } from '@chatic/shared';
 
 import { IS_DEV } from '../consts';
@@ -36,7 +36,7 @@ export interface EmailVerifyRequest {
  * `dryRun` on the confirm step in dev/local keeps QA from consuming real verification state.
  */
 const useVerifyEmail = () => {
-    const { cloud } = useRuntimeRepositories();
+    const { cloud } = runtime.data.useRuntimeRepositories();
 
     return useCustomMutation<CloudVerifyEmailView, string, CloudVerifyEmailBody>(body =>
         cloud.verifyCloudEmail(body, { ...(IS_DEV && body.step === 'confirm' && { dryRun: true }) })

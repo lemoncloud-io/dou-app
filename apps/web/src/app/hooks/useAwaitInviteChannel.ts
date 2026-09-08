@@ -1,7 +1,6 @@
 import { useCallback } from 'react';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
-import { useGlobalSession, useSessionSelection } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import type { DomainChannel } from '@chatic/data';
 
 /** Give up after this long and let the caller fall back (home + a "it's on its way" notice). */
@@ -42,9 +41,9 @@ export interface AwaitInviteChannelOptions {
  * it sees `state === 'accepted'`).
  */
 export const useAwaitInviteChannel = () => {
-    const { channel, syncMeta } = useRuntimeRepositories();
-    const session = useGlobalSession();
-    const { selectedSiteId: sid } = useSessionSelection();
+    const { channel, syncMeta } = runtime.data.useRuntimeRepositories();
+    const session = runtime.session.useGlobalSession();
+    const { selectedSiteId: sid } = runtime.session.useSessionSelection();
     // Same derivation as useHomeChannels — the observer scope key has to match the one the home list
     // subscribes with, or the two see different cache partitions.
     const uid = session.identity.userId ?? undefined;

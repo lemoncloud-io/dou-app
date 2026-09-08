@@ -26,7 +26,13 @@ jest.mock('react-i18next', () => ({
     // Echo the key (with the masked tail appended) so assertions can target keys.
     useTranslation: () => ({ t: (k: string, o?: { last4?: string }) => (o?.last4 ? `${k}|${o.last4}` : k) }),
 }));
-jest.mock('@chatic/app-runtime', () => ({ useRuntimeProfile: () => ({ isGuest: mockIsGuest }) }));
+jest.mock('@chatic/app-runtime', () => ({
+    runtime: {
+        session: {
+            useRuntimeProfile: () => ({ isGuest: mockIsGuest }),
+        },
+    },
+}));
 jest.mock('@chatic/bridges', () => ({ isNative: jest.fn() }));
 jest.mock('../../../hooks', () => ({ useLinkedAccounts: () => mockLinked }));
 jest.mock('../hooks', () => ({

@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import type { DomainChat, DomainJoin } from '@chatic/data';
 
 interface SendMessageInput {
@@ -24,7 +24,7 @@ interface ReadMessageInput {
  * There is no server chat-delete API, so deleting an unsent row is a cache delete.
  */
 export const useChatMutations = () => {
-    const { chat: chatRepository, join: joinRepository } = useRuntimeRepositories();
+    const { chat: chatRepository, join: joinRepository } = runtime.data.useRuntimeRepositories();
     const [isSending, setIsSending] = useState(false);
 
     const sendMessage = useCallback(

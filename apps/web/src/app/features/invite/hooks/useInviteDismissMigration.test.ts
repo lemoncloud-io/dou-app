@@ -1,7 +1,6 @@
 import { renderHook, waitFor } from '@testing-library/react';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
-import { useSessionSelection } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 const cacheWriteManyMock = jest.fn();
 let mockSelectedCloudId = 'default';
@@ -11,8 +10,14 @@ const clearCanceledMock = jest.fn((id: string) => {
 });
 
 jest.mock('@chatic/app-runtime', () => ({
-    useRuntimeRepositories: jest.fn(),
-    useSessionSelection: jest.fn(),
+    runtime: {
+        data: {
+            useRuntimeRepositories: jest.fn(),
+        },
+        session: {
+            useSessionSelection: jest.fn(),
+        },
+    },
 }));
 
 jest.mock('../../../stores/usePreferenceStore', () => ({
@@ -31,8 +36,12 @@ describe('useInviteDismissMigration', () => {
         mockSelectedCloudId = 'default';
         mockCanceledIds = [];
         cacheWriteManyMock.mockResolvedValue(undefined);
-        (useRuntimeRepositories as jest.Mock).mockReturnValue({ invite: { cacheWriteMany: cacheWriteManyMock } });
-        (useSessionSelection as jest.Mock).mockImplementation(() => ({ selectedCloudId: mockSelectedCloudId }));
+        (runtime.data.useRuntimeRepositories as jest.Mock).mockReturnValue({
+            invite: { cacheWriteMany: cacheWriteManyMock },
+        });
+        (runtime.session.useSessionSelection as jest.Mock).mockImplementation(() => ({
+            selectedCloudId: mockSelectedCloudId,
+        }));
     });
 
     it('레거시 기록이 없으면 아무것도 쓰지 않고 즉시 완료로 표시한다', async () => {

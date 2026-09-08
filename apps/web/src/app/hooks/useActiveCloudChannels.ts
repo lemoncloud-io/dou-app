@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
-import { useGlobalSession, useSessionSelection } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import type { DomainChannel } from '@chatic/data';
 
 import { useAccessiblePlaceIds } from './useAccessiblePlaceIds';
@@ -44,10 +43,10 @@ import { useActiveCloudData } from './activeCloudDataContext';
  * cloud-wide observer does not want in its scope key. See PlaceLocalDataSourceV2 reemit-routing tests.
  */
 export const useActiveCloudChannelsSource = (): { channels: DomainChannel[]; isLoaded: boolean } => {
-    const { channel } = useRuntimeRepositories();
+    const { channel } = runtime.data.useRuntimeRepositories();
     const accessiblePlaceIds = useAccessiblePlaceIds();
-    const { selectedCloudId } = useSessionSelection();
-    const uid = useGlobalSession().identity.userId ?? undefined;
+    const { selectedCloudId } = runtime.session.useSessionSelection();
+    const uid = runtime.session.useGlobalSession().identity.userId ?? undefined;
     const cid = selectedCloudId ?? 'default';
 
     const [channels, setChannels] = useState<DomainChannel[]>([]);

@@ -1,4 +1,11 @@
-import type { SocketBindingConfig } from '../socket';
+// connection/types.ts — the socket slots the host derives and the binders consume.
+//
+// This file was `runtime/types.ts` until the `runtime/` module was dissolved (its six hooks belonged
+// to `data`, `connection` and `session` by consumer intent, and `runtime/` was not one of the
+// engines in docs/architecture.md's table). `SessionProfile` moved with its hook, to
+// `session/hooks/session/readers/useRuntimeProfile.ts`.
+
+import type { SocketBindingConfig } from '../socket/types';
 
 /** One socket slot's binding config (undefined when that slot is gated off). */
 export interface RuntimeSocketSlot {
@@ -23,18 +30,4 @@ export interface RuntimeSocketSlot {
 export interface RuntimeSocketSlots {
     relay?: RuntimeSocketSlot;
     cloud?: RuntimeSocketSlot;
-}
-
-/**
- * The current session user's reactive facts. Higher-level policy (permissions) is derived in the app
- * layer from these — see apps/web's useUserPermissions. This stays layer-appropriate: app-runtime
- * provides the identity facts; the app decides what they mean.
- */
-export interface SessionProfile {
-    userRole: string | null;
-    isGuest: boolean;
-    /** Whether an active cloud session is attached (vs relay/default). */
-    isCloudActive: boolean;
-    userName: string;
-    photo?: string;
 }

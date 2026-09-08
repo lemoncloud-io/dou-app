@@ -1,5 +1,5 @@
 import { createLogId, setLogContextProvider } from '@chatic/bridges';
-import { getGlobalSessionContext } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { getRouteTrail } from '../../utils/routeTrail';
 
@@ -68,7 +68,7 @@ export const readLogContext = (): LogContext => {
     let sid: string | undefined;
 
     try {
-        const state = getGlobalSessionContext();
+        const state = runtime.session.getGlobalSessionContext();
         uid = state.identity.userId ?? undefined;
         cid = state.cloud.cloudId ?? undefined;
         sid = state.cloud.siteId ?? undefined;

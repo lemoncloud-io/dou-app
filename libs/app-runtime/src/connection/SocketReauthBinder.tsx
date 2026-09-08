@@ -3,7 +3,7 @@ import { useEffect, useRef } from 'react';
 import { getSocketManager } from '../socket/runtime';
 import { reauthenticateActiveSocket } from '../socket';
 import type { SocketKind, SocketSessionDelegate } from '../socket';
-import type { RuntimeSocketSlots, RuntimeSocketSlot } from '../runtime';
+import type { RuntimeSocketSlots, RuntimeSocketSlot } from './types';
 import { socketRebootKey } from './utils/socketRebootKey';
 
 export interface SocketReauthBinderProps {

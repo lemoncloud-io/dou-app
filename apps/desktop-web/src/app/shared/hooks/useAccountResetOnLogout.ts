@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 /** 계정/클라우드 스코프 persist 키 — 각 스토어 persist `name`과 일치(단일 출처). */
 const ACCOUNT_SCOPED_STORAGE_KEYS = [
@@ -31,7 +31,7 @@ const ACCOUNT_SCOPED_STORAGE_KEYS = [
  * localStorage 통째 삭제는 위 보존 값을 깨므로 키를 명시적으로 제거한다.
  */
 export const useAccountResetOnLogout = () => {
-    const repos = useRuntimeRepositories();
+    const repos = runtime.data.useRuntimeRepositories();
 
     const resetAccount = useCallback(async (): Promise<void> => {
         ACCOUNT_SCOPED_STORAGE_KEYS.forEach(key => localStorage.removeItem(key));

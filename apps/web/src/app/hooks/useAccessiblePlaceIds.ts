@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
-import { useGlobalSession, useSessionSelection } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 /**
  * The places of the active cloud the user can actually get to — the same rows the home rail renders.
@@ -17,9 +16,9 @@ import { useGlobalSession, useSessionSelection } from '@chatic/app-runtime';
  * not reach into a feature (ADR-0046).
  */
 export const useAccessiblePlaceIds = (): Set<string> | null => {
-    const { place } = useRuntimeRepositories();
-    const { selectedCloudId } = useSessionSelection();
-    const uid = useGlobalSession().identity.userId ?? undefined;
+    const { place } = runtime.data.useRuntimeRepositories();
+    const { selectedCloudId } = runtime.session.useSessionSelection();
+    const uid = runtime.session.useGlobalSession().identity.userId ?? undefined;
     const cid = selectedCloudId ?? 'default';
 
     const [placeIds, setPlaceIds] = useState<Set<string> | null>(null);

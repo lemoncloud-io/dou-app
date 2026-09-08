@@ -1,14 +1,18 @@
 jest.mock('@chatic/app-runtime', () => ({
-    getGlobalSessionContext: jest.fn(),
+    runtime: {
+        session: {
+            getGlobalSessionContext: jest.fn(),
+        },
+    },
 }));
 
-import { getGlobalSessionContext } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import { setLogContextProvider } from '@chatic/bridges';
 
 import { attachLogContext, readLogContext, resetWebRunId } from './logContext';
 import { recordRoute, resetRouteTrail } from '../../utils/routeTrail';
 
-const mockSession = getGlobalSessionContext as jest.Mock;
+const mockSession = runtime.session.getGlobalSessionContext as jest.Mock;
 
 const sessionState = (over: Record<string, unknown> = {}) => ({
     identity: { userId: 'u-1' },

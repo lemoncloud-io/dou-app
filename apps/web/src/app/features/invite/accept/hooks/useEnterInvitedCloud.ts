@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
-import { useSessionSelection, useSwitchCloudSession } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 /**
  * Step 1 of invite entry: switch into the invited cloud when the invite carries a `cloudId`.
@@ -16,8 +16,8 @@ import { useSessionSelection, useSwitchCloudSession } from '@chatic/app-runtime'
  * param type widens `MyInviteView` since the published type does not yet declare `cloudId`.
  */
 export const useEnterInvitedCloud = () => {
-    const { switchCloud, isPending: isEnteringCloud } = useSwitchCloudSession();
-    const { selectedCloudId } = useSessionSelection();
+    const { switchCloud, isPending: isEnteringCloud } = runtime.session.useSwitchCloudSession();
+    const { selectedCloudId } = runtime.session.useSessionSelection();
 
     const enterCloud = useCallback(
         async (info?: MyInviteView & { cloudId?: string }): Promise<void> => {

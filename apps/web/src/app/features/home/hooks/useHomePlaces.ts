@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
-import { useGlobalSession } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import type { DomainPlace } from '@chatic/data';
 
 export interface HomePlacesResult {
@@ -36,8 +35,8 @@ export interface HomePlacesResult {
  * session-selected cloud. See PlaceLocalDataSourceV2 reemit-routing tests.
  */
 export const useHomePlaces = (): HomePlacesResult => {
-    const { place } = useRuntimeRepositories();
-    const session = useGlobalSession();
+    const { place } = runtime.data.useRuntimeRepositories();
+    const session = runtime.session.useGlobalSession();
     // OPTIMISTIC cloud id (the selected cloud), matching `deriveSelectedContext`'s cid — NOT the
     // committed activeServer.cloudId. This re-subscribes the observer the instant a cloud switch
     // pre-applies the cid, so the previous cloud's rows clear immediately instead of lingering until

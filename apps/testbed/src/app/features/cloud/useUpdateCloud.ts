@@ -1,4 +1,4 @@
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import type { DataRepositoriesV2 } from '@chatic/data';
 
 /**
@@ -7,7 +7,7 @@ import type { DataRepositoriesV2 } from '@chatic/data';
  * reactively without a sync plan (clouds are mutated locally, not pushed over the socket).
  */
 export const useUpdateCloud = () => {
-    const repos = useRuntimeRepositories() as unknown as DataRepositoriesV2;
+    const repos = runtime.data.useRuntimeRepositories() as unknown as DataRepositoriesV2;
 
     return (id: string, name: string) =>
         repos.cloud.updateCloud({ id, name } as Parameters<typeof repos.cloud.updateCloud>[0]);

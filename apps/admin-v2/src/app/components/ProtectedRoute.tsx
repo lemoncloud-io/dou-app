@@ -1,7 +1,7 @@
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 
-import { useRuntimeRepositories, useSessionAuth, useSessionIdentity } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { useRelaySessionGuard } from '../hooks/useRelaySessionGuard';
 
@@ -11,7 +11,7 @@ import { useRelaySessionGuard } from '../hooks/useRelaySessionGuard';
  * window an app looks through, and a type import is enough to make the second package part of this
  * app's build surface.
  */
-type UserRepository = ReturnType<typeof useRuntimeRepositories>['user'];
+type UserRepository = ReturnType<typeof runtime.data.useRuntimeRepositories>['user'];
 
 /**
  * Optimistic profile read for the gate: the profile if the current token still works, else null.
@@ -52,11 +52,11 @@ const GateScreen = ({ children }: { children: React.ReactNode }) => (
  * only show 403s. `tryFetchProfile` never alerts/redirects; a null result renders the retry state.
  */
 export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
-    const { isAuthenticated } = useSessionAuth();
-    const { userId } = useSessionIdentity();
+    const { isAuthenticated } = runtime.session.useSessionAuth();
+    const { userId } = runtime.session.useSessionIdentity();
     const location = useLocation();
     const navigate = useNavigate();
-    const { user } = useRuntimeRepositories();
+    const { user } = runtime.data.useRuntimeRepositories();
 
     // Keep HTTP signing credentials fresh while the console is open (and kick truly dead
     // sessions back to the login screen instead of leaving pages to 403).

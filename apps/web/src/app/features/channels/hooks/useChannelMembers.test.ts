@@ -1,13 +1,19 @@
 import { renderHook, waitFor } from '@testing-library/react';
 
-import { useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import type { DomainJoin } from '@chatic/data';
 
 import { useChannelMembers } from './useChannelMembers';
 
 jest.mock('@chatic/app-runtime', () => ({
-    useRuntimeRepositories: jest.fn(),
-    useRuntimeSocketState: jest.fn(),
+    runtime: {
+        data: {
+            useRuntimeRepositories: jest.fn(),
+        },
+        connection: {
+            useRuntimeSocketState: jest.fn(),
+        },
+    },
 }));
 
 const userObserveList = jest.fn();
@@ -28,10 +34,10 @@ beforeEach(() => {
     jest.clearAllMocks();
     seedUsers([]);
     syncChannelUsers.mockResolvedValue(42);
-    (useRuntimeRepositories as jest.Mock).mockReturnValue({
+    (runtime.data.useRuntimeRepositories as jest.Mock).mockReturnValue({
         user: { observeList: userObserveList, syncChannelUsers },
     });
-    (useRuntimeSocketState as jest.Mock).mockReturnValue({ isVerified: true });
+    (runtime.connection.useRuntimeSocketState as jest.Mock).mockReturnValue({ isVerified: true });
 });
 
 describe('useChannelMembers — 멤버 적재 + active 파생', () => {
@@ -43,7 +49,7 @@ describe('useChannelMembers — 멤버 적재 + active 파생', () => {
     });
 
     it('isVerified가 아니면 네트워크 로드를 하지 않는다', () => {
-        (useRuntimeSocketState as jest.Mock).mockReturnValue({ isVerified: false });
+        (runtime.connection.useRuntimeSocketState as jest.Mock).mockReturnValue({ isVerified: false });
 
         renderHook(() => useChannelMembers({ channelId: 'c1', joins: [] }));
 

@@ -1,6 +1,6 @@
 import { useMemo, useSyncExternalStore } from 'react';
 
-import { useDynamicDeviceId } from '../../session';
+import { useDynamicDeviceId } from '../../session/hooks/app/useDynamicDeviceId';
 // Off the session barrel (ADR-0076 결정 6): the committed cloud id and the narrowed slot snapshot
 // are runtime-internal.
 import { getCommittedCloudId, getSocketSlotContext, sessionSignal } from '../../session/store';

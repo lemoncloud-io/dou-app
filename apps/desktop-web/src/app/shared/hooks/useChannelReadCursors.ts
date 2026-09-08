@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import type { DomainChannel } from '@chatic/data';
-import { getSyncManager, useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
-import { useSessionIdentity, useSessionSelection } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import type { ReadCursor } from '../utils';
 
@@ -21,10 +20,10 @@ import type { ReadCursor } from '../utils';
  * aggregate dedups to one sync target.
  */
 export const useChannelReadCursors = (channels: DomainChannel[]): Record<string, ReadCursor> => {
-    const { join: joinRepository } = useRuntimeRepositories();
-    const { userId } = useSessionIdentity();
-    const { selectedSiteId } = useSessionSelection();
-    const { isVerified } = useRuntimeSocketState();
+    const { join: joinRepository } = runtime.data.useRuntimeRepositories();
+    const { userId } = runtime.session.useSessionIdentity();
+    const { selectedSiteId } = runtime.session.useSessionSelection();
+    const { isVerified } = runtime.connection.useRuntimeSocketState();
 
     const [cursorByChannel, setCursorByChannel] = useState<Record<string, ReadCursor>>({});
 
@@ -33,7 +32,7 @@ export const useChannelReadCursors = (channels: DomainChannel[]): Record<string,
 
     useEffect(() => {
         if (!userId || !isVerified || channels.length === 0) return;
-        const sync = getSyncManager();
+        const sync = runtime.sync.getSyncManager();
 
         const disposers = channels.flatMap(channel => {
             const channelId = channel.id;

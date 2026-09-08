@@ -2,7 +2,7 @@ import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@ta
 import { BrowserRouter } from 'react-router-dom';
 
 import { logger } from '@chatic/bridges';
-import { RuntimeAuthHost } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { installGlobalErrorCapture } from './globalErrorCapture';
 import { AppRoutes } from './routes';
@@ -38,7 +38,7 @@ const queryClient = new QueryClient({
 });
 
 /**
- * Session + token lifecycle is owned by `RuntimeAuthHost` (app-runtime): it runs the single web-core
+ * Session + token lifecycle is owned by `runtime.connection.RuntimeAuthHost` (app-runtime): it runs the single web-core
  * init (`useRelaySessionInit` → `initializeRelaySession`, incl. transport bootstrap) and mounts the
  * SDK-backed socket auth loop so tokens (and the HTTP signing credentials derived from them) stay
  * fresh. It deliberately excludes guest keep-alive and chat data sync — admin requires an explicit
@@ -46,11 +46,11 @@ const queryClient = new QueryClient({
  */
 const AppInner = () => {
     return (
-        <RuntimeAuthHost>
+        <runtime.connection.RuntimeAuthHost>
             <BrowserRouter>
                 <AppRoutes />
             </BrowserRouter>
-        </RuntimeAuthHost>
+        </runtime.connection.RuntimeAuthHost>
     );
 };
 

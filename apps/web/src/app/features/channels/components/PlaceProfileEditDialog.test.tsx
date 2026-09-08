@@ -8,7 +8,11 @@ const setMyProfileMock = jest.fn();
 let mockProfile: { nick?: string; thumbnail?: string } | null = null;
 
 jest.mock('@chatic/app-runtime', () => ({
-    useRuntimeRepositories: () => ({ profile: { setMyProfile: setMyProfileMock } }),
+    runtime: {
+        data: {
+            useRuntimeRepositories: () => ({ profile: { setMyProfile: setMyProfileMock } }),
+        },
+    },
 }));
 jest.mock('@chatic/bridges', () => ({ logger: { error: jest.fn() } }));
 jest.mock('@chatic/shared', () => ({ resizeImageToBase64: jest.fn() }));

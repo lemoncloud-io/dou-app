@@ -24,7 +24,11 @@ jest.mock('@chatic/shared', () => ({
     useNavigateWithTransition: () => jest.fn(),
 }));
 jest.mock('@chatic/app-runtime', () => ({
-    useSessionIdentity: () => ({ userId: 'me' }),
+    runtime: {
+        session: {
+            useSessionIdentity: () => ({ userId: 'me' }),
+        },
+    },
 }));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast: jest.fn() }));
 

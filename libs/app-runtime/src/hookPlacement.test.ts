@@ -73,6 +73,6 @@ describe('app-runtime — 훅 배치', () => {
             .sort();
 
         // 배치가 조용히 되돌아가면(훅이 모듈 루트로 새면) 이 목록이 줄어든다.
-        expect(hookFolders).toEqual(['connection', 'data', 'push', 'runtime', 'session', 'socket/sync']);
+        expect(hookFolders).toEqual(['connection', 'data', 'push', 'session', 'socket/sync']);
     });
 });

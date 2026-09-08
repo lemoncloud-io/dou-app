@@ -8,8 +8,8 @@ import { useRelaySessionKeepAlive } from '../session/hooks/app/useRelaySessionKe
 import { SocketBinder } from './SocketBinder';
 import { SocketReauthBinder } from './SocketReauthBinder';
 import { useSocketSessionDelegate } from './hooks/useSocketSessionDelegate';
-import { useRuntimeSocketSlots } from '../runtime';
-import type { RuntimeSocketSlots } from '../runtime';
+import { useRuntimeSocketSlots } from './hooks/useRuntimeSocketSlots';
+import type { RuntimeSocketSlots } from './types';
 
 export interface RuntimeHostProps {
     /**

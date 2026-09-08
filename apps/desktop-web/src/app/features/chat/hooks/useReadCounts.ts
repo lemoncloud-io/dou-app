@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { getSyncManager, useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import type { DomainChannel, DomainJoin } from '@chatic/data';
 
 import { isSelfChannel, useReadCursorStore } from '../../../shared';
@@ -33,8 +33,8 @@ export type ReadCountOf = (chatNo: number, senderId?: string) => ReadCount | nul
  * before any join row has synced (every row would claim "Read 0" and be lying).
  */
 export const useReadCounts = (channel: DomainChannel | undefined, viewer: MessageViewer): ReadCountOf => {
-    const { join: joinRepository } = useRuntimeRepositories();
-    const { isVerified } = useRuntimeSocketState();
+    const { join: joinRepository } = runtime.data.useRuntimeRepositories();
+    const { isVerified } = runtime.connection.useRuntimeSocketState();
     const channelId = channel?.id ?? null;
     const [joins, setJoins] = useState<DomainJoin[]>([]);
 
@@ -56,7 +56,7 @@ export const useReadCounts = (channel: DomainChannel | undefined, viewer: Messag
     const memberKey = memberIds.join(',');
     useEffect(() => {
         if (!channelId || !isVerified || memberIds.length === 0) return;
-        const sync = getSyncManager();
+        const sync = runtime.sync.getSyncManager();
         const disposers = memberIds.map(userId => sync.registerJoin(`${channelId}@${userId}`));
         return () => disposers.forEach(dispose => dispose());
     }, [channelId, isVerified, memberKey]);

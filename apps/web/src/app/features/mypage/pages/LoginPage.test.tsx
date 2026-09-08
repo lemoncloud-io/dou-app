@@ -12,7 +12,11 @@ jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ 
 
 const loginRelaySocial = jest.fn();
 jest.mock('@chatic/app-runtime', () => ({
-    useLoginRelaySocial: () => ({ mutateAsync: loginRelaySocial, isPending: false }),
+    runtime: {
+        session: {
+            useLoginRelaySocial: () => ({ mutateAsync: loginRelaySocial, isPending: false }),
+        },
+    },
 }));
 
 // Native so the social buttons render; the browser branch shows only copy.

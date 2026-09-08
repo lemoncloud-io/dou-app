@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
-import { useRuntimeProfile } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import {
     FloatingButton,
@@ -49,7 +49,7 @@ export const SubscriptionPlansPage = () => {
     const { sellablePlans, summary, isOnMobileApp } = usePlanCatalog();
     const { options, isLoading } = usePlanOptions();
     const { pageState, isBlocked, resolveNativeProduct, purchaseTier } = useTierPurchase();
-    const { isGuest } = useRuntimeProfile();
+    const { isGuest } = runtime.session.useRuntimeProfile();
     const { restore: restorePurchases } = useRestorePurchases();
 
     const [selected, setSelected] = useState<ProductView | null>(null);

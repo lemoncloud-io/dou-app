@@ -1,14 +1,22 @@
 import { act, renderHook } from '@testing-library/react';
 
-import { getSyncManager, useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import type { DomainChannel, DomainLastChat } from '@chatic/data';
 
 import { useChatSyncRegistration } from './useChatSyncRegistration';
 
 jest.mock('@chatic/app-runtime', () => ({
-    getSyncManager: jest.fn(),
-    useRuntimeRepositories: jest.fn(),
-    useRuntimeSocketState: jest.fn(),
+    runtime: {
+        sync: {
+            getSyncManager: jest.fn(),
+        },
+        data: {
+            useRuntimeRepositories: jest.fn(),
+        },
+        connection: {
+            useRuntimeSocketState: jest.fn(),
+        },
+    },
 }));
 
 const registerChat = jest.fn();
@@ -30,9 +38,9 @@ beforeEach(() => {
     });
     refreshList.mockResolvedValue({ fetchedCount: 0 });
     registerChat.mockReturnValue(jest.fn());
-    (useRuntimeRepositories as jest.Mock).mockReturnValue({ chat: { observeLastList, refreshList } });
-    (useRuntimeSocketState as jest.Mock).mockReturnValue({ isVerified: true });
-    (getSyncManager as jest.Mock).mockReturnValue({ registerChat, updateLocalSnapshot });
+    (runtime.data.useRuntimeRepositories as jest.Mock).mockReturnValue({ chat: { observeLastList, refreshList } });
+    (runtime.connection.useRuntimeSocketState as jest.Mock).mockReturnValue({ isVerified: true });
+    (runtime.sync.getSyncManager as jest.Mock).mockReturnValue({ registerChat, updateLocalSnapshot });
 });
 
 describe('useChatSyncRegistration — 활성 사이트 채널들의 chat sync', () => {
@@ -64,7 +72,7 @@ describe('useChatSyncRegistration — 활성 사이트 채널들의 chat sync', 
     });
 
     it('소켓이 인증되기 전에는 등록하지 않는다', () => {
-        (useRuntimeSocketState as jest.Mock).mockReturnValue({ isVerified: false });
+        (runtime.connection.useRuntimeSocketState as jest.Mock).mockReturnValue({ isVerified: false });
 
         renderHook(() => useChatSyncRegistration([channel('c1')]));
 

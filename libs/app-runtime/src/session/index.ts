@@ -71,3 +71,23 @@ export {
     useSiteSwitch,
     useSwitchCloudSession,
 } from './hooks/session';
+
+// --- 세션 액션·프로필 (다른 폴더에 살지만 세션 그룹이다) -----------------------------------------
+// The facade groups by what a CONSUMER is doing, not by which folder the file sits in. These three
+// are session concepts whose implementations belong to other modules for good reasons — the two
+// actions drive a socket, and the profile hook assembles from repositories — so the barrel is where
+// that gap closes instead of making an app know the split.
+
+// verify-hash-alias `$token` → session/store commit + same-connection relay socket re-auth. Consumed
+// by the phone-verification flow (roadmap ADR-0033 Track A contract; Track C imports it via apps/web).
+export { applySessionToken } from '../socket/auth/applySessionToken';
+export type { ApplySessionTokenOptions } from '../socket/auth/applySessionToken';
+// The app-facing relay LOGOUT — the socket half. It notifies the server's socket (`auth.logout`)
+// before the local store teardown, which is why it and not the `session/auth` primitive is the
+// public name (ADR-0076 결정 7). The cloud half is reached through `useLogoutCloudSession`, so the raw
+// `logoutCloudSession` stays internal (결정 6); admin-v2's `useRelaySessionGuard` is the one non-React
+// caller of this one.
+export { logoutSession } from '../socket/auth/logoutSession';
+// The session user's profile, assembled from the user repository + the live session context.
+export { useRuntimeProfile } from './hooks/session/readers/useRuntimeProfile';
+export type { SessionProfile } from './hooks/session/readers/useRuntimeProfile';

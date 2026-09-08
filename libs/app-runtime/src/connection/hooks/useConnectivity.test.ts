@@ -1,9 +1,9 @@
 import { act, renderHook } from '@testing-library/react';
 
 import { deriveConnectivity, useConnectivity } from './useConnectivity';
-import { useRuntimeSocketState } from '../../runtime/hooks/useRuntimeSocketState';
+import { useRuntimeSocketState } from './useRuntimeSocketState';
 
-jest.mock('../../runtime/hooks/useRuntimeSocketState', () => ({ useRuntimeSocketState: jest.fn() }));
+jest.mock('./useRuntimeSocketState', () => ({ useRuntimeSocketState: jest.fn() }));
 
 const mockedSocketState = useRuntimeSocketState as jest.MockedFunction<typeof useRuntimeSocketState>;
 

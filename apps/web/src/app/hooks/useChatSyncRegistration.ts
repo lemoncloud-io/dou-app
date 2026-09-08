@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
-import { getSyncManager, useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import type { DomainChannel } from '@chatic/data';
 
 /**
@@ -45,8 +45,8 @@ export const useChatSyncRegistration = (
     channels: DomainChannel[],
     { enabled = true }: { enabled?: boolean } = {}
 ): void => {
-    const { chat: chatRepository } = useRuntimeRepositories();
-    const { isVerified } = useRuntimeSocketState();
+    const { chat: chatRepository } = runtime.data.useRuntimeRepositories();
+    const { isVerified } = runtime.connection.useRuntimeSocketState();
 
     // Sorted-and-joined key: a reorder (pin / activity sort) must not re-register or re-subscribe,
     // and the sorted ids match the key `useLastChats` observes under, so the two share one read.
@@ -54,7 +54,7 @@ export const useChatSyncRegistration = (
 
     useEffect(() => {
         if (!enabled || !isVerified || !channelKey) return;
-        const sync = getSyncManager();
+        const sync = runtime.sync.getSyncManager();
         const disposers = channelKey.split(',').map(id => sync.registerChat(id));
         return () => disposers.forEach(dispose => dispose());
     }, [channelKey, enabled, isVerified]);
@@ -80,7 +80,7 @@ export const useChatSyncRegistration = (
 
     useEffect(() => {
         if (!enabled || !isVerified || !lastNoByChannel) return;
-        const sync = getSyncManager();
+        const sync = runtime.sync.getSyncManager();
         for (const [channelId, lastNo] of lastNoByChannel) {
             sync.updateLocalSnapshot({ type: 'chat', id: channelId }, { id: channelId, lastNo });
         }

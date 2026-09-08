@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import { isInJoinWindow } from '@chatic/data';
 import type { DomainChannel, DomainChat, DomainJoin } from '@chatic/data';
 
@@ -22,7 +22,7 @@ export const useLastChats = (
     channels: DomainChannel[],
     joinByChannel?: Map<string, DomainJoin>
 ): Map<string, DomainChat> => {
-    const { chat: chatRepository } = useRuntimeRepositories();
+    const { chat: chatRepository } = runtime.data.useRuntimeRepositories();
 
     const [lastByChannel, setLastByChannel] = useState<Map<string, DomainChat>>(new Map());
 

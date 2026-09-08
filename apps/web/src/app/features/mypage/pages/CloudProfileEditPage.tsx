@@ -10,7 +10,7 @@ import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
 
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { cloudsKeys, useSessionSelection } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { FloatingButton, TextField } from '@chatic/web-ui-kit';
 
@@ -36,7 +36,7 @@ export const CloudProfileEditPage = () => {
     const { toast } = useToast();
     const queryClient = useQueryClient();
 
-    const { selectedCloudId } = useSessionSelection();
+    const { selectedCloudId } = runtime.session.useSessionSelection();
     // Same ownership test the AccountInfoPage entry uses, so the row and this screen cannot disagree.
     const { activeCloud, isCloudSessionReady, isOwner, isPending: isPendingClouds } = useActiveCloudOwnership();
     const { mutateAsync: updateCloudName, isPending } = useUpdateCloudProfile();
@@ -80,7 +80,7 @@ export const CloudProfileEditPage = () => {
 
             // `cloud.update` runs over the socket; the relay catalog (home header, cloud switcher,
             // this page) is a separate HTTP query, so patch its cache to reflect the new name.
-            queryClient.setQueriesData<ListResult<CloudView>>({ queryKey: cloudsKeys.lists() }, old => {
+            queryClient.setQueriesData<ListResult<CloudView>>({ queryKey: runtime.data.cloudsKeys.lists() }, old => {
                 if (!old?.list) return old;
                 return {
                     ...old,

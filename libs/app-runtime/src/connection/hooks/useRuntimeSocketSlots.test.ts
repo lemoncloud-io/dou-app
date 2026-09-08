@@ -1,9 +1,9 @@
 import { renderHook } from '@testing-library/react';
 import { useRuntimeSocketSlots } from './useRuntimeSocketSlots';
-import { useDynamicDeviceId } from '../../session';
+import { useDynamicDeviceId } from '../../session/hooks/app/useDynamicDeviceId';
 import { getCommittedCloudId, getSocketSlotContext, sessionSignal } from '../../session/store';
 
-jest.mock('../../session', () => ({
+jest.mock('../../session/hooks/app/useDynamicDeviceId', () => ({
     useDynamicDeviceId: jest.fn(),
 }));
 // Both are runtime-internal and off the session barrel (ADR-0076 결정 6), so the mock is at the

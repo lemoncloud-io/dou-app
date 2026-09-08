@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { getSyncManager, useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
-import { useGlobalSession, useSessionSelection } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import type { DomainChannel, DomainJoin } from '@chatic/data';
 
 interface UseMyJoinsOptions {
@@ -29,15 +28,15 @@ export const useJoinSyncRegistration = (
     channels: DomainChannel[],
     { enabled = true }: { enabled?: boolean } = {}
 ): void => {
-    const { isVerified } = useRuntimeSocketState();
-    const uid = useGlobalSession().identity.userId ?? undefined;
+    const { isVerified } = runtime.connection.useRuntimeSocketState();
+    const uid = runtime.session.useGlobalSession().identity.userId ?? undefined;
 
     const channelIds = channels.map(ch => ch.id);
     const channelKey = channelIds.join(',');
 
     useEffect(() => {
         if (!enabled || !uid || !isVerified) return;
-        const sync = getSyncManager();
+        const sync = runtime.sync.getSyncManager();
         const disposers = channelIds.map(id => sync.registerJoin(`${id}@${uid}`));
         return () => disposers.forEach(dispose => dispose());
         // channelKey captures the set; channelIds is read once per key.
@@ -61,9 +60,9 @@ export const useJoinSyncRegistration = (
  */
 export const useMyJoins = (channels: DomainChannel[], options: UseMyJoinsOptions = {}): Map<string, DomainJoin> => {
     const { sync: shouldSync = true } = options;
-    const { join: joinRepository } = useRuntimeRepositories();
-    const uid = useGlobalSession().identity.userId ?? undefined;
-    const { selectedCloudId } = useSessionSelection();
+    const { join: joinRepository } = runtime.data.useRuntimeRepositories();
+    const uid = runtime.session.useGlobalSession().identity.userId ?? undefined;
+    const { selectedCloudId } = runtime.session.useSessionSelection();
 
     const [joinByChannel, setJoinByChannel] = useState<Map<string, DomainJoin>>(new Map());
 

@@ -1,4 +1,4 @@
-import { getGlobalSessionContext } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { useChannelChatFeeds, type ChannelChatFeed, type ChannelLastChat } from './useChannelChatFeeds';
 import { isMentioned, isNotifiableChat, messagePlainText, resolveMyMentionNames } from '../utils';
@@ -31,7 +31,7 @@ export const useMentionCapture = (): void => {
         // hold things people wrote.
         if (!isNotifiableChat(chat)) return;
 
-        const identity = getGlobalSessionContext().identity;
+        const identity = runtime.session.getGlobalSessionContext().identity;
         const authorId = chatAuthorId(chat);
         const isMe = !!authorId && authorId === identity.userId;
         // Precedence: own message → not-a-mention → already-read → capture.

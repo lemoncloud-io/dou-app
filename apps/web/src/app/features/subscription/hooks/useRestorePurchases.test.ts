@@ -25,7 +25,13 @@ jest.mock('@chatic/bridges', () => ({
     isNative: () => isNativeValue,
     logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn(), debug: jest.fn() },
 }));
-jest.mock('@chatic/app-runtime', () => ({ useRuntimeProfile: () => ({ isGuest: isGuestValue }) }));
+jest.mock('@chatic/app-runtime', () => ({
+    runtime: {
+        session: {
+            useRuntimeProfile: () => ({ isGuest: isGuestValue }),
+        },
+    },
+}));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: toastMock }) }));
 jest.mock('./useSubscriptionIap', () => ({
     useSubscriptionIap: () => ({ restorePurchases: restorePurchasesMock }),

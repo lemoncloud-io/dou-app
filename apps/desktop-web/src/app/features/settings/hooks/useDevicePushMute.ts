@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { useNotificationPrefsStore } from '../../../shared/stores';
 
@@ -24,7 +24,7 @@ import { useNotificationPrefsStore } from '../../../shared/stores';
  * fifty lines it would save, and a seam neither app asked for.
  */
 export const useDevicePushMute = () => {
-    const { device } = useRuntimeRepositories();
+    const { device } = runtime.data.useRuntimeRepositories();
     const pushMuted = useNotificationPrefsStore(state => state.pushMuted);
     const setPushMuted = useNotificationPrefsStore(state => state.setPushMuted);
 

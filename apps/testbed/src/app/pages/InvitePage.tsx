@@ -1,8 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useSessionIdentity } from '@chatic/app-runtime';
-import { registerUserWithInviteCode } from '@chatic/app-runtime';
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import type { DataRepositoriesV2 } from '@chatic/data';
 import { decodeInvite } from '../features/invite/inviteCode';
 
@@ -19,8 +17,8 @@ import { decodeInvite } from '../features/invite/inviteCode';
  */
 export const InvitePage = () => {
     const navigate = useNavigate();
-    const { delegatorId } = useSessionIdentity();
-    const repos = useRuntimeRepositories() as unknown as DataRepositoriesV2;
+    const { delegatorId } = runtime.session.useSessionIdentity();
+    const repos = runtime.data.useRuntimeRepositories() as unknown as DataRepositoriesV2;
 
     const [text, setText] = useState('');
     const [error, setError] = useState<string | null>(null);
@@ -43,7 +41,11 @@ export const InvitePage = () => {
         setAccepting(true);
         try {
             setStatus('초대 수락 중...');
-            const data = (await registerUserWithInviteCode(payload.code, delegatorId, payload.backend)) as {
+            const data = (await runtime.session.registerUserWithInviteCode(
+                payload.code,
+                delegatorId,
+                payload.backend
+            )) as {
                 cloudId?: string;
                 name?: string;
             };

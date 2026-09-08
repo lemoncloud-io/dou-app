@@ -6,7 +6,11 @@ import { useActiveCloudUnreads, useOtherCloudUnread } from '../../hooks';
 import { UnreadBadgeRunner } from './UnreadBadgeRunner';
 
 jest.mock('@chatic/app-runtime', () => ({
-    useSessionSelection: () => ({ selectedCloudId: 'cloud_1' }),
+    runtime: {
+        session: {
+            useSessionSelection: () => ({ selectedCloudId: 'cloud_1' }),
+        },
+    },
 }));
 jest.mock('../../bridge/appBridge', () => ({ appBridge: { setBadgeCount: jest.fn() } }));
 jest.mock('../../bridge/useHandleAppMessage', () => ({ useOnBackgroundStatusChanged: jest.fn() }));

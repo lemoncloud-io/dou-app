@@ -2,7 +2,7 @@ import { StrictMode } from 'react';
 
 import * as ReactDOM from 'react-dom/client';
 
-import { initAppRuntime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import App from './app/app';
 
@@ -18,7 +18,7 @@ import App from './app/app';
 // Set HERE and not in the engine: web storage serves every non-native client, so a limit living in
 // libs/app-runtime would also truncate apps/web in a browser and apps/admin-v2.
 // Must run before render — the runtime builds its cache storages once, on first repository access.
-initAppRuntime({ data: { cache: { maxChatsPerChannel: 1000 } } });
+runtime.boot.initAppRuntime({ data: { cache: { maxChatsPerChannel: 1000 } } });
 
 // Desktop persistent storage (localStorage) is decided by `@chatic/web-config`'s
 // `usePersistentWebStorage`, which the lemon transport and the session stores share. This file no

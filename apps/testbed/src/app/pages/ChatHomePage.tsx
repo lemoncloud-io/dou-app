@@ -1,13 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-    useGlobalSession,
-    useLogoutCloudSession,
-    useSessionSelection,
-    useSiteSwitch,
-    useSwitchCloudSession,
-} from '@chatic/app-runtime';
-import { getSyncManager, useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import { useCloudSessionCatalog } from '../hooks/useCloudCatalog';
 import type { DataRepositoriesV2, DomainChannel, DomainCloud, DomainPlace } from '@chatic/data';
 import { metricsCollector } from '../metrics/MetricsCollector';
@@ -49,18 +42,18 @@ const formatChatTime = (createdAt?: number): string => {
 
 export const ChatHomePage = () => {
     const navigate = useNavigate();
-    const session = useGlobalSession();
-    const { selectedSiteId } = useSessionSelection();
+    const session = runtime.session.useGlobalSession();
+    const { selectedSiteId } = runtime.session.useSessionSelection();
     const { clouds } = useCloudSessionCatalog();
-    const { switchCloud, isPending: isSwitching } = useSwitchCloudSession();
-    const { logoutCloudSession } = useLogoutCloudSession();
-    const { switchSite, isSwitching: isSiteSwitching } = useSiteSwitch();
+    const { switchCloud, isPending: isSwitching } = runtime.session.useSwitchCloudSession();
+    const { logoutCloudSession } = runtime.session.useLogoutCloudSession();
+    const { switchSite, isSwitching: isSiteSwitching } = runtime.session.useSiteSwitch();
 
-    const repos = useRuntimeRepositories() as unknown as DataRepositoriesV2;
+    const repos = runtime.data.useRuntimeRepositories() as unknown as DataRepositoriesV2;
     // isVerified gates the list-discovery network calls: place/channel lists come from
     // socket gateways (UserGateway.mySite / channel list), so a fetch before the new
     // session is verified would run against the stale (pre-switch) session.
-    const { isVerified } = useRuntimeSocketState();
+    const { isVerified } = runtime.connection.useRuntimeSocketState();
     const cid: string = session.activeServer.kind === 'cloud' ? session.activeServer.cloudId : 'default';
 
     // The active site is the session's selected site. switchSite() pre-applies it
@@ -194,7 +187,7 @@ export const ChatHomePage = () => {
     // 채널을 등록하면 sync push가 그 채널을 새 sid로 mis-tag한다(위 주석 참조).
     useEffect(() => {
         if (!activeSiteId || activeChannelIds.length === 0) return;
-        const sync = getSyncManager();
+        const sync = runtime.sync.getSyncManager();
         const disposers = activeChannelIds.map(channelId => sync.registerChannel(channelId));
         return () => disposers.forEach(dispose => dispose());
     }, [activeSiteId, activeChannelIdsKey]);
@@ -203,7 +196,7 @@ export const ChatHomePage = () => {
     // place엔 list-delta 게이트웨이가 없어 목록 발견은 place.refreshList(위)가, 실시간은 이 register가 담당.
     useEffect(() => {
         if (siteIds.length === 0) return;
-        const sync = getSyncManager();
+        const sync = runtime.sync.getSyncManager();
         const disposers = siteIds.map(siteId => sync.registerPlace(siteId));
         return () => disposers.forEach(dispose => dispose());
     }, [siteIdsKey]);

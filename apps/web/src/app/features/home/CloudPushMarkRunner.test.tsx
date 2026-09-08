@@ -1,7 +1,6 @@
 import { render } from '@testing-library/react';
 
-import { useGlobalCacheSearch, useRuntimeSocketState } from '@chatic/app-runtime';
-import { useSessionSelection } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { useCloudSessionCatalog } from '../../hooks/useCloudCatalog';
 
@@ -14,9 +13,17 @@ import { resolvePushCloudId } from './utils/resolvePushCloudId';
 
 jest.mock('../../hooks/useCloudCatalog', () => ({ useCloudSessionCatalog: jest.fn() }));
 jest.mock('@chatic/app-runtime', () => ({
-    useGlobalCacheSearch: jest.fn(),
-    useRuntimeSocketState: jest.fn(),
-    useSessionSelection: jest.fn(),
+    runtime: {
+        data: {
+            useGlobalCacheSearch: jest.fn(),
+        },
+        connection: {
+            useRuntimeSocketState: jest.fn(),
+        },
+        session: {
+            useSessionSelection: jest.fn(),
+        },
+    },
 }));
 
 jest.mock('../../bridge/appBridge', () => ({ appBridge: { fetchPushMarks: jest.fn() } }));
@@ -41,14 +48,15 @@ const fetchPushMarksMock = appBridge.fetchPushMarks as jest.Mock;
 const receive = (data: Record<string, unknown>) => captured!({ data: { notification: { data } } });
 
 const setActive = (selectedCloudId: string | null) =>
-    (useSessionSelection as jest.Mock).mockReturnValue({ selectedCloudId });
-const setVerified = (isVerified: boolean) => (useRuntimeSocketState as jest.Mock).mockReturnValue({ isVerified });
+    (runtime.session.useSessionSelection as jest.Mock).mockReturnValue({ selectedCloudId });
+const setVerified = (isVerified: boolean) =>
+    (runtime.connection.useRuntimeSocketState as jest.Mock).mockReturnValue({ isVerified });
 
 beforeEach(() => {
     jest.clearAllMocks();
     useCloudPushMarkStore.setState({ badged: {} });
 
-    (useGlobalCacheSearch as jest.Mock).mockReturnValue({ resolveContext });
+    (runtime.data.useGlobalCacheSearch as jest.Mock).mockReturnValue({ resolveContext });
     (useCloudSessionCatalog as jest.Mock).mockReturnValue({ clouds: [{ id: 'cloud_1' }, { id: 'cloud_2' }] });
     (useInvitedClouds as jest.Mock).mockReturnValue({ invitedClouds: [] });
     setActive('cloud_1');

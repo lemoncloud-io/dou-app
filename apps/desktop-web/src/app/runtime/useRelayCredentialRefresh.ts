@@ -1,12 +1,12 @@
 import { useEffect } from 'react';
 
-import { useKindVerified, useSessionStalenessGuard } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 /**
  * Re-mints stale relay HTTP signing credentials (lemon-web-core's AWS credential cache).
  *
  * desktop-web had NO caller for this — apps/web (`useRelayCredentialRefresh`) and admin-v2
- * (`useRelaySessionGuard`) each grew one, and `useSessionStalenessGuard`'s own doc names this app as
+ * (`useRelaySessionGuard`) each grew one, and `runtime.session.useSessionStalenessGuard`'s own doc names this app as
  * the gap. The symptom that closed it: a cloud switch reported as a bare `AxiosError: Network Error`
  * with no status. `POST {relay}/users/0/delegate-cloud` is relay-SIGNED HTTP, and API Gateway
  * rejects a stale/absent SigV4 signature at the IAM layer with a 403 that carries no
@@ -33,7 +33,7 @@ import { useKindVerified, useSessionStalenessGuard } from '@chatic/app-runtime';
  * retries on the next edge.
  */
 export const useRelayCredentialRefresh = (): void => {
-    const { check } = useSessionStalenessGuard({
+    const { check } = runtime.session.useSessionStalenessGuard({
         intervalMs: null,
         checkOnRelayVerified: true,
         // Visibility is driven below instead of by the hub's own listener, which cannot see whether
@@ -48,7 +48,7 @@ export const useRelayCredentialRefresh = (): void => {
         consecutiveFailureLimit: null,
     });
 
-    const isRelayVerified = useKindVerified('relay');
+    const isRelayVerified = runtime.connection.useKindVerified('relay');
     useEffect(() => {
         const onVisibilityChange = (): void => {
             if (document.visibilityState !== 'visible' || !isRelayVerified) return;

@@ -1,28 +1,27 @@
 import { useCallback, useState } from 'react';
 
 import { logger } from '@chatic/bridges';
-import { useDynamicDeviceId, useLoginRelayGuestByDevice } from '@chatic/app-runtime';
-import { startWebTransportInit } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { toError } from '../../../shared';
 
 /**
  * Guest-session bootstrap — mirrors apps/web's relay guest login: register the
  * device against the broker (no Invite Code, no email) via
- * `useLoginRelayGuestByDevice`, which builds credentials, persists the device id
+ * `runtime.session.useLoginRelayGuestByDevice`, which builds credentials, persists the device id
  * and hydrates the relay identity. Lands the user in the Default Cloud's Self
  * Channel. Distinct from useInviteLogin, which additionally exchanges an Invite
  * Code for a cloud-scoped token.
  */
 export const useGuestLogin = () => {
-    const { deviceId } = useDynamicDeviceId();
-    const { mutateAsync: loginGuest, isPending } = useLoginRelayGuestByDevice();
+    const { deviceId } = runtime.session.useDynamicDeviceId();
+    const { mutateAsync: loginGuest, isPending } = runtime.session.useLoginRelayGuestByDevice();
     const [isError, setIsError] = useState(false);
 
     const submit = useCallback(async (): Promise<boolean> => {
         setIsError(false);
         try {
-            await startWebTransportInit();
+            await runtime.boot.startWebTransportInit();
             await loginGuest(deviceId);
             return true;
         } catch (error) {

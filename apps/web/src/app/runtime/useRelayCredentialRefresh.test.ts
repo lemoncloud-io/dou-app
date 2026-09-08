@@ -14,8 +14,14 @@ const mockGuard = jest.fn(() => ({ check: mockCheck }));
 const mockCheck = jest.fn();
 
 jest.mock('@chatic/app-runtime', () => ({
-    useSessionStalenessGuard: (...args: unknown[]) => mockGuard(...(args as [])),
-    useKindVerified: () => relayVerified,
+    runtime: {
+        session: {
+            useSessionStalenessGuard: (...args: unknown[]) => mockGuard(...(args as [])),
+        },
+        connection: {
+            useKindVerified: () => relayVerified,
+        },
+    },
 }));
 
 // Capture the foreground handler instead of simulating the bridge/visibility sources — those merge

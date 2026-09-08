@@ -15,7 +15,11 @@ jest.mock('react-router-dom', () => ({
     Navigate: ({ to }: { to: string }) => <div>navigated:{to}</div>,
 }));
 jest.mock('@chatic/app-runtime', () => ({
-    useSessionAuth: () => ({ isAuthenticated: mockIsAuthenticated }),
+    runtime: {
+        session: {
+            useSessionAuth: () => ({ isAuthenticated: mockIsAuthenticated }),
+        },
+    },
 }));
 jest.mock('../../../hooks/useBackHandler', () => ({ useBackHandler: () => mockBackHandler() }));
 // Every branch is stubbed to a sentinel: this suite is about which one the deeplink picks, and

@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 
 import { webClient } from '@chatic/bridges';
-import { getGlobalSessionContext } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import {
@@ -48,7 +48,7 @@ const presentPush = async (
     if (isDndActive(prefs)) return;
 
     const data = notification?.data ?? {};
-    const myUid = getGlobalSessionContext().identity.userId;
+    const myUid = runtime.session.getGlobalSessionContext().identity.userId;
     if (myUid && String(data.ownerId) === String(myUid)) return; // my own message
     // Per-channel notify mode — same policy the same-cloud path honors: muted
     // channels stay silent, mention-only channels drop non-@me messages. Read from
@@ -73,7 +73,7 @@ const presentPush = async (
             channelName: data.channelName,
             uid: data.uid,
         }));
-    const activeServer = getGlobalSessionContext().activeServer;
+    const activeServer = runtime.session.getGlobalSessionContext().activeServer;
     const activeCloudId = activeServer.kind === 'cloud' ? activeServer.cloudId : null;
 
     const focused = typeof document !== 'undefined' && document.hasFocus();

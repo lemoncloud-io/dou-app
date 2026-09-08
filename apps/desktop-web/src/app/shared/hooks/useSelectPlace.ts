@@ -1,7 +1,6 @@
 import { useCallback } from 'react';
 
-import { useSiteSwitch } from '@chatic/app-runtime';
-import { useSessionSelection } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 /**
  * Switch the active place. The place IS the session's selected site, so this just forwards to
@@ -16,8 +15,8 @@ import { useSessionSelection } from '@chatic/app-runtime';
  * (.claude/20260804/DEBUG-14-20-13.md).
  */
 export const useSelectPlace = () => {
-    const { selectedSiteId } = useSessionSelection();
-    const { switchSite, isSwitching } = useSiteSwitch();
+    const { selectedSiteId } = runtime.session.useSessionSelection();
+    const { switchSite, isSwitching } = runtime.session.useSiteSwitch();
 
     const switchPlace = useCallback(
         (placeId: string) => {

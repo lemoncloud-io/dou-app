@@ -1,5 +1,4 @@
-import { useRuntimeProfile } from '@chatic/app-runtime';
-import { useSessionSelection } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import { useCloudSessionCatalog } from './useCloudCatalog';
 
 import type { CloudView } from '@lemoncloud/chatic-backend-api';
@@ -28,8 +27,8 @@ export interface ActiveCloudOwnership {
  * hidden until the catalog resolves.
  */
 export const useActiveCloudOwnership = (): ActiveCloudOwnership => {
-    const { selectedCloudId } = useSessionSelection();
-    const { isCloudActive } = useRuntimeProfile();
+    const { selectedCloudId } = runtime.session.useSessionSelection();
+    const { isCloudActive } = runtime.session.useRuntimeProfile();
     const { clouds, isPendingClouds } = useCloudSessionCatalog();
 
     const isDefaultCloud = !selectedCloudId || selectedCloudId === 'default';

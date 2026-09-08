@@ -1,12 +1,18 @@
 import { renderHook } from '@testing-library/react';
 
-import { getSyncManager, useRuntimeSocketState } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { useJoinPositions } from './useJoinPositions';
 
 jest.mock('@chatic/app-runtime', () => ({
-    useRuntimeSocketState: jest.fn(),
-    getSyncManager: jest.fn(),
+    runtime: {
+        connection: {
+            useRuntimeSocketState: jest.fn(),
+        },
+        sync: {
+            getSyncManager: jest.fn(),
+        },
+    },
 }));
 
 const registerJoin = jest.fn(() => () => undefined);
@@ -16,8 +22,8 @@ const cursors = (entries: Record<string, number>) => new Map(Object.entries(entr
 
 beforeEach(() => {
     jest.clearAllMocks();
-    (useRuntimeSocketState as jest.Mock).mockReturnValue({ isVerified: true });
-    (getSyncManager as jest.Mock).mockReturnValue({ registerJoin });
+    (runtime.connection.useRuntimeSocketState as jest.Mock).mockReturnValue({ isVerified: true });
+    (runtime.sync.getSyncManager as jest.Mock).mockReturnValue({ registerJoin });
 });
 
 describe('useJoinPositions — 읽음 커서/안읽음 계산', () => {
@@ -32,7 +38,7 @@ describe('useJoinPositions — 읽음 커서/안읽음 계산', () => {
     });
 
     it('세션 미검증(isVerified=false)이면 join sync를 등록하지 않는다', () => {
-        (useRuntimeSocketState as jest.Mock).mockReturnValue({ isVerified: false });
+        (runtime.connection.useRuntimeSocketState as jest.Mock).mockReturnValue({ isVerified: false });
 
         renderHook(() => useJoinPositions('c1', ['u1', 'u2'], ['u1', 'u2'], cursors({})));
 

@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import type { DomainChannel } from '@chatic/data';
-import { useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
-import { useSessionIdentity } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { computeChannelUnread } from '../utils';
 import { useReadCursorStore } from '../stores';
@@ -42,10 +41,10 @@ const EMPTY_WEDGE_CEILING_MS = 4000;
  * uid too. Mirrors apps/web useHomeChannels (57a58278).
  */
 export const useChannels = (placeId: string | undefined) => {
-    const { channel: channelRepository } = useRuntimeRepositories();
-    const { userId: myUid } = useSessionIdentity();
+    const { channel: channelRepository } = runtime.data.useRuntimeRepositories();
+    const { userId: myUid } = runtime.session.useSessionIdentity();
     const readCursors = useReadCursorStore(s => s.cursors);
-    const { isVerified } = useRuntimeSocketState();
+    const { isVerified } = runtime.connection.useRuntimeSocketState();
     const [rawChannels, setRawChannels] = useState<DomainChannel[]>([]);
     const [rawLoading, setRawLoading] = useState(true);
 

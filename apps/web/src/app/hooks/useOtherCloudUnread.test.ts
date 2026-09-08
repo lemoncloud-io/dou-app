@@ -10,8 +10,12 @@ let mockInvited: { id?: string }[] = [];
 const resolveContext = jest.fn();
 
 jest.mock('@chatic/app-runtime', () => ({
-    useGlobalCacheSearch: () => ({ resolveContext }),
-    globalCacheRefKey: (cid: string, id: string) => `${cid}:${id}`,
+    runtime: {
+        data: {
+            useGlobalCacheSearch: () => ({ resolveContext }),
+            globalCacheRefKey: (cid: string, id: string) => `${cid}:${id}`,
+        },
+    },
 }));
 
 jest.mock('./useCloudCatalog', () => ({ useCloudSessionCatalog: () => ({ clouds: mockOwned }) }));

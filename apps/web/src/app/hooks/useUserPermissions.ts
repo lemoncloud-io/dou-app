@@ -1,4 +1,4 @@
-import { useRuntimeProfile } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { GUEST_MAX_CHANNELS, MAX_CHANNELS_PER_PLACE } from '../utils/consts';
 
@@ -26,7 +26,7 @@ export interface UserPermissions {
 }
 
 export const useUserPermissions = (): UserPermissions => {
-    const { isGuest, isCloudActive } = useRuntimeProfile();
+    const { isGuest, isCloudActive } = runtime.session.useRuntimeProfile();
 
     // Place creation and cloud-profile editing require a signed-in (non-guest) user with an active
     // cloud session; channel creation and cloud selection are open to everyone; guests are capped.

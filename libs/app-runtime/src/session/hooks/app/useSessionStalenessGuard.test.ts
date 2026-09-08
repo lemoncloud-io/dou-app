@@ -14,7 +14,7 @@ jest.mock('../../../http/transport', () => ({
 jest.mock('../../../socket/auth/requestRelaySessionRefresh', () => ({
     requestRelaySessionRefresh: (...a: unknown[]) => mockRequestRefresh(...a),
 }));
-jest.mock('../../../runtime/hooks/useKindVerified', () => ({
+jest.mock('../../../connection/hooks/useKindVerified', () => ({
     useKindVerified: (...a: unknown[]) => mockVerified(...a),
 }));
 jest.mock('@chatic/bridges', () => ({

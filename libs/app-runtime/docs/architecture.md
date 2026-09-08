@@ -86,7 +86,7 @@ ADR-0076가 더한 책임은 하나다: **"지금 인증·세션 상태가 무�
 | 함수 인자 묶음             | `*Args` (필수) · `*Deps` (주입 가능·기본값 있음)        | 2 · 5                          | `BootstrapSocketConnectionArgs` · `RecoverUnverifiedSocketsDeps`                    |
 | 상수                       | SCREAMING_SNAKE                                         | —                              | `AUTH_OPTIONS` · `SLOT_KINDS` · `RELAY_TOKEN_KEY` · `DEFAULT_INTERVAL_MS`           |
 | 문자열 유니온 키           | `*Kind` · `*Owner` · `*Route`                           | —                              | `SocketKind` · `CredentialOwner` · `HttpRoute`                                      |
-| 훅                         | `runtime/`은 `useRuntime*`, 가드는 `use*Guard`          | 4 · 3                          | `useRuntimeSocketSlots` · `useRuntimeSocketState` · `useCloudCredentialGuard`       |
+| 훅                         | 파생 훅은 `useRuntime*`, 가드는 `use*Guard`             | 4 · 3                          | `useRuntimeSocketSlots` · `useRuntimeSocketState` · `useCloudCredentialGuard`       |
 | 부팅 배선                  | `configure*`                                            | 3                              | `configureSessionStore` · `configureDataRuntime` · `relayStore.configureEndpoints`  |
 | 파일명                     | 엔진/스코프 클래스만 PascalCase, 그 외 camelCase        | 4 ↔ 나머지                    | `SocketManager.ts` · `ActiveScope.ts` ↔ `credentialFreshness.ts` · `relayStore.ts` |
 
@@ -103,7 +103,7 @@ ADR-0076가 더한 책임은 하나다: **"지금 인증·세션 상태가 무�
 | `SessionAuthAdapter implements SocketSessionDelegate`                      | 포트 구현             | `*Adapter` 265 · `SessionCredentialAdapter`가 같은 패키지의 동형 선례                                                                                                                                                                                                          |
 | `SocketAuthSnapshot`                                                       | 값 묶음               | `*Snapshot` 234 · `CloudSessionSnapshot`                                                                                                                                                                                                                                       |
 | `IRelayStore` / `RelayStore` (외 2)                                        | 계약+구현             | `I*` 55쌍. 기존 `RelayCore`는 web-core `session/core` 잔재라 관례 밖                                                                                                                                                                                                           |
-| `useRuntimeSocketSlots` + `RuntimeSocketSlots`                             | `runtime/` 훅         | `useRuntime*` 4                                                                                                                                                                                                                                                                |
+| `useRuntimeSocketSlots` + `RuntimeSocketSlots`                             | `connection/` 훅      | `useRuntime*` 4                                                                                                                                                                                                                                                                |
 | `relaySession.clearSessionAndRedirect()` · `cloudSession.clearStores()`    | `clear*` 동사         | `clearSession` · `clearToken` · `clearSelectedSite` 등 다수                                                                                                                                                                                                                    |
 | `SessionSignalKind`                                                        | 문자열 유니온 키      | `SocketKind` · `CredentialOwner`                                                                                                                                                                                                                                               |
 | `AuthStatus` · `AuthSignals` · `deriveAuthStatus`                          | 순수 판정 함수 + 결과 | `deriveConnectivity`/`ConnectivityStatus`/`ConnectivitySignals` — **직계 형제 1쌍뿐이지만 미러링 대상이 바로 그것**                                                                                                                                                            |
@@ -483,7 +483,7 @@ socket/auth/
 `timeToExpiry`. 같은 폴더의 `requestRelaySessionRefresh(deps)` · `recoverUnverifiedSockets(deps)`가 이미
 쓰는 형태이고, 그래서 지연 싱글턴(`get*`/`reset*`)도 테스트 시임도 필요 없다(테스트는 `deps`로 직접
 넣는다). `deriveAuthStatus`는 소켓·스토어 없이 테스트된다
-([`deriveConnectivity`](../src/connection/useConnectivity.ts)가 이미 쓰는 형태). `AuthSignals.controller`는
+([`deriveConnectivity`](../src/connection/hooks/useConnectivity.ts)가 이미 쓰는 형태). `AuthSignals.controller`는
 SDK의 `AuthControllerState`(`'' | pending | validating | authenticated | failed | disconnected | expired`)를
 그대로 싣는다 — 단, `disconnected`는 컨트롤러가 방출하지 않으므로 판정에 쓰지 않는다
 ([socket/auth/README.md §2](./socket/auth/README.md)).
@@ -495,7 +495,7 @@ SDK의 `AuthControllerState`(`'' | pending | validating | authenticated | failed
 | [`requestRelaySessionRefresh`](../src/socket/auth/requestRelaySessionRefresh.ts) 의 사전 조건 두 블록           | `canRefreshThroughSocket(status)` |
 | [`recoverUnverifiedSockets`](../src/socket/auth/recoverUnverifiedSockets.ts) 의 `isKindVerified`/`expired` 조합 | `needsSocketKick(status)`         |
 
-**[`useConnectivity`](../src/connection/useConnectivity.ts)는 이관하지 않았다.** 최초 계획은 4곳이
+**[`useConnectivity`](../src/connection/hooks/useConnectivity.ts)는 이관하지 않았다.** 최초 계획은 4곳이
 었지만 이것은 인증 판정이 아니라 **표시 판정**이다 — 그것이 답하는 질문은 "사용자에게 무엇을 말할지"
 이고 `AuthStatus`는 "런타임이 무엇을 할지"다. `AuthStatus`가 추가로 주는 입력은 배너에서 전부 같은
 값으로 접히고(`credentialMs`·`storedSessionExpired`는 사용자에게 할 말이 아니다), 스냅샷은 구독 가능한
@@ -612,7 +612,7 @@ export class Throttle {
 `cloudSession.clearStores()` 메서드로 들어가 전역 이름을 잃는다. 공개되는 `logoutSession` ·
 `logoutCloudSession`은 소켓 통지를 포함한 `socket/auth` 판에만 부여한다.
 
-### 6. `connection` · `runtime` — 호스트가 슬롯을 스스로 파생한다
+### 6. `connection` — 호스트가 슬롯을 스스로 파생한다
 
 예전에는 앱 4개가 전부 `const binding = useRuntimeBinding(); <RuntimeConnectionHost binding={binding} />`
 를 반복했는데 호스트는 `binding.socket` 만 읽었다. 그리고 `RuntimeBinding.context` 는 **테스트만 읽는
@@ -620,12 +620,12 @@ export class Throttle {
 글자 단위로 중복했다 (같은 공식 2개 구현, 하나는 죽음 — `RuntimeDataBinder` 삭제 시 소비자가 사라졌다).
 
 ```ts
-// runtime/types.ts
+// connection/types.ts
 export interface RuntimeSocketSlots {
     relay?: RuntimeSocketSlot;
     cloud?: RuntimeSocketSlot;
 }
-// runtime/useRuntimeSocketSlots.ts
+// connection/hooks/useRuntimeSocketSlots.ts
 export const useRuntimeSocketSlots = (): RuntimeSocketSlots => {
     /* ... */
 };
@@ -662,7 +662,7 @@ src/public-surface.test.ts   EXPECTED 단일 목록이 그것을 잠근다
 > 않았다. 주석 매치와 같은 함정의 다른 얼굴이다.
 
 내부 소비자는 구체 모듈 경로로 import하는
-기존 관례를 따른다([`useSocketSessionDelegate.ts`](../src/connection/useSocketSessionDelegate.ts)가 배럴을 우회해
+기존 관례를 따른다([`useSocketSessionDelegate.ts`](../src/connection/hooks/useSocketSessionDelegate.ts)가 배럴을 우회해
 `../socket/auth/sessionDelegate`를 직접 잡는 것이 선례). `patchRelaySessionUser` /
 `getRelaySessionUser`는 계정 프로필 읽기·쓰기 짝(ADR-0062)이고 `apps/web`이 실제로 쓰므로 **남는다**.
 
@@ -756,8 +756,11 @@ libs/app-runtime/src/
     SocketBinder.tsx               # relay/cloud 슬롯 부팅
     SocketReauthBinder.tsx         # same-connection 재인증
     utils/socketRebootKey.ts       # 두 바인더가 합의해야 하는 재부팅 신원 키 (cid·토큰 제외)
+    types.ts                       # RuntimeSocketSlots/RuntimeSocketSlot (호스트가 파생, 바인더가 소비)
     hooks/                         # useSocketSessionDelegate(per-kind delegate 배선)
                                    # useConnectivity(연결 상태 진리표 — 표시 판정, 인증 판정과 별개)
+                                   # useRuntimeSocketSlots(세션 → 소켓 슬롯 파생) · useRuntimeSocketState
+                                   # useKindVerified(kind별 verified — active 슬롯과 무관)
   session/                         # 세션 허브 (SSoT)
     store/                         # relay·cloud·identity·context — 유일 writer, 수동성 eslint
       signal.ts                    #   SessionSignalKind 4종 · ISessionSignal · batch
@@ -772,14 +775,10 @@ libs/app-runtime/src/
       credentialFreshness.ts · cloudTokens.ts · authActions.ts
       utils/                       #   순수 헬퍼: tokenMerge(refresh 병합 불변식) · calcSignature
     scope/                         # ActiveScope (selected·bound·committed) + selected 파생
-    hooks/                         # readers 4 · session actions · auth 8 · app 훅
+    hooks/                         # readers 5(useRuntimeProfile + SessionProfile 포함) ·
+                                   # session actions · auth 8 · app 훅
                                    # app: useSessionStalenessGuard(relay) · useCloudCredentialGuard
       mutationKeys.ts              #   in-flight 관측용 react-query 키 2개 (switch-site · switch-cloud)
-  runtime/                         # 앱이 소비하는 value-deriving 훅
-    types.ts                       # RuntimeSocketSlots/RuntimeSocketSlot/SessionProfile
-    hooks/                         # useRuntimeSocketSlots(세션 → 소켓 슬롯 파생)
-                                   # useRuntimeRepositories · useRuntimeSocketState · useRuntimeProfile
-                                   # useKindVerified · useGlobalCacheSearch
   utils/                           # 도메인을 모르는 프리미티브·환경 판별
     coalescer.ts · throttle.ts     # 진행 중 시도 공유 / 동기 발사 허가 게이트
     unrefTimer.ts                  # 타이머가 프로세스 종료를 붙잡지 않게 (Node 전용, 브라우저 no-op)

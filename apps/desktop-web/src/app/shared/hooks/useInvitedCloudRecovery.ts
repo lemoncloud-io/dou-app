@@ -1,12 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-import {
-    recoverInvitedCloudIfMissing,
-    syncInvitedCloudName,
-    useRuntimeRepositories,
-    useRuntimeSocketState,
-} from '@chatic/app-runtime';
-import { useSessionSelection } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { useCloudSessionCatalog } from './useCloudCatalog';
 
@@ -17,8 +11,8 @@ import { useCloudSessionCatalog } from './useCloudCatalog';
  * row the invite-accept flow writes. A profile that never ran that flow (the Electron shell beside
  * a browser session, a reinstall) has no row, so the cloud shows up only while the session is
  * inside it and vanishes on a switch or a reload (.claude/20260804/DEBUG-14-50-00.md). Both engine
- * helpers already exist for the native app: `recoverInvitedCloudIfMissing` re-derives the cloud's
- * endpoints from a fresh delegation token, and `syncInvitedCloudName` fetches the authoritative
+ * helpers already exist for the native app: `runtime.data.recoverInvitedCloudIfMissing` re-derives the cloud's
+ * endpoints from a fresh delegation token, and `runtime.data.syncInvitedCloudName` fetches the authoritative
  * name over that cloud's socket — the row is written without one, which is why a recovered tile
  * would otherwise read as its id.
  *
@@ -28,9 +22,9 @@ import { useCloudSessionCatalog } from './useCloudCatalog';
  * it was.
  */
 export const useInvitedCloudRecovery = (): void => {
-    const { cloud } = useRuntimeRepositories();
-    const { isVerified } = useRuntimeSocketState();
-    const { selectedCloudId } = useSessionSelection();
+    const { cloud } = runtime.data.useRuntimeRepositories();
+    const { isVerified } = runtime.connection.useRuntimeSocketState();
+    const { selectedCloudId } = runtime.session.useSessionSelection();
     const { clouds: ownedClouds } = useCloudSessionCatalog();
     const recoveredRef = useRef<string | null>(null);
     // Depend on the answer, not the catalog array: it gets a new identity on every poll, and the
@@ -46,8 +40,8 @@ export const useInvitedCloudRecovery = (): void => {
         // reads and writes around those are outside their try blocks, so a rejection here would
         // otherwise surface as an unhandled rejection rather than leaving the rail as it was.
         void (async () => {
-            await recoverInvitedCloudIfMissing(cloud, selectedCloudId);
-            await syncInvitedCloudName(cloud, selectedCloudId);
+            await runtime.data.recoverInvitedCloudIfMissing(cloud, selectedCloudId);
+            await runtime.data.syncInvitedCloudName(cloud, selectedCloudId);
         })().catch(() => undefined);
     }, [cloud, isVerified, selectedCloudId, isOwned]);
 };

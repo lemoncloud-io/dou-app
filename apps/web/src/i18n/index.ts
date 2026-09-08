@@ -7,7 +7,7 @@ import LocalStorageBackend from 'i18next-localstorage-backend';
 import Backend from 'i18next-xhr-backend';
 
 import { logger } from '@chatic/bridges';
-import { ENV, LANGUAGE_KEY, PROJECT } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 const I18N_VERSION = process.env.I18N_VERSION || 'fallback';
 const isDevelopment = process.env.NODE_ENV === 'development';
@@ -30,7 +30,11 @@ if (!isDevelopment) {
 }
 
 i18n.use(ChainedBackend)
-    .use(new LanguageDetector(null, { lookupLocalStorage: `@${PROJECT}_${ENV}.${LANGUAGE_KEY}` }))
+    .use(
+        new LanguageDetector(null, {
+            lookupLocalStorage: `@${runtime.boot.PROJECT}_${runtime.boot.ENV}.${runtime.boot.LANGUAGE_KEY}`,
+        })
+    )
     .use(initReactI18next)
     .init({
         fallbackLng: 'en',

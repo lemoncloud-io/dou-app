@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import { useCustomMutation } from '@chatic/shared';
 
 import { productPlansKeys, subscriptionKeys } from './queryKeys';
@@ -15,7 +15,7 @@ import type { Params } from '@lemoncloud/lemon-web-core';
  * cache policy belongs to the app that renders it.
  */
 export const useMembershipInfo = () => {
-    const { subscription } = useRuntimeRepositories();
+    const { subscription } = runtime.data.useRuntimeRepositories();
 
     return useQuery<MembershipView>({
         queryKey: subscriptionKeys.detail('mine'),
@@ -27,7 +27,7 @@ export const useMembershipInfo = () => {
 };
 
 export const useProductPlans = (params: Params = {}) => {
-    const { subscription } = useRuntimeRepositories();
+    const { subscription } = runtime.data.useRuntimeRepositories();
 
     return useQuery({
         queryKey: productPlansKeys.list(params),
@@ -44,7 +44,7 @@ export const useProductPlans = (params: Params = {}) => {
  * live here — the purchase flow is `useValidateMembership` alone.
  */
 export const useValidateMembership = () => {
-    const { subscription } = useRuntimeRepositories();
+    const { subscription } = runtime.data.useRuntimeRepositories();
 
     return useCustomMutation<MembershipView, string, { body: CreateMembershipBody; params?: Params }>(
         ({ body, params }) => subscription.validateMembership(body, params)

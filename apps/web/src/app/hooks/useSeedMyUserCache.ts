@@ -1,8 +1,6 @@
 import { useEffect } from 'react';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
-import { useSessionIdentity } from '@chatic/app-runtime';
-import { getActiveSessionUser } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 /**
  * Seeds the user cache from the ACTIVE session profile so cache-observing profile readers have a row
@@ -17,12 +15,12 @@ import { getActiveSessionUser } from '@chatic/app-runtime';
  * cache. Seeds ONLY when the cache has no row yet, so it never clobbers an observed/edited value.
  */
 export const useSeedMyUserCache = (): void => {
-    const { user } = useRuntimeRepositories();
-    const { userId } = useSessionIdentity();
+    const { user } = runtime.data.useRuntimeRepositories();
+    const { userId } = runtime.session.useSessionIdentity();
 
     useEffect(() => {
         if (!userId) return;
-        const sessionUser = getActiveSessionUser();
+        const sessionUser = runtime.session.getActiveSessionUser();
         if (!sessionUser) return;
 
         let cancelled = false;

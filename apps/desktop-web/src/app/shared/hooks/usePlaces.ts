@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import type { DomainPlace } from '@chatic/data';
-import { useRuntimeRepositories } from '@chatic/app-runtime';
-import { useGlobalSession } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 /**
  * Places (sites) for the active cloud. List discovery (fetch / delta sync) is owned globally by
@@ -16,8 +15,8 @@ import { useGlobalSession } from '@chatic/app-runtime';
  * scope key and flips only at token commit, after the optimistic cid — re-key on it too.
  */
 export const usePlaces = () => {
-    const { place: placeRepository } = useRuntimeRepositories();
-    const session = useGlobalSession();
+    const { place: placeRepository } = runtime.data.useRuntimeRepositories();
+    const session = runtime.session.useGlobalSession();
     const cid = session.activeServer.kind === 'cloud' ? session.activeServer.cloudId : 'default';
     const uid = session.identity.userId;
     const [places, setPlaces] = useState<DomainPlace[]>([]);

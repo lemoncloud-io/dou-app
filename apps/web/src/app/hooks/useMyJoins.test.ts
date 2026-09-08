@@ -1,17 +1,26 @@
 import { renderHook } from '@testing-library/react';
 
-import { getSyncManager, useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
-import { useGlobalSession, useSessionSelection } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import type { DomainChannel, DomainJoin } from '@chatic/data';
 
 import { useMyJoins } from './useMyJoins';
 
 jest.mock('@chatic/app-runtime', () => ({
-    getSyncManager: jest.fn(),
-    useRuntimeRepositories: jest.fn(),
-    useRuntimeSocketState: jest.fn(),
-    useGlobalSession: jest.fn(),
-    useSessionSelection: jest.fn(),
+    runtime: {
+        sync: {
+            getSyncManager: jest.fn(),
+        },
+        data: {
+            useRuntimeRepositories: jest.fn(),
+        },
+        connection: {
+            useRuntimeSocketState: jest.fn(),
+        },
+        session: {
+            useGlobalSession: jest.fn(),
+            useSessionSelection: jest.fn(),
+        },
+    },
 }));
 
 const channel = (id: string): DomainChannel => ({ id }) as unknown as DomainChannel;
@@ -30,11 +39,11 @@ const emitJoins = (byChannel: Record<string, DomainJoin[]>) => {
 
 beforeEach(() => {
     jest.clearAllMocks();
-    (useRuntimeRepositories as jest.Mock).mockReturnValue({ join: { observeList: observeListMock } });
-    (useRuntimeSocketState as jest.Mock).mockReturnValue({ isVerified: true });
-    (useGlobalSession as jest.Mock).mockReturnValue({ identity: { userId: 'u1' } });
-    (useSessionSelection as jest.Mock).mockReturnValue({ selectedCloudId: 'cloud-a' });
-    (getSyncManager as jest.Mock).mockReturnValue({ registerJoin: registerJoinMock });
+    (runtime.data.useRuntimeRepositories as jest.Mock).mockReturnValue({ join: { observeList: observeListMock } });
+    (runtime.connection.useRuntimeSocketState as jest.Mock).mockReturnValue({ isVerified: true });
+    (runtime.session.useGlobalSession as jest.Mock).mockReturnValue({ identity: { userId: 'u1' } });
+    (runtime.session.useSessionSelection as jest.Mock).mockReturnValue({ selectedCloudId: 'cloud-a' });
+    (runtime.sync.getSyncManager as jest.Mock).mockReturnValue({ registerJoin: registerJoinMock });
     registerJoinMock.mockReturnValue(jest.fn());
 });
 
@@ -64,7 +73,7 @@ describe('useMyJoins — 구독 join 목록', () => {
     });
 
     it('미인증(isVerified=false)이면 join 동기화를 등록하지 않는다', () => {
-        (useRuntimeSocketState as jest.Mock).mockReturnValue({ isVerified: false });
+        (runtime.connection.useRuntimeSocketState as jest.Mock).mockReturnValue({ isVerified: false });
         emitJoins({});
 
         renderHook(() => useMyJoins([channel('c1')]));

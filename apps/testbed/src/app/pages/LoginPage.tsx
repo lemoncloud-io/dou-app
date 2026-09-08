@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useLogin } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 export const LoginPage = () => {
     const navigate = useNavigate();
-    const { mutate: login, isPending } = useLogin();
+    const { mutate: login, isPending } = runtime.session.useLogin();
 
     const [loginId, setLoginId] = useState('');
     const [password, setPassword] = useState('');

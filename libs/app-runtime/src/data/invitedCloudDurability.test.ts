@@ -1,7 +1,5 @@
 import { recoverInvitedCloudIfMissing, syncInvitedCloudName } from './invitedCloudDurability';
 
-// Isolate the pure orchestration functions from the React hooks' dependencies.
-jest.mock('../runtime', () => ({ useRuntimeRepositories: jest.fn(), useRuntimeSocketState: jest.fn() }));
 jest.mock('./cacheStorageRouting', () => ({ isNativeApp: () => true }));
 
 const mockIssue = jest.fn();

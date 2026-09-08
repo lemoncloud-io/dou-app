@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import { useGlobalCacheSearch } from '@chatic/app-runtime';
-import { useSessionSelection } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import { useCloudSessionCatalog } from '../../../hooks/useCloudCatalog';
 import { logger } from '@chatic/bridges';
 import type { CacheChannelView, CacheChatView, CacheSiteView } from '@chatic/app-messages';
@@ -70,8 +69,8 @@ const EMPTY_CACHE_RESULTS: CacheResults = { places: [], channels: [], messages: 
 export const useGlobalSearch = (query: string) => {
     const trimmed = query.trim();
     const debounced = useDebounce(trimmed, DEBOUNCE_MS);
-    const { search } = useGlobalCacheSearch();
-    const { selectedCloudId } = useSessionSelection();
+    const { search } = runtime.data.useGlobalCacheSearch();
+    const { selectedCloudId } = runtime.session.useSessionSelection();
     // The relay session's rows live under the 'default' partition (see `deriveSelectedContext`).
     const activeCid = selectedCloudId ?? 'default';
     const { clouds: ownedClouds } = useCloudSessionCatalog();

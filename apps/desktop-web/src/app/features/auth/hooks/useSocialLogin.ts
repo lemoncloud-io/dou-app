@@ -1,8 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 
 import { isNative, logger } from '@chatic/bridges';
-import { getIdentityContext } from '@chatic/app-runtime';
-import { createCredentialsByProvider, startWebTransportInit } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { toError } from '../../../shared';
 import { buildAuthorizeUrl } from '../utils';
@@ -14,7 +13,7 @@ import { buildAuthorizeUrl } from '../utils';
  * will-navigate), in a plain browser by direct navigation (admin pattern).
  * `complete` exchanges the relay code for credentials then hydrates the relay
  * session — replacing whatever session (e.g. a Guest Session) was on the device.
- * Mirrors apps/web useOAuthLogin — createCredentialsByProvider commits the session by itself.
+ * Mirrors apps/web useOAuthLogin — runtime.session.createCredentialsByProvider commits the session by itself.
  */
 export const useSocialLogin = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -37,10 +36,10 @@ export const useSocialLogin = () => {
         // In-app login (e.g. a Guest Session linking from the Profile page)
         // swaps the live session — reload so the whole engine (socket, caches,
         // cloud rail) re-bootstraps from the new credentials.
-        const wasAuthenticated = getIdentityContext().isAuthenticated;
+        const wasAuthenticated = runtime.session.getIdentityContext().isAuthenticated;
         try {
-            await startWebTransportInit();
-            await createCredentialsByProvider(provider, code);
+            await runtime.boot.startWebTransportInit();
+            await runtime.session.createCredentialsByProvider(provider, code);
             // Credential exchange only builds transport credentials — refresh the
             // relay session (syncProfile) to hydrate identity + auth state. Social
             // Login replaces any prior (guest/cloud) session on this device.

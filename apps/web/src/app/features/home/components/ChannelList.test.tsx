@@ -12,8 +12,14 @@ jest.mock('@chatic/shared', () => ({
     useNavigateWithTransition: () => jest.fn(),
 }));
 jest.mock('@chatic/app-runtime', () => ({
-    useChannelSync: () => undefined,
-    useSessionIdentity: () => ({ userId: 'me' }),
+    runtime: {
+        sync: {
+            useChannelSync: () => undefined,
+        },
+        session: {
+            useSessionIdentity: () => ({ userId: 'me' }),
+        },
+    },
 }));
 // My user id drives the owner-vs-member title branch; 'me' owns channels tagged ownerId: 'me'.
 

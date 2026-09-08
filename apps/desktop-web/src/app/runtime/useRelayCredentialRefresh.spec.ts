@@ -16,8 +16,14 @@ const mockGuard = vi.fn(() => ({ check: mockCheck }));
 const mockKindVerified = vi.fn(() => true);
 
 vi.mock('@chatic/app-runtime', () => ({
-    useSessionStalenessGuard: (...args: unknown[]) => mockGuard(...(args as [])),
-    useKindVerified: (...args: unknown[]) => mockKindVerified(...(args as [])),
+    runtime: {
+        session: {
+            useSessionStalenessGuard: (...args: unknown[]) => mockGuard(...(args as [])),
+        },
+        connection: {
+            useKindVerified: (...args: unknown[]) => mockKindVerified(...(args as [])),
+        },
+    },
 }));
 
 import { useRelayCredentialRefresh } from './useRelayCredentialRefresh';

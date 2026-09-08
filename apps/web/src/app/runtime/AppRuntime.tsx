@@ -8,7 +8,7 @@ const SONNER_SAFE_OFFSET = { top: 'calc(var(--safe-top, 0px) + 8px)' };
 
 import { GlobalLoader, useVersionCheck, VersionUpdateBanner } from '@chatic/shared';
 import { Toaster } from '@chatic/ui-kit/components/ui/toaster';
-import { RuntimeConnectionHost } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { Router } from '../routes';
 import { ActiveCloudDataProvider, OtherCloudUnreadProvider } from '../hooks';
@@ -24,12 +24,12 @@ import { useRelayCredentialRefresh } from './useRelayCredentialRefresh';
 import { useSocketWakeRecovery } from './useSocketWakeRecovery';
 
 /**
- * Runtime layer — assembles the declarative `RuntimeConnectionHost` (transport bootstrap,
+ * Runtime layer — assembles the declarative `runtime.connection.RuntimeConnectionHost` (transport bootstrap,
  * socket lifecycle and SDK-driven re-auth from the session's own socket slots). Re-authentication on
  * site/cloud switch is handled internally — the app never sends `auth:update` itself, and the
  * socket session delegate is now owned by app-runtime (no delegate prop).
  *
- * Session readiness: `RuntimeConnectionHost` is the SINGLE web-core init driver (`useRelaySessionInit` →
+ * Session readiness: `runtime.connection.RuntimeConnectionHost` is the SINGLE web-core init driver (`useRelaySessionInit` →
  * `initializeRelaySession`) and gates its subtree until ready; `SessionBackgroundRunner` inside it
  * runs the background guest login when the relay session is absent. `AppReadyGate` then holds the UI
  * until the profile is ready so it never renders profile-less.
@@ -56,7 +56,7 @@ export const AppRuntime = () => {
     useCloudCredentialRenewal();
 
     return (
-        <RuntimeConnectionHost>
+        <runtime.connection.RuntimeConnectionHost>
             {/* One cloud-wide channel/read-cursor observation and one cross-cloud unread read for
                 the whole app, above BOTH the badge runners and the router — the badge, the bottom
                 nav and home each used to assemble the same numbers from their own subscriptions.
@@ -86,6 +86,6 @@ export const AppRuntime = () => {
                     <Toaster />
                 </OtherCloudUnreadProvider>
             </ActiveCloudDataProvider>
-        </RuntimeConnectionHost>
+        </runtime.connection.RuntimeConnectionHost>
     );
 };

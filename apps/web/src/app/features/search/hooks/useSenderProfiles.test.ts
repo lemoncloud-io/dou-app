@@ -1,11 +1,17 @@
 import { renderHook, waitFor } from '@testing-library/react';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import { logger } from '@chatic/bridges';
 
 import { useSenderProfiles } from './useSenderProfiles';
 
-jest.mock('@chatic/app-runtime', () => ({ useRuntimeRepositories: jest.fn() }));
+jest.mock('@chatic/app-runtime', () => ({
+    runtime: {
+        data: {
+            useRuntimeRepositories: jest.fn(),
+        },
+    },
+}));
 jest.mock('@chatic/bridges', () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } }));
 
 const observeList = jest.fn();
@@ -24,7 +30,7 @@ beforeEach(() => {
     seedObserved([]);
     cacheReadList.mockResolvedValue({ list: [] });
     refreshItem.mockResolvedValue(null);
-    (useRuntimeRepositories as jest.Mock).mockReturnValue({
+    (runtime.data.useRuntimeRepositories as jest.Mock).mockReturnValue({
         profile: { observeList, cacheReadList, refreshItem },
     });
 });

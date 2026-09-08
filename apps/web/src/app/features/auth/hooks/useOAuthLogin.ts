@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 
 import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
-import { createCredentialsByProvider, useSessionIdentity } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { ROUTES } from '../../../routes/paths';
 
@@ -23,7 +23,7 @@ export const useOAuthLogin = (): void => {
     const { t } = useTranslation();
     const location = useLocation();
     const navigate = useNavigateWithTransition();
-    const { delegatorId } = useSessionIdentity();
+    const { delegatorId } = runtime.session.useSessionIdentity();
     const handled = useRef(false);
 
     useEffect(() => {
@@ -50,7 +50,7 @@ export const useOAuthLogin = (): void => {
             if (provider === 'invite') {
                 if (!delegatorId) throw new Error('No delegatorId for invite login');
             } else {
-                await createCredentialsByProvider(provider, code);
+                await runtime.session.createCredentialsByProvider(provider, code);
             }
             logger.info('AUTH', '[useOAuthLogin] oauth login succeeded', { provider });
 

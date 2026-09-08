@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 
-import { cloudsKeys } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { useEmailBindRequest } from '../../../stores/useEmailBindRequest';
 import { useCloudEmailGuard } from '../hooks';
@@ -20,7 +20,7 @@ const EmailBindFlow = ({ cloudId }: { cloudId: string }) => {
         <EmailVerifyDialog
             open
             onOpenChange={open => !open && closeEmailBind()}
-            onVerified={() => void queryClient.invalidateQueries({ queryKey: cloudsKeys.all })}
+            onVerified={() => void queryClient.invalidateQueries({ queryKey: runtime.data.cloudsKeys.all })}
             cloudId={cloudId}
             verifyEmail={verifyEmail}
         />

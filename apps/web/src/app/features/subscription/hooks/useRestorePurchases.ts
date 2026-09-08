@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { isNative, logger } from '@chatic/bridges';
-import { useRuntimeProfile } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { useSubscriptionIap } from './useSubscriptionIap';
@@ -36,7 +36,7 @@ export const useRestorePurchases = (): RestorePurchases => {
     const { t } = useTranslation();
     const { toast } = useToast();
     const { restorePurchases } = useSubscriptionIap();
-    const { isGuest } = useRuntimeProfile();
+    const { isGuest } = runtime.session.useRuntimeProfile();
     const [isRestoring, setIsRestoring] = useState(false);
 
     const restore = useCallback(async () => {

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import type { DomainProfile } from '@chatic/data';
 
 /**
@@ -17,7 +17,7 @@ import type { DomainProfile } from '@chatic/data';
  * system site with no owner, so callers must treat null as "no owner row", not "still loading".
  */
 export const usePlaceOwnerProfile = (placeId?: string, ownerId?: string): DomainProfile | null => {
-    const { profile: profileRepository } = useRuntimeRepositories();
+    const { profile: profileRepository } = runtime.data.useRuntimeRepositories();
     const [owner, setOwner] = useState<DomainProfile | null>(null);
 
     const profileId = placeId && ownerId ? `${placeId}@${ownerId}` : null;

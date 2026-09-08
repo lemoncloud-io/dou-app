@@ -2,22 +2,28 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 
 jest.mock('@chatic/bridges', () => ({ isNative: jest.fn() }));
 jest.mock('@chatic/app-runtime', () => ({
-    useRegisterDeviceTokenMutation: jest.fn(),
-    useDynamicDeviceId: jest.fn(),
+    runtime: {
+        push: {
+            useRegisterDeviceTokenMutation: jest.fn(),
+        },
+        session: {
+            useDynamicDeviceId: jest.fn(),
+        },
+    },
 }));
 jest.mock('@chatic/device-utils', () => ({ useDeviceInfo: jest.fn() }));
 jest.mock('../../../bridge', () => ({ appBridge: { fetchFcmToken: jest.fn() } }));
 
 import { isNative } from '@chatic/bridges';
-import { useDynamicDeviceId, useRegisterDeviceTokenMutation } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import { useDeviceInfo } from '@chatic/device-utils';
 
 import { appBridge } from '../../../bridge';
 import { usePushRegistration } from './usePushRegistration';
 
 const mockIsNative = isNative as jest.Mock;
-const mockUseMutation = useRegisterDeviceTokenMutation as jest.Mock;
-const mockUseDynamicDeviceId = useDynamicDeviceId as jest.Mock;
+const mockUseMutation = runtime.push.useRegisterDeviceTokenMutation as jest.Mock;
+const mockUseDynamicDeviceId = runtime.session.useDynamicDeviceId as jest.Mock;
 const mockUseDeviceInfo = useDeviceInfo as jest.Mock;
 const mockFetchFcmToken = appBridge.fetchFcmToken as jest.Mock;
 
@@ -79,7 +85,7 @@ describe('usePushRegistration — 푸시 서버 등록 확인', () => {
         expect(mockMutateAsync).toHaveBeenCalledWith(
             expect.objectContaining({
                 deviceToken: 'tok-123',
-                // Must be the shared useDynamicDeviceId values, not a local derivation.
+                // Must be the shared runtime.session.useDynamicDeviceId values, not a local derivation.
                 deviceId: 'dyn-device-1',
                 platform: 'ios',
                 installId: 'fid-dyn',

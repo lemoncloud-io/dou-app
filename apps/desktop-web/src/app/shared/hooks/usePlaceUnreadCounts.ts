@@ -2,8 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { DomainChannel, DomainChannelListPayload } from '@chatic/data';
 import { webClient } from '@chatic/bridges';
-import { getSocketManager, useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
-import { useGlobalSession, useSessionIdentity } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { computeChannelUnread } from '../utils';
 import { useReadCursorStore } from '../stores';
@@ -29,11 +28,11 @@ const REFETCH_DEBOUNCE_MS = 300;
  * moment you read.
  */
 export const usePlaceUnreadCounts = (): Record<string, number> => {
-    const { channel: channelRepository } = useRuntimeRepositories();
-    const { isVerified } = useRuntimeSocketState();
-    const session = useGlobalSession();
+    const { channel: channelRepository } = runtime.data.useRuntimeRepositories();
+    const { isVerified } = runtime.connection.useRuntimeSocketState();
+    const session = runtime.session.useGlobalSession();
     const cloudId = session.activeServer.kind === 'cloud' ? session.activeServer.cloudId : null;
-    const { userId: myUid } = useSessionIdentity();
+    const { userId: myUid } = runtime.session.useSessionIdentity();
     const readCursors = useReadCursorStore(s => s.cursors);
 
     const [channels, setChannels] = useState<DomainChannel[]>([]);
@@ -72,7 +71,7 @@ export const usePlaceUnreadCounts = (): Record<string, number> => {
     // unread may have changed. onMessage needs a live client, so bind through subscribeClient.
     useEffect(() => {
         const offPush = webClient.onEvent('OnReceiveNotification', schedule);
-        const manager = getSocketManager();
+        const manager = runtime.connection.getSocketManager();
         let offMessage: (() => void) | undefined;
         const offClient = manager.subscribeClient(client => {
             offMessage?.();

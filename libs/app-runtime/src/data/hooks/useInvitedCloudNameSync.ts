@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react';
 
 import { useSessionSelection } from '../../session';
-import { useRuntimeRepositories, useRuntimeSocketState } from '../../runtime';
+import { useRuntimeRepositories } from './useRuntimeRepositories';
+import { useRuntimeSocketState } from '../../connection/hooks/useRuntimeSocketState';
 import { isNativeApp } from '../../utils/isNativeApp';
 import { syncInvitedCloudName } from '../invitedCloudDurability';
 

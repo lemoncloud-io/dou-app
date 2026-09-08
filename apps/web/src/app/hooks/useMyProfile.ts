@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 
-import { useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import type { DomainProfile } from '@chatic/data';
-import { useSessionIdentity, useSessionSelection } from '@chatic/app-runtime';
 
 /**
  * In-flight `profile.get-mine` per profile id, shared across every mounted instance of this hook.
@@ -34,10 +33,10 @@ const inFlightByProfileId = new Map<string, Promise<unknown>>();
  * deduped (see {@link inFlightByProfileId}).
  */
 export const useMyProfile = (): { profile: DomainProfile | null } => {
-    const { profile: profileRepository } = useRuntimeRepositories();
-    const { isVerified } = useRuntimeSocketState();
-    const { selectedSiteId: sid } = useSessionSelection();
-    const { userId: uid } = useSessionIdentity();
+    const { profile: profileRepository } = runtime.data.useRuntimeRepositories();
+    const { isVerified } = runtime.connection.useRuntimeSocketState();
+    const { selectedSiteId: sid } = runtime.session.useSessionSelection();
+    const { userId: uid } = runtime.session.useSessionIdentity();
 
     const profileId = sid && uid ? `${sid}@${uid}` : null;
     const [profile, setProfile] = useState<DomainProfile | null>(null);

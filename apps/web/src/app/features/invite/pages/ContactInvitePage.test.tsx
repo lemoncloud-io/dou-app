@@ -30,7 +30,11 @@ jest.mock('react-i18next', () => ({
 }));
 // Only the role gate is read here; the sheet itself is stubbed below.
 jest.mock('@chatic/app-runtime', () => ({
-    useRuntimeProfile: () => ({ isGuest: mockIsGuest }),
+    runtime: {
+        session: {
+            useRuntimeProfile: () => ({ isGuest: mockIsGuest }),
+        },
+    },
 }));
 jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
 // Only `useLocation` is read (the re-invite entry rides in route state); rendering without a Router

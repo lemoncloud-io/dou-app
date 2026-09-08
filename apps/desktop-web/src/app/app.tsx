@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { LoadingFallback } from '@chatic/shared';
 import { ThemeProvider } from '@chatic/theme';
-import { useSessionAuth } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import i18n from '../i18n';
 import { DesktopRuntime } from './runtime';
@@ -27,7 +27,7 @@ const queryClient = new QueryClient({
  * render on `useRelaySessionInit` / `useTokenRefresh`.
  */
 export function App() {
-    const { isAuthenticated } = useSessionAuth();
+    const { isAuthenticated } = runtime.session.useSessionAuth();
 
     // Authenticated boots land on the chat shell, so show the shell skeleton (not a bare
     // spinner) for better perceived performance; pre-auth keeps the plain loader.

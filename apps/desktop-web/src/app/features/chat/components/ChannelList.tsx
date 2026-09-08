@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { DomainChannel } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 import { useTick } from '@chatic/shared';
-import { useSessionIdentity } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 
 import {
@@ -165,7 +165,7 @@ export const ChannelList = ({
     isDefaultMode,
 }: ChannelListProps) => {
     const { t } = useTranslation();
-    const myUid = useSessionIdentity().userId;
+    const myUid = runtime.session.useSessionIdentity().userId;
     const placeProfiles = useSiteProfileMap();
     // Tick once a minute so each row's relative "11m" last-activity time stays current.
     useTick(60_000);

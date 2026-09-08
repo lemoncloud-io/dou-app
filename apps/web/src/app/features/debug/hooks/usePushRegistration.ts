@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 
 import { isNative } from '@chatic/bridges';
-import { useDynamicDeviceId, useRegisterDeviceTokenMutation } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import { useDeviceInfo } from '@chatic/device-utils';
 
 import { appBridge } from '../../../bridge';
@@ -36,8 +36,8 @@ export const usePushRegistration = (): UsePushRegistration => {
     const { deviceInfo } = useDeviceInfo();
     // Same single source as socket identity and production push registration —
     // this debug check must confirm the exact record production writes.
-    const { deviceId, firebaseInstallationId } = useDynamicDeviceId();
-    const { mutateAsync } = useRegisterDeviceTokenMutation();
+    const { deviceId, firebaseInstallationId } = runtime.session.useDynamicDeviceId();
+    const { mutateAsync } = runtime.push.useRegisterDeviceTokenMutation();
 
     const [state, setState] = useState<PushRegistrationState>('idle');
     const [token, setToken] = useState<string | null>(null);

@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useGlobalSession, useSessionAuth, useSessionIdentity } from '@chatic/app-runtime';
-import { useRuntimeSocketState, getSyncManager, useRuntimeRepositories, useRuntimeProfile } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import type { DataRepositoriesV2, DomainCloud, DomainProfile, DomainUser } from '@chatic/data';
 import type { SyncTargetDescriptor } from '@lemoncloud/chatic-sockets-lib';
 import { DBBrowser } from './DBBrowser';
@@ -30,9 +29,9 @@ const Section = ({ title, children }: { title: string; children: React.ReactNode
 );
 
 export const RuntimeOverlay = ({ onClose }: Props) => {
-    const session = useGlobalSession();
-    const { isAuthenticated, isInitialized } = useSessionAuth();
-    const socketState = useRuntimeSocketState();
+    const session = runtime.session.useGlobalSession();
+    const { isAuthenticated, isInitialized } = runtime.session.useSessionAuth();
+    const socketState = runtime.connection.useRuntimeSocketState();
     const [tab, setTab] = useState<'상태' | 'DB' | '성능' | '프로필' | '안읽음'>('상태');
 
     // Floating draggable panel: start near the top-right so it doesn't cover the header.
@@ -70,7 +69,7 @@ export const RuntimeOverlay = ({ onClose }: Props) => {
 
     const { relay, cloud, identity, activeServer } = session;
     // Profile facts (guest/role/type/name) now track the cached profile, not the session payload.
-    const facts = useRuntimeProfile();
+    const facts = runtime.session.useRuntimeProfile();
 
     return (
         <div
@@ -173,8 +172,8 @@ const ProfileTab = () => (
 // Renames the active cloud through repos.cloud.updateCloud and observes the cloud cache so the
 // displayed name tracks the change reactively (cacheWrite re-emits to observeItem subscribers).
 const CloudNameSection = () => {
-    const repos = useRuntimeRepositories() as unknown as DataRepositoriesV2;
-    const { activeServer } = useGlobalSession();
+    const repos = runtime.data.useRuntimeRepositories() as unknown as DataRepositoriesV2;
+    const { activeServer } = runtime.session.useGlobalSession();
     const updateCloud = useUpdateCloud();
     const cloudId = activeServer.kind === 'cloud' ? activeServer.cloudId : '';
 
@@ -265,8 +264,8 @@ const CloudNameSection = () => {
 // re-issues the active server session. The displayed name is observed from the user cache (not the
 // static session identity) so it tracks the change reactively; getMyProfile hydrates the cache.
 const UserProfileSection = () => {
-    const repos = useRuntimeRepositories() as unknown as DataRepositoriesV2;
-    const identity = useSessionIdentity();
+    const repos = runtime.data.useRuntimeRepositories() as unknown as DataRepositoriesV2;
+    const identity = runtime.session.useSessionIdentity();
     const updateUserProfile = useUpdateUserProfile();
     const uid = identity.userId ?? '';
 
@@ -368,9 +367,9 @@ const UserProfileSection = () => {
 // Edits the current user's site profile (nick/thumbnail) for the active place. Writes via
 // repos.profile.setMyProfile (optimistic cache + profile.set), which uses the live sid/uid.
 const SiteProfileSection = () => {
-    const repos = useRuntimeRepositories() as unknown as DataRepositoriesV2;
-    const { activeServer } = useGlobalSession();
-    const identity = useSessionIdentity();
+    const repos = runtime.data.useRuntimeRepositories() as unknown as DataRepositoriesV2;
+    const { activeServer } = runtime.session.useGlobalSession();
+    const identity = runtime.session.useSessionIdentity();
     const sid = activeServer.siteId ?? '';
     const uid = identity.userId ?? '';
     const profileId = sid && uid ? `${sid}@${uid}` : '';
@@ -523,7 +522,7 @@ const PerfTab = ({ socketStateLabel }: { socketStateLabel: string }) => {
     const [targets, setTargets] = useState<SyncTargetDescriptor[]>([]);
 
     useEffect(() => {
-        const poll = () => setTargets(getSyncManager().listTargets());
+        const poll = () => setTargets(runtime.sync.getSyncManager().listTargets());
         poll();
         const id = setInterval(poll, 1000);
         return () => clearInterval(id);

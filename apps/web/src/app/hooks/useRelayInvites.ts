@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { getSocketManager, useKindVerified, useRuntimeRepositories } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 import type { InviteState } from '@lemoncloud/chatic-sockets-lib';
 
@@ -166,12 +166,12 @@ const mergeCachedAndRemoteInvites = (cached: RelayInviteRow[], remote: MyInviteV
  * answer mirrors in.
  */
 export const useRelayInvites = (state?: InviteState, options: RelayInvitesOptions = {}) => {
-    const { invite } = useRuntimeRepositories();
+    const { invite } = runtime.data.useRuntimeRepositories();
     // invite.list is relay-pinned (kind-scoped routing), so gate on the RELAY slot specifically —
     // the active-facade isVerified would track cloud instead whenever a cloud session is up, and
     // firing before relay's own handshake completes is exactly what threw `503 SOCKET NOT
     // CONNECTED - relay.request(invite.list)` on cold boot / window-focus refetch.
-    const isRelayVerified = useKindVerified('relay');
+    const isRelayVerified = runtime.connection.useKindVerified('relay');
     // Whether this consumer wants the server at all. Asking for a poll is asking for the server, so
     // the waiting screen needs no second flag (see RelayInvitesOptions.remote).
     const wantsRemote = options.remote ?? options.pollIntervalMs !== undefined;
@@ -239,7 +239,9 @@ export const useRelayInvites = (state?: InviteState, options: RelayInvitesOption
      */
     const refetch = useCallback(async (): Promise<{ data?: MyInviteView[] }> => {
         if (!isRelayVerified) {
-            const verified = await getSocketManager().waitUntilKindVerified('relay', REFETCH_VERIFY_TIMEOUT_MS);
+            const verified = await runtime.connection
+                .getSocketManager()
+                .waitUntilKindVerified('relay', REFETCH_VERIFY_TIMEOUT_MS);
             if (!verified) return { data: query.data };
         }
         return query.refetch();
@@ -269,7 +271,7 @@ export const useRelayInvites = (state?: InviteState, options: RelayInvitesOption
  * query key, a log, or a URL other than the deeplink itself.
  */
 export const useRelayInviteMutations = () => {
-    const { invite } = useRuntimeRepositories();
+    const { invite } = runtime.data.useRuntimeRepositories();
     const queryClient = useQueryClient();
 
     const invalidateList = () => queryClient.invalidateQueries({ queryKey: relayInviteKeys.all });

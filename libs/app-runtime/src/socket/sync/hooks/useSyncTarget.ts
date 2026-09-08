@@ -5,7 +5,7 @@ import type { SyncTargetDescriptor } from '@lemoncloud/chatic-sockets-lib';
 import { logger } from '@chatic/bridges';
 
 import { getSyncManager } from '../runtime';
-import { useRuntimeSocketState } from '../../../runtime/hooks/useRuntimeSocketState';
+import { useRuntimeSocketState } from '../../../connection/hooks/useRuntimeSocketState';
 import { getRepositories } from '../../../data/runtime';
 
 const buildKey = (target: SyncTargetDescriptor | null): string | null =>

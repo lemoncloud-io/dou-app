@@ -1,7 +1,6 @@
 import { useEffect, useMemo } from 'react';
 
-import { RuntimeConnectionHost, useCloudCredentialGuard } from '@chatic/app-runtime';
-import { useSessionAuth } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import { Toaster } from '@chatic/ui-kit/components/ui/toaster';
 import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
 
@@ -72,7 +71,7 @@ const DesktopNotifications = () => {
  * listeners so a logged-out app silently ignores inbound pushes; it re-registers on the next login.
  */
 const AuthedNotifications = () => {
-    const { isAuthenticated } = useSessionAuth();
+    const { isAuthenticated } = runtime.session.useSessionAuth();
     return isAuthenticated ? <DesktopNotifications /> : null;
 };
 
@@ -119,9 +118,9 @@ const ShellUnreadSync = () => {
 };
 
 /**
- * Runtime layer — assembles the declarative `RuntimeConnectionHost` (transport bootstrap,
+ * Runtime layer — assembles the declarative `runtime.connection.RuntimeConnectionHost` (transport bootstrap,
  * socket lifecycle and re-auth from the session's own socket slots). Session readiness is owned by
- * `RuntimeConnectionHost`, which is the single web-core init driver (`useRelaySessionInit`) and builds
+ * `runtime.connection.RuntimeConnectionHost`, which is the single web-core init driver (`useRelaySessionInit`) and builds
  * its own socket session delegate internally — apps no longer inject one. The desktop notification /
  * unread / connection runners self-gate on socket verification.
  */
@@ -148,10 +147,10 @@ export const DesktopRuntime = () => {
     //    identity, not a refresh, so it works precisely when that socket is down — which is the case
     //    this guard exists for. Gating it the way the relay hook gates its visibility trigger would
     //    disable it exactly when it is needed.
-    useCloudCredentialGuard();
+    runtime.session.useCloudCredentialGuard();
 
     return (
-        <RuntimeConnectionHost>
+        <runtime.connection.RuntimeConnectionHost>
             {/* One provider for the whole app: Radix tooltip roots require an ancestor
                 provider, and a chat pane renders dozens of message toolbars at once.
                 `delayDuration` is short because these tooltips name icon-only controls —
@@ -166,6 +165,6 @@ export const DesktopRuntime = () => {
                 <AppRouter />
                 <Toaster />
             </TooltipProvider>
-        </RuntimeConnectionHost>
+        </runtime.connection.RuntimeConnectionHost>
     );
 };

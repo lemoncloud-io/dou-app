@@ -6,7 +6,13 @@ let mockChannels: Array<Partial<DomainChannel>> = [];
 let mockIsLoading = false;
 let mockUserId: string | undefined = 'me';
 
-jest.mock('@chatic/app-runtime', () => ({ useSessionIdentity: () => ({ userId: mockUserId }) }));
+jest.mock('@chatic/app-runtime', () => ({
+    runtime: {
+        session: {
+            useSessionIdentity: () => ({ userId: mockUserId }),
+        },
+    },
+}));
 jest.mock('../../../hooks', () => ({
     useHomeChannels: () => ({ channels: mockChannels, isLoading: mockIsLoading }),
 }));

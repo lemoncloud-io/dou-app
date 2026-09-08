@@ -16,8 +16,14 @@ const membershipMutate = jest.fn().mockResolvedValue({ isValid: true });
 
 let mockIsGuest = false;
 jest.mock('@chatic/app-runtime', () => ({
-    useRuntimeProfile: () => ({ isGuest: mockIsGuest }),
-    cloudsKeys: { all: ['clouds'] },
+    runtime: {
+        session: {
+            useRuntimeProfile: () => ({ isGuest: mockIsGuest }),
+        },
+        data: {
+            cloudsKeys: { all: ['clouds'] },
+        },
+    },
 }));
 
 jest.mock('../../../hooks/queryKeys', () => ({ subscriptionKeys: { all: ['subscription'] } }));

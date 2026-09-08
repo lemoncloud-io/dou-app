@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import type { DomainUser } from '@chatic/data';
-import { getActiveSessionUser, useGlobalSession } from '../../session';
+// Concrete paths, not the session barrel: the barrel PUBLISHES this hook (facade group `session`),
+// so importing it back here would be a cycle. Reaching a sibling's internals by concrete path is
+// the convention this package already states (session/index.ts's header).
+import { getActiveSessionUser } from '../../../store';
+import { useGlobalSession } from './useGlobalSession';
 
-import type { SessionProfile } from '../types';
-import { useRuntimeRepositories } from './useRuntimeRepositories';
+import { useRuntimeRepositories } from '../../../../data/hooks/useRuntimeRepositories';
 
 // The cached user is the UserView (DomainUser). Its `userRole` / `userStatus` (and `photo`) are
 // delivered at runtime but not declared on the socials-api UserView type, so surface them here —
@@ -20,6 +23,20 @@ type SessionUserView = DomainUser & { userRole?: string; userStatus?: string; ph
  * every reader. The initial value is seeded SYNCHRONOUSLY from the active session token's user fields
  * (`getActiveSessionUser`) so guard logic never flashes on first paint before the cache emits.
  */
+/**
+ * The current session user's reactive facts. Higher-level policy (permissions) is derived in the app
+ * layer from these — see apps/web's useUserPermissions. This stays layer-appropriate: app-runtime
+ * provides the identity facts; the app decides what they mean.
+ */
+export interface SessionProfile {
+    userRole: string | null;
+    isGuest: boolean;
+    /** Whether an active cloud session is attached (vs relay/default). */
+    isCloudActive: boolean;
+    userName: string;
+    photo?: string;
+}
+
 export const useRuntimeProfile = (): SessionProfile => {
     const { user } = useRuntimeRepositories();
     const session = useGlobalSession();

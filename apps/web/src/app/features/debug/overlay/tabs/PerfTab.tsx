@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { getSyncManager, useRuntimeSocketState } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import type { SyncTargetDescriptor } from '@lemoncloud/chatic-sockets-lib';
 
 import { Row } from '../../components/Row';
@@ -19,7 +19,7 @@ const readUsedHeapMb = (): number | null => {
 // the snapshot plus a 1s poll of the live sync target registry.
 export const PerfTab = () => {
     const metrics = useRuntimeMetrics();
-    const socketState = useRuntimeSocketState();
+    const socketState = runtime.connection.useRuntimeSocketState();
     const [targets, setTargets] = useState<SyncTargetDescriptor[]>([]);
     const [longTasks, setLongTasks] = useState<LongTaskStats>(getLongTaskStats());
     const [vitals, setVitals] = useState<Record<string, VitalSample>>({});
@@ -27,7 +27,7 @@ export const PerfTab = () => {
 
     useEffect(() => {
         const poll = () => {
-            setTargets(getSyncManager().listTargets());
+            setTargets(runtime.sync.getSyncManager().listTargets());
             setLongTasks(getLongTaskStats());
             setVitals(getVitals());
             setUsedHeapMb(readUsedHeapMb());

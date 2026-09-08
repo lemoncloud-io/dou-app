@@ -1,8 +1,8 @@
 import { LogOut, Moon, Sun } from 'lucide-react';
 
-// useSessionLogout from app-runtime (not web-core): notifies the socket (`auth.logout`) before the
+// runtime.session.useSessionLogout from app-runtime (not web-core): notifies the socket (`auth.logout`) before the
 // local teardown, so the RuntimeAuthHost relay session does not linger server-side.
-import { useSessionLogout, useRuntimeProfile } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import type { Theme } from '../../hooks/use-theme';
 import { ACCENT, hexToRgba } from '../../lib/stats';
@@ -16,8 +16,8 @@ export interface SidebarProps {
 export default function Sidebar({ endpoint, theme, onToggleTheme }: SidebarProps) {
     // Reactive display name, incl. profile-cache updates (a name edit fans out); the session
     // identity layer (`useSessionIdentity`) carries only ids/flags, not display fields.
-    const { userName } = useRuntimeProfile();
-    const logout = useSessionLogout();
+    const { userName } = runtime.session.useRuntimeProfile();
+    const logout = runtime.session.useSessionLogout();
 
     return (
         <aside

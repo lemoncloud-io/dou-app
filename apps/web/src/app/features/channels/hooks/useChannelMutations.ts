@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import type { DomainChannel } from '@chatic/data';
 import type {
     ChannelCreateInput,
@@ -21,7 +21,7 @@ const INITIAL_PENDING: PendingState = { start: false, update: false, delete: fal
  * delete/leave/invite) reflect only their own in-flight state.
  */
 export const useChannelMutations = () => {
-    const { channel: channelRepository, join: joinRepository } = useRuntimeRepositories();
+    const { channel: channelRepository, join: joinRepository } = runtime.data.useRuntimeRepositories();
     const [isPending, setIsPending] = useState<PendingState>(INITIAL_PENDING);
 
     // Toggle one action's pending flag around its promise.

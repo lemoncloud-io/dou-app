@@ -112,7 +112,7 @@ socket 계층은 `client.auth`를 직접 노출하지 않고 `socket/auth/` 안�
 
 ## 외부 계약 — `SocketSessionDelegate`
 
-소켓 계층과 `session/`(세션 허브)을 잇는 계약. 모든 메서드가 소켓 **`kind`** 를 받는다(전역 active 참조 금지 — [../auth/signing.md §0](./auth/signing.md)). 배선은 app-runtime의 [`useSocketSessionDelegate`](../../src/connection/useSocketSessionDelegate.ts)가 소유하며, 앱이 주입하지 않는다.
+소켓 계층과 `session/`(세션 허브)을 잇는 계약. 모든 메서드가 소켓 **`kind`** 를 받는다(전역 active 참조 금지 — [../auth/signing.md §0](./auth/signing.md)). 배선은 app-runtime의 [`useSocketSessionDelegate`](../../src/connection/hooks/useSocketSessionDelegate.ts)가 소유하며, 앱이 주입하지 않는다.
 
 ```ts
 export interface SocketSessionDelegate {

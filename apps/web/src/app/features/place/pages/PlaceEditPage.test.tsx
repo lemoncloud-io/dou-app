@@ -16,7 +16,13 @@ jest.mock('@chatic/shared', () => ({
     resizeImageToBase64: jest.fn(),
 }));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
-jest.mock('@chatic/app-runtime', () => ({ useRuntimeRepositories: () => ({ place: { observeItem } }) }));
+jest.mock('@chatic/app-runtime', () => ({
+    runtime: {
+        data: {
+            useRuntimeRepositories: () => ({ place: { observeItem } }),
+        },
+    },
+}));
 jest.mock('react-router-dom', () => ({ useParams: () => ({ placeId: 'p1' }) }));
 // The real `ui` barrel pulls `@chatic/assets` through PrivateLayout, which jest cannot parse.
 jest.mock('../../../ui', () => ({ PageHeader: ({ title }: { title: string }) => <div>header:{title}</div> }));

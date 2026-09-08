@@ -1,4 +1,4 @@
-import { SOCIAL_OAUTH_ENDPOINT } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 /**
  * Social Login URL plumbing (ADR 0009). The OAuth Relay fronts every provider:
@@ -28,7 +28,7 @@ const OAUTH_DEEPLINK_PREFIXES = ['chatic://oauth', 'chatic-dev://oauth'];
 /** Relay authorize URL returning to this origin's hand-off page. */
 export const buildAuthorizeUrl = (provider: string): string => {
     const redirect = `${window.location.origin}/auth/oauth-response`;
-    return `${SOCIAL_OAUTH_ENDPOINT}/oauth/${provider}/authorize?redirect=${encodeURIComponent(redirect)}`;
+    return `${runtime.boot.SOCIAL_OAUTH_ENDPOINT}/oauth/${provider}/authorize?redirect=${encodeURIComponent(redirect)}`;
 };
 
 /** Hand-off deeplink carrying the relay code back into the shell. */

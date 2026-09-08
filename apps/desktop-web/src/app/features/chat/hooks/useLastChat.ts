@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import type { DomainChat } from '@chatic/data';
 
-import { useChatSync, useRuntimeRepositories } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { pickPreviewChat } from '../utils';
 
@@ -17,7 +17,7 @@ const PREVIEW_LOOKBACK = 20;
  * replies and reaction events included — so it can't drive a "real messages only"
  * preview, and it holds just that one message, with no way to fall back to the previous
  * one. Instead compose the app-runtime chat primitives like the room's `useChats`:
- * `useChatSync` registers + primes the chat target, `chat.observeList` streams the
+ * `runtime.sync.useChatSync` registers + primes the chat target, `chat.observeList` streams the
  * cache, and the freshness bridge pulls the newest page when the channel record runs
  * ahead of the cache (desktop chat sync can't deliver mid-session messages — see
  * `useChats`).
@@ -26,7 +26,7 @@ const PREVIEW_LOOKBACK = 20;
  * renders by.
  */
 export const useLastChat = (channelId: string, latestChatNo?: number): DomainChat | undefined => {
-    const { chat: chatRepository } = useRuntimeRepositories();
+    const { chat: chatRepository } = runtime.data.useRuntimeRepositories();
     const [lastChat, setLastChat] = useState<DomainChat | undefined>(undefined);
     // Newest SERVER-assigned chatNo in the observed window, so the freshness bridge can
     // tell whether the cache already holds the channel record's latest message. A
@@ -34,7 +34,7 @@ export const useLastChat = (channelId: string, latestChatNo?: number): DomainCha
     // above `latestChatNo` and the bridge would stop fetching altogether.
     const cachedNewestRef = useRef(0);
 
-    useChatSync(channelId || undefined);
+    runtime.sync.useChatSync(channelId || undefined);
 
     useEffect(() => {
         if (!channelId) {

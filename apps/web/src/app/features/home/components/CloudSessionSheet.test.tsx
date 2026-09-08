@@ -36,8 +36,12 @@ let invited: unknown[] = [];
 let promoVisible = true;
 
 jest.mock('@chatic/app-runtime', () => ({
-    useSessionSelection: () => ({ selectedCloudId }),
-    useSwitchCloudSession: () => ({ switchCloud, isPending: false }),
+    runtime: {
+        session: {
+            useSessionSelection: () => ({ selectedCloudId }),
+            useSwitchCloudSession: () => ({ switchCloud, isPending: false }),
+        },
+    },
 }));
 jest.mock('../../../hooks/useCloudCatalog', () => ({
     useCloudSessionCatalog: () => ({ ...catalog, refetchClouds: jest.fn() }),

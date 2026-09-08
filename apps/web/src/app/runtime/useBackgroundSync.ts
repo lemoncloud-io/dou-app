@@ -1,13 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useIsMutating } from '@tanstack/react-query';
 
-import { useRuntimeProfile, useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
-import {
-    SWITCH_CLOUD_MUTATION_KEY,
-    SWITCH_SITE_MUTATION_KEY,
-    useGlobalSession,
-    useSessionSelection,
-} from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { useAppForeground } from '../bridge';
 import { INVITE_LIST_LIMIT } from '../hooks/useRelayInvites';
@@ -37,13 +31,13 @@ const BACKGROUND_SYNC_POLL_MS = 60_000;
  * This closes the optimistic window (old session still verified=true before the new handshake).
  */
 export const useBackgroundSync = (): void => {
-    const repos = useRuntimeRepositories();
-    const session = useGlobalSession();
-    const { selectedSiteId } = useSessionSelection();
-    const { isVerified } = useRuntimeSocketState();
+    const repos = runtime.data.useRuntimeRepositories();
+    const session = runtime.session.useGlobalSession();
+    const { selectedSiteId } = runtime.session.useSessionSelection();
+    const { isVerified } = runtime.connection.useRuntimeSocketState();
     // Only for the invite block below — issuing an invite requires a phone-verified main user
     // (ADR-0034), so a guest cannot own a card for `invite.list` to return.
-    const { isGuest } = useRuntimeProfile();
+    const { isGuest } = runtime.session.useRuntimeProfile();
 
     const cid = session.activeServer.kind === 'cloud' ? session.activeServer.cloudId : 'default';
     const activeSiteId = selectedSiteId;
@@ -52,8 +46,8 @@ export const useBackgroundSync = (): void => {
     const isRelayServer = session.activeServer.kind !== 'cloud';
 
     const isSwitching =
-        useIsMutating({ mutationKey: SWITCH_SITE_MUTATION_KEY }) +
-            useIsMutating({ mutationKey: SWITCH_CLOUD_MUTATION_KEY }) >
+        useIsMutating({ mutationKey: runtime.session.SWITCH_SITE_MUTATION_KEY }) +
+            useIsMutating({ mutationKey: runtime.session.SWITCH_CLOUD_MUTATION_KEY }) >
         0;
 
     /**

@@ -1,18 +1,19 @@
 import { renderHook } from '@testing-library/react';
 
-import { getActiveSessionUser, useGlobalSession } from '../../session';
+import { getActiveSessionUser } from '../../../store';
+import { useGlobalSession } from './useGlobalSession';
 
 import { useRuntimeProfile } from './useRuntimeProfile';
-import { useRuntimeRepositories } from './useRuntimeRepositories';
+import { useRuntimeRepositories } from '../../../../data/hooks/useRuntimeRepositories';
 
 // useRuntimeProfile sources uid/isCloudActive from useGlobalSession + the token seed accessor from
-// web-core. Mock the whole web-core module (avoids transport's import.meta under jest); the
-// repositories hook is mocked locally.
-jest.mock('../../session', () => ({
-    getActiveSessionUser: jest.fn(),
-    useGlobalSession: jest.fn(),
-}));
-jest.mock('./useRuntimeRepositories', () => ({ useRuntimeRepositories: jest.fn() }));
+// the session store. Mocked by CONCRETE path, matching what the subject imports: mocking the
+// `../../session` barrel stopped working the day the barrel started publishing this hook (a barrel
+// re-exporting its own consumer is the cycle the facade groups avoid), and a barrel mock also drags
+// in transport's `import.meta`. The repositories hook is mocked locally.
+jest.mock('../../../store', () => ({ getActiveSessionUser: jest.fn() }));
+jest.mock('./useGlobalSession', () => ({ useGlobalSession: jest.fn() }));
+jest.mock('../../../../data/hooks/useRuntimeRepositories', () => ({ useRuntimeRepositories: jest.fn() }));
 
 const observeItemMock = jest.fn();
 

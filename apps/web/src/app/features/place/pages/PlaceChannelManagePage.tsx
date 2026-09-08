@@ -3,8 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 
 import { logger } from '@chatic/bridges';
-import { useRuntimeRepositories } from '@chatic/app-runtime';
-import { useSessionIdentity, useSessionSelection } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import type { DomainChannel, DomainChat } from '@chatic/data';
 
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
@@ -41,7 +40,7 @@ import { useInviteListRows } from '../../invite/hooks/useInviteListRows';
 export const PlaceChannelManagePage = () => {
     const { t } = useTranslation();
     const { placeId } = useParams<{ placeId: string }>();
-    const { place: placeRepo } = useRuntimeRepositories();
+    const { place: placeRepo } = runtime.data.useRuntimeRepositories();
     const { toast } = useToast();
 
     const [place, setPlace] = useState<MySiteView | null>(null);
@@ -63,7 +62,7 @@ export const PlaceChannelManagePage = () => {
     const { byChannel: unreadByChannel } = unreads;
     useJoinSyncRegistration(channels);
     const { profile: myProfile } = useMyProfile();
-    const { userId: uid } = useSessionIdentity();
+    const { userId: uid } = runtime.session.useSessionIdentity();
     // 1:1 peers for every DM row, from ONE place-level profile subscription — the same source the
     // home list uses, so both lists name a DM identically (ADR-0039).
     const dmPeers = useDmPeers(placeId ?? null, channels, uid);
@@ -73,7 +72,7 @@ export const PlaceChannelManagePage = () => {
 
     // Sort + pins are scoped to cid:sid (see placeScopeKey) — the route only carries the sid, so the
     // cloud half comes from the active session.
-    const { selectedCloudId } = useSessionSelection();
+    const { selectedCloudId } = runtime.session.useSessionSelection();
     const placeScope = placeScopeKey(selectedCloudId, placeId);
 
     // Sent relay invites (ADR-0033 Track B) only apply to the default (relay) cloud's place — a

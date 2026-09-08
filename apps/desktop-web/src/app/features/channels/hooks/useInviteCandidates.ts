@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import type { DomainUser } from '@chatic/data';
-import { useRuntimeRepositories, useSessionIdentity, useRuntimeSocketState } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { useChannels, useCurrentPlace } from '../../../shared';
 
@@ -27,9 +27,9 @@ export interface InviteCandidate extends DomainUser {
  * Mount this only while the picker is open; it fans out one request per channel.
  */
 export const useInviteCandidates = (targetChannelId: string | null) => {
-    const { user: userRepository } = useRuntimeRepositories();
-    const { isVerified } = useRuntimeSocketState();
-    const { userId: myUid } = useSessionIdentity();
+    const { user: userRepository } = runtime.data.useRuntimeRepositories();
+    const { isVerified } = runtime.connection.useRuntimeSocketState();
+    const { userId: myUid } = runtime.session.useSessionIdentity();
     const { placeId } = useCurrentPlace();
     const { channels } = useChannels(placeId ?? undefined);
 

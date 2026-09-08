@@ -3,7 +3,7 @@ import { Navigate, RouterProvider, createBrowserRouter } from 'react-router-dom'
 
 import { logger } from '@chatic/bridges';
 import { RouterErrorFallback } from '@chatic/shared';
-import { useSessionAuth } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { markBoot } from '../features/debug/metrics/bootMarks';
 import { scheduleBootMetricsReport } from '../features/debug/metrics/reportBootMetrics';
@@ -14,7 +14,7 @@ import { publicRoutes } from './PublicRoutes';
 import { ROUTES } from './paths';
 
 export const Router = () => {
-    const { isAuthenticated, isInitialized } = useSessionAuth();
+    const { isAuthenticated, isInitialized } = runtime.session.useSessionAuth();
 
     // Boot timeline: the router unblocking is the moment the first real screen
     // can render (markBoot ignores repeat calls). The native shell gets the

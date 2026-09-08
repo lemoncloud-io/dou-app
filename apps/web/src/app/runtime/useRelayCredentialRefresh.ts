@@ -1,4 +1,4 @@
-import { useKindVerified, useSessionStalenessGuard } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { useAppForeground } from '../bridge';
 
@@ -6,7 +6,7 @@ import { useAppForeground } from '../bridge';
  * Re-mints stale relay HTTP signing credentials (lemon-web-core's AWS credential cache) once the
  * relay socket is up.
  *
- * The probe/refresh body now lives in `@chatic/app-runtime`'s `useSessionStalenessGuard`
+ * The probe/refresh body now lives in `@chatic/app-runtime`'s `runtime.session.useSessionStalenessGuard`
  * (ADR-0070 3단계 체크리스트 7) — admin-v2 had invented the same thing independently. What stays
  * here is apps/web's POLICY, and the two triggers are the whole point:
  *
@@ -20,8 +20,10 @@ import { useAppForeground } from '../bridge';
  * credential may have lapsed while the WebView slept. That trigger is a bridge concept the hub
  * cannot know about, which is why the hub hands back `check`.
  *
- * **Never logs out**, unlike admin-v2's guard: relay logout is manual-only in apps/web (see the
- * socket session delegate's `onAuthExpired`), so a failed refresh just retries on the next edge.
+ * **Never logs out**, unlike admin-v2's guard: a failed refresh just retries on the next edge. The
+ * one path that CAN end the session on its own is the socket's terminal `expired`
+ * (`credentialRenewers.relay.onTerminalExpiry` — it logs out only after the expiry survives a
+ * confirmation window with the browser online), and it is deliberately not this hook's business.
  *
  * Why this exists at all: boot used to re-mint credentials implicitly through lemon's own HTTP
  * refresh, and sealing that out (2026-08 session audit §7 Phase 2-2) left apps/web with no
@@ -31,7 +33,7 @@ import { useAppForeground } from '../bridge';
  * relay-signed HTTP, so a cloud place's channel list cannot load while the credential is stale.
  */
 export const useRelayCredentialRefresh = (): void => {
-    const { check } = useSessionStalenessGuard({
+    const { check } = runtime.session.useSessionStalenessGuard({
         intervalMs: null,
         checkOnRelayVerified: true,
         // Both triggers here are EDGES (first verification, foreground return), and at exactly those
@@ -47,7 +49,7 @@ export const useRelayCredentialRefresh = (): void => {
     // Gated on the socket being up: with no live socket `check` cannot reach the refresh owner, so
     // it would only log a failure. The rising edge above covers that case once the socket returns
     // (useSocketWakeRecovery).
-    const isRelayVerified = useKindVerified('relay');
+    const isRelayVerified = runtime.connection.useKindVerified('relay');
     useAppForeground(() => {
         if (!isRelayVerified) return;
         void check();

@@ -5,11 +5,10 @@ import { useLocation, useParams, useSearchParams } from 'react-router-dom';
 
 import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
-import { useSessionIdentity } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import type { DomainChannel } from '@chatic/data';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 import { DropdownMenuItem } from '@chatic/ui-kit/components/ui/dropdown-menu';
-import { useRuntimeSocketState, useRuntimeProfile } from '@chatic/app-runtime';
 import {
     AvatarGroup,
     ChatRoomHeader,
@@ -94,9 +93,9 @@ export const ChannelRoomPage = () => {
     // via padding measured off their actual rendered height.
     const { headerRef, footerRef: composerRef, headerHeight, footerHeight: composerHeight } = useChromeInsets();
 
-    const { userId } = useSessionIdentity();
-    const { isGuest, isCloudActive } = useRuntimeProfile();
-    const { isVerified } = useRuntimeSocketState();
+    const { userId } = runtime.session.useSessionIdentity();
+    const { isGuest, isCloudActive } = runtime.session.useRuntimeProfile();
+    const { isVerified } = runtime.connection.useRuntimeSocketState();
 
     // --- 데이터 패칭 Hooks ---
     const stableChannelId = useMemo(() => channelId || 'default', [channelId]);

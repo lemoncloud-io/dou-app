@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import type { UserInviteBatchPayload } from '@chatic/data';
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 import type { UserInviteInput } from '@lemoncloud/chatic-sockets-api';
@@ -16,7 +16,7 @@ const INITIAL_PENDING: PendingState = { invite: false, 'invite-batch': false };
  * `requestInviteBatch` hands a phone/name list to the server for SMS dispatch.
  */
 export const useUserMutations = () => {
-    const { user: userRepository } = useRuntimeRepositories();
+    const { user: userRepository } = runtime.data.useRuntimeRepositories();
     const [isPending, setIsPending] = useState<PendingState>(INITIAL_PENDING);
 
     const run = useCallback(<T>(key: PendingKey, op: () => Promise<T>): Promise<T> => {

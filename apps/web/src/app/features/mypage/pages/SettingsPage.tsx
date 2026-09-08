@@ -7,7 +7,7 @@ import { isNative } from '@chatic/bridges';
 import { appBridge } from '../../../bridge';
 import { useDeviceInfo } from '@chatic/device-utils';
 import { IconChevronRight, ListRow, MenuCard, Switch } from '@chatic/web-ui-kit';
-import { useRuntimeProfile } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { AppIconSelectSheet, LanguageSelectSheet, LogoutDialog } from '../components';
 import { useAppIcon } from '../hooks';
@@ -30,7 +30,7 @@ const Chevron = () => <IconChevronRight className="size-[18px] text-description"
 export const SettingsPage = () => {
     const navigate = useNavigateWithTransition();
     const { t, i18n } = useTranslation();
-    const { isGuest } = useRuntimeProfile();
+    const { isGuest } = runtime.session.useRuntimeProfile();
 
     const { setTheme, isDarkTheme } = useTheme();
     const { deviceInfo, versionInfo } = useDeviceInfo();

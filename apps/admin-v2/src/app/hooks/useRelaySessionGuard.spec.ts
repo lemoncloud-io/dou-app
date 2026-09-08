@@ -1,7 +1,7 @@
 /**
  * `hooks/useRelaySessionGuard.spec.ts`
  *
- * The probe/refresh BODY moved to `@chatic/app-runtime`'s `useSessionStalenessGuard`
+ * The probe/refresh BODY moved to `@chatic/app-runtime`'s `runtime.session.useSessionStalenessGuard`
  * (ADR-0070 3단계 체크리스트 7), and is covered by that hook's own tests — offline skip, the
  * consecutive-failure counting, the streak reset, exceptions not counting as failures.
  *
@@ -14,15 +14,19 @@ import { renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('@chatic/app-runtime', () => ({
-    useSessionStalenessGuard: vi.fn(() => ({ check: vi.fn() })),
-    logoutSession: vi.fn(),
+    runtime: {
+        session: {
+            useSessionStalenessGuard: vi.fn(() => ({ check: vi.fn() })),
+            logoutSession: vi.fn(),
+        },
+    },
 }));
 
-import { logoutSession, useSessionStalenessGuard } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { useRelaySessionGuard } from './useRelaySessionGuard';
 
-const mockGuard = useSessionStalenessGuard as ReturnType<typeof vi.fn>;
+const mockGuard = runtime.session.useSessionStalenessGuard as ReturnType<typeof vi.fn>;
 
 const policyFor = (enabled: boolean) => {
     mockGuard.mockClear();
@@ -50,7 +54,7 @@ describe('useRelaySessionGuard — admin-v2 정책', () => {
 
         await policy.onTeardown?.();
 
-        expect(logoutSession).toHaveBeenCalled();
+        expect(runtime.session.logoutSession).toHaveBeenCalled();
     });
 
     it('enabled를 그대로 전달한다 — 로그인 전에는 감시하지 않는다', () => {

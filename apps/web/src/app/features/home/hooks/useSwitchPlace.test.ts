@@ -1,13 +1,17 @@
 import { renderHook } from '@testing-library/react';
 
-import { useSessionSelection } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import type { DomainPlace } from '@chatic/data';
 
 import { useSiteSwitch } from '../../../runtime/useSiteSwitch';
 import { useSwitchPlace } from './useSwitchPlace';
 
 jest.mock('@chatic/app-runtime', () => ({
-    useSessionSelection: jest.fn(),
+    runtime: {
+        session: {
+            useSessionSelection: jest.fn(),
+        },
+    },
 }));
 jest.mock('../../../runtime/useSiteSwitch', () => ({ useSiteSwitch: jest.fn() }));
 
@@ -16,7 +20,7 @@ const switchSiteMock = jest.fn();
 const place = (id: string): DomainPlace => ({ id }) as unknown as DomainPlace;
 
 const setSession = (selectedSiteId: string | null, isSwitching = false) => {
-    (useSessionSelection as jest.Mock).mockReturnValue({ selectedSiteId, selectedCloudId: 'default' });
+    (runtime.session.useSessionSelection as jest.Mock).mockReturnValue({ selectedSiteId, selectedCloudId: 'default' });
     (useSiteSwitch as jest.Mock).mockReturnValue({ switchSite: switchSiteMock, isSwitching });
 };
 

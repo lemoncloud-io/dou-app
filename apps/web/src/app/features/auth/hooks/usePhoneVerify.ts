@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { applySessionToken } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import { logger } from '@chatic/bridges';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
@@ -125,7 +125,7 @@ export interface PhoneVerifyController {
  * section all drive it.
  *
  * **The two modes end differently, so they take different routes through the packet's steps.**
- * - `login` — confirming IS a login. The response carries `$token`, and `applySessionToken` pushes
+ * - `login` — confirming IS a login. The response carries `$token`, and `runtime.session.applySessionToken` pushes
  *   that identity into web-core and the live relay socket BEFORE `onVerified` fires, so the caller can
  *   immediately `invite.create`/`invite.accept` without a 403. `verify` is skipped: it would only
  *   report that the code is valid, which `confirm` already proves (ADR-0042 §4).
@@ -166,7 +166,7 @@ export const usePhoneVerify = ({
     const [resendCount, setResendCount] = useState(0);
     const [limit, setLimit] = useState<PhoneVerifyLimit | null>(null);
     const [loadingState, setLoadingState] = useState<LoadingState>('idle');
-    // The $token of a successful check, kept until applySessionToken succeeds: the OTP is consumed
+    // The $token of a successful check, kept until runtime.session.applySessionToken succeeds: the OTP is consumed
     // by then, so a failed session switch retries the SWITCH, never the check.
     const [pendingToken, setPendingToken] = useState<unknown>(null);
     // `link` mode only: the verify step came back linkable, so the CTA may commit. Login mode never
@@ -339,7 +339,7 @@ export const usePhoneVerify = ({
     /** Applies a check-issued `$token`; kept separate so a failed switch is retryable on its own. */
     const applyToken = async (token: unknown) => {
         try {
-            await applySessionToken(token);
+            await runtime.session.applySessionToken(token);
             setPendingToken(null);
             toast({ title: t('phoneVerify.verified') });
             onVerified();

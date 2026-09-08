@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { useGlobalCacheSearch, globalCacheRefKey } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import { useCloudSessionCatalog } from './useCloudCatalog';
 
 import { countUnread, readCursorOf } from '../utils/countUnread';
@@ -54,7 +54,7 @@ export interface OtherCloudUnread {
 export const useOtherCloudUnreadSource = (activeCloudId: string): OtherCloudUnread => {
     const { clouds: ownedClouds } = useCloudSessionCatalog();
     const { invitedClouds } = useInvitedClouds();
-    const { resolveContext } = useGlobalCacheSearch();
+    const { resolveContext } = runtime.data.useGlobalCacheSearch();
 
     const [byCloud, setByCloud] = useState<Record<string, number>>({});
     const [token, setToken] = useState(0);
@@ -120,7 +120,7 @@ export const useOtherCloudUnreadSource = (activeCloudId: string): OtherCloudUnre
                     if (!cid || !channel.id) continue;
                     const places = placesByCloud.get(cid);
                     if (places && channel.sid && !places.has(channel.sid)) continue;
-                    const join = context.joinsByRef[globalCacheRefKey(cid, channel.id)];
+                    const join = context.joinsByRef[runtime.data.globalCacheRefKey(cid, channel.id)];
                     const unread = countUnread({
                         headChatNo: channel.chatNo,
                         headMetaNo: channel.metaNo,

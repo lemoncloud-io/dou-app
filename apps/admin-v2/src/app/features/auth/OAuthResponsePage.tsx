@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
-import { createCredentialsByProvider } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 export const OAuthResponsePage = () => {
     const location = useLocation();
@@ -27,11 +27,11 @@ export const OAuthResponsePage = () => {
                     return;
                 }
 
-                // `createCredentialsByProvider` applies the relay session (setSessionAuthenticated +
+                // `runtime.session.createCredentialsByProvider` applies the relay session (setSessionAuthenticated +
                 // notify) so `isAuthenticated` is true before we navigate — otherwise ProtectedRoute
                 // bounces back to /auth/login. It used to build transport credentials only, which is
                 // why this page followed it with a refresh call (ADR-0070 불변조건 1·2).
-                await createCredentialsByProvider(provider, code);
+                await runtime.session.createCredentialsByProvider(provider, code);
 
                 let redirectTo = '/socket-lab';
                 try {

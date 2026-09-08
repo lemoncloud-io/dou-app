@@ -1,7 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 
 import type { UserView } from '@lemoncloud/chatic-backend-api';
-import { patchRelaySessionUser } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { getRelayAccountGateway } from '../../../runtime/relayAccountGateway';
 
@@ -34,7 +34,7 @@ export const useUpdateProfile = () => {
             // Prefer the server's echo; fall back to what we sent so the header still updates when
             // the response comes back thin.
             const view = (updated ?? {}) as unknown as Record<string, unknown>;
-            patchRelaySessionUser({
+            runtime.session.patchRelaySessionUser({
                 name: (view.name as string | undefined) ?? data.name,
                 ...(data.photo !== undefined ? { photo: (view.photo as string | undefined) ?? data.photo } : {}),
             });
