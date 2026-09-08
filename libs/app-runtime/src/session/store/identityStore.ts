@@ -13,11 +13,9 @@ const DEVICE_ID_KEY = 'chatic-device-id';
  * the cached cloud (`cloudType: 'invited'`). Only the delegator id remains as session-level identity
  * state.
  *
- * The registered push token is NOT stored here any more. It backed a token-equality dedup in the
- * deleted `useRegisterDeviceToken`, and that dedup is the strategy this runtime deliberately rejects:
- * SNS disables a platform endpoint after a single failed delivery, so skipping a re-register because
- * the token string matched left the device permanently dark. `push/hooks/useDeviceTokenRegistration` always
- * registers with `force: true` instead (see its doc), which needs no stored copy.
+ * The registered push token is NOT stored here. It is registration state, not session identity, and
+ * it lives in `push/registrationRecord` keyed by account + device + platform (ADR-0077) — this store
+ * is not keyed that way and would hand the next account the previous one's token.
  *
  * Renamed off `IdentityCore` — web-core's `session/core` residue, outside the `I*` convention
  * (ADR-0076 결정 0).

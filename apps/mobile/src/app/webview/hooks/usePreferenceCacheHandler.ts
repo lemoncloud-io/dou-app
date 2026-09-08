@@ -16,7 +16,11 @@ import { useServices } from '../../hooks';
 // NOTE: 'theme' validates its value below; 'language' does NOT yet — it still trusts the
 // web's value verbatim, which lets a page write an arbitrary blob into native storage under
 // that key. Tracked separately; do not read the two cases as equally guarded.
-const BRIDGE_WRITABLE_PREFERENCE_KEYS: readonly PreferenceKey[] = ['blurLastMessage', 'isFirstRun'];
+// 'pushRegistration' carries app-runtime's push-token registration record (ADR-0077). It is inert
+// data — an opaque JSON blob the web writes and reads back — and decides nothing on the native side,
+// so it does not widen the origin-hijack surface the way a system key would. It lives here rather
+// than in the webview's own storage so a cache clear does not silently re-trigger registration.
+const BRIDGE_WRITABLE_PREFERENCE_KEYS: readonly PreferenceKey[] = ['blurLastMessage', 'isFirstRun', 'pushRegistration'];
 
 export const usePreferenceCacheHandler = () => {
     const { preferenceService, logService } = useServices();

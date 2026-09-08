@@ -69,6 +69,16 @@ describe('handleSavePreference — bridge write allowlist', () => {
         expect(res.success).toBe(true);
     });
 
+    it("'pushRegistration'는 정상 persist된다 — app-runtime의 등록 기록(ADR-0077)", async () => {
+        // An opaque JSON blob owned by libs/app-runtime; nothing native reads or acts on it, which is
+        // why it can be web-writable while system keys stay locked.
+        const raw = '{"id":"v1:u-1:d-1:ios","token":"tok-1","at":1}';
+        const res = await save('pushRegistration', raw);
+
+        expect(preferenceService.set).toHaveBeenCalledWith('pushRegistration', raw);
+        expect(res.success).toBe(true);
+    });
+
     it("'theme'는 themeStore로 라우팅되고 preferenceService.set을 타지 않는다 (회귀 없음)", async () => {
         const res = await save('theme', 'dark');
 
