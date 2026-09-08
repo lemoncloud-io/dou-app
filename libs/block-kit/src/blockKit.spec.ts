@@ -18,14 +18,23 @@ describe('parseBlocks', () => {
         expect(parseBlocks(wire([{ type: 'divider' }]))).toEqual([{ type: 'divider' }]);
     });
 
+    // A message body that merely starts with a brace gets as far as `JSON.parse` and no
+    // further. Someone typing `{` is the shortest input that reaches the parser, so it is
+    // the one that proves the throw is caught rather than escaping into a render.
     it('survives broken JSON', () => {
         expect(parseBlocks('{"blocks": [')).toBeNull();
+        expect(parseBlocks('{')).toBeNull();
+        expect(parseBlocks('  {  ')).toBeNull();
     });
 
+    // `{"blocks":[]}` is well-formed and still has nothing to draw. It has to read as plain
+    // text, not as an empty block list — a caller handed `[]` would clear the bubble and
+    // render a message with no body at all.
     it('rejects JSON that is not a block payload', () => {
         expect(parseBlocks('{"hello":"world"}')).toBeNull();
         expect(parseBlocks('{"blocks":"nope"}')).toBeNull();
         expect(parseBlocks('[{"type":"divider"}]')).toBeNull();
+        expect(parseBlocks('{"blocks":[]}')).toBeNull();
     });
 
     it('parses the supported blocks', () => {
@@ -49,6 +58,21 @@ describe('parseBlocks', () => {
     it('treats a malformed supported block as unknown rather than drawing nothing', () => {
         const parsed = parseBlocks(wire([{ type: 'header' }, { type: 'section' }, 'not-an-object']));
         expect(parsed?.every(b => b.type === 'unknown')).toBe(true);
+    });
+
+    // Nothing caps the list, and nothing should — a sender that ships 500 blocks gets 500
+    // back rather than a silently truncated message. This also pins that the reader stays
+    // iterative: a recursive one would blow the stack here instead of failing a length check.
+    it('carries a large payload through without capping or recursing', () => {
+        const many = Array.from({ length: 500 }, (_, i) => ({
+            type: 'section',
+            text: { type: 'mrkdwn', text: `line ${i}` },
+        }));
+
+        const parsed = parseBlocks(wire(many));
+
+        expect(parsed).toHaveLength(500);
+        expect(parsed?.every(block => block.type === 'section')).toBe(true);
     });
 
     it('reads a section with fields and no text', () => {
