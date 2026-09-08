@@ -300,11 +300,6 @@ jobs:
                   DESKTOP_S3_BUCKET: ${{ secrets.DESKTOP_S3_BUCKET }}
                   DESKTOP_CF_PROD_DISTRIBUTION_ID: ${{ secrets.DESKTOP_CF_PROD_DISTRIBUTION_ID }}
                   BLOCK_KIT_BUILDER_S3_BUCKET: ${{ secrets.BLOCK_KIT_BUILDER_S3_BUCKET }}
-                  # No distribution serves the builder's PROD prefix yet, so this
-                  # secret is unset and the script skips invalidation. Until one
-                  # exists with a block-kit.chatic.io alias, a main merge uploads
-                  # to s3://<bucket>/prod/ and nothing reads it — which is why the
-                  # builder is absent from this workflow's Slack notice.
                   BLOCK_KIT_BUILDER_CF_PROD_DISTRIBUTION_ID: ${{ secrets.BLOCK_KIT_BUILDER_CF_PROD_DISTRIBUTION_ID }}
                   ADMIN_S3_BUCKET: ${{ secrets.ADMIN_S3_BUCKET }}
                   ADMIN_CF_PROD_DISTRIBUTION_ID: ${{ secrets.ADMIN_CF_PROD_DISTRIBUTION_ID }}
@@ -351,7 +346,7 @@ jobs:
 
     notify-slack:
         needs: [changes, get-version, build-and-deploy]
-        if: ${{ success() && (needs.changes.outputs.web == 'true' || needs.changes.outputs.admin == 'true' || needs.changes.outputs.landing == 'true' || needs.changes.outputs.desktopweb == 'true') }}
+        if: ${{ success() && (needs.changes.outputs.web == 'true' || needs.changes.outputs.admin == 'true' || needs.changes.outputs.landing == 'true' || needs.changes.outputs.desktopweb == 'true' || needs.changes.outputs.blockkitbuilder == 'true') }}
         name: Notify Slack
         runs-on: ubuntu-latest
         permissions:
@@ -395,6 +390,12 @@ jobs:
 
                   if [[ "${{ needs.changes.outputs.desktopweb }}" == "true" ]]; then
                       DEPLOY_MESSAGES+=("• *데스크톱웹* <https://desktop.dou.chatic.io/|PROD 서버> \`v${{ needs.get-version.outputs.desktopweb-version }}\`")
+                  fi
+
+                  # No version suffix: the builder is not in version-update.js, so
+                  # its package version never moves.
+                  if [[ "${{ needs.changes.outputs.blockkitbuilder }}" == "true" ]]; then
+                      DEPLOY_MESSAGES+=("• *블록킷 빌더* <https://block-kit.chatic.io/|PROD 서버>")
                   fi
 
                   if [ ${#DEPLOY_MESSAGES[@]} -eq 0 ]; then
