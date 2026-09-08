@@ -7,7 +7,11 @@ const unsubscribeMock = jest.fn();
 const repositories = { channel: { observeItem: observeItemMock } };
 
 jest.mock('@chatic/app-runtime', () => ({
-    useRuntimeRepositories: () => repositories,
+    runtime: {
+        data: {
+            useRuntimeRepositories: () => repositories,
+        },
+    },
 }));
 
 import { useAcceptedChannelSync } from './useAcceptedChannelSync';

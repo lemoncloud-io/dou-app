@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 
-import { useFindAlias, useVerifyAlias } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
@@ -11,8 +11,8 @@ export const ResetPasswordEmailPage = () => {
     const navigate = useNavigateWithTransition();
     const { toast } = useToast();
     const { t } = useTranslation();
-    const findAlias = useFindAlias();
-    const verifyAlias = useVerifyAlias();
+    const findAlias = runtime.session.useFindAlias();
+    const verifyAlias = runtime.session.useVerifyAlias();
 
     const handleSubmit = async (email: string) => {
         try {

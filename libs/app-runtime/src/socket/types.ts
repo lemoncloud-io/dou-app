@@ -76,8 +76,34 @@ export type ScopedSocketClient = Pick<ISocketManager, 'request' | 'send'>;
  * connect / setAuthenticated / destroy — is addressed per `kind`.
  */
 export interface ISocketManager {
+    // ── Slot lifecycle — the only per-`kind` addressed group.
     /** Creates/reuses the slot for `kind` bound to `config`; returns that slot's client. */
     ensure(config: SocketBindingConfig, kind: SocketKind): ClientSocketV2;
+    /** Connects the slot for `kind` if idle/closed. */
+    connect(kind: SocketKind): Promise<void>;
+    /** Destroys one slot (`kind`) or, when omitted, all slots. */
+    destroy(kind?: SocketKind): void;
+    /**
+     * Mirrors the SDK AuthController's `authenticated` state for a specific slot. The ACTIVE slot's
+     * `isVerified` is derived from this AND that slot being connected.
+     */
+    setAuthenticated(kind: SocketKind, value: boolean): void;
+    /**
+     * Re-points a slot's bound cloud id without rebooting the socket — required for a same-wss cloud
+     * switch (§8-4), where the url is unchanged so ensure() never re-runs to refresh boundCid.
+     */
+    rebindCid(kind: SocketKind, cid: string | null): void;
+
+    // ── Request/push surface gateways bind to. Active-facade: cloud when present, else relay.
+    request<T = unknown>(type: string, data?: unknown, options?: { timeoutMs?: number }): Promise<T>;
+    send<T = unknown>(type: string | SocketMessage<T>, data?: T): void;
+    onType<T = unknown>(type: string, listener: (message: SocketMessage<T>) => void): () => void;
+    onMessage(listener: (event: ClientSocketMessageEvent) => void): () => void;
+    onState(listener: (event: ClientSocketStateEvent) => void): () => void;
+    onError(listener: (event: ClientSocketErrorEvent) => void): () => void;
+    disconnect(code?: number, reason?: string): Promise<void>;
+
+    // ── Everything an observer reads or subscribes to — no lifecycle, no sending.
     /**
      * A specific slot's client when `kind` is given (null if that slot is not bound), else the ACTIVE
      * slot's client (cloud when present, else relay). The per-kind form backs logout, which must
@@ -114,11 +140,6 @@ export interface ISocketManager {
      */
     waitUntilKindVerified(kind: SocketKind, timeoutMs?: number): Promise<boolean>;
     /**
-     * Mirrors the SDK AuthController's `authenticated` state for a specific slot. The ACTIVE slot's
-     * `isVerified` is derived from this AND that slot being connected. Replaces markVerified/markUnverified.
-     */
-    setAuthenticated(kind: SocketKind, value: boolean): void;
-    /**
      * Per-kind verification (authenticated AND connected) for the given slot, independent of which
      * slot is active — backs re-auth guards that target a non-active slot (relay while cloud is up).
      */
@@ -130,26 +151,8 @@ export interface ISocketManager {
      * connect/disconnect — not just the first time, like the one-shot wait does.
      */
     subscribeKindVerified(kind: SocketKind, listener: (verified: boolean) => void): () => void;
-    /** Connects the slot for `kind` if idle/closed. */
-    connect(kind: SocketKind): Promise<void>;
-    /** Destroys one slot (`kind`) or, when omitted, all slots. */
-    destroy(kind?: SocketKind): void;
 
+    // ── The cache-attribution observation `ActiveScope` needs.
     /** The cloud id the ACTIVE slot was bound to (frozen at bind), or null before the first bind. */
     getBoundCid(): string | null;
-    /**
-     * Re-points a slot's bound cloud id without rebooting the socket — required for a same-wss cloud
-     * switch (§8-4), where the url is unchanged so ensure() never re-runs to refresh boundCid.
-     */
-    rebindCid(kind: SocketKind, cid: string | null): void;
-    // Stable request facade (ACTIVE slot) so gateways bind to these instead of a raw ClientSocketV2
-    // and socket replacement stays invisible. Recovery is owned by the SDK AuthController now, so the
-    // request path no longer intercepts 401s or drives reconnects.
-    request<T = unknown>(type: string, data?: unknown, options?: { timeoutMs?: number }): Promise<T>;
-    send<T = unknown>(type: string | SocketMessage<T>, data?: T): void;
-    onType<T = unknown>(type: string, listener: (message: SocketMessage<T>) => void): () => void;
-    onMessage(listener: (event: ClientSocketMessageEvent) => void): () => void;
-    onState(listener: (event: ClientSocketStateEvent) => void): () => void;
-    onError(listener: (event: ClientSocketErrorEvent) => void): () => void;
-    disconnect(code?: number, reason?: string): Promise<void>;
 }

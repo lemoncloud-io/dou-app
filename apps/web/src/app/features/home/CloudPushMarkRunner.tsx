@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo } from 'react';
 
-import { useGlobalCacheSearch, useRuntimeSocketState } from '@chatic/app-runtime';
-import { useSessionSelection } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import { useCloudSessionCatalog } from '../../hooks/useCloudCatalog';
 import type { AppMessageData } from '@chatic/app-messages';
 
@@ -36,11 +35,11 @@ import { RELAY_CLOUD_ID, resolvePushCloudId } from './utils/resolvePushCloudId';
  * edge alone was the confirmed bug in the desktop reference this was ported from.
  */
 export const CloudPushMarkRunner = (): null => {
-    const { selectedCloudId } = useSessionSelection();
-    const { isVerified } = useRuntimeSocketState();
+    const { selectedCloudId } = runtime.session.useSessionSelection();
+    const { isVerified } = runtime.connection.useRuntimeSocketState();
     const { clouds: ownedClouds } = useCloudSessionCatalog();
     const { invitedClouds } = useInvitedClouds();
-    const { resolveContext } = useGlobalCacheSearch();
+    const { resolveContext } = runtime.data.useGlobalCacheSearch();
 
     const mark = useCloudPushMarkStore(s => s.mark);
     const clear = useCloudPushMarkStore(s => s.clear);

@@ -7,9 +7,8 @@ import { useEnterInvitedChannel } from './useEnterInvitedChannel';
 import { useEnterInvitedCloud } from './useEnterInvitedCloud';
 import { useEnterInvitedSite } from './useEnterInvitedSite';
 import type { InviteContext } from '../types';
-import { useInviteFlow } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { useRuntimeRepositories } from '@chatic/app-runtime';
 
 const toError = (e: unknown): Error => (e instanceof Error ? e : new Error(String(e)));
 
@@ -44,7 +43,7 @@ const resolveInviteErrorKey = (step: InviteAcceptStep, err: Error): string => {
 };
 
 /**
- * Drives invite acceptance: logs in with the invite code via `useInviteFlow`, then enters the
+ * Drives invite acceptance: logs in with the invite code via `runtime.session.useInviteFlow`, then enters the
  * invite target in order — cloud → site → channel — using identifiers from `MyInviteView`. Each
  * step no-ops when its identifier is absent; with no channel the channel step lands on home. No
  * manual cloud/site state writes or sync flags — web-core owns that.
@@ -52,11 +51,11 @@ const resolveInviteErrorKey = (step: InviteAcceptStep, err: Error): string => {
 export const useInviteAccept = ({ params, info }: InviteContext) => {
     const { t } = useTranslation();
     const { toast } = useToast();
-    const { runInviteFlow, isInviting } = useInviteFlow();
+    const { runInviteFlow, isInviting } = runtime.session.useInviteFlow();
     const { enterCloud, isEnteringCloud } = useEnterInvitedCloud();
     const { enterSite, isEnteringSite } = useEnterInvitedSite();
     const { enterChannel } = useEnterInvitedChannel();
-    const { cloud } = useRuntimeRepositories();
+    const { cloud } = runtime.data.useRuntimeRepositories();
     const [missingDelegator, setMissingDelegator] = useState(false);
     const [errorKey, setErrorKey] = useState<string | null>(null);
 

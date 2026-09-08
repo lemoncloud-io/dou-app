@@ -2,12 +2,11 @@ import { useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 
-import { cloudsKeys } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import { subscriptionKeys } from '../../../hooks/queryKeys';
 import { useValidateMembership } from '../../../hooks/useMembership';
 
 import type { IapProductSubscription } from '@chatic/app-messages';
-import { useRuntimeProfile } from '@chatic/app-runtime';
 import { logger } from '@chatic/bridges';
 import { appBridge, useOnPurchaseError, useOnPurchaseSuccess } from '../../../bridge';
 import { useLinkedAccounts } from '../../../hooks';
@@ -20,7 +19,7 @@ export const useSubscriptionIap = () => {
     const validateMembership = useValidateMembership();
     const queryClient = useQueryClient();
     const linked = useLinkedAccounts();
-    const { isGuest } = useRuntimeProfile();
+    const { isGuest } = runtime.session.useRuntimeProfile();
 
     /**
      * A subscription attaches to a cloud, and owning a cloud is social-account based — so a user with
@@ -172,7 +171,7 @@ export const useSubscriptionIap = () => {
             // Allow native purchase state to propagate before invalidating queries
             await new Promise(resolve => setTimeout(resolve, 1500));
             await queryClient.invalidateQueries({ queryKey: subscriptionKeys.all });
-            await queryClient.invalidateQueries({ queryKey: cloudsKeys.all });
+            await queryClient.invalidateQueries({ queryKey: runtime.data.cloudsKeys.all });
             logger.info('IAP', 'purchase completed', { productId: product.id });
         },
         [isIOS, validate, queryClient, isGuest, isMissingSocialForCloud, t]

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import { getSyncManager, useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import type { DomainProfile } from '@chatic/data';
 
 /**
@@ -29,8 +29,8 @@ export const useChannelProfiles = (
     activeMemberIds: string[],
     syncIntervalMs: number = PROFILE_SYNC_INTERVAL_MS
 ) => {
-    const { profile: profileRepository } = useRuntimeRepositories();
-    const { isVerified } = useRuntimeSocketState();
+    const { profile: profileRepository } = runtime.data.useRuntimeRepositories();
+    const { isVerified } = runtime.connection.useRuntimeSocketState();
 
     const [profiles, setProfiles] = useState<DomainProfile[]>([]);
     // Whether this hook has produced a reading yet — see `hasSnapshot` in the return.
@@ -63,7 +63,7 @@ export const useChannelProfiles = (
     useEffect(() => {
         if (!sid || !isVerified || activeMemberIds.length === 0) return;
 
-        const sync = getSyncManager();
+        const sync = runtime.sync.getSyncManager();
         const disposers = activeMemberIds.map(userId => sync.registerProfile(`${sid}@${userId}`, syncIntervalMs));
 
         let disposed = false;

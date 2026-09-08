@@ -34,9 +34,6 @@ export interface DomainChannelListPayload extends ChatMineInput {
 export type DomainUser = CacheUserView;
 export type DomainPlace = CacheSiteView;
 
-/** @deprecated Use {@link DomainPlace}. Site was consolidated into the Place domain. */
-export type DomainSite = DomainPlace;
-
 export type DomainProfile = CacheProfileView;
 
 export interface DomainProfileListPayload {
@@ -50,9 +47,6 @@ export interface DomainProfileListPayload {
 export type SiteProfileBody = ProfileBody;
 export type SiteProfileView = DomainProfile;
 export type DomainCloud = CacheCloudView;
-
-/** @deprecated Use {@link DomainCloud}. InviteCloud was consolidated into the Cloud domain. */
-export type DomainInviteCloud = DomainCloud;
 
 /** Sender-side relay 1:1 invite card, credential fields (code/deeplink) already stripped. */
 export type DomainInvite = CacheInviteView;

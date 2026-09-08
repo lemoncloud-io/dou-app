@@ -4,11 +4,10 @@ import { useTranslation } from 'react-i18next';
 import { useLocation, useParams } from 'react-router-dom';
 
 import { logger } from '@chatic/bridges';
-import { useRuntimeProfile } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { DefaultAvatar, Divider, GroupLabel, ImageAvatar, ListRow, Switch } from '@chatic/web-ui-kit';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { useSessionIdentity } from '@chatic/app-runtime';
 
 import { useActivePlaceName } from '../../../hooks';
 import { PlaceProfileCreateDialog } from '../../../ui/components/PlaceProfileCreateDialog';
@@ -57,9 +56,9 @@ export const ChannelSettingsPage = () => {
 
     const { toast } = useToast();
 
-    const { userId } = useSessionIdentity();
+    const { userId } = runtime.session.useSessionIdentity();
     // Issuing a relay invite takes a main user, so a device user never gets the re-invite CTA.
-    const { isGuest } = useRuntimeProfile();
+    const { isGuest } = runtime.session.useRuntimeProfile();
 
     const { channel, isError } = useChannel(channelId ?? null);
     const activePlaceName = useActivePlaceName();

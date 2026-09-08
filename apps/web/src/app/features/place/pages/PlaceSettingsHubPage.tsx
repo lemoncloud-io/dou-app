@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 
 import { useNavigateWithTransition } from '@chatic/shared';
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { IconChevronRight, ListRow, MenuCard, Switch } from '@chatic/web-ui-kit';
 
@@ -25,7 +25,7 @@ export const PlaceSettingsHubPage = () => {
     const { t } = useTranslation();
     const navigate = useNavigateWithTransition();
     const { placeId } = useParams<{ placeId: string }>();
-    const { place: placeRepo } = useRuntimeRepositories();
+    const { place: placeRepo } = runtime.data.useRuntimeRepositories();
 
     const [place, setPlace] = useState<MySiteView | null>(null);
     const [isSortSheetOpen, setIsSortSheetOpen] = useState(false);

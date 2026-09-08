@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 
-import { useSessionSelection } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { BottomSheet, SheetOption } from '@chatic/web-ui-kit';
 
@@ -29,7 +29,7 @@ interface ChannelSortSheetProps {
 export const ChannelSortSheet = ({ open, onOpenChange, placeId }: ChannelSortSheetProps) => {
     const { t } = useTranslation();
     // The cloud half of the scope comes from the active session; callers only know the route's placeId.
-    const { selectedCloudId } = useSessionSelection();
+    const { selectedCloudId } = runtime.session.useSessionSelection();
     const scope = placeScopeKey(selectedCloudId, placeId);
     const current = usePreferenceStore(s => (scope ? s.channelSort[scope] : undefined)) ?? DEFAULT_CHANNEL_SORT;
     const setChannelSort = usePreferenceStore(s => s.setChannelSort);

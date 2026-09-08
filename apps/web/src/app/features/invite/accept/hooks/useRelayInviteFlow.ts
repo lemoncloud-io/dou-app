@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { getSocketManager, useRuntimeProfile, useRuntimeRepositories } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
-import { useSessionSelection } from '@chatic/app-runtime';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import type { AccountLinkMode } from '../../../../hooks/useLinkAccount';
@@ -102,7 +101,9 @@ const HANDSHAKE_WAIT_TIMEOUT_MS = 10_000;
  * error rather than being swallowed as a wait.
  */
 const awaitRelaySocket = async (): Promise<void> => {
-    const verified = await getSocketManager().waitUntilKindVerified('relay', HANDSHAKE_WAIT_TIMEOUT_MS);
+    const verified = await runtime.connection
+        .getSocketManager()
+        .waitUntilKindVerified('relay', HANDSHAKE_WAIT_TIMEOUT_MS);
     if (verified) return;
     logger.warn('INVITE', '[useRelayInviteFlow] relay handshake not verified; proceeding best-effort');
 };
@@ -168,8 +169,8 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
     const navigate = useNavigateWithTransition();
     const mutations = useRelayInviteMutations();
     const { resolveChannel } = useResolveInviteChannel();
-    const { profile: profileRepository } = useRuntimeRepositories();
-    const { selectedSiteId: sid } = useSessionSelection();
+    const { profile: profileRepository } = runtime.data.useRuntimeRepositories();
+    const { selectedSiteId: sid } = runtime.session.useSessionSelection();
     const setPendingChannel = usePendingInviteChannel(state => state.setPendingChannel);
 
     const [phase, setPhase] = useState<RelayInvitePhase>('loading');
@@ -184,7 +185,7 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
      */
     const [refusedAsMainUser, setRefusedAsMainUser] = useState(false);
 
-    const { isGuest } = useRuntimeProfile();
+    const { isGuest } = runtime.session.useRuntimeProfile();
     // A guest must OPEN a session (`login`); a main user who merely lacks a phone hangs one on the
     // session they already have (`link`) — sending `login` there is a 400 (ADR-0042 §3).
     const verifyMode: AccountLinkMode = isGuest || refusedAsMainUser ? 'login' : 'link';

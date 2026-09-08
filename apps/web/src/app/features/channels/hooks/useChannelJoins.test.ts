@@ -1,14 +1,19 @@
 import { renderHook } from '@testing-library/react';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
-import { useSessionIdentity } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import type { DomainJoin } from '@chatic/data';
 
 import { useChannelJoins } from './useChannelJoins';
 
 jest.mock('@chatic/app-runtime', () => ({
-    useRuntimeRepositories: jest.fn(),
-    useSessionIdentity: jest.fn(),
+    runtime: {
+        data: {
+            useRuntimeRepositories: jest.fn(),
+        },
+        session: {
+            useSessionIdentity: jest.fn(),
+        },
+    },
 }));
 
 const observeList = jest.fn();
@@ -28,8 +33,8 @@ const seed = (rows: DomainJoin[]) => {
 beforeEach(() => {
     jest.clearAllMocks();
     seed([]);
-    (useRuntimeRepositories as jest.Mock).mockReturnValue({ join: { observeList } });
-    (useSessionIdentity as jest.Mock).mockReturnValue({ userId: 'me' });
+    (runtime.data.useRuntimeRepositories as jest.Mock).mockReturnValue({ join: { observeList } });
+    (runtime.session.useSessionIdentity as jest.Mock).mockReturnValue({ userId: 'me' });
 });
 
 describe('useChannelJoins — 방의 단일 join 관측', () => {

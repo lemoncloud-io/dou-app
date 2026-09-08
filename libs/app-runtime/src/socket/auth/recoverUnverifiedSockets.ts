@@ -1,5 +1,8 @@
 import { logger } from '@chatic/bridges';
 
+import { Coalescer } from '../../utils/coalescer';
+import { authIdRegistry } from './authIdRegistry';
+import { getAuthStatus, needsSocketKick } from './authStatus';
 import { getSocketManager } from '../runtime';
 import { createSocketSessionDelegate } from './sessionDelegate';
 import type { AuthActivationGate } from './bootstrapSocketConnection';
@@ -14,7 +17,8 @@ export interface RecoverUnverifiedSocketsDeps {
     delegate?: SocketSessionDelegate;
 }
 
-let inFlight: Promise<void> | null = null;
+/** Concurrent kicks collapse onto the in-flight run (ADR-0076 결정 4 — was a bespoke `let inFlight`). */
+const coalescer = new Coalescer<void>();
 
 /**
  * Foreground/wake kick for wedged sockets (2026-08 session audit §7 Phase 1; generalizes the
@@ -36,16 +40,8 @@ let inFlight: Promise<void> | null = null;
  * to the keep-alive path — kicking a healthy-looking socket on every foreground would churn warm
  * reconnects. Concurrent calls coalesce onto the in-flight run.
  */
-export const recoverUnverifiedSockets = (deps: RecoverUnverifiedSocketsDeps = {}): Promise<void> => {
-    if (inFlight) {
-        return inFlight;
-    }
-    const run = doRecover(deps).finally(() => {
-        inFlight = null;
-    });
-    inFlight = run;
-    return run;
-};
+export const recoverUnverifiedSockets = (deps: RecoverUnverifiedSocketsDeps = {}): Promise<void> =>
+    coalescer.run(() => doRecover(deps));
 
 const doRecover = async ({ manager, delegate }: RecoverUnverifiedSocketsDeps): Promise<void> => {
     const socketManager = manager ?? getSocketManager();
@@ -53,14 +49,23 @@ const doRecover = async ({ manager, delegate }: RecoverUnverifiedSocketsDeps): P
 
     for (const kind of SLOT_KINDS) {
         const client = socketManager.getClient(kind);
-        if (!client || socketManager.isKindVerified(kind)) {
+        if (!client) {
+            continue;
+        }
+
+        // One judgement instead of two reads (ADR-0076 결정 1): `needsSocketKick` is true for
+        // `handshaking` and `expired` — exactly the "bound but not verified on this connection"
+        // set this used to express as `!isKindVerified(kind)`. A healthy-looking slot is skipped
+        // deliberately; kicking it on every foreground would churn warm reconnects.
+        const status = getAuthStatus(kind, { manager: socketManager });
+        if (!needsSocketKick(status)) {
             continue;
         }
 
         const auth = client.auth;
-        const wasExpired = auth?.state === 'expired';
+        const wasExpired = status === 'expired';
         logger.info('SOCKET', '[recoverUnverifiedSockets] kicking unverified socket', {
-            data: { kind, state: client.state, wasExpired },
+            data: { kind, state: client.state, status, wasExpired },
         });
 
         // Close first so the re-seed below happens on a disconnected controller (register on a
@@ -75,6 +80,8 @@ const doRecover = async ({ manager, delegate }: RecoverUnverifiedSocketsDeps): P
                     authId: registration.authId,
                     sign: (token, ctx) => sessionDelegate.signAuth(kind, token, ctx?.target),
                 });
+                // Mirror the seeded authId — every register() site must, or the drift check goes blind.
+                authIdRegistry.record(kind, registration.authId);
                 // register() re-activated the controller; close the gate so the reconnect keeps
                 // the device.save:ok → auth.update order (same rationale as reauthenticateActiveSocket).
                 (auth as unknown as AuthActivationGate).stop();

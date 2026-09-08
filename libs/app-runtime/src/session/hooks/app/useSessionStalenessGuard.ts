@@ -3,9 +3,11 @@ import { useCallback, useEffect, useRef } from 'react';
 import { logger } from '@chatic/bridges';
 import { hasStoredRelaySession, isStoredSessionExpired } from '../../../http/transport';
 
-import { useKindVerified } from '../../../runtime/useKindVerified';
-import { requestRelaySessionRefresh } from '../../../socket/auth/requestRelaySessionRefresh';
-import { credentialFreshness } from '../../auth/credentialFreshness';
+import { useKindVerified } from '../../../connection/hooks/useKindVerified';
+import { SDK_REFRESH_CYCLE_MS } from '../../../socket/constants';
+import { credentialRenewers } from '../../../socket/auth/renewers';
+import { Coalescer } from '../../../utils/coalescer';
+import { Throttle } from '../../../utils/throttle';
 
 /**
  * Keeps the relay HTTP signing credentials fresh, as one hook instead of two app-local copies.
@@ -106,13 +108,15 @@ const FORCE_REFRESH_COOLDOWN_MS = 60_000;
 /**
  * Preempt once the relay credential has this little life left.
  *
- * One SDK refresh cycle (`AUTH_OPTIONS.refreshIntervalMs`, 5 min — the server does not report
- * `expiresIn`), which is the same reasoning `useCloudCredentialGuard` uses for its margin: a healthy
- * socket re-mints the credential every cycle, so anything with more than a cycle left will be
- * refreshed by the owner before it lapses and needs no help. Below it, the socket is demonstrably not
- * keeping up — which is exactly the boot window and the wake-from-sleep case.
+ * One SDK refresh cycle (the server does not report `expiresIn`), which is the same reasoning
+ * `useCloudCredentialGuard` uses for its margin: a healthy socket re-mints the credential every
+ * cycle, so anything with more than a cycle left will be refreshed by the owner before it lapses and
+ * needs no help. Below it, the socket is demonstrably not keeping up — which is exactly the boot
+ * window and the wake-from-sleep case.
+ *
+ * Read from the cadence itself rather than restated: see `socket/constants.ts`.
  */
-const PREEMPTIVE_MARGIN_MS = 5 * 60_000;
+const PREEMPTIVE_MARGIN_MS = SDK_REFRESH_CYCLE_MS;
 
 /**
  * Returns `check`, so a host can add a trigger this hook cannot know about — apps/web fires it on
@@ -130,19 +134,17 @@ export const useSessionStalenessGuard = (policy: SessionStalenessPolicy = {}): {
         forceRefresh = false,
     } = policy;
 
-    const inFlight = useRef(false);
+    // Concurrent triggers (interval + visibility + the verified edge) share one probe, and the
+    // preemptive path keeps its own growing-free floor — the two primitives ADR-0076 결정 4 extracted.
+    // Numbers unchanged: FORCE_REFRESH_COOLDOWN_MS stays the floor and the first trigger always runs.
+    const probe = useRef<Coalescer<void>>(new Coalescer<void>()).current;
+    const forceRefreshFloor = useRef<Throttle>(new Throttle({ intervalMs: FORCE_REFRESH_COOLDOWN_MS })).current;
     const failureStreak = useRef(0);
-    /** Last `forceRefresh` run, for the cooldown above. 0 = never, so the first trigger always runs. */
-    const lastForcedAt = useRef(0);
     // Read through a ref so a caller passing an inline arrow does not re-arm the interval each render.
     const teardownRef = useRef(onTeardown);
     teardownRef.current = onTeardown;
 
-    const check = useCallback(async (): Promise<void> => {
-        // Offline refreshes always fail; skip rather than burn a request — or a teardown — on a dead link.
-        if (inFlight.current || !navigator.onLine) return;
-        inFlight.current = true;
-
+    const runProbe = useCallback(async (): Promise<void> => {
         const registerFailure = async (): Promise<void> => {
             failureStreak.current += 1;
             if (consecutiveFailureLimit != null && failureStreak.current >= consecutiveFailureLimit) {
@@ -162,23 +164,19 @@ export const useSessionStalenessGuard = (policy: SessionStalenessPolicy = {}): {
             const now = Date.now();
             // `null` = nothing to measure (no credential on the token view) → treat as needing one,
             // which is the pre-measurement behavior and the safe direction when blind.
-            const remaining = credentialFreshness.timeToExpiry('relay', now);
+            const remaining = credentialRenewers.relay.timeToExpiry(now);
             const credentialRunningOut = remaining == null || remaining <= PREEMPTIVE_MARGIN_MS;
-            const preemptive =
-                !expired &&
-                forceRefresh &&
-                credentialRunningOut &&
-                now - lastForcedAt.current >= FORCE_REFRESH_COOLDOWN_MS;
+            // `tryAcquire` arms the floor as it grants, so two racing triggers (verified edge +
+            // foreground) cannot both get through — the in-flight share alone does not cover the
+            // second one arriving after this one resolves. Short-circuit order matters: the floor is
+            // only consumed when the earlier conditions already hold.
+            const preemptive = !expired && forceRefresh && credentialRunningOut && forceRefreshFloor.tryAcquire();
             if (!expired && !preemptive) {
                 failureStreak.current = 0;
                 return;
             }
-            // Stamp before the await: two triggers racing (verified edge + foreground) must not both
-            // get through, and `inFlight` alone does not cover the second one arriving after this
-            // one resolves.
-            if (preemptive) lastForcedAt.current = now;
 
-            if (await requestRelaySessionRefresh()) {
+            if (await credentialRenewers.relay.renew()) {
                 failureStreak.current = 0;
                 return;
             }
@@ -196,10 +194,14 @@ export const useSessionStalenessGuard = (policy: SessionStalenessPolicy = {}): {
             // Transient (storage race, refresh rejection) — the next trigger retries. Deliberately
             // NOT a failure: an exception here says nothing about whether the session is dead.
             logger.warn('SESSION', '[stalenessGuard] credential probe failed', { error });
-        } finally {
-            inFlight.current = false;
         }
-    }, [consecutiveFailureLimit, missingSessionCountsAsFailure, forceRefresh]);
+    }, [consecutiveFailureLimit, missingSessionCountsAsFailure, forceRefresh, forceRefreshFloor]);
+
+    const check = useCallback(async (): Promise<void> => {
+        // Offline refreshes always fail; skip rather than burn a request — or a teardown — on a dead link.
+        if (!navigator.onLine) return;
+        await probe.run(runProbe);
+    }, [probe, runProbe]);
 
     useEffect(() => {
         if (!enabled || intervalMs == null) return;

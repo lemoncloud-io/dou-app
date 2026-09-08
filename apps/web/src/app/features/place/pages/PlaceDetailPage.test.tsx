@@ -14,8 +14,14 @@ jest.mock('react-i18next', () => ({
     useTranslation: () => ({ t: (k: string) => k, i18n: { language: 'ko' } }),
 }));
 jest.mock('@chatic/app-runtime', () => ({
-    useRuntimeRepositories: () => ({ place: { observeItem } }),
-    useSessionSelection: () => ({ selectedCloudId: mockCloudId }),
+    runtime: {
+        data: {
+            useRuntimeRepositories: () => ({ place: { observeItem } }),
+        },
+        session: {
+            useSessionSelection: () => ({ selectedCloudId: mockCloudId }),
+        },
+    },
 }));
 // The page deliberately does NOT read the session — the URL's place decides everything. The mock
 // stays wired so that if it ever starts reading `selectedCloudId` again, the two regression tests at

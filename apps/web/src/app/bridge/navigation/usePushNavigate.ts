@@ -1,14 +1,8 @@
 import { useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import {
-    getSocketManager,
-    isNativeApp,
-    recoverInvitedCloudIfMissing,
-    useRuntimeRepositories,
-} from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import { logger } from '@chatic/bridges';
-import { useGlobalSession, useSessionSelection, useSwitchCloudSession } from '@chatic/app-runtime';
 
 import { useLogoutCloudSession } from '../../runtime/useLogoutCloudSession';
 import { useSiteSwitch } from '../../runtime/useSiteSwitch';
@@ -82,16 +76,16 @@ const isChannelRoomPath = (pathname: string): boolean => /^\/channels\/[^/]+\/ro
  */
 export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
     const navigate = useNavigate();
-    const { selectedCloudId, selectedSiteId } = useSessionSelection();
+    const { selectedCloudId, selectedSiteId } = runtime.session.useSessionSelection();
     // Committed session truth for the relay-return decision: `kind` is 'cloud' only while the
     // cloud session is fully active (tokens present), unlike the selection-derived cloud id.
-    const { activeServer } = useGlobalSession();
-    const { switchCloud } = useSwitchCloudSession();
+    const { activeServer } = runtime.session.useGlobalSession();
+    const { switchCloud } = runtime.session.useSwitchCloudSession();
     const { logoutCloudSession } = useLogoutCloudSession();
     const { switchSite } = useSiteSwitch();
     // Cloud repository for invited-cloud recovery (see the switch block below); chat for
     // resolving whether a notified message is a thread reply (see `hopToThread`).
-    const { cloud, chat: chatRepository } = useRuntimeRepositories();
+    const { cloud, chat: chatRepository } = runtime.data.useRuntimeRepositories();
     // One push navigation is processed at a time; overlapping events are dropped (see below).
     const inFlightRef = useRef(false);
 
@@ -209,7 +203,9 @@ export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
             try {
                 if (needsSwitch) {
                     // Gate the switch on the base handshake so we do not switch over a half-open socket.
-                    const verified = await getSocketManager().waitUntilVerified(HANDSHAKE_WAIT_TIMEOUT_MS);
+                    const verified = await runtime.connection
+                        .getSocketManager()
+                        .waitUntilVerified(HANDSHAKE_WAIT_TIMEOUT_MS);
                     if (!verified) {
                         logger.warn('ROUTER', 'Socket handshake not verified before switch; navigating best-effort', {
                             target,
@@ -224,7 +220,8 @@ export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
                     // re-cache it first (idempotent: a no-op when already cached), mirroring the
                     // foreground-push recovery in InvitedCloudDurabilityRunner so both push entry
                     // points behave identically. Relay-backed, so it runs after the handshake gate.
-                    if (cid && !isRelayPush && isNativeApp()) await recoverInvitedCloudIfMissing(cloud, cid);
+                    if (cid && !isRelayPush && runtime.boot.isNativeApp())
+                        {await runtime.data.recoverInvitedCloudIfMissing(cloud, cid);}
                     // Cloud transition first (it clears the selected site), then site, then route.
                     if (needsRelayReturn) await logoutCloudSession();
                     if (cid && needsCloudSwitch) await switchCloud(cid);

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import type { DomainChannel, DomainChat } from '@chatic/data';
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { messagePlainText } from '../../../shared';
 
@@ -27,7 +27,7 @@ const MAX_CHANNELS = 30;
  * network feeds. Results are best-effort: bounded by what's already cached.
  */
 export const useMessageSearch = (query: string, channels: DomainChannel[]) => {
-    const { chat: chatRepository } = useRuntimeRepositories();
+    const { chat: chatRepository } = runtime.data.useRuntimeRepositories();
     const [results, setResults] = useState<ChannelSearchResult[]>([]);
     const [isSearching, setIsSearching] = useState(false);
 

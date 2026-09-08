@@ -1,6 +1,6 @@
 import { useCallback, useEffect } from 'react';
 
-import { getSyncManager, useRuntimeSocketState } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 interface ReadCount {
     readCount: number;
@@ -36,7 +36,7 @@ export const useJoinPositions = (
     memberIds: string[],
     cursorByUser: Map<string, number>
 ) => {
-    const { isVerified } = useRuntimeSocketState();
+    const { isVerified } = runtime.connection.useRuntimeSocketState();
 
     // Register a join (read-state) sync for every channel member so all read cursors stay live
     // while the room is mounted. Network-bound, so gated on isVerified (auto-retries on the
@@ -45,7 +45,7 @@ export const useJoinPositions = (
     const memberKey = memberIds.join(',');
     useEffect(() => {
         if (!channelId || !isVerified || memberIds.length === 0) return;
-        const sync = getSyncManager();
+        const sync = runtime.sync.getSyncManager();
         const disposers = memberIds.map(userId => sync.registerJoin(`${channelId}@${userId}`));
         return () => disposers.forEach(dispose => dispose());
     }, [channelId, isVerified, memberKey]);

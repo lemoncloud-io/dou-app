@@ -1,15 +1,19 @@
 import { renderHook, waitFor } from '@testing-library/react';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
-import { useSessionIdentity } from '@chatic/app-runtime';
-import { getActiveSessionUser } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { useSeedMyUserCache } from './useSeedMyUserCache';
 
 jest.mock('@chatic/app-runtime', () => ({
-    useRuntimeRepositories: jest.fn(),
-    useSessionIdentity: jest.fn(),
-    getActiveSessionUser: jest.fn(),
+    runtime: {
+        data: {
+            useRuntimeRepositories: jest.fn(),
+        },
+        session: {
+            useSessionIdentity: jest.fn(),
+            getActiveSessionUser: jest.fn(),
+        },
+    },
 }));
 
 const cacheReadMock = jest.fn();
@@ -19,11 +23,11 @@ beforeEach(() => {
     jest.clearAllMocks();
     cacheReadMock.mockResolvedValue(null);
     cacheWriteMock.mockResolvedValue(undefined);
-    (useRuntimeRepositories as jest.Mock).mockReturnValue({
+    (runtime.data.useRuntimeRepositories as jest.Mock).mockReturnValue({
         user: { cacheRead: cacheReadMock, cacheWrite: cacheWriteMock },
     });
-    (useSessionIdentity as jest.Mock).mockReturnValue({ userId: 'me' });
-    (getActiveSessionUser as jest.Mock).mockReturnValue({ name: 'Seed', photo: 'seed.png' });
+    (runtime.session.useSessionIdentity as jest.Mock).mockReturnValue({ userId: 'me' });
+    (runtime.session.getActiveSessionUser as jest.Mock).mockReturnValue({ name: 'Seed', photo: 'seed.png' });
 });
 
 describe('useSeedMyUserCache', () => {
@@ -44,7 +48,7 @@ describe('useSeedMyUserCache', () => {
     });
 
     it('does nothing when there is no session user', async () => {
-        (getActiveSessionUser as jest.Mock).mockReturnValue(null);
+        (runtime.session.getActiveSessionUser as jest.Mock).mockReturnValue(null);
 
         renderHook(() => useSeedMyUserCache());
 
@@ -54,7 +58,7 @@ describe('useSeedMyUserCache', () => {
     });
 
     it('does nothing without a userId', async () => {
-        (useSessionIdentity as jest.Mock).mockReturnValue({ userId: null });
+        (runtime.session.useSessionIdentity as jest.Mock).mockReturnValue({ userId: null });
 
         renderHook(() => useSeedMyUserCache());
 

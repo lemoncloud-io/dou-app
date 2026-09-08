@@ -19,7 +19,11 @@ jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => mockNaviga
 // this screen renders outside a Router here, so stand it in rather than wrap every case.
 jest.mock('react-router-dom', () => ({ useLocation: () => ({ pathname: '/invite/accept', search: '', hash: '' }) }));
 jest.mock('@chatic/app-runtime', () => ({
-    applySessionToken: (...args: unknown[]) => mockApplySessionToken(...args),
+    runtime: {
+        session: {
+            applySessionToken: (...args: unknown[]) => mockApplySessionToken(...args),
+        },
+    },
 }));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: mockToast }) }));
 // Radix overlays are stubbed as pass-through markup (house convention — see AddFriendSheet.test).

@@ -1,13 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useIsMutating } from '@tanstack/react-query';
 
-import { useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
-import {
-    SWITCH_CLOUD_MUTATION_KEY,
-    SWITCH_SITE_MUTATION_KEY,
-    useGlobalSession,
-    useSessionSelection,
-} from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 // Periodic background-sync interval. The user-facing requirement is "about a minute"; lists
 // only re-discover added/removed entries here, so a coarse cadence is intentional.
@@ -30,17 +24,17 @@ const BACKGROUND_SYNC_POLL_MS = 60_000;
  * This closes the optimistic window (old session still verified=true before markUnverified).
  */
 export const useBackgroundSync = (): void => {
-    const repos = useRuntimeRepositories();
-    const session = useGlobalSession();
-    const { selectedSiteId } = useSessionSelection();
-    const { isVerified } = useRuntimeSocketState();
+    const repos = runtime.data.useRuntimeRepositories();
+    const session = runtime.session.useGlobalSession();
+    const { selectedSiteId } = runtime.session.useSessionSelection();
+    const { isVerified } = runtime.connection.useRuntimeSocketState();
 
     const cid = session.activeServer.kind === 'cloud' ? session.activeServer.cloudId : 'default';
     const activeSiteId = selectedSiteId;
 
     const isSwitching =
-        useIsMutating({ mutationKey: SWITCH_SITE_MUTATION_KEY }) +
-            useIsMutating({ mutationKey: SWITCH_CLOUD_MUTATION_KEY }) >
+        useIsMutating({ mutationKey: runtime.session.SWITCH_SITE_MUTATION_KEY }) +
+            useIsMutating({ mutationKey: runtime.session.SWITCH_CLOUD_MUTATION_KEY }) >
         0;
 
     // Place snapshot + channel/profile delta sync with watermarks. place.refreshList is a full

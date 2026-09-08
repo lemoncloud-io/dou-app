@@ -1,8 +1,7 @@
 import { useEffect } from 'react';
 
 import { webClient } from '@chatic/bridges';
-import { getGlobalSessionContext, useGlobalSession } from '@chatic/app-runtime';
-import { useRuntimeSocketState } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { useCloudPushBadgeStore } from '../stores';
 import { resolvePushCloudId } from '../utils';
@@ -18,7 +17,7 @@ import { resolvePushCloudId } from '../utils';
  * Source cloud — which id space? The rail keys tiles (and the active highlight,
  * and `clear` below) by the RELAY cloud id (`session.activeServer.cloudId`). The
  * reliable resolver is `resolvePushCloudId`: the engine partitions the channel
- * cache by that same relay cloud id (`useRuntimeBinding` cid = selectedCloudId),
+ * cache by that same relay cloud id (`deriveSelectedContext` cid = selectedCloudId),
  * so a channel-cache reverse-lookup returns the rail's id directly. It also
  * handles invited clouds via the source-cloud uid when that uid is UNIQUE to one
  * cloud. (A push's `data.uid` is the account id — identical across your own
@@ -29,9 +28,9 @@ import { resolvePushCloudId } from '../utils';
  */
 export const useCrossCloudPushBadge = (): void => {
     // `cloudId` is gone from socket state in v2 — derive the active cloud from the session.
-    const session = useGlobalSession();
+    const session = runtime.session.useGlobalSession();
     const cloudId = session.activeServer.kind === 'cloud' ? session.activeServer.cloudId : null;
-    const { isVerified } = useRuntimeSocketState();
+    const { isVerified } = runtime.connection.useRuntimeSocketState();
     const mark = useCloudPushBadgeStore(s => s.mark);
     const clear = useCloudPushBadgeStore(s => s.clear);
 
@@ -44,7 +43,7 @@ export const useCrossCloudPushBadge = (): void => {
                 if (!cid) return;
                 // The active cloud's unread is owned by the live socket pipeline. Read the
                 // current active cloud imperatively (the effect closure is registered once).
-                const activeServer = getGlobalSessionContext().activeServer;
+                const activeServer = runtime.session.getGlobalSessionContext().activeServer;
                 const activeCloudId = activeServer.kind === 'cloud' ? activeServer.cloudId : null;
                 if (cid === activeCloudId) return;
                 mark(cid);

@@ -5,7 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 
 import { useNavigateWithTransition } from '@chatic/shared';
 import { isNative } from '@chatic/bridges';
-import { useRuntimeProfile } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import { appBridge } from '../../../bridge';
 import { useMembershipInfo } from '../../../hooks/useMembership';
 
@@ -32,7 +32,7 @@ export const SubscriptionPage = () => {
     const { summary, currentPlan, pendingPlan, isIOS } = usePlanCatalog();
     const priceOf = usePlanPrice();
     const isKo = i18n.language.startsWith('ko');
-    const { isGuest } = useRuntimeProfile();
+    const { isGuest } = runtime.session.useRuntimeProfile();
 
     // One judgement, four states (`summarizeMembership`). The screen used to branch on
     // `isActive || isExpired`, which dropped a scheduled cancellation into the empty state — both

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { AtSign, ChevronRight, Hash, X } from 'lucide-react';
 
-import type { DomainChannel, DomainSite } from '@chatic/data';
+import type { DomainChannel, DomainPlace } from '@chatic/data';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 
 import {
@@ -85,7 +85,7 @@ interface MentionsPanelProps {
     /** Loaded channels (active place) — names the mention rows' channel chips. */
     channels: DomainChannel[];
     /** Places in the active cloud — names the place-group headers. */
-    places: DomainSite[];
+    places: DomainPlace[];
     /** The active place — its group sorts to the top. */
     currentPlaceId?: string;
     /** Jump to the mentioned message: select its place + channel, then scroll to it

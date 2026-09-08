@@ -1,4 +1,4 @@
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { useRelayInvites } from '../../../hooks';
 
@@ -18,7 +18,7 @@ import { useRelayInvites } from '../../../hooks';
  * the server view), and the migration this ADR ships folds it back into one.
  */
 export const useLocallyCanceledInvites = () => {
-    const { invite } = useRuntimeRepositories();
+    const { invite } = runtime.data.useRuntimeRepositories();
     const { invites } = useRelayInvites();
 
     const isCanceled = (inviteId: string): boolean => !!invites.find(item => item.id === inviteId)?.dismissedAt;

@@ -8,11 +8,17 @@ const read = jest.fn();
 const reset = jest.fn();
 
 jest.mock('@chatic/app-runtime', () => ({
-    isNativeApp: () => true,
-    getCacheMetricsSource: () => ({
-        read: (...args: unknown[]) => read(...args),
-        reset: (...args: unknown[]) => reset(...args),
-    }),
+    runtime: {
+        boot: {
+            isNativeApp: () => true,
+        },
+        data: {
+            getCacheMetricsSource: () => ({
+                read: (...args: unknown[]) => read(...args),
+                reset: (...args: unknown[]) => reset(...args),
+            }),
+        },
+    },
 }));
 jest.mock('../../lib', () => ({ copyText: jest.fn() }));
 

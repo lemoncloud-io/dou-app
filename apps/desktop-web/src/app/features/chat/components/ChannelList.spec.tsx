@@ -8,7 +8,11 @@ import type { DomainChannel, DomainChat } from '@chatic/data';
 import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
 
 vi.mock('@chatic/app-runtime', () => ({
-    useSessionIdentity: () => ({ userId: 'me' }),
+    runtime: {
+        session: {
+            useSessionIdentity: () => ({ userId: 'me' }),
+        },
+    },
 }));
 
 let lastChat: DomainChat | undefined;

@@ -5,7 +5,7 @@ import * as ReactDOM from 'react-dom/client';
 import '@lemoncloud/page-transition-core/styles.css';
 
 import { configurePerfMetrics, logger, setupBridgeLogger } from '@chatic/bridges';
-import { initAppRuntime, setNativeCacheSupport } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import App from './app/app';
 import { appBridge, pendingNavigationStore } from './app/bridge';
@@ -58,7 +58,7 @@ startLogUploader({
 // Repository policy rides along: the embedded `$site` of user.profile is persisted into the place
 // cache only on the relay scope, so a cloud partition never receives the default place row
 // (ADR-0045). It must land before the data runtime is lazily created on first repository access.
-initAppRuntime({
+runtime.boot.initAppRuntime({
     data: {
         repositories: { user: { persistEmbeddedSite: context => (context.cid ?? 'default') === 'default' } },
     },
@@ -111,7 +111,7 @@ pendingNavigationStore.start();
 // (an unrecorded answer is treated as a legacy shell, which is the safe reading — see
 // nativeCacheSupport). Never rejects, so this cannot break boot in a plain browser.
 void appBridge.notifyWebAppReady().then(report => {
-    if (report) setNativeCacheSupport(report);
+    if (report) runtime.boot.setNativeCacheSupport(report);
 });
 
 // Force the native debug menu off on every web start — the OTA-controllable kill switch for the

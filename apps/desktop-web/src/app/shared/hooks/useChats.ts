@@ -2,8 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { DomainChat } from '@chatic/data';
 
-import { useChatSync, useRuntimeRepositories } from '@chatic/app-runtime';
-import { useSessionIdentity } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { compareByChatNo } from '../utils/chatSort';
 
@@ -30,7 +29,7 @@ const sortByChatNo = (messages: DomainChat[]): DomainChat[] => [...messages].sor
 
 /**
  * Message stream for a channel (mirrors apps/web useChats). Chat fetching is owned
- * by the sync layer — `useChatSync` registers a 'chat' target and the SyncManager
+ * by the sync layer — `runtime.sync.useChatSync` registers a 'chat' target and the SyncManager
  * seeds the first page (when the cache is cold) — plus the freshness bridge below;
  * `loadOlder` fetches the next older page by cursor and widens the window so the
  * cache re-emits with the older page included. Rows are sorted oldest→newest.
@@ -44,12 +43,12 @@ const sortByChatNo = (messages: DomainChat[]): DomainChat[] => [...messages].sor
  * channel plan's poll — so when it runs ahead of the cache, fetch the newest page.
  */
 export const useChats = (channelId: string | null, latestChatNo?: number) => {
-    const { chat: chatRepository } = useRuntimeRepositories();
+    const { chat: chatRepository } = runtime.data.useRuntimeRepositories();
     // Part of the cache observer's scope key ({cid, uid}); channel ids are per-cloud and
     // collide across clouds, so uid is what keeps the feed bound to the right partition.
-    const { userId: myUid } = useSessionIdentity();
+    const { userId: myUid } = runtime.session.useSessionIdentity();
 
-    useChatSync(channelId ?? undefined);
+    runtime.sync.useChatSync(channelId ?? undefined);
 
     // Memo/reset key, not just the channel id: the same id names different channels in
     // different clouds, and uid is what separates their cache partitions.

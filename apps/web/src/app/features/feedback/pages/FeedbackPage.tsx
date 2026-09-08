@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { logger } from '@chatic/bridges';
 import { useDeviceInfo } from '@chatic/device-utils';
 import { scaleImageToDataUrl, useNavigateWithTransition } from '@chatic/shared';
-import { reportIssue } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import { FloatingButton, IconBack, ModalTopBar, PhotoAttachField, TextField, Textarea } from '@chatic/web-ui-kit';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
@@ -34,11 +34,11 @@ const PHOTO_QUALITY = 0.6;
 
 /**
  * "의견 보내기" — the single entry point for user feedback, reached from the
- * MyPage menu. Submits through `reportIssue`, which auto-attaches recent logs, a
+ * MyPage menu. Submits through `runtime.report.reportIssue`, which auto-attaches recent logs, a
  * device/version snapshot and the route trail (see `buildReportContext`).
  *
  * Photos are downscaled to base64 JPEG in the browser and ride in the report
- * payload; a report carrying them is sent silently — see `reportIssue` for why.
+ * payload; a report carrying them is sent silently — see `runtime.report.reportIssue` for why.
  */
 export const FeedbackPage = () => {
     const { t } = useTranslation();
@@ -78,7 +78,7 @@ export const FeedbackPage = () => {
         setIsSubmitting(true);
         try {
             const extras = buildReportContext({ deviceInfo, versionInfo });
-            await reportIssue(title.trim(), body.trim(), {
+            await runtime.report.reportIssue(title.trim(), body.trim(), {
                 ...extras,
                 ...(photos.length ? { images: photos } : {}),
             });

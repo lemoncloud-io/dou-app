@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 /**
  * Observes the local cloud cache and returns a map of `cloudId → cached name`.
@@ -12,7 +12,7 @@ import { useRuntimeRepositories } from '@chatic/app-runtime';
  * edit — without waiting for a relay refetch.
  */
 export const useCachedCloudNames = (): Record<string, string> => {
-    const { cloud } = useRuntimeRepositories();
+    const { cloud } = runtime.data.useRuntimeRepositories();
     const [names, setNames] = useState<Record<string, string>>({});
 
     useEffect(() => {

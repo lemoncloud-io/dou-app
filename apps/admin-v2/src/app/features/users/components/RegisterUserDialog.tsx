@@ -1,7 +1,7 @@
 import { useForm } from 'react-hook-form';
 
 import { logger } from '@chatic/bridges';
-import { useRegisterUserV2 } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import {
     Dialog,
@@ -35,7 +35,7 @@ interface RegisterUserDialogProps {
 }
 
 export const RegisterUserDialog = ({ open, onOpenChange, onSuccess, onFail }: RegisterUserDialogProps): JSX.Element => {
-    const { mutateAsync: registerUser, isPending } = useRegisterUserV2();
+    const { mutateAsync: registerUser, isPending } = runtime.session.useRegisterUserV2();
 
     const {
         register,

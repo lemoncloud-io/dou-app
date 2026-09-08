@@ -1,11 +1,17 @@
 import { renderHook } from '@testing-library/react';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { useLocallyCanceledInvites } from './useLocallyCanceledInvites';
 import { useRelayInvites } from '../../../hooks';
 
-jest.mock('@chatic/app-runtime', () => ({ useRuntimeRepositories: jest.fn() }));
+jest.mock('@chatic/app-runtime', () => ({
+    runtime: {
+        data: {
+            useRuntimeRepositories: jest.fn(),
+        },
+    },
+}));
 jest.mock('../../../hooks', () => ({ useRelayInvites: jest.fn() }));
 
 const dismiss = jest.fn();
@@ -14,7 +20,7 @@ const undismiss = jest.fn();
 describe('useLocallyCanceledInvites', () => {
     beforeEach(() => {
         jest.clearAllMocks();
-        (useRuntimeRepositories as jest.Mock).mockReturnValue({ invite: { dismiss, undismiss } });
+        (runtime.data.useRuntimeRepositories as jest.Mock).mockReturnValue({ invite: { dismiss, undismiss } });
         (useRelayInvites as jest.Mock).mockReturnValue({ invites: [] });
     });
 

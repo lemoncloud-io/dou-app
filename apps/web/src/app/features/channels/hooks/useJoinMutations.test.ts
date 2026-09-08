@@ -1,11 +1,15 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { useJoinMutations } from './useJoinMutations';
 
 jest.mock('@chatic/app-runtime', () => ({
-    useRuntimeRepositories: jest.fn(),
+    runtime: {
+        data: {
+            useRuntimeRepositories: jest.fn(),
+        },
+    },
 }));
 
 const updateJoin = jest.fn();
@@ -13,7 +17,7 @@ const updateJoin = jest.fn();
 beforeEach(() => {
     jest.clearAllMocks();
     updateJoin.mockResolvedValue({ id: 'j1', nick: 'My room' });
-    (useRuntimeRepositories as jest.Mock).mockReturnValue({ join: { updateJoin } });
+    (runtime.data.useRuntimeRepositories as jest.Mock).mockReturnValue({ join: { updateJoin } });
 });
 
 describe('useJoinMutations — join.update 래핑', () => {

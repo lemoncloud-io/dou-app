@@ -1,10 +1,11 @@
 import { logger } from '@chatic/bridges';
 
 import { reissueCommittedCloudTokens } from '../../session/auth/cloudTokens';
+import { Coalescer } from '../../utils/coalescer';
 
 import { getSocketManager } from '../runtime';
 import { reauthenticateActiveSocket } from './reauthenticateActiveSocket';
-import { createSocketSessionDelegate } from './sessionDelegate';
+import { createReauthDelegate } from './reauthDelegate';
 
 /**
  * Renews the ACTIVE cloud session end to end: re-issue the cloud tokens, then hand the new identity
@@ -38,7 +39,7 @@ const run = async (): Promise<boolean> => {
     try {
         await reauthenticateActiveSocket({
             manager: getSocketManager(),
-            delegate: createSocketSessionDelegate(),
+            delegate: createReauthDelegate(),
             kind: 'cloud',
         });
     } catch (error) {
@@ -50,7 +51,14 @@ const run = async (): Promise<boolean> => {
     return true;
 };
 
-let inFlight: Promise<boolean> | null = null;
+/**
+ * Single-flight at MODULE level, not per caller (ADR-0076 결정 4 — was a bespoke `let inFlight`).
+ * The renewal is two HTTP round trips against the same parent identity, so the timer, the foreground
+ * trigger and any future 403 handler must collapse into one exchange rather than race each other's
+ * writes into the cloud store. No result memo: unlike the relay refresh there is no burst to absorb
+ * here, and a stale "already renewed" answer would skip a genuinely needed re-issue.
+ */
+const coalescer = new Coalescer<boolean>();
 
 /**
  * Returns true when the cloud tokens were re-issued, false when there was nothing to renew or the
@@ -67,14 +75,4 @@ let inFlight: Promise<boolean> | null = null;
  * and `onAuthExpired` dropped the user out of the cloud, i.e. the renewal would fix HTTP and then
  * lose the place anyway.
  */
-export const renewCloudSession = async (): Promise<boolean> => {
-    if (inFlight) {
-        return await inFlight;
-    }
-    inFlight = run();
-    try {
-        return await inFlight;
-    } finally {
-        inFlight = null;
-    }
-};
+export const renewCloudSession = (): Promise<boolean> => coalescer.run(run);

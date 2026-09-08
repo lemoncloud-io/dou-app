@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 
 import { isNative, webClient } from '@chatic/bridges';
-import { useDynamicDeviceId, useRegisterDeviceTokenMutation, useSessionAuth } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 declare global {
     interface Window {
@@ -35,12 +35,12 @@ declare global {
 const REREGISTER_THROTTLE_MS = 60_000;
 
 export const useDeviceTokenRegistration = (): void => {
-    const { isAuthenticated } = useSessionAuth();
-    const { deviceId } = useDynamicDeviceId();
+    const { isAuthenticated } = runtime.session.useSessionAuth();
+    const { deviceId } = runtime.session.useDynamicDeviceId();
     // The v2 web-core `useRegisterDeviceToken` takes a body and self-dedups by token, which can't
     // honour this hook's force/throttle re-register-on-focus contract (SNS endpoint re-enable).
     // Use the underlying mutation directly and keep driving registration ourselves.
-    const { mutateAsync: registerDeviceToken } = useRegisterDeviceTokenMutation();
+    const { mutateAsync: registerDeviceToken } = runtime.push.useRegisterDeviceTokenMutation();
     const requestedRef = useRef(false);
     const tokenRef = useRef<string | null>(null);
     const lastRegisterAtRef = useRef(0);

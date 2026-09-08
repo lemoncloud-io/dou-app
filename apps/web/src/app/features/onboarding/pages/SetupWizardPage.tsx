@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
-import { useSessionSelection } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import {
     FloatingButton,
@@ -62,7 +62,7 @@ export const SetupWizardPage = () => {
     const [draft, setDraft] = useState<Draft>(EMPTY);
     const [busy, setBusy] = useState(false);
 
-    const { selectedCloudId } = useSessionSelection();
+    const { selectedCloudId } = runtime.session.useSessionSelection();
     const { mutateAsync: updateCloudName } = useUpdateCloudProfile();
     const { createPlace } = useCreatePlace();
     const setMyPlaceProfile = useSetMyPlaceProfile();

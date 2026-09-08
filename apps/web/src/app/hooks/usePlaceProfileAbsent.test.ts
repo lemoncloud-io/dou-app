@@ -8,9 +8,15 @@ let mockUid: string | null = 'user-1';
 // object per call would change the effect's dependency every render and reset the verdict forever.
 const repositories = { profile: { id: 'profile-repo' } };
 jest.mock('@chatic/app-runtime', () => ({
-    useRuntimeRepositories: () => repositories,
-    useSessionSelection: () => ({ selectedSiteId: mockSid }),
-    useSessionIdentity: () => ({ userId: mockUid }),
+    runtime: {
+        data: {
+            useRuntimeRepositories: () => repositories,
+        },
+        session: {
+            useSessionSelection: () => ({ selectedSiteId: mockSid }),
+            useSessionIdentity: () => ({ userId: mockUid }),
+        },
+    },
 }));
 
 // The judgement itself is covered by utils/placeProfile.test.ts; here it is a controllable promise.

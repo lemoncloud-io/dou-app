@@ -85,7 +85,9 @@ flowchart LR
 - `resolveCacheBackend(type) → 'web' | 'native'`: ① 브라우저 환경이면 `'web'`
   ② `WEB_PINNED_CACHE_TYPES`(현재 비어 있음 — 항목마다 사유 주석 필수)면 `'web'`
   ③ `isNativeCacheTypeUsable(type)` 부정이면 `'web'` ④ 그 외 `'native'`.
-- `isNativeApp()`(환경 축)도 여기 산다. 순수 판정 모듈 — I/O·어댑터 생성 없음.
+- 순수 판정 모듈 — I/O·어댑터 생성 없음. `isNativeApp()`(환경 축)은 여기 살았지만 캐시 개념이
+  아니어서 [`src/utils/isNativeApp.ts`](../../src/utils/isNativeApp.ts)로 옮겼다(소비자 4곳 중
+  하나가 이 파일이다).
 
 **[localFactory.ts](../../src/data/factories/localFactory.ts)** — 상태 없는 조립.
 

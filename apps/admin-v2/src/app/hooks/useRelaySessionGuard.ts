@@ -2,7 +2,7 @@
  * `hooks/useRelaySessionGuard.ts`
  * - Keeps the relay HTTP signing credentials fresh while the console stays open.
  *
- * The probe/refresh body now lives in `@chatic/app-runtime`'s `useSessionStalenessGuard`
+ * The probe/refresh body now lives in `@chatic/app-runtime`'s `runtime.session.useSessionStalenessGuard`
  * (ADR-0070 3단계 체크리스트 7) — apps/web had invented the same thing independently, and
  * desktop-web/testbed had neither. What is left here is admin-v2's POLICY, which is what actually
  * differs between the two apps:
@@ -16,7 +16,7 @@
  * indistinguishable from a dead session, and logging an admin out over a blip is worse than three
  * extra ticks of 403s. Any success resets the streak (the shared hook owns that counting).
  */
-import { logoutRelaySession, useSessionStalenessGuard } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 /** Cheap when not expired, so a tight cadence keeps the 403 window small. */
 const CHECK_INTERVAL_MS = 30_000;
@@ -25,13 +25,16 @@ const CHECK_INTERVAL_MS = 30_000;
 const CONSECUTIVE_FAILURE_LIMIT = 3;
 
 export const useRelaySessionGuard = (enabled: boolean): void => {
-    useSessionStalenessGuard({
+    runtime.session.useSessionStalenessGuard({
         enabled,
         intervalMs: CHECK_INTERVAL_MS,
         checkOnVisible: true,
         // No stored session at all is a definitive failure here — the console cannot run signed out.
         missingSessionCountsAsFailure: true,
         consecutiveFailureLimit: CONSECUTIVE_FAILURE_LIMIT,
-        onTeardown: () => logoutRelaySession(),
+        // `runtime.session.logoutSession`, not the store-only teardown: it fires a best-effort `auth.logout` on
+        // both socket slots before clearing, so the server ends the auth session instead of being
+        // left with a live connection for a session the console just abandoned (ADR-0076 결정 7).
+        onTeardown: () => runtime.session.logoutSession(),
     });
 };

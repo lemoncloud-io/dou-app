@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import type { DataRepositoriesV2 } from '@chatic/data';
 import { sendSystemChat, type SystemSubType } from './sendSystemChat';
 
@@ -11,7 +11,7 @@ interface Props {
 // Testbed-only panel to emit a system message over the socket `chat.send` event. The owner is the
 // current socket user, so this exercises self enter/exit. Pick join or leave and send.
 export const SystemSendPanel = ({ channelId, onClose }: Props) => {
-    const repos = useRuntimeRepositories() as unknown as DataRepositoriesV2;
+    const repos = runtime.data.useRuntimeRepositories() as unknown as DataRepositoriesV2;
 
     const [subType, setSubType] = useState<SystemSubType>('join');
     const [sending, setSending] = useState(false);

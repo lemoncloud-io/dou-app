@@ -11,7 +11,13 @@ let mockAbsent: boolean | undefined = false;
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
 jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
-jest.mock('@chatic/app-runtime', () => ({ useRuntimeRepositories: () => ({ profile: { setMyProfile } }) }));
+jest.mock('@chatic/app-runtime', () => ({
+    runtime: {
+        data: {
+            useRuntimeRepositories: () => ({ profile: { setMyProfile } }),
+        },
+    },
+}));
 jest.mock('../../../hooks', () => ({
     useMyProfile: () => ({ profile: mockProfile }),
     usePlaceProfileAbsent: () => ({ absent: mockAbsent, markPresent: jest.fn() }),

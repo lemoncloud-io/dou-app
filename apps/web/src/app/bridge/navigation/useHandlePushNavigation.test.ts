@@ -1,8 +1,7 @@
 import { renderHook } from '@testing-library/react';
 import { useNavigate } from 'react-router-dom';
 
-import { getSocketManager, isNativeApp, recoverInvitedCloudIfMissing } from '@chatic/app-runtime';
-import { useGlobalSession, useSessionSelection, useSwitchCloudSession } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { useLogoutCloudSession } from '../../runtime/useLogoutCloudSession';
 import { useSiteSwitch } from '../../runtime/useSiteSwitch';
@@ -11,22 +10,32 @@ import { resolvePushNavigation } from './resolvePushNavigation';
 import { useHandlePushNavigation } from './useHandlePushNavigation';
 
 // The invited-cloud recovery step added to usePushNavigate pulls three more app-runtime exports.
-// isNativeApp must be present and falsy: an undefined stub throws inside the switch block, which
+// runtime.boot.isNativeApp must be present and falsy: an undefined stub throws inside the switch block, which
 // the best-effort catch swallows into a plain navigate — silently losing the cloud/site switch this
 // suite asserts on. The recovery itself is native-only, so it never runs here.
 const cacheRead = jest.fn();
 const getChat = jest.fn();
 
 jest.mock('@chatic/app-runtime', () => ({
-    getSocketManager: jest.fn(),
-    isNativeApp: jest.fn(() => false),
-    recoverInvitedCloudIfMissing: jest.fn(),
-    // `chat` backs the thread-hop leg (usePushNavigate.hopToThread); the mock functions are
-    // hoisted above this factory so the suite can drive them.
-    useRuntimeRepositories: jest.fn(() => ({ cloud: {}, chat: { cacheRead, getChat } })),
-    useGlobalSession: jest.fn(),
-    useSessionSelection: jest.fn(),
-    useSwitchCloudSession: jest.fn(),
+    runtime: {
+        connection: {
+            getSocketManager: jest.fn(),
+        },
+        boot: {
+            isNativeApp: jest.fn(() => false),
+        },
+        data: {
+            recoverInvitedCloudIfMissing: jest.fn(),
+            // `chat` backs the thread-hop leg (usePushNavigate.hopToThread); the mock functions are
+            // hoisted above this factory so the suite can drive them.
+            useRuntimeRepositories: jest.fn(() => ({ cloud: {}, chat: { cacheRead, getChat } })),
+        },
+        session: {
+            useGlobalSession: jest.fn(),
+            useSessionSelection: jest.fn(),
+            useSwitchCloudSession: jest.fn(),
+        },
+    },
 }));
 jest.mock('@chatic/bridges', () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } }));
 
@@ -49,10 +58,10 @@ let captured: ((message: NavigationMessage) => Promise<void>) | undefined;
 const setResolved = (value: { target: string; cid: string | null; sid: string | null; chatId?: string | null }) =>
     (resolvePushNavigation as jest.Mock).mockReturnValue({ chatId: null, ...value });
 const setSelection = (selectedCloudId: string | null, selectedSiteId: string | null) =>
-    (useSessionSelection as jest.Mock).mockReturnValue({ selectedCloudId, selectedSiteId });
+    (runtime.session.useSessionSelection as jest.Mock).mockReturnValue({ selectedCloudId, selectedSiteId });
 // The relay-return branch reads the committed context kind, not the selection (see usePushNavigate).
 const setActiveServerKind = (kind: 'relay' | 'cloud') =>
-    (useGlobalSession as jest.Mock).mockReturnValue({ activeServer: { kind } });
+    (runtime.session.useGlobalSession as jest.Mock).mockReturnValue({ activeServer: { kind } });
 
 const invoke = async (path = '/x', replace = false) => {
     renderHook(() => useHandlePushNavigation());
@@ -69,12 +78,12 @@ beforeEach(() => {
     (useNavigate as jest.Mock).mockReturnValue(navigate);
     switchCloud.mockResolvedValue(undefined);
     switchSite.mockResolvedValue(undefined);
-    (useSwitchCloudSession as jest.Mock).mockReturnValue({ switchCloud });
+    (runtime.session.useSwitchCloudSession as jest.Mock).mockReturnValue({ switchCloud });
     logoutCloudSession.mockResolvedValue(undefined);
     (useLogoutCloudSession as jest.Mock).mockReturnValue({ logoutCloudSession });
     (useSiteSwitch as jest.Mock).mockReturnValue({ switchSite });
     waitUntilVerified.mockResolvedValue(true);
-    (getSocketManager as jest.Mock).mockReturnValue({ waitUntilVerified });
+    (runtime.connection.getSocketManager as jest.Mock).mockReturnValue({ waitUntilVerified });
     (pendingNavigationStore.register as jest.Mock).mockImplementation((handler: typeof captured) => {
         captured = handler;
         return unregister;
@@ -217,17 +226,17 @@ describe('useHandlePushNavigation', () => {
 
         it("'#'는 native여도 invited-cloud 복구 대상이 아니다", async () => {
             // clearAllMocks는 mockReturnValue를 지우지 않으므로 테스트 안에서 원복한다.
-            (isNativeApp as jest.Mock).mockReturnValue(true);
+            (runtime.boot.isNativeApp as jest.Mock).mockReturnValue(true);
             try {
                 setCloudActive();
                 setResolved({ target: '/channels/dm1/room', cid: '#', sid: 's1' });
 
                 await invoke();
 
-                expect(recoverInvitedCloudIfMissing).not.toHaveBeenCalled();
+                expect(runtime.data.recoverInvitedCloudIfMissing).not.toHaveBeenCalled();
                 expect(logoutCloudSession).toHaveBeenCalledTimes(1);
             } finally {
-                (isNativeApp as jest.Mock).mockReturnValue(false);
+                (runtime.boot.isNativeApp as jest.Mock).mockReturnValue(false);
             }
         });
 

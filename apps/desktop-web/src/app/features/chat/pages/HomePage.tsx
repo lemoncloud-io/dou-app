@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
-import { getSocketManager, useRuntimeSocketState } from '@chatic/app-runtime';
-import { useSessionIdentity, useSessionSelection } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { JoinWithInviteDialog } from '../../auth';
 import {
@@ -62,7 +61,7 @@ const HANDSHAKE_WAIT_TIMEOUT_MS = 10_000;
 // rolls the selection back — stranding the notification target unopened. Wait for the base
 // handshake first; on timeout fire anyway (best-effort, no worse than an immediate switch).
 const switchAfterHandshake = async (doSwitch: () => void): Promise<void> => {
-    await getSocketManager().waitUntilVerified(HANDSHAKE_WAIT_TIMEOUT_MS);
+    await runtime.connection.getSocketManager().waitUntilVerified(HANDSHAKE_WAIT_TIMEOUT_MS);
     doSwitch();
 };
 
@@ -82,7 +81,7 @@ export const HomePage = () => {
     // channel record can match it. activeCloudId (from useClouds) already resolves socket →
     // persisted → fallback.
     const isDefaultMode = (activeCloudId ?? 'default') === 'default';
-    const { selectedSiteId } = useSessionSelection();
+    const { selectedSiteId } = runtime.session.useSessionSelection();
     const selectedPlaceId = isDefaultMode ? 'default' : selectedSiteId;
 
     const { switchPlace, isSwitching: isPlaceSwitching } = useSelectPlace();
@@ -96,7 +95,7 @@ export const HomePage = () => {
     // re-verified on the new cloud — i.e. its data has actually loaded — not just until the
     // exchange resolves. isVerified is true whenever a cloud is settled, so this only bites during
     // the switch/reconnect window.
-    const { isVerified } = useRuntimeSocketState();
+    const { isVerified } = runtime.connection.useRuntimeSocketState();
     const railLocked = isSwitching || !isVerified;
 
     // Place Profiles: mirror the current place's overrides into the store (one
@@ -131,7 +130,7 @@ export const HomePage = () => {
     const debugEnabled = useDebugModeStore(s => s.enabled);
     const debugPanelOpen = useDebugModeStore(s => s.overlayOpen);
     const showDebugPanel = (import.meta.env.DEV || debugEnabled) && debugPanelOpen;
-    const myUid = useSessionIdentity().userId;
+    const myUid = runtime.session.useSessionIdentity().userId;
 
     const [query, setQuery] = useState('');
     // A channel to open once its place's channels have loaded (notification click

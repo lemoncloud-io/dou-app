@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
 
-import { useVerifyAlias } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
@@ -15,7 +15,7 @@ export const SignupVerifyPage = () => {
     const { t } = useTranslation();
     const { state } = useLocation();
     const { email = '', userId = '' } = (state as { email?: string; userId?: string }) ?? {};
-    const verifyAlias = useVerifyAlias();
+    const verifyAlias = runtime.session.useVerifyAlias();
 
     useEffect(() => {
         if (!email) navigate(ROUTES.account.signup.root, { replace: true });

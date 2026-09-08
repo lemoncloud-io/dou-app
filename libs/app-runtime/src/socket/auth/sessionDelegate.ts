@@ -1,11 +1,11 @@
-import { logger } from '@chatic/bridges';
-import {
-    commitServerRefreshedToken,
-    getServerAuthRegistration,
-    logoutCloudSession,
-    logoutRelaySession,
-    signServerAuth,
-} from '../../session';
+// The session half of the bridge — seed · sign · writeback (ADR-0076 결정 5). Runtime-internal and
+// off the session barrel (결정 6).
+import { sessionAuthAdapter } from '../../session/auth/sessionAuthAdapter';
+import { createReauthDelegate } from './reauthDelegate';
+// Terminal-expiry policy belongs to the per-server renewer (ADR-0076 결정 3), which takes the
+// store-only teardown path on purpose: `onAuthExpired` runs on the socket that just died, so
+// notifying it again (what the app-facing `logoutSession`/`logoutCloudSession` do) is pointless.
+import { credentialRenewers } from './renewers';
 
 import type { SocketSessionDelegate } from './types';
 
@@ -14,30 +14,25 @@ import type { SocketSessionDelegate } from './types';
  * bootstrapSocketConnection) to web-core's PER-SERVER auth helpers. Every method is keyed by the
  * socket's kind, so the relay and cloud sockets each seed/sign/write-back against their own server.
  *
- * Module-level (not a hook) so non-React callers — applySessionToken — can build the same delegate;
- * the React side wraps it in useSocketSessionDelegate. Every member is a module-level web-core
- * function, so instances are interchangeable and carry no state.
+ * Module-level (not a hook) so non-React callers — recoverUnverifiedSockets — can build the same
+ * delegate; the React side wraps it in useSocketSessionDelegate. Every member forwards to a
+ * module-level singleton, so instances are interchangeable and carry no state.
+ *
+ * The re-auth path does NOT come here: it takes the narrow `createReauthDelegate` directly, which
+ * is what keeps `renewCloudSession` out of this module's renewer edge.
  */
 export const createSocketSessionDelegate = (): SocketSessionDelegate => ({
-    getAuthRegistration: kind => getServerAuthRegistration(kind),
-    signAuth: (kind, _token, target) => signServerAuth(kind, target),
+    // seed + sign live in `reauthDelegate.ts` — the re-auth path needs those two without the
+    // renewer edge below, and this is the whole delegate built back up from that half.
+    ...createReauthDelegate(),
     // Routed by the socket's own kind (§6-6). The SDK AuthTokenView is not exported from the
-    // package root; web-core casts it to its own UserTokenView at this boundary.
+    // package root; the session boundary casts it to its own UserTokenView here.
     commitRefreshedToken: (kind, view) =>
-        commitServerRefreshedToken(kind, view as Parameters<typeof commitServerRefreshedToken>[1]),
-    onAuthExpired: kind => {
-        if (kind === 'cloud') {
-            // cloud expiry: tear down only the cloud session; relay stays the baseline.
-            logoutCloudSession();
-            return;
-        }
-        // Relay terminal `expired`: the SDK only reaches this after `maxFailures` consecutive
-        // sign/refresh attempts fail (SocketManager AUTH_OPTIONS, currently 3) — a wedged
-        // signature that no amount of waiting will fix on its own. Auto-logout here (POLICY,
-        // superseding the old manual-only stance) so the runtime's guest-login fallback picks
-        // up a clean session instead of leaving the UI in an authenticated-looking zombie state
-        // (isVerified=false forever, relay token still sitting in the store).
-        logger.warn('SOCKET', '[delegate] relay auth expired — auto-logging out');
-        return logoutRelaySession();
-    },
+        sessionAuthAdapter.commitRefreshedToken(
+            kind,
+            view as Parameters<typeof sessionAuthAdapter.commitRefreshedToken>[1]
+        ),
+    // One line instead of a kind branch: the asymmetry (relay logs out, cloud only leaves the
+    // cloud) is now typed as two renewers rather than explained in a comment here.
+    onAuthExpired: kind => credentialRenewers[kind].onTerminalExpiry(),
 });

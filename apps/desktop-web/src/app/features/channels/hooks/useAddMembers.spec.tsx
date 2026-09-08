@@ -11,7 +11,11 @@ const inviteChannel = vi.fn(() => Promise.resolve({}));
 const repositories = { user: { cacheWriteMany } };
 
 vi.mock('@chatic/app-runtime', () => ({
-    useRuntimeRepositories: () => repositories,
+    runtime: {
+        data: {
+            useRuntimeRepositories: () => repositories,
+        },
+    },
 }));
 vi.mock('../../../shared', () => ({
     useDesktopChannelMutations: () => ({ inviteChannel, isMutating: false }),

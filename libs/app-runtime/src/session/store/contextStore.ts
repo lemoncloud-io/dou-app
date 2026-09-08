@@ -9,7 +9,7 @@ import type {
     IdentityContext,
     RelayContext,
 } from './types';
-import { notifySessionStateChanged, registerSessionCacheInvalidator } from './signal';
+import { sessionSignal } from './signal';
 
 type SessionIdentityState = Pick<IdentityContext, 'isInitialized' | 'isAuthenticated' | 'error'>;
 
@@ -166,10 +166,12 @@ const identityStateRef = (): IdentityContext => {
 
 let cachedGlobalSessionContext: GlobalSessionContext | null = null;
 let cachedSessionAuthSnapshot: ReturnType<typeof getSessionAuthSnapshotRaw> | null = null;
+let cachedSocketSlotContext: SocketSlotContext | null = null;
 
-registerSessionCacheInvalidator(() => {
+sessionSignal.registerInvalidator(() => {
     cachedGlobalSessionContext = null;
     cachedSessionAuthSnapshot = null;
+    cachedSocketSlotContext = null;
 });
 
 const getSessionAuthSnapshotRaw = () => {
@@ -190,13 +192,42 @@ const getGlobalSessionContext = (): GlobalSessionContext => {
     return cachedGlobalSessionContext;
 };
 
+/**
+ * The two slices `useRuntimeSocketSlots` reads — and nothing else (ADR-0076 E5).
+ *
+ * That hook subscribes to `['relay:token', 'cloud:token', 'selection']` only, because the socket
+ * slots are derived from those three and identity moves on its own signal (boot alone emits
+ * `identity` twice through `setSessionIdentityState`, and every login adds one). Narrowing the
+ * SUBSCRIPTION without narrowing the SNAPSHOT is the dangerous half: reaching `identity` through a
+ * wide snapshot while not listening for it renders a stale value, and nothing would say so. This
+ * type is what makes that a compile error instead — a reader that needs identity has to widen both
+ * halves together.
+ */
+export interface SocketSlotContext {
+    relay: RelayContext;
+    cloud: CloudContext;
+}
+
+/** Built off the SAME cached context, so it can never disagree with a global reader in one tick. */
+const getSocketSlotContext = (): SocketSlotContext => {
+    if (cachedSocketSlotContext) return cachedSocketSlotContext;
+    const { relay, cloud } = getGlobalSessionContext();
+    cachedSocketSlotContext = { relay, cloud };
+    return cachedSocketSlotContext;
+};
+
 export const sessionContextStore = {
-    getRelayContext: (): RelayContext => getGlobalSessionContext().relay,
     getCloudContext: (): CloudContext => getGlobalSessionContext().cloud,
+    getSocketSlotContext,
     getIdentityContext: (): IdentityContext => identityStateRef(),
     getGlobalSessionContext,
+    // Reads through the CACHED context, not a fresh `buildCloudContext()`. Building directly meant
+    // this accessor could answer from post-write storage while every other reader in the same tick
+    // still saw the cached (pre-write) context — two callers disagreeing about one session. The cache
+    // is dropped on every session notify, so "cached" here only ever means "same as this tick's
+    // other readers".
     getCloudSessionSnapshot: (): CloudSessionSnapshot | null => {
-        const cloud = buildCloudContext();
+        const cloud = getGlobalSessionContext().cloud;
         if (!cloud.cloudId || !cloud.backend || !cloud.wss || !cloud.identityToken) {
             return null;
         }
@@ -212,9 +243,6 @@ export const sessionContextStore = {
     setIdentityState: (nextState: IdentityContext): void => {
         identityStateOrNull = nextState;
     },
-    updateIdentityState: (updater: (current: IdentityContext) => IdentityContext): void => {
-        identityStateOrNull = updater(identityStateRef());
-    },
 };
 
 export const getSessionAuthSnapshot = () => {
@@ -227,10 +255,6 @@ export const getSelectedCloudId = (): string => cloudStore.getSelectedCloudId() 
 
 export const getSelectedSiteId = (): string | null =>
     getSelectedCloudId() === 'default' ? relayStore.getSelectedSiteId() : cloudStore.getSelectedSiteId();
-
-export const setSelectedCloudId = (cloudId: string): void => {
-    cloudStore.saveSelectedCloudId(cloudId);
-};
 
 export const setSelectedSiteId = (siteId: string | null): void => {
     const selectedCloudId = getSelectedCloudId();
@@ -253,29 +277,15 @@ export const setSelectedSiteId = (siteId: string | null): void => {
 export const setSessionAuthenticated = (isAuthenticated: boolean): void => {
     const state = readSessionIdentityState();
     sessionContextStore.setIdentityState(buildIdentityContext({ ...state, isAuthenticated }));
-    notifySessionStateChanged();
+    sessionSignal.emit('identity');
 };
 
-// Field-level equality over the fields observers actually read. Token carriers (delegationToken/
-// cloudToken) are compared by reference: they are only ever REPLACED on save, never mutated, so `===`
-// can only report "unchanged" for a genuine no-op — it never masks a real change.
-const sameRelayContext = (a: RelayContext, b: RelayContext): boolean =>
-    a.backend === b.backend &&
-    a.wss === b.wss &&
-    a.identityToken === b.identityToken &&
-    a.siteId === b.siteId &&
-    a.isAuthenticated === b.isAuthenticated;
-
-const sameCloudContext = (a: CloudContext, b: CloudContext): boolean =>
-    a.cloudId === b.cloudId &&
-    a.siteId === b.siteId &&
-    a.backend === b.backend &&
-    a.wss === b.wss &&
-    a.identityToken === b.identityToken &&
-    a.isActive === b.isActive &&
-    a.delegationToken === b.delegationToken &&
-    a.cloudToken === b.cloudToken;
-
+// Field-level equality over the fields observers actually read.
+//
+// The relay and cloud comparators that used to sit here are gone with the gate that needed them:
+// when the notify was one payload-less broadcast, `rebuildSessionIdentity` had to prove that NOTHING
+// observable moved before staying quiet. Now the stores announce their own kinds, so the only thing
+// this file still gates is the derived identity (ADR-0076 결정 2).
 const sameIdentityContext = (a: IdentityContext, b: IdentityContext): boolean =>
     a.userId === b.userId &&
     a.delegatorId === b.delegatorId &&
@@ -288,28 +298,27 @@ const sameIdentityContext = (a: IdentityContext, b: IdentityContext): boolean =>
 // delegatorId, flags) refresh. Profile payloads are no longer stored, so there is nothing to set
 // beyond re-deriving from state.
 //
-// Gated notify: a token writeback frequently re-derives an IDENTICAL observable context — most
-// notably a background relay credential refresh while cloud is active (dual 5min refresh loops),
-// which changes neither uid nor any field observers read. Notifying then fans out a no-op re-render
-// to every useGlobalSession subscriber and rebuilds useRuntimeBinding. Skip the fan-out unless the
-// derived context actually changed. `before` is the cached (pre-writeback) context; the freshly
-// built relay/cloud reflect post-writeback core storage, so a genuine change is still detected.
+// Gated emit: a token writeback frequently re-derives an IDENTICAL identity — most notably a
+// background relay credential refresh while cloud is active (dual 5min refresh loops), which changes
+// neither uid nor any field observers read. Emitting then fans out a no-op re-render to every
+// `useGlobalSession` subscriber.
+//
+// The gate now compares IDENTITY ONLY. It used to also compare the relay and cloud contexts, and it
+// had to: the notify was a single payload-less broadcast, so this function was indistinguishable
+// from "some token moved" and had to check everything before staying quiet. With kinds
+// (ADR-0076 결정 2) the token moves announce themselves — every caller of this function has already
+// written through a store, which emitted `relay:token`/`cloud:token` on the way in. All that is left
+// for this function to announce is whether the DERIVED identity moved.
 export const rebuildSessionIdentity = (): void => {
     const before = getGlobalSessionContext();
     const nextIdentity = buildIdentityContext(readSessionIdentityState());
-    const relay = buildRelayContext();
-    const cloud = buildCloudContext();
 
-    if (
-        sameIdentityContext(before.identity, nextIdentity) &&
-        sameRelayContext(before.relay, relay) &&
-        sameCloudContext(before.cloud, cloud)
-    ) {
+    if (sameIdentityContext(before.identity, nextIdentity)) {
         return;
     }
 
     sessionContextStore.setIdentityState(nextIdentity);
-    notifySessionStateChanged();
+    sessionSignal.emit('identity');
 };
 
 // Tears down the relay session: drops the relay token (the auth anchor) so token-derived auth
@@ -317,11 +326,15 @@ export const rebuildSessionIdentity = (): void => {
 // Also clears the guest delegatorId — it's a relay-guest concept and must only be re-established by
 // the next guest login (relay logout is the sole reset boundary).
 export const clearRelaySession = (): void => {
-    relayStore.clearToken();
-    identityStore.setDelegatorId(null);
-    const state = readSessionIdentityState();
-    sessionContextStore.setIdentityState(buildIdentityContext({ ...state, isAuthenticated: false }));
-    notifySessionStateChanged();
+    // One observable change: the token drop, the delegator reset and the identity rebuild are one
+    // logical teardown. The inner writes emit `relay:token`/`identity` themselves.
+    sessionSignal.batch(() => {
+        relayStore.clearToken();
+        identityStore.setDelegatorId(null);
+        const state = readSessionIdentityState();
+        sessionContextStore.setIdentityState(buildIdentityContext({ ...state, isAuthenticated: false }));
+        sessionSignal.emit('identity');
+    });
 };
 
 export const setSessionIdentityState = (partial: Partial<SessionIdentityState>): void => {
@@ -333,11 +346,11 @@ export const setSessionIdentityState = (partial: Partial<SessionIdentityState>):
             error: partial.error !== undefined ? partial.error : state.error,
         })
     );
-    notifySessionStateChanged();
+    sessionSignal.emit('identity');
 };
 
 export const markSessionInitialized = (): void => {
     const state = readSessionIdentityState();
     sessionContextStore.setIdentityState(buildIdentityContext({ ...state, isInitialized: true }));
-    notifySessionStateChanged();
+    sessionSignal.emit('identity');
 };

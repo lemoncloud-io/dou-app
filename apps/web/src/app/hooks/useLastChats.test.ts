@@ -1,12 +1,16 @@
 import { act, renderHook } from '@testing-library/react';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import type { DomainChannel, DomainLastChat } from '@chatic/data';
 
 import { useLastChats } from './useLastChats';
 
 jest.mock('@chatic/app-runtime', () => ({
-    useRuntimeRepositories: jest.fn(),
+    runtime: {
+        data: {
+            useRuntimeRepositories: jest.fn(),
+        },
+    },
 }));
 
 const observeLastList = jest.fn();
@@ -28,7 +32,7 @@ beforeEach(() => {
         emitRows = rows => act(() => cb(rows));
         return () => undefined;
     });
-    (useRuntimeRepositories as jest.Mock).mockReturnValue({
+    (runtime.data.useRuntimeRepositories as jest.Mock).mockReturnValue({
         chat: { observeLastList, refreshList },
     });
 });

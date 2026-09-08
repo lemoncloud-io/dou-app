@@ -1,10 +1,8 @@
 import { useEffect, useMemo } from 'react';
 
-import { useKindVerified } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import type { DomainUser } from '@chatic/data';
 import type { LinkedAccountsView, UserProfile$, UserView } from '@lemoncloud/chatic-backend-api';
-import { useGlobalSession } from '@chatic/app-runtime';
-import { getRelaySessionUser, patchRelaySessionUser } from '@chatic/app-runtime';
 
 import { getRelayAccountGateway } from '../runtime/relayAccountGateway';
 
@@ -54,7 +52,7 @@ const accountFieldsOf = (view: UserView | undefined): Record<string, unknown> =>
  * apps/web/docs/feature/place/relay-default-place-scoping.md §6). The relay token has neither problem:
  * it is always present, always the relay account's, and it carries name/photo/email/link$.
  *
- * Reactivity comes from the session signal — `useGlobalSession` re-renders on every session change,
+ * Reactivity comes from the session signal — `runtime.session.useGlobalSession` re-renders on every session change,
  * and the store hands back a fresh context object each time, so the token is re-read on token
  * refresh and on our own writes alike. There is no cache to invalidate and no flash window: the
  * first render already has the token's values.
@@ -66,11 +64,11 @@ const accountFieldsOf = (view: UserView | undefined): Record<string, unknown> =>
  * what makes it visible: patching the token IS the update path.
  */
 export const useMyUser = (): MyUser | null => {
-    const isRelayVerified = useKindVerified('relay');
+    const isRelayVerified = runtime.connection.useKindVerified('relay');
     // Re-read per session signal. The session store drops its cached context on every notify and
     // rebuilds a new object, so this identity change is the refresh trigger.
-    const session = useGlobalSession();
-    const me = useMemo(() => (getRelaySessionUser() as MyUser | null) ?? null, [session]);
+    const session = runtime.session.useGlobalSession();
+    const me = useMemo(() => (runtime.session.getRelaySessionUser() as MyUser | null) ?? null, [session]);
 
     useEffect(() => {
         if (!isRelayVerified) return;
@@ -91,7 +89,7 @@ export const useMyUser = (): MyUser | null => {
                 // this hook is the ACCOUNT profile, and the relay site store has its own owner.
                 const view = (response?.$user ?? (response as unknown)) as UserView | undefined;
                 const patch = accountFieldsOf(view);
-                if (Object.keys(patch).length) patchRelaySessionUser(patch);
+                if (Object.keys(patch).length) runtime.session.patchRelaySessionUser(patch);
             } catch {
                 // Nothing to do and nothing to say: a missed refresh leaves the token value standing.
             }
@@ -134,9 +132,9 @@ export const useMyUser = (): MyUser | null => {
 export const useIsAccountGuest = (): boolean => {
     // Same refresh trigger as `useMyUser`: the store rebuilds its context object on every session
     // notify, so the token is re-read on a promotion, a refresh and our own writes alike.
-    const session = useGlobalSession();
+    const session = runtime.session.useGlobalSession();
     return useMemo(() => {
-        const account = getRelaySessionUser() as MyUser | null;
+        const account = runtime.session.getRelaySessionUser() as MyUser | null;
         return !account || account.userRole === 'guest';
     }, [session]);
 };

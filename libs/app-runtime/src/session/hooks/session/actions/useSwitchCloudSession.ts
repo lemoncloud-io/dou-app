@@ -3,19 +3,13 @@ import { useCallback } from 'react';
 
 import { perfNow, reportPerfMetric } from '@chatic/bridges';
 
-import { switchCloudSession } from '../../../auth/services';
-
-/**
- * Stable key for the cloud-switch mutation. Exported so a global observer (e.g. the
- * background sync runner) can detect an in-flight switch via `useIsMutating` — the
- * mutation's own `isPending` is per-hook-instance and not visible across components.
- */
-export const SWITCH_CLOUD_MUTATION_KEY = ['session', 'switch-cloud'] as const;
+import { cloudSession } from '../../../auth/cloudSession';
+import { SWITCH_CLOUD_MUTATION_KEY } from '../../mutationKeys';
 
 /**
  * Switches the active cloud session through session services.
  *
- * The `cloud-switch` budget is measured here rather than inside `switchCloudSession`
+ * The `cloud-switch` budget is measured here rather than inside `CloudSession.switchTo`
  * (ADR-0071). The service function has a second caller — cloud-refresh recovery re-exchanges a
  * token through it after re-minting the relay session — and that path is rare and slow, so
  * measuring the service would let recovery masquerade as a user-initiated switch and drag the
@@ -25,7 +19,7 @@ export const SWITCH_CLOUD_MUTATION_KEY = ['session', 'switch-cloud'] as const;
 export const useSwitchCloudSession = () => {
     const mutation = useMutation({
         mutationKey: SWITCH_CLOUD_MUTATION_KEY,
-        mutationFn: (cloudId: string) => switchCloudSession({ cloudId }),
+        mutationFn: (cloudId: string) => cloudSession.switchTo(cloudId),
     });
 
     // Keyed on the stable `mutateAsync` (react-query memoizes it) rather than the mutation object,

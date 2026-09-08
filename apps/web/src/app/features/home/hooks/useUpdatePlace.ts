@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 interface UpdatePlacePayload {
     /** Backend requires `@id` on place.update; for a place, id === sid. */
@@ -13,7 +13,7 @@ interface UpdatePlacePayload {
 }
 
 export const useUpdatePlace = () => {
-    const { place } = useRuntimeRepositories();
+    const { place } = runtime.data.useRuntimeRepositories();
     const [isPending, setIsPending] = useState(false);
 
     const updatePlace = async (payload: UpdatePlacePayload): Promise<void> => {

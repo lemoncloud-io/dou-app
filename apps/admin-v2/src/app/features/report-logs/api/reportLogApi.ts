@@ -14,7 +14,7 @@
  *   match) — GET /dou-v1/mocks/0/list, query: `type` (stereo filter), `from`/`to`
  *   (createdAt range, `YYYY-MM-DD`, KST day boundaries, `to` inclusive) + `PaginateParam`.
  */
-import { webTransport } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 /**
  * Minimal projection of `MockView` (chatic-backend-api) we actually consume.
@@ -150,7 +150,7 @@ export const fetchReportLogs = async ({
     level,
     runId,
 }: FetchReportLogsParams = {}): Promise<ReportLogListResponse> => {
-    const { data } = await webTransport
+    const { data } = await runtime.boot.webTransport
         .buildSignedRequest({
             method: 'GET',
             baseURL: `${DOU_BASE}/dou-${stage}/mocks/0/list`,

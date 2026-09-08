@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { RuntimeConnectionHost, useRuntimeBinding, useRuntimeSocketState } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import { BrowserRouter } from 'react-router-dom';
 import { Routes } from './routes';
 import { metricsCollector } from './metrics/MetricsCollector';
@@ -17,7 +17,7 @@ const queryClient = new QueryClient({
 // Always-on socket quality reporter — keeps connect/disconnect counts accurate
 // even while the monitoring overlay is closed.
 function MetricsSocketReporter() {
-    const socketState = useRuntimeSocketState();
+    const socketState = runtime.connection.useRuntimeSocketState();
     useEffect(() => {
         metricsCollector.reportSocketState(socketState.state);
     }, [socketState.state]);
@@ -25,15 +25,13 @@ function MetricsSocketReporter() {
 }
 
 function AppInner() {
-    const binding = useRuntimeBinding();
-
     return (
-        <RuntimeConnectionHost binding={binding}>
+        <runtime.connection.RuntimeConnectionHost>
             <MetricsSocketReporter />
             <BrowserRouter>
                 <Routes />
             </BrowserRouter>
-        </RuntimeConnectionHost>
+        </runtime.connection.RuntimeConnectionHost>
     );
 }
 

@@ -5,7 +5,7 @@ import { useLocation, useParams } from 'react-router-dom';
 
 import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
-import { useSessionIdentity } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 import { ChatRoomHeader, MessageInput } from '@chatic/web-ui-kit';
 
@@ -72,7 +72,7 @@ export const ThreadPage = () => {
     const listRef = useRef<HTMLDivElement>(null);
     const { headerRef, footerRef: composerRef, headerHeight, footerHeight: composerHeight } = useChromeInsets();
 
-    const { userId } = useSessionIdentity();
+    const { userId } = runtime.session.useSessionIdentity();
     const { channel } = useChannel(channelId || null);
     // One join subscription for the screen — my row and the active-member set are two readings of it
     // (see useChannelJoins). A thread and its room are two views of one channel, so they compose the

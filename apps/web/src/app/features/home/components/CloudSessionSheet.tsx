@@ -6,7 +6,7 @@ import { Inbox } from 'lucide-react';
 import { logger } from '@chatic/bridges';
 import { useInterval } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { useSessionSelection, useSwitchCloudSession } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import { useCloudSessionCatalog } from '../../../hooks/useCloudCatalog';
 
 import { BottomSheet, CollapsibleSection, Divider } from '@chatic/web-ui-kit';
@@ -76,9 +76,9 @@ export const CloudSessionSheet = ({
     // Locally cached names (written first by cloud.update/get) override the relay catalog name so a
     // just-edited subscription-cloud name shows immediately in the switcher.
     const cachedCloudNames = useCachedCloudNames();
-    const { switchCloud, isPending: isSwitching } = useSwitchCloudSession();
+    const { switchCloud, isPending: isSwitching } = runtime.session.useSwitchCloudSession();
     const { logoutCloudSession, isLoggingOutCloudSession } = useLogoutCloudSession();
-    const { selectedCloudId } = useSessionSelection();
+    const { selectedCloudId } = runtime.session.useSessionSelection();
     const requestEmailBind = useEmailBindRequest(s => s.requestEmailBind);
 
     // Active selection is derived from the session; relay mode reads as 'default'.

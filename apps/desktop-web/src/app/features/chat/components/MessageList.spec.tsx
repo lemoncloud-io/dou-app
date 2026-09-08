@@ -11,9 +11,17 @@ import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
 // module scope; neither is available outside the app shell. Nothing here asserts on
 // them — this file is about whether the list renders at all.
 vi.mock('@chatic/app-runtime', () => ({
-    useRuntimeRepositories: () => ({ chat: { updateChat: vi.fn(), deleteChat: vi.fn(), setReaction: vi.fn() } }),
-    getActiveServerContext: () => ({ siteId: 'S1' }),
-    useGlobalSession: () => ({ activeServer: { siteId: 'S1' } }),
+    runtime: {
+        data: {
+            useRuntimeRepositories: () => ({
+                chat: { updateChat: vi.fn(), deleteChat: vi.fn(), setReaction: vi.fn() },
+            }),
+        },
+        session: {
+            getActiveServerContext: () => ({ siteId: 'S1' }),
+            useGlobalSession: () => ({ activeServer: { siteId: 'S1' } }),
+        },
+    },
 }));
 
 // Initialises i18next as a side effect, so `t` resolves to real copy instead of

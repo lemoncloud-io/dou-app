@@ -6,7 +6,7 @@ import { useQueryClient } from '@tanstack/react-query';
 
 import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
-import { cloudsKeys, useSessionSelection } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import type { DomainCloud } from '@chatic/data';
@@ -34,7 +34,7 @@ export const CloudManagePage = () => {
     const clouds = data?.list ?? [];
     const deleteCloud = useDeleteCloud();
     const { logoutCloudSession } = useLogoutCloudSession();
-    const { selectedCloudId } = useSessionSelection();
+    const { selectedCloudId } = runtime.session.useSessionSelection();
     // Raises the request the private router's `EmailBindRequestHost` answers — one dialog instance,
     // shared with the cloud switcher and 구독 관리. This screen owns no verification flow of its own.
     const requestEmailBind = useEmailBindRequest(s => s.requestEmailBind);
@@ -49,7 +49,7 @@ export const CloudManagePage = () => {
         setConfirmCloud(null);
         try {
             await deleteCloud.mutateAsync({ id: confirmCloud.id, cascade: true });
-            queryClient.setQueryData(cloudsKeys.list({ limit: -1 }), (old: any) => ({
+            queryClient.setQueryData(runtime.data.cloudsKeys.list({ limit: -1 }), (old: any) => ({
                 ...old,
                 list: old?.list?.filter((c: any) => c.id !== confirmCloud.id) ?? [],
                 meta: { ...old?.meta, total: (old?.meta?.total ?? 1) - 1 },

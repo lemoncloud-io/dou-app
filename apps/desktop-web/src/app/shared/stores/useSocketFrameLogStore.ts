@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-import { getSocketManager } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 const CAP = 200;
 
@@ -43,7 +43,7 @@ let started = false;
  * that was already filling before it was opened, which is the point of it.
  *
  * Deliberately a function rather than work done at import time. This module sits in
- * the shared stores barrel, so an import-time `getSocketManager()` made every module
+ * the shared stores barrel, so an import-time `runtime.connection.getSocketManager()` made every module
  * that touched any store — including tests for unrelated hooks — need a live socket
  * runtime to exist.
  *
@@ -61,11 +61,11 @@ let started = false;
 export const startSocketFrameLog = (): void => {
     if (started) return;
     started = true;
-    getSocketManager().subscribeClient(client => {
+    runtime.connection.getSocketManager().subscribeClient(client => {
         unbindFrame?.();
         unbindFrame = undefined;
         if (!client) return;
-        unbindFrame = getSocketManager().onMessage(({ message }) => {
+        unbindFrame = runtime.connection.getSocketManager().onMessage(({ message }) => {
             if (useSocketFrameLogStore.getState().paused) return;
             const m = message as { type?: string; data?: { chatNo?: number; chat_no?: number } | null };
             const type = m?.type ?? '?';

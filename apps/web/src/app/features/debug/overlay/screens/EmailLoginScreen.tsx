@@ -2,7 +2,7 @@ import { ChevronRight, Eye, EyeOff } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { useLogin } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { Input } from '@chatic/ui-kit/components/ui/input';
@@ -11,7 +11,7 @@ import { ROUTES } from '../../../../routes/paths';
 export const EmailLoginScreen = () => {
     const { t } = useTranslation();
     const { toast } = useToast();
-    const { mutateAsync: login, isPending } = useLogin();
+    const { mutateAsync: login, isPending } = runtime.session.useLogin();
 
     const [uid, setUid] = useState('');
     const [pwd, setPwd] = useState('');

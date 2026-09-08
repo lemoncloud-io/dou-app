@@ -1,7 +1,7 @@
 import { render, renderHook, screen } from '@testing-library/react';
 import { toast } from 'sonner';
 
-import { useSessionIdentity } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { useOnReceiveNotification, usePushNavigate } from '../bridge';
 import { useInAppPushMessage } from './useInAppPushMessage';
@@ -10,7 +10,11 @@ jest.mock('sonner', () => ({ toast: { custom: jest.fn(), dismiss: jest.fn() } })
 // The banner card translates its "now" label; echo keys so assertions target the key.
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
 jest.mock('@chatic/app-runtime', () => ({
-    useSessionIdentity: jest.fn(),
+    runtime: {
+        session: {
+            useSessionIdentity: jest.fn(),
+        },
+    },
 }));
 jest.mock('../bridge', () => ({
     useOnReceiveNotification: jest.fn(),
@@ -43,7 +47,7 @@ beforeEach(() => {
     jest.clearAllMocks();
     setCurrentPath('/');
     (usePushNavigate as jest.Mock).mockReturnValue(navigateToPush);
-    (useSessionIdentity as jest.Mock).mockReturnValue({ userId: 'me' });
+    (runtime.session.useSessionIdentity as jest.Mock).mockReturnValue({ userId: 'me' });
     (useOnReceiveNotification as jest.Mock).mockImplementation((handler: typeof captured) => {
         captured = handler;
     });
@@ -116,7 +120,7 @@ describe('useInAppPushMessage', () => {
     });
 
     it('payload의 ownerId가 숫자로 와도 내 메시지로 본다', () => {
-        (useSessionIdentity as jest.Mock).mockReturnValue({ userId: '1001' });
+        (runtime.session.useSessionIdentity as jest.Mock).mockReturnValue({ userId: '1001' });
 
         invoke({ title: 'T', body: 'B', data: { payload: JSON.stringify({ channelId: 'abc', ownerId: 1001 }) } });
 

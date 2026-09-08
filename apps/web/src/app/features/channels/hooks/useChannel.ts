@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { useChannelSync, useRuntimeRepositories } from '@chatic/app-runtime';
-import { useSessionIdentity } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import type { DomainChannel } from '@chatic/data';
 
 import type { ClientChannelView } from '../types';
@@ -25,20 +24,20 @@ const toClientChannel = (channel: DomainChannel, myUid: string): ClientChannelVi
  *
  * `observeItem` answers the FIRST time from the cache alone, so a channel the device has never seen —
  * a push into a new room, or the first visit after a cloud switch — answers `null` immediately while
- * `useChannelSync` is still fetching it. Matches the socket-wait bound used elsewhere (see
+ * `runtime.sync.useChannelSync` is still fetching it. Matches the socket-wait bound used elsewhere (see
  * `usePushNavigate`, `applySessionToken`).
  */
 const CHANNEL_RESOLVE_TIMEOUT_MS = 10_000;
 
 /**
  * Observe a single channel's metadata. Registers channel sync so the engine
- * keeps it fresh (mirrors testbed's `useChannelSync` + `observeItem`), then maps
+ * keeps it fresh (mirrors testbed's `runtime.sync.useChannelSync` + `observeItem`), then maps
  * the domain model into the room/settings view-model.
  *
  * **A missing row is not the same as a resolved absence.** `observeItem` notifies straight away with
  * whatever the local cache holds, and `cacheRead` returns `null` on a miss — so treating that first
  * `null` as an answer told callers "this channel does not exist" while the fetch was still in flight.
- * `ChannelRoomPage` acted on it by redirecting home, which unmounted `useChannelSync` and cancelled
+ * `ChannelRoomPage` acted on it by redirecting home, which unmounted `runtime.sync.useChannelSync` and cancelled
  * the very fetch that would have cached the row: the room then bounced forever, and a push into it
  * could never be opened. So a `null` before any row has arrived keeps `isLoading` true, and only a
  * bounded wait turns it into `isError`.
@@ -53,8 +52,8 @@ const CHANNEL_RESOLVE_TIMEOUT_MS = 10_000;
  * initial `null` is still "fetch in flight", not a removal bounce. Ignored unless its id matches.
  */
 export const useChannel = (channelId: string | null, options?: { seed?: DomainChannel | null }) => {
-    const { channel: channelRepository } = useRuntimeRepositories();
-    const { userId } = useSessionIdentity();
+    const { channel: channelRepository } = runtime.data.useRuntimeRepositories();
+    const { userId } = runtime.session.useSessionIdentity();
     const myUid = userId ?? '';
 
     const seed = options?.seed && channelId && options.seed.id === channelId ? options.seed : null;
@@ -69,7 +68,7 @@ export const useChannel = (channelId: string | null, options?: { seed?: DomainCh
     hasSeedRef.current = !!seed;
 
     // Keep the channel row synced for as long as the hook is mounted.
-    useChannelSync(channelId ?? undefined);
+    runtime.sync.useChannelSync(channelId ?? undefined);
 
     useEffect(() => {
         hasResolvedRef.current = false;

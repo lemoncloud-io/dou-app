@@ -1,11 +1,11 @@
-import type { DomainSite } from '@chatic/data';
+import type { DomainPlace } from '@chatic/data';
 
-import { useSessionSelection } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { usePlaces } from './usePlaces';
 
 interface CurrentPlace {
-    place: DomainSite | undefined;
+    place: DomainPlace | undefined;
     /** Display name of the active place, or '' when none is resolvable (default cloud). */
     placeName: string;
     placeId: string | null;
@@ -20,7 +20,7 @@ interface CurrentPlace {
 export const useCurrentPlace = (): CurrentPlace => {
     const { places } = usePlaces();
     // The active place IS the session's selected site (null in the Default Cloud → no place).
-    const { selectedSiteId } = useSessionSelection();
+    const { selectedSiteId } = runtime.session.useSessionSelection();
     const place = places.find(p => p.id === selectedSiteId);
     const placeName = place?.name?.trim() || place?.id || '';
     return { place, placeName, placeId: selectedSiteId };

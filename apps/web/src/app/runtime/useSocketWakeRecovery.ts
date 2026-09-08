@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 
-import { recoverUnverifiedSockets } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { useAppForeground } from '../bridge';
 
@@ -26,6 +26,6 @@ export const useSocketWakeRecovery = (): void => {
         const now = Date.now();
         if (now - lastKickRef.current < KICK_THROTTLE_MS) return;
         lastKickRef.current = now;
-        void recoverUnverifiedSockets();
+        void runtime.connection.recoverUnverifiedSockets();
     });
 };

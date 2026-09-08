@@ -3,11 +3,11 @@ import { useEffect, useRef } from 'react';
 import { getSocketManager } from '../socket/runtime';
 import { reauthenticateActiveSocket } from '../socket';
 import type { SocketKind, SocketSessionDelegate } from '../socket';
-import type { RuntimeBinding, RuntimeSocketSlot } from '../runtime';
-import { socketRebootKey } from './socketRebootKey';
+import type { RuntimeSocketSlots, RuntimeSocketSlot } from './types';
+import { socketRebootKey } from './utils/socketRebootKey';
 
 export interface SocketReauthBinderProps {
-    binding: RuntimeBinding;
+    slots: RuntimeSocketSlots;
     delegate: SocketSessionDelegate;
 }
 
@@ -22,7 +22,7 @@ export interface SocketReauthBinderProps {
  * a wss host (confirmed 2026-09-02). A URL change moves the reboot key, so SocketBinder tears the
  * slot down and `bootstrapSocketConnection` registers the new identity from scratch — there is no
  * surviving connection to re-authenticate. The cloud entry that used to sit in this list was
- * therefore inert: the binding deliberately carries no `identityToken` on the cloud slot (a535055a),
+ * therefore inert: the cloud slot deliberately carries no `identityToken` (a535055a),
  * so the token comparison below could never move for it.
  *
  * If that invariant ever breaks, the failure is silent here (a live cloud socket keeping the OLD
@@ -56,14 +56,14 @@ const emptySnapshot = (): SlotSnapshot => ({ reboot: '', token: '' });
  * writeback also changes the token but must NOT trigger re-auth) live in reauthenticateActiveSocket,
  * which no-ops when the token already matches the SDK's.
  */
-export const SocketReauthBinder = ({ binding, delegate }: SocketReauthBinderProps) => {
+export const SocketReauthBinder = ({ slots: allSlots, delegate }: SocketReauthBinderProps) => {
     const socketManager = getSocketManager();
     const prevRef = useRef<Partial<Record<SocketKind, SlotSnapshot>>>({ relay: emptySnapshot() });
     const hasMountedRef = useRef(false);
 
     useEffect(() => {
         const slots: Partial<Record<SocketKind, RuntimeSocketSlot | undefined>> = {
-            relay: binding.socket.relay,
+            relay: allSlots.relay,
         };
 
         const snapshotOf = (kind: SocketKind): SlotSnapshot => ({
@@ -102,9 +102,9 @@ export const SocketReauthBinder = ({ binding, delegate }: SocketReauthBinderProp
                 cid: slot?.config.cid ?? null,
             });
         }
-        // Deps are binding.socket (the slot configs + tokens actually read) plus the stable manager
-        // and delegate; the per-slot refs above absorb re-runs that are not a real identity change.
-    }, [binding.socket, socketManager, delegate]);
+        // Deps are the slots (the configs + tokens actually read) plus the stable manager and
+        // delegate; the per-slot refs above absorb re-runs that are not a real identity change.
+    }, [allSlots, socketManager, delegate]);
 
     return null;
 };

@@ -1,15 +1,8 @@
 import { cloudStore } from './stores';
 import { getActiveSessionUser, getRelaySessionUser, patchRelaySessionUser } from './contextStore';
-import type {
-    ActiveServerContext,
-    CloudContext,
-    CloudSessionSnapshot,
-    GlobalSessionContext,
-    IdentityContext,
-} from './types';
+import type { ActiveServerContext, CloudSessionSnapshot, GlobalSessionContext, IdentityContext } from './types';
 import { sessionContextStore } from './contextStore';
-
-export const getCloudSessionContext = (): CloudContext => sessionContextStore.getCloudContext();
+import type { SocketSlotContext } from './contextStore';
 
 export const getIdentityContext = (): IdentityContext => sessionContextStore.getIdentityContext();
 
@@ -19,6 +12,12 @@ export const getActiveServerContext = (): ActiveServerContext =>
     sessionContextStore.getGlobalSessionContext().activeServer;
 
 export const getGlobalSessionContext = (): GlobalSessionContext => sessionContextStore.getGlobalSessionContext();
+
+/**
+ * The narrowed snapshot for socket-slot derivation — see `SocketSlotContext` in `contextStore.ts`
+ * for why it is narrow (ADR-0076 E5).
+ */
+export const getSocketSlotContext = (): SocketSlotContext => sessionContextStore.getSocketSlotContext();
 
 // The active session token's user fields — the synchronous seed for useProfileFacts.
 export { getActiveSessionUser };
@@ -30,8 +29,8 @@ export { getRelaySessionUser, patchRelaySessionUser };
 
 /**
  * The COMMITTED cloud id — the cloud whose tokens are actually in the store, as opposed to
- * `getCloudSessionContext().cloudId`, which is the SELECTED id and flips optimistically at the start
- * of a switch (ADR-0070 결정 7의 세 뷰 중 `committed`).
+ * `getGlobalSessionContext().cloud.cloudId`, which is the SELECTED id and flips optimistically at the
+ * start of a switch (ADR-0070 결정 7의 세 뷰 중 `committed`).
  *
  * Read off the delegation token rather than recorded separately: `switchCloudSession` writes the
  * delegation token only when the exchange SUCCEEDS, and leaves it untouched on failure/rollback, so

@@ -3,7 +3,7 @@ import { useCallback } from 'react';
 import type { ChatSendInput } from '@lemoncloud/chatic-sockets-api';
 
 import type { DomainChat } from '@chatic/data';
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { getChatOutbox, toSendPayload } from './useChatOutbox';
 
@@ -14,7 +14,7 @@ import { getChatOutbox, toSendPayload } from './useChatOutbox';
  * message; per-message state lives on the rows themselves (isPending/isFailed).
  */
 export const useChatMutations = () => {
-    const { chat: chatRepository } = useRuntimeRepositories();
+    const { chat: chatRepository } = runtime.data.useRuntimeRepositories();
 
     const sendMessage = useCallback(
         (payload: ChatSendInput): Promise<DomainChat> => {

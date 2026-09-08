@@ -1,17 +1,22 @@
 import { renderHook } from '@testing-library/react';
 import { useNavigate } from 'react-router-dom';
 
-import { getSocketManager, useSiteSwitch } from '@chatic/app-runtime';
-import { useSessionSelection, useSwitchCloudSession } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { useSearchNavigate } from './useSearchNavigate';
 
 jest.mock('@chatic/app-runtime', () => ({
-    getSocketManager: jest.fn(),
-    useSiteSwitch: jest.fn(),
-    useSessionSelection: jest.fn(),
-    useSwitchCloudSession: jest.fn(),
+    runtime: {
+        connection: {
+            getSocketManager: jest.fn(),
+        },
+        session: {
+            useSiteSwitch: jest.fn(),
+            useSessionSelection: jest.fn(),
+            useSwitchCloudSession: jest.fn(),
+        },
+    },
 }));
 
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: jest.fn() }));
@@ -25,18 +30,18 @@ const toast = jest.fn();
 const waitUntilVerified = jest.fn();
 
 const setSelection = (selectedCloudId: string | null, selectedSiteId: string | null = null) =>
-    (useSessionSelection as jest.Mock).mockReturnValue({ selectedCloudId, selectedSiteId });
+    (runtime.session.useSessionSelection as jest.Mock).mockReturnValue({ selectedCloudId, selectedSiteId });
 
 beforeEach(() => {
     jest.clearAllMocks();
     (useNavigate as jest.Mock).mockReturnValue(navigate);
     switchCloud.mockResolvedValue(undefined);
     switchSite.mockResolvedValue(undefined);
-    (useSwitchCloudSession as jest.Mock).mockReturnValue({ switchCloud });
-    (useSiteSwitch as jest.Mock).mockReturnValue({ switchSite });
+    (runtime.session.useSwitchCloudSession as jest.Mock).mockReturnValue({ switchCloud });
+    (runtime.session.useSiteSwitch as jest.Mock).mockReturnValue({ switchSite });
     (useToast as jest.Mock).mockReturnValue({ toast });
     waitUntilVerified.mockResolvedValue(true);
-    (getSocketManager as jest.Mock).mockReturnValue({ waitUntilVerified });
+    (runtime.connection.getSocketManager as jest.Mock).mockReturnValue({ waitUntilVerified });
     setSelection('default');
 });
 

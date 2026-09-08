@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { useCloudSessionCatalog } from './useCloudCatalog';
 import { useJoinedCloudsStore } from '../stores';
@@ -14,7 +14,7 @@ import { useJoinedCloudsStore } from '../stores';
  */
 export const useRemoveCloud = () => {
     const removeJoinedCloud = useJoinedCloudsStore(s => s.removeJoinedCloud);
-    const { cloud: cloudRepository } = useRuntimeRepositories();
+    const { cloud: cloudRepository } = runtime.data.useRuntimeRepositories();
     const { refetchClouds } = useCloudSessionCatalog();
     const [isDeleting, setIsDeleting] = useState(false);
 

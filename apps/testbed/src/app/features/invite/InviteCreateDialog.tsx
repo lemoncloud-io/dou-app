@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { useGlobalSession } from '@chatic/app-runtime';
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import type { DataRepositoriesV2 } from '@chatic/data';
 import { encodeInvite, parseInviteLocation } from './inviteCode';
 
@@ -17,8 +16,8 @@ const inputClass =
  * and shows a copyable bundle code (targets + endpoints) for the accepter to paste at /invite.
  */
 export const InviteCreateDialog = ({ channelId, onClose }: Props) => {
-    const repos = useRuntimeRepositories() as unknown as DataRepositoriesV2;
-    const { activeServer, cloud } = useGlobalSession();
+    const repos = runtime.data.useRuntimeRepositories() as unknown as DataRepositoriesV2;
+    const { activeServer, cloud } = runtime.session.useGlobalSession();
 
     const [name, setName] = useState('');
     const [phone, setPhone] = useState('');

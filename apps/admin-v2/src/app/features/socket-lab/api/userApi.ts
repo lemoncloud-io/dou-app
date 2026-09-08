@@ -2,7 +2,7 @@
  * `api/userApi.ts`
  * - 관측 유저 목록(실데이터).
  */
-import { webTransport } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import type { ObservedDevice, ObservedUser, Presence, UserSearchType } from '../mock/observed-users';
 
@@ -86,7 +86,7 @@ export const fetchObservedUsers = async ({
 }: FetchObservedUsersParams = {}): Promise<UserSearchPage> => {
     const q = query.trim();
     const search = q ? (type === 'name' ? { keyword: q } : { id: q }) : {};
-    const { data } = await webTransport
+    const { data } = await runtime.boot.webTransport
         .buildSignedRequest({
             method: 'GET',
             baseURL: `${getUsersBase(stage)}/users/0/list`,
@@ -113,7 +113,7 @@ export const updateUserDevices = async (
     deviceIds: string[],
     stage: UsersStage = 'd1'
 ): Promise<void> => {
-    await webTransport
+    await runtime.boot.webTransport
         .buildSignedRequest({
             method: 'PUT',
             baseURL: `${getUsersBase(stage)}/users/CN${userId}/admin`,
@@ -123,7 +123,7 @@ export const updateUserDevices = async (
 };
 
 export const fetchUserPresence = async (userId: string, stage: UsersStage = 'd1'): Promise<UserPresence> => {
-    const { data } = await webTransport
+    const { data } = await runtime.boot.webTransport
         .buildSignedRequest({
             method: 'GET',
             baseURL: `${getUsersBase(stage)}/users/${userId}/presence`,

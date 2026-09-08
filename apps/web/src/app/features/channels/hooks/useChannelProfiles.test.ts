@@ -1,14 +1,22 @@
 import { renderHook, waitFor } from '@testing-library/react';
 
-import { getSyncManager, useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import type { DomainProfile } from '@chatic/data';
 
 import { useChannelProfiles } from './useChannelProfiles';
 
 jest.mock('@chatic/app-runtime', () => ({
-    useRuntimeRepositories: jest.fn(),
-    useRuntimeSocketState: jest.fn(),
-    getSyncManager: jest.fn(),
+    runtime: {
+        data: {
+            useRuntimeRepositories: jest.fn(),
+        },
+        connection: {
+            useRuntimeSocketState: jest.fn(),
+        },
+        sync: {
+            getSyncManager: jest.fn(),
+        },
+    },
 }));
 
 const observeList = jest.fn();
@@ -33,9 +41,11 @@ beforeEach(() => {
     seedObserve([]);
     cacheReadList.mockResolvedValue({ list: [] });
     refreshItem.mockResolvedValue(null);
-    (useRuntimeRepositories as jest.Mock).mockReturnValue({ profile: { observeList, cacheReadList, refreshItem } });
-    (useRuntimeSocketState as jest.Mock).mockReturnValue({ isVerified: true });
-    (getSyncManager as jest.Mock).mockReturnValue({ registerProfile });
+    (runtime.data.useRuntimeRepositories as jest.Mock).mockReturnValue({
+        profile: { observeList, cacheReadList, refreshItem },
+    });
+    (runtime.connection.useRuntimeSocketState as jest.Mock).mockReturnValue({ isVerified: true });
+    (runtime.sync.getSyncManager as jest.Mock).mockReturnValue({ registerProfile });
 });
 
 describe('useChannelProfiles — 사이트 프로필 구독/동기화', () => {
@@ -86,7 +96,7 @@ describe('useChannelProfiles — 사이트 프로필 구독/동기화', () => {
     });
 
     it('isVerified가 false면 등록하지 않는다', () => {
-        (useRuntimeSocketState as jest.Mock).mockReturnValue({ isVerified: false });
+        (runtime.connection.useRuntimeSocketState as jest.Mock).mockReturnValue({ isVerified: false });
 
         renderHook(() => useChannelProfiles('s1', ['u1']));
 

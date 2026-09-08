@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import { useCloudSessionCatalog } from '../../../hooks/useCloudCatalog';
 
 import { useInvitedClouds } from '../../../hooks/useInvitedClouds';
@@ -18,7 +18,7 @@ import { useInvitedClouds } from '../../../hooks/useInvitedClouds';
  * does not depend on a specific login/upgrade trigger.
  */
 export const useReconcileInvitedClouds = (): void => {
-    const { cloud } = useRuntimeRepositories();
+    const { cloud } = runtime.data.useRuntimeRepositories();
     const { clouds: ownedClouds } = useCloudSessionCatalog();
     const { invitedClouds } = useInvitedClouds();
 

@@ -2,9 +2,8 @@ import { useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
-import { getSocketManager, useSiteSwitch } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import { logger } from '@chatic/bridges';
-import { useSessionSelection, useSwitchCloudSession } from '@chatic/app-runtime';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 /** Upper bound for awaiting the socket handshake before a search-driven cloud switch. */
@@ -32,9 +31,9 @@ const HANDSHAKE_WAIT_TIMEOUT_MS = 10_000;
  */
 export const useSearchNavigate = () => {
     const navigate = useNavigate();
-    const { selectedCloudId, selectedSiteId } = useSessionSelection();
-    const { switchCloud } = useSwitchCloudSession();
-    const { switchSite } = useSiteSwitch();
+    const { selectedCloudId, selectedSiteId } = runtime.session.useSessionSelection();
+    const { switchCloud } = runtime.session.useSwitchCloudSession();
+    const { switchSite } = runtime.session.useSiteSwitch();
     const { toast } = useToast();
     const { t } = useTranslation();
     const inFlightRef = useRef(false);
@@ -51,7 +50,9 @@ export const useSearchNavigate = () => {
             const needsSiteSwitch = !!sid && (needsCloudSwitch || sid !== selectedSiteId);
 
             const awaitVerified = async () => {
-                const verified = await getSocketManager().waitUntilVerified(HANDSHAKE_WAIT_TIMEOUT_MS);
+                const verified = await runtime.connection
+                    .getSocketManager()
+                    .waitUntilVerified(HANDSHAKE_WAIT_TIMEOUT_MS);
                 if (!verified) {
                     logger.warn('SEARCH', 'socket handshake not verified before search navigation', {
                         cid,

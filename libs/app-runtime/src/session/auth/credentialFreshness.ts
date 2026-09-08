@@ -1,3 +1,4 @@
+import { msUntilExpiration } from '../store/expiry';
 import { cloudStore, relayStore } from '../store/stores';
 
 /**
@@ -48,7 +49,7 @@ class CredentialFreshness implements ICredentialFreshness {
             owner === 'cloud'
                 ? cloudStore.getCredential()?.Expiration
                 : relayStore.getRelayToken()?.Token?.credential?.Expiration;
-        return CredentialFreshness.remainingFrom(expiration, now);
+        return msUntilExpiration(expiration, now);
     }
 
     /**
@@ -59,12 +60,6 @@ class CredentialFreshness implements ICredentialFreshness {
     isStale(owner: CredentialOwner, now: number = Date.now()): boolean {
         const remaining = this.timeToExpiry(owner, now);
         return remaining != null && remaining <= 0;
-    }
-
-    private static remainingFrom(expiration: unknown, now: number): number | null {
-        if (!expiration) return null;
-        const expiresAt = new Date(expiration as string).getTime();
-        return Number.isFinite(expiresAt) ? expiresAt - now : null;
     }
 }
 

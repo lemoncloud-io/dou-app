@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
-import { useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
-import { useSessionSelection } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import type { DataRepositoriesV2, DomainChannel } from '@chatic/data';
 
 /**
@@ -18,9 +17,9 @@ import type { DataRepositoriesV2, DomainChannel } from '@chatic/data';
  * on the post-switch socket re-auth.
  */
 export const useActiveCloudChannels = (): DomainChannel[] => {
-    const repos = useRuntimeRepositories() as unknown as DataRepositoriesV2;
-    const { selectedCloudId, selectedSiteId } = useSessionSelection();
-    const { isVerified } = useRuntimeSocketState();
+    const repos = runtime.data.useRuntimeRepositories() as unknown as DataRepositoriesV2;
+    const { selectedCloudId, selectedSiteId } = runtime.session.useSessionSelection();
+    const { isVerified } = runtime.connection.useRuntimeSocketState();
 
     const [channels, setChannels] = useState<DomainChannel[]>([]);
 

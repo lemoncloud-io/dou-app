@@ -10,7 +10,7 @@ import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@chatic/ui-kit/components/ui/popover';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@chatic/ui-kit/components/ui/tooltip';
 
-import { getActiveServerContext } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { ConfirmDialog } from '../../channels';
 import {
@@ -38,7 +38,7 @@ import { RichText } from './RichText';
 // inside the save onClick, so a per-row session subscription would re-render every row on
 // unrelated session changes for nothing.
 const currentPlaceId = (): string | undefined => {
-    const server = getActiveServerContext();
+    const server = runtime.session.getActiveServerContext();
     return server.kind === 'cloud' ? (server.siteId ?? undefined) : 'default';
 };
 

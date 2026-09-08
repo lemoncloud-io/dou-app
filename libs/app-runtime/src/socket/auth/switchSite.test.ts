@@ -1,12 +1,15 @@
 import { configurePerfMetrics, resetPerfMetrics } from '@chatic/bridges';
 import { switchSite } from './switchSite';
-import { applySelectedSite, getGlobalSessionContext, getSelectedSiteId } from '../../session';
+import { cloudSession } from '../../session/auth/cloudSession';
+import { getGlobalSessionContext, getSelectedSiteId } from '../../session/store';
 import { getSocketManager } from '../runtime';
 
 import type { Logger } from '@chatic/bridges';
 
-jest.mock('../../session', () => ({
-    applySelectedSite: jest.fn(),
+// Mocked at the CONCRETE modules, not the session barrel: these three are runtime-internal and off
+// that barrel now (ADR-0076 결정 6).
+jest.mock('../../session/auth/cloudSession', () => ({ cloudSession: { applySelectedSite: jest.fn() } }));
+jest.mock('../../session/store', () => ({
     getGlobalSessionContext: jest.fn(),
     getSelectedSiteId: jest.fn(),
 }));
@@ -15,7 +18,7 @@ jest.mock('../runtime', () => ({
     getSocketManager: jest.fn(),
 }));
 
-const mockedApply = applySelectedSite as jest.MockedFunction<typeof applySelectedSite>;
+const mockedApply = cloudSession.applySelectedSite as jest.Mock;
 const mockedGetSelected = getSelectedSiteId as jest.MockedFunction<typeof getSelectedSiteId>;
 const mockedGetSession = getGlobalSessionContext as jest.MockedFunction<typeof getGlobalSessionContext>;
 const mockedGetManager = getSocketManager as jest.MockedFunction<typeof getSocketManager>;

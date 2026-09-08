@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
-import { useInviteInfo } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import { AlertDialog } from '@chatic/web-ui-kit';
 
 import { InviteAcceptScreen } from './InviteAcceptScreen';
@@ -50,7 +50,7 @@ export const CloudInviteAccept = ({ params }: CloudInviteAcceptProps): JSX.Eleme
     // Invite metadata (inviter / place / expiry) to populate the screen. Widened to `InviteInfo`, which
     // declares the fields the backend denormalizes into the response but the published `MyInviteView`
     // does not yet carry — all optional, so this is the same widening `useInviteAccept` already takes.
-    const { data } = useInviteInfo(params.code, params.backend);
+    const { data } = runtime.session.useInviteInfo(params.code, params.backend);
     const info: InviteInfo | undefined = data;
     const { accept, isAccepting, missingDelegator, errorKey } = useInviteAccept({ params, info });
     const countdown = useInviteCountdown(info?.expiredAt);

@@ -12,15 +12,21 @@ let joinedClouds: Record<string, { id: string; name?: string }> = {};
 let activeCloudId = '';
 
 vi.mock('@chatic/app-runtime', () => ({
-    useRuntimeRepositories: () => ({
-        cloud: {
-            observeList: (callback: (result: { list: unknown[] } | null) => void) => {
-                callback({ list: cachedClouds });
-                return () => undefined;
-            },
+    runtime: {
+        data: {
+            useRuntimeRepositories: () => ({
+                cloud: {
+                    observeList: (callback: (result: { list: unknown[] } | null) => void) => {
+                        callback({ list: cachedClouds });
+                        return () => undefined;
+                    },
+                },
+            }),
         },
-    }),
-    useGlobalSession: () => ({ cloud: { cloudId: activeCloudId } }),
+        session: {
+            useGlobalSession: () => ({ cloud: { cloudId: activeCloudId } }),
+        },
+    },
 }));
 
 // The catalog hook lives in this folder, not in the runtime: ADR-0070 moved it

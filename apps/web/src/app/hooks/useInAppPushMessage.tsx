@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { matchPath } from 'react-router-dom';
 import { toast } from 'sonner';
 
-import { useSessionIdentity } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import type { AppMessageData } from '@chatic/app-messages';
 
 import { useOnReceiveNotification, usePushNavigate } from '../bridge';
@@ -45,7 +45,7 @@ const headline = (channelName: string | undefined, title: string | undefined): s
  */
 export const useInAppPushMessage = (): void => {
     const navigateToPush = usePushNavigate();
-    const { userId } = useSessionIdentity();
+    const { userId } = runtime.session.useSessionIdentity();
 
     const handleReceiveNotification = useCallback(
         (message: AppMessageData<'OnReceiveNotification'>) => {

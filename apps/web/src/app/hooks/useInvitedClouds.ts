@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import { useCloudSessionCatalog } from './useCloudCatalog';
 import type { DomainCloud } from '@chatic/data';
 
@@ -23,7 +23,7 @@ export interface InvitedCloudsResult {
  * are never shown twice.
  */
 export const useInvitedClouds = (): InvitedCloudsResult => {
-    const { cloud } = useRuntimeRepositories();
+    const { cloud } = runtime.data.useRuntimeRepositories();
     const { clouds: ownedClouds } = useCloudSessionCatalog();
     const [cachedInvited, setCachedInvited] = useState<DomainCloud[]>([]);
 

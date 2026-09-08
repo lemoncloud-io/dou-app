@@ -14,11 +14,19 @@ let selectedCloudId: string | null = '1000001';
 let ownedClouds: Array<{ id: string }> = [];
 
 vi.mock('@chatic/app-runtime', () => ({
-    recoverInvitedCloudIfMissing: (...args: unknown[]) => recoverInvitedCloudIfMissing(...(args as [])),
-    syncInvitedCloudName: (...args: unknown[]) => syncInvitedCloudName(...(args as [])),
-    useRuntimeRepositories: () => ({ cloud: cloudRepository }),
-    useRuntimeSocketState: () => ({ isVerified }),
-    useSessionSelection: () => ({ selectedCloudId }),
+    runtime: {
+        data: {
+            recoverInvitedCloudIfMissing: (...args: unknown[]) => recoverInvitedCloudIfMissing(...(args as [])),
+            syncInvitedCloudName: (...args: unknown[]) => syncInvitedCloudName(...(args as [])),
+            useRuntimeRepositories: () => ({ cloud: cloudRepository }),
+        },
+        connection: {
+            useRuntimeSocketState: () => ({ isVerified }),
+        },
+        session: {
+            useSessionSelection: () => ({ selectedCloudId }),
+        },
+    },
 }));
 
 // See the note in useClouds.spec.tsx: ADR-0070 moved this hook out of the runtime

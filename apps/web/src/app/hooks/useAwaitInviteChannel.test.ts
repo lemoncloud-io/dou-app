@@ -1,15 +1,20 @@
 import { renderHook } from '@testing-library/react';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
-import { useGlobalSession, useSessionSelection } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import type { DomainChannel } from '@chatic/data';
 
 import { useAwaitInviteChannel } from './useAwaitInviteChannel';
 
 jest.mock('@chatic/app-runtime', () => ({
-    useRuntimeRepositories: jest.fn(),
-    useGlobalSession: jest.fn(),
-    useSessionSelection: jest.fn(),
+    runtime: {
+        data: {
+            useRuntimeRepositories: jest.fn(),
+        },
+        session: {
+            useGlobalSession: jest.fn(),
+            useSessionSelection: jest.fn(),
+        },
+    },
 }));
 
 const observeListMock = jest.fn();
@@ -25,7 +30,7 @@ let dispose: jest.Mock;
 const row = (id: string, stereo = 'dm', sid = 's1'): DomainChannel => ({ id, sid, stereo }) as unknown as DomainChannel;
 
 const setSid = (selectedSiteId: string | null = 's1') =>
-    (useSessionSelection as jest.Mock).mockReturnValue({ selectedSiteId, selectedCloudId: 'default' });
+    (runtime.session.useSessionSelection as jest.Mock).mockReturnValue({ selectedSiteId, selectedCloudId: 'default' });
 
 beforeEach(() => {
     jest.clearAllMocks();
@@ -42,7 +47,7 @@ beforeEach(() => {
     getSyncedAtMock.mockResolvedValue(100);
     setSyncedAtMock.mockResolvedValue(undefined);
 
-    (useRuntimeRepositories as jest.Mock).mockReturnValue({
+    (runtime.data.useRuntimeRepositories as jest.Mock).mockReturnValue({
         channel: {
             observeList: observeListMock,
             cacheReadList: cacheReadListMock,
@@ -50,7 +55,10 @@ beforeEach(() => {
         },
         syncMeta: { getSyncedAt: getSyncedAtMock, setSyncedAt: setSyncedAtMock },
     });
-    (useGlobalSession as jest.Mock).mockReturnValue({ identity: { userId: 'u1' }, cloud: { cloudId: 'default' } });
+    (runtime.session.useGlobalSession as jest.Mock).mockReturnValue({
+        identity: { userId: 'u1' },
+        cloud: { cloudId: 'default' },
+    });
     setSid('s1');
 });
 

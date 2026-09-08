@@ -1,14 +1,18 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { usePlaceOwnerProfile } from './usePlaceOwnerProfile';
 
 jest.mock('@chatic/app-runtime', () => ({
-    useRuntimeRepositories: jest.fn(),
+    runtime: {
+        data: {
+            useRuntimeRepositories: jest.fn(),
+        },
+    },
 }));
 
-const useRuntimeRepositoriesMock = useRuntimeRepositories as jest.Mock;
+const useRuntimeRepositoriesMock = runtime.data.useRuntimeRepositories as jest.Mock;
 
 const unsubscribe = jest.fn();
 const observeItem = jest.fn();

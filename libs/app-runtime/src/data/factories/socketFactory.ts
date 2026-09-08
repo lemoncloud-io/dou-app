@@ -18,12 +18,12 @@ import {
     type RoutedGateway,
 } from '@chatic/data';
 
-import { getSocketRuntime } from '../../socket/runtime';
+import { getSocketManager } from '../../socket/runtime';
 
 export const createSocketDataSources = () => {
     // Gateways bind to the SocketManager stable facade (request/send/onType); socket
     // replacement stays invisible to them. (Formerly the ManagedSocketClientProxy.)
-    const socketClient = getSocketRuntime().socketManager;
+    const socketClient = getSocketManager();
 
     // Build a gateway once per route so a data source can pick a destination at call time. `active`
     // is the manager facade (active slot); `relay`/`cloud` are kind-pinned scoped clients that

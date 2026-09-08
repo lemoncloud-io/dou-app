@@ -2,7 +2,7 @@
  * `api/unicastApi.ts`
  * - Observe 탭 unicast 전송 — 디바이스 상태별 푸시 전달 검증용.
  */
-import { webTransport } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import type { PushPayload, UnicastEvent, UnicastResult, ViewingTarget } from '@lemoncloud/chatic-sockets-api';
 
@@ -45,7 +45,7 @@ export const buildSimplePush = (type: string, sender: string, content: string): 
 });
 
 export const sendUnicast = async (stage: UsersStage, event: UnicastEvent): Promise<UnicastResult> => {
-    const { data } = await webTransport
+    const { data } = await runtime.boot.webTransport
         .buildSignedRequest({
             method: 'POST',
             baseURL: `${getUsersBase(stage)}/sockets/0/unicast`,

@@ -5,7 +5,7 @@ import { useLocation } from 'react-router-dom';
 
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { BrandWordmark } from '@chatic/web-ui-kit';
-import { useLoginRelaySocial } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import { useNavigateWithTransition } from '@chatic/shared';
 
 import { isNative, logger } from '@chatic/bridges';
@@ -35,7 +35,8 @@ export const LoginPage = () => {
      * how it ships once the account-split guidance and the subscription/email coupling are settled.
      */
     const showPhoneLogin = isDevBuild();
-    const { mutateAsync: loginRelaySocial, isPending: isLoginRelaySocialPending } = useLoginRelaySocial();
+    const { mutateAsync: loginRelaySocial, isPending: isLoginRelaySocialPending } =
+        runtime.session.useLoginRelaySocial();
 
     /**
      * Leave the login screen for wherever the user came from.

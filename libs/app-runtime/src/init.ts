@@ -1,9 +1,11 @@
 import { logger } from '@chatic/bridges';
 
-import { configureCredentialRecovery } from './connection/configureCredentialRecovery';
 import { configureDataRuntime } from './data/runtime';
+import { credentialRecovery } from './http/credentialRecovery';
 import { configureSessionStore } from './session/store/configure';
+import { credentialRenewers } from './socket/auth/renewers';
 
+import type { HttpRoute } from '@chatic/http';
 import type { DataRuntimeConfig } from './data/runtime';
 
 export interface AppRuntimeConfig {
@@ -23,7 +25,7 @@ let booted = false;
  * ## Why this exists
  *
  * The wiring below used to run as an **import side effect**: loading the `session` barrel ran
- * `configureSessionStore()`, and loading `connection` ran `configureCredentialRecovery()`. That made
+ * `configureSessionStore()`, and loading `connection` registered the credential recovery. That made
  * boot a consequence of which module someone happened to import first — invisible in the entry
  * point, impossible to order against the app's own setup, and silently skippable by a tree-shake or
  * an import reshuffle. ADR-0070 5단계 named the replacement and left it as follow-up work; this is it.
@@ -56,16 +58,25 @@ export const initAppRuntime = (config: AppRuntimeConfig = {}): void => {
 
     // Env → relay endpoint resolvers. First, because everything below may end up reading the session.
     configureSessionStore();
-    // Teaches the HTTP transport how to re-mint a lapsed signing credential, per route. Lives in
-    // `connection/` because it is the one layer downstream of both http and socket.
-    configureCredentialRecovery();
+    // Teaches the HTTP transport how to re-mint a lapsed signing credential.
+    //
+    // **Every route recovers the same way, because relay is the only credential that signs.** A relay
+    // token has no parent to mint a new one from, so its only recovery is `auth.refresh` through the
+    // socket that owns it (ADR-0070 불변조건 1); `oauth`/`iap` sign with that same credential — their
+    // hosts have none of their own — so they take the same path (ADR-0076 결정 3). The `cloud` branch
+    // that used to be here is gone with the route: nothing signs with the cloud credential any more,
+    // so no failed request can blame it. Cloud re-issue is still real — it belongs to the guard that
+    // watches the cloud SOCKET (`useCloudCredentialGuard` → `renewCloudSession`), not to HTTP.
+    //
+    // **Wired here rather than in a module of its own.** The two wirings above and below delegate to
+    // the module that OWNS the thing being configured (the store, the data runtime). This one owns
+    // nothing: it joins the HTTP registry to the socket renewers, and the registry deliberately
+    // imports nothing at runtime so the two sides never meet (see `http/credentialRecovery.ts`). A
+    // wiring with no owner belongs to the composition root, which is this function — it used to sit
+    // in `connection/` only because that folder happened to be downstream of both.
+    credentialRecovery.register((_route: HttpRoute) => credentialRenewers.relay.renew());
 
     if (config.data) {
         configureDataRuntime(config.data);
     }
-};
-
-/** Test seam — lets a case assert the duplicate-boot warning from a clean slate. */
-export const resetAppRuntimeBootFlag = (): void => {
-    booted = false;
 };

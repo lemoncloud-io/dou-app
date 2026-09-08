@@ -1,5 +1,8 @@
 import { logger } from '@chatic/bridges';
 
+import { Throttle } from '../../utils/throttle';
+import { authIdRegistry } from './authIdRegistry';
+
 import type { ISocketManager, SocketBindingConfig, SocketKind } from '../types';
 import type { SocketSessionDelegate } from './types';
 
@@ -83,10 +86,13 @@ export const bootstrapSocketConnection = async ({
 
     const gate = auth as unknown as AuthActivationGate;
 
-    // Expired-resume throttle state (see the cooldown constants above). Per bootstrap instance:
-    // a reboot is a fresh identity attempt, so it deliberately starts with a clean budget.
-    let resumeHoldUntil = 0;
-    let resumeCooldownMs = EXPIRED_RESUME_INITIAL_COOLDOWN_MS;
+    // Expired-resume throttle (see the cooldown constants above). Per bootstrap instance: a reboot
+    // is a fresh identity attempt, so it deliberately starts with a clean budget. The growing gate
+    // is `Throttle` now (ADR-0076 결정 4) — the numbers are unchanged.
+    const resumeThrottle = new Throttle({
+        intervalMs: EXPIRED_RESUME_INITIAL_COOLDOWN_MS,
+        maxIntervalMs: EXPIRED_RESUME_MAX_COOLDOWN_MS,
+    });
 
     // Mirror the SDK auth state into the manager's isVerified (per slot), run teardown on terminal expiry.
     unsubscribes.push(
@@ -94,8 +100,7 @@ export const bootstrapSocketConnection = async ({
             manager.setAuthenticated(kind, state === 'authenticated');
             if (state === 'authenticated') {
                 // Healthy again — the next terminal expiry gets a fresh resume budget.
-                resumeHoldUntil = 0;
-                resumeCooldownMs = EXPIRED_RESUME_INITIAL_COOLDOWN_MS;
+                resumeThrottle.reset();
             }
             if (state === 'expired') {
                 void delegate.onAuthExpired?.(kind);
@@ -103,28 +108,59 @@ export const bootstrapSocketConnection = async ({
         })
     );
 
+    const sign = (token: string, ctx?: { target?: string }) => delegate.signAuth(kind, token, ctx?.target);
+
+    /**
+     * Commit a refreshed token view, then re-align the controller with what the store now says.
+     *
+     * The second half is not bookkeeping. The writeback replaces `$auth` wholesale, while the packet's
+     * `authId` lives in a private controller field that only `register()` writes — so a rotated
+     * `$auth.id` leaves the signature keyed on the NEW id and the packet quoting the OLD one, and the
+     * server answers `403 NOT ALLOWED - invalid sign @refreshAccessToken(<old id>)` for every refresh
+     * from then on. This is the one place that sees both sides right after they can diverge
+     * (`authIdRegistry`).
+     */
+    const applyRefreshedToken = async (view: unknown): Promise<void> => {
+        try {
+            await delegate.commitRefreshedToken(kind, view);
+        } catch (error) {
+            logger.error('SOCKET', '[bootstrapSocketConnection] token writeback failed', {
+                error,
+                data: { kind },
+            });
+            // The store still carries the PREVIOUS `$auth`, so there is nothing newer to re-sync to.
+            return;
+        }
+
+        try {
+            const next = await delegate.getAuthRegistration(kind);
+            if (next && authIdRegistry.resync(kind, auth, next, sign) && client.state !== 'connected') {
+                // Same ordering rule as every other register(): a re-activated controller must not
+                // auto-send auth.update ahead of the next connection's device.save:ok.
+                gate.stop();
+            }
+        } catch (error) {
+            logger.warn('SOCKET', '[bootstrapSocketConnection] authId re-sync failed', { error, data: { kind } });
+        }
+    };
+
     // Every refresh/switch success carries the full token view — write it back to web-core so the
     // HTTP/AWS signing layers stay fresh (SDK is the socket-token SSoT; web-core is the read model).
     // Routed by THIS socket's kind so a refresh during a switch/teardown lands in the right store (§6-6).
     unsubscribes.push(
         auth.onTokenRefresh(view => {
             // ADR-0070 기준선 계측 ②: refresh 발화 횟수. 이제 refresh는 이 경로 하나뿐이라 이 줄이
-            // 유일한 계수원이다 — 예전에는 HTTP 경로가 네트워크 로그에 따로 찍혔고 소켓만
-            // NETWORK logs, and signature failures as `... failed (403)`. Logging the socket half here
-            // 보이지 않았다. 3단계 전후 비교는 이 한 줄로 센다.
+            // 유일한 계수원이다 — 예전에는 HTTP refresh가 NETWORK 로그에 따로 찍히고 서명 거부는
+            // `... failed (403)`으로 남는 반면 소켓 쪽 발화는 아무데도 보이지 않았다. 3단계 전후
+            // 비교는 이 한 줄로 센다.
             logger.info('SOCKET', '[bootstrapSocketConnection] token refreshed', { data: { kind } });
             // The writeback is what actually re-mints the HTTP/AWS signing material, and it is the
             // only step that can fail AFTER `requestRelaySessionRefresh` has already reported success
-            // (this listener is what resolves it). Without this catch a rejected commit was an
+            // (this listener is what resolves it). Without a catch a rejected commit was an
             // unhandled rejection: the caller believed the credentials were fresh while every
-            // signed request kept 403-ing. Never rethrow — one slot's failure must not break the
-            // others' listeners.
-            void Promise.resolve(delegate.commitRefreshedToken(kind, view)).catch(error => {
-                logger.error('SOCKET', '[bootstrapSocketConnection] token writeback failed', {
-                    error,
-                    data: { kind },
-                });
-            });
+            // signed request kept 403-ing. `applyRefreshedToken` swallows both halves — one slot's
+            // failure must never break the others' listeners.
+            void applyRefreshedToken(view);
         })
     );
 
@@ -135,11 +171,9 @@ export const bootstrapSocketConnection = async ({
     // then deactivates so the imminent `connected` event does NOT auto-send `auth.update`.
     const registration = await delegate.getAuthRegistration(kind);
     if (registration) {
-        auth.register({
-            token: registration.token,
-            authId: registration.authId,
-            sign: (token, ctx) => delegate.signAuth(kind, token, ctx?.target),
-        });
+        auth.register({ token: registration.token, authId: registration.authId, sign });
+        // Mirror the seeded authId so the writeback above can tell a rotation from a match.
+        authIdRegistry.record(kind, registration.authId);
         gate.stop();
 
         // Open the gate once the device is registered for this connection: re-activating a connected
@@ -157,15 +191,12 @@ export const bootstrapSocketConnection = async ({
                 // expired controller costs exactly one auth.update (failures are NOT reset, so a
                 // rejection re-expires immediately), and reconnect-churn environments deliver a
                 // device.save:ok per connection. Success resets the budget via onAuthState.
+                if (auth.state === 'expired' && !resumeThrottle.tryAcquire()) {
+                    return;
+                }
                 if (auth.state === 'expired') {
-                    const now = Date.now();
-                    if (now < resumeHoldUntil) {
-                        return;
-                    }
-                    resumeHoldUntil = now + resumeCooldownMs;
-                    resumeCooldownMs = Math.min(resumeCooldownMs * 2, EXPIRED_RESUME_MAX_COOLDOWN_MS);
                     logger.warn('SOCKET', '[bootstrapSocketConnection] resuming terminally-expired auth', {
-                        data: { kind, nextCooldownMs: resumeCooldownMs },
+                        data: { kind },
                     });
                 }
                 gate.start();

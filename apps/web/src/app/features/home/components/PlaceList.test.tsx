@@ -5,7 +5,13 @@ import { render, screen } from '@testing-library/react';
 import { PlaceList } from './PlaceList';
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
-jest.mock('@chatic/app-runtime', () => ({ usePlaceSync: () => undefined }));
+jest.mock('@chatic/app-runtime', () => ({
+    runtime: {
+        sync: {
+            usePlaceSync: () => undefined,
+        },
+    },
+}));
 
 jest.mock('@chatic/web-ui-kit', () => ({
     CollapsibleSection: ({ children, count }: any) => <section data-count={count ?? ''}>{children}</section>,

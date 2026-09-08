@@ -2,17 +2,22 @@ import { createElement, type ReactNode } from 'react';
 
 import { renderHook } from '@testing-library/react';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
-import { useGlobalSession, useSessionSelection } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import type { DomainChannel } from '@chatic/data';
 
 import { ActiveCloudDataContext } from './activeCloudDataContext';
 import { useActiveCloudChannels, useActiveCloudChannelsSource } from './useActiveCloudChannels';
 
 jest.mock('@chatic/app-runtime', () => ({
-    useRuntimeRepositories: jest.fn(),
-    useGlobalSession: jest.fn(),
-    useSessionSelection: jest.fn(),
+    runtime: {
+        data: {
+            useRuntimeRepositories: jest.fn(),
+        },
+        session: {
+            useGlobalSession: jest.fn(),
+            useSessionSelection: jest.fn(),
+        },
+    },
 }));
 
 const observeListMock = jest.fn();
@@ -30,14 +35,14 @@ const emit = (rows: DomainChannel[]) => {
 };
 
 const setSelection = (selectedCloudId: string, selectedSiteId: string | null = null) =>
-    (useSessionSelection as jest.Mock).mockReturnValue({ selectedCloudId, selectedSiteId });
+    (runtime.session.useSessionSelection as jest.Mock).mockReturnValue({ selectedCloudId, selectedSiteId });
 
 const setUid = (userId: string | null = 'u1') =>
-    (useGlobalSession as jest.Mock).mockReturnValue({ identity: { userId } });
+    (runtime.session.useGlobalSession as jest.Mock).mockReturnValue({ identity: { userId } });
 
 beforeEach(() => {
     jest.clearAllMocks();
-    (useRuntimeRepositories as jest.Mock).mockReturnValue({ channel: { observeList: observeListMock } });
+    (runtime.data.useRuntimeRepositories as jest.Mock).mockReturnValue({ channel: { observeList: observeListMock } });
     setSelection('cloud-A');
     setUid('u1');
 });
@@ -117,7 +122,7 @@ describe('useActiveCloudChannelsSource — 닿을 수 없는 place 제외', () =
         });
 
     beforeEach(() => {
-        (useRuntimeRepositories as jest.Mock).mockReturnValue({
+        (runtime.data.useRuntimeRepositories as jest.Mock).mockReturnValue({
             channel: { observeList: observeListMock },
             place: { observeList: placeObserveList },
         });

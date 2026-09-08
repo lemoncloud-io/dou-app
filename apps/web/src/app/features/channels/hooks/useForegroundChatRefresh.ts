@@ -1,6 +1,6 @@
 import { useCallback, useEffect } from 'react';
 
-import { getSyncManager, useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import { logger } from '@chatic/bridges';
 
 import { useAppForeground } from '../../../bridge';
@@ -20,8 +20,8 @@ import { useAppForeground } from '../../../bridge';
  * cursor instead of re-pulling what the fetch already merged.
  */
 export const useForegroundChatRefresh = (channelId: string): void => {
-    const { chat: chatRepository } = useRuntimeRepositories();
-    const { isVerified } = useRuntimeSocketState();
+    const { chat: chatRepository } = runtime.data.useRuntimeRepositories();
+    const { isVerified } = runtime.connection.useRuntimeSocketState();
 
     const refreshIfWarm = useCallback(async () => {
         if (!channelId) return;
@@ -30,10 +30,9 @@ export const useForegroundChatRefresh = (channelId: string): void => {
         // Cold room: usePrimeChat owns the first fetch — fetching here too would double it.
         if (lastNo === 0) return;
 
-        getSyncManager().updateLocalSnapshot(
-            { type: 'chat', id: channelId },
-            { id: channelId, lastNo, minNo: 0, messages: [] }
-        );
+        runtime.sync
+            .getSyncManager()
+            .updateLocalSnapshot({ type: 'chat', id: channelId }, { id: channelId, lastNo, minNo: 0, messages: [] });
         await chatRepository.refreshList({ channelId });
     }, [chatRepository, channelId]);
 

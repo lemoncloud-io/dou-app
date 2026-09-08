@@ -4,8 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { BellOff } from 'lucide-react';
 
 import { useNavigateWithTransition } from '@chatic/shared';
-import { useChannelSync } from '@chatic/app-runtime';
-import { useSessionIdentity } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import type { DomainChannel, DomainChat, DomainJoin } from '@chatic/data';
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 
@@ -99,7 +98,7 @@ const ChannelItem = ({
     // Keep the channel metadata synced while rendered (unregisters on unmount). The read
     // boundary that drives the unread badge rides along on the channel as `$join.chatNo`, and
     // the polled `chatNo` head doubles as the chat catch-up trigger (useChatSyncRegistration).
-    useChannelSync(channel.id);
+    runtime.sync.useChannelSync(channel.id);
 
     const formatTime = (dateValue?: string | number) => {
         if (!dateValue) return '';
@@ -273,7 +272,7 @@ export const ChannelList = ({
     const myNick = myProfile?.nick;
     const myThumbnail = myProfile?.thumbnail;
     // My user id drives the owner-vs-member title branch (channel.ownerId === uid).
-    const { userId: uid } = useSessionIdentity();
+    const { userId: uid } = runtime.session.useSessionIdentity();
     // Unread is derived directly from the channel stream plus my join stream passed from HomePage.
     const { byChannel: unreadByChannel } = useChannelUnreads(channels, joinByChannel);
     // 1:1 peers for every DM row, named by ONE list-level profile subscription (not one per row).

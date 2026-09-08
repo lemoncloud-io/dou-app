@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import type {
     AccountLinkMode,
     PhoneCodeConfirmResult,
@@ -41,7 +41,7 @@ export type LinkAccountSendOptions = Omit<PhoneCodeSendOptions, 'mode'> & { mode
  * Phone numbers and codes stay in the request body — never log them or put them in a query key.
  */
 export const useLinkAccount = () => {
-    const { auth } = useRuntimeRepositories();
+    const { auth } = runtime.data.useRuntimeRepositories();
 
     // Step derivation (`send` vs `resend`) and the "omit an unset switch so the server default
     // survives" rule both live in the repository — the packet's shape is its business, not this hook's.

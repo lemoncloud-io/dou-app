@@ -1,3 +1,4 @@
+import { authIdRegistry } from './authIdRegistry';
 import { reauthenticateActiveSocket } from './reauthenticateActiveSocket';
 import type { ISocketManager } from '../types';
 import type { SocketSessionDelegate } from './types';
@@ -39,6 +40,10 @@ const makeDelegate = (registration: { token: string; authId: string } | null): j
     }) as unknown as jest.Mocked<SocketSessionDelegate>;
 
 describe('reauthenticateActiveSocket', () => {
+    // The registry is module state that every register() in this file writes to; without this a case
+    // would inherit the previous one's registration and see a phantom drift.
+    beforeEach(() => authIdRegistry.reset());
+
     it('logs out then re-registers when the registration token differs from the SDK token', async () => {
         const order: string[] = [];
         const auth = makeAuth('guest-token', order);
@@ -62,6 +67,62 @@ describe('reauthenticateActiveSocket', () => {
         expect(order).toEqual([]);
         expect(auth.logout).not.toHaveBeenCalled();
         expect(auth.register).not.toHaveBeenCalled();
+    });
+
+    // The 403 this guard exists for: the writeback left the store on a NEW $auth.id while the
+    // controller still quotes the old one, so the token matches but every later refresh would be
+    // signed with a key the server does not expect (`invalid sign`).
+    it('re-seeds the authId alone when the token matches but the registered authId drifted', async () => {
+        const order: string[] = [];
+        const auth = makeAuth('same-token', order);
+        const manager = makeManager(auth);
+        const delegate = makeDelegate({ token: 'same-token', authId: 'rotated-auth' });
+        authIdRegistry.record('relay', 'old-auth');
+
+        await reauthenticateActiveSocket({ manager, delegate, kind: 'relay' });
+
+        // A bare register: no logout (the identity did not change — revoking would drop a live
+        // session over a field), and no verified dip (nothing for the UI to re-anchor).
+        expect(order).toEqual(['register']);
+        expect(auth.register).toHaveBeenCalledWith(
+            expect.objectContaining({ token: 'same-token', authId: 'rotated-auth' })
+        );
+        expect(auth.logout).not.toHaveBeenCalled();
+        expect(manager.setAuthenticated).not.toHaveBeenCalled();
+        expect(authIdRegistry.get('relay')).toBe('rotated-auth');
+    });
+
+    it('stays a no-op when the token matches AND the registered authId still matches', async () => {
+        const order: string[] = [];
+        const auth = makeAuth('same-token', order);
+        const delegate = makeDelegate({ token: 'same-token', authId: 'same-auth' });
+        authIdRegistry.record('relay', 'same-auth');
+
+        await reauthenticateActiveSocket({ manager: makeManager(auth), delegate, kind: 'relay' });
+
+        expect(order).toEqual([]);
+    });
+
+    it('re-closes the gate after an authId-only re-seed on a DISCONNECTED socket', async () => {
+        const order: string[] = [];
+        const auth = makeAuth('same-token', order);
+        const manager = makeManager(auth, false, 'closed');
+        const delegate = makeDelegate({ token: 'same-token', authId: 'rotated-auth' });
+        authIdRegistry.record('relay', 'old-auth');
+
+        await reauthenticateActiveSocket({ manager, delegate, kind: 'relay' });
+
+        expect(order).toEqual(['register', 'stop']);
+    });
+
+    it('records the authId it registers, so a later matching writeback is a no-op', async () => {
+        const order: string[] = [];
+        const auth = makeAuth('guest-token', order);
+        const delegate = makeDelegate({ token: 'social-token', authId: 'social-auth' });
+
+        await reauthenticateActiveSocket({ manager: makeManager(auth), delegate, kind: 'relay' });
+
+        expect(authIdRegistry.get('relay')).toBe('social-auth');
     });
 
     it('registers the new identity but SKIPS the revoke when the socket is not verified (no dropped edge)', async () => {

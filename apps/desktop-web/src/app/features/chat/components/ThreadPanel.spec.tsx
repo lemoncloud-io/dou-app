@@ -8,9 +8,17 @@ import type { DomainChannel, DomainChat } from '@chatic/data';
 import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
 
 vi.mock('@chatic/app-runtime', () => ({
-    useRuntimeRepositories: () => ({ chat: { updateChat: vi.fn(), deleteChat: vi.fn(), setReaction: vi.fn() } }),
-    getActiveServerContext: () => ({ kind: 'cloud', siteId: 'S1' }),
-    useGlobalSession: () => ({ activeServer: { siteId: 'S1' } }),
+    runtime: {
+        data: {
+            useRuntimeRepositories: () => ({
+                chat: { updateChat: vi.fn(), deleteChat: vi.fn(), setReaction: vi.fn() },
+            }),
+        },
+        session: {
+            getActiveServerContext: () => ({ kind: 'cloud', siteId: 'S1' }),
+            useGlobalSession: () => ({ activeServer: { siteId: 'S1' } }),
+        },
+    },
 }));
 
 let messages: DomainChat[] = [];

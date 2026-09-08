@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 
 import { webClient } from '@chatic/bridges';
-import { getSocketManager, useRuntimeRepositories } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 /**
  * Refresh the active cloud's channel records when new activity arrives, so the unread badges
@@ -25,7 +25,7 @@ import { getSocketManager, useRuntimeRepositories } from '@chatic/app-runtime';
  * for the cloud-wide `channel.sync` in useBackgroundSync.
  */
 export const useRefreshOnPush = (): void => {
-    const { channel } = useRuntimeRepositories();
+    const { channel } = runtime.data.useRuntimeRepositories();
     const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     useEffect(() => {
@@ -39,7 +39,7 @@ export const useRefreshOnPush = (): void => {
         const offPush = webClient.onEvent('OnReceiveNotification', schedule);
 
         // onMessage needs a live client (and isn't rebind-safe), so bind it through subscribeClient.
-        const manager = getSocketManager();
+        const manager = runtime.connection.getSocketManager();
         let offMessage: (() => void) | undefined;
         const offClient = manager.subscribeClient(client => {
             offMessage?.();

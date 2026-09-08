@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import type { DataRepositoriesV2 } from '@chatic/data';
 
 type CacheType = 'channel' | 'chat' | 'user' | 'join' | 'site' | 'invitecloud' | 'profile' | 'invite';
@@ -321,7 +321,7 @@ function DetailView({ type, repos, onBack }: { type: CacheType; repos: DataRepos
 }
 
 export const DBBrowser = () => {
-    const repos = useRuntimeRepositories() as unknown as DataRepositoriesV2;
+    const repos = runtime.data.useRuntimeRepositories() as unknown as DataRepositoriesV2;
     const [selected, setSelected] = useState<CacheType | null>(null);
 
     if (selected) {

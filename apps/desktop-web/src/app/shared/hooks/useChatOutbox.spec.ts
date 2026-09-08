@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { DomainChat } from '@chatic/data';
-import { createChatOutbox, type OutboxEntry } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { createLandingBatch, matchLandedRow, selectResendableRows, toSendPayload } from './useChatOutbox';
 
@@ -97,7 +97,7 @@ describe('matchLandedRow', () => {
 });
 
 describe('createLandingBatch', () => {
-    const entry = (over: Partial<OutboxEntry> = {}): OutboxEntry => ({
+    const entry = (over: Partial<runtime.data.OutboxEntry> = {}): runtime.data.OutboxEntry => ({
         id: 'row-1',
         channelId: 'ch-1',
         payload: { channelId: 'ch-1', content: 'hello' },
@@ -162,10 +162,10 @@ describe('outbox + landing probe (the desktop wiring contract)', () => {
     // Exactly the wiring useChatOutbox builds: match in hasLanded, claim in discard.
     const harness = (rows: DomainChat[], batch = createLandingBatch()) => {
         const send = vi.fn().mockResolvedValue(undefined);
-        const discard = vi.fn().mockImplementation(async (entry: OutboxEntry) => {
+        const discard = vi.fn().mockImplementation(async (entry: runtime.data.OutboxEntry) => {
             batch.commit(entry.id);
         });
-        const outbox = createChatOutbox({
+        const outbox = runtime.data.createChatOutbox({
             send,
             discard,
             hasLanded: async entry => !!batch.match(rows, entry, MY_UID),
@@ -238,7 +238,7 @@ describe('outbox + landing probe (the desktop wiring contract)', () => {
         // not become permanently unmatchable (which would resend an already-delivered message).
         const rows = [chat({ id: 'ch-1:7', chatNo: 7, content: 'ok' })];
         const batch = createLandingBatch();
-        const outbox = createChatOutbox({
+        const outbox = runtime.data.createChatOutbox({
             send: vi.fn().mockResolvedValue(undefined),
             discard: vi.fn().mockRejectedValue(new Error('cache delete failed')),
             hasLanded: async entry => !!batch.match(rows, entry, MY_UID),

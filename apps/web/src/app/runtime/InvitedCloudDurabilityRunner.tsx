@@ -1,11 +1,6 @@
 import { useCallback } from 'react';
 
-import {
-    isNativeApp,
-    recoverInvitedCloudIfMissing,
-    useInvitedCloudNameSync,
-    useRuntimeRepositories,
-} from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import type { AppMessageData } from '@chatic/app-messages';
 
 import { useOnReceiveNotification } from '../bridge';
@@ -24,20 +19,20 @@ import { extractPushContext } from '../utils/resolveInAppPushRoute';
  * is now the only repair, and it is reactive, so it fixes a named cloud rather than the list.
  */
 export const InvitedCloudDurabilityRunner = (): null => {
-    const { cloud } = useRuntimeRepositories();
+    const { cloud } = runtime.data.useRuntimeRepositories();
 
-    useInvitedCloudNameSync();
+    runtime.data.useInvitedCloudNameSync();
 
     const handleReceiveNotification = useCallback(
         (message: AppMessageData<'OnReceiveNotification'>) => {
             // The native store only exists in the native WebView; match the boot hook's guard.
-            if (!isNativeApp()) return;
+            if (!runtime.boot.isNativeApp()) return;
             const data = message.data?.notification?.data;
             if (!data) return;
             // cid usually lives inside the `payload` JSON string, with a top-level fallback —
             // reuse the same extraction as push routing (do not read data.cid directly).
             const { cid } = extractPushContext(data);
-            void recoverInvitedCloudIfMissing(cloud, cid);
+            void runtime.data.recoverInvitedCloudIfMissing(cloud, cid);
         },
         [cloud]
     );

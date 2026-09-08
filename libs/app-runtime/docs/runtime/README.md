@@ -1,16 +1,22 @@
-# Runtime Domain Spec
+# Connection / Runtime Composition Spec
 
 ## 목적
 
-`runtime` 도메인은 세션 상태를 앱이 소비할 **값**으로 파생시키는 훅 층이다. transport 엔진을 직접
-만들지 않고, 생성 책임은 하위 manager들에 위임한다.
+호스트가 세션 상태를 **소켓 슬롯**으로 파생시키고 바인더를 조립하는 층을 서술한다. transport 엔진을
+직접 만들지 않고, 생성 책임은 하위 manager들에 위임한다.
 
-## 핵심 개념: `RuntimeBinding`
+> 이 문서는 한때 `src/runtime/` 모듈의 스펙이었다. 그 모듈은 해체됐다(엔진 축이 아니었고, 훅 6개가
+> 각각 `connection`·`data`·`session` 소속이었다) — 슬롯 파생과 바인더는 `src/connection/`에 있다.
+> 폴더명(`docs/runtime/`)은 인바운드 링크 5개 때문에 그대로 뒀다.
 
-[`useRuntimeBinding()`](../../src/runtime/useRuntimeBinding.ts)이 `useGlobalSession()`(세션 허브) +
-`useDynamicDeviceId()`를 관측해 파생한다. 현재 앱이 어떤 데이터 문맥·소켓 슬롯으로 동작해야 하는지를
-나타낸다. (프로필 파생값은 `useRuntimeProfile`이 `useGlobalSession`에서 직접 계산한다 — 이 binding을
-거치지 않는다.)
+## 핵심 개념: `RuntimeSocketSlots`
+
+[`useRuntimeSocketSlots()`](../../src/connection/hooks/useRuntimeSocketSlots.ts)이 `useGlobalSession()`(세션
+허브) + `useDynamicDeviceId()`를 관측해 파생한다. 현재 어떤 relay/cloud 소켓 슬롯이 떠 있어야 하는지를
+나타낸다. **캐시 문맥은 여기 없다** — 예전 `RuntimeBinding` 은 `context: DataContext` 도 실었는데 읽는
+프로덕션 코드가 없었고 공식이 `deriveSelectedContext` 와 중복이었다(ADR-0076 G5). 호스트가 이 훅을
+직접 부르므로 앱은 아무것도 넘기지 않는다. (프로필 파생값은 `useRuntimeProfile`이 `useGlobalSession`
+에서 직접 계산한다 — 이 슬롯을 거치지 않는다.)
 
 ```ts
 export interface RuntimeSocketSlot {
@@ -19,27 +25,22 @@ export interface RuntimeSocketSlot {
     identityToken?: string;
 }
 
-export interface RuntimeBinding {
-    context: DataContext; // { cid, sid?, uid? }
-    // 듀얼 소켓: relay는 relay 토큰이 생기면 상시, cloud는 cloud 세션 활성 동안만.
-    socket: {
-        relay?: RuntimeSocketSlot;
-        cloud?: RuntimeSocketSlot;
-    };
+// 듀얼 소켓: relay는 relay 토큰이 생기면 상시, cloud는 cloud 세션 활성 동안만.
+export interface RuntimeSocketSlots {
+    relay?: RuntimeSocketSlot;
+    cloud?: RuntimeSocketSlot;
 }
 ```
 
 파생 규칙:
 
-- **context** — `cid`는 **선택된** cloud(`cloud.cloudId`, optimistic)를 따른다. cloud 전환 시 토큰
-  교환 전에 cid를 선반영해 cid-scoped observe 스트림이 즉시 재구독된다. `sid`=`activeServer.siteId`,
-  `uid`=`identity.userId`.
+> **캐시 문맥(`{cid, sid, uid}`)은 이 훅의 출력이 아니다.** 예전 `RuntimeBinding` 은 `context` 필드로
+> 그것도 실었지만 읽는 프로덕션 코드가 없었고, 공식이
+> [`deriveSelectedContext`](../../src/session/scope/selectedContext.ts) 와 글자 단위로 같았다. 데이터
+> 스코프의 원천은 [`ActiveScope`](../../src/session/scope/ActiveScope.ts) 가 매 read 마다
+> `session/store` 에서 파생하는 값 하나다(ADR-0070 결정 7 · ADR-0076 G5).
 
-    > `binding.context`는 **소비되지 않는다.** 데이터 스코프의 실제 원천은
-    > [`ActiveScope`](../../src/session/scope/ActiveScope.ts)가 매 read마다 `session/store`에서
-    > 파생하는 값이다(ADR-0070 결정 7). 이 필드는 호출부 호환을 위해 남아 있다.
-
-- **socket** — 두 슬롯은 **각자의 서버가 토큰을 가질 때만** 켜진다(relay wss는 로그인 전에도
+- **슬롯** — 두 슬롯은 **각자의 서버가 토큰을 가질 때만** 켜진다(relay wss는 로그인 전에도
   존재하는 env 값이라 wss만으로 게이팅하면 토큰 전에 부팅됨). 로그인(null→token)이 슬롯을 켜고
   로그아웃이 끈다.
     - **relay 슬롯**은 `identityToken`을 슬롯에 싣되 **config에 넣지 않는다** — 토큰 refresh(값 변경)가
@@ -87,9 +88,11 @@ export interface RuntimeBinding {
 
 ## 조립 규칙
 
-`runtime`이 직접 생성하지 않는 것: `createClientSocketV2`, `createDeviceRuntime`.
+이 층이 직접 생성하지 않는 것: `createClientSocketV2`, `createDeviceRuntime`.
 
-`runtime`이 조립하는 것: `SocketManager`·`SyncManager`(`createSocketRuntime()`), `DataManager`.
+이 층이 조립하는 것: `SocketManager`(`socket/runtime.ts`) · `SyncManager`(`socket/sync/runtime.ts`) ·
+`DataManager`. 엔진 축마다 생성 지점이 하나이고, 소켓 파일이 sync를 만들지 않는 것은 순환 방지
+계약이다 — `src/importCycleAbsence.test.ts`.
 
 인증은 별도 조립 객체 없이 SDK `ClientSocketAuth`(`client.auth`)가 소유하고, bootstrap 시퀀싱은
 `SocketBinder`가 `bootstrapSocketConnection(...)`으로 수행한다.

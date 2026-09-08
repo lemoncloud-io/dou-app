@@ -1,6 +1,6 @@
 import { useMemo, type ReactNode } from 'react';
 
-import { useSessionSelection } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { OtherCloudUnreadContext, type OtherCloudUnreadValue } from './otherCloudUnreadContext';
 import { useOtherCloudUnreadSource } from './useOtherCloudUnread';
@@ -13,7 +13,7 @@ import { useOtherCloudUnreadSource } from './useOtherCloudUnread';
  * being counted twice (once live, once from the staler cache).
  */
 export const OtherCloudUnreadProvider = ({ children }: { children: ReactNode }) => {
-    const { selectedCloudId } = useSessionSelection();
+    const { selectedCloudId } = runtime.session.useSessionSelection();
     const { byCloud, total, refresh } = useOtherCloudUnreadSource(selectedCloudId);
 
     // Held stable so an unrelated re-render of this provider (its catalog/invited-cloud inputs

@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { useDesktopChannelMutations } from '../../../shared';
 import type { InviteCandidate } from './useInviteCandidates';
@@ -14,7 +14,7 @@ import type { InviteCandidate } from './useInviteCandidates';
  * refetched — the project's mutation rule. `cacheWriteMany` unions `channelIds` per user.
  */
 export const useAddMembers = (channelId: string) => {
-    const { user: userRepository } = useRuntimeRepositories();
+    const { user: userRepository } = runtime.data.useRuntimeRepositories();
     const { inviteChannel, isMutating } = useDesktopChannelMutations();
 
     const addMembers = useCallback(

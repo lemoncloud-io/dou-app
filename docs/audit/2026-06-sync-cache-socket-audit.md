@@ -26,30 +26,30 @@ backend work and were intentionally not attempted.
 
 ## Capability matrix (Slack parity)
 
-| Capability | Server | Client | Status |
-|---|---|---|---|
-| Message send lifecycle (sending/sent/failed) | yes | yes | ok |
-| Message pagination / history sync | yes | yes | ok |
-| Read receipts (own cursor / mark-read) | yes | yes | ok |
-| Read receipts (others "seen by N") | **no** | no | server ceiling |
-| Unread counts | partial | yes (derived) | ok |
-| Reconnect catch-up (missed messages) | yes | **was gap** | **fixed (#1)** |
-| Heartbeat / keep-alive | yes | yes | ok |
-| Offline cache (read while disconnected) | — | yes | ok |
-| Offline outbound retry | partial | **was gap** | **fixed (#7)** |
-| Typing indicator | **no** | no | server ceiling |
-| Presence / online status | partial (pull) | no | needs server broadcast |
-| Message edit | **no** | no | server ceiling |
-| Message delete / unsend | **no** | no | server ceiling |
-| Reactions / emoji | **no** | no | server ceiling |
-| Attachments / file upload | **no** (v1 text-only) | no | server ceiling |
-| Channel list ordering | yes | yes (alpha, by design) | ok |
-| Member roster sync (sync-users) | yes | yes | ok |
-| Place-profile sync | yes | yes | ok |
-| Electron badge (unread → icon) | partial | **was route-scoped** | **fixed (#4)**; Windows overlay still TODO (#13) |
-| Electron OS notifications | yes | **click route-scoped** | **fixed (#4)**; collapse tag TODO (#13) |
-| Offline / reconnecting banner | (state exists) | **was missing** | **fixed (#5)** |
-| Resume-on-focus / OS suspend reconnect | yes | **no** | Tier 2 (#2) |
+| Capability                                   | Server                | Client                 | Status                                           |
+| -------------------------------------------- | --------------------- | ---------------------- | ------------------------------------------------ |
+| Message send lifecycle (sending/sent/failed) | yes                   | yes                    | ok                                               |
+| Message pagination / history sync            | yes                   | yes                    | ok                                               |
+| Read receipts (own cursor / mark-read)       | yes                   | yes                    | ok                                               |
+| Read receipts (others "seen by N")           | **no**                | no                     | server ceiling                                   |
+| Unread counts                                | partial               | yes (derived)          | ok                                               |
+| Reconnect catch-up (missed messages)         | yes                   | **was gap**            | **fixed (#1)**                                   |
+| Heartbeat / keep-alive                       | yes                   | yes                    | ok                                               |
+| Offline cache (read while disconnected)      | —                     | yes                    | ok                                               |
+| Offline outbound retry                       | partial               | **was gap**            | **fixed (#7)**                                   |
+| Typing indicator                             | **no**                | no                     | server ceiling                                   |
+| Presence / online status                     | partial (pull)        | no                     | needs server broadcast                           |
+| Message edit                                 | **no**                | no                     | server ceiling                                   |
+| Message delete / unsend                      | **no**                | no                     | server ceiling                                   |
+| Reactions / emoji                            | **no**                | no                     | server ceiling                                   |
+| Attachments / file upload                    | **no** (v1 text-only) | no                     | server ceiling                                   |
+| Channel list ordering                        | yes                   | yes (alpha, by design) | ok                                               |
+| Member roster sync (sync-users)              | yes                   | yes                    | ok                                               |
+| Place-profile sync                           | yes                   | yes                    | ok                                               |
+| Electron badge (unread → icon)               | partial               | **was route-scoped**   | **fixed (#4)**; Windows overlay still TODO (#13) |
+| Electron OS notifications                    | yes                   | **click route-scoped** | **fixed (#4)**; collapse tag TODO (#13)          |
+| Offline / reconnecting banner                | (state exists)        | **was missing**        | **fixed (#5)**                                   |
+| Resume-on-focus / OS suspend reconnect       | yes                   | **no**                 | Tier 2 (#2)                                      |
 
 ## Fixed (Tier 1 — server-supported, low risk)
 
@@ -83,7 +83,7 @@ backend work and were intentionally not attempted.
   `forceReconnect()` short-circuits the package backoff via `runtime.reconnect.restart()`,
   no-op when already connected. Pure renderer (browser + Electron); no
   `powerMonitor`/bridge contract added.
-- **#3** Request correlation hardened *conservatively*: unique `sendChat` ref so
+- **#3** Request correlation hardened _conservatively_: unique `sendChat` ref so
   concurrent sends never share a wire ref (retries reuse the original via
   `options.ref` for idempotency); `SocketRequestManager` warns on a duplicate
   in-flight ref and documents the uniqueness contract. Full type-aware matching
@@ -105,7 +105,7 @@ backend work and were intentionally not attempted.
 ## Remaining (Tier 2 — deferred)
 
 - **#10** Message list virtualization (unbounded DOM growth in very long sessions).
-  Done *partially*: the post-send RAF pin now exits once height settles. Full
+  Done _partially_: the post-send RAF pin now exits once height settles. Full
   windowing is deferred — it needs a new dependency (`@tanstack/react-virtual`)
   and a rewrite of the tuned scroll-anchor / jump-to-bottom / load-older engine
   (highest regression risk; a perf issue, not a correctness/sync one).

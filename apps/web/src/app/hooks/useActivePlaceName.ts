@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
-import { useSessionSelection } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { type PlaceNameSource, resolvePlaceDisplayName } from '../utils/resolvePlaceDisplayName';
 
@@ -18,8 +17,8 @@ import { type PlaceNameSource, resolvePlaceDisplayName } from '../utils/resolveP
  * place row is cached, and an empty string only for a nameless non-home place.
  */
 export const useActivePlaceName = (): string => {
-    const { place: placeRepository } = useRuntimeRepositories();
-    const { selectedSiteId: sid, selectedCloudId } = useSessionSelection();
+    const { place: placeRepository } = runtime.data.useRuntimeRepositories();
+    const { selectedSiteId: sid, selectedCloudId } = runtime.session.useSessionSelection();
     const { t } = useTranslation();
 
     // Only the two fields the display rule reads, so a place-sync emit that changed neither bails out

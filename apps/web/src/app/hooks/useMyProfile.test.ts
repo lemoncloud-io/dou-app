@@ -1,21 +1,28 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 
-import { useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
-import { useSessionIdentity, useSessionSelection } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { useMyProfile } from './useMyProfile';
 
 jest.mock('@chatic/app-runtime', () => ({
-    useRuntimeRepositories: jest.fn(),
-    useRuntimeSocketState: jest.fn(),
-    useSessionSelection: jest.fn(),
-    useSessionIdentity: jest.fn(),
+    runtime: {
+        data: {
+            useRuntimeRepositories: jest.fn(),
+        },
+        connection: {
+            useRuntimeSocketState: jest.fn(),
+        },
+        session: {
+            useSessionSelection: jest.fn(),
+            useSessionIdentity: jest.fn(),
+        },
+    },
 }));
 
-const useRuntimeRepositoriesMock = useRuntimeRepositories as jest.Mock;
-const useRuntimeSocketStateMock = useRuntimeSocketState as jest.Mock;
-const useSessionSelectionMock = useSessionSelection as jest.Mock;
-const useSessionIdentityMock = useSessionIdentity as jest.Mock;
+const useRuntimeRepositoriesMock = runtime.data.useRuntimeRepositories as jest.Mock;
+const useRuntimeSocketStateMock = runtime.connection.useRuntimeSocketState as jest.Mock;
+const useSessionSelectionMock = runtime.session.useSessionSelection as jest.Mock;
+const useSessionIdentityMock = runtime.session.useSessionIdentity as jest.Mock;
 
 const unsubscribe = jest.fn();
 const observeItem = jest.fn();

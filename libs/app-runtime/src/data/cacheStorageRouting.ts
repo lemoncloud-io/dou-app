@@ -1,4 +1,5 @@
 import type { CacheType } from '@chatic/app-messages';
+import { isNativeApp } from '../utils/isNativeApp';
 import { isNativeCacheTypeUsable } from './nativeCacheSupport';
 
 /**
@@ -7,10 +8,6 @@ import { isNativeCacheTypeUsable } from './nativeCacheSupport';
  * - `native`: the app shell's SQLite, reached over the bridge.
  */
 export type CacheBackend = 'web' | 'native';
-
-export const isNativeApp = (): boolean => {
-    return typeof window !== 'undefined' && !!(window as any).ReactNativeWebView;
-};
 
 // Types pinned to web storage even inside the native WebView, each listed with the reason it
 // cannot live on native storage — an entry leaves this table when its reason ships a fix.

@@ -7,6 +7,7 @@
 // on `/hello/report` is the one thing the log pipeline cannot carry — a report the *user* writes,
 // with its Slack ping and its photo attachments.
 export * from './reportIssue';
-export * from './reportUrl';
+// `./reportUrl` is NOT re-exported: `redactQueryString`/`sanitizeReportUrl` are the payload builder's
+// own scrubbers (`reportIssue` calls them) and no app has ever used them (ADR-0076 결정 6).
 export * from './logBatch';
 export * from './types';

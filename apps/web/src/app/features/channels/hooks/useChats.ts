@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { useChatSync, useRuntimeRepositories } from '@chatic/app-runtime';
-import { useSessionIdentity } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import { isInJoinWindow } from '@chatic/data';
 import type { DomainChat, DomainUser } from '@chatic/data';
 
@@ -42,15 +41,15 @@ const nameOf = (chat: DomainChat, userMap: Map<string, DomainUser>): string =>
  * sorted oldest → newest so the last element is the latest message.
  */
 export const useChats = ({ channelId, limit, joinedNo }: UseChatsParams) => {
-    const { chat: chatRepository, user: userRepository } = useRuntimeRepositories();
-    const { userId } = useSessionIdentity();
+    const { chat: chatRepository, user: userRepository } = runtime.data.useRuntimeRepositories();
+    const { userId } = runtime.session.useSessionIdentity();
     const myUid = userId ?? '';
 
-    // Chat fetching is owned by the sync layer: useChatSync registers a 'chat' target, and
+    // Chat fetching is owned by the sync layer: runtime.sync.useChatSync registers a 'chat' target, and
     // SyncManager.primeChatTarget seeds the initial page (refreshList when the cache is cold)
     // while ChatSyncPlan streams live + catches up on reconnect. So this hook never fetches on
     // entry itself — it only observes the cache (no isVerified gate needed here).
-    useChatSync(channelId);
+    runtime.sync.useChatSync(channelId);
     // Warm-cache complement: pushes missed while backgrounded leave no recovery path (the chat
     // plan doesn't poll), so warm rooms refetch the newest page on entry and foreground return.
     useForegroundChatRefresh(channelId);

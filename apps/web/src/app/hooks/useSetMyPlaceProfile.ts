@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 /** What the shared profile form hands back on submit. */
 export interface MyPlaceProfileInput {
@@ -17,7 +17,7 @@ export interface MyPlaceProfileInput {
  * pass the returned function straight to the form's `onSubmit`.
  */
 export const useSetMyPlaceProfile = (): ((value: MyPlaceProfileInput, siteId?: string) => Promise<void>) => {
-    const { profile: profileRepository } = useRuntimeRepositories();
+    const { profile: profileRepository } = runtime.data.useRuntimeRepositories();
 
     return useCallback(
         async ({ nick, thumbnail }: MyPlaceProfileInput, siteId?: string) => {

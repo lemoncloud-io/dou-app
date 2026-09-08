@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useMatch } from 'react-router-dom';
 
-import { useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { useAppVisibility } from '../bridge';
 import { ROUTES } from '../routes/paths';
@@ -37,8 +37,8 @@ export const useDeviceSync = (): void => {
     // Room and thread report the same viewing pair, so the hop between them is not a change at all —
     // syncViewing dedups it away and the server never sees a gap it could push into.
     const channelId = roomMatch?.params.channelId ?? threadMatch?.params.channelId ?? '';
-    const { device } = useRuntimeRepositories();
-    const { isVerified } = useRuntimeSocketState();
+    const { device } = runtime.data.useRuntimeRepositories();
+    const { isVerified } = runtime.connection.useRuntimeSocketState();
 
     // The viewingId we last notified. '' = "no channel / cleared while backgrounded"; null =
     // nothing sent yet (or the connection dropped, forcing a re-assert once auth returns).

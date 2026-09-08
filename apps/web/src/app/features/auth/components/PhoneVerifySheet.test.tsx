@@ -13,7 +13,11 @@ jest.mock('react-i18next', () => ({
     useTranslation: () => ({ t: (k: string) => k, i18n: { language: 'ko' } }),
 }));
 jest.mock('@chatic/app-runtime', () => ({
-    applySessionToken: (...args: unknown[]) => mockApplySessionToken(...args),
+    runtime: {
+        session: {
+            applySessionToken: (...args: unknown[]) => mockApplySessionToken(...args),
+        },
+    },
 }));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: jest.fn() }) }));
 // One packet (`auth.link-account`) behind four calls; the two social ones are unused by this shell.

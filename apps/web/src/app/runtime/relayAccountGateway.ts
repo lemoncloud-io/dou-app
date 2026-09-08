@@ -1,6 +1,6 @@
 import { createUserGateway } from '@lemoncloud/chatic-sockets-lib';
 
-import { getSocketManager } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 /**
  * `user.*` pinned to the RELAY slot, for the account-level profile (MY page and what it opens).
@@ -30,7 +30,7 @@ let cachedGateway: ReturnType<typeof createUserGateway> | null = null;
 
 export const getRelayAccountGateway = (): ReturnType<typeof createUserGateway> => {
     if (!cachedGateway) {
-        cachedGateway = createUserGateway(getSocketManager().getScopedClient('relay') as any);
+        cachedGateway = createUserGateway(runtime.connection.getSocketManager().getScopedClient('relay') as any);
     }
     return cachedGateway;
 };

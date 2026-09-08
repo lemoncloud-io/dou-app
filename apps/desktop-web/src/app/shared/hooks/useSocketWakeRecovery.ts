@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 
 import { isNative } from '@chatic/bridges';
-import { getSocketManager } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 // Rapid focus/visibility/online toggling shouldn't churn the socket — coalesce
 // wake kicks into one attempt per window.
@@ -26,7 +26,7 @@ export const useSocketWakeRecovery = (): void => {
         const kick = () => {
             // Ignore blur/hide edges — only recover when the app is actually in front.
             if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
-            const manager = getSocketManager();
+            const manager = runtime.connection.getSocketManager();
             if (manager.getSnapshot().isVerified) return; // already healthy — nothing to do
 
             const now = Date.now();

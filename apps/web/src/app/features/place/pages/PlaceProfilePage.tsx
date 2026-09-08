@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/shared';
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { PlaceProfileForm } from '../../../ui/components/PlaceProfileForm';
 import { useMyProfile, usePlaceProfileAbsent } from '../../../hooks';
@@ -19,7 +19,7 @@ import { PageHeader } from '../../../ui';
 export const PlaceProfilePage = () => {
     const { t } = useTranslation();
     const navigate = useNavigateWithTransition();
-    const { profile: profileRepository } = useRuntimeRepositories();
+    const { profile: profileRepository } = runtime.data.useRuntimeRepositories();
     const { profile: myProfile } = useMyProfile();
     // Only a settled signal, not the verdict: `useMyProfile` cannot say whether its null means
     // "loading" or "no profile", and this page must render an empty form in the second case.

@@ -1,8 +1,7 @@
 import { useState } from 'react';
 
 import { cn } from '@chatic/lib/utils';
-import { useSessionIdentity } from '@chatic/app-runtime';
-import { useRuntimeProfile } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { useDebugLogin } from '../../auth/hooks';
 
@@ -19,8 +18,8 @@ const inputClass = cn(
  * jump to e.g. developer@lemoncloud.io to test cross-user notification delivery.
  */
 export const DebugAuthPage = () => {
-    const { userId } = useSessionIdentity();
-    const { userName } = useRuntimeProfile();
+    const { userId } = runtime.session.useSessionIdentity();
+    const { userName } = runtime.session.useRuntimeProfile();
     const currentUid = userId ?? '—';
     const currentName = userName ?? '';
     const { submit, isSubmitting, isError } = useDebugLogin();

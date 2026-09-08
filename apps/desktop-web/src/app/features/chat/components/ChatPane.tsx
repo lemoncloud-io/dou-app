@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { useSessionIdentity } from '@chatic/app-runtime';
-import { useRuntimeSocketState } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import type { DomainChannel, DomainChat } from '@chatic/data';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
@@ -43,7 +42,7 @@ interface ChatPaneProps {
 export const ChatPane = ({ channel, members, membersLoading, readCountOf }: ChatPaneProps) => {
     const { t } = useTranslation();
     const channelId = channel?.id ?? null;
-    const myUid = useSessionIdentity().userId;
+    const myUid = runtime.session.useSessionIdentity().userId;
     // Identity for naming own/optimistic messages (guest-UUID guard + per-channel
     // cloud id) — shared with the thread panel via useMessageViewer.
     const viewer = useMessageViewer(channel);
@@ -80,7 +79,7 @@ export const ChatPane = ({ channel, members, membersLoading, readCountOf }: Chat
     // Reactions fold from the UNFILTERED list on purpose: `isFeedVisible` removes exactly
     // the events this reads, so folding `topLevel` would always come back empty.
     const reactions = useMemo(() => foldReactions(messages, myUid), [messages, myUid]);
-    const { isVerified } = useRuntimeSocketState();
+    const { isVerified } = runtime.connection.useRuntimeSocketState();
     const [sendTick, setSendTick] = useState(0);
 
     // Snapshot the read position when the channel opens, before HomePage's

@@ -19,21 +19,8 @@ import type {
     SocketState,
     SocketStateListener,
 } from './types';
-
-/**
- * SDK AuthController tuning at adoption. SDK defaults are refreshRatio 0.8 / maxFailures 5 /
- * refreshIntervalMs 30min; we override:
- *  - maxFailures 3 — a slightly faster terminal `expired` (see usage.md §1.1).
- *  - refreshIntervalMs 5min — the FALLBACK cadence used only when the socket auth response omits
- *    `expiresIn` (dev/prod currently do — §11/§6-12). The SDK schedules refresh at `expiresIn * 0.8`
- *    when present, else this interval. The 30min default is too slow: it can let the relay AWS
- *    credential (or lemon-web-core's `expired_time` = Expiration − 5min) lapse before the socket
- *    refreshes, so signed HTTP starts 403ing while the socket still reports `authenticated`. 5min
- *    stays well under the ~1h credential lifetime (and lemon's expired_time), so the socket refresh
- *    writeback keeps credentials fresh and lemon never self-refreshes (§6-12). The real fix is the
- *    server reporting `expiresIn`, which makes this fallback moot.
- */
-const AUTH_OPTIONS = { refreshRatio: 0.8, maxFailures: 3, refreshIntervalMs: 5 * 60 * 1000 } as const;
+import { AUTH_OPTIONS, DEFAULT_VERIFY_TIMEOUT_MS, INITIAL_SOCKET_STATE } from './constants';
+import { annotateSocketError } from './utils/annotateSocketError';
 
 /** A push subscription that must be re-bound whenever the active client is replaced. */
 type TypeListenerEntry = {
@@ -60,37 +47,6 @@ interface ClientEntry {
     unsubscribes: Array<() => void>;
 }
 
-const initialState = (): SocketState => ({
-    state: 'idle',
-    isConnected: false,
-    isVerified: false,
-    connectionId: null,
-});
-
-/** Default upper bound for waitUntilVerified when a caller does not pass one. */
-const DEFAULT_VERIFY_TIMEOUT_MS = 10_000;
-
-/**
- * Names the failing call on an error leaving the request/send facade — `<kind>.<action>(<type>)`.
- *
- * The SDK's own transport failures carry no caller identity: `503 SOCKET NOT CONNECTED -
- * WebSocketTransport.send()` is byte-identical whichever request raced a closed socket, so a
- * minified production stack cannot say which one it was (nor which slot). Every request funnels
- * through this facade, so it is the one place that still knows both.
- *
- * Three invariants this must not break:
- *  - The status stays LEADING — getSocketErrorCode reads the message prefix, so this only appends.
- *  - The original object is rethrown, not wrapped, so its stack and carried fields (`errorCode`)
- *    survive; only `message` gains a suffix. Non-Error rejections pass through untouched.
- *  - Skipped when the message already names the type (the SDK's `408 REQUEST TIMEOUT - <type>[mid]`
- *    already does), which also makes it idempotent under any future re-annotating retry wrapper.
- */
-const annotateSocketError = (error: unknown, kind: SocketKind, action: string, type: string): unknown => {
-    if (!(error instanceof Error) || error.message.includes(type)) return error;
-    error.message = `${error.message} - ${kind}.${action}(${type})`;
-    return error;
-};
-
 /**
  * SocketManager owns up to two ClientSocketV2 slots — `relay` (always-on) and `cloud` (active-only)
  * — keyed by kind, and exposes an ACTIVE-FACADE: the observable state, request/send/onType, and
@@ -101,7 +57,7 @@ const annotateSocketError = (error: unknown, kind: SocketKind, action: string, t
  */
 export class SocketManager implements ISocketManager {
     private readonly entries = new Map<SocketKind, ClientEntry>();
-    private state: SocketState = initialState();
+    private state: SocketState = INITIAL_SOCKET_STATE;
 
     // State is an observable store: each consumer (e.g. a useSyncExternalStore hook) registers its
     // own listener — hence a Set.
@@ -469,7 +425,7 @@ export class SocketManager implements ISocketManager {
     }
 
     private computeState(entry: ClientEntry | null): SocketState {
-        if (!entry) return initialState();
+        if (!entry) return INITIAL_SOCKET_STATE;
         const connected = entry.connState === 'connected';
         return {
             state: entry.connState,

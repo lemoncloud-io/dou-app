@@ -1,6 +1,6 @@
 import { renderHook, waitFor } from '@testing-library/react';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 const cancelInviteMock = jest.fn();
 const undismissMock = jest.fn();
@@ -19,7 +19,13 @@ let mockRemote: InviteRow[] | undefined;
 let mockIsLoading = false;
 const refetchMock = jest.fn(async () => ({ data: mockRemote }));
 
-jest.mock('@chatic/app-runtime', () => ({ useRuntimeRepositories: jest.fn() }));
+jest.mock('@chatic/app-runtime', () => ({
+    runtime: {
+        data: {
+            useRuntimeRepositories: jest.fn(),
+        },
+    },
+}));
 jest.mock('../../../hooks', () => ({
     useRelayInvites: () => ({ invites: mockInvites, isLoading: mockIsLoading, refetch: refetchMock }),
     useRelayInviteMutations: () => ({ cancelInvite: cancelInviteMock }),
@@ -34,7 +40,7 @@ describe('useCanceledInviteReconcile — S9 분기 전부', () => {
         mockInvites = [];
         mockRemote = [{ id: 'invt-1', code: 'c0de', state: 'pending' }];
         cancelInviteMock.mockResolvedValue({ state: 'canceled' });
-        (useRuntimeRepositories as jest.Mock).mockReturnValue({
+        (runtime.data.useRuntimeRepositories as jest.Mock).mockReturnValue({
             invite: { undismiss: undismissMock, cacheDelete: cacheDeleteMock },
         });
     });

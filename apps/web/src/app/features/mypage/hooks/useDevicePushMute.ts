@@ -1,7 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { usePreferenceStore } from '../../../stores/usePreferenceStore';
@@ -19,7 +19,7 @@ import { usePreferenceStore } from '../../../stores/usePreferenceStore';
  * write would always 404 — the UI disables the toggle instead.
  */
 export const useDevicePushMute = () => {
-    const { device } = useRuntimeRepositories();
+    const { device } = runtime.data.useRuntimeRepositories();
     const { t } = useTranslation();
     const { toast } = useToast();
     const pushMuted = usePreferenceStore(state => state.pushMuted);

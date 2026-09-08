@@ -1,17 +1,23 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { useReactions } from './useReactions';
 
-jest.mock('@chatic/app-runtime', () => ({ useRuntimeRepositories: jest.fn() }));
+jest.mock('@chatic/app-runtime', () => ({
+    runtime: {
+        data: {
+            useRuntimeRepositories: jest.fn(),
+        },
+    },
+}));
 
 const setReaction = jest.fn();
 
 beforeEach(() => {
     jest.clearAllMocks();
     setReaction.mockResolvedValue({});
-    (useRuntimeRepositories as jest.Mock).mockReturnValue({ chat: { setReaction } });
+    (runtime.data.useRuntimeRepositories as jest.Mock).mockReturnValue({ chat: { setReaction } });
 });
 
 describe('useReactions — 리액션 토글', () => {

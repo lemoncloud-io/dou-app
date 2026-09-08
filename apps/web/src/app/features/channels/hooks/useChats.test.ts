@@ -1,15 +1,22 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
-import { useSessionIdentity } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import type { DomainChat, DomainUser } from '@chatic/data';
 
 import { useChats } from './useChats';
 
 jest.mock('@chatic/app-runtime', () => ({
-    useRuntimeRepositories: jest.fn(),
-    useChatSync: jest.fn(),
-    useSessionIdentity: jest.fn(),
+    runtime: {
+        data: {
+            useRuntimeRepositories: jest.fn(),
+        },
+        sync: {
+            useChatSync: jest.fn(),
+        },
+        session: {
+            useSessionIdentity: jest.fn(),
+        },
+    },
 }));
 
 // Covered by its own test file; isolate useChats from the foreground-refresh side effects.
@@ -38,11 +45,11 @@ beforeEach(() => {
     seedUsers([{ id: 'u1', name: 'Alice' }]);
     // Always resolve so the entry refreshList's `.catch` chain is safe by default.
     chatRefreshList.mockResolvedValue({ fetchedCount: 0 });
-    (useRuntimeRepositories as jest.Mock).mockReturnValue({
+    (runtime.data.useRuntimeRepositories as jest.Mock).mockReturnValue({
         chat: { observeList: chatObserveList, refreshList: chatRefreshList },
         user: { observeList: userObserveList },
     });
-    (useSessionIdentity as jest.Mock).mockReturnValue({ userId: 'me' });
+    (runtime.session.useSessionIdentity as jest.Mock).mockReturnValue({ userId: 'me' });
 });
 
 describe('useChats — 메시지 매핑/정렬/페이징', () => {

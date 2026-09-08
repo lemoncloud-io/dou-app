@@ -14,10 +14,11 @@ const mockSetCachedCloudTokens = jest.fn();
 const mockGetCredential = jest.fn();
 const mockSaveSelectedCloudId = jest.fn();
 const mockClearSelectedSite = jest.fn();
-const mockClearPlaceOrder = jest.fn();
 
 const mockRebuildSessionIdentity = jest.fn();
 const mockNotifySessionStateChanged = jest.fn();
+/** Counts `sessionSignal.batch` — a re-issue must be one observable change. */
+const mockBatch = jest.fn();
 
 jest.mock('../../data/runtime', () => ({
     getRepositories: () => ({
@@ -39,13 +40,23 @@ jest.mock('../store/stores', () => ({
         getCredential: (...args: unknown[]) => mockGetCredential(...args),
         saveSelectedCloudId: (...args: unknown[]) => mockSaveSelectedCloudId(...args),
         clearSelectedSite: (...args: unknown[]) => mockClearSelectedSite(...args),
-        clearPlaceOrder: (...args: unknown[]) => mockClearPlaceOrder(...args),
     },
 }));
 
 jest.mock('../store', () => ({
     rebuildSessionIdentity: (...args: unknown[]) => mockRebuildSessionIdentity(...args),
-    notifySessionStateChanged: (...args: unknown[]) => mockNotifySessionStateChanged(...args),
+    // The store announces KINDS now (ADR-0076 결정 2). `mockNotifySessionStateChanged` stands for
+    // `emit`, so the existing "was the session announced" assertions keep their meaning; `batch`
+    // runs straight through because the collapsing is covered by signal.test.ts.
+    sessionSignal: {
+        emit: (...args: unknown[]) => mockNotifySessionStateChanged(...args),
+        batch: (fn: () => unknown) => {
+            mockBatch();
+            return fn();
+        },
+        subscribe: jest.fn(() => () => undefined),
+        registerInvalidator: jest.fn(),
+    },
 }));
 
 jest.mock('@chatic/bridges', () => ({
@@ -150,17 +161,17 @@ describe('reissueCommittedCloudTokens', () => {
 
         expect(mockSaveSelectedCloudId).not.toHaveBeenCalled();
         expect(mockClearSelectedSite).not.toHaveBeenCalled();
-        expect(mockClearPlaceOrder).not.toHaveBeenCalled();
     });
 
-    it('커밋 후 identity를 재파생하고 알린다', async () => {
+    it('커밋 후 identity를 재파생하고, 재발급 전체가 한 번의 관측 가능한 변화다', async () => {
         mockGetDelegationToken.mockReturnValue(delegation());
 
         await reissueCommittedCloudTokens();
 
         expect(mockSaveDelegationToken).toHaveBeenCalledWith(delegation());
         expect(mockRebuildSessionIdentity).toHaveBeenCalled();
-        expect(mockNotifySessionStateChanged).toHaveBeenCalled();
+        // 재발급은 클라우드 CHANGE가 아니므로 위임 토큰만 움직인 창을 관측자가 보면 안 된다.
+        expect(mockBatch).toHaveBeenCalledTimes(1);
     });
 
     it('교환 실패는 던진다 — 재시도 여부는 호출자가 결정한다', async () => {

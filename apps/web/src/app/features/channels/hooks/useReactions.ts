@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 /**
  * Turn a reaction on or off. Ported from apps/desktop-web `features/chat/hooks/useReactions.ts`
@@ -21,7 +21,7 @@ import { useRuntimeRepositories } from '@chatic/app-runtime';
  * belongs to.
  */
 export const useReactions = () => {
-    const { chat: chatRepository } = useRuntimeRepositories();
+    const { chat: chatRepository } = runtime.data.useRuntimeRepositories();
     const [failedId, setFailedId] = useState<string | null>(null);
 
     const toggleReaction = useCallback(

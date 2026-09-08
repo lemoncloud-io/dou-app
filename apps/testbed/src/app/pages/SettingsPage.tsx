@@ -1,26 +1,19 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-    useGlobalSession,
-    useSessionLogout,
-    useLogoutCloudSession,
-    useSessionIdentity,
-    useSessionSelection,
-} from '@chatic/app-runtime';
-import { useRuntimeRepositories, useRuntimeProfile } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import type { DataRepositoriesV2, DomainProfile } from '@chatic/data';
 
 export const SettingsPage = () => {
     const navigate = useNavigate();
-    const session = useGlobalSession();
-    const identity = useSessionIdentity();
-    const facts = useRuntimeProfile();
-    const { selectedCloudId, selectedSiteId } = useSessionSelection();
-    const logout = useSessionLogout();
-    const { logoutCloudSession, isLoggingOutCloudSession } = useLogoutCloudSession();
+    const session = runtime.session.useGlobalSession();
+    const identity = runtime.session.useSessionIdentity();
+    const facts = runtime.session.useRuntimeProfile();
+    const { selectedCloudId, selectedSiteId } = runtime.session.useSessionSelection();
+    const logout = runtime.session.useSessionLogout();
+    const { logoutCloudSession, isLoggingOutCloudSession } = runtime.session.useLogoutCloudSession();
 
     // Cast to V2 — app-runtime dist is stale (V1 return type), source is V2
-    const repos = useRuntimeRepositories() as unknown as DataRepositoriesV2;
+    const repos = runtime.data.useRuntimeRepositories() as unknown as DataRepositoriesV2;
 
     const isRelayMode = session.activeServer.kind === 'relay';
     const hasCloudSession = session.cloud.isActive;

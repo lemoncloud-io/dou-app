@@ -25,7 +25,13 @@ jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ 
 // 실제 `useRuntimeRepositories`는 DataManager의 같은 객체를 돌려준다. 목이 매 렌더 새 객체를
 // 만들면 유저 캐시 effect의 의존성이 계속 바뀌어 무한 렌더가 된다 — 안정적인 참조로 고정한다.
 const repositories = { user: { cacheRead } };
-jest.mock('@chatic/app-runtime', () => ({ useRuntimeRepositories: () => repositories }));
+jest.mock('@chatic/app-runtime', () => ({
+    runtime: {
+        data: {
+            useRuntimeRepositories: () => repositories,
+        },
+    },
+}));
 jest.mock('../hooks', () => ({
     LIST_PROFILE_SYNC_INTERVAL_MS: 60_000,
     useChannelMutations: () => ({ inviteChannel }),

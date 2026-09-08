@@ -1,5 +1,5 @@
 import { createSocketSessionDelegate } from './sessionDelegate';
-import { logoutCloudSession, logoutRelaySession } from '../../session';
+import { credentialRenewers } from './renewers';
 
 jest.mock('@chatic/bridges', () => ({
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
@@ -9,31 +9,39 @@ jest.mock('../../session', () => ({
     getServerAuthRegistration: jest.fn(),
     signServerAuth: jest.fn(),
     commitServerRefreshedToken: jest.fn(),
-    logoutCloudSession: jest.fn(),
-    logoutRelaySession: jest.fn().mockResolvedValue(undefined),
 }));
 
-const mockedLogoutCloud = logoutCloudSession as jest.MockedFunction<typeof logoutCloudSession>;
-const mockedLogoutRelay = logoutRelaySession as jest.MockedFunction<typeof logoutRelaySession>;
+// The delegate's job here is ROUTING, so the renewers are stubbed: what each server does about a
+// terminal expiry (relay's confirmation window, cloud's store-only teardown) is the renewers' own
+// contract and is locked in `renewers.test.ts`.
+jest.mock('./renewers', () => ({
+    credentialRenewers: {
+        relay: { onTerminalExpiry: jest.fn().mockResolvedValue(undefined) },
+        cloud: { onTerminalExpiry: jest.fn() },
+    },
+}));
+
+const relayExpiry = credentialRenewers.relay.onTerminalExpiry as jest.Mock;
+const cloudExpiry = credentialRenewers.cloud.onTerminalExpiry as jest.Mock;
 
 describe('createSocketSessionDelegate — onAuthExpired', () => {
     beforeEach(() => jest.clearAllMocks());
 
-    it('cloud: tears down only the cloud session, relay untouched', () => {
+    it('routes a terminal expiry to that kind’s renewer — cloud', () => {
         const delegate = createSocketSessionDelegate();
 
         delegate.onAuthExpired?.('cloud');
 
-        expect(mockedLogoutCloud).toHaveBeenCalledTimes(1);
-        expect(mockedLogoutRelay).not.toHaveBeenCalled();
+        expect(cloudExpiry).toHaveBeenCalledTimes(1);
+        expect(relayExpiry).not.toHaveBeenCalled();
     });
 
-    it('relay: auto-logs out after the terminal expired state (maxFailures exhausted)', async () => {
+    it('routes a terminal expiry to that kind’s renewer — relay', async () => {
         const delegate = createSocketSessionDelegate();
 
         await delegate.onAuthExpired?.('relay');
 
-        expect(mockedLogoutRelay).toHaveBeenCalledTimes(1);
-        expect(mockedLogoutCloud).not.toHaveBeenCalled();
+        expect(relayExpiry).toHaveBeenCalledTimes(1);
+        expect(cloudExpiry).not.toHaveBeenCalled();
     });
 });

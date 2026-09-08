@@ -1,17 +1,23 @@
 import { renderHook } from '@testing-library/react';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { useSetMyPlaceProfile } from './useSetMyPlaceProfile';
 
-jest.mock('@chatic/app-runtime', () => ({ useRuntimeRepositories: jest.fn() }));
+jest.mock('@chatic/app-runtime', () => ({
+    runtime: {
+        data: {
+            useRuntimeRepositories: jest.fn(),
+        },
+    },
+}));
 
 const setMyProfileMock = jest.fn();
 const setProfileMock = jest.fn();
 
 beforeEach(() => {
     jest.clearAllMocks();
-    (useRuntimeRepositories as jest.Mock).mockReturnValue({
+    (runtime.data.useRuntimeRepositories as jest.Mock).mockReturnValue({
         profile: { setMyProfile: setMyProfileMock, setProfile: setProfileMock },
     });
 });

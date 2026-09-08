@@ -1,6 +1,6 @@
 import { renderHook, waitFor } from '@testing-library/react';
 
-import { useGlobalCacheSearch } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import { logger } from '@chatic/bridges';
 
 import { useSenderProfiles } from './useSenderProfiles';
@@ -8,8 +8,12 @@ import { useSearchContext } from './useSearchContext';
 import type { GlobalSearchResults } from './useGlobalSearch';
 
 jest.mock('@chatic/app-runtime', () => ({
-    useGlobalCacheSearch: jest.fn(),
-    globalCacheRefKey: (cid: string, id: string) => `${cid}:${id}`,
+    runtime: {
+        data: {
+            useGlobalCacheSearch: jest.fn(),
+            globalCacheRefKey: (cid: string, id: string) => `${cid}:${id}`,
+        },
+    },
 }));
 // Sender profiles come from ProfileRepositoryV2 via this hook; it has its own test file.
 jest.mock('./useSenderProfiles', () => ({ useSenderProfiles: jest.fn(() => new Map()) }));
@@ -30,7 +34,7 @@ const results = (overrides: Partial<GlobalSearchResults> = {}): GlobalSearchResu
 beforeEach(() => {
     jest.clearAllMocks();
     resolveContext.mockResolvedValue(EMPTY_CONTEXT);
-    (useGlobalCacheSearch as jest.Mock).mockReturnValue({ search: jest.fn(), resolveContext });
+    (runtime.data.useGlobalCacheSearch as jest.Mock).mockReturnValue({ search: jest.fn(), resolveContext });
     (useSenderProfiles as jest.Mock).mockReturnValue(new Map());
 });
 

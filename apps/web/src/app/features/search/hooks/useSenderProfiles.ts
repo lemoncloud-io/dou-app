@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import type { DomainProfile } from '@chatic/data';
 import { logger } from '@chatic/bridges';
 
@@ -33,7 +33,7 @@ const memberIdOf = (profile: DomainProfile) => profile.userId || profile.uid;
  * would keep running for people whose rooms aren't even open.
  */
 export const useSenderProfiles = (refs: SenderProfileRef[]): Map<string, DomainProfile> => {
-    const { profile: profileRepository } = useRuntimeRepositories();
+    const { profile: profileRepository } = runtime.data.useRuntimeRepositories();
     const [profiles, setProfiles] = useState<Map<string, DomainProfile>>(new Map());
 
     // Serialized so the effect re-runs on a changed author SET, not on every new array identity —

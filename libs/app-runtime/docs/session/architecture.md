@@ -104,11 +104,11 @@ endpoint resolver(`getDynamicRelayBackend`/`getDynamicRelayWss`)를 `relayStore`
 ## session/auth — HTTP는 data 레이어를 지난다
 
 `session/auth`의 유스케이스(login·발급·전환·로그아웃·OAuth 교환)는 HTTP를 쳐야 하는 코드다.
-**게이트웨이를 직접 잡지 않는다** — [`services.ts`](../../src/session/auth/services.ts)는
+**게이트웨이를 직접 잡지 않는다** — [`relaySession.ts`](../../src/session/auth/relaySession.ts) · [`cloudSession.ts`](../../src/session/auth/cloudSession.ts) 는
 `AuthRepositoryV2`를 부르고, 게이트웨이 인스턴스를 아는 코드는 전부 `data/` 안에 있다.
 
 ```
-session/auth/services.ts ──> data(AuthRepositoryV2) ──> http/gateways ──> HttpManager
+session/auth/{relay,cloud}Session ──> data(AuthRepositoryV2) ──> http/gateways ──> HttpManager
 ```
 
 비-React 코드라 `getRepositories()`로 잡는다 — `socket/sync/plans.ts`와 같은 접근자이고,
@@ -199,6 +199,27 @@ sequenceDiagram
 | 소켓이 없으면 | 갱신 불가. 기다리는 것 외에 방법이 없다 | relay만 살아 있으면 언제든 가능                                 |
 | 만료 시 정책  | 세션 자체가 위험 → teardown 후보        | 클라우드만 버리면 된다 (`onAuthExpired` → `logoutCloudSession`) |
 
+### 종단 `expired`는 즉시 판정하지 않는다 — 확인 창
+
+relay의 터미널 만료는 이 런타임에서 **세션을 끝낼 수 있는 유일한 자동 경로**다
+([`renewers.ts`](../../src/socket/auth/renewers.ts)의 `RelayCredentialRenewer.onTerminalExpiry`). 그런데
+`expired`는 두 가지를 동시에 뜻한다 — 고착된 서명(기다려도 안 낫는다)과, **끊기는 링크에서 연속 3회
+실패**(`maxFailures`)다. 도착하는 순간에는 둘을 구분할 수 없고, 예전 코드는 그 모호함을 사용자의
+세션으로 지불했다(다른 회복 경로는 전부 오프라인이면 손을 떼는데 이 경로만 페이지를 리다이렉트했다).
+
+지금은 두 질문을 통과해야 로그아웃한다:
+
+1. **링크가 죽었나** — `navigator.onLine === false`는 리포의 신뢰 가능한 부정(`deriveConnectivity`)이고,
+   실패가 세션 탓이 아님을 증명한다. 보류한다. 링크가 돌아와도 여전히 고착이면 온라인 상태로 다시
+   `expired`가 나서 이 자리로 돌아온다.
+2. **확인 창(30초) 뒤에도 여전히 `expired`인가** — 고착은 정의상 지속되고 일시적 소진은 아니다.
+   재연결의 첫 resume(부트스트랩 게이트는 첫 재개를 즉시 허용한다)이나 포그라운드
+   `recoverUnverifiedSockets` 재시드가 창 안에서 상태를 옮기면 로그아웃하지 않는다.
+
+확인 창은 재시도 루프가 **아니다** — 아무것도 스케줄하지 않고 아무 소켓도 걷어차지 않는다. 이미 있는
+회복 경로가 관측될 시간만 벌고, 반복 `expired` 보고는 `Coalescer`로 한 판정에 합류한다. 값은
+`EXPIRED_RESUME_INITIAL_COOLDOWN_MS`(30초)에 묶여 있다.
+
 ### relay — [`useSessionStalenessGuard(policy)`](../../src/session/hooks/app/useSessionStalenessGuard.ts)
 
 프로브는 read-only다(lemon 토큰 스토리지를 건드리지 않는다). refresh가 필요하면
@@ -230,6 +251,8 @@ emit) 첫 writeback이 연결 후 한 refresh 주기(서버가 `expiresIn`을 �
 
 마진이 5분(= `AUTH_OPTIONS.refreshIntervalMs`)인 이유는 튜닝이 아니라 진단이다: 건강한 cloud 소켓은 매
 주기 자격증명을 다시 민팅하므로, **마진 아래로 내려온 것 자체가 소켓이 못 따라오고 있다는 증거다.**
+그래서 이 마진은 리터럴이 아니라 `SDK_REFRESH_CYCLE_MS`를 읽는다 — 같은 논거를 쓰는 세 곳
+(`deriveAuthStatus` · relay 노후 가드 · cloud 자격증명 가드)이 전부 그렇다.
 
 이 틈은 실재했다. cloud 자격증명은 1시간 수명이고 세션 중간에 그것을 다시 민팅하는 것은 cloud 소켓의
 refresh writeback 하나뿐이었다. 그 소켓이 죽은 동안(절전·연결 끊김·한 장소에 오래 머무름) 아무도
@@ -331,7 +354,7 @@ lemon transport 초기화는 `http/transport`가 소유한다. 위치가 leaf로
 - **표면 잠금** — [`src/public-surface.test.ts`](../../src/public-surface.test.ts)가 공개 값 심볼 집합을
   목록으로 고정한다. 심볼 추가/삭제는 그 목록을 고치는 의도적 행위여야 한다.
 - **refresh 부재** — [`src/http/refreshAbsence.test.ts`](../../src/http/refreshAbsence.test.ts).
-- **스코프** — [`intent.test.ts`](../../src/session/scope/intent.test.ts) + `data`의 scopeGuards 테이블
+- **스코프** — [`selectedContext.test.ts`](../../src/session/scope/selectedContext.test.ts) + `data`의 scopeGuards 테이블
   테스트. 판정 6곳의 스킵/통과 케이스를 1:1 보존한다(특히 `ChannelRepositoryV2`의 부정 반전).
 
 ```bash
@@ -374,5 +397,5 @@ cloud refresh 400 시 relay 재발급 → cloud 재교환 → 1회 재시도하�
 - [../architecture.md](../architecture.md) — 5축 소유 규칙·모듈 구조
 - [../public-surface.md](../public-surface.md) — 세션 허브가 배럴로 내는 것
 - [../socket/auth/README.md](../socket/auth/README.md) · [signing.md](../socket/auth/signing.md) — SDK 소유 경계·서명 계약
-- [../runtime/README.md](../runtime/README.md) — `RuntimeBinding`의 소켓 슬롯 파생
+- [../runtime/README.md](../runtime/README.md) — `RuntimeSocketSlots`의 소켓 슬롯 파생
 - [`libs/http/docs/architecture.md`](../../../http/docs/architecture.md) — HTTP 실행기·정책

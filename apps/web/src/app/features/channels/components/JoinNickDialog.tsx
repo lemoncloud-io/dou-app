@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
 
 import { logger } from '@chatic/bridges';
-import { useSessionIdentity } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
@@ -61,7 +61,7 @@ export const JoinNickDialog = ({
     const { t } = useTranslation();
     const { channel } = useChannel(channelId ?? null);
     const { updateJoin, isPending } = useJoinMutations();
-    const { userId } = useSessionIdentity();
+    const { userId } = runtime.session.useSessionIdentity();
     const { profile } = useMyProfile();
     const { toast } = useToast();
 

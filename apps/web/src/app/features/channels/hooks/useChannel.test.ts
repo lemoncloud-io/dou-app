@@ -1,15 +1,22 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 
-import { useChannelSync, useRuntimeRepositories } from '@chatic/app-runtime';
-import { useSessionIdentity } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import type { DomainChannel } from '@chatic/data';
 
 import { useChannel } from './useChannel';
 
 jest.mock('@chatic/app-runtime', () => ({
-    useRuntimeRepositories: jest.fn(),
-    useChannelSync: jest.fn(),
-    useSessionIdentity: jest.fn(),
+    runtime: {
+        data: {
+            useRuntimeRepositories: jest.fn(),
+        },
+        sync: {
+            useChannelSync: jest.fn(),
+        },
+        session: {
+            useSessionIdentity: jest.fn(),
+        },
+    },
 }));
 
 const observeItem = jest.fn();
@@ -23,9 +30,9 @@ const channelRow = (fields: Partial<DomainChannel> = {}): DomainChannel =>
 
 beforeEach(() => {
     jest.clearAllMocks();
-    (useRuntimeRepositories as jest.Mock).mockReturnValue({ channel: { observeItem } });
-    (useSessionIdentity as jest.Mock).mockReturnValue({ userId: 'me' });
-    (useChannelSync as jest.Mock).mockReturnValue(undefined);
+    (runtime.data.useRuntimeRepositories as jest.Mock).mockReturnValue({ channel: { observeItem } });
+    (runtime.session.useSessionIdentity as jest.Mock).mockReturnValue({ userId: 'me' });
+    (runtime.sync.useChannelSync as jest.Mock).mockReturnValue(undefined);
     observeItem.mockImplementation((_id, cb) => {
         emit = cb;
         return unsubscribe;

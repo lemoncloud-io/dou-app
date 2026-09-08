@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
-import { useSessionIdentity } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import type { DomainJoin } from '@chatic/data';
 
 export interface ChannelJoins {
@@ -38,8 +37,8 @@ export interface ChannelJoins {
  * {@link useJoinPositions}, which registers every member's cursor while the room is open).
  */
 export const useChannelJoins = (channelId: string | null): ChannelJoins => {
-    const { join: joinRepository } = useRuntimeRepositories();
-    const { userId } = useSessionIdentity();
+    const { join: joinRepository } = runtime.data.useRuntimeRepositories();
+    const { userId } = runtime.session.useSessionIdentity();
 
     const [joins, setJoins] = useState<DomainJoin[]>([]);
 

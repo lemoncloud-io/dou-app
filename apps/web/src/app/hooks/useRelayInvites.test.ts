@@ -14,14 +14,20 @@ import { createElement, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider, focusManager } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 
-import { getSocketManager, useKindVerified, useRuntimeRepositories } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { relayInviteKeys, useRelayInviteMutations, useRelayInvites } from './useRelayInvites';
 
 jest.mock('@chatic/app-runtime', () => ({
-    useRuntimeRepositories: jest.fn(),
-    useKindVerified: jest.fn(),
-    getSocketManager: jest.fn(),
+    runtime: {
+        data: {
+            useRuntimeRepositories: jest.fn(),
+        },
+        connection: {
+            useKindVerified: jest.fn(),
+            getSocketManager: jest.fn(),
+        },
+    },
 }));
 
 const list = jest.fn();
@@ -63,12 +69,12 @@ beforeEach(() => {
     cancel.mockResolvedValue({ id: 'invite-1', state: 'canceled', canceledAt: 1 });
     reject.mockResolvedValue({ id: 'invite-1', state: 'rejected', rejectedAt: 1 });
     observeList.mockImplementation(() => () => undefined);
-    (useRuntimeRepositories as jest.Mock).mockReturnValue({
+    (runtime.data.useRuntimeRepositories as jest.Mock).mockReturnValue({
         invite: { list, create, get, accept, cancel, reject, observeList },
     });
-    (useKindVerified as jest.Mock).mockReturnValue(true); // relay verified by default in these tests
+    (runtime.connection.useKindVerified as jest.Mock).mockReturnValue(true); // relay verified by default in these tests
     waitUntilKindVerified.mockResolvedValue(false);
-    (getSocketManager as jest.Mock).mockReturnValue({ waitUntilKindVerified });
+    (runtime.connection.getSocketManager as jest.Mock).mockReturnValue({ waitUntilKindVerified });
     queryClient = createAppQueryClient();
     focusManager.setFocused(undefined);
 });
@@ -119,7 +125,7 @@ describe('useRelayInvites', () => {
     // all, so it fired on mount and raced the relay handshake — surfacing as `503 SOCKET NOT
     // CONNECTED - relay.request(invite.list)` in production.
     it('relay가 아직 verified가 아니면 조회하지 않는다', () => {
-        (useKindVerified as jest.Mock).mockReturnValue(false);
+        (runtime.connection.useKindVerified as jest.Mock).mockReturnValue(false);
 
         const { result } = renderHook(() => useRelayInvites(undefined, REMOTE), { wrapper });
 
@@ -132,7 +138,7 @@ describe('useRelayInvites', () => {
     // 폴링을 쿼리 옵션으로 넘기면 게이트가 그대로 적용된다.
     it('pollIntervalMs 폴링은 relay 게이트를 지킨다', async () => {
         jest.useFakeTimers();
-        (useKindVerified as jest.Mock).mockReturnValue(false);
+        (runtime.connection.useKindVerified as jest.Mock).mockReturnValue(false);
 
         const { rerender } = renderHook(() => useRelayInvites(undefined, { pollIntervalMs: 30_000 }), { wrapper });
         await act(async () => {
@@ -140,7 +146,7 @@ describe('useRelayInvites', () => {
         });
         expect(list).not.toHaveBeenCalled();
 
-        (useKindVerified as jest.Mock).mockReturnValue(true);
+        (runtime.connection.useKindVerified as jest.Mock).mockReturnValue(true);
         rerender();
         await waitFor(() => expect(list).toHaveBeenCalledTimes(1));
 
@@ -165,11 +171,11 @@ describe('useRelayInvites', () => {
     });
 
     it('relay verified가 false→true로 바뀌는 순간 조회한다', async () => {
-        (useKindVerified as jest.Mock).mockReturnValue(false);
+        (runtime.connection.useKindVerified as jest.Mock).mockReturnValue(false);
         const { result, rerender } = renderHook(() => useRelayInvites(undefined, REMOTE), { wrapper });
         expect(list).not.toHaveBeenCalled();
 
-        (useKindVerified as jest.Mock).mockReturnValue(true);
+        (runtime.connection.useKindVerified as jest.Mock).mockReturnValue(true);
         rerender();
 
         await waitFor(() => expect(list).toHaveBeenCalledTimes(1));
@@ -274,7 +280,7 @@ describe('useRelayInvites — 기본은 캐시 전용', () => {
         const { result } = renderHook(() => useRelayInvites(), { wrapper });
 
         // 게이트가 아니라 의사(意思) 부재로 안 쏘는 것이다 — relay는 verified 상태다.
-        expect(useKindVerified).toHaveBeenCalledWith('relay');
+        expect(runtime.connection.useKindVerified).toHaveBeenCalledWith('relay');
         await act(async () => undefined);
         expect(list).not.toHaveBeenCalled();
         expect(result.current.isLoading).toBe(false); // 스피너에 갇히지도 않는다
@@ -478,7 +484,7 @@ describe('useRelayInviteMutations', () => {
 // `401 UNAUTHORIZED - not authenticated @invite.list`로 거절했다 (retry:1이라 탭 1회에 2건).
 describe('useRelayInvites — 호출자 refetch도 relay 게이트를 지킨다', () => {
     it('미인증이면 슬롯을 기다리고, 끝내 안 되면 소켓을 건드리지 않는다', async () => {
-        (useKindVerified as jest.Mock).mockReturnValue(false);
+        (runtime.connection.useKindVerified as jest.Mock).mockReturnValue(false);
         waitUntilKindVerified.mockResolvedValue(false);
 
         const { result } = renderHook(() => useRelayInvites(), { wrapper });
@@ -492,7 +498,7 @@ describe('useRelayInvites — 호출자 refetch도 relay 게이트를 지킨다'
     });
 
     it('기다리는 동안 relay가 인증되면 그때 조회한다', async () => {
-        (useKindVerified as jest.Mock).mockReturnValue(false);
+        (runtime.connection.useKindVerified as jest.Mock).mockReturnValue(false);
         waitUntilKindVerified.mockResolvedValue(true);
         list.mockResolvedValue([{ id: 'invite-1', code: 'c0de' }]);
 
@@ -506,7 +512,7 @@ describe('useRelayInvites — 호출자 refetch도 relay 게이트를 지킨다'
     });
 
     it('이미 인증돼 있으면 기다리지 않고 바로 조회한다', async () => {
-        (useKindVerified as jest.Mock).mockReturnValue(true);
+        (runtime.connection.useKindVerified as jest.Mock).mockReturnValue(true);
 
         // 기본(캐시 전용) 소비자라 마운트 조회가 없다 — refetch()가 유일한 패킷이고, disabled
         // 쿼리에도 발사된다는 TanStack v5 성질이 온디맨드 code 재조회를 떠받치는 바로 그 지점이다.

@@ -3,11 +3,17 @@ import { createElement, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook } from '@testing-library/react';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { useUpdateCloudProfile } from './useUpdateCloudProfile';
 
-jest.mock('@chatic/app-runtime', () => ({ useRuntimeRepositories: jest.fn() }));
+jest.mock('@chatic/app-runtime', () => ({
+    runtime: {
+        data: {
+            useRuntimeRepositories: jest.fn(),
+        },
+    },
+}));
 
 const updateCloudMock = jest.fn();
 const wrapper = ({ children }: { children: ReactNode }) =>
@@ -15,7 +21,7 @@ const wrapper = ({ children }: { children: ReactNode }) =>
 
 beforeEach(() => {
     jest.clearAllMocks();
-    (useRuntimeRepositories as jest.Mock).mockReturnValue({ cloud: { updateCloud: updateCloudMock } });
+    (runtime.data.useRuntimeRepositories as jest.Mock).mockReturnValue({ cloud: { updateCloud: updateCloudMock } });
 });
 
 describe('useUpdateCloudProfile', () => {

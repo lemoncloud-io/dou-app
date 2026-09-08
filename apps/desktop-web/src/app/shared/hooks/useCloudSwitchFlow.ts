@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { logger } from '@chatic/bridges';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { useLogoutCloudSession, useSessionSelection, useSwitchCloudSession } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { useSelectedChannelStore } from '../stores';
 
@@ -19,9 +19,9 @@ import { useSelectedChannelStore } from '../stores';
  * loader — the switch is optimistic).
  */
 export const useCloudSwitchFlow = () => {
-    const { switchCloud: switchCloudSession, isPending: isSwitching } = useSwitchCloudSession();
-    const { logoutCloudSession } = useLogoutCloudSession();
-    const { selectedCloudId } = useSessionSelection();
+    const { switchCloud: switchCloudSession, isPending: isSwitching } = runtime.session.useSwitchCloudSession();
+    const { logoutCloudSession } = runtime.session.useLogoutCloudSession();
+    const { selectedCloudId } = runtime.session.useSessionSelection();
     const { t } = useTranslation();
     const { toast } = useToast();
 

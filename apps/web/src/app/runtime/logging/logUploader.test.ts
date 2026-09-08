@@ -65,8 +65,14 @@ jest.mock('./nativeUploadSource', () => ({
 
 const mockUpload = jest.fn(async () => 'ok' as const);
 jest.mock('@chatic/app-runtime', () => ({
-    registerSessionLogoutCallback: () => () => undefined,
-    uploadLogBatch: (entries: LogEntry[]) => mockUpload(entries),
+    runtime: {
+        session: {
+            registerSessionLogoutCallback: () => () => undefined,
+        },
+        report: {
+            uploadLogBatch: (entries: LogEntry[]) => mockUpload(entries),
+        },
+    },
 }));
 
 let handle: LogUploaderHandle | undefined;

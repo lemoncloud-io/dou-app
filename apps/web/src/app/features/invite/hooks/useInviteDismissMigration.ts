@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
-import { useSessionSelection } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { usePreferenceStore } from '../../../stores/usePreferenceStore';
 
@@ -43,8 +42,8 @@ const markMigrated = (): void => {
  * past the stub era) short-circuits before that gate, since there is nothing to write.
  */
 export const useInviteDismissMigration = (): void => {
-    const { invite } = useRuntimeRepositories();
-    const { selectedCloudId } = useSessionSelection();
+    const { invite } = runtime.data.useRuntimeRepositories();
+    const { selectedCloudId } = runtime.session.useSessionSelection();
     const canceledIds = usePreferenceStore(state => state.canceledInviteIds);
     const clearCanceled = usePreferenceStore(state => state.clearInviteCanceled);
     const startedRef = useRef(false);

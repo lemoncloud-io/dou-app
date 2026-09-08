@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 /**
  * Edit and delete, for whichever message in a group the reader acts on.
@@ -31,7 +31,7 @@ export interface MessageActionFailure {
 }
 
 export const useMessageActions = () => {
-    const { chat: chatRepository } = useRuntimeRepositories();
+    const { chat: chatRepository } = runtime.data.useRuntimeRepositories();
     const [failure, setFailure] = useState<MessageActionFailure | null>(null);
 
     const edit = useMutation({

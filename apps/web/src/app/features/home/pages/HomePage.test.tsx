@@ -22,8 +22,12 @@ jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k
 const navigateMock = jest.fn();
 jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigateMock }));
 jest.mock('@chatic/app-runtime', () => ({
-    useRuntimeProfile: () => ({ isGuest: false }),
-    useSessionSelection: () => ({ selectedCloudId, selectedSiteId }),
+    runtime: {
+        session: {
+            useRuntimeProfile: () => ({ isGuest: false }),
+            useSessionSelection: () => ({ selectedCloudId, selectedSiteId }),
+        },
+    },
 }));
 
 jest.mock('../../../hooks/useCloudCatalog', () => ({ useCloudSessionCatalog: () => ({ clouds: [] }) }));

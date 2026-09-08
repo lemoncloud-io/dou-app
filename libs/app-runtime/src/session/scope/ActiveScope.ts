@@ -8,7 +8,7 @@ export interface BoundCidSource {
 /**
  * The single owner of "which cloud/site/user are we operating as" (ADR-0070 결정 7).
  *
- * Before this, the answer was assembled from four pieces: `useRuntimeBinding` derived the intent,
+ * Before this, the answer was assembled from four pieces: `useRuntimeBinding` derived the selection,
  * `DataContextHolder` stored it, an anonymous `socketAwareProvider` inside `DataManager` spliced in
  * the socket's bound cid per call, and six inline conditionals judged the result. The judgements
  * moved to `@chatic/data`'s `scopeGuards`; this class takes the other three.
@@ -16,8 +16,9 @@ export interface BoundCidSource {
  * **It unifies the OWNER, not the values.** There are three named views and they are supposed to
  * disagree — that disagreement IS optimistic switching:
  *
- *  - `intent`    — the SELECTED cloud. Flips first, before any token exchange, so cid-scoped cache
- *                  observers re-subscribe to the target immediately.
+ *  - `selected`  — the SELECTED cloud. Flips first, before any token exchange, so cid-scoped cache
+ *                  observers re-subscribe to the target immediately. (ADR-0070 named this view
+ *                  `intent`; ADR-0076 결정 8 renamed it to the word the repo already uses.)
  *  - `bound`     — what the live socket is actually attached to. An OBSERVED value from the SDK;
  *                  this class never sets it.
  *  - `committed` — the cloud whose tokens are really in the store. Frozen through the optimistic
@@ -28,18 +29,19 @@ export interface BoundCidSource {
 export class ActiveScope implements DataContextProvider {
     constructor(
         /**
-         * Reads the intent straight from `session/store` (see `./intent`). No holder, no push: the
+         * Reads the selected scope straight from `session/store` (see `./selectedContext`). No
+         * holder, no push: the
          * scope is always as current as the store, which is what removes the render-lag that made
          * descendant observers register under a stale cid during a cloud switch.
          */
-        private readonly readIntent: () => DataContext,
+        private readonly readSelected: () => DataContext,
         private readonly socket: BoundCidSource,
         private readonly committedCloudId: () => string | null
     ) {}
 
     /** SELECTED cloud/site/user — flips optimistically at the start of a switch. */
-    public get intent(): DataContext {
-        return this.readIntent();
+    public get selected(): DataContext {
+        return this.readSelected();
     }
 
     /** The live socket's bound cloud. Observed, never assigned here. */
@@ -53,13 +55,13 @@ export class ActiveScope implements DataContextProvider {
     }
 
     /**
-     * `DataContextProvider` — intent plus the socket's bound cid as `socketCid`, which is what the
+     * `DataContextProvider` — the selected scope plus the socket's bound cid as `socketCid`, which is what the
      * scope guards compare. Composed per call (not cached) so a socket rebind takes effect on the
      * very next repository read; `socketCid` is omitted rather than set to null when nothing is
      * bound, because `isForeignContext` treats an absent `socketCid` as "no one to disagree with".
      */
     public getContext(): DataContext {
-        const base = this.intent;
+        const base = this.selected;
         const socketCid = this.socket.getBoundCid();
         return socketCid != null ? { ...base, socketCid } : base;
     }

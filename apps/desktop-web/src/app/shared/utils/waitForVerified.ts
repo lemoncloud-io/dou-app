@@ -1,4 +1,4 @@
-import { getSocketManager } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 /**
  * Resolves once the socket reports `isVerified` (auth:update acknowledged), or
@@ -7,7 +7,7 @@ import { getSocketManager } from '@chatic/app-runtime';
  */
 export const waitForVerified = (timeoutMs = 5000): Promise<boolean> =>
     new Promise(resolve => {
-        const manager = getSocketManager();
+        const manager = runtime.connection.getSocketManager();
         if (manager.getSnapshot().isVerified) {
             resolve(true);
             return;

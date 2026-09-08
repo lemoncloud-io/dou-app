@@ -2,8 +2,7 @@ import { logger } from '@chatic/bridges';
 
 import type { DataRepositoriesV2, DataRepositoriesV2Options } from '@chatic/data';
 import { DataManager } from './DataManager';
-import type { CacheAssemblyOptions } from './factories/localFactory';
-import type { IDataManager } from './types';
+import type { CacheAssemblyOptions, IDataManager } from './types';
 
 export interface DataRuntime {
     manager: IDataManager;
@@ -14,7 +13,7 @@ let dataRuntimeSingleton: DataRuntime | null = null;
 let pendingRepositoryOptions: DataRepositoriesV2Options | undefined;
 let pendingCacheOptions: CacheAssemblyOptions | undefined;
 
-export const createDataRuntime = (
+const createDataRuntime = (
     repositoryOptions?: DataRepositoriesV2Options,
     cacheOptions?: CacheAssemblyOptions
 ): DataRuntime => {

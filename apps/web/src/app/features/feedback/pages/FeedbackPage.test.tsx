@@ -23,7 +23,11 @@ jest.mock('@chatic/shared', () => ({
     scaleImageToDataUrl: (file: File) => mockEncode(file),
 }));
 jest.mock('@chatic/app-runtime', () => ({
-    reportIssue: (...args: unknown[]) => mockReportIssue(...args),
+    runtime: {
+        report: {
+            reportIssue: (...args: unknown[]) => mockReportIssue(...args),
+        },
+    },
 }));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: mockToast }) }));
 // `buildReportContext` has its own suite; here it only has to be callable.

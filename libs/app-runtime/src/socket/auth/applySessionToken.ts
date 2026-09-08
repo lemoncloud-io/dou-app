@@ -1,11 +1,11 @@
 import type { UserTokenView } from '@lemoncloud/chatic-backend-api';
 
 import { logger } from '@chatic/bridges';
-import { loginRelayByToken } from '../../session';
+import { relaySession } from '../../session/auth/relaySession';
 
 import { getSocketManager } from '../runtime';
 import { reauthenticateActiveSocket } from './reauthenticateActiveSocket';
-import { createSocketSessionDelegate } from './sessionDelegate';
+import { createReauthDelegate } from './reauthDelegate';
 
 /** Upper bound for the relay slot to re-verify the new identity before we give up waiting. */
 const DEFAULT_APPLY_TIMEOUT_MS = 10_000;
@@ -55,10 +55,10 @@ export const applySessionToken = async ($token: unknown, options?: ApplySessionT
         throw new Error('[applySessionToken] $token.$auth.id missing — cannot re-register the relay socket');
     }
 
-    await loginRelayByToken(view);
+    await relaySession.loginByToken(view);
 
     const manager = getSocketManager();
-    await reauthenticateActiveSocket({ manager, delegate: createSocketSessionDelegate(), kind: 'relay' });
+    await reauthenticateActiveSocket({ manager, delegate: createReauthDelegate(), kind: 'relay' });
 
     const auth = manager.getClient('relay')?.auth;
     if (!auth) {

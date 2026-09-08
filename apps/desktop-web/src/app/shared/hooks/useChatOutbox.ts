@@ -3,14 +3,7 @@ import { useEffect, useRef } from 'react';
 import type { ChatSendInput } from '@lemoncloud/chatic-sockets-api';
 
 import type { DomainChat } from '@chatic/data';
-import {
-    createChatOutbox,
-    useRuntimeRepositories,
-    useRuntimeSocketState,
-    type ChatOutbox,
-    type OutboxEntry,
-} from '@chatic/app-runtime';
-import { useSessionIdentity } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 /**
  * Desktop opt-in for the engine outbox: messages that failed to send go out on their own once
@@ -42,10 +35,10 @@ const LANDING_SKEW_MS = 5 * 60_000;
 
 // One machine per app instance. It must outlive any single component because useChatMutations
 // reaches it to drop a queued entry when the user hits manual retry.
-let outboxSingleton: ChatOutbox | null = null;
+let outboxSingleton: runtime.data.ChatOutbox | null = null;
 
 /** The desktop outbox, or null in an app that never opted in. */
-export const getChatOutbox = (): ChatOutbox | null => outboxSingleton;
+export const getChatOutbox = (): runtime.data.ChatOutbox | null => outboxSingleton;
 
 const rowTime = (row: DomainChat): number => row.createdAtMs ?? row.createdAt ?? 0;
 
@@ -125,7 +118,7 @@ export interface LandingBatch {
     /** Records when the user actually sent the row behind this entry. */
     record(entryId: string, sentAt: number): void;
     /** Matches a landed row for this entry WITHOUT claiming it. */
-    match(rows: DomainChat[], entry: OutboxEntry, myUid: string): DomainChat | null;
+    match(rows: DomainChat[], entry: runtime.data.OutboxEntry, myUid: string): DomainChat | null;
     /** Claims the row matched for this entry. Call only once the stale row is actually gone. */
     commit(entryId: string): void;
     /**
@@ -175,16 +168,16 @@ export const createLandingBatch = (): LandingBatch => {
 };
 
 export const useChatOutbox = (): void => {
-    const { chat: chatRepository, channel: channelRepository } = useRuntimeRepositories();
-    const { userId: myUid } = useSessionIdentity();
-    const { isConnected, isVerified } = useRuntimeSocketState();
+    const { chat: chatRepository, channel: channelRepository } = runtime.data.useRuntimeRepositories();
+    const { userId: myUid } = runtime.session.useSessionIdentity();
+    const { isConnected, isVerified } = runtime.connection.useRuntimeSocketState();
 
     const batchRef = useRef<LandingBatch | null>(null);
 
     useEffect(() => {
         // Rebuilt whenever the cloud/identity changes: the machine's closures must never write
         // into the previous cloud's cache partition after a switch. `myUid` flips at cloud-switch
-        // commit (useSessionIdentity is a live session-signal store), so this effect re-runs.
+        // commit (runtime.session.useSessionIdentity is a live session-signal store), so this effect re-runs.
         const uid = myUid ?? '';
         // The batch is per outbox INSTANCE — claims survive every sweep and every rotation, and
         // are dropped only here, when the cloud changes and the old claims stop meaning anything.
@@ -196,7 +189,7 @@ export const useChatOutbox = (): void => {
             return page?.list ?? [];
         };
 
-        const outbox = createChatOutbox({
+        const outbox = runtime.data.createChatOutbox({
             hasLanded: async entry => !!batch.match(await readNewestPage(entry.channelId), entry, uid),
             // The message is already in the timeline; drop the stale "Not delivered" row, and only
             // then claim the row it matched (see LandingBatch — a failed delete must stay retryable).

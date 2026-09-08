@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import { globalCacheRefKey, useGlobalCacheSearch } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import { isInJoinWindow } from '@chatic/data';
 import type { GlobalCacheContext, GlobalCacheRef } from '@chatic/data';
 import { logger } from '@chatic/bridges';
@@ -80,7 +80,7 @@ export interface SearchResultRows {
  * resolve leaves those fields empty instead of discarding results the user is already reading.
  */
 export const useSearchContext = (results: GlobalSearchResults): SearchResultRows => {
-    const { resolveContext } = useGlobalCacheSearch();
+    const { resolveContext } = runtime.data.useGlobalCacheSearch();
     const [context, setContext] = useState<GlobalCacheContext>(EMPTY_CONTEXT);
 
     // Serialized so the effect re-runs on a changed result SET, not on every new array identity
@@ -95,8 +95,8 @@ export const useSearchContext = (results: GlobalSearchResults): SearchResultRows
         ].sort();
         const channelRefs = [
             ...new Set([
-                ...results.channels.map(channel => globalCacheRefKey(channel.cid, channel.id)),
-                ...results.messages.map(chat => globalCacheRefKey(chat.cid, chat.channelId)),
+                ...results.channels.map(channel => runtime.data.globalCacheRefKey(channel.cid, channel.id)),
+                ...results.messages.map(chat => runtime.data.globalCacheRefKey(chat.cid, chat.channelId)),
             ]),
         ].sort();
         return JSON.stringify({ cids, channelRefs });
@@ -139,7 +139,7 @@ export const useSearchContext = (results: GlobalSearchResults): SearchResultRows
     const senderRefs = useMemo<SenderProfileRef[]>(
         () =>
             results.messages.flatMap(chat => {
-                const ref = globalCacheRefKey(chat.cid, chat.channelId);
+                const ref = runtime.data.globalCacheRefKey(chat.cid, chat.channelId);
                 // Same window the rows below apply — a message that will be dropped must not cost a
                 // profile read (ADR-0067).
                 if (!isInJoinWindow(chat, context.joinsByRef[ref]?.joinedNo)) return [];
@@ -152,7 +152,7 @@ export const useSearchContext = (results: GlobalSearchResults): SearchResultRows
 
     return useMemo(() => {
         const placeName = (cid: string, sid?: string) =>
-            sid ? context.sitesByRef[globalCacheRefKey(cid, sid)]?.name : undefined;
+            sid ? context.sitesByRef[runtime.data.globalCacheRefKey(cid, sid)]?.name : undefined;
 
         return {
             clouds: results.clouds,
@@ -163,7 +163,7 @@ export const useSearchContext = (results: GlobalSearchResults): SearchResultRows
                 thumbnail: place.thumbnail,
             })),
             channels: results.channels.map(channel => {
-                const ref = globalCacheRefKey(channel.cid, channel.id);
+                const ref = runtime.data.globalCacheRefKey(channel.cid, channel.id);
                 const cached = context.lastChatsByRef[ref];
                 // Same window as the message rows below: a preview from before my current
                 // membership must not survive into search either (ADR-0067).
@@ -195,12 +195,15 @@ export const useSearchContext = (results: GlobalSearchResults): SearchResultRows
                 // window, messages from rooms I am no longer in surface as results, historically
                 // with no channel name attached (ADR-0067).
                 .filter(chat =>
-                    isInJoinWindow(chat, context.joinsByRef[globalCacheRefKey(chat.cid, chat.channelId)]?.joinedNo)
+                    isInJoinWindow(
+                        chat,
+                        context.joinsByRef[runtime.data.globalCacheRefKey(chat.cid, chat.channelId)]?.joinedNo
+                    )
                 )
                 .map(chat => {
                     // A chat row has no sid of its own — its place comes via the owning channel, and the
                     // author's display profile is scoped to that place.
-                    const owner = context.channelsByRef[globalCacheRefKey(chat.cid, chat.channelId)];
+                    const owner = context.channelsByRef[runtime.data.globalCacheRefKey(chat.cid, chat.channelId)];
                     const profile =
                         owner?.sid && chat.ownerId ? senderProfiles.get(`${owner.sid}@${chat.ownerId}`) : undefined;
                     return {

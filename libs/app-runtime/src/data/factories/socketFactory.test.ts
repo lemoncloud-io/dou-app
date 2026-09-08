@@ -28,7 +28,7 @@ const socketManager = {
     getScopedClient: jest.fn((kind: string) => scopedClients[kind]),
 };
 
-jest.mock('../../socket/runtime', () => ({ getSocketRuntime: () => ({ socketManager }) }));
+jest.mock('../../socket/runtime', () => ({ getSocketManager: () => socketManager }));
 
 describe('createSocketDataSources — relay-pinned gateways', () => {
     beforeEach(() => {

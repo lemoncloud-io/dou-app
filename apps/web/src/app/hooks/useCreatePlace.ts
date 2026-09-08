@@ -1,5 +1,5 @@
 import type { DomainPlace } from '@chatic/data';
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 export interface CreatePlaceInput {
     name: string;
@@ -8,7 +8,7 @@ export interface CreatePlaceInput {
 }
 
 export const useCreatePlace = () => {
-    const { place } = useRuntimeRepositories();
+    const { place } = runtime.data.useRuntimeRepositories();
 
     // Returns the created place so the caller can switch the active site into it (see
     // CreatePlaceDialog → useSiteSwitch). `thumbnail` rides through on PlaceCreateInput's body.

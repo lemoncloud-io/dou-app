@@ -1,13 +1,19 @@
 import { renderHook } from '@testing-library/react';
 
-import { useRuntimeProfile } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { useUserPermissions } from './useUserPermissions';
 
-jest.mock('@chatic/app-runtime', () => ({ useRuntimeProfile: jest.fn() }));
+jest.mock('@chatic/app-runtime', () => ({
+    runtime: {
+        session: {
+            useRuntimeProfile: jest.fn(),
+        },
+    },
+}));
 
 const setFacts = (opts: { isGuest: boolean; isCloudActive: boolean }) => {
-    (useRuntimeProfile as jest.Mock).mockReturnValue({
+    (runtime.session.useRuntimeProfile as jest.Mock).mockReturnValue({
         userRole: opts.isGuest ? 'guest' : 'user',
         isGuest: opts.isGuest,
         isCloudActive: opts.isCloudActive,

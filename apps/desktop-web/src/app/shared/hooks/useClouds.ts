@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import type { DomainCloud } from '@chatic/data';
-import { useGlobalSession } from '@chatic/app-runtime';
 
 import { useCloudSessionCatalog } from './useCloudCatalog';
 
@@ -31,9 +30,9 @@ export interface RailCloud {
  */
 export const useClouds = () => {
     const { clouds: rawClouds, isFetchingClouds } = useCloudSessionCatalog();
-    const { cloud: cloudRepository } = useRuntimeRepositories();
+    const { cloud: cloudRepository } = runtime.data.useRuntimeRepositories();
     const joinedClouds = useJoinedCloudsStore(s => s.joinedClouds);
-    const session = useGlobalSession();
+    const session = runtime.session.useGlobalSession();
     const [cachedClouds, setCachedClouds] = useState<DomainCloud[]>([]);
     // Fall back to 'default' so the synthesized Home workspace highlights in relay mode —
     // but only once the fetch settled, to avoid briefly highlighting it then un-highlighting.

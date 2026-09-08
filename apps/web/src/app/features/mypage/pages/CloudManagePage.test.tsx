@@ -14,8 +14,14 @@ jest.mock('@chatic/bridges', () => ({
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 jest.mock('@chatic/app-runtime', () => ({
-    cloudsKeys: { list: () => ['clouds', 'list'] },
-    useSessionSelection: () => ({ selectedCloudId: 'CL1' }),
+    runtime: {
+        data: {
+            cloudsKeys: { list: () => ['clouds', 'list'] },
+        },
+        session: {
+            useSessionSelection: () => ({ selectedCloudId: 'CL1' }),
+        },
+    },
 }));
 
 jest.mock('../../../hooks/useCloudCatalog', () => ({

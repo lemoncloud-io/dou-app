@@ -3,13 +3,17 @@ import { createElement, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook } from '@testing-library/react';
 
-import { patchRelaySessionUser } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { getRelayAccountGateway } from '../../../runtime/relayAccountGateway';
 import { useUpdateProfile } from './useUpdateProfile';
 
 jest.mock('@chatic/app-runtime', () => ({
-    patchRelaySessionUser: jest.fn(),
+    runtime: {
+        session: {
+            patchRelaySessionUser: jest.fn(),
+        },
+    },
 }));
 jest.mock('../../../runtime/relayAccountGateway', () => ({ getRelayAccountGateway: jest.fn() }));
 
@@ -42,7 +46,7 @@ describe('useUpdateProfile', () => {
         const { result } = renderHook(() => useUpdateProfile(), { wrapper });
         await result.current.mutateAsync({ name: 'Neo', photo: 'p' });
 
-        expect(patchRelaySessionUser).toHaveBeenCalledWith({ name: 'Neo', photo: 'server.png' });
+        expect(runtime.session.patchRelaySessionUser).toHaveBeenCalledWith({ name: 'Neo', photo: 'server.png' });
     });
 
     it('falls back to what was sent when the response comes back thin', async () => {
@@ -51,7 +55,7 @@ describe('useUpdateProfile', () => {
         const { result } = renderHook(() => useUpdateProfile(), { wrapper });
         await result.current.mutateAsync({ name: 'Neo', photo: 'p' });
 
-        expect(patchRelaySessionUser).toHaveBeenCalledWith({ name: 'Neo', photo: 'p' });
+        expect(runtime.session.patchRelaySessionUser).toHaveBeenCalledWith({ name: 'Neo', photo: 'p' });
     });
 
     // The caller omits `photo` when it did not change, and an absent field must mean "leave it alone"
@@ -62,7 +66,7 @@ describe('useUpdateProfile', () => {
         const { result } = renderHook(() => useUpdateProfile(), { wrapper });
         await result.current.mutateAsync({ name: 'Neo' });
 
-        expect(patchRelaySessionUser).toHaveBeenCalledWith({ name: 'Neo' });
+        expect(runtime.session.patchRelaySessionUser).toHaveBeenCalledWith({ name: 'Neo' });
     });
 
     it('propagates the error when the remote update fails', async () => {
@@ -70,6 +74,6 @@ describe('useUpdateProfile', () => {
 
         const { result } = renderHook(() => useUpdateProfile(), { wrapper });
         await expect(result.current.mutateAsync({ name: 'Neo' })).rejects.toThrow('boom');
-        expect(patchRelaySessionUser).not.toHaveBeenCalled();
+        expect(runtime.session.patchRelaySessionUser).not.toHaveBeenCalled();
     });
 });

@@ -1,3 +1,4 @@
+import { authIdRegistry } from './authIdRegistry';
 import { bootstrapSocketConnection } from './bootstrapSocketConnection';
 import type { ISocketManager, SocketBindingConfig } from '../types';
 import type { SocketSessionDelegate } from './types';
@@ -44,13 +45,15 @@ const makeAuth = (order: string[]) => {
  * to. `device.save:ok` arrives via `onMessage` (it is a request reply, so the SDK does NOT route it
  * to `onType`), so the gate listens on `onMessage` and filters by `message.type`.
  */
-const makeClient = (auth: unknown) => {
+const makeClient = (auth: unknown, state = 'connected') => {
     const messageListeners: Array<(event: { message: { type: string } }) => void> = [];
     const stateListeners: Array<(event: { next: string }) => void> = [];
     const unsubMessage = jest.fn();
     const unsubState = jest.fn();
     return {
         auth,
+        // Read by the writeback's authId re-sync to decide whether the gate must be re-closed.
+        state,
         onMessage: jest.fn((listener: (event: { message: { type: string } }) => void) => {
             messageListeners.push(listener);
             return unsubMessage;
@@ -87,7 +90,18 @@ const makeDelegate = (overrides: Partial<SocketSessionDelegate> = {}): jest.Mock
         ...overrides,
     }) as unknown as jest.Mocked<SocketSessionDelegate>;
 
+/** The writeback chain is commit → getAuthRegistration → resync; drain enough microtasks for all of it. */
+const flush = async (): Promise<void> => {
+    for (let i = 0; i < 8; i++) {
+        await Promise.resolve();
+    }
+};
+
 describe('bootstrapSocketConnection', () => {
+    // register() writes the module-level registry; without this a case inherits the previous one's
+    // registration and the drift check fires on an unrelated authId.
+    beforeEach(() => authIdRegistry.reset());
+
     it('seeds the token and closes the gate before connect, without auto-firing auth.update', async () => {
         const order: string[] = [];
         const auth = makeAuth(order);
@@ -237,6 +251,85 @@ describe('bootstrapSocketConnection', () => {
 
         expect(() => auth.emitTokenRefresh({ Token: {} })).not.toThrow();
         expect(delegate.commitRefreshedToken).toHaveBeenCalled();
+    });
+
+    /**
+     * The `403 invalid sign` loop: a refresh whose view rotates `$auth.id` moves the STORE, while the
+     * controller keeps quoting the id it was registered with. Re-seeding right after the writeback is
+     * what stops every later refresh from being signed with a key the server does not expect.
+     */
+    it('re-registers the controller when the writeback rotated the store authId', async () => {
+        const auth = makeAuth([]);
+        const client = makeClient(auth);
+        const manager = makeManager(client, []);
+        const delegate = makeDelegate();
+        (delegate.getAuthRegistration as jest.Mock)
+            .mockResolvedValueOnce({ token: 'tok', authId: 'aid' })
+            .mockResolvedValueOnce({ token: 'tok-2', authId: 'rotated-aid' });
+
+        await bootstrapSocketConnection({ manager, kind: 'relay', config: CONFIG, delegate });
+        auth.emitTokenRefresh({ Token: {} });
+        await flush();
+
+        expect(auth.register).toHaveBeenCalledTimes(2);
+        expect(auth.register).toHaveBeenLastCalledWith(
+            expect.objectContaining({ token: 'tok-2', authId: 'rotated-aid' })
+        );
+        expect(authIdRegistry.get('relay')).toBe('rotated-aid');
+        // The socket is connected, so the gate stays open — only the seed changed, no handshake.
+        expect(auth.stop).toHaveBeenCalledTimes(1); // the boot's own gate close, nothing more
+    });
+
+    it('leaves the controller alone when the writeback kept the same authId', async () => {
+        const auth = makeAuth([]);
+        const client = makeClient(auth);
+        const manager = makeManager(client, []);
+        const delegate = makeDelegate();
+
+        await bootstrapSocketConnection({ manager, kind: 'relay', config: CONFIG, delegate });
+        auth.emitTokenRefresh({ Token: {} });
+        await flush();
+
+        expect(auth.register).toHaveBeenCalledTimes(1);
+    });
+
+    // A failed commit leaves the store on the PREVIOUS `$auth`, so re-seeding off it would pin the
+    // controller to stale material instead of correcting it.
+    it('skips the authId re-sync when the writeback itself failed', async () => {
+        const auth = makeAuth([]);
+        const client = makeClient(auth);
+        const manager = makeManager(client, []);
+        const delegate = makeDelegate({
+            commitRefreshedToken: jest.fn().mockRejectedValue(new Error('commit failed')),
+        });
+        (delegate.getAuthRegistration as jest.Mock)
+            .mockResolvedValueOnce({ token: 'tok', authId: 'aid' })
+            .mockResolvedValueOnce({ token: 'tok-2', authId: 'rotated-aid' });
+
+        await bootstrapSocketConnection({ manager, kind: 'relay', config: CONFIG, delegate });
+        auth.emitTokenRefresh({ Token: {} });
+        await flush();
+
+        expect(auth.register).toHaveBeenCalledTimes(1);
+        expect(authIdRegistry.get('relay')).toBe('aid');
+    });
+
+    it('re-closes the gate when the re-sync registers on a DISCONNECTED socket', async () => {
+        const auth = makeAuth([]);
+        const client = makeClient(auth, 'closed');
+        const manager = makeManager(client, []);
+        const delegate = makeDelegate();
+        (delegate.getAuthRegistration as jest.Mock)
+            .mockResolvedValueOnce({ token: 'tok', authId: 'aid' })
+            .mockResolvedValueOnce({ token: 'tok-2', authId: 'rotated-aid' });
+
+        await bootstrapSocketConnection({ manager, kind: 'relay', config: CONFIG, delegate });
+        auth.emitTokenRefresh({ Token: {} });
+        await flush();
+
+        // Boot close + re-sync close: a re-activated controller must not auto-send auth.update ahead
+        // of the next connection's device.save:ok.
+        expect(auth.stop).toHaveBeenCalledTimes(2);
     });
 
     it('routes the SDK sign callback to delegate.signAuth with the switch target', async () => {

@@ -1,5 +1,5 @@
 import { logger } from '@chatic/bridges';
-import { type LogoutOptions, logoutRelaySession } from '../../session';
+import { relaySession, type LogoutOptions } from '../../session/auth/relaySession';
 
 import { getSocketManager } from '../runtime';
 import type { SocketKind } from '../types';
@@ -29,7 +29,7 @@ export const notifySocketLogout = (kind: SocketKind): void => {
  * A relay logout tears down everything:
  *  1. best-effort `auth.logout()` on the relay AND cloud slots (§8-6: relay logout ends both) — ends
  *     the socket auth session on each server.
- *  2. web-core `logoutRelaySession()` — a purely LOCAL teardown (clears relay/cloud tokens +
+ *  2. `clearSessionAndRedirect()` — a purely LOCAL teardown (clears relay/cloud tokens +
  *     credentials + selection) then redirect. There is no server-side revoke endpoint, so nothing is
  *     awaited over HTTP. Clearing the relay token drops both binding slots, so SocketBinder tears the
  *     clients down afterwards.
@@ -38,5 +38,5 @@ export const logoutSession = async (options?: LogoutOptions): Promise<void> => {
     notifySocketLogout('relay');
     notifySocketLogout('cloud');
 
-    await logoutRelaySession(options);
+    await relaySession.clearAndRedirect(options);
 };

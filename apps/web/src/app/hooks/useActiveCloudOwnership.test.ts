@@ -1,7 +1,6 @@
 import { renderHook } from '@testing-library/react';
 
-import { useRuntimeProfile } from '@chatic/app-runtime';
-import { useSessionSelection } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { useCloudSessionCatalog } from './useCloudCatalog';
 
@@ -9,8 +8,12 @@ import { useActiveCloudOwnership } from './useActiveCloudOwnership';
 
 jest.mock('./useCloudCatalog', () => ({ useCloudSessionCatalog: jest.fn() }));
 jest.mock('@chatic/app-runtime', () => ({
-    useRuntimeProfile: jest.fn(),
-    useSessionSelection: jest.fn(),
+    runtime: {
+        session: {
+            useRuntimeProfile: jest.fn(),
+            useSessionSelection: jest.fn(),
+        },
+    },
 }));
 
 const setup = (opts: {
@@ -21,8 +24,8 @@ const setup = (opts: {
 }) => {
     // `in` rather than `??`: a deliberate `null` must survive the default.
     const selectedCloudId = 'selectedCloudId' in opts ? opts.selectedCloudId : 'cloud-a';
-    (useSessionSelection as jest.Mock).mockReturnValue({ selectedCloudId });
-    (useRuntimeProfile as jest.Mock).mockReturnValue({ isCloudActive: opts.isCloudActive ?? true });
+    (runtime.session.useSessionSelection as jest.Mock).mockReturnValue({ selectedCloudId });
+    (runtime.session.useRuntimeProfile as jest.Mock).mockReturnValue({ isCloudActive: opts.isCloudActive ?? true });
     (useCloudSessionCatalog as jest.Mock).mockReturnValue({
         clouds: opts.clouds ?? [{ id: 'cloud-a', name: '내 클라우드' }],
         isPendingClouds: opts.isPendingClouds ?? false,

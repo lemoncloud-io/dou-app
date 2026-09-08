@@ -3,9 +3,9 @@
 // env seam (see its header), and `initAppRuntime` is what runs it — importing this barrel no longer
 // boots anything.
 
-// `./cores` (the raw store objects + storage-key constants) is deliberately NOT re-exported: it is
+// `./stores` (the raw store objects + storage-key constants) is deliberately NOT re-exported: it is
 // internal to the hub, exactly as `session/core` was internal to web-core. Consumers read through
-// `contexts`/`contextStore`; the use-cases import `./cores` directly.
+// `contexts`/`contextStore`; the use-cases import `./stores` directly.
 export * from './contextStore';
 export * from './contexts';
 export * from './signal';

@@ -2,8 +2,8 @@ import { useCallback, useEffect } from 'react';
 
 import { logger } from '@chatic/bridges';
 
-import { credentialFreshness } from '../../auth/credentialFreshness';
-import { renewCloudSession } from '../../../socket/auth/renewCloudSession';
+import { SDK_REFRESH_CYCLE_MS } from '../../../socket/constants';
+import { credentialRenewers } from '../../../socket/auth/renewers';
 
 /**
  * Keeps the ACTIVE cloud's SOCKET session alive — the cloud counterpart of
@@ -53,7 +53,7 @@ export interface CloudCredentialPolicy {
  * margin a socket-health probe we get for free rather than a number to tune, and it keeps the renewal
  * from competing with a refresh that was about to land anyway.
  */
-const DEFAULT_MARGIN_MS = 5 * 60_000;
+const DEFAULT_MARGIN_MS = SDK_REFRESH_CYCLE_MS;
 
 /**
  * Ceiling on a single sleep. A credential minted an hour out would otherwise park one long timer, and
@@ -74,7 +74,7 @@ export const useCloudCredentialGuard = (policy: CloudCredentialPolicy = {}): { c
 
     /** Evaluates the deadline, renews if it has arrived, and reports how long to sleep next. */
     const evaluate = useCallback(async (): Promise<number> => {
-        const remaining = credentialFreshness.timeToExpiry('cloud');
+        const remaining = credentialRenewers.cloud.timeToExpiry();
         if (remaining == null) {
             // No cloud session, or a token view with no credential to measure — nothing to renew.
             return MAX_SLEEP_MS;
@@ -87,7 +87,7 @@ export const useCloudCredentialGuard = (policy: CloudCredentialPolicy = {}): { c
             return RETRY_SLEEP_MS;
         }
 
-        if (!(await renewCloudSession())) {
+        if (!(await credentialRenewers.cloud.renew())) {
             // Not a teardown signal: cloud loss is recoverable by re-entry, and `onAuthExpired`
             // already owns the "give up on this cloud" decision.
             logger.warn('SESSION', '[cloudCredentialGuard] cloud credential renewal did not run');
@@ -95,7 +95,7 @@ export const useCloudCredentialGuard = (policy: CloudCredentialPolicy = {}): { c
         }
 
         // Re-derive from the token we just wrote rather than assuming a full lifetime.
-        const renewed = credentialFreshness.timeToExpiry('cloud');
+        const renewed = credentialRenewers.cloud.timeToExpiry();
         return renewed != null && renewed > marginMs ? clampSleep(renewed - marginMs) : RETRY_SLEEP_MS;
     }, [marginMs]);
 

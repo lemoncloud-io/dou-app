@@ -2,7 +2,7 @@ import type { JSX } from 'react';
 import { useMemo } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 
-import { useSessionAuth } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { CloudInviteAccept, InviteAcceptLoading, RelayInviteAccept } from './components';
 import { isInviteEntry, isRelayInvite, parseInviteDeeplink } from './types';
@@ -34,7 +34,7 @@ export const InviteAcceptPage = (): JSX.Element => {
 
     const { search } = useLocation();
     const params = useMemo(() => parseInviteDeeplink(search), [search]);
-    const { isAuthenticated } = useSessionAuth();
+    const { isAuthenticated } = runtime.session.useSessionAuth();
 
     // Landed here without a usable invite (no code, or no `_backend`/`relay` to accept against).
     // There is nothing to show, and home is the right place to be.

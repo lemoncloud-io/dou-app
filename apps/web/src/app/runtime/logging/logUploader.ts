@@ -6,8 +6,7 @@ import {
     isNative,
     logHub,
 } from '@chatic/bridges';
-import { registerSessionLogoutCallback } from '@chatic/app-runtime';
-import { uploadLogBatch } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { clearNativeLogQueue, createNativeUploadSource, isNativeUploadQueueUnsupported } from './nativeUploadSource';
 import { registerLogQueueView } from './logQueueView';
@@ -167,7 +166,7 @@ export const startLogUploader = (options: LogUploaderOptions = {}): LogUploaderH
     const scheduler = createLogUploadScheduler({
         store: logStore,
         isEnabled: options.isEnabled ?? createLogUploadSwitch(),
-        send: entries => uploadLogBatch(entries),
+        send: entries => runtime.report.uploadLogBatch(entries),
         // The scheduler removes accepted (and abandoned) batches itself, so the
         // on-disk copy has to be rewritten after each cycle — otherwise a
         // reload brings back entries the server already took. Harmless in hybrid
@@ -262,7 +261,7 @@ export const startLogUploader = (options: LogUploaderOptions = {}): LogUploaderH
         void flush();
     };
 
-    const unregisterLogout = registerSessionLogoutCallback(onLogout);
+    const unregisterLogout = runtime.session.registerSessionLogoutCallback(onLogout);
 
     // Backgrounding is the last reliable moment to ship: a tab the OS discards
     // never fires pagehide, so visibility is watched too.

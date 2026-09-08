@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 
-import { getSocketManager, useRuntimeRepositories } from '@chatic/app-runtime';
-import { useGlobalSession, useSessionSelection } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 // Inbound socket message pushed by the server when a reachable member edits their
 // place profile (nick / photo). Same channel-domain broadcast the v1 engine consumed
@@ -25,9 +24,9 @@ const SYNC_SITE_PROFILE_TYPE = 'channel.sync-site-profile';
  * instead of double-applying (this absorbs the former standalone `useSiteProfileSync`).
  */
 export const useRealtimeProfileSync = (): void => {
-    const repos = useRuntimeRepositories();
-    const session = useGlobalSession();
-    const { selectedSiteId } = useSessionSelection();
+    const repos = runtime.data.useRuntimeRepositories();
+    const session = runtime.session.useGlobalSession();
+    const { selectedSiteId } = runtime.session.useSessionSelection();
 
     const cid = session.activeServer.kind === 'cloud' ? session.activeServer.cloudId : 'default';
 
@@ -45,7 +44,9 @@ export const useRealtimeProfileSync = (): void => {
             }
         };
 
-        const offBroadcast = getSocketManager().onType(SYNC_SITE_PROFILE_TYPE, () => void pullProfileDelta());
+        const offBroadcast = runtime.connection
+            .getSocketManager()
+            .onType(SYNC_SITE_PROFILE_TYPE, () => void pullProfileDelta());
         const onFocus = () => void pullProfileDelta();
         window.addEventListener('focus', onFocus);
 

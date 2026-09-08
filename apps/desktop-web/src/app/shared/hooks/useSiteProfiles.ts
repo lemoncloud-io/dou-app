@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 
-import { useGlobalSession } from '@chatic/app-runtime';
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { type PlaceProfileEntry, useSiteProfilesStore } from '../stores/useSiteProfilesStore';
 import { type ResolvedDisplay, resolveDisplay } from '../utils/displayProfile';
@@ -20,8 +19,8 @@ import { type ResolvedDisplay, resolveDisplay } from '../utils/displayProfile';
  * observed list; no separate self-uid learning is needed.
  */
 export const useSiteProfiles = (): void => {
-    const { profile: profileRepository } = useRuntimeRepositories();
-    const session = useGlobalSession();
+    const { profile: profileRepository } = runtime.data.useRuntimeRepositories();
+    const session = runtime.session.useGlobalSession();
     // Re-subscribe on place switch so the previous place's overrides never leak.
     const selectedPlaceId = session.activeServer.siteId ?? null;
     const setAll = useSiteProfilesStore(s => s.setAll);

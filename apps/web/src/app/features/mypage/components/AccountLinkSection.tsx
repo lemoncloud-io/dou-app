@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { useRuntimeProfile } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 import { isNative } from '@chatic/bridges';
 
 import { useLinkedAccounts } from '../../../hooks';
@@ -79,7 +79,7 @@ const CredentialRow = ({ label, icon, linkedLabel, isLinked, isBusy, onLink, onU
  */
 export const AccountLinkSection = () => {
     const { t } = useTranslation();
-    const { isGuest } = useRuntimeProfile();
+    const { isGuest } = runtime.session.useRuntimeProfile();
     const { isLinked, linkProvider, requestUnlink, isLinking, socialState } = useSocialLinks();
     const linked = useLinkedAccounts();
     const [isPhoneSheetOpen, setIsPhoneSheetOpen] = useState(false);

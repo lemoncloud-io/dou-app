@@ -1,15 +1,14 @@
-import { useGlobalSession, useSessionAuth } from '@chatic/app-runtime';
-import { useRuntimeSocketState, useRuntimeProfile } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { Row } from '../../components/Row';
 import { Section } from '../../components/Section';
 
 /** Read-only snapshot of session/server/socket state (singleton stores, router-independent). */
 export const StateTab = () => {
-    const session = useGlobalSession();
-    const { isAuthenticated, isInitialized } = useSessionAuth();
-    const socketState = useRuntimeSocketState();
-    const facts = useRuntimeProfile();
+    const session = runtime.session.useGlobalSession();
+    const { isAuthenticated, isInitialized } = runtime.session.useSessionAuth();
+    const socketState = runtime.connection.useRuntimeSocketState();
+    const facts = runtime.session.useRuntimeProfile();
     const { relay, cloud, identity, activeServer } = session;
 
     return (

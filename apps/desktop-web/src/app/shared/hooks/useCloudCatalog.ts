@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 
-import { cloudsKeys, useRuntimeRepositories, useSessionAuth } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 /**
  * The relay cloud catalog, as react-query. This app's own copy.
@@ -11,13 +11,13 @@ import { cloudsKeys, useRuntimeRepositories, useSessionAuth } from '@chatic/app-
  * so the staleness policy is the whole policy and each app owns its own (ADR-0070 결정 5, ②안 방향).
  *
  * apps/web has a parallel copy. The duplication is the point: the shared thing is the repository
- * call and `cloudsKeys` (the runtime's `useLogin` invalidates that key after a relay login) — not
+ * call and `runtime.data.cloudsKeys` (the runtime's `useLogin` invalidates that key after a relay login) — not
  * the cache policy, which this app is free to diverge on. `useClouds` in this folder is the rail's
  * composed view on top of this and is a different hook entirely.
  */
 export const useCloudSessionCatalog = () => {
-    const { isAuthenticated } = useSessionAuth();
-    const { cloud } = useRuntimeRepositories();
+    const { isAuthenticated } = runtime.session.useSessionAuth();
+    const { cloud } = runtime.data.useRuntimeRepositories();
 
     const {
         data,
@@ -26,7 +26,7 @@ export const useCloudSessionCatalog = () => {
         isPending,
         refetch,
     } = useQuery({
-        queryKey: cloudsKeys.list({ limit: -1 }),
+        queryKey: runtime.data.cloudsKeys.list({ limit: -1 }),
         queryFn: () => cloud.fetchCloudCatalog({ limit: -1 }),
         enabled: isAuthenticated,
         refetchOnWindowFocus: false,

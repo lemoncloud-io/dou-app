@@ -1,7 +1,11 @@
 import { renderHook } from '@testing-library/react';
 
 jest.mock('@chatic/app-runtime', () => ({
-    recoverUnverifiedSockets: jest.fn().mockResolvedValue(undefined),
+    runtime: {
+        connection: {
+            recoverUnverifiedSockets: jest.fn().mockResolvedValue(undefined),
+        },
+    },
 }));
 
 // Capture the foreground handler instead of simulating the bridge/visibility sources — those merge
@@ -13,11 +17,11 @@ jest.mock('../bridge', () => ({
     },
 }));
 
-import { recoverUnverifiedSockets } from '@chatic/app-runtime';
+import { runtime } from '@chatic/app-runtime';
 
 import { useSocketWakeRecovery } from './useSocketWakeRecovery';
 
-const mockRecover = recoverUnverifiedSockets as jest.Mock;
+const mockRecover = runtime.connection.recoverUnverifiedSockets as jest.Mock;
 
 const emitForeground = () => foregroundHandlers.forEach(handler => handler());
 
