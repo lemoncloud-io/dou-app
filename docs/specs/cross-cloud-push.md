@@ -38,20 +38,20 @@
 
 ### 관련 파일
 
-| 영역                                         | 파일                                                       |
-| -------------------------------------------- | ---------------------------------------------------------- |
-| push-receiver, mtalk, 재연결 + 10분 watchdog | `apps/desktop/src/main/fcm.ts`                             |
-| startFcm 배선, OS알림, deviceId              | `apps/desktop/src/main/index.ts`                           |
-| 토큰 등록(reg-dev) + focus 재등록            | `apps/desktop-web/.../hooks/useDeviceTokenRegistration.ts` |
-| reg-dev API (`force` 옵션)                   | `libs/users/src/apis/index.ts`, `hooks/index.ts`           |
-| cid 역추적                                   | `apps/desktop-web/.../utils/resolvePushCloudId.ts`         |
-| 비활성 cloud 배지 마크                       | `apps/desktop-web/.../hooks/useCrossCloudPushBadge.ts`     |
-| 배지 스토어(persist)                         | `apps/desktop-web/.../stores/useCloudPushBadgeStore.ts`    |
-| 인앱 토스트                                  | `apps/desktop-web/.../hooks/useCrossCloudPushToast.ts`     |
-| 떠난 cloud 배지 유지                         | `apps/desktop-web/.../hooks/useRetainLeavingCloudBadge.ts` |
-| rail 타일 배지 렌더                          | `apps/desktop-web/.../components/CloudRail.tsx`            |
-| active-cloud unread 집계                     | `apps/desktop-web/.../hooks/usePlaceUnreadCounts.ts`       |
-| 백엔드                                       | `chatic-pushes-api` (reg-dev → SNS, fan-out)               |
+| 영역                                           | 파일                                                                                        |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| push-receiver, mtalk, 재연결 + 10분 watchdog   | `apps/desktop/src/main/fcm.ts`                                                              |
+| startFcm 배선, OS알림, deviceId                | `apps/desktop/src/main/index.ts`                                                            |
+| 토큰 등록(reg-dev) 정책 — 모바일·데스크톱 공용 | `libs/app-runtime/src/push/` → [push-device-registration.md](./push-device-registration.md) |
+| reg-dev API (`force` 옵션)                     | `libs/http/src/gateways/users.ts`                                                           |
+| cid 역추적                                     | `apps/desktop-web/.../utils/resolvePushCloudId.ts`                                          |
+| 비활성 cloud 배지 마크                         | `apps/desktop-web/.../hooks/useCrossCloudPushBadge.ts`                                      |
+| 배지 스토어(persist)                           | `apps/desktop-web/.../stores/useCloudPushBadgeStore.ts`                                     |
+| 인앱 토스트                                    | `apps/desktop-web/.../hooks/useCrossCloudPushToast.ts`                                      |
+| 떠난 cloud 배지 유지                           | `apps/desktop-web/.../hooks/useRetainLeavingCloudBadge.ts`                                  |
+| rail 타일 배지 렌더                            | `apps/desktop-web/.../components/CloudRail.tsx`                                             |
+| active-cloud unread 집계                       | `apps/desktop-web/.../hooks/usePlaceUnreadCounts.ts`                                        |
+| 백엔드                                         | `chatic-pushes-api` (reg-dev → SNS, fan-out)                                                |
 
 ### Firebase 프로젝트 (스테이지별, 중요)
 
@@ -86,6 +86,7 @@ SNS: account `085403634746`, region `ap-northeast-2`, platform apps `chatic-desk
 - **원인**: 백엔드 `registerDevice`(`chatic-pushes-api/.../proxy.ts:501`) 가드가 **1시간 타임아웃 내 + isEnabled면 STEP.4(createEndpoint) 통째 스킵**, deviceId로 캐시된(이미 삭제된) endpoint를 그대로 반환. 주석(`@250205`)은 "토큰 변경 시 재등록" 의도였으나 조건에 토큰 비교가 누락.
 - **해결(FE, commit `676ba2fa`)**: `useDeviceTokenRegistration`을 토큰 dedup 제거 → **매 실행 재등록 + `force=true`**(reg-dev 쿼리파라미터) → 백엔드 STEP.4 강제 실행.
 - **잔여 보강(FE, commit `abbeb6cf`)**: 위는 **launch 때 1회만** 재등록 → 실행 중 endpoint가 Disabled되면 재시작 전까지 복구 안 됨("재실행했더니 다시됨"의 원인). → **window focus 시 throttle(60s) `force` 재등록** 추가 → 앱 복귀만으로 Disabled endpoint 재활성.
+    - ⚠️ **이 보강은 2026-09-08 ADR-0077로 철회됐다.** 매 부팅·매 포그라운드 복귀 재등록이 `reg-dev` 중복 호출을 만들어(호출마다 chatic 채널 알림 발송) 설치당 1회로 바꿨고, 그 대가로 여기 적힌 자가복구를 잃었다. 현재 정책과 남은 복구 경로는 [push-device-registration.md](./push-device-registration.md) 참조. 아래 "권장(백엔드, 미적용)"은 여전히 미적용이며, 그것이 적용되면 자가복구를 클라이언트 호출 없이 되찾을 수 있다.
 - **권장(백엔드, 미적용)**: `proxy.ts:501` 가드에 `tokenChanged` 추가 + 기존 endpoint에 `SetEndpointAttributes(Enabled=true, Token)` 호출(SNS는 `CreatePlatformEndpoint`로 Disabled를 자동 복구하지 않음). ※FE 보강은 완화책 — 근본은 백엔드 reg-dev가 Disabled endpoint를 Enable해야 함.
 
 ### (4) 비활성 cloud rail 배지 유지 안 됨
@@ -152,7 +153,7 @@ SNS: account `085403634746`, region `ap-northeast-2`, platform apps `chatic-desk
     - (b) **`CloudSessionSheet` 항목별 배지**: `CloudItem`에 cloud별 안읽음 점/카운트(`badgedClouds[cloud.id]` + active cloud unread) — **상세**.
     - = 데스크탑 rail의 phone 등가물(발견 + 상세 분리).
 6. **인앱 토스트** — `useCrossCloudPushToast` 포팅(필터: 내 메시지 아님 + active 채널 아님 + title/body 있음). primitive=`useToast`/Sonner 재사용. 탭 → `useCloudSwitchFlow`로 해당 cloud 전환 + 채널 열기.
-7. **(선택) endpoint 자가복구 패리티** — 모바일 `useDeviceTokenRegistration`은 아직 localStorage 토큰 dedup(구버전). 포그라운드 복귀 시 throttle `force` 재등록(desktop `abbeb6cf`) 포팅 — 우선순위 낮음(모바일 OS 푸시가 더 안정).
+7. ~~**(선택) endpoint 자가복구 패리티**~~ — **종료됨.** 모바일·데스크톱 등록이 `libs/app-runtime`의 공용 훅으로 합쳐졌고, focus 재등록 자가복구는 ADR-0077에서 호출량과 맞바꿔 폐기됐다. 현재 정책은 [push-device-registration.md](./push-device-registration.md) 참조.
 8. **토큰/프로젝트 일치 검증** — 모바일 네이티브는 빌드 flavor google-services(dev=lemondu-ecb38/prod=chaticdou) 사용 → 보통 일치하나, reg-dev 등록 후 SNS 전달까지 한 번 검증(SENDER_ID_MISMATCH 점검).
 
 **순서/사이즈**: 1→2→3 = 코어(푸시→cid→배지) **M**, 검증=다른 cloud 메시지 시 콘솔/헤더에 cid 마크. 4 작음. 5 = UI(디자인 결정 선행). 6 = **S**. 7·8 선택.

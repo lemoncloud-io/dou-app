@@ -51,6 +51,45 @@
 
 푸시가 네이티브 → `OnReceiveNotification` 브릿지로 웹에 도착한다. `CloudPushMarkRunner`가 페이로드에서 힌트를 꺼내 판별한다: 유효 `cid`면 그대로, `'#'`이면 relay(`'default'`), 빈 값이면 캐시 역조회(유일 매칭만). 활성 클라우드로 판별되면 무시(소켓이 이미 처리), 아니면 `mark(cloudId)`. 헤더 전환 버튼과 시트의 해당 클라우드 행에 점이 켜진다.
 
+### S2-b. 클라우드 활성 알림이 포그라운드로 도착한다 (Proposed · ADR-0075)
+
+> 상태: Proposed (미구현 — 아래 착수 조건 참고) · 관련 ADR: [[ADR-0075]](../../../../../docs/adr/0075-cloud-activated-notification-app-readiness.md)
+
+클라우드 활성 알림(`type: 'cloud'`)도 `data.cid`를 싣고 온다 — **새로 만들어진 클라우드의 id다.**
+지금 판별기는 유효 `cid`면 바로 단축하므로, 이 푸시가 포그라운드로 오면 방금 만들어진 클라우드에
+"안 읽은 메시지" 점이 켜진다. 새 메시지는 하나도 없다.
+
+그래서 포그라운드 핸들러가 **채팅 푸시로 식별될 때만** 마크한다. 판정 재료는 이미 도착해 있다 —
+`useFcmHandler`가 네이티브 포그라운드 이벤트의 `type`을 `data.type`으로 실어 보낸다.
+
+게이트는 **"채팅만 통과"이지 "클라우드만 차단"이 아니다.** 앞으로 늘어날 알림 유형이 자동으로 막히는
+쪽이 맞다 — 유형이 늘 때마다 차단 목록을 늘리는 것은 잊기 쉽고, 잊으면 다시 가짜 점이 켜진다.
+`type`을 못 읽으면 마크하지 않는 쪽으로 기운다 (원칙 2: 가짜 점이 놓친 점보다 나쁘다).
+
+백그라운드 경로(S3)는 손대지 않는다. 이미 뱃지 증가와 같은 chat 게이트 안쪽이라
+(Android `isChatChannel`, iOS `applyBadgeIncrementIfNeeded`) 클라우드 푸시는 애초에 기록되지 않는다.
+**포그라운드 브릿지만 뚫려 있었다.**
+
+#### 착수 조건 — 게이트 신호 확정
+
+게이트를 잘못 좁히면 **기존 크로스 클라우드 점이 통째로 죽는다.** 지금까지 확인된 것과 남은 것:
+
+- **확인됨 — 두 신호 모두 웹까지 온다.** Android 포그라운드는 `useFcmHandler`가 `type`과
+  `channel_id`/`notificationChannelId`를 명시적으로 `data`에 싣는다. iOS 포그라운드는
+  `NotificationService.onMessage`의 APNs 정규화가 `notification.getData()`(= userInfo 전체)를 그대로
+  `data`로 넘기므로, NSE가 읽는 것과 같은 최상위 `type`·`channel_id`가 함께 온다.
+- **미확인 — 기존 chat 푸시에 그 값이 실제로 채워지는가.** `type`은 페이로드 타입상 발신부 필수 필드지만,
+  채널 도출 대응표의 폴백이 `dou_chat`이라 "**`dou_chat`으로 도착했다**"가 "`type`이 있었다"를 증명하지
+  못한다. 실측 없이는 가릴 수 없다.
+
+그래서 **`channel_id`를 신호로 쓰는 쪽이 유력하다.** 두 네이티브 게이트가 이미 읽는 바로 그 필드라
+규칙이 대칭이 되고(이 문서의 변경 체크리스트가 요구하는 일관성), 값이 없을 때 두 네이티브 리더가
+`dou_chat`으로 기본값을 잡는 것과 같은 방향으로 기울이면 **부재 시 오늘과 동일하게 동작**해 회귀가
+생기지 않는다. 클라우드 푸시는 푸시 서비스가 `type: 'cloud'`에서 `dou_cloud`를 도출해 싣는다.
+
+ADR-0075는 `type` 게이트로 적었으나, 위 조사는 `channel_id`가 회귀 위험이 더 낮다고 가리킨다.
+**실측으로 둘 중 하나를 고른 뒤 착수하고, 고른 결과를 ADR에 반영한다.**
+
 ### S3. 타 클라우드 메시지 — 앱 백그라운드/종료
 
 백그라운드 푸시는 웹에 전달되지 않는다 — 네이티브가 배너·뱃지만 처리한다. 뱃지 +1이 일어나는 바로 그 분기(iOS NSE `applyBadgeIncrementIfNeeded`, Android FCM 서비스 백그라운드 브랜치)에서 원시 힌트 레코드를 기존 공유 저장소(App Group UserDefaults / SharedPreferences)에 append한다. 웹이 부팅(`WebAppReady` 이후) 또는 포그라운드 복귀(`OnBackgroundStatusChanged`) 시 `FetchPushMarks`로 **drain**(읽는 즉시 네이티브 쪽 비움)하고, 레코드마다 S2와 같은 단일 판별을 거쳐 마크한다.

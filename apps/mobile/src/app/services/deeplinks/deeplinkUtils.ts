@@ -261,6 +261,8 @@ const PUSH_PARSE_BASE = 'http://chatic.local';
 export interface PushNavigationData {
     link?: unknown;
     clickAction?: unknown;
+    /** App-level push type (`chat`, `cloud`, ...). Decides the destination when there is no link. */
+    type?: unknown;
     /** Metadata object (or its JSON string) holding cid/sid per the push payload spec. */
     payload?: unknown;
     cid?: unknown;
@@ -298,11 +300,21 @@ const stripPushScheme = (link: string): string => {
     return match ? match[1] : link;
 };
 
+/** Push types whose payload carries no `link` by contract, and whose tap destination is the root. */
+const ROOTED_PUSH_TYPES = new Set(['cloud']);
+
+/** Web root — where a linkless push whose type opts into rooting sends the tap. */
+const PUSH_ROOT_PATH = '/';
+
 /**
  * Returns the WEBVIEW_URL-relative path (pathname+search+hash) for a push notification tap, with
- * cid/sid merged into the query. Returns null when there is no link — the tap then simply
- * foregrounds the app without forcing navigation. Shared with the deep link path so push taps and
- * deep links converge on one OnNavigate contract.
+ * cid/sid merged into the query. Shared with the deep link path so push taps and deep links
+ * converge on one OnNavigate contract.
+ *
+ * A push with no link resolves to the root for the types that omit `link` BY CONTRACT (cloud
+ * activation carries none, and the payload spec routes a linkless push to the root), and to null
+ * for everything else — a chat push arriving without a link is a malformed payload, not a request
+ * to leave the screen the user is on, so that tap keeps only foregrounding the app.
  */
 export const resolvePushTapPath = (data: PushNavigationData | undefined | null): string | null => {
     if (!data) {
@@ -311,7 +323,8 @@ export const resolvePushTapPath = (data: PushNavigationData | undefined | null):
 
     const link = asString(data.link) ?? asString(data.clickAction);
     if (!link) {
-        return null;
+        const type = asString(data.type);
+        return type && ROOTED_PUSH_TYPES.has(type) ? PUSH_ROOT_PATH : null;
     }
 
     const { cid, sid } = extractPushContext(data);

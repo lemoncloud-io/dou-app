@@ -74,10 +74,61 @@ Android는 **data-only FCM**(notification 객체 없음)이고 배너는 네이�
 
 - **Android(백그라운드/콜드스타트) 탭**: 네이티브 서비스가 `payload`의 `cid`/`sid`를 링크 쿼리에 병합한 뒤 `action=ACTION_VIEW` + `data=Uri.parse(link)`로 `PendingIntent`를 세팅한다([`ChaticFirebaseMessagingService.kt`](../../../../mobile/android/app/src/main/java/io/chatic/dou/push/ChaticFirebaseMessagingService.kt)). 탭 시 RN(`0.83`)이 `Linking` `'url'` 이벤트를 자동 emit → `DeepLinkManager` → `useWebViewDeepLink` → OnNavigate. 콜드스타트는 `Linking.getInitialURL()` 경로. **`MainActivity` 추가 오버라이드 불필요.** ✅
 - **iOS 탭**: iOS는 `aps.alert` + `mutable-content:1`이라 RNFirebase `onNotificationOpenedApp` / `getInitialNotification`([`useFcmHandler.ts`](../../../../mobile/src/app/webview/hooks/useFcmHandler.ts))이 발화한다. `resolvePushPath`가 `link` + `payload`의 `cid`/`sid`를 경로 쿼리로 합쳐 `OnNavigate`를 브릿지로 **직접 발행**한다(`Linking.openURL` 왕복 없음). 콜드스타트는 브릿지 버퍼가 `WebAppReady`까지 보관 후 전달. 실기기 검증 권장.
-- **Foreground**: 네이티브 이벤트 → `OnReceiveNotification` → [`useInAppPushMessage`](../../../src/app/features/notifications/hooks/useInAppPushMessage.tsx)가 인앱 배너를 띄우고, **탭하면 `usePushNavigate`로 네이티브 탭과 같은 경로를 탄다**(전환 + 히스토리 정규화). 페이로드→경로 변환은 [`resolveInAppPushRoute`](../../../src/app/features/notifications/utils/resolveInAppPushRoute.ts). 지금 보고 있는 방의 메시지는 배너를 띄우지 않는다. 디버그 소비처 [`useReceivedPushLog`](../../../src/app/features/debug/hooks/useReceivedPushLog.ts)도 함께 수신을 기록한다 → [device-token](./device-token.md).
+- **Foreground**: 네이티브 이벤트 → `OnReceiveNotification` → [`useInAppPushMessage`](../../../src/app/hooks/useInAppPushMessage.tsx)가 인앱 배너를 띄우고, **탭하면 `usePushNavigate`로 네이티브 탭과 같은 경로를 탄다**(전환 + 히스토리 정규화). 페이로드→경로 변환은 [`resolveInAppPushRoute`](../../../src/app/utils/resolveInAppPushRoute.ts). 지금 보고 있는 방의 메시지는 배너를 띄우지 않는다. 디버그 소비처 [`useReceivedPushLog`](../../../src/app/features/debug/hooks/useReceivedPushLog.ts)도 함께 수신을 기록한다 → [device-token](./device-token.md).
 - **cid/sid 전달**: `cid`/`sid`는 `payload`에 있고 `link`와 별개다. 모바일이 이를 `OnNavigate` 경로 쿼리로 병합해 웹까지 넘긴다 — Android는 네이티브에서 링크 URI에, iOS는 `resolvePushPath`에서. 웹은 위 [경로 계약](#경로-계약)대로 쿼리에서 읽어 전환·제거한다. 모바일 상세: [mobile/docs/push.md](../../../../mobile/docs/push.md), [mobile/docs/deeplink.md](../../../../mobile/docs/deeplink.md).
 
 > data-only인 Android 탭은 RNFirebase 콜백을 발화시키지 않으므로 네이티브 인텐트 → `Linking` 경로가 담당하고, iOS는 반대로 RNFirebase 콜백 경로를 쓴다. 두 경로 모두 동일한 `OnNavigate { path }` 계약으로 수렴한다.
+
+## 클라우드 활성 알림 — 웹소켓 경로
+
+> 상태: Live · 최종 갱신: 2026-09-07 · 관련 ADR: [[ADR-0075]](../../../../../docs/adr/0075-cloud-activated-notification-app-readiness.md)
+
+클라우드가 처음 활성이 되면 서버가 알림 한 건을 던지고, 전달 계층이 갈래를 정한다 —
+**접속 중이면 웹소켓, 아니면 푸시.** 접속 중일 때는 푸시가 **나가지 않으므로**, 웹소켓을 듣지 않으면
+앱을 켜 둔 사용자는 아무것도 받지 못한다. 이 절은 그 웹소켓 쪽을 담당한다 (푸시 쪽은
+[mobile/docs/push.md](../../../../mobile/docs/push.md)).
+
+| 항목        | 값                                                                    |
+| ----------- | --------------------------------------------------------------------- |
+| 봉투 `type` | `cloud.activated`                                                     |
+| `subject`   | `cloud:<id>`                                                          |
+| `data`      | `{ id, name }`                                                        |
+| 도착 슬롯   | **relay** — 서버가 `targetType: 'user'`로 중계서버 배포에 unicast한다 |
+
+### relay 고정 구독
+
+`SocketManager.onType()`은 **active 슬롯**에만 붙고, active는 "cloud 있으면 cloud, 없으면 relay"다.
+그대로 쓰면 **사용자가 클라우드 안에 있을 때 놓친다** — 두 번째·세 번째 클라우드를 추가하는,
+정확히 가장 흔한 상황이다. 슬롯 두 개는 동시에 붙어 있으므로 relay 클라이언트는 그때도 살아 있다.
+
+그래서 kind 고정 구독 프리미티브(`onSlotType`)를 쓴다 — 코어 설계는
+[app-runtime/socket/kind-scoped-routing.md](../../../../../libs/app-runtime/docs/socket/kind-scoped-routing.md).
+
+### 받으면 하는 일
+
+[`CloudActivatedRunner`](../../../src/app/features/home/CloudActivatedRunner.tsx)가 `AppRuntime`의
+`CloudPushMarkRunner` 옆에 마운트돼 두 가지를 한다.
+
+1. **클라우드 목록 캐시 무효화** (`runtime.data.cloudsKeys.all`) — 프로비저닝 행이 즉시 활성으로 바뀐다.
+   이것만으로도 홈을 보고 있는 사용자에게는 "준비됐다"가 화면에 나타난다.
+2. **인앱 배너** — 다른 화면을 보고 있어도 알게 한다. 제목 인자는 이벤트의 `name`, 비어 있으면 `id`다
+   (이름 없이 만들어진 클라우드가 실제로 있다 — 푸시 문구와 같은 폴백).
+
+**두 효과는 독립이다.** 무효화는 언제나 돈다. 배너는 `i18n.exists('notifications.cloudActivated.title')`
+일 때만 뜬다 — 웹 i18n은 원격 리소스라 키가 아직 없는 클라이언트가 있고, 리터럴 키가 적힌 배너보다
+배너가 없는 편이 낫다. 그 사이에도 목록은 갱신된다.
+
+**배너에 클릭 동작을 두지 않는다.** 푸시 탭은 홈으로 가기로 확정됐으므로, 배너만 해당 클라우드로
+전환하면 같은 알림이 도착 경로에 따라 다른 곳으로 데려간다.
+
+토스트 id는 고정이다 — 업그레이드로 여러 클라우드가 한꺼번에 준비되면 배너가 쌓이지 않고 교체된다.
+
+### 푸시와 겹치지 않는가
+
+겹치지 않는다. 전달 계층이 접속 여부로 **하나만** 고른다. 다만 소켓이 끊긴 채 앱이 포그라운드인
+드문 경우에는 푸시가 포그라운드로 도착할 수 있고, 그때는 기존 `useInAppPushMessage`가 제목만 있는
+클릭 없는 카드로 띄운다 — 억제 규칙 둘(`ownerId` 자기 에코, 현재 방)은 채팅 필드가 없어 no-op이 되고,
+깨지지 않는다. 유형별 카드 분기는 두지 않는다.
 
 ## 미구현(의도적 부재)
 

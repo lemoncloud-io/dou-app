@@ -714,6 +714,96 @@ describe('SocketManager getScopedClient (kind-scoped routing)', () => {
 
         expect(() => scoped.request('device.update-remote', { muted: true })).toThrow(/no cloud slot/);
     });
+
+    // 서버가 relay 배포로만 보내는 unicast(cloud.activated)는 클라우드 세션 중에도 relay로 온다.
+    // active 구독이었다면 여기서 놓친다 — 그게 "클라우드 안에서 다음 클라우드 알림을 못 받는다"다.
+    it('onSlotType은 active 슬롯이 cloud여도 relay 클라이언트에 붙는다', () => {
+        const relay = makeClient();
+        const cloud = makeClient();
+        mockedCreate.mockReturnValueOnce(relay).mockReturnValueOnce(cloud);
+
+        const manager = new SocketManager();
+        manager.ensure(RELAY_CONFIG, 'relay');
+        manager.ensure(CLOUD_CONFIG, 'cloud'); // active facade = cloud
+
+        const listener = jest.fn();
+        manager.onSlotType('relay', 'cloud.activated', listener);
+
+        expect(relay.onType).toHaveBeenCalledWith('cloud.activated', listener);
+        expect(cloud.onType).not.toHaveBeenCalledWith('cloud.activated', expect.anything());
+    });
+
+    it('슬롯 재바인드 후 새 클라이언트에 다시 붙고 옛 구독은 해지된다', () => {
+        const unsubscribeFirst = jest.fn();
+        const first = makeClient({ onType: jest.fn().mockReturnValue(unsubscribeFirst) as never });
+        const second = makeClient();
+        mockedCreate.mockReturnValueOnce(first).mockReturnValueOnce(second);
+
+        const manager = new SocketManager();
+        manager.ensure(RELAY_CONFIG, 'relay');
+        const listener = jest.fn();
+        manager.onSlotType('relay', 'cloud.activated', listener);
+
+        manager.ensure(OTHER_CONFIG, 'relay'); // rebuild relay slot (deviceId differs)
+
+        expect(unsubscribeFirst).toHaveBeenCalled();
+        expect(second.onType).toHaveBeenCalledWith('cloud.activated', listener);
+    });
+
+    // request와 반대다. 구독은 "이 슬롯이 생기면 붙여라"는 선언이고, relay 슬롯은 부팅 중 잠깐 비어
+    // 있다 — 그때 throw하면 소비자가 마운트 순서에 묶인다.
+    it('슬롯 미바인드 시 throw하지 않고 대기했다가 바인드 시 붙는다', () => {
+        const relay = makeClient();
+        mockedCreate.mockReturnValueOnce(relay);
+
+        const manager = new SocketManager();
+        const listener = jest.fn();
+
+        expect(() => manager.onSlotType('relay', 'cloud.activated', listener)).not.toThrow();
+        expect(relay.onType).not.toHaveBeenCalled();
+
+        manager.ensure(RELAY_CONFIG, 'relay');
+
+        expect(relay.onType).toHaveBeenCalledWith('cloud.activated', listener);
+    });
+
+    it('해지 함수는 재바인드 이후에도 구독을 끊는다', () => {
+        const unsubscribeSecond = jest.fn();
+        const first = makeClient();
+        const second = makeClient({ onType: jest.fn().mockReturnValue(unsubscribeSecond) as never });
+        const third = makeClient();
+        mockedCreate.mockReturnValueOnce(first).mockReturnValueOnce(second).mockReturnValueOnce(third);
+
+        const manager = new SocketManager();
+        manager.ensure(RELAY_CONFIG, 'relay');
+        const unsubscribe = manager.onSlotType('relay', 'cloud.activated', jest.fn());
+        manager.ensure(OTHER_CONFIG, 'relay'); // now bound to `second`
+
+        unsubscribe();
+        expect(unsubscribeSecond).toHaveBeenCalled();
+
+        // Entry is gone, so a later rebuild must not resurrect it.
+        manager.ensure(RELAY_CONFIG, 'relay');
+        expect(third.onType).not.toHaveBeenCalledWith('cloud.activated', expect.anything());
+    });
+
+    it('teardown 시 구독을 해지하고 다른 슬롯으로 새지 않는다', () => {
+        const unsubscribeRelay = jest.fn();
+        const relay = makeClient({ onType: jest.fn().mockReturnValue(unsubscribeRelay) as never });
+        const cloud = makeClient();
+        mockedCreate.mockReturnValueOnce(relay).mockReturnValueOnce(cloud);
+
+        const manager = new SocketManager();
+        manager.ensure(RELAY_CONFIG, 'relay');
+        manager.onSlotType('relay', 'cloud.activated', jest.fn());
+
+        manager.destroy('relay');
+
+        expect(unsubscribeRelay).toHaveBeenCalled();
+
+        manager.ensure(CLOUD_CONFIG, 'cloud');
+        expect(cloud.onType).not.toHaveBeenCalledWith('cloud.activated', expect.anything());
+    });
 });
 
 describe('SocketManager 소켓 에러 로깅', () => {

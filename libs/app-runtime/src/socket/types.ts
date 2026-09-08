@@ -60,13 +60,12 @@ export type SocketClientListener = (client: ClientSocketV2 | null) => void;
 export type SocketSlotClientListener = (kind: SocketKind, client: ClientSocketV2 | null) => void;
 
 /**
- * A stable request surface pinned to ONE slot kind (see getScopedClient). Mirrors the subset of
- * ISocketManager that gateways bind to, but every call resolves the slot lazily so it survives slot
- * teardown/rebuild. Deliberately request/send only — a kind-pinned push subscription (onType) would
- * need the active facade's owned-subscription rebinding; add it when a consumer exists. See
- * socket/kind-scoped-routing.md.
+ * A stable surface pinned to ONE slot kind (see getScopedClient). Mirrors the subset of
+ * ISocketManager that gateways bind to, but nothing captures a client: request/send resolve the
+ * slot on every call, and `onType` registers a manager-owned subscription that follows the slot
+ * across teardown/rebuild. See socket/kind-scoped-routing.md.
  */
-export type ScopedSocketClient = Pick<ISocketManager, 'request' | 'send'>;
+export type ScopedSocketClient = Pick<ISocketManager, 'request' | 'send' | 'onType'>;
 
 /**
  * Dual-socket manager with an ACTIVE-FACADE interface (multi-socket-design.md §5-1): it holds a
@@ -98,6 +97,16 @@ export interface ISocketManager {
     request<T = unknown>(type: string, data?: unknown, options?: { timeoutMs?: number }): Promise<T>;
     send<T = unknown>(type: string | SocketMessage<T>, data?: T): void;
     onType<T = unknown>(type: string, listener: (message: SocketMessage<T>) => void): () => void;
+    /**
+     * Push subscription pinned to ONE slot kind, for events a specific server delivers regardless of
+     * which slot is active (e.g. a relay-only unicast while a cloud slot is up). The manager owns the
+     * entry and re-binds it whenever that slot is rebuilt.
+     *
+     * Unlike the kind-scoped request/send, registering against an unbound slot does NOT throw: a
+     * subscription is a standing declaration ("attach when this slot exists"), and the relay slot is
+     * briefly absent during boot. It waits, and never leaks onto another slot.
+     */
+    onSlotType<T = unknown>(kind: SocketKind, type: string, listener: (message: SocketMessage<T>) => void): () => void;
     onMessage(listener: (event: ClientSocketMessageEvent) => void): () => void;
     onState(listener: (event: ClientSocketStateEvent) => void): () => void;
     onError(listener: (event: ClientSocketErrorEvent) => void): () => void;

@@ -823,6 +823,7 @@ libs/app-runtime/src/
                                    # + useInvitedCloudNameSync (트리거만; use-case는 위 파일)
   push/
     hooks/useDeviceTokenRegistration.ts
+    registrationRecord.ts          # 설치당 1회 등록 기록 (ADR-0077, 비공개)
   index.ts                         # 앱 표면 (값 export 68)
   public-surface.test.ts           # 그 목록을 잠그는 EXPECTED
   importCycleAbsence.test.ts       # 순환 import 부재 검사 (아래 참고)

@@ -14,7 +14,7 @@ import { Router } from '../routes';
 import { ActiveCloudDataProvider, OtherCloudUnreadProvider } from '../hooks';
 import { useAutoScrollOnFocus } from '../ui/hooks';
 import { DebugObservationReporter } from '../features/debug';
-import { CloudPushMarkRunner, UnreadBadgeRunner } from '../features/home';
+import { CloudActivatedRunner, CloudPushMarkRunner, UnreadBadgeRunner } from '../features/home';
 import { BackgroundSyncRunner } from './BackgroundSyncRunner';
 import { InvitedCloudDurabilityRunner } from './InvitedCloudDurabilityRunner';
 import { MyUserSeedRunner } from './MyUserSeedRunner';
@@ -68,6 +68,7 @@ export const AppRuntime = () => {
                     <BackgroundSyncRunner />
                     <UnreadBadgeRunner />
                     <CloudPushMarkRunner />
+                    <CloudActivatedRunner />
                     <MyUserSeedRunner />
                     <InvitedCloudDurabilityRunner />
                     {/* Mirrors the two shared observations out to the debug overlay, which is mounted

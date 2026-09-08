@@ -17,19 +17,19 @@
 
 ```
 GlobalBridgeListener (앱 전역 마운트)
-  → useDeviceTokenRegistration()
-     → 인증됨 && window.CHATIC_APP_PLATFORM 있음?  (아니면 no-op)
-     → appBridge.fetchFcmToken()                  # 네이티브에서 토큰 취득
-     → body { deviceToken, platform, installId, application: 'chatic' }
-     → web-core useRegisterDeviceToken(body)       # deviceId 내부 주입
-        → identityCore dedup (같은 토큰이면 skip)
-        → POST /users/0/reg-dev                     # signed relay
-        → 성공 시 identityCore에 등록 토큰 저장
+  → useDeviceTokenRegistration()                   # 셸 지식만 있는 어댑터
+     → window.CHATIC_APP_PLATFORM 있음?            (없으면 delegate: null → no-op)
+     → runtime.push.useDeviceTokenRegistration(delegate)
+        → 인증됨?                                   (아니면 종료)
+        → 등록 기록이 이 계정·기기·토큰을 이미 덮고 있나?  → 종료
+        → appBridge.fetchFcmToken()                # 네이티브에서 토큰 취득
+        → POST /users/0/reg-dev?force=true          # signed relay
+        → 성공 시에만 등록 기록 저장
 ```
 
-- 진입점: [`GlobalBridgeListener.tsx`](../../../src/app/bridge/GlobalBridgeListener.tsx) → [`useDeviceTokenRegistration.ts`](../../../src/app/bridge/useDeviceTokenRegistration.ts).
-- 앱 레벨 등록/중복제거: `libs/web-core/src/hooks/app/useRegisterDeviceToken.ts`.
-- API: `POST /users/0/reg-dev` (`libs/web-core/src/api/users.ts`, `registerDeviceToken`).
+- 진입점: [`GlobalBridgeListener.tsx`](../../../src/app/bridge/GlobalBridgeListener.tsx) → [`useDeviceTokenRegistration.ts`](../../../src/app/bridge/useDeviceTokenRegistration.ts) — 이 파일은 토큰 취득 방법과 platform만 주입하는 어댑터다.
+- 등록 정책 전부: `libs/app-runtime/src/push/` → [push-device-registration.md](../../../../../docs/specs/push-device-registration.md).
+- API: `POST /users/0/reg-dev` (`libs/http/src/gateways/users.ts`, `registerDevice`).
 
 ## 요청/응답 계약
 
@@ -38,9 +38,15 @@ GlobalBridgeListener (앱 전역 마운트)
 **응답 `RegisterDeviceResult`** — `deviceToken`(매칭된 토큰), `Application`, `Device`, `User`, `took`.
 `User`에는 서버 등록의 진실이 담긴다: `endpoint`(SNS ARN), `registeredAt`, `deviceId`.
 
-## 중복 방지
+## 중복 방지 — 설치당 1회
 
-`identityCore`가 마지막 등록 토큰을 `localStorage`(`chatic-registered-device-token`)에 저장한다. 같은 토큰이면 재등록하지 않고, 토큰이 갱신되면(`onTokenRefresh`) 자동 재등록한다.
+app-runtime이 등록 성공을 `push-reg:v1:<uid>:<deviceId>:<platform>`(localStorage)에 남기고, 그 기록이 현재 계정·기기·토큰과 일치하는 한 다시 호출하지 않는다. 기록은 불리언이 아니라 등록에 성공한 **토큰**을 담으므로 토큰 로테이션·계정 전환은 그대로 재등록된다.
+
+같은 기록을 네이티브 `pushRegistration` preference(MMKV)에도 민다 — WebView 캐시가 지워져도 살아남게 하기 위해서다. 부팅 시 1회 hydrate해서 localStorage가 비었으면 네이티브 값으로 백필한다. 쓰기는 `apps/mobile`의 브릿지 화이트리스트를 타므로, **웹이 앱보다 먼저 배포되는 구간에서는 거부되는 게 정상**이고 그동안은 localStorage만으로 종전과 같이 동작한다.
+
+포그라운드 복귀는 기록이 있으면 브릿지 왕복도 하지 않는다. 부팅 시에는 토큰을 fetch해 비교하는데, 모바일에서 토큰 로테이션이 잡히는 지점이 거기뿐이기 때문이다.
+
+⚠️ 이 dedup은 SNS endpoint 자가복구를 포기한 대가다(ADR-0077). endpoint가 죽은 기기는 재설치·토큰 로테이션·계정 전환·정책 버전 상향 중 하나가 있어야 복구되며, 개별 구제는 아래 디버그 도구로 한다.
 
 ## 등록여부 확인 — 읽기 전용 조회는 없음
 
@@ -55,12 +61,13 @@ GlobalBridgeListener (앱 전역 마운트)
 
 ## 파일 맵
 
-| 파일                                          | 역할                                              |
-| --------------------------------------------- | ------------------------------------------------- |
-| `bridge/GlobalBridgeListener.tsx`             | 인증 후 등록 훅을 앱 전역에서 마운트              |
-| `bridge/useDeviceTokenRegistration.ts`        | 브릿지로 토큰 취득 → 등록 body 구성               |
-| `bridge/appBridge.ts` (`fetchFcmToken`)       | `FetchFcmToken` 브릿지 요청                        |
-| web-core `hooks/app/useRegisterDeviceToken.ts`| dedup + `reg-dev` 호출 + 토큰 저장               |
-| web-core `api/users.ts` (`registerDeviceToken`)| `POST /users/0/reg-dev` (signed relay)           |
-| `features/debug/pages/DebugPushPage.tsx`      | 토큰 조회·등록 확인·포그라운드 수신 목록 (디버그) |
-| `dev/overlays/RuntimeOverlay.tsx` ('디바이스')| 위 정보를 dev 오버레이에서도 노출 (동일 훅 재사용) |
+| 파일                                                   | 역할                                               |
+| ------------------------------------------------------ | -------------------------------------------------- |
+| `bridge/GlobalBridgeListener.tsx`                      | 인증 후 등록 훅을 앱 전역에서 마운트               |
+| `bridge/useDeviceTokenRegistration.ts`                 | 셸 델리게이트 어댑터 (토큰 취득 + platform)        |
+| `bridge/appBridge.ts` (`fetchFcmToken`)                | `FetchFcmToken` 브릿지 요청                        |
+| app-runtime `push/hooks/useDeviceTokenRegistration.ts` | 등록 정책 전부 (트리거·dedup·재시도)               |
+| app-runtime `push/registrationRecord.ts`               | 설치당 1회 등록 기록                               |
+| `libs/http` `gateways/users.ts` (`registerDevice`)     | `POST /users/0/reg-dev` (signed relay)             |
+| `features/debug/pages/DebugPushPage.tsx`               | 토큰 조회·등록 확인·포그라운드 수신 목록 (디버그)  |
+| `dev/overlays/RuntimeOverlay.tsx` ('디바이스')         | 위 정보를 dev 오버레이에서도 노출 (동일 훅 재사용) |

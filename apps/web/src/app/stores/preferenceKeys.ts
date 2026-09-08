@@ -169,6 +169,16 @@ export const PREFERENCES = {
     },
 
     // -----------------------------------------------------------------------
+    // NOT in this registry, on purpose
+    //
+    // The native preference key 'pushRegistration' is app-runtime's push-token registration record
+    // (ADR-0077), not a user setting: nothing reads it as state, no store holds it, and its lifetime
+    // is keyed by account + device + platform rather than by the app. It is written straight from
+    // `bridge/useDeviceTokenRegistration.ts` through the delegate the runtime asks for. Listed here
+    // only so a reader looking for every native key in one place finds it.
+    // -----------------------------------------------------------------------
+
+    // -----------------------------------------------------------------------
     // Session-only: intentionally ephemeral, never sent to native bridge
     // -----------------------------------------------------------------------
     debugSettings: {
