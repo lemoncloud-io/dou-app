@@ -1,5 +1,46 @@
 # Changelog
 
+## [2026-09-08] - root@0.57.0, @chatic/web@0.47.0, @chatic/desktop-web@0.8.0
+
+### Features
+
+- (block-kit-builder) dark mode, a coloured payload, and panes you can drag
+- (block-kit-builder) stage the message at a real client width
+- (web) fold Block Kit bodies on every surface that is not the message
+- (web) draw Block Kit messages instead of their payload JSON
+- (block-kit-builder) make the builder work on a phone
+- (block-kit-builder) reorder blocks by dragging, and redesign the templates
+- (block-kit-builder) add Error, Attendance and Deployment templates
+- (block-kit-builder) undo, redo, clear, and keep the message across reloads
+- (block-kit-builder) edit the payload JSON and have the preview follow
+- (block-kit-builder) add, remove, reorder and edit blocks from the rail
+- (block-kit-builder) draw a block array as both a message and its payload
+- (block-kit-builder) scaffold the builder app and its three-pane shell
+- (desktop-web) render webhook cards from the server's blocks$ field
+
+### Bug Fixes
+
+- (web/search) keep an absent channel preview absent
+- (web) read the link unfurl from what the message says, not its payload
+- (desktop-web) mock the cloud catalog where it now lives
+- (deploy) drop --acl public-read from the block-kit-builder sync
+
+### Refactor
+
+- (web) collapse the row's block derivation into one memo
+- (block-kit) lift the chat block read priority into the shared lib
+- stop exporting six types nothing outside their file names
+- clean up the block-kit branch after review
+- (block-kit) lift the block renderer into a shared lib
+
+### Other
+
+- build: (block-kit-builder) reference libs/theme, which the app already imports
+- build: (web) sync the project reference libs/block-kit added
+- ci: (block-kit-builder) announce the PROD deploy now that one is served
+- ci: (block-kit-builder) deploy the builder from develop and main
+- test: (block-kit) pin the three payload shapes nothing was asserting
+
 ## [2026-09-07] - No version updates
 
 ### Features
