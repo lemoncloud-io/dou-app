@@ -37,10 +37,8 @@ export const ko = {
             title: '{0}',
             message: '{0}',
         },
-        cloud: {
-            sync_complete: "클라우드 '{0}' 생성 완료",
-        },
     },
     push_chat_message_title: '{0}',
     push_chat_message_body: '{0}',
+    push_cloud_activate_title: '{0} 클라우드가 준비되었습니다',
 } as const;

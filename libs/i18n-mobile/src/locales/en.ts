@@ -37,10 +37,8 @@ export const en = {
             title: '{0}',
             message: '{0}',
         },
-        cloud: {
-            sync_complete: "Cloud '{0}' created successfully",
-        },
     },
     push_chat_message_title: '{0}',
     push_chat_message_body: '{0}',
+    push_cloud_activate_title: '{0} is ready',
 } as const;
