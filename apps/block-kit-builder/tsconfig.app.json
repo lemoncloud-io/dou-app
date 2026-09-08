@@ -12,10 +12,13 @@
     "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx"],
     "references": [
         {
-            "path": "../../libs/block-kit/tsconfig.lib.json"
+            "path": "../../libs/theme/tsconfig.lib.json"
         },
         {
             "path": "../../libs/ui-kit/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/block-kit/tsconfig.lib.json"
         }
     ]
 }
