@@ -24,9 +24,12 @@ export const BuilderRail = () => {
 
     return (
         <div className="flex h-full flex-col">
-            {/* The pane heading above already says "Template", so this list opens the
-                rail without a second word for the same thing. */}
+            {/* On a wide screen the pane heading above already says "Template", so
+                saying it again here would be the same word twice in a column. The
+                pane headings are hidden below `lg`, where the tab says "Compose" and
+                this list would otherwise open with no name at all. */}
             <div className="shrink-0">
+                <h3 className={`${SECTION_HEADING} pt-3 lg:hidden`}>Template</h3>
                 <TemplateList />
                 <h3 className={SECTION_HEADING}>UI Components</h3>
                 <BlockPalette />
