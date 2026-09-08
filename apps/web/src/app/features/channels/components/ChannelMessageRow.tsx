@@ -1,5 +1,5 @@
 import { AlertCircle, Clock, Loader2, RotateCcw, X } from 'lucide-react';
-import { useRef, type PointerEvent as ReactPointerEvent, type MouseEvent as ReactMouseEvent } from 'react';
+import { useMemo, useRef, type PointerEvent as ReactPointerEvent, type MouseEvent as ReactMouseEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { DefaultAvatar, ImageAvatar, MessageBubble, MessageRow, ReadReceipt } from '@chatic/web-ui-kit';
@@ -121,26 +121,37 @@ export const ChannelMessageRow = ({
     // the destructive tint — and a card would show a finished-looking message for a send that
     // has not landed, or has failed. Those bodies stay in the bubble as text.
     const skipBlocks = isDeleted || message.isPending || message.isFailed;
-    const { blocks, source } = skipBlocks ? { blocks: null, source: null } : resolveChatBlocks(message);
-    // Nothing drawable falls back to the plain body (SPEC §5), and on this app the plain body
-    // is a bubble — so the row leaves the bubble only when the renderer will actually draw.
-    // The predicate is the lib's so the two decisions cannot disagree.
-    const asBlocks = !!blocks && hasDrawableBlocks(blocks);
-    // What the message SAYS, as opposed to what it is made of. The link unfurl means the
-    // former: hunting a URL inside a Block Kit payload reads a string no one is shown, and
-    // Slack's `<url|label>` token would hand the card a "URL" with the label still attached.
+    // The blocks this row will actually draw, or null. Two questions collapse into one
+    // value: `resolveChatBlocks` may find none, and `hasDrawableBlocks` — the lib's own
+    // SPEC §5 predicate, so the row and `BlockKitMessage` cannot disagree — may find that
+    // none of them can be drawn, which falls back to the plain body in a bubble.
     //
-    // Folded from the blocks already resolved above, not by parsing `content` a second time,
-    // and only on the `content` read path: when the blocks came from `blocks$` the server put
-    // its own plain-text summary in `content` (SPEC §6-5), and folding them back would throw
-    // that summary away. Everything else — every ordinary message, and the all-unknown
-    // fallback whose body the bubble prints verbatim — is `content` itself.
-    const plain = asBlocks && blocks && source === 'content' ? blocksToPlainText(blocks) : content;
+    // `plain` is what the message SAYS, as opposed to what it is made of. The link unfurl
+    // means the former: hunting a URL inside a Block Kit payload reads a string no one is
+    // shown, and Slack's `<url|label>` token would hand the card a "URL" with the label
+    // still attached. It folds the blocks already resolved here rather than parsing
+    // `content` again, and only on the `content` read path — when the blocks came from
+    // `blocks$` the server put its own plain-text summary in `content` (SPEC §6-5), and
+    // folding them back would throw that summary away. Everything else, the all-unknown
+    // fallback included, is `content` itself, which is what the bubble prints.
+    //
+    // Memoised because a row re-renders for reasons that have nothing to do with its body
+    // — a new message, a read receipt, a reaction elsewhere in the list — and for a webhook
+    // send this is a `JSON.parse` plus the mrkdwn passes. Ordinary messages cost a `trim`
+    // and a `startsWith` either way (`parseBlocks` bails on the first character).
+    const { drawnBlocks, plain } = useMemo(() => {
+        if (skipBlocks) return { drawnBlocks: null, plain: content };
+        const { blocks, source } = resolveChatBlocks(message);
+        const drawable = blocks && hasDrawableBlocks(blocks) ? blocks : null;
+        return {
+            drawnBlocks: drawable,
+            plain: drawable && source === 'content' ? blocksToPlainText(drawable) : content,
+        };
+    }, [skipBlocks, content, message]);
     // Truncation is the bubble's own affordance, so it measures what the bubble renders —
     // and a card has no bubble to cut, which is why it never truncates. The all-unknown
     // fallback does: it puts the original body in a bubble (SPEC §5), long JSON included.
-    const isLong =
-        !isDeleted && !message.isPending && !message.isFailed && !asBlocks && content.length > MAX_MESSAGE_LENGTH;
+    const isLong = !skipBlocks && !drawnBlocks && content.length > MAX_MESSAGE_LENGTH;
     // Found in the full content, not the truncated bubble text: a long message still deserves a
     // card for the link it had to cut — and the card is then the only way to reach it.
     // Skipped on a tombstone for the same reason chips are (see `tallies`): a deleted message must
@@ -148,10 +159,7 @@ export const ChannelMessageRow = ({
     // `isLong` rides along so the card agrees with the bubble about what is code: the bubble closes
     // a fence left dangling at the cut, and a URL under that fence must not summon a card the
     // bubble is rendering as literal text.
-    const previewUrl =
-        message.isPending || message.isFailed || message.isSystem || isDeleted
-            ? undefined
-            : extractFirstUrl(plain, isLong);
+    const previewUrl = skipBlocks || message.isSystem ? undefined : extractFirstUrl(plain, isLong);
 
     // Chips are hidden on a tombstone — the reactions still exist in the fold, but a
     // deleted message must not keep a live social surface.
@@ -264,7 +272,7 @@ export const ChannelMessageRow = ({
             avatar={avatar}
             time={metaTime}
             status={status}
-            wide={asBlocks}
+            wide={!!drawnBlocks}
             className={cn(!showProfileAndName && '-mt-1')}
         >
             {!mine && showProfileAndName && <span className="text-xs text-muted-foreground">{ownerDisplayName}</span>}
@@ -287,14 +295,14 @@ export const ChannelMessageRow = ({
                     // `min-w-0`: as a flex item this span defaults to `min-width: auto`
                     // (= its min-content width), and min-width beats max-width — a long
                     // unbroken message would push it past `max-w-full` and out of the row.
-                    className={cn('inline-flex min-w-0 max-w-full', asBlocks && 'w-full')}
+                    className={cn('inline-flex min-w-0 max-w-full', drawnBlocks && 'w-full')}
                     onPointerDown={handlePointerDown}
                     onPointerUp={clearTimer}
                     onPointerLeave={clearTimer}
                     onPointerCancel={clearTimer}
                     onContextMenu={handleContextMenu}
                 >
-                    {asBlocks && blocks ? (
+                    {drawnBlocks ? (
                         // A card, not a bubble. A webhook send is not someone speaking, and
                         // giving it the same ground as a person's message blurs who said what.
                         // Block Kit also brings its own headings, rules and field grid, none of
@@ -307,11 +315,11 @@ export const ChannelMessageRow = ({
                         // Against the page it reads as a card only in dark; in light the border
                         // carries it, which is how this app draws every other card.
                         //
-                        // No `renderFallback`: `asBlocks` already means the renderer will draw,
+                        // No `renderFallback`: `drawnBlocks` already means the renderer will draw,
                         // so its raw-body path is unreachable from here. A message with nothing
                         // drawable never enters this arm — it stays in the bubble as text.
                         <div className="w-full rounded-2xl border border-hairline bg-card px-4 py-3">
-                            <BlockKitMessage blocks={blocks} raw={content} />
+                            <BlockKitMessage blocks={drawnBlocks} raw={content} />
                         </div>
                     ) : (
                         <MessageBubble
