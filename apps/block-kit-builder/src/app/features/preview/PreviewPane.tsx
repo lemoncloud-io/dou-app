@@ -58,10 +58,18 @@ const SENDER = { name: '릴리즈봇', initial: 'R', time: '오후 11:11' };
  * The bubble around it is a stand-in: avatar, name, time. desktop-web's
  * `MessageRow` also carries hover actions, reactions, read receipts and a thread
  * footer, none of which mean anything for a payload that was never sent.
+ *
+ * The card sits on a lit stage rather than directly on the well, per the design:
+ * the stage stands for the channel the message would arrive in, so the card is
+ * judged against a surface the width of a conversation rather than against the
+ * tool's own background. The card stays the figure by its border and shadow
+ * instead of by surface contrast — the stage is `elevated` rather than
+ * `background` because in the dark theme `--background` and `--well` are one
+ * percent of lightness apart and a stage drawn in it would not be visible at all.
  */
 export const PreviewPane = ({ blocks, raw, device, failure }: PreviewPaneProps) => (
-    <div className="h-full overflow-auto bg-well">
-        <div className="flex min-h-full justify-center px-4 py-6 lg:px-8 lg:py-8">
+    <div className="h-full overflow-auto bg-well p-3 lg:p-5">
+        <div className="flex min-h-full justify-center rounded-xl bg-elevated px-4 py-6 lg:px-8 lg:py-10">
             {/* The notice is clamped to the same width as the card so the two share
                 an edge. A full-bleed banner over a 390px card would be a wider
                 thing than the thing it is about. */}
@@ -78,9 +86,9 @@ export const PreviewPane = ({ blocks, raw, device, failure }: PreviewPaneProps) 
                     has not been written. */}
                 {blocks.length ? (
                     <div
-                        // The one `bg-background` surface on the screen. Everything the
-                        // tool adds sits on the well, so the message is the figure and
-                        // the controls are the ground without a label saying which is which.
+                        // Figure against the stage by edge and elevation rather than by
+                        // fill: the stage is the same surface family, so a card that
+                        // relied on being the lighter one would vanish on it.
                         className="rounded-lg border border-hairline bg-background px-3 py-3 shadow-raised"
                     >
                         <div className="flex gap-3">

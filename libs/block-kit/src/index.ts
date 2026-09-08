@@ -9,6 +9,7 @@ export * from './blockKit';
 export * from './resolveChatBlocks';
 export * from './blocksToPlainText';
 export * from './messageClasses';
+export * from './CollapsibleCode';
 export * from './renderMrkdwn';
 export * from './BlockKitMessage';
 export * from './sampleWebhookBlocks';
