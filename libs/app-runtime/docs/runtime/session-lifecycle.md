@@ -21,7 +21,9 @@
    만들어 소켓 바인더에 넘긴다. 앱이 delegate를 주입하지 않는다(Host props는 `{ binding, children }`뿐).
 3. **relay keep-alive** — `useRelaySessionKeepAlive(true)`를 Host에서 직접 호출한다(게이트보다 위에서
    호출돼 init 진행 여부와 무관하게 relay 세션 부재 시 백그라운드 게스트 로그인으로 복구). 별도
-   render-null 러너 컴포넌트는 없다.
+   render-null 러너 컴포넌트는 없다. **오프라인이면 시도하지 않고, 실패한 시도는 엣지에서 다시
+   묻는다**(`online` 이벤트 · 포그라운드 복귀, 5초 floor) — effect 의존성만으로는 실패가 아무것도
+   움직이지 않아서 오프라인 첫 실행이 세션 없이 앱 재시작 때까지 머물렀다.
 4. **자식 마운트 순서**.
 
 ```tsx

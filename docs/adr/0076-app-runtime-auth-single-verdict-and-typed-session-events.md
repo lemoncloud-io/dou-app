@@ -327,6 +327,21 @@ export interface ICredentialRenewer {
 
 `RelayCredentialRenewer` · `CloudCredentialRenewer` 두 구현을 둔다.
 
+> **후속 (2026-09-08): relay `onTerminalExpiry`는 "로그아웃" 한 줄이 아니라 확인 창을 거친다.**
+> 이 결정이 옮겨 담은 정책(터미널 `expired` → 자동 로그아웃)은 ADR-0076 이전부터 delegate 안에 있던
+> 것이고, 옮기면서 그 전제를 다시 검사하지 않았다. 전제는 "`expired`는 고착된 서명을 뜻한다"인데
+> 실제로는 **끊기는 링크의 연속 3회 실패**(`maxFailures`)도 같은 값을 낸다 — 이 문서가 인용한
+> 부트스트랩 게이트의 주석이 이미 그렇게 적고 있었다("깨어난 직후 좀비 소켓의 요청 타임아웃"). 즉
+> 런타임에서 세션을 끝낼 수 있는 유일한 자동 경로가, 다른 모든 회복 경로가 오프라인이면 손을 떼는
+> 바로 그 상황에서 사용자를 로그아웃시켰다.
+>
+> 지금은 `navigator.onLine === false`면 보류하고(신뢰 가능한 부정 — §결정 1이 `deriveConnectivity`에
+> 대해 쓴 것과 같은 비대칭), 온라인이면 30초 확인 창 뒤 상태를 **다시 읽어** 그때도 `expired`일 때만
+> 로그아웃한다. 창 안에서 재연결의 첫 resume이나 포그라운드 재시드가 상태를 옮기면 세션은 유지된다.
+> 창은 재시도 루프가 아니라 판정 유예이고(스케줄도 킥도 없다), 반복 보고는 결정 4의 `Coalescer`가
+> 한 판정으로 합친다. 계약은 [`renewers.test.ts`](../../libs/app-runtime/src/socket/auth/renewers.test.ts)가
+> 잠근다.
+
 > **정정 (구현 후).** 초안은 `credentialFreshness`가 renewer로 **흡수된다**고 적었다. 그렇게 하지
 > 않았다 — 그 싱글턴은 남고 두 renewer의 `timeToExpiry`가 거기에 위임한다. 소비자가 renewer만이
 > 아니기 때문이다: `http/factory.ts`가 `SessionCredentialAdapter`에 그것을 주입하고
