@@ -122,12 +122,17 @@ export const BuilderLayout = ({ rail, preview, previewActions, payload, payloadA
     return (
         <div className="flex h-[100dvh] flex-col bg-background text-foreground">
             <Toaster theme={isDarkTheme ? 'dark' : 'light'} position="bottom-right" />
-            {/* The mark is the same file the tab shows, so the window and the page
-                agree on what this is. `alt` is empty because the words beside it
-                already say the name — a reader hearing both hears it twice. */}
+            {/* DoU's own mark, as the design has it — bare, not on the lime tile the
+                installed app wears, which is an app-icon treatment rather than a
+                header one. The favicon stays the builder's block stack: that one is
+                picking this page out of a row of tabs, which the product mark shared
+                with every other DoU surface cannot do.
+
+                `alt` is empty because the words beside it already say the name — a
+                reader hearing both hears it twice. */}
             <header className="flex shrink-0 items-center justify-between gap-2 border-b border-hairline py-1.5 pl-4 pr-2 lg:h-[5.5rem] lg:px-6">
                 <span className="flex items-center gap-2 lg:gap-3">
-                    <img src="/favicon.svg" alt="" className="h-7 w-7 shrink-0 lg:h-10 lg:w-10" />
+                    <img src="/dou-mark.png" alt="" className="h-6 w-auto shrink-0 lg:h-9" />
                     <span className="text-heading lg:text-[1.25rem] lg:leading-7">
                         <span className="text-primary-ink">DoU</span> Block Kit Builder
                     </span>
