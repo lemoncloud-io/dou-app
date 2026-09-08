@@ -514,6 +514,21 @@ describe('ChannelList — 마지막 메시지 미리보기', () => {
         expect(screen.getByText('배포는 yarn deploy 로')).toBeInTheDocument();
     });
 
+    // 웹훅 메시지는 본문이 Block Kit 페이로드다. 접지 않으면 홈 행에 `{"blocks":[…` 가 뜬다.
+    it('Block Kit 본문은 한 줄 요약으로 접는다', () => {
+        mockLastChat = {
+            content: JSON.stringify({
+                blocks: [
+                    { type: 'header', text: { type: 'plain_text', text: '배포 실패' } },
+                    { type: 'section', text: { type: 'mrkdwn', text: '*503* upstream timeout' } },
+                ],
+            }),
+            createdAt: 1,
+        };
+        renderRow();
+        expect(screen.getByText('배포 실패 503 upstream timeout')).toBeInTheDocument();
+    });
+
     it('펜스 블록은 첫 줄만 보여준다', () => {
         mockLastChat = { content: '```ts\nconst x = 1;\nconst y = 2;\n```', createdAt: 1 };
         renderRow();

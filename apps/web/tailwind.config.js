@@ -45,6 +45,10 @@ module.exports = {
                 primary: {
                     DEFAULT: 'hsl(var(--primary))',
                     foreground: 'hsl(var(--primary-foreground))',
+                    // Readable-on-background ink, not the lime fill. `--primary` is a brand
+                    // surface colour here; as text it is illegible on white, so links and
+                    // mentions in a shared message renderer resolve to this instead.
+                    ink: 'hsl(var(--primary-ink))',
                 },
                 secondary: {
                     DEFAULT: 'hsl(var(--secondary))',
@@ -107,6 +111,27 @@ module.exports = {
                 'tab-active': 'hsl(var(--tab-active))',
                 'tab-inactive': 'hsl(var(--tab-inactive))',
                 overlay: 'hsl(var(--overlay))',
+                // Layering surfaces the shared message renderer draws with — a rule inside a
+                // message, and the recessed ground under a code block.
+                hairline: 'hsl(var(--hairline))',
+                well: 'hsl(var(--well))',
+                warning: 'hsl(var(--warning))',
+            },
+            // Semantic type scale for `libs/block-kit`'s renderer, which both apps share.
+            //
+            // The names match apps/desktop-web's scale on purpose — the renderer asks for
+            // `text-body` and each app answers with its own value. Body is 16px here because
+            // that is what a message bubble already uses (`MessageBubble`), where desktop's is
+            // 15px; copying desktop's numbers would make block text smaller than the text
+            // beside it. Only the steps that renderer uses are defined; the rest of this app
+            // still sizes type with utilities.
+            fontSize: {
+                title: ['1.25rem', { lineHeight: '1.75rem', letterSpacing: '-0.017em', fontWeight: '700' }],
+                heading: ['1.0625rem', { lineHeight: '1.5rem', letterSpacing: '-0.009em', fontWeight: '600' }],
+                body: ['1rem', { lineHeight: '1.5rem', letterSpacing: '-0.003em' }],
+                callout: ['0.9375rem', { lineHeight: '1.375rem', letterSpacing: '-0.002em' }],
+                caption: ['0.875rem', { lineHeight: '1.25rem', letterSpacing: '0' }],
+                overline: ['0.75rem', { lineHeight: '1rem', letterSpacing: '0.08em', fontWeight: '600' }],
             },
             borderRadius: {
                 lg: 'var(--radius)',

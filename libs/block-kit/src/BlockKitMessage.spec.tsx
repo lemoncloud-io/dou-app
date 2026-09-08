@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import { render, screen } from '@testing-library/react';
 
-import { blocksToPlainText, type BlockTextObject, type KnownBlock } from '../../../shared';
+import type { BlockTextObject, KnownBlock } from './blockKit';
+import { blocksToPlainText } from './blocksToPlainText';
 import { BlockKitMessage } from './BlockKitMessage';
 
 const draw = (blocks: KnownBlock[], raw = '{"blocks":[]}') => render(<BlockKitMessage blocks={blocks} raw={raw} />);
@@ -108,8 +109,22 @@ describe('BlockKitMessage', () => {
     // A stack of JSON fragments is unreadable. If none of it is drawable, the
     // original message is the better thing to show.
     it('falls back to the whole original message when nothing is drawable', () => {
-        draw([{ type: 'unknown', raw: '{"type":"actions"}' }], 'the original **text**');
+        draw([{ type: 'unknown', raw: '{"type":"actions"}' }], 'the original text');
         expect(screen.queryByText('{"type":"actions"}')).toBeNull();
-        expect(screen.getByText('text').tagName).toBe('STRONG');
+        expect(screen.getByText('the original text')).toBeDefined();
+    });
+
+    // The lib knows Block Kit, not the app's message dialect, so the fallback body
+    // is drawn by whoever supplied it. desktop-web hands over `RichText` — this
+    // stands in for it — while the builder's preview takes the literal default above.
+    it('draws the fallback body with the renderer the caller supplied', () => {
+        render(
+            <BlockKitMessage
+                blocks={[{ type: 'unknown', raw: '{"type":"actions"}' }]}
+                raw="the original **text**"
+                renderFallback={raw => <strong>{raw}</strong>}
+            />
+        );
+        expect(screen.getByText('the original **text**').tagName).toBe('STRONG');
     });
 });

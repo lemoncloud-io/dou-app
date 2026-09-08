@@ -2,8 +2,8 @@ import { type ReactNode } from 'react';
 
 import { cn } from '@chatic/lib/utils';
 
-import { decodeSlackEntities, type BlockTextObject, type KnownBlock } from '../../../shared';
-import { MSG_CODE_BLOCK_CLASS, RichText } from '../components/RichText';
+import { decodeSlackEntities, hasDrawableBlocks, type BlockTextObject, type KnownBlock } from './blockKit';
+import { MSG_CODE_BLOCK_CLASS } from './messageClasses';
 import { renderMrkdwn } from './renderMrkdwn';
 
 // Newlines are significant in every Slack text object — a field is routinely
@@ -80,7 +80,17 @@ interface BlockKitMessageProps {
     blocks: KnownBlock[];
     /** The original message body — what to show when none of the blocks can be drawn. */
     raw: string;
-    selfNames?: string[];
+    /**
+     * How to draw `raw` when nothing is drawable.
+     *
+     * A prop rather than an import because the two callers disagree about what a
+     * message body means. desktop-web passes its `RichText`, which reads the
+     * composer's markdown dialect and highlights the reader's own mentions —
+     * neither of which the builder has, and neither of which belongs in a lib
+     * that only knows Block Kit. Absent, the body renders as literal text, which
+     * is what a preview wants.
+     */
+    renderFallback?: (raw: string) => ReactNode;
 }
 
 /**
@@ -92,11 +102,11 @@ interface BlockKitMessageProps {
  * a stack of JSON fragments, so it falls back to the original body instead —
  * one unreadable thing beats several.
  */
-export const BlockKitMessage = ({ blocks, raw, selfNames }: BlockKitMessageProps): ReactNode => {
-    if (blocks.every(block => block.type === 'unknown')) {
+export const BlockKitMessage = ({ blocks, raw, renderFallback }: BlockKitMessageProps): ReactNode => {
+    if (!hasDrawableBlocks(blocks)) {
         return (
             <p className={cn('select-text break-words text-body text-foreground', TEXT_FLOW)}>
-                <RichText content={raw} selfNames={selfNames} />
+                {renderFallback ? renderFallback(raw) : raw}
             </p>
         );
     }

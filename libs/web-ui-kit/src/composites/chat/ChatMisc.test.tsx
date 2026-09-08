@@ -58,4 +58,24 @@ describe('MessageRow', () => {
         expect(screen.getByText('오후 12:10')).toBeInTheDocument();
         expect(screen.getByText('읽음')).toBeInTheDocument();
     });
+
+    // The cap is what a Block Kit message has to escape — callers assert they asked for it,
+    // so the kit has to be the place that proves asking works.
+    it('caps the content column at 75% by default and releases it when wide', () => {
+        const column = (node: HTMLElement) => node.parentElement as HTMLElement;
+
+        const { rerender } = render(
+            <MessageRow variant="other">
+                <div>bubble</div>
+            </MessageRow>
+        );
+        expect(column(screen.getByText('bubble')).className).toContain('max-w-[75%]');
+
+        rerender(
+            <MessageRow variant="other" wide>
+                <div>bubble</div>
+            </MessageRow>
+        );
+        expect(column(screen.getByText('bubble')).className).not.toContain('max-w-[75%]');
+    });
 });

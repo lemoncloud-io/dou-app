@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="ko">
+    <head>
+        <meta charset="utf-8" />
+        <title>DoU Block Kit Builder</title>
+        <base href="/" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script>
+            // Set before first paint so the panes never flash the wrong theme. The
+            // key matches the other apps' so a shared machine keeps one preference.
+            (function () {
+                var theme = localStorage.getItem('vite-ui-theme');
+                var isDark = theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches);
+                document.documentElement.classList.toggle('dark', isDark);
+            })();
+        </script>
+        <link rel="stylesheet" href="/src/styles.css" />
+    </head>
+    <body>
+        <div id="root"></div>
+        <script type="module" src="/src/main.tsx"></script>
+    </body>
+</html>

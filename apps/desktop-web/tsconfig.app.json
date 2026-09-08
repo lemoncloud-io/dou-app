@@ -21,6 +21,9 @@
             "path": "../../libs/app-runtime/tsconfig.lib.json"
         },
         {
+            "path": "../../libs/block-kit/tsconfig.lib.json"
+        },
+        {
             "path": "../../libs/bridges/tsconfig.lib.json"
         },
         {

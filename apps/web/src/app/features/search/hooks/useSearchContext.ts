@@ -6,6 +6,7 @@ import type { GlobalCacheContext, GlobalCacheRef } from '@chatic/data';
 import { logger } from '@chatic/bridges';
 
 import { countUnread, readCursorOf } from '../../../utils/countUnread';
+import { messagePlainText } from '../../channels/utils/messagePlainText';
 import type { CloudSearchResult, GlobalSearchResults } from './useGlobalSearch';
 import { useSenderProfiles, type SenderProfileRef } from './useSenderProfiles';
 
@@ -181,7 +182,9 @@ export const useSearchContext = (results: GlobalSearchResults): SearchResultRows
                         readNo: readCursorOf(context.joinsByRef[ref]),
                         readMetaNo: context.joinsByRef[ref]?.metaNo,
                     }),
-                    lastMessage: lastChat?.content,
+                    // Undefined, not '': the row and its test read the absence of a preview
+                    // as "nothing to show", and `messagePlainText` answers '' for no input.
+                    lastMessage: lastChat ? messagePlainText(lastChat.content) : undefined,
                     lastMessageAt: lastChat?.createdAtMs,
                     placeName: placeName(channel.cid, channel.sid),
                 };
@@ -206,7 +209,10 @@ export const useSearchContext = (results: GlobalSearchResults): SearchResultRows
                         chatId: chat.id,
                         channelId: chat.channelId,
                         chatNo: chat.chatNo,
-                        content: chat.content ?? '',
+                        // The row shows this and `SearchPage` highlights the query inside it, so a
+                        // Block Kit body has to arrive flattened — a match inside a block's text is
+                        // still a match the reader should be able to see.
+                        content: messagePlainText(chat.content),
                         createdAt: chat.createdAtMs,
                         channelName: owner?.name,
                         placeName: placeName(chat.cid, owner?.sid),

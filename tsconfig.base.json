@@ -26,6 +26,7 @@
         "paths": {
             "@chatic/app-messages": ["libs/app-messages/src/index.ts"],
             "@chatic/app-runtime": ["libs/app-runtime/src/index.ts"],
+            "@chatic/block-kit": ["libs/block-kit/src/index.ts"],
             "@chatic/bridges": ["libs/bridges/src/index.ts"],
             "@chatic/assets": ["assets/src/index.ts"],
             "@chatic/auth-sign": ["libs/auth-sign/src/index.ts"],

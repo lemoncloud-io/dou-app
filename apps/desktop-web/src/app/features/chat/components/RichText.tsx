@@ -2,15 +2,16 @@ import { Fragment, type ReactNode } from 'react';
 
 import { GROUP_MENTIONS, MENTION_TOKEN_SOURCE } from '../../../shared';
 
-// Message styles, shared with the composer theme (editor/editorConfig) and
-// MentionNode so what you type is exactly what readers see.
-export const MSG_BOLD_CLASS = 'font-semibold';
-export const MSG_CODE_INLINE_CLASS = 'rounded bg-well px-1 py-0.5 font-mono text-[0.85em]';
-export const MSG_CODE_BLOCK_CLASS =
-    'my-1 block overflow-x-auto rounded-md border border-hairline bg-well p-2 font-mono text-[0.85em] leading-relaxed';
-export const MSG_QUOTE_CLASS = 'my-0.5 block border-l-2 border-primary/40 pl-2 text-muted-foreground';
-export const MSG_MENTION_CLASS = 'rounded bg-primary/10 px-1 font-medium text-primary-ink';
-export const MSG_MENTION_SELF_CLASS = 'rounded bg-warning/30 px-1 font-medium text-foreground';
+// The message styles live in `@chatic/block-kit`: the block renderer needs them
+// and that renderer is what got shared.
+import {
+    MSG_BOLD_CLASS,
+    MSG_CODE_BLOCK_CLASS,
+    MSG_CODE_INLINE_CLASS,
+    MSG_MENTION_CLASS,
+    MSG_MENTION_SELF_CLASS,
+    MSG_QUOTE_CLASS,
+} from '@chatic/block-kit';
 
 // One pass over a non-code run: bold, italic, strikethrough, links, @mentions.
 // Bold is listed before italic so `**x**` matches as bold, not italic.

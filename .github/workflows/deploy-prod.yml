@@ -15,6 +15,7 @@ jobs:
             admin: 'false'
             landing: ${{ steps.filter.outputs.landing == 'true' && 'true' || 'false' }}
             desktopweb: ${{ steps.filter.outputs.desktopweb == 'true' && 'true' || 'false' }}
+            blockkitbuilder: ${{ steps.filter.outputs.blockkitbuilder == 'true' && 'true' || 'false' }}
             projects: ${{ steps.filter.outputs.changes }}
             matrix: ${{ steps.set-matrix.outputs.matrix }}
             has-changes: ${{ steps.set-matrix.outputs.has-changes }}
@@ -63,6 +64,20 @@ jobs:
                           - 'apps/desktop-web/tsconfig*.json'
                           - 'apps/desktop-web/tailwind.config.js'
                           - 'apps/desktop-web/postcss.config.js'
+                      blockkitbuilder:
+                          - 'apps/block-kit-builder/src/**'
+                          - 'apps/block-kit-builder/index.html'
+                          - 'apps/block-kit-builder/vite.config.mts'
+                          - 'apps/block-kit-builder/project.json'
+                          - 'apps/block-kit-builder/tsconfig*.json'
+                          - 'apps/block-kit-builder/tailwind.config.js'
+                          - 'apps/block-kit-builder/postcss.config.js'
+                          # The builder is that lib plus editor chrome, so a
+                          # lib-only change has to redeploy it. Note the
+                          # asymmetry: web and desktop-web draw the same blocks
+                          # and do NOT list it, so a lib-only change ships to the
+                          # builder alone. Widening theirs is a separate change.
+                          - 'libs/block-kit/**'
 
             - name: Set matrix for changed projects
               id: set-matrix
@@ -73,6 +88,7 @@ jobs:
                   # [[ "${{ steps.filter.outputs.admin }}" == "true" ]] && PROJECTS+=('"admin-v2"')
                   [[ "${{ steps.filter.outputs.landing }}" == "true" ]] && PROJECTS+=('"landing"')
                   [[ "${{ steps.filter.outputs.desktopweb }}" == "true" ]] && PROJECTS+=('"desktop-web"')
+                  [[ "${{ steps.filter.outputs.blockkitbuilder }}" == "true" ]] && PROJECTS+=('"block-kit-builder"')
 
                   if [ ${#PROJECTS[@]} -eq 0 ]; then
                       echo "matrix=[]" >> $GITHUB_OUTPUT
@@ -85,7 +101,7 @@ jobs:
 
     get-version:
         needs: changes
-        if: ${{ needs.changes.outputs.admin == 'true' || needs.changes.outputs.web == 'true' || needs.changes.outputs.landing == 'true' || needs.changes.outputs.desktopweb == 'true' }}
+        if: ${{ needs.changes.outputs.admin == 'true' || needs.changes.outputs.web == 'true' || needs.changes.outputs.landing == 'true' || needs.changes.outputs.desktopweb == 'true' || needs.changes.outputs.blockkitbuilder == 'true' }}
         name: Build and Set Version
         runs-on: ubuntu-latest
         permissions:
@@ -207,6 +223,9 @@ jobs:
                     # only its S3/CloudFront target differs (DESKTOP_* in the deploy step).
                     - project: desktop-web
                       prefix: WEB
+                    # No prefix: the builder reads no VITE_* at all, and the env-file
+                    # step below is skipped for it rather than writing an empty file.
+                    - project: block-kit-builder
 
         steps:
             - name: Checkout code
@@ -247,6 +266,10 @@ jobs:
                   aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
 
             - name: Generate env file
+              # Every VITE_* would resolve empty for the builder, and the step's
+              # `grep -v '=$'` then matches no line and exits 1, killing it under
+              # `set -e`. The builder has no `import.meta.env` reference to feed.
+              if: ${{ matrix.project != 'block-kit-builder' }}
               run: |
                   set -e
                   ENV_FILE="apps/${{ matrix.project }}/.env"
@@ -276,6 +299,8 @@ jobs:
                   WEB_CF_PROD_DISTRIBUTION_ID: ${{ secrets.WEB_CF_PROD_DISTRIBUTION_ID }}
                   DESKTOP_S3_BUCKET: ${{ secrets.DESKTOP_S3_BUCKET }}
                   DESKTOP_CF_PROD_DISTRIBUTION_ID: ${{ secrets.DESKTOP_CF_PROD_DISTRIBUTION_ID }}
+                  BLOCK_KIT_BUILDER_S3_BUCKET: ${{ secrets.BLOCK_KIT_BUILDER_S3_BUCKET }}
+                  BLOCK_KIT_BUILDER_CF_PROD_DISTRIBUTION_ID: ${{ secrets.BLOCK_KIT_BUILDER_CF_PROD_DISTRIBUTION_ID }}
                   ADMIN_S3_BUCKET: ${{ secrets.ADMIN_S3_BUCKET }}
                   ADMIN_CF_PROD_DISTRIBUTION_ID: ${{ secrets.ADMIN_CF_PROD_DISTRIBUTION_ID }}
                   LANDING_S3_DEV_BUCKET: ${{ secrets.LANDING_S3_DEV_BUCKET }}
@@ -321,7 +346,7 @@ jobs:
 
     notify-slack:
         needs: [changes, get-version, build-and-deploy]
-        if: ${{ success() && (needs.changes.outputs.web == 'true' || needs.changes.outputs.admin == 'true' || needs.changes.outputs.landing == 'true' || needs.changes.outputs.desktopweb == 'true') }}
+        if: ${{ success() && (needs.changes.outputs.web == 'true' || needs.changes.outputs.admin == 'true' || needs.changes.outputs.landing == 'true' || needs.changes.outputs.desktopweb == 'true' || needs.changes.outputs.blockkitbuilder == 'true') }}
         name: Notify Slack
         runs-on: ubuntu-latest
         permissions:
@@ -365,6 +390,12 @@ jobs:
 
                   if [[ "${{ needs.changes.outputs.desktopweb }}" == "true" ]]; then
                       DEPLOY_MESSAGES+=("• *데스크톱웹* <https://desktop.dou.chatic.io/|PROD 서버> \`v${{ needs.get-version.outputs.desktopweb-version }}\`")
+                  fi
+
+                  # No version suffix: the builder is not in version-update.js, so
+                  # its package version never moves.
+                  if [[ "${{ needs.changes.outputs.blockkitbuilder }}" == "true" ]]; then
+                      DEPLOY_MESSAGES+=("• *블록킷 빌더* <https://block-kit.chatic.io/|PROD 서버>")
                   fi
 
                   if [ ${#DEPLOY_MESSAGES[@]} -eq 0 ]; then

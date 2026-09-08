@@ -228,6 +228,53 @@ describe('useSearchContext', () => {
         expect(row.content).toBe('yo');
     });
 
+    // A webhook result is a Block Kit payload in `content`; the row and its query highlight
+    // both read this field, so it has to arrive as text rather than JSON.
+    it('flattens a Block Kit body into the row', async () => {
+        const input = results({
+            messages: [
+                {
+                    id: 'chat-3',
+                    cid: 'cloud-b',
+                    channelId: 'ch-missing',
+                    chatNo: 7,
+                    content: JSON.stringify({
+                        blocks: [{ type: 'section', text: { type: 'mrkdwn', text: '*503* upstream timeout' } }],
+                    }),
+                },
+            ] as any,
+        });
+
+        const { result } = renderHook(() => useSearchContext(input));
+
+        await waitFor(() => expect(resolveContext).toHaveBeenCalled());
+        expect(result.current.chats[0].content).toBe('503 upstream timeout');
+    });
+
+    // The channel row's own preview reads the same body from a different source.
+    it('flattens a Block Kit body in the channel row preview', async () => {
+        resolveContext.mockResolvedValue({
+            ...EMPTY_CONTEXT,
+            lastChatsByRef: {
+                'cloud-a:ch-1': {
+                    id: 'chat-9',
+                    content: JSON.stringify({
+                        blocks: [{ type: 'header', text: { type: 'plain_text', text: '배포 실패' } }],
+                    }),
+                    createdAtMs: 1700,
+                },
+            },
+        });
+
+        const input = results({
+            channels: [{ id: 'ch-1', cid: 'cloud-a', sid: 'site-1', name: 'Lounge' }] as any,
+        });
+
+        const { result } = renderHook(() => useSearchContext(input));
+
+        await waitFor(() => expect(result.current.channels[0].lastMessage).toBe('배포 실패'));
+    });
+
     it('keeps rows and logs when resolving the context fails', async () => {
         resolveContext.mockRejectedValue(new Error('bridge timeout'));
         const input = results({

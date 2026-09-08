@@ -63,6 +63,11 @@
         --point-pink: 348.6 100% 58.8%; /* #FF2D55 - Figma Colors/Pink, unread count pill */
         --input-border: 240 4% 92%; /* #EAEAEC - input/card borders */
         --focus-border: 210 5% 24%; /* #3A3C40 - focused input border */
+        /* Block Kit message surfaces (libs/block-kit renders with these) */
+        --hairline: 240 4% 92%; /* rule inside a message — same weight as a card border */
+        --well: 240 5% 96%; /* recessed ground under a code block */
+        --primary-ink: 215 90% 56%; /* = --point-blue; links/mentions in message bodies */
+        --warning: 38 92% 50%; /* highlight behind a mention of me (MSG_MENTION_SELF_CLASS) */
         --brand-ink: 217 63% 17%; /* #102346 - dark brand fill (avatar badge) */
         --control-idle: 220 3% 81%; /* #CFD0D3 - idle/disabled control fill */
         --avatar-ring: 210 22% 96%; /* #F4F5F5 - avatar outer ring */
@@ -134,6 +139,11 @@
         --point-pink: 348.6 100% 58.8%; /* #FF2D55 - same */
         --input-border: 0 0% 23%; /* #3A3C40 */
         --focus-border: 216 3% 64%; /* #9FA2A7 */
+        /* Block Kit message surfaces (dark) */
+        --hairline: 0 0% 23%; /* same weight as the dark card border */
+        --well: 0 0% 12%; /* recessed against the 7% page ground */
+        --primary-ink: 215 90% 56%; /* = --point-blue, unchanged on dark */
+        --warning: 43 90% 55%; /* lifted for the dark ground */
         --brand-ink: 217 63% 17%; /* #102346 - dark brand fill (avatar badge) */
         --control-idle: 220 3% 40%; /* idle/disabled control fill on dark bg */
         --avatar-ring: 0 0% 18%; /* avatar outer ring on dark bg */

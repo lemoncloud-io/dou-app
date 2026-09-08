@@ -43,6 +43,17 @@ export interface UnknownBlock {
 
 export type KnownBlock = SectionBlock | HeaderBlock | DividerBlock | ContextBlock | UnknownBlock;
 
+/**
+ * Whether this list has anything worth drawing as Block Kit.
+ *
+ * The one place the SPEC §5 "nothing drawable" rule lives. `BlockKitMessage`
+ * reads it to decide between blocks and the raw body; a caller reads it to
+ * decide whether the message needs Block Kit's layout at all — and on
+ * `apps/web`, whether it leaves the speech bubble. Two answers to that question
+ * would let a row change shape for a message the renderer then declines to draw.
+ */
+export const hasDrawableBlocks = (blocks: KnownBlock[]): boolean => blocks.some(block => block.type !== 'unknown');
+
 /** Slack escapes exactly these three on the wire. */
 export const decodeSlackEntities = (text: string): string =>
     text.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
@@ -107,6 +118,13 @@ const toBlock = (element: unknown): KnownBlock => {
 };
 
 /**
+ * One wire array → one block list. The entry point `resolveChatBlocks` uses for
+ * `chat.blocks$` (server field), where the array has already been located —
+ * unlike `parseBlocks`, this does no JSON parsing or shape-sniffing of its own.
+ */
+export const toBlocks = (elements: unknown[]): KnownBlock[] => elements.map(toBlock);
+
+/**
  * Is this message body a Block Kit payload? Decided by content alone.
  *
  * The `contentType` marker is deliberately not consulted: its value is not
@@ -131,5 +149,5 @@ export const parseBlocks = (content?: string): KnownBlock[] | null => {
     if (!payload || typeof payload !== 'object') return null;
     const { blocks } = payload as { blocks?: unknown };
     if (!Array.isArray(blocks) || !blocks.length) return null;
-    return blocks.map(toBlock);
+    return toBlocks(blocks);
 };

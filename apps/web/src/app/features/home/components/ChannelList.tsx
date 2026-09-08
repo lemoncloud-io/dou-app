@@ -35,6 +35,7 @@ import { ROUTES } from '../../../routes/paths';
 import { useLastChats } from '../../../hooks/useLastChats';
 import { useChannelUnreads, useMyProfile } from '../../../hooks';
 import { resolveChannelAvatar, resolveChannelTitle } from '../../channels/lib';
+import { messagePlainText } from '../../channels/utils/messagePlainText';
 import { toPlainPreview } from '../../channels/utils/messageTokens';
 import { sortChannels } from '../../../utils/sortChannels';
 import { InviteChannelRow } from '../../invite/components/InviteChannelRow';
@@ -129,7 +130,9 @@ const ChannelItem = ({
     // Code markup is flattened, not rendered: a one-line row has nowhere to put a code block, and
     // leaving the backticks in would make the list dirtier than before code was supported. No badge
     // or monospace either — that would complicate the row and tangle with blurLastMessage (ADR-0055).
-    const preview = lastChat?.hidden ? t('chat.room.deletedMessage') : toPlainPreview(lastChat?.content ?? '');
+    const preview = lastChat?.hidden
+        ? t('chat.room.deletedMessage')
+        : toPlainPreview(messagePlainText(lastChat?.content));
     const time = lastChat?.createdAt ? formatTime(lastChat.createdAt) : '';
 
     // Self → my place-profile photo, DM → the peer's, else the channel photo — one shared rule with

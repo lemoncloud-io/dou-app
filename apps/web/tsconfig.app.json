@@ -26,7 +26,7 @@
             "path": "../../libs/policy-content/tsconfig.lib.json"
         },
         {
-            "path": "../../libs/data/tsconfig.lib.json"
+            "path": "../../libs/block-kit/tsconfig.lib.json"
         },
         {
             "path": "../../libs/web-ui-kit/tsconfig.lib.json"
@@ -39,6 +39,9 @@
         },
         {
             "path": "../../libs/app-runtime/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/data/tsconfig.lib.json"
         },
         {
             "path": "../../libs/app-messages/tsconfig.lib.json"

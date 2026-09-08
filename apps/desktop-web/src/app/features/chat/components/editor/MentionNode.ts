@@ -1,6 +1,6 @@
 import { $applyNodeReplacement, TextNode, type EditorConfig, type SerializedTextNode } from 'lexical';
 
-import { MSG_MENTION_CLASS } from '../RichText';
+import { MSG_MENTION_CLASS } from '@chatic/block-kit';
 
 /**
  * A picked @mention rendered as a chip inside the composer. Plain TextNode

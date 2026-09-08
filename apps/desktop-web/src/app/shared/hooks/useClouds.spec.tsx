@@ -20,8 +20,14 @@ vi.mock('@chatic/app-runtime', () => ({
             },
         },
     }),
-    useCloudSessionCatalog: () => ({ clouds: catalogClouds, isFetchingClouds: false }),
     useGlobalSession: () => ({ cloud: { cloudId: activeCloudId } }),
+}));
+
+// The catalog hook lives in this folder, not in the runtime: ADR-0070 moved it
+// down so each app owns the read's cache policy. Mocking it on `@chatic/app-runtime`
+// left the real one running against a mock that has no `useSessionAuth`.
+vi.mock('./useCloudCatalog', () => ({
+    useCloudSessionCatalog: () => ({ clouds: catalogClouds, isFetchingClouds: false }),
 }));
 
 vi.mock('../stores', () => ({

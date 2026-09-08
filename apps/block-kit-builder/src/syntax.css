@@ -1,0 +1,35 @@
+/**
+ * The payload editor's syntax colours.
+ *
+ * Its own file, not an addition to `styles.css`: that file is byte-identical to
+ * desktop-web's copy, and this is the only app in the workspace that draws code.
+ * Editing the shared copy to serve one app is how two files that must stay the
+ * same start drifting.
+ *
+ * Three hues, not one per JSON type. The distinction that earns a colour is what
+ * the reader is looking for — the key names the field, the string is the content
+ * they wrote, and everything else is structure. Numbers, `true` and `null` share
+ * one: they are all "a literal that is not text", and splitting them would be a
+ * fourth colour teaching a difference nobody is scanning for.
+ *
+ * Lime for strings is deliberate. It is the brand accent and the payload's
+ * strings are the message's actual words, so the thing being written is the
+ * thing that carries the brand colour.
+ */
+:root {
+    --code-key: 265 45% 45%;
+    --code-string: 76 62% 27%;
+    --code-literal: 25 70% 38%;
+    --code-punctuation: 90 9% 41%;
+    /* The line JSON.parse blamed. A wash, not a fill — it sits under live text
+       that has to stay readable while it is being repaired. */
+    --code-error-line: 0 84% 60%;
+}
+
+.dark {
+    --code-key: 265 60% 74%;
+    --code-string: 76 55% 58%;
+    --code-literal: 28 75% 62%;
+    --code-punctuation: 90 5% 55%;
+    --code-error-line: 0 62% 50%;
+}

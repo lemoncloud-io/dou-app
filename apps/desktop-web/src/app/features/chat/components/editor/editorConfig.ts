@@ -5,7 +5,7 @@ import { QuoteNode } from '@lexical/rich-text';
 import { BOLD_STAR, CODE, INLINE_CODE, ITALIC_STAR, QUOTE, STRIKETHROUGH, type Transformer } from '@lexical/markdown';
 import type { Klass, LexicalNode } from 'lexical';
 
-import { MSG_BOLD_CLASS, MSG_CODE_BLOCK_CLASS, MSG_CODE_INLINE_CLASS, MSG_QUOTE_CLASS } from '../RichText';
+import { MSG_BOLD_CLASS, MSG_CODE_BLOCK_CLASS, MSG_CODE_INLINE_CLASS, MSG_QUOTE_CLASS } from '@chatic/block-kit';
 import { MentionNode } from './MentionNode';
 
 /**
