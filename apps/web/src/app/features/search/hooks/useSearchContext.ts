@@ -182,7 +182,9 @@ export const useSearchContext = (results: GlobalSearchResults): SearchResultRows
                         readNo: readCursorOf(context.joinsByRef[ref]),
                         readMetaNo: context.joinsByRef[ref]?.metaNo,
                     }),
-                    lastMessage: messagePlainText(lastChat?.content),
+                    // Undefined, not '': the row and its test read the absence of a preview
+                    // as "nothing to show", and `messagePlainText` answers '' for no input.
+                    lastMessage: lastChat ? messagePlainText(lastChat.content) : undefined,
                     lastMessageAt: lastChat?.createdAtMs,
                     placeName: placeName(channel.cid, channel.sid),
                 };
