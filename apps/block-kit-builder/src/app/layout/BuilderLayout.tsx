@@ -123,17 +123,21 @@ export const BuilderLayout = ({ rail, preview, previewActions, payload, payloadA
         <div className="flex h-[100dvh] flex-col bg-background text-foreground">
             <Toaster theme={isDarkTheme ? 'dark' : 'light'} position="bottom-right" />
             {/* DoU's own mark, as the design has it — bare, not on the lime tile the
-                installed app wears, which is an app-icon treatment rather than a
-                header one. The favicon stays the builder's block stack: that one is
-                picking this page out of a row of tabs, which the product mark shared
-                with every other DoU surface cannot do.
+                app icon wears. The tab gets the tile version instead, because 16px on
+                a strip of someone else's colour is a different problem from 32px on
+                our own header.
+
+                Shorter than the design's 88px band: this is a three-pane tool whose
+                whole value is watching a long payload and a tall card at once, and
+                every row of title bar is a row the panes do not get. The design's
+                frame has no browser chrome above it to pay for.
 
                 `alt` is empty because the words beside it already say the name — a
                 reader hearing both hears it twice. */}
-            <header className="flex shrink-0 items-center justify-between gap-2 border-b border-hairline py-1.5 pl-4 pr-2 lg:h-[5.5rem] lg:px-6">
-                <span className="flex items-center gap-2 lg:gap-3">
-                    <img src="/dou-mark.png" alt="" className="h-6 w-auto shrink-0 lg:h-9" />
-                    <span className="text-heading lg:text-[1.25rem] lg:leading-7">
+            <header className="flex shrink-0 items-center justify-between gap-2 border-b border-hairline py-1.5 pl-4 pr-2 lg:h-14 lg:px-5">
+                <span className="flex items-center gap-2">
+                    <img src="/dou-mark.png" alt="" className="h-6 w-auto shrink-0 lg:h-8" />
+                    <span className="text-heading lg:text-[1.0625rem] lg:leading-6">
                         <span className="text-primary-ink">DoU</span> Block Kit Builder
                     </span>
                 </span>

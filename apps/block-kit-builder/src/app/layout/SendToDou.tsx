@@ -26,7 +26,7 @@ export const SendToDou = () => (
         }
         className={cn(
             'focus-ring tactile shrink-0 rounded-md bg-primary px-3 py-1.5 text-caption font-semibold',
-            'text-primary-foreground transition-colors ease-tactile hover:bg-primary/90 lg:px-5 lg:py-2.5'
+            'text-primary-foreground transition-colors ease-tactile hover:bg-primary/90 lg:px-4 lg:py-2'
         )}
     >
         Send to DoU
