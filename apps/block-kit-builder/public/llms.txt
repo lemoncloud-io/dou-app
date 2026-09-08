@@ -1,0 +1,50 @@
+# DoU Block Kit Builder
+
+> DoU 채널로 보낼 Block Kit 메시지를 만들고, 실제 메시지와 같은 렌더러로 미리 보고,
+> payload JSON을 복사하는 웹 도구. https://block-kit.chatic.io/
+
+DoU(chatic)는 메신저이고, webhook 발신 측은 에러 리포트·배포 알림처럼 구조가 있는
+메시지를 평문 한 덩어리가 아니라 제목·구분선·필드 표로 보낼 수 있다. 그 형식은 Slack
+Block Kit의 부분집합이다. 이 도구는 그 payload를 만든다 — 메시지를 보내지는 않는다.
+
+## 화면
+
+- **Compose** — 템플릿에서 시작하거나 블록을 하나씩 쌓는다. 드래그로 순서를 바꾼다.
+- **Message** — 실제 DoU 메시지와 **같은 렌더러**로 그린다. 미리보기가 실물과 어긋날 수 없는
+  이유다: 렌더러가 하나(`libs/block-kit`)이고 세 앱이 공유한다.
+- **Payload** — 블록이 컴파일된 JSON. 양방향 편집과 복사.
+
+## 지원 블록 (넷)
+
+| 블록 | 무엇 |
+|---|---|
+| `header` | 제목 한 줄. `plain_text` 전용이고 `level` 1–4 |
+| `section` | 문단(`text`) 또는 2열 라벨/값 그리드(`fields[]`) |
+| `divider` | 가로 구분선 |
+| `context` | 작은 회색 한 줄. 출처·버전·작성자 |
+
+그 밖의 블록(`image`·`actions`·`rich_text` …)을 보내도 **깨지지 않는다.** 그 자리에 원문
+JSON이 `UNSUPPORTED BLOCK` 라벨과 함께 표시된다. `actions`(버튼)를 뺀 것은 의도적이다 —
+버튼을 눌러 되돌려 보낼 interactivity 엔드포인트가 DoU에 없어서, 그리면 거짓말이 된다.
+
+## 텍스트 문법 — Slack mrkdwn
+
+`*굵게*` · `_기울임_` · `~취소선~` · `` `코드` `` · ` ```코드블록``` ` · `<url|라벨>` ·
+`<url>` · `<@U123>`. 구분자가 단어 안에 있으면 마크로 읽지 않는다(`user_id`는 밑줄 유지).
+
+**DoU 작성기 방언이 아니다.** 앱의 작성기는 `**굵게**`(별 두 개)를 쓴다. `**x**`를 Block Kit
+텍스트에 넣으면 굵어지지 않고 별표가 그대로 보인다.
+
+## 템플릿
+
+오류(Error) · 근태(Attendance) · 배포(Deployment).
+
+## 이 payload를 어떻게 쓰나
+
+발신 측(`chatic-socials-api` / webhook)이 보낸다. 클라이언트는 `chat.blocks$` → `content`의
+`{"blocks":[...]}` JSON 판정 → 평문 순으로 읽는다. `contentType`은 보지 않는다.
+수신 규격 정본은 dou-app repo의 `docs/specs/block-kit-messages.md`.
+
+## 관련
+
+- DoU: https://app.chatic.io/

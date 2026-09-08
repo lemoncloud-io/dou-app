@@ -2,9 +2,84 @@
 <html lang="ko">
     <head>
         <meta charset="utf-8" />
-        <title>DoU Block Kit Builder</title>
+        <title>DoU Block Kit Builder — 블록킷 메시지 payload 작성·미리보기</title>
         <base href="/" />
+
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="theme-color" content="#ffffff" />
+        <meta
+            name="description"
+            content="DoU 채널로 보낼 Block Kit 메시지를 만들고, 실제 메시지와 같은 렌더러로 미리 보고, payload JSON을 바로 복사한다. header·section·divider·context 네 블록을 지원한다."
+        />
+        <meta name="robots" content="index, follow" />
+        <!-- Absolute and self-referential on purpose. The distribution answers 403/404
+             with /index.html and a 200, so every arbitrary path is an indexable copy of
+             this page; the canonical is what collapses them back to one URL. Removing it
+             hands crawlers unbounded duplicates. A CloudFront Function returning a real
+             404 for non-asset misses is the actual fix and is a separate change. -->
+        <link rel="canonical" href="https://block-kit.chatic.io/" />
+
+        <!-- Open Graph -->
+        <meta property="og:type" content="website" />
+        <meta property="og:title" content="DoU Block Kit Builder" />
+        <meta
+            property="og:description"
+            content="DoU 채널로 보낼 Block Kit 메시지를 만들고, 실제 메시지와 같은 렌더러로 미리 보고, payload JSON을 바로 복사한다."
+        />
+        <meta property="og:image" content="https://block-kit.chatic.io/og-image.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:url" content="https://block-kit.chatic.io/" />
+        <meta property="og:site_name" content="DoU" />
+        <meta property="og:locale" content="ko_KR" />
+
+        <!-- Twitter Card -->
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="DoU Block Kit Builder" />
+        <meta
+            name="twitter:description"
+            content="DoU 채널로 보낼 Block Kit 메시지를 만들고, 실제 메시지와 같은 렌더러로 미리 보고, payload JSON을 바로 복사한다."
+        />
+        <meta name="twitter:image" content="https://block-kit.chatic.io/og-image.png" />
+
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+        <!-- Answer engines and non-executing crawlers read this without running the
+             bundle. Every claim here is also in the body text below — structured data
+             that describes content the page does not show is a policy violation, not a
+             shortcut, which is also why there is no FAQPage node. -->
+        <script type="application/ld+json">
+            {
+                "@context": "https://schema.org",
+                "@graph": [
+                    {
+                        "@type": "WebApplication",
+                        "@id": "https://block-kit.chatic.io/#app",
+                        "name": "DoU Block Kit Builder",
+                        "url": "https://block-kit.chatic.io/",
+                        "applicationCategory": "DeveloperApplication",
+                        "operatingSystem": "Web",
+                        "browserRequirements": "Requires JavaScript",
+                        "inLanguage": "ko",
+                        "description": "DoU 채널로 보낼 Block Kit 메시지를 만들고, 실제 메시지와 같은 렌더러로 미리 보고, payload JSON을 복사하는 도구. header·section·divider·context 네 블록을 지원한다.",
+                        "featureList": [
+                            "블록을 쌓아 메시지를 구성하고 드래그로 순서를 바꾼다",
+                            "실제 DoU 메시지와 같은 렌더러로 미리 본다",
+                            "payload JSON을 양방향으로 편집하고 복사한다",
+                            "오류·근태·배포 템플릿에서 시작한다"
+                        ],
+                        "publisher": { "@id": "https://chatic.io/#org" }
+                    },
+                    {
+                        "@type": "Organization",
+                        "@id": "https://chatic.io/#org",
+                        "name": "DoU",
+                        "url": "https://app.chatic.io/"
+                    }
+                ]
+            }
+        </script>
+
         <script>
             // Set before first paint so the panes never flash the wrong theme. The
             // key matches the other apps' so a shared machine keeps one preference.
@@ -17,7 +92,46 @@
         <link rel="stylesheet" href="/src/styles.css" />
     </head>
     <body>
-        <div id="root"></div>
+        <!-- What is inside #root is the pre-mount document: `createRoot().render()`
+             replaces these children, so it shows once while the bundle loads and never
+             double-renders. It is here because the crawlers that matter for answer
+             engines do not execute the bundle — without it they read an empty page.
+             Keep it true to the app; it is also the content the JSON-LD above claims. -->
+        <div id="root">
+            <main style="margin: 0 auto; max-width: 42rem; padding: 3rem 1.5rem; line-height: 1.7">
+                <h1>DoU Block Kit Builder</h1>
+                <p>
+                    DoU 채널로 보낼 <strong>Block Kit 메시지</strong>를 만드는 도구입니다. 에러 리포트나 배포 알림처럼
+                    구조가 있는 메시지를 평문 한 덩어리가 아니라 제목·구분선·필드 표로 보내려면, 발신 측이 이 payload를
+                    만들어 보냅니다.
+                </p>
+                <p>화면은 세 칸입니다.</p>
+                <ul>
+                    <li>
+                        <strong>Compose</strong> — 템플릿에서 시작하거나 블록을 하나씩 쌓고, 드래그로 순서를 바꿉니다.
+                    </li>
+                    <li>
+                        <strong>Message</strong> — 실제 DoU 메시지와 <em>같은 렌더러</em>로 그립니다. 미리보기가 실물과
+                        어긋나지 않는 이유입니다.
+                    </li>
+                    <li><strong>Payload</strong> — 그 블록이 컴파일된 JSON. 양방향으로 편집하고 복사합니다.</li>
+                </ul>
+                <p>
+                    지원 블록은 넷입니다 — <code>header</code>(제목) · <code>section</code>(문단과 2열 필드) ·
+                    <code>divider</code>(구분선) · <code>context</code>(작은 회색 한 줄). 텍스트는 Slack mrkdwn 문법을
+                    씁니다: <code>*굵게*</code>, <code>_기울임_</code>, <code>`코드`</code>,
+                    <code>&lt;url|라벨&gt;</code>. 그 밖의 블록을 보내도 깨지지 않고, 그 자리에 원문 JSON이 라벨과 함께
+                    표시됩니다.
+                </p>
+                <p>템플릿 세 종으로 시작할 수 있습니다: 오류(Error) · 근태(Attendance) · 배포(Deployment).</p>
+                <noscript>
+                    <p>
+                        <strong>편집기를 쓰려면 JavaScript가 필요합니다.</strong> 이 페이지의 설명은 도구 없이도 읽을 수
+                        있도록 그대로 두었습니다.
+                    </p>
+                </noscript>
+            </main>
+        </div>
         <script type="module" src="/src/main.tsx"></script>
     </body>
 </html>
