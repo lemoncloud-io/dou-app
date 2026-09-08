@@ -2,8 +2,8 @@ import { useMemo } from 'react';
 
 // Concrete module import (not the ../socket barrel): connection tests intercept the barrel to stub
 // bootstrap/reauth, and the delegate factory must stay real there.
-import { createSocketSessionDelegate } from '../socket/auth/sessionDelegate';
-import type { SocketSessionDelegate } from '../socket';
+import { createSocketSessionDelegate } from '../../socket/auth/sessionDelegate';
+import type { SocketSessionDelegate } from '../../socket';
 
 /**
  * React wrapper over createSocketSessionDelegate (socket/auth/sessionDelegate.ts) — see that

@@ -1,4 +1,4 @@
-import type { SocketBindingConfig } from '../socket';
+import type { SocketBindingConfig } from '../../socket';
 
 /**
  * Socket-identity reboot key shared by SocketBinder (decides when to reboot a slot) and

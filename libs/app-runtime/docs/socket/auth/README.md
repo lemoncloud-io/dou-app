@@ -76,10 +76,15 @@ SDK가 보유한 현재 토큰을 첫 인자로 주입하지만, lemon hmac 서�
 
 ### 부착 옵션 (`AUTH_OPTIONS`)
 
-`SocketManager.createClient`가 `createClientSocketV2({ auth: AUTH_OPTIONS })`로 **모든 client에 부착**한다. 현재 값(`SocketManager.ts`):
+`SocketManager.createClient`가 `createClientSocketV2({ auth: AUTH_OPTIONS })`로 **모든 client에 부착**한다.
+현재 값([`src/socket/constants.ts`](../../../src/socket/constants.ts) — 쓰는 곳은 `SocketManager`지만
+값은 leaf 모듈에 있다. 자격증명 마진 3곳이 이 주기에서 파생되고, 그것들이 SDK를 끌고 오는
+`SocketManager`를 import할 수는 없기 때문이다):
 
 ```ts
-const AUTH_OPTIONS = { refreshRatio: 0.8, maxFailures: 3, refreshIntervalMs: 5 * 60 * 1000 };
+export const AUTH_OPTIONS = { refreshRatio: 0.8, maxFailures: 3, refreshIntervalMs: 5 * 60 * 1000 } as const;
+/** 마진들이 재진술하지 않고 읽어 가는 원천. */
+export const SDK_REFRESH_CYCLE_MS = AUTH_OPTIONS.refreshIntervalMs;
 ```
 
 - `refreshRatio 0.8` — 서버가 준 `expiresIn` 잔여시간의 80% 지점에 선제 refresh.

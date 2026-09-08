@@ -11,7 +11,7 @@ jest.mock('../runtime', () => ({
 
 // Mutable so each test can flip auth state; useChatSync's prime is gated on isVerified.
 let socketState: { isVerified: boolean } = { isVerified: false };
-jest.mock('../../../runtime/useRuntimeSocketState', () => ({ useRuntimeSocketState: () => socketState }));
+jest.mock('../../../runtime/hooks/useRuntimeSocketState', () => ({ useRuntimeSocketState: () => socketState }));
 
 const mockCacheReadList = jest.fn().mockResolvedValue({ list: [] });
 const mockRefreshList = jest.fn().mockResolvedValue(undefined);

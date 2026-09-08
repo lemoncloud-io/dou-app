@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react';
 
-import { getSocketManager } from '../socket/runtime';
-import type { SocketKind } from '../socket';
+import { getSocketManager } from '../../socket/runtime';
+import type { SocketKind } from '../../socket';
 
 /**
  * Reactively tracks whether a SPECIFIC socket slot (`kind`) is auth-verified, independent of which

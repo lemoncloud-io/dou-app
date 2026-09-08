@@ -2,8 +2,7 @@ import { logger } from '@chatic/bridges';
 
 import type { DataRepositoriesV2, DataRepositoriesV2Options } from '@chatic/data';
 import { DataManager } from './DataManager';
-import type { CacheAssemblyOptions } from './factories/localFactory';
-import type { IDataManager } from './types';
+import type { CacheAssemblyOptions, IDataManager } from './types';
 
 export interface DataRuntime {
     manager: IDataManager;

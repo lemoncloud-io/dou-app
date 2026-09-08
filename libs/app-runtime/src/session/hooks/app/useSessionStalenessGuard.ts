@@ -3,7 +3,8 @@ import { useCallback, useEffect, useRef } from 'react';
 import { logger } from '@chatic/bridges';
 import { hasStoredRelaySession, isStoredSessionExpired } from '../../../http/transport';
 
-import { useKindVerified } from '../../../runtime/useKindVerified';
+import { useKindVerified } from '../../../runtime/hooks/useKindVerified';
+import { SDK_REFRESH_CYCLE_MS } from '../../../socket/constants';
 import { credentialRenewers } from '../../../socket/auth/renewers';
 import { Coalescer } from '../../../utils/coalescer';
 import { Throttle } from '../../../utils/throttle';
@@ -107,13 +108,15 @@ const FORCE_REFRESH_COOLDOWN_MS = 60_000;
 /**
  * Preempt once the relay credential has this little life left.
  *
- * One SDK refresh cycle (`AUTH_OPTIONS.refreshIntervalMs`, 5 min — the server does not report
- * `expiresIn`), which is the same reasoning `useCloudCredentialGuard` uses for its margin: a healthy
- * socket re-mints the credential every cycle, so anything with more than a cycle left will be
- * refreshed by the owner before it lapses and needs no help. Below it, the socket is demonstrably not
- * keeping up — which is exactly the boot window and the wake-from-sleep case.
+ * One SDK refresh cycle (the server does not report `expiresIn`), which is the same reasoning
+ * `useCloudCredentialGuard` uses for its margin: a healthy socket re-mints the credential every
+ * cycle, so anything with more than a cycle left will be refreshed by the owner before it lapses and
+ * needs no help. Below it, the socket is demonstrably not keeping up — which is exactly the boot
+ * window and the wake-from-sleep case.
+ *
+ * Read from the cadence itself rather than restated: see `socket/constants.ts`.
  */
-const PREEMPTIVE_MARGIN_MS = 5 * 60_000;
+const PREEMPTIVE_MARGIN_MS = SDK_REFRESH_CYCLE_MS;
 
 /**
  * Returns `check`, so a host can add a trigger this hook cannot know about — apps/web fires it on

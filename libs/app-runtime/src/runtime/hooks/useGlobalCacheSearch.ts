@@ -1,8 +1,8 @@
 import { useCallback } from 'react';
 import { globalCacheRefKey } from '@chatic/data';
 import type { GlobalCacheContext, GlobalCacheRef, GlobalCacheSearchResult } from '@chatic/data';
-import { getGlobalCacheSearchSource } from '../data/factories/localFactory';
-import { getDataManager } from '../data/runtime';
+import { getGlobalCacheSearchSource } from '../../data/factories/localFactory';
+import { getDataManager } from '../../data/runtime';
 
 const EMPTY_RESULT: GlobalCacheSearchResult = { channels: [], sites: [], chats: [] };
 const EMPTY_CONTEXT: GlobalCacheContext = {

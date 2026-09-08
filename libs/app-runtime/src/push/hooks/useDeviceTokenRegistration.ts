@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef } from 'react';
 
-import { useRegisterDeviceTokenMutation } from '../data/hooks';
-import { useDynamicDeviceId, useSessionAuth } from '../session';
-import { Coalescer } from '../utils/coalescer';
-import { Throttle } from '../utils/throttle';
+import { useRegisterDeviceTokenMutation } from '../../data/hooks';
+import { useDynamicDeviceId, useSessionAuth } from '../../session';
+import { Coalescer } from '../../utils/coalescer';
+import { Throttle } from '../../utils/throttle';
 
 /**
  * Shell-provided contract for push device-token registration.

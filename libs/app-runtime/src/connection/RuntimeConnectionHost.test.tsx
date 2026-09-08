@@ -1,6 +1,6 @@
 import { render, waitFor } from '@testing-library/react';
 
-import { RuntimeConnectionHost } from './RuntimeConnectionHost';
+import { RuntimeAuthHost, RuntimeConnectionHost } from './RuntimeConnectionHost';
 import { getSocketManager } from '../socket/runtime';
 import { bootstrapSocketConnection } from '../socket';
 import { useDynamicDeviceId } from '../session';
@@ -10,6 +10,14 @@ import { getSocketSlotContext } from '../session/store';
 // gets its own mock — gate returns ready so children render.
 jest.mock('../session/hooks/app/useRelaySessionInit', () => ({
     useRelaySessionInit: jest.fn().mockReturnValue(true),
+}));
+
+// Mocked at its concrete path (the host's own import) so the ONE difference between the two hosts is
+// observable as an argument. The real hook ran here before, incidentally — nothing asserted it, and
+// it only reached the store snapshot the `../session/store` mock below already supplies.
+const mockKeepAlive = jest.fn();
+jest.mock('../session/hooks/app/useRelaySessionKeepAlive', () => ({
+    useRelaySessionKeepAlive: (enabled: boolean) => mockKeepAlive(enabled),
 }));
 
 jest.mock('../session', () => ({
@@ -67,6 +75,34 @@ const noSession = {
 const cloudSlots = {
     cloud: { config: { url: 'wss://test.com', deviceId: 'device-1', wssType: 'cloud' as const, cid: 'my-cloud' } },
 };
+
+/**
+ * 두 호스트는 한 컴포넌트에 스위치 하나가 다른 것이다. 그 스위치가 이 두 케이스다 — 게스트
+ * keep-alive를 켜고 끄는 것 말고는 init 게이트·소켓 인증 루프·재인증까지 전부 같다.
+ *
+ * 이름으로 갈라 둔 이유가 여기 걸린다: 기본값 있는 prop이었다면 콘솔이 prop을 빼먹는 순간 조용히
+ * 게스트 세션을 얻는다. 그 회귀는 화면에 아무 증상이 없으므로 테스트가 유일한 방어선이다.
+ */
+describe('두 호스트의 유일한 차이 — 게스트 keep-alive', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockedBootstrap.mockResolvedValue(jest.fn());
+        mockedDeviceId.mockReturnValue({ deviceId: 'device-1' } as never);
+        mockedSlotContext.mockReturnValue(noSession);
+    });
+
+    it('RuntimeConnectionHost는 게스트를 살려 둔다', () => {
+        render(<RuntimeConnectionHost />);
+
+        expect(mockKeepAlive).toHaveBeenCalledWith(true);
+    });
+
+    it('RuntimeAuthHost는 살려 두지 않는다 — 명시 로그인 전까지 세션이 없어야 하는 표면', () => {
+        render(<RuntimeAuthHost />);
+
+        expect(mockKeepAlive).toHaveBeenCalledWith(false);
+    });
+});
 
 describe('RuntimeConnectionHost', () => {
     beforeEach(() => {

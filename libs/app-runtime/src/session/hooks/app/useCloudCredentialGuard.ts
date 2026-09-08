@@ -2,6 +2,7 @@ import { useCallback, useEffect } from 'react';
 
 import { logger } from '@chatic/bridges';
 
+import { SDK_REFRESH_CYCLE_MS } from '../../../socket/constants';
 import { credentialRenewers } from '../../../socket/auth/renewers';
 
 /**
@@ -52,7 +53,7 @@ export interface CloudCredentialPolicy {
  * margin a socket-health probe we get for free rather than a number to tune, and it keeps the renewal
  * from competing with a refresh that was about to land anyway.
  */
-const DEFAULT_MARGIN_MS = 5 * 60_000;
+const DEFAULT_MARGIN_MS = SDK_REFRESH_CYCLE_MS;
 
 /**
  * Ceiling on a single sleep. A credential minted an hour out would otherwise park one long timer, and

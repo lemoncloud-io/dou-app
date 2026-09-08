@@ -3,10 +3,10 @@ import type { DataContext, DataContextProvider, DataRepositoriesV2, DataReposito
 import { ActiveScope, deriveSelectedContext } from '../session/scope';
 import { getCommittedCloudId } from '../session/store';
 import { createHttpDataSources } from './factories/httpFactory';
-import { type CacheAssemblyOptions, createLocalDataSources } from './factories/localFactory';
+import { createLocalDataSources } from './factories/localFactory';
 import { createSocketDataSources } from './factories/socketFactory';
 import { createRepositories } from './factories/repositoryFactory';
-import type { IDataManager } from './types';
+import type { CacheAssemblyOptions, IDataManager } from './types';
 import { getSocketManager } from '../socket/runtime';
 
 export class DataManager implements IDataManager {

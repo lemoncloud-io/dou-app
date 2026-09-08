@@ -1,1 +1,1 @@
-export * from './useDeviceTokenRegistration';
+export * from './hooks/useDeviceTokenRegistration';

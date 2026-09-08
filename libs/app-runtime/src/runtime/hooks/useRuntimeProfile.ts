@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import type { DomainUser } from '@chatic/data';
-import { getActiveSessionUser, useGlobalSession } from '../session';
+import { getActiveSessionUser, useGlobalSession } from '../../session';
 
-import type { SessionProfile } from './types';
+import type { SessionProfile } from '../types';
 import { useRuntimeRepositories } from './useRuntimeRepositories';
 
 // The cached user is the UserView (DomainUser). Its `userRole` / `userStatus` (and `photo`) are

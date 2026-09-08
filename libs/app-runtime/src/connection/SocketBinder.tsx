@@ -7,7 +7,7 @@ import { getSyncManager } from '../socket/sync/runtime';
 import { bootstrapSocketConnection } from '../socket';
 import type { ISocketManager, SocketBindingConfig, SocketKind, SocketSessionDelegate } from '../socket';
 import type { RuntimeSocketSlots } from '../runtime';
-import { socketRebootKey } from './socketRebootKey';
+import { socketRebootKey } from './utils/socketRebootKey';
 
 export interface SocketBinderProps {
     slots: RuntimeSocketSlots;

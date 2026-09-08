@@ -16,7 +16,7 @@ const DEVICE_ID_KEY = 'chatic-device-id';
  * The registered push token is NOT stored here any more. It backed a token-equality dedup in the
  * deleted `useRegisterDeviceToken`, and that dedup is the strategy this runtime deliberately rejects:
  * SNS disables a platform endpoint after a single failed delivery, so skipping a re-register because
- * the token string matched left the device permanently dark. `push/useDeviceTokenRegistration` always
+ * the token string matched left the device permanently dark. `push/hooks/useDeviceTokenRegistration` always
  * registers with `force: true` instead (see its doc), which needs no stored copy.
  *
  * Renamed off `IdentityCore` — web-core's `session/core` residue, outside the `I*` convention

@@ -1,16 +1,16 @@
 import { renderHook } from '@testing-library/react';
 import { useRuntimeSocketSlots } from './useRuntimeSocketSlots';
-import { useDynamicDeviceId } from '../session';
-import { getCommittedCloudId, getSocketSlotContext, sessionSignal } from '../session/store';
+import { useDynamicDeviceId } from '../../session';
+import { getCommittedCloudId, getSocketSlotContext, sessionSignal } from '../../session/store';
 
-jest.mock('../session', () => ({
+jest.mock('../../session', () => ({
     useDynamicDeviceId: jest.fn(),
 }));
 // Both are runtime-internal and off the session barrel (ADR-0076 결정 6), so the mock is at the
 // concrete module. `getSocketSlotContext` is the NARROW snapshot this hook reads — it carries relay
 // and cloud only, matching the three signals it subscribes to (ADR-0076 E5). The committed cloud id
 // is distinct from the SELECTED `cloud.cloudId` in that snapshot.
-jest.mock('../session/store', () => ({
+jest.mock('../../session/store', () => ({
     getCommittedCloudId: jest.fn(),
     getSocketSlotContext: jest.fn(),
     sessionSignal: { subscribe: jest.fn(() => () => undefined) },

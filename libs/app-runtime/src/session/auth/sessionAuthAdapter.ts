@@ -1,11 +1,11 @@
 import type { UserTokenView } from '@lemoncloud/chatic-backend-api';
 
 import { logger } from '@chatic/bridges';
-import { LemonHmacSigner } from '@chatic/auth-sign';
 
 import { webTransport } from '../../http/transport';
 import { cloudStore, relayStore } from '../store/stores';
 import { rebuildSessionIdentity } from '../store';
+import { calcSignature } from './utils/calcSignature';
 import { mergeRefreshedCloudToken, mergeRefreshedRelayToken } from './utils/tokenMerge';
 
 /**
@@ -37,14 +37,6 @@ export interface ISessionAuthAdapter {
     signAuth(kind: ServerKind, target?: string): Promise<{ signature: string; current: string }>;
     commitRefreshedToken(kind: ServerKind, view: UserTokenView): Promise<void>;
 }
-
-// `calcSignature`'s web-core shim was a wrapper over `@chatic/auth-sign`; call the lib directly here.
-const authSigner = new LemonHmacSigner();
-const calcSignature = (
-    payload: { authId: string; accountId: string; identityId: string; identityToken: string },
-    current: string,
-    userAgent: string
-): string => authSigner.sign(payload, { current, userAgent }).signature;
 
 /** Which socket/server a bridge helper acts on. Dual-socket callers pass this explicitly. */
 export type ServerKind = 'relay' | 'cloud';

@@ -6,7 +6,8 @@ import type {
 } from '@lemoncloud/chatic-sockets-lib';
 import { createDeviceRuntime } from '@lemoncloud/chatic-sockets-lib';
 
-import { SyncManager, UNREGISTER_GRACE_MS } from './SyncManager';
+import { UNREGISTER_GRACE_MS } from './constants';
+import { SyncManager } from './SyncManager';
 import type { ISocketManager, SocketClientListener, SocketKind, SocketSlotClientListener } from '../types';
 
 // Keep the real lib (plan classes, types) but stub createDeviceRuntime so the

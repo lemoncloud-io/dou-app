@@ -70,7 +70,7 @@
 | 심볼                                   | 설명                                                                                 |
 | -------------------------------------- | ------------------------------------------------------------------------------------ |
 | `<RuntimeConnectionHost>`              | 런타임 조립 루트 + 세션 init 게이트 + delegate 소유(내부 바인더 마운트)              |
-| `<RuntimeAuthHost>`                    | 데이터 바인딩 없는 축소판 Host                                                       |
+| `<RuntimeAuthHost>`                    | 같은 Host, 게스트 keep-alive만 off(명시 로그인이 필요한 표면) — 구현은 한 벌         |
 | `useDeviceTokenRegistration(delegate)` | 네이티브 셸 푸시 토큰 force 등록(스로틀·재시도) — [push/README.md](./push/README.md) |
 
 ### 7. 데이터·캐시 정책

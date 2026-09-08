@@ -77,8 +77,9 @@ export type { RecoverUnverifiedSocketsDeps } from './socket/auth/recoverUnverifi
 export type { RequestRelaySessionRefreshDeps } from './socket/auth/requestRelaySessionRefresh';
 
 // --- Cache tier helpers ---------------------------------------------------------------------
-// Storage routing: which physical store each cache type lands in. See docs/data/cache-storage-routing.md.
-export { isNativeApp } from './data/cacheStorageRouting';
+// Native-shell probe. Not a cache concept — it lived in the routing module because that was its
+// first caller; the router is one of four consumers. See docs/data/cache-storage-routing.md.
+export { isNativeApp } from './utils/isNativeApp';
 // Native local-cache capability reported in the bridge handshake. The web ships ahead of the app,
 // so a domain the installed app cannot store is routed to web storage instead of a silent void.
 // `getNativeCacheSupport`는 내려갔다 — 읽기는 런타임 내부(로컬 팩토리)와 테스트 시임뿐이다.
@@ -87,15 +88,12 @@ export type { NativeCacheSupport } from './data/nativeCacheSupport';
 // Data policies are no longer registered on their own — they ride `initAppRuntime({ data })` below,
 // so an app has ONE boot call instead of a set of configure-* functions it must remember and order.
 export type { DataRuntimeConfig } from './data/runtime';
-export type { CacheAssemblyOptions } from './data/factories/localFactory';
+export type { CacheAssemblyOptions } from './data/types';
 // Native cache instrumentation read/reset — the debug overlay's only view into `@chatic/db`'s
 // metrics module (ADR-0070 결정 5); it never imports the engine lib directly.
 export { getCacheMetricsSource } from './data/factories/localFactory';
-export {
-    useInvitedCloudNameSync,
-    recoverInvitedCloudIfMissing,
-    syncInvitedCloudName,
-} from './data/invitedCloudDurability';
+export { recoverInvitedCloudIfMissing, syncInvitedCloudName } from './data/invitedCloudDurability';
+export { useInvitedCloudNameSync } from './data/hooks/useInvitedCloudNameSync';
 
 // --- Sync registration hooks ----------------------------------------------------------------
 export { useChatSync, useChannelSync, usePlaceSync } from './socket';

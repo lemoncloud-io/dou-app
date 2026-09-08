@@ -68,27 +68,27 @@ ADR-0076가 더한 책임은 하나다: **"지금 인증·세션 상태가 무�
 현 트리(`53a2a47e6`)에서 실측한 관례다. 새 심볼을 추가할 때 이 표에서 형태를 고른다. **실측** 열은 그
 형태가 리포에 실제로 몇 번 나오는지다 — 선례의 강도가 형태마다 크게 다르므로 숫자를 같이 적는다.
 
-| 형태                       | 규약                                                    | 실측                           | 선례                                                                                      |
-| -------------------------- | ------------------------------------------------------- | ------------------------------ | ----------------------------------------------------------------------------------------- |
-| 계약 인터페이스            | `I` + 개념                                              | 55쌍                           | `ISocketManager` · `IDataManager` · `IAuthSigner` · `ICredentialRecoverer`                |
-| 구현 클래스                | 인터페이스에서 `I`만 뗀 이름                            | 55쌍                           | `SocketManager` · `CredentialRecoveryRegistry` · `PortCredentialRecoverer`                |
-| 싱글턴 export              | 클래스명 camelCase, 타입은 인터페이스로 고정            | **4건뿐**                      | `credentialRecovery` · `staleCredentialMarker` · `webClient`                              |
-| 지연 조립 싱글턴           | `get*()` + `reset*()` 테스트 시임                       | 3                              | `getHttpManager`/`resetHttpManager` · `getSocketManager` · `getSyncManager`               |
-| 함수 + 주입 인자           | `(args, deps?: *Deps)` + lazy 기본값                    | 2                              | `requestRelaySessionRefresh(deps)` · `recoverUnverifiedSockets(deps)`                     |
-| 포트 (소비자 쪽 계약)      | `*Port` · `*Provider` · `*Delegate` (`I` 없음)          | 1 · 4 · 2                      | `CredentialStalenessPort` · `DataContextProvider` · `SocketSessionDelegate`               |
-| 포트 구현 (세션→포트 변환) | `*Adapter`                                              | 265                            | `SessionCredentialAdapter implements CredentialStalenessPort`                             |
-| 행위자 (하나의 일을 수행)  | `-er` / `-or` 명사                                      | `Recoverer` 9 · `Attributor` 8 | `ICredentialRecoverer`(libs/http) · `IAuthSigner` · `IFailureAttributor`                  |
-| 개념 그 자체인 클래스      | 접미사 없이 개념 명사                                   | 1                              | `ActiveScope implements DataContextProvider`                                              |
-| 순수 판정 함수 + 결과 타입 | `derive*` + `*Status` + 입력 `*Signals`                 | 2 · 14 · **1**                 | `deriveConnectivity` · `ConnectivityStatus` · `ConnectivitySignals`                       |
-| 순수 헬퍼                  | 클래스가 아니라 함수, `utils/`                          | —                              | `calcSignature` · `msUntilExpiration` · `annotateSocketError` · `socketRebootKey`         |
-| 값 묶음 타입               | `*Snapshot` · `*Context` · `*State`                     | 234 · 14 · 20                  | `CloudSessionSnapshot` · `RelayContext` · `SocketState`                                   |
-| 훅 옵션                    | `*Policy` (정책) · `*Options` (조립) · `*Config` (부팅) | 5 · 49 · 14                    | `SessionStalenessPolicy` · `CacheAssemblyOptions` · `AppRuntimeConfig`                    |
-| 함수 인자 묶음             | `*Args` (필수) · `*Deps` (주입 가능·기본값 있음)        | 2 · 5                          | `BootstrapSocketConnectionArgs` · `RecoverUnverifiedSocketsDeps`                          |
-| 상수                       | SCREAMING_SNAKE                                         | —                              | `AUTH_OPTIONS` · `SLOT_KINDS` · `RELAY_TOKEN_KEY` · `DEFAULT_INTERVAL_MS`                 |
-| 문자열 유니온 키           | `*Kind` · `*Owner` · `*Route`                           | —                              | `SocketKind` · `CredentialOwner` · `HttpRoute`                                            |
-| 훅                         | `runtime/`은 `useRuntime*`, 가드는 `use*Guard`          | 4 · 3                          | `useRuntimeSocketSlots` · `useRuntimeSocketState` · `useCloudCredentialGuard`             |
-| 부팅 배선                  | `configure*`                                            | 3                              | `configureSessionStore` · `configureCredentialRecovery` · `relayStore.configureEndpoints` |
-| 파일명                     | 엔진/스코프 클래스만 PascalCase, 그 외 camelCase        | 4 ↔ 나머지                    | `SocketManager.ts` · `ActiveScope.ts` ↔ `credentialFreshness.ts` · `relayStore.ts`       |
+| 형태                       | 규약                                                    | 실측                           | 선례                                                                                |
+| -------------------------- | ------------------------------------------------------- | ------------------------------ | ----------------------------------------------------------------------------------- |
+| 계약 인터페이스            | `I` + 개념                                              | 55쌍                           | `ISocketManager` · `IDataManager` · `IAuthSigner` · `ICredentialRecoverer`          |
+| 구현 클래스                | 인터페이스에서 `I`만 뗀 이름                            | 55쌍                           | `SocketManager` · `CredentialRecoveryRegistry` · `PortCredentialRecoverer`          |
+| 싱글턴 export              | 클래스명 camelCase, 타입은 인터페이스로 고정            | **4건뿐**                      | `credentialRecovery` · `staleCredentialMarker` · `webClient`                        |
+| 지연 조립 싱글턴           | `get*()` + `reset*()` 테스트 시임                       | 3                              | `getHttpManager`/`resetHttpManager` · `getSocketManager` · `getSyncManager`         |
+| 함수 + 주입 인자           | `(args, deps?: *Deps)` + lazy 기본값                    | 2                              | `requestRelaySessionRefresh(deps)` · `recoverUnverifiedSockets(deps)`               |
+| 포트 (소비자 쪽 계약)      | `*Port` · `*Provider` · `*Delegate` (`I` 없음)          | 1 · 4 · 2                      | `CredentialStalenessPort` · `DataContextProvider` · `SocketSessionDelegate`         |
+| 포트 구현 (세션→포트 변환) | `*Adapter`                                              | 265                            | `SessionCredentialAdapter implements CredentialStalenessPort`                       |
+| 행위자 (하나의 일을 수행)  | `-er` / `-or` 명사                                      | `Recoverer` 9 · `Attributor` 8 | `ICredentialRecoverer`(libs/http) · `IAuthSigner` · `IFailureAttributor`            |
+| 개념 그 자체인 클래스      | 접미사 없이 개념 명사                                   | 1                              | `ActiveScope implements DataContextProvider`                                        |
+| 순수 판정 함수 + 결과 타입 | `derive*` + `*Status` + 입력 `*Signals`                 | 2 · 14 · **1**                 | `deriveConnectivity` · `ConnectivityStatus` · `ConnectivitySignals`                 |
+| 순수 헬퍼                  | 클래스가 아니라 함수, `utils/`                          | —                              | `calcSignature` · `msUntilExpiration` · `annotateSocketError` · `socketRebootKey`   |
+| 값 묶음 타입               | `*Snapshot` · `*Context` · `*State`                     | 234 · 14 · 20                  | `CloudSessionSnapshot` · `RelayContext` · `SocketState`                             |
+| 훅 옵션                    | `*Policy` (정책) · `*Options` (조립) · `*Config` (부팅) | 5 · 49 · 14                    | `SessionStalenessPolicy` · `CacheAssemblyOptions` · `AppRuntimeConfig`              |
+| 함수 인자 묶음             | `*Args` (필수) · `*Deps` (주입 가능·기본값 있음)        | 2 · 5                          | `BootstrapSocketConnectionArgs` · `RecoverUnverifiedSocketsDeps`                    |
+| 상수                       | SCREAMING_SNAKE                                         | —                              | `AUTH_OPTIONS` · `SLOT_KINDS` · `RELAY_TOKEN_KEY` · `DEFAULT_INTERVAL_MS`           |
+| 문자열 유니온 키           | `*Kind` · `*Owner` · `*Route`                           | —                              | `SocketKind` · `CredentialOwner` · `HttpRoute`                                      |
+| 훅                         | `runtime/`은 `useRuntime*`, 가드는 `use*Guard`          | 4 · 3                          | `useRuntimeSocketSlots` · `useRuntimeSocketState` · `useCloudCredentialGuard`       |
+| 부팅 배선                  | `configure*`                                            | 3                              | `configureSessionStore` · `configureDataRuntime` · `relayStore.configureEndpoints`  |
+| 파일명                     | 엔진/스코프 클래스만 PascalCase, 그 외 camelCase        | 4 ↔ 나머지                    | `SocketManager.ts` · `ActiveScope.ts` ↔ `credentialFreshness.ts` · `relayStore.ts` |
 
 **쓰지 않는 접미사** (리포 실측 0건): `*Impl` · `*Service`(libs) · `*Strategy` · `*Bus` · `*Verdict` ·
 `*Probe`(선언 0). `transact`도 쓰지 않는다 — 0건인데다 `transaction`은 이 리포에서 이미 **DB
@@ -705,12 +705,21 @@ initAppRuntime({ data: { cache: { maxChatsPerChannel: 1000 } } });
 ```
 
 하는 일 셋: env → relay endpoint resolver 주입(`configureSessionStore`), route별 자격증명 복구 배선
-(`configureCredentialRecovery`), 그리고 넘겨받은 데이터 정책 등록(`configureDataRuntime`). 네트워크는
+(`credentialRecovery.register`), 그리고 넘겨받은 데이터 정책 등록(`configureDataRuntime`). 네트워크는
 건드리지 않는다 — resolver는 **함수로** 주입되므로 부팅 이후 잡힌 딥링크 override도 유효하고, lemon
 transport는 첫 사용 시 지연 생성된다.
 
+**세 배선 중 둘만 위임한다.** `configureSessionStore`·`configureDataRuntime`은 설정 대상을 **소유한**
+모듈(스토어, 데이터 런타임)에 있다. 자격증명 복구는 소유 모듈이 없다 — HTTP 레지스트리와 소켓
+renewer를 잇는 일이고, 레지스트리는 양쪽이 만나지 않도록 런타임 import를 하나도 하지 않는다
+(`http/credentialRecovery.ts`). 그래서 이 배선만 조립 루트가 인라인으로 갖는다. 전에는
+`connection/configureCredentialRecovery.ts`에 있었는데, 그 폴더가 http와 socket 양쪽의 하류라는
+사정 때문이었고 소비자는 `initAppRuntime` 하나였다. 배선의 근거는
+[`src/credentialRecoveryWiring.test.ts`](../src/credentialRecoveryWiring.test.ts)가 지킨다 — 부팅
+전에는 복구가 `false`이고(미등록이 안전한 상태다) 부팅 후에 세 route 전부 relay renewer로 간다.
+
 **예전에는 import 부수효과였다.** `session` 배럴 로드가 `configureSessionStore()`를, `connection`
-배럴 로드가 `configureCredentialRecovery()`를 돌렸다. 그래서 부팅이 "누가 먼저 import했는가"의
+배럴 로드가 자격증명 복구 등록을 돌렸다. 그래서 부팅이 "누가 먼저 import했는가"의
 결과였고, 엔트리에 보이지 않았고, import 재배치나 트리셰이킹이 조용히 옮기거나 없앨 수 있었다.
 
 **순서 계약 두 경계.** 호출은 그 사이에 온다:
@@ -741,12 +750,14 @@ transport는 첫 사용 시 지연 생성된다.
 ```text
 libs/app-runtime/src/
   connection/
-    RuntimeConnectionHost.tsx      # 조립 루트 + init 게이트 + delegate 소유 + relay keep-alive 인라인
-    RuntimeAuthHost.tsx            # 데이터 바인딩 없는 축소판 Host
+    RuntimeConnectionHost.tsx      # 조립 루트 + init 게이트 + delegate 소유. 호스트 둘이 여기 있다:
+                                   # RuntimeConnectionHost(게스트 keep-alive on) · RuntimeAuthHost(off)
+                                   # 둘의 차이는 그 스위치 하나뿐 — 구현은 한 벌
     SocketBinder.tsx               # relay/cloud 슬롯 부팅
     SocketReauthBinder.tsx         # same-connection 재인증
-    useSocketSessionDelegate.ts    # per-kind delegate 배선
-    useConnectivity.ts             # 연결 상태 진리표 (표시 판정 — 인증 판정과 별개)
+    utils/socketRebootKey.ts       # 두 바인더가 합의해야 하는 재부팅 신원 키 (cid·토큰 제외)
+    hooks/                         # useSocketSessionDelegate(per-kind delegate 배선)
+                                   # useConnectivity(연결 상태 진리표 — 표시 판정, 인증 판정과 별개)
   session/                         # 세션 허브 (SSoT)
     store/                         # relay·cloud·identity·context — 유일 writer, 수동성 eslint
       signal.ts                    #   SessionSignalKind 4종 · ISessionSignal · batch
@@ -759,21 +770,27 @@ libs/app-runtime/src/
       cloudSession.ts              #   진입 · 이탈 · 선택 사이트
       sessionAuthAdapter.ts        #   SocketSessionDelegate 구현 (seed · sign · writeback)
       credentialFreshness.ts · cloudTokens.ts · authActions.ts
-      utils/tokenMerge.ts          #   refresh 병합 불변식 (순수)
+      utils/                       #   순수 헬퍼: tokenMerge(refresh 병합 불변식) · calcSignature
     scope/                         # ActiveScope (selected·bound·committed) + selected 파생
     hooks/                         # readers 4 · session actions · auth 8 · app 훅
                                    # app: useSessionStalenessGuard(relay) · useCloudCredentialGuard
+      mutationKeys.ts              #   in-flight 관측용 react-query 키 2개 (switch-site · switch-cloud)
   runtime/                         # 앱이 소비하는 value-deriving 훅
     types.ts                       # RuntimeSocketSlots/RuntimeSocketSlot/SessionProfile
-    useRuntimeSocketSlots.ts       # 세션 → 소켓 슬롯 파생
-    useRuntimeRepositories.ts · useRuntimeSocketState.ts · useRuntimeProfile.ts
-    useKindVerified.ts · useGlobalCacheSearch.ts
-  utils/                           # 도메인을 모르는 동시성 프리미티브
+    hooks/                         # useRuntimeSocketSlots(세션 → 소켓 슬롯 파생)
+                                   # useRuntimeRepositories · useRuntimeSocketState · useRuntimeProfile
+                                   # useKindVerified · useGlobalCacheSearch
+  utils/                           # 도메인을 모르는 프리미티브·환경 판별
     coalescer.ts · throttle.ts     # 진행 중 시도 공유 / 동기 발사 허가 게이트
+    unrefTimer.ts                  # 타이머가 프로세스 종료를 붙잡지 않게 (Node 전용, 브라우저 no-op)
+    isNativeApp.ts                 # 네이티브 셸 WebView 판별 (캐시 라우팅의 첫 소비자였을 뿐)
   socket/
-    SocketManager.ts               # transport (듀얼 슬롯 + active-facade)
+    SocketManager.ts               # transport (듀얼 슬롯 + active-facade) — 클래스만 있다
+    constants.ts                   # 값 상수: AUTH_OPTIONS · SDK_REFRESH_CYCLE_MS(마진 3곳의 원천)
+                                   # DEFAULT_VERIFY_TIMEOUT_MS · INITIAL_SOCKET_STATE
+    utils/annotateSocketError.ts   # 순수 헬퍼 — 실패한 호출 이름을 SDK 에러에 덧붙인다
     runtime.ts                     # getSocketManager 싱글턴 — sync는 여기서 만들지 않는다
-    types.ts                       # SocketKind/SocketBindingConfig/SocketState
+    types.ts                       # 타입만 (값 0 — 7/7 관례): SocketKind/SocketBindingConfig/SocketState
                                    # ISocketManager = 관심사 4개 인터페이스의 합성
     authUpdateAbsence.test.ts      # auth.update 부재 검사 (경로 lint 대체)
     auth/                          # 소켓 인증 배선 (transport에서 분리)
@@ -786,6 +803,7 @@ libs/app-runtime/src/
       reauthDelegate.ts            #   seed+sign 절반 (재인증 경로 전용 — renewer 간선 없음)
     sync/
       runtime.ts                   # getSyncManager 싱글턴 (엔진 축마다 생성 지점 하나)
+      constants.ts                 # UNREGISTER_GRACE_MS (ADR-0058 유예)
       SyncManager.ts · plans.ts · types.ts · hooks/useSyncTarget.ts
   http/
     HttpManager.ts                 # route별 endpoint·크레덴셜 (SocketManager와 대칭)
@@ -797,17 +815,67 @@ libs/app-runtime/src/
   data/
     DataManager.ts                 # 데이터소스 3종 조립 → repository 그래프
     runtime.ts                     # configureDataRuntime 정책 주입
+    types.ts                       # IDataManager · CacheAssemblyOptions(앱 캐시 정책)
     cacheStorageRouting.ts         # 캐시 타입 → web/native 저장소 결정 단일 지점
     nativeCacheSupport.ts          # 네이티브가 핸드셰이크로 보고한 캐시 capability
-    invitedCloudDurability.ts · outbox.ts
+    invitedCloudDurability.ts · outbox.ts   # 초대 클라우드 복구 use-case · 재전송 큐
     factories/{socketFactory,localFactory,httpFactory,repositoryFactory}.ts
     hooks/                         # 앱 2개 이상이 쓰는 catalog 계열만 남은 REST 훅
+                                   # + useInvitedCloudNameSync (트리거만; use-case는 위 파일)
   push/
-    useDeviceTokenRegistration.ts
+    hooks/useDeviceTokenRegistration.ts
   index.ts                         # 앱 표면 (값 export 68)
   public-surface.test.ts           # 그 목록을 잠그는 EXPECTED
   importCycleAbsence.test.ts       # 순환 import 부재 검사 (아래 참고)
+  hookPlacement.test.ts            # 훅은 전부 자기 모듈의 hooks/ 안에 있다 (아래 참고)
+  init.ts                          # initAppRuntime — 부팅 배선 3개 (소유자 없는 하나는 인라인)
+  credentialRecoveryWiring.test.ts # 그 인라인 배선의 계약 (부팅 전 false → 부팅 후 relay renewer)
 ```
+
+### 파일 배치 규칙
+
+모듈 안에서 파일 종류가 섞이지 않게 하는 규칙 둘. 둘 다 테스트가 기계적으로 확인한다.
+
+| 종류        | 어디                                        | 근거                                                                                                                                              |
+| ----------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 훅 (`use*`) | 그 모듈의 `hooks/`                          | 리포 전체 관례(`libs/shared` · `libs/device-utils` · `libs/theme` + 앱 feature 다수). [`src/hookPlacement.test.ts`](../src/hookPlacement.test.ts) |
+| 타입        | 그 모듈의 `types.ts` — **값은 넣지 않는다** | 이 패키지 `types.ts` 7개 전부 값 export 0. 게다가 `socket/index.ts`가 `export * from './types'`이므로 값을 넣으면 배럴로 새어 나간다              |
+| 값 상수     | 그 모듈의 `constants.ts`                    | 선례 `libs/device-utils/src/constants.ts`                                                                                                         |
+| 순수 헬퍼   | 그 모듈의 `utils/`                          | 클래스 파일이 잡동사니가 되지 않게                                                                                                                |
+
+**언제 옮기고 언제 두는가.** 위 표는 무조건이 아니다 — 옮길 근거가 있는 것만 옮긴다. 판정은 둘이다:
+
+1. **클래스·컴포넌트 파일은 그것만 담는다.** 비공개·단일 소비자라도 상수와 순수 헬퍼는 나간다
+   (`SocketManager` → `constants.ts` + `utils/annotateSocketError.ts`, `SyncManager` →
+   `sync/constants.ts` + `utils/unrefTimer.ts`). 그 파일들은 대체로 이 패키지에서 가장 큰 파일이라
+   잡동사니 비용도 가장 크다.
+2. **함수 모듈은 자기 상수를 갖는다 — 단, 같은 종류가 두 곳에 흩어지면 모은다.** 값과 근거가 붙어
+   있어야 읽히기 때문이다(`UNREGISTER_GRACE_MS`의 30초에는 폭주 감사 근거 8줄이 붙어 있다).
+
+그래서 **옮기지 않은** 것들: 스토어 3개의 스토리지 키 11개(각 키는 그 스토어 파일에서만 쓰이고,
+키는 그 클래스가 읽고 쓰는 영속 계약이다) · 가드 훅들의 타이밍 상수 7개(근거 주석이 값보다 길다) ·
+`nativeCacheSupport`의 캐시 라우팅 상수(그 모듈의 공개 API 자체다).
+
+`data/`에도 같은 판정을 적용해 3건이 더 나왔다: `useInvitedCloudNameSync`(`invitedCloudDurability.ts`
+안에 선언돼 있었다 — 아래 가드 구멍) · `isNativeApp`(캐시 라우팅 파일에 살았지만 캐시 개념이 아니고
+소비자 4곳) · `CacheAssemblyOptions`(`AppRuntimeConfig`의 일부인 앱 정책 타입이 조립 파일에 선언돼
+있었다 → `data/types.ts`). `outbox.ts`의 타입 4개는 그 모듈 자신의 계약이라 그대로 둔다 —
+`signal.ts` · `coalescer.ts`가 자기 계약을 갖는 것과 같은 모양이다.
+
+**가드가 규칙보다 좁으면 규칙은 지켜지지 않는다.** `hookPlacement.test.ts`의 첫 판은 **파일명**만
+봤고, 그래서 `invitedCloudDurability.ts`가 export하던 훅을 놓쳤다. 지금은 export된 `use*` **선언**도
+검사한다. 지역 훅(`SocketBinder`의 `useSameWssSwitchGuard` 등)은 파일 밖으로 나갈 수 없으므로
+대상이 아니다.
+
+socket 쪽에서 옮긴 것은 4건이었다: `UNREGISTER_GRACE_MS` · `unrefTimer`(클래스 파일에서) ·
+`SWITCH_CLOUD_MUTATION_KEY`(자매 키는 `mutationKeys.ts`에 있는데 이것만 훅 파일에 있었다) ·
+`calcSignature`(자매 헬퍼 `tokenMerge`가 `auth/utils/`에 있고, 그 파일 주석이 `calcSignature`를
+"순수 헬퍼는 `utils/`"의 선례로 인용하고 있었다).
+
+`SocketManager.ts`가 이 규칙이 생긴 계기다: 클래스 하나에 인터페이스 2개 · 상수 2개 · 순수 함수
+1개가 같이 살고 있었다. 지금은 클래스와 그 클래스만 아는 내부 표현 타입 2개(`ClientEntry` ·
+`TypeListenerEntry`)만 남았다 — 그 둘을 `types.ts`로 옮기지 않은 것은 위 표의 두 번째 줄과 같은
+이유다. 내부 표현은 배럴에 나갈 것이 아니다.
 
 ### 순환 import 부재
 

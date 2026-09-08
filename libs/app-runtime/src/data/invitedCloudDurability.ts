@@ -1,11 +1,6 @@
-import { useEffect, useRef } from 'react';
-
 import type { DomainCloud, ICloudRepositoryV2 } from '@chatic/data';
-import { useSessionSelection } from '../session';
 
-import { useRuntimeRepositories, useRuntimeSocketState } from '../runtime';
 import { getRepositories } from './runtime';
-import { isNativeApp } from './cacheStorageRouting';
 import type { CloudDelegationTokenView } from '@lemoncloud/chatic-backend-api';
 
 /**
@@ -66,23 +61,4 @@ export const syncInvitedCloudName = async (cloud: ICloudRepositoryV2, cloudId: s
     const name = fresh?.name;
     if (!name || name === existing.name) return;
     await cloud.cacheWrite({ id: cloudId, cid: existing.cid ?? cloudId, name, cloudType: 'invited' });
-};
-
-/**
- * Syncs the active invited cloud's authoritative name once its socket is verified. Runs once per
- * verified cloud. Native WebView only.
- */
-export const useInvitedCloudNameSync = (): void => {
-    const { cloud } = useRuntimeRepositories();
-    const { isVerified } = useRuntimeSocketState();
-    const { selectedCloudId } = useSessionSelection();
-    const syncedRef = useRef<string | null>(null);
-
-    useEffect(() => {
-        if (!isNativeApp()) return;
-        if (!isVerified || !selectedCloudId) return;
-        if (syncedRef.current === selectedCloudId) return;
-        syncedRef.current = selectedCloudId;
-        void syncInvitedCloudName(cloud, selectedCloudId);
-    }, [cloud, isVerified, selectedCloudId]);
 };

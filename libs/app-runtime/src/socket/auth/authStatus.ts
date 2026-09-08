@@ -3,6 +3,7 @@ import type { AuthControllerState, ClientSocketState } from '@lemoncloud/chatic-
 import { credentialFreshness } from '../../session/auth/credentialFreshness';
 import type { ICredentialFreshness } from '../../session/auth/credentialFreshness';
 import { cloudStore, relayStore } from '../../session/store/stores';
+import { SDK_REFRESH_CYCLE_MS } from '../constants';
 import { getSocketManager } from '../runtime';
 import type { ISocketManager, SocketKind } from '../types';
 
@@ -127,7 +128,7 @@ export const needsSocketKick = (status: AuthStatus): boolean => status === 'hand
 
 // ---------------------------------------------------------------------------
 // Signal collection. Same file as the pure derivation, mirroring
-// `connection/useConnectivity.ts` (pure `deriveConnectivity` + its impure hook).
+// `connection/hooks/useConnectivity.ts` (pure `deriveConnectivity` + its impure hook).
 //
 // No class and no lazily-built singleton: the sources are passed as an optional
 // `*Deps` and resolved lazily when omitted — the shape the two neighbours in this
@@ -136,8 +137,8 @@ export const needsSocketKick = (status: AuthStatus): boolean => status === 'hand
 // module-level instance, so there is no `reset*` seam to remember.
 // ---------------------------------------------------------------------------
 
-/** Default staleness margin — one SDK refresh cycle (`AUTH_OPTIONS.refreshIntervalMs`). */
-const DEFAULT_MARGIN_MS = 5 * 60_000;
+/** Default staleness margin — one SDK refresh cycle. */
+const DEFAULT_MARGIN_MS = SDK_REFRESH_CYCLE_MS;
 
 export interface AuthSignalDeps {
     manager?: Pick<ISocketManager, 'getClient' | 'isKindVerified'>;

@@ -4,13 +4,7 @@ import { useCallback } from 'react';
 import { perfNow, reportPerfMetric } from '@chatic/bridges';
 
 import { cloudSession } from '../../../auth/cloudSession';
-
-/**
- * Stable key for the cloud-switch mutation. Exported so a global observer (e.g. the
- * background sync runner) can detect an in-flight switch via `useIsMutating` — the
- * mutation's own `isPending` is per-hook-instance and not visible across components.
- */
-export const SWITCH_CLOUD_MUTATION_KEY = ['session', 'switch-cloud'] as const;
+import { SWITCH_CLOUD_MUTATION_KEY } from '../../mutationKeys';
 
 /**
  * Switches the active cloud session through session services.

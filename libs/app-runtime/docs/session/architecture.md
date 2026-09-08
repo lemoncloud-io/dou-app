@@ -230,6 +230,8 @@ emit) 첫 writeback이 연결 후 한 refresh 주기(서버가 `expiresIn`을 �
 
 마진이 5분(= `AUTH_OPTIONS.refreshIntervalMs`)인 이유는 튜닝이 아니라 진단이다: 건강한 cloud 소켓은 매
 주기 자격증명을 다시 민팅하므로, **마진 아래로 내려온 것 자체가 소켓이 못 따라오고 있다는 증거다.**
+그래서 이 마진은 리터럴이 아니라 `SDK_REFRESH_CYCLE_MS`를 읽는다 — 같은 논거를 쓰는 세 곳
+(`deriveAuthStatus` · relay 노후 가드 · cloud 자격증명 가드)이 전부 그렇다.
 
 이 틈은 실재했다. cloud 자격증명은 1시간 수명이고 세션 중간에 그것을 다시 민팅하는 것은 cloud 소켓의
 refresh writeback 하나뿐이었다. 그 소켓이 죽은 동안(절전·연결 끊김·한 장소에 오래 머무름) 아무도

@@ -2,7 +2,7 @@ import type { SocketKind } from '../types';
 
 /**
  * Bridges the SDK AuthController to web-core. Owned by app-runtime
- * (connection/useSocketSessionDelegate), which wires it to web-core's per-server helpers. EVERY
+ * (connection/hooks/useSocketSessionDelegate), which wires it to web-core's per-server helpers. EVERY
  * method is keyed by the socket's `kind` so relay and cloud sockets, which bootstrap independently,
  * each seed/sign/write-back/expire against their OWN server — never the global active one
  * (multi-socket-design.md §6-6, §7).

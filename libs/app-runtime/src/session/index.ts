@@ -11,7 +11,7 @@
 //
 // "Internal" now means: NOT on this list. Runtime code reaches those symbols by concrete module path
 // (`../session/store`, `../session/auth/relaySession`, `../session/hooks/app/...`) — the convention
-// `connection/useSocketSessionDelegate.ts` already followed to bypass a barrel. No second barrel and
+// `connection/hooks/useSocketSessionDelegate.ts` already followed to bypass a barrel. No second barrel and
 // no subpath export: no lib in this repo exposes one.
 
 // --- store readers (앱이 읽는 세션 상태) ---------------------------------------------------------
@@ -48,7 +48,7 @@ export { createCredentialsByProvider, registerSessionLogoutCallback } from './au
 export { fetchInviteInfoWithCode, registerUserWithInviteCode } from './auth/authActions';
 
 // --- React 표면 --------------------------------------------------------------------------------
-export { SWITCH_SITE_MUTATION_KEY } from './hooks/mutationKeys';
+export { SWITCH_CLOUD_MUTATION_KEY, SWITCH_SITE_MUTATION_KEY } from './hooks/mutationKeys';
 export { useCloudCredentialGuard, useDynamicDeviceId, useSessionStalenessGuard } from './hooks/app';
 export type { CloudCredentialPolicy, SessionStalenessPolicy } from './hooks/app';
 export {
@@ -61,7 +61,6 @@ export {
     useVerifyAlias,
 } from './hooks/auth';
 export {
-    SWITCH_CLOUD_MUTATION_KEY,
     useGlobalSession,
     useInviteFlow,
     useLogoutCloudSession,

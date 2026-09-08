@@ -1,16 +1,16 @@
 import { act, renderHook } from '@testing-library/react';
 
-import { useRegisterDeviceTokenMutation } from '../data/hooks';
-import { useDynamicDeviceId, useSessionAuth } from '../session';
+import { useRegisterDeviceTokenMutation } from '../../data/hooks';
+import { useDynamicDeviceId, useSessionAuth } from '../../session';
 
 import { useDeviceTokenRegistration } from './useDeviceTokenRegistration';
 import type { DeviceTokenDelegate } from './useDeviceTokenRegistration';
 
-jest.mock('../session', () => ({
+jest.mock('../../session', () => ({
     useSessionAuth: jest.fn(),
     useDynamicDeviceId: jest.fn(),
 }));
-jest.mock('../data/hooks', () => ({
+jest.mock('../../data/hooks', () => ({
     useRegisterDeviceTokenMutation: jest.fn(),
 }));
 
