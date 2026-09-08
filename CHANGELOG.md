@@ -1,5 +1,21 @@
 # Changelog
 
+## [2026-09-08] - No version updates
+
+### Bug Fixes
+
+- (app-runtime) stop spending the relay session on an ambiguous expiry
+
+### Documentation
+
+- (adr) decide on one auth verdict and typed session signals
+
+### Refactor
+
+- (app-runtime) give each file kind a placement rule and lock it with a test
+- (app-runtime) cut both engine cycles and lock their absence with tests
+- (app-runtime) collapse the auth verdict, its notification and its guards
+
 ## [2026-09-08] - root@0.57.0, @chatic/web@0.47.0, @chatic/desktop-web@0.8.0
 
 ### Features
