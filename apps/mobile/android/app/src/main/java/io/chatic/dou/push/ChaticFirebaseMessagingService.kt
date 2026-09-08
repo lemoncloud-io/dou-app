@@ -24,6 +24,9 @@ class ChaticFirebaseMessagingService : FirebaseMessagingService() {
 
     companion object {
         private const val TAG = "ChaticPushService"
+
+        /** The one push type that carries no `link` by contract and whose tap belongs at the root. */
+        private const val PUSH_TYPE_CLOUD = "cloud"
     }
 
     override fun onNewToken(token: String) {
@@ -56,7 +59,7 @@ class ChaticFirebaseMessagingService : FirebaseMessagingService() {
         // Fold cid/sid from the payload into the link's query so a tapped notification carries
         // cloud/site context to the web. RN Linking only surfaces the intent URI (not the payload
         // extra), so for Android data-only pushes this native merge is the only place it can happen.
-        val navClickAction = mergeContextIntoLink(clickAction, payload)
+        val navClickAction = mergeContextIntoLink(clickAction, payload).ifEmpty { rootTapLinkFor(type) }
 
         // 1. Resolve and translate title & body dynamically
         val lang = resolveLanguage()
@@ -140,6 +143,33 @@ class ChaticFirebaseMessagingService : FirebaseMessagingService() {
             NativeLogger.log("error", TAG, "Failed to merge cid/sid into click action: $clickAction", e)
             clickAction
         }
+    }
+
+    /**
+     * Tap URI for a push that arrived without a `link`, or "" when the tap should not navigate.
+     *
+     * Only the types that omit `link` BY CONTRACT get one — the payload spec routes those taps to the
+     * root. A chat push missing its link is a malformed payload, not a request to leave the screen the
+     * user is on, so it keeps merely foregrounding the app.
+     *
+     * This is load-bearing on Android specifically: `displayNotification` only sets the intent's data
+     * URI when the link is non-empty, and RN's `Linking` surfaces nothing else (the `clickAction`
+     * extra is never read). Without a URI here a cloud tap would do nothing at all, while iOS — which
+     * routes taps through `resolvePushTapPath` in JS — would go to the root. Keep the rooted-type set
+     * in step with ROOTED_PUSH_TYPES there.
+     *
+     * The scheme comes from the flavor's `app_scheme` string resource (prod `chatic`, dev
+     * `chatic-dev`), looked up by name like the launcher icon above so this file stays free of a
+     * flavor-specific `R` import. `<scheme>://` resolves to the web root — see the deep link tests.
+     */
+    private fun rootTapLinkFor(type: String): String {
+        if (type != PUSH_TYPE_CLOUD) return ""
+        val resId = resources.getIdentifier("app_scheme", "string", packageName)
+        if (resId == 0) {
+            NativeLogger.log("warn", TAG, "app_scheme string resource missing; cloud tap will not navigate")
+            return ""
+        }
+        return "${getString(resId)}://"
     }
 
     /** Chat channels contribute to the unread badge; notice/marketing/cloud pushes do not. */

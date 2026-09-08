@@ -200,6 +200,79 @@ sequenceDiagram
 
 > 백그라운드 증가·포그라운드 reconcile을 포함한 뱃지 카운터 lifecycle 전체는 [badge.md](./badge.md)에서 다룬다.
 
+## 클라우드 활성 알림
+
+> 상태: Live · 최종 갱신: 2026-09-07 · 관련 ADR: [[ADR-0075]](../../../docs/adr/0075-cloud-activated-notification-app-readiness.md)
+
+클라우드가 처음 활성이 되면 서버가 소유자에게 알림 한 건을 보낸다. 접속 중이면 웹소켓
+(`cloud.activated`, 웹이 처리), 아니면 **푸시**다. 푸시 쪽 규격은 이렇다.
+
+| 필드                   | 값                                                                                        |
+| ---------------------- | ----------------------------------------------------------------------------------------- |
+| `type`                 | `cloud` → 채널은 푸시 서비스가 `dou_cloud`로 도출한다 (서버가 `channel_id`를 싣지 않는다) |
+| `title_loc_key`        | `push_cloud_activate_title`                                                               |
+| `title_loc_args`       | `[클라우드 이름 \|\| 클라우드 식별자]`                                                    |
+| `loc_key` / `loc_args` | **없다** — 제목 한 줄이다                                                                 |
+| `link`                 | **없다**                                                                                  |
+| `data`                 | `cid`(클라우드 id) · `uid`(소유자 id)                                                     |
+
+### 번역 키
+
+`push_cloud_activate_title`은 **네 벌 전부**에 있어야 한다. 벌마다 소비자가 다르므로 하나가 빠지면
+그 경로에서만 문구가 깨진다.
+
+| 자리                                                  | 소비자                           | 빠지면                          |
+| ----------------------------------------------------- | -------------------------------- | ------------------------------- |
+| `libs/i18n-mobile/src/locales/{ko,en}.ts`             | 네이티브 셸 UI                   | 셸 문구 (푸시엔 영향 없음)      |
+| `android/app/src/main/assets/locales/{ko,en}.json`    | `ChaticFirebaseMessagingService` | Android 배너에 리터럴 키        |
+| `ios/assets/locales/{ko,en}.json`                     | iOS 앱                           | iOS 앱 내 문구                  |
+| `ios/ChaticNotificationServiceExtension/{ko,en}.json` | NSE                              | iOS 백그라운드 배너에 리터럴 키 |
+
+문구는 ko `{0} 클라우드가 준비되었습니다`, en `{0} is ready`. **조사를 변수에서 뗀 형태다** — 이름
+끝 종성에 따라 "이/가"가 갈리므로 임의의 이름에 맞출 수 없다. 변수를 넣는 새 키는 전부 이 규칙을 따른다.
+
+`libs/i18n-mobile/src/types.ts`의 `TranslationKey`에는 넣지 않는다 — 기존 `push_chat_message_title`도
+없다. 푸시 키는 네이티브가 조립하고 셸의 `t()`를 타지 않는다.
+
+네 벌이 어긋나는 것은 [`localeParity.test.ts`](../src/app/services/notification/localeParity.test.ts)가
+막는다 — 셸 로케일의 평면 `push_*` 키 집합을 기준으로 네이티브 3벌을 대조하고, 값이 비어 있는지와
+활성 제목이 `{0}` 자리를 갖는지까지 본다(인자가 빠지면 발송 계층 폴백 제목이 리터럴 `cloud`가 된다).
+
+**Extension 타깃 번들은 그 테스트가 못 잡는다.** `ios/ChaticNotificationServiceExtension/*.json`이
+Extension 타깃의 Copy Bundle Resources에 들어 있지 않으면 파일은 있는데 배너만 깨진다. 수동 확인 항목이다.
+
+### 탭 목적지
+
+`link`가 없으므로 규격 정본의 "`link`가 비면 루트"를 앱이 지켜야 하는데, **탭이 웹에 닿는 경로가
+플랫폼마다 달라 두 곳을 함께 고쳐야 한다.**
+
+| 경로                          | 무링크 처리                                                                                                                                                      |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| iOS 탭 (warm·background·cold) | `resolvePushTapPath`의 `ROOTED_PUSH_TYPES`(현재 `cloud` 하나)에 들면 `'/'`                                                                                       |
+| Android 백그라운드·종료 탭    | `ChaticFirebaseMessagingService.rootTapLinkFor`가 인텐트 data URI로 `<scheme>://`를 싣고, RN `Linking` → `resolveDeepLink`가 `{ kind: 'web', path: '/' }`로 푼다 |
+
+**Android가 별도인 이유**는 `displayNotification`이 링크가 빈 문자열이면 인텐트에 data URI를 **아예
+붙이지 않기** 때문이다. RN `Linking`은 data URI만 노출하고(`clickAction` extra는 `MainActivity`가 읽지
+않는다), data-only 푸시라 FCM의 `onNotificationOpenedApp`도 발화하지 않는다. 그래서 JS만 고치면
+**Android 탭은 아무 데도 가지 않는다** — 앱을 닫아 둔 사용자가 이 기능의 대상인데 정확히 그 경로다.
+스킴은 flavor의 `app_scheme` 문자열 리소스(prod `chatic`, dev `chatic-dev`)에서 읽는다.
+
+**유형으로 좁히는 이유**는 무링크가 두 가지 뜻이기 때문이다. 클라우드 푸시는 계약상 링크가 없지만,
+채팅 푸시에 링크가 빠진 것은 잘못 만들어진 페이로드다. 후자까지 홈으로 보내면 사용자가 보던 화면을
+잘못된 페이로드가 뺏는다. `link`가 있으면 유형과 무관하게 링크가 이긴다.
+
+**두 목록은 손으로 맞춘다** — Kotlin의 `PUSH_TYPE_CLOUD`와 JS의 `ROOTED_PUSH_TYPES`를 잇는 타입이
+없다. 유형이 늘면 양쪽을 함께 늘린다.
+
+해당 클라우드로 전환하지 않는다 — 기획이 이동을 홈으로 확정했고, 그 전제 위에서 제목이 어느
+클라우드인지 알리도록 문구가 정해졌다(본문 없이 제목 한 줄인 이유).
+
+### 배지·안 읽음
+
+`dou_cloud`는 대화 채널이 아니다. Android는 `isChatChannel(channelId)`, iOS는
+`applyBadgeIncrementIfNeeded`의 chat 게이트가 이미 막고 있으므로 **네이티브는 손대지 않는다.**
+배지도, 크로스 클라우드 마크도 이 푸시로는 움직이지 않는다.
+
 ## 제약
 
 - 네이티브 Android/iOS lifecycle 설계가 바뀌지 않는 한 `main.tsx`에 JS 백그라운드 푸시 처리를 다시 넣지 않는다.

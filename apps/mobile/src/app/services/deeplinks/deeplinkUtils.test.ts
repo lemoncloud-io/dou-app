@@ -107,9 +107,7 @@ describe('convertShortUrlWithEnvsSync (릴레이 서버 초대 링크)', () => {
     });
 
     it('릴레이 링크도 초대와 무관한 그 외 쿼리 파라미터를 그대로 전달한다 (relay는 중복 전달하지 않음)', () => {
-        const { url } = convertShortUrlWithEnvsSync(
-            'https://app-dev.chatic.io/s?code=ABC123&relay&utm_source=kakao'
-        );
+        const { url } = convertShortUrlWithEnvsSync('https://app-dev.chatic.io/s?code=ABC123&relay&utm_source=kakao');
 
         const parsed = new URL(url, PARSE_BASE);
         expect(parsed.searchParams.get('utm_source')).toBe('kakao');
@@ -256,6 +254,33 @@ describe('resolvePushTapPath (푸시 탭 경로)', () => {
         expect(resolvePushTapPath({ payload: JSON.stringify({ cid: 'cloud_1' }) })).toBeNull();
         expect(resolvePushTapPath({ link: '   ' })).toBeNull();
         expect(resolvePushTapPath(undefined)).toBeNull();
+    });
+
+    // 클라우드 활성 푸시는 계약상 link가 없다. 규격 정본이 "link가 비면 루트"라고 정했고,
+    // 탭이 앱만 포그라운드로 올리면 사용자는 알림을 눌러도 아무 데도 가지 않는다.
+    it('클라우드 활성 푸시는 link가 없어도 루트로 보낸다', () => {
+        expect(resolvePushTapPath({ type: 'cloud', cid: 'cloud_1', uid: 'u1' })).toBe('/');
+        expect(resolvePushTapPath({ type: 'cloud', payload: JSON.stringify({ cid: 'cloud_1' }) })).toBe('/');
+    });
+
+    // 무링크 루트 이동은 계약상 link가 없는 유형에만 준다. 채팅 푸시에 link가 빠진 것은
+    // 잘못 만들어진 페이로드이지 홈으로 가라는 요청이 아니다 — 보던 화면을 뺏지 않는다.
+    it('클라우드가 아닌 유형은 link가 없으면 그대로 null이다', () => {
+        expect(resolvePushTapPath({ type: 'chat', payload: JSON.stringify({ cid: 'cloud_1' }) })).toBeNull();
+        expect(resolvePushTapPath({ type: 'notice' })).toBeNull();
+    });
+
+    // link가 있으면 유형과 무관하게 그 링크가 이긴다 — 루트 폴백은 무링크일 때만 도는 가지다.
+    it('클라우드 푸시라도 link가 있으면 link를 따른다', () => {
+        expect(resolvePushTapPath({ type: 'cloud', link: '/mypage/clouds' })).toBe('/mypage/clouds');
+    });
+
+    // Android 백그라운드 탭은 이 함수를 타지 않는다 — 네이티브가 인텐트 data URI로 스킴 루트를 실어
+    // 보내고 RN Linking → resolveDeepLink가 받는다. 그 URI가 실제로 루트로 풀리는지가 계약이다
+    // (ChaticFirebaseMessagingService.rootTapLinkFor 참고).
+    it('네이티브가 싣는 스킴 루트 URI는 웹 루트로 풀린다', () => {
+        expect(resolveDeepLink('chatic://')).toEqual({ kind: 'web', path: '/' });
+        expect(resolveDeepLink('chatic-dev://')).toEqual({ kind: 'web', path: '/' });
     });
 
     it('커스텀 스킴 link는 스킴을 벗기고 경로/쿼리만 취한다', () => {
