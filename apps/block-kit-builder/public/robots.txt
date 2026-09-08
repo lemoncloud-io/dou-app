@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://block-kit.chatic.io/sitemap.xml
