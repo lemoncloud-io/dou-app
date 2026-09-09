@@ -1,3 +1,15 @@
+import { authModule } from './auth';
+import { bridgeModule } from './bridge';
+import { cacheModule } from './cache';
+import { debugModule } from './debug';
+import { envModule } from './env';
+import { featureModule } from './feature';
+import { limitModule } from './limit';
+import { logModule } from './log';
+import { netModule } from './net';
+import { syncModule } from './sync';
+import { systemModule } from './system';
+import { uiModule } from './ui';
 import type { ConfigRegistryModule } from '../types';
 
 /**
@@ -7,7 +19,19 @@ import type { ConfigRegistryModule } from '../types';
  * A duplicate key across modules keeps the first declaration and reports the later one — the boot
  * does not fail (see `ConfigRegistry`).
  *
- * Empty for now: the 84 keys land in step 2, one file per domain
- * (`system env net ui log debug feature limit bridge auth sync cache`).
+ * 84 keys across 12 domains (ADR-0079 결정 2 · 레지스트리 키 제안).
  */
-export const ALL_MODULES: readonly ConfigRegistryModule[] = [];
+export const ALL_MODULES: readonly ConfigRegistryModule[] = [
+    systemModule,
+    envModule,
+    netModule,
+    uiModule,
+    logModule,
+    debugModule,
+    featureModule,
+    limitModule,
+    bridgeModule,
+    authModule,
+    syncModule,
+    cacheModule,
+];
