@@ -53,7 +53,7 @@ export interface HttpClient {
     ): Promise<TResponse>;
     /**
      * Default host for a route, for callers that build their own `baseURL` string (gateways —
-     * see libs/data/docs/http-data-path.md). A passthrough to `HttpRuntimePorts.resolveEndpoint`;
+     * see libs/data/docs/remote.md). A passthrough to `HttpRuntimePorts.resolveEndpoint`;
      * added in 2단계 to close a gap 1단계 left open (`resolveEndpoint` existed on the port but
      * nothing in `client.ts` called it yet).
      */

@@ -127,9 +127,9 @@ view→domain 단일 경계. 다른 점이 하나 있다.
 부가정보용이지만, 시그니처 대칭을 지켜 두면 캐시 의미가 생겨도 인터페이스가 바뀌지 않는다.
 
 `UserHttpDataSource`는 인터페이스 분리를 하나 더 갖는다. 디바이스 등록의 소비자는 device
-repository이므로 `IDeviceRegistrationHttpSource`(`registerDevice` 하나)를 별도 선언하고
-`UserHttpDataSource`가 두 인터페이스를 모두 구현한다. repository 생성자는 항상 자기가 쓸
-인터페이스만 받는다.
+repository이므로 `IDeviceRegistrationHttpSource`(`registerPushDevice` 하나)를 별도 선언하고,
+`IUserHttpDataSource`가 그것을 `extends`한다. repository 생성자는 항상 자기가 쓸 인터페이스만
+받는다 — device repository는 좁은 쪽을, user repository는 넓은 쪽을 받는다.
 
 ### 두 `UserView`는 서로 대입되지 않는다
 
@@ -159,28 +159,22 @@ HTTP 축의 사용자 매핑에는 함정이 하나 있다. `toDomainUser`(`doma
 (`UploadOutcome`)는 로거 파이프라인 소유이고 data가 그것을 알 이유가 없다. 그래서 데이터소스와
 repository는 **에러를 감싸지 않고 그대로 던진다**(상태 코드가 분류의 입력이다).
 
-### REST 훅 소비처 실측
+### REST 훅 소비처 — ADR-0070의 수치는 과다 계상이다
 
-ADR-0070 §맥락은 REST 훅 6개의 소비를 18·22·8·6·4·2로 적었으나 과다 계상이다. 전수 grep 실측
-(정의·배럴 재수출·`dist/`·테스트 목 제외, 2026-08-27 기준)은 다음과 같다.
+ADR-0070 §맥락은 REST 훅 6개의 소비를 `18·22·8·6·4·2`로 적었다. 부푼 값이다. `desktop-web`에
+`useCloudSessionCatalog`를 감싼 **동명의 자체 `useClouds`**가 있어서 합산됐다.
 
-| 훅                               | 실측 소비                                           | 판정                               |
-| -------------------------------- | --------------------------------------------------- | ---------------------------------- |
-| `useClouds` (web-core 판)        | **5곳** — 전부 apps/web                             | 앱 레이어로 이관 완료              |
-| `useCloudSessionCatalog`         | **15곳** — web 10 · desktop-web 3 · testbed 1 외    | 앱별 사본 3개로 이관 완료          |
-| `useRegisterDeviceTokenMutation` | **5곳** — web·desktop-web·web-core·app-runtime/push | 런타임 잔류 — 런타임이 직접 부른다 |
-| `useVerifyEmail`                 | **1곳** — apps/web `useVerifyEmailCode`             | 그 호출부 안으로 이관 완료         |
-| `useUsers`                       | **2곳** — admin (`@chatic/users` 재수출 경유)       | admin-v2로 흡수 완료               |
-| `useVerifyNativeAppToken`        | **0곳** — 재수출 체인만 있고 호출부 없음            | 이관 대상 아님 — 삭제 후보         |
-
-ADR 수치가 부푼 이유는 `desktop-web`에 `useCloudSessionCatalog`를 감싼 **동명의 자체 `useClouds`**가
-있어 합산됐기 때문으로 보인다.
+2026-08-27에 전수 grep으로 다시 셌을 때는 훅마다 한 자리 수였고 `useVerifyNativeAppToken`은 0곳,
+즉 이관 대상이 아니라 삭제 후보였다. 그 표는 여기 옮기지 않았다 — 이관이 끝난 뒤로 소비처가 계속
+움직이고(그 사이 `libs/web-core`는 4개 형제 lib으로 갈라졌다), 문서에 박아 둔 숫자는 읽는 사람을
+틀리게 만든다. 지금 값이 필요하면 직접 세는 것이 맞다.
 
 ## 클라이언트 측 요청 제한
 
 `SocketDataSource` 호출자는 socket 클라이언트의 클라이언트 측 backpressure를 인지해야 한다. 이
-값들은 socket 클라이언트(외부 모듈) 소유지만, 호출 결과(특히 reject)를 해석하는 것은 `libs/data`
-호출자의 몫이라 소비 관점에서 정리한다.
+값들은 `@lemoncloud/chatic-sockets-lib` 소유이고 **이 리포에서는 확인할 수 없다** — 아래는 소비
+관점의 참고값이니, 정확한 값이 필요하면 그 lib을 봐야 한다. 호출 결과(특히 reject)를 해석하는 것은
+`libs/data` 호출자의 몫이라 여기 남긴다.
 
 | 항목                | 기본값 | 비고                                                |
 | ------------------- | ------ | --------------------------------------------------- |

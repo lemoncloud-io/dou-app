@@ -41,8 +41,8 @@ export interface IUserRepository extends DisposableRepository {
 
     /**
      * HTTP relay-user listing/profile surface (ADR-0070 결정 5, 2단계 후반). `IUserHttpDataSource`
-     * injection is optional through 2단계. `listRelayUsers`'s real-world consumer today is
-     * `apps/admin`(이미 안 붙는 앱) only — see libs/data/docs/http-data-path.md §미지수.
+     * injection is optional (see libs/data/docs/repositories.md). `listRelayUsers` has exactly one
+     * consumer: the admin-v2 user console (`apps/admin-v2/.../users/api/usersQuery.ts`).
      */
     listRelayUsers(params?: Record<string, unknown>): Promise<DomainListResult<DomainUser>>;
     tryFetchProfile(): Promise<UserProfile$>;

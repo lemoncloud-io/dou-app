@@ -55,12 +55,13 @@ context를 직접 보관하지 않고 `DataContextProvider`를 통해 매 호출
 
 ### Channel
 
-`observeList` · `observeItem` · `refreshList(query)` · `syncChannels(since)` · `createChannel` ·
-`updateChannel` · `inviteChannel` · `leaveChannel` · `deleteChannel` · `getSelfChannel` ·
-`getUnreads` · `cache*`
+`observeList` · `observeItem` · `refreshList(query)` · `fetchList(query)` · `syncChannels(since)` ·
+`createChannel` · `updateChannel` · `inviteChannel` · `leaveChannel` · `deleteChannel` ·
+`getSelfChannel` · `getUnreads` · `cache*`
 
 - `syncChannels(since)` — `channel.sync({ since })` 결과를 해석한다. `since: 0`은 full sync, `since > 0`은 변경분이다. 응답의 `list`는 변경된 채널 스냅샷, `ids`는 현재 내가 속한 전체 채널 id, `syncedAt`은 다음 `since`로 저장할 값이다. repository는 `list`를 local에 write하고, `ids`에 없는 채널을 **stale remove**한다.
 - `refreshList(query)` — `channel.mine` 기반 보조 초기 조회 경로. sync 중심 구조에서 canonical source는 `syncChannels`다.
+- `fetchList(query)` — `refreshList`와 짝이지만 **로컬에 쓰지 않고 결과를 반환한다.** 캐시를 건드리지 않고 서버 목록만 필요할 때 쓴다.
 - `leaveChannel` / `deleteChannel` — optimistic local remove 후 실패 시 복구. 본인 나가기는 **서버 응답이 온 뒤에** 그 채널의 chat 캐시까지 비운다 → [퇴장과 재입장](#퇴장과-재입장).
 - 나간 직후 짧은 시간(`LEFT_CHANNEL_GUARD_MS`, 10초) 동안은 `refreshList`/`syncChannels` 응답에 그 채널이 들어 있어도 캐시에 다시 쓰지 않는다. 나가기 직전에 발행된 in-flight 응답이 방금 지운 채널을 되살리는 것을 막는 가드다. **시한부인 것이 핵심** — 영구히 잡아 두면 재입장한 채널도 세션 내내 목록에 돌아오지 못한다.
 - **chat 메시지는 fetch하지 않는다.** channel sync는 채널 목록만 갱신한다. 실제 메시지는 chat 화면이 `ChatRepository.refreshList`(=`chat.feed`)로 따로 가져온다.
@@ -68,12 +69,14 @@ context를 직접 보관하지 않고 `DataContextProvider`를 통해 매 호출
 
 ### Chat
 
-`observeList` · `observeItem` · `refreshList(query)` · `getChat` · `sendChat` · `updateChat` ·
-`deleteChat` · `cache*` · `cacheClearByChannelId(channelId)`
+`observeList` · `observeItem` · `observeLastList` · `refreshList(query)` · `getChat` · `sendChat` ·
+`updateChat` · `deleteChat` · `setReaction` · `cache*` · `cacheReadLastList` ·
+`cacheClearByChannelId(channelId)`
 
 - `sendChat` — optimistic pending message 생성, 실패 시 `isFailed` 마킹.
 - `refreshList` — `chat.feed` 응답을 local에 merge한다. `ChatRefreshResult`로 cursor 메타(`cursorNo`, `readNo` 등)를 반환할 수 있지만, **메시지 렌더 source는 항상 local stream**이다. 반환 메타는 pagination 입력에만 쓴다.
-- list query key는 `channelId + cursorNo + limit`로 구분된다(이전 페이지와 최신 페이지는 다른 query).
+- list query key는 **스토리지에 닿는 필드 전부**로 만든다 — `chats` · `channel` · `cursor` · `limit` · `unsent` · `sort` · `keyword` 7파트다(`local/data-sources/ChatLocalDataSource.ts:296`). 하나라도 빠지면 서로 다른 두 읽기가 한 키로 합쳐져 틀린 답을 공유한다. 그래서 이전 페이지와 최신 페이지는 다른 query다.
+- `setReaction`은 UI 쓰기 명령이다(`chat.reaction`). `observeLastList` / `cacheReadLastList`는 홈 프리뷰용 채널별 마지막 메시지 경로다(ADR-0057).
 - 커서 책임 분리 → [채팅 커서](#채팅-커서).
 - `cacheClearByChannelId(channelId)` — 한 채널의 메시지만 비운다. 호출자는 `ChannelRepository`(본인 나가기)와 join sync plan(강퇴·타 기기 퇴장) 둘뿐이다 → [퇴장과 재입장](#퇴장과-재입장).
 
@@ -119,7 +122,7 @@ context를 직접 보관하지 않고 `DataContextProvider`를 통해 매 호출
 
 ### User
 
-`observeList` · `observeItem` · `refreshList(query)` · `updateProfile` · `requestInvite` ·
+`observeList` · `observeItem` · `getMyProfile` · `updateProfile` · `requestInvite` ·
 `requestInviteBatch` · `syncChannelUsers` · `listRelayUsers` · `tryFetchProfile` ·
 `updateProfileHttp` · `cache*`
 
@@ -127,6 +130,7 @@ context를 직접 보관하지 않고 `DataContextProvider`를 통해 매 호출
 - `updateProfile`(`user.update`)은 사용자 본인 **계정** 프로필 수정으로, site-profile(→ Profile 도메인)과 별개다.
 - HTTP 축(`listRelayUsers` · `tryFetchProfile` · `updateProfileHttp`)은 relay 콘솔·프로필 프로브 경로다.
 - 초대 후보 조립을 위해 `join`·`place` 로컬까지 함께 읽는다.
+- `refreshList`는 **인터페이스에 없다** — 클래스 public 메서드로만 있다. Channel·Join·Place는 인터페이스에 선언돼 있어 User만 예외다.
 
 ### Invite
 
@@ -154,7 +158,7 @@ context를 직접 보관하지 않고 `DataContextProvider`를 통해 매 호출
 
 - **remote-only.** 조회 신호와 푸시 설정이라 캐시할 것이 없다.
 - 소켓 gateway만 라우팅된다 — `save`/`read`/`sync`는 `active` 슬롯으로, relay 소유 푸시 설정인 `updateRemote`는 relay로 간다(ADR-0027).
-- `registerPushDevice`는 HTTP 축이고 `IDeviceRegistrationHttpSource`(메서드 하나)만 주입받는다. 설치당 1회로 제한된다(ADR-0077).
+- `registerPushDevice`는 HTTP 축이고 `IDeviceRegistrationHttpSource`(메서드 하나)만 주입받는다. **이 repository는 아무 제한도 하지 않는다** — `body`와 `opts?.force`를 그대로 넘긴다. 설치당 1회 게이트는 `libs/app-runtime`의 `useDeviceTokenRegistration`에 있다(ADR-0077).
 
 ### Report
 

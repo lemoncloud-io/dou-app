@@ -7,7 +7,7 @@
 앱이 쓸 데이터 표면 전부를 조립해 하나의 배럴로 내보낸다 — 도메인 모델과 매퍼, 로컬 캐시의 저장·
 stream 발행, 서버로 나가는 outbound 호출, 그리고 이 셋을 묶는 repository facade.
 
-앱은 `@chatic/data` 배럴만 본다. 소비 파일 213개 중 내부 경로를 직접 import하는 것은 하나도 없다.
+앱은 `@chatic/data` 배럴만 본다. 소비 파일 211개 중 내부 경로를 직접 import하는 것은 하나도 없다.
 
 이 lib은 **소켓 연결의 생애주기를 소유하지 않는다.** 연결·재인증·sync 타이밍은 `libs/app-runtime`의
 sync orchestrator 소관이다. orchestrator가 repository의 `refresh*` / `cacheWrite*`를 부르면
@@ -39,8 +39,9 @@ sync 타이밍·연결 생애주기·캐시 라우팅(`libs/app-runtime`), 서�
 
 `useChats`가 `chat.observeList({ channelId, limit })`를 구독한다. 구독 즉시 로컬 snapshot이 1회
 발행된다 — 네트워크를 기다리지 않는다. 같은 훅이 `chat.refreshList`를 불러 `chat.feed`를 요청하고,
-응답은 로컬에 **merge**된다(overwrite가 아니다). merge가 끝나면 그 query의 list observer만 재발행되고
-화면이 갱신된다. 반환된 cursor 메타는 다음 페이지 요청의 입력으로만 쓰고 렌더 source로 쓰지 않는다.
+응답은 로컬에 **merge**된다(overwrite가 아니다). merge가 끝나면 **그 채널의** list observer가
+재발행된다 — 재발행 프리픽스는 채널 단위라 같은 채널의 cursor·limit·sort·keyword 변형이 함께
+깨어나고, 홈 프리뷰가 쓰는 `chats-last` catch-all도 함께 깨어난다. 반환된 cursor 메타는 다음 페이지 요청의 입력으로만 쓰고 렌더 source로 쓰지 않는다.
 
 ### 2. 메시지를 보낸다
 
@@ -277,7 +278,8 @@ libs/data/src/
 
 `cid`(연결된 cloud) · `sid`(선택된 place) · `uid`(현재 사용자). repository는 문맥을 보관하지 않고
 `DataContextProvider`(구현체 `DataContextHolder`)로 매 호출마다 읽는다. 정본은
-`repositories/types.ts`다. `withContext(snapshot)`으로 특정 문맥에 고정된 사본을 만들 수 있다.
+`repositories/types.ts`다. 특정 문맥에 고정된 사본은 개별 repository가 아니라 **번들**이 만든다 —
+`DataRepositories.withContext(snapshot)`(`repositories/index.ts:54`).
 
 ### HTTP 주입은 선택적이다
 
@@ -293,6 +295,6 @@ npx jest --config libs/data/jest.config.js
 ```
 
 - 타입체크는 `tsc -b tsconfig.lib.json`이어야 한다. `libs/data`에서 `tsc --noEmit`은 0건을 검사하고 성공한다.
-- 테스트는 45파일 · 360케이스다. data source·repository 각각에 대응 테스트가 있다.
+- 테스트는 45파일 · 360케이스다. data source 25종은 전부 대응 테스트가 있고, repository는 13종 중 12종이다 — `SyncMetaRepository`만 없다.
 - 다운스트림 확인: `apps/web`·`apps/desktop-web`·`libs/app-runtime`의 타입체크. 배럴 식별자가 바뀌면 여기서 잡힌다.
 - 낡은 `dist`/`out-tsc`가 유령 에러를 만든다. 디렉토리를 물리 이동한 뒤에는 `rm -rf libs/data/dist libs/data/out-tsc`로 강제 삭제하고 다시 본다.

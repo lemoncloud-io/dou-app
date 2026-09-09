@@ -89,7 +89,7 @@ createLocalDataSourcesV2 as createDataLocalDataSources,
 3. **없는 코드를 설명하는 섹션** — 갱신할 대상이 없으니 통째로 삭제한다.
 4. **nx 스캐폴드 README** — `device-utils`·`shared`·`theme` 3건.
 
-`docs/http-data-path.md`는 1번에 해당한다. 살아있는 사실만 `docs/remote/architecture.md`로 흡수하고
+`docs/http-data-path.md`는 1번에 해당한다. 살아있는 사실만 `docs/remote.md`로 흡수하고
 원본을 삭제한다. 흡수 대상은 세 가지다 — gateway 매핑 표, HttpDataSource 5종의 도메인 매핑·캐시 의미,
 `ReportHttpDataSource`가 도메인 없이 이 층을 지나는 이유.
 
@@ -198,7 +198,7 @@ import 별칭만 없앤다.
 - **의미 충돌은 타입체크만 잡는다.** 순수 리네임이라 리베이스 후 재검증이 필수다.
 - **nx의 낡은 `dist`/`out-tsc`가 유령 에러를 만든다.** 디렉토리를 물리 이동하면 다운스트림 typecheck가 옛 심볼을 본다. 진단 전에 `rm -rf`로 강제 삭제한다.
 - **`desktop-web`은 push로만 배포되고 되돌릴 수단이 없다.** 이 트랙이 건드리는 `desktop-web` 파일은 리네임에 한정한다.
-- **옛 이름으로 쓰인 ADR은 그대로 둔다.** 2026-09-01 리네임 때와 같은 방식이다 — `libs/data/docs/remote/README.md`의 대응표에 `V2` 제거 행을 덧붙이고, 과거 ADR 본문은 기록이므로 손대지 않는다.
+- **옛 이름으로 쓰인 ADR은 그대로 둔다.** 2026-09-01 리네임 때와 같은 방식이다 — `libs/data/docs/remote.md`의 대응표에 `V2` 제거 행을 덧붙이고, 과거 ADR 본문은 기록이므로 손대지 않는다.
 
 ## 다음 단계
 

@@ -113,7 +113,7 @@ export const createRepositories = ({
     context: DataContextProvider;
     options?: DataRepositoriesOptions;
     /** Optional through 2단계 — apps that haven't wired `httpFactory` yet omit this and every
-     * existing call site stays green (ADR-0070 결정 5, libs/data/docs/http-data-path.md §범위). */
+     * existing call site stays green (ADR-0070 결정 5, libs/data/docs/repositories.md). */
     httpDataSources?: HttpDataSources;
 }): DataRepositories => {
     const repositories = buildRepositories(socketDataSources, localDataSources, context, options, httpDataSources);

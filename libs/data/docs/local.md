@@ -58,7 +58,8 @@ interface ILocalDataSource<TItem, TListQuery, TListResult> {
 `channel`, `chat`, `cloud`, `invite`, `join`, `place`, `profile`, `user`, `syncMeta` — 9종.
 
 팩토리: [data-sources/index.ts](../src/local/data-sources/index.ts) —
-`createLocalDataSources(contextProvider, storages)`.
+`createLocalDataSources(contextProvider, storages, options?)`. `options.routingFingerprint`는
+`syncMeta`로만 흘러 cursor가 저장소 이동을 눈치채게 한다(ADR-0053).
 
 ## stream 모델
 
@@ -76,7 +77,8 @@ interface ILocalDataSource<TItem, TListQuery, TListResult> {
 ## 스코프와 캐시 슬롯
 
 scope는 `cid`(cloud) · `sid`(place) · `uid`(user)다. observer 격리는 이 튜플의 `stableHash`로
-한다(`getScopeKey`). `cid`/`uid`는 없으면 `'default'`로, `sid`는 그대로 둔다.
+한다(`getScopeKey`). `cid`/`uid`는 없으면 `'default'`로, `sid`는 `''`로 정규화한다 — `'default'`를 쓰지 않는 것이
+핵심이다(place 없음과 place 이름이 'default'인 것은 다른 스코프다).
 
 물리 저장은 `CacheStorage<TType>` 슬롯 단위다. 슬롯 키 9종: `channel`, `chat`, `user`, `join`,
 `site`, `invitecloud`, `profile`, `meta`, `invite`.
@@ -89,8 +91,9 @@ scope는 `cid`(cloud) · `sid`(place) · `uid`(user)다. observer 격리는 이 
 | `cloud`    | `invitecloud` |
 | `syncMeta` | `meta`        |
 
-`BaseDbAdapter`(`@chatic/db`)는 type별 정책으로 저장 scope(`cid`/`uid`)를 결정한다
-(`resolveScopedContext`).
+저장 scope(`cid`/`uid`)를 type별로 정하는 정책은 **이 lib 소유**다 — `ports/policy.ts`의
+`resolveScopedContext`. `@chatic/db`의 `BaseDbAdapter`가 그것을 `@chatic/data`에서 import해
+쓴다. 즉 엔진은 저장 방식만 알고 스코프 규칙은 모른다.
 
 ## chat cursor와 local
 

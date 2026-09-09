@@ -81,7 +81,7 @@ lib이 실제로 수행하는 요청 형태다. **1단계 서술을 현행으로
    lemon 자체 저장소의 signing material로 서명한다.
 
     > 1단계가 이 자리에 적어 둔 `generateToken`(`POST /auth/0/generate-token`)은 **이관되지
-    > 않았다** — 리포 전체 소비가 0이어서다([http-data-path.md](../../data/docs/remote.md)
+    > 않았다** — 리포 전체 소비가 0이어서다([remote.md](../../data/docs/remote.md)
     > §실측이 삭제 후보로 올려 뒀고, `apps/admin-v2`의 주석 한 줄만 그 엔드포인트를 언급한다).
     > 서명 실행기의 현행 소비자는 3번이다.
 
