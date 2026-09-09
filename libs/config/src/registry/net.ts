@@ -93,6 +93,7 @@ export const netModule: ConfigRegistryModule = {
         description: '데스크톱 앱을 여는 커스텀 프로토콜.',
         type: 'string',
         defaultValue: 'chatic',
+        envDefaultKey: 'VITE_DESKTOP_PROTOCOL',
         surface: 'internal',
         writableBy: [],
         persist: 'none',

@@ -50,7 +50,9 @@
 - 노출면 셋(`dev` · `user` · `labs`)의 키 선언
 - 기기 상태 로그 (부팅 1회 + 변경 시)
 - `apps/desktop-web` 이관 — `import.meta.env` 7파일 · `CHATIC_APP_*` 2파일 ·
-  `useNotificationPrefsStore` 1파일 (2026-09-09 지시로 범위 편입, 5단계에서 스토어 이름 정정)
+  `useNotificationPrefsStore` 1파일 (2026-09-09 지시로 범위 편입, 5단계에서 스토어 이름 정정,
+  6단계에서 앞의 두 카운트 정정 — 실제 이관 대상은 `import.meta.env` 1파일이고 `CHATIC_APP_*`는
+  0파일이다. §6 "스펙과 달라진 점")
 
 **제외**
 
@@ -228,7 +230,7 @@ private) · `project.json` · `tsconfig.json` · `tsconfig.lib.json` · `tsconfi
 | 앱                 | 파일                                                      | 읽는 것                                                                                         |
 | ------------------ | --------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
 | `apps/web`         | `src/app/config/adapters.ts` + `shellKvAdapter.ts`(4단계) | `import.meta.env` + `window.CHATIC_APP_*` + 네이티브 브릿지(`shell`, 네이티브 셸 안에서만)      |
-| `apps/desktop-web` | `src/app/config/adapters.ts`                              | `import.meta.env` + `window.CHATIC_APP_*` — Electron preload 주입 `shell`은 6단계에서           |
+| `apps/desktop-web` | `src/app/config/adapters.ts`                              | `import.meta.env` + `window.CHATIC_APP_*` — `shell` 포트는 없다(6단계에서 결정, §6 달라진 점)   |
 | `apps/admin-v2`    | `src/app/config/adapters.ts`                              | `import.meta.env`만 — 셸이 없어 `shell` 포트 자체가 없다(3단계에서 편입 완료, ADR-0079 §미결 5) |
 
 `storage` 포트는 새 타입을 만들지 않고 [`StorageAdapter`](../../shared/src/utils/storage.ts)의
@@ -627,17 +629,103 @@ debugSettingsStore 통합 보류"와 같은 이유다.
 **마지막에 붙인다.** 되돌릴 수단이 없기 때문이다 — push로만 배포되고 수동 배포·원복 경로가 없으며,
 리포 CI에 테스트 워크플로 자체가 없다(빌드 워크플로만 둘).
 
-- [ ] `apps/desktop-web/src/app/config/adapters.ts` — `import.meta.env` + Electron preload 주입
-- [ ] `import.meta.env` 직독 7파일 이관 (`VITE_ENV` · `VITE_DESKTOP_PROTOCOL`)
-- [ ] `CHATIC_APP_*` 직독 2파일 이관
-- [ ] `useNotificationPrefsStore` 1파일 이관 (`features/settings/hooks/useDevicePushMute.ts`) — 5단계에서
+- [x] `apps/desktop-web/src/app/config/adapters.ts` — `import.meta.env` 배선은 3단계에서 이미 끝났다.
+      **Electron preload `shell` 포트는 배선하지 않는다** (아래 달라진 점 4)
+- [x] `import.meta.env` 직독 이관 — **7파일이 아니라 1파일**(`features/auth/utils/oauth.ts`,
+      `VITE_ENV` · `VITE_DESKTOP_PROTOCOL` · `VITE_SOCIAL_OAUTH_ENDPOINT` 3종)
+- [x] `CHATIC_APP_*` 직독 — **이관하지 않는다**(아래 달라진 점 2). 2파일 모두 손대지 않았다
+- [x] `useNotificationPrefsStore` 1파일 이관 (`features/settings/hooks/useDevicePushMute.ts`) — 5단계에서
       정정: desktop-web은 `usePreferenceStore`를 쓴 적이 없다(주석의 착오였다), 이건 desktop-web
-      자신의 별개 알림 설정 스토어다
-- [ ] `main.tsx`의 web-config 주석 정정 (코드 변경 없음)
+      자신의 별개 알림 설정 스토어다. `pushMuted`만 `ui.pushMuted`로 옮기고 죽은 필드·액션은 삭제
+- [x] `main.tsx`의 web-config 주석 — **정정할 것이 없었다**(아래 달라진 점 3). 코드·주석 모두 무변경
+- [x] **계획에 없던 항목**: `pushMuted` 레거시 저장값 승계 —
+      `config/legacyNotificationPrefsMigration.ts` 신설 + 테스트 9건(아래 달라진 점 7)
 
-**검증**: `tsc -b`로 desktop-web 타입체크 — **선재 부채 19건이 있으므로 기준선을 먼저 기록하고 늘지
-않았는지만 본다.** 자동 테스트가 없으므로 수동 확인이 유일한 방어선이다: 부팅 · 로그인 · 채널 진입 ·
-설정 화면의 푸시 음소거 토글 · 딥링크 한 번.
+**검증**: `apps/desktop-web` 안에서 `npx tsc --noEmit -p tsconfig.app.json` **17건 → 17건**(선재
+부채, 기준선 불변 — 3단계 19건에서 자연 감소한 값이 4·5단계 내내 유지됐다. 이관 직후 18건이던
+신규 1건은 달라진 점 6에서 해소) · `npx vitest run` **32파일 218테스트 전부 통과**(신규 14건 =
+`useDevicePushMute.spec.tsx` 5 + `legacyNotificationPrefsMigration.spec.ts` 9. 전수 실행이
+`useNotificationPrefsStore` 필드 삭제와 `OAUTH_DEEPLINK_PREFIX` export 제거의 소비자 부재를
+확인해 준다) · `libs/config` 99/99 · `tsc -b tsconfig.lib.json` 클린 · 변경·신규 전 파일 eslint 클린.
+**vitest는 반드시 `apps/desktop-web` 디렉토리 안에서 돌린다** — 워크스페이스 루트에서 돌리면 jsdom
+environment가 안 잡혀 `window is not defined`로 전부 실패한다.
+
+자동 테스트가 커버하지 못하는 수동 확인은 여전히 남아 있다: 부팅 · 로그인 · 채널 진입 · 설정 화면의
+푸시 음소거 토글 · 딥링크 한 번.
+
+**스펙과 달라진 점 (2026-09-09, 6단계)**
+
+1. **`import.meta.env` "7파일"은 실제 이관 대상 1파일이었다.** 나머지 6파일
+   (`routes.tsx` · `PlaceRail.tsx` · `HomePage.tsx` · `InviteLoginPage.tsx` · `WelcomePage.tsx` ·
+   `DebugPanel.tsx`)이 읽는 것은 `import.meta.env.DEV` 하나뿐이다 — Vite가 빌드 시점에 상수로
+   인라인하는 **빌드 모드 플래그**이고, 런타임 env 변수가 아니라 레지스트리에 대응하는 키 자체가
+   없다. `apps/web`도 이관 완료 후 `import.meta.env.DEV`를 그대로 직독한다
+   (`utils/webVitals.ts` · `main.tsx`의 `attachConsoleListener`/`keepDebug`) — 이미 확립된
+   선례였다. 원래 카운트는 identifier grep 히트 수를 그대로 옮겨 적은 것이다.
+2. **`CHATIC_APP_PLATFORM`/`STAGE`/`INSTALLATION_ID`는 이관하지 않는다** —
+   `shared/hooks/useDeviceTokenRegistration.ts`는 3필드 전부 그대로 두고 파일을 손대지 않았고,
+   `useDevicePushMute.ts`도 `isSupported`의 `window.CHATIC_APP_PLATFORM` 직독을 남겼다. 세 가지
+   근거가 같은 방향을 가리킨다:
+    - **선례.** 5단계에서 이관을 끝낸 `apps/web` 자신의 `useDevicePushMute.ts`와
+      `bridge/useDeviceTokenRegistration.ts`도 `window.CHATIC_APP_PLATFORM`을 직독한다 —
+      "브릿지 신원·기기 식별 값은 레지스트리가 아니다"가 이미 서 있었다.
+    - **이관하면 값이 실제로 틀려진다.** `createWebEnvAdapter`의 `stage()`는 주입값을
+      `'local'|'stage'|'prod'` 세 토큰만 인식해 대문자로 정규화하는데, Electron preload
+      (`apps/desktop/src/main/index.ts`)는 `--chatic-stage=dev|prod`를 주입한다 — `'dev'`는 어느
+      토큰에도 안 걸려 `buildStage()`로 조용히 폴백한다. 그 어휘 결함을 고쳐도
+      `useDeviceTokenRegistration.ts`가 푸시 브로커에 넘기는 값은 브로커가 기대하는 **소문자**
+      (`'dev'`/`'prod'`)여야 하는데 `env.stage`는 대문자만 낸다. 범위 문제가 아니라 외부 계약
+      어휘가 깨지는 **안전성** 문제다.
+    - **`Platform` union에 `'desktop'`이 없다** — 그런데 이건 이 lib의 사본이 어긋난 게 아니다.
+      `libs/config`의 `types.ts`(`'ios'|'android'|'windows'|'macos'|'web'`)는 원본인
+      `@chatic/app-messages`의 `types/model/common.ts`와 **글자까지 같다** — 즉 gap은 공유 브릿지
+      계약 자체에 있고, preload가 주입하는 `CHATIC_APP_PLATFORM:'desktop'`이 그 계약 밖의 값이다
+      (`Env`도 마찬가지로 `'local'|'stage'|'prod'`가 원본과 같다 — 위 STAGE 결함의 뿌리).
+      PLATFORM 필드는 변환 없는 순수 통과라 이관해도 값이 깨지진 않지만, 이관 자체를 안 하기로
+      하면서 이 gap도 건드리지 않았다 — **발견만 기록.** 함께 계획했던 `env.installationId`
+      신설(`env.deviceModel` 패턴 재사용)도 철회했다.
+      곁가지 발견 하나 더: `types.ts`의 독블록은 사본을 정당화하며 "앱 쪽 테스트가 두 집합이 같은지
+      단정한다"고 적었는데 **그런 테스트는 리포에 없다**(6단계에서 전수 검색). 지금은 두 집합이 실제로
+      같으니 무해하지만, 독블록이 근거로 든 방어선은 존재하지 않는다.
+3. **`main.tsx`의 web-config 주석은 stale이 아니었다.** 5단계 인계 메모가 "2곳 정정 필요"로
+   적어 뒀지만 직접 읽어 보니 두 주석 모두 "무엇을 대체했는지" 설명하는 정확한 역사적 코멘트이고,
+   다른 파일들의 확립된 서술 관례와 같다. **편집하지 않았다.**
+4. **Electron preload `shell` 포트는 배선하지 않는다.** desktop-web에 `persist:'shell'` 키
+   소비자가 **0개**다 — 이 앱의 config 소비는 `ui.pushMuted`(`persist:'local'`)와 `net.*`/`feature.*`
+   (`persist:'none'`) 뿐이다. 4단계가 `FetchConfigBag`을 만들지 않은 것과 같은 기준 —
+   **부를 곳 없는 메시지 타입과 핸들러를 미리 만들지 않는다** — 이고, 상대편이 원복 수단 없는
+   `apps/desktop`이라 근거 없이 손댈 곳이 아니다. 결과적으로 desktop-web의 `adapters.ts`는
+   `admin-v2`·`testbed`와 **모양이 같다**(env + storage만). 5단계가 `storageFor('shell')`을 `local`
+   거울에도 쓰도록 고쳐 뒀으므로, 훗날 `persist:'shell'` 키가 desktop-web에 붙어도 조용히
+   사라지는 게 아니라 로컬에 남는다.
+5. **`net.deeplink.desktopProtocol`에 `envDefaultKey`가 빠져 있었다.** 스펙 표(§키 목록)는 처음부터
+   `VITE_DESKTOP_PROTOCOL`을 적어 뒀는데 2단계 선언에 그 줄이 없었다 — `oauth.ts` 이관의 전제조건이라
+   이번에 추가했다. 이 키의 소비자는 `oauth.ts` 하나뿐이고 어느 `.env*` 파일도 이 변수를 정의하지
+   않으므로(배포 환경에서만 주입) 다른 앱에 파급이 없다.
+6. **`oauth.ts`는 모듈 스코프가 아니라 호출 시점에 읽는다.** 이관 직후에는 옛 `import.meta.env`
+   코드 모양을 그대로 따라 모듈 최상단 상수로 뒀는데, `config.get()`은 `config.init()` 전에는
+   `undefined`를 답한다(`resolver`가 아직 없다). 그 상태에서 `?? 'chatic'` 폴백이 걸리면 dev 빌드가
+   **PROD 채널 앱으로 딥링크를 넘기는** — 이 스킴이 존재하는 이유와 정확히 반대인 — 조용한 오작동이
+   된다. 지금은 `apps/web`의 `logUploadSwitch.ts`가 문서화한 "매 호출마다 새로 읽는다" 관례를 그대로
+   따른다. 소비자가 없던 `OAUTH_DEEPLINK_PREFIX` export는 함께 없앴다(리포 전체 grep 0건).
+   같은 정리로 `isSocialLoginEnabled`의 반환 타입 오류(`boolean | undefined`)도 `logUploadSwitch`의
+   비교 관례(`!== false`)로 맞췄다 — `config.get<T>()`의 계약은 `T | undefined`다.
+7. **`pushMuted`의 레거시 저장값 승계를 새로 만들었다 — 계획에 없던 항목.** 아래 리스크 표는 "레거시
+   저장값 승계 실패"를 5단계에서 해소로 넘겼지만, 그건 `apps/web`의 `usePreferenceStore` 플랫 키
+   8개에 대한 것이었다. desktop-web의 옛 값은 **다른 스토어의 다른 저장 형태**에 있다 —
+   `useNotificationPrefsStore`의 zustand-persist 봉투(`chatic-notification-prefs`) **안쪽 필드**다.
+   그대로 두면 음소거해 둔 사용자가 배포 후 해제 상태로 보이고, `useDevicePushMute`에는 조회
+   엔드포인트가 없어(자기 쓰기의 echo로만 동기화) 스위치를 두 번 눌러야 서버와 다시 맞는다.
+   `apps/web`의 `legacyPreferenceMigration.ts`와 달리 **키를 지우는 게 아니라 필드만 떼어낸다** —
+   같은 봉투에 이 앱이 계속 쓰는 설정 5개(`desktopEnabled`·`mutedChannels`·`channelNotify`·
+   `snoozeUntil`·`quietHours`)가 살아 있다. 떼어내는 것이 재실행 종료 조건이면서 **부활 방지**이기도
+   하다: zustand persist는 하이드레이션 때 모르는 필드도 스토어에 병합하므로, 남겨 두면 스토어의
+   다음 쓰기에 다시 저장돼 필드보다 오래 살아남는다.
+
+**How to apply(반복 교훈, 일곱 번째)**: 리스크 표의 "해소"는 **그 항목을 해소한 앱에 대해서만**
+해소다. 5단계가 "레거시 저장값 승계"를 닫은 건 `apps/web`의 저장 형태였고, 같은 이름의 리스크가
+desktop-web에서는 다른 스토어·다른 봉투 모양으로 그대로 열려 있었다. 새 앱을 같은 트랙에 편입할
+때 리스크 표를 앱별로 다시 읽을 것.
 
 ### 7. 기기 상태 로그
 
@@ -649,15 +737,15 @@ debugSettingsStore 통합 보류"와 같은 이유다.
 
 ## 리스크와 미지수
 
-| 리스크                                                | 크기 | 대응                                                                                                                                                                           |
-| ----------------------------------------------------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| ~~레거시 저장값 승계 실패~~                           | 해소 | 5단계에서 9키 일회성 이관 + `vite-ui-theme` 영구 미러링 구현·테스트 완료(가짜 스토리지 재현)                                                                                   |
-| `appliesAt` 84개가 실제 소비와 어긋남                 | 큼   | 기본값 `restart`. `live`는 구독 소비자를 지목해 증명                                                                                                                           |
-| 부팅 순서 깨짐 (`main.tsx` 계약)                      | 큼   | 3단계에서 순서를 명시 호출로 만들고 게스트 부팅 수동 확인                                                                                                                      |
-| ~~구 셸 폴백이 5키뿐이라 내구성 키가 조용히 안 남음~~ | 해소 | 4단계에서 목록화 완료 — 폴백 대상은 `ui.*` 4키뿐이고 나머지 5키(`system.remote.enabled`·`debug.mockService.*`·`debug.overlay.*`)는 이번에 신설된 키라 잃을 기존 값 자체가 없다 |
-| `tsc -b` / `dist` 유령 에러                           | 중   | lib 이동 후 `dist`·`out-tsc` 강제 삭제로 진단                                                                                                                                  |
-| 워크트리 `node_modules` 부재·심링크 함정              | 중   | `rm node_modules/node_modules` 먼저, 그다음 `rm -rf node_modules`. `apps/mobile`은 4단계 기준 `@nx/react-native` 자체가 없어 앱 레벨 `tsc`가 막힘 — 아직 미해결                |
-| ~~`admin-v2` 편입 여부 미정~~                         | 해소 | ADR-0079 §미결 5 참조 — 4단계에서 자동 해소                                                                                                                                    |
+| 리스크                                                | 크기 | 대응                                                                                                                                                                                     |
+| ----------------------------------------------------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ~~레거시 저장값 승계 실패~~                           | 해소 | 5단계에서 `apps/web` 9키 일회성 이관 + `vite-ui-theme` 영구 미러링 구현·테스트 완료(가짜 스토리지 재현). desktop-web은 저장 형태가 달라 6단계에서 별도로 닫았다(§6 달라진 점 7)          |
+| `appliesAt` 84개가 실제 소비와 어긋남                 | 큼   | 기본값 `restart`. `live`는 구독 소비자를 지목해 증명                                                                                                                                     |
+| 부팅 순서 깨짐 (`main.tsx` 계약)                      | 큼   | 3단계에서 순서를 명시 호출로 만들고 게스트 부팅 수동 확인. 6단계에서 두 번째 형태를 발견 — **소비자의 모듈 스코프 `config.get()`**도 같은 위험이다(§6 달라진 점 6). 소비 지점에서 읽어라 |
+| ~~구 셸 폴백이 5키뿐이라 내구성 키가 조용히 안 남음~~ | 해소 | 4단계에서 목록화 완료 — 폴백 대상은 `ui.*` 4키뿐이고 나머지 5키(`system.remote.enabled`·`debug.mockService.*`·`debug.overlay.*`)는 이번에 신설된 키라 잃을 기존 값 자체가 없다           |
+| `tsc -b` / `dist` 유령 에러                           | 중   | lib 이동 후 `dist`·`out-tsc` 강제 삭제로 진단                                                                                                                                            |
+| 워크트리 `node_modules` 부재·심링크 함정              | 중   | `rm node_modules/node_modules` 먼저, 그다음 `rm -rf node_modules`. `apps/mobile`은 4단계 기준 `@nx/react-native` 자체가 없어 앱 레벨 `tsc`가 막힘 — 아직 미해결                          |
+| ~~`admin-v2` 편입 여부 미정~~                         | 해소 | ADR-0079 §미결 5 참조 — 4단계에서 자동 해소                                                                                                                                              |
 
 **미지수**
 

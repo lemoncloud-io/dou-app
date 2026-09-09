@@ -96,7 +96,7 @@ ADR-0079 결정 14.
 | `net.admin.backend`            | string | `VITE_BACKEND_ENDPOINT`              | `[]`        | none    | admin-v2 전용                          |
 | `net.policy.baseUrl`           | string | `byStage`                            | `[]`        | none    | `POLICY_BASE_URL` 삼항 승격            |
 | `net.deeplink.scheme`          | string | `'chatic'` / `DEV:'chatic-dev'`      | `[]`        | none    | 모바일 2파일에 같은 삼항 중복          |
-| `net.deeplink.desktopProtocol` | string | `VITE_DESKTOP_PROTOCOL` (`'chatic'`) | `[]`        | none    | desktop-web `oauth.ts:15`              |
+| `net.deeplink.desktopProtocol` | string | `VITE_DESKTOP_PROTOCOL` (`'chatic'`) | `[]`        | none    | desktop-web `oauth.ts:21`              |
 
 **엔드포인트에 `'server'`가 없다** — ADR-0079 결정 10. 원격 컨피그가 백엔드 주소를 갈아치우는 수단이 되면
 안 된다. 오버라이드 가능한 두 개가 `session`인 것은 현행 `env.ts`가 이미 근거를 적어둔 결정을 그대로
@@ -195,7 +195,7 @@ _쓰기 레인 개방_(셸 영구). 지금도 각각 `debugSettings`(session)와
 | `feature.auth.phoneLogin`        | boolean | `false` / `LOCAL,DEV:true` | `['shell','local','server']` | `LoginPage.tsx:37`                               |
 | `feature.auth.phoneDevSwitches`  | boolean | `false` / `LOCAL,DEV:true` | `['shell','local']`          | `usePhoneVerify.ts:521`                          |
 | `feature.auth.lenientVerifyCode` | boolean | `false` / `LOCAL,DEV:true` | `['shell','local']`          | `VerificationCodeInput.tsx:21`                   |
-| `feature.auth.socialLogin`       | boolean | `true` / `PROD:false`      | `['shell','local','server']` | desktop-web `oauth.ts:24`                        |
+| `feature.auth.socialLogin`       | boolean | `true` / `PROD:false`      | `['shell','local','server']` | desktop-web `oauth.ts:29`                        |
 | `feature.subscription.dryRun`    | boolean | `false` / `LOCAL,DEV:true` | `['shell','local']`          | `useAddCloud.ts:53` · `useVerifyEmailCode.ts:42` |
 | `feature.limits.enforced`        | boolean | `true` / `LOCAL,DEV:false` | `['shell','local','server']` | `HomePage.tsx:284,301`의 `!isDevBuild()`         |
 
