@@ -17,7 +17,7 @@ interface PlaceProfileEditDialogProps {
  * Full-screen overlay to EDIT the per-place profile (nick + optional photo) for the active place.
  * Opened from the home header dropdown. Thin wrapper over {@link PlaceProfileFormDialog} — seeds the
  * current profile from {@link useMyProfile} and supplies edit-specific copy. Persists via
- * ProfileRepositoryV2.setMyProfile.
+ * ProfileRepository.setMyProfile.
  */
 export const PlaceProfileEditDialog = ({ open, placeName, onClose }: PlaceProfileEditDialogProps) => {
     const { t } = useTranslation();

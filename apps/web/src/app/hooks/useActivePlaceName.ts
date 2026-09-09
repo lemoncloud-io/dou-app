@@ -6,7 +6,7 @@ import { runtime } from '@chatic/app-runtime';
 import { type PlaceNameSource, resolvePlaceDisplayName } from '../utils/resolvePlaceDisplayName';
 
 /**
- * Display name of the ACTIVE place (site), observed from PlaceRepositoryV2 by the
+ * Display name of the ACTIVE place (site), observed from PlaceRepository by the
  * selected site id. Used to label per-place UIs (e.g. the profile dialog titles)
  * outside the home rail without pulling in home-feature hooks.
  *

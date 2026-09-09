@@ -154,7 +154,7 @@ const mergeCachedAndRemoteInvites = (cached: RelayInviteRow[], remote: MyInviteV
 /**
  * The inviter's own invite cards (`invite.list`), newest first.
  *
- * Read through `InviteRepositoryV2` like every other data access (ADR-0036) — the repository is an
+ * Read through `InviteRepository` like every other data access (ADR-0036) — the repository is an
  * access surface, not a cache obligation, so each call still goes straight to the relay-pinned
  * gateway behind it.
  *

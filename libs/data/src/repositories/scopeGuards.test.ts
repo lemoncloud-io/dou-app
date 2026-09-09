@@ -1,7 +1,7 @@
 import { isCidActive, isForeignContext } from './scopeGuards';
 
 // 인라인 6곳을 함수로 바꾸는 교체라, 각 위치의 스킵/통과 케이스를 1:1로 보존하는 표를 먼저 못박는다
-// (설계문서 §검증 방법 — 특히 ChannelRepositoryV2:326의 부정 반전).
+// (설계문서 §검증 방법 — 특히 ChannelRepository:326의 부정 반전).
 describe('isForeignContext', () => {
     it.each`
         cid          | socketCid    | expected | why
@@ -16,7 +16,7 @@ describe('isForeignContext', () => {
         expect(isForeignContext({ cid, socketCid })).toBe(expected);
     });
 
-    it('ChannelRepositoryV2.getSelfChannel의 부정 반전과 일치한다 — 쓰기 조건은 !isForeignContext', () => {
+    it('ChannelRepository.getSelfChannel의 부정 반전과 일치한다 — 쓰기 조건은 !isForeignContext', () => {
         // 원본: `socketCid == null || (cid || 'default') === socketCid` 일 때 캐시 쓰기
         const shouldWrite = (cid?: string, socketCid?: string) => !isForeignContext({ cid, socketCid });
 

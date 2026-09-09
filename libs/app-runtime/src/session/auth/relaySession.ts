@@ -2,7 +2,7 @@ import { logger } from '@chatic/bridges';
 import type { OAuthLoginProvider } from '@chatic/app-messages';
 import type { UserTokenView } from '@lemoncloud/chatic-backend-api';
 import type { VerifyNativeTokenBody } from '@lemoncloud/chatic-backend-api/dist/modules/auth/oauth2/oauth2-types';
-import type { IAuthRepositoryV2 } from '@chatic/data';
+import type { IAuthRepository } from '@chatic/data';
 
 import { clearRelayTransportOverrides, LANGUAGE_KEY } from '@chatic/web-config';
 
@@ -41,7 +41,7 @@ export interface LogoutOptions {
  *
  * Every HTTP call here goes through `data`, not through a gateway. `session/auth` used to hold the
  * `OAuthHttpGateway` itself — the last place outside `data` that talked to a gateway directly. It now
- * reaches the same actions through `AuthRepositoryV2`, so there is exactly one path from this runtime
+ * reaches the same actions through `AuthRepository`, so there is exactly one path from this runtime
  * to an HTTP gateway and it runs through the data layer (ADR-0036 gateway 예외 폐지 · ADR-0070 결정 5).
  * What did NOT change is who owns session material: the repository performs the calls and never
  * interprets what comes back. Installing a token stays this class's job alone.
@@ -54,7 +54,7 @@ export interface IRelaySession {
     /** Creates a guest session from a device id. The only path that sets `delegatorId`. */
     loginGuestByDevice(deviceId: string): Promise<UserTokenView>;
     /** Logs in with a credential payload. */
-    loginUser(params: { body: Parameters<IAuthRepositoryV2['login']>[0]; email?: boolean }): Promise<UserTokenView>;
+    loginUser(params: { body: Parameters<IAuthRepository['login']>[0]; email?: boolean }): Promise<UserTokenView>;
     /** Exchanges an OAuth authorization code for a session. */
     loginByOAuthCode(provider: string, code: string): Promise<UserTokenView>;
     /** Promotes the active session with a verified native social token. */
@@ -86,7 +86,7 @@ class RelaySession implements IRelaySession {
      * same env value); the difference only shows in a deeplinked dev/QA session, where honoring the
      * override is the point.
      */
-    private get repository(): IAuthRepositoryV2 {
+    private get repository(): IAuthRepository {
         return getRepositories().auth;
     }
 
@@ -177,7 +177,7 @@ class RelaySession implements IRelaySession {
         body,
         email,
     }: {
-        body: Parameters<IAuthRepositoryV2['login']>[0];
+        body: Parameters<IAuthRepository['login']>[0];
         email?: boolean;
     }): Promise<UserTokenView> {
         return await this.apply(await this.repository.login(body, email));

@@ -7,7 +7,7 @@ import { runtime } from '@chatic/app-runtime';
  *
  * The relay catalog (`useCloudSessionCatalog`) is the list source for owned/subscription clouds, but
  * its name can lag a just-applied edit: `cloud.update` (and `cloud.get`) write the fresh name into
- * the local cloud cache first — see `CloudRepositoryV2`. Callers overlay this map on top of the
+ * the local cloud cache first — see `CloudRepository`. Callers overlay this map on top of the
  * catalog so the cached name wins, keeping the displayed cloud name in sync immediately after an
  * edit — without waiting for a relay refetch.
  */

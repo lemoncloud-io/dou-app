@@ -11,7 +11,7 @@ import type { CacheMetricsSnapshot, ICacheMetricsSource } from '@chatic/data';
  *
  * 두 가지를 따로 봅니다 — **한 번이 느린 것**과 **횟수가 많은 것**은 처방이 다릅니다. 전자는
  * 저장소 문제라 캐시 계층에서 풀어야 하고, 후자는 옵저버가 emit마다 저장소를 다시 읽는
- * 구조(`BaseLocalDataSourceV2`의 `callback(await query())`) 문제라 그쪽을 고쳐야 합니다.
+ * 구조(`BaseLocalDataSource`의 `callback(await query())`) 문제라 그쪽을 고쳐야 합니다.
  */
 export type NativeCacheOperation =
     | 'save'

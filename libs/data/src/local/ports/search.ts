@@ -11,7 +11,7 @@ export interface GlobalCacheSearchQuery {
 
 /**
  * Global cache search result, grouped by domain. `sites` holds place data — the 'site'
- * cache slot is shared by Place and Site (see PlaceLocalDataSourceV2.ts).
+ * cache slot is shared by Place and Site (see PlaceLocalDataSource.ts).
  */
 export interface GlobalCacheSearchResult {
     channels: CacheChannelView[];
@@ -31,7 +31,7 @@ export interface GlobalCacheRef {
  *
  * Repositories cannot answer this — `cacheRead` ignores the context override and `cacheReadList`
  * applies it to sid filtering only, so the existing override is a sid override, not a cid one
- * (ChannelLocalDataSourceV2.ts:39,53). Hence it lives on the search source, next to the only
+ * (ChannelLocalDataSource.ts:39,53). Hence it lives on the search source, next to the only
  * other cross-cloud reader in the codebase.
  */
 export interface GlobalCacheContextQuery {

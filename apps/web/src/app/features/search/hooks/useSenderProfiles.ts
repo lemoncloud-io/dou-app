@@ -12,7 +12,7 @@ export interface SenderProfileRef {
     userId: string;
 }
 
-/** Profile ids are `${sid}@${uid}` (ProfileRepositoryV2.makeProfileId). */
+/** Profile ids are `${sid}@${uid}` (ProfileRepository.makeProfileId). */
 const profileId = (sid: string, userId: string) => `${sid}@${userId}`;
 
 /** The member id a cached row carries — `uid` and `userId` are both the subject on a profile row. */
@@ -21,7 +21,7 @@ const memberIdOf = (profile: DomainProfile) => profile.userId || profile.uid;
 /**
  * Display profiles (nick + photo) for the authors of chat search results, keyed `${sid}@${uid}`.
  *
- * Goes through `ProfileRepositoryV2`, not the cache-only search source: a profile sync is registered
+ * Goes through `ProfileRepository`, not the cache-only search source: a profile sync is registered
  * per member only while its room is open (useChannelProfiles), so a search result from a room the
  * user hasn't opened has nothing cached and its author would stay nameless. The repository observes
  * the cache for what is already there and `refreshItem` fetches the rest, writing it back.

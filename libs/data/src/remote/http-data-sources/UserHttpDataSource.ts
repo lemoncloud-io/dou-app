@@ -7,7 +7,7 @@ import type { UserHttpDomainGateway } from '../gateways';
 import { toDomainUserFromHttp } from './httpUserMapping';
 
 /**
- * Split out from `IUserHttpDataSource` so `DeviceRepositoryV2` can take exactly the surface it
+ * Split out from `IUserHttpDataSource` so `DeviceRepository` can take exactly the surface it
  * uses (ADR-0070 결정 5 규율 2 — consumer takes only the interface it needs), same shape as
  * `AuthHttpDataSource`/`DeviceSocketDataSource` on the socket side.
  */

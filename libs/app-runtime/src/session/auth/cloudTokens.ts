@@ -5,7 +5,7 @@ import { logger } from '@chatic/bridges';
 import { getRepositories } from '../../data/runtime';
 import { cloudStore } from '../store/stores';
 import { rebuildSessionIdentity, sessionSignal } from '../store';
-import type { IAuthRepositoryV2 } from '@chatic/data';
+import type { IAuthRepository } from '@chatic/data';
 
 /**
  * Cloud token ISSUANCE — deliberately off the session barrel (like `auth/authActions`).
@@ -24,7 +24,7 @@ import type { IAuthRepositoryV2 } from '@chatic/data';
  *    about to lapse. Never replays the cache (that is where the lapsing copy lives) and never touches
  *    the selection: the user has not navigated anywhere.
  */
-const authRepository = (): IAuthRepositoryV2 => getRepositories().auth;
+const authRepository = (): IAuthRepository => getRepositories().auth;
 
 export interface IssuedCloudTokens {
     delegationToken: CloudDelegationTokenView;

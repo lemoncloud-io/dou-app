@@ -28,7 +28,7 @@ export interface ICloudHttpDataSource {
 /**
  * Cloud catalog HTTP source. View → domain mapping is the single boundary here, same as the socket
  * `CloudSocketDataSource`. **No local cache write** — the catalog list mixes invited and owned
- * clouds, and `CloudRepositoryV2.resolveCloudType` would default every new entry to `'owner'`,
+ * clouds, and `CloudRepository.resolveCloudType` would default every new entry to `'owner'`,
  * mislabeling invited clouds. React-query owns this read's cache (ADR-0070 결정 5 원칙 6).
  */
 export class CloudHttpDataSource implements ICloudHttpDataSource {

@@ -11,7 +11,7 @@ import App from './app/app';
 // Nothing above may read the session; nothing here touches the network.
 //
 // The cache cap rides along. Desktop stays open for days, so an unbounded chat cache grows without
-// end. 1000 per channel is twenty load-more pages of scrollback (ChatLocalDataSourceV2 reads 50,
+// end. 1000 per channel is twenty load-more pages of scrollback (ChatLocalDataSource reads 50,
 // useChats LOAD_MORE_SIZE is 50); evicted history comes back from the server via
 // refreshList(cursorNo).
 //

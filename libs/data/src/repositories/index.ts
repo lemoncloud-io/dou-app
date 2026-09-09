@@ -1,94 +1,94 @@
-import type { LocalDataSourcesV2 } from '../local/data-sources';
+import type { LocalDataSources } from '../local/data-sources';
 import type { SocketDataSources } from '../remote/socket-data-sources';
 import type { HttpDataSources } from '../remote/http-data-sources';
-import { AuthRepositoryV2, type IAuthRepositoryV2 } from './AuthRepositoryV2';
-import { ChannelRepositoryV2, type IChannelRepositoryV2 } from './ChannelRepositoryV2';
-import { ChatRepositoryV2, type IChatRepositoryV2 } from './ChatRepositoryV2';
-import { CloudRepositoryV2, type ICloudRepositoryV2 } from './CloudRepositoryV2';
-import { DeviceRepositoryV2, type IDeviceRepositoryV2 } from './DeviceRepositoryV2';
-import { InviteRepositoryV2, type IInviteRepositoryV2 } from './InviteRepositoryV2';
-import { JoinRepositoryV2, type IJoinRepositoryV2 } from './JoinRepositoryV2';
-import { ProfileRepositoryV2, type IProfileRepositoryV2 } from './ProfileRepositoryV2';
-import { ReportRepositoryV2, type IReportRepositoryV2 } from './ReportRepositoryV2';
-import { PlaceRepositoryV2, type IPlaceRepositoryV2 } from './PlaceRepositoryV2';
-import { SubscriptionRepositoryV2, type ISubscriptionRepositoryV2 } from './SubscriptionRepositoryV2';
-import { SyncMetaRepositoryV2, type ISyncMetaRepositoryV2 } from './SyncMetaRepositoryV2';
-import { UserRepositoryV2, type IUserRepositoryV2, type UserRepositoryV2Options } from './UserRepositoryV2';
+import { AuthRepository, type IAuthRepository } from './AuthRepository';
+import { ChannelRepository, type IChannelRepository } from './ChannelRepository';
+import { ChatRepository, type IChatRepository } from './ChatRepository';
+import { CloudRepository, type ICloudRepository } from './CloudRepository';
+import { DeviceRepository, type IDeviceRepository } from './DeviceRepository';
+import { InviteRepository, type IInviteRepository } from './InviteRepository';
+import { JoinRepository, type IJoinRepository } from './JoinRepository';
+import { ProfileRepository, type IProfileRepository } from './ProfileRepository';
+import { ReportRepository, type IReportRepository } from './ReportRepository';
+import { PlaceRepository, type IPlaceRepository } from './PlaceRepository';
+import { SubscriptionRepository, type ISubscriptionRepository } from './SubscriptionRepository';
+import { SyncMetaRepository, type ISyncMetaRepository } from './SyncMetaRepository';
+import { UserRepository, type IUserRepository, type UserRepositoryOptions } from './UserRepository';
 import type { DataContext, DataContextProvider } from './types';
 import { createSnapshotDataContextProvider } from './types';
 
 export * from './types';
-export * from './AuthRepositoryV2';
-export * from './ChannelRepositoryV2';
-export * from './ChatRepositoryV2';
-export * from './CloudRepositoryV2';
-export * from './DeviceRepositoryV2';
-export * from './InviteRepositoryV2';
-export * from './JoinRepositoryV2';
-export * from './ProfileRepositoryV2';
-export * from './ReportRepositoryV2';
-export * from './PlaceRepositoryV2';
-export * from './SubscriptionRepositoryV2';
-export * from './SyncMetaRepositoryV2';
-export * from './UserRepositoryV2';
+export * from './AuthRepository';
+export * from './ChannelRepository';
+export * from './ChatRepository';
+export * from './CloudRepository';
+export * from './DeviceRepository';
+export * from './InviteRepository';
+export * from './JoinRepository';
+export * from './ProfileRepository';
+export * from './ReportRepository';
+export * from './PlaceRepository';
+export * from './SubscriptionRepository';
+export * from './SyncMetaRepository';
+export * from './UserRepository';
 
 /** App-injected repository policies. Every field is optional — omitted means current behavior. */
-export interface DataRepositoriesV2Options {
-    user?: UserRepositoryV2Options;
+export interface DataRepositoriesOptions {
+    user?: UserRepositoryOptions;
 }
 
-export interface DataRepositoriesV2 {
-    auth: IAuthRepositoryV2;
-    channel: IChannelRepositoryV2;
-    chat: IChatRepositoryV2;
-    cloud: ICloudRepositoryV2;
-    device: IDeviceRepositoryV2;
-    invite: IInviteRepositoryV2;
-    join: IJoinRepositoryV2;
-    profile: IProfileRepositoryV2;
-    report: IReportRepositoryV2;
-    place: IPlaceRepositoryV2;
-    subscription: ISubscriptionRepositoryV2;
-    user: IUserRepositoryV2;
-    syncMeta: ISyncMetaRepositoryV2;
-    withContext(context: DataContext): DataRepositoriesV2;
+export interface DataRepositories {
+    auth: IAuthRepository;
+    channel: IChannelRepository;
+    chat: IChatRepository;
+    cloud: ICloudRepository;
+    device: IDeviceRepository;
+    invite: IInviteRepository;
+    join: IJoinRepository;
+    profile: IProfileRepository;
+    report: IReportRepository;
+    place: IPlaceRepository;
+    subscription: ISubscriptionRepository;
+    user: IUserRepository;
+    syncMeta: ISyncMetaRepository;
+    withContext(context: DataContext): DataRepositories;
     dispose(): void;
 }
 
 const buildRepositories = (
     socketDataSources: SocketDataSources,
-    localDataSources: LocalDataSourcesV2,
+    localDataSources: LocalDataSources,
     context: DataContextProvider,
-    options?: DataRepositoriesV2Options,
+    options?: DataRepositoriesOptions,
     httpDataSources?: HttpDataSources
-): Omit<DataRepositoriesV2, 'withContext' | 'dispose'> => {
+): Omit<DataRepositories, 'withContext' | 'dispose'> => {
     return {
         // auth/device take no local data source: they are remote-only access surfaces
         // (session-identity commands, viewing signals) with nothing to cache. `invite` (ADR-0052)
         // is local-first for reads of its own list but still has no cache slot for the other
         // command-shaped calls (create/accept/cancel/reject/get). `subscription` (ADR-0070 2단계
         // 후반) is remote-only too, and HTTP-only — it has no socket data source either.
-        auth: new AuthRepositoryV2(socketDataSources.auth, context, httpDataSources?.auth),
+        auth: new AuthRepository(socketDataSources.auth, context, httpDataSources?.auth),
         // `localDataSources.chat` so a leave can purge the room's messages, not just the channel
         // row — the cache is what the screen renders, so the server's rejoin cursor reset alone
         // changed nothing (ADR-0067).
-        channel: new ChannelRepositoryV2(
+        channel: new ChannelRepository(
             socketDataSources.channel,
             localDataSources.channel,
             localDataSources.chat,
             context
         ),
-        chat: new ChatRepositoryV2(socketDataSources.chat, localDataSources.chat, context),
-        cloud: new CloudRepositoryV2(socketDataSources.cloud, localDataSources.cloud, context, httpDataSources?.cloud),
-        device: new DeviceRepositoryV2(socketDataSources.device, context, httpDataSources?.user),
-        invite: new InviteRepositoryV2(socketDataSources.invite, localDataSources.invite, context),
-        join: new JoinRepositoryV2(socketDataSources.join, localDataSources.join, context),
-        profile: new ProfileRepositoryV2(socketDataSources.profile, localDataSources.profile, context),
+        chat: new ChatRepository(socketDataSources.chat, localDataSources.chat, context),
+        cloud: new CloudRepository(socketDataSources.cloud, localDataSources.cloud, context, httpDataSources?.cloud),
+        device: new DeviceRepository(socketDataSources.device, context, httpDataSources?.user),
+        invite: new InviteRepository(socketDataSources.invite, localDataSources.invite, context),
+        join: new JoinRepository(socketDataSources.join, localDataSources.join, context),
+        profile: new ProfileRepository(socketDataSources.profile, localDataSources.profile, context),
         // Remote-only and HTTP-only like `subscription` — a report has nothing to cache.
-        report: new ReportRepositoryV2(context, httpDataSources?.report),
-        place: new PlaceRepositoryV2(socketDataSources.place, localDataSources.place, context),
-        subscription: new SubscriptionRepositoryV2(context, httpDataSources?.subscription),
-        user: new UserRepositoryV2(
+        report: new ReportRepository(context, httpDataSources?.report),
+        place: new PlaceRepository(socketDataSources.place, localDataSources.place, context),
+        subscription: new SubscriptionRepository(context, httpDataSources?.subscription),
+        user: new UserRepository(
             socketDataSources.user,
             localDataSources.user,
             localDataSources.join,
@@ -97,11 +97,11 @@ const buildRepositories = (
             options?.user,
             httpDataSources?.user
         ),
-        syncMeta: new SyncMetaRepositoryV2(localDataSources.syncMeta, context),
+        syncMeta: new SyncMetaRepository(localDataSources.syncMeta, context),
     };
 };
 
-export const createRepositoriesV2 = ({
+export const createRepositories = ({
     socketDataSources,
     localDataSources,
     context,
@@ -109,19 +109,19 @@ export const createRepositoriesV2 = ({
     httpDataSources,
 }: {
     socketDataSources: SocketDataSources;
-    localDataSources: LocalDataSourcesV2;
+    localDataSources: LocalDataSources;
     context: DataContextProvider;
-    options?: DataRepositoriesV2Options;
+    options?: DataRepositoriesOptions;
     /** Optional through 2단계 — apps that haven't wired `httpFactory` yet omit this and every
      * existing call site stays green (ADR-0070 결정 5, libs/data/docs/http-data-path.md §범위). */
     httpDataSources?: HttpDataSources;
-}): DataRepositoriesV2 => {
+}): DataRepositories => {
     const repositories = buildRepositories(socketDataSources, localDataSources, context, options, httpDataSources);
 
     return {
         ...repositories,
-        withContext(contextSnapshot: DataContext): DataRepositoriesV2 {
-            return createRepositoriesV2({
+        withContext(contextSnapshot: DataContext): DataRepositories {
+            return createRepositories({
                 socketDataSources,
                 localDataSources,
                 context: createSnapshotDataContextProvider(contextSnapshot),

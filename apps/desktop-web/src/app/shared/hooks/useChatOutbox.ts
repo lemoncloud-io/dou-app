@@ -9,7 +9,7 @@ import { runtime } from '@chatic/app-runtime';
  * Desktop opt-in for the engine outbox: messages that failed to send go out on their own once
  * the socket is verified again. `apps/web` never calls this, so it keeps its manual-only UX.
  *
- * **Entries come from a cache SWEEP, not from the send path.** `ChatRepositoryV2.sendChat`
+ * **Entries come from a cache SWEEP, not from the send path.** `ChatRepository.sendChat`
  * rejects with the raw error and never exposes the optimistic row's id, so a rejection hook
  * would have no row to target for the delete-before-resend or the discard. The sweep reads the
  * failed rows back out of the cache, which also recovers messages that failed in a previous app
@@ -232,7 +232,7 @@ export const useChatOutbox = (): void => {
             if (outbox.pending().length) return;
 
             // An empty sid deliberately means "every place in this cloud" — the channel cache is
-            // partitioned by (cid, uid) and ChannelLocalDataSourceV2 skips the place filter when
+            // partitioned by (cid, uid) and ChannelLocalDataSource skips the place filter when
             // no sid resolves. A failed message in a place the user has since left must still go.
             const channels = await channelRepository.cacheReadList({ sid: '' });
             const channelIds = (channels?.list ?? []).map(channel => channel.id).filter((id): id is string => !!id);

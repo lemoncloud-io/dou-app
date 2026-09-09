@@ -9,7 +9,7 @@ export const CHAT_PAGINATION_INDEX = 'chat_pagination_index';
 
 /**
  * `chat_no`가 이 값이면 서버 번호가 아직 없는 행입니다 — 전송 중이거나 실패한 메시지.
- * `ChatLocalDataSourceV2`가 낙관적 전송에 이 값을 쓰고, `mappers.ts`가 서버 `chatNo` 없는 응답을
+ * `ChatLocalDataSource`가 낙관적 전송에 이 값을 쓰고, `mappers.ts`가 서버 `chatNo` 없는 응답을
  * 여기로 강등합니다.
  *
  * `CHAT_PAGINATION_INDEX`의 마지막 키 요소라서 **정렬상 최하위**이고, 그 사실이 두 곳의 동작을

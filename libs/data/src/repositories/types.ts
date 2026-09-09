@@ -55,11 +55,11 @@ export class DataContextHolder implements DataContextProvider {
     }
 }
 
-export interface DisposableRepositoryV2 {
+export interface DisposableRepository {
     dispose(): void;
 }
 
-export abstract class BaseRepositoryV2 {
+export abstract class BaseRepository {
     protected constructor(private readonly context: DataContextProvider) {}
 
     protected getRepositoryContext(): DataContext {
@@ -83,12 +83,12 @@ export abstract class BaseRepositoryV2 {
         if (typeof value === 'string' && value.trim().length > 0) {
             return value;
         }
-        throw new Error(`[RepositoryV2] ${fieldName} is required.`);
+        throw new Error(`[Repository] ${fieldName} is required.`);
     }
 
     /**
      * Teardown hook. Nothing to release at this level today — it stays because
-     * `DisposableRepositoryV2` declares it and the factory tears every
+     * `DisposableRepository` declares it and the factory tears every
      * repository down through it (`repositories/index.ts`), so a subclass
      * that acquires something has a place to release it.
      */

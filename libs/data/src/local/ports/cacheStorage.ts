@@ -29,7 +29,7 @@ export interface CacheStorage<TType extends CacheType> {
      *
      * 선택 구현입니다. `null`은 "이 저장소는 이 조회를 제공하지 못한다"는 뜻으로 — 미구현
      * 어댑터(IndexedDB), 이 메시지를 모르는 구버전 앱, 일시적 네이티브 오류가 전부 여기에
-     * 해당합니다 — 호출자(`ChatLocalDataSourceV2`)가 채널별 윈도우 읽기로 폴백합니다.
+     * 해당합니다 — 호출자(`ChatLocalDataSource`)가 채널별 윈도우 읽기로 폴백합니다.
      * IndexedDB가 구현하지 않는 이유: 폴백 경로가 인프로세스라 왕복 비용이 없어 그게 곧
      * 최선이고, 굳이 판정 로직을 두 벌 두면 의미론만 드리프트합니다.
      *

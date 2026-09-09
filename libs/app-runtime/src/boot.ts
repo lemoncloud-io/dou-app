@@ -11,12 +11,12 @@
 
 export { initAppRuntime } from './init';
 export type { AppRuntimeConfig } from './init';
-// The option types `AppRuntimeConfig.data` is made of. `DataRepositoriesV2Options` lives in
+// The option types `AppRuntimeConfig.data` is made of. `DataRepositoriesOptions` lives in
 // `@chatic/data`, and re-exporting it here is the point of a facade: an app configuring the runtime
 // should not have to import the package the runtime assembles.
 export type { DataRuntimeConfig } from './data/runtime';
 export type { CacheAssemblyOptions } from './data/types';
-export type { DataRepositoriesV2Options } from '@chatic/data';
+export type { DataRepositoriesOptions } from '@chatic/data';
 
 // Env + platform. `ENV`/`PROJECT` come from the sole `import.meta` holder (ADR-0070 결정 6), so the
 // isolation leaf stays a single file and apps still see one package.

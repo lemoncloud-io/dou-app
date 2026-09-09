@@ -3,7 +3,7 @@ import type { DomainProfile } from '@chatic/data';
 
 /**
  * The one repository method this judgement needs. Structural rather than the full
- * `IProfileRepositoryV2` so tests can pass a two-line fake.
+ * `IProfileRepository` so tests can pass a two-line fake.
  */
 export interface MyPlaceProfileReader {
     getMyProfile(): Promise<DomainProfile | null>;

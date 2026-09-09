@@ -4,7 +4,7 @@
 // update already lands on whichever server the socket is connected to.
 //
 // It used to re-issue the active server's site session afterwards "so the session-derived identity
-// reflects the change". That is vestigial: `UserRepositoryV2.updateProfile` writes the user cache
+// reflects the change". That is vestigial: `UserRepository.updateProfile` writes the user cache
 // itself (optimistically, then again from the server response, rolling back on failure), and
 // `useRuntimeProfile` renders name/photo from that cache — it observes `user.observeItem(uid)`
 // precisely so a profile edit fans out. Re-issuing a token changed nothing the UI reads, and it was

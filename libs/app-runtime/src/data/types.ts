@@ -1,8 +1,8 @@
-import type { DataContext, DataRepositoriesV2 } from '@chatic/data';
+import type { DataContext, DataRepositories } from '@chatic/data';
 
 // There is no direct-gateway escape hatch. Every read and write goes through a repository so the
 // access surface stays one shape (ADR-0036); the ADR-0033 carve-out for relay invites and the
-// identity packets is gone — InviteRepositoryV2 / AuthRepositoryV2 front them now, remote-only.
+// identity packets is gone — InviteRepository / AuthRepository front them now, remote-only.
 
 /**
  * `ensure(context)` and `destroy()` are gone. They had already become no-ops when the scope moved to
@@ -11,7 +11,7 @@ import type { DataContext, DataRepositoriesV2 } from '@chatic/data';
  * works. Clearing the SESSION is the logout path's job; the scope follows it.
  */
 export interface IDataManager {
-    getRepositories(): DataRepositoriesV2;
+    getRepositories(): DataRepositories;
     getContext(): DataContext;
 }
 

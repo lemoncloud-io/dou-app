@@ -1,5 +1,5 @@
 import type { CacheStorage } from '../ports';
-import { UserLocalDataSourceV2 } from './UserLocalDataSourceV2';
+import { UserLocalDataSource } from './UserLocalDataSource';
 
 /**
  * 옵저버가 저장소를 몇 번 읽는지에 대한 계약.
@@ -72,7 +72,7 @@ const createContextProvider = (context: Record<string, unknown>) => ({
 describe('observer group sharing', () => {
     it('같은 키의 두 번째 구독자는 저장소를 다시 읽지 않고 그룹의 값을 받는다', async () => {
         const counters: Counters = { loadAll: 0, load: 0 };
-        const dataSource = new UserLocalDataSourceV2(
+        const dataSource = new UserLocalDataSource(
             createContextProvider({ cid: 'c', sid: 's', uid: 'u' }) as any,
             createMemoryStorage(counters)
         );
@@ -102,7 +102,7 @@ describe('observer group sharing', () => {
                 release = resolve;
             }),
         };
-        const dataSource = new UserLocalDataSourceV2(
+        const dataSource = new UserLocalDataSource(
             createContextProvider({ cid: 'c', sid: 's', uid: 'u' }) as any,
             createMemoryStorage(counters, gate)
         );
@@ -125,7 +125,7 @@ describe('observer group sharing', () => {
 
     it('재emit 결과가 그룹에 기억되므로, 그 뒤에 붙는 구독자는 최신 값을 읽기 없이 받는다', async () => {
         const counters: Counters = { loadAll: 0, load: 0 };
-        const dataSource = new UserLocalDataSourceV2(
+        const dataSource = new UserLocalDataSource(
             createContextProvider({ cid: 'c', sid: 's', uid: 'u' }) as any,
             createMemoryStorage(counters)
         );
@@ -150,7 +150,7 @@ describe('observer group sharing', () => {
     // 구독자가 저장소(네이티브: 브릿지 왕복)를 건너뛰고 값을 즉시 받는다.
     it('마지막 구독자가 떠나도 유예 내 재구독은 읽기 없이 값을 즉시 받는다', async () => {
         const counters: Counters = { loadAll: 0, load: 0 };
-        const dataSource = new UserLocalDataSourceV2(
+        const dataSource = new UserLocalDataSource(
             createContextProvider({ cid: 'c', sid: 's', uid: 'u' }) as any,
             createMemoryStorage(counters)
         );
@@ -172,7 +172,7 @@ describe('observer group sharing', () => {
 
     it('유예 중 해당 키에 쓰기가 오면 그룹을 버린다 — 재구독은 새 값을 새로 읽는다', async () => {
         const counters: Counters = { loadAll: 0, load: 0 };
-        const dataSource = new UserLocalDataSourceV2(
+        const dataSource = new UserLocalDataSource(
             createContextProvider({ cid: 'c', sid: 's', uid: 'u' }) as any,
             createMemoryStorage(counters)
         );
@@ -197,7 +197,7 @@ describe('observer group sharing', () => {
 
     it('유예 중 쓰기 flush는 구독자 없는 그룹을 재조회하지 않는다', async () => {
         const counters: Counters = { loadAll: 0, load: 0 };
-        const dataSource = new UserLocalDataSourceV2(
+        const dataSource = new UserLocalDataSource(
             createContextProvider({ cid: 'c', sid: 's', uid: 'u' }) as any,
             createMemoryStorage(counters)
         );
@@ -226,7 +226,7 @@ describe('observer group sharing', () => {
                 if (attempts === 1) throw new Error('bridge timeout');
                 return originalLoadAll(...(args as []));
             };
-            const dataSource = new UserLocalDataSourceV2(
+            const dataSource = new UserLocalDataSource(
                 createContextProvider({ cid: 'c', sid: 's', uid: 'u' }) as any,
                 storage
             );
@@ -252,7 +252,7 @@ describe('observer group sharing', () => {
         jest.useFakeTimers();
         try {
             const counters: Counters = { loadAll: 0, load: 0 };
-            const dataSource = new UserLocalDataSourceV2(
+            const dataSource = new UserLocalDataSource(
                 createContextProvider({ cid: 'c', sid: 's', uid: 'u' }) as any,
                 createMemoryStorage(counters)
             );
@@ -278,7 +278,7 @@ describe('item observer scope isolation', () => {
     it('scope가 다른 같은 id 관찰은 서로 다른 그룹이다 — 남의 클라우드 데이터를 받지 않는다', async () => {
         const counters: Counters = { loadAll: 0, load: 0 };
         const provider = createContextProvider({ cid: 'cloud-a', sid: 's', uid: 'u' });
-        const dataSource = new UserLocalDataSourceV2(provider as any, createMemoryStorage(counters));
+        const dataSource = new UserLocalDataSource(provider as any, createMemoryStorage(counters));
 
         const fromCloudA = jest.fn();
         const fromCloudB = jest.fn();
@@ -295,7 +295,7 @@ describe('item observer scope isolation', () => {
     it('쓰기와 관찰이 같은 scope 키를 만들므로 재emit이 도착한다', async () => {
         const counters: Counters = { loadAll: 0, load: 0 };
         const provider = createContextProvider({ cid: 'cloud-a', sid: 's', uid: 'u' });
-        const dataSource = new UserLocalDataSourceV2(provider as any, createMemoryStorage(counters));
+        const dataSource = new UserLocalDataSource(provider as any, createMemoryStorage(counters));
 
         const observer = jest.fn();
         dataSource.observeItem('u1', observer);
@@ -312,7 +312,7 @@ describe('item observer scope isolation', () => {
     it('다른 scope로 쓴 변경은 이 scope의 아이템 옵저버를 깨우지 않는다', async () => {
         const counters: Counters = { loadAll: 0, load: 0 };
         const provider = createContextProvider({ cid: 'cloud-a', sid: 's', uid: 'u' });
-        const dataSource = new UserLocalDataSourceV2(provider as any, createMemoryStorage(counters));
+        const dataSource = new UserLocalDataSource(provider as any, createMemoryStorage(counters));
 
         const observer = jest.fn();
         dataSource.observeItem('u1', observer, { cid: 'cloud-a' });

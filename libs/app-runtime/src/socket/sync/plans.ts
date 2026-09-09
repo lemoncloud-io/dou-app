@@ -111,7 +111,7 @@ export const createSyncPlans = (getBoundCid: () => string | null): DomainSyncPla
              * `chat.feed` 재조회에서야 수렴한다 — 0.5.1 전에는 그 경로 자체가 없었다.
              *
              * **삭제도 쓰기다.** `hidden: true`가 삭제인데, 행을 지우지 않고 그대로 쓴다 —
-             * `ChatRepositoryV2.deleteChat`이 내가 한 삭제에 대해 이미 그렇게 하고 그 주석이 이유를
+             * `ChatRepository.deleteChat`이 내가 한 삭제에 대해 이미 그렇게 하고 그 주석이 이유를
              * 적어뒀다: 지우면 다음 sync에 행이 되살아나므로, 삭제 메시지를 tombstone으로 그리는
              * 화면이 같은 메시지를 잠깐 없음 → 이후 tombstone으로 두 번 보여준다. 즉 들어온 삭제와
              * 내가 한 삭제가 같은 상태로 수렴한다.
@@ -126,7 +126,7 @@ export const createSyncPlans = (getBoundCid: () => string | null): DomainSyncPla
             },
         }),
         // join은 single-join polling plan. join.get 응답의 updatedAt 변화 시 onUpdate가 호출되며,
-        // read-state sync 소유권은 이 plan이 갖고 local cache 반영은 JoinRepositoryV2가 맡는다.
+        // read-state sync 소유권은 이 plan이 갖고 local cache 반영은 JoinRepository가 맡는다.
         new JoinSyncPlan({
             ...KEEP_SNAPSHOT_ON_RECONNECT,
             onUpdate: (_target, view) => {

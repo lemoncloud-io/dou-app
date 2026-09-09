@@ -13,7 +13,7 @@ import type { RegisterDeviceResult } from '@lemoncloud/chatic-pushes-api';
  * the runtime itself calls it — `push/hooks/useDeviceTokenRegistration.ts` registers the device as part of
  * session/push boot, so it is runtime behavior, not a screen's data read.
  *
- * Still on the gateway rather than the repository: `DeviceRepositoryV2` is the socket lane
+ * Still on the gateway rather than the repository: `DeviceRepository` is the socket lane
  * (`device.sync`/`device.update-remote`) and has no push-token registration action.
  */
 export const useRegisterDeviceTokenMutation = () =>

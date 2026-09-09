@@ -28,7 +28,7 @@ import { useActiveCloudData } from './activeCloudDataContext';
  * `syncChannels` delta (ChannelView carries `$join`/`lastChat$`/`metaNo` inline).
  *
  * Re-subscribe timing: the channel cache is cloud-wide and its observer scope keys by {cid, uid}
- * (sid dropped — see ChannelLocalDataSourceV2.getScopeKey), so an observer keeps matching writes
+ * (sid dropped — see ChannelLocalDataSource.getScopeKey), so an observer keeps matching writes
  * while its captured {cid, uid} equals the active one. Only cloud (cid) and uid switches change that
  * scope — a site switch does NOT, since the cloud-wide read (`{sid: ''}`) returns the same set for
  * every site — so this observer is not keyed on the active sid at all.
@@ -40,7 +40,7 @@ import { useActiveCloudData } from './activeCloudDataContext';
  * provider in an effect that ran AFTER this descendant hook subscribed — can no longer happen through
  * that path: that binder has been deleted. The override still matters
  * because `ActiveScope.getContext()` also folds in the socket's bound cid as `socketCid`, which this
- * cloud-wide observer does not want in its scope key. See PlaceLocalDataSourceV2 reemit-routing tests.
+ * cloud-wide observer does not want in its scope key. See PlaceLocalDataSource reemit-routing tests.
  */
 export const useActiveCloudChannelsSource = (): { channels: DomainChannel[]; isLoaded: boolean } => {
     const { channel } = runtime.data.useRuntimeRepositories();

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { runtime } from '@chatic/app-runtime';
-import type { DataRepositoriesV2, DomainProfile } from '@chatic/data';
+import type { DataRepositories, DomainProfile } from '@chatic/data';
 
 import { Row } from '../../components/Row';
 import { Section } from '../../components/Section';
@@ -9,7 +9,7 @@ import { Section } from '../../components/Section';
 // Edits the current user's site profile (nick/thumbnail) for the active place. Writes via
 // repos.profile.setMyProfile (optimistic cache + profile.set), which uses the live sid/uid.
 export const ProfileEditorScreen = () => {
-    const repos = runtime.data.useRuntimeRepositories() as unknown as DataRepositoriesV2;
+    const repos = runtime.data.useRuntimeRepositories() as unknown as DataRepositories;
     const { activeServer } = runtime.session.useGlobalSession();
     const identity = runtime.session.useSessionIdentity();
     const sid = activeServer.siteId ?? '';

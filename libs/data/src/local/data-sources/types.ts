@@ -3,30 +3,30 @@ import { logger } from '@chatic/bridges';
 import type { DataContext, DataContextProvider } from '../../repositories/types';
 import { stableHash } from '../stableHash';
 
-export type LocalDataSourceV2ContextOverride = Partial<DataContext>;
-export type LocalDataSourceV2Unsubscribe = () => void;
-export type LocalDataSourceV2Callback<T> = (value: T) => void;
+export type LocalDataSourceContextOverride = Partial<DataContext>;
+export type LocalDataSourceUnsubscribe = () => void;
+export type LocalDataSourceCallback<T> = (value: T) => void;
 
-export interface ILocalDataSourceV2<TItem, TListQuery, TListResult> {
-    cacheRead(id: string, contextOverride?: LocalDataSourceV2ContextOverride): Promise<TItem | null>;
-    cacheReadList(query: TListQuery, contextOverride?: LocalDataSourceV2ContextOverride): Promise<TListResult | null>;
+export interface ILocalDataSource<TItem, TListQuery, TListResult> {
+    cacheRead(id: string, contextOverride?: LocalDataSourceContextOverride): Promise<TItem | null>;
+    cacheReadList(query: TListQuery, contextOverride?: LocalDataSourceContextOverride): Promise<TListResult | null>;
 
     observeItem(
         id: string,
-        callback: LocalDataSourceV2Callback<TItem | null>,
-        contextOverride?: LocalDataSourceV2ContextOverride
-    ): LocalDataSourceV2Unsubscribe;
+        callback: LocalDataSourceCallback<TItem | null>,
+        contextOverride?: LocalDataSourceContextOverride
+    ): LocalDataSourceUnsubscribe;
     observeList(
         query: TListQuery,
-        callback: LocalDataSourceV2Callback<TListResult | null>,
-        contextOverride?: LocalDataSourceV2ContextOverride
-    ): LocalDataSourceV2Unsubscribe;
+        callback: LocalDataSourceCallback<TListResult | null>,
+        contextOverride?: LocalDataSourceContextOverride
+    ): LocalDataSourceUnsubscribe;
 
-    cacheWrite(item: Partial<TItem>, contextOverride?: LocalDataSourceV2ContextOverride): Promise<void>;
-    cacheWriteMany(items: Array<Partial<TItem>>, contextOverride?: LocalDataSourceV2ContextOverride): Promise<void>;
-    cacheDelete(id: string, contextOverride?: LocalDataSourceV2ContextOverride): Promise<void>;
-    cacheDeleteMany(ids: string[], contextOverride?: LocalDataSourceV2ContextOverride): Promise<void>;
-    cacheClear(contextOverride?: LocalDataSourceV2ContextOverride): Promise<void>;
+    cacheWrite(item: Partial<TItem>, contextOverride?: LocalDataSourceContextOverride): Promise<void>;
+    cacheWriteMany(items: Array<Partial<TItem>>, contextOverride?: LocalDataSourceContextOverride): Promise<void>;
+    cacheDelete(id: string, contextOverride?: LocalDataSourceContextOverride): Promise<void>;
+    cacheDeleteMany(ids: string[], contextOverride?: LocalDataSourceContextOverride): Promise<void>;
+    cacheClear(contextOverride?: LocalDataSourceContextOverride): Promise<void>;
 }
 
 /**
@@ -101,7 +101,7 @@ const unrefTimer = (timer: ReturnType<typeof setTimeout>): void => {
  */
 const INITIAL_QUERY_RETRY_DELAY_MS = 1_000;
 
-export abstract class BaseLocalDataSourceV2 {
+export abstract class BaseLocalDataSource {
     private nextObserverId = 0;
     private readonly itemObservers = new Map<string, ObserverGroup>();
     private readonly listObservers = new Map<string, ObserverGroup>();
@@ -122,26 +122,26 @@ export abstract class BaseLocalDataSourceV2 {
 
     protected constructor(protected readonly contextProvider: DataContextProvider) {}
 
-    protected getContext(contextOverride?: LocalDataSourceV2ContextOverride): DataContext {
+    protected getContext(contextOverride?: LocalDataSourceContextOverride): DataContext {
         return {
             ...this.contextProvider.getContext(),
             ...contextOverride,
         };
     }
 
-    protected getUid(contextOverride?: LocalDataSourceV2ContextOverride): string {
+    protected getUid(contextOverride?: LocalDataSourceContextOverride): string {
         return this.getContext(contextOverride).uid || 'default';
     }
 
-    protected getCid(contextOverride?: LocalDataSourceV2ContextOverride): string {
+    protected getCid(contextOverride?: LocalDataSourceContextOverride): string {
         return this.getContext(contextOverride).cid || 'default';
     }
 
-    protected getSid(contextOverride?: LocalDataSourceV2ContextOverride): string | undefined {
+    protected getSid(contextOverride?: LocalDataSourceContextOverride): string | undefined {
         return this.getContext(contextOverride).sid;
     }
 
-    protected getScopeKey(contextOverride?: LocalDataSourceV2ContextOverride): string {
+    protected getScopeKey(contextOverride?: LocalDataSourceContextOverride): string {
         const context = this.getContext(contextOverride);
         // Scope hashing keeps observers isolated per cid/sid/uid tuple.
         return stableHash({
@@ -153,7 +153,7 @@ export abstract class BaseLocalDataSourceV2 {
 
     protected createListObserverKey(
         parts: Array<string | number | boolean | undefined>,
-        contextOverride?: LocalDataSourceV2ContextOverride
+        contextOverride?: LocalDataSourceContextOverride
     ): string {
         const normalized = parts.map(part => String(part ?? '__all__')).join('|');
         return `${this.getScopeKey(contextOverride)}|${normalized}`;
@@ -179,7 +179,7 @@ export abstract class BaseLocalDataSourceV2 {
         if (typeof value === 'string' && value.trim().length > 0) {
             return value;
         }
-        throw new Error(`[LocalDataSourceV2] ${fieldName} is required.`);
+        throw new Error(`[LocalDataSource] ${fieldName} is required.`);
     }
 
     /**
@@ -190,20 +190,20 @@ export abstract class BaseLocalDataSourceV2 {
      * 받았습니다. 클라우드를 바꿔도 같은 id의 행이 존재하는 도메인에서 조용히 남의 데이터를 보여주는
      * 실패입니다.
      *
-     * scope 정의는 `getScopeKey`가 소유하므로 하위 클래스의 재정의(ChannelLocalDataSourceV2가 sid를
+     * scope 정의는 `getScopeKey`가 소유하므로 하위 클래스의 재정의(ChannelLocalDataSource가 sid를
      * 빼는 것)가 여기에도 그대로 적용됩니다 — 관찰과 재emit이 같은 함수를 지나므로 둘이 어긋날 수
      * 없습니다.
      */
-    private createItemObserverKey(id: string, contextOverride?: LocalDataSourceV2ContextOverride): string {
+    private createItemObserverKey(id: string, contextOverride?: LocalDataSourceContextOverride): string {
         return `${this.getScopeKey(contextOverride)}|item|${id}`;
     }
 
     protected observeItemQuery<T>(
         id: string,
         query: () => Promise<T>,
-        callback: LocalDataSourceV2Callback<T>,
-        contextOverride?: LocalDataSourceV2ContextOverride
-    ): LocalDataSourceV2Unsubscribe {
+        callback: LocalDataSourceCallback<T>,
+        contextOverride?: LocalDataSourceContextOverride
+    ): LocalDataSourceUnsubscribe {
         return this.registerObserver(
             this.itemObservers,
             this.createItemObserverKey(id, contextOverride),
@@ -215,8 +215,8 @@ export abstract class BaseLocalDataSourceV2 {
     protected observeListQuery<T>(
         key: string,
         query: () => Promise<T>,
-        callback: LocalDataSourceV2Callback<T>
-    ): LocalDataSourceV2Unsubscribe {
+        callback: LocalDataSourceCallback<T>
+    ): LocalDataSourceUnsubscribe {
         return this.registerObserver(this.listObservers, key, query, callback);
     }
 
@@ -224,8 +224,8 @@ export abstract class BaseLocalDataSourceV2 {
         registry: Map<string, ObserverGroup>,
         key: string,
         query: () => Promise<T>,
-        callback: LocalDataSourceV2Callback<T>
-    ): LocalDataSourceV2Unsubscribe {
+        callback: LocalDataSourceCallback<T>
+    ): LocalDataSourceUnsubscribe {
         const observerId = ++this.nextObserverId;
         // 유예 중이던 그룹이면 되살린다 — 값이 살아 있으므로 아래 1번 분기가 저장소 없이 답한다.
         this.cancelRetirement(key);
@@ -351,7 +351,7 @@ export abstract class BaseLocalDataSourceV2 {
      * `contextOverride`는 관찰 시점과 **같은 scope 키**를 만들기 위해 필요합니다. 쓰기와 관찰이 다른
      * scope를 계산하면 재emit이 아무도 깨우지 않고 화면이 낡은 채로 남습니다.
      */
-    protected scheduleItemReemit(ids: string[], contextOverride?: LocalDataSourceV2ContextOverride, delay = 50): void {
+    protected scheduleItemReemit(ids: string[], contextOverride?: LocalDataSourceContextOverride, delay = 50): void {
         if (ids.length === 0) return;
         for (const id of ids) {
             if (id) this.pendingItemKeys.add(this.createItemObserverKey(id, contextOverride));
@@ -426,7 +426,7 @@ export abstract class BaseLocalDataSourceV2 {
         try {
             value = await group.query();
         } catch (error) {
-            logger.error('CACHE', '[LocalDataSourceV2] observer query failed', { error });
+            logger.error('CACHE', '[LocalDataSource] observer query failed', { error });
             return;
         }
         // 재emit 결과도 그룹에 기억시킵니다. 이렇게 해야 이후에 같은 키로 붙는 구독자가 저장소를
@@ -440,7 +440,7 @@ export abstract class BaseLocalDataSourceV2 {
             } catch (error) {
                 // One observer throwing must not stop the others, but it is still an app bug —
                 // keep it in the buffer so it shows up as a breadcrumb on whatever report follows.
-                logger.error('CACHE', '[LocalDataSourceV2] observer notify failed', { error });
+                logger.error('CACHE', '[LocalDataSource] observer notify failed', { error });
             }
         }
     }
@@ -449,7 +449,7 @@ export abstract class BaseLocalDataSourceV2 {
         try {
             await task();
         } catch (error) {
-            logger.error('CACHE', '[LocalDataSourceV2] observer notify failed', { error });
+            logger.error('CACHE', '[LocalDataSource] observer notify failed', { error });
         }
     }
 }

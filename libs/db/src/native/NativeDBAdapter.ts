@@ -272,7 +272,7 @@ export class NativeDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTyp
      * (`NOT_FOUND` 1회로 학습), 네이티브 처리 오류(`items: null` — 학습하지 않고 이번 읽기만),
      * 그 외 브릿지 실패(타임아웃 등 — 역시 학습하지 않음). 오류를 던지지 않는 이유:
      * 이 조회의 실패 시 정답은 언제나 "오늘의 동작"(채널별 윈도우 읽기)이고, 그 판단은
-     * 호출자(`ChatLocalDataSourceV2`)가 폴백 한 곳에서 내리는 편이 단순합니다.
+     * 호출자(`ChatLocalDataSource`)가 폴백 한 곳에서 내리는 편이 단순합니다.
      */
     async loadLastPerChannel(channelIds: string[]): Promise<LastChatItem[] | null> {
         if (this.type !== 'chat') return null;

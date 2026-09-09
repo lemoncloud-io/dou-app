@@ -10,7 +10,7 @@ import type {
  * The full OAuth command surface, token-producing actions included.
  *
  * They used to be excluded ("session material is not `data`'s to touch") and `session/auth` drove
- * `OAuthHttpGateway` directly instead. That exclusion did not hold up: `AuthRepositoryV2` already
+ * `OAuthHttpGateway` directly instead. That exclusion did not hold up: `AuthRepository` already
  * performs a token-producing call on the socket lane — `confirmPhoneCode` returns a `$token` that IS
  * a new session — under an explicit rule that the repository **performs the call but never interprets
  * or installs the token**. The HTTP lane now follows the same rule instead of a different one.

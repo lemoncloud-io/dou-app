@@ -31,7 +31,7 @@ interface PlaceProfileCreateDialogProps {
  * Full-screen overlay to CREATE the per-place profile (nick + optional photo) for the active place.
  * Thin wrapper over {@link PlaceProfileFormDialog} — supplies create-specific copy and a blank
  * starting state; the edit counterpart is {@link PlaceProfileEditDialog}. Persists via
- * ProfileRepositoryV2.setMyProfile.
+ * ProfileRepository.setMyProfile.
  *
  * Opened where a missing profile actually blocks something useful: the room-settings nudge on my own
  * member row (ADR-0040), the invite paths (ADR-0041), and — as the one mandatory entry

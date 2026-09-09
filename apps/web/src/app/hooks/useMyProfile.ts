@@ -20,7 +20,7 @@ import type { DomainProfile } from '@chatic/data';
 const inFlightByProfileId = new Map<string, Promise<unknown>>();
 
 /**
- * My profile (nick/thumbnail) for the ACTIVE site, sourced from ProfileRepositoryV2.
+ * My profile (nick/thumbnail) for the ACTIVE site, sourced from ProfileRepository.
  *
  * Observes the per-site profile cache keyed by `${sid}@${uid}` and triggers a one-shot
  * `getMyProfile()` fetch so the latest server value lands in the cache. Returns null when no site

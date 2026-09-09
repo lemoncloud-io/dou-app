@@ -11,7 +11,7 @@ import type { Params } from '@lemoncloud/lemon-web-core';
 /**
  * Membership + product-plan reads, moved down from `@chatic/app-runtime`'s
  * `data/hooks/subscription.ts`. Nothing here is a cacheable entity (there is no local data source
- * behind `SubscriptionRepositoryV2`), so react-query is the only cache these reads have — and a
+ * behind `SubscriptionRepository`), so react-query is the only cache these reads have — and a
  * cache policy belongs to the app that renders it.
  */
 export const useMembershipInfo = () => {

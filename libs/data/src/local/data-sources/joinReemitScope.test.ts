@@ -1,5 +1,5 @@
 import type { CacheStorage } from '../ports';
-import { JoinLocalDataSourceV2 } from './JoinLocalDataSourceV2';
+import { JoinLocalDataSource } from './JoinLocalDataSource';
 
 /**
  * Re-emit fan-out contract.
@@ -71,10 +71,10 @@ const createSource = () => {
         getContext: () => ({ cid: 'cloud-a', uid: 'me', sid: 'site-1' }),
         setContext: () => undefined,
     };
-    return new JoinLocalDataSourceV2(contextProvider as any, storage);
+    return new JoinLocalDataSource(contextProvider as any, storage);
 };
 
-describe('JoinLocalDataSourceV2 재발행 범위', () => {
+describe('JoinLocalDataSource 재발행 범위', () => {
     beforeEach(() => {
         jest.useFakeTimers();
     });
