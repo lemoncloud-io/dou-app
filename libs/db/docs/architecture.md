@@ -118,7 +118,7 @@ graph TD
     RT -->|"localFactory만"| DB["@chatic/db<br/>indexeddb/ · native/ · search/ · base/"]
     DB -->|"인터페이스 구현 + 정책 유틸<br/>(resolveScopedContext · withCacheMeta · stableHash)"| D
     DB --> BR["@chatic/bridges<br/>IWebBridgeClient · logger"]
-    D -.->|"logger 1건 잔존<br/>(data-sources-v2/types.ts:1)"| BR
+    D -.->|"logger 1건 잔존<br/>(data-sources/types.ts:1)"| BR
 
     style DB fill:#e8f5e9,stroke:#2e7d32
 ```
@@ -153,7 +153,7 @@ sequenceDiagram
 - **"local data-source가 엔진을 모른다" — 참.** data-sources-v2 11파일(구현 9 + types + index)의
   import 전수에서 엔진 클래스는 0건이다. 단 **"storages에서 가져가는 것은 `CacheStorage`와
   `stableHash`뿐"은 실측과 다르다** — `SyncMetaLocalDataSourceV2`가 `resolveTtlMs`를 하나 더
-  가져간다([SyncMetaLocalDataSourceV2.ts:4](../../data/src/data/local/data-sources-v2/SyncMetaLocalDataSourceV2.ts)).
+  가져간다([SyncMetaLocalDataSource.ts:4](../../data/src/local/data-sources/SyncMetaLocalDataSource.ts)).
   세 심볼 모두 인터페이스·유틸이라 절단 자체는 성립하지만, TTL 정책 함수가 data-source 소비자를
   가진다는 사실이 utils 분할(아래)의 방향을 결정한다.
 - **"엔진 소비자는 `localFactory` 하나" — 소스 기준 참, 파일 기준은 4다.** 엔진 심볼의 리포 전수
@@ -163,7 +163,7 @@ sequenceDiagram
 - **"`data`의 bridges 의존이 엔진과 함께 빠져나간다" — 부분만 참.** `@chatic/bridges` import는
   `libs/data/src` 전체에서 5건(테스트 제외)이고 그중 4건이 엔진 파일이다
   (`NativeDBAdapter.ts:1-2` · `nativeCacheMetrics.ts:1` · `NativeGlobalSearchSource.ts:9`).
-  그러나 **[data-sources-v2/types.ts:1](../../data/src/data/local/data-sources-v2/types.ts)의
+  그러나 **[data-sources/types.ts:1](../../data/src/local/data-sources/types.ts)의
   `logger` 런타임 import 1건은 남는다**(옵저버 실패 로깅 3곳 — 같은 파일 429·443·452행). 따라서
   ADR의 "`data`가 런타임 의존 0의 플랫폼 비종속 순수 데이터 모듈이 된다"는 이 단계에서는
   달성되지 않는다 — bridges 의존이 5건 → 1건으로 줄 뿐이다. 잔존 1건의 해소(logger 주입 또는
@@ -178,7 +178,7 @@ sequenceDiagram
   것이 맞고, 그 대가로 화살표의 순도가 "타입 전용"에서 내려온다 — ADR은 X(타입 전용)라고 하나
   실측 설계는 Y(타입 + 순수 정책 유틸)다.
 - **ADR 폴더 스케치는 이상화다.** `libs/data/src/local/ports/`가 아니라 실제 루트는
-  `libs/data/src/data/local/`이다(중간 `data/` 한 층 더). 이 문서의 목표 구조는 실제 루트 기준으로
+  `libs/data/src/local/`이다(중간 `data/` 한 층 더). 이 문서의 목표 구조는 실제 루트 기준으로
   쓴다.
 - **2단계 "앱 변경 없음(팩토리만)"도 정확히는 아니다.** 위 실측대로 apps/web 1파일(+테스트)이
   함께 움직인다. ADR 결정 5 본문이 이미 이 1건을 인정하고 포트화를 지시하므로, 단계 표의 표기가
@@ -202,7 +202,7 @@ libs/db/src/                                ← 신설: 저장 엔진 (data의 �
     ├── IndexedDbGlobalSearchSource.ts        IGlobalCacheSearchSource 구현 (웹)
     └── NativeGlobalSearchSource.ts           IGlobalCacheSearchSource 구현 (네이티브)
 
-libs/data/src/data/local/                   ← 유지: 인터페이스·정책·data-source
+libs/data/src/local/                   ← 유지: 인터페이스·정책·data-source
 ├── ports/                                    신설 폴더 — 아래 대응표의 잔류분 재배치
 │   ├── cacheStorage.ts                       CacheStorage · CacheSchema · CacheStorageItem ·
 │   │                                         CacheStorageFactory · LocalCacheStorages · createCacheStorages
@@ -213,7 +213,7 @@ libs/data/src/data/local/                   ← 유지: 인터페이스·정책�
 │   │                                         resolveBaseScope · resolveScopedContext · AdapterScope
 │   └── index.ts
 ├── stableHash.ts                             그대로 (data-source 유틸 — 한 층 위로만 이동)
-└── data-sources-v2/                          무변경 — import 경로만 ../storages → ../ports
+└── data-sources/                          무변경 — import 경로만 ../storages → ../ports
 ```
 
 ### 이관 전/후 대응표
@@ -221,7 +221,7 @@ libs/data/src/data/local/                   ← 유지: 인터페이스·정책�
 이관은 이 표대로 실행 완료됐다 — 왼쪽 열의 파일들은 더 이상 존재하지 않으며, 어디로 갔는지의
 기록으로 남긴다.
 
-| 이관 전 (`libs/data/src/data/local/`, 삭제됨)                                        | 심볼                                                                                                              | 이관 후                                                                                                  |
+| 이관 전 (`libs/data/src/local/`, 삭제됨)                                             | 심볼                                                                                                              | 이관 후                                                                                                  |
 | ------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
 | `databases/IndexedDBDatabase.ts:25`                                                  | `IndexedDBDatabase` · `TYPE_CID_UID_INDEX` · `CHAT_PAGINATION_INDEX` · `UNSENT_CHAT_NO`                           | → `db/indexeddb/` (상수 소비자도 전부 엔진 쪽 — data 잔류 코드의 참조 0건 실측)                          |
 | `databases/ChatQueryExecutor.ts:9`                                                   | `ChatQueryExecutor`                                                                                               | → `db/indexeddb/`                                                                                        |
@@ -260,7 +260,7 @@ ADR은 `IIndexedDB`를 `data/local/ports` 잔류로 지정한다. 실측으로�
 ### `ICacheMetricsSource` — 신설 포트와 화면 전환
 
 ```ts
-// libs/data/src/data/local/ports/metrics.ts (신설)
+// libs/data/src/local/ports/metrics.ts (신설)
 export interface CacheMetricsOperationStat {
     count: number;
     avgMs: number;
@@ -395,7 +395,7 @@ tests에서 36 suites·298 tests로 줄고, `libs/db`가 정확히 그 차이(7 
 - **경계 게이트 — 전부 grep으로 확인**: ① `libs/data/src`에 엔진 클래스(`IndexedDBAdapter` 등)
   import 0건(주석 언급 제외) — 유일한 "매치"는 `ports/metrics.ts`의 주석. ② 엔진 소비자는
   `localFactory.ts`(+테스트)와 `CacheMetricsScreen.tsx`(+테스트) 뿐. ③ `data`의
-  `@chatic/bridges` 런타임 의존은 여전히 1건(`data-sources-v2/types.ts`) — 실측이 문서 예측과
+  `@chatic/bridges` 런타임 의존은 여전히 1건(`data-sources/types.ts`) — 실측이 문서 예측과
   정확히 일치했다.
 
 ```bash

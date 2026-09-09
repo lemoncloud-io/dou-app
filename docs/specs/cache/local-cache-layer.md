@@ -6,7 +6,7 @@
 >   갇힘, 행의 `uid`는 소유자이지 주인이 아님). 이 리포에서 이 규칙을 서술하는 유일한 문서다.
 > - **더 이상 사실이 아님**: `DomainEventBus` 기반 캐시 갱신(§2.1–2.2)과 `RepositoryOptions`(§3.2).
 >   V2(`BaseRepositoryV2`)는 이벤트 버스를 쓰지 않고 `refresh*`/`cacheWrite*` 명시적 호출로만
->   로컬에 반영한다([libs/data/docs/README.md](../../../libs/data/docs/README.md)).
+>   로컬에 반영한다([libs/data/docs/architecture.md](../../../libs/data/docs/architecture.md)).
 > - 저장소 선택(어느 물리 DB로 가는가)은 이 문서 범위 밖이다 →
 >   [cache-storage-routing.md](../../../libs/app-runtime/docs/data/cache-storage-routing.md).
 

@@ -19,7 +19,7 @@
 
 조사에서 확인한 현황:
 
-- **데이터 계층은 이미 완비돼 있다.** [`JoinRepositoryV2.updateJoin`](../../libs/data/src/data/repositories-v2/JoinRepositoryV2.ts)이
+- **데이터 계층은 이미 완비돼 있다.** [`JoinRepositoryV2.updateJoin`](../../libs/data/src/repositories/JoinRepository.ts)이
   `{ channelId, userId, notify }` 입력을 받아 local cache에서 join id를 해석하고, **낙관적 캐시 write + 실패 롤백** 후
   `join.update` 소켓을 호출한다. `DomainJoin`(= `CacheJoinView`)에 `notify` 필드가 이미 있고 `toDomainJoin`이
   그대로 흘려보낸다. [`useJoinMutations.updateJoin`](../../apps/web/src/app/features/channels/hooks/useJoinMutations.ts)도

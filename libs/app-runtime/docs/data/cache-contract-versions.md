@@ -127,7 +127,7 @@ stale-while-revalidate로 못박아 `invite.list`가 항상 재검증하므로 �
 
 이 어긋남은 규율이 아니라 코드로 막는다. 커서를 저장할 때 **그때의 라우팅 지문**을 함께 남기고,
 읽을 때 지문이 다르면 `0`(전체 재동기화)으로 떨어뜨린다
-([SyncMetaLocalDataSourceV2](../../../data/src/data/local/data-sources-v2/SyncMetaLocalDataSourceV2.ts)).
+([SyncMetaLocalDataSourceV2](../../../data/src/local/data-sources/SyncMetaLocalDataSource.ts)).
 지문은 조립 시점에 **실제로 만들어진 스토리지의 결정**을 모아 만든다
 ([localFactory.ts](../../src/data/factories/localFactory.ts)) — 나중에 캐시 타입이 추가돼도 아무도
 목록을 갱신할 필요가 없다.
@@ -402,7 +402,7 @@ export const isNativeCacheTypeUsable = (type: CacheType): boolean => appVersion(
 - [cacheContract.test.ts](../../../../apps/mobile/src/app/database/sqlite/cacheContract.test.ts) —
   계약 맵 키 == `SUPPORTED_CACHE_TYPES`, 전 도메인 1판, 도달 버전별 포함/제외, 그리고 각
   `sinceUserVersion`을 근거가 되는 마이그레이션 SQL과 대조(특히 두 번 만들어진 `metas`).
-- [SyncMetaLocalDataSourceV2.test.ts](../../../data/src/data/local/data-sources-v2/SyncMetaLocalDataSourceV2.test.ts) —
+- [SyncMetaLocalDataSource.test.ts](../../../data/src/local/data-sources/SyncMetaLocalDataSource.test.ts) —
   라우팅 지문이 같으면 커서 유지, 다르면 TTL이 남아도 0, 지문 없는 구버전 행도 0, 조립부가 지문을
   주지 않으면 검사 자체를 끔.
 - [localFactory.test.ts](../../src/data/factories/localFactory.test.ts) — 지문이 두 환경에서 다르고,

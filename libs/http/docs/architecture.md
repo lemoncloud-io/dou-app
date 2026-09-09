@@ -52,7 +52,7 @@ HTTP 통신의 전부 — 요청 실행기, 전송 규칙(리트라이·에러 �
 
 - `gateways/`(oauth·users·clouds·subscriptions 경로·메서드 소유) — 2단계에서
   `HttpGatewayBundle`·`http-data-sources`·`httpFactory`와 함께
-  ([HTTP 데이터 경로](../../data/docs/http-data-path.md) 문서 소관)
+  ([HTTP 데이터 경로](../../data/docs/remote.md) 문서 소관)
 - `calcSignature`(lemon HMAC, awsSigning.ts:25)
   — 3단계 `@chatic/auth-sign` 신설 시 이관([auth-sign architecture](../../auth-sign/docs/architecture.md)).
   refresh 서명 재료라 refresh 소유권 재배선과 함께 움직여야 한다
@@ -64,7 +64,7 @@ HTTP 통신의 전부 — 요청 실행기, 전송 규칙(리트라이·에러 �
   `LemonTransportConfig`로 주입받는다
 - ~~`logBatch`·`reportIssue`의 실제 이관~~ — **2026-09-02에 들어왔다.** 와이어 어휘는
   [`gateways/report.ts`](../src/gateways/report.ts)(`ReportHttpGateway`)이고, 두 호출은
-  `data`의 `report` repository를 거친다([HTTP 데이터 경로](../../data/docs/http-data-path.md)).
+  `data`의 `report` repository를 거친다([HTTP 데이터 경로](../../data/docs/remote.md)).
   1단계가 만든 `bypass: ['networkLog']` 계약의 첫 실사용자가 이것이다.
   (`reportError`는 이관 대상이 아니라 2026-09에 폐지됐다)
 
@@ -81,7 +81,7 @@ lib이 실제로 수행하는 요청 형태다. **1단계 서술을 현행으로
    lemon 자체 저장소의 signing material로 서명한다.
 
     > 1단계가 이 자리에 적어 둔 `generateToken`(`POST /auth/0/generate-token`)은 **이관되지
-    > 않았다** — 리포 전체 소비가 0이어서다([http-data-path.md](../../data/docs/http-data-path.md)
+    > 않았다** — 리포 전체 소비가 0이어서다([http-data-path.md](../../data/docs/remote.md)
     > §실측이 삭제 후보로 올려 뒀고, `apps/admin-v2`의 주석 한 줄만 그 엔드포인트를 언급한다).
     > 서명 실행기의 현행 소비자는 3번이다.
 

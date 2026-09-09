@@ -8,7 +8,7 @@
 
 참고 스펙(서버, 이미 확정): `chatic-sockets-api/docs/specs/update-remote-device/{00-requirement,01-spec,02-design}.md`
 
-> **이름 안내 (2026-09-01):** 이 문서가 쓰는 `*RemoteDataSource` · `RemoteGatewayBundle` · `*DomainGateway` · `remoteFactory` · `remote/data-sources/`는 **당시 이름**이다. 소켓 축이 `Socket` 접두로 옮겨간 뒤의 대응표는 [libs/data/docs/remote/README.md](../../libs/data/docs/remote/README.md#이름-규약-2026-09-01-리네임)에 있다. 기록이므로 본문은 그대로 둔다.
+> **이름 안내 (2026-09-01):** 이 문서가 쓰는 `*RemoteDataSource` · `RemoteGatewayBundle` · `*DomainGateway` · `remoteFactory` · `remote/data-sources/`는 **당시 이름**이다. 소켓 축이 `Socket` 접두로 옮겨간 뒤의 대응표는 [libs/data/docs/remote.md](../../libs/data/docs/remote.md#이름-규약)에 있다. 기록이므로 본문은 그대로 둔다.
 
 ## 맥락 (Context)
 

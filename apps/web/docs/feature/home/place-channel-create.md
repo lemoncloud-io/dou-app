@@ -178,7 +178,7 @@ owner 게이팅은 클라우드 컨텍스트(렐리 1:1 vs 클라우드 그룹)�
 - [useCreatePlace.ts](../../../src/app/features/home/hooks/useCreatePlace.ts): 시그니처를
   `createPlace({ name, thumbnail }: { name: string; thumbnail?: string })`로 넓혀 payload에 thumbnail 통과.
   `PlaceCreateInput`(`PlaceBodyData`)이 이미 `thumbnail?`을 가지므로 리포/원격은 무변경(payload passthrough,
-  [PlaceRepositoryV2.ts:89](../../../../../libs/data/src/data/repositories-v2/PlaceRepositoryV2.ts)).
+  [PlaceRepository.ts:89](../../../../../libs/data/src/repositories/PlaceRepository.ts)).
 
 ### 4) CreateChannelDialog 재구축
 
@@ -189,7 +189,7 @@ owner 게이팅은 클라우드 컨텍스트(렐리 1:1 vs 클라우드 그룹)�
 - **thumbnail 전제(ADR-0018)**: `ChannelCreateRequestData`는 현재 `{ stereo, name }`뿐이다
   ([channel/types.d.ts:3](../../../../../node_modules/@lemoncloud/chatic-sockets-api/dist/lib/channel/types.d.ts)).
   `channel.create` payload는 게이트웨이로 그대로 전달되므로
-  ([ChannelSocketDataSource.ts:90](../../../../../libs/data/src/data/remote/socket-data-sources/ChannelSocketDataSource.ts)),
+  ([ChannelSocketDataSource.ts:90](../../../../../libs/data/src/remote/socket-data-sources/ChannelSocketDataSource.ts)),
   타입에 `thumbnail?`이 추가되면 배선은 자동이다. **착수 시 소켓 API의 thumbnail 지원 여부를 먼저 확인**하고,
   미지원이면 타입 확장/백엔드 협의가 블로커(→ 리스크 섹션).
 

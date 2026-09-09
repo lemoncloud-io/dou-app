@@ -6,7 +6,7 @@
 독립 브랜치/워크트리에서 작업하고, 트랙 간 의존은 아래 **인터페이스 계약**으로만
 접촉한다.
 
-> **이름 안내 (2026-09-01):** 이 로드맵이 쓰는 `remote/gateways/index.ts` · `MockSocketClient` 등은 **작성 당시 이름**이다. 소켓 축 리네임 뒤의 대응표는 [libs/data/docs/remote/README.md](../../libs/data/docs/remote/README.md#이름-규약-2026-09-01-리네임)에 있고, `MockSocketClient`는 참조 0으로 삭제됐다(이 문서가 말하듯 테스트 seam은 게이트웨이다).
+> **이름 안내 (2026-09-01):** 이 로드맵이 쓰는 `remote/gateways/index.ts` · `MockSocketClient` 등은 **작성 당시 이름**이다. 소켓 축 리네임 뒤의 대응표는 [libs/data/docs/remote.md](../../libs/data/docs/remote.md#이름-규약)에 있고, `MockSocketClient`는 참조 0으로 삭제됐다(이 문서가 말하듯 테스트 seam은 게이트웨이다).
 
 ## 참조
 

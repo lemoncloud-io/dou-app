@@ -35,7 +35,7 @@
 
 ### 3. 프리뷰 의미론 유틸은 `@chatic/data`로 이동한다
 
-`compareByChatNo`/`isPreviewableChat`/`pickPreviewChat`(+ 구성 요소)을 [`libs/data` 도메인 유틸](../../libs/data/src/data/domain/chatPreview.ts)로 옮기고 `apps/web/utils/chat.ts`는 재수출한다. 폴백 경로(데이터소스)와 웹 렌더링이 같은 판정을 쓰기 위함이다. `apps/desktop-web`의 사본은 참조만 하고 건드리지 않는다.
+`compareByChatNo`/`isPreviewableChat`/`pickPreviewChat`(+ 구성 요소)을 [`libs/data` 도메인 유틸](../../libs/data/src/domain/chatPreview.ts)로 옮기고 `apps/web/utils/chat.ts`는 재수출한다. 폴백 경로(데이터소스)와 웹 렌더링이 같은 판정을 쓰기 위함이다. `apps/desktop-web`의 사본은 참조만 하고 건드리지 않는다.
 
 ### 4. 홈의 행별 chat 구독을 제거한다
 

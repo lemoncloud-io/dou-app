@@ -156,18 +156,18 @@ relay: create(manager.getScopedClient('relay')), cloud: create(manager.getScoped
 
 **라우팅/도메인 (libs/data)**
 
-- [`gateways/socket.ts`](../../../../libs/data/src/data/remote/gateways/socket.ts) — `DeviceSocketDomainGateway`에
+- [`gateways/socket.ts`](../../../../libs/data/src/remote/gateways/socket.ts) — `DeviceSocketDomainGateway`에
   `updateRemote` 추가(`Pick<DeviceGateway, 'save'|'read'|'sync'|'updateRemote'>`). routed 묶음 타입 `RoutedGateway<G> = Record<SocketRoute, G>`.
-- [`data-sources/DeviceSocketDataSource.ts`](../../../../libs/data/src/data/remote/socket-data-sources/DeviceSocketDataSource.ts) —
+- [`data-sources/DeviceSocketDataSource.ts`](../../../../libs/data/src/remote/socket-data-sources/DeviceSocketDataSource.ts) —
   생성자가 routed device 묶음을 받고, `updateRemoteDevice(payload)`는 **relay 고정**으로
   `this.gateway.relay.updateRemote(payload)`를 호출한다(정책이 이 한 곳에 있음). 기존 save/read/sync는 `this.gateway.active`로.
-- [`data-sources/index.ts`](../../../../libs/data/src/data/remote/socket-data-sources/index.ts) — `new DeviceSocketDataSource(gateways.device)`가
+- [`data-sources/index.ts`](../../../../libs/data/src/remote/socket-data-sources/index.ts) — `new DeviceSocketDataSource(gateways.device)`가
   routed 묶음을 그대로 받도록 조정.
-- [`data-sources/DeviceSocketDataSource.ts`](../../../../libs/data/src/data/remote/socket-data-sources/DeviceSocketDataSource.ts) —
+- [`data-sources/DeviceSocketDataSource.ts`](../../../../libs/data/src/remote/socket-data-sources/DeviceSocketDataSource.ts) —
   응답을 `unknown` 대신 client-safe 뷰 `DevicePushView { id?; muted? }`로 타입. 외부 SDK 뷰(endpoint/installId 등)를 앱에 노출하지 않으면서 `muted`만 읽는다.
-- [`repositories-v2/DeviceRepositoryV2.ts`](../../../../libs/data/src/data/repositories-v2/DeviceRepositoryV2.ts) —
+- [`repositories/DeviceRepository.ts`](../../../../libs/data/src/repositories/DeviceRepository.ts) —
   `updateRemotePushMute(muted): Promise<boolean>` — id 미전송. 응답의 authoritative `muted`를 반환(없으면 요청값 폴백)하여 호출부가 서버 진실로 재조정하게 한다.
-- [`gateways/__mocks__/MockSocketGateways.ts`](../../../../libs/data/src/data/remote/gateways/__mocks__/MockSocketGateways.ts) —
+- [`gateways/__mocks__/MockSocketGateways.ts`](../../../../libs/data/src/remote/gateways/__mocks__/MockSocketGateways.ts) —
   device mock에 routed 형태(active/relay/cloud 각 `updateRemote: jest.fn()`) 반영.
 
 **UI (apps/web)**
@@ -196,8 +196,8 @@ relay: create(manager.getScopedClient('relay')), cloud: create(manager.getScoped
     - 슬롯 미바인드 시 등록이 **throw하지 않고**, 이후 `ensure`에서 붙는다(S6).
     - 반환된 해지 함수가 재바인드 이후에도 구독을 끊고, 이후 재빌드가 그 엔트리를 되살리지 않는다.
     - `destroy(kind)` 시 구독이 해지되고 다른 슬롯으로 새지 않는다.
-- **라우팅/도메인 테스트** — [`DeviceSocketDataSource.test.ts`](../../../../libs/data/src/data/remote/socket-data-sources/DeviceSocketDataSource.test.ts)
-    - [`DeviceRepositoryV2.test.ts`](../../../../libs/data/src/data/repositories-v2/DeviceRepositoryV2.test.ts):
+- **라우팅/도메인 테스트** — [`DeviceSocketDataSource.test.ts`](../../../../libs/data/src/remote/socket-data-sources/DeviceSocketDataSource.test.ts)
+    - [`DeviceRepository.test.ts`](../../../../libs/data/src/repositories/DeviceRepository.test.ts):
     * `updateRemoteDevice(payload)` → 항상 routed `device.relay.updateRemote`, active/cloud 미호출(정책 고정 회귀).
     * `updateRemotePushMute(true)` → `{ muted: true }`만 전달(id 미포함), 서버 echo 반환/폴백.
 - **훅 테스트** — [`useDevicePushMute.test.ts`](../../../../apps/web/src/app/features/mypage/hooks/useDevicePushMute.test.ts):
@@ -223,5 +223,5 @@ device 링크와 인증이 복구된다. 상세는 [sync/README.md](sync/README.
 
 `chatic-sockets-lib 0.4.6→0.4.8`(`DeviceGateway.updateRemote` 제공), `chatic-sockets-api 0.26.703→0.26.704`
 (`device.update-remote`, 입력 `{ muted: boolean; id? }`, 응답 passthrough). 이 업그레이드가 별개로 `join.update`
-입력 배럴(`JoinUpdateInput`)을 channel 변형으로 재해석해 [JoinSocketDataSource.ts](../../../../libs/data/src/data/remote/socket-data-sources/JoinSocketDataSource.ts)가
+입력 배럴(`JoinUpdateInput`)을 channel 변형으로 재해석해 [JoinSocketDataSource.ts](../../../../libs/data/src/remote/socket-data-sources/JoinSocketDataSource.ts)가
 깨졌고, 명시 alias `JoinDomainUpdateInput`로 교체해 수정했다.

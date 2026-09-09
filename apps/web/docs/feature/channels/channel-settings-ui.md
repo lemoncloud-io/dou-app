@@ -118,7 +118,7 @@ flowchart LR
   어포던스는 소유자만 노출. 글자수 카운터 `0/20`은 `TextField`의 `maxLength`. 검증은 비어있지 않은(trim 1자 이상) 이름 +
   dirty일 때만 완료 활성(이전 min-2 규칙은 Figma 힌트("20글자 이내")에 맞춰 제거).
 - **`useJoinMutations`(신규)** ([hooks/useJoinMutations.ts](../../../src/app/features/channels/hooks/useJoinMutations.ts), 배럴 export) —
-  `useRuntimeRepositories().join.updateJoin`([JoinRepositoryV2.ts:125](../../../../../libs/data/src/data/repositories-v2/JoinRepositoryV2.ts))를
+  `useRuntimeRepositories().join.updateJoin`([JoinRepository.ts:125](../../../../../libs/data/src/repositories/JoinRepository.ts))를
   감싸는 얇은 훅. `useChannelMutations` 패턴(action별 pending 플래그) 동일. optimistic write는 repository가 처리.
   `useChannelMutations`가 `channelRepository`만 쓰므로 repo 혼합을 피해 **별도 훅**으로 둔다. payload 타입은
   `ChannelUpdateJoinInput`(@lemoncloud/chatic-sockets-api); repo 인터페이스의 `JoinUpdateInput`은 동일 alias(`= ChannelUpdateJoinInput`).

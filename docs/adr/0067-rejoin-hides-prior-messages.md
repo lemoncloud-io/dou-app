@@ -12,7 +12,7 @@
 
 메시지 스트림은 [`useChats`](../../apps/web/src/app/features/channels/hooks/useChats.ts)의 `chatRepository.observeList` — 캐시 구독이다. 그리고 퇴장 경로 어디서도 chat 캐시를 치우지 않는다:
 
-- [`ChannelRepositoryV2.leaveChannel`](../../libs/data/src/data/repositories-v2/ChannelRepositoryV2.ts)은 **channel** 캐시만 지운다.
+- [`ChannelRepositoryV2.leaveChannel`](../../libs/data/src/repositories/ChannelRepository.ts)은 **channel** 캐시만 지운다.
 - `ChatSyncPlan`에는 `onRemove`가 없다 — [`plans.ts`](../../libs/app-runtime/src/socket/sync/plans.ts) 주석이 "메시지 이력은 lazy-load/오프라인을 위해 유지한다"고 의도적으로 밝혀 둔 설계다.
 - `ChatRepositoryV2.refreshList`는 `cacheWriteMany`만 하고 prune하지 않는다. 서버가 더 이상 주지 않는 행은 그대로 남는다.
 - `cacheClearByChannelId`는 존재하지만 **프로덕션 호출자가 0건**이다.
@@ -22,11 +22,11 @@
 
 ### 그 앞을 막는 별개의 버그
 
-[`ChannelRepositoryV2`](../../libs/data/src/data/repositories-v2/ChannelRepositoryV2.ts)의 `leftChannelIds`는 인메모리 Set으로 `refreshList`와 `syncChannels` **둘 다**를 필터하는데, 지워지는 곳은 leave 실패 롤백뿐이다. [`DataManager`](../../libs/app-runtime/src/data/DataManager.ts)는 repositories를 생성자에서 한 번만 만들고 `ensure()`로 컨텍스트만 갈아끼우므로 이 Set은 클라우드 전환에도 살아남는다. 즉 **나갔다가 다시 초대받으면 새로고침 전까지 채널이 목록에 돌아오지 않는다.** 재입장 동작을 검증할 수조차 없다.
+[`ChannelRepositoryV2`](../../libs/data/src/repositories/ChannelRepository.ts)의 `leftChannelIds`는 인메모리 Set으로 `refreshList`와 `syncChannels` **둘 다**를 필터하는데, 지워지는 곳은 leave 실패 롤백뿐이다. [`DataManager`](../../libs/app-runtime/src/data/DataManager.ts)는 repositories를 생성자에서 한 번만 만들고 `ensure()`로 컨텍스트만 갈아끼우므로 이 Set은 클라우드 전환에도 살아남는다. 즉 **나갔다가 다시 초대받으면 새로고침 전까지 채널이 목록에 돌아오지 않는다.** 재입장 동작을 검증할 수조차 없다.
 
 ### 브릿지에 대해 확인한 것
 
-네이티브 chat 테이블은 이미 `channel_id` 컬럼으로 필터한다([`ChatDataSource`](../../apps/mobile/src/app/data/cache/ChatDataSource.ts)) — 방 피드를 읽는 바로 그 경로라 **배포된 모든 앱 빌드가 지원한다**. 따라서 채널 한정 purge에 브릿지 신규 메시지는 필수가 아니다. [`storages/types.ts`](../../libs/data/src/data/local/storages/types.ts)의 "테이블 전체를 브릿지로 끌어온다"는 경고는 base가 `loadAll()`을 인자 없이 부르기 때문이고, `ChatQueryOptions.channelId`가 있는 chat에는 해당하지 않는다.
+네이티브 chat 테이블은 이미 `channel_id` 컬럼으로 필터한다([`ChatDataSource`](../../apps/mobile/src/app/data/cache/ChatDataSource.ts)) — 방 피드를 읽는 바로 그 경로라 **배포된 모든 앱 빌드가 지원한다**. 따라서 채널 한정 purge에 브릿지 신규 메시지는 필수가 아니다. [`storages/types.ts`](../../libs/data/src/local/storages/types.ts)의 "테이블 전체를 브릿지로 끌어온다"는 경고는 base가 `loadAll()`을 인자 없이 부르기 때문이고, `ChatQueryOptions.channelId`가 있는 chat에는 해당하지 않는다.
 
 ### API 계약
 

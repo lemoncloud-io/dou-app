@@ -35,7 +35,7 @@
 
 ### 백엔드 능력 (조사)
 
-- `JoinRepositoryV2.updateJoin` ([libs/data/.../JoinRepositoryV2.ts:125](../../libs/data/src/data/repositories-v2/JoinRepositoryV2.ts))이 `join.update` 액션을 감싼다.
+- `JoinRepositoryV2.updateJoin` ([libs/data/.../JoinRepository.ts:125](../../libs/data/src/repositories/JoinRepository.ts))이 `join.update` 액션을 감싼다.
   입력은 `{ channelId?, userId?, id?, nick?, notify? }` — **`nick`(텍스트)과 `notify`만** 반영하며 **thumbnail 필드는 없다**.
   명시 id가 없으면 local cache에서 `channelId + userId`로 join을 해석한다. 단, 이 메서드를 감싸는 앱 훅은 아직 없다.
 - 프로필 편집기 `PlaceProfileFormDialog`/`PlaceProfileEditDialog`([apps/web/.../home/components](../../apps/web/src/app/features/home/components/PlaceProfileFormDialog.tsx))가

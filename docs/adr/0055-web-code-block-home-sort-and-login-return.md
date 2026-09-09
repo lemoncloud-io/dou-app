@@ -80,7 +80,7 @@ join.updatedAt  →  channel.$join.updatedAt  →  lastActivityAt / updatedAt
 #### `lastChat$`은 죽은 필드다
 
 폴백 경로의 `lastActivityAt`은 매퍼에서 파생된다
-([`mappers.ts:90`](../../libs/data/src/data/domain/mappers.ts)):
+([`mappers.ts:90`](../../libs/data/src/domain/mappers.ts)):
 
 ```ts
 lastActivityAt: Math.max(lastChatAtMs, updatedAtMs); // lastChatAtMs = toEpochMs(api.lastChat$?.createdAt)
@@ -208,7 +208,7 @@ route set(`privateRoutes`)은 그대로 유지된다
 
 ### 결정 3 — `lastChat$` 파생을 매퍼에서 제거한다
 
-- [`mappers.ts`](../../libs/data/src/data/domain/mappers.ts)의 `toDomainChannel`에서 `lastChat$`
+- [`mappers.ts`](../../libs/data/src/domain/mappers.ts)의 `toDomainChannel`에서 `lastChat$`
   기반 `lastActivityAt` 파생을 제거하고, 해당 단위 테스트도 새 계약으로 고친다.
 - **범위는 `libs/data` 매퍼까지로 한정한다.** `apps/testbed`의 `computeUnreads`는 ADR-0048이 이미
   위반으로 표시해둔 별도 항목이고, `desktop-web`은 이번 변경 대상이 아니다.

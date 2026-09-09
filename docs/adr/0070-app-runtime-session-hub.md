@@ -105,7 +105,7 @@ web-core를 그대로 두고 내부만 `web-config`/`web-transport`/`web-api`/`w
 훅 6개(`useClouds` 18곳 · `useCloudSessionCatalog` 22곳 · `useRegisterDeviceToken` 8곳 ·
 `useVerifyEmail` 6곳 · `useUsers` 4곳 · `useVerifyNativeAppToken` 2곳 — 심볼을 참조하는 파일
 기준이며, desktop-web에 `useCloudSessionCatalog`를 감싼 **동명의 자체 `useClouds`**가 따로 있어
-합산된다. web-core 판만 세면 더 작다 — [libs/data/docs/http-data-path.md](../../libs/data/docs/http-data-path.md) 표 참조)가 repository 밖에서
+합산된다. web-core 판만 세면 더 작다 — [libs/data/docs/remote.md](../../libs/data/docs/remote.md) 표 참조)가 repository 밖에서
 데이터를 읽는다 — ADR-0036이 "모든 데이터 콜은 repository를 거친다" 원칙의 **유일한 미해결
 위반**으로 지목한 항목이다.
 

@@ -212,7 +212,7 @@ sequenceDiagram
   스트림 관측(`joinRepository.observeList`)해 내 userId 행을 골라 그 `notify`에서 파생한다. 채널 행의
   임베디드 `$join`은 지연되는 projection이라 쓰지 않는다. 토글 시
   [`useJoinMutations.updateJoin`](../../../src/app/features/channels/hooks/useJoinMutations.ts) →
-  [`JoinRepositoryV2.updateJoin`](../../../../../libs/data/src/data/repositories-v2/JoinRepositoryV2.ts)이
+  [`JoinRepositoryV2.updateJoin`](../../../../../libs/data/src/repositories/JoinRepository.ts)이
   `channelId + userId`로 join 행을 해석하고 낙관적 캐시 write + `join.update` 소켓 호출 + 실패 롤백까지 담당.
   `updateJoin`의 낙관적 write가 같은 join 캐시에 반영되므로 `myJoin` 스트림이 그 값을 다시 흘려보내
   최종 상태가 되고, 화면의 즉시 반영은 컴포넌트 낙관적 `useState`가 담당한다.

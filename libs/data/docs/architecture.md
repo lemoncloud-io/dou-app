@@ -1,6 +1,6 @@
 # @chatic/data — headless data layer
 
-> 상태: Approved · 최종 갱신: 2026-09-09 · 관련 ADR: [ADR-0081](../../../docs/adr/0081-libs-data-doc-canon-and-layer-flattening.md) (이 문서의 트랙), [ADR-0036](../../../docs/adr/0036-data-surface-unification-app-runtime-cleanup.md) (데이터 접근 표면 단일화)
+> 상태: Live · 최종 갱신: 2026-09-09 · 관련 ADR: [ADR-0081](../../../docs/adr/0081-libs-data-doc-canon-and-layer-flattening.md) (이 문서의 트랙), [ADR-0036](../../../docs/adr/0036-data-surface-unification-app-runtime-cleanup.md) (데이터 접근 표면 단일화)
 
 ## 목적
 
@@ -135,6 +135,86 @@ sequenceDiagram
     L-->>UI: 영향받은 observer만 재발행
 ```
 
+### 핵심 계약
+
+```mermaid
+classDiagram
+    class DataContextProvider {
+        <<interface>>
+        +getContext() DataContext
+        +setContext(context) void
+    }
+
+    class BaseRepository {
+        <<abstract>>
+        #getRequestContext() DataContext
+        #getNormalizedContext(context) DataContext
+        #assertRequiredString(value, field) string
+        +dispose() void
+    }
+
+    class IChatRepository {
+        <<interface>>
+        +observeList(query, cb) Unsubscribe
+        +observeItem(id, cb) Unsubscribe
+        +refreshList(query) Promise
+        +sendChat(payload) Promise
+        +cacheClearByChannelId(channelId) Promise
+    }
+    class ChatRepository
+
+    BaseRepository <|-- ChatRepository
+    IChatRepository <|.. ChatRepository
+    DataContextProvider <.. BaseRepository
+
+    class ILocalDataSource {
+        <<interface>>
+        +cacheRead(id, override) Promise
+        +cacheReadList(query, override) Promise
+        +observeItem(id, cb, override) Unsubscribe
+        +observeList(query, cb, override) Unsubscribe
+        +cacheWrite(item, override) Promise
+        +cacheDelete(id, override) Promise
+        +cacheClear(override) Promise
+    }
+
+    class BaseLocalDataSource {
+        <<abstract>>
+        #getScopeKey(override) string
+        #createListObserverKey(parts, override) string
+        #scheduleItemReemit(ids) void
+        #scheduleListReemit(prefixes) void
+        #scheduleFullReemit() void
+    }
+    class ChatLocalDataSource
+
+    BaseLocalDataSource <|-- ChatLocalDataSource
+    ILocalDataSource <|.. ChatLocalDataSource
+
+    class CacheStorage {
+        <<interface>>
+        +save(id, item) Promise
+        +load(id) Promise
+        +loadAll(options) Promise
+        +delete(id) Promise
+        +clearAll() Promise
+        +clearByChannelId(channelId) Promise
+    }
+    class BaseDbAdapter {
+        <<abstract>>
+        #getScope() Scope
+    }
+    class IndexedDBAdapter
+    class NativeDBAdapter
+
+    CacheStorage <|.. BaseDbAdapter
+    BaseDbAdapter <|-- IndexedDBAdapter
+    BaseDbAdapter <|-- NativeDBAdapter
+```
+
+`CacheStorage`만 이 lib의 것이다 — `ports/`가 선언하는 인터페이스다. 그 아래 세 어댑터는
+`@chatic/db` 소유이고, 어느 도메인이 어느 어댑터를 받는지는 `libs/app-runtime`이 정한다.
+
 ## 상세 구현
 
 ### 디렉토리
@@ -216,127 +296,3 @@ npx jest --config libs/data/jest.config.js
 - 테스트는 45파일 · 360케이스다. data source·repository 각각에 대응 테스트가 있다.
 - 다운스트림 확인: `apps/web`·`apps/desktop-web`·`libs/app-runtime`의 타입체크. 배럴 식별자가 바뀌면 여기서 잡힌다.
 - 낡은 `dist`/`out-tsc`가 유령 에러를 만든다. 디렉토리를 물리 이동한 뒤에는 `rm -rf libs/data/dist libs/data/out-tsc`로 강제 삭제하고 다시 본다.
-
----
-
-## 구현 체크리스트
-
-> 임시 섹션 — Live 전환 시 삭제한다.
-
-### 1단계 — `src/data` 평탄화 (외부 파급 0)
-
-`libs/data/src/data/*`를 `libs/data/src/*`로 올린다. 같은 커밋에서 디렉토리 이름의 `-v2`도 뗀다
-(`repositories-v2` → `repositories`, `local/data-sources-v2` → `local/data-sources`). 식별자는
-건드리지 않는다 — 이 단계는 경로만이다.
-
-- `git mv`로 4개 디렉토리 이동
-- 내부 상대 경로 수정 (109파일 범위, 대부분 `../../` 깊이 한 단계 감소)
-- `src/index.ts`의 8줄 경로 수정
-- `rm -rf libs/data/dist libs/data/out-tsc` 후 타입체크 + 테스트
-- 커밋
-
-### 2단계 — `V2` 식별자 제거 (리포 전체)
-
-| 지금                                               | 이후                                           |
-| -------------------------------------------------- | ---------------------------------------------- |
-| `XxxRepositoryV2` · `IXxxRepositoryV2`             | `XxxRepository` · `IXxxRepository`             |
-| `BaseRepositoryV2`                                 | `BaseRepository`                               |
-| `createRepositoriesV2`                             | `createRepositories`                           |
-| `DataRepositoriesV2` · `DataRepositoriesV2Options` | `DataRepositories` · `DataRepositoriesOptions` |
-| `XxxLocalDataSourceV2` · `IXxxLocalDataSourceV2`   | `XxxLocalDataSource` · `IXxxLocalDataSource`   |
-| `LocalDataSourcesV2` · `createLocalDataSourcesV2`  | `LocalDataSources` · `createLocalDataSources`  |
-| `BaseLocalDataSourceV2` · `ILocalDataSourceV2`     | `BaseLocalDataSource` · `ILocalDataSource`     |
-
-- 도메인 이름을 명시한 치환만 쓴다. `Invite`가 `I` 접두와 겹쳐서(`IInviteRepositoryV2` vs `InviteRepositoryV2`) 정규식 `I` 접두 치환은 금지다.
-- 데이터 레이어와 무관한 `V2`는 건드리지 않는다 — `apps/admin-v2` 경로, `useRegisterUserV2`, `registerUserV2`(와이어 액션), `useChatOutbox`·`useCloudCatalog`의 지역 식별자.
-- `app-runtime/src/data/factories/repositoryFactory.ts` 삭제 → `DataManager`가 `@chatic/data`의 `createRepositories`를 직접 부른다. 인자 키가 `contextProvider` → `context`로 바뀐다.
-- `app-runtime/src/data/factories/localFactory.ts:5`의 import 별칭 제거.
-- 타입체크: `libs/data` → `libs/app-runtime` → `apps/web` → `apps/desktop-web` 순.
-- 커밋
-
-### 3단계 — 문서 재작성
-
-8개 → 4개 + 진입점.
-
-| 만들 것                | 재료                                                                |
-| ---------------------- | ------------------------------------------------------------------- |
-| `docs/architecture.md` | 이 문서. 임시 섹션 2개 삭제하고 상태를 Live로.                      |
-| `docs/local.md`        | `docs/local/README.md` + `docs/local/architecture.md` 병합          |
-| `docs/remote.md`       | `docs/remote/README.md` + `docs/remote/architecture.md` 병합        |
-| `docs/repositories.md` | `docs/repositories/README.md` + `docs/repositories/domains.md` 병합 |
-| `README.md`            | 20줄 진입점으로 축소 (242줄 → 20줄)                                 |
-
-삭제: `docs/README.md`, `docs/http-data-path.md`, `docs/local/`, `docs/remote/`, `docs/repositories/`.
-
-`http-data-path.md`에서 `docs/remote.md`로 흡수할 것 넷.
-
-1. HTTP gateway `Pick<>` 구성 — 도메인 5종(`auth`·`user`·`cloud`·`subscription`·`report`)
-2. HttpDataSource별 도메인 매핑과 "로컬에 쓰지 않는다"는 캐시 의미
-3. `ReportHttpDataSource`가 매핑할 도메인도 캐시 슬롯도 없이 이 층을 지나는 이유
-4. REST 훅 소비처 실측 수치 — [ADR-0070:108](../../../docs/adr/0070-app-runtime-session-hub.md)이 이 수치를 링크로 인용한다. 지우면 그 링크가 끊긴다.
-
-나머지(단계 예고, 검증 절차, 문서에서 벗어난 지점, 스케치 코드)는 버린다.
-
-**고칠 낡은 사실 10건** — 아래 전부 이번 재작성에서 사라진다.
-
-| 위치                          | 낡은 주장                          | 실제                                                 |
-| ----------------------------- | ---------------------------------- | ---------------------------------------------------- |
-| `docs/README.md`              | `src/data/events` 섹션 전체        | 디렉토리 없음                                        |
-| `docs/README.md`              | 트리에 `repositories/`             | 없음                                                 |
-| `docs/README.md`              | `src/data/repositories/types.ts`   | `repositories-v2/types.ts`                           |
-| `README.md`                   | 트리에 `repositories/` + `events/` | 둘 다 없음                                           |
-| `docs/local/README.md`        | 트리에 `databases/`                | 없음 — `@chatic/db`로 이동                           |
-| `docs/local/README.md`        | 트리에 `storages/`                 | 없음 — `@chatic/db`로 이동                           |
-| `docs/local/README.md`        | local 도메인 8개                   | 9개 (`invite` 누락, ADR-0052)                        |
-| `docs/local/architecture.md`  | 캐시 슬롯 8개                      | 9개 (`invite` 누락)                                  |
-| `docs/local/architecture.md`  | `storages/index.ts` 링크           | 깨짐                                                 |
-| `docs/repositories/README.md` | 도메인 8개                         | 13개 (`auth·device·invite·report·subscription` 누락) |
-
-추가로 `docs/http-data-path.md`의 `apps/admin`은 지금 `apps/admin-v2`뿐이고, `docs/repositories/domains.md`가
-`lastChat$`를 채널 sync 내용물로 서술하는데 매퍼는 그것을 의도적으로 읽지 않는다(ADR-0057).
-
-**링크 스윕 — 외부 15개 파일, 17줄.**
-
-| 고칠 것                                   | 개수   | 지금 → 이후                                                                      |
-| ----------------------------------------- | ------ | -------------------------------------------------------------------------------- |
-| ADR "이름 안내" 각주                      | **11** | `docs/remote/README.md#이름-규약-2026-09-01-리네임` → `docs/remote.md#이름-규약` |
-| `libs/http/docs/architecture.md`          | 3      | `../../data/docs/http-data-path.md` → `../../data/docs/remote.md`                |
-| `docs/adr/0006`                           | 1      | `libs/data/docs/local/` → `libs/data/docs/local.md`                              |
-| `docs/adr/0070:108`                       | 1      | `http-data-path.md` → `docs/remote.md` (위 흡수 항목 4)                          |
-| `docs/specs/cache/local-cache-layer.md:9` | 1      | `libs/data/docs/README.md` → `libs/data/docs/architecture.md`                    |
-
-`apps/web/docs/README.md:72`는 디렉토리(`libs/data/docs`)를 가리켜 그대로 유효하다.
-`docs/audit/2026-09-dead-code-sweep.md:235`는 과거 편집을 서술하는 산문이라 경로를 고치지 않는다 —
-그 시점의 기록이다.
-
-**앵커를 반드시 보존한다.** ADR 11개가 2026-09-01 이름 규약 대응표 하나를 가리킨다. 옛 이름으로 쓰인
-ADR을 읽는 사람이 전부 그 앵커로 온다. `docs/remote.md`에서 그 표의 제목을 `## 이름 규약`으로 두고,
-ADR-0081의 `V2` 제거 행을 같은 표에 덧붙인다. 제목을 바꾸면 11개 링크가 동시에 끊긴다.
-
-- 커밋
-
-## 리스크와 미지수
-
-> 임시 섹션 — Live 전환 시 삭제한다.
-
-**검증 환경.** 이 워크트리에 `node_modules`가 없다. 메인 체크아웃에서 심링크를 붙여 검증하고 끝나면
-제거한다. 심링크를 남기면 다른 세션의 nx 캐시를 오염시킨다.
-
-**동시 세션.** 이 워크트리의 git 인덱스를 다른 세션과 공유한다. 커밋마다 경로를 명시해 스테이징하고
-직전에 `git diff --cached --name-only`로 남의 것이 섞이지 않았는지 확인한다.
-
-**리베이스 의미 충돌.** 2단계는 순수 리네임이라 텍스트 충돌 없이 머지돼도 의미가 깨질 수 있다.
-`develop` 리베이스 후에는 반드시 타입체크를 다시 돌린다.
-
-**desktop-web.** push로만 배포되고 되돌릴 수단이 없다. 이 트랙이 건드리는 `desktop-web` 파일은
-리네임에 한정한다 — 로직에 손대지 않는다.
-
-**`libs/data`가 다운스트림 타입체크를 막는다.** `apps/web` 타입체크가 `libs/data`의 빌드 산출물을
-본다. 1단계 후 `dist`를 지우지 않으면 옛 심볼 기준 유령 에러가 난다.
-
-**미지수 — HTTP 주입 선택성.** `httpDataSources?`가 선택적으로 남아 있고 승격이 예고만 됐다.
-`app-runtime`이 항상 주입하는지 확인이 필요하다. 항상 주입한다면 선택성은 죽은 유연성이지만, 그
-정리는 이 트랙 범위가 아니다 — 별도 판단으로 넘긴다.
-
-**이름 규약 대응표가 단일 실패점이다.** ADR 11개가 그 앵커 하나에 의존한다. 3단계에서 표를 옮길 때
-제목과 앵커를 그대로 유지하고, 커밋 전 11개 링크를 실제로 눌러 확인한다.
