@@ -66,13 +66,21 @@ createLocalDataSourcesV2 as createDataLocalDataSources,
 
 ### 1. 문서 정본은 분량으로 가른다 (리포 전체 규칙)
 
-- 모듈 문서가 **3개 이하**면 `README.md` 하나가 정본이다. `docs/`를 만들지 않는다.
-- **초과**하면 `docs/`가 정본이다. `README.md`는 20줄 이내 진입점만 둔다 — 무엇인지 한 문단과 `docs/` 링크.
+- **정본은 하나다.** `README.md`와 `docs/`가 같은 사실을 말하면 하나를 진입점으로 강등한다.
+- **정본 위치는 이미 정해진 것을 존중한다.** `docs/`가 있으면 `docs/`, 없으면 `README.md`.
+- **`docs/`를 새로 만드는 기준**만 문서 3개 초과다.
 - 같은 사실은 정본 한 곳에만 쓰고 나머지는 링크한다.
+- `docs/`가 정본인 모듈의 `README.md`는 20줄 이내 진입점만 둔다 — 무엇인지 한 문단과 `docs/` 링크.
 
-`libs/data`는 문서 8개다. `docs/`가 정본이고 `README.md`를 20줄 진입점으로 줄인다.
+`libs/data`는 문서 8개이고 정본이 둘이다. `docs/`가 정본이고 `README.md`를 20줄 진입점으로 줄인다.
 
-이 기준이면 `bridges`(271줄)와 `app-messages`(202줄)는 손대지 않는다. 문서가 하나뿐이기 때문이다.
+> **2026-09-09 보정.** 처음에는 "문서 3개 이하면 `README.md` 하나"로 적었다. 그 규칙은
+> `libs/http`·`libs/db`·`libs/auth-sign`·`libs/logger`를 오탐으로 잡는다 — 네 곳 모두 문서가
+> 1~2개지만 이미 `docs/architecture.md`가 정본이고, 60개 문서가 쓰는 컨벤션과 ADR-0070 상호
+> 링크를 재직해야 얻는 게 없다. 규칙의 진짜 대상은 정본이 **둘인** 곳(`data`, `app-runtime`)이었다.
+
+이 기준이면 손대지 않는 곳이 분명해진다 — `bridges`(271줄)·`app-messages`(202줄)는 `README.md`가
+유일한 정본이고, `http`·`db`·`auth-sign`·`logger`는 `docs/`가 유일한 정본이다.
 
 ### 2. 삭제 대상은 4범주다
 
