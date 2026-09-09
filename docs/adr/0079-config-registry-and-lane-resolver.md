@@ -4,8 +4,10 @@
 > 범위: `libs/web-config` → `libs/config` (신설·삭제 — **실제 importer는 `libs/app-runtime` 8파일뿐**,
 > `apps/desktop-web`·`libs/shared`·`libs/http`의 언급은 주석이다) · `apps/web` · `apps/mobile` ·
 > `libs/app-messages` (브릿지 op) · 튜너블 소비 lib (`http` · `data` · `bridges` · `logger`).
-> **`apps/desktop-web`은 범위 밖** — "참조만, 수정 금지"가 선 지시이고, `usePreferenceStore` 소비 20파일 중
-> 하나(`features/settings/hooks/useDevicePushMute.ts`)가 거기 있으므로 이관 3단계에서 명시적으로 제외한다.
+> **`apps/desktop-web`도 범위에 든다** (2026-09-09 지시로 수정 허용). 이관 대상은 `import.meta.env`
+> 7파일 · `CHATIC_APP_*` 2파일 · `usePreferenceStore` 1파일이고, `@chatic/web-config` 언급은 주석뿐이다.
+> **다만 되돌릴 수단이 없다** — desktop-web은 push로만 배포되고 수동 배포·원복 경로가 없으며 리포 CI에
+> 테스트 워크플로 자체가 없다(빌드 워크플로만 둘). 그래서 이관은 마지막에 붙이고 수동 확인을 늘린다.
 > `apps/admin-v2`는 **조건부** — 셸이 없어 셸·서버 레인이 무의미하므로 편입 여부는 미결 ⑤가 정한다.
 > 수정: [ADR-0080](./0080-debug-panel-shared-model-and-stage-visibility.md)이 결정 3의 스키마(`meta` 추가)와
 > `env.*`(`buildStage` 추가)를 수정한다 — 해당 위치에 표시했다.
