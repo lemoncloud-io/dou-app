@@ -12,6 +12,8 @@ export interface ResolverFacts {
     stage: () => Stage;
     buildStage: () => Stage;
     platform: () => Platform;
+    /** Raw build value by name — backs `envDefaultKey`. */
+    raw: (name: string) => string | undefined;
     wired: () => Readonly<Record<Writer, boolean>>;
 }
 
@@ -60,6 +62,13 @@ export class ConfigResolver {
     }
 
     private fold(key: string, entry: ConfigEntry, isUnlocked: boolean): { value: unknown; origin: ValueOrigin } {
+        // Three keys are pure adapter passthroughs, not lane-folded toggles — the adapter already
+        // has a dedicated method for each, so asking again through `raw()` or a registry literal
+        // would just be a second, easier-to-drift source for the same fact.
+        if (key === 'env.stage') return { value: this.facts.stage(), origin: 'default' };
+        if (key === 'env.buildStage') return { value: this.facts.buildStage(), origin: 'default' };
+        if (key === 'env.platform') return { value: this.facts.platform(), origin: 'default' };
+
         for (const lane of this.policy.order) {
             if (!this.policy.canSupply(entry, lane, isUnlocked)) continue;
             const read = this.readLane(lane, key);
@@ -77,6 +86,15 @@ export class ConfigResolver {
         const byPlatform = entry.byPlatform?.[this.facts.platform()];
         if (byPlatform !== undefined && isValidValue(entry, byPlatform)) {
             return { value: byPlatform, origin: 'stageRule' };
+        }
+
+        // A per-app build value (an endpoint, a version string) outranks the registry's generic
+        // literal but loses to a rule the registry itself declared above.
+        if (entry.envDefaultKey) {
+            const raw = this.facts.raw(entry.envDefaultKey);
+            if (raw !== undefined && isValidValue(entry, raw)) {
+                return { value: raw, origin: 'default' };
+            }
         }
 
         return { value: entry.defaultValue, origin: 'default' };
