@@ -326,14 +326,24 @@ npx eslint libs/config --ext .ts
 **검증 결과**: `nx test config` 66개 통과 · `tsc -b` 통과 · `eslint` 0건. `tsconfig.spec.json`의 TS5095는
 `libs/logger`도 같으므로 선재 패턴이고 ts-jest가 덮는다.
 
-### 2. 키 선언 84개
+### 2. 키 선언 84개 — **완료 2026-09-09**
 
-- [ ] `registry/` 12파일 작성. `title`/`description`을 **전부** 채운다
-- [ ] `appliesAt`을 **소비 형태를 확인하고** 적는다 — 호출마다 읽으면 `live`, 생성자 캡처면 `restart`,
+- [x] `registry/` 12파일 작성. `title`/`description`을 **전부** 채운다
+- [x] `appliesAt`을 **소비 형태를 확인하고** 적는다 — 호출마다 읽으면 `live`, 생성자 캡처면 `restart`,
       연결 시 전달이면 `reconnect`. **확인 전 기본값은 `restart`**
-- [ ] `registry/policy.spec.ts`로 조합 검증
+- [x] `registry/allModules.spec.ts`로 조합 검증 · 노출면 분포 검증
 
-**검증**: 84키 선언 · 빈 `title`/`description` 0건 · 조합 검증 통과
+**검증 결과**: 84키 선언 · 빈 `title`/`description` 0건 · 조합 검증(policy) 0건 · 노출면 분포
+`user 4 · labs 0 · dev 67 · internal 13`가 [ADR-0079 §노출면 분포](../../../docs/adr/0079-config-registry-and-lane-resolver.md)와
+정확히 일치. `nx test config` 71개 통과 · `tsc -b` 통과 · `eslint` 0건.
+
+> **스펙에 없던 결정 — `writableBy` 판단 기준.** 튜너블 표(`docs/spec/config-registry-keys.md`)는 22개
+> 키에 `writableBy` 열을 명시하지 않았다(1차 스윕은 명시, 2차 스윕/튜너블은 산문으로만 일부 언급). 규칙을
+> 세워 적용했다: **명시적으로 `server` 제외를 말한 것만 제외**(`auth.sdk.*` 3개 — 갱신 폭주 위험),
+> 나머지는 `['local', 'server']`. `'shell'`은 새 튜너블에 넣지 않았다 — ADR-0080 결정 11·12 이후
+> 앱에는 자체 디버그 UI가 없으므로 앱이 값을 "쓸" 경로가 없고, 셸이 하는 일은 부팅 주입뿐이다.
+> `persist`는 튜너블 전부 `'session'`(QA 오버라이드는 탭이 닫히면 사라진다)로 통일했다. 이 판단은
+> 검증 가능한 형태(드리프트 게이트 · 리뷰)로 재확인이 필요하다.
 
 ### 3. env 레인 이관 + `web-config` 삭제
 
