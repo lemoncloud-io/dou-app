@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useSyncExternalStore, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -16,7 +16,30 @@ vi.mock('@chatic/app-runtime', () => ({
     },
 }));
 
-import { useNotificationPrefsStore } from '../../../shared/stores';
+// A minimal, synchronously-reactive fake of `ui.pushMuted` — real `useConfigValue` notifies
+// subscribers on `config.set` within the same tick (useSyncExternalStore), which the optimistic
+// same-tick-flip test below depends on. A plain closure return value would only pick up the new
+// value on whatever later re-render another state change happens to cause.
+let mutedState = false;
+const listeners = new Set<() => void>();
+const setPushMutedMock = vi.fn((value: boolean) => {
+    mutedState = value;
+    listeners.forEach(listener => listener());
+});
+vi.mock('@chatic/config', () => ({
+    config: { set: (_key: string, value: boolean) => setPushMutedMock(value) },
+}));
+vi.mock('@chatic/config/react', () => ({
+    useConfigValue: () =>
+        useSyncExternalStore(
+            listener => {
+                listeners.add(listener);
+                return () => listeners.delete(listener);
+            },
+            () => mutedState
+        ),
+}));
+
 import { useDevicePushMute } from './useDevicePushMute';
 
 const wrapper = ({ children }: { children: ReactNode }) => {
@@ -28,7 +51,9 @@ const wrapper = ({ children }: { children: ReactNode }) => {
 describe('useDevicePushMute', () => {
     beforeEach(() => {
         updateRemotePushMute.mockReset();
-        useNotificationPrefsStore.setState({ pushMuted: false });
+        setPushMutedMock.mockClear();
+        mutedState = false;
+        listeners.clear();
         window.CHATIC_APP_PLATFORM = 'desktop';
     });
 
