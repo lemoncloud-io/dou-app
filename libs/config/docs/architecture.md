@@ -49,12 +49,13 @@
 - 원격 레인 2행을 **빈 채로** 등재 + 가짜 어댑터 계약 테스트
 - 노출면 셋(`dev` · `user` · `labs`)의 키 선언
 - 기기 상태 로그 (부팅 1회 + 변경 시)
+- `apps/desktop-web` 이관 — `import.meta.env` 7파일 · `CHATIC_APP_*` 2파일 ·
+  `usePreferenceStore` 1파일 (2026-09-09 지시로 범위 편입)
 
 **제외**
 
 - 원격 어댑터 구현 · fetcher · 폴링 (ADR-0079 결정 10)
 - 디버그 패널 이관 자체 (ADR-0080 — 다음 라운드, `apps/web/docs/architecture/`에 별도 문서)
-- `apps/desktop-web` (수정 금지 — 선 지시)
 - A/B 배정 · 점진 배포 · 타겟팅 (자리도 만들지 않는다)
 - 제품 한도 · 기기 식별자 · 시각 토큰 통일
 
@@ -210,11 +211,12 @@ private) · `project.json` · `tsconfig.json` · `tsconfig.lib.json` · `tsconfi
 
 ### 앱 어댑터 (앱 쪽에 만든다)
 
-| 앱              | 파일                         | 읽는 것                                   |
-| --------------- | ---------------------------- | ----------------------------------------- |
-| `apps/web`      | `src/app/config/adapters.ts` | `import.meta.env` + `window.CHATIC_APP_*` |
-| `apps/mobile`   | `src/app/config/adapters.ts` | `react-native-config` + MMKV              |
-| `apps/admin-v2` | (조건부 — 미결)              | `import.meta.env`만                       |
+| 앱                 | 파일                         | 읽는 것                                   |
+| ------------------ | ---------------------------- | ----------------------------------------- |
+| `apps/web`         | `src/app/config/adapters.ts` | `import.meta.env` + `window.CHATIC_APP_*` |
+| `apps/mobile`      | `src/app/config/adapters.ts` | `react-native-config` + MMKV              |
+| `apps/desktop-web` | `src/app/config/adapters.ts` | `import.meta.env` + Electron preload 주입 |
+| `apps/admin-v2`    | (조건부 — 미결)              | `import.meta.env`만                       |
 
 `storage` 포트는 새 타입을 만들지 않고 [`StorageAdapter`](../../shared/src/utils/storage.ts)의
 모양(`getItem`/`setItem`/`removeItem`)을 구조적 타입으로 받는다. `@chatic/shared`를 임포트하지 않으므로
@@ -343,12 +345,27 @@ private) · `project.json` · `tsconfig.json` · `tsconfig.lib.json` · `tsconfi
 - [ ] `PREFERENCES` 12키 + `logUploadSwitch` 3키 이관
 - [ ] **레거시 저장값 승계** — `vite-ui-theme` · `chatic-onboarding-completed` ·
       `dou.relayInvite.locallyCanceled.v1` 등. 일회성, 부팅 1회
-- [ ] `usePreferenceStore` 해체 → 셀렉터 훅. 소비 20파일 중 **desktop-web 1파일은 제외**
+- [ ] `usePreferenceStore` 해체 → 셀렉터 훅. 소비 20파일 전부 (desktop-web 1파일 포함)
 - [ ] 모바일 `debugSettingsStore` 통합
 
 **검증**: 기존 사용자의 테마·온보딩 상태가 유지되는지 (가짜 스토리지로 재현) · web 2600여 테스트 통과
 
-### 6. 기기 상태 로그
+### 6. desktop-web 이관
+
+**마지막에 붙인다.** 되돌릴 수단이 없기 때문이다 — push로만 배포되고 수동 배포·원복 경로가 없으며,
+리포 CI에 테스트 워크플로 자체가 없다(빌드 워크플로만 둘).
+
+- [ ] `apps/desktop-web/src/app/config/adapters.ts` — `import.meta.env` + Electron preload 주입
+- [ ] `import.meta.env` 직독 7파일 이관 (`VITE_ENV` · `VITE_DESKTOP_PROTOCOL`)
+- [ ] `CHATIC_APP_*` 직독 2파일 이관
+- [ ] `usePreferenceStore` 1파일 이관 (`features/settings/hooks/useDevicePushMute.ts`)
+- [ ] `main.tsx`의 web-config 주석 정정 (코드 변경 없음)
+
+**검증**: `tsc -b`로 desktop-web 타입체크 — **선재 부채 19건이 있으므로 기준선을 먼저 기록하고 늘지
+않았는지만 본다.** 자동 테스트가 없으므로 수동 확인이 유일한 방어선이다: 부팅 · 로그인 · 채널 진입 ·
+설정 화면의 푸시 음소거 토글 · 딥링크 한 번.
+
+### 7. 기기 상태 로그
 
 - [ ] 부팅 직후 기본값과 다른 키를 한 줄로
 - [ ] `config.subscribe`로 변경 시 그 키만
