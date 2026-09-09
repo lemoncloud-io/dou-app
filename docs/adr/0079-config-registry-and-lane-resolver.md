@@ -1,11 +1,14 @@
 # ADR-0079: 설정은 하나의 레지스트리가 소유한다 — `@chatic/config` 레인 리졸버
 
-> 상태: **Accepted** · 작성일: 2026-09-08 · 구현: 미착수
+> 상태: **Accepted** · 작성일: 2026-09-08 · 구현: **1~7단계 완료** (2026-09-09, 진행은
+> [libs/config/docs/architecture.md §구현 체크리스트](../../libs/config/docs/architecture.md))
 > 범위: `libs/web-config` → `libs/config` (신설·삭제 — **실제 importer는 `libs/app-runtime` 8파일뿐**,
 > `apps/desktop-web`·`libs/shared`·`libs/http`의 언급은 주석이다) · `apps/web` · `apps/mobile` ·
 > `libs/app-messages` (브릿지 op) · 튜너블 소비 lib (`http` · `data` · `bridges` · `logger`).
-> **`apps/desktop-web`도 범위에 든다** (2026-09-09 지시로 수정 허용). 이관 대상은 `import.meta.env`
-> 7파일 · `CHATIC_APP_*` 2파일 · `usePreferenceStore` 1파일이고, `@chatic/web-config` 언급은 주석뿐이다.
+> **`apps/desktop-web`도 범위에 든다** (2026-09-09 지시로 수정 허용). 이관 대상을 `import.meta.env`
+> 7파일 · `CHATIC_APP_*` 2파일 · `usePreferenceStore` 1파일로 적었으나 **6단계 실측에서 정정됐다**:
+> 실제로는 `import.meta.env` 1파일(`oauth.ts` — 나머지 6파일은 `import.meta.env.DEV` 빌드 상수뿐) ·
+> `CHATIC_APP_*` 0파일(비이관 결정) · 알림 설정 스토어 1파일이다. `@chatic/web-config` 언급은 주석뿐이다.
 > **다만 되돌릴 수단이 없다** — desktop-web은 push로만 배포되고 수동 배포·원복 경로가 없으며 리포 CI에
 > 테스트 워크플로 자체가 없다(빌드 워크플로만 둘). 그래서 이관은 마지막에 붙이고 수동 확인을 늘린다.
 > `apps/admin-v2`는 **조건부** — 셸이 없어 셸·서버 레인이 무의미하므로 편입 여부는 미결 ⑤가 정한다.
@@ -356,6 +359,7 @@ PROD에서 웹 오버라이드 레인은 죽어 있다 — §맥락 6의 `?_back
 ```ts
 config.get<T>(key): T                                  // 동기. 언제나 값이 있다 (최소 system default)
 config.subscribe(keys, listener): () => void            // 해당 키의 resolve 결과가 바뀔 때만 통지
+                                                        // listener는 움직인 키를 인자로 받는다
 config.set(key, value, { lane: 'local' }): SetResult    // 정책 위반은 던지지 않고 거부 이유를 반환
 config.init(ports): void                                // 어댑터 주입 (결정 8)
 config.snapshot<T>(key): ConfigSnapshot<T>              // 한 키의 지금 상태 전부 (결정 3)
@@ -364,6 +368,11 @@ config.snapshotAll(): readonly ConfigSnapshot<unknown>[] // 패널·로그 컨�
 
 `subscribe`는 **resolve 결과 변화**에만 발화한다 — 낮은 레인의 값이 바뀌어도 높은 레인이 이기고 있으면
 통지하지 않는다. 그래야 관측자가 "지금 유효한 값"만 보게 된다.
+
+리스너는 **자기가 물어본 키 중 움직인 것**을 인자로 받는다(`ConfigChangeListener`). 스토어는 어차피 그
+목록을 들고 통지 대상을 고르므로, 리스너에게 넘기지 않으면 관측자마다 값 사본을 따로 들고 있다가
+직접 대조해야 한다 — 결정 16의 상태 로그가 정확히 그 상황이었다(7단계). 값만 다시 읽으면 되는
+소비자(React `useSyncExternalStore`)는 인자를 무시하면 된다.
 
 React 바인딩은 `@chatic/config/react` **별도 엔트리**에 `useSyncExternalStore`로 얹는다. 코어를 React-free로
 유지하는 것이 목적이고, 어댑터를 앱 4곳에 복제하지 않으려고 lib에 둔다. zustand는 쓰지 않는다 — 코어가
@@ -958,10 +967,16 @@ env는 관측 대상이 아니라 실시간 반영도 못 한다. 결정 4의 en
    storage 어댑터 없이 `config.init()`만), 4단계에서 셸 레인을 실제로 배선해 보니 새로 결정할 것이
    없었다 — "셸이 없으면 그 레인은 빈다"는 코어의 기존 규칙이 admin-v2에도 그대로 적용될 뿐이다.
    landing은 이 리포에 없어 범위 밖이다.
-6. **레거시 저장값 마이그레이션.** `ui.*` 10키가 지금은 제품 초기의 키 이름에 저장돼 있다
-   (`vite-ui-theme` · `chatic-onboarding-completed` · `dou.relayInvite.locallyCanceled.v1` 등). 기존 사용자의
-   테마 선택과 온보딩 완료 상태가 이관에서 유실되면 안 되므로, 키별 레거시 이름 → 새 키 일회성 승계 규칙과
-   그 실행 시점(부팅 1회? 최초 읽기 시?)을 정해야 한다. **이관 3단계의 최대 리스크다.**
+6. ~~레거시 저장값 마이그레이션~~ → **5·6단계가 답했다.** 실행 시점은 **부팅 1회, `config.init()`
+   앞**이다 — `init()`의 `hydrateStorage()`가 딱 한 번 읽으므로 그 뒤에 쓰면 다음 부팅까지 안 보인다.
+   플래그는 두지 않는다: "옛 키에 아직 줄 게 있나"가 곧 조건이고, 옮긴 즉시 옛 이름을 지우므로 다음
+   부팅은 할 일이 없다(플래그를 두고 옛 키를 남기면 `config.clear()` 뒤 부팅에서 지운 값이 되살아난다).
+   승계 형태는 저장 모양에 따라 둘로 갈린다 — 플랫 키 8개는 `apps/web`의
+   `legacyPreferenceMigration.ts`가 이름을 옮기고 옛 키를 삭제하고, zustand-persist 봉투 안쪽 필드는
+   `apps/desktop-web`의 `legacyNotificationPrefsMigration.ts`가 **필드만 떼어낸다**(같은 봉투에 살아
+   있는 설정이 있고, 남겨 두면 persist 하이드레이션이 다시 저장한다). `vite-ui-theme`은 예외로 승계가
+   아니라 **영구 미러링**이다 — 5개 앱의 프리페인트 스크립트가 직접 읽고 쓰는 공유 계약이라 원본을
+   지울 수 없다.
 7. ~~관측 — 이 기기의 실효 설정을 어떻게 아나~~ → **결정 16이 답한다.** 부팅 때 한 번 + 바뀔 때마다
    로그로 남기고, 디버그 화면은 `snapshotAll()`로 본다. `debug.entryCode`만 제외한다.
 8. **드리프트 게이트.** 84키 표는 방치하면 "선언됐지만 아무도 안 읽는 키"와 "읽지만 선언 안 된 키"로 썩는다.

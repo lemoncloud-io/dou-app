@@ -119,6 +119,16 @@ export interface ConfigSnapshot<T = unknown> {
     canWrite: readonly Writer[];
 }
 
+/**
+ * Told which keys moved, so an observer does not have to diff to find out.
+ *
+ * The store already knows — it is handed the changed keys to decide who to call — and dropping them
+ * on the way to the listener is what would force every observer to keep a shadow copy of the values
+ * it watches. Callers that do not care (React's `useSyncExternalStore`, which just re-reads) may
+ * ignore the argument.
+ */
+export type ConfigChangeListener = (changedKeys: readonly string[]) => void;
+
 export type SetRejection = 'unknownKey' | 'laneNotAllowed' | 'locked' | 'invalidValue' | 'notWired';
 
 /** `set` reports refusals instead of throwing — a debug panel should show the reason, not crash. */
