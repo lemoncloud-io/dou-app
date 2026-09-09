@@ -1,6 +1,6 @@
 # `@chatic/config`
 
-> 상태: **Proposed** · 최종 갱신: 2026-09-09
+> 상태: **Approved** · 최종 갱신: 2026-09-09
 > 관련 ADR: [ADR-0079](../../../docs/adr/0079-config-registry-and-lane-resolver.md) ·
 > [ADR-0080](../../../docs/adr/0080-debug-panel-shared-model-and-stage-visibility.md) ·
 > 키 목록: [레지스트리 키 제안](../../../docs/spec/config-registry-keys.md)
@@ -201,9 +201,17 @@ graph TB
 | `src/resolve/ConfigResolver.ts`   | 레인 fold + 스냅샷 조립                                                        |
 | `src/resolve/validate.ts`         | `type`/`values` 검증. 순수 함수                                                |
 | `src/store/ConfigStore.ts`        | 레인별 값 보관 + 옵저버. resolve 결과가 바뀐 키만 통지                         |
-| `src/lanes/*.ts` ×4               | `ServerEnforcedLane` · `ShellLane` · `LocalLane` · `ServerDefaultLane`         |
+| `src/lanes/RemoteCache.ts`        | 원격 페이로드 보관 + 1·4행 읽기. TTL 만료 시 킬만 버린다                       |
+| `src/utils/serialize.ts`          | 저장 경계의 JSON 인·디코드. 못 읽는 값은 없는 것으로 본다                      |
+| `src/testing/fixtures.ts`         | 테스트용 엔트리·어댑터·메모리 저장소                                           |
 | `src/utils/*`                     | 순수 헬퍼만 (키 파싱 · 봉투 직렬화)                                            |
 | `src/react/index.ts`              | `useConfigValue` — `useSyncExternalStore`                                      |
+
+> **스펙과 달라진 점 (2026-09-09, 1단계).** 초안은 레인 클래스 4개(`ServerEnforcedLane`·`ShellLane`·
+> `LocalLane`·`ServerDefaultLane`)를 두기로 했다. 실제로는 각각이 맵 읽기 한 줄을 감싸는 껍데기가 되어
+> `ConfigResolver.readLane`의 `switch` 4갈래와 `RemoteCache` 하나로 합쳤다. **불변조건은 그대로다** —
+> 순서는 여전히 `ConfigLanePolicy.order` 한 곳에만 있고, 레인을 늘리는 비용도 두 곳
+> (`order` 배열 한 행 + `switch` 한 case)으로 같다. 클래스 4개를 만들면 같은 비용에 파일만 늘었다.
 
 골격 파일은 [`libs/logger`](../../logger) 형태를 그대로 따른다 — `package.json`(`@chatic/config`,
 private) · `project.json` · `tsconfig.json` · `tsconfig.lib.json` · `tsconfig.spec.json` ·
@@ -260,18 +268,25 @@ private) · `project.json` · `tsconfig.json` · `tsconfig.lib.json` · `tsconfi
 
 ### 유닛 테스트 (`libs/config`)
 
-| 테스트                       | 무엇을 고정하나                                                                                                             |
-| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| `resolve/lanePolicy.spec.ts` | 레인 순서 6단 · `meta` 키의 잠금 면제 · 잠금 시 3행 건너뜀                                                                  |
-| `resolve/resolver.spec.ts`   | 형식 검증 실패 시 다음 행으로 · `defaultValue`가 언제나 답을 준다                                                           |
-| `resolve/killLane.spec.ts`   | **가짜 원격 어댑터** — enforced가 로컬을 이김 · default는 로컬에 짐 · TTL 만료 시 enforced만 버림 · 1행 고장 시 다음 행으로 |
-| `registry/merge.spec.ts`     | 중복 키는 먼저 것이 남고 로그가 남는다. **던지지 않는다**                                                                   |
-| `registry/policy.spec.ts`    | 조합 검증 — `user`/`labs`는 `local` 필요 · `labs`는 `server` 필요 · `user`+`meta` 금지                                      |
-| `store/observer.spec.ts`     | resolve 결과가 안 바뀌면 통지하지 않는다                                                                                    |
-| `naming.spec.ts`             | config의 `Platform` 값 집합 = `app-messages`의 것 (앱 쪽에 둔다)                                                            |
-| `drift.spec.ts`              | 선언됐지만 안 읽는 키 · 읽지만 선언 안 된 키                                                                                |
+```bash
+npx nx test config                                    # 66개 통과
+npx tsc -b libs/config/tsconfig.lib.json              # 진짜 타입체크
+npx eslint libs/config --ext .ts
+```
+
+| 테스트 파일                        | 무엇을 고정하나                                                                                                                                                   |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `resolve/ConfigLanePolicy.spec.ts` | 레인 순서 · `meta` 키의 잠금 면제 · 잠기면 웹만 막힘 · `canWrite`가 배선과 잠금을 반영                                                                            |
+| `resolve/ConfigResolver.spec.ts`   | 형식 틀리면 다음 행으로 · `defaultValue`가 언제나 답 · 보안 키는 빌드 환경으로 판정 · 잠금을 정할 때 무한 반복 없음                                               |
+| `resolve/killLane.spec.ts`         | **가짜 어댑터** — 킬이 웹을 이김 · 서버 기본값은 웹에 짐 · TTL 만료 시 킬만 버림 · 모르는 스키마는 통째 무시 · 서버가 못 쓰는 키는 무시 · 1행 고장 시 다음 행으로 |
+| `registry/merge.spec.ts`           | 중복 키는 먼저 것이 남고 **던지지 않는다** · 조합 검증 5종                                                                                                        |
+| `store/ConfigStore.spec.ts`        | 물어본 키만 듣는다 · 구독 해제 · 레인 통째 갈아치우기                                                                                                             |
+| `index.spec.ts`                    | 거부 이유 6종 · resolve 결과가 안 바뀌면 통지 안 함 · 저장·복원·막힌 저장소 · **앱 쓰기 확인 응답 + 1회 재시도 + 실패 알림** · 스냅샷 재료                        |
 
 `killLane.spec.ts`가 이번 라운드의 핵심이다. **원격 어댑터가 없어도 그 경로가 살아 있다는 유일한 증거다.**
+
+`naming.spec.ts`(config의 `Platform` = `app-messages`의 것)와 `drift.spec.ts`(선언만 된 키 · 선언 안 된
+키)는 양쪽을 임포트해도 되는 **앱 쪽**에 둔다. config 자신은 계속 아무것도 임포트하지 않는다.
 
 ### 수동 확인
 
@@ -293,22 +308,23 @@ private) · `project.json` · `tsconfig.json` · `tsconfig.lib.json` · `tsconfi
 
 각 단계가 끝나면 그 자리에서 검증 가능해야 한다.
 
-### 1. 골격과 코어 (앱은 아직 안 만진다)
+### 1. 골격과 코어 (앱은 아직 안 만진다) — **완료 2026-09-09**
 
-- [ ] `libs/config` 골격 — `logger` 형태 그대로. `tsconfig.base.json`에 `@chatic/config`와
+- [x] `libs/config` 골격 — `logger` 형태 그대로. `tsconfig.base.json`에 `@chatic/config`와
       `@chatic/config/*` 경로 추가
-- [ ] `jest.config.js` — `moduleNameMapper`의 `^@chatic/(.*)$`는 `$1`을 `config/react`로 잡아
+- [x] `jest.config.js` — `moduleNameMapper`의 `^@chatic/(.*)$`는 `$1`을 `config/react`로 잡아
       `libs/config/react/src/index.ts`(없는 경로)로 보낸다. **서브패스 규칙을 앞에 먼저 둔다**
-- [ ] `types.ts` · `ports.ts` — `ConfigEntry`(title·description·defaultValue·byStage·byPlatform·
+- [x] `types.ts` · `ports.ts` — `ConfigEntry`(title·description·defaultValue·byStage·byPlatform·
       surface·writableBy·persist·appliesAt·meta) · `ConfigSnapshot` · `Stage`/`Platform` 자체 선언
-- [ ] `ConfigRegistry` — 병합 + 중복 시 먼저 것 유지 + 로그
-- [ ] `ConfigLanePolicy` · `ConfigResolver` · `validate.ts`
-- [ ] `ConfigStore` — 옵저버는 resolve 결과 변화만
-- [ ] `lanes/` 4개. 원격 2개는 어댑터 없으면 항상 빈 값
-- [ ] `index.ts` 파사드 · `react/index.ts`
-- [ ] 테스트 8종. **`killLane.spec.ts` 포함**
+- [x] `ConfigRegistry` — 병합 + 중복 시 먼저 것 유지 + 로그
+- [x] `ConfigLanePolicy` · `ConfigResolver` · `validate.ts`
+- [x] `ConfigStore` — 옵저버는 resolve 결과 변화만
+- [x] 원격 2행은 `RemoteCache` 하나로(§스펙과 달라진 점). 어댑터 없으면 항상 빈 값
+- [x] `index.ts` 파사드 · `react/index.ts`
+- [x] 테스트 6파일 66개. **`killLane.spec.ts` 포함**
 
-**검증**: `npx nx test config` 통과 · `tsc -b libs/config/tsconfig.lib.json` 통과
+**검증 결과**: `nx test config` 66개 통과 · `tsc -b` 통과 · `eslint` 0건. `tsconfig.spec.json`의 TS5095는
+`libs/logger`도 같으므로 선재 패턴이고 ts-jest가 덮는다.
 
 ### 2. 키 선언 84개
 
