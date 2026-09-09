@@ -954,7 +954,10 @@ env는 관측 대상이 아니라 실시간 반영도 못 한다. 결정 4의 en
 3. **`json` 타입의 검증 깊이.** `channelSort`·`pinnedChannels` 같은 맵 값의 파서를 레지스트리가 어디까지
    소유할지 (현행은 스토어에 파서 4개).
 4. **셸 KV 봉투 크기와 주입 방식.** 전역 20종을 봉투 하나로 합칠 때 주입 스크립트 크기·직렬화 비용.
-5. **admin-v2·landing 편입 여부.** admin-v2는 `import.meta.env` 7파일이 있으나 셸이 없다.
+5. ~~admin-v2·landing 편입 여부~~ → **해당 없음.** 3단계에서 admin-v2를 env 전용으로 편입했고(셸·
+   storage 어댑터 없이 `config.init()`만), 4단계에서 셸 레인을 실제로 배선해 보니 새로 결정할 것이
+   없었다 — "셸이 없으면 그 레인은 빈다"는 코어의 기존 규칙이 admin-v2에도 그대로 적용될 뿐이다.
+   landing은 이 리포에 없어 범위 밖이다.
 6. **레거시 저장값 마이그레이션.** `ui.*` 10키가 지금은 제품 초기의 키 이름에 저장돼 있다
    (`vite-ui-theme` · `chatic-onboarding-completed` · `dou.relayInvite.locallyCanceled.v1` 등). 기존 사용자의
    테마 선택과 온보딩 완료 상태가 이관에서 유실되면 안 되므로, 키별 레거시 이름 → 새 키 일회성 승계 규칙과

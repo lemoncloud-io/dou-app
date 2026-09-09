@@ -102,10 +102,9 @@
 
 ```mermaid
 graph TD
-    subgraph roots["앱 — 어댑터를 꽂는 자리"]
-        WEB["apps/web"]
-        MOB["apps/mobile (RN)"]
-        ADM["apps/admin-v2 (조건부)"]
+    subgraph roots["ConfigFacade를 부르는 앱"]
+        WEB["apps/web (+ 모바일 WebView 안)"]
+        ADM["apps/admin-v2"]
     end
     subgraph ports["ConfigRuntimePorts"]
         ENV["ConfigEnvAdapter (필수)"]
@@ -113,6 +112,7 @@ graph TD
         SHL["ShellKvAdapter"]
         REM["RemoteConfigAdapter (미구현)"]
     end
+    MOB["apps/mobile (RN) — 셸<br/>ConfigKvService + 브릿지 핸들러"]
     CFG["@chatic/config<br/>Registry · Resolver · Store"]
     RCT["@chatic/config/react"]
     subgraph consumers["소비자 lib"]
@@ -123,10 +123,10 @@ graph TD
         LGR["logger"]
     end
     WEB --> ENV & STO & SHL
-    MOB --> ENV & STO & SHL
     ADM --> ENV & STO
+    SHL -. "SaveConfigValue/ClearConfigValue<br/>브릿지 왕복" .-> MOB
     ENV & STO & SHL & REM -.-> CFG
-    WEB & MOB & ADM --> RCT
+    WEB & ADM --> RCT
     RCT --> CFG
     ART & HTP & DAT & BRG & LGR --> CFG
     style CFG stroke-width:3px
@@ -219,16 +219,35 @@ private) · `project.json` · `tsconfig.json` · `tsconfig.lib.json` · `tsconfi
 
 ### 앱 어댑터 (앱 쪽에 만든다)
 
-| 앱                 | 파일                         | 읽는 것                                   |
-| ------------------ | ---------------------------- | ----------------------------------------- |
-| `apps/web`         | `src/app/config/adapters.ts` | `import.meta.env` + `window.CHATIC_APP_*` |
-| `apps/mobile`      | `src/app/config/adapters.ts` | `react-native-config` + MMKV              |
-| `apps/desktop-web` | `src/app/config/adapters.ts` | `import.meta.env` + Electron preload 주입 |
-| `apps/admin-v2`    | (조건부 — 미결)              | `import.meta.env`만                       |
+`@chatic/config`의 `ConfigFacade`를 실제로 부르는(= `ConfigRuntimePorts`를 조립하는) 앱만 이
+표에 있다. `apps/mobile`은 여기 없다 — ADR-0080의 "웹이 리모컨, 앱은 기기" 모델대로 `ConfigFacade`
+자체는 웹 번들(모바일 WebView 안에서 도는 것도 포함해) 안에서만 산다. 모바일 네이티브 코드는
+`ConfigRuntimePorts`를 조립하는 쪽이 아니라 **셸 포트가 원격으로 부르는 반대쪽** — 범용 KV 저장소와
+브릿지 핸들러 — 를 구현한다 (아래 "셸의 두 반쪽" 참고).
+
+| 앱                 | 파일                                                      | 읽는 것                                                                                         |
+| ------------------ | --------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `apps/web`         | `src/app/config/adapters.ts` + `shellKvAdapter.ts`(4단계) | `import.meta.env` + `window.CHATIC_APP_*` + 네이티브 브릿지(`shell`, 네이티브 셸 안에서만)      |
+| `apps/desktop-web` | `src/app/config/adapters.ts`                              | `import.meta.env` + `window.CHATIC_APP_*` — Electron preload 주입 `shell`은 6단계에서           |
+| `apps/admin-v2`    | `src/app/config/adapters.ts`                              | `import.meta.env`만 — 셸이 없어 `shell` 포트 자체가 없다(3단계에서 편입 완료, ADR-0079 §미결 5) |
 
 `storage` 포트는 새 타입을 만들지 않고 [`StorageAdapter`](../../shared/src/utils/storage.ts)의
 모양(`getItem`/`setItem`/`removeItem`)을 구조적 타입으로 받는다. `@chatic/shared`를 임포트하지 않으므로
 원칙 1이 유지된다.
+
+### 셸의 두 반쪽 (4단계)
+
+`IShellKvAdapter`는 한 인터페이스지만 두 프로세스에 걸쳐 구현된다 — 웹 쪽(포트를 만족시키는 쪽)과
+모바일 쪽(그 포트가 브릿지 너머로 실제로 말을 거는 대상)이다.
+
+| 반쪽   | 파일                                                      | 역할                                                                                                                                                                                           |
+| ------ | --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 웹     | `apps/web/src/app/config/shellKvAdapter.ts`               | `IShellKvAdapter` 구현. `readBag()`은 주입 전역 동기 읽기, `write`/`clear`는 `SaveConfigValue`/`ClearConfigValue` 왕복 + `NOT_FOUND` 학습 시 legacy `SavePreference`/`DeletePreference`로 강등 |
+| 웹     | `apps/web/src/app/bridge/appBridge.ts`                    | `saveConfigValueConfirmed`/`clearConfigValueConfirmed`/`deletePreferenceConfirmed` 세 메서드 추가                                                                                              |
+| 모바일 | `apps/mobile/src/app/services/config/ConfigKvService.ts`  | `config:` 접두사로 네임스페이스한 MMKV 위 범용 KV — 키 의미를 검사하지 않는다                                                                                                                  |
+| 모바일 | `apps/mobile/src/app/webview/hooks/useConfigKvHandler.ts` | `SaveConfigValue`/`ClearConfigValue` 브릿지 핸들러. `usePreferenceCacheHandler`와 달리 쓰기 허용 목록이 없다                                                                                   |
+| 모바일 | `apps/mobile/src/app/webview/utils/injectionScripts.ts`   | `getConfigBagScript` — `ConfigKvService.getAll()`을 `window.CHATIC_APP_CONFIG_BAG`로 부팅 스크립트에 싣는다                                                                                    |
+| 둘 다  | `libs/app-messages/src/types/model/config.ts`             | `SaveConfigValuePayload`/`ClearConfigValuePayload`(+`On*`) — 값은 항상 `@chatic/config`가 이미 JSON 인코딩한 문자열                                                                            |
 
 ### 지우는 것
 
@@ -359,7 +378,7 @@ mobile은 app-runtime을 아예 안 쓴다(0참조 — RN 앱 자체는 별개 �
       공유한다
 - [x] `main.tsx` 넷에 `config.init(webConfigPorts)` — **로그 배선 뒤, 런타임 부팅 앞**
 - [x] **`setStorageAdapter`도 명시 호출로.** web·desktop-web은 `isNative() ? localStorage :
-  sessionStorage`를 부팅에 추가했다 — `usePersistentWebStorage`가 정확히 이 판정이었고,
+sessionStorage`를 부팅에 추가했다 — `usePersistentWebStorage`가 정확히 이 판정이었고,
       `@chatic/bridges`의 `isNative()`가 이미 같은 window 핸들을 본다. admin-v2·testbed는
       네이티브/데스크톱 셸 안에서 돈 적이 없어(`isNative()`가 항상 false) 안 붙였다
 - [x] `app-runtime` 7파일 이관(`boot.ts` 재수출 제거 포함 8번째) + 목 9개를 `@chatic/config` 형태로
@@ -400,15 +419,88 @@ staleness 2건 포함, 빌드 후 재확인).
 (`.env.example`)은 이번에 손대지 않았다** — `.github` 주입 여부 확인이 먼저 필요하고, 이번
 단계의 필수 경로가 아니었다.
 
-### 4. 셸 레인 + 범용 KV 브릿지
+### 4. 셸 레인 + 범용 KV 브릿지 — **완료 2026-09-09**
 
-- [ ] `libs/app-messages`에 `FetchConfigBag`/`SaveConfigValue`/`ClearConfigValue`
-- [ ] 구 셸 폴백 — `NOT_FOUND` 학습 후 기존 `SavePreference` 5키 경로로 강등
-- [ ] **쓰기는 확인 응답 + 1회 재시도 + 실패 표시.** 보내고 끝내지 않는다
-- [ ] 모바일에 범용 KV 저장 + 부팅 주입 봉투
-- [ ] 주입 전역 20종 중 6종을 키로, 14종은 `deviceInfoStore`에 그대로
+- [x] `libs/app-messages`에 `SaveConfigValue`/`ClearConfigValue` (+ `OnSaveConfigValue`/`OnClearConfigValue`)
+- [x] 구 셸 폴백 — `NOT_FOUND` 학습 후 기존 `SavePreference`/`DeletePreference` 경로로 강등
+- [x] **쓰기는 확인 응답 + 1회 재시도 + 실패 표시.** 보내고 끝내지 않는다
+- [x] 모바일에 범용 KV 저장 + 부팅 주입 봉투
+- [x] 주입 전역 20종 중 6종을 키로, 14종은 `deviceInfoStore`에 그대로 — 3단계에서 이미 충족됨을 확인
 
-**검증**: mobile 테스트 통과 · 구 셸에서 폴백 동작 · 확인 응답 실패 시 화면 표시
+**스펙과 달라진 점 (2026-09-09, 4단계)**
+
+1. **`FetchConfigBag`를 만들지 않았다.** `IShellKvAdapter.readBag()`은 1단계부터 계약상 동기다 —
+   셸이 `init()` 이전에 주입한 봉투를 읽을 뿐, 브릿지 왕복을 기다리지 않는다. 봉투 자체를
+   `getConfigBagScript`(`apps/mobile/.../injectionScripts.ts`)로 부팅 스크립트에 실어 보내면
+   `readBag()`은 그걸 동기로 읽는 것만으로 끝난다 — `CHATIC_APP_THEME`이 프리페인트 테마를 넘기는
+   것과 같은 방식이다. `FetchConfigBag`은 이 봉투가 없을 때(구버전 셸, 캐시 삭제 직후)를 위한 비동기
+   폴백으로 구상했었지만(`PreferenceLoader`가 `theme`에 쓰는 패턴), 실제로 그 폴백을 부를 소비자가
+   없다 — `persist: 'shell'` 9키(`ui.*` 4개·`debug.*` 4개·`system.remote.enabled`) 중 어떤 것도
+   아직 `config.get()`으로 실제 기능에 연결되지 않았고(`ui.*`의 실제 소비 전환은 5단계가 할 일,
+   `debug.*`를 만지는 화면은 디버그 패널 자체가 이번 라운드 범위 밖이라 존재하지 않는다). `env.*`/
+   `net.*` 키는 3단계에서 이미 소비되고 있지만 그건 전부 `local`/`stageRule`/`defaultValue` 레인이지
+   `shell` 레인이 아니다 — 셸 레인이 비어 있어도 그 키들의 동작은 달라지지 않는다. 부를 곳 없는
+   메시지 타입과 네이티브 핸들러를 미리 만드는 대신, 필요해지는 시점(5단계 또는 다음 라운드의
+   디버그 패널)에 추가하기로 미뤘다.
+2. **구 셸 폴백은 4키에만 적용된다.** `persist: 'shell'` 9키 중 `ui.theme`·`ui.language`·
+   `ui.blurLastMessage`·`ui.onboardingCompleted`만 레거시 `PreferenceKey`(`theme`·`language`·
+   `blurLastMessage`·`isFirstRun`)와 대응한다 — `ui.ts`의 주석이 이미 "PREFERENCES에서 흡수"라고
+   적어 둔 그 넷이다. `ui.onboardingCompleted`는 `isFirstRun`의 반대값이라 강등 시 불리언을
+   반전한다. 나머지 5키(`system.remote.enabled`, `debug.mockService.mode`/`baseUrl`,
+   `debug.overlay.backdropOpacity`/`contentOpacity`)는 레거시 대응이 없는 신규 키라 `NOT_FOUND`를
+   그대로 던지고, `ConfigFacade`의 1회 재시도 → `onShellWriteFailed`가 처리한다 — 폴백은 "옮겨갈
+   자리가 있을 때만" 성립하는 것이지 모든 실패의 만능 우회로가 아니다.
+3. **`admin-v2 편입 여부`(ADR-0079 §미결 5)가 이 단계로 자동 해소됐다.** admin-v2는 셸이 없으므로
+   `webConfigPorts`에 `shell`을 아예 선언하지 않는다(3단계와 동일 — env만 배선). 이 단계에서 새로
+   결정할 것이 없었다: "셸이 없으면 그 레인은 빈다"는 코어의 기존 규칙이 admin-v2에도 그대로
+   적용될 뿐이다.
+4. **`onDuplicateKey`/`onShellWriteFailed`를 이번에 처음 배선했다.** 1단계 코어는 두 콜백을 이미
+   받고 있었지만 3단계의 `webConfigPorts`는 아직 아무것도 넘기지 않아 조용히 버려지고 있었다.
+   `logger.error`로 연결해 로그 파이프라인에서는 보이게 했다 — 다만 "실패 표시"를 화면 토스트로
+   보여주는 것은 디버그 패널 자체가 이번 범위 밖이라 다음 라운드의 일이다(§범위 "제외" 참조).
+5. **`apps/desktop-web`은 셸을 배선하지 않는다.** Electron 셸(6단계)은 아직 손대지 않았고, 이
+   단계는 체크리스트가 명시한 대로 모바일 전용이다.
+
+### 셸의 범용 KV에 실제 키 쓰기가 안전한 이유
+
+`ConfigKvService`(`apps/mobile/src/app/services/config`)는 키의 의미를 검사하지 않는다 — 어떤
+문자열이든 어떤 키로든 그대로 저장한다(ADR-0079 결정 9). 이게 안전한 이유는 이 저장소가 새로
+생겨서가 아니라, **위험했던 그 하나의 능력이 먼저 없어졌기 때문**이다: 기존
+`usePreferenceCacheHandler`가 `debugSettings`를 화이트리스트 밖에 두었던 것은 그 값이 들고 있는
+`webviewBaseUrlOverride`가 다음 실행의 WebView 로드 주소를 결정했기 때문이었다(조작되면 영구
+MITM). ADR-0080 결정 13이 그 기능 자체(`env.webviewBaseUrl`/`environmentSettings` 키)를
+화이트리스트 대신 통째로 삭제했으므로, 지금 레지스트리에 남은 건 표시·동작 설정뿐이다 — 잘못된
+값은 그게 제어하는 화면을 망가뜨릴 뿐, 이 WebView가 무엇을 로드·실행할지는 건드리지 못한다.
+
+**검증 결과**
+
+```bash
+npx jest --config apps/mobile/jest.config.js --rootDir apps/mobile   # 417 통과 (신규 17건 포함)
+npx jest --config apps/web/jest.config.js --rootDir apps/web         # 2438 통과 (신규 14건 포함)
+npx jest --config libs/config/jest.config.js --rootDir libs/config   # 91 통과 (불변)
+npx jest --config libs/app-runtime/jest.config.js --rootDir libs/app-runtime  # 585 통과 (불변)
+npx jest --config libs/bridges/jest.config.js --rootDir libs/bridges # 68 통과 (불변)
+npx jest --config libs/db/jest.config.js --rootDir libs/db           # 111 통과 (불변)
+npx tsc -b libs/app-messages/tsconfig.lib.json libs/config/tsconfig.lib.json  # 통과
+npx tsc --noEmit -p apps/web/tsconfig.app.json                       # 통과
+npx tsc --noEmit -p apps/admin-v2/tsconfig.app.json                  # 통과 (0건)
+npx tsc --noEmit -p apps/testbed/tsconfig.app.json                   # 통과 (0건)
+npx tsc --noEmit -p apps/desktop-web/tsconfig.app.json               # 17건 — 내가 만진 파일 0개, 기존 부채
+```
+
+`apps/mobile`의 앱 레벨 `tsc --noEmit -p tsconfig.app.json`은 이 워크트리의 `node_modules`에
+`@nx/react-native`(및 그 그늘의 다른 패키지들)가 아예 설치돼 있지 않아 실행할 수 없었다 —
+`tsconfig.app.json`의 `files` 항목이 요구하는 앰비언트 타입 선언 하나가 없어서 프로그램 시작조차
+못 한다(§리스크와 미지수의 "워크트리 `node_modules` 부재" 항목과 같은 종류). `tsc -b`가 필요했던
+게 아니라 이번엔 `tsc --noEmit` 자체가 이 워크트리에서 막혀 있었던 것이라 `yarn install` 없이는
+못 고친다. 대신 ts-jest(전체 프로그램이 아니라 파일 단위 진단이지만 타입 검사는 수행한다)로 417개
+테스트를 통과시켰고, 테스트가 직접 임포트하지 않는 유일한 변경 파일(`AppWebView.tsx`)은 코드
+리뷰로 타입을 직접 대조했다. `apps/mobile`은 브라우저 프리뷰로 확인할 수 있는 대상이 아니다(RN
+네이티브 브릿지·MMKV·WebView 주입 스크립트) — 실제 기기/시뮬레이터 수동 확인은 아직 하지 않았다.
+
+수동 확인(구 셸 폴백·확인 응답 실패 표시)은 실제 기기 두 빌드(구버전 앱 + 신버전 웹, 신버전 앱)가
+있어야 재현 가능해 이번 세션에서는 하지 못했다 — 대신 `shellKvAdapter.test.ts`의 `NOT_FOUND` 강등
+테스트와 `ConfigKvService.test.ts`의 던지기 테스트로 그 두 경로를 각각 고정했다.
 
 ### 5. 옵션 흡수
 
@@ -445,15 +537,15 @@ staleness 2건 포함, 빌드 후 재확인).
 
 ## 리스크와 미지수
 
-| 리스크                                            | 크기 | 대응                                                              |
-| ------------------------------------------------- | ---- | ----------------------------------------------------------------- |
-| **레거시 저장값 승계 실패**                       | 최대 | 5단계를 마지막에. 가짜 스토리지로 기존 사용자 재현 테스트         |
-| `appliesAt` 84개가 실제 소비와 어긋남             | 큼   | 기본값 `restart`. `live`는 구독 소비자를 지목해 증명              |
-| 부팅 순서 깨짐 (`main.tsx` 계약)                  | 큼   | 3단계에서 순서를 명시 호출로 만들고 게스트 부팅 수동 확인         |
-| 구 셸 폴백이 5키뿐이라 내구성 키가 조용히 안 남음 | 중   | `persist: 'shell'`인데 폴백 화이트리스트에 없는 키를 목록화       |
-| `tsc -b` / `dist` 유령 에러                       | 중   | lib 이동 후 `dist`·`out-tsc` 강제 삭제로 진단                     |
-| 워크트리 `node_modules` 부재·심링크 함정          | 중   | `rm node_modules/node_modules` 먼저, 그다음 `rm -rf node_modules` |
-| `admin-v2` 편입 여부 미정                         | 작음 | 1~3단계는 무관. 4단계 전에 결정                                   |
+| 리스크                                                | 크기 | 대응                                                                                                                                                                           |
+| ----------------------------------------------------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **레거시 저장값 승계 실패**                           | 최대 | 5단계를 마지막에. 가짜 스토리지로 기존 사용자 재현 테스트                                                                                                                      |
+| `appliesAt` 84개가 실제 소비와 어긋남                 | 큼   | 기본값 `restart`. `live`는 구독 소비자를 지목해 증명                                                                                                                           |
+| 부팅 순서 깨짐 (`main.tsx` 계약)                      | 큼   | 3단계에서 순서를 명시 호출로 만들고 게스트 부팅 수동 확인                                                                                                                      |
+| ~~구 셸 폴백이 5키뿐이라 내구성 키가 조용히 안 남음~~ | 해소 | 4단계에서 목록화 완료 — 폴백 대상은 `ui.*` 4키뿐이고 나머지 5키(`system.remote.enabled`·`debug.mockService.*`·`debug.overlay.*`)는 이번에 신설된 키라 잃을 기존 값 자체가 없다 |
+| `tsc -b` / `dist` 유령 에러                           | 중   | lib 이동 후 `dist`·`out-tsc` 강제 삭제로 진단                                                                                                                                  |
+| 워크트리 `node_modules` 부재·심링크 함정              | 중   | `rm node_modules/node_modules` 먼저, 그다음 `rm -rf node_modules`. `apps/mobile`은 4단계 기준 `@nx/react-native` 자체가 없어 앱 레벨 `tsc`가 막힘 — 아직 미해결                |
+| ~~`admin-v2` 편입 여부 미정~~                         | 해소 | ADR-0079 §미결 5 참조 — 4단계에서 자동 해소                                                                                                                                    |
 
 **미지수**
 

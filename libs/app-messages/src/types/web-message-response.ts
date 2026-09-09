@@ -63,6 +63,8 @@ export const WEB_MESSAGE_RESPONSE_TYPE = {
     DeletePreference: 'OnDeletePreference',
     OAuthLogin: 'OnOAuthLogin',
     OAuthLogout: 'OnOAuthLogout',
+    SaveConfigValue: 'OnSaveConfigValue',
+    ClearConfigValue: 'OnClearConfigValue',
     WebAppReady: 'OnWebAppReady',
     ShowLoader: 'OnShowLoader',
     HideLoader: 'OnHideLoader',

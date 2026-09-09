@@ -145,6 +145,11 @@ export const appBridge = {
         return webClient.request({ type: 'FetchPreference', data });
     },
 
+    /** Remove a preference key from native storage and wait for native confirmation. */
+    deletePreferenceConfirmed(data: Payload<'DeletePreference'>): Promise<WebMessageResponse<'DeletePreference'>> {
+        return webClient.request({ type: 'DeletePreference', data });
+    },
+
     /** Report whether the in-web back action can still go back (dialog open). */
     setCanGoBack(canGoBack: boolean): void {
         webClient.post({ type: 'SetCanGoBack', data: { canGoBack } });
@@ -293,5 +298,19 @@ export const appBridge = {
     /** Acknowledge relayed reports so the native queue drops them. */
     ackPendingReports(ids: string[]): Promise<WebMessageResponse<'AckPendingReports'>> {
         return webClient.request({ type: 'AckPendingReports', data: { ids } });
+    },
+
+    // ---------------------------------------------------------------
+    // Config shell lane (ADR-0079 결정 9 — generic KV bridge)
+    // ---------------------------------------------------------------
+
+    /** Persist one shell-lane config value, opaquely, and wait for native confirmation. */
+    saveConfigValueConfirmed(data: Payload<'SaveConfigValue'>): Promise<WebMessageResponse<'SaveConfigValue'>> {
+        return webClient.request({ type: 'SaveConfigValue', data });
+    },
+
+    /** Remove one shell-lane config override and wait for native confirmation. */
+    clearConfigValueConfirmed(data: Payload<'ClearConfigValue'>): Promise<WebMessageResponse<'ClearConfigValue'>> {
+        return webClient.request({ type: 'ClearConfigValue', data });
     },
 };

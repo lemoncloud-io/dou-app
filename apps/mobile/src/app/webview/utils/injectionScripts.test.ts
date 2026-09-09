@@ -1,4 +1,5 @@
 import {
+    getConfigBagScript,
     getDebugModeScript,
     getDeviceInfoScript,
     getLogUploadHoldScript,
@@ -92,6 +93,32 @@ describe('getThemeScript — 테마 주입 스크립트', () => {
     });
 });
 
+describe('getConfigBagScript — 셸 KV 봉투 주입 스크립트', () => {
+    it('키-값 봉투를 JSON 전역으로 주입한다', () => {
+        const script = getConfigBagScript({ 'ui.theme': '"dark"', 'debug.mockService.mode': '"off"' });
+
+        expect(script).toContain(
+            'window.CHATIC_APP_CONFIG_BAG = {"ui.theme":"\\"dark\\"","debug.mockService.mode":"\\"off\\""};'
+        );
+    });
+
+    it('빈 봉투는 빈 객체로 주입한다 — 구 셸에서도 readBag()이 크래시하지 않는다', () => {
+        expect(getConfigBagScript({})).toContain('window.CHATIC_APP_CONFIG_BAG = {};');
+    });
+
+    it('값에 따옴표/백슬래시가 섞여도 유효한 JS로 평가된다 — 원본 문자열이 그대로 살아남는다', () => {
+        // Same regression shape as getDeviceInfoScript's own quote test: a raw template hole would
+        // let a stored value's embedded quote break out of the object literal.
+        const raw = `{"a":"O'Brien's \\"quoted\\" \\\\ value"}`;
+        const script = getConfigBagScript({ 'debug.mockService.baseUrl': raw });
+
+        const sandbox: { CHATIC_APP_CONFIG_BAG?: Record<string, string> } = {};
+        // eslint-disable-next-line no-new-func
+        expect(() => new Function('window', script)(sandbox)).not.toThrow();
+        expect(sandbox.CHATIC_APP_CONFIG_BAG).toEqual({ 'debug.mockService.baseUrl': raw });
+    });
+});
+
 describe('getSyncInjectionScript — 통합 주입 스크립트', () => {
     it('테마를 포함해 주입한다', () => {
         const script = getSyncInjectionScript({
@@ -104,6 +131,29 @@ describe('getSyncInjectionScript — 통합 주입 스크립트', () => {
         // The web's pre-paint script reads this global before the first paint, so it must
         // ride along in the same script that is injected before content loads.
         expect(script).toContain('window.CHATIC_APP_THEME = "dark";');
+    });
+
+    it('셸 KV 봉투를 넘기면 그대로 싣는다', () => {
+        const script = getSyncInjectionScript({
+            insets: { top: 0, bottom: 0, left: 0, right: 0 },
+            keyboardHeight: 0,
+            deviceInfo: makeParams(),
+            theme: 'dark',
+            configBag: { 'ui.theme': '"dark"' },
+        });
+
+        expect(script).toContain('window.CHATIC_APP_CONFIG_BAG = {"ui.theme":"\\"dark\\""};');
+    });
+
+    it('봉투를 안 넘기면 빈 객체로 주입한다', () => {
+        const script = getSyncInjectionScript({
+            insets: { top: 0, bottom: 0, left: 0, right: 0 },
+            keyboardHeight: 0,
+            deviceInfo: makeParams(),
+            theme: 'dark',
+        });
+
+        expect(script).toContain('window.CHATIC_APP_CONFIG_BAG = {};');
     });
 
     it('보류 상태를 부팅 스크립트에 싣는다 — 재시작한 WebView가 보류를 유지해야 한다', () => {

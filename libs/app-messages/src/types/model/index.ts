@@ -3,6 +3,7 @@ export * from './auth';
 export * from './cache';
 export * from './clipboard';
 export * from './common';
+export * from './config';
 export * from './device';
 export * from './iap';
 export * from './notification';

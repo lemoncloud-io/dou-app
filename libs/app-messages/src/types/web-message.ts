@@ -3,6 +3,7 @@ import type {
     CheckAppUpdatePayload,
     ClearCacheDataByChannelPayload,
     ClearCacheDataPayload,
+    ClearConfigValuePayload,
     ClearTestRecordsPayload,
     DeleteAllCacheDataPayload,
     DeleteCacheDataPayload,
@@ -36,6 +37,7 @@ import type {
     SaveAllCacheDataPayload,
     SaveAllTestRecordsPayload,
     SaveCacheDataPayload,
+    SaveConfigValuePayload,
     SavePreferencePayload,
     SaveTestRecordPayload,
     SearchGlobalCacheDataPayload,
@@ -149,6 +151,10 @@ export type WebMessagePayloadMap = {
     // 6. Auth
     OAuthLogin: OAuthLoginPayload;
     OAuthLogout: OAuthLogoutPayload;
+
+    // 6.5 Config (ADR-0079 셸 레인 — 범용 KV 브릿지)
+    SaveConfigValue: SaveConfigValuePayload;
+    ClearConfigValue: ClearConfigValuePayload;
 
     // 7. Common & Others
     WebAppReady: WebAppReadyPayload;
