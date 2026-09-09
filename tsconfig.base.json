@@ -45,7 +45,6 @@
             "@chatic/theme": ["libs/theme/src/index.ts"],
             "@chatic/ui-kit": ["libs/ui-kit/src/index.ts"],
             "@chatic/ui-kit/*": ["libs/ui-kit/src/*"],
-            "@chatic/web-config": ["libs/web-config/src/index.ts"],
             "@chatic/web-ui-kit": ["libs/web-ui-kit/src/index.ts"],
             "@chatic/web-ui-kit/*": ["libs/web-ui-kit/src/*"]
         }

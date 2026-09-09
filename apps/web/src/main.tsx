@@ -4,8 +4,12 @@ import * as ReactDOM from 'react-dom/client';
 
 import '@lemoncloud/page-transition-core/styles.css';
 
-import { configurePerfMetrics, logger, setupBridgeLogger } from '@chatic/bridges';
+import { configurePerfMetrics, isNative, logger, setupBridgeLogger } from '@chatic/bridges';
+import { config } from '@chatic/config';
+import { setStorageAdapter } from '@chatic/shared';
 import { runtime } from '@chatic/app-runtime';
+
+import { webConfigPorts } from './app/config/adapters';
 
 import App from './app/app';
 import { appBridge, pendingNavigationStore } from './app/bridge';
@@ -46,6 +50,20 @@ startLogUploader({
     // watching this build, `debug` is worth keeping; if not, nothing can read it.
     keepDebug: import.meta.env.DEV,
 });
+
+// Wires `@chatic/config` to this build's `import.meta.env`/injected globals — an explicit call
+// instead of `@chatic/web-config`'s former import-time side effect (ADR-0079 결정 1·11). Everything
+// downstream that reads a setting (`app-runtime`'s HTTP/session code, later this file's own runtime
+// boot) resolves it lazily, well after this line, so placement here — before `initAppRuntime` and
+// well before anything renders — is early enough with room to spare.
+config.init(webConfigPorts);
+
+// Session/relay/cloud/identity storage backing — an explicit call replacing the other half of
+// `@chatic/web-config`'s old side effect. `isNative()` is exactly "hosted inside a native or desktop
+// shell" (it checks the same window handles `usePersistentWebStorage` used to), so no separate
+// detector is needed: inside a shell, use localStorage so the session survives a WebView cache wipe;
+// in a plain browser tab, sessionStorage.
+setStorageAdapter(isNative() ? localStorage : sessionStorage);
 
 // Boot the runtime. Placed HERE by contract, between two boundaries:
 //   - AFTER the log wiring above, because this call can log (duplicate boot, late data policy).

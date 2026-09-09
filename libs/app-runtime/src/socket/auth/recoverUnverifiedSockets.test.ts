@@ -6,14 +6,11 @@ jest.mock('@chatic/bridges', () => ({
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
 }));
 
-// The web-core barrel executes `import.meta.env` at load (transport/webTransport), which this jest
-// config cannot parse — and this suite injects its own manager/delegate anyway. Stub the module the
-// same way public-surface.test.ts does.
+// The session barrel used to reach `import.meta.env` at load through `transport/webTransport`'s
+// `@chatic/web-config` import, which this jest config could not parse; that path now runs through
+// `@chatic/config` (import.meta 0) and would parse fine, but this suite injects its own
+// manager/delegate anyway, so the isolation stays — same as public-surface.test.ts.
 jest.mock('../../session', () => new Proxy({}, { get: () => jest.fn() }));
-// `@chatic/web-config` is the sole `import.meta` holder (ADR-0070 결정 6); ts-jest's CommonJS
-// transform cannot parse it, and HttpManager pulls it in transitively.
-jest.mock('@chatic/web-config', () => new Proxy({}, { get: () => jest.fn() }));
-
 // `getAuthStatus` (ADR-0076 결정 1) reads the store's token and the credential clock on top of the
 // socket, so both have to be seeded here. That is a real input the pre-refactor condition did NOT
 // have — see the commit message; a bound socket with no stored token now reads `absent`, which is

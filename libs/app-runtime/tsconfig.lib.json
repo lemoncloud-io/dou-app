@@ -34,7 +34,7 @@
             "path": "../http/tsconfig.lib.json"
         },
         {
-            "path": "../web-config/tsconfig.lib.json"
+            "path": "../config/tsconfig.lib.json"
         },
         {
             "path": "../logger/tsconfig.lib.json"

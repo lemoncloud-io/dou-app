@@ -7,7 +7,19 @@ import LocalStorageBackend from 'i18next-localstorage-backend';
 import Backend from 'i18next-xhr-backend';
 
 import { logger } from '@chatic/bridges';
-import { runtime } from '@chatic/app-runtime';
+
+// This module runs at IMPORT time (`i18n.use(...).init(...)` below is a top-level call), which
+// happens before `main.tsx`'s own body — including its `config.init(...)` — ever executes: ES
+// module evaluation runs a file's imports, in order, before the importing file's statements
+// (`app.tsx` imports this before `main.tsx` reaches its first line). Routing PROJECT/ENV through
+// `@chatic/config` would read it uninitialized. Neither value is a setting anyway — this is a
+// localStorage key namespace, a technical detail — so it reads `import.meta.env` directly, the same
+// way `apps/web/src/app/utils/buildEnv.ts` already does (ADR-0079 결정 11 retired the single
+// `import.meta` holder these used to come through, `@chatic/web-config`).
+const PROJECT = (import.meta.env.VITE_PROJECT || '').toLowerCase();
+const ENV = (import.meta.env.VITE_ENV || '').toLowerCase();
+/** i18next's own localStorage key name — not a setting, just where it keeps the language. */
+const LANGUAGE_KEY = 'i18nextLng';
 
 const I18N_VERSION = process.env.I18N_VERSION || 'fallback';
 const isDevelopment = process.env.NODE_ENV === 'development';
@@ -32,7 +44,7 @@ if (!isDevelopment) {
 i18n.use(ChainedBackend)
     .use(
         new LanguageDetector(null, {
-            lookupLocalStorage: `@${runtime.boot.PROJECT}_${runtime.boot.ENV}.${runtime.boot.LANGUAGE_KEY}`,
+            lookupLocalStorage: `@${PROJECT}_${ENV}.${LANGUAGE_KEY}`,
         })
     )
     .use(initReactI18next)

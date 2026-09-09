@@ -12,12 +12,6 @@ module.exports = {
         // `@chatic/assets` lives at the repo ROOT (not libs/) and resolves image URLs with
         // `import.meta.url` — the greedy fallback would miss it and the transform cannot parse it.
         '^@chatic/assets$': '<rootDir>/__mocks__/assetsMock.js',
-        // `@chatic/web-config` is the repo's single `import.meta.env` holder (ADR-0070 결정 6), which
-        // ts-jest's CommonJS transform cannot parse. Now that the session hub lives here, nearly every
-        // suite reaches it transitively (session → auth/api → httpFactory → HttpManager), so it is
-        // stubbed globally rather than per-file. Suites needing specific values still override with
-        // their own `jest.mock('@chatic/web-config', …)`. Mirrors apps/web/jest.config.js.
-        '^@chatic/web-config$': '<rootDir>/__mocks__/webConfigMock.js',
         '^@chatic/(.*)$': '<rootDir>/../$1/src/index.ts',
         '\\.(css|less|scss)$': '<rootDir>/../web-ui-kit/src/__mocks__/styleMock.js',
         '\\.(png|jpe?g|gif|svg|webp)$': '<rootDir>/../web-ui-kit/src/__mocks__/fileMock.js',
