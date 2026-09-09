@@ -131,6 +131,17 @@ repository이므로 `IDeviceRegistrationHttpSource`(`registerDevice` 하나)를 
 `UserHttpDataSource`가 두 인터페이스를 모두 구현한다. repository 생성자는 항상 자기가 쓸
 인터페이스만 받는다.
 
+### 두 `UserView`는 서로 대입되지 않는다
+
+HTTP 축의 사용자 매핑에는 함정이 하나 있다. `toDomainUser`(`domain/mappers.ts`)는 소켓 축의
+`UserView`(`@lemoncloud/chatic-socials-api`)로 타입이 고정돼 있고, HTTP/OAuth 축의 동명 타입
+(`@lemoncloud/chatic-backend-api`)은 `stereo` 유니온이 더 넓다(`'#alias'` · `'session'` · `'#code'`
+— 소켓 도메인이 볼 일 없는 OAuth 내부 마커). 신원 필드는 같지만 **구조적으로 대입되지 않는다.**
+
+`http-data-sources/httpUserMapping.ts`의 `toDomainUserFromHttp`가 명시적 캐스트로 이 둘을 잇는다 —
+새 매퍼를 만들지 않고 기존 것을 다리로 쓴다. `stereo` 값에 따라 분기해야 할 일이 생기면, 그때가
+캐스트를 더 넓히는 게 아니라 **HTTP 축에 자기 `toDomainUser`를 주는** 신호다.
+
 ### 리포트 lane
 
 `ReportHttpDataSource`는 이 층의 예외다. **매핑할 도메인도 캐시 슬롯도 없다.** 진단(diagnostics)은

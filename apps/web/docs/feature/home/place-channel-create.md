@@ -102,12 +102,12 @@ flowchart TD
     CL --> CD[CreateChannelDialog]
 
     PD -->|createPlace| HPP[useCreatePlace]
-    HPP --> PR[place.createPlace<br/>PlaceRepositoryV2]
+    HPP --> PR[place.createPlace<br/>PlaceRepository]
     PD -->|생성 후| SW[useSiteSwitch.switchSite]
     PD -->|성공 후| CLOSE[오버레이 닫힘]
 
     CD -->|createChannel| HCC[useCreateChannel]
-    HCC --> CR[channel.createChannel<br/>ChannelRepositoryV2]
+    HCC --> CR[channel.createChannel<br/>ChannelRepository]
     CD -->|성공 후| NAV["navigate(ROUTES.channels.room(id))"]
 
     PD --> UIK["@chatic/web-ui-kit:<br/>ModalTopBar · ProfileAvatar · TextField ·<br/>FloatingButton · AlertDialog · Toast · Text"]

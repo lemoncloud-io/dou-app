@@ -13,7 +13,7 @@ apps/web(모바일) 채팅방의 이모지 리액션과 스레드 답글. 데스
 필터가 없던 시절에는 데스크톱에서 누가 이모지를 누르면 모바일 방 화면에 빈
 `SystemNotice` 알약이 뜨고 홈 목록 미리보기를 점거했다.
 
-엔진 계층(`ChatRepositoryV2.setReaction` · `sendChat`의 `parentId` 통과 · id 키 idempotent
+엔진 계층(`ChatRepository.setReaction` · `sendChat`의 `parentId` 통과 · id 키 idempotent
 캐시)은 이 작업 전부터 완성돼 있었다 — 이 트랙은 UI 배선 + 클라이언트 파생 로직 + 타입 정리다.
 
 ADR-0047의 후속 다듬기가 여기에 합류한다. 새 기능이 아니라 **이미 만든 표면의 마감**이고,
@@ -423,5 +423,5 @@ ADR-0047로 추가되는 키:
       (OS 탭 경로는 서버가 `link`에 `chatId`를 실은 뒤).
 
 - **알려진 무관 부채**: `desktop-web:typecheck`는 이 트랙과 무관한 기존 오류들이 있다
-  (`useInviteLogin`의 `isGuest`, `IUserRepositoryV2.refreshList` 인터페이스 누락,
+  (`useInviteLogin`의 `isGuest`, `IUserRepository.refreshList` 인터페이스 누락,
   `MentionNode` override). 별도 트랙.

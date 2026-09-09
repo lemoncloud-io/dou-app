@@ -50,8 +50,8 @@ device 모델 상태 필드(SDK `DeviceView`): `status('' | green | red | yellow
 | `DeviceSocketDataSource.saveDevice / readDevice / syncDevice` | ✅ 존재                   | [libs/data/.../DeviceSocketDataSource.ts](../../../../data/src/remote/socket-data-sources/DeviceSocketDataSource.ts) |
 | `SyncManager.registerDevice(id?)`                             | ✅ 존재                   | [SyncManager.ts](../../../src/socket/sync/SyncManager.ts)                                                            |
 | connect 시 자동 `device.save`                                 | ✅ runtime 소유           | `createDeviceRuntime`                                                                                                |
-| **viewing 통지 트리거** (채널 진입/이탈 → `syncDevice`)       | ✅ **배선됨**             | apps/web `useDeviceSync`(라우트 관측) → `DeviceRepositoryV2.syncDevice` (§4)                                         |
-| **status 통지 트리거** (포/백그라운드 → `syncStatus`)         | ✅ **배선됨**             | apps/web `useDeviceSync`(`useAppVisibility` 관측) → `DeviceRepositoryV2.syncStatus` (§4.3)                           |
+| **viewing 통지 트리거** (채널 진입/이탈 → `syncDevice`)       | ✅ **배선됨**             | apps/web `useDeviceSync`(라우트 관측) → `DeviceRepository.syncDevice` (§4)                                           |
+| **status 통지 트리거** (포/백그라운드 → `syncStatus`)         | ✅ **배선됨**             | apps/web `useDeviceSync`(`useAppVisibility` 관측) → `DeviceRepository.syncStatus` (§4.3)                             |
 | **위치 변경 트리거** (`saveDevice({posX,posY})`)              | 🔴 **없음**(자동 save 외) | —                                                                                                                    |
 | device watch 결과 캐시 (`registerDevice` → repository)        | 🟡 미연결                 | plan `onUpdate`가 캐시에 안 붙음([usage.md](usage.md) §2 "device: 캐시 미연결")                                      |
 
@@ -66,8 +66,8 @@ device 모델 상태 필드(SDK `DeviceView`): `status('' | green | red | yellow
 viewing 통지는 **쓰기(write)** 다 — sync target 등록(`register*`, 자동 유지)과 성격이 다르다([usage.md](usage.md) §1 "register=자동 / gateway=수동 콜"). 실제 배선:
 
 - **API**: `DeviceSocketDataSource.syncDevice` (이미 존재) 를 재사용.
-- **repository**: `DeviceRepositoryV2.syncDevice(viewingType, viewingId)` / `syncStatus(status)` —
-  캐시 없는 thin passthrough. `DataRepositoriesV2.device`로 노출되어 UI는 `useRuntimeRepositories().device`라는
+- **repository**: `DeviceRepository.syncDevice(viewingType, viewingId)` / `syncStatus(status)` —
+  캐시 없는 thin passthrough. `DataRepositories.device`로 노출되어 UI는 `useRuntimeRepositories().device`라는
   매니저 surface만 만진다(매니저 surface 규칙). [DeviceRepository.ts](../../../../data/src/repositories/DeviceRepository.ts)
 - **트리거 소유**: 컴포넌트 lifecycle이 아니라 **전역 관측**. apps/web `useDeviceSync`가
   `UnifiedLayout`(RouterProvider 안)에 마운트되어 두 신호를 관측한다 — (a) `useMatch('/channels/:channelId/room')`로

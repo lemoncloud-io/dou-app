@@ -46,7 +46,7 @@
 - "초대 거절" 뱃지·상태 (백엔드 미지원 — pending과 구분 불가).
 - 알림 `notify = 'mention'` 3단계 — 모바일 토글은 켬/끔 이진(`all`/`none`)만 노출.
 - 데스크톱식 로컬 알림 pref store — apps/web엔 클라 notifier가 없어 불필요.
-- `libs/data` 변경 — `JoinRepositoryV2.updateJoin`이 이미 notify를 처리(낙관적 write + 롤백).
+- `libs/data` 변경 — `JoinRepository.updateJoin`이 이미 notify를 처리(낙관적 write + 롤백).
 - 연결 Dialog(정보 수정·프로필 상세)의 재디자인 — 기존 재사용, 멤버 읽기전용만 소규모 추가.
 - "신고하기" (Figma hidden).
 - 1:1(self) 채팅 레이아웃 — self 유형 전용 문서 [[self-chat]]가 담당(이름 행 탭→이름 수정,
@@ -114,7 +114,7 @@ sequenceDiagram
   participant U as 사용자
   participant P as ChannelSettingsPage
   participant H as useJoinMutations.updateJoin
-  participant R as JoinRepositoryV2
+  participant R as JoinRepository
   participant S as 서버(join.update)
 
   Note over P: 초기 notifyEnabled = useChannelJoins().myJoin?.notify !== 'none' (join 스트림)
@@ -212,7 +212,7 @@ sequenceDiagram
   스트림 관측(`joinRepository.observeList`)해 내 userId 행을 골라 그 `notify`에서 파생한다. 채널 행의
   임베디드 `$join`은 지연되는 projection이라 쓰지 않는다. 토글 시
   [`useJoinMutations.updateJoin`](../../../src/app/features/channels/hooks/useJoinMutations.ts) →
-  [`JoinRepositoryV2.updateJoin`](../../../../../libs/data/src/repositories/JoinRepository.ts)이
+  [`JoinRepository.updateJoin`](../../../../../libs/data/src/repositories/JoinRepository.ts)이
   `channelId + userId`로 join 행을 해석하고 낙관적 캐시 write + `join.update` 소켓 호출 + 실패 롤백까지 담당.
   `updateJoin`의 낙관적 write가 같은 join 캐시에 반영되므로 `myJoin` 스트림이 그 값을 다시 흘려보내
   최종 상태가 되고, 화면의 즉시 반영은 컴포넌트 낙관적 `useState`가 담당한다.

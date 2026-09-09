@@ -90,8 +90,8 @@ place와 channel을 **생성**하고 **이름을 수정**해 쓰기 흐름(creat
 - 페이로드 빌더: `apps/testbed/src/app/features/manage/payloads.ts`
 - 이름 검증: `apps/testbed/src/app/features/naming.ts`
 - repository 계약:
-    - `libs/data/src/data/repositories-v2/ChannelRepositoryV2.ts` (`createChannel`/`updateChannel`)
-    - `libs/data/src/data/repositories-v2/PlaceRepositoryV2.ts` (`createPlace`/`updatePlace`, 타겟 = `id`)
+    - `libs/data/src/repositories/ChannelRepositoryV2.ts` (`createChannel`/`updateChannel`)
+    - `libs/data/src/repositories/PlaceRepositoryV2.ts` (`createPlace`/`updatePlace`, 타겟 = `id`)
 
 ## 6. 예외 및 제약
 

@@ -140,5 +140,4 @@ local의 역할은 cursor를 계산하는 게 아니라, repository가 준 query
 
 - context는 인스턴스 생성 시점이 아니라 **호출 시점** 기준으로 읽혀야 한다(`contextOverride`로 repository가 캡처한 scope 주입).
 - 요청 시점 context와 응답 시점 context가 달라질 수 있다 → scope 캡처는 repository에서.
-- `sid` fallback 오류는 cross-place 오염으로 이어진다.
-- `chat.feed`는 overwrite보다 merge가 중요하다.
+- scope 오염과 `chat.feed` merge 정책은 repository 책임이다 → [repositories.md의 구현 주의](./repositories.md#구현--테스트-시-주의).

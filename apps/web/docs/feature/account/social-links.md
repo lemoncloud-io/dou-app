@@ -161,8 +161,8 @@ flowchart TD
 - 이전 판이 지적한 `MyUserView.account$`는 여전히 **최초 가입 계정 하나**이고 연동 목록이 아니다 —
   그 지적은 유효하다. 답은 `account$`가 아니라 `link$`였다.
 - **읽기 경로는 이미 열려 있었다.** 앱은 이미 `user.profile`을 부르고(`useMyUser.ts:39` →
-  `UserRepositoryV2.getMyProfile`), 파이프라인 전 구간이 spread라 모르는 필드가 버려지지 않는다
-  (`UserSocketDataSource.ts:71` → `mappers.ts:172` → `UserLocalDataSourceV2.ts:96` → IndexedDB).
+  `UserRepository.getMyProfile`), 파이프라인 전 구간이 spread라 모르는 필드가 버려지지 않는다
+  (`UserSocketDataSource.ts:71` → `mappers.ts:172` → `UserLocalDataSource.ts:96` → IndexedDB).
   **막던 것은 타입뿐이다** — 경계 타입이 socials-api의 `UserView`인데 페이로드는 backend-api의
   `MyUserView`다.
 - 그래서 `MyUser`(`useMyUser.ts:12`)에 `link$`를 더해 넓혔다. `photo`/`email`이 이미 쓰는 기법
@@ -258,7 +258,7 @@ provider 행은 `mypage/LoginPage.tsx`와 동일하게 JSX에서 직접 결정�
 
 - **`link$` 백필이 안 돌았으면 섹션이 조용히 접힌다.** 기존 유저의 자리가 비어 `'unknown'`으로
   읽히기 때문이다. 틀린 상태를 보여주지는 않지만, 이 화면의 가치가 백엔드 백필에 묶여 있다.
-- **`cacheWrite`는 merge라 stale `link$`가 남는다**(`UserLocalDataSourceV2.ts:96-102`). 한번 쓰인
+- **`cacheWrite`는 merge라 stale `link$`가 남는다**(`UserLocalDataSource.ts:96-102`). 한번 쓰인
   값은 이후 응답이 그 자리를 빼먹어도 캐시에 남는다. 지금은 해제가 없어 무해하지만, 요청 7번을
   열 때 replace 시맨틱을 함께 판단해야 한다.
 - **소셜 슬롯은 하나다.** `link$.social`이 단수이므로 `isLinked(provider)`는 "기록된 provider가

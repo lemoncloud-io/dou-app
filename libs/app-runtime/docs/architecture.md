@@ -818,7 +818,7 @@ libs/app-runtime/src/
     cacheStorageRouting.ts         # 캐시 타입 → web/native 저장소 결정 단일 지점
     nativeCacheSupport.ts          # 네이티브가 핸드셰이크로 보고한 캐시 capability
     invitedCloudDurability.ts · outbox.ts   # 초대 클라우드 복구 use-case · 재전송 큐
-    factories/{socketFactory,localFactory,httpFactory,repositoryFactory}.ts
+    factories/{socketFactory,localFactory,httpFactory}.ts
     hooks/                         # 앱 2개 이상이 쓰는 catalog 계열만 남은 REST 훅
                                    # + useInvitedCloudNameSync (트리거만; use-case는 위 파일)
   push/

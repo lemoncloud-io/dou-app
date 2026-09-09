@@ -23,14 +23,14 @@
 착수 시점에 앱 코드가 `desc`를 읽거나 쓰는 곳은 **0건**이었지만, 그 아래 전 계층은 이미 통과
 상태였다. 새로 뚫은 배관은 없고 화면만 붙였다.
 
-| 계층       | 심볼                                                                                                   | 상태                                                  |
-| ---------- | ------------------------------------------------------------------------------------------------------ | ----------------------------------------------------- |
-| 요청(SDK)  | `PlaceBodyData.desc?: string`                                                                          | `place.create`·`place.update` 공통 body에 이미 선언   |
-| 응답(API)  | `MySiteView.desc?: string`                                                                             | `/** place introduction text (플레이스 소개 문구) */` |
-| 도메인     | `DomainPlace = CacheSiteView = MySiteView & …`                                                         | 상속으로 `desc` 자동 포함 — 타입 추가 불필요          |
-| 매퍼       | [`toDomainPlace`](../../../../libs/data/src/data/domain/mappers.ts)                                    | `...api` 스프레드 — 필드 화이트리스트 없음            |
-| 캐시       | 로컬 데이터소스(JSON 저장)                                                                             | 컬럼 화이트리스트 없음 — 자동 영속                    |
-| 리포지토리 | [`PlaceRepositoryV2.updatePlace`](../../../../libs/data/src/data/repositories-v2/PlaceRepositoryV2.ts) | 부분 페이로드 허용 + 낙관적 쓰기/롤백 내장            |
+| 계층       | 심볼                                                                                       | 상태                                                  |
+| ---------- | ------------------------------------------------------------------------------------------ | ----------------------------------------------------- |
+| 요청(SDK)  | `PlaceBodyData.desc?: string`                                                              | `place.create`·`place.update` 공통 body에 이미 선언   |
+| 응답(API)  | `MySiteView.desc?: string`                                                                 | `/** place introduction text (플레이스 소개 문구) */` |
+| 도메인     | `DomainPlace = CacheSiteView = MySiteView & …`                                             | 상속으로 `desc` 자동 포함 — 타입 추가 불필요          |
+| 매퍼       | [`toDomainPlace`](../../../../libs/data/src/domain/mappers.ts)                             | `...api` 스프레드 — 필드 화이트리스트 없음            |
+| 캐시       | 로컬 데이터소스(JSON 저장)                                                                 | 컬럼 화이트리스트 없음 — 자동 영속                    |
+| 리포지토리 | [`PlaceRepository.updatePlace`](../../../../libs/data/src/repositories/PlaceRepository.ts) | 부분 페이로드 허용 + 낙관적 쓰기/롤백 내장            |
 
 **막고 있던 유일한 지점**은 웹의 로컬 타입 하나였다 —
 [`useUpdatePlace`](../../../src/app/features/home/hooks/useUpdatePlace.ts)의 `UpdatePlacePayload`가

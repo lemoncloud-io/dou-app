@@ -361,7 +361,7 @@ KR 규칙이 모바일 prefix만 허용했고
 - `완료` 비활성 조건에 `!country`가 들어간다 — 빈 국가는 에러가 아니라 미완성이다(S4).
 - [`useRelayInvites`](../../../src/app/hooks/useRelayInvites.ts)가 `RelayInviteCreateInput`
   (`{ phone; name; countryCode? }`)을 export 하고 `mutationFn`이 그것을 받는다.
-  `InviteRepositoryV2.create`는 이미 받고 있었다.
+  `InviteRepository.create`는 이미 받고 있었다.
 
 ### `useSentInviteLog` · 재발급
 

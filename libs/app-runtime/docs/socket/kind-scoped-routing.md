@@ -108,7 +108,7 @@ cloud-specific 같은 케이스가 반복될 것이므로, 도메인마다 배�
 ```mermaid
 flowchart TD
   UI["MyPage Switch"] --> H["useDevicePushMute"]
-  H --> R["DeviceRepositoryV2<br/>updateRemotePushMute(muted)"]
+  H --> R["DeviceRepository<br/>updateRemotePushMute(muted)"]
   R --> DS["DeviceSocketDataSource<br/>updateRemoteDevice(payload) — relay 고정"]
   DS -->|"gateway.relay"| G["routed device gateways"]
   G -->|active: save/read/sync| FA["manager (active facade)"]

@@ -15,7 +15,7 @@ ADR-0045 결정 1~5의 아키텍처 문서다. (~~새 플레이스의 owner가 �
 - **앱 표시 정책을 공유 라이브러리에 하드코딩하지 않는다.** `libs/data`는 옵션(주입 지점)만 열고
   기본값은 현행 유지 — desktop-web은 아무 동작도 바뀌지 않는다.
 - **서버 스냅샷이 목록의 정본이다.** `refreshList`는 쓰기만 하지 않고 정리(재조정)까지 책임진다.
-  이미 [ChannelRepositoryV2.refreshList](../../../../../libs/data/src/repositories/ChannelRepository.ts)가
+  이미 [ChannelRepository.refreshList](../../../../../libs/data/src/repositories/ChannelRepository.ts)가
   확립한 관용구(socketCid 가드 → 빈 응답 보호 → stale prune)를 Place에 그대로 이식한다.
 - **소켓이 커밋된 클라우드(socketCid)와 활성 cid가 어긋난 순간에는 캐시를 만지지 않는다.**
   전환 중 잘못된 파티션 오염을 막는 기존 가드 규칙을 따른다.
@@ -30,11 +30,11 @@ ADR-0045 결정 1~5의 아키텍처 문서다. (~~새 플레이스의 owner가 �
 
 **포함**
 
-- `UserRepositoryV2.getMyProfile`의 임베디드 `$site` place-캐시 저장 게이트(주입식 predicate)와
+- `UserRepository.getMyProfile`의 임베디드 `$site` place-캐시 저장 게이트(주입식 predicate)와
   앱 부트스트랩 주입 경로.
-- `PlaceRepositoryV2.refreshList`의 서버 스냅샷 재조정(stale 행 prune + socketCid 가드) — 오염
+- `PlaceRepository.refreshList`의 서버 스냅샷 재조정(stale 행 prune + socketCid 가드) — 오염
   잔재 정리 메커니즘.
-- `PlaceRepositoryV2.createPlace`의 후속 `refreshList` 자동 호출.
+- `PlaceRepository.createPlace`의 후속 `refreshList` 자동 호출.
 - `place.update` 호출부 `id` 탑재 + 리포지토리 `id === sid` 정규화.
 - ~~플레이스 생성 플로우 마지막 스텝으로서의 프로필 생성(스킵 불가) — `useCreatePlaceFlow`
   오케스트레이션, `CreatePlaceDialog` 성공 신호, `PlaceProfileCreateDialog`의 `dismissible`
@@ -107,7 +107,7 @@ sequenceDiagram
     participant U as 사용자
     participant F as useCreatePlaceFlow
     participant D as CreatePlaceDialog
-    participant R as PlaceRepositoryV2
+    participant R as PlaceRepository
     participant S as switchSite
     participant PD as PlaceProfileCreateDialog
     U->>D: 완료 클릭
@@ -149,13 +149,13 @@ flowchart LR
 predicate를 연다:
 
 ```ts
-// UserRepositoryV2 constructor option (기본값: 항상 저장 = 현행 유지)
+// UserRepository constructor option (기본값: 항상 저장 = 현행 유지)
 persistEmbeddedSite?: (context: DataContext) => boolean;
 ```
 
-주입 경로: [createRepositoriesV2](../../../../../libs/data/src/repositories/index.ts)의
-`options`(`DataRepositoriesV2Options`) →
-[repositoryFactory](../../../../../libs/app-runtime/src/data/DataManager.ts) →
+주입 경로: [createRepositories](../../../../../libs/data/src/repositories/index.ts)의
+`options`(`DataRepositoriesOptions`) →
+[DataManager](../../../../../libs/app-runtime/src/data/DataManager.ts) →
 [DataManager](../../../../../libs/app-runtime/src/data/DataManager.ts) 생성자 →
 [runtime.ts](../../../../../libs/app-runtime/src/data/runtime.ts)의 `configureDataRuntime(options)`.
 싱글턴이 lazy 생성이므로 apps/web 부트스트랩([main.tsx](../../../src/main.tsx))에서 첫 리포지토리
@@ -181,13 +181,13 @@ ADR이 열어둔 "마이그레이션성 삭제냐 목록 필터냐"는 **재조�
 **단, `id: '0000'`(relay의 유일한 개인 place) 하나는 예외다(2026-08-10 추가).** 이 id는
 구조적으로 `cid: 'default'` 파티션에만 존재할 수 있다 — 어떤 클라우드도 자기 place에 이 id를
 발급하지 않는다. 그래서 이 한 id에 한해서는 **cid만 보고도** 오염을 판별할 수 있다: `id==='0000'
-&& cid!=='default'`면 무조건 오염 행이다. `PlaceLocalDataSourceV2.cacheRead`/`cacheReadList`가
+&& cid!=='default'`면 무조건 오염 행이다. `PlaceLocalDataSource.cacheRead`/`cacheReadList`가
 이 조건의 행을 읽기 시점에 걸러낸다(재조정과 별개, 재조정을 기다릴 필요 없이 즉시 가려진다) —
 위 "목록 필터는 불가능하다"는 여전히 **일반적인 경우**엔 참이고, 이 예약 id 하나만 특수하다.
 
-[PlaceRepositoryV2](../../../../../libs/data/src/repositories/PlaceRepository.ts)의
+[PlaceRepository](../../../../../libs/data/src/repositories/PlaceRepository.ts)의
 내부 `syncListSnapshot(query?, protectedId?)`(공개 `refreshList`가 위임)이
-[ChannelRepositoryV2.refreshList:108-162](../../../../../libs/data/src/repositories/ChannelRepository.ts)의
+[ChannelRepository.refreshList:108-162](../../../../../libs/data/src/repositories/ChannelRepository.ts)의
 확립된 관용구를 따른다:
 
 1. **socketCid 가드** — `socketCid != null && (cid || 'default') !== socketCid`면 즉시 return
@@ -208,7 +208,7 @@ ADR이 열어둔 "마이그레이션성 삭제냐 목록 필터냐"는 **재조�
 
 ### 3) `createPlace` 후속 스냅샷 (ADR 결정 2)
 
-[PlaceRepositoryV2.createPlace](../../../../../libs/data/src/repositories/PlaceRepository.ts)가
+[PlaceRepository.createPlace](../../../../../libs/data/src/repositories/PlaceRepository.ts)가
 단건 `cacheWrite` 후 `syncListSnapshot(undefined, domain.id)`(방금 생성한 id를 prune 예외로
 전달)를 **await로 이어 호출하되 실패는 삼킨다** — 플레이스 생성 자체는 성공했으므로 후속
 스냅샷 실패가 생성을 실패시키면 안 된다(다음 싱크 틱이 수렴시킨다). 모든 호출자가 일관되게
@@ -220,7 +220,7 @@ ADR이 열어둔 "마이그레이션성 삭제냐 목록 필터냐"는 **재조�
   페이로드에 `id: placeId` 추가.
   [useUpdatePlace.ts:5-9](../../../src/app/features/home/hooks/useUpdatePlace.ts)의
   `UpdatePlacePayload`에 `id` 필드를 추가한다.
-- 재발 방지: [PlaceRepositoryV2.updatePlace:109-127](../../../../../libs/data/src/repositories/PlaceRepository.ts)
+- 재발 방지: [PlaceRepository.updatePlace:109-127](../../../../../libs/data/src/repositories/PlaceRepository.ts)
   진입부에서 `id`가 없고 `sid`가 있으면 `id = sid`로 정규화한 페이로드를 만들어 원격 전송과
   낙관적 캐시 쓰기(현재 `payload.id` 부재 시 통째로 스킵되는 경로) 양쪽에 쓴다. place에서
   `id === sid`다(ADR 맥락 3).
@@ -289,7 +289,7 @@ ADR이 열어둔 "마이그레이션성 삭제냐 목록 필터냐"는 **재조�
 - web-core의 `getRelaySessionUser`(relay 토큰 시드) — 이 용도 전용이라 죽은 코드가 됐다.
 - `ProfileEditPage`의 저장 비활성화 + 안내 문구(`profileEdit.relayOnlyNotice`).
 - 합성 루트의 `user.update` relay 핀과, 그에 딸린
-  [UserRepositoryV2](../../../../../libs/data/src/repositories/UserRepository.ts)의 relay 스코프
+  [UserRepository](../../../../../libs/data/src/repositories/UserRepository.ts)의 relay 스코프
   캐시 가드.
 
 ADR 결정 1~4·6(기본 플레이스 스코핑, 생성 플로우 프로필 스텝, 아바타 통합)은 그대로 유효하다. 아래 조사
@@ -304,7 +304,7 @@ ADR 결정 1~4·6(기본 플레이스 스코핑, 생성 플로우 프로필 스�
 프로바이더에서 직접** 산출하며([storages/utils.ts:73](../../../../../libs/data/src/local/storages/utils.ts),
 [IndexedDBAdapter.ts:42](../../../../../libs/data/src/local/storages/IndexedDBAdapter.ts)),
 `contextOverride`는 옵저버 스코프키와 행 `cid` 스탬프에만 반영된다. 읽기 경로는 override를
-받고도 사용하지 않는다([UserLocalDataSourceV2.cacheRead:28-34](../../../../../libs/data/src/local/data-sources/UserLocalDataSource.ts)).
+받고도 사용하지 않는다([UserLocalDataSource.cacheRead:28-34](../../../../../libs/data/src/local/data-sources/UserLocalDataSource.ts)).
 `withContext`는 프로덕션 사용 0건. 즉 클라우드 활성 중 relay 파티션을 읽는 것은 현 구조로
 불가능하고, 이를 뚫는 read 경로 확장은 파급이 커 후속 데이터 레이어 트랙으로 미룬다(설계 원칙).
 
@@ -334,7 +334,7 @@ ADR 결정 1~4·6(기본 플레이스 스코핑, 생성 플로우 프로필 스�
   비활성화·안내 문구(`profileEdit.relayOnlyNotice`)는 제거했다. 클라우드 쪽 user 레코드를 정말로 편집해야
   하는 기능이 생기면 이 바인딩을 재사용하지 말고 그 메서드에 `route`를 노출한다(kind-scoped-routing.md S4).
   캐시 파티션은 여전히 활성 컨텍스트를 따르므로, 클라우드 활성 중 저장은
-  [UserRepositoryV2](../../../../../libs/data/src/repositories/UserRepository.ts)가 캐시를 건드리지
+  [UserRepository](../../../../../libs/data/src/repositories/UserRepository.ts)가 캐시를 건드리지
   않고(그 파티션의 클라우드 프로필을 덮어쓰지 않도록) 앱이 보관값(`patchMyRelayUser`)에 반영한다.
 
 </details>

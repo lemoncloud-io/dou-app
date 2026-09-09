@@ -46,7 +46,7 @@ demo 딥 import 3종을 전부 `@lemoncloud/chatic-sockets-lib` main 엔트리�
 
 1. **demo 정본 고정+추출**: demo는 dou-app에 없음 — chatic-sockets-api `stash@{0}`(`feat/demo-verification-tool`, **휘발성 stash**)에 존재. 착수 전 안정 브랜치/태그로 **고정**(stash apply→commit) 후, 거기서 `demo/src/**`(nested 트리)를 dou-app `apps/admin/src/app/features/socket-lab/`로 복사. (현재 dou-app 워킹트리의 구 flat 버전과 혼동 금지 — 정본은 nested 트리.)
 2. **SDK bump**: 루트 `package.json`의 `@lemoncloud/chatic-sockets-lib`를 `0.4.2`로 → `yarn install` → `node_modules/.../package.json` version=0.4.2 확인. (lock은 현재 0.2.0이라 갱신됨.)
-3. **회귀(1순위 리스크)**: 0.2.0→0.4.2 major 점프, 기존 소비처가 마이그레이션 중. `nx typecheck`+`nx test`+`nx build` for `admin`, `web-core`, `app-runtime`(`libs/socket`·`libs/data` 포함), `testbed`. 특히 기존 SDK 사용 파일의 API 변경 여부 확인: `libs/app-runtime/src/socket/SocketManager.ts`, `libs/socket/src/hooks/useWebSocketV2.ts`, `libs/data/src/data/remote/clients.ts`, `apps/testbed/.../RuntimeOverlay.tsx`.
+3. **회귀(1순위 리스크)**: 0.2.0→0.4.2 major 점프, 기존 소비처가 마이그레이션 중. `nx typecheck`+`nx test`+`nx build` for `admin`, `web-core`, `app-runtime`(`libs/socket`·`libs/data` 포함), `testbed`. 특히 기존 SDK 사용 파일의 API 변경 여부 확인: `libs/app-runtime/src/socket/SocketManager.ts`, `libs/socket/src/hooks/useWebSocketV2.ts`, `libs/data/src/remote/clients.ts`, `apps/testbed/.../RuntimeOverlay.tsx`.
 
 - 검증: 위 4개 typecheck/test/build green. 회귀 발견 시 해당 lib 소유자와 조율(별도 이슈).
 

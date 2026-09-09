@@ -98,7 +98,7 @@ DB Browser는 `ChaticWebCacheDB`(IndexedDB)의 `cache_store` 테이블을
 현재 코드 근거:
 
 - `libs/app-runtime/src/runtime/useRuntimeRepositories.ts` — repositories hook
-- `libs/data/src/data/repositories-v2/index.ts` — `DataRepositoriesV2` 인터페이스
+- `libs/data/src/repositories/index.ts` — `DataRepositoriesV2` 인터페이스
 - `libs/app-messages/src/types/model/cache.ts` — `CacheQueryMap` 쿼리 옵션 정의
 
 #### 3.3.3 쿼리 결과 패널

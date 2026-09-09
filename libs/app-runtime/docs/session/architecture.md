@@ -105,10 +105,10 @@ endpoint resolver(`getDynamicRelayBackend`/`getDynamicRelayWss`)를 `relayStore`
 
 `session/auth`의 유스케이스(login·발급·전환·로그아웃·OAuth 교환)는 HTTP를 쳐야 하는 코드다.
 **게이트웨이를 직접 잡지 않는다** — [`relaySession.ts`](../../src/session/auth/relaySession.ts) · [`cloudSession.ts`](../../src/session/auth/cloudSession.ts) 는
-`AuthRepositoryV2`를 부르고, 게이트웨이 인스턴스를 아는 코드는 전부 `data/` 안에 있다.
+`AuthRepository`를 부르고, 게이트웨이 인스턴스를 아는 코드는 전부 `data/` 안에 있다.
 
 ```
-session/auth/{relay,cloud}Session ──> data(AuthRepositoryV2) ──> http/gateways ──> HttpManager
+session/auth/{relay,cloud}Session ──> data(AuthRepository) ──> http/gateways ──> HttpManager
 ```
 
 비-React 코드라 `getRepositories()`로 잡는다 — `socket/sync/plans.ts`와 같은 접근자이고,
@@ -305,7 +305,7 @@ apps/web의 `contextOverride` 우회(`useHomePlaces` · `useActiveCloudChannels`
 ### 판정 함수의 소유자는 `@chatic/data`다
 
 판정 호출부의 다수가 `data` 안에 있고 `data`는 leaf라 app-runtime을 import할 수 없다. 그래서 판정은
-`DataContext` 값만 받는 **순수 함수**로 `@chatic/data`(`repositories-v2/scopeGuards.ts`)가 소유하고,
+`DataContext` 값만 받는 **순수 함수**로 `@chatic/data`(`repositories/scopeGuards.ts`)가 소유하고,
 `session/scope`와 `socket/sync`는 그것을 호출하는 소비자다.
 
 ```ts
@@ -315,8 +315,8 @@ export const isCidActive = (targetCid: string | null, boundCid: string | null): 
     targetCid == null || targetCid === boundCid;
 ```
 
-소비 지점: `ChannelRepositoryV2`(3곳 — 그중 하나는 **부정 반전**으로 일치할 때만 캐시 쓰기) ·
-`PlaceRepositoryV2` · `SyncManager.isCidActive` · `plans.dropForeignFrame`.
+소비 지점: `ChannelRepository`(3곳 — 그중 하나는 **부정 반전**으로 일치할 때만 캐시 쓰기) ·
+`PlaceRepository` · `SyncManager.isCidActive` · `plans.dropForeignFrame`.
 
 per-call `contextOverride`(로컬 data-source의 요청 단위 힌트)는 그대로 남는다 — 물리
 파티션(`${type}:${cid}:${uid}:${id}`)을 바꾸는 수단이 아니고 read 경로는 override를 무시한다는 기존
@@ -355,7 +355,7 @@ lemon transport 초기화는 `http/transport`가 소유한다. 위치가 leaf로
   목록으로 고정한다. 심볼 추가/삭제는 그 목록을 고치는 의도적 행위여야 한다.
 - **refresh 부재** — [`src/http/refreshAbsence.test.ts`](../../src/http/refreshAbsence.test.ts).
 - **스코프** — [`selectedContext.test.ts`](../../src/session/scope/selectedContext.test.ts) + `data`의 scopeGuards 테이블
-  테스트. 판정 6곳의 스킵/통과 케이스를 1:1 보존한다(특히 `ChannelRepositoryV2`의 부정 반전).
+  테스트. 판정 6곳의 스킵/통과 케이스를 1:1 보존한다(특히 `ChannelRepository`의 부정 반전).
 
 ```bash
 npx nx run-many -t test -p @chatic/app-runtime,@chatic/data,@chatic/http

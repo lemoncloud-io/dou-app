@@ -342,8 +342,8 @@ UUID인 상태가 남아 있으면 "체인은 하나"가 사실이 아니다.
 - **`PlaceProfileCreateDialog`는 기존 값을 seed하지 않는다.** 생성 다이얼로그이므로 의도된 것이며,
   `hasSnapshot` 가드가 "프로필이 있는데 열리는" 경로를 막는다. 가드를 우회하는 새 호출자가
   생긴다면 그때는 seed가 필요하다 — 빈 폼 저장이 기존 nick을 덮어쓰기 때문이다.
-- **로컬 캐시에서 명시적 `thumbnail: undefined`가 기존 사진을 지운다.** `ProfileRepositoryV2.setProfile`
-  과 `ProfileLocalDataSourceV2.normalizeProfile`이 평범한 스프레드라 _생략된_ 키만 보호한다.
+- **로컬 캐시에서 명시적 `thumbnail: undefined`가 기존 사진을 지운다.** `ProfileRepository.setProfile`
+  과 `ProfileLocalDataSource.normalizeProfile`이 평범한 스프레드라 _생략된_ 키만 보호한다.
   서버로는 `JSON.stringify`가 `undefined`를 빼므로 전송되지 않고 다음 폴링(5초)에 복구된다.
   이 다이얼로그만의 문제가 아니라 프로필 저장 경로 전반의 것이므로 별도 과제로 둔다.
 - **`placeList.defaultPlace` ko 변경이 플레이스 목록 표기도 바꿨다** — 이번 스펙 밖 화면이다.

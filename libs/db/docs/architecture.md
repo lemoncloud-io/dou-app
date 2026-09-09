@@ -72,7 +72,7 @@ ADR-0070 5단계 중 **2단계**의 저장 축 산출물이다. 2단계의 나�
 
 현재 코드가 실제로 수행하는 네 경로가 그대로 lib의 유스케이스다. 넷 다 이관 후 동작 불변이다.
 
-1. **웹 IndexedDB 경로** — repository → `ChatLocalDataSourceV2`(주입된 `CacheStorage`만 호출) →
+1. **웹 IndexedDB 경로** — repository → `ChatLocalDataSource`(주입된 `CacheStorage`만 호출) →
    `IndexedDBAdapter` → 공유 `IndexedDBDatabase`(단일 커넥션, `ChaticWebCacheDB` v3,
    `IndexedDBDatabase.ts:4-8`). chat
    타입만 `ChatQueryExecutor`가 커서 역순 페이징 + 미전송 레인지(`UNSENT_CHAT_NO`,
@@ -150,9 +150,9 @@ sequenceDiagram
 
 이 문서의 출발점인 결정 5의 실측 주장을 현재 트리에서 다시 쟀다. 어긋난 것은 어긋난 대로 적는다.
 
-- **"local data-source가 엔진을 모른다" — 참.** data-sources-v2 11파일(구현 9 + types + index)의
+- **"local data-source가 엔진을 모른다" — 참.** data-sources 11파일(구현 9 + types + index)의
   import 전수에서 엔진 클래스는 0건이다. 단 **"storages에서 가져가는 것은 `CacheStorage`와
-  `stableHash`뿐"은 실측과 다르다** — `SyncMetaLocalDataSourceV2`가 `resolveTtlMs`를 하나 더
+  `stableHash`뿐"은 실측과 다르다** — `SyncMetaLocalDataSource`가 `resolveTtlMs`를 하나 더
   가져간다([SyncMetaLocalDataSource.ts:4](../../data/src/local/data-sources/SyncMetaLocalDataSource.ts)).
   세 심볼 모두 인터페이스·유틸이라 절단 자체는 성립하지만, TTL 정책 함수가 data-source 소비자를
   가진다는 사실이 utils 분할(아래)의 방향을 결정한다.
@@ -232,7 +232,7 @@ libs/data/src/local/                   ← 유지: 인터페이스·정책·data
 | `storages/IndexedDBAdapter.ts:32`                                                    | `IndexedDBAdapter` · `IndexedDBAdapterOptions`                                                                    | → `db/indexeddb/`                                                                                        |
 | `storages/NativeDBAdapter.ts:80`                                                     | `NativeDBAdapter`                                                                                                 | → `db/native/`                                                                                           |
 | `storages/nativeCacheMetrics.ts:59`                                                  | `recordNativeCacheOperation` · `getNativeCacheMetrics`(:99) · `resetNativeCacheMetrics`(:105)                     | → `db/native/` + `NativeCacheMetricsSource` 신설                                                         |
-| `storages/utils.ts:51-93`                                                            | `resolveTtlMs` · `createTtlMeta` · `withCacheMeta` · `resolveBaseScope` · `resolveScopedContext` · `AdapterScope` | 남는다 → `ports/policy.ts` (도메인 정책 — `SyncMetaLocalDataSourceV2`가 소비자, db가 런타임 import)      |
+| `storages/utils.ts:51-93`                                                            | `resolveTtlMs` · `createTtlMeta` · `withCacheMeta` · `resolveBaseScope` · `resolveScopedContext` · `AdapterScope` | 남는다 → `ports/policy.ts` (도메인 정책 — `SyncMetaLocalDataSource`가 소비자, db가 런타임 import)        |
 | `storages/utils.ts:47`                                                               | `isQuotaExceededError`                                                                                            | → `db/indexeddb/` — 소비자가 `IndexedDBAdapter` 하나뿐이고 `DOMException` 판정이라 웹 엔진 종속          |
 | `storages/stableHash.ts:9`                                                           | `stableHash`                                                                                                      | 남는다 → `local/stableHash.ts` (data-source 3파일이 소비, `NativeDBAdapter`는 `@chatic/data`에서 import) |
 | `search/types.ts:67`                                                                 | `IGlobalCacheSearchSource` + 쿼리/결과 타입 5종 + `globalCacheRefKey`                                             | 남는다 → `ports/search.ts`                                                                               |
@@ -325,9 +325,9 @@ import type {
     DataContextProvider,
     ICacheMetricsSource,
     IGlobalCacheSearchSource,
-    LocalDataSourcesV2,
+    LocalDataSources,
 } from '@chatic/data';
-import { createCacheStorages, createLocalDataSourcesV2 as createDataLocalDataSources } from '@chatic/data';
+import { createCacheStorages, createLocalDataSources as createDataLocalDataSources } from '@chatic/data';
 import {
     ChatQueryExecutor,
     IndexedDBAdapter,
@@ -377,7 +377,7 @@ tests에서 36 suites·298 tests로 줄고, `libs/db`가 정확히 그 차이(7 
   `jest.mock('@chatic/data', ...)`로 바뀐 것이 유일한 실질 변경(`withCacheMeta`가 이제
   `@chatic/data`에서 온다).
 - **`libs/data` 유닛 테스트 — 36 suites·298 tests green.** `CacheStorage.test.ts`는
-  `ports/cacheStorage.test.ts`로 이동. data-sources-v2 11파일의 `../storages` import는
+  `ports/cacheStorage.test.ts`로 이동. data-sources 11파일의 `../storages` import는
   `../ports`(타입) / `../stableHash`(값)로 기계적으로 갈렸다.
 - **`libs/app-runtime` 유닛 테스트 — 28 suites·250 tests green.** `localFactory.test.ts`는
   **무변경으로 통과** — 어댑터를 생성자 이름 문자열로 판별하고 `@chatic/data`/`@chatic/db`를
