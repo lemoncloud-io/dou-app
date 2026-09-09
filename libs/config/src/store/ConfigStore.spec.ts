@@ -63,6 +63,26 @@ describe('ConfigStore — 알림', () => {
         expect(listener).not.toHaveBeenCalled();
     });
 
+    it('물어본 키만 건네받는다 — 남의 변경까지 받으면 다시 걸러내야 한다', () => {
+        const store = new ConfigStore();
+        const listener = jest.fn();
+        store.subscribe(['a.key'], listener);
+
+        store.notify(['다른.키', 'a.key']);
+
+        expect(listener).toHaveBeenCalledWith(['a.key']);
+    });
+
+    it('키를 안 준 리스너는 바뀐 키 전부를 건네받는다', () => {
+        const store = new ConfigStore();
+        const listener = jest.fn();
+        store.subscribe(undefined, listener);
+
+        store.notify(['a.key', 'b.key']);
+
+        expect(listener).toHaveBeenCalledWith(['a.key', 'b.key']);
+    });
+
     it('바뀐 키가 없으면 아무도 안 부른다', () => {
         const store = new ConfigStore();
         const listener = jest.fn();

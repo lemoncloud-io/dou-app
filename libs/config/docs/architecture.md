@@ -729,11 +729,56 @@ desktop-web에서는 다른 스토어·다른 봉투 모양으로 그대로 열�
 
 ### 7. 기기 상태 로그
 
-- [ ] 부팅 직후 기본값과 다른 키를 한 줄로
-- [ ] `config.subscribe`로 변경 시 그 키만
-- [ ] `debug.entryCode` 제외
+- [x] 부팅 직후 오버라이드된 키를 한 줄로 (`config.overriddenSnapshots()`)
+- [x] `config.subscribe`로 변경 시 그 키만, 이긴 행(`origin`)과 함께
+- [x] `debug.entryCode` 제외
+- [x] **계획에 없던 항목**: 리스너에 움직인 키를 넘기는 코어 변경 + `applyRemotePayload`의 통지 계약
+      위반 수정 (아래 달라진 점 1·2)
 
-**검증**: 오버라이드 없는 기기에서 부팅 줄이 비는지 · 값 하나 바꾸면 한 줄 나오는지
+구현: [`libs/app-runtime/src/config/configStateLog.ts`](../../app-runtime/src/config/configStateLog.ts)
+(`attachConfigStateLog`), `initAppRuntime`의 마지막 배선.
+
+**검증**: `libs/config` 104/104(신규 5) · `libs/app-runtime` 594/594(신규 9) · apps/web 2433 ·
+desktop-web 218 · 타입체크 전부 기준선 불변. **실제 레지스트리 84키로 임시 테스트를 만들어 4가지를
+직접 확인**(확인 후 삭제, 커밋 안 함): 깨끗한 기기는 LOCAL·DEV·PROD **모두 부팅 줄이 빈다** ·
+로컬 오버라이드 1개면 그 키 하나만 실린다 · 셸 쓰기는 `origin:'shell'`로 나온다 · `clear()`는
+`origin:'default'`로 되돌아간 값을 남긴다(오버라이드 해제도 사건으로 보인다) · 거부된 쓰기
+(`laneNotAllowed`)는 아무 줄도 남기지 않는다.
+
+**스펙과 달라진 점 (2026-09-09, 7단계)**
+
+1. **리스너가 어느 키가 움직였는지 몰랐다 — 코어를 고쳐야 실현 가능했다.** `ConfigStore`는
+   `notify(changedKeys)`로 목록을 받아 통지 대상을 고르는데, 리스너에게는 `() => void`로 알려서 그
+   목록을 **버리고** 있었다. 그대로면 상태 로그가 "무엇이 바뀌었나"를 알 방법이 없어 관측자가 84키의
+   값 사본을 들고 매 통지마다 대조해야 한다 — 코어가 이미 답을 갖고 있는데 소비자가 다시 계산하는
+   구조다. `ConfigChangeListener = (changedKeys: readonly string[]) => void`를 도입했고, 키를 지정한
+   리스너는 **자기가 물어본 키만** 건네받는다(남의 변경까지 받으면 다시 걸러내야 한다). React
+   어댑터는 값만 다시 읽으므로 인자를 무시한다 — 기존 99개 테스트 전부 불변.
+2. **`applyRemotePayload`가 구독 계약을 어기고 있었다.** `set`/`clear`는 `before !== after`로 resolve
+   결과가 움직였는지 확인하고 통지하는데, 이 경로만 payload의 키를 **전부** 통지했다. 로컬이 이기고
+   있는 키에 서버 기본값이 내려오면 화면 값은 그대로인데 "바뀌었다"고 알리는 셈 — 상태 로그로 보면
+   앱에 도달한 적 없는 변경이 이력에 남는다. 원격 어댑터가 아직 없어 잠복해 있던 결함이고, 이 단계가
+   그 경로의 첫 실제 소비자였다. 같은 방식으로 diff하도록 고치고 테스트 2건(서버 기본값은 조용,
+   kill은 통지)을 추가했다.
+3. **"기본값과 다른 키"는 `defaultValue`와의 비교가 아니라 `isOverridden`이다.** 문자 그대로 읽으면
+   `byStage`/`byPlatform`이 정한 값도 `defaultValue`와 다르므로 포함되는데, 그러면 PROD의 모든 기기가
+   선언만으로 여러 줄을 싣는다(`feature.auth.socialLogin`은 PROD에서 항상 off다) — "대부분의 기기에서
+   이 줄은 비어 있다"는 결정 16의 전제가 깨지고, 실제로 누가 뭘 바꾼 그 한 대가 묻힌다. 그래서
+   `overriddenSnapshots()`(= 레인이 공급한 키)를 쓴다. `envDefaultKey`로 들어온 빌드 값도 `origin`이
+   `'default'`라 자연히 빠진다.
+4. **`libs/app-runtime`에 뒀다.** `libs/config`는 아무것도 임포트하지 않으므로(결정 1) 로거에 닿을 수
+   없고, config 레지스트리를 부팅하는 앱은 전부 `initAppRuntime`도 부른다 — 둘 다 의존하는 유일한
+   자리다. 앱마다 두면 같은 열두 줄이 네 벌이 된다. 포트 콜백(`onConfigChanged` 같은)으로 앱에 넘기는
+   안도 있었지만, 그러면 앱 4곳이 각자 로깅 코드를 쓰게 되어 같은 중복으로 돌아온다.
+5. **레벨은 `info`다 — `debug`면 수집이 안 된다.** `debug`는 브릿지를 건너지 않고 업로드 큐도
+   `level !== 'debug'`로 걸러내므로(ADR-0066·링버퍼 폐지), 수집기가 이력을 이어 붙인다는 결정 16의
+   전제가 성립하지 않는다. 태그는 이미 쓰이던 `'CONFIG'`.
+6. **값을 가리지 않는다.** 레지스트리에는 기기 식별자·개인 정보가 애초에 없다(ADR-0079 §카브아웃)
+   — `redactSensitive`를 거칠 이유가 없고, 엔드포인트가 QA 서버를 가리키고 있다는 사실이야말로 이
+   로그의 존재 이유다. 유일한 예외가 `debug.entryCode`(자격증명)이고 그것만 뺀다.
+7. **`snapshotAll()`로 보는 화면 쪽은 이 단계에서 만들지 않았다.** 결정 16의 절반이지만 그 화면이
+   디버그 패널이고, 패널 자체는 ADR-0080의 다음 라운드다(4·5단계와 같은 이유로 범위 밖). 코어의
+   `snapshotAll()`은 1단계부터 있으므로 패널이 붙을 때 추가 작업이 없다.
 
 ## 리스크와 미지수
 

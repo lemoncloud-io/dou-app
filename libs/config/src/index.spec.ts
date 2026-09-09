@@ -3,6 +3,13 @@ import { UNLOCK_ENTRY, entry, memoryStorage, moduleOf, envAdapter, ports } from 
 import { UNLOCK_KEY } from './resolve/ConfigResolver';
 import { storageKeyFor } from './utils/serialize';
 
+/**
+ * 원격 두 행은 어댑터가 꽂혀 있을 때만 값을 내놓는다(`wired().server`) — 셸 레인과 같은 규칙이다.
+ * `applyRemotePayload`를 시험하려면 payload를 받아 줄 어댑터가 필요하고, 이 테스트들은 payload를
+ * 직접 넣으므로 `fetch`는 불려선 안 된다.
+ */
+const remoteAdapter = { fetch: () => Promise.reject(new Error('직접 넣는 테스트에서는 안 불린다')) };
+
 const modules = () => [
     moduleOf({
         [UNLOCK_KEY]: UNLOCK_ENTRY,
@@ -109,6 +116,62 @@ describe('config.subscribe — resolve 결과가 바뀐 키만 알린다', () =>
         config.set('log.hold', false, { lane: 'local' });
 
         expect(listener).not.toHaveBeenCalled();
+    });
+
+    it('어느 키가 움직였는지 함께 알린다 — 관측자가 값 사본을 들고 있지 않아도 되게', () => {
+        const config = createConfig(modules());
+        config.init(ports());
+        const listener = jest.fn();
+        config.subscribe(undefined, listener);
+
+        config.set('log.hold', true, { lane: 'local' });
+
+        expect(listener).toHaveBeenCalledWith(['log.hold']);
+    });
+
+    // `modules()`의 키에는 `server`가 없다 — 엔드포인트가 원격으로 갈리면 안 된다는 ADR-0079 결정
+    // 10 때문이다. 원격 두 행을 시험하려면 서버가 쓸 수 있다고 선언된 키가 필요하다.
+    const serverWritableModules = () => [
+        moduleOf({
+            [UNLOCK_KEY]: UNLOCK_ENTRY,
+            'feature.x': entry({ writableBy: ['shell', 'local', 'server'], defaultValue: false }),
+        }),
+    ];
+
+    it('원격 payload도 resolve 결과가 움직인 키만 알린다 — 이미 지고 있는 행이면 조용하다', () => {
+        const config = createConfig(serverWritableModules());
+        config.init(ports({ remote: remoteAdapter }));
+        // local이 이기고 있는 상태에서 서버 기본값(비-enforced)이 내려온다 — 화면 값은 그대로다.
+        config.set('feature.x', true, { lane: 'local' });
+        const listener = jest.fn();
+        config.subscribe(['feature.x'], listener);
+
+        const accepted = config.applyRemotePayload({
+            schemaVersion: 1,
+            ttlSec: 60,
+            entries: { 'feature.x': { value: false } },
+        });
+
+        expect(accepted).toBe(true);
+        expect(config.get('feature.x')).toBe(true);
+        expect(listener).not.toHaveBeenCalled();
+    });
+
+    it('원격 kill은 로컬을 이기므로 알린다', () => {
+        const config = createConfig(serverWritableModules());
+        config.init(ports({ remote: remoteAdapter }));
+        config.set('feature.x', true, { lane: 'local' });
+        const listener = jest.fn();
+        config.subscribe(['feature.x'], listener);
+
+        config.applyRemotePayload({
+            schemaVersion: 1,
+            ttlSec: 60,
+            entries: { 'feature.x': { value: false, enforced: true } },
+        });
+
+        expect(config.get('feature.x')).toBe(false);
+        expect(listener).toHaveBeenCalledWith(['feature.x']);
     });
 });
 

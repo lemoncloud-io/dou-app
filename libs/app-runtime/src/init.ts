@@ -1,5 +1,6 @@
 import { logger } from '@chatic/bridges';
 
+import { attachConfigStateLog } from './config/configStateLog';
 import { configureDataRuntime } from './data/runtime';
 import { credentialRecovery } from './http/credentialRecovery';
 import { configureSessionStore } from './session/store/configure';
@@ -79,4 +80,11 @@ export const initAppRuntime = (config: AppRuntimeConfig = {}): void => {
     if (config.data) {
         configureDataRuntime(config.data);
     }
+
+    // Records this device's effective settings in the logs (ADR-0079 결정 16). Last, because the
+    // boot line should describe the registry as the app will actually run with it, and unconditional
+    // because every app that boots the runtime also boots the config registry. With the registry
+    // unwired it degrades to a single "nothing is overridden" line rather than failing — the
+    // resolver simply has nothing to report yet.
+    attachConfigStateLog();
 };

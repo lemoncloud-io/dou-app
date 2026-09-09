@@ -21,10 +21,11 @@ export type { DataRepositoriesV2Options } from '@chatic/data';
 // `ENV`/`PROJECT`/`SOCIAL_OAUTH_ENDPOINT`/`LANGUAGE_KEY` used to re-export the sole `import.meta`
 // holder's constants (ADR-0070 결정 6, `@chatic/web-config`). That holder is retired (ADR-0079) —
 // each Vite app now reads its own `import.meta.env` directly and calls `@chatic/config`'s
-// `config.get(...)` for anything that IS a setting. The two former consumers of these re-exports
-// (`apps/web/src/i18n/index.ts`, `apps/desktop-web/.../oauth.ts`) read `import.meta.env` themselves
-// now — neither value is a toggle, both are technical (a storage-key namespace, an OAuth relay
-// host), so routing them through this facade bought nothing.
+// `config.get(...)` for anything that IS a setting. The two former consumers split on exactly that
+// line: `apps/web/src/i18n/index.ts` reads `import.meta.env` itself (a storage-key namespace is
+// technical, not a setting), while `apps/desktop-web/.../oauth.ts` went to `config.get(...)` in
+// ADR-0079 6단계 — the OAuth relay host and the deeplink scheme are registry keys now. Either way
+// routing them through this facade bought nothing.
 export { isNativeApp } from './utils/isNativeApp';
 
 // Native local-cache capability, reported by the bridge handshake AFTER boot — which is why it is a

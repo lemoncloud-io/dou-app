@@ -1,4 +1,4 @@
-import type { Lane } from '../types';
+import type { ConfigChangeListener, Lane } from '../types';
 
 /**
  * What each lane currently holds, plus who is watching.
@@ -9,7 +9,7 @@ import type { Lane } from '../types';
  */
 export class ConfigStore {
     private readonly lanes = new Map<Lane, Map<string, unknown>>();
-    private readonly listeners = new Set<{ keys: ReadonlySet<string> | null; notify: () => void }>();
+    private readonly listeners = new Set<{ keys: ReadonlySet<string> | null; notify: ConfigChangeListener }>();
 
     private laneMap(lane: Lane): Map<string, unknown> {
         const existing = this.lanes.get(lane);
@@ -41,7 +41,7 @@ export class ConfigStore {
     }
 
     /** Pass no keys to hear about everything. */
-    subscribe(keys: readonly string[] | undefined, notify: () => void): () => void {
+    subscribe(keys: readonly string[] | undefined, notify: ConfigChangeListener): () => void {
         const listener = { keys: keys && keys.length > 0 ? new Set(keys) : null, notify };
         this.listeners.add(listener);
         return () => {
@@ -49,15 +49,23 @@ export class ConfigStore {
         };
     }
 
-    /** Tells only the listeners that asked about at least one of these keys. */
+    /**
+     * Tells only the listeners that asked about at least one of these keys.
+     *
+     * Each listener is handed the keys IT asked about, not the whole change set — a watcher of one
+     * key learning that some other key moved would have to filter the noise back out, and an
+     * observer that logs what changed (`attachConfigStateLog`) would report keys nobody asked it
+     * about. A listener that passed no keys asked about everything, so it gets everything.
+     */
     notify(changedKeys: readonly string[]): void {
         if (changedKeys.length === 0) return;
         for (const listener of [...this.listeners]) {
             if (!listener.keys) {
-                listener.notify();
+                listener.notify(changedKeys);
                 continue;
             }
-            if (changedKeys.some(key => listener.keys?.has(key))) listener.notify();
+            const asked = changedKeys.filter(key => listener.keys?.has(key));
+            if (asked.length > 0) listener.notify(asked);
         }
     }
 }

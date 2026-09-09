@@ -6,11 +6,12 @@ import { ALL_MODULES } from './registry/modules';
 import { ConfigResolver, UNLOCK_KEY } from './resolve/ConfigResolver';
 import { isValidValue } from './resolve/validate';
 import { ConfigStore } from './store/ConfigStore';
-import type { ConfigRegistryModule, ConfigSnapshot, Lane, SetResult, Writer } from './types';
+import type { ConfigChangeListener, ConfigRegistryModule, ConfigSnapshot, Lane, SetResult, Writer } from './types';
 import { decodeValue, encodeValue, storageKeyFor } from './utils/serialize';
 
 export type {
     AppliesAt,
+    ConfigChangeListener,
     ConfigEntry,
     ConfigRegistryModule,
     ConfigSnapshot,
@@ -138,8 +139,14 @@ export class ConfigFacade {
         return { ok: true };
     }
 
-    /** Pass no keys to hear about every change. */
-    subscribe(keys: readonly string[] | undefined, listener: () => void): () => void {
+    /**
+     * Pass no keys to hear about every change.
+     *
+     * The listener is told which of the keys it asked about moved (`ConfigChangeListener`), so an
+     * observer that logs the change does not have to keep its own copy of every value to work out
+     * what happened.
+     */
+    subscribe(keys: readonly string[] | undefined, listener: ConfigChangeListener): () => void {
         return this.store.subscribe(keys, listener);
     }
 
@@ -182,8 +189,14 @@ export class ConfigFacade {
      * only caller, which is exactly what keeps the two server rows from rotting.
      */
     applyRemotePayload(payload: RemotePayload): boolean {
+        const keys = Object.keys(payload.entries);
+        // Diffed for the same reason `set` and `clear` diff: `subscribe` promises the RESOLVED value
+        // moved. A payload carries whatever the server sent, including keys a higher row is already
+        // winning — notifying on those would tell a watcher its value changed when nothing it can
+        // see did, and would make the state log report a change that never reached the app.
+        const before = new Map(keys.map(key => [key, this.snapshot(key)?.value]));
         const accepted = this.remote.accept(payload);
-        if (accepted) this.store.notify(Object.keys(payload.entries));
+        if (accepted) this.store.notify(keys.filter(key => before.get(key) !== this.snapshot(key)?.value));
         return accepted;
     }
 
