@@ -1,8 +1,8 @@
-# 로그인 후 원위치 복귀 (`returnTo` · replace 내비게이션)
+# 로그인 후 원위치 복귀 (`returnTo` · 뒤로가기 복귀)
 
-> 상태: Live · 최종 갱신: 2026-08-14 · 관련 ADR: [ADR-0055](../../../../../docs/adr/0055-web-code-block-home-sort-and-login-return.md) 결정 4 · [ADR-0042](../../../../../docs/adr/0042-account-linking-unified-path-migration.md) (계정 갈라짐 방어) · [ADR-0033](../../../../../docs/adr/0033-relay-dm-invite-and-auth-parallel-tracks.md) Track A (`applySessionToken`)
+> 상태: Live · 최종 갱신: 2026-09-09 · 관련 ADR: [ADR-0055](../../../../../docs/adr/0055-web-code-block-home-sort-and-login-return.md) 결정 4 · [ADR-0042](../../../../../docs/adr/0042-account-linking-unified-path-migration.md) (계정 갈라짐 방어) · [ADR-0033](../../../../../docs/adr/0033-relay-dm-invite-and-auth-parallel-tracks.md) Track A (`applySessionToken`)
 >
-> 대상: `apps/web/src/app/features/mypage/pages/LoginPage.tsx` + 진입점 5곳
+> 대상: `apps/web/src/app/features/mypage/pages/LoginPage.tsx` + 진입점 3곳
 >
 > 로그인 **화면 자체**(소셜 버튼 배치·폰 로그인 노출 정책)는 [mypage/README](../mypage/README.md)와
 > [phone-verification](./phone-verification.md)이 소유한다. 이 문서는 **로그인 전후의 내비게이션**만
@@ -26,7 +26,8 @@ window.history.go(-stepsBack); // 히스토리를 처음까지 되감고
 튕겨 끊긴다.
 
 히스토리를 되감는 원래 의도는 "뒤로가기로 로그인 화면에 다시 들어가는 루프" 방지였다. 그 목적은
-**`replace` 내비게이션만으로도 달성된다** — 되감기도 풀 리로드도 필요 없다.
+**뒤로가기 한 칸으로 달성된다** — 되감기도 풀 리로드도 필요 없다. 진입점이 로그인 화면을 PUSH하므로
+`navigate(-1)`이 로그인 항목을 스택에서 걷어내며 직전 화면으로 돌아간다.
 
 ## 설계 원칙
 
@@ -50,32 +51,35 @@ window.history.go(-stepsBack); // 히스토리를 처음까지 되감고
 **포함**
 
 - `apps/web`: 로그인 진입 훅(`useNavigateToLogin`), `LoginPage`의 `leaveForHome` → `returnTo` +
-  `replace` 교체, 진입점 5곳의 호출 교체
+  뒤로가기 복귀로 교체, 진입점 3곳의 호출 교체
 
 **제외**
 
-- **로그인 화면의 모달/시트 승격.** 진입점 5곳을 모두 고쳐야 하고 딥링크 경로도 별도 설계가 필요해,
+- **로그인 화면의 모달/시트 승격.** 진입점 3곳을 모두 고쳐야 하고 딥링크 경로도 별도 설계가 필요해,
   얻는 것에 비해 변경면이 넓다 (ADR-0055 대안).
 - **화면 내부 상태 복원** (폼 입력, 선택한 플랜, 스크롤 위치). 원칙 3.
 - **캐시 비우기.** 게스트 신원으로 채운 캐시는 승격 후에도 유지한다 — 유저가 달라져도 호환된다는 것이
   확인됐다 (ADR-0055).
 - **`/auth/login` shim.** `features/auth/pages/LoginPage.tsx`는 18줄짜리 리다이렉트이고 화면이 아니다.
-  초대 딥링크를 루트로 넘기는 역할이며 이번 변경과 무관하다 ([invite.md](./invite.md)).
+  초대 딥링크를 루트로 넘기는 역할이며 이번 변경과 무관하다 ([invite/README.md](../invite/README.md)).
 - **로그아웃 경로.** `LogoutPage`는 캐시 클리어 + 세션 종료이고 복귀 개념이 없다.
 - **온보딩·초대 수락 흐름의 자체 내비게이션.** `useInviteAccept`는 자기 목적지를 따로 갖는다.
 
-## 진입점 5곳
+## 진입점 3곳
 
-| 진입점                     | 위치                                                       | 기대 복귀 지점   |
-| -------------------------- | ---------------------------------------------------------- | ---------------- |
-| `MyPage`                   | `features/mypage/pages/MyPage.tsx:127`                     | 마이페이지       |
-| `PhoneVerifyBanner`        | `features/auth/components/PhoneVerifyBanner.tsx:34`        | 배너를 띄운 화면 |
-| `SubscriptionSelectDialog` | `features/home/components/SubscriptionSelectDialog.tsx:87` | 홈 (구독 선택)   |
-| `SubscriptionPage`         | `features/subscription/pages/SubscriptionPage.tsx:43`      | 구독 화면        |
-| `SubscriptionPlansPage`    | `features/subscription/pages/SubscriptionPlansPage.tsx:61` | 플랜 화면        |
+| 진입점                  | 위치                                                    | 기대 복귀 지점   |
+| ----------------------- | ------------------------------------------------------- | ---------------- |
+| `MyPage`                | `features/mypage/pages/MyPage.tsx`                      | 마이페이지       |
+| `PhoneVerifyBanner`     | `features/auth/components/PhoneVerifyBanner.tsx`        | 배너를 띄운 화면 |
+| `SubscriptionPlansPage` | `features/subscription/pages/SubscriptionPlansPage.tsx` | 플랜 화면        |
 
-세 곳(`SubscriptionSelectDialog`, `SubscriptionPage`, `SubscriptionPlansPage`)이 **게스트 게이트**다 —
-결제에 붙일 계정이 없어 로그인으로 보낸다. 그래서 복귀가 가장 중요한 경로이기도 하다.
+`SubscriptionPlansPage`가 **게스트 게이트**다 — 결제에 붙일 계정이 없어 로그인으로 보낸다. 그래서
+복귀가 가장 중요한 경로이기도 하다.
+
+**`SubscriptionPage`(구독 상태 화면)는 의도적으로 진입점이 아니다.** 게스트를 곧장 로그인으로
+보내지 않고 플랜 화면으로 넘기며, 묻는 자리는 그쪽이다. 이 목록은 산문이 아니라 테스트가 지킨다 —
+`features/auth/hooks/loginEntryPoints.test.ts`가 소스 트리를 전수 스캔해 (1) 로그인 라우트를 직접
+부르는 화면이 없고 (2) 알려진 진입점 3곳이 모두 훅을 지나는지 확인한다.
 
 ## 시나리오
 
@@ -84,8 +88,7 @@ window.history.go(-stepsBack); // 히스토리를 처음까지 되감고
 1. 게스트가 `/subscription/plans`에서 플랜을 고르고 **구독하기**를 누른다.
 2. `isGuest`이므로 결제 대신 로그인으로 보낸다 — `returnTo: '/subscription/plans'`가 실린다.
 3. 소셜 로그인을 마친다. `loginRelaySocial`이 세션을 하이드레이트한다.
-4. `navigate('/subscription/plans', { replace: true })` — **플랜 화면으로 돌아온다.** 풀 리로드가
-   없으므로 흰 화면도 없다.
+4. `navigate(-1)` — **플랜 화면으로 돌아온다.** 풀 리로드가 없으므로 흰 화면도 없다.
 5. 플랜을 **다시 고르고** 구독하기를 누른다. 이번엔 게스트가 아니므로 결제로 진행된다.
 
 > 4번의 "다시 고르고"가 원칙 3이다. 화면은 복원되지만 선택 상태는 복원되지 않는다.
@@ -95,7 +98,7 @@ window.history.go(-stepsBack); // 히스토리를 처음까지 되감고
 ### S2. 마이페이지에서 로그인
 
 1. `/mypage`의 "로그인하기" 헤더를 누른다 → `returnTo: '/mypage'`.
-2. 로그인 성공 → `/mypage`로 `replace` 복귀. 이제 게스트 분기가 풀려 프로필·구독·로그아웃 행이 보인다.
+2. 로그인 성공 → `navigate(-1)`로 `/mypage` 복귀. 이제 게스트 분기가 풀려 프로필·구독·로그아웃 행이 보인다.
 3. **뒤로가기** — 로그인 화면이 아니라 `/mypage` 이전 화면(대개 홈)으로 간다. 복귀가 `replace`가
    아니라 **뒤로가기**이기 때문이다. `replace`로 덮으면 `/mypage`가 연속 두 항목이 되어 첫 뒤로가기가
    같은 화면에 머무르고, 사용자에게는 뒤로가기가 고장난 것으로 보인다.
@@ -113,13 +116,13 @@ window.history.go(-stepsBack); // 히스토리를 처음까지 되감고
 1. `PhoneVerifySheet`를 `mode="login"`으로 연다.
 2. 번호를 확인하면 응답의 `$token`을 `applySessionToken`이 **`onVerified` 이전에** web-core와 라이브
    릴레이 소켓에 넣는다.
-3. `onVerified`에서 `returnTo`로 `replace` 복귀한다. **신원은 이미 교체된 상태**이므로 리로드가
+3. `onVerified`에서 `navigate(-1)`로 복귀한다. **신원은 이미 교체된 상태**이므로 리로드가
    필요 없다.
 
 ### S5. 딥링크·새로고침으로 로그인 화면에 직접 도달
 
-`location.state`가 없다 (`replace`로 온 진입이 아니거나 새로고침으로 state가 날아갔다). `returnTo`가
-없으므로 **홈으로** `replace` 복귀한다 — 지금과 같은 동작이며 이 경우엔 그게 맞다.
+`location.state`가 없다 (진입점을 지나지 않았거나 새로고침으로 state가 날아갔다). `returnTo`가
+없으므로 **홈으로** `replace` 복귀한다 — 되돌아갈 히스토리가 없을 때의 폴백이고 이 경우엔 그게 맞다.
 
 ### S6. 로그인 실패 / 취소
 
@@ -143,10 +146,10 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    subgraph after["After — returnTo + replace"]
+    subgraph after["After — returnTo + 뒤로가기"]
         A1["[/, /subscription, /subscription/plans, /mypage/login]"]
-        A2["navigate(returnTo, { replace: true })<br/>소프트 내비게이션"]
-        A3["[/, /subscription, /subscription/plans]<br/>로그인 항목만 대체됨"]
+        A2["navigate(-1)<br/>소프트 내비게이션"]
+        A3["[/, /subscription, /subscription/plans]<br/>로그인 항목이 스택에서 빠진다"]
         A1 --> A2 --> A3
     end
 ```
