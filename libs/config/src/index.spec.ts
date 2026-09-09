@@ -251,6 +251,72 @@ describe('config.snapshotAll — 기기 상태 보기의 재료', () => {
     });
 });
 
+describe('config.clear — 오버라이드를 지운다', () => {
+    const relayModules = () => [
+        moduleOf({
+            [UNLOCK_KEY]: UNLOCK_ENTRY,
+            'net.relay.backend': entry({
+                type: 'string',
+                defaultValue: 'https://build-default',
+                writableBy: ['local'],
+                persist: 'session',
+            }),
+        }),
+    ];
+
+    it('지우면 아래 행이 다시 보인다 — set(defaultValue)와 다르다', () => {
+        const config = createConfig(relayModules());
+        config.init(ports());
+        config.set('net.relay.backend', 'https://qa-override', { lane: 'local' });
+        expect(config.get('net.relay.backend')).toBe('https://qa-override');
+
+        expect(config.clear('net.relay.backend', { lane: 'local' })).toEqual({ ok: true });
+
+        expect(config.get('net.relay.backend')).toBe('https://build-default');
+    });
+
+    it('지워진 키만 알린다', () => {
+        const config = createConfig(relayModules());
+        config.init(ports());
+        config.set('net.relay.backend', 'https://qa-override', { lane: 'local' });
+        const listener = jest.fn();
+        config.subscribe(['net.relay.backend'], listener);
+
+        config.clear('net.relay.backend', { lane: 'local' });
+
+        expect(listener).toHaveBeenCalledTimes(1);
+    });
+
+    it('원래부터 오버라이드가 없으면 조용히 아무 일도 없다', () => {
+        const config = createConfig(relayModules());
+        config.init(ports());
+        const listener = jest.fn();
+        config.subscribe(['net.relay.backend'], listener);
+
+        expect(config.clear('net.relay.backend', { lane: 'local' })).toEqual({ ok: true });
+        expect(listener).not.toHaveBeenCalled();
+    });
+
+    it('그 레인이 못 쓰는 키는 거부한다', () => {
+        const config = createConfig(relayModules());
+        config.init(ports());
+
+        expect(config.clear('net.relay.backend', { lane: 'shell' })).toEqual({ ok: false, reason: 'laneNotAllowed' });
+    });
+
+    it('저장소에서도 지운다', () => {
+        const local = memoryStorage();
+        const config = createConfig(modules());
+        config.init(ports({ storage: { local, session: memoryStorage() } }));
+        config.set('log.hold', true, { lane: 'local' });
+        expect(local.dump()[storageKeyFor('log.hold')]).toBeDefined();
+
+        config.clear('log.hold', { lane: 'local' });
+
+        expect(local.dump()[storageKeyFor('log.hold')]).toBeUndefined();
+    });
+});
+
 describe('config.refreshRemote — 어댑터가 없으면 아무 일도 없다', () => {
     it('어댑터가 없으면 false다', async () => {
         const config = createConfig(modules());

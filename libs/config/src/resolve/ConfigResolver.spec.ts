@@ -13,6 +13,7 @@ const build = (keys: Record<string, ReturnType<typeof entry>>, options: { stage?
         stage: () => options.stage ?? 'DEV',
         buildStage: () => options.buildStage ?? options.stage ?? 'DEV',
         platform: () => 'web',
+        raw: () => undefined,
         wired: () => ({ shell: true, local: true, server: true }),
     });
     return { resolver, store, remote };
@@ -112,5 +113,94 @@ describe('ConfigResolver — 보안 규칙은 빌드에 박힌 환경을 본다'
         );
 
         expect(resolver.snapshot('sync.pollMs')?.value).toBe(10);
+    });
+});
+
+describe('ConfigResolver — env.stage · env.buildStage · env.platform은 어댑터 직결이다', () => {
+    it('레인·규칙과 무관하게 어댑터의 답을 그대로 낸다', () => {
+        const { resolver } = build(
+            {
+                'env.stage': entry({ type: 'enum', values: ['LOCAL', 'DEV', 'PROD'], defaultValue: 'LOCAL' }),
+                'env.buildStage': entry({ type: 'enum', values: ['LOCAL', 'DEV', 'PROD'], defaultValue: 'LOCAL' }),
+            },
+            { stage: 'DEV', buildStage: 'PROD' }
+        );
+
+        expect(resolver.snapshot('env.stage')).toMatchObject({ value: 'DEV', origin: 'default' });
+        expect(resolver.snapshot('env.buildStage')).toMatchObject({ value: 'PROD', origin: 'default' });
+    });
+});
+
+describe('ConfigResolver — envDefaultKey', () => {
+    it('규칙도 저장값도 없으면 빌드값을 쓴다', () => {
+        const registry = ConfigRegistry.merge([
+            moduleOf({
+                [UNLOCK_KEY]: UNLOCK_ENTRY,
+                'net.oauth.endpoint': entry({ type: 'string', defaultValue: '', envDefaultKey: 'VITE_OAUTH_ENDPOINT' }),
+            }),
+        ]);
+        const resolver = new ConfigResolver(registry, new ConfigStore(), new RemoteCache(), {
+            stage: () => 'DEV',
+            buildStage: () => 'DEV',
+            platform: () => 'web',
+            wired: () => ({ shell: true, local: true, server: true }),
+            raw: (name: string) => (name === 'VITE_OAUTH_ENDPOINT' ? 'https://oauth.example.com' : undefined),
+        });
+
+        expect(resolver.snapshot('net.oauth.endpoint')).toMatchObject({
+            value: 'https://oauth.example.com',
+            origin: 'default',
+            isOverridden: false,
+        });
+    });
+
+    it('빌드값이 없으면 리터럴 defaultValue로 떨어진다', () => {
+        const registry = ConfigRegistry.merge([
+            moduleOf({
+                [UNLOCK_KEY]: UNLOCK_ENTRY,
+                'net.oauth.endpoint': entry({
+                    type: 'string',
+                    defaultValue: 'https://fallback',
+                    envDefaultKey: 'VITE_OAUTH_ENDPOINT',
+                }),
+            }),
+        ]);
+        const resolver = new ConfigResolver(registry, new ConfigStore(), new RemoteCache(), {
+            stage: () => 'DEV',
+            buildStage: () => 'DEV',
+            platform: () => 'web',
+            wired: () => ({ shell: true, local: true, server: true }),
+            raw: () => undefined,
+        });
+
+        expect(resolver.snapshot('net.oauth.endpoint')?.value).toBe('https://fallback');
+    });
+
+    it('저장값이 있으면 빌드값보다 이긴다 — 3행이 4·5·6행보다 위다', () => {
+        const registry = ConfigRegistry.merge([
+            moduleOf({
+                [UNLOCK_KEY]: UNLOCK_ENTRY,
+                'net.relay.backend': entry({
+                    type: 'string',
+                    defaultValue: '',
+                    envDefaultKey: 'VITE_DOU_ENDPOINT',
+                    writableBy: ['local'],
+                }),
+            }),
+        ]);
+        const store = new ConfigStore();
+        store.write('local', 'net.relay.backend', 'https://qa-override.example.com');
+        const resolver = new ConfigResolver(registry, store, new RemoteCache(), {
+            stage: () => 'DEV',
+            buildStage: () => 'DEV',
+            platform: () => 'web',
+            wired: () => ({ shell: true, local: true, server: true }),
+            raw: () => 'https://build-default.example.com',
+        });
+
+        expect(resolver.snapshot('net.relay.backend')).toMatchObject({
+            value: 'https://qa-override.example.com',
+            origin: 'local',
+        });
     });
 });

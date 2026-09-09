@@ -73,6 +73,16 @@ export interface ConfigEntry<T = unknown> {
     /** Per-stage default. Security-relevant keys are judged against the build stage. */
     byStage?: Partial<Record<Stage, T>>;
     byPlatform?: Partial<Record<Platform, T>>;
+    /**
+     * Raw build value this key's default is sourced from, for keys whose default is not a fixed
+     * literal but a per-app build value (an endpoint, a version string). Consulted after a declared
+     * `byStage`/`byPlatform` rule misses and before the literal `defaultValue` floor — a rule the
+     * registry itself asserts still outranks a generic build-time passthrough.
+     *
+     * Absent for the three keys the resolver reads directly off the adapter (`env.stage` ·
+     * `env.buildStage` · `env.platform`) — those bypass this mechanism entirely.
+     */
+    envDefaultKey?: string;
     surface: Surface;
     writableBy: readonly Writer[];
     persist: Persist;

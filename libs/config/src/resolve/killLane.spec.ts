@@ -31,6 +31,7 @@ const build = (now: () => number = () => 0) => {
         stage: () => 'DEV',
         buildStage: () => 'DEV',
         platform: () => 'web',
+        raw: () => undefined,
         wired: () => ({ shell: true, local: true, server: true }),
     });
     return { resolver, store, remote };

@@ -27,6 +27,7 @@ export type {
 } from './types';
 export type { ConfigRuntimePorts, IConfigEnvAdapter, IShellKvAdapter, StorageLike } from './ports';
 export type { IRemoteConfigAdapter, RemotePayload } from './lanes/RemoteCache';
+export { createWebEnvAdapter } from './adapters/webEnvAdapter';
 export { UNLOCK_KEY } from './resolve/ConfigResolver';
 
 /** Which lane a writer fills. */
@@ -67,6 +68,7 @@ export class ConfigFacade {
             stage: () => ports.env.stage(),
             buildStage: () => ports.env.buildStage(),
             platform: () => ports.env.platform(),
+            raw: name => ports.env.raw(name),
             wired: () => this.wired(),
         });
         this.hydrateShell();
@@ -132,6 +134,39 @@ export class ConfigFacade {
     /** Pass no keys to hear about every change. */
     subscribe(keys: readonly string[] | undefined, listener: () => void): () => void {
         return this.store.subscribe(keys, listener);
+    }
+
+    /**
+     * Removes an override so resolution falls through to whatever is below it.
+     *
+     * Not the same as `set(key, defaultValue, ...)` — writing the default is itself a value that
+     * would win the lane, while clearing removes the lane's entry so a lower row (a server default,
+     * a stage rule) can show through again. This is what replaces `clearRelayTransportOverrides` —
+     * logout clearing the deeplinked `?_backend`/`?_wss` override is exactly "stop shadowing
+     * whatever the build would otherwise resolve to".
+     */
+    clear(key: string, options: SetOptions): SetResult {
+        const resolver = this.resolver;
+        const ports = this.ports;
+        if (!resolver || !ports) return { ok: false, reason: 'notWired' };
+
+        const entry = this.registry.get(key);
+        if (!entry) return { ok: false, reason: 'unknownKey' };
+        if (!entry.writableBy.includes(options.lane)) return { ok: false, reason: 'laneNotAllowed' };
+        if (options.lane === 'local' && !entry.meta && !resolver.isUnlocked()) {
+            return { ok: false, reason: 'locked' };
+        }
+
+        const before = resolver.snapshot(key)?.value;
+        this.store.clear(LANE_OF[options.lane], key);
+        if (entry.persist === 'shell') {
+            void this.ports?.shell?.clear(key);
+        } else {
+            this.storageFor(entry.persist)?.removeItem(storageKeyFor(key));
+        }
+        const after = resolver.snapshot(key)?.value;
+        if (before !== after) this.store.notify([key]);
+        return { ok: true };
     }
 
     /**
