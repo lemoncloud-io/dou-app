@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import {
     useAppIconHandler,
     useAppUpdateHandler,
+    useConfigKvHandler,
     useCrudCacheHandler,
     useClipboardHandler,
     useDeviceHandler,
@@ -74,6 +75,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
     } = useCrudCacheHandler();
 
     const { handleFetchPreference, handleSavePreference, handleDeletePreference } = usePreferenceCacheHandler();
+    const { handleSaveConfigValue, handleClearConfigValue } = useConfigKvHandler();
     const { handleSendLog } = useLogHandler();
     const { handleFetchLogUploadQueue, handleAckLogUploadQueue, handleClearLogUploadQueue } = useLogStoreHandler();
     const { handleFetchPendingReports, handleAckPendingReports } = usePendingReportHandler();
@@ -149,6 +151,8 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
         handleFetchPreference,
         handleSavePreference,
         handleDeletePreference,
+        handleSaveConfigValue,
+        handleClearConfigValue,
         handleFetchAppLogBuffer,
         handlePollAppLogBuffer,
         handleClearAppLogBuffer,
@@ -222,6 +226,8 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             handleFetchPreference,
             handleSavePreference,
             handleDeletePreference,
+            handleSaveConfigValue,
+            handleClearConfigValue,
             handleFetchAppLogBuffer,
             handlePollAppLogBuffer,
             handleClearAppLogBuffer,
@@ -303,6 +309,8 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             FetchPreference: message => handlersRef.current.handleFetchPreference(message),
             SavePreference: message => handlersRef.current.handleSavePreference(message),
             DeletePreference: message => handlersRef.current.handleDeletePreference(message),
+            SaveConfigValue: message => handlersRef.current.handleSaveConfigValue(message),
+            ClearConfigValue: message => handlersRef.current.handleClearConfigValue(message),
             FetchAppLogBuffer: message => handlersRef.current.handleFetchAppLogBuffer(message),
             PollAppLogBuffer: message => handlersRef.current.handlePollAppLogBuffer(message),
             ClearAppLogBuffer: message => handlersRef.current.handleClearAppLogBuffer(message),

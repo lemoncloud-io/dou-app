@@ -7,6 +7,7 @@ import type {
     OnClearAppLogBufferPayload,
     OnClearCacheDataByChannelPayload,
     OnClearCacheDataPayload,
+    OnClearConfigValuePayload,
     OnClearTestRecordsPayload,
     OnCloseModalPayload,
     OnCreateDummyFilePayload,
@@ -70,6 +71,7 @@ import type {
     OnSaveAllCacheDataPayload,
     OnSaveAllTestRecordsPayload,
     OnSaveCacheDataPayload,
+    OnSaveConfigValuePayload,
     OnSavePreferencePayload,
     OnSaveTestRecordPayload,
     OnSearchGlobalCacheDataPayload,
@@ -170,6 +172,10 @@ export type AppMessageDataMap = {
     // 6. Auth
     OnOAuthLogin: OnOAuthLoginPayload;
     OnOAuthLogout: OnOAuthLogoutPayload;
+
+    // 6.5 Config (ADR-0079 셸 레인 — 범용 KV 브릿지)
+    OnSaveConfigValue: OnSaveConfigValuePayload;
+    OnClearConfigValue: OnClearConfigValuePayload;
 
     // 7. Common & Others
     OnWebAppReady: OnWebAppReadyPayload;

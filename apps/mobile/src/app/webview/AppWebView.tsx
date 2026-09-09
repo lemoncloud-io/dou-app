@@ -14,7 +14,7 @@ import { NATIVE_RUN_ID } from '../services/log/native/nativeLogContext';
 import { useWebMessageRouter } from './hooks/useWebMessageRouter';
 import { useFirebaseInstallId, useVersionCheckHandler } from './hooks';
 import { FullScreenLoader, ResumeOverlay } from '../features/core/components';
-import { bootMetricsService, logger, pendingReportQueueService } from '../services';
+import { bootMetricsService, configKvService, logger, pendingReportQueueService } from '../services';
 import { useDebugSettingsStore, useThemeStore } from '../stores';
 import type { IAppBridgeHost } from '@chatic/bridges';
 
@@ -110,6 +110,11 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
         debugModeEnabled,
         logUploadHold,
         theme,
+        // Read once per script build, not memoized: this mirrors CACHED_DEVICE_INFO's own boot-time
+        // snapshot semantics — a shell-lane write goes through `SaveConfigValue` while this WebView
+        // instance is alive, and the web's own optimistic store update is what that screen sees
+        // immediately. This bag only needs to be current for the NEXT cold start.
+        configBag: configKvService.getAll(),
         deviceInfo: buildDeviceInfoParams(CACHED_DEVICE_INFO, {
             stage: Config.VITE_ENV || 'PROD',
             // Same flag that gates the console subscription in `provider.ts`.

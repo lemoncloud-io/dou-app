@@ -28,6 +28,8 @@ import type { IFirebaseCrashlyticsService, IFirebaseInstallationService } from '
 import { FirebaseCrashlyticsService, FirebaseInstallationService } from './firebase';
 import type { ISubscriptionIapService } from './subscriptionIap';
 import { SubscriptionIapService } from './subscriptionIap';
+import type { IConfigKvService } from './config';
+import { ConfigKvService } from './config';
 import type { IPreferenceService } from './preference';
 import { PreferenceService } from './preference';
 import type { ICacheCrudService, ICacheSearchService } from './cache';
@@ -89,6 +91,7 @@ class DependencyProvider {
     private _firebaseInstallationService?: IFirebaseInstallationService;
     private _subscriptionIapService?: ISubscriptionIapService;
     private _preferenceService?: IPreferenceService;
+    private _configKvService?: IConfigKvService;
     private _versionService?: IVersionService;
     private _unfurlService?: IUnfurlService;
     private _uploadService?: IUploadService;
@@ -305,6 +308,14 @@ class DependencyProvider {
             this._preferenceService = new PreferenceService(this.logService, this.keyValueStorage);
         }
         return this._preferenceService;
+    }
+
+    /** Backs `@chatic/config`'s shell lane — the generic, meaning-blind KV store (ADR-0079 결정 9). */
+    public get configKvService(): IConfigKvService {
+        if (!this._configKvService) {
+            this._configKvService = new ConfigKvService(this.logService, this.keyValueStorage);
+        }
+        return this._configKvService;
     }
 
     public get versionService(): IVersionService {

@@ -1,4 +1,6 @@
+import { logger, isNative } from '@chatic/bridges';
 import { createWebEnvAdapter, type ConfigRuntimePorts } from '@chatic/config';
+import { createShellKvAdapter } from './shellKvAdapter';
 
 /**
  * Wires `@chatic/config` to this app's own `import.meta.env` and injected `window.CHATIC_APP_*`
@@ -16,4 +18,11 @@ const read = (name: string): string | undefined => {
 export const webConfigPorts: ConfigRuntimePorts = {
     env: createWebEnvAdapter(read),
     storage: { local: localStorage, session: sessionStorage },
+    // Only inside the native shell: a plain browser tab has no shell to round-trip a write to, and
+    // leaving this unset (rather than wired-but-always-failing) is what keeps an unwired `persist:
+    // 'shell'` key a silent no-op instead of a spurious `onShellWriteFailed` on every page load.
+    shell: isNative() ? createShellKvAdapter() : undefined,
+    onDuplicateKey: key => logger.error('CONFIG', `Duplicate config key declared twice: ${key}`),
+    onShellWriteFailed: (key, error) =>
+        logger.error('CONFIG', `Shell write failed after retry: ${key}`, error as Error),
 };

@@ -168,6 +168,23 @@ export const getThemeScript = (theme: ThemeMode): string => `
 `;
 
 /**
+ * Generates a script exposing the shell's generic KV bag to the web, so `@chatic/config`'s
+ * `IShellKvAdapter.readBag()` can hydrate the shell lane synchronously at `config.init()` — before
+ * the web's own first paint, the same way `CHATIC_APP_THEME` seeds the pre-migration theme read.
+ *
+ * The bag is opaque here by design (ADR-0079 결정 9): this function does not know what any key
+ * means, only that `ConfigKvService.getAll()` already returns `{ [registryKey]: jsonEncodedValue }`.
+ * An app build that predates `ConfigKvService` simply never sets the global, and `readBag()` treats
+ * a missing global exactly like an empty bag — no shell overrides, not a crash.
+ *
+ * `JSON.stringify` for the same reason `getDeviceInfoScript` uses it: a stored value can be any
+ * string a debug tool once wrote, and one unescaped quote would otherwise break out of the literal.
+ */
+export const getConfigBagScript = (bag: Readonly<Record<string, string>>): string => `
+    window.CHATIC_APP_CONFIG_BAG = ${JSON.stringify(bag)};
+`;
+
+/**
  * Parameters for generating the combined synchronous injection script.
  */
 export interface SyncInjectionScriptParams {
@@ -180,6 +197,8 @@ export interface SyncInjectionScriptParams {
     logUploadHold?: boolean;
     /** Persisted theme mode (see themeStore) — seeds the web's first paint. */
     theme: ThemeMode;
+    /** `@chatic/config`'s shell-lane KV bag (see `ConfigKvService.getAll()`). Empty when absent. */
+    configBag?: Readonly<Record<string, string>>;
 }
 
 /**
@@ -201,6 +220,7 @@ export const getSyncInjectionScript = (params: SyncInjectionScriptParams): strin
         ${getDebugModeScript(params.debugModeEnabled ?? false)}
         ${getLogUploadHoldScript(params.logUploadHold ?? false)}
         ${getThemeScript(params.theme)}
+        ${getConfigBagScript(params.configBag ?? {})}
     } catch (e) {
         try {
             window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({
