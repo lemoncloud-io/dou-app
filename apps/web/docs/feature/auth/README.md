@@ -61,6 +61,8 @@ features/auth/
   `auth.link-account`를 돌린다. `mode: 'login'`의 `confirm`이 주는 `$token`은
   `applySessionToken`(`@chatic/app-runtime`)으로 같은 소켓 연결의 신원을 메인유저로 바꾼 뒤
   `onVerified`를 부른다. `mode: 'link'`는 세션을 건드리지 않는다.
+- **로그인 후 원위치 복귀** — 상세는 [login-return.md](./login-return.md). `returnTo`와 replace
+  내비게이션으로 로그인 전에 보던 자리로 되돌린다(ADR-0055).
 - **OAuth 콜백** — `useOAuthLogin`이 `code`/`provider`/`state` 파싱 → `createCredentialsByProvider`(또는 invite는 `loginWithInviteCode`)가 세션 커밋까지 끝냄 → `state.from`으로 이동. 예전엔 교환이 transport 크레덴셜만 만들어서 뒤이어 `refreshRelaySession({ syncProfile: true })`으로 identity를 복구해야 했지만, 교환 응답을 그대로 커밋하도록 고치면서 그 호출이 사라졌다(ADR-0070 불변조건 1·2).
 - **로그아웃** — `LogoutPage`가 `useClearCache().clearAllCache()`(전 레포 `cacheClear`)로 캐시를 비운 뒤 `useSessionLogout()`으로 릴레이 세션을 종료한다. 릴레이 로그아웃되면 **런타임이 자동으로 게스트 로그인**을 수행하므로 다음 세션은 깨끗한 캐시에서 시작한다.
 - **게스트/디바이스 로그인** — auth에서 다루지 않는다(런타임 자동 처리). 비-invite `/auth/login` 진입은 로딩 표시만.

@@ -1,6 +1,6 @@
 # 전화번호 인증 (PhoneVerifyFields · 두 셸 · applySessionToken)
 
-> 상태: Live · 최종 갱신: 2026-08-03 · 관련 ADR: [ADR-0033](../../../../docs/adr/0033-relay-dm-invite-and-auth-parallel-tracks.md) Track A · [ADR-0034](../../../../docs/adr/0034-inviter-phone-verification-guest-gate-and-sheet.md) · [ADR-0042](../../../../docs/adr/0042-account-linking-unified-path-migration.md) · 로드맵: [relay-dm-invite-parallel-roadmap](../../../../docs/plans/relay-dm-invite-parallel-roadmap.md)
+> 상태: Live · 최종 갱신: 2026-08-03 · 관련 ADR: [ADR-0033](../../../../../docs/adr/0033-relay-dm-invite-and-auth-parallel-tracks.md) Track A · [ADR-0034](../../../../../docs/adr/0034-inviter-phone-verification-guest-gate-and-sheet.md) · [ADR-0042](../../../../../docs/adr/0042-account-linking-unified-path-migration.md) · 로드맵: [relay-dm-invite-parallel-roadmap](../../../../../docs/plans/relay-dm-invite-parallel-roadmap.md)
 
 ## 목적
 

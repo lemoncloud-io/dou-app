@@ -199,14 +199,14 @@ flowchart LR
 
 ### 진입 라우터
 
-[`components/InviteDialog.tsx`](../../../src/app/features/home/components/InviteDialog.tsx) —
+[`invite/accept/InviteAcceptScreen.tsx`](../../../src/app/features/invite/accept/components/InviteAcceptScreen.tsx) —
 `useLocation` + `parseInviteDeeplink` + 세 조건만 남은 순수 라우터다. **데이터 훅을 하나도 부르지
 않는다**: 부르면 relay 딥링크에서도 cloud `useInviteInfo`가 발사돼 존재하지 않는 cloud 초대를
 조회한다. `HomePage.tsx:347`의 `<InviteDialog suppressed={isFirstRun} />`가 유일한 마운트 지점이다.
 
 ### cloud 오케스트레이션
 
-[`invite/CloudInviteDialog.tsx`](../../../src/app/features/home/components/invite/CloudInviteDialog.tsx)
+[`invite/accept/CloudInviteAccept.tsx`](../../../src/app/features/invite/accept/components/CloudInviteAccept.tsx)
 — 오버레이·라우팅·데이터·에러 다이얼로그를 소유한다.
 
 - 골격: `Dialog`(`@chatic/ui-kit`) + `DialogContent variant="slide-up" hideClose`. 풀블리드라
@@ -230,7 +230,7 @@ flowchart LR
 
 ### 공유 수락 화면
 
-[`invite/InviteAcceptScreen.tsx`](../../../src/app/features/home/components/invite/InviteAcceptScreen.tsx)
+[`invite/InviteAcceptScreen.tsx`](../../../src/app/features/invite/accept/components/InviteAcceptScreen.tsx)
 — 순수 프레젠테이션(데이터·라우팅 없음). props 계약:
 
 | prop                                      | relay            | cloud(기본값)                         |
@@ -267,24 +267,24 @@ flowchart LR
 
 ### 카드들
 
-- [`invite/InviteCard.tsx`](../../../src/app/features/home/components/invite/InviteCard.tsx) —
+- [`invite/InviteCard.tsx`](../../../src/app/features/invite/accept/components/InviteCard.tsx) —
   유리 셸: `rounded-[24px]` + `bg-white/45 dark:bg-white/10` + `backdrop-blur-[12px]` + 흰
   hairline border. 콘텐츠 색은 테마 토큰이라 두 모드 모두 legible. **kit으로 승격하지 않는다** —
   소비처가 이 화면뿐이다.
-- [`invite/InvitePlaceCard.tsx`](../../../src/app/features/home/components/invite/InvitePlaceCard.tsx)
+- [`invite/InvitePlaceCard.tsx`](../../../src/app/features/invite/accept/components/InvitePlaceCard.tsx)
   — 썸네일 있으면 `<img>`, 없으면 `IconImageSolid size={40}`. 이 글리프가 원판까지 포함하므로
   종전의 `<span className="bg-brand-ink">` 래퍼는 사라진다. **사진 모티프가 컷아웃이라 글리프 색은
   뒤에 있는 카드와 대비돼야 한다** — `text-brand-ink`는 라이트 유리 카드 위에서 14:1이지만 다크
   카드(`white/10`) 위에서는 1.2:1로 사실상 안 보인다. 그래서 `dark:text-white/80`으로 반전해 밝은
   원판 + 어두운 모티프(8.7:1)로 만든다.
-- [`invite/InviteTargetCard.tsx`](../../../src/app/features/home/components/invite/InviteTargetCard.tsx)
+- [`invite/InviteTargetCard.tsx`](../../../src/app/features/invite/accept/components/InviteTargetCard.tsx)
   — `DefaultAvatar size={40}` + `You` + 캡션 + 방 친구 칩. 기본값 `variant='user'`가 Figma
   `1명 Profile` 글리프(`IconUser`)를 그린다 — 아바타에 1인 이미지는 그것 하나뿐이다(2026-07-31
   이후, lucide 외곽선은 `IconUserOutline`으로 분리). **그룹도 같은 1인 글리프를 쓴다**(ADR-0037
   결정 5, 디자인 확인 대기). 칩은 `Badge` + className으로 유리 스타일(`bg-white/20`, shadow, `px-3.5 py-2`,
   13px)을 입히고 아이콘은 `IconUsersGroup size={18}`이다. 다크에서도 `white/20`을 유지한다 —
   카드가 이미 `white/10`이라 같은 값을 쓰면 칩 경계가 사라진다.
-- [`invite/InviteExpiryCard.tsx`](../../../src/app/features/home/components/invite/InviteExpiryCard.tsx)
+- [`invite/InviteExpiryCard.tsx`](../../../src/app/features/invite/accept/components/InviteExpiryCard.tsx)
   — `IconClockSolid size={20} className="text-description"`(디자인의 `#84888F`) +
   `inviteAccept.expiry.label` + 남은 시간 한 줄. **절대 만료시각 줄은 없다.** 24시간 이상이면
   `n일 n시간`(시간이 0이면 `n일`), 미만이면 제로 패딩한 `HH:mm:ss`를 만들어 둘 다 같은
@@ -294,7 +294,7 @@ flowchart LR
 
 ### 카운트다운 훅
 
-[`hooks/useInviteCountdown.ts`](../../../src/app/features/home/hooks/useInviteCountdown.ts)
+[`hooks/useInviteCountdown.ts`](../../../src/app/features/invite/hooks/useInviteCountdown.ts)
 
 ```ts
 export interface InviteCountdown {

@@ -1,6 +1,6 @@
 # 플레이스 소개 문구 (Place Description)
 
-> 상태: Live · 최종 갱신: 2026-09-07 · 관련 ADR: [[ADR-0074]](../../../../docs/adr/0074-place-introduction-text.md) (소개 문구 — 정본) · [[ADR-0047]](../../../../docs/adr/0047-place-detail-read-only-screen.md) (0074가 그 `desc` 배제를 취소했다) · [[ADR-0031]](../../../../docs/adr/0031-place-settings-hub.md) (설정 허브)
+> 상태: Live · 최종 갱신: 2026-09-07 · 관련 ADR: [[ADR-0074]](../../../../../docs/adr/0074-place-introduction-text.md) (소개 문구 — 정본) · [[ADR-0047]](../../../../../docs/adr/0047-place-detail-read-only-screen.md) (0074가 그 `desc` 배제를 취소했다) · [[ADR-0031]](../../../../../docs/adr/0031-place-settings-hub.md) (설정 허브)
 
 ## 목적
 
@@ -11,11 +11,11 @@
 
 `desc`는 몰라서 빠진 필드가 아니라 **명시적으로 배제된** 항목이다.
 
-- [ADR-0047](../../../../docs/adr/0047-place-detail-read-only-screen.md) §범위: "소개 문구(`desc`)는 Figma에 없어 넣지 않는다."
+- [ADR-0047](../../../../../docs/adr/0047-place-detail-read-only-screen.md) §범위: "소개 문구(`desc`)는 Figma에 없어 넣지 않는다."
 - [place-settings.md](place-settings.md) §범위 **제외**: "플레이스 소개 문구(`desc`) — Figma에 없다."
 
 배제 사유는 "기술적으로 불가"가 아니라 "**디자인에 없다**"였다. 그 조건이 해소되어
-[ADR-0074](../../../../docs/adr/0074-place-introduction-text.md)로 배제를 취소했고, 위 두 문서의
+[ADR-0074](../../../../../docs/adr/0074-place-introduction-text.md)로 배제를 취소했고, 위 두 문서의
 배제 문구도 함께 걷어냈다(§문서 갱신).
 
 ## 배선 현황 — 서버·데이터 계층은 이미 열려 있다
@@ -23,14 +23,14 @@
 착수 시점에 앱 코드가 `desc`를 읽거나 쓰는 곳은 **0건**이었지만, 그 아래 전 계층은 이미 통과
 상태였다. 새로 뚫은 배관은 없고 화면만 붙였다.
 
-| 계층       | 심볼                                                                                       | 상태                                                  |
-| ---------- | ------------------------------------------------------------------------------------------ | ----------------------------------------------------- |
-| 요청(SDK)  | `PlaceBodyData.desc?: string`                                                              | `place.create`·`place.update` 공통 body에 이미 선언   |
-| 응답(API)  | `MySiteView.desc?: string`                                                                 | `/** place introduction text (플레이스 소개 문구) */` |
-| 도메인     | `DomainPlace = CacheSiteView = MySiteView & …`                                             | 상속으로 `desc` 자동 포함 — 타입 추가 불필요          |
-| 매퍼       | [`toDomainPlace`](../../../../libs/data/src/domain/mappers.ts)                             | `...api` 스프레드 — 필드 화이트리스트 없음            |
-| 캐시       | 로컬 데이터소스(JSON 저장)                                                                 | 컬럼 화이트리스트 없음 — 자동 영속                    |
-| 리포지토리 | [`PlaceRepository.updatePlace`](../../../../libs/data/src/repositories/PlaceRepository.ts) | 부분 페이로드 허용 + 낙관적 쓰기/롤백 내장            |
+| 계층       | 심볼                                                                                          | 상태                                                  |
+| ---------- | --------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| 요청(SDK)  | `PlaceBodyData.desc?: string`                                                                 | `place.create`·`place.update` 공통 body에 이미 선언   |
+| 응답(API)  | `MySiteView.desc?: string`                                                                    | `/** place introduction text (플레이스 소개 문구) */` |
+| 도메인     | `DomainPlace = CacheSiteView = MySiteView & …`                                                | 상속으로 `desc` 자동 포함 — 타입 추가 불필요          |
+| 매퍼       | [`toDomainPlace`](../../../../../libs/data/src/domain/mappers.ts)                             | `...api` 스프레드 — 필드 화이트리스트 없음            |
+| 캐시       | 로컬 데이터소스(JSON 저장)                                                                    | 컬럼 화이트리스트 없음 — 자동 영속                    |
+| 리포지토리 | [`PlaceRepository.updatePlace`](../../../../../libs/data/src/repositories/PlaceRepository.ts) | 부분 페이로드 허용 + 낙관적 쓰기/롤백 내장            |
 
 **막고 있던 유일한 지점**은 웹의 로컬 타입 하나였다 —
 [`useUpdatePlace`](../../../src/app/features/home/hooks/useUpdatePlace.ts)의 `UpdatePlacePayload`가
@@ -47,7 +47,7 @@
 
 실측 결과는 [place-settings.md](place-settings.md) §실측에 적는다.
 
-## 결정 사항 (2026-09-07 기획 확인 — 정본은 [ADR-0074](../../../../docs/adr/0074-place-introduction-text.md))
+## 결정 사항 (2026-09-07 기획 확인 — 정본은 [ADR-0074](../../../../../docs/adr/0074-place-introduction-text.md))
 
 | 항목                | 결정                                                                            |
 | ------------------- | ------------------------------------------------------------------------------- |
@@ -221,9 +221,9 @@ interface UpdatePlacePayload {
 
 이번 변경은 문서에 적힌 배제를 뒤집으므로, 코드만 바꾸고 문서를 두면 **문서가 거짓말이 된다.**
 
-1. **[ADR-0074](../../../../docs/adr/0074-place-introduction-text.md) 신설** — 소개 문구 결정의 정본.
+1. **[ADR-0074](../../../../../docs/adr/0074-place-introduction-text.md) 신설** — 소개 문구 결정의 정본.
    ADR-0047 본문을 고쳐 과거 결정을 지우는 대신 신규 ADR로 개정했다(ADR-0012 → ADR-0020이 선례).
-2. **[ADR-0047](../../../../docs/adr/0047-place-detail-read-only-screen.md)** — 헤더 상태를
+2. **[ADR-0047](../../../../../docs/adr/0047-place-detail-read-only-screen.md)** — 헤더 상태를
    "Accepted (일부 개정됨)"으로 바꾸고 개정 링크를 달았다. §범위의 배제 문장은 지우지 않고
    취소선 + 취소 사유를 병기했다.
 3. **[place-settings.md](place-settings.md)** — §범위 **제외**에서 배제 항목을 삭제하고 **포함**·§시나리오

@@ -84,7 +84,7 @@ flowchart TD
 
 ### 1) 공통 몸통 — `PlaceProfileFormDialog`
 
-신규 `apps/web/src/app/features/home/components/PlaceProfileFormDialog.tsx`. 현재 [PlaceProfileCreateDialog.tsx](../../../src/app/features/home/components/PlaceProfileCreateDialog.tsx)의 골격·상태·이미지·이탈 로직을 그대로 이관해 일반화한다.
+신규 `apps/web/src/app/ui/components/PlaceProfileFormDialog.tsx`. 현재 [PlaceProfileCreateDialog.tsx](../../../src/app/ui/components/PlaceProfileCreateDialog.tsx)의 골격·상태·이미지·이탈 로직을 그대로 이관해 일반화한다.
 
 - Props(문구·초기값·콜백 주입):
     - `open`, `title`(개행 가능), `subtitle?`(없으면 미표시 — 수정 화면은 부제 없음),

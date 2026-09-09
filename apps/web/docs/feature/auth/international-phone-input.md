@@ -1,6 +1,6 @@
 # 국제 전화번호 입력 (국가 선택 · `countryCode` 전송)
 
-> 상태: Live · 최종 갱신: 2026-08-05 · 관련 ADR: [ADR-0044](../../../../docs/adr/0044-international-phone-input-country-code.md)
+> 상태: Live · 최종 갱신: 2026-08-05 · 관련 ADR: [ADR-0044](../../../../../docs/adr/0044-international-phone-input-country-code.md)
 >
 > 소비 화면 문서: [phone-verification.md](./phone-verification.md)(PhoneVerify\*) ·
 > [relay-invite-sender.md](../invite/relay-invite-sender.md)(ContactInvitePage)

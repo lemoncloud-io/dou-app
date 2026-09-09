@@ -1,6 +1,6 @@
 # 계정 연동 통합 경로 (`auth.link-account` · `link$`)
 
-> 상태: Live · 최종 갱신: 2026-08-03 · 관련 ADR: [ADR-0042](../../../../docs/adr/0042-account-linking-unified-path-migration.md) · 시나리오 전수표: [account-linking-scenarios.md](../../../../docs/plans/account-linking-scenarios.md)
+> 상태: Live · 최종 갱신: 2026-08-03 · 관련 ADR: [ADR-0042](../../../../../docs/adr/0042-account-linking-unified-path-migration.md) · 시나리오 전수표: [account-linking-scenarios.md](../../../../../docs/plans/account-linking-scenarios.md)
 >
 > 대상: `AuthSocketDomainGateway` · `AuthSocketDataSource` · `AuthRepository` · `useLinkAccount` · `useLinkedAccounts`
 
@@ -73,7 +73,7 @@
 
 ## 시나리오
 
-전수표는 [account-linking-scenarios.md](../../../../docs/plans/account-linking-scenarios.md)에 있다.
+전수표는 [account-linking-scenarios.md](../../../../../docs/plans/account-linking-scenarios.md)에 있다.
 이 문서는 **경로가 갈리는 두 축**만 적는다.
 
 ### 1. `login` — 게스트가 메인유저가 된다 (번호만)

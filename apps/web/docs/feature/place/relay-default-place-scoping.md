@@ -249,11 +249,11 @@ ADR이 열어둔 "마이그레이션성 삭제냐 목록 필터냐"는 **재조�
   주변 컨텍스트가 아니라 **생성된 place.id에 고정**해서 나간다(`useSetMyPlaceProfile(value, siteId)`
   → `profile.setProfile`).
 - **`PlaceProfileCreateDialog`에 `dismissible` 패스스루.**
-  [PlaceProfileForm.tsx:69-74](../../../src/app/features/home/components/PlaceProfileForm.tsx)가
+  [PlaceProfileForm.tsx:69-74](../../../src/app/ui/components/PlaceProfileForm.tsx)가
   이미 `dismissible?: boolean`(기본 `true`)을 갖고 X 숨김(:335)·esc/overlay 차단(:311)까지
-  구현되어 있으며, [PlaceProfileFormDialog](../../../src/app/features/home/components/PlaceProfileFormDialog.tsx)는
+  구현되어 있으며, [PlaceProfileFormDialog](../../../src/app/ui/components/PlaceProfileFormDialog.tsx)는
   `Omit<…, 'container'>`라 이미 통과 가능하다. 좁히고 있는 것은
-  [PlaceProfileCreateDialog.tsx:8-22](../../../src/app/features/home/components/PlaceProfileCreateDialog.tsx)
+  [PlaceProfileCreateDialog.tsx:8-22](../../../src/app/ui/components/PlaceProfileCreateDialog.tsx)
   한 겹뿐이므로 prop을 추가해 내려보낸다. 공유 계약 문서([place-profile-create-shared-contract](../../../../../docs/plans/place-profile-create-shared-contract.md))의
   "필요해지면 그때 넣는다"가 지금이다.
 - **`useCreatePlaceFlow`**: `CreatePlaceDialog`(기존 open 상태 이관) +
@@ -301,8 +301,8 @@ ADR 결정 1~4·6(기본 플레이스 스코핑, 생성 플로우 프로필 스�
 
 **ADR이 지목한 "기존 withContext / 컨텍스트 오버라이드 메커니즘"은 이 용도에 쓸 수 없다.**
 조사 결과: 물리 캐시 파티션 키는 `${type}:${cid}:${uid}:${id}`로 어댑터가 **공유 컨텍스트
-프로바이더에서 직접** 산출하며([storages/utils.ts:73](../../../../../libs/data/src/local/storages/utils.ts),
-[IndexedDBAdapter.ts:42](../../../../../libs/data/src/local/storages/IndexedDBAdapter.ts)),
+프로바이더에서 직접** 산출하며([storages/utils.ts:73](../../../../../libs/data/src/local/ports/policy.ts),
+[IndexedDBAdapter.ts:42](../../../../../libs/db/src/indexeddb/IndexedDBAdapter.ts)),
 `contextOverride`는 옵저버 스코프키와 행 `cid` 스탬프에만 반영된다. 읽기 경로는 override를
 받고도 사용하지 않는다([UserLocalDataSource.cacheRead:28-34](../../../../../libs/data/src/local/data-sources/UserLocalDataSource.ts)).
 `withContext`는 프로덕션 사용 0건. 즉 클라우드 활성 중 relay 파티션을 읽는 것은 현 구조로
@@ -320,7 +320,7 @@ ADR 결정 1~4·6(기본 플레이스 스코핑, 생성 플로우 프로필 스�
   [useSeedMyUserCache](../../../src/app/hooks/useSeedMyUserCache.ts)가 쓰는
   `getActiveSessionUser()`는 `cloudProfile ?? relayProfile`이라 그대로 쓸 수 없어, relay 토큰의
   유저 필드를 명시적으로 읽는
-  [getRelaySessionUser](../../../../../libs/web-core/src/session/contextStore.ts)를 web-core에
+  [getRelaySessionUser](../../../../../libs/app-runtime/src/session/store/contextStore.ts)를 web-core에
   두고 쓴다.
 - 원격 fetch를 relay 활성으로 게이트하므로 "클라우드 연결 중 relay 원격 fetch 불가" 제약
   (ADR 맥락 §제약)을 자연히 지킨다. 사용처 4곳(MyPage.tsx:29 · ProfileEditPage.tsx:21 ·
@@ -358,7 +358,7 @@ ADR 결정 1~4·6(기본 플레이스 스코핑, 생성 플로우 프로필 스�
       — 완료 시 생성 후 전환하고 닫음, 생성 실패 시 에러 노출 후 전환/닫기 안 함, 입력 유무별 즉시
       닫힘/이탈 확인 (프로필 스텝 되돌림 이후 최신 계약 — `useCreatePlaceFlow.test.tsx`는 스텝 자체와
       함께 삭제됐다).
-    - [PlaceProfileCreateDialog.test.tsx](../../../src/app/features/home/components/PlaceProfileCreateDialog.test.tsx)
+    - [PlaceProfileCreateDialog.test.tsx](../../../src/app/ui/components/PlaceProfileCreateDialog.test.tsx)
       — `dismissible=false`면 닫기(X) 부재(방 설정 nudge 등 다른 진입점에서 계속 쓰인다).
     - [useMyUser.test.ts](../../../src/app/hooks/useMyUser.test.ts) — 되돌린 뒤에는 활성 컨텍스트
       관찰/fetch만 검증한다(relay 고정 케이스는 §6과 함께 제거).

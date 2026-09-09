@@ -13,7 +13,7 @@ owner가 새 **플레이스(=Site)** 와 **그룹방(=Channel)** 을 개설하�
 `@chatic/ui-kit`(shadcn)으로 만들어졌고 생성 후 이동이 없다. 이번 작업은 개정 Figma에 맞춰 두 화면을
 `@chatic/web-ui-kit`으로 **재구축**하고, 이동·owner 게이팅·이미지·개수 한도를 배선한다.
 
-프로필 설정 오버레이([place-profile-create.md](./place-profile-create.md))와는 다르다 — 저쪽은 "플레이스 안에서
+프로필 설정 오버레이([place-profile-prompt.md](./place-profile-prompt.md))와는 다르다 — 저쪽은 "플레이스 안에서
 내 프로필 만들기", 이쪽은 "플레이스/그룹방 자체를 개설". 다만 UI 레이아웃이 동일해 그 다이얼로그를 시각·구조
 레퍼런스로 삼는다.
 
@@ -41,7 +41,7 @@ owner가 새 **플레이스(=Site)** 와 **그룹방(=Channel)** 을 개설하�
 - [CreateChannelDialog](../../../src/app/features/home/components/CreateChannelDialog.tsx) 재구축 — 동일 골격,
   그룹 기본 글리프·문구, `stereo: 'private'` 유지.
 - 생성 후 이동: 플레이스 → `switchSite(newSiteId)`, 그룹방 → `navigate(ROUTES.channels.room(newChannelId))`.
-- 이미지 배선: [useCreatePlace](../../../src/app/features/home/hooks/useCreatePlace.ts)에 `thumbnail` 추가
+- 이미지 배선: [useCreatePlace](../../../src/app/hooks/useCreatePlace.ts)에 `thumbnail` 추가
   (`PlaceCreateInput`은 이미 지원), 그룹방은 `channel.create`가 `thumbnail`을 받는다는 ADR-0018 전제하에
   `{ stereo, name, thumbnail }` 단일 스텝.
 - owner 게이팅: [useUserPermissions](../../../src/app/hooks/useUserPermissions.ts)에 클라우드 소유
@@ -53,7 +53,7 @@ owner가 새 **플레이스(=Site)** 와 **그룹방(=Channel)** 을 개설하�
 
 **제외**
 
-- 프로필 설정 오버레이(`place-profile-create.md`) 로직 — 시각 참고만, 건드리지 않음.
+- 프로필 설정 오버레이(`place-profile-prompt.md`) 로직 — 시각 참고만, 건드리지 않음.
 - 그룹방 PRO 게이트 정책 자체 — 현행 `planTier === 'pro'` 유지, owner 게이트를 그 위에 얹기만.
 - 미사용 프로토타입 [CreateChannelPage](../../../src/app/features/channels/pages/CreateChannelPage.tsx) +
   `/channels/create` 라우트 — 정리(삭제) 후보로 다루되 신규 라우트는 만들지 않음.
@@ -74,7 +74,7 @@ owner가 새 **플레이스(=Site)** 와 **그룹방(=Channel)** 을 개설하�
    뜨고 재시도할 수 있다. 프로필 생성은 강제하지 않는다 — ADR-0045 결정 4가 한 번 넣었다가 되돌렸다: 새
    사이트의 owner 프로필 row는 `place.create`가 만들어주지 않고, `profile.set`(`updateSiteProfile`)은
    UPDATE 전용이라 그 자리에서 쓰려고 하면 항상 404가 난다(재시도로도 해소 불가 — 백엔드 한계). owner도
-   다른 진입자와 동일하게 방 설정 nudge([place-profile-create.md](./place-profile-create.md), ADR-0040)로
+   다른 진입자와 동일하게 방 설정 nudge([place-profile-prompt.md](./place-profile-prompt.md), ADR-0040)로
    프로필을 나중에 채운다.
 5. **이탈** — X/esc/overlay 시 입력값이 있으면 "중단하시겠어요?" 확인 모달, 없으면 즉시 닫힘.
 
@@ -175,7 +175,7 @@ owner 게이팅은 클라우드 컨텍스트(렐리 1:1 vs 클라우드 그룹)�
   (`CreateChannelDialog`와 동일한 `submitting` 상태 패턴). 프로필 생성 스텝을 뒤에 강제로 붙였던
   적이 있으나(ADR-0045 결정 4) 되돌렸다 — 백엔드가 신규 사이트의 첫 프로필 write를 지원하지 않아
   (`place.create`가 owner 프로필 row를 만들지 않고 `profile.set`은 UPDATE 전용) 항상 404가 났다.
-- [useCreatePlace.ts](../../../src/app/features/home/hooks/useCreatePlace.ts): 시그니처를
+- [useCreatePlace.ts](../../../src/app/hooks/useCreatePlace.ts): 시그니처를
   `createPlace({ name, thumbnail }: { name: string; thumbnail?: string })`로 넓혀 payload에 thumbnail 통과.
   `PlaceCreateInput`(`PlaceBodyData`)이 이미 `thumbnail?`을 가지므로 리포/원격은 무변경(payload passthrough,
   [PlaceRepository.ts:89](../../../../../libs/data/src/repositories/PlaceRepository.ts)).
@@ -187,7 +187,7 @@ owner 게이팅은 클라우드 컨텍스트(렐리 1:1 vs 클라우드 그룹)�
   `navigate(ROUTES.channels.room(created.id))`. `useCreateChannel`은 이미 `DomainChannel`을 반환한다
   ([useCreateChannel.ts](../../../src/app/features/channels/hooks/useCreateChannel.ts)).
 - **thumbnail 전제(ADR-0018)**: `ChannelCreateRequestData`는 현재 `{ stereo, name }`뿐이다
-  ([channel/types.d.ts:3](../../../../../node_modules/@lemoncloud/chatic-sockets-api/dist/lib/channel/types.d.ts)).
+  (`@lemoncloud/chatic-sockets-api` 의 `channel/types.d.ts`).
   `channel.create` payload는 게이트웨이로 그대로 전달되므로
   ([ChannelSocketDataSource.ts:90](../../../../../libs/data/src/remote/socket-data-sources/ChannelSocketDataSource.ts)),
   타입에 `thumbnail?`이 추가되면 배선은 자동이다. **착수 시 소켓 API의 thumbnail 지원 여부를 먼저 확인**하고,

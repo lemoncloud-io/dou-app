@@ -190,7 +190,7 @@ cursor는 **TTL 1일**을 가진다(`meta` 캐시 TTL). sync 성공마다 `setSy
 
 만료 판정은 저장된 `expiresAt`이 아니라 **읽기 시점에** `__cacheMeta.lastSyncedAt + TTL`로 계산한다. 과거 "never expire" 정책으로 저장된 행에도 현재 TTL이 소급 적용된다.
 
-근거: `libs/data/src/local/data-sources/SyncMetaLocalDataSource.ts`, `libs/data/src/local/storages/utils.ts`
+근거: `libs/data/src/local/data-sources/SyncMetaLocalDataSource.ts`, `libs/data/src/local/ports/policy.ts`
 
 근거: `libs/data/src/repositories/{SyncMetaRepository,ChannelRepository,ProfileRepository}.ts`
 
