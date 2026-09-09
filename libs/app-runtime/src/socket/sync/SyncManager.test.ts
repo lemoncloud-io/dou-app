@@ -17,14 +17,12 @@ jest.mock('@lemoncloud/chatic-sockets-lib', () => {
     return { ...actual, createDeviceRuntime: jest.fn() };
 });
 
-// SyncManager → ./plans → data/runtime.ts → DataManager.ts → httpFactory.ts가 `@chatic/web-core`를
-// 값으로 import한다(webTransport). 그 모듈은 `import.meta.env`를 로드 시점에 읽어 ts-jest(CJS)가
-// 파싱하지 못하므로, 이 테스트가 실제로 쓰지 않는 의존이어도 목으로 끊어야 한다.
+// SyncManager → ./plans → data/runtime.ts → DataManager.ts → httpFactory.ts가 `@chatic/http`의
+// transport를 값으로 import한다(webTransport). 그 경로가 예전엔 `@chatic/web-config`(import.meta
+// 홀더, ts-jest CJS 파싱 불가)로 이어졌지만 이제는 `@chatic/config`(import.meta 0)로 이어져
+// 파싱은 더 이상 문제가 아니다 — 그래도 이 테스트가 실제로 쓰지 않는 세션 의존을 끊어 격리하는
+// 목은 그대로 둔다.
 jest.mock('../../session', () => new Proxy({}, { get: () => jest.fn() }));
-// `@chatic/web-config` is the sole `import.meta` holder (ADR-0070 결정 6); ts-jest's CommonJS
-// transform cannot parse it, and HttpManager pulls it in transitively.
-jest.mock('@chatic/web-config', () => new Proxy({}, { get: () => jest.fn() }));
-
 const mockedCreateDeviceRuntime = createDeviceRuntime as jest.MockedFunction<typeof createDeviceRuntime>;
 
 const makeRuntime = (): jest.Mocked<ClientSocketRuntime> =>

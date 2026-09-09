@@ -8,10 +8,17 @@ jest.mock('@chatic/logger', () => ({
     redactSensitive: jest.fn(value => value),
     truncate: jest.fn(value => value),
 }));
-jest.mock('@chatic/web-config', () => ({
-    getDynamicRelayBackend: jest.fn(() => 'https://relay.test'),
-    WEB_OAUTH_ENDPOINT: 'https://oauth.test',
-    WEB_IAP_ENDPOINT: 'https://iap.test',
+jest.mock('@chatic/config', () => ({
+    config: {
+        get: jest.fn(
+            (key: string) =>
+                ({
+                    'net.relay.backend': 'https://relay.test',
+                    'net.oauth.endpoint': 'https://oauth.test',
+                    'net.iap.endpoint': 'https://iap.test',
+                })[key]
+        ),
+    },
 }));
 const mockedLoggerDebug = logger.debug as jest.Mock;
 

@@ -2,9 +2,23 @@ import { StrictMode } from 'react';
 
 import * as ReactDOM from 'react-dom/client';
 
+import { isNative } from '@chatic/bridges';
+import { config } from '@chatic/config';
+import { setStorageAdapter } from '@chatic/shared';
 import { runtime } from '@chatic/app-runtime';
 
+import { webConfigPorts } from './app/config/adapters';
+
 import App from './app/app';
+
+// Wires `@chatic/config` to this build's `import.meta.env`/injected globals — replaces
+// `@chatic/web-config`'s import-time self-init with an explicit call (ADR-0079 결정 1·11).
+config.init(webConfigPorts);
+
+// Session/relay/cloud/identity storage backing, and the lemon transport's own storage
+// (`http/transport.ts`), used to follow `usePersistentWebStorage` — exactly what `isNative()`
+// already answers. Desktop-web is the one client this always resolves `true` for.
+setStorageAdapter(isNative() ? localStorage : sessionStorage);
 
 // Boot the runtime before render. This is the app's only boot call — the session store and
 // credential recovery used to wire themselves as import side effects (ADR-0070 5단계 follow-up).
@@ -20,9 +34,9 @@ import App from './app/app';
 // Must run before render — the runtime builds its cache storages once, on first repository access.
 runtime.boot.initAppRuntime({ data: { cache: { maxChatsPerChannel: 1000 } } });
 
-// Desktop persistent storage (localStorage) is decided by `@chatic/web-config`'s
-// `usePersistentWebStorage`, which the lemon transport and the session stores share. This file no
-// longer overrides the adapter — doing so here ran AFTER the transport was already constructed.
+// Desktop persistent storage (localStorage) is decided by `isNative()` above (ADR-0079, replacing
+// `@chatic/web-config`'s `usePersistentWebStorage`), which the lemon transport and the session
+// stores share via the explicit `setStorageAdapter` call — no longer an import side effect.
 
 const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement);
 

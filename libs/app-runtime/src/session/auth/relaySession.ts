@@ -4,7 +4,7 @@ import type { UserTokenView } from '@lemoncloud/chatic-backend-api';
 import type { VerifyNativeTokenBody } from '@lemoncloud/chatic-backend-api/dist/modules/auth/oauth2/oauth2-types';
 import type { IAuthRepositoryV2 } from '@chatic/data';
 
-import { clearRelayTransportOverrides, LANGUAGE_KEY } from '@chatic/web-config';
+import { config } from '@chatic/config';
 
 import { getRepositories } from '../../data/runtime';
 import {
@@ -25,6 +25,9 @@ export type { ServerKind } from './sessionAuthAdapter';
 export interface LogoutOptions {
     preserveUrl?: boolean;
 }
+
+/** i18next's own localStorage key name — not a setting, just where it happens to keep the language. */
+const LANGUAGE_KEY = 'i18nextLng';
 
 /**
  * The RELAY half of the session hub's use-cases (ADR-0076 결정 5) — booting the relay session,
@@ -278,7 +281,12 @@ class RelaySession implements IRelaySession {
         sessionSignal.batch(() => {
             cloudStore.clearSession();
             relayStore.clearSelectedSite();
-            clearRelayTransportOverrides();
+            // Replaces `clearRelayTransportOverrides()` — drop the deeplinked `?_backend`/`?_wss`
+            // local overrides so a future boot resolves the build's own endpoint again instead of
+            // staying pinned to whatever a stray link set. `net.oauth.endpoint` has no local lane to
+            // clear (ADR-0079 결정 10 — that override was already dead, nothing read it).
+            config.clear('net.relay.backend', { lane: 'local' });
+            config.clear('net.relay.wss', { lane: 'local' });
             resetWebTransportInit();
 
             // Cloud tokens were dropped by cloudStore.clearSession() above; clearRelaySession drops

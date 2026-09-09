@@ -1,5 +1,3 @@
-import { runtime } from '@chatic/app-runtime';
-
 /**
  * Social Login URL plumbing (ADR 0009). The OAuth Relay fronts every provider:
  * we send the browser to its authorize URL with a `redirect` back-address and
@@ -25,10 +23,16 @@ export const isSocialLoginEnabled = (): boolean => import.meta.env.VITE_ENV?.toU
 /** Both channels' prefixes parse — receiving is harmless, launching is what must not cross. */
 const OAUTH_DEEPLINK_PREFIXES = ['chatic://oauth', 'chatic-dev://oauth'];
 
+// `.toLowerCase()` matches what `@chatic/web-config`'s `WEB_SOCIAL_OAUTH_ENDPOINT` always did — this
+// file already reads `import.meta.env` directly two lines up (`VITE_DESKTOP_PROTOCOL`), so this
+// endpoint follows the same pattern instead of routing through `runtime.boot` (ADR-0079 retired that
+// re-export; see `libs/app-runtime/src/boot.ts`).
+const SOCIAL_OAUTH_ENDPOINT = (import.meta.env.VITE_SOCIAL_OAUTH_ENDPOINT || '').toLowerCase();
+
 /** Relay authorize URL returning to this origin's hand-off page. */
 export const buildAuthorizeUrl = (provider: string): string => {
     const redirect = `${window.location.origin}/auth/oauth-response`;
-    return `${runtime.boot.SOCIAL_OAUTH_ENDPOINT}/oauth/${provider}/authorize?redirect=${encodeURIComponent(redirect)}`;
+    return `${SOCIAL_OAUTH_ENDPOINT}/oauth/${provider}/authorize?redirect=${encodeURIComponent(redirect)}`;
 };
 
 /** Hand-off deeplink carrying the relay code back into the shell. */

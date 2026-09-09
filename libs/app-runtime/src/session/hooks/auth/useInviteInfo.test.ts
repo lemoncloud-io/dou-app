@@ -10,8 +10,8 @@ jest.mock('../../auth/authActions', () => ({
     fetchInviteInfoWithCode: (...args: unknown[]) => mockFetchInviteInfoWithCode(...args),
 }));
 
-jest.mock('@chatic/web-config', () => ({
-    getDynamicRelayBackend: () => mockGetDynamicRelayBackend(),
+jest.mock('@chatic/config', () => ({
+    config: { get: (key: string) => (key === 'net.relay.backend' ? mockGetDynamicRelayBackend() : undefined) },
 }));
 
 jest.mock('../session', () => ({

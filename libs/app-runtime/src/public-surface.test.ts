@@ -1,10 +1,8 @@
 // The session hub is part of THIS package's surface now (ADR-0070 3단계), so nothing here may be
-// stubbed — stubbing it is exactly what this gate exists to catch. `@chatic/web-config` (the sole
-// `import.meta` holder) is stubbed globally by jest.config.js instead.
+// stubbed — stubbing it is exactly what this gate exists to catch. `@chatic/config` (ADR-0079,
+// replacing `@chatic/web-config`) has zero `import.meta` and needs no such stub — this is the win
+// ADR-0079 §맥락 3-2 predicted.
 import * as api from './index';
-// `@chatic/web-config` is the sole `import.meta` holder (ADR-0070 결정 6); ts-jest's CommonJS
-// transform cannot parse it, and HttpManager pulls it in transitively.
-jest.mock('@chatic/web-config', () => new Proxy({}, { get: () => jest.fn() }));
 
 /**
  * Locks the package's PUBLIC runtime surface — now group by group.
@@ -22,17 +20,10 @@ jest.mock('@chatic/web-config', () => new Proxy({}, { get: () => jest.fn() }));
  */
 const GROUPS: Record<string, readonly string[]> = {
     // 앱 엔트리가 한 번 만지는 것 — 부팅 호출, 환경 상수, 플랫폼 프로브, transport.
-    boot: [
-        'ENV',
-        'LANGUAGE_KEY',
-        'PROJECT',
-        'SOCIAL_OAUTH_ENDPOINT',
-        'initAppRuntime',
-        'isNativeApp',
-        'setNativeCacheSupport',
-        'startWebTransportInit',
-        'webTransport',
-    ],
+    // `ENV`/`LANGUAGE_KEY`/`PROJECT`/`SOCIAL_OAUTH_ENDPOINT` retired with `@chatic/web-config`
+    // (ADR-0079) — their two consumers read `import.meta.env` directly now, and neither value was a
+    // setting.
+    boot: ['initAppRuntime', 'isNativeApp', 'setNativeCacheSupport', 'startWebTransportInit', 'webTransport'],
     // 세션 상태·인증. `applySessionToken`/`logoutSession`은 socket/auth에 산다 —
     // 소비자에게는 셋 다 세션이다.
     session: [

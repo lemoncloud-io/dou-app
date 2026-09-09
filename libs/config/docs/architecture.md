@@ -345,16 +345,60 @@ npx eslint libs/config --ext .ts
 > `persist`는 튜너블 전부 `'session'`(QA 오버라이드는 탭이 닫히면 사라진다)로 통일했다. 이 판단은
 > 검증 가능한 형태(드리프트 게이트 · 리뷰)로 재확인이 필요하다.
 
-### 3. env 레인 이관 + `web-config` 삭제
+### 3. env 레인 이관 + `web-config` 삭제 — **완료 2026-09-09**
 
-- [ ] `apps/web`·`apps/mobile` 어댑터 작성
-- [ ] `main.tsx`에 `config.init()` — **로그 배선 뒤, 런타임 부팅 앞**. 부수효과 4단계를 명시 호출로
-- [ ] `clearTokensOnLogout`을 앱 부트로 이동
-- [ ] `app-runtime` 8파일 이관
-- [ ] `libs/web-config` 삭제 + `tsconfig.base.json`에서 경로 제거 + 소비자 테스트의 모듈 목 제거
-- [ ] 죽은 window 전역 9개 · 죽은 env 10종 제거 (`.github` 주입 여부 먼저 확인)
+체크리스트를 쓸 때는 "웹·모바일 어댑터"로 좁게 잡았다. 실제로 시작해 보니 `app-runtime`을
+부팅하는 앱이 **넷**이었다 — `runtime.boot.initAppRuntime()`을 호출하는 곳은 web ·
+desktop-web · admin-v2 · testbed였고, 이 넷 전부가 `web-config`를 삭제하면 즉시 깨진다.
+mobile은 app-runtime을 아예 안 쓴다(0참조 — RN 앱 자체는 별개 세션 코드를 가진다). 범위를
+그 자리에서 바로잡았다.
 
-**검증**: `import.meta.env` 직독이 앱 어댑터로만 남는지 · web 테스트 통과 · 게스트 부팅 수동 확인
+- [x] **어댑터 넷 + 공용 팩토리.** 웹·데스크톱웹·admin-v2·testbed 각각에
+      `src/app/config/adapters.ts` — `import.meta.env`/`window.CHATIC_APP_*`를 읽는
+      `read()` 함수 하나만 앱마다 다르고, 해석 로직은 `createWebEnvAdapter`(1단계에서 추가) 하나로
+      공유한다
+- [x] `main.tsx` 넷에 `config.init(webConfigPorts)` — **로그 배선 뒤, 런타임 부팅 앞**
+- [x] **`setStorageAdapter`도 명시 호출로.** web·desktop-web은 `isNative() ? localStorage :
+  sessionStorage`를 부팅에 추가했다 — `usePersistentWebStorage`가 정확히 이 판정이었고,
+      `@chatic/bridges`의 `isNative()`가 이미 같은 window 핸들을 본다. admin-v2·testbed는
+      네이티브/데스크톱 셸 안에서 돈 적이 없어(`isNative()`가 항상 false) 안 붙였다
+- [x] `app-runtime` 7파일 이관(`boot.ts` 재수출 제거 포함 8번째) + 목 9개를 `@chatic/config` 형태로
+- [x] `libs/web-config` 삭제 + `tsconfig.base.json` 경로 제거 + `app-runtime/tsconfig.lib.json`의
+      프로젝트 참조를 `../config`로 교체 + 전역 jest 스텁(`webConfigMock.js`) 삭제
+
+**스펙에 없던 발견 셋 — 코드를 읽으며 나온 것**
+
+1. **`envDefaultKey`가 코어에 빠져 있었다.** `net.oauth.endpoint` 같은 엔드포인트 키의 기본값은
+   `VITE_OAUTH_ENDPOINT`처럼 앱마다 다른 빌드값이어야 하는데, `defaultValue`는 레지스트리 선언
+   시점의 리터럴이라 담을 수 없었다. 코어에 필드와 리졸버 경로를 추가했다(§상세 구현 참조).
+2. **`i18n/index.ts`가 모듈 로드 시점에 `runtime.boot.PROJECT`/`ENV`를 읽는다.** ES 모듈은 임포트를
+   그 파일의 본문보다 먼저 평가하므로, `app.tsx`(→`i18n`)가 `main.tsx`의 `config.init()` 호출보다
+   먼저 실행된다. 이 값은 로컬스토리지 키 네임스페이스일 뿐 설정이 아니므로, config를 거치지 않고
+   `import.meta.env`를 직접 읽도록 고쳤다 — 순서 문제 자체가 사라진다.
+3. **`usePersistentWebStorage`가 갈 곳이 없었다.** 설정이 아니라 "네이티브/데스크톱 셸 안인가"라는
+   구조적 판별이라 레지스트리에 넣지 않았다. `@chatic/bridges`의 `isNative()`가 이미 같은 판별을
+   하고 있어(더 넓게 — webkit 메시지 핸들러까지 본다) 새로 만들 필요가 없었다.
+
+**검증 결과**
+
+```bash
+npx jest --config libs/app-runtime/jest.config.js --rootDir libs/app-runtime   # 585 통과
+npx jest --config apps/web/jest.config.js --rootDir apps/web                   # 2424 통과
+npx tsc -b libs/app-runtime/tsconfig.lib.json                                  # 통과
+npx tsc --noEmit -p apps/web/tsconfig.app.json                                 # 통과
+npx tsc --noEmit -p apps/desktop-web/tsconfig.app.json                         # 19건 — 기존 부채와 동일
+npx tsc --noEmit -p apps/admin-v2/tsconfig.app.json                            # 통과
+npx tsc --noEmit -p apps/testbed/tsconfig.app.json                             # 통과
+```
+
+desktop-web·admin-v2·testbed는 jest 설정 자체가 없다(빌드 워크플로만 있고 테스트 워크플로가
+없다는 사실과 일치) — 타입체크가 유일한 자동 검증이었다. desktop-web의 19건은 내가 만진
+파일(`main.tsx`·`oauth.ts`·`adapters.ts`)과 무관한 기존 부채임을 확인했다(`libs/theme` dist
+staleness 2건 포함, 빌드 후 재확인).
+
+**죽은 window 전역 9개는 `env.ts` 삭제로 함께 사라졌다** — 되살리지 않았다. **죽은 env 10종
+(`.env.example`)은 이번에 손대지 않았다** — `.github` 주입 여부 확인이 먼저 필요하고, 이번
+단계의 필수 경로가 아니었다.
 
 ### 4. 셸 레인 + 범용 KV 브릿지
 
