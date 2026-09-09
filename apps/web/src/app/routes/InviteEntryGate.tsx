@@ -2,7 +2,7 @@ import type { JSX, ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 
 import { resolveInviteAcceptRedirect } from '../features/invite/accept/lib/inviteEntryRedirect';
-import { usePreferenceStore } from '../stores/usePreferenceStore';
+import { useOnboarding } from '../hooks';
 
 interface InviteEntryGateProps {
     /** What to render when this is not an invite landing. Omit to render nothing (the signed-out hold). */
@@ -25,7 +25,7 @@ interface InviteEntryGateProps {
  */
 export const InviteEntryGate = ({ children }: InviteEntryGateProps): JSX.Element => {
     const { search } = useLocation();
-    const isFirstRun = usePreferenceStore(state => state.isFirstRun);
+    const { isFirstRun } = useOnboarding();
 
     // First run keeps onboarding in front, as the popup did when home suppressed it. Holding the
     // redirect rather than the accept screen is what makes that work: home leaves the query string

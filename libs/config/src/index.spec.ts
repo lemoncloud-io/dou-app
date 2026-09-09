@@ -60,6 +60,13 @@ describe('config.set — 거부는 던지지 않고 이유를 돌려준다', () 
         expect(config.set('log.hold', true, { lane: 'local' })).toEqual({ ok: true });
     });
 
+    it('PROD에서도 dev가 아닌 노출면은 잠기지 않는다 — 사용자 자신의 조작은 QA 우회로가 아니다', () => {
+        const config = createConfig(modules());
+        config.init(ports({ env: envAdapter('PROD') }));
+
+        expect(config.set('ui.blur', true, { lane: 'local' })).toEqual({ ok: true });
+    });
+
     it('init 전에는 아무것도 안 한다', () => {
         expect(createConfig(modules()).set('ui.blur', true, { lane: 'local' })).toEqual({
             ok: false,
@@ -215,6 +222,63 @@ describe('config — 앱에 쓰기는 답을 받는다', () => {
         );
 
         expect(config.snapshot('ui.theme')).toMatchObject({ value: 'dark', origin: 'shell' });
+    });
+
+    it('셸에 쓸 때 로컬에도 거울처럼 남긴다 — 셸이 없는 평범한 브라우저의 다음 부팅을 위해서다', () => {
+        const local = memoryStorage();
+        const config = createConfig(shellEntry());
+        config.init(
+            ports({
+                storage: { local, session: memoryStorage() },
+                shell: { readBag: () => ({}), write: jest.fn().mockResolvedValue(undefined), clear: jest.fn() },
+            })
+        );
+
+        config.set('ui.theme', 'dark', { lane: 'shell' });
+
+        expect(local.dump()[storageKeyFor('ui.theme')]).toBe('"dark"');
+    });
+
+    it('셸이 아예 배선 안 된 브라우저도 거울 값으로 되살아난다', () => {
+        const local = memoryStorage();
+        local.setItem(storageKeyFor('ui.theme'), '"dark"');
+        const config = createConfig(shellEntry());
+
+        config.init(ports({ storage: { local, session: memoryStorage() } }));
+
+        expect(config.snapshot('ui.theme')).toMatchObject({ value: 'dark', origin: 'local' });
+    });
+
+    it('네이티브 기기에서는 거울이 아니라 셸 값이 이긴다 — 우선순위는 그대로다', () => {
+        const local = memoryStorage();
+        local.setItem(storageKeyFor('ui.theme'), '"light"');
+        const config = createConfig(shellEntry());
+
+        config.init(
+            ports({
+                storage: { local, session: memoryStorage() },
+                shell: { readBag: () => ({ 'ui.theme': '"dark"' }), write: jest.fn(), clear: jest.fn() },
+            })
+        );
+
+        expect(config.snapshot('ui.theme')).toMatchObject({ value: 'dark', origin: 'shell' });
+    });
+
+    it('지우면 거울도 함께 지운다', () => {
+        const local = memoryStorage();
+        const config = createConfig(shellEntry());
+        config.init(
+            ports({
+                storage: { local, session: memoryStorage() },
+                shell: { readBag: () => ({}), write: jest.fn().mockResolvedValue(undefined), clear: jest.fn() },
+            })
+        );
+        config.set('ui.theme', 'dark', { lane: 'shell' });
+        expect(local.dump()[storageKeyFor('ui.theme')]).toBe('"dark"');
+
+        config.clear('ui.theme', { lane: 'shell' });
+
+        expect(local.dump()[storageKeyFor('ui.theme')]).toBeUndefined();
     });
 });
 

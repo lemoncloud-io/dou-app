@@ -1,8 +1,10 @@
 import { useEffect, useRef } from 'react';
 
 import { runtime } from '@chatic/app-runtime';
+import { parseInviteIds } from '../../../stores/preferenceParsers';
 
-import { usePreferenceStore } from '../../../stores/usePreferenceStore';
+/** The legacy, pre-cache-stub storage key (ADR-0043 era) — never became a `@chatic/config` key. */
+const LEGACY_KEY = 'dou.relayInvite.locallyCanceled.v1';
 
 // One-time flag marking that the legacy `canceledInviteIds` (localStorage) record has been
 // folded into the invite cache as dismiss stubs. Kept in localStorage — independent of the cache
@@ -29,11 +31,33 @@ const markMigrated = (): void => {
     }
 };
 
+const readLegacyCanceledIds = (): string[] => {
+    try {
+        if (typeof window === 'undefined') return [];
+        const raw = window.localStorage.getItem(LEGACY_KEY);
+        return raw === null ? [] : parseInviteIds(raw);
+    } catch {
+        return [];
+    }
+};
+
+const clearLegacyCanceledIds = (): void => {
+    try {
+        window.localStorage.removeItem(LEGACY_KEY);
+    } catch {
+        // Best-effort — a leftover legacy key with nothing new writable into it is harmless.
+    }
+};
+
 /**
  * One-time migration of `canceledInviteIds` (localStorage, ADR-0043 stub era) into the invite
  * cache's `dismissedAt` field (ADR-0052 결정 5). For each legacy id, seeds a stub cache row
- * (`{ id, dismissedAt: now }`, no `state`) so `useCanceledInviteReconcile` — now reading dismissed
- * rows off the cache instead of this store — can drain it exactly as before.
+ * (`{ id, dismissedAt: now }`, no `state`) so `useCanceledInviteReconcile` — reading dismissed rows
+ * off the cache — can drain it exactly as before.
+ *
+ * This data never became a `@chatic/config` key (unlike the other former `usePreferenceStore`
+ * fields) — it is a one-way, shrinking-to-empty migration source, not a setting with a default and
+ * an override. Read directly off its legacy key rather than through the registry.
  *
  * Gated on the default (relay) cloud being active: `InviteRepositoryV2`'s local writes are
  * themselves cid-gated (a write while some other cloud is active would seed an orphan row nothing
@@ -44,13 +68,12 @@ const markMigrated = (): void => {
 export const useInviteDismissMigration = (): void => {
     const { invite } = runtime.data.useRuntimeRepositories();
     const { selectedCloudId } = runtime.session.useSessionSelection();
-    const canceledIds = usePreferenceStore(state => state.canceledInviteIds);
-    const clearCanceled = usePreferenceStore(state => state.clearInviteCanceled);
     const startedRef = useRef(false);
 
     useEffect(() => {
         if (hasMigrated() || startedRef.current) return;
 
+        const canceledIds = readLegacyCanceledIds();
         if (canceledIds.length === 0) {
             markMigrated();
             return;
@@ -61,12 +84,12 @@ export const useInviteDismissMigration = (): void => {
         void (async () => {
             try {
                 await invite.cacheWriteMany(canceledIds.map(id => ({ id, dismissedAt: Date.now() })));
-                canceledIds.forEach(id => clearCanceled(id));
+                clearLegacyCanceledIds();
                 markMigrated();
             } catch {
                 // Leave the flag unset and the guard re-armed so the next render/boot retries.
                 startedRef.current = false;
             }
         })();
-    }, [selectedCloudId, canceledIds, invite, clearCanceled]);
+    }, [selectedCloudId, invite]);
 };

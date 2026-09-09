@@ -37,6 +37,23 @@ describe('ConfigLanePolicy.canSupply — 자격', () => {
 
         expect(policy.canSupply(lockKey, 'local', false)).toBe(true);
     });
+
+    it('dev 노출면이 아닌 키는 잠겨 있어도 웹 레인을 쓴다 — QA 우회로가 아니라 사용자 자신의 조작이다', () => {
+        const userKey = entry({ writableBy: ['local'], surface: 'user' });
+        const internalKey = entry({ writableBy: ['local'], surface: 'internal' });
+        const labsKey = entry({ writableBy: ['local'], surface: 'labs' });
+
+        expect(policy.canSupply(userKey, 'local', false)).toBe(true);
+        expect(policy.canSupply(internalKey, 'local', false)).toBe(true);
+        expect(policy.canSupply(labsKey, 'local', false)).toBe(true);
+    });
+
+    it('dev 노출면 키는 여전히 잠긴다 — 면제는 surface 하나뿐, 기본값은 그대로 막는다', () => {
+        const devKey = entry({ writableBy: ['local'], surface: 'dev' });
+
+        expect(policy.canSupply(devKey, 'local', false)).toBe(false);
+        expect(policy.canSupply(devKey, 'local', true)).toBe(true);
+    });
 });
 
 describe('ConfigLanePolicy.writersFor — 이 기기에서 지금 쓸 수 있는 사람', () => {
@@ -59,5 +76,11 @@ describe('ConfigLanePolicy.writersFor — 이 기기에서 지금 쓸 수 있는
         const lockKey = entry({ writableBy: ['shell', 'local'], meta: true });
 
         expect(policy.writersFor(lockKey, false, allWired)).toEqual(['shell', 'local']);
+    });
+
+    it('dev 노출면이 아닌 키는 잠겨 있어도 웹이 쓸 수 있다', () => {
+        const userKey = entry({ writableBy: ['local'], surface: 'user' });
+
+        expect(policy.writersFor(userKey, false, allWired)).toEqual(['local']);
     });
 });

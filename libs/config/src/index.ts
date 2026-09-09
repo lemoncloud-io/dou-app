@@ -29,6 +29,12 @@ export type { ConfigRuntimePorts, IConfigEnvAdapter, IShellKvAdapter, StorageLik
 export type { IRemoteConfigAdapter, RemotePayload } from './lanes/RemoteCache';
 export { createWebEnvAdapter } from './adapters/webEnvAdapter';
 export { UNLOCK_KEY } from './resolve/ConfigResolver';
+/**
+ * The storage-boundary encoding and the key an override lives under — exported so an app's one-time
+ * legacy-value migration (an old ad-hoc storage key renamed into the registry) can seed the exact
+ * same format `hydrateStorage()` reads back, without guessing at or duplicating this lib's encoding.
+ */
+export { encodeValue, storageKeyFor } from './utils/serialize';
 
 /** Which lane a writer fills. */
 const LANE_OF: Readonly<Record<Writer, Lane>> = { shell: 'shell', local: 'local', server: 'serverDefault' };
@@ -119,7 +125,8 @@ export class ConfigFacade {
         if (!entry) return { ok: false, reason: 'unknownKey' };
         if (!entry.writableBy.includes(options.lane)) return { ok: false, reason: 'laneNotAllowed' };
         if (!isValidValue(entry, value)) return { ok: false, reason: 'invalidValue' };
-        if (options.lane === 'local' && !entry.meta && !resolver.isUnlocked()) {
+        // Only a `dev`-surface key is gated — see ConfigLanePolicy.canSupply for why.
+        if (options.lane === 'local' && !entry.meta && entry.surface === 'dev' && !resolver.isUnlocked()) {
             return { ok: false, reason: 'locked' };
         }
 
@@ -153,17 +160,15 @@ export class ConfigFacade {
         const entry = this.registry.get(key);
         if (!entry) return { ok: false, reason: 'unknownKey' };
         if (!entry.writableBy.includes(options.lane)) return { ok: false, reason: 'laneNotAllowed' };
-        if (options.lane === 'local' && !entry.meta && !resolver.isUnlocked()) {
+        // Only a `dev`-surface key is gated — see ConfigLanePolicy.canSupply for why.
+        if (options.lane === 'local' && !entry.meta && entry.surface === 'dev' && !resolver.isUnlocked()) {
             return { ok: false, reason: 'locked' };
         }
 
         const before = resolver.snapshot(key)?.value;
         this.store.clear(LANE_OF[options.lane], key);
-        if (entry.persist === 'shell') {
-            void this.ports?.shell?.clear(key);
-        } else {
-            this.storageFor(entry.persist)?.removeItem(storageKeyFor(key));
-        }
+        if (entry.persist === 'shell') void this.ports?.shell?.clear(key);
+        this.storageFor(entry.persist)?.removeItem(storageKeyFor(key));
         const after = resolver.snapshot(key)?.value;
         if (before !== after) this.store.notify([key]);
         return { ok: true };
@@ -227,8 +232,21 @@ export class ConfigFacade {
         }
     }
 
+    /**
+     * The browser storage backing a persist strategy, if any.
+     *
+     * `shell` resolves to the SAME `local` storage a `persist: 'local'` key uses. The bridge is the
+     * source of truth there, but a plain browser (no shell wired at all) has no bridge to be a
+     * source of truth — without a browser-side copy, a value only the shell would ever hold is lost
+     * on every reload. `theme`/`blurLastMessage`/`onboardingCompleted` are exactly this: a real
+     * standalone-web user (not wrapped in the native shell) still needs their choice to survive a
+     * refresh. `hydrateStorage()` reads this mirror into the `local` LANE, which the shell lane
+     * already outranks when the shell import is populated — so a native device's answer is untouched
+     * (it already wins on its `shell` lane and never reads this fallback), and only a shell-less
+     * browser ever resolves from it.
+     */
     private storageFor(persist: string): StorageLike | undefined {
-        if (persist === 'local') return this.ports?.storage?.local;
+        if (persist === 'local' || persist === 'shell') return this.ports?.storage?.local;
         if (persist === 'session') return this.ports?.storage?.session;
         return undefined;
     }
@@ -237,10 +255,7 @@ export class ConfigFacade {
         const entry = this.registry.get(key);
         if (!entry) return;
         const raw = encodeValue(value);
-        if (entry.persist === 'shell') {
-            void this.writeShellConfirmed(key, raw);
-            return;
-        }
+        if (entry.persist === 'shell') void this.writeShellConfirmed(key, raw);
         try {
             this.storageFor(entry.persist)?.setItem(storageKeyFor(key), raw);
         } catch {

@@ -4,7 +4,7 @@ import { runtime } from '@chatic/app-runtime';
 
 import { BottomSheet, SheetOption } from '@chatic/web-ui-kit';
 
-import { usePreferenceStore } from '../../../stores/usePreferenceStore';
+import { useChannelSort } from '../../../hooks';
 import { DEFAULT_CHANNEL_SORT, placeScopeKey } from '../../../stores/preferenceKeys';
 
 import type { ChannelSortMethod } from '../../../stores/preferenceKeys';
@@ -31,8 +31,8 @@ export const ChannelSortSheet = ({ open, onOpenChange, placeId }: ChannelSortShe
     // The cloud half of the scope comes from the active session; callers only know the route's placeId.
     const { selectedCloudId } = runtime.session.useSessionSelection();
     const scope = placeScopeKey(selectedCloudId, placeId);
-    const current = usePreferenceStore(s => (scope ? s.channelSort[scope] : undefined)) ?? DEFAULT_CHANNEL_SORT;
-    const setChannelSort = usePreferenceStore(s => s.setChannelSort);
+    const { channelSort: channelSortMap, setChannelSort } = useChannelSort();
+    const current = (scope ? channelSortMap[scope] : undefined) ?? DEFAULT_CHANNEL_SORT;
 
     const handleSelect = (method: ChannelSortMethod) => () => {
         if (!scope) return;

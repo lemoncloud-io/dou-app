@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 
-import { usePreferenceStore } from '../../../stores/usePreferenceStore';
+import { config } from '@chatic/config';
+import { useConfigValue } from '@chatic/config/react';
 import { CLOUD_PROMO_DISMISS_TTL_MS } from '../../../stores/preferenceKeys';
 
 export interface CloudPromoOptions {
@@ -24,8 +25,8 @@ export interface CloudPromoResult {
  *
  * Two gates, in order:
  *  1. Owning at least one cloud hides it permanently — the pitch is already accepted.
- *  2. Dismissing hides it for 24h. The timestamp lives in one preference key, which is why
- *     dismissing in the sheet also hides it on home.
+ *  2. Dismissing hides it for 24h. The timestamp lives in one config key (`ui.cloudPromoDismissedAt`),
+ *     which is why dismissing in the sheet also hides it on home.
  *
  * `hasOwnedCloud` is a PARAMETER rather than something this hook fetches, and that is load-bearing:
  * `useClouds` is configured `refetchOnMount: 'always'`, so a component that both subscribes to the
@@ -40,13 +41,15 @@ export interface CloudPromoResult {
  * also fine for a promo.
  */
 export const useCloudPromo = ({ hasOwnedCloud }: CloudPromoOptions): CloudPromoResult => {
-    const dismissedAt = usePreferenceStore(state => state.cloudPromoDismissedAt);
-    const dismissCloudPromo = usePreferenceStore(state => state.dismissCloudPromo);
+    // Already sanitized by the resolver's `number` type (0 = never, future values degraded to 0
+    // by the config-write side — see normalizeCloudPromoDismissedAt in the legacy migration).
+    const dismissedAt = useConfigValue<number>('ui.cloudPromoDismissedAt') ?? 0;
 
-    // dismissedAt is already sanitized by the store (0 = never, future values degraded to 0).
     const isDismissed = dismissedAt > 0 && Date.now() - dismissedAt < CLOUD_PROMO_DISMISS_TTL_MS;
 
-    const dismiss = useCallback(() => dismissCloudPromo(), [dismissCloudPromo]);
+    const dismiss = useCallback(() => {
+        config.set('ui.cloudPromoDismissedAt', Date.now(), { lane: 'local' });
+    }, []);
 
     return { isVisible: !hasOwnedCloud && !isDismissed, dismiss };
 };

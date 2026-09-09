@@ -22,23 +22,15 @@ jest.mock('../../../bridge/useAppForeground', () => ({
     },
 }));
 
-// A real (tiny) zustand store rather than a static fake: `open` is derived from the persisted
-// dismissal, so dismissing has to actually re-render the hook the way the app store does.
-const mockDismissUpdate = jest.fn();
-jest.mock('../../../stores/usePreferenceStore', () => {
-    const { create } = jest.requireActual('zustand');
-    return {
-        usePreferenceStore: create((set: (partial: unknown) => void) => ({
-            dismissedUpdateVersion: '',
-            dismissUpdate: (version: string) => {
-                mockDismissUpdate(version);
-                set({ dismissedUpdateVersion: version });
-            },
-        })),
-    };
-});
+const mockSet = jest.fn();
+let dismissedUpdateVersion = '';
+jest.mock('@chatic/config', () => ({
+    config: { set: (...args: unknown[]) => mockSet(...args) },
+}));
+jest.mock('@chatic/config/react', () => ({
+    useConfigValue: () => dismissedUpdateVersion,
+}));
 
-import { usePreferenceStore } from '../../../stores/usePreferenceStore';
 import { useAppUpdateStore } from './useAppUpdateStatus';
 import { useAppUpdatePrompt } from './useAppUpdatePrompt';
 
@@ -55,7 +47,7 @@ const flush = () =>
 describe('useAppUpdatePrompt', () => {
     beforeEach(() => {
         jest.clearAllMocks();
-        usePreferenceStore.setState({ dismissedUpdateVersion: '' });
+        dismissedUpdateVersion = '';
         useAppUpdateStore.setState({ updateAvailable: false, latestVersion: '' });
     });
 
@@ -80,7 +72,7 @@ describe('useAppUpdatePrompt', () => {
 
     it('이미 해당 버전을 dismiss했으면 다이얼로그를 열지 않는다', async () => {
         mockIsNative.mockReturnValue(true);
-        usePreferenceStore.setState({ dismissedUpdateVersion: '1.1.0' });
+        dismissedUpdateVersion = '1.1.0';
         mockCheckAppUpdate.mockResolvedValue(updateResponse('1.1.0'));
 
         const { result } = renderHook(() => useAppUpdatePrompt());
@@ -115,19 +107,20 @@ describe('useAppUpdatePrompt', () => {
         expect(mockCheckAppUpdate).toHaveBeenCalledTimes(2);
     });
 
-    it('dismiss는 현재 latestVersion으로 dismissUpdate를 호출하고 다이얼로그를 닫는다', async () => {
+    it('dismiss는 현재 latestVersion을 local 레인으로 쓰고 다이얼로그를 닫는다', async () => {
         mockIsNative.mockReturnValue(true);
         mockCheckAppUpdate.mockResolvedValue(updateResponse('1.2.0'));
 
-        const { result } = renderHook(() => useAppUpdatePrompt());
+        const { result, rerender } = renderHook(() => useAppUpdatePrompt());
         await flush();
         expect(result.current.open).toBe(true);
         expect(mockCheckAppUpdate).toHaveBeenCalledTimes(1);
 
         act(() => result.current.dismiss());
-        await flush();
+        dismissedUpdateVersion = '1.2.0';
+        rerender();
 
-        expect(mockDismissUpdate).toHaveBeenCalledWith('1.2.0');
+        expect(mockSet).toHaveBeenCalledWith('ui.dismissedUpdateVersion', '1.2.0', { lane: 'local' });
         expect(result.current.open).toBe(false);
         // dismiss() must not re-trigger the mount-check effect with a fresh bridge round-trip.
         expect(mockCheckAppUpdate).toHaveBeenCalledTimes(1);
@@ -137,10 +130,11 @@ describe('useAppUpdatePrompt', () => {
         mockIsNative.mockReturnValue(true);
         mockCheckAppUpdate.mockResolvedValue(updateResponse('1.2.0'));
 
-        const { result } = renderHook(() => useAppUpdatePrompt());
+        const { result, rerender } = renderHook(() => useAppUpdatePrompt());
         await flush();
         act(() => result.current.dismiss());
-        await flush();
+        dismissedUpdateVersion = '1.2.0';
+        rerender();
 
         await act(async () => {
             foregroundHandler();
@@ -154,10 +148,11 @@ describe('useAppUpdatePrompt', () => {
         mockIsNative.mockReturnValue(true);
         mockCheckAppUpdate.mockResolvedValue(updateResponse('1.2.0'));
 
-        const { result } = renderHook(() => useAppUpdatePrompt());
+        const { result, rerender } = renderHook(() => useAppUpdatePrompt());
         await flush();
         act(() => result.current.dismiss());
-        await flush();
+        dismissedUpdateVersion = '1.2.0';
+        rerender();
         expect(result.current.open).toBe(false);
 
         mockCheckAppUpdate.mockResolvedValue(updateResponse('1.3.0'));
@@ -169,17 +164,19 @@ describe('useAppUpdatePrompt', () => {
         expect(result.current.open).toBe(true);
     });
 
-    it('goToStore는 appBridge.openStore를 호출하고 dismissUpdate도 함께 호출한 뒤 다이얼로그를 닫는다', async () => {
+    it('goToStore는 appBridge.openStore를 호출하고 local 레인 쓰기도 함께 한 뒤 다이얼로그를 닫는다', async () => {
         mockIsNative.mockReturnValue(true);
         mockCheckAppUpdate.mockResolvedValue(updateResponse('1.2.0'));
 
-        const { result } = renderHook(() => useAppUpdatePrompt());
+        const { result, rerender } = renderHook(() => useAppUpdatePrompt());
         await flush();
 
         act(() => result.current.goToStore());
+        dismissedUpdateVersion = '1.2.0';
+        rerender();
 
         expect(mockOpenStore).toHaveBeenCalled();
-        expect(mockDismissUpdate).toHaveBeenCalledWith('1.2.0');
+        expect(mockSet).toHaveBeenCalledWith('ui.dismissedUpdateVersion', '1.2.0', { lane: 'local' });
         expect(result.current.open).toBe(false);
     });
 });

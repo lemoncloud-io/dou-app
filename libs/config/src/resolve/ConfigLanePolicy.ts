@@ -33,11 +33,21 @@ export class ConfigLanePolicy {
      * them would make resolving the unlock ask for the unlock. The dedicated flow (tap counter plus
      * entry code) is what guards them instead, and this exemption is the invariant that keeps the
      * resolver from recursing (ADR-0079 결정 4).
+     *
+     * **A non-`dev` key also ignores the gate.** The lock exists to keep a QA override of a
+     * developer-facing default from taking effect in a stranger's PROD build — it was never meant to
+     * stop the app persisting a user's own routine action (pinning a channel, muting push, picking a
+     * theme). Every `writableBy: ['local']`-only key discovered while wiring real consumers turned
+     * out to be exactly that kind of ordinary app-owned state, not a QA lever, which is what
+     * `surface` already distinguishes: `dev` is the QA/debug 80%, `user`/`internal`/`labs` are things
+     * a person (or the app on their behalf) does in the ordinary course of using the product. Gating
+     * those behind the 10-tap debug unlock would have made basic features permanently unusable in
+     * PROD, since they have no other writer to fall back to.
      */
     canSupply(entry: ConfigEntry, lane: Lane, isUnlocked: boolean): boolean {
         if (!entry.writableBy.includes(WRITER_OF[lane])) return false;
         if (lane !== 'local') return true;
-        if (entry.meta) return true;
+        if (entry.meta || entry.surface !== 'dev') return true;
         return isUnlocked;
     }
 
@@ -47,7 +57,7 @@ export class ConfigLanePolicy {
         for (const writer of ['shell', 'local', 'server'] as const) {
             if (!entry.writableBy.includes(writer)) continue;
             if (!wired[writer]) continue;
-            if (writer === 'local' && !entry.meta && !isUnlocked) continue;
+            if (writer === 'local' && !entry.meta && entry.surface === 'dev' && !isUnlocked) continue;
             writers.push(writer);
         }
         return writers;
