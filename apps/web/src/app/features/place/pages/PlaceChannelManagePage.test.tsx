@@ -100,10 +100,8 @@ jest.mock('../../../hooks', () => ({
     useMyJoins: () => new Map(),
     useChannelUnreads: () => ({ byChannel: unreadByChannel }),
     useLastChats: () => new Map(),
-}));
-
-jest.mock('../../../stores/usePreferenceStore', () => ({
-    usePreferenceStore: (selector: any) => selector({ channelSort: {}, pinnedChannels, setChannelPinned }),
+    useChannelSort: () => ({ channelSort: {}, setChannelSort: jest.fn() }),
+    usePinnedChannels: () => ({ pinnedChannels, setChannelPinned }),
 }));
 
 // Kit stubs — the row exposes its selection and pin as separate buttons.

@@ -1,41 +1,62 @@
 import { useEffect } from 'react';
 import { isNative } from '@chatic/bridges';
+import { config } from '@chatic/config';
+import type { PreferenceKey } from '@chatic/app-messages';
 
 import { appBridge } from '../bridge';
-import { PREFERENCES } from '../stores/preferenceKeys';
-import { hasLocalPreference, usePreferenceStore } from '../stores/usePreferenceStore';
+import { parseThemeBridgeValue } from '../stores/preferenceParsers';
 
-// Keys managed by usePreferenceStore — only these are bridge-read on startup.
-// Language is handled by its own provider (i18n).
-const MANAGED_KEYS = ['blurLastMessage', 'isFirstRun', 'theme'] as const;
+interface ManagedKey {
+    /** The registry key `config` resolves this preference under. */
+    configKey: string;
+    /** The legacy `PreferenceKey` an app build old enough to lack the boot-injection bag still answers to. */
+    nativeKey: PreferenceKey;
+    /** Bridge value -> the value to write into `configKey`, or null to skip (unusable). */
+    decode: (value: unknown) => unknown;
+}
+
+// Only these three ever had a native-bridge-backed answer worth fetching — `language` is owned by
+// i18next, and every other `ui.*`/`debug.*` key is either `local`-only (nothing for native to
+// answer) or has no legacy bridge counterpart at all (see legacyPreferenceMigration.ts).
+const MANAGED_KEYS: readonly ManagedKey[] = [
+    {
+        configKey: 'ui.blurLastMessage',
+        nativeKey: 'blurLastMessage',
+        decode: value => value === true || value === 'true',
+    },
+    // isFirstRun's polarity is the inverse of onboardingCompleted's.
+    {
+        configKey: 'ui.onboardingCompleted',
+        nativeKey: 'isFirstRun',
+        decode: value => !(value === true || value === 'true'),
+    },
+    { configKey: 'ui.theme', nativeKey: 'theme', decode: parseThemeBridgeValue },
+];
 
 /**
- * Bridge fallback read: fills the store from native storage for any managed key
- * that is not already in the local cache.
+ * Bridge fallback read: fills `@chatic/config`'s shell lane for any managed key the boot-injection
+ * bag did not already answer (an app build that predates `CHATIC_APP_CONFIG_BAG` — web ships before
+ * the app).
  *
- * Runs only on native, and only for cache misses — a value already in
- * localStorage wins and never triggers a bridge round-trip. When the bridge has
- * no value either, the store keeps its synchronous default.
- *
- * For `theme` this is only a FALLBACK. The shell injects the persisted theme as
- * `window.CHATIC_APP_THEME` before content loads and readInitialTheme() seeds the
- * cache from it, so the bridge read here is skipped except on older shells that
- * predate the injection. It has to be a fallback: this component is mounted inside
- * AppRuntime, which gates its subtree on session readiness, so its values arrive
- * well after the first paint.
+ * Runs only on native, and only for keys `config.init()` resolved to nothing but the floor
+ * (`defaultValue`/a stage rule) — a value already supplied by the shell (the common case, once the
+ * app updates) or by a prior local mirror never triggers a bridge round-trip. Written back through
+ * `config.set(..., { lane: 'shell' })`, the same lane the boot injection itself would have used, so
+ * this is exactly a slower version of what the injection already does — including feeding the same
+ * local-storage mirror (`ConfigFacade`'s own `persist: 'shell'` fallback), so the NEXT boot resolves
+ * synchronously without needing this fetch again, even before the app itself updates.
  *
  * Renders nothing; mounted once under AppRuntime.
  */
 export const PreferenceLoader = (): null => {
-    const hydrate = usePreferenceStore(state => state.hydrate);
-
     useEffect(() => {
         if (!isNative()) return;
-        MANAGED_KEYS.forEach(name => {
-            if (hasLocalPreference(name)) return; // local cache wins — skip the bridge read
-            appBridge.fetchPreference({ key: PREFERENCES[name].nativeKey }).then(preference => {
-                // Only hydrate when the bridge actually holds a value; otherwise keep the default.
-                if (preference.data.value != null) hydrate(preference.data.key, preference.data.value);
+        MANAGED_KEYS.forEach(({ configKey, nativeKey, decode }) => {
+            if (config.snapshot(configKey)?.isOverridden) return; // shell or local already answered
+            appBridge.fetchPreference({ key: nativeKey }).then(response => {
+                if (response.data.value == null) return;
+                const decoded = decode(response.data.value);
+                if (decoded != null) config.set(configKey, decoded, { lane: 'shell' });
             });
         });
     }, []);

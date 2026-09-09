@@ -23,9 +23,11 @@ let mutedState = false;
 const setPushMutedMock = jest.fn((value: boolean) => {
     mutedState = value;
 });
-jest.mock('../../../stores/usePreferenceStore', () => ({
-    usePreferenceStore: (selector: (state: { pushMuted: boolean; setPushMuted: (v: boolean) => void }) => unknown) =>
-        selector({ pushMuted: mutedState, setPushMuted: setPushMutedMock }),
+jest.mock('@chatic/config', () => ({
+    config: { set: (_key: string, value: boolean) => setPushMutedMock(value) },
+}));
+jest.mock('@chatic/config/react', () => ({
+    useConfigValue: () => mutedState,
 }));
 
 const updateRemotePushMuteMock = jest.fn();

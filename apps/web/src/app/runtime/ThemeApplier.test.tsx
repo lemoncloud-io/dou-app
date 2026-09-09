@@ -1,19 +1,16 @@
 import { act, render } from '@testing-library/react';
 
+import { useConfigValue } from '@chatic/config/react';
 import { ThemeApplier } from './ThemeApplier';
-import { usePreferenceStore } from '../stores/usePreferenceStore';
 
-// Mock the bridge chain the same way usePreferenceStore.test.ts does — the
-// component exercises the real store, which touches these on writes.
-jest.mock('@chatic/bridges', () => ({
-    isNative: jest.fn(() => false),
+jest.mock('@chatic/config', () => ({
+    config: { set: jest.fn() },
+}));
+jest.mock('@chatic/config/react', () => ({
+    useConfigValue: jest.fn(),
 }));
 
-jest.mock('../bridge', () => ({
-    appBridge: {
-        savePreference: jest.fn(),
-    },
-}));
+const mockUseConfigValue = useConfigValue as jest.MockedFunction<typeof useConfigValue>;
 
 // ---------------------------------------------------------------------------
 // matchMedia mock — jsdom does not implement it. setOsPrefersDark() simulates
@@ -43,7 +40,7 @@ beforeEach(() => {
     localStorage.clear();
     listeners.clear();
     osPrefersDark = false;
-    usePreferenceStore.setState({ theme: 'system' });
+    mockUseConfigValue.mockReturnValue('system');
     document.documentElement.classList.remove('light', 'dark');
     document.documentElement.style.removeProperty('--splash-bg');
     document.getElementById('theme-color-meta')?.remove();
@@ -60,7 +57,7 @@ const splashBg = () => document.documentElement.style.getPropertyValue('--splash
 
 describe('ThemeApplier — <html> 클래스 적용', () => {
     it("theme='light'면 html에 light 클래스를 적용한다", () => {
-        usePreferenceStore.setState({ theme: 'light' });
+        mockUseConfigValue.mockReturnValue('light');
         render(<ThemeApplier />);
 
         expect(rootClasses().contains('light')).toBe(true);
@@ -84,11 +81,13 @@ describe('ThemeApplier — <html> 클래스 적용', () => {
         expect(rootClasses().contains('light')).toBe(false);
     });
 
-    it('스토어에서 테마를 바꾸면 클래스가 즉시 반영된다', () => {
-        render(<ThemeApplier />);
+    it('설정값이 바뀌면 클래스가 즉시 반영된다', () => {
+        const { rerender } = render(<ThemeApplier />);
         expect(rootClasses().contains('light')).toBe(true);
 
-        act(() => usePreferenceStore.getState().setTheme('dark'));
+        mockUseConfigValue.mockReturnValue('dark');
+        rerender(<ThemeApplier />);
+
         expect(rootClasses().contains('dark')).toBe(true);
         expect(rootClasses().contains('light')).toBe(false);
     });
@@ -96,20 +95,21 @@ describe('ThemeApplier — <html> 클래스 적용', () => {
 
 describe('ThemeApplier — 시스템 UI 색상 동기화', () => {
     it('마운트 시 theme-color를 테마에 맞춘다', () => {
-        usePreferenceStore.setState({ theme: 'dark' });
+        mockUseConfigValue.mockReturnValue('dark');
         render(<ThemeApplier />);
 
         expect(themeColor()).toBe('#121212');
     });
 
     it('인앱 테마 변경이 리로드 없이 theme-color에 반영된다', () => {
-        usePreferenceStore.setState({ theme: 'light' });
-        render(<ThemeApplier />);
+        mockUseConfigValue.mockReturnValue('light');
+        const { rerender } = render(<ThemeApplier />);
         expect(themeColor()).toBe('#ffffff');
 
         // The pre-paint script only runs at boot, so without this the status-bar tint
         // stayed stale until the next reload.
-        act(() => usePreferenceStore.getState().setTheme('dark'));
+        mockUseConfigValue.mockReturnValue('dark');
+        rerender(<ThemeApplier />);
 
         expect(themeColor()).toBe('#121212');
     });
@@ -127,7 +127,7 @@ describe('ThemeApplier — 시스템 UI 색상 동기화', () => {
         // Coupling to id="theme-color-meta" meant dropping that attribute from index.html would
         // silently disable theme-color sync.
         document.getElementById('theme-color-meta')?.removeAttribute('id');
-        usePreferenceStore.setState({ theme: 'dark' });
+        mockUseConfigValue.mockReturnValue('dark');
 
         render(<ThemeApplier />);
 
@@ -136,14 +136,14 @@ describe('ThemeApplier — 시스템 UI 색상 동기화', () => {
 
     it('theme-color meta가 아예 없어도 예외 없이 동작한다', () => {
         document.getElementById('theme-color-meta')?.remove();
-        usePreferenceStore.setState({ theme: 'dark' });
+        mockUseConfigValue.mockReturnValue('dark');
 
         expect(() => render(<ThemeApplier />)).not.toThrow();
         expect(rootClasses().contains('dark')).toBe(true);
     });
 
     it('--splash-bg는 건드리지 않는다', () => {
-        usePreferenceStore.setState({ theme: 'dark' });
+        mockUseConfigValue.mockReturnValue('dark');
         render(<ThemeApplier />);
 
         // Its only consumer is the #splash placeholder inside #root, which React has already

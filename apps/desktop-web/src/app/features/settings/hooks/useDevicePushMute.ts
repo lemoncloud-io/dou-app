@@ -19,9 +19,9 @@ import { useNotificationPrefsStore } from '../../../shared/stores';
  * disabled there, with a reason rather than a silently greyed control.
  *
  * `apps/web` has a hook of the same name and shape. It is not shared: that one reads
- * the mobile-only `usePreferenceStore` and reports failure through a toast this app
- * does not use, so lifting it would mean parameterising both — more work than the
- * fifty lines it would save, and a seam neither app asked for.
+ * `@chatic/config`'s `ui.pushMuted` and reports failure through a toast this app does not use, so
+ * lifting it would mean parameterising both — more work than the fifty lines it would save, and a
+ * seam neither app asked for.
  */
 export const useDevicePushMute = () => {
     const { device } = runtime.data.useRuntimeRepositories();

@@ -50,7 +50,7 @@
 - 노출면 셋(`dev` · `user` · `labs`)의 키 선언
 - 기기 상태 로그 (부팅 1회 + 변경 시)
 - `apps/desktop-web` 이관 — `import.meta.env` 7파일 · `CHATIC_APP_*` 2파일 ·
-  `usePreferenceStore` 1파일 (2026-09-09 지시로 범위 편입)
+  `useNotificationPrefsStore` 1파일 (2026-09-09 지시로 범위 편입, 5단계에서 스토어 이름 정정)
 
 **제외**
 
@@ -502,15 +502,125 @@ npx tsc --noEmit -p apps/desktop-web/tsconfig.app.json               # 17건 —
 있어야 재현 가능해 이번 세션에서는 하지 못했다 — 대신 `shellKvAdapter.test.ts`의 `NOT_FOUND` 강등
 테스트와 `ConfigKvService.test.ts`의 던지기 테스트로 그 두 경로를 각각 고정했다.
 
-### 5. 옵션 흡수
+### 5. 옵션 흡수 — **완료 2026-09-09**
 
-- [ ] `PREFERENCES` 12키 + `logUploadSwitch` 3키 이관
-- [ ] **레거시 저장값 승계** — `vite-ui-theme` · `chatic-onboarding-completed` ·
-      `dou.relayInvite.locallyCanceled.v1` 등. 일회성, 부팅 1회
-- [ ] `usePreferenceStore` 해체 → 셀렉터 훅. 소비 20파일 전부 (desktop-web 1파일 포함)
-- [ ] 모바일 `debugSettingsStore` 통합
+- [x] `PREFERENCES` 이관 — 실제 store-managed 10키 중 9키(`canceledInvites`는 이관 대상이 아님, 아래
+      참고) + `logUploadSwitch` 3키
+- [x] **레거시 저장값 승계** — `chatic-onboarding-completed`·`chatic-blur-last-message`·
+      `chatic-push-muted`·`chatic-channel-sort`·`chatic-pinned-channels`·
+      `chatic-dismissed-update-version`·`chatic-cloud-promo-dismissed-at`·`chatic-recent-searches`·
+      `dou.relayInvite.locallyCanceled.v1`. 일회성, 부팅 1회. `vite-ui-theme`는 별도 취급(아래 참고)
+- [x] `usePreferenceStore` 해체 → 셀렉터 훅. 실제 소비자 26파일(추정 20파일과 다름 — 아래 참고)
+- [ ] 모바일 `debugSettingsStore` 통합 — **보류.** 4단계와 같은 이유: `mockServiceMode` 등 4필드는
+      쓰는 곳이 없는 필드다(디버그 패널 자체가 아직 없다). `logUploadHold`/`debugModeEnabled`는 이
+      스토어와 무관한 기존 전용 브릿지 메시지로 이미 동작하므로 손대지 않았다
 
-**검증**: 기존 사용자의 테마·온보딩 상태가 유지되는지 (가짜 스토리지로 재현) · web 2600여 테스트 통과
+**검증**: web 2433개 통과(신규 75건 포함, 폐기된 `usePreferenceStore.test.ts`의 중복 커버리지를
+빼면 순감소가 아니다) · config 99개 통과(핵심 변경 2건, 아래 참고) · app-runtime 585 · admin-v2·
+testbed·desktop-web 타입체크 불변(desktop-web 17건, 3단계와 동일 원인)
+
+**핵심 발견 세 가지 — 실제 소비자를 처음 연결하며 코어의 결함이 드러났다**
+
+1. **잠금 게이트가 "사용자 자신의 조작"까지 막고 있었다.** `ui.pushMuted`·`ui.channelSort`·
+   `ui.pinnedChannels`·`ui.recentSearches`·`ui.cloudPromoDismissedAt`·`ui.dismissedUpdateVersion`
+   6키는 `writableBy: ['local']`뿐이다. 기존 `ConfigLanePolicy.canSupply`/`ConfigFacade.set`/
+   `clear`의 잠금 검사는 `meta` 키만 면제하고 나머지 모든 `local` 레인 쓰기를 PROD 기본 잠금
+   상태에서 거부했다 — **1~4단계는 `env.*`/`net.*`/`log.*`(전부 `persist:'none'`, 즉 오버라이드가
+   없는 값)만 다뤄서 이 결함이 드러날 기회가 없었다.** 이번에 처음으로 실제 사용자 기능(채널
+   고정·정렬·최근검색·푸시음소거·업데이트dismiss)에 로컬 오버라이드를 연결하자마자, PROD에서
+   이 여섯 기능이 **영구히 먹통**이 되는 게 드러났다 — 대체 writer가 없기 때문이다.
+   **고침**: `ConfigLanePolicy.canSupply`/`writersFor`, `ConfigFacade.set`/`clear`의 잠금 조건에
+   `entry.surface === 'dev'`를 추가했다 — 잠금은 QA가 개발자용 기본값을 몰래 뒤집는 것을
+   막으려는 장치이지, 사용자가 자기 화면에서 하는 평범한 조작을 막으려는 게 아니다. `surface`가
+   이미 그 구분(`dev` = QA/개발 레버, `user`/`internal`/`labs` = 평범한 제품 상태)을 갖고 있었다.
+   `ui.theme`/`ui.blurLastMessage`/`ui.onboardingCompleted`(모두 surface `user`/`internal`)는
+   `shell` 레인으로 쓰므로 원래도 이 게이트를 안 탔다 — 영향은 없다. 기존 91개 테스트의
+   `entry()` 픽스처가 전부 `surface:'dev'` 기본값이라 회귀 없이 통과했고, 신규 테스트 8건을
+   `ConfigLanePolicy.spec.ts`/`index.spec.ts`에 추가했다.
+2. **`persist: 'shell'`에 브라우저용 대비책이 없었다.** 셸이 없는 평범한 브라우저에서
+   `ui.theme`/`ui.blurLastMessage`/`ui.onboardingCompleted`를 저장하면 `persist()`가
+   `writeShellConfirmed()`만 부르고 끝났다 — `ports.shell`이 없으니 브릿지도 로컬스토리지도
+   아무것도 안 남고, 다음 새로고침에 값이 사라진다. 기존 `usePreferenceStore`는 정확히 이 세
+   키에 `'native+local'` 전략(항상 로컬에 쓰고, 네이티브면 추가로 브릿지에도)을 썼는데 그
+   이유가 이거였다. **고침**: `storageFor('shell')`이 `local` 스토리지로도 해석되게 해서,
+   `persist:'shell'` 키가 (a) 네이티브 브릿지로 동기화하고 **동시에** (b) 같은 `local` 스토리지에
+   거울 사본을 남기도록 했다. `hydrateStorage()`가 이 거울을 `local` 레인으로 읽어들이므로,
+   셸이 있으면 `shell` 레인이 항상 이기고(우선순위 불변) 셸이 없는 브라우저는 이 거울로
+   대체한다. 신규 테스트 4건(`index.spec.ts`).
+3. **`SaveConfigValue`만으로는 네이티브 자신의 UI가 갱신되지 않는다.** `ui.theme`을
+   `config.set(..., {lane:'shell'})`로만 쓰면 `ConfigKvService`(범용 KV)는 갱신되지만, 네이티브의
+   상태바·루트 배경과 `window.CHATIC_APP_THEME` 사전 주입이 실제로 보는 건 `usePreferenceCacheHandler`가
+   갱신하는 **별개의** 옛 `themeStore`다 — `SaveConfigValue` 메시지는 `useConfigKvHandler`로만
+   가고 `themeStore`를 전혀 건드리지 않는다. 그대로 뒀다면 웹에서 테마를 바꿔도 네이티브 UI가
+   구버전에 멈춰 있었을 것이다. **고침**: `hooks/useTheme.ts`의 `setTheme`이 `config.set()`과
+   별개로 `appBridge.savePreferenceConfirmed({key:'theme', ...})`(확인 응답 + 1회 재시도)를
+   **항상**(NOT_FOUND 폴백이 아니라 무조건) 함께 보낸다 — 옛 `usePreferenceStore.setTheme`이
+   원래 하던 일 그대로다. `blurLastMessage`/`onboardingCompleted`(나머지 두 `persist:'shell'`
+   키)는 네이티브 쪽에 저장만 될 뿐 반응하는 UI/전역이 없어 이 이중 쓰기가 필요 없다 — 확인 후
+   해당 없음. 신규 테스트 4건(`useTheme.test.tsx`).
+
+**`ui.theme`는 승계가 아니라 영구 미러링이다.** `vite-ui-theme`는 `apps/web`만의 키가 아니었다 —
+`index.html` 프리페인트 스크립트 5개(web·desktop-web·admin-v2·testbed·block-kit-builder)와
+`@chatic/theme`의 `ThemeProvider`(admin-v2·desktop-web·landing)가 전부 이 정확한 문자열 키를
+직접 읽고 쓴다("공유 기기에서 한 가지 설정을 유지"하려는 명시적 설계). 다른 8키처럼 옛 키를 새
+키로 옮기고 지우면 이 5곳이 전부 깨진다. 그래서 `syncThemeFromSharedKey()`는 일회성이 아니라
+**매 부팅** `vite-ui-theme`를 읽어 `ui.theme`의 네임스페이스 저장소로 동기화하고, `vite-ui-theme`
+자체는 절대 지우지 않는다. `useTheme.ts`의 `setTheme`도 `config.set()`과 별개로 `vite-ui-theme`에
+직접 쓴다 — 같은 기기의 다른 앱이 계속 정상 작동해야 하기 때문이다.
+
+**20파일이 아니라 26파일이었다 — 그리고 desktop-web은 0파일이었다.** 실측(Explore 서브에이전트):
+제품 코드 14 + 정적 import 테스트 5(자기 자신의 spec 포함) + `jest.mock` 경로 문자열만 쓰는
+테스트 7 = 26. `apps/desktop-web`은 **0파일**이다 — 4·5단계 문서가 지목한
+`features/settings/hooks/useDevicePushMute.ts`는 주석에서만 "usePreferenceStore"를 언급할 뿐,
+실제로는 desktop-web 자신의 독립된 `useNotificationPrefsStore`를 쓴다. 문서의 근거는 identifier
+grep이 주석과 실제 import를 구분하지 않은 것으로 보인다 — **grep 결과를 그대로 카운트로 쓰지
+않고 각 hit이 import인지 주석인지 확인할 것**(반복 교훈 다섯 번째와 같은 종류).
+
+**`canceledInvites`는 config 키가 되지 않는다.** `usePreferenceStore`의 12개 필드 선언 중 실제로
+zustand 상태였던 건 10개뿐이었다 — `language`/`debugSettings`는 "참고용으로만 등록"되어 있었을
+뿐 store가 관리한 적이 없다(아래 참고). 10개 중 9개는 `ui.*`로 이관했고, `canceledInvites`
+(ADR-0043 시절의 레거시 취소 스탬프)는 그 자체가 **드레이닝 중인 일회성 마이그레이션 소스**다 —
+`useInviteDismissMigration`이 invite 캐시의 `dismissedAt`으로 옮기고 나면 영영 안 쓴다. 새
+레지스트리 키로 만들 이유가 없어, `useInviteDismissMigration.ts`를 `usePreferenceStore`에서
+완전히 떼어내 레거시 키(`dou.relayInvite.locallyCanceled.v1`)를 직접 읽고 지우게 고쳤다 — 기존
+마이그레이션 완료 플래그(`chatic-invite-dismiss-migrated`) 방식은 그대로다.
+
+**`language`/`debugSettings`는 애초에 죽은 선언이었다.** `PREFERENCES.language`(localKey
+`chatic-language`)와 `PREFERENCES.debugSettings`(sessionKey `chatic_debug_mode`)는 리포 전체에서
+자기 자신의 선언 말고는 읽거나 쓰는 곳이 **0곳**이었다(Explore 서브에이전트가 전수 확인). 언어는
+i18next의 `LanguageDetector`가 완전히 별도 키(`@${PROJECT}_${ENV}.i18nextLng`)로 자체 관리하고,
+`debugSettings`는 ADR-0080 결정 13이 지운 URL 전환 기능의 잔재다. `ui.language` 레지스트리
+키(2단계에서 이미 선언됨)는 **여전히 소비자가 없다** — i18next를 config로 갈아끼우는 건 훨씬 더
+큰 별개 작업이라 이번 단계에 넣지 않았다.
+
+**`logUploadSwitch`의 빌드 플래그는 레지스트리 기본값으로 옮기지 못했다.** `registry/log.ts`의
+원래 주석은 "빌드 플래그가 `log.upload.enabled`의 기본값이 되고 강제가 그 로컬 오버라이드가
+된다"고 적어 뒀지만, `envDefaultKey`는 raw 빌드값을 **그대로**(반전 없이, 문자열
+그대로) 기본값으로 쓰는 메커니즘이라 "빌드 플래그의 반대"를 표현할 수 없다. 새 필드(예:
+`envDefaultTransform`)를 코어에 추가하는 대신, 빌드 플래그는 **레지스트리 밖에서 별도 입력으로
+유지**했다 — `createLogUploadSwitch(disabledByBuild)`가 여전히 인자로 받고,
+`config.snapshot('log.upload.enabled').isOverridden`으로 "누가 명시적으로 강제했는가"만 config에
+묻는다. 오버라이드가 있으면 그 값이 빌드 설정을 이기고(강제), 없으면 빌드 플래그가 정한다 —
+동작은 원래와 동일하고, 레지스트리 쪽의 `defaultValue: true`는 이 특정 키에서는 (오버라이드가
+없을 때) 실제로 안 쓰인다는 게 지금은 명시적이다. `log.upload.hold`의 앱 주입 전역
+(`CHATIC_APP_LOG_UPLOAD_HOLD`)도 이 스토어와 무관한 기존 채널 그대로 남겨뒀다 — 위 "모바일
+debugSettingsStore 통합 보류"와 같은 이유다.
+
+**새로 만든 파일 — 소스 6개** (+ 대응 테스트 6개, 그리고 기존 `PreferenceLoader.tsx`의 신규 테스트
+`PreferenceLoader.test.tsx` — 신규 파일 총 13개)
+
+| 파일                                                   | 역할                                                                                                                                               |
+| ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/web/src/app/stores/preferenceParsers.ts`         | `usePreferenceStore`에서 뽑아낸 방어적 파서/정규화 함수 — `channelSort`/`pinnedChannels`/`recentSearches`/`cloudPromoDismissedAt`/레거시 테마 봉투 |
+| `apps/web/src/app/config/legacyPreferenceMigration.ts` | 옛 키 → `storageKeyFor(newKey)` 일회성 이관 + `vite-ui-theme` 영구 동기화                                                                          |
+| `apps/web/src/app/hooks/useOnboarding.ts`              | `ui.onboardingCompleted` 셀렉터 훅 (`isFirstRun`/`completeOnboarding`/`resetOnboarding`)                                                           |
+| `apps/web/src/app/hooks/useBlurLastMessage.ts`         | `ui.blurLastMessage` 셀렉터 훅                                                                                                                     |
+| `apps/web/src/app/hooks/useChannelSort.ts`             | `ui.channelSort` 셀렉터 훅 (병합 쓰기)                                                                                                             |
+| `apps/web/src/app/hooks/usePinnedChannels.ts`          | `ui.pinnedChannels` 셀렉터 훅 (핀/언핀)                                                                                                            |
+
+기존 파일 중 `useTheme.ts`·`useRecentSearches.ts`·`useCloudPromo.ts`·`useAppUpdatePrompt.ts`·
+`useDevicePushMute.ts`(web)는 이미 전용 래퍼 훅이 있어 내부만 갈아끼웠다(외부 API 불변) —
+새 파일로 세지 않았다.
 
 ### 6. desktop-web 이관
 
@@ -520,7 +630,9 @@ npx tsc --noEmit -p apps/desktop-web/tsconfig.app.json               # 17건 —
 - [ ] `apps/desktop-web/src/app/config/adapters.ts` — `import.meta.env` + Electron preload 주입
 - [ ] `import.meta.env` 직독 7파일 이관 (`VITE_ENV` · `VITE_DESKTOP_PROTOCOL`)
 - [ ] `CHATIC_APP_*` 직독 2파일 이관
-- [ ] `usePreferenceStore` 1파일 이관 (`features/settings/hooks/useDevicePushMute.ts`)
+- [ ] `useNotificationPrefsStore` 1파일 이관 (`features/settings/hooks/useDevicePushMute.ts`) — 5단계에서
+      정정: desktop-web은 `usePreferenceStore`를 쓴 적이 없다(주석의 착오였다), 이건 desktop-web
+      자신의 별개 알림 설정 스토어다
 - [ ] `main.tsx`의 web-config 주석 정정 (코드 변경 없음)
 
 **검증**: `tsc -b`로 desktop-web 타입체크 — **선재 부채 19건이 있으므로 기준선을 먼저 기록하고 늘지
@@ -539,7 +651,7 @@ npx tsc --noEmit -p apps/desktop-web/tsconfig.app.json               # 17건 —
 
 | 리스크                                                | 크기 | 대응                                                                                                                                                                           |
 | ----------------------------------------------------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **레거시 저장값 승계 실패**                           | 최대 | 5단계를 마지막에. 가짜 스토리지로 기존 사용자 재현 테스트                                                                                                                      |
+| ~~레거시 저장값 승계 실패~~                           | 해소 | 5단계에서 9키 일회성 이관 + `vite-ui-theme` 영구 미러링 구현·테스트 완료(가짜 스토리지 재현)                                                                                   |
 | `appliesAt` 84개가 실제 소비와 어긋남                 | 큼   | 기본값 `restart`. `live`는 구독 소비자를 지목해 증명                                                                                                                           |
 | 부팅 순서 깨짐 (`main.tsx` 계약)                      | 큼   | 3단계에서 순서를 명시 호출로 만들고 게스트 부팅 수동 확인                                                                                                                      |
 | ~~구 셸 폴백이 5키뿐이라 내구성 키가 조용히 안 남음~~ | 해소 | 4단계에서 목록화 완료 — 폴백 대상은 `ui.*` 4키뿐이고 나머지 5키(`system.remote.enabled`·`debug.mockService.*`·`debug.overlay.*`)는 이번에 신설된 키라 잃을 기존 값 자체가 없다 |

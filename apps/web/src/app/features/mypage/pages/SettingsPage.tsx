@@ -11,8 +11,7 @@ import { runtime } from '@chatic/app-runtime';
 
 import { AppIconSelectSheet, LanguageSelectSheet, LogoutDialog } from '../components';
 import { useAppIcon } from '../hooks';
-import { useTheme } from '../../../hooks';
-import { usePreferenceStore } from '../../../stores/usePreferenceStore';
+import { useOnboarding, useTheme } from '../../../hooks';
 import { DebugUnlockDialog, debugOverlayActions, useDebugMode, useDebugUnlock } from '../../debug';
 import { useAppUpdateStatus } from '../../appUpdate';
 import { PageHeader } from '../../../ui/components';
@@ -34,7 +33,7 @@ export const SettingsPage = () => {
 
     const { setTheme, isDarkTheme } = useTheme();
     const { deviceInfo, versionInfo } = useDeviceInfo();
-    const { resetOnboarding } = usePreferenceStore();
+    const { resetOnboarding } = useOnboarding();
     const { isEnabled: isDebugMode } = useDebugMode();
     const { isChallengeOpen, hasError, registerTap, submitCode, cancelChallenge } = useDebugUnlock(DEBUG_CODE);
     const { updateAvailable } = useAppUpdateStatus();

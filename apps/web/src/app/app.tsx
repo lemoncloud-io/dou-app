@@ -112,7 +112,7 @@ export function App() {
         <HelmetProvider>
             <I18nextProvider i18n={i18n}>
                 <QueryClientProvider client={queryClient}>
-                    {/* Theme state lives in usePreferenceStore; ThemeApplier only mirrors it to <html>. */}
+                    {/* Theme state lives in @chatic/config's ui.theme; ThemeApplier only mirrors it to <html>. */}
                     <ThemeApplier />
                     <ErrorBoundary FallbackComponent={ErrorFallback} onError={handleError}>
                         <GlobalBridgeListener />

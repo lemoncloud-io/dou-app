@@ -10,6 +10,7 @@ import { setStorageAdapter } from '@chatic/shared';
 import { runtime } from '@chatic/app-runtime';
 
 import { webConfigPorts } from './app/config/adapters';
+import { migrateLegacyPreferences, syncThemeFromSharedKey } from './app/config/legacyPreferenceMigration';
 
 import App from './app/app';
 import { appBridge, pendingNavigationStore } from './app/bridge';
@@ -50,6 +51,14 @@ startLogUploader({
     // watching this build, `debug` is worth keeping; if not, nothing can read it.
     keepDebug: import.meta.env.DEV,
 });
+
+// One-time carry-over of usePreferenceStore's pre-@chatic/config localStorage keys (ADR-0079
+// "레거시 저장값 승계") — must run before `config.init()` below, whose `hydrateStorage()` is what
+// actually reads the keys these write. `syncThemeFromSharedKey` is not one-time: `vite-ui-theme` stays
+// the durable, cross-app key (five apps' pre-paint scripts and `@chatic/theme`'s `ThemeProvider` all
+// read/write it directly), re-synced into `ui.theme`'s own storage on every boot.
+migrateLegacyPreferences();
+syncThemeFromSharedKey();
 
 // Wires `@chatic/config` to this build's `import.meta.env`/injected globals — an explicit call
 // instead of `@chatic/web-config`'s former import-time side effect (ADR-0079 결정 1·11). Everything

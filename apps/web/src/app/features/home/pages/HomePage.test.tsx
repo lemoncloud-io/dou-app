@@ -81,15 +81,12 @@ jest.mock('../../../hooks', () => ({
     useMyJoins: () => new Map(),
     useOtherCloudUnread: () => ({ byCloud: {}, total: 0, refresh: jest.fn() }),
     useScrollRestoration: () => ({ containerRef: { current: null }, onScroll: jest.fn() }),
+    useOnboarding: () => ({ isFirstRun: false, completeOnboarding: jest.fn() }),
+    useChannelSort: () => ({ channelSort: {}, setChannelSort: jest.fn() }),
+    usePinnedChannels: () => ({ pinnedChannels: {}, setChannelPinned: jest.fn() }),
 }));
 jest.mock('../stores/useCloudPushMarkStore', () => ({
     useCloudPushMarkStore: (selector: (state: { badged: Record<string, true> }) => unknown) => selector({ badged: {} }),
-}));
-jest.mock('../../../stores/usePreferenceStore', () => ({
-    usePreferenceStore: (sel?: (s: unknown) => unknown) => {
-        const state = { isFirstRun: false, completeOnboarding: jest.fn(), channelSort: {}, pinnedChannels: {} };
-        return sel ? sel(state) : state;
-    },
 }));
 jest.mock('../../../stores/usePendingInviteChannel', () => ({ usePendingInviteChannel: () => null }));
 jest.mock('../../../ui/components', () => ({ BottomNavSpacer: () => <div /> }));
