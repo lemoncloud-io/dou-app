@@ -397,16 +397,13 @@ http-data-source)는 2단계에서 붙는다. relay 경로 executor에는 web-co
 
 ## 검증 방법
 
-아래 4개 lib이 project reference로 연결돼 있어(`tsconfig.lib.json`의 `references`), 하나를 빌드하면
-의존 그래프 전체가 함께 검증된다.
+`libs/app-runtime`의 `tsconfig.lib.json`이 이 lib을 포함해 형제 lib들을 project reference로 물고
+있어서, app-runtime 하나를 빌드하면 의존 그래프 전체가 함께 검증된다. (1단계 당시 4개였고 지금은
+더 늘었다 — 정확한 목록은 그 파일의 `references` 배열이다.) `libs/http` 자신은 `@chatic/*` 의존이
+0이라 `references`가 비어 있다.
 
-**실측 (2026-09-07)** — 1단계 당시 값에서 갱신했다. `libs/web-core` 행은 사라졌다(패키지 삭제).
-
-| 대상               | 결과                     |
-| ------------------ | ------------------------ |
-| `libs/http` jest   | **13스위트 / 84케이스**  |
-| `libs/app-runtime` | **62스위트 / 517케이스** |
-| `tsc -b`           | 0건                      |
+수치는 적지 않는다 — 아래 명령이 답한다. (예전 이 자리에 있던 `libs/web-core` 행은 패키지와 함께
+사라졌고, 남은 두 줄 중 app-runtime 값은 그새 낡아 있었다.)
 
 `libs/http` 스펙이 지키는 것: `error/classify.spec.ts`(분류) · `log/networkLog.spec.ts`(sink 목 —
 redact는 sink 책임이라 raw 값으로 검증) · `client.spec.ts`(실행기 라우팅) ·
