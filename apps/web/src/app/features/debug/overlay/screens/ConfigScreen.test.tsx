@@ -52,12 +52,15 @@ describe('ConfigScreen', () => {
         clear.mockReturnValue({ ok: true });
     });
 
-    it('키와 값, 이긴 행을 함께 보여준다', () => {
+    // 점 찍힌 키는 구현 세부다 — 레지스트리가 이미 사람이 읽는 이름과 한 문장 설명을 갖고 있다.
+    it('키 대신 이름과 설명, 값과 이긴 행을 보여준다', () => {
         render(<ConfigScreen />);
 
-        expect(screen.getByText('log.upload.hold')).toBeInTheDocument();
+        expect(screen.getByText('로그 업로드 보류')).toBeInTheDocument();
+        expect(screen.getByText('보류한다')).toBeInTheDocument();
         expect(screen.getByText(/true/)).toBeInTheDocument();
         expect(screen.getByText(/· local/)).toBeInTheDocument();
+        expect(screen.queryByText('log.upload.hold')).not.toBeInTheDocument();
     });
 
     it('오버라이드된 것을 먼저, 나머지를 따로 센다', () => {
@@ -78,7 +81,7 @@ describe('ConfigScreen', () => {
         ]);
         render(<ConfigScreen />);
 
-        expect(screen.queryByText('system.overridesUnlocked')).not.toBeInTheDocument();
+        expect(screen.queryByText('로그 업로드 보류')).not.toBeInTheDocument();
     });
 
     // 자격증명이고 이 화면은 복사 가능하다 (ADR-0079 결정 16).
@@ -86,18 +89,21 @@ describe('ConfigScreen', () => {
         snapshotAll.mockReturnValue([snap({ key: 'debug.entryCode', value: '1234' })]);
         render(<ConfigScreen />);
 
-        expect(screen.queryByText('debug.entryCode')).not.toBeInTheDocument();
         expect(screen.queryByText(/1234/)).not.toBeInTheDocument();
     });
 
     it('키나 이름으로 걸러낸다', async () => {
-        snapshotAll.mockReturnValue([snap(), snap({ key: 'net.relay.backend', isOverridden: false })]);
+        snapshotAll.mockReturnValue([
+            snap(),
+            snap({ key: 'net.relay.backend', isOverridden: false, entry: { ...snap().entry, title: '릴레이 주소' } }),
+        ]);
         render(<ConfigScreen />);
 
+        // 키는 화면에 없지만 검색어로는 여전히 통한다.
         await userEvent.type(screen.getByPlaceholderText(/찾기/), 'relay');
+        expect(screen.getByText('릴레이 주소')).toBeInTheDocument();
 
-        expect(screen.getByText('net.relay.backend')).toBeInTheDocument();
-        expect(screen.queryByText('log.upload.hold')).not.toBeInTheDocument();
+        expect(screen.queryByText('로그 업로드 보류')).not.toBeInTheDocument();
     });
 
     // 레지스트리가 없을 때 빈 목록을 그냥 보여주면 "설정이 없다"로 읽힌다.
@@ -121,7 +127,7 @@ describe('ConfigScreen', () => {
         snapshotAll.mockReturnValue([numberSnap()]);
         render(<ConfigScreen />);
 
-        await userEvent.click(screen.getByRole('button', { name: /net.retry.maxRetries/ }));
+        await userEvent.click(screen.getByRole('button', { name: /HTTP 재시도 횟수/ }));
         const input = screen.getByDisplayValue('4');
         await userEvent.clear(input);
         await userEvent.type(input, '9');
@@ -134,7 +140,7 @@ describe('ConfigScreen', () => {
         snapshotAll.mockReturnValue([numberSnap()]);
         render(<ConfigScreen />);
 
-        await userEvent.click(screen.getByRole('button', { name: /net.retry.maxRetries/ }));
+        await userEvent.click(screen.getByRole('button', { name: /HTTP 재시도 횟수/ }));
         const input = screen.getByDisplayValue('4');
         await userEvent.clear(input);
         await userEvent.type(input, 'abc');
@@ -147,7 +153,7 @@ describe('ConfigScreen', () => {
     it('불리언 키는 눌러서 뒤집는다', async () => {
         render(<ConfigScreen />);
 
-        await userEvent.click(screen.getByRole('button', { name: /log.upload.hold/ }));
+        await userEvent.click(screen.getByRole('button', { name: /로그 업로드 보류/ }));
         await userEvent.click(screen.getByRole('button', { name: '끄기' }));
 
         expect(set).toHaveBeenCalledWith('log.upload.hold', false, { lane: 'local' });
@@ -156,7 +162,7 @@ describe('ConfigScreen', () => {
     it('되돌리기는 오버라이드를 지운다', async () => {
         render(<ConfigScreen />);
 
-        await userEvent.click(screen.getByRole('button', { name: /log.upload.hold/ }));
+        await userEvent.click(screen.getByRole('button', { name: /로그 업로드 보류/ }));
         await userEvent.click(screen.getByRole('button', { name: '되돌리기' }));
 
         expect(clear).toHaveBeenCalledWith('log.upload.hold', { lane: 'local' });
@@ -167,7 +173,7 @@ describe('ConfigScreen', () => {
         set.mockReturnValue({ ok: false, reason: 'locked' });
         render(<ConfigScreen />);
 
-        await userEvent.click(screen.getByRole('button', { name: /log.upload.hold/ }));
+        await userEvent.click(screen.getByRole('button', { name: /로그 업로드 보류/ }));
         await userEvent.click(screen.getByRole('button', { name: '끄기' }));
 
         expect(screen.getByText('오버라이드 잠금이 걸려 있습니다')).toBeInTheDocument();
@@ -178,7 +184,7 @@ describe('ConfigScreen', () => {
         snapshotAll.mockReturnValue([snap({ canWrite: ['shell'] })]);
         render(<ConfigScreen />);
 
-        await userEvent.click(screen.getByRole('button', { name: /log.upload.hold/ }));
+        await userEvent.click(screen.getByRole('button', { name: /로그 업로드 보류/ }));
 
         expect(screen.queryByRole('button', { name: '끄기' })).not.toBeInTheDocument();
         expect(screen.getByText(/읽기 전용/)).toBeInTheDocument();
@@ -188,7 +194,7 @@ describe('ConfigScreen', () => {
         snapshotAll.mockReturnValue([numberSnap({ entry: { ...numberSnap().entry, appliesAt: 'restart' } })]);
         render(<ConfigScreen />);
 
-        await userEvent.click(screen.getByRole('button', { name: /net.retry.maxRetries/ }));
+        await userEvent.click(screen.getByRole('button', { name: /HTTP 재시도 횟수/ }));
 
         expect(screen.getByText(/재시작 후 적용/)).toBeInTheDocument();
     });

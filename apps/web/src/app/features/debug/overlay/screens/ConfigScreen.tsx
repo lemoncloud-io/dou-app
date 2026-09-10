@@ -182,23 +182,29 @@ const ConfigRow = ({ snapshot, onChanged }: { snapshot: ConfigSnapshot; onChange
 
     return (
         <div className="border-b border-border/60 py-1.5 last:border-b-0">
+            {/*
+             * The dotted key is an implementation detail: the registry already carries a human name
+             * and one sentence saying what the key changes, and reading 80 dotted paths is slower
+             * than reading 80 titles. The key stays searchable and stays in the JSON copy.
+             */}
             <button
                 type="button"
                 onClick={() => setIsOpen(open => !open)}
-                className="flex w-full items-start gap-2 text-left"
+                className="flex w-full flex-col gap-0.5 text-left"
             >
-                <span className="w-40 shrink-0 truncate font-mono text-[11px] text-muted-foreground">{key}</span>
-                <span className="flex-1 break-all font-mono text-xs">
-                    {show(value)}
-                    <span className="ml-1 text-muted-foreground">· {origin}</span>
+                <span className="flex w-full items-baseline gap-2">
+                    <span className="flex-1 truncate text-[13px] font-medium text-foreground">{entry.title}</span>
+                    <span className="shrink-0 break-all font-mono text-[11px]">
+                        {show(value)}
+                        <span className="ml-1 text-muted-foreground">· {origin}</span>
+                    </span>
                 </span>
-                {canEdit && <span className="shrink-0 text-[10px] text-muted-foreground">{isOpen ? '−' : '수정'}</span>}
+                <span className="line-clamp-1 text-[11px] text-muted-foreground">{entry.description}</span>
             </button>
 
             {isOpen && (
                 <div className="mt-2 rounded-lg bg-muted/40 p-2.5">
-                    <p className="text-[12px] font-medium text-foreground">{entry.title}</p>
-                    <p className="mt-0.5 text-[11px] text-muted-foreground">{entry.description}</p>
+                    <p className="text-[11px] text-muted-foreground">{entry.description}</p>
                     <p className="mt-1 text-[11px] text-muted-foreground">
                         기본 {show(entry.defaultValue)} · {entry.type} · {APPLIES_AT_TEXT[entry.appliesAt ?? 'restart']}
                     </p>
