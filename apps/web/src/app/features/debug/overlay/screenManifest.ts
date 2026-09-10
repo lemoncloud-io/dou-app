@@ -34,11 +34,6 @@ interface DebugScreenEntry {
     /** lucide-react icon name; resolved to a component in `screenIcons` so this stays pure data. */
     icon: string;
     section: DebugSectionKey;
-    /**
-     * Pinned to the dock's tab strip for one-tap switching while the app underneath is driven.
-     * Inspection only: a screen that changes something belongs in the menu, not a stray tap away.
-     */
-    pinned?: boolean;
     /** Forces this size on open. Only for screens whose content cannot be read in the dock. */
     size?: DebugPanelSize;
     load: () => Promise<{ default: ComponentType }>;
@@ -50,28 +45,24 @@ export const DEBUG_SCREENS = [
         key: 'State',
         icon: 'Activity',
         section: 'info',
-        pinned: true,
         load: () => import('./screens/StateScreen').then(m => ({ default: m.StateScreen })),
     },
     {
         key: 'Boot',
         icon: 'Rocket',
         section: 'info',
-        pinned: true,
         load: () => import('./screens/BootScreen').then(m => ({ default: m.BootScreen })),
     },
     {
         key: 'Perf',
         icon: 'Gauge',
         section: 'info',
-        pinned: true,
         load: () => import('./screens/PerfScreen').then(m => ({ default: m.PerfScreen })),
     },
     {
         key: 'Unread',
         icon: 'Bell',
         section: 'info',
-        pinned: true,
         load: () => import('./screens/UnreadScreen').then(m => ({ default: m.UnreadScreen })),
     },
     {
@@ -80,7 +71,6 @@ export const DEBUG_SCREENS = [
         key: 'Route',
         icon: 'Route',
         section: 'info',
-        pinned: true,
         load: () => import('./screens/RouteScreen').then(m => ({ default: m.RouteScreen })),
     },
     {
@@ -100,7 +90,7 @@ export const DEBUG_SCREENS = [
         // 앱의 환경설정 화면에서 옮겨온 절반 (ADR-0080 결정 13 · 미결 4). PROD는 앱이 거부한다.
         key: 'CustomZip',
         icon: 'FileArchive',
-        section: 'info',
+        section: 'tools',
         load: () => import('./screens/CustomZipScreen').then(m => ({ default: m.CustomZipScreen })),
     },
     {
@@ -120,19 +110,15 @@ export const DEBUG_SCREENS = [
         load: () => import('./screens/BridgeScreen').then(m => ({ default: m.BridgeScreen })),
     },
     {
-        // Logs are pinned for the same reason the DB browser is: what you want to read is what the
-        // app writes *while you drive it*.
         key: 'LogBuffer',
         icon: 'ScrollText',
         section: 'tools',
-        pinned: true,
         load: () => import('./screens/LogBufferScreen').then(m => ({ default: m.LogBufferScreen })),
     },
     {
         key: 'CacheMetrics',
         icon: 'BarChart3',
         section: 'tools',
-        pinned: true,
         load: () => import('./screens/CacheMetricsScreen').then(m => ({ default: m.CacheMetricsScreen })),
     },
     {
@@ -176,12 +162,6 @@ export const DEBUG_SCREENS = [
         load: () => import('./screens/OAuthScreen').then(m => ({ default: m.OAuthScreen })),
     },
     {
-        key: 'AppIcon',
-        icon: 'Image',
-        section: 'tools',
-        load: () => import('./screens/AppIconScreen').then(m => ({ default: m.AppIconScreen })),
-    },
-    {
         key: 'Iap',
         icon: 'CreditCard',
         section: 'tools',
@@ -207,14 +187,7 @@ export const DEBUG_SCREENS = [
         key: 'DBBrowser',
         icon: 'Database',
         section: 'data',
-        pinned: true,
         load: () => import('./screens/DBBrowserScreen').then(m => ({ default: m.DBBrowserScreen })),
-    },
-    {
-        key: 'ProfileEditor',
-        icon: 'UserCog',
-        section: 'data',
-        load: () => import('./screens/ProfileEditorScreen').then(m => ({ default: m.ProfileEditorScreen })),
     },
 ] as const satisfies readonly DebugScreenEntry[];
 
@@ -238,10 +211,12 @@ export const DEBUG_MENU_SECTIONS: DebugMenuSection[] = SECTION_ORDER.map(section
     items: DEBUG_SCREENS.filter(screen => screen.section === section).map(({ key, icon }) => ({ key, icon })),
 })).filter(section => section.items.length > 0);
 
-/** Dock tab strip, in manifest order. */
-export const DEBUG_DOCK_TABS: DebugMenuItem[] = DEBUG_SCREENS.filter(screen => 'pinned' in screen && screen.pinned).map(
-    ({ key, icon }) => ({ key, icon })
-);
+/**
+ * Tab strip: every screen, in menu order. It used to carry a hand-picked subset, which meant a
+ * second rule about which screens deserved a chip — and the menu is one tap away for the rest
+ * anyway. All of them, scrollable, is the simpler contract.
+ */
+export const DEBUG_TABS: DebugMenuItem[] = DEBUG_MENU_SECTIONS.flatMap(section => section.items);
 
 /** Screens that must open at a given size; everything else keeps the size the panel already has. */
 export const DEBUG_SCREEN_SIZES = DEBUG_SCREENS.reduce(

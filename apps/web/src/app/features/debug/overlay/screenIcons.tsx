@@ -10,7 +10,6 @@ import {
     FlaskConical,
     Gauge,
     History,
-    Image,
     KeyRound,
     Link2,
     Mail,
@@ -22,7 +21,6 @@ import {
     SlidersHorizontal,
     Smartphone,
     UploadCloud,
-    UserCog,
     type LucideIcon,
 } from 'lucide-react';
 
@@ -44,7 +42,6 @@ export const DEBUG_SCREEN_ICONS: Record<DebugScreenIcon, LucideIcon> = {
     FlaskConical,
     Gauge,
     History,
-    Image,
     KeyRound,
     Link2,
     Mail,
@@ -56,5 +53,4 @@ export const DEBUG_SCREEN_ICONS: Record<DebugScreenIcon, LucideIcon> = {
     SlidersHorizontal,
     Smartphone,
     UploadCloud,
-    UserCog,
 };

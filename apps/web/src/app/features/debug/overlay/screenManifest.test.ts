@@ -1,4 +1,4 @@
-import { DEBUG_DOCK_TABS, DEBUG_MENU_SECTIONS, DEBUG_SCREENS } from './screenManifest';
+import { DEBUG_MENU_SECTIONS, DEBUG_SCREENS, DEBUG_TABS } from './screenManifest';
 import { DEBUG_LOCALE_TABLES } from '../i18n';
 import { DEBUG_SCREEN_ICONS } from './screenIcons';
 import { DEBUG_SCREEN_COMPONENTS } from './screenRegistry';
@@ -16,10 +16,12 @@ describe('screenManifest — 화면 카탈로그 단일화', () => {
         expect(Object.keys(DEBUG_SCREEN_COMPONENTS).sort()).toEqual(menuKeys.sort());
     });
 
-    it('독 탭은 pinned 화면만, 매니페스트 순서대로 담는다', () => {
-        expect(DEBUG_DOCK_TABS.map(tab => tab.key)).toEqual(
-            DEBUG_SCREENS.filter(screen => 'pinned' in screen).map(screen => screen.key)
+    // 칩이 부분집합이면 "어떤 화면이 칩이 될 자격이 있나"라는 두 번째 규칙이 다시 생긴다.
+    it('탭은 모든 화면을 메뉴 순서대로 담는다', () => {
+        expect(DEBUG_TABS.map(tab => tab.key)).toEqual(
+            DEBUG_MENU_SECTIONS.flatMap(section => section.items.map(item => item.key))
         );
+        expect(DEBUG_TABS).toHaveLength(DEBUG_SCREENS.length);
     });
 
     it('모든 화면에 아이콘이 해석된다', () => {
@@ -34,10 +36,10 @@ describe('screenManifest — 화면 카탈로그 단일화', () => {
         });
     });
 
-    // 탭 스트립은 좁다 — 고정 화면은 짧은 라벨을 따로 갖는다.
-    it('고정 탭은 두 언어 모두에 짧은 라벨을 갖는다', () => {
+    // 탭 스트립은 좁다 — 제목을 그대로 쓰면 칩이 스트립을 밀어낸다.
+    it('모든 화면이 두 언어 모두에 짧은 라벨을 갖는다', () => {
         Object.values(DEBUG_LOCALE_TABLES).forEach(table => {
-            DEBUG_DOCK_TABS.forEach(tab => expect(table.screens[tab.key].short).toBeTruthy());
+            DEBUG_TABS.forEach(tab => expect(table.screens[tab.key].short).toBeTruthy());
         });
     });
 });

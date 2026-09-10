@@ -13,14 +13,22 @@ describe('DebugPanel — 하나의 패널', () => {
         debugOverlayActions.open();
     });
 
-    it('홈에서 고정 탭과 전체 메뉴를 함께 보여준다', () => {
+    it('홈에서 모든 화면을 칩으로도, 메뉴로도 보여준다', () => {
         render(<DebugPanel />);
 
-        // Pinned tabs (dock strip).
         expect(screen.getByRole('tab', { name: '상태' })).toBeInTheDocument();
         expect(screen.getByRole('tab', { name: 'DB 브라우저' })).toBeInTheDocument();
-        // Menu-only screen — no longer reachable from a second, separate catalog.
+        // 예전에는 메뉴에만 있던 화면 — 이제 칩에도 있다.
+        expect(screen.getByRole('tab', { name: '분할 업로드 테스트' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: '분할 업로드 테스트' })).toBeInTheDocument();
+    });
+
+    // 앱 아이콘은 마이페이지에 제품 UI가 있고, 프로필 편집은 쓰이지 않았다.
+    it('메뉴에서 뺀 화면은 어디에도 없다', () => {
+        render(<DebugPanel />);
+
+        expect(screen.queryByText('앱 아이콘')).not.toBeInTheDocument();
+        expect(screen.queryByText('내 프로필 편집')).not.toBeInTheDocument();
     });
 
     it('탭을 누르면 같은 패널 안에서 그 화면으로 간다', async () => {

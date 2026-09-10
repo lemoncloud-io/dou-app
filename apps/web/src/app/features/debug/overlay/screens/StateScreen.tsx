@@ -9,10 +9,18 @@ export const StateScreen = () => {
     const { isAuthenticated, isInitialized } = runtime.session.useSessionAuth();
     const socketState = runtime.connection.useRuntimeSocketState();
     const facts = runtime.session.useRuntimeProfile();
+    // Socket identity and push registration must share these exact ids (useDynamicDeviceId's
+    // docblock), and a mismatch shows up as "push goes to the wrong install" — so read them here.
+    const { deviceId, firebaseInstallationId } = runtime.session.useDynamicDeviceId();
     const { relay, cloud, identity, activeServer } = session;
 
     return (
         <div className="space-y-3 p-4">
+            <Section title="Device">
+                <Row label="deviceId" value={deviceId} />
+                <Row label="firebase iid" value={firebaseInstallationId} />
+            </Section>
+
             <Section title="Session">
                 <Row label="initialized" value={String(isInitialized)} />
                 <Row label="authenticated" value={String(isAuthenticated)} />

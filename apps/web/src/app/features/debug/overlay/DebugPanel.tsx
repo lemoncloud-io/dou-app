@@ -5,15 +5,15 @@ import { ChevronLeft, Maximize2, Minimize2, X } from 'lucide-react';
 import { useDebugStrings } from '../i18n';
 import { FloatingPanel } from './FloatingPanel';
 import { HomeMenu } from './HomeMenu';
-import { DEBUG_DOCK_TABS, DEBUG_PANEL_SIZES } from './screenManifest';
+import { DEBUG_PANEL_SIZES, DEBUG_TABS } from './screenManifest';
 import { DEBUG_SCREEN_ICONS } from './screenIcons';
 import { DEBUG_SCREEN_COMPONENTS } from './screenRegistry';
 import { debugOverlayActions, useDebugOverlayState } from './overlayStore';
 
 /**
- * The whole debug UI: one panel, one navigation. The tab strip is a shortcut to the pinned screens
- * (the ones worth watching while the app is driven); the home menu behind the back control lists
- * every screen. Size is a separate axis — see `overlayStore`.
+ * The whole debug UI: one panel, one navigation. The tab strip carries every screen for one-tap
+ * switching while the app underneath is driven; the home menu behind the back control is the same
+ * list, grouped and readable. Size is a separate axis — see `overlayStore`.
  *
  * Replaces MiniPanel / FloatingScreen / ExpandedSheet, which were three shells over two catalogs.
  */
@@ -88,7 +88,7 @@ export const DebugPanel = () => {
                     isMini ? 'px-1.5 py-1' : 'px-2 py-1.5'
                 }`}
             >
-                {DEBUG_DOCK_TABS.map(tab => {
+                {DEBUG_TABS.map(tab => {
                     const Icon = DEBUG_SCREEN_ICONS[tab.icon];
                     const { title, short } = strings.screens[tab.key];
                     const isActive = screen === tab.key;
@@ -110,7 +110,7 @@ export const DebugPanel = () => {
                         >
                             <Icon size={13} />
                             {/* Icon-only in the corner widget: labels would push the strip past its width. */}
-                            {!isMini && (short ?? title)}
+                            {!isMini && short}
                         </button>
                     );
                 })}
