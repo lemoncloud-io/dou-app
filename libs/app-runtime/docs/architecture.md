@@ -691,7 +691,7 @@ bootstrap/reauth 배선은 `SocketBinder`/`SocketReauthBinder`가 순수 함수�
 `useRelaySessionInit` init 게이트 뒤에 바인더들을 마운트하고, `useSocketSessionDelegate`로 만든
 per-kind delegate와 `useRuntimeSocketSlots()`로 파생한 슬롯을 소켓 바인더에 넘긴다. relay
 keep-alive(`useRelaySessionKeepAlive`)는 게이트 위에서 인라인 호출한다 —
-[runtime/session-lifecycle.md](./runtime/session-lifecycle.md).
+[connection/session-lifecycle.md](./connection/session-lifecycle.md).
 
 **앱은 아무것도 넘기지 않는다.** 슬롯을 호스트가 스스로 파생하므로 `slots` prop 은 테스트·특수
 진입점용 optional 오버라이드로만 남는다 (§상세 구현 6).
@@ -984,7 +984,7 @@ app-runtime 인증 경로와 무관하다 — `runtime/useRuntimeProfile.ts:68` 
 
 - [public-surface.md](./public-surface.md) — 앱이 보는 공개 표면 / 비공개 내부
 - [session/architecture.md](./session/architecture.md) — 세션 허브 상세 (store·auth·scope·hooks)
-- [runtime/README.md](./runtime/README.md) — `RuntimeSocketSlots` 파생·바인더 역할
+- [connection/README.md](./connection/README.md) — `RuntimeSocketSlots` 파생·바인더 역할
 - [socket/README.md](./socket/README.md) · [socket/auth/README.md](./socket/auth/README.md) ·
   [socket/sync/README.md](./socket/sync/README.md)
 - [data/README.md](./data/README.md) · [push/README.md](./push/README.md)

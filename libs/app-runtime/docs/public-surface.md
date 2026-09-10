@@ -179,7 +179,7 @@ const App = () => {
   (`useSocketSessionDelegate`)가 소유하므로 앱이 주입하지 않는다.
 - Host 내부에서 `useRelaySessionInit` init 게이트 뒤에 바인더들을 조립하고, relay keep-alive
   (`useRelaySessionKeepAlive`)는 게이트 위에서 인라인 호출한다
-  ([runtime/session-lifecycle.md](./runtime/session-lifecycle.md)).
+  ([connection/session-lifecycle.md](./connection/session-lifecycle.md)).
 - 인증 문맥(토큰/site) 변경은 SDK `ClientSocketAuth`(만료·재연결 자동)와 `SocketReauthBinder`
   (same-connection 신원 교체)가 담당한다. site 전환은 `useSiteSwitch`.
 - sync는 별도 binder 없이 `SyncManager` 내부 서비스로 동작한다.
@@ -188,7 +188,7 @@ const App = () => {
 
 - [architecture.md](./architecture.md)
 - [session/architecture.md](./session/architecture.md)
-- [runtime/README.md](./runtime/README.md)
+- [connection/README.md](./connection/README.md)
 - [socket/README.md](./socket/README.md)
 - [socket/sync/README.md](./socket/sync/README.md)
 - [data/README.md](./data/README.md)

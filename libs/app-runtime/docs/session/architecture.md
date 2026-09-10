@@ -86,11 +86,11 @@ graph TD
 
 [`eslint.config.mjs`](../../eslint.config.mjs)가 `src/session/store/**`에 두 그룹을 금지한다:
 
-| 금지                                         | 이유                                                         |
-| -------------------------------------------- | ------------------------------------------------------------ |
-| `**/socket/**` · `**/data/**` · `**/http/**` | 스토어는 자기가 기록하는 흐름의 참여자가 되면 안 된다        |
-| `../auth` · `../hooks` · `../scope` (+ `/*`) | 방향이 반대다. 열어두면 폴더 순환                            |
-| `@chatic/web-config` · `@chatic/web-core`    | env·레거시 표면 직접 import 금지 — 부팅이 주입한 값을 받는다 |
+| 금지                                         | 이유                                                  |
+| -------------------------------------------- | ----------------------------------------------------- |
+| `**/socket/**` · `**/data/**` · `**/http/**` | 스토어는 자기가 기록하는 흐름의 참여자가 되면 안 된다 |
+| `../auth` · `../hooks` · `../scope` (+ `/*`) | 방향이 반대다. 열어두면 폴더 순환                     |
+| `@chatic/web-config`                         | env 직접 import 금지 — 부팅이 주입한 값을 받는다      |
 
 `../scope`가 금지 목록에 있는 것은 ADR 본문이 다섯 폴더만 명시한 것의 확장이다 — scope가 store를
 구독하는 방향이므로 역방향을 열면 순환이 된다.
@@ -397,5 +397,5 @@ cloud refresh 400 시 relay 재발급 → cloud 재교환 → 1회 재시도하�
 - [../architecture.md](../architecture.md) — 5축 소유 규칙·모듈 구조
 - [../public-surface.md](../public-surface.md) — 세션 허브가 배럴로 내는 것
 - [../socket/auth/README.md](../socket/auth/README.md) · [signing.md](../socket/auth/signing.md) — SDK 소유 경계·서명 계약
-- [../runtime/README.md](../runtime/README.md) — `RuntimeSocketSlots`의 소켓 슬롯 파생
+- [../connection/README.md](../connection/README.md) — `RuntimeSocketSlots`의 소켓 슬롯 파생
 - [`libs/http/docs/architecture.md`](../../../http/docs/architecture.md) — HTTP 실행기·정책

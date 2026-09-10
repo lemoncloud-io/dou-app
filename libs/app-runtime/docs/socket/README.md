@@ -136,4 +136,4 @@ export interface SocketSessionDelegate {
 
 - [../architecture.md](../architecture.md) — 전체 아키텍처·소유 규칙
 - [../public-surface.md](../public-surface.md) — 공개 API 표면
-- [../runtime/README.md](../runtime/README.md) — composition root·binder 역할
+- [../connection/README.md](../connection/README.md) — composition root·binder 역할

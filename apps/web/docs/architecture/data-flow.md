@@ -28,7 +28,7 @@ function AppInner() {
 
 **재인증은 자동이다.** 만료 refresh·재연결 재인증은 SDK `ClientSocketAuth`가, 물리 소켓을 유지한 채 신원만 바뀌는 경우(게스트→소셜 승격)는 `SocketReauthBinder`가 처리한다. 앱이 수동으로 `auth.update`를 보내면 안 된다(이중 발화).
 
-근거: `apps/web/src/app/runtime/AppRuntime.tsx`, `apps/testbed/src/app/app.tsx`, [libs/app-runtime/docs/runtime/session-lifecycle.md](../../../../libs/app-runtime/docs/runtime/session-lifecycle.md)
+근거: `apps/web/src/app/runtime/AppRuntime.tsx`, `apps/testbed/src/app/app.tsx`, [libs/app-runtime/docs/connection/session-lifecycle.md](../../../../libs/app-runtime/docs/connection/session-lifecycle.md)
 
 ---
 
