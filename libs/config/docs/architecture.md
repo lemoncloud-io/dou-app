@@ -3,7 +3,8 @@
 > 상태: **Approved** · 최종 갱신: 2026-09-09
 > 관련 ADR: [ADR-0079](../../../docs/adr/0079-config-registry-and-lane-resolver.md) ·
 > [ADR-0080](../../../docs/adr/0080-debug-panel-shared-model-and-stage-visibility.md) ·
-> 키 목록: [레지스트리 키 제안](../../../docs/spec/config-registry-keys.md)
+> 키 목록: [레지스트리 키 제안](../../../docs/spec/config-registry-keys.md) ·
+> 표면별 화면 배치: [surfaces.md](./surfaces.md)
 
 ## 목적
 
