@@ -113,6 +113,7 @@ export const ROUTES = {
         settings: {
             root: '/mypage/settings',
             notifications: '/mypage/settings/notifications',
+            lab: '/mypage/settings/lab',
         },
         policy: {
             root: '/mypage/policy',

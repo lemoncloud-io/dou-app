@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next';
 import { getStoreUrl, useNavigateWithTransition } from '@chatic/shared';
 
 import { isNative } from '@chatic/bridges';
-import { config } from '@chatic/config';
 import { appBridge } from '../../../bridge';
 import { useDeviceInfo } from '@chatic/device-utils';
 import { IconChevronRight, ListRow, MenuCard, Switch } from '@chatic/web-ui-kit';
@@ -13,7 +12,6 @@ import { runtime } from '@chatic/app-runtime';
 import { AppIconSelectSheet, LanguageSelectSheet, LogoutDialog } from '../components';
 import { useAppIcon } from '../hooks';
 import { useOnboarding, useTheme } from '../../../hooks';
-import { DebugUnlockDialog, debugOverlayActions, useDebugMode, useDebugUnlock } from '../../debug';
 import { useAppUpdateStatus } from '../../appUpdate';
 import { PageHeader } from '../../../ui/components';
 import { ROUTES } from '../../../routes/paths';
@@ -32,13 +30,6 @@ export const SettingsPage = () => {
     const { setTheme, isDarkTheme } = useTheme();
     const { deviceInfo, versionInfo } = useDeviceInfo();
     const { resetOnboarding } = useOnboarding();
-    const { isEnabled: isDebugMode } = useDebugMode();
-    // Read per render rather than memoized: `debug.entryCode` is `writableBy: []`, so no lane can
-    // move it and every read returns the same build value. Unset resolves to `''`, which the gate
-    // treats as fail-closed exactly like the `undefined` it used to get from `import.meta.env`.
-    const { isChallengeOpen, hasError, registerTap, submitCode, cancelChallenge } = useDebugUnlock(
-        config.get<string>('debug.entryCode')
-    );
     const { updateAvailable } = useAppUpdateStatus();
     const {
         isSupported: isIconChangeSupported,
@@ -85,11 +76,8 @@ export const SettingsPage = () => {
         ? `v${versionInfo?.appVersion} (App) / v${versionInfo?.webVersion} (Web)`
         : `v${versionInfo?.webVersion}`;
 
-    // One version row (the design merged the old version + store rows), so its tap has to serve two
-    // masters: the hidden debug unlock and the store link. They cannot share a tap — the first tap
-    // would navigate away and the 10-tap gate could never complete — so the row routes to the store
-    // only while an update is actually pending, and otherwise keeps the unlock gate. That leaves the
-    // gate reachable in the ordinary (up-to-date) state on every platform.
+    // The version row opens the store only when an update is pending. Debug unlock lives in the
+    // dedicated Lab screen so this informational row has no hidden side effect.
     const versionRowGoesToStore = showUpdateStatus && updateAvailable;
 
     return (
@@ -147,6 +135,12 @@ export const SettingsPage = () => {
                             navigate(ROUTES.root, { replace: true });
                         }}
                     />
+                    <ListRow
+                        title={t('mypage.lab.title')}
+                        subtitle={t('mypage.lab.settingsHint')}
+                        trailing={<Chevron />}
+                        onClick={() => navigate(ROUTES.mypage.settings.lab)}
+                    />
                 </MenuCard>
 
                 {/* Support & info */}
@@ -165,7 +159,7 @@ export const SettingsPage = () => {
                     />
                 </MenuCard>
 
-                {/* Version (+ the debug entry once unlocked) */}
+                {/* Version */}
                 <MenuCard>
                     <ListRow
                         title={t('mypage.appVersion')}
@@ -191,16 +185,8 @@ export const SettingsPage = () => {
                                 />
                             </span>
                         }
-                        onClick={versionRowGoesToStore ? handleOpenStore : registerTap}
+                        onClick={versionRowGoesToStore ? handleOpenStore : undefined}
                     />
-                    {isDebugMode && (
-                        <ListRow
-                            title="Debug Mode"
-                            destructive
-                            trailing={<IconChevronRight className="size-[18px] text-destructive" />}
-                            onClick={() => debugOverlayActions.open('full')}
-                        />
-                    )}
                 </MenuCard>
 
                 {/* Logout */}
@@ -225,14 +211,6 @@ export const SettingsPage = () => {
                 currentIcon={currentIcon}
                 availableIcons={availableIcons}
                 onSelectIcon={selectIcon}
-            />
-
-            {/* Debug Unlock Dialog — opens after the hidden 10-tap on the app version row */}
-            <DebugUnlockDialog
-                isOpen={isChallengeOpen}
-                hasError={hasError}
-                onSubmit={submitCode}
-                onCancel={cancelChallenge}
             />
         </div>
     );

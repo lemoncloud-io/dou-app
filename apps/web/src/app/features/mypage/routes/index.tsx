@@ -4,6 +4,7 @@ import {
     AccountInfoPage,
     CloudManagePage,
     CloudProfileEditPage,
+    LabPage,
     LicensesPage,
     LoginPage,
     MyPage,
@@ -29,6 +30,7 @@ export const MyPageRoutes = () => {
             <Route path="login" element={<LoginPage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route path="settings/notifications" element={<NotificationSettingsPage />} />
+            <Route path="settings/lab" element={<LabPage />} />
             <Route path="policy" element={<PolicyListPage />} />
             <Route path="policy/terms" element={<TermsPage />} />
             <Route path="policy/licenses" element={<LicensesPage />} />

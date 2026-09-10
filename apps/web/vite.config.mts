@@ -105,7 +105,10 @@ export default defineConfig({
         ...(process.env.NODE_ENV === 'development'
             ? {
                   global: 'window',
-                  'process.env.I18N_VERSION': JSON.stringify('dev'),
+                  // A fixed dev cache key keeps stale locale JSON alive after adding a new key.
+                  // Give each dev-server process a fresh namespace so the local fallback is fetched
+                  // again without requiring developers to clear browser storage manually.
+                  'process.env.I18N_VERSION': JSON.stringify(`dev-${Date.now()}`),
               }
             : {}),
     },
