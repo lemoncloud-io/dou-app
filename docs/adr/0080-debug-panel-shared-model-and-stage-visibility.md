@@ -1,6 +1,10 @@
 # ADR-0080: 디버그는 웹이 전부 조작한다 — 모델 공유 · 빌드 스테이지 노출 · 앱은 실행만
 
-> 상태: **Accepted** · 작성일: 2026-09-08 · 구현: 미착수
+> 상태: **Accepted** · 작성일: 2026-09-08 · 구현: **미착수** (2026-09-10 확인)
+> 기반은 서 있다: [ADR-0079](./0079-config-registry-and-lane-resolver.md)의 1~7단계가 구현·커밋됐다
+> (범용 KV 셸 레인 · 84키 레지스트리 · `snapshotAll()`). 이 문서의 결정은 그 위에 얹힌다.
+> **순서 불변조건: 결정 11이 결정 12보다 먼저다** — 결정 12의 근거 자체가 "결정 11로 버튼이 전부
+> 웹에 있으면 FAB이 열 곳이 없다"이므로, 웹 패널 없이 앱 UI를 지우면 양쪽 모두 조작 수단이 없어진다.
 > 범위: `apps/web/src/app/features/debug/**` · `apps/mobile/src/app/features/debug/**` (화면 15개 ·
 > 5,917줄) · `apps/mobile/src/app/webview/AppWebView.tsx` (자동 복구) · `apps/mobile/src/app/App.tsx` ·
 > `apps/web/src/main.tsx` (주석) · `libs/app-messages` (화면별 명령) · 공유 모델 모듈 신설
@@ -283,6 +287,11 @@ React DOM과 React Native 컴포넌트는 공유할 수 없고, 공유 토큰 �
 
 그래서 [`FloatingMenu`](../../apps/mobile/src/app/features/core/components/FloatingMenu.tsx)와
 `DebugHomeScreen`, 그리고 `App.tsx`의 마운트 조건을 지운다. **앱에서 디버그 UI가 0이 된다.**
+
+**이 삭제는 결정 11 뒤에만 성립한다.** 위 표의 "웹이 부른다"가 실제로 부를 수 있어야 한다는 뜻이다 —
+웹 패널이 아직 없는 상태에서 이것만 먼저 하면 QA가 어느 쪽에서도 손댈 수 없다. 2026-09-10 기준
+미착수: `apps/mobile/src/app/features/debug` **32파일 7,237줄**(화면 15개 5,917줄) · `FloatingMenu.tsx`
+202줄 · `App.tsx` 마운트 조건이 모두 그대로다.
 
 전원 버튼을 따로 남길 필요도 없다 — 잠금 해제가 웹에 있으므로(결정 10) 앱에 마지막 스위치 하나를
 남기려던 안은 성립하지 않는다.
