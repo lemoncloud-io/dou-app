@@ -1,6 +1,6 @@
 # home
 
-> 상태: Live · 최종 갱신: 2026-08-03 · 관련 ADR: [[ADR-0013]], [[ADR-0014]], [[ADR-0034]]
+> 상태: Live · 최종 갱신: 2026-09-10 · 관련 ADR: [[ADR-0013]], [[ADR-0014]], [[ADR-0034]]
 >
 > 대상: `apps/web/src/app/features/home` · 참조 구현: `apps/testbed/src/app/pages/ChatHomePage.tsx`
 
@@ -8,8 +8,9 @@
 
 메인 화면(`/`)이다. 활성 클라우드의 **Place 목록**과 **선택된 Place의 Channel 목록**을 보여주고,
 **Place 전환**·**클라우드 전환(CloudSessionSheet)**·**미읽음 집계**를 담당한다. 최초 실행 시
-[onboarding](../onboarding/README.md) 모달을 오버레이로 띄운다. 활성 플레이스에 프로필이 없으면
-[플레이스 프로필](./place-profile.md) 오버레이를 감지해 띄운다(onboarding 우선).
+[onboarding](../onboarding/README.md) 모달을 오버레이로 띄운다. **플레이스 프로필은 진입 시
+강제로 열지 않는다** — 프로필은 선택이고, 사용자가 플레이스 설정 허브에서 직접 만든다. 헤더가
+`resolveHeaderProfile`의 `setup` 상태로 유도만 한다([place-profile-prompt.md](./place-profile-prompt.md)).
 
 화면은 **접속 유형(중계 vs 클라우드)**과 **구독 여부(free/pro)**에 따라 모습이 갈린다.
 
@@ -53,9 +54,9 @@ UI는 전부 `@chatic/web-ui-kit`으로 조립한다(ADR-0013). 클라우드 구
 
 **제외**
 
-- 검색 기능(버튼만, TBD) · `1:1 대화` 생성 플로우(버튼만, TBD).
+- 검색 화면 내부(`/search`) · relay 1:1 초대 발급 플로우 내부(`/invite/contact`) — 홈은 진입만 시킨다.
 - 클라우드 구독 안내 화면 → [subscription/tier-and-quota.md](../subscription/tier-and-quota.md).
-- 구독·IAP 로직(`SubscriptionSelectDialog`, `EmailVerifyDialog`) 내부.
+- 구독·IAP 로직 내부 — `features/subscription`의 `AddCloudFlowHost` 이하가 소유한다.
 - 세션 전환 파이프라인(`switchCloudSession` / `logoutCloudSession`) 내부.
 - 클라우드 이름 변경 — 시트에서 제거됐고 `/mypage/cloud-profile`이 단일 경로다.
 - `apps/desktop-web`의 클라우드 전환(좌측 `CloudRail`) — 구조가 달라 별도 설계 대상.
@@ -73,7 +74,7 @@ UI는 전부 `@chatic/web-ui-kit`으로 조립한다(ADR-0013). 클라우드 구
    (클라우드를 이미 보유).
 3. **배너 → 안내 화면** — 중계 홈 배너의 `클라우드 추가 >` 탭 → `/subscription/guide`로 이동해 클라우드가
    무엇인지 먼저 설명한다. 결제는 그 화면의 CTA가 플랜 피커로 넘긴다. 반면 전환 시트 footer의
-   `＋ 클라우드 추가`는 `SubscriptionSelectDialog`로 직행한다 — 그 사용자는 이미 클라우드 관리 화면까지
+   `＋ 클라우드 추가`는 `AddCloudFlowHost`의 플로우로 직행한다 — 그 사용자는 이미 클라우드 관리 화면까지
    들어와 무엇을 사는지 아는 상태다(ADR-0034 개정 1).
 4. **배너 닫기** — 배너 우측 `X` 탭 → 즉시 사라지고 dismiss 시각이 저장된다. **24시간 안에는 홈과 전환
    시트 어디에도 다시 뜨지 않고**, 하루가 지나면 다시 노출된다. 클라우드를 하나라도 갖게 되면 dismiss 여부와
@@ -82,7 +83,7 @@ UI는 전부 `@chatic/web-ui-kit`으로 조립한다(ADR-0013). 클라우드 구
    커밋·롤백). 활성 플레이스가 없으면 목록 첫 항목 자동 선택. Chat 섹션이 새 플레이스 채널로 갱신된다.
 6. **섹션 접기/펼치기** — 섹션 헤더 우측 chevron 탭 → 해당 섹션 본문 토글. 각 섹션은 독립이며, 시트의
    세 섹션도 같은 규칙을 따른다. 접혀도 섹션 헤더의 서브캡션과 footer(`＋ 클라우드 추가`)는 계속 보인다.
-7. **채널 생성** — Chat 섹션 `＋` 탭 → 팝오버. 중계면 `1:1 대화`(TBD), 클라우드면 `그룹 방 만들기`.
+7. **채널 생성** — Chat 섹션 `＋` 탭 → 팝오버. `1:1 대화`는 `/invite/contact`(연락처 초대)로, `그룹 방 만들기`는 `CreateChannelDialog`로 간다. 그룹 게이트는 `planTier !== 'free'`라 **등급 미결정도 통과한다**(PRO-optimistic).
    후자는 구독중(pro)이 아니면 `SubscriptionRequiredDialog`로 유도, 구독중이면 `CreateChannelDialog`.
    중계에서도 **미구독자에게만** `그룹 방 만들기`가 한 줄 더 붙는다(Figma `2870-20387`) — 그룹방은 내
    클라우드에서 만드는 것이므로 구독자에겐 감추고, 미구독자의 탭은 언제나 구독 유도로만 간다.
@@ -97,9 +98,9 @@ UI는 전부 `@chatic/web-ui-kit`으로 조립한다(ADR-0013). 클라우드 구
     중(`reserved`/`init`)인 행은 스피너 + `설정 중` 문구로 선택 불가이고, 30초 폴링이 `active` 전환을
     감지하면 `클라우드가 준비되었어요!` 토스트를 띄운다.
 
-9. **클라우드 추가 상한** — `＋ 클라우드 추가` 탭 → 소유 클라우드가 이미 1개 이상이면
-   `계정은 최대 1개까지 추가할 수 있어요` 토스트로 막고, 0개면 `SubscriptionSelectDialog`를 연다.
-   버튼은 두 경우 모두 보인다.
+9. **클라우드 추가 상한** — `＋ 클라우드 추가` 탭 → 홈은 `requestAddCloud()`로 의도만 올린다.
+   `AddCloudFlowHost`가 `useCloudQuota`(플랜 카탈로그의 `maxClouds`)로 판정해, 여유가 있으면 플로우를
+   열고 `limitReached`면 `addAccount.limitExceeded`를 max 값과 함께 토스트한다. 버튼은 두 경우 모두 보인다.
 10. **프로필 진입** — 헤더 우측 프로필 탭 → 드롭다운. `플레이스 설정` → `/place/:sid/settings`. 중계에서도
     `selectedSiteId`가 있으므로 동작하며, **중계에서 플레이스 설정에 닿는 유일한 경로**다. 항목 아래에는
     구독 상태 뱃지가 한 줄 붙는다 — 두유 홈은 `FREE` 고정, 클라우드는 내 등급을 읽는다.
@@ -203,17 +204,18 @@ flowchart TD
   (`cloud.name ?? cloud.email.split('@')[0]`, [cloud-session/shared.ts:13](../../../src/app/features/home/components/cloud-session/shared.ts)).
   활성 클라우드 = `useCloudSessionCatalog().clouds` 중 `id === selectedCloudId`. **클라우드 이미지 필드가
   없으므로** `cloudAvatar`는 생략 → `AppHeader`가 `CloudAvatar`(이름 이니셜)로 폴백.
-- **구독 배지**: `planTier = useMembershipInfo().data?.isValid ? 'pro' : 'free'`(게스트는 항상 `free`).
+- **구독 배지**: `planTier`는 3상태다. 게스트는 `free`, 멤버십 조회 중이면서 활성 클라우드도 없으면 **`undefined`(미결정)**, 그 외에는 `membership?.isValid || hasActiveCloud ? 'pro' : 'free'`. **활성 클라우드를 가진 것만으로도 `pro`가 된다.**
   `onPlanClick` → `navigate(ROUTES.subscription.root)`. (`useMembershipInfo`는 `@chatic/web-core`,
   판정 관례는 `subscription/pages/SubscriptionPage.tsx`와 동일.)
-- **검색**: `onSearch` 제공(버튼 렌더) — 핸들러는 TBD 플레이스홀더(토스트/no-op).
+- **검색**: `onSearch` → `navigate(ROUTES.search.root)`. 검색 화면이 구현돼 있다.
 - **프로필**: 우측 상단 아바타는 **플레이스(site) 프로필 사진만** 보여준다(`ProfileAvatar src={myProfile?.thumbnail}`,
   계정 사진 폴백 없음). 활성 플레이스에 프로필 사진이 없거나 렐리(플레이스 프로필 없음)면 `ProfileAvatar`의 기본
   글리프(기본 아바타)로 폴백한다([HomePage.tsx](../../../src/app/features/home/pages/HomePage.tsx)의 `displayImageUrl`).
   드롭다운 헤더의 이름(`displayName`)은 `resolveHeaderProfile` 계층(site→account→setup)을 유지한다. `onProfile`은
   드롭다운을 여는 트리거.
-- **좌측 chevron**: `onSwitcher`는 `canSwitchCloud`일 때만 전달 → `CloudSessionSheet` open. (게스트 게이팅은
-  현행 `!isGuest || isInvitedGuest` 유지.)
+- **좌측 chevron**: `onSwitcher`는 **조건 없이 전달**된다 → `CloudSessionSheet` open. 평범한 게스트도
+  시트를 열어 두유 홈으로 가거나, 초대받은 클라우드를 보거나, 클라우드를 추가(구독)할 수 있어야 하기
+  때문이다.
 
 ### 프로필 드롭다운
 
@@ -266,19 +268,18 @@ CSS 테두리는 패딩 박스 밖에 그려지므로 실측 높이는 Figma의 
   넘겼는지로 링크 노출이 갈린다.
 - **배치** — 중계 홈에서 스크롤 영역 최상단(Chat 섹션 위). 클라우드 모드에서는 렌더하지 않는다.
 
-### 클라우드 추가 플로우 (`useAddCloudFlow`)
+### 클라우드 추가 플로우 — 홈은 의도만 올린다
 
-배너 링크와 시트 footer 버튼이 같은 구독 플로우로 들어가므로, 상한 가드·성공 토스트·카탈로그 무효화를
-[useAddCloudFlow.tsx](../../../src/app/features/home/hooks/useAddCloudFlow.tsx) 하나에 모았다.
+**홈은 이 플로우를 소유하지 않는다.** 실제 흐름(쿼터 확인 → 플랜 선택 또는 이메일 인증 → 프로비저닝)은
+`features/subscription`에 있고 홈은 그것을 import할 수 없다(ADR-0046 §3).
 
-- `requestAddCloud()` — 소유 클라우드가 `MAX_CLOUDS`(=1) 이상이면 `addAccount.limitExceeded` 토스트로 끝내고,
-  아니면 `SubscriptionSelectDialog`를 연다.
-- `addCloudDialog` — 호스트가 트리에 **한 번만** 렌더하는 노드.
-- **호출 지점은 `HomePage` 하나다.** 시트는 훅을 직접 부르지 않고 `onAddCloud` prop으로 받는다. 양쪽이 각자
-  훅을 부르면 홈이 시트를 항상 마운트하므로 `SubscriptionSelectDialog`·`EmailVerifyDialog`·`useSubscriptionIap`
-  트리가 상시 두 벌 존재하게 된다 — 지금 당장 오작동하지는 않지만(닫힌 Radix 다이얼로그는 아무것도 렌더하지
-  않고, 각 IAP 인스턴스는 자기 resolver만 해소한다) 이 플로우에 인스턴스와 무관한 부수효과가 하나라도 생기면
-  즉시 두 번 발화한다.
+- [useAddCloudFlow.tsx](../../../src/app/features/home/hooks/useAddCloudFlow.tsx)가 내보내는 것은 `requestAddCloud` 하나다. 스토어에 의도만 올리고 **렌더할 노드를 반환하지 않는다.**
+- 프라이빗 라우터가 `AddCloudFlowHost`(`features/subscription/components/`)를 마운트해 그 요청에 답한다. 다이얼로그의 주인은 호스트다.
+- 상한 판정은 홈에 없다. `features/subscription/hooks/useCloudQuota.ts`가 **플랜 카탈로그의 `maxClouds`** 로 단일 판정하고, 거부 사유가 `limitReached`면 호스트가 `addAccount.limitExceeded`를 max 값과 함께 토스트한다.
+
+상한이 하드코딩 1이 아니라는 점이 중요하다. 예전에는 홈 플로우에 `MAX_CLOUDS = 1`, 플랜 화면에
+`clouds.length >= 1`로 사본이 둘 있었고, 규칙의 사본 둘은 어긋나기를 기다리는 규칙이다.
+
 - **노드를 반환하는 이유**: 1개 상한은 서버 규칙이고
   [SubscriptionPlansPage.tsx](../../../src/app/features/subscription/pages/SubscriptionPlansPage.tsx)에도 같은
   가드가 있다. 클라이언트 쪽 사본이 늘어나면 드리프트하므로, open 상태까지 훅 안에 두어 호출부가 가드를
@@ -417,34 +418,50 @@ CSS 테두리는 패딩 박스 밖에 그려지므로 실측 높이는 Figma의 
 
 ### 데이터 소스 매핑 요약
 
-| 화면 요소         | 소스                                           | 근거                        |
-| ----------------- | ---------------------------------------------- | --------------------------- |
-| 헤더 kind         | `selectedCloudId === 'default'`                | HomePage.tsx:52             |
-| 클라우드 이름     | `getCloudDisplayName(activeCloud)`             | cloud-session/shared.ts:13  |
-| 클라우드 아바타   | (이미지 없음) `CloudAvatar` 이니셜             | CloudView에 image 필드 부재 |
-| 구독 tier         | `useMembershipInfo().isValid ? 'pro':'free'`   | web-core subscription 훅    |
-| 헤더 프로필       | `resolveHeaderProfile`                         | lib/resolveHeaderProfile.ts |
-| Place 목록/선택   | `useHomePlaces`/`useSwitchPlace`               | hooks/\*.ts                 |
-| 미읽음            | `useChannelUnreads(useActiveCloudChannels)`    | hooks/\*.ts                 |
-| 채널 미리보기     | `useLastChat`                                  | last-chat.md                |
-| 라우트            | `ROUTES.mypage.*`/`subscription.root`          | routes/paths.ts             |
-| Place 섹션 노출   | `!isDefaultCloud`                              | HomePage.tsx                |
-| 배너 노출         | `useCloudPromo()` (카탈로그 0개 + 24h dismiss) | hooks/useCloudPromo.ts      |
-| 배너 dismiss      | `cloudPromoDismissedAt` (epoch ms 문자열)      | stores/preferenceKeys.ts    |
-| 시트 섹션 카운트  | `clouds.length` / `invitedClouds.length`       | CloudSessionSheet.tsx       |
-| 클라우드 1개 상한 | `MAX_CLOUDS` → limitExceeded 토스트            | hooks/useAddCloudFlow.tsx   |
+| 화면 요소          | 소스                                           | 근거                                |
+| ------------------ | ---------------------------------------------- | ----------------------------------- |
+| 헤더 kind          | `selectedCloudId === 'default'`                | HomePage.tsx:52                     |
+| 클라우드 이름      | `getCloudDisplayName(activeCloud)`             | cloud-session/shared.ts:13          |
+| 클라우드 아바타    | (이미지 없음) `CloudAvatar` 이니셜             | CloudView에 image 필드 부재         |
+| 구독 tier          | `useMembershipInfo().isValid ? 'pro':'free'`   | web-core subscription 훅            |
+| 헤더 프로필        | `resolveHeaderProfile`                         | lib/resolveHeaderProfile.ts         |
+| Place 목록/선택    | `useHomePlaces`/`useSwitchPlace`               | hooks/\*.ts                         |
+| 미읽음             | `useChannelUnreads(useActiveCloudChannels)`    | hooks/\*.ts                         |
+| 채널 미리보기      | `useLastChat`                                  | last-chat.md                        |
+| 라우트             | `ROUTES.mypage.*`/`subscription.root`          | routes/paths.ts                     |
+| Place 섹션 노출    | `!isDefaultCloud`                              | HomePage.tsx                        |
+| 배너 노출          | `useCloudPromo()` (카탈로그 0개 + 24h dismiss) | hooks/useCloudPromo.ts              |
+| 배너 dismiss       | `cloudPromoDismissedAt` (epoch ms 문자열)      | stores/preferenceKeys.ts            |
+| 시트 섹션 카운트   | `clouds.length` / `invitedClouds.length`       | CloudSessionSheet.tsx               |
+| 클라우드 추가 상한 | 플랜 카탈로그의 `maxClouds`(하드코딩 아님)     | subscription/hooks/useCloudQuota.ts |
 
-### 미읽음 계산 (불변)
+### 미읽음 계산
 
-채널 단위 미읽음 = 채널 최신 `chatNo`와 내 읽음 커서(`$join.chatNo`)의 차분(시스템 메시지 보정 포함):
+공식의 정본은 `app/utils/countUnread.ts`다. head와 커서를 **각자의 `metaNo`로** 사용자-메시지
+스케일에 맞춘 뒤 뺀다(ADR-0048).
 
 ```
-unread(channel) = max(0, (channel.chatNo ?? 0) - ($join.chatNo ?? 0) - systemInWindow)
+userHead      = (channel.chatNo ?? 0) − (channel.metaNo ?? 0)
+cursorMetaNo  = join.metaNo ?? channel.metaNo ?? 0
+unread        = max(0, userHead − (readNo − cursorMetaNo))
 ```
 
-`useChannelUnreads(channels)`가 각 채널에 임베드된 `$join.chatNo`에서 파생한다(별도 join 구독 없음). 홈은
-`useActiveCloudChannels`(활성 클라우드 전 사이트)로 집계해 Place별(`byPlace`, 미읽음 점)·채널별(`byChannel`,
-`UnreadBadge`) 총계를 낸다. 앱 아이콘 배지는 `UnreadBadgeRunner`(AppRuntime)가 전역 소유 — 이 페이지가 아니다.
+커서를 환산하지 않고 빼면 그 사이 시스템 이벤트만큼 **적게** 센다. 홈 목록과 검색 결과가 같은
+채널을 두고 서로 다른 숫자를 말하지 않도록 공식을 한 곳에 두었다.
+
+**읽음 커서는 채널에 임베드된 `$join`이 아니라 구독 join 목록에서 온다.** `useChannelUnreads`는
+두 번째 인자 `joinByChannel`을 받고, 임베드 `$join`은 라이브 읽음 상태보다 뒤처지므로 **의도적으로
+쓰지 않는다**. join 행이 아직 없는 채널은 전체 개수를 번쩍이는 대신 0으로 센다.
+
+집계의 소유자는 홈이 아니다. `ActiveCloudDataProvider`가 AppRuntime에 1회 마운트돼 활성 클라우드
+**전 사이트**를 한 번 관측하고, `useActiveCloudUnreads()`는 그 결과를 **읽기만** 한다. 소비자는
+셋이다 — `UnreadBadgeRunner`(앱 아이콘 총계) · `UnifiedLayout`(하단 내비 총계) · 홈(`byPlace` 점,
+`byChannel` 행 개수). 예전에는 세 화면이 각자 채널 관측자와 채널당 join 관측자로 같은 숫자를
+따로 조립해서, join 쓰기 하나가 세 번 비용을 냈다(ADR-0056).
+
+`byChannel`은 클라우드 전역이다. 홈은 채널 id로 자기 행만 꺼내 쓰고 다른 사이트의 키는 무해하게
+남는다 — **활성 사이트만 따로 집계하던 두 번째 경로는 없어졌다.** 홈에 남은 것은 join **sync**
+등록(`useJoinSyncRegistration(channels)`)뿐이다.
 
 ## 검증 방법
 

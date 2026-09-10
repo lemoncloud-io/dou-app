@@ -194,17 +194,22 @@ cursor = max(join.readNo, join.chatNo) · cursorMetaNo = join.metaNo ?? channel.
 
 ### 2. 클라우드-와이드 `byPlace` — 홈의 데이터 소스
 
-캐시-온리 클라우드 전체 관측 하나를 [useActiveCloudUnreads](../../../../../apps/web/src/app/hooks/useActiveCloudUnreads.ts)로 추출해 두 소비자가 공유한다:
+**관측의 주인은 화면이 아니다.** `ActiveCloudDataProvider`가 AppRuntime에 1회 마운트돼 활성
+클라우드 **전 사이트**를 한 번 관측하고, `useActiveCloudUnreads()`는 그 결과를 읽기만 한다 —
+구독이 아니라 읽기다.
 
 ```ts
-const cloudChannels = useActiveCloudChannels(); // 캐시-온리, 활성 클라우드 전 사이트
-return useChannelUnreads(cloudChannels, useMyJoins(cloudChannels, { sync: false }));
+export const useActiveCloudUnreads = (): ChannelUnreads => useActiveCloudData().unreads;
 ```
 
-- `UnreadBadgeRunner`는 여기서 `total`만 가져와 앱 뱃지를 계산한다(기존 그대로).
-- `HomePage`는 `byPlace`를 가져와 `unreadByPlace`로 쓴다(모든 사이트에 키가 채워져 `PlaceItem` 점이 켜진다) — `unreadByChannel`은 **별도로** 활성 사이트 채널 + `useMyJoins(channels)`(join sync 유지)로 그대로 계산한다.
+소비자는 셋이다 — `UnreadBadgeRunner`(앱 아이콘 `total`) · `UnifiedLayout`(하단 내비 `total`) ·
+`HomePage`(`byPlace` 플레이스 점, `byChannel` 행 개수). 예전에는 세 화면이 각자 채널 관측자와
+채널당 join 관측자로 같은 숫자를 따로 조립했다. 캐시 계층이 저장소 읽기는 공유해 줬지만 콜백도,
+`Map` 재생성도, O(채널) 집계도 공유하지 않아서 join 쓰기 하나가 세 번 비용을 냈다.
 
-두 소스를 병행하는 이유: 단일 교체는 (a) 클라우드 전체 조인 sync 등록(서버 요청 추가) 또는 (b) 활성 플레이스 조인 신선도 하락 중 하나를 강요한다. 병행이 ADR의 두 제약("서버 요청 0" + "활성 플레이스는 기존대로")을 모두 지킨다. [HomePage.tsx](../../../../../apps/web/src/app/features/home/pages/HomePage.tsx)의 unread 소스 주석이 이 문서를 가리킨다.
+**`byChannel`은 클라우드 전역이다.** 홈은 채널 id로 자기 행만 꺼내 쓰고 다른 사이트의 키는
+무해하게 남는다 — **활성 사이트만 따로 집계하던 두 번째 경로는 없어졌다.** 홈에 남은 것은
+join **sync** 등록(`useJoinSyncRegistration(channels)`)뿐이다.
 
 ### 3. 푸시 마크 — desktop 포트 3종
 
