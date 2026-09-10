@@ -53,7 +53,7 @@ app-runtime의 [`SocketSessionDelegate`](../../../src/socket/auth/types.ts)는 �
 
 ## 3. writeback 매핑 (`AuthTokenView` → `session/store`, per-socket 라우팅)
 
-SDK `onTokenRefresh`/`switch`가 주는 [`AuthTokenView`](../../../../../node_modules/@lemoncloud/chatic-sockets-lib/dist/lib/auth/contracts.d.ts)는 backend `UserTokenView`를 미러링한다:
+SDK `onTokenRefresh`/`switch`가 주는 `AuthTokenView`(`@lemoncloud/chatic-sockets-lib` 의 `auth/contracts.d.ts`)는 backend `UserTokenView`를 미러링한다:
 
 ```ts
 interface AuthTokenView {

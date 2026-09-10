@@ -51,7 +51,7 @@ Date: 2026-06-23
 
 `ChatView` = `{ id?(="채널:chatNo"), stereo?, chatNo?, content?, contentType?, channelId?, ownerId?, parentId?, readCount?, memberNo?, hidden?, owner$?: UserView, channel$?: ChannelView, parent$?: ChatView }` · `stereo`: `'text'|'join'|'leave'|'system'`
 `JoinView` = `{ id?(="채널@user"), channelId?, userId?, chatNo?(읽은 커서), joinedNo?, nick?, role?, notify?, joined? }`
-`ChatFeedResult` = `{ list: ChatView[](내림차순), cursorNo(다음 커서, 0=끝), total(채널 최신 chatNo), limit, readNo(내 읽음 경계) }`
+`ChatFeedResult` = `{ list: ChatView[] (내림차순), cursorNo(다음 커서, 0=끝), total(채널 최신 chatNo), limit, readNo(내 읽음 경계) }`
 
 ## channel (`createChannelGateway`) — 응답 `$socials`
 
