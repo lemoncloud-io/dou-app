@@ -216,6 +216,7 @@ export const LogBufferScreen = () => {
     const [clearSuccess, setClearSuccess] = useState<boolean | null>(null);
 
     const [uploadHeld, setUploadHeld] = useState(isLogUploadHeld);
+    const [flushState, setFlushState] = useState<'idle' | 'sending' | 'sent' | 'unavailable'>('idle');
     const heldByApp = useMemo(isLogUploadHeldByApp, []);
 
     const [activeLevels, setActiveLevels] = useState<Set<AppLogLevel>>(new Set());
@@ -417,6 +418,28 @@ export const LogBufferScreen = () => {
         setUploadHeld(next);
     }, [uploadHeld]);
 
+    /**
+     * Sends the pending queue off-schedule (ADR-0080 결정 14).
+     *
+     * `getLogQueueView()` is undefined when no uploader is running (boot, teardown), and that is
+     * reported rather than swallowed — a silent no-op here would read as "sent" to the person who
+     * pressed it. Success means the attempt finished, not that the server accepted: the queue's
+     * at-least-once contract owns the retry, so that is all this can honestly claim.
+     */
+    const flushNow = useCallback(async () => {
+        const view = getLogQueueView();
+        if (!view) return setFlushState('unavailable');
+        setFlushState('sending');
+        try {
+            await view.flush();
+            setFlushState('sent');
+        } catch (error) {
+            logger.warn('LOG_BUFFER', 'flush failed', error);
+            setFlushState('idle');
+            setLastAction('flush failed');
+        }
+    }, []);
+
     // Auto-hide the "Copied" hint shortly after a copy.
     useEffect(() => {
         if (copiedAt === null) return;
@@ -483,6 +506,22 @@ export const LogBufferScreen = () => {
 
                     <Section title="Upload">
                         <HoldToggle held={uploadHeld} byApp={heldByApp} onToggle={toggleUploadHold} />
+                        <div className="flex items-center gap-2 pt-1">
+                            <button
+                                type="button"
+                                disabled={flushState === 'sending'}
+                                onClick={() => void flushNow()}
+                                className="rounded-md border border-border px-2 py-1 text-xs disabled:opacity-50"
+                            >
+                                지금 보내기
+                            </button>
+                            <span className="text-xs text-muted-foreground">
+                                {flushState === 'sending' && '보내는 중…'}
+                                {flushState === 'sent' && '보냈습니다 (서버 수락 여부는 큐가 보장)'}
+                                {flushState === 'unavailable' && '업로더가 돌고 있지 않습니다'}
+                                {uploadHeld && flushState === 'idle' && '홀드 중 — 보내기가 막혀 있을 수 있습니다'}
+                            </span>
+                        </div>
                     </Section>
 
                     <Section title="Filter">

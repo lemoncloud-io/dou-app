@@ -17,7 +17,8 @@ export type DebugScreenKey =
     | 'AppIcon'
     | 'Sms'
     | 'OAuthNative'
-    | 'Iap';
+    | 'Iap'
+    | 'Config';
 
 export interface DebugMenuItem {
     key: DebugScreenKey;
@@ -61,6 +62,8 @@ export const DEBUG_MENU_SECTIONS: DebugMenuSection[] = [
         title: 'Info',
         items: [
             { key: 'DeviceInfo', title: 'Device Info' },
+            // ADR-0079 결정 16의 화면 절반 — 로깅 절반은 configStateLog가 이미 낸다.
+            { key: 'Config', title: '지금 설정' },
             // Distinct from the Boot tab: that one measures the current web session live, this is
             // the native side's persisted per-boot history (ADR-0080 결정 11).
             { key: 'BootRecords', title: '부팅 기록 (앱)' },

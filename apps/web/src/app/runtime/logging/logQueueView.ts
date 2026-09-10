@@ -18,6 +18,13 @@ import type { LogEntry } from '@chatic/bridges';
  * reproducing something wants a clean slate for the next attempt, and the
  * alternatives are releasing the hold (which ships everything) or reloading.
  * It discards; that is the point, and the label says so.
+ *
+ * `flush` is the opposite end of the same workflow and the reason it was added
+ * (ADR-0080 결정 14): the uploader only sends on its own schedule or on a
+ * lifecycle cue, so someone who has just reproduced a bug had no way to send
+ * what they produced without closing the app. `main.tsx` drops the uploader
+ * handle that owns `flush`, so registration is the only way to reach it — the
+ * same reason `snapshot` lives here.
  */
 
 export interface LogQueueView {
@@ -25,6 +32,14 @@ export interface LogQueueView {
     snapshot(): LogEntry[];
     /** Drops what is held. Discards — nothing is sent. */
     clear(): void;
+    /**
+     * Sends what is pending right now, off-schedule.
+     *
+     * Resolves when the attempt finishes, not when the server accepted — the
+     * queue's at-least-once contract already covers a failed send, so the
+     * caller learns "it was tried", which is what a button can honestly claim.
+     */
+    flush(): Promise<void>;
 }
 
 let view: LogQueueView | undefined;
