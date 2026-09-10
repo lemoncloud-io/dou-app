@@ -1,6 +1,8 @@
 # Observe 탭 실시간 디바이스 동기화 — 요구사항
 
 > 2026-07-08 · feature/socket-lab · 상위 시스템: [socket-lab](../socket-lab/00-requirement.md)
+>
+> **구현됐다** — [`runtime/observe-sync-container.ts`](../../../src/app/features/socket-lab/runtime/observe-sync-container.ts).
 
 ## 배경
 

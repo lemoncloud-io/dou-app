@@ -92,19 +92,19 @@ sequenceDiagram
 신규 피처 폴더 `apps/admin-v2/src/app/features/report-logs/`:
 
 - **`api/reportLogApi.ts`** — `fetchReportLogs(params)`가
-  `webTransport.buildSignedRequest({ method:'GET', baseURL: \`${DOU_ENDPOINT}/mocks/0/list\` }).setParams({ page, limit, ... }).execute<ReportLogListResponse>()`호출.`DOU_ENDPOINT`는 `@chatic/web-core`에서 import([config/index.ts:6](../../../../../libs/web-core/src/config/index.ts)).
-호출 패턴은 [userApi.ts:89](../../../src/app/features/socket-lab/api/userApi.ts:89)·[deviceApi.ts](../../../src/app/features/socket-lab/api/deviceApi.ts) 미러링.
+  `webTransport.buildSignedRequest({ method:'GET', baseURL: \`${DOU_ENDPOINT}/mocks/0/list\` }).setParams({ page, limit, ... }).execute<ReportLogListResponse>()`호출.`DOU_ENDPOINT`는 `@chatic/web-core`에서 import([`@chatic/web-config`의 `env.ts`](../../../../../libs/web-config/src/env.ts)).
+호출 패턴은 [userApi.ts](../../../src/app/features/socket-lab/api/userApi.ts)·[deviceApi.ts](../../../src/app/features/socket-lab/api/deviceApi.ts) 미러링.
 응답 타입 `ReportLogListResponse { list: MockView[]; total?; page?; limit?; aggr? }`는 로컬 정의.
 - **`lib/parseReportLog.ts`** — `MockView` → `ReportLogRow` 변환 + payload 파싱.
   payload 저장처가 `meta`(객체/문자열)인지 `message` 원문인지 미확인이므로 **양쪽을
   방어적으로 탐색**해 언랩한다. type은 저장된 title 접두어(`issue:` vs `error`)로 우선
   판별하고(파싱 실패해도 확보), 보조로 payload의 `stack`/`http` 유무를 본다. payload 필드
-  형태는 [ErrorReportPayload / IssueReportExtras](../../../../../libs/web-core/src/api/types/common.ts) 기준
+  형태는 [`IssueReportExtras`](../../../../../libs/app-runtime/src/report/types.ts) 기준
   (error/issue 스키마가 다르고 `device` 형태도 달라, 고정 필드 가정 없이 키-값 렌더).
 - **`hooks/use-report-logs.ts`** — `useQuery({ queryKey:['admin-v2','report-logs',params], queryFn })`.
   [use-device-list.ts](../../../src/app/features/socket-lab/hooks/use-device-list.ts) 미러링.
 - **`components/ReportDetailDrawer.tsx`** — 사이드 드로우. 표시 데이터 세트는 apps/web의
-  이슈 리포트 위젯([IssueReportOverlay](../../../../../apps/web/src/app/features/issue-report/components/IssueReportOverlay.tsx) → [buildReportContext](../../../../../apps/web/src/app/features/issue-report/lib/buildReportContext.ts))이
+  이슈 리포트 화면([`features/feedback`](../../../../../apps/web/src/app/features/feedback/) → [buildReportContext](../../../../../apps/web/src/app/features/feedback/lib/buildReportContext.ts))이
   첨부하는 항목 기준: 메시지·스택 / HTTP / 유저 / 클라우드 / 디바이스·네트워크·viewport·path / 최근 로그·버전. 하단에 raw JSON 폴백.
 - **`components/ReportLogTable.tsx`** — 요약 테이블(type 배지·제목·app·env·시각). 공용 테이블
   컴포넌트가 없으므로 Tailwind 유틸 + 테마 토큰(`bg-card`, `text-foreground` 등)으로 직접 작성.
@@ -112,7 +112,7 @@ sequenceDiagram
   전달, 테이블 + 드로우 조립.
 - **`routes/index.tsx`** (+ `index.tsx` re-export) — `SocketLabRoutes` 형태 미러링.
 - **`app/routes.tsx`** — `ProtectedRoute` 아래에 `/report-logs/*` 라우트 추가
-  ([routes.tsx:19](../../../src/app/routes.tsx:19) 인접).
+  ([routes.tsx](../../../src/app/routes.tsx) 인접).
 
 ## 검증 방법
 

@@ -89,7 +89,7 @@ flowchart TD
 
 **app-runtime — 인증 전용 호스트 신규 추가**
 
-- **`libs/app-runtime/src/connection/RuntimeAuthHost.tsx`** (신규) — `RuntimeConnectionHost`
+- **`libs/app-runtime/src/connection/RuntimeConnectionHost.tsx`** (신규) — `RuntimeConnectionHost`
   ([RuntimeConnectionHost.tsx:23](../../../../../libs/app-runtime/src/connection/RuntimeConnectionHost.tsx))를
   본떠 `useInitWebCore` 게이트 + `useSocketSessionDelegate` + `SocketBinder` + `SocketReauthBinder`만
   마운트. **`useRelaySessionKeepAlive`는 마운트하지 않는다.** 소켓 슬롯은 호스트가
@@ -123,7 +123,7 @@ flowchart TD
 
 1. **[선행 검증]** dev 로그인 후 relay 소켓이 실제로 연결되고 `commitServerRefreshedToken`가 도는지
    (relay-only로 HTTP 자격증명이 갱신되는지) 콘솔/네트워크로 확인 — 리스크 1 해소.
-2. `RuntimeAuthHost.tsx` 신규 작성 + `index.ts` export.
+2. `RuntimeConnectionHost.tsx`(`RuntimeAuthHost`를 export) 신규 작성 + `index.ts` export.
 3. admin-v2 `app.tsx`를 `RuntimeAuthHost`로 전환(수동 `startWebCoreInit` 제거).
 4. ~~`OAuthResponsePage`에 `refreshRelaySession({ syncProfile: true })` 적용.~~ 불필요해짐 —
    `createCredentialsByProvider`가 교환 응답을 그대로 커밋하도록 ADR-0070에서 바뀌어 후속 호출이

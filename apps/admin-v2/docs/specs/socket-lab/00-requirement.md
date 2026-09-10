@@ -1,8 +1,12 @@
 # Requirement: socket-lab
 
-**Status:** Confirmed
-**Date:** 2026-06-29
-**Slug:** socket-lab
+**Status:** 구현 완료 (요구사항 기록) · **Date:** 2026-06-29
+
+> **구조는 이 문서가 그리던 것과 다르게 갔다.** 당시 대상은 `apps/admin`이었고 지금 코드는
+> `apps/admin-v2/src/app/features/socket-lab/`에 있다. 함께 있던 01-spec · 02-design · 03-plan은
+> 존재하지 않는 앱(`apps/admin`)과 만들어지지 않은 파일(`lab-model.ts`·`lab-runner.ts`·
+> `SocketLabPage.tsx`)을 서술하고 있어 삭제했다. 실제 구조는
+> [admin-v2 README](../../../README.md)를 보고, 이 문서는 **왜 만들었는가**로만 읽는다.
 
 ## 키 / 컨셉
 
