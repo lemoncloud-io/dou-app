@@ -3,6 +3,7 @@ import { switchSite } from './switchSite';
 import { cloudSession } from '../../session/auth/cloudSession';
 import { getGlobalSessionContext, getSelectedSiteId } from '../../session/store';
 import { getSocketManager } from '../runtime';
+import { handleRevokedRelaySession } from './revokedSession';
 
 import type { Logger } from '@chatic/bridges';
 
@@ -18,10 +19,18 @@ jest.mock('../runtime', () => ({
     getSocketManager: jest.fn(),
 }));
 
+// Only the TEARDOWN is stubbed (it redirects the document). The predicate stays real so these cases
+// exercise the actual matcher against the actual SDK error shape.
+jest.mock('./revokedSession', () => ({
+    ...jest.requireActual('./revokedSession'),
+    handleRevokedRelaySession: jest.fn().mockResolvedValue(undefined),
+}));
+
 const mockedApply = cloudSession.applySelectedSite as jest.Mock;
 const mockedGetSelected = getSelectedSiteId as jest.MockedFunction<typeof getSelectedSiteId>;
 const mockedGetSession = getGlobalSessionContext as jest.MockedFunction<typeof getGlobalSessionContext>;
 const mockedGetManager = getSocketManager as jest.MockedFunction<typeof getSocketManager>;
+const mockedHandleRevoked = handleRevokedRelaySession as jest.Mock;
 
 const makeManager = (authSwitch: jest.Mock, waitUntilVerified = jest.fn().mockResolvedValue(true)) =>
     ({
@@ -68,6 +77,33 @@ describe('switchSiteViaSocket', () => {
 
         const applied = mockedApply.mock.calls.map(c => c[0]);
         expect(applied).toEqual(['site-new', 'site-old']); // optimistic then rollback
+    });
+
+    it('ends the session when the server answers that it is revoked', async () => {
+        // The live failure (.claude/20260910/DEBUG-17-30-25.md): the session was revoked server-side,
+        // so nothing this client holds works again — a rollback + rethrow alone leaves the app
+        // authenticated-looking and 403-ing on every screen.
+        mockedGetSelected.mockReturnValue('site-old');
+        withUser('user-1');
+        const rejection = new Error('auth.switch failed: server') as Error & { cause?: unknown };
+        rejection.cause = new Error('403 NOT ALLOWED - session revoked @refreshAccessToken(auth-1)');
+        mockedGetManager.mockReturnValue(makeManager(jest.fn().mockRejectedValue(rejection)));
+
+        await expect(switchSite('site-new')).rejects.toThrow('auth.switch failed: server');
+
+        expect(mockedHandleRevoked).toHaveBeenCalledWith('auth.switch');
+        // The caller still gets its rollback — the teardown is not a substitute for it.
+        expect(mockedApply.mock.calls.map(c => c[0])).toEqual(['site-new', 'site-old']);
+    });
+
+    it('leaves the session alone for a recoverable switch failure', async () => {
+        mockedGetSelected.mockReturnValue('site-old');
+        withUser('user-1');
+        mockedGetManager.mockReturnValue(makeManager(jest.fn().mockRejectedValue(new Error('server rejected'))));
+
+        await expect(switchSite('site-new')).rejects.toThrow('server rejected');
+
+        expect(mockedHandleRevoked).not.toHaveBeenCalled();
     });
 
     it('throws without touching the sid when there is no active user', async () => {

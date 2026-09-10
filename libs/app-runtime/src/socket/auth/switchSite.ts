@@ -3,6 +3,7 @@ import { cloudSession } from '../../session/auth/cloudSession';
 import { getGlobalSessionContext, getSelectedSiteId } from '../../session/store';
 
 import { getSocketManager } from '../runtime';
+import { handleRevokedRelaySession, isRevokedSessionError } from './revokedSession';
 
 /**
  * Switches the active site on the live socket via the SDK `auth.switch` — owned by app-runtime now
@@ -55,6 +56,15 @@ export const switchSite = async (siteId: string): Promise<void> => {
         // Roll the optimistic sid back to the previous site; the committed token was never changed.
         cloudSession.applySelectedSite(prevSiteId);
         reportPerfMetric('site-switch', perfNow() - startedAt, { ok: false });
+        // `auth.switch` is the ONLY surface that carries the server's revoked-session rejection to us
+        // (`AuthSwitchError.cause`; refresh and signed HTTP both lose it — see `revokedSession`). A
+        // revoked session cannot be switched, refreshed or delegated from, so this rejection is the
+        // session's verdict rather than this switch's: end it here instead of letting every later
+        // screen fail on its own. Fire-and-forget — the caller still gets its rejection to roll back
+        // with, and the teardown redirects on its own.
+        if (isRevokedSessionError(error)) {
+            void handleRevokedRelaySession('auth.switch');
+        }
         throw error;
     }
 };
