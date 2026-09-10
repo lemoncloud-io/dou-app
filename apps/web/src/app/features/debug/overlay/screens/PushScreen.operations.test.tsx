@@ -27,7 +27,12 @@ jest.mock('../../hooks', () => ({
     usePushRegistration: () => ({ state: 'idle', token: null, summary: null, error: null, check: jest.fn() }),
     useReceivedPushLog: () => ({ entries: [], clear: jest.fn() }),
 }));
-jest.mock('../../lib', () => ({ copyText: jest.fn(), formatRegisteredAt: () => '—' }));
+// DEV 스킴을 돌려주는 페이크 — 화면이 스킴을 해석해 쓰는지, 아니면 어딘가에 박아 뒀는지가 갈린다.
+jest.mock('../../lib', () => ({
+    copyText: jest.fn(),
+    formatRegisteredAt: () => '—',
+    buildAppDeeplink: (input: string) => `chatic-dev://${input.replace(/^\/+/, '')}`,
+}));
 jest.mock('../overlayStore', () => ({ debugOverlayActions: { selectScreen: jest.fn() } }));
 
 const click = (name: string) => userEvent.click(screen.getByRole('button', { name }));
@@ -60,7 +65,8 @@ describe('PushScreen — 조작 (ADR-0080 결정 11)', () => {
 
         await click('로컬 알림 띄우기');
 
-        expect(showNotification).toHaveBeenCalledWith(expect.objectContaining({ deeplink: 'chatic://chats' }));
+        // 이 빌드의 스킴이어야 한다. 'chatic://…'이 나오면 dev 기기에서 prod 앱을 여는 그 버그다.
+        expect(showNotification).toHaveBeenCalledWith(expect.objectContaining({ deeplink: 'chatic-dev://chats' }));
     });
 
     // 구버전 앱은 명령을 몰라 reject한다. 실패를 성공으로 뭉개지 않는 것이 이 화면의 요점이다.
@@ -83,11 +89,11 @@ describe('PushScreen — 조작 (ADR-0080 결정 11)', () => {
         expect(await screen.findByText(/확인 없음/)).toBeInTheDocument();
     });
 
-    it('푸시 탭 재현은 앱 스킴을 열어 OS 왕복을 만든다', async () => {
+    it('푸시 탭 재현은 이 빌드의 스킴을 열어 OS 왕복을 만든다', async () => {
         render(<PushScreen />);
 
         await click('푸시 탭 재현');
 
-        expect(openURL).toHaveBeenCalledWith('chatic://chats');
+        expect(openURL).toHaveBeenCalledWith('chatic-dev://chats');
     });
 });

@@ -152,7 +152,7 @@ flowchart TD
 | `EnvironmentSettings` | 281   | **삭제**  | ADR-0080 결정 13 — 기능 자체를 뺀다                                                                                                                                                                                                           |
 | `BootPerformance`     | 237   | 이관      | **신규 웹 화면이 필요했다.** 웹 `BootTab`(83줄)은 현재 세션의 웹 타임라인을 라이브로 재는 다른 것이다 — 이쪽은 누적된 네이티브+웹 병합 기록이다. `BootRecordsScreen` 신설                                                                     |
 | `AppIconTest`         | 223   | 이관      | `FetchAppIcon`·`FetchAppIconList`·`ChangeAppIcon`                                                                                                                                                                                             |
-| `DeeplinkTest`        | 139   | 이관      | `OpenURL`                                                                                                                                                                                                                                     |
+| `DeeplinkTest`        | 139   | 이관      | `OpenURL` — 앱 스킴을 열면 OS가 인바운드 딥링크로 되돌려준다. `DeeplinkScreen` 신설(입력 + 프리셋 4개). 스킴은 `net.deeplink.scheme`으로 해석한다                                                                                             |
 | `DebugHomeScreen`     | 77    | **삭제**  | 결정 12 — 열 곳이 없다                                                                                                                                                                                                                        |
 
 ### 단계 1 검증 결과 — 새 브릿지 명령 3개 (2026-09-10)
@@ -222,6 +222,14 @@ flowchart TD
 반대로 웹이 이미 거의 다 덮고 있었다(카운터 2개만 부족). 단계 1의 딥링크 오판과 같은 실수이므로
 남은 화면도 **구현을 열어 확인한 뒤** 판정한다.
 
+**딥링크 스킴은 절대 문자로 쓰지 않는다 (2026-09-10, 버그 하나를 만들고 배운 것).** `PushScreen`의
+푸시 탭 재현에 `chatic://chats`를 박아 넣었는데, DEV 빌드는 `chatic-dev:`를 등록하므로 두 채널이 깔린
+기기에서 **prod 앱이 열린다** — `apps/desktop-web`의 `oauth.ts`가 경고하는 그 교차 채널 위험이다.
+`lib/buildAppDeeplink.ts`가 `net.deeplink.scheme`(byStage로 DEV는 `chatic-dev`)을 읽어 상대경로에
+스킴을 붙이고, **이미 스킴이 붙은 입력은 그대로 통과시킨다** — 다른 채널이 이 빌드를 잡지 않는지
+확인하는 것도 시험 대상이기 때문이다(앱 화면이 dev/prod 버튼을 따로 둔 이유). 테스트가 DEV 스킴을
+가정해 하드코딩 회귀를 잡는다.
+
 섹션·언어는 결정 3대로 한국어로 통일한다. 지금 웹은 `Tools`/`Data`/`Info`(영어), 앱은
 `기능 테스트`/`환경설정`/`모니터링`(한국어)이다.
 
@@ -269,6 +277,9 @@ flowchart TD
           뱃지 조회/0으로 · 푸시 탭 재현). `appBridge`에 `fetchBadgeCount`·`showNotification`·
           `requestPermission` 3개를 **파사드만** 추가했다(계약은 이미 있었으므로 앱 릴리스 없음).
           테스트 6건. 이걸로 `DeleteFcmToken`까지 새 명령 3개 전부 end-to-end 검증됐다
+    - [x] `DeeplinkTest` → `DeeplinkScreen` 신설. **별 화면이 맞았다** — 웹 `InviteRedirectScreen`은
+          공유 링크를 변환해 **웹**을 이동시키는 다른 도구다(`window.location.href`). 이쪽은 **앱**의
+          인바운드 라우팅을 시험한다. 프리셋에 교차 확인용 절대 스킴 2개를 둔다
     - [ ] `DeviceInfoScreen`←`DeviceTest`
     - [ ] 신규 6개: `StorageTest` · `IapTest` · `OAuthTest` · `SmsTest` · `AppIconTest` · `DeeplinkTest`
 - [ ] **3. 결정 14 버튼 3개** — 로그 지금 보내기(`flushNow`) · 설정 전체 보기(`snapshotAll`) ·

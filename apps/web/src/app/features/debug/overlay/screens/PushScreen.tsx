@@ -5,7 +5,7 @@ import { BellRing, CheckCircle2, Copy, FileText, RefreshCw, Trash2, XCircle } fr
 import { isNative, logger } from '@chatic/bridges';
 
 import { usePushRegistration, useReceivedPushLog } from '../../hooks';
-import { copyText, formatRegisteredAt } from '../../lib';
+import { buildAppDeeplink, copyText, formatRegisteredAt } from '../../lib';
 import { debugOverlayActions } from '../overlayStore';
 import { appBridge } from '../../../../bridge';
 
@@ -16,8 +16,12 @@ import { appBridge } from '../../../../bridge';
  * A push tap is reproduced with `openURL` on the app's own scheme rather than a dedicated command:
  * the OS hands the URL straight back as an inbound deeplink, which is the round trip a real tap
  * makes (see `OpenURLPayload`'s note on the withdrawn `SimulateInboundDeeplink`).
+ *
+ * The scheme is resolved per build (`buildAppDeeplink`), not written literally — a dev build
+ * registers `chatic-dev:`, so a hardcoded `chatic://` would open the other channel's app on a
+ * device that has both.
  */
-const PUSH_TAP_URL = 'chatic://chats';
+const PUSH_TAP_PATH = '/chats';
 
 export const PushScreen = () => {
     const isOnNative = isNative();
@@ -178,7 +182,7 @@ export const PushScreen = () => {
                                     appBridge.showNotification({
                                         title: '디버그 알림',
                                         body: '웹 패널에서 띄운 로컬 알림입니다',
-                                        deeplink: PUSH_TAP_URL,
+                                        deeplink: buildAppDeeplink(PUSH_TAP_PATH),
                                     })
                                 )
                             }
@@ -202,7 +206,9 @@ export const PushScreen = () => {
                         </button>
                         <button
                             type="button"
-                            onClick={() => fire('푸시 탭 재현', () => appBridge.openURL(PUSH_TAP_URL))}
+                            onClick={() =>
+                                fire('푸시 탭 재현', () => appBridge.openURL(buildAppDeeplink(PUSH_TAP_PATH)))
+                            }
                             className="rounded-md border border-border px-2 py-1 text-xs"
                         >
                             푸시 탭 재현

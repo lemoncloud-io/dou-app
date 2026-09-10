@@ -12,7 +12,8 @@ export type DebugScreenKey =
     | 'DBBrowser'
     | 'ProfileEditor'
     | 'DeviceInfo'
-    | 'BootRecords';
+    | 'BootRecords'
+    | 'Deeplink';
 
 export interface DebugMenuItem {
     key: DebugScreenKey;
@@ -35,6 +36,9 @@ export const DEBUG_MENU_SECTIONS: DebugMenuSection[] = [
             { key: 'UploadTest', title: 'Chunk Upload Test' },
             { key: 'Push', title: 'Push (Token & Receive)' },
             { key: 'InviteRedirect', title: 'Invite Link Converter' },
+            // Distinct from the converter above: that one navigates the WEB, this hands the APP an
+            // inbound deeplink (ADR-0080 결정 11).
+            { key: 'Deeplink', title: '딥링크 보내기 (앱)' },
         ],
     },
     {
