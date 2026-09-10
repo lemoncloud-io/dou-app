@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { runtime } from '@chatic/app-runtime';
 import type { SyncTargetDescriptor } from '@lemoncloud/chatic-sockets-lib';
 
+import { CopyButton } from '../../components/CopyButton';
 import { Row } from '../../components/Row';
 import { Section } from '../../components/Section';
 import { useRuntimeMetrics } from '../../metrics/useRuntimeMetrics';
@@ -40,8 +41,17 @@ export const PerfScreen = () => {
     const sinceSec =
         metrics.socketStateSinceMs != null ? Math.round((Date.now() - metrics.socketStateSinceMs) / 1000) : null;
 
+    const snapshot = useCallback(
+        () => JSON.stringify({ metrics, socketState, targets, longTasks, vitals, usedHeapMb }, null, 2),
+        [metrics, socketState, targets, longTasks, vitals, usedHeapMb]
+    );
+
     return (
         <div className="space-y-3 p-4">
+            <div className="flex justify-end">
+                <CopyButton value={snapshot} label="지표 복사" />
+            </div>
+
             <Section title={`Sync Targets (${targets.length})`}>
                 {targets.length === 0 ? (
                     <p className="text-xs text-muted-foreground">등록된 sync 타깃이 없습니다</p>

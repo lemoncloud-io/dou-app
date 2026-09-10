@@ -1,3 +1,6 @@
+import { useCallback } from 'react';
+
+import { CopyButton } from '../../components/CopyButton';
 import { Row } from '../../components/Row';
 import { Section } from '../../components/Section';
 import type { ActiveCloudData, OtherCloudUnread } from '../../../../hooks';
@@ -71,8 +74,31 @@ const UnreadReport = ({
         .filter(row => row.unread > 0 || !row.hasSnapshot)
         .slice(0, 30);
 
+    const snapshot = useCallback(
+        () =>
+            JSON.stringify(
+                {
+                    total,
+                    otherTotal,
+                    badge: total + otherTotal,
+                    channelCount: channels.length,
+                    unreadPlaces,
+                    unreadChannels,
+                    otherClouds,
+                    derivationRows,
+                },
+                null,
+                2
+            ),
+        [total, otherTotal, channels.length, unreadPlaces, unreadChannels, otherClouds, derivationRows]
+    );
+
     return (
         <div className="space-y-3 p-4">
+            <div className="flex justify-end">
+                <CopyButton value={snapshot} label="안읽음 복사" />
+            </div>
+
             <Section title="전체">
                 <Row label="활성 클라우드 안읽음 합계" value={total} />
                 <Row label="관측 채널 수" value={channels.length} />

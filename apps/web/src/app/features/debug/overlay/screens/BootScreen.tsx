@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
+import { CopyButton } from '../../components/CopyButton';
 import { Row } from '../../components/Row';
 import { Section } from '../../components/Section';
 import { getBootSnapshot, type BootSnapshot } from '../../metrics/bootMarks';
@@ -19,6 +20,10 @@ export const BootScreen = () => {
     const [snapshot, setSnapshot] = useState<BootSnapshot | null>(null);
     const [vitals, setVitals] = useState<Record<string, VitalSample>>({});
 
+    // Named for the JSON, not the state: `snapshot` is already the BootSnapshot above. Hooks may
+    // not sit after the early return below, so this is declared here and reads the state it needs.
+    const bootJson = useCallback(() => JSON.stringify({ boot: snapshot, vitals }, null, 2), [snapshot, vitals]);
+
     useEffect(() => {
         const poll = () => {
             setSnapshot(getBootSnapshot());
@@ -36,6 +41,10 @@ export const BootScreen = () => {
 
     return (
         <div className="space-y-3 p-4">
+            <div className="flex justify-end">
+                <CopyButton value={bootJson} label="부팅 복사" />
+            </div>
+
             <Section title="Navigation (HTML)">
                 <Row label="TTFB" value={ms(navigation?.ttfbMs)} />
                 <Row label="response end" value={ms(navigation?.responseEndMs)} />

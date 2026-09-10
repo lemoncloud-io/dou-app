@@ -1,5 +1,8 @@
+import { useCallback } from 'react';
+
 import { runtime } from '@chatic/app-runtime';
 
+import { CopyButton } from '../../components/CopyButton';
 import { Row } from '../../components/Row';
 import { Section } from '../../components/Section';
 
@@ -14,8 +17,24 @@ export const StateScreen = () => {
     const { deviceId, firebaseInstallationId } = runtime.session.useDynamicDeviceId();
     const { relay, cloud, identity, activeServer } = session;
 
+    // Copied as JSON, not as the rendered rows: this gets pasted into an issue, where the shape
+    // matters more than the layout. Built at click time — these stores move while the panel is open.
+    const snapshot = useCallback(
+        () =>
+            JSON.stringify(
+                { isInitialized, isAuthenticated, deviceId, firebaseInstallationId, facts, session, socketState },
+                null,
+                2
+            ),
+        [isInitialized, isAuthenticated, deviceId, firebaseInstallationId, facts, session, socketState]
+    );
+
     return (
         <div className="space-y-3 p-4">
+            <div className="flex justify-end">
+                <CopyButton value={snapshot} label="상태 복사" />
+            </div>
+
             <Section title="Device">
                 <Row label="deviceId" value={deviceId} />
                 <Row label="firebase iid" value={firebaseInstallationId} />

@@ -7,6 +7,12 @@ import { RouteScreen } from './RouteScreen';
 import { recordRoute, resetRouteTrail } from '../../../../utils/routeTrail';
 import { routeStackTracker } from '../../../../utils/routeStack';
 
+const copyTextWithResult = jest.fn().mockResolvedValue(true);
+jest.mock('../../lib/copyText', () => ({
+    copyTextWithResult: (value: string) => copyTextWithResult(value),
+    copyText: () => undefined,
+}));
+
 /**
  * The screen reads module stores, not router context: the overlay mounts OUTSIDE the Router (see
  * DebugOverlayHost), so a screen that reached for `useLocation` would throw and take the overlay
@@ -116,6 +122,23 @@ describe('RouteScreen — 라우트 스택 인스펙터', () => {
 
         expect(label).toHaveAttribute('aria-expanded', 'true');
         expect(screen.getByText(/#0이 앱의 첫 화면입니다/)).toBeInTheDocument();
+    });
+
+    // 화면에 보이는 것과 클립보드에 담기는 것이 어긋나면 붙여넣은 리포트가 거짓이 된다.
+    it('복사하면 화면에 보이는 스택과 trail이 그대로 담긴다', async () => {
+        routeStackTracker.record({ pathname: '/a', action: 'PUSH', index: 0 });
+        routeStackTracker.record({ pathname: '/b', action: 'PUSH', index: 1 });
+        recordRoute('/a');
+        recordRoute('/b');
+
+        render(<RouteScreen />);
+        await userEvent.click(screen.getByRole('button', { name: /라우트 복사/ }));
+
+        const copied = JSON.parse(copyTextWithResult.mock.calls[0][0] as string);
+        expect(copied.depth).toBe(2);
+        expect(copied.currentIndex).toBe(1);
+        expect(copied.stack.entries.map((e: { pathname: string }) => e.pathname)).toEqual(['/a', '/b']);
+        expect(copied.trail).toEqual(['/a', '/b']);
     });
 
     // 스택과 trail의 구분은 이 화면을 읽기 전에 알아야 한다 — 펼쳐야 보이면 늦다.

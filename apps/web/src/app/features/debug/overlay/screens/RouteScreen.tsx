@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
+import { CopyButton } from '../../components/CopyButton';
 import { HintRow } from '../../components/HintRow';
 import { Row } from '../../components/Row';
 import { Section } from '../../components/Section';
@@ -42,8 +43,17 @@ export const RouteScreen = () => {
     const { currentIndex } = stack;
     const forwardCount = currentIndex === null ? 0 : Math.max(0, depth - currentIndex - 1);
 
+    const snapshot = useCallback(
+        () => JSON.stringify({ depth, currentIndex, forwardCount, historyLength, stack, trail }, null, 2),
+        [depth, currentIndex, forwardCount, historyLength, stack, trail]
+    );
+
     return (
         <div className="space-y-3 p-4">
+            <div className="flex justify-end">
+                <CopyButton value={snapshot} label="라우트 복사" />
+            </div>
+
             <Section title="요약">
                 <HintRow
                     label="깊이"
