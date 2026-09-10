@@ -54,7 +54,7 @@ HTTP 통신의 전부 — 요청 실행기, 전송 규칙(리트라이·에러 �
   `HttpGatewayBundle`·`http-data-sources`·`httpFactory`와 함께
   ([HTTP 데이터 경로](../../data/docs/remote.md) 문서 소관)
 - `calcSignature`(lemon HMAC, awsSigning.ts:25)
-  — 3단계 `@chatic/auth-sign` 신설 시 이관([auth-sign architecture](../../auth-sign/docs/architecture.md)).
+  — 3단계 `@chatic/auth-sign` 신설 시 이관([auth-sign](../../auth-sign/README.md)).
   refresh 서명 재료라 refresh 소유권 재배선과 함께 움직여야 한다
 - `transport/authRuntime.ts`(OAuth 코드 교환) — 3단계 세션 이관 소속
   ([세션 허브 architecture](../../app-runtime/docs/session/architecture.md))
