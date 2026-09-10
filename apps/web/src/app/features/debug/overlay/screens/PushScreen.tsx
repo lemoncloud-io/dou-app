@@ -1,10 +1,8 @@
-import { useCallback, useState } from 'react';
-
 import { BellRing, CheckCircle2, Copy, FileText, RefreshCw, Trash2, XCircle } from 'lucide-react';
 
-import { isNative, logger } from '@chatic/bridges';
+import { isNative } from '@chatic/bridges';
 
-import { usePushRegistration, useReceivedPushLog } from '../../hooks';
+import { useDebugOperation, usePushRegistration, useReceivedPushLog } from '../../hooks';
 import { buildAppDeeplink, copyText, formatRegisteredAt } from '../../lib';
 import { debugOverlayActions } from '../overlayStore';
 import { appBridge } from '../../../../bridge';
@@ -28,32 +26,9 @@ export const PushScreen = () => {
 
     const { state, token, summary, error, check } = usePushRegistration();
     const { entries, clear } = useReceivedPushLog();
-    const [opResult, setOpResult] = useState<string | null>(null);
-
-    /**
-     * `openURL`/`setBadgeCount`는 `webClient.post`로 보내고 끝이다 — 확인 응답이 없다.
-     *
-     * 결정 10은 "리모콘은 눌렸는지 알아야 한다"고 했지만 그 둘은 제품이 쓰는 기존 메서드이고 여기서
-     * `request`로 바꾸는 것은 이 트랙의 범위가 아니다. 대신 **확인을 받은 척하지 않는다** — 줄에
-     * "확인 없음"을 적어 무엇이 증명됐고 무엇이 안 됐는지 구분한다.
-     */
-    const fire = useCallback((label: string, operation: () => void) => {
-        operation();
-        setOpResult(`${label} → 보냈습니다 (확인 없음)`);
-    }, []);
-
-    const run = useCallback(async (label: string, operation: () => Promise<unknown>) => {
-        setOpResult(`${label}…`);
-        try {
-            const res = (await operation()) as { data?: unknown };
-            setOpResult(`${label} → ${res?.data ? JSON.stringify(res.data) : 'ok'}`);
-        } catch (e) {
-            // Reaching here also covers an app build that predates a command (NOT_FOUND): the line
-            // says the app refused, which is not the same as the operation reporting a failure.
-            logger.warn('APP', `push debug op failed: ${label}`, e as Error);
-            setOpResult(`${label} → 실패: ${(e as Error).message}`);
-        }
-    }, []);
+    // `fire` is for the two `post`-based commands here (`openURL`, `setBadgeCount`): they get no
+    // answer, so the shared hook labels them "확인 없음" instead of implying one (결정 10).
+    const { result, run, fire } = useDebugOperation();
 
     return (
         <div className="flex h-full flex-col bg-background">
@@ -214,9 +189,7 @@ export const PushScreen = () => {
                             푸시 탭 재현
                         </button>
                     </div>
-                    {opResult && (
-                        <p className="mt-3 break-all font-mono text-[12px] text-muted-foreground">{opResult}</p>
-                    )}
+                    {result && <p className="mt-3 break-all font-mono text-[12px] text-muted-foreground">{result}</p>}
                 </div>
 
                 {/* Section 3: received pushes (foreground) */}

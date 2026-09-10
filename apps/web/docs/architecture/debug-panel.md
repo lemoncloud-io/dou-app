@@ -137,23 +137,23 @@ flowchart TD
 기존 명령으로 덮이는지는 [`WEB_MESSAGE_RESPONSE_TYPE`](../../../../libs/app-messages/src/types/web-message-response.ts)
 기준이다. **명령 단위 동등성은 단계 1에서 줄 단위로 확인한다** — 아래는 능력 단위 판정이다.
 
-| 앱 화면               | 줄    | 처분      | 기존 명령                                                                                                                                                                                                                                     |
-| --------------------- | ----- | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `UploadTest`          | 1,100 | 이관 없음 | **웹 화면이 그대로 살아남는다.** 웹 `UploadTestScreen`(1,720줄)이 이미 8개 명령 전부를 `webClient.request`로 직접 부르는 유일한 소비자다 — 단계 2에서 할 일이 없고, 모바일 화면은 단계 6에서 함께 사라진다                                    |
-| `NotificationTest`    | 559   | 이관      | `ShowNotification`·`FetchFcmToken`·`SetBadgeCount`·`FetchBadgeCount`·`FetchPushMarks`·`RequestPermission` (웹 `PushScreen` 163줄 확장)                                                                                                        |
-| `SocketTest`          | 540   | **삭제**  | 없음. 그런데 `useWebSocket`·`chatic-sockets-api`를 쓰는 곳이 이 화면 하나뿐이다 — 앱에 프로덕션 소켓이 없다. 테스트 화면을 위해서만 있는 스캐폴딩이므로 훅 289줄과 함께 지운다                                                                |
-| `StorageTest`         | 492   | 이관      | 캐시 8종·테스트레코드 4종·preference 3종 (`FetchAllCacheData`·`SaveCacheData`·`DeleteCacheData`·`ClearCacheData`·`SaveTestRecord`·`FetchPreference` 등)                                                                                       |
-| `BridgeTest`          | 452   | **삭제**  | ADR-0080 결정 11 — 브릿지가 죽으면 흰 화면이 이미 알려준다                                                                                                                                                                                    |
-| `IapTest`             | 400   | 이관      | `FetchProducts`·`Purchase`·`FetchCurrentPurchases`·`FinishPurchaseTransaction`·`OpenStore`·`OpenSubscriptionManagement`                                                                                                                       |
-| `OAuthTest`           | 382   | 이관      | `OAuthLogin`·`OAuthLogout`                                                                                                                                                                                                                    |
-| `SmsTest`             | 373   | 이관      | `SendSms`                                                                                                                                                                                                                                     |
-| `DeviceTest`          | 348   | 이관      | 웹 `DeviceInfoScreen`에 조작 절 추가. 명령은 전부 있었고 `appBridge`에 `openCamera`·`openPhotoLibrary`·`openDocument`·`copyToClipboard` 4개를 파사드만 더했다. **`MICROPHONE`은 계약 union을 넓혀야 했다**(아래)                              |
-| `Monitoring`          | 314   | 이관      | 큐는 웹 `LogBufferScreen`(624줄)이 **이미 전부 덮는다** — 빠진 건 네이티브 카운터 2개(`getContentProcessReloadCount`·`getLastForegroundResumeMs`)뿐이고, `FetchBootRecords`가 그 둘을 함께 돌려주므로 부팅 기록 화면에 실렸다. 별 화면 불필요 |
-| `EnvironmentSettings` | 281   | **삭제**  | ADR-0080 결정 13 — 기능 자체를 뺀다                                                                                                                                                                                                           |
-| `BootPerformance`     | 237   | 이관      | **신규 웹 화면이 필요했다.** 웹 `BootTab`(83줄)은 현재 세션의 웹 타임라인을 라이브로 재는 다른 것이다 — 이쪽은 누적된 네이티브+웹 병합 기록이다. `BootRecordsScreen` 신설                                                                     |
-| `AppIconTest`         | 223   | 이관      | `FetchAppIcon`·`FetchAppIconList`·`ChangeAppIcon`                                                                                                                                                                                             |
-| `DeeplinkTest`        | 139   | 이관      | `OpenURL` — 앱 스킴을 열면 OS가 인바운드 딥링크로 되돌려준다. `DeeplinkScreen` 신설(입력 + 프리셋 4개). 스킴은 `net.deeplink.scheme`으로 해석한다                                                                                             |
-| `DebugHomeScreen`     | 77    | **삭제**  | 결정 12 — 열 곳이 없다                                                                                                                                                                                                                        |
+| 앱 화면               | 줄    | 처분          | 기존 명령                                                                                                                                                                                                                                                                                               |
+| --------------------- | ----- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `UploadTest`          | 1,100 | 이관 없음     | **웹 화면이 그대로 살아남는다.** 웹 `UploadTestScreen`(1,720줄)이 이미 8개 명령 전부를 `webClient.request`로 직접 부르는 유일한 소비자다 — 단계 2에서 할 일이 없고, 모바일 화면은 단계 6에서 함께 사라진다                                                                                              |
+| `NotificationTest`    | 559   | 이관          | `ShowNotification`·`FetchFcmToken`·`SetBadgeCount`·`FetchBadgeCount`·`FetchPushMarks`·`RequestPermission` (웹 `PushScreen` 163줄 확장)                                                                                                                                                                  |
+| `SocketTest`          | 540   | **삭제**      | 없음. 그런데 `useWebSocket`·`chatic-sockets-api`를 쓰는 곳이 이 화면 하나뿐이다 — 앱에 프로덕션 소켓이 없다. 테스트 화면을 위해서만 있는 스캐폴딩이므로 훅 289줄과 함께 지운다                                                                                                                          |
+| `StorageTest`         | 492   | **분할 필요** | 두 가지가 섞여 있다. ① 네이티브 캐시 CRUD는 명령 4종이 있으나 웹 `CacheTestScreen`은 **테스트레코드 명령만** 부르므로 덮이지 않는다 ② SQLite 백업/복원은 `FileManagerBridge`(계약·웹 노출 0)를 쓰고 `sqliteDatabase.backup/restore`의 소비자가 이 화면 하나뿐이다 — `SocketTest`와 같은 구조. 판단 필요 |
+| `BridgeTest`          | 452   | **삭제**      | ADR-0080 결정 11 — 브릿지가 죽으면 흰 화면이 이미 알려준다                                                                                                                                                                                                                                              |
+| `IapTest`             | 400   | 이관          | `FetchProducts`·`Purchase`·`FetchCurrentPurchases`·`FinishPurchaseTransaction`·`OpenStore`·`OpenSubscriptionManagement`                                                                                                                                                                                 |
+| `OAuthTest`           | 382   | 이관          | `OAuthScreen` 신설. `OAuthLogin`·`OAuthLogout` — 파사드만 추가. 웹 릴레이 경로와 별개인 **네이티브 시트**를 시험한다                                                                                                                                                                                    |
+| `SmsTest`             | 373   | 이관          | `SmsScreen` 신설. `SendSms`(OS 작성 창 — 보내기는 사람이 누른다) + `GetContacts`                                                                                                                                                                                                                        |
+| `DeviceTest`          | 348   | 이관          | 웹 `DeviceInfoScreen`에 조작 절 추가. 명령은 전부 있었고 `appBridge`에 `openCamera`·`openPhotoLibrary`·`openDocument`·`copyToClipboard` 4개를 파사드만 더했다. **`MICROPHONE`은 계약 union을 넓혀야 했다**(아래)                                                                                        |
+| `Monitoring`          | 314   | 이관          | 큐는 웹 `LogBufferScreen`(624줄)이 **이미 전부 덮는다** — 빠진 건 네이티브 카운터 2개(`getContentProcessReloadCount`·`getLastForegroundResumeMs`)뿐이고, `FetchBootRecords`가 그 둘을 함께 돌려주므로 부팅 기록 화면에 실렸다. 별 화면 불필요                                                           |
+| `EnvironmentSettings` | 281   | **삭제**      | ADR-0080 결정 13 — 기능 자체를 뺀다                                                                                                                                                                                                                                                                     |
+| `BootPerformance`     | 237   | 이관          | **신규 웹 화면이 필요했다.** 웹 `BootTab`(83줄)은 현재 세션의 웹 타임라인을 라이브로 재는 다른 것이다 — 이쪽은 누적된 네이티브+웹 병합 기록이다. `BootRecordsScreen` 신설                                                                                                                               |
+| `AppIconTest`         | 223   | 이관          | `AppIconScreen` 신설. `FetchAppIcon`·`FetchAppIconList`·`ChangeAppIcon` — 파사드만 추가. 응답은 `AppIconOption{id,label}`이라 **버튼은 label, 전송은 id**(id가 `null`이면 기본 복원)                                                                                                                    |
+| `DeeplinkTest`        | 139   | 이관          | `OpenURL` — 앱 스킴을 열면 OS가 인바운드 딥링크로 되돌려준다. `DeeplinkScreen` 신설(입력 + 프리셋 4개). 스킴은 `net.deeplink.scheme`으로 해석한다                                                                                                                                                       |
+| `DebugHomeScreen`     | 77    | **삭제**      | 결정 12 — 열 곳이 없다                                                                                                                                                                                                                                                                                  |
 
 ### 단계 1 검증 결과 — 새 브릿지 명령 3개 (2026-09-10)
 
@@ -292,7 +292,14 @@ flowchart TD
     - [x] `DeviceInfoScreen`←`DeviceTest` — 조작 절 추가(카메라 · 앨범 · 파일 · 연락처 · 클립보드 ·
           OS 설정 · 공유 시트 + 권한 4종). `appBridge` 4개 파사드 추가, 계약에 `MICROPHONE` 확장.
           테스트 5건
-    - [ ] 신규 6개: `StorageTest` · `IapTest` · `OAuthTest` · `SmsTest` · `AppIconTest` · `DeeplinkTest`
+    - [x] `AppIconScreen` · `SmsScreen` · `OAuthScreen` 신설 — `appBridge`에 파사드 5개 추가
+          (`fetchAppIcon`·`fetchAppIconList`·`changeAppIcon`·`oAuthLogin`·`oAuthLogout`). 테스트 11건
+    - [x] `hooks/useDebugOperation` 추출 — "누르고 결과 표시"를 세 번 복사한 뒤 뽑았다. `run`(응답 받는
+          명령)과 `fire`(post 기반, 답 없음)를 나눠 결정 10을 지킨다. `PushScreen`·`DeviceInfoScreen`도
+          이걸로 정리. 테스트 6건
+    - [ ] `IapTest` — `useSubscriptionIap`의 공개 API가 IAP 명령 6종과 1:1(단계 1 확인). 화면만 남음
+    - [ ] `StorageTest` — **분할이 필요하다**(위 표). 캐시 CRUD 절반은 만들 수 있고, SQLite 백업/복원은
+          존치/삭제 판단이 먼저다
 - [ ] **3. 결정 14 버튼 3개** — 로그 지금 보내기(`flushNow`) · 설정 전체 보기(`snapshotAll`) ·
       캐시 도메인별 비우기. 앞의 둘은 브릿지 왕복이 없다.
 - [ ] **4. 실패 표시** — 오버레이 레벨 `useToast` 배선 + 구버전 앱 `NOT_FOUND` 표시.

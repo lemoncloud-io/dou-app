@@ -26,6 +26,8 @@ jest.mock('@chatic/bridges', () => ({ isNative: () => true, logger: { warn: jest
 jest.mock('../../hooks', () => ({
     usePushRegistration: () => ({ state: 'idle', token: null, summary: null, error: null, check: jest.fn() }),
     useReceivedPushLog: () => ({ entries: [], clear: jest.fn() }),
+    // 실제 구현을 쓴다 — 목으로 갈면 "확인 없음" 같은 이 훅의 계약이 검증되지 않는다.
+    useDebugOperation: jest.requireActual('../../hooks/useDebugOperation').useDebugOperation,
 }));
 // DEV 스킴을 돌려주는 페이크 — 화면이 스킴을 해석해 쓰는지, 아니면 어딘가에 박아 뒀는지가 갈린다.
 jest.mock('../../lib', () => ({

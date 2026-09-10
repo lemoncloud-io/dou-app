@@ -326,6 +326,31 @@ export const appBridge = {
         return webClient.request({ type: 'ShowNotification', data: payload });
     },
 
+    /** Which alternate app icon is active, and whether this platform supports changing it. */
+    fetchAppIcon(): Promise<WebMessageResponse<'FetchAppIcon'>> {
+        return webClient.request({ type: 'FetchAppIcon', data: {} });
+    },
+
+    /** The alternate icons this build ships. */
+    fetchAppIconList(): Promise<WebMessageResponse<'FetchAppIconList'>> {
+        return webClient.request({ type: 'FetchAppIconList', data: {} });
+    },
+
+    /** Switch the app icon. `null` (or 'default') restores the shipped one. */
+    changeAppIcon(iconName: string | null): Promise<WebMessageResponse<'ChangeAppIcon'>> {
+        return webClient.request({ type: 'ChangeAppIcon', data: { iconName } });
+    },
+
+    /** Native provider sign-in — a different path from the web's own relay hand-off. */
+    oAuthLogin(provider: Payload<'OAuthLogin'>['provider']): Promise<WebMessageResponse<'OAuthLogin'>> {
+        return webClient.request({ type: 'OAuthLogin', data: { provider } });
+    },
+
+    /** Native provider sign-out. */
+    oAuthLogout(provider: Payload<'OAuthLogout'>['provider']): Promise<WebMessageResponse<'OAuthLogout'>> {
+        return webClient.request({ type: 'OAuthLogout', data: { provider } });
+    },
+
     /** Open the camera and hand back what was captured. */
     openCamera(payload: Payload<'OpenCamera'> = {}): Promise<WebMessageResponse<'OpenCamera'>> {
         return webClient.request({ type: 'OpenCamera', data: payload });

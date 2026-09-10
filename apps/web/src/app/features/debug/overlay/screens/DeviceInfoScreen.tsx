@@ -1,12 +1,10 @@
-import { useCallback, useState } from 'react';
-
 import { Copy, Smartphone } from 'lucide-react';
 
-import { logger } from '@chatic/bridges';
 import { useDeviceInfo } from '@chatic/device-utils';
 
 import type { AppPermissionType } from '@chatic/app-messages';
 
+import { useDebugOperation } from '../../hooks';
 import { buildDeviceInfoRows, copyText } from '../../lib';
 import { appBridge } from '../../../../bridge';
 
@@ -23,24 +21,8 @@ const PERMISSIONS: readonly AppPermissionType[] = ['CAMERA', 'PHOTO_LIBRARY', 'C
  *  old DebugPage card and the RuntimeOverlay device tab. Tap a row to copy. */
 export const DeviceInfoScreen = () => {
     const { versionInfo, deviceInfo } = useDeviceInfo();
-    const [opResult, setOpResult] = useState<string | null>(null);
-
-    const run = useCallback(async (label: string, operation: () => Promise<unknown>) => {
-        setOpResult(`${label}…`);
-        try {
-            const res = (await operation()) as { data?: unknown };
-            setOpResult(`${label} → ${res?.data ? JSON.stringify(res.data).slice(0, 400) : 'ok'}`);
-        } catch (e) {
-            logger.warn('APP', `device debug op failed: ${label}`, e as Error);
-            setOpResult(`${label} → 실패: ${(e as Error).message}`);
-        }
-    }, []);
-
-    /** `openSettings`/`openShareSheet` are `post` based — no answer comes back, so do not imply one. */
-    const fire = useCallback((label: string, operation: () => void) => {
-        operation();
-        setOpResult(`${label} → 보냈습니다 (확인 없음)`);
-    }, []);
+    // `fire` covers `openSettings`/`openShareSheet`, which are `post` based and answer nothing.
+    const { result, run, fire } = useDebugOperation();
 
     return (
         <div className="p-4">
@@ -141,7 +123,7 @@ export const DeviceInfoScreen = () => {
                     ))}
                 </div>
 
-                {opResult && <p className="mt-3 break-all font-mono text-[12px] text-muted-foreground">{opResult}</p>}
+                {result && <p className="mt-3 break-all font-mono text-[12px] text-muted-foreground">{result}</p>}
             </div>
         </div>
     );

@@ -13,7 +13,10 @@ export type DebugScreenKey =
     | 'ProfileEditor'
     | 'DeviceInfo'
     | 'BootRecords'
-    | 'Deeplink';
+    | 'Deeplink'
+    | 'AppIcon'
+    | 'Sms'
+    | 'OAuthNative';
 
 export interface DebugMenuItem {
     key: DebugScreenKey;
@@ -35,6 +38,10 @@ export const DEBUG_MENU_SECTIONS: DebugMenuSection[] = [
             { key: 'CacheMetrics', title: 'Cache Metrics' },
             { key: 'UploadTest', title: 'Chunk Upload Test' },
             { key: 'Push', title: 'Push (Token & Receive)' },
+            // Moved off the app's 기능 테스트 section (ADR-0080 결정 11).
+            { key: 'Sms', title: 'SMS' },
+            { key: 'OAuthNative', title: 'OAuth (네이티브)' },
+            { key: 'AppIcon', title: '앱 아이콘' },
             { key: 'InviteRedirect', title: 'Invite Link Converter' },
             // Distinct from the converter above: that one navigates the WEB, this hands the APP an
             // inbound deeplink (ADR-0080 결정 11).

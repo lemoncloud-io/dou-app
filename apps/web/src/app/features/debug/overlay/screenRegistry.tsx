@@ -21,4 +21,7 @@ export const DEBUG_SCREEN_COMPONENTS: Record<DebugScreenKey, LazyExoticComponent
     DeviceInfo: lazy(() => import('./screens/DeviceInfoScreen').then(m => ({ default: m.DeviceInfoScreen }))),
     BootRecords: lazy(() => import('./screens/BootRecordsScreen').then(m => ({ default: m.BootRecordsScreen }))),
     Deeplink: lazy(() => import('./screens/DeeplinkScreen').then(m => ({ default: m.DeeplinkScreen }))),
+    AppIcon: lazy(() => import('./screens/AppIconScreen').then(m => ({ default: m.AppIconScreen }))),
+    Sms: lazy(() => import('./screens/SmsScreen').then(m => ({ default: m.SmsScreen }))),
+    OAuthNative: lazy(() => import('./screens/OAuthScreen').then(m => ({ default: m.OAuthScreen }))),
 };
