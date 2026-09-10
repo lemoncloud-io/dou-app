@@ -1,6 +1,6 @@
 # 채팅방 UI (Chat Room UI)
 
-> 상태: Live · 최종 갱신: 2026-07-20 · 관련 ADR: [[ADR-0010]](../../../../../docs/adr/0010-chat-screen-webuikit-rebuild.md), [[ADR-0021]](../../../../../docs/adr/0021-channel-room-figma-refinement.md), [[ADR-0024]](../../../../../docs/adr/0024-group-chat-room-figma-redesign.md)
+> 상태: Live · 최종 갱신: 2026-09-10 · 관련 ADR: [[ADR-0010]](../../../../../docs/adr/0010-chat-screen-webuikit-rebuild.md), [[ADR-0021]](../../../../../docs/adr/0021-channel-room-figma-refinement.md), [[ADR-0024]](../../../../../docs/adr/0024-group-chat-room-figma-redesign.md)
 
 ## 목적
 
@@ -21,7 +21,7 @@
   ADR-0021의 "멤버 스택 제거" 결정을 되돌린다.) 제목 아래 행에 참여자 아바타를 겹쳐
   노출하고(소유자 최좌측, 최대 5) 그 뒤에 채널 총원 수를 둔다. **self·1:1 DM 헤더는
   이 메타 행 없이 [아바타 + 제목] 단일 행**을 유지한다. 썸네일이 없을 때 fallback 글리프는
-  self는 전용 self 아바타(solid 실루엣+링, [[self-chat]]), 그 외(1:1 포함)는 3인 그룹 글리프.
+  사진은 `resolveChannelAvatar` 공용 규칙을 따른다 — self 는 **내** 플레이스 프로필 사진, dm 은 **상대** 사진, 그 외는 `channel.thumbnail`. self·dm 은 `channel.thumbnail` 을 아예 보지 않는다. 글리프는 `ChatRoomHeader` 의 `kind` 가 정하고 `fallbackVariant = kind === 'group' ? 'group' : 'user'` 다 — **1:1 과 self 는 1인 실루엣**이고 전용 self 변형은 없다(`DefaultAvatar` 는 `user | group` 둘뿐).
 - **화면에 노출되는 아이콘은 Figma SVG로 자산화한다.** lucide 플레이스홀더로 충분한
   것은 그대로 두되, Figma 전용 글리프(그룹 아바타 등)는 SVG를 추출해 `resources/icons`에
   커스텀 아이콘으로 정의한다(ADR-0021).
@@ -40,13 +40,13 @@
   `AvatarGroup`(max 5) — **소유자(`channel.ownerId`)가 가장 왼쪽**, 이후 활성 참여자
   순서. 총원 수 = **`channel.memberCount`**(본인 포함, 빈방=1). 더보기(⋯) 드롭다운(설정) 유지.
 - 헤더(self·1:1 DM): [아바타 + 이름] 단일 행(메타 미노출) — 기존 유지.
-- 빈 상태(메시지 없음): 상단 `DateDivider` + 좌측정렬 안내 문구(제목/부제) + "친구
+- 방 안내(`RoomIntro`): 상단 `DateDivider` + 좌측정렬 안내 문구(제목/부제) + "친구
   초대하기" 아웃라인 pill 버튼(chevron right). 노출 게이팅은 **기존 유지**(방장 + 비게스트 +
-  클라우드 활성). self chat 빈 상태(PenLine 안내)는 기존 유지.
+  클라우드 활성). **빈 상태 전용이 아니다** — 빈 방과 살아 있는 스레드 최상단(`hasThreadStart && roomIntro`) 양쪽에 렌더된다. 게이팅이 둘로 갈린다: 그룹 안내 문구 자체는 `isGroupOwner`, **초대 버튼만** `!isGuest && isCloudActive`. self·dm 은 각자 전용 문구가 있다.
 - 스크롤 중 **플로팅 날짜 pill**(ADR-0021): 상단에 걸친 날짜 그룹의 날짜를 반투명 pill로
   표시, 스크롤이 멎으면 사라짐 — 기존 유지.
 - 메시지 리스트: 날짜 구분(`DateDivider`), 입퇴장 시스템 알림(`SystemNotice`), 말풍선
-  (`MessageBubble` + `MessageRow`), **읽음표시(`ReadReceipt`) — `읽음 N · 안읽음 M`
+  (`MessageBubble` + `MessageRow`), **읽음표시(`ReadReceipt`) — `mode='count'` 는 `읽음 N · 안읽음 M`
   2요소**(읽음=초록 `--main-accent`, 안읽음=회색 `text-description`, 불릿 구분).
 - 메시지 아바타 크기 **39px → 32px**(Figma `1명 Profile` 32×32). 플레이스홀더도 web-ui-kit
   컴포넌트(`ImageAvatar`/`DefaultAvatar`)로 통일.
@@ -75,11 +75,13 @@
    방장이 아니거나 게스트/클라우드 비활성이면 안내 미표시(기존 게이팅).
 4. **나와의 채팅 진입** — 헤더는 [self 전용 아바타(solid 실루엣+링) + 제목(`$join.nick ||
 site 프로필 nick`, [[self-chat]])] 단일 행(메타 없음). 메시지는 전부 `mine` 말풍선,
-   읽음표시 없음. 비어 있으면 PenLine 안내.
+   읽음표시 없음. 비어 있으면 self 전용 안내 문구.
 5. **읽음표시(읽음+안읽음)** — 활성 2명 이상인 그룹에서 각 메시지의 시간 옆에
-   `읽음 N`(초록) · `안읽음 M`(회색)을 표시한다. 상대 메시지=`시간 · 읽음·안읽음`,
+   `읽음 N`(초록) · `안읽음 M`(회색)을 표시한다. **1:1 은 다르다** — `mode='dm'` 이라 안읽음 개수만
+   초록으로 뜨고 상대가 읽으면 아무것도 남지 않는다(라벨 미사용). 상대 메시지=`시간 · 읽음·안읽음`,
    내 메시지=`읽음·안읽음 · 시간`(시간이 바깥쪽). 모두 읽으면(안읽음 0) `안읽음` 세그먼트를
-   감추고 `읽음 N`만 남긴다. self·1명은 미표시.
+   감추고 `읽음 N`만 남긴다. 표시 조건은 `!isSelfChat && activeCount >= 2` 하나이므로 **DM 도 표시
+   대상이다** — 그룹 한정이 아니다. self·1명만 미표시.
 6. **스크롤로 과거 메시지 탐색** — 스크롤 중 상단에 걸친 날짜 그룹의 날짜가 플로팅
    pill("7. 01 월" 형태)로 뜨고, 스크롤이 멎으면 잠시 뒤 사라진다.
 7. **메시지 전송** — 낙관적 렌더(`전송 중`) → 성공 시 시간+읽음표시, 실패 시 `전송 실패` +
@@ -92,7 +94,7 @@ site 프로필 nick`, [[self-chat]])] 단일 행(메타 없음). 메시지는 �
    새어나간다. `touchstart`는 막지 않는다(전송 `click`까지 함께 죽는다). 여기에 컴포저의
    `touch-manipulation`으로 연타가 이중탭 제스처로 해석되는 경로를 없앤다.
 8. **긴 메시지 전체보기** — 200자 초과 시 말풍선에 `전체보기` → 인페이지 오버레이.
-9. **메시지 롱프레스** — 복사 메뉴 드롭다운(기존 유지).
+9. **메시지 롱프레스** — `MessageActionSheet`(BottomSheet, `h-[50vh]`) — 빠른 이모지 행 + 복사 + 답글. 반투명 Radix 드롭다운을 대체했다(ADR-0045). 리액션 상세는 `ReactionDetailSheet`가 따로 받는다.
 10. **입퇴장 시스템 알림** — 중앙 pill(`SystemNotice`): 굵은 이름 + 문구. subType(join/
     leave)로 i18n 렌더. 1:1 방의 `leave`만 톤이 갈린다(틴트 없는 적색) →
     [system-message.md](./system-message.md).
@@ -162,7 +164,7 @@ flowchart TD
   동일(self·1:1 DM 무영향). 제목은 계속 `truncate`. 유일 소비처는 `ChannelRoomPage`.
 - **`ReadReceipt` — 읽음+안읽음 2요소로 확장**
   ([ReadReceipt.tsx](../../../../../libs/web-ui-kit/src/composites/chat/ReadReceipt.tsx)) —
-  props를 `{ readCount, unreadCount, readLabel, unreadLabel, className }`로 확장. 렌더:
+  props 는 `{ readCount, unreadCount, readLabel, unreadLabel, className, mode }` 다. `mode?: 'count' | 'dm'`. 렌더:
   `읽음 {readCount}`(`text-main-accent`, 12px SemiBold) 항상, `unreadCount > 0`이면
   불릿(`•`, `text-description`) + `안읽음 {unreadCount}`(`text-description`). a11y는
   `aria-label`에 `{readLabel} {readCount} {unreadLabel} {unreadCount}` 구성. (Figma

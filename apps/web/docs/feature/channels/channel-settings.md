@@ -1,6 +1,6 @@
 # 그룹 채널 설정 화면 (ChannelSettingsPage)
 
-> 상태: Live · 최종 갱신: 2026-07-20 · 관련 ADR: [ADR-0025](../../../../../docs/adr/0025-channel-notification-mute-toggle.md) (알림 토글 데이터 연동), [ADR-0019](../../../../../docs/adr/0019-group-channel-settings-section-layout.md) (부분 Supersedes [ADR-0015](../../../../../docs/adr/0015-channel-settings-ui-refresh.md))
+> 상태: Live · 최종 갱신: 2026-09-10 · 관련 ADR: [ADR-0025](../../../../../docs/adr/0025-channel-notification-mute-toggle.md) (알림 토글 데이터 연동), [ADR-0019](../../../../../docs/adr/0019-group-channel-settings-section-layout.md) (부분 Supersedes [ADR-0015](../../../../../docs/adr/0015-channel-settings-ui-refresh.md))
 
 ## 목적
 
@@ -39,7 +39,7 @@
    토글 · "방 친구"/친구 추가 + 멤버 목록 · 하단 방 삭제/나가기).
 2. 멤버 행 뱃지 재정비 (방장 / MY) — `StatusBadge` 사용. `초대 대기 중`은 이후 폐기(§"초대 대기 중" 뱃지의 폐기).
 3. 대화방 알림 = 단순 on/off 인라인 토글. `join.update` notify(`all`/`none`)로 서버에 영속화 (ADR-0025).
-4. 방 이름 행 탭 → 소유자=편집 다이얼로그 / 멤버=읽기전용 방 정보.
+4. 방 이름 행 탭 → 같은 `UpdateChannelDialog`. 소유자는 방 이름·사진을, 멤버는 **자기 join 닉**을 고친다.
 
 **제외** (근거: [ADR-0019](../../../../../docs/adr/0019-group-channel-settings-section-layout.md), [ADR-0025](../../../../../docs/adr/0025-channel-notification-mute-toggle.md))
 
@@ -47,7 +47,7 @@
 - 알림 `notify = 'mention'` 3단계 — 모바일 토글은 켬/끔 이진(`all`/`none`)만 노출.
 - 데스크톱식 로컬 알림 pref store — apps/web엔 클라 notifier가 없어 불필요.
 - `libs/data` 변경 — `JoinRepository.updateJoin`이 이미 notify를 처리(낙관적 write + 롤백).
-- 연결 Dialog(정보 수정·프로필 상세)의 재디자인 — 기존 재사용, 멤버 읽기전용만 소규모 추가.
+- 연결 Dialog(정보 수정·프로필 상세)의 재디자인 — 기존 재사용.
 - "신고하기" (Figma hidden).
 - 1:1(self) 채팅 레이아웃 — self 유형 전용 문서 [[self-chat]]가 담당(이름 행 탭→이름 수정,
   "방 친구"만 노출). 이 문서는 그룹 설정에 집중한다.
@@ -58,11 +58,13 @@
    멤버 목록(소유자 행에 `방장`, 본인 행에 `MY`), 하단 **방 삭제**(빨강).
 2. **초대받은 멤버 진입** — 위와 동일하나 **친구 추가 행 없음**, 하단이 **방 나가기**(빨강).
 3. **방 이름 행 탭** — 소유자면 `UpdateChannelDialog`(이름/썸네일 편집), 멤버면 같은 다이얼로그를
-   **읽기전용**으로 열어 방 정보만 표시.
+   같은 다이얼로그가 열리고, **읽기전용이 아니라 편집기다** — 멤버는 자기 `join.nick`(이 방에서
+   쓰는 개인 이름)을 고칠 수 있다. 페이지는 `channelId`만 넘기고 모드는 다이얼로그가
+   `channel.isOwner`에서 파생한다.
 4. **알림 토글** — 초기값은 내 join 스트림(`useChannelJoins`의 `myJoin`)의 `notify`에서 파생(`'none'`→꺼짐, 그 외→켜짐). 탭 시
    즉시 낙관적 반영 후 `updateJoin({ channelId, userId, notify: 켬?'all':'none' })` 호출. 성공 시
    서버 재싱크로 확정, 실패 시 토글 원복 + 실패 toast. 재진입·기기 간에 상태가 유지된다.
-5. **친구 추가**(소유자) — 행 탭 → 기존 `InviteFriendsDialog`.
+5. **친구 추가**(소유자, DM 제외) — 행 탭 → `ROUTES.channels.invite(channelId)`로 **라우팅**한다. 다이얼로그가 아니다(`InviteFriendsDialog` 심볼은 없다 — 라우팅 페이지로 전환됐다).
 6. **멤버 행 탭** — 기존 `MemberProfileDialog`(소유자면 강퇴 가능).
 7. **방 삭제/나가기** — 하단 행 탭 → `ConfirmDialog` → `deleteChannel`/`leaveChannel` → 루트 이동.
 
@@ -98,7 +100,7 @@ flowchart LR
   O --> NameEdit[방이름 탭 → 편집]
   M --> AddHidden[친구 추가 행 숨김]
   M --> Danger2[하단: 방 나가기]
-  M --> NameRead[방이름 탭 → 읽기전용]
+  M --> NameRead[방이름 탭 → 내 닉 편집]
 
   subgraph 멤버행 뱃지 우선순위
     B{행 대상?} -->|ownerId===id| Owner[방장 · owner]
@@ -138,20 +140,20 @@ sequenceDiagram
 
 ### 신규/재사용 web-ui-kit 프리미티브 (대부분 이미 존재)
 
-| 용도                              | 컴포넌트                        | 위치                                                                                                                                     |
-| --------------------------------- | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| 섹션 라벨 "대화방 설정"/"방 친구" | `GroupLabel`                    | [GroupLabel.tsx](../../../../../libs/web-ui-kit/src/composites/section/GroupLabel.tsx) — 주석에 두 라벨 예시 명시                        |
-| 설정/멤버/토글/삭제 행            | `ListRow`                       | [ListRow.tsx](../../../../../libs/web-ui-kit/src/composites/list/ListRow.tsx) — leading/title/subtitle/trailing/destructive/onClick 슬롯 |
-| 알림 토글                         | `Switch`                        | [Switch.tsx](../../../../../libs/web-ui-kit/src/foundations/switch/Switch.tsx) — controlled checked/onCheckedChange                      |
-| 뱃지 방장/MY                      | `StatusBadge`                   | [StatusBadge.tsx](../../../../../libs/web-ui-kit/src/foundations/badge/StatusBadge.tsx) — variant `owner`/`pending`/`mine` 이미 정의     |
-| 멤버 아바타(사진 없음)            | `DefaultAvatar`                 | [DefaultAvatar.tsx](../../../../../libs/web-ui-kit/src/foundations/avatar/DefaultAvatar.tsx) — "Figma 1명 Profile"                       |
-| 멤버 아바타(사진)                 | `ImageAvatar`                   | avatar/ImageAvatar.tsx                                                                                                                   |
-| 방 아바타(그룹 placeholder)       | `ChatAvatar` 또는 `ImageAvatar` | avatar/ChatAvatar.tsx (썸네일 있으면 ImageAvatar)                                                                                        |
-| 구분선                            | `Divider`                       | foundations/divider                                                                                                                      |
+| 용도                              | 컴포넌트                           | 위치                                                                                                                                     |
+| --------------------------------- | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| 섹션 라벨 "대화방 설정"/"방 친구" | `GroupLabel`                       | [GroupLabel.tsx](../../../../../libs/web-ui-kit/src/composites/section/GroupLabel.tsx) — 주석에 두 라벨 예시 명시                        |
+| 설정/멤버/토글/삭제 행            | `ListRow`                          | [ListRow.tsx](../../../../../libs/web-ui-kit/src/composites/list/ListRow.tsx) — leading/title/subtitle/trailing/destructive/onClick 슬롯 |
+| 알림 토글                         | `Switch`                           | [Switch.tsx](../../../../../libs/web-ui-kit/src/foundations/switch/Switch.tsx) — controlled checked/onCheckedChange                      |
+| 뱃지 방장/MY                      | `StatusBadge`                      | [StatusBadge.tsx](../../../../../libs/web-ui-kit/src/foundations/badge/StatusBadge.tsx) — variant `owner`/`pending`/`mine` 이미 정의     |
+| 멤버 아바타(사진 없음)            | `DefaultAvatar`                    | [DefaultAvatar.tsx](../../../../../libs/web-ui-kit/src/foundations/avatar/DefaultAvatar.tsx) — "Figma 1명 Profile"                       |
+| 멤버 아바타(사진)                 | `ImageAvatar`                      | avatar/ImageAvatar.tsx                                                                                                                   |
+| 방 아바타                         | `ImageAvatar` 또는 `DefaultAvatar` | resolveChannelAvatar 가 src/glyph 를 정한다                                                                                              |
+| 구분선                            | `Divider`                          | foundations/divider                                                                                                                      |
 
 → **web-ui-kit 신규 컴포넌트 추가는 0건**이었다. 위 프리미티브가 모두 이미 존재해
 (`StatusBadge`의 `owner`/`pending`/`mine` 변형 포함) apps/web에서 조합만으로 완성했다. 방 아바타는
-썸네일이 있으면 `ImageAvatar`, 없으면 `ChatAvatar`(placeholder)를 사용한다.
+`resolveChannelAvatar` 가 주는 `{ src, glyph }` 로 갈린다 — 사진이 있으면 `ImageAvatar`, 없으면 `DefaultAvatar variant={glyph}`. 이 화면은 `ChatAvatar`(말풍선 placeholder)를 쓰지 않는다.
 
 ### 변경 파일
 
@@ -160,13 +162,13 @@ sequenceDiagram
    섹션 리스트형으로 교체:
     - 현재 [L188-221](../../../src/app/features/channels/pages/ChannelSettingsPage.tsx) 액션 버튼 블록 제거.
     - 방 이름 행: `ListRow`(leading=방 아바타, title=이름, trailing=chevron, onClick=정보 Dialog).
-      소유자→`update` 다이얼로그, 멤버→`update` 다이얼로그(readOnly).
+      소유자·멤버 모두 `update` 다이얼로그. 모드는 다이얼로그가 `channel.isOwner`에서 파생한다.
     - "대화방 설정" `GroupLabel` + 알림 `ListRow`(trailing=`Switch`). 알림 상태는 `useChannelJoins`의 `myJoin`(join 스트림)의
       `notify` 기반 낙관적 `useState`이며 토글 시 `useJoinMutations.updateJoin`을 호출(ADR-0025).
       `RoomNotificationDialog`는 이 화면에서 미사용.
     - "방 친구" `GroupLabel` + (소유자만)친구 추가 `ListRow` + 멤버 목록.
     - 하단 `Divider` + `ListRow destructive`(소유자=방 삭제/`delete`, 멤버=방 나가기/`leave`).
-    - 기존 다이얼로그 배선(`InviteFriendsDialog`/`UpdateChannelDialog`/`ConfirmDialog`/
+    - 다이얼로그 배선(`UpdateChannelDialog`/`JoinNickDialog`/`ConfirmDialog` 2종/
       `MemberProfileDialog`)과 mutation 핸들러([L94-147](../../../src/app/features/channels/pages/ChannelSettingsPage.tsx))는
       그대로 유지.
     - self 채팅 분기(`!channel?.isSelfChat`)는 현행 유지.
@@ -179,8 +181,8 @@ sequenceDiagram
    인라인 MY pill은 `StatusBadge`로 대체.
 
 3. **[UpdateChannelDialog.tsx](../../../src/app/features/channels/components/UpdateChannelDialog.tsx)** —
-   `readOnly?: boolean` prop 추가(멤버 진입 시). true면 이름 입력 `readonly`, 사진 선택·완료 버튼
-   숨김, 제목은 `updateChannel.readOnlyTitle`("방 정보")로, "수정해 주세요" 안내는 숨김.
+   `readOnly` prop 은 없다. props 는 `{ open, onOpenChange, channelId }` 셋뿐이고, 소유자/멤버
+   분기는 다이얼로그 안에서 `isOwner`로 갈린다 — 소유자는 `updateChannel`, 멤버는 `updateJoin({ nick })`.
    (소규모 추가; 시각 재디자인은 범위 외.)
 
 4. **i18n** — 기존 키(`roomSettingsGroup`/`roomNotification`/`roomMembers`/`addFriend`/뱃지) 유지.
@@ -204,8 +206,11 @@ sequenceDiagram
 
 ### 데이터/제어 흐름
 
-- 멤버·조인: `useChannelMembers`([hooks](../../../src/app/features/channels/hooks/useChannelMembers.ts)) —
-  변경 없음. `member.$join?.joined === 0` → pending.
+- 멤버·조인: `useChannelMembers`([hooks](../../../src/app/features/channels/hooks/useChannelMembers.ts))는
+  **join 을 직접 관측하지 않는다.** `{ channelId, memberIds, joins, detail }` 을 받아 신원만 조회해
+  병합한다. 화면의 단일 join 관측자는 `useChannelJoins` 다.
+  나간 멤버 판정도 `joined === 0` 하나가 아니라 `hasLeftChannel = joined === 0 && (joinedNo || reason)`
+  이다 — `joined === 0` 만 보면 초대 대기와 구분되지 않는다.
 - 프로필(닉/아바타): `useChannelProfiles` — 변경 없음.
 - mutation: `useChannelMutations`(leave/delete/invite) — 변경 없음.
 - 알림 토글: 초기값은 [`useChannelJoins`](../../../src/app/features/channels/hooks/useChannelJoins.ts)의 `myJoin`이 join 캐시를
@@ -223,12 +228,12 @@ sequenceDiagram
     - [MemberListItem.test.tsx](../../../src/app/features/channels/components/MemberListItem.test.tsx) —
       방장/MY 뱃지 렌더 및 우선순위(pending > owner > mine — pending 자리는 비어 있다), avatar 분기, onClick 배선.
     - [ChannelSettingsPage.test.tsx](../../../src/app/features/channels/pages/ChannelSettingsPage.test.tsx) —
-      소유자/멤버/self 분기(친구 추가 행 유무, 하단 삭제/나가기), 방 이름 탭 시 편집/읽기전용 다이얼로그,
+      소유자/멤버/self 분기(친구 추가 행 유무, 하단 삭제/나가기), 방 이름 탭 시 같은 다이얼로그,
       친구 추가→초대 다이얼로그, 멤버 탭→프로필, canKick 조건, kick/삭제 배선. **알림 토글(ADR-0025)**:
       초기값이 `useChannelJoins`의 `myJoin`(join 스트림)의 `notify`에서 파생(`'none'`→off), 토글 시
       `updateJoin({ channelId, userId, notify })` 호출 인자 검증, 실패 시 원복 + toast.
     - [UpdateChannelDialog.test.tsx](../../../src/app/features/channels/components/UpdateChannelDialog.test.tsx) —
-      편집/읽기전용 모드별 제목·안내 문구·완료 버튼·입력 readonly 분기.
+      모드 분기가 다이얼로그 내부에서 `isOwner`로 파생된다는 것.
 - **타입 검증**: `tsc --noEmit -p apps/web/tsconfig.app.json` 에러 집합이 baseline(0.26.603, 무변경 메인
   트리)과 **완전히 동일** — 알림 연동·`chatic-sockets-api` 0.26.603→0.26.703 버전업 모두 새 타입 에러 0건.
   잔존 6개(`features/home` InviteDialog/PlaceProfile\*)는 버전 무관 기존 에러(범위 외).
