@@ -272,6 +272,17 @@ flowchart TD
 
 삭제: 6,543줄(features/debug − customZip) + `FloatingMenu.tsx` 202줄 = **6,745줄** + `App.tsx` 마운트 조건.
 
+### 캐시 조작의 실제 커버리지 — 앞선 서술을 정정한다 (2026-09-10)
+
+"웹은 네이티브 캐시를 만질 수단이 없다"고 적었는데 **한쪽을 빠뜨린 서술이었다.** 웹
+`CacheTestScreen`이 부르는 테스트레코드 명령 5종은 `TestRecordDataSource`를 거치고, 그것은 캐시
+도메인 데이터소스들과 **같은 `ISqliteDatabase`**를 쓰며 같은 `data/cache/` 폴더에 있다. 즉
+**네이티브 SQLite 왕복 자체는 브릿지로 이미 검증된다** — 핸들러·전송·DB가 같은 경로다.
+
+덮이지 않는 것은 좁다: **제품 캐시 행**(channel/chat/user…)을 도메인별로 들여다보고 고치는 일.
+재현 중 캐시 상태를 손보는 용도이고, 그것만으로 스코프 접근자를 새로 공개할 이유는 아니라고
+판단해 모바일 화면을 지웠다(사용자 결정). 되살릴 때는 위 §스코프 세 갈래에서 고른다.
+
 ### 다음 라운드로 넘기는 관찰 — 웹 `CacheTestScreen`이 필요한지 (2026-09-10)
 
 사용자가 짚었다. 이 문서를 쓰며 실측한 것 둘이 그 의심을 뒷받침한다:
@@ -391,8 +402,14 @@ flowchart TD
           공급하는 값으로 판정하면 조작된 번들이 게이트 자신을 풀 수 있다(결정 5의 논리).
           **끄기는 게이트하지 않는다** — 빌드가 PROD로 바뀐 채 zip이 켜진 기기의 탈출로다
     - [x] 웹 `CustomZipScreen` + `EnvironmentSettingsScreen` 삭제(결정 13 실현)
-- [ ] **6. 앱 UI 삭제** — 화면 14개 · `DebugHomeScreen` · `DebugOverlay` · `debugMenu.ts` ·
-      `useWebSocket` · `FloatingMenu` · `App.tsx` 마운트 조건.
+- [x] **6. 앱 UI 삭제** — 완료(2026-09-10). **6,428줄.** `features/debug/` 전체(화면 13개 ·
+      `DebugHomeScreen` · `DebugOverlay` · `debugMenu.ts` · `useWebSocket` · `theme.ts` ·
+      `formatLogForCopy`) + `FloatingMenu.tsx` + `App.tsx`의 마운트 조건·오버레이 상태.
+      **앱에서 디버그 UI가 0이 됐다.**
+      잔존 참조 전수 0건(`features/debug`·`FloatingMenu`·`DebugOverlay`·`debugMenu`·`useWebSocket`·
+      `DebugOverlayEntryKey`) — 남은 두 언급은 customZip 게이트의 출처를 적은 역사적 주석이다.
+      `debugSettingsStore.debugModeEnabled`는 **남긴다**: `AppWebView`가 주입 스크립트로 웹에
+      되돌려줘 10탭 잠금 해제가 리로드를 넘어 살아남게 한다(`injectionScripts`).
 - [ ] **7. 배포 순서 확인** — 웹이 먼저 배포되고 앱이 뒤따른다. 6단계가 들어간 앱 빌드가 나가기 전까지
       구버전 앱 사용자는 앱 UI를 그대로 갖는다 — 그 구간에 웹 패널과 앱 UI가 공존하는 것이 정상이다.
 
