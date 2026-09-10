@@ -129,6 +129,27 @@ LOCAL/DEV는 `debug.overlayEnabled`의 `byStage`가 그 마찰을 없애고, PRO
 6. **도메인(점 앞부분)으로 묶는다.** 12개 모듈이 그대로 섹션이 된다 — auth · bridge · cache · debug ·
    env · feature · limit · log · net · sync · system · ui.
 
+### 레지스트리를 우회해 읽는 곳 — 패널이 거짓말하게 되는 자리
+
+패널은 레지스트리 값을 보여준다. 화면이나 로직이 같은 값을 `import.meta.env`에서 따로 읽고 있으면,
+패널에서 바꿔도 아무 일이 일어나지 않는다. apps/web 실측(2026-09-10):
+
+| 곳                                      | 읽는 것                    | 겹치는 키                 | 판단                                         |
+| --------------------------------------- | -------------------------- | ------------------------- | -------------------------------------------- |
+| `ui/components/Sidebar.tsx`             | `VITE_APP_VERSION`         | `env.webVersion`          | 중복 — 키로 옮길 것                          |
+| `features/subscription/consts/index.ts` | `VITE_ENV`                 | `env.stage`               | 중복 — 키로 옮길 것                          |
+| `utils/buildEnv.ts`                     | `VITE_ENV`                 | `env.stage`               | 값은 중복. 모듈 격리 자체는 ts-jest 때문이다 |
+| `i18n/index.ts`                         | `VITE_PROJECT`·`VITE_ENV`  | `env.project`·`env.stage` | **의도적** — `boot.ts` 주석에 근거           |
+| `main.tsx`                              | `VITE_LOG_UPLOAD_DISABLED` | `log.upload.enabled`      | **옮기지 말 것** (아래)                      |
+
+마지막 줄만 설명이 필요하다. `envDefaultKey`는 "이 빌드 값의 **반대**"를 표현할 방법이 없어서, 빌드
+플래그가 레지스트리와 별개의 사실로 남는다. 그래서 `main.tsx`가 읽어 인자로 넘기고, 오버라이드가
+있을 때만 `log.upload.enabled`가 이긴다 —
+[logUploadSwitch.ts](../../../apps/web/src/app/runtime/logging/logUploadSwitch.ts)의 주석이 그 계약이다.
+각 앱의 `config/adapters.ts`는 어댑터 본체이므로 우회가 아니다.
+
+admin-v2에도 같은 성격의 파일이 7개 있다(LoginPage · reportLogApi · socket-lab 5).
+
 ## 하지 말 것
 
 - `surface`만 바꾸고 화면이 생기기를 기대하기. 자동 렌더러는 없다.
