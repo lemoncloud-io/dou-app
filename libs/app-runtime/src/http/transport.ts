@@ -6,7 +6,7 @@ import type { SealedWebTransport, SealedWebTransportBundle } from '@chatic/http'
 
 /**
  * The runtime's ONE lemon transport — assembled here, built in `@chatic/http`, configured from
- * `@chatic/web-config`.
+ * `@chatic/config`.
  *
  * Ownership used to sit in `web-config` because the instance needs four env-derived inputs and
  * web-config was the only leaf both `web-core` and this lib could bite. That made the repo's env

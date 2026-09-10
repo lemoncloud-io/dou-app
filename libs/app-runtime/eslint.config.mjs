@@ -45,9 +45,9 @@ export default [
                             message: 'session/store는 수동적이다 — 저장과 통지만 한다 (ADR-0070 결정 1 규칙 1).',
                         },
                         {
-                            group: ['@chatic/web-config', '@chatic/web-core'],
+                            group: ['@chatic/config'],
                             message:
-                                'env·레거시 표면 직접 import 금지 — 부팅이 주입한 값을 받아라. 주입 지점은 session/store/configure.ts (ADR-0070 결정 1 규칙 2).',
+                                'env·설정 직접 import 금지 — 부팅이 주입한 값을 받아라. 주입 지점은 session/store/configure.ts (ADR-0070 결정 1 규칙 2 · ADR-0079).',
                         },
                     ],
                 },

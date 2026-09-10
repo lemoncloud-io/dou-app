@@ -6,7 +6,7 @@ import { relayStore } from './relayStore';
  * The one place `session/store` is wired to env — kept OUT of the store files themselves so the
  * passivity rule (ADR-0070 결정 1 규칙 1) holds as written: `store/**` imports no env, no transport,
  * no sibling folder. This module is the seam, and it is the only file under `store/` exempt from the
- * `@chatic/web-config` ban.
+ * `@chatic/config` ban.
  *
  * Called by [`initAppRuntime`](../../init.ts), not by loading the session barrel. It used to run at
  * barrel load so resolvers existed the moment anything touched the session surface; the explicit boot

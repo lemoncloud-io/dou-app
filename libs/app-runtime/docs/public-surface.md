@@ -49,7 +49,6 @@ const repos = runtime.data.useRuntimeRepositories();
 | `setNativeCacheSupport(report)` · `NativeCacheSupport`                                          | 네이티브가 핸드셰이크로 보고한 저장 가능 타입·스키마 버전. 웹 선배포 스큐 방어. 부팅 **후** 비동기로 도착하므로 config 필드가 아니라 setter다                                                                |
 | `isNativeApp()`                                                                                 | 네이티브 WebView 여부                                                                                                                                                                                        |
 | `webTransport` · `startWebTransportInit()`                                                      | sealed transport. `startWebTransportInit`은 앱이 부를 필요가 없어야 하는 프리미티브다 — 유일 init 드라이버는 `connection.RuntimeConnectionHost`이고, desktop-web의 auth 훅 3개가 마지막 호출자다             |
-| `ENV` · `PROJECT` · `LANGUAGE_KEY` · `SOCIAL_OAUTH_ENDPOINT`                                    | env 상수(`@chatic/web-config` 재수출 — `import.meta` 격리 leaf)                                                                                                                                              |
 
 ### `runtime.session` — 세션 상태·인증
 
