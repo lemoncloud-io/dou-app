@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 
-import { defaultDebugSettings, useDebugSettingsStore } from '../../../stores/debugSettingsStore';
+import { defaultDebugSettings, useDebugSettingsStore } from '../stores/debugSettingsStore';
 import { restoreCustomZip } from './customZipService';
 import { useCustomZipBootGate } from './useCustomZipBootGate';
 
@@ -13,7 +13,7 @@ jest.mock('react-native-config', () => ({
 }));
 
 // storageAdapter는 native preferenceService를 끌어오므로 noop storage로 대체
-jest.mock('../../../stores/storageAdapter', () => ({
+jest.mock('../stores/storageAdapter', () => ({
     storageAdapter: {
         getItem: () => null,
         setItem: () => undefined,

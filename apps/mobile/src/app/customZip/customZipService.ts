@@ -1,7 +1,7 @@
 import StaticServer from '@dr.pogodin/react-native-static-server';
 import { unzip } from 'react-native-zip-archive';
 
-import { FileManagerBridge } from '../../../bridge/FileManagerBridge';
+import { FileManagerBridge } from '../bridge/FileManagerBridge';
 
 export const CUSTOM_ZIP_PORT = 8890;
 export const CUSTOM_ZIP_HOST = '127.0.0.1';

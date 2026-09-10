@@ -18,11 +18,11 @@ import type { IConfigKvService } from './types';
  * `env.webviewBaseUrl`. Everything the registry does expose is a display or behavior setting, so a
  * corrupted value degrades what it controls, not what this WebView may load or execute.
  *
- * ADR-0080 결정 13 decided to delete the web-address switcher outright rather than allow-list it,
- * which would remove the capability altogether — but that decision is **not implemented yet**
- * (`EnvironmentSettingsScreen` and `setWebviewBaseUrlOverride` are still there as of 2026-09-10).
- * The isolation above is what holds today, so do not weaken the prefix or add a writable
- * `debug.webviewBaseUrl` key on the assumption that the feature is gone.
+ * ADR-0080 결정 13's deletion has since landed: `EnvironmentSettingsScreen` is gone (2026-09-10),
+ * so nothing offers the switcher any more. `setWebviewBaseUrlOverride` still EXISTS on the store
+ * with no caller, though — so the isolation above is still what holds, and the prefix must not be
+ * weakened (nor a writable `debug.webviewBaseUrl` key added) on the assumption that it cannot be
+ * reached.
  */
 export class ConfigKvService implements IConfigKvService {
     private static readonly KEY_PREFIX = 'config:';

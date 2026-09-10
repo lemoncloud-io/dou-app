@@ -1,3 +1,4 @@
 export * from './customZipService';
 export * from './useCustomZipBootGate';
-export * from './useCustomZipLoader';
+export * from './customZipController';
+export * from './customZipGate';

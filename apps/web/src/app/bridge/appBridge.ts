@@ -326,6 +326,24 @@ export const appBridge = {
         return webClient.request({ type: 'ShowNotification', data: payload });
     },
 
+    /**
+     * Custom web zip (ADR-0080 결정 11 단계 5). PROD builds refuse `apply` — the app gates it on the
+     * baked `VITE_ENV`, so the refusal comes back as an error rather than being decided here.
+     */
+    applyCustomZip(url: string): Promise<WebMessageResponse<'ApplyCustomZip'>> {
+        return webClient.request({ type: 'ApplyCustomZip', data: { url } });
+    },
+
+    /** Turn the custom zip off and go back to the shipped web. Never refused — it is the way out. */
+    disableCustomZip(): Promise<WebMessageResponse<'DisableCustomZip'>> {
+        return webClient.request({ type: 'DisableCustomZip', data: {} });
+    },
+
+    /** What is applied now, and whether this build allows applying at all. */
+    fetchCustomZipStatus(): Promise<WebMessageResponse<'FetchCustomZipStatus'>> {
+        return webClient.request({ type: 'FetchCustomZipStatus', data: {} });
+    },
+
     /** Which alternate app icon is active, and whether this platform supports changing it. */
     fetchAppIcon(): Promise<WebMessageResponse<'FetchAppIcon'>> {
         return webClient.request({ type: 'FetchAppIcon', data: {} });

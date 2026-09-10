@@ -1,14 +1,12 @@
 import React, { useRef, useState } from 'react';
 import { Animated, PanResponder, StyleSheet, Text, TouchableOpacity } from 'react-native';
-import Config from 'react-native-config';
 
 import type { DebugOverlayEntryKey } from '../../debug/debugMenu';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-// The "환경설정" item exposes the webview URL override (arbitrary-URL loading) — a production
-// security surface — so it is offered only on non-PROD builds, independent of the debug unlock
-// that gates the whole menu. Self-determined here rather than threaded as a prop.
-const ALLOW_ENVIRONMENT_SETTINGS = Config.VITE_ENV !== 'PROD';
+// The "환경설정" item and its non-PROD gate are gone: the screen it opened was deleted
+// (ADR-0080 결정 13) and the custom-zip half moved to the web panel, where the same
+// `VITE_ENV !== 'PROD'` guard now lives in `useCustomZipHandler`.
 
 interface FloatingMenuProps {
     onOpenDebug: (entry: DebugOverlayEntryKey) => void;
@@ -71,9 +69,6 @@ export const FloatingMenu = ({ onOpenDebug }: FloatingMenuProps) => {
 
     const menuItems: FloatingMenuItem[] = [
         { id: 'feature-tests', label: '기능 테스트', onPress: () => onOpenDebug('FeatureTests') },
-        ...(ALLOW_ENVIRONMENT_SETTINGS
-            ? [{ id: 'settings', label: '환경설정', onPress: () => onOpenDebug('EnvironmentSettings') }]
-            : []),
         { id: 'monitoring', label: '모니터링', onPress: () => onOpenDebug('Monitoring') },
         { id: 'boot-performance', label: '부팅 성능', onPress: () => onOpenDebug('BootPerformance') },
     ];

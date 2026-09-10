@@ -44,8 +44,8 @@ ADR-0080이 그 방향을 정했다 — **웹이 리모콘, 앱이 기기다.** 
 
 **제외**
 
-- **customZip 기능의 처분** — 디버그 전용이 아니다. `MainScreen.tsx:36`이 `useCustomZipBootGate`로
-  WebView 부팅을 막고 있어 디버그 UI 삭제의 부수효과로 뺄 수 없다. 별건으로 판단한다 (미결 4).
+- ~~customZip 기능의 처분~~ → **단계 5에서 결정됐다** (미결 4). 로더를 웹으로 이식하고 앱의
+  환경설정 화면을 지웠다. PROD 게이트는 네이티브에 남는다 — 자세한 근거는 §구현 체크리스트 5단계.
 - **청크 업로드 서비스와 명령 8종의 처분** — 제품이 쓰지 않는 것은 확인했지만(위 §상세 구현), 미리 만든
   것일 가능성이 있어 이 트랙에서 지우지 않는다. 죽은 코드 판정은 별건이다
 - 시각 토큰 통일 — 제품 UI 전체가 걸린 별개 트랙 (ADR-0080 대안 절)
@@ -377,7 +377,20 @@ flowchart TD
 로드되지 않는다(`utils/buildEnv.ts`·`logUploadSwitch.ts`가 읽기를 격리한 것과 같은 제약). 그래서 두 콜백을
 `configPortCallbacks.ts`로 분리했다 — 리포가 이미 쓰는 처방이다.
 
-- [ ] **5. customZip을 디버그 밖으로 이동** — 삭제 전에 해야 `MainScreen` 부팅이 안 깨진다.
+- [x] **5. customZip — 이동이 아니라 로더 이식이었다** (2026-09-10). 옮기기만으로는 안 됐다:
+      zip을 심는 유일한 입구가 `useCustomZipLoader`이고 그걸 쓰는 화면이 결정 13이 지우는
+      `EnvironmentSettingsScreen` 하나였다. 즉 단계 6은 이 기능을 자동으로 반쪽으로 만든다 —
+      부팅 게이트가 복원할 것이 영원히 없어진다. **미결 4가 여기서 강제로 드러났고, 로더를 웹으로
+      이식하기로 결정했다.**
+    - [x] `features/debug/customZip` → `app/customZip` 이동(브릿지가 부르는 인프라가 됐다)
+    - [x] 훅 → `customZipController.ts` 명령형 코어 추출(핸들러는 훅을 들 수 없다). 스토어를
+          **서버 기동 성공 뒤에만** 갱신하는 순서를 그대로 보존 — 테스트 6건이 그걸 지킨다
+    - [x] 새 명령 3개: `ApplyCustomZip` · `DisableCustomZip` · `FetchCustomZipStatus`
+    - [x] **PROD fail-closed 게이트** — `isCustomZipAllowed()`가 baked `VITE_ENV`를 본다. 앱의
+          `FloatingMenu`가 걸던 `ALLOW_ENVIRONMENT_SETTINGS`를 그 자리에서 옮겨온 것이고, 웹이
+          공급하는 값으로 판정하면 조작된 번들이 게이트 자신을 풀 수 있다(결정 5의 논리).
+          **끄기는 게이트하지 않는다** — 빌드가 PROD로 바뀐 채 zip이 켜진 기기의 탈출로다
+    - [x] 웹 `CustomZipScreen` + `EnvironmentSettingsScreen` 삭제(결정 13 실현)
 - [ ] **6. 앱 UI 삭제** — 화면 14개 · `DebugHomeScreen` · `DebugOverlay` · `debugMenu.ts` ·
       `useWebSocket` · `FloatingMenu` · `App.tsx` 마운트 조건.
 - [ ] **7. 배포 순서 확인** — 웹이 먼저 배포되고 앱이 뒤따른다. 6단계가 들어간 앱 빌드가 나가기 전까지

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
-import { useDebugSettingsStore } from '../../../stores/debugSettingsStore';
+import { useDebugSettingsStore } from '../stores/debugSettingsStore';
 import { restoreCustomZip } from './customZipService';
 
 /**

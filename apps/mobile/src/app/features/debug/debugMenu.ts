@@ -1,5 +1,4 @@
 export type DebugOverlayScreenKey =
-    | 'EnvironmentSettings'
     | 'Monitoring'
     | 'BootPerformance'
     | 'SocketTest'
@@ -14,7 +13,7 @@ export type DebugOverlayScreenKey =
     | 'SmsTest'
     | 'UploadTest';
 
-export type DebugOverlayEntryKey = 'FeatureTests' | 'EnvironmentSettings' | 'Monitoring' | 'BootPerformance';
+export type DebugOverlayEntryKey = 'FeatureTests' | 'Monitoring' | 'BootPerformance';
 
 export interface DebugMenuItem {
     key: DebugOverlayScreenKey;
@@ -44,10 +43,6 @@ export const DEBUG_MENU_SECTIONS: DebugMenuSection[] = [
         ],
     },
     {
-        title: '환경설정',
-        items: [{ key: 'EnvironmentSettings', title: '환경설정' }],
-    },
-    {
         title: '모니터링',
         items: [
             { key: 'Monitoring', title: '모니터링' },
@@ -60,7 +55,6 @@ export const FEATURE_TEST_MENU_SECTION = DEBUG_MENU_SECTIONS[0];
 
 export const DEBUG_ENTRY_TITLES: Record<DebugOverlayEntryKey, string> = {
     FeatureTests: '기능 테스트',
-    EnvironmentSettings: '환경설정',
     Monitoring: '모니터링',
     BootPerformance: '부팅 성능 기록',
 };

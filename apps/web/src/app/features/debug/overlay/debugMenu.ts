@@ -18,7 +18,8 @@ export type DebugScreenKey =
     | 'Sms'
     | 'OAuthNative'
     | 'Iap'
-    | 'Config';
+    | 'Config'
+    | 'CustomZip';
 
 export interface DebugMenuItem {
     key: DebugScreenKey;
@@ -64,6 +65,8 @@ export const DEBUG_MENU_SECTIONS: DebugMenuSection[] = [
             { key: 'DeviceInfo', title: 'Device Info' },
             // ADR-0079 결정 16의 화면 절반 — 로깅 절반은 configStateLog가 이미 낸다.
             { key: 'Config', title: '지금 설정' },
+            // 앱의 환경설정 화면에서 옮겨온 절반 (ADR-0080 결정 13 · 미결 4). PROD는 앱이 거부한다.
+            { key: 'CustomZip', title: '커스텀 web zip' },
             // Distinct from the Boot tab: that one measures the current web session live, this is
             // the native side's persisted per-boot history (ADR-0080 결정 11).
             { key: 'BootRecords', title: '부팅 기록 (앱)' },

@@ -71,9 +71,12 @@ import type {
     OnSaveAllCacheDataPayload,
     OnSaveAllTestRecordsPayload,
     OnSaveCacheDataPayload,
+    OnApplyCustomZipPayload,
     OnClearBootRecordsPayload,
     OnDeleteFcmTokenPayload,
+    OnDisableCustomZipPayload,
     OnFetchBootRecordsPayload,
+    OnFetchCustomZipStatusPayload,
     OnSaveConfigValuePayload,
     OnSavePreferencePayload,
     OnSaveTestRecordPayload,
@@ -184,6 +187,9 @@ export type AppMessageDataMap = {
     OnDeleteFcmToken: OnDeleteFcmTokenPayload;
     OnFetchBootRecords: OnFetchBootRecordsPayload;
     OnClearBootRecords: OnClearBootRecordsPayload;
+    OnApplyCustomZip: OnApplyCustomZipPayload;
+    OnDisableCustomZip: OnDisableCustomZipPayload;
+    OnFetchCustomZipStatus: OnFetchCustomZipStatusPayload;
 
     // 7. Common & Others
     OnWebAppReady: OnWebAppReadyPayload;

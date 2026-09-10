@@ -1,7 +1,7 @@
 import StaticServer from '@dr.pogodin/react-native-static-server';
 import { unzip } from 'react-native-zip-archive';
 
-import { FileManagerBridge } from '../../../bridge/FileManagerBridge';
+import { FileManagerBridge } from '../bridge/FileManagerBridge';
 import {
     CUSTOM_ZIP_HOST,
     CUSTOM_ZIP_PORT,
@@ -25,7 +25,7 @@ jest.mock('@dr.pogodin/react-native-static-server', () => {
     return { __esModule: true, default: ctor };
 });
 
-jest.mock('../../../bridge/FileManagerBridge', () => ({
+jest.mock('../bridge/FileManagerBridge', () => ({
     FileManagerBridge: {
         DocumentDirectoryPath: '/docs',
         exists: jest.fn(),

@@ -1,3 +1,4 @@
+export * from './custom-zip';
 export * from './app-update';
 export * from './auth';
 export * from './cache';

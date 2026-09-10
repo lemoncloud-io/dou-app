@@ -37,9 +37,12 @@ import type {
     SaveAllCacheDataPayload,
     SaveAllTestRecordsPayload,
     SaveCacheDataPayload,
+    ApplyCustomZipPayload,
     ClearBootRecordsPayload,
     DeleteFcmTokenPayload,
+    DisableCustomZipPayload,
     FetchBootRecordsPayload,
+    FetchCustomZipStatusPayload,
     SaveConfigValuePayload,
     SavePreferencePayload,
     SaveTestRecordPayload,
@@ -163,6 +166,9 @@ export type WebMessagePayloadMap = {
     DeleteFcmToken: DeleteFcmTokenPayload;
     FetchBootRecords: FetchBootRecordsPayload;
     ClearBootRecords: ClearBootRecordsPayload;
+    ApplyCustomZip: ApplyCustomZipPayload;
+    DisableCustomZip: DisableCustomZipPayload;
+    FetchCustomZipStatus: FetchCustomZipStatusPayload;
 
     // 7. Common & Others
     WebAppReady: WebAppReadyPayload;

@@ -21,6 +21,7 @@ import {
     useUploadHandler,
     useTestRecordHandler,
     useResumeOverlay,
+    useCustomZipHandler,
     usePerfHandler,
     useUnfurlHandler,
 } from './index';
@@ -115,6 +116,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
     const { handleCopyToClipboard } = useClipboardHandler();
     const { handleSendBootMetrics, handleSetDebugMode, handleFetchBootRecords, handleClearBootRecords } =
         usePerfHandler();
+    const { handleApplyCustomZip, handleDisableCustomZip, handleFetchCustomZipStatus } = useCustomZipHandler();
     const { handleFetchUrlMetadata } = useUnfurlHandler();
 
     const {
@@ -188,6 +190,9 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
         handleSetDebugMode,
         handleFetchBootRecords,
         handleClearBootRecords,
+        handleApplyCustomZip,
+        handleDisableCustomZip,
+        handleFetchCustomZipStatus,
         handleRequestFileUpload,
         handlePauseFileUpload,
         handleResumeFileUpload,
@@ -266,6 +271,9 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             handleSetDebugMode,
             handleFetchBootRecords,
             handleClearBootRecords,
+            handleApplyCustomZip,
+            handleDisableCustomZip,
+            handleFetchCustomZipStatus,
             handleFetchTestRecord,
             handleFetchAllTestRecords,
             handleSaveTestRecord,
@@ -359,6 +367,9 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             SendBootMetrics: message => handlersRef.current.handleSendBootMetrics(message),
             FetchBootRecords: message => handlersRef.current.handleFetchBootRecords(message),
             ClearBootRecords: message => handlersRef.current.handleClearBootRecords(message),
+            ApplyCustomZip: message => handlersRef.current.handleApplyCustomZip(message),
+            DisableCustomZip: message => handlersRef.current.handleDisableCustomZip(message),
+            FetchCustomZipStatus: message => handlersRef.current.handleFetchCustomZipStatus(message),
             SetDebugMode: message => handlersRef.current.handleSetDebugMode(message),
             FetchUrlMetadata: message => handlersRef.current.handleFetchUrlMetadata(message),
         };

@@ -15,7 +15,6 @@ import {
     DebugHomeScreen,
     DeeplinkTestScreen,
     DeviceTestScreen,
-    EnvironmentSettingsScreen,
     IapTestScreen,
     MonitoringScreen,
     NotificationTestScreen,
@@ -35,7 +34,6 @@ interface DebugOverlayProps {
 }
 
 const getInitialScreen = (entry: DebugOverlayEntryKey): DebugOverlayScreenKey | null => {
-    if (entry === 'EnvironmentSettings') return 'EnvironmentSettings';
     if (entry === 'Monitoring') return 'Monitoring';
     if (entry === 'BootPerformance') return 'BootPerformance';
     return null;
@@ -87,8 +85,6 @@ export const DebugOverlay = ({ initialEntry, onClose }: DebugOverlayProps) => {
         switch (selectedScreen) {
             case null:
                 return <DebugHomeScreen onSelect={setSelectedScreen} />;
-            case 'EnvironmentSettings':
-                return <EnvironmentSettingsScreen onCloseAfterWebViewReload={closeWithAnimation} />;
             case 'Monitoring':
                 return <MonitoringScreen />;
             case 'BootPerformance':
