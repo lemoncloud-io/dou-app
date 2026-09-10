@@ -37,6 +37,9 @@ import type {
     SaveAllCacheDataPayload,
     SaveAllTestRecordsPayload,
     SaveCacheDataPayload,
+    ClearBootRecordsPayload,
+    DeleteFcmTokenPayload,
+    FetchBootRecordsPayload,
     SaveConfigValuePayload,
     SavePreferencePayload,
     SaveTestRecordPayload,
@@ -155,6 +158,11 @@ export type WebMessagePayloadMap = {
     // 6.5 Config (ADR-0079 셸 레인 — 범용 KV 브릿지)
     SaveConfigValue: SaveConfigValuePayload;
     ClearConfigValue: ClearConfigValuePayload;
+
+    // 6.6 Debug panel (ADR-0080 결정 11 — 조작은 웹, 실행은 앱)
+    DeleteFcmToken: DeleteFcmTokenPayload;
+    FetchBootRecords: FetchBootRecordsPayload;
+    ClearBootRecords: ClearBootRecordsPayload;
 
     // 7. Common & Others
     WebAppReady: WebAppReadyPayload;

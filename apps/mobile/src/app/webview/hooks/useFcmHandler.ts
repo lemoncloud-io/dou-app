@@ -7,8 +7,9 @@ import type { WebMessageData } from '@chatic/app-messages';
 
 /**
  * Hook that integrates FCM foreground push and badge/token bridge requests inside the WebView.
- * Handles FetchFcmToken, FetchBadgeCount, SetBadgeCount, and FetchPushMarks requests from the Web,
- * and forwards foreground push receipts to the web as OnReceiveNotification (via PushEventManager).
+ * Handles FetchFcmToken, DeleteFcmToken, FetchBadgeCount, SetBadgeCount, and FetchPushMarks requests
+ * from the Web, and forwards foreground push receipts to the web as OnReceiveNotification (via
+ * PushEventManager).
  *
  * Notification-tap navigation is intentionally NOT handled here — it lives in useDeepLinkNavigation
  * so taps and deep links converge on a single OnNavigate owner. Push keeps foreground receipt only.
@@ -177,5 +178,25 @@ export const useFcmHandler = (bridge: IAppBridgeHost) => {
         };
     }, [bridge]);
 
-    return { fetchFcmToken, handleFetchBadgeCount, handleSetBadgeCount, handleFetchPushMarks };
+    /**
+     * Drops the FCM token so the next `FetchFcmToken` mints a fresh one.
+     *
+     * Exists for the web debug panel's push screen (ADR-0080 결정 11): testing the re-registration
+     * path needs the token gone, and `FetchFcmToken` only reads. `deleteToken` logs and swallows its
+     * own failures, so a caller cannot distinguish "deleted" from "was already absent" — both are
+     * the state the caller asked for, so this reports success either way.
+     */
+    const handleDeleteFcmToken = useCallback(async (_message: WebMessageData<'DeleteFcmToken'>) => {
+        await notificationService.deleteToken();
+        logger.debug('NOTIFICATION', 'FCM token deleted on web request');
+        return { type: 'OnDeleteFcmToken' as const, success: true, data: { success: true } };
+    }, []);
+
+    return {
+        fetchFcmToken,
+        handleDeleteFcmToken,
+        handleFetchBadgeCount,
+        handleSetBadgeCount,
+        handleFetchPushMarks,
+    };
 };

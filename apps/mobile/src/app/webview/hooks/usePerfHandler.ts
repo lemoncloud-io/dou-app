@@ -10,6 +10,9 @@ import { useDebugSettingsStore } from '../../stores';
  * - SendBootMetrics: merge the web boot snapshot into the current boot record.
  * - SetDebugMode: persist the unlock flag so the native debug overlay opens in
  *   PROD builds too (single 10-tap unlock covers both layers).
+ * - FetchBootRecords / ClearBootRecords: read back and drop what the native side recorded. Added
+ *   for ADR-0080 결정 11 — the Boot Performance screen moves to the web, and `SendBootMetrics`
+ *   only goes web → app, so there was no way to read the merged records.
  */
 export const usePerfHandler = () => {
     const setDebugModeEnabled = useDebugSettingsStore(state => state.setDebugModeEnabled);
@@ -37,5 +40,45 @@ export const usePerfHandler = () => {
         [setDebugModeEnabled]
     );
 
-    return { handleSendBootMetrics, handleSetDebugMode };
+    const handleFetchBootRecords = useCallback(async (_message: WebMessageData<'FetchBootRecords'>) => {
+        try {
+            const records = await bootMetricsService.getRecords();
+            return {
+                type: 'OnFetchBootRecords' as const,
+                success: true,
+                data: {
+                    records,
+                    contentProcessReloadCount: bootMetricsService.getContentProcessReloadCount(),
+                    lastForegroundResumeMs: bootMetricsService.getLastForegroundResumeMs(),
+                },
+            };
+        } catch (e: any) {
+            logger.error('APP', 'FetchBootRecords error', e as Error);
+            return {
+                type: 'OnFetchBootRecords' as const,
+                success: false,
+                error: { code: 'BOOT_RECORDS_ERROR', message: e.message },
+            };
+        }
+    }, []);
+
+    const handleClearBootRecords = useCallback(async (_message: WebMessageData<'ClearBootRecords'>) => {
+        try {
+            await bootMetricsService.clearRecords();
+            return {
+                type: 'OnClearBootRecords' as const,
+                success: true,
+                data: { success: true },
+            };
+        } catch (e: any) {
+            logger.error('APP', 'ClearBootRecords error', e as Error);
+            return {
+                type: 'OnClearBootRecords' as const,
+                success: false,
+                error: { code: 'BOOT_RECORDS_ERROR', message: e.message },
+            };
+        }
+    }, []);
+
+    return { handleSendBootMetrics, handleSetDebugMode, handleFetchBootRecords, handleClearBootRecords };
 };

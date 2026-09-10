@@ -51,7 +51,8 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
     // --- Domain-specific Handlers (memoized with useCallback) ---
     const { fetchSafeAreaInfo } = useSafeAreaHandler();
     const { handleFetchBackgroundStatus, handleDismissResumeOverlay } = useAppStateHandler(bridge, dismissOverlay);
-    const { fetchFcmToken, handleFetchBadgeCount, handleSetBadgeCount, handleFetchPushMarks } = useFcmHandler(bridge);
+    const { fetchFcmToken, handleDeleteFcmToken, handleFetchBadgeCount, handleSetBadgeCount, handleFetchPushMarks } =
+        useFcmHandler(bridge);
     const {
         fetchProducts,
         fetchCurrentPurchases,
@@ -112,7 +113,8 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
     const { handleCheckAppUpdate, handleOpenStore } = useAppUpdateHandler();
     const { handleFetchAppIcon, handleFetchAppIconList, handleChangeAppIcon } = useAppIconHandler();
     const { handleCopyToClipboard } = useClipboardHandler();
-    const { handleSendBootMetrics, handleSetDebugMode } = usePerfHandler();
+    const { handleSendBootMetrics, handleSetDebugMode, handleFetchBootRecords, handleClearBootRecords } =
+        usePerfHandler();
     const { handleFetchUrlMetadata } = useUnfurlHandler();
 
     const {
@@ -126,6 +128,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
     // --- Keep handlers fresh for async execution without triggering re-renders ---
     const handlersRef = useRef({
         fetchFcmToken,
+        handleDeleteFcmToken,
         handleFetchBadgeCount,
         handleSetBadgeCount,
         handleFetchPushMarks,
@@ -183,6 +186,8 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
         handleCopyToClipboard,
         handleSendBootMetrics,
         handleSetDebugMode,
+        handleFetchBootRecords,
+        handleClearBootRecords,
         handleRequestFileUpload,
         handlePauseFileUpload,
         handleResumeFileUpload,
@@ -201,6 +206,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
     useEffect(() => {
         handlersRef.current = {
             fetchFcmToken,
+            handleDeleteFcmToken,
             handleFetchBadgeCount,
             handleSetBadgeCount,
             handleFetchPushMarks,
@@ -258,6 +264,8 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             handleCopyToClipboard,
             handleSendBootMetrics,
             handleSetDebugMode,
+            handleFetchBootRecords,
+            handleClearBootRecords,
             handleFetchTestRecord,
             handleFetchAllTestRecords,
             handleSaveTestRecord,
@@ -280,6 +288,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             [K in WebMessageType]?: (message: WebMessageData<K>) => any;
         } = {
             FetchFcmToken: message => handlersRef.current.fetchFcmToken(message),
+            DeleteFcmToken: message => handlersRef.current.handleDeleteFcmToken(message),
             FetchBadgeCount: message => handlersRef.current.handleFetchBadgeCount(message),
             SetBadgeCount: message => handlersRef.current.handleSetBadgeCount(message),
             FetchPushMarks: message => handlersRef.current.handleFetchPushMarks(message),
@@ -348,6 +357,8 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             CreateDummyFile: message => handlersRef.current.handleCreateDummyFile(message),
             DismissResumeOverlay: message => handlersRef.current.handleDismissResumeOverlay(message),
             SendBootMetrics: message => handlersRef.current.handleSendBootMetrics(message),
+            FetchBootRecords: message => handlersRef.current.handleFetchBootRecords(message),
+            ClearBootRecords: message => handlersRef.current.handleClearBootRecords(message),
             SetDebugMode: message => handlersRef.current.handleSetDebugMode(message),
             FetchUrlMetadata: message => handlersRef.current.handleFetchUrlMetadata(message),
         };

@@ -214,9 +214,16 @@ export type OpenPhotoLibraryPayload = {
     includeBase64?: boolean;
 };
 
-/** [요청] 디바이스의 기본 브라우저나 외부 앱으로 URL 열기 */
+/**
+ * [요청] 디바이스의 기본 브라우저나 외부 앱으로 URL 열기
+ *
+ * 앱 자신의 스킴(`chatic://…`)을 넘기면 OS를 거쳐 인바운드 딥링크로 되돌아온다 — 그래서 딥링크
+ * 라우팅 시험에도 이 명령을 쓴다. ADR-0080 단계 1에서 별도 `SimulateInboundDeeplink`를 만들려다
+ * 철회했다: 앱의 `deeplinkService.handleUrl`도 결국 같은 `Linking.openURL`로 끝나고, 그것이 더하는
+ * 상대경로 정규화는 웹이 `net.deeplink.scheme` 키로 직접 할 수 있다.
+ */
 export type OpenURLPayload = {
-    /** 실행할 외부 URL (http, mailto, tel 등) */
+    /** 실행할 외부 URL (http, mailto, tel 등). 앱 스킴을 넘기면 인바운드 딥링크가 된다 */
     url: string;
 };
 

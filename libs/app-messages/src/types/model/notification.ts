@@ -14,6 +14,16 @@ export type FetchFcmTokenPayload = {
     // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
 };
 
+/**
+ * [요청] FCM 토큰 삭제 페이로드
+ *
+ * 재등록 경로를 시험하려면 토큰을 지워야 한다 — `FetchFcmToken`은 읽기뿐이라 이 동작을 대신하지
+ * 못한다 (ADR-0080 디버그 패널 이관 단계 1).
+ */
+export type DeleteFcmTokenPayload = {
+    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+};
+
 /** [요청] 뱃지 카운트 조회 페이로드 */
 export type FetchBadgeCountPayload = {
     // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
@@ -22,6 +32,11 @@ export type FetchBadgeCountPayload = {
 /** [응답] FCM 토큰 결과 페이로드 */
 export type OnFetchFcmTokenPayload = {
     token: string;
+};
+
+/** [응답] FCM 토큰 삭제 결과 페이로드 */
+export type OnDeleteFcmTokenPayload = {
+    success: boolean;
 };
 
 /** [응답] 알림 수신/오픈 이벤트 페이로드 */
