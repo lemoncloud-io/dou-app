@@ -10,7 +10,7 @@ const getContacts = jest.fn();
 jest.mock('../../../../bridge', () => ({
     appBridge: { sendSms: (n: string[], m: string) => sendSms(n, m), getContacts: () => getContacts() },
 }));
-jest.mock('@chatic/bridges', () => ({ logger: { warn: jest.fn() } }));
+jest.mock('@chatic/bridges', () => ({ logger: { warn: jest.fn(), info: jest.fn() } }));
 
 describe('SmsScreen', () => {
     beforeEach(() => jest.clearAllMocks());

@@ -136,7 +136,7 @@ export const PushScreen = () => {
                     <div className="mt-3 flex flex-wrap gap-2">
                         <button
                             type="button"
-                            onClick={() => void run('토큰 삭제', () => appBridge.deleteFcmToken())}
+                            onClick={() => void run('토큰 삭제', () => appBridge.deleteFcmToken(), 'DeleteFcmToken')}
                             className="rounded-md border border-border px-2 py-1 text-xs"
                         >
                             토큰 삭제
@@ -144,7 +144,11 @@ export const PushScreen = () => {
                         <button
                             type="button"
                             onClick={() =>
-                                void run('알림 권한 요청', () => appBridge.requestPermission('NOTIFICATIONS'))
+                                void run(
+                                    '알림 권한 요청',
+                                    () => appBridge.requestPermission('NOTIFICATIONS'),
+                                    'RequestPermission'
+                                )
                             }
                             className="rounded-md border border-border px-2 py-1 text-xs"
                         >
@@ -153,12 +157,15 @@ export const PushScreen = () => {
                         <button
                             type="button"
                             onClick={() =>
-                                void run('로컬 알림', () =>
-                                    appBridge.showNotification({
-                                        title: '디버그 알림',
-                                        body: '웹 패널에서 띄운 로컬 알림입니다',
-                                        deeplink: buildAppDeeplink(PUSH_TAP_PATH),
-                                    })
+                                void run(
+                                    '로컬 알림',
+                                    () =>
+                                        appBridge.showNotification({
+                                            title: '디버그 알림',
+                                            body: '웹 패널에서 띄운 로컬 알림입니다',
+                                            deeplink: buildAppDeeplink(PUSH_TAP_PATH),
+                                        }),
+                                    'ShowNotification'
                                 )
                             }
                             className="rounded-md border border-border px-2 py-1 text-xs"
@@ -167,7 +174,7 @@ export const PushScreen = () => {
                         </button>
                         <button
                             type="button"
-                            onClick={() => void run('뱃지 조회', () => appBridge.fetchBadgeCount())}
+                            onClick={() => void run('뱃지 조회', () => appBridge.fetchBadgeCount(), 'FetchBadgeCount')}
                             className="rounded-md border border-border px-2 py-1 text-xs"
                         >
                             뱃지 조회

@@ -54,14 +54,14 @@ export const SmsScreen = () => {
                 <button
                     type="button"
                     disabled={recipients.length === 0}
-                    onClick={() => void run('SMS', () => appBridge.sendSms(recipients, message))}
+                    onClick={() => void run('SMS', () => appBridge.sendSms(recipients, message), 'SendSms')}
                     className="rounded-md bg-primary px-2 py-1 text-xs text-primary-foreground disabled:opacity-50"
                 >
                     작성 창 열기
                 </button>
                 <button
                     type="button"
-                    onClick={() => void run('연락처', () => appBridge.getContacts())}
+                    onClick={() => void run('연락처', () => appBridge.getContacts(), 'GetContacts')}
                     className="rounded-md border border-border px-2 py-1 text-xs"
                 >
                     연락처 불러오기

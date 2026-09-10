@@ -61,14 +61,16 @@ export const IapScreen = () => {
             <div className="flex flex-wrap gap-2">
                 <button
                     type="button"
-                    onClick={() => void run('상품 조회', loadProducts)}
+                    onClick={() => void run('상품 조회', loadProducts, 'FetchProducts')}
                     className="rounded-md border border-border px-2 py-1 text-xs"
                 >
                     상품 조회
                 </button>
                 <button
                     type="button"
-                    onClick={() => void run('구매 내역', () => appBridge.fetchCurrentPurchases())}
+                    onClick={() =>
+                        void run('구매 내역', () => appBridge.fetchCurrentPurchases(), 'FetchCurrentPurchases')
+                    }
                     className="rounded-md border border-border px-2 py-1 text-xs"
                 >
                     구매 내역

@@ -15,7 +15,7 @@ jest.mock('../../../../bridge', () => ({
         changeAppIcon: (n: string | null) => changeAppIcon(n),
     },
 }));
-jest.mock('@chatic/bridges', () => ({ logger: { warn: jest.fn() } }));
+jest.mock('@chatic/bridges', () => ({ logger: { warn: jest.fn(), info: jest.fn() } }));
 
 describe('AppIconScreen', () => {
     beforeEach(() => {

@@ -10,7 +10,7 @@ const oAuthLogout = jest.fn();
 jest.mock('../../../../bridge', () => ({
     appBridge: { oAuthLogin: (p: string) => oAuthLogin(p), oAuthLogout: (p: string) => oAuthLogout(p) },
 }));
-jest.mock('@chatic/bridges', () => ({ logger: { warn: jest.fn() } }));
+jest.mock('@chatic/bridges', () => ({ logger: { warn: jest.fn(), info: jest.fn() } }));
 
 const rowButton = (provider: string, name: string) =>
     screen

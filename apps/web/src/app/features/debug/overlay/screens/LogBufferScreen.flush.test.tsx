@@ -16,7 +16,7 @@ jest.mock('../../../../runtime/logging/logUploadSwitch', () => ({
     setLogUploadHold: jest.fn(),
 }));
 jest.mock('@chatic/bridges', () => ({
-    logger: { warn: jest.fn() },
+    logger: { warn: jest.fn(), info: jest.fn() },
     isNative: () => true,
 }));
 jest.mock('../../../../bridge', () => ({

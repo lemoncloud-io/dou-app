@@ -4,6 +4,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { PushScreen } from './PushScreen';
+import { resetUnsupportedCommands } from '../../hooks';
 
 const deleteFcmToken = jest.fn();
 const requestPermission = jest.fn();
@@ -22,12 +23,13 @@ jest.mock('../../../../bridge', () => ({
         openURL: (u: string) => openURL(u),
     },
 }));
-jest.mock('@chatic/bridges', () => ({ isNative: () => true, logger: { warn: jest.fn() } }));
+jest.mock('@chatic/bridges', () => ({ isNative: () => true, logger: { warn: jest.fn(), info: jest.fn() } }));
 jest.mock('../../hooks', () => ({
     usePushRegistration: () => ({ state: 'idle', token: null, summary: null, error: null, check: jest.fn() }),
     useReceivedPushLog: () => ({ entries: [], clear: jest.fn() }),
     // 실제 구현을 쓴다 — 목으로 갈면 "확인 없음" 같은 이 훅의 계약이 검증되지 않는다.
     useDebugOperation: jest.requireActual('../../hooks/useDebugOperation').useDebugOperation,
+    resetUnsupportedCommands: jest.requireActual('../../hooks/useDebugOperation').resetUnsupportedCommands,
 }));
 // DEV 스킴을 돌려주는 페이크 — 화면이 스킴을 해석해 쓰는지, 아니면 어딘가에 박아 뒀는지가 갈린다.
 jest.mock('../../lib', () => ({
@@ -40,7 +42,10 @@ jest.mock('../overlayStore', () => ({ debugOverlayActions: { selectScreen: jest.
 const click = (name: string) => userEvent.click(screen.getByRole('button', { name }));
 
 describe('PushScreen — 조작 (ADR-0080 결정 11)', () => {
-    beforeEach(() => jest.clearAllMocks());
+    beforeEach(() => {
+        jest.clearAllMocks();
+        resetUnsupportedCommands();
+    });
 
     it('토큰 삭제는 앱에 명령을 보내고 결과를 적는다', async () => {
         deleteFcmToken.mockResolvedValue({ data: { success: true } });
@@ -97,5 +102,16 @@ describe('PushScreen — 조작 (ADR-0080 결정 11)', () => {
         await click('푸시 탭 재현');
 
         expect(openURL).toHaveBeenCalledWith('chatic-dev://chats');
+    });
+
+    // DeleteFcmToken은 이번 라운드의 새 명령이라 앱 릴리스 전까지 구버전에서 NOT_FOUND가 난다.
+    // 명령 이름을 넘기지 않으면 학습이 안 되고, 같은 버튼을 계속 눌러 실패만 반복한다 (7단계 감사).
+    it('구버전 앱이 토큰 삭제를 모르면 버전 차이로 배운다', async () => {
+        deleteFcmToken.mockRejectedValue({ code: 'NOT_FOUND' });
+        render(<PushScreen />);
+
+        await click('토큰 삭제');
+
+        expect(await screen.findByText(/이 앱 버전이 지원하지 않습니다/)).toBeInTheDocument();
     });
 });

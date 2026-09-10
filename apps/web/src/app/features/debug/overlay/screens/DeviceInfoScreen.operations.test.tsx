@@ -26,7 +26,7 @@ jest.mock('../../../../bridge', () => ({
         openShareSheet: (u: string) => openShareSheet(u),
     },
 }));
-jest.mock('@chatic/bridges', () => ({ logger: { warn: jest.fn() } }));
+jest.mock('@chatic/bridges', () => ({ logger: { warn: jest.fn(), info: jest.fn() } }));
 jest.mock('@chatic/device-utils', () => ({ useDeviceInfo: () => ({ versionInfo: null, deviceInfo: null }) }));
 jest.mock('../../lib', () => ({ buildDeviceInfoRows: () => [], copyText: jest.fn() }));
 

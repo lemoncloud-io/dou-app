@@ -1,6 +1,11 @@
 # 디버그 패널
 
 > 상태: **Proposed** · 최종 갱신: 2026-09-10 · 관련 ADR:
+>
+> 구현은 **1~7단계 전부 커밋됐다.** `Live`로 올리지 않은 이유는 둘이다: ① 캐시 도메인별 비우기 하나가
+> 스코프 결정에 막혀 열려 있다(§구현 체크리스트 3단계) ② **실기기 수동 확인을 아직 하지 않았다**
+> (§배포 순서의 남은 수동 확인 5건). 그 둘이 닫히면 임시 절(구현 체크리스트·리스크)을 지우고 Live로
+> 전환한다.
 > [ADR-0080](../../../../docs/adr/0080-debug-panel-shared-model-and-stage-visibility.md) (디버그는 웹이 전부
 > 조작한다) · [ADR-0079](../../../../docs/adr/0079-config-registry-and-lane-resolver.md) (설정 레지스트리 —
 > 이 문서가 기대는 기반)
@@ -410,8 +415,52 @@ flowchart TD
       `DebugOverlayEntryKey`) — 남은 두 언급은 customZip 게이트의 출처를 적은 역사적 주석이다.
       `debugSettingsStore.debugModeEnabled`는 **남긴다**: `AppWebView`가 주입 스크립트로 웹에
       되돌려줘 10탭 잠금 해제가 리로드를 넘어 살아남게 한다(`injectionScripts`).
-- [ ] **7. 배포 순서 확인** — 웹이 먼저 배포되고 앱이 뒤따른다. 6단계가 들어간 앱 빌드가 나가기 전까지
-      구버전 앱 사용자는 앱 UI를 그대로 갖는다 — 그 구간에 웹 패널과 앱 UI가 공존하는 것이 정상이다.
+- [x] **7. 배포 순서** — 완료(2026-09-10). 아래 §배포 순서에 못박았고, 감사에서 실제 누락 1건을 잡았다:
+      `DeleteFcmToken` 버튼이 명령 이름을 넘기지 않아 학습·잠금이 되지 않았다. 전 화면을 파서로 재감사해
+      누락 0건을 확인했다(`run` 호출 중 브릿지를 부르는 것 전부가 세 번째 인자를 넘긴다).
+
+## 배포 순서
+
+**웹이 앱보다 먼저 배포된다**(리포 규칙). 그래서 창이 **두 개** 생기고, 둘 다 정상이다.
+
+### 창 1 — 웹이 앞선 구간: 새 명령이 없는 앱
+
+이 브랜치가 추가한 명령 **8개**는 앱 릴리스가 실려야 동작한다. ADR-0080이 6개,
+[ADR-0079](../../../../docs/adr/0079-config-registry-and-lane-resolver.md)의 셸 KV 레인이 2개다 —
+**한 앱 릴리스가 둘을 함께 싣는다.**
+
+| 명령                                                           | 출처     | 구버전 앱에서                                                                 |
+| -------------------------------------------------------------- | -------- | ----------------------------------------------------------------------------- |
+| `DeleteFcmToken` · `FetchBootRecords` · `ClearBootRecords`     | ADR-0080 | 버튼이 "이 앱 버전이 지원하지 않습니다"로 잠긴다 (단계 4)                     |
+| `ApplyCustomZip` · `DisableCustomZip` · `FetchCustomZipStatus` | ADR-0080 | 같음. 상태 조회는 조용히 비어 보이고 첫 적용에서 학습한다                     |
+| `SaveConfigValue` · `ClearConfigValue`                         | ADR-0079 | `shellKvAdapter`의 `configKvUnsupported`가 레거시 `SavePreference`로 폴백한다 |
+
+`useDebugOperation`의 학습이 이 구간을 덮는다: 첫 호출이 `NOT_FOUND`를 받으면 그 명령을 기억하고
+버튼을 잠근다. **파사드만 늘린 12개**(`fetchBadgeCount`·`showNotification`·`requestPermission`·
+`openCamera`·`openPhotoLibrary`·`openDocument`·`copyToClipboard`·`fetchAppIcon`·`fetchAppIconList`·
+`changeAppIcon`·`oAuthLogin`·`oAuthLogout`)는 명령과 핸들러가 이미 있어 이 구간에 영향이 없다 —
+그래도 같은 방식으로 이름을 넘겨 두었다(오래된 빌드에서 하나가 빠져 있어도 같게 동작한다).
+
+### 창 2 — 앱이 뒤따르는 구간: 옛 디버그 UI가 남은 앱
+
+단계 6이 들어간 앱 빌드가 나가기 전까지 **구버전 앱 사용자는 앱 안의 옛 디버그 메뉴를 그대로 갖는다.**
+그 구간에는 웹 패널과 앱 UI가 **동시에** 존재하고, 그것이 정상이다 — 앱을 원격으로 지울 방법은 없고,
+두 창구가 같은 브릿지 명령을 부르므로 서로를 깨뜨리지도 않는다.
+
+한 가지만 다르다: 그 구간의 구버전 앱에는 `EnvironmentSettingsScreen`이 아직 있어 **웹 주소 바꾸기와
+커스텀 zip을 앱에서 직접** 할 수 있다. 새 웹 경로의 PROD 게이트(`isCustomZipAllowed`)는 새 명령에만
+걸리므로, 옛 화면의 게이트(`ALLOW_ENVIRONMENT_SETTINGS`, 같은 `VITE_ENV` 판정)가 그 구간을 계속
+덮는다 — 두 가드가 같은 기준이라 구간 내내 정책이 흔들리지 않는다.
+
+### 남은 수동 확인
+
+자동 테스트가 덮지 못하는 것들이다. **이 세션에서 실기기 확인은 하지 않았다.**
+
+1. 앱 안에서 오버레이 진입(10탭) → 화면 13개를 한 번씩 눌러 응답 확인
+2. 새 명령 6개를 **구버전 앱**에서 눌러 "지원하지 않습니다" 표시와 버튼 잠금 확인
+3. 커스텀 zip: DEV 빌드에서 적용·끄기, **PROD 빌드에서 적용이 거부되고 끄기는 되는지**
+4. `MainScreen` 부팅 — customZip이 켜진 채 재시작해 게이트가 복원하는지 (단계 5가 이동시킨 경로)
+5. 앱에 디버그 UI가 실제로 0인지 (FAB이 안 뜨는지)
 
 ## 리스크와 미지수
 

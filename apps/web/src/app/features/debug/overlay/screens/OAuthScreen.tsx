@@ -28,14 +28,18 @@ export const OAuthScreen = () => {
                     <span className="w-16 text-xs text-muted-foreground">{provider}</span>
                     <button
                         type="button"
-                        onClick={() => void run(`${provider} 로그인`, () => appBridge.oAuthLogin(provider))}
+                        onClick={() =>
+                            void run(`${provider} 로그인`, () => appBridge.oAuthLogin(provider), 'OAuthLogin')
+                        }
                         className="rounded-md border border-border px-2 py-1 text-xs"
                     >
                         로그인
                     </button>
                     <button
                         type="button"
-                        onClick={() => void run(`${provider} 로그아웃`, () => appBridge.oAuthLogout(provider))}
+                        onClick={() =>
+                            void run(`${provider} 로그아웃`, () => appBridge.oAuthLogout(provider), 'OAuthLogout')
+                        }
                         className="rounded-md border border-border px-2 py-1 text-xs"
                     >
                         로그아웃

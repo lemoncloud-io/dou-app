@@ -21,7 +21,7 @@ jest.mock('../../../../bridge', () => ({
     },
 }));
 jest.mock('@chatic/bridges', () => ({
-    logger: { warn: jest.fn() },
+    logger: { warn: jest.fn(), info: jest.fn() },
     webClient: {
         onEvent: (type: string, cb: (m: unknown) => void) => {
             listeners[type] = cb;

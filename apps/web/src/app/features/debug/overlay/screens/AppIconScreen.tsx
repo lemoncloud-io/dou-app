@@ -53,7 +53,11 @@ export const AppIconScreen = () => {
                             key={icon.label}
                             type="button"
                             onClick={() =>
-                                void run(`아이콘 → ${icon.label}`, () => appBridge.changeAppIcon(icon.id)).then(load)
+                                void run(
+                                    `아이콘 → ${icon.label}`,
+                                    () => appBridge.changeAppIcon(icon.id),
+                                    'ChangeAppIcon'
+                                ).then(load)
                             }
                             className="rounded-md border border-border px-2 py-1 text-xs"
                         >
@@ -63,7 +67,9 @@ export const AppIconScreen = () => {
                 )}
                 <button
                     type="button"
-                    onClick={() => void run('목록 새로고침', () => appBridge.fetchAppIconList()).then(load)}
+                    onClick={() =>
+                        void run('목록 새로고침', () => appBridge.fetchAppIconList(), 'FetchAppIconList').then(load)
+                    }
                     className="rounded-md border border-border px-2 py-1 text-xs"
                 >
                     새로고침

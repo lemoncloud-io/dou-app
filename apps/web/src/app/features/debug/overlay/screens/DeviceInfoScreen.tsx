@@ -56,7 +56,9 @@ export const DeviceInfoScreen = () => {
                 <div className="mt-3 flex flex-wrap gap-2">
                     <button
                         type="button"
-                        onClick={() => void run('카메라', () => appBridge.openCamera({ mediaType: 'photo' }))}
+                        onClick={() =>
+                            void run('카메라', () => appBridge.openCamera({ mediaType: 'photo' }), 'OpenCamera')
+                        }
                         className="rounded-md border border-border px-2 py-1 text-xs"
                     >
                         카메라
@@ -64,8 +66,10 @@ export const DeviceInfoScreen = () => {
                     <button
                         type="button"
                         onClick={() =>
-                            void run('앨범', () =>
-                                appBridge.openPhotoLibrary({ selectionLimit: 1, mediaType: 'photo' })
+                            void run(
+                                '앨범',
+                                () => appBridge.openPhotoLibrary({ selectionLimit: 1, mediaType: 'photo' }),
+                                'OpenPhotoLibrary'
                             )
                         }
                         className="rounded-md border border-border px-2 py-1 text-xs"
@@ -74,21 +78,29 @@ export const DeviceInfoScreen = () => {
                     </button>
                     <button
                         type="button"
-                        onClick={() => void run('파일', () => appBridge.openDocument({ allowMultiSelection: true }))}
+                        onClick={() =>
+                            void run(
+                                '파일',
+                                () => appBridge.openDocument({ allowMultiSelection: true }),
+                                'OpenDocument'
+                            )
+                        }
                         className="rounded-md border border-border px-2 py-1 text-xs"
                     >
                         파일
                     </button>
                     <button
                         type="button"
-                        onClick={() => void run('연락처', () => appBridge.getContacts())}
+                        onClick={() => void run('연락처', () => appBridge.getContacts(), 'GetContacts')}
                         className="rounded-md border border-border px-2 py-1 text-xs"
                     >
                         연락처
                     </button>
                     <button
                         type="button"
-                        onClick={() => void run('네이티브 클립보드', () => appBridge.copyToClipboard('debug'))}
+                        onClick={() =>
+                            void run('네이티브 클립보드', () => appBridge.copyToClipboard('debug'), 'CopyToClipboard')
+                        }
                         className="rounded-md border border-border px-2 py-1 text-xs"
                     >
                         클립보드 쓰기
@@ -115,7 +127,9 @@ export const DeviceInfoScreen = () => {
                         <button
                             key={permission}
                             type="button"
-                            onClick={() => void run(permission, () => appBridge.requestPermission(permission))}
+                            onClick={() =>
+                                void run(permission, () => appBridge.requestPermission(permission), 'RequestPermission')
+                            }
                             className="rounded-md border border-border px-2 py-1 text-xs"
                         >
                             {permission}
