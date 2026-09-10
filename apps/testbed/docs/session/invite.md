@@ -67,7 +67,7 @@ interface InvitePayload {
 
 - `requestInvite`는 `name`+`phone`을 요구한다(타겟 지정). 단건 초대만 사용(`requestInviteBatch` 미사용).
 - login-invite의 `code`는 `MyInviteView.Location`(딥링크) 안의 `code` 파라미터다. raw `InviteModel.code`(uuid)를 넘기면 `400 INVALID … is invalid (format)`. `parseInviteLocation`으로 추출한다.
-- web-core dist 타입이 stale하여 `runInviteFlow` 호출부는 캐스팅으로 처리(런타임 src는 wss/onSaveInviteCloud 지원).
+- `InvitePage`는 `useRuntimeRepositories()`를 `DataRepositories`로 캐스팅해 쓴다 — 빌드된 `.d.ts`가 소스보다 좁을 때를 넘기려는 것이고, 타입만의 문제라 런타임 동작에는 영향이 없다.
 - 수락자가 게스트가 아니면(`delegatorId` 없음) 안내 후 중단 — 로그인 페이지에서 게스트 입장 필요.
 - **자동 입장 제외**: invited cloud는 delegate 불가 → 수락은 login+저장까지, 입장은 ChatHome 수동 선택.
 

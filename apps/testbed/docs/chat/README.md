@@ -26,7 +26,7 @@
 
 코드 근거:
 
-- `libs/web-core/src/session/types.ts` — `ActiveServerContext` 타입 (`kind: 'relay' | 'cloud'`)
+- `@chatic/app-runtime` — `ActiveServerContext` 타입 (`kind: 'relay' | 'cloud'`)
 
 초기 안내 문구 예시:
 

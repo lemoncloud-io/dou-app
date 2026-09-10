@@ -23,11 +23,11 @@
 
 ## 4. 구현 참고
 
-로그인 페이지는 `libs/web-core`의 세션 hook만 사용하여 testbed에서 직접 구현한다.
+로그인 페이지는 `@chatic/app-runtime`의 세션 hook만 사용해 testbed에서 직접 구현한다.
 
 사용 라이브러리:
 
-- `libs/web-core` — 이메일 로그인 API, 세션 상태 hook
+- `@chatic/app-runtime` — 이메일 로그인 API, 세션 상태 hook
 
 ## 5. 검증 포인트
 

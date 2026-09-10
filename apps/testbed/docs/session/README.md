@@ -46,8 +46,8 @@
 
 코드 근거:
 
-- `libs/web-core/src/hooks/session/actions/useLogoutCloudSession.ts` — cloud 세션 로그아웃 hook
-- `libs/web-core/src/session/contextStore.ts` — `resolveActiveServerContext` (cloud.isActive false → relay 자동 전환)
+- [`libs/app-runtime/src/session/hooks/session/`](../../../../libs/app-runtime/src/session/hooks/session/) — `useLogoutCloudSession`
+- [`libs/app-runtime/src/session/store/contextStore.ts`](../../../../libs/app-runtime/src/session/store/contextStore.ts) — `resolveActiveServerContext` (cloud.isActive false → relay 자동 전환)
 
 #### Relay 로그아웃
 

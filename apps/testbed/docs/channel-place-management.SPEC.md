@@ -1,6 +1,6 @@
 # [기술 스펙 명세서] 채널 / 플레이스 관리 (생성·이름수정)
 
-> 관련 화면: [채팅 홈 페이지](./chat-home-page.SPEC.md) (`apps/testbed/src/app/pages/ChatHomePage.tsx`)
+> 관련 화면: [채팅 홈 페이지](./chat/README.md) (`apps/testbed/src/app/pages/ChatHomePage.tsx`)
 > 구현 위치: `apps/testbed/src/app/features/manage`
 
 ## 1. 목적
@@ -90,8 +90,8 @@ place와 channel을 **생성**하고 **이름을 수정**해 쓰기 흐름(creat
 - 페이로드 빌더: `apps/testbed/src/app/features/manage/payloads.ts`
 - 이름 검증: `apps/testbed/src/app/features/naming.ts`
 - repository 계약:
-    - `libs/data/src/repositories/ChannelRepositoryV2.ts` (`createChannel`/`updateChannel`)
-    - `libs/data/src/repositories/PlaceRepositoryV2.ts` (`createPlace`/`updatePlace`, 타겟 = `id`)
+    - [`libs/data/src/repositories/ChannelRepository.ts`](../../../libs/data/src/repositories/ChannelRepository.ts) (`createChannel`/`updateChannel`)
+    - [`libs/data/src/repositories/PlaceRepository.ts`](../../../libs/data/src/repositories/PlaceRepository.ts) (`createPlace`/`updatePlace`, 타겟 = `id`)
 
 ## 6. 예외 및 제약
 

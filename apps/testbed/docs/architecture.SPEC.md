@@ -18,7 +18,7 @@
 ### 범위
 
 - Nx 기반 `apps/testbed` 애플리케이션 구성
-- `app-runtime`, `web-core`, `data` 실제 조립
+- `app-runtime`, `data` 실제 조립
 - guest -> cloud 전환 흐름 검증
 - cloud / place / channel / chat 데이터 흐름 검증
 - 전역 오버레이를 통한 런타임 상태 조회
@@ -44,7 +44,7 @@
 
 ```mermaid
 flowchart LR
-    A["Testbed App"] --> B["web-core<br/>session + auth + selection"]
+    A["Testbed App"] --> B["app-runtime<br/>session + auth + selection"]
     A --> C["app-runtime<br/>binding + socket + repositories"]
     C --> D["data<br/>cache + stream + persistence"]
     D --> E["IndexedDB / NativeDB"]
@@ -58,7 +58,6 @@ flowchart LR
 
 ## 5. 계층 책임
 
-- `web-core`
     - relay / cloud 세션 상태 관리
     - guest login 유지
     - cloud 선택 및 로그아웃
@@ -94,7 +93,7 @@ flowchart LR
 
 - 앱은 마운트 시점에 자동으로 guest login 프로세스를 수행해야 한다
 - guest login은 `app-runtime`의 `RuntimeConnectionHost`를 앱 루트에 마운트하는 것으로 시작된다
-- 내부적으로 `SessionBackgroundRunner`가 `useRelaySessionKeepAlive`를 구독하며, relay 인증이 없으면 guest login을 즉시 수행한다
+- 내부적으로 [`RuntimeConnectionHost`](../../../libs/app-runtime/src/connection/RuntimeConnectionHost.tsx)가 `useRelaySessionKeepAlive`를 구독하며, `guestKeepAlive`가 켜져 있고 relay 인증이 없으면 guest login을 즉시 수행한다
 - 명시적인 relay 로그아웃 이후에도 relay 인증이 비어 있으면 guest login을 다시 즉시 수행해야 한다
 - 따라서 relay 로그아웃은 "앱 종료 상태"가 아니라 "relay 세션을 초기화한 뒤 guest 기본 상태로 복귀시키는 동작"으로 해석한다
 - 앱 진입 시 별도 로그인 화면 없이 guest 상태로 바로 채팅 홈에 진입해야 한다
@@ -102,8 +101,8 @@ flowchart LR
 현재 코드 근거:
 
 - `libs/app-runtime/src/connection/RuntimeConnectionHost.tsx` — 앱 루트에 마운트할 provider
-- `libs/app-runtime/src/connection/SessionBackgroundRunner.tsx` — guest login 자동 수행
-- `libs/web-core/src/hooks/app/useRelaySessionKeepAlive.ts` — relay 인증 부재 시 guest login 트리거
+- [`libs/app-runtime/src/connection/RuntimeConnectionHost.tsx`](../../../libs/app-runtime/src/connection/RuntimeConnectionHost.tsx) — guest 유지 여부를 `guestKeepAlive`로 명시받아 배선
+- [`libs/app-runtime/src/session/hooks/app/useRelaySessionKeepAlive.ts`](../../../libs/app-runtime/src/session/hooks/app/useRelaySessionKeepAlive.ts) — relay 인증 부재 시 guest login 트리거
 
 ### 6.3 하단 네비게이션
 
@@ -136,7 +135,7 @@ URL에 강제하는 것은 아니다.
 ### 8.1 앱 시작
 
 1. 앱 셸 초기화 및 `RuntimeConnectionHost` 마운트
-2. `SessionBackgroundRunner`가 `useRelaySessionKeepAlive`를 통해 relay 인증 부재를 감지
+2. `RuntimeConnectionHost`가 `useRelaySessionKeepAlive`를 통해 relay 인증 부재를 감지
 3. guest login 자동 수행 (사용자 개입 없음)
 4. 기본 cloud 기준 상태 확보
 5. 채팅 홈 진입
@@ -150,11 +149,11 @@ URL에 강제하는 것은 아니다.
 5. target place 인증
 6. channel 목록 재조회
 
-이 흐름은 `libs/web-core`의 세션 서비스와 `libs/app-runtime`의 socket lifecycle을 조합하여 testbed에서 직접 구현한다.
+이 흐름은 `libs/app-runtime`의 세션 서비스와 socket lifecycle을 조합해 testbed에서 직접 구현한다.
 
 구현 의존 라이브러리:
 
-- `libs/web-core` — 세션 상태, cloud 인증, activeServer
+- `libs/app-runtime` — 세션 상태, cloud 인증, activeServer
 - `libs/app-runtime` — socket lifecycle, repository 연결
 - `libs/data` — place / channel 데이터 조회
 
@@ -181,11 +180,10 @@ apps/testbed/
   docs/
     README.md
     architecture.SPEC.md
-    overlay.SPEC.md
-    chat-home-page.SPEC.md
-    chat-room-page.SPEC.md
-    settings-page.SPEC.md
-    login-page.SPEC.md
+    channel-place-management.SPEC.md
+    chat/README.md · chat/room.md
+    overlay/README.md
+    session/README.md · session/login.md · session/invite.md
   src/app/
     app.tsx
     routes.tsx
