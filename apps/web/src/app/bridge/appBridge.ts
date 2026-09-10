@@ -287,6 +287,30 @@ export const appBridge = {
     },
 
     // ---------------------------------------------------------------
+    // Debug panel — app-side operations the web drives (ADR-0080 결정 11)
+    // ---------------------------------------------------------------
+
+    /**
+     * Read the boot records the native side persisted, plus its two live counters.
+     *
+     * `sendBootMetrics` only goes the other way (the web hands its half of the timeline over), so
+     * this is the only way the panel can show what the app actually recorded.
+     */
+    fetchBootRecords(): Promise<WebMessageResponse<'FetchBootRecords'>> {
+        return webClient.request({ type: 'FetchBootRecords', data: {} });
+    },
+
+    /** Drop every persisted boot record. */
+    clearBootRecords(): Promise<WebMessageResponse<'ClearBootRecords'>> {
+        return webClient.request({ type: 'ClearBootRecords', data: {} });
+    },
+
+    /** Drop the FCM token so the next `fetchFcmToken` mints a fresh one — re-registration testing. */
+    deleteFcmToken(): Promise<WebMessageResponse<'DeleteFcmToken'>> {
+        return webClient.request({ type: 'DeleteFcmToken', data: {} });
+    },
+
+    // ---------------------------------------------------------------
     // Deferred native reports (ADR-0047)
     // ---------------------------------------------------------------
 

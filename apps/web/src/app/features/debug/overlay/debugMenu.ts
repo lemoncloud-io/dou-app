@@ -11,7 +11,8 @@ export type DebugScreenKey =
     | 'InviteRedirect'
     | 'DBBrowser'
     | 'ProfileEditor'
-    | 'DeviceInfo';
+    | 'DeviceInfo'
+    | 'BootRecords';
 
 export interface DebugMenuItem {
     key: DebugScreenKey;
@@ -45,7 +46,12 @@ export const DEBUG_MENU_SECTIONS: DebugMenuSection[] = [
     },
     {
         title: 'Info',
-        items: [{ key: 'DeviceInfo', title: 'Device Info' }],
+        items: [
+            { key: 'DeviceInfo', title: 'Device Info' },
+            // Distinct from the Boot tab: that one measures the current web session live, this is
+            // the native side's persisted per-boot history (ADR-0080 결정 11).
+            { key: 'BootRecords', title: '부팅 기록 (앱)' },
+        ],
     },
 ];
 
