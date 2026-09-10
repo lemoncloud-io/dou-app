@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom';
 
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 
 import { RouteScreen } from './RouteScreen';
 import { recordRoute, resetRouteTrail } from '../../../../utils/routeTrail';
@@ -82,6 +83,46 @@ describe('RouteScreen — 라우트 스택 인스펙터', () => {
 
         render(<RouteScreen />);
 
-        expect(screen.getByText(/앱 진입 전 항목이 섞여 있습니다/)).toBeInTheDocument();
+        expect(
+            screen.getByText(new RegExp(`앱 스택 1칸 ≠ history.length ${window.history.length}`))
+        ).toBeInTheDocument();
+    });
+
+    // 숫자만 있으면 어느 쪽이 앱 깊이고 어느 쪽이 브라우저 값인지 알 수 없다.
+    it('모든 지표에 설명이 붙어 있고, 호버로 읽을 수 있다', () => {
+        routeStackTracker.record({ pathname: '/', action: 'PUSH', index: 0 });
+
+        render(<RouteScreen />);
+
+        // 호버 경로: 네이티브 title 속성.
+        expect(screen.getByRole('button', { name: '깊이' }).getAttribute('title')).toContain(
+            '앱에 들어오기 전 항목은 세지 않습니다'
+        );
+        // history.length가 앱 깊이가 아니라는 것이 이 화면의 핵심 정보다.
+        expect(screen.getByRole('button', { name: 'history.length' }).getAttribute('title')).toContain(
+            '앱 깊이가 아닙니다'
+        );
+    });
+
+    // 실기기에는 호버가 없다. 탭으로 같은 설명에 닿아야 한다.
+    it('터치에서는 라벨을 눌러 설명을 펼친다', async () => {
+        routeStackTracker.record({ pathname: '/', action: 'PUSH', index: 0 });
+
+        render(<RouteScreen />);
+        const label = screen.getByRole('button', { name: '현재 위치' });
+        expect(label).toHaveAttribute('aria-expanded', 'false');
+
+        await userEvent.click(label);
+
+        expect(label).toHaveAttribute('aria-expanded', 'true');
+        expect(screen.getByText(/#0이 앱의 첫 화면입니다/)).toBeInTheDocument();
+    });
+
+    // 스택과 trail의 구분은 이 화면을 읽기 전에 알아야 한다 — 펼쳐야 보이면 늦다.
+    it('두 목록의 뜻은 접지 않고 항상 보여준다', () => {
+        render(<RouteScreen />);
+
+        expect(screen.getByText(/지금 내 뒤에 쌓여 있는 것/)).toBeInTheDocument();
+        expect(screen.getByText(/거쳐온 화면을 시간순으로/)).toBeInTheDocument();
     });
 });
