@@ -205,6 +205,22 @@ flowchart TD
 | [`overlay/screenRegistry.tsx`](../../src/app/features/debug/overlay/screenRegistry.tsx) | `lazy()` 한 줄 — 초기 번들에 안 들어간다 |
 | `overlay/screens/<Name>Screen.tsx`                                                      | 화면 본문                                |
 
+**네이티브 캐시 CRUD 화면은 "명령 4종으로 만들면 된다"가 아니었다 (2026-09-10 실측).** 다섯 번째로
+뒤집힌 판정이다. 막는 것은 명령의 부재가 아니라 **스코프**다:
+
+- 캐시 명령 payload는 전부 `CacheBasePayload<K> = { type, cid, uid }`를 요구한다
+  (`libs/app-messages/src/types/model/cache.ts:47`).
+- 그 `cid`/`uid`를 도메인 타입별로 정하는 정책은 `@chatic/data`의 `resolveScopedContext(type, provider)`가
+  소유하고, `libs/db`의 `BaseDbAdapter`만 그것을 부른다(`BaseDbAdapter.ts:20`).
+- `libs/app-runtime`의 `runtime.data`는 타입별 캐시 접근자도, 컨텍스트 접근자도 공개하지 않는다.
+  `useGlobalCacheSearch`는 검색·안읽음이 쓰는 프로덕션 기능이고 `getDataManager`를 거치므로 원시
+  조회 도구가 아니다.
+
+그래서 세 갈래이고 **선택이 필요하다**: ① `runtime.data`에 스코프 접근자 하나를 공개(정책은 한 곳에
+남고 화면은 원시 접근을 얻는다) ② `NativeDBAdapter`를 재사용(디둡·메트릭·학습 플래그가 얹혀
+관측하려는 원시 상태를 흐린다) ③ 이 화면을 만들지 않는다(모바일 화면의 값은 재현 중 캐시 상태를
+들여다보고 고치는 것이고, 결정 14의 "캐시 도메인별 비우기"가 그 필요의 일부를 덮는다).
+
 **SQLite 백업/복원을 삭제했다 (2026-09-10 결정).** `sqliteDatabase.backup/restore`의 소비자가
 `StorageTestScreen` 하나뿐이었다 — `SocketTest`의 네이티브 WS 클라이언트와 같은 구조다. 웹으로
 옮기려면 `FileManagerBridge`(계약·웹 노출 0건)를 브릿지에 열어야 하는데, **파일시스템 경로를 웹에
@@ -307,8 +323,9 @@ flowchart TD
     - [x] `IapTest` → `IapScreen` 신설. 명령 6종 파사드가 이미 다 있었다. 구매 결과가 이벤트로 오는
           구조를 화면에 반영(구독 + 기록). 테스트 6건
     - [x] `StorageTest` ② SQLite 백업/복원 **삭제 완료**(위 절). 구현 55줄 + 인터페이스 2줄 + 화면 UI
-    - [ ] `StorageTest` ① 네이티브 캐시 CRUD 화면 — 명령 4종(`FetchAllCacheData`·`SaveCacheData`·
-          `DeleteCacheData`·`ClearCacheData`)으로 만들 수 있다. **2단계의 마지막 항목이다**
+    - [ ] `StorageTest` ① 네이티브 캐시 CRUD 화면 — **스코프 접근 방식 선택이 먼저다**(위 절).
+          명령 4종은 있지만 payload가 `{type, cid, uid}`를 요구하고 그 해석은 `@chatic/data`가 소유한다.
+          2단계의 마지막 항목이다
 - [ ] **3. 결정 14 버튼 3개** — 로그 지금 보내기(`flushNow`) · 설정 전체 보기(`snapshotAll`) ·
       캐시 도메인별 비우기. 앞의 둘은 브릿지 왕복이 없다.
 - [ ] **4. 실패 표시** — 오버레이 레벨 `useToast` 배선 + 구버전 앱 `NOT_FOUND` 표시.
