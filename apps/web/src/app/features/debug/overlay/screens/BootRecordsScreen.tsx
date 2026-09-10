@@ -3,8 +3,8 @@ import { useCallback, useEffect, useState } from 'react';
 import type { BootRecord } from '@chatic/app-messages';
 import { Row } from '../../components/Row';
 import { Section } from '../../components/Section';
+import { CopyButton } from '../../components/CopyButton';
 import { useDebugOperation } from '../../hooks';
-import { copyText } from '../../lib';
 import { appBridge } from '../../../../bridge';
 
 /**
@@ -94,15 +94,7 @@ export const BootRecordsScreen = () => {
                 >
                     초기화
                 </button>
-                {loaded && (
-                    <button
-                        type="button"
-                        onClick={() => copyText(JSON.stringify(loaded.records, null, 2))}
-                        className="rounded-md border border-border px-2 py-1 text-xs"
-                    >
-                        JSON 복사
-                    </button>
-                )}
+                {loaded && <CopyButton value={() => JSON.stringify(loaded.records, null, 2)} label="JSON 복사" />}
                 <span className="ml-auto text-xs text-muted-foreground">{loaded?.records.length ?? 0}건</span>
             </div>
 

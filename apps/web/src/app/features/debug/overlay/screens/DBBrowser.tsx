@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { runtime } from '@chatic/app-runtime';
 import type { DataRepositoriesV2 } from '@chatic/data';
 
-import { copyText } from '../../lib/copyText';
+import { CopyButton } from '../../components/CopyButton';
 
 type CacheType = 'channel' | 'chat' | 'user' | 'join' | 'site' | 'invitecloud' | 'profile' | 'invite';
 
@@ -95,15 +95,9 @@ function RowItem({ row, onDelete, onEdit }: { row: DomainRow; onDelete: () => vo
                 <span className="shrink-0">{expanded ? '▼' : '▶'}</span>
                 <span className="font-mono text-muted-foreground shrink-0">{row.id}</span>
                 {summary && <span className="text-muted-foreground truncate">{summary}</span>}
-                <button
-                    onClick={e => {
-                        e.stopPropagation();
-                        copyText(JSON.stringify(row, null, 2));
-                    }}
-                    className="ml-auto shrink-0 text-muted-foreground hover:text-foreground"
-                >
-                    복사
-                </button>
+                <div className="ml-auto">
+                    <CopyButton value={() => JSON.stringify(row, null, 2)} />
+                </div>
                 <button
                     onClick={e => {
                         e.stopPropagation();
@@ -313,12 +307,7 @@ function DetailView({ type, repos, onBack }: { type: CacheType; repos: DataRepos
                     <div className="flex items-center gap-2">
                         <p className="text-xs text-muted-foreground">{results.length}건</p>
                         {results.length > 0 && (
-                            <button
-                                onClick={() => copyText(JSON.stringify(results, null, 2))}
-                                className="text-xs text-muted-foreground hover:text-foreground"
-                            >
-                                전체 복사
-                            </button>
+                            <CopyButton value={() => JSON.stringify(results, null, 2)} label="전체 복사" />
                         )}
                     </div>
                     {results.length === 0 ? (

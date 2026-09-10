@@ -15,8 +15,13 @@ jest.mock('@chatic/config', () => ({
         clear: (key: string, options: unknown) => clear(key, options),
     },
 }));
-const copyText = jest.fn();
-jest.mock('../../lib', () => ({ copyText: (t: string) => copyText(t) }));
+// The screen copies through `CopyButton`, which awaits the real outcome so its indicator cannot
+// lie — so the spy sits on `copyTextWithResult` rather than the fire-and-forget `copyText`.
+const copyTextWithResult = jest.fn().mockResolvedValue(true);
+jest.mock('../../lib/copyText', () => ({
+    copyTextWithResult: (t: string) => copyTextWithResult(t),
+    copyText: () => undefined,
+}));
 
 const snap = (over: Record<string, unknown> = {}) => ({
     key: 'log.upload.hold',
@@ -119,7 +124,7 @@ describe('ConfigScreen', () => {
 
         await userEvent.click(screen.getByRole('button', { name: 'JSON 복사' }));
 
-        expect(copyText).toHaveBeenCalledWith(expect.stringContaining('"origin": "local"'));
+        expect(copyTextWithResult).toHaveBeenCalledWith(expect.stringContaining('"origin": "local"'));
     });
 
     // 재시도 횟수·타임아웃처럼 숫자로 조정하는 키가 이 화면에 오는 이유다.

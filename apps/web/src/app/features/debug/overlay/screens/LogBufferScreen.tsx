@@ -7,9 +7,9 @@ import type { AppLogInfo, AppLogLevel } from '@chatic/app-messages';
 import { appBridge } from '../../../../bridge';
 import { getLogQueueView } from '../../../../runtime/logging/logQueueView';
 import { isLogUploadHeld, isLogUploadHeldByApp, setLogUploadHold } from '../../../../runtime/logging/logUploadSwitch';
+import { useCopyFeedback } from '../../hooks/useCopyFeedback';
 import {
     collectLogTags,
-    copyText,
     filterLogs,
     formatLogForCopy,
     formatTimestamp,
@@ -112,8 +112,13 @@ const HoldToggle = ({ held, byApp, onToggle }: { held: boolean; byApp: boolean; 
     </div>
 );
 
-/** Small copy button used inside an expanded log entry. */
-const CopyButton = ({ label, value, onCopy }: { label: string; value: string; onCopy: (value: string) => void }) => (
+/**
+ * Small copy button used inside an expanded log entry. Distinct from the shared `CopyButton`: the
+ * outcome is reported by this screen's bottom toast instead of on the button, because the triggers
+ * sit inside expanded rows where there is no room for per-button state — and there can be three of
+ * them in one row.
+ */
+const LogCopyButton = ({ label, value, onCopy }: { label: string; value: string; onCopy: (value: string) => void }) => (
     <button
         type="button"
         onClick={event => {
@@ -178,7 +183,7 @@ const LogRow = ({
                         <div className="min-w-0">
                             <div className="mb-1 flex items-center justify-between gap-2">
                                 <span className="text-[10px] uppercase tracking-wide text-muted-foreground">data</span>
-                                <CopyButton label="Copy" value={data} onCopy={onCopy} />
+                                <LogCopyButton label="Copy" value={data} onCopy={onCopy} />
                             </div>
                             <pre className="max-h-[240px] max-w-full overflow-auto whitespace-pre-wrap break-words rounded-[10px] bg-muted p-2 font-mono text-[11px] leading-relaxed text-muted-foreground [overflow-wrap:anywhere]">
                                 {data}
@@ -189,7 +194,7 @@ const LogRow = ({
                         <div className="min-w-0">
                             <div className="mb-1 flex items-center justify-between gap-2">
                                 <span className="text-[10px] uppercase tracking-wide text-destructive">error</span>
-                                <CopyButton label="Copy" value={error} onCopy={onCopy} />
+                                <LogCopyButton label="Copy" value={error} onCopy={onCopy} />
                             </div>
                             <pre className="max-h-[240px] max-w-full overflow-auto whitespace-pre-wrap break-words rounded-[10px] bg-destructive/10 p-2 font-mono text-[11px] leading-relaxed text-destructive [overflow-wrap:anywhere]">
                                 {error}
@@ -197,7 +202,7 @@ const LogRow = ({
                         </div>
                     ) : null}
                     <div className="flex justify-end">
-                        <CopyButton label="Copy entry" value={formatLogForCopy(log)} onCopy={onCopy} />
+                        <LogCopyButton label="Copy entry" value={formatLogForCopy(log)} onCopy={onCopy} />
                     </div>
                 </div>
             ) : null}
@@ -223,7 +228,7 @@ export const LogBufferScreen = () => {
     const [activeTags, setActiveTags] = useState<Set<string>>(new Set());
     const [query, setQuery] = useState('');
     const [expandedKey, setExpandedKey] = useState<number | null>(null);
-    const [copiedAt, setCopiedAt] = useState<number | null>(null);
+    const { state: copyState, copy } = useCopyFeedback();
 
     const isOnMobileApp = useMemo(() => {
         if (typeof window === 'undefined') return false;
@@ -399,10 +404,7 @@ export const LogBufferScreen = () => {
         });
     }, []);
 
-    const handleCopy = useCallback((value: string) => {
-        copyText(value);
-        setCopiedAt(Date.now());
-    }, []);
+    const handleCopy = useCallback((value: string) => void copy(value), [copy]);
 
     const toggleExpanded = useCallback((key: number) => {
         setExpandedKey(prev => (prev === key ? null : key));
@@ -439,13 +441,6 @@ export const LogBufferScreen = () => {
             setLastAction('flush failed');
         }
     }, []);
-
-    // Auto-hide the "Copied" hint shortly after a copy.
-    useEffect(() => {
-        if (copiedAt === null) return;
-        const timer = window.setTimeout(() => setCopiedAt(null), 1500);
-        return () => window.clearTimeout(timer);
-    }, [copiedAt]);
 
     useEffect(() => {
         fetchLogs(LOG_FETCH_LIMIT);
@@ -653,9 +648,18 @@ export const LogBufferScreen = () => {
                 </div>
             </div>
 
-            {copiedAt !== null ? (
-                <div className="pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-foreground px-3 py-1.5 text-[12px] font-semibold text-background shadow-lg">
-                    Copied
+            {/* A toast rather than per-row button state: the copy triggers are the log rows
+                themselves, and 60 of them cannot each carry an indicator. It now reports the REAL
+                outcome — it used to say "Copied" without waiting to find out. */}
+            {copyState !== 'idle' ? (
+                <div
+                    className={`pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full px-3 py-1.5 text-[12px] font-semibold shadow-lg ${
+                        copyState === 'failed'
+                            ? 'bg-destructive text-destructive-foreground'
+                            : 'bg-foreground text-background'
+                    }`}
+                >
+                    {copyState === 'failed' ? '복사 실패' : 'Copied'}
                 </div>
             ) : null}
         </div>

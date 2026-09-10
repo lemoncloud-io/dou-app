@@ -1,9 +1,10 @@
-import { BellRing, CheckCircle2, Copy, FileText, RefreshCw, Trash2, XCircle } from 'lucide-react';
+import { BellRing, CheckCircle2, FileText, RefreshCw, Trash2, XCircle } from 'lucide-react';
 
 import { isNative } from '@chatic/bridges';
 
 import { useDebugOperation, usePushRegistration, useReceivedPushLog } from '../../hooks';
-import { buildAppDeeplink, copyText, formatRegisteredAt } from '../../lib';
+import { CopyRow } from '../../components/CopyRow';
+import { buildAppDeeplink, formatRegisteredAt } from '../../lib';
 import { debugOverlayActions } from '../overlayStore';
 import { appBridge } from '../../../../bridge';
 
@@ -83,30 +84,10 @@ export const PushScreen = () => {
                     )}
 
                     <dl className="mt-3 flex flex-col gap-2">
-                        <button
-                            type="button"
-                            onClick={() => copyText(token ?? null)}
-                            className="flex items-start justify-between gap-2 text-left"
-                        >
-                            <dt className="w-[92px] shrink-0 text-[12px] text-muted-foreground">Token</dt>
-                            <dd className="flex-1 break-all text-[12px] font-medium text-foreground">
-                                {token ?? '(not fetched)'}
-                            </dd>
-                            <Copy size={13} className="mt-0.5 shrink-0 text-muted-foreground" />
-                        </button>
+                        <CopyRow label="Token" value={token ?? '(not fetched)'} copyValue={token} />
 
                         {summary?.endpoint && (
-                            <button
-                                type="button"
-                                onClick={() => copyText(summary.endpoint)}
-                                className="flex items-start justify-between gap-2 text-left"
-                            >
-                                <dt className="w-[92px] shrink-0 text-[12px] text-muted-foreground">Endpoint</dt>
-                                <dd className="flex-1 break-all text-[12px] font-medium text-foreground">
-                                    {summary.endpoint}
-                                </dd>
-                                <Copy size={13} className="mt-0.5 shrink-0 text-muted-foreground" />
-                            </button>
+                            <CopyRow label="Endpoint" value={summary.endpoint} copyValue={summary.endpoint} />
                         )}
 
                         <div className="flex items-start justify-between gap-2">

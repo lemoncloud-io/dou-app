@@ -3,8 +3,8 @@ import { useCallback, useMemo, useState } from 'react';
 import { config } from '@chatic/config';
 import type { ConfigSnapshot, SetRejection, SetResult } from '@chatic/config';
 
+import { CopyButton } from '../../components/CopyButton';
 import { Section } from '../../components/Section';
-import { copyText } from '../../lib';
 
 /**
  * Every setting this device is actually running with, and — for the keys this device may write —
@@ -75,15 +75,17 @@ export const ConfigScreen = () => {
     const overridden = filtered.filter(s => s.isOverridden);
     const rest = filtered.filter(s => !s.isOverridden);
 
-    const copyAll = useCallback(() => {
-        copyText(
+    // A getter, not a value: `CopyButton` serializes at click time, so a refresh between renders
+    // cannot hand the tester a stale snapshot.
+    const copyAll = useCallback(
+        () =>
             JSON.stringify(
                 snapshots.map(s => ({ key: s.key, value: s.value, origin: s.origin, overridden: s.isOverridden })),
                 null,
                 2
-            )
-        );
-    }, [snapshots]);
+            ),
+        [snapshots]
+    );
 
     return (
         <div className="flex flex-col gap-3 p-4">
@@ -102,9 +104,7 @@ export const ConfigScreen = () => {
                 <button type="button" onClick={refresh} className="rounded-md border border-border px-2 py-1 text-xs">
                     새로고침
                 </button>
-                <button type="button" onClick={copyAll} className="rounded-md border border-border px-2 py-1 text-xs">
-                    JSON 복사
-                </button>
+                <CopyButton value={copyAll} label="JSON 복사" />
             </div>
 
             {snapshots.length === 0 ? (

@@ -1,11 +1,12 @@
-import { Copy, Smartphone } from 'lucide-react';
+import { Smartphone } from 'lucide-react';
 
 import { useDeviceInfo } from '@chatic/device-utils';
 
 import type { AppPermissionType } from '@chatic/app-messages';
 
 import { useDebugOperation } from '../../hooks';
-import { buildDeviceInfoRows, copyText } from '../../lib';
+import { CopyRow } from '../../components/CopyRow';
+import { buildDeviceInfoRows } from '../../lib';
 import { appBridge } from '../../../../bridge';
 
 /**
@@ -35,16 +36,7 @@ export const DeviceInfoScreen = () => {
                 </div>
                 <dl className="flex flex-col gap-1.5">
                     {buildDeviceInfoRows(deviceInfo).map(row => (
-                        <button
-                            key={row.label}
-                            type="button"
-                            onClick={() => copyText(row.copyValue)}
-                            className="flex items-start justify-between gap-2 text-left"
-                        >
-                            <dt className="w-[92px] shrink-0 text-[12px] text-muted-foreground">{row.label}</dt>
-                            <dd className="flex-1 break-all text-[12px] font-medium text-foreground">{row.value}</dd>
-                            {row.copyValue && <Copy size={13} className="mt-0.5 shrink-0 text-muted-foreground" />}
-                        </button>
+                        <CopyRow key={row.label} label={row.label} value={row.value} copyValue={row.copyValue} />
                     ))}
                 </dl>
             </div>

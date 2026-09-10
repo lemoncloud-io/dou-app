@@ -4,7 +4,7 @@ import type { IapProductSubscription } from '@chatic/app-messages';
 import { webClient } from '@chatic/bridges';
 
 import { useDebugOperation } from '../../hooks';
-import { copyText } from '../../lib';
+import { CopyButton } from '../../components/CopyButton';
 import { appBridge } from '../../../../bridge';
 
 /**
@@ -117,11 +117,13 @@ export const IapScreen = () => {
                             {/* Android needs an `offerToken` this screen does not guess at — the raw
                                 JSON below is where the tester finds it. */}
                             <details className="mt-1">
+                                {/* The copy used to be an onClick on the <pre> itself — nothing said it
+                                    was clickable, and it could not report the outcome. */}
                                 <summary className="cursor-pointer text-[11px] text-muted-foreground">원문</summary>
-                                <pre
-                                    onClick={() => copyText(JSON.stringify(product, null, 2))}
-                                    className="mt-1 overflow-x-auto whitespace-pre-wrap break-all text-[11px] text-muted-foreground"
-                                >
+                                <div className="mt-1 flex justify-end">
+                                    <CopyButton value={() => JSON.stringify(product, null, 2)} />
+                                </div>
+                                <pre className="overflow-x-auto whitespace-pre-wrap break-all text-[11px] text-muted-foreground">
                                     {JSON.stringify(product, null, 2)}
                                 </pre>
                             </details>

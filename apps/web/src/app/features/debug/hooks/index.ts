@@ -1,3 +1,4 @@
+export * from './useCopyFeedback';
 export * from './useDebugMode';
 export * from './useDebugOperation';
 export * from './useDebugUnlock';
