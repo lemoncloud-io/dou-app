@@ -353,7 +353,30 @@ flowchart TD
     - [ ] **캐시 도메인별 비우기** — 캐시 CRUD 화면과 **같은 스코프 벽**이다(위 절). payload가
           `{type, cid, uid, channelId}`를 요구하고 `runtime.data`는 접근자를 공개하지 않는다.
           `libs/data`의 repository에도 도메인 비우기 공개 API가 없다. 세 갈래 선택이 먼저다
-- [ ] **4. 실패 표시** — 오버레이 레벨 `useToast` 배선 + 구버전 앱 `NOT_FOUND` 표시.
+- [x] **4. 실패 표시** — 완료(2026-09-10). 다만 미결 5의 답과 형태가 달라졌다.
+    - [x] **`NOT_FOUND`를 실패와 구분한다** — 호스트는 핸들러가 없을 때 그 코드를 보낸다
+          (`AppBridgeHost.ts:185`). 원문("등록된 핸들러를 찾을 수 없습니다")을 그대로 보이면 테스터가
+          버전 차이를 버그로 쫓는다. `useDebugOperation.run`이 명령 이름을 받아 "이 앱 버전이
+          지원하지 않습니다"로 답하고 **기억한다** — `isUnsupported(command)`로 화면이 버튼을 잠근다.
+          모듈 스코프·단방향으로 `shellKvAdapter`의 `configKvUnsupported`와 같은 패턴. `info`로
+          기록해 배포 구간의 버전 차이가 수집 로그에 보인다
+    - [x] **config 쓰기 실패 토스트** — ADR-0079 4단계가 `onShellWriteFailed`를 로그까지만 배선하고
+          "토스트는 다음 라운드"로 남긴 것. 명령형 `toast`(React 밖에서 도는 콜백이므로 훅이 아니다)로
+          띄운다. **`onDuplicateKey`는 로그만** — 레지스트리 작성 오류라 폰을 든 사람이 할 일이 없고
+          `allModules.spec.ts`가 빈 집합을 단정한다
+    - [x] `BootRecordsScreen`이 손으로 만든 에러 처리를 공용 훅으로 대체 — 문구와 학습이 화면마다
+          갈리지 않는다
+
+**미결 5의 답을 바꿨다.** 스펙은 "오버레이 레벨 토스트 하나로 통일"이라고 적었지만, `useDebugOperation`이
+결과 줄을 이미 한 곳에서 만들고 있어 **조작 결과에는 토스트를 쓰지 않는다**: 디버그 응답은 긴 JSON이라
+토스트가 잘라먹고 사라지며, 같은 내용이 두 번 보인다. 토스트는 **config 쓰기 실패**에만 쓴다 — 결정 10이
+원래 말한 대상이 그것이고(사용자가 방금 한 행동이 조용히 안 붙는 상황), 화면 밖에서 일어나므로 인라인
+줄로는 알릴 자리가 없다.
+
+**곁가지 — `adapters.ts`는 유닛 테스트가 불가능하다.** `import.meta.env`를 읽어 CommonJS 테스트 변환에서
+로드되지 않는다(`utils/buildEnv.ts`·`logUploadSwitch.ts`가 읽기를 격리한 것과 같은 제약). 그래서 두 콜백을
+`configPortCallbacks.ts`로 분리했다 — 리포가 이미 쓰는 처방이다.
+
 - [ ] **5. customZip을 디버그 밖으로 이동** — 삭제 전에 해야 `MainScreen` 부팅이 안 깨진다.
 - [ ] **6. 앱 UI 삭제** — 화면 14개 · `DebugHomeScreen` · `DebugOverlay` · `debugMenu.ts` ·
       `useWebSocket` · `FloatingMenu` · `App.tsx` 마운트 조건.

@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import type { BootRecord } from '@chatic/app-messages';
-import { logger } from '@chatic/bridges';
-
 import { Row } from '../../components/Row';
 import { Section } from '../../components/Section';
+import { useDebugOperation } from '../../hooks';
 import { copyText } from '../../lib';
 import { appBridge } from '../../../../bridge';
 
@@ -41,30 +40,29 @@ interface Loaded {
 
 export const BootRecordsScreen = () => {
     const [loaded, setLoaded] = useState<Loaded | null>(null);
-    const [error, setError] = useState<string | null>(null);
     const [busy, setBusy] = useState(false);
+    // Shared so the NOT_FOUND wording and the learning are the same here as on every other screen
+    // (ADR-0080 결정 11 단계 4) — this screen used to hand-roll both.
+    const { result, run, isUnsupported } = useDebugOperation();
+    const unsupported = isUnsupported('FetchBootRecords');
 
     const load = useCallback(async () => {
         setBusy(true);
-        try {
-            // Failures reject with a BridgeError rather than returning `success: false`
-            // (`WebMessageResponse` is the success shape), so the catch below is the only path.
-            const res = await appBridge.fetchBootRecords();
-            setLoaded({
-                records: res.data?.records ?? [],
-                contentProcessReloadCount: res.data?.contentProcessReloadCount ?? 0,
-                lastForegroundResumeMs: res.data?.lastForegroundResumeMs ?? null,
-            });
-            setError(null);
-        } catch (e) {
-            // An app build that predates this command answers NOT_FOUND; the message says which,
-            // so the panel never claims "no boots recorded" when it simply could not ask.
-            logger.warn('APP', 'fetchBootRecords failed', e as Error);
-            setError((e as Error).message);
-        } finally {
-            setBusy(false);
-        }
-    }, []);
+        await run(
+            '부팅 기록',
+            async () => {
+                const res = await appBridge.fetchBootRecords();
+                setLoaded({
+                    records: res.data?.records ?? [],
+                    contentProcessReloadCount: res.data?.contentProcessReloadCount ?? 0,
+                    lastForegroundResumeMs: res.data?.lastForegroundResumeMs ?? null,
+                });
+                return res;
+            },
+            'FetchBootRecords'
+        );
+        setBusy(false);
+    }, [run]);
 
     useEffect(() => {
         void load();
@@ -72,16 +70,10 @@ export const BootRecordsScreen = () => {
 
     const clear = useCallback(async () => {
         setBusy(true);
-        try {
-            await appBridge.clearBootRecords();
-            await load();
-        } catch (e) {
-            logger.warn('APP', 'clearBootRecords failed', e as Error);
-            setError((e as Error).message);
-        } finally {
-            setBusy(false);
-        }
-    }, [load]);
+        await run('기록 초기화', () => appBridge.clearBootRecords(), 'ClearBootRecords');
+        setBusy(false);
+        await load();
+    }, [run, load]);
 
     return (
         <div className="space-y-3 p-4">
@@ -89,7 +81,7 @@ export const BootRecordsScreen = () => {
                 <button
                     type="button"
                     onClick={() => void load()}
-                    disabled={busy}
+                    disabled={busy || unsupported}
                     className="rounded-md bg-primary px-2 py-1 text-xs text-primary-foreground disabled:opacity-50"
                 >
                     새로고침
@@ -97,7 +89,7 @@ export const BootRecordsScreen = () => {
                 <button
                     type="button"
                     onClick={() => void clear()}
-                    disabled={busy || !loaded?.records.length}
+                    disabled={busy || unsupported || !loaded?.records.length}
                     className="rounded-md border border-border px-2 py-1 text-xs disabled:opacity-50"
                 >
                     초기화
@@ -114,7 +106,7 @@ export const BootRecordsScreen = () => {
                 <span className="ml-auto text-xs text-muted-foreground">{loaded?.records.length ?? 0}건</span>
             </div>
 
-            {error && <p className="text-xs text-destructive">앱에서 읽지 못했습니다 — {error}</p>}
+            {result && <p className="break-all font-mono text-[12px] text-muted-foreground">{result}</p>}
 
             {loaded && (
                 <Section title="현재 앱 실행">
@@ -123,7 +115,7 @@ export const BootRecordsScreen = () => {
                 </Section>
             )}
 
-            {loaded?.records.length === 0 && !error && (
+            {loaded?.records.length === 0 && !unsupported && (
                 <p className="text-xs text-muted-foreground">기록이 없습니다 — 앱을 한 번 재시작하면 남습니다</p>
             )}
 

@@ -4,6 +4,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { BootRecordsScreen } from './BootRecordsScreen';
+import { resetUnsupportedCommands } from '../../hooks';
 
 const fetchBootRecords = jest.fn();
 const clearBootRecords = jest.fn();
@@ -14,7 +15,7 @@ jest.mock('../../../../bridge', () => ({
         clearBootRecords: (...args: unknown[]) => clearBootRecords(...args),
     },
 }));
-jest.mock('@chatic/bridges', () => ({ logger: { warn: jest.fn(), error: jest.fn() } }));
+jest.mock('@chatic/bridges', () => ({ logger: { warn: jest.fn(), error: jest.fn(), info: jest.fn() } }));
 jest.mock('../../lib', () => ({ copyText: jest.fn() }));
 
 const record = (over: Record<string, unknown> = {}) => ({
@@ -33,7 +34,11 @@ const ok = (over: Record<string, unknown> = {}) =>
     });
 
 describe('BootRecordsScreen', () => {
-    beforeEach(() => jest.clearAllMocks());
+    beforeEach(() => {
+        jest.clearAllMocks();
+        // 학습은 모듈 스코프라 한 케이스가 배운 것이 다음으로 새면 안 된다.
+        resetUnsupportedCommands();
+    });
 
     it('네이티브 마일스톤과 총 부팅 시간을 기록마다 보여준다', async () => {
         fetchBootRecords.mockImplementation(() => ok());
@@ -70,14 +75,31 @@ describe('BootRecordsScreen', () => {
         expect(await screen.findByText(/기록이 없습니다/)).toBeInTheDocument();
     });
 
-    // 구버전 앱은 이 명령을 몰라 reject한다. 그때 "기록이 없다"고 말하면 거짓이다 —
+    // 구버전 앱은 이 명령을 몰라 NOT_FOUND로 답한다. 그때 "기록이 없다"고 말하면 거짓이다 —
     // 못 물어본 것과 물어봤는데 없는 것은 다르다.
-    it('앱이 답하지 못하면 실패를 표시하고, 기록 없음이라고 하지 않는다', async () => {
-        fetchBootRecords.mockImplementation(() => Promise.reject(new Error('NOT_FOUND')));
+    it('앱이 명령을 모르면 버전 차이로 말하고, 기록 없음이라고 하지 않는다', async () => {
+        fetchBootRecords.mockImplementation(() => Promise.reject({ code: 'NOT_FOUND' }));
         render(<BootRecordsScreen />);
 
-        expect(await screen.findByText(/앱에서 읽지 못했습니다/)).toBeInTheDocument();
+        expect(await screen.findByText(/이 앱 버전이 지원하지 않습니다/)).toBeInTheDocument();
         expect(screen.queryByText(/기록이 없습니다/)).not.toBeInTheDocument();
+    });
+
+    // 눌러도 안 되는 버튼을 계속 내주는 것보다 잠그는 게 정직하다.
+    it('명령을 모른다고 배우면 버튼을 잠근다', async () => {
+        fetchBootRecords.mockImplementation(() => Promise.reject({ code: 'NOT_FOUND' }));
+        render(<BootRecordsScreen />);
+        await screen.findByText(/이 앱 버전이 지원하지 않습니다/);
+
+        expect(screen.getByRole('button', { name: '새로고침' })).toBeDisabled();
+    });
+
+    it('일반 실패는 버전 차이와 구분해 적는다', async () => {
+        fetchBootRecords.mockImplementation(() => Promise.reject(new Error('storage down')));
+        render(<BootRecordsScreen />);
+
+        expect(await screen.findByText(/실패: storage down/)).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: '새로고침' })).not.toBeDisabled();
     });
 
     it('초기화를 누르면 앱에 지우게 하고 다시 읽는다', async () => {
