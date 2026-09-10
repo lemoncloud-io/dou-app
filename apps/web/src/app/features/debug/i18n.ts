@@ -25,13 +25,29 @@ interface ScreenStrings {
 }
 
 export interface DebugStrings {
-    panel: { home: string; loading: string; tabStrip: string; disable: string };
+    panel: {
+        home: string;
+        loading: string;
+        tabStrip: string;
+        disable: string;
+        /** Badge on a screen that needs the native shell. */
+        shellOnly: string;
+        /** Shown instead of such a screen when there is no shell. */
+        shellOnlyNotice: string;
+    };
     sections: Record<DebugSectionKey, string>;
     screens: Record<DebugScreenKey, ScreenStrings>;
 }
 
 const ko: DebugStrings = {
-    panel: { home: '메뉴', loading: '불러오는 중…', tabStrip: '화면 목록', disable: '디버그 모드 끄기' },
+    panel: {
+        home: '메뉴',
+        loading: '불러오는 중…',
+        tabStrip: '화면 목록',
+        disable: '디버그 모드 끄기',
+        shellOnly: '앱 전용',
+        shellOnlyNotice: '이 화면은 앱 안에서만 동작합니다 — 지금은 셸이 붙어 있지 않습니다',
+    },
     sections: { info: '모니터링', tools: '기능 테스트', data: '데이터' },
     screens: {
         State: { title: '상태', short: '상태' },
@@ -40,7 +56,7 @@ const ko: DebugStrings = {
         Unread: { title: '안읽음', short: '안읽음' },
         Route: { title: '라우트 스택', short: '라우트' },
         DeviceInfo: { title: '기기 정보', short: '기기' },
-        Config: { title: '지금 설정', short: '설정' },
+        Config: { title: '설정 보기·변경', short: '설정' },
         CustomZip: { title: '커스텀 web zip', short: 'web zip' },
         BootRecords: { title: '부팅 기록 (앱)', short: '부팅기록' },
         Bridge: { title: '브릿지', short: '브릿지' },
@@ -60,7 +76,14 @@ const ko: DebugStrings = {
 };
 
 const en: DebugStrings = {
-    panel: { home: 'Menu', loading: 'Loading…', tabStrip: 'Screens', disable: 'Disable debug mode' },
+    panel: {
+        home: 'Menu',
+        loading: 'Loading…',
+        tabStrip: 'Screens',
+        disable: 'Disable debug mode',
+        shellOnly: 'App only',
+        shellOnlyNotice: 'This screen only works inside the app — no shell is attached right now.',
+    },
     sections: { info: 'Monitoring', tools: 'Tools', data: 'Data' },
     screens: {
         State: { title: 'State', short: 'State' },
@@ -69,7 +92,7 @@ const en: DebugStrings = {
         Unread: { title: 'Unread', short: 'Unread' },
         Route: { title: 'Route stack', short: 'Route' },
         DeviceInfo: { title: 'Device info', short: 'Device' },
-        Config: { title: 'Current settings', short: 'Settings' },
+        Config: { title: 'Settings', short: 'Settings' },
         CustomZip: { title: 'Custom web zip', short: 'Web zip' },
         BootRecords: { title: 'Boot records (app)', short: 'Boot rec.' },
         Bridge: { title: 'Bridge', short: 'Bridge' },

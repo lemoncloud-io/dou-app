@@ -5,6 +5,7 @@ import { useDebugStrings } from '../i18n';
 import { DEBUG_MENU_SECTIONS } from './screenManifest';
 import { DEBUG_SCREEN_ICONS } from './screenIcons';
 import { debugOverlayActions } from './overlayStore';
+import { useShellPresence } from './useShellPresence';
 
 /**
  * Panel home: every screen in the manifest, grouped by section. Icons carry the scanning — 23 rows
@@ -13,6 +14,7 @@ import { debugOverlayActions } from './overlayStore';
 export const HomeMenu = () => {
     const { disable } = useDebugMode();
     const strings = useDebugStrings();
+    const hasShell = useShellPresence();
 
     const handleDisable = () => {
         disable();
@@ -48,6 +50,11 @@ export const HomeMenu = () => {
                                     <span className="flex-1 truncate text-[14px] font-medium text-foreground">
                                         {strings.screens[item.key].title}
                                     </span>
+                                    {item.requiresShell && !hasShell && (
+                                        <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
+                                            {strings.panel.shellOnly}
+                                        </span>
+                                    )}
                                     <ChevronRight size={16} className="shrink-0 text-muted-foreground/60" />
                                 </button>
                             );

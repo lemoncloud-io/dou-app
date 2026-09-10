@@ -7,8 +7,15 @@ import { debugOverlayActions, getDebugOverlayState } from './overlayStore';
 
 // The panel is the only shell now, so these assertions stand in for what MiniPanel / FloatingScreen /
 // ExpandedSheet used to cover separately: one navigation, one catalog, size as its own axis.
+type ShellWindow = { ReactNativeWebView?: { postMessage: () => void } };
+
+const attachShell = () => {
+    (window as unknown as ShellWindow).ReactNativeWebView = { postMessage: () => undefined };
+};
+
 describe('DebugPanel — 하나의 패널', () => {
     beforeEach(() => {
+        delete (window as unknown as ShellWindow).ReactNativeWebView;
         debugOverlayActions.close();
         debugOverlayActions.open();
     });
@@ -21,6 +28,32 @@ describe('DebugPanel — 하나의 패널', () => {
         // 예전에는 메뉴에만 있던 화면 — 이제 칩에도 있다.
         expect(screen.getByRole('tab', { name: '분할 업로드 테스트' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: '분할 업로드 테스트' })).toBeInTheDocument();
+    });
+
+    // 브라우저에서 열면 눌러도 실패하는 버튼만 보이던 화면들이다.
+    it('셸이 없으면 앱 전용 화면에 배지를 단다', () => {
+        render(<DebugPanel />);
+
+        const row = screen.getByRole('button', { name: /푸시 \(토큰·수신\)/ });
+        expect(row).toHaveTextContent('앱 전용');
+        // 셸이 필요 없는 화면은 그대로다.
+        expect(screen.getByRole('button', { name: '브릿지' })).not.toHaveTextContent('앱 전용');
+    });
+
+    it('셸이 붙어 있으면 배지가 없다', () => {
+        attachShell();
+        render(<DebugPanel />);
+
+        expect(screen.getByRole('button', { name: /푸시 \(토큰·수신\)/ })).not.toHaveTextContent('앱 전용');
+    });
+
+    // 화면을 렌더하고 실패하게 두는 대신, 셸이 없다는 사실을 셸(패널)이 한 곳에서 말한다.
+    it('셸이 없으면 앱 전용 화면 대신 이유를 보여준다', () => {
+        debugOverlayActions.selectScreen('Sms');
+        render(<DebugPanel />);
+
+        expect(screen.getByText(/앱 안에서만 동작합니다/)).toBeInTheDocument();
+        expect(screen.queryByText(/작성 창 열기/)).not.toBeInTheDocument();
     });
 
     // 앱 아이콘은 마이페이지에 제품 UI가 있고, 프로필 편집은 쓰이지 않았다.

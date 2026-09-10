@@ -9,6 +9,7 @@ import { DEBUG_PANEL_SIZES, DEBUG_TABS } from './screenManifest';
 import { DEBUG_SCREEN_ICONS } from './screenIcons';
 import { DEBUG_SCREEN_COMPONENTS } from './screenRegistry';
 import { debugOverlayActions, useDebugOverlayState } from './overlayStore';
+import { useShellPresence } from './useShellPresence';
 
 /**
  * The whole debug UI: one panel, one navigation. The tab strip carries every screen for one-tap
@@ -20,8 +21,13 @@ import { debugOverlayActions, useDebugOverlayState } from './overlayStore';
 export const DebugPanel = () => {
     const { size, screen } = useDebugOverlayState();
     const strings = useDebugStrings();
+    const hasShell = useShellPresence();
 
-    const Screen = screen ? DEBUG_SCREEN_COMPONENTS[screen] : null;
+    const entry = screen ? DEBUG_TABS.find(tab => tab.key === screen) : undefined;
+    // A screen whose whole point is a shell command renders nothing but failing buttons in a
+    // browser. One gate here replaces the per-screen `isNative` checks that only 5 of 9 had.
+    const isBlocked = !!entry?.requiresShell && !hasShell;
+    const Screen = screen && !isBlocked ? DEBUG_SCREEN_COMPONENTS[screen] : null;
     const isMini = size === 'mini';
     const canGrow = size !== DEBUG_PANEL_SIZES[DEBUG_PANEL_SIZES.length - 1];
     const canShrink = size !== DEBUG_PANEL_SIZES[0];
@@ -92,13 +98,14 @@ export const DebugPanel = () => {
                     const Icon = DEBUG_SCREEN_ICONS[tab.icon];
                     const { title, short } = strings.screens[tab.key];
                     const isActive = screen === tab.key;
+                    const isUnavailable = tab.requiresShell && !hasShell;
                     return (
                         <button
                             key={tab.key}
                             role="tab"
                             aria-selected={isActive}
                             aria-label={title}
-                            title={title}
+                            title={isUnavailable ? `${title} — ${strings.panel.shellOnly}` : title}
                             onClick={() => debugOverlayActions.selectScreen(tab.key)}
                             className={`flex shrink-0 items-center gap-1.5 rounded-lg text-xs transition-colors ${
                                 isMini ? 'p-1.5' : 'px-2.5 py-1'
@@ -106,7 +113,7 @@ export const DebugPanel = () => {
                                 isActive
                                     ? 'bg-foreground text-background shadow-sm'
                                     : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                            }`}
+                            } ${isUnavailable && !isActive ? 'opacity-40' : ''}`}
                         >
                             <Icon size={13} />
                             {/* Icon-only in the corner widget: labels would push the strip past its width. */}
@@ -117,7 +124,9 @@ export const DebugPanel = () => {
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-none">
-                {Screen ? (
+                {isBlocked ? (
+                    <p className="p-6 text-center text-sm text-muted-foreground">{strings.panel.shellOnlyNotice}</p>
+                ) : Screen ? (
                     <Suspense
                         fallback={
                             <p className="p-6 text-center text-sm text-muted-foreground">{strings.panel.loading}</p>

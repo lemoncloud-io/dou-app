@@ -36,6 +36,15 @@ interface DebugScreenEntry {
     section: DebugSectionKey;
     /** Forces this size on open. Only for screens whose content cannot be read in the dock. */
     size?: DebugPanelSize;
+    /**
+     * The screen's whole point is a native-shell command, so in a plain browser it can only render
+     * buttons that fail. The panel says so instead of rendering it (ADR-0080 결정 2 · 델타 ②).
+     *
+     * Not for screens that merely have a native-only corner — those keep their own `isNative`
+     * check and stay usable in a browser (log buffer, cache metrics, the bridge screen itself,
+     * which exists precisely to report that there is no shell).
+     */
+    requiresShell?: true;
     load: () => Promise<{ default: ComponentType }>;
 }
 
@@ -75,6 +84,7 @@ export const DEBUG_SCREENS = [
     },
     {
         key: 'DeviceInfo',
+        requiresShell: true,
         icon: 'Smartphone',
         section: 'info',
         load: () => import('./screens/DeviceInfoScreen').then(m => ({ default: m.DeviceInfoScreen })),
@@ -89,6 +99,7 @@ export const DEBUG_SCREENS = [
     {
         // 앱의 환경설정 화면에서 옮겨온 절반 (ADR-0080 결정 13 · 미결 4). PROD는 앱이 거부한다.
         key: 'CustomZip',
+        requiresShell: true,
         icon: 'FileArchive',
         section: 'tools',
         load: () => import('./screens/CustomZipScreen').then(m => ({ default: m.CustomZipScreen })),
@@ -97,6 +108,7 @@ export const DEBUG_SCREENS = [
         // Distinct from the Boot screen: that one measures the current web session live, this is the
         // native side's persisted per-boot history (ADR-0080 결정 11).
         key: 'BootRecords',
+        requiresShell: true,
         icon: 'History',
         section: 'info',
         load: () => import('./screens/BootRecordsScreen').then(m => ({ default: m.BootRecordsScreen })),
@@ -144,6 +156,7 @@ export const DEBUG_SCREENS = [
     },
     {
         key: 'Push',
+        requiresShell: true,
         icon: 'BellRing',
         section: 'tools',
         load: () => import('./screens/PushScreen').then(m => ({ default: m.PushScreen })),
@@ -151,18 +164,21 @@ export const DEBUG_SCREENS = [
     // Moved off the app's 기능 테스트 section (ADR-0080 결정 11).
     {
         key: 'Sms',
+        requiresShell: true,
         icon: 'MessageSquare',
         section: 'tools',
         load: () => import('./screens/SmsScreen').then(m => ({ default: m.SmsScreen })),
     },
     {
         key: 'OAuthNative',
+        requiresShell: true,
         icon: 'KeyRound',
         section: 'tools',
         load: () => import('./screens/OAuthScreen').then(m => ({ default: m.OAuthScreen })),
     },
     {
         key: 'Iap',
+        requiresShell: true,
         icon: 'CreditCard',
         section: 'tools',
         load: () => import('./screens/IapScreen').then(m => ({ default: m.IapScreen })),
@@ -177,6 +193,7 @@ export const DEBUG_SCREENS = [
         // Distinct from the converter above: that one navigates the WEB, this hands the APP an
         // inbound deeplink (ADR-0080 결정 11).
         key: 'Deeplink',
+        requiresShell: true,
         icon: 'ExternalLink',
         section: 'tools',
         load: () => import('./screens/DeeplinkScreen').then(m => ({ default: m.DeeplinkScreen })),
@@ -198,6 +215,8 @@ export type DebugScreenIcon = (typeof DEBUG_SCREENS)[number]['icon'];
 export interface DebugMenuItem {
     key: DebugScreenKey;
     icon: DebugScreenIcon;
+    /** True when the screen needs the native shell to do anything. */
+    requiresShell: boolean;
 }
 
 export interface DebugMenuSection {
@@ -208,7 +227,11 @@ export interface DebugMenuSection {
 /** Home menu: every screen, grouped by section. */
 export const DEBUG_MENU_SECTIONS: DebugMenuSection[] = SECTION_ORDER.map(section => ({
     section,
-    items: DEBUG_SCREENS.filter(screen => screen.section === section).map(({ key, icon }) => ({ key, icon })),
+    items: DEBUG_SCREENS.filter(screen => screen.section === section).map(screen => ({
+        key: screen.key,
+        icon: screen.icon,
+        requiresShell: 'requiresShell' in screen,
+    })),
 })).filter(section => section.items.length > 0);
 
 /**
