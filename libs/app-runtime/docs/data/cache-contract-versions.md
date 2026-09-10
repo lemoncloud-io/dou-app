@@ -41,9 +41,10 @@
 
 ## 범위
 
-**포함** — `CacheDomainVersions` 타입과 핸드셰이크 필드, `AppBridgeHost` 배선, 앱 측 도메인 계약 맵과
-도달 `user_version` 기반 실측 도출, 웹 `REQUIRED_DOMAIN_VERSION`·`isNativeCacheTypeUsable` 재작성,
-`LOCAL_AUTHORITY_CACHE_TYPES`, `MIN_SCHEMA_VERSION_BY_TYPE` 제거, 웹→네이티브 이관 다리 제거.
+**포함** — `CacheDomainVersions` 타입과 핸드셰이크 필드, `AppBridgeHost` 배선, 앱 측 도메인 계약
+맵과 도달 `user_version` 기반 실측 도출, 웹의 `REQUIRED_DOMAIN_VERSION`·`isNativeCacheTypeUsable`.
+`MIN_SCHEMA_VERSION_BY_TYPE` 와 웹→네이티브 이관 다리는 이 설계로 대체돼 없어졌다.
+`LOCAL_AUTHORITY_CACHE_TYPES` 는 남아 있다 — 같은 문서 §네이티브 권위 도메인이 그 역할을 설명한다.
 
 **제외**
 
@@ -88,7 +89,8 @@ stale-while-revalidate로 못박아 `invite.list`가 항상 재검증하므로 �
 
 이로써 boot-optimization 4.4의 "핸드셰이크 상수는 SQLite를 열지 않는다"는 성질은 깨진다. SQLite가
 열리는 시점이 **첫 캐시 메시지에서 웹뷰 마운트로 앞당겨진 것**이지 새 비용이 생긴 것은 아니지만,
-렌더와 겹치는 구간인 것은 사실이다 — 실기기 콜드부팅 BootMetrics 비교가 이 판단의 검증 조건이다.
+렌더와 겹치는 구간인 것은 사실이다. **실기기 콜드부팅 BootMetrics 비교는 아직 하지 않았다** —
+이 문서에서 유일하게 열려 있는 항목이다.
 
 ### S2. 웹이 판정한다 — 전환 시점의 무변화
 
@@ -212,13 +214,13 @@ export type CacheDomainVersions = Partial<Record<CacheType, number>>;
 ```
 
 [system.ts](../../../app-messages/src/types/model/system.ts)의 `OnWebAppReadyPayload`에
-`cacheDomainVersions?: CacheDomainVersions`를 optional로 추가한다. optional인 이유는 두 가지다 —
+`cacheDomainVersions?: CacheDomainVersions` 가 optional 로 있다. optional 인 이유는 두 가지다 —
 구버전 앱은 보내지 않고, 로컬 캐시 DB가 없는 호스트(desktop main process,
 [index.ts:681](../../../../apps/desktop/src/main/index.ts))는 앞으로도 보내지 않는다.
 
 ### 브릿지 배선 — [AppBridgeHost.ts](../../../bridges/src/app/AppBridgeHost.ts)
 
-`AppBridgeHostConfig`에 리졸버를 받는다. 값이 아니라 thunk인 이유는 실측이 비동기이고, **언제
+`AppBridgeHostConfig` 가 리졸버를 받는다. 값이 아니라 thunk 인 이유는 실측이 비동기이고, **언제
 측정할지를 호스트가 정하지 않기 위해서**다 — 느린 자원을 가진 쪽이 시점과 한도를 모두 정한다.
 앱은 이 리졸버를 웹뷰 마운트 시 미리 깨워둔다(위 S1).
 
@@ -313,12 +315,12 @@ export const CACHE_DOMAIN_CONTRACTS: Record<CacheType, { version: number; sinceU
 도달 버전 하나가 "어떤 테이블이 존재하는가"를 **완전히** 결정한다 — `sqlite_master` 조회 없이도
 실측이 성립한다.
 
-- `ISqliteDatabase`에 `getSchemaVersion(): Promise<number>`를 추가한다. 기존 `execute`가 이미
+- `ISqliteDatabase` 에 `getSchemaVersion(): Promise<number>` 가 있다. 기존 `execute` 가 이미
   `ready`(=마이그레이션)를 await하므로 `PRAGMA user_version` 한 줄이면 되고, **의도한 TARGET이 아니라
   도달한 값**을 돌려준다. `initTables`의 `catch`는 그대로 둔다 — 앱을 죽이지 않는 건 유지하되,
   거짓 보고만 닫는다.
 - 리졸버([cacheDomainVersions.ts](../../../../apps/mobile/src/app/services/cache/cacheDomainVersions.ts))는
-  `Promise.race`로 상한(3초)을 건다. 웹의 `request` 타임아웃이 10초이므로 그 안에서 끝나야 한다.
+  `Promise.race` 로 상한(3초)을 건다. 웹의 `request` 타임아웃이 10초이므로 그 안에서 끝난다.
 - 웹뷰 마운트 시 [useBaseBridge.ts](../../../../apps/mobile/src/app/webview/hooks/useBaseBridge.ts)가
   리졸버를 미리 깨운다. 결과를 쓰지 않는 호출이라 rejection에 핸들러가 없으므로 `.catch`로 삼킨다 —
   워밍업이 자기가 데우는 화면을 깨뜨릴 수는 없다.
