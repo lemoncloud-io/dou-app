@@ -2,7 +2,7 @@
 
 > 상태: **Live** · 최종 갱신: 2026-08-27 · 관련 ADR: [ADR-0071](../../../docs/adr/0071-performance-budget-and-metric-events-over-the-log-pipeline.md)
 >
-> 함께 읽을 것: [통합 로깅 아키텍처](./architecture.md) (이 지표가 올라타는 파이프) · [부팅 지표](../../../apps/mobile/docs/boot-metrics.md) (`totalMs`의 정의와 실측 베이스라인) · [ADR-0065](../../../docs/adr/0065-hybrid-performance-trace-profiler.md) (인앱 트레이스 프로파일러 — **병행 레인**, 계측 초크포인트만 공유하고 코드는 겹치지 않는다. 아직 develop 미머지라 이 링크는 그 브랜치가 들어온 뒤에 열린다)
+> 함께 읽을 것: [통합 로깅 아키텍처](./architecture.md) (이 지표가 올라타는 파이프) · [부팅 지표](../../../apps/mobile/docs/boot-metrics.md) (`totalMs`의 정의와 실측 베이스라인) · ADR-0065 (인앱 트레이스 프로파일러 — **병행 레인**, 계측 초크포인트만 공유하고 코드는 겹치지 않는다. 그 ADR은 아직 develop에 들어오지 않아 `docs/adr/`에 파일이 없다)
 
 ## 목적
 
@@ -22,11 +22,11 @@
 
 4. **샘플 단위는 세션(`runId`)이고, 판정은 순수함수다.** `hash(runId) % 100 < N`. 네이티브와 웹이 **조율 없이 같은 답에 도달**하므로 샘플 결정을 나르는 브릿지 메시지가 필요 없고, 따라서 "웹이 앱보다 먼저 배포된다" 제약도 발생하지 않는다. 이벤트 단위 샘플링은 쓰지 않는다 — 세션 내 상관("부팅이 느렸던 세션은 전환도 느렸나")이 끊기고, 두 런타임이 각자 주사위를 굴려 같은 세션에서 서로 다른 결정을 낸다.
 
-5. **기본값은 off이고, 켜는 것은 호스트다.** 공유 lib(`libs/logger`·`libs/web-core`·`libs/app-runtime`)에 계측이 얹히므로 기본값이 off가 아니면 `apps/desktop-web`·`apps/testbed`·브라우저 단독 접속으로 자동으로 번진다. `configurePerfMetrics()`를 부르지 않은 호스트의 슬롯에는 **아무것도 하지 않는 리포터**(`NOOP_PERF_METRIC_REPORTER`)가 그대로 앉아 있다 — off가 부재가 아니라 **값**이라서, 조건문으로 막는 게 아니라 켜는 주체가 없어서 안 도는 것이다.
+5. **기본값은 off이고, 켜는 것은 호스트다.** 공유 lib(`libs/logger`·`libs/app-runtime`)에 계측이 얹히므로 기본값이 off가 아니면 `apps/desktop-web`·`apps/testbed`·브라우저 단독 접속으로 자동으로 번진다. `configurePerfMetrics()`를 부르지 않은 호스트의 슬롯에는 **아무것도 하지 않는 리포터**(`NOOP_PERF_METRIC_REPORTER`)가 그대로 앉아 있다 — off가 부재가 아니라 **값**이라서, 조건문으로 막는 게 아니라 켜는 주체가 없어서 안 도는 것이다.
 
 6. **계측은 콜사이트가 아니라 초크포인트에 붙인다.** 같은 지표를 여는 문이 둘 이상이면 하나는 반드시 빠뜨린다. 대신 초크포인트를 고를 때는 **그 함수에 사용자 입력 외의 호출자가 있는지**를 본다 — 있으면 한 칸 위로 올라간다(§상세 구현의 전환 두 건이 그 사례다).
 
-7. **유실은 무작위여야 한다.** 개별 로그는 몇 줄 사라져도 진단이 되지만, 지표는 **선택적으로** 사라지면 분포 자체가 거짓말이 된다. `info`는 백프레셔에서 `debug` 다음으로 버려지고([LogUploadQueue.ts:62](../src/upload/LogUploadQueue.ts:62)) 로그를 많이 뱉는 기기가 대체로 느리므로, 방치하면 p95를 만드는 표본이 먼저 사라져 분포가 낙관적으로 왜곡된다. 드롭 우선순위 자체는 바꾸지 않는다 — 지표를 살리자고 `warn`/`error`를 밀어내는 건 더 나쁜 거래다. 대신 **세션 샘플링으로 큐 예산 잠식 자체를 줄인다** — 애초에 열 세션 중 하나만 지표를 만드므로 지표가 상한을 밀어낼 여지가 작다. ADR-0071 §4는 두 번째 방어로 "유실률을 지표에 실어 보낸다"를 뒀지만, 그건 **분리해 후속으로 넘겼다**(원칙 8).
+7. **유실은 무작위여야 한다.** 개별 로그는 몇 줄 사라져도 진단이 되지만, 지표는 **선택적으로** 사라지면 분포 자체가 거짓말이 된다. `info`는 백프레셔에서 `debug` 다음으로 버려지고([LogUploadQueue.ts:62](../src/upload/LogUploadQueue.ts)) 로그를 많이 뱉는 기기가 대체로 느리므로, 방치하면 p95를 만드는 표본이 먼저 사라져 분포가 낙관적으로 왜곡된다. 드롭 우선순위 자체는 바꾸지 않는다 — 지표를 살리자고 `warn`/`error`를 밀어내는 건 더 나쁜 거래다. 대신 **세션 샘플링으로 큐 예산 잠식 자체를 줄인다** — 애초에 열 세션 중 하나만 지표를 만드므로 지표가 상한을 밀어낼 여지가 작다. ADR-0071 §4는 두 번째 방어로 "유실률을 지표에 실어 보낸다"를 뒀지만, 그건 **분리해 후속으로 넘겼다**(원칙 8).
 
 8. **`perf`는 전송 계층을 모른다.** 계측 지점이 하는 일은 재고 `logger`에 남기는 것까지다. 그 뒤는 로그의 평범한 경로다 — hub가 리스너들에게 뿌리고, 저장 리스너가 큐를 채우고, 업로더가 그 큐를 **커맨드로 당겨간다**(원칙 4·16). `perf`에서 `upload`로 가는 간선은 import에도 객체 그래프에도 없다.
 
@@ -47,7 +47,7 @@
 **제외**
 
 - **INP 전송.** 수집·오버레이 표시는 유지하고 전송만 뺀다. INP는 페이지 수명 동안 계속 갱신되는데 웹뷰 SPA는 수명이 앱 세션 전체라 확정 시점이 없다 — 갱신마다 보내면 한 세션이 중복 엔트리를 다수 만든다.
-- **서버 측 집계·대시보드·알림·릴리스 게이트.** 값이 `data` 문자열(2000자 캡, [wire.ts:24](../src/serialization/wire.ts:24)) 안에 있으므로 서버는 숫자 축으로 쿼리할 수 없다. `tag=PERF`로 필터해 원본을 내려받아 **오프라인에서** p75/p95를 낸다.
+- **서버 측 집계·대시보드·알림·릴리스 게이트.** 값이 `data` 문자열(2000자 캡, [wire.ts:24](../src/serialization/wire.ts)) 안에 있으므로 서버는 숫자 축으로 쿼리할 수 없다. `tag=PERF`로 필터해 원본을 내려받아 **오프라인에서** p75/p95를 낸다.
 - **`apps/desktop` · `apps/desktop-web` · `apps/testbed` · 브라우저 단독 접속.** 명시적으로 off (원칙 5).
 - **한 `runId`에 같은 지표가 두 번 이상 올 수 있다.** 콘텐츠 프로세스 리로드는 웹을 다시 부팅시키지만 `NATIVE_RUN_ID`는 프로세스당 하나라 그대로다 — 같은 세션에서 `fcp`/`lcp`/`boot`가 각각 두 벌 도착한다. 샘플 일치는 유지되므로 문제는 없지만, 집계 스크립트는 `runId`+`metric`을 단일값으로 가정하면 안 된다. `bootType`이 부팅 쪽에서는 그 구분을 준다.
 - **체감 부팅(라우터 언블록) 종점 계측.** 후속 과제 — 아래 성능 예산의 경고 참고.
@@ -68,7 +68,7 @@
 - **판정 통계가 다른 이유.** FCP/LCP의 임계값은 원래 p75 기준으로 정의된 값이라 그 정의를 그대로 따른다. 메인 시나리오 3개는 꼬리 구간까지 책임지도록 더 엄격하게 p95로 잡는다.
 - **⚠️ `totalMs`는 체감 부팅이 아니다.** React 렌더 전 시점이며, 체감(라우터 언블록)은 v0.19.2 실측에서 평균 1255ms · 최대 2115ms로 더 나쁘다([boot-metrics.md](../../../apps/mobile/docs/boot-metrics.md)). **이 목표를 "사용자가 1.5초 안에 화면을 본다"로 읽으면 안 된다.** `totalMs`를 쓰는 이유는 이미 계측돼 있어 오늘부터 감시가 되고, 정의가 안정적이라 버전 간 비교가 성립하기 때문이다.
 - **`boot`은 콜드와 리로드를 섞지 않는다.** WebView 콘텐츠 프로세스가 죽어 강제 리로드되는 세션도 `BootMetricsService`가 하나의 부팅 세션으로 기록하지만, 그쪽 베이스라인은 provider 생성이 아니라 **리로드 트리거**라 다른 것을 재는 숫자다. 게다가 리로드는 메모리 압박이 큰 기기에서 편중돼 일어나 — 꼬리를 만드는 바로 그 모집단이다. 그래서 이벤트가 `bootType: 'cold' | 'reload'`를 싣고, **1.5s 예산의 p95는 `cold`만 걸러서 낸다.** 리로드는 버리지 않고 따로 본다(회귀가 리로드 빈도로 나타날 수 있다).
-- **클라우드 전환과 사이트 전환은 분리해서 잰다.** 목표 1s는 각 구간에 개별 적용된다. 클라우드 전환은 사이트 전환을 유발하므로([useSwitchPlace.ts:32](../../../apps/web/src/app/features/home/hooks/useSwitchPlace.ts:32)) 두 구간은 이어진다 — 합(= 클라우드 진입 체감)은 이번 목표치의 대상이 아니다.
+- **클라우드 전환과 사이트 전환은 분리해서 잰다.** 목표 1s는 각 구간에 개별 적용된다. 클라우드 전환은 사이트 전환을 유발하므로([useSwitchPlace.ts:32](../../../apps/web/src/app/features/home/hooks/useSwitchPlace.ts)) 두 구간은 이어진다 — 합(= 클라우드 진입 체감)은 이번 목표치의 대상이 아니다.
 
 예산 표의 런타임 정본은 [`budgets.ts`](../src/perf/budgets.ts)다. `Record<PerfMetricName, PerfBudget>` 타입이라 지표를 추가하면서 예산이나 판정 통계를 빠뜨리면 컴파일이 안 된다 — 이 표와 코드가 어긋날 수 없는 이유다.
 
@@ -113,7 +113,7 @@ flowchart LR
 
     subgraph web["apps/web + 공유 lib (웹뷰)"]
         WV["webVitalsReporter<br/>receiveVital()"]
-        CS["useSwitchCloudSession<br/>(libs/web-core)"]
+        CS["useSwitchCloudSession<br/>(libs/app-runtime)"]
         SS["switchSite<br/>(libs/app-runtime)"]
     end
 
@@ -325,12 +325,12 @@ interface PerfMetricRecord {
 
 ### 계측 지점 (초크포인트 4곳)
 
-| 지표           | 초크포인트                                                                                                  | 고른 이유                                                                                                                                                                                                                                                               |
-| -------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `boot`         | [`BootMetricsService.reportBootMetric()`](../../../apps/mobile/src/app/services/perf/BootMetricsService.ts) | `finalize()`가 이미 `totalMs`를 확정하고 진단 라인을 낸다. 그 라인은 **건드리지 않고** 옆에 지표 이벤트를 추가한다 — 배포된 로그의 형태를 바꾸지 않으면서 계측은 균일하게 유지한다. `WebAppReady`에 닿지 못한 세션은 저장은 되지만 `totalMs`가 없어 표본이 되지 않는다. |
-| `fcp` / `lcp`  | [`receiveVital()`](../../../apps/web/src/app/utils/webVitalsReporter.ts)                                    | `web-vitals`가 전 지표를 여기로 모은다. `webVitals.ts`에서 분리한 이유는 그쪽이 `import.meta.env`를 읽어 ts-jest의 CommonJS 변환에서 로드가 안 되기 때문이다(`buildEnv.ts`와 같은 사정) — 검증할 값어치가 있는 로직을 테스트 가능한 쪽으로 옮겼다.                      |
-| `cloud-switch` | `useSwitchCloudSession` (뮤테이션 훅)                                                                       | 서비스 함수 `switchCloudSession`은 **실패 복구 경로에서도 호출된다**(services.ts:532) — 거기 붙이면 드물지만 느린 복구 재교환이 사용자 전환으로 집계돼 꼬리를 끈다. 뮤테이션 훅은 사용자 시작 전환만 통과한다(원칙 6).                                                  |
-| `site-switch`  | [`switchSite()`](../../app-runtime/src/socket/auth/switchSite.ts) (서비스 함수)                             | 반대 방향의 이유다. 훅에 붙이면 **동일 사이트 조기 반환**이 0ms 표본을 만들어 p95를 깎는다. 조기 반환 **아래**에서 재면 no-op이 자연히 빠지고, 이 함수가 곧 뮤테이션의 `mutationFn`이라 끝점 정의도 그대로다.                                                           |
+| 지표           | 초크포인트                                                                                                            | 고른 이유                                                                                                                                                                                                                                                                                                                                                                      |
+| -------------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `boot`         | [`BootMetricsService.reportBootMetric()`](../../../apps/mobile/src/app/services/perf/BootMetricsService.ts)           | `finalize()`가 이미 `totalMs`를 확정하고 진단 라인을 낸다. 그 라인은 **건드리지 않고** 옆에 지표 이벤트를 추가한다 — 배포된 로그의 형태를 바꾸지 않으면서 계측은 균일하게 유지한다. `WebAppReady`에 닿지 못한 세션은 저장은 되지만 `totalMs`가 없어 표본이 되지 않는다.                                                                                                        |
+| `fcp` / `lcp`  | [`receiveVital()`](../../../apps/web/src/app/utils/webVitalsReporter.ts)                                              | `web-vitals`가 전 지표를 여기로 모은다. `webVitals.ts`에서 분리한 이유는 그쪽이 `import.meta.env`를 읽어 ts-jest의 CommonJS 변환에서 로드가 안 되기 때문이다(`buildEnv.ts`와 같은 사정) — 검증할 값어치가 있는 로직을 테스트 가능한 쪽으로 옮겼다.                                                                                                                             |
+| `cloud-switch` | [`useSwitchCloudSession`](../../app-runtime/src/session/hooks/session/actions/useSwitchCloudSession.ts) (뮤테이션 훅) | 서비스 메서드 [`CloudSession.switchTo`](../../app-runtime/src/session/auth/cloudSession.ts)에는 **두 번째 호출자가 있다** — 클라우드 리프레시 복구가 릴레이 세션을 다시 만든 뒤 그것으로 토큰을 재교환한다. 드물고 느린 경로라 거기 붙이면 복구가 사용자 전환으로 위장해 꼬리를 끈다. 훅의 호출자는 전부 실제 선택이다(클라우드 시트·검색 이동·초대 진입·푸시 딥링크). 원칙 6. |
+| `site-switch`  | [`switchSite()`](../../app-runtime/src/socket/auth/switchSite.ts) (서비스 함수)                                       | 반대 방향의 이유다. 훅에 붙이면 **동일 사이트 조기 반환**이 0ms 표본을 만들어 p95를 깎는다. 조기 반환 **아래**에서 재면 no-op이 자연히 빠지고, 이 함수가 곧 뮤테이션의 `mutationFn`이라 끝점 정의도 그대로다.                                                                                                                                                                  |
 
 `useSwitchCloudSession`을 고치면서 `useCallback` 의존을 매 렌더 새 참조인 `mutation` 객체에서 `mutateAsync`로 바꿨다 — 형제 훅([useSiteSwitch.ts](../../app-runtime/src/session/hooks/session/actions/useSiteSwitch.ts))이 이미 같은 수정을 하고 이유를 주석으로 남겨 뒀다. 콜백 참조 안정성은 테스트가 고정한다.
 
@@ -348,23 +348,22 @@ interface PerfMetricRecord {
 
 ### 유닛 테스트
 
-| 파일                                                                                                                                       | 고정하는 성질                                                                                                                                                                                                                                                                 |
-| ------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`sampling.spec.ts`](../src/perf/sampling.spec.ts)                                                                                         | 결정성 · 32비트 범위 · 비율 경계(0%/100%) · 비율 단조성 · 1만 표본에서 지정 비율 근처 · 빈 `runId` 탈락                                                                                                                                                                       |
-| [`PerfMetricReporter.spec.ts`](../src/perf/PerfMetricReporter.spec.ts)                                                                     | 레코드 형태 · `overBudget` 경계(예산과 같으면 초과 아님) · `ok`/`bootType`/`marks`는 준 것만 실림 · 도달 못 한 마일스톤은 키째 빠짐 · NaN·음수·Infinity 무시 · 무상태 · 카탈로그 교체가 판정에 반영 · **직렬화 길이가 2000자 캡에서 멀다** · no-op은 얼어 있고 아무것도 안 함 |
-| [`PerfMetricSink.spec.ts`](../src/perf/PerfMetricSink.spec.ts)                                                                             | `info`/`PERF` 한 건 · **숫자는 문장이 아니라 `data`에** · `warn`/`error`는 절대 안 씀 · 태그 교체                                                                                                                                                                             |
-| [`createPerfMetricReporter.spec.ts`](../src/perf/createPerfMetricReporter.spec.ts)                                                         | `runId` 없음/미샘플 → no-op **동일 인스턴스** · 샘플 → 실제 리포터 · 같은 `runId`는 항상 같은 쪽 · 카탈로그 주입                                                                                                                                                              |
-| [`runtime.spec.ts`](../src/perf/runtime.spec.ts)                                                                                           | 미구성 호스트 0건 · 기본 싱크로 `info`/`PERF` · **싱크 교체가 logger를 우회** · reset                                                                                                                                                                                         |
-| [`BootMetricsService.test.ts`](../../../apps/mobile/src/app/services/perf/BootMetricsService.test.ts)                                      | 진단 라인이 그대로 남는다 · 샘플 시 `marks`+`bootType`과 함께 1건 추가 · **리로드 세션은 `bootType: 'reload'`** · 미샘플 0건 · `totalMs` 없는 세션은 표본 아님 · 예산 초과 표시                                                                                               |
-| [`LogUploadQueueService.dropCount.test.ts`](../../../apps/mobile/src/app/services/log/uploadQueue/LogUploadQueueService.dropCount.test.ts) | 상한 초과분만큼 정확히 셈 · **`ack`로 비워도 총계는 남음** · **세는 경로가 로그를 한 줄도 안 냄**                                                                                                                                                                             |
-| [`switchSite.test.ts`](../../app-runtime/src/socket/auth/switchSite.test.ts)                                                               | 동일 사이트 no-op 0건 · 사용자 없음 0건 · 성공 `ok:true` 1건 · 실패 `ok:false` 1건 · 미구성 호스트 0건                                                                                                                                                                        |
-| `useSwitchCloudSession.test.ts`                                                                                                            | 성공/실패 각 1건 · 미구성 호스트 0건 · 콜백 참조 안정성                                                                                                                                                                                                                       |
-| [`webVitalsReporter.test.ts`](../../../apps/web/src/app/utils/webVitalsReporter.test.ts)                                                   | 전 지표가 오버레이 스토어에 들어감 · **FCP·LCP만** 서버로 · INP·CLS·TTFB 전송 0건 · 미구성 호스트 0건                                                                                                                                                                         |
+| 파일                                                                                                                 | 고정하는 성질                                                                                                                                                                                                                                                                 |
+| -------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`sampling.spec.ts`](../src/perf/sampling.spec.ts)                                                                   | 결정성 · 32비트 범위 · 비율 경계(0%/100%) · 비율 단조성 · 1만 표본에서 지정 비율 근처 · 빈 `runId` 탈락                                                                                                                                                                       |
+| [`PerfMetricReporter.spec.ts`](../src/perf/PerfMetricReporter.spec.ts)                                               | 레코드 형태 · `overBudget` 경계(예산과 같으면 초과 아님) · `ok`/`bootType`/`marks`는 준 것만 실림 · 도달 못 한 마일스톤은 키째 빠짐 · NaN·음수·Infinity 무시 · 무상태 · 카탈로그 교체가 판정에 반영 · **직렬화 길이가 2000자 캡에서 멀다** · no-op은 얼어 있고 아무것도 안 함 |
+| [`PerfMetricSink.spec.ts`](../src/perf/PerfMetricSink.spec.ts)                                                       | `info`/`PERF` 한 건 · **숫자는 문장이 아니라 `data`에** · `warn`/`error`는 절대 안 씀 · 태그 교체                                                                                                                                                                             |
+| [`createPerfMetricReporter.spec.ts`](../src/perf/createPerfMetricReporter.spec.ts)                                   | `runId` 없음/미샘플 → no-op **동일 인스턴스** · 샘플 → 실제 리포터 · 같은 `runId`는 항상 같은 쪽 · 카탈로그 주입                                                                                                                                                              |
+| [`runtime.spec.ts`](../src/perf/runtime.spec.ts)                                                                     | 미구성 호스트 0건 · 기본 싱크로 `info`/`PERF` · **싱크 교체가 logger를 우회** · reset                                                                                                                                                                                         |
+| [`BootMetricsService.test.ts`](../../../apps/mobile/src/app/services/perf/BootMetricsService.test.ts)                | 진단 라인이 그대로 남는다 · 샘플 시 `marks`+`bootType`과 함께 1건 추가 · **리로드 세션은 `bootType: 'reload'`** · 미샘플 0건 · `totalMs` 없는 세션은 표본 아님 · 예산 초과 표시                                                                                               |
+| [`switchSite.test.ts`](../../app-runtime/src/socket/auth/switchSite.test.ts)                                         | 동일 사이트 no-op 0건 · 사용자 없음 0건 · 성공 `ok:true` 1건 · 실패 `ok:false` 1건 · 미구성 호스트 0건                                                                                                                                                                        |
+| [`useSwitchCloudSession.test.ts`](../../app-runtime/src/session/hooks/session/actions/useSwitchCloudSession.test.ts) | 성공/실패 각 1건 · 미구성 호스트 0건 · 콜백 참조 안정성                                                                                                                                                                                                                       |
+| [`webVitalsReporter.test.ts`](../../../apps/web/src/app/utils/webVitalsReporter.test.ts)                             | 전 지표가 오버레이 스토어에 들어감 · **FCP·LCP만** 서버로 · INP·CLS·TTFB 전송 0건 · 미구성 호스트 0건                                                                                                                                                                         |
 
-> **드롭 테스트가 자기 파일을 갖는 이유**: `logHub`가 모듈 싱글턴이라, 다른 테스트가 teardown하지 않고 남긴 서비스와 파일을 공유하면 같은 엔트리를 여러 큐가 각각 버리며 중복으로 세어 숫자가 어긋난다. jest가 파일마다 모듈 레지스트리를 새로 주므로, 파일을 나누는 것이 "몇 건 이상"이 아니라 **정확한 수**를 단언할 수 있게 하는 조건이다.
+> 드롭 카운터는 `perf`가 읽지 않으므로(원칙 8) 이 표에 없다. 큐가 자기 손실을 세는 성질은 [`LogUploadQueue.spec.ts`](../src/upload/LogUploadQueue.spec.ts)가 고정한다 — `ack`으로 비워도 총계가 남는지까지.
 
 ```bash
-npx nx run-many -t test -p @chatic/logger,@chatic/web-core,web,@chatic/mobile,testbed --parallel=1
+npx nx run-many -t test -p @chatic/logger,web,@chatic/mobile,testbed --parallel=1
 ```
 
 `--parallel=1`이 붙은 이유는 성능이 아니다. 여러 `tsc --build`가 공유 `dist/out-tsc`에 동시에 쓰면 다운스트림이 아직 안 나온 `.d.ts`를 읽어 **TS6305 유령 에러**가 뜬다(nx도 이 태스크들을 flaky로 표시한다). 직렬로 돌리면 사라진다.
@@ -380,7 +379,7 @@ cd libs/app-runtime && npx jest
 `libs/*`에서 `tsc --noEmit`은 0건을 검사하고 성공한다. 실제 검사는 프로젝트 참조 빌드다. 앱도 `--noEmit -p`가 아니라 `-b`를 써야 한다 — 전자는 참조 lib을 빌드하지 않아 TS6305 유령 에러로 뒤덮인다.
 
 ```bash
-npx tsc -b libs/logger/tsconfig.lib.json libs/web-core/tsconfig.lib.json libs/app-runtime/tsconfig.lib.json apps/web/tsconfig.app.json
+npx tsc -b libs/logger/tsconfig.lib.json libs/app-runtime/tsconfig.lib.json apps/web/tsconfig.app.json
 ```
 
 ### 수동 확인
