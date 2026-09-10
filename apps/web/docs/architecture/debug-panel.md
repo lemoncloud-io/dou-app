@@ -272,6 +272,21 @@ flowchart TD
 
 삭제: 6,543줄(features/debug − customZip) + `FloatingMenu.tsx` 202줄 = **6,745줄** + `App.tsx` 마운트 조건.
 
+### 다음 라운드로 넘기는 관찰 — 웹 `CacheTestScreen`이 필요한지 (2026-09-10)
+
+사용자가 짚었다. 이 문서를 쓰며 실측한 것 둘이 그 의심을 뒷받침한다:
+
+- **이름이 내용과 다르다.** `CacheTestScreen`(1,376줄)은 `webClient`와 `TestRecord`만 쓴다 — 캐시가
+  아니라 **테스트레코드** 화면이다. 부르는 명령도 `SaveTestRecord`·`FetchTestRecord`·
+  `FetchAllTestRecords`·`SaveAllTestRecords`·`ClearTestRecords` 다섯뿐이다.
+- **테스트레코드 자체의 소비자를 확인하지 않았다.** 캐시 명령이 `libs/db`의 프로덕션 경로를 갖는 것과
+  달리, 테스트레코드 명령 5종이 제품에서 쓰이는지는 이번에 조사하지 않았다. `SocketTest`·업로드
+  서비스와 같은 "디버그만 쓰는 능력"일 수 있다.
+
+**확인 없이 지우지 않는다** — 1,376줄이고, 업로드 서비스에서 배운 대로 "제품이 안 쓴다"가 곧 "버려도
+된다"는 아니다. 다음 라운드에서 ① 테스트레코드 명령 5종의 제품 소비자 ② 그 화면이 실제로 QA에
+쓰이는지를 먼저 본다.
+
 ## 검증 방법
 
 - 웹: 화면마다 유닛 테스트. 기존 관례는 `apps/web/**/*.test.ts(x)` + jest (`apps/web`에서 `npx jest`).
@@ -299,7 +314,7 @@ flowchart TD
       지원 유니온 둘은 기록이 브릿지를 건너게 되면서 `libs/app-messages`의 `model/perf.ts`로 옮기고
       `BootMetricsService`가 재export한다 — 선언 하나가 두 쪽 드리프트를 막는다.
       **앱 릴리스가 필요한 유일한 단계다.** 웹은 이 명령들을 부르되 `NOT_FOUND`를 단계 4의 표시로 흘린다.
-- [ ] **2. 웹 화면 11개 추가** — 결정 3대로 한국어·섹션 통일. 진행 중(2026-09-10).
+- [x] **2. 웹 화면 11개 추가** — 완료(2026-09-10). 신설 6 · 확장 2 · 이관 불필요 3.
     - [x] `BootPerformance` → `BootRecordsScreen` 신설(147줄) + `debugMenu`·`screenRegistry` 등록 +
           `appBridge` 3메서드. 테스트 7건. 새 명령 3개가 이걸로 end-to-end 검증됐다
     - [x] `Monitoring` → 별 화면 불필요로 판정(카운터 2개는 위 화면에 실림)
@@ -323,9 +338,9 @@ flowchart TD
     - [x] `IapTest` → `IapScreen` 신설. 명령 6종 파사드가 이미 다 있었다. 구매 결과가 이벤트로 오는
           구조를 화면에 반영(구독 + 기록). 테스트 6건
     - [x] `StorageTest` ② SQLite 백업/복원 **삭제 완료**(위 절). 구현 55줄 + 인터페이스 2줄 + 화면 UI
-    - [ ] `StorageTest` ① 네이티브 캐시 CRUD 화면 — **스코프 접근 방식 선택이 먼저다**(위 절).
-          명령 4종은 있지만 payload가 `{type, cid, uid}`를 요구하고 그 해석은 `@chatic/data`가 소유한다.
-          2단계의 마지막 항목이다
+    - [x] `StorageTest` ① 네이티브 캐시 CRUD 화면 — **만들지 않기로 했다**(2026-09-10, 위 절의 ③).
+          스코프 접근 방식을 정하는 것이 화면보다 큰 결정이고, 결정 14의 "캐시 도메인별 비우기"가 그
+          필요의 일부를 덮는다. 되살릴 때는 위 절의 세 갈래에서 고르는 것으로 시작한다
 - [ ] **3. 결정 14 버튼 3개** — 로그 지금 보내기(`flushNow`) · 설정 전체 보기(`snapshotAll`) ·
       캐시 도메인별 비우기. 앞의 둘은 브릿지 왕복이 없다.
 - [ ] **4. 실패 표시** — 오버레이 레벨 `useToast` 배선 + 구버전 앱 `NOT_FOUND` 표시.
