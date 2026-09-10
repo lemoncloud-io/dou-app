@@ -103,7 +103,7 @@ sequenceDiagram
     participant U as User
     participant P as FeedbackPage
     participant B as buildReportContext
-    participant R as reportIssue (web-core)
+    participant R as runtime.report.reportIssue
     participant S as Slack /hello/report
 
     U->>P: 제목/본문 입력 후 제출하기
@@ -159,7 +159,7 @@ apps/web/src/app/features/feedback/
 - **[pages/FeedbackPage.tsx](../../../src/app/features/feedback/pages/FeedbackPage.tsx)** — [ProfileEditPage.tsx](../../../src/app/features/mypage/pages/ProfileEditPage.tsx)와 같은 스캐폴드: `KeyboardAwareLayout className="fixed inset-0 overflow-hidden"` + `header={<PageHeader title />}` + `footer={<FloatingButton />}`. 본문은 헤드카피(20px semibold, `leading-[1.35] tracking-[-0.1px]`, `whitespace-pre-line`으로 i18n의 `\n` 3줄 처리) → 안내 불릿(`list-disc`, `text-description`) → `TextField`(제목, 필수) → `Textarea`(본문, 필수) → `PhotoAttachField`(사진, 선택) 순. 상태는 controlled `useState` 3개뿐이라 `react-hook-form`을 쓰지 않는다. 제출 성공 후 입력값을 리셋하지 않는다 — 화면이 언마운트되므로, 먼저 비우면 전환 애니메이션 동안 빈 폼이 깜빡인다. 사진 인코딩(`scaleImageToDataUrl`)·5장 한도·초과 토스트는 전부 이 페이지가 관리한다: DS 필드는 고른 파일을 그대로 되돌려줄 뿐이라, 왜 거절됐는지 사용자에게 말해줄 수 있는 쪽이 정책을 갖는다.
 - **[libs/shared/.../resizeImage.ts](../../../../../libs/shared/src/utils/resizeImage.ts)** — `scaleImageToDataUrl(file, { maxEdge, quality })`. 비율을 유지한 축소이며 업스케일하지 않는다. 같은 파일의 `resizeImageToBase64`는 150px **정사각 center-crop**이라 아바타 전용이다 — 화면 캡처에 쓰면 대부분을 잘라내 진단 가치가 사라진다.
 - **[libs/web-ui-kit/.../PhotoAttachField.tsx](../../../../../libs/web-ui-kit/src/foundations/input/PhotoAttachField.tsx)** — 점선 드롭존(h144 · radius24 · `#DFE0E2`) + 88px 썸네일 스트립(radius10 · `border-placeholder`, 16px 삭제 배지 `bg-input-border`). 순수 표현 컴포넌트다: `File[]`을 그대로 돌려주고 `value`를 그리기만 하므로, 인코딩 방식·크기 예산·한도 초과 처리 같은 **페이로드 정책이 디자인 시스템에 새지 않는다**. `max`에 도달하면 드롭존을 감춘다.
-- **[libs/web-core/.../common.ts](../../../../../libs/web-core/src/api/common.ts)** — `reportIssue`가 `extras`를 payload에 펼치고, **첨부가 있을 때만 `silent: true`** 로 보낸다. payload는 `body.message`에 실려 그대로 Slack 메시지 텍스트가 되는데 base64 한 장이면 Slack 상한(~40k자)을 넘기 때문이다. `SlackReportBody.meta`로 분리하는 쪽을 먼저 구현했지만 **백엔드가 클라이언트 `meta`를 저장하지 않아** 사진이 유실됐고(2026-08-11 실측), 저장되는 필드가 `message`뿐이라 알림을 포기하는 쪽으로 돌아섰다([ADR-0049](../../../../../docs/adr/0049-feedback-photo-attachment-inline-base64.md)). 첨부가 있으면 장수·payload KB를 로그로 남겨, 크기 상한에 걸렸을 때 숫자가 함께 남는다.
+- **[libs/http/.../gateways/report.ts](../../../../../libs/http/src/gateways/report.ts)** — `reportIssue`가 `extras`를 payload에 펼치고, **첨부가 있을 때만 `silent: true`** 로 보낸다. payload는 `body.message`에 실려 그대로 Slack 메시지 텍스트가 되는데 base64 한 장이면 Slack 상한(~40k자)을 넘기 때문이다. `SlackReportBody.meta`로 분리하는 쪽을 먼저 구현했지만 **백엔드가 클라이언트 `meta`를 저장하지 않아** 사진이 유실됐고(2026-08-11 실측), 저장되는 필드가 `message`뿐이라 알림을 포기하는 쪽으로 돌아섰다([ADR-0049](../../../../../docs/adr/0049-feedback-photo-attachment-inline-base64.md)). 첨부가 있으면 장수·payload KB를 로그로 남겨, 크기 상한에 걸렸을 때 숫자가 함께 남는다.
 - **[admin-v2 parseReportLog.ts](../../../../admin-v2/src/app/features/report-logs/lib/parseReportLog.ts)** — 저장 레코드에서 첨부를 찾아 `row.images`로 올린다. payload `images`(현행 경로) → 래퍼 `meta.images` → 레코드 `meta.images` → 최상위 순으로 탐색하고(뒤쪽 `meta` 지점은 잠깐 배포됐던 meta 빌드와, 백엔드가 나중에 meta를 저장할 경우 대비), `data:image/…`·`http(s)://`만 통과시킨다. **[ReportDetailDrawer.tsx](../../../../admin-v2/src/app/features/report-logs/components/ReportDetailDrawer.tsx)** 는 이를 썸네일 그리드로 그리고(클릭 시 새 탭 원본), Raw 블록에서는 base64를 마커로 치환한다 — 안 그러면 raw가 수 MB 텍스트가 된다. 첨부 섹션은 payload 파싱 실패와 무관하게 보이도록 `payload &&` 밖에 둔다.
 - **[lib/buildReportContext.ts](../../../src/app/features/feedback/lib/buildReportContext.ts)** — `{ device, version, online, viewport, path, routeTrail }`을 반환하는 순수 함수. **로그는 담지 않는다(2026-08-21)** — 리포트 첨부가 폐지되고 로그는 배치 업로더가 낱건으로 올리므로, 제보 당시 로그는 같은 `runId`로 이미 서버에 있다. `deviceToken`(FCM/APNS 푸시 크리덴셜)과 `deviceId`/`installId`/`firebaseInstallationId`는 `pickDeviceFields`가 걸러낸다: 리포트는 공유 채널에 떨어지므로 capability 토큰을 실으면 안 된다. `app/utils` 배럴이 아니라 `routeTrail`/`viewport` 파일을 **직접 경로로** import 한다 — 배럴은 `import.meta`를 쓰는 모듈까지 끌고 와 CommonJS 테스트 트랜스폼이 파싱하지 못한다(architecture/directory-structure.md §6).
 - **[app/utils/routeTrail.ts](../../../src/app/utils/routeTrail.ts)** — 모듈 레벨 링버퍼(`ROUTE_TRAIL_SIZE = 10`). `recordRoute(path)`(빈 경로·직전과 동일한 경로는 무시), `getRouteTrail()`(복사본 반환 — 호출부가 버퍼를 오염시키지 못하게), `resetRouteTrail()`(테스트용). React 밖 순수 모듈. **호출부는 `pathname`만 넘긴다** — 트레일은 공용 Slack 채널로 나가는데 이 앱은 쿼리스트링에 capability 토큰을 싣는다(`/invite/accept?…`, `/s?…`). 경로 세그먼트는 리포트가 이미 담고 있는 리소스 id지만 쿼리스트링은 크리덴셜이다. 이 계약은 `routeTrail.test.ts`가 못박는다.
@@ -177,7 +177,7 @@ apps/web/src/app/features/feedback/
 | [mypage/pages/MyPage.tsx](../../../src/app/features/mypage/pages/MyPage.tsx)                                                                   | 정책 `MenuCard` 최상단에 `피드백 보내기` `ListRow` 추가 · `이슈 신고 버튼` 스위치 행 제거                                 |
 | [runtime/AppRuntime.tsx](../../../src/app/runtime/AppRuntime.tsx)                                                                              | `<IssueReportHost />` 마운트·import 제거                                                                                  |
 | [stores/preferenceKeys.ts](../../../src/app/stores/preferenceKeys.ts) · [usePreferenceStore.ts](../../../src/app/stores/usePreferenceStore.ts) | `issueReportHidden` 엔트리·상태·액션 삭제                                                                                 |
-| [libs/web-core/.../types/common.ts](../../../../../libs/web-core/src/api/types/common.ts)                                                      | `IssueReportExtras.routeTrail?: string[]` (옵셔널이라 하위호환)                                                           |
+| [libs/http/.../gateways/report.ts](../../../../../libs/http/src/gateways/report.ts)                                                            | `IssueReportExtras.routeTrail?: string[]` (옵셔널이라 하위호환)                                                           |
 | `apps/web/public/locales/{ko,en}/translation.json`                                                                                             | `feedback.*`·`mypage.feedback` 추가, `issueReport.*`·`reportIssue.*`·`mypage.issueReportButton` 삭제                      |
 
 ### 삭제된 자산
@@ -210,7 +210,7 @@ apps/web/src/app/ui/components/RequiredLabel.tsx       # 위 다이얼로그 전
 
 - `features/feedback/lib/buildReportContext.test.ts` — 진단 필드만 담는지, 푸시 토큰·영구 식별자 제외, `routeTrail` 포함.
 - `features/feedback/pages/FeedbackPage.test.tsx` — 제출 버튼 활성 조건(초기·한쪽만·공백만·둘 다), `trim()` 후 전송 인자, 성공 시 토스트 + `navigate(-1)`, 실패 시 입력 보존, 5000자 클램프·카운터 미노출. 사진: 인코딩→썸네일, 개별 삭제, 5장 초과 시 트림+토스트, 만원이면 드롭존 숨김, 인코딩 실패 시 기존 첨부 유지, 제출 인자의 `images` 유무.
-- `libs/web-core/src/api/common.spec.ts` — **`images`가 `meta`로만 가고 `message` 문자열엔 `data:image`가 없다**(회귀 시 Slack 전송이 깨지는 자리), 첨부 없으면 `meta` 키 미생성, 나머지 extras는 payload 유지.
+- `libs/http/src/gateways/report.spec.ts` — **`images`가 `meta`로만 가고 `message` 문자열엔 `data:image`가 없다**(회귀 시 Slack 전송이 깨지는 자리), 첨부 없으면 `meta` 키 미생성, 나머지 extras는 payload 유지.
 - `apps/admin-v2 parseReportLog.spec.ts`(vitest) — 첨부를 래퍼 meta·레코드 meta·payload 어디에 두어도 찾아내고, 렌더 불가한 값(`javascript:` 등)은 버린다.
 - `app/utils/routeTrail.test.ts` — 순서, 연속 중복 무시, 빈 경로 무시, 10개 상한, 반환값 복사본, **쿼리스트링이 섞이지 않는다는 계약**.
 - `libs/web-ui-kit/.../Textarea.test.tsx` — 라벨 연결·required, `onChange` 원문 전달(이모지 포함), error가 description을 덮고 `aria-invalid` 부여, 카운터 미렌더, `height` prop.
@@ -226,14 +226,14 @@ apps/web/src/app/ui/components/RequiredLabel.tsx       # 위 다이얼로그 전
     npx nx run admin-v2:test
     ```
 
-    admin-v2는 jest가 아니라 **vitest**다. 나머지(`libs/web-ui-kit`·`libs/web-core`·`libs/shared`)는 각 디렉터리에서 `npx jest`.
+    admin-v2는 jest가 아니라 **vitest**다. 나머지(`libs/web-ui-kit`·`libs/http`·`libs/shared`)는 각 디렉터리에서 `npx jest`.
 
-    최근 결과: apps/web 187/1661 · web-ui-kit 65/287 · web-core 10/89 · shared 2/10 · admin-v2 13파일/77 통과.
+    (수치는 시점마다 달라지므로 적어 두지 않는다 — 위 명령을 돌려 확인한다.)
 
 **정적 검증**
 
 ```bash
-npx nx run-many -t lint -p web,web-ui-kit,admin-v2,@chatic/web-core,@chatic/shared
+npx nx run-many -t lint -p web,web-ui-kit,admin-v2,@chatic/http,@chatic/shared
 ```
 
 `nx run web:typecheck`는 `libs/data`·`libs/web-ui-kit` 스토리의 **선재 부채**로 실패한다(이 피처와 무관). 변경분만 확인하려면 path alias를 소스로 푸는 임시 tsconfig(`noEmit`, references 없음)로 `tsc`를 돌린다 — 남는 61건이 전부 손대지 않은 파일인지 확인하는 방식.

@@ -56,7 +56,7 @@ relay 토큰이 유일한 답인 이유는 아래 [세 종류의 프로필](#세
 
 설정 depth는 게스트에게도 열려 있다(피드백은 미인증 세션도 받는다 — ADR-0047). 로그아웃 카드만 `!isGuest` 게이트다.
 
-> 구독 상태 단일 원천은 `useMembershipInfo()`([web-core](../../../../../libs/web-core/src/hooks/subscription/index.ts)). 플랫폼 매칭을 강제하는 `useIsSubscriptionAvailable()`은 웹에서 부적합하므로 쓰지 않는다.
+> 구독 상태 단일 원천은 `useMembershipInfo()`([app/hooks/useMembership.ts](../../../src/app/hooks/useMembership.ts)). 플랫폼 매칭을 강제하는 `useIsSubscriptionAvailable()`은 웹에서 부적합하므로 쓰지 않는다.
 
 ### 카드 구조
 
@@ -114,7 +114,7 @@ features/mypage/
 
 ## 데이터 흐름
 
-세션 상태는 web-core / app-runtime 훅으로만 읽는다(core 객체 직접 접근 금지, [architecture/README.md](../../architecture/README.md)).
+세션 상태는 `runtime.session.*` 훅으로만 읽는다(core 객체 직접 접근 금지, [architecture/README.md](../../architecture/README.md)).
 
 - 계정 게스트 여부 → `useIsAccountGuest()` (relay 토큰 기준, 허브 분기가 쓰는 것)
 - 클라우드 활성 → `useRuntimeProfile()` (`isCloudActive`). 이 훅의 `isGuest`는 "지금 접속한
