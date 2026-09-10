@@ -9,12 +9,20 @@ import type { IConfigKvService } from './types';
  * what keeps a config key and an unrelated service's key from ever colliding on one flat store, and
  * what lets `getAll()` answer "just the config bag" instead of everything MMKV holds.
  *
- * **This class does not validate what it is asked to store.** The one capability that made an
- * unvalidated write dangerous — `SavePreference`'s `debugSettings`/`webviewBaseUrlOverride`, which
- * decided where the WebView loads its content from next launch — no longer exists as a config key;
- * ADR-0080 결정 13 deleted the feature outright rather than allow-list it. Everything left in the
- * registry is a display or behavior setting: a corrupted value degrades what it controls, not what
- * this WebView is allowed to load or execute. See the handler that calls this for the full note.
+ * **This class does not validate what it is asked to store.** What makes that safe is the
+ * `config:` prefix above, not trust in the caller: every key this class touches is namespaced, so a
+ * write can never land on `debugSettings` — the zustand-persist key holding
+ * `webviewBaseUrlOverride`, which decides where the WebView loads its content from next launch
+ * (`debugSettingsStore.ts`). That is the one capability an unvalidated write could otherwise abuse,
+ * and no registry key exposes it either: `libs/config` declares only the read-only
+ * `env.webviewBaseUrl`. Everything the registry does expose is a display or behavior setting, so a
+ * corrupted value degrades what it controls, not what this WebView may load or execute.
+ *
+ * ADR-0080 결정 13 decided to delete the web-address switcher outright rather than allow-list it,
+ * which would remove the capability altogether — but that decision is **not implemented yet**
+ * (`EnvironmentSettingsScreen` and `setWebviewBaseUrlOverride` are still there as of 2026-09-10).
+ * The isolation above is what holds today, so do not weaken the prefix or add a writable
+ * `debug.webviewBaseUrl` key on the assumption that the feature is gone.
  */
 export class ConfigKvService implements IConfigKvService {
     private static readonly KEY_PREFIX = 'config:';

@@ -8,10 +8,15 @@ import type { ConfigRegistryModule } from '../types';
  * not apply to them (ADR-0080 결정 6). `overlayEnabled`'s `byStage` is what removes the 10-tap
  * friction in LOCAL/DEV while PROD stays exactly as strict as today.
  *
- * The web-address switcher that used to live here (`webviewBaseUrl`/`environmentSettings`) was
- * removed rather than allow-listed — a list still cannot close PROD, so it would have meant
- * building a list, validation and a fallback for a feature that stays closed anyway
- * (ADR-0080 결정 13). `env.webviewBaseUrl` (read-only) is what is left of it.
+ * The web-address switcher the draft put here (`webviewBaseUrl`/`environmentSettings`) is NOT a key
+ * — it was dropped rather than allow-listed, because a list still cannot close PROD, so it would
+ * have meant building a list, validation and a fallback for a feature that stays closed anyway
+ * (ADR-0080 결정 13). `env.webviewBaseUrl` (read-only) is what is left of it here.
+ *
+ * That says nothing about the app: 결정 13 also decided to delete the switcher itself, and that half
+ * is still unimplemented (`apps/mobile/.../EnvironmentSettingsScreen.tsx`, 2026-09-10). The registry
+ * simply never gave it a writable key — see `ConfigKvService`'s docblock for what actually keeps the
+ * shell lane from reaching it.
  */
 export const debugModule: ConfigRegistryModule = {
     'debug.overlayEnabled': {
