@@ -1,6 +1,7 @@
 import { useCallback, useSyncExternalStore } from 'react';
 
 import { isNative } from '@chatic/bridges';
+import { config, CONFIG_UNLOCK_KEY } from '@chatic/config';
 
 import { appBridge } from '../../../bridge';
 import { DEBUG_STORAGE_KEY } from '../consts';
@@ -30,6 +31,13 @@ const notify = () => listeners.forEach(listener => listener());
 export const setDebugModeEnabled = (enabled: boolean) => {
     if (enabled) sessionStorage.setItem(DEBUG_STORAGE_KEY, 'true');
     else sessionStorage.removeItem(DEBUG_STORAGE_KEY);
+    // The registry's local lane is what the panel's setting controls write, and ADR-0079 결정 4 says
+    // the 10-tap + entry code is what opens it. Without this the unlock stopped at the panel door:
+    // every `surface: 'dev'` key resolved `canWrite` WITHOUT 'local' on a stage where the lane is
+    // shut (PROD), so the controls would render disabled on exactly the build they are needed on.
+    // Harmless before `config.init()` — the facade answers `notWired` instead of throwing.
+    if (enabled) config.set(CONFIG_UNLOCK_KEY, true, { lane: 'local' });
+    else config.clear(CONFIG_UNLOCK_KEY, { lane: 'local' });
     if (isNative()) {
         // Single unlock/lock covers both layers (PROD included).
         appBridge.setDebugMode(enabled);

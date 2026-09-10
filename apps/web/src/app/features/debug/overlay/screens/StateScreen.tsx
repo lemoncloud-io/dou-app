@@ -4,7 +4,7 @@ import { Row } from '../../components/Row';
 import { Section } from '../../components/Section';
 
 /** Read-only snapshot of session/server/socket state (singleton stores, router-independent). */
-export const StateTab = () => {
+export const StateScreen = () => {
     const session = runtime.session.useGlobalSession();
     const { isAuthenticated, isInitialized } = runtime.session.useSessionAuth();
     const socketState = runtime.connection.useRuntimeSocketState();
@@ -12,7 +12,7 @@ export const StateTab = () => {
     const { relay, cloud, identity, activeServer } = session;
 
     return (
-        <>
+        <div className="space-y-3 p-4">
             <Section title="Session">
                 <Row label="initialized" value={String(isInitialized)} />
                 <Row label="authenticated" value={String(isAuthenticated)} />
@@ -56,6 +56,6 @@ export const StateTab = () => {
                 <Row label="isVerified" value={String(socketState.isVerified)} />
                 <Row label="connectionId" value={socketState.connectionId} />
             </Section>
-        </>
+        </div>
     );
 };

@@ -2,7 +2,7 @@ import '@testing-library/jest-dom';
 
 import { render, screen } from '@testing-library/react';
 
-import { UnreadTab } from './UnreadTab';
+import { UnreadScreen } from './UnreadScreen';
 import { clearDebugObservation, publishDebugObservation } from '../sharedObservationStore';
 import type { ActiveCloudData, OtherCloudUnread } from '../../../../hooks';
 
@@ -17,20 +17,20 @@ const ACTIVE_CLOUD = {
 
 const OTHER_CLOUD = { byCloud: { 'cloud-b': 2 }, total: 2, refresh: () => undefined } as OtherCloudUnread;
 
-describe('UnreadTab — 오버레이 안읽음 인스펙터', () => {
+describe('UnreadScreen — 오버레이 안읽음 인스펙터', () => {
     beforeEach(() => {
         clearDebugObservation();
     });
 
     it('공유 관측이 없으면 던지지 않고 아직 게시되지 않았다고 알린다', () => {
         // The provider-missing throw used to reach the app-wide boundary and blank the whole UI.
-        expect(() => render(<UnreadTab />)).not.toThrow();
+        expect(() => render(<UnreadScreen />)).not.toThrow();
         expect(screen.getByText(/아직 게시되지 않았습니다/)).toBeInTheDocument();
     });
 
     it('게시된 관측의 합계·파생 입력을 그대로 보여준다', () => {
         publishDebugObservation({ activeCloud: ACTIVE_CLOUD, otherCloud: OTHER_CLOUD });
-        render(<UnreadTab />);
+        render(<UnreadScreen />);
 
         // 활성 3 + 비활성 2 = 앱 뱃지 5.
         expect(screen.getByText('5')).toBeInTheDocument();
@@ -41,7 +41,7 @@ describe('UnreadTab — 오버레이 안읽음 인스펙터', () => {
     it('비활성 클라우드 절반이 없어도 활성 숫자는 계속 보여준다', () => {
         // The two halves come from separate providers; a missing one must not hide the other.
         publishDebugObservation({ activeCloud: ACTIVE_CLOUD });
-        render(<UnreadTab />);
+        render(<UnreadScreen />);
 
         expect(screen.getByText('안읽음이 있는 비활성 클라우드가 없습니다')).toBeInTheDocument();
         expect(screen.getByText('머리 10/10 · 커서 7/7 = 3')).toBeInTheDocument();

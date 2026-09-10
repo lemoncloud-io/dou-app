@@ -15,7 +15,7 @@ const kb = (bytes: number) => `${Math.round(bytes / 1024)} KB`;
  * is relative to navigation start, so rows read as one timeline. Polled while
  * open — late resource entries and LCP updates keep flowing in.
  */
-export const BootTab = () => {
+export const BootScreen = () => {
     const [snapshot, setSnapshot] = useState<BootSnapshot | null>(null);
     const [vitals, setVitals] = useState<Record<string, VitalSample>>({});
 
@@ -35,7 +35,7 @@ export const BootTab = () => {
     const downloadedBytes = assets.reduce((sum, a) => sum + a.transferSize, 0);
 
     return (
-        <div className="space-y-3">
+        <div className="space-y-3 p-4">
             <Section title="Navigation (HTML)">
                 <Row label="TTFB" value={ms(navigation?.ttfbMs)} />
                 <Row label="response end" value={ms(navigation?.responseEndMs)} />

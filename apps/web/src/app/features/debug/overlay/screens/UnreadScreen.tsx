@@ -12,14 +12,14 @@ import { useDebugObservation } from '../sharedObservationStore';
 // overlay is mounted outside `AppRuntime` so it survives a boot hang, which also puts it outside the
 // providers — consuming them here threw "ActiveCloudDataProvider is missing" and, inside the app-wide
 // error boundary, replaced the entire UI with the error screen.
-export const UnreadTab = () => {
+export const UnreadScreen = () => {
     const { activeCloud, otherCloud } = useDebugObservation();
 
     // Nothing mirrored yet: the runtime has not committed the providers (boot hang, gated session).
     // Say that, rather than render zeros that would read as real counts.
     if (!activeCloud) {
         return (
-            <p className="text-xs text-muted-foreground">
+            <p className="p-4 text-xs text-muted-foreground">
                 공유 관측이 아직 게시되지 않았습니다 — 앱 런타임(ActiveCloudDataProvider)이 마운트되기 전입니다
             </p>
         );
@@ -72,7 +72,7 @@ const UnreadReport = ({
         .slice(0, 30);
 
     return (
-        <div className="space-y-3">
+        <div className="space-y-3 p-4">
             <Section title="전체">
                 <Row label="활성 클라우드 안읽음 합계" value={total} />
                 <Row label="관측 채널 수" value={channels.length} />

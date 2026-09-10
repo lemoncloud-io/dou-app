@@ -198,7 +198,7 @@ export const SettingsPage = () => {
                             title="Debug Mode"
                             destructive
                             trailing={<IconChevronRight className="size-[18px] text-destructive" />}
-                            onClick={() => debugOverlayActions.open('expanded')}
+                            onClick={() => debugOverlayActions.open('full')}
                         />
                     )}
                 </MenuCard>

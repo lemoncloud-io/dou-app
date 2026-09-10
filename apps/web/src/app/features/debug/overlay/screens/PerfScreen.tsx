@@ -17,7 +17,7 @@ const readUsedHeapMb = (): number | null => {
 
 // All values are computed web-side by the MetricsCollector; this tab only renders
 // the snapshot plus a 1s poll of the live sync target registry.
-export const PerfTab = () => {
+export const PerfScreen = () => {
     const metrics = useRuntimeMetrics();
     const socketState = runtime.connection.useRuntimeSocketState();
     const [targets, setTargets] = useState<SyncTargetDescriptor[]>([]);
@@ -41,7 +41,7 @@ export const PerfTab = () => {
         metrics.socketStateSinceMs != null ? Math.round((Date.now() - metrics.socketStateSinceMs) / 1000) : null;
 
     return (
-        <>
+        <div className="space-y-3 p-4">
             <Section title={`Sync Targets (${targets.length})`}>
                 {targets.length === 0 ? (
                     <p className="text-xs text-muted-foreground">등록된 sync 타깃이 없습니다</p>
@@ -110,6 +110,6 @@ export const PerfTab = () => {
                 <Row label="CLS" value={vitals.CLS ? `${vitals.CLS.value.toFixed(3)} (${vitals.CLS.rating})` : null} />
                 <Row label="JS heap" value={usedHeapMb != null ? `${usedHeapMb} MB` : 'n/a (WKWebView)'} />
             </Section>
-        </>
+        </div>
     );
 };

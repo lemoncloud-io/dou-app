@@ -1,30 +1,12 @@
 import { lazy } from 'react';
 import type { ComponentType, LazyExoticComponent } from 'react';
 
-import type { DebugScreenKey } from './debugMenu';
+import { DEBUG_SCREENS, type DebugScreenKey } from './screenManifest';
 
-// Screens are lazy so the always-mounted overlay host doesn't drag ~5k lines of
-// debug tooling into the initial bundle (the old /debug routes were lazy too).
-// The expanded sheet renders them inside a Suspense boundary.
-export const DEBUG_SCREEN_COMPONENTS: Record<DebugScreenKey, LazyExoticComponent<ComponentType>> = {
-    EmailLogin: lazy(() => import('./screens/EmailLoginScreen').then(m => ({ default: m.EmailLoginScreen }))),
-    LogBuffer: lazy(() => import('./screens/LogBufferScreen').then(m => ({ default: m.LogBufferScreen }))),
-    CacheTest: lazy(() => import('./screens/CacheTestScreen').then(m => ({ default: m.CacheTestScreen }))),
-    CacheMetrics: lazy(() => import('./screens/CacheMetricsScreen').then(m => ({ default: m.CacheMetricsScreen }))),
-    UploadTest: lazy(() => import('./screens/UploadTestScreen').then(m => ({ default: m.UploadTestScreen }))),
-    Push: lazy(() => import('./screens/PushScreen').then(m => ({ default: m.PushScreen }))),
-    InviteRedirect: lazy(() =>
-        import('./screens/InviteRedirectScreen').then(m => ({ default: m.InviteRedirectScreen }))
-    ),
-    DBBrowser: lazy(() => import('./screens/DBBrowserScreen').then(m => ({ default: m.DBBrowserScreen }))),
-    ProfileEditor: lazy(() => import('./screens/ProfileEditorScreen').then(m => ({ default: m.ProfileEditorScreen }))),
-    DeviceInfo: lazy(() => import('./screens/DeviceInfoScreen').then(m => ({ default: m.DeviceInfoScreen }))),
-    BootRecords: lazy(() => import('./screens/BootRecordsScreen').then(m => ({ default: m.BootRecordsScreen }))),
-    Deeplink: lazy(() => import('./screens/DeeplinkScreen').then(m => ({ default: m.DeeplinkScreen }))),
-    AppIcon: lazy(() => import('./screens/AppIconScreen').then(m => ({ default: m.AppIconScreen }))),
-    Sms: lazy(() => import('./screens/SmsScreen').then(m => ({ default: m.SmsScreen }))),
-    OAuthNative: lazy(() => import('./screens/OAuthScreen').then(m => ({ default: m.OAuthScreen }))),
-    Iap: lazy(() => import('./screens/IapScreen').then(m => ({ default: m.IapScreen }))),
-    Config: lazy(() => import('./screens/ConfigScreen').then(m => ({ default: m.ConfigScreen }))),
-    CustomZip: lazy(() => import('./screens/CustomZipScreen').then(m => ({ default: m.CustomZipScreen }))),
-};
+/**
+ * React half of the manifest. Screens are lazy so the always-mounted overlay host doesn't drag ~8k
+ * lines of debug tooling into the initial bundle; the panel renders them inside a Suspense boundary.
+ */
+export const DEBUG_SCREEN_COMPONENTS = Object.fromEntries(
+    DEBUG_SCREENS.map(screen => [screen.key, lazy(screen.load)])
+) as Record<DebugScreenKey, LazyExoticComponent<ComponentType>>;
