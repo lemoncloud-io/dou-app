@@ -61,9 +61,6 @@
             "path": "./apps/admin-v2"
         },
         {
-            "path": "./libs/web-config"
-        },
-        {
             "path": "./libs/auth-sign"
         },
         {
@@ -77,6 +74,9 @@
         },
         {
             "path": "./libs/block-kit"
+        },
+        {
+            "path": "./libs/config"
         }
     ]
 }
