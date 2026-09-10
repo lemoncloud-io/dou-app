@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { getStoreUrl, useNavigateWithTransition } from '@chatic/shared';
 
 import { isNative } from '@chatic/bridges';
+import { config } from '@chatic/config';
 import { appBridge } from '../../../bridge';
 import { useDeviceInfo } from '@chatic/device-utils';
 import { IconChevronRight, ListRow, MenuCard, Switch } from '@chatic/web-ui-kit';
@@ -16,9 +17,6 @@ import { DebugUnlockDialog, debugOverlayActions, useDebugMode, useDebugUnlock } 
 import { useAppUpdateStatus } from '../../appUpdate';
 import { PageHeader } from '../../../ui/components';
 import { ROUTES } from '../../../routes/paths';
-
-// See MyPage for why the import.meta.env read lives in a page rather than in the debug hooks.
-const DEBUG_CODE = import.meta.env.VITE_DEBUG_CODE;
 
 const Chevron = () => <IconChevronRight className="size-[18px] text-description" />;
 
@@ -35,7 +33,12 @@ export const SettingsPage = () => {
     const { deviceInfo, versionInfo } = useDeviceInfo();
     const { resetOnboarding } = useOnboarding();
     const { isEnabled: isDebugMode } = useDebugMode();
-    const { isChallengeOpen, hasError, registerTap, submitCode, cancelChallenge } = useDebugUnlock(DEBUG_CODE);
+    // Read per render rather than memoized: `debug.entryCode` is `writableBy: []`, so no lane can
+    // move it and every read returns the same build value. Unset resolves to `''`, which the gate
+    // treats as fail-closed exactly like the `undefined` it used to get from `import.meta.env`.
+    const { isChallengeOpen, hasError, registerTap, submitCode, cancelChallenge } = useDebugUnlock(
+        config.get<string>('debug.entryCode')
+    );
     const { updateAvailable } = useAppUpdateStatus();
     const {
         isSupported: isIconChangeSupported,

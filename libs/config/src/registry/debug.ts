@@ -8,6 +8,10 @@ import type { ConfigRegistryModule } from '../types';
  * not apply to them (ADR-0080 결정 6). `overlayEnabled`'s `byStage` is what removes the 10-tap
  * friction in LOCAL/DEV while PROD stays exactly as strict as today.
  *
+ * `entryCode` is sourced from `VITE_DEBUG_CODE` and from nothing else — `writableBy: []` means no
+ * lane can supply it, so the build is the only answer. An unset secret leaves it at `defaultValue`
+ * (`''`), which is the fail-closed the gate already relies on: no code, no dialog (ADR-0034 결정 2).
+ *
  * The web-address switcher the draft put here (`webviewBaseUrl`/`environmentSettings`) is NOT a key
  * — it was dropped rather than allow-listed, because a list still cannot close PROD, so it would
  * have meant building a list, validation and a fallback for a feature that stays closed anyway
@@ -35,6 +39,7 @@ export const debugModule: ConfigRegistryModule = {
         description: 'PROD에서 디버그 오버레이를 열 때 입력하는 코드.',
         type: 'string',
         defaultValue: '',
+        envDefaultKey: 'VITE_DEBUG_CODE',
         surface: 'dev',
         writableBy: [],
         persist: 'none',
