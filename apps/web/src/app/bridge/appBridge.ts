@@ -310,6 +310,29 @@ export const appBridge = {
         return webClient.request({ type: 'DeleteFcmToken', data: {} });
     },
 
+    /**
+     * The next three are facade-only: the message types and native handlers already existed, the
+     * web client just never exposed them because nothing outside the app's own debug screens asked.
+     * Adding them costs no app release (ADR-0080 결정 11 — 새 명령을 만들기 전에 있는 것을 찾는다).
+     */
+
+    /** Read the OS badge count the app currently shows. */
+    fetchBadgeCount(): Promise<WebMessageResponse<'FetchBadgeCount'>> {
+        return webClient.request({ type: 'FetchBadgeCount', data: {} });
+    },
+
+    /** Raise a local notification — checks the channel and deeplink plumbing without a real push. */
+    showNotification(payload: Payload<'ShowNotification'>): Promise<WebMessageResponse<'ShowNotification'>> {
+        return webClient.request({ type: 'ShowNotification', data: payload });
+    },
+
+    /** Ask the OS for a permission. Idempotent once granted, and the response carries the status. */
+    requestPermission(
+        permission: Payload<'RequestPermission'>['permission']
+    ): Promise<WebMessageResponse<'RequestPermission'>> {
+        return webClient.request({ type: 'RequestPermission', data: { permission } });
+    },
+
     // ---------------------------------------------------------------
     // Deferred native reports (ADR-0047)
     // ---------------------------------------------------------------

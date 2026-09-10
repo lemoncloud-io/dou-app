@@ -27,6 +27,9 @@ ADR-0080이 그 방향을 정했다 — **웹이 리모콘, 앱이 기기다.** 
 4. **화면을 옮기기 전에 지울 수 있는지 본다.** 이관 대상 14화면 중 3개는 옮길 게 아니라 없앨 것이었다.
    디버그 화면은 늘어나기만 하는 자리이므로, 이관은 정리할 기회다.
 5. **앱에는 실행과 OS 창만 남긴다.** 사람이 앱에서 누를 것이 없어야 결정 12(앱 디버그 UI 0)가 성립한다.
+6. **확인이 없는 조작은 없는 대로 말한다.** `openURL`·`setBadgeCount`는 `webClient.post`로 보내고
+   끝이라 응답이 없다. 결정 10의 확인 원칙과 어긋나지만 그 둘은 제품이 쓰는 기존 메서드이므로 바꾸지
+   않고, 결과 줄에 "확인 없음"을 적어 증명된 것과 아닌 것을 구분한다.
 
 ## 범위
 
@@ -43,6 +46,8 @@ ADR-0080이 그 방향을 정했다 — **웹이 리모콘, 앱이 기기다.** 
 
 - **customZip 기능의 처분** — 디버그 전용이 아니다. `MainScreen.tsx:36`이 `useCustomZipBootGate`로
   WebView 부팅을 막고 있어 디버그 UI 삭제의 부수효과로 뺄 수 없다. 별건으로 판단한다 (미결 4).
+- **청크 업로드 서비스와 명령 8종의 처분** — 제품이 쓰지 않는 것은 확인했지만(위 §상세 구현), 미리 만든
+  것일 가능성이 있어 이 트랙에서 지우지 않는다. 죽은 코드 판정은 별건이다
 - 시각 토큰 통일 — 제품 UI 전체가 걸린 별개 트랙 (ADR-0080 대안 절)
 - 원격 컨피그 어댑터 (ADR-0079 결정 10)
 
@@ -132,23 +137,23 @@ flowchart TD
 기존 명령으로 덮이는지는 [`WEB_MESSAGE_RESPONSE_TYPE`](../../../../libs/app-messages/src/types/web-message-response.ts)
 기준이다. **명령 단위 동등성은 단계 1에서 줄 단위로 확인한다** — 아래는 능력 단위 판정이다.
 
-| 앱 화면               | 줄    | 처분     | 기존 명령                                                                                                                                                                                                                                     |
-| --------------------- | ----- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `UploadTest`          | 1,100 | 이관     | `RequestFileUpload`·`Pause`·`Resume`·`Cancel`·`ListRecoverableUploads`·`RecoverUpload`·`RetryUpload`·`CreateDummyFile` — 웹에 이미 화면 있음(1,720줄) → **동등성 확인**                                                                       |
-| `NotificationTest`    | 559   | 이관     | `ShowNotification`·`FetchFcmToken`·`SetBadgeCount`·`FetchBadgeCount`·`FetchPushMarks`·`RequestPermission` (웹 `PushScreen` 163줄 확장)                                                                                                        |
-| `SocketTest`          | 540   | **삭제** | 없음. 그런데 `useWebSocket`·`chatic-sockets-api`를 쓰는 곳이 이 화면 하나뿐이다 — 앱에 프로덕션 소켓이 없다. 테스트 화면을 위해서만 있는 스캐폴딩이므로 훅 289줄과 함께 지운다                                                                |
-| `StorageTest`         | 492   | 이관     | 캐시 8종·테스트레코드 4종·preference 3종 (`FetchAllCacheData`·`SaveCacheData`·`DeleteCacheData`·`ClearCacheData`·`SaveTestRecord`·`FetchPreference` 등)                                                                                       |
-| `BridgeTest`          | 452   | **삭제** | ADR-0080 결정 11 — 브릿지가 죽으면 흰 화면이 이미 알려준다                                                                                                                                                                                    |
-| `IapTest`             | 400   | 이관     | `FetchProducts`·`Purchase`·`FetchCurrentPurchases`·`FinishPurchaseTransaction`·`OpenStore`·`OpenSubscriptionManagement`                                                                                                                       |
-| `OAuthTest`           | 382   | 이관     | `OAuthLogin`·`OAuthLogout`                                                                                                                                                                                                                    |
-| `SmsTest`             | 373   | 이관     | `SendSms`                                                                                                                                                                                                                                     |
-| `DeviceTest`          | 348   | 이관     | `RequestPermission`·`GetContacts`·`OpenCamera`·`OpenPhotoLibrary`·`OpenDocument`·`OpenShareSheet`·`CopyToClipboard`·`FetchSafeArea`·`OpenSettings` (웹 `DeviceInfoScreen` 38줄 확장)                                                          |
-| `Monitoring`          | 314   | 이관     | 큐는 웹 `LogBufferScreen`(624줄)이 **이미 전부 덮는다** — 빠진 건 네이티브 카운터 2개(`getContentProcessReloadCount`·`getLastForegroundResumeMs`)뿐이고, `FetchBootRecords`가 그 둘을 함께 돌려주므로 부팅 기록 화면에 실렸다. 별 화면 불필요 |
-| `EnvironmentSettings` | 281   | **삭제** | ADR-0080 결정 13 — 기능 자체를 뺀다                                                                                                                                                                                                           |
-| `BootPerformance`     | 237   | 이관     | **신규 웹 화면이 필요했다.** 웹 `BootTab`(83줄)은 현재 세션의 웹 타임라인을 라이브로 재는 다른 것이다 — 이쪽은 누적된 네이티브+웹 병합 기록이다. `BootRecordsScreen` 신설                                                                     |
-| `AppIconTest`         | 223   | 이관     | `FetchAppIcon`·`FetchAppIconList`·`ChangeAppIcon`                                                                                                                                                                                             |
-| `DeeplinkTest`        | 139   | 이관     | `OpenURL`                                                                                                                                                                                                                                     |
-| `DebugHomeScreen`     | 77    | **삭제** | 결정 12 — 열 곳이 없다                                                                                                                                                                                                                        |
+| 앱 화면               | 줄    | 처분      | 기존 명령                                                                                                                                                                                                                                     |
+| --------------------- | ----- | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `UploadTest`          | 1,100 | 이관 없음 | **웹 화면이 그대로 살아남는다.** 웹 `UploadTestScreen`(1,720줄)이 이미 8개 명령 전부를 `webClient.request`로 직접 부르는 유일한 소비자다 — 단계 2에서 할 일이 없고, 모바일 화면은 단계 6에서 함께 사라진다                                    |
+| `NotificationTest`    | 559   | 이관      | `ShowNotification`·`FetchFcmToken`·`SetBadgeCount`·`FetchBadgeCount`·`FetchPushMarks`·`RequestPermission` (웹 `PushScreen` 163줄 확장)                                                                                                        |
+| `SocketTest`          | 540   | **삭제**  | 없음. 그런데 `useWebSocket`·`chatic-sockets-api`를 쓰는 곳이 이 화면 하나뿐이다 — 앱에 프로덕션 소켓이 없다. 테스트 화면을 위해서만 있는 스캐폴딩이므로 훅 289줄과 함께 지운다                                                                |
+| `StorageTest`         | 492   | 이관      | 캐시 8종·테스트레코드 4종·preference 3종 (`FetchAllCacheData`·`SaveCacheData`·`DeleteCacheData`·`ClearCacheData`·`SaveTestRecord`·`FetchPreference` 등)                                                                                       |
+| `BridgeTest`          | 452   | **삭제**  | ADR-0080 결정 11 — 브릿지가 죽으면 흰 화면이 이미 알려준다                                                                                                                                                                                    |
+| `IapTest`             | 400   | 이관      | `FetchProducts`·`Purchase`·`FetchCurrentPurchases`·`FinishPurchaseTransaction`·`OpenStore`·`OpenSubscriptionManagement`                                                                                                                       |
+| `OAuthTest`           | 382   | 이관      | `OAuthLogin`·`OAuthLogout`                                                                                                                                                                                                                    |
+| `SmsTest`             | 373   | 이관      | `SendSms`                                                                                                                                                                                                                                     |
+| `DeviceTest`          | 348   | 이관      | `RequestPermission`·`GetContacts`·`OpenCamera`·`OpenPhotoLibrary`·`OpenDocument`·`OpenShareSheet`·`CopyToClipboard`·`FetchSafeArea`·`OpenSettings` (웹 `DeviceInfoScreen` 38줄 확장)                                                          |
+| `Monitoring`          | 314   | 이관      | 큐는 웹 `LogBufferScreen`(624줄)이 **이미 전부 덮는다** — 빠진 건 네이티브 카운터 2개(`getContentProcessReloadCount`·`getLastForegroundResumeMs`)뿐이고, `FetchBootRecords`가 그 둘을 함께 돌려주므로 부팅 기록 화면에 실렸다. 별 화면 불필요 |
+| `EnvironmentSettings` | 281   | **삭제**  | ADR-0080 결정 13 — 기능 자체를 뺀다                                                                                                                                                                                                           |
+| `BootPerformance`     | 237   | 이관      | **신규 웹 화면이 필요했다.** 웹 `BootTab`(83줄)은 현재 세션의 웹 타임라인을 라이브로 재는 다른 것이다 — 이쪽은 누적된 네이티브+웹 병합 기록이다. `BootRecordsScreen` 신설                                                                     |
+| `AppIconTest`         | 223   | 이관      | `FetchAppIcon`·`FetchAppIconList`·`ChangeAppIcon`                                                                                                                                                                                             |
+| `DeeplinkTest`        | 139   | 이관      | `OpenURL`                                                                                                                                                                                                                                     |
+| `DebugHomeScreen`     | 77    | **삭제**  | 결정 12 — 열 곳이 없다                                                                                                                                                                                                                        |
 
 ### 단계 1 검증 결과 — 새 브릿지 명령 3개 (2026-09-10)
 
@@ -200,6 +205,18 @@ flowchart TD
 | [`overlay/screenRegistry.tsx`](../../src/app/features/debug/overlay/screenRegistry.tsx) | `lazy()` 한 줄 — 초기 번들에 안 들어간다 |
 | `overlay/screens/<Name>Screen.tsx`                                                      | 화면 본문                                |
 
+**청크 업로드는 제품이 쓰지 않는다 — 그런데도 남긴다 (2026-09-10 결정).** 실측: 제품의 이미지 첨부는
+`usePickImage` → `resizeImageToBase64`(base64)이고, 업로드 명령 8종의 소비자는 디버그 밖에 **0건**이다.
+`appBridge`에는 업로드 메서드가 아예 없어 제품 파사드에 올라간 적도 없고, 모바일 `uploadService`(898줄)를
+부르는 것은 `useUploadHandler` 하나이며 그 핸들러를 부르는 건 웹 디버그 화면뿐이다. 구조가 `SocketTest`와
+같다.
+
+**그래도 지우지 않는다.** 네이티브 서비스는 2026-05-26~28에 청크·백그라운드 태스크·SQLite 영속·복구까지
+갖춰 만들어졌고 그 뒤 손대지 않았다 — **버려진 코드인지 아직 안 나온 대용량 첨부를 위해 미리 만든 것인지
+커밋만으로는 구분되지 않는다.** 지우는 쪽이 4,700줄을 줄이지만 후자였다면 재구현 비용이 크고 브릿지 계약
+축소라 앱 릴리스도 든다. 그래서 **웹 조작면을 남겨 QA가 계속 시험할 수 있게 하고**, 서비스와 명령 8종의
+처분은 별건으로 넘긴다.
+
 **"동등성 확인"이라 적었던 셋 중 둘은 그게 아니었다.** 이름이 비슷하다고 같은 화면이 아니다 —
 `BootPerformance`↔`BootTab`은 **다른 것을 재고**(누적 기록 vs 현재 세션 라이브), `Monitoring`은
 반대로 웹이 이미 거의 다 덮고 있었다(카운터 2개만 부족). 단계 1의 딥링크 오판과 같은 실수이므로
@@ -246,9 +263,13 @@ flowchart TD
     - [x] `BootPerformance` → `BootRecordsScreen` 신설(147줄) + `debugMenu`·`screenRegistry` 등록 +
           `appBridge` 3메서드. 테스트 7건. 새 명령 3개가 이걸로 end-to-end 검증됐다
     - [x] `Monitoring` → 별 화면 불필요로 판정(카운터 2개는 위 화면에 실림)
-    - [ ] `UploadTest` — 웹 1,720줄이 모바일 1,100줄의 상위집합인지 확인
-    - [ ] 확장 2개: `PushScreen`←`NotificationTest`(+`DeleteFcmToken` 버튼) ·
-          `DeviceInfoScreen`←`DeviceTest`
+    - [x] `UploadTest` — 단계 2에서 할 일 없음으로 판정. 웹 화면이 8개 명령의 유일한 소비자이므로 그대로
+          살아남고, 모바일 화면은 단계 6에서 사라진다. 네이티브 서비스·명령 8종 처분은 별건(위 절)
+    - [x] `PushScreen`←`NotificationTest` — 조작 절 신설(토큰 삭제 · 알림 권한 · 로컬 알림 ·
+          뱃지 조회/0으로 · 푸시 탭 재현). `appBridge`에 `fetchBadgeCount`·`showNotification`·
+          `requestPermission` 3개를 **파사드만** 추가했다(계약은 이미 있었으므로 앱 릴리스 없음).
+          테스트 6건. 이걸로 `DeleteFcmToken`까지 새 명령 3개 전부 end-to-end 검증됐다
+    - [ ] `DeviceInfoScreen`←`DeviceTest`
     - [ ] 신규 6개: `StorageTest` · `IapTest` · `OAuthTest` · `SmsTest` · `AppIconTest` · `DeeplinkTest`
 - [ ] **3. 결정 14 버튼 3개** — 로그 지금 보내기(`flushNow`) · 설정 전체 보기(`snapshotAll`) ·
       캐시 도메인별 비우기. 앞의 둘은 브릿지 왕복이 없다.
