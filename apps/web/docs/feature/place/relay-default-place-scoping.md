@@ -1,6 +1,6 @@
 # 기본플레이스 relay 스코핑과 플레이스 생성·수정 경로
 
-> 상태: Live · 최종 갱신: 2026-08-10 · 관련 ADR: [0045](../../../../../docs/adr/0045-relay-default-place-scoping-profile-step-and-avatar-unification.md) (결정 1~5; 결정 6은 [web-ui-kit avatar](../../../../../libs/web-ui-kit/docs/avatar.md))
+> 상태: Live · 최종 갱신: 2026-08-10 · 관련 ADR: [0045](../../../../../docs/adr/0045-relay-default-place-scoping-profile-step-and-avatar-unification.md) (결정 1~5; 결정 6은 [아바타 통합 스펙](../../../../../docs/specs/avatar-unification.md))
 
 ## 목적
 
@@ -47,7 +47,7 @@ ADR-0045 결정 1~5의 아키텍처 문서다. (~~새 플레이스의 owner가 �
 
 **제외**
 
-- 아바타 통합(ADR-0045 결정 6) → [web-ui-kit avatar](../../../../../libs/web-ui-kit/docs/avatar.md).
+- 아바타 통합(ADR-0045 결정 6) → [아바타 통합 스펙](../../../../../docs/specs/avatar-unification.md).
 - desktop-web 동작 변화 — 옵션 기본값으로 현행 유지.
 - 플레이스 입장 시 프로필 게이트(ADR-0045에서 기각), 기존 nudge(ADR-0040)·초대 경로(ADR-0041)의
   스킵 가능 정책 변경.

@@ -1,6 +1,14 @@
 # Avatar — 표시용 아바타 단일 컴포넌트
 
-> 상태: Approved · 최종 갱신: 2026-08-06 · 관련 ADR: [0045](../../../docs/adr/0045-relay-default-place-scoping-profile-step-and-avatar-unification.md) (결정 6)
+> 상태: **Approved · 미착수** · 최종 갱신: 2026-08-06 · 관련 ADR: [0045](../adr/0045-relay-default-place-scoping-profile-step-and-avatar-unification.md) (결정 6)
+>
+> **1단계(Figma 판독)에서 막혀 있고 그 뒤로 아무것도 시작되지 않았다.** `libs/web-ui-kit`에는
+> 지금도 아바타 컴포넌트 7종(`AvatarGroup`·`ChatAvatar`·`CloudAvatar`·`DefaultAvatar`·
+> `ImageAvatar`·`PlaceAvatar`·`ProfileAvatar`)과 `avatarBase`가 그대로 있고, `Avatar.tsx`는
+> 존재하지 않는다. 아래 API·매핑·순서는 **제안**이지 현행 서술이 아니다.
+>
+> 이 문서가 `libs/web-ui-kit/docs/`가 아니라 여기 있는 이유가 그것이다 — 계획은 `docs/specs/`,
+> 구현 서술은 lib 쪽. 착수해서 끝나면 그때 lib으로 옮기고 임시 절을 지운다.
 
 ## 목적
 
@@ -116,7 +124,7 @@ interface AvatarProps {
 
 - 폴백 순서: `src` → variant별 placeholder(글리프/이니셜). 현재 앱 전반의
   `src ? <ImageAvatar/> : <DefaultAvatar/>` 삼항을 전부 흡수한다.
-- `cloud`의 8색 name-hash 팔레트([CloudAvatar.tsx](../src/foundations/avatar/CloudAvatar.tsx))는
+- `cloud`의 8색 name-hash 팔레트([CloudAvatar.tsx](../../libs/web-ui-kit/src/foundations/avatar/CloudAvatar.tsx))는
   Figma 3037-19916 기준으로 유지/개정 여부 확정.
 - ring: `AvatarGroup` 호스트가 붙이던 `ring-2 ring-surface`(ChannelRoomPage)를 Avatar prop으로
   흡수할지, 지금처럼 호스트 책임으로 둘지 — Figma 그룹방 노드(3158-26215) 기준으로 결정.
@@ -133,8 +141,8 @@ interface AvatarProps {
   충돌 — 단일 숫자 `size`로 통일하고 토큰 별칭은 Figma 크기 체계 확인 후 결정.
 - **`defaultPlaceAvatar` asset**: `<img>` URL로 물려 CSS 변수가 상속되지 않는 폴백 색 문제.
   Figma 플레이스 placeholder로 대체 검토(사용처 1곳 — CreatePlaceDialog `defaultImage`).
-- **타입 버그(통과 수리)**: `ManageChannelItem.stories.tsx:38`의 `variant="self"`는
-  `DefaultAvatarProps`에 없는 값 — 교체 시 함께 정리.
+- ~~**타입 버그**: `ManageChannelItem.stories.tsx`의 `variant="self"`~~ — 2026-09 확인 시점에
+  이미 없다. 별도로 수리됐다.
 
 ### 마이그레이션 순서
 
