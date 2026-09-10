@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { ListRow, MenuCard, Switch } from '@chatic/web-ui-kit';
 
 import { useDevicePushMute } from '../hooks';
-import { usePreferenceStore } from '../../../stores/usePreferenceStore';
+import { useBlurLastMessage } from '../../../hooks';
 import { PageHeader } from '../../../ui/components';
 
 /**
@@ -15,7 +15,7 @@ import { PageHeader } from '../../../ui/components';
 export const NotificationSettingsPage = () => {
     const { t } = useTranslation();
     const { pushEnabled, setPushEnabled, isSupported: pushSupported } = useDevicePushMute();
-    const { blurLastMessage, setBlurLastMessage } = usePreferenceStore();
+    const { blurLastMessage, setBlurLastMessage } = useBlurLastMessage();
 
     return (
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-background">

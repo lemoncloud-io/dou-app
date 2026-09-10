@@ -15,8 +15,8 @@
 그 세션으로부터 소켓 연결·HTTP 클라이언트·repository 그래프·sync 런타임을 파생시키는 **composition root**다.
 
 앱이 직접 보는 패키지는 `@chatic/app-runtime`와 `@chatic/data` 둘뿐이다. `@chatic/http` · `@chatic/db` ·
-`@chatic/auth-sign` · `@chatic/web-config` · `@lemoncloud/chatic-sockets-lib`는 전부 이 라이브러리가
-조립하는 대상이며 앱 코드에 새지 않는다.
+`@chatic/auth-sign` · `@lemoncloud/chatic-sockets-lib`는 전부 이 라이브러리가 조립하는 대상이며 앱 코드에
+새지 않는다. `@chatic/config`만 예외다 — 앱 엔트리가 직접 `config.init()`으로 켠다(ADR-0079).
 
 ADR-0076가 더한 책임은 하나다: **"지금 인증·세션 상태가 무엇인가"에 대한 답이 이 패키지 안에 정확히
 한 군데 있다.** ADR-0070이 상태의 *소유*를 하나로 만들었고, 이 개정이 상태의 *판정과 통지*를 하나로 만들었다.
@@ -278,7 +278,7 @@ sequenceDiagram
 | `scope/` | `ActiveScope` — selected·bound·committed 세 뷰 + 합성      | `DataContextProvider` 구현자                          |
 | `hooks/` | React 표면 — readers 4 · session actions · auth · app 훅   | `auth`·`store` 소비만                                 |
 
-env는 주입받는다: `store/**`는 `@chatic/web-config`를 직접 import하지 않고,
+env는 주입받는다: `store/**`는 `@chatic/config`를 직접 import하지 않고,
 [`store/configure.ts`](../src/session/store/configure.ts) 한 파일만이 relay endpoint resolver를
 꽂는 이음매다(그 파일만 lint 면제).
 
@@ -704,10 +704,17 @@ keep-alive(`useRelaySessionKeepAlive`)는 게이트 위에서 인라인 호출�
 initAppRuntime({ data: { cache: { maxChatsPerChannel: 1000 } } });
 ```
 
-하는 일 셋: env → relay endpoint resolver 주입(`configureSessionStore`), route별 자격증명 복구 배선
-(`credentialRecovery.register`), 그리고 넘겨받은 데이터 정책 등록(`configureDataRuntime`). 네트워크는
-건드리지 않는다 — resolver는 **함수로** 주입되므로 부팅 이후 잡힌 딥링크 override도 유효하고, lemon
-transport는 첫 사용 시 지연 생성된다.
+하는 일은 순서대로 다섯이다: 로그아웃 청소(`logoutStorageSweeper.sweep()`), env → relay endpoint
+resolver 주입(`configureSessionStore`), route별 자격증명 복구 배선(`credentialRecovery.register`),
+넘겨받은 데이터 정책 등록(`configureDataRuntime`, 넘겼을 때만), 기기 설정 상태 로깅
+(`attachConfigStateLog`). 네트워크는 건드리지 않는다 — resolver는 **함수로** 주입되므로 부팅 이후 잡힌
+딥링크 override도 유효하고, lemon transport는 첫 사용 시 지연 생성된다.
+
+**청소가 가장 먼저인 이유.** `RelaySession.logout()`은 `?logout=1`을 붙여 리다이렉트하고, 다음 문서의
+이 호출이 그 플래그를 읽어 `@` 접두 저장 키를 지운다
+([`session/auth/logoutStorageSweep.ts`](../src/session/auth/logoutStorageSweep.ts)). 아래 배선 중
+하나라도 토큰을 읽기 전에 끝나야 방금 로그아웃한 계정의 토큰이 살아남지 않는다. 플래그가 없는 로드에서는
+아무것도 하지 않는다. ADR-0079 전에는 `@chatic/web-config`의 import 부수효과였다.
 
 **세 배선 중 둘만 위임한다.** `configureSessionStore`·`configureDataRuntime`은 설정 대상을 **소유한**
 모듈(스토어, 데이터 런타임)에 있다. 자격증명 복구는 소유 모듈이 없다 — HTTP 레지스트리와 소켓

@@ -7,7 +7,9 @@ import { getRepositories } from '../data/runtime';
 import { reportIssue } from './reportIssue';
 
 jest.mock('../data/runtime', () => ({ getRepositories: jest.fn() }));
-jest.mock('@chatic/web-config', () => ({ WEB_ENV: 'test', WEB_PROJECT: 'chatic_web' }));
+jest.mock('@chatic/config', () => ({
+    config: { get: jest.fn((key: string) => ({ 'env.stage': 'test', 'env.project': 'chatic_web' })[key]) },
+}));
 jest.mock('@chatic/bridges', () => ({
     isNative: () => false,
     logger: { info: jest.fn(), error: jest.fn() },

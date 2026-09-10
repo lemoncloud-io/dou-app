@@ -17,10 +17,11 @@ module.exports = {
         // PrivateLayout -> @chatic/assets) fails to load, which is what pushed call sites onto
         // barrel-bypassing direct paths.
         '^@chatic/assets$': '<rootDir>/__mocks__/assetsMock.js',
-        // `@chatic/web-config` is the single `import.meta.env` holder (ADR-0070 결정 6) — same
-        // unparseable-by-CommonJS problem as `@chatic/assets`, and reached transitively by anything
-        // touching `@chatic/app-runtime`. See the mock file for why this is global rather than per-test.
-        '^@chatic/web-config$': '<rootDir>/__mocks__/webConfigMock.js',
+        // Subpath entries MUST come first. The generic `^@chatic/(.*)$` rule below captures
+        // `config/react` into $1 and resolves to `libs/config/react/src/index.ts`, which does not
+        // exist — the real entry is `libs/config/src/react/index.ts` (see libs/config/jest.config.js,
+        // which hit the same trap).
+        '^@chatic/config/(.*)$': '<rootDir>/../../libs/config/src/$1/index.ts',
         '^@chatic/(.*)$': '<rootDir>/../../libs/$1/src/index.ts',
         // web-ui-kit re-exports SVG/image assets from its barrel; stub them (and styles) so tests
         // importing @chatic/web-ui-kit don't choke on static asset imports.

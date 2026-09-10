@@ -23,7 +23,6 @@ jest.mock('@chatic/app-runtime', () => ({
 }));
 // My user id drives the owner-vs-member title branch; 'me' owns channels tagged ownerId: 'me'.
 
-jest.mock('../../../stores/usePreferenceStore', () => ({ usePreferenceStore: () => false }));
 // The rows' preview source — the list-level combined lookup (ADR-0057). Null by default (rows
 // under test have no messages); the preview cases below seed it for EVERY row. Preview picking
 // itself is covered by chatPreview.test.ts (libs/data) and useLastChats.test.ts.
@@ -42,6 +41,7 @@ jest.mock('../../../hooks/useLastChats', () => ({
 jest.mock('../../../hooks', () => ({
     ...jest.requireActual('../../../hooks'),
     useMyProfile: () => ({ profile: { nick: 'MY_NICK', thumbnail: 'my-photo.png' } }),
+    useBlurLastMessage: () => ({ blurLastMessage: false }),
 }));
 
 // The list-level DM peer lookup (one profile subscription for every DM row) is covered by

@@ -6,61 +6,60 @@ describe('debugOverlayStore — 오버레이 내비 상태머신', () => {
         debugOverlayActions.close();
     });
 
-    it('초기 상태는 닫힘·미니 모드·홈이다', () => {
-        expect(getDebugOverlayState()).toEqual({ isOpen: false, mode: 'mini', screen: null });
+    it('초기 상태는 닫힘·독 크기·홈이다', () => {
+        expect(getDebugOverlayState()).toEqual({ isOpen: false, size: 'dock', screen: null });
     });
 
-    it('open()은 기본 미니 모드로 연다', () => {
+    it('open()은 기본 독 크기로 연다', () => {
         debugOverlayActions.open();
-        expect(getDebugOverlayState()).toEqual({ isOpen: true, mode: 'mini', screen: null });
+        expect(getDebugOverlayState()).toEqual({ isOpen: true, size: 'dock', screen: null });
     });
 
-    it('open("expanded")은 확장 모드로 바로 연다', () => {
-        debugOverlayActions.open('expanded');
-        expect(getDebugOverlayState().mode).toBe('expanded');
+    it('open("full")은 전체 크기로 바로 연다', () => {
+        debugOverlayActions.open('full');
+        expect(getDebugOverlayState().size).toBe('full');
     });
 
-    it('selectScreen은 확장 모드로 전환하며 스크린을 연다', () => {
+    // 크기는 크기만 바꾼다 — 스크린 선택이 크기 때문에 뒤집히지 않는다.
+    it('selectScreen은 현재 크기를 유지한 채 스크린만 연다', () => {
         debugOverlayActions.open();
         debugOverlayActions.selectScreen('LogBuffer');
-        expect(getDebugOverlayState()).toEqual({ isOpen: true, mode: 'expanded', screen: 'LogBuffer' });
-    });
+        expect(getDebugOverlayState()).toEqual({ isOpen: true, size: 'dock', screen: 'LogBuffer' });
 
-    it('minimize는 선택된 스크린을 유지한 채 미니 모드로 내린다', () => {
-        debugOverlayActions.selectScreen('LogBuffer');
-        debugOverlayActions.minimize();
-        expect(getDebugOverlayState()).toEqual({ isOpen: true, mode: 'mini', screen: 'LogBuffer' });
-
-        // Re-expanding returns to where the user was.
         debugOverlayActions.expand();
-        expect(getDebugOverlayState().screen).toBe('LogBuffer');
-    });
-
-    it('float은 선택된 스크린을 띄운 채 플로팅으로 전환한다', () => {
         debugOverlayActions.selectScreen('DBBrowser');
-        debugOverlayActions.float();
-        expect(getDebugOverlayState()).toEqual({ isOpen: true, mode: 'float', screen: 'DBBrowser' });
-
-        // 다시 확장하면 같은 스크린으로 돌아온다.
-        debugOverlayActions.expand();
-        expect(getDebugOverlayState()).toEqual({ isOpen: true, mode: 'expanded', screen: 'DBBrowser' });
+        expect(getDebugOverlayState()).toEqual({ isOpen: true, size: 'full', screen: 'DBBrowser' });
     });
 
-    // 스크린이 없으면 띄울 게 없으므로 빈 프레임 대신 관찰 패널로 떨어진다.
-    it('스크린이 없을 때 float은 미니 모드로 떨어진다', () => {
-        debugOverlayActions.open('expanded');
-        debugOverlayActions.float();
-        expect(getDebugOverlayState()).toEqual({ isOpen: true, mode: 'mini', screen: null });
+    // 독 폭에서 읽을 수 없는 화면만 매니페스트가 크기를 강제한다.
+    it('매니페스트가 크기를 정한 스크린은 그 크기로 열린다', () => {
+        debugOverlayActions.open();
+        debugOverlayActions.selectScreen('CacheTest');
+        expect(getDebugOverlayState()).toEqual({ isOpen: true, size: 'full', screen: 'CacheTest' });
+    });
+
+    it('닫힌 상태에서 스크린을 고르면 그대로 열린다', () => {
+        debugOverlayActions.selectScreen('Push');
+        expect(getDebugOverlayState()).toEqual({ isOpen: true, size: 'dock', screen: 'Push' });
+    });
+
+    it('크기 전환은 선택된 스크린을 유지한다', () => {
+        debugOverlayActions.selectScreen('LogBuffer');
+        debugOverlayActions.expand();
+        expect(getDebugOverlayState()).toEqual({ isOpen: true, size: 'full', screen: 'LogBuffer' });
+
+        debugOverlayActions.minimize();
+        expect(getDebugOverlayState()).toEqual({ isOpen: true, size: 'dock', screen: 'LogBuffer' });
     });
 
     it('스크린에서 goBack하면 홈 메뉴로 돌아간다', () => {
         debugOverlayActions.selectScreen('Push');
         debugOverlayActions.goBack();
-        expect(getDebugOverlayState()).toEqual({ isOpen: true, mode: 'expanded', screen: null });
+        expect(getDebugOverlayState()).toEqual({ isOpen: true, size: 'dock', screen: null });
     });
 
     it('홈에서 goBack하면 오버레이가 닫힌다 (모바일과 동일한 백 동작)', () => {
-        debugOverlayActions.open('expanded');
+        debugOverlayActions.open('full');
         debugOverlayActions.goBack();
         expect(getDebugOverlayState().isOpen).toBe(false);
     });
@@ -68,7 +67,7 @@ describe('debugOverlayStore — 오버레이 내비 상태머신', () => {
     it('close는 내비 상태를 초기화해 다음 open이 홈에서 시작된다', () => {
         debugOverlayActions.selectScreen('DBBrowser');
         debugOverlayActions.close();
-        debugOverlayActions.open('expanded');
+        debugOverlayActions.open('full');
         expect(getDebugOverlayState().screen).toBeNull();
     });
 });

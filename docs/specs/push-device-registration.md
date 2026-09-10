@@ -234,7 +234,7 @@ const uid = (user?.id ?? user?.uid ?? null) as string | null;
 
 ### 저장 기록 — 두 계층
 
-**웹 계층**은 `@chatic/shared`의 `storage`다. 기본 어댑터는 `sessionStorage`지만 네이티브 셸(RN WebView / Electron) 안에서는 `libs/web-config/src/env.ts:108`이 `localStorage`로 교체하고, 훅이 도는 조건(델리게이트 non-null ⟺ 네이티브 셸)과 범위가 정확히 일치한다. **동기**라는 점이 존재 이유다 — 포그라운드 복귀 경로가 브릿지 왕복 없이 판단할 수 있어야 한다.
+**웹 계층**은 `@chatic/shared`의 `storage`다. 기본 어댑터는 `sessionStorage`지만 네이티브 셸(RN WebView / Electron) 안에서는 앱 엔트리의 `setStorageAdapter(isNative() ? localStorage : sessionStorage)`가 `localStorage`로 교체하고(ADR-0079 전에는 `libs/web-config`의 import 부수효과였다), 훅이 도는 조건(델리게이트 non-null ⟺ 네이티브 셸)과 범위가 정확히 일치한다. **동기**라는 점이 존재 이유다 — 포그라운드 복귀 경로가 브릿지 왕복 없이 판단할 수 있어야 한다.
 
 ```
 키   push-reg:v1:<uid>:<deviceId>:<platform>
@@ -245,7 +245,7 @@ const uid = (user?.id ?? user?.uid ?? null) as string | null;
 
 - `at`은 진단용이다. 만료 판단에 쓰지 않는다 — 설치당 1회이므로 만료가 없다.
 - `v1`은 정책 버전이다. 올리면 전 기기가 한 번 재등록한다.
-- 웹 계층 키는 `@`로 시작하지 않는다. `libs/web-config/src/env.ts`의 `?logout=1` 정리 루틴이 `@` 접두 키를 지우기 때문이다. 지워져도 uid가 키에 있어 동작은 안전하지만, 불필요한 재등록을 만들지 않는다.
+- 웹 계층 키는 `@`로 시작하지 않는다. `?logout=1` 정리 루틴(`app-runtime/session/auth/logoutStorageSweep`)이 `@` 접두 키를 지우기 때문이다. 지워져도 uid가 키에 있어 동작은 안전하지만, 불필요한 재등록을 만들지 않는다.
 - 웹 계층이 비었는데 네이티브가 답할 수 있으면 `read`가 웹 계층을 **백필**한다. 이후 동기 읽기가 다시 빨라진다.
 - 메모리의 네이티브 사본은 셸이 쓰기를 **실제로 수락한 뒤에만** 세팅한다. 없는 네이티브 사본을 있다고 믿으면, 세션 중 웹 계층이 비워졌을 때 답할 수 없는 계층을 근거로 등록을 건너뛰게 된다 — 건너뛰는 쪽이 위험한 방향이다.
 

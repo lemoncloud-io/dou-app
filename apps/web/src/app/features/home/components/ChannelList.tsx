@@ -28,11 +28,10 @@ import {
 } from '@chatic/web-ui-kit';
 
 import { useDmPeers, type DmPeer } from '../../channels/hooks';
-import { usePreferenceStore } from '../../../stores/usePreferenceStore';
 import type { ChannelSortMethod } from '../../../stores/preferenceKeys';
 import { ROUTES } from '../../../routes/paths';
 import { useLastChats } from '../../../hooks/useLastChats';
-import { useChannelUnreads, useMyProfile } from '../../../hooks';
+import { useBlurLastMessage, useChannelUnreads, useMyProfile } from '../../../hooks';
 import { resolveChannelAvatar, resolveChannelTitle } from '../../channels/lib';
 import { messagePlainText } from '../../channels/utils/messagePlainText';
 import { toPlainPreview } from '../../channels/utils/messageTokens';
@@ -88,7 +87,7 @@ const ChannelItem = ({
 }) => {
     const { t, i18n } = useTranslation();
     const navigate = useNavigateWithTransition();
-    const blurLastMessage = usePreferenceStore(s => s.blurLastMessage);
+    const { blurLastMessage } = useBlurLastMessage();
     // Self-chat is identified by stereo (ADR-0026), not member count.
     const isSelf = channel.stereo === 'self';
     // 1:1 DM (stereo): the row shows the peer, not the channel — its own name/photo/member count

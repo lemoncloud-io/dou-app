@@ -15,19 +15,22 @@
             "path": "../../libs/app-messages/tsconfig.lib.json"
         },
         {
-            "path": "../../libs/data/tsconfig.lib.json"
-        },
-        {
-            "path": "../../libs/app-runtime/tsconfig.lib.json"
-        },
-        {
             "path": "../../libs/block-kit/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/data/tsconfig.lib.json"
         },
         {
             "path": "../../libs/bridges/tsconfig.lib.json"
         },
         {
             "path": "../../libs/ui-kit/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/config/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/app-runtime/tsconfig.lib.json"
         },
         {
             "path": "../../libs/theme/tsconfig.lib.json"

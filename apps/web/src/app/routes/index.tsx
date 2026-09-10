@@ -7,11 +7,11 @@ import { runtime } from '@chatic/app-runtime';
 
 import { markBoot } from '../features/debug/metrics/bootMarks';
 import { scheduleBootMetricsReport } from '../features/debug/metrics/reportBootMetrics';
-import { recordRoute } from '../utils/routeTrail';
 import { commonRoutes } from './CommonRoutes';
 import { privateRoutes } from './PrivateRoutes';
 import { publicRoutes } from './PublicRoutes';
 import { ROUTES } from './paths';
+import { observeRouterRoutes } from './routeObserver';
 
 export const Router = () => {
     const { isAuthenticated, isInitialized } = runtime.session.useSessionAuth();
@@ -42,15 +42,11 @@ export const Router = () => {
         return createBrowserRouter(routesWithErrorElement);
     }, [isAuthenticated, handleRouterError]);
 
-    // Route trail for issue diagnostics: the feedback screen is reached from MyPage, so its own
-    // pathname says nothing about where the user hit the problem. Subscribing to the data router
-    // (rather than a `useLocation` runner) is the only option here — AppRuntime sits ABOVE
-    // RouterProvider, so there is no router context to hook into outside this component. `subscribe`
-    // does not replay the current state, hence the explicit first record.
-    useEffect(() => {
-        recordRoute(router.state.location.pathname);
-        return router.subscribe(state => recordRoute(state.location.pathname));
-    }, [router]);
+    // Route observers for issue diagnostics: the trail (where the user has been — the feedback
+    // screen is reached from MyPage, so its own pathname says nothing about where the bug was hit)
+    // and the reconstructed history stack (what the back button will do). Both are fed from one
+    // subscription here; see `routeObserver` for why this is the only place that can do it.
+    useEffect(() => observeRouterRoutes(router), [router]);
 
     if (!isInitialized) {
         logger.warn('ROUTER', 'Router blocked: isInitialized is false, rendering null');

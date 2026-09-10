@@ -1,15 +1,14 @@
 import { useEffect } from 'react';
 
 import { ErrorBoundary } from 'react-error-boundary';
+import { Bug } from 'lucide-react';
 
 import { runtime } from '@chatic/app-runtime';
 
 import { metricsCollector } from '../metrics/MetricsCollector';
 import { useDebugMode } from '../hooks';
 import { debugOverlayActions, useDebugOverlayState } from './overlayStore';
-import { ExpandedSheet } from './ExpandedSheet';
-import { FloatingScreen } from './FloatingScreen';
-import { MiniPanel } from './MiniPanel';
+import { DebugPanel } from './DebugPanel';
 
 // Always-on socket quality reporter — keeps connect/disconnect counts accurate
 // even while the monitoring overlay is closed.
@@ -29,7 +28,7 @@ function MetricsSocketReporter() {
  */
 export const DebugOverlayHost = () => {
     const { isEnabled } = useDebugMode();
-    const { isOpen, mode } = useDebugOverlayState();
+    const { isOpen } = useDebugOverlayState();
 
     // Initially hidden everywhere; 10-tap (MyPage app version) is the sole entry, web disable exits.
     if (!isEnabled) return null;
@@ -44,14 +43,13 @@ export const DebugOverlayHost = () => {
             {!isOpen && (
                 <button
                     onClick={() => debugOverlayActions.open()}
-                    className="fixed bottom-4 right-4 z-50 px-3 py-1.5 rounded-full bg-muted text-muted-foreground text-xs font-mono shadow-md border border-border hover:bg-accent transition-colors"
+                    className="fixed bottom-4 right-4 z-50 flex items-center gap-1.5 rounded-full border border-border bg-card/95 px-3 py-1.5 font-mono text-xs text-muted-foreground shadow-lg backdrop-blur transition-colors hover:text-foreground"
                 >
+                    <Bug size={13} />
                     debug
                 </button>
             )}
-            {isOpen && mode === 'mini' && <MiniPanel />}
-            {isOpen && mode === 'float' && <FloatingScreen />}
-            {isOpen && mode === 'expanded' && <ExpandedSheet />}
+            {isOpen && <DebugPanel />}
         </ErrorBoundary>
     );
 };

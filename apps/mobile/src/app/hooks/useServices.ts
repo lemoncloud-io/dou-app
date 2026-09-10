@@ -1,6 +1,7 @@
 import {
     bootMetricsService,
     clipboardService,
+    configKvService,
     deviceService,
     smsService,
     dynamicAppIconService,
@@ -38,6 +39,7 @@ export const useServices = () => ({
     firebaseInstallationService: firebaseInstallationService,
     subscriptionIapService: subscriptionIapService,
     preferenceService: preferenceService,
+    configKvService: configKvService,
     keyValueStorage: keyValueStorage,
     bootMetricsService: bootMetricsService,
     versionService: versionService,

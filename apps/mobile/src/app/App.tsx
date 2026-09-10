@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { View } from 'react-native';
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 
@@ -7,19 +7,14 @@ import { NavigationContainer } from '@react-navigation/native';
 import { RootNavigator, navigationRef } from './features/core/navigation';
 import { useAppVersionCheck, useResolvedTheme } from './hooks';
 import { bootMetricsService, notificationService } from './services';
-import { FloatingMenu, SystemBars } from './features/core/components';
-import { DebugOverlay } from './features/debug';
-import type { DebugOverlayEntryKey } from './features/debug/debugMenu';
-import { useDebugSettingsStore } from './stores';
+import { SystemBars } from './features/core/components';
 
 export const App = () => {
     const { hasUpdate, showUpdateAlert } = useAppVersionCheck(true);
-    const [isDebugOverlayVisible, setDebugOverlayVisible] = useState(false);
-    const [debugOverlayEntry, setDebugOverlayEntry] = useState<DebugOverlayEntryKey>('FeatureTests');
-    // The debug menu (native FAB) is NEVER shown by default in any build — the ONLY trigger is the
-    // web 10-tap unlock, propagated here as `debugModeEnabled` (see usePerfHandler / SetDebugMode) and
-    // cleared by the web on start / on disable (SetDebugMode(false)). Env no longer gates the menu;
-    const debugModeEnabled = useDebugSettingsStore(state => state.debugModeEnabled);
+    // No debug UI here any more — the FAB and the overlay are gone (ADR-0080 결정 12). Every debug
+    // control lives in the web panel, and the app only executes what it is asked to. The unlock flag
+    // itself is still meaningful: `AppWebView` injects `debugModeEnabled` so the web knows the 10-tap
+    // unlock survived a reload (see `injectionScripts`).
 
     // Signal that Firebase is ready for deep link processing immediately
     useEffect(() => {
@@ -38,11 +33,6 @@ export const App = () => {
         }
     }, [hasUpdate, showUpdateAlert]);
 
-    const openDebugOverlay = (entry: DebugOverlayEntryKey) => {
-        setDebugOverlayEntry(entry);
-        setDebugOverlayVisible(true);
-    };
-
     const { backgroundColor } = useResolvedTheme();
 
     return (
@@ -53,10 +43,6 @@ export const App = () => {
             <NavigationContainer ref={navigationRef}>
                 <View style={{ flex: 1, backgroundColor }}>
                     <RootNavigator />
-                    {debugModeEnabled && !isDebugOverlayVisible && <FloatingMenu onOpenDebug={openDebugOverlay} />}
-                    {debugModeEnabled && isDebugOverlayVisible && (
-                        <DebugOverlay initialEntry={debugOverlayEntry} onClose={() => setDebugOverlayVisible(false)} />
-                    )}
                 </View>
             </NavigationContainer>
         </SafeAreaProvider>

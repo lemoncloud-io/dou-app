@@ -1,36 +1,19 @@
 import { reportPerfMetric } from '@chatic/logger';
-import type { SendBootMetricsPayload } from '@chatic/app-messages';
+import type { BootRecord, BootType, NativeBootMarkKey, SendBootMetricsPayload } from '@chatic/app-messages';
 
 import type { IKeyValueStorage } from '../../database';
 import type { ILogService } from '../log';
 
 /**
- * Native boot milestones, in ms relative to the boot-session baseline
- * (DependencyProvider construction for cold boots, reload trigger for
+ * The record shape and its two supporting unions moved to `@chatic/app-messages`
+ * (`types/model/perf.ts`) when `FetchBootRecords` made the record cross the bridge — the web now
+ * reads these, so one declaration is what keeps the two sides from drifting.
+ *
+ * Re-exported here so existing importers keep working; the baseline the milestones are relative to
+ * is still this service's (DependencyProvider construction for cold boots, the reload trigger for
  * WebView content-process reloads).
  */
-export type NativeBootMarkKey =
-    | 'provider-ready'
-    | 'app-mount'
-    | 'main-screen-mount'
-    | 'load-start'
-    | 'load-end'
-    | 'web-app-ready';
-
-export type BootType = 'cold' | 'reload';
-
-export interface BootRecord {
-    /** Epoch ms when the record was finalized. */
-    finalizedAt: number;
-    type: BootType;
-    appVersion: string;
-    /** Milestones relative to the session baseline. */
-    native: Partial<Record<NativeBootMarkKey, number>>;
-    /** Web-side snapshot (relative to the WebView page load), merged via SendBootMetrics. */
-    web: SendBootMetricsPayload | null;
-    /** Baseline → WebAppReady; the headline "boot took N ms" number. */
-    totalMs: number | null;
-}
+export type { BootRecord, BootType, NativeBootMarkKey };
 
 export interface IBootMetricsService {
     mark(key: NativeBootMarkKey): void;

@@ -12,14 +12,20 @@ import { Badge, Button, DefaultAvatar, ImageAvatar, ManageChannelItem } from '@c
 import type { MySiteView } from '@lemoncloud/chatic-backend-api';
 
 import { PageHeader } from '../../../ui';
-import { usePreferenceStore } from '../../../stores/usePreferenceStore';
 import { DEFAULT_CHANNEL_SORT, placeScopeKey } from '../../../stores/preferenceKeys';
 import { ConfirmDialog } from '../../channels/components';
 import { useChannelMutations, useChatMutations, useDmPeers, type DmPeer } from '../../channels/hooks';
-import { useActiveCloudData, useHomeChannels, useJoinSyncRegistration, useLastChats } from '../../../hooks';
+import {
+    useActiveCloudData,
+    useChannelSort,
+    useHomeChannels,
+    useJoinSyncRegistration,
+    useLastChats,
+    useMyProfile,
+    usePinnedChannels,
+} from '../../../hooks';
 import { resolveChannelAvatar, resolveChannelTitle } from '../../channels/lib';
 import { sortChannels } from '../../../utils/sortChannels';
-import { useMyProfile } from '../../../hooks';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { ROUTES } from '../../../routes/paths';
 import { InviteChannelRow } from '../../invite/components/InviteChannelRow';
@@ -82,9 +88,8 @@ export const PlaceChannelManagePage = () => {
     const navigate = useNavigateWithTransition();
     const { invites: sentInvitesAll } = useInviteListRows();
     const sentInvites = isDefaultCloud ? sentInvitesAll : [];
-    const sortMethodMap = usePreferenceStore(s => s.channelSort);
-    const pinnedMap = usePreferenceStore(s => s.pinnedChannels);
-    const setChannelPinned = usePreferenceStore(s => s.setChannelPinned);
+    const { channelSort: sortMethodMap } = useChannelSort();
+    const { pinnedChannels: pinnedMap, setChannelPinned } = usePinnedChannels();
     const pinnedChannelIds = useMemo(
         () => new Set(placeScope ? (pinnedMap[placeScope] ?? []) : []),
         [pinnedMap, placeScope]

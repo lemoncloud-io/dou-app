@@ -28,6 +28,7 @@ jest.mock('../../services', () => ({
         }),
         onNotificationOpenedApp: jest.fn(() => jest.fn()),
         getInitialNotification: jest.fn(() => Promise.resolve(null)),
+        deleteToken: jest.fn(() => Promise.resolve()),
     },
     pushEventManager: {
         onReceiveNotification: jest.fn((cb: (msg: any) => void) => {
@@ -159,5 +160,31 @@ describe('useFcmHandler - 포그라운드 푸시 → OnReceiveNotification', () 
         // Tap ownership moved out: the push hook must not register tap listeners anymore.
         expect(notificationService.onNotificationOpenedApp).not.toHaveBeenCalled();
         expect(notificationService.getInitialNotification).not.toHaveBeenCalled();
+    });
+});
+
+describe('useFcmHandler — DeleteFcmToken (ADR-0080 결정 11)', () => {
+    beforeEach(() => jest.clearAllMocks());
+
+    it('토큰을 지우고 성공을 알린다', async () => {
+        const bridge = { pushEvent: jest.fn() };
+        const { result } = renderHook(() => useFcmHandler(bridge as never));
+
+        const response = await result.current.handleDeleteFcmToken({ type: 'DeleteFcmToken', data: {} } as never);
+
+        expect(notificationService.deleteToken).toHaveBeenCalledTimes(1);
+        expect(response).toEqual({ type: 'OnDeleteFcmToken', success: true, data: { success: true } });
+    });
+
+    // deleteToken은 스스로 로깅하고 삼키므로 호출자는 "지웠다"와 "원래 없었다"를 구분할 수 없다.
+    // 둘 다 호출자가 요청한 상태이므로 어느 쪽이든 성공으로 답한다.
+    it('토큰이 원래 없었어도 성공으로 답한다', async () => {
+        (notificationService.deleteToken as jest.Mock).mockResolvedValue(undefined);
+        const bridge = { pushEvent: jest.fn() };
+        const { result } = renderHook(() => useFcmHandler(bridge as never));
+
+        const response = await result.current.handleDeleteFcmToken({ type: 'DeleteFcmToken', data: {} } as never);
+
+        expect(response).toMatchObject({ success: true });
     });
 });

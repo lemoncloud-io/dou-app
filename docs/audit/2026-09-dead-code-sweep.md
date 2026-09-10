@@ -87,7 +87,6 @@
 | `MAX_RETRIES`                                                                | `libs/http/src/error/classify.ts:18`                                                  |
 | `BRIDGE_VERSION_INFO`                                                        | `libs/bridges/src/version.ts:18`                                                      |
 | `AppLogInfoLogContext` (type)                                                | `libs/bridges/src/logger/appLogInfoCodec.ts:19`                                       |
-| `WEB_HOST` · `WEB_WS_ENDPOINT`                                               | `libs/web-config/src/env.ts:130,137`                                                  |
 | `useGoBack`                                                                  | `libs/shared/src/hooks/usePageTransition.ts:41`                                       |
 | `PaginationType` · `ErrorMessageType` (type)                                 | `libs/shared/src/types/index.ts:28` · `consts/index.ts:46`                            |
 | `SiteProfileBody` · `SiteProfileView` · `DomainInviteCloud` (type)           | `libs/data/src/data/domain/models.ts:50,51,55`                                        |
@@ -96,7 +95,8 @@
 | `CloudSessionIssueTokenResult` (type)                                        | `libs/app-runtime/src/session/store/types.ts:74`                                      |
 | `IconProps` (type)                                                           | `libs/web-ui-kit/src/resources/icons/index.ts:35`                                     |
 
-`MAX_RETRIES`·`ISocketClient`는 삭제 완료(§6). `CacheStorageItem`은 문서
+`MAX_RETRIES`·`ISocketClient`는 삭제 완료(§6). `WEB_HOST`·`WEB_WS_ENDPOINT`는 표에서 빠졌다 —
+`libs/web-config` 자체가 ADR-0079로 사라지면서 함께 없어졌다. `CacheStorageItem`은 문서
 (`libs/db/docs/architecture.md`)에 이름이 남아 있으니 삭제 커밋에 문서 수정도 포함한다.
 
 ---

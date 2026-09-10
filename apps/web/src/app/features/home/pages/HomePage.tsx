@@ -18,8 +18,15 @@ import {
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { useActiveCloudData, useMyProfile, useScrollRestoration, useUserPermissions } from '../../../hooks';
-import { usePreferenceStore } from '../../../stores/usePreferenceStore';
+import {
+    useActiveCloudData,
+    useChannelSort,
+    useMyProfile,
+    useOnboarding,
+    usePinnedChannels,
+    useScrollRestoration,
+    useUserPermissions,
+} from '../../../hooks';
 import { DEFAULT_CHANNEL_SORT, placeScopeKey } from '../../../stores/preferenceKeys';
 import { usePendingInviteChannel } from '../../../stores/usePendingInviteChannel';
 import { BottomNavSpacer } from '../../../ui/components';
@@ -238,15 +245,15 @@ export const HomePage = () => {
     const [isSubscriptionRequiredOpen, setIsSubscriptionRequiredOpen] = useState(false);
     const [isPlaceLimitOpen, setIsPlaceLimitOpen] = useState(false);
 
-    const { isFirstRun, completeOnboarding } = usePreferenceStore();
+    const { isFirstRun, completeOnboarding } = useOnboarding();
     // Sort + pins are scoped to cid:sid — a place id is only unique within its cloud, so the same
     // sid in another cloud must not inherit this cloud's settings.
     const placeScope = placeScopeKey(selectedCloudId, selectedSiteId);
-    const channelSortMap = usePreferenceStore(s => s.channelSort);
+    const { channelSort: channelSortMap } = useChannelSort();
     const channelSortMethod = (placeScope && channelSortMap[placeScope]) || DEFAULT_CHANNEL_SORT;
     // Pinned channels for the active place (client preference, set from the chat-room management
     // screen). Pinned rows float above the chosen sort order.
-    const pinnedChannelMap = usePreferenceStore(s => s.pinnedChannels);
+    const { pinnedChannels: pinnedChannelMap } = usePinnedChannels();
     const pinnedChannelIds = useMemo(
         () => new Set(placeScope ? (pinnedChannelMap[placeScope] ?? []) : []),
         [pinnedChannelMap, placeScope]

@@ -4,8 +4,13 @@ import * as ReactDOM from 'react-dom/client';
 
 import '@lemoncloud/page-transition-core/styles.css';
 
-import { configurePerfMetrics, logger, setupBridgeLogger } from '@chatic/bridges';
+import { configurePerfMetrics, isNative, logger, setupBridgeLogger } from '@chatic/bridges';
+import { config } from '@chatic/config';
+import { setStorageAdapter } from '@chatic/shared';
 import { runtime } from '@chatic/app-runtime';
+
+import { webConfigPorts } from './app/config/adapters';
+import { migrateLegacyPreferences, syncThemeFromSharedKey } from './app/config/legacyPreferenceMigration';
 
 import App from './app/app';
 import { appBridge, pendingNavigationStore } from './app/bridge';
@@ -46,6 +51,28 @@ startLogUploader({
     // watching this build, `debug` is worth keeping; if not, nothing can read it.
     keepDebug: import.meta.env.DEV,
 });
+
+// One-time carry-over of usePreferenceStore's pre-@chatic/config localStorage keys (ADR-0079
+// "레거시 저장값 승계") — must run before `config.init()` below, whose `hydrateStorage()` is what
+// actually reads the keys these write. `syncThemeFromSharedKey` is not one-time: `vite-ui-theme` stays
+// the durable, cross-app key (five apps' pre-paint scripts and `@chatic/theme`'s `ThemeProvider` all
+// read/write it directly), re-synced into `ui.theme`'s own storage on every boot.
+migrateLegacyPreferences();
+syncThemeFromSharedKey();
+
+// Wires `@chatic/config` to this build's `import.meta.env`/injected globals — an explicit call
+// instead of `@chatic/web-config`'s former import-time side effect (ADR-0079 결정 1·11). Everything
+// downstream that reads a setting (`app-runtime`'s HTTP/session code, later this file's own runtime
+// boot) resolves it lazily, well after this line, so placement here — before `initAppRuntime` and
+// well before anything renders — is early enough with room to spare.
+config.init(webConfigPorts);
+
+// Session/relay/cloud/identity storage backing — an explicit call replacing the other half of
+// `@chatic/web-config`'s old side effect. `isNative()` is exactly "hosted inside a native or desktop
+// shell" (it checks the same window handles `usePersistentWebStorage` used to), so no separate
+// detector is needed: inside a shell, use localStorage so the session survives a WebView cache wipe;
+// in a plain browser tab, sessionStorage.
+setStorageAdapter(isNative() ? localStorage : sessionStorage);
 
 // Boot the runtime. Placed HERE by contract, between two boundaries:
 //   - AFTER the log wiring above, because this call can log (duplicate boot, late data policy).
@@ -119,8 +146,11 @@ void appBridge.notifyWebAppReady().then(report => {
 // right after WebAppReady so it rides the same buffered flush to a native side that is guaranteed to
 // be listening (a mount-time post can race ahead of the native router and be dropped). Entering the
 // debug menu is a per-session action afterwards (MyPage 10-tap → SetDebugMode(true)).
-// NOTE: this only hides the FAB on PROD builds, where the native gate is `debugModeEnabled` alone.
-// Non-PROD builds also show it via a compile-time flag the web cannot change — that needs a native build.
+// NOTE: there is no stage that escapes this. The old note here claimed non-PROD builds showed the
+// FAB through a compile-time flag the web could not change; that was never true (`__DEV__` gated the
+// console and log sinks, never the panel), and ADR-0080 결정 12 has since deleted the native FAB and
+// every other debug UI from the app. This call is now belt-and-braces: it clears a flag that older
+// installed builds still read.
 appBridge.setDebugMode(false);
 
 const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement);

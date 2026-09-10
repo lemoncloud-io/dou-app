@@ -53,10 +53,9 @@ jest.mock('../../data/runtime', () => ({
     }),
 }));
 
-jest.mock('@chatic/web-config', () => ({
-    LANGUAGE_KEY: 'i18nextLng',
-    clearRelayTransportOverrides: jest.fn(),
-}));
+// `LANGUAGE_KEY` is a local const in relaySession.ts now (not imported) and `config.clear()`
+// no-ops gracefully when `@chatic/config` is never `init()`d, as it is not in this suite — neither
+// needs a mock (ADR-0079, replacing `@chatic/web-config`).
 
 // Transport + sealed boot control. The instance moved out of `@chatic/web-config` into the
 // `http/transport` assembly point (built by `@chatic/http`), so the mock follows it — the env leaf

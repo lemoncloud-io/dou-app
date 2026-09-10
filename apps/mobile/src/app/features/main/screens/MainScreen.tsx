@@ -11,7 +11,7 @@ import { useAppBridge } from '../../../webview/hooks';
 import { bootMetricsService, logger } from '../../../services';
 import { useResolvedTheme } from '../../../hooks';
 import { useDebugRuntimeStore, useDebugSettingsStore } from '../../../stores';
-import { useCustomZipBootGate } from '../../debug/customZip';
+import { useCustomZipBootGate } from '../../../customZip';
 
 export const MainScreen = ({ route }: MainScreenProps) => {
     const webViewRef = useRef<WebView>(null);

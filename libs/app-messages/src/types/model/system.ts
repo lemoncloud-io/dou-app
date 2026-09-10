@@ -140,7 +140,16 @@ export type UrlAddress = {
 };
 
 /** 네이티브 앱 권한 유형 */
-export type AppPermissionType = 'CONTACTS' | 'NOTIFICATIONS' | 'CAMERA' | 'PHOTO_LIBRARY';
+/**
+ * 웹이 앱에 요청할 수 있는 OS 권한.
+ *
+ * `MICROPHONE`은 2026-09-10에 추가됐다 — **타입만 늘렸고 앱 릴리스는 들지 않는다.**
+ * `usePermissionHandler`가 payload를 그대로 `permissionService.request`에 넘기고 앱의
+ * `PERMISSION_MAP`에 `MICROPHONE`(iOS `MICROPHONE`·Android `RECORD_AUDIO`)이 이미 있으므로,
+ * 기존 빌드도 런타임에는 처리한다. 이 union이 사본으로 갈라져 그 능력을 막고 있었을 뿐이다
+ * (앱 쪽 `services/permission/types.ts`가 이제 이 선언을 재export한다).
+ */
+export type AppPermissionType = 'CONTACTS' | 'NOTIFICATIONS' | 'CAMERA' | 'PHOTO_LIBRARY' | 'MICROPHONE';
 
 /** * 네이티브 앱 권한 승인 상태 */
 export type PermissionStatus = 'GRANTED' | 'DENIED' | 'BLOCKED' | 'UNAVAILABLE';
@@ -214,9 +223,16 @@ export type OpenPhotoLibraryPayload = {
     includeBase64?: boolean;
 };
 
-/** [요청] 디바이스의 기본 브라우저나 외부 앱으로 URL 열기 */
+/**
+ * [요청] 디바이스의 기본 브라우저나 외부 앱으로 URL 열기
+ *
+ * 앱 자신의 스킴(`chatic://…`)을 넘기면 OS를 거쳐 인바운드 딥링크로 되돌아온다 — 그래서 딥링크
+ * 라우팅 시험에도 이 명령을 쓴다. ADR-0080 단계 1에서 별도 `SimulateInboundDeeplink`를 만들려다
+ * 철회했다: 앱의 `deeplinkService.handleUrl`도 결국 같은 `Linking.openURL`로 끝나고, 그것이 더하는
+ * 상대경로 정규화는 웹이 `net.deeplink.scheme` 키로 직접 할 수 있다.
+ */
 export type OpenURLPayload = {
-    /** 실행할 외부 URL (http, mailto, tel 등) */
+    /** 실행할 외부 URL (http, mailto, tel 등). 앱 스킴을 넘기면 인바운드 딥링크가 된다 */
     url: string;
 };
 

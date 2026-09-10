@@ -145,6 +145,11 @@ export const appBridge = {
         return webClient.request({ type: 'FetchPreference', data });
     },
 
+    /** Remove a preference key from native storage and wait for native confirmation. */
+    deletePreferenceConfirmed(data: Payload<'DeletePreference'>): Promise<WebMessageResponse<'DeletePreference'>> {
+        return webClient.request({ type: 'DeletePreference', data });
+    },
+
     /** Report whether the in-web back action can still go back (dialog open). */
     setCanGoBack(canGoBack: boolean): void {
         webClient.post({ type: 'SetCanGoBack', data: { canGoBack } });
@@ -282,6 +287,116 @@ export const appBridge = {
     },
 
     // ---------------------------------------------------------------
+    // Debug panel — app-side operations the web drives (ADR-0080 결정 11)
+    // ---------------------------------------------------------------
+
+    /**
+     * Read the boot records the native side persisted, plus its two live counters.
+     *
+     * `sendBootMetrics` only goes the other way (the web hands its half of the timeline over), so
+     * this is the only way the panel can show what the app actually recorded.
+     */
+    fetchBootRecords(): Promise<WebMessageResponse<'FetchBootRecords'>> {
+        return webClient.request({ type: 'FetchBootRecords', data: {} });
+    },
+
+    /** Drop every persisted boot record. */
+    clearBootRecords(): Promise<WebMessageResponse<'ClearBootRecords'>> {
+        return webClient.request({ type: 'ClearBootRecords', data: {} });
+    },
+
+    /** Drop the FCM token so the next `fetchFcmToken` mints a fresh one — re-registration testing. */
+    deleteFcmToken(): Promise<WebMessageResponse<'DeleteFcmToken'>> {
+        return webClient.request({ type: 'DeleteFcmToken', data: {} });
+    },
+
+    /**
+     * The next three are facade-only: the message types and native handlers already existed, the
+     * web client just never exposed them because nothing outside the app's own debug screens asked.
+     * Adding them costs no app release (ADR-0080 결정 11 — 새 명령을 만들기 전에 있는 것을 찾는다).
+     */
+
+    /** Read the OS badge count the app currently shows. */
+    fetchBadgeCount(): Promise<WebMessageResponse<'FetchBadgeCount'>> {
+        return webClient.request({ type: 'FetchBadgeCount', data: {} });
+    },
+
+    /** Raise a local notification — checks the channel and deeplink plumbing without a real push. */
+    showNotification(payload: Payload<'ShowNotification'>): Promise<WebMessageResponse<'ShowNotification'>> {
+        return webClient.request({ type: 'ShowNotification', data: payload });
+    },
+
+    /**
+     * Custom web zip (ADR-0080 결정 11 단계 5). PROD builds refuse `apply` — the app gates it on the
+     * baked `VITE_ENV`, so the refusal comes back as an error rather than being decided here.
+     */
+    applyCustomZip(url: string): Promise<WebMessageResponse<'ApplyCustomZip'>> {
+        return webClient.request({ type: 'ApplyCustomZip', data: { url } });
+    },
+
+    /** Turn the custom zip off and go back to the shipped web. Never refused — it is the way out. */
+    disableCustomZip(): Promise<WebMessageResponse<'DisableCustomZip'>> {
+        return webClient.request({ type: 'DisableCustomZip', data: {} });
+    },
+
+    /** What is applied now, and whether this build allows applying at all. */
+    fetchCustomZipStatus(): Promise<WebMessageResponse<'FetchCustomZipStatus'>> {
+        return webClient.request({ type: 'FetchCustomZipStatus', data: {} });
+    },
+
+    /** Which alternate app icon is active, and whether this platform supports changing it. */
+    fetchAppIcon(): Promise<WebMessageResponse<'FetchAppIcon'>> {
+        return webClient.request({ type: 'FetchAppIcon', data: {} });
+    },
+
+    /** The alternate icons this build ships. */
+    fetchAppIconList(): Promise<WebMessageResponse<'FetchAppIconList'>> {
+        return webClient.request({ type: 'FetchAppIconList', data: {} });
+    },
+
+    /** Switch the app icon. `null` (or 'default') restores the shipped one. */
+    changeAppIcon(iconName: string | null): Promise<WebMessageResponse<'ChangeAppIcon'>> {
+        return webClient.request({ type: 'ChangeAppIcon', data: { iconName } });
+    },
+
+    /** Native provider sign-in — a different path from the web's own relay hand-off. */
+    oAuthLogin(provider: Payload<'OAuthLogin'>['provider']): Promise<WebMessageResponse<'OAuthLogin'>> {
+        return webClient.request({ type: 'OAuthLogin', data: { provider } });
+    },
+
+    /** Native provider sign-out. */
+    oAuthLogout(provider: Payload<'OAuthLogout'>['provider']): Promise<WebMessageResponse<'OAuthLogout'>> {
+        return webClient.request({ type: 'OAuthLogout', data: { provider } });
+    },
+
+    /** Open the camera and hand back what was captured. */
+    openCamera(payload: Payload<'OpenCamera'> = {}): Promise<WebMessageResponse<'OpenCamera'>> {
+        return webClient.request({ type: 'OpenCamera', data: payload });
+    },
+
+    /** Open the photo library and hand back the picked assets. */
+    openPhotoLibrary(payload: Payload<'OpenPhotoLibrary'> = {}): Promise<WebMessageResponse<'OpenPhotoLibrary'>> {
+        return webClient.request({ type: 'OpenPhotoLibrary', data: payload });
+    },
+
+    /** Open the document picker and hand back the chosen files. */
+    openDocument(payload: Payload<'OpenDocument'> = {}): Promise<WebMessageResponse<'OpenDocument'>> {
+        return webClient.request({ type: 'OpenDocument', data: payload });
+    },
+
+    /** Write text to the OS clipboard — the native one, not the browser's. */
+    copyToClipboard(text: string): Promise<WebMessageResponse<'CopyToClipboard'>> {
+        return webClient.request({ type: 'CopyToClipboard', data: { text } });
+    },
+
+    /** Ask the OS for a permission. Idempotent once granted, and the response carries the status. */
+    requestPermission(
+        permission: Payload<'RequestPermission'>['permission']
+    ): Promise<WebMessageResponse<'RequestPermission'>> {
+        return webClient.request({ type: 'RequestPermission', data: { permission } });
+    },
+
+    // ---------------------------------------------------------------
     // Deferred native reports (ADR-0047)
     // ---------------------------------------------------------------
 
@@ -293,5 +408,19 @@ export const appBridge = {
     /** Acknowledge relayed reports so the native queue drops them. */
     ackPendingReports(ids: string[]): Promise<WebMessageResponse<'AckPendingReports'>> {
         return webClient.request({ type: 'AckPendingReports', data: { ids } });
+    },
+
+    // ---------------------------------------------------------------
+    // Config shell lane (ADR-0079 결정 9 — generic KV bridge)
+    // ---------------------------------------------------------------
+
+    /** Persist one shell-lane config value, opaquely, and wait for native confirmation. */
+    saveConfigValueConfirmed(data: Payload<'SaveConfigValue'>): Promise<WebMessageResponse<'SaveConfigValue'>> {
+        return webClient.request({ type: 'SaveConfigValue', data });
+    },
+
+    /** Remove one shell-lane config override and wait for native confirmation. */
+    clearConfigValueConfirmed(data: Payload<'ClearConfigValue'>): Promise<WebMessageResponse<'ClearConfigValue'>> {
+        return webClient.request({ type: 'ClearConfigValue', data });
     },
 };

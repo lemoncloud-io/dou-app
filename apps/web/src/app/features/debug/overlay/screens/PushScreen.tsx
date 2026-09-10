@@ -1,16 +1,35 @@
-import { BellRing, CheckCircle2, Copy, FileText, RefreshCw, Trash2, XCircle } from 'lucide-react';
+import { BellRing, CheckCircle2, FileText, RefreshCw, Trash2, XCircle } from 'lucide-react';
 
 import { isNative } from '@chatic/bridges';
 
-import { usePushRegistration, useReceivedPushLog } from '../../hooks';
-import { copyText, formatRegisteredAt } from '../../lib';
+import { useDebugOperation, usePushRegistration, useReceivedPushLog } from '../../hooks';
+import { CopyRow } from '../../components/CopyRow';
+import { buildAppDeeplink, formatRegisteredAt } from '../../lib';
 import { debugOverlayActions } from '../overlayStore';
+import { appBridge } from '../../../../bridge';
+
+/**
+ * The operations the app's own Notification Test screen used to own (ADR-0080 결정 11). Each is one
+ * bridge command; the app executes and answers, the result lands in the line below the buttons.
+ *
+ * A push tap is reproduced with `openURL` on the app's own scheme rather than a dedicated command:
+ * the OS hands the URL straight back as an inbound deeplink, which is the round trip a real tap
+ * makes (see `OpenURLPayload`'s note on the withdrawn `SimulateInboundDeeplink`).
+ *
+ * The scheme is resolved per build (`buildAppDeeplink`), not written literally — a dev build
+ * registers `chatic-dev:`, so a hardcoded `chatic://` would open the other channel's app on a
+ * device that has both.
+ */
+const PUSH_TAP_PATH = '/chats';
 
 export const PushScreen = () => {
     const isOnNative = isNative();
 
     const { state, token, summary, error, check } = usePushRegistration();
     const { entries, clear } = useReceivedPushLog();
+    // `fire` is for the two `post`-based commands here (`openURL`, `setBadgeCount`): they get no
+    // answer, so the shared hook labels them "확인 없음" instead of implying one (결정 10).
+    const { result, run, fire } = useDebugOperation();
 
     return (
         <div className="flex h-full flex-col bg-background">
@@ -65,30 +84,10 @@ export const PushScreen = () => {
                     )}
 
                     <dl className="mt-3 flex flex-col gap-2">
-                        <button
-                            type="button"
-                            onClick={() => copyText(token ?? null)}
-                            className="flex items-start justify-between gap-2 text-left"
-                        >
-                            <dt className="w-[92px] shrink-0 text-[12px] text-muted-foreground">Token</dt>
-                            <dd className="flex-1 break-all text-[12px] font-medium text-foreground">
-                                {token ?? '(not fetched)'}
-                            </dd>
-                            <Copy size={13} className="mt-0.5 shrink-0 text-muted-foreground" />
-                        </button>
+                        <CopyRow label="Token" value={token ?? '(not fetched)'} copyValue={token} />
 
                         {summary?.endpoint && (
-                            <button
-                                type="button"
-                                onClick={() => copyText(summary.endpoint)}
-                                className="flex items-start justify-between gap-2 text-left"
-                            >
-                                <dt className="w-[92px] shrink-0 text-[12px] text-muted-foreground">Endpoint</dt>
-                                <dd className="flex-1 break-all text-[12px] font-medium text-foreground">
-                                    {summary.endpoint}
-                                </dd>
-                                <Copy size={13} className="mt-0.5 shrink-0 text-muted-foreground" />
-                            </button>
+                            <CopyRow label="Endpoint" value={summary.endpoint} copyValue={summary.endpoint} />
                         )}
 
                         <div className="flex items-start justify-between gap-2">
@@ -109,7 +108,79 @@ export const PushScreen = () => {
                     {error && <p className="mt-3 text-[12px] font-medium text-destructive">{error}</p>}
                 </div>
 
-                {/* Section 2: received pushes (foreground) */}
+                {/* Section 2: operations moved off the app's Notification Test screen */}
+                <div className="mt-4 rounded-lg border border-border bg-card p-4">
+                    <h2 className="text-[15px] font-semibold text-foreground">조작</h2>
+                    <p className="mt-1 text-[12px] text-muted-foreground">
+                        앱이 실행하고 결과를 돌려줍니다{isOnNative ? '' : ' — 앱 셸 안에서만 동작합니다'}
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                        <button
+                            type="button"
+                            onClick={() => void run('토큰 삭제', () => appBridge.deleteFcmToken(), 'DeleteFcmToken')}
+                            className="rounded-md border border-border px-2 py-1 text-xs"
+                        >
+                            토큰 삭제
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() =>
+                                void run(
+                                    '알림 권한 요청',
+                                    () => appBridge.requestPermission('NOTIFICATIONS'),
+                                    'RequestPermission'
+                                )
+                            }
+                            className="rounded-md border border-border px-2 py-1 text-xs"
+                        >
+                            알림 권한 요청
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() =>
+                                void run(
+                                    '로컬 알림',
+                                    () =>
+                                        appBridge.showNotification({
+                                            title: '디버그 알림',
+                                            body: '웹 패널에서 띄운 로컬 알림입니다',
+                                            deeplink: buildAppDeeplink(PUSH_TAP_PATH),
+                                        }),
+                                    'ShowNotification'
+                                )
+                            }
+                            className="rounded-md border border-border px-2 py-1 text-xs"
+                        >
+                            로컬 알림 띄우기
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => void run('뱃지 조회', () => appBridge.fetchBadgeCount(), 'FetchBadgeCount')}
+                            className="rounded-md border border-border px-2 py-1 text-xs"
+                        >
+                            뱃지 조회
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => fire('뱃지 0으로', () => appBridge.setBadgeCount(0))}
+                            className="rounded-md border border-border px-2 py-1 text-xs"
+                        >
+                            뱃지 0으로
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() =>
+                                fire('푸시 탭 재현', () => appBridge.openURL(buildAppDeeplink(PUSH_TAP_PATH)))
+                            }
+                            className="rounded-md border border-border px-2 py-1 text-xs"
+                        >
+                            푸시 탭 재현
+                        </button>
+                    </div>
+                    {result && <p className="mt-3 break-all font-mono text-[12px] text-muted-foreground">{result}</p>}
+                </div>
+
+                {/* Section 3: received pushes (foreground) */}
                 <div className="mt-4 rounded-lg border border-border bg-card p-4">
                     <div className="flex items-center justify-between gap-3">
                         <div>

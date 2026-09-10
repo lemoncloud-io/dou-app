@@ -38,6 +38,9 @@
             "path": "../../assets/tsconfig.lib.json"
         },
         {
+            "path": "../../libs/config/tsconfig.lib.json"
+        },
+        {
             "path": "../../libs/app-runtime/tsconfig.lib.json"
         },
         {

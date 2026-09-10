@@ -3,6 +3,7 @@ import type {
     CheckAppUpdatePayload,
     ClearCacheDataByChannelPayload,
     ClearCacheDataPayload,
+    ClearConfigValuePayload,
     ClearTestRecordsPayload,
     DeleteAllCacheDataPayload,
     DeleteCacheDataPayload,
@@ -36,6 +37,13 @@ import type {
     SaveAllCacheDataPayload,
     SaveAllTestRecordsPayload,
     SaveCacheDataPayload,
+    ApplyCustomZipPayload,
+    ClearBootRecordsPayload,
+    DeleteFcmTokenPayload,
+    DisableCustomZipPayload,
+    FetchBootRecordsPayload,
+    FetchCustomZipStatusPayload,
+    SaveConfigValuePayload,
     SavePreferencePayload,
     SaveTestRecordPayload,
     SearchGlobalCacheDataPayload,
@@ -149,6 +157,18 @@ export type WebMessagePayloadMap = {
     // 6. Auth
     OAuthLogin: OAuthLoginPayload;
     OAuthLogout: OAuthLogoutPayload;
+
+    // 6.5 Config (ADR-0079 셸 레인 — 범용 KV 브릿지)
+    SaveConfigValue: SaveConfigValuePayload;
+    ClearConfigValue: ClearConfigValuePayload;
+
+    // 6.6 Debug panel (ADR-0080 결정 11 — 조작은 웹, 실행은 앱)
+    DeleteFcmToken: DeleteFcmTokenPayload;
+    FetchBootRecords: FetchBootRecordsPayload;
+    ClearBootRecords: ClearBootRecordsPayload;
+    ApplyCustomZip: ApplyCustomZipPayload;
+    DisableCustomZip: DisableCustomZipPayload;
+    FetchCustomZipStatus: FetchCustomZipStatusPayload;
 
     // 7. Common & Others
     WebAppReady: WebAppReadyPayload;

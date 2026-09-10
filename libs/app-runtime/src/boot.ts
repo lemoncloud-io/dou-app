@@ -4,7 +4,7 @@
 // engine table — session · socket · http · sync · data), it is the act of handing those engines
 // their configuration. So this file is a barrel and nothing else; the logic stays in the module
 // that OWNS each piece (`init.ts` for the wiring, `data/` for the data policies, `http/transport`
-// for the transport, `@chatic/web-config` for env).
+// for the transport, `@chatic/config` for env).
 //
 // Everything an app must decide at boot is reachable from `AppRuntimeConfig` below — including the
 // two option types that used to force a consumer into `@chatic/data` to name them.
@@ -18,14 +18,14 @@ export type { DataRuntimeConfig } from './data/runtime';
 export type { CacheAssemblyOptions } from './data/types';
 export type { DataRepositoriesV2Options } from '@chatic/data';
 
-// Env + platform. `ENV`/`PROJECT` come from the sole `import.meta` holder (ADR-0070 결정 6), so the
-// isolation leaf stays a single file and apps still see one package.
-export {
-    LANGUAGE_KEY,
-    WEB_ENV as ENV,
-    WEB_PROJECT as PROJECT,
-    WEB_SOCIAL_OAUTH_ENDPOINT as SOCIAL_OAUTH_ENDPOINT,
-} from '@chatic/web-config';
+// `ENV`/`PROJECT`/`SOCIAL_OAUTH_ENDPOINT`/`LANGUAGE_KEY` used to re-export the sole `import.meta`
+// holder's constants (ADR-0070 결정 6, `@chatic/web-config`). That holder is retired (ADR-0079) —
+// each Vite app now reads its own `import.meta.env` directly and calls `@chatic/config`'s
+// `config.get(...)` for anything that IS a setting. The two former consumers split on exactly that
+// line: `apps/web/src/i18n/index.ts` reads `import.meta.env` itself (a storage-key namespace is
+// technical, not a setting), while `apps/desktop-web/.../oauth.ts` went to `config.get(...)` in
+// ADR-0079 6단계 — the OAuth relay host and the deeplink scheme are registry keys now. Either way
+// routing them through this facade bought nothing.
 export { isNativeApp } from './utils/isNativeApp';
 
 // Native local-cache capability, reported by the bridge handshake AFTER boot — which is why it is a

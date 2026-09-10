@@ -1,6 +1,6 @@
 import { logger } from '@chatic/bridges';
+import { config } from '@chatic/config';
 import { redactSensitive, truncate } from '@chatic/logger';
-import { getDynamicRelayBackend, WEB_IAP_ENDPOINT, WEB_OAUTH_ENDPOINT } from '@chatic/web-config';
 import {
     createHttpClient,
     type HttpClient,
@@ -20,9 +20,9 @@ import {
  * independent; see `HttpRoute` in `@chatic/http`.
  */
 const ENDPOINT_RESOLVERS: Record<HttpRoute, () => string> = {
-    relay: getDynamicRelayBackend,
-    oauth: () => WEB_OAUTH_ENDPOINT,
-    iap: () => WEB_IAP_ENDPOINT,
+    relay: () => config.get<string>('net.relay.backend') ?? '',
+    oauth: () => config.get<string>('net.oauth.endpoint') ?? '',
+    iap: () => config.get<string>('net.iap.endpoint') ?? '',
 };
 
 /**

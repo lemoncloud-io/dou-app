@@ -1,5 +1,5 @@
-import { WEB_ENV as ENV } from '@chatic/web-config';
-import { WEB_PROJECT } from '@chatic/web-config';
+import { config } from '@chatic/config';
+
 import { getRepositories } from '../data/runtime';
 import { getActiveSessionUser, getGlobalSessionContext } from '../session';
 import { sanitizeReportUrl } from './reportUrl';
@@ -24,13 +24,14 @@ const REPORT_STEREO_ISSUE = 'issue';
  * 리포트를 보낸 앱. 타이틀 `[app] issue: ...`의 그 app이고, admin 목록의 App 필터
  * 기준이다.
  *
- * 별도 설정을 두지 않고 `WEB_PROJECT`(= `VITE_PROJECT`)에서 유도한다 — admin은
+ * 별도 설정을 두지 않고 `env.project`(= `VITE_PROJECT`)에서 유도한다 — admin은
  * 이미 `CHATIC_ADMIN`으로 배포되고 있어서, 호출부가 자기 정체를 따로 선언하지
- * 않아도 갈린다.
+ * 않아도 갈린다. `env.project`는 이미 소문자다(`createWebEnvAdapter`가 `web-config`와
+ * 같은 방식으로 낮춘다) — `WEB_PROJECT.toLowerCase()`를 그대로 잇는다.
  */
 const resolveAppType = (): AppType => {
     if (isNative()) return 'mobile';
-    return WEB_PROJECT.includes('admin') ? 'admin' : 'web';
+    return (config.get<string>('env.project') ?? '').includes('admin') ? 'admin' : 'web';
 };
 
 /**
@@ -68,7 +69,11 @@ export const reportIssue = async (title: string, message: string, extras?: Issue
             title,
             message,
             app,
-            env: ENV,
+            // `.toLowerCase()` preserves the exact wire value `WEB_ENV` always sent ('local' ·
+            // 'dev' · 'prod') — `env.stage` itself is uppercase now (ADR-0079 결정 14), but this
+            // payload is stored and may already be filtered on by the admin console, so the
+            // OUTGOING contract stays byte-identical rather than following the internal casing.
+            env: (config.get<string>('env.stage') ?? '').toLowerCase(),
             // 쿼리 값은 가려서 싣는다 — OAuth 콜백·검증 링크의 토큰이 실리는
             // 자리이고, 이 payload는 저장되며 첨부 없는 이슈 리포트는 Slack
             // 채널로도 나간다. 초대 `code`만 추적을 위해 예외. @see ./reportUrl

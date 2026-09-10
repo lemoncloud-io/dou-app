@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import {
     useAppIconHandler,
     useAppUpdateHandler,
+    useConfigKvHandler,
     useCrudCacheHandler,
     useClipboardHandler,
     useDeviceHandler,
@@ -20,6 +21,7 @@ import {
     useUploadHandler,
     useTestRecordHandler,
     useResumeOverlay,
+    useCustomZipHandler,
     usePerfHandler,
     useUnfurlHandler,
 } from './index';
@@ -50,7 +52,8 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
     // --- Domain-specific Handlers (memoized with useCallback) ---
     const { fetchSafeAreaInfo } = useSafeAreaHandler();
     const { handleFetchBackgroundStatus, handleDismissResumeOverlay } = useAppStateHandler(bridge, dismissOverlay);
-    const { fetchFcmToken, handleFetchBadgeCount, handleSetBadgeCount, handleFetchPushMarks } = useFcmHandler(bridge);
+    const { fetchFcmToken, handleDeleteFcmToken, handleFetchBadgeCount, handleSetBadgeCount, handleFetchPushMarks } =
+        useFcmHandler(bridge);
     const {
         fetchProducts,
         fetchCurrentPurchases,
@@ -74,6 +77,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
     } = useCrudCacheHandler();
 
     const { handleFetchPreference, handleSavePreference, handleDeletePreference } = usePreferenceCacheHandler();
+    const { handleSaveConfigValue, handleClearConfigValue } = useConfigKvHandler();
     const { handleSendLog } = useLogHandler();
     const { handleFetchLogUploadQueue, handleAckLogUploadQueue, handleClearLogUploadQueue } = useLogStoreHandler();
     const { handleFetchPendingReports, handleAckPendingReports } = usePendingReportHandler();
@@ -110,7 +114,9 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
     const { handleCheckAppUpdate, handleOpenStore } = useAppUpdateHandler();
     const { handleFetchAppIcon, handleFetchAppIconList, handleChangeAppIcon } = useAppIconHandler();
     const { handleCopyToClipboard } = useClipboardHandler();
-    const { handleSendBootMetrics, handleSetDebugMode } = usePerfHandler();
+    const { handleSendBootMetrics, handleSetDebugMode, handleFetchBootRecords, handleClearBootRecords } =
+        usePerfHandler();
+    const { handleApplyCustomZip, handleDisableCustomZip, handleFetchCustomZipStatus } = useCustomZipHandler();
     const { handleFetchUrlMetadata } = useUnfurlHandler();
 
     const {
@@ -124,6 +130,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
     // --- Keep handlers fresh for async execution without triggering re-renders ---
     const handlersRef = useRef({
         fetchFcmToken,
+        handleDeleteFcmToken,
         handleFetchBadgeCount,
         handleSetBadgeCount,
         handleFetchPushMarks,
@@ -149,6 +156,8 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
         handleFetchPreference,
         handleSavePreference,
         handleDeletePreference,
+        handleSaveConfigValue,
+        handleClearConfigValue,
         handleFetchAppLogBuffer,
         handlePollAppLogBuffer,
         handleClearAppLogBuffer,
@@ -179,6 +188,11 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
         handleCopyToClipboard,
         handleSendBootMetrics,
         handleSetDebugMode,
+        handleFetchBootRecords,
+        handleClearBootRecords,
+        handleApplyCustomZip,
+        handleDisableCustomZip,
+        handleFetchCustomZipStatus,
         handleRequestFileUpload,
         handlePauseFileUpload,
         handleResumeFileUpload,
@@ -197,6 +211,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
     useEffect(() => {
         handlersRef.current = {
             fetchFcmToken,
+            handleDeleteFcmToken,
             handleFetchBadgeCount,
             handleSetBadgeCount,
             handleFetchPushMarks,
@@ -222,6 +237,8 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             handleFetchPreference,
             handleSavePreference,
             handleDeletePreference,
+            handleSaveConfigValue,
+            handleClearConfigValue,
             handleFetchAppLogBuffer,
             handlePollAppLogBuffer,
             handleClearAppLogBuffer,
@@ -252,6 +269,11 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             handleCopyToClipboard,
             handleSendBootMetrics,
             handleSetDebugMode,
+            handleFetchBootRecords,
+            handleClearBootRecords,
+            handleApplyCustomZip,
+            handleDisableCustomZip,
+            handleFetchCustomZipStatus,
             handleFetchTestRecord,
             handleFetchAllTestRecords,
             handleSaveTestRecord,
@@ -274,6 +296,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             [K in WebMessageType]?: (message: WebMessageData<K>) => any;
         } = {
             FetchFcmToken: message => handlersRef.current.fetchFcmToken(message),
+            DeleteFcmToken: message => handlersRef.current.handleDeleteFcmToken(message),
             FetchBadgeCount: message => handlersRef.current.handleFetchBadgeCount(message),
             SetBadgeCount: message => handlersRef.current.handleSetBadgeCount(message),
             FetchPushMarks: message => handlersRef.current.handleFetchPushMarks(message),
@@ -303,6 +326,8 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             FetchPreference: message => handlersRef.current.handleFetchPreference(message),
             SavePreference: message => handlersRef.current.handleSavePreference(message),
             DeletePreference: message => handlersRef.current.handleDeletePreference(message),
+            SaveConfigValue: message => handlersRef.current.handleSaveConfigValue(message),
+            ClearConfigValue: message => handlersRef.current.handleClearConfigValue(message),
             FetchAppLogBuffer: message => handlersRef.current.handleFetchAppLogBuffer(message),
             PollAppLogBuffer: message => handlersRef.current.handlePollAppLogBuffer(message),
             ClearAppLogBuffer: message => handlersRef.current.handleClearAppLogBuffer(message),
@@ -340,6 +365,11 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             CreateDummyFile: message => handlersRef.current.handleCreateDummyFile(message),
             DismissResumeOverlay: message => handlersRef.current.handleDismissResumeOverlay(message),
             SendBootMetrics: message => handlersRef.current.handleSendBootMetrics(message),
+            FetchBootRecords: message => handlersRef.current.handleFetchBootRecords(message),
+            ClearBootRecords: message => handlersRef.current.handleClearBootRecords(message),
+            ApplyCustomZip: message => handlersRef.current.handleApplyCustomZip(message),
+            DisableCustomZip: message => handlersRef.current.handleDisableCustomZip(message),
+            FetchCustomZipStatus: message => handlersRef.current.handleFetchCustomZipStatus(message),
             SetDebugMode: message => handlersRef.current.handleSetDebugMode(message),
             FetchUrlMetadata: message => handlersRef.current.handleFetchUrlMetadata(message),
         };

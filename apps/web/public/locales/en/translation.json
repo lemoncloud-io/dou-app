@@ -178,6 +178,14 @@
                 "support": "Support & Info"
             }
         },
+        "lab": {
+            "title": "Lab",
+            "settingsHint": "Try new features",
+            "heading": "A place for what's next",
+            "description": "Explore early ideas and experiments as they take shape.",
+            "developerTools": "Developer tools",
+            "openDebug": "Open debug mode"
+        },
         "notificationSettings": "Notification Settings",
         "pushNotifications": "Push Notifications",
         "push": {

@@ -14,8 +14,9 @@
 // `resetModules`: the factory re-runs per reload, and a reference captured from the module would
 // point at the previous run's object.
 const mockWarn = jest.fn();
+const mockInfo = jest.fn();
 jest.mock('@chatic/bridges', () => ({
-    logger: { warn: mockWarn, info: jest.fn(), error: jest.fn(), debug: jest.fn() },
+    logger: { warn: mockWarn, info: mockInfo, error: jest.fn(), debug: jest.fn() },
 }));
 
 const load = async () => {
@@ -29,6 +30,7 @@ const load = async () => {
 describe('initAppRuntime', () => {
     beforeEach(() => {
         mockWarn.mockClear();
+        mockInfo.mockClear();
     });
 
     it('reading the session before boot throws, and the error names the fix', async () => {
@@ -88,5 +90,19 @@ describe('initAppRuntime', () => {
         initAppRuntime();
 
         expect(mockWarn).not.toHaveBeenCalled();
+    });
+
+    // The state log is the only way anyone learns what a device was actually configured with
+    // (ADR-0079 결정 16), and nothing else in the app asks for it — if this call goes missing the
+    // feature is simply absent, with no failing screen to notice. The registry is unwired here,
+    // which is the point: the anchor line still goes out.
+    it('records the config boot state', async () => {
+        const { initAppRuntime } = await load();
+
+        initAppRuntime();
+
+        expect(mockInfo).toHaveBeenCalledWith('CONFIG', expect.stringContaining('Boot state:'), {
+            overrides: [],
+        });
     });
 });

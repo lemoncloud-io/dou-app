@@ -5,7 +5,7 @@ Chatic 앱의 **런타임 단일 창구**입니다. 세션(토큰·선택 상태
 **Composition Root** 라이브러리입니다.
 
 앱이 직접 import하는 런타임 패키지는 `@chatic/app-runtime`와 `@chatic/data` 둘뿐입니다.
-`@chatic/http` · `@chatic/db` · `@chatic/auth-sign` · `@chatic/web-config`는 이 라이브러리가
+`@chatic/http` · `@chatic/db` · `@chatic/auth-sign` · `@chatic/config`는 이 라이브러리가
 조립하는 대상이며 앱 코드에 새지 않습니다.
 
 ---

@@ -19,7 +19,7 @@
 - **스토어의 수동성.** `session/store/**`는 저장과 통지만 한다 — 소켓·데이터·HTTP·유스케이스·훅을
   모른다. 규약이 아니라 **강제선**이다: [`eslint.config.mjs`](../../eslint.config.mjs)의
   `no-restricted-imports`가 형제 폴더와 env import를 막는다(§session/store).
-- **env 주입.** `session/**`은 `@chatic/web-config`를 직접 import하지 않는다. 부팅 조립이 읽어 값(또는
+- **env 주입.** `session/**`은 `@chatic/config`를 직접 import하지 않는다. 부팅 조립이 읽어 값(또는
   resolver 함수)으로 넘긴 것만 본다. `import.meta`가 ts-jest(`module: commonjs`)를 깨는 문제가
   구조적으로 사라진다.
 - **refresh 단독 소유.** 만료 cadence·refresh 실행·백오프·in-flight 직렬화는 `ClientSocketAuth`만
@@ -76,7 +76,7 @@ graph TD
     DF -->|"contextProvider = ActiveScope"| SCOPE
     SCOPE -->|"implements"| D
 
-    STORE -. "🚫 eslint no-restricted-imports:<br/>socket · data · http · ../auth · ../hooks · ../scope<br/>@chatic/web-config" .-x SOCK
+    STORE -. "🚫 eslint no-restricted-imports:<br/>socket · data · http · ../auth · ../hooks · ../scope<br/>@chatic/config" .-x SOCK
 ```
 
 방향 요약: `store`는 leaf(수동), `auth`는 store에 쓰고 HTTP는 **repository를 지나며**, `scope`는 store
@@ -86,11 +86,11 @@ graph TD
 
 [`eslint.config.mjs`](../../eslint.config.mjs)가 `src/session/store/**`에 두 그룹을 금지한다:
 
-| 금지                                         | 이유                                                         |
-| -------------------------------------------- | ------------------------------------------------------------ |
-| `**/socket/**` · `**/data/**` · `**/http/**` | 스토어는 자기가 기록하는 흐름의 참여자가 되면 안 된다        |
-| `../auth` · `../hooks` · `../scope` (+ `/*`) | 방향이 반대다. 열어두면 폴더 순환                            |
-| `@chatic/web-config` · `@chatic/web-core`    | env·레거시 표면 직접 import 금지 — 부팅이 주입한 값을 받는다 |
+| 금지                                         | 이유                                                  |
+| -------------------------------------------- | ----------------------------------------------------- |
+| `**/socket/**` · `**/data/**` · `**/http/**` | 스토어는 자기가 기록하는 흐름의 참여자가 되면 안 된다 |
+| `../auth` · `../hooks` · `../scope` (+ `/*`) | 방향이 반대다. 열어두면 폴더 순환                     |
+| `@chatic/config`                             | env·설정 직접 import 금지 — 부팅이 주입한 값을 받는다 |
 
 `../scope`가 금지 목록에 있는 것은 ADR 본문이 다섯 폴더만 명시한 것의 확장이다 — scope가 store를
 구독하는 방향이므로 역방향을 열면 순환이 된다.
@@ -332,20 +332,21 @@ cloud 자격증명의 만료시각은 여전히 읽힌다 — 서명용이 아�
 
 ## env 주입
 
-env 읽기(`import.meta.env`/`window.*`)의 실체는 leaf 패키지 `@chatic/web-config`에 있다. `session/**`은
-그것을 직접 import하지 않고, [`store/configure.ts`](../../src/session/store/configure.ts) 하나가 relay
-endpoint resolver를 주입한다. 세션 테스트가 ts-jest(`module: commonjs`)에서 도는 것 자체가 `import.meta`
-격리의 증명이며, `public-surface.test.ts`는 `@chatic/web-config`만 목으로 잡고 세션 허브는 **아무것도
-스텁하지 않는다** — 스텁하는 것이 바로 그 게이트가 잡으려는 실패다.
+env 읽기의 실체는 `@chatic/config`에 있다(ADR-0079). `session/**`은 그것을 직접 import하지 않고,
+[`store/configure.ts`](../../src/session/store/configure.ts) 하나가 relay endpoint resolver를 주입한다.
+세션 테스트가 ts-jest(`module: commonjs`)에서 도는 것 자체가 격리의 증명이며, `public-surface.test.ts`는
+이제 **아무것도 스텁하지 않는다** — `@chatic/config`에는 `import.meta`가 없어 목이 필요 없고, 세션 허브를
+스텁하는 것이 바로 그 게이트가 잡으려는 실패다.
 
 ## 부팅
 
-세션 부팅은 아직 **import 부수효과**다: `session/store` 배럴 로드가 `configureSessionStore()`를 돌리고,
-lemon transport 초기화는 `http/transport`가 소유한다. 위치가 leaf로 옮겨졌을 뿐 성격은 남았다.
+세션 부팅은 **명시 호출**이다: 앱 엔트리가 부르는 `initAppRuntime()`이 `configureSessionStore()`를
+돌린다(배럴 로드가 아니다). 그보다 먼저 로그아웃 청소가 돈다 — `?logout=1`이 붙은 로드에서
+[`auth/logoutStorageSweep.ts`](../../src/session/auth/logoutStorageSweep.ts)가 `@` 접두 저장 키를
+지운다. lemon transport는 `http/transport`가 소유하고 지연 생성한다.
 
-호출 위치를 앱 엔트리(`initAppRuntime(config)`)로 끌어올리는 것은 별개 작업이며, 그때 각 앱
-`main.tsx`의 초기화 순서 계약 — **로깅·브릿지 초기화가 세션 부팅보다 먼저**여야 하는 순서 — 를 깨지
-않는지 앱마다 확인해야 한다.
+각 앱 `main.tsx`의 초기화 순서 계약이 이 호출을 감싼다 — **로깅·브릿지 초기화가 세션 부팅보다
+먼저**이고, `config.init()`은 그보다도 먼저다. 엔트리를 손댈 때마다 이 순서를 확인한다.
 
 ## 검증
 

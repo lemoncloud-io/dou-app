@@ -6,10 +6,9 @@ import { InviteEntryGate } from './InviteEntryGate';
 // Mutable per-test fixture (must be `mock`-prefixed to be usable inside jest.mock factories).
 let mockIsFirstRun = false;
 
-// The real store reads localStorage through a PREFERENCES key map; only `isFirstRun` matters here.
-jest.mock('../stores/usePreferenceStore', () => ({
-    usePreferenceStore: (selector: (state: { isFirstRun: boolean }) => unknown) =>
-        selector({ isFirstRun: mockIsFirstRun }),
+// The real hook reads @chatic/config's ui.onboardingCompleted; only `isFirstRun` matters here.
+jest.mock('../hooks', () => ({
+    useOnboarding: () => ({ isFirstRun: mockIsFirstRun, completeOnboarding: jest.fn(), resetOnboarding: jest.fn() }),
 }));
 
 // MemoryRouter, not createMemoryRouter: a data router needs the `Request` global to follow a

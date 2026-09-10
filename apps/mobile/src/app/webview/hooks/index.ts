@@ -12,6 +12,8 @@ export * from './useSafeAreaHandler';
 export * from './usePermissionHandler';
 export * from './useSubscriptionIapHandler';
 export * from './usePreferenceCacheHandler';
+export * from './useConfigKvHandler';
+export * from './useCustomZipHandler';
 export * from './useOAuthHandler';
 export * from './useVersionCheckHandler';
 export * from './useAppUpdateHandler';

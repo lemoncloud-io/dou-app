@@ -7,6 +7,7 @@ import type {
     OnClearAppLogBufferPayload,
     OnClearCacheDataByChannelPayload,
     OnClearCacheDataPayload,
+    OnClearConfigValuePayload,
     OnClearTestRecordsPayload,
     OnCloseModalPayload,
     OnCreateDummyFilePayload,
@@ -70,6 +71,13 @@ import type {
     OnSaveAllCacheDataPayload,
     OnSaveAllTestRecordsPayload,
     OnSaveCacheDataPayload,
+    OnApplyCustomZipPayload,
+    OnClearBootRecordsPayload,
+    OnDeleteFcmTokenPayload,
+    OnDisableCustomZipPayload,
+    OnFetchBootRecordsPayload,
+    OnFetchCustomZipStatusPayload,
+    OnSaveConfigValuePayload,
     OnSavePreferencePayload,
     OnSaveTestRecordPayload,
     OnSearchGlobalCacheDataPayload,
@@ -170,6 +178,18 @@ export type AppMessageDataMap = {
     // 6. Auth
     OnOAuthLogin: OnOAuthLoginPayload;
     OnOAuthLogout: OnOAuthLogoutPayload;
+
+    // 6.5 Config (ADR-0079 셸 레인 — 범용 KV 브릿지)
+    OnSaveConfigValue: OnSaveConfigValuePayload;
+    OnClearConfigValue: OnClearConfigValuePayload;
+
+    // 6.6 Debug panel (ADR-0080 결정 11)
+    OnDeleteFcmToken: OnDeleteFcmTokenPayload;
+    OnFetchBootRecords: OnFetchBootRecordsPayload;
+    OnClearBootRecords: OnClearBootRecordsPayload;
+    OnApplyCustomZip: OnApplyCustomZipPayload;
+    OnDisableCustomZip: OnDisableCustomZipPayload;
+    OnFetchCustomZipStatus: OnFetchCustomZipStatusPayload;
 
     // 7. Common & Others
     OnWebAppReady: OnWebAppReadyPayload;

@@ -1,25 +1,30 @@
+import { isNative } from '@chatic/bridges';
+import { config } from '@chatic/config';
 import { createLemonWebTransport } from '@chatic/http';
-import { usePersistentWebStorage, WEB_ENV, WEB_OAUTH_ENDPOINT, WEB_PROJECT, WEB_REGION } from '@chatic/web-config';
 
 import type { SealedWebTransport, SealedWebTransportBundle } from '@chatic/http';
 
 /**
  * The runtime's ONE lemon transport — assembled here, built in `@chatic/http`, configured from
- * `@chatic/web-config`.
+ * `@chatic/config`.
  *
  * Ownership used to sit in `web-config` because the instance needs four env-derived inputs and
  * web-config was the only leaf both `web-core` and this lib could bite. That made the repo's env
  * leaf hold a live SDK instance, a token store and a module-load boot. The split now follows the
  * dependency rule instead of the import graph: `@chatic/http` owns construction and boot policy
  * (it reads no env), this file owns the values and the singleton (it is the assembly point, the
- * same role it plays for `HttpManager` next door in `factory.ts`).
+ * same role it plays for `HttpManager` next door in `factory.ts`). The four inputs come from
+ * `@chatic/config` now (ADR-0079) — read lazily inside `getBundle()`, not at module load, so this
+ * file stays inert until something actually calls it.
  *
  * **Two instances would split the session.** The lemon token storage lives inside the instance, so
  * a second one means two stores. That is why `@chatic/http` exposes a factory and holds no module
  * state, and why this module is the only caller of it.
  *
- * **The ordering contract still holds.** Importing `@chatic/web-config` runs its module-load steps
- * (deeplink overrides → storage choice → `logout=1`) before any `WEB_*` value is read here.
+ * **The ordering contract moved, not disappeared.** The four values below are only read once
+ * `getBundle()` first runs, well after the app's entry point has called `config.init(...)` — see
+ * that entry point's own ordering comment. Nothing here fires early like `web-config`'s import-time
+ * side effects did.
  *
  * **Construction is lazy, and the boot is no longer implicit.** web-config's module fired
  * `startWebTransportInit()` at import time; every app instead reaches the boot through
@@ -33,11 +38,19 @@ let bundle: SealedWebTransportBundle | null = null;
 
 const getBundle = (): SealedWebTransportBundle => {
     if (!bundle) {
+        // `env.stage` (not `env.buildStage`) on purpose — this mirrors the injection-aware value
+        // `WEB_ENV` always read, and picking a lemon project suffix for local debugging is not a
+        // security decision (contrast `debug.*`'s use of `buildStage`).
+        const stage = config.get<string>('env.stage') ?? 'LOCAL';
+        const project = config.get<string>('env.project') ?? '';
         bundle = createLemonWebTransport({
-            project: WEB_ENV === 'local' ? `${WEB_PROJECT}_${WEB_ENV}` : WEB_PROJECT,
-            oAuthEndpoint: WEB_OAUTH_ENDPOINT,
-            region: WEB_REGION,
-            storage: usePersistentWebStorage ? localStorage : sessionStorage,
+            project: stage === 'LOCAL' ? `${project}_local` : project,
+            oAuthEndpoint: config.get<string>('net.oauth.endpoint') ?? '',
+            region: config.get<string>('env.region') ?? 'ap-northeast-2',
+            // `usePersistentWebStorage` was always "are we hosted inside a native/desktop shell" —
+            // exactly what `isNative()` already answers (it checks the same window handles plus the
+            // webkit message-handler path), so no separate detector is needed.
+            storage: isNative() ? localStorage : sessionStorage,
         });
     }
     return bundle;

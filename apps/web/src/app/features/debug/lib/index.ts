@@ -1,4 +1,5 @@
 export * from './buildInviteRedirectUrl';
+export * from './buildAppDeeplink';
 export * from './buildDeviceInfoRows';
 export * from './summarizeRegisterResult';
 export * from './normalizeReceivedPush';

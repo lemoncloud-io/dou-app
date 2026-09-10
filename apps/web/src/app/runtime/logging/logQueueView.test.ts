@@ -13,6 +13,7 @@ const entry = (message: string): LogEntry => ({
 const viewOf = (entries: LogEntry[]) => ({
     snapshot: () => entries,
     clear: jest.fn(),
+    flush: jest.fn(() => Promise.resolve()),
 });
 
 describe('logQueueView', () => {
@@ -57,5 +58,16 @@ describe('logQueueView', () => {
                 ?.snapshot()
                 .map(e => e.message)
         ).toEqual(['new']);
+    });
+
+    // ADR-0080 결정 14. main.tsx가 업로더 handle을 보관하지 않으므로 이 등록이 flush에 닿는
+    // 유일한 길이다 — snapshot이 여기 있는 것과 같은 이유다.
+    it('flush를 등록해 디버그 화면이 예정 밖 전송을 할 수 있게 한다', async () => {
+        const view = viewOf([entry('a')]);
+        registerLogQueueView(view);
+
+        await getLogQueueView()?.flush();
+
+        expect(view.flush).toHaveBeenCalledTimes(1);
     });
 });

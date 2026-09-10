@@ -25,7 +25,7 @@ export interface LemonTransportConfig {
     project: string;
     oAuthEndpoint: string;
     region: string;
-    /** `localStorage` or `sessionStorage` — the choice belongs to the caller (web-config). */
+    /** `localStorage` or `sessionStorage` — the choice belongs to the caller (`app-runtime`). */
     storage: Storage;
 }
 

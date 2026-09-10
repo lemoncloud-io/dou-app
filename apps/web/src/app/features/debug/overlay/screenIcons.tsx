@@ -1,0 +1,56 @@
+import {
+    Activity,
+    BarChart3,
+    Bell,
+    BellRing,
+    CreditCard,
+    Database,
+    ExternalLink,
+    FileArchive,
+    FlaskConical,
+    Gauge,
+    History,
+    KeyRound,
+    Link2,
+    Mail,
+    MessageSquare,
+    Plug,
+    Rocket,
+    Route,
+    ScrollText,
+    SlidersHorizontal,
+    Smartphone,
+    UploadCloud,
+    type LucideIcon,
+} from 'lucide-react';
+
+import type { DebugScreenIcon } from './screenManifest';
+
+/**
+ * Icon names in the manifest resolve here. The manifest stays pure data (no React), and this map is
+ * exhaustiveness-checked against it: a new screen whose icon is not listed fails to compile.
+ */
+export const DEBUG_SCREEN_ICONS: Record<DebugScreenIcon, LucideIcon> = {
+    Activity,
+    BarChart3,
+    Bell,
+    BellRing,
+    CreditCard,
+    Database,
+    ExternalLink,
+    FileArchive,
+    FlaskConical,
+    Gauge,
+    History,
+    KeyRound,
+    Link2,
+    Mail,
+    MessageSquare,
+    Plug,
+    Rocket,
+    Route,
+    ScrollText,
+    SlidersHorizontal,
+    Smartphone,
+    UploadCloud,
+};

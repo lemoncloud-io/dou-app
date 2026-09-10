@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Copy, Database, RotateCcw } from 'lucide-react';
+import { Database, RotateCcw } from 'lucide-react';
 
 import { runtime } from '@chatic/app-runtime';
 
-import { copyText } from '../../lib';
+import { CopyButton } from '../../components/CopyButton';
 
 const REFRESH_MS = 1000;
 
@@ -62,13 +62,7 @@ export const CacheMetricsScreen = () => {
                     <span className="text-[13px] font-semibold text-foreground">Native Cache Metrics</span>
                 </div>
                 <div className="flex items-center gap-2">
-                    <button
-                        type="button"
-                        onClick={() => copyText(JSON.stringify(metricsSource.read(), null, 2))}
-                        className="flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-[12px] text-muted-foreground"
-                    >
-                        <Copy size={12} /> Copy
-                    </button>
+                    <CopyButton value={() => JSON.stringify(metricsSource.read(), null, 2)} />
                     <button
                         type="button"
                         onClick={onReset}

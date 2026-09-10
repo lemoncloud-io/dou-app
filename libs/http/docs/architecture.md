@@ -230,10 +230,10 @@ export interface HttpRuntimePorts {
 **실행기는 둘인데 경로가 둘이어서가 아니다** — 같은 `LemonHttpExecutor` 를 서명/비서명 두 벌로
 인스턴스화한 것이다(`client.ts` 의 `lemonUnsigned` · `lemonSigned`).
 
-lemon 인스턴스(`WebCoreFactory.create`, webTransport.ts:151)는
-**web-core에 남는다** — 생성에 `import.meta` env와 storage 선택이 필요하고, 그 격리는
-`@chatic/web-config` 신설(후속)의 몫이다. lib은 자기가 쓸 최소 표면만 선언한다 — 단, 이 문서가
-원래 스케치한 `Pick<WebTransport, ...>`가 아니라 **독립 인터페이스**로:
+lemon 인스턴스(`WebCoreFactory.create`)는 결국 **이 lib이 만든다**
+([lemonTransport.ts:148](../src/transport/lemonTransport.ts)) — env 네 값은 조립층이 넘긴다(아래
+§lemon 인스턴스와 봉인 부팅). lib은 자기가 쓸 최소 표면만 선언한다 — 단, 이 문서가 원래 스케치한
+`Pick<WebTransport, ...>`가 아니라 **독립 인터페이스**로:
 
 ```ts
 // libs/http/src/adapters/lemonWebCore.ts
@@ -270,7 +270,7 @@ request.ts:24)의 의미론은 그대로 유지한다 —
 | -------------------------------- | ---------------------------------------- |
 | 생성 · 봉인 부팅 · 프로브 (정책) | `@chatic/http` `createLemonWebTransport` |
 | env 네 값 · 싱글턴 보유 (조립)   | `app-runtime/src/http/transport.ts`      |
-| env 원본 (`import.meta` 격리)    | `@chatic/web-config`                     |
+| env 원본 (`import.meta` 격리)    | `@chatic/config` (앱 어댑터)             |
 
 반환 타입 `SealedWebTransport`에는 **`init`·`isAuthenticated`·`getTokenStorage`가 없다.** 셋 다
 lemon 자체 HTTP refresh를 부르거나 부를 수단을 넘겨주는 API이고, 결정 2 불변조건 3이 금지하는

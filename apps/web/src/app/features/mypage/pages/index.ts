@@ -3,6 +3,7 @@ export * from './CloudManagePage';
 export * from './CloudProfileEditPage';
 export * from './LicensesPage';
 export * from './LoginPage';
+export * from './LabPage';
 export * from './MyPage';
 export * from './NotificationSettingsPage';
 export * from './PolicyListPage';

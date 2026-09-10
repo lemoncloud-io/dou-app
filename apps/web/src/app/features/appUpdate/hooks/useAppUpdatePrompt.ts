@@ -1,7 +1,8 @@
 import { useCallback } from 'react';
 
+import { config } from '@chatic/config';
+import { useConfigValue } from '@chatic/config/react';
 import { appBridge } from '../../../bridge';
-import { usePreferenceStore } from '../../../stores/usePreferenceStore';
 import { useAppUpdateStatus } from './useAppUpdateStatus';
 
 /**
@@ -10,8 +11,7 @@ import { useAppUpdateStatus } from './useAppUpdateStatus';
  */
 export const useAppUpdatePrompt = () => {
     const { updateAvailable, latestVersion } = useAppUpdateStatus();
-    const dismissedUpdateVersion = usePreferenceStore(state => state.dismissedUpdateVersion);
-    const dismissUpdate = usePreferenceStore(state => state.dismissUpdate);
+    const dismissedUpdateVersion = useConfigValue<string>('ui.dismissedUpdateVersion') ?? '';
 
     // Derived rather than held in local state: dismissing persists the version, which closes the
     // dialog on the next render and keeps it closed for every later check of the same version —
@@ -21,13 +21,13 @@ export const useAppUpdatePrompt = () => {
     // Any way the dialog closes (Later, ESC, outside click) counts as "dismissed for this
     // version" — re-nagging on every foreground return would be worse than under-nagging.
     const dismiss = useCallback(() => {
-        dismissUpdate(latestVersion);
-    }, [dismissUpdate, latestVersion]);
+        config.set('ui.dismissedUpdateVersion', latestVersion, { lane: 'local' });
+    }, [latestVersion]);
 
     const goToStore = useCallback(() => {
         appBridge.openStore();
-        dismissUpdate(latestVersion);
-    }, [dismissUpdate, latestVersion]);
+        config.set('ui.dismissedUpdateVersion', latestVersion, { lane: 'local' });
+    }, [latestVersion]);
 
     return { open, dismiss, goToStore };
 };

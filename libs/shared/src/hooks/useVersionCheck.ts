@@ -10,8 +10,8 @@ declare const __APP_VERSION__: string;
  * This used to be `import.meta.env.VITE_ENV === 'PROD' ? 5min : 1min`. `import.meta` is a *parse*
  * error under the CommonJS transform tests use, so having it here made the whole `@chatic/shared`
  * barrel unimportable from any ts-jest suite that reached it — which the migrated session hooks now
- * do. ADR-0070 결정 6 makes `@chatic/web-config` the single env holder, and `shared` sits below it
- * (web-config imports `setStorageAdapter` from here), so it cannot read env from there either.
+ * do. Env now lives behind `@chatic/config` (ADR-0079), and that is no escape hatch for a constant
+ * like this one: it is evaluated at module load, while `config.init()` runs in each app's entry.
  *
  * Resolved by dropping the env branch: the default is now the production cadence for everyone, and a
  * caller that wants faster polling passes `interval`. Deliberate, minor behavior change — local dev

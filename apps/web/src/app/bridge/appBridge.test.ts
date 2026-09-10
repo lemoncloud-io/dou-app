@@ -171,6 +171,22 @@ describe('appBridge — 네이티브 브릿지 호출', () => {
         await expect(appBridge.notifyWebAppReady()).resolves.toBeNull();
     });
 
+    describe('config 셸 레인 (ADR-0079 결정 9)', () => {
+        it('saveConfigValueConfirmed/clearConfigValueConfirmed/deletePreferenceConfirmed는 request로 호출된다', () => {
+            appBridge.saveConfigValueConfirmed({ key: 'ui.theme', value: '"dark"' });
+            expect(requestMock).toHaveBeenLastCalledWith({
+                type: 'SaveConfigValue',
+                data: { key: 'ui.theme', value: '"dark"' },
+            });
+
+            appBridge.clearConfigValueConfirmed({ key: 'ui.theme' });
+            expect(requestMock).toHaveBeenLastCalledWith({ type: 'ClearConfigValue', data: { key: 'ui.theme' } });
+
+            appBridge.deletePreferenceConfirmed({ key: 'theme' });
+            expect(requestMock).toHaveBeenLastCalledWith({ type: 'DeletePreference', data: { key: 'theme' } });
+        });
+    });
+
     describe('fetchPushMarks (ADR-0056)', () => {
         it('request로 FetchPushMarks를 호출하고 marks 배열을 반환한다', async () => {
             requestMock.mockResolvedValueOnce({ success: true, data: { marks: [{ cid: 'cloud_1' }] } });
