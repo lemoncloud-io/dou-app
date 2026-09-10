@@ -270,12 +270,16 @@ private) · `project.json` · `tsconfig.json` · `tsconfig.lib.json` · `tsconfi
 
 ### 부수효과 4단계 해체
 
-| 현행 (`web-config/src/env.ts`, 임포트만으로 실행) | 이관 후                                         |
-| ------------------------------------------------- | ----------------------------------------------- |
-| `initEnvFromQueryParams()`                        | 딥링크 → 로컬 레인 쓰기. 정책을 통과해야 한다   |
-| `setStorageAdapter(localStorage)`                 | 앱이 `config.init({ storage })`로 주입          |
-| `clearTokensOnLogout()`                           | **config 밖으로** — 세션 위생이지 설정이 아니다 |
-| `WEB_*` 상수                                      | 레지스트리 키 + `config.get()`                  |
+| 현행 (`web-config/src/env.ts`, 임포트만으로 실행) | 이관 후                                       |
+| ------------------------------------------------- | --------------------------------------------- |
+| `initEnvFromQueryParams()`                        | 딥링크 → 로컬 레인 쓰기. 정책을 통과해야 한다 |
+| `setStorageAdapter(localStorage)`                 | 앱이 `config.init({ storage })`로 주입        |
+| `clearTokensOnLogout()`                           | **config 밖으로** — `app-runtime` 부트로 갔다 |
+| `WEB_*` 상수                                      | 레지스트리 키 + `config.get()`                |
+
+`clearTokensOnLogout()`은 세션 위생이지 설정이 아니라서 config 밖으로 보냈고, 실제로 착지한 곳은
+`libs/app-runtime/src/session/auth/logoutStorageSweep.ts`다 — `initAppRuntime()`이 가장 먼저 부른다.
+이 sweep은 `@` 접두 키를 지우므로 **`@chatic/config.` 접두는 예외로 둔다**(설정은 로그아웃에 살아남는다).
 
 `?_backend`의 초대링크 예외(현행 `isInviteLink` 분기)는 의미를 유지한다 — 초대링크의 `_backend`는 릴레이
 주소가 아니라 클라우드 주소이므로 로컬 레인에 쓰지 않는다.

@@ -64,11 +64,12 @@ const parseEntry = (raw: string | null): RegistrationEntry | null => {
  * The record stores the TOKEN, not a boolean, so a rotated token still re-registers — the skip is
  * "nothing changed", never "we already did this once".
  *
- * **Two tiers.** The web tier is `@chatic/shared`'s `storage`, which `libs/web-config` swaps to
- * `localStorage` inside a native shell. It is synchronous, which is what lets the foreground-return
- * path decide without a bridge round-trip. The optional native tier survives a webview cache clear;
- * it is asynchronous, so it is hydrated once via {@link hydrate} and then answers from memory. A
- * cleared web tier that the native tier can still answer for is backfilled during hydration.
+ * **Two tiers.** The web tier is `@chatic/shared`'s `storage`, which each app's entry swaps to
+ * `localStorage` inside a native shell (`setStorageAdapter(isNative() ? localStorage : …)`). It is
+ * synchronous, which is what lets the foreground-return path decide without a bridge round-trip.
+ * The optional native tier survives a webview cache clear; it is asynchronous, so it is hydrated
+ * once via {@link hydrate} and then answers from memory. A cleared web tier that the native tier
+ * can still answer for is backfilled during hydration.
  *
  * Losing both tiers costs one extra registration, which is the safe direction to fail.
  */
@@ -81,9 +82,9 @@ export class PushRegistrationRecord {
      */
     private static readonly POLICY_VERSION = 'v1';
 
-    // Deliberately not prefixed with '@': `libs/web-config`'s `?logout=1` sweep clears '@'-prefixed
-    // keys, and losing the record on logout would buy an extra registration for nothing (the uid is
-    // already part of the key, so an account switch re-registers either way).
+    // Deliberately not prefixed with '@': the `?logout=1` sweep (`session/auth/logoutStorageSweep`)
+    // clears '@'-prefixed keys, and losing the record on logout would buy an extra registration for
+    // nothing (the uid is already part of the key, so an account switch re-registers either way).
     private static readonly KEY_PREFIX = 'push-reg';
 
     private native: RegistrationEntry | null = null;

@@ -3,6 +3,7 @@ import { logger } from '@chatic/bridges';
 import { attachConfigStateLog } from './config/configStateLog';
 import { configureDataRuntime } from './data/runtime';
 import { credentialRecovery } from './http/credentialRecovery';
+import { logoutStorageSweeper } from './session/auth/logoutStorageSweep';
 import { configureSessionStore } from './session/store/configure';
 import { credentialRenewers } from './socket/auth/renewers';
 
@@ -57,7 +58,12 @@ export const initAppRuntime = (config: AppRuntimeConfig = {}): void => {
     }
     booted = true;
 
-    // Env → relay endpoint resolvers. First, because everything below may end up reading the session.
+    // Honors `?logout=1` — the flag `RelaySession.logout()` leaves on the URL it redirects to.
+    // FIRST, because everything below may end up reading a token, and this is what drops the ones
+    // belonging to the account that just signed out.
+    logoutStorageSweeper.sweep();
+
+    // Env → relay endpoint resolvers. Next, because everything below may end up reading the session.
     configureSessionStore();
     // Teaches the HTTP transport how to re-mint a lapsed signing credential.
     //

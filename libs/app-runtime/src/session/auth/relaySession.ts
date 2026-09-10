@@ -299,8 +299,9 @@ class RelaySession implements IRelaySession {
         // history stack: back-navigating into an authenticated URL is already handled by the router,
         // which falls unauthenticated paths back to `/` (see apps/web PublicRoutes).
         //
-        // `logout=1` must survive onto the target: webTransport reads it from the freshly loaded
-        // document's query string to wipe the persisted `@`-prefixed storage keys.
+        // `logout=1` must survive onto the target: the next document's `initAppRuntime` reads it
+        // and wipes the persisted `@`-prefixed storage keys (`logoutStorageSweep.ts`). Sign-out and
+        // cleanup are two page lifetimes, and this flag is the only thing that crosses between.
         const targetUrl = new URL('/', window.location.origin);
         if (options?.preserveUrl) {
             const params = new URLSearchParams(searchBeforeCleanup);
