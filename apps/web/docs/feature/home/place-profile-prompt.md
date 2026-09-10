@@ -1,6 +1,6 @@
 # 플레이스 프로필 미설정 유도
 
-> 상태: Live · 최종 갱신: 2026-08-03 · 관련 ADR: [0040](../../../../../docs/adr/0040-self-chat-title-and-profile-setup-nudge.md) (현행), [0039](../../../../../docs/adr/0039-dm-display-name-chain-and-invite-profile-release.md) (프로필 강제 해제), [0012](../../../../../docs/adr/0012-place-profile-creation.md) (원 생성 플로우)
+> 상태: Live · 최종 갱신: 2026-09-10 · 관련 ADR: [0040](../../../../../docs/adr/0040-self-chat-title-and-profile-setup-nudge.md) (현행), [0039](../../../../../docs/adr/0039-dm-display-name-chain-and-invite-profile-release.md) (프로필 강제 해제), [0012](../../../../../docs/adr/0012-place-profile-creation.md) (원 생성 플로우)
 
 ## 목적
 
@@ -242,7 +242,8 @@ resolvePlaceDisplayName(place, { isDefaultCloud }, t): string
 소비처는 둘이다.
 
 - [PlaceItem.tsx](../../../src/app/features/home/components/PlaceItem.tsx) — 이미 받는
-  `isHomePlace` prop을 `ctx.isDefaultCloud`로 넘긴다(동작 불변, ko 라벨 문자열만 바뀜).
+  `isDefaultCloud: false`를 넘긴다 — `isHomePlace` prop 은 제거됐고, 중계는 이 섹션을 렌더하지
+  않으므로 하드코딩이다. 리졸버가 `HOME_PLACE_ID` 를 자체적으로 알아본다.
 - [useActivePlaceName.ts](../../../src/app/hooks/useActivePlaceName.ts) — `selectedCloudId`를
   함께 읽고, 관찰한 place 행이 아직 없으면 `{ id: sid }`로 폴백한다. **여기가 `default` 원문
   노출을 실제로 고치는 지점**이다(생성/수정 다이얼로그 제목).

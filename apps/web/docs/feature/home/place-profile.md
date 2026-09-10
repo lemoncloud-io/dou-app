@@ -1,13 +1,13 @@
 # 플레이스 프로필 (생성·수정)
 
-> 상태: Live · 최종 갱신: 2026-08-03 · 관련 ADR: [0012](../../../../../docs/adr/0012-place-profile-creation.md), [0020](../../../../../docs/adr/0020-place-profile-edit-dialog.md), [0040](../../../../../docs/adr/0040-self-chat-title-and-profile-setup-nudge.md) (생성 래퍼 복원 · `exit` 선택화)
+> 상태: Live · 최종 갱신: 2026-09-10 · 관련 ADR: [0012](../../../../../docs/adr/0012-place-profile-creation.md), [0020](../../../../../docs/adr/0020-place-profile-edit-dialog.md), [0040](../../../../../docs/adr/0040-self-chat-title-and-profile-setup-nudge.md) (생성 래퍼 복원 · `exit` 선택화)
 
 ## 목적
 
 플레이스(=Site)마다 사용자가 쓰는 프로필(이름·사진)을 **만들고 고치는** 화면. 두 흐름을 하나의 공통 오버레이로 제공한다.
 
 - **생성**: 프로필이 없어서 막히는 자리에서 띄운다 — 방 설정의 내 멤버 행(ADR-0040)과 초대 두 경로(ADR-0041). 홈 진입 시 자동으로 강요하던 경로는 `98a4685ff`로 사라졌다. 언제 띄우는지는 [place-profile-prompt.md](./place-profile-prompt.md)가 소유한다.
-- **수정**: 홈 헤더 드롭다운의 "프로필"에서 열어 이미 있는 프로필을 고친다.
+- **수정**: 방 설정의 내 멤버 프로필에서 `프로필 설정`으로 연다. **홈 헤더 드롭다운에는 프로필 항목이 없다** — 거기 있는 것은 `플레이스 설정` 하나와 읽기전용 등급 배지뿐이다.
 
 플레이스(공간) 자체를 개설하는 [CreatePlaceDialog](../../../src/app/features/home/components/CreatePlaceDialog.tsx), 클라우드 프로필을 고치는 [CloudProfileEditPage](../../../src/app/features/mypage/pages/CloudProfileEditPage.tsx)와는 별개다.
 
@@ -35,14 +35,14 @@
 **제외**
 
 - `PlaceEditPage`(플레이스 이름·이미지 편집) 개선 — 이번 Figma와 무관. 플레이스 엔티티 정보 조회는 이후 `PlaceDetailPage`로 분리됐다(ADR-0047).
-- `CloudProfileEditPage`·`ProfileEditPage` 자체 변경 — 다만 홈 드롭다운은 더 이상 `account.edit`로 가지 않는다(항상 수정 다이얼로그). `account.edit` 라우트/페이지는 다른 진입점을 위해 유지.
-- 생성 감지 로직(`usePlaceProfilePrompt`)·건너뜀 store 변경.
+- `CloudProfileEditPage`·`ProfileEditPage` 자체 변경 (항상 수정 다이얼로그). `account.edit` 라우트/페이지는 다른 진입점을 위해 유지.
+- 생성 오버레이를 **언제** 띄우는지의 판정 — [place-profile-prompt.md](./place-profile-prompt.md)가 소유한다.
 
 ## 시나리오
 
-### 수정 (신규 흐름)
+### 수정
 
-1. **진입** — 홈 헤더 프로필 아이콘 → 드롭다운 "프로필"을 누르면 수정 오버레이가 열린다. **클라우드 종류(default/일반) 무관.** 단, 활성 플레이스가 없으면 이 항목은 비활성(disabled)이라 열리지 않는다.
+1. **진입** — 방 설정(`ChannelSettingsPage`)의 내 멤버 행 → `MemberProfileDialog` → `프로필 설정`. 페이지가 `DialogType`의 `'profileSettings'`로 `PlaceProfileEditDialog`를 연다. **클라우드 종류(default/일반) 무관.**
 2. **초기값** — `useMyProfile`이 관측하는 현재 per-site 프로필의 이름·사진이 필드에 채워진다.
 3. **편집** — 이름/사진을 바꾼다. 초기값과 달라야("dirty") "완료"가 활성화된다. 이름은 1~20자 필수, 20자 초과 시 빨간 테두리 + "21/20" + 에러 문구로 "완료" 비활성.
 4. **사진 변경(선택)** — 아바타 "+"로 파일 선택. 10MB 이하 webp/png/jpeg만, 초과 시 에러 문구. 통과하면 150px 정사각 base64 미리보기.
@@ -61,7 +61,6 @@
 flowchart TD
     HP[HomePage] --> CRE[PlaceProfileCreateDialog<br/>래퍼]
     HP --> EDT[PlaceProfileEditDialog<br/>래퍼]
-    HP --> HOOK[usePlaceProfilePrompt<br/>생성 감지]
     EDT -->|초기값 관측| MP[useMyProfile]
     CRE --> FORM[PlaceProfileFormDialog<br/>공통 몸통]
     EDT --> FORM
@@ -70,14 +69,14 @@ flowchart TD
     FORM --> UIK["@chatic/web-ui-kit:<br/>Dialog · ModalTopBar · ProfileAvatar ·<br/>TextField · FloatingButton · AlertDialog · Toast · Text"]
 ```
 
-### 진입 분기 (홈 드롭다운 "프로필")
+### 진입 분기 (방 설정 → 내 멤버 프로필)
 
 ```mermaid
 flowchart TD
-    A[드롭다운 열림] --> B{활성 플레이스 있나?}
-    B -- 아니오 --> C['프로필' 항목 disabled]
-    B -- 예 --> D['프로필' 클릭 가능]
-    D --> E[setEditOpen#40;true#41;<br/>PlaceProfileEditDialog 오버레이<br/>클라우드 종류 무관]
+    A[방 설정 · 내 멤버 행] --> B[MemberProfileDialog]
+    B --> C['프로필 설정' 선택]
+    C --> D["openDialog('profileSettings')"]
+    D --> E[PlaceProfileEditDialog 오버레이<br/>클라우드 종류 무관]
 ```
 
 ## 상세 구현
@@ -113,21 +112,26 @@ flowchart TD
 
 ### 3) 수정 래퍼 — `PlaceProfileEditDialog`
 
-신규 `apps/web/src/app/features/home/components/PlaceProfileEditDialog.tsx`. 시그니처 `{ open, placeName, onClose }`.
+신규 `apps/web/src/app/features/channels/components/PlaceProfileEditDialog.tsx`. 시그니처 `{ open, placeName, onClose }`.
 
 - 초기값: `useMyProfile().profile`의 `nick`/`thumbnail`.
 - `title = t('placeProfileEdit.title', { place })`(= "<플레이스>에\n적용 중인 프로필 입니다."), 부제 없음.
 - `onSubmit = ({nick, thumbnail}) => profileRepository.setMyProfile({ nick, thumbnail })`.
 - `onDone = onClose`, `onExit = onClose`.
 
-### 4) 라우팅 Page 제거 & 홈 배선
+### 4) 배선 — 파일이 홈에 있지 않다
 
-- 삭제: [SiteProfileEditPage.tsx](../../../src/app/features/mypage/pages/SiteProfileEditPage.tsx) 및 `mypage/pages/index.ts` export, `mypage/routes/index.tsx`의 `site-profile` Route, [paths.ts](../../../src/app/routes/paths.ts)의 `mypage.account.siteProfile`.
-- [HomePage.tsx](../../../src/app/features/home/pages/HomePage.tsx):
-    - `PlaceProfileEditDialog` import·마운트(`open={isEditOpen}` / `onClose`), 로컬 `isEditOpen` state 추가.
-    - 드롭다운 프로필 항목을 클라우드 종류와 무관하게 `setIsEditOpen(true)`로 변경. `hasActivePlace = !!selectedSiteId`(프로필 키의 실제 소스 = `useMyProfile`이 읽는 값)가 false면 `DropdownMenuItem`에 `disabled`. default cloud도 relay가 `selectedSiteId`를 주므로 열린다.
-    - `profileTarget` 상수 제거(더 이상 `account.edit`/`siteProfile` 분기 없음). `ROUTES.mypage.account.edit`는 다른 진입점용으로 남김.
-- `home/components/index.ts`에 `PlaceProfileFormDialog`·`PlaceProfileEditDialog` export 추가.
+이 문서가 home 폴더에 있지만 **컴포넌트는 홈 소유가 아니다.** 진입점이 방 설정으로 옮겨가면서
+파일도 함께 움직였다.
+
+| 컴포넌트                               | 위치                                    | 여는 곳                                 |
+| -------------------------------------- | --------------------------------------- | --------------------------------------- |
+| `PlaceProfileFormDialog` (공통 몸통)   | `src/app/ui/components/`                | 두 래퍼                                 |
+| `PlaceProfileCreateDialog` (생성 래퍼) | `src/app/ui/components/`                | 방 설정 `'profileCreate'`, 초대 두 경로 |
+| `PlaceProfileEditDialog` (수정 래퍼)   | `src/app/features/channels/components/` | 방 설정 `'profileSettings'`             |
+
+`home/components/index.ts`에 이 셋은 없다. 라우팅 Page(`SiteProfileEditPage`)와
+`ROUTES.mypage.account.siteProfile`은 제거됐다.
 
 ### 5) i18n
 
