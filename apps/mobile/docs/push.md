@@ -20,11 +20,12 @@ reconcile)은 [badge.md](./badge.md)에서 별도로 다룬다.
 | `src/app/App.tsx`                                                                | 앱 마운트 시 Android notification channel 생성                                                                                                  |
 | `src/app/services/notification/NotificationService.ts`                           | 권한, 토큰, APNs 등록, channel 생성, 뱃지, FCM/APNs 리스너                                                                                      |
 | `src/app/services/notification/PushEventManager.ts`                              | OS/네이티브 이벤트와 WebView 브릿지 사이의 in-memory 포그라운드 이벤트 broker                                                                   |
-| `src/app/webview/hooks/useFcmHandler.ts`                                         | 토큰·뱃지·포그라운드 푸시(`OnReceiveNotification`)만 담당하는 WebView 브릿지 핸들러                                                             |
+| `src/app/webview/hooks/useFcmHandler.ts`                                         | 토큰·뱃지·푸시 마크·포그라운드 푸시(`OnReceiveNotification`)를 담당하는 WebView 브릿지 핸들러 (알림 탭은 제외)                                  |
 | `src/app/webview/hooks/useDeepLinkNavigation.ts`                                 | 인바운드 네비게이션 단일 owner: 알림 탭 + OS 딥링크 → `OnNavigate` (경로는 `deeplinkUtils`의 `resolvePushTapPath` / `resolveDeepLink`가 생성)   |
 | `android/app/src/main/java/io/chatic/dou/push/ChaticFirebaseMessagingService.kt` | Android 네이티브 FCM receiver, 지역화된 notification builder, 포그라운드 native→JS emitter, `cid`/`sid`→link 병합                               |
 | `ios/Chatic/AppDelegate.swift`                                                   | iOS APNs delegate를 `RNCPushNotificationIOS`로 연결; 포그라운드 시스템 배너 suppress                                                            |
 | `ios/ChaticNotificationServiceExtension/NotificationService.swift`               | iOS 백그라운드/killed 배너 지역화; `loc_key`/`loc_args`를 `assets/locales/{lang}.json`에서 해석(loc-args는 네이티브 배열/JSON 문자열 모두 수용) |
+| `src/app/bridge/PushMarksBridge.ts`                                              | 백그라운드 푸시가 남긴 크로스 클라우드 마크 drain (ADR-0056)                                                                                    |
 | `src/app/features/debug/screens/NotificationTestScreen.tsx`                      | 권한·토큰·뱃지·리스너 동작 수동 진단                                                                                                            |
 
 ## Structure
@@ -149,6 +150,7 @@ sequenceDiagram
 | `FetchFcmToken`   | 권한 요청, iOS는 APNs 등록, iOS는 APNs 토큰 / Android는 FCM 토큰 반환 |
 | `FetchBadgeCount` | 네이티브 launcher 뱃지 카운트 반환                                    |
 | `SetBadgeCount`   | 네이티브 launcher 뱃지 카운트 설정                                    |
+| `FetchPushMarks`  | 백그라운드 푸시가 남긴 크로스 클라우드 마크를 drain (읽고 즉시 비움)  |
 
 또한 구독하는 것(포그라운드 수신만):
 
@@ -273,6 +275,38 @@ Extension 타깃의 Copy Bundle Resources에 들어 있지 않으면 파일은 �
 `applyBadgeIncrementIfNeeded`의 chat 게이트가 이미 막고 있으므로 **네이티브는 손대지 않는다.**
 배지도, 크로스 클라우드 마크도 이 푸시로는 움직이지 않는다.
 
+## 크로스 클라우드 마크 (ADR-0056)
+
+백그라운드 chat 푸시는 뱃지만 올리는 게 아니라, **어느 클라우드에서 왔는지**를 네이티브 공유
+저장소에 한 줄 남긴다. 소켓이 suspend된 시간대라 웹은 그 도착을 영영 보지 못하고, 이 기록이 그
+클라우드의 안 읽음 점이 살아남는 유일한 경로다.
+
+| 자리    | 쓰는 곳                                                   | 저장소                                              |
+| ------- | --------------------------------------------------------- | --------------------------------------------------- |
+| Android | `ChaticFirebaseMessagingService` → `PushMarkStore.append` | `chatic_badge` SharedPreferences (뱃지와 같은 파일) |
+| iOS     | NSE `NotificationService.appendPushMarkIfNeeded`          | App Group `push_marks` (최대 100건)                 |
+
+읽기는 **drain 한 번**이다 — `FetchPushMarks` → [`PushMarksBridge.drain()`](../src/app/bridge/PushMarksBridge.ts)이
+전부 읽고 같은 호출에서 네이티브 저장소를 비운다. 마크가 정확히 한 번만 웹에 닿게 하려는 것이고,
+그래서 읽기와 비우기를 두 호출로 나누면 안 된다. 웹은 부팅(`WebAppReady` 이후)과 포그라운드 복귀에
+호출한다.
+
+**모바일은 이 값을 해석하지 않는다.** 저장되는 건 원본 힌트 필드(`cid`/`uid`/`channelId`/`sid`/
+`channelName`)뿐이고, 릴레이 sentinel이나 빈 `cid`의 교차 파티션 조회 같은 판정은 전부 웹의
+`resolvePushCloudId`가 한 곳에서 한다. 양 플랫폼이 같은 필드 모양을 쓰는 것도 웹의 drain 처리가
+플랫폼을 몰라도 되게 하려는 것이다.
+
+## 기기 등록 기록 (ADR-0077)
+
+푸시 토큰 등록은 설치당 1회이고, 그 "했음" 기록은 웹이 아니라 **네이티브 preference**에 산다.
+`SavePreference`의 브릿지 쓰기 화이트리스트에 `pushRegistration`이 들어 있는 이유다
+([`usePreferenceCacheHandler.ts`](../src/app/webview/hooks/usePreferenceCacheHandler.ts)).
+
+모바일 쪽에서 이 값은 **불투명한 JSON 덩어리**다 — 웹이 쓰고 웹이 읽으며, 네이티브는 아무것도
+판정하지 않는다. 그래서 시스템 키(특히 웹뷰 origin을 정하는 `debugSettings`)와 달리 origin 탈취
+면을 넓히지 않는다. 웹뷰 스토리지가 아니라 여기 두는 이유는 하나다: 캐시를 지웠다고 등록이 다시
+돌면 설치당 1회가 깨진다.
+
 ## 제약
 
 - 네이티브 Android/iOS lifecycle 설계가 바뀌지 않는 한 `main.tsx`에 JS 백그라운드 푸시 처리를 다시 넣지 않는다.
@@ -280,14 +314,14 @@ Extension 타깃의 Copy Bundle Resources에 들어 있지 않으면 파일은 �
 - iOS 백그라운드/killed 배너 텍스트는 Notification Service Extension이 `assets/locales/{lang}.json`에서 지역화한다(fallback 영어). `loc_args`/`title_loc_args`는 네이티브 JSON 배열(APNs)과 JSON 문자열 모두 수용해 동일한 위치 args로 해석한다. `assets/locales/*.json`은 앱 타깃뿐 아니라 **Extension 타깃의** Copy Bundle Resources에 반드시 포함돼야 한다.
 - 포그라운드 푸시 전달은 의도적으로 `PushEventManager`로 decouple돼 있다. OS/네이티브 콜백이 시작될 때 WebView가 마운트되지 않았을 수 있다.
 - 백그라운드/killed Android silent 푸시는 현재 네이티브 배너를 skip하며 JS offline queue로 persist하지 않는다.
-- `cid`/`sid`는 별도 채널이 아니라 `OnNavigate` 경로 쿼리로 웹에 도달한다: Android는 네이티브에서 link URI에 병합하고, iOS는 `resolvePushPath`에서 병합한다. 웹은 `resolvePushNavigation`에서 이를 제거한다.
+- `cid`/`sid`는 별도 채널이 아니라 `OnNavigate` 경로 쿼리로 웹에 도달한다: Android는 네이티브에서 link URI에 병합하고, iOS는 `resolvePushTapPath`에서 병합한다. 웹은 `resolvePushNavigation`에서 이를 제거한다.
 
 ## 변경 체크리스트
 
 - 변경이 Android 네이티브 전달, iOS APNs 전달, JS 브릿지 전달 중 어디에 영향을 주는가?
 - Android 포그라운드 전달이 여전히 `useFcmHandler`가 기대하는 필드로 `onForegroundPushReceived`를 emit하는가?
 - 알림 탭 payload가 여전히 `link`(또는 `clickAction`)를 포함하는가?
-- `cid`/`sid`가 여전히 웹에 전달되는가 — Android는 link 쿼리에 네이티브 병합, iOS는 `resolvePushPath` 경유?
+- `cid`/`sid`가 여전히 웹에 전달되는가 — Android는 link 쿼리에 네이티브 병합, iOS는 `resolvePushTapPath` 경유?
 - `NotificationService.createNotificationChannel`과 `ChaticFirebaseMessagingService.createNotificationChannel`의 channel 동작이 일관되는가?
 - payload 지역화가 바뀌었다면, iOS Notification Service Extension이 여전히 `assets/locales`에서 `loc_args`(네이티브 배열·JSON 문자열 양쪽)를 해석하고, 그 JSON 파일이 Extension 타깃에 번들되는가?
 - 포그라운드 시스템 배너가 양 플랫폼에서 의도대로 suppress되는가?
