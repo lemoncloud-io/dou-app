@@ -75,6 +75,15 @@ export const DEBUG_SCREENS = [
         load: () => import('./screens/UnreadScreen').then(m => ({ default: m.UnreadScreen })),
     },
     {
+        // Two stores, one screen: the reconstructed history stack and the visited trail. They
+        // disagree by design (`/a → /b → back → /c`), and the back-button questions need the stack.
+        key: 'Route',
+        icon: 'Route',
+        section: 'info',
+        pinned: true,
+        load: () => import('./screens/RouteScreen').then(m => ({ default: m.RouteScreen })),
+    },
+    {
         key: 'DeviceInfo',
         icon: 'Smartphone',
         section: 'info',
