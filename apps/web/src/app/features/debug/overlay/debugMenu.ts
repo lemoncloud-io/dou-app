@@ -16,7 +16,8 @@ export type DebugScreenKey =
     | 'Deeplink'
     | 'AppIcon'
     | 'Sms'
-    | 'OAuthNative';
+    | 'OAuthNative'
+    | 'Iap';
 
 export interface DebugMenuItem {
     key: DebugScreenKey;
@@ -42,6 +43,7 @@ export const DEBUG_MENU_SECTIONS: DebugMenuSection[] = [
             { key: 'Sms', title: 'SMS' },
             { key: 'OAuthNative', title: 'OAuth (네이티브)' },
             { key: 'AppIcon', title: '앱 아이콘' },
+            { key: 'Iap', title: '인앱결제' },
             { key: 'InviteRedirect', title: 'Invite Link Converter' },
             // Distinct from the converter above: that one navigates the WEB, this hands the APP an
             // inbound deeplink (ADR-0080 결정 11).

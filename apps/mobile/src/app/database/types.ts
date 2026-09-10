@@ -41,7 +41,5 @@ export interface ISqliteDatabase {
      * @returns 모든 일괄 처리가 성공적으로 완료되면 resolve 되는 Promise
      */
     executeBatch(commands: SQLBatchTuple[]): Promise<BatchQueryResult>;
-    backup(destFilePath: string): Promise<void>;
-    restore(sourceFilePath: string): Promise<void>;
     close(): void;
 }

@@ -74,61 +74,6 @@ export class SqliteDatabase implements ISqliteDatabase {
         return this.db.executeBatch(commands);
     }
 
-    public async backup(destFilePath: string): Promise<void> {
-        try {
-            await this.ready;
-            const safePath = destFilePath.replace(/'/g, "''");
-            await this.db.execute(`VACUUM INTO '${safePath}'`);
-            this.logService.info('SQLITE', `Database backed up successfully to ${destFilePath}`);
-        } catch (error) {
-            this.logService.error('SQLITE', `Backup failed to ${destFilePath}`, error as Error);
-            throw error;
-        }
-    }
-
-    public async restore(sourceFilePath: string): Promise<void> {
-        try {
-            await this.ready;
-            const safePath = sourceFilePath.replace(/'/g, "''");
-            await this.db.execute(`ATTACH DATABASE '${safePath}' AS backup_db`);
-
-            await this.db.transaction(async tx => {
-                const result = await tx.execute(
-                    `SELECT name FROM backup_db.sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'`
-                );
-
-                const tables = (result.rows || []) as { name: string }[];
-
-                for (const { name: tableName } of tables) {
-                    const mainInfo = await tx.execute(`PRAGMA main.table_info(${tableName})`);
-                    const backupInfo = await tx.execute(`PRAGMA backup_db.table_info(${tableName})`);
-
-                    const mainCols = (mainInfo.rows || []).map(c => c.name as string);
-                    const backupCols = (backupInfo.rows || []).map(c => c.name as string);
-
-                    const sharedCols = mainCols.filter(c => backupCols.includes(c)).join(', ');
-                    if (!sharedCols) continue;
-
-                    await tx.execute(`DELETE FROM main.${tableName}`);
-                    await tx.execute(
-                        `INSERT INTO main.${tableName} (${sharedCols}) SELECT ${sharedCols} FROM backup_db.${tableName}`
-                    );
-                }
-            });
-
-            await this.db.execute('DETACH DATABASE backup_db');
-            this.logService.info('SQLITE', `Database restored successfully from: ${sourceFilePath}`);
-        } catch (error) {
-            this.logService.error('SQLITE', `Restore failed from ${sourceFilePath}`, error as Error);
-            try {
-                await this.db.execute('DETACH DATABASE backup_db');
-            } catch (e) {
-                this.logService.error('SQLITE', `Detach database failed`, e as Error);
-            }
-            throw error;
-        }
-    }
-
     public close(): void {
         this.db.close();
     }
