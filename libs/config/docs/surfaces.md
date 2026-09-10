@@ -154,6 +154,13 @@ LOCAL/DEV는 `debug.overlayEnabled`의 `byStage`가 그 마찰을 없애고, PRO
 급할 때는 워크플로에 줄을 넣고 시크릿을 등록하는 일부터 해야 한다.** `VITE_DEBUG_CODE`가 같은 블록에
 이미 그렇게 배선돼 있으니 형태는 그것을 따르면 된다.
 
+**배선하더라도 재배포가 따른다** — Vite가 빌드 타임에 굽기 때문에 시크릿만 넣어서는 켜지지 않는다.
+함대 전체를 즉시 끄는 경로는 원격 레인(1행 `serverEnforced`)이고, `log.upload.enabled`는 이미
+`writableBy`에 `server`를 갖고 있다. 다만 그 레인이 아직 꽂혀 있지 않다 — `webConfigPorts`에 `remote`가
+없고 `system.remote.enabled`는 기본 `false`다. **즉 오늘 이 앱에는 재배포 없이 로그 전송을 끄는 수단이
+없다.** 이 빌드 플래그를 배선하는 것은 그 사실을 가릴 뿐 바꾸지 못한다. 같은 문제의 진짜 답은 원격
+어댑터를 붙이는 쪽이고, 그날 이 플래그는 잉여가 된다(2026-09-10 판단).
+
 admin-v2에도 같은 성격의 파일이 7개 있다(LoginPage · reportLogApi · socket-lab 5).
 
 ## 하지 말 것
