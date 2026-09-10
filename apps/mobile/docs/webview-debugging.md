@@ -9,14 +9,19 @@
 앱은 웹뷰 로그를 네이티브로 포워딩해 Metro 터미널과 미전송 큐에 남긴다.
 
 ```
-[웹] logger.error(...)        libs/bridges/src/logger/logger.ts
-  → SendLogBatch 메시지       libs/bridges/src/logger/appLogInfoCodec.ts (건당 SendLog는 구버전 폴백)
-  → [앱] useLogBatchHandler   src/app/webview/hooks/useLogBatchHandler.ts
-  → ingestLogEntry → logHub
-      ├─ ConsoleLogger(터미널 — __DEV__ 한정, 전 레벨)
+[웹] logger.error(...)            libs/logger — 웹 logHub에 발행
+  → createNativeForwarder 리스너  libs/bridges/src/logger/nativeForwarder.ts
+  → SendLog 메시지 (엔트리 1건 = 메시지 1건, 페이로드는 appLogInfoCodec.ts)
+  → [앱] useLogHandler            src/app/webview/hooks/useLogHandler.ts
+  → ingestLogEntry → 앱 logHub
+      ├─ createConsoleListener(터미널 — __DEV__ 한정, 전 레벨)
       ├─ Crashlytics breadcrumb(비-debug)
       └─ LogUploadQueueService(비-debug — MonitoringScreen이 읽는 그 큐)
 ```
+
+배치 경로는 없다. 한때 `SendLogBatch`가 큐에 직접 쓰는 두 번째 경로였고 건당 `SendLog`가 그
+폴백이었는데, ADR-0066이 배치를 걷어내면서 관계가 뒤집혔다 — 지금은 건당 `SendLog`가 유일한
+경로이고, 웹 엔트리는 네이티브 엔트리와 똑같이 hub를 거쳐 큐에 들어간다.
 
 **`debug`는 콘솔 전용이다.** 영속 sink 둘이 모두 버리므로 `prodRelease`에서 `debug`는 어디에도
 남지 않는다 — `prodDebug`·`dev*` 빌드의 터미널에서 읽는 것이 이 레벨의 목적이다. 그래서 인앱
@@ -44,25 +49,19 @@ stack이 이스케이프된 한 줄로 눌려 있어 실제 위치(`SocketManage
 
 원격 인스펙터가 웹뷰를 인식하려면 웹뷰의 디버깅 플래그가 켜져 있어야 한다. 플랫폼마다 다르다.
 
-| 플랫폼  | 기본 동작                                                                                                                                                                                                                                                                                  | 조치                                                           |
-| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------- |
-| Android | **Debug 빌드는 자동 활성화.** react-native-webview가 `ReactBuildConfig.DEBUG`일 때 `setWebContentsDebuggingEnabled(true)` 호출 ([RNCWebViewManagerImpl.kt:91](../../../node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebViewManagerImpl.kt)) | 별도 조치 불필요 (Debug/Dev 빌드). Release는 불가.             |
-| iOS     | **자동 활성화 없음.** WKWebView의 `inspectable`은 `webviewDebuggingEnabled` prop으로만 켜진다 ([RNCWebViewImpl.m:571](../../../node_modules/react-native-webview/apple/RNCWebViewImpl.m)). iOS 16.4 미만은 OS가 dev에서 자동 노출하지만, **16.4 이상은 이 prop 없이는 Safari에 안 뜬다.**  | `AppWebView`에 prop 추가 필요 (아래 스니펫). 현재 미설정 상태. |
+| 플랫폼  | 기본 동작                                                                                                                                                                                                                                     | 조치                                               |
+| ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| Android | **Debug 빌드는 자동 활성화.** react-native-webview가 `ReactBuildConfig.DEBUG`일 때 `setWebContentsDebuggingEnabled(true)`를 호출한다 (`android/.../RNCWebViewManagerImpl.kt`)                                                                 | 별도 조치 불필요 (Debug/Dev 빌드). Release는 불가. |
+| iOS     | **자동 활성화 없음.** WKWebView의 `inspectable`은 `webviewDebuggingEnabled` prop으로만 켜진다 (react-native-webview `apple/RNCWebViewImpl.m`). iOS 16.4 미만은 OS가 dev에서 자동 노출하지만, **16.4 이상은 이 prop 없이는 Safari에 안 뜬다.** | 조치 불필요 — `AppWebView`가 이미 켠다 (아래).     |
 
-### iOS: `webviewDebuggingEnabled` 켜기
+### iOS: `webviewDebuggingEnabled`
 
-`AppWebView`([src/app/webview/AppWebView.tsx](../src/app/webview/AppWebView.tsx))의 `<WebView>`에 dev 한정으로 추가한다.
-프로덕션에서 웹뷰가 인스펙터에 노출되지 않도록 `__DEV__` 게이트를 쓴다.
+[`AppWebView.tsx`](../src/app/webview/AppWebView.tsx)의 `<WebView>`가 `webviewDebuggingEnabled={__DEV__}`를
+넘긴다. `__DEV__` 게이트라 릴리스 빌드의 웹뷰는 인스펙터에 노출되지 않는다 — 그래서 **Dev/Debug
+빌드에서만** 이 문서의 절차가 통한다.
 
-```tsx
-<WebView
-    // …기존 props
-    webviewDebuggingEnabled={__DEV__}
-/>
-```
-
-> iOS 배포 타깃이 15.6이라 16.4 이상 기기·시뮬레이터가 관측 대상이 된다. 이 prop 없이 "웹뷰가
-> Safari 목록에 안 뜬다"면 대개 이 문제다.
+> iOS 배포 타깃이 15.6이라 16.4 이상 기기·시뮬레이터가 관측 대상이 된다. 릴리스 빌드에서 "웹뷰가
+> Safari 목록에 안 뜬다"면 정상이다 — 게이트가 의도대로 동작한 것이다.
 
 ## iOS — Safari Web Inspector
 
@@ -77,7 +76,7 @@ stack이 이스케이프된 한 줄로 눌려 있어 실제 위치(`SocketManage
 6. Console/Sources/Network를 연다. 예: 위 503 로그의 `SocketManager.ts:121` 프레임을 Sources에서
    클릭하면 원본 코드 줄로 점프한다.
 
-> 목록에 웹뷰가 안 보이면 위 [사전 조건 — iOS](#ios-webviewdebuggingenabled-켜기)를 먼저 확인한다.
+> 목록에 웹뷰가 안 보이면 위 [사전 조건 — iOS](#ios-webviewdebuggingenabled)를 먼저 확인한다.
 
 ## Android — Chrome DevTools (`chrome://inspect`)
 
@@ -94,7 +93,7 @@ stack이 이스케이프된 한 줄로 눌려 있어 실제 위치(`SocketManage
 ```mermaid
 flowchart LR
     WV["WebView (웹 앱)"]
-    WV -->|"logger.* → SendLogBatch"| Fwd["포워딩 로그<br/>Metro 터미널 · 미전송 큐"]
+    WV -->|"logger.* → SendLog"| Fwd["포워딩 로그<br/>Metro 터미널 · 미전송 큐"]
     WV -->|"Safari / chrome://inspect"| Insp["원격 인스펙터<br/>실제 DevTools"]
 ```
 
@@ -106,13 +105,9 @@ flowchart LR
 
 ## 트러블슈팅
 
-- **iOS: 웹뷰가 개발자용 메뉴에 안 뜸** → iOS 16.4+인데 `webviewDebuggingEnabled` 미설정이 가장
-  흔한 원인. Release 빌드가 아닌지, 기기의 웹 검사기 토글이 켜졌는지도 확인.
+- **iOS: 웹뷰가 개발자용 메뉴에 안 뜸** → Release 빌드가 아닌지부터 확인한다(`__DEV__` 게이트가
+  막는다). Dev 빌드인데도 안 뜨면 기기의 웹 검사기 토글을 확인.
 - **Android: 기기/웹뷰가 `chrome://inspect`에 안 뜸** → USB 디버깅, Debug 빌드 여부, USB 신뢰
   프롬프트, (필요 시) 제조사 USB 드라이버를 확인.
 - **원격 인스펙터 연결은 되는데 소스가 번들로만 보임** → dev 서버(Vite) 소스맵으로 접속했는지 확인.
   프로덕션 번들은 minify되어 코드 레벨 추적이 제한된다.
-
-```
-
-```
