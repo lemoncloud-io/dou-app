@@ -1,6 +1,6 @@
 # 계정 연동 통합 경로 (`auth.link-account` · `link$`)
 
-> 상태: Live · 최종 갱신: 2026-08-03 · 관련 ADR: [ADR-0042](../../../../../docs/adr/0042-account-linking-unified-path-migration.md) · 시나리오 전수표: [account-linking-scenarios.md](../../../../../docs/plans/account-linking-scenarios.md)
+> 상태: Live · 최종 갱신: 2026-09-10 · 관련 ADR: [ADR-0042](../../../../../docs/adr/0042-account-linking-unified-path-migration.md) · 시나리오 전수표: [account-linking-scenarios.md](../../../../../docs/plans/account-linking-scenarios.md)
 >
 > 대상: `AuthSocketDomainGateway` · `AuthSocketDataSource` · `AuthRepository` · `useLinkAccount` · `useLinkedAccounts`
 
@@ -86,7 +86,7 @@ await confirm(phone, otp, { mode: 'login' }); // → { loggedIn, isNew, $token }
 **`verify`를 건너뛴다.** `login`의 `verify`는 `{ verified: true }`뿐이라 사용자가 얻는 것이 없고,
 `confirm`이 같은 코드로 유효성까지 답한다. 그래서 6자리가 차면 곧바로 확정한다.
 
-확정 응답의 `$token`으로 세션이 바뀐다 — `applySessionToken`이 web-core와 살아 있는 relay 소켓에
+확정 응답의 `$token`으로 세션이 바뀐다 — `applySessionToken`이 세션 저장소와 살아 있는 relay 소켓에
 새 신원을 심은 **뒤에야** `onVerified`가 뜬다. `isNew`로 가입/복귀 첫 화면이 갈린다.
 
 ### 2. `link` — 메인유저가 수단을 하나 더 단다
@@ -126,7 +126,7 @@ graph TD
     HK["useLinkAccount<br/>(뮤테이션 5개)"]
     RP["AuthRepository"]
     DS["AuthSocketDataSource<br/>type·mode·step 조립"]
-    GW["AuthSocketDomainGateway<br/>Pick&lt;AuthGateway, 'update' | 'linkAccount'&gt;"]
+    GW["AuthSocketDomainGateway<br/>Pick&lt;AuthGateway, 'linkAccount'&gt;"]
     RF["socketFactory<br/>getScopedClient('relay')"]
     SRV["relay 서버<br/>auth.link-account"]
 
@@ -135,9 +135,19 @@ graph TD
     GW --> SRV
 ```
 
-`auth.update`는 **active 슬롯**에 남는다 — 어느 소켓이 살아 있든 그걸 인증하는 패킷이라서다.
-`linkAccount`만 relay에 고정된다: 그것이 해석하는 메인유저가 relay 뒤 중앙 백엔드에 살기 때문이다
-(`socketFactory.ts:57-61`).
+**`auth.update`는 이 게이트웨이에 없다.** Pick은 `linkAccount` 하나뿐이고, `update`를 뺀 것이
+이 Pick에서 가장 중요한 부분이다 — `auth.update`는 소켓 핸드셰이크이고 SDK의 `AuthController`가
+끝에서 끝까지 소유한다. 두 번째 발신자가 생기면 컨트롤러가 자기가 인증한 줄 모르는 연결을 인증하게
+되고, 컨트롤러의 상태기계(refresh 스케줄·실패 카운트·terminal `expired`)가 자기가 열지 않은 세션을
+두고 추론한다. SDK 밖에서는 아무도 보내면 안 된다. 이 부재는 산문이 아니라 테스트가 지킨다 —
+app-runtime의 `authUpdateAbsence.test.ts`와 `socketFactory.test.ts`의
+`exposes no auth.update sender at all`.
+
+대체된 `verifyHashAlias`·`attachSocial`도 같은 이유로 빠져 있다. 와이어와 `AuthGateway`에는
+`@deprecated`로 남아 있지만, Pick에서 빼는 것이 호출부가 옛 패킷에 닿지 못하게 막는 유일한
+장치다 — 앱에 호출부가 없어야 백엔드가 지운다.
+
+`linkAccount`는 relay에 고정된다: 그것이 해석하는 메인유저가 relay 뒤 중앙 백엔드에 살기 때문이다.
 
 ### 단계 × 모드 → 응답
 
@@ -158,16 +168,20 @@ stateDiagram-v2
 
 ```mermaid
 graph LR
-    SRV["서버<br/>UserProfile$"] --> RDS["UserSocketDataSource:71<br/>$user 추출"]
-    RDS --> MAP["toDomainUser<br/>mappers.ts:172 (...api)"]
-    MAP --> LDS["UserLocalDataSource:96<br/>cacheWrite (...item)"]
-    LDS --> IDB[(IndexedDB)]
-    IDB --> MU["useMyUser<br/>observeItem"]
+    SRV["relay 서버<br/>user.profile · user.update 응답"] --> TOK["relay 토큰<br/>ACCOUNT_FIELDS 화이트리스트"]
+    TOK --> MU["useMyUser<br/>토큰 직독"]
     MU --> LA["useLinkedAccounts<br/>3상태 판정"]
 ```
 
-전 구간이 spread다 — 필드 화이트리스트가 없어서 **모르는 필드가 버려지지 않는다.** 막는 것은
-타입뿐이고, 읽는 쪽에서 넓혀 쓴다.
+**IndexedDB를 지나지 않는다.** `useMyUser`는 저장된 relay 토큰을 직접 읽는다. 캐시는
+`${type}:${cid}:${uid}:${id}`로 물리 파티션돼 있고 읽기 경로가 context override를 무시하므로,
+클라우드가 활성인 동안에는 relay `user` 행을 아예 읽어 올 수 없다. 데이터 레이어 안에서 고치려던
+시도는 정확히 그 이유로 되돌려졌다(ADR-0045 결정 5, 2026-08-06 revert). relay 토큰은 두 문제가
+모두 없다 — 항상 있고, 항상 relay 계정의 것이고, `link$`를 싣고 온다.
+
+그리고 **화이트리스트가 있다.** `ACCOUNT_FIELDS = ['name','nick','photo','thumbnail','email','link$']`
+가 토큰으로 되돌려 넣을 필드를 정한다. `link$`는 타입도 있다(`LinkedAccountsView`) — "타입이 없어
+서버가 모양을 바꿔도 컴파일이 안 잡는다"는 예전 서술은 더 이상 맞지 않는다.
 
 ## 상세 구현
 
@@ -228,8 +242,8 @@ graph LR
 
 셋 다 착수를 막지 않는다 — 전부 "없으면 물러난다"로 설계했다.
 
-| #   | 무엇                                           | 답이 "아니오"면                                                                                                    |
-| --- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| 1   | 기존 유저 `link$` **백필 패치**가 돌았나       | 기존 유저의 `link$`가 비어 발급 게이트가 사실상 동작하지 않는다. `isGuest` 기준으로 물러난다                       |
-| 2   | `user.profile`이 `$user.link$`를 **실어 오나** | `link$` 읽기가 성립하지 않는다. `GET /users/0/profile`(`libs/web-core/src/api/auth.ts:128`, 죽은 코드)이 폴백 카드 |
-| 3   | `invite.get`이 `last4`를 **실어 오나**         | 발송 전 사전 대조를 건너뛰고 서버 400에 의존한다                                                                   |
+| #   | 무엇                                           | 답이 "아니오"면                                                                                                       |
+| --- | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| 1   | 기존 유저 `link$` **백필 패치**가 돌았나       | 기존 유저의 `link$`가 비어 발급 게이트가 사실상 동작하지 않는다. `isGuest` 기준으로 물러난다                          |
+| 2   | `user.profile`이 `$user.link$`를 **실어 오나** | `link$` 읽기가 성립하지 않는다. `GET /users/0/profile`(`libs/app-runtime/src/api/auth.ts:128`, 죽은 코드)이 폴백 카드 |
+| 3   | `invite.get`이 `last4`를 **실어 오나**         | 발송 전 사전 대조를 건너뛰고 서버 400에 의존한다                                                                      |

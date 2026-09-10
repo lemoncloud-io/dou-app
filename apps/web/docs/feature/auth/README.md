@@ -36,9 +36,9 @@ features/auth/
   index.tsx                   # AuthRoutes + PhoneVerifyScreen/PhoneVerifyBanner export
 ```
 
-## 데이터 흐름 (web-core 신 public API)
+## 데이터 흐름 (app-runtime 세션 표면)
 
-세션 변경은 모두 web-core 훅 경유다(core 객체 직접 접근 금지).
+세션 변경은 모두 `runtime.session.*` 경유다(core 객체 직접 접근 금지).
 
 | 용도                           | API                                                                         |
 | ------------------------------ | --------------------------------------------------------------------------- |

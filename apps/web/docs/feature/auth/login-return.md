@@ -114,7 +114,7 @@ window.history.go(-stepsBack); // 히스토리를 처음까지 되감고
 ### S4. 폰 로그인 (개발 빌드)
 
 1. `PhoneVerifySheet`를 `mode="login"`으로 연다.
-2. 번호를 확인하면 응답의 `$token`을 `applySessionToken`이 **`onVerified` 이전에** web-core와 라이브
+2. 번호를 확인하면 응답의 `$token`을 `applySessionToken`이 **`onVerified` 이전에** app-runtime와 라이브
    릴레이 소켓에 넣는다.
 3. `onVerified`에서 `navigate(-1)`로 복귀한다. **신원은 이미 교체된 상태**이므로 리로드가
    필요 없다.
@@ -192,7 +192,7 @@ sequenceDiagram
         Auth-->>Login: 세션 하이드레이트 완료
     else 폰 (dev)
         Login->>Auth: PhoneVerifySheet(mode='login')
-        Auth->>Auth: applySessionToken($token)<br/>web-core + 라이브 소켓
+        Auth->>Auth: applySessionToken($token)<br/>세션 저장소 + 라이브 소켓
         Auth-->>Login: onVerified
     end
 
@@ -296,7 +296,7 @@ URL에 실리지 않아 딥링크·외부 링크·네이티브 셸이 설정할 
 
 원칙 4의 근거. 두 경로 모두 **복귀 시점에는 이미 새 신원이다.**
 
-- **폰** — `usePhoneVerify`의 `login` 모드는 응답의 `$token`을 `applySessionToken`으로 web-core와
+- **폰** — `usePhoneVerify`의 `login` 모드는 응답의 `$token`을 `applySessionToken`으로 app-runtime와
   **살아 있는 릴레이 소켓**에 밀어 넣은 뒤에야 `onVerified`를 부른다 (ADR-0033 Track A 계약;
   [phone-verification.md](./phone-verification.md)).
 - **소셜** — `useLoginRelaySocial`이 네이티브 토큰을 검증하고 provider를 세팅하고 세션을

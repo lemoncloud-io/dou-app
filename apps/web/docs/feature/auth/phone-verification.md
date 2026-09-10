@@ -1,6 +1,6 @@
 # 전화번호 인증 (PhoneVerifyFields · 두 셸 · applySessionToken)
 
-> 상태: Live · 최종 갱신: 2026-08-03 · 관련 ADR: [ADR-0033](../../../../../docs/adr/0033-relay-dm-invite-and-auth-parallel-tracks.md) Track A · [ADR-0034](../../../../../docs/adr/0034-inviter-phone-verification-guest-gate-and-sheet.md) · [ADR-0042](../../../../../docs/adr/0042-account-linking-unified-path-migration.md) · 로드맵: [relay-dm-invite-parallel-roadmap](../../../../../docs/plans/relay-dm-invite-parallel-roadmap.md)
+> 상태: Live · 최종 갱신: 2026-09-10 · 관련 ADR: [ADR-0033](../../../../../docs/adr/0033-relay-dm-invite-and-auth-parallel-tracks.md) Track A · [ADR-0034](../../../../../docs/adr/0034-inviter-phone-verification-guest-gate-and-sheet.md) · [ADR-0042](../../../../../docs/adr/0042-account-linking-unified-path-migration.md) · 로드맵: [relay-dm-invite-parallel-roadmap](../../../../../docs/plans/relay-dm-invite-parallel-roadmap.md)
 
 ## 목적
 
@@ -14,7 +14,7 @@
 이 문서가 다루는 것:
 
 - **`applySessionToken($token)`** — `mode: 'login'`의 `confirm` 성공 응답의 `$token`(새 세션)을
-  web-core 세션 저장소와 relay 소켓 연결 신원에 반영한다. 완료 후 같은 소켓 연결에서
+  app-runtime 세션 저장소와 relay 소켓 연결 신원에 반영한다. 완료 후 같은 소켓 연결에서
   `invite.create`가 403 없이 성공한다. `mode: 'link'`에는 토큰이 없어 이 경로를 타지 않는다.
 - **`usePhoneVerify` + `PhoneVerifyFields`** — 인증 로직과 입력 본문. 셸에 독립적이다.
 - **두 셸** — `PhoneVerifyScreen`(풀스크린, 수락 흐름) / `PhoneVerifySheet`(바텀시트, 발급 흐름과
@@ -27,7 +27,7 @@
 
 ## 설계 원칙
 
-- **세션 전환의 원본은 web-core 토큰 저장소다.** 소켓은 저장소를 따라간다. 소켓에만
+- **세션 전환의 원본은 app-runtime 의 relay 토큰 저장소다.** 소켓은 저장소를 따라간다. 소켓에만
   새 신원을 심고 저장소를 안 바꾸는 경로는 만들지 않는다 — HTTP 서명/refresh가 옛
   신원으로 남는다.
 - **신원 전환은 사전·사후 양쪽을 검사한다.** 커밋 전에 재등록 가능성을(`$auth.id`),
@@ -54,8 +54,8 @@
 
 **포함**
 
-- `applySessionToken($token)` (`@chatic/app-runtime` 공개 export) + web-core
-  `loginRelayByToken`
+- `applySessionToken($token)` (`@chatic/app-runtime` 공개 export) + 세션 저장소
+  `relaySession.loginByToken`
 - `usePhoneVerify` (로직, 두 모드) · `PhoneVerifyFields` (입력 본문) ·
   `PhoneVerifyScreen`(풀스크린 셸) · `PhoneVerifySheet`(바텀시트 셸)
 - 사전 게이트 + 인증 유도 화면 (`ContactInvitePage`, 홈 ＋버튼 1:1 초대 진입점) — 게스트와
@@ -149,7 +149,7 @@ inviteLast4={flow.invite?.last4} … />`를 띄운다. **항상 `login`이다** 
   지금까지 브라우저는 로그인이 아예 불가능했고, 이 경로가 그것을 처음 연다.
 - **브라우저에서는 탈출구가 없다.** 소셜 로그인이 앱 전용이라 "소셜로 먼저"가 실행 불가능한
   안내가 되므로, 브라우저에서는 "앱에서 소셜로 로그인해 주세요"로 바꿔 이동 링크 없이 안내만 한다.
-- 성공 후 히스토리 정리(`leaveForHome`)를 소셜 경로와 공유한다.
+- 성공 후 히스토리 정리(`leaveForReturnTo`)를 소셜 경로와 공유한다.
 
 ### 3-c. 마이페이지 계정 화면의 번호 연동 — `PhoneVerifySheet`
 
@@ -186,7 +186,7 @@ inviteLast4={flow.invite?.last4} … />`를 띄운다. **항상 `login`이다** 
 
 ### 7. 로그아웃 회귀
 
-`useSessionLogout` → `logoutSession`(소켓 `auth.logout` + web-core 로컬 teardown) →
+`useSessionLogout` → `logoutSession`(소켓 `auth.logout` + 세션 로컬 teardown) →
 `useRelaySessionKeepAlive`가 relay 인증 부재를 보고 `loginRelayGuestByDevice`로 **같은
 디바이스 유저** 복귀. `applySessionToken`은 `delegatorId`와 디바이스 저장소를 건드리지
 않으므로 이 경로가 깨지지 않는다 — 테스트로 고정돼 있다.
@@ -233,7 +233,7 @@ stateDiagram-v2
 sequenceDiagram
     participant UI as PhoneVerifyFields
     participant H as useLinkAccount
-    participant WC as web-core<br/>(relay 토큰 저장소)
+    participant WC as app-runtime<br/>(relay 토큰 저장소)
     participant AST as applySessionToken
     participant SDK as relay 슬롯 SDK<br/>AuthController
     participant SRV as relay 서버
@@ -243,7 +243,7 @@ sequenceDiagram
     SRV-->>H: { loggedIn, isNew, $token }
     UI->>AST: applySessionToken($token)
     Note over AST: 사전 가드 — $auth.id 없으면<br/>커밋 전 reject
-    AST->>WC: loginRelayByToken($token)
+    AST->>WC: relaySession.loginByToken($token)
     AST->>SDK: reauthenticateActiveSocket(kind: relay)
     Note over SDK: auth.logout() → 옛 세션 종료<br/>register(새 identityToken) → resume
     SDK->>SRV: auth.update (같은 연결, 새 토큰)
@@ -263,12 +263,12 @@ sequenceDiagram
 
 ### applySessionToken 쪽
 
-| 파일                                                    | 역할                                                                                                                                                                                                                                                                                                              |
-| ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `libs/web-core/src/session/services.ts`                 | `loginRelayByToken(tokenView)` — 기존 private `applyRelaySession`(guest/social 로그인이 공유) 재사용: `buildCredentialsByToken` + `saveRelayToken` + authenticated 플래그. `delegatorId`는 건드리지 않는다                                                                                                        |
-| `libs/app-runtime/src/socket/auth/sessionDelegate.ts`   | `createSocketSessionDelegate()` — 위임 객체 생성을 모듈 함수로 추출(React 밖에서도 쓰기 위함). `connection/useSocketSessionDelegate.ts`가 이걸 `useMemo`로 감싼다                                                                                                                                                 |
-| `libs/app-runtime/src/socket/auth/applySessionToken.ts` | 본체. (1) `identityToken` 없으면 no-op(연동만 됨), `$auth.id` 없으면 **커밋 전** reject (2) `loginRelayByToken` (3) `reauthenticateActiveSocket({ kind: 'relay' })` (4) `auth.ready()`를 10s 타임아웃과 경쟁 (5) **사후 조건** — 컨트롤러 토큰 ≠ 커밋한 `identityToken`이면 reject. relay 슬롯이 없으면 (2)까지만 |
-| `libs/app-runtime/src/index.ts`                         | `applySessionToken` 공개 export (`public-surface.test.ts`가 목록을 지킨다)                                                                                                                                                                                                                                        |
+| 파일                                                    | 역할                                                                                                                                                                                                                                                                                                                      |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `libs/app-runtime/src/session/auth/relaySession.ts`     | `relaySession.loginByToken(tokenView)` — 기존 private `applyRelaySession`(guest/social 로그인이 공유) 재사용: `buildCredentialsByToken` + `saveRelayToken` + authenticated 플래그. `delegatorId`는 건드리지 않는다                                                                                                        |
+| `libs/app-runtime/src/socket/auth/sessionDelegate.ts`   | `createReauthDelegate()` — 위임 객체 생성을 모듈 함수로 추출(React 밖에서도 쓰기 위함). `connection/useSocketSessionDelegate.ts`가 이걸 `useMemo`로 감싼다                                                                                                                                                                |
+| `libs/app-runtime/src/socket/auth/applySessionToken.ts` | 본체. (1) `identityToken` 없으면 no-op(연동만 됨), `$auth.id` 없으면 **커밋 전** reject (2) `relaySession.loginByToken` (3) `reauthenticateActiveSocket({ kind: 'relay' })` (4) `auth.ready()`를 10s 타임아웃과 경쟁 (5) **사후 조건** — 컨트롤러 토큰 ≠ 커밋한 `identityToken`이면 reject. relay 슬롯이 없으면 (2)까지만 |
+| `libs/app-runtime/src/index.ts`                         | `applySessionToken` 공개 export (`public-surface.test.ts`가 목록을 지킨다)                                                                                                                                                                                                                                                |
 
 사후 조건이 필요한 이유: `reauthenticateActiveSocket`에는 조용히 빠져나가는 경로가 둘
 있다 — 저장소에서 읽을 registration이 없거나, registration 토큰이 컨트롤러가 이미 든
@@ -345,8 +345,8 @@ Figma 근거: `3578-67319`(유도 화면) · `3586-16255`(시트). 시트 안 `G
 - `npx jest --config apps/web/jest.config.js --testPathPatterns "features/invite"` —
   게이트 분기(게스트→유도화면 / 비게스트→폼), 유도 CTA가 `invite-create` 맥락으로 시트를
   여는지, 403 폴백이 시트를 열고 인증 후 폼 입력을 유지하는지(자동 재발급 없음)
-- `npx jest --config libs/web-core/jest.config.js session/services` —
-  `loginRelayByToken` 커밋 + `delegatorId` 불변
+- `npx jest --config libs/app-runtime/jest.config.js session/services` —
+  `relaySession.loginByToken` 커밋 + `delegatorId` 불변
 - `npx tsc -b apps/web/tsconfig.app.json` — 프로젝트 레퍼런스 빌드. 라이브러리 `dist`가
   낡은 상태에서 `--noEmit -p`를 쓰면 stale `.d.ts`를 읽어 실재하지 않는 에러가 난다.
 - 수동: 게스트 기기 → 홈 ＋버튼 → 인증 유도 화면 → 시트 인증 → 폼 자동 전환 →

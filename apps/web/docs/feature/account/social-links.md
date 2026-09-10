@@ -1,6 +1,6 @@
 # 마이페이지 계정 연동 (번호 · 소셜)
 
-> 상태: Live · 최종 갱신: 2026-08-03 · 관련 ADR: [ADR-0033](../../../../../docs/adr/0033-relay-dm-invite-and-auth-parallel-tracks.md) 결정 7 · [ADR-0042](../../../../../docs/adr/0042-account-linking-unified-path-migration.md) · 로드맵: [relay-dm-invite-parallel-roadmap.md#track-d--소셜-관리](../../../../../docs/plans/relay-dm-invite-parallel-roadmap.md)
+> 상태: Live · 최종 갱신: 2026-09-10 · 관련 ADR: [ADR-0033](../../../../../docs/adr/0033-relay-dm-invite-and-auth-parallel-tracks.md) 결정 7 · [ADR-0042](../../../../../docs/adr/0042-account-linking-unified-path-migration.md) · 로드맵: [relay-dm-invite-parallel-roadmap.md#track-d--소셜-관리](../../../../../docs/plans/relay-dm-invite-parallel-roadmap.md)
 >
 > 대상: `apps/web/src/app/features/mypage`(`AccountInfoPage`의 `AccountLinkSection` + `useSocialLinks`)
 >
@@ -37,8 +37,8 @@
 **포함**
 
 - `AccountInfoPage.tsx`에 provider별(google/apple) 연동 상태를 보여주는 "소셜 연동" 카드 신설.
-- 연동 추가: 네이티브 — `appBridge.oauthLogin(provider)` → 반환된 네이티브 토큰을 `useAttachSocial().attach`로 전달.
-- 연동 추가: 비네이티브 — 기존 OAuth relay(`createCredentialsByProvider`, `libs/web-core/src/transport/authRuntime.ts`)를 재사용할 수 있는지 조사하고(결론: 불가, 아래 상세 구현 참고), "모바일 앱에서 진행해 주세요" 안내로 폴백.
+- 연동 추가: 네이티브 — `appBridge.oauthLogin(provider)` → 반환된 네이티브 토큰을 `useLinkAccount()`의 `verifySocial` → (linkable이면) `confirmSocial`로 넘긴다. **로컬 캐시에 기록하지 않는다** — 연동 상태의 출처는 `link$` 하나다.
+- 연동 추가: 비네이티브 — 기존 OAuth relay(`createCredentialsByProvider`, `libs/app-runtime/src/transport/authRuntime.ts`)를 재사용할 수 있는지 조사하고(결론: 불가, 아래 상세 구현 참고), "모바일 앱에서 진행해 주세요" 안내로 폴백.
 - 연동 상태 로컬 캐시(uid 스코프) 신규 훅.
 - 연동 해제 스텁: 비활성 노출 + `flags.ts` 한 줄 게이팅.
 - (선택) 번호만 있는 메인유저에게 소셜 연동을 권하는 배너.
@@ -107,8 +107,8 @@ sequenceDiagram
     participant P as AccountInfoPage
     participant Hk as useSocialLinks
     participant B as appBridge (native)
-    participant At as useAttachSocial
-    participant S as sockets-api
+    participant LA as useLinkAccount
+    participant S as relay (auth.link-account)
 
     U->>P: "연동하기" 탭 (google)
     P->>Hk: linkProvider('google')
@@ -117,16 +117,17 @@ sequenceDiagram
     alt 취소 (null)
         Hk-->>P: 아무 것도 하지 않음
     else 토큰 수신
-        Hk->>At: attach(result)
-        At->>S: auth.attach-social
-        alt attached: true
-            S-->>At: { attached: true }
-            At-->>Hk: 성공
-            Hk->>Hk: 로컬 캐시에 google 기록 (uid 스코프)
-            Hk-->>P: isLinked('google') = true
-        else 409 / 기타 오류
-            S-->>At: :error (errorCode)
-            At-->>Hk: reject
+        Hk->>LA: verifySocial(result)
+        LA->>S: auth.link-account (type=social, step=verify)
+        alt linkable
+            S-->>LA: { linkable: true }
+            Hk->>LA: confirmSocial(...)
+            LA->>S: auth.link-account (step=confirm)
+            S-->>LA: link$ 갱신
+            LA-->>Hk: 성공
+            Hk-->>P: link$ 재판정 → isLinked('google') = true
+        else 이미 연동 / 기타 오류
+            S-->>LA: :error (errorCode)
             Hk-->>P: getSocketErrorCode로 분기한 에러 토스트
         end
     end
@@ -138,12 +139,12 @@ sequenceDiagram
 flowchart TD
     A[AccountInfoPage 진입] --> B{isGuest?}
     B -- yes --> Z[소셜 연동 섹션 미노출]
-    B -- no --> C[useSocialLinks: 로컬 캐시 read, uid 스코프]
-    C --> D{provider가 캐시에 있나}
+    B -- no --> C[useLinkedAccounts: link$ 3상태 판정]
+    C --> D{provider가 link$ 에 있나}
     D -- yes --> E["연동됨" 표시 + 해제 컨트롤 비활성 스텁]
     D -- no --> F["연동하기" 버튼]
     F --> G{isNative?}
-    G -- yes --> H[oauthLogin → attach 플로우]
+    G -- yes --> H[oauthLogin → verifySocial → confirmSocial]
     G -- no --> I["모바일 앱에서 진행해 주세요" 안내]
 ```
 
@@ -177,13 +178,13 @@ flowchart TD
 
 ### `CloudManagePage.tsx`를 제외한 근거
 
-- `CloudManagePage.tsx`의 `useClouds`(`libs/web-core/src/hooks/user/useClouds.ts`)가 반환하는 `CloudView`(`node_modules/@lemoncloud/chatic-backend-api/dist/modules/clouds/model.d.ts:38-62`)는 `ownerId`/`email`(구독 키)/`account$`(`AccountHead`)/멤버십 필드를 가진 **클라우드(워크스페이스) 소유권·구독** 모델이다.
+- `CloudManagePage.tsx`의 `useClouds`(`apps/web/src/app/hooks/useCloudCatalog.ts`)가 반환하는 `CloudView`(`node_modules/@lemoncloud/chatic-backend-api/dist/modules/clouds/model.d.ts:38-62`)는 `ownerId`/`email`(구독 키)/`account$`(`AccountHead`)/멤버십 필드를 가진 **클라우드(워크스페이스) 소유권·구독** 모델이다.
 - `AccountStereo`의 `social`(로그인 수단)과는 완전히 다른 도메인이다. 실제로 로케일의 `cloudManage.noAccounts`("등록된 클라우드가 없어요")가 이 화면의 정체가 클라우드 목록임을 보여준다.
 - 여기에 구글/애플 연동 섹션을 끼워 넣으면 "클라우드 계정"과 "소셜 로그인 수단"이 한 화면에서 같은 개념처럼 보여 혼동을 만든다 — client-guide가 정확히 경고하는 종류의 혼동("소셜 로그인 자체는 웹소켓에 없다... 혼동하지 마라")과 같은 성격이다. 그래서 소셜 연동 섹션은 `AccountInfoPage.tsx` 하나에만 둔다.
 
 ### 비네이티브 OAuth relay 재사용 조사 (백엔드 요청과 무관, 클라 단독 조사)
 
-- `apps/web/src/app/features/auth/hooks/useOAuthLogin.ts`가 쓰는 `createCredentialsByProvider`(`libs/web-core/src/transport/authRuntime.ts:34`)는 `POST /oauth/{provider}/token`에 인가 코드(`code`)를 보내 **서버가 대신 교환한 자체 세션 토큰**(`LemonOAuthToken`)을 받는다 — `auth.attach-social`이 요구하는 **provider 원시 토큰**(`idToken`/`identityToken` 등, `libs/app-messages/src/types/model/auth.ts`의 `GoogleOAuthTokenResult`/`AppleOAuthTokenResult`)과 형태가 다르다. 이 경로는 애초에 "로그인"(세션 발급)을 위한 것이라 attach에 필요한 원시 토큰을 얻는 용도로 재사용할 수 없다.
+- `apps/web/src/app/features/auth/hooks/useOAuthLogin.ts`가 쓰는 `createCredentialsByProvider`(`@chatic/app-runtime`)는 `POST /oauth/{provider}/token`에 인가 코드(`code`)를 보내 **서버가 대신 교환한 자체 세션 토큰**(`LemonOAuthToken`)을 받는다 — `auth.attach-social`이 요구하는 **provider 원시 토큰**(`idToken`/`identityToken` 등, `libs/app-messages/src/types/model/auth.ts`의 `GoogleOAuthTokenResult`/`AppleOAuthTokenResult`)과 형태가 다르다. 이 경로는 애초에 "로그인"(세션 발급)을 위한 것이라 attach에 필요한 원시 토큰을 얻는 용도로 재사용할 수 없다.
 - 브라우저에서 provider 원시 토큰을 직접 받으려면(예: Google Identity Services JS SDK) 별도의 신규 브라우저 OAuth 통합이 필요하며, 이는 이번 트랙 범위 밖이다(로드맵에 없는 신규 작업 — "운영 주의"에 기록).
 - **결론**: 비네이티브 경로는 attach를 수행할 수 없다 — "모바일 앱에서 진행해 주세요" 안내로 폴백한다.
 
