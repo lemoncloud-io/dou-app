@@ -78,7 +78,7 @@ Date: 2026-06-29
 수동 feed나 초기 로딩으로 최신본을 받았으면 **`updateLocalSnapshot(target, snapshot)`으로 plan 기준선을 맞춘다.** 안 그러면 다음 `onConnected`/push가 `0` 기준으로 중복 catch-up한다.
 
 - chat snapshot 모양: `{ id, lastNo, minNo, messages }` (다른 도메인은 `{ tick }`/`{ updatedAt }` 류 — [usage.md](usage.md) §4).
-- `updateLocalSnapshot`은 **도메인 무지한 runtime API**다. chat 전용이 아니다 — 현재 코드베이스에서 실제 호출처가 chat prime 한 곳일 뿐.
+- `updateLocalSnapshot`은 **도메인 무지한 runtime API**다. 실제로도 chat 전용이 아니다 — 호출처가 4곳 이상이고 그중 admin-v2 의 socket-lab 은 `{ type: 'device' }` 로 부른다.
 
 ---
 
@@ -93,7 +93,7 @@ prime은 **chat 전용 정책 + data repository 의존**이라, 도메인 무지
 | chat prime 정책 (콜드 fetch + 기준선 정렬)          | **`useChatSync` 훅**        |
 
 - `useChatSync(channelId)`가 **register + prime을 함께** 한다. `isVerified` 게이트로 재인증/재연결 시 재-prime(이전 `SyncManager.replayTargets` 경로를 대체).
-- 호출부(web `useChats`, testbed `ChatRoomPage`)는 `useChatSync(channelId)`만 호출 → register+prime을 그대로 얻는다. 호출부는 진입 시 `refreshList`를 직접 부르지 않는다.
+- 호출부(web `useChats`, testbed `ChatRoomPage`)는 `useChatSync(channelId)`만 호출 → register+prime을 그대로 얻는다. 호출부는 진입 시 `refreshList` 를 **직접 부른다** — `useChats` 가 `useForegroundChatRefresh` 를 함께 마운트하고, 그 훅의 entry effect 가 warm 캐시에 대해 `refreshList({ channelId })` 를 부른다. cold 는 prime, warm 은 이쪽 — 의도된 짝이다.
 
 > 이력: 2026-06-29 이전엔 prime이 `SyncManager.primeChatTarget`에 있었다. `SyncManager`를
 > 도메인 무지로 되돌리기 위해 `useChatSync`로 이동했다.

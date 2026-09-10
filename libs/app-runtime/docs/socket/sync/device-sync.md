@@ -72,10 +72,12 @@ viewing 통지는 **쓰기(write)** 다 — sync target 등록(`register*`, 자�
 - **트리거 소유**: 컴포넌트 lifecycle이 아니라 **전역 관측**. apps/web `useDeviceSync`가
   `UnifiedLayout`(RouterProvider 안)에 마운트되어 두 신호를 관측한다 — (a) `useMatch('/channels/:channelId/room')`로
   현재 채널을 도출해 전환마다 1회 viewing 통지, (b) 네이티브 `OnBackgroundStatusChanged`와 웹
-  `visibilitychange`를 병합한 `useAppVisibility`로 포/백그라운드 전환마다 status 통지. 미인증 중에는
-  viewing은 보류, status는 낙관 전송하되 미전달로 취급 — 어느 쪽이든 재인증 rising edge에 현재 값을
-  재assert한다(`device.sync`는 자가치유 없는 send라 끊긴 소켓에서 조용히 유실되기 때문). viewing은
-  **채널 룸에서만**; settings·목록·기타 라우트는 clear.
+  `visibilitychange`를 병합한 `useAppVisibility`로 포/백그라운드 전환마다 status 통지. **미인증
+  중에는 둘 다 보내지 않는다** — 가시성 콜백이 `if (!isVerified) return;` 로 먼저 빠져나가고 값은
+  ref 에만 기록한다. 낙관 전송은 하지 않는다. 어느 쪽이든 재인증 rising edge 에 현재 값을
+  재assert 한다(`device.sync` 는 자가치유 없는 send 라 끊긴 소켓에서 조용히 유실되기 때문).
+  viewing 은 **채널 룸과 스레드 라우트** 둘 다에서 보고하고(스레드는 같은 방의 다른 각도),
+  백그라운드 진입 시 쌍을 clear 했다가 포그라운드 복귀에 복원한다. 그 밖의 라우트는 clear.
 
 > ⚠️ **타입 출처 주의**: `DeviceSocketDataSource`의 device 타입은 `@lemoncloud/chatic-sockets-lib`에서
 > 가져온다(게이트웨이를 제공하는 패키지). `@lemoncloud/chatic-sockets-api`의 `DeviceSyncRequestData`는

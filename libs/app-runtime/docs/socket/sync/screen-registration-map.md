@@ -30,14 +30,14 @@
 정하지 않고 타입별 캐시 반영만 담당한다. **`DeviceSyncPlan`은 plans.ts에 없다** — `createDeviceRuntime`가
 자체 주입한다.
 
-| 플랜              | 트리거                                                                      | 캐시 반영                                                                                      |
-| ----------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `DeviceSyncPlan`  | createDeviceRuntime 주입, connect 시 `device.save` 소유                     | (라이브러리)                                                                                   |
-| `ChannelSyncPlan` | `onUpdate` / `onRemove`                                                     | `channel.cacheWrite(toDomainChannel)` — `$join` 포함                                           |
-| `PlaceSyncPlan`   | `onUpdate` / `onRemove`                                                     | `place.cacheWrite(toDomainPlace)`                                                              |
-| `ProfileSyncPlan` | `onUpdate` / `onRemove`                                                     | `profile.cacheWrite(toDomainProfile)`                                                          |
-| `ChatSyncPlan`    | `onApply` (새 메시지 델타, 오름차순) · `onUpdate` (이미 아는 chatNo의 변경) | `onApply` → `chat.cacheWriteMany(toDomainChat)` · `onUpdate` → `chat.cacheWrite(toDomainChat)` |
-| `JoinSyncPlan`    | `onUpdate` (single-join polling)                                            | `join.cacheWrite(toDomainJoin)`                                                                |
+| 플랜              | 트리거                                                                      | 캐시 반영                                                                                                                                 |
+| ----------------- | --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `DeviceSyncPlan`  | createDeviceRuntime 주입, connect 시 `device.save` 소유                     | (라이브러리)                                                                                                                              |
+| `ChannelSyncPlan` | `onUpdate` / `onRemove`                                                     | `channel.cacheWrite(toDomainChannel)` — `$join` 포함                                                                                      |
+| `PlaceSyncPlan`   | `onUpdate` / `onRemove`                                                     | `place.cacheWrite(toDomainPlace)`                                                                                                         |
+| `ProfileSyncPlan` | `onUpdate` / `onRemove`                                                     | `profile.cacheWrite(toDomainProfile)`                                                                                                     |
+| `ChatSyncPlan`    | `onApply` (새 메시지 델타, 오름차순) · `onUpdate` (이미 아는 chatNo의 변경) | `onApply` → `chat.cacheWriteMany(toDomainChat)` · `onUpdate` → `chat.cacheWrite(toDomainChat)`                                            |
+| `JoinSyncPlan`    | `onUpdate` (single-join polling) · **`onRemove`**                           | `onUpdate` → `join.cacheWrite(toDomainJoin)` · `onRemove` → `join.cacheDelete` + **내 join 이면 `chat.cacheClearByChannelId`** (ADR-0067) |
 
 등록 API: `registerDevice/Channel/Place/Profile/Chat/Join(id)` — 키로 ref-count, 같은 id 중복
 등록은 dedup (`SyncManager.register`).
@@ -71,27 +71,31 @@
 
 ### 💬 채팅방 화면 (`apps/web/src/app/features/channels/pages/ChannelRoomPage.tsx`)
 
-| 무엇                    | 메커니즘                                                                                      | 진입점                        |
-| ----------------------- | --------------------------------------------------------------------------------------------- | ----------------------------- |
-| channel 실시간          | `useChannel` → `useChannelSync(channelId)` (`registerChannel`)                                | `hooks/useChannel.ts`         |
-| chat 메시지             | `useChats` → `useChatSync(channelId)` (`registerChat` + 초기 페이지 prime)                    | `hooks/useChats.ts`           |
-| 멤버 로드               | `useChannelMembers` → `syncChannelUsers(since)` — user + `$join` 적재 (since:0이 전체 스냅샷) | `hooks/useChannelMembers.ts`  |
-| 멤버별 읽음(read-state) | `useJoinPositions` → 활성 멤버마다 `registerJoin(\`${ch}@${uid}\`)` + join 캐시 관측          | `hooks/useJoinPositions.ts`   |
-| 멤버별 프로필           | `useChannelProfiles` → 캐시된 활성 멤버마다 `register({type:'profile'})` (5s 간격)            | `hooks/useChannelProfiles.ts` |
-| 내 읽음 전송            | `useReadMarker` → 입장 / 포그라운드 복귀 / 전송 시 `readMessage`(= `join.readChat`)           | `hooks/useReadMarker.ts`      |
+| 무엇                    | 메커니즘                                                                                                                                                                    | 진입점                        |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
+| channel 실시간          | `useChannel` → `useChannelSync(channelId)` (`registerChannel`)                                                                                                              | `hooks/useChannel.ts`         |
+| chat 메시지             | `useChats` → `useChatSync(channelId)` (`registerChat` + 초기 페이지 prime)                                                                                                  | `hooks/useChats.ts`           |
+| 멤버 로드               | `useChannelMembers` → `syncChannelUsers(since)` — user + `$join` 적재 (since:0이 전체 스냅샷)                                                                               | `hooks/useChannelMembers.ts`  |
+| 멤버별 읽음(read-state) | `useJoinPositions` → **전체 로스터**(`memberIds`)마다 `registerJoin(\`${ch}@${uid}\`)`. join 캐시는 관측하지 않는다 — 커서는 `useChannelJoins`가 준`cursorByUser` 를 받는다 | `hooks/useJoinPositions.ts`   |
+| 멤버별 프로필           | `useChannelProfiles` → 활성 멤버마다 `registerProfile(\`${sid}@${uid}\`, interval)` (기본 20초)                                                                             | `hooks/useChannelProfiles.ts` |
+| 내 읽음 전송            | `useReadMarker` → 입장 / 포그라운드 복귀 / 전송 시 `readMessage`(= `join.readChat`)                                                                                         | `hooks/useReadMarker.ts`      |
 
 ---
 
 ## 3. 백그라운드 리스트 sync (`useBackgroundSync`)
 
-플랜과 별개로 **목록 추가/삭제 발견**용 주기 delta/snapshot. 60초 주기 + `isVerified` 상승엣지,
-스위치 중엔 skip. `apps/web/src/app/runtime/useBackgroundSync.ts`.
+플랜과 별개로 **목록 추가/삭제 발견**용 주기 delta/snapshot. 트리거는 넷이다 — `isVerified`
+상승엣지(앱 진입·재연결·전환) · 60초 주기 · 포그라운드 복귀 · 활성 sid 변경. 스위치 중엔 skip.
+`apps/web/src/app/runtime/useBackgroundSync.ts`.
 
-| 대상    | 호출                                | 커서(watermark)                       |
-| ------- | ----------------------------------- | ------------------------------------- |
-| place   | `place.refreshList()` (전체 스냅샷) | 없음                                  |
-| channel | `channel.syncChannels(since)`       | `channel-sync:${cid}` (클라우드 전역) |
-| profile | `profile.syncProfiles(since)`       | `profile-sync:${cid}:${sid}`          |
+| 대상      | 호출                                | 커서(watermark)                       |
+| --------- | ----------------------------------- | ------------------------------------- |
+| place     | `place.refreshList()` (전체 스냅샷) | 없음                                  |
+| 내 프로필 | `user.getMyProfile()`               | 없음                                  |
+| 보낸 초대 | `invite.list()` (전체 스냅샷)       | 없음 (ADR-0052)                       |
+| self 채널 | `channel.getSelfChannel()`          | 없음                                  |
+| channel   | `channel.syncChannels(since)`       | `channel-sync:${cid}` (클라우드 전역) |
+| profile   | `profile.syncProfiles(since)`       | `profile-sync:${cid}:${sid}`          |
 
 ---
 
@@ -99,10 +103,10 @@
 
 읽음 상태는 join의 `chatNo`(마지막 읽은 번호)에 담긴다. 화면별로 소스가 다르다.
 
-| 화면               | 소스                                                                                        | 공식                                                                                                                                                                                                                              |
-| ------------------ | ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 홈 채널별 배지     | `channel.chatNo`/`metaNo` + 구독 join 목록의 내 커서 (`useMyJoins`가 채널별 `registerJoin`) | `max(0, (channel.chatNo - channel.metaNo) - readNo)`; `readNo = max(join.readNo, join.chatNo)`. head를 사용자 메시지 수로 환산해 시스템 메시지 제외. join 행 없으면 배지 없음(0). 채널 임베드 `$join`은 안 씀(읽음 상태가 뒤처짐) |
-| 채팅방 멤버별 읽음 | join 캐시(멤버별 `registerJoin` + `syncChannelUsers`의 `$join`)                             | 멤버 커서 = `max(readNo, chatNo)`                                                                                                                                                                                                 |
+| 화면               | 소스                                                                                        | 공식                                                                                                                                                                                                                                                                                                                                                                          |
+| ------------------ | ------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 홈 채널별 배지     | `channel.chatNo`/`metaNo` + 구독 join 목록의 내 커서 (`useMyJoins`가 채널별 `registerJoin`) | `max(0, userHead - (readNo - cursorMetaNo))` — head 와 커서를 **각자의** metaNo 로 환산한다 (ADR-0048). 커서를 환산하지 않는 식은 낮게 나와 안읽음을 숨긴다는 이유로 폐기됐다. etaNo) - readNo)`; `readNo = max(join.readNo, join.chatNo)`. head를 사용자 메시지 수로 환산해 시스템 메시지 제외. join 행 없으면 배지 없음(0). 채널 임베드 `$join`은 안 씀(읽음 상태가 뒤처짐) |
+| 채팅방 멤버별 읽음 | join 캐시(멤버별 `registerJoin` + `syncChannelUsers`의 `$join`)                             | 멤버 커서 = `max(readNo, chatNo)`                                                                                                                                                                                                                                                                                                                                             |
 
 > 홈은 채널별로 내 join을 등록(`useMyJoins`)해 구독 join 목록에서 커서를 파생하고, 채팅방은
 > 멤버별 join을 등록해 실시간 읽음 인원을 센다. 읽음 경계의 단일 출처는 양쪽 모두 join의 `chatNo`다.
