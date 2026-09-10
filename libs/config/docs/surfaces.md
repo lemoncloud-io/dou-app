@@ -148,6 +148,12 @@ LOCAL/DEV는 `debug.overlayEnabled`의 `byStage`가 그 마찰을 없애고, PRO
 [logUploadSwitch.ts](../../../apps/web/src/app/runtime/logging/logUploadSwitch.ts)의 주석이 그 계약이다.
 각 앱의 `config/adapters.ts`는 어댑터 본체이므로 우회가 아니다.
 
+**다만 그 레버는 지금 배선돼 있지 않다.** `VITE_LOG_UPLOAD_DISABLED`는 리포 어디에도 정의돼 있지
+않다 — 워크플로의 env 생성 블록에도, `apps/web/.env*` 어디에도 없다(2026-09-10 전수 확인). 그래서 모든
+빌드에서 `false`로 떨어진다. 수집기가 죽었을 때 깨서 쓰는 유리라 그 자체가 버그는 아니지만, **정작
+급할 때는 워크플로에 줄을 넣고 시크릿을 등록하는 일부터 해야 한다.** `VITE_DEBUG_CODE`가 같은 블록에
+이미 그렇게 배선돼 있으니 형태는 그것을 따르면 된다.
+
 admin-v2에도 같은 성격의 파일이 7개 있다(LoginPage · reportLogApi · socket-lab 5).
 
 ## 하지 말 것
