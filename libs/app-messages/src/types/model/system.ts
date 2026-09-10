@@ -140,7 +140,16 @@ export type UrlAddress = {
 };
 
 /** 네이티브 앱 권한 유형 */
-export type AppPermissionType = 'CONTACTS' | 'NOTIFICATIONS' | 'CAMERA' | 'PHOTO_LIBRARY';
+/**
+ * 웹이 앱에 요청할 수 있는 OS 권한.
+ *
+ * `MICROPHONE`은 2026-09-10에 추가됐다 — **타입만 늘렸고 앱 릴리스는 들지 않는다.**
+ * `usePermissionHandler`가 payload를 그대로 `permissionService.request`에 넘기고 앱의
+ * `PERMISSION_MAP`에 `MICROPHONE`(iOS `MICROPHONE`·Android `RECORD_AUDIO`)이 이미 있으므로,
+ * 기존 빌드도 런타임에는 처리한다. 이 union이 사본으로 갈라져 그 능력을 막고 있었을 뿐이다
+ * (앱 쪽 `services/permission/types.ts`가 이제 이 선언을 재export한다).
+ */
+export type AppPermissionType = 'CONTACTS' | 'NOTIFICATIONS' | 'CAMERA' | 'PHOTO_LIBRARY' | 'MICROPHONE';
 
 /** * 네이티브 앱 권한 승인 상태 */
 export type PermissionStatus = 'GRANTED' | 'DENIED' | 'BLOCKED' | 'UNAVAILABLE';

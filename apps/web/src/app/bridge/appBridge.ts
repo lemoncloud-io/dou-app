@@ -326,6 +326,26 @@ export const appBridge = {
         return webClient.request({ type: 'ShowNotification', data: payload });
     },
 
+    /** Open the camera and hand back what was captured. */
+    openCamera(payload: Payload<'OpenCamera'> = {}): Promise<WebMessageResponse<'OpenCamera'>> {
+        return webClient.request({ type: 'OpenCamera', data: payload });
+    },
+
+    /** Open the photo library and hand back the picked assets. */
+    openPhotoLibrary(payload: Payload<'OpenPhotoLibrary'> = {}): Promise<WebMessageResponse<'OpenPhotoLibrary'>> {
+        return webClient.request({ type: 'OpenPhotoLibrary', data: payload });
+    },
+
+    /** Open the document picker and hand back the chosen files. */
+    openDocument(payload: Payload<'OpenDocument'> = {}): Promise<WebMessageResponse<'OpenDocument'>> {
+        return webClient.request({ type: 'OpenDocument', data: payload });
+    },
+
+    /** Write text to the OS clipboard — the native one, not the browser's. */
+    copyToClipboard(text: string): Promise<WebMessageResponse<'CopyToClipboard'>> {
+        return webClient.request({ type: 'CopyToClipboard', data: { text } });
+    },
+
     /** Ask the OS for a permission. Idempotent once granted, and the response carries the status. */
     requestPermission(
         permission: Payload<'RequestPermission'>['permission']

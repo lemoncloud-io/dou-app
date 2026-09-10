@@ -147,7 +147,7 @@ flowchart TD
 | `IapTest`             | 400   | 이관      | `FetchProducts`·`Purchase`·`FetchCurrentPurchases`·`FinishPurchaseTransaction`·`OpenStore`·`OpenSubscriptionManagement`                                                                                                                       |
 | `OAuthTest`           | 382   | 이관      | `OAuthLogin`·`OAuthLogout`                                                                                                                                                                                                                    |
 | `SmsTest`             | 373   | 이관      | `SendSms`                                                                                                                                                                                                                                     |
-| `DeviceTest`          | 348   | 이관      | `RequestPermission`·`GetContacts`·`OpenCamera`·`OpenPhotoLibrary`·`OpenDocument`·`OpenShareSheet`·`CopyToClipboard`·`FetchSafeArea`·`OpenSettings` (웹 `DeviceInfoScreen` 38줄 확장)                                                          |
+| `DeviceTest`          | 348   | 이관      | 웹 `DeviceInfoScreen`에 조작 절 추가. 명령은 전부 있었고 `appBridge`에 `openCamera`·`openPhotoLibrary`·`openDocument`·`copyToClipboard` 4개를 파사드만 더했다. **`MICROPHONE`은 계약 union을 넓혀야 했다**(아래)                              |
 | `Monitoring`          | 314   | 이관      | 큐는 웹 `LogBufferScreen`(624줄)이 **이미 전부 덮는다** — 빠진 건 네이티브 카운터 2개(`getContentProcessReloadCount`·`getLastForegroundResumeMs`)뿐이고, `FetchBootRecords`가 그 둘을 함께 돌려주므로 부팅 기록 화면에 실렸다. 별 화면 불필요 |
 | `EnvironmentSettings` | 281   | **삭제**  | ADR-0080 결정 13 — 기능 자체를 뺀다                                                                                                                                                                                                           |
 | `BootPerformance`     | 237   | 이관      | **신규 웹 화면이 필요했다.** 웹 `BootTab`(83줄)은 현재 세션의 웹 타임라인을 라이브로 재는 다른 것이다 — 이쪽은 누적된 네이티브+웹 병합 기록이다. `BootRecordsScreen` 신설                                                                     |
@@ -222,6 +222,15 @@ flowchart TD
 반대로 웹이 이미 거의 다 덮고 있었다(카운터 2개만 부족). 단계 1의 딥링크 오판과 같은 실수이므로
 남은 화면도 **구현을 열어 확인한 뒤** 판정한다.
 
+**권한 union이 사본으로 갈라져 능력 하나를 막고 있었다 (2026-09-10).** 모바일
+`services/permission/types.ts`는 `MICROPHONE`을 포함한 5개를 선언하는데 계약
+(`libs/app-messages`)은 4개였다 — 그래서 앱은 마이크 권한을 요청할 수 있었지만 웹은 못 했다.
+`usePermissionHandler`가 payload를 그대로 `permissionService.request`에 넘기고 앱의
+`PERMISSION_MAP`에 `MICROPHONE`(iOS `MICROPHONE` · Android `RECORD_AUDIO`)이 이미 있으므로
+**계약 타입만 넓히면 되고 앱 릴리스는 들지 않는다.** 6단계의 `Stage`/`Platform` 사본 문제와 같은
+형태다([[config-registry-track]]). 사본을 없애고 모바일이 계약 선언을 재export하게 했다 —
+`BootRecord`와 같은 처방이다.
+
 **딥링크 스킴은 절대 문자로 쓰지 않는다 (2026-09-10, 버그 하나를 만들고 배운 것).** `PushScreen`의
 푸시 탭 재현에 `chatic://chats`를 박아 넣었는데, DEV 빌드는 `chatic-dev:`를 등록하므로 두 채널이 깔린
 기기에서 **prod 앱이 열린다** — `apps/desktop-web`의 `oauth.ts`가 경고하는 그 교차 채널 위험이다.
@@ -280,7 +289,9 @@ flowchart TD
     - [x] `DeeplinkTest` → `DeeplinkScreen` 신설. **별 화면이 맞았다** — 웹 `InviteRedirectScreen`은
           공유 링크를 변환해 **웹**을 이동시키는 다른 도구다(`window.location.href`). 이쪽은 **앱**의
           인바운드 라우팅을 시험한다. 프리셋에 교차 확인용 절대 스킴 2개를 둔다
-    - [ ] `DeviceInfoScreen`←`DeviceTest`
+    - [x] `DeviceInfoScreen`←`DeviceTest` — 조작 절 추가(카메라 · 앨범 · 파일 · 연락처 · 클립보드 ·
+          OS 설정 · 공유 시트 + 권한 4종). `appBridge` 4개 파사드 추가, 계약에 `MICROPHONE` 확장.
+          테스트 5건
     - [ ] 신규 6개: `StorageTest` · `IapTest` · `OAuthTest` · `SmsTest` · `AppIconTest` · `DeeplinkTest`
 - [ ] **3. 결정 14 버튼 3개** — 로그 지금 보내기(`flushNow`) · 설정 전체 보기(`snapshotAll`) ·
       캐시 도메인별 비우기. 앞의 둘은 브릿지 왕복이 없다.

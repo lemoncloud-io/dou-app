@@ -1,13 +1,46 @@
+import { useCallback, useState } from 'react';
+
 import { Copy, Smartphone } from 'lucide-react';
 
+import { logger } from '@chatic/bridges';
 import { useDeviceInfo } from '@chatic/device-utils';
 
+import type { AppPermissionType } from '@chatic/app-messages';
+
 import { buildDeviceInfoRows, copyText } from '../../lib';
+import { appBridge } from '../../../../bridge';
+
+/**
+ * OS pickers and permission prompts, moved off the app's Device Test screen (ADR-0080 결정 11).
+ *
+ * Every one of these is an existing bridge command — the web client simply had not exposed the
+ * picker four. `MICROPHONE` needed the contract's `AppPermissionType` widened, which was a
+ * type-only change: the app's `PERMISSION_MAP` already had it (see that union's note).
+ */
+const PERMISSIONS: readonly AppPermissionType[] = ['CAMERA', 'PHOTO_LIBRARY', 'CONTACTS', 'MICROPHONE'];
 
 /** Device/version identity injected by the native shell — single source, replaces the
  *  old DebugPage card and the RuntimeOverlay device tab. Tap a row to copy. */
 export const DeviceInfoScreen = () => {
     const { versionInfo, deviceInfo } = useDeviceInfo();
+    const [opResult, setOpResult] = useState<string | null>(null);
+
+    const run = useCallback(async (label: string, operation: () => Promise<unknown>) => {
+        setOpResult(`${label}…`);
+        try {
+            const res = (await operation()) as { data?: unknown };
+            setOpResult(`${label} → ${res?.data ? JSON.stringify(res.data).slice(0, 400) : 'ok'}`);
+        } catch (e) {
+            logger.warn('APP', `device debug op failed: ${label}`, e as Error);
+            setOpResult(`${label} → 실패: ${(e as Error).message}`);
+        }
+    }, []);
+
+    /** `openSettings`/`openShareSheet` are `post` based — no answer comes back, so do not imply one. */
+    const fire = useCallback((label: string, operation: () => void) => {
+        operation();
+        setOpResult(`${label} → 보냈습니다 (확인 없음)`);
+    }, []);
 
     return (
         <div className="p-4">
@@ -32,6 +65,83 @@ export const DeviceInfoScreen = () => {
                         </button>
                     ))}
                 </dl>
+            </div>
+
+            <div className="mt-4 rounded-[18px] bg-card px-4 py-3 shadow-[0px_2px_12px_0px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none">
+                <span className="text-[13px] font-semibold text-foreground">조작</span>
+                <p className="mt-1 text-[12px] text-muted-foreground">앱이 OS 창을 띄우고 결과를 돌려줍니다</p>
+
+                <div className="mt-3 flex flex-wrap gap-2">
+                    <button
+                        type="button"
+                        onClick={() => void run('카메라', () => appBridge.openCamera({ mediaType: 'photo' }))}
+                        className="rounded-md border border-border px-2 py-1 text-xs"
+                    >
+                        카메라
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() =>
+                            void run('앨범', () =>
+                                appBridge.openPhotoLibrary({ selectionLimit: 1, mediaType: 'photo' })
+                            )
+                        }
+                        className="rounded-md border border-border px-2 py-1 text-xs"
+                    >
+                        앨범
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => void run('파일', () => appBridge.openDocument({ allowMultiSelection: true }))}
+                        className="rounded-md border border-border px-2 py-1 text-xs"
+                    >
+                        파일
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => void run('연락처', () => appBridge.getContacts())}
+                        className="rounded-md border border-border px-2 py-1 text-xs"
+                    >
+                        연락처
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => void run('네이티브 클립보드', () => appBridge.copyToClipboard('debug'))}
+                        className="rounded-md border border-border px-2 py-1 text-xs"
+                    >
+                        클립보드 쓰기
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => fire('OS 설정 열기', () => appBridge.openSettings())}
+                        className="rounded-md border border-border px-2 py-1 text-xs"
+                    >
+                        OS 설정
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => fire('공유 시트', () => appBridge.openShareSheet('https://chatic.io'))}
+                        className="rounded-md border border-border px-2 py-1 text-xs"
+                    >
+                        공유 시트
+                    </button>
+                </div>
+
+                <p className="mt-3 text-[12px] text-muted-foreground">권한</p>
+                <div className="mt-1.5 flex flex-wrap gap-2">
+                    {PERMISSIONS.map(permission => (
+                        <button
+                            key={permission}
+                            type="button"
+                            onClick={() => void run(permission, () => appBridge.requestPermission(permission))}
+                            className="rounded-md border border-border px-2 py-1 text-xs"
+                        >
+                            {permission}
+                        </button>
+                    ))}
+                </div>
+
+                {opResult && <p className="mt-3 break-all font-mono text-[12px] text-muted-foreground">{opResult}</p>}
             </div>
         </div>
     );
