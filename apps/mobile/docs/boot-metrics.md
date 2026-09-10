@@ -9,7 +9,7 @@
 
 ```
 [네이티브 — BootMetricsService, 베이스라인: provider 생성(≈JS 엔트리)]
-p1 provider-ready      DependencyProvider 동기 초기화 완료 (MMKV·SQLite·서비스)
+p1 provider-ready      DependencyProvider 동기 초기화 완료 (MMKV·로깅·부팅크리티컬 서비스)
 p2 app-mount           루트 컴포넌트 트리 커밋
 p3 main-screen-mount   웹뷰 스크린 마운트 (직후 네트워크 시작)
 p4 load-start          WebView onLoadStart
@@ -55,9 +55,17 @@ w0 main.tsx start · w1 app render · w2 session init(라우터 언블록)
 3. 앱 재시작 후에도 네이티브 플래그가 살아 있고, 주입 스크립트 `window.CHATIC_APP_DEBUG_MODE`로 웹도 자동 언락 — 한 번의 언락이 양쪽을 계속 커버
 4. 웹의 Disable Debug Mode 한 번으로 양쪽 동시 잠금
 
-**보안 경계**: 런타임 언락(빌드 게이트 없이 열린 경우)에서는 FAB 메뉴에서 **환경설정(웹뷰 URL 오버라이드)이 제외**된다 — 프로덕션 앱이 임의 URL을 로드하는 면을 막기 위함 (`FloatingMenu.allowEnvironmentSettings`).
+**보안 경계**: FAB 메뉴의 **환경설정(웹뷰 URL 오버라이드)은 PROD 빌드에서 항상 빠진다** — 프로덕션
+앱이 임의 URL을 로드하는 면을 막기 위함. 게이트는 빌드 env 하나다:
+[`FloatingMenu.tsx`](../src/app/features/core/components/FloatingMenu.tsx)의 모듈 상수
+`ALLOW_ENVIRONMENT_SETTINGS = Config.VITE_ENV !== 'PROD'`. **언락 방식과는 무관하다** — 비-PROD
+빌드라면 런타임 언락으로 연 메뉴에도 환경설정이 뜬다. 메뉴 전체를 여는 것은 언락, 그 안에서
+환경설정 항목을 빼는 것은 빌드 env, 두 게이트가 별개로 걸린다.
 
 ## 베이스라인 (v0.19.2, 콜드부팅 8건, 실기기)
+
+> 최적화 **이전**의 기록이다. 아래 수치를 근거로 [boot-optimization](./boot-optimization.md)이
+> 진행됐고 그 문서에 전후 비교가 있다 — 지금 기기에서 재면 여기 수치와 다르다.
 
 JS 엔트리 기준 구간 평균:
 
@@ -78,7 +86,7 @@ JS 엔트리 기준 구간 평균:
 - **자산은 매 부팅 304 재검증**(`transferSize: 300` = 304 헤더). `no-cache` 정책 탓. 배포 직후엔 메인 청크 296KB 재다운로드.
 - 콜드 변동은 provider-ready 15–29ms(빠름) vs 109–118ms(느림)로 갈림 — 느린 콜드는 전 구간이 비례해 밀린다(JS 번들 파싱/디스크 I/O).
 
-→ 1차 최적화 대상: **네이티브 웹뷰 조기 마운트** (pre-webview 51%, 변동 폭까지 흡수).
+→ 여기서 1차 최적화 대상이 **네이티브 웹뷰 조기 마운트**로 정해졌다(pre-webview 51%, 변동 폭까지 흡수). 완료된 작업과 실측 결과는 [boot-optimization](./boot-optimization.md)(ADR-0027).
 
 ## 주의사항
 
