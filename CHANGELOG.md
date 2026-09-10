@@ -1,5 +1,73 @@
 # Changelog
 
+## [2026-09-10] - root@0.59.0, @chatic/web@0.49.0, @chatic/desktop-web@0.9.0
+
+### Features
+
+- (web) add experimental lab page with localized content
+- (web) add copy actions and feedback to monitoring screens
+- (web) show names and descriptions instead of dotted config keys
+- (web) gate app-only screens in the shell through registry exposure rules
+- (web) expose all screens as chips and remove two menu entries
+- (web) add descriptions to route metrics
+- (web) inspect route stack and trail in the debug screen
+- (web) consolidate the debug screen catalog and resize the panel
+- (web) finalize the deployment order and fix missing command names (stage 7)
+- (mobile) remove the app debug UI (6,428 lines, stage 6)
+- migrate the custom ZIP loader to the web and remove the configuration screen (stage 5)
+- (web) distinguish version differences from failures and report settings save errors (stage 4)
+- (web) add immediate log upload and the current settings screen (stage 3)
+- (web) migrate the in-app purchase screen and remove SQLite backup and restore (stage 2)
+- (web) add app icon, SMS, OAuth screens, and shared operation hooks (stage 2)
+- (web,app-messages) migrate device controls to the web (stage 2)
+- (web) add the deeplink sender screen and scheme parser (stage 2)
+- (web) migrate push controls to the web and retire the upload test (stage 2)
+- (web) migrate the boot records screen to the web (part of stage 2)
+- (app-messages,mobile) add three bridge commands for the debug panel migration (stage 1.5)
+- (config) record device state in logs (stage 7)
+- (config) migrate desktop-web to the registry (stage 6)
+- (config) absorb PREFERENCES and logUploadSwitch into the registry (stage 5)
+- (config) wire the shell lane through a generic KV bridge (stage 4)
+- (config) retire web-config from the four Vite apps that boot app-runtime (stage 3)
+- (config) add envDefaultKey, adapter-passthrough facts, clear(), and a shared web env adapter
+- (config) declare all 84 keys across 12 domains (stage 2)
+- (config) build the registry, resolver, and store core (stage 1)
+
+### Bug Fixes
+
+- (config,web) read the debug entry code from the registry
+- (app-runtime) restore logout storage cleanup
+
+### Documentation
+
+- (adr) record ADR-0080 implementation status and update stale comments
+- (config) document that wiring the log kill switch changes nothing
+- (web) close stage 2 and record CacheTestScreen observations
+- (web) document the real barriers in the cache CRUD screen
+- (config) document that the log upload kill switch is not wired
+- (config) document registry bypass read paths
+- (config) document screen placement guidance by surface
+- (web) record stage 1 validation results and four new bridge commands
+- (web) draft the debug panel migration specification (Proposed)
+- (config,mobile) replace generic KV safety claims with the actual rationale
+- (adr,config) record the remaining debug panel migration work
+- (config,adr) include desktop-web as the final migration stage
+- (config) draft the implementation specification (Proposed)
+- (adr,spec) consolidate settings into a registry and move debug controls to the web
+
+### Refactor
+
+- (web) centralize panel copy actions and report their results
+- (config) remove dead wiring left by web-config
+
+### Chores
+
+- (mobile) bump app versions to 0.24.1
+
+### Other
+
+- build: (config) align tsconfig project references with Nx sync
+
 ## [2026-09-08] - root@0.58.0, @chatic/web@0.48.0
 
 ### Features
