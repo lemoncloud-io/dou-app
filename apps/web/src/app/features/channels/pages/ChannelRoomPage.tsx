@@ -49,9 +49,10 @@ import {
 } from '../hooks';
 import type { ClientChatView } from '../types';
 import { copyMessageToClipboard } from '../utils/copyMessageToClipboard';
+import { resolveUserName, type DisplayNameSources } from '../utils/displayName';
 import { messagePlainText } from '../utils/messagePlainText';
 import { useMessageJumpStore } from '../../../stores/useMessageJumpStore';
-import { buildThreadIndex } from '../utils/buildThread';
+import { buildThreadIndex, countUnseenReplies } from '../utils/buildThread';
 import { foldReactions, hasMyReaction } from '../utils/foldReactions';
 import { systemMessageSuffixKey } from '../utils/systemMessage';
 import { useChromeInsets } from '../../../ui/hooks/useChromeInsets';
@@ -156,12 +157,19 @@ export const ChannelRoomPage = () => {
         return map;
     }, [members]);
 
-    // Reactor display name for the chip a11y label — same precedence as message rows:
-    // site-profile nick, then the member user cache.
-    const nameOfUser = useCallback(
-        (id: string) => profileMap.get(id)?.nick ?? memberById.get(id)?.nick ?? memberById.get(id)?.name ?? id,
-        [profileMap, memberById]
+    // The one naming chain (see resolveUserName) — the chip a11y labels and the reactor sheet
+    // have to reach the same name the message rows do.
+    const nameSources: DisplayNameSources = useMemo(
+        () => ({
+            profileMap,
+            memberById,
+            userId,
+            unknownLabel: t('chat.unknownUser'),
+            meLabel: t('chat.me'),
+        }),
+        [profileMap, memberById, userId, t]
     );
+    const nameOfUser = useCallback((id: string) => resolveUserName(id, nameSources), [nameSources]);
 
     // Same precedence for faces as for names, so the thread footer's avatars match the
     // bubbles right above them (ADR-0047 decision 5). Returning undefined lets the footer
@@ -871,11 +879,14 @@ export const ChannelRoomPage = () => {
                                                 const threadMeta = message.chatNo
                                                     ? threadIndex.get(String(message.chatNo))
                                                     : undefined;
-                                                const hasUnseenReplies =
-                                                    !!threadMeta &&
-                                                    baselineReadNo !== null &&
-                                                    threadMeta.lastReplyNo > baselineReadNo &&
-                                                    threadMeta.lastReplyOwnerId !== userId;
+                                                // How many replies are new, not merely whether
+                                                // any are — the footer prints the number. Zero
+                                                // until the baseline snapshot lands, so a thread
+                                                // never flashes an unseen count it then retracts.
+                                                const unseenReplyCount =
+                                                    threadMeta && baselineReadNo !== null
+                                                        ? countUnseenReplies(threadMeta, baselineReadNo, userId ?? null)
+                                                        : 0;
 
                                                 return (
                                                     // The wrapper carries `data-chat-no` for the
@@ -924,7 +935,8 @@ export const ChannelRoomPage = () => {
                                                             }
                                                             avatarOf={avatarOfUser}
                                                             threadMeta={threadMeta}
-                                                            hasUnseenReplies={hasUnseenReplies}
+                                                            unseenReplyCount={unseenReplyCount}
+                                                            formatThreadTime={formatTime}
                                                             onOpenThread={
                                                                 message.chatNo ? () => openThread(message) : undefined
                                                             }

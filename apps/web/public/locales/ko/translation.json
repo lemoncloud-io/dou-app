@@ -791,14 +791,17 @@
             }
         },
         "thread": {
-            "replyAction": "스레드로 답글",
-            "inputPlaceholder": "답글을 입력하세요",
+            "replyAction": "스레드",
+            "inputPlaceholder": "댓글 추가",
             "unavailable": "원본 메시지가 아직 로드되지 않았어요. 채널에서 이전 대화를 불러오면 표시됩니다.",
             "loadOlder": "이전 메시지 불러오기",
-            "replyCount_one": "답글 {{count}}",
-            "replyCount_other": "답글 {{count}}",
-            "openThread_one": "스레드 열기 · 답글 {{count}}",
-            "openThread_other": "스레드 열기 · 답글 {{count}}"
+            "replyCount_one": "댓글 {{count}}개",
+            "replyCount_other": "댓글 {{count}}개",
+            "openThread_one": "스레드 열기 · 댓글 {{count}}개",
+            "openThread_other": "스레드 열기 · 댓글 {{count}}개",
+            "title": "스레드",
+            "newReplyCount_one": "새 댓글 {{count}}개",
+            "newReplyCount_other": "새 댓글 {{count}}개"
         },
         "unknownUser": "알 수 없는 사용자",
         "me": "나"

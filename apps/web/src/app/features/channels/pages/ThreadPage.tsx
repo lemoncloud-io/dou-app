@@ -7,28 +7,28 @@ import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { runtime } from '@chatic/app-runtime';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
-import { ChatRoomHeader, MessageInput } from '@chatic/web-ui-kit';
+import { ChatRoomHeader, DefaultAvatar, ImageAvatar, MessageInput } from '@chatic/web-ui-kit';
 
 import { ChannelMessageRow } from '../components/ChannelMessageRow';
+import { ReactionChips } from '../components/ReactionChips';
+import { MessageText } from '../components/MessageText';
 import { MessageActionSheet } from '../components/MessageActionSheet';
 import { MessageDetailDialog } from '../components/MessageDetailDialog';
 import { ReactionDetailSheet } from '../components/ReactionDetailSheet';
 import { EmojiPickerSheet } from '../components/EmojiPickerSheet';
-import { resolveChannelAvatar } from '../lib';
 import {
     useChannel,
     useChannelJoins,
     useChannelMembers,
     useChannelProfiles,
-    useChannelTitle,
     useChatMutations,
     useChats,
-    useDmPeer,
     useReactions,
 } from '../hooks';
 import type { ClientChatView, DomainChat } from '../types';
 import { copyMessageToClipboard } from '../utils/copyMessageToClipboard';
 import { messagePlainText } from '../utils/messagePlainText';
+import { resolveChatOwnerName, resolveUserName, type DisplayNameSources } from '../utils/displayName';
 import { buildThread } from '../utils/buildThread';
 import { foldReactions, hasMyReaction } from '../utils/foldReactions';
 import { useRecentEmojiStore } from '../stores/useRecentEmojiStore';
@@ -74,10 +74,11 @@ export const ThreadPage = () => {
 
     const { userId } = runtime.session.useSessionIdentity();
     const { channel } = useChannel(channelId || null);
-    // One join subscription for the screen — my row and the active-member set are two readings of it
-    // (see useChannelJoins). A thread and its room are two views of one channel, so they compose the
-    // same way.
-    const { joins, myJoin, activeMemberIds } = useChannelJoins(channelId || null);
+    // One join subscription for the screen — the roster rows and the active-member set are two
+    // readings of it (see useChannelJoins). A thread and its room are two views of one channel, so
+    // they compose the same way. `myJoin` is no longer read here: it fed the channel title, and the
+    // header stopped naming the channel (see below).
+    const { joins, activeMemberIds } = useChannelJoins(channelId || null);
     const { members } = useChannelMembers({
         channelId: stableChannelId,
         detail: true,
@@ -86,21 +87,11 @@ export const ThreadPage = () => {
     });
     const { profileMap } = useChannelProfiles(channel?.sid ?? null, activeMemberIds);
 
-    // Header identity, resolved exactly as the room resolves it — a thread and its channel are
-    // two views of one room, so the header has no reason to diverge (ADR-0047 decision 4). The
-    // join nick has to come from the join CACHE (`myJoin` above), not `channel.$join`, or a rename
-    // lags here while the room header already shows it.
-    const dmPeer = useDmPeer(channel, members, profileMap, userId);
-    const channelTitle = useChannelTitle(channel, { joinNick: myJoin?.nick, peerNick: dmPeer?.profileNick });
-    const isSelfChat = channel?.isSelfChat ?? false;
-    const isDmChat = channel?.stereo === 'dm';
-    const headerAvatarSrc = channel
-        ? resolveChannelAvatar({
-              channel,
-              myThumbnail: userId ? profileMap.get(userId)?.thumbnail : undefined,
-              peerThumbnail: dmPeer?.thumbnail,
-          }).src
-        : undefined;
+    // The header names the SCREEN ("스레드"), not the room (Figma 4718:22183) — a thread is a
+    // view of a channel, and wearing the channel's name and face would claim otherwise. So no
+    // channel title, no channel avatar, and with them go the peer/title chains this screen used
+    // to run purely to feed the header. `members` / `profileMap` above stay: they are what give
+    // the root and its replies their names and faces.
 
     const chatParams = useMemo(() => ({ channelId: stableChannelId, limit: 100 }), [stableChannelId]);
     const { rawChats, isLoading, hasMore, isLoadingMore, loadMore } = useChats(chatParams);
@@ -118,21 +109,22 @@ export const ThreadPage = () => {
         return map;
     }, [members]);
 
-    // Same display-name precedence as the room: site-profile nick, then the member
-    // user cache, then whatever the chat row itself embeds.
-    const displayNameOf = useMemo(
-        () => (chat: DomainChat) => {
-            const ownerId = chat.ownerId ?? '';
-            const profile = ownerId ? profileMap.get(ownerId) : undefined;
-            const member = ownerId ? memberById.get(ownerId) : undefined;
-            return profile?.nick ?? member?.nick ?? member?.name ?? chat.owner$?.name ?? ownerId;
-        },
-        [profileMap, memberById]
+    // The one naming chain (see resolveChatOwnerName) — a thread and its room are two views of
+    // one channel, so a person cannot be named differently across the hop. It matters more here
+    // than in the room: the root ALWAYS shows its author, so a chain that fell through to the raw
+    // user id put a UUID at the top of the screen.
+    const nameSources: DisplayNameSources = useMemo(
+        () => ({
+            profileMap,
+            memberById,
+            userId,
+            unknownLabel: t('chat.unknownUser'),
+            meLabel: t('chat.me'),
+        }),
+        [profileMap, memberById, userId, t]
     );
-    const nameOfUser = useMemo(
-        () => (id: string) => profileMap.get(id)?.nick ?? memberById.get(id)?.nick ?? memberById.get(id)?.name ?? id,
-        [profileMap, memberById]
-    );
+    const displayNameOf = useMemo(() => (chat: DomainChat) => resolveChatOwnerName(chat, nameSources), [nameSources]);
+    const nameOfUser = useMemo(() => (id: string) => resolveUserName(id, nameSources), [nameSources]);
 
     // Same precedence for faces as for names — the reactor sheet's avatars must match the
     // bubbles they were opened from.
@@ -240,6 +232,47 @@ export const ThreadPage = () => {
         setPickerOpen(true);
     };
 
+    /**
+     * The root, rendered as the thread's SUBJECT rather than as another message (Figma
+     * 4722:22934): a 36px avatar and name on one line, then the body as plain 16px text with
+     * no bubble and no side, then its reaction chips.
+     *
+     * A bubble would put the root in the same visual class as the replies under it, and a
+     * right-aligned bubble (when the root is mine) would put the thread's own subject off to
+     * one side of the screen it opens. It also has no read receipt and no time of its own —
+     * the room row it was opened from carries both, and repeating them here says nothing.
+     */
+    const renderRoot = (message: ClientChatView) => {
+        const avatarSrc = message.ownerId
+            ? (profileMap.get(message.ownerId)?.thumbnail ?? memberById.get(message.ownerId)?.thumbnail)
+            : undefined;
+        const tallies = message.id ? reactions.get(message.id) : undefined;
+        return (
+            <div data-testid="thread-root" className="flex flex-col px-3">
+                <div className="flex items-center gap-2.5 px-1 py-1.5">
+                    {avatarSrc ? <ImageAvatar src={avatarSrc} alt="" size={36} /> : <DefaultAvatar size={36} />}
+                    <span className="min-w-0 flex-1 truncate text-[15px] font-medium leading-[18px] tracking-[-0.075px] text-foreground">
+                        {message.ownerName}
+                    </span>
+                </div>
+                <div className="flex flex-col gap-3 px-1 py-1.5">
+                    <p className="whitespace-pre-wrap break-words text-base leading-normal tracking-[-0.08px] text-foreground">
+                        <MessageText text={messagePlainText(message.content)} />
+                    </p>
+                    {tallies && tallies.length > 0 && (
+                        <ReactionChips
+                            tallies={tallies}
+                            nameOf={nameOfUser}
+                            onToggle={(emoji, isMine) => message.id && toggleReaction(message.id, emoji, isMine)}
+                            onAdd={message.chatNo ? () => handleAddReaction(message) : undefined}
+                            onShowReactors={key => message.id && setReactorTarget({ messageId: message.id, key })}
+                        />
+                    )}
+                </div>
+            </div>
+        );
+    };
+
     const renderRow = (message: ClientChatView) => (
         <ChannelMessageRow
             key={message.id}
@@ -270,20 +303,13 @@ export const ThreadPage = () => {
     return (
         <div className="relative flex h-full flex-col overflow-hidden bg-background">
             <div ref={headerRef} className="absolute inset-x-0 top-0 z-20">
-                {/* No "Thread" label: the content says it better than a title could — root,
-                    divider, replies. Back returns to the channel (ADR-0045's two-hop). */}
+                {/* Titled for the screen, not the room, and with no avatar (Figma 4718:22183):
+                    a thread is one conversation inside a channel, and the channel's face here
+                    would read as having navigated to the channel. Back returns to it
+                    (ADR-0045's two-hop). */}
                 <ChatRoomHeader
-                    kind={isSelfChat ? 'self' : isDmChat ? 'direct' : 'group'}
-                    title={channelTitle}
-                    avatar={
-                        headerAvatarSrc ? (
-                            <img
-                                src={headerAvatarSrc}
-                                alt=""
-                                className="size-[42px] shrink-0 rounded-full border border-border object-cover"
-                            />
-                        ) : undefined
-                    }
+                    title={t('chat.thread.title')}
+                    hideAvatar
                     onBack={() => navigate(-1)}
                     className="border-b border-border"
                 />
@@ -299,9 +325,9 @@ export const ThreadPage = () => {
                         <Loader2 size={24} className="animate-spin text-muted-foreground" />
                     </div>
                 ) : (
-                    <div className="flex flex-col gap-3 px-0 py-2">
+                    <div className="flex flex-col px-0 py-2">
                         {root ? (
-                            renderRow(root)
+                            renderRoot(root)
                         ) : (
                             <div className="flex flex-col items-center gap-2 px-6 py-8 text-center text-sm text-muted-foreground">
                                 <span>{t('chat.thread.unavailable')}</span>
@@ -321,15 +347,18 @@ export const ThreadPage = () => {
                                 )}
                             </div>
                         )}
+                        {/* A full-bleed 4px band, not a hairline rule (Figma 4722:23017): it is
+                            the seam between the thread's subject and the conversation about it,
+                            which is a heavier boundary than the ones between messages. */}
+                        <div className="py-4">
+                            <div aria-hidden className="h-1 w-full bg-avatar-ring" />
+                        </div>
                         {replies.length > 0 && (
-                            <div className="flex items-center gap-2 px-4 text-xs text-muted-foreground">
-                                <span className="whitespace-nowrap">
-                                    {t('chat.thread.replyCount', { count: replies.length })}
-                                </span>
-                                <span className="h-px flex-1 bg-border" />
-                            </div>
+                            <p className="px-4 py-1 text-[15px] font-semibold leading-normal tracking-[-0.075px] text-foreground">
+                                {t('chat.thread.replyCount', { count: replies.length })}
+                            </p>
                         )}
-                        {replies.map(renderRow)}
+                        <div className="flex flex-col gap-3 pt-4">{replies.map(renderRow)}</div>
                     </div>
                 )}
             </div>

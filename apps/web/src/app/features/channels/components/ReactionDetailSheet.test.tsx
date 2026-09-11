@@ -24,6 +24,15 @@ jest.mock('@chatic/web-ui-kit', () => ({
     },
     ImageAvatar: ({ src }: any) => <img data-testid="image-avatar" src={src} alt="" />,
     DefaultAvatar: () => <div data-testid="default-avatar" />,
+    // The tabs are the kit's reaction chip one size up. `mine` and `selected` are surfaced as
+    // data attributes because they are two independent facts here — a tab can be mine, open,
+    // both or neither — and a stub that collapsed them would hide that.
+    ReactionChip: ({ emoji, count, mine, selected, ...rest }: any) => (
+        <button {...rest} data-mine={!!mine} data-selected={!!selected}>
+            <span>{emoji}</span>
+            <span>{count}</span>
+        </button>
+    ),
 }));
 
 import { ReactionDetailSheet } from './ReactionDetailSheet';

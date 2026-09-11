@@ -791,14 +791,17 @@
             }
         },
         "thread": {
-            "replyAction": "Reply in thread",
-            "replyCount_one": "{{count}} reply",
-            "replyCount_other": "{{count}} replies",
-            "openThread_one": "Open thread · {{count}} reply",
-            "openThread_other": "Open thread · {{count}} replies",
-            "inputPlaceholder": "Reply…",
+            "replyAction": "Thread",
+            "replyCount_one": "{{count}} comment",
+            "replyCount_other": "{{count}} comments",
+            "openThread_one": "Open thread · {{count}} comment",
+            "openThread_other": "Open thread · {{count}} comments",
+            "inputPlaceholder": "Add a comment",
             "unavailable": "This message isn't loaded yet — load older messages in the channel to see it.",
-            "loadOlder": "Load older messages"
+            "loadOlder": "Load older messages",
+            "title": "Thread",
+            "newReplyCount_one": "{{count}} new comment",
+            "newReplyCount_other": "{{count}} new comments"
         },
         "unknownUser": "Unknown user",
         "me": "You"
