@@ -6,7 +6,14 @@ import { Bookmark, ChevronRight, Hash, X } from 'lucide-react';
 import type { DomainChannel, DomainPlace } from '@chatic/data';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 
-import { avatarStyle, usePanelWidth, useSavedItemsStore, useSavedPanelStore, type SavedItem } from '../../../shared';
+import {
+    avatarStyle,
+    PanelResizeHandle,
+    usePanelWidth,
+    useSavedItemsStore,
+    useSavedPanelStore,
+    type SavedItem,
+} from '../../../shared';
 
 const formatSavedAt = (ms: number): string => {
     const date = new Date(ms);
@@ -92,7 +99,7 @@ export const SavedPanel = ({ channels, places, currentPlaceId, onSelect }: Saved
     const close = useSavedPanelStore(s => s.close);
     const items = useSavedItemsStore(s => s.items);
     const remove = useSavedItemsStore(s => s.remove);
-    const { width, minWidth, maxWidth, panelRef, startResize, resizeByKey } = usePanelWidth({
+    const resize = usePanelWidth({
         storageKey: 'chatic.savedPanel.width',
         defaultWidth: 320,
     });
@@ -128,23 +135,11 @@ export const SavedPanel = ({ channels, places, currentPlaceId, onSelect }: Saved
 
     return (
         <aside
-            ref={panelRef}
-            style={{ width }}
+            ref={resize.panelRef}
+            style={{ width: resize.width }}
             className="absolute inset-y-0 right-0 z-30 flex max-w-[85vw] shrink-0 flex-col overflow-hidden border-l border-hairline bg-background shadow-raised xl:relative xl:z-auto xl:max-w-none xl:shadow-none"
         >
-            {/* Drag the panel's left edge to resize (arrow keys when focused). */}
-            <div
-                role="separator"
-                aria-orientation="vertical"
-                aria-label={t('saved.resize')}
-                aria-valuenow={width}
-                aria-valuemin={minWidth}
-                aria-valuemax={maxWidth}
-                tabIndex={0}
-                onPointerDown={startResize}
-                onKeyDown={resizeByKey}
-                className="focus-ring absolute inset-y-0 left-0 z-10 w-1.5 cursor-col-resize transition-colors ease-tactile hover:bg-primary/40 active:bg-primary/60"
-            />
+            <PanelResizeHandle label={t('saved.resize')} panel={resize} />
             <header className="flex h-14 shrink-0 items-center justify-between border-b border-hairline px-4">
                 <span className="truncate text-title text-foreground">{t('saved.title')}</span>
                 <button

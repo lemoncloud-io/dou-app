@@ -6,7 +6,14 @@ import { X } from 'lucide-react';
 import type { DomainChannel, DomainChat } from '@chatic/data';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { lastChatNoOf, useAuthorNames, useChatMutations, useChats, usePanelWidth } from '../../../shared';
+import {
+    lastChatNoOf,
+    useAuthorNames,
+    useChatMutations,
+    useChats,
+    PanelResizeHandle,
+    usePanelWidth,
+} from '../../../shared';
 import type { ChannelMember } from '../../channels';
 import { buildMemberNames, buildThread, foldReactions } from '../utils';
 import { useFileDrop, useImageAttachments, useMentionables, useMessageViewer, type ReadCountOf } from '../hooks';
@@ -43,7 +50,7 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading, readCoun
     const { t } = useTranslation();
     const channelId = channel.id ?? '';
     const closeThread = useThreadStore(s => s.close);
-    const { width, minWidth, maxWidth, panelRef, startResize, resizeByKey } = usePanelWidth({
+    const resize = usePanelWidth({
         storageKey: 'chatic.threadPanel.width',
         defaultWidth: 384,
     });
@@ -97,23 +104,11 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading, readCoun
 
     return (
         <aside
-            ref={panelRef}
-            style={{ width }}
+            ref={resize.panelRef}
+            style={{ width: resize.width }}
             className="absolute inset-y-0 right-0 z-30 flex max-w-[85vw] shrink-0 flex-col overflow-hidden border-l border-hairline bg-background shadow-raised xl:relative xl:z-auto xl:max-w-none xl:shadow-none"
         >
-            {/* Drag the panel's left edge to resize (arrow keys when focused). */}
-            <div
-                role="separator"
-                aria-orientation="vertical"
-                aria-label={t('chat.thread.resize')}
-                aria-valuenow={width}
-                aria-valuemin={minWidth}
-                aria-valuemax={maxWidth}
-                tabIndex={0}
-                onPointerDown={startResize}
-                onKeyDown={resizeByKey}
-                className="focus-ring absolute inset-y-0 left-0 z-10 w-1.5 cursor-col-resize transition-colors ease-tactile hover:bg-primary/40 active:bg-primary/60"
-            />
+            <PanelResizeHandle label={t('chat.thread.resize')} panel={resize} />
             <header className="flex h-[68px] shrink-0 items-center justify-between border-b border-hairline px-6">
                 <span className="truncate text-[18px] font-semibold tracking-[-0.01em] text-foreground">
                     {t('chat.thread.title')}

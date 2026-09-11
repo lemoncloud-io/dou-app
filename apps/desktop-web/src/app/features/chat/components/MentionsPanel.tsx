@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/u
 import {
     avatarStyle,
     unreadMentionCount,
+    PanelResizeHandle,
     usePanelWidth,
     useMentionsPanelStore,
     useMentionsStore,
@@ -105,7 +106,7 @@ export const MentionsPanel = ({ channels, places, currentPlaceId, onSelect }: Me
     const markRead = useMentionsStore(s => s.markRead);
     const markAllRead = useMentionsStore(s => s.markAllRead);
     const remove = useMentionsStore(s => s.remove);
-    const { width, minWidth, maxWidth, panelRef, startResize, resizeByKey } = usePanelWidth({
+    const resize = usePanelWidth({
         storageKey: 'chatic.mentionsPanel.width',
         defaultWidth: 320,
     });
@@ -143,23 +144,11 @@ export const MentionsPanel = ({ channels, places, currentPlaceId, onSelect }: Me
 
     return (
         <aside
-            ref={panelRef}
-            style={{ width }}
+            ref={resize.panelRef}
+            style={{ width: resize.width }}
             className="absolute inset-y-0 right-0 z-30 flex max-w-[85vw] shrink-0 flex-col overflow-hidden border-l border-hairline bg-background shadow-raised xl:relative xl:z-auto xl:max-w-none xl:shadow-none"
         >
-            {/* Drag the panel's left edge to resize (arrow keys when focused). */}
-            <div
-                role="separator"
-                aria-orientation="vertical"
-                aria-label={t('activity.resize')}
-                aria-valuenow={width}
-                aria-valuemin={minWidth}
-                aria-valuemax={maxWidth}
-                tabIndex={0}
-                onPointerDown={startResize}
-                onKeyDown={resizeByKey}
-                className="focus-ring absolute inset-y-0 left-0 z-10 w-1.5 cursor-col-resize transition-colors ease-tactile hover:bg-primary/40 active:bg-primary/60"
-            />
+            <PanelResizeHandle label={t('activity.resize')} panel={resize} />
             <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-hairline px-4">
                 <span className="truncate text-title text-foreground">{t('activity.title')}</span>
                 <div className="flex shrink-0 items-center gap-1">
