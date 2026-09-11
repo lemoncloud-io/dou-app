@@ -65,6 +65,57 @@ describe('mergeRefreshedRelayToken — 보존 불변식 3개', () => {
     });
 });
 
+describe('mergeRefreshedRelayToken — $auth 는 보존하고 채택하지 않는다', () => {
+    const authed = (id: string) => stored({ $auth: { id } });
+    const withAuth = (merged: UserTokenView) => (merged as UserTokenView & { $auth?: { id?: string } }).$auth;
+
+    it('사이트 전환이 돌려준 하위 auth 를 채택하지 않는다', () => {
+        // 서버는 target 이 실린 refresh 에 identityId 없는 하위 auth 를 $auth 로 실어 보낸다.
+        // 그 id 로 서명하면 서버가 identityId='' 로 계산해 영구 403 invalid sign 이 된다.
+        const merged = mergeRefreshedRelayToken(
+            authed('parent-auth'),
+            slim({ identityToken: 'idt-new' }) as Relay & { $auth: { id: string } }
+        );
+        expect(withAuth(merged)?.id).toBe('parent-auth');
+
+        const switched = mergeRefreshedRelayToken(authed('parent-auth'), {
+            ...slim(),
+            $auth: { id: 'child-auth' },
+        } as unknown as Relay);
+        expect(withAuth(switched)?.id).toBe('parent-auth');
+    });
+
+    it('저장된 $auth 가 없으면 뷰의 것을 받는다', () => {
+        const merged = mergeRefreshedRelayToken(stored(), {
+            ...slim(),
+            $auth: { id: 'first-auth' },
+        } as unknown as Relay);
+        expect(withAuth(merged)?.id).toBe('first-auth');
+    });
+
+    it('저장된 $auth 에 id 가 없으면 붙들지 않고 뷰의 것을 받는다', () => {
+        // id 없는 $auth 로는 register 도 서명도 못 한다 — 보존할 가치가 없다.
+        const merged = mergeRefreshedRelayToken(stored({ $auth: {} }), {
+            ...slim(),
+            $auth: { id: 'usable-auth' },
+        } as unknown as Relay);
+        expect(withAuth(merged)?.id).toBe('usable-auth');
+    });
+
+    it('양쪽 다 없으면 undefined 로 남는다', () => {
+        expect(withAuth(mergeRefreshedRelayToken(stored(), slim()))).toBeUndefined();
+    });
+
+    it('보존이 Token 병합을 건드리지 않는다', () => {
+        const merged = mergeRefreshedRelayToken(authed('parent-auth'), {
+            ...slim({ identityToken: 'idt-new' }),
+            $auth: { id: 'child-auth' },
+        } as unknown as Relay);
+        expect(merged.Token?.identityToken).toBe('idt-new');
+        expect(merged.Token?.identityPoolId).toBe('pool-1');
+    });
+});
+
 describe('mergeRefreshedCloudToken — 얕은 병합만', () => {
     it('저장된 것 위에 뷰를 얕게 덮는다 (프로필 필드 유지)', () => {
         const merged = mergeRefreshedCloudToken(stored(), {
