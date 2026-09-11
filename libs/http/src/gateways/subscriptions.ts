@@ -1,5 +1,11 @@
-import type { ListResult } from '@lemoncloud/chatic-backend-api/dist/cores/types';
-import type { CreateMembershipBody, MembershipView, ProductView } from '@lemoncloud/chatic-backend-api';
+import type { AggrResult, ListResult } from '@lemoncloud/chatic-backend-api/dist/cores/types';
+import type {
+    CloudView,
+    CreateMembershipBody,
+    MembershipBody,
+    MembershipView,
+    ProductView,
+} from '@lemoncloud/chatic-backend-api';
 import type {
     ListValidateParam,
     ValidateAPIBody,
@@ -24,6 +30,33 @@ export interface SubscriptionHttpGateway {
     membership(): Promise<MembershipView>;
     /** POST {relay}/memberships/0. */
     validateMembership(body: CreateMembershipBody, params?: Record<string, unknown>): Promise<MembershipView>;
+
+    /**
+     * GET {relay}/memberships/0/list — the admin console's membership list.
+     *
+     * Admin-only on the relay (`hasAdminRole`), and the plain `GET /memberships` routes here too,
+     * so there is no unguarded way to read someone else's membership.
+     */
+    adminMemberships(params?: Record<string, unknown>): Promise<ListResult<MembershipView>>;
+    /** PUT {relay}/memberships/{userId}/admin — the admin override (grant/block/release). */
+    updateMembershipByAdmin(
+        userId: string,
+        body: MembershipBody,
+        params?: Record<string, unknown>
+    ): Promise<MembershipView>;
+    /**
+     * GET {relay}/clouds/0/list?view=admin&valid=0 — one user's clouds, with a status aggregation.
+     *
+     * Separate from `CloudHttpGateway.list` rather than a looser version of it: that one pins
+     * `view: 'mine'` and answers a different question under different permissions. Both fixed
+     * params here are deliberate. `view: 'admin'` is not the caller's to choose — `mine` scopes by
+     * session instead. `valid: 0` overrides a server default of `1` that hides expired clouds,
+     * which an operator reviewing the fallout of a block needs to see.
+     *
+     * The filter is `ownerId`. **Not `userId`** — the relay only reads `userId` in its `mine`
+     * branch, so passing it here would silently list every user's clouds.
+     */
+    adminClouds(ownerId: string, params?: Record<string, unknown>): Promise<ListResult<CloudView, AggrResult>>;
 }
 
 export const createSubscriptionHttpGateway = (exec: HttpGatewayExecutor): SubscriptionHttpGateway => {
@@ -80,6 +113,32 @@ export const createSubscriptionHttpGateway = (exec: HttpGatewayExecutor): Subscr
                 baseURL: `${relay()}/memberships/0`,
                 params: { ...params },
                 body,
+            }),
+
+        adminMemberships: params =>
+            exec.executeSignedRelayRequest<ListResult<MembershipView>, never, Record<string, unknown>>({
+                method: 'GET',
+                baseURL: `${relay()}/memberships/0/list`,
+                params: { ...params },
+            }),
+
+        updateMembershipByAdmin: (userId, body, params) =>
+            exec.executeSignedRelayRequest<MembershipView, MembershipBody, Record<string, unknown>>({
+                method: 'PUT',
+                baseURL: `${relay()}/memberships/${userId}/admin`,
+                params: { ...params },
+                body,
+            }),
+
+        adminClouds: (ownerId, params) =>
+            exec.executeSignedRelayRequest<
+                ListResult<CloudView, AggrResult>,
+                never,
+                Record<string, unknown> & { view: 'admin' }
+            >({
+                method: 'GET',
+                baseURL: `${relay()}/clouds/0/list`,
+                params: { ...params, ownerId, view: 'admin', valid: 0 },
             }),
     };
 };
