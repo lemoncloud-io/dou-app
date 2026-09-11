@@ -9,5 +9,13 @@
     "arrowParens": "avoid",
     "endOfLine": "auto",
     "bracketSameLine": false,
-    "singleAttributePerLine": false
+    "singleAttributePerLine": false,
+    "overrides": [
+        {
+            "files": "package.json",
+            "options": {
+                "tabWidth": 2
+            }
+        }
+    ]
 }

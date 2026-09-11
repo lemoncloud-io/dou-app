@@ -21,7 +21,7 @@ interface ChannelData {
     id?: string;
     sid?: string;
     name?: string;
-    $join?: { userId?: string };
+    $join?: { userId?: string; notify?: string };
 }
 
 export interface PushChannelHint {

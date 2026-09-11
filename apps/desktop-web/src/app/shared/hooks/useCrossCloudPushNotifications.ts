@@ -9,6 +9,7 @@ import {
     isDndActive,
     isMentioned,
     messagePlainText,
+    readCacheRecords,
     resolveMyMentionNames,
     resolvePushCloudId,
 } from '../utils';
@@ -34,6 +35,12 @@ const buildCrossCloudDeeplink = (cloudId: string | null, data: Record<string, st
 const headline = (channelName: string | undefined, fallback: string): string =>
     channelName ? `#${channelName}` : fallback;
 
+/** Channel payload shape the notify-mode cache lookup needs (subset). */
+interface PushChannelData {
+    id?: string;
+    $join?: { notify?: string };
+}
+
 /** Present one forwarded FCM push as a toast (focused) or an OS banner (unfocused). */
 const presentPush = async (
     notification: { title?: string; body?: string; data?: Record<string, string> } | undefined
@@ -57,7 +64,15 @@ const presentPush = async (
     // not in the JSON carrying it, and the raw payload would also match on field
     // names. `body` remains the last resort when the push carries no content.
     if (data.channelId) {
-        const mode = channelNotifyMode(prefs, String(data.channelId));
+        // Same policy the same-cloud path honors — including the server's
+        // join.notify leg. The push payload carries no channel record, so read
+        // the notify mode off the engine cache (best-effort: an unvisited
+        // channel degrades to local-pref/mute resolution, same as before).
+        const cachedChannel = (await readCacheRecords<PushChannelData>()).find(
+            r => r.type === 'channel' && String(r.data?.id ?? '') === String(data.channelId)
+        )?.data;
+        const joinNotify = cachedChannel?.$join?.notify as 'all' | 'mention' | 'none' | undefined;
+        const mode = channelNotifyMode(prefs, String(data.channelId), joinNotify);
         if (mode === 'none') return;
         const text = messagePlainText(String(data.content ?? body ?? ''));
         if (mode === 'mention' && !isMentioned(text, resolveMyMentionNames())) return;
