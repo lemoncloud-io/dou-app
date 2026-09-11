@@ -7,6 +7,11 @@ module.exports = {
     darkMode: ['class'],
     content: [
         join(__dirname, '{src,pages,components,app}/**/*!(*.stories|*.spec).{ts,tsx,html}'),
+        // The libs that ship markup, named outright: `createGlobPatternsForDependencies` reads the
+        // nx project graph and returns [] when vite runs without one (plain `vite` / `vite build`),
+        // which left every class only ui-kit uses — `bg-popover`, the dialog's centring — ungenerated:
+        // menus drew transparent and dialogs landed off-screen.
+        join(__dirname, '../../libs/{ui-kit,block-kit}/src/**/*!(*.stories|*.spec|*.test).{ts,tsx}'),
         ...createGlobPatternsForDependencies(__dirname),
     ],
     prefix: '',
