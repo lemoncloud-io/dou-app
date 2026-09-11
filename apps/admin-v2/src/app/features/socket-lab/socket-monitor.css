@@ -36,9 +36,10 @@
     }
 }
 
-/* The dark token scale moved to `src/monitor-tokens.css` so other screens can use it too.
-   Only the light override below still belongs to this feature — it is the one place with a
-   user-facing theme toggle. */
+/* The token scale lives in `src/monitor-tokens.css` so other screens can use it too.
+   There is no light palette here: the console is dark-only (`<html class="dark">` is
+   static in index.html), and this screen's own theme toggle was the last thing still
+   claiming otherwise. */
 .sm-root {
     /* Fill the PrivateLayout main area (which owns viewport height) rather than
        the full viewport, so the top nav bar doesn't push the shell into overflow. */
@@ -60,33 +61,6 @@
 }
 .sm-root * {
     box-sizing: border-box;
-}
-
-.sm-root.sm-light {
-    --sm-bg: #f6f8fa;
-    --sm-bg-deepest: #eef1f4;
-    --sm-sidebar: #ffffff;
-    --sm-panel: #ffffff;
-    --sm-panel-2: #f6f8fa;
-    --sm-raised: #eef1f4;
-    --sm-raised-2: #eaeef2;
-    --sm-raised-3: #e4e9ee;
-    --sm-border: #d0d7de;
-    --sm-border-2: #d8dee4;
-    --sm-border-3: #ccd3da;
-    --sm-text: #1f2328;
-    --sm-text-2: #32383f;
-    --sm-text-3: #57606a;
-    --sm-text-4: #656d76;
-    --sm-text-5: #6e7781;
-    --sm-text-6: #838d97;
-    --sm-text-7: #9aa4af;
-    --sm-text-8: #afb8c1;
-    --sm-red-bg: #ffebe9;
-    --sm-deep: #f6f8fa;
-    --sm-hover: #f0f3f6;
-    --sm-border-hover: #c0c8d0;
-    --sm-on-accent: #052e2b;
 }
 
 .sm-root ::-webkit-scrollbar {

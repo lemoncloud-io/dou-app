@@ -12,7 +12,11 @@ import type {
     ValidateAPIResponse,
 } from '@lemoncloud/chatic-iap-api/dist/modules/in-app-pay/views';
 import type { ReceiptModel } from '@lemoncloud/chatic-iap-api/dist/modules/in-app-pay/model';
-import type { AdminOverrideOptions, ISubscriptionHttpDataSource } from '../remote/http-data-sources';
+import type {
+    AdminEndpointOptions,
+    AdminOverrideOptions,
+    ISubscriptionHttpDataSource,
+} from '../remote/http-data-sources';
 import type { DataContextProvider } from './types';
 import { BaseRepositoryV2, type DisposableRepositoryV2 } from './types';
 
@@ -29,9 +33,16 @@ export interface ISubscriptionRepositoryV2 extends DisposableRepositoryV2 {
      * Admin console surface (ADR-0082). Remote-only like the rest of this repository, which is the
      * point: these reads are other users' records and must never reach a local cache.
      */
-    fetchAdminMemberships(params?: Record<string, unknown>): Promise<ListResult<MembershipView>>;
+    fetchAdminMemberships(
+        params?: Record<string, unknown>,
+        opts?: AdminEndpointOptions
+    ): Promise<ListResult<MembershipView>>;
     updateMembershipByAdmin(userId: string, body: MembershipBody, opts?: AdminOverrideOptions): Promise<MembershipView>;
-    fetchAdminClouds(ownerId: string, params?: Record<string, unknown>): Promise<ListResult<CloudView, AggrResult>>;
+    fetchAdminClouds(
+        ownerId: string,
+        params?: Record<string, unknown>,
+        opts?: AdminEndpointOptions
+    ): Promise<ListResult<CloudView, AggrResult>>;
 }
 
 /**
@@ -90,8 +101,11 @@ export class SubscriptionRepositoryV2 extends BaseRepositoryV2 implements ISubsc
         return this.requireHttp().validateMembership(body, params);
     }
 
-    public async fetchAdminMemberships(params?: Record<string, unknown>): Promise<ListResult<MembershipView>> {
-        return this.requireHttp().fetchAdminMemberships(params);
+    public async fetchAdminMemberships(
+        params?: Record<string, unknown>,
+        opts?: AdminEndpointOptions
+    ): Promise<ListResult<MembershipView>> {
+        return this.requireHttp().fetchAdminMemberships(params, opts);
     }
 
     public async updateMembershipByAdmin(
@@ -104,8 +118,9 @@ export class SubscriptionRepositoryV2 extends BaseRepositoryV2 implements ISubsc
 
     public async fetchAdminClouds(
         ownerId: string,
-        params?: Record<string, unknown>
+        params?: Record<string, unknown>,
+        opts?: AdminEndpointOptions
     ): Promise<ListResult<CloudView, AggrResult>> {
-        return this.requireHttp().fetchAdminClouds(ownerId, params);
+        return this.requireHttp().fetchAdminClouds(ownerId, params, opts);
     }
 }

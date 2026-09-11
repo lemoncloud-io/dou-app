@@ -37,12 +37,16 @@ export interface SubscriptionHttpGateway {
      * Admin-only on the relay (`hasAdminRole`), and the plain `GET /memberships` routes here too,
      * so there is no unguarded way to read someone else's membership.
      */
-    adminMemberships(params?: Record<string, unknown>): Promise<ListResult<MembershipView>>;
+    adminMemberships(
+        params?: Record<string, unknown>,
+        options?: AdminEndpointOptions
+    ): Promise<ListResult<MembershipView>>;
     /** PUT {relay}/memberships/{userId}/admin — the admin override (grant/block/release). */
     updateMembershipByAdmin(
         userId: string,
         body: MembershipBody,
-        params?: Record<string, unknown>
+        params?: Record<string, unknown>,
+        options?: AdminEndpointOptions
     ): Promise<MembershipView>;
     /**
      * GET {relay}/clouds/0/list?view=admin&valid=0 — one user's clouds, with a status aggregation.
@@ -65,7 +69,23 @@ export interface SubscriptionHttpGateway {
      * The two membership calls above are different: the relay really does enforce `hasAdminRole`
      * on both before doing any work.
      */
-    adminClouds(ownerId: string, params?: Record<string, unknown>): Promise<ListResult<CloudView, AggrResult>>;
+    adminClouds(
+        ownerId: string,
+        params?: Record<string, unknown>,
+        options?: AdminEndpointOptions
+    ): Promise<ListResult<CloudView, AggrResult>>;
+}
+
+/**
+ * Lets the admin console aim these three at a relay other than the configured one.
+ *
+ * Only the admin calls take it. The app's own calls must never leave the relay they were
+ * authenticated against, and the console needs to compare stages the way the log console does —
+ * so the override is opt-in per call rather than a mode on the client.
+ */
+export interface AdminEndpointOptions {
+    /** Full relay base, e.g. `https://api.example.com/v1`. Falls back to the configured one. */
+    endpoint?: string;
 }
 
 export const createSubscriptionHttpGateway = (exec: HttpGatewayExecutor): SubscriptionHttpGateway => {
@@ -124,29 +144,29 @@ export const createSubscriptionHttpGateway = (exec: HttpGatewayExecutor): Subscr
                 body,
             }),
 
-        adminMemberships: params =>
+        adminMemberships: (params, options) =>
             exec.executeSignedRelayRequest<ListResult<MembershipView>, never, Record<string, unknown>>({
                 method: 'GET',
-                baseURL: `${relay()}/memberships/0/list`,
+                baseURL: `${options?.endpoint || relay()}/memberships/0/list`,
                 params: { ...params },
             }),
 
-        updateMembershipByAdmin: (userId, body, params) =>
+        updateMembershipByAdmin: (userId, body, params, options) =>
             exec.executeSignedRelayRequest<MembershipView, MembershipBody, Record<string, unknown>>({
                 method: 'PUT',
-                baseURL: `${relay()}/memberships/${userId}/admin`,
+                baseURL: `${options?.endpoint || relay()}/memberships/${userId}/admin`,
                 params: { ...params },
                 body,
             }),
 
-        adminClouds: (ownerId, params) =>
+        adminClouds: (ownerId, params, options) =>
             exec.executeSignedRelayRequest<
                 ListResult<CloudView, AggrResult>,
                 never,
                 Record<string, unknown> & { view: 'admin' }
             >({
                 method: 'GET',
-                baseURL: `${relay()}/clouds/0/list`,
+                baseURL: `${options?.endpoint || relay()}/clouds/0/list`,
                 params: { ...params, ownerId, view: 'admin', valid: 0 },
             }),
     };

@@ -56,10 +56,10 @@ describe('SubscriptionHttpDataSource', () => {
         gateway.adminClouds.mockResolvedValue({ list: [], aggr: {} } as any);
 
         await expect(dataSource.fetchAdminMemberships({ status: 'expired' })).resolves.toEqual({ list: [] });
-        expect(gateway.adminMemberships).toHaveBeenCalledWith({ status: 'expired' });
+        expect(gateway.adminMemberships).toHaveBeenCalledWith({ status: 'expired' }, undefined);
 
         await expect(dataSource.fetchAdminClouds('1000904')).resolves.toEqual({ list: [], aggr: {} });
-        expect(gateway.adminClouds).toHaveBeenCalledWith('1000904', undefined);
+        expect(gateway.adminClouds).toHaveBeenCalledWith('1000904', undefined, undefined);
     });
 
     // The `1`/absent encoding is the wire's and lives here, mirroring `CloudHttpDataSource`'s
@@ -68,16 +68,44 @@ describe('SubscriptionHttpDataSource', () => {
         gateway.updateMembershipByAdmin.mockResolvedValue({} as any);
 
         await dataSource.updateMembershipByAdmin('1000904', { adminStatus: 'active' }, { auto: true });
-        expect(gateway.updateMembershipByAdmin).toHaveBeenCalledWith('1000904', { adminStatus: 'active' }, { auto: 1 });
+        expect(gateway.updateMembershipByAdmin).toHaveBeenCalledWith(
+            '1000904',
+            { adminStatus: 'active' },
+            { auto: 1 },
+            { endpoint: undefined }
+        );
 
         await dataSource.updateMembershipByAdmin('1000904', { adminStatus: 'active' }, { auto: false });
         expect(gateway.updateMembershipByAdmin).toHaveBeenLastCalledWith(
             '1000904',
             { adminStatus: 'active' },
-            undefined
+            undefined,
+            { endpoint: undefined }
         );
 
         await dataSource.updateMembershipByAdmin('1000904', { adminStatus: '' });
-        expect(gateway.updateMembershipByAdmin).toHaveBeenLastCalledWith('1000904', { adminStatus: '' }, undefined);
+        expect(gateway.updateMembershipByAdmin).toHaveBeenLastCalledWith('1000904', { adminStatus: '' }, undefined, {
+            endpoint: undefined,
+        });
+    });
+
+    // The stage switch is the only reason these three take an endpoint at all; the app's own calls
+    // must stay on the relay they authenticated against.
+    it('passes an endpoint override through to the gateway', async () => {
+        gateway.adminMemberships.mockResolvedValue({ list: [] } as any);
+        gateway.adminClouds.mockResolvedValue({ list: [] } as any);
+        gateway.updateMembershipByAdmin.mockResolvedValue({} as any);
+        const endpoint = 'https://api.example.com/v1';
+
+        await dataSource.fetchAdminMemberships({ page: 0 }, { endpoint });
+        expect(gateway.adminMemberships).toHaveBeenCalledWith({ page: 0 }, { endpoint });
+
+        await dataSource.fetchAdminClouds('1000904', undefined, { endpoint });
+        expect(gateway.adminClouds).toHaveBeenCalledWith('1000904', undefined, { endpoint });
+
+        await dataSource.updateMembershipByAdmin('1000904', { adminStatus: '' }, { endpoint });
+        expect(gateway.updateMembershipByAdmin).toHaveBeenLastCalledWith('1000904', { adminStatus: '' }, undefined, {
+            endpoint,
+        });
     });
 });

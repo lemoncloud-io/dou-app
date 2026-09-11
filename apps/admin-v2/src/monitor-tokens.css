@@ -4,9 +4,12 @@
  *
  * These values started life inside `socket-lab/socket-monitor.css`, scoped to `.sm-root`, which
  * made them unreachable from any other feature. They are the console's de-facto design language,
- * so they live at the root now and socket-lab keeps only its light-mode override on top.
+ * so they live at the root now.
  *
- * The console is dark-only (`index.html` pins the class), so the dark scale is the base.
+ * The console is dark-only — `index.html` pins `class="dark"` statically, so there is no light
+ * flash before hydration and nothing to toggle. This scale is therefore the only one: no light
+ * override remains anywhere, and a screen that wants a different shade should add a token here
+ * rather than a palette of its own.
  */
 :root {
     --sm-bg: #0a0d12;

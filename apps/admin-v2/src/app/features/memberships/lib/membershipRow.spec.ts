@@ -1,10 +1,10 @@
 /**
  * `lib/memberships/membershipRow.spec.ts`
  */
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { describeGrade, describeOverrideBadge, hasDerivationMismatch } from './membershipRow';
-import { describeTargetServer } from './targetServer';
+import { configuredStage, describeTargetServer, endpointOverrideFor, relayBaseFor, relayHost } from './targetServer';
 
 import type { MembershipView } from '@lemoncloud/chatic-backend-api';
 
@@ -91,29 +91,85 @@ describe('describeGrade', () => {
 });
 
 describe('describeTargetServer', () => {
-    it('/v1은 운영이다', () => {
-        expect(describeTargetServer('https://api.example.com/v1')).toEqual({
-            endpoint: 'https://api.example.com/v1',
+    it('dou-v1 은 운영이다', () => {
+        expect(describeTargetServer('https://api.example.com/dou-v1')).toEqual({
+            endpoint: 'https://api.example.com/dou-v1',
             isProd: true,
             label: '운영',
         });
     });
 
-    it('/d1은 개발이다', () => {
-        expect(describeTargetServer('https://api.example.com/d1').label).toBe('개발');
+    it('dou-d1 은 개발이다', () => {
+        expect(describeTargetServer('https://api.example.com/dou-d1').label).toBe('개발');
     });
 
     it('끝의 슬래시는 무시한다', () => {
-        expect(describeTargetServer('https://api.example.com/v1/').isProd).toBe(true);
+        expect(describeTargetServer('https://api.example.com/dou-v1/').isProd).toBe(true);
     });
 
-    // 운영 URL을 개발이라고 우기는 쪽이 비싼 실수다.
+    // 운영 URL을 개발이라고 우기는 쪽이 비싼 실수다. 백엔드 엔드포인트(/v1)도 릴레이가 아니다.
     it('규칙에 안 맞으면 개발이라고 단정하지 않고 모른다고 한다', () => {
         expect(describeTargetServer('https://api.example.com/x9').label).toBe('알 수 없음');
+        expect(describeTargetServer('https://api.example.com/v1').label).toBe('알 수 없음');
     });
 
     it('비어 있으면 미설정으로 표시한다', () => {
         expect(describeTargetServer(undefined).endpoint).toBe('(미설정)');
         expect(describeTargetServer('  ').label).toBe('알 수 없음');
+    });
+});
+
+describe('relayHost / relayBaseFor', () => {
+    // 릴레이는 `dou-XX` 다. `/d1` 로 만들면 다른 서비스라 전 라우트가 404 다.
+    it('설정된 엔드포인트에서 dou 스테이지 구간을 떼어낸다', () => {
+        expect(relayHost('https://api.example.com/dou-d1')).toBe('https://api.example.com');
+        expect(relayHost('https://api.example.com/dou-v1/')).toBe('https://api.example.com');
+    });
+
+    it('dou 구간이 없으면 그대로 둔다', () => {
+        expect(relayHost('https://api.example.com')).toBe('https://api.example.com');
+    });
+
+    it('고른 스테이지로 dou- 를 붙여 다시 만든다', () => {
+        expect(relayBaseFor('https://api.example.com/dou-d1', 'v1')).toBe('https://api.example.com/dou-v1');
+        expect(relayBaseFor('https://api.example.com/dou-v1', 'd1')).toBe('https://api.example.com/dou-d1');
+    });
+
+    it('설정이 없으면 빈 문자열이다', () => {
+        expect(relayBaseFor(undefined, 'v1')).toBe('');
+        expect(relayBaseFor('   ', 'd1')).toBe('');
+    });
+});
+
+describe('endpointOverrideFor', () => {
+    afterEach(() => vi.unstubAllEnvs());
+
+    // 설정된 스테이지에는 override 를 안 보낸다. 보내면 클라이언트가 해석하는 릴레이(딥링크·window
+    // 오버라이드를 먼저 보는)를 버리고 빌드 시점 값으로 못박는다 — 그게 404 회귀의 원인이었다.
+    it('설정된 스테이지면 override 없이 둔다', () => {
+        vi.stubEnv('VITE_DOU_ENDPOINT', 'https://api.example.com/dou-d1');
+
+        expect(configuredStage()).toBe('d1');
+        expect(endpointOverrideFor('d1')).toBeUndefined();
+    });
+
+    it('다른 스테이지를 고르면 dou- 를 붙인 주소를 준다', () => {
+        vi.stubEnv('VITE_DOU_ENDPOINT', 'https://api.example.com/dou-d1');
+
+        expect(endpointOverrideFor('v1')).toBe('https://api.example.com/dou-v1');
+    });
+
+    it('운영이 기본이면 반대로 동작한다', () => {
+        vi.stubEnv('VITE_DOU_ENDPOINT', 'https://api.example.com/dou-v1');
+
+        expect(configuredStage()).toBe('v1');
+        expect(endpointOverrideFor('v1')).toBeUndefined();
+        expect(endpointOverrideFor('d1')).toBe('https://api.example.com/dou-d1');
+    });
+
+    it('설정이 없으면 override 를 만들지 않는다', () => {
+        vi.stubEnv('VITE_DOU_ENDPOINT', '');
+
+        expect(endpointOverrideFor('v1')).toBeUndefined();
     });
 });

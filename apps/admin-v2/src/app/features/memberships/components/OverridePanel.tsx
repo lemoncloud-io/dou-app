@@ -36,7 +36,7 @@ import {
     type OverrideFormState,
     type OverrideMode,
 } from '../lib/overrideForm';
-import { currentTargetServer } from '../lib/targetServer';
+import { configuredEndpoint, describeTargetServer, relayBaseFor, type RelayStage } from '../lib/targetServer';
 
 import type { MembershipView } from '@lemoncloud/chatic-backend-api';
 import type { JSX } from 'react';
@@ -44,6 +44,8 @@ import type { JSX } from 'react';
 interface OverridePanelProps {
     membership: MembershipView;
     onDone: (updated: MembershipView) => void;
+    /** The relay this write lands on — named in the confirmation, because it is switchable. */
+    stage: RelayStage;
 }
 
 const MODE_LABEL: Record<OverrideMode, string> = {
@@ -52,7 +54,7 @@ const MODE_LABEL: Record<OverrideMode, string> = {
     release: '해제',
 };
 
-export const OverridePanel = ({ membership, onDone }: OverridePanelProps): JSX.Element => {
+export const OverridePanel = ({ membership, onDone, stage }: OverridePanelProps): JSX.Element => {
     const [form, setForm] = useState<OverrideFormState>(emptyOverrideForm);
     const [confirming, setConfirming] = useState(false);
     const [failure, setFailure] = useState<string | null>(null);
@@ -61,7 +63,7 @@ export const OverridePanel = ({ membership, onDone }: OverridePanelProps): JSX.E
 
     // Never fall back to `membership.id` — that is `MS<uid>`, and writing to it targets nothing.
     const userId = membership.userId ?? '';
-    const target = currentTargetServer();
+    const target = describeTargetServer(relayBaseFor(configuredEndpoint(), stage));
     const errors = validateOverrideForm(form, Date.now());
     const summary = describeOverride(form, membership);
     const patch = (over: Partial<OverrideFormState>) => setForm(prev => ({ ...prev, ...over }));
@@ -73,6 +75,7 @@ export const OverridePanel = ({ membership, onDone }: OverridePanelProps): JSX.E
                 userId,
                 body: buildOverrideBody(form),
                 auto: shouldSendAuto(form),
+                stage,
             });
             setConfirming(false);
             setForm(emptyOverrideForm());

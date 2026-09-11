@@ -3,7 +3,9 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { activeFilters, asListParams, clearAllPatch, countByStatus, toChips } from './filters';
+import { activeFilters, asListParams, clearAllPatch, countByStatus, matchesFilters, toChips } from './filters';
+
+import type { MembershipView } from '@lemoncloud/chatic-backend-api';
 
 describe('activeFilters', () => {
     it('값이 있는 것만 센다', () => {
@@ -70,5 +72,50 @@ describe('asListParams', () => {
             userId: undefined,
             isSuper: undefined,
         });
+    });
+});
+
+describe('matchesFilters', () => {
+    const row = (over: Partial<MembershipView> = {}): MembershipView =>
+        ({
+            userId: '1000904',
+            status: 'active',
+            platform: 'apple-inapp',
+            productId: 'pro_tier_01',
+            ...over,
+        }) as MembershipView;
+
+    it('필터가 없으면 전부 통과한다', () => {
+        expect(matchesFilters(row(), {})).toBe(true);
+    });
+
+    it('상태는 정확히 일치해야 한다', () => {
+        expect(matchesFilters(row(), { status: 'active' })).toBe(true);
+        expect(matchesFilters(row(), { status: 'expired' })).toBe(false);
+    });
+
+    // 부분 id 를 붙여넣는 건 검색이지 동등 비교가 아니다.
+    it('userId 는 부분 일치로 찾는다', () => {
+        expect(matchesFilters(row(), { userId: '0904' })).toBe(true);
+        expect(matchesFilters(row(), { userId: '9999' })).toBe(false);
+    });
+
+    it('상품도 부분 일치이고 대소문자를 안 가린다', () => {
+        expect(matchesFilters(row(), { productId: 'TIER_01' })).toBe(true);
+    });
+
+    it('플랫폼은 정확히 일치해야 한다', () => {
+        expect(matchesFilters(row(), { platform: 'google-inapp' })).toBe(false);
+    });
+
+    it('isSuper=1 은 플래그가 선 행만 남긴다', () => {
+        expect(matchesFilters(row(), { isSuper: '1' })).toBe(false);
+        expect(matchesFilters(row({ isSuper: 1 } as Partial<MembershipView>), { isSuper: '1' })).toBe(true);
+    });
+
+    it('조건이 여럿이면 전부 만족해야 한다', () => {
+        expect(matchesFilters(row(), { status: 'active', userId: '1000904' })).toBe(true);
+        expect(matchesFilters(row(), { status: 'active', userId: '1' })).toBe(true);
+        expect(matchesFilters(row(), { status: 'active', userId: 'zzz' })).toBe(false);
     });
 });

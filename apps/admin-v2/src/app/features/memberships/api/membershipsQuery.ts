@@ -11,6 +11,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { runtime } from '@chatic/app-runtime';
 import { createQueryKeys } from '@chatic/shared';
 
+import { endpointOverrideFor, type RelayStage } from '../lib/targetServer';
+
 import type { ListResult } from '@lemoncloud/chatic-backend-api/dist/cores/types';
 import type { MembershipBody, MembershipView } from '@lemoncloud/chatic-backend-api';
 
@@ -60,13 +62,29 @@ export const buildMembershipListParams = ({
 });
 
 /** `refetchInterval` drives the toolbar's auto-refresh toggle, mirroring `use-report-logs`. */
-export const useAdminMemberships = (params: MembershipListParams = {}, refetchInterval: number | false = false) => {
+/**
+ * The relay base for a stage, or undefined to use whatever the client was configured with.
+ *
+ * Kept in one place so the stage can be folded into every admin query key: switching stages has to
+ * refetch, not relabel the previous relay's rows.
+ */
+const endpointFor = (stage?: RelayStage) => {
+    const endpoint = stage ? endpointOverrideFor(stage) : undefined;
+    return endpoint ? { endpoint } : undefined;
+};
+
+/** `refetchInterval` drives the header's auto-refresh toggle, mirroring the log console. */
+export const useAdminMemberships = (
+    params: MembershipListParams = {},
+    refetchInterval: number | false = false,
+    stage?: RelayStage
+) => {
     const { subscription } = runtime.data.useRuntimeRepositories();
     const query = buildMembershipListParams(params);
 
     return useQuery({
-        queryKey: membershipsKeys.list(query),
-        queryFn: () => subscription.fetchAdminMemberships(query),
+        queryKey: membershipsKeys.list({ ...query, stage: stage ?? '' }),
+        queryFn: () => subscription.fetchAdminMemberships(query, endpointFor(stage)),
         refetchOnWindowFocus: false,
         refetchInterval,
     });
@@ -77,12 +95,12 @@ export const useAdminMemberships = (params: MembershipListParams = {}, refetchIn
  *
  * Disabled until a row is selected — the endpoint without an owner would list every user's clouds.
  */
-export const useAdminClouds = (ownerId: string | undefined) => {
+export const useAdminClouds = (ownerId: string | undefined, stage?: RelayStage) => {
     const { subscription } = runtime.data.useRuntimeRepositories();
 
     return useQuery({
-        queryKey: adminCloudsKeys.detail(ownerId ?? ''),
-        queryFn: () => subscription.fetchAdminClouds(ownerId as string),
+        queryKey: adminCloudsKeys.detail(`${ownerId ?? ''}@${stage ?? ''}`),
+        queryFn: () => subscription.fetchAdminClouds(ownerId as string, undefined, endpointFor(stage)),
         enabled: !!ownerId,
         refetchOnWindowFocus: false,
     });
@@ -126,6 +144,8 @@ export interface UpdateByAdminInput {
     body: MembershipBody;
     /** Provision clouds up to the raised quota immediately. Off unless the operator asks. */
     auto?: boolean;
+    /** The relay this write lands on. The console shows it in the confirmation. */
+    stage?: RelayStage;
 }
 
 /**
@@ -144,13 +164,13 @@ export const useUpdateMembershipByAdmin = () => {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: ({ userId, body, auto }: UpdateByAdminInput) =>
-            subscription.updateMembershipByAdmin(userId, body, { auto }),
+        mutationFn: ({ userId, body, auto, stage }: UpdateByAdminInput) =>
+            subscription.updateMembershipByAdmin(userId, body, { auto, ...endpointFor(stage) }),
         onSuccess: (updated: MembershipView, { userId }) => {
             queryClient.setQueriesData<ListResult<MembershipView>>({ queryKey: membershipsKeys.lists() }, previous =>
                 patchMembershipRow(previous, userId, updated)
             );
-            void queryClient.invalidateQueries({ queryKey: adminCloudsKeys.detail(userId) });
+            void queryClient.invalidateQueries({ queryKey: adminCloudsKeys.all });
         },
     });
 };
