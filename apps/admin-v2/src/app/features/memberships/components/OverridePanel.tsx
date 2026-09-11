@@ -28,9 +28,11 @@ import {
 import { useProductPlans, useUpdateMembershipByAdmin } from '../api/membershipsQuery';
 import {
     buildOverrideBody,
+    dayOffsetInput,
     describeOverride,
     emptyOverrideForm,
     shouldSendAuto,
+    toEpochEndOfDay,
     validateOverrideForm,
     type BlockStatus,
     type OverrideFormState,
@@ -48,6 +50,14 @@ interface OverridePanelProps {
     stage: RelayStage;
 }
 
+/** Spans an operator reaches for; the picker stays for anything else. */
+const UNTIL_PRESETS: { label: string; days: number }[] = [
+    { label: '7일', days: 7 },
+    { label: '30일', days: 30 },
+    { label: '90일', days: 90 },
+    { label: '1년', days: 365 },
+];
+
 const MODE_LABEL: Record<OverrideMode, string> = {
     grant: '부여',
     block: '차단',
@@ -64,7 +74,12 @@ export const OverridePanel = ({ membership, onDone, stage }: OverridePanelProps)
     // Never fall back to `membership.id` — that is `MS<uid>`, and writing to it targets nothing.
     const userId = membership.userId ?? '';
     const target = describeTargetServer(relayBaseFor(configuredEndpoint(), stage));
-    const errors = validateOverrideForm(form, Date.now());
+    // One clock for the whole render: the `min` attribute, the presets and the validation all
+    // have to agree on what "today" is.
+    const now = Date.now();
+    const errors = validateOverrideForm(form, now);
+    const untilAt = toEpochEndOfDay(form.until);
+    const untilPreview = untilAt === undefined ? '' : new Date(untilAt).toLocaleDateString();
     const summary = describeOverride(form, membership);
     const patch = (over: Partial<OverrideFormState>) => setForm(prev => ({ ...prev, ...over }));
 
@@ -125,11 +140,40 @@ export const OverridePanel = ({ membership, onDone, stage }: OverridePanelProps)
                     <Input
                         id="override-until"
                         type="date"
+                        className="h-9 px-3 py-0 text-sm"
+                        // The relay refuses a past `adminUntil`; today is the earliest that passes.
+                        min={dayOffsetInput(0, now)}
                         value={form.until}
                         onChange={event => patch({ until: event.target.value })}
                     />
-                    {/* Indefinite is the absence of a date, not a sentinel far in the future. */}
-                    <p className="text-muted-foreground text-xs">비우면 무기한입니다. 해제하기 전까지 유지됩니다.</p>
+                    <div className="flex flex-wrap gap-1.5">
+                        {UNTIL_PRESETS.map(preset => {
+                            const value = dayOffsetInput(preset.days, now);
+                            return (
+                                <Button
+                                    key={preset.days}
+                                    size="sm"
+                                    variant={form.until === value ? 'secondary' : 'outline'}
+                                    onClick={() => patch({ until: value })}
+                                >
+                                    {preset.label}
+                                </Button>
+                            );
+                        })}
+                        {/* Indefinite is the absence of a date, not a sentinel far in the future. */}
+                        <Button
+                            size="sm"
+                            variant={form.until ? 'outline' : 'secondary'}
+                            onClick={() => patch({ until: '' })}
+                        >
+                            무기한
+                        </Button>
+                    </div>
+                    <p className="text-muted-foreground text-xs">
+                        {untilPreview
+                            ? `${untilPreview} 끝까지 유효합니다.`
+                            : '무기한입니다. 해제하기 전까지 유지됩니다.'}
+                    </p>
                 </div>
             )}
 

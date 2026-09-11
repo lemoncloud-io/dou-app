@@ -6,6 +6,7 @@
 
 @layer base {
     :root {
+        color-scheme: light;
         --background: 0 0% 100%;
         --foreground: 224 71% 4%;
         --card: 0 0% 98%;
@@ -29,6 +30,9 @@
     }
 
     .dark {
+        /* Native controls — the date picker above all — follow `color-scheme`, not the token
+           scale. Without this the calendar popup and its icon stay light on a dark console. */
+        color-scheme: dark;
         --background: 218 29% 5%;
         --foreground: 208 35% 93%;
         --card: 217 32% 8%;

@@ -289,15 +289,15 @@ Repository 이벤트 구독(`onChannelCreated` 등)으로 실시간 갱신도 �
 
 **파일**: `features/chats/pages/CreateChannelPage.tsx`
 
-| 훅                                   | 역할                                          |
-| ------------------------------------ | --------------------------------------------- |
-| `useChannel(channelId)`              | 채널 메타데이터                               |
-| `useChannelMembers({ channelId })`   | 멤버 목록                                     |
-| `useChats({ channelId, limit })`     | 메시지 목록 + 페이지네이션                    |
-| `useChatMutations()`                 | `sendMessage`, `readMessage`, `deleteMessage` |
-| `useJoinPositions(channelId, joins)` | 멤버별 읽음 위치 (읽음 표시선)                |
-| `useWebSocketV2Store()`              | `isVerified`                                  |
-| `useDynamicProfile()`                | 내 메시지 판별                                |
+| 훅                                                                                | 역할                                             |
+| --------------------------------------------------------------------------------- | ------------------------------------------------ |
+| `useChannel(channelId)`                                                           | 채널 메타데이터                                  |
+| `useChannelMembers({ channelId })`                                                | 멤버 목록                                        |
+| `useChats({ channelId, limit })`                                                  | 메시지 목록 + 페이지네이션                       |
+| `useChatMutations()`                                                              | `sendMessage`, `readMessage`, `deleteMessage`    |
+| `useJoinPositions(channelId, activeMemberIds, memberIds, cursorByUser, isMember)` | 멤버별 읽음 위치 (읽음 표시선), 멤버일 때만 폴링 |
+| `useWebSocketV2Store()`                                                           | `isVerified`                                     |
+| `useDynamicProfile()`                                                             | 내 메시지 판별                                   |
 
 **데이터 흐름**:
 
@@ -506,10 +506,10 @@ Repository 이벤트 구독(`onChannelCreated` 등)으로 실시간 갱신도 �
 - 채널 멤버 목록 구독. `join:created/deleted` 이벤트로 멤버 캐시 갱신. 10초 간격 폴링.
 - **의존**: `userRepository`, `joinRepository`
 
-#### useJoinPositions(channelId, initialJoins)
+#### useJoinPositions(channelId, activeMemberIds, memberIds, cursorByUser, isMember)
 
-- **파라미터**: `channelId: string | null`, `initialJoins: JoinView[]`
-- **반환**: `{ activeMemberCount, getReadCount(chatNo): { readCount, unreadCount }, isReady }`
+- **파라미터**: `channelId: string | null`, `activeMemberIds: string[]`(분모), `memberIds: string[]`(폴링 로스터), `cursorByUser: Map<string, number>`, `isMember: boolean`(멤버가 아니면 폴링 등록 안 함 — 서버가 403)
+- **반환**: `{ getReadCount(chatNo): { readCount, unreadCount }, isReady }`
 - 멤버별 읽음 위치 관리. `join:update/create/delete` 이벤트 구독. 메시지별 읽음/안읽음 수 계산 (읽음 표시선 UI용).
 - **의존**: `joinRepository`
 

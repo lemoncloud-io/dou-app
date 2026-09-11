@@ -66,6 +66,24 @@ export const toEpochEndOfDay = (date: string): number | undefined => {
     return at.getTime();
 };
 
+/**
+ * `YYYY-MM-DD`, `days` after today in local time — what `<input type="date">` wants.
+ *
+ * Built off the calendar date rather than `now + days * 86_400_000` so a DST shift moves the
+ * wall clock, not the chosen day. `days: 0` is today, which is the earliest the relay accepts
+ * (the instant stored is that day's last millisecond).
+ */
+export const dayOffsetInput = (days: number, now: number): string => {
+    const at = new Date(now);
+    at.setHours(12, 0, 0, 0);
+    at.setDate(at.getDate() + days);
+
+    const month = `${at.getMonth() + 1}`.padStart(2, '0');
+    const day = `${at.getDate()}`.padStart(2, '0');
+
+    return `${at.getFullYear()}-${month}-${day}`;
+};
+
 const formatDay = (epoch: number): string => new Date(epoch).toLocaleDateString();
 
 /**

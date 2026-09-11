@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
     buildOverrideBody,
+    dayOffsetInput,
     describeOverride,
     emptyOverrideForm,
     shouldSendAuto,
@@ -152,5 +153,27 @@ describe('describeOverride', () => {
 
     it('대상 유저를 문구에 넣는다', () => {
         expect(describeOverride(form(), membership).lines.join(' ')).toContain('1000904');
+    });
+});
+
+describe('dayOffsetInput', () => {
+    const noon = new Date(2026, 8, 11, 9, 30).getTime();
+
+    it('0일은 오늘을 준다', () => {
+        expect(dayOffsetInput(0, noon)).toBe('2026-09-11');
+    });
+
+    it('월·일을 두 자리로 채운다', () => {
+        expect(dayOffsetInput(-2, new Date(2026, 0, 3).getTime())).toBe('2026-01-01');
+    });
+
+    it('달과 해를 넘어간다', () => {
+        expect(dayOffsetInput(30, noon)).toBe('2026-10-11');
+        expect(dayOffsetInput(365, noon)).toBe('2027-09-11');
+    });
+
+    it('만든 날짜는 그대로 오늘 이후의 만료 시각이 된다', () => {
+        const until = toEpochEndOfDay(dayOffsetInput(0, noon));
+        expect(until).toBeGreaterThan(noon);
     });
 });

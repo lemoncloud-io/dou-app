@@ -211,9 +211,14 @@ cloud 모드에서는 `$?.sid`가 있는 채널만 노출. relay 모드에서는
 
 ### useJoinPositions
 
-`apps/web/src/app/shared/hooks/useJoinPositions.ts`
+`apps/web/src/app/features/channels/hooks/useJoinPositions.ts`
 
 채널 내 멤버 읽음 위치 추적 (읽은 사람 수 계산용).
+
+**멤버 게이트**: 로스터 폴링(`join.get`)은 내가 그 방의 멤버일 때만 등록한다(`isChannelMember`,
+`utils/membership.ts`). 서버는 남의 join을 채널 멤버에게만 주므로, 멤버가 아닌 방(남의 셀프챗에
+푸시로 들어온 경우 등)에서 등록하면 멤버 수만큼 403 알람이 난다. 남의 셀프챗은 방 페이지가
+바로 홈으로 내보낸다(`isSomeoneElsesSelfChat`).
 
 **병합 전략**: 항상 큰 `chatNo` 유지 (다운그레이드 방지).
 
