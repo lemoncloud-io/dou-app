@@ -6,6 +6,7 @@ import { ChevronDown, Hash, Pencil, Plus, Star } from 'lucide-react';
 import type { DomainChannel } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 import { runtime } from '@chatic/app-runtime';
+import { placeScopeKey, usePinnedChannels } from '@chatic/shared';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 
 import {
@@ -19,7 +20,7 @@ import {
     resolveDisplay,
     messagePlainText,
     useAuthorNames,
-    useFavoriteChannelsStore,
+    migrateLegacyFavorites,
     useComposerDraftStore,
     useSiteProfileMap,
 } from '../../../shared';
@@ -228,7 +229,17 @@ export const ChannelList = ({
     const { t } = useTranslation();
     const myUid = runtime.session.useSessionIdentity().userId;
     const placeProfiles = useSiteProfileMap();
-    const favoriteIds = useFavoriteChannelsStore(s => s.ids);
+    // Favorites live on the shared `ui.pinnedChannels` record (the same one apps/web writes),
+    // scoped to the active place — `pinnedIds` array order is the Favorites display order.
+    const { selectedCloudId, selectedSiteId } = runtime.session.useSessionSelection();
+    const pinScope = placeScopeKey(selectedCloudId, selectedSiteId);
+    const { pinnedIds } = usePinnedChannels(pinScope);
+    // Lazy legacy migration: ids this place confirms move to `ui.pinnedChannels` the first time
+    // its list is on screen; other places' ids stay in the old key until their place loads.
+    useEffect(() => {
+        if (isLoading || !pinScope) return;
+        migrateLegacyFavorites(pinScope, channels.map(c => c.id ?? '').filter(Boolean));
+    }, [pinScope, isLoading, channels]);
     // Keep the selected channel visible (e.g. when moved by keyboard nav).
     const activeRef = useRef<HTMLButtonElement>(null);
     useEffect(() => {
@@ -372,15 +383,16 @@ export const ChannelList = ({
     };
 
     // Favorites repeat their row in its own section (Figma), so a starred channel stays
-    // reachable from the top while keeping its place in Channels / DM.
-    const favoriteRows = [
-        ...visibleRegular
-            .filter(c => favoriteIds[c.id ?? ''])
-            .map(c => ({ channel: c, label: c.name ?? c.id ?? '', icon: channelGlyph })),
-        ...visibleDms
-            .filter(dm => favoriteIds[dm.channel.id ?? ''])
-            .map(dm => ({ channel: dm.channel, ...dm.identity })),
-    ];
+    // reachable from the top while keeping its place in Channels / DM. Display order IS the
+    // stored pin order; ids not in the current list are skipped.
+    const favoriteById = new Map<string, { channel: DomainChannel; label: string; icon: ReactNode }>();
+    for (const c of visibleRegular)
+        {favoriteById.set(c.id ?? '', { channel: c, label: c.name ?? c.id ?? '', icon: channelGlyph });}
+    for (const dm of dmRows) favoriteById.set(dm.channel.id ?? '', { channel: dm.channel, ...dm.identity });
+    const favoriteRows = pinnedIds.flatMap(id => {
+        const fav = favoriteById.get(id);
+        return fav ? [fav] : [];
+    });
 
     return (
         // The switcher lives here (not HomePage) because this is where the

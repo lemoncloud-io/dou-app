@@ -5,14 +5,21 @@ import { describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 
 import type { DomainChannel, DomainChat } from '@chatic/data';
+import type * as Shared from '@chatic/shared';
 import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
 
 vi.mock('@chatic/app-runtime', () => ({
     runtime: {
         session: {
             useSessionIdentity: () => ({ userId: 'me' }),
+            useSessionSelection: () => ({ selectedCloudId: 'cloud-1', selectedSiteId: 'place-1' }),
         },
     },
+}));
+// Favorites ride the shared `ui.pinnedChannels` hook — stub the config store out of the render.
+vi.mock('@chatic/shared', async () => ({
+    ...(await vi.importActual<Shared>('@chatic/shared')),
+    usePinnedChannels: () => ({ pinnedIds: [] as string[], toggle: vi.fn(), reorder: vi.fn() }),
 }));
 
 let lastChat: DomainChat | undefined;
