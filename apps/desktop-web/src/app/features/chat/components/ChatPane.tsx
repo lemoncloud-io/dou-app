@@ -10,6 +10,7 @@ import { cn } from '@chatic/lib/utils';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import {
+    Hint,
     dmCounterpartId,
     displayName,
     isDmChannel,
@@ -187,19 +188,20 @@ export const ChatPane = ({ channel, members, membersLoading, readCountOf }: Chat
         <>
             <header className="flex h-[68px] shrink-0 items-center justify-between gap-2 border-b border-hairline px-6 py-2">
                 <div className="flex min-w-0 items-center gap-3.5">
-                    <button
-                        type="button"
-                        onClick={() => openSettings(channelId)}
-                        title={desc ? `${t('chat.header.settings')} — ${desc}` : t('chat.header.settings')}
-                        className="focus-ring tactile flex min-w-0 items-center gap-1 rounded-md text-left"
-                    >
-                        {!isDmChannel(channel) && !isSelfChannel(channel) && (
-                            <Hash size={16} aria-hidden className="shrink-0 text-foreground" />
-                        )}
-                        <span className="truncate text-[18px] font-semibold tracking-[-0.01em] text-foreground hover:underline">
-                            {headerName}
-                        </span>
-                    </button>
+                    <Hint label={desc ? `${t('chat.header.settings')} — ${desc}` : t('chat.header.settings')}>
+                        <button
+                            type="button"
+                            onClick={() => openSettings(channelId)}
+                            className="focus-ring tactile flex min-w-0 items-center gap-1 rounded-md text-left"
+                        >
+                            {!isDmChannel(channel) && !isSelfChannel(channel) && (
+                                <Hash size={16} aria-hidden className="shrink-0 text-foreground" />
+                            )}
+                            <span className="truncate text-[18px] font-semibold tracking-[-0.01em] text-foreground hover:underline">
+                                {headerName}
+                            </span>
+                        </button>
+                    </Hint>
                     {memberCount > 0 && (
                         <button
                             type="button"
@@ -222,25 +224,27 @@ export const ChatPane = ({ channel, members, membersLoading, readCountOf }: Chat
                             {t('chat.connecting')}
                         </span>
                     )}
-                    <button
-                        type="button"
-                        onClick={() => toggleFavorite(channelId)}
-                        aria-pressed={isFavorite}
-                        title={t(isFavorite ? 'chat.header.unfavorite' : 'chat.header.favorite')}
-                        aria-label={t(isFavorite ? 'chat.header.unfavorite' : 'chat.header.favorite')}
-                        className={HEADER_ICON_BUTTON}
-                    >
-                        <Star size={18} aria-hidden className={cn(isFavorite && 'fill-favorite text-favorite')} />
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => openSearch(true)}
-                        title={t('chat.header.search')}
-                        aria-label={t('chat.header.search')}
-                        className={HEADER_ICON_BUTTON}
-                    >
-                        <Search size={18} aria-hidden />
-                    </button>
+                    <Hint label={t(isFavorite ? 'chat.header.unfavorite' : 'chat.header.favorite')}>
+                        <button
+                            type="button"
+                            onClick={() => toggleFavorite(channelId)}
+                            aria-pressed={isFavorite}
+                            aria-label={t(isFavorite ? 'chat.header.unfavorite' : 'chat.header.favorite')}
+                            className={HEADER_ICON_BUTTON}
+                        >
+                            <Star size={18} aria-hidden className={cn(isFavorite && 'fill-favorite text-favorite')} />
+                        </button>
+                    </Hint>
+                    <Hint label={t('chat.header.search')}>
+                        <button
+                            type="button"
+                            onClick={() => openSearch(true)}
+                            aria-label={t('chat.header.search')}
+                            className={HEADER_ICON_BUTTON}
+                        >
+                            <Search size={18} aria-hidden />
+                        </button>
+                    </Hint>
                     <ChannelHeaderMenu channel={channel} myUid={myUid} />
                 </div>
             </header>

@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
 
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 
 import type { DomainChannel, DomainChat } from '@chatic/data';
 import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
@@ -25,7 +25,7 @@ vi.mock('../../search', () => ({ SearchDialog: () => null }));
 
 import '../../../../i18n';
 
-import { ChannelList } from './ChannelList';
+import { CHANNEL_ROW_HINT_DELAY_MS, ChannelList } from './ChannelList';
 
 Element.prototype.scrollIntoView = vi.fn();
 
@@ -48,14 +48,28 @@ const list = () => (
     />
 );
 
-// The preview rides on the row's tooltip (Figma rows are one line), so it is read from `title`.
+// The preview rides on the row's hover tooltip (Figma rows are one line), so it is read
+// by hovering the row past the row's hint delay.
+const previewOnHover = (): string => {
+    vi.useFakeTimers();
+    try {
+        fireEvent.pointerMove(screen.getByRole('button', { name: /general/ }));
+        act(() => {
+            vi.advanceTimersByTime(CHANNEL_ROW_HINT_DELAY_MS);
+        });
+        return screen.getByRole('tooltip').textContent ?? '';
+    } finally {
+        vi.useRealTimers();
+    }
+};
+
 describe('ChannelList preview line', () => {
     it('shows the last message, flattened out of its markdown', () => {
         lastChat = { id: 'C1:1', chatNo: 1, content: '**ship it**' } as DomainChat;
 
         render(list(), { wrapper });
 
-        expect(screen.getByTitle(/ship it$/)).toBeTruthy();
+        expect(previewOnHover()).toMatch(/ship it$/);
     });
 
     // The preview is the surface where a Block Kit payload is most obviously wrong: the
@@ -71,7 +85,7 @@ describe('ChannelList preview line', () => {
 
         render(list(), { wrapper });
 
-        expect(screen.getByTitle(/403 denied by policy$/)).toBeTruthy();
+        expect(previewOnHover()).toMatch(/403 denied by policy$/);
     });
 
     // The delete is soft, so `content` survives it. Printing that content would show the
@@ -81,8 +95,9 @@ describe('ChannelList preview line', () => {
 
         render(list(), { wrapper });
 
-        expect(screen.getByTitle(/Message deleted$/)).toBeTruthy();
-        expect(screen.queryByTitle(/regrettable/)).toBeNull();
+        const preview = previewOnHover();
+        expect(preview).toMatch(/Message deleted$/);
+        expect(preview).not.toMatch(/regrettable/);
     });
 });
 

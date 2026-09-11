@@ -10,6 +10,7 @@ import { Input } from '@chatic/ui-kit/components/ui/input';
 
 import {
     displayName,
+    ResizablePanel,
     useDesktopChannelMutations,
     useNotificationPrefsStore,
     useSelectedChannelStore,
@@ -36,7 +37,7 @@ interface ChannelSettingsPanelProps {
 }
 
 /**
- * Slack-style right-side settings panel (~320px). Visibility is driven by
+ * Slack-style right-side settings panel (320px default, drag-resizable). Visibility is driven by
  * useChannelSettingsStore.openChannelId; the host renders this only when set.
  * Sections: channel name (+ Rename, owner only), members (+ Invite), footer
  * actions (Leave for everyone, Delete for owner). After delete/leave the panel
@@ -111,7 +112,12 @@ export const ChannelSettingsPanel = ({
     };
 
     return (
-        <aside className="scrollbar-thin absolute inset-y-0 right-0 z-30 flex w-80 max-w-[85vw] shrink-0 flex-col overflow-y-auto border-l border-hairline bg-elevated shadow-raised xl:static xl:z-auto xl:max-w-none xl:shadow-none">
+        <ResizablePanel
+            storageKey={'chatic.channelSettingsPanel.width'}
+            defaultWidth={320}
+            resizeLabel={t('channels.settings.resize')}
+            className="bg-elevated"
+        >
             <header className="flex h-14 shrink-0 items-center justify-between border-b border-hairline px-4">
                 <span className="truncate text-title text-foreground">{t('channels.settings.title')}</span>
                 <button
@@ -124,7 +130,7 @@ export const ChannelSettingsPanel = ({
                 </button>
             </header>
 
-            <div className="flex flex-col gap-6 p-4">
+            <div className="scrollbar-thin flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto p-4">
                 <section className="flex flex-col gap-2">
                     <h3 className="text-overline text-muted-foreground">{t('channels.settings.nameSection')}</h3>
                     <div className="flex items-center justify-between gap-2">
@@ -242,6 +248,6 @@ export const ChannelSettingsPanel = ({
                 kickName={kickName}
                 actions={actions}
             />
-        </aside>
+        </ResizablePanel>
     );
 };

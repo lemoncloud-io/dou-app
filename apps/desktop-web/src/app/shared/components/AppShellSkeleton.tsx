@@ -8,7 +8,7 @@ import { Skeleton } from './Skeleton';
 export const AppShellSkeleton = () => (
     <div className="flex h-screen bg-background" role="status" aria-label="Loading">
         {/* cloud rail */}
-        <div className="flex w-20 shrink-0 flex-col items-center gap-3 bg-rail pt-6">
+        <div className="flex w-rail shrink-0 flex-col items-center gap-3 bg-rail pt-6">
             {Array.from({ length: 4 }).map((_, i) => (
                 <div
                     key={i}

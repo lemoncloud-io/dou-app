@@ -8,6 +8,7 @@ import { cn } from '@chatic/lib/utils';
 import type { ChatImage } from '../../utils';
 import { ImageMoreMenu } from './ImageMoreMenu';
 import { ImageSpinner } from './ImageSpinner';
+import { Hint } from '../../../../shared';
 
 interface ImageTileProps {
     image: ChatImage;
@@ -70,28 +71,30 @@ export const ImageTile = ({ image, overflow = 0, onOpen, onDownload, onCopy, onD
                         isMenuOpen ? 'opacity-100' : 'opacity-0 focus-within:opacity-100 group-hover/tile:opacity-100'
                     )}
                 >
-                    <button
-                        type="button"
-                        onClick={onDownload}
-                        title={t('chat.image.download')}
-                        aria-label={t('chat.image.download')}
-                        className="focus-ring flex h-5 w-5 items-center justify-center rounded text-foreground"
-                    >
-                        <Download size={16} aria-hidden />
-                    </button>
+                    <Hint label={t('chat.image.download')}>
+                        <button
+                            type="button"
+                            onClick={onDownload}
+                            aria-label={t('chat.image.download')}
+                            className="focus-ring flex h-5 w-5 items-center justify-center rounded text-foreground"
+                        >
+                            <Download size={16} aria-hidden />
+                        </button>
+                    </Hint>
                     <ImageMoreMenu
                         onCopy={onCopy}
                         onDelete={onDelete}
                         onOpenChange={setMenuOpen}
                         trigger={
-                            <button
-                                type="button"
-                                title={t('chat.image.menu')}
-                                aria-label={t('chat.image.menu')}
-                                className="focus-ring flex h-5 w-5 items-center justify-center rounded bg-foreground/[0.08] text-foreground"
-                            >
-                                <MoreVertical size={16} aria-hidden />
-                            </button>
+                            <Hint label={t('chat.image.menu')}>
+                                <button
+                                    type="button"
+                                    aria-label={t('chat.image.menu')}
+                                    className="focus-ring flex h-5 w-5 items-center justify-center rounded bg-foreground/[0.08] text-foreground"
+                                >
+                                    <MoreVertical size={16} aria-hidden />
+                                </button>
+                            </Hint>
                         }
                     />
                 </div>

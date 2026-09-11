@@ -57,4 +57,18 @@ export default [
             ],
         },
     },
+    {
+        // Native `title` tooltips wait on the browser (a second or more, restarting on every
+        // mouse move) and ignore the app's TooltipProvider — desktop-web hints go through `Hint`.
+        files: ['apps/desktop-web/src/**/*.tsx'],
+        rules: {
+            'no-restricted-syntax': [
+                'error',
+                {
+                    selector: "JSXOpeningElement[name.name=/^[a-z]/] > JSXAttribute[name.name='title']",
+                    message: 'Use `Hint` (apps/desktop-web shared/components) instead of a native `title` tooltip.',
+                },
+            ],
+        },
+    },
 ];

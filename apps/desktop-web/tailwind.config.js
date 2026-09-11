@@ -181,6 +181,11 @@ module.exports = {
                 'fade-out': 'fade-out 0.2s ease-in',
                 'cloud-bounce': 'cloud-bounce 600ms ease-out',
             },
+            width: {
+                // Cloud and place rails — DesktopLayout and AppShellSkeleton share it so the
+                // boot skeleton cannot drift from the shell it stands in for.
+                rail: '68px',
+            },
             spacing: {
                 'safe-top': 'var(--safe-top, 0px)',
                 'safe-bottom': 'var(--safe-bottom, 0px)',

@@ -9,6 +9,7 @@ import { runtime } from '@chatic/app-runtime';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 
 import {
+    Hint,
     Skeleton,
     avatarStyle,
     dmCounterpartId,
@@ -70,6 +71,9 @@ interface ChannelRowProps {
     rowRef?: React.Ref<HTMLButtonElement>;
 }
 
+/** Rows wait longer than the app-wide 300ms hint: skimming the list should not pop a tooltip on every row. */
+export const CHANNEL_ROW_HINT_DELAY_MS = 600;
+
 /**
  * One channel/DM row (Figma: 34px, glyph · name · trailing badge or star).
  *
@@ -101,50 +105,51 @@ const ChannelRow = ({ channel, label, icon, isActive, isFavorite, onSelect, rowR
         [lastChat, t]
     );
     return (
-        <button
-            ref={rowRef}
-            onClick={() => onSelect(id)}
-            title={preview ? `${label}\n${preview}` : label}
-            aria-current={isActive ? 'true' : undefined}
-            className={cn(
-                'focus-ring flex h-[34px] w-full min-w-0 items-center gap-2 rounded-lg p-2 text-left transition-colors duration-150 ease-tactile',
-                isActive ? 'bg-primary/[0.08]' : 'hover:bg-accent'
-            )}
-        >
-            <span className="flex shrink-0 items-center text-foreground">{icon}</span>
-            <span
+        <Hint label={preview ? `${label}\n${preview}` : label} delayDuration={CHANNEL_ROW_HINT_DELAY_MS} side="right">
+            <button
+                ref={rowRef}
+                onClick={() => onSelect(id)}
+                aria-current={isActive ? 'true' : undefined}
                 className={cn(
-                    'min-w-0 flex-1 truncate text-[14px] tracking-[-0.01em] text-sidebar-foreground',
-                    indicator !== 'none' && 'font-semibold'
+                    'focus-ring flex h-[34px] w-full min-w-0 items-center gap-2 rounded-lg p-2 text-left transition-colors duration-150 ease-tactile',
+                    isActive ? 'bg-primary/[0.08]' : 'hover:bg-accent'
                 )}
             >
-                {label}
-            </span>
-            {hasDraft && (
-                <span className="flex shrink-0 items-center text-muted-foreground">
-                    <Pencil size={14} aria-hidden />
-                    <span className="sr-only">{t('sidebar.draft')}</span>
+                <span className="flex shrink-0 items-center text-foreground">{icon}</span>
+                <span
+                    className={cn(
+                        'min-w-0 flex-1 truncate text-[14px] tracking-[-0.01em] text-sidebar-foreground',
+                        indicator !== 'none' && 'font-semibold'
+                    )}
+                >
+                    {label}
                 </span>
-            )}
-            {/* The mark is decorative; the sr-only text carries it. Deliberately NOT
+                {hasDraft && (
+                    <span className="flex shrink-0 items-center text-muted-foreground">
+                        <Pencil size={14} aria-hidden />
+                        <span className="sr-only">{t('sidebar.draft')}</span>
+                    </span>
+                )}
+                {/* The mark is decorative; the sr-only text carries it. Deliberately NOT
                 role="status" — that is a live region, and one per unread row would make
                 a screen reader announce the whole sidebar every time a count moved. */}
-            {indicator === 'dot' && (
-                <span className="h-2 w-2 shrink-0 rounded-full bg-badge-unread">
-                    <span className="sr-only">{t('sidebar.unread')}</span>
-                </span>
-            )}
-            {indicator === 'count' && (
-                <span className="flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full bg-badge-unread px-1 text-[11px] font-semibold tabular-nums text-badge-unread-foreground">
-                    <span aria-hidden>{unread > 99 ? '99+' : unread}</span>
-                    <span className="sr-only">{t('sidebar.unreadCount', { count: unread })}</span>
-                </span>
-            )}
-            {isFavorite && indicator === 'none' && (
-                // The star is the one warm accent in the sidebar (--favorite, Figma Colors/Orange).
-                <Star size={16} aria-hidden className="shrink-0 fill-favorite text-favorite" />
-            )}
-        </button>
+                {indicator === 'dot' && (
+                    <span className="h-2 w-2 shrink-0 rounded-full bg-badge-unread">
+                        <span className="sr-only">{t('sidebar.unread')}</span>
+                    </span>
+                )}
+                {indicator === 'count' && (
+                    <span className="flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full bg-badge-unread px-1 text-[11px] font-semibold tabular-nums text-badge-unread-foreground">
+                        <span aria-hidden>{unread > 99 ? '99+' : unread}</span>
+                        <span className="sr-only">{t('sidebar.unreadCount', { count: unread })}</span>
+                    </span>
+                )}
+                {isFavorite && indicator === 'none' && (
+                    // The star is the one warm accent in the sidebar (--favorite, Figma Colors/Orange).
+                    <Star size={16} aria-hidden className="shrink-0 fill-favorite text-favorite" />
+                )}
+            </button>
+        </Hint>
     );
 };
 
@@ -406,15 +411,16 @@ export const ChannelList = ({
                             // Default Cloud (Self Channel only) does not support channel creation.
                             !isDefaultMode &&
                             onCreateChannel && (
-                                <button
-                                    type="button"
-                                    onClick={onCreateChannel}
-                                    title={t('rail.addChannel')}
-                                    aria-label={t('rail.addChannel')}
-                                    className="focus-ring tactile flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-sidebar-foreground transition-colors ease-tactile hover:bg-accent"
-                                >
-                                    <Plus size={16} aria-hidden />
-                                </button>
+                                <Hint label={t('rail.addChannel')}>
+                                    <button
+                                        type="button"
+                                        onClick={onCreateChannel}
+                                        aria-label={t('rail.addChannel')}
+                                        className="focus-ring tactile flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-sidebar-foreground transition-colors ease-tactile hover:bg-accent"
+                                    >
+                                        <Plus size={16} aria-hidden />
+                                    </button>
+                                </Hint>
                             )
                         }
                     />

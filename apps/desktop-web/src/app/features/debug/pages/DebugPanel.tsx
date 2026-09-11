@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { cn } from '@chatic/lib/utils';
 
-import { useDebugModeStore, usePanelWidth } from '../../../shared';
+import { useDebugModeStore, ResizablePanel } from '../../../shared';
 import { DebugAuthPage } from './DebugAuthPage';
 import { DebugBadgeCountPage } from './DebugBadgeCountPage';
 import { DebugChatPage } from './DebugChatPage';
@@ -47,10 +47,6 @@ const PAGES: Record<TabId, () => JSX.Element> = {
 export const DebugPanel = () => {
     const setOverlayOpen = useDebugModeStore(s => s.setOverlayOpen);
     const [active, setActive] = useState<TabId>('state');
-    const { width, minWidth, maxWidth, panelRef, startResize, resizeByKey } = usePanelWidth({
-        storageKey: 'chatic.debugPanel.width',
-        defaultWidth: 440,
-    });
 
     const close = () => setOverlayOpen(false);
 
@@ -65,24 +61,12 @@ export const DebugPanel = () => {
     const ActivePage = PAGES[active];
 
     return (
-        <aside
-            ref={panelRef}
-            style={{ width }}
-            className="absolute inset-y-0 right-0 z-30 flex max-w-[85vw] shrink-0 flex-col overflow-hidden border-l border-border bg-background text-foreground shadow-raised xl:relative xl:z-auto xl:max-w-none xl:shadow-none"
+        <ResizablePanel
+            storageKey={'chatic.debugPanel.width'}
+            defaultWidth={440}
+            resizeLabel="Resize debug panel"
+            className="bg-background text-foreground"
         >
-            {/* Drag the panel's left edge to resize (arrow keys when focused). */}
-            <div
-                role="separator"
-                aria-orientation="vertical"
-                aria-label="Resize debug panel"
-                aria-valuenow={width}
-                aria-valuemin={minWidth}
-                aria-valuemax={maxWidth}
-                tabIndex={0}
-                onPointerDown={startResize}
-                onKeyDown={resizeByKey}
-                className="absolute inset-y-0 left-0 z-10 w-1.5 cursor-col-resize transition-colors hover:bg-primary/40 active:bg-primary/60"
-            />
             <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-3">
                 <span className="text-xs font-bold uppercase tracking-widest text-primary">Debug</span>
                 <button
@@ -113,6 +97,6 @@ export const DebugPanel = () => {
             <main className="scrollbar-thin flex-1 overflow-y-auto">
                 <ActivePage />
             </main>
-        </aside>
+        </ResizablePanel>
     );
 };

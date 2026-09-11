@@ -6,7 +6,7 @@ import { ChevronDown, MessageSquare } from 'lucide-react';
 import type { DomainChat } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 
-import { Skeleton, resolveDisplay, useSiteProfileMap } from '../../../shared';
+import { Hint, Skeleton, resolveDisplay, useSiteProfileMap } from '../../../shared';
 import {
     buildMessageRows,
     isOwnMessage,
@@ -578,15 +578,16 @@ export const MessageList = ({
                     </button>
                 ) : (
                     // Scrolled up with nothing new: a plain jump-to-latest control.
-                    <button
-                        type="button"
-                        onClick={scrollToBottom}
-                        aria-label={t('chat.jumpToLatest')}
-                        title={t('chat.jumpToLatest')}
-                        className="focus-ring tactile border-hairline absolute bottom-4 right-4 z-20 flex h-9 w-9 items-center justify-center rounded-full border bg-elevated text-foreground shadow-overlay transition-transform ease-tactile hover:bg-accent"
-                    >
-                        <ChevronDown size={18} />
-                    </button>
+                    <Hint label={t('chat.jumpToLatest')}>
+                        <button
+                            type="button"
+                            onClick={scrollToBottom}
+                            aria-label={t('chat.jumpToLatest')}
+                            className="focus-ring tactile border-hairline absolute bottom-4 right-4 z-20 flex h-9 w-9 items-center justify-center rounded-full border bg-elevated text-foreground shadow-overlay transition-transform ease-tactile hover:bg-accent"
+                        >
+                            <ChevronDown size={18} />
+                        </button>
+                    </Hint>
                 ))}
         </div>
     );

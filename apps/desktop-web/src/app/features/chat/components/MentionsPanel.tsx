@@ -7,9 +7,10 @@ import type { DomainChannel, DomainPlace } from '@chatic/data';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 
 import {
+    Hint,
     avatarStyle,
     unreadMentionCount,
-    usePanelWidth,
+    ResizablePanel,
     useMentionsPanelStore,
     useMentionsStore,
     type MentionItem,
@@ -69,15 +70,16 @@ const MentionRow = ({ item, channelName, removeLabel, onOpen, onRemove }: Mentio
             aria-hidden
             className="pointer-events-none absolute bottom-2 right-2 text-muted-foreground opacity-0 transition-opacity ease-tactile group-hover/mention:opacity-100"
         />
-        <button
-            type="button"
-            onClick={onRemove}
-            title={removeLabel}
-            aria-label={removeLabel}
-            className="focus-ring tactile absolute right-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity ease-tactile hover:bg-accent hover:text-foreground focus-visible:opacity-100 group-hover/mention:opacity-100"
-        >
-            <X size={13} />
-        </button>
+        <Hint label={removeLabel}>
+            <button
+                type="button"
+                onClick={onRemove}
+                aria-label={removeLabel}
+                className="focus-ring tactile absolute right-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity ease-tactile hover:bg-accent hover:text-foreground focus-visible:opacity-100 group-hover/mention:opacity-100"
+            >
+                <X size={13} />
+            </button>
+        </Hint>
     </div>
 );
 
@@ -105,10 +107,6 @@ export const MentionsPanel = ({ channels, places, currentPlaceId, onSelect }: Me
     const markRead = useMentionsStore(s => s.markRead);
     const markAllRead = useMentionsStore(s => s.markAllRead);
     const remove = useMentionsStore(s => s.remove);
-    const { width, minWidth, maxWidth, panelRef, startResize, resizeByKey } = usePanelWidth({
-        storageKey: 'chatic.mentionsPanel.width',
-        defaultWidth: 320,
-    });
 
     // Esc closes the panel (matches the other trailing panes).
     useEffect(() => {
@@ -142,24 +140,12 @@ export const MentionsPanel = ({ channels, places, currentPlaceId, onSelect }: Me
     const hasUnread = unreadMentionCount(items) > 0;
 
     return (
-        <aside
-            ref={panelRef}
-            style={{ width }}
-            className="absolute inset-y-0 right-0 z-30 flex max-w-[85vw] shrink-0 flex-col overflow-hidden border-l border-hairline bg-background shadow-raised xl:relative xl:z-auto xl:max-w-none xl:shadow-none"
+        <ResizablePanel
+            storageKey={'chatic.mentionsPanel.width'}
+            defaultWidth={320}
+            resizeLabel={t('activity.resize')}
+            className="bg-background"
         >
-            {/* Drag the panel's left edge to resize (arrow keys when focused). */}
-            <div
-                role="separator"
-                aria-orientation="vertical"
-                aria-label={t('activity.resize')}
-                aria-valuenow={width}
-                aria-valuemin={minWidth}
-                aria-valuemax={maxWidth}
-                tabIndex={0}
-                onPointerDown={startResize}
-                onKeyDown={resizeByKey}
-                className="focus-ring absolute inset-y-0 left-0 z-10 w-1.5 cursor-col-resize transition-colors ease-tactile hover:bg-primary/40 active:bg-primary/60"
-            />
             <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-hairline px-4">
                 <span className="truncate text-title text-foreground">{t('activity.title')}</span>
                 <div className="flex shrink-0 items-center gap-1">
@@ -172,15 +158,16 @@ export const MentionsPanel = ({ channels, places, currentPlaceId, onSelect }: Me
                             {t('activity.markAllRead')}
                         </button>
                     )}
-                    <button
-                        type="button"
-                        onClick={close}
-                        title={t('activity.close')}
-                        aria-label={t('activity.close')}
-                        className="focus-ring tactile flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile hover:bg-accent hover:text-foreground"
-                    >
-                        <X size={18} />
-                    </button>
+                    <Hint label={t('activity.close')}>
+                        <button
+                            type="button"
+                            onClick={close}
+                            aria-label={t('activity.close')}
+                            className="focus-ring tactile flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile hover:bg-accent hover:text-foreground"
+                        >
+                            <X size={18} />
+                        </button>
+                    </Hint>
                 </div>
             </header>
             {groups.length === 0 ? (
@@ -218,6 +205,6 @@ export const MentionsPanel = ({ channels, places, currentPlaceId, onSelect }: Me
                     ))}
                 </div>
             )}
-        </aside>
+        </ResizablePanel>
     );
 };

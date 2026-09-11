@@ -20,7 +20,13 @@ import {
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { isPlaceholderName, useAccountResetOnLogout, useDebugModeStore, useDisplayProfile } from '../../../shared';
+import {
+    Hint,
+    isPlaceholderName,
+    useAccountResetOnLogout,
+    useDebugModeStore,
+    useDisplayProfile,
+} from '../../../shared';
 
 interface PlaceRailProps {
     places: DomainPlace[];
@@ -51,48 +57,49 @@ interface PlaceTileProps {
  *  Active = the box fills with the rail's muted tone; color stays reserved for the
  *  cloud rail and thumbnails. */
 const PlaceTile = ({ id, name, thumbnail, glyph, isActive, unread, isSwitching, onSelect }: PlaceTileProps) => (
-    <button
-        onClick={() => onSelect(id)}
-        disabled={isSwitching}
-        title={name}
-        aria-label={name}
-        aria-current={isActive ? 'true' : undefined}
-        className={cn(
-            'group flex w-full flex-col items-center gap-1 rounded-lg focus-ring',
-            isSwitching && 'cursor-not-allowed',
-            isSwitching && !isActive && 'opacity-40'
-        )}
-    >
-        <span className="relative">
-            <span
-                className={cn(
-                    'flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl text-callout font-semibold text-rail-foreground transition-colors duration-150 ease-tactile tactile',
-                    isActive ? 'bg-rail-muted' : 'bg-transparent group-hover:bg-rail-muted/70'
-                )}
-            >
-                {thumbnail ? (
-                    <img src={thumbnail} alt="" className="h-full w-full object-cover" />
-                ) : glyph ? (
-                    glyph
-                ) : (
-                    tileInitial(name)
-                )}
-            </span>
-            {unread > 0 && (
-                <span className="pointer-events-none absolute -right-1.5 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-badge-unread px-1 text-[11px] font-semibold leading-none text-badge-unread-foreground">
-                    {unread > 99 ? '99+' : unread}
-                </span>
-            )}
-        </span>
-        <span
+    <Hint label={name}>
+        <button
+            onClick={() => onSelect(id)}
+            disabled={isSwitching}
+            aria-label={name}
+            aria-current={isActive ? 'true' : undefined}
             className={cn(
-                'max-w-full truncate text-[14px] font-medium leading-tight text-rail-foreground transition-opacity',
-                !isActive && 'opacity-70 group-hover:opacity-100'
+                'group flex w-full flex-col items-center gap-1 rounded-lg focus-ring',
+                isSwitching && 'cursor-not-allowed',
+                isSwitching && !isActive && 'opacity-40'
             )}
         >
-            {name}
-        </span>
-    </button>
+            <span className="relative">
+                <span
+                    className={cn(
+                        'flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl text-callout font-semibold text-rail-foreground transition-colors duration-150 ease-tactile tactile',
+                        isActive ? 'bg-rail-muted' : 'bg-transparent group-hover:bg-rail-muted/70'
+                    )}
+                >
+                    {thumbnail ? (
+                        <img src={thumbnail} alt="" className="h-full w-full object-cover" />
+                    ) : glyph ? (
+                        glyph
+                    ) : (
+                        tileInitial(name)
+                    )}
+                </span>
+                {unread > 0 && (
+                    <span className="pointer-events-none absolute -right-1.5 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-badge-unread px-1 text-[11px] font-semibold leading-none text-badge-unread-foreground">
+                        {unread > 99 ? '99+' : unread}
+                    </span>
+                )}
+            </span>
+            <span
+                className={cn(
+                    'max-w-full truncate text-[14px] font-medium leading-tight text-rail-foreground transition-opacity',
+                    !isActive && 'opacity-70 group-hover:opacity-100'
+                )}
+            >
+                {name}
+            </span>
+        </button>
+    </Hint>
 );
 
 /**

@@ -5,6 +5,7 @@ import { cn } from '@chatic/lib/utils';
 
 import { useRecentEmojiStore } from '../stores';
 import { EMOJI_CATEGORIES } from '../utils';
+import { Hint } from '../../../shared';
 
 interface EmojiPickerProps {
     onPick: (emoji: string) => void;
@@ -35,35 +36,36 @@ export const EmojiPicker = ({ onPick }: EmojiPickerProps) => {
         <div className="flex w-72 flex-col gap-1.5">
             <div role="tablist" aria-label={t('chat.composer.emoji')} className="flex items-center gap-0.5">
                 {recent.length > 0 && (
-                    <button
-                        type="button"
-                        role="tab"
-                        aria-selected={isRecent}
-                        title={t('emoji.recent')}
-                        onClick={() => setCategoryKey('recent')}
-                        className={cn(
-                            'focus-ring tactile flex h-8 w-8 items-center justify-center rounded-md text-base transition-colors ease-tactile hover:bg-accent',
-                            isRecent && 'bg-accent'
-                        )}
-                    >
-                        🕘
-                    </button>
+                    <Hint label={t('emoji.recent')}>
+                        <button
+                            type="button"
+                            role="tab"
+                            aria-selected={isRecent}
+                            onClick={() => setCategoryKey('recent')}
+                            className={cn(
+                                'focus-ring tactile flex h-8 w-8 items-center justify-center rounded-md text-base transition-colors ease-tactile hover:bg-accent',
+                                isRecent && 'bg-accent'
+                            )}
+                        >
+                            🕘
+                        </button>
+                    </Hint>
                 )}
                 {EMOJI_CATEGORIES.map(cat => (
-                    <button
-                        key={cat.key}
-                        type="button"
-                        role="tab"
-                        aria-selected={categoryKey === cat.key}
-                        title={t(`emoji.cat.${cat.key}`)}
-                        onClick={() => setCategoryKey(cat.key)}
-                        className={cn(
-                            'focus-ring tactile flex h-8 w-8 items-center justify-center rounded-md text-base transition-colors ease-tactile hover:bg-accent',
-                            categoryKey === cat.key && 'bg-accent'
-                        )}
-                    >
-                        {cat.icon}
-                    </button>
+                    <Hint key={cat.key} label={t(`emoji.cat.${cat.key}`)}>
+                        <button
+                            type="button"
+                            role="tab"
+                            aria-selected={categoryKey === cat.key}
+                            onClick={() => setCategoryKey(cat.key)}
+                            className={cn(
+                                'focus-ring tactile flex h-8 w-8 items-center justify-center rounded-md text-base transition-colors ease-tactile hover:bg-accent',
+                                categoryKey === cat.key && 'bg-accent'
+                            )}
+                        >
+                            {cat.icon}
+                        </button>
+                    </Hint>
                 ))}
             </div>
             <p className="px-0.5 text-overline uppercase text-muted-foreground">{label}</p>

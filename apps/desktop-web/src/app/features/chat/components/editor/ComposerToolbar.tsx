@@ -11,6 +11,7 @@ import {
 } from 'lexical';
 
 import { cn } from '@chatic/lib/utils';
+import { Hint } from '../../../../shared';
 
 const textFormat =
     (format: TextFormatType) =>
@@ -62,26 +63,28 @@ export const ComposerToolbar = () => {
     return (
         <div className="flex items-center gap-2" role="toolbar" aria-label={t('chat.composer.formatting')}>
             {FORMATS.map(({ key, glyph, glyphClass, apply }) => (
-                <button
-                    key={key}
-                    type="button"
-                    aria-pressed={!!active[key]}
-                    title={t(`chat.composer.format.${key}`)}
-                    aria-label={t(`chat.composer.format.${key}`)}
-                    // mousedown (not click) so the editor keeps focus + selection.
-                    onMouseDown={e => {
-                        e.preventDefault();
-                        apply(editor);
-                    }}
-                    className={cn(
-                        'focus-ring tactile flex h-[26px] min-w-[26px] items-center justify-center rounded-md text-[15px] font-semibold transition-colors ease-tactile disabled:opacity-50',
-                        active[key] ? 'bg-accent text-foreground' : 'text-label hover:bg-accent hover:text-foreground'
-                    )}
-                >
-                    <span aria-hidden className={glyphClass}>
-                        {glyph}
-                    </span>
-                </button>
+                <Hint key={key} label={t(`chat.composer.format.${key}`)}>
+                    <button
+                        type="button"
+                        aria-pressed={!!active[key]}
+                        aria-label={t(`chat.composer.format.${key}`)}
+                        // mousedown (not click) so the editor keeps focus + selection.
+                        onMouseDown={e => {
+                            e.preventDefault();
+                            apply(editor);
+                        }}
+                        className={cn(
+                            'focus-ring tactile flex h-[26px] min-w-[26px] items-center justify-center rounded-md text-[15px] font-semibold transition-colors ease-tactile disabled:opacity-50',
+                            active[key]
+                                ? 'bg-accent text-foreground'
+                                : 'text-label hover:bg-accent hover:text-foreground'
+                        )}
+                    >
+                        <span aria-hidden className={glyphClass}>
+                            {glyph}
+                        </span>
+                    </button>
+                </Hint>
             ))}
         </div>
     );

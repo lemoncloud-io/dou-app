@@ -8,6 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@chatic/ui-kit/componen
 
 import { SUPPORTED_IMAGE_TYPES } from '../../utils';
 import { FLOATING_MENU_SURFACE } from './imageStyles';
+import { Hint } from '../../../../shared';
 
 interface AttachMenuProps {
     onFiles: (files: File[]) => void;
@@ -26,16 +27,17 @@ export const AttachMenu = ({ onFiles }: AttachMenuProps) => {
     return (
         <Popover open={isOpen} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
-                <button
-                    type="button"
-                    title={t('chat.attach.add')}
-                    aria-label={t('chat.attach.add')}
-                    // mousedown default kept off so the editor keeps its caret.
-                    onMouseDown={event => event.preventDefault()}
-                    className="focus-ring tactile flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-full bg-muted text-foreground transition-colors ease-tactile hover:bg-accent aria-expanded:bg-accent"
-                >
-                    <Plus size={18} aria-hidden />
-                </button>
+                <Hint label={t('chat.attach.add')}>
+                    <button
+                        type="button"
+                        aria-label={t('chat.attach.add')}
+                        // mousedown default kept off so the editor keeps its caret.
+                        onMouseDown={event => event.preventDefault()}
+                        className="focus-ring tactile flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-full bg-muted text-foreground transition-colors ease-tactile hover:bg-accent aria-expanded:bg-accent"
+                    >
+                        <Plus size={18} aria-hidden />
+                    </button>
+                </Hint>
             </PopoverTrigger>
             <PopoverContent side="top" align="start" sideOffset={10} className={cn('w-auto', FLOATING_MENU_SURFACE)}>
                 <button

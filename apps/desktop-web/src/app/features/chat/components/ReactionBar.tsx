@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { cn } from '@chatic/lib/utils';
 
 import type { ReactionTally } from '../utils';
+import { Hint } from '../../../shared';
 
 interface ReactionBarProps {
     tallies: ReactionTally[];
@@ -31,23 +32,23 @@ export const ReactionBar = ({ tallies, nameOf, onToggle }: ReactionBarProps) => 
             {tallies.map(tally => {
                 const names = tally.userIds.map(nameOf).filter(Boolean).join(', ');
                 return (
-                    <button
-                        key={tally.emoji}
-                        type="button"
-                        onClick={() => onToggle(tally.emoji, tally.mine)}
-                        aria-pressed={tally.mine}
-                        aria-label={t('chat.reaction.who', { emoji: tally.emoji, names })}
-                        title={names}
-                        className={cn(
-                            'focus-ring tactile flex h-6 items-center gap-1 rounded-full border px-2 text-caption transition-colors ease-tactile',
-                            tally.mine
-                                ? 'border-primary bg-primary/12 text-foreground'
-                                : 'border-hairline bg-elevated text-muted-foreground hover:bg-accent'
-                        )}
-                    >
-                        <span aria-hidden>{tally.emoji}</span>
-                        <span className="tabular-nums">{tally.userIds.length}</span>
-                    </button>
+                    <Hint key={tally.emoji} label={names}>
+                        <button
+                            type="button"
+                            onClick={() => onToggle(tally.emoji, tally.mine)}
+                            aria-pressed={tally.mine}
+                            aria-label={t('chat.reaction.who', { emoji: tally.emoji, names })}
+                            className={cn(
+                                'focus-ring tactile flex h-6 items-center gap-1 rounded-full border px-2 text-caption transition-colors ease-tactile',
+                                tally.mine
+                                    ? 'border-primary bg-primary/12 text-foreground'
+                                    : 'border-hairline bg-elevated text-muted-foreground hover:bg-accent'
+                            )}
+                        >
+                            <span aria-hidden>{tally.emoji}</span>
+                            <span className="tabular-nums">{tally.userIds.length}</span>
+                        </button>
+                    </Hint>
                 );
             })}
         </div>
