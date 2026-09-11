@@ -8,16 +8,19 @@ import { Skeleton } from './Skeleton';
 export const AppShellSkeleton = () => (
     <div className="flex h-screen bg-background" role="status" aria-label="Loading">
         {/* cloud rail */}
-        <div className="flex w-[68px] shrink-0 flex-col items-center gap-3 bg-rail py-3">
+        <div className="flex w-20 shrink-0 flex-col items-center gap-3 bg-rail pt-6">
             {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="h-11 w-11 animate-pulse rounded-2xl bg-rail-muted motion-reduce:animate-none" />
+                <div
+                    key={i}
+                    className="h-12 w-12 animate-pulse rounded-[14px] bg-background motion-reduce:animate-none"
+                />
             ))}
         </div>
 
         {/* sidebar */}
-        <div className="flex w-64 shrink-0 flex-col gap-3 border-r border-border bg-sidebar p-3">
+        <div className="flex w-60 shrink-0 flex-col gap-3 border-x border-border bg-sidebar px-4 pt-7 lg:w-[286px]">
             <Skeleton className="h-6 w-32" />
-            <Skeleton className="h-8 w-full rounded-lg" />
+            <Skeleton className="h-10 w-full rounded-full" />
             <div className="mt-2 flex flex-col gap-2">
                 {Array.from({ length: 7 }).map((_, i) => (
                     <Skeleton key={i} className="h-7" />

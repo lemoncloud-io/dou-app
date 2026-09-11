@@ -22,3 +22,4 @@ export * from './MentionsPanel';
 export * from './NotificationSnoozeButton';
 export * from './ReactionBar';
 export * from './ReadReceipt';
+export * from './images';

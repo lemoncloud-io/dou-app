@@ -472,7 +472,7 @@ export const MessageList = ({
             <div
                 ref={scrollRef}
                 onScroll={onScroll}
-                className="scrollbar-thin flex flex-1 flex-col gap-0.5 overflow-y-auto p-4"
+                className="scrollbar-thin flex flex-1 flex-col gap-2 overflow-y-auto px-6 py-5"
             >
                 {isLoadingOlder && (
                     <div className="flex justify-center py-2" role="status" aria-label={t('chat.loading')}>

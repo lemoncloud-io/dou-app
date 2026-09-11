@@ -13,6 +13,7 @@ import {
 
 import { ChannelActionDialogs, isChannelOwner, useChannelActions, useChannelSettingsStore } from '../../channels';
 import { useSelectedChannelStore } from '../../../shared';
+import { HEADER_ICON_BUTTON } from './headerStyles';
 
 interface ChannelHeaderMenuProps {
     channel: DomainChannel;
@@ -39,11 +40,7 @@ export const ChannelHeaderMenu = ({ channel, myUid }: ChannelHeaderMenuProps) =>
         <>
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                    <button
-                        type="button"
-                        aria-label={t('chat.header.menu')}
-                        className="focus-ring tactile flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile hover:bg-accent hover:text-foreground"
-                    >
+                    <button type="button" aria-label={t('chat.header.menu')} className={HEADER_ICON_BUTTON}>
                         <MoreVertical size={18} />
                     </button>
                 </DropdownMenuTrigger>

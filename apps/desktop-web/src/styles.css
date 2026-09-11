@@ -6,47 +6,41 @@
 
 @layer base {
     :root {
-        /* Chatic Light Theme — neutrals tinted toward the lime brand (hue ~90,
-           low chroma) instead of the old cool blue-220; reads as a quiet sage
-           neutral that coheres with the accent. Lightness preserved so contrast
-           stays WCAG AA. */
-        --background: 96 24% 99%;
-        --foreground: 100 10% 10%;
+        /* DoU PC light theme — Figma "DoU PC" file (node 247:10714). Neutral grays
+           from the Solid/Secondary BK ramp; the lime (#B0EA10, main color/GR1) is
+           the only hue. Hex beside each value is the Figma source. */
+        --background: 0 0% 100%; /* #FFFFFF main pane */
+        --foreground: 0 0% 10%; /* #1A1A1A */
 
-        --card: 96 24% 99%;
-        --card-foreground: 100 10% 10%;
+        --card: 0 0% 100%;
+        --card-foreground: 0 0% 10%;
 
-        --popover: 96 24% 99%;
-        --popover-foreground: 100 10% 10%;
+        --popover: 0 0% 100%;
+        --popover-foreground: 0 0% 10%;
 
-        /* Single brand accent — lime, sharpened (56%->63% sat) so active/send/unread
-           read more decisively without tipping into neon (<80% sat). */
-        --primary: 76 63% 44%;
-        /* Neutral-tinted dark ink on lime fills (7:1, AA). */
-        --primary-foreground: 100 10% 10%;
-        /* Lime as TEXT on light surfaces (links, mentions, active glyphs, tints):
-           the fill lime is too light to read (2.5:1), this darkened lime clears 4.5:1. */
-        --primary-ink: 76 62% 27%;
+        --primary: 76 87% 49%; /* #B0EA10 main color/GR1 */
+        /* Dark ink on the lime fill (AA) — white on #B0EA10 is 1.6:1. */
+        --primary-foreground: 0 0% 10%;
+        /* Lime as TEXT on light surfaces: the fill is unreadable (1.6:1), this clears 4.5:1. */
+        --primary-ink: 76 80% 26%;
 
-        --secondary: 96 14% 96%;
-        --secondary-foreground: 100 10% 10%;
+        --secondary: 180 5% 96%; /* #F4F5F5 BK_50 */
+        --secondary-foreground: 0 0% 10%;
 
-        --muted: 96 14% 95%;
-        --muted-foreground: 90 9% 41%; /* AA on every light surface (>=4.5:1) */
+        --muted: 180 5% 96%; /* #F4F5F5 BK_50 */
+        /* #84888F BK_600 is 3.6:1 on white — one step darker keeps secondary text AA. */
+        --muted-foreground: 218 5% 46%;
 
-        /* Neutral interactive hover (shadcn semantics) — not the brand color */
-        --accent: 96 16% 95%;
-        --accent-foreground: 100 10% 10%;
+        --accent: 180 5% 96%; /* #F4F5F5 hover */
+        --accent-foreground: 0 0% 10%;
 
-        /* Slack-style chrome: deep sage-dark rail, sage-tinted sidebar. */
-        --rail: 130 14% 13%;
-        --rail-foreground: 120 10% 78%;
-        --rail-muted: 130 12% 22%;
-        /* Place rail: a darker sage panel — a quiet second surface just a hair
-           above the deep cloud rail, separated by tone rather than brightness. */
-        --rail-elevated: 130 13% 16%;
-        --sidebar: 96 18% 97%;
-        --sidebar-foreground: 100 10% 12%;
+        /* Shell: light cloud rail, white place rail + sidebar, separated by hairlines. */
+        --rail: 0 0% 96%; /* #F5F5F5 Icon Rail */
+        --rail-foreground: 220 5% 24%; /* #3A3C40 BK_800 */
+        --rail-muted: 0 0% 96%; /* #F5F5F5 active place tile */
+        --rail-elevated: 0 0% 100%; /* #FFFFFF Workspace Rail */
+        --sidebar: 0 0% 100%; /* #FFFFFF Channel List Panel */
+        --sidebar-foreground: 0 0% 0%;
 
         /* Per-identity avatar fills (hue varies per user; L + fg keep contrast in each theme) */
         --avatar-l: 40%;
@@ -56,27 +50,28 @@
         --banner-from-l: 90%;
         --banner-to-l: 82%;
 
-        --destructive: 0 84% 60%;
+        --destructive: 3 100% 59%; /* #FF3B30 파일 삭제 */
         --destructive-foreground: 0 0% 100%;
 
         /* Transient warning / connecting state (replaces hardcoded amber-*). */
         --warning: 38 92% 50%;
         --warning-foreground: 30 85% 32%; /* dark amber text, AA on the /15 tint */
 
-        --border: 96 14% 90%;
-        --input: 96 14% 90%;
-        --ring: 100 14% 20%;
+        --border: 240 5% 92%; /* #EAEAEC BK_100 */
+        --input: 240 6% 90%; /* #E5E5E8 composer box */
+        --ring: 220 5% 24%;
 
-        --radius: 0.5rem; /* crisper, more professional than the old 0.75rem */
+        --radius: 0.5rem;
 
-        /* Figma design system gray scale (re-tinted sage; AA verified) */
-        --label: 90 7% 33%;
-        --placeholder: 90 6% 41%;
-        --description: 90 6% 43%;
-        --surface: 96 24% 99%;
-        --main-accent: 76 93% 39%; /* #90C304 - focus ring, verification accent */
-        --input-border: 96 10% 91%;
-        --focus-border: 100 8% 24%;
+        /* Figma gray scale */
+        --label: 220 5% 24%; /* #3A3C40 BK_800 */
+        --placeholder: 218 4% 64%; /* #9FA2A7 BK_500 */
+        --description: 218 5% 54%; /* #84888F BK_600 timestamps */
+        --surface: 0 0% 100%;
+        /* #90C304 main color/GR2 — the deeper lime: send button, composer focus ring. */
+        --main-accent: 76 96% 39%;
+        --input-border: 240 5% 92%;
+        --focus-border: 76 96% 39%; /* composer focus (Figma #이미지 전송 전) */
 
         /* Toast (always dark surface) */
         --toast: 222 75% 12%; /* #081837 */
@@ -84,60 +79,59 @@
         --toast-muted: 220 3% 81%; /* #CFD0D3 */
 
         /* Dialog */
-        --dialog-subtitle: 90 6% 45%;
+        --dialog-subtitle: 225 5% 34%; /* #53555B */
 
         /* Chatic custom tokens */
-        --bubble-mine: 130 16% 18%;
+        --bubble-mine: 220 4% 14%;
         --bubble-mine-foreground: 0 0% 100%;
-        --bubble-other: 96 14% 95%;
-        --bubble-other-foreground: 100 10% 10%;
-        --badge-unread: 0 75% 51%; /* AA: white-on-red 4.7:1 */
+        --bubble-other: 180 5% 96%;
+        --bubble-other-foreground: 0 0% 10%;
+        --badge-unread: 349 100% 59%; /* #FF2D55 Colors/Pink */
         --badge-unread-foreground: 0 0% 100%;
-        --badge-member: 76 63% 44%;
-        --tab-active: 130 16% 18%;
-        --tab-inactive: 90 9% 42%; /* AA on white (4.7:1) */
-        --overlay: 100 10% 10%;
+        --badge-member: 76 87% 49%;
+        --tab-active: 0 0% 10%;
+        --tab-inactive: 218 5% 46%;
+        --overlay: 0 0% 0%;
 
-        /* Layering + elevation primitives. shadow-color is sage-tinted (never flat
-           black) so depth carries the brand hue. */
-        --elevated: 96 24% 99%;
-        --hairline: 96 14% 89%;
-        --well: 96 14% 96%;
-        --shadow-color: 130 35% 12%;
+        /* Layering + elevation primitives. */
+        --elevated: 0 0% 100%;
+        --hairline: 240 5% 92%; /* #EAEAEC */
+        --well: 0 0% 96%; /* #F5F5F5 search bar */
+        --shadow-color: 0 0% 0%;
     }
 
     .dark {
-        /* Chatic Dark Theme — same sage-lime tint carried into the dark ramp
-           (was pure neutral). Lightness preserved; AA verified. */
-        --background: 90 8% 7%;
-        --foreground: 90 5% 98%;
+        /* DoU PC dark theme — Figma nodes 254:541 / 259:566. Warm near-neutral grays;
+           same lime accent. */
+        --background: 90 3% 15%; /* #252624 Main Content Panel */
+        --foreground: 60 7% 92%; /* #EBEBE8 */
 
-        --card: 90 8% 10%;
-        --card-foreground: 90 5% 98%;
+        --card: 90 2% 18%; /* #2E2F2D */
+        --card-foreground: 60 7% 92%;
 
-        --popover: 90 8% 10%;
-        --popover-foreground: 90 5% 98%;
+        --popover: 90 2% 18%;
+        --popover-foreground: 60 7% 92%;
 
-        --primary: 76 61% 48%;
-        --primary-foreground: 90 10% 8%;
-        /* On dark surfaces the fill lime already reads as text (8.6:1), so ink = fill. */
-        --primary-ink: 76 61% 48%;
+        --primary: 76 87% 49%; /* #B0EA10 */
+        --primary-foreground: 120 3% 7%;
+        /* On dark surfaces the fill lime already reads as text, so ink = fill. */
+        --primary-ink: 76 87% 49%;
 
-        --secondary: 90 6% 15%;
-        --secondary-foreground: 90 5% 98%;
+        --secondary: 120 3% 7%; /* #121312 chips, send button */
+        --secondary-foreground: 60 7% 92%;
 
-        --muted: 90 6% 15%;
-        --muted-foreground: 90 5% 64%;
+        --muted: 120 3% 7%; /* #121312 */
+        --muted-foreground: 82 5% 65%; /* #A8ABA3 timestamps */
 
-        --accent: 90 7% 16%;
-        --accent-foreground: 90 5% 98%;
+        --accent: 210 2% 22%; /* #38393A hover */
+        --accent-foreground: 60 7% 92%;
 
-        --rail: 120 10% 5%;
-        --rail-foreground: 120 5% 70%;
-        --rail-muted: 120 8% 15%;
-        --rail-elevated: 120 8% 9%;
-        --sidebar: 90 8% 9%;
-        --sidebar-foreground: 90 5% 96%;
+        --rail: 120 3% 7%; /* #121312 Icon Rail */
+        --rail-foreground: 60 2% 76%; /* #C3C3C1 */
+        --rail-muted: 120 3% 7%; /* #121312 active place tile */
+        --rail-elevated: 90 2% 18%; /* #2E2F2D Workspace Rail */
+        --sidebar: 90 2% 18%; /* #2E2F2D Channel List Panel */
+        --sidebar-foreground: 60 7% 92%; /* #EBEBE8 */
 
         --avatar-l: 58%;
         --avatar-fg: 0 0% 8%;
@@ -146,25 +140,25 @@
         --banner-from-l: 26%;
         --banner-to-l: 17%;
 
-        --destructive: 0 62% 50%;
+        --destructive: 3 100% 59%; /* #FF3B30 */
         --destructive-foreground: 0 0% 98%;
 
         /* Transient warning / connecting state (dark). */
         --warning: 43 90% 55%;
         --warning-foreground: 43 90% 60%; /* light amber text on dark */
 
-        --border: 90 7% 18%;
-        --input: 90 7% 18%;
-        --ring: 90 5% 83%;
+        --border: 96 4% 26%; /* #424540 */
+        --input: 90 2% 24%; /* #3D3E3C composer box */
+        --ring: 60 2% 76%;
 
-        /* Gray scale (dark, sage-tinted; AA verified) */
-        --label: 90 4% 64%;
-        --placeholder: 90 5% 50%;
-        --description: 90 4% 64%;
-        --surface: 90 8% 7%;
-        --main-accent: 76 93% 39%; /* #90C304 - same */
-        --input-border: 90 6% 23%;
-        --focus-border: 90 4% 64%;
+        /* Gray scale (dark) */
+        --label: 60 2% 76%; /* #C3C3C1 */
+        --placeholder: 60 0% 55%; /* #8C8C8B */
+        --description: 82 5% 65%; /* #A8ABA3 */
+        --surface: 90 3% 15%;
+        --main-accent: 76 96% 39%; /* #90C304 */
+        --input-border: 90 2% 24%;
+        --focus-border: 76 87% 49%; /* dark composer focus = #B0EA10 (Figma 259:566) */
 
         /* Toast (light card on dark bg) */
         --toast: 210 6% 96%; /* #F4F5F5 - light card */
@@ -172,25 +166,25 @@
         --toast-muted: 220 4% 35%; /* #53555B - muted dark text */
 
         /* Dialog */
-        --dialog-subtitle: 90 4% 64%;
+        --dialog-subtitle: 60 2% 76%;
 
         /* Chatic custom tokens (dark) */
-        --bubble-mine: 120 16% 25%;
+        --bubble-mine: 210 2% 22%;
         --bubble-mine-foreground: 0 0% 100%;
-        --bubble-other: 90 6% 15%;
-        --bubble-other-foreground: 90 5% 98%;
-        --badge-unread: 0 75% 51%; /* AA: white-on-red 4.7:1 */
+        --bubble-other: 90 2% 18%;
+        --bubble-other-foreground: 60 7% 92%;
+        --badge-unread: 349 100% 59%; /* #FF2D55 */
         --badge-unread-foreground: 0 0% 100%;
-        --badge-member: 76 61% 48%;
-        --tab-active: 90 5% 98%;
-        --tab-inactive: 90 5% 50%;
+        --badge-member: 76 87% 49%;
+        --tab-active: 60 7% 92%;
+        --tab-inactive: 60 0% 55%;
         --overlay: 0 0% 0%;
 
         /* Layering + elevation primitives (dark). */
-        --elevated: 90 8% 12%;
-        --hairline: 90 7% 19%;
-        --well: 90 8% 6%;
-        --shadow-color: 120 50% 2%;
+        --elevated: 90 2% 18%; /* #2E2F2D */
+        --hairline: 96 4% 26%; /* #424540 */
+        --well: 120 3% 7%; /* #121312 search bar */
+        --shadow-color: 0 0% 0%;
     }
 }
 

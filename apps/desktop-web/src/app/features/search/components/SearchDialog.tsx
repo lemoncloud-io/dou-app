@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/u
 
 import { messagePlainText } from '../../../shared';
 import { useMessageSearch } from '../hooks';
+import { useSearchDialogStore } from '../stores';
 
 const formatTime = (ms?: number): string => {
     if (!ms) return '';
@@ -44,7 +45,9 @@ interface SearchDialogProps {
  */
 export const SearchDialog = ({ channels, onSelect }: SearchDialogProps) => {
     const { t } = useTranslation();
-    const [open, setOpen] = useState(false);
+    const open = useSearchDialogStore(s => s.isOpen);
+    const setOpen = useSearchDialogStore(s => s.setOpen);
+    const toggleOpen = useSearchDialogStore(s => s.toggle);
     const [query, setQuery] = useState('');
     const { results, isSearching } = useMessageSearch(open ? query : '', channels);
 
@@ -52,12 +55,12 @@ export const SearchDialog = ({ channels, onSelect }: SearchDialogProps) => {
         const onKeyDown = (e: KeyboardEvent) => {
             if (e.key.toLowerCase() === 'f' && (e.metaKey || e.ctrlKey) && e.shiftKey && !e.altKey) {
                 e.preventDefault();
-                setOpen(prev => !prev);
+                toggleOpen();
             }
         };
         window.addEventListener('keydown', onKeyDown);
         return () => window.removeEventListener('keydown', onKeyDown);
-    }, []);
+    }, [toggleOpen]);
 
     useEffect(() => {
         if (open) setQuery('');

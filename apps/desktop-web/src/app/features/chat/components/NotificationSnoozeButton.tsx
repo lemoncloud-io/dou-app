@@ -12,15 +12,16 @@ import {
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
 
 import { isDndActive, nextSnoozeUntilTomorrow, useNotificationPrefsStore } from '../../../shared';
+import { SIDEBAR_ACTION_ROW } from './sidebarStyles';
 
 const MINUTE = 60_000;
 
 const formatTime = (ms: number): string => new Date(ms).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 
 /**
- * Sidebar action to snooze notifications (global do-not-disturb). Self-contained:
- * reads/writes the notification-prefs store directly, no prop drilling. The bell
- * shows muted while a snooze or quiet-hours window is active.
+ * Sidebar action row to snooze notifications (global do-not-disturb). Self-contained:
+ * reads/writes the notification-prefs store directly, no prop drilling. The row
+ * reads the current state (off / snoozed until / quiet hours) with a muted bell.
  */
 export const NotificationSnoozeButton = () => {
     const { t } = useTranslation();
@@ -36,20 +37,20 @@ export const NotificationSnoozeButton = () => {
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <button
-                    type="button"
-                    title={t('snooze.title')}
-                    aria-label={t('snooze.title')}
-                    className="focus-ring tactile relative flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile hover:bg-accent hover:text-foreground aria-expanded:bg-accent"
-                >
-                    {active ? (
-                        <BellOff size={16} aria-hidden className="text-primary" />
-                    ) : (
-                        <Bell size={16} aria-hidden />
-                    )}
+                <button type="button" className={SIDEBAR_ACTION_ROW}>
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md">
+                        {active ? (
+                            <BellOff size={18} aria-hidden className="text-primary-ink" />
+                        ) : (
+                            <Bell size={18} aria-hidden />
+                        )}
+                    </span>
+                    <span className="truncate">
+                        {t(labelKey, snoozeUntil ? { time: formatTime(snoozeUntil) } : undefined)}
+                    </span>
                 </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56 shadow-overlay">
+            <DropdownMenuContent align="start" className="w-56 shadow-overlay">
                 <DropdownMenuLabel className="text-muted-foreground">
                     {t(labelKey, snoozeUntil ? { time: formatTime(snoozeUntil) } : undefined)}
                 </DropdownMenuLabel>

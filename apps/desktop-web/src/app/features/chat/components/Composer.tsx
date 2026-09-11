@@ -15,7 +15,9 @@ import { $createParagraphNode, $getRoot, $getSelection, $isRangeSelection, type 
 import { cn } from '@chatic/lib/utils';
 
 import { useComposerDraftStore } from '../../../shared';
+import type { ComposerAttachment } from '../hooks';
 import type { Mentionable } from './MentionAutocomplete';
+import { AttachMenu, ComposerAttachments } from './images';
 import {
     COMPOSER_NODES,
     COMPOSER_THEME,
@@ -29,16 +31,32 @@ import {
 } from './editor';
 
 interface ComposerProps {
-    onSend: (content: string) => void;
+    /**
+     * Send what is in the composer; `true` when it went out. `false` refuses — the text
+     * and the tray stay put (e.g. images while the upload API does not exist yet).
+     */
+    onSend: (content: string, attachments: ComposerAttachment[]) => boolean;
     /** Channel the draft belongs to — preserves unsent text across switches. */
     channelId: string;
     /** Overrides the default "Message" placeholder (e.g. "Message #general"). */
     placeholder?: string;
     /** Roster for @-autocomplete; omit to disable (e.g. while members load). */
     mentionables?: Mentionable[];
+    /** Image tray. Omit all three to hide the "+" and ignore pasted files. */
+    attachments?: ComposerAttachment[];
+    onAddFiles?: (files: File[]) => void;
+    onRemoveAttachment?: (id: string) => void;
 }
 
-const ComposerInner = ({ onSend, channelId, placeholder, mentionables = [] }: ComposerProps) => {
+const ComposerInner = ({
+    onSend,
+    channelId,
+    placeholder,
+    mentionables = [],
+    attachments = [],
+    onAddFiles,
+    onRemoveAttachment,
+}: ComposerProps) => {
     const { t } = useTranslation();
     const [editor] = useLexicalComposerContext();
     const setDraft = useComposerDraftStore(s => s.setDraft);
@@ -66,8 +84,8 @@ const ComposerInner = ({ onSend, channelId, placeholder, mentionables = [] }: Co
             .getEditorState()
             .read(() => $convertToMarkdownString(COMPOSER_TRANSFORMERS, undefined, true))
             .trim();
-        if (!markdown) return;
-        onSend(markdown);
+        if (!markdown && attachments.length === 0) return;
+        if (!onSend(markdown, attachments)) return;
         // Clearing the document fires handleChange, which drops the draft.
         editor.update(
             () => {
@@ -85,7 +103,7 @@ const ComposerInner = ({ onSend, channelId, placeholder, mentionables = [] }: Co
             // can keep typing without re-clicking the input.
             { onUpdate: () => editor.focus(undefined, { defaultSelection: 'rootEnd' }) }
         );
-    }, [editor, onSend]);
+    }, [editor, onSend, attachments]);
 
     const insertEmoji = (emoji: string) => {
         editor.update(() => {
@@ -95,35 +113,61 @@ const ComposerInner = ({ onSend, channelId, placeholder, mentionables = [] }: Co
     };
 
     return (
-        <div className="px-4 pb-4 pt-1">
+        <div
+            className="bg-background/[0.92] px-6 pb-5 pt-2 backdrop-blur-[8px]"
+            // Pasted images join the tray; pasted text still goes to the editor untouched.
+            onPasteCapture={event => {
+                if (!onAddFiles) return;
+                const files = Array.from(event.clipboardData.files);
+                if (files.length === 0) return;
+                event.preventDefault();
+                event.stopPropagation();
+                onAddFiles(files);
+            }}
+        >
             <div
                 className={cn(
-                    'border-hairline relative flex flex-col gap-1 rounded-xl border bg-elevated px-3 py-2 shadow-raised transition-colors ease-tactile',
-                    'focus-within:ring-2 focus-within:ring-primary/40'
+                    'relative flex flex-col overflow-hidden rounded-2xl border border-input bg-background transition-colors ease-tactile',
+                    // Figma "#이미지 전송 전": the box turns GR2 lime while you are in it.
+                    'focus-within:border-focus-border focus-within:shadow-[0_0_0_0.5px_hsl(var(--focus-border))]'
                 )}
             >
-                <ComposerToolbar />
-                <div className="flex items-end gap-2">
-                    <div className="relative flex-1">
-                        <RichTextPlugin
-                            contentEditable={
-                                <ContentEditable
-                                    aria-label={placeholderText}
-                                    className="max-h-40 overflow-y-auto whitespace-pre-wrap break-words bg-transparent py-2 text-body text-foreground outline-none"
-                                />
-                            }
-                            placeholder={
-                                <div className="pointer-events-none absolute left-0 top-2 text-body text-placeholder">
-                                    {placeholderText}
-                                </div>
-                            }
-                            ErrorBoundary={LexicalErrorBoundary}
+                <div className="flex items-center gap-2 px-5 py-3">
+                    {onAddFiles && <AttachMenu onFiles={onAddFiles} />}
+                    <ComposerToolbar />
+                </div>
+                <div aria-hidden className="h-px w-full bg-input" />
+                <div className="flex items-end gap-6 px-5 py-4">
+                    <div className="flex min-w-0 flex-1 flex-col gap-4">
+                        <div className="relative">
+                            <RichTextPlugin
+                                contentEditable={
+                                    <ContentEditable
+                                        aria-label={placeholderText}
+                                        className="max-h-40 min-h-[34px] overflow-y-auto whitespace-pre-wrap break-words bg-transparent py-1.5 text-body text-foreground outline-none"
+                                    />
+                                }
+                                placeholder={
+                                    <div className="pointer-events-none absolute left-0 top-1.5 text-body text-placeholder">
+                                        {placeholderText}
+                                    </div>
+                                }
+                                ErrorBoundary={LexicalErrorBoundary}
+                            />
+                        </div>
+                        {onRemoveAttachment && (
+                            <ComposerAttachments attachments={attachments} onRemove={onRemoveAttachment} />
+                        )}
+                    </div>
+                    <div className="flex shrink-0 items-center gap-4">
+                        <ComposerActions
+                            canSend={hasText || attachments.length > 0}
+                            onEmoji={insertEmoji}
+                            onSend={submit}
                         />
                     </div>
-                    <ComposerActions canSend={hasText} onEmoji={insertEmoji} onSend={submit} />
                 </div>
             </div>
-            <p className="mt-1 px-1 text-caption text-muted-foreground">{t('chat.composer.hint')}</p>
             <HistoryPlugin />
             <OnChangePlugin onChange={handleChange} ignoreSelectionChange />
             <MarkdownShortcutPlugin transformers={COMPOSER_TRANSFORMERS} />

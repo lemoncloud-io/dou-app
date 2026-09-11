@@ -451,7 +451,6 @@ export const HomePage = () => {
                             isDefaultMode={isDefaultMode}
                             query={query}
                             onQueryChange={setQuery}
-                            onCreateChannel={openCreateChannel}
                             onEditPlaceProfile={openEditPlaceProfile}
                             onOpenSaved={openSaved}
                             onOpenActivity={openActivity}
@@ -464,6 +463,7 @@ export const HomePage = () => {
                                 query={query}
                                 onSelect={selectChannel}
                                 isDefaultMode={isDefaultMode}
+                                onCreateChannel={openCreateChannel}
                             />
                         </div>
                     </>

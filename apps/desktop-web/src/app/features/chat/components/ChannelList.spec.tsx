@@ -48,13 +48,14 @@ const list = () => (
     />
 );
 
+// The preview rides on the row's tooltip (Figma rows are one line), so it is read from `title`.
 describe('ChannelList preview line', () => {
     it('shows the last message, flattened out of its markdown', () => {
         lastChat = { id: 'C1:1', chatNo: 1, content: '**ship it**' } as DomainChat;
 
         render(list(), { wrapper });
 
-        expect(screen.getByText('ship it')).toBeTruthy();
+        expect(screen.getByTitle(/ship it$/)).toBeTruthy();
     });
 
     // The preview is the surface where a Block Kit payload is most obviously wrong: the
@@ -70,7 +71,7 @@ describe('ChannelList preview line', () => {
 
         render(list(), { wrapper });
 
-        expect(screen.getByText('403 denied by policy')).toBeTruthy();
+        expect(screen.getByTitle(/403 denied by policy$/)).toBeTruthy();
     });
 
     // The delete is soft, so `content` survives it. Printing that content would show the
@@ -80,7 +81,7 @@ describe('ChannelList preview line', () => {
 
         render(list(), { wrapper });
 
-        expect(screen.getByText('Message deleted')).toBeTruthy();
-        expect(screen.queryByText('regrettable')).toBeNull();
+        expect(screen.getByTitle(/Message deleted$/)).toBeTruthy();
+        expect(screen.queryByTitle(/regrettable/)).toBeNull();
     });
 });

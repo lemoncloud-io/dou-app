@@ -10,3 +10,5 @@ export * from './previewChat';
 export * from './readCounts';
 export * from './systemMessage';
 export * from './unreadIndicator';
+export * from './chatImages';
+export * from './imageActions';
