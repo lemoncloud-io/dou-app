@@ -1,5 +1,24 @@
 # Changelog
 
+## [2026-09-11] - root@0.60.0, @chatic/desktop-web@0.10.0
+
+### Features
+
+- (desktop-web) add wayfinding touches from Slack-class desktop chat
+- (desktop-web) align shell and chat with DoU PC Figma, add image UI
+
+### Bug Fixes
+
+- (desktop-web) scan ui-kit and block-kit in tailwind content
+
+### Documentation
+
+- (adr) record ADR-0082 client-side message image seam
+
+### Refactor
+
+- (desktop-web) simplify the image UI after review
+
 ## [2026-09-10] - root@0.59.0, @chatic/web@0.49.0, @chatic/desktop-web@0.9.0
 
 ### Features
