@@ -1,5 +1,19 @@
 # Changelog
 
+## [2026-09-11] - root@0.61.0, @chatic/desktop-web@0.11.0
+
+### Features
+
+- (desktop-web) resizable sidebar and settings panel, slimmer rails
+
+### Bug Fixes
+
+- (desktop-web) replace native title tooltips with Radix hints
+
+### Refactor
+
+- (desktop-web) share the trailing-panel shell and rail width
+
 ## [2026-09-11] - root@0.60.0, @chatic/desktop-web@0.10.0
 
 ### Features
