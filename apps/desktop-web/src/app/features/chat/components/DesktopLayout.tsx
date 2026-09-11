@@ -37,14 +37,14 @@ export const DesktopLayout = ({ rail, rail2, sidebar, main, panel, overlay }: De
         <div className="relative flex h-dvh bg-background">
             <nav
                 aria-label="Cloud workspaces"
-                className="flex w-[68px] shrink-0 flex-col items-center bg-rail px-1 pb-5 pt-[18px] text-rail-foreground"
+                className="flex w-rail shrink-0 flex-col items-center bg-rail px-1 pb-5 pt-[18px] text-rail-foreground"
             >
                 {rail}
             </nav>
             {rail2 && (
                 <nav
                     aria-label="Places"
-                    className="flex w-[68px] shrink-0 flex-col items-center bg-rail-elevated px-1 pb-5 pt-6 text-rail-foreground"
+                    className="flex w-rail shrink-0 flex-col items-center bg-rail-elevated px-1 pb-5 pt-6 text-rail-foreground"
                 >
                     {rail2}
                 </nav>

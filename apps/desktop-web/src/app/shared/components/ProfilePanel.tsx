@@ -3,9 +3,8 @@ import { useTranslation } from 'react-i18next';
 
 import { X } from 'lucide-react';
 
-import { usePanelWidth } from '../hooks/usePanelWidth';
 import { Hint } from './Hint';
-import { PanelResizeHandle } from './PanelResizeHandle';
+import { ResizablePanel } from './ResizablePanel';
 import { useProfilePanelStore } from '../stores/useProfilePanelStore';
 import { ProfileCardContent } from './ProfileCard';
 
@@ -20,10 +19,6 @@ export const ProfilePanel = () => {
     const { t } = useTranslation();
     const target = useProfilePanelStore(s => s.target);
     const close = useProfilePanelStore(s => s.close);
-    const resize = usePanelWidth({
-        storageKey: 'chatic.profilePanel.width',
-        defaultWidth: 320,
-    });
 
     // Esc closes the panel (matches the settings panel / dialogs elsewhere).
     useEffect(() => {
@@ -37,12 +32,12 @@ export const ProfilePanel = () => {
     if (!target) return null;
 
     return (
-        <aside
-            ref={resize.panelRef}
-            style={{ width: resize.width }}
-            className="absolute inset-y-0 right-0 z-30 flex max-w-[85vw] shrink-0 flex-col overflow-hidden border-l border-hairline bg-elevated shadow-raised xl:relative xl:z-auto xl:max-w-none xl:shadow-none"
+        <ResizablePanel
+            storageKey={'chatic.profilePanel.width'}
+            defaultWidth={320}
+            resizeLabel={t('profile.panel.resize')}
+            className="bg-elevated"
         >
-            <PanelResizeHandle label={t('profile.panel.resize')} panel={resize} />
             <header className="flex h-14 shrink-0 items-center justify-between border-b border-hairline px-4">
                 <span className="truncate text-title text-foreground">{t('profile.panel.title')}</span>
                 <Hint label={t('profile.panel.close')}>
@@ -60,6 +55,6 @@ export const ProfilePanel = () => {
                 {/* Remount per user so copy state / user subscription reset on target switch. */}
                 <ProfileCardContent key={target.userId} {...target} />
             </div>
-        </aside>
+        </ResizablePanel>
     );
 };

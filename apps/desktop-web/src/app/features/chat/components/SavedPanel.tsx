@@ -9,8 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/u
 import {
     Hint,
     avatarStyle,
-    PanelResizeHandle,
-    usePanelWidth,
+    ResizablePanel,
     useSavedItemsStore,
     useSavedPanelStore,
     type SavedItem,
@@ -101,10 +100,6 @@ export const SavedPanel = ({ channels, places, currentPlaceId, onSelect }: Saved
     const close = useSavedPanelStore(s => s.close);
     const items = useSavedItemsStore(s => s.items);
     const remove = useSavedItemsStore(s => s.remove);
-    const resize = usePanelWidth({
-        storageKey: 'chatic.savedPanel.width',
-        defaultWidth: 320,
-    });
 
     // Esc closes the panel (matches the other trailing panes).
     useEffect(() => {
@@ -136,12 +131,12 @@ export const SavedPanel = ({ channels, places, currentPlaceId, onSelect }: Saved
     }, [items, currentPlaceId]);
 
     return (
-        <aside
-            ref={resize.panelRef}
-            style={{ width: resize.width }}
-            className="absolute inset-y-0 right-0 z-30 flex max-w-[85vw] shrink-0 flex-col overflow-hidden border-l border-hairline bg-background shadow-raised xl:relative xl:z-auto xl:max-w-none xl:shadow-none"
+        <ResizablePanel
+            storageKey={'chatic.savedPanel.width'}
+            defaultWidth={320}
+            resizeLabel={t('saved.resize')}
+            className="bg-background"
         >
-            <PanelResizeHandle label={t('saved.resize')} panel={resize} />
             <header className="flex h-14 shrink-0 items-center justify-between border-b border-hairline px-4">
                 <span className="truncate text-title text-foreground">{t('saved.title')}</span>
                 <Hint label={t('saved.close')}>
@@ -189,6 +184,6 @@ export const SavedPanel = ({ channels, places, currentPlaceId, onSelect }: Saved
                     ))}
                 </div>
             )}
-        </aside>
+        </ResizablePanel>
     );
 };

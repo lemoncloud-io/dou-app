@@ -10,10 +10,9 @@ import { Input } from '@chatic/ui-kit/components/ui/input';
 
 import {
     displayName,
-    PanelResizeHandle,
+    ResizablePanel,
     useDesktopChannelMutations,
     useNotificationPrefsStore,
-    usePanelWidth,
     useSelectedChannelStore,
     type ChannelNotifyMode,
 } from '../../../shared';
@@ -52,7 +51,6 @@ export const ChannelSettingsPanel = ({
     membersError,
 }: ChannelSettingsPanelProps) => {
     const { t } = useTranslation();
-    const resize = usePanelWidth({ storageKey: 'chatic.channelSettingsPanel.width', defaultWidth: 320 });
     const close = useChannelSettingsStore(s => s.close);
     const clearChannel = useSelectedChannelStore(s => s.clearChannel);
     const mutedChannels = useNotificationPrefsStore(s => s.mutedChannels);
@@ -114,12 +112,12 @@ export const ChannelSettingsPanel = ({
     };
 
     return (
-        <aside
-            ref={resize.panelRef}
-            style={{ width: resize.width }}
-            className="absolute inset-y-0 right-0 z-30 flex max-w-[85vw] shrink-0 flex-col overflow-hidden border-l border-hairline bg-elevated shadow-raised xl:relative xl:z-auto xl:max-w-none xl:shadow-none"
+        <ResizablePanel
+            storageKey={'chatic.channelSettingsPanel.width'}
+            defaultWidth={320}
+            resizeLabel={t('channels.settings.resize')}
+            className="bg-elevated"
         >
-            <PanelResizeHandle label={t('channels.settings.resize')} panel={resize} />
             <header className="flex h-14 shrink-0 items-center justify-between border-b border-hairline px-4">
                 <span className="truncate text-title text-foreground">{t('channels.settings.title')}</span>
                 <button
@@ -250,6 +248,6 @@ export const ChannelSettingsPanel = ({
                 kickName={kickName}
                 actions={actions}
             />
-        </aside>
+        </ResizablePanel>
     );
 };

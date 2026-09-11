@@ -25,7 +25,7 @@ vi.mock('../../search', () => ({ SearchDialog: () => null }));
 
 import '../../../../i18n';
 
-import { ChannelList } from './ChannelList';
+import { CHANNEL_ROW_HINT_DELAY_MS, ChannelList } from './ChannelList';
 
 Element.prototype.scrollIntoView = vi.fn();
 
@@ -55,7 +55,7 @@ const previewOnHover = (): string => {
     try {
         fireEvent.pointerMove(screen.getByRole('button', { name: /general/ }));
         act(() => {
-            vi.advanceTimersByTime(1000);
+            vi.advanceTimersByTime(CHANNEL_ROW_HINT_DELAY_MS);
         });
         return screen.getByRole('tooltip').textContent ?? '';
     } finally {

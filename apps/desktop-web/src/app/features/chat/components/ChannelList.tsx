@@ -71,6 +71,9 @@ interface ChannelRowProps {
     rowRef?: React.Ref<HTMLButtonElement>;
 }
 
+/** Rows wait longer than the app-wide 300ms hint: skimming the list should not pop a tooltip on every row. */
+export const CHANNEL_ROW_HINT_DELAY_MS = 600;
+
 /**
  * One channel/DM row (Figma: 34px, glyph · name · trailing badge or star).
  *
@@ -102,7 +105,7 @@ const ChannelRow = ({ channel, label, icon, isActive, isFavorite, onSelect, rowR
         [lastChat, t]
     );
     return (
-        <Hint label={preview ? `${label}\n${preview}` : label} delayDuration={600} side="right">
+        <Hint label={preview ? `${label}\n${preview}` : label} delayDuration={CHANNEL_ROW_HINT_DELAY_MS} side="right">
             <button
                 ref={rowRef}
                 onClick={() => onSelect(id)}

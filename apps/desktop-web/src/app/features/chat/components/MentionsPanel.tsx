@@ -10,8 +10,7 @@ import {
     Hint,
     avatarStyle,
     unreadMentionCount,
-    PanelResizeHandle,
-    usePanelWidth,
+    ResizablePanel,
     useMentionsPanelStore,
     useMentionsStore,
     type MentionItem,
@@ -108,10 +107,6 @@ export const MentionsPanel = ({ channels, places, currentPlaceId, onSelect }: Me
     const markRead = useMentionsStore(s => s.markRead);
     const markAllRead = useMentionsStore(s => s.markAllRead);
     const remove = useMentionsStore(s => s.remove);
-    const resize = usePanelWidth({
-        storageKey: 'chatic.mentionsPanel.width',
-        defaultWidth: 320,
-    });
 
     // Esc closes the panel (matches the other trailing panes).
     useEffect(() => {
@@ -145,12 +140,12 @@ export const MentionsPanel = ({ channels, places, currentPlaceId, onSelect }: Me
     const hasUnread = unreadMentionCount(items) > 0;
 
     return (
-        <aside
-            ref={resize.panelRef}
-            style={{ width: resize.width }}
-            className="absolute inset-y-0 right-0 z-30 flex max-w-[85vw] shrink-0 flex-col overflow-hidden border-l border-hairline bg-background shadow-raised xl:relative xl:z-auto xl:max-w-none xl:shadow-none"
+        <ResizablePanel
+            storageKey={'chatic.mentionsPanel.width'}
+            defaultWidth={320}
+            resizeLabel={t('activity.resize')}
+            className="bg-background"
         >
-            <PanelResizeHandle label={t('activity.resize')} panel={resize} />
             <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-hairline px-4">
                 <span className="truncate text-title text-foreground">{t('activity.title')}</span>
                 <div className="flex shrink-0 items-center gap-1">
@@ -210,6 +205,6 @@ export const MentionsPanel = ({ channels, places, currentPlaceId, onSelect }: Me
                     ))}
                 </div>
             )}
-        </aside>
+        </ResizablePanel>
     );
 };

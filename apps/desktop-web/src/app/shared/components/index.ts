@@ -3,6 +3,7 @@ export * from './AppShellSkeleton';
 export * from './ProfileCard';
 export * from './ProfilePanel';
 export * from './PanelResizeHandle';
+export * from './ResizablePanel';
 export * from './Hint';
 export * from './ConnectionBanner';
 export * from './VersionInfo';

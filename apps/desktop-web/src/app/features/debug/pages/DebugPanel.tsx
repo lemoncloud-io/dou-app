@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { cn } from '@chatic/lib/utils';
 
-import { useDebugModeStore, PanelResizeHandle, usePanelWidth } from '../../../shared';
+import { useDebugModeStore, ResizablePanel } from '../../../shared';
 import { DebugAuthPage } from './DebugAuthPage';
 import { DebugBadgeCountPage } from './DebugBadgeCountPage';
 import { DebugChatPage } from './DebugChatPage';
@@ -47,10 +47,6 @@ const PAGES: Record<TabId, () => JSX.Element> = {
 export const DebugPanel = () => {
     const setOverlayOpen = useDebugModeStore(s => s.setOverlayOpen);
     const [active, setActive] = useState<TabId>('state');
-    const resize = usePanelWidth({
-        storageKey: 'chatic.debugPanel.width',
-        defaultWidth: 440,
-    });
 
     const close = () => setOverlayOpen(false);
 
@@ -65,12 +61,12 @@ export const DebugPanel = () => {
     const ActivePage = PAGES[active];
 
     return (
-        <aside
-            ref={resize.panelRef}
-            style={{ width: resize.width }}
-            className="absolute inset-y-0 right-0 z-30 flex max-w-[85vw] shrink-0 flex-col overflow-hidden border-l border-border bg-background text-foreground shadow-raised xl:relative xl:z-auto xl:max-w-none xl:shadow-none"
+        <ResizablePanel
+            storageKey={'chatic.debugPanel.width'}
+            defaultWidth={440}
+            resizeLabel="Resize debug panel"
+            className="bg-background text-foreground"
         >
-            <PanelResizeHandle label="Resize debug panel" panel={resize} />
             <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-3">
                 <span className="text-xs font-bold uppercase tracking-widest text-primary">Debug</span>
                 <button
@@ -101,6 +97,6 @@ export const DebugPanel = () => {
             <main className="scrollbar-thin flex-1 overflow-y-auto">
                 <ActivePage />
             </main>
-        </aside>
+        </ResizablePanel>
     );
 };
