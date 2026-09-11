@@ -1,5 +1,22 @@
 # Changelog
 
+## [2026-09-11] - No version updates
+
+### Features
+
+- (admin-v2/memberships) add date presets to override until field (044fd0)
+- (http,app-runtime,admin-v2) report a server-refused session all the way to the app
+- (admin-v2) lay the membership screen out like the log console, and let it switch stage
+- (admin-v2) rebuild the log screen as a tracking console
+- (admin-v2) rebuild the membership screen as a dark-only monitoring console
+- (admin-v2,web) manage subscriptions from the console and let the override drive the app
+- (shared,http,data) carry the admin membership console down the wire layers
+
+### Bug Fixes
+
+- (app-runtime,data,db,web) stop following the previous account after an account change
+- (app-runtime) read the relay signature material from the server's own source
+
 ## [2026-09-11] - root@0.61.1, @chatic/web@0.49.1
 
 ### Features
