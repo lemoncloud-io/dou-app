@@ -33,12 +33,14 @@ jest.mock('@chatic/app-runtime', () => ({
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast: jest.fn() }));
 
 jest.mock('@chatic/web-ui-kit', () => ({
-    ChatRoomHeader: ({ title, kind }: any) => (
-        <div data-testid="header" data-kind={kind}>
+    ChatRoomHeader: ({ title, kind, hideAvatar }: any) => (
+        <div data-testid="header" data-kind={kind} data-hide-avatar={!!hideAvatar}>
             {title}
         </div>
     ),
-    MessageInput: () => <div data-testid="composer" />,
+    MessageInput: ({ placeholder }: any) => <div data-testid="composer">{placeholder}</div>,
+    ImageAvatar: ({ src }: any) => <img data-testid="root-avatar" src={src} alt="" />,
+    DefaultAvatar: () => <div data-testid="root-default-avatar" />,
 }));
 
 jest.mock('../components/ChannelMessageRow', () => ({
@@ -50,6 +52,12 @@ jest.mock('../components/ChannelMessageRow', () => ({
             <button data-testid={`expand-${message.id}`} onClick={onExpand} />
         </div>
     ),
+}));
+// The root is no longer a message row — it renders as the thread's subject (plain text, no
+// bubble), so its body and chips are stubbed separately from the reply rows above.
+jest.mock('../components/MessageText', () => ({ MessageText: ({ text }: any) => <>{text}</> }));
+jest.mock('../components/ReactionChips', () => ({
+    ReactionChips: ({ tallies }: any) => <div data-testid="root-chips">{tallies?.length ?? 0}</div>,
 }));
 jest.mock('../components/MessageActionSheet', () => ({ MessageActionSheet: () => null }));
 jest.mock('../components/ReactionDetailSheet', () => ({ ReactionDetailSheet: () => null }));
@@ -110,7 +118,7 @@ describe('ThreadPage — 진입 시 첫 화면', () => {
 
         render(<ThreadPage />);
 
-        expect(screen.getByTestId('row-ch1:7')).toHaveTextContent('루트 메시지');
+        expect(screen.getByTestId('thread-root')).toHaveTextContent('루트 메시지');
         expect(screen.queryByTestId('thread-loading')).not.toBeInTheDocument();
     });
 
@@ -120,7 +128,7 @@ describe('ThreadPage — 진입 시 첫 화면', () => {
         render(<ThreadPage />);
 
         expect(screen.getByTestId('thread-loading')).toBeInTheDocument();
-        expect(screen.queryByTestId('row-ch1:7')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('thread-root')).not.toBeInTheDocument();
     });
 
     // 씨앗은 이동 시점의 스냅샷이라 이후 편집·tombstone을 모른다. 캐시가 그 행을 갖게 되면
@@ -131,7 +139,7 @@ describe('ThreadPage — 진입 시 첫 화면', () => {
 
         render(<ThreadPage />);
 
-        expect(screen.getByTestId('row-ch1:7')).toHaveTextContent('캐시 최신본');
+        expect(screen.getByTestId('thread-root')).toHaveTextContent('캐시 최신본');
     });
 
     it('답글은 캐시에서 채워진다', () => {
@@ -143,26 +151,59 @@ describe('ThreadPage — 진입 시 첫 화면', () => {
     });
 });
 
-describe('ThreadPage — 헤더는 채널방과 같은 정체성', () => {
-    it('채널 제목을 쓰고 "스레드"라고 적지 않는다', () => {
-        mockLocationState = { rootChat: chat() };
-
-        render(<ThreadPage />);
-
-        expect(screen.getByTestId('header')).toHaveTextContent('개발 모임방');
-    });
-
+// Figma 4718:22183 — 헤더는 방이 아니라 화면을 가리킨다. 스레드는 채널 안의 한 대화이고,
+// 채널 이름과 얼굴을 달면 채널로 이동한 것처럼 읽힌다.
+describe('ThreadPage — 헤더는 방이 아니라 화면을 가리킨다', () => {
     it.each([
-        ['group', { id: 'ch1', stereo: 'group' }, 'group'],
-        ['dm', { id: 'ch1', stereo: 'dm' }, 'direct'],
-        ['self', { id: 'ch1', stereo: 'self', isSelfChat: true }, 'self'],
-    ])('%s 채널은 그 종류의 글리프로 연다 (하드코딩된 group이 아니라)', (_label, channel, expected) => {
+        ['group', { id: 'ch1', stereo: 'group' }],
+        ['dm', { id: 'ch1', stereo: 'dm' }],
+        ['self', { id: 'ch1', stereo: 'self', isSelfChat: true }],
+    ])('%s 채널이어도 채널 제목이 아니라 "스레드"라고 적는다', (_label, channel) => {
         mockChannel = channel as Record<string, unknown>;
         mockLocationState = { rootChat: chat() };
 
         render(<ThreadPage />);
 
-        expect(screen.getByTestId('header')).toHaveAttribute('data-kind', expected);
+        expect(screen.getByTestId('header')).toHaveTextContent('chat.thread.title');
+        expect(screen.getByTestId('header')).not.toHaveTextContent('개발 모임방');
+    });
+
+    it('채널 아바타를 달지 않는다', () => {
+        mockLocationState = { rootChat: chat() };
+
+        render(<ThreadPage />);
+
+        expect(screen.getByTestId('header')).toHaveAttribute('data-hide-avatar', 'true');
+    });
+});
+
+describe('ThreadPage — 루트는 메시지가 아니라 스레드의 주제다', () => {
+    // 말풍선이면 루트가 아래 답글들과 같은 시각적 계급이 되고, 내 메시지일 때는 오른쪽으로
+    // 밀려 스레드의 주제가 화면 한쪽에 붙는다.
+    it('루트를 말풍선 행이 아닌 평문 블록으로 그린다', () => {
+        mockLocationState = { rootChat: chat() };
+
+        render(<ThreadPage />);
+
+        expect(screen.getByTestId('thread-root')).toBeInTheDocument();
+        expect(screen.queryByTestId('row-ch1:7')).not.toBeInTheDocument();
+    });
+
+    it('답글은 그대로 말풍선 행이다', () => {
+        mockChats = [chat(), chat({ id: 'ch1:8', chatNo: 8, content: '답글', parentId: '7' })];
+
+        render(<ThreadPage />);
+
+        expect(screen.getByTestId('row-ch1:8')).toHaveTextContent('답글');
+        expect(screen.queryByTestId('row-ch1:7')).not.toBeInTheDocument();
+    });
+
+    it('작성기 플레이스홀더는 댓글 추가다', () => {
+        mockLocationState = { rootChat: chat() };
+
+        render(<ThreadPage />);
+
+        expect(screen.getByTestId('composer')).toHaveTextContent('chat.thread.inputPlaceholder');
     });
 });
 

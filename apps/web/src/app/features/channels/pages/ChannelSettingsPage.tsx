@@ -246,9 +246,14 @@ export const ChannelSettingsPage = () => {
             // opens a blank create form whose save overwrites the real nick.
             const needsProfileSetup =
                 !!memberId && memberId === userId && hasProfileSnapshot && !memberProfile?.nick?.trim();
+            // The id is NOT a rung in this chain — it used to sit before the label, so an
+            // unresolved member showed a raw UUID and the label was unreachable. Same chain and
+            // same labels as every other surface now (see resolveUserName).
             const memberName = needsProfileSetup
                 ? t('chat.settings.profileSetupRequired')
-                : memberProfile?.nick || member.name || memberId || t('chat.settings.unknownUser');
+                : memberProfile?.nick?.trim() ||
+                  member.name?.trim() ||
+                  (memberId && memberId === userId ? t('chat.me') : t('chat.unknownUser'));
 
             const memberView = {
                 id: memberId,

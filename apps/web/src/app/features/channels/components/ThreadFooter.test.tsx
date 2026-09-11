@@ -12,6 +12,17 @@ jest.mock('@chatic/ui-kit', () => ({ cn: (...args: unknown[]) => args.filter(Boo
 jest.mock('@chatic/web-ui-kit', () => ({
     ImageAvatar: ({ src }: any) => <img data-testid="image-avatar" src={src} alt="" />,
     DefaultAvatar: () => <div data-testid="default-avatar" />,
+    // Faithful enough to assert against: which faces were chosen, and which of the three text
+    // segments the footer decided to print.
+    ThreadSummary: ({ avatars, overflowCount, replyLabel, newReplyLabel, time, align, ...rest }: any) => (
+        <button {...rest} data-align={align}>
+            {avatars}
+            {overflowCount > 0 && <span data-testid="overflow">+{overflowCount}</span>}
+            <span data-testid="reply-label">{replyLabel}</span>
+            {newReplyLabel && <span data-testid="new-reply-label">{newReplyLabel}</span>}
+            {time && <span data-testid="time">{time}</span>}
+        </button>
+    ),
 }));
 
 import { ThreadFooter } from './ThreadFooter';
@@ -22,10 +33,14 @@ const meta = (over: Partial<ThreadMeta> = {}): ThreadMeta => ({
     lastReplyAt: 1,
     lastReplyNo: 7,
     repliers: [{ id: 'ada', thumbnail: 'https://embed/ada.png' }],
+    entries: [
+        { chatNo: 6, ownerId: 'ada' },
+        { chatNo: 7, ownerId: 'bob' },
+    ],
     ...over,
 });
 
-const baseProps = { meta: meta(), hasUnseen: false, onOpen: jest.fn() };
+const baseProps = { meta: meta(), unseenCount: 0, onOpen: jest.fn() };
 
 beforeEach(() => jest.clearAllMocks());
 
@@ -34,24 +49,50 @@ describe('ThreadFooter — 스레드 루트의 답글 푸터', () => {
         const onOpen = jest.fn();
         render(<ThreadFooter {...baseProps} onOpen={onOpen} />);
 
-        expect(screen.getByText('chat.thread.replyCount')).toBeInTheDocument();
+        expect(screen.getByTestId('reply-label')).toHaveTextContent('chat.thread.replyCount');
         fireEvent.click(screen.getByRole('button'));
         expect(onOpen).toHaveBeenCalledTimes(1);
     });
 
-    it('안 본 답글이 있을 때만 점을 찍는다', () => {
-        const { container, rerender } = render(<ThreadFooter {...baseProps} hasUnseen={false} />);
-        expect(container.querySelector('[aria-hidden]')).toBeNull();
+    // 점이 아니라 개수다 — 끼어들 만한 줄이면 "몇 개가 새로 왔는지"가 볼 값이다.
+    it('안 본 답글이 있을 때만 새 댓글 수를 적는다', () => {
+        const { rerender } = render(<ThreadFooter {...baseProps} unseenCount={0} />);
+        expect(screen.queryByTestId('new-reply-label')).toBeNull();
 
-        rerender(<ThreadFooter {...baseProps} hasUnseen />);
-        expect(container.querySelector('[aria-hidden]')).not.toBeNull();
+        rerender(<ThreadFooter {...baseProps} unseenCount={3} />);
+        expect(screen.getByTestId('new-reply-label')).toHaveTextContent('chat.thread.newReplyCount');
     });
 
-    it('답글자가 많아도 아바타는 3개까지만 쌓는다', () => {
-        const repliers = ['a', 'b', 'c', 'd'].map(id => ({ id, thumbnail: `https://embed/${id}.png` }));
-        render(<ThreadFooter {...baseProps} meta={meta({ repliers, count: 4 })} />);
+    // 마지막 답글 시각은 루트의 시각이 아니다 — 접힌 스레드가 달리 보여줄 수 없는 유일한 값이다.
+    it('마지막 답글 시각을 방이 준 포맷터로 적는다', () => {
+        const formatTime = jest.fn(() => '오후 12:06');
+        render(<ThreadFooter {...baseProps} meta={meta({ lastReplyAt: 1_700_000_000_000 })} formatTime={formatTime} />);
 
-        expect(screen.getAllByTestId('image-avatar')).toHaveLength(3);
+        expect(formatTime).toHaveBeenCalledWith(new Date(1_700_000_000_000));
+        expect(screen.getByTestId('time')).toHaveTextContent('오후 12:06');
+    });
+
+    it('마지막 답글 시각이 없으면 시각 칸을 비운다', () => {
+        render(<ThreadFooter {...baseProps} meta={meta({ lastReplyAt: 0 })} formatTime={() => '오후 12:06'} />);
+
+        expect(screen.queryByTestId('time')).toBeNull();
+    });
+
+    it('답글자가 많아도 아바타는 5개까지만 쌓고 나머지는 +N으로 센다', () => {
+        const repliers = ['a', 'b', 'c', 'd', 'e', 'f', 'g'].map(id => ({
+            id,
+            thumbnail: `https://embed/${id}.png`,
+        }));
+        render(<ThreadFooter {...baseProps} meta={meta({ repliers, count: 7 })} />);
+
+        expect(screen.getAllByTestId('image-avatar')).toHaveLength(5);
+        expect(screen.getByTestId('overflow')).toHaveTextContent('+2');
+    });
+
+    it('내 메시지의 푸터는 반대쪽으로 정렬한다', () => {
+        render(<ThreadFooter {...baseProps} align="end" />);
+
+        expect(screen.getByRole('button')).toHaveAttribute('data-align', 'end');
     });
 
     // ADR-0047 결정 5 — 파생(buildThreadIndex)은 프로필 캐시를 모른 채 두고,

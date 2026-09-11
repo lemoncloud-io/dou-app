@@ -4,6 +4,7 @@ import {
     CircleAlert,
     ChevronDown,
     Clock,
+    Copy,
     House,
     ChevronLeft,
     ChevronRight,
@@ -57,12 +58,18 @@ export const IconLink: LucideIcon = Link2;
 export const IconUserOutline: LucideIcon = User;
 export const IconUsers: LucideIcon = Users;
 export const IconClock: LucideIcon = Clock;
+/** Two stacked sheets — the message action sheet's 메시지 복사 row (Figma Code Connect: `IconCopy`). */
+export const IconCopy: LucideIcon = Copy;
 
 // Figma-exported custom glyphs (not lucide icons). See IconGroup.tsx / IconUser.tsx.
 export { IconGroup, type IconGroupProps } from './IconGroup';
 export { IconUser, type IconUserProps } from './IconUser';
 export { IconChatAdd, type IconChatAddProps } from './IconChatAdd';
 export { IconPin, type IconPinProps } from './IconPin';
+// Reaction / thread glyphs (Figma 4701:43432, 4712:16496) — the emoji-add affordance at the end
+// of every chip row, and the doubled speech bubble the action sheet's 스레드 row carries.
+export { IconEmojiAdd, type IconEmojiAddProps } from './IconEmojiAdd';
+export { IconThread, type IconThreadProps } from './IconThread';
 // Duotone glyphs — filled shapes with a half/40%-opacity companion layer. Their lucide
 // outline counterparts (IconClock, IconUsers, IconImage) remain exported: this barrel is
 // the kit's single icon source, so an alias staying available without a current caller is

@@ -743,9 +743,7 @@
                 "description": "Once you leave, you can no longer take part in the conversation.",
                 "confirm": "Leave"
             },
-            "leftRoom": "Left the room",
             "noMembers": "No members",
-            "unknownUser": "Unknown User",
             "notificationSettings": {
                 "title": "Notification Settings",
                 "appNotificationOff": "App notifications are turned off",
@@ -793,15 +791,20 @@
             }
         },
         "thread": {
-            "replyAction": "Reply in thread",
-            "replyCount_one": "{{count}} reply",
-            "replyCount_other": "{{count}} replies",
-            "openThread_one": "Open thread · {{count}} reply",
-            "openThread_other": "Open thread · {{count}} replies",
-            "inputPlaceholder": "Reply…",
+            "replyAction": "Thread",
+            "replyCount_one": "{{count}} comment",
+            "replyCount_other": "{{count}} comments",
+            "openThread_one": "Open thread · {{count}} comment",
+            "openThread_other": "Open thread · {{count}} comments",
+            "inputPlaceholder": "Add a comment",
             "unavailable": "This message isn't loaded yet — load older messages in the channel to see it.",
-            "loadOlder": "Load older messages"
-        }
+            "loadOlder": "Load older messages",
+            "title": "Thread",
+            "newReplyCount_one": "{{count}} new comment",
+            "newReplyCount_other": "{{count}} new comments"
+        },
+        "unknownUser": "Unknown user",
+        "me": "You"
     },
     "search": {
         "placeholder": "Search by room name or place",
@@ -1564,8 +1567,11 @@
         "cat": {
             "smileys": "Smileys",
             "gestures": "Gestures",
+            "people": "People",
             "nature": "Nature",
             "food": "Food & drink",
+            "activity": "Activity",
+            "travel": "Travel & places",
             "objects": "Objects",
             "symbols": "Symbols"
         }

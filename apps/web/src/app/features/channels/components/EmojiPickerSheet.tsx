@@ -46,7 +46,14 @@ export const EmojiPickerSheet = ({ open, onOpenChange, onPick }: EmojiPickerShee
             className="h-[50vh]"
         >
             <div className="flex h-full flex-col gap-2 px-4 pb-2">
-                <div role="tablist" aria-label={t('chat.room.pickEmoji')} className="flex items-center gap-0.5">
+                {/* Scrolls sideways rather than shrinking the tabs: nine categories plus the
+                    recents tab are 360px of 36px targets on a 343px-wide sheet, and squeezing
+                    them to fit would take the tap targets below the 36px minimum. */}
+                <div
+                    role="tablist"
+                    aria-label={t('chat.room.pickEmoji')}
+                    className="flex shrink-0 items-center gap-0.5 overflow-x-auto"
+                >
                     {recent.length > 0 && (
                         <button
                             type="button"
@@ -55,7 +62,7 @@ export const EmojiPickerSheet = ({ open, onOpenChange, onPick }: EmojiPickerShee
                             title={t('emoji.recent')}
                             onClick={() => setCategoryKey('recent')}
                             className={cn(
-                                'flex size-9 items-center justify-center rounded-md text-base transition-colors active:bg-accent',
+                                'flex size-9 shrink-0 items-center justify-center rounded-md text-base transition-colors active:bg-accent',
                                 isRecent && 'bg-accent'
                             )}
                         >
@@ -71,7 +78,7 @@ export const EmojiPickerSheet = ({ open, onOpenChange, onPick }: EmojiPickerShee
                             title={t(`emoji.cat.${cat.key}`)}
                             onClick={() => setCategoryKey(cat.key)}
                             className={cn(
-                                'flex size-9 items-center justify-center rounded-md text-base transition-colors active:bg-accent',
+                                'flex size-9 shrink-0 items-center justify-center rounded-md text-base transition-colors active:bg-accent',
                                 categoryKey === cat.key && 'bg-accent'
                             )}
                         >

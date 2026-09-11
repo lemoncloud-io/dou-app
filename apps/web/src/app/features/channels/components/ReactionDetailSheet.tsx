@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { cn } from '@chatic/ui-kit';
-import { BottomSheet, DefaultAvatar, ImageAvatar } from '@chatic/web-ui-kit';
+import { BottomSheet, DefaultAvatar, ImageAvatar, ReactionChip } from '@chatic/web-ui-kit';
 
 import type { ReactionTally } from '../utils/foldReactions';
 
@@ -28,6 +27,11 @@ interface ReactionDetailSheetProps {
  * A surface of its own rather than a block inside the message action sheet, because the two
  * answer different questions — the action sheet is "what can I do to this message", this is
  * "who is in this reaction" — and because faces need room the action sheet does not have.
+ *
+ * The tabs are the same `ReactionChip` the message rows use, one size up, so the chip that was
+ * long-pressed is recognisably the chip that is now selected. Its accent border keeps meaning
+ * "mine"; the underline is what marks the open tab. Those are two different facts and a tab can
+ * carry either, both, or neither.
  *
  * `tallies` is the live fold: if someone removes their reaction while this is open the tab's
  * count drops under the reader, and a tab that disappears entirely falls back to the first one.
@@ -55,56 +59,49 @@ export const ReactionDetailSheet = ({
             onOpenChange={onOpenChange}
             title={t('chat.room.reactions')}
             description={t('chat.room.reactionsDescription')}
-            onClose={() => onOpenChange(false)}
+            hideHeader
+            showHandle
             // Half the screen, always: the reactor list grows and shrinks live while the sheet is
             // open, and a sheet that resized under the reader's thumb moved the rows they were
-            // reading. Matches EmojiPickerSheet so the two reaction surfaces open the same size.
-            className="h-[50vh]"
+            // reading. Unlike the action sheet, this one's content length is unbounded — one
+            // reaction or forty faces — so the fixed panel is what keeps it from covering the
+            // message it was opened from.
+            className="h-[50vh] rounded-t-[32px]"
         >
             {active && (
                 <div className="flex h-full flex-col">
                     {/* Scrolls sideways rather than wrapping: a message with many distinct
-                        reactions would otherwise push the reactor list off the screen. */}
+                        reactions would otherwise push the reactor list off the screen.
+                        `pb-3` leaves room for the selected chip's underline, which hangs
+                        below the pill. */}
                     <div
                         role="tablist"
                         aria-label={t('chat.room.reactions')}
-                        className="flex items-center gap-1 overflow-x-auto border-b border-border px-4"
+                        className="flex shrink-0 items-center gap-2.5 overflow-x-auto px-4 pb-4 pt-8"
                     >
-                        {tallies.map(tally => {
-                            const isActive = tally.key === active.key;
-                            return (
-                                <button
-                                    key={tally.key}
-                                    type="button"
-                                    role="tab"
-                                    aria-selected={isActive}
-                                    onClick={() => setSelectedKey(tally.key)}
-                                    className={cn(
-                                        'flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2.5 text-lg transition-colors',
-                                        isActive ? 'border-primary' : 'border-transparent'
-                                    )}
-                                >
-                                    <span aria-hidden>{tally.emoji}</span>
-                                    <span
-                                        className={cn(
-                                            'text-sm tabular-nums',
-                                            isActive ? 'text-primary' : 'text-muted-foreground'
-                                        )}
-                                    >
-                                        {tally.userIds.length}
-                                    </span>
-                                </button>
-                            );
-                        })}
+                        {tallies.map(tally => (
+                            <ReactionChip
+                                key={tally.key}
+                                emoji={tally.emoji}
+                                count={tally.userIds.length}
+                                mine={tally.mine}
+                                size="md"
+                                selected={tally.key === active.key}
+                                role="tab"
+                                aria-selected={tally.key === active.key}
+                                aria-pressed={undefined}
+                                onClick={() => setSelectedKey(tally.key)}
+                            />
+                        ))}
                     </div>
 
-                    <ul className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-1">
+                    <ul className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 pb-2">
                         {active.userIds.map(userId => {
                             const src = avatarOf(userId);
                             return (
-                                <li key={userId} className="flex items-center gap-3 py-2">
+                                <li key={userId} className="flex items-center gap-2.5 px-1 py-2">
                                     {src ? <ImageAvatar src={src} alt="" size={36} /> : <DefaultAvatar size={36} />}
-                                    <span className="min-w-0 flex-1 truncate text-[15px] text-foreground">
+                                    <span className="min-w-0 flex-1 truncate text-[15px] font-medium leading-[18px] tracking-[-0.075px] text-foreground">
                                         {nameOf(userId)}
                                     </span>
                                 </li>

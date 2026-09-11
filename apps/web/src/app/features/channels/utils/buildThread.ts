@@ -49,7 +49,30 @@ export interface ThreadMeta {
     lastReplyOwnerId?: string;
     /** Unique reply authors in first-seen order — feeds the footer avatar stack. */
     repliers: ThreadReplier[];
+    /**
+     * Every loaded reply as (chatNo, author), oldest→newest.
+     *
+     * The footer needs to say HOW MANY replies are new, not just that some are, and no
+     * aggregate can answer that: the read baseline is per-viewer and arrives long after this
+     * derivation runs. `lastReplyNo` cannot stand in either — subtracting it from the cursor
+     * counts reaction rows and main-feed messages, which consume the same chatNo sequence.
+     * So the host filters this list against its own cursor (see ChannelRoomPage).
+     */
+    entries: ThreadEntry[];
 }
+
+export interface ThreadEntry {
+    /** 0 for an optimistic reply that has not been assigned one yet. */
+    chatNo: number;
+    ownerId?: string;
+}
+
+/**
+ * Replies in `meta` that the viewer has not seen: newer than their read baseline and not
+ * their own. My own reply must never dot my own thread — I was there when it was written.
+ */
+export const countUnseenReplies = (meta: ThreadMeta, baselineReadNo: number, userId: string | null): number =>
+    meta.entries.filter(entry => entry.chatNo > baselineReadNo && entry.ownerId !== userId).length;
 
 /**
  * Aggregate, per thread root, the replies present in the loaded message set.
@@ -76,9 +99,10 @@ export const buildThreadIndex = (messages: DomainChat[]): Map<string, ThreadMeta
         if (message.subType === 'reaction') continue;
         const key = idToChatNo.get(parentId) ?? parentId;
         const at = replyTime(message);
-        const prev = index.get(key) ?? { count: 0, lastReplyAt: 0, lastReplyNo: 0, repliers: [] };
+        const prev = index.get(key) ?? { count: 0, lastReplyAt: 0, lastReplyNo: 0, repliers: [], entries: [] };
         if (prev.count === 0) index.set(key, prev);
         prev.count += 1;
+        prev.entries.push({ chatNo: message.chatNo ?? 0, ownerId: message.ownerId });
         if (at > prev.lastReplyAt) prev.lastReplyAt = at;
         if ((message.chatNo ?? 0) > prev.lastReplyNo) {
             prev.lastReplyNo = message.chatNo ?? 0;

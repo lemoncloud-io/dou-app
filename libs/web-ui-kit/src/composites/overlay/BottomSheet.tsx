@@ -22,6 +22,16 @@ export interface BottomSheetProps {
     description?: string;
     /** Shows the top drag handle. */
     showHandle?: boolean;
+    /**
+     * Drops the title / close header entirely, leaving the drag handle as the only chrome
+     * (Figma "_Activity View", 4712:16421). For sheets whose content names itself — a row of
+     * emoji, a list of faces — where a title bar spends 50px restating it and the close button
+     * duplicates the swipe-down and the backdrop tap.
+     *
+     * `title` and `description` are still required for a11y and are moved into the panel's
+     * accessible name instead of being drawn.
+     */
+    hideHeader?: boolean;
     /** Scrollable body content. */
     children?: React.ReactNode;
     /** Pinned footer (e.g. a FloatingButton) below the scroll area. */
@@ -48,6 +58,7 @@ export const BottomSheet = ({
     description,
     onClose,
     showHandle = false,
+    hideHeader = false,
     children,
     footer,
     closeLabel = 'Close',
@@ -85,30 +96,46 @@ export const BottomSheet = ({
                     className
                 )}
             >
-                {showHandle && <span className="mx-auto mt-2 h-1 w-8 shrink-0 rounded-full bg-input-border" />}
+                {/* Grabber (Figma 4712:16481): 36×5 at 5px from the top, over the content rather
+                    than above it — which is why it is absolute and the body carries no offset for
+                    it. `Labels/Tertiary` is an iOS system color with no token of its own. */}
+                {showHandle && (
+                    <span
+                        aria-hidden
+                        className="absolute left-1/2 top-[5px] z-10 h-[5px] w-9 -translate-x-1/2 rounded-[2.5px] bg-[rgba(60,60,67,0.3)] dark:bg-white/30"
+                    />
+                )}
 
-                {/* Glass overlay header (Figma 3421-59848), same translucent treatment as ModalTopBar. */}
-                <div className="flex shrink-0 items-center justify-between bg-white/[0.32] px-4 py-3.5 backdrop-blur-xl dark:bg-black/[0.32]">
-                    <SheetTitle
-                        className={cn(
-                            'truncate text-[17px] font-semibold leading-6 text-foreground',
-                            !title && 'sr-only'
-                        )}
-                    >
-                        {title}
-                    </SheetTitle>
-                    {description && <SheetDescription className="sr-only">{description}</SheetDescription>}
-                    {onClose && (
-                        <button
-                            type="button"
-                            onClick={handleClose}
-                            aria-label={closeLabel}
-                            className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted p-1"
+                {hideHeader ? (
+                    // Still named for assistive tech — just not drawn.
+                    <>
+                        <SheetTitle className="sr-only">{title}</SheetTitle>
+                        {description && <SheetDescription className="sr-only">{description}</SheetDescription>}
+                    </>
+                ) : (
+                    /* Glass overlay header (Figma 3421-59848), same translucent treatment as ModalTopBar. */
+                    <div className="flex shrink-0 items-center justify-between bg-white/[0.32] px-4 py-3.5 backdrop-blur-xl dark:bg-black/[0.32]">
+                        <SheetTitle
+                            className={cn(
+                                'truncate text-[17px] font-semibold leading-6 text-foreground',
+                                !title && 'sr-only'
+                            )}
                         >
-                            <IconClose className="size-[18px] text-foreground" />
-                        </button>
-                    )}
-                </div>
+                            {title}
+                        </SheetTitle>
+                        {description && <SheetDescription className="sr-only">{description}</SheetDescription>}
+                        {onClose && (
+                            <button
+                                type="button"
+                                onClick={handleClose}
+                                aria-label={closeLabel}
+                                className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted p-1"
+                            >
+                                <IconClose className="size-[18px] text-foreground" />
+                            </button>
+                        )}
+                    </div>
+                )}
 
                 <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
 

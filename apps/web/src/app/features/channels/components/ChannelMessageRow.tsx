@@ -69,8 +69,10 @@ export interface ChannelMessageRowProps {
     avatarOf?: (userId: string) => string | undefined;
     /** Loaded-reply aggregate for this root; the footer renders only when present. */
     threadMeta?: ThreadMeta;
-    /** Replies newer than my read cursor exist (ADR-0045 decision 5). */
-    hasUnseenReplies?: boolean;
+    /** How many replies are newer than my read cursor (ADR-0045 decision 5); 0 = none. */
+    unseenReplyCount?: number;
+    /** Formats the last reply's clock time for the footer — the room owns the 12/24h form. */
+    formatThreadTime?: (date: Date) => string;
     /** Opens the full-screen thread. Absent on surfaces without one (the thread page itself). */
     onOpenThread?: () => void;
 }
@@ -101,7 +103,8 @@ export const ChannelMessageRow = ({
     onShowReactors,
     avatarOf,
     threadMeta,
-    hasUnseenReplies,
+    unseenReplyCount,
+    formatThreadTime,
     onOpenThread,
 }: ChannelMessageRowProps) => {
     const { t } = useTranslation();
@@ -369,15 +372,20 @@ export const ChannelMessageRow = ({
                     onToggle={onToggleReaction}
                     onAdd={onAddReaction}
                     onShowReactors={onShowReactors}
+                    // My own row is right-aligned, so its chips grow leftwards from the bubble's
+                    // trailing edge — MessageRow's column only sets the side, not the wrap origin.
+                    align={mine ? 'end' : 'start'}
                 />
             )}
             {reactionFailed && <span className="text-[11px] text-destructive">{t('chat.room.reactionFailed')}</span>}
             {threadMeta && onOpenThread && (
                 <ThreadFooter
                     meta={threadMeta}
-                    hasUnseen={!!hasUnseenReplies}
+                    unseenCount={unseenReplyCount ?? 0}
                     onOpen={onOpenThread}
                     avatarOf={avatarOf}
+                    formatTime={formatThreadTime}
+                    align={mine ? 'end' : 'start'}
                 />
             )}
         </MessageRow>

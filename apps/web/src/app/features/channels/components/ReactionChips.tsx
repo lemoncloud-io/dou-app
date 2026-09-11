@@ -1,8 +1,8 @@
-import { Plus } from 'lucide-react';
 import { useRef, type MouseEvent as ReactMouseEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { cn } from '@chatic/ui-kit';
+import { ReactionAddButton, ReactionChip } from '@chatic/web-ui-kit';
 
 import type { ReactionTally } from '../utils/foldReactions';
 import { LONG_PRESS_DELAY_MS } from '../utils/longPress';
@@ -16,6 +16,8 @@ interface ReactionChipsProps {
     onAdd?: () => void;
     /** Long-press on a chip — opens the reactor detail sheet on that emoji's tab. */
     onShowReactors?: (key: string) => void;
+    /** Mirrors the row for my own (right-aligned) messages. */
+    align?: 'start' | 'end';
 }
 
 /**
@@ -29,11 +31,21 @@ interface ReactionChipsProps {
  *
  * A chip carries two gestures, split by how often each is wanted. Tap toggles — the
  * common act, on the cheap gesture — and `aria-pressed` says whether the reaction is
- * yours, the same thing the filled border shows. Press and hold opens the reactor sheet
+ * yours, the same thing the accent border shows. Press and hold opens the reactor sheet
  * for that emoji. The add button is neither: it is not a toggle and carries no pressed
- * state, because tapping a chip and tapping `+` are different acts.
+ * state, because tapping a chip and tapping the add glyph are different acts.
+ *
+ * The chips themselves are `web-ui-kit` presentation (`ReactionChip`); what stays here is
+ * the part the kit must not know — the gestures, and which tallies are mine.
  */
-export const ReactionChips = ({ tallies, nameOf, onToggle, onAdd, onShowReactors }: ReactionChipsProps) => {
+export const ReactionChips = ({
+    tallies,
+    nameOf,
+    onToggle,
+    onAdd,
+    onShowReactors,
+    align = 'start',
+}: ReactionChipsProps) => {
     const { t } = useTranslation();
 
     // Long press per chip. The timer lives here rather than on the message row because the
@@ -73,13 +85,15 @@ export const ReactionChips = ({ tallies, nameOf, onToggle, onAdd, onShowReactors
     if (tallies.length === 0) return null;
 
     return (
-        <div className="flex flex-wrap items-center gap-1">
+        <div className={cn('flex flex-wrap items-center gap-1', align === 'end' && 'justify-end')}>
             {tallies.map(tally => {
                 const names = tally.userIds.map(nameOf).filter(Boolean).join(', ');
                 return (
-                    <button
+                    <ReactionChip
                         key={tally.emoji}
-                        type="button"
+                        emoji={tally.emoji}
+                        count={tally.userIds.length}
+                        mine={tally.mine}
                         onClick={() => {
                             if (longPressFiredRef.current) return;
                             onToggle(tally.emoji, tally.mine);
@@ -89,32 +103,11 @@ export const ReactionChips = ({ tallies, nameOf, onToggle, onAdd, onShowReactors
                         onPointerLeave={clearTimer}
                         onPointerCancel={clearTimer}
                         onContextMenu={event => handleContextMenu(event, tally.key)}
-                        aria-pressed={tally.mine}
                         aria-label={t('chat.room.reactionWho', { emoji: tally.emoji, names })}
-                        className={cn(
-                            'flex h-7 select-none items-center gap-1 rounded-full border px-2 text-xs transition-colors',
-                            tally.mine
-                                ? 'border-primary bg-primary/10 text-foreground'
-                                : 'border-border bg-muted text-muted-foreground active:bg-accent'
-                        )}
-                    >
-                        <span aria-hidden>{tally.emoji}</span>
-                        <span className="tabular-nums">{tally.userIds.length}</span>
-                    </button>
+                    />
                 );
             })}
-            {onAdd && (
-                // Chip-shaped and chip-sized so it reads as the row's last item rather than a
-                // separate control bolted onto the end.
-                <button
-                    type="button"
-                    onClick={onAdd}
-                    aria-label={t('chat.room.addReaction')}
-                    className="flex h-7 items-center rounded-full border border-border bg-muted px-2 text-muted-foreground transition-colors active:bg-accent"
-                >
-                    <Plus size={14} />
-                </button>
-            )}
+            {onAdd && <ReactionAddButton onClick={onAdd} aria-label={t('chat.room.addReaction')} />}
         </div>
     );
 };

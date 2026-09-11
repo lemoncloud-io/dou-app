@@ -34,7 +34,13 @@ export const EmojiPicker = ({ onPick }: EmojiPickerProps) => {
 
     return (
         <div className="flex w-72 flex-col gap-1.5">
-            <div role="tablist" aria-label={t('chat.composer.emoji')} className="flex items-center gap-0.5">
+            {/* Scrolls sideways rather than shrinking the tabs: nine categories plus the recents
+                tab are ~338px of 32px targets inside a 288px popover. */}
+            <div
+                role="tablist"
+                aria-label={t('chat.composer.emoji')}
+                className="scrollbar-thin flex shrink-0 items-center gap-0.5 overflow-x-auto"
+            >
                 {recent.length > 0 && (
                     <Hint label={t('emoji.recent')}>
                         <button
@@ -43,7 +49,7 @@ export const EmojiPicker = ({ onPick }: EmojiPickerProps) => {
                             aria-selected={isRecent}
                             onClick={() => setCategoryKey('recent')}
                             className={cn(
-                                'focus-ring tactile flex h-8 w-8 items-center justify-center rounded-md text-base transition-colors ease-tactile hover:bg-accent',
+                                'focus-ring tactile flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-base transition-colors ease-tactile hover:bg-accent',
                                 isRecent && 'bg-accent'
                             )}
                         >
@@ -59,7 +65,7 @@ export const EmojiPicker = ({ onPick }: EmojiPickerProps) => {
                             aria-selected={categoryKey === cat.key}
                             onClick={() => setCategoryKey(cat.key)}
                             className={cn(
-                                'focus-ring tactile flex h-8 w-8 items-center justify-center rounded-md text-base transition-colors ease-tactile hover:bg-accent',
+                                'focus-ring tactile flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-base transition-colors ease-tactile hover:bg-accent',
                                 categoryKey === cat.key && 'bg-accent'
                             )}
                         >

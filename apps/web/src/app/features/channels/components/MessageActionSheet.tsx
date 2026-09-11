@@ -1,8 +1,7 @@
-import { Copy, Loader2, MessageSquare, Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { cn } from '@chatic/ui-kit';
-import { BottomSheet } from '@chatic/web-ui-kit';
+import { BottomSheet, IconCopy, IconEmojiAdd, IconSpinner, IconThread, SheetAction } from '@chatic/web-ui-kit';
 
 import { useRecentEmojiStore, QUICK_REACTIONS } from '../stores/useRecentEmojiStore';
 import { hasMyReaction, type ReactionTally } from '../utils/foldReactions';
@@ -30,12 +29,19 @@ interface MessageActionSheetProps {
 
 /**
  * Long-press action sheet for one message: a one-tap reaction row (recents + fixed
- * quick reactions), then copy and reply. Replaces the old Radix dropdown — a narrow
- * dropdown cannot hold the emoji row, and sheet options are the touch-target size the
- * dropdown items were not (ADR-0045).
+ * quick reactions), then the thread and copy actions. Replaces the old Radix dropdown —
+ * a narrow dropdown cannot hold the emoji row, and sheet options are the touch-target
+ * size the dropdown items were not (ADR-0045).
  *
  * The quick row's pressed state mirrors the chips: tapping an emoji you already
  * reacted with sends `off`, so the sheet is a toggle surface, not add-only.
+ *
+ * The panel sizes to its content and carries no title bar — only the grabber (Figma
+ * 4712:16421). That reverses the fixed 50vh it used to hold, which existed so the rows
+ * would not move under the thumb between long-presses; the design's answer is instead
+ * to keep the row COUNT stable — the quick row is always six plus the add button, and
+ * the two actions below it are the same two every time. What moves now is the panel's
+ * top edge, not the targets' distance from the bottom.
  *
  * WHO reacted is deliberately not here — it lives in `ReactionDetailSheet`, reached by
  * long-pressing the chip itself. This sheet answers "what can I do to this message";
@@ -66,72 +72,60 @@ export const MessageActionSheet = ({
             onOpenChange={onOpenChange}
             title={t('chat.room.messageActions')}
             description={t('chat.room.messageActionsDescription')}
-            onClose={() => onOpenChange(false)}
-            // Half the screen, like the two reaction sheets it opens next to: the row count here
-            // moves with the target message (`canReact`/`canReply`, and the quick row's own
-            // recents), so a sheet that sized to its content dealt every message a different
-            // panel and moved copy/reply under the thumb between long-presses.
-            className="h-[50vh]"
+            hideHeader
+            showHandle
+            className="rounded-t-[32px] pb-8"
         >
-            {/* Actions stay at the top of the fixed panel — the slack below is empty rather
-                than stretched across the rows, which would spread the touch targets apart. */}
-            <div className="flex flex-col px-4 pb-2">
-                {canReact && (
-                    <div className="flex items-center justify-between gap-1 pb-3 pt-1">
-                        {quickEmojis.map(emoji => {
-                            const mine = hasMyReaction(tallies, emoji);
-                            return (
-                                <button
-                                    key={emoji}
-                                    type="button"
-                                    onClick={() => onPickEmoji(emoji)}
-                                    aria-pressed={mine}
-                                    aria-label={t('chat.room.reactWith', { emoji })}
-                                    className={cn(
-                                        'flex size-11 items-center justify-center rounded-full text-2xl transition-colors active:bg-accent',
-                                        mine && 'bg-primary/10 ring-1 ring-primary'
-                                    )}
-                                >
-                                    {emoji}
-                                </button>
-                            );
-                        })}
-                        <button
-                            type="button"
-                            onClick={onMoreEmoji}
-                            aria-label={t('chat.room.moreEmoji')}
-                            className="flex size-11 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors active:bg-accent"
-                        >
-                            <Plus size={22} />
-                        </button>
-                    </div>
-                )}
-
-                <button
-                    type="button"
-                    disabled={isCopying}
-                    onClick={onCopy}
-                    className="flex h-14 w-full items-center gap-3 border-b border-border text-[15px] text-foreground active:bg-accent"
-                >
-                    {isCopying ? (
-                        <Loader2 size={18} className="animate-spin text-muted-foreground" />
-                    ) : (
-                        <Copy size={18} className="text-muted-foreground" />
-                    )}
-                    <span>{t('chat.room.copyMessage')}</span>
-                </button>
-
-                {canReply && (
+            {canReact && (
+                <div className="flex items-center justify-between gap-1 px-4 pb-6 pt-8">
+                    {quickEmojis.map(emoji => {
+                        const mine = hasMyReaction(tallies, emoji);
+                        return (
+                            <button
+                                key={emoji}
+                                type="button"
+                                onClick={() => onPickEmoji(emoji)}
+                                aria-pressed={mine}
+                                aria-label={t('chat.room.reactWith', { emoji })}
+                                className={cn(
+                                    'flex size-10 shrink-0 items-center justify-center rounded-full border text-xl transition-colors',
+                                    mine
+                                        ? 'border-main-accent bg-main-accent/[0.06]'
+                                        : 'border-transparent bg-input-border/[0.44] active:bg-input-border/70'
+                                )}
+                            >
+                                {emoji}
+                            </button>
+                        );
+                    })}
                     <button
                         type="button"
-                        onClick={onReply}
-                        className="flex h-14 w-full items-center gap-3 text-[15px] text-foreground active:bg-accent"
+                        onClick={onMoreEmoji}
+                        aria-label={t('chat.room.moreEmoji')}
+                        className="flex size-10 shrink-0 items-center justify-center rounded-full bg-input-border/[0.44] text-foreground transition-colors active:bg-input-border/70"
                     >
-                        <MessageSquare size={18} className="text-muted-foreground" />
-                        <span>{t('chat.thread.replyAction')}</span>
+                        <IconEmojiAdd size={20} />
                     </button>
-                )}
-            </div>
+                </div>
+            )}
+
+            {/* 스레드 above 메시지 복사 (design order): opening the conversation is the reason
+                this sheet gets long-pressed open, and copy is the fallback. */}
+            {canReply && (
+                <SheetAction icon={<IconThread size={26} />} label={t('chat.thread.replyAction')} onClick={onReply} />
+            )}
+            <SheetAction
+                icon={
+                    isCopying ? (
+                        <IconSpinner size={20} className="animate-spin text-muted-foreground" />
+                    ) : (
+                        <IconCopy size={22} />
+                    )
+                }
+                label={t('chat.room.copyMessage')}
+                disabled={isCopying}
+                onClick={onCopy}
+            />
         </BottomSheet>
     );
 };
