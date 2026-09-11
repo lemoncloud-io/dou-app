@@ -1,8 +1,9 @@
 import { encodeValue, storageKeyFor } from '@chatic/config';
+import { normalizePinnedChannels } from '@chatic/shared';
+
 import {
     normalizeChannelSort,
     normalizeCloudPromoDismissedAt,
-    normalizePinnedChannels,
     normalizeRecentSearches,
 } from '../stores/preferenceParsers';
 

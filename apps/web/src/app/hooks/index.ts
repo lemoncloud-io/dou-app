@@ -28,7 +28,6 @@ export * from './useMembership';
 export * from './useMyUser';
 export * from './useOnboarding';
 export * from './useOtherCloudUnread';
-export * from './usePinnedChannels';
 export * from './usePlaceProfileAbsent';
 export * from './useRelayInvites';
 export * from './useScrollRestoration';

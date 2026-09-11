@@ -19,16 +19,5 @@ export const CLOUD_PROMO_DISMISS_TTL_MS = 24 * 60 * 60 * 1000;
 /** Max recent search keywords retained, most-recent first (see setRecentSearches). */
 export const MAX_RECENT_SEARCHES = 10;
 
-/**
- * Scope key for the per-place client preferences (channel sort, pinned channels).
- *
- * A site id is only unique WITHIN its cloud, so these preferences are keyed by `<cid>:<sid>` —
- * otherwise the same place id in another cloud would silently inherit the first cloud's sort order
- * and pins. Returns null when either half is unknown; callers then fall back to defaults and skip
- * the write rather than storing a half-formed key.
- */
-export const placeScopeKey = (cloudId?: string | null, placeId?: string | null): string | null =>
-    cloudId && placeId ? `${cloudId}:${placeId}` : null;
-
-/** A stored key belongs to the current scheme only if it carries both halves. */
-export const isPlaceScopeKey = (key: string): boolean => key.includes(':');
+// placeScopeKey/isPlaceScopeKey moved to @chatic/shared (libs/shared/src/preferences/placeScope.ts)
+// — desktop-web favorites now read the same per-place record apps/web writes.

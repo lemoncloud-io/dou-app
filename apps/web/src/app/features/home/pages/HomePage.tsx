@@ -23,11 +23,11 @@ import {
     useChannelSort,
     useMyProfile,
     useOnboarding,
-    usePinnedChannels,
     useScrollRestoration,
     useUserPermissions,
 } from '../../../hooks';
-import { DEFAULT_CHANNEL_SORT, placeScopeKey } from '../../../stores/preferenceKeys';
+import { placeScopeKey, usePinnedChannels } from '@chatic/shared';
+import { DEFAULT_CHANNEL_SORT } from '../../../stores/preferenceKeys';
 import { usePendingInviteChannel } from '../../../stores/usePendingInviteChannel';
 import { BottomNavSpacer } from '../../../ui/components';
 import { ROUTES } from '../../../routes/paths';
@@ -252,12 +252,9 @@ export const HomePage = () => {
     const { channelSort: channelSortMap } = useChannelSort();
     const channelSortMethod = (placeScope && channelSortMap[placeScope]) || DEFAULT_CHANNEL_SORT;
     // Pinned channels for the active place (client preference, set from the chat-room management
-    // screen). Pinned rows float above the chosen sort order.
-    const { pinnedChannels: pinnedChannelMap } = usePinnedChannels();
-    const pinnedChannelIds = useMemo(
-        () => new Set(placeScope ? (pinnedChannelMap[placeScope] ?? []) : []),
-        [pinnedChannelMap, placeScope]
-    );
+    // screen or the desktop favorites star). Pinned rows float above the chosen sort order.
+    const { pinnedIds } = usePinnedChannels(placeScope);
+    const pinnedChannelIds = useMemo(() => new Set(pinnedIds), [pinnedIds]);
     const { toast } = useToast();
 
     // Invite flow tail: the accept pipeline lands here and stashes the invited channel, then we open

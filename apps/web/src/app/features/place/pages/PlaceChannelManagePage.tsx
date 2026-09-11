@@ -12,7 +12,8 @@ import { Badge, Button, DefaultAvatar, ImageAvatar, ManageChannelItem } from '@c
 import type { MySiteView } from '@lemoncloud/chatic-backend-api';
 
 import { PageHeader } from '../../../ui';
-import { DEFAULT_CHANNEL_SORT, placeScopeKey } from '../../../stores/preferenceKeys';
+import { placeScopeKey, usePinnedChannels } from '@chatic/shared';
+import { DEFAULT_CHANNEL_SORT } from '../../../stores/preferenceKeys';
 import { ConfirmDialog } from '../../channels/components';
 import { useChannelMutations, useChatMutations, useDmPeers, type DmPeer } from '../../channels/hooks';
 import {
@@ -22,7 +23,6 @@ import {
     useJoinSyncRegistration,
     useLastChats,
     useMyProfile,
-    usePinnedChannels,
 } from '../../../hooks';
 import { resolveChannelAvatar, resolveChannelTitle } from '../../channels/lib';
 import { sortChannels } from '../../../utils/sortChannels';
@@ -89,11 +89,8 @@ export const PlaceChannelManagePage = () => {
     const { invites: sentInvitesAll } = useInviteListRows();
     const sentInvites = isDefaultCloud ? sentInvitesAll : [];
     const { channelSort: sortMethodMap } = useChannelSort();
-    const { pinnedChannels: pinnedMap, setChannelPinned } = usePinnedChannels();
-    const pinnedChannelIds = useMemo(
-        () => new Set(placeScope ? (pinnedMap[placeScope] ?? []) : []),
-        [pinnedMap, placeScope]
-    );
+    const { pinnedIds, toggle: togglePinned } = usePinnedChannels(placeScope);
+    const pinnedChannelIds = useMemo(() => new Set(pinnedIds), [pinnedIds]);
 
     // Same ordering as the home list so a room sits in the position the user expects.
     const sortedChannels = useMemo(
@@ -142,10 +139,12 @@ export const PlaceChannelManagePage = () => {
             return next;
         });
 
-    const handleTogglePin = (channelId: string, pinned: boolean) => {
-        if (!placeScope) return;
-        setChannelPinned(placeScope, channelId, pinned);
-        toast({ title: pinned ? t('channelManage.pinned') : t('channelManage.unpinned') });
+    const handleTogglePin = (channelId: string) => {
+        // toggle flips the hook's own view of the scope, which is what the rows render from — the
+        // checkbox's `pinned` argument carried the same information second-hand.
+        const willPin = !pinnedChannelIds.has(channelId);
+        togglePinned(channelId);
+        toast({ title: willPin ? t('channelManage.pinned') : t('channelManage.unpinned') });
     };
 
     /**
@@ -293,7 +292,7 @@ export const PlaceChannelManagePage = () => {
                                 checked={selectedIds.has(channel.id)}
                                 onToggle={checked => toggleSelected(channel.id, checked)}
                                 pinned={pinnedChannelIds.has(channel.id)}
-                                onTogglePin={pinned => handleTogglePin(channel.id, pinned)}
+                                onTogglePin={() => handleTogglePin(channel.id)}
                             />
                         ))}
             </div>

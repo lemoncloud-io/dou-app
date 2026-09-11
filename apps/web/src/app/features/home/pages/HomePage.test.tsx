@@ -20,7 +20,12 @@ let isMembershipLoading = false;
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
 const navigateMock = jest.fn();
-jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigateMock }));
+jest.mock('@chatic/shared', () => ({
+    ...jest.requireActual('@chatic/shared'),
+    useNavigateWithTransition: () => navigateMock,
+    // Pinned channels moved to @chatic/shared — stub the hook (needs the config store).
+    usePinnedChannels: () => ({ pinnedIds: [], toggle: jest.fn(), reorder: jest.fn() }),
+}));
 jest.mock('@chatic/app-runtime', () => ({
     runtime: {
         session: {
@@ -83,7 +88,6 @@ jest.mock('../../../hooks', () => ({
     useScrollRestoration: () => ({ containerRef: { current: null }, onScroll: jest.fn() }),
     useOnboarding: () => ({ isFirstRun: false, completeOnboarding: jest.fn() }),
     useChannelSort: () => ({ channelSort: {}, setChannelSort: jest.fn() }),
-    usePinnedChannels: () => ({ pinnedChannels: {}, setChannelPinned: jest.fn() }),
 }));
 jest.mock('../stores/useCloudPushMarkStore', () => ({
     useCloudPushMarkStore: (selector: (state: { badged: Record<string, true> }) => unknown) => selector({ badged: {} }),

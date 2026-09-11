@@ -1,4 +1,6 @@
-import { isPlaceScopeKey, type ChannelSortMethod, type Theme } from './preferenceKeys';
+import { isPlaceScopeKey } from '@chatic/shared';
+
+import type { ChannelSortMethod, Theme } from './preferenceKeys';
 
 // ---------------------------------------------------------------------------
 // Defensive parsers for the `json`-typed `ui.*` config keys.
@@ -37,29 +39,8 @@ export const parseChannelSort = (raw: string): Record<string, ChannelSortMethod>
     }
 };
 
-/**
- * Anything that isn't an array of non-empty strings is dropped, so a corrupt write degrades to
- * "nothing pinned" rather than breaking the channel list ordering.
- */
-export const normalizePinnedChannels = (value: unknown): Record<string, string[]> => {
-    if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
-    const result: Record<string, string[]> = {};
-    for (const [scope, ids] of Object.entries(value)) {
-        // Same as channelSort: legacy bare-placeId entries are dropped rather than migrated.
-        if (!isPlaceScopeKey(scope) || !Array.isArray(ids)) continue;
-        const channelIds = ids.filter((id): id is string => typeof id === 'string' && id.length > 0);
-        if (channelIds.length > 0) result[scope] = channelIds;
-    }
-    return result;
-};
-
-export const parsePinnedChannels = (raw: string): Record<string, string[]> => {
-    try {
-        return normalizePinnedChannels(JSON.parse(raw));
-    } catch {
-        return {};
-    }
-};
+// normalizePinnedChannels/parsePinnedChannels moved to @chatic/shared
+// (libs/shared/src/preferences/pinnedChannels.ts) — shared with desktop-web.
 
 /**
  * A stored array of ids. Anything else — a corrupt value, a non-array, non-string members —

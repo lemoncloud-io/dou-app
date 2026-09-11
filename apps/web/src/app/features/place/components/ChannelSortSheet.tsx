@@ -5,7 +5,8 @@ import { runtime } from '@chatic/app-runtime';
 import { BottomSheet, SheetOption } from '@chatic/web-ui-kit';
 
 import { useChannelSort } from '../../../hooks';
-import { DEFAULT_CHANNEL_SORT, placeScopeKey } from '../../../stores/preferenceKeys';
+import { placeScopeKey } from '@chatic/shared';
+import { DEFAULT_CHANNEL_SORT } from '../../../stores/preferenceKeys';
 
 import type { ChannelSortMethod } from '../../../stores/preferenceKeys';
 
