@@ -47,7 +47,7 @@ export type SubscriptionHttpDomainGateway = Pick<
     | 'receiptDetail'
     | 'membership'
     | 'validateMembership'
-    //* admin console surface (ADR-0082). `adminClouds` rides this bundle rather than the cloud one
+    // admin console surface (ADR-0082). `adminClouds` rides this bundle rather than the cloud one
     //  on purpose — see `SubscriptionHttpDataSource`.
     | 'adminMemberships'
     | 'updateMembershipByAdmin'

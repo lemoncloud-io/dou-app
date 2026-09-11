@@ -34,12 +34,15 @@ export const SubscriptionPage = () => {
     const isKo = i18n.language.startsWith('ko');
     const { isGuest } = runtime.session.useRuntimeProfile();
 
-    // One judgement, four states (`summarizeMembership`). The screen used to branch on
+    // One judgement, five states (`summarizeMembership`). The screen used to branch on
     // `isActive || isExpired`, which dropped a scheduled cancellation into the empty state — both
     // flags are false there, even though the subscription is still running and paid for.
     const isActive = summary.state === 'active';
     const isCanceled = summary.state === 'cancelScheduled';
     const isExpired = summary.state === 'expired';
+    // An admin blocked this subscription server-side. Kept apart from `isExpired` on purpose: the
+    // store is still charging, so the wording and the colour both have to say something else.
+    const isBlocked = summary.state === 'blocked';
     const hasSubscription = summary.state !== 'none';
     // A pending tier change or a next-payment date only means something while the paid period is
     // still running — an expired membership can carry a stale `pendingProductId` (a downgrade that
@@ -91,7 +94,7 @@ export const SubscriptionPage = () => {
                             </span>
 
                             <div
-                                className={`rounded-[20px] border-2 bg-card p-1.5 shadow-[0px_2px_14px_0px_rgba(0,0,0,0.08)] ${isCanceled ? 'border-yellow-400' : isExpired ? 'border-gray-300' : 'border-[#B0EA10]'}`}
+                                className={`rounded-[20px] border-2 bg-card p-1.5 shadow-[0px_2px_14px_0px_rgba(0,0,0,0.08)] ${isBlocked ? 'border-red-400' : isCanceled ? 'border-yellow-400' : isExpired ? 'border-gray-300' : 'border-[#B0EA10]'}`}
                             >
                                 {/* Plan Info */}
                                 <div className="flex items-center justify-between gap-2 px-4 py-3">
@@ -109,6 +112,14 @@ export const SubscriptionPage = () => {
                                 <div className="mx-auto w-[calc(100%-24px)] border-t border-border" />
 
                                 {/* Status Badge */}
+                                {isBlocked && (
+                                    <div className="mx-3 mt-1 rounded-[10px] bg-red-50 px-3 py-2 text-center dark:bg-red-950/30">
+                                        <span className="text-[14px] font-medium text-red-600 dark:text-red-400">
+                                            {t('mypage.subscription.blockedNotice')}
+                                        </span>
+                                    </div>
+                                )}
+
                                 {isCanceled && (
                                     <div className="mx-3 mt-1 rounded-[10px] bg-yellow-50 px-3 py-2 text-center dark:bg-yellow-950/30">
                                         <span className="text-[14px] font-medium text-yellow-600 dark:text-yellow-400">
@@ -146,13 +157,15 @@ export const SubscriptionPage = () => {
                                             {t('mypage.subscription.status')}
                                         </span>
                                         <span
-                                            className={`text-[16px] font-medium ${isCanceled ? 'text-yellow-600 dark:text-yellow-400' : isExpired ? 'text-gray-400' : 'text-green-600 dark:text-green-400'}`}
+                                            className={`text-[16px] font-medium ${isBlocked ? 'text-red-600 dark:text-red-400' : isCanceled ? 'text-yellow-600 dark:text-yellow-400' : isExpired ? 'text-gray-400' : 'text-green-600 dark:text-green-400'}`}
                                         >
-                                            {isCanceled
-                                                ? t('mypage.subscription.statusCanceled')
-                                                : isExpired
-                                                  ? t('mypage.subscription.statusExpired')
-                                                  : t('mypage.subscription.statusActive')}
+                                            {isBlocked
+                                                ? t('mypage.subscription.statusBlocked')
+                                                : isCanceled
+                                                  ? t('mypage.subscription.statusCanceled')
+                                                  : isExpired
+                                                    ? t('mypage.subscription.statusExpired')
+                                                    : t('mypage.subscription.statusActive')}
                                         </span>
                                     </div>
                                     {currentPlan?.maxClouds != null && (
@@ -220,7 +233,25 @@ export const SubscriptionPage = () => {
                                             </span>
                                         </div>
                                     )}
-                                    {summary.isEntitled && (membership?.validUntil ?? 0) > 0 && (
+                                    {/* An admin grant has its own end date, and it is the one that
+                                        decides this user's access — the receipt window above is the
+                                        lapsed one it is standing in for. */}
+                                    {summary.isAdminOverridden && (
+                                        <div className="flex items-center gap-[18px]">
+                                            <span className="w-[100px] shrink-0 text-[16px] text-muted-foreground">
+                                                {t('mypage.subscription.adminGrant')}
+                                            </span>
+                                            <span className="text-[16px] font-medium">
+                                                {(membership?.adminUntil ?? 0) > 0
+                                                    ? `~ ${formatDate(membership?.adminUntil)}`
+                                                    : t('mypage.subscription.adminGrantIndefinite')}
+                                            </span>
+                                        </div>
+                                    )}
+                                    {/* Only the store bills, so this follows the receipt rather than
+                                        entitlement: a grant has no next payment, and a blocked user
+                                        still has one. */}
+                                    {summary.hasLiveReceipt && (membership?.validUntil ?? 0) > 0 && (
                                         <div className="flex items-center gap-[18px]">
                                             <span className="w-[100px] shrink-0 text-[16px] text-muted-foreground">
                                                 {t('mypage.subscription.nextPayment')}

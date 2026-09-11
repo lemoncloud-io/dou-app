@@ -5,6 +5,7 @@ const NAV_LINKS = [
     { to: '/socket-lab', label: 'Socket Lab' },
     { to: '/report-logs', label: 'Report Logs' },
     { to: '/users', label: 'Users' },
+    { to: '/memberships', label: 'Memberships' },
 ];
 
 const linkClass = ({ isActive }: { isActive: boolean }): string =>

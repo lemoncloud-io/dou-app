@@ -48,13 +48,22 @@ export interface SubscriptionHttpGateway {
      * GET {relay}/clouds/0/list?view=admin&valid=0 — one user's clouds, with a status aggregation.
      *
      * Separate from `CloudHttpGateway.list` rather than a looser version of it: that one pins
-     * `view: 'mine'` and answers a different question under different permissions. Both fixed
-     * params here are deliberate. `view: 'admin'` is not the caller's to choose — `mine` scopes by
-     * session instead. `valid: 0` overrides a server default of `1` that hides expired clouds,
-     * which an operator reviewing the fallout of a block needs to see.
+     * `view: 'mine'` and answers a different question. `valid: 0` overrides a server default of `1`
+     * that hides expired clouds, which an operator reviewing the fallout of a block needs to see.
      *
-     * The filter is `ownerId`. **Not `userId`** — the relay only reads `userId` in its `mine`
-     * branch, so passing it here would silently list every user's clouds.
+     * The filter is `ownerId`. **Not `userId`** — outside the relay's `mine` branch `userId` is not
+     * read at all, so passing it instead would list every user's clouds.
+     *
+     * **This endpoint is NOT gated by the relay** (`api-clouds.ts` `doGetList`, verified
+     * 2026-09-10). It computes `hasAdmin` and then never authorizes on it, and it pins an owner
+     * only inside the `view === 'mine'` branch — so any authenticated session can read anyone's
+     * clouds, `view=mine&userId=<victim>` included. Nothing in this file changes that; the console's
+     * admin gate is the only check in the stack today, and a client gate is not a check. Fixing it
+     * belongs in chatic-backend-api. Named here so the next reader does not mistake the pinned
+     * `view: 'admin'` for an authorization boundary — it is not one.
+     *
+     * The two membership calls above are different: the relay really does enforce `hasAdminRole`
+     * on both before doing any work.
      */
     adminClouds(ownerId: string, params?: Record<string, unknown>): Promise<ListResult<CloudView, AggrResult>>;
 }

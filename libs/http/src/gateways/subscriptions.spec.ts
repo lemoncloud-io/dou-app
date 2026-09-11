@@ -99,6 +99,7 @@ describe('createSubscriptionHttpGateway', () => {
             body: { planId: 'p1' },
         });
     });
+
     it('adminMemberships — GET {relay}/memberships/0/list', async () => {
         executeSignedRelayRequest.mockResolvedValue({});
         const gateway = createSubscriptionHttpGateway(exec);

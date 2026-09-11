@@ -14,6 +14,9 @@ describe('SubscriptionHttpDataSource', () => {
             receiptDetail: jest.fn(),
             membership: jest.fn(),
             validateMembership: jest.fn(),
+            adminMemberships: jest.fn(),
+            updateMembershipByAdmin: jest.fn(),
+            adminClouds: jest.fn(),
         };
         dataSource = new SubscriptionHttpDataSource(gateway);
     });
@@ -46,5 +49,35 @@ describe('SubscriptionHttpDataSource', () => {
 
         await dataSource.validateMembership({ planId: 'p1' } as never);
         expect(gateway.validateMembership).toHaveBeenCalledWith({ planId: 'p1' }, undefined);
+    });
+
+    it('forwards the admin reads unchanged', async () => {
+        gateway.adminMemberships.mockResolvedValue({ list: [] } as any);
+        gateway.adminClouds.mockResolvedValue({ list: [], aggr: {} } as any);
+
+        await expect(dataSource.fetchAdminMemberships({ status: 'expired' })).resolves.toEqual({ list: [] });
+        expect(gateway.adminMemberships).toHaveBeenCalledWith({ status: 'expired' });
+
+        await expect(dataSource.fetchAdminClouds('1000904')).resolves.toEqual({ list: [], aggr: {} });
+        expect(gateway.adminClouds).toHaveBeenCalledWith('1000904', undefined);
+    });
+
+    // The `1`/absent encoding is the wire's and lives here, mirroring `CloudHttpDataSource`'s
+    // `dryRun`. The console only ever says `auto: true`.
+    it('spells `auto` for the wire — 1 when asked for, absent otherwise', async () => {
+        gateway.updateMembershipByAdmin.mockResolvedValue({} as any);
+
+        await dataSource.updateMembershipByAdmin('1000904', { adminStatus: 'active' }, { auto: true });
+        expect(gateway.updateMembershipByAdmin).toHaveBeenCalledWith('1000904', { adminStatus: 'active' }, { auto: 1 });
+
+        await dataSource.updateMembershipByAdmin('1000904', { adminStatus: 'active' }, { auto: false });
+        expect(gateway.updateMembershipByAdmin).toHaveBeenLastCalledWith(
+            '1000904',
+            { adminStatus: 'active' },
+            undefined
+        );
+
+        await dataSource.updateMembershipByAdmin('1000904', { adminStatus: '' });
+        expect(gateway.updateMembershipByAdmin).toHaveBeenLastCalledWith('1000904', { adminStatus: '' }, undefined);
     });
 });

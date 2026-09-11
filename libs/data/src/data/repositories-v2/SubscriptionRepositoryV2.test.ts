@@ -10,6 +10,9 @@ describe('SubscriptionRepositoryV2', () => {
         fetchReceiptDetail: jest.fn(),
         fetchMembershipInfo: jest.fn(),
         validateMembership: jest.fn(),
+        fetchAdminMemberships: jest.fn(),
+        updateMembershipByAdmin: jest.fn(),
+        fetchAdminClouds: jest.fn(),
     });
 
     it('is remote-only — constructs with no local/socket data source, matching AuthRepositoryV2/DeviceRepositoryV2', () => {

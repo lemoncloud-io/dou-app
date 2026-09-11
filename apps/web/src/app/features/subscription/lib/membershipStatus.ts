@@ -1,12 +1,31 @@
+import { isAdminOverrideActive, resolveEffectiveProductId } from '@chatic/shared';
+
 import type { MembershipView, ProductView } from '@lemoncloud/chatic-backend-api';
 
-/** The four states the plan defines. Nothing else is a state. */
-export type SubscriptionState = 'none' | 'active' | 'cancelScheduled' | 'expired';
+/**
+ * The five states the plan defines. Nothing else is a state.
+ *
+ * `blocked` is an operator shutting the subscription off from the console (ADR-0082), and it is
+ * deliberately not folded into `expired`: the store keeps charging through a block, so telling
+ * that user their subscription "expired" is wrong in the direction that produces support tickets.
+ */
+export type SubscriptionState = 'none' | 'active' | 'cancelScheduled' | 'expired' | 'blocked';
 
 export interface SubscriptionSummary {
     state: SubscriptionState;
     /** A paid period is still running, so the cloud allowance holds. `active` | `cancelScheduled`. */
     isEntitled: boolean;
+    /** An admin override is deciding this summary rather than the receipt. */
+    isAdminOverridden?: boolean;
+    /**
+     * The store still holds a running subscription for this user.
+     *
+     * Separate from `isEntitled` because an override breaks the two apart in both directions: a
+     * grant on a lapsed receipt is entitled with nothing at the store, and a block leaves the store
+     * charging while entitlement is gone. Anything that talks to the store — replacing a plan,
+     * naming an `oldPlanId` — has to follow this, not entitlement.
+     */
+    hasLiveReceipt: boolean;
     productId?: string;
     validUntil?: number;
     /** A tier change queued for the next renewal. */
@@ -35,7 +54,10 @@ const resolveTrialDaysLeft = (
 };
 
 /**
- * Collapses a membership into the four states the screens branch on.
+ * Collapses a membership into the five states the screens branch on.
+ *
+ * The admin override is read first and wins, matching the relay. Everything below it is the
+ * receipt's story.
  *
  * Entitlement deliberately does NOT use the server's `isValid`. That flag turns false the moment a
  * cancellation is recorded (`proxy.ts:717`: `canceledAt > 0` → false), but a scheduled cancellation
@@ -54,10 +76,33 @@ export const summarizeMembership = (
         productId: membership?.productId || undefined,
         validUntil: membership?.validUntil || undefined,
         pendingProductId: membership?.pendingProductId || undefined,
+        // The receipt's own story, told independently of any override laid over it.
+        hasLiveReceipt: !!membership?.productId && (membership.validUntil ?? 0) > now,
     };
 
-    // A super membership is granted rather than purchased: no product, no expiry to read.
-    if (membership?.isSuper) return { ...base, state: 'active', isEntitled: true };
+    // The admin override wins over the receipt, exactly as the relay's own derivation does.
+    // Judged from the raw `adminStatus`/`adminUntil` rather than the stored `status`: the relay
+    // derives `status` once at write time and nothing sweeps it afterwards, so a lapsed grant
+    // still reads `active` there. Comparing `adminUntil` to `now` is right the moment it passes.
+    //
+    // This replaces the old `isSuper` shortcut. That flag was the previous spelling of an
+    // indefinite grant; the relay stopped reading it in 2026-08 and its holders were migrated onto
+    // overrides, so honouring it here would only keep a second, staler axis alive.
+    if (isAdminOverrideActive(membership, now)) {
+        const isGranted = membership?.adminStatus === 'active';
+
+        return {
+            ...base,
+            // A grant raises the grade the allowance is read from; a block only takes entitlement
+            // away. `resolveEffectiveProductId` mirrors the relay and would hand back a grade left
+            // over from an earlier grant, which would then be shown as this user's tier.
+            productId: isGranted ? resolveEffectiveProductId(membership, now) : base.productId,
+            state: isGranted ? 'active' : 'blocked',
+            isEntitled: isGranted,
+            isAdminOverridden: true,
+        };
+    }
+
     if (!membership?.productId || membership.status === 'none') return { ...base, state: 'none', isEntitled: false };
 
     if ((membership.validUntil ?? 0) > now) {

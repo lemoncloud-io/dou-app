@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AuthRoutes } from './features/auth/routes';
+import { MembershipsRoutes } from './features/memberships';
 import { ReportLogsRoutes } from './features/report-logs';
 import { SocketLabRoutes } from './features/socket-lab';
 import { UsersRoutes } from './features/users';
@@ -21,6 +22,7 @@ export const AppRoutes = () => (
             <Route path="/socket-lab/*" element={<SocketLabRoutes />} />
             <Route path="/report-logs/*" element={<ReportLogsRoutes />} />
             <Route path="/users/*" element={<UsersRoutes />} />
+            <Route path="/memberships/*" element={<MembershipsRoutes />} />
         </Route>
         <Route path="*" element={<Navigate to="/socket-lab" replace />} />
     </Routes>

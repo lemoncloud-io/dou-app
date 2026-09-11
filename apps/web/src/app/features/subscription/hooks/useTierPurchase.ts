@@ -31,7 +31,7 @@ export interface TierPurchase {
  */
 export const useTierPurchase = (): TierPurchase => {
     const { t } = useTranslation();
-    const { isIOS, replaceablePlan, summary } = usePlanCatalog();
+    const { isIOS, replaceablePlan } = usePlanCatalog();
     const { fetchNativeProducts, purchaseAndValidate } = useSubscriptionIap();
     const [pageState, setPageState] = useState<PageState>(PageState.Idle);
 
@@ -67,11 +67,13 @@ export const useTierPurchase = (): TierPurchase => {
             const product = buildPurchaseProduct(matched, {
                 isIOS,
                 isTierChange: kind === 'upgrade' || kind === 'downgrade',
-                currentProductId: summary.productId,
+                // The plan being replaced at the store, which is what `oldPlanId` must name.
+                // `summary.productId` used to be the same thing; an admin grant made it diverge.
+                currentProductId: replaceablePlan?.id,
             });
             if (!product) {
                 logger.error('IAP', 'offerToken missing for tier change', {
-                    data: { planId: plan.id, kind, currentProductId: summary.productId },
+                    data: { planId: plan.id, kind, currentProductId: replaceablePlan?.id },
                 });
                 throw new Error(t('mypage.subscription.offerTokenMissing'));
             }
@@ -83,7 +85,7 @@ export const useTierPurchase = (): TierPurchase => {
                 setPageState(PageState.Idle);
             }
         },
-        [changeKindOf, isIOS, purchaseAndValidate, summary.productId, t]
+        [changeKindOf, isIOS, purchaseAndValidate, replaceablePlan?.id, t]
     );
 
     return {
