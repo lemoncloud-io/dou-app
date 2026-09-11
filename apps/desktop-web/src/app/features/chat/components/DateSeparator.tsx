@@ -22,13 +22,18 @@ export const DateSeparator = ({ timestamp }: DateSeparatorProps) => {
         return date.toLocaleDateString([], { year: 'numeric', month: 'long', day: 'numeric' });
     };
 
+    // The pill sticks to the top of the feed while its day scrolls by (MessageList wraps
+    // each day in its own block, so the next day's pill takes over at the boundary). The
+    // rule is a separate, non-sticky line pulled up behind the pill, so it scrolls away
+    // with the day instead of striking through the messages under a stuck pill.
     return (
-        <div className="flex items-center gap-3 py-2">
-            <div className="h-px flex-1 bg-hairline" />
-            <span className="border-hairline rounded-full border bg-elevated px-3 py-0.5 text-overline text-muted-foreground shadow-raised">
-                {formatLabel()}
-            </span>
-            <div className="h-px flex-1 bg-hairline" />
-        </div>
+        <>
+            <div className="pointer-events-none sticky top-0 z-10 flex justify-center pt-2">
+                <span className="pointer-events-auto rounded-full border border-hairline bg-background px-3 py-0.5 text-[12px] font-medium tabular-nums text-label shadow-raised">
+                    {formatLabel()}
+                </span>
+            </div>
+            <div aria-hidden className="-mt-[19px] mb-3 h-px bg-hairline" />
+        </>
     );
 };

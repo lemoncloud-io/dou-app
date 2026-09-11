@@ -9,10 +9,11 @@ import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 import { lastChatNoOf, useAuthorNames, useChatMutations, useChats, usePanelWidth } from '../../../shared';
 import type { ChannelMember } from '../../channels';
 import { buildMemberNames, buildThread, foldReactions } from '../utils';
-import { useMentionables, useMessageViewer, type ReadCountOf } from '../hooks';
+import { useFileDrop, useImageAttachments, useMentionables, useMessageViewer, type ReadCountOf } from '../hooks';
 import { useThreadStore } from '../stores';
 import { Composer } from './Composer';
 import { MessageList } from './MessageList';
+import { AttachmentDropOverlay, AttachmentNoticeDialog } from './images';
 
 interface ThreadPanelProps {
     /** The channel the open thread belongs to (the host's selected channel). */
@@ -56,6 +57,8 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading, readCoun
     // Same viewer the chat pane builds, so own/optimistic messages name correctly.
     const viewer = useMessageViewer(channel);
     const mentionables = useMentionables(members);
+    const tray = useImageAttachments(`${channelId}::thread::${rootId}`);
+    const { isDragging, dropHandlers } = useFileDrop(tray.addFiles);
 
     const { root, threadMessages, replyCount } = useMemo(() => {
         const thread = buildThread(messages, rootId);
@@ -111,51 +114,60 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading, readCoun
                 onKeyDown={resizeByKey}
                 className="focus-ring absolute inset-y-0 left-0 z-10 w-1.5 cursor-col-resize transition-colors ease-tactile hover:bg-primary/40 active:bg-primary/60"
             />
-            <header className="flex h-14 shrink-0 items-center justify-between border-b border-hairline px-4">
-                <span className="truncate text-title text-foreground">{t('chat.thread.title')}</span>
+            <header className="flex h-[68px] shrink-0 items-center justify-between border-b border-hairline px-6">
+                <span className="truncate text-[18px] font-semibold tracking-[-0.01em] text-foreground">
+                    {t('chat.thread.title')}
+                </span>
                 <button
                     type="button"
                     onClick={closeThread}
                     title={t('chat.thread.close')}
                     aria-label={t('chat.thread.close')}
-                    className="focus-ring tactile flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile hover:bg-accent hover:text-foreground"
+                    className="focus-ring tactile -mr-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-foreground transition-colors ease-tactile hover:bg-accent"
                 >
-                    <X size={18} />
+                    <X size={20} />
                 </button>
             </header>
-            {root ? (
-                <MessageList
-                    key={rootId}
-                    messages={threadMessages}
-                    reactions={reactions}
-                    isLoading={false}
-                    viewer={viewer}
-                    names={names}
-                    membersLoading={membersLoading}
-                    threadReplyCount={replyCount}
-                    onRetry={retryMessage}
-                    onDiscard={handleDiscard}
-                    readCountOf={readCountOf}
-                />
-            ) : (
-                <div
-                    role="status"
-                    aria-live="polite"
-                    className="flex flex-1 flex-col items-center justify-center px-6 text-center"
-                >
-                    <p className="max-w-xs text-caption text-muted-foreground">{t('chat.thread.unavailable')}</p>
-                </div>
-            )}
-            {/* No root → nothing to reply to: don't show a composer at all (the editor
+            <div className="relative flex min-h-0 flex-1 flex-col" {...dropHandlers}>
+                {root ? (
+                    <MessageList
+                        key={rootId}
+                        messages={threadMessages}
+                        reactions={reactions}
+                        isLoading={false}
+                        viewer={viewer}
+                        names={names}
+                        membersLoading={membersLoading}
+                        threadReplyCount={replyCount}
+                        onRetry={retryMessage}
+                        onDiscard={handleDiscard}
+                        readCountOf={readCountOf}
+                    />
+                ) : (
+                    <div
+                        role="status"
+                        aria-live="polite"
+                        className="flex flex-1 flex-col items-center justify-center px-6 text-center"
+                    >
+                        <p className="max-w-xs text-caption text-muted-foreground">{t('chat.thread.unavailable')}</p>
+                    </div>
+                )}
+                {/* No root → nothing to reply to: don't show a composer at all (the editor
                 is always editable, so a disabled-looking one would be typeable-but-dead). */}
-            {root && (
-                <Composer
-                    onSend={handleReply}
-                    channelId={`${channelId}::thread::${rootId}`}
-                    placeholder={t('chat.thread.composerPlaceholder')}
-                    mentionables={mentionables}
-                />
-            )}
+                {root && (
+                    <Composer
+                        onSend={handleReply}
+                        channelId={`${channelId}::thread::${rootId}`}
+                        placeholder={t('chat.thread.composerPlaceholder')}
+                        mentionables={mentionables}
+                        attachments={tray.attachments}
+                        onAddFiles={tray.addFiles}
+                        onRemoveAttachment={tray.remove}
+                    />
+                )}
+                {isDragging && root && <AttachmentDropOverlay />}
+            </div>
+            <AttachmentNoticeDialog notice={tray.notice} onDismiss={tray.dismissNotice} />
         </aside>
     );
 };

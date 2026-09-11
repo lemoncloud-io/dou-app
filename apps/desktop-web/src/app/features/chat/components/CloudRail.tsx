@@ -73,7 +73,7 @@ export const CloudRail = ({
             {/* overflow-y:auto forces overflow-x to clip too, and items-center shrinks
                 this to exactly the tile width — pad so the -right-1/-top-1 remove
                 badge stays inside the clip box instead of getting sliced. */}
-            <div className="flex flex-1 flex-col items-center gap-1.5 overflow-y-auto scrollbar-hide px-1.5 py-1.5">
+            <div className="flex flex-1 flex-col items-center gap-3 overflow-y-auto scrollbar-hide px-1.5 py-1.5">
                 {clouds.length === 0 && (
                     <span className="px-1 text-center text-overline leading-tight text-rail-foreground">
                         {t('cloud.empty')}
@@ -93,13 +93,12 @@ export const CloudRail = ({
                                 aria-label={cloud.name ?? cloud.id}
                                 aria-current={isActive ? 'true' : undefined}
                                 className={cn(
-                                    'relative flex h-11 w-11 items-center justify-center text-callout font-semibold transition-all duration-150 ease-tactile tactile',
-                                    'rounded-2xl hover:rounded-xl focus-ring',
-                                    // Slack-style selected workspace: brighter corners + a light
-                                    // ring offset from the rail, instead of a faint left bar.
+                                    'relative flex h-12 w-12 items-center justify-center rounded-[14px] text-[20px] font-bold transition-colors duration-150 ease-tactile tactile focus-ring',
+                                    // Figma Icon Rail: the active cloud is a black tile with a
+                                    // lime ring and lime initial; the others sit quiet on the rail.
                                     isActive
-                                        ? 'rounded-xl bg-primary text-primary-foreground shadow-raised ring-2 ring-rail-foreground/80 ring-offset-2 ring-offset-rail'
-                                        : 'bg-rail-muted text-rail-foreground hover:bg-rail-muted/70',
+                                        ? 'border-2 border-primary bg-black text-primary'
+                                        : 'border border-hairline bg-background text-rail-foreground hover:border-primary/60',
                                     isInactive && 'opacity-50',
                                     // Block a second switch mid-handshake; dim non-active icons for feedback.
                                     isSwitching && 'cursor-not-allowed',

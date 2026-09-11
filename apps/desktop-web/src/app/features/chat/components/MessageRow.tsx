@@ -26,6 +26,7 @@ import { Skeleton, UserProfilePopover, avatarStyle, useSavedItemsStore } from '.
 import { useMessageActions, useReactions } from '../hooks';
 import { QUICK_REACTIONS, useRecentEmojiStore } from '../stores';
 import { EmojiPicker } from './EmojiPicker';
+import { MessageImages } from './images';
 import { LinkPreviewCard } from './LinkPreviewCard';
 import { ReactionBar } from './ReactionBar';
 import { ReadReceipt } from './ReadReceipt';
@@ -258,12 +259,12 @@ export const MessageRow = memo(
             // The full-width hover band is the toolbar's runway: it has to read in
             // peripheral vision on wide windows, so it is stronger than a typical
             // list hover.
-            <div className="group flex gap-3 rounded-md px-2 py-1 -mx-2 transition-colors ease-tactile hover:bg-accent/70">
+            <div className="group -mx-2 flex gap-2.5 rounded-lg px-2 py-1.5 transition-colors ease-tactile hover:bg-accent/70">
                 <UserProfilePopover {...profileProps}>
                     {/* The focus ring traces the button, so its radius has to follow the
                         avatar's — a square ring around a round disc reads as a bug. */}
-                    <button type="button" className="focus-ring tactile h-8 w-8 shrink-0 rounded-full">
-                        <Avatar className="h-8 w-8">
+                    <button type="button" className="focus-ring tactile h-9 w-9 shrink-0 rounded-full">
+                        <Avatar className="h-9 w-9">
                             {group.avatar && <AvatarImage src={group.avatar} alt={group.ownerName} />}
                             <AvatarFallback className="text-caption font-semibold" style={avatarStyle(group.colorSeed)}>
                                 {initial}
@@ -272,20 +273,20 @@ export const MessageRow = memo(
                     </button>
                 </UserProfilePopover>
                 <div className="flex min-w-0 flex-1 flex-col">
-                    <div className="flex items-baseline gap-1.5">
+                    <div className="mb-1.5 flex items-baseline gap-2">
                         {group.namePending ? (
                             <Skeleton className="h-3.5 w-24 rounded" />
                         ) : (
                             <UserProfilePopover {...profileProps}>
                                 <button
                                     type="button"
-                                    className="focus-ring truncate rounded text-heading text-foreground hover:underline"
+                                    className="focus-ring truncate rounded text-[16px] font-bold leading-tight tracking-[-0.005em] text-foreground hover:underline"
                                 >
                                     {group.ownerName}
                                 </button>
                             </UserProfilePopover>
                         )}
-                        <span className="text-caption tabular-nums text-muted-foreground">
+                        <span className="text-[13px] font-medium tabular-nums tracking-[-0.005em] text-description">
                             {withDayInTime ? formatDayTime(group.timestamp, t) : formatTime(group.timestamp)}
                         </span>
                     </div>
@@ -466,6 +467,23 @@ export const MessageRow = memo(
                                                 </span>
                                             )}
                                         </p>
+                                    )}
+                                    {/* Images sit under the text (Figma: "본문 + 이미지 동시에 업로드
+                                        시 문구 상단 노출"). A tombstone or an open editor has none. */}
+                                    {message.id && !message.hidden && !isEditing && (
+                                        <MessageImages
+                                            messageId={message.id}
+                                            canDelete={group.isMine}
+                                            author={{
+                                                name: group.ownerName,
+                                                avatar: group.avatar,
+                                                colorSeed: group.colorSeed,
+                                                time: formatTime(
+                                                    message.createdAt ?? message.createdAtMs ?? group.timestamp
+                                                ),
+                                            }}
+                                            onReply={onOpenThread && (() => onOpenThread(threadRootId(message)))}
+                                        />
                                     )}
                                     {failure?.id === message.id && (
                                         <span className="mt-0.5 block text-caption text-destructive">

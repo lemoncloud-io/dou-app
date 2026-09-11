@@ -9,6 +9,7 @@ const ACCOUNT_SCOPED_STORAGE_KEYS = [
     'chatic-cloud-push-badges',
     'chatic-notification-prefs',
     'chatic-saved-items',
+    'chatic-favorite-channels',
     'chatic-mentions',
     'chatic-site-profile-cursor',
     'chatic-selected-channel',

@@ -35,6 +35,15 @@ vi.mock('../hooks', () => ({
     useMessageViewer: () => ({ uid: 'me', name: 'Me', cloudUid: 'me-cloud' }),
     useMessageActions: () => ({ editMessage: vi.fn(), deleteMessage: vi.fn(), failedId: null }),
     useReactions: () => ({ toggleReaction: vi.fn(), failedId: null }),
+    useImageAttachments: () => ({
+        attachments: [],
+        addFiles: vi.fn(),
+        remove: vi.fn(),
+        notice: null,
+        dismissNotice: vi.fn(),
+    }),
+    useFileDrop: () => ({ isDragging: false, dropHandlers: {} }),
+    useChatImages: () => [],
 }));
 // The composer is a rich-text editor with its own runtime needs; this file is about
 // what the panel renders above it.

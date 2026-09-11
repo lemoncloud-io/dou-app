@@ -7,15 +7,17 @@ import { DebugAuthPage } from './DebugAuthPage';
 import { DebugBadgeCountPage } from './DebugBadgeCountPage';
 import { DebugChatPage } from './DebugChatPage';
 import { DebugCustomUiPage } from './DebugCustomUiPage';
+import { DebugImagesPage } from './DebugImagesPage';
 import { DebugStatePage } from './DebugStatePage';
 import { DebugSyncPage } from './DebugSyncPage';
 
-type TabId = 'state' | 'sync' | 'chat' | 'badge' | 'customUi' | 'auth';
+type TabId = 'state' | 'sync' | 'chat' | 'images' | 'badge' | 'customUi' | 'auth';
 
 const TABS: { id: TabId; label: string }[] = [
     { id: 'state', label: 'State' },
     { id: 'sync', label: 'Socket / Cache' },
     { id: 'chat', label: 'Cache stream' },
+    { id: 'images', label: 'Images' },
     { id: 'badge', label: 'OS badge' },
     { id: 'customUi', label: 'Custom UI' },
     // Dev-only account switcher — tree-shaken from production builds so it never
@@ -27,6 +29,7 @@ const PAGES: Record<TabId, () => JSX.Element> = {
     state: DebugStatePage,
     sync: DebugSyncPage,
     chat: DebugChatPage,
+    images: DebugImagesPage,
     badge: DebugBadgeCountPage,
     customUi: DebugCustomUiPage,
     auth: DebugAuthPage,

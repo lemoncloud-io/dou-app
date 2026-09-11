@@ -22,19 +22,19 @@ export const DesktopLayout = ({ rail, rail2, sidebar, main, panel, overlay }: De
     <div className="relative flex h-dvh bg-background">
         <nav
             aria-label="Cloud workspaces"
-            className="flex w-[68px] shrink-0 flex-col items-center bg-rail py-3 pl-3 text-rail-foreground"
+            className="flex w-20 shrink-0 flex-col items-center bg-rail px-2.5 pb-5 pt-[18px] text-rail-foreground"
         >
             {rail}
         </nav>
         {rail2 && (
             <nav
                 aria-label="Places"
-                className="flex w-[64px] shrink-0 flex-col items-center border-l border-black/20 bg-gradient-to-b from-rail-elevated via-rail-elevated to-rail py-3 text-rail-foreground"
+                className="flex w-20 shrink-0 flex-col items-center bg-rail-elevated px-2 pb-5 pt-6 text-rail-foreground"
             >
                 {rail2}
             </nav>
         )}
-        <aside className="z-10 flex w-56 shrink-0 flex-col overflow-hidden border-r border-hairline bg-sidebar text-sidebar-foreground lg:w-64">
+        <aside className="z-10 flex w-60 shrink-0 flex-col overflow-hidden border-x border-hairline bg-sidebar text-sidebar-foreground lg:w-[286px]">
             {sidebar}
         </aside>
         <main className="flex flex-1 flex-col overflow-hidden">{main}</main>

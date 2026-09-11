@@ -1,12 +1,11 @@
-import { useRef } from 'react';
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { AtSign, Bookmark, Plus, Search, UserPen } from 'lucide-react';
-
-import { Input } from '@chatic/ui-kit/components/ui/input';
+import { AtSign, Bookmark, Search, UserPen } from 'lucide-react';
 
 import { Skeleton, unreadMentionCount, useMentionsStore } from '../../../shared';
 import { NotificationSnoozeButton } from './NotificationSnoozeButton';
+import { SIDEBAR_ACTION_ROW } from './sidebarStyles';
 
 interface SidebarHeaderProps {
     /** Display name of the active place (place switching now lives in the place rail). */
@@ -16,7 +15,6 @@ interface SidebarHeaderProps {
     isDefaultMode: boolean;
     query: string;
     onQueryChange: (value: string) => void;
-    onCreateChannel: () => void;
     /** Open the place-profile editor for the active place (per-place identity lives here). */
     onEditPlaceProfile: () => void;
     /** Open the device-local Saved-items trailing pane. */
@@ -25,10 +23,33 @@ interface SidebarHeaderProps {
     onOpenActivity: () => void;
 }
 
+interface ActionRowProps {
+    icon: ReactNode;
+    label: string;
+    onClick: () => void;
+    /** Small lime dot on the icon — something inside is unread. */
+    hasDot?: boolean;
+}
+
+const ActionRow = ({ icon, label, onClick, hasDot }: ActionRowProps) => (
+    <button type="button" onClick={onClick} className={SIDEBAR_ACTION_ROW}>
+        <span className="relative flex h-6 w-6 shrink-0 items-center justify-center rounded-md">
+            {icon}
+            {hasDot && (
+                <span
+                    aria-hidden
+                    className="absolute right-0 top-0 h-2 w-2 rounded-full bg-primary ring-2 ring-sidebar"
+                />
+            )}
+        </span>
+        <span className="truncate">{label}</span>
+    </button>
+);
+
 /**
- * Sidebar top: the active place as a static title (the place rail owns
- * switching), paired with the edit-my-profile and Saved actions, a channel
- * search box, and the channel-section label with a create action.
+ * Sidebar top (Figma Channel List Panel): the active place as a static title (the
+ * place rail owns switching), a pill channel search, and the per-place actions as
+ * labelled rows — edit my profile, notifications, activity, saved.
  */
 export const SidebarHeader = ({
     placeName,
@@ -36,7 +57,6 @@ export const SidebarHeader = ({
     isDefaultMode,
     query,
     onQueryChange,
-    onCreateChannel,
     onEditPlaceProfile,
     onOpenSaved,
     onOpenActivity,
@@ -45,83 +65,45 @@ export const SidebarHeader = ({
     // Select the boolean, not the count — the dot only re-renders on false↔true.
     const hasMentionUnread = useMentionsStore(s => unreadMentionCount(s.items) > 0);
     const showPlaceSkeleton = isLoading && !placeName && !isDefaultMode;
-    // ⌘K now opens the QuickSwitcher (see QuickSwitcher.tsx); the inline filter
-    // below stays click-to-use.
-    const searchRef = useRef<HTMLInputElement>(null);
 
     return (
-        <div className="flex flex-col gap-2.5 border-b border-hairline px-3 pb-3 pt-3">
-            {/* Active place title + per-place actions (edit profile, Saved items). */}
-            <div className="flex items-center gap-1">
+        <div className="flex flex-col gap-1 px-4 pt-7">
+            <div className="flex flex-col gap-4">
                 {showPlaceSkeleton ? (
-                    <Skeleton className="h-5 w-28 flex-1" />
+                    <Skeleton className="h-5 w-28" />
                 ) : (
-                    <span className="min-w-0 flex-1 truncate px-2 py-1.5 text-title text-sidebar-foreground">
+                    <h2 className="truncate px-0.5 text-[18px] font-semibold tracking-[-0.01em] text-sidebar-foreground">
                         {isDefaultMode ? t('place.home') : placeName || t('place.none')}
-                    </span>
+                    </h2>
                 )}
+                {/* ⌘K opens the QuickSwitcher (see QuickSwitcher.tsx); this inline filter stays click-to-use. */}
+                <label className="flex items-center gap-2 rounded-full bg-well px-3.5 py-3 focus-within:ring-2 focus-within:ring-primary/50">
+                    <Search size={16} aria-hidden className="shrink-0 text-muted-foreground" />
+                    <input
+                        value={query}
+                        onChange={e => onQueryChange(e.target.value)}
+                        placeholder={t('sidebar.search')}
+                        aria-label={t('sidebar.search')}
+                        className="min-w-0 flex-1 bg-transparent text-[14px] tracking-[-0.01em] text-foreground outline-none placeholder:text-placeholder"
+                    />
+                </label>
+            </div>
+            <div className="flex flex-col gap-2 py-2">
                 {!isDefaultMode && (
-                    <button
+                    <ActionRow
+                        icon={<UserPen size={18} aria-hidden />}
+                        label={t('sidebar.editMyProfile')}
                         onClick={onEditPlaceProfile}
-                        title={t('sidebar.editMyProfile')}
-                        aria-label={t('sidebar.editMyProfile')}
-                        className="focus-ring tactile flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile hover:bg-accent hover:text-foreground"
-                    >
-                        <UserPen size={16} aria-hidden />
-                    </button>
+                    />
                 )}
                 <NotificationSnoozeButton />
-                <button
+                <ActionRow
+                    icon={<AtSign size={18} aria-hidden />}
+                    label={t('activity.title')}
                     onClick={onOpenActivity}
-                    title={t('activity.title')}
-                    aria-label={t('activity.title')}
-                    className="focus-ring tactile relative flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile hover:bg-accent hover:text-foreground"
-                >
-                    <AtSign size={16} aria-hidden />
-                    {hasMentionUnread && (
-                        <span
-                            aria-hidden
-                            className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-primary ring-2 ring-background"
-                        />
-                    )}
-                </button>
-                <button
-                    onClick={onOpenSaved}
-                    title={t('saved.title')}
-                    aria-label={t('saved.title')}
-                    className="focus-ring tactile flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile hover:bg-accent hover:text-foreground"
-                >
-                    <Bookmark size={16} aria-hidden />
-                </button>
-            </div>
-
-            <div className="relative">
-                <Search
-                    size={16}
-                    className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+                    hasDot={hasMentionUnread}
                 />
-                <Input
-                    ref={searchRef}
-                    value={query}
-                    onChange={e => onQueryChange(e.target.value)}
-                    placeholder={t('sidebar.search')}
-                    className="focus-ring min-h-9 border-hairline bg-well pl-8 text-callout shadow-well transition-shadow ease-tactile"
-                />
-            </div>
-
-            <div className="flex items-center justify-between px-2 pt-1">
-                <span className="text-overline text-muted-foreground">{t('sidebar.channels')}</span>
-                {/* Default Cloud (Self Channel only) does not support channel creation — hide the action. */}
-                {!isDefaultMode && (
-                    <button
-                        onClick={onCreateChannel}
-                        title={t('rail.addChannel')}
-                        aria-label={t('rail.addChannel')}
-                        className="focus-ring tactile -mr-1 flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile hover:bg-accent hover:text-foreground"
-                    >
-                        <Plus size={16} aria-hidden />
-                    </button>
-                )}
+                <ActionRow icon={<Bookmark size={18} aria-hidden />} label={t('saved.title')} onClick={onOpenSaved} />
             </div>
         </div>
     );

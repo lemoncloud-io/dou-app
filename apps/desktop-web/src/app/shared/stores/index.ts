@@ -16,3 +16,4 @@ export * from './useLastChannelStore';
 export * from './useDebugModeStore';
 export * from './useSocketFrameLogStore';
 export * from './useUpdateStore';
+export * from './useFavoriteChannelsStore';

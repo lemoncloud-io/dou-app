@@ -45,6 +45,8 @@ const dialogVariants = {
     default:
         'p-6 left-[50%] top-[50%] w-full max-w-[min(32rem,var(--app-width,100%))] translate-x-[-50%] translate-y-[-50%] border rounded-lg data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg',
     fullscreen: `inset-0 ${APP_WIDTH_CAP} pt-safe-top pb-safe-bottom pl-safe-left pr-safe-right w-full border-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]`,
+    /** No placement or entrance of its own — the caller's `className` positions the panel. */
+    bare: '',
     'slide-up': `inset-0 ${APP_WIDTH_CAP} pt-safe-top pb-safe-bottom pl-safe-left pr-safe-right w-full border-0 data-[state=closed]:slide-out-to-bottom-full data-[state=open]:slide-in-from-bottom-full duration-500 [transition-timing-function:cubic-bezier(0.32,0.72,0,1)] [--tw-enter-duration:5000ms] [--tw-exit-duration:5000ms]`,
 };
 
@@ -52,11 +54,13 @@ const DialogContent = React.forwardRef<
     React.ElementRef<typeof DialogPrimitive.Content>,
     React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
         hideClose?: boolean;
-        variant?: 'default' | 'fullscreen' | 'slide-up';
+        variant?: keyof typeof dialogVariants;
+        /** Restyles the backdrop (e.g. a frosted one) without leaving the kit's portal/overlay pairing. */
+        overlayClassName?: string;
     }
->(({ className, children, hideClose, variant = 'default', ...props }, ref) => (
+>(({ className, children, hideClose, variant = 'default', overlayClassName, ...props }, ref) => (
     <DialogPortal>
-        <DialogOverlay />
+        <DialogOverlay className={overlayClassName} />
         <DialogPrimitive.Content
             ref={ref}
             className={cn(

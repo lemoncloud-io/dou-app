@@ -3,7 +3,10 @@ import { useTranslation } from 'react-i18next';
 
 import { runtime } from '@chatic/app-runtime';
 
+import { Hash, Search, Star, User } from 'lucide-react';
+
 import type { DomainChannel, DomainChat } from '@chatic/data';
+import { cn } from '@chatic/lib/utils';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import {
@@ -15,6 +18,7 @@ import {
     useAuthorNames,
     useChatMutations,
     useChats,
+    useFavoriteChannelsStore,
     useMessageJumpStore,
     useOpenAtBottomStore,
     useReadCursorStore,
@@ -22,12 +26,16 @@ import {
 } from '../../../shared';
 import type { ChannelMember } from '../../channels';
 import { useChannelSettingsStore } from '../../channels';
+import { useSearchDialogStore } from '../../search';
 import { buildMemberNames, buildThreadIndex, foldReactions, isFeedVisible } from '../utils';
-import { useMentionables, useMessageViewer, type ReadCountOf } from '../hooks';
+import { useFileDrop, useImageAttachments, useMentionables, useMessageViewer, type ReadCountOf } from '../hooks';
 import { useThreadStore } from '../stores';
 import { ChannelHeaderMenu } from './ChannelHeaderMenu';
+import { ChannelIntro } from './ChannelIntro';
 import { Composer } from './Composer';
 import { MessageList } from './MessageList';
+import { HEADER_ICON_BUTTON } from './headerStyles';
+import { AttachmentDropOverlay, AttachmentNoticeDialog } from './images';
 
 interface ChatPaneProps {
     channel: DomainChannel | undefined;
@@ -57,6 +65,9 @@ export const ChatPane = ({ channel, members, membersLoading, readCountOf }: Chat
     const handleDiscard = useCallback((message: DomainChat) => void discardMessage(message), [discardMessage]);
     const handleLoadOlder = useCallback(() => void loadOlder(), [loadOlder]);
     const openSettings = useChannelSettingsStore(s => s.open);
+    const openSearch = useSearchDialogStore(s => s.setOpen);
+    const isFavorite = useFavoriteChannelsStore(s => (channelId ? !!s.ids[channelId] : false));
+    const toggleFavorite = useFavoriteChannelsStore(s => s.toggle);
     const openThread = useThreadStore(s => s.open);
     // Saved-item / search jump: forward a target to MessageList only when it
     // belongs to the open channel; clear it once the list has consumed it.
@@ -109,6 +120,11 @@ export const ChatPane = ({ channel, members, membersLoading, readCountOf }: Chat
 
     const mentionables = useMentionables(members);
 
+    // The image tray belongs to the open channel: switching channels drops it (and its
+    // object URLs) the way a thread switch does in ThreadPanel.
+    const tray = useImageAttachments(channelId ?? '');
+    const { isDragging, dropHandlers } = useFileDrop(tray.addFiles);
+
     // Report read position while this channel is open + the window is focused.
     useReadReceipts(channelId, messages);
 
@@ -147,34 +163,56 @@ export const ChatPane = ({ channel, members, membersLoading, readCountOf }: Chat
     // DM headers carry the other party's name (roster is already loaded here);
     // the self channel reads as "You".
     let headerName = channel.name ?? channelId;
+    const counterpartId = isDmChannel(channel) ? dmCounterpartId(channel, viewer.uid, viewer.cloudUid) : undefined;
     if (isSelfChannel(channel)) {
         headerName = t('dm.you');
     } else if (isDmChannel(channel)) {
-        const counterpart = members.find(m => m.id === dmCounterpartId(channel, viewer.uid, viewer.cloudUid));
+        const counterpart = members.find(m => m.id === counterpartId);
         if (counterpart) headerName = displayName(counterpart);
     }
+    const introKind = isSelfChannel(channel) ? 'self' : isDmChannel(channel) ? 'dm' : 'channel';
+    const intro = (
+        <ChannelIntro
+            kind={introKind}
+            name={headerName}
+            description={introKind === 'channel' ? desc : undefined}
+            colorSeed={counterpartId ?? undefined}
+            isFavorite={isFavorite}
+            onToggleFavorite={() => toggleFavorite(channelId)}
+            onOpenSettings={introKind === 'channel' ? () => openSettings(channelId) : undefined}
+        />
+    );
 
     return (
         <>
-            <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-hairline border-b px-4">
-                <button
-                    type="button"
-                    onClick={() => openSettings(channelId)}
-                    title={t('chat.header.settings')}
-                    className="focus-ring tactile flex min-w-0 items-center gap-2 rounded-md py-1 text-left transition-colors ease-tactile hover:bg-accent"
-                >
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-heading text-primary-ink">
-                        #
-                    </span>
-                    <span className="truncate text-title text-foreground">{headerName}</span>
-                    {desc && <span className="truncate text-caption text-muted-foreground">{desc}</span>}
-                    {memberCount > 0 && (
-                        <span className="border-hairline shrink-0 border-l pl-2 text-caption tabular-nums text-muted-foreground">
-                            {t('channels.settings.memberCount', { count: memberCount })}
+            <header className="flex h-[68px] shrink-0 items-center justify-between gap-2 border-b border-hairline px-6 py-2">
+                <div className="flex min-w-0 items-center gap-3.5">
+                    <button
+                        type="button"
+                        onClick={() => openSettings(channelId)}
+                        title={desc ? `${t('chat.header.settings')} — ${desc}` : t('chat.header.settings')}
+                        className="focus-ring tactile flex min-w-0 items-center gap-1 rounded-md text-left"
+                    >
+                        {!isDmChannel(channel) && !isSelfChannel(channel) && (
+                            <Hash size={16} aria-hidden className="shrink-0 text-foreground" />
+                        )}
+                        <span className="truncate text-[18px] font-semibold tracking-[-0.01em] text-foreground hover:underline">
+                            {headerName}
                         </span>
+                    </button>
+                    {memberCount > 0 && (
+                        <button
+                            type="button"
+                            onClick={() => openSettings(channelId)}
+                            aria-label={t('channels.settings.memberCount', { count: memberCount })}
+                            className="focus-ring flex shrink-0 items-center gap-1 rounded-md bg-muted px-1.5 py-1 text-[13px] tabular-nums tracking-[-0.01em] text-label transition-colors hover:bg-accent"
+                        >
+                            <User size={16} aria-hidden />
+                            {memberCount}
+                        </button>
                     )}
-                </button>
-                <div className="flex shrink-0 items-center gap-2">
+                </div>
+                <div className="flex shrink-0 items-center gap-4">
                     {!isVerified && (
                         <span
                             role="status"
@@ -184,37 +222,65 @@ export const ChatPane = ({ channel, members, membersLoading, readCountOf }: Chat
                             {t('chat.connecting')}
                         </span>
                     )}
+                    <button
+                        type="button"
+                        onClick={() => toggleFavorite(channelId)}
+                        aria-pressed={isFavorite}
+                        title={t(isFavorite ? 'chat.header.unfavorite' : 'chat.header.favorite')}
+                        aria-label={t(isFavorite ? 'chat.header.unfavorite' : 'chat.header.favorite')}
+                        className={HEADER_ICON_BUTTON}
+                    >
+                        <Star size={18} aria-hidden className={cn(isFavorite && 'fill-favorite text-favorite')} />
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => openSearch(true)}
+                        title={t('chat.header.search')}
+                        aria-label={t('chat.header.search')}
+                        className={HEADER_ICON_BUTTON}
+                    >
+                        <Search size={18} aria-hidden />
+                    </button>
                     <ChannelHeaderMenu channel={channel} myUid={myUid} />
                 </div>
             </header>
-            <MessageList
-                key={channelId}
-                messages={topLevel}
-                reactions={reactions}
-                isLoading={isLoading}
-                viewer={viewer}
-                names={memberNames}
-                membersLoading={membersLoading}
-                baselineReadNo={baselineReadNo}
-                onRetry={retryMessage}
-                onDiscard={handleDiscard}
-                onLoadOlder={handleLoadOlder}
-                hasMore={hasMore}
-                isLoadingOlder={isLoadingOlder}
-                scrollSignal={sendTick}
-                openAtBottom={openAtBottom}
-                threadMeta={threadIndex}
-                onOpenThread={openThread}
-                jumpTarget={jumpTarget}
-                onJumpConsumed={clearJump}
-                readCountOf={readCountOf}
-            />
-            <Composer
-                onSend={handleSend}
-                channelId={channelId}
-                placeholder={t('chat.composer.placeholderChannel', { name: headerName })}
-                mentionables={mentionables}
-            />
+            <div className="relative flex min-h-0 flex-1 flex-col" {...dropHandlers}>
+                <MessageList
+                    key={channelId}
+                    messages={topLevel}
+                    reactions={reactions}
+                    isLoading={isLoading}
+                    viewer={viewer}
+                    names={memberNames}
+                    membersLoading={membersLoading}
+                    baselineReadNo={baselineReadNo}
+                    onRetry={retryMessage}
+                    onDiscard={handleDiscard}
+                    onLoadOlder={handleLoadOlder}
+                    hasMore={hasMore}
+                    isLoadingOlder={isLoadingOlder}
+                    scrollSignal={sendTick}
+                    openAtBottom={openAtBottom}
+                    threadMeta={threadIndex}
+                    onOpenThread={openThread}
+                    jumpTarget={jumpTarget}
+                    onJumpConsumed={clearJump}
+                    readCountOf={readCountOf}
+                    intro={intro}
+                />
+                <Composer
+                    onSend={handleSend}
+                    channelId={channelId}
+                    placeholder={t('chat.composer.placeholderChannel', { name: headerName })}
+                    mentionables={mentionables}
+                    attachments={tray.attachments}
+                    onAddFiles={tray.addFiles}
+                    onRemoveAttachment={tray.remove}
+                    capturesTyping
+                />
+                {isDragging && <AttachmentDropOverlay />}
+            </div>
+            <AttachmentNoticeDialog notice={tray.notice} onDismiss={tray.dismissNotice} />
         </>
     );
 };

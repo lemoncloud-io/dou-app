@@ -47,9 +47,9 @@ interface PlaceTileProps {
     onSelect: (placeId: string) => void;
 }
 
-/** One place, Slack section-rail style: a restrained monochrome icon box + label.
- *  Active = a lighter rounded box with a brighter icon/label. Color is reserved
- *  for the cloud rail and thumbnails — the nav itself stays grayscale. */
+/** One place, Figma Workspace Rail style: a 48px icon box with the name under it.
+ *  Active = the box fills with the rail's muted tone; color stays reserved for the
+ *  cloud rail and thumbnails. */
 const PlaceTile = ({ id, name, thumbnail, glyph, isActive, unread, isSwitching, onSelect }: PlaceTileProps) => (
     <button
         onClick={() => onSelect(id)}
@@ -58,7 +58,7 @@ const PlaceTile = ({ id, name, thumbnail, glyph, isActive, unread, isSwitching, 
         aria-label={name}
         aria-current={isActive ? 'true' : undefined}
         className={cn(
-            'group flex w-full flex-col items-center gap-1 rounded-lg px-0.5 py-1 focus-ring',
+            'group flex w-full flex-col items-center gap-1 rounded-lg focus-ring',
             isSwitching && 'cursor-not-allowed',
             isSwitching && !isActive && 'opacity-40'
         )}
@@ -66,10 +66,8 @@ const PlaceTile = ({ id, name, thumbnail, glyph, isActive, unread, isSwitching, 
         <span className="relative">
             <span
                 className={cn(
-                    'flex h-10 w-10 items-center justify-center overflow-hidden text-callout font-semibold transition-all duration-150 ease-tactile tactile rounded-xl',
-                    isActive
-                        ? 'bg-primary/20 text-primary ring-1 ring-inset ring-primary/40 shadow-raised'
-                        : 'bg-transparent text-rail-foreground/55 group-hover:bg-rail-foreground/10 group-hover:text-rail-foreground/90'
+                    'flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl text-callout font-semibold text-rail-foreground transition-colors duration-150 ease-tactile tactile',
+                    isActive ? 'bg-rail-muted' : 'bg-transparent group-hover:bg-rail-muted/70'
                 )}
             >
                 {thumbnail ? (
@@ -81,15 +79,15 @@ const PlaceTile = ({ id, name, thumbnail, glyph, isActive, unread, isSwitching, 
                 )}
             </span>
             {unread > 0 && (
-                <span className="pointer-events-none absolute -right-2 -top-2 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-rail-elevated bg-badge-unread px-1.5 text-[11px] font-bold leading-none text-badge-unread-foreground shadow-raised">
+                <span className="pointer-events-none absolute -right-1.5 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-badge-unread px-1 text-[11px] font-semibold leading-none text-badge-unread-foreground">
                     {unread > 99 ? '99+' : unread}
                 </span>
             )}
         </span>
         <span
             className={cn(
-                'max-w-full truncate text-[10px] leading-tight transition-colors',
-                isActive ? 'font-semibold text-primary' : 'text-rail-foreground/55 group-hover:text-rail-foreground/80'
+                'max-w-full truncate text-[14px] font-medium leading-tight text-rail-foreground transition-opacity',
+                !isActive && 'opacity-70 group-hover:opacity-100'
             )}
         >
             {name}
@@ -144,14 +142,16 @@ export const PlaceRail = ({
 
     return (
         <div className="flex h-full w-full flex-col items-center">
-            <div className="flex w-full flex-1 flex-col items-stretch gap-0.5 overflow-y-auto scrollbar-hide px-1.5 py-1.5">
+            {/* overflow-y:auto clips overflow-x too — the pt/px give the -top/-right unread
+                badge room inside the clip box instead of slicing it. */}
+            <div className="-mt-2 flex w-full flex-1 flex-col items-stretch gap-4 overflow-y-auto scrollbar-hide px-1 pt-2">
                 {isDefaultMode ? (
                     // Home / Guest: no joinable places, but show the default Home place
                     // so the rail is never empty and the active place stays visible.
                     <PlaceTile
                         id="default"
                         name={t('place.home')}
-                        glyph={<Home size={18} strokeWidth={2} aria-hidden />}
+                        glyph={<Home size={22} strokeWidth={2} aria-hidden />}
                         isActive
                         unread={0}
                         onSelect={onSelectPlace}
@@ -179,22 +179,24 @@ export const PlaceRail = ({
                 onClick={onSecretTap}
                 className="my-1 flex w-full shrink-0 cursor-default justify-center py-1"
             >
-                <span className="h-px w-9 bg-rail-foreground/15" />
+                <span className="h-px w-9 bg-hairline" />
             </button>
 
             <DropdownMenu>
                 <DropdownMenuTrigger
                     aria-label={selfName || t('rail.menu.profile')}
-                    className="group relative mb-0.5 transition-transform duration-150 ease-tactile tactile focus-ring rounded-[14px]"
+                    className="group relative transition-transform duration-150 ease-tactile tactile focus-ring rounded-full"
                 >
-                    <Avatar className="h-10 w-10 rounded-xl ring-1 ring-rail-foreground/20 transition-all group-hover:ring-rail-foreground/40">
-                        {userPhoto && <AvatarImage src={userPhoto} alt={selfName} className="rounded-xl" />}
-                        <AvatarFallback className="rounded-xl bg-rail-foreground/10 text-callout font-semibold text-rail-foreground">
+                    {/* Figma "1명 Profile": navy (blue_bk #102346) disc with a green
+                        (Colors/Green #34C759) presence dot — same in both themes. */}
+                    <Avatar className="h-12 w-12 rounded-full">
+                        {userPhoto && <AvatarImage src={userPhoto} alt={selfName} className="rounded-full" />}
+                        <AvatarFallback className="rounded-full bg-[#102346] text-heading font-semibold text-white">
                             {userInitial || <User size={17} aria-hidden />}
                         </AvatarFallback>
                     </Avatar>
                     {/* presence dot — signals "you, signed in" so the slot reads intentional, not empty */}
-                    <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-rail-elevated bg-emerald-500" />
+                    <span className="absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full border-2 border-rail-elevated bg-[#34C759]" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent side="right" align="end" sideOffset={6}>
                     <DropdownMenuItem onClick={() => navigate('/profile')}>{t('rail.menu.profile')}</DropdownMenuItem>

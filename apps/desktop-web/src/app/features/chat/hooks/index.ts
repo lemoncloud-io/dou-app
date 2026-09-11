@@ -4,3 +4,6 @@ export * from './useMentionables';
 export * from './useMessageActions';
 export * from './useReactions';
 export * from './useReadCounts';
+export * from './useChatImages';
+export * from './useImageAttachments';
+export * from './useFileDrop';
