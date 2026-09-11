@@ -32,8 +32,22 @@ import { mergeRefreshedCloudToken, mergeRefreshedRelayToken } from './utils/toke
  * SDK-injected token argument is ignored and the signature is recomputed from the server's stored
  * fields.
  */
+/**
+ * The seed `auth.register` needs, plus the material the SAME kind signs with.
+ *
+ * `signing` is **diagnostic only** — `register()` takes `token`/`authId` and nothing else. It rides
+ * along because these three values are read from one store in one place here, and the question they
+ * answer (which of the HMAC's keys does the server disagree with?) is otherwise unanswerable from a
+ * log: the only way to ask it once was a production DynamoDB read.
+ */
+export interface AuthRegistration {
+    token: string;
+    authId: string;
+    signing?: { accountId?: string; identityId?: string };
+}
+
 export interface ISessionAuthAdapter {
-    getAuthRegistration(kind: ServerKind): Promise<{ token: string; authId: string } | null>;
+    getAuthRegistration(kind: ServerKind): Promise<AuthRegistration | null>;
     signAuth(kind: ServerKind, target?: string): Promise<{ signature: string; current: string }>;
     commitRefreshedToken(kind: ServerKind, view: UserTokenView): Promise<void>;
 }
@@ -46,18 +60,28 @@ export type ServerKind = 'relay' | 'cloud';
  * either field is unavailable so the caller can defer register until a token exists.
  */
 class SessionAuthAdapter implements ISessionAuthAdapter {
-    async getAuthRegistration(kind: ServerKind): Promise<{ token: string; authId: string } | null> {
+    async getAuthRegistration(kind: ServerKind): Promise<AuthRegistration | null> {
         if (kind === 'cloud') {
+            const cloudToken = cloudStore.getCloudToken()?.Token;
             const token = cloudStore.getIdentityToken();
-            const authId = cloudStore.getCloudToken()?.Token?.authId ?? null;
-            return token && authId ? { token, authId } : null;
+            const authId = cloudToken?.authId ?? null;
+            return token && authId
+                ? { token, authId, signing: { accountId: cloudToken?.accountId, identityId: cloudToken?.identityId } }
+                : null;
         }
 
         // relay: identity token from the relay store, authId from the cached lemon signature.
+        const relayToken = relayStore.getRelayToken();
         const token = relayStore.getIdentityToken();
-        const authId = relayStore.getRelayToken()?.$auth?.id || null;
+        const authId = relayToken?.$auth?.id || null;
 
-        return token && authId ? { token, authId } : null;
+        return token && authId
+            ? {
+                  token,
+                  authId,
+                  signing: { accountId: relayToken?.Token?.accountId, identityId: relayToken?.Token?.identityId },
+              }
+            : null;
     }
 
     /**
@@ -85,10 +109,43 @@ class SessionAuthAdapter implements ISessionAuthAdapter {
 
         // relay: compute the signature over `$auth.id` ourselves instead of reusing
         // webTransport.getTokenSignature(), which keys on `Token.authId` for the HTTP refresh path.
+        //
+        // **Source of truth is the server's own signer, not this client.** `oauth2-support.ts`'s
+        // `_sign`/`validateSignature` read EVERY field off the auth model — `$auth.id`,
+        // `$auth.accountId`, `$auth.identityId` — so we read from `$auth` wherever the view exposes it.
+        //
+        // `identityId` is the one field we cannot follow. **`AuthView` declares it** — the type is
+        // `Omit<Partial<AuthModel>, 'id'>`, so `$auth.identityId` compiles — but the wire never carries
+        // it: `asUserTokenView` renders `$auth` with `hasCores = false`, and the transformer emits
+        // `identityId` only on the `hasCores` branch. Reading it there would typecheck and be
+        // `undefined` forever, so it is taken from `Token` on the ASSUMPTION that the two agree.
+        //
+        // In `issueAccessToken` they provably do — one local `identityId` (the Cognito response) is
+        // written to the auth model and returned on `Token` in the same breath. The assumption breaks
+        // exactly where this track's bug lives: a site-switch child auth is written WITHOUT the field,
+        // so the server computes with `''` while we send the real one. Nothing on the wire tells us
+        // that, which is why the divergence we CAN see is logged below rather than silently preferred.
         const relayToken = relayStore.getRelayToken();
-        const authId = relayToken?.$auth?.id;
-        const accountId = relayToken?.Token?.accountId;
+        const relayAuth = relayToken?.$auth;
+        const authId = relayAuth?.id;
         const identityId = relayToken?.Token?.identityId;
+
+        // `$auth.accountId` first — it is what the server verifies against. `Token.accountId` is the
+        // same value today (both are `$account.id` in `issueAccessToken`, and `makeAuthByAccount`
+        // writes the same for a child), so this is a no-op that pins the SOURCE rather than the value.
+        // It stops being a no-op if `issueAccessToken`'s `options.accountId` override is ever used —
+        // that line rewrites `Token.accountId` alone and would reopen this exact class of bug.
+        const accountId = relayAuth?.accountId ?? relayToken?.Token?.accountId;
+        if (
+            relayAuth?.accountId &&
+            relayToken?.Token?.accountId &&
+            relayAuth.accountId !== relayToken.Token.accountId
+        ) {
+            logger.warn('AUTH', '[signAuth] relay accountId differs between $auth and Token', {
+                data: { authId, auth: relayAuth.accountId, token: relayToken.Token.accountId },
+            });
+        }
+
         if (!authId || !accountId || !identityId) {
             throw new Error('Missing relay token fields for socket auth signature');
         }
@@ -129,10 +186,27 @@ class SessionAuthAdapter implements ISessionAuthAdapter {
         } else if (view.Token) {
             // Merge rules + their justification live in `utils/tokenMerge` (ADR-0076 결정 5): the three
             // preserved `Token` fields each have their own reason and now each has its own test.
-            const merged = mergeRefreshedRelayToken(
-                relayStore.getRelayToken(),
-                view as Parameters<typeof mergeRefreshedRelayToken>[1]
-            );
+            const stored = relayStore.getRelayToken();
+            const merged = mergeRefreshedRelayToken(stored, view as Parameters<typeof mergeRefreshedRelayToken>[1]);
+
+            // The merge DISCARDS a server-sent `$auth` when one is already stored, because a site
+            // switch returns a child auth that cannot be signed with (see `mergeRefreshedRelayToken`).
+            // That is a silent decision against the server's own answer, so say it out loud — and carry
+            // the signing material, because the next question is always "which of these three keys does
+            // the server disagree with", and answering it once cost a production DynamoDB read.
+            const offered = (view as UserTokenView & { $auth?: { id?: string } }).$auth?.id;
+            const held = (stored as (UserTokenView & { $auth?: { id?: string } }) | null)?.$auth?.id;
+            if (offered && held && offered !== held) {
+                logger.warn('AUTH', '[commitServerRefreshedToken] kept the stored $auth, dropped the served one', {
+                    data: {
+                        kind,
+                        held,
+                        offered,
+                        accountId: merged.Token?.accountId,
+                        identityId: merged.Token?.identityId,
+                    },
+                });
+            }
             // `credential` is OPTIONAL in the wire contract, and lemon's `buildCredentialsByToken`
             // throws `.AccessKeyId (string) is required!` when it is absent — which used to take the
             // store write below down with it, silently: the caller fires this writeback with `void`, so

@@ -30,6 +30,7 @@ const GROUPS: Record<string, readonly string[]> = {
         'SWITCH_CLOUD_MUTATION_KEY',
         'SWITCH_SITE_MUTATION_KEY',
         'applySessionToken',
+        'authFailureReaction',
         'createCredentialsByProvider',
         'fetchInviteInfoWithCode',
         'getActiveServerContext',

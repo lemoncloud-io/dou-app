@@ -1,101 +1,171 @@
 /**
  * `components/report-logs/ReportLogTable.tsx`
- * - Summary table of report rows. No shared table component exists in admin-v2,
- *   so it is hand-rolled with Tailwind utilities + theme tokens.
+ * - The list view: one row per record, with the tracking axes pinnable in place.
+ *
+ * Structure comes from the shared `Table` primitives so this screen matches the rest of
+ * the console. The badge palette stays local (`lib/badgeClass`) because the shared `Badge`
+ * variants only cover default/secondary/destructive/outline, and a `warn` level needs to
+ * read as distinct from both `error` and `info` — collapsing them would lose the axis an
+ * operator scans by.
+ *
+ * Time shown is occurrence time, with a lag badge when arrival trailed it noticeably.
+ * See `eventTime.ts` for why the two clocks are not interchangeable.
  */
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@chatic/ui-kit/components/ui/table';
+
+import type { PinKey } from '../hooks/use-log-console-state';
+import { rowBadge } from '../lib/badgeClass';
+import { eventAt, hasNoticeableLag, isOutsideRange } from '../lib/eventTime';
 import type { ReportLogRow } from '../lib/parseReportLog';
-import { formatRelative } from '../lib/reportLogFormat';
+import { formatAbsolute, formatRelative } from '../lib/reportLogFormat';
+import { PinButton } from './PinButton';
 
 interface ReportLogTableProps {
     rows: ReportLogRow[];
     onSelect: (row: ReportLogRow) => void;
     selectedId?: string;
+    onPin: (axis: PinKey, value: string) => void;
+    onUnpin: (axis: PinKey) => void;
+    pinned: Partial<Record<PinKey, string>>;
+    /**
+     * Requested range in ms, so a row whose occurrence time falls outside it can say so.
+     * The server matched the range on arrival time, so this happens legitimately at the
+     * edges — marking the affected rows is more use than the blanket caveat in the rail.
+     */
+    range?: { fromMs?: number; toMs?: number };
 }
 
-const TYPE_BADGE: Record<ReportLogRow['type'], string> = {
-    error: 'bg-destructive text-destructive-foreground',
-    issue: 'bg-primary text-primary-foreground',
-    'log-entry': 'bg-muted text-muted-foreground',
-    unknown: 'bg-muted text-muted-foreground',
-};
-
-/** `log-entry` rows show their `level` here instead of the generic type — that's the axis worth scanning by. */
-const LEVEL_BADGE: Record<string, string> = {
-    error: 'bg-destructive text-destructive-foreground',
-    warn: 'bg-yellow-500 text-black',
-    info: 'bg-primary text-primary-foreground',
-    debug: 'bg-muted text-muted-foreground',
-};
-
-const absoluteTime = (ms?: number): string => (ms ? new Date(ms).toLocaleString() : '-');
-
-export const ReportLogTable = ({ rows, onSelect, selectedId }: ReportLogTableProps) => {
+export const ReportLogTable = ({ rows, onSelect, selectedId, onPin, onUnpin, pinned, range }: ReportLogTableProps) => {
     if (rows.length === 0) {
-        return <p className="px-4 py-10 text-center text-sm text-muted-foreground">표시할 리포트가 없습니다.</p>;
+        return <p className="px-4 py-10 text-center text-sm text-muted-foreground">표시할 로그가 없습니다.</p>;
     }
 
     return (
-        <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-sm">
-                <thead>
-                    <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
-                        <th className="px-3 py-2 font-medium">Type</th>
-                        <th className="px-3 py-2 font-medium">제목</th>
-                        <th className="px-3 py-2 font-medium">메시지</th>
-                        <th className="px-3 py-2 font-medium">사용자</th>
-                        <th className="px-3 py-2 font-medium">App/Source</th>
-                        <th className="px-3 py-2 font-medium">시각</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {rows.map(row => (
-                        <tr
-                            key={row.id || row.title + row.createdAt}
+        <Table>
+            <TableHeader>
+                <TableRow className="text-xs uppercase tracking-wide text-muted-foreground">
+                    <TableHead className="w-20">Level</TableHead>
+                    <TableHead className="w-32">태그/제목</TableHead>
+                    <TableHead>메시지</TableHead>
+                    <TableHead className="w-36">유저</TableHead>
+                    <TableHead className="w-32">실행</TableHead>
+                    <TableHead className="w-28">버전/화면</TableHead>
+                    <TableHead className="w-28">시각</TableHead>
+                </TableRow>
+            </TableHeader>
+            <TableBody>
+                {rows.map((row, index) => {
+                    const badge = rowBadge(row);
+                    return (
+                        <TableRow
+                            // `index` and not `title + createdAt`: both are optional, so two
+                            // id-less rows with the same title collide on the literal string
+                            // `"<title>undefined"` and React then reuses the wrong <tr>
+                            // (visible as the selection highlight sticking to a stale row).
+                            // Id-less rows are the ones that reach here — the corpus dedupe
+                            // lets them through precisely because they cannot be told apart.
+                            key={row.id || `row-${index}`}
                             onClick={() => onSelect(row)}
-                            className={`cursor-pointer border-b border-border/60 hover:bg-muted/50 ${
-                                selectedId && selectedId === row.id ? 'bg-muted' : ''
-                            }`}
+                            // A bare <tr> with onClick has no keyboard path, and the detail
+                            // panel — the whole point of the column — would be unreachable
+                            // without a pointer. `RunTimeline` renders real buttons; a table
+                            // cannot, since a <button> may not wrap cells.
+                            //
+                            // No `role="button"` here: that would replace the row's own role
+                            // and take the cells out of the table's structure, which is worse
+                            // than the problem it solves. `tabIndex` + Enter/Space gives the
+                            // keyboard path while the table stays a table.
+                            tabIndex={0}
+                            onKeyDown={event => {
+                                if (event.key !== 'Enter' && event.key !== ' ') return;
+                                // Space would scroll the list out from under the selection.
+                                event.preventDefault();
+                                onSelect(row);
+                            }}
+                            // The ui-kit row already styles this state; setting the attribute
+                            // also tells assistive tech which row is open.
+                            data-state={selectedId && selectedId === row.id ? 'selected' : undefined}
+                            className="cursor-pointer"
                         >
-                            <td className="px-3 py-2">
+                            <TableCell>
                                 <span
-                                    className={`rounded px-1.5 py-0.5 text-[11px] font-semibold uppercase ${
-                                        row.type === 'log-entry'
-                                            ? (LEVEL_BADGE[row.level ?? ''] ?? TYPE_BADGE['log-entry'])
-                                            : TYPE_BADGE[row.type]
-                                    }`}
+                                    className={`rounded px-1.5 py-0.5 text-[11px] font-semibold uppercase ${badge.className}`}
                                 >
-                                    {row.type === 'log-entry' ? (row.level ?? 'log') : row.type}
+                                    {badge.label}
                                 </span>
-                            </td>
-                            <td className="max-w-[16rem] px-3 py-2">
-                                <span className="block truncate text-foreground" title={row.title}>
+                            </TableCell>
+                            <TableCell className="max-w-[8rem]">
+                                <span className="block truncate font-mono text-xs text-foreground" title={row.title}>
                                     {row.title}
                                 </span>
-                            </td>
-                            <td className="max-w-[20rem] px-3 py-2">
+                            </TableCell>
+                            <TableCell className="max-w-[24rem]">
                                 <span className="block truncate text-muted-foreground" title={row.message}>
                                     {row.message ?? '-'}
                                 </span>
-                            </td>
-                            <td className="px-3 py-2 text-muted-foreground">
-                                <span
-                                    className="block max-w-[10rem] truncate"
-                                    title={row.userId ? `${row.userName ?? ''} (${row.userId})` : row.userName}
-                                >
-                                    {row.userName ?? row.userId ?? '-'}
+                            </TableCell>
+                            <TableCell className="max-w-[9rem]">
+                                {/* Pinning from the row is the main path into user tracking —
+                                    the value is right here, so the query should be one click. */}
+                                <PinButton
+                                    axis="uid"
+                                    value={row.userId}
+                                    active={!!row.userId && pinned.uid === row.userId}
+                                    onPin={onPin}
+                                    onUnpin={onUnpin}
+                                />
+                                {row.userName && (
+                                    <span className="block truncate text-[11px] text-muted-foreground">
+                                        {row.userName}
+                                    </span>
+                                )}
+                            </TableCell>
+                            <TableCell className="max-w-[8rem]">
+                                <PinButton
+                                    axis="runId"
+                                    value={row.runId}
+                                    active={!!row.runId && pinned.runId === row.runId}
+                                    onPin={onPin}
+                                    onUnpin={onUnpin}
+                                />
+                            </TableCell>
+                            <TableCell className="max-w-[7rem] text-muted-foreground">
+                                <span className="block truncate font-mono text-[11px]">
+                                    {row.appVersion ?? row.webVersion ?? row.app ?? row.source ?? '-'}
                                 </span>
-                            </td>
-                            <td className="px-3 py-2 text-muted-foreground">{row.app ?? row.source ?? '-'}</td>
-                            <td
-                                className="whitespace-nowrap px-3 py-2 text-muted-foreground"
-                                title={absoluteTime(row.createdAt)}
-                            >
-                                {formatRelative(row.createdAt)}
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-        </div>
+                                {row.route && (
+                                    <span className="block truncate font-mono text-[11px] opacity-70" title={row.route}>
+                                        {row.route}
+                                    </span>
+                                )}
+                            </TableCell>
+                            <TableCell className="whitespace-nowrap text-muted-foreground">
+                                <span
+                                    title={`발생 ${formatAbsolute(eventAt(row))} · 도달 ${formatAbsolute(row.createdAt)}`}
+                                >
+                                    {formatRelative(eventAt(row))}
+                                </span>
+                                {hasNoticeableLag(row) && (
+                                    <span
+                                        className="ml-1 rounded bg-muted px-1 text-[10px]"
+                                        title="기기에서 발생한 뒤 서버 도달까지 1분 이상 지연됨"
+                                    >
+                                        지연
+                                    </span>
+                                )}
+                                {isOutsideRange(row, range?.fromMs, range?.toMs) && (
+                                    <span
+                                        className="ml-1 rounded bg-muted px-1 text-[10px]"
+                                        title="조회 기간은 서버 도달 시각 기준입니다. 이 행은 기간 밖에서 발생해 기간 안에 도달했습니다."
+                                    >
+                                        기간 밖
+                                    </span>
+                                )}
+                            </TableCell>
+                        </TableRow>
+                    );
+                })}
+            </TableBody>
+        </Table>
     );
 };

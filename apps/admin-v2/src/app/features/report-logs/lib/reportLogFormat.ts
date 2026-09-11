@@ -2,11 +2,19 @@
  * `lib/report-logs/reportLogFormat.ts`
  * - Presentation helpers: relative time and CSV export for report rows.
  */
+import { eventAt, ingestLagMs } from './eventTime';
 import type { ReportLogRow } from './parseReportLog';
 
-/** Compact relative time like "5분 전" / "2시간 전"; falls back to "-" for missing ts. */
+/**
+ * Absolute time for a tooltip or a detail line. `-` only when there is no instant at all —
+ * `0` is epoch, which `eventAt` deliberately preserves as a real value rather than hiding
+ * a bad device clock, so it must not read as "missing" here either.
+ */
+export const formatAbsolute = (ms?: number): string => (ms === undefined ? '-' : new Date(ms).toLocaleString());
+
+/** Compact relative time like "5분 전" / "2시간 전"; falls back to "-" for a missing instant. */
 export const formatRelative = (ms?: number, now: number = Date.now()): string => {
-    if (!ms) return '-';
+    if (ms === undefined) return '-';
     const diff = Math.max(0, now - ms);
     const sec = Math.floor(diff / 1000);
     if (sec < 60) return '방금';
@@ -21,6 +29,26 @@ export const formatRelative = (ms?: number, now: number = Date.now()): string =>
     return `${Math.floor(mon / 12)}년 전`;
 };
 
+/**
+ * ISO 8601, or blank. `eventAt` already rejects an implausible clock, but `createdAt` is
+ * exported raw — and `toISOString` throws `RangeError` past 8.64e15, which would take the
+ * whole export down from inside a click handler. One bad row must not cost the CSV.
+ */
+const iso = (ms?: number): string => {
+    if (ms === undefined) return '';
+    try {
+        return new Date(ms).toISOString();
+    } catch {
+        return '';
+    }
+};
+
+/**
+ * Both clocks are exported, plus the gap between them. A spreadsheet is where someone
+ * re-sorts this data, and sorting by the wrong clock is exactly the mistake the screen
+ * exists to prevent — so `eventAt` leads and `createdAt` is kept alongside it rather than
+ * replaced.
+ */
 const CSV_COLUMNS: Array<[header: string, get: (r: ReportLogRow) => string]> = [
     ['id', r => r.id],
     ['type', r => r.type],
@@ -30,11 +58,25 @@ const CSV_COLUMNS: Array<[header: string, get: (r: ReportLogRow) => string]> = [
     ['runId', r => r.runId ?? ''],
     ['app', r => r.app ?? ''],
     ['env', r => r.env ?? ''],
+    ['appVersion', r => r.appVersion ?? ''],
+    ['webVersion', r => r.webVersion ?? ''],
+    ['route', r => r.route ?? ''],
+    ['os', r => r.os ?? ''],
     ['title', r => r.title],
     ['message', r => r.message ?? ''],
     ['userName', r => r.userName ?? ''],
     ['userId', r => r.userId ?? ''],
-    ['createdAt', r => (r.createdAt ? new Date(r.createdAt).toISOString() : '')],
+    ['cid', r => r.cid ?? ''],
+    ['sid', r => r.sid ?? ''],
+    ['eventAt', r => iso(eventAt(r))],
+    ['createdAt', r => iso(r.createdAt)],
+    [
+        'ingestLagMs',
+        r => {
+            const lag = ingestLagMs(r);
+            return lag === undefined ? '' : String(lag);
+        },
+    ],
 ];
 
 /** Escape a CSV cell (RFC 4180: wrap in quotes, double inner quotes). */

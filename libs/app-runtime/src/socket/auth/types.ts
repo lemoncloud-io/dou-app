@@ -1,4 +1,5 @@
 import type { SocketKind } from '../types';
+import type { AuthRegistration } from '../../session/auth/sessionAuthAdapter';
 
 /**
  * Bridges the SDK AuthController to web-core. Owned by app-runtime
@@ -17,7 +18,7 @@ import type { SocketKind } from '../types';
  *   cloud escalate differently — §6-10).
  */
 export interface SocketSessionDelegate {
-    getAuthRegistration(kind: SocketKind): Promise<{ token: string; authId: string } | null>;
+    getAuthRegistration(kind: SocketKind): Promise<AuthRegistration | null>;
     signAuth(kind: SocketKind, token: string, target?: string): Promise<{ signature: string; current: string }>;
     commitRefreshedToken(kind: SocketKind, view: unknown): Promise<void> | void;
     onAuthExpired?(kind: SocketKind): Promise<void> | void;

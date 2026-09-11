@@ -1,6 +1,7 @@
 # 구독 tier와 클라우드 한도
 
-> 상태: Live · 최종 갱신: 2026-08-19 · 관련 ADR: [ADR-0060](../../../../../docs/adr/0060-subscription-tier-quota-from-server.md)
+> 상태: Live · 최종 갱신: 2026-09-10 · 관련 ADR: [ADR-0060](../../../../../docs/adr/0060-subscription-tier-quota-from-server.md) ·
+> [ADR-0082](../../../../../docs/adr/0082-admin-membership-console-and-app-override-parity.md)
 >
 > 같은 피처의 다른 문서: [README.md](./README.md) (피처 개요)
 
@@ -8,7 +9,8 @@
 
 구독 상품은 **DoU Pro 하나 × tier 1~5(= 동시 보유 클라우드 1~5개)** 다. 판매 가능한 상품 목록·클라우드
 보유 한도·tier 서열의 출처를 **서버 상품 목록 하나**로 두고, 그 위에 네 가지 판정 — 클라우드 한도 /
-tier 서열·인접 / 구독 상태 4종 / 초과 클라우드 — 을 순수 함수와 훅으로 고정한다. 등급 변경(업·다운)은
+tier 서열·인접 / 구독 상태 5종 / 초과 클라우드 — 을 순수 함수와 훅으로 고정한다. 관리자 오버라이드는
+영수증과 별개의 축으로 그 판정 앞에 선다(ADR-0082). 등급 변경(업·다운)은
 앱 안에서 일어나며 현재는 **인접 1칸**으로 제한된다.
 
 ## 설계 원칙
@@ -34,7 +36,7 @@ tier 서열·인접 / 구독 상태 4종 / 초과 클라우드 — 을 순수 �
 **포함**
 
 - tier 목록·한도·서열·체험 일수의 출처가 `GET /products/plans`
-- 순수 판정 5종: tier 서열·인접 / 클라우드 한도 / 초과 클라우드 / 구독 상태 4종 / 네이티브 상품 매칭
+- 순수 판정 5종: tier 서열·인접 / 클라우드 한도 / 초과 클라우드 / 구독 상태 5종 / 네이티브 상품 매칭
 - 등급 변경(업·다운 인접 1칸): Android `oldPlanId`, `base` offerToken 고정, 플랫폼별 청구 안내
 - 구독 후 추가 클라우드 생성 (`POST /clouds/0/make`)
 - 클라우드 이메일 재사용 사전 차단
@@ -211,7 +213,7 @@ flowchart LR
     UCQ --> UEC
 ```
 
-### 구독 상태 4종 판정
+### 구독 상태 5종 판정
 
 ```mermaid
 stateDiagram-v2
@@ -222,6 +224,17 @@ stateDiagram-v2
     cancelScheduled --> expired: validUntil 경과
     cancelScheduled --> active: 해지 취소
     expired --> active: 재구독
+
+    expired --> active: 관리자 부여
+    active --> blocked: 관리자 차단
+    cancelScheduled --> blocked: 관리자 차단
+    blocked --> active: 해제 또는 오버라이드 만료
+
+    note right of blocked
+        관리자가 서버에서 막은 상태.
+        스토어 결제는 계속 나가므로
+        expired 로 접지 않는다.
+    end note
 
     note right of active
         결제 실패 유예도 여기다.
@@ -364,18 +377,35 @@ apps/web/src/app/
 
 `limit === null`(모름)은 **막지 않는다.** 로딩 중에는 사유를 내보내지 않아 잘못된 안내가 뜨지 않는다.
 
-### 3. 구독 상태 4종
+### 3. 구독 상태 5종
 
 [membershipStatus.ts](../../../src/app/features/subscription/lib/membershipStatus.ts)의
 `summarizeMembership(membership, plan, now)` 판정 순서:
 
-1. `isSuper` → `active`.
+1. **관리자 오버라이드가 활성**이면 그것이 이긴다 — `adminStatus === 'active'` → `active`,
+   `expired`·`canceled` → `blocked`. 유효 등급은 `adminProductId ?? productId`다.
 2. `productId` 없음 또는 `status === 'none'` → `none`.
 3. `validUntil > now`: `status === 'canceled' || autoRenewing === false` → `cancelScheduled`,
    아니면 `active`.
 4. 그 외 → `expired`.
 
+**활성 판정은 저장된 `status`가 아니라 원본 필드에서 한다.** 서버는 `status`를 쓰기 시점에 한 번만
+파생하고 되돌리는 배치가 없어, 부여 기간이 끝나도 `active`로 남는다. `adminUntil`을 렌더 시각과 직접
+비교하면 만료가 즉시 반영된다. 판정 함수는 `@chatic/shared`의 `isAdminOverrideActive` ·
+`resolveEffectiveProductId` 하나를 admin-v2 콘솔과 공유한다 — 같은 서버 계약을 두 번 구현하지 않는다.
+
+**`isSuper`는 더 이상 읽지 않는다.** 무기한 부여의 옛 표현이었고, 서버가 2026-08에 판정에서 걷고
+보유자를 오버라이드로 이관했다. 앱만 계속 읽으면 낡은 축이 여기서만 살아남는다.
+
+**`blocked`는 `expired`와 다르다.** 차단 중에도 스토어 결제는 계속 나가므로 "만료"라고 말하면 안 된다.
+`evaluateCloudQuota`도 `blocked`를 `notEntitled`로 거절한다 — 서버가 `isValid`로 막을 것을 앱이 버튼으로
+내주면 403만 본다.
+
 **결제 실패 유예는 별도 상태가 아니라 `active`** 다. 앱 자체의 "실패 후 N일" 컷은 없다.
+
+> `blocked`라는 이름이 이 피처에 둘 있다. 여기의 `SubscriptionState.blocked`는 **관리자가 서버에서 막은
+> 구독**이고, `TierChangeKind.blocked`(`plans.ts`)는 **인접하지 않아 고를 수 없는 등급**이다. 타입이
+> 달라 섞이지는 않지만 읽을 때 헷갈리기 쉽다.
 
 `trialDaysLeft`는 `trialUsed && validFrom + trialDays × 1일 > now`일 때만 계산하고, 결과가
 `(0, trialDays]`를 벗어나면 `undefined`로 둔다 — 스토어 영수증의 `startedAt` 의미가 플랫폼마다 미묘해

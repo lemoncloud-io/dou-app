@@ -1,19 +1,16 @@
-import { LogOut, Moon, Sun } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 
 // runtime.session.useSessionLogout from app-runtime (not web-core): notifies the socket (`auth.logout`) before the
 // local teardown, so the RuntimeAuthHost relay session does not linger server-side.
 import { runtime } from '@chatic/app-runtime';
 
-import type { Theme } from '../../hooks/use-theme';
 import { ACCENT, hexToRgba } from '../../lib/stats';
 
 export interface SidebarProps {
     endpoint: string;
-    theme: Theme;
-    onToggleTheme: () => void;
 }
 
-export default function Sidebar({ endpoint, theme, onToggleTheme }: SidebarProps) {
+export default function Sidebar({ endpoint }: SidebarProps) {
     // Reactive display name, incl. profile-cache updates (a name edit fans out); the session
     // identity layer (`useSessionIdentity`) carries only ids/flags, not display fields.
     const { userName } = runtime.session.useRuntimeProfile();
@@ -102,23 +99,6 @@ export default function Sidebar({ endpoint, theme, onToggleTheme }: SidebarProps
                         {userName === 'Unknown' ? 'Admin' : userName}
                     </span>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-                        <button
-                            type="button"
-                            onClick={onToggleTheme}
-                            aria-label={theme === 'dark' ? '라이트 모드' : '다크 모드'}
-                            title={theme === 'dark' ? '라이트 모드' : '다크 모드'}
-                            style={{
-                                appearance: 'none',
-                                background: 'none',
-                                border: 'none',
-                                cursor: 'pointer',
-                                color: 'var(--sm-text-5)',
-                                display: 'flex',
-                                padding: 2,
-                            }}
-                        >
-                            {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
-                        </button>
                         <button
                             type="button"
                             onClick={() => logout()}

@@ -32,7 +32,12 @@ export const countOwnedClouds = (clouds: CloudView[]): number => clouds.filter(c
  * set. Offering the button and letting it 403 would be worse than saying why.
  */
 export const evaluateCloudQuota = ({ used, limit, state }: CloudQuotaInput): CloudQuotaVerdict => {
-    if (state === 'none' || state === 'expired') return { canAdd: false, reason: 'notEntitled' };
+    // `blocked` sits here with the other non-entitled states rather than falling through to the
+    // permissive tail: an admin block turns `isValid` false server-side, so `guardQuota` would
+    // refuse anyway and the button would only 403.
+    if (state === 'none' || state === 'expired' || state === 'blocked') {
+        return { canAdd: false, reason: 'notEntitled' };
+    }
     if (state === 'cancelScheduled') return { canAdd: false, reason: 'cancelScheduled' };
     // Unknown allowance is not zero. Refusing here would stop a paying user for a reason the app
     // invented; let the server be the one to say no.

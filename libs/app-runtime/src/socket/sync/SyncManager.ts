@@ -7,6 +7,7 @@ import type {
 import { createDeviceRuntime } from '@lemoncloud/chatic-sockets-lib';
 
 import { logger } from '@chatic/bridges';
+import { getGlobalSessionContext, subscribeSessionSignal } from '../../session/store';
 import { unrefTimer } from '../../utils/unrefTimer';
 import type { ISocketManager, SocketKind } from '../types';
 import { UNREGISTER_GRACE_MS } from './constants';
@@ -33,13 +34,19 @@ export class SyncManager implements ISyncManager {
     private readonly runtimeOptions: SyncRuntimeOptions;
     private readonly createRuntime: (client: ClientSocketV2, plans: DomainSyncPlan[]) => ClientSocketRuntime;
     private readonly buildTargetKey: (target: SyncTargetDescriptor) => string;
+    private readonly getUid: () => string | null;
     private readonly watchEntries = new Map<string, SyncWatchEntry>();
     /** 유예 중(refs 0) 엔트리의 지연 stop 타이머. 재등록·클라이언트 교체·destroy가 취소한다. */
     private readonly graceTimers = new Map<string, ReturnType<typeof setTimeout>>();
     private readonly unsubscribeSlots: () => void;
     private readonly unsubscribeClient: () => void;
+    private readonly unsubscribeSession: () => void;
+    /** The account the live targets belong to — compared on every session change. */
+    private lastUid: string | null;
     private readonly slotRuntimes = new Map<SocketKind, SlotRuntimeEntry>();
     private activeClient: ClientSocketV2 | null = null;
+    /** uid 불일치 경고는 인스턴스당 1회 — 원인을 아는 데 그거면 충분하고, 폴링마다 찍으면 폭주한다. */
+    private warnedUidMismatch = false;
 
     constructor(
         private readonly manager: ISocketManager,
@@ -61,6 +68,8 @@ export class SyncManager implements ISyncManager {
                     ...this.runtimeOptions,
                 }));
         this.buildTargetKey = deps.buildTargetKey ?? defaultBuildTargetKey;
+        // The uid is read per call, never captured: the whole point is to notice when it CHANGES.
+        this.getUid = deps.getUid ?? (() => getGlobalSessionContext().identity.userId ?? null);
         // Runtimes attach per SLOT (relay and cloud coexist): a backgrounded slot keeps its
         // device.save-on-connect + keepAlive/reconnect/rotation alive, so a relay reconnect while a
         // cloud is active still re-registers the device (device.save:ok also re-opens the auth gate
@@ -75,6 +84,37 @@ export class SyncManager implements ISyncManager {
         this.unsubscribeClient = this.manager.subscribeClient(client => {
             this.handleActiveClientChanged(client);
         });
+
+        // An account change must RETIRE the previous account's targets, not merely refuse to start
+        // them again. The guest→social promotion re-authenticates the SAME socket, so no client swap
+        // happens and nothing here is otherwise notified: the already-running targets keep polling
+        // ids built from the guest's uid, and the server answers each one with
+        // `403 not allowed to read join`. Waiting for the registering hook to unmount is not enough
+        // either — `unregister` holds a 30s grace, which at the join plan's 10s cadence is three
+        // more refusals per promotion.
+        this.lastUid = this.getUid();
+        const subscribe = deps.subscribeSession ?? subscribeSessionSignal;
+        this.unsubscribeSession = subscribe(() => this.handleSessionChanged());
+    }
+
+    /** Drops every target that belongs to an account other than the one live now. */
+    private handleSessionChanged(): void {
+        const uid = this.getUid();
+        if (uid === this.lastUid) return;
+        this.lastUid = uid;
+
+        for (const [key, entry] of [...this.watchEntries.entries()]) {
+            if (entry.uid === uid) continue;
+            logger.info('SOCKET', '[SyncManager] account changed — retiring the previous session target', {
+                data: { key, from: entry.uid, to: uid },
+            });
+            this.cancelGraceStop(key);
+            this.watchEntries.delete(key);
+            // Stopped immediately, grace bypassed on purpose: the grace exists to survive a screen
+            // transition re-registering the SAME target, and an account change is the one case where
+            // that can never happen — the new session's ids are different ones.
+            this.stopTarget(entry.target);
+        }
     }
 
     public register(target: SyncTargetDescriptor): () => void {
@@ -82,20 +122,34 @@ export class SyncManager implements ISyncManager {
         // 유예 중이던 키의 재등록: 지연 stop을 취소하고 살아 있는 타깃에 합류한다 — 타깃도
         // 스냅샷도 그대로이므로 즉시 폴링도, 스냅샷 소실로 인한 무조건 쓰기도 없다.
         this.cancelGraceStop(key);
+        const cid = this.manager.getBoundCid();
+        const uid = this.getUid();
         const entry = this.watchEntries.get(key);
-        if (entry) {
-            entry.refs += 1;
-            entry.target = { ...entry.target, ...target };
+        // Merging is only correct when the SCOPE matches. A key can outlive an account change —
+        // `channel:1000001` is the same string for whoever is logged in — so merging blindly would
+        // hand the new session an entry still tagged with the previous uid, which is how a target
+        // keeps polling after the account under it moved. A scope change is a different target.
+        if (entry && (entry.cid !== cid || entry.uid !== uid)) {
+            logger.info('SOCKET', '[SyncManager] target re-registered under a new scope — retagging', {
+                data: { key, from: { cid: entry.cid, uid: entry.uid }, to: { cid, uid } },
+            });
+            this.stopTarget(entry.target);
+            this.watchEntries.delete(key);
+        }
+        const live = this.watchEntries.get(key);
+        if (live) {
+            live.refs += 1;
+            live.target = { ...live.target, ...target };
         } else {
-            // Tag the target with the cloud it is registered under (the active slot's boundCid) so a
-            // later client swap only replays it onto the matching client (§8-a trap #2).
-            const cid = this.manager.getBoundCid();
+            // Tag the target with the cloud AND the account it is registered under, so a later
+            // client swap or account change only replays it onto a matching session (§8-a trap #2).
             this.watchEntries.set(key, {
                 target: { ...target },
                 refs: 1,
                 cid,
+                uid,
             });
-            this.startTarget(target, cid);
+            this.startTarget(target, cid, uid);
         }
 
         let active = true;
@@ -161,6 +215,7 @@ export class SyncManager implements ISyncManager {
     public destroy(): void {
         this.unsubscribeSlots();
         this.unsubscribeClient();
+        this.unsubscribeSession();
         for (const timer of this.graceTimers.values()) clearTimeout(timer);
         this.graceTimers.clear();
         for (const [kind, entry] of this.slotRuntimes) {
@@ -264,7 +319,7 @@ export class SyncManager implements ISyncManager {
 
     private replayTargets(): void {
         for (const entry of this.watchEntries.values()) {
-            this.startTarget(entry.target, entry.cid);
+            this.startTarget(entry.target, entry.cid, entry.uid);
         }
     }
 
@@ -277,6 +332,18 @@ export class SyncManager implements ISyncManager {
      */
     private isCidActive(cid: string | null): boolean {
         return isCidActiveGuard(cid, this.manager.getBoundCid());
+    }
+
+    /**
+     * True when the target still belongs to the session that is live now.
+     *
+     * `null` (registered with no session) is NOT treated as "matches anything" — unlike the cid
+     * rule above, which is deliberately permissive for a target registered before any socket bound.
+     * An untagged account is not a wildcard: the ids those targets carry were built from whatever
+     * the store held at the time, and replaying them onto a real session is precisely the 403.
+     */
+    private isUidActive(uid: string | null): boolean {
+        return uid !== null && uid === this.getUid();
     }
 
     private getActiveEntry(): SlotRuntimeEntry | null {
@@ -295,10 +362,22 @@ export class SyncManager implements ISyncManager {
         return this.findEntryByClient(client)?.runtime ?? null;
     }
 
-    private startTarget(target: SyncTargetDescriptor, cid: string | null): void {
+    private startTarget(target: SyncTargetDescriptor, cid: string | null, uid: string | null): void {
         const entry = this.getActiveEntry();
         if (!entry || entry.plans.length === 0) return;
         if (!this.isCidActive(cid)) return;
+        if (!this.isUidActive(uid)) {
+            // Once per manager: a stale target is retagged or dropped on its next register, so the
+            // steady state is quiet — but a target that NEVER starts (a uid that stays null while
+            // the socket is verified) would otherwise be an invisible, total sync stop.
+            if (!this.warnedUidMismatch) {
+                this.warnedUidMismatch = true;
+                logger.warn('SOCKET', '[SyncManager] target belongs to another session — not started', {
+                    data: { target, uid, currentUid: this.getUid() },
+                });
+            }
+            return;
+        }
 
         try {
             entry.runtime.startSync(target);

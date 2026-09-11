@@ -1,6 +1,7 @@
 import { LemonHttpExecutor } from './adapters/lemonWebCore';
 import { isBypassed } from './policy/bypass';
 import { CredentialFailureAttributor } from './error/attribution';
+import { classifyError } from './error/classify';
 import { PortCredentialRecoverer } from './error/recovery';
 import { withNetworkLog } from './log/networkLog';
 
@@ -125,10 +126,31 @@ class HttpClientImpl implements HttpClient {
             return await this.execute<TResponse, TBody, TParams>(req, executor, ctx);
         } catch (error) {
             if (recovered || !(await this.recoverer.tryRecover(error))) {
+                this.reportAuthFailure(error, req);
                 throw error;
             }
             return this.run<TResponse, TBody, TParams>(req, executor, ctx, true);
         }
+    }
+
+    /**
+     * Tells the app that the SERVER has refused this session — the one auth verdict in the stack
+     * that is a fact rather than an inference.
+     *
+     * Reported from here, and only after the recovery branch above has been decided, because those
+     * two facts are what make it trustworthy: a lapsed AWS credential classifies as
+     * `shouldLogout: false` and is re-minted and replayed instead (an hour-old tab is not a dead
+     * session), so what reaches this line is an `INVALID_TOKEN` / expired-signature / 403 refusal
+     * that survived whatever recovery was available.
+     *
+     * The port was wired in `HttpRuntimePorts` from the start but nothing ever called it: its only
+     * caller was `withRetry`, which lost its last production caller and is not even exported. So
+     * the runtime had a fact-based logout path on paper and, in practice, only its guards' guesses.
+     */
+    private reportAuthFailure(error: unknown, req: HttpRequestOptions<unknown, unknown>): void {
+        const classification = classifyError(error);
+        if (!classification.shouldLogout) return;
+        this.ports.onAuthFailure?.(error, `${req.method} ${req.baseURL} - ${classification.message}`);
     }
 
     /** One attempt: sign, send, log, and unwrap the 200-body `error` convention. */

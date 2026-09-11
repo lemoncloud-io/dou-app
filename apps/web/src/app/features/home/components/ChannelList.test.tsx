@@ -11,10 +11,12 @@ jest.mock('@chatic/shared', () => ({
     ...jest.requireActual('@chatic/shared'),
     useNavigateWithTransition: () => jest.fn(),
 }));
+// `channel.get`은 남의 셀프챗에 대해 403으로 거절된다 — 어떤 id로 등록하는지 봐야 한다.
+const mockUseChannelSync = jest.fn();
 jest.mock('@chatic/app-runtime', () => ({
     runtime: {
         sync: {
-            useChannelSync: () => undefined,
+            useChannelSync: (...args: unknown[]) => mockUseChannelSync(...args),
         },
         session: {
             useSessionIdentity: () => ({ userId: 'me' }),
@@ -85,6 +87,48 @@ jest.mock('@chatic/web-ui-kit', () => ({
 }));
 
 const makeChannel = (over: any) => ({ id: 'c1', name: '', stereo: 'group', memberNo: 3, ...over });
+
+/**
+ * 프로덕션 알람에서 나온 경로:
+ *   403 NOT ALLOWED - denied by policy (channel.get)  body: {"type":"channel.get","data":{"id":"U:1000030"}}
+ *
+ * `U:1000030`은 게스트 1000030의 셀프챗이다. 게스트→소셜 로그인 승격은 uid만 갈아끼우므로,
+ * 이 목록이 한 렌더 동안 이전 계정의 행을 그대로 들고 있다가 그 행이 자기 채널 타깃을 다시
+ * 등록한다. 태그는 새 계정 것이라 SyncManager의 스코프 가드로는 못 잡는다 — 낡은 건 id 쪽이다.
+ */
+describe('ChannelList — 남의 셀프챗 행은 channel.get을 등록하지 않는다', () => {
+    it('ownerId가 내가 아닌 self 행은 동기화 대상에서 빠진다', () => {
+        render(
+            <ChannelList
+                channels={[makeChannel({ id: 'U:1000030', stereo: 'self', ownerId: '1000030', memberNo: 1 })]}
+                isLoading={false}
+            />
+        );
+
+        expect(mockUseChannelSync).toHaveBeenCalledWith(undefined);
+        expect(mockUseChannelSync).not.toHaveBeenCalledWith('U:1000030');
+    });
+
+    it('내 셀프챗은 그대로 등록한다 — 가드가 과하게 막지 않는지', () => {
+        render(
+            <ChannelList
+                channels={[makeChannel({ id: 'U:me', stereo: 'self', ownerId: 'me', memberNo: 1 })]}
+                isLoading={false}
+            />
+        );
+
+        expect(mockUseChannelSync).toHaveBeenCalledWith('U:me');
+    });
+
+    // ownerId를 서버가 안 실어준 행까지 막으면 멀쩡한 방이 조용히 안 갱신된다.
+    it('ownerId를 모르면 막지 않는다', () => {
+        render(
+            <ChannelList channels={[makeChannel({ id: 'U:1000030', stereo: 'self', memberNo: 1 })]} isLoading={false} />
+        );
+
+        expect(mockUseChannelSync).toHaveBeenCalledWith('U:1000030');
+    });
+});
 
 describe('ChannelList self-chat row', () => {
     it('stereo=self 행은 커스텀 nick($join.nick)을 제목으로, MY 배지를 노출한다', () => {

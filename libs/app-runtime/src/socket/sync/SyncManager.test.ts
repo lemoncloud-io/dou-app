@@ -38,6 +38,24 @@ const makeRuntime = (): jest.Mocked<ClientSocketRuntime> =>
 
 const makeClient = (tag: string): ClientSocketV2 => ({ state: 'idle', tag }) as unknown as ClientSocketV2;
 
+/**
+ * The session uid every construction below is scoped to. Targets are tagged with it at register
+ * time and only sync while it still matches, so a test that changes accounts assigns to this.
+ */
+let mockUid: string | null = 'user-a';
+/** Session-change listeners; `promoteTo` mimics an in-place re-auth (guest→social). */
+let sessionListeners: Array<() => void> = [];
+const subscribeSession = (listener: () => void) => {
+    sessionListeners.push(listener);
+    return () => {
+        sessionListeners = sessionListeners.filter(l => l !== listener);
+    };
+};
+const promoteTo = (uid: string | null) => {
+    mockUid = uid;
+    sessionListeners.forEach(listener => listener());
+};
+
 describe('SyncManager', () => {
     let slotListener: SocketSlotClientListener | null = null;
     let activeListener: SocketClientListener | null = null;
@@ -48,6 +66,8 @@ describe('SyncManager', () => {
     beforeEach(() => {
         // unregister는 유예 타이머(UNREGISTER_GRACE_MS) 뒤에야 stop한다 — 시간을 손에 쥔다.
         jest.useFakeTimers();
+        mockUid = 'user-a';
+        sessionListeners = [];
         slotListener = null;
         activeListener = null;
         manager = {
@@ -96,6 +116,7 @@ describe('SyncManager', () => {
 
     it('replays registered targets onto the runtime once its slot binds and becomes active', () => {
         const syncManager = new SyncManager(manager, {
+            getUid: () => mockUid,
             buildSyncPlans: () => [{ domain: 'channel' } as DomainSyncPlan],
             createRuntime: runtimeFactory,
         });
@@ -120,6 +141,7 @@ describe('SyncManager', () => {
 
     it('유예 내 재등록은 stop도 재시작도 만들지 않는다 — 살아 있는 타깃에 합류한다', () => {
         const syncManager = new SyncManager(manager, {
+            getUid: () => mockUid,
             buildSyncPlans: () => [{ domain: 'channel' } as DomainSyncPlan],
             createRuntime: runtimeFactory,
         });
@@ -140,6 +162,7 @@ describe('SyncManager', () => {
 
     it('활성 클라이언트 교체는 유예 엔트리를 버린다 — 재등록이 새 클라이언트에서 다시 시작되게', () => {
         const syncManager = new SyncManager(manager, {
+            getUid: () => mockUid,
             buildSyncPlans: () => [{ domain: 'channel' } as DomainSyncPlan],
             createRuntime: runtimeFactory,
         });
@@ -164,6 +187,7 @@ describe('SyncManager', () => {
 
     it('destroy()는 유예 타이머를 정리한다 — 파괴 후 지연 stop이 날아오지 않는다', () => {
         const syncManager = new SyncManager(manager, {
+            getUid: () => mockUid,
             buildSyncPlans: () => [{ domain: 'channel' } as DomainSyncPlan],
             createRuntime: runtimeFactory,
         });
@@ -179,6 +203,7 @@ describe('SyncManager', () => {
 
     it('keeps the relay runtime running when a cloud becomes active (device.save/keepAlive per slot)', () => {
         const syncManager = new SyncManager(manager, {
+            getUid: () => mockUid,
             buildSyncPlans: () => [{ domain: 'channel' } as DomainSyncPlan],
             createRuntime: runtimeFactory,
         });
@@ -206,6 +231,7 @@ describe('SyncManager', () => {
 
     it('detaches a slot runtime when that slot is torn down (slot → null)', () => {
         new SyncManager(manager, {
+            getUid: () => mockUid,
             buildSyncPlans: () => [{ domain: 'channel' } as DomainSyncPlan],
             createRuntime: runtimeFactory,
         });
@@ -226,6 +252,7 @@ describe('SyncManager', () => {
 
     it('rebuilding a backgrounded slot replaces only that slot runtime (relay rebuilt under cloud)', () => {
         new SyncManager(manager, {
+            getUid: () => mockUid,
             buildSyncPlans: () => [{ domain: 'channel' } as DomainSyncPlan],
             createRuntime: runtimeFactory,
         });
@@ -248,7 +275,12 @@ describe('SyncManager', () => {
 
     it('builds sync plans per runtime so concurrent slot schedulers never share plan instances', () => {
         const buildSyncPlans = jest.fn(() => [{ domain: 'channel' } as DomainSyncPlan]);
-        new SyncManager(manager, { buildSyncPlans, createRuntime: runtimeFactory });
+        new SyncManager(manager, {
+            getUid: () => mockUid,
+            subscribeSession,
+            buildSyncPlans,
+            createRuntime: runtimeFactory,
+        });
 
         bindActiveSlot('relay', makeClient('relay'));
         bindActiveSlot('cloud', makeClient('cloud'));
@@ -260,6 +292,7 @@ describe('SyncManager', () => {
     it('does not replay a target onto a client whose boundCid differs (post-swap cleanup, §8-a)', () => {
         (manager.getBoundCid as jest.Mock).mockReturnValue('cloud-A');
         const syncManager = new SyncManager(manager, {
+            getUid: () => mockUid,
             buildSyncPlans: () => [{ domain: 'channel' } as DomainSyncPlan],
             createRuntime: runtimeFactory,
         });
@@ -284,6 +317,7 @@ describe('SyncManager', () => {
 
     it('registers a chat target and stops it on dispose', () => {
         const syncManager = new SyncManager(manager, {
+            getUid: () => mockUid,
             buildSyncPlans: () => [{ domain: 'chat' } as DomainSyncPlan],
             createRuntime: runtimeFactory,
         });
@@ -297,8 +331,153 @@ describe('SyncManager', () => {
         expect(runtimes[0].stopSync).toHaveBeenCalledWith({ type: 'chat', id: 'ch-1' });
     });
 
+    /**
+     * 계정 축(uid) 가드 — 프로덕션 리포트가 이 테스트의 출처다.
+     *
+     * `403 FORBIDDEN - not allowed to read join @getJoinDetail(U:1000003@1000003)`,
+     * 호출자 세션 uid는 1000891, `cid`는 `#`(릴레이). 릴레이는 계정이 바뀌어도 boundCid가
+     * 'default'로 그대로라, cid만 보는 가드는 계정 교체를 볼 수 없었다. 1000003 세션이 등록한
+     * 자기 셀프챗 조인 타깃이 1000891 세션에서 계속 폴링됐다.
+     */
+    describe('계정이 바뀌면 이전 세션의 타깃은 따라가지 않는다', () => {
+        it('uid가 바뀌면 replay에서 제외된다 — cid가 같아도', () => {
+            const syncManager = new SyncManager(manager, {
+                getUid: () => mockUid,
+                buildSyncPlans: () => [{ domain: 'join' } as DomainSyncPlan],
+                createRuntime: runtimeFactory,
+            });
+            // 릴레이는 계정이 바뀌어도 같은 cid에 머문다 — 사고가 숨어 있던 조건 그 자체.
+            (manager.getBoundCid as jest.Mock).mockReturnValue('default');
+            bindActiveSlot('relay', makeClient('relay-a'));
+
+            mockUid = '1000003';
+            syncManager.registerJoin('U:1000003@1000003');
+            expect(runtimes[0].startSync).toHaveBeenCalledWith({ type: 'join', id: 'U:1000003@1000003' });
+
+            // 같은 소켓 위에서 계정만 교체(게스트→소셜 승격, 로그아웃→로그인).
+            mockUid = '1000891';
+            bindActiveSlot('relay', makeClient('relay-b'));
+
+            expect(runtimes[1].startSync).not.toHaveBeenCalled();
+        });
+
+        it('uid가 그대로면 replay된다 — 가드가 과하게 막지 않는지', () => {
+            const syncManager = new SyncManager(manager, {
+                getUid: () => mockUid,
+                buildSyncPlans: () => [{ domain: 'join' } as DomainSyncPlan],
+                createRuntime: runtimeFactory,
+            });
+            (manager.getBoundCid as jest.Mock).mockReturnValue('default');
+            bindActiveSlot('relay', makeClient('relay-a'));
+
+            mockUid = '1000003';
+            syncManager.registerJoin('U:1000003@1000003');
+            bindActiveSlot('relay', makeClient('relay-b'));
+
+            expect(runtimes[1].startSync).toHaveBeenCalledWith({ type: 'join', id: 'U:1000003@1000003' });
+        });
+
+        /**
+         * 키에 uid가 없는 도메인(channel/chat/device)이 진짜 함정이다. `channel:1000001`은 누가
+         * 로그인해 있든 같은 문자열이라, 재등록이 이전 계정의 엔트리에 합류해버리면 태그가
+         * 낡은 채로 남는다.
+         */
+        it('같은 키를 새 계정이 재등록하면 이전 태그에 합류하지 않는다', () => {
+            const syncManager = new SyncManager(manager, {
+                getUid: () => mockUid,
+                buildSyncPlans: () => [{ domain: 'channel' } as DomainSyncPlan],
+                createRuntime: runtimeFactory,
+            });
+            (manager.getBoundCid as jest.Mock).mockReturnValue('default');
+            bindActiveSlot('relay', makeClient('relay-a'));
+
+            mockUid = '1000003';
+            syncManager.registerChannel('1000001');
+            expect(runtimes[0].startSync).toHaveBeenCalledTimes(1);
+
+            mockUid = '1000891';
+            syncManager.registerChannel('1000001');
+
+            // 합류했다면 refs만 오르고 startSync는 한 번뿐이다. 새 계정으로 다시 시작해야 맞다.
+            expect(runtimes[0].startSync).toHaveBeenCalledTimes(2);
+            // 그리고 이전 계정 태그는 남아 있으면 안 된다 — 다음 replay에서 되살아난다.
+            bindActiveSlot('relay', makeClient('relay-b'));
+            expect(runtimes[1].startSync).toHaveBeenCalledWith({ type: 'channel', id: '1000001' });
+        });
+
+        // 세션이 없을 때 등록된 타깃은 와일드카드가 아니다 — cid의 null 규칙과 다른 점.
+        it('세션 없이 등록된 타깃은 세션이 붙어도 replay되지 않는다', () => {
+            const syncManager = new SyncManager(manager, {
+                getUid: () => mockUid,
+                buildSyncPlans: () => [{ domain: 'channel' } as DomainSyncPlan],
+                createRuntime: runtimeFactory,
+            });
+            (manager.getBoundCid as jest.Mock).mockReturnValue('default');
+            bindActiveSlot('relay', makeClient('relay-a'));
+
+            mockUid = null;
+            syncManager.registerChannel('1000001');
+            expect(runtimes[0].startSync).not.toHaveBeenCalled();
+
+            mockUid = '1000891';
+            bindActiveSlot('relay', makeClient('relay-b'));
+            expect(runtimes[1].startSync).not.toHaveBeenCalled();
+        });
+    });
+
+    /**
+     * 사용자가 재현해준 시나리오: 게스트 → 소셜 로그인 → 홈 이동.
+     *
+     * 승격은 같은 소켓을 그대로 두고 신원만 바꾼다(`reauthenticateActiveSocket`). 클라이언트
+     * 교체가 없으니 `handleActiveClientChanged`도, replay도 일어나지 않는다 — 이미 돌던 게스트의
+     * 타깃이 계속 폴링하며 `join.get {id:"U:<게스트>@<게스트>"}`를 던지고, 서버가 전부 403으로
+     * 답한다. 시작을 막는 가드만으로는 이 경로를 못 잡는다.
+     */
+    it('같은 소켓 위 계정 승격은 이전 계정의 타깃을 즉시 멈춘다', () => {
+        const syncManager = new SyncManager(manager, {
+            getUid: () => mockUid,
+            subscribeSession,
+            buildSyncPlans: () => [{ domain: 'join' } as DomainSyncPlan],
+            createRuntime: runtimeFactory,
+        });
+        (manager.getBoundCid as jest.Mock).mockReturnValue('default');
+        bindActiveSlot('relay', makeClient('relay'));
+
+        mockUid = '1000003';
+        syncManager.registerJoin('U:1000003@1000003');
+        expect(runtimes[0].startSync).toHaveBeenCalledWith({ type: 'join', id: 'U:1000003@1000003' });
+
+        // 소셜 로그인 — 소켓은 그대로, 신원만 갈린다.
+        promoteTo('1000891');
+
+        // 유예를 기다리지 않고 즉시 멈춰야 한다. 조인 플랜 주기가 10초라 30초 유예는
+        // 승격 1회당 403 세 번을 더 만든다.
+        expect(runtimes[0].stopSync).toHaveBeenCalledWith({ type: 'join', id: 'U:1000003@1000003' });
+        expect(syncManager.listTargets()).toHaveLength(0);
+    });
+
+    it('계정이 그대로인 세션 변화(토큰 갱신 등)는 타깃을 건드리지 않는다', () => {
+        const syncManager = new SyncManager(manager, {
+            getUid: () => mockUid,
+            subscribeSession,
+            buildSyncPlans: () => [{ domain: 'join' } as DomainSyncPlan],
+            createRuntime: runtimeFactory,
+        });
+        (manager.getBoundCid as jest.Mock).mockReturnValue('default');
+        bindActiveSlot('relay', makeClient('relay'));
+
+        mockUid = '1000003';
+        syncManager.registerJoin('U:1000003@1000003');
+
+        promoteTo('1000003');
+
+        expect(runtimes[0].stopSync).not.toHaveBeenCalled();
+        expect(syncManager.listTargets()).toHaveLength(1);
+    });
+
     it('updateLocalSnapshot을 활성 runtime에 그대로 위임한다', () => {
         const syncManager = new SyncManager(manager, {
+            getUid: () => mockUid,
             buildSyncPlans: () => [{ domain: 'chat' } as DomainSyncPlan],
             createRuntime: runtimeFactory,
         });
@@ -317,6 +496,7 @@ describe('SyncManager', () => {
 
     it('runtime이 없으면 updateLocalSnapshot은 no-op이다', () => {
         const syncManager = new SyncManager(manager, {
+            getUid: () => mockUid,
             buildSyncPlans: () => [{ domain: 'chat' } as DomainSyncPlan],
             createRuntime: runtimeFactory,
         });
@@ -332,6 +512,7 @@ describe('SyncManager', () => {
 
     it('reference-counts duplicate registrations before stopping a target', () => {
         const syncManager = new SyncManager(manager, {
+            getUid: () => mockUid,
             buildSyncPlans: () => [{ domain: 'place' } as DomainSyncPlan],
             createRuntime: runtimeFactory,
         });
@@ -355,6 +536,7 @@ describe('SyncManager', () => {
 
     it('destroy()는 모든 슬롯 runtime을 내리고 구독을 해제한다', () => {
         const syncManager = new SyncManager(manager, {
+            getUid: () => mockUid,
             buildSyncPlans: () => [{ domain: 'channel' } as DomainSyncPlan],
             createRuntime: runtimeFactory,
         });
@@ -377,7 +559,12 @@ describe('SyncManager', () => {
         };
 
         // No createRuntime override → exercises the default createDeviceRuntime path.
-        new SyncManager(manager, { buildSyncPlans: () => plans, runtimeOptions });
+        new SyncManager(manager, {
+            getUid: () => mockUid,
+            subscribeSession,
+            buildSyncPlans: () => plans,
+            runtimeOptions,
+        });
 
         const client = makeClient('relay');
         bindActiveSlot('relay', client);

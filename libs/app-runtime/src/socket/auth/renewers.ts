@@ -59,6 +59,36 @@ export interface ICredentialRenewer {
  */
 const EXPIRY_CONFIRMATION_MS = 30_000;
 
+/**
+ * How many confirmation windows an UNRESOLVED status buys before the verdict lands.
+ *
+ * Two, because `handshaking` is now unresolved rather than healed (see {@link isExpiryResolved}) and
+ * a single window would decide too early on it. A wedged session re-arms and burns its budget fast —
+ * the SDK's `maxFailures` (3) on a 1s/2s/4s backoff is ~7s of waiting plus round trips — so the
+ * SECOND read lands back on `expired` and the verdict is confident. A link that is merely slow gets
+ * the extra window to finish a handshake instead of being thrown out at 30s.
+ */
+const EXPIRY_CONFIRMATION_ROUNDS = 2;
+
+/**
+ * Statuses that END the decision without spending the session.
+ *
+ * `verified` and `stale` both mean the handshake COMPLETED on this connection — `deriveAuthStatus`
+ * only reaches either past its `verifiedOnThisConnection` gate — which is the positive evidence this
+ * decision needs. `absent` means the token is already gone, so there is nothing left to clear.
+ *
+ * **`handshaking` is deliberately absent, and that is the point.** The SDK's `register()` resets the
+ * failure budget and sets `pending` whenever the controller is INACTIVE — and inactive is exactly
+ * what a terminal `expired` leaves behind (`handleFailed` sets `active = false`). So any reconnect,
+ * wake-kick or `authIdRegistry` re-seed moves the status off `expired` to `handshaking` with nothing
+ * having been authenticated. Reading that as "recovered" let a permanently-wedged session re-arm
+ * forever: a fresh budget, four more refusals, `expired` again, another re-seed — the user parked in
+ * a zombie session while the server collected a 403 per attempt. Observed in production
+ * 2026-09-10/11 (see `mergeRefreshedRelayToken` for the defect that wedges it).
+ */
+const isExpiryResolved = (status: ReturnType<typeof getAuthStatus>): boolean =>
+    status === 'verified' || status === 'stale' || status === 'absent';
+
 /** Seams for {@link RelayCredentialRenewer}'s terminal-expiry decision — injected only by tests. */
 export interface RelayExpiryDeps {
     /** `navigator.onLine`, read at decision time rather than captured. */
@@ -118,11 +148,17 @@ export class RelayCredentialRenewer implements ICredentialRenewer {
      *     (`deriveConnectivity`): it proves the failures were not the session's fault. Defer — a
      *     returning link re-runs the handshake, and a still-wedged session expires again with the
      *     browser online, which lands back here.
-     *  2. **Is it still expired after {@link EXPIRY_CONFIRMATION_MS}?** A wedged signature is, by
-     *     definition, permanent; a transient burn is not. Reconnect + the bootstrap gate's immediate
-     *     first resume, or a foreground `recoverUnverifiedSockets` re-seed, move the controller off
-     *     `expired` inside the window. This costs a returning user up to 30s of a zombie session —
-     *     the same 30s the old behavior spent throwing them out of a session that was about to heal.
+     *  2. **Did it POSITIVELY recover within {@link EXPIRY_CONFIRMATION_MS} ×
+     *     {@link EXPIRY_CONFIRMATION_ROUNDS}?** A wedged signature is, by definition, permanent; a
+     *     transient burn is not. Reconnect + the bootstrap gate's immediate first resume, or a
+     *     foreground `recoverUnverifiedSockets` re-seed, let a healthy session complete its handshake
+     *     inside the window. This costs a returning user up to a minute of a zombie session — less
+     *     than the old behavior spent throwing them out of a session that was about to heal.
+     *
+     *     **"Positively" is doing the work here.** This used to accept anything but `expired`, which
+     *     the SDK made meaningless: `register()` re-arms an inactive controller and reports
+     *     `pending` → `handshaking` before a single packet is authenticated, so the re-seed that was
+     *     supposed to be EVIDENCE of recovery was manufacturing it. See {@link isExpiryResolved}.
      *
      * The window is NOT a retry loop: it schedules nothing and kicks nothing. It only delays the
      * verdict long enough for the recovery paths that already exist to be observed.
@@ -142,26 +178,37 @@ export class RelayCredentialRenewer implements ICredentialRenewer {
             return;
         }
 
-        await wait(EXPIRY_CONFIRMATION_MS);
+        let status: ReturnType<typeof getAuthStatus> = 'expired';
 
-        // Re-asked, not remembered: the link can drop during the window, and an expiry that is now
-        // unattributable is one this must not spend the session on.
-        if (!isOnline()) {
-            logger.warn('SOCKET', '[relayRenewer] relay auth expiry unconfirmed (went offline) — not logging out');
-            return;
+        for (let round = 1; round <= EXPIRY_CONFIRMATION_ROUNDS; round += 1) {
+            await wait(EXPIRY_CONFIRMATION_MS);
+
+            // Re-asked, not remembered: the link can drop during the window, and an expiry that is now
+            // unattributable is one this must not spend the session on.
+            if (!isOnline()) {
+                logger.warn('SOCKET', '[relayRenewer] relay auth expiry unconfirmed (went offline) — not logging out');
+                return;
+            }
+
+            // A POSITIVE heal ends it — a completed handshake, or a token that is already gone.
+            status = readStatus();
+            if (isExpiryResolved(status)) {
+                logger.info('SOCKET', '[relayRenewer] relay auth recovered within the confirmation window', {
+                    data: { status, round },
+                });
+                return;
+            }
+
+            if (round < EXPIRY_CONFIRMATION_ROUNDS) {
+                logger.info('SOCKET', '[relayRenewer] relay auth not yet recovered — waiting one more window', {
+                    data: { status, round },
+                });
+            }
         }
 
-        // Anything but `expired` means something healed it — a reconnect's auth.update, a wake-kick
-        // re-seed, or a logout that already cleared the token (`absent`).
-        const status = readStatus();
-        if (status !== 'expired') {
-            logger.info('SOCKET', '[relayRenewer] relay auth recovered within the confirmation window', {
-                data: { status },
-            });
-            return;
-        }
-
-        logger.warn('SOCKET', '[relayRenewer] relay auth still expired after confirmation — auto-logging out');
+        logger.warn('SOCKET', '[relayRenewer] relay auth still unrecovered after confirmation — auto-logging out', {
+            data: { status, rounds: EXPIRY_CONFIRMATION_ROUNDS },
+        });
         await logout();
     }
 }

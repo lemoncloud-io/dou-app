@@ -1,6 +1,7 @@
 import { logger } from '@chatic/bridges';
 
 import type { SocketKind } from '../types';
+import type { AuthRegistration } from '../../session/auth/sessionAuthAdapter';
 
 /** The sign callback shape `auth.register()` takes (the SDK's `AuthSignCallback`). */
 type SignCallback = (token: string, ctx?: { target?: string }) => Promise<{ signature: string; current: string }>;
@@ -23,12 +24,19 @@ export interface AuthIdReseedTarget {
  *  - the packet's `signature` is recomputed by our sign callback from the STORE on every packet, and
  *    for relay the HMAC's outer key is `$auth.id` (signing.md §1).
  *
- * `commitRefreshedToken` replaces `$auth` wholesale on every writeback, so the moment a refresh or a
- * site switch hands back a different `$auth.id`, the store moves and the controller does not. The
- * server then FINDS the auth model by the stale id (so it is not `no auth model`) and verifies the
- * signature keyed on it — against a signature keyed on the fresh one:
- * `403 NOT ALLOWED - invalid sign @refreshAccessToken(<stale authId>)`. Nothing re-seeds the
- * controller afterwards, so that session 403s every refresh until the user logs in again.
+ * Whenever the store's `$auth.id` moves and the controller does not, the server FINDS the auth model
+ * by the stale id (so it is not `no auth model`) and verifies the signature keyed on it — against a
+ * signature keyed on the fresh one: `403 NOT ALLOWED - invalid sign @refreshAccessToken(<stale
+ * authId>)`. Nothing re-seeds the controller afterwards, so that session 403s every refresh until the
+ * user logs in again.
+ *
+ * **What moves the store has narrowed.** `commitRefreshedToken` used to replace `$auth` wholesale on
+ * every writeback; for relay it now PRESERVES the stored one (`mergeRefreshedRelayToken`), because the
+ * `$auth` a site switch hands back is a child auth the client cannot sign with at all. So the relay
+ * drift this was built for no longer originates in the writeback — what remains is rotation from
+ * elsewhere (a re-login through `relaySession.apply`, which writes the view wholesale) and cloud,
+ * whose merge still adopts. Keep the guard: it is cheap and it is the only place the divergence is
+ * observable.
  *
  * `reauthenticateActiveSocket`'s existing guard cannot catch this: it compares the identityToken, and
  * on the SDK's own writeback path the controller has already adopted the new token before the app
@@ -64,21 +72,25 @@ class AuthIdRegistry {
      * An unrecorded slot is NOT treated as drift: we cannot prove a divergence we never observed, and
      * guessing would fire a needless register on every boot.
      */
-    resync(
-        kind: SocketKind,
-        auth: AuthIdReseedTarget,
-        registration: { token: string; authId: string },
-        sign: SignCallback
-    ): boolean {
+    resync(kind: SocketKind, auth: AuthIdReseedTarget, registration: AuthRegistration, sign: SignCallback): boolean {
         const recorded = this.ids.get(kind);
         if (recorded === undefined || recorded === registration.authId) {
             return false;
         }
 
-        // Loud: this is the only place the drift is visible, and its frequency is the evidence for
-        // whether the backend rotates `$auth.id` at all (the open question behind this guard).
+        // Loud, and with the signing material: this is the only place the drift is visible, and the
+        // question that follows it is always "which of the HMAC's three keys does the server disagree
+        // with?". Logging `registered`/`current` alone could not answer it — settling that once took a
+        // production DynamoDB read (2026-09-11), which is the whole reason `signing` rides along on
+        // `AuthRegistration`.
         logger.warn('SOCKET', '[authIdRegistry] registered authId drifted from the store — re-seeding', {
-            data: { kind, registered: recorded, current: registration.authId },
+            data: {
+                kind,
+                registered: recorded,
+                current: registration.authId,
+                accountId: registration.signing?.accountId,
+                identityId: registration.signing?.identityId,
+            },
         });
 
         auth.register({ token: registration.token, authId: registration.authId, sign });

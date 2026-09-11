@@ -1,12 +1,22 @@
-import type { ListResult } from '@lemoncloud/chatic-backend-api/dist/cores/types';
-import type { CreateMembershipBody, MembershipView, ProductView } from '@lemoncloud/chatic-backend-api';
+import type { AggrResult, ListResult } from '@lemoncloud/chatic-backend-api/dist/cores/types';
+import type {
+    CloudView,
+    CreateMembershipBody,
+    MembershipBody,
+    MembershipView,
+    ProductView,
+} from '@lemoncloud/chatic-backend-api';
 import type {
     ListValidateParam,
     ValidateAPIBody,
     ValidateAPIResponse,
 } from '@lemoncloud/chatic-iap-api/dist/modules/in-app-pay/views';
 import type { ReceiptModel } from '@lemoncloud/chatic-iap-api/dist/modules/in-app-pay/model';
-import type { ISubscriptionHttpDataSource } from '../remote/http-data-sources';
+import type {
+    AdminEndpointOptions,
+    AdminOverrideOptions,
+    ISubscriptionHttpDataSource,
+} from '../remote/http-data-sources';
 import type { DataContextProvider } from './types';
 import { BaseRepositoryV2, type DisposableRepositoryV2 } from './types';
 
@@ -18,6 +28,21 @@ export interface ISubscriptionRepositoryV2 extends DisposableRepositoryV2 {
     fetchReceiptDetail(receiptId: string, params?: Record<string, unknown>): Promise<ValidateAPIResponse>;
     fetchMembershipInfo(): Promise<MembershipView>;
     validateMembership(body: CreateMembershipBody, params?: Record<string, unknown>): Promise<MembershipView>;
+
+    /**
+     * Admin console surface (ADR-0082). Remote-only like the rest of this repository, which is the
+     * point: these reads are other users' records and must never reach a local cache.
+     */
+    fetchAdminMemberships(
+        params?: Record<string, unknown>,
+        opts?: AdminEndpointOptions
+    ): Promise<ListResult<MembershipView>>;
+    updateMembershipByAdmin(userId: string, body: MembershipBody, opts?: AdminOverrideOptions): Promise<MembershipView>;
+    fetchAdminClouds(
+        ownerId: string,
+        params?: Record<string, unknown>,
+        opts?: AdminEndpointOptions
+    ): Promise<ListResult<CloudView, AggrResult>>;
 }
 
 /**
@@ -74,5 +99,28 @@ export class SubscriptionRepositoryV2 extends BaseRepositoryV2 implements ISubsc
         params?: Record<string, unknown>
     ): Promise<MembershipView> {
         return this.requireHttp().validateMembership(body, params);
+    }
+
+    public async fetchAdminMemberships(
+        params?: Record<string, unknown>,
+        opts?: AdminEndpointOptions
+    ): Promise<ListResult<MembershipView>> {
+        return this.requireHttp().fetchAdminMemberships(params, opts);
+    }
+
+    public async updateMembershipByAdmin(
+        userId: string,
+        body: MembershipBody,
+        opts?: AdminOverrideOptions
+    ): Promise<MembershipView> {
+        return this.requireHttp().updateMembershipByAdmin(userId, body, opts);
+    }
+
+    public async fetchAdminClouds(
+        ownerId: string,
+        params?: Record<string, unknown>,
+        opts?: AdminEndpointOptions
+    ): Promise<ListResult<CloudView, AggrResult>> {
+        return this.requireHttp().fetchAdminClouds(ownerId, params, opts);
     }
 }

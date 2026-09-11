@@ -31,6 +31,9 @@ export const useChannelProfiles = (
 ) => {
     const { profile: profileRepository } = runtime.data.useRuntimeRepositories();
     const { isVerified } = runtime.connection.useRuntimeSocketState();
+    // An account change retires targets registered by the previous session (SyncManager
+    // scopes them by uid), so re-register on it — see the note in `useSyncTarget`.
+    const uid = runtime.session.useGlobalSession().identity.userId;
 
     const [profiles, setProfiles] = useState<DomainProfile[]>([]);
     // Whether this hook has produced a reading yet — see `hasSnapshot` in the return.
@@ -93,7 +96,7 @@ export const useChannelProfiles = (
             disposers.forEach(dispose => dispose());
         };
         // memberKey captures the membership set; activeMemberIds is read once per key.
-    }, [profileRepository, sid, isVerified, memberKey, syncIntervalMs]);
+    }, [profileRepository, sid, isVerified, memberKey, syncIntervalMs, uid]);
 
     const profileMap = useMemo(() => {
         const map = new Map<string, DomainProfile>();

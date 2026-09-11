@@ -11,6 +11,8 @@ import {
     type NetworkLogFields,
 } from '@chatic/http';
 
+import { authFailureReaction } from './authFailureReaction';
+
 /**
  * `resolveEndpoint` default per route.
  *
@@ -66,18 +68,17 @@ const createNetworkLogSink = (): HttpLogSink => {
 };
 
 /**
- * Reproduces the pre-lib `handleAuthError(error, true, message)` reaction inline — `app-runtime`
- * does not import `@chatic/web-core`'s `handleAuthError` because that function is scheduled to move
- * behind this same port when the web-core transport delegation lands (checklist item 7). Keeping
- * the reaction here now, rather than importing a function that is about to be re-homed, avoids a
- * throwaway cross-import.
+ * The one place a server-CONFIRMED auth failure is acted on: the credential was already re-minted
+ * and the request replayed once, and it was refused again.
+ *
+ * Logging and the rethrow stay here because they are the same for every app. The user-facing
+ * reaction does not, so it moved behind `authFailureReaction` — the pre-lib
+ * `handleAuthError(error, true, message)` behavior (alert + `/auth/logout`) is still what an app
+ * that registers nothing gets, which is every app but admin-v2.
  */
 export const onAuthFailure = (error: unknown, message: string): void => {
     logger.error('AUTH', message, { error });
-    if (typeof window !== 'undefined') {
-        window.alert(`인증 오류: ${error instanceof Error ? error.message : String(error)}`);
-        window.location.href = '/auth/logout';
-    }
+    authFailureReaction.react(error, message);
     throw error instanceof Error ? error : new Error(String(error));
 };
 

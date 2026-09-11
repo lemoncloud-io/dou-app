@@ -12,6 +12,9 @@ jest.mock('@chatic/app-runtime', () => ({
         sync: {
             getSyncManager: jest.fn(),
         },
+        session: {
+            useGlobalSession: jest.fn(() => ({ identity: { userId: 'me' } })),
+        },
     },
 }));
 
@@ -29,7 +32,7 @@ beforeEach(() => {
 describe('useJoinPositions — 읽음 커서/안읽음 계산', () => {
     it('전체 멤버(memberIds)에 대해 join sync를 등록한다 — join 캐시는 관측하지 않는다', () => {
         // active(분모)는 u1/u2지만, 등록은 전체 로스터(u1/u2/u3) 기준으로 이뤄진다.
-        renderHook(() => useJoinPositions('c1', ['u1', 'u2'], ['u1', 'u2', 'u3'], cursors({})));
+        renderHook(() => useJoinPositions('c1', ['u1', 'u2'], ['u1', 'u2', 'u3'], cursors({}), true));
 
         expect(registerJoin).toHaveBeenCalledTimes(3);
         expect(registerJoin).toHaveBeenCalledWith('c1@u1');
@@ -37,16 +40,39 @@ describe('useJoinPositions — 읽음 커서/안읽음 계산', () => {
         expect(registerJoin).toHaveBeenCalledWith('c1@u3');
     });
 
+    // 서버는 남의 join을 그 채널 멤버에게만 준다. 멤버가 아닌 방(남의 셀프챗에 푸시로 들어온 경우 등)에서
+    // 로스터를 폴링하면 멤버 수만큼 403과 서버 알람이 난다 — 실제 발생한 알람.
+    it('멤버가 아니면(isMember=false) 로스터 폴링을 등록하지 않는다', () => {
+        renderHook(() => useJoinPositions('c1', ['u1', 'u2'], ['u1', 'u2', 'me'], cursors({}), false));
+
+        expect(registerJoin).not.toHaveBeenCalled();
+    });
+
+    // 멤버 판정은 채널 행·내 join 행이 도착해야 내려진다. 그 전엔 등록을 미루고, 판정이 서면 그때 등록한다.
+    it('멤버 판정이 false→true로 바뀌면 그때 등록한다', () => {
+        const { rerender } = renderHook(
+            ({ isMember }) => useJoinPositions('c1', ['u1'], ['u1', 'me'], cursors({}), isMember),
+            { initialProps: { isMember: false } }
+        );
+        expect(registerJoin).not.toHaveBeenCalled();
+
+        rerender({ isMember: true });
+
+        expect(registerJoin).toHaveBeenCalledTimes(2);
+        expect(registerJoin).toHaveBeenCalledWith('c1@u1');
+        expect(registerJoin).toHaveBeenCalledWith('c1@me');
+    });
+
     it('세션 미검증(isVerified=false)이면 join sync를 등록하지 않는다', () => {
         (runtime.connection.useRuntimeSocketState as jest.Mock).mockReturnValue({ isVerified: false });
 
-        renderHook(() => useJoinPositions('c1', ['u1', 'u2'], ['u1', 'u2'], cursors({})));
+        renderHook(() => useJoinPositions('c1', ['u1', 'u2'], ['u1', 'u2'], cursors({}), true));
 
         expect(registerJoin).not.toHaveBeenCalled();
     });
 
     it('로스터가 그대로면 재등록하지 않는다 (커서만 바뀌는 흔한 경우)', () => {
-        const { rerender } = renderHook(({ byUser }) => useJoinPositions('c1', ['u1'], ['u1'], byUser), {
+        const { rerender } = renderHook(({ byUser }) => useJoinPositions('c1', ['u1'], ['u1'], byUser, true), {
             initialProps: { byUser: cursors({ u1: 1 }) },
         });
         expect(registerJoin).toHaveBeenCalledTimes(1);
@@ -60,7 +86,7 @@ describe('useJoinPositions — 읽음 커서/안읽음 계산', () => {
     it('커서는 넘겨받은 max(readNo, chatNo) 맵을 그대로 쓴다', () => {
         // u1은 5까지, u2는 4까지 읽은 상태.
         const { result } = renderHook(() =>
-            useJoinPositions('c1', ['u1', 'u2'], ['u1', 'u2'], cursors({ u1: 5, u2: 4 }))
+            useJoinPositions('c1', ['u1', 'u2'], ['u1', 'u2'], cursors({ u1: 5, u2: 4 }), true)
         );
 
         // chatNo 5까지 읽은 사람: u1(5) → 1명, u2(4)는 미달
@@ -71,7 +97,7 @@ describe('useJoinPositions — 읽음 커서/안읽음 계산', () => {
 
     it('분모는 active 멤버 수와 일치한다', () => {
         const { result } = renderHook(() =>
-            useJoinPositions('c1', ['u1', 'u2', 'u3'], ['u1', 'u2', 'u3'], cursors({ u1: 10 }))
+            useJoinPositions('c1', ['u1', 'u2', 'u3'], ['u1', 'u2', 'u3'], cursors({ u1: 10 }), true)
         );
 
         // u1만 읽음, 분모 3 → 안읽음 2
@@ -79,7 +105,7 @@ describe('useJoinPositions — 읽음 커서/안읽음 계산', () => {
     });
 
     it('커서가 낮아진 맵을 받으면 그대로 내려간다 (high-water 없음)', () => {
-        const { result, rerender } = renderHook(({ byUser }) => useJoinPositions('c1', ['u1'], ['u1'], byUser), {
+        const { result, rerender } = renderHook(({ byUser }) => useJoinPositions('c1', ['u1'], ['u1'], byUser, true), {
             initialProps: { byUser: cursors({ u1: 9 }) },
         });
         expect(result.current.getReadCount(9).readCount).toBe(1);
@@ -91,10 +117,10 @@ describe('useJoinPositions — 읽음 커서/안읽음 계산', () => {
 
     // 커서가 하나도 없으면(아직 join이 안 온 상태) 읽음 표시를 그릴 수 없다.
     it('isReady는 active 멤버와 커서가 모두 있을 때만 참이다', () => {
-        const { result: empty } = renderHook(() => useJoinPositions('c1', ['u1'], ['u1'], cursors({})));
+        const { result: empty } = renderHook(() => useJoinPositions('c1', ['u1'], ['u1'], cursors({}), true));
         expect(empty.current.isReady).toBe(false);
 
-        const { result: ready } = renderHook(() => useJoinPositions('c1', ['u1'], ['u1'], cursors({ u1: 3 })));
+        const { result: ready } = renderHook(() => useJoinPositions('c1', ['u1'], ['u1'], cursors({ u1: 3 }), true));
         expect(ready.current.isReady).toBe(true);
     });
 });

@@ -16,6 +16,14 @@ export interface SyncWatchEntry {
      * a cloud logout (multi-socket-design.md §8-a trap #2).
      */
     cid: string | null;
+    /**
+     * The user id this target was registered under, or null when there was no session. It is the
+     * SECOND scope axis, and it exists because `cid` alone cannot see an account change: a relay
+     * session stays on cid `'default'` across a guest→social promotion or a logout→login, so a
+     * target registered by the previous account passed every guard and kept polling ids built from
+     * the old uid. The server answers those with `403 not allowed to read join`.
+     */
+    uid: string | null;
 }
 
 /**
@@ -31,6 +39,10 @@ export type SyncRuntimeOptions = Pick<
 
 export interface SyncManagerDeps {
     buildSyncPlans?: () => DomainSyncPlan[];
+    /** The session uid targets are scoped to. Injected for tests; defaults to the session store. */
+    getUid?: () => string | null;
+    /** Session-change subscription, so an account change can retire the previous account's targets. */
+    subscribeSession?: (listener: () => void) => () => void;
     createRuntime?: (client: ClientSocketV2, plans: DomainSyncPlan[]) => ClientSocketRuntime;
     buildTargetKey?: (target: SyncTargetDescriptor) => string;
     runtimeOptions?: SyncRuntimeOptions;

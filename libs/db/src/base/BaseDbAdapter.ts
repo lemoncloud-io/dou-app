@@ -1,5 +1,6 @@
+import { logger } from '@chatic/bridges';
 import type { CacheModelOf, CacheQueryOf, CacheType } from '@chatic/app-messages';
-import type { CacheStorage, DataContextProvider } from '@chatic/data';
+import type { AdapterScope, CacheStorage, DataContextProvider } from '@chatic/data';
 import { resolveScopedContext } from '@chatic/data';
 
 /**
@@ -13,11 +14,30 @@ export abstract class BaseDbAdapter<TType extends CacheType> implements CacheSto
         protected readonly contextProvider: DataContextProvider
     ) {}
 
+    /** 스코프 부재를 알린 적이 있는지 — 경고는 어댑터당 1회면 원인을 아는 데 충분합니다. */
+    private warnedMissingScope = false;
+
     /**
-     * 도메인 타입 정책에 따른 스코프(cid, uid)를 결정합니다.
+     * 도메인 타입 정책에 따른 스코프(cid, uid)를 결정합니다. **세션이 없으면 `null`이고, 그때
+     * 모든 캐시 연산은 건너뜁니다** — 호출자는 읽기에 빈 값을, 쓰기에 무동작을 답해야 합니다.
+     *
+     * 예전에는 빈 uid가 `'default'`로 채워져 실재하지 않는 파티션에 읽고 썼습니다
+     * (`resolveBaseScope`의 주석에 그 사고가 적혀 있습니다). 폴백을 없앤 자리에 폴백을 다시
+     * 놓지 않으려면 이 함수가 `null`을 돌려주는 것이 유일한 답입니다 — 세션 없는 사용자의
+     * 캐시 파티션은 존재하지 않으므로, 대신 쓸 곳을 고르는 순간 같은 사고가 재발합니다.
+     *
+     * 건너뛴 사실은 반드시 보이게 남깁니다. 조용히 딴 데 쓰는 것과 조용히 아무것도 안 하는 것은
+     * 디버깅 난이도가 같습니다.
      */
-    protected getScope(): { cid: string; uid: string } {
-        return resolveScopedContext(this.type, this.contextProvider);
+    protected getScope(): AdapterScope | null {
+        const scope = resolveScopedContext(this.type, this.contextProvider);
+        if (!scope && !this.warnedMissingScope) {
+            this.warnedMissingScope = true;
+            logger.warn('CACHE', '[BaseDbAdapter] no session scope — cache access skipped', {
+                data: { type: this.type },
+            });
+        }
+        return scope;
     }
 
     abstract save(id: string, item: CacheModelOf<TType>): Promise<CacheModelOf<TType>>;
@@ -38,6 +58,9 @@ export abstract class BaseDbAdapter<TType extends CacheType> implements CacheSto
      */
     async loadMany(ids: string[]): Promise<CacheModelOf<TType>[]> {
         if (ids.length === 0) return [];
+        // `load`가 스코프 없음을 각각 걸러 전부 null을 돌려주지만, 세션이 없으면 id 수만큼
+        // 무의미한 왕복이 생기므로 여기서 한 번에 끊습니다.
+        if (!this.getScope()) return [];
         const items: Array<CacheModelOf<TType> | null> = await Promise.all(ids.map(id => this.load(id)));
         return items.filter((item): item is CacheModelOf<TType> => !!item);
     }
@@ -52,6 +75,7 @@ export abstract class BaseDbAdapter<TType extends CacheType> implements CacheSto
      * 좁힐 근거가 없어 예전처럼 전량을 훑습니다 — 실제 호출자는 chat 하나뿐입니다.
      */
     async clearByChannelId(channelId: string): Promise<void> {
+        if (!this.getScope()) return;
         const items = await this.loadAll(this.asChannelQuery(channelId));
         const ids = items
             .filter(item => (item as any).channelId === channelId)

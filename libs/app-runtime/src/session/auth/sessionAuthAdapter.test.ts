@@ -130,19 +130,28 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
     it('getServerAuthRegistration은 kind별로 authId를 시드한다 (relay: $auth.id, cloud: Token.authId)', async () => {
         // relay branch: relay identity token + $auth.id (NOT getTokenSignature / Token.authId)
         mockRelayGetIdentityToken.mockReturnValue('relay-identity-token');
-        mockRelayGetRelayToken.mockReturnValue({ $auth: { id: 'relay-auth-id' }, Token: { authId: 'http-id' } });
+        mockRelayGetRelayToken.mockReturnValue({
+            $auth: { id: 'relay-auth-id' },
+            Token: { authId: 'http-id', accountId: 'relay-acct', identityId: 'relay-iid' },
+        });
         await expect(sessionAuthAdapter.getAuthRegistration('relay')).resolves.toEqual({
             token: 'relay-identity-token',
             authId: 'relay-auth-id',
+            // Diagnostic-only companion — register() never reads it; the drift log does.
+            signing: { accountId: 'relay-acct', identityId: 'relay-iid' },
         });
 
         // cloud branch: authId from Token.authId (cloud tokens carry no $auth, so — unlike relay —
         // Token.authId is the socket-auth key). $auth is present in the mock to prove it is NOT used.
         mockGetIdentityToken.mockReturnValue('cloud-identity-token');
-        mockGetCloudToken.mockReturnValue({ $auth: { id: 'cloud-auth-id' }, Token: { authId: 'http-id' } });
+        mockGetCloudToken.mockReturnValue({
+            $auth: { id: 'cloud-auth-id' },
+            Token: { authId: 'http-id', accountId: 'cloud-acct', identityId: 'cloud-iid' },
+        });
         await expect(sessionAuthAdapter.getAuthRegistration('cloud')).resolves.toEqual({
             token: 'cloud-identity-token',
             authId: 'http-id',
+            signing: { accountId: 'cloud-acct', identityId: 'cloud-iid' },
         });
 
         // the HTTP-path signature helper must NOT be consulted for socket registration
@@ -187,6 +196,79 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
         expect(result.signature).toBe('relay-sig');
         // socket signature must not fall back to the HTTP-path (Token.authId) helper
         expect(mockGetTokenSignature).not.toHaveBeenCalled();
+    });
+
+    // 서버(`_sign`/`validateSignature`)는 서명 재료를 전부 auth 모델에서 꺼낸다. 뷰가 노출하는 칸은
+    // 그 출처를 그대로 따른다 — 값이 같아서 오늘은 무해하지만, 고정하는 건 값이 아니라 출처다.
+    it('sessionAuthAdapter.signAuth(relay)는 accountId 를 $auth 에서 읽는다', async () => {
+        mockRelayGetRelayToken.mockReturnValue({
+            $auth: { id: 'relay-auth-id', accountId: 'from-auth' },
+            Token: { accountId: 'from-token', identityId: 'r-ident' },
+        });
+        mockCalcSignature.mockReturnValue('sig');
+
+        await sessionAuthAdapter.signAuth('relay');
+
+        expect(mockCalcSignature).toHaveBeenCalledWith(
+            expect.objectContaining({ accountId: 'from-auth' }),
+            expect.any(String),
+            expect.any(String)
+        );
+    });
+
+    it('sessionAuthAdapter.signAuth(relay)는 $auth 에 accountId 가 없으면 Token 으로 폴백한다', async () => {
+        // 뷰가 그 칸을 안 실어 보낸 경우까지 서명을 못 하게 만들 이유는 없다.
+        mockRelayGetRelayToken.mockReturnValue({
+            $auth: { id: 'relay-auth-id' },
+            Token: { accountId: 'from-token', identityId: 'r-ident' },
+        });
+        mockCalcSignature.mockReturnValue('sig');
+
+        await sessionAuthAdapter.signAuth('relay');
+
+        expect(mockCalcSignature).toHaveBeenCalledWith(
+            expect.objectContaining({ accountId: 'from-token' }),
+            expect.any(String),
+            expect.any(String)
+        );
+    });
+
+    // identityId 가 조용히 어긋나서 이 트랙의 사고가 났다. 볼 수 있는 칸은 어긋나면 소리가 나야 한다.
+    it('sessionAuthAdapter.signAuth(relay)는 $auth 와 Token 의 accountId 가 다르면 경고하고 $auth 를 쓴다', async () => {
+        mockRelayGetRelayToken.mockReturnValue({
+            $auth: { id: 'relay-auth-id', accountId: 'from-auth' },
+            Token: { accountId: 'DIFFERENT', identityId: 'r-ident' },
+        });
+        mockCalcSignature.mockReturnValue('sig');
+
+        await sessionAuthAdapter.signAuth('relay');
+
+        expect(mockLoggerWarn).toHaveBeenCalledWith(
+            'AUTH',
+            '[signAuth] relay accountId differs between $auth and Token',
+            expect.objectContaining({ data: expect.objectContaining({ auth: 'from-auth', token: 'DIFFERENT' }) })
+        );
+        expect(mockCalcSignature).toHaveBeenCalledWith(
+            expect.objectContaining({ accountId: 'from-auth' }),
+            expect.any(String),
+            expect.any(String)
+        );
+    });
+
+    it('sessionAuthAdapter.signAuth(relay)는 일치하면 경고하지 않는다', async () => {
+        mockRelayGetRelayToken.mockReturnValue({
+            $auth: { id: 'relay-auth-id', accountId: 'same' },
+            Token: { accountId: 'same', identityId: 'r-ident' },
+        });
+        mockCalcSignature.mockReturnValue('sig');
+
+        await sessionAuthAdapter.signAuth('relay');
+
+        expect(mockLoggerWarn).not.toHaveBeenCalledWith(
+            'AUTH',
+            '[signAuth] relay accountId differs between $auth and Token',
+            expect.anything()
+        );
     });
 
     it('sessionAuthAdapter.signAuth(relay)는 $auth.id가 없으면 던진다', async () => {
@@ -305,6 +387,75 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
         expect(mockBuildCredentialsByToken).not.toHaveBeenCalled();
         expect(mockRelaySaveRelayToken).toHaveBeenCalledWith(
             expect.objectContaining({ Token: expect.objectContaining({ credential: previous }) })
+        );
+    });
+
+    // 사이트 전환 응답의 하위 auth 를 버리는 건 서버 답을 거스르는 조용한 결정이다. 소리내어 말하고,
+    // 서명 재료까지 같이 남긴다 — 다음 질문은 언제나 "세 키 중 뭐가 서버와 다른가"이기 때문이다.
+    it('commitServerRefreshedToken(relay)는 저장된 $auth 를 지키고 버린 사실을 재료와 함께 경고한다', async () => {
+        mockRelayGetRelayToken.mockReturnValue({
+            $auth: { id: 'parent-auth' },
+            Token: { identityToken: 'kept' },
+        } as unknown as UserTokenView);
+        const view = {
+            id: 'u',
+            $auth: { id: 'child-auth' },
+            Token: { identityToken: 'fresh', accountId: 'acct', identityId: 'iid' },
+        } as unknown as UserTokenView;
+
+        await sessionAuthAdapter.commitRefreshedToken('relay', view);
+
+        expect(mockRelaySaveRelayToken).toHaveBeenCalledWith(expect.objectContaining({ $auth: { id: 'parent-auth' } }));
+        expect(mockLoggerWarn).toHaveBeenCalledWith(
+            'AUTH',
+            '[commitServerRefreshedToken] kept the stored $auth, dropped the served one',
+            expect.objectContaining({
+                data: expect.objectContaining({
+                    held: 'parent-auth',
+                    offered: 'child-auth',
+                    accountId: 'acct',
+                    identityId: 'iid',
+                }),
+            })
+        );
+    });
+
+    it('commitServerRefreshedToken(relay)는 $auth 가 그대로면 경고하지 않는다', async () => {
+        // 평범한 refresh 는 같은 $auth 를 돌려준다 — 보존이 no-op 인 경우까지 시끄러우면 안 된다.
+        mockRelayGetRelayToken.mockReturnValue({
+            $auth: { id: 'same-auth' },
+            Token: { identityToken: 'kept' },
+        } as unknown as UserTokenView);
+        const view = {
+            id: 'u',
+            $auth: { id: 'same-auth' },
+            Token: { identityToken: 'fresh' },
+        } as unknown as UserTokenView;
+
+        await sessionAuthAdapter.commitRefreshedToken('relay', view);
+
+        expect(mockLoggerWarn).not.toHaveBeenCalledWith(
+            'AUTH',
+            '[commitServerRefreshedToken] kept the stored $auth, dropped the served one',
+            expect.anything()
+        );
+    });
+
+    it('commitServerRefreshedToken(relay)는 저장된 $auth 가 없으면 뷰의 것을 받고 경고하지 않는다', async () => {
+        mockRelayGetRelayToken.mockReturnValue({ Token: { identityToken: 'kept' } } as unknown as UserTokenView);
+        const view = {
+            id: 'u',
+            $auth: { id: 'first-auth' },
+            Token: { identityToken: 'fresh' },
+        } as unknown as UserTokenView;
+
+        await sessionAuthAdapter.commitRefreshedToken('relay', view);
+
+        expect(mockRelaySaveRelayToken).toHaveBeenCalledWith(expect.objectContaining({ $auth: { id: 'first-auth' } }));
+        expect(mockLoggerWarn).not.toHaveBeenCalledWith(
+            'AUTH',
+            '[commitServerRefreshedToken] kept the stored $auth, dropped the served one',
+            expect.anything()
         );
     });
 

@@ -25,6 +25,15 @@ describe('evaluateCloudQuota', () => {
         });
     });
 
+    // 상태를 하나 늘리면 기본 갈래(canAdd: true)로 조용히 떨어질 수 있다.
+    // 관리자 차단은 서버에서 isValid 가 false 라 어차피 거부된다.
+    it('관리자 차단도 거절한다 — 기본 갈래로 새지 않는다', () => {
+        expect(evaluateCloudQuota({ used: 0, limit: 3, state: 'blocked' })).toEqual({
+            canAdd: false,
+            reason: 'notEntitled',
+        });
+    });
+
     it('해지 예약은 한도가 남아도 새 클라우드를 만들 수 없다 — 서버 guardQuota가 isValid로 막는다', () => {
         expect(evaluateCloudQuota({ used: 0, limit: 3, state: 'cancelScheduled' })).toEqual({
             canAdd: false,

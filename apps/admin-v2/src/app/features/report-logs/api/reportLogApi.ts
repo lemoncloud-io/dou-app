@@ -38,6 +38,7 @@ export interface RawMockView {
     level?: string;
     runId?: string;
     cid?: string;
+    sid?: string;
     [key: string]: unknown;
 }
 
@@ -108,6 +109,18 @@ export interface FetchReportLogsParams {
     level?: string;
     /** (optional) `LogEntry.runId` filter — isolate one app run's logs. */
     runId?: string;
+    /**
+     * (optional) user-id filter. Handled explicitly by the backend's `packSearchParam`
+     * (chatic-backend-api `abstract-services.ts`), not via the model mapping the other
+     * axes go through — which is why it works without a `MockModel` field of its own.
+     *
+     * Only records that carry a hoisted `uid` match: `saveLogEntry` sets it from
+     * `LogEntry.uid`, so batch log entries do. Slack reports (`doPostSlack`) never
+     * stamp one, so a user's own issue reports do NOT come back under this filter.
+     */
+    uid?: string;
+    /** (optional) cloud-id filter — `MockModel.cid`, hoisted by `saveLogEntry`. */
+    cid?: string;
 }
 
 /**
@@ -123,6 +136,8 @@ export const buildReportLogListParams = ({
     to,
     level,
     runId,
+    uid,
+    cid,
 }: FetchReportLogsParams = {}): Record<string, string | number> => ({
     page,
     limit,
@@ -131,14 +146,21 @@ export const buildReportLogListParams = ({
     ...(to ? { to } : {}),
     ...(level ? { level } : {}),
     ...(runId ? { runId } : {}),
+    ...(uid ? { uid } : {}),
+    ...(cid ? { cid } : {}),
 });
 
 /**
  * Fetch a page of stored reports. The backend paginates (verified: total ~7.7k,
  * default limit 100), so the page/limit params drive server-side pagination.
- * `type`/`from`/`to`/`level`/`runId` filter server-side (against the FULL dataset —
- * so pagination and the group/time samples respect the range); free-text search
- * remains a client-side filter over the fetched page.
+ * `type`/`from`/`to`/`level`/`runId`/`uid`/`cid` filter server-side (against the FULL
+ * dataset), so pagination and every derived count respect the range.
+ *
+ * No `sort` param is sent on purpose. The backend already defaults to
+ * `createdAt: desc` (`addSortTerm`), and passing `sort=createdAt` without an explicit
+ * `:desc` flips it to ASCENDING (`asc || 'asc'`) — so the safe way to get newest-first
+ * is to send nothing. `collectCorpus` and the new-log probe both rely on page 0 being
+ * the newest page.
  */
 export const fetchReportLogs = async ({
     page = 0,
@@ -149,13 +171,24 @@ export const fetchReportLogs = async ({
     to,
     level,
     runId,
+    uid,
+    cid,
 }: FetchReportLogsParams = {}): Promise<ReportLogListResponse> => {
     const { data } = await runtime.boot.webTransport
         .buildSignedRequest({
             method: 'GET',
             baseURL: `${DOU_BASE}/dou-${stage}/mocks/0/list`,
         })
-        .setParams(buildReportLogListParams({ page, limit, type, from, to, level, runId }))
+        .setParams(buildReportLogListParams({ page, limit, type, from, to, level, runId, uid, cid }))
         .execute<ReportLogListResponse>();
     return data ?? {};
 };
+
+/**
+ * No `AbortSignal` here on purpose. `SealedWebTransport`'s request builder exposes only
+ * `setBody`/`setParams`/`execute` (libs/http `lemonTransport.ts`) — the narrow surface is
+ * ADR-0070's, and widening it for this screen is outside this change. So cancellation is
+ * cooperative instead: `collectCorpus` stops between pages and `useLogCorpus` discards a
+ * late response by generation, which costs at most one wasted in-flight page per filter
+ * change.
+ */

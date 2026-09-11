@@ -17,7 +17,7 @@ const membership = (overrides: Partial<MembershipView> = {}): MembershipView =>
         ...overrides,
     }) as MembershipView;
 
-describe('summarizeMembership — 4상태', () => {
+describe('summarizeMembership — 5상태', () => {
     it('멤버십이 없으면 none이고 자격이 없다', () => {
         const summary = summarizeMembership(undefined, undefined, NOW);
 
@@ -43,11 +43,141 @@ describe('summarizeMembership — 4상태', () => {
         expect(summary.isEntitled).toBe(false);
     });
 
-    it('슈퍼 멤버십은 상품이 없어도 active다', () => {
+    // isSuper 는 무기한 부여의 옛 표현이고, 서버는 2026-08 에 판정에서 걷었다.
+    // 여기서 계속 읽으면 낡은 축이 앱에만 살아남는다 (ADR-0082).
+    it('isSuper 는 더 이상 자격을 주지 않는다', () => {
         const summary = summarizeMembership({ isSuper: true } as MembershipView, undefined, NOW);
+
+        expect(summary.state).toBe('none');
+        expect(summary.isEntitled).toBe(false);
+    });
+});
+
+describe('summarizeMembership — 관리자 오버라이드', () => {
+    it('영수증이 만료돼도 부여가 살아 있으면 active다', () => {
+        const summary = summarizeMembership(
+            membership({ status: 'expired', validUntil: NOW - DAY, adminStatus: 'active', adminUntil: NOW + DAY }),
+            tier1,
+            NOW
+        );
 
         expect(summary.state).toBe('active');
         expect(summary.isEntitled).toBe(true);
+        expect(summary.isAdminOverridden).toBe(true);
+    });
+
+    it('만료일 없는 부여는 무기한이라 active다', () => {
+        const summary = summarizeMembership(
+            membership({ status: 'expired', validUntil: NOW - DAY, adminStatus: 'active' }),
+            tier1,
+            NOW
+        );
+
+        expect(summary.state).toBe('active');
+        expect(summary.isEntitled).toBe(true);
+    });
+
+    // 서버는 status 를 쓰기 시점에 한 번만 파생하고 되돌리는 배치가 없다.
+    // adminUntil 을 직접 보므로 앱은 만료를 바로 반영한다.
+    it('부여 기간이 지나면 status 가 active 로 남아 있어도 영수증 기준으로 돌아간다', () => {
+        const summary = summarizeMembership(
+            membership({ status: 'active', validUntil: NOW - DAY, adminStatus: 'active', adminUntil: NOW - 1 }),
+            tier1,
+            NOW
+        );
+
+        expect(summary.state).toBe('expired');
+        expect(summary.isEntitled).toBe(false);
+        expect(summary.isAdminOverridden).toBeUndefined();
+    });
+
+    it('차단은 영수증이 멀쩡해도 blocked 다 — expired 가 아니다', () => {
+        const summary = summarizeMembership(
+            membership({ status: 'active', validUntil: NOW + DAY, adminStatus: 'expired' }),
+            tier1,
+            NOW
+        );
+
+        expect(summary.state).toBe('blocked');
+        expect(summary.isEntitled).toBe(false);
+    });
+
+    it('canceled 로 막아도 blocked 다', () => {
+        const summary = summarizeMembership(
+            membership({ status: 'active', validUntil: NOW + DAY, adminStatus: 'canceled' }),
+            tier1,
+            NOW
+        );
+
+        expect(summary.state).toBe('blocked');
+    });
+
+    it('오버라이드 등급이 있으면 그것을 유효 등급으로 쓴다', () => {
+        const summary = summarizeMembership(
+            membership({
+                status: 'expired',
+                validUntil: NOW - DAY,
+                productId: 'pro_tier_01',
+                adminStatus: 'active',
+                adminProductId: 'pro_tier_03',
+            }),
+            tier1,
+            NOW
+        );
+
+        expect(summary.productId).toBe('pro_tier_03');
+    });
+
+    // 스토어로 나가는 값(oldPlanId·교체 대상)은 자격이 아니라 영수증을 따라야 한다.
+    it('영수증이 만료된 채 부여받으면 스토어에는 교체할 구독이 없다', () => {
+        const summary = summarizeMembership(
+            membership({ status: 'expired', validUntil: NOW - DAY, adminStatus: 'active' }),
+            tier1,
+            NOW
+        );
+
+        expect(summary.isEntitled).toBe(true);
+        expect(summary.hasLiveReceipt).toBe(false);
+    });
+
+    it('차단돼도 영수증이 살아 있으면 스토어 구독은 그대로다', () => {
+        const summary = summarizeMembership(
+            membership({ status: 'active', validUntil: NOW + DAY, adminStatus: 'expired' }),
+            tier1,
+            NOW
+        );
+
+        expect(summary.isEntitled).toBe(false);
+        expect(summary.hasLiveReceipt).toBe(true);
+    });
+
+    // 차단은 자격을 뺏을 뿐 등급을 주지 않는다. 지난 부여의 잔여값을 등급으로 보여주면 안 된다.
+    it('차단 상태에서는 남아 있는 adminProductId를 등급으로 쓰지 않는다', () => {
+        const summary = summarizeMembership(
+            membership({
+                status: 'active',
+                validUntil: NOW + DAY,
+                productId: 'pro_tier_01',
+                adminStatus: 'expired',
+                adminProductId: 'pro_tier_03',
+            }),
+            tier1,
+            NOW
+        );
+
+        expect(summary.state).toBe('blocked');
+        expect(summary.productId).toBe('pro_tier_01');
+    });
+
+    it('해제된 레코드는 오버라이드가 없는 것과 같다', () => {
+        const summary = summarizeMembership(
+            membership({ status: 'active', validUntil: NOW + DAY, adminStatus: '' }),
+            tier1,
+            NOW
+        );
+
+        expect(summary.state).toBe('active');
+        expect(summary.isAdminOverridden).toBeUndefined();
     });
 });
 

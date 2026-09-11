@@ -1,14 +1,16 @@
 /**
  * `hooks/useRelaySessionGuard.spec.ts`
  *
- * The probe/refresh BODY moved to `@chatic/app-runtime`'s `runtime.session.useSessionStalenessGuard`
- * (ADR-0070 3단계 체크리스트 7), and is covered by that hook's own tests — offline skip, the
- * consecutive-failure counting, the streak reset, exceptions not counting as failures.
+ * The probe/refresh BODY lives in `@chatic/app-runtime`'s `runtime.session.useSessionStalenessGuard`
+ * and is covered by that hook's own tests — offline skip, the failure counting, the streak reset,
+ * and which failures are definitive at all.
  *
- * What is admin-v2's and therefore tested here is the POLICY: this console polls on an interval and
- * on tab focus, treats a missing session as a definitive failure, and tears the session down after
- * three consecutive failures. Those four choices are what separate it from apps/web's guard, so they
- * are what a regression here would break.
+ * What is admin-v2's and therefore tested here is the POLICY, and the load-bearing half of it is
+ * now a NEGATIVE: this guard refreshes and never ends a session. The teardown it used to carry was
+ * a second, speculative logout engine — "the refresh did not run" is a statement about the socket,
+ * not the session — and the server's own verdict (`authFailureReaction`) is the one that ends
+ * sessions. A regression that re-adds `onTeardown` here brings the wake-from-sleep logouts back,
+ * so it is asserted explicitly rather than left to the absence of a test.
  */
 import { renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
@@ -41,20 +43,22 @@ describe('useRelaySessionGuard — admin-v2 정책', () => {
         expect(policy).toMatchObject({ intervalMs: 30_000, checkOnVisible: true });
     });
 
-    it('세션 부재를 확정 실패로 센다 — 콘솔은 로그인 없이 돌 수 없다', () => {
-        expect(policyFor(true).missingSessionCountsAsFailure).toBe(true);
+    it('relay 검증 상승 에지에서도 검사한다 — refresh가 가능해지는 바로 그 순간이다', () => {
+        expect(policyFor(true).checkOnRelayVerified).toBe(true);
     });
 
-    it('연속 3회 실패에서만 teardown한다 — blip 한 번으로 로그아웃시키지 않는다', () => {
-        expect(policyFor(true).consecutiveFailureLimit).toBe(3);
-    });
-
-    it('teardown은 relay 세션을 내려 /auth/login으로 보낸다', async () => {
+    it('teardown하지 않는다 — 세션 종료는 서버의 판정이지 이 프로브의 실패가 아니다', () => {
         const policy = policyFor(true);
 
-        await policy.onTeardown?.();
+        expect(policy.onTeardown).toBeUndefined();
+        expect(policy.consecutiveFailureLimit).toBeUndefined();
+        expect(policy.missingSessionCountsAsFailure).toBeUndefined();
+    });
 
-        expect(runtime.session.logoutSession).toHaveBeenCalled();
+    it('로그아웃을 부르지 않는다 — 정책 어디에도 logoutSession이 없다', () => {
+        policyFor(true);
+
+        expect(runtime.session.logoutSession).not.toHaveBeenCalled();
     });
 
     it('enabled를 그대로 전달한다 — 로그인 전에는 감시하지 않는다', () => {

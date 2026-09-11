@@ -2,12 +2,16 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { ReportLogRow } from '../lib/parseReportLog';
-import { ReportDetailDrawer } from './ReportDetailDrawer';
+import { ReportDetailBody } from './ReportDetailBody';
 
-// The drawer is where symbolication actually happens, and the wiring — file
+// The body is where symbolication actually happens, and the wiring — file
 // input -> read -> decode -> re-render — is the part unit tests on the decoder
 // cannot reach. The report list sits behind an admin-role gate, so this stands
 // in for clicking through it.
+//
+// It used to be rendered inside the overlay drawer; the shell became a fixed column
+// (ADR-0083) but the sections under test moved across unchanged, so these assertions
+// carried over as they were, minus the drawer's own props.
 
 // Hand-built map: generated line 1 col 9 -> useMyProfile.ts:1:9, name getMyProfile.
 const MAP_JSON = JSON.stringify({
@@ -42,16 +46,16 @@ const pickMap = (file: File) => {
     fireEvent.change(input);
 };
 
-describe('ReportDetailDrawer — 스택 심볼리케이션', () => {
+describe('ReportDetailBody — 스택 심볼리케이션', () => {
     it('스택이 가리키는 번들명을 보여줘 어느 아티팩트인지 알 수 있게 한다', () => {
-        render(<ReportDetailDrawer row={row(STACK)} onClose={vi.fn()} />);
+        render(<ReportDetailBody row={row(STACK)} />);
 
         expect(screen.getByText('index-abc.js')).toBeTruthy();
         expect(screen.getByText(STACK)).toBeTruthy();
     });
 
     it('맵을 고르면 프레임이 원본 파일·심볼로 바뀐다', async () => {
-        render(<ReportDetailDrawer row={row(STACK)} onClose={vi.fn()} />);
+        render(<ReportDetailBody row={row(STACK)} />);
 
         pickMap(mapFile('index-abc.js.map'));
 
@@ -61,7 +65,7 @@ describe('ReportDetailDrawer — 스택 심볼리케이션', () => {
     });
 
     it('해석 후 원본으로 되돌릴 수 있다', async () => {
-        render(<ReportDetailDrawer row={row(STACK)} onClose={vi.fn()} />);
+        render(<ReportDetailBody row={row(STACK)} />);
         pickMap(mapFile('index-abc.js.map'));
         await waitFor(() => expect(screen.getByText(/getMyProfile \(apps/)).toBeTruthy());
 
@@ -72,7 +76,7 @@ describe('ReportDetailDrawer — 스택 심볼리케이션', () => {
 
     // 다른 빌드의 맵은 실패하지 않고 '그럴듯하지만 틀린' 줄로 풀린다 — 조용히 넘어가면 안 된다.
     it('번들명이 다른 맵은 경고한다', async () => {
-        render(<ReportDetailDrawer row={row(STACK)} onClose={vi.fn()} />);
+        render(<ReportDetailBody row={row(STACK)} />);
 
         pickMap(mapFile('index-zzz.js.map'));
 
@@ -81,7 +85,7 @@ describe('ReportDetailDrawer — 스택 심볼리케이션', () => {
 
     it('한 프레임도 풀리지 않으면 다른 빌드일 수 있다고 알린다', async () => {
         const otherBundle = 'x@https://x/assets/index-abc.js:99:1';
-        render(<ReportDetailDrawer row={row(otherBundle)} onClose={vi.fn()} />);
+        render(<ReportDetailBody row={row(otherBundle)} />);
 
         pickMap(mapFile('index-abc.js.map'));
 
@@ -89,7 +93,7 @@ describe('ReportDetailDrawer — 스택 심볼리케이션', () => {
     });
 
     it('.map이 아닌 파일은 읽기 실패를 알린다', async () => {
-        render(<ReportDetailDrawer row={row(STACK)} onClose={vi.fn()} />);
+        render(<ReportDetailBody row={row(STACK)} />);
 
         pickMap(mapFile('notes.txt', 'not json at all'));
 
@@ -100,7 +104,7 @@ describe('ReportDetailDrawer — 스택 심볼리케이션', () => {
     // 줄/열 조회는 어떤 맵으로도 성공하므로 남의 번들 프레임이 엉뚱한 파일로 간다.
     it('여러 번들을 걸친 스택에서는 고른 맵의 번들 프레임만 바꾼다', async () => {
         const stack = [STACK, 'y@https://dou-dev.chatic.io/assets/chunk-zzz.js:1:9'].join('\n');
-        render(<ReportDetailDrawer row={row(stack)} onClose={vi.fn()} />);
+        render(<ReportDetailBody row={row(stack)} />);
 
         pickMap(mapFile('index-abc.js.map'));
 
@@ -109,7 +113,7 @@ describe('ReportDetailDrawer — 스택 심볼리케이션', () => {
     });
 
     it('스택이 없는 리포트(opaque script-error)에는 섹션 자체가 없다', () => {
-        render(<ReportDetailDrawer row={row()} onClose={vi.fn()} />);
+        render(<ReportDetailBody row={row()} />);
 
         expect(screen.queryByText('소스맵 선택')).toBeNull();
     });
@@ -124,7 +128,7 @@ describe('ReportDetailDrawer — 스택 심볼리케이션', () => {
                 causes: [{ message: 'real root', stack: STACK }],
             },
         } as ReportLogRow;
-        render(<ReportDetailDrawer row={withCause} onClose={vi.fn()} />);
+        render(<ReportDetailBody row={withCause} />);
 
         pickMap(mapFile('index-abc.js.map'));
 
@@ -148,7 +152,7 @@ describe('ReportDetailDrawer — 스택 심볼리케이션', () => {
                 },
             },
         } as unknown as ReportLogRow;
-        render(<ReportDetailDrawer row={withHttp} onClose={vi.fn()} />);
+        render(<ReportDetailBody row={withHttp} />);
 
         expect(screen.getByText('HTTP · Request')).toBeTruthy();
         expect(screen.getByText('HTTP · Response')).toBeTruthy();
@@ -157,7 +161,7 @@ describe('ReportDetailDrawer — 스택 심볼리케이션', () => {
     });
 
     it('http 정보가 없으면 두 섹션 다 뜨지 않는다', () => {
-        render(<ReportDetailDrawer row={row(STACK)} onClose={vi.fn()} />);
+        render(<ReportDetailBody row={row(STACK)} />);
 
         expect(screen.queryByText('HTTP · Request')).toBeNull();
         expect(screen.queryByText('HTTP · Response')).toBeNull();
@@ -168,13 +172,13 @@ describe('ReportDetailDrawer — 스택 심볼리케이션', () => {
             ...row(),
             payload: { causes: [{ message: 'only cause', stack: STACK }] },
         } as ReportLogRow;
-        render(<ReportDetailDrawer row={causeOnly} onClose={vi.fn()} />);
+        render(<ReportDetailBody row={causeOnly} />);
 
         expect(screen.getByText('소스맵 선택')).toBeTruthy();
     });
 });
 
-describe('ReportDetailDrawer — IDE로 추적', () => {
+describe('ReportDetailBody — IDE로 추적', () => {
     const stubClipboard = (writeText: () => Promise<void>) => {
         Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
     };
@@ -187,7 +191,7 @@ describe('ReportDetailDrawer — IDE로 추적', () => {
             app: 'mobile',
             payload: { stack: STACK, timestamp: '2026-08-11T07:12:33.000Z', webVersion: '0.36.0' },
         } as ReportLogRow;
-        render(<ReportDetailDrawer row={traced} onClose={vi.fn()} />);
+        render(<ReportDetailBody row={traced} />);
 
         fireEvent.click(screen.getByText('IDE로 추적'));
 
@@ -201,7 +205,7 @@ describe('ReportDetailDrawer — IDE로 추적', () => {
 
     it('클립보드가 막혀 있으면 직접 복사하라고 알린다', async () => {
         stubClipboard(vi.fn().mockRejectedValue(new Error('denied')));
-        render(<ReportDetailDrawer row={row(STACK)} onClose={vi.fn()} />);
+        render(<ReportDetailBody row={row(STACK)} />);
 
         fireEvent.click(screen.getByText('IDE로 추적'));
 

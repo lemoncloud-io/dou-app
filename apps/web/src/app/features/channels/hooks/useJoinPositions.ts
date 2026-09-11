@@ -21,6 +21,12 @@ interface ReadCount {
  * leaves other members' cursors stale for read receipts. `registerJoin` refcounts by key, so
  * re-registering my own join here dedups with the home registration (no double polling).
  *
+ * `isMember` gates that registration (see `isChannelMember`). The server refuses another member's
+ * join to anyone outside the channel, so a room I am not in — somebody else's self-chat reached
+ * through a stale push, a group URL I never joined — must not poll its roster: every id would
+ * come back 403 and raise a server-side alarm. Until membership is known nothing is registered;
+ * the effect re-runs on the false→true edge like it does for `isVerified`.
+ *
  * `cursorByUser` (userId → `max(readNo, chatNo)`) comes from {@link useChannelJoins}, the screen's
  * single join observer — this hook no longer observes the join cache itself. What stays here is the
  * registration above plus the counting below, which is the part nothing else wants.
@@ -34,21 +40,27 @@ export const useJoinPositions = (
     channelId: string | null,
     activeMemberIds: string[],
     memberIds: string[],
-    cursorByUser: Map<string, number>
+    cursorByUser: Map<string, number>,
+    isMember: boolean
 ) => {
     const { isVerified } = runtime.connection.useRuntimeSocketState();
+    // Targets are scoped to the account that registered them, so an account change must re-register
+    // them — see the same note in `useSyncTarget`. The ids below embed OTHER members' uids, but the
+    // scope that matters is MINE: they were registered by my session and retire with it.
+    const uid = runtime.session.useGlobalSession().identity.userId;
 
     // Register a join (read-state) sync for every channel member so all read cursors stay live
     // while the room is mounted. Network-bound, so gated on isVerified (auto-retries on the
-    // false→true edge after re-auth/reconnect). memberKey represents the member set so the
-    // effect only re-runs when the roster actually changes (memberIds read once per key).
+    // false→true edge after re-auth/reconnect), and permission-bound, so gated on isMember (the
+    // server answers 403 for a non-member). memberKey represents the member set so the effect
+    // only re-runs when the roster actually changes (memberIds read once per key).
     const memberKey = memberIds.join(',');
     useEffect(() => {
-        if (!channelId || !isVerified || memberIds.length === 0) return;
+        if (!channelId || !isVerified || !isMember || memberIds.length === 0) return;
         const sync = runtime.sync.getSyncManager();
         const disposers = memberIds.map(userId => sync.registerJoin(`${channelId}@${userId}`));
         return () => disposers.forEach(dispose => dispose());
-    }, [channelId, isVerified, memberKey]);
+    }, [channelId, isVerified, isMember, memberKey, uid]);
 
     const memberCount = activeMemberIds.length;
     const isReady = memberCount > 0 && cursorByUser.size > 0;

@@ -113,12 +113,17 @@ export const bootstrapSocketConnection = async ({
     /**
      * Commit a refreshed token view, then re-align the controller with what the store now says.
      *
-     * The second half is not bookkeeping. The writeback replaces `$auth` wholesale, while the packet's
-     * `authId` lives in a private controller field that only `register()` writes — so a rotated
-     * `$auth.id` leaves the signature keyed on the NEW id and the packet quoting the OLD one, and the
-     * server answers `403 NOT ALLOWED - invalid sign @refreshAccessToken(<old id>)` for every refresh
-     * from then on. This is the one place that sees both sides right after they can diverge
-     * (`authIdRegistry`).
+     * The second half is not bookkeeping. The packet's `authId` lives in a private controller field
+     * that only `register()` writes — so a rotated `$auth.id` leaves the signature keyed on the NEW id
+     * and the packet quoting the OLD one, and the server answers
+     * `403 NOT ALLOWED - invalid sign @refreshAccessToken(<old id>)` for every refresh from then on.
+     * This is the one place that sees both sides right after they can diverge (`authIdRegistry`).
+     *
+     * The relay writeback no longer rotates `$auth` on its own — `mergeRefreshedRelayToken` preserves
+     * the stored one rather than adopting the view's (see its comment: a site switch returns a child
+     * auth that cannot be signed with). So for relay this is now a guard against rotation from
+     * elsewhere (a re-login committed through `relaySession.apply`), not the routine case it was
+     * written for. Cloud still merges `$auth` shallowly and can rotate here.
      */
     const applyRefreshedToken = async (view: unknown): Promise<void> => {
         try {

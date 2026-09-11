@@ -47,6 +47,9 @@ export const useChatSyncRegistration = (
 ): void => {
     const { chat: chatRepository } = runtime.data.useRuntimeRepositories();
     const { isVerified } = runtime.connection.useRuntimeSocketState();
+    // An account change retires targets registered by the previous session (SyncManager
+    // scopes them by uid), so re-register on it — see the note in `useSyncTarget`.
+    const uid = runtime.session.useGlobalSession().identity.userId;
 
     // Sorted-and-joined key: a reorder (pin / activity sort) must not re-register or re-subscribe,
     // and the sorted ids match the key `useLastChats` observes under, so the two share one read.
@@ -57,7 +60,7 @@ export const useChatSyncRegistration = (
         const sync = runtime.sync.getSyncManager();
         const disposers = channelKey.split(',').map(id => sync.registerChat(id));
         return () => disposers.forEach(dispose => dispose());
-    }, [channelKey, enabled, isVerified]);
+    }, [channelKey, enabled, isVerified, uid]);
 
     // Per-channel max chatNo held by the chat cache — the baseline source AND the catch-up's
     // comparison point. `null` until the first observation lands, which locks the trigger: with no

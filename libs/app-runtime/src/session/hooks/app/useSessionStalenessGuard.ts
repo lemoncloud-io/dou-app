@@ -5,6 +5,7 @@ import { hasStoredRelaySession, isStoredSessionExpired } from '../../../http/tra
 
 import { useKindVerified } from '../../../connection/hooks/useKindVerified';
 import { SDK_REFRESH_CYCLE_MS } from '../../../socket/constants';
+import { canRefreshThroughSocket, getAuthStatus } from '../../../socket/auth/authStatus';
 import { credentialRenewers } from '../../../socket/auth/renewers';
 import { Coalescer } from '../../../utils/coalescer';
 import { Throttle } from '../../../utils/throttle';
@@ -64,6 +65,10 @@ export interface SessionStalenessPolicy {
      * Consecutive definitive failures before `onTeardown` runs. `null` never tears down. Repeated
      * rather than single failure on purpose: one transient blip is indistinguishable from a dead
      * session, and logging a user out over a blip is worse than a few more ticks of 403s.
+     *
+     * DEFINITIVE is the load-bearing word, and it is narrower than "the refresh returned false": a
+     * refresh that could not even reach the socket (`canRefreshThroughSocket` is false) is not
+     * counted — see the probe body.
      */
     consecutiveFailureLimit?: number | null;
     /** Ran after `consecutiveFailureLimit` definitive failures. Omit to never tear down. */
@@ -188,7 +193,22 @@ export const useSessionStalenessGuard = (policy: SessionStalenessPolicy = {}): {
                 logger.warn('SESSION', '[stalenessGuard] preemptive relay refresh did not run');
                 return;
             }
-            logger.warn('SESSION', '[stalenessGuard] stale relay credentials not refreshed');
+            // WHY the refresh did not run decides whether this counts. A relay socket that cannot
+            // carry an `auth.refresh` right now — `handshaking` after a wake or a dropped link, or
+            // the terminal `expired` whose own confirmation window (`RelayCredentialRenewer`) owns
+            // the logout decision — means the request never reached the session at all, so it is
+            // no evidence the session is dead. Counting it is what logged admins out of live
+            // sessions: the SDK keep-alive needs ~40-80s to notice a half-open socket and
+            // reconnect, while three 30s ticks tear down at 90s — the teardown usually won that
+            // race. Only a refusal from a socket that WAS able to ask counts.
+            const status = getAuthStatus('relay', { storedSessionExpired: expired });
+            if (!canRefreshThroughSocket(status)) {
+                logger.warn('SESSION', '[stalenessGuard] relay socket cannot carry a refresh — not counted', {
+                    data: { status },
+                });
+                return;
+            }
+            logger.warn('SESSION', '[stalenessGuard] stale relay credentials not refreshed', { data: { status } });
             await registerFailure();
         } catch (error) {
             // Transient (storage race, refresh rejection) — the next trigger retries. Deliberately

@@ -31,6 +31,7 @@ import { RoomSkeleton } from '../components/RoomSkeleton';
 import { resolveChannelAvatar } from '../lib';
 import { orderMemberIdsOwnerFirst } from '../utils/orderMemberIds';
 import { pickDmPeerId } from '../utils/dmPeer';
+import { isChannelMember, isSomeoneElsesSelfChat } from '../utils/membership';
 import {
     useChannel,
     useChannelJoins,
@@ -188,11 +189,17 @@ export const ChannelRoomPage = () => {
         return [...ids];
     }, [channel?.memberIds, userId]);
 
+    // Am I actually in this room? Read off the roster the server itself authorizes with, or my own
+    // active join row. Gates the per-member join polling above: a room I am not in (a stale push
+    // into somebody else's self-chat, a group URL I never joined) gets 403 per member otherwise.
+    const isMember = isChannelMember(channel, myJoin, userId);
+
     const { getReadCount, isReady: isJoinReady } = useJoinPositions(
         stableChannelIdForChannelHook,
         activeMemberIds,
         allMemberIds,
-        cursorByUser
+        cursorByUser,
+        isMember
     );
 
     const isSelfChat = channel?.isSelfChat ?? false;
@@ -299,15 +306,22 @@ export const ChannelRoomPage = () => {
      * no longer fires while a push-opened room is still being fetched; doing so used to unmount the
      * sync that was fetching it and made the room permanently unenterable.
      *
+     * Also leave when the channel is somebody ELSE's self-chat (`isSomeoneElsesSelfChat`): only its
+     * owner can ever read it, so the room would show nothing but refusals — and it used to poll the
+     * owner's join on the way, raising a server alarm. This is how a stale push lands after switching
+     * accounts on one device. Decided only once both ids are known; a legitimate room is never
+     * bounced while the identity is still resolving.
+     *
      * An unresolvable channel (`isChannelError`) is NOT redirected: the error screen below explains
      * itself and its 돌아가기 keeps the history entry the user came from.
      */
+    const isForeignSelfChat = isSomeoneElsesSelfChat(channel, userId);
     useEffect(() => {
         if (isChannelLoading || isChannelError) return;
-        if (!channel) {
+        if (!channel || isForeignSelfChat) {
             void navigate(ROUTES.root, { replace: true });
         }
-    }, [channel, isChannelLoading, isChannelError, navigate]);
+    }, [channel, isForeignSelfChat, isChannelLoading, isChannelError, navigate]);
 
     // 읽음 처리 (1단계: 진입 즉시 channel.chatNo, 2단계: 메시지 로딩 후 보정/포그라운드 복귀)는
     // useReadMarker가 소유한다. 전송 직후 읽음은 markSent로 처리한다.

@@ -28,6 +28,7 @@ import {
 } from '@chatic/web-ui-kit';
 
 import { useDmPeers, type DmPeer } from '../../channels/hooks';
+import { isSomeoneElsesSelfChat } from '../../channels/utils/membership';
 import type { ChannelSortMethod } from '../../../stores/preferenceKeys';
 import { ROUTES } from '../../../routes/paths';
 import { useLastChats } from '../../../hooks/useLastChats';
@@ -90,6 +91,7 @@ const ChannelItem = ({
     const { blurLastMessage } = useBlurLastMessage();
     // Self-chat is identified by stereo (ADR-0026), not member count.
     const isSelf = channel.stereo === 'self';
+    const isForeignSelfChat = isSomeoneElsesSelfChat(channel, uid);
     // 1:1 DM (stereo): the row shows the peer, not the channel — its own name/photo/member count
     // are all either absent or meaningless (ADR-0039).
     const isDm = channel.stereo === 'dm';
@@ -97,7 +99,14 @@ const ChannelItem = ({
     // Keep the channel metadata synced while rendered (unregisters on unmount). The read
     // boundary that drives the unread badge rides along on the channel as `$join.chatNo`, and
     // the polled `chatNo` head doubles as the chat catch-up trigger (useChatSyncRegistration).
-    runtime.sync.useChannelSync(channel.id);
+    //
+    // Skipped for somebody else's self-chat, which `channel.get` refuses outright
+    // (`403 NOT ALLOWED - denied by policy`). A row like that is only ever left over from the
+    // PREVIOUS account: a guest→social promotion swaps the uid while this list still holds the
+    // guest's rows for a render, and the row re-registers its target under the new identity — so
+    // the scope guard in SyncManager cannot catch it, the tag is current and only the id is stale.
+    // Same rule the room uses to bounce out of one (`isSomeoneElsesSelfChat`).
+    runtime.sync.useChannelSync(isForeignSelfChat ? undefined : channel.id);
 
     const formatTime = (dateValue?: string | number) => {
         if (!dateValue) return '';

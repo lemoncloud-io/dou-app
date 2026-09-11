@@ -153,6 +153,7 @@ export class NativeDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTyp
 
     async save(id: string, item: CacheModelOf<TType>): Promise<CacheModelOf<TType>> {
         const scope = this.getScope();
+        if (!scope) return item;
 
         await this.send({
             type: 'SaveCacheData',
@@ -171,6 +172,7 @@ export class NativeDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTyp
     async saveAll(items: CacheModelOf<TType>[]): Promise<CacheModelOf<TType>[]> {
         if (items.length === 0) return [];
         const scope = this.getScope();
+        if (!scope) return items;
 
         await this.send({
             type: 'SaveAllCacheData',
@@ -187,6 +189,7 @@ export class NativeDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTyp
 
     async load(id: string): Promise<CacheModelOf<TType> | null> {
         const scope = this.getScope();
+        if (!scope) return null;
 
         const response = await this.sendRead({
             type: 'FetchCacheData',
@@ -218,6 +221,7 @@ export class NativeDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTyp
         if (batchReadUnsupported) return super.loadMany(ids);
 
         const scope = this.getScope();
+        if (!scope) return [];
 
         try {
             const response = await this.sendRead({
@@ -245,6 +249,7 @@ export class NativeDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTyp
 
     async loadAll(options?: CacheQueryOf<TType>): Promise<CacheModelOf<TType>[]> {
         const scope = this.getScope();
+        if (!scope) return [];
         const query = {
             cid: scope.cid,
             uid: scope.uid,
@@ -280,6 +285,9 @@ export class NativeDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTyp
         if (lastChatsUnsupported) return null;
 
         const scope = this.getScope();
+        // `null`이 아니라 `[]`입니다 — `null`은 "채널별 윈도우 읽기로 폴백하라"는 뜻인데, 그
+        // 경로도 같은 이유로 건너뛰므로 왕복만 한 번 더 늘 뿐입니다. 세션이 없으면 답은 빈 목록입니다.
+        if (!scope) return [];
         try {
             const response = await this.sendRead({
                 type: 'FetchLastChatsData',
@@ -302,6 +310,7 @@ export class NativeDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTyp
 
     async delete(id: string): Promise<void> {
         const scope = this.getScope();
+        if (!scope) return;
 
         await this.send({
             type: 'DeleteCacheData',
@@ -317,6 +326,7 @@ export class NativeDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTyp
     async deleteAll(ids: string[]): Promise<void> {
         if (ids.length === 0) return;
         const scope = this.getScope();
+        if (!scope) return;
 
         await this.send({
             type: 'DeleteAllCacheData',
@@ -331,6 +341,7 @@ export class NativeDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTyp
 
     async clearAll(): Promise<void> {
         const scope = this.getScope();
+        if (!scope) return;
 
         await this.send({
             type: 'ClearCacheData',
@@ -362,6 +373,7 @@ export class NativeDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTyp
         if (clearByChannelUnsupported) return super.clearByChannelId(channelId);
 
         const scope = this.getScope();
+        if (!scope) return;
         try {
             await this.send({
                 type: 'ClearCacheDataByChannel',

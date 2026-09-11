@@ -34,6 +34,23 @@ module.exports = {
                     DEFAULT: 'hsl(var(--destructive))',
                     foreground: 'hsl(var(--destructive-foreground))',
                 },
+                secondary: {
+                    DEFAULT: 'hsl(var(--secondary))',
+                    foreground: 'hsl(var(--secondary-foreground))',
+                },
+                popover: {
+                    DEFAULT: 'hsl(var(--popover))',
+                    foreground: 'hsl(var(--popover-foreground))',
+                },
+                input: 'hsl(var(--input))',
+                ring: 'hsl(var(--ring))',
+                // `ui-kit` form controls are written against the mobile token names. Without these
+                // aliases `Input`/`Textarea` lose their border and background here and render as
+                // bare text fields, so they are mapped onto this console's own scale.
+                surface: 'hsl(var(--background))',
+                'input-border': 'hsl(var(--input))',
+                placeholder: 'hsl(var(--muted-foreground))',
+                'focus-border': 'hsl(var(--ring))',
             },
             borderRadius: {
                 lg: 'var(--radius)',

@@ -50,12 +50,19 @@ export const usePlanCatalog = (): PlanCatalog => {
     const { data: membership, isLoading: isMembershipLoading } = useMembershipInfo();
 
     const plans = plansData?.list ?? [];
-    const currentPlan = findPlanById(plans, membership?.productId);
+    // Trial length is a property of what was actually bought, so it is read off the receipt's plan.
+    // An admin grant never carries a trial.
+    const receiptPlan = findPlanById(plans, membership?.productId);
     const pendingPlan = findPlanById(plans, membership?.pendingProductId);
 
     // Sampling the clock in render would hand out a fresh `summary` on every pass; memoising keeps
     // the object stable and re-reads the time only when the inputs it describes actually change.
-    const summary = useMemo(() => summarizeMembership(membership, currentPlan, Date.now()), [membership, currentPlan]);
+    const summary = useMemo(() => summarizeMembership(membership, receiptPlan, Date.now()), [membership, receiptPlan]);
+
+    // The quota follows the grade in force, which an active admin override can raise above the
+    // receipt's (ADR-0082). `summary.productId` already resolves that; the receipt's plan is the
+    // fallback for a granted product the catalog does not list.
+    const currentPlan = findPlanById(plans, summary.productId) ?? receiptPlan;
 
     return {
         isOnMobileApp,
@@ -63,7 +70,11 @@ export const usePlanCatalog = (): PlanCatalog => {
         platform,
         sellablePlans: selectSellablePlans(plans, platform),
         currentPlan,
-        replaceablePlan: summary.isEntitled ? currentPlan : undefined,
+        // What a tier change would replace AT THE STORE — so it follows the receipt, never an
+        // admin grant. Gating this on `isEntitled` was right until overrides existed and is wrong
+        // in both directions now: a grant would name a plan the user never bought as Google's
+        // `oldPlanId`, and a block would offer a fresh purchase over a live store subscription.
+        replaceablePlan: summary.hasLiveReceipt ? receiptPlan : undefined,
         pendingPlan,
         summary,
         isLoading: isPlansLoading || isMembershipLoading,
