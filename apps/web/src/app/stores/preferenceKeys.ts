@@ -18,6 +18,3 @@ export const CLOUD_PROMO_DISMISS_TTL_MS = 24 * 60 * 60 * 1000;
 
 /** Max recent search keywords retained, most-recent first (see setRecentSearches). */
 export const MAX_RECENT_SEARCHES = 10;
-
-// placeScopeKey/isPlaceScopeKey moved to @chatic/shared (libs/shared/src/preferences/placeScope.ts)
-// — desktop-web favorites now read the same per-place record apps/web writes.

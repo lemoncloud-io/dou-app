@@ -41,7 +41,7 @@ export const useAccountResetOnLogout = () => {
         ACCOUNT_SCOPED_STORAGE_KEYS.forEach(key => localStorage.removeItem(key));
         // 즐겨찾기/정렬은 이제 @chatic/config 레코드 — config.clear 가 lane 엔트리(인메모리)와
         // persist된 `@chatic/config.ui.*` 키를 함께 걷어낸다. removeItem 만으로는 인메모리 값이
-        // 리로드 직전까지 살아 있다(ui.channelOrder 는 레지스트리 등록 전이면 unknownKey 무시).
+        // 리로드 직전까지 살아 있다.
         config.clear('ui.pinnedChannels', { lane: 'local' });
         config.clear('ui.channelOrder', { lane: 'local' });
         // IndexedDB는 uid 격리라 위생 목적 — best-effort. 실패해도 로그아웃을 막지

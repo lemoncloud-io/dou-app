@@ -39,9 +39,6 @@ export const parseChannelSort = (raw: string): Record<string, ChannelSortMethod>
     }
 };
 
-// normalizePinnedChannels/parsePinnedChannels moved to @chatic/shared
-// (libs/shared/src/preferences/pinnedChannels.ts) — shared with desktop-web.
-
 /**
  * A stored array of ids. Anything else — a corrupt value, a non-array, non-string members —
  * degrades to "nothing recorded" rather than throwing, matching the other parsers here.

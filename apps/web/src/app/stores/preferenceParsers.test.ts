@@ -40,9 +40,6 @@ describe('normalizeChannelSort / parseChannelSort', () => {
     });
 });
 
-// normalizePinnedChannels/parsePinnedChannels cases moved to
-// libs/shared/src/preferences/pinnedChannels.test.ts (shared with desktop-web).
-
 describe('normalizeInviteIds / parseInviteIds', () => {
     it('비어있지 않은 문자열만 남긴다', () => {
         expect(normalizeInviteIds(['ok', '', null, 1, 'ok2'])).toEqual(['ok', 'ok2']);
