@@ -2,19 +2,54 @@ import type { ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 
 import type { DomainChannel, DomainChat } from '@chatic/data';
 import type * as Shared from '@chatic/shared';
+import type * as Channels from '../../channels';
+import type * as ReadCursorStore from '../../../shared/stores/useReadCursorStore';
+import type * as AppShared from '../../../shared';
 import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
 
+// Row context menu seams (slice 05): the sidebar owns ONE actions instance; the
+// spies here are the boundaries the menu writes through.
+const menu = vi.hoisted(() => ({
+    openDialog: vi.fn(),
+    openSettings: vi.fn(),
+    markRead: vi.fn(),
+    readChat: vi.fn(() => Promise.resolve()),
+    serverSync: vi.fn(() => Promise.resolve()),
+}));
 vi.mock('@chatic/app-runtime', () => ({
     runtime: {
         session: {
             useSessionIdentity: () => ({ userId: 'me' }),
             useSessionSelection: () => ({ selectedCloudId: 'cloud-1', selectedSiteId: 'place-1' }),
         },
+        data: {
+            useRuntimeRepositories: () => ({ join: { readChat: menu.readChat } }),
+        },
     },
+}));
+vi.mock('../../channels', async () => ({
+    ...(await vi.importActual<typeof Channels>('../../channels')),
+    useChannelActions: () => ({ dialog: null, openDialog: menu.openDialog, closeDialog: vi.fn() }),
+    useChannelSettingsStore: (selector: (s: { open: typeof menu.openSettings }) => unknown) =>
+        selector({ open: menu.openSettings }),
+    ChannelActionDialogs: () => null,
+}));
+vi.mock('../../../shared/stores/useReadCursorStore', async () => ({
+    ...(await vi.importActual<typeof ReadCursorStore>('../../../shared/stores/useReadCursorStore')),
+    useReadCursorStore: { getState: () => ({ markRead: menu.markRead }) } as never,
+}));
+vi.mock('../../../shared', async () => ({
+    ...(await vi.importActual<typeof AppShared>('../../../shared')),
+    useDesktopChannelMutations: () => ({
+        setChannelNotify: menu.serverSync,
+        deleteChannel: vi.fn(),
+        leaveChannel: vi.fn(),
+        isMutating: false,
+    }),
 }));
 // Favorites ride the shared `ui.pinnedChannels` hook — stub the config store out of the render.
 // `storedOrder`/`pinned` are mutable per test: the stored reads are the things under test.
@@ -37,8 +72,10 @@ vi.mock('../../search', () => ({ SearchDialog: () => null }));
 import '../../../../i18n';
 
 import { useSidebarSectionsStore } from '../stores';
+import { useNotificationPrefsStore } from '../../../shared';
 import { CHANNEL_ROW_HINT_DELAY_MS, ChannelList } from './ChannelList';
 import { ShortcutsDialog } from './ShortcutsDialog';
+import { waitFor } from '@testing-library/react';
 
 Element.prototype.scrollIntoView = vi.fn();
 
@@ -315,6 +352,142 @@ describe('ChannelList keyboard reorder (Alt+Shift+↑/↓, slice 04)', () => {
         });
 
         expect(storedOrder.set).toHaveBeenCalledWith(['C2', 'C1']);
+    });
+});
+
+describe('ChannelList row context menu (slice 05)', () => {
+    const general = { id: 'C1', name: 'general' } as DomainChannel;
+
+    beforeEach(() => {
+        storedOrder.ids = [];
+        pinned.ids = [];
+    });
+    afterEach(() => {
+        // Explicit: a menu test failing mid-fireEvent must not leak its nav into the
+        // next test's DOM (the folded test then sees two "Channels" headers).
+        cleanup();
+        for (const fn of Object.values(menu)) fn.mockClear();
+        act(() => {
+            pinned.ids = [];
+            useNotificationPrefsStore.setState({ channelNotify: {}, mutedChannels: {} });
+        });
+    });
+
+    const renderList = (channels: DomainChannel[]) => {
+        render(
+            <ChannelList
+                channels={channels}
+                isLoading={false}
+                selectedChannelId={null}
+                query=""
+                onSelect={vi.fn()}
+                isDefaultMode={false}
+            />,
+            { wrapper }
+        );
+    };
+    const openRowMenu = (name: RegExp | string) => {
+        fireEvent.contextMenu(screen.getByRole('button', { name: name as RegExp }));
+    };
+
+    it('opens on right-click with the common row actions', () => {
+        renderList([general]);
+
+        openRowMenu(/general/);
+
+        const items = screen.getAllByRole('menuitem').map(item => item.textContent);
+        expect(items).toContain('Add to favorites');
+        expect(items).toContain('Notifications');
+        expect(items).toContain('Channel settings');
+        expect(items).toContain('Add members');
+        expect(items).toContain('Leave channel');
+        // CHANNEL has no ownerId — owner-gated items stay hidden.
+        expect(items).not.toContain('Rename');
+        expect(items).not.toContain('Delete channel');
+    });
+
+    it('toggles the favorite pin from the menu', () => {
+        renderList([general]);
+
+        openRowMenu(/general/);
+        fireEvent.click(screen.getByRole('menuitem', { name: 'Add to favorites' }));
+
+        expect(pinned.toggle).toHaveBeenCalledWith('C1');
+    });
+
+    it('offers mark-as-read only on unread rows and records it', () => {
+        const unread = { id: 'C2', name: 'busy', unreadCount: 3, chatNo: 7 } as DomainChannel;
+        renderList([general, unread]);
+
+        console.log(
+            'BTNS:',
+            screen
+                .getAllByRole('button')
+                .map(b => b.getAttribute('aria-label') ?? b.textContent)
+                .join(', ')
+        );
+        openRowMenu(/general/);
+        expect(screen.queryByRole('menuitem', { name: 'Mark as read' })).toBeNull();
+        fireEvent.keyDown(document.body, { key: 'Escape' }); // close the first menu (Radix dismiss)
+
+        openRowMenu(/busy/);
+        fireEvent.click(screen.getByRole('menuitem', { name: 'Mark as read' }));
+
+        expect(menu.markRead).toHaveBeenCalledWith('C2', 7);
+        expect(menu.readChat).toHaveBeenCalledWith({ channelId: 'C2', chatNo: 7 });
+    });
+
+    it('gates rename and delete to the owner', () => {
+        const owned = { ...CHANNEL, ownerId: 'me' } as DomainChannel;
+        renderList([owned]);
+
+        openRowMenu(/general/);
+
+        expect(screen.getByRole('menuitem', { name: 'Rename' })).toBeTruthy();
+        expect(screen.getByRole('menuitem', { name: 'Delete channel' })).toBeTruthy();
+    });
+
+    it('hides rename, add members and delete on DM rows', () => {
+        const dm = { id: 'D1', stereo: 'dm', name: 'u1' } as DomainChannel;
+        renderList([dm]);
+
+        openRowMenu(/u1/);
+
+        const items = screen.getAllByRole('menuitem').map(item => item.textContent);
+        expect(items).not.toContain('Rename');
+        expect(items).not.toContain('Add members');
+        expect(items).not.toContain('Delete channel');
+        expect(items).toContain('Leave channel');
+    });
+
+    it('opens the channel settings panel from the menu', () => {
+        renderList([general]);
+
+        openRowMenu(/general/);
+        fireEvent.click(screen.getByRole('menuitem', { name: 'Channel settings' }));
+
+        expect(menu.openSettings).toHaveBeenCalledWith('C1');
+    });
+
+    it('opens rename through the single sidebar actions instance', () => {
+        const owned = { ...CHANNEL, ownerId: 'me' } as DomainChannel;
+        renderList([owned]);
+
+        openRowMenu(/general/);
+        fireEvent.click(screen.getByRole('menuitem', { name: 'Rename' }));
+
+        expect(menu.openDialog).toHaveBeenCalledWith('rename');
+    });
+
+    it('changes the notification pref from the submenu and syncs best-effort', async () => {
+        renderList([general]);
+
+        openRowMenu(/general/);
+        fireEvent.keyDown(screen.getByRole('menuitem', { name: 'Notifications' }), { key: 'ArrowRight' }); // open the submenu (keyboard path — deterministic in jsdom)
+        fireEvent.click(await screen.findByRole('menuitemradio', { name: 'Mentions only' }));
+
+        await waitFor(() => expect(useNotificationPrefsStore.getState().channelNotify['C1']).toBe('mention'));
+        expect(menu.serverSync).toHaveBeenCalledWith(expect.objectContaining({ notify: 'mention' }));
     });
 });
 

@@ -1,6 +1,7 @@
 export * from './buildMemberNames';
 export * from './buildMessageRows';
 export * from './buildThread';
+export * from './dmBucket';
 export * from './emoji';
 export * from './feedVisibility';
 export * from './foldReactions';

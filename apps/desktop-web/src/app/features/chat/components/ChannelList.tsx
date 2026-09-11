@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Hash, Pencil, Plus, Star } from 'lucide-react';
@@ -14,7 +14,6 @@ import {
     Skeleton,
     avatarStyle,
     dmCounterpartId,
-    isDmChannel,
     isSelfChannel,
     lastChatNoOf,
     resolveDisplay,
@@ -22,12 +21,15 @@ import {
     useAuthorNames,
     migrateLegacyFavorites,
     useComposerDraftStore,
+    useSelectedChannelStore,
     useSiteProfileMap,
 } from '../../../shared';
 import { SearchDialog } from '../../search';
+import { ChannelActionDialogs, useChannelActions } from '../../channels';
 import { useLastChat } from '../hooks';
 import { useSidebarSectionsStore } from '../stores';
-import { sidebarMoveChord, unreadIndicator } from '../utils';
+import { isDmBucket, sidebarMoveChord, unreadIndicator } from '../utils';
+import { ChannelRowMenu } from './ChannelRowMenu';
 import { QuickSwitcher } from './QuickSwitcher';
 import { SortableSection, type SectionItem } from './SortableSection';
 
@@ -55,11 +57,9 @@ const ChannelSkeleton = () => (
 );
 
 /**
- * Which sidebar section a channel belongs to. Also decides its unread badge
- * shape, so section and badge are the same call rather than two claims that
- * happen to agree.
+ * Which sidebar section a channel belongs to — the shared predicate in
+ * `../utils/dmBucket`; the same call also gates the row menu's DM items.
  */
-const isDmBucket = (channel: DomainChannel): boolean => isDmChannel(channel) || isSelfChannel(channel);
 
 interface ChannelRowProps {
     channel: DomainChannel;
@@ -173,7 +173,7 @@ export const ChannelList = ({
     // scoped to the active place — `pinnedIds` array order is the Favorites display order.
     const { selectedCloudId, selectedSiteId } = runtime.session.useSessionSelection();
     const pinScope = placeScopeKey(selectedCloudId, selectedSiteId);
-    const { pinnedIds, reorder: reorderPinned } = usePinnedChannels(pinScope);
+    const { pinnedIds, reorder: reorderPinned, toggle: togglePinned } = usePinnedChannels(pinScope);
     // Non-favorite display order comes from `ui.channelOrder` (one array: channels then DMs).
     const { storedIds: storedChannelOrder, set: setStoredChannelOrder } = useChannelOrder(pinScope);
     // Lazy legacy migration: ids this place confirms move to `ui.pinnedChannels` the first time
@@ -187,6 +187,19 @@ export const ChannelList = ({
     useEffect(() => {
         activeRef.current?.scrollIntoView({ block: 'nearest' });
     }, [selectedChannelId]);
+
+    // ONE actions instance + ONE dialog stack for every row menu (the per-row
+    // alternative would mount a dialog per channel). menuTargetId is set when a
+    // menu opens; delete/leave run against that row.
+    const [menuTargetId, setMenuTargetId] = useState<string | null>(null);
+    const clearChannel = useSelectedChannelStore(s => s.clearChannel);
+    const menuActions = useChannelActions(menuTargetId, {
+        onRemoved: () => {
+            // Leave/delete from a row only clears the selection when that row
+            // is the open channel.
+            if (menuTargetId && menuTargetId === selectedChannelId) clearChannel();
+        },
+    });
 
     // Slack-style sections: named channels, then DMs (self channel included).
     const { regular, dms } = useMemo(() => {
@@ -384,16 +397,25 @@ export const ChannelList = ({
             key: `${section}:${id}`,
             keepWhenCollapsed: isActive || (channel.unreadCount ?? 0) > 0,
             node: (
-                <ChannelRow
+                <ChannelRowMenu
                     channel={channel}
-                    label={label}
-                    icon={icon}
-                    isActive={isActive}
-                    isFavorite={isFavorite}
-                    onSelect={onSelect}
-                    // Only the canonical (non-favorite) row owns the scroll anchor.
-                    rowRef={isActive && !isFavorite ? activeRef : undefined}
-                />
+                    myUid={myUid}
+                    isFavorite={!!isFavorite}
+                    onToggleFavorite={() => togglePinned(id)}
+                    openDialog={menuActions.openDialog}
+                    onMenuOpen={setMenuTargetId}
+                >
+                    <ChannelRow
+                        channel={channel}
+                        label={label}
+                        icon={icon}
+                        isActive={isActive}
+                        isFavorite={isFavorite}
+                        onSelect={onSelect}
+                        // Only the canonical (non-favorite) row owns the scroll anchor.
+                        rowRef={isActive && !isFavorite ? activeRef : undefined}
+                    />
+                </ChannelRowMenu>
             ),
         };
     };
@@ -469,6 +491,14 @@ export const ChannelList = ({
                     onReorder={makeSectionReorder('dm')}
                 />
             )}
+            {/* The row menus' dialog stack renders ONCE here, keyed to the last
+            right-clicked row; the menu items themselves only open it. */}
+            <ChannelActionDialogs
+                channelId={menuTargetId ?? ''}
+                channelName={channels.find(c => (c.id ?? '') === menuTargetId)?.name ?? ''}
+                kickName=""
+                actions={menuActions}
+            />
         </nav>
     );
 };
