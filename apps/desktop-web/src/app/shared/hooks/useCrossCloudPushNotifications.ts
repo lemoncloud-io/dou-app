@@ -6,12 +6,14 @@ import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import {
     buildOpenDeeplink,
+    findPushChannel,
     isDndActive,
     isMentioned,
     messagePlainText,
     readCacheRecords,
     resolveMyMentionNames,
-    resolvePushCloudId,
+    resolvePushCloudIdFrom,
+    type PushChannelData,
 } from '../utils';
 import { channelNotifyMode, useNotificationPrefsStore, usePendingOpenStore, useSelectedChannelStore } from '../stores';
 
@@ -35,12 +37,6 @@ const buildCrossCloudDeeplink = (cloudId: string | null, data: Record<string, st
 const headline = (channelName: string | undefined, fallback: string): string =>
     channelName ? `#${channelName}` : fallback;
 
-/** Channel payload shape the notify-mode cache lookup needs (subset). */
-interface PushChannelData {
-    id?: string;
-    $join?: { notify?: string };
-}
-
 /** Present one forwarded FCM push as a toast (focused) or an OS banner (unfocused). */
 const presentPush = async (
     notification: { title?: string; body?: string; data?: Record<string, string> } | undefined
@@ -57,6 +53,19 @@ const presentPush = async (
     const data = notification?.data ?? {};
     const myUid = runtime.session.getGlobalSessionContext().identity.userId;
     if (myUid && String(data.ownerId) === String(myUid)) return; // my own message
+    // One cache scan serves both the source-cloud resolution and the notify-mode lookup.
+    const records = data.channelId || data.uid ? await readCacheRecords<PushChannelData>() : [];
+    // Source cloud: the backend stamps it as `data.cid` (a relay cloud id, the same space
+    // the session/rail use). Fall back to the channel-cache reverse-lookup when it's absent.
+    const sourceCloudId =
+        data.cid ||
+        resolvePushCloudIdFrom(records, {
+            channelId: data.channelId,
+            sid: data.sid,
+            channelName: data.channelName,
+            uid: data.uid,
+        });
+
     // Per-channel notify mode — same policy the same-cloud path honors: muted
     // channels stay silent, mention-only channels drop non-@me messages. Read from
     // `data.content` rather than the localized `body`, flattened the way the
@@ -66,11 +75,14 @@ const presentPush = async (
     if (data.channelId) {
         // Same policy the same-cloud path honors — including the server's
         // join.notify leg. The push payload carries no channel record, so read
-        // the notify mode off the engine cache (best-effort: an unvisited
-        // channel degrades to local-pref/mute resolution, same as before).
-        const cachedChannel = (await readCacheRecords<PushChannelData>()).find(
-            r => r.type === 'channel' && String(r.data?.id ?? '') === String(data.channelId)
-        )?.data;
+        // the notify mode off the engine cache, confined to the source cloud —
+        // channel ids collide across clouds (best-effort: an unvisited or
+        // unattributable channel degrades to local-pref/mute resolution).
+        const cachedChannel = findPushChannel(records, {
+            channelId: String(data.channelId),
+            cloudId: sourceCloudId,
+            uid: data.uid,
+        });
         const joinNotify = cachedChannel?.$join?.notify as 'all' | 'mention' | 'none' | undefined;
         const mode = channelNotifyMode(prefs, String(data.channelId), joinNotify);
         if (mode === 'none') return;
@@ -78,16 +90,6 @@ const presentPush = async (
         if (mode === 'mention' && !isMentioned(text, resolveMyMentionNames())) return;
     }
 
-    // Source cloud: the backend stamps it as `data.cid` (a relay cloud id, the same space
-    // the session/rail use). Fall back to the channel-cache reverse-lookup when it's absent.
-    const sourceCloudId =
-        data.cid ||
-        (await resolvePushCloudId({
-            channelId: data.channelId,
-            sid: data.sid,
-            channelName: data.channelName,
-            uid: data.uid,
-        }));
     const activeServer = runtime.session.getGlobalSessionContext().activeServer;
     const activeCloudId = activeServer.kind === 'cloud' ? activeServer.cloudId : null;
 
