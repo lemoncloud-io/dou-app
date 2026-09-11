@@ -16,7 +16,7 @@ import {
     AlertDialogTitle,
 } from '@chatic/ui-kit/components/ui/alert-dialog';
 
-import { type RailCloud, useRemoveCloud } from '../../../shared';
+import { Hint, type RailCloud, useRemoveCloud } from '../../../shared';
 
 interface CloudRailProps {
     clouds: RailCloud[];
@@ -86,46 +86,48 @@ export const CloudRail = ({
                     const removable = cloud.kind !== 'home';
                     return (
                         <div key={cloud.id} className="group relative">
-                            <button
-                                onClick={() => onSelectCloud(cloud.id)}
-                                disabled={isSwitching}
-                                title={cloud.name ?? cloud.id}
-                                aria-label={cloud.name ?? cloud.id}
-                                aria-current={isActive ? 'true' : undefined}
-                                className={cn(
-                                    'relative flex h-12 w-12 items-center justify-center rounded-[14px] text-[20px] font-bold transition-colors duration-150 ease-tactile tactile focus-ring',
-                                    // Figma Icon Rail: the active cloud is a black tile with a
-                                    // lime ring and lime initial; the others sit quiet on the rail.
-                                    isActive
-                                        ? 'border-2 border-primary bg-black text-primary'
-                                        : 'border border-hairline bg-background text-rail-foreground hover:border-primary/60',
-                                    isInactive && 'opacity-50',
-                                    // Block a second switch mid-handshake; dim non-active icons for feedback.
-                                    isSwitching && 'cursor-not-allowed',
-                                    isSwitching && !isActive && 'opacity-40'
-                                )}
-                            >
-                                {cloudInitial(cloud)}
-                                {/* Active tile: live socket unread. Other tiles: a pending
-                                    cross-cloud push (the only unread signal available for them). */}
-                                {((isActive && hasUnread) || (!isActive && !!badgedClouds?.[cloud.id])) && (
-                                    <span
-                                        aria-hidden
-                                        className="absolute right-0 top-0 h-3 w-3 rounded-full border-2 border-rail bg-badge-unread"
-                                    />
-                                )}
-                            </button>
-                            {removable && (
+                            <Hint label={cloud.name ?? cloud.id}>
                                 <button
-                                    type="button"
-                                    onClick={() => setPendingRemove(cloud)}
+                                    onClick={() => onSelectCloud(cloud.id)}
                                     disabled={isSwitching}
-                                    aria-label={t('cloud.remove.action')}
-                                    title={t('cloud.remove.action')}
-                                    className="focus-ring absolute -right-1 -top-1 z-10 hidden h-4 w-4 items-center justify-center rounded-full border border-rail bg-destructive text-destructive-foreground shadow-raised transition-opacity group-hover:flex disabled:opacity-50"
+                                    aria-label={cloud.name ?? cloud.id}
+                                    aria-current={isActive ? 'true' : undefined}
+                                    className={cn(
+                                        'relative flex h-12 w-12 items-center justify-center rounded-[14px] text-[20px] font-bold transition-colors duration-150 ease-tactile tactile focus-ring',
+                                        // Figma Icon Rail: the active cloud is a black tile with a
+                                        // lime ring and lime initial; the others sit quiet on the rail.
+                                        isActive
+                                            ? 'border-2 border-primary bg-black text-primary'
+                                            : 'border border-hairline bg-background text-rail-foreground hover:border-primary/60',
+                                        isInactive && 'opacity-50',
+                                        // Block a second switch mid-handshake; dim non-active icons for feedback.
+                                        isSwitching && 'cursor-not-allowed',
+                                        isSwitching && !isActive && 'opacity-40'
+                                    )}
                                 >
-                                    <X className="h-2.5 w-2.5" aria-hidden />
+                                    {cloudInitial(cloud)}
+                                    {/* Active tile: live socket unread. Other tiles: a pending
+                                    cross-cloud push (the only unread signal available for them). */}
+                                    {((isActive && hasUnread) || (!isActive && !!badgedClouds?.[cloud.id])) && (
+                                        <span
+                                            aria-hidden
+                                            className="absolute right-0 top-0 h-3 w-3 rounded-full border-2 border-rail bg-badge-unread"
+                                        />
+                                    )}
                                 </button>
+                            </Hint>
+                            {removable && (
+                                <Hint label={t('cloud.remove.action')}>
+                                    <button
+                                        type="button"
+                                        onClick={() => setPendingRemove(cloud)}
+                                        disabled={isSwitching}
+                                        aria-label={t('cloud.remove.action')}
+                                        className="focus-ring absolute -right-1 -top-1 z-10 hidden h-4 w-4 items-center justify-center rounded-full border border-rail bg-destructive text-destructive-foreground shadow-raised transition-opacity group-hover:flex disabled:opacity-50"
+                                    >
+                                        <X className="h-2.5 w-2.5" aria-hidden />
+                                    </button>
+                                </Hint>
                             )}
                         </div>
                     );

@@ -7,7 +7,7 @@ import { cn } from '@chatic/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 
-import { avatarStyle } from '../../../../shared';
+import { Hint, avatarStyle } from '../../../../shared';
 import type { ChatImage } from '../../utils';
 import { ImageMoreMenu } from './ImageMoreMenu';
 
@@ -154,29 +154,31 @@ export const ImageViewer = ({
                                 <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-foreground">
                                     {current.name}
                                 </span>
-                                <button
-                                    type="button"
-                                    onClick={() => onDownload(current)}
-                                    title={t('chat.image.download')}
-                                    aria-label={t('chat.image.download')}
-                                    className="focus-ring flex h-7 w-7 items-center justify-center rounded-md text-foreground hover:bg-foreground/[0.08]"
-                                >
-                                    <Download size={18} aria-hidden />
-                                </button>
+                                <Hint label={t('chat.image.download')}>
+                                    <button
+                                        type="button"
+                                        onClick={() => onDownload(current)}
+                                        aria-label={t('chat.image.download')}
+                                        className="focus-ring flex h-7 w-7 items-center justify-center rounded-md text-foreground hover:bg-foreground/[0.08]"
+                                    >
+                                        <Download size={18} aria-hidden />
+                                    </button>
+                                </Hint>
                                 <ImageMoreMenu
                                     side="top"
                                     onCopy={() => onCopy(current)}
                                     onDelete={onDelete && (() => onDelete(current))}
                                     onOpenChange={setMenuOpen}
                                     trigger={
-                                        <button
-                                            type="button"
-                                            title={t('chat.image.menu')}
-                                            aria-label={t('chat.image.menu')}
-                                            className="focus-ring flex h-7 w-7 items-center justify-center rounded-md bg-foreground/[0.08] text-foreground"
-                                        >
-                                            <MoreVertical size={18} aria-hidden />
-                                        </button>
+                                        <Hint label={t('chat.image.menu')}>
+                                            <button
+                                                type="button"
+                                                aria-label={t('chat.image.menu')}
+                                                className="focus-ring flex h-7 w-7 items-center justify-center rounded-md bg-foreground/[0.08] text-foreground"
+                                            >
+                                                <MoreVertical size={18} aria-hidden />
+                                            </button>
+                                        </Hint>
                                     }
                                 />
                             </div>

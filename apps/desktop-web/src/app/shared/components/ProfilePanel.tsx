@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
 
 import { usePanelWidth } from '../hooks/usePanelWidth';
+import { Hint } from './Hint';
 import { PanelResizeHandle } from './PanelResizeHandle';
 import { useProfilePanelStore } from '../stores/useProfilePanelStore';
 import { ProfileCardContent } from './ProfileCard';
@@ -44,15 +45,16 @@ export const ProfilePanel = () => {
             <PanelResizeHandle label={t('profile.panel.resize')} panel={resize} />
             <header className="flex h-14 shrink-0 items-center justify-between border-b border-hairline px-4">
                 <span className="truncate text-title text-foreground">{t('profile.panel.title')}</span>
-                <button
-                    type="button"
-                    onClick={close}
-                    title={t('profile.panel.close')}
-                    aria-label={t('profile.panel.close')}
-                    className="focus-ring tactile flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile hover:bg-accent hover:text-foreground"
-                >
-                    <X size={18} />
-                </button>
+                <Hint label={t('profile.panel.close')}>
+                    <button
+                        type="button"
+                        onClick={close}
+                        aria-label={t('profile.panel.close')}
+                        className="focus-ring tactile flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile hover:bg-accent hover:text-foreground"
+                    >
+                        <X size={18} />
+                    </button>
+                </Hint>
             </header>
             <div className="scrollbar-thin flex-1 overflow-y-auto">
                 {/* Remount per user so copy state / user subscription reset on target switch. */}

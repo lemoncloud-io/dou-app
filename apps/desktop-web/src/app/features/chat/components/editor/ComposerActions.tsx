@@ -7,6 +7,7 @@ import { cn } from '@chatic/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@chatic/ui-kit/components/ui/popover';
 
 import { EmojiPicker } from '../EmojiPicker';
+import { Hint } from '../../../../shared';
 
 interface ComposerActionsProps {
     canSend: boolean;
@@ -24,14 +25,15 @@ export const ComposerActions = ({ canSend, onEmoji, onSend }: ComposerActionsPro
         <>
             <Popover open={isPickerOpen} onOpenChange={setPickerOpen}>
                 <PopoverTrigger asChild>
-                    <button
-                        type="button"
-                        title={t('chat.composer.emoji')}
-                        aria-label={t('chat.composer.emoji')}
-                        className="focus-ring tactile flex h-[38px] w-[30px] shrink-0 items-center justify-center rounded-lg text-label transition-colors ease-tactile hover:text-foreground disabled:opacity-50"
-                    >
-                        <Smile className="h-[22px] w-[22px]" strokeWidth={1.75} />
-                    </button>
+                    <Hint label={t('chat.composer.emoji')}>
+                        <button
+                            type="button"
+                            aria-label={t('chat.composer.emoji')}
+                            className="focus-ring tactile flex h-[38px] w-[30px] shrink-0 items-center justify-center rounded-lg text-label transition-colors ease-tactile hover:text-foreground disabled:opacity-50"
+                        >
+                            <Smile className="h-[22px] w-[22px]" strokeWidth={1.75} />
+                        </button>
+                    </Hint>
                 </PopoverTrigger>
                 <PopoverContent align="end" side="top" className="w-auto p-2">
                     <EmojiPicker
@@ -42,20 +44,21 @@ export const ComposerActions = ({ canSend, onEmoji, onSend }: ComposerActionsPro
                     />
                 </PopoverContent>
             </Popover>
-            <button
-                type="button"
-                onClick={onSend}
-                disabled={!canSend}
-                title={t('chat.composer.send')}
-                aria-label={t('chat.composer.send')}
-                className={cn(
-                    'focus-ring tactile flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-lg transition-colors ease-tactile',
-                    // Figma GR2 fill with a white plane when there is something to send.
-                    canSend ? 'bg-main-accent text-white hover:opacity-90' : 'bg-muted text-placeholder'
-                )}
-            >
-                <Send className="h-5 w-5 fill-current" aria-hidden />
-            </button>
+            <Hint label={t('chat.composer.send')}>
+                <button
+                    type="button"
+                    onClick={onSend}
+                    disabled={!canSend}
+                    aria-label={t('chat.composer.send')}
+                    className={cn(
+                        'focus-ring tactile flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-lg transition-colors ease-tactile',
+                        // Figma GR2 fill with a white plane when there is something to send.
+                        canSend ? 'bg-main-accent text-white hover:opacity-90' : 'bg-muted text-placeholder'
+                    )}
+                >
+                    <Send className="h-5 w-5 fill-current" aria-hidden />
+                </button>
+            </Hint>
         </>
     );
 };

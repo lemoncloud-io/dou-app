@@ -7,6 +7,7 @@ import type { DomainChannel, DomainChat } from '@chatic/data';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import {
+    Hint,
     lastChatNoOf,
     useAuthorNames,
     useChatMutations,
@@ -113,15 +114,16 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading, readCoun
                 <span className="truncate text-[18px] font-semibold tracking-[-0.01em] text-foreground">
                     {t('chat.thread.title')}
                 </span>
-                <button
-                    type="button"
-                    onClick={closeThread}
-                    title={t('chat.thread.close')}
-                    aria-label={t('chat.thread.close')}
-                    className="focus-ring tactile -mr-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-foreground transition-colors ease-tactile hover:bg-accent"
-                >
-                    <X size={20} />
-                </button>
+                <Hint label={t('chat.thread.close')}>
+                    <button
+                        type="button"
+                        onClick={closeThread}
+                        aria-label={t('chat.thread.close')}
+                        className="focus-ring tactile -mr-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-foreground transition-colors ease-tactile hover:bg-accent"
+                    >
+                        <X size={20} />
+                    </button>
+                </Hint>
             </header>
             <div className="relative flex min-h-0 flex-1 flex-col" {...dropHandlers}>
                 {root ? (

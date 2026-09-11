@@ -8,7 +8,6 @@ import { cn } from '@chatic/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@chatic/ui-kit/components/ui/popover';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@chatic/ui-kit/components/ui/tooltip';
 
 import { runtime } from '@chatic/app-runtime';
 
@@ -22,7 +21,7 @@ import {
     type ReactionTally,
     type ReadCount,
 } from '../utils';
-import { Skeleton, UserProfilePopover, avatarStyle, useSavedItemsStore } from '../../../shared';
+import { Hint, Skeleton, UserProfilePopover, avatarStyle, useSavedItemsStore } from '../../../shared';
 import { useMessageActions, useReactions } from '../hooks';
 import { QUICK_REACTIONS, useRecentEmojiStore } from '../stores';
 import { EmojiPicker } from './EmojiPicker';
@@ -106,26 +105,21 @@ interface ToolbarButtonProps {
  * One icon control in the message toolbar.
  *
  * Every control here is icon-only, so the label is not decoration — it is the only
- * way to learn what a button does. It comes through a tooltip anchored to the
- * trigger rather than the native `title` attribute, which the browser places on its
- * own terms and delays by about a second. `aria-label` carries the same string;
- * assistive tech reads that, not the tooltip.
+ * way to learn what a button does (`Hint` says why it is not a native `title`).
+ * `aria-label` carries the same string; assistive tech reads that, not the tooltip.
  */
 const ToolbarButton = ({ label, onClick, children, className, pressed }: ToolbarButtonProps) => (
-    <Tooltip>
-        <TooltipTrigger asChild>
-            <button
-                type="button"
-                onClick={onClick}
-                aria-label={label}
-                aria-pressed={pressed}
-                className={cn(TOOLBAR_BUTTON, className)}
-            >
-                {children}
-            </button>
-        </TooltipTrigger>
-        <TooltipContent side="top">{label}</TooltipContent>
-    </Tooltip>
+    <Hint label={label}>
+        <button
+            type="button"
+            onClick={onClick}
+            aria-label={label}
+            aria-pressed={pressed}
+            className={cn(TOOLBAR_BUTTON, className)}
+        >
+            {children}
+        </button>
+    </Hint>
 );
 
 const STUCK_PENDING_MS = 60_000;
@@ -459,12 +453,11 @@ export const MessageRow = memo(
                                         >
                                             <RichText content={content} selfNames={selfNames} />
                                             {wasEdited && (
-                                                <span
-                                                    className="ml-1 align-baseline text-micro text-muted-foreground"
-                                                    title={t('chat.editedTitle')}
-                                                >
-                                                    {t('chat.edited')}
-                                                </span>
+                                                <Hint label={t('chat.editedTitle')}>
+                                                    <span className="ml-1 align-baseline text-micro text-muted-foreground">
+                                                        {t('chat.edited')}
+                                                    </span>
+                                                </Hint>
                                             )}
                                         </p>
                                     )}
@@ -584,25 +577,20 @@ export const MessageRow = memo(
                                                     open={pickerKey === key}
                                                     onOpenChange={next => setPickerKey(next ? key : null)}
                                                 >
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <PopoverTrigger asChild>
-                                                                <button
-                                                                    type="button"
-                                                                    aria-label={t('chat.reaction.add')}
-                                                                    className={cn(
-                                                                        TOOLBAR_BUTTON,
-                                                                        'hover:bg-accent hover:text-foreground'
-                                                                    )}
-                                                                >
-                                                                    <SmilePlus size={16} />
-                                                                </button>
-                                                            </PopoverTrigger>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent side="top">
-                                                            {t('chat.reaction.add')}
-                                                        </TooltipContent>
-                                                    </Tooltip>
+                                                    <Hint label={t('chat.reaction.add')}>
+                                                        <PopoverTrigger asChild>
+                                                            <button
+                                                                type="button"
+                                                                aria-label={t('chat.reaction.add')}
+                                                                className={cn(
+                                                                    TOOLBAR_BUTTON,
+                                                                    'hover:bg-accent hover:text-foreground'
+                                                                )}
+                                                            >
+                                                                <SmilePlus size={16} />
+                                                            </button>
+                                                        </PopoverTrigger>
+                                                    </Hint>
                                                     <PopoverContent
                                                         align="end"
                                                         side="top"

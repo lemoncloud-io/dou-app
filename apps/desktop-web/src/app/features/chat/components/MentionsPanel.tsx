@@ -7,6 +7,7 @@ import type { DomainChannel, DomainPlace } from '@chatic/data';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 
 import {
+    Hint,
     avatarStyle,
     unreadMentionCount,
     PanelResizeHandle,
@@ -70,15 +71,16 @@ const MentionRow = ({ item, channelName, removeLabel, onOpen, onRemove }: Mentio
             aria-hidden
             className="pointer-events-none absolute bottom-2 right-2 text-muted-foreground opacity-0 transition-opacity ease-tactile group-hover/mention:opacity-100"
         />
-        <button
-            type="button"
-            onClick={onRemove}
-            title={removeLabel}
-            aria-label={removeLabel}
-            className="focus-ring tactile absolute right-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity ease-tactile hover:bg-accent hover:text-foreground focus-visible:opacity-100 group-hover/mention:opacity-100"
-        >
-            <X size={13} />
-        </button>
+        <Hint label={removeLabel}>
+            <button
+                type="button"
+                onClick={onRemove}
+                aria-label={removeLabel}
+                className="focus-ring tactile absolute right-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity ease-tactile hover:bg-accent hover:text-foreground focus-visible:opacity-100 group-hover/mention:opacity-100"
+            >
+                <X size={13} />
+            </button>
+        </Hint>
     </div>
 );
 
@@ -161,15 +163,16 @@ export const MentionsPanel = ({ channels, places, currentPlaceId, onSelect }: Me
                             {t('activity.markAllRead')}
                         </button>
                     )}
-                    <button
-                        type="button"
-                        onClick={close}
-                        title={t('activity.close')}
-                        aria-label={t('activity.close')}
-                        className="focus-ring tactile flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile hover:bg-accent hover:text-foreground"
-                    >
-                        <X size={18} />
-                    </button>
+                    <Hint label={t('activity.close')}>
+                        <button
+                            type="button"
+                            onClick={close}
+                            aria-label={t('activity.close')}
+                            className="focus-ring tactile flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile hover:bg-accent hover:text-foreground"
+                        >
+                            <X size={18} />
+                        </button>
+                    </Hint>
                 </div>
             </header>
             {groups.length === 0 ? (
