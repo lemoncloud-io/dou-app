@@ -20,7 +20,6 @@ import {
 import { type ChannelDialogKind, isChannelOwner, useChannelSettingsStore } from '../../channels';
 import { isDmBucket } from '../utils';
 import {
-    channelNotifyMode,
     lastChatNoOf,
     useDesktopChannelMutations,
     useNotificationPrefsStore,
@@ -70,7 +69,15 @@ export const ChannelRowMenu = ({
     const openSettings = useChannelSettingsStore(s => s.open);
     const { join: joinRepository } = runtime.data.useRuntimeRepositories();
     const { setChannelNotify: syncNotifyToServer } = useDesktopChannelMutations();
-    const notifyMode = useNotificationPrefsStore(s => channelNotifyMode(s, id));
+    // Effective mode mirrors ChannelSettingsPanel: local pref, then the server's
+    // join.notify, then mute/all — the radio must not show 'all' for a channel the
+    // server has on 'mention' before any local pref exists.
+    const localNotify = useNotificationPrefsStore(s => s.channelNotify[id]);
+    const isMuted = useNotificationPrefsStore(s => Boolean(s.mutedChannels[id]));
+    const joinNotify = channel.$join?.notify;
+    const serverMode =
+        joinNotify === 'all' || joinNotify === 'mention' || joinNotify === 'none' ? joinNotify : undefined;
+    const notifyMode: ChannelNotifyMode = localNotify ?? serverMode ?? (isMuted ? 'none' : 'all');
     const setNotifyPref = useNotificationPrefsStore(s => s.setChannelNotify);
 
     // Same write as the read-receipt flush: optimistic local cursor first, the
@@ -94,11 +101,12 @@ export const ChannelRowMenu = ({
     return (
         <ContextMenu onOpenChange={open => open && onMenuOpen(id)}>
             <ContextMenuTrigger asChild>
-                {/* Plain wrapper between the trigger and the row: the Radix CM
-                    trigger props (onContextMenu + ref) do not survive the
-                    double-slot merge through the row's Hint here — events never
-                    reached the trigger — while a plain element does.
-                    `display: contents` keeps it out of the row layout. */}
+                {/* Plain wrapper between the trigger and the row. Hint documents
+                    trigger-prop forwarding, but composing the Radix CM trigger
+                    asChild onto the row's Hint was observed to drop onContextMenu
+                    (slice 05 spike) while this plain element provably works.
+                    `display: contents` keeps it out of the row layout. Revisit
+                    with a browser check before dropping the wrapper. */}
                 <div className="contents">{children}</div>
             </ContextMenuTrigger>
             <ContextMenuContent className="w-52">

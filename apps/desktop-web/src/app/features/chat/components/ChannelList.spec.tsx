@@ -19,6 +19,11 @@ const menu = vi.hoisted(() => ({
     markRead: vi.fn(),
     readChat: vi.fn(() => Promise.resolve()),
     serverSync: vi.fn(() => Promise.resolve()),
+    leaveChannel: vi.fn(() => Promise.resolve()),
+    deleteChannel: vi.fn(() => Promise.resolve()),
+    // P1 regression: the leave/delete tests run the REAL useChannelActions wiring
+    // (dialog → mutation → onRemoved) — set to true there, stub elsewhere.
+    useRealActions: false,
 }));
 vi.mock('@chatic/app-runtime', () => ({
     runtime: {
@@ -31,13 +36,18 @@ vi.mock('@chatic/app-runtime', () => ({
         },
     },
 }));
-vi.mock('../../channels', async () => ({
-    ...(await vi.importActual<typeof Channels>('../../channels')),
-    useChannelActions: () => ({ dialog: null, openDialog: menu.openDialog, closeDialog: vi.fn() }),
-    useChannelSettingsStore: (selector: (s: { open: typeof menu.openSettings }) => unknown) =>
-        selector({ open: menu.openSettings }),
-    ChannelActionDialogs: () => null,
-}));
+vi.mock('../../channels', async () => {
+    const actual = await vi.importActual<typeof Channels>('../../channels');
+    return {
+        ...actual,
+        useChannelActions: (...args: Parameters<typeof actual.useChannelActions>) =>
+            menu.useRealActions
+                ? actual.useChannelActions(...args)
+                : { dialog: null, openDialog: menu.openDialog, closeDialog: vi.fn() },
+        useChannelSettingsStore: (selector: (s: { open: typeof menu.openSettings }) => unknown) =>
+            selector({ open: menu.openSettings }),
+    };
+});
 vi.mock('../../../shared/stores/useReadCursorStore', async () => ({
     ...(await vi.importActual<typeof ReadCursorStore>('../../../shared/stores/useReadCursorStore')),
     useReadCursorStore: { getState: () => ({ markRead: menu.markRead }) } as never,
@@ -46,8 +56,8 @@ vi.mock('../../../shared', async () => ({
     ...(await vi.importActual<typeof AppShared>('../../../shared')),
     useDesktopChannelMutations: () => ({
         setChannelNotify: menu.serverSync,
-        deleteChannel: vi.fn(),
-        leaveChannel: vi.fn(),
+        deleteChannel: menu.deleteChannel,
+        leaveChannel: menu.leaveChannel,
         isMutating: false,
     }),
 }));
@@ -72,10 +82,9 @@ vi.mock('../../search', () => ({ SearchDialog: () => null }));
 import '../../../../i18n';
 
 import { useSidebarSectionsStore } from '../stores';
-import { useNotificationPrefsStore } from '../../../shared';
+import { useNotificationPrefsStore, useSelectedChannelStore } from '../../../shared';
 import { CHANNEL_ROW_HINT_DELAY_MS, ChannelList } from './ChannelList';
 import { ShortcutsDialog } from './ShortcutsDialog';
-import { waitFor } from '@testing-library/react';
 
 Element.prototype.scrollIntoView = vi.fn();
 
@@ -366,7 +375,8 @@ describe('ChannelList row context menu (slice 05)', () => {
         // Explicit: a menu test failing mid-fireEvent must not leak its nav into the
         // next test's DOM (the folded test then sees two "Channels" headers).
         cleanup();
-        for (const fn of Object.values(menu)) fn.mockClear();
+        for (const fn of Object.values(menu)) if (typeof fn === 'function') fn.mockClear();
+        menu.useRealActions = false;
         act(() => {
             pinned.ids = [];
             useNotificationPrefsStore.setState({ channelNotify: {}, mutedChannels: {} });
@@ -419,13 +429,6 @@ describe('ChannelList row context menu (slice 05)', () => {
         const unread = { id: 'C2', name: 'busy', unreadCount: 3, chatNo: 7 } as DomainChannel;
         renderList([general, unread]);
 
-        console.log(
-            'BTNS:',
-            screen
-                .getAllByRole('button')
-                .map(b => b.getAttribute('aria-label') ?? b.textContent)
-                .join(', ')
-        );
         openRowMenu(/general/);
         expect(screen.queryByRole('menuitem', { name: 'Mark as read' })).toBeNull();
         fireEvent.keyDown(document.body, { key: 'Escape' }); // close the first menu (Radix dismiss)
@@ -488,6 +491,59 @@ describe('ChannelList row context menu (slice 05)', () => {
 
         await waitFor(() => expect(useNotificationPrefsStore.getState().channelNotify['C1']).toBe('mention'));
         expect(menu.serverSync).toHaveBeenCalledWith(expect.objectContaining({ notify: 'mention' }));
+    });
+
+    // P1: onRemoved must clear the selection only when the removed row IS the
+    // open channel — leaving a background channel must not unmount the chat pane.
+    describe('onRemoved clears the selection only for the open channel', () => {
+        const launch = { id: 'C2', name: 'launch' } as DomainChannel;
+
+        const renderWithSelection = (selectedChannelId: string) =>
+            render(
+                <ChannelList
+                    channels={[general, launch]}
+                    isLoading={false}
+                    selectedChannelId={selectedChannelId}
+                    query=""
+                    onSelect={vi.fn()}
+                    isDefaultMode={false}
+                />,
+                { wrapper }
+            );
+
+        const leave = async (row: RegExp | string) => {
+            openRowMenu(row);
+            fireEvent.click(screen.getByRole('menuitem', { name: 'Leave channel' }));
+            // Real ChannelActionDialogs: the leave ConfirmDialog asks first.
+            fireEvent.click(await screen.findByRole('button', { name: 'Leave' }));
+            await waitFor(() =>
+                expect(menu.leaveChannel).toHaveBeenCalledWith(
+                    expect.objectContaining({ channelId: expect.any(String) })
+                )
+            );
+        };
+
+        beforeEach(() => {
+            menu.useRealActions = true;
+        });
+
+        it('leaving a background row keeps the selection', async () => {
+            useSelectedChannelStore.setState({ selectedChannelId: 'C1' });
+            renderWithSelection('C1');
+
+            await leave(/launch/);
+
+            expect(useSelectedChannelStore.getState().selectedChannelId).toBe('C1');
+        });
+
+        it('leaving the open row clears it', async () => {
+            useSelectedChannelStore.setState({ selectedChannelId: 'C1' });
+            renderWithSelection('C1');
+
+            await leave(/general/);
+
+            expect(useSelectedChannelStore.getState().selectedChannelId).toBeNull();
+        });
     });
 });
 
