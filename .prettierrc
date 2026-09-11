@@ -12,7 +12,13 @@
     "singleAttributePerLine": false,
     "overrides": [
         {
-            "files": "package.json",
+            "files": [
+                "./package.json",
+                "apps/web/package.json",
+                "apps/admin-v2/package.json",
+                "apps/landing/package.json",
+                "apps/desktop-web/package.json"
+            ],
             "options": {
                 "tabWidth": 2
             }
