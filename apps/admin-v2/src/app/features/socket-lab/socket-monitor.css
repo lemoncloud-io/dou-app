@@ -36,32 +36,10 @@
     }
 }
 
+/* The dark token scale moved to `src/monitor-tokens.css` so other screens can use it too.
+   Only the light override below still belongs to this feature — it is the one place with a
+   user-facing theme toggle. */
 .sm-root {
-    --sm-bg: #0a0d12;
-    --sm-bg-deepest: #0b0f16;
-    --sm-sidebar: #0c1118;
-    --sm-panel: #0e131b;
-    --sm-panel-2: #11161f;
-    --sm-raised: #121821;
-    --sm-raised-2: #141a23;
-    --sm-raised-3: #161c25;
-    --sm-border: #1a212c;
-    --sm-border-2: #1c2530;
-    --sm-border-3: #232c38;
-    --sm-text: #e6edf3;
-    --sm-text-2: #c2cad3;
-    --sm-text-3: #9aa4af;
-    --sm-text-4: #7d8590;
-    --sm-text-5: #6b747f;
-    --sm-text-6: #5a636e;
-    --sm-text-7: #4b545f;
-    --sm-text-8: #3f4751;
-    --sm-red-bg: #1b0f12;
-    --sm-deep: #0b0f16;
-    --sm-hover: #131a24;
-    --sm-border-hover: #2c3947;
-    --sm-on-accent: #0a0d12;
-
     /* Fill the PrivateLayout main area (which owns viewport height) rather than
        the full viewport, so the top nav bar doesn't push the shell into overflow. */
     height: 100%;

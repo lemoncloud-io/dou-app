@@ -1,22 +1,11 @@
 <!doctype html>
-<html lang="ko">
+<!-- The console is dark-only; the class is static so there is no light flash before hydration. -->
+<html lang="ko" class="dark">
     <head>
         <meta charset="utf-8" />
         <title>Admin V2</title>
         <base href="/" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script>
-            (function () {
-                var storageKey = 'vite-ui-theme';
-                var theme = localStorage.getItem(storageKey);
-                var isDark = theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches);
-                if (isDark) {
-                    document.documentElement.classList.add('dark');
-                } else {
-                    document.documentElement.classList.remove('dark');
-                }
-            })();
-        </script>
         <style>
             html,
             body {
@@ -25,9 +14,6 @@
                 height: 100%;
             }
             html {
-                background-color: #ffffff;
-            }
-            html.dark {
                 background-color: #0f0f0f;
             }
         </style>

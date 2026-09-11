@@ -1,0 +1,101 @@
+/**
+ * monitor-tokens.css
+ * - The console's monitoring scale, shared by every screen that wants the dense operator look.
+ *
+ * These values started life inside `socket-lab/socket-monitor.css`, scoped to `.sm-root`, which
+ * made them unreachable from any other feature. They are the console's de-facto design language,
+ * so they live at the root now and socket-lab keeps only its light-mode override on top.
+ *
+ * The console is dark-only (`index.html` pins the class), so the dark scale is the base.
+ */
+:root {
+    --sm-bg: #0a0d12;
+    --sm-bg-deepest: #0b0f16;
+    --sm-sidebar: #0c1118;
+    --sm-panel: #0e131b;
+    --sm-panel-2: #11161f;
+    --sm-raised: #121821;
+    --sm-raised-2: #141a23;
+    --sm-raised-3: #161c25;
+    --sm-border: #1a212c;
+    --sm-border-2: #1c2530;
+    --sm-border-3: #232c38;
+    --sm-text: #e6edf3;
+    --sm-text-2: #c2cad3;
+    --sm-text-3: #9aa4af;
+    --sm-text-4: #7d8590;
+    --sm-text-5: #6b747f;
+    --sm-text-6: #5a636e;
+    --sm-text-7: #4b545f;
+    --sm-text-8: #3f4751;
+    --sm-red-bg: #1b0f12;
+    --sm-deep: #0b0f16;
+    --sm-hover: #131a24;
+    --sm-border-hover: #2c3947;
+    --sm-on-accent: #0a0d12;
+
+    /* Status accents. socket-lab spells these inline per call site; naming them here keeps one
+       vocabulary for "healthy / attention / stopped" across screens. */
+    --sm-accent: #2dd4bf;
+    --sm-ok: #3fb950;
+    --sm-warn: #d29922;
+    --sm-danger: #f85149;
+}
+
+/**
+ * The shell every screen sits in. Kept on the same scale as the screens themselves — the nav used
+ * to paint from the shadcn `card`/`primary` tokens, which are a bluer dark and a saturated blue
+ * pill, and read as a different product bolted on top of the monitoring surface.
+ */
+.app-shell {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: var(--sm-bg);
+    color: var(--sm-text);
+}
+
+.app-nav {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 0 12px;
+    height: 38px;
+    flex: none;
+    background: var(--sm-sidebar);
+    border-bottom: 1px solid var(--sm-border);
+}
+
+.app-brand {
+    margin-right: 14px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--sm-text);
+}
+
+.app-nav-link {
+    padding: 4px 10px;
+    border-radius: 5px;
+    font-size: 12px;
+    color: var(--sm-text-4);
+    text-decoration: none;
+    border: 1px solid transparent;
+}
+
+.app-nav-link:hover {
+    background: var(--sm-hover);
+    color: var(--sm-text-2);
+}
+
+.app-nav-link-active {
+    background: var(--sm-raised-2);
+    border-color: var(--sm-border-3);
+    color: var(--sm-text);
+}
+
+.app-main {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+}

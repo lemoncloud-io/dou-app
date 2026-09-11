@@ -34,6 +34,16 @@ module.exports = {
                     DEFAULT: 'hsl(var(--destructive))',
                     foreground: 'hsl(var(--destructive-foreground))',
                 },
+                secondary: {
+                    DEFAULT: 'hsl(var(--secondary))',
+                    foreground: 'hsl(var(--secondary-foreground))',
+                },
+                popover: {
+                    DEFAULT: 'hsl(var(--popover))',
+                    foreground: 'hsl(var(--popover-foreground))',
+                },
+                input: 'hsl(var(--input))',
+                ring: 'hsl(var(--ring))',
             },
             borderRadius: {
                 lg: 'var(--radius)',

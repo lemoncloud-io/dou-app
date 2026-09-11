@@ -59,7 +59,8 @@ export const buildMembershipListParams = ({
     ...(isSuper ? { isSuper } : {}),
 });
 
-export const useAdminMemberships = (params: MembershipListParams = {}) => {
+/** `refetchInterval` drives the toolbar's auto-refresh toggle, mirroring `use-report-logs`. */
+export const useAdminMemberships = (params: MembershipListParams = {}, refetchInterval: number | false = false) => {
     const { subscription } = runtime.data.useRuntimeRepositories();
     const query = buildMembershipListParams(params);
 
@@ -67,6 +68,7 @@ export const useAdminMemberships = (params: MembershipListParams = {}) => {
         queryKey: membershipsKeys.list(query),
         queryFn: () => subscription.fetchAdminMemberships(query),
         refetchOnWindowFocus: false,
+        refetchInterval,
     });
 };
 

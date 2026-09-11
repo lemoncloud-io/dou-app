@@ -1,3 +1,5 @@
+@import './monitor-tokens.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -17,23 +19,35 @@
         --accent-foreground: 224 71% 4%;
         --destructive: 0 84% 60%;
         --destructive-foreground: 0 0% 100%;
+        --secondary: 220 14% 96%;
+        --secondary-foreground: 224 71% 4%;
+        --popover: 0 0% 100%;
+        --popover-foreground: 224 71% 4%;
+        --input: 220 13% 91%;
+        --ring: 221 83% 53%;
         --radius: 0.5rem;
     }
 
     .dark {
-        --background: 224 71% 4%;
-        --foreground: 213 31% 91%;
-        --card: 224 71% 7%;
-        --card-foreground: 213 31% 91%;
-        --border: 216 34% 17%;
+        --background: 218 29% 5%;
+        --foreground: 208 35% 93%;
+        --card: 217 32% 8%;
+        --card-foreground: 208 35% 93%;
+        --border: 217 26% 14%;
         --primary: 217 91% 60%;
         --primary-foreground: 0 0% 100%;
-        --muted: 223 47% 11%;
-        --muted-foreground: 215 20% 65%;
-        --accent: 216 34% 17%;
-        --accent-foreground: 213 31% 91%;
+        --muted: 216 29% 10%;
+        --muted-foreground: 211 12% 65%;
+        --accent: 216 27% 11%;
+        --accent-foreground: 208 35% 93%;
         --destructive: 0 63% 31%;
         --destructive-foreground: 0 0% 100%;
+        --secondary: 216 27% 11%;
+        --secondary-foreground: 208 35% 93%;
+        --popover: 217 32% 8%;
+        --popover-foreground: 208 35% 93%;
+        --input: 213 26% 15%;
+        --ring: 217 91% 60%;
     }
 }
 
