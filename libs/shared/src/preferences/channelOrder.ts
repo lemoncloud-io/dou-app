@@ -20,13 +20,15 @@ import { isPlaceScopeKey } from './placeScope';
  * to "no custom order" instead of breaking the sidebar. Bare-placeId scopes are
  * dropped for the same reason as `normalizePinnedChannels`: they can't be
  * attributed to a cloud. Empty scopes are dropped to keep the stored map minimal.
+ * Duplicate ids are collapsed — a hand-edited record must not become duplicate
+ * React keys / dnd-kit ids (review-03 P2).
  */
 export const normalizeChannelOrder = (value: unknown): Record<string, string[]> => {
     if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
     const result: Record<string, string[]> = {};
     for (const [scope, ids] of Object.entries(value)) {
         if (!isPlaceScopeKey(scope) || !Array.isArray(ids)) continue;
-        const channelIds = ids.filter((id): id is string => typeof id === 'string' && id.length > 0);
+        const channelIds = [...new Set(ids.filter((id): id is string => typeof id === 'string' && id.length > 0))];
         if (channelIds.length > 0) result[scope] = channelIds;
     }
     return result;

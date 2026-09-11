@@ -70,6 +70,12 @@ describe('normalizeChannelOrder', () => {
         ).toEqual({ 'cloud-1:place-1': ['ch-2', 'ch-1'], 'cloud-2:place-2': ['ch-3'] });
     });
 
+    it('중복 id는 하나만 남긴다 — 손으로 고친 기록이 React/dnd-kit 키를 복제하지 않는다', () => {
+        expect(normalizeChannelOrder({ 'cloud-1:place-1': ['ch-1', 'ch-2', 'ch-1'] })).toEqual({
+            'cloud-1:place-1': ['ch-1', 'ch-2'],
+        });
+    });
+
     it('객체가 아니면 빈 값이다', () => {
         expect(normalizeChannelOrder(undefined)).toEqual({});
         expect(normalizeChannelOrder([['cloud-1:place-1', ['ch-1']]])).toEqual({});

@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react';
+import { useRef, type ReactNode } from 'react';
 
 import { DndContext, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { restrictToParentElement, restrictToVerticalAxis } from '@dnd-kit/modifiers';
@@ -34,12 +34,25 @@ interface SortableSectionProps {
 
 /**
  * A drop that ends anywhere still counts as a drag: the click browsers fire on
- * pointer-up must not select the row underneath (plan: "swallow the click that
- * follows a drag end"). One flag, cleared by the first swallowed click.
+ * pointer-up must not select the row underneath. The flag lives per section and
+ * self-clears on a timeout — when the release lands off the originating row the
+ * post-drag click fires on the down/up common ancestor, not the row wrapper, so
+ * nothing else would clear it and the NEXT legitimate click would be swallowed
+ * (review-03 P1). The click is dispatched before timers run, so `setTimeout(…, 0)`
+ * is late enough.
  */
-const justDragged = { current: false };
 
-const SortableRow = ({ itemKey, disabled, children }: { itemKey: string; disabled: boolean; children: ReactNode }) => {
+const SortableRow = ({
+    itemKey,
+    disabled,
+    justDraggedRef,
+    children,
+}: {
+    itemKey: string;
+    disabled: boolean;
+    justDraggedRef: React.RefObject<boolean>;
+    children: ReactNode;
+}) => {
     const { listeners, setNodeRef, transform, transition } = useSortable({ id: itemKey, disabled });
     return (
         // The row button inside keeps its own onClick; this wrapper only carries the
@@ -51,10 +64,10 @@ const SortableRow = ({ itemKey, disabled, children }: { itemKey: string; disable
             style={{ transform: CSS.Translate.toString(transform), transition }}
             className={cn(disabled ? 'cursor-default' : 'cursor-grab active:cursor-grabbing')}
             onClickCapture={event => {
-                if (!justDragged.current) return;
+                if (!justDraggedRef.current) return;
                 event.stopPropagation();
                 event.preventDefault();
-                justDragged.current = false;
+                justDraggedRef.current = false;
             }}
         >
             {children}
@@ -74,6 +87,7 @@ const SortableRow = ({ itemKey, disabled, children }: { itemKey: string; disable
 export const SortableSection = ({ id, title, action, items, dragDisabled, onReorder }: SortableSectionProps) => {
     const isCollapsed = useSidebarSectionsStore(s => !!s.collapsed[id]);
     const toggle = useSidebarSectionsStore(s => s.toggle);
+    const justDraggedRef = useRef(false);
     // 5px before a press becomes a drag: a click (no move) selects, a small accidental
     // jitter does not reorder (dnd-kit #172).
     const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
@@ -82,7 +96,10 @@ export const SortableSection = ({ id, title, action, items, dragDisabled, onReor
     const sortableKeys = visible.map(item => item.key);
 
     const handleDragEnd = (event: DragEndEvent) => {
-        justDragged.current = true;
+        justDraggedRef.current = true;
+        setTimeout(() => {
+            justDraggedRef.current = false;
+        }, 0);
         const { active, over } = event;
         if (!over || active.id === over.id) return;
         const from = sortableKeys.indexOf(String(active.id));
@@ -124,7 +141,12 @@ export const SortableSection = ({ id, title, action, items, dragDisabled, onReor
                     <SortableContext items={sortableKeys} strategy={verticalListSortingStrategy}>
                         <div className="flex flex-col gap-2">
                             {visible.map(item => (
-                                <SortableRow key={item.key} itemKey={item.key} disabled={rowDragDisabled}>
+                                <SortableRow
+                                    key={item.key}
+                                    itemKey={item.key}
+                                    disabled={rowDragDisabled}
+                                    justDraggedRef={justDraggedRef}
+                                >
                                     {item.node}
                                 </SortableRow>
                             ))}

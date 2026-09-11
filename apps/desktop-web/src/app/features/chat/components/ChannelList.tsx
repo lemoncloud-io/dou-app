@@ -275,17 +275,24 @@ export const ChannelList = ({
     }
 
     // Filter AFTER identity resolution so a DM matches its display name too, then apply the
-    // stored order: stored ids first (in stored order), unknown/new ids in name order behind.
+    // stored order BY ID (applyChannelOrder takes ids — review-03 P0): stored ids first (in
+    // stored order), unknown/new ids in name order behind. Map back to rows right after.
     const dmRows = dms.map(channel => ({ channel, identity: dmIdentity(channel) }));
     const dmById = new Map(dmRows.map(dm => [dm.channel.id ?? '', dm]));
-    const visibleRegular = applyChannelOrder(
-        regular.filter(c => matchesQuery(c, c.name ?? c.id ?? '')),
+    const chById = new Map(regular.map(c => [c.id ?? '', c]));
+    const orderedChannelIds = applyChannelOrder(
+        regular.filter(c => matchesQuery(c, c.name ?? c.id ?? '')).map(c => c.id ?? ''),
         pinScope ? storedChannelOrder : undefined
     );
-    const visibleDms = applyChannelOrder(
-        dms.filter(c => matchesQuery(c, dmById.get(c.id ?? '')?.identity.label ?? '')),
+    const orderedDmIds = applyChannelOrder(
+        dms.filter(c => matchesQuery(c, dmById.get(c.id ?? '')?.identity.label ?? '')).map(c => c.id ?? ''),
         pinScope ? storedChannelOrder : undefined
-    ).flatMap(id => {
+    );
+    const visibleRegular = orderedChannelIds.flatMap(id => {
+        const c = chById.get(id);
+        return c ? [c] : [];
+    });
+    const visibleDms = orderedDmIds.flatMap(id => {
         const dm = dmById.get(id);
         return dm ? [dm] : [];
     });

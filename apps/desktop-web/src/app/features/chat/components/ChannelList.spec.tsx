@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
 
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 
 import type { DomainChannel, DomainChat } from '@chatic/data';
 import type * as Shared from '@chatic/shared';
@@ -17,9 +17,12 @@ vi.mock('@chatic/app-runtime', () => ({
     },
 }));
 // Favorites ride the shared `ui.pinnedChannels` hook — stub the config store out of the render.
+// `storedOrder` is mutable per test: the stored order (ui.channelOrder) read is the thing under test.
+const storedOrder = vi.hoisted(() => ({ ids: [] as string[], set: vi.fn() }));
 vi.mock('@chatic/shared', async () => ({
     ...(await vi.importActual<Shared>('@chatic/shared')),
     usePinnedChannels: () => ({ pinnedIds: [] as string[], toggle: vi.fn(), reorder: vi.fn() }),
+    useChannelOrder: () => ({ storedIds: storedOrder.ids, set: storedOrder.set }),
 }));
 
 let lastChat: DomainChat | undefined;
@@ -105,6 +108,41 @@ describe('ChannelList preview line', () => {
         const preview = previewOnHover();
         expect(preview).toMatch(/Message deleted$/);
         expect(preview).not.toMatch(/regrettable/);
+    });
+});
+
+describe('ChannelList stored order (ui.channelOrder)', () => {
+    // Regression for review-03 P0: applyChannelOrder takes IDS — feeding it channel objects
+    // kept the stored order from applying and collapsed the DMs section to nothing.
+    it('applies the stored order to channels and still renders DMs', () => {
+        const general = { id: 'C1', name: 'general' } as DomainChannel;
+        const random = { id: 'C2', name: 'random' } as DomainChannel;
+        const dm = { id: 'D1', stereo: 'dm', name: 'u1' } as DomainChannel;
+        storedOrder.ids = ['C2', 'C1'];
+
+        render(
+            <ChannelList
+                channels={[general, random, dm]}
+                isLoading={false}
+                selectedChannelId={null}
+                query=""
+                onSelect={vi.fn()}
+                isDefaultMode={false}
+            />,
+            { wrapper }
+        );
+
+        const nav = screen.getByRole('navigation');
+        const rowNames = within(nav)
+            .getAllByRole('button')
+            .map(button => button.textContent ?? '')
+            .filter(name => /general|random|u1/.test(name))
+            .map(name => (name.includes('random') ? 'random' : name.includes('general') ? 'general' : 'u1'));
+        expect(rowNames).toEqual(['random', 'general', 'u1']);
+
+        act(() => {
+            storedOrder.ids = [];
+        });
     });
 });
 
