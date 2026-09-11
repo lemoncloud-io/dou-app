@@ -81,7 +81,7 @@ export const ChannelIntro = ({
             </div>
             <div className="flex flex-wrap items-center gap-2">
                 <button type="button" onClick={onToggleFavorite} aria-pressed={isFavorite} className={INTRO_ACTION}>
-                    <Star size={15} aria-hidden className={cn(isFavorite && 'fill-[#FF9500] text-[#FF9500]')} />
+                    <Star size={15} aria-hidden className={cn(isFavorite && 'fill-favorite text-favorite')} />
                     {t(isFavorite ? 'chat.header.unfavorite' : 'chat.header.favorite')}
                 </button>
                 {onOpenSettings && (

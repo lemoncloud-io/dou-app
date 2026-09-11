@@ -3,9 +3,11 @@ import { useTranslation } from 'react-i18next';
 
 import { File as FileIcon, Plus } from 'lucide-react';
 
+import { cn } from '@chatic/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@chatic/ui-kit/components/ui/popover';
 
 import { SUPPORTED_IMAGE_TYPES } from '../../utils';
+import { FLOATING_MENU_SURFACE } from './imageStyles';
 
 interface AttachMenuProps {
     onFiles: (files: File[]) => void;
@@ -35,12 +37,7 @@ export const AttachMenu = ({ onFiles }: AttachMenuProps) => {
                     <Plus size={18} aria-hidden />
                 </button>
             </PopoverTrigger>
-            <PopoverContent
-                side="top"
-                align="start"
-                sideOffset={10}
-                className="w-auto rounded-2xl border-[0.5px] border-border/70 bg-popover/[0.92] p-1.5 shadow-[0_3px_32px_rgba(0,0,0,0.08)] backdrop-blur-[4px]"
-            >
+            <PopoverContent side="top" align="start" sideOffset={10} className={cn('w-auto', FLOATING_MENU_SURFACE)}>
                 <button
                     type="button"
                     onClick={() => {

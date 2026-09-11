@@ -13,6 +13,7 @@ import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin';
 import { $createParagraphNode, $getRoot, $getSelection, $isRangeSelection, type EditorState } from 'lexical';
 
 import { cn } from '@chatic/lib/utils';
+import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { useComposerDraftStore } from '../../../shared';
 import type { ComposerAttachment } from '../hooks';
@@ -32,11 +33,7 @@ import {
 } from './editor';
 
 interface ComposerProps {
-    /**
-     * Send what is in the composer; `true` when it went out. `false` refuses — the text
-     * and the tray stay put (e.g. images while the upload API does not exist yet).
-     */
-    onSend: (content: string, attachments: ComposerAttachment[]) => boolean;
+    onSend: (content: string) => void;
     /** Channel the draft belongs to — preserves unsent text across switches. */
     channelId: string;
     /** Overrides the default "Message" placeholder (e.g. "Message #general"). */
@@ -92,7 +89,13 @@ const ComposerInner = ({
             .read(() => $convertToMarkdownString(COMPOSER_TRANSFORMERS, undefined, true))
             .trim();
         if (!markdown && attachments.length === 0) return;
-        if (!onSend(markdown, attachments)) return;
+        // No upload API on the server yet: refuse the whole send rather than drop the
+        // images silently or post their text without them. The text and the tray stay.
+        if (attachments.length > 0) {
+            toast({ description: t('chat.attach.unavailable') });
+            return;
+        }
+        onSend(markdown);
         // Clearing the document fires handleChange, which drops the draft.
         editor.update(
             () => {
@@ -110,7 +113,7 @@ const ComposerInner = ({
             // can keep typing without re-clicking the input.
             { onUpdate: () => editor.focus(undefined, { defaultSelection: 'rootEnd' }) }
         );
-    }, [editor, onSend, attachments]);
+    }, [editor, onSend, attachments, t]);
 
     // Focusing during keydown hands the same keystroke to the editor, so the first letter
     // lands in the message instead of being lost.

@@ -141,8 +141,8 @@ const ChannelRow = ({ channel, label, icon, isActive, isFavorite, onSelect, rowR
                 </span>
             )}
             {isFavorite && indicator === 'none' && (
-                // Figma Colors/Orange #FF9500 — the star is the one warm accent in the sidebar.
-                <Star size={16} aria-hidden className="shrink-0 fill-[#FF9500] text-[#FF9500]" />
+                // The star is the one warm accent in the sidebar (--favorite, Figma Colors/Orange).
+                <Star size={16} aria-hidden className="shrink-0 fill-favorite text-favorite" />
             )}
         </button>
     );

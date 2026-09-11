@@ -101,6 +101,7 @@ module.exports = {
                     foreground: 'hsl(var(--badge-unread-foreground))',
                 },
                 'badge-member': 'hsl(var(--badge-member))',
+                favorite: 'hsl(var(--favorite))',
                 'tab-active': 'hsl(var(--tab-active))',
                 'tab-inactive': 'hsl(var(--tab-inactive))',
                 overlay: 'hsl(var(--overlay))',

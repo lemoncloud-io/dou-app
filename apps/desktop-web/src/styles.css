@@ -89,6 +89,7 @@
         --badge-unread: 349 100% 59%; /* #FF2D55 Colors/Pink */
         --badge-unread-foreground: 0 0% 100%;
         --badge-member: 76 87% 49%;
+        --favorite: 35 100% 50%; /* #FF9500 Colors/Orange — the favorite star */
         --tab-active: 0 0% 10%;
         --tab-inactive: 218 5% 46%;
         --overlay: 0 0% 0%;
@@ -176,6 +177,7 @@
         --badge-unread: 349 100% 59%; /* #FF2D55 */
         --badge-unread-foreground: 0 0% 100%;
         --badge-member: 76 87% 49%;
+        --favorite: 35 100% 50%; /* #FF9500 */
         --tab-active: 60 7% 92%;
         --tab-inactive: 60 0% 55%;
         --overlay: 0 0% 0%;

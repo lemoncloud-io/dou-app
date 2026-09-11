@@ -11,6 +11,8 @@ import {
     DropdownMenuTrigger,
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
 
+import { FLOATING_MENU_SURFACE } from './imageStyles';
+
 interface ImageMoreMenuProps {
     /** The "⋮" control that opens the menu. */
     trigger: ReactNode;
@@ -30,11 +32,7 @@ export const ImageMoreMenu = ({ trigger, onCopy, onDelete, onOpenChange, side = 
     return (
         <DropdownMenu onOpenChange={onOpenChange} modal={false}>
             <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
-            <DropdownMenuContent
-                align="end"
-                side={side}
-                className="min-w-[125px] rounded-2xl border-[0.5px] border-border/70 bg-popover/[0.92] p-1.5 shadow-[0_3px_32px_rgba(0,0,0,0.08)] backdrop-blur-[4px]"
-            >
+            <DropdownMenuContent align="end" side={side} className={cn('min-w-[125px]', FLOATING_MENU_SURFACE)}>
                 <DropdownMenuItem
                     onSelect={onCopy}
                     className="cursor-pointer gap-2 rounded-[10px] px-3 py-2.5 text-[14px] font-medium tracking-[-0.01em] text-foreground"

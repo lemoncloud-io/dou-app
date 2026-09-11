@@ -22,5 +22,8 @@ export const shouldCaptureTyping = (event: KeyboardEvent): boolean => {
     if (event.metaKey || event.ctrlKey || event.altKey) return false;
     if (event.key.length !== 1 || RESERVED_KEYS.has(event.key)) return false;
     if (isTypingTarget(event.target)) return false;
-    return !document.querySelector('[role="dialog"], [role="alertdialog"], [role="menu"]');
+    // Scoped to open ones: Radix can keep a closed dialog mounted while it animates out.
+    return !document.querySelector(
+        ':is([role="dialog"], [role="alertdialog"], [role="menu"]):not([data-state="closed"])'
+    );
 };

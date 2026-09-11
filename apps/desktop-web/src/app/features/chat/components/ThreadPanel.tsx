@@ -9,14 +9,7 @@ import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 import { lastChatNoOf, useAuthorNames, useChatMutations, useChats, usePanelWidth } from '../../../shared';
 import type { ChannelMember } from '../../channels';
 import { buildMemberNames, buildThread, foldReactions } from '../utils';
-import {
-    useFileDrop,
-    useImageAttachments,
-    useMentionables,
-    useMessageViewer,
-    type ComposerAttachment,
-    type ReadCountOf,
-} from '../hooks';
+import { useFileDrop, useImageAttachments, useMentionables, useMessageViewer, type ReadCountOf } from '../hooks';
 import { useThreadStore } from '../stores';
 import { Composer } from './Composer';
 import { MessageList } from './MessageList';
@@ -92,20 +85,14 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading, readCoun
     const cachedNames = useAuthorNames(authorIds);
     const names = useMemo(() => buildMemberNames(members, cachedNames), [members, cachedNames]);
 
-    const handleReply = (content: string, attachments: ComposerAttachment[]) => {
-        // Same refusal as the channel composer: no upload API yet (see ChatPane).
-        if (attachments.length > 0) {
-            toast({ description: t('chat.attach.unavailable') });
-            return false;
-        }
+    const handleReply = (content: string) => {
         // The server takes the parent's FULL id and 404s on a bare chatNo (it
         // normalises to chatNo itself on store) — so send root.id, not rootId.
         // Unreachable when !root (Composer isn't rendered then); type guard only.
-        if (!root?.id) return false;
+        if (!root?.id) return;
         void sendMessage({ channelId, content, parentId: root.id }).catch(() =>
             toast({ variant: 'destructive', description: t('toast.messageFailed') })
         );
-        return true;
     };
 
     return (

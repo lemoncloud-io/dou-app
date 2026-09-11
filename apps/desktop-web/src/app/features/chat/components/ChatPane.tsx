@@ -28,14 +28,7 @@ import type { ChannelMember } from '../../channels';
 import { useChannelSettingsStore } from '../../channels';
 import { useSearchDialogStore } from '../../search';
 import { buildMemberNames, buildThreadIndex, foldReactions, isFeedVisible } from '../utils';
-import {
-    useFileDrop,
-    useImageAttachments,
-    useMentionables,
-    useMessageViewer,
-    type ComposerAttachment,
-    type ReadCountOf,
-} from '../hooks';
+import { useFileDrop, useImageAttachments, useMentionables, useMessageViewer, type ReadCountOf } from '../hooks';
 import { useThreadStore } from '../stores';
 import { ChannelHeaderMenu } from './ChannelHeaderMenu';
 import { ChannelIntro } from './ChannelIntro';
@@ -156,18 +149,11 @@ export const ChatPane = ({ channel, members, membersLoading, readCountOf }: Chat
         );
     }
 
-    const handleSend = (content: string, attachments: ComposerAttachment[]) => {
-        // No upload API on the server yet: refuse rather than drop the images silently or
-        // post their text without them. The composer keeps both until it exists.
-        if (attachments.length > 0) {
-            toast({ description: t('chat.attach.unavailable') });
-            return false;
-        }
+    const handleSend = (content: string) => {
         setSendTick(tick => tick + 1);
         void sendMessage({ channelId, content }).catch(() =>
             toast({ variant: 'destructive', description: t('toast.messageFailed') })
         );
-        return true;
     };
 
     // memberNo is deprecated server-side (back-filled from memberIds for compat) —
@@ -244,7 +230,7 @@ export const ChatPane = ({ channel, members, membersLoading, readCountOf }: Chat
                         aria-label={t(isFavorite ? 'chat.header.unfavorite' : 'chat.header.favorite')}
                         className={HEADER_ICON_BUTTON}
                     >
-                        <Star size={18} aria-hidden className={cn(isFavorite && 'fill-[#FF9500] text-[#FF9500]')} />
+                        <Star size={18} aria-hidden className={cn(isFavorite && 'fill-favorite text-favorite')} />
                     </button>
                     <button
                         type="button"

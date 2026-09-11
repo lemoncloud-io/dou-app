@@ -28,15 +28,25 @@ interface MessageImagesProps {
  * two-column grid of up to four with the fourth counting the rest ("+n"). Any tile opens
  * the viewer on that image; the "+n" tile opens it on the first hidden one.
  */
-export const MessageImages = ({ messageId, canDelete, author, onReply }: MessageImagesProps) => {
+export const MessageImages = (props: MessageImagesProps) => {
+    const images = useChatImages(props.messageId);
+    // Every feed row mounts this, and almost none carry images: stop at the store lookup
+    // so the grid's viewer and delete state exist only where there is something to show.
+    return images.length > 0 ? <MessageImageGrid {...props} images={images} /> : null;
+};
+
+const MessageImageGrid = ({
+    messageId,
+    canDelete,
+    author,
+    onReply,
+    images,
+}: MessageImagesProps & { images: ChatImage[] }) => {
     const { t } = useTranslation();
-    const images = useChatImages(messageId);
     const removeImage = useChatImagesStore(s => s.removeImage);
     const [viewerIndex, setViewerIndex] = useState<number | null>(null);
     const [pendingDelete, setPendingDelete] = useState<ChatImage | null>(null);
     const closeViewer = useCallback(() => setViewerIndex(null), []);
-
-    if (images.length === 0) return null;
 
     const { tiles, overflow } = layoutImageGrid(images);
     const isSingle = images.length === 1;

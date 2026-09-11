@@ -87,5 +87,3 @@ export const useImageAttachments = (scopeKey: string) => {
 
     return { attachments, addFiles, remove, clear, notice, dismissNotice };
 };
-
-export type ImageAttachments = ReturnType<typeof useImageAttachments>;

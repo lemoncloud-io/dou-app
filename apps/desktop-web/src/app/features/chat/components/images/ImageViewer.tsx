@@ -1,18 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { ChevronLeft, ChevronRight, Download, MoreVertical, X } from 'lucide-react';
 
 import { cn } from '@chatic/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
-import {
-    Dialog,
-    DialogDescription,
-    DialogOverlay,
-    DialogPortal,
-    DialogTitle,
-} from '@chatic/ui-kit/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 
 import { avatarStyle } from '../../../../shared';
 import type { ChatImage } from '../../utils';
@@ -90,183 +83,183 @@ export const ImageViewer = ({
 
     return (
         <Dialog open={isOpen && !!current} onOpenChange={open => !open && onClose()}>
-            <DialogPortal>
-                {/* Figma: the app stays visible behind the viewer, frosted rather than blacked out. */}
-                <DialogOverlay className="bg-background/40 backdrop-blur-md" />
-                <DialogPrimitive.Content
-                    onKeyDown={event => {
-                        if (event.key === 'ArrowLeft') step(-1);
-                        if (event.key === 'ArrowRight') step(1);
-                    }}
-                    // 32px from every edge is the Figma frame, and it holds on any window size.
-                    className="group/viewer fixed inset-8 z-50 flex overflow-hidden rounded-[20px] bg-background shadow-overlay outline-none data-[state=closed]:animate-out data-[state=open]:animate-in data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"
-                >
-                    <DialogTitle className="sr-only">{current?.name ?? t('chat.image.viewer')}</DialogTitle>
-                    <DialogDescription className="sr-only">
-                        {t('chat.image.position', { index: index + 1, count: images.length })}
-                    </DialogDescription>
-                    {current && (
-                        <>
-                            <div className="relative flex min-w-0 flex-1 flex-col bg-muted">
-                                <div className="relative flex min-h-0 flex-1 items-center justify-center px-16 pb-4 pt-8">
-                                    <img
-                                        src={current.url}
-                                        alt={current.name}
-                                        draggable={false}
-                                        className="max-h-full max-w-full select-none rounded-sm object-contain"
-                                    />
-                                    {isMulti && (
-                                        <>
-                                            <button
-                                                type="button"
-                                                onClick={() => step(-1)}
-                                                disabled={index === 0}
-                                                aria-label={t('chat.image.previous')}
-                                                className={cn(NAV_BUTTON, 'left-7', REVEAL)}
-                                            >
-                                                <ChevronLeft size={18} aria-hidden />
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => step(1)}
-                                                disabled={index === images.length - 1}
-                                                aria-label={t('chat.image.next')}
-                                                className={cn(NAV_BUTTON, 'right-7', REVEAL)}
-                                            >
-                                                <ChevronRight size={18} aria-hidden />
-                                            </button>
-                                        </>
-                                    )}
-                                    {!isMulti && (
+            <DialogContent
+                variant="bare"
+                hideClose
+                // Figma: the app stays visible behind the viewer, frosted rather than blacked out.
+                overlayClassName="bg-background/40 backdrop-blur-md"
+                onKeyDown={event => {
+                    if (event.key === 'ArrowLeft') step(-1);
+                    if (event.key === 'ArrowRight') step(1);
+                }}
+                // 32px from every edge is the Figma frame, and it holds on any window size.
+                className="group/viewer inset-8 flex gap-0 overflow-hidden rounded-[20px] shadow-overlay outline-none"
+            >
+                <DialogTitle className="sr-only">{current?.name ?? t('chat.image.viewer')}</DialogTitle>
+                <DialogDescription className="sr-only">
+                    {t('chat.image.position', { index: index + 1, count: images.length })}
+                </DialogDescription>
+                {current && (
+                    <>
+                        <div className="relative flex min-w-0 flex-1 flex-col bg-muted">
+                            <div className="relative flex min-h-0 flex-1 items-center justify-center px-16 pb-4 pt-8">
+                                <img
+                                    src={current.url}
+                                    alt={current.name}
+                                    draggable={false}
+                                    className="max-h-full max-w-full select-none rounded-sm object-contain"
+                                />
+                                {isMulti && (
+                                    <>
                                         <button
                                             type="button"
-                                            onClick={onClose}
-                                            aria-label={t('chat.image.close')}
-                                            className={cn(
-                                                'focus-ring absolute right-6 top-6 flex h-8 w-8 items-center justify-center rounded-md text-foreground transition-opacity hover:bg-foreground/[0.08]',
-                                                REVEAL
-                                            )}
+                                            onClick={() => step(-1)}
+                                            disabled={index === 0}
+                                            aria-label={t('chat.image.previous')}
+                                            className={cn(NAV_BUTTON, 'left-7', REVEAL)}
                                         >
-                                            <X size={20} aria-hidden />
+                                            <ChevronLeft size={18} aria-hidden />
                                         </button>
-                                    )}
-                                </div>
-                                <div
-                                    className={cn(
-                                        'flex shrink-0 items-center gap-3 px-8 pb-6',
-                                        isMenuOpen ? 'opacity-100' : REVEAL
-                                    )}
+                                        <button
+                                            type="button"
+                                            onClick={() => step(1)}
+                                            disabled={index === images.length - 1}
+                                            aria-label={t('chat.image.next')}
+                                            className={cn(NAV_BUTTON, 'right-7', REVEAL)}
+                                        >
+                                            <ChevronRight size={18} aria-hidden />
+                                        </button>
+                                    </>
+                                )}
+                                {!isMulti && (
+                                    <button
+                                        type="button"
+                                        onClick={onClose}
+                                        aria-label={t('chat.image.close')}
+                                        className={cn(
+                                            'focus-ring absolute right-6 top-6 flex h-8 w-8 items-center justify-center rounded-md text-foreground transition-opacity hover:bg-foreground/[0.08]',
+                                            REVEAL
+                                        )}
+                                    >
+                                        <X size={20} aria-hidden />
+                                    </button>
+                                )}
+                            </div>
+                            <div
+                                className={cn(
+                                    'flex shrink-0 items-center gap-3 px-8 pb-6',
+                                    isMenuOpen ? 'opacity-100' : REVEAL
+                                )}
+                            >
+                                <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-foreground">
+                                    {current.name}
+                                </span>
+                                <button
+                                    type="button"
+                                    onClick={() => onDownload(current)}
+                                    title={t('chat.image.download')}
+                                    aria-label={t('chat.image.download')}
+                                    className="focus-ring flex h-7 w-7 items-center justify-center rounded-md text-foreground hover:bg-foreground/[0.08]"
                                 >
-                                    <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-foreground">
-                                        {current.name}
+                                    <Download size={18} aria-hidden />
+                                </button>
+                                <ImageMoreMenu
+                                    side="top"
+                                    onCopy={() => onCopy(current)}
+                                    onDelete={onDelete && (() => onDelete(current))}
+                                    onOpenChange={setMenuOpen}
+                                    trigger={
+                                        <button
+                                            type="button"
+                                            title={t('chat.image.menu')}
+                                            aria-label={t('chat.image.menu')}
+                                            className="focus-ring flex h-7 w-7 items-center justify-center rounded-md bg-foreground/[0.08] text-foreground"
+                                        >
+                                            <MoreVertical size={18} aria-hidden />
+                                        </button>
+                                    }
+                                />
+                            </div>
+                        </div>
+                        {isMulti && (
+                            <aside className="flex w-[346px] shrink-0 flex-col border-l border-hairline bg-background">
+                                <header className="flex h-[68px] shrink-0 items-center justify-between border-b border-hairline px-6">
+                                    <span className="text-[18px] font-semibold tracking-[-0.01em] text-foreground">
+                                        {t('chat.thread.title')}
                                     </span>
                                     <button
                                         type="button"
-                                        onClick={() => onDownload(current)}
-                                        title={t('chat.image.download')}
-                                        aria-label={t('chat.image.download')}
-                                        className="focus-ring flex h-7 w-7 items-center justify-center rounded-md text-foreground hover:bg-foreground/[0.08]"
+                                        onClick={onClose}
+                                        aria-label={t('chat.image.close')}
+                                        className="focus-ring flex h-8 w-8 items-center justify-center rounded-md text-foreground hover:bg-accent"
                                     >
-                                        <Download size={18} aria-hidden />
+                                        <X size={20} aria-hidden />
                                     </button>
-                                    <ImageMoreMenu
-                                        side="top"
-                                        onCopy={() => onCopy(current)}
-                                        onDelete={onDelete && (() => onDelete(current))}
-                                        onOpenChange={setMenuOpen}
-                                        trigger={
-                                            <button
-                                                type="button"
-                                                title={t('chat.image.menu')}
-                                                aria-label={t('chat.image.menu')}
-                                                className="focus-ring flex h-7 w-7 items-center justify-center rounded-md bg-foreground/[0.08] text-foreground"
-                                            >
-                                                <MoreVertical size={18} aria-hidden />
-                                            </button>
-                                        }
-                                    />
-                                </div>
-                            </div>
-                            {isMulti && (
-                                <aside className="flex w-[346px] shrink-0 flex-col border-l border-hairline bg-background">
-                                    <header className="flex h-[68px] shrink-0 items-center justify-between border-b border-hairline px-6">
-                                        <span className="text-[18px] font-semibold tracking-[-0.01em] text-foreground">
-                                            {t('chat.thread.title')}
-                                        </span>
-                                        <button
-                                            type="button"
-                                            onClick={onClose}
-                                            aria-label={t('chat.image.close')}
-                                            className="focus-ring flex h-8 w-8 items-center justify-center rounded-md text-foreground hover:bg-accent"
+                                </header>
+                                <div className="scrollbar-thin flex min-h-0 flex-1 gap-2.5 overflow-y-auto px-4 py-6">
+                                    <Avatar className="h-9 w-9 shrink-0">
+                                        {author.avatar && <AvatarImage src={author.avatar} alt={author.name} />}
+                                        <AvatarFallback
+                                            className="text-caption font-semibold"
+                                            style={avatarStyle(author.colorSeed)}
                                         >
-                                            <X size={20} aria-hidden />
-                                        </button>
-                                    </header>
-                                    <div className="scrollbar-thin flex min-h-0 flex-1 gap-2.5 overflow-y-auto px-4 py-6">
-                                        <Avatar className="h-9 w-9 shrink-0">
-                                            {author.avatar && <AvatarImage src={author.avatar} alt={author.name} />}
-                                            <AvatarFallback
-                                                className="text-caption font-semibold"
-                                                style={avatarStyle(author.colorSeed)}
-                                            >
-                                                {author.name.charAt(0).toUpperCase() || '?'}
-                                            </AvatarFallback>
-                                        </Avatar>
-                                        <div className="flex min-w-0 flex-1 flex-col gap-2">
-                                            <div className="flex items-baseline gap-2">
-                                                <span className="truncate text-[16px] font-bold text-foreground">
-                                                    {author.name}
-                                                </span>
-                                                <span className="shrink-0 text-[13px] font-medium text-description">
-                                                    {author.time}
-                                                </span>
-                                            </div>
-                                            <ImageSetMeta count={images.length} onDownloadAll={onDownloadAll} />
-                                            <div className="grid grid-cols-2 gap-2">
-                                                {images.map((image, i) => (
-                                                    <button
-                                                        key={image.id}
-                                                        type="button"
-                                                        onClick={() => setIndex(i)}
-                                                        aria-label={t('chat.image.open', { name: image.name })}
-                                                        aria-current={i === index ? 'true' : undefined}
-                                                        className={cn(
-                                                            'focus-ring aspect-square overflow-hidden rounded-2xl border border-hairline transition-shadow',
-                                                            i === index &&
-                                                                'ring-2 ring-main-accent ring-offset-2 ring-offset-background'
-                                                        )}
-                                                    >
-                                                        <img
-                                                            src={image.url}
-                                                            alt=""
-                                                            draggable={false}
-                                                            className="h-full w-full object-cover"
-                                                        />
-                                                    </button>
-                                                ))}
-                                            </div>
+                                            {author.name.charAt(0).toUpperCase() || '?'}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                    <div className="flex min-w-0 flex-1 flex-col gap-2">
+                                        <div className="flex items-baseline gap-2">
+                                            <span className="truncate text-[16px] font-bold text-foreground">
+                                                {author.name}
+                                            </span>
+                                            <span className="shrink-0 text-[13px] font-medium text-description">
+                                                {author.time}
+                                            </span>
+                                        </div>
+                                        <ImageSetMeta count={images.length} onDownloadAll={onDownloadAll} />
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {images.map((image, i) => (
+                                                <button
+                                                    key={image.id}
+                                                    type="button"
+                                                    onClick={() => setIndex(i)}
+                                                    aria-label={t('chat.image.open', { name: image.name })}
+                                                    aria-current={i === index ? 'true' : undefined}
+                                                    className={cn(
+                                                        'focus-ring aspect-square overflow-hidden rounded-2xl border border-hairline transition-shadow',
+                                                        i === index &&
+                                                            'ring-2 ring-main-accent ring-offset-2 ring-offset-background'
+                                                    )}
+                                                >
+                                                    <img
+                                                        src={image.url}
+                                                        alt=""
+                                                        draggable={false}
+                                                        className="h-full w-full object-cover"
+                                                    />
+                                                </button>
+                                            ))}
                                         </div>
                                     </div>
-                                    {onReply && (
-                                        <div className="shrink-0 px-4 pb-4 pt-2">
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    onClose();
-                                                    onReply();
-                                                }}
-                                                className="focus-ring flex w-full items-center rounded-2xl border border-input bg-background px-5 py-4 text-left text-[15px] text-placeholder transition-colors hover:border-main-accent"
-                                            >
-                                                {t('chat.image.reply')}
-                                            </button>
-                                        </div>
-                                    )}
-                                </aside>
-                            )}
-                        </>
-                    )}
-                </DialogPrimitive.Content>
-            </DialogPortal>
+                                </div>
+                                {onReply && (
+                                    <div className="shrink-0 px-4 pb-4 pt-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                onClose();
+                                                onReply();
+                                            }}
+                                            className="focus-ring flex w-full items-center rounded-2xl border border-input bg-background px-5 py-4 text-left text-[15px] text-placeholder transition-colors hover:border-main-accent"
+                                        >
+                                            {t('chat.image.reply')}
+                                        </button>
+                                    </div>
+                                )}
+                            </aside>
+                        )}
+                    </>
+                )}
+            </DialogContent>
         </Dialog>
     );
 };
