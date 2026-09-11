@@ -743,7 +743,6 @@
                 "description": "Once you leave, you can no longer take part in the conversation.",
                 "confirm": "Leave"
             },
-            "leftRoom": "Left the room",
             "noMembers": "No members",
             "unknownUser": "Unknown User",
             "notificationSettings": {
