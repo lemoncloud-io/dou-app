@@ -25,6 +25,13 @@ export interface ChatRoomHeaderProps {
      */
     avatar?: React.ReactNode;
     /**
+     * Drops the leading avatar altogether — no node, no fallback glyph — so the title hugs the
+     * back button (Figma thread top bar, 4718:22183). For a depth that is a VIEW of a room
+     * rather than a room: a thread's header names the screen ("스레드"), and pairing that with
+     * the channel's face would claim the screen is the channel.
+     */
+    hideAvatar?: boolean;
+    /**
      * Optional secondary row rendered under the title (e.g. a group participant
      * stack + member count). When omitted the header stays a single line, so
      * direct / self chats are unaffected. (Figma group top bar, node 3209:27063.)
@@ -70,6 +77,7 @@ export const ChatRoomHeader = ({
     kind = 'group',
     title,
     avatar,
+    hideAvatar = false,
     meta,
     onBack,
     onMore,
@@ -116,7 +124,7 @@ export const ChatRoomHeader = ({
                 </div>
 
                 <div className="flex min-w-0 flex-1 items-center gap-2 px-1">
-                    {loading ? (
+                    {hideAvatar ? null : loading ? (
                         <div className="size-[42px] shrink-0 animate-pulse rounded-full bg-muted" />
                     ) : (
                         (avatar ?? <DefaultAvatar size={42} variant={fallbackVariant} />)

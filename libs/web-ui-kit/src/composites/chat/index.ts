@@ -3,6 +3,8 @@ export * from './DateDivider';
 export * from './FloatingDateChip';
 export * from './LinkPreviewCard';
 export * from './MessageRow';
+export * from './ReactionChip';
 export * from './ReadReceipt';
 export * from './SystemMessage';
 export * from './SystemNotice';
+export * from './ThreadSummary';

@@ -120,4 +120,21 @@ describe('ChatRoomHeader', () => {
             expect(container.querySelector('svg')?.getAttribute('viewBox')).toBe('0 0 42 42');
         });
     });
+
+    // Figma 4718:22183 — a thread's header names the SCREEN, and pairing that with the
+    // channel's face would claim the screen is the channel.
+    it('hideAvatar drops both the avatar node and the fallback glyph', () => {
+        const { container, rerender } = render(<ChatRoomHeader title="스레드" hideAvatar />);
+        expect(container.querySelector('svg')).toBeNull();
+
+        rerender(<ChatRoomHeader title="스레드" hideAvatar avatar={<img alt="" data-testid="thumb" src="x.png" />} />);
+        expect(screen.queryByTestId('thumb')).not.toBeInTheDocument();
+        expect(screen.getByText('스레드')).toBeInTheDocument();
+    });
+
+    it('hideAvatar also drops the loading placeholder', () => {
+        const { container } = render(<ChatRoomHeader title="스레드" hideAvatar loading />);
+
+        expect(container.querySelector('[class*="size-[42px]"]')).toBeNull();
+    });
 });
