@@ -744,7 +744,6 @@
                 "confirm": "Leave"
             },
             "noMembers": "No members",
-            "unknownUser": "Unknown User",
             "notificationSettings": {
                 "title": "Notification Settings",
                 "appNotificationOff": "App notifications are turned off",
@@ -800,7 +799,9 @@
             "inputPlaceholder": "Reply…",
             "unavailable": "This message isn't loaded yet — load older messages in the channel to see it.",
             "loadOlder": "Load older messages"
-        }
+        },
+        "unknownUser": "Unknown user",
+        "me": "You"
     },
     "search": {
         "placeholder": "Search by room name or place",
