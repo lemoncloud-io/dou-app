@@ -1,5 +1,7 @@
 import { NavLink, Outlet } from 'react-router-dom';
 
+import { SessionExpiredBanner } from '../components/SessionExpiredBanner';
+
 /** App-level features reachable from the top nav. */
 const NAV_LINKS = [
     { to: '/socket-lab', label: 'Socket Lab' },
@@ -21,6 +23,7 @@ const linkClass = ({ isActive }: { isActive: boolean }): string =>
  */
 export const PrivateLayout = () => (
     <div className="app-shell">
+        <SessionExpiredBanner />
         <nav className="app-nav">
             <span className="app-brand">Admin V2</span>
             {NAV_LINKS.map(link => (

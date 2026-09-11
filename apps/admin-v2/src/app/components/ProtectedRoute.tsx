@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { runtime } from '@chatic/app-runtime';
 
 import { useRelaySessionGuard } from '../hooks/useRelaySessionGuard';
+import { useSocketWakeRecovery } from '../hooks/useSocketWakeRecovery';
 
 /**
  * The user repository as the runtime hands it out. Derived from the hook rather than imported from
@@ -61,6 +62,10 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     // Keep HTTP signing credentials fresh while the console is open (and kick truly dead
     // sessions back to the login screen instead of leaving pages to 403).
     useRelaySessionGuard(isAuthenticated);
+
+    // And give that guard something to succeed with: a socket wedged by sleep or a dropped link
+    // cannot carry the refresh at all, so kick it the moment the console is back in front.
+    useSocketWakeRecovery(isAuthenticated);
 
     // Keyed by userId so a logout → login as another account never reuses the previous
     // account's cached role.

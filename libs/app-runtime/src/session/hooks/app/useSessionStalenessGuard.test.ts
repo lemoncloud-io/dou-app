@@ -14,6 +14,13 @@ jest.mock('../../../http/transport', () => ({
 jest.mock('../../../socket/auth/requestRelaySessionRefresh', () => ({
     requestRelaySessionRefresh: (...a: unknown[]) => mockRequestRefresh(...a),
 }));
+const mockAuthStatus = jest.fn();
+jest.mock('../../../socket/auth/authStatus', () => ({
+    getAuthStatus: (...a: unknown[]) => mockAuthStatus(...(a as [])),
+    // The real predicate — the point of these cases is which STATUS the guard sees, not a re-stub
+    // of the truth table it reads.
+    canRefreshThroughSocket: (status: string) => status === 'verified' || status === 'stale',
+}));
 jest.mock('../../../connection/hooks/useKindVerified', () => ({
     useKindVerified: (...a: unknown[]) => mockVerified(...a),
 }));
@@ -43,6 +50,8 @@ beforeEach(() => {
     // 측정 불가가 기본값 — 자격증명이 없는 테스트 세션의 실제 상태이고, 그 경우 선제 갱신은
     // 예전처럼 무조건 나간다(아래 describe가 그 계약을 따로 고정한다).
     mockTimeToExpiry.mockReturnValue(null);
+    // 기본값은 "소켓이 refresh를 나를 수 있었다" — 그래야 실패가 세션의 책임이 된다.
+    mockAuthStatus.mockReturnValue('stale');
     Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
 });
 
@@ -149,6 +158,46 @@ describe('useSessionStalenessGuard — 정책 (두 앱의 차이가 옵션이 �
         });
 
         expect(onTeardown).not.toHaveBeenCalled();
+    });
+
+    it('소켓이 refresh를 나를 수 없는 상태면 실패로 세지 않는다 — 세션이 죽었다는 근거가 아니다', async () => {
+        mockIsExpired.mockResolvedValue(true);
+        mockRequestRefresh.mockResolvedValue(false);
+        mockAuthStatus.mockReturnValue('handshaking');
+        const onTeardown = jest.fn();
+
+        const { result } = renderHook(() =>
+            useSessionStalenessGuard({ intervalMs: null, consecutiveFailureLimit: 1, onTeardown })
+        );
+        await act(async () => {
+            await result.current.check();
+            await result.current.check();
+            await result.current.check();
+        });
+
+        expect(onTeardown).not.toHaveBeenCalled();
+    });
+
+    it('SDK가 terminal expired를 낸 상태도 세지 않는다 — 그 판단은 renewer의 확인 창이 소유한다', async () => {
+        mockIsExpired.mockResolvedValue(true);
+        mockRequestRefresh.mockResolvedValue(false);
+        mockAuthStatus.mockReturnValue('expired');
+        const onTeardown = jest.fn();
+
+        await runCheck({ consecutiveFailureLimit: 1, onTeardown });
+
+        expect(onTeardown).not.toHaveBeenCalled();
+    });
+
+    it('나를 수 있었는데도 거절당하면 그건 실패다', async () => {
+        mockIsExpired.mockResolvedValue(true);
+        mockRequestRefresh.mockResolvedValue(false);
+        mockAuthStatus.mockReturnValue('verified');
+        const onTeardown = jest.fn();
+
+        await runCheck({ consecutiveFailureLimit: 1, onTeardown });
+
+        expect(onTeardown).toHaveBeenCalledTimes(1);
     });
 
     it('예외는 실패로 세지 않는다 — 세션이 죽었다는 근거가 아니다', async () => {

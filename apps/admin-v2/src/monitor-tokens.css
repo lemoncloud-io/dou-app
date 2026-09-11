@@ -102,3 +102,36 @@
     min-height: 0;
     overflow: auto;
 }
+
+/**
+ * Server-confirmed session expiry. A bar above the nav rather than a modal or a redirect: the
+ * screen behind it is still worth reading (it just cannot refresh), and taking an admin out of a
+ * half-finished investigation is the cost this replaced.
+ */
+.session-expired-banner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    flex: none;
+    padding: 7px 12px;
+    font-size: 12px;
+    color: var(--sm-text);
+    background: var(--sm-red-bg);
+    border-bottom: 1px solid var(--sm-danger);
+}
+
+.session-expired-banner button {
+    padding: 3px 10px;
+    border-radius: 5px;
+    font-size: 12px;
+    color: var(--sm-text);
+    background: var(--sm-raised-2);
+    border: 1px solid var(--sm-border-3);
+    cursor: pointer;
+}
+
+.session-expired-banner button:hover {
+    background: var(--sm-hover);
+    border-color: var(--sm-border-hover);
+}
