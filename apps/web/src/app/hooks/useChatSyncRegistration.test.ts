@@ -10,6 +10,9 @@ jest.mock('@chatic/app-runtime', () => ({
         sync: {
             getSyncManager: jest.fn(),
         },
+        session: {
+            useGlobalSession: jest.fn(() => ({ identity: { userId: 'me' } })),
+        },
         data: {
             useRuntimeRepositories: jest.fn(),
         },

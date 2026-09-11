@@ -44,6 +44,10 @@ export const useJoinPositions = (
     isMember: boolean
 ) => {
     const { isVerified } = runtime.connection.useRuntimeSocketState();
+    // Targets are scoped to the account that registered them, so an account change must re-register
+    // them — see the same note in `useSyncTarget`. The ids below embed OTHER members' uids, but the
+    // scope that matters is MINE: they were registered by my session and retire with it.
+    const uid = runtime.session.useGlobalSession().identity.userId;
 
     // Register a join (read-state) sync for every channel member so all read cursors stay live
     // while the room is mounted. Network-bound, so gated on isVerified (auto-retries on the
@@ -56,7 +60,7 @@ export const useJoinPositions = (
         const sync = runtime.sync.getSyncManager();
         const disposers = memberIds.map(userId => sync.registerJoin(`${channelId}@${userId}`));
         return () => disposers.forEach(dispose => dispose());
-    }, [channelId, isVerified, isMember, memberKey]);
+    }, [channelId, isVerified, isMember, memberKey, uid]);
 
     const memberCount = activeMemberIds.length;
     const isReady = memberCount > 0 && cursorByUser.size > 0;

@@ -51,12 +51,25 @@ export const createTtlMeta = (type: CacheType, now = Date.now()) => {
     };
 };
 
-/** 현재 컨텍스트를 기본 스코프(default fallback 포함)로 정규화합니다. */
-export const resolveBaseScope = (contextProvider: DataContextProvider): AdapterScope => {
+/**
+ * 현재 컨텍스트를 기본 스코프로 정규화합니다. 세션이 없으면 `null` — 스코프가 없다는 뜻입니다.
+ *
+ * **cid와 uid의 폴백은 대칭이 아닙니다.** `cid`의 `'default'`는 실재하는 파티션입니다(릴레이).
+ * `uid`에는 그런 게 없습니다 — 로그인하지 않은 사용자의 캐시라는 건 없으니, 빈 uid는 폴백할
+ * 값이 아니라 쓰지 말아야 할 상태입니다.
+ *
+ * 예전에는 여기서 `context.uid || 'default'`로 채웠습니다. 그래서 릴레이 로그아웃이 uid를
+ * null로 만드는 순간(`clearRelaySession`) 모든 읽기·쓰기가 `type:cid:default:id`라는
+ * 유령 파티션으로 조용히 갈아탔고, 다음 로그인은 진짜 uid 파티션으로 돌아왔습니다. 그 사이에
+ * 쓴 행과 sync 커서는 아무도 다시 읽지 않는 곳에 남았습니다 — 채널 목록이 빈 채로 굳고
+ * `channel.sync`는 델타만 받아오는 증상의 출처가 이 한 줄이었습니다.
+ */
+export const resolveBaseScope = (contextProvider: DataContextProvider): AdapterScope | null => {
     const context = contextProvider.getContext();
+    if (!context.uid) return null;
     return {
         cid: context.cid || 'default',
-        uid: context.uid || 'default',
+        uid: context.uid,
     };
 };
 
@@ -69,15 +82,13 @@ export const resolveBaseScope = (contextProvider: DataContextProvider): AdapterS
  * 공유 DataContextHolder를 임시로 변경했으나, 비동기 작업 중 다른 DataSource가 오염된
  * context(cid='global')를 읽어 cross-cloud 데이터 오염이 발생했습니다.
  */
-export const resolveScopedContext = (type: CacheType, contextProvider: DataContextProvider): AdapterScope => {
-    const base = resolveBaseScope(contextProvider);
+export const resolveScopedContext = (type: CacheType, contextProvider: DataContextProvider): AdapterScope | null => {
+    // invitecloud는 세션 이전의 도메인입니다(초대 링크를 열어본 사람은 아직 로그인 전일 수 있습니다).
+    // 그래서 uid 검사보다 먼저 답합니다 — 고정 파티션이라 세션이 없어도 갈 곳이 분명합니다.
     if (type === 'invitecloud') {
         return { cid: GLOBAL_CID, uid: GLOBAL_UID };
     }
-    return {
-        cid: base.cid,
-        uid: base.uid,
-    };
+    return resolveBaseScope(contextProvider);
 };
 
 /** 캐시 저장 시 TTL 메타를 모델에 주입합니다. */

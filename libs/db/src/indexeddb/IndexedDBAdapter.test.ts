@@ -258,3 +258,71 @@ describe('IndexedDBAdapter', () => {
         });
     });
 });
+
+/**
+ * 세션 없는 스코프(uid 부재)에서는 어떤 캐시 연산도 저장소에 닿지 않아야 한다.
+ *
+ * 예전에는 빈 uid가 `'default'`로 채워져 `chat:default:default:*`라는 유령 파티션에 읽고 썼다.
+ * 릴레이 로그아웃 → 로그인 사이의 그 창에서 쓴 행과 sync 커서는 로그인 후 아무도 다시 읽지
+ * 않아, 채널 목록이 빈 채로 굳고 `channel.sync`가 델타만 받아오는 증상이 됐다.
+ */
+describe('IndexedDBAdapter — 세션이 없으면 건너뛴다', () => {
+    const noSession = { getContext: () => ({ cid: 'cloud-a' }), setContext: () => undefined } as never;
+
+    it('쓰기는 저장소에 닿지 않고 입력을 그대로 돌려준다', async () => {
+        const stub = createStubDb();
+        const adapter = new IndexedDBAdapter(stub, 'chat', noSession);
+
+        await expect(adapter.save('c-1', chat('c-1'))).resolves.toEqual(chat('c-1'));
+        await expect(adapter.saveAll([chat('c-1')])).resolves.toEqual([chat('c-1')]);
+
+        expect(stub.save).not.toHaveBeenCalled();
+        expect(stub.saveAll).not.toHaveBeenCalled();
+    });
+
+    it('읽기는 저장소에 닿지 않고 빈 값을 돌려준다', async () => {
+        const stub = createStubDb();
+        const adapter = new IndexedDBAdapter(stub, 'chat', noSession);
+
+        await expect(adapter.load('c-1')).resolves.toBeNull();
+        await expect(adapter.loadAll()).resolves.toEqual([]);
+        await expect(adapter.loadMany(['c-1', 'c-2'])).resolves.toEqual([]);
+
+        expect(stub.load).not.toHaveBeenCalled();
+        expect(stub.loadAll).not.toHaveBeenCalled();
+    });
+
+    // 삭제가 가장 위험하다 — 유령 파티션을 지우는 건 무해하지만, 스코프를 잘못 고르면
+    // 남의 파티션을 지운다. 세션이 없을 때의 정답은 아무것도 하지 않는 것이다.
+    it('삭제는 아무것도 지우지 않는다', async () => {
+        const stub = createStubDb();
+        const adapter = new IndexedDBAdapter(stub, 'chat', noSession);
+
+        await adapter.delete('c-1');
+        await adapter.deleteAll(['c-1']);
+        await adapter.clearAll();
+        await adapter.clearByChannelId('channel-main');
+
+        expect(stub.delete).not.toHaveBeenCalled();
+        expect(stub.deleteAll).not.toHaveBeenCalled();
+        expect(stub.clearAll).not.toHaveBeenCalled();
+        expect(stub.clearByRange).not.toHaveBeenCalled();
+    });
+
+    it('세션이 붙으면 같은 어댑터가 정상 동작한다', async () => {
+        const session: { uid?: string } = {};
+        const provider = {
+            getContext: () => ({ cid: 'cloud-a', uid: session.uid }),
+            setContext: () => undefined,
+        } as never;
+        const stub = createStubDb();
+        const adapter = new IndexedDBAdapter(stub, 'chat', provider);
+
+        await adapter.save('c-1', chat('c-1'));
+        expect(stub.save).not.toHaveBeenCalled();
+
+        session.uid = 'me';
+        await adapter.save('c-1', chat('c-1'));
+        expect(stub.save).toHaveBeenCalledWith(expect.objectContaining({ key: 'chat:cloud-a:me:c-1' }));
+    });
+});

@@ -6,6 +6,7 @@ import { logger } from '@chatic/bridges';
 
 import { getSyncManager } from '../runtime';
 import { useRuntimeSocketState } from '../../../connection/hooks/useRuntimeSocketState';
+import { useSessionIdentity } from '../../../session/hooks/session/readers/useSessionIdentity';
 import { getRepositories } from '../../../data/runtime';
 
 const buildKey = (target: SyncTargetDescriptor | null): string | null =>
@@ -14,17 +15,24 @@ const buildKey = (target: SyncTargetDescriptor | null): string | null =>
 /**
  * Registers a sync target for the component lifetime and unregisters on cleanup.
  * `register` returns its own dispose fn, so the effect cleanup maps onto it directly.
- * Re-runs only when the target key changes (type/id/interval).
+ * Re-runs when the target key changes (type/id/interval) — or when the ACCOUNT changes.
+ *
+ * **Why uid is a dependency even though it is not in the key.** A target is tagged with the uid it
+ * was registered under and only syncs while that still matches (SyncManager.isUidActive), so an
+ * account change silently retires this registration. Re-running re-registers it under the new
+ * account; without the dependency the target would stay blocked for the rest of the mount, which
+ * turns a 403 storm into an equally silent dead sync.
  */
 export const useSyncTarget = (target: SyncTargetDescriptor | null): void => {
     const key = buildKey(target);
+    const uid = useSessionIdentity().userId;
 
     useEffect(() => {
         if (!target) return;
         return getSyncManager().register(target);
         // key captures every field we re-register on; target is read once per key.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [key]);
+    }, [key, uid]);
 };
 
 /**

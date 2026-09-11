@@ -152,6 +152,7 @@ export class IndexedDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTy
 
     async save(id: string, item: CacheModelOf<TType>): Promise<CacheModelOf<TType>> {
         const scope = this.getScope();
+        if (!scope) return item;
         const row = this.createSchema(scope.cid, scope.uid, id, item);
 
         await this.persist(scope, [row], () => this.db.save(row));
@@ -161,6 +162,7 @@ export class IndexedDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTy
     async saveAll(items: CacheModelOf<TType>[]): Promise<CacheModelOf<TType>[]> {
         if (items.length === 0) return [];
         const scope = this.getScope();
+        if (!scope) return items;
         const rows = items
             .map(item => {
                 const id = (item as { id?: string }).id;
@@ -175,6 +177,7 @@ export class IndexedDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTy
 
     async load(id: string): Promise<CacheModelOf<TType> | null> {
         const scope = this.getScope();
+        if (!scope) return null;
         const key = this.buildKey(scope.cid, scope.uid, id);
         const row = await this.db.load<TType>(key);
         return row?.data ?? null;
@@ -182,6 +185,7 @@ export class IndexedDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTy
 
     async loadAll(options?: CacheQueryOf<TType>): Promise<CacheModelOf<TType>[]> {
         const scope = this.getScope();
+        if (!scope) return [];
 
         if (this.options.executor) {
             const rows = await this.options.executor.execute(this.db, { type: this.type, ...scope }, options);
@@ -194,23 +198,27 @@ export class IndexedDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTy
 
     async delete(id: string): Promise<void> {
         const scope = this.getScope();
+        if (!scope) return;
         await this.db.delete(this.buildKey(scope.cid, scope.uid, id));
     }
 
     async deleteAll(ids: string[]): Promise<void> {
         if (ids.length === 0) return;
         const scope = this.getScope();
+        if (!scope) return;
         const keys = ids.map(id => this.buildKey(scope.cid, scope.uid, id));
         await this.db.deleteAll(keys);
     }
 
     async clearAll(): Promise<void> {
         const scope = this.getScope();
+        if (!scope) return;
         await this.db.clearAll(TYPE_CID_UID_INDEX, [this.type, scope.cid, scope.uid]);
     }
 
     override async clearByChannelId(channelId: string): Promise<void> {
         const scope = this.getScope();
+        if (!scope) return;
         const lower = [this.type, scope.cid, scope.uid, channelId];
         const upper = [this.type, scope.cid, scope.uid, channelId, []];
         const range = IDBKeyRange.bound(lower, upper);
