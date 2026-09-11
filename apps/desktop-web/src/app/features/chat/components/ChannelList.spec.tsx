@@ -163,9 +163,11 @@ describe('ChannelList keyboard reorder (Alt+Shift+↑/↓, slice 04)', () => {
         pinned.toggle.mockReset();
     });
     afterEach(() => {
-        storedOrder.ids = [];
-        pinned.ids = [];
-        useSidebarSectionsStore.setState({ collapsed: {} });
+        act(() => {
+            storedOrder.ids = [];
+            pinned.ids = [];
+            useSidebarSectionsStore.setState({ collapsed: {} });
+        });
     });
 
     const renderWithSelection = (selectedChannelId: string | null, channels = [general, random]) => {
@@ -267,7 +269,7 @@ describe('ChannelList keyboard reorder (Alt+Shift+↑/↓, slice 04)', () => {
         expect(screen.getAllByText(chord).length).toBeGreaterThan(0);
     });
 
-    it('Alt+Shift on a folded section does nothing', () => {
+    it('Alt+Shift on a folded section does nothing — channels', () => {
         useSidebarSectionsStore.setState({ collapsed: { ch: true } });
         storedOrder.ids = ['C1', 'C2'];
         const { nav } = renderWithSelection('C1');
@@ -277,6 +279,42 @@ describe('ChannelList keyboard reorder (Alt+Shift+↑/↓, slice 04)', () => {
         });
 
         expect(storedOrder.set).not.toHaveBeenCalled();
+    });
+
+    it('Alt+Shift on a folded section does nothing — favorites reorder is the trickiest write, pin it', () => {
+        useSidebarSectionsStore.setState({ collapsed: { fav: true } });
+        pinned.ids = ['C1', 'C2'];
+        const { nav } = renderWithSelection('C1');
+
+        act(() => {
+            press(nav, 'ArrowDown', true, true);
+        });
+
+        expect(pinned.reorder).not.toHaveBeenCalled();
+    });
+
+    it('Alt+Shift on a folded section does nothing — DMs', () => {
+        useSidebarSectionsStore.setState({ collapsed: { dm: true } });
+        storedOrder.ids = ['D1'];
+        const dm = { id: 'D1', stereo: 'dm', name: 'u1' } as DomainChannel;
+        const { nav } = renderWithSelection('D1', [general, random, dm]);
+
+        act(() => {
+            press(nav, 'ArrowDown', true, true);
+        });
+
+        expect(storedOrder.set).not.toHaveBeenCalled();
+    });
+
+    it('Alt+Shift+ArrowUp moves the selected channel up — direction pinned at component level', () => {
+        storedOrder.ids = ['C1', 'C2'];
+        const { nav } = renderWithSelection('C2');
+
+        act(() => {
+            press(nav, 'ArrowUp', true, true);
+        });
+
+        expect(storedOrder.set).toHaveBeenCalledWith(['C2', 'C1']);
     });
 });
 
