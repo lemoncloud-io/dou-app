@@ -20,6 +20,7 @@ import {
 import { type ChannelDialogKind, isChannelOwner, useChannelSettingsStore } from '../../channels';
 import { isDmBucket } from '../utils';
 import {
+    channelNotifyMode,
     lastChatNoOf,
     useDesktopChannelMutations,
     useNotificationPrefsStore,
@@ -69,15 +70,8 @@ export const ChannelRowMenu = ({
     const openSettings = useChannelSettingsStore(s => s.open);
     const { join: joinRepository } = runtime.data.useRuntimeRepositories();
     const { setChannelNotify: syncNotifyToServer } = useDesktopChannelMutations();
-    // Effective mode mirrors ChannelSettingsPanel: local pref, then the server's
-    // join.notify, then mute/all — the radio must not show 'all' for a channel the
-    // server has on 'mention' before any local pref exists.
-    const localNotify = useNotificationPrefsStore(s => s.channelNotify[id]);
-    const isMuted = useNotificationPrefsStore(s => Boolean(s.mutedChannels[id]));
-    const joinNotify = channel.$join?.notify;
-    const serverMode =
-        joinNotify === 'all' || joinNotify === 'mention' || joinNotify === 'none' ? joinNotify : undefined;
-    const notifyMode: ChannelNotifyMode = localNotify ?? serverMode ?? (isMuted ? 'none' : 'all');
+    // Same resolution as ChannelSettingsPanel — now one helper (channelNotifyMode).
+    const notifyMode = useNotificationPrefsStore(s => channelNotifyMode(s, id, channel.$join?.notify));
     const setNotifyPref = useNotificationPrefsStore(s => s.setChannelNotify);
 
     // Same write as the read-receipt flush: optimistic local cursor first, the
