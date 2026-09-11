@@ -4,9 +4,8 @@ module.exports = {
     moduleNameMapper: {
         // Subpath entries MUST come before the generic rule below, which would otherwise capture
         // `config/react` into $1 and resolve it to `libs/config/react/src/index.ts` — a path that does
-        // not exist. The real entry is `libs/config/src/react/index.ts` (apps/web/jest.config.js hit
-        // the same trap).
-        '^@chatic/config/react$': '<rootDir>/../config/src/react/index.ts',
+        // not exist. Mirrors apps/web/jest.config.js (same trap, same fix).
+        '^@chatic/config/(.*)$': '<rootDir>/../config/src/$1/index.ts',
         '^@chatic/(.*)$': '<rootDir>/../$1/src/index.ts',
     },
     transform: {

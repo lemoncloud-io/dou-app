@@ -242,6 +242,14 @@ describe('PlaceChannelManagePage', () => {
         expect(toast).toHaveBeenCalledWith({ title: 'channelManage.pinned' });
     });
 
+    it('이미 고정된 채널을 누르면 해제 토스트를 낸다', () => {
+        pinnedIds = ['ch-1'];
+        render(<PlaceChannelManagePage />);
+        fireEvent.click(screen.getByRole('button', { name: 'pin:ch-1' }));
+        expect(toggle).toHaveBeenCalledWith('ch-1');
+        expect(toast).toHaveBeenCalledWith({ title: 'channelManage.unpinned' });
+    });
+
     it('선택 해제는 전체 선택을 비운다', () => {
         render(<PlaceChannelManagePage />);
         fireEvent.click(screen.getByRole('checkbox', { name: 'ch-1' }));
