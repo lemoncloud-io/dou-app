@@ -4,6 +4,7 @@ export * from './PlaceRail';
 export * from './SidebarHeader';
 export * from './ChannelList';
 export * from './ChatPane';
+export * from './ChannelIntro';
 export * from './ChannelHeaderMenu';
 export * from './MessageList';
 export * from './MessageRow';

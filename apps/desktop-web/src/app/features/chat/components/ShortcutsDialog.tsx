@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 
+import { isTypingTarget } from '../utils';
+
 const isMac = typeof navigator !== 'undefined' && navigator.platform.toLowerCase().includes('mac');
 const MOD = isMac ? '⌘' : 'Ctrl';
 
@@ -11,10 +13,6 @@ const Kbd = ({ children }: { children: ReactNode }) => (
         {children}
     </kbd>
 );
-
-const isTypingTarget = (target: EventTarget | null): boolean =>
-    target instanceof HTMLElement &&
-    (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
 
 /**
  * Press "?" (or Mod+/) anywhere outside a text field to toggle a cheat sheet of
@@ -55,6 +53,7 @@ export const ShortcutsDialog = () => {
             ),
             label: t('shortcuts.send'),
         },
+        { keys: <Kbd>A–Z</Kbd>, label: t('shortcuts.typeToCompose') },
         {
             keys: (
                 <>

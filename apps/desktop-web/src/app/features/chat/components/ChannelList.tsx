@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { ChevronDown, Hash, Plus, Star } from 'lucide-react';
+import { ChevronDown, Hash, Pencil, Plus, Star } from 'lucide-react';
 
 import type { DomainChannel } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
@@ -19,10 +19,12 @@ import {
     messagePlainText,
     useAuthorNames,
     useFavoriteChannelsStore,
+    useComposerDraftStore,
     useSiteProfileMap,
 } from '../../../shared';
 import { SearchDialog } from '../../search';
 import { useLastChat } from '../hooks';
+import { useSidebarSectionsStore } from '../stores';
 import { unreadIndicator } from '../utils';
 import { QuickSwitcher } from './QuickSwitcher';
 
@@ -88,6 +90,9 @@ const ChannelRow = ({ channel, label, icon, isActive, isFavorite, onSelect, rowR
     const unread = channel.unreadCount ?? 0;
     const indicator = unreadIndicator({ unread, isDm: isDmBucket(channel), isActive });
     const lastChat = useLastChat(id, lastChatNoOf(channel));
+    // Slack's draft pencil: text left in another channel's composer is easy to forget.
+    // Not on the open row — its composer is right there.
+    const hasDraft = useComposerDraftStore(s => !isActive && !!s.drafts[id]?.trim());
     // A deleted message keeps its place here and says so, the way the feed does: its
     // content survives the soft delete, and printing it would show text the row itself
     // says is gone.
@@ -115,6 +120,12 @@ const ChannelRow = ({ channel, label, icon, isActive, isFavorite, onSelect, rowR
             >
                 {label}
             </span>
+            {hasDraft && (
+                <span className="flex shrink-0 items-center text-muted-foreground">
+                    <Pencil size={14} aria-hidden />
+                    <span className="sr-only">{t('sidebar.draft')}</span>
+                </span>
+            )}
             {/* The mark is decorative; the sr-only text carries it. Deliberately NOT
                 role="status" — that is a live region, and one per unread row would make
                 a screen reader announce the whole sidebar every time a count moved. */}
@@ -137,23 +148,40 @@ const ChannelRow = ({ channel, label, icon, isActive, isFavorite, onSelect, rowR
     );
 };
 
+interface SectionItem {
+    key: string;
+    node: ReactNode;
+    /** Stays visible while the section is folded: the open channel, or one with unread. */
+    keepWhenCollapsed: boolean;
+}
+
 interface SectionProps {
+    /** Persisted fold key (`useSidebarSectionsStore`). */
+    id: string;
     title: string;
     /** Trailing control in the header row (the Channels "+"). */
     action?: ReactNode;
-    children: ReactNode;
+    items: SectionItem[];
 }
 
-/** Collapsible sidebar section (Figma: chevron · 16px semibold title · optional action). */
-const Section = ({ title, action, children }: SectionProps) => {
-    const [isOpen, setOpen] = useState(true);
+/**
+ * Collapsible sidebar section (Figma: chevron · 16px semibold title · optional action).
+ *
+ * Folding hides the quiet rows, not the ones asking for attention: like Slack, the open
+ * channel and anything unread stay listed, so folding a busy section never hides that
+ * something arrived. The fold is remembered across launches.
+ */
+const Section = ({ id, title, action, items }: SectionProps) => {
+    const isCollapsed = useSidebarSectionsStore(s => !!s.collapsed[id]);
+    const toggle = useSidebarSectionsStore(s => s.toggle);
+    const visible = isCollapsed ? items.filter(item => item.keepWhenCollapsed) : items;
     return (
         <section className="flex flex-col gap-1">
             <div className="flex items-center gap-2 py-3">
                 <button
                     type="button"
-                    onClick={() => setOpen(open => !open)}
-                    aria-expanded={isOpen}
+                    onClick={() => toggle(id)}
+                    aria-expanded={!isCollapsed}
                     className="focus-ring flex min-w-0 flex-1 items-center gap-2 rounded-md text-left"
                 >
                     <ChevronDown
@@ -161,7 +189,7 @@ const Section = ({ title, action, children }: SectionProps) => {
                         aria-hidden
                         className={cn(
                             'shrink-0 text-sidebar-foreground transition-transform duration-150 ease-tactile',
-                            !isOpen && '-rotate-90'
+                            isCollapsed && '-rotate-90'
                         )}
                     />
                     <h3 className="truncate text-[16px] font-semibold tracking-[-0.01em] text-sidebar-foreground">
@@ -170,7 +198,13 @@ const Section = ({ title, action, children }: SectionProps) => {
                 </button>
                 {action}
             </div>
-            {isOpen && <div className="flex flex-col gap-2">{children}</div>}
+            {visible.length > 0 && (
+                <div className="flex flex-col gap-2">
+                    {visible.map(item => (
+                        <Fragment key={item.key}>{item.node}</Fragment>
+                    ))}
+                </div>
+            )}
         </section>
     );
 };
@@ -305,22 +339,31 @@ export const ChannelList = ({
     };
 
     const channelGlyph = <Hash size={16} aria-hidden />;
-    const row = (channel: DomainChannel, label: string, icon: ReactNode, section: string, isFavorite?: boolean) => {
+    const row = (
+        channel: DomainChannel,
+        label: string,
+        icon: ReactNode,
+        section: string,
+        isFavorite?: boolean
+    ): SectionItem => {
         const id = channel.id ?? '';
         const isActive = id === selectedChannelId;
-        return (
-            <ChannelRow
-                key={`${section}:${id}`}
-                channel={channel}
-                label={label}
-                icon={icon}
-                isActive={isActive}
-                isFavorite={isFavorite}
-                onSelect={onSelect}
-                // Only the canonical (non-favorite) row owns the scroll anchor.
-                rowRef={isActive && !isFavorite ? activeRef : undefined}
-            />
-        );
+        return {
+            key: `${section}:${id}`,
+            keepWhenCollapsed: isActive || (channel.unreadCount ?? 0) > 0,
+            node: (
+                <ChannelRow
+                    channel={channel}
+                    label={label}
+                    icon={icon}
+                    isActive={isActive}
+                    isFavorite={isFavorite}
+                    onSelect={onSelect}
+                    // Only the canonical (non-favorite) row owns the scroll anchor.
+                    rowRef={isActive && !isFavorite ? activeRef : undefined}
+                />
+            ),
+        };
     };
 
     // Favorites repeat their row in its own section (Figma), so a starred channel stays
@@ -343,16 +386,22 @@ export const ChannelList = ({
             <Divider />
             {favoriteRows.length > 0 && (
                 <>
-                    <Section title={t('sidebar.favorites')}>
-                        {favoriteRows.map(fav => row(fav.channel, fav.label, fav.icon, 'fav', true))}
-                    </Section>
+                    <Section
+                        id="fav"
+                        title={t('sidebar.favorites')}
+                        items={favoriteRows.map(fav => row(fav.channel, fav.label, fav.icon, 'fav', true))}
+                    />
                     <Divider />
                 </>
             )}
             {visibleRegular.length > 0 && (
                 <>
                     <Section
+                        id="ch"
                         title={t('sidebar.channels')}
+                        items={visibleRegular.map(channel =>
+                            row(channel, channel.name ?? channel.id ?? '', channelGlyph, 'ch')
+                        )}
                         action={
                             // Default Cloud (Self Channel only) does not support channel creation.
                             !isDefaultMode &&
@@ -368,18 +417,16 @@ export const ChannelList = ({
                                 </button>
                             )
                         }
-                    >
-                        {visibleRegular.map(channel =>
-                            row(channel, channel.name ?? channel.id ?? '', channelGlyph, 'ch')
-                        )}
-                    </Section>
+                    />
                     {visibleDms.length > 0 && <Divider />}
                 </>
             )}
             {visibleDms.length > 0 && (
-                <Section title={t('sidebar.dms')}>
-                    {visibleDms.map(dm => row(dm.channel, dm.identity.label, dm.identity.icon, 'dm'))}
-                </Section>
+                <Section
+                    id="dm"
+                    title={t('sidebar.dms')}
+                    items={visibleDms.map(dm => row(dm.channel, dm.identity.label, dm.identity.icon, 'dm'))}
+                />
             )}
         </nav>
     );

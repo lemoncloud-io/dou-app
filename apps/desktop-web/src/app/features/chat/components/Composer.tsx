@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { $convertToMarkdownString } from '@lexical/markdown';
@@ -16,6 +16,7 @@ import { cn } from '@chatic/lib/utils';
 
 import { useComposerDraftStore } from '../../../shared';
 import type { ComposerAttachment } from '../hooks';
+import { shouldCaptureTyping } from '../utils';
 import type { Mentionable } from './MentionAutocomplete';
 import { AttachMenu, ComposerAttachments } from './images';
 import {
@@ -46,6 +47,11 @@ interface ComposerProps {
     attachments?: ComposerAttachment[];
     onAddFiles?: (files: File[]) => void;
     onRemoveAttachment?: (id: string) => void;
+    /**
+     * Take printable keys typed while nothing else holds focus (Slack's type-to-compose).
+     * One composer per window should claim this — the channel's, not the thread's.
+     */
+    capturesTyping?: boolean;
 }
 
 const ComposerInner = ({
@@ -56,6 +62,7 @@ const ComposerInner = ({
     attachments = [],
     onAddFiles,
     onRemoveAttachment,
+    capturesTyping,
 }: ComposerProps) => {
     const { t } = useTranslation();
     const [editor] = useLexicalComposerContext();
@@ -105,6 +112,17 @@ const ComposerInner = ({
         );
     }, [editor, onSend, attachments]);
 
+    // Focusing during keydown hands the same keystroke to the editor, so the first letter
+    // lands in the message instead of being lost.
+    useEffect(() => {
+        if (!capturesTyping) return;
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (shouldCaptureTyping(event)) editor.focus();
+        };
+        window.addEventListener('keydown', onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
+    }, [capturesTyping, editor]);
+
     const insertEmoji = (emoji: string) => {
         editor.update(() => {
             ($getSelection() ?? $getRoot().selectEnd()).insertText(emoji);
@@ -135,6 +153,13 @@ const ComposerInner = ({
                 <div className="flex items-center gap-2 px-5 py-3">
                     {onAddFiles && <AttachMenu onFiles={onAddFiles} />}
                     <ComposerToolbar />
+                    {/* The newline key is the one thing people get wrong in a chat box; say it
+                        while it matters (there is text) and stay out of the way otherwise. */}
+                    {hasText && (
+                        <span className="ml-auto hidden text-[12px] text-placeholder animate-fade-in sm:block">
+                            {t('chat.composer.newlineHint')}
+                        </span>
+                    )}
                 </div>
                 <div aria-hidden className="h-px w-full bg-input" />
                 <div className="flex items-end gap-6 px-5 py-4">

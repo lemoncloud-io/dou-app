@@ -12,3 +12,4 @@ export * from './systemMessage';
 export * from './unreadIndicator';
 export * from './chatImages';
 export * from './imageActions';
+export * from './keyboard';

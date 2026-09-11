@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { ChevronDown, MessageSquare } from 'lucide-react';
@@ -55,6 +55,11 @@ interface MessageListProps {
     onJumpConsumed?: () => void;
     /** Read/unread counts per message (see `useReadCounts`); absent shows no receipts. */
     readCountOf?: (chatNo: number, senderId?: string) => ReadCount | null;
+    /**
+     * What sits above the first message once the whole history is loaded (and in place of
+     * the empty state): the channel's "this is the start of …" block. Absent in threads.
+     */
+    intro?: ReactNode;
 }
 
 const NEAR_BOTTOM_PX = 80;
@@ -92,6 +97,7 @@ export const MessageList = ({
     jumpTarget,
     onJumpConsumed,
     readCountOf,
+    intro,
 }: MessageListProps) => {
     const { t } = useTranslation();
     const bottomRef = useRef<HTMLDivElement>(null);
@@ -149,6 +155,17 @@ export const MessageList = ({
         () => buildMessageRows(messages, viewer, names, seenUpTo, membersLoading, placeProfiles, threadReplyCount),
         [messages, viewer, names, seenUpTo, membersLoading, placeProfiles, threadReplyCount]
     );
+
+    const dayChunks = useMemo(() => {
+        const chunks: { key: string; rows: typeof rows }[] = [];
+        for (const row of rows) {
+            if (row.kind === 'date' || chunks.length === 0) {
+                chunks.push({ key: `day:${row.kind === 'group' ? row.group.key : row.key}`, rows: [] });
+            }
+            chunks[chunks.length - 1].rows.push(row);
+        }
+        return chunks;
+    }, [rows]);
 
     // Name a reactor the same way an author is named: my own id resolves to me, others
     // through the roster. Memoised because MessageRow is memo'd — a fresh closure here
@@ -454,6 +471,9 @@ export const MessageList = ({
     }
 
     if (messages.length === 0) {
+        if (intro) {
+            return <div className="flex flex-1 flex-col justify-end overflow-y-auto px-6 py-5">{intro}</div>;
+        }
         return (
             <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
                 <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-well text-muted-foreground">
@@ -479,58 +499,66 @@ export const MessageList = ({
                         <span className="h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground motion-reduce:animate-none" />
                     </div>
                 )}
-                {rows.map(row => {
-                    if (row.kind === 'date') return <DateSeparator key={row.key} timestamp={row.timestamp} />;
-                    if (row.kind === 'system') {
-                        return <SystemNotice key={row.key} chat={row.chat} authorName={row.authorName} />;
-                    }
-                    if (row.kind === 'unread') {
-                        return (
-                            <div
-                                key={row.key}
-                                ref={unreadRef}
-                                className={cn(
-                                    'my-1 flex items-center gap-2 px-2 transition-opacity duration-300 ease-tactile motion-reduce:transition-none',
-                                    dividerFading && 'opacity-0'
-                                )}
-                            >
-                                <span className="h-px flex-1 bg-badge-unread/40" />
-                                <span className="shrink-0 rounded-full bg-badge-unread px-2 py-0.5 text-overline text-badge-unread-foreground">
-                                    {t('chat.newMessages')}
-                                </span>
-                                <span className="h-px flex-1 bg-badge-unread/40" />
-                            </div>
-                        );
-                    }
-                    if (row.kind === 'replies') {
-                        // Slack-style thread divider: the reply count anchored left,
-                        // a hairline filling the rest of the row.
-                        return (
-                            <div key={row.key} className="my-2 flex items-center gap-3 px-1">
-                                <span className="shrink-0 text-caption font-semibold tabular-nums text-muted-foreground">
-                                    {t('chat.thread.replyCount', { count: row.count })}
-                                </span>
-                                <span className="h-px flex-1 bg-hairline" />
-                            </div>
-                        );
-                    }
-                    return (
-                        <MessageRow
-                            key={row.group.key}
-                            group={row.group}
-                            onRetry={onRetry}
-                            onDiscard={onDiscard}
-                            threadMeta={threadMetaView}
-                            onOpenThread={onOpenThread}
-                            selfNames={selfNames}
-                            highlightChatNo={highlightChatNo ?? undefined}
-                            withDayInTime={threadReplyCount !== undefined}
-                            reactions={reactions}
-                            reactorName={reactorName}
-                            readCountOf={readCountOf}
-                        />
-                    );
-                })}
+                {!hasMore && !isLoadingOlder && intro}
+                {/* One block per day, so the day's pill can stick to the top while you read
+                    through it and hand over to the next day's pill at the boundary (a sticky
+                    element is held inside its parent). */}
+                {dayChunks.map(chunk => (
+                    <div key={chunk.key} className="flex flex-col gap-2">
+                        {chunk.rows.map(row => {
+                            if (row.kind === 'date') return <DateSeparator key={row.key} timestamp={row.timestamp} />;
+                            if (row.kind === 'system') {
+                                return <SystemNotice key={row.key} chat={row.chat} authorName={row.authorName} />;
+                            }
+                            if (row.kind === 'unread') {
+                                return (
+                                    <div
+                                        key={row.key}
+                                        ref={unreadRef}
+                                        className={cn(
+                                            'my-1 flex items-center gap-2 px-2 transition-opacity duration-300 ease-tactile motion-reduce:transition-none',
+                                            dividerFading && 'opacity-0'
+                                        )}
+                                    >
+                                        <span className="h-px flex-1 bg-badge-unread/40" />
+                                        <span className="shrink-0 rounded-full bg-badge-unread px-2 py-0.5 text-overline text-badge-unread-foreground">
+                                            {t('chat.newMessages')}
+                                        </span>
+                                        <span className="h-px flex-1 bg-badge-unread/40" />
+                                    </div>
+                                );
+                            }
+                            if (row.kind === 'replies') {
+                                // Slack-style thread divider: the reply count anchored left,
+                                // a hairline filling the rest of the row.
+                                return (
+                                    <div key={row.key} className="my-2 flex items-center gap-3 px-1">
+                                        <span className="shrink-0 text-caption font-semibold tabular-nums text-muted-foreground">
+                                            {t('chat.thread.replyCount', { count: row.count })}
+                                        </span>
+                                        <span className="h-px flex-1 bg-hairline" />
+                                    </div>
+                                );
+                            }
+                            return (
+                                <MessageRow
+                                    key={row.group.key}
+                                    group={row.group}
+                                    onRetry={onRetry}
+                                    onDiscard={onDiscard}
+                                    threadMeta={threadMetaView}
+                                    onOpenThread={onOpenThread}
+                                    selfNames={selfNames}
+                                    highlightChatNo={highlightChatNo ?? undefined}
+                                    withDayInTime={threadReplyCount !== undefined}
+                                    reactions={reactions}
+                                    reactorName={reactorName}
+                                    readCountOf={readCountOf}
+                                />
+                            );
+                        })}
+                    </div>
+                ))}
                 <div ref={bottomRef} />
             </div>
             {!atBottom &&

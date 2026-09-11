@@ -38,6 +38,7 @@ import {
 } from '../hooks';
 import { useThreadStore } from '../stores';
 import { ChannelHeaderMenu } from './ChannelHeaderMenu';
+import { ChannelIntro } from './ChannelIntro';
 import { Composer } from './Composer';
 import { MessageList } from './MessageList';
 import { HEADER_ICON_BUTTON } from './headerStyles';
@@ -176,12 +177,25 @@ export const ChatPane = ({ channel, members, membersLoading, readCountOf }: Chat
     // DM headers carry the other party's name (roster is already loaded here);
     // the self channel reads as "You".
     let headerName = channel.name ?? channelId;
+    const counterpartId = isDmChannel(channel) ? dmCounterpartId(channel, viewer.uid, viewer.cloudUid) : undefined;
     if (isSelfChannel(channel)) {
         headerName = t('dm.you');
     } else if (isDmChannel(channel)) {
-        const counterpart = members.find(m => m.id === dmCounterpartId(channel, viewer.uid, viewer.cloudUid));
+        const counterpart = members.find(m => m.id === counterpartId);
         if (counterpart) headerName = displayName(counterpart);
     }
+    const introKind = isSelfChannel(channel) ? 'self' : isDmChannel(channel) ? 'dm' : 'channel';
+    const intro = (
+        <ChannelIntro
+            kind={introKind}
+            name={headerName}
+            description={introKind === 'channel' ? desc : undefined}
+            colorSeed={counterpartId ?? undefined}
+            isFavorite={isFavorite}
+            onToggleFavorite={() => toggleFavorite(channelId)}
+            onOpenSettings={introKind === 'channel' ? () => openSettings(channelId) : undefined}
+        />
+    );
 
     return (
         <>
@@ -266,6 +280,7 @@ export const ChatPane = ({ channel, members, membersLoading, readCountOf }: Chat
                     jumpTarget={jumpTarget}
                     onJumpConsumed={clearJump}
                     readCountOf={readCountOf}
+                    intro={intro}
                 />
                 <Composer
                     onSend={handleSend}
@@ -275,6 +290,7 @@ export const ChatPane = ({ channel, members, membersLoading, readCountOf }: Chat
                     attachments={tray.attachments}
                     onAddFiles={tray.addFiles}
                     onRemoveAttachment={tray.remove}
+                    capturesTyping
                 />
                 {isDragging && <AttachmentDropOverlay />}
             </div>

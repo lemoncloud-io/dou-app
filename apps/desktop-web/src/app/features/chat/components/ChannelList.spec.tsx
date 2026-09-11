@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
 
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 
 import type { DomainChannel, DomainChat } from '@chatic/data';
 import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
@@ -83,5 +83,32 @@ describe('ChannelList preview line', () => {
 
         expect(screen.getByTitle(/Message deleted$/)).toBeTruthy();
         expect(screen.queryByTitle(/regrettable/)).toBeNull();
+    });
+});
+
+describe('ChannelList folded section', () => {
+    // Folding hides the quiet rows, never the one that just got a message.
+    it('keeps unread channels listed while the section is folded', () => {
+        lastChat = undefined;
+        const quiet = { id: 'C1', name: 'general' } as DomainChannel;
+        const busy = { id: 'C2', name: 'launch', unreadCount: 3 } as DomainChannel;
+
+        render(
+            <ChannelList
+                channels={[quiet, busy]}
+                isLoading={false}
+                selectedChannelId={null}
+                query=""
+                onSelect={vi.fn()}
+                isDefaultMode={false}
+            />,
+            { wrapper }
+        );
+        fireEvent.click(screen.getByRole('button', { name: 'Channels' }));
+
+        expect(screen.queryByText('general')).toBeNull();
+        expect(screen.getByText('launch')).toBeTruthy();
+        // Unfold again so the persisted fold does not leak into other tests.
+        fireEvent.click(screen.getByRole('button', { name: 'Channels' }));
     });
 });
