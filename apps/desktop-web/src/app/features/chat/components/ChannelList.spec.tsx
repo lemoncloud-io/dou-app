@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 
@@ -17,11 +17,12 @@ vi.mock('@chatic/app-runtime', () => ({
     },
 }));
 // Favorites ride the shared `ui.pinnedChannels` hook — stub the config store out of the render.
-// `storedOrder` is mutable per test: the stored order (ui.channelOrder) read is the thing under test.
+// `storedOrder`/`pinned` are mutable per test: the stored reads are the things under test.
 const storedOrder = vi.hoisted(() => ({ ids: [] as string[], set: vi.fn() }));
+const pinned = vi.hoisted(() => ({ ids: [] as string[], toggle: vi.fn(), reorder: vi.fn() }));
 vi.mock('@chatic/shared', async () => ({
     ...(await vi.importActual<Shared>('@chatic/shared')),
-    usePinnedChannels: () => ({ pinnedIds: [] as string[], toggle: vi.fn(), reorder: vi.fn() }),
+    usePinnedChannels: () => ({ pinnedIds: pinned.ids, toggle: pinned.toggle, reorder: pinned.reorder }),
     useChannelOrder: () => ({ storedIds: storedOrder.ids, set: storedOrder.set }),
 }));
 
@@ -35,7 +36,9 @@ vi.mock('../../search', () => ({ SearchDialog: () => null }));
 
 import '../../../../i18n';
 
+import { useSidebarSectionsStore } from '../stores';
 import { CHANNEL_ROW_HINT_DELAY_MS, ChannelList } from './ChannelList';
+import { ShortcutsDialog } from './ShortcutsDialog';
 
 Element.prototype.scrollIntoView = vi.fn();
 
@@ -143,6 +146,137 @@ describe('ChannelList stored order (ui.channelOrder)', () => {
         act(() => {
             storedOrder.ids = [];
         });
+    });
+});
+
+describe('ChannelList keyboard reorder (Alt+Shift+↑/↓, slice 04)', () => {
+    const general = { id: 'C1', name: 'general' } as DomainChannel;
+    const random = { id: 'C2', name: 'random' } as DomainChannel;
+
+    // Mutable mock state must reset in hooks, not inline: an assertion failure would
+    // otherwise leak pinnedIds into the later fold test and hide the real result.
+    beforeEach(() => {
+        storedOrder.ids = [];
+        storedOrder.set.mockReset();
+        pinned.ids = [];
+        pinned.reorder.mockReset();
+        pinned.toggle.mockReset();
+    });
+    afterEach(() => {
+        storedOrder.ids = [];
+        pinned.ids = [];
+        useSidebarSectionsStore.setState({ collapsed: {} });
+    });
+
+    const renderWithSelection = (selectedChannelId: string | null, channels = [general, random]) => {
+        const onSelect = vi.fn();
+        render(
+            <ChannelList
+                channels={channels}
+                isLoading={false}
+                selectedChannelId={selectedChannelId}
+                query=""
+                onSelect={onSelect}
+                isDefaultMode={false}
+            />,
+            { wrapper }
+        );
+        return { nav: screen.getByRole('navigation'), onSelect };
+    };
+
+    const press = (nav: HTMLElement, key: 'ArrowDown' | 'ArrowUp', altKey = false, shiftKey = false) =>
+        fireEvent.keyDown(nav, { key, altKey, shiftKey });
+
+    it('Alt+Shift+ArrowDown moves the selected channel down and writes the new order', () => {
+        storedOrder.ids = ['C1', 'C2'];
+        const { nav, onSelect } = renderWithSelection('C1');
+
+        act(() => {
+            press(nav, 'ArrowDown', true, true);
+        });
+
+        expect(storedOrder.set).toHaveBeenCalledWith(['C2', 'C1']);
+        // The move never doubles as navigation.
+        expect(onSelect).not.toHaveBeenCalled();
+    });
+
+    it('Alt+Shift moves a pinned channel inside Favorites via the pin reorder', () => {
+        pinned.ids = ['C1', 'C2'];
+        const { nav } = renderWithSelection('C1');
+
+        act(() => {
+            press(nav, 'ArrowDown', true, true);
+        });
+
+        expect(pinned.reorder).toHaveBeenCalledWith(['C2', 'C1']);
+    });
+
+    it('a plain ArrowDown still navigates — Alt+Shift is the only move chord', () => {
+        const { nav, onSelect } = renderWithSelection('C1');
+
+        act(() => {
+            press(nav, 'ArrowDown');
+        });
+
+        expect(onSelect).toHaveBeenCalledWith('C2');
+        expect(storedOrder.set).not.toHaveBeenCalled();
+    });
+
+    it('Alt+Shift while filtering does nothing — a subset would write a partial order', () => {
+        const onSelect = vi.fn();
+        storedOrder.ids = ['C1', 'C2'];
+        render(
+            <ChannelList
+                channels={[general, random]}
+                isLoading={false}
+                selectedChannelId="C1"
+                query="general"
+                onSelect={onSelect}
+                isDefaultMode={false}
+            />,
+            { wrapper }
+        );
+
+        act(() => {
+            press(screen.getByRole('navigation'), 'ArrowDown', true, true);
+        });
+
+        expect(storedOrder.set).not.toHaveBeenCalled();
+        expect(onSelect).not.toHaveBeenCalled();
+    });
+
+    it('arrows carrying other modifiers (Ctrl/Meta) are ignored — OS shortcuts keep working', () => {
+        const { nav, onSelect } = renderWithSelection('C1');
+
+        act(() => {
+            press(nav, 'ArrowDown', false, false);
+        });
+        // plain nav worked once, now prove the guard: ctrl+arrow must not navigate again
+        onSelect.mockClear();
+        const ctrlDown = fireEvent.keyDown(nav, { key: 'ArrowDown', ctrlKey: true });
+        expect(onSelect).not.toHaveBeenCalled();
+        expect(ctrlDown).toBe(true); // default not prevented — browser zoom-style chords pass through
+    });
+
+    it('the dialog cheat sheet mentions the move chord', () => {
+        render(<ShortcutsDialog />, { wrapper });
+        fireEvent.keyDown(window, { key: '?' });
+        expect(screen.getByText('Move the focused channel up or down')).toBeTruthy();
+        // chord rendering follows the platform glyph (⌥ on mac, Alt elsewhere) — one is present
+        const chord = screen.queryAllByText('⌥ ⇧ ↑').length > 0 ? '⌥ ⇧ ↑' : 'Alt ⇧ ↑';
+        expect(screen.getAllByText(chord).length).toBeGreaterThan(0);
+    });
+
+    it('Alt+Shift on a folded section does nothing', () => {
+        useSidebarSectionsStore.setState({ collapsed: { ch: true } });
+        storedOrder.ids = ['C1', 'C2'];
+        const { nav } = renderWithSelection('C1');
+
+        act(() => {
+            press(nav, 'ArrowDown', true, true);
+        });
+
+        expect(storedOrder.set).not.toHaveBeenCalled();
     });
 });
 

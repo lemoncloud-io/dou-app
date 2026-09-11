@@ -6,7 +6,7 @@ import { Hash, Pencil, Plus, Star } from 'lucide-react';
 import type { DomainChannel } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 import { runtime } from '@chatic/app-runtime';
-import { applyChannelOrder, placeScopeKey, useChannelOrder, usePinnedChannels } from '@chatic/shared';
+import { applyChannelOrder, moveChannel, placeScopeKey, useChannelOrder, usePinnedChannels } from '@chatic/shared';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 
 import {
@@ -26,7 +26,8 @@ import {
 } from '../../../shared';
 import { SearchDialog } from '../../search';
 import { useLastChat } from '../hooks';
-import { unreadIndicator } from '../utils';
+import { useSidebarSectionsStore } from '../stores';
+import { sidebarMoveChord, unreadIndicator } from '../utils';
 import { QuickSwitcher } from './QuickSwitcher';
 import { SortableSection, type SectionItem } from './SortableSection';
 
@@ -320,8 +321,47 @@ export const ChannelList = ({
             setStoredChannelOrder([...storedChannelOrder.filter(id => chIds.has(id)), ...orderedIds]);
         }
     };
+    // Keyboard twin of the drag: same section-slice rewrite, same fold/filter locks. A pinned
+    // selection moves inside Favorites (its pin order IS the display order); moveChannel does
+    // the clamp/prune that arrayMove does for the pointer path.
+    const moveSelectedByKeyboard = (delta: 1 | -1) => {
+        const id = selectedChannelId;
+        if (!id) return;
+        const { collapsed } = useSidebarSectionsStore.getState();
+        if (pinnedIds.includes(id)) {
+            if (collapsed.fav) return;
+            const presentIds = favoriteRows.map(fav => fav.channel.id ?? '');
+            const from = presentIds.indexOf(id);
+            if (from < 0) return;
+            reorderPinned(moveChannel(pinnedIds, id, from + delta, presentIds));
+            return;
+        }
+        if (dmById.has(id)) {
+            if (collapsed.dm) return;
+            const ids = visibleDms.map(dm => dm.channel.id ?? '');
+            const from = ids.indexOf(id);
+            if (from < 0) return;
+            makeSectionReorder('dm')(moveChannel(ids, id, from + delta, ids).map(orderedId => `dm:${orderedId}`));
+            return;
+        }
+        if (collapsed.ch) return;
+        const ids = visibleRegular.map(c => c.id ?? '');
+        const from = ids.indexOf(id);
+        if (from < 0) return;
+        makeSectionReorder('ch')(moveChannel(ids, id, from + delta, ids).map(orderedId => `ch:${orderedId}`));
+    };
     const onKeyDown = (e: React.KeyboardEvent) => {
         if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+        const chord = sidebarMoveChord(e);
+        if (chord !== null) {
+            // Move chord, never navigation: Alt+Shift+↑/↓ reorders inside the selected row's
+            // OWN section — cross-section is impossible (matches the drag rule). Swallowed
+            // while filtering: a filtered view would write a partial order.
+            e.preventDefault();
+            if (!isFiltering) moveSelectedByKeyboard(chord);
+            return;
+        }
+        if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return; // OS/browser chords pass through
         e.preventDefault();
         const idx = navOrder.findIndex(c => (c.id ?? '') === selectedChannelId);
         const delta = e.key === 'ArrowDown' ? 1 : -1;

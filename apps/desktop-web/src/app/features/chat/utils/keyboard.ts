@@ -1,3 +1,15 @@
+/**
+ * Alt+Shift+↑/↓ moves the focused sidebar row within its own section. The chord lives here so
+ * the handler and the ShortcutsDialog cheat sheet cannot disagree. Returns the move direction,
+ * or null when the event is not the move chord (plain arrows keep navigating).
+ */
+export const sidebarMoveChord = (event: { altKey: boolean; shiftKey: boolean; key: string }): 1 | -1 | null => {
+    if (!event.altKey || !event.shiftKey) return null;
+    if (event.key === 'ArrowDown') return 1;
+    if (event.key === 'ArrowUp') return -1;
+    return null;
+};
+
 /** Whether a key event lands in something the user is typing into. */
 export const isTypingTarget = (target: EventTarget | null): boolean =>
     target instanceof HTMLElement &&

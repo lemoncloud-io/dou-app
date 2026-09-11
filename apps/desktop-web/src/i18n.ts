@@ -389,6 +389,7 @@ const resources = {
             'search.matchCount_one': '{{count}} match',
             'search.matchCount_other': '{{count}} matches',
             'shortcuts.navigate': 'Move between channels',
+            'shortcuts.moveChannel': 'Move the focused channel up or down',
             'shortcuts.send': 'Send · new line',
             'shortcuts.closePanel': 'Close panel / dialog',
             'shortcuts.help': 'Show this help',
