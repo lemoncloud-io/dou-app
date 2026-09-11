@@ -102,11 +102,24 @@ describe('setPinnedChannelOrder', () => {
     it('새 순서를 그대로 local 레인에 쓴다', () => {
         mockGet.mockReturnValue({ 'cloud-1:place-1': ['ch-1', 'ch-2', 'ch-3'] });
 
+        setPinnedChannelOrder('cloud-1:place-1', ['ch-3', 'ch-2', 'ch-1']);
+
+        expect(mockSet).toHaveBeenCalledWith(
+            'ui.pinnedChannels',
+            { 'cloud-1:place-1': ['ch-3', 'ch-2', 'ch-1'] },
+            { lane: 'local' }
+        );
+    });
+
+    it('화면에 없는 고정은 지우지 않고 제자리를 지킨다 — 재입장·sync 지연 중 재정렬', () => {
+        mockGet.mockReturnValue({ 'cloud-1:place-1': ['ch-1', 'ch-2', 'ch-3'] });
+
+        // ch-2 is pinned but not in the list right now; the visible pair swaps.
         setPinnedChannelOrder('cloud-1:place-1', ['ch-3', 'ch-1']);
 
         expect(mockSet).toHaveBeenCalledWith(
             'ui.pinnedChannels',
-            { 'cloud-1:place-1': ['ch-3', 'ch-1'] },
+            { 'cloud-1:place-1': ['ch-3', 'ch-2', 'ch-1'] },
             { lane: 'local' }
         );
     });

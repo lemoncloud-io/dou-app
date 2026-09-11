@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Hash, Pencil, Plus, Star } from 'lucide-react';
@@ -55,11 +55,6 @@ const ChannelSkeleton = () => (
         ))}
     </div>
 );
-
-/**
- * Which sidebar section a channel belongs to — the shared predicate in
- * `../utils/dmBucket`; the same call also gates the row menu's DM items.
- */
 
 interface ChannelRowProps {
     channel: DomainChannel;
@@ -187,6 +182,19 @@ export const ChannelList = ({
     useEffect(() => {
         activeRef.current?.scrollIntoView({ block: 'nearest' });
     }, [selectedChannelId]);
+    // A keyboard move re-inserts the moved row's node (React reorders with insertBefore), and the
+    // browser blurs a focused node it moves — so the next Alt+Shift press would never reach the
+    // nav. Remember the focused row at the chord and hand focus back after the next commit, but
+    // only if focus fell to <body>: a clamped no-op move commits nothing, and by the time some
+    // later render clears the ref the user may have focused something else on purpose.
+    const refocusAfterMoveRef = useRef<HTMLElement | null>(null);
+    useLayoutEffect(() => {
+        const el = refocusAfterMoveRef.current;
+        if (!el) return;
+        refocusAfterMoveRef.current = null;
+        const focusDropped = !document.activeElement || document.activeElement === document.body;
+        if (focusDropped && el.isConnected) el.focus();
+    });
 
     // ONE actions instance + ONE dialog stack for every row menu (the per-row
     // alternative would mount a dialog per channel). menuTargetId is set when a
@@ -371,7 +379,9 @@ export const ChannelList = ({
             // OWN section — cross-section is impossible (matches the drag rule). Swallowed
             // while filtering: a filtered view would write a partial order.
             e.preventDefault();
-            if (!isFiltering) moveSelectedByKeyboard(chord);
+            if (isFiltering) return;
+            if (document.activeElement instanceof HTMLElement) refocusAfterMoveRef.current = document.activeElement;
+            moveSelectedByKeyboard(chord);
             return;
         }
         if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return; // OS/browser chords pass through

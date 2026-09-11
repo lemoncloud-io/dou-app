@@ -29,7 +29,9 @@ apps/web은 그쪽에서 import한다(동작 불변). desktop의 `useFavoriteCha
 `applyChannelOrder(ids, stored)` = 저장된 id(존재하는 것만, 저장 순) + 나머지 이름순.
 `moveChannel`은 없는 id를 가지치기한다. 섹션(Channels/DMs)별 DnD는 한 배열의 자기 슬라이스만 재작성하고,
 즐겨찾기 재정렬은 `ui.pinnedChannels[scope]` 배열에 직접 쓴다. 새 채널은 이름순 끝에, 삭제된 채널은
-다음 쓰기 때 가지치기 — 별도 리셋 UI는 v1에 없다.
+다음 쓰기 때 가지치기 — 별도 리셋 UI는 v1에 없다. 핀은 예외다: 재정렬은 화면에 보이는 핀의 순서만
+받고, 목록에 잠시 없는 핀(재입장·sync 지연)은 제자리를 지킨다(`setPinnedChannelOrder`). 핀을 지우는
+경로는 해제(`toggle`) 하나다.
 
 ### 3. 레거시 favorites는 place를 처음 볼 때 lazy migrate 한다
 

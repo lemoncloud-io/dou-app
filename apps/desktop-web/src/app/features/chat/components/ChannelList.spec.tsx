@@ -248,6 +248,41 @@ describe('ChannelList keyboard reorder (Alt+Shift+↑/↓, slice 04)', () => {
         expect(onSelect).not.toHaveBeenCalled();
     });
 
+    it('Alt+Shift+ArrowDown keeps focus on the moved row — React re-inserts its node', () => {
+        storedOrder.ids = ['C1', 'C2'];
+        let rowButton: HTMLButtonElement | null = null;
+        storedOrder.set.mockImplementation((ids: string[]) => {
+            storedOrder.ids = ids;
+            // A browser blurs a focused node that React moves with insertBefore; jsdom does not,
+            // so stand in for that focus fixup here.
+            rowButton?.blur();
+        });
+        const onSelect = vi.fn();
+        // A fresh element each call — rerendering the same element object bails out.
+        const ui = () => (
+            <ChannelList
+                channels={[general, random]}
+                isLoading={false}
+                selectedChannelId="C1"
+                query=""
+                onSelect={onSelect}
+                isDefaultMode={false}
+            />
+        );
+        const { rerender } = render(ui(), { wrapper });
+        rowButton = screen.getByText('general').closest('button') as HTMLButtonElement;
+        rowButton.focus();
+
+        act(() => {
+            press(screen.getByRole('navigation'), 'ArrowDown', true, true);
+        });
+        // The config write re-renders through useConfigValue in the app; the mock needs a push.
+        rerender(ui());
+
+        expect(storedOrder.ids).toEqual(['C2', 'C1']);
+        expect(document.activeElement).toBe(rowButton);
+    });
+
     it('Alt+Shift moves a pinned channel inside Favorites via the pin reorder', () => {
         pinned.ids = ['C1', 'C2'];
         const { nav } = renderWithSelection('C1');

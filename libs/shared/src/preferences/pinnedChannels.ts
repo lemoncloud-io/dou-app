@@ -57,14 +57,21 @@ export const setChannelPinned = (scope: string, channelId: string, pinned: boole
 };
 
 /**
- * Rewrite one scope's pin order (drag-reorder of the Favorites section). Ids not already pinned
- * in that scope are dropped — reordering must never silently pin a channel. A scope left with
- * nothing is dropped, matching `setChannelPinned`.
+ * Rewrite one scope's pin order (drag/keyboard reorder of the Favorites section). `channelIds` is
+ * the new order of the pins on screen: each slot a listed pin held takes the next id of that
+ * order, and pins not listed keep their slot — a channel briefly missing from the list (rejoin,
+ * sync lag) must not lose its pin to a reorder. Ids not already pinned in that scope are dropped
+ * — reordering must never silently pin a channel. A scope left with nothing is dropped, matching
+ * `setChannelPinned`.
  */
 export const setPinnedChannelOrder = (scope: string, channelIds: string[]): void => {
     const current = normalizePinnedChannels(config.get('ui.pinnedChannels'));
-    const known = new Set(current[scope] ?? []);
-    const nextIds = [...new Set(channelIds)].filter(id => known.has(id));
+    const stored = current[scope] ?? [];
+    const known = new Set(stored);
+    const reordered = [...new Set(channelIds)].filter(id => known.has(id));
+    const moved = new Set(reordered);
+    let slot = 0;
+    const nextIds = stored.map(id => (moved.has(id) ? reordered[slot++] : id));
 
     const next = { ...current };
     if (nextIds.length > 0) next[scope] = nextIds;
