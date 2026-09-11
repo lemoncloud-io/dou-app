@@ -1,5 +1,18 @@
 # Changelog
 
+## [2026-09-11] - root@0.61.1, @chatic/web@0.49.1
+
+### Features
+
+- (web/channels) rebuild the emoji and thread screens to the Figma spec
+- (web/channels,desktop-web) expand the emoji picker to 894 emoji
+- (web-ui-kit) add reaction chip, thread summary, and sheet action
+
+### Bug Fixes
+
+- (web/channels) stop showing account UUIDs where a name belongs
+- (web) drop the duplicate leftRoom key from the translation catalogues
+
 ## [2026-09-11] - root@0.61.0, @chatic/desktop-web@0.11.0
 
 ### Features
