@@ -76,6 +76,15 @@ export const uiModule: ConfigRegistryModule = {
         writableBy: ['local'],
         persist: 'local',
     },
+    'ui.channelOrder': {
+        title: '채널 표시 순서',
+        description: '장소별 사이드바 채널·DM 표시 순서 (드래그로 변경).',
+        type: 'json',
+        defaultValue: {},
+        surface: 'internal',
+        writableBy: ['local'],
+        persist: 'local',
+    },
     'ui.recentSearches': {
         title: '최근 검색어',
         description: '통합검색에서 최근 입력한 검색어 목록.',
