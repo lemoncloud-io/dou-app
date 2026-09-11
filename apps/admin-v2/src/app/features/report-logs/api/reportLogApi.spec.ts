@@ -65,5 +65,54 @@ describe('reportLogApi', () => {
         it('should omit an empty-string level/runId', () => {
             expect(buildReportLogListParams({ level: '', runId: '' })).toEqual({ page: 0, limit: 100 });
         });
+
+        // The tracking axes. `uid` is handled by the backend's `packSearchParam` and `cid`
+        // by the model mapping, but both reach it as plain query params from here.
+        it('should pass uid/cid through when set', () => {
+            expect(buildReportLogListParams({ uid: 'u1', cid: 'c1' })).toEqual({
+                page: 0,
+                limit: 100,
+                uid: 'u1',
+                cid: 'c1',
+            });
+        });
+
+        it('should omit an empty-string uid/cid', () => {
+            expect(buildReportLogListParams({ uid: '', cid: '' })).toEqual({ page: 0, limit: 100 });
+        });
+
+        it('should carry every axis at once', () => {
+            // A uid pin on top of a range and a level is the shape scenario ① produces.
+            expect(
+                buildReportLogListParams({
+                    page: 3,
+                    limit: 100,
+                    type: 'log',
+                    from: '2026-09-01',
+                    to: '2026-09-02',
+                    level: 'error',
+                    runId: 'run-a',
+                    uid: 'u1',
+                    cid: 'c1',
+                })
+            ).toEqual({
+                page: 3,
+                limit: 100,
+                type: 'log',
+                from: '2026-09-01',
+                to: '2026-09-02',
+                level: 'error',
+                runId: 'run-a',
+                uid: 'u1',
+                cid: 'c1',
+            });
+        });
+
+        // No `sort` key, ever: the backend defaults to `createdAt: desc`, and
+        // `sort=createdAt` without `:desc` would flip it to ascending — which would break
+        // both the corpus walk order and the new-log probe's "page 0 is newest" premise.
+        it('should never send a sort param', () => {
+            expect(buildReportLogListParams({ page: 1 })).not.toHaveProperty('sort');
+        });
     });
 });

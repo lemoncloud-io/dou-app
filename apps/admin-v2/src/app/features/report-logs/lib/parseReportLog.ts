@@ -65,6 +65,11 @@ export interface ReportPayload {
     version?: Record<string, unknown>;
     viewport?: Record<string, unknown>;
     path?: string;
+    /**
+     * Screens the reporter passed through, oldest first. The last entry is the feedback
+     * screen itself, so the one before it is the screen in question.
+     */
+    routeTrail?: unknown[];
     logs?: unknown[];
     [key: string]: unknown;
 }
@@ -101,6 +106,31 @@ export interface ReportLogRow {
     logDataRaw?: string;
     source?: string;
     runId?: string;
+
+    /**
+     * Below: axes the tracking console needs on the row itself rather than buried in
+     * `raw`. Two groups, and the difference matters when reading the screen:
+     *
+     * - `timestamp` / `cid` / `sid` are **queryable** — `cid` and `uid` are server-side
+     *   filters (hoisted by `saveLogEntry`), so pinning them narrows the whole dataset.
+     * - `appVersion` / `webVersion` / `route` / `os` are **not** — they live only inside
+     *   `meta`, so filtering or counting by them is confined to the collected corpus.
+     */
+
+    /** `LogEntry.timestamp` — when it happened on the device. See `eventTime.ts`. */
+    timestamp?: number;
+    /** cloud-id. Server-filterable (`MockModel.cid`). */
+    cid?: string;
+    /** site-id. Server-filterable (`CoreModel.sid`). */
+    sid?: string;
+    /** App build the entry came from — the axis for release-regression comparison. */
+    appVersion?: string;
+    /** Webview build, when the entry came from the web layer. */
+    webVersion?: string;
+    /** Screen path at the time of the log. */
+    route?: string;
+    /** Device OS, `os`/`osVersion` joined for display when both are present. */
+    os?: string;
 }
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
@@ -221,6 +251,27 @@ const pickImages = (
 const isLogEntryShape = (metaObj: Record<string, unknown>): boolean =>
     typeof metaObj.level === 'string' && typeof metaObj.tag === 'string';
 
+/**
+ * Read a string axis from the log entry, falling back to the record's hoisted copy.
+ * `saveLogEntry` copies `sid`/`uid`/`cid`/`runId`/`level` to the document top level, so
+ * either place can be the one that survived — a re-sent entry that omitted an axis leaves
+ * the hoisted copy in place and vice versa.
+ */
+const readAxis = (metaObj: Record<string, unknown>, mock: RawMockView, key: string): string | undefined => {
+    const fromMeta = metaObj[key];
+    if (typeof fromMeta === 'string' && fromMeta) return fromMeta;
+    const fromMock = (mock as Record<string, unknown>)[key];
+    return typeof fromMock === 'string' && fromMock ? fromMock : undefined;
+};
+
+/** Join OS name and version into one display value; either half may be missing. */
+const readOs = (metaObj: Record<string, unknown>): string | undefined => {
+    const os = typeof metaObj.os === 'string' ? metaObj.os : undefined;
+    const version = typeof metaObj.osVersion === 'string' ? metaObj.osVersion : undefined;
+    if (os && version) return `${os} ${version}`;
+    return os ?? version;
+};
+
 /** `LogEntry.data` is a JSON string the client already redacted; parsed for display when possible. */
 const parseLogData = (value: unknown): unknown => {
     if (typeof value !== 'string') return undefined;
@@ -237,19 +288,19 @@ const parseLogData = (value: unknown): unknown => {
  * handles.
  */
 const parseLogEntryRow = (mock: RawMockView, metaObj: Record<string, unknown>): ReportLogRow => {
+    // Read straight from the entry: `isLogEntryShape` already established that
+    // `meta.level` is a string, so a hoist fallback could only fire for the empty string
+    // and implying otherwise is misleading.
     const level = typeof metaObj.level === 'string' ? metaObj.level : undefined;
     const tag = typeof metaObj.tag === 'string' ? metaObj.tag : undefined;
     const dataRaw = typeof metaObj.data === 'string' ? metaObj.data : undefined;
-    const uid = typeof metaObj.uid === 'string' ? metaObj.uid : typeof mock.uid === 'string' ? mock.uid : undefined;
-    const runId =
-        typeof metaObj.runId === 'string' ? metaObj.runId : typeof mock.runId === 'string' ? mock.runId : undefined;
 
     return {
         id: mock.id ?? '',
         type: 'log-entry',
         title: tag ?? '(no tag)',
         message: typeof metaObj.message === 'string' ? metaObj.message : undefined,
-        userId: uid,
+        userId: readAxis(metaObj, mock, 'uid'),
         createdAt: typeof mock.createdAt === 'number' ? mock.createdAt : undefined,
         payload: null,
         raw: mock.meta ?? mock,
@@ -259,7 +310,14 @@ const parseLogEntryRow = (mock: RawMockView, metaObj: Record<string, unknown>): 
         logData: parseLogData(dataRaw),
         logDataRaw: dataRaw,
         source: typeof metaObj.source === 'string' ? metaObj.source : undefined,
-        runId,
+        runId: readAxis(metaObj, mock, 'runId'),
+        timestamp: typeof metaObj.timestamp === 'number' ? metaObj.timestamp : undefined,
+        cid: readAxis(metaObj, mock, 'cid'),
+        sid: readAxis(metaObj, mock, 'sid'),
+        appVersion: typeof metaObj.appVersion === 'string' ? metaObj.appVersion : undefined,
+        webVersion: typeof metaObj.webVersion === 'string' ? metaObj.webVersion : undefined,
+        route: typeof metaObj.route === 'string' ? metaObj.route : undefined,
+        os: readOs(metaObj),
     };
 };
 
@@ -297,6 +355,28 @@ export const parseReportLog = (mock: RawMockView): ReportLogRow => {
         '(untitled)';
 
     const user = (payload?.user ?? undefined) as Record<string, unknown> | undefined;
+    // The issue/error payload carries the reporter inside `user`; the record's own hoisted
+    // `uid` is the fallback. Slack reports are not known to hoist one (`doPostSlack` builds
+    // the document with `{ id, stereo }` only), so in practice the payload is the source —
+    // but reading both costs nothing and makes the uid pin work if that ever changes.
+    const uid =
+        (typeof user?.uid === 'string' ? user.uid : undefined) ?? (typeof mock.uid === 'string' ? mock.uid : undefined);
+    /**
+     * Issue reports attach `VersionInfo` from `@chatic/app-messages`:
+     * `{ currentVersion, latestVersion, shouldUpdate, appVersion, webVersion }` — see
+     * `buildReportContext`. The repo has a SECOND, unrelated `VersionInfo` in `libs/shared`
+     * (`{ version, buildTime }`) which does not reach here; reading `version.version`
+     * finds nothing at all.
+     */
+    const versionInfo = asObject(payload?.version);
+    /**
+     * `payload.path` is always the feedback screen itself — it is reached from a MyPage
+     * menu — so bucketing by it files every report under `/mypage/feedback`.
+     * `buildReportContext` says where the weight is: the second-to-last `routeTrail`
+     * entry is the screen the user was actually on.
+     */
+    const trail = Array.isArray(payload?.routeTrail) ? payload.routeTrail : undefined;
+    const previousRoute = trail && trail.length >= 2 ? trail[trail.length - 2] : undefined;
 
     return {
         id,
@@ -307,11 +387,20 @@ export const parseReportLog = (mock: RawMockView): ReportLogRow => {
         title: label,
         message: typeof payload?.message === 'string' ? payload.message : undefined,
         userName: typeof user?.name === 'string' ? user.name : undefined,
-        userId: typeof user?.uid === 'string' ? user.uid : undefined,
+        userId: uid,
+        cid: typeof mock.cid === 'string' ? mock.cid : undefined,
+        sid: typeof mock.sid === 'string' ? mock.sid : undefined,
+        appVersion: typeof versionInfo?.appVersion === 'string' ? versionInfo.appVersion : undefined,
+        webVersion: typeof versionInfo?.webVersion === 'string' ? versionInfo.webVersion : undefined,
+        route:
+            (typeof previousRoute === 'string' ? previousRoute : undefined) ??
+            (typeof payload?.path === 'string' ? payload.path : undefined),
         createdAt,
         images: pickImages(mock, metaObj, payload),
         payload: (payload as ReportPayload | undefined) ?? null,
         raw: mock.meta ?? mock,
-        parseError: metaObj === undefined && mock.meta !== undefined,
+        // `meta: null` means "nothing stored", not "could not be read" — `asObject(null)`
+        // returns undefined, so without the null check an empty record reads as corrupt.
+        parseError: metaObj === undefined && mock.meta !== undefined && mock.meta !== null,
     };
 };

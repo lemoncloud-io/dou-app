@@ -1,8 +1,12 @@
 /**
  * `components/report-logs/ReportLogTimeChart.tsx`
  * - Self-contained time-series bar chart (no socket-lab / .sm-root coupling).
- *   Plots report counts per equal-width time bucket; the spike (max) bar is
+ *   Plots log counts per equal-width time bucket; the spike (max) bar is
  *   emphasized so surges stand out.
+ *
+ * Buckets come from `bucketReportLogs`, which splits on **occurrence** time. That is what
+ * makes this chart a picture of the incident rather than of the upload schedule — see
+ * `eventTime.ts`.
  */
 import type { TimeBucket } from '../lib/bucketReportLogs';
 

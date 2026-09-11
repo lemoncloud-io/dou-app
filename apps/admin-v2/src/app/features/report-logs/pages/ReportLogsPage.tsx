@@ -1,173 +1,208 @@
 /**
  * `pages/report-logs/ReportLogsPage.tsx`
- * - Admin view of stored error/issue reports from `/mocks/0/list`.
+ * - The log tracking console: assembles the corpus, the filters and the four views.
  *
- * The kind (`type`) and the date range are server-side queries (deployed chatic-backend-api's
- * `MockListParam`, see reportLogApi.ts), so the total / page count / group+time samples all
- * recompute when either changes — and every one of those inputs resets the page to 0, since
- * page N of the old result set means nothing in the new one. Dates are KST day boundaries
- * server-side. Free-text and App filtering stay client-side over the fetched page.
+ * The screen's shape follows one constraint (ADR-0083, and the table in the feature spec):
+ * the backend can only filter on the axes it hoisted onto the record — `uid`, `sid`,
+ * `cid`, `runId`, `level`, `stereo` and a `createdAt` range. Tag, route and app version
+ * live inside `meta` and there is no aggregation parameter, so anything involving them has
+ * to be computed here, over rows this page pulled down.
+ *
+ * Hence the split this file is mostly about:
+ *
+ * - `useLogConsoleState` keeps the server axes and the client axes apart, in the URL.
+ * - `useLogCorpus` walks the server-narrowed range page by page — changing a server axis
+ *   restarts it; changing a client axis must not.
+ * - `logFacets` + the memo below narrow and count what was collected.
+ *
+ * Nothing here re-fetches on a keystroke, and nothing silently presents a corpus-scoped
+ * count as a dataset-wide one.
  */
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { useReportLogs } from '../hooks/use-report-logs';
-import { STEREO_BY_KIND, type ReportKind, type ReportStage } from '../api/reportLogApi';
-import { parseReportLog, type ReportLogRow } from '../lib/parseReportLog';
-import { groupReportLogs } from '../lib/groupReportLogs';
+import { STEREO_BY_KIND } from '../api/reportLogApi';
+import { useLogConsoleState } from '../hooks/use-log-console-state';
+import { useLogCorpus, type CorpusParams } from '../hooks/use-log-corpus';
+import { useNewLogProbe } from '../hooks/use-new-log-probe';
 import { bucketReportLogs } from '../lib/bucketReportLogs';
+import { byEventAtDesc } from '../lib/eventTime';
+import { groupReportLogs } from '../lib/groupReportLogs';
+import { buildFacets, makeQueryMatcher, matchesFacets } from '../lib/logFacets';
+import type { ReportLogRow } from '../lib/parseReportLog';
 import { downloadTextFile, rowsToCsv } from '../lib/reportLogFormat';
-import { ReportDetailDrawer } from '../components/ReportDetailDrawer';
-import { ReportLogTable } from '../components/ReportLogTable';
+import { CorpusProgress } from '../components/CorpusProgress';
+import { LogConsoleShell } from '../components/LogConsoleShell';
+import { LogFilterRail } from '../components/LogFilterRail';
+import { MonitorStrip } from '../components/MonitorStrip';
+import { NewLogsBanner } from '../components/NewLogsBanner';
+import { ReportDetailPanel } from '../components/ReportDetailPanel';
 import { ReportLogGroupTable } from '../components/ReportLogGroupTable';
+import { ReportLogTable } from '../components/ReportLogTable';
 import { ReportLogTimeChart } from '../components/ReportLogTimeChart';
+import { TrackingPins } from '../components/TrackingPins';
+import { RunTimeline } from '../components/RunTimeline';
+import type { ViewMode } from '../hooks/use-log-console-state';
+import type { PinKey } from '../lib/pinAxes';
 
-type ViewMode = 'list' | 'group' | 'time';
-
-/** Auto-refresh cadence when the toggle is on. */
-const AUTO_REFRESH_MS = 15_000;
-
-const PAGE_SIZE = 100;
-/** How many recent records to pull for the aggregated view (sample-scoped counts). */
-const GROUP_SAMPLE_SIZE = 1000;
+const VIEW_LABELS: Array<{ value: ViewMode; label: string }> = [
+    { value: 'list', label: '목록' },
+    { value: 'group', label: '집계' },
+    { value: 'time', label: '추이' },
+    { value: 'timeline', label: '타임라인' },
+];
 
 export const ReportLogsPage = () => {
     const navigate = useNavigate();
-    const [mode, setMode] = useState<ViewMode>('list');
-    const [page, setPage] = useState(0);
-    const [stage, setStage] = useState<ReportStage>('v1');
-    const [autoRefresh, setAutoRefresh] = useState(false);
-    // Server-side createdAt range (`YYYY-MM-DD` from the date inputs, KST day boundaries).
-    const [from, setFrom] = useState('');
-    const [to, setTo] = useState('');
-    const [typeFilter, setTypeFilter] = useState<ReportKind>('all');
-    // Server-side `LogEntry.level` filter — Slack reports never set `level`, so this
-    // incidentally narrows to batch log entries regardless of the type filter above.
-    const [levelFilter, setLevelFilter] = useState('');
-    // Aggregated/time views work over a larger recent sample; list view paginates.
-    const isSampleView = mode !== 'list';
-    const { data, isLoading, isError, error, refetch, isFetching } = useReportLogs(
-        {
-            page: isSampleView ? 0 : page,
-            limit: isSampleView ? GROUP_SAMPLE_SIZE : PAGE_SIZE,
-            stage,
-            // Narrowing the kind server-side is what makes `total` (and so the page count)
-            // follow the filter. Records written before reports carried a stereo are all `log`,
-            // so a legacy issue lands in the `error` bucket — the client-side pass below hides
-            // those rows, leaving only the total slightly high.
-            type: STEREO_BY_KIND[typeFilter],
-            from: from || undefined,
-            to: to || undefined,
-            level: levelFilter || undefined,
-        },
-        autoRefresh ? AUTO_REFRESH_MS : false
-    );
+    const { server, client, mode, pins, setServerAxis, setQuery, setFacet, setMode, pin, unpin, clearClientAxes } =
+        useLogConsoleState();
 
-    const [query, setQuery] = useState('');
-    const [appFilter, setAppFilter] = useState('all');
     const [selected, setSelected] = useState<ReportLogRow | null>(null);
 
-    const total = data?.total ?? 0;
-    const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
-    const goPage = (next: number) => {
-        setSelected(null);
-        setPage(Math.min(Math.max(0, next), pageCount - 1));
-    };
-
-    const rows = useMemo(() => {
-        const parsed = (data?.list ?? []).map(parseReportLog);
-        // Newest first.
-        return parsed.sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
-    }, [data]);
-
-    // Distinct app values present on the current page, for the app filter dropdown.
-    const appOptions = useMemo(
-        () => Array.from(new Set(rows.map(r => r.app).filter((a): a is string => !!a))).sort(),
-        [rows]
+    // The wire params. `kind` maps to a `stereo` value rather than being passed through —
+    // errors and log entries share `stereo='log'`, so the client-side pass below is what
+    // finally separates them.
+    const corpusParams = useMemo<CorpusParams>(
+        () => ({
+            stage: server.stage,
+            type: STEREO_BY_KIND[server.kind],
+            from: server.from || undefined,
+            to: server.to || undefined,
+            level: server.level || undefined,
+            uid: server.uid || undefined,
+            cid: server.cid || undefined,
+            runId: server.runId || undefined,
+        }),
+        [server]
     );
 
-    // Client-side filters over the fetched page; kind and date range are already applied
-    // server-side. The kind is re-checked here only to drop legacy rows the stereo filter
-    // cannot separate (pre-stereo records are all `log`, so old issues ride along with errors).
+    const corpus = useLogCorpus(corpusParams);
+
+    // Newest arrival in the corpus, which is the probe's watermark. Read from the rows
+    // rather than tracked separately so a merge advances it for free.
+    const headCreatedAt = useMemo(
+        () => corpus.rows.reduce<number | undefined>((max, row) => Math.max(max ?? 0, row.createdAt ?? 0), undefined),
+        [corpus.rows]
+    );
+
+    const probe = useNewLogProbe(corpusParams, headCreatedAt, { enabled: !corpus.isCollecting });
+
+    /**
+     * Client-side narrowing over the corpus, plus the kind split the server cannot do.
+     *
+     * The query matcher is built once rather than per row: `matchesQuery` re-parses the
+     * query on every call, which is invisible for a handful of rows and wasteful across a
+     * 5,000-row corpus.
+     */
     const filtered = useMemo(() => {
-        const q = query.trim().toLowerCase();
-        return rows.filter(row => {
-            if (typeFilter !== 'all' && row.type !== typeFilter) return false;
-            if (appFilter !== 'all' && row.app !== appFilter) return false;
-            if (q) {
-                const haystack = [
-                    row.title,
-                    row.message,
-                    row.userName,
-                    row.userId,
-                    row.app,
-                    row.env,
-                    row.type,
-                    row.tag,
-                    row.level,
-                    row.source,
-                ]
-                    .filter(Boolean)
-                    .join(' ')
-                    .toLowerCase();
-                if (!haystack.includes(q)) return false;
-            }
+        const matchesText = makeQueryMatcher(client.query);
+        const rows = corpus.rows.filter(row => {
+            // Records written before reports carried a stereo are all `log`, so a legacy
+            // issue lands in the `error` bucket server-side; this drops those rows.
+            if (server.kind !== 'all' && row.type !== server.kind) return false;
+            if (!matchesFacets(row, client.facets)) return false;
+            if (!matchesText(row)) return false;
             return true;
         });
-    }, [rows, query, typeFilter, appFilter]);
+        return rows.sort(byEventAtDesc);
+    }, [corpus.rows, server.kind, client.facets, client.query]);
 
-    const groups = useMemo(() => groupReportLogs(filtered), [filtered]);
-    const buckets = useMemo(() => bucketReportLogs(filtered), [filtered]);
+    /** The same narrowing, reusable for anything that must predict what will show up. */
+    const isVisible = useMemo(() => {
+        const matchesText = makeQueryMatcher(client.query);
+        return (row: ReportLogRow) =>
+            (server.kind === 'all' || row.type === server.kind) &&
+            matchesFacets(row, client.facets) &&
+            matchesText(row);
+    }, [server.kind, client.facets, client.query]);
 
-    return (
-        <div className="mx-auto flex min-h-full max-w-6xl flex-col gap-4 bg-background p-6 text-foreground">
-            <header className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                    <h1 className="text-lg font-semibold">Report Logs</h1>
-                    <p className="text-sm text-muted-foreground">
-                        {isSampleView
-                            ? `제보 / 배치 로그 / 구 에러 리포트 ${mode === 'group' ? '메시지별 집계' : '시간대별 추이'} · 최근 ${GROUP_SAMPLE_SIZE.toLocaleString()}건 표본`
-                            : '사용자 제보 + 배치 업로드 로그 + 폐지된 자동 에러 리포트(로그와 같은 stereo=log) 조회 · 타입·기간·레벨은 서버 조회(KST), 검색·App은 페이지 내 필터'}
-                    </p>
+    // Facets are built from the corpus, not from `filtered`: a facet list that shrank as
+    // you selected from it would strand you with no way back to the other values.
+    const facets = useMemo(() => buildFacets(corpus.rows), [corpus.rows]);
+
+    const groups = useMemo(() => (mode === 'group' ? groupReportLogs(filtered) : []), [mode, filtered]);
+    const buckets = useMemo(() => (mode === 'time' ? bucketReportLogs(filtered) : []), [mode, filtered]);
+
+    const pinned = useMemo(
+        () => Object.fromEntries(pins.map(p => [p.key, p.value])) as Partial<Record<PinKey, string>>,
+        [pins]
+    );
+
+    const onObserve = (uid: string) => navigate(`/socket-lab?observe=${encodeURIComponent(uid)}`);
+
+    /**
+     * What the operator will actually see appear.
+     *
+     * The probe only knows the server axes, so a strict count of its finds can promise
+     * rows the client-side narrowing then hides — click 받기, nothing changes, and the
+     * merge looks broken. Counting through the same predicate keeps the promise true;
+     * every fetched row is still merged, so nothing is dropped from the corpus.
+     */
+    const incomingVisible = useMemo(() => probe.rows.filter(isVisible).length, [probe.rows, isVisible]);
+
+    /**
+     * Take the banner's rows, or re-collect when the probe's window overflowed.
+     *
+     * An overflowed window means there are more arrivals than one page holds, so merging
+     * would advance the watermark past the rows that did not fit and strand them
+     * permanently. A fresh walk is the only way to get them.
+     */
+    const acceptIncoming = () => {
+        if (probe.overflowed) {
+            probe.reset();
+            corpus.reload();
+            return;
+        }
+        corpus.appendHead(probe.take());
+    };
+
+    /** Range bounds in ms, so rows outside them can say so. Dates are local-day starts. */
+    const range = useMemo(() => {
+        const startOf = (date: string) => (date ? new Date(`${date}T00:00:00`).getTime() : undefined);
+        const endOf = (date: string) => (date ? new Date(`${date}T23:59:59.999`).getTime() : undefined);
+        return { fromMs: startOf(server.from), toMs: endOf(server.to) };
+    }, [server.from, server.to]);
+
+    const header = (
+        <>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-baseline gap-3">
+                    <h1 className="text-lg font-semibold">Log Console</h1>
+                    <CorpusProgress
+                        phase={corpus.phase}
+                        loaded={corpus.loaded}
+                        total={corpus.total}
+                        cap={corpus.cap}
+                        error={corpus.error}
+                        fetchedAt={corpus.fetchedAt}
+                        onRetry={corpus.reload}
+                    />
                 </div>
                 <div className="flex items-center gap-2">
-                    {/* List / aggregated / time view toggle. */}
                     <div className="flex rounded-md border border-border p-0.5 text-sm">
-                        {(['list', 'group', 'time'] as const).map(m => (
+                        {VIEW_LABELS.map(view => (
                             <button
-                                key={m}
+                                key={view.value}
                                 type="button"
-                                onClick={() => setMode(m)}
-                                className={`rounded px-3 py-1 ${mode === m ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'}`}
+                                onClick={() => setMode(view.value)}
+                                // Without this the active view is conveyed by background
+                                // colour alone.
+                                aria-pressed={mode === view.value}
+                                className={`rounded px-3 py-1 ${
+                                    mode === view.value
+                                        ? 'bg-primary text-primary-foreground'
+                                        : 'text-muted-foreground hover:bg-muted'
+                                }`}
                             >
-                                {m === 'list' ? '목록' : m === 'group' ? '집계' : '추이'}
+                                {view.label}
                             </button>
                         ))}
                     </div>
-                    {/* Stage toggle: prod(v1) vs dev(d1) DOU backend. */}
-                    <select
-                        value={stage}
-                        onChange={e => {
-                            setPage(0);
-                            setStage(e.target.value as ReportStage);
-                        }}
-                        className="rounded-md border border-border bg-background px-2 py-1.5 text-sm"
-                        title="DOU 스테이지"
-                    >
-                        <option value="v1">prod (v1)</option>
-                        <option value="d1">dev (d1)</option>
-                    </select>
                     <button
                         type="button"
-                        onClick={() => setAutoRefresh(v => !v)}
-                        className={`rounded-md border border-border px-3 py-1.5 text-sm ${autoRefresh ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}
-                        title={`자동 새로고침 ${AUTO_REFRESH_MS / 1000}초`}
-                    >
-                        자동 {autoRefresh ? 'ON' : 'OFF'}
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => downloadTextFile(`report-logs-${stage}-p${page}.csv`, rowsToCsv(filtered))}
+                        onClick={() =>
+                            downloadTextFile(`log-console-${server.stage}-${server.from}.csv`, rowsToCsv(filtered))
+                        }
                         disabled={filtered.length === 0}
                         className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-muted disabled:opacity-50"
                     >
@@ -175,167 +210,81 @@ export const ReportLogsPage = () => {
                     </button>
                     <button
                         type="button"
-                        onClick={() => refetch()}
-                        disabled={isFetching}
+                        onClick={corpus.reload}
+                        disabled={corpus.isCollecting}
                         className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-muted disabled:opacity-50"
                     >
-                        {isFetching ? '불러오는 중…' : '새로고침'}
+                        {corpus.isCollecting ? '수집 중…' : '다시 수집'}
                     </button>
                 </div>
-            </header>
-
-            <div className="flex flex-wrap items-end gap-3 rounded-lg border border-border bg-card p-3">
-                <label className="flex flex-1 flex-col gap-1 text-xs text-muted-foreground">
-                    검색
-                    <input
-                        type="text"
-                        value={query}
-                        onChange={e => setQuery(e.target.value)}
-                        placeholder="제목·메시지·앱·환경…"
-                        className="min-w-[12rem] rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground"
-                    />
-                </label>
-                <label className="flex flex-col gap-1 text-xs text-muted-foreground" title="서버 조회 (stereo)">
-                    타입
-                    <select
-                        value={typeFilter}
-                        onChange={e => {
-                            setPage(0);
-                            setTypeFilter(e.target.value as ReportKind);
-                        }}
-                        className="rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground"
-                    >
-                        <option value="all">전체</option>
-                        <option value="error">error</option>
-                        <option value="issue">issue</option>
-                        <option value="log-entry">log</option>
-                    </select>
-                </label>
-                <label className="flex flex-col gap-1 text-xs text-muted-foreground" title="서버 조회 (LogEntry.level)">
-                    레벨
-                    <select
-                        value={levelFilter}
-                        onChange={e => {
-                            setPage(0);
-                            setLevelFilter(e.target.value);
-                        }}
-                        className="rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground"
-                    >
-                        <option value="">전체</option>
-                        <option value="error">error</option>
-                        <option value="warn">warn</option>
-                        <option value="info">info</option>
-                    </select>
-                </label>
-                <label className="flex flex-col gap-1 text-xs text-muted-foreground">
-                    App
-                    <select
-                        value={appFilter}
-                        onChange={e => setAppFilter(e.target.value)}
-                        className="rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground"
-                    >
-                        <option value="all">전체</option>
-                        {appOptions.map(a => (
-                            <option key={a} value={a}>
-                                {a}
-                            </option>
-                        ))}
-                    </select>
-                </label>
-                <label className="flex flex-col gap-1 text-xs text-muted-foreground" title="KST 기준 서버 조회">
-                    시작일
-                    <input
-                        type="date"
-                        value={from}
-                        max={to || undefined}
-                        onChange={e => {
-                            setPage(0);
-                            setFrom(e.target.value);
-                        }}
-                        className="rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground"
-                    />
-                </label>
-                <label className="flex flex-col gap-1 text-xs text-muted-foreground" title="KST 기준 서버 조회">
-                    종료일
-                    <input
-                        type="date"
-                        value={to}
-                        min={from || undefined}
-                        onChange={e => {
-                            setPage(0);
-                            setTo(e.target.value);
-                        }}
-                        className="rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground"
-                    />
-                </label>
-                <span className="ml-auto text-xs text-muted-foreground">
-                    {mode === 'group'
-                        ? `${groups.length}종 · ${filtered.length}건 표본 · 전체 ${total.toLocaleString()}건`
-                        : mode === 'time'
-                          ? `${filtered.length}건 표본 · 전체 ${total.toLocaleString()}건`
-                          : `현재 페이지 ${filtered.length}/${rows.length}건 · 전체 ${total.toLocaleString()}건`}
-                </span>
             </div>
-
-            <div className="rounded-lg border border-border bg-card">
-                {isLoading ? (
-                    <p className="px-4 py-10 text-center text-sm text-muted-foreground">불러오는 중…</p>
-                ) : isError ? (
-                    <p className="px-4 py-10 text-center text-sm text-destructive">
-                        조회 실패: {(error as Error)?.message ?? '알 수 없는 오류'}
-                    </p>
-                ) : mode === 'group' ? (
-                    <ReportLogGroupTable groups={groups} onSelect={g => setSelected(g.sample)} />
-                ) : mode === 'time' ? (
-                    <ReportLogTimeChart buckets={buckets} />
-                ) : (
-                    <ReportLogTable rows={filtered} onSelect={setSelected} selectedId={selected?.id} />
-                )}
+            {/* `uidCaveat`: Slack reports are not stamped with a `uid`, so a uid pin reaches
+                the user's log entries but not their own issue reports. Said only when it
+                could actually mislead — a uid is pinned and reports are in scope. */}
+            <TrackingPins pins={pins} onUnpin={unpin} uidCaveat={server.kind === 'all' || server.kind === 'issue'} />
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <MonitorStrip rows={filtered} corpusSize={corpus.loaded} />
+                <NewLogsBanner count={incomingVisible} overflowed={probe.overflowed} onAccept={acceptIncoming} />
             </div>
+        </>
+    );
 
-            <div className={`flex items-center justify-center gap-2 text-sm ${isSampleView ? 'hidden' : ''}`}>
-                <button
-                    type="button"
-                    onClick={() => goPage(0)}
-                    disabled={page <= 0 || isFetching}
-                    className="rounded-md border border-border px-2 py-1 hover:bg-muted disabled:opacity-40"
-                >
-                    « 처음
-                </button>
-                <button
-                    type="button"
-                    onClick={() => goPage(page - 1)}
-                    disabled={page <= 0 || isFetching}
-                    className="rounded-md border border-border px-2 py-1 hover:bg-muted disabled:opacity-40"
-                >
-                    ‹ 이전
-                </button>
-                <span className="px-2 text-muted-foreground">
-                    {page + 1} / {pageCount}
-                </span>
-                <button
-                    type="button"
-                    onClick={() => goPage(page + 1)}
-                    disabled={page >= pageCount - 1 || isFetching}
-                    className="rounded-md border border-border px-2 py-1 hover:bg-muted disabled:opacity-40"
-                >
-                    다음 ›
-                </button>
-                <button
-                    type="button"
-                    onClick={() => goPage(pageCount - 1)}
-                    disabled={page >= pageCount - 1 || isFetching}
-                    className="rounded-md border border-border px-2 py-1 hover:bg-muted disabled:opacity-40"
-                >
-                    마지막 »
-                </button>
-            </div>
-
-            <ReportDetailDrawer
-                row={selected}
-                onClose={() => setSelected(null)}
-                onObserve={uid => navigate(`/socket-lab?observe=${encodeURIComponent(uid)}`)}
+    const main = (() => {
+        if (corpus.phase === 'collecting' && corpus.loaded === 0) {
+            return <p className="px-4 py-10 text-center text-sm text-muted-foreground">수집 중…</p>;
+        }
+        if (mode === 'group') return <ReportLogGroupTable groups={groups} onSelect={g => setSelected(g.sample)} />;
+        if (mode === 'time') return <ReportLogTimeChart buckets={buckets} />;
+        if (mode === 'timeline') {
+            return (
+                <RunTimeline
+                    rows={filtered}
+                    onSelect={setSelected}
+                    selectedId={selected?.id}
+                    runId={server.runId || undefined}
+                />
+            );
+        }
+        return (
+            <ReportLogTable
+                rows={filtered}
+                onSelect={setSelected}
+                selectedId={selected?.id}
+                onPin={pin}
+                onUnpin={unpin}
+                pinned={pinned}
+                range={range}
             />
-        </div>
+        );
+    })();
+
+    return (
+        <LogConsoleShell
+            header={header}
+            rail={
+                <LogFilterRail
+                    server={server}
+                    onServerAxis={setServerAxis}
+                    query={client.query}
+                    onQuery={setQuery}
+                    facets={facets}
+                    selection={client.facets}
+                    onFacet={setFacet}
+                    onClearClient={clearClientAxes}
+                    corpusSize={corpus.loaded}
+                />
+            }
+            main={main}
+            detail={
+                <ReportDetailPanel
+                    row={selected}
+                    onClose={() => setSelected(null)}
+                    onObserve={onObserve}
+                    onPin={pin}
+                    onUnpin={unpin}
+                    pinned={pinned}
+                />
+            }
+        />
     );
 };

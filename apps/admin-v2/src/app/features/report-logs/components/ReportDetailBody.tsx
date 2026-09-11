@@ -1,32 +1,23 @@
 /**
- * `components/report-logs/ReportDetailDrawer.tsx`
- * - Right-side drawer showing a report's full payload in sections.
+ * `components/report-logs/ReportDetailBody.tsx`
+ * - The report detail itself: sections for the parsed payload, with a raw-JSON block
+ *   always backing them up.
  *
- * Payload schemas differ between error and issue reports (and `device` shape
- * differs too), so structured sections render generic key/value pairs without
- * assuming fixed fields, and a raw-JSON block always backs them up.
+ * Payload schemas differ between error and issue reports (and `device` shape differs
+ * too), so structured sections render generic key/value pairs without assuming fixed
+ * fields. Batch log entries have no report payload at all and take their own branch.
+ *
+ * Split out of the old right-side drawer (ADR-0083). The shell became a fixed panel so
+ * tracking work can read the list and the detail at once, but the section renderers below
+ * — in particular the stack symbolication, which is the highest-value thing on this
+ * screen — moved across unchanged.
  */
 import { useEffect, useState } from 'react';
 
-import { X } from 'lucide-react';
-
+import { levelTextClass } from '../lib/badgeClass';
 import type { ReportLogRow, ReportPayload } from '../lib/parseReportLog';
 import { mapMatchesStack, readBundleNames, resolveStack } from '../lib/resolveStack';
 import { buildTraceBlob, composeStackText } from '../lib/traceBlob';
-
-interface ReportDetailDrawerProps {
-    row: ReportLogRow | null;
-    onClose: () => void;
-    /** Jump to socket-lab Observe for the report's user (when a uid is present). */
-    onObserve?: (uid: string) => void;
-}
-
-const TYPE_BADGE: Record<ReportLogRow['type'], string> = {
-    error: 'bg-destructive text-destructive-foreground',
-    issue: 'bg-primary text-primary-foreground',
-    'log-entry': 'bg-muted text-muted-foreground',
-    unknown: 'bg-muted text-muted-foreground',
-};
 
 const stringify = (value: unknown): string => {
     if (value === null || value === undefined) return '';
@@ -107,13 +98,6 @@ interface LogEntry {
     error?: string;
 }
 
-const LEVEL_COLOR: Record<string, string> = {
-    error: 'text-destructive',
-    warn: 'text-yellow-500',
-    info: 'text-foreground',
-    debug: 'text-muted-foreground',
-};
-
 /**
  * Render the issue report's attached recent logs (fixed schema:
  * level/tag/message/timestamp/data/error) as a readable list rather than raw JSON.
@@ -130,9 +114,7 @@ const LogsSection = ({ logs }: { logs: unknown[] }) => {
                 {entries.map((log, i) => (
                     <li key={i} className="border-b border-border/40 pb-1 last:border-0">
                         <div className="flex flex-wrap items-center gap-1.5">
-                            <span
-                                className={`font-semibold uppercase ${LEVEL_COLOR[log.level ?? ''] ?? 'text-foreground'}`}
-                            >
+                            <span className={`font-semibold uppercase ${levelTextClass(log.level)}`}>
                                 {log.level ?? '-'}
                             </span>
                             {log.tag && <span className="text-muted-foreground">[{log.tag}]</span>}
@@ -188,9 +170,7 @@ const LogEntryDetailSection = ({ row }: { row: ReportLogRow }) => {
             <section className="flex flex-col gap-2">
                 <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Log Entry</h3>
                 <div className="flex flex-wrap items-center gap-1.5 text-xs">
-                    <span className={`font-semibold uppercase ${LEVEL_COLOR[row.level ?? ''] ?? 'text-foreground'}`}>
-                        {row.level ?? '-'}
-                    </span>
+                    <span className={`font-semibold uppercase ${levelTextClass(row.level)}`}>{row.level ?? '-'}</span>
                     {row.tag && <span className="text-muted-foreground">[{row.tag}]</span>}
                     {row.source && <span className="text-muted-foreground">· {row.source}</span>}
                 </div>
@@ -358,105 +338,66 @@ const StackSection = ({ row }: { row: ReportLogRow }) => {
     );
 };
 
-export const ReportDetailDrawer = ({ row, onClose, onObserve }: ReportDetailDrawerProps) => {
-    if (!row) return null;
+interface ReportDetailBodyProps {
+    row: ReportLogRow;
+}
+
+/**
+ * Section stack for one row. Takes no callbacks — the shell owns the header, the pins and
+ * the close affordance, so this stays a pure rendering of the record.
+ */
+export const ReportDetailBody = ({ row }: ReportDetailBodyProps) => {
     const p = row.payload;
-    const uid = row.userId;
 
     return (
         <>
-            {/* Backdrop */}
-            <div className="fixed inset-0 z-40 bg-black/40" onClick={onClose} aria-hidden />
-            {/* Panel */}
-            <aside className="fixed inset-y-0 right-0 z-50 flex w-[min(92vw,32rem)] flex-col border-l border-border bg-card shadow-xl">
-                <header className="flex items-start justify-between gap-3 border-b border-border px-4 py-3">
-                    <div className="flex flex-col gap-1">
-                        <div className="flex items-center gap-2">
-                            <span
-                                className={`rounded px-1.5 py-0.5 text-[11px] font-semibold uppercase ${TYPE_BADGE[row.type]}`}
-                            >
-                                {row.type}
-                            </span>
-                            {row.app && <span className="text-xs text-muted-foreground">{row.app}</span>}
-                            {row.env && <span className="text-xs text-muted-foreground">· {row.env}</span>}
-                        </div>
-                        <h2 className="break-words text-sm font-semibold text-foreground">{row.title}</h2>
-                        {row.createdAt && (
-                            <time className="text-xs text-muted-foreground">
-                                {new Date(row.createdAt).toLocaleString()}
-                            </time>
-                        )}
-                    </div>
-                    <div className="flex items-center gap-1">
-                        {uid && onObserve && (
-                            <button
-                                type="button"
-                                onClick={() => onObserve(uid)}
-                                className="rounded border border-border px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
-                                title={`socket-lab에서 유저 ${uid} 관측`}
-                            >
-                                관측
-                            </button>
-                        )}
-                        <button
-                            type="button"
-                            onClick={() => navigator.clipboard?.writeText(stringify(row.raw))}
-                            className="rounded border border-border px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
-                        >
-                            복사
-                        </button>
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            aria-label="Close"
-                            className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-                        >
-                            <X className="h-4 w-4" />
-                        </button>
-                    </div>
-                </header>
+            {row.parseError && (
+                <p className="rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                    payload를 파싱하지 못했습니다. 아래 raw 데이터를 확인하세요.
+                </p>
+            )}
 
-                <div className="flex flex-1 flex-col gap-5 overflow-auto p-4">
-                    {row.parseError && (
-                        <p className="rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                            payload를 파싱하지 못했습니다. 아래 raw 데이터를 확인하세요.
-                        </p>
-                    )}
+            {/* Outside the `p &&` block: attachments live in the record's meta, not the
+                payload, so they are still viewable when payload parsing failed. */}
+            {row.images && row.images.length > 0 && <ImagesSection images={row.images} />}
 
-                    {/* Outside the `p &&` block: attachments live in the record's meta, not the
-                        payload, so they are still viewable when payload parsing failed. */}
-                    {row.images && row.images.length > 0 && <ImagesSection images={row.images} />}
+            {row.type === 'log-entry' ? (
+                <LogEntryDetailSection row={row} />
+            ) : (
+                p && (
+                    <>
+                        <KeyValueSection
+                            title="Summary"
+                            data={{ url: p.url, timestamp: p.timestamp, userAgent: p.userAgent, path: p.path }}
+                        />
+                        <TextSection title="Message" text={p.message} />
+                        <StackSection row={row} />
+                        <TextSection title="Component Stack" text={p.componentStack} />
+                        <KeyValueSection title="Location" data={p.location} />
+                        <HttpSection http={p.http} />
+                        <KeyValueSection title="User" data={p.user} />
+                        <KeyValueSection title="Cloud" data={p.cloud} />
+                        <KeyValueSection title="Device" data={p.device} />
+                        <KeyValueSection title="Version" data={p.version} />
+                        <KeyValueSection
+                            title="Network"
+                            data={{ ...(p.network ?? {}), viewport: p.viewport && stringify(p.viewport) }}
+                        />
+                        {Array.isArray(p.logs) && p.logs.length > 0 && <LogsSection logs={p.logs} />}
+                    </>
+                )
+            )}
 
-                    {row.type === 'log-entry' ? (
-                        <LogEntryDetailSection row={row} />
-                    ) : (
-                        p && (
-                            <>
-                                <KeyValueSection
-                                    title="Summary"
-                                    data={{ url: p.url, timestamp: p.timestamp, userAgent: p.userAgent, path: p.path }}
-                                />
-                                <TextSection title="Message" text={p.message} />
-                                <StackSection row={row} />
-                                <TextSection title="Component Stack" text={p.componentStack} />
-                                <KeyValueSection title="Location" data={p.location} />
-                                <HttpSection http={p.http} />
-                                <KeyValueSection title="User" data={p.user} />
-                                <KeyValueSection title="Cloud" data={p.cloud} />
-                                <KeyValueSection title="Device" data={p.device} />
-                                <KeyValueSection title="Version" data={p.version} />
-                                <KeyValueSection
-                                    title="Network"
-                                    data={{ ...(p.network ?? {}), viewport: p.viewport && stringify(p.viewport) }}
-                                />
-                                {Array.isArray(p.logs) && p.logs.length > 0 && <LogsSection logs={p.logs} />}
-                            </>
-                        )
-                    )}
-
-                    <TextSection title="Raw" text={redactDataUrls(stringify(row.raw))} />
-                </div>
-            </aside>
+            <TextSection title="Raw" text={redactDataUrls(stringify(row.raw))} />
         </>
     );
 };
+
+/**
+ * Raw-record JSON for the clipboard — redacted exactly like the Raw section on screen.
+ *
+ * Without the redaction an `issue` row's attachments put megabytes of base64 data URLs on
+ * the clipboard, which is the thing `redactDataUrls` exists to prevent. The images are
+ * still reachable: `ImagesSection` renders each one and links it at full size.
+ */
+export const rawRecordText = (row: ReportLogRow): string => redactDataUrls(stringify(row.raw));

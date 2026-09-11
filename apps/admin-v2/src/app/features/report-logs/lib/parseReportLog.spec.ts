@@ -304,3 +304,143 @@ describe('parseReportLog — batch LogEntry', () => {
         expect(row.level).toBeUndefined();
     });
 });
+
+describe('parseReportLog — 추적·파셋 축', () => {
+    it('lifts the log entry axes the console filters and counts by', () => {
+        const row = parseReportLog({
+            id: 'l1',
+            createdAt: 9_000,
+            meta: {
+                level: 'error',
+                tag: 'auth',
+                timestamp: 8_000,
+                uid: 'u1',
+                cid: 'c1',
+                sid: 's1',
+                runId: 'r1',
+                appVersion: '1.4.0',
+                webVersion: '0.59.0',
+                route: '/chat/1',
+                os: 'iOS',
+                osVersion: '18.1',
+            },
+        });
+
+        expect(row.type).toBe('log-entry');
+        expect(row.timestamp).toBe(8_000);
+        expect(row.cid).toBe('c1');
+        expect(row.sid).toBe('s1');
+        expect(row.appVersion).toBe('1.4.0');
+        expect(row.webVersion).toBe('0.59.0');
+        expect(row.route).toBe('/chat/1');
+        // OS and its version read as one value; that is the axis worth grouping by.
+        expect(row.os).toBe('iOS 18.1');
+    });
+
+    it('reads the hoisted record copy when the entry omitted an axis', () => {
+        // A re-sent entry that dropped `cid` must not lose it — `saveLogEntry` left the
+        // hoisted copy in place precisely so the axis survives.
+        const row = parseReportLog({
+            id: 'l2',
+            uid: 'hoisted-uid',
+            cid: 'hoisted-cid',
+            runId: 'hoisted-run',
+            createdAt: 1,
+            meta: { level: 'info', tag: 'boot' },
+        });
+
+        expect(row.userId).toBe('hoisted-uid');
+        expect(row.cid).toBe('hoisted-cid');
+        expect(row.runId).toBe('hoisted-run');
+    });
+
+    it('keeps only the OS half when there is no version', () => {
+        const row = parseReportLog({ id: 'l3', meta: { level: 'info', tag: 'boot', os: 'Android' } });
+
+        expect(row.os).toBe('Android');
+    });
+
+    it('falls back to the record uid for a report with no payload user', () => {
+        const row = parseReportLog({
+            id: 'i1',
+            uid: 'record-uid',
+            meta: { title: '[web] issue: 안 돼요', message: JSON.stringify({ message: '자세히' }) },
+        });
+
+        expect(row.type).toBe('issue');
+        expect(row.userId).toBe('record-uid');
+    });
+
+    it('prefers the payload user over the record uid', () => {
+        const row = parseReportLog({
+            id: 'i2',
+            uid: 'record-uid',
+            meta: {
+                title: '[web] issue: 안 돼요',
+                message: JSON.stringify({ user: { uid: 'payload-uid', name: '레인' } }),
+            },
+        });
+
+        expect(row.userId).toBe('payload-uid');
+        expect(row.userName).toBe('레인');
+    });
+
+    it('reads both build versions off the report payload', () => {
+        // The attached type is `VersionInfo` from `@chatic/app-messages` — note the repo
+        // has a second, unrelated `VersionInfo` in `libs/shared` (`{ version, buildTime }`)
+        // that does NOT reach here. Reading `version.version` finds nothing.
+        const row = parseReportLog({
+            id: 'i3',
+            meta: {
+                title: '[web] issue: 느려요',
+                message: JSON.stringify({
+                    version: {
+                        currentVersion: '1.4.0',
+                        latestVersion: '1.4.1',
+                        shouldUpdate: false,
+                        appVersion: '1.4.0',
+                        webVersion: '0.59.0',
+                    },
+                }),
+            },
+        });
+
+        expect(row.appVersion).toBe('1.4.0');
+        expect(row.webVersion).toBe('0.59.0');
+    });
+
+    it('takes the screen the reporter was actually on, not the feedback screen', () => {
+        // `path` is always the feedback screen (reached from a MyPage menu), so bucketing
+        // by it would file every report under the same route.
+        const row = parseReportLog({
+            id: 'i4',
+            meta: {
+                title: '[web] issue: 안 보여요',
+                message: JSON.stringify({
+                    path: '/mypage/feedback',
+                    routeTrail: ['/home', '/chat/9', '/mypage/feedback'],
+                }),
+            },
+        });
+
+        expect(row.route).toBe('/chat/9');
+    });
+
+    it('falls back to path when the trail is too short to name a previous screen', () => {
+        const row = parseReportLog({
+            id: 'i5',
+            meta: {
+                title: '[web] issue: 안 보여요',
+                message: JSON.stringify({ path: '/mypage/feedback', routeTrail: ['/mypage/feedback'] }),
+            },
+        });
+
+        expect(row.route).toBe('/mypage/feedback');
+    });
+
+    it('treats a null meta as an empty record rather than a parse failure', () => {
+        const row = parseReportLog({ id: 'n1', meta: null });
+
+        expect(row.parseError).toBe(false);
+    });
+});

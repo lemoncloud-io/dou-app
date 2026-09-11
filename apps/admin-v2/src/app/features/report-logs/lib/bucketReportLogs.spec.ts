@@ -38,3 +38,28 @@ describe('bucketReportLogs', () => {
         expect(b[9].count).toBe(2); // t=9 and t=10 (max clamped to last)
     });
 });
+
+describe('bucketReportLogs — 발생 시각 기준', () => {
+    it('buckets on the occurrence timestamp, not the arrival time', () => {
+        // Two entries from one batch upload: both arrived at 10_000, but they happened
+        // 1_000 apart. Bucketing by arrival would collapse them into one slot.
+        const rows = [
+            { ...row(10_000), timestamp: 0 },
+            { ...row(10_000), timestamp: 1_000 },
+        ];
+        const b = bucketReportLogs(rows, 2);
+
+        expect(b).toHaveLength(2);
+        expect(b[0].count).toBe(1);
+        expect(b[1].count).toBe(1);
+        expect(b[0].start).toBe(0);
+    });
+
+    it('falls back to arrival time for rows with no occurrence timestamp', () => {
+        // Slack reports have no `timestamp`; they must still be charted.
+        const b = bucketReportLogs([row(100), { ...row(900), timestamp: 500 }], 2);
+
+        expect(b.reduce((s, x) => s + x.count, 0)).toBe(2);
+        expect(b[0].start).toBe(100);
+    });
+});

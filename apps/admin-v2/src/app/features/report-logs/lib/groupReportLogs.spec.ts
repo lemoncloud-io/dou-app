@@ -54,3 +54,17 @@ describe('groupReportLogs', () => {
         expect(groupReportLogs([])).toEqual([]);
     });
 });
+
+describe('groupReportLogs — 발생 시각 기준', () => {
+    it('picks the sample by occurrence time, not arrival time', () => {
+        // The later-arriving row happened first, so the other one is the group's latest.
+        const earlyEvent = row({ message: 'boom', timestamp: 100, createdAt: 9_000 });
+        const lateEvent = row({ message: 'boom', timestamp: 800, createdAt: 1_000 });
+
+        const [group] = groupReportLogs([earlyEvent, lateEvent]);
+
+        expect(group.count).toBe(2);
+        expect(group.latestAt).toBe(800);
+        expect(group.sample).toBe(lateEvent);
+    });
+});
