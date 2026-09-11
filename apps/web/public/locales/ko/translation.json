@@ -1563,8 +1563,11 @@
         "cat": {
             "smileys": "표정",
             "gestures": "제스처",
+            "people": "사람",
             "nature": "자연",
             "food": "음식",
+            "activity": "활동",
+            "travel": "여행",
             "objects": "사물",
             "symbols": "기호"
         }
