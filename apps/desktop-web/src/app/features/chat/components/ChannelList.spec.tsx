@@ -451,6 +451,21 @@ describe('ChannelList row context menu (slice 05)', () => {
         expect(items).not.toContain('Delete channel');
     });
 
+    // Screenshot bug: the Notifications row drew its bell flush against the label
+    // and an oversized chevron, unlike every sibling row. jsdom has no layout, so
+    // the oracle is the row's icon-gap / icon-size tokens matching its siblings.
+    it('lays out the Notifications row icon like its sibling rows', () => {
+        renderList([general]);
+
+        openRowMenu(/general/);
+
+        const iconLayout = (name: string) => {
+            const cls = screen.getByRole('menuitem', { name }).className;
+            return { gap: /\bgap-2\b/.test(cls), iconSize: /\[&[>_]svg\]:size-4/.test(cls) };
+        };
+        expect(iconLayout('Notifications')).toEqual(iconLayout('Channel settings'));
+    });
+
     it('toggles the favorite pin from the menu', () => {
         renderList([general]);
 
