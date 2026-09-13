@@ -1,11 +1,12 @@
-import { Fragment, useEffect, useMemo, useRef, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { ChevronDown, Hash, Pencil, Plus, Star } from 'lucide-react';
+import { Hash, Pencil, Plus, Star } from 'lucide-react';
 
 import type { DomainChannel } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 import { runtime } from '@chatic/app-runtime';
+import { applyChannelOrder, moveChannel, placeScopeKey, useChannelOrder, usePinnedChannels } from '@chatic/shared';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 
 import {
@@ -13,21 +14,24 @@ import {
     Skeleton,
     avatarStyle,
     dmCounterpartId,
-    isDmChannel,
     isSelfChannel,
     lastChatNoOf,
     resolveDisplay,
     messagePlainText,
     useAuthorNames,
-    useFavoriteChannelsStore,
+    migrateLegacyFavorites,
     useComposerDraftStore,
+    useSelectedChannelStore,
     useSiteProfileMap,
 } from '../../../shared';
 import { SearchDialog } from '../../search';
+import { ChannelActionDialogs, useChannelActions } from '../../channels';
 import { useLastChat } from '../hooks';
 import { useSidebarSectionsStore } from '../stores';
-import { unreadIndicator } from '../utils';
+import { isDmBucket, sidebarMoveChord, unreadIndicator } from '../utils';
+import { ChannelRowMenu } from './ChannelRowMenu';
 import { QuickSwitcher } from './QuickSwitcher';
+import { SortableSection, type SectionItem } from './SortableSection';
 
 interface ChannelListProps {
     channels: DomainChannel[];
@@ -51,13 +55,6 @@ const ChannelSkeleton = () => (
         ))}
     </div>
 );
-
-/**
- * Which sidebar section a channel belongs to. Also decides its unread badge
- * shape, so section and badge are the same call rather than two claims that
- * happen to agree.
- */
-const isDmBucket = (channel: DomainChannel): boolean => isDmChannel(channel) || isSelfChannel(channel);
 
 interface ChannelRowProps {
     channel: DomainChannel;
@@ -153,67 +150,6 @@ const ChannelRow = ({ channel, label, icon, isActive, isFavorite, onSelect, rowR
     );
 };
 
-interface SectionItem {
-    key: string;
-    node: ReactNode;
-    /** Stays visible while the section is folded: the open channel, or one with unread. */
-    keepWhenCollapsed: boolean;
-}
-
-interface SectionProps {
-    /** Persisted fold key (`useSidebarSectionsStore`). */
-    id: string;
-    title: string;
-    /** Trailing control in the header row (the Channels "+"). */
-    action?: ReactNode;
-    items: SectionItem[];
-}
-
-/**
- * Collapsible sidebar section (Figma: chevron · 16px semibold title · optional action).
- *
- * Folding hides the quiet rows, not the ones asking for attention: like Slack, the open
- * channel and anything unread stay listed, so folding a busy section never hides that
- * something arrived. The fold is remembered across launches.
- */
-const Section = ({ id, title, action, items }: SectionProps) => {
-    const isCollapsed = useSidebarSectionsStore(s => !!s.collapsed[id]);
-    const toggle = useSidebarSectionsStore(s => s.toggle);
-    const visible = isCollapsed ? items.filter(item => item.keepWhenCollapsed) : items;
-    return (
-        <section className="flex flex-col gap-1">
-            <div className="flex items-center gap-2 py-3">
-                <button
-                    type="button"
-                    onClick={() => toggle(id)}
-                    aria-expanded={!isCollapsed}
-                    className="focus-ring flex min-w-0 flex-1 items-center gap-2 rounded-md text-left"
-                >
-                    <ChevronDown
-                        size={18}
-                        aria-hidden
-                        className={cn(
-                            'shrink-0 text-sidebar-foreground transition-transform duration-150 ease-tactile',
-                            isCollapsed && '-rotate-90'
-                        )}
-                    />
-                    <h3 className="truncate text-[16px] font-semibold tracking-[-0.01em] text-sidebar-foreground">
-                        {title}
-                    </h3>
-                </button>
-                {action}
-            </div>
-            {visible.length > 0 && (
-                <div className="flex flex-col gap-2">
-                    {visible.map(item => (
-                        <Fragment key={item.key}>{item.node}</Fragment>
-                    ))}
-                </div>
-            )}
-        </section>
-    );
-};
-
 const Divider = () => <div aria-hidden className="h-px w-full shrink-0 bg-hairline" />;
 
 export const ChannelList = ({
@@ -228,12 +164,50 @@ export const ChannelList = ({
     const { t } = useTranslation();
     const myUid = runtime.session.useSessionIdentity().userId;
     const placeProfiles = useSiteProfileMap();
-    const favoriteIds = useFavoriteChannelsStore(s => s.ids);
+    // Favorites live on the shared `ui.pinnedChannels` record (the same one apps/web writes),
+    // scoped to the active place — `pinnedIds` array order is the Favorites display order.
+    const { selectedCloudId, selectedSiteId } = runtime.session.useSessionSelection();
+    const pinScope = placeScopeKey(selectedCloudId, selectedSiteId);
+    const { pinnedIds, reorder: reorderPinned, toggle: togglePinned } = usePinnedChannels(pinScope);
+    // Non-favorite display order comes from `ui.channelOrder` (one array: channels then DMs).
+    const { storedIds: storedChannelOrder, set: setStoredChannelOrder } = useChannelOrder(pinScope);
+    // Lazy legacy migration: ids this place confirms move to `ui.pinnedChannels` the first time
+    // its list is on screen; other places' ids stay in the old key until their place loads.
+    useEffect(() => {
+        if (isLoading || !pinScope) return;
+        migrateLegacyFavorites(pinScope, channels.map(c => c.id ?? '').filter(Boolean));
+    }, [pinScope, isLoading, channels]);
     // Keep the selected channel visible (e.g. when moved by keyboard nav).
     const activeRef = useRef<HTMLButtonElement>(null);
     useEffect(() => {
         activeRef.current?.scrollIntoView({ block: 'nearest' });
     }, [selectedChannelId]);
+    // A keyboard move re-inserts the moved row's node (React reorders with insertBefore), and the
+    // browser blurs a focused node it moves — so the next Alt+Shift press would never reach the
+    // nav. Remember the focused row at the chord and hand focus back after the next commit, but
+    // only if focus fell to <body>: a clamped no-op move commits nothing, and by the time some
+    // later render clears the ref the user may have focused something else on purpose.
+    const refocusAfterMoveRef = useRef<HTMLElement | null>(null);
+    useLayoutEffect(() => {
+        const el = refocusAfterMoveRef.current;
+        if (!el) return;
+        refocusAfterMoveRef.current = null;
+        const focusDropped = !document.activeElement || document.activeElement === document.body;
+        if (focusDropped && el.isConnected) el.focus();
+    });
+
+    // ONE actions instance + ONE dialog stack for every row menu (the per-row
+    // alternative would mount a dialog per channel). menuTargetId is set when a
+    // menu opens; delete/leave run against that row.
+    const [menuTargetId, setMenuTargetId] = useState<string | null>(null);
+    const clearChannel = useSelectedChannelStore(s => s.clearChannel);
+    const menuActions = useChannelActions(menuTargetId, {
+        onRemoved: () => {
+            // Leave/delete from a row only clears the selection when that row
+            // is the open channel.
+            if (menuTargetId && menuTargetId === selectedChannelId) clearChannel();
+        },
+    });
 
     // Slack-style sections: named channels, then DMs (self channel included).
     const { regular, dms } = useMemo(() => {
@@ -322,10 +296,28 @@ export const ChannelList = ({
         );
     }
 
-    // Filter AFTER identity resolution so a DM matches its display name too.
-    const visibleRegular = regular.filter(c => matchesQuery(c, c.name ?? c.id ?? ''));
+    // Filter AFTER identity resolution so a DM matches its display name too, then apply the
+    // stored order BY ID (applyChannelOrder takes ids — review-03 P0): stored ids first (in
+    // stored order), unknown/new ids in name order behind. Map back to rows right after.
     const dmRows = dms.map(channel => ({ channel, identity: dmIdentity(channel) }));
-    const visibleDms = dmRows.filter(row => matchesQuery(row.channel, row.identity.label));
+    const dmById = new Map(dmRows.map(dm => [dm.channel.id ?? '', dm]));
+    const chById = new Map(regular.map(c => [c.id ?? '', c]));
+    const orderedChannelIds = applyChannelOrder(
+        regular.filter(c => matchesQuery(c, c.name ?? c.id ?? '')).map(c => c.id ?? ''),
+        pinScope ? storedChannelOrder : undefined
+    );
+    const orderedDmIds = applyChannelOrder(
+        dms.filter(c => matchesQuery(c, dmById.get(c.id ?? '')?.identity.label ?? '')).map(c => c.id ?? ''),
+        pinScope ? storedChannelOrder : undefined
+    );
+    const visibleRegular = orderedChannelIds.flatMap(id => {
+        const c = chById.get(id);
+        return c ? [c] : [];
+    });
+    const visibleDms = orderedDmIds.flatMap(id => {
+        const dm = dmById.get(id);
+        return dm ? [dm] : [];
+    });
 
     if (visibleRegular.length + visibleDms.length === 0) {
         return <div className="px-4 py-8 text-center text-callout text-muted-foreground">{t('sidebar.noMatches')}</div>;
@@ -333,8 +325,66 @@ export const ChannelList = ({
 
     // Keyboard nav walks the rendered order: channels first, then DMs.
     const navOrder = [...visibleRegular, ...visibleDms.map(row => row.channel)];
+    // A filtered view is a subset — dragging it would write a partial order, so rows lock.
+    const isFiltering = query.trim().length > 0;
+
+    const onReorderFavorites = (keys: string[]) => {
+        reorderPinned(keys.map(key => key.replace(/^fav:/, '')));
+    };
+    // A move rewrites only the moved section's slice; the other section keeps its stored order.
+    const makeSectionReorder = (section: 'ch' | 'dm') => (keys: string[]) => {
+        const orderedIds = keys.map(key => key.replace(/^(ch|dm):/, ''));
+        const dmIds = new Set(dms.map(c => c.id ?? ''));
+        const chIds = new Set(regular.map(c => c.id ?? ''));
+        if (section === 'ch') {
+            setStoredChannelOrder([...orderedIds, ...storedChannelOrder.filter(id => dmIds.has(id))]);
+        } else {
+            setStoredChannelOrder([...storedChannelOrder.filter(id => chIds.has(id)), ...orderedIds]);
+        }
+    };
+    // Keyboard twin of the drag: same section-slice rewrite, same fold/filter locks. A pinned
+    // selection moves inside Favorites (its pin order IS the display order); moveChannel does
+    // the clamp/prune that arrayMove does for the pointer path.
+    const moveSelectedByKeyboard = (delta: 1 | -1) => {
+        const id = selectedChannelId;
+        if (!id) return;
+        const { collapsed } = useSidebarSectionsStore.getState();
+        if (pinnedIds.includes(id)) {
+            if (collapsed.fav) return;
+            const presentIds = favoriteRows.map(fav => fav.channel.id ?? '');
+            const from = presentIds.indexOf(id);
+            if (from < 0) return;
+            reorderPinned(moveChannel(pinnedIds, id, from + delta, presentIds));
+            return;
+        }
+        if (dmById.has(id)) {
+            if (collapsed.dm) return;
+            const ids = visibleDms.map(dm => dm.channel.id ?? '');
+            const from = ids.indexOf(id);
+            if (from < 0) return;
+            makeSectionReorder('dm')(moveChannel(ids, id, from + delta, ids).map(orderedId => `dm:${orderedId}`));
+            return;
+        }
+        if (collapsed.ch) return;
+        const ids = visibleRegular.map(c => c.id ?? '');
+        const from = ids.indexOf(id);
+        if (from < 0) return;
+        makeSectionReorder('ch')(moveChannel(ids, id, from + delta, ids).map(orderedId => `ch:${orderedId}`));
+    };
     const onKeyDown = (e: React.KeyboardEvent) => {
         if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+        const chord = sidebarMoveChord(e);
+        if (chord !== null) {
+            // Move chord, never navigation: Alt+Shift+↑/↓ reorders inside the selected row's
+            // OWN section — cross-section is impossible (matches the drag rule). Swallowed
+            // while filtering: a filtered view would write a partial order.
+            e.preventDefault();
+            if (isFiltering) return;
+            if (document.activeElement instanceof HTMLElement) refocusAfterMoveRef.current = document.activeElement;
+            moveSelectedByKeyboard(chord);
+            return;
+        }
+        if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return; // OS/browser chords pass through
         e.preventDefault();
         const idx = navOrder.findIndex(c => (c.id ?? '') === selectedChannelId);
         const delta = e.key === 'ArrowDown' ? 1 : -1;
@@ -357,30 +407,41 @@ export const ChannelList = ({
             key: `${section}:${id}`,
             keepWhenCollapsed: isActive || (channel.unreadCount ?? 0) > 0,
             node: (
-                <ChannelRow
+                <ChannelRowMenu
                     channel={channel}
-                    label={label}
-                    icon={icon}
-                    isActive={isActive}
-                    isFavorite={isFavorite}
-                    onSelect={onSelect}
-                    // Only the canonical (non-favorite) row owns the scroll anchor.
-                    rowRef={isActive && !isFavorite ? activeRef : undefined}
-                />
+                    myUid={myUid}
+                    isFavorite={!!isFavorite}
+                    onToggleFavorite={() => togglePinned(id)}
+                    openDialog={menuActions.openDialog}
+                    onMenuOpen={setMenuTargetId}
+                >
+                    <ChannelRow
+                        channel={channel}
+                        label={label}
+                        icon={icon}
+                        isActive={isActive}
+                        isFavorite={isFavorite}
+                        onSelect={onSelect}
+                        // Only the canonical (non-favorite) row owns the scroll anchor.
+                        rowRef={isActive && !isFavorite ? activeRef : undefined}
+                    />
+                </ChannelRowMenu>
             ),
         };
     };
 
     // Favorites repeat their row in its own section (Figma), so a starred channel stays
-    // reachable from the top while keeping its place in Channels / DM.
-    const favoriteRows = [
-        ...visibleRegular
-            .filter(c => favoriteIds[c.id ?? ''])
-            .map(c => ({ channel: c, label: c.name ?? c.id ?? '', icon: channelGlyph })),
-        ...visibleDms
-            .filter(dm => favoriteIds[dm.channel.id ?? ''])
-            .map(dm => ({ channel: dm.channel, ...dm.identity })),
-    ];
+    // reachable from the top while keeping its place in Channels / DM. Display order IS the
+    // stored pin order; ids not in the current list are skipped.
+    const favoriteById = new Map<string, { channel: DomainChannel; label: string; icon: ReactNode }>();
+    for (const c of visibleRegular) {
+        favoriteById.set(c.id ?? '', { channel: c, label: c.name ?? c.id ?? '', icon: channelGlyph });
+    }
+    for (const dm of dmRows) favoriteById.set(dm.channel.id ?? '', { channel: dm.channel, ...dm.identity });
+    const favoriteRows = pinnedIds.flatMap(id => {
+        const fav = favoriteById.get(id);
+        return fav ? [fav] : [];
+    });
 
     return (
         // The switcher lives here (not HomePage) because this is where the
@@ -391,22 +452,26 @@ export const ChannelList = ({
             <Divider />
             {favoriteRows.length > 0 && (
                 <>
-                    <Section
+                    <SortableSection
                         id="fav"
                         title={t('sidebar.favorites')}
                         items={favoriteRows.map(fav => row(fav.channel, fav.label, fav.icon, 'fav', true))}
+                        dragDisabled={isFiltering}
+                        onReorder={onReorderFavorites}
                     />
                     <Divider />
                 </>
             )}
             {visibleRegular.length > 0 && (
                 <>
-                    <Section
+                    <SortableSection
                         id="ch"
                         title={t('sidebar.channels')}
                         items={visibleRegular.map(channel =>
                             row(channel, channel.name ?? channel.id ?? '', channelGlyph, 'ch')
                         )}
+                        dragDisabled={isFiltering}
+                        onReorder={makeSectionReorder('ch')}
                         action={
                             // Default Cloud (Self Channel only) does not support channel creation.
                             !isDefaultMode &&
@@ -428,12 +493,22 @@ export const ChannelList = ({
                 </>
             )}
             {visibleDms.length > 0 && (
-                <Section
+                <SortableSection
                     id="dm"
                     title={t('sidebar.dms')}
                     items={visibleDms.map(dm => row(dm.channel, dm.identity.label, dm.identity.icon, 'dm'))}
+                    dragDisabled={isFiltering}
+                    onReorder={makeSectionReorder('dm')}
                 />
             )}
+            {/* The row menus' dialog stack renders ONCE here, keyed to the last
+            right-clicked row; the menu items themselves only open it. */}
+            <ChannelActionDialogs
+                channelId={menuTargetId ?? ''}
+                channelName={channels.find(c => (c.id ?? '') === menuTargetId)?.name ?? ''}
+                kickName=""
+                actions={menuActions}
+            />
         </nav>
     );
 };

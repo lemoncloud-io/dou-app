@@ -15,13 +15,13 @@
  * this stays a desktop-web-local concern until the backend can ship `cid`
  * (when it does, the badge hook prefers `cid` and this never runs).
  */
-import { readCacheRecords } from './readCacheRecords';
+import { readCacheRecords, type CacheRecord } from './readCacheRecords';
 
-interface ChannelData {
+export interface PushChannelData {
     id?: string;
     sid?: string;
     name?: string;
-    $join?: { userId?: string };
+    $join?: { userId?: string; notify?: string };
 }
 
 export interface PushChannelHint {
@@ -37,9 +37,16 @@ export interface PushChannelHint {
     uid?: string;
 }
 
-export const resolvePushCloudId = async (hint: PushChannelHint): Promise<string | null> => {
+/**
+ * Pure core of {@link resolvePushCloudId} over records the caller already read, so one push
+ * costs one cache scan even when it also needs {@link findPushChannel}.
+ */
+export const resolvePushCloudIdFrom = (
+    records: readonly CacheRecord<PushChannelData>[],
+    hint: PushChannelHint
+): string | null => {
     if (!hint.channelId && !hint.uid) return null;
-    const channels = (await readCacheRecords<ChannelData>()).filter(r => r.type === 'channel');
+    const channels = records.filter(r => r.type === 'channel');
 
     // Primary: the source-cloud uid. Every cached channel of the source cloud carries
     // `$join.userId === uid` (the user's id in that cloud), so this resolves the cloud
@@ -72,4 +79,28 @@ export const resolvePushCloudId = async (hint: PushChannelHint): Promise<string 
 
     const cloudIds = [...new Set(candidates.map(r => r.cid).filter(Boolean))] as string[];
     return cloudIds.length === 1 ? cloudIds[0] : null;
+};
+
+export const resolvePushCloudId = async (hint: PushChannelHint): Promise<string | null> => {
+    if (!hint.channelId && !hint.uid) return null;
+    return resolvePushCloudIdFrom(await readCacheRecords<PushChannelData>(), hint);
+};
+
+/**
+ * The cached channel record a push refers to, confined to its source cloud. Channel ids collide
+ * across clouds, so a bare id match could return another cloud's channel (and its notify mode).
+ * Scope by `cloudId` when known, else by the push's `uid` (the user's id in the source cloud);
+ * with neither, answer only on a unique match — no record beats the wrong one.
+ */
+export const findPushChannel = (
+    records: readonly CacheRecord<PushChannelData>[],
+    { channelId, cloudId, uid }: { channelId: string; cloudId?: string | null; uid?: string }
+): PushChannelData | undefined => {
+    const byId = records.filter(r => r.type === 'channel' && String(r.data?.id ?? '') === channelId);
+    const scoped = cloudId
+        ? byId.filter(r => r.cid === cloudId)
+        : uid
+          ? byId.filter(r => r.data?.$join?.userId === uid)
+          : byId;
+    return scoped.length === 1 ? scoped[0].data : undefined;
 };

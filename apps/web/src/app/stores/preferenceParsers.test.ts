@@ -2,12 +2,10 @@ import {
     normalizeChannelSort,
     normalizeCloudPromoDismissedAt,
     normalizeInviteIds,
-    normalizePinnedChannels,
     normalizeRecentSearches,
     parseChannelSort,
     parseCloudPromoDismissedAt,
     parseInviteIds,
-    parsePinnedChannels,
     parseRecentSearches,
     parseThemeBridgeValue,
 } from './preferenceParsers';
@@ -39,35 +37,6 @@ describe('normalizeChannelSort / parseChannelSort', () => {
 
     it('손상된 JSON 문자열은 빈 맵으로 폴백한다', () => {
         expect(parseChannelSort('{broken')).toEqual({});
-    });
-});
-
-describe('normalizePinnedChannels / parsePinnedChannels', () => {
-    it('cid:sid 스코프의 비어있지 않은 문자열 배열만 남긴다', () => {
-        expect(normalizePinnedChannels({ 'cloud-1:place-1': ['ch-1', 'ch-2'] })).toEqual({
-            'cloud-1:place-1': ['ch-1', 'ch-2'],
-        });
-    });
-
-    it('cid 없이 저장된 레거시 항목은 버린다', () => {
-        expect(normalizePinnedChannels({ 'place-1': ['ch-legacy'], 'cloud-1:place-1': ['ch-1'] })).toEqual({
-            'cloud-1:place-1': ['ch-1'],
-        });
-    });
-
-    it('빈 배열이 되는 스코프는 맵에서 아예 뺀다', () => {
-        expect(normalizePinnedChannels({ 'cloud-1:place-1': [] })).toEqual({});
-    });
-
-    it('배열이 아닌 값이나 비문자열 항목은 걸러낸다', () => {
-        expect(normalizePinnedChannels({ 'cloud-1:place-1': 'not-an-array' })).toEqual({});
-        expect(normalizePinnedChannels({ 'cloud-1:place-1': ['ch-1', 42, ''] })).toEqual({
-            'cloud-1:place-1': ['ch-1'],
-        });
-    });
-
-    it('손상된 JSON 문자열은 빈 맵으로 폴백한다', () => {
-        expect(parsePinnedChannels('not json')).toEqual({});
     });
 });
 

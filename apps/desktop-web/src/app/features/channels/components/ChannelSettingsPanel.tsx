@@ -9,6 +9,7 @@ import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Input } from '@chatic/ui-kit/components/ui/input';
 
 import {
+    channelNotifyMode,
     displayName,
     ResizablePanel,
     useDesktopChannelMutations,
@@ -53,8 +54,6 @@ export const ChannelSettingsPanel = ({
     const { t } = useTranslation();
     const close = useChannelSettingsStore(s => s.close);
     const clearChannel = useSelectedChannelStore(s => s.clearChannel);
-    const mutedChannels = useNotificationPrefsStore(s => s.mutedChannels);
-    const channelNotify = useNotificationPrefsStore(s => s.channelNotify);
     const setChannelNotifyPref = useNotificationPrefsStore(s => s.setChannelNotify);
     const { setChannelNotify } = useDesktopChannelMutations();
 
@@ -94,13 +93,8 @@ export const ChannelSettingsPanel = ({
 
     const kickName = members.find(m => m.id === kickTarget)?.name ?? '';
 
-    // Local pref first (instant, what the notifier reads), then the server's
-    // join.notify (set from another device), then the legacy mute map.
-    const joinNotify = channel.$join?.notify;
-    const serverMode =
-        joinNotify === 'all' || joinNotify === 'mention' || joinNotify === 'none' ? joinNotify : undefined;
-    const notifyMode: ChannelNotifyMode =
-        channelNotify[channelId] ?? serverMode ?? (mutedChannels[channelId] ? 'none' : 'all');
+    // Resolution lives in channelNotifyMode (local pref → join.notify → mute map).
+    const notifyMode = useNotificationPrefsStore(s => channelNotifyMode(s, channelId, channel.$join?.notify));
 
     const onNotifyChange = (mode: ChannelNotifyMode) => {
         if (mode === notifyMode) return;

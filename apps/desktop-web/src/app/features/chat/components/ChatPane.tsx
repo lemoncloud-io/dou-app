@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { runtime } from '@chatic/app-runtime';
+import { placeScopeKey, usePinnedChannels } from '@chatic/shared';
 
 import { Hash, Search, Star, User } from 'lucide-react';
 
@@ -19,7 +20,6 @@ import {
     useAuthorNames,
     useChatMutations,
     useChats,
-    useFavoriteChannelsStore,
     useMessageJumpStore,
     useOpenAtBottomStore,
     useReadCursorStore,
@@ -67,8 +67,13 @@ export const ChatPane = ({ channel, members, membersLoading, readCountOf }: Chat
     const handleLoadOlder = useCallback(() => void loadOlder(), [loadOlder]);
     const openSettings = useChannelSettingsStore(s => s.open);
     const openSearch = useSearchDialogStore(s => s.setOpen);
-    const isFavorite = useFavoriteChannelsStore(s => (channelId ? !!s.ids[channelId] : false));
-    const toggleFavorite = useFavoriteChannelsStore(s => s.toggle);
+    // Favorites live on the shared `ui.pinnedChannels` record (the same one apps/web writes),
+    // scoped to the active place. A null scope (cloud/place not settled) leaves the star a no-op
+    // instead of writing a half-formed key.
+    const { selectedCloudId, selectedSiteId } = runtime.session.useSessionSelection();
+    const pinScope = placeScopeKey(selectedCloudId, selectedSiteId);
+    const { pinnedIds, toggle: togglePinned } = usePinnedChannels(pinScope);
+    const isFavorite = channelId ? pinnedIds.includes(channelId) : false;
     const openThread = useThreadStore(s => s.open);
     // Saved-item / search jump: forward a target to MessageList only when it
     // belongs to the open channel; clear it once the list has consumed it.
@@ -179,7 +184,7 @@ export const ChatPane = ({ channel, members, membersLoading, readCountOf }: Chat
             description={introKind === 'channel' ? desc : undefined}
             colorSeed={counterpartId ?? undefined}
             isFavorite={isFavorite}
-            onToggleFavorite={() => toggleFavorite(channelId)}
+            onToggleFavorite={() => channelId && togglePinned(channelId)}
             onOpenSettings={introKind === 'channel' ? () => openSettings(channelId) : undefined}
         />
     );
@@ -227,7 +232,7 @@ export const ChatPane = ({ channel, members, membersLoading, readCountOf }: Chat
                     <Hint label={t(isFavorite ? 'chat.header.unfavorite' : 'chat.header.favorite')}>
                         <button
                             type="button"
-                            onClick={() => toggleFavorite(channelId)}
+                            onClick={() => channelId && togglePinned(channelId)}
                             aria-pressed={isFavorite}
                             aria-label={t(isFavorite ? 'chat.header.unfavorite' : 'chat.header.favorite')}
                             className={HEADER_ICON_BUTTON}

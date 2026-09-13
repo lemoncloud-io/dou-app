@@ -32,11 +32,22 @@ interface NotificationPrefsState {
     setQuietHours: (quietHours: QuietHours | null) => void;
 }
 
-/** Resolve a channel's effective notify mode from the persisted prefs. */
+/**
+ * Resolve a channel's effective notify mode: local pref, then the server's
+ * join.notify (set from another device), then the legacy mute map. Every read
+ * site (panel, row menu, notifiers) calls this so the radio and the actual
+ * suppression cannot drift.
+ */
 export const channelNotifyMode = (
     state: Pick<NotificationPrefsState, 'channelNotify' | 'mutedChannels'>,
-    channelId: string
-): ChannelNotifyMode => state.channelNotify[channelId] ?? (state.mutedChannels[channelId] ? 'none' : 'all');
+    channelId: string,
+    joinNotify?: ChannelNotifyMode
+): ChannelNotifyMode => {
+    const local = state.channelNotify[channelId];
+    if (local) return local;
+    if (joinNotify === 'all' || joinNotify === 'mention' || joinNotify === 'none') return joinNotify;
+    return state.mutedChannels[channelId] ? 'none' : 'all';
+};
 
 /**
  * User notification preferences, persisted to localStorage so they survive

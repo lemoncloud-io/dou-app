@@ -173,7 +173,7 @@ graph TB
     FACADE["index.ts — config 파사드"]
     subgraph decl["선언"]
         REG["ConfigRegistry"]
-        DOM["registry/ 12파일 = 84키"]
+        DOM["registry/ 12파일 = 85키"]
     end
     subgraph resl["해석"]
         POL["ConfigLanePolicy"]

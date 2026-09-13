@@ -7,6 +7,7 @@ import { isTypingTarget } from '../utils';
 
 const isMac = typeof navigator !== 'undefined' && navigator.platform.toLowerCase().includes('mac');
 const MOD = isMac ? '⌘' : 'Ctrl';
+const ALT = isMac ? '⌥' : 'Alt';
 
 const Kbd = ({ children }: { children: ReactNode }) => (
     <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
@@ -44,6 +45,14 @@ export const ShortcutsDialog = () => {
                 </>
             ),
             label: t('shortcuts.navigate'),
+        },
+        {
+            keys: (
+                <>
+                    <Kbd>{ALT} ⇧ ↑</Kbd> <Kbd>{ALT} ⇧ ↓</Kbd>
+                </>
+            ),
+            label: t('shortcuts.moveChannel'),
         },
         {
             keys: (

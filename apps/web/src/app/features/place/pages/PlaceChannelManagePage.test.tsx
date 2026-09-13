@@ -7,21 +7,26 @@ import { PlaceChannelManagePage } from './PlaceChannelManagePage';
 const deleteChannel = jest.fn().mockResolvedValue({});
 const leaveChannel = jest.fn().mockResolvedValue({});
 const readMessage = jest.fn().mockResolvedValue({});
-const setChannelPinned = jest.fn();
+const toggle = jest.fn();
 const toast = jest.fn();
 
 // Mutable per-test values.
 let placeValue: any;
 let channelsValue: any[];
 let unreadByChannel: Record<string, number>;
-let pinnedChannels: Record<string, string[]>;
+let pinnedIds: string[];
 let selectedCloudId = 'cloud-1';
 let sentInvitesValue: any[] = [];
 
 const navigate = jest.fn();
 
 jest.mock('react-router-dom', () => ({ useParams: () => ({ placeId: 'place-1' }) }));
-jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
+jest.mock('@chatic/shared', () => ({
+    ...jest.requireActual('@chatic/shared'),
+    useNavigateWithTransition: () => navigate,
+    // Pinned channels moved to @chatic/shared — stub the hook (needs the config store).
+    usePinnedChannels: () => ({ pinnedIds, toggle, reorder: jest.fn() }),
+}));
 jest.mock('../../invite/hooks/useInviteListRows', () => ({
     useInviteListRows: () => ({ invites: sentInvitesValue, isLoading: false }),
 }));
@@ -101,7 +106,6 @@ jest.mock('../../../hooks', () => ({
     useChannelUnreads: () => ({ byChannel: unreadByChannel }),
     useLastChats: () => new Map(),
     useChannelSort: () => ({ channelSort: {}, setChannelSort: jest.fn() }),
-    usePinnedChannels: () => ({ pinnedChannels, setChannelPinned }),
 }));
 
 // Kit stubs — the row exposes its selection and pin as separate buttons.
@@ -149,7 +153,7 @@ beforeEach(() => {
     placeValue = { id: 'place-1', isOwner: true };
     channelsValue = [channel('ch-1'), channel('ch-2'), channel('self', { stereo: 'self' })];
     unreadByChannel = { 'ch-1': 2 };
-    pinnedChannels = {};
+    pinnedIds = [];
     selectedCloudId = 'cloud-1';
     sentInvitesValue = [];
 });
@@ -231,11 +235,19 @@ describe('PlaceChannelManagePage', () => {
         expect(readMessage).not.toHaveBeenCalled();
     });
 
-    it('핀 토글은 cid:sid 스코프로 기록하고 토스트를 낸다', () => {
+    it('핀 토글은 현재 스코프의 id로 기록하고 토스트를 낸다', () => {
         render(<PlaceChannelManagePage />);
         fireEvent.click(screen.getByRole('button', { name: 'pin:ch-1' }));
-        expect(setChannelPinned).toHaveBeenCalledWith('cloud-1:place-1', 'ch-1', true);
+        expect(toggle).toHaveBeenCalledWith('ch-1');
         expect(toast).toHaveBeenCalledWith({ title: 'channelManage.pinned' });
+    });
+
+    it('이미 고정된 채널을 누르면 해제 토스트를 낸다', () => {
+        pinnedIds = ['ch-1'];
+        render(<PlaceChannelManagePage />);
+        fireEvent.click(screen.getByRole('button', { name: 'pin:ch-1' }));
+        expect(toggle).toHaveBeenCalledWith('ch-1');
+        expect(toast).toHaveBeenCalledWith({ title: 'channelManage.unpinned' });
     });
 
     it('선택 해제는 전체 선택을 비운다', () => {

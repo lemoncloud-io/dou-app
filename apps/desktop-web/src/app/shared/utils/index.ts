@@ -1,4 +1,5 @@
 export * from './waitForVerified';
+export * from './migrateLegacyFavorites';
 export * from './channelUnread';
 export * from './channelMerge';
 export * from './chatSort';

@@ -6,11 +6,14 @@ import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import {
     buildOpenDeeplink,
+    findPushChannel,
     isDndActive,
     isMentioned,
     messagePlainText,
+    readCacheRecords,
     resolveMyMentionNames,
-    resolvePushCloudId,
+    resolvePushCloudIdFrom,
+    type PushChannelData,
 } from '../utils';
 import { channelNotifyMode, useNotificationPrefsStore, usePendingOpenStore, useSelectedChannelStore } from '../stores';
 
@@ -50,6 +53,19 @@ const presentPush = async (
     const data = notification?.data ?? {};
     const myUid = runtime.session.getGlobalSessionContext().identity.userId;
     if (myUid && String(data.ownerId) === String(myUid)) return; // my own message
+    // One cache scan serves both the source-cloud resolution and the notify-mode lookup.
+    const records = data.channelId || data.uid ? await readCacheRecords<PushChannelData>() : [];
+    // Source cloud: the backend stamps it as `data.cid` (a relay cloud id, the same space
+    // the session/rail use). Fall back to the channel-cache reverse-lookup when it's absent.
+    const sourceCloudId =
+        data.cid ||
+        resolvePushCloudIdFrom(records, {
+            channelId: data.channelId,
+            sid: data.sid,
+            channelName: data.channelName,
+            uid: data.uid,
+        });
+
     // Per-channel notify mode — same policy the same-cloud path honors: muted
     // channels stay silent, mention-only channels drop non-@me messages. Read from
     // `data.content` rather than the localized `body`, flattened the way the
@@ -57,22 +73,23 @@ const presentPush = async (
     // not in the JSON carrying it, and the raw payload would also match on field
     // names. `body` remains the last resort when the push carries no content.
     if (data.channelId) {
-        const mode = channelNotifyMode(prefs, String(data.channelId));
+        // Same policy the same-cloud path honors — including the server's
+        // join.notify leg. The push payload carries no channel record, so read
+        // the notify mode off the engine cache, confined to the source cloud —
+        // channel ids collide across clouds (best-effort: an unvisited or
+        // unattributable channel degrades to local-pref/mute resolution).
+        const cachedChannel = findPushChannel(records, {
+            channelId: String(data.channelId),
+            cloudId: sourceCloudId,
+            uid: data.uid,
+        });
+        const joinNotify = cachedChannel?.$join?.notify as 'all' | 'mention' | 'none' | undefined;
+        const mode = channelNotifyMode(prefs, String(data.channelId), joinNotify);
         if (mode === 'none') return;
         const text = messagePlainText(String(data.content ?? body ?? ''));
         if (mode === 'mention' && !isMentioned(text, resolveMyMentionNames())) return;
     }
 
-    // Source cloud: the backend stamps it as `data.cid` (a relay cloud id, the same space
-    // the session/rail use). Fall back to the channel-cache reverse-lookup when it's absent.
-    const sourceCloudId =
-        data.cid ||
-        (await resolvePushCloudId({
-            channelId: data.channelId,
-            sid: data.sid,
-            channelName: data.channelName,
-            uid: data.uid,
-        }));
     const activeServer = runtime.session.getGlobalSessionContext().activeServer;
     const activeCloudId = activeServer.kind === 'cloud' ? activeServer.cloudId : null;
 

@@ -11,22 +11,28 @@
 
 각 설정은 이제 `config.get('ui.<key>')`가 답한다. `apps/web/src/app/stores/`에는 저장소가 아니라
 스토리지와 무관한 순수 도메인 값만 남는다: `Theme`/`ChannelSortMethod` 타입,
-`placeScopeKey`/`isPlaceScopeKey`, `DEFAULT_CHANNEL_SORT`, `CLOUD_PROMO_DISMISS_TTL_MS`,
+`DEFAULT_CHANNEL_SORT`, `CLOUD_PROMO_DISMISS_TTL_MS`,
 `MAX_RECENT_SEARCHES` (`preferenceKeys.ts`) — 그리고 `type:'json'` 키의 방어적
-파서/정규화 함수(`channelSort`/`pinnedChannels`/`recentSearches`/`cloudPromoDismissedAt`/레거시
+파서/정규화 함수(`channelSort`/`recentSearches`/`cloudPromoDismissedAt`/레거시
 테마 봉투, `preferenceParsers.ts`).
 
-| 레지스트리 키               | 옛 `PreferenceState` 필드 | 훅                       |
-| --------------------------- | ------------------------- | ------------------------ |
-| `ui.theme`                  | `theme`                   | `useTheme` (`app/hooks`) |
-| `ui.blurLastMessage`        | `blurLastMessage`         | `useBlurLastMessage`     |
-| `ui.onboardingCompleted`    | `isFirstRun` (반대 극성)  | `useOnboarding`          |
-| `ui.pushMuted`              | `pushMuted`               | `useDevicePushMute`      |
-| `ui.channelSort`            | `channelSort`             | `useChannelSort`         |
-| `ui.pinnedChannels`         | `pinnedChannels`          | `usePinnedChannels`      |
-| `ui.recentSearches`         | `recentSearches`          | `useRecentSearches`      |
-| `ui.dismissedUpdateVersion` | `dismissedUpdateVersion`  | `useAppUpdatePrompt`     |
-| `ui.cloudPromoDismissedAt`  | `cloudPromoDismissedAt`   | `useCloudPromo`          |
+`placeScopeKey`/`isPlaceScopeKey`와 고정 채널 슬라이스(`normalizePinnedChannels`/`parsePinnedChannels`/
+`setChannelPinned`/`setPinnedChannelOrder`/`usePinnedChannels(scope)`)는 데스크톱이 같은 레코드를
+읽도록 `@chatic/shared`(`libs/shared/src/preferences/`)로 옮겼다 — 데스크톱 즐겨찾기가
+`ui.pinnedChannels`를 공유 레코드로 쓰기 위함(ADR-0083 제안). 훅 표의 `usePinnedChannels` 행도
+같은 위치를 가리킨다.
+
+| 레지스트리 키               | 옛 `PreferenceState` 필드 | 훅                                     |
+| --------------------------- | ------------------------- | -------------------------------------- |
+| `ui.theme`                  | `theme`                   | `useTheme` (`app/hooks`)               |
+| `ui.blurLastMessage`        | `blurLastMessage`         | `useBlurLastMessage`                   |
+| `ui.onboardingCompleted`    | `isFirstRun` (반대 극성)  | `useOnboarding`                        |
+| `ui.pushMuted`              | `pushMuted`               | `useDevicePushMute`                    |
+| `ui.channelSort`            | `channelSort`             | `useChannelSort`                       |
+| `ui.pinnedChannels`         | `pinnedChannels`          | `usePinnedChannels` (`@chatic/shared`) |
+| `ui.recentSearches`         | `recentSearches`          | `useRecentSearches`                    |
+| `ui.dismissedUpdateVersion` | `dismissedUpdateVersion`  | `useAppUpdatePrompt`                   |
+| `ui.cloudPromoDismissedAt`  | `cloudPromoDismissedAt`   | `useCloudPromo`                        |
 
 각 훅은 `useConfigValue('ui.x')`(`@chatic/config/react`)로 읽고 `config.set('ui.x', value, {
 lane })`으로 쓴다 — **레인 선택이 키마다 고정이다.** `persist:'shell'`인 키(theme·

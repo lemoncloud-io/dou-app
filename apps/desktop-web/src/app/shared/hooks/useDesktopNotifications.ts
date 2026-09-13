@@ -68,7 +68,7 @@ export const useDesktopNotifications = (): void => {
         const prefs = useNotificationPrefsStore.getState();
         // Global do-not-disturb (snooze / quiet hours) silences every banner.
         if (isDndActive(prefs)) return;
-        const notifyMode = channelNotifyMode(prefs, channel.id);
+        const notifyMode = channelNotifyMode(prefs, channel.id, channel.$join?.notify);
         if (!prefs.desktopEnabled || notifyMode === 'none') return;
         // Don't notify for a channel you're actively viewing (you can see it).
         if (isViewing(channel.id)) return;

@@ -200,6 +200,8 @@ const resources = {
             'sidebar.resize': 'Resize sidebar',
             'sidebar.favorites': 'Favorites',
             'sidebar.draft': 'Draft',
+            'sidebar.markRead': 'Mark as read',
+            'sidebar.notifications': 'Notifications',
             'sidebar.noMatches': 'No channels match your search',
             // Screen-reader text for the sidebar unread markers. The channel dot
             // carries no number, so without these the badge is colour-only.
@@ -389,6 +391,7 @@ const resources = {
             'search.matchCount_one': '{{count}} match',
             'search.matchCount_other': '{{count}} matches',
             'shortcuts.navigate': 'Move between channels',
+            'shortcuts.moveChannel': 'Move the focused channel up or down',
             'shortcuts.send': 'Send · new line',
             'shortcuts.closePanel': 'Close panel / dialog',
             'shortcuts.help': 'Show this help',
