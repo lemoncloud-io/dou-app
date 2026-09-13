@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-09-13] - No version updates
+
+### Bug Fixes
+
+- (ui-kit) space and size icons in the context submenu trigger
+
 ## [2026-09-13] - root@0.62.0, @chatic/web@0.49.2, @chatic/desktop-web@0.12.0
 
 ### Features
