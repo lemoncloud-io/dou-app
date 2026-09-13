@@ -1,5 +1,40 @@
 # Changelog
 
+## [2026-09-13] - root@0.62.0, @chatic/web@0.49.2, @chatic/desktop-web@0.12.0
+
+### Features
+
+- (sidebar) slice 05 row context menu
+- (desktop-web) move the selected row in place with Alt+Shift+arrows
+- (desktop-web) drag-reorder sidebar sections persisted as ui.channelOrder
+- (desktop-web) favorites move onto the shared ui.pinnedChannels record
+
+### Bug Fixes
+
+- (desktop-web) keep hidden pins and focus when reordering the sidebar
+- (desktop-web) confine the cross-cloud push notify lookup to its cloud
+- (desktop-web) pin @radix-ui/react-context-menu to 2.2.16
+- (app-runtime) map @chatic/config subpaths in jest
+- (desktop-web) review-05 round 3 — pin join-notify fallback, converge cross-cloud path
+- (desktop-web) review-05 round 2 — restore package.json, converge notify resolution
+- (desktop-web) review-05 — onRemoved selection regression tests, menu notify fallback
+- (desktop-web) review-04 — restore typing-capture suite, pin fold+direction
+- (desktop-web) review-03 — order applies by id, drag flag self-clears
+- (web) restore null-scope pin guard, cover unpin toast, generalize shared jest mapper
+
+### Documentation
+
+- (adr) ADR-0083 — desktop favorites on place-scoped ui.pinnedChannels
+
+### Refactor
+
+- (shared) move place-scoped pin helpers from apps/web to libs/shared
+
+### Chores
+
+- (web) drop stale moved-to comments and a wrong logout note
+- (repo) scope the package.json prettier override to CI-written files
+
 ## [2026-09-11] - No version updates
 
 ### Features
