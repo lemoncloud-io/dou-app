@@ -49,7 +49,7 @@ jobs:
               if: ${{ steps.cache-dependencies.outputs.cache-hit != 'true' }}
               run: yarn install --frozen-lockfile
 
-            # Green across all 27 projects, so no exclusions here.
+            # Green across all 26 projects, so no exclusions here.
             - name: Lint
               run: npx nx run-many -t lint
 
@@ -62,21 +62,15 @@ jobs:
                   npx nx run-many -t typecheck
                   --exclude=@chatic/web-ui-kit,web,desktop-web,block-kit-builder,@chatic/landing,@chatic/mobile,chatic-deferred-link-cleanup
 
+            # `libs/db` and `libs/app-runtime` ran through a separate step until the root
+            # `workspaces` array was fixed to `libs/*` — it still named `libs/bridge` and
+            # `libs/socket`, neither of which exists, so nx inferred no `test` target for them and
+            # `run-many` skipped them silently. They are covered by the line below now, and so is
+            # `@chatic/bridges`, whose `yarn test` could not resolve jest for the same reason.
             - name: Test
               run: >
                   npx nx run-many -t test
-                  --exclude=@chatic/bridges,@chatic/auth-sign,block-kit,web,@chatic/landing
-
-            # libs/db, libs/app-runtime and libs/bridges are missing from the root `workspaces`
-            # array (it still names `libs/bridge` and `libs/socket`, neither of which exists), so nx
-            # infers no `test` target for them and `run-many -t test` skips them without a word —
-            # 903 tests that had never run anywhere. Calling jest directly is what the lib READMEs
-            # already document. Fixing `workspaces` would make these three lines unnecessary.
-            - name: Test the libs nx cannot see
-              run: |
-                  npx jest --config libs/db/jest.config.js
-                  npx jest --config libs/app-runtime/jest.config.js
-                  npx jest --config libs/bridges/jest.config.js
+                  --exclude=@chatic/auth-sign,block-kit,web,@chatic/landing
 
             # Left out of the gate, with the reason. Measured 2026-09-14.
             #
@@ -91,6 +85,7 @@ jobs:
             #   test        web                           7 failing of 2720 — useSetMyPlaceProfile,
             #                                             PlaceProfilePage, useBackgroundSync
             #               @chatic/auth-sign             1 failing of 12 (LemonHmacSigner.spec)
-            #               @chatic/bridges               `yarn test` cannot resolve jest; runs
-            #                                             above through the direct step instead
-            #               block-kit · @chatic/landing   red
+            #               block-kit                     6 spec files, but no jest config and no
+            #                                             test script — see docs/plans/
+            #                                             libs-module-harness-rollout.md
+            #               @chatic/landing               red

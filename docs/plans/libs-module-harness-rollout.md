@@ -1,6 +1,6 @@
 # libs rollout — test harness and doc canon
 
-> Status: ready, not started · Written: 2026-09-14 · Branch: `claude/libs-modules-prep-c5e594`
+> Status: WP-0 done, rest ready · Written: 2026-09-14 · Branch: `claude/libs-modules-prep-c5e594`
 >
 > Rules: [module-docs-template.md](../guides/module-docs-template.md) ·
 > Worked example: [`libs/data`](../../libs/data/README.md)
