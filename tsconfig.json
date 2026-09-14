@@ -34,9 +34,6 @@
             "path": "./apps/landing"
         },
         {
-            "path": "./libs/i18n-mobile"
-        },
-        {
             "path": "./libs/policy-content"
         },
         {

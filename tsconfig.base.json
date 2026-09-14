@@ -35,7 +35,6 @@
             "@chatic/config/*": ["libs/config/src/*"],
             "@chatic/device-utils": ["libs/device-utils/src/index.ts"],
             "@chatic/http": ["libs/http/src/index.ts"],
-            "@chatic/i18n-mobile": ["libs/i18n-mobile/src/index.ts"],
             "@chatic/lib/utils": ["libs/ui-kit/src/utils/index.ts"],
             "@chatic/logger": ["libs/logger/src/index.ts"],
             "@chatic/policy-content": ["libs/policy-content/src/index.ts"],

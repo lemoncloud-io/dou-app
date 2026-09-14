@@ -1,9 +1,10 @@
-import type { TranslationKey } from '@chatic/i18n-mobile';
-import { t as translate } from '@chatic/i18n-mobile';
+import { getAppLanguage } from '../device';
 
-import { getAppLanguage } from './device';
+import { translate } from './translate';
 
-export type { TranslationKey } from '@chatic/i18n-mobile';
+import type { TranslationKey } from './types';
+
+export type { TranslationKey } from './types';
 
 /**
  * Get translated string for the given key
