@@ -70,7 +70,7 @@ jobs:
             - name: Test
               run: >
                   npx nx run-many -t test
-                  --exclude=@chatic/auth-sign,block-kit,web,@chatic/landing
+                  --exclude=block-kit,web,@chatic/landing
 
             # Left out of the gate, with the reason. Measured 2026-09-14.
             #
@@ -92,7 +92,6 @@ jobs:
             #
             #   test        web                           7 failing of 2720 — useSetMyPlaceProfile,
             #                                             PlaceProfilePage, useBackgroundSync
-            #               @chatic/auth-sign             1 failing of 12 (LemonHmacSigner.spec)
             #               block-kit                     6 spec files, but no jest config and no
             #                                             test script — see docs/plans/
             #                                             libs-module-harness-rollout.md

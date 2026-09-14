@@ -21,6 +21,7 @@ const CLOUD_PAYLOAD: SignaturePayload = {
 
 const FIXTURE_CURRENT = '2026-08-27T00:00:00.000Z';
 const FIXTURE_UA = 'fixture-ua/1.0';
+const RELAY_SIGNATURE = 'lfOFYzXFM4hYKhCfPuDb/0INNosD42VRotuv4VvcTBs=';
 
 // 고정 리터럴은 node crypto(HMAC-SHA256/base64)로 독립 재계산해 검증했다 — 이 파일의
 // 구현이나 lemon-web-core 어느 쪽도 신뢰 기준으로 쓰지 않았다.
@@ -29,7 +30,7 @@ describe('LemonHmacSigner — relay/cloud fixture (ADR-0070 §감수하는 것, 
         const result = signer.sign(RELAY_PAYLOAD, { current: FIXTURE_CURRENT, userAgent: FIXTURE_UA });
 
         expect(result.current).toBe(FIXTURE_CURRENT);
-        expect(result.signature).toBe('lfOFYzXFM4hYKhCfPuDb/0INNosD42VRotuv4VvcTBs=');
+        expect(result.signature).toBe(RELAY_SIGNATURE);
     });
 
     it('cloud 재료로 고정된 서명 문자열을 만든다 — relay와 다른 authId 선택이 다른 서명을 낸다', () => {
@@ -98,8 +99,15 @@ describe('LemonHmacSigner — lemon-web-core 동등성 (이관이 "식 보존"�
 });
 
 describe('LemonHmacSigner — 전역 무접근', () => {
-    it('navigator 전역이 없어도(node 환경) 동작한다 — 기본값 제거의 증거', () => {
-        expect(typeof navigator).toBe('undefined');
-        expect(() => signer.sign(RELAY_PAYLOAD, { current: FIXTURE_CURRENT, userAgent: FIXTURE_UA })).not.toThrow();
+    it('넘겨받은 userAgent만 쓴다 — 전역 navigator에 기대지 않는다', () => {
+        // 원래 이 테스트는 `typeof navigator === 'undefined'`를 먼저 단언했다. 코드가 아니라
+        // 런타임을 검사한 것이라, Node 21+가 전역 `navigator`를 넣으면서 거짓이 됐다.
+        //
+        // 전역의 userAgent와 다른 값을 넘겼는데도 relay 고정 서명이 그대로 나온다 = 인자만 읽었다.
+        // 런타임에 navigator가 있든 없든 성립하므로 다음 Node 업그레이드에 다시 깨지지 않는다.
+        // "어떤 전역도 읽지 않는다"는 더 넓은 성질은 purity.spec.ts가 소스 검사로 따로 증명한다.
+        const result = signer.sign(RELAY_PAYLOAD, { current: FIXTURE_CURRENT, userAgent: FIXTURE_UA });
+
+        expect(result.signature).toBe(RELAY_SIGNATURE);
     });
 });
