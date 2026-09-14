@@ -49,7 +49,7 @@ export interface SocketDataSources {
 }
 
 /**
- * SocketDataSource 생성 위치를 한 곳으로 모웁니다.
+ * Gathers SocketDataSource construction in one place.
  */
 export const createSocketDataSources = ({ gateways }: { gateways: SocketGatewayBundle }): SocketDataSources => ({
     auth: new AuthSocketDataSource(gateways.auth),

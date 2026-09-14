@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { runtime } from '@chatic/app-runtime';
-import type { DataRepositoriesV2 } from '@chatic/data';
+import type { DataRepositories } from '@chatic/data';
 
 type CacheType = 'channel' | 'chat' | 'user' | 'join' | 'site' | 'invitecloud' | 'profile' | 'invite';
 
 type DomainRow = { id: string; [key: string]: unknown };
 
-const REPO_KEY: Record<CacheType, keyof DataRepositoriesV2> = {
+const REPO_KEY: Record<CacheType, keyof DataRepositories> = {
     channel: 'channel',
     chat: 'chat',
     user: 'user',
@@ -53,7 +53,7 @@ export const TEMPLATES: Record<CacheType, () => Record<string, unknown>> = {
     invite: () => ({ id: makeId('invite'), name: 'Debug Invite', state: 'pending' }),
 };
 
-function TypeCard({ type, repos, onClick }: { type: CacheType; repos: DataRepositoriesV2; onClick: () => void }) {
+function TypeCard({ type, repos, onClick }: { type: CacheType; repos: DataRepositories; onClick: () => void }) {
     const [count, setCount] = useState<number | null>(null);
 
     useEffect(() => {
@@ -121,7 +121,7 @@ function RowItem({ row, onDelete, onEdit }: { row: DomainRow; onDelete: () => vo
     );
 }
 
-function DetailView({ type, repos, onBack }: { type: CacheType; repos: DataRepositoriesV2; onBack: () => void }) {
+function DetailView({ type, repos, onBack }: { type: CacheType; repos: DataRepositories; onBack: () => void }) {
     const fields = FILTER_FIELDS[type];
     const [filters, setFilters] = useState<Record<string, string>>({});
     const [results, setResults] = useState<DomainRow[] | null>(null);
@@ -321,7 +321,7 @@ function DetailView({ type, repos, onBack }: { type: CacheType; repos: DataRepos
 }
 
 export const DBBrowser = () => {
-    const repos = runtime.data.useRuntimeRepositories() as unknown as DataRepositoriesV2;
+    const repos = runtime.data.useRuntimeRepositories() as unknown as DataRepositories;
     const [selected, setSelected] = useState<CacheType | null>(null);
 
     if (selected) {

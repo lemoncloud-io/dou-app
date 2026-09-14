@@ -15,7 +15,7 @@ export interface IReportHttpDataSource {
  * reader in the app (admin reads the stored records through its own list endpoint). What this class
  * contributes is the layer itself: the report calls now come through `gateway → data source →
  * repository` like every other data call instead of building their own signed request
- * (ADR-0036 · ADR-0070 결정 5 원칙 6).
+ * (ADR-0036 · ADR-0070 decision 5 principle 6).
  *
  * **Errors pass through untouched.** The log uploader classifies a failure into
  * retry/discard/ok by HTTP status and must see the original error — wrapping it here would erase

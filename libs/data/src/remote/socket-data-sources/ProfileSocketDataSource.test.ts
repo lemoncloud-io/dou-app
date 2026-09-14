@@ -1,6 +1,6 @@
 import { ProfileSocketDataSource } from './ProfileSocketDataSource';
 import { createMockSocketGateways, type MockSocketGatewayBundle } from '../gateways/__mocks__/MockSocketGateways';
-import type { DataContext } from '../../repositories-v2/types';
+import type { DataContext } from '../../repositories/types';
 import type {
     ProfileGetInput,
     ProfileGetMineInput,
@@ -18,29 +18,29 @@ describe('ProfileSocketDataSource', () => {
         dataSource = new ProfileSocketDataSource(mockGateways.profile);
     });
 
-    describe('발신(Send) 파이프라인 검증 (Request)', () => {
-        it('get 호출 시 profile.get 액션으로 request가 전송되어야 한다', async () => {
+    describe('outbound pipeline (Request)', () => {
+        it('get sends the request as the profile.get action', async () => {
             const payload: ProfileGetInput = { id: 'site-1@user-1' };
             mockGateways.profile.get.mockResolvedValue({ siteId: 'site-1', userId: 'user-1', nick: 'nick-1' } as any);
             await dataSource.get(payload, context);
             expect(mockGateways.profile.get).toHaveBeenCalledWith(payload);
         });
 
-        it('getMine 호출 시 profile.get-mine 액션으로 request가 전송되어야 한다', async () => {
+        it('getMine sends the request as the profile.get-mine action', async () => {
             const payload: ProfileGetMineInput = {};
             mockGateways.profile.getMine.mockResolvedValue({ siteId: 'site-1', userId: 'me' } as any);
             await dataSource.getMine(payload, context);
             expect(mockGateways.profile.getMine).toHaveBeenCalledWith(payload);
         });
 
-        it('set 호출 시 profile.set 액션으로 request가 전송되어야 한다', async () => {
+        it('set sends the request as the profile.set action', async () => {
             const payload: ProfileSetInput = { siteId: 'site-1', userId: 'me', nick: 'nick-2' } as any;
             mockGateways.profile.set.mockResolvedValue({ siteId: 'site-1', userId: 'me', nick: 'nick-2' } as any);
             await dataSource.set(payload, context);
             expect(mockGateways.profile.set).toHaveBeenCalledWith(payload);
         });
 
-        it('sync 호출 시 profile.sync 액션으로 request가 전송되어야 한다', async () => {
+        it('sync sends the request as the profile.sync action', async () => {
             const payload: ProfileSyncInput = { since: 10 };
             mockGateways.profile.sync.mockResolvedValue({ profiles: {}, syncedAt: 10 } as any);
             await dataSource.sync(payload, context);
@@ -48,8 +48,8 @@ describe('ProfileSocketDataSource', () => {
         });
     });
 
-    describe('수신(Receive) 매핑 검증 (View → Domain)', () => {
-        it('get 응답을 sid@uid 식별자의 도메인 프로필로 변환한다', async () => {
+    describe('inbound mapping (View → Domain)', () => {
+        it('maps the get response to a domain profile identified by sid@uid', async () => {
             mockGateways.profile.get.mockResolvedValue({ siteId: 'site-1', userId: 'user-1', nick: 'nick-1' } as any);
 
             const domain = await dataSource.get({ id: 'site-1@user-1' }, context);
@@ -57,7 +57,7 @@ describe('ProfileSocketDataSource', () => {
             expect(domain).toMatchObject({ id: 'site-1@user-1', cid: 'cloud-a', sid: 'site-1', uid: 'user-1' });
         });
 
-        it('view에 식별자가 없으면 context의 sid/uid로 보정한다', async () => {
+        it('falls back to sid/uid from the context when the view carries no identifier', async () => {
             mockGateways.profile.getMine.mockResolvedValue({ nick: 'mine' } as any);
 
             const domain = await dataSource.getMine({}, context);
@@ -65,7 +65,7 @@ describe('ProfileSocketDataSource', () => {
             expect(domain).toMatchObject({ id: 'site-1@me', sid: 'site-1', uid: 'me' });
         });
 
-        it('sync 응답의 delta를 도메인 upserts와 removals로 분리한다', async () => {
+        it('splits the delta of the sync response into domain upserts and removals', async () => {
             mockGateways.profile.sync.mockResolvedValue({
                 profiles: {
                     'user-1': { nick: 'A' },

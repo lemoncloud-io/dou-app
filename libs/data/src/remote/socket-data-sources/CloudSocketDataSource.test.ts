@@ -1,6 +1,6 @@
 import { CloudSocketDataSource } from './CloudSocketDataSource';
 import { createMockSocketGateways, type MockSocketGatewayBundle } from '../gateways/__mocks__/MockSocketGateways';
-import type { DataContext } from '../../repositories-v2/types';
+import type { DataContext } from '../../repositories/types';
 import type { CloudUpdateInput } from '@lemoncloud/chatic-sockets-api';
 
 describe('CloudSocketDataSource', () => {
@@ -13,7 +13,7 @@ describe('CloudSocketDataSource', () => {
         dataSource = new CloudSocketDataSource(mockGateways.cloud);
     });
 
-    it('getCloud 호출 시 cloud.get 액션으로 request를 전송하고 도메인 모델로 변환한다', async () => {
+    it('getCloud sends the request as the cloud.get action and maps it to a domain model', async () => {
         const payload = { cloudId: 'cloud-a' } as any;
         mockGateways.cloud.get.mockResolvedValue({ id: 'cloud-a', name: 'My Cloud' });
 
@@ -23,7 +23,7 @@ describe('CloudSocketDataSource', () => {
         expect(result).toMatchObject({ id: 'cloud-a', name: 'My Cloud', cid: 'cloud-a' });
     });
 
-    it('updateCloud 호출 시 cloud.update 액션으로 request를 전송하고 도메인 모델로 변환한다', async () => {
+    it('updateCloud sends the request as the cloud.update action and maps it to a domain model', async () => {
         const payload: CloudUpdateInput = { cloudId: 'cloud-a', name: 'My Cloud' };
         mockGateways.cloud.update.mockResolvedValue({ id: 'cloud-a', name: 'My Cloud' });
 
@@ -33,7 +33,7 @@ describe('CloudSocketDataSource', () => {
         expect(result).toMatchObject({ id: 'cloud-a', cid: 'cloud-a' });
     });
 
-    it('deleteCloud 호출 시 cloud.delete 액션으로 request를 전송하고 도메인 모델로 변환한다', async () => {
+    it('deleteCloud sends the request as the cloud.delete action and maps it to a domain model', async () => {
         const payload = { cloudId: 'cloud-a' } as any;
         mockGateways.cloud.delete.mockResolvedValue({ id: 'cloud-a' });
 

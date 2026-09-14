@@ -1,6 +1,6 @@
 import { AuthHttpDataSource } from './AuthHttpDataSource';
 import type { AuthHttpDomainGateway } from '../gateways';
-import type { DataContext } from '../../repositories-v2/types';
+import type { DataContext } from '../../repositories/types';
 
 describe('AuthHttpDataSource', () => {
     const context: DataContext = { cid: 'cloud-a', uid: 'me' };
@@ -46,8 +46,8 @@ describe('AuthHttpDataSource', () => {
         ).resolves.toEqual({});
     });
 
-    // 로그인이라 매핑하지 않는다 — `Token`과 `cloudId`가 그대로 나가야 초대 수락 흐름이 쓴다.
-    it('loginWithInviteCode — passthrough, no domain mapping (세션 재료)', async () => {
+    // It is a login, so it is not mapped — `Token` and `cloudId` have to come out intact for the invite-acceptance flow to use.
+    it('loginWithInviteCode — passthrough, no domain mapping (session material)', async () => {
         const view = { id: 'u3', name: 'Invited', cloudId: 'acct-9', Token: { identityToken: 'jwt' } };
         gateway.loginInvite.mockResolvedValue(view as any);
 

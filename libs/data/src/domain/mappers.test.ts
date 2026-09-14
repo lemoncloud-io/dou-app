@@ -1,4 +1,4 @@
-import type { DataContext } from '../repositories-v2/types';
+import type { DataContext } from '../repositories/types';
 import {
     toDomainChannel,
     toDomainChat,
@@ -12,11 +12,11 @@ import {
 // All mappers convert an API view into a domain model. These tests pin three guarantees:
 // (1) cid/sid/uid follow the passed-in context, (2) missing fields get safe defaults,
 // (3) View↔Domain compatibility — original API fields survive the spread.
-describe('domain 매퍼 (API View → Domain)', () => {
+describe('domain mappers (API View → Domain)', () => {
     const context: DataContext = { cid: 'cloud-a', sid: 'site-1', uid: 'user-1' };
 
     describe('toDomainChannel', () => {
-        it('cid는 context를 따르고 sid는 view 우선, 없으면 context를 따른다', () => {
+        it('cid follows the context; sid prefers the view and falls back to the context', () => {
             const withSid = toDomainChannel({ id: 'ch-1', sid: 'site-9' } as any, context);
             expect(withSid).toMatchObject({ id: 'ch-1', cid: 'cloud-a', sid: 'site-9' });
 
@@ -24,12 +24,12 @@ describe('domain 매퍼 (API View → Domain)', () => {
             expect(withoutSid.sid).toBe('site-1');
         });
 
-        it('isNotificationEnabled 기본값은 true이다', () => {
+        it('isNotificationEnabled defaults to true', () => {
             const domain = toDomainChannel({ id: 'ch-1', updatedAt: 100 } as any, context);
             expect(domain.isNotificationEnabled).toBe(true);
         });
 
-        it('서버의 lastChat$을 보지 않는다 — 마지막 메시지 시각은 chat 캐시 소관', () => {
+        it('does not read lastChat$ from the server — the last message time belongs to the chat cache', () => {
             const domain = toDomainChannel(
                 { id: 'ch-1', updatedAt: 100, lastChat$: { createdAt: 500 } } as any,
                 context
@@ -37,14 +37,14 @@ describe('domain 매퍼 (API View → Domain)', () => {
             expect(domain).toMatchObject({ id: 'ch-1', cid: 'cloud-a', sid: 'site-1' });
         });
 
-        it('원본 API 필드를 보존한다 (View↔Domain 호환성)', () => {
+        it('preserves the original API fields (View↔Domain compatibility)', () => {
             const domain = toDomainChannel({ id: 'ch-1', name: 'General', stereo: 'group' } as any, context);
             expect(domain).toMatchObject({ name: 'General', stereo: 'group' });
         });
     });
 
     describe('toDomainChat', () => {
-        it('전송 상태 플래그는 기본 false, 타임스탬프(ms)는 createdAt/updatedAt에서 파생된다', () => {
+        it('send-state flags default to false, and the millisecond timestamps derive from createdAt/updatedAt', () => {
             const domain = toDomainChat(
                 { id: 'm1', channelId: 'ch-1', createdAt: 100, updatedAt: 200 } as any,
                 context
@@ -62,30 +62,30 @@ describe('domain 매퍼 (API View → Domain)', () => {
     });
 
     describe('toDomainJoin', () => {
-        it('joined 기본값 1, readNo 기본값 0으로 보정한다', () => {
+        it('normalizes joined to 1 and readNo to 0 by default', () => {
             const domain = toDomainJoin({ id: 'j1', channelId: 'ch-1', userId: 'user-1' } as any, context);
             expect(domain).toMatchObject({ id: 'j1', cid: 'cloud-a', joined: 1, readNo: 0 });
         });
     });
 
     describe('toDomainUser', () => {
-        it('channelId와 내장 $join.channelId를 channelIds 배열로 합친다', () => {
+        it('merges channelId and the embedded $join.channelId into a channelIds array', () => {
             const domain = toDomainUser({ id: 'u1', channelId: 'ch-1', $join: { channelId: 'ch-2' } } as any, context);
             expect(domain.cid).toBe('cloud-a');
             expect(domain.channelIds).toEqual(expect.arrayContaining(['ch-1', 'ch-2']));
             expect(domain.channelIds).toHaveLength(2);
         });
 
-        it('$join은 읽기만 하고 결과에 싣지 않는다', () => {
-            // 유저 레코드는 채널 전역이므로 채널별 읽음 커서가 얹히면 안 된다 —
-            // 커서는 join 캐시(`channelId@userId`)가 소유한다.
+        it('$join is only read and never placed on the result', () => {
+            // A user record is channel-global, so a per-channel read cursor must not be laid onto it —
+            // the cursor is owned by the join cache (`channelId@userId`).
             const domain = toDomainUser({ id: 'u1', $join: { channelId: 'ch-2', chatNo: 7 } } as any, context);
             expect('$join' in domain).toBe(false);
         });
     });
 
     describe('toDomainPlace', () => {
-        it('order 누락 시 최댓값으로, type은 site/user만 허용한다', () => {
+        it('a missing order becomes the maximum, and type allows only site/user', () => {
             const domain = toDomainPlace({ id: 'site-1', type: 'invalid' } as any, context);
             expect(domain.cid).toBe('cloud-a');
             expect(domain.order).toBe(Number.MAX_SAFE_INTEGER);
@@ -94,7 +94,7 @@ describe('domain 매퍼 (API View → Domain)', () => {
     });
 
     describe('toDomainProfile', () => {
-        it('id가 없으면 sid@uid로 합성하고 siteId/userId를 정규화한다', () => {
+        it('a missing id is synthesized as sid@uid, and siteId/userId are normalized', () => {
             const domain = toDomainProfile({ siteId: 'site-1', userId: 'user-1' } as any, context);
             expect(domain).toMatchObject({
                 id: 'site-1@user-1',
@@ -105,19 +105,19 @@ describe('domain 매퍼 (API View → Domain)', () => {
             });
         });
 
-        it('view에 식별자가 없으면 context의 sid/uid를 따른다', () => {
+        it('falls back to sid/uid from the context when the view carries no identifier', () => {
             const domain = toDomainProfile({ nick: 'me' } as any, context);
             expect(domain).toMatchObject({ id: 'site-1@user-1', sid: 'site-1', uid: 'user-1' });
         });
     });
 
     describe('toDomainCloud', () => {
-        it('cloudType은 invited/owner만 허용하고 그 외는 undefined로 만든다', () => {
+        it('cloudType allows only invited/owner and turns anything else into undefined', () => {
             expect(toDomainCloud({ id: 'cloud-a', cloudType: 'owner' } as any, context).cloudType).toBe('owner');
             expect(toDomainCloud({ id: 'cloud-a', cloudType: 'bogus' } as any, context).cloudType).toBeUndefined();
         });
 
-        it('cid는 context를 따른다', () => {
+        it('cid follows the context', () => {
             expect(toDomainCloud({ id: 'cloud-a' } as any, context).cid).toBe('cloud-a');
         });
     });

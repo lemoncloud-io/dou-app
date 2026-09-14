@@ -2,7 +2,7 @@ import type { ChatFeedInput, ChatSendInput } from '@lemoncloud/chatic-sockets-ap
 import type { ChatFeedResult, ChatView } from '@lemoncloud/chatic-socials-api';
 import type { DomainChat } from '../../domain';
 import { toDomainChat } from '../../domain';
-import type { DataContext } from '../../repositories-v2/types';
+import type { DataContext } from '../../repositories/types';
 import type { ChatSocketDomainGateway } from '../gateways';
 
 export type ChatGetInput = Parameters<ChatSocketDomainGateway['get']>[0];
@@ -19,15 +19,15 @@ export interface ChatFeedDomainResult {
 }
 
 export interface IChatSocketDataSource {
-    /** 새로운 메시지를 서버로 전송하고 도메인 모델로 반환합니다. */
+    /** Sends a new message to the server and returns it as a domain model. */
     sendChat(payload: ChatSendInput, context: DataContext): Promise<DomainChat>;
-    /** 특정 채팅방의 이전 메시지 목록(피드)을 요청하고 도메인 모델로 반환합니다. */
+    /** Requests a room's earlier messages (the feed) and returns them as domain models. */
     fetchChat(payload: ChatFeedInput, context: DataContext): Promise<ChatFeedDomainResult>;
-    /** 단일 chat 엔티티를 조회합니다. */
+    /** Reads a single chat entity. */
     getChat(payload: ChatGetInput, context: DataContext): Promise<DomainChat>;
-    /** 단일 chat 엔티티를 수정합니다. */
+    /** Updates a single chat entity. */
     updateChat(payload: ChatUpdateInput, context: DataContext): Promise<DomainChat>;
-    /** 단일 chat 엔티티를 삭제합니다. */
+    /** Deletes a single chat entity. */
     deleteChat(payload: ChatDeleteInput, context: DataContext): Promise<DomainChat>;
     /** Publishes a reaction on/off event. Resolves to the event chat, not the target. */
     setReaction(payload: ChatReactionInput, context: DataContext): Promise<DomainChat>;

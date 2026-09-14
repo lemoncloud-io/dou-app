@@ -2,9 +2,8 @@
     "extends": "../../tsconfig.base.json",
     "compilerOptions": {
         "outDir": "dist",
-        "types": ["node", "@nx/react/typings/cssmodule.d.ts", "@nx/react/typings/image.d.ts"],
+        "types": ["node"],
         "rootDir": "src",
-        "jsx": "react-jsx",
         "tsBuildInfoFile": "dist/tsconfig.lib.tsbuildinfo"
     },
     "exclude": [
@@ -14,18 +13,12 @@
         "jest.config.cts",
         "src/**/*.spec.ts",
         "src/**/*.test.ts",
-        "src/**/*.spec.tsx",
-        "src/**/*.test.tsx",
-        "src/**/*.spec.js",
-        "src/**/*.test.js",
-        "src/**/*.spec.jsx",
-        "src/**/*.test.jsx",
         "src/**/__mocks__/**",
         "eslint.config.js",
         "eslint.config.cjs",
         "eslint.config.mjs"
     ],
-    "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx"],
+    "include": ["src/**/*.ts"],
     "references": [
         {
             "path": "../logger/tsconfig.lib.json"

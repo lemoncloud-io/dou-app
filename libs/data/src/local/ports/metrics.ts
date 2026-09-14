@@ -1,7 +1,8 @@
 /**
- * `@chatic/db`가 구현하는 네이티브 캐시 계측의 읽기·리셋 표면(ADR-0070 결정 5). 기록(record)은
- * `NativeDBAdapter`와 같은 모듈 안의 내부 호출이라 포트에 없다 — 계측을 남기는 쪽은 엔진 내부
- * 구현 디테일이고, 소비자(디버그 화면)가 필요한 것은 읽기와 리셋뿐이다.
+ * The read and reset surface for the native cache instrumentation `@chatic/db` implements (ADR-0070
+ * decision 5). Recording is not on the port, because it is an internal call within the same module as
+ * `NativeDBAdapter` — writing the instrumentation is an engine implementation detail, and all the
+ * consumer (the debug screen) needs is to read and reset.
  */
 export interface CacheMetricsOperationStat {
     count: number;

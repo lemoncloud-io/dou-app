@@ -198,7 +198,7 @@ describe('createLocalDataSources routing fingerprint', () => {
     });
 
     // Reaching into the data source is the only way to observe the stamp without a live store; the
-    // behavioural contract itself is pinned in SyncMetaLocalDataSourceV2's own suite. `isNativeApp`
+    // behavioural contract itself is pinned in SyncMetaLocalDataSource's own suite. `isNativeApp`
     // reads `window` at CALL time, so each environment must be assembled before the next is loaded.
     const fingerprintIn = async (isNative: boolean) => {
         const { createLocalDataSources } = await loadFactory(isNative);

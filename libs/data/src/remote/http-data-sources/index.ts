@@ -24,7 +24,7 @@ export interface HttpDataSources {
     report: IReportHttpDataSource;
 }
 
-/** HttpDataSource 생성 위치를 한 곳으로 모읍니다 — 소켓 축 `createSocketDataSources`와 대칭. */
+/** Gathers HttpDataSource construction in one place — symmetric with the socket axis's `createSocketDataSources`. */
 export const createHttpDataSources = ({ gateways }: { gateways: HttpGatewayBundle }): HttpDataSources => ({
     auth: new AuthHttpDataSource(gateways.auth),
     user: new UserHttpDataSource(gateways.user),

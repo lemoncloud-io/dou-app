@@ -2,13 +2,13 @@ import type { UserProfile$ } from '@lemoncloud/chatic-backend-api';
 import type { RegisterDeviceResult } from '@lemoncloud/chatic-pushes-api';
 import type { DomainListResult, DomainUser } from '../../domain';
 import { createDomainListResult } from '../../domain';
-import type { DataContext } from '../../repositories-v2/types';
+import type { DataContext } from '../../repositories/types';
 import type { UserHttpDomainGateway } from '../gateways';
 import { toDomainUserFromHttp } from './httpUserMapping';
 
 /**
- * Split out from `IUserHttpDataSource` so `DeviceRepositoryV2` can take exactly the surface it
- * uses (ADR-0070 결정 5 규율 2 — consumer takes only the interface it needs), same shape as
+ * Split out from `IUserHttpDataSource` so `DeviceRepository` can take exactly the surface it
+ * uses (ADR-0070 decision 5 discipline 2 — consumer takes only the interface it needs), same shape as
  * `AuthHttpDataSource`/`DeviceSocketDataSource` on the socket side.
  */
 export interface IDeviceRegistrationHttpSource {
@@ -28,7 +28,7 @@ export interface IUserHttpDataSource extends IDeviceRegistrationHttpSource {
 /**
  * Relay user listing · profile probe/edit · push device registration. No local cache — `data`'s
  * admin user list and profile probe have no cache slot today, and device registration is a
- * one-shot command (ADR-0070 결정 5 원칙 6 — HTTP reads do not auto-write local cache).
+ * one-shot command (ADR-0070 decision 5 principle 6 — HTTP reads do not auto-write local cache).
  */
 export class UserHttpDataSource implements IUserHttpDataSource {
     constructor(private readonly gateway: UserHttpDomainGateway) {}

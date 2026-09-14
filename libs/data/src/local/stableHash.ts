@@ -1,10 +1,10 @@
 /**
- * options를 sorted-key JSON으로 직렬화한 string을 반환합니다.
- * v2 local data source의 stream key 생성에 사용합니다(같은 scope·같은 조회 조건 = 같은 stream).
+ * Returns `options` serialized as sorted-key JSON.
+ * Used to build stream keys for the v2 local data sources (same scope + same query = same stream).
  *
- * - 객체의 키를 정렬 후 JSON 직렬화 → 순서 무관 동치성 보장
- * - undefined 필드는 정렬 전에 제거 (missing key와 동치화)
- * - MVP: sorted-key JSON 그 자체를 key로 사용
+ * - Sorts an object's keys before JSON serialization → equality independent of key order
+ * - Drops `undefined` fields before sorting (making them equivalent to a missing key)
+ * - MVP: the sorted-key JSON itself is the key
  */
 export function stableHash(value: unknown): string {
     return JSON.stringify(sortKeys(value));

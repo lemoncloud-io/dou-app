@@ -1,14 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { runtime } from '@chatic/app-runtime';
-import type {
-    DataRepositoriesV2,
-    DomainChannel,
-    DomainChat,
-    DomainJoin,
-    DomainProfile,
-    DomainUser,
-} from '@chatic/data';
+import type { DataRepositories, DomainChannel, DomainChat, DomainJoin, DomainProfile, DomainUser } from '@chatic/data';
 import { metricsCollector } from '../metrics/MetricsCollector';
 import { useRenderCount } from '../metrics/useRuntimeMetrics';
 import { InviteCreateDialog } from '../features/invite/InviteCreateDialog';
@@ -31,7 +24,7 @@ export const ChatRoomPage = () => {
     const { channelId } = useParams<{ channelId: string }>();
     const navigate = useNavigate();
     // Cast to V2 — app-runtime dist is stale (V1 return type), source is V2
-    const repos = runtime.data.useRuntimeRepositories() as unknown as DataRepositoriesV2;
+    const repos = runtime.data.useRuntimeRepositories() as unknown as DataRepositories;
 
     const identity = runtime.session.useSessionIdentity();
     const { selectedSiteId } = runtime.session.useSessionSelection();

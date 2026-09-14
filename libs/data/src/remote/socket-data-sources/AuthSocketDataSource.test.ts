@@ -11,7 +11,7 @@ describe('AuthSocketDataSource', () => {
     });
 
     describe('sendPhoneCode', () => {
-        it('기본 호출은 type=phone·step=send로 나가고 mode를 그대로 싣는다', async () => {
+        it('the basic call goes out as type=phone, step=send and carries mode through', async () => {
             mockGateways.auth.linkAccount.mockResolvedValue({ step: 'send', sent: true, expiredAt: 1 } as any);
 
             const result = await dataSource.sendPhoneCode('01012345678', { mode: 'login' });
@@ -25,7 +25,7 @@ describe('AuthSocketDataSource', () => {
             expect(result).toEqual({ step: 'send', sent: true, expiredAt: 1 });
         });
 
-        it('mode=link도 같은 자리를 쓴다 — 갈리는 것은 확정의 결과다', async () => {
+        it('mode=link uses the same slot — what differs is the outcome of confirmation', async () => {
             mockGateways.auth.linkAccount.mockResolvedValue({ sent: true } as any);
 
             await dataSource.sendPhoneCode('01012345678', { mode: 'link' });
@@ -33,7 +33,7 @@ describe('AuthSocketDataSource', () => {
             expect(mockGateways.auth.linkAccount).toHaveBeenCalledWith(expect.objectContaining({ mode: 'link' }));
         });
 
-        it('resend는 step을 바꾸고 스위치로는 실리지 않는다', async () => {
+        it('resend changes the step and does not ride as a switch', async () => {
             mockGateways.auth.linkAccount.mockResolvedValue({ sent: true } as any);
 
             await dataSource.sendPhoneCode('01012345678', { mode: 'login', resend: true });
@@ -43,19 +43,19 @@ describe('AuthSocketDataSource', () => {
             expect(payload).not.toHaveProperty('resend');
         });
 
-        it('지정하지 않은 발송 스위치는 페이로드에서 빠진다 (서버 기본값 보존)', async () => {
+        it('a delivery switch left unset is omitted from the payload (preserving the server default)', async () => {
             mockGateways.auth.linkAccount.mockResolvedValue({ sent: true } as any);
 
             await dataSource.sendPhoneCode('01012345678', { mode: 'login', sms: false });
 
             const [payload] = mockGateways.auth.linkAccount.mock.calls[0];
-            // 명시한 것만 넘어간다. slack이 false로 실리면 채널이 꺼져버린다.
+            // Only what was stated goes through. Shipping `slack` as false would switch that channel off.
             expect(payload).toMatchObject({ sms: false });
             expect(payload).not.toHaveProperty('slack');
             expect(payload).not.toHaveProperty('dryRun');
         });
 
-        it('초대 맥락의 code는 그대로 실린다', async () => {
+        it('a code from an invite context rides through unchanged', async () => {
             mockGateways.auth.linkAccount.mockResolvedValue({ sent: true } as any);
 
             await dataSource.sendPhoneCode('01012345678', { mode: 'login', code: 'invt:1:secret' });
@@ -67,7 +67,7 @@ describe('AuthSocketDataSource', () => {
     });
 
     describe('verifyPhoneCode', () => {
-        it('step=verify로 otp를 보내고 아무것도 커밋하지 않는다', async () => {
+        it('sends the otp with step=verify and commits nothing', async () => {
             mockGateways.auth.linkAccount.mockResolvedValue({ step: 'verify', linkable: true } as any);
 
             const result = await dataSource.verifyPhoneCode('01012345678', '123456', { mode: 'link' });
@@ -83,7 +83,7 @@ describe('AuthSocketDataSource', () => {
             expect(result).toEqual({ step: 'verify', linkable: true });
         });
 
-        it('막는 이유(linkable=false·reason)를 응답으로 그대로 넘긴다', async () => {
+        it('passes the blocking reason (linkable=false, reason) straight back as the response', async () => {
             mockGateways.auth.linkAccount.mockResolvedValue({
                 step: 'verify',
                 linkable: false,
@@ -92,11 +92,11 @@ describe('AuthSocketDataSource', () => {
 
             const result = await dataSource.verifyPhoneCode('01012345678', '123456', { mode: 'link' });
 
-            // 에러가 아니라 응답 자리다 — 소켓도 이 계층도 :error로 바꾸지 않는다.
+            // This is a response slot, not an error — neither the socket nor this layer turns it into :error.
             expect(result).toMatchObject({ linkable: false, reason: 'type-linked' });
         });
 
-        it('초대 코드는 증명 단계에 실리지 않는다 (계약에 자리가 없다)', async () => {
+        it('an invite code does not ride on the proof step (the contract has no slot for it)', async () => {
             mockGateways.auth.linkAccount.mockResolvedValue({ verified: true } as any);
 
             await dataSource.verifyPhoneCode('01012345678', '123456', { mode: 'login' });
@@ -107,7 +107,7 @@ describe('AuthSocketDataSource', () => {
     });
 
     describe('confirmPhoneCode', () => {
-        it('step=confirm으로 보내고 세션 전환 토큰을 그대로 반환한다', async () => {
+        it('sends with step=confirm and returns the session-switch token as is', async () => {
             mockGateways.auth.linkAccount.mockResolvedValue({
                 step: 'confirm',
                 mode: 'login',
@@ -126,11 +126,11 @@ describe('AuthSocketDataSource', () => {
                 otp: '123456',
                 countryCode: undefined,
             });
-            // 토큰 해석·설치는 이 계층의 일이 아니다 — 그대로 넘긴다.
+            // Interpreting and installing the token is not this layer's job — it is passed through as is.
             expect(result).toMatchObject({ $token: { identityToken: 'tok' } });
         });
 
-        it('mode=link의 확정에는 토큰이 없다 (세션 불변)', async () => {
+        it('confirming mode=link carries no token (the session is unchanged)', async () => {
             mockGateways.auth.linkAccount.mockResolvedValue({ step: 'confirm', linked: true, hint: '5678' } as any);
 
             const result = await dataSource.confirmPhoneCode('01012345678', '123456', { mode: 'link' });
@@ -139,7 +139,7 @@ describe('AuthSocketDataSource', () => {
             expect(result).toMatchObject({ linked: true });
         });
 
-        it('발송에 쓴 countryCode를 같은 값으로 보낸다', async () => {
+        it('sends the same countryCode that was used for delivery', async () => {
             mockGateways.auth.linkAccount.mockResolvedValue({ linked: true } as any);
 
             await dataSource.confirmPhoneCode('09012345678', '123456', { mode: 'link', countryCode: 'JP' });
@@ -149,7 +149,7 @@ describe('AuthSocketDataSource', () => {
     });
 
     describe('social', () => {
-        it('verifySocialAccount는 type=social·mode=link·step=verify로 나간다', async () => {
+        it('verifySocialAccount goes out as type=social, mode=link, step=verify', async () => {
             mockGateways.auth.linkAccount.mockResolvedValue({ step: 'verify', linkable: true } as any);
 
             await dataSource.verifySocialAccount({ provider: 'apple', identityToken: 'tok' });
@@ -163,7 +163,7 @@ describe('AuthSocketDataSource', () => {
             });
         });
 
-        it('confirmSocialAccount는 native token 묶음을 그대로 실어 확정한다', async () => {
+        it('confirmSocialAccount confirms by carrying the native token bundle through unchanged', async () => {
             mockGateways.auth.linkAccount.mockResolvedValue({ step: 'confirm', linked: true } as any);
 
             const result = await dataSource.confirmSocialAccount({ provider: 'apple', identityToken: 'tok' });
@@ -178,10 +178,10 @@ describe('AuthSocketDataSource', () => {
             expect(result).toEqual({ step: 'confirm', linked: true });
         });
 
-        it('소셜에는 login 모드가 없다 — 항상 link로 나간다', async () => {
+        it('social has no login mode — it always goes out as link', async () => {
             mockGateways.auth.linkAccount.mockResolvedValue({ linked: true } as any);
 
-            // 호출부가 mode를 고를 수 없는 것이 계약이다(디바이스 유저의 소셜 로그인은 REST 경로).
+            // The contract is that a caller cannot choose the mode (social login for a device user goes down the REST path).
             await dataSource.confirmSocialAccount({ provider: 'google', idToken: 'tok', mode: 'login' } as any);
 
             expect(mockGateways.auth.linkAccount).toHaveBeenCalledWith(expect.objectContaining({ mode: 'link' }));

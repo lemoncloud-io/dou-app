@@ -3,7 +3,7 @@ import type { ListResult } from '@lemoncloud/chatic-socials-api/dist/cores/types
 import type { MyInviteView, MySiteView, UserProfile$ } from '@lemoncloud/chatic-backend-api';
 import type { DomainJoin, DomainListResult, DomainPlace, DomainUser } from '../../domain';
 import { createDomainListResult, toDomainJoinFromUser, toDomainPlace, toDomainUser } from '../../domain';
-import type { DataContext } from '../../repositories-v2/types';
+import type { DataContext } from '../../repositories/types';
 import type { UserSocketDomainGateway } from '../gateways';
 
 /**
@@ -46,17 +46,17 @@ export type UserInviteBatchPayload = Parameters<UserSocketDomainGateway['inviteB
 export type UserSyncChannelUsersInput = Parameters<UserSocketDomainGateway['syncUsers']>[0];
 
 export interface IUserSocketDataSource {
-    /** 특정 조건의 사용자 목록을 서버에 요청하고, 도메인 user + 내장 join을 함께 반환합니다. */
+    /** Requests a filtered user list and returns the domain users together with their embedded joins. */
     fetchUsers(payload: UserFetchUsersInput, context: DataContext): Promise<ChannelUsersFetchResult>;
-    /** 현재 세션 본인 프로필을 요청하고, 도메인 user와 내장 $site(place)를 함께 반환합니다. (랠리·클라우드 공통) */
+    /** Requests the current session's own profile and returns the domain user together with the embedded $site (place). (Relay and cloud alike.) */
     getMyProfile(context: DataContext): Promise<UserProfileResult>;
-    /** 내 프로필 정보 수정을 요청합니다. */
+    /** Requests an edit to my own profile. */
     updateProfile(payload: UserUpdateProfilePayload, context: DataContext): Promise<DomainUser>;
-    /** 외부 사용자를 초대하고 초대 결과를 요청합니다. (도메인 user가 아닌 초대 뷰) */
+    /** Invites an outside user and requests the invite result. (An invite view, not a domain user.) */
     requestInvite(payload: UserRequestInviteInput): Promise<MyInviteView>;
-    /** 여러 사용자를 일괄 초대합니다. (도메인 user가 아닌 초대 뷰) */
+    /** Invites several users in one batch. (An invite view, not a domain user.) */
     inviteBatch(payload: UserInviteBatchPayload): Promise<ListResult<MyInviteView>>;
-    /** 채널 멤버를 since 기준으로 동기화하고, 유저 + 내장 join + 커서(syncedAt)를 반환합니다. */
+    /** Syncs channel members from `since` and returns the users, their embedded joins, and the cursor (`syncedAt`). */
     syncChannelUsers(payload: UserSyncChannelUsersInput, context: DataContext): Promise<ChannelUsersSyncResult>;
 }
 

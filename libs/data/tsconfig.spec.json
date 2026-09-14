@@ -3,8 +3,11 @@
     "extends": "./tsconfig.json",
     "compilerOptions": {
         "outDir": "../../dist/out-tsc",
-        "module": "commonjs",
+        // `module` is NOT overridden to commonjs here. The base sets `moduleResolution: bundler`,
+        // which rejects commonjs (TS5095) and left this config unable to compile at all — which is
+        // how test files went years without a type check. ts-jest emits CommonJS for jest on its
+        // own; this config only has to be checkable.
         "types": ["jest", "node"]
     },
-    "include": ["jest.config.ts", "src/**/*.ts", "src/**/*.tsx", "src/**/*.d.ts", "integration-test/**/*.ts"]
+    "include": ["src/**/*.ts", "src/**/*.d.ts"]
 }

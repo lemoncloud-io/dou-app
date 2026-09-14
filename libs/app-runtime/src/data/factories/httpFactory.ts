@@ -18,9 +18,11 @@ import { cloudGateway, oauthGateway, reportGateway, subscriptionGateway, userGat
  */
 export const createHttpDataSources = (): { httpDataSources: HttpDataSources } => {
     const gateways: HttpGatewayBundle = {
-        // Token/credential-producing actions (login · exchangeToken · delegateCloud ·
-        // registerDevice) are absent from these Pick<>-narrowed bundle types — `data` never gets a
-        // handle on them even though the shared instance carries them.
+        // The Pick<>-narrowed bundle type DOES carry the token-producing actions (login ·
+        // exchangeToken · delegateCloud · registerDevice · verifyNativeToken). What holds is the
+        // rule, not their absence: nothing under `data/` reads a `Token`, writes a store, or flips
+        // auth state — responses pass through raw so `session/auth` can. See AuthHttpDomainGateway
+        // and libs/data/docs/remote/http.md#gateway-pick.
         auth: oauthGateway(),
         user: userGateway(),
         cloud: cloudGateway(),

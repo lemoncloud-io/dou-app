@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { runtime } from '@chatic/app-runtime';
-import type { DataRepositoriesV2 } from '@chatic/data';
+import type { DataRepositories } from '@chatic/data';
 import { decodeInvite } from '../features/invite/inviteCode';
 
 /**
@@ -18,7 +18,7 @@ import { decodeInvite } from '../features/invite/inviteCode';
 export const InvitePage = () => {
     const navigate = useNavigate();
     const { delegatorId } = runtime.session.useSessionIdentity();
-    const repos = runtime.data.useRuntimeRepositories() as unknown as DataRepositoriesV2;
+    const repos = runtime.data.useRuntimeRepositories() as unknown as DataRepositories;
 
     const [text, setText] = useState('');
     const [error, setError] = useState<string | null>(null);

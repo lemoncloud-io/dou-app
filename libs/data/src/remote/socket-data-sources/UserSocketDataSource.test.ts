@@ -1,6 +1,6 @@
 import { UserSocketDataSource } from './UserSocketDataSource';
 import { createMockSocketGateways, type MockSocketGatewayBundle } from '../gateways/__mocks__/MockSocketGateways';
-import type { DataContext } from '../../repositories-v2/types';
+import type { DataContext } from '../../repositories/types';
 import type {
     ChannelSyncUsersInput,
     ChatUsersInput,
@@ -19,45 +19,45 @@ describe('UserSocketDataSource', () => {
         dataSource = new UserSocketDataSource(mockGateways.user);
     });
 
-    describe('발신(Send) 파이프라인 검증 (Request)', () => {
-        it('fetchUsers 호출 시 channel.list-user 액션으로 request가 전송되어야 한다', async () => {
+    describe('outbound pipeline (Request)', () => {
+        it('fetchUsers sends the request as the channel.list-user action', async () => {
             const payload: ChatUsersInput = { channelId: 'ch-1' } as any;
             await dataSource.fetchUsers(payload, context);
             expect(mockGateways.user.listUser).toHaveBeenCalledWith(payload);
         });
 
-        it('getMyProfile 호출 시 user.profile 액션으로 request가 전송되어야 한다', async () => {
+        it('getMyProfile sends the request as the user.profile action', async () => {
             await dataSource.getMyProfile(context);
             expect(mockGateways.user.profile).toHaveBeenCalledTimes(1);
         });
 
-        it('updateProfile 호출 시 user.update-profile 액션으로 request가 전송되어야 한다', async () => {
+        it('updateProfile sends the request as the user.update-profile action', async () => {
             const payload: UserUpdateProfileInput = { name: 'New Name' };
             await dataSource.updateProfile(payload, context);
             expect(mockGateways.user.update).toHaveBeenCalledWith(payload);
         });
 
-        it('requestInvite 호출 시 user.invite 액션으로 request가 전송되어야 한다', async () => {
+        it('requestInvite sends the request as the user.invite action', async () => {
             const payload: UserInviteInput = { name: 'Guest', phone: '01012345678' };
             await dataSource.requestInvite(payload);
             expect(mockGateways.user.invite).toHaveBeenCalledWith(payload);
         });
 
-        it('inviteBatch 호출 시 user.invite-batch 액션으로 request가 전송되어야 한다', async () => {
+        it('inviteBatch sends the request as the user.invite-batch action', async () => {
             const payload: UserInviteBatchInput = { to: ['01012345678'] };
             await dataSource.inviteBatch(payload);
             expect(mockGateways.user.inviteBatch).toHaveBeenCalledWith(payload);
         });
 
-        it('syncChannelUsers 호출 시 channel.sync-users 액션으로 request가 전송되어야 한다', async () => {
+        it('syncChannelUsers sends the request as the channel.sync-users action', async () => {
             const payload: ChannelSyncUsersInput = { channelId: 'ch-1' };
             await dataSource.syncChannelUsers(payload, context);
             expect(mockGateways.user.syncUsers).toHaveBeenCalledWith(payload);
         });
     });
 
-    describe('수신(Receive) 매핑 검증 (View → Domain)', () => {
-        it('fetchUsers 응답을 도메인 user 목록으로 변환하고 context의 cid를 부여한다', async () => {
+    describe('inbound mapping (View → Domain)', () => {
+        it('maps the fetchUsers response to domain users and stamps cid from the context', async () => {
             (mockGateways.user.listUser as jest.Mock).mockResolvedValue({
                 list: [{ id: 'user-1', channelId: 'ch-1' }],
                 total: 1,
@@ -70,9 +70,10 @@ describe('UserSocketDataSource', () => {
             expect(users.meta.source).toBe('remote');
         });
 
-        it('fetchUsers: 멤버의 $join을 join으로 뽑고 user 레코드에는 싣지 않는다', async () => {
-            // 유저 레코드는 채널 전역이라 채널별 읽음 커서가 얹히면 마지막에 매핑된 채널이 그 필드를
-            // 소유하게 된다. 커서의 집은 `channelId@userId`로 키잉되는 join 캐시다.
+        it('fetchUsers: pulls $join off a member as a join and does not put it on the user record', async () => {
+            // A user record is channel-global, so laying a per-channel read cursor onto it makes the
+            // last-mapped channel own that field. The cursor's home is the join cache, keyed by
+            // `channelId@userId`.
             (mockGateways.user.listUser as jest.Mock).mockResolvedValue({
                 list: [{ id: 'user-1', $join: { channelId: 'ch-1', userId: 'user-1', chatNo: 5 } }, { id: 'user-2' }],
                 total: 2,
@@ -82,11 +83,11 @@ describe('UserSocketDataSource', () => {
 
             expect(joins).toEqual([expect.objectContaining({ id: 'ch-1@user-1', userId: 'user-1', chatNo: 5 })]);
             expect(users.list.every(u => !('$join' in u))).toBe(true);
-            // $join.channelId는 여전히 channelIds 파생에 쓰인다.
+            // `$join.channelId` is still used to derive channelIds.
             expect(users.list[0].channelIds).toContain('ch-1');
         });
 
-        it('getMyProfile: UserProfile$ 래퍼의 $user를 도메인 user로, $site를 도메인 place로 변환한다', async () => {
+        it('getMyProfile: maps $user in the UserProfile$ wrapper to a domain user and $site to a domain place', async () => {
             (mockGateways.user.profile as jest.Mock).mockResolvedValue({
                 uid: 'me',
                 $user: { id: 'me', name: 'Me' },
@@ -99,7 +100,7 @@ describe('UserSocketDataSource', () => {
             expect(site).toMatchObject({ id: 'site-1', cid: 'cloud-a' });
         });
 
-        it('getMyProfile: $site가 없으면 site는 null이다', async () => {
+        it('getMyProfile: site is null when $site is absent', async () => {
             (mockGateways.user.profile as jest.Mock).mockResolvedValue({ $user: { id: 'me' } });
 
             const { user, site } = await dataSource.getMyProfile(context);
@@ -108,7 +109,7 @@ describe('UserSocketDataSource', () => {
             expect(site).toBeNull();
         });
 
-        it('getMyProfile: 응답이 평탄한 user view로 와도(또는 비어도) 안전하게 변환한다', async () => {
+        it('getMyProfile: maps safely when the response arrives as a flat user view (or empty)', async () => {
             (mockGateways.user.profile as jest.Mock).mockResolvedValue({ id: 'me', name: 'Me' });
             const flat = await dataSource.getMyProfile(context);
             expect(flat.user).toMatchObject({ id: 'me', cid: 'cloud-a' });
@@ -120,7 +121,7 @@ describe('UserSocketDataSource', () => {
             expect(empty.site).toBeNull();
         });
 
-        it('updateProfile 응답을 단일 도메인 user로 변환한다', async () => {
+        it('maps the updateProfile response to a single domain user', async () => {
             (mockGateways.user.update as jest.Mock).mockResolvedValue({ id: 'user-1', name: 'New Name' });
 
             const domain = await dataSource.updateProfile({ name: 'New Name' }, context);
@@ -128,11 +129,11 @@ describe('UserSocketDataSource', () => {
             expect(domain).toMatchObject({ id: 'user-1', cid: 'cloud-a' });
         });
 
-        it('syncChannelUsers 응답에서 user와 내장 $join을 분리해 변환하고 커서를 반환한다', async () => {
+        it('splits user and embedded $join out of the syncChannelUsers response, maps both, and returns the cursor', async () => {
             (mockGateways.user.syncUsers as jest.Mock).mockResolvedValue({
                 list: [
                     { id: 'u1', name: 'Alice', $join: { id: 'ch-1@u1', channelId: 'ch-1', userId: 'u1', chatNo: 9 } },
-                    { id: 'u2', name: 'Bob' }, // join 없음 → joins에서 제외
+                    { id: 'u2', name: 'Bob' }, // no join → excluded from joins
                 ],
                 ids: ['u1', 'u2'],
                 syncedAt: 1700,
@@ -147,7 +148,7 @@ describe('UserSocketDataSource', () => {
             expect(result.syncedAt).toBe(1700);
         });
 
-        it('$join에 channelId/userId가 없으면 요청 channelId와 부모 user id로 보강한다', async () => {
+        it('fills a $join missing channelId/userId from the requested channelId and the parent user id', async () => {
             (mockGateways.user.syncUsers as jest.Mock).mockResolvedValue({
                 list: [{ id: 'u1', $join: { chatNo: 3 } }],
                 ids: ['u1'],

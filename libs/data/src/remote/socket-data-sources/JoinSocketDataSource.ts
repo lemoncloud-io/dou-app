@@ -7,16 +7,16 @@ import type { JoinGetInput } from '@lemoncloud/chatic-sockets-lib';
 import type { JoinDomainUpdateInput as JoinUpdateInput } from '@lemoncloud/chatic-sockets-lib';
 import type { DomainJoin } from '../../domain';
 import { toDomainJoin } from '../../domain';
-import type { DataContext } from '../../repositories-v2/types';
+import type { DataContext } from '../../repositories/types';
 
 export interface IJoinSocketDataSource {
-    /** 단일 join 스냅샷을 조회합니다(`join.get`). JoinSyncPlan polling과 refresh 경로가 사용합니다. */
+    /** Reads a single join snapshot (`join.get`). Used by JoinSyncPlan polling and the refresh path. */
     getJoin(payload: JoinGetInput, context: DataContext): Promise<DomainJoin>;
-    /** 특정 메시지까지 읽었음을 서버에 알리고 참여 정보를 동기화합니다. */
+    /** Tells the server messages have been read up to a point and syncs the join information. */
     readChat(payload: ChatReadInput, context: DataContext): Promise<DomainJoin>;
-    /** 참여 정보(예: 알림 설정 변경)를 수정합니다. */
+    /** Updates the join information (a notification setting, for instance). */
     updateJoin(payload: JoinUpdateInput, context: DataContext): Promise<DomainJoin>;
-    /** 채널에 참여 요청을 보냅니다. */
+    /** Sends a request to join a channel. */
     joinChannel(payload: ChannelJoinInput, context: DataContext): Promise<DomainJoin>;
 }
 

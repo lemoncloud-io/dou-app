@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { runtime } from '@chatic/app-runtime';
-import type { DataRepositoriesV2, DomainCloud, DomainProfile, DomainUser } from '@chatic/data';
+import type { DataRepositories, DomainCloud, DomainProfile, DomainUser } from '@chatic/data';
 import type { SyncTargetDescriptor } from '@lemoncloud/chatic-sockets-lib';
 import { DBBrowser } from './DBBrowser';
 import { useRuntimeMetrics } from '../metrics/useRuntimeMetrics';
@@ -172,7 +172,7 @@ const ProfileTab = () => (
 // Renames the active cloud through repos.cloud.updateCloud and observes the cloud cache so the
 // displayed name tracks the change reactively (cacheWrite re-emits to observeItem subscribers).
 const CloudNameSection = () => {
-    const repos = runtime.data.useRuntimeRepositories() as unknown as DataRepositoriesV2;
+    const repos = runtime.data.useRuntimeRepositories() as unknown as DataRepositories;
     const { activeServer } = runtime.session.useGlobalSession();
     const updateCloud = useUpdateCloud();
     const cloudId = activeServer.kind === 'cloud' ? activeServer.cloudId : '';
@@ -264,7 +264,7 @@ const CloudNameSection = () => {
 // re-issues the active server session. The displayed name is observed from the user cache (not the
 // static session identity) so it tracks the change reactively; getMyProfile hydrates the cache.
 const UserProfileSection = () => {
-    const repos = runtime.data.useRuntimeRepositories() as unknown as DataRepositoriesV2;
+    const repos = runtime.data.useRuntimeRepositories() as unknown as DataRepositories;
     const identity = runtime.session.useSessionIdentity();
     const updateUserProfile = useUpdateUserProfile();
     const uid = identity.userId ?? '';
@@ -367,7 +367,7 @@ const UserProfileSection = () => {
 // Edits the current user's site profile (nick/thumbnail) for the active place. Writes via
 // repos.profile.setMyProfile (optimistic cache + profile.set), which uses the live sid/uid.
 const SiteProfileSection = () => {
-    const repos = runtime.data.useRuntimeRepositories() as unknown as DataRepositoriesV2;
+    const repos = runtime.data.useRuntimeRepositories() as unknown as DataRepositories;
     const { activeServer } = runtime.session.useGlobalSession();
     const identity = runtime.session.useSessionIdentity();
     const sid = activeServer.siteId ?? '';

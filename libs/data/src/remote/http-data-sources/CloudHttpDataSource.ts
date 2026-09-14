@@ -1,7 +1,7 @@
 import type { CloudBody, CloudVerifyEmailBody, CloudVerifyEmailView } from '@lemoncloud/chatic-backend-api';
 import type { DomainCloud, DomainListResult } from '../../domain';
 import { createDomainListResult, toDomainCloud } from '../../domain';
-import type { DataContext } from '../../repositories-v2/types';
+import type { DataContext } from '../../repositories/types';
 import type { CloudHttpDomainGateway } from '../gateways';
 
 /** `auto=1` is already pinned by the gateway; `dryRun` is the only caller-chosen make flag. */
@@ -28,8 +28,8 @@ export interface ICloudHttpDataSource {
 /**
  * Cloud catalog HTTP source. View → domain mapping is the single boundary here, same as the socket
  * `CloudSocketDataSource`. **No local cache write** — the catalog list mixes invited and owned
- * clouds, and `CloudRepositoryV2.resolveCloudType` would default every new entry to `'owner'`,
- * mislabeling invited clouds. React-query owns this read's cache (ADR-0070 결정 5 원칙 6).
+ * clouds, and `CloudRepository.resolveCloudType` would default every new entry to `'owner'`,
+ * mislabeling invited clouds. React-query owns this read's cache (ADR-0070 decision 5 principle 6).
  */
 export class CloudHttpDataSource implements ICloudHttpDataSource {
     constructor(private readonly gateway: CloudHttpDomainGateway) {}

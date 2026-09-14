@@ -1,22 +1,22 @@
 import type { CacheModelOf, CacheQueryOf, CacheType, LastChatItem } from '@chatic/app-messages';
-import type { DataContextProvider } from '../../repositories-v2/types';
+import type { DataContextProvider } from '../../repositories/types';
 
 /**
- * 실제 저장소 구현체(IndexedDB/native 등)가 만족해야 하는 공통 인터페이스입니다.
- * 모든 상위 팩터리 타입은 이 인터페이스를 중심으로 연결됩니다.
+ * The interface an actual storage implementation (IndexedDB, native, …) has to satisfy.
+ * Every factory type above it connects through this interface.
  *
- * @template TType 캐시 도메인 타입 (예: 'channel', 'chat' 등)
+ * @template TType the cache domain type (e.g. 'channel', 'chat')
  */
 export interface CacheStorage<TType extends CacheType> {
     save(id: string, item: CacheModelOf<TType>): Promise<CacheModelOf<TType>>;
     saveAll(items: CacheModelOf<TType>[]): Promise<CacheModelOf<TType>[]>;
     load(id: string): Promise<CacheModelOf<TType> | null>;
     /**
-     * id 목록으로 여러 행을 읽습니다. `load`를 id마다 부르는 것과 결과는 같습니다.
+     * Reads several rows by a list of ids. The result is the same as calling `load` per id.
      *
-     * 없는 id는 결과에서 빠지므로 **반환 길이와 순서가 `ids`와 일치하지 않습니다.** 호출자는
-     * `new Map(items.map(item => [item.id, item]))`처럼 id로 다시 색인해야 합니다. 위치로 짝을
-     * 맞추면(`items[index]`) 중간에 없는 id가 하나라도 있으면 그 뒤가 전부 밀립니다.
+     * Ids that are absent are omitted from the result, so **the returned length and order do not match
+     * `ids`.** Callers have to re-index by id, e.g. `new Map(items.map(item => [item.id, item]))`.
+     * Pairing by position (`items[index]`) shifts everything after the first missing id.
      */
     loadMany(ids: string[]): Promise<CacheModelOf<TType>[]>;
     loadAll(options?: CacheQueryOf<TType>): Promise<CacheModelOf<TType>[]>;
@@ -25,28 +25,31 @@ export interface CacheStorage<TType extends CacheType> {
     clearAll(): Promise<void>;
     clearByChannelId(channelId: string): Promise<void>;
     /**
-     * 채널별 최신 프리뷰 1건 + 그 채널의 최대 chatNo를 한 번에 읽습니다 (chat 전용, ADR-0057).
+     * Reads, in one call, the latest preview per channel plus that channel's maximum chatNo (chat
+     * only, ADR-0057).
      *
-     * 선택 구현입니다. `null`은 "이 저장소는 이 조회를 제공하지 못한다"는 뜻으로 — 미구현
-     * 어댑터(IndexedDB), 이 메시지를 모르는 구버전 앱, 일시적 네이티브 오류가 전부 여기에
-     * 해당합니다 — 호출자(`ChatLocalDataSourceV2`)가 채널별 윈도우 읽기로 폴백합니다.
-     * IndexedDB가 구현하지 않는 이유: 폴백 경로가 인프로세스라 왕복 비용이 없어 그게 곧
-     * 최선이고, 굳이 판정 로직을 두 벌 두면 의미론만 드리프트합니다.
+     * Implementing it is optional. `null` means "this storage cannot provide this query" — an adapter
+     * that does not implement it (IndexedDB), an older app that does not know this message, and a
+     * transient native error all land here — and the caller (`ChatLocalDataSource`) falls back to a
+     * per-channel windowed read. Why IndexedDB does not implement it: the fallback path is in-process
+     * with no round-trip cost, so it is already the best option, and keeping two copies of the decision
+     * logic would only let the semantics drift.
      *
-     * 반환 배열은 요청 순서·길이를 보장하지 않습니다 — 호출자가 channelId로 다시 색인합니다.
+     * The returned array guarantees neither the requested order nor length — the caller re-indexes by
+     * channelId.
      */
     loadLastPerChannel?(channelIds: string[]): Promise<LastChatItem[] | null>;
 }
 
 /**
- * 캐시 저장소에 보관되는 모델 타입 단축 정의
+ * Shorthand for the model type held in a cache store.
  */
 export type CacheStorageItem<TType extends CacheType> = CacheModelOf<TType>;
 
 /**
- * 데이터베이스에 저장될 레코드의 기본 스키마를 정의합니다.
+ * The base schema for a record stored in the database.
  *
- * @template TType 캐시 도메인 타입
+ * @template TType the cache domain type
  */
 export interface CacheSchema<TType extends CacheType> {
     key: string; // Primary key (e.g., "channel:cid:uid:id")

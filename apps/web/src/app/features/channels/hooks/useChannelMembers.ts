@@ -106,7 +106,7 @@ export const useChannelMembers = ({
         if (!channelId || !isVerified) return;
         // since:0 returns the full snapshot, larger cursors an incremental delta; advance `since`
         // with the returned syncedAt.
-        // The data dist types are stale (syncChannelUsers not yet surfaced on IUserRepositoryV2),
+        // The data dist types are stale (syncChannelUsers not yet surfaced on IUserRepository),
         // so narrow-cast the user repo to reach it — mirrors testbed ChatRoomPage.
         const userRepoWithSync = userRepository as unknown as {
             syncChannelUsers(payload: { channelId: string; since?: number }): Promise<number>;

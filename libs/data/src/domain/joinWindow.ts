@@ -4,8 +4,8 @@ import type { DomainChat } from './models';
  * Join-window visibility — whether a cached chat row belongs to MY current membership.
  *
  * Leaving a channel and coming back must look like arriving for the first time: the server resets
- * the join cursors on re-join and then windows the feed by `joinedNo` ("이 번호 이전의 메시지는
- * 조회 대상에서 제외"), so it stops handing back anything from before. The client cannot rely on
+ * the join cursors on re-join and then windows the feed by `joinedNo` ("messages before this number are
+ * excluded from reads"), so it stops handing back anything from before. The client cannot rely on
  * that alone, because it renders the local chat cache rather than the response — rows fetched
  * while I was still a member survive the leave (the chat sync plan deliberately keeps message
  * history for lazy-load/offline, and `refreshList` merges without pruning).

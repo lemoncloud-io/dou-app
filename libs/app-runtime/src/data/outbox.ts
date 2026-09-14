@@ -4,7 +4,7 @@ import type { ChatSendInput } from '@lemoncloud/chatic-sockets-api';
  * Resend queue for chat sends that failed while the transport was down.
  *
  * **One attempt per ready transition, and that is structural — not a policy knob.**
- * `ChatRepositoryV2.sendChat` mints a NEW optimistic row on every call
+ * `ChatRepository.sendChat` mints a NEW optimistic row on every call
  * (`optimistic-chat-send-${Date.now()}`) and, on failure, leaves *that* row marked `isFailed`.
  * A queue entry only knows the id of the row it was built from, so a second attempt cannot reach
  * the row the first attempt left behind: the user would see one "not delivered" bubble per attempt

@@ -9,7 +9,7 @@ import type {
 import type { VerifyNativeTokenBody } from '@lemoncloud/chatic-backend-api/dist/modules/auth/oauth2/oauth2-types';
 import type { FindAliasBody, FindAliasView, VerifyAliasBody, VerifyAliasView } from '@chatic/http';
 import type { DomainUser } from '../../domain';
-import type { DataContext } from '../../repositories-v2/types';
+import type { DataContext } from '../../repositories/types';
 import type { AuthHttpDomainGateway } from '../gateways';
 import { toDomainUserFromHttp } from './httpUserMapping';
 
@@ -18,8 +18,8 @@ export interface IAuthHttpDataSource {
     registerUserV2(body: RegisterUserV2Body, email: boolean | undefined, context: DataContext): Promise<DomainUser>;
     findAlias(body: FindAliasBody): Promise<FindAliasView>;
     verifyAlias(body: VerifyAliasBody): Promise<VerifyAliasView>;
-    /** 초대 코드 로그인 — 세션 재료다. `DomainUser`로 매핑하지 않는다: 매핑이 `Token`과
-     * `cloudId`를 떨어뜨리는데, 호출부(초대 수락 흐름)가 바로 그 둘을 쓴다. */
+    /** Invite-code login — session material. It is not mapped to `DomainUser`: mapping drops `Token`
+     * and `cloudId`, and those two are exactly what the caller (the invite-acceptance flow) uses. */
     loginWithInviteCode(input: { code: string; delegatorId: string; backend?: string }): Promise<UserTokenView>;
     fetchInviteInfo(input: { code: string; backend: string }): Promise<MyInviteView>;
 

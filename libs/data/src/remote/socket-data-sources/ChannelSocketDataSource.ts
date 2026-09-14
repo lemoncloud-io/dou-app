@@ -15,7 +15,7 @@ import type { ChannelSyncView, ChannelView, UnreadsSummaryView } from '@lemonclo
 import type { ListResult } from '@lemoncloud/chatic-socials-api/dist/cores/types';
 import type { DomainChannel, DomainListResult } from '../../domain';
 import { createDomainListResult, toDomainChannel } from '../../domain';
-import type { DataContext } from '../../repositories-v2/types';
+import type { DataContext } from '../../repositories/types';
 import type { ChannelSocketDomainGateway } from '../gateways';
 
 /** Result of a channel sync: domain rows plus the server's active-id/cursor metadata. */
@@ -26,24 +26,24 @@ export interface ChannelSyncResult {
 }
 
 export interface IChannelSocketDataSource {
-    /** 내가 참여 중인 채널 목록을 서버에 요청하고 도메인 모델로 반환합니다. */
+    /** Requests the list of channels I belong to and returns it as domain models. */
     fetchChannel(payload: ChannelMineInput, context: DataContext): Promise<DomainListResult<DomainChannel>>;
-    /** 채널의 정보(이름, 설정 등) 수정을 요청합니다. */
+    /** Requests an edit to the channel's information (name, settings, …). */
     updateChannel(payload: ChannelUpdateInput, context: DataContext): Promise<DomainChannel>;
-    /** 채널 삭제(또는 종료)를 요청합니다. */
+    /** Requests deletion (or closure) of the channel. */
     deleteChannel(payload: ChannelDeleteInput, context: DataContext): Promise<DomainChannel>;
-    /** 새로운 채팅방을 시작하거나 초기 상태를 요청합니다. */
+    /** Starts a new room, or requests its initial state. */
     createChannel(payload: ChannelCreateInput, context: DataContext): Promise<DomainChannel>;
-    /** 채널에 특정 유저를 초대합니다. */
+    /** Invites a specific user to the channel. */
     inviteChannel(payload: ChatInviteInput, context: DataContext): Promise<DomainChannel>;
-    /** 채널에서 나갑니다. */
+    /** Leaves the channel. */
     leaveChannel(payload: ChatLeaveInput, context: DataContext): Promise<DomainChannel>;
-    /** 채널 동기화를 서버에 요청하고 도메인 모델 목록으로 반환합니다. */
+    /** Requests a channel sync and returns the result as a list of domain models. */
     syncChannel(payload: ChannelSyncInput, context: DataContext): Promise<ChannelSyncResult>;
 
-    /** 자신의 개인(나와의 채팅) 채널 정보를 요청하고 도메인 모델로 반환합니다. */
+    /** Requests one's own personal (self-chat) channel and returns it as a domain model. */
     getSelfChannel(payload: ChannelGetSelfInput, context: DataContext): Promise<DomainChannel>;
-    /** 읽지 않은 메시지 통계를 요청합니다. (도메인 엔티티가 아닌 집계 뷰) */
+    /** Requests unread-message statistics. (An aggregate view, not a domain entity.) */
     getUnreads(payload: ChannelUnreadsInput): Promise<UnreadsSummaryView>;
 }
 

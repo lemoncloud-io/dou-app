@@ -160,7 +160,7 @@ export class AuthSocketDataSource implements IAuthSocketDataSource {
 
     public async verifySocialAccount(tokens: SocialAccountTokens): Promise<LinkVerifiedView> {
         // Social only ever links: there is no `mode: 'login'` for it, and a device session that wants
-        // to log in socially goes through the backend's REST path instead (guide §알아 둘 제약).
+        // to log in socially goes through the backend's REST path instead (the guide's §constraints to know).
         return this.gateway.linkAccount<LinkVerifiedView>({
             ...tokens,
             type: 'social',

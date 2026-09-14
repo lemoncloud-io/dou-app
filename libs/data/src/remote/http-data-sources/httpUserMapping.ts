@@ -2,7 +2,7 @@ import type { UserView as SocialsUserView } from '@lemoncloud/chatic-socials-api
 import type { UserView as BackendUserView } from '@lemoncloud/chatic-backend-api';
 import type { DomainUser } from '../../domain';
 import { toDomainUser } from '../../domain';
-import type { DataContext } from '../../repositories-v2/types';
+import type { DataContext } from '../../repositories/types';
 
 /**
  * `toDomainUser` (domain/mappers.ts) is typed against `@lemoncloud/chatic-socials-api`'s

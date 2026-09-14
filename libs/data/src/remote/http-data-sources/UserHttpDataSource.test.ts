@@ -1,6 +1,6 @@
 import { UserHttpDataSource } from './UserHttpDataSource';
 import type { UserHttpDomainGateway } from '../gateways';
-import type { DataContext } from '../../repositories-v2/types';
+import type { DataContext } from '../../repositories/types';
 
 describe('UserHttpDataSource', () => {
     const context: DataContext = { cid: 'cloud-a', uid: 'me' };

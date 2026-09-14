@@ -55,7 +55,7 @@ export interface AdminOverrideOptions extends AdminEndpointOptions {
  * Remote-only source — no local data source, same shape as `AuthHttpDataSource`/
  * `DeviceSocketDataSource`. No domain model exists for this axis yet; views pass through
  * unchanged (alias-level, matching the precedent most existing domain models already follow —
- * see libs/data/docs/remote/README.md#httpdatasource와-캐시-의미). A real `DomainProduct` /
+ * see libs/data/docs/remote/http.md#httpdatasource-and-cache-semantics). A real `DomainProduct` /
  * `DomainMembership` / `DomainReceipt` mapping is future work, not this data source's job to
  * invent.
  *

@@ -20,14 +20,14 @@ export type DomainJoin = CacheJoinView;
 // onto DomainChat/DomainChannel via ChatView/ChannelView inheritance.
 export type { ChatStereo, ChatSubType } from '@lemoncloud/chatic-socials-api';
 
-/** join 목록 조회 시 Repository에서 사용하는 local 전용 payload입니다. */
+/** The local-only payload a repository uses when reading a join list. */
 export interface DomainJoinListPayload {
     channelId?: string;
     activeOnly?: boolean;
 }
 
 export interface DomainChannelListPayload extends ChatMineInput {
-    /** 타겟 사이트/플레이스 아이디  (값이 없을 경우); */
+    /** Target site/place id (when absent). */
     sid?: string;
 }
 
@@ -52,8 +52,9 @@ export type DomainCloud = CacheCloudView;
 export type DomainInvite = CacheInviteView;
 
 /**
- * 도메인 리스트 표준 래퍼입니다.
- * 기존 ListResult를 유지하면서 meta를 추가해 공통적인 동기화/무결성 정보를 관리합니다.
+ * The standard wrapper for a domain list.
+ * It keeps the existing ListResult shape and adds `meta` to carry the common sync/integrity
+ * information.
  */
 export interface DomainListResult<TModel> {
     list: TModel[];

@@ -10,7 +10,7 @@ describe('DeviceSocketDataSource', () => {
         dataSource = new DeviceSocketDataSource(mockGateways.device);
     });
 
-    it('saveDevice 호출 시 active 슬롯의 device.save 로 위임되어야 한다', async () => {
+    it('saveDevice delegates to device.save on the active slot', async () => {
         const payload: DeviceSaveInput = { name: 'iPhone 15' };
         mockGateways.device.active.save.mockResolvedValue({ id: 'dev-1', name: 'iPhone 15' } as any);
 
@@ -20,7 +20,7 @@ describe('DeviceSocketDataSource', () => {
         expect(result).toEqual({ id: 'dev-1', name: 'iPhone 15' });
     });
 
-    it('readDevice 호출 시 active 슬롯의 device.read 로 위임되어야 한다', async () => {
+    it('readDevice delegates to device.read on the active slot', async () => {
         const payload: DeviceReadInput = { id: 'dev-1' };
         mockGateways.device.active.read.mockResolvedValue({ id: 'dev-1', name: 'iPhone 15' } as any);
 
@@ -30,7 +30,7 @@ describe('DeviceSocketDataSource', () => {
         expect(result).toEqual({ id: 'dev-1', name: 'iPhone 15' });
     });
 
-    it('syncDevice 호출 시 active 슬롯의 device.sync 로 위임되어야 한다', async () => {
+    it('syncDevice delegates to device.sync on the active slot', async () => {
         const payload: DeviceSyncInput = { tick: 456 };
 
         const result = await dataSource.syncDevice(payload);
@@ -39,7 +39,7 @@ describe('DeviceSocketDataSource', () => {
         expect(result).toBeUndefined();
     });
 
-    it('updateRemoteDevice 는 항상 relay 슬롯으로 위임한다 (정책이 데이터 소스에 고정, cloud 활성 무관)', async () => {
+    it('updateRemoteDevice always delegates to the relay slot (the policy is pinned in the data source, regardless of an active cloud)', async () => {
         mockGateways.device.relay.updateRemote.mockResolvedValue({ muted: true } as any);
 
         const result = await dataSource.updateRemoteDevice({ muted: true });

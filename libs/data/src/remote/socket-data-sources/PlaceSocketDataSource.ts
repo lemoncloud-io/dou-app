@@ -4,7 +4,7 @@ import type { MySiteView } from '@lemoncloud/chatic-backend-api';
 import type { ListResult } from '@lemoncloud/chatic-socials-api/dist/cores/types';
 import type { DomainListResult, DomainPlace } from '../../domain';
 import { createDomainListResult, toDomainPlace } from '../../domain';
-import type { DataContext } from '../../repositories-v2/types';
+import type { DataContext } from '../../repositories/types';
 
 export type PlaceCreateInput = Parameters<PlaceSocketDomainGateway['create']>[0];
 export type PlaceGetInput = Parameters<PlaceSocketDomainGateway['get']>[0];
@@ -12,15 +12,15 @@ export type PlaceUpdateInput = Parameters<PlaceSocketDomainGateway['update']>[0]
 export type PlaceDeleteInput = Parameters<PlaceSocketDomainGateway['delete']>[0];
 
 export interface IPlaceSocketDataSource {
-    /** 사용자가 접근 가능한 place(=site) 목록을 요청하고 도메인 모델로 반환합니다. */
+    /** Requests the places (= sites) a user can reach and returns them as domain models. */
     fetchPlace(payload: UserMySiteInput | undefined, context: DataContext): Promise<DomainListResult<DomainPlace>>;
-    /** 새 place 생성을 요청합니다. */
+    /** Requests creation of a new place. */
     createPlace(payload: PlaceCreateInput, context: DataContext): Promise<DomainPlace>;
-    /** place 단건 조회를 요청합니다. */
+    /** Requests a single place. */
     getPlace(payload: PlaceGetInput, context: DataContext): Promise<DomainPlace>;
-    /** place 정보 수정을 요청합니다. */
+    /** Requests an edit to a place. */
     updatePlace(payload: PlaceUpdateInput, context: DataContext): Promise<DomainPlace>;
-    /** place 삭제를 요청합니다. */
+    /** Requests deletion of a place. */
     deletePlace(payload: PlaceDeleteInput, context: DataContext): Promise<DomainPlace>;
 }
 

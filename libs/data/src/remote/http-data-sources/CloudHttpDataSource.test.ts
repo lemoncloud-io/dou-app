@@ -1,6 +1,6 @@
 import { CloudHttpDataSource } from './CloudHttpDataSource';
 import type { CloudHttpDomainGateway } from '../gateways';
-import type { DataContext } from '../../repositories-v2/types';
+import type { DataContext } from '../../repositories/types';
 
 describe('CloudHttpDataSource', () => {
     const context: DataContext = { cid: 'cloud-a', uid: 'me' };
@@ -70,7 +70,7 @@ describe('CloudHttpDataSource', () => {
         gateway.list.mockResolvedValue({ list: [{ id: 'c1' }], total: 1 } as any);
 
         // No local data source is even injectable into this class — its absence from the
-        // constructor is the enforcement (ADR-0070 결정 5 원칙 6).
+        // constructor is the enforcement (ADR-0070 decision 5 principle 6).
         expect(Object.keys(dataSource)).not.toContain('localDataSource');
         await dataSource.listClouds(undefined, context);
     });
