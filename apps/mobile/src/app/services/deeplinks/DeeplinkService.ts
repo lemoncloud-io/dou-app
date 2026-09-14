@@ -1,8 +1,13 @@
 import { Linking } from 'react-native';
-import Config from 'react-native-config';
 
 import type { DeepLinkManager } from './DeepLinkManager';
-import { resolveDeepLink, resolvePushTapPath, type DeepLinkResolution, type PushNavigationData } from './deeplinkUtils';
+import {
+    getAppScheme,
+    resolveDeepLink,
+    resolvePushTapPath,
+    type DeepLinkResolution,
+    type PushNavigationData,
+} from './deeplinkUtils';
 import type { ILogService } from '../log';
 
 /**
@@ -32,7 +37,7 @@ export class DeeplinkService implements IDeeplinkService {
         private readonly manager: DeepLinkManager,
         private readonly logger: ILogService
     ) {
-        this.scheme = Config.VITE_ENV === 'DEV' ? 'chatic-dev' : 'chatic';
+        this.scheme = getAppScheme();
     }
 
     /**

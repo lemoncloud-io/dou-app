@@ -1,6 +1,8 @@
-// Mock react-native-config: the module is imported at load time even though the functions under
-// test here don't read it.
-import { convertShortUrlWithEnvsSync, resolveDeepLink, resolvePushTapPath } from './deeplinkUtils';
+// Mock react-native-config: `getAppScheme` reads VITE_ENV, and the module is imported at load time
+// by the rest of this file regardless. The getAppScheme block below mutates and restores it.
+import Config from 'react-native-config';
+
+import { convertShortUrlWithEnvsSync, getAppScheme, resolveDeepLink, resolvePushTapPath } from './deeplinkUtils';
 
 jest.mock('react-native-config', () => ({
     default: { VITE_ENV: 'DEV' },
@@ -320,5 +322,52 @@ describe('resolvePushTapPath (푸시 탭 경로)', () => {
         });
 
         expect(path).toBe('/channels/1/room?cid=cloud_1');
+    });
+});
+
+describe('getAppScheme (OS 등록 스킴과의 일치)', () => {
+    const originalEnv = Config.VITE_ENV;
+
+    afterEach(() => {
+        Config.VITE_ENV = originalEnv;
+    });
+
+    // The polarity is `=== 'PROD'`, not `=== 'DEV'`: every non-prod build configuration registers
+    // `chatic-dev` with the OS (iOS `APP_URL_SCHEME`, Android `appScheme`), so LOCAL must land there
+    // too. See apps/mobile/docs/local-run.md.
+    it.each([
+        ['PROD', 'chatic'],
+        ['DEV', 'chatic-dev'],
+        ['LOCAL', 'chatic-dev'],
+    ])('VITE_ENV=%s이면 %s를 쓴다', (env, expected) => {
+        Config.VITE_ENV = env;
+
+        expect(getAppScheme()).toBe(expected);
+    });
+
+    it('VITE_ENV가 비어 있으면 prod가 아니므로 chatic-dev로 떨어진다', () => {
+        Config.VITE_ENV = '';
+
+        expect(getAppScheme()).toBe('chatic-dev');
+    });
+
+    // Asserts the reconstructed URL, not just that it resolved: VALID_SCHEMES accepts BOTH
+    // 'chatic' and 'chatic-dev', so a `kind !== 'invalid'` check passes on either scheme and
+    // would not catch the mismatch this function exists to prevent.
+    it.each([
+        ['LOCAL', 'chatic-dev://channels/1/room'],
+        ['DEV', 'chatic-dev://channels/1/room'],
+        ['PROD', 'chatic://channels/1/room'],
+    ])('VITE_ENV=%s이면 warm-start 경로를 %s로 재조립한다', (env, expected) => {
+        Config.VITE_ENV = env;
+        const logger = { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn(), subscribe: jest.fn() };
+
+        resolveDeepLink('/channels/1/room', logger as never);
+
+        expect(logger.info).toHaveBeenCalledWith(
+            'DEEPLINK',
+            expect.any(String),
+            expect.objectContaining({ fullUrl: expected })
+        );
     });
 });
