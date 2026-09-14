@@ -1,6 +1,6 @@
 # libs rollout — test harness and doc canon
 
-> Status: WP-0 done, rest ready · Written: 2026-09-14 · Branch: `claude/libs-modules-prep-c5e594`
+> Status: WP-0 ＋ wave 1 done · Written: 2026-09-14 · Branch: `claude/libs-modules-prep-c5e594`
 >
 > Rules: [module-docs-template.md](../guides/module-docs-template.md) ·
 > Worked example: [`libs/data`](../../libs/data/README.md)
@@ -193,10 +193,10 @@ Each WP = one module, both lanes, one PR. Scope is `libs/<name>/**` and nothing 
 
 | WP       | Module                                                           | Harness      | Docs                           | Size |
 | -------- | ---------------------------------------------------------------- | ------------ | ------------------------------ | ---- |
-| WP-1     | `auth-sign`                                                      | wiring       | 384 lines → English            | S    |
-| WP-2     | `db`                                                             | wiring       | 486 lines → English            | M    |
-| WP-3     | `shared`                                                         | wiring       | stub → write from scratch      | M    |
-| WP-4     | `web-ui-kit`                                                     | wiring       | 319 lines → English            | M    |
+| WP-1     | `auth-sign` ✅                                                   | wiring       | 384 lines → English            | S    |
+| WP-2     | `db` ✅                                                          | wiring       | 486 lines → English            | M    |
+| WP-3     | `shared` ✅                                                      | wiring       | stub → write from scratch      | M    |
+| WP-4     | `web-ui-kit` ✅                                                  | wiring       | 319 lines → English            | M    |
 | WP-5     | `config`                                                         | 1 error      | 1,004 lines → English          | L    |
 | WP-6     | `logger`                                                         | 3 errors     | 1,774 lines → English          | L    |
 | ~~WP-7~~ | ~~`block-kit`~~                                                  | —            | — (out of scope)               | —    |
@@ -252,6 +252,37 @@ put something there instead of in `web-ui-kit`.
 **WP-13 is small but real.** `libs/data`'s README says `nx typecheck @chatic/data` runs "every
 dependency's own typecheck, which is not green today". That is no longer true — the target and its
 17 dependency tasks pass. The README also links into `docs/adr/` in four places.
+
+## Wave 1 — what it turned up
+
+Four modules, run in parallel from sub-worktrees of the integration branch, all merged 2026-09-14.
+The harness cost was 0 errors in every one, as measured. The docs were the work, and the reason the
+docs were the work is that most of them were wrong.
+
+- **`auth-sign`** — the old doc tracked 4 call sites of which 3 are gone, described a `web-core`
+  `calcSignature` shim that no longer exists, and planned work on `refreshAuthToken`, a function
+  since deleted. One consumer today.
+- **`db`** — most of its 406-line `architecture.md` was a migration work log. It also claimed
+  `clearByChannelId` had no production caller; `ChatLocalDataSource.ts:280` calls it.
+- **`web-ui-kit`** — `docs/avatar.md` proposed collapsing seven avatar components into one. That
+  work never happened, and two of its sections were headed "임시 — Live 전환 시 삭제".
+- **`shared`** — nothing to translate, so it was written from source.
+
+Three findings are bigger than their WP and need their own decision.
+
+| Finding                                                                                                                                                                         | Where             |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- |
+| 11 runtime exports have no reader anywhere — 626 of 2,077 non-test lines. `throwIfApiError` is byte-identical to `libs/http`'s, which is the copy every caller actually reaches | `libs/shared`     |
+| `*.stories.tsx` left the type-check graph so `web-ui-kit` and `web` could be gated. The 3 story errors still exist and are named in `verify.yml`                                | `libs/web-ui-kit` |
+| The failing `LemonHmacSigner` test asserts `typeof navigator === 'undefined'`. Node 22 ships a global `navigator`, so it is a stale assertion, not a regression                 | `libs/auth-sign`  |
+
+Smaller, recorded where found: `libs/db`'s barrel exports two of three `resetNative*` helpers;
+`libs/web-ui-kit`'s `tokens.css` has no consumer outside Storybook while `apps/web` re-declares the
+same custom properties by hand; `libs/ui-kit` has a committed `.tabs.tsx.swp`.
+
+### Gate after wave 1
+
+lint 26 projects · typecheck **21** (was 19 — `@chatic/web-ui-kit` and `web` joined) · test 15.
 
 ## Working in parallel
 
