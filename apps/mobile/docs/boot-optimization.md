@@ -1,6 +1,6 @@
 # 부팅 최적화 — 네이티브 웹뷰 조기 마운트 (Boot Optimization)
 
-> 상태: Live · 최종 갱신: 2026-07-23 · 관련 ADR: [ADR-0027](../../../docs/adr/0027-native-webview-early-mount-boot-optimization.md)
+> 상태: Live · 최종 갱신: 2026-07-23 · 관련 ADR: ADR-0027
 > 관련: [boot-metrics](./boot-metrics.md)(계측) · [webview](./webview.md) · [service](./service.md) · [deeplink](./deeplink.md)
 
 ## 목적
@@ -108,7 +108,7 @@ flowchart LR
 ## 상세 구현
 
 핵심 파일과 역할. 대안 비교·선택 이유는
-[ADR-0027](../../../docs/adr/0027-native-webview-early-mount-boot-optimization.md) 참조.
+ADR-0027 참조.
 
 ### 4.1 SafeAreaProvider `initialWindowMetrics`
 

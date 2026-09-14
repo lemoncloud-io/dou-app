@@ -1,10 +1,10 @@
 # home — 언리드 점 (비활성 플레이스 · 타 클라우드)
 
-> 상태: Live · 최종 갱신: 2026-08-14 · 관련 ADR: [ADR-0056](../../../../../docs/adr/0056-place-cloud-unread-dot-from-cache-and-push.md) (본체) · [ADR-0048](../../../../../docs/adr/0048-unread-count-derivation-contract.md) (unread 공식) · [ADR-0045](../../../../../docs/adr/0045-web-emoji-reaction-and-thread.md) (`'#'` relay 센티널)
+> 상태: Live · 최종 갱신: 2026-08-14 · 관련 ADR: ADR-0056 (본체) · ADR-0048 (unread 공식) · ADR-0045 (`'#'` relay 센티널)
 >
 > 대상: `apps/web/src/app/features/home` · `apps/web/src/app/hooks` · `apps/web/src/app/utils/countUnread.ts` · `libs/web-ui-kit/.../AppHeader.tsx` · `libs/app-messages`(브릿지 타입) · `apps/mobile`(iOS NSE · Android FCM 서비스 · 마크 브릿지)
 >
-> 참조: [cross-cloud-push.md](../../../../../docs/specs/cross-cloud-push.md) (desktop 선행 구현·페이로드) · [badge.md](../../../../../apps/mobile/docs/badge.md) (네이티브 뱃지 카운터) · [push.md](../../../../../apps/mobile/docs/push.md) (백그라운드 푸시가 웹에 닿지 않는 이유)
+> 참조: cross-cloud-push.md (desktop 선행 구현·페이로드) · [badge.md](../../../../../apps/mobile/docs/badge.md) (네이티브 뱃지 카운터) · [push.md](../../../../../apps/mobile/docs/push.md) (백그라운드 푸시가 웹에 닿지 않는 이유)
 
 ## 목적
 
@@ -53,7 +53,7 @@
 
 ### S2-b. 클라우드 활성 알림이 포그라운드로 도착한다 (Proposed · ADR-0075)
 
-> 상태: Proposed (미구현 — 아래 착수 조건 참고) · 관련 ADR: [[ADR-0075]](../../../../../docs/adr/0075-cloud-activated-notification-app-readiness.md)
+> 상태: Proposed (미구현 — 아래 착수 조건 참고) · 관련 ADR: [[ADR-0075]]
 
 클라우드 활성 알림(`type: 'cloud'`)도 `data.cid`를 싣고 온다 — **새로 만들어진 클라우드의 id다.**
 지금 판별기는 유효 `cid`면 바로 단축하므로, 이 푸시가 포그라운드로 오면 방금 만들어진 클라우드에

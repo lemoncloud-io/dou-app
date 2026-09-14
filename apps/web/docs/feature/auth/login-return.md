@@ -1,6 +1,6 @@
 # 로그인 후 원위치 복귀 (`returnTo` · replace 내비게이션)
 
-> 상태: Live · 최종 갱신: 2026-08-14 · 관련 ADR: [ADR-0055](../../../../../docs/adr/0055-web-code-block-home-sort-and-login-return.md) 결정 4 · [ADR-0042](../../../../../docs/adr/0042-account-linking-unified-path-migration.md) (계정 갈라짐 방어) · [ADR-0033](../../../../../docs/adr/0033-relay-dm-invite-and-auth-parallel-tracks.md) Track A (`applySessionToken`)
+> 상태: Live · 최종 갱신: 2026-08-14 · 관련 ADR: ADR-0055 결정 4 · ADR-0042 (계정 갈라짐 방어) · ADR-0033 Track A (`applySessionToken`)
 >
 > 대상: `apps/web/src/app/features/mypage/pages/LoginPage.tsx` + 진입점 5곳
 >

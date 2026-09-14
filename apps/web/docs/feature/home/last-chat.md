@@ -4,7 +4,7 @@
 >
 > **아래 "흐름"·"등록 범위"는 행 단위 `useLastChat` 시절의 서술이다.** ADR-0057이 이를 리스트 레벨
 > `useLastChats` + `chat.observeLastList` 하나로 대체했다 — 현재 구현의 정본은
-> [docs/specs/cache/last-chat-preview.md](../../../../../docs/specs/cache/last-chat-preview.md)다.
+> docs/specs/cache/last-chat-preview.md다.
 
 ## 배경
 

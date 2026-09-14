@@ -1,6 +1,6 @@
 # 초대 목록 로컬 캐시 (Invite Local Cache)
 
-> 상태: Live · 최종 갱신: 2026-09-02 · 관련 ADR: [ADR-0052](../../../../docs/adr/0052-invite-local-cache-and-native-table.md) (이 트랙), [ADR-0051](../../../../docs/adr/0051-cache-storage-routing-simplification.md) (스큐 게이트), [ADR-0043](../../../../docs/adr/0043-relay-invite-cancel-reject-adoption.md) (취소·거절 실 API), [ADR-0033](../../../../docs/adr/0033-relay-dm-invite-and-auth-parallel-tracks.md) (relay 고정)
+> 상태: Live · 최종 갱신: 2026-09-02 · 관련 ADR: ADR-0052 (이 트랙), ADR-0051 (스큐 게이트), ADR-0043 (취소·거절 실 API), ADR-0033 (relay 고정)
 
 > 최근 개정(2026-09-02): **원격 조회가 옵트인이 됐다.** 홈은 캐시만 그리고, 정기 갱신은
 > `useBackgroundSync`(채널·플레이스·프로필과 같은 레인)가 소유한다 — 아래 설계 원칙 1번과 §7 참고.

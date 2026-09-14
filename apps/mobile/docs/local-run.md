@@ -1,6 +1,6 @@
 # 로컬 실행 (Local Run)
 
-> 상태: **Live** · 최종 갱신: 2026-09-14 · 관련 ADR: [ADR-0084](../../../docs/adr/0084-app-local-run-and-shell-stage-vocabulary.md)
+> 상태: **Live** · 최종 갱신: 2026-09-14 · 관련 ADR: ADR-0084
 
 ## 목적
 
@@ -20,7 +20,7 @@ stage 값이 웹에서 통째로 무시되고 있던 것**이다. 둘 다 로컬
 
 1. **웹뷰 주소는 빌드 시점에 정해진다.** 런타임에 바꾸는 수단을 만들지 않는다 — 웹이 브릿지로 자기가
    로드될 주소를 바꿀 수 있게 되는 경로를 막기 위해 의도적으로 삭제된 기능이다
-   ([ADR-0080](../../../docs/adr/0080-debug-panel-shared-model-and-stage-visibility.md) 결정 13).
+   (ADR-0080 결정 13).
    주소를 바꾸려면 재빌드한다.
 2. **env 파일 세 개의 의미는 리포 전체에서 같다.** `.env`=로컬, `.env.dev`=dev 빌드,
    `.env.prod`=prod 빌드. web · desktop-web · admin-v2가 쓰는 규칙이고 mobile도 같다.
@@ -272,7 +272,7 @@ export const getAppScheme = (): string => (Config.VITE_ENV === 'PROD' ? 'chatic'
 | 모바일 ([`useDeviceTokenRegistration.ts`](../../web/src/app/bridge/useDeviceTokenRegistration.ts))                 | **아니다** — "deliberately NOT sent"            |
 | 데스크톱 ([`useDeviceTokenRegistration.ts`](../../desktop-web/src/app/shared/hooks/useDeviceTokenRegistration.ts)) | **그렇다** — `window.CHATIC_APP_STAGE`를 그대로 |
 
-그리고 브로커의 어휘는 `Env`가 아니다. [`cross-cloud-push.md`](../../../docs/specs/cross-cloud-push.md)가
+그리고 브로커의 어휘는 `Env`가 아니다. `cross-cloud-push.md`가
 SNS 플랫폼 앱을 `chatic-desktop-{dev,prod}` 둘로 못박는다 — **`-stage`는 존재하지 않는다.** 데스크톱을
 `'stage'`로 바꾸면 dev 채널 설치가 없는 앱에 등록되고 FCM이 전달을 멈춘다.
 

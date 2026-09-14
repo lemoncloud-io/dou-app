@@ -1,6 +1,6 @@
 # 플레이스 생성 · 그룹방 생성 (Place / Channel Create)
 
-> 상태: Live · 최종 갱신: 2026-07-20 · 관련 ADR: [0018](../../../../../docs/adr/0018-place-channel-create-web-ui-kit-rebuild.md)
+> 상태: Live · 최종 갱신: 2026-07-20 · 관련 ADR: 0018
 
 ## 목적
 

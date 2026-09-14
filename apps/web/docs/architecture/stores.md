@@ -1,7 +1,7 @@
 # 전역 설정 (구 preference)
 
 > 대상: `apps/web/src/app/stores`, `apps/web/src/app/config`, `apps/web/src/app/hooks`
-> 정본: [`@chatic/config` 아키텍처 문서](../../../../libs/config/docs/architecture.md) (ADR-0079/0080)
+> 정본: [`@chatic/config` 아키텍처 문서](../../../../libs/config/README.md) (ADR-0079/0080)
 
 영구 앱 상태는 더 이상 `usePreferenceStore` 하나로 통합되지 않는다 — `@chatic/config`의 레지스트리
 키(`ui.*`)로 옮겨갔다. 이 문서는 `@chatic/config`가 이미 설명하는 레인·정책을 반복하지 않고,

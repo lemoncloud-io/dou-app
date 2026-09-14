@@ -151,7 +151,7 @@ made the two symmetric. The HTTP axis did not change by a single character.
 V1 had been gone for a long time while the whole data layer still carried `V2`, in directory names and
 identifiers alike — and `libs/app-runtime` already used the V2-free names, so the boundary between the
 two forced an import alias. Removing the suffix closed that split
-([ADR-0081](../../../../docs/adr/0081-libs-data-doc-canon-and-layer-flattening.md) decisions 4 and 5).
+(ADR-0081 decisions 4 and 5).
 
 | Before                                             | Now                                            |
 | -------------------------------------------------- | ---------------------------------------------- |

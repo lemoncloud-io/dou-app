@@ -19,19 +19,19 @@ Chatic 앱의 **런타임 단일 창구**입니다. 세션(토큰·선택 상태
 
 소켓 인증 수명주기는 SDK(`@lemoncloud/chatic-sockets-lib`)의 `ClientSocketAuth`가 소유합니다.
 app-runtime은 부팅 시 토큰을 `register`하고 상태를 구독만 하며, **refresh 엔드포인트를 직접 치는
-코드는 이 리포에 없습니다** — 자세한 소유 경계는 [docs/socket/auth/README.md](docs/socket/auth/README.md).
+코드는 이 리포에 없습니다** — 자세한 소유 경계는 docs/socket/auth/README.md.
 
 ---
 
 ## 사용 방법 (How to Use)
 
 먼저 엔트리(`main.tsx`)에서 런타임을 **부팅**합니다. render 전에 한 번, 앱의 로깅 배선 뒤에,
-세션을 읽는 어떤 코드보다 앞에 옵니다 — 자세한 순서 계약은 [docs/architecture.md §부팅](docs/architecture.md).
+세션을 읽는 어떤 코드보다 앞에 옵니다 — 자세한 순서 계약은 docs/architecture.md §부팅.
 
 이 패키지가 공개하는 이름은 **`runtime` 하나**이고, 그 아래 그룹 7개(`boot` · `session` ·
 `connection` · `data` · `sync` · `push` · `report`)가 표면 전부입니다. 그룹은 폴더가 아니라
 "무엇을 하려는가"로 묶여 있으므로, 내부 구조를 몰라도 하려는 일로 찾아갈 수 있습니다
-([docs/public-surface.md](docs/public-surface.md)).
+(docs/public-surface.md).
 
 ```ts
 import { runtime } from '@chatic/app-runtime';
@@ -60,7 +60,7 @@ export const App = () => {
 };
 ```
 
-조립 구조·마운트 순서는 [docs/runtime/session-lifecycle.md](docs/runtime/session-lifecycle.md)를 참조하세요.
+조립 구조·마운트 순서는 docs/runtime/session-lifecycle.md를 참조하세요.
 
 ---
 
@@ -115,7 +115,7 @@ const ConnectionStatusBadge = () => {
 - `runtime.push`: `useDeviceTokenRegistration(delegate)` · `useRegisterDeviceTokenMutation`
 - `runtime.report`: `reportIssue` · `uploadLogBatch`
 
-전체 목록·비공개 항목은 [docs/public-surface.md](docs/public-surface.md).
+전체 목록·비공개 항목은 docs/public-surface.md.
 
 ---
 
@@ -123,11 +123,11 @@ const ConnectionStatusBadge = () => {
 
 내부 구현·도메인 사양은 `docs/` 폴더를 참조하십시오.
 
-- **[전체 아키텍처 개요](docs/architecture.md)** — 5축 소유 규칙, 스코프 세 뷰, 모듈 구조
-- **[공개 인터페이스 리스트](docs/public-surface.md)** — 노출 훅/컴포넌트/타입
-- **[세션 허브](docs/session/architecture.md)** — store·auth·scope·hooks, refresh 소유, `ActiveScope`
-- **[소켓 도메인](docs/socket/README.md)** — 듀얼 슬롯·active-facade·bootstrap·switch/logout
-- **[인증(SDK ClientSocketAuth)](docs/socket/auth/README.md)** — 소유 경계·상태 머신·서명/writeback
-- **[런타임 바인딩](docs/runtime/README.md)** — `RuntimeSocketSlots` 파생·바인더 역할
-- **[데이터 런타임 및 캐싱](docs/data/README.md)** — 레포지토리 조립·캐시 정책
-- **[Sync 도메인](docs/socket/sync/README.md)** — `SyncManager`·plan·target 등록
+- **전체 아키텍처 개요** — 5축 소유 규칙, 스코프 세 뷰, 모듈 구조
+- **공개 인터페이스 리스트** — 노출 훅/컴포넌트/타입
+- **세션 허브** — store·auth·scope·hooks, refresh 소유, `ActiveScope`
+- **소켓 도메인** — 듀얼 슬롯·active-facade·bootstrap·switch/logout
+- **인증(SDK ClientSocketAuth)** — 소유 경계·상태 머신·서명/writeback
+- **런타임 바인딩** — `RuntimeSocketSlots` 파생·바인더 역할
+- **데이터 런타임 및 캐싱** — 레포지토리 조립·캐시 정책
+- **Sync 도메인** — `SyncManager`·plan·target 등록

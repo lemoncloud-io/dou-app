@@ -1,7 +1,7 @@
 # 구독 tier와 클라우드 한도
 
-> 상태: Live · 최종 갱신: 2026-09-10 · 관련 ADR: [ADR-0060](../../../../../docs/adr/0060-subscription-tier-quota-from-server.md) ·
-> [ADR-0082](../../../../../docs/adr/0082-admin-membership-console-and-app-override-parity.md)
+> 상태: Live · 최종 갱신: 2026-09-10 · 관련 ADR: ADR-0060 ·
+> ADR-0082
 >
 > 같은 피처의 다른 문서: [README.md](./README.md) (피처 개요)
 
@@ -29,7 +29,7 @@ tier 서열·인접 / 구독 상태 5종 / 초과 클라우드 — 을 순수 �
    release 실행은 사용자가 기존 계정 관리 경로에서 직접 한다.
 6. **도메인 지식은 `features/subscription` 안에만 산다.** 다른 피처는 판정을 복제하지 않고
    `stores/useAddCloudRequest`라는 얇은 seam으로 흐름을 요청만 한다
-   ([ADR-0046](../../../../../docs/adr/0046-web-feature-ownership-and-barrel-hygiene.md) §3).
+   (ADR-0046 §3).
 
 ## 범위
 
@@ -492,7 +492,7 @@ ADR-0060 §6대로 `SubscriptionSelectDialog`와 `subscription-select/*`를 `fea
 - _home이 subscription 배럴을 import_ — ADR-0046 §3 위반이고, 배럴이 `SubscriptionRoutes`(전 페이지)를
   재수출하므로 홈 청크가 구독 페이지 전부를 끌고 온다.
 - _home에서 `/subscription/plans`로 navigate_ — import는 사라지지만
-  [ADR-0034](../../../../../docs/adr/0034-relay-home-cloud-sheet-and-cloud-guide-redesign.md)가 정한
+  ADR-0034가 정한
   "홈·시트는 안내를 건너뛰고 바로 구매 시트"를 뒤집는다.
 - _다이얼로그를 `ui/components`로 승격_ — `ui/`가 구독 도메인을 알게 된다(ADR-0046 §1-1이 배제).
 

@@ -1,6 +1,6 @@
 # 레이아웃 셸 · 플로팅 하단 네비게이션
 
-> 상태: Live · 최종 갱신: 2026-08-20 · 관련 ADR: [ADR-0011](../../../../docs/adr/0011-web-layout-shell-and-floating-bottom-nav.md)
+> 상태: Live · 최종 갱신: 2026-08-20 · 관련 ADR: ADR-0011
 >
 > 대상: `apps/web/src/app/ui/layouts/UnifiedLayout.tsx`, `apps/web/src/app/ui/components/BottomNavigation.tsx`, `libs/web-ui-kit` `composites/navigation`, `apps/web/src/styles.css`(`--app-width`), `libs/ui-kit` `components/ui/{dialog,alert-dialog,sheet}.tsx`
 

@@ -1,6 +1,6 @@
 # Kind-scoped 소켓 라우팅 — 목적지 선택형 요청 (relay / cloud / active)
 
-> 상태: Live · 최종 갱신: 2026-09-07 · 관련 ADR: [[ADR-0027]](../../../../docs/adr/0027-device-push-mute-setting.md) · [[ADR-0075]](../../../../docs/adr/0075-cloud-activated-notification-app-readiness.md)
+> 상태: Live · 최종 갱신: 2026-09-07 · 관련 ADR: [[ADR-0027]] · [[ADR-0075]]
 
 ## 목적
 
@@ -11,7 +11,7 @@
 첫 사례는 **디바이스 전역 푸시 음소거**(`device.update-remote`) — 설정 소유처가 relay 뒤의
 `chatic-pushes-api`라서, 클라우드가 켜져 있어도 **relay 소켓으로만** 요청해야 한다.
 
-두 번째 사례는 **클라우드 활성 알림 구독**(`cloud.activated`, [[ADR-0075]](../../../../docs/adr/0075-cloud-activated-notification-app-readiness.md)) —
+두 번째 사례는 **클라우드 활성 알림 구독**(`cloud.activated`, [[ADR-0075]]) —
 서버가 이 unicast를 중계서버 배포에서 `targetType: 'user'`로 보내므로, 클라우드가 켜져 있어도
 **relay 소켓에서만** 도착한다. 첫 사례가 요청(outbound)이었다면 이쪽은 구독(inbound)이다.
 
@@ -50,13 +50,13 @@ cloud-specific 같은 케이스가 반복될 것이므로, 도메인마다 배�
 - 라이브러리 업그레이드: `chatic-sockets-lib@0.4.8`, `chatic-sockets-api@0.26.704`.
 - **(2026-09-07 추가)** 코어: `SocketManager.onSlotType(kind, type, listener)` — kind 고정 push 구독.
   매니저 소유 + 그 슬롯의 재바인드에 반응. `ScopedSocketClient`에 `onType`으로도 노출.
-- **(2026-09-07 추가)** 두 번째 소비자: `cloud.activated` relay 고정 구독([[ADR-0075]](../../../../docs/adr/0075-cloud-activated-notification-app-readiness.md)).
+- **(2026-09-07 추가)** 두 번째 소비자: `cloud.activated` relay 고정 구독([[ADR-0075]]).
 
 **제외**
 
 - 서버 `muted` 읽기 경로(read-remote). 초기 상태는 web에서 기본 ON 가정.
 - device gateway의 `save`/`read`/`sync` 목적지 변경 — 뷰잉/프레즌스는 계속 active.
-- per-channel 알림(notify, [[ADR-0025]](../../../../docs/adr/0025-channel-notification-mute-toggle.md)).
+- per-channel 알림(notify, [[ADR-0025]]).
 - muted가 push fanout에 반영되는 것은 `chatic-pushes-api` 책임(프론트 밖).
 
 ## 시나리오

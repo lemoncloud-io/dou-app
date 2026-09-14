@@ -1,6 +1,6 @@
 # 초대클라우드 durability — 푸시 복구 · 이름 동기화
 
-> 상태: Live · 최종 갱신: 2026-08-14 · 관련 ADR: [ADR-0030](../../../../docs/adr/0030-app-runtime-cold-db-migration-and-invite-cloud-recovery.md) · [ADR-0053](../../../../docs/adr/0053-per-domain-cache-contract-versions.md)
+> 상태: Live · 최종 갱신: 2026-08-14 · 관련 ADR: ADR-0030 · ADR-0053
 >
 > 캐시 타입이 **어느 저장소로 가는지**(web/IndexedDB vs native/SQLite)는 이 문서가 아니라
 > [cache-storage-routing.md](cache-storage-routing.md)가 소유한다. 이 문서는 그 라우팅 위에서

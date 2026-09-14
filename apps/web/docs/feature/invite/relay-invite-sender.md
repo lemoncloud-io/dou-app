@@ -1,11 +1,11 @@
 # Relay 1:1 초대 — 발신자 흐름 (Contact Invite Sender)
 
-> 상태: Live · 최종 갱신: 2026-09-02 · 관련 ADR: [ADR-0068](../../../../../docs/adr/0068-dm-peer-departure-and-reinvite.md) (재초대·24시간), [ADR-0052](../../../../../docs/adr/0052-invite-local-cache-and-native-table.md) (로컬 캐시·네이티브 테이블), [ADR-0043](../../../../../docs/adr/0043-relay-invite-cancel-reject-adoption.md) (취소·거절 실 API 전환), [ADR-0041](../../../../../docs/adr/0041-place-profile-as-invite-precondition.md) (프로필 전제조건), [ADR-0034](../../../../../docs/adr/0034-inviter-phone-verification-guest-gate-and-sheet.md) (게스트 게이트), [ADR-0033](../../../../../docs/adr/0033-relay-dm-invite-and-auth-parallel-tracks.md) · 로드맵: [relay-dm-invite-parallel-roadmap.md](../../../../../docs/plans/relay-dm-invite-parallel-roadmap.md) (Track B)
+> 상태: Live · 최종 갱신: 2026-09-02 · 관련 ADR: ADR-0068 (재초대·24시간), ADR-0052 (로컬 캐시·네이티브 테이블), ADR-0043 (취소·거절 실 API 전환), ADR-0041 (프로필 전제조건), ADR-0034 (게스트 게이트), ADR-0033 · 로드맵: relay-dm-invite-parallel-roadmap.md (Track B)
 >
 > 최근 개정(2026-09-02): 홈의 목록 신선도 책임이 `useRelayInvites`(마운트·포커스 조회)에서
 > `useBackgroundSync`(채널·플레이스·프로필과 같은 레인)로 넘어갔다 — 아래 설계 원칙 "목록 신선도"
 > 항목 참고. 화면 동작은 그대로고, 줄어든 것은 `invite.list` 패킷 수다.
-> 이전 개정(2026-08-25, [ADR-0068](../../../../../docs/adr/0068-dm-peer-departure-and-reinvite.md)):
+> 이전 개정(2026-08-25, ADR-0068):
 > 발급에 두 필드가 붙었다. **`expiresDays: 1`을 뮤테이션에서 기본값으로 얹어** 이 앱이 발급하는
 > 모든 링크가 24시간을 산다(서버 기본은 3일). 그리고 **`channelId`** 를 실을 수 있게 되어, 1:1 방에서
 > 오는 재초대는 새 방을 만들지 않고 기존 방으로 상대를 다시 들여보낸다 — 그 진입은
@@ -75,7 +75,7 @@
   있으면(`ChatRoomHeader`, `DateDivider`, `MessageInput`, `StatusBadge`, `TextField`,
   `BottomSheet`, `useInviteCountdown`) 새로 만들지 않는다.
 - **발급은 메인유저만 한다.** 게스트는 폼에 도달하지 않고 인증 유도 화면에서 끊긴다
-  ([ADR-0034](../../../../../docs/adr/0034-inviter-phone-verification-guest-gate-and-sheet.md) — 상세는
+  (ADR-0034 — 상세는
   [phone-verification.md](../auth/phone-verification.md)). 클라 게이트는 UX이고 서버 403이 계약이라
   폴백 경로를 항상 남긴다.
 - **발급은 이름이 있는 사람만 한다 — 게이트가 아니라 전제조건이다**(ADR-0041). 플레이스 프로필이

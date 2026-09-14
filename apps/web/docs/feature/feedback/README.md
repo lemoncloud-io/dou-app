@@ -1,6 +1,6 @@
 # feedback
 
-> 상태: Live · 최종 갱신: 2026-08-11 · 관련 ADR: [ADR-0047](../../../../../docs/adr/0047-feedback-page-replaces-issue-report-floating-widget.md) (화면 전환) · [ADR-0049](../../../../../docs/adr/0049-feedback-photo-attachment-inline-base64.md) (사진 첨부) · [ADR-0017](../../../../../docs/adr/0017-issue-report-floating-widget.md) (Superseded)
+> 상태: Live · 최종 갱신: 2026-08-11 · 관련 ADR: ADR-0047 (화면 전환) · ADR-0049 (사진 첨부) · ADR-0017 (Superseded)
 >
 > 대상: `apps/web/src/app/features/feedback` — 이전 `features/issue-report`(플로팅 위젯)를 대체한다.
 
@@ -23,7 +23,7 @@
 - `/mypage/feedback` 전용 화면: 헤드카피 + 안내 불릿 + 제목(TextField) + 본문(Textarea) + 하단 플로팅 `제출하기`.
 - 마이페이지 정책 카드 최상단 `피드백 보내기` 진입 행. 게스트도 접근 가능.
 - 전송 시 로그 50개 + 디바이스/버전/온라인/뷰포트/경로 + **최근 방문 경로 트레일** 자동 첨부.
-- **사진 첨부 최대 5장** — 브라우저에서 base64 JPEG으로 축소해 payload에 실어 전송([ADR-0049](../../../../../docs/adr/0049-feedback-photo-attachment-inline-base64.md)).
+- **사진 첨부 최대 5장** — 브라우저에서 base64 JPEG으로 축소해 payload에 실어 전송(ADR-0049).
 - admin-v2 리포트 상세에서 첨부 사진 조회.
 - web-ui-kit `Textarea` · `PhotoAttachField` foundation.
 - `FloatingTabBar` 디자인 갱신(Figma 3293-40098).
@@ -159,7 +159,7 @@ apps/web/src/app/features/feedback/
 - **[pages/FeedbackPage.tsx](../../../src/app/features/feedback/pages/FeedbackPage.tsx)** — [ProfileEditPage.tsx](../../../src/app/features/mypage/pages/ProfileEditPage.tsx)와 같은 스캐폴드: `KeyboardAwareLayout className="fixed inset-0 overflow-hidden"` + `header={<PageHeader title />}` + `footer={<FloatingButton />}`. 본문은 헤드카피(20px semibold, `leading-[1.35] tracking-[-0.1px]`, `whitespace-pre-line`으로 i18n의 `\n` 3줄 처리) → 안내 불릿(`list-disc`, `text-description`) → `TextField`(제목, 필수) → `Textarea`(본문, 필수) → `PhotoAttachField`(사진, 선택) 순. 상태는 controlled `useState` 3개뿐이라 `react-hook-form`을 쓰지 않는다. 제출 성공 후 입력값을 리셋하지 않는다 — 화면이 언마운트되므로, 먼저 비우면 전환 애니메이션 동안 빈 폼이 깜빡인다. 사진 인코딩(`scaleImageToDataUrl`)·5장 한도·초과 토스트는 전부 이 페이지가 관리한다: DS 필드는 고른 파일을 그대로 되돌려줄 뿐이라, 왜 거절됐는지 사용자에게 말해줄 수 있는 쪽이 정책을 갖는다.
 - **[libs/shared/.../resizeImage.ts](../../../../../libs/shared/src/utils/resizeImage.ts)** — `scaleImageToDataUrl(file, { maxEdge, quality })`. 비율을 유지한 축소이며 업스케일하지 않는다. 같은 파일의 `resizeImageToBase64`는 150px **정사각 center-crop**이라 아바타 전용이다 — 화면 캡처에 쓰면 대부분을 잘라내 진단 가치가 사라진다.
 - **[libs/web-ui-kit/.../PhotoAttachField.tsx](../../../../../libs/web-ui-kit/src/foundations/input/PhotoAttachField.tsx)** — 점선 드롭존(h144 · radius24 · `#DFE0E2`) + 88px 썸네일 스트립(radius10 · `border-placeholder`, 16px 삭제 배지 `bg-input-border`). 순수 표현 컴포넌트다: `File[]`을 그대로 돌려주고 `value`를 그리기만 하므로, 인코딩 방식·크기 예산·한도 초과 처리 같은 **페이로드 정책이 디자인 시스템에 새지 않는다**. `max`에 도달하면 드롭존을 감춘다.
-- **[libs/web-core/.../common.ts](../../../../../libs/web-core/src/api/common.ts)** — `reportIssue`가 `extras`를 payload에 펼치고, **첨부가 있을 때만 `silent: true`** 로 보낸다. payload는 `body.message`에 실려 그대로 Slack 메시지 텍스트가 되는데 base64 한 장이면 Slack 상한(~40k자)을 넘기 때문이다. `SlackReportBody.meta`로 분리하는 쪽을 먼저 구현했지만 **백엔드가 클라이언트 `meta`를 저장하지 않아** 사진이 유실됐고(2026-08-11 실측), 저장되는 필드가 `message`뿐이라 알림을 포기하는 쪽으로 돌아섰다([ADR-0049](../../../../../docs/adr/0049-feedback-photo-attachment-inline-base64.md)). 첨부가 있으면 장수·payload KB를 로그로 남겨, 크기 상한에 걸렸을 때 숫자가 함께 남는다.
+- **[libs/web-core/.../common.ts](../../../../../libs/web-core/src/api/common.ts)** — `reportIssue`가 `extras`를 payload에 펼치고, **첨부가 있을 때만 `silent: true`** 로 보낸다. payload는 `body.message`에 실려 그대로 Slack 메시지 텍스트가 되는데 base64 한 장이면 Slack 상한(~40k자)을 넘기 때문이다. `SlackReportBody.meta`로 분리하는 쪽을 먼저 구현했지만 **백엔드가 클라이언트 `meta`를 저장하지 않아** 사진이 유실됐고(2026-08-11 실측), 저장되는 필드가 `message`뿐이라 알림을 포기하는 쪽으로 돌아섰다(ADR-0049). 첨부가 있으면 장수·payload KB를 로그로 남겨, 크기 상한에 걸렸을 때 숫자가 함께 남는다.
 - **[admin-v2 parseReportLog.ts](../../../../admin-v2/src/app/features/report-logs/lib/parseReportLog.ts)** — 저장 레코드에서 첨부를 찾아 `row.images`로 올린다. payload `images`(현행 경로) → 래퍼 `meta.images` → 레코드 `meta.images` → 최상위 순으로 탐색하고(뒤쪽 `meta` 지점은 잠깐 배포됐던 meta 빌드와, 백엔드가 나중에 meta를 저장할 경우 대비), `data:image/…`·`http(s)://`만 통과시킨다. **[ReportDetailDrawer.tsx](../../../../admin-v2/src/app/features/report-logs/components/ReportDetailDrawer.tsx)** 는 이를 썸네일 그리드로 그리고(클릭 시 새 탭 원본), Raw 블록에서는 base64를 마커로 치환한다 — 안 그러면 raw가 수 MB 텍스트가 된다. 첨부 섹션은 payload 파싱 실패와 무관하게 보이도록 `payload &&` 밖에 둔다.
 - **[lib/buildReportContext.ts](../../../src/app/features/feedback/lib/buildReportContext.ts)** — `{ device, version, online, viewport, path, routeTrail }`을 반환하는 순수 함수. **로그는 담지 않는다(2026-08-21)** — 리포트 첨부가 폐지되고 로그는 배치 업로더가 낱건으로 올리므로, 제보 당시 로그는 같은 `runId`로 이미 서버에 있다. `deviceToken`(FCM/APNS 푸시 크리덴셜)과 `deviceId`/`installId`/`firebaseInstallationId`는 `pickDeviceFields`가 걸러낸다: 리포트는 공유 채널에 떨어지므로 capability 토큰을 실으면 안 된다. `app/utils` 배럴이 아니라 `routeTrail`/`viewport` 파일을 **직접 경로로** import 한다 — 배럴은 `import.meta`를 쓰는 모듈까지 끌고 와 CommonJS 테스트 트랜스폼이 파싱하지 못한다(architecture/directory-structure.md §6).
 - **[app/utils/routeTrail.ts](../../../src/app/utils/routeTrail.ts)** — 모듈 레벨 링버퍼(`ROUTE_TRAIL_SIZE = 10`). `recordRoute(path)`(빈 경로·직전과 동일한 경로는 무시), `getRouteTrail()`(복사본 반환 — 호출부가 버퍼를 오염시키지 못하게), `resetRouteTrail()`(테스트용). React 밖 순수 모듈. **호출부는 `pathname`만 넘긴다** — 트레일은 공용 Slack 채널로 나가는데 이 앱은 쿼리스트링에 capability 토큰을 싣는다(`/invite/accept?…`, `/s?…`). 경로 세그먼트는 리포트가 이미 담고 있는 리소스 id지만 쿼리스트링은 크리덴셜이다. 이 계약은 `routeTrail.test.ts`가 못박는다.
@@ -188,7 +188,7 @@ apps/web/src/app/ui/components/ReportIssueDialog.tsx   # 실사용처 0이던 �
 apps/web/src/app/ui/components/RequiredLabel.tsx       # 위 다이얼로그 전용이라 함께 참조 0
 ```
 
-`ui/components/index.ts`의 두 export 라인도 함께 지웠다([ADR-0046](../../../../../docs/adr/0046-web-feature-ownership-and-barrel-hygiene.md) 배럴 위생).
+`ui/components/index.ts`의 두 export 라인도 함께 지웠다(ADR-0046 배럴 위생).
 
 ### i18n 키
 

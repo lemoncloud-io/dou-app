@@ -1,10 +1,10 @@
 # App Runtime Architecture
 
 > 상태: **Live** · 최종 갱신: 2026-09-07
-> 관련 ADR: [ADR-0076](../../../docs/adr/0076-app-runtime-auth-single-verdict-and-typed-session-events.md)
+> 관련 ADR: ADR-0076
 > (인증 단일 판정 · 세션 시그널 타입화 · 자격증명 renewer) ·
-> [ADR-0070](../../../docs/adr/0070-app-runtime-session-hub.md) (세션 허브 · HTTP 대칭 · 엔진 분리) ·
-> [ADR-0036](../../../docs/adr/0036-data-surface-unification-app-runtime-cleanup.md) (repository 단일 표면)
+> ADR-0070 (세션 허브 · HTTP 대칭 · 엔진 분리) ·
+> ADR-0036 (repository 단일 표면)
 >
 > ADR-0070이 세운 엔진 4축 위에 ADR-0076가 **"상태를 어떻게 읽는가"** 를 얹은 결과다. §범위가 무엇이
 > 계승됐고 무엇이 이 라운드에 더해졌는지 한 표로 정리한다.
@@ -343,7 +343,7 @@ SDK가 소유(app-runtime 비책임): 토큰 획득/갱신 타이밍·만료 ref
   `CredentialStalenessPort`로 들어온다. 이것이 `session`·`data`·`http`가 서로를 가리키던 매듭을 푼
   지점이다 — 문서화된 단방향 엣지 하나가 순환 대신 남는다.
 
-실행기·retry/bypass·에러 분류의 구현은 [`@chatic/http`](../../http/docs/architecture.md) 소관이다.
+실행기·retry/bypass·에러 분류의 구현은 [`@chatic/http`](../../http/README.md) 소관이다.
 
 > **cloud route는 없다 (2026-09-02).** 클라우드 backend는 여전히 목적지다 — `exchange-token`과 초대
 > 조회가 위임 토큰이 알려준 host로 간다 — 하지만 그 요청들은 `baseURL`로 목적지를 싣고 **relay 서명**을

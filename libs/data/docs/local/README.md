@@ -149,7 +149,7 @@ storage carries that request out.
 ### Three paths for a channel-scoped delete
 
 `clearByChannelId` does the same job a different way per adapter
-([ADR-0067](../../../../docs/adr/0067-rejoin-hides-prior-messages.md)).
+(ADR-0067).
 
 | Adapter                    | How                                                                                                                             |
 | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |

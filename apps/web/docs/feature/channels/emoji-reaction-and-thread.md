@@ -1,6 +1,6 @@
 # 이모지 리액션과 스레드 (apps/web)
 
-> 상태: Live · 최종 갱신: 2026-08-07 · 관련 ADR: [ADR-0047](../../../../../docs/adr/0047-web-reaction-and-thread-refinements.md) (후속 다듬기) · [ADR-0045](../../../../../docs/adr/0045-web-emoji-reaction-and-thread.md) (도입) · 선행: [ADR-0008](../../../../../docs/adr/0008-threads-client-derived-from-parentid.md) · [ADR-0046](../../../../../docs/adr/0046-web-feature-ownership-and-barrel-hygiene.md) (소유권·배럴)
+> 상태: Live · 최종 갱신: 2026-08-07 · 관련 ADR: ADR-0047 (후속 다듬기) · ADR-0045 (도입) · 선행: ADR-0008 · ADR-0046 (소유권·배럴)
 >
 > 외부 계약 원본: `chatic-sockets-api` `docs/specs/chat-emoji-reaction/` (01-spec.md · 05-client-guide.md)
 

@@ -1,6 +1,6 @@
 # 앱 업데이트 안내 (App Update Check)
 
-> 상태: Live · 최종 갱신: 2026-07-29 · 관련 ADR: [ADR-0033](../../../docs/adr/0033-app-update-check-ios-first.md)
+> 상태: Live · 최종 갱신: 2026-07-29 · 관련 ADR: ADR-0033
 
 ## 목적
 
@@ -95,8 +95,8 @@ flowchart LR
 ### 1. app-messages 계약 (`libs/app-messages/src/types/`)
 
 - **새 파일 `model/app-update.ts`** — `model/update.ts`는 이미 Electron 데스크톱 auto-update(electron-updater) 페이로드가 사용 중이므로 별도 파일로 분리.
-  - `CheckAppUpdatePayload = {}` (요청), `OnCheckAppUpdatePayload = { platform: 'ios' | 'android'; currentVersion: string; latestVersion: string; updateAvailable: boolean; storeUrl: string; forceUpdate?: boolean }` (응답)
-  - `OpenStorePayload = {}`, `OnOpenStorePayload = {}`
+    - `CheckAppUpdatePayload = {}` (요청), `OnCheckAppUpdatePayload = { platform: 'ios' | 'android'; currentVersion: string; latestVersion: string; updateAvailable: boolean; storeUrl: string; forceUpdate?: boolean }` (응답)
+    - `OpenStorePayload = {}`, `OnOpenStorePayload = {}`
 - `model/index.ts`에 `export * from './app-update';` 추가.
 - `web-message.ts` `WebMessagePayloadMap`에 `CheckAppUpdate`, `OpenStore` 추가("10. App Update (mobile)" 섹션).
 - `app-message.ts` `AppMessageDataMap`에 `OnCheckAppUpdate`, `OnOpenStore` 추가.
@@ -110,11 +110,11 @@ flowchart LR
 
 - `types.ts` — `IVersionService`, `AppUpdateCheckResult`(=`OnCheckAppUpdatePayload`), `AppUpdatePlatform`(`'ios' | 'android'`).
 - `VersionService.ts` — 생성자 DI(`logService`).
-  - `getCurrentVersion()`: `DeviceInfo.getVersion()`.
-  - `getLatestVersion(platform)`: iOS = iTunes lookup(`https://itunes.apple.com/lookup?bundleId=io.chatic.dou` → `results[0].version`), Android = `null` 반환 (백엔드 준비 후 교체 지점).
-  - `checkForUpdate()`: 조회+비교 → `AppUpdateCheckResult`. **성공한(라이브 버전을 얻은) 조회만** 인스턴스에 캐시 — Android/네트워크 실패 등 `null` 응답은 캐시하지 않아 다음 호출이 재시도한다.
-  - `openStore()`: `getStoreUrl(Platform.OS)`(`@chatic/shared`) + `Linking.openURL`.
-  - `parseVersion`/`isNewerVersion` — 기존 `useAppVersionCheck.ts`에서 이관된 플랫폼 무관 순수 함수, 모듈 레벨로 export.
+    - `getCurrentVersion()`: `DeviceInfo.getVersion()`.
+    - `getLatestVersion(platform)`: iOS = iTunes lookup(`https://itunes.apple.com/lookup?bundleId=io.chatic.dou` → `results[0].version`), Android = `null` 반환 (백엔드 준비 후 교체 지점).
+    - `checkForUpdate()`: 조회+비교 → `AppUpdateCheckResult`. **성공한(라이브 버전을 얻은) 조회만** 인스턴스에 캐시 — Android/네트워크 실패 등 `null` 응답은 캐시하지 않아 다음 호출이 재시도한다.
+    - `openStore()`: `getStoreUrl(Platform.OS)`(`@chatic/shared`) + `Linking.openURL`.
+    - `parseVersion`/`isNewerVersion` — 기존 `useAppVersionCheck.ts`에서 이관된 플랫폼 무관 순수 함수, 모듈 레벨로 export.
 - `provider.ts`에 lazy getter(`versionService`) + `services/index.ts`에서 export.
 - `LogTag`에 `'VERSION'` 태그 추가(`services/log/types.ts`).
 
@@ -148,8 +148,8 @@ flowchart LR
 ## 검증 방법
 
 - **유닛 테스트** (`*.test.ts(x)` 컨벤션):
-  - mobile: `services/version/VersionService.test.ts`(parseVersion/isNewerVersion, checkForUpdate 성공/동일버전/HTTP실패/네트워크예외/캐시/Android, openStore), `hooks/useAppVersionCheck.test.ts`(마운트 조회, 캐시/리스너, checkOnMount=false, showUpdateAlert), `webview/hooks/useAppUpdateHandler.test.ts`(성공/실패 응답 매핑).
-  - web: `bridge/appBridge.test.ts`(checkAppUpdate/openStore 호출), `stores/usePreferenceStore.test.ts`(dismissUpdate persist), `features/appUpdate/hooks/useAppUpdatePrompt.test.ts`(비네이티브 skip, 노출/미노출 조건, 실패 시 무시, foreground 재조회, dismiss/goToStore), `features/appUpdate/components/UpdatePromptDialog.test.tsx`(렌더·버튼 클릭).
+    - mobile: `services/version/VersionService.test.ts`(parseVersion/isNewerVersion, checkForUpdate 성공/동일버전/HTTP실패/네트워크예외/캐시/Android, openStore), `hooks/useAppVersionCheck.test.ts`(마운트 조회, 캐시/리스너, checkOnMount=false, showUpdateAlert), `webview/hooks/useAppUpdateHandler.test.ts`(성공/실패 응답 매핑).
+    - web: `bridge/appBridge.test.ts`(checkAppUpdate/openStore 호출), `stores/usePreferenceStore.test.ts`(dismissUpdate persist), `features/appUpdate/hooks/useAppUpdatePrompt.test.ts`(비네이티브 skip, 노출/미노출 조건, 실패 시 무시, foreground 재조회, dismiss/goToStore), `features/appUpdate/components/UpdatePromptDialog.test.tsx`(렌더·버튼 클릭).
 - **typecheck**: `nx typecheck app-messages`, `nx typecheck mobile`, `nx typecheck web` — 전부 통과(이 worktree에 기존재하던 무관한 실패 3건은 네이티브 모듈/타입 누락으로 이번 변경과 무관).
 - **mobile 전체 테스트**: `nx test mobile` — 143개 통과. 별도 3개 스위트(`useUploadHandler`, `customZipService`, `useDeepLinkNavigation`)는 이 worktree의 사전 존재 이슈(react-native-image-picker/react-native-zip-archive/react-navigation ESM 트랜스폼 미설정)로 실행 자체가 실패하며, 이번 변경과 무관.
 - **web 전체 테스트**: `nx test web` — 609개 통과, typecheck 포함 회귀 없음.

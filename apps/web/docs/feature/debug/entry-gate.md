@@ -1,6 +1,6 @@
 # 디버그 오버레이 진입 게이트
 
-> 상태: Live · 최종 갱신: 2026-08-04 · 관련 ADR: [ADR-0034](../../../../../docs/adr/0034-debug-overlay-entry-code-gate.md)
+> 상태: Live · 최종 갱신: 2026-08-04 · 관련 ADR: ADR-0034
 
 > 대상: `apps/web/src/app/features/debug` 의 언락 경로. 오버레이 자체의 구조·도구 목록은 [README](./README.md) 참고.
 
@@ -13,7 +13,7 @@
 ## 설계 원칙
 
 1. **Fail-closed.** 코드가 주입되지 않았으면 게이트 전체가 죽는다. 설정 누락이 조용히 문을 여는 경로를 만들지 않는다.
-2. **비밀은 소스에 두지 않는다.** 이 리포는 OSS 미러로 공개된다([ADR-0005](../../../../../docs/adr/0005-desktop-published-as-oss-mirror-chatic-app.md)). 코드 값은 환경변수로만 들어온다.
+2. **비밀은 소스에 두지 않는다.** 이 리포는 OSS 미러로 공개된다(ADR-0005). 코드 값은 환경변수로만 들어온다.
 3. **제스처는 은닉, 코드는 검증.** 둘은 역할이 다르다. 제스처는 진입 경로의 존재를 숨기고, 코드는 진입 자격을 묻는다. 하나가 뚫려도 다른 하나가 남는다.
 4. **`import.meta`는 테스트되는 모듈에 넣지 않는다.** ts-jest는 CommonJS로 변환하므로 `import.meta`가 들어간 파일은 유닛 테스트에서 컴파일되지 않는다 — 간접적으로도 걸린다: `useDebugUnlock.test.ts`가 `useDebugMode.ts`를 통해 실제 `appBridge` 체인을 로드하자 `libs/web-core`의 `webTransport.ts`가 읽는 `import.meta.env`에서 파싱이 깨졌다(브릿지를 목으로 대체해 해결). 판정 로직은 순수 함수로 두고 env 읽기는 테스트 없는 호출부에 둔다.
 5. **언락은 세션 스코프.** 디버그 모드는 남아 있으면 안 되는 상태다. 탭이 닫히면 사라진다.

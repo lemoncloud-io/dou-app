@@ -49,7 +49,7 @@ repository observe + sync 등록 모델을 따른다([architecture/data-flow.md]
 ## 미구현(의도적 부재)
 
 - **UI만 있고 미연동** — 알림 설정(토글 로컬 상태), 멤버 프로필의 `신고`·`친구 설정`(인라인 리스트 행, 토스트만).
-  백엔드 뮤테이션이 없어 표시/행만 둔다([channel-settings-ui.md](./channel-settings-ui.md), [ADR-0023](../../../../../docs/adr/0023-channel-detail-dialogs-figma-redesign.md)).
+  백엔드 뮤테이션이 없어 표시/행만 둔다([channel-settings-ui.md](./channel-settings-ui.md), ADR-0023).
 - **연동됨** — 초대받은 멤버의 **개인 방 이름**(`join.update` nick, "나에게만 표시")과 멤버 추방(kick,
-  `leaveChannel({channelId, userId})`, 소유자만)은 실제 연동([channel-settings-ui.md](./channel-settings-ui.md), [ADR-0023](../../../../../docs/adr/0023-channel-detail-dialogs-figma-redesign.md)).
+  `leaveChannel({channelId, userId})`, 소유자만)은 실제 연동([channel-settings-ui.md](./channel-settings-ui.md), ADR-0023).
 - **범위 밖** — 타 멤버 별명 편집(`친구 설정` 보류), 멤버 차단, 방 생성 사진 업로드. 필요해지면 재도입한다.

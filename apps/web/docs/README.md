@@ -70,4 +70,4 @@
 
 - [`libs/app-runtime/docs`](../../../libs/app-runtime/docs/README.md) — 세션 허브 · runtime · socket · http · data
 - [`libs/data/docs`](../../../libs/data/docs) — repository · local/remote data source
-- [`libs/logger/docs`](../../../libs/logger/docs/architecture.md) — 통합 로깅
+- [`libs/logger/docs`](../../../libs/logger/README.md) — 통합 로깅

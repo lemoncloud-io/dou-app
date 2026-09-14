@@ -1,6 +1,6 @@
 # 캐시 저장소 라우팅 (Cache Storage Routing)
 
-> 상태: Live · 최종 갱신: 2026-08-14 · 관련 ADR: [ADR-0051](../../../../docs/adr/0051-cache-storage-routing-simplification.md) · [ADR-0053](../../../../docs/adr/0053-per-domain-cache-contract-versions.md)
+> 상태: Live · 최종 갱신: 2026-08-14 · 관련 ADR: ADR-0051 · ADR-0053
 >
 > "설치된 앱이 이 도메인을 저장할 수 있는가"라는 판정 하나는 이 문서가 아니라
 > [cache-contract-versions.md](cache-contract-versions.md)가 소유한다. 이 문서는 그 답을 포함한

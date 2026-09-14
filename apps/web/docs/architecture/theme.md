@@ -1,7 +1,7 @@
 # 테마
 
 > 대상: `apps/web/src/app/hooks/useTheme.ts` · `runtime/ThemeApplier.tsx` · `config/legacyPreferenceMigration.ts`
-> 계약 소유: 값 모델·기본값·저장 포맷·웹↔네이티브 동기화는 [apps/mobile/docs/theme.md](../../../mobile/docs/theme.md)가 소유한다. 이 문서는 웹 내부 상세만 다룬다. 저장·레인 메커니즘 자체의 정본은 [`@chatic/config` 아키텍처 문서](../../../../libs/config/docs/architecture.md)와 [stores.md](./stores.md).
+> 계약 소유: 값 모델·기본값·저장 포맷·웹↔네이티브 동기화는 [apps/mobile/docs/theme.md](../../../mobile/docs/theme.md)가 소유한다. 이 문서는 웹 내부 상세만 다룬다. 저장·레인 메커니즘 자체의 정본은 [`@chatic/config` 아키텍처 문서](../../../../libs/config/README.md)와 [stores.md](./stores.md).
 
 web의 테마는 `@chatic/config`의 `ui.theme` 레지스트리 키다(2026-09-09 이관, 구 `usePreferenceStore` 폐기). 공용 `@chatic/theme`(ThemeProvider)는 더 이상 web에서 쓰지 않는다 — admin/desktop-web/landing 전용으로 남아 있다.
 

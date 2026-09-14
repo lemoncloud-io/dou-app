@@ -3,8 +3,8 @@
 > 대상: `libs/logger`(`@chatic/logger`) · `libs/bridges/src/logger`(`@chatic/bridges`) · `apps/web/src/main.tsx` · `apps/web/src/app/runtime/webLogPersistence.ts`
 >
 > **통합 로깅 전체(모바일 재배선·지연 리포트·감지 확장 포함)의 정본은
-> [libs/logger/docs/architecture.md](../../../../libs/logger/docs/architecture.md)다.**
-> 이 문서는 apps/web 관점의 배선만 요약한다. 결정 배경은 [ADR-0047](../../../../docs/adr/0047-unified-logging-core-and-report-traceability.md).
+> [libs/logger/README.md](../../../../libs/logger/README.md)다.**
+> 이 문서는 apps/web 관점의 배선만 요약한다. 결정 배경은 ADR-0047.
 
 앱 전역 로깅은 `logger.{debug,info,warn,error}(tag, message, data)` 한 API로 통일돼 있다. 호출부는 환경(웹/네이티브)을 몰라도 되고, 로그를 **어디로 흘려보낼지는 구독자(sink)가 결정**한다 — pub/sub 구조다. ADR-0047 이후 모바일도 같은 코어를 쓰므로, `LogEntry` 계약은 웹·네이티브·wire 전 구간에서 하나다.
 
@@ -85,7 +85,7 @@ interface LogEntry {
 
 ## 관련
 
-- 통합 아키텍처 정본: [libs/logger/docs/architecture.md](../../../../libs/logger/docs/architecture.md)
+- 통합 아키텍처 정본: [libs/logger/README.md](../../../../libs/logger/README.md)
 - 브릿지 메시지 규약은 [bridge](./bridge.md).
 - 디버그 오버레이·`LogBufferScreen`은 [debug feature](../feature/debug/README.md).
-- 에러 리포트 경로 상세는 [docs/guides/trace-report.md](../../../../docs/guides/trace-report.md).
+- 에러 리포트 경로 상세는 docs/guides/trace-report.md.

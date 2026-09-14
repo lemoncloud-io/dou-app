@@ -1,6 +1,6 @@
 # 플레이스 프로필 미설정 유도
 
-> 상태: Live · 최종 갱신: 2026-08-03 · 관련 ADR: [0040](../../../../../docs/adr/0040-self-chat-title-and-profile-setup-nudge.md) (현행), [0039](../../../../../docs/adr/0039-dm-display-name-chain-and-invite-profile-release.md) (프로필 강제 해제), [0012](../../../../../docs/adr/0012-place-profile-creation.md) (원 생성 플로우)
+> 상태: Live · 최종 갱신: 2026-08-03 · 관련 ADR: 0040 (현행), 0039 (프로필 강제 해제), 0012 (원 생성 플로우)
 
 ## 목적
 
@@ -217,7 +217,7 @@ const memberName = needsProfileSetup
 
 `98a4685ff`가 지운 66줄 파일을 되살렸다. 시그니처는
 `{ open, placeName, onDone, onExit, exit? }` —
-[공유 계약](../../../../../docs/plans/place-profile-create-shared-contract.md) §1이 정본이며
+공유 계약 §1이 정본이며
 초대 경로(ADR-0041)가 같은 컴포넌트를 소비한다.
 
 - **`dismissible`은 노출하지 않는다.** 두 소비처 모두 강제로 쓰지 않기로 했다.

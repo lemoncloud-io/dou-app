@@ -1,6 +1,6 @@
 # mypage
 
-> 상태: Live · 최종 갱신: 2026-09-07 · 관련 ADR: [ADR-0011](../../../../../docs/adr/0011-web-layout-shell-and-floating-bottom-nav.md)
+> 상태: Live · 최종 갱신: 2026-09-07 · 관련 ADR: ADR-0011
 >
 > 최근 개정(2026-09-07): 허브의 게스트 판정이 **계정(relay) 스코프**로 바뀌었다 — 클라우드 접속
 > 중에 로그인한 사용자에게 "로그인 필요" 카드가 뜨던 문제. 아래 [상태 분기](#상태-분기) 참고.
@@ -29,7 +29,7 @@
 
 ## 허브 depth 분리
 
-허브는 Figma(node `3293-39607` MY 루트 / `4472-75227` 설정 목록) 기준으로 **두 depth**다. 계획 문서: [docs/plans/mypage-depth-split.md](../../../../../docs/plans/mypage-depth-split.md).
+허브는 Figma(node `3293-39607` MY 루트 / `4472-75227` 설정 목록) 기준으로 **두 depth**다. 계획 문서: docs/plans/mypage-depth-split.md.
 
 - **`/mypage`(탭)** — 정체성만: 프로필 카드 + 구독 정보 + 클라우드 정보. 헤더는 좌측 "MY" 타이틀 + 우측 기어(`IconSettings`).
 - **`/mypage/settings`(depth)** — 기기·앱 설정 전부. `UnifiedLayout`의 `BOTTOM_NAV_PATHS`가 `/mypage` 정확 일치라 이 depth에는 플로팅 네비가 없다(추가 설정 불필요).

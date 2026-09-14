@@ -1,6 +1,6 @@
 # 1:1 채팅 (DM Chat)
 
-> 상태: Live · 최종 갱신: 2026-08-25 · 관련 ADR: [ADR-0068](../../../../../docs/adr/0068-dm-peer-departure-and-reinvite.md) (상대 부재·재초대) · [ADR-0039](../../../../../docs/adr/0039-dm-display-name-chain-and-invite-profile-release.md) (이름 체인) · [ADR-0032](../../../../../docs/adr/0032-dm-chat-room-screen.md)(Superseded) · 전제: [ADR-0067](../../../../../docs/adr/0067-rejoin-hides-prior-messages.md) (재입장 표시 게이트)
+> 상태: Live · 최종 갱신: 2026-08-25 · 관련 ADR: ADR-0068 (상대 부재·재초대) · ADR-0039 (이름 체인) · ADR-0032(Superseded) · 전제: ADR-0067 (재입장 표시 게이트)
 
 ## 목적
 

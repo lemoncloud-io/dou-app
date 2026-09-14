@@ -1,6 +1,6 @@
 # app-runtime 세션 허브 — store · auth · scope · hooks
 
-> 상태: Live · 최종 갱신: 2026-09-02 · 관련 ADR: [ADR-0070](../../../../docs/adr/0070-app-runtime-session-hub.md) (결정 1·2·7)
+> 상태: Live · 최종 갱신: 2026-09-02 · 관련 ADR: ADR-0070 (결정 1·2·7)
 
 ## 목적
 
@@ -9,7 +9,7 @@
 `ClientSocketAuth`만 소유하며, 스코프의 소유자는 `session/scope/ActiveScope` 하나다.
 
 이 문서는 그 네 폴더가 지금 무엇을 소유하고 어떤 방향으로만 흐르는지를 정의한다. **왜 그렇게
-됐는지**(대안·근거·이관 경위)는 [ADR-0070](../../../../docs/adr/0070-app-runtime-session-hub.md)이
+됐는지**(대안·근거·이관 경위)는 ADR-0070이
 소유한다.
 
 ## 설계 원칙
@@ -399,4 +399,4 @@ cloud refresh 400 시 relay 재발급 → cloud 재교환 → 1회 재시도하�
 - [../public-surface.md](../public-surface.md) — 세션 허브가 배럴로 내는 것
 - [../socket/auth/README.md](../socket/auth/README.md) · [signing.md](../socket/auth/signing.md) — SDK 소유 경계·서명 계약
 - [../runtime/README.md](../runtime/README.md) — `RuntimeSocketSlots`의 소켓 슬롯 파생
-- [`libs/http/docs/architecture.md`](../../../http/docs/architecture.md) — HTTP 실행기·정책
+- [`libs/http/README.md`](../../../http/README.md) — HTTP 실행기·정책

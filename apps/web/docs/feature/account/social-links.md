@@ -1,6 +1,6 @@
 # 마이페이지 계정 연동 (번호 · 소셜)
 
-> 상태: Live · 최종 갱신: 2026-08-03 · 관련 ADR: [ADR-0033](../../../../../docs/adr/0033-relay-dm-invite-and-auth-parallel-tracks.md) 결정 7 · [ADR-0042](../../../../../docs/adr/0042-account-linking-unified-path-migration.md) · 로드맵: [relay-dm-invite-parallel-roadmap.md#track-d--소셜-관리](../../../../../docs/plans/relay-dm-invite-parallel-roadmap.md)
+> 상태: Live · 최종 갱신: 2026-08-03 · 관련 ADR: ADR-0033 결정 7 · ADR-0042 · 로드맵: relay-dm-invite-parallel-roadmap.md#track-d--소셜-관리
 >
 > 대상: `apps/web/src/app/features/mypage`(`AccountInfoPage`의 `AccountLinkSection` + `useSocialLinks`)
 >

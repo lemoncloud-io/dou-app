@@ -1,6 +1,6 @@
 # 디렉터리·프로젝트 구조
 
-> 상태: Live · 최종 갱신: 2026-08-06 · 관련 ADR: [0046](../../../../docs/adr/0046-web-feature-ownership-and-barrel-hygiene.md)
+> 상태: Live · 최종 갱신: 2026-08-06 · 관련 ADR: 0046
 >
 > 대상: `apps/web/src` · 참조 구현: `apps/testbed`
 >

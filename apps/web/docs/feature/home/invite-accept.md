@@ -1,6 +1,6 @@
 # 초대 수락 (Invite Accept)
 
-> 상태: Live · 최종 갱신: 2026-07-30 · 관련 ADR: [0037](../../../../../docs/adr/0037-invite-accept-popup-group-and-dm-variants.md), [0016](../../../../../docs/adr/0016-invite-accept-popup-web-ui-kit.md)
+> 상태: Live · 최종 갱신: 2026-07-30 · 관련 ADR: 0037, 0016
 >
 > relay 1:1 오케스트레이션은 별도 문서: [relay-invite-accept](../invite/relay-invite-accept.md)
 

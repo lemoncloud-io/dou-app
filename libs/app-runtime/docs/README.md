@@ -29,7 +29,7 @@
 
 `http/`는 별도 폴더 문서를 두지 않는다 — app-runtime 쪽 조립 규칙은
 [architecture.md §HttpManager](./architecture.md#4-httpmanager-http)가, 실행기·서명·정책의 구현은
-[`libs/http/docs/architecture.md`](../../http/docs/architecture.md)가 소유한다.
+[`libs/http/README.md`](../../http/README.md)가 소유한다.
 
 ## 문서 규칙
 
@@ -40,4 +40,4 @@
   plan 패밀리는 [sync/library-internals.md](./socket/sync/library-internals.md), 게이트웨이 타입은
   [sync/gateway-reference.md](./socket/sync/gateway-reference.md).
 - **결정의 근거는 ADR이 소유한다.** 이 폴더는 "지금 어떻게 되어 있는가"만 쓴다. 왜 그렇게 됐는지는
-  [ADR-0070](../../../docs/adr/0070-app-runtime-session-hub.md)을 링크한다.
+  ADR-0070을 링크한다.

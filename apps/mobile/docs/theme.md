@@ -1,6 +1,6 @@
 # 테마 (Theme) — 라이트 기본과 웹↔네이티브 동기화
 
-> 상태: Live · 최종 갱신: 2026-08-03 · 관련 ADR: [ADR-0054](../../../docs/adr/0054-theme-light-default-and-web-native-sync.md)
+> 상태: Live · 최종 갱신: 2026-08-03 · 관련 ADR: ADR-0054
 > 관련: [webview](./webview.md)(브릿지 메시지 표) · [boot-optimization](./boot-optimization.md)(부팅 경로) · [apps/web 테마](../../web/docs/architecture/theme.md)(웹 국소 상세)
 
 **문서 소유 범위:** 이 문서가 **웹↔네이티브 테마 계약과 부팅 경로 전체**를 소유한다. `apps/web/docs/architecture/theme.md`는 웹 내부의 상태·DOM 적용 상세만 다루고 계약은 이 문서를 참조한다. 값 모델·기본값·저장 포맷을 바꿀 때는 이 문서를 먼저 고친다.

@@ -1,6 +1,6 @@
 # 그룹 채널 설정 화면 (ChannelSettingsPage)
 
-> 상태: Live · 최종 갱신: 2026-07-20 · 관련 ADR: [ADR-0025](../../../../../docs/adr/0025-channel-notification-mute-toggle.md) (알림 토글 데이터 연동), [ADR-0019](../../../../../docs/adr/0019-group-channel-settings-section-layout.md) (부분 Supersedes [ADR-0015](../../../../../docs/adr/0015-channel-settings-ui-refresh.md))
+> 상태: Live · 최종 갱신: 2026-07-20 · 관련 ADR: ADR-0025 (알림 토글 데이터 연동), ADR-0019 (부분 Supersedes ADR-0015)
 
 ## 목적
 
@@ -41,7 +41,7 @@
 3. 대화방 알림 = 단순 on/off 인라인 토글. `join.update` notify(`all`/`none`)로 서버에 영속화 (ADR-0025).
 4. 방 이름 행 탭 → 소유자=편집 다이얼로그 / 멤버=읽기전용 방 정보.
 
-**제외** (근거: [ADR-0019](../../../../../docs/adr/0019-group-channel-settings-section-layout.md), [ADR-0025](../../../../../docs/adr/0025-channel-notification-mute-toggle.md))
+**제외** (근거: ADR-0019, ADR-0025)
 
 - "초대 거절" 뱃지·상태 (백엔드 미지원 — pending과 구분 불가).
 - 알림 `notify = 'mention'` 3단계 — 모바일 토글은 켬/끔 이진(`all`/`none`)만 노출.

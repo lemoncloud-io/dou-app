@@ -4,7 +4,7 @@
 
 네이티브 셸(모바일 WebView, Electron)로 실행 중일 때 푸시 디바이스 토큰을 홈 브로커(`reg-dev`)에 등록하는 공용 lifecycle 훅을 정의한다. 브로커에 등록된 토큰으로 중앙 pushes-api가 **모든 클라우드**의 메시지를 이 디바이스로 팬아웃한다 — 라이브 WebSocket이 커버하지 못하는 경로(소켓은 현재 접속한 클라우드만 본다)를 보완한다.
 
-정책의 정본은 [`docs/specs/push-device-registration.md`](../../../../docs/specs/push-device-registration.md)와 [ADR-0077](../../../../docs/adr/0077-register-push-device-once-per-install.md)이다. 이 문서는 lib 표면과 소유 경계만 다룬다.
+정책의 정본은 `docs/specs/push-device-registration.md`와 ADR-0077이다. 이 문서는 lib 표면과 소유 경계만 다룬다.
 
 ## 공개 표면
 
@@ -114,4 +114,4 @@ useDeviceTokenRegistration(delegate);
 - 등록 기록: `libs/app-runtime/src/push/registrationRecord.ts`
 - apps/web 어댑터: `apps/web/src/app/bridge/useDeviceTokenRegistration.ts`
 - apps/desktop-web 어댑터: `apps/desktop-web/src/app/shared/hooks/useDeviceTokenRegistration.ts`
-- 수신 이후 경로(배지·토스트·cid 역추적)와 운영 인시던트 기록: [`docs/specs/cross-cloud-push.md`](../../../../docs/specs/cross-cloud-push.md)
+- 수신 이후 경로(배지·토스트·cid 역추적)와 운영 인시던트 기록: `docs/specs/cross-cloud-push.md`

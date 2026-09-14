@@ -1,6 +1,6 @@
 # 채팅방 UI (Chat Room UI)
 
-> 상태: Live · 최종 갱신: 2026-07-20 · 관련 ADR: [[ADR-0010]](../../../../../docs/adr/0010-chat-screen-webuikit-rebuild.md), [[ADR-0021]](../../../../../docs/adr/0021-channel-room-figma-refinement.md), [[ADR-0024]](../../../../../docs/adr/0024-group-chat-room-figma-redesign.md)
+> 상태: Live · 최종 갱신: 2026-07-20 · 관련 ADR: [[ADR-0010]], [[ADR-0021]], [[ADR-0024]]
 
 ## 목적
 

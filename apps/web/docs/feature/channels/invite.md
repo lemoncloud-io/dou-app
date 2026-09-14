@@ -1,8 +1,8 @@
 # 채널 초대 화면 (Channel Invite Page)
 
 > 상태: Live · 최종 갱신: 2026-09-07
-> · 관련 ADR: [ADR-0022](../../../../../docs/adr/0022-channel-invite-page-web-ui-kit.md)(페이지 전환·연락처 초대) ·
-> [ADR-0075](../../../../../docs/adr/0075-web-channel-member-add-from-place.md)(플레이스 탭 — 이번 개정)
+> · 관련 ADR: ADR-0022(페이지 전환·연락처 초대) ·
+> ADR-0075(플레이스 탭 — 이번 개정)
 
 ## 목적
 

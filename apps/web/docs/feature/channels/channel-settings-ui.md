@@ -1,6 +1,6 @@
 # 채널 상세 다이얼로그 (Channel Detail Dialogs)
 
-> 상태: Live · 최종 갱신: 2026-07-20 · 관련 ADR: [ADR-0023](../../../../../docs/adr/0023-channel-detail-dialogs-figma-redesign.md) (Supersedes 다이얼로그 부분 [ADR-0015](../../../../../docs/adr/0015-channel-settings-ui-refresh.md))
+> 상태: Live · 최종 갱신: 2026-07-20 · 관련 ADR: ADR-0023 (Supersedes 다이얼로그 부분 ADR-0015)
 
 ## 목적
 
@@ -18,7 +18,7 @@
 
 - **프레젠테이션은 web-ui-kit 프리미티브로 조립**한다 — 방 정보/프로필 다이얼로그의 상단바·아바타·입력·리스트·CTA는
   `ModalTopBar`/`ProfileAvatar`/`TextField`/`ListRow`/`FloatingButton`(이미 존재)으로 구성한다. hex·아이콘을 화면에
-  직접 박지 않는다. 누락 프리미티브만 라이브러리에 신규 정의한다(불필요한 신규 지양). [ADR-0020](../../../../../docs/adr/0020-place-profile-edit-dialog.md)의 `PlaceProfileFormDialog`가 참조 패턴이다.
+  직접 박지 않는다. 누락 프리미티브만 라이브러리에 신규 정의한다(불필요한 신규 지양). ADR-0020의 `PlaceProfileFormDialog`가 참조 패턴이다.
 - **역할 분기는 기존 파생을 재사용**한다 — 신규 판별 로직을 만들지 않는다:
     - 뷰어가 소유자: `channel.isOwner` (`ownerId === myUid`) — [useChannel.ts:11-15](../../../src/app/features/channels/hooks/useChannel.ts)
     - 대상 멤버가 나: `memberId === userId`
@@ -107,7 +107,7 @@ flowchart LR
 
 ## 상세 구현
 
-핵심 파일과 역할. 대안 비교·선택 이유는 [ADR-0023](../../../../../docs/adr/0023-channel-detail-dialogs-figma-redesign.md).
+핵심 파일과 역할. 대안 비교·선택 이유는 ADR-0023.
 
 - **`UpdateChannelDialog`** ([components/UpdateChannelDialog.tsx](../../../src/app/features/channels/components/UpdateChannelDialog.tsx)) —
   `readOnly` prop을 **제거**하고 관측한 `channel.isOwner`에서 모드를 파생한다(페이지는 mode prop을 넘기지 않음).

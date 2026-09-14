@@ -28,7 +28,7 @@ GlobalBridgeListener (앱 전역 마운트)
 ```
 
 - 진입점: [`GlobalBridgeListener.tsx`](../../../src/app/bridge/GlobalBridgeListener.tsx) → [`useDeviceTokenRegistration.ts`](../../../src/app/bridge/useDeviceTokenRegistration.ts) — 이 파일은 토큰 취득 방법과 platform만 주입하는 어댑터다.
-- 등록 정책 전부: `libs/app-runtime/src/push/` → [push-device-registration.md](../../../../../docs/specs/push-device-registration.md).
+- 등록 정책 전부: `libs/app-runtime/src/push/` → push-device-registration.md.
 - API: `POST /users/0/reg-dev` (`libs/http/src/gateways/users.ts`, `registerDevice`).
 
 ## 요청/응답 계약

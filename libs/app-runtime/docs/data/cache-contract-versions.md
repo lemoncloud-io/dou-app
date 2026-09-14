@@ -1,6 +1,6 @@
 # 캐시 도메인 계약 버전 (Cache Domain Contract Versions)
 
-> 상태: Live · 최종 갱신: 2026-08-14 · 관련 ADR: [ADR-0053](../../../../docs/adr/0053-per-domain-cache-contract-versions.md)
+> 상태: Live · 최종 갱신: 2026-08-14 · 관련 ADR: ADR-0053
 >
 > 캐시 타입이 **어느 저장소로 가는지**(web/IndexedDB vs native/SQLite)는
 > [cache-storage-routing.md](cache-storage-routing.md)가 소유한다. 이 문서는 그 라우팅이 던지는
@@ -18,7 +18,7 @@
 
 이전 설계는 서로 다른 세 메커니즘(동결 집합 · 타입 이름 목록 · 전역 SQLite 스키마 번호)의 조합이었고,
 "도메인을 껐다가 다시 켜면 첫 버전에 머문 사용자에게 오판이 난다"는 결함이 있었다. 원인 분석과
-대안 비교는 [ADR-0053](../../../../docs/adr/0053-per-domain-cache-contract-versions.md)에 있다.
+대안 비교는 ADR-0053에 있다.
 
 ## 설계 원칙
 
@@ -63,7 +63,7 @@
 [invite-cloud-durability.md](invite-cloud-durability.md). 저장소를 옮기면 행이 채워지지 않고 사라진다.
 그래서 이 도메인은 `REQUIRED_DOMAIN_VERSION`에 **타입 레벨로** 등장할 수 없게 막는다(아래 상세 구현).
 
-`invite`는 [ADR-0052](../../../../docs/adr/0052-invite-local-cache-and-native-table.md)가
+`invite`는 ADR-0052가
 stale-while-revalidate로 못박아 `invite.list`가 항상 재검증하므로 위쪽이다. `meta`는 sync cursor라
 잃어도 전체 재동기화 1회 비용으로 끝난다.
 
@@ -329,7 +329,7 @@ export const CACHE_DOMAIN_CONTRACTS: Record<CacheType, { version: number; sinceU
   `cacheDomainVersions`만 생략한다. 회귀가 아니라 현행 유지로 떨어지는 것이 가장 보수적이다.
 
 보고되는 `supportedCacheTypes`가 실측 맵의 키로 바뀌는 것(위 브릿지 배선 절)은
-[ADR-0053](../../../../docs/adr/0053-per-domain-cache-contract-versions.md) 결정 7의 "목록에서 빼지
+ADR-0053 결정 7의 "목록에서 빼지
 마라"와 충돌하지 않는다 — 금지 대상은 **정책 레버로서의 제거**이고, 여기서 빠지는 것은 앱이 실제로
 그 테이블을 못 가진 경우뿐이다. [CacheCrudService.ts](../../../../apps/mobile/src/app/services/cache/CacheCrudService.ts)의
 정적 `SUPPORTED_CACHE_TYPES`는 "switch 암을 데이터로 적은 선언"으로 남고, 계약 맵과 키가 일치하는지
@@ -380,7 +380,7 @@ export const isNativeCacheTypeUsable = (type: CacheType): boolean => appVersion(
 
 ### 이관 다리는 더 이상 없다
 
-[ADR-0030](../../../../docs/adr/0030-app-runtime-cold-db-migration-and-invite-cloud-recovery.md)의
+ADR-0030의
 웹→네이티브 일회성 이관 다리(`migrateInvitedCloudsIntoNativeStore` · `useInvitedCloudMigration` ·
 `createWebInviteCloudStorage`)는 제거됐다 — 상세는
 [invite-cloud-durability.md](invite-cloud-durability.md).

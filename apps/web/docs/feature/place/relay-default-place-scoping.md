@@ -1,6 +1,6 @@
 # 기본플레이스 relay 스코핑과 플레이스 생성·수정 경로
 
-> 상태: Live · 최종 갱신: 2026-08-10 · 관련 ADR: [0045](../../../../../docs/adr/0045-relay-default-place-scoping-profile-step-and-avatar-unification.md) (결정 1~5; 결정 6은 [web-ui-kit README](../../../../../libs/web-ui-kit/README.md))
+> 상태: Live · 최종 갱신: 2026-08-10 · 관련 ADR: 0045 (결정 1~5; 결정 6은 [web-ui-kit README](../../../../../libs/web-ui-kit/README.md))
 
 ## 목적
 
@@ -254,7 +254,7 @@ ADR이 열어둔 "마이그레이션성 삭제냐 목록 필터냐"는 **재조�
   구현되어 있으며, [PlaceProfileFormDialog](../../../src/app/features/home/components/PlaceProfileFormDialog.tsx)는
   `Omit<…, 'container'>`라 이미 통과 가능하다. 좁히고 있는 것은
   [PlaceProfileCreateDialog.tsx:8-22](../../../src/app/features/home/components/PlaceProfileCreateDialog.tsx)
-  한 겹뿐이므로 prop을 추가해 내려보낸다. 공유 계약 문서([place-profile-create-shared-contract](../../../../../docs/plans/place-profile-create-shared-contract.md))의
+  한 겹뿐이므로 prop을 추가해 내려보낸다. 공유 계약 문서(place-profile-create-shared-contract)의
   "필요해지면 그때 넣는다"가 지금이다.
 - **`useCreatePlaceFlow`**: `CreatePlaceDialog`(기존 open 상태 이관) +
   `onCreated` 시 `PlaceProfileCreateDialog`를 `dismissible={false}`, `exit` 미전달, `onDone`에서
@@ -270,7 +270,7 @@ ADR이 열어둔 "마이그레이션성 삭제냐 목록 필터냐"는 **재조�
 
 ### 6) `useMyUser` relay 고정 (ADR 결정 5) — ❌ 되돌림 (2026-08-06)
 
-> **후속 (2026-08-19, [ADR-0062](../../../../../docs/adr/0062-relay-fixed-account-profile-in-mypage.md)):**
+> **후속 (2026-08-19, ADR-0062):**
 > relay 고정이 **다시 채택됐다.** 단, 이 절이 되돌린 방식(데이터 레이어 라우팅 + 저장소 캐시)이 아니라
 > **relay 토큰을 직접 소스로 쓰는 앱 레벨 방식**이다 — `getRelaySessionUser`가 부활했고, 쓰기는
 > `getScopedClient('relay')` 위의 게이트웨이가 담당하고 응답을 토큰에 되쓴다. 저장소·캐시는 관여하지 않는다.

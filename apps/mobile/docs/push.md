@@ -202,7 +202,7 @@ sequenceDiagram
 
 ## 클라우드 활성 알림
 
-> 상태: Live · 최종 갱신: 2026-09-07 · 관련 ADR: [[ADR-0075]](../../../docs/adr/0075-cloud-activated-notification-app-readiness.md)
+> 상태: Live · 최종 갱신: 2026-09-07 · 관련 ADR: [[ADR-0075]]
 
 클라우드가 처음 활성이 되면 서버가 소유자에게 알림 한 건을 보낸다. 접속 중이면 웹소켓
 (`cloud.activated`, 웹이 처리), 아니면 **푸시**다. 푸시 쪽 규격은 이렇다.

@@ -1,6 +1,6 @@
 # 중계 1:1 초대 수락 (Relay Invite Accept) — 수신자 흐름
 
-> 상태: Live · 최종 갱신: 2026-08-04 · 관련 ADR: [0043](../../../../../docs/adr/0043-relay-invite-cancel-reject-adoption.md) (취소·거절 실 API 전환), [0041](../../../../../docs/adr/0041-place-profile-as-invite-precondition.md) (프로필 전제조건), [0037](../../../../../docs/adr/0037-invite-accept-popup-group-and-dm-variants.md), [0035](../../../../../docs/adr/0035-relay-invite-accepted-channel-resolution.md), [0033](../../../../../docs/adr/0033-relay-dm-invite-and-auth-parallel-tracks.md), [0016](../../../../../docs/adr/0016-invite-accept-popup-web-ui-kit.md), [0020](../../../../../docs/adr/0020-place-profile-edit-dialog.md)
+> 상태: Live · 최종 갱신: 2026-08-04 · 관련 ADR: 0043 (취소·거절 실 API 전환), 0041 (프로필 전제조건), 0037, 0035, 0033, 0016, 0020
 >
 > 최근 개정(2026-08-04): ADR-0043 — 백엔드 요청 1번(`invite.cancel` + `canceled`)·2번(`invite.reject`
 >
@@ -8,11 +8,11 @@
 >   (Figma 3446-17487) → 실 `invite.reject`**로 바뀌었고, 진입 케이스에 `canceled`(Figma 3079-12304
 >   부활)·`rejected`가 분리됐다. 스텝 오케스트레이션·프로필 전제조건·채널 해소 3단은 변경 없음.
 >
-> 로드맵 Track C: [relay-dm-invite-parallel-roadmap.md](../../../../../docs/plans/relay-dm-invite-parallel-roadmap.md) · 백엔드 계약: `chatic-sockets-api/docs/specs/relay-server-invite/05-client-guide.md` §시나리오 B·C
+> 로드맵 Track C: relay-dm-invite-parallel-roadmap.md · 백엔드 계약: `chatic-sockets-api/docs/specs/relay-server-invite/05-client-guide.md` §시나리오 B·C
 >
 > **알려진 드리프트:** 아래 파일 경로 다수가 "팝업 → 페이지" 전환(수신 코드가 `features/home/` →
 > `features/invite/accept/`로 이동, `InviteDialog` → `RelayInviteAccept`) 이전을 가리킨다. 그 전환은
-> ADR-0038 대기 중이며, 진입 구조는 [docs/invite-accept-entry.md](../../../../../docs/invite-accept-entry.md)가
+> ADR-0038 대기 중이며, 진입 구조는 docs/invite-accept-entry.md가
 > 최신이다. 이 문서의 상태 머신·시나리오 서술은 최신이다(ADR-0041 반영).
 
 ## 목적
@@ -190,7 +190,7 @@ ADR-0033 D10이 세우고, ADR-0039 결정 5가 "수락 앞에 세울 값이 아
   (백엔드에 해제 엔드포인트가 없고 이후 `type-linked`로 막힌다), 서버의 초대 대조는 `login`에만 있다
   (`link-account.ts`가 `mode === 'login'`일 때만 `code`를 읽는다). 그래서 `link` 경로에서는 `last4`가
   유일한 대조 수단이고, 그것마저 없으면 인증을 아예 시작하지 않는다. `link`에서도 초대를 대조해
-  달라는 요청은 [ADR-0042](../../../../../docs/adr/0042-account-linking-unified-path-migration.md) 후속에 있다.
+  달라는 요청은 ADR-0042 후속에 있다.
 
 ### 8. 거절 (실 API — ADR-0043)
 
@@ -553,7 +553,7 @@ useAwaitInviteChannel(): {
 ### 프로필 스텝 (ADR-0041 결정 3)
 
 `phase === 'profiling'`이면 `PlaceProfileCreateDialog`를 **직접** 렌더한다(**S-40 소유** —
-[shared-contract §1](../../../../../docs/plans/place-profile-create-shared-contract.md)).
+shared-contract §1).
 
 ```tsx
 <PlaceProfileCreateDialog open placeName={placeName} onDone={flow.onProfileSaved} onExit={flow.cancelStep} />
