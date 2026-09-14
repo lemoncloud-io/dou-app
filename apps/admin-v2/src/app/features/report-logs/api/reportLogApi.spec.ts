@@ -66,6 +66,41 @@ describe('reportLogApi', () => {
             expect(buildReportLogListParams({ level: '', runId: '' })).toEqual({ page: 0, limit: 100 });
         });
 
+        /**
+         * The round-2 axes (chatic-backend-api #41). They go out as `term: {'<field>.keyword': v}`,
+         * so an empty string is not "no filter" — it is matched literally and returns nothing.
+         */
+        it('carries the round-2 axes when set', () => {
+            expect(
+                buildReportLogListParams({
+                    tag: 'UPLOAD',
+                    appVersion: '1.4.0',
+                    webVersion: '0.62.0',
+                    route: '/chat',
+                    os: 'iOS',
+                    osVersion: '18.0',
+                    model: 'iPhone16',
+                })
+            ).toEqual({
+                page: 0,
+                limit: 100,
+                tag: 'UPLOAD',
+                appVersion: '1.4.0',
+                webVersion: '0.62.0',
+                route: '/chat',
+                os: 'iOS',
+                osVersion: '18.0',
+                model: 'iPhone16',
+            });
+        });
+
+        it('omits a round-2 axis that is empty or undefined', () => {
+            expect(buildReportLogListParams({ tag: '', appVersion: undefined, model: '' })).toEqual({
+                page: 0,
+                limit: 100,
+            });
+        });
+
         // The tracking axes. `uid` is handled by the backend's `packSearchParam` and `cid`
         // by the model mapping, but both reach it as plain query params from here.
         it('should pass uid/cid through when set', () => {

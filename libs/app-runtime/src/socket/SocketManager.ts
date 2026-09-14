@@ -20,6 +20,7 @@ import type {
     SocketStateListener,
 } from './types';
 import { AUTH_OPTIONS, DEFAULT_VERIFY_TIMEOUT_MS, INITIAL_SOCKET_STATE } from './constants';
+import { socketFailureReporter } from './socketFailureReporter';
 import { annotateSocketError } from './utils/annotateSocketError';
 
 /** A push subscription that must be re-bound whenever the active client is replaced. */
@@ -158,20 +159,38 @@ export class SocketManager implements ISocketManager {
             // not an async arrow.
             request: <T = unknown>(type: string, data?: unknown, options?: { timeoutMs?: number }): Promise<T> => {
                 const client = requireSlot(`request(${type})`);
-                return (client.request(type as any, data as any, options) as Promise<T>).catch(error => {
-                    throw annotateSocketError(error, kind, 'request', type);
-                });
+                return (client.request(type as any, data as any, options) as Promise<T>).then(
+                    value => {
+                        socketFailureReporter.recordSuccess(kind);
+                        return value;
+                    },
+                    error => {
+                        // Annotated BEFORE it is reported, so the entry's `error` carries the
+                        // caller's name too. The annotator only appends, so the leading status the
+                        // reporter classifies on is untouched.
+                        const annotated = annotateSocketError(error, kind, 'request', type);
+                        socketFailureReporter.recordFailure(kind, 'request', type, annotated);
+                        throw annotated;
+                    }
+                );
             },
             send: <T = unknown>(type: string | SocketMessage<T>, data?: T): void => {
                 const client = requireSlot('send()');
+                const name = typeof type === 'string' ? type : type.type;
                 try {
                     if (typeof type === 'string') {
                         client.send(type as any, data as any);
+                        socketFailureReporter.recordSuccess(kind);
                         return;
                     }
                     client.send(type);
+                    // A send the transport accepted proves the slot is connected, which is the only
+                    // thing the streak tracks — so it clears one, same as a successful request.
+                    socketFailureReporter.recordSuccess(kind);
                 } catch (error) {
-                    throw annotateSocketError(error, kind, 'send', typeof type === 'string' ? type : type.type);
+                    const annotated = annotateSocketError(error, kind, 'send', name);
+                    socketFailureReporter.recordFailure(kind, 'send', name, annotated);
+                    throw annotated;
                 }
             },
             // No requireSlot: a subscription waits for its slot instead of throwing (see onSlotType).
@@ -347,28 +366,43 @@ export class SocketManager implements ISocketManager {
     /**
      * Stable request facade (ACTIVE slot). The SDK AuthController owns re-authentication and the
      * transport owns reconnect, so this no longer intercepts 401s or drives manual reconnect/retry —
-     * it only names the caller on the way out (annotateSocketError), because the SDK's failures do
-     * not carry the request type.
+     * it names the caller on the way out (annotateSocketError), because the SDK's failures do not
+     * carry the request type, and it reports the failure (socketFailureReporter).
+     *
+     * Reporting belongs here rather than at the call sites because this is the only place every
+     * socket request passes through, and because a rejection is otherwise the end of the story: the
+     * SDK does not emit a server `*:error` frame to `onError`, so nothing downstream is guaranteed
+     * to record it. See `socketFailureReporter`.
      */
     public async request<T = unknown>(type: string, data?: unknown, options?: { timeoutMs?: number }): Promise<T> {
         const client = this.requireActiveClient(`request(${type})`);
+        const kind = this.getActiveKind();
         try {
-            return (await client.request(type as any, data as any, options)) as T;
+            const value = (await client.request(type as any, data as any, options)) as T;
+            socketFailureReporter.recordSuccess(kind);
+            return value;
         } catch (error) {
-            throw annotateSocketError(error, this.getActiveKind(), 'request', type);
+            const annotated = annotateSocketError(error, kind, 'request', type);
+            socketFailureReporter.recordFailure(kind, 'request', type, annotated);
+            throw annotated;
         }
     }
 
     public send<T = unknown>(type: string | SocketMessage<T>, data?: T): void {
         const client = this.requireActiveClient('send()');
+        const name = typeof type === 'string' ? type : type.type;
         try {
             if (typeof type === 'string') {
                 client.send(type as any, data as any);
+                socketFailureReporter.recordSuccess(this.getActiveKind());
                 return;
             }
             client.send(type);
+            socketFailureReporter.recordSuccess(this.getActiveKind());
         } catch (error) {
-            throw annotateSocketError(error, this.getActiveKind(), 'send', typeof type === 'string' ? type : type.type);
+            const annotated = annotateSocketError(error, this.getActiveKind(), 'send', name);
+            socketFailureReporter.recordFailure(this.getActiveKind(), 'send', name, annotated);
+            throw annotated;
         }
     }
 
@@ -554,6 +588,54 @@ export class SocketManager implements ISocketManager {
                 logger.error('SOCKET', '[SocketManager] Socket error', fields);
             })
         );
+
+        this.bindReconnectDiagnostics(kind, entry);
+    }
+
+    /**
+     * Subscribes to the SDK reconnect controller's failure signals — "why did it drop" is the one
+     * question the entries above cannot answer. `onState` reports that a socket reconnected, and
+     * `onError` reports frame-level failures, but a controller that retries and eventually gives up
+     * does so silently: the slot simply stays down.
+     *
+     * **Feature-detected on purpose.** `onConnectFailed`/`onGiveUp` exist on the controller the SDK
+     * currently constructs, but NOT on the `ReconnectController` interface it publishes (which is
+     * `start`/`stop`/`restart`). Reaching them is therefore a runtime fact, not a typed contract, and
+     * a future SDK could swap the controller and drop them — so a missing method is skipped rather
+     * than crashing the bind. The proper fix is for the SDK to widen the interface; until then this
+     * degrades to the coverage we already had.
+     */
+    private bindReconnectDiagnostics(kind: SocketKind, entry: ClientEntry): void {
+        const controller = entry.client.reconnect as
+            | {
+                  onConnectFailed?: (listener: (event: { attempt: number; error: unknown }) => void) => () => void;
+                  onGiveUp?: (listener: (event: { attempts: number }) => void) => () => void;
+              }
+            | undefined;
+        if (!controller) return;
+
+        if (typeof controller.onConnectFailed === 'function') {
+            entry.unsubscribes.push(
+                controller.onConnectFailed(event => {
+                    logger.warn('SOCKET', '[SocketManager] reconnect attempt failed', {
+                        error: event.error,
+                        data: { kind, attempt: event.attempt },
+                    });
+                })
+            );
+        }
+
+        if (typeof controller.onGiveUp === 'function') {
+            entry.unsubscribes.push(
+                // Terminal: nothing retries after this, so a slot that is "just quiet" and a slot
+                // that has permanently stopped reconnecting look identical without this line.
+                controller.onGiveUp(event => {
+                    logger.error('SOCKET', '[SocketManager] reconnect gave up', {
+                        data: { kind, attempts: event.attempts },
+                    });
+                })
+            );
+        }
     }
 
     /** Announces that `kind`'s verification inputs moved; waiters re-read isKindVerified themselves. */

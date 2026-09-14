@@ -289,6 +289,7 @@ export const startLogUploader = (options: LogUploaderOptions = {}): LogUploaderH
     // uploader stays the only writer.
     const unregisterView = registerLogQueueView({
         snapshot: () => queue.snapshot(),
+        droppedCount: () => queue.droppedCount(),
         clear: () => {
             queue.clear();
             persistNow();

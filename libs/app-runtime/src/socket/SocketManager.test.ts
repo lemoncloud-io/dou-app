@@ -72,6 +72,30 @@ describe('SocketManager request facade', () => {
         const manager = new SocketManager();
         await expect(manager.request('test.type')).rejects.toThrow('Socket client not ready');
     });
+
+    /**
+     * 서버의 `*:error` 프레임은 SDK가 프라미스만 reject하고 `onError`를 부르지 않는다. 그래서 이
+     * 파사드가 남기지 않으면 실패는 어디에도 남지 않는다 — 호출자가 react-query를 지날 때만
+     * 쿼리 캐시가 `GLOBAL`로 주웠고, sync 폴이나 명령형 호출은 흔적이 없었다.
+     *
+     * 자세한 분류·볼륨 규칙은 socketFailureReporter.test.ts에 있다. 여기서 고정하는 건 배선이다.
+     */
+    it('records the failure on the way out — the facade is the only choke point', async () => {
+        const client = makeClient();
+        client.request.mockRejectedValueOnce(new Error('404 NOT FOUND - join.get:error'));
+        mockedCreate.mockReturnValue(client);
+
+        const manager = new SocketManager();
+        manager.ensure(CONFIG, 'relay');
+        // 이 스위트의 beforeEach는 createClientSocketV2만 리셋한다 — 앞 케이스들도 이제 엔트리를
+        // 남기므로 여기서 직접 비운다.
+        (logger.error as jest.Mock).mockClear();
+
+        await expect(manager.request('join.get')).rejects.toThrow('404');
+
+        expect(logger.error).toHaveBeenCalledTimes(1);
+        expect((logger.error as jest.Mock).mock.calls[0][1]).toContain('404 socket request failed');
+    });
 });
 
 describe('SocketManager error annotation', () => {
@@ -847,5 +871,57 @@ describe('SocketManager 소켓 에러 로깅', () => {
             expect.objectContaining({ data: { kind: 'relay', phase: 'connect' } })
         );
         expect(logger.warn).not.toHaveBeenCalled();
+    });
+});
+
+describe('SocketManager 재연결 진단 (ADR-0075)', () => {
+    beforeEach(() => {
+        mockedCreate.mockReset();
+        jest.clearAllMocks();
+    });
+
+    /** Binds a slot whose client exposes a reconnect controller, and returns its listeners. */
+    const bindWithReconnect = (controller: Record<string, unknown>) => {
+        const client = makeClient({ reconnect: controller } as never);
+        mockedCreate.mockReturnValue(client);
+        new SocketManager().ensure(CONFIG, 'relay');
+        return controller;
+    };
+
+    it('재연결 시도 실패를 warn으로 남긴다', () => {
+        const onConnectFailed = jest.fn().mockReturnValue(jest.fn());
+        bindWithReconnect({ onConnectFailed });
+
+        onConnectFailed.mock.calls[0][0]({ attempt: 3, error: new Error('refused') });
+
+        expect(logger.warn).toHaveBeenCalledWith(
+            'SOCKET',
+            '[SocketManager] reconnect attempt failed',
+            expect.objectContaining({ data: { kind: 'relay', attempt: 3 } })
+        );
+    });
+
+    // 포기는 종단이다 — 이 줄이 없으면 "그냥 조용한 슬롯"과 "영구히 죽은 슬롯"이 구분되지 않는다.
+    it('재연결 포기를 error로 남긴다', () => {
+        const onGiveUp = jest.fn().mockReturnValue(jest.fn());
+        bindWithReconnect({ onGiveUp });
+
+        onGiveUp.mock.calls[0][0]({ attempts: 8 });
+
+        expect(logger.error).toHaveBeenCalledWith(
+            'SOCKET',
+            '[SocketManager] reconnect gave up',
+            expect.objectContaining({ data: { kind: 'relay', attempts: 8 } })
+        );
+    });
+
+    // 이 콜백들은 SDK가 공개한 ReconnectController 인터페이스에 없다(start/stop/restart뿐).
+    // 컨트롤러가 교체되면 조용히 사라지므로, 없을 때 죽지 않아야 한다.
+    it('컨트롤러가 없거나 콜백을 노출하지 않으면 조용히 건너뛴다', () => {
+        expect(() => bindWithReconnect({})).not.toThrow();
+
+        const client = makeClient();
+        mockedCreate.mockReturnValue(client);
+        expect(() => new SocketManager().ensure(CONFIG, 'relay')).not.toThrow();
     });
 });

@@ -1,6 +1,6 @@
 import { useCallback, useEffect } from 'react';
 import { create } from 'zustand';
-import { isNative } from '@chatic/bridges';
+import { isNative, logger } from '@chatic/bridges';
 
 import { appBridge } from '../../../bridge';
 import { useAppForeground } from '../../../bridge/useAppForeground';
@@ -47,12 +47,27 @@ export const useAppUpdateStatus = (): AppUpdateStatus => {
         if (!isNative()) return;
         try {
             const response = await appBridge.checkAppUpdate();
-            useAppUpdateStore.getState().setStatus({
+            const next = {
                 updateAvailable: response.data.updateAvailable,
                 latestVersion: response.data.latestVersion,
-            });
-        } catch {
+            };
+            // Only on the transition, not on every check: this runs on mount and on every
+            // foreground return, so reporting the standing state would file the same line all day.
+            // The edge is what answers both shapes of the report — "the update prompt never
+            // appeared" and "it keeps appearing after I updated" (ADR-0075).
+            const previous = useAppUpdateStore.getState().updateAvailable;
+            if (next.updateAvailable !== previous) {
+                logger.info('VERSION', `app update ${next.updateAvailable ? 'available' : 'no longer offered'}`, {
+                    updateAvailable: next.updateAvailable,
+                    latestVersion: next.latestVersion,
+                });
+            }
+            useAppUpdateStore.getState().setStatus(next);
+        } catch (error) {
             // Update check is best-effort; a failed/unsupported bridge call keeps the last status.
+            // Recorded because the last status is what the UI keeps showing — a check that never
+            // succeeds looks exactly like "no update available".
+            logger.warn('VERSION', 'app update check failed', { error });
         }
     }, []);
 

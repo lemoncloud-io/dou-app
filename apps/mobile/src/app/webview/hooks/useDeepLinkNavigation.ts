@@ -113,8 +113,16 @@ export const useDeepLinkNavigation = (bridge: IAppBridgeHost | undefined): UseDe
         };
 
         // Notification tap → relative path (cid/sid merged). A null path just foregrounds the app.
-        const dispatchPushTap = (data: PushNavigationData | undefined, isColdStart: boolean) => {
+        const dispatchPushTap = (data: PushNavigationData | undefined, isColdStart: boolean, messageId?: string) => {
             const path = deeplinkService.resolvePushTap(data);
+            // The tap is the middle link of the push chain (ADR-0075): a cold start puts the receipt
+            // and the room entry under different app runs, so `messageId` is what joins them. Logged
+            // whether or not the path resolved — a tap that led nowhere is the interesting case.
+            logger.info('PUSH_EVENT', 'push tapped', {
+                messageId,
+                coldStart: isColdStart,
+                resolved: !!path,
+            });
             if (!path) {
                 // A tap that resolves to nothing is otherwise invisible in field diagnostics; log the
                 // payload shape (keys only, no content) so a schema mismatch can be spotted from logs.
@@ -136,7 +144,7 @@ export const useDeepLinkNavigation = (bridge: IAppBridgeHost | undefined): UseDe
         });
         notificationService.getInitialNotification().then(remoteMessage => {
             if (!disposed && remoteMessage) {
-                dispatchPushTap(remoteMessage.data as PushNavigationData | undefined, true);
+                dispatchPushTap(remoteMessage.data as PushNavigationData | undefined, true, remoteMessage.messageId);
             }
         });
 
@@ -145,7 +153,7 @@ export const useDeepLinkNavigation = (bridge: IAppBridgeHost | undefined): UseDe
             dispatchDeepLink(url, false);
         });
         const unsubscribeOnOpened = notificationService.onNotificationOpenedApp(remoteMessage => {
-            dispatchPushTap(remoteMessage.data as PushNavigationData | undefined, false);
+            dispatchPushTap(remoteMessage.data as PushNavigationData | undefined, false, remoteMessage.messageId);
         });
 
         return () => {

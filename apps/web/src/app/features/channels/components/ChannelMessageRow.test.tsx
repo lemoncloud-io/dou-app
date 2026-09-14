@@ -137,6 +137,87 @@ describe('ChannelMessageRow', () => {
         expect(screen.queryByTestId('read-receipt')).not.toBeInTheDocument();
     });
 
+    // The list scrolls behind the bubbles, so the press handlers must leave the pan gesture alone.
+    describe('the scroll gesture over a bubble', () => {
+        const withContent = (content: string) => ({
+            ...baseProps,
+            message: { ...message, content } as unknown as ClientChatView,
+        });
+        const bubbleTrigger = () => screen.getByTestId('bubble').parentElement as HTMLElement;
+
+        // jsdom has no PointerEvent, so testing-library builds a plain Event and drops
+        // `pointerType` and the coordinates off the init — they have to be hung on the native
+        // event by hand, or every assertion here reads a pointer with no type and no position.
+        const pointer = (
+            type: 'pointerdown' | 'pointermove',
+            init: { pointerType?: string; x?: number; y?: number } = {}
+        ) =>
+            fireEvent(
+                bubbleTrigger(),
+                Object.assign(new Event(type, { bubbles: true, cancelable: true }), {
+                    pointerType: init.pointerType ?? 'touch',
+                    button: 0,
+                    clientX: init.x ?? 0,
+                    clientY: init.y ?? 0,
+                })
+            );
+
+        // fireEvent returns false when a listener called preventDefault. Cancelling a touch
+        // pointerdown cancels the browser's panning with it, which is what stopped the thread
+        // from scrolling wherever a finger landed on a message.
+        it('does not cancel the default of a touch pointerdown', () => {
+            render(<ChannelMessageRow {...withContent('안녕')} />);
+
+            const notCancelled = pointer('pointerdown', { pointerType: 'touch' });
+
+            expect(notCancelled).toBe(true);
+        });
+
+        it('still cancels it for a mouse, where the default is a drag-select', () => {
+            render(<ChannelMessageRow {...withContent('안녕')} />);
+
+            const notCancelled = pointer('pointerdown', { pointerType: 'mouse' });
+
+            expect(notCancelled).toBe(false);
+        });
+
+        it('drops the long press once the finger has travelled far enough to be a scroll', () => {
+            jest.useFakeTimers();
+            try {
+                const props = withContent('안녕');
+                render(<ChannelMessageRow {...props} />);
+
+                pointer('pointerdown', { x: 100, y: 300 });
+                pointer('pointermove', { x: 100, y: 240 });
+                act(() => {
+                    jest.advanceTimersByTime(1000);
+                });
+
+                expect(props.onLongPress).not.toHaveBeenCalled();
+            } finally {
+                jest.useRealTimers();
+            }
+        });
+
+        it('keeps the long press through a fingertip wobble', () => {
+            jest.useFakeTimers();
+            try {
+                const props = withContent('안녕');
+                render(<ChannelMessageRow {...props} />);
+
+                pointer('pointerdown', { x: 100, y: 300 });
+                pointer('pointermove', { x: 102, y: 303 });
+                act(() => {
+                    jest.advanceTimersByTime(1000);
+                });
+
+                expect(props.onLongPress).toHaveBeenCalled();
+            } finally {
+                jest.useRealTimers();
+            }
+        });
+    });
+
     describe('links in the bubble', () => {
         const withContent = (content: string) => ({
             ...baseProps,

@@ -85,15 +85,32 @@ export const useNewLogProbe = (
 
     const paramsKey = corpusKey(params);
 
+    // A new set of axes means the previous finds belong to a different question.
+    //
+    // Keyed on the axes ALONE, deliberately. This clearing used to sit in the effect below, which
+    // also depends on `enabled` — and `enabled` is `!corpus.isCollecting`, so every corpus
+    // refetch (window focus on a stale corpus, or a re-collect) wiped the pending banner and
+    // restarted the interval from zero. Returning to the tab is exactly when the banner matters
+    // most and exactly when that fired, so the finds were thrown away at the worst moment.
     useEffect(() => {
-        // A new set of axes means the previous probe's finds belong to a different question.
         setRows([]);
         setOverflowed(false);
-        if (!enabled) return;
+    }, [paramsKey]);
 
+    // `enabled` is read at tick time rather than gating the effect body, so a flip does not
+    // restart the schedule; it only decides whether a tick does any work.
+    const enabledRef = useRef(enabled);
+    useEffect(() => {
+        enabledRef.current = enabled;
+    });
+
+    useEffect(() => {
         let cancelled = false;
 
         const probe = async () => {
+            // Not while the corpus is walking: it is about to deliver those rows itself, and the
+            // watermark it would be compared against is still moving.
+            if (!enabledRef.current) return;
             // Nobody is looking at a hidden tab, so nothing needs announcing — and a
             // console left open in a background tab would otherwise spend four requests a
             // minute forever. The next visible tick catches up; the watermark does not
@@ -119,14 +136,19 @@ export const useNewLogProbe = (
             }
         };
 
+        // No probe up front, on purpose. An immediate look would shorten the wait for the first
+        // banner, but it spends a request per mount and per axis change — and this screen pins its
+        // request counts in tests as a design property ("costs one request when the server already
+        // narrowed the range", "spends exactly two requests to reach the ceiling"). The corpus walk
+        // has just delivered the newest rows anyway, so there is rarely anything to announce then.
         const timer = setInterval(() => void probe(), intervalMs);
         return () => {
             cancelled = true;
             clearInterval(timer);
         };
-        // `params` and `headCreatedAt` are read through the refs above, deliberately: a
-        // steadily advancing watermark must not rebuild the timer.
-    }, [paramsKey, enabled, intervalMs]);
+        // `params`, `headCreatedAt` and `enabled` are read through the refs above, deliberately:
+        // a steadily advancing watermark, or a corpus refetch, must not rebuild the timer.
+    }, [paramsKey, intervalMs]);
 
     const take = useCallback(() => {
         const taken = rows;

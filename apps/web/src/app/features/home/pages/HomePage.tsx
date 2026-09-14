@@ -45,6 +45,7 @@ import {
     SubscriptionRequiredDialog,
 } from '../components';
 import { getCloudDisplayName } from '../components/cloud-session';
+import { divergenceReporter } from '../../../runtime/logging/divergenceReporter';
 import { useAddCloudFlow, useHomePlaces, useSwitchPlace } from '../hooks';
 import {
     useCachedCloudNames,
@@ -106,6 +107,20 @@ export const HomePage = () => {
     // a blank circle beside blank text — which otherwise reads as a nameless cloud, not a pending
     // fetch. A cached name short-circuits this, so the common (warm) case never flashes a skeleton.
     const isCloudHeaderLoading = !isDefaultCloud && isPendingClouds && !cloudName;
+
+    // Cloud-name divergence (ADR-0075). The two sources above are the reason a renamed cloud can show
+    // its new name here and its old one on MY: this header prefers the local cache, MY screens read
+    // the relay catalog alone. Compared here because this is the only place that holds both, and only
+    // once the catalog has actually answered — while it is pending there is nothing to disagree with.
+    const catalogCloudName = activeOwnedCloud ? getCloudDisplayName(activeOwnedCloud) : undefined;
+    useEffect(() => {
+        if (isPendingClouds || !selectedCloudId) return;
+        divergenceReporter.cloudName({
+            cid: selectedCloudId,
+            cachedName: cachedCloudName,
+            catalogName: catalogCloudName,
+        });
+    }, [selectedCloudId, cachedCloudName, catalogCloudName, isPendingClouds]);
 
     // Subscription tier drives the FREE/PRO plan badge. A guest is always FREE; otherwise PRO when
     // either a valid membership OR at least one activated cloud exists — owning a live cloud (status

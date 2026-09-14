@@ -1,4 +1,4 @@
-import { createLogId, setLogContextProvider } from '@chatic/bridges';
+import { createLogId, isNative, logger, setLogContextProvider } from '@chatic/bridges';
 import { runtime } from '@chatic/app-runtime';
 
 import { getRouteTrail } from '../../utils/routeTrail';
@@ -94,6 +94,32 @@ export const readLogContext = (): LogContext => {
 export const attachLogContext = (): (() => void) => {
     setLogContextProvider(readLogContext);
     return () => setLogContextProvider(undefined);
+};
+
+/**
+ * Says so when this run's native and web entries will not join.
+ *
+ * `runId` is the only axis that groups one launch, and it is also the only thing tying a native
+ * entry to a web one: the native half carries no `uid`/`sid`/`cid`/`route`, because the native
+ * runtime does not know them. So inside the app, a missing injection does not merely cost a shared
+ * id — it strands every native entry with no way back to a user. The web mints its own so that at
+ * least the web half stays groupable, and that substitution is silent: two runIds for one launch
+ * look exactly like two launches.
+ *
+ * Reported once, at `warn`, and **only inside the app**. In a plain browser there is no native half
+ * to join, so a locally minted id is simply the right answer and nothing is wrong.
+ *
+ * Called separately from `attachLogContext` rather than inside it because of the boot ordering in
+ * `main.tsx`: the context provider is registered before the upload queue subscribes, so an entry
+ * emitted at that point would be published to nobody. This runs after the queue is wired.
+ */
+export const reportRunIdJoin = (): void => {
+    if (!isNative()) return;
+    if (readInjectedRunId()) return;
+
+    logger.warn('APP', 'no native runId injected — native and web entries cannot be joined this run', {
+        webRunId: resolveRunId(),
+    });
 };
 
 /** Test seam — forgets the locally issued runId. */

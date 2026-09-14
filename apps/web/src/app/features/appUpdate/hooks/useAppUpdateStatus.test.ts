@@ -1,8 +1,12 @@
 import { act, renderHook } from '@testing-library/react';
 
 const mockIsNative = jest.fn();
+// Every level, not just what the hook happened to use before: a partial logger mock turns a new
+// entry into a TypeError inside the effect.
+const mockLogger = { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() };
 jest.mock('@chatic/bridges', () => ({
     isNative: (...args: unknown[]) => mockIsNative(...args),
+    logger: mockLogger,
 }));
 
 const mockCheckAppUpdate = jest.fn();
@@ -103,5 +107,71 @@ describe('useAppUpdateStatus', () => {
         });
 
         expect(result.current).toEqual({ updateAvailable: true, latestVersion: '1.4.0' });
+    });
+});
+
+describe('useAppUpdateStatus — 기록 (ADR-0075)', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        useAppUpdateStore.setState({ updateAvailable: false, latestVersion: '' });
+        mockIsNative.mockReturnValue(true);
+    });
+
+    // 실패해도 마지막 상태가 그대로 보이므로, 화면상 "업데이트 없음"과 구분되지 않는다.
+    it('체크 실패를 warn으로 남긴다', async () => {
+        mockCheckAppUpdate.mockRejectedValue(new Error('bridge boom'));
+        renderHook(() => useAppUpdateStatus());
+        await flush();
+
+        expect(mockLogger.warn).toHaveBeenCalledWith('VERSION', 'app update check failed', {
+            error: expect.any(Error),
+        });
+    });
+
+    it('업데이트가 새로 잡히면 전이를 info로 남긴다', async () => {
+        mockCheckAppUpdate.mockResolvedValue(updateResponse('1.4.0'));
+        renderHook(() => useAppUpdateStatus());
+        await flush();
+
+        expect(mockLogger.info).toHaveBeenCalledWith('VERSION', 'app update available', {
+            updateAvailable: true,
+            latestVersion: '1.4.0',
+        });
+    });
+
+    // 마운트와 포그라운드 복귀마다 도는 훅이라, 상태를 매번 남기면 하루 종일 같은 줄이 쌓인다.
+    it('상태가 그대로면 다시 남기지 않는다', async () => {
+        mockCheckAppUpdate.mockResolvedValue(updateResponse('1.4.0'));
+        renderHook(() => useAppUpdateStatus());
+        await flush();
+        mockLogger.info.mockClear();
+
+        await act(async () => {
+            foregroundHandler();
+            await Promise.resolve();
+        });
+
+        expect(mockLogger.info).not.toHaveBeenCalled();
+    });
+
+    it('업데이트가 더 이상 제시되지 않는 전이도 남긴다', async () => {
+        useAppUpdateStore.setState({ updateAvailable: true, latestVersion: '1.4.0' });
+        mockCheckAppUpdate.mockResolvedValue(updateResponse('1.4.0', false));
+        renderHook(() => useAppUpdateStatus());
+        await flush();
+
+        expect(mockLogger.info).toHaveBeenCalledWith('VERSION', 'app update no longer offered', {
+            updateAvailable: false,
+            latestVersion: '1.4.0',
+        });
+    });
+
+    it('비네이티브에서는 아무것도 남기지 않는다', async () => {
+        mockIsNative.mockReturnValue(false);
+        renderHook(() => useAppUpdateStatus());
+        await flush();
+
+        expect(mockLogger.info).not.toHaveBeenCalled();
+        expect(mockLogger.warn).not.toHaveBeenCalled();
     });
 });

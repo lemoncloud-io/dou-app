@@ -3,6 +3,7 @@
  * - Presentation helpers: relative time and CSV export for report rows.
  */
 import { eventAt, ingestLagMs } from './eventTime';
+import { formatOs } from './parseReportLog';
 import type { ReportLogRow } from './parseReportLog';
 
 /**
@@ -61,7 +62,10 @@ const CSV_COLUMNS: Array<[header: string, get: (r: ReportLogRow) => string]> = [
     ['appVersion', r => r.appVersion ?? ''],
     ['webVersion', r => r.webVersion ?? ''],
     ['route', r => r.route ?? ''],
-    ['os', r => r.os ?? ''],
+    // Composed for the export's benefit: the row keeps name and version apart because the
+    // filters match them apart.
+    ['os', r => formatOs(r.os, r.osVersion) ?? ''],
+    ['model', r => r.model ?? ''],
     ['title', r => r.title],
     ['message', r => r.message ?? ''],
     ['userName', r => r.userName ?? ''],

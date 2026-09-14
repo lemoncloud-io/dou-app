@@ -18,6 +18,7 @@ import { useDebounce } from '@chatic/shared';
 
 import type { ReportKind, ReportStage } from '../api/reportLogApi';
 import type { ServerAxes } from '../hooks/use-log-console-state';
+import { SERVER_AXIS_CAVEAT } from '../api/reportLogApi';
 import type { FacetKey, Facets } from '../lib/logFacets';
 import type { FacetSelection } from '../lib/logFacets';
 
@@ -49,16 +50,25 @@ const LEVELS = [
     { value: 'debug', label: 'debug' },
 ];
 
-/** Facets worth a dropdown, in the order an operator reaches for them. */
-const CLIENT_FACETS: Array<{ key: FacetKey; label: string }> = [
-    { key: 'tag', label: '태그' },
-    { key: 'appVersion', label: '앱 버전' },
-    { key: 'webVersion', label: '웹 버전' },
-    { key: 'route', label: '화면' },
+/**
+ * Facets worth a dropdown, in the order an operator reaches for them.
+ *
+ * The dropdown still lists what the CORPUS holds, with counts — that is the discoverability a
+ * text input cannot give. What changed is where the selection lands: the axes marked `onServer`
+ * were lifted to top-level fields by chatic-backend-api #41, so choosing one re-collects the
+ * corpus narrowed on the server instead of only hiding rows already fetched.
+ */
+const CLIENT_FACETS: Array<{ key: FacetKey; label: string; onServer?: true }> = [
+    { key: 'tag', label: '태그', onServer: true },
+    { key: 'appVersion', label: '앱 버전', onServer: true },
+    { key: 'webVersion', label: '웹 버전', onServer: true },
+    { key: 'route', label: '화면', onServer: true },
     { key: 'source', label: '출처' },
     { key: 'app', label: 'App' },
     { key: 'env', label: '환경' },
-    { key: 'os', label: 'OS' },
+    { key: 'os', label: 'OS', onServer: true },
+    { key: 'osVersion', label: 'OS 버전', onServer: true },
+    { key: 'model', label: '기기', onServer: true },
 ];
 
 const fieldClass =
@@ -189,7 +199,7 @@ export const LogFilterRail = ({
 
             <Group
                 title="수집분 필터"
-                caption={`수집한 ${corpusSize.toLocaleString()}건 안에서만 걸립니다. 서버가 이 축들을 조회하지 못합니다.`}
+                caption={`값과 건수는 수집한 ${corpusSize.toLocaleString()}건을 센 것입니다. ${SERVER_AXIS_CAVEAT}`}
                 action={
                     hasClientNarrowing ? (
                         <button
@@ -213,12 +223,21 @@ export const LogFilterRail = ({
                 </Field>
                 {CLIENT_FACETS.map(facet => {
                     const values = facets[facet.key];
+                    const picked = selection[facet.key];
                     // A facet with nothing in it is noise; one with a single value is
                     // already the answer. Both are hidden so the rail shows only the axes
                     // that can actually narrow this corpus.
-                    if (values.length < 2) return null;
+                    //
+                    // Unless it is the one currently selected. A server-backed axis narrows the
+                    // corpus to its own value, which leaves exactly one value in the counts — so
+                    // hiding on `< 2` would take the control away the moment it was used and
+                    // strand the operator inside a filter with no way back to `전체`.
+                    if (values.length < 2 && !picked) return null;
                     return (
-                        <Field key={facet.key} label={`${facet.label} (${values.length})`}>
+                        <Field
+                            key={facet.key}
+                            label={`${facet.label} (${values.length})${facet.onServer ? ' · 서버' : ''}`}
+                        >
                             <select
                                 value={selection[facet.key] ?? ''}
                                 onChange={e => onFacet(facet.key, e.target.value)}

@@ -7,9 +7,9 @@ jest.mock('@chatic/app-runtime', () => ({
 }));
 
 import { runtime } from '@chatic/app-runtime';
-import { setLogContextProvider } from '@chatic/bridges';
+import { logger, setLogContextProvider } from '@chatic/bridges';
 
-import { attachLogContext, readLogContext, resetWebRunId } from './logContext';
+import { attachLogContext, readLogContext, reportRunIdJoin, resetWebRunId } from './logContext';
 import { recordRoute, resetRouteTrail } from '../../utils/routeTrail';
 
 const mockSession = runtime.session.getGlobalSessionContext as jest.Mock;
@@ -29,6 +29,7 @@ beforeEach(() => {
     delete (window as Record<string, unknown>).CHATIC_APP_CURRENT_VERSION;
     delete (window as Record<string, unknown>).CHATIC_APP_PLATFORM;
     delete (window as Record<string, unknown>).CHATIC_APP_DEVICE_MODEL;
+    delete (window as Record<string, unknown>).ReactNativeWebView;
 });
 
 describe('readLogContext', () => {
@@ -98,5 +99,48 @@ describe('attachLogContext', () => {
         expect(typeof detach).toBe('function');
 
         detach();
+    });
+});
+
+/**
+ * `runId`는 하나의 실행을 묶는 유일한 축이고, 네이티브 엔트리를 웹 엔트리에 잇는 유일한 끈이다 —
+ * 네이티브 쪽은 `uid`·`sid`·`cid`·`route`를 모른다. 그래서 주입이 없으면 공유 id만 잃는 게 아니라
+ * **그 실행의 네이티브 엔트리 전부가 사용자로 되돌아갈 길을 잃는다.**
+ */
+describe('reportRunIdJoin — 조인이 깨진 실행을 말한다', () => {
+    const warn = jest.spyOn(logger, 'warn').mockImplementation();
+
+    /** isNative()는 window 전역을 읽는다 — 목 없이 그대로 구동한다. */
+    const insideTheApp = () => {
+        (window as Record<string, unknown>).ReactNativeWebView = { postMessage: jest.fn() };
+    };
+
+    beforeEach(() => warn.mockClear());
+    afterAll(() => warn.mockRestore());
+
+    it('앱 안에서 주입이 없으면 warn 한 건을 남긴다', () => {
+        insideTheApp();
+
+        reportRunIdJoin();
+
+        expect(warn).toHaveBeenCalledTimes(1);
+        expect(warn.mock.calls[0][0]).toBe('APP');
+        expect(warn.mock.calls[0][1]).toContain('cannot be joined');
+    });
+
+    it('주입이 있으면 아무것도 남기지 않는다', () => {
+        insideTheApp();
+        (window as Record<string, unknown>).CHATIC_APP_RUN_ID = 'native-run-1';
+
+        reportRunIdJoin();
+
+        expect(warn).not.toHaveBeenCalled();
+    });
+
+    // 브라우저 단독 접속에는 이을 네이티브 절반이 자체가 없다 — 직접 발급한 id가 정답이다.
+    it('앱 밖에서는 주입이 없어도 남기지 않는다', () => {
+        reportRunIdJoin();
+
+        expect(warn).not.toHaveBeenCalled();
     });
 });

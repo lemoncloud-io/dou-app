@@ -21,7 +21,7 @@
 import { useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
-import type { ReportKind, ReportStage } from '../api/reportLogApi';
+import { ROUND_2_AXES, type ReportKind, type ReportStage } from '../api/reportLogApi';
 import { FACET_KEYS, type FacetKey, type FacetSelection } from '../lib/logFacets';
 import { PIN_KEYS, type PinKey } from '../lib/pinAxes';
 
@@ -45,7 +45,7 @@ const CLIENT_FACET_KEYS = FACET_KEYS.filter((key): key is Exclude<FacetKey, 'lev
 const REPORT_KINDS: ReportKind[] = ['all', 'error', 'issue', 'log-entry'];
 
 /** Server-side axes. These define the corpus. */
-export interface ServerAxes {
+export interface ServerAxes extends Record<(typeof ROUND_2_AXES)[number], string> {
     stage: ReportStage;
     kind: ReportKind;
     from: string;
@@ -79,12 +79,6 @@ export interface LogConsoleState {
     clearClientAxes: () => void;
 }
 
-/** Today in the viewer's timezone as `YYYY-MM-DD`, matching the date inputs' format. */
-export const todayLocalDate = (now: Date = new Date()): string => {
-    const pad = (n: number) => `${n}`.padStart(2, '0');
-    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-};
-
 const oneOf = <T extends string>(value: string | null, allowed: T[], fallback: T): T =>
     value && (allowed as string[]).includes(value) ? (value as T) : fallback;
 
@@ -93,23 +87,26 @@ export const useLogConsoleState = (): LogConsoleState => {
 
     const read = useCallback((key: string) => searchParams.get(key) ?? '', [searchParams]);
 
-    // Default the range to today rather than leaving it open. An unbounded range would
-    // start a walk across the whole 7.7k-record store on first paint and hit the cap
-    // before showing anything useful; a day is the unit an operator actually asks about.
-    const from = read('from') || todayLocalDate();
-
     const server = useMemo<ServerAxes>(
         () => ({
             stage: oneOf<ReportStage>(searchParams.get('stage'), ['v1', 'd1'], 'v1'),
             kind: oneOf<ReportKind>(searchParams.get('kind'), REPORT_KINDS, 'all'),
-            from,
+            from: read('from'),
             to: read('to'),
             level: read('level'),
             uid: read('uid'),
             cid: read('cid'),
             runId: read('runId'),
+            // Read from the SAME search params the facet dropdowns write, so one selection
+            // narrows the corpus server-side and the client pass at the same time. Keeping both
+            // is deliberate: until the backend deploy these params are silently ignored, and the
+            // client pass is what still makes the selection do something.
+            ...(Object.fromEntries(ROUND_2_AXES.map(axis => [axis, read(axis)])) as Record<
+                (typeof ROUND_2_AXES)[number],
+                string
+            >),
         }),
-        [searchParams, read, from]
+        [searchParams, read]
     );
 
     const client = useMemo<ClientAxes>(() => {

@@ -10,6 +10,8 @@ import type {
 } from '../remote/socket-data-sources';
 import type { DataContextProvider } from './types';
 import { BaseRepositoryV2, type DisposableRepositoryV2 } from './types';
+import { foreignDropAggregator } from '@chatic/logger';
+
 import { isForeignContext } from './scopeGuards';
 
 export interface IPlaceRepositoryV2 extends DisposableRepositoryV2 {
@@ -99,6 +101,11 @@ export class PlaceRepositoryV2 extends BaseRepositoryV2 implements IPlaceReposit
         // the target partition, so skip when the socket's bound cloud differs from the active cid.
         const rawContext = this.getRepositoryContext();
         if (isForeignContext(rawContext)) {
+            foreignDropAggregator.record({
+                source: 'place-refresh',
+                cid: rawContext.cid ?? 'default',
+                socketCid: rawContext.socketCid ?? 'none',
+            });
             return;
         }
         const normalizedContext = this.getNormalizedContext(requestContext);

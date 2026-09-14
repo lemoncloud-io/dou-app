@@ -1,8 +1,10 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 
 import { appBridge } from '../../bridge/appBridge';
 import { useOnBackgroundStatusChanged } from '../../bridge/useHandleAppMessage';
 import { useActiveCloudUnreads, useOtherCloudUnread } from '../../hooks';
+import { divergenceReporter } from '../../runtime/logging/divergenceReporter';
+import { nativeBadgeReader } from '../../runtime/logging/nativeBadgeReader';
 
 /**
  * App-global unread badge. Mounted once under AppRuntime (not the home page) so the native
@@ -29,9 +31,47 @@ export const UnreadBadgeRunner = (): null => {
     const { total } = useActiveCloudUnreads();
     const { total: otherTotal, refresh: refreshOtherClouds } = useOtherCloudUnread();
 
+    /**
+     * The value the device was last told to show. Badge divergence is checked against THIS, never
+     * against the current total: the write below is one-way and the device is expected to lag a
+     * fresh read by design, so comparing the live total against the icon would flag every legitimate
+     * read as a mismatch. Comparing against the last pushed value asks the only sound question —
+     * "is the device still showing what we told it?" — and needs no timing guess.
+     */
+    const lastPushedRef = useRef<number | null>(null);
+
     const pushBadge = useCallback(() => {
-        appBridge.setBadgeCount(total + otherTotal);
+        const next = total + otherTotal;
+        appBridge.setBadgeCount(next);
+        lastPushedRef.current = next;
     }, [total, otherTotal]);
+
+    /**
+     * Badge divergence (ADR-0075): read the icon BEFORE overwriting it, and compare with what it
+     * should already be showing. On the first push there is no previous value, so the total about to
+     * be written stands in — on a cold start that total is the truth and the icon carries whatever
+     * the background push handler left there, which is the mismatch users report as "the badge did
+     * not clear when I read everything".
+     *
+     * `nativeBadgeReader` answers `null` on a plain browser, on a shell that cannot report its
+     * badge, and on any platform whose real value is unreadable — and the reporter treats `null` as
+     * "skip" rather than zero.
+     */
+    const checkBadge = useCallback(async () => {
+        const expected = lastPushedRef.current ?? total + otherTotal;
+        const native = await nativeBadgeReader.read();
+        divergenceReporter.badge({ web: expected, native, active: total, others: otherTotal });
+    }, [total, otherTotal]);
+
+    // First push of this app run: check what the icon carries over from the previous run, then
+    // overwrite it. Deliberately mount-only — a check on every total change would race the
+    // fire-and-forget write it follows.
+    const didCheckOnMountRef = useRef(false);
+    useEffect(() => {
+        if (didCheckOnMountRef.current) return;
+        didCheckOnMountRef.current = true;
+        void checkBadge();
+    }, [checkBadge]);
 
     useEffect(() => {
         pushBadge();
@@ -53,6 +93,8 @@ export const UnreadBadgeRunner = (): null => {
     // native increment base for the next background session.
     useOnBackgroundStatusChanged(message => {
         if (message.data.isForeground) {
+            // Check before the overwrite: this is the moment the background drift is still visible.
+            void checkBadge();
             refreshOtherClouds();
             pushBadge();
         }

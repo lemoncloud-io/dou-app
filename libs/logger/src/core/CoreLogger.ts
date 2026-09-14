@@ -13,9 +13,16 @@ const isLogErrorOptions = (value: unknown): value is LogErrorOptions => {
     return 'error' in value || 'data' in value;
 };
 
-const normalizeErrorOptions = (options?: LogErrorOptions | unknown): LogErrorOptions => {
-    if (options === undefined || isLogErrorOptions(options)) return options ?? {};
-    return { error: options };
+/**
+ * Splits the third argument into `{ error, data }`.
+ *
+ * A value that is not the options shape is `data` — `logger.info(tag, msg, { kind })` means the
+ * object is the payload. The one exception is `error(tag, msg, err)`, whose long-standing shorthand
+ * passes the exception itself; `asError` says which reading applies.
+ */
+const normalizeErrorOptions = (options: LogErrorOptions | unknown, asError: boolean): LogErrorOptions => {
+    if (options === undefined || isLogErrorOptions(options)) return (options as LogErrorOptions) ?? {};
+    return asError ? { error: options } : { data: options };
 };
 
 /**
@@ -72,24 +79,47 @@ export class CoreLogger implements Logger {
         this.hub.publish(stamped);
     }
 
-    public debug(tag: string, message: string, data?: unknown): void {
-        this.dispatch('debug', tag, message, data);
+    /**
+     * All four levels normalize the same third argument.
+     *
+     * `debug`/`info`/`warn` used to store it verbatim, so `{ error, data }` — the shape 42 call
+     * sites wrote — landed as `data.data` with `entry.error` empty. Unwrapping here rather than at
+     * those sites means the trap cannot come back: a new caller writing either shape gets the same
+     * entry. See {@link LogErrorOptions}.
+     */
+    public debug(tag: string, message: string, options?: LogErrorOptions): void;
+    public debug(tag: string, message: string, data?: unknown): void;
+    public debug(tag: string, message: string, options?: LogErrorOptions | unknown): void {
+        this.dispatchNormalized('debug', tag, message, options);
     }
 
-    public info(tag: string, message: string, data?: unknown): void {
-        this.dispatch('info', tag, message, data);
+    public info(tag: string, message: string, options?: LogErrorOptions): void;
+    public info(tag: string, message: string, data?: unknown): void;
+    public info(tag: string, message: string, options?: LogErrorOptions | unknown): void {
+        this.dispatchNormalized('info', tag, message, options);
     }
 
-    public warn(tag: string, message: string, data?: unknown): void {
-        this.dispatch('warn', tag, message, data);
+    public warn(tag: string, message: string, options?: LogErrorOptions): void;
+    public warn(tag: string, message: string, data?: unknown): void;
+    public warn(tag: string, message: string, options?: LogErrorOptions | unknown): void {
+        this.dispatchNormalized('warn', tag, message, options);
     }
 
     public error(tag: string, message: string, options?: LogErrorOptions): void;
     public error(tag: string, message: string, error: unknown): void;
     public error(tag: string, message: string, options?: LogErrorOptions | unknown): void {
-        const normalized = normalizeErrorOptions(options);
+        this.dispatchNormalized('error', tag, message, options);
+    }
 
-        this.dispatch('error', tag, message, normalized.data, normalized.error);
+    private dispatchNormalized(
+        level: LogLevel,
+        tag: string,
+        message: string,
+        options?: LogErrorOptions | unknown
+    ): void {
+        const normalized = normalizeErrorOptions(options, level === 'error');
+
+        this.dispatch(level, tag, message, normalized.data, normalized.error);
     }
 
     private dispatch(level: LogLevel, tag: string, message: string, data?: unknown, error?: unknown): void {

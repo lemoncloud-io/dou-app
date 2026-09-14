@@ -21,7 +21,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { STEREO_BY_KIND } from '../api/reportLogApi';
+import { ROUND_2_AXES, STEREO_BY_KIND } from '../api/reportLogApi';
 import { useLogConsoleState } from '../hooks/use-log-console-state';
 import { useLogCorpus, type CorpusParams } from '../hooks/use-log-corpus';
 import { useNewLogProbe } from '../hooks/use-new-log-probe';
@@ -72,6 +72,9 @@ export const ReportLogsPage = () => {
             uid: server.uid || undefined,
             cid: server.cid || undefined,
             runId: server.runId || undefined,
+            // Empty means "no filter": an empty string would be matched literally against
+            // `<field>.keyword` and come back with nothing.
+            ...Object.fromEntries(ROUND_2_AXES.map(axis => [axis, server[axis] || undefined])),
         }),
         [server]
     );
@@ -147,10 +150,22 @@ export const ReportLogsPage = () => {
      * would advance the watermark past the rows that did not fit and strand them
      * permanently. A fresh walk is the only way to get them.
      */
+    /**
+     * Collect again from scratch — what the operator means by refreshing.
+     *
+     * The probe is reset as part of it, not left alone: its finds are measured against the
+     * watermark of the corpus that is being replaced, so keeping them would announce rows the new
+     * walk is already bringing in. A banner offering rows that are about to appear anyway reads as
+     * the merge being broken.
+     */
+    const reload = () => {
+        probe.reset();
+        corpus.reload();
+    };
+
     const acceptIncoming = () => {
         if (probe.overflowed) {
-            probe.reset();
-            corpus.reload();
+            reload();
             return;
         }
         corpus.appendHead(probe.take());
@@ -175,7 +190,7 @@ export const ReportLogsPage = () => {
                         cap={corpus.cap}
                         error={corpus.error}
                         fetchedAt={corpus.fetchedAt}
-                        onRetry={corpus.reload}
+                        onRetry={reload}
                     />
                 </div>
                 <div className="flex items-center gap-2">
@@ -201,7 +216,12 @@ export const ReportLogsPage = () => {
                     <button
                         type="button"
                         onClick={() =>
-                            downloadTextFile(`log-console-${server.stage}-${server.from}.csv`, rowsToCsv(filtered))
+                            // The range is optional, so the filename says `all` rather than
+                            // trailing a bare dash when no start date is set.
+                            downloadTextFile(
+                                `log-console-${server.stage}-${server.from || 'all'}.csv`,
+                                rowsToCsv(filtered)
+                            )
                         }
                         disabled={filtered.length === 0}
                         className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-muted disabled:opacity-50"
@@ -210,7 +230,7 @@ export const ReportLogsPage = () => {
                     </button>
                     <button
                         type="button"
-                        onClick={corpus.reload}
+                        onClick={reload}
                         disabled={corpus.isCollecting}
                         className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-muted disabled:opacity-50"
                     >

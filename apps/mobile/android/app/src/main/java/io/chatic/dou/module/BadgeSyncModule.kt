@@ -29,4 +29,21 @@ class BadgeSyncModule(reactContext: ReactApplicationContext) : ReactContextBaseJ
             promise.reject("BADGE_SYNC_FAILED", e.message)
         }
     }
+
+    /**
+     * Reads the shared counter back.
+     *
+     * The counter is the only place on Android that knows the real badge value: notifee's badge API
+     * is iOS-only, and the launcher number is driven by the posted notification rather than by
+     * anything readable. Without this the web can write the badge but never check it, which is why
+     * a badge that disagreed with the in-app unread count left no evidence (ADR-0075).
+     */
+    @ReactMethod
+    fun getBase(promise: Promise) {
+        try {
+            promise.resolve(BadgeStore.getCount(reactApplicationContext))
+        } catch (e: Exception) {
+            promise.reject("BADGE_SYNC_FAILED", e.message)
+        }
+    }
 }

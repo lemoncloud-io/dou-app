@@ -113,8 +113,11 @@ export interface ReportLogRow {
      *
      * - `timestamp` / `cid` / `sid` are **queryable** — `cid` and `uid` are server-side
      *   filters (hoisted by `saveLogEntry`), so pinning them narrows the whole dataset.
-     * - `appVersion` / `webVersion` / `route` / `os` are **not** — they live only inside
-     *   `meta`, so filtering or counting by them is confined to the collected corpus.
+     * - `appVersion` / `webVersion` / `route` / `os` / `osVersion` / `model` became queryable
+     *   with chatic-backend-api#41, which lifted them to top-level copies. `readAxis` prefers
+     *   `meta` and falls back to the record's own field, so a row reads the same either way and
+     *   pre-deploy records keep working. Counting by them is still corpus-scoped — #41 did not
+     *   touch the hardwired `stereo` aggregation.
      */
 
     /** `LogEntry.timestamp` — when it happened on the device. See `eventTime.ts`. */
@@ -129,8 +132,12 @@ export interface ReportLogRow {
     webVersion?: string;
     /** Screen path at the time of the log. */
     route?: string;
-    /** Device OS, `os`/`osVersion` joined for display when both are present. */
+    /** Device OS name alone, e.g. `ios`. Joined with the version for display by `formatOs`. */
     os?: string;
+    /** Device OS version alone, e.g. `18.0`. Separate because the filter matches it separately. */
+    osVersion?: string;
+    /** Device model identifier, e.g. `iPhone16`. */
+    model?: string;
 }
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
@@ -253,9 +260,11 @@ const isLogEntryShape = (metaObj: Record<string, unknown>): boolean =>
 
 /**
  * Read a string axis from the log entry, falling back to the record's hoisted copy.
- * `saveLogEntry` copies `sid`/`uid`/`cid`/`runId`/`level` to the document top level, so
- * either place can be the one that survived — a re-sent entry that omitted an axis leaves
- * the hoisted copy in place and vice versa.
+ * `saveLogEntry` copies `sid`/`uid`/`cid`/`runId`/`level` to the document top level, and
+ * chatic-backend-api#41 added `tag`, the two versions, `route` and the three device fields, so
+ * either place can be the one that survived — a re-sent entry that omitted an axis leaves the
+ * hoisted copy in place and vice versa. Records written before that deploy have the `meta` half
+ * only, which is why the fallback order matters rather than picking one source.
  */
 const readAxis = (metaObj: Record<string, unknown>, mock: RawMockView, key: string): string | undefined => {
     const fromMeta = metaObj[key];
@@ -264,12 +273,16 @@ const readAxis = (metaObj: Record<string, unknown>, mock: RawMockView, key: stri
     return typeof fromMock === 'string' && fromMock ? fromMock : undefined;
 };
 
-/** Join OS name and version into one display value; either half may be missing. */
-const readOs = (metaObj: Record<string, unknown>): string | undefined => {
-    const os = typeof metaObj.os === 'string' ? metaObj.os : undefined;
-    const version = typeof metaObj.osVersion === 'string' ? metaObj.osVersion : undefined;
-    if (os && version) return `${os} ${version}`;
-    return os ?? version;
+/**
+ * OS name and version as ONE display string; either half may be missing.
+ *
+ * Display only. `os` and `osVersion` are stored — and now filtered — separately, so joining them
+ * into the value a facet or a filter carries would send `ios 18.0` at a field holding `ios` and
+ * match nothing. The row keeps the two apart and composes here for the places that want a label.
+ */
+export const formatOs = (os?: string, osVersion?: string): string | undefined => {
+    if (os && osVersion) return `${os} ${osVersion}`;
+    return os ?? osVersion;
 };
 
 /** `LogEntry.data` is a JSON string the client already redacted; parsed for display when possible. */
@@ -317,7 +330,9 @@ const parseLogEntryRow = (mock: RawMockView, metaObj: Record<string, unknown>): 
         appVersion: typeof metaObj.appVersion === 'string' ? metaObj.appVersion : undefined,
         webVersion: typeof metaObj.webVersion === 'string' ? metaObj.webVersion : undefined,
         route: typeof metaObj.route === 'string' ? metaObj.route : undefined,
-        os: readOs(metaObj),
+        os: readAxis(metaObj, mock, 'os'),
+        osVersion: readAxis(metaObj, mock, 'osVersion'),
+        model: readAxis(metaObj, mock, 'model'),
     };
 };
 

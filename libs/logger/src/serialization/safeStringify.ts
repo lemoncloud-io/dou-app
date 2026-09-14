@@ -1,5 +1,6 @@
-import { isSensitiveKey, REDACTED } from '../redaction/sensitiveKeys';
+import { isSensitiveField, REDACTED } from '../redaction/sensitiveKeys';
 import { redactMaybeJson } from '../redaction/redact';
+import { redactText } from '../redaction/valuePatterns';
 
 /**
  * Stringify an arbitrary log field defensively: circular references become
@@ -16,23 +17,36 @@ import { redactMaybeJson } from '../redaction/redact';
  * shipped v1 without this on the grounds that a report is read by the team;
  * ADR-0047 widened where these entries end up — a shared Slack channel, and now
  * sessionStorage/MMKV on the device — so the exemption no longer holds. Masking
- * happens inside the replacer so it reaches nested objects and array elements;
- * a bare string cannot be judged and passes through.
+ * happens inside the replacer so it reaches nested objects and array elements.
+ *
+ * Every string is also masked by shape (`redactText`) — including the bare
+ * string this is handed directly, which used to be returned untouched. A name
+ * is not always available: `logger.warn(tag, msg, someServerText)` arrives here
+ * as a lone string with no key to judge, and an error's `message` and `stack`
+ * are just text. Those are exactly where a value that should never have been
+ * logged tends to sit.
  */
 export const safeStringify = (value: unknown): string | undefined => {
     if (value === undefined || value === null) return undefined;
-    if (typeof value === 'string') return value;
+    if (typeof value === 'string') return redactText(value);
     try {
         const seen = new WeakSet<object>();
         return JSON.stringify(value, (key, val) => {
             // Before the Error branch: a secret held under a sensitive key is
-            // masked whatever its type.
-            if (key && isSensitiveKey(key)) return REDACTED;
+            // masked whatever its type. The value is passed too, so a boolean
+            // presence flag (`hasToken`) is kept rather than blanked.
+            if (key && isSensitiveField(key, val)) return REDACTED;
             // Parsed JSON is acyclic, so this cannot reintroduce the cycle the
             // WeakSet below guards against.
             if (typeof val === 'string') return redactMaybeJson(val);
             if (val instanceof Error) {
-                return { name: val.name, message: val.message, stack: val.stack };
+                return {
+                    name: val.name,
+                    message: redactText(val.message),
+                    // Left undefined when absent rather than coerced to '' — the field is simply
+                    // omitted from the output, which is what it did before masking was added.
+                    stack: val.stack === undefined ? undefined : redactText(val.stack),
+                };
             }
             if (typeof val === 'object' && val !== null) {
                 if (seen.has(val)) return '[Circular]';
@@ -42,7 +56,7 @@ export const safeStringify = (value: unknown): string | undefined => {
         });
     } catch {
         try {
-            return String(value);
+            return redactText(String(value));
         } catch {
             return '[Unserializable]';
         }

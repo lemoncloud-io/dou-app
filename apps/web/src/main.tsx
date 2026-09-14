@@ -17,7 +17,7 @@ import { appBridge, pendingNavigationStore } from './app/bridge';
 import { markBoot } from './app/features/debug/metrics/bootMarks';
 import { initLongTasks } from './app/features/debug/metrics/longTasks';
 import { attachConsoleListener } from './app/runtime/logging/consoleListener';
-import { attachLogContext, readInjectedRunId } from './app/runtime/logging/logContext';
+import { attachLogContext, readInjectedRunId, reportRunIdJoin } from './app/runtime/logging/logContext';
 import { startLogUploader } from './app/runtime/logging/logUploader';
 import { createLogUploadSwitch } from './app/runtime/logging/logUploadSwitch';
 import { schedulePageCrashReport } from './app/runtime/pageCrashReporter';
@@ -51,6 +51,11 @@ startLogUploader({
     // watching this build, `debug` is worth keeping; if not, nothing can read it.
     keepDebug: import.meta.env.DEV,
 });
+
+// First entry of the run, and it has to be after the line above: it reports whether this launch's
+// native and web halves share a runId, and an entry dispatched before the queue subscribes would be
+// published to nobody. Silent when the join is intact (a plain browser always is).
+reportRunIdJoin();
 
 // One-time carry-over of usePreferenceStore's pre-@chatic/config localStorage keys (ADR-0079
 // "레거시 저장값 승계") — must run before `config.init()` below, whose `hydrateStorage()` is what

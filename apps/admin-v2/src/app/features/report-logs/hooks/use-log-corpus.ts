@@ -7,7 +7,7 @@
  * An earlier version hand-rolled the walk, and its stated reason was that a corpus is not
  * one response but many, with the screen rendering from the first page while the rest is
  * in flight — which `useInfiniteQuery` does not drive by itself. That reason went stale
- * when the ceiling dropped to 1,000: at a 500-row page the walk is TWO requests, so the
+ * when the ceiling dropped to one page: the walk is a SINGLE request, so the
  * loop was no longer buying anything, while the hand-rolled cache next to it was
  * re-implementing `staleTime`, stale-while-revalidate and keyed eviction badly.
  *
@@ -33,9 +33,9 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 
-import { fetchReportLogs, type FetchReportLogsParams } from '../api/reportLogApi';
+import { ROUND_2_AXES, fetchReportLogs, type FetchReportLogsParams } from '../api/reportLogApi';
 import { CORPUS_CAP, CORPUS_PAGE_SIZE, corpusStatus, nextCorpusPage, type CorpusPage } from '../lib/corpusPaging';
 import { parseReportLog, type ReportLogRow } from '../lib/parseReportLog';
 
@@ -50,7 +50,7 @@ export type CorpusPhase = 'idle' | 'collecting' | 'complete' | 'truncated' | 'fa
 export const CORPUS_STALE_MS = 120_000;
 
 /**
- * How long an unused corpus is kept. Deliberately short: a corpus is up to 1,000 parsed
+ * How long an unused corpus is kept. Deliberately short: a corpus is up to 500 parsed
  * rows and an issue row carries its screenshots as base64, so holding many is real memory.
  */
 const CORPUS_GC_MS = 300_000;
@@ -83,8 +83,21 @@ export interface LogCorpus {
     appendHead: (rows: ReportLogRow[]) => void;
 }
 
-/** The axes that define a corpus, as one list — the type, the key and the probe share it. */
-export const CORPUS_AXES = ['stage', 'type', 'from', 'to', 'level', 'runId', 'uid', 'cid'] as const;
+/**
+ * Prefix every corpus entry is keyed under. Named so the refresh can drop the whole
+ * family at once, rather than only the axes currently on screen.
+ */
+export const CORPUS_QUERY_PREFIX = ['admin-v2', 'report-logs', 'corpus'] as const;
+
+/**
+ * The axes that define a corpus, as one list — the type, the key and the probe share it.
+ *
+ * The round-2 axes are here rather than left to the client-side pass because they narrow the
+ * corpus ITSELF. That is the whole point of lifting them server-side: the old facet pass could
+ * only choose among values that happened to land in the collected page, so asking for one tag
+ * across a week returned whatever that tag had inside the newest 500 rows of everything.
+ */
+export const CORPUS_AXES = ['stage', 'type', 'from', 'to', 'level', 'runId', 'uid', 'cid', ...ROUND_2_AXES] as const;
 
 export type CorpusParams = Pick<FetchReportLogsParams, (typeof CORPUS_AXES)[number]>;
 
@@ -95,6 +108,7 @@ export const useLogCorpus = (
     params: CorpusParams,
     options?: { cap?: number; pageSize?: number; enabled?: boolean; settleMs?: number }
 ): LogCorpus => {
+    const client = useQueryClient();
     const cap = options?.cap ?? CORPUS_CAP;
     const pageSize = options?.pageSize ?? CORPUS_PAGE_SIZE;
     const enabled = options?.enabled ?? true;
@@ -115,7 +129,7 @@ export const useLogCorpus = (
     const settledKey = corpusKey(settled);
 
     const query = useInfiniteQuery({
-        queryKey: ['admin-v2', 'report-logs', 'corpus', settledKey, cap, pageSize],
+        queryKey: [...CORPUS_QUERY_PREFIX, settledKey, cap, pageSize],
         initialPageParam: 0,
         // Parsed inside the query, so the cache holds rows rather than raw records and a
         // cache hit costs no re-parse.
@@ -165,10 +179,21 @@ export const useLogCorpus = (
               ? 'truncated'
               : 'complete';
 
+    /**
+     * Refresh means "throw away what is held", not "re-ask for these axes".
+     *
+     * Refetching the current key alone leaves every OTHER cached corpus in place, and the
+     * loop this screen exists for is hopping between axes: refresh, unpin a uid, and the
+     * previous set of axes is served from a cache collected before the refresh — the
+     * newest rows are on the server and nothing on screen says otherwise. So the inactive
+     * entries are removed outright (a fresh walk is the only way back to them), while the
+     * one being looked at refetches behind the rows already on screen rather than blanking.
+     */
     const reload = useCallback(() => {
         setMerged([]);
+        client.removeQueries({ queryKey: [...CORPUS_QUERY_PREFIX], type: 'inactive' });
         void query.refetch();
-    }, [query.refetch]);
+    }, [client, query.refetch]);
 
     const appendHead = useCallback(
         (incoming: ReportLogRow[]) => {

@@ -321,6 +321,18 @@ export const appBridge = {
         return webClient.request({ type: 'FetchBadgeCount', data: {} });
     },
 
+    /**
+     * Read the native shared badge counter — Android's only true badge value, since the message
+     * above is served by notifee whose badge API is a no-op off iOS (ADR-0075).
+     *
+     * Raw like its neighbours: unwrapping and the platform routing that decides WHICH of the two to
+     * ask both live in `nativeBadgeReader`, so this stays a message facade. Rejects on a shell that
+     * predates the message, which is how that reader learns the capability.
+     */
+    fetchBadgeBase(): Promise<WebMessageResponse<'FetchBadgeBase'>> {
+        return webClient.request({ type: 'FetchBadgeBase', data: {} });
+    },
+
     /** Raise a local notification — checks the channel and deeplink plumbing without a real push. */
     showNotification(payload: Payload<'ShowNotification'>): Promise<WebMessageResponse<'ShowNotification'>> {
         return webClient.request({ type: 'ShowNotification', data: payload });

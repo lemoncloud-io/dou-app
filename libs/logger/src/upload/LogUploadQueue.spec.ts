@@ -146,6 +146,33 @@ describe('createLogUploadQueue — remove와 복원', () => {
 
         expect(queue.snapshot().map(e => e.level)).toEqual(['warn', 'error']);
     });
+
+    /**
+     * id는 서버의 dedup 키이면서 호스트가 ack하는 키다. 없으면 업로드는 되지만 큐에서 지워지지
+     * 않아 매 주기마다 다시 올라간다 — 영속화가 이 필드를 버리던 빌드의 레코드가 이미 기기에
+     * 있으므로, 들어오는 길에 고친다.
+     */
+    it('id 없는 레코드에 id를 발급한다 — 없으면 영원히 ack되지 않는다', () => {
+        const queue = createLogUploadQueue();
+        const { id: _dropped, ...idless } = entry('error');
+
+        queue.restore([idless as LogEntry]);
+
+        const [restored] = queue.snapshot();
+        expect(restored.id).toBeTruthy();
+        // ack 경로가 실제로 지울 수 있어야 한다 — 그게 이 발급의 목적이다.
+        queue.remove(queue.snapshot().filter(e => e.id && e.id === restored.id));
+        expect(queue.size()).toBe(0);
+    });
+
+    it('이미 있는 id는 바꾸지 않는다 — 재전송 때 같은 키를 유지해야 한다', () => {
+        const queue = createLogUploadQueue();
+        const kept = entry('error');
+
+        queue.restore([kept]);
+
+        expect(queue.snapshot()[0].id).toBe(kept.id);
+    });
 });
 
 describe('createLogUploadQueue — pushAll 중복 제거', () => {

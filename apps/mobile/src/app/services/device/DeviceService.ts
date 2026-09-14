@@ -8,6 +8,7 @@ import {
 } from 'react-native-image-picker';
 import { type DocumentPickerResponse, pick, types } from '@react-native-documents/picker';
 import Contacts, { type Contact } from 'react-native-contacts';
+import type { ObservationData } from '@chatic/logger';
 import type { ILogService } from '../log';
 import type { IDeviceService } from './types';
 
@@ -65,18 +66,49 @@ export class DeviceService implements IDeviceService {
             if (!hasPermission) {
                 const granted = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.READ_CONTACTS);
                 if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
-                    this.logger.error('DEVICE', 'Read contacts permission denied');
+                    // The user's choice, not a fault — the catalog puts permission denial at `warn`
+                    // so `error` stays a signal that something broke.
+                    this.logger.warn('DEVICE', 'Read contacts permission denied');
                     return [];
                 }
             }
         }
 
         try {
-            return await Contacts.getAll();
+            const contacts = await Contacts.getAll();
+            this.reportContactShape(contacts);
+            return contacts;
         } catch (error: any) {
             this.logger.error('DEVICE', 'Failed to get contacts', error);
             throw error;
         }
+    }
+
+    /**
+     * Records how many of the fetched contacts have a usable name.
+     *
+     * "Some contacts show up with no name" is a successful read, not a failure — nothing throws, so
+     * no failure trigger can see it. What separates the possible causes is the SHAPE: none named
+     * points at permissions or the account the contacts live in, some named points at that device's
+     * contact data (ADR-0075).
+     *
+     * Counts only. Names and numbers are content, and the diagnosis does not need them.
+     */
+    private reportContactShape(contacts: Contact[]): void {
+        const named = contacts.filter(
+            contact => !!(contact.displayName || contact.givenName || contact.familyName)
+        ).length;
+        const nameless = contacts.length - named;
+
+        const message = `contacts read — ${named}/${contacts.length} named`;
+        const data = {
+            observation: 'contacts-shape',
+            total: contacts.length,
+            named,
+            nameless,
+        } satisfies ObservationData;
+        if (nameless > 0) this.logger.warn('DEVICE', message, data);
+        else this.logger.info('DEVICE', message, data);
     }
 
     async openCamera(options?: CameraOptions): Promise<Asset[]> {

@@ -9,7 +9,7 @@ import { act, render, screen } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 
-import { todayLocalDate, useLogConsoleState, type LogConsoleState } from './use-log-console-state';
+import { useLogConsoleState, type LogConsoleState } from './use-log-console-state';
 
 let api: LogConsoleState;
 
@@ -31,10 +31,13 @@ const setup = (initial = '/report-logs') => {
 const params = (search: string) => new URLSearchParams(search);
 
 describe('useLogConsoleState — 기본값', () => {
-    it('defaults the range to today so the first walk is bounded', () => {
+    it('leaves the range open, for the operator to set', () => {
+        // No default day. A date the operator did not choose reads as the whole picture
+        // while it is actually one day's slice, and the range is the axis they came to
+        // move. The cap still bounds the walk, and `CorpusProgress` says when it bit.
         setup();
 
-        expect(api.server.from).toBe(todayLocalDate());
+        expect(api.server.from).toBe('');
         expect(api.server.to).toBe('');
     });
 
@@ -60,7 +63,7 @@ describe('useLogConsoleState — URL 왕복', () => {
     it('reads server axes out of the query string', () => {
         setup('/report-logs?stage=d1&kind=log-entry&from=2026-09-01&to=2026-09-02&level=error&uid=u1&cid=c1&runId=r1');
 
-        expect(api.server).toEqual({
+        expect(api.server).toMatchObject({
             stage: 'd1',
             kind: 'log-entry',
             from: '2026-09-01',
@@ -70,6 +73,37 @@ describe('useLogConsoleState — URL 왕복', () => {
             cid: 'c1',
             runId: 'r1',
         });
+    });
+
+    /**
+     * The round-2 axes share their search params with the facet dropdowns, so one selection has to
+     * reach BOTH — the server narrowing and the client pass — or the two disagree about what is on
+     * screen. `toMatchObject` above would not catch them going missing, hence this.
+     */
+    it('reads the round-2 axes as server axes too, from the params the facets write', () => {
+        setup(
+            '/report-logs?tag=UPLOAD&appVersion=1.4.0&webVersion=0.62.0&route=/chat&os=iOS&osVersion=18.0&model=iPhone16'
+        );
+
+        expect(api.server).toMatchObject({
+            tag: 'UPLOAD',
+            appVersion: '1.4.0',
+            webVersion: '0.62.0',
+            route: '/chat',
+            os: 'iOS',
+            osVersion: '18.0',
+            model: 'iPhone16',
+        });
+        // And the same values still reach the client pass, which is what keeps the selection
+        // working while the backend change is undeployed and the params are ignored.
+        expect(api.client.facets).toMatchObject({ tag: 'UPLOAD', appVersion: '1.4.0' });
+    });
+
+    it('leaves an unset round-2 axis empty so the params builder omits it', () => {
+        setup('/report-logs?stage=d1');
+
+        expect(api.server.tag).toBe('');
+        expect(api.server.model).toBe('');
     });
 
     it('reads client axes out of the query string', () => {

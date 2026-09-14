@@ -1,6 +1,7 @@
 import type { CacheChatView, CacheModelOf, CacheQueryOf, CacheType } from '@chatic/app-messages';
 import type { AdapterScope, DataContextProvider, IIndexedDB, IndexedDbQueryExecutor, IndexedDbRow } from '@chatic/data';
 import { createTtlMeta, withCacheMeta } from '@chatic/data';
+import { logger } from '@chatic/bridges';
 import { BaseDbAdapter } from '../base/BaseDbAdapter';
 import { CHAT_PAGINATION_INDEX, TYPE_CID_UID_INDEX, UNSENT_CHAT_NO } from './IndexedDBDatabase';
 
@@ -102,9 +103,28 @@ export class IndexedDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTy
         try {
             await write();
         } catch (error) {
-            if (channelIds.length === 0 || !isQuotaExceededError(error)) throw error;
+            if (!isQuotaExceededError(error)) throw error;
+            if (channelIds.length === 0) {
+                // Nothing cappable in this write, so there is no room to make. A client without a
+                // channel cap has no safety net at all — the write is simply lost (ADR-0075).
+                logger.error('CACHE', 'web cache quota exceeded with nothing to evict', { error });
+                throw error;
+            }
             await this.enforceChannelLimits(scope, channelIds);
-            await write();
+            try {
+                await write();
+                // Recovered, and the user saw nothing — but older messages are gone. The retry's
+                // outcome is half the information, so it rides on the same line.
+                logger.warn('CACHE', 'web cache quota exceeded — evicted and retried, retry ok', {
+                    data: { channels: channelIds.length },
+                });
+            } catch (retryError) {
+                logger.error('CACHE', 'web cache quota exceeded — retry after eviction failed', {
+                    error: retryError,
+                    data: { channels: channelIds.length },
+                });
+                throw retryError;
+            }
         }
     }
 
@@ -136,7 +156,15 @@ export class IndexedDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTy
         );
         if (boundary === null) return;
 
-        await this.db.clearByRange(CHAT_PAGINATION_INDEX, IDBKeyRange.bound(lower, boundary));
+        const removed = await this.db.clearByRange(CHAT_PAGINATION_INDEX, IDBKeyRange.bound(lower, boundary));
+        if (removed > 0) {
+            // Named here rather than in `clearByRange`, which knows an index range and not which
+            // channel it belongs to. "I scrolled up and the old messages are gone" has no other
+            // explanation available (ADR-0075).
+            logger.info('CACHE', `evicted ${removed} chat row(s) over the channel cap`, {
+                data: { channelId, limit, removed },
+            });
+        }
     }
 
     /**
@@ -170,6 +198,14 @@ export class IndexedDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTy
                 return this.createSchema(scope.cid, scope.uid, id, item);
             })
             .filter((row): row is IndexedDbRow<TType> => row !== null);
+
+        // Silent data loss otherwise: the caller is told the whole batch was saved and one of the
+        // items simply is not there. Counts only — the items are domain content (ADR-0075).
+        if (rows.length !== items.length) {
+            logger.warn('CACHE', `dropped ${items.length - rows.length} item(s) with no id from saveAll`, {
+                data: { type: this.type, dropped: items.length - rows.length, total: items.length },
+            });
+        }
 
         await this.persist(scope, rows, () => this.db.saveAll(rows));
         return items;

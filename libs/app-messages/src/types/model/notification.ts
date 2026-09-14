@@ -60,6 +60,29 @@ export type OnFetchBadgeCountPayload = {
     count: number;
 };
 
+/**
+ * [요청] 뱃지 base(네이티브 공유 카운터) 조회 페이로드.
+ *
+ * `FetchBadgeCount`와 별개의 메시지입니다. 그쪽은 notifee가 답하는데 notifee의 badge API는
+ * iOS 전용(그 외 플랫폼에서 항상 0)이라, 안드로이드에서 실제 카운트를 들고 있는 공유 저장소를
+ * 읽으려면 다른 창구가 필요합니다. 새 타입으로 낸 이유는 웹이 앱보다 먼저 배포되기 때문입니다 —
+ * 구버전 셸은 이 메시지를 모르므로 `NOT_FOUND`로 답하고, 웹은 그 답으로 "이 셸에서는 알 수 없음"을
+ * 학습합니다. 기존 메시지의 의미를 바꾸면 그 구분이 불가능합니다. (ADR-0075)
+ */
+export type FetchBadgeBasePayload = {
+    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+};
+
+/**
+ * [응답] 뱃지 base 조회 결과 페이로드.
+ *
+ * `base`가 `null`이면 "이 플랫폼에서는 알 수 없음"입니다 — 0으로 답하지 않는 것이 계약의 핵심입니다.
+ * 0은 유효한 카운트라서, 모르는 것을 0으로 답하면 소비자가 그것을 진짜 값으로 비교합니다.
+ */
+export type OnFetchBadgeBasePayload = {
+    base: number | null;
+};
+
 /** [응답] 뱃지 카운트 설정 결과 페이로드 */
 export type OnSetBadgeCountPayload = {
     success: boolean;

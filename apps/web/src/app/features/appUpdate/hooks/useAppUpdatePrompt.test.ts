@@ -3,6 +3,9 @@ import { act, renderHook } from '@testing-library/react';
 const mockIsNative = jest.fn();
 jest.mock('@chatic/bridges', () => ({
     isNative: (...args: unknown[]) => mockIsNative(...args),
+    // `useAppUpdateStatus` logs the check result; a partial logger mock breaks this suite even
+    // though it asserts nothing about logging.
+    logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
 const mockCheckAppUpdate = jest.fn();

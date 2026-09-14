@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { useLocation, useParams, useSearchParams } from 'react-router-dom';
 
 import { logger } from '@chatic/bridges';
+
+import { pushEntryRegistry } from '../../../runtime/logging/pushEntryRegistry';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { runtime } from '@chatic/app-runtime';
 import type { DomainChannel } from '@chatic/data';
@@ -260,6 +262,37 @@ export const ChannelRoomPage = () => {
         loadMore,
         loadUntil,
     } = useChats(memoizedChatParams);
+
+    /**
+     * Push-tap entry chain (ADR-0075). Only rooms reached by tapping a push record anything: the
+     * registry hands over that push's id and how long the routing took, and the second effect closes
+     * the chain when messages actually appear. Two entries, one correlation key — which is what makes
+     * "tapped a push and the conversation never showed" answerable, by saying whether the room even
+     * opened and whether it was routing or loading that took the time.
+     */
+    const pushEntryRef = useRef<{ messageId?: string } | null>(null);
+    const pushReadyLoggedRef = useRef(false);
+    useEffect(() => {
+        if (!channelId) return;
+        const pending = pushEntryRegistry.consume(channelId);
+        if (!pending) return;
+        pushEntryRef.current = { messageId: pending.messageId };
+        logger.info('PUSH_EVENT', 'room opened from push tap', {
+            messageId: pending.messageId,
+            channelId,
+            routingMs: pending.elapsedMs,
+        });
+    }, [channelId]);
+    useEffect(() => {
+        if (!pushEntryRef.current || pushReadyLoggedRef.current) return;
+        if (isChatLoading || messages.length === 0) return;
+        pushReadyLoggedRef.current = true;
+        logger.info('PUSH_EVENT', 'push-opened room showed its messages', {
+            messageId: pushEntryRef.current.messageId,
+            channelId,
+            count: messages.length,
+        });
+    }, [channelId, isChatLoading, messages]);
 
     /**
      * The room's very first message is loaded, so the intro block belongs at the top of the thread.
@@ -699,6 +732,15 @@ export const ChannelRoomPage = () => {
         />
     );
 
+    // The header clearance, as the last DOM child of the reversed list — i.e. the topmost thing in
+    // it. This is the scroll container's own `padding-top` moved into the content, because in a
+    // `flex-col-reverse` scroller that padding is not dependable scrollable overflow (see the
+    // container's style). `12` is the list's `gap-3`, which now sits between this spacer and the
+    // first row and would otherwise add itself on top of the clearance.
+    const headerSpacer = (
+        <div aria-hidden className="shrink-0" style={{ height: Math.max(0, headerHeight + 8 - 12) }} />
+    );
+
     // Everything the room says about a peer who left, plus the way back (ADR-0068). Renders nothing
     // while the peer is here, so it can sit in the stream unconditionally.
     //
@@ -764,11 +806,20 @@ export const ChannelRoomPage = () => {
                     onScroll={handleMessagesScroll}
                     className="absolute inset-0 flex flex-col-reverse overflow-y-auto overflow-x-hidden overscroll-none gap-3"
                     style={{
-                        paddingTop: headerHeight + 8,
+                        // NO padding-top here — the header clearance is a spacer ELEMENT at the end
+                        // of the list (see `headerSpacer`). In a `flex-col-reverse` scroller the
+                        // content overflows towards the top, and the padding on that side is not
+                        // reliably part of the scrollable overflow: WebKit (the app's WebView)
+                        // leaves it out, so a thread taller than the viewport by less than the
+                        // header simply reports `scrollHeight === clientHeight` and does not scroll
+                        // AT ALL, with its oldest message stuck behind the header. A child element
+                        // is content, and content always scrolls.
+                        //
                         // Border-box composer height, so it already carries the input field, its
                         // padding and — when the keyboard is up — `--keyboard-height`. The list
                         // therefore always clears the composer and gains extra room to scroll the
-                        // last message above a raised keyboard.
+                        // last message above a raised keyboard. This side is the scroller's start
+                        // edge, where padding IS honoured, so it stays padding.
                         paddingBottom: composerHeight + 16,
                     }}
                 >
@@ -778,9 +829,17 @@ export const ChannelRoomPage = () => {
                                 start at the top and the real messages replace them in place. */}
                             <div aria-hidden className="flex-1" />
                             <RoomSkeleton />
+                            {headerSpacer}
                         </>
                     ) : isChatEmpty ? (
-                        <div className="flex min-h-full flex-1 flex-col">
+                        <div
+                            className="flex min-h-full flex-1 flex-col"
+                            // The empty room carries the clearance as its own padding rather than
+                            // the spacer: `min-h-full` is border-box, so it stays exactly one
+                            // viewport tall instead of overflowing by a spacer with nothing to
+                            // scroll to.
+                            style={{ paddingTop: headerHeight + 8 }}
+                        >
                             <DateDivider label={formatDateSeparator(new Date())} />
                             {roomIntro}
                             {/* A 1:1 whose peer left before anyone said anything is a real room, and
@@ -971,6 +1030,7 @@ export const ChannelRoomPage = () => {
                                     <Loader2 size={20} className="animate-spin text-muted-foreground" />
                                 </div>
                             )}
+                            {headerSpacer}
                         </>
                     )}
                 </div>

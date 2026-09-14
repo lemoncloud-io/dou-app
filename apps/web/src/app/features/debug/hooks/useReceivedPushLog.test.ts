@@ -21,7 +21,11 @@ const latestHandler = (): ((message: AppMessageData<'OnReceiveNotification'>) =>
 };
 
 const makeMessage = (title: string): AppMessageData<'OnReceiveNotification'> =>
-    ({ type: 'OnReceiveNotification', success: true, data: { notification: { title, body: 'b' } } } as unknown as AppMessageData<'OnReceiveNotification'>);
+    ({
+        type: 'OnReceiveNotification',
+        success: true,
+        data: { notification: { title, body: 'b' } },
+    }) as unknown as AppMessageData<'OnReceiveNotification'>;
 
 describe('useReceivedPushLog — 푸시 수신 기록', () => {
     beforeEach(() => jest.clearAllMocks());
@@ -31,7 +35,7 @@ describe('useReceivedPushLog — 푸시 수신 기록', () => {
         expect(result.current.entries).toEqual([]);
     });
 
-    it('푸시를 받으면 목록에 최신순으로 쌓고 PUSH 태그로 로깅한다', () => {
+    it('푸시를 받으면 목록에 최신순으로 쌓는다', () => {
         const { result } = renderHook(() => useReceivedPushLog());
 
         act(() => latestHandler()(makeMessage('첫번째')));
@@ -41,7 +45,17 @@ describe('useReceivedPushLog — 푸시 수신 기록', () => {
         expect(result.current.entries[0].title).toBe('두번째');
         expect(result.current.entries[1].title).toBe('첫번째');
         expect(result.current.entries[0].id).not.toBe(result.current.entries[1].id);
-        expect(mockLoggerInfo).toHaveBeenCalledWith('PUSH', expect.stringContaining('두번째'), expect.any(Object));
+    });
+
+    // 수신 엔트리는 앱 전역 구독자(useInAppPushMessage)가 남긴다. 여기서도 남기면 디버그 화면이
+    // 떠 있는 동안 모든 수신이 두 줄이 된다.
+    it('로그는 남기지 않는다 — 전역 구독자와 중복되기 때문', () => {
+        const { result } = renderHook(() => useReceivedPushLog());
+
+        act(() => latestHandler()(makeMessage('첫번째')));
+
+        expect(result.current.entries).toHaveLength(1);
+        expect(mockLoggerInfo).not.toHaveBeenCalled();
     });
 
     it('clear는 목록을 비운다', () => {

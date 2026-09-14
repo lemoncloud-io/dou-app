@@ -5,12 +5,16 @@
  * This exists because the backend's aggregation is hardwired: `buildQuery` always
  * aggregates on `stereo` and takes no parameter for anything else (chatic-backend-api
  * `abstract-services.ts`). So there is no server-side "count by tag" or "count by app
- * version" to ask for, and the axes those questions need are not even filterable — they
- * live inside the record's `meta`.
+ * version" to ask for.
+ *
+ * **Counting and filtering have come apart.** chatic-backend-api #41 lifted `tag`, the two
+ * versions, `route` and the device fields to top-level copies, so those axes ARE filterable now
+ * and the corpus is narrowed on the server when one is selected. The aggregation was not part of
+ * that change, so the counts shown here are still computed from the collected rows.
  *
  * The counts are therefore corpus-scoped, and the UI must say so. That is not a
  * shortcoming to paper over: it is the honest reach of what the console can compute
- * without a backend change (ADR-0083).
+ * without a backend aggregation change (ADR-0083).
  */
 import type { ReportLogRow } from './parseReportLog';
 
@@ -29,7 +33,19 @@ export interface FacetValue {
  * the list; the rail hides a facet with fewer than two values, which is what keeps that
  * from happening in practice.
  */
-export const FACET_KEYS = ['level', 'tag', 'app', 'env', 'appVersion', 'webVersion', 'route', 'source', 'os'] as const;
+export const FACET_KEYS = [
+    'level',
+    'tag',
+    'app',
+    'env',
+    'appVersion',
+    'webVersion',
+    'route',
+    'source',
+    'os',
+    'osVersion',
+    'model',
+] as const;
 
 export type FacetKey = (typeof FACET_KEYS)[number];
 
@@ -44,17 +60,15 @@ export type Facets = Record<FacetKey, FacetValue[]>;
  * tells you how many are unaccounted for.
  */
 export const buildFacets = (rows: ReportLogRow[]): Facets => {
-    const counters: Record<FacetKey, Map<string, number>> = {
-        level: new Map(),
-        tag: new Map(),
-        app: new Map(),
-        env: new Map(),
-        appVersion: new Map(),
-        webVersion: new Map(),
-        route: new Map(),
-        source: new Map(),
-        os: new Map(),
-    };
+    // Derived from `FACET_KEYS` rather than listed again: a hand-written literal here has to be
+    // edited in step with that list, and nothing but the compiler notices when it is not.
+    const counters = FACET_KEYS.reduce(
+        (acc, key) => {
+            acc[key] = new Map<string, number>();
+            return acc;
+        },
+        {} as Record<FacetKey, Map<string, number>>
+    );
 
     for (const row of rows) {
         for (const key of FACET_KEYS) {
@@ -112,6 +126,8 @@ const searchableOf = (row: ReportLogRow): string => {
         row.source,
         row.route,
         row.os,
+        row.osVersion,
+        row.model,
         row.appVersion,
         row.webVersion,
     ]

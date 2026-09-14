@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo } from 'react';
 
 import { runtime } from '@chatic/app-runtime';
+import { logger } from '@chatic/bridges';
 import { useCloudSessionCatalog } from '../../hooks/useCloudCatalog';
 import type { AppMessageData } from '@chatic/app-messages';
 
@@ -78,6 +79,21 @@ export const CloudPushMarkRunner = (): null => {
     // the same single-point logic as the foreground path above.
     const drainNativeMarks = useCallback(async () => {
         const records = await appBridge.fetchPushMarks();
+        // The only trace a background arrival ever leaves on the web, recorded here because the
+        // drain is destructive — read and clear in one native call, so this is the one moment the
+        // records exist on this side (ADR-0075). On iOS the notification-service extension runs in
+        // its own process and cannot reach the logger at all, which makes this the sole evidence
+        // that those pushes arrived.
+        //
+        // The count is a LOWER BOUND: the shell skips a record whose payload carries none of
+        // cid/uid/channelId, and the store holds at most 100 with oldest-first eviction. Cloud ids
+        // only — the records also carry a channel name, which is content.
+        if (records.length > 0) {
+            logger.info('PUSH_EVENT', `drained ${records.length} background push mark(s) (lower bound)`, {
+                count: records.length,
+                cids: records.map(record => record.cid).filter(Boolean),
+            });
+        }
         for (const hint of records) {
             const cloudId = await resolvePushCloudId(hint, { cids, resolveContext });
             if (!cloudId || cloudId === selectedCloudId) continue;
