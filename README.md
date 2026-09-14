@@ -107,13 +107,12 @@ graph TB
         USERS[users]
         APPMSG[app-messages]
         DEVICE[device-utils]
-        I18N[i18n-mobile]
     end
 
     WEB --> WEBCORE & UIKIT & SHARED & THEME
     WEB --> AUTH & CHATS & SOCKET & USERS
     ADMIN --> WEBCORE & UIKIT & SHARED & THEME
-    MOBILE --> SHARED & THEME & SOCKET & DEVICE & I18N & APPMSG
+    MOBILE --> SHARED & THEME & SOCKET & DEVICE & APPMSG
 ```
 
 ### Project Structure
@@ -138,8 +137,7 @@ dou-app/
 │   ├── socket/              # WebSocket integration
 │   ├── users/               # User management
 │   ├── app-messages/        # Messaging types and stores
-│   ├── device-utils/        # Device info and stores
-│   └── i18n-mobile/         # Mobile i18n setup
+│   └── device-utils/        # Device info and stores
 ├── assets/                  # Shared images, logos, icons
 ├── scripts/                 # Build and deployment scripts
 ├── docs/                    # Documentation

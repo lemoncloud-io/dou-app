@@ -115,7 +115,7 @@
 | `useBlocker` · `useDeviceId` · `useLocalStorage` · `usePagination` | `libs/shared/src/hooks/`                                                   | `libs/shared/src/hooks/index.ts`                                                    |
 | `deleteUndefinedProperty`                                          | `libs/shared/src/utils/deleteUndefinedProperty.ts:1`                       | `libs/shared/src/utils/index.ts`                                                    |
 | `useAppChecker`                                                    | `libs/device-utils/src/hooks/useAppChecker.ts:5`                           | `libs/device-utils/src/hooks/index.ts:2`                                            |
-| `getTranslations`                                                  | `libs/i18n-mobile/src/translate.ts:12`                                     | `libs/i18n-mobile/src/index.ts:3`                                                   |
+| ~~`getTranslations`~~ (2026-09-14 삭제)                            | `libs/i18n-mobile/src/translate.ts:12`                                     | `libs/i18n-mobile/src/index.ts:3` — lib을 `apps/mobile`로 옮기며 함께 제거          |
 | `resetWebTransport`                                                | `libs/app-runtime/src/http/transport.ts:73`                                | `libs/app-runtime/src/http/index.ts:29` (그 배럴 자체가 고아, §4-4)                 |
 | `waitForVerified`                                                  | `apps/desktop-web/src/app/shared/utils/waitForVerified.ts:8`               | `apps/desktop-web/.../utils/index.ts:1` — **보류**(desktop-web은 이번 배치 대상 외) |
 

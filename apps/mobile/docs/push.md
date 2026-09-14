@@ -223,7 +223,7 @@ sequenceDiagram
 
 | 자리                                                  | 소비자                           | 빠지면                          |
 | ----------------------------------------------------- | -------------------------------- | ------------------------------- |
-| `libs/i18n-mobile/src/locales/{ko,en}.ts`             | 네이티브 셸 UI                   | 셸 문구 (푸시엔 영향 없음)      |
+| `src/app/utils/i18n/locales/{ko,en}.ts`               | 네이티브 셸 UI                   | 셸 문구 (푸시엔 영향 없음)      |
 | `android/app/src/main/assets/locales/{ko,en}.json`    | `ChaticFirebaseMessagingService` | Android 배너에 리터럴 키        |
 | `ios/assets/locales/{ko,en}.json`                     | iOS 앱                           | iOS 앱 내 문구                  |
 | `ios/ChaticNotificationServiceExtension/{ko,en}.json` | NSE                              | iOS 백그라운드 배너에 리터럴 키 |
@@ -231,7 +231,7 @@ sequenceDiagram
 문구는 ko `{0} 클라우드가 준비되었습니다`, en `{0} is ready`. **조사를 변수에서 뗀 형태다** — 이름
 끝 종성에 따라 "이/가"가 갈리므로 임의의 이름에 맞출 수 없다. 변수를 넣는 새 키는 전부 이 규칙을 따른다.
 
-`libs/i18n-mobile/src/types.ts`의 `TranslationKey`에는 넣지 않는다 — 기존 `push_chat_message_title`도
+`src/app/utils/i18n/types.ts`의 `TranslationKey`에는 넣지 않는다 — 기존 `push_chat_message_title`도
 없다. 푸시 키는 네이티브가 조립하고 셸의 `t()`를 타지 않는다.
 
 네 벌이 어긋나는 것은 [`localeParity.test.ts`](../src/app/services/notification/localeParity.test.ts)가

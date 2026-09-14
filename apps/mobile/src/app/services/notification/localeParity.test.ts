@@ -1,11 +1,13 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
-import { en, ko } from '@chatic/i18n-mobile';
+// Not the utils/i18n entry point: that one pulls ../device -> react-native-device-info, which
+// jest cannot transform, so importing it here kills this suite at load.
+import { en, ko } from '../../utils/i18n/locales';
 
 /**
  * The same push translation key has to exist in FOUR independent locale sets, each read by a
- * different consumer: the RN shell (`@chatic/i18n-mobile`), the Android FCM service, the iOS app,
+ * different consumer: the RN shell (`utils/i18n/locales`), the Android FCM service, the iOS app,
  * and the iOS Notification Service Extension. A key missing from one set breaks only that path —
  * an iOS background banner renders the literal key while every other surface looks fine — so a
  * hand-sync miss is invisible without this check (ADR-0075).

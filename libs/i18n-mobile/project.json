@@ -1,8 +1,0 @@
-{
-    "name": "@chatic/i18n-mobile",
-    "$schema": "../../node_modules/nx/schemas/project-schema.json",
-    "sourceRoot": "libs/i18n-mobile/src",
-    "projectType": "library",
-    "tags": [],
-    "targets": {}
-}
