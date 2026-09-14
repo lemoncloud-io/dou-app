@@ -1,9 +1,30 @@
+// libs/web-ui-kit/tsconfig.spec.json
 {
     "extends": "./tsconfig.json",
     "compilerOptions": {
-        "outDir": "../../dist/out-tsc",
-        "module": "commonjs",
-        "types": ["jest", "node"]
+        "outDir": "../../dist/out-tsc/web-ui-kit-spec",
+        // `module` is NOT overridden to commonjs here. The base sets `moduleResolution: bundler`,
+        // which rejects commonjs (TS5095) and left this config unable to compile at all — which is
+        // how 75 spec files went without a type check. ts-jest emits CommonJS for jest on its own;
+        // this config only has to be checkable.
+        //
+        // `jsx: react-jsx` comes from ./tsconfig.json. The two `@nx/react/typings` entries are the
+        // same ones tsconfig.lib.json carries: components import `.svg` / `.png` assets, and without
+        // those ambient declarations every asset import in a rendered component is TS2307.
+        "types": ["jest", "node", "@nx/react/typings/cssmodule.d.ts", "@nx/react/typings/image.d.ts"]
     },
-    "include": ["jest.config.js", "src/**/*.ts", "src/**/*.tsx"]
+    // `__mocks__` is listed explicitly even though `src/**/*.ts` already covers it: tsconfig.lib.json
+    // excludes that folder, and the nx typecheck target derives its cache inputs from these globs —
+    // without this entry a change to a shared mock would not invalidate the cache.
+    "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.d.ts", "src/**/__mocks__/**/*.ts"],
+    // Stories are excluded here for the same reason tsconfig.lib.json excludes them: they are built
+    // by tsconfig.storybook.json, which owns its own `jsx: preserve` and its own error baseline.
+    "exclude": ["out-tsc", "dist", "src/**/*.stories.ts", "src/**/*.stories.tsx"],
+    // The same sibling project tsconfig.lib.json references. A composite project has to reach its
+    // dependencies through references, or their sources come in as unlisted files (TS6307).
+    "references": [
+        {
+            "path": "../ui-kit/tsconfig.lib.json"
+        }
+    ]
 }
