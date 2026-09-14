@@ -1,5 +1,20 @@
 # Changelog
 
+## [2026-09-14] - root@0.62.1, @chatic/web@0.49.3, @chatic/desktop-web@0.12.1
+
+### Refactor
+
+- (data) make the caller name the site for explicit-sid writes
+- (data) let the query decide the site filter, and type-check the tests
+- (data) retire sid as a cache observer scope axis
+- (data) drop the V2 suffix and the dead build scaffolding
+- (data) flatten src/data one level up and split the docs by layer
+
+### Other
+
+- build: (admin-v2) build project references when type checking
+- ci: gate every pull request, and point agents at each module's docs
+
 ## [2026-09-14] - No version updates
 
 ### Features
