@@ -16,11 +16,20 @@
 
 앱 아이콘 뱃지 숫자의 진실원을 **네이티브 공유 저장소의 카운터**로 두고, 두 writer를 여기에 수렴시킨다.
 
-| writer               | 시점       | 동작                                                             |
-| -------------------- | ---------- | ---------------------------------------------------------------- |
-| 웹 재집계            | 포그라운드 | 활성 클라우드 unread를 집계한 절대값 `T`를 카운터·OS 뱃지에 기록 |
-| 네이티브 push 핸들러 | 백그라운드 | chat 푸시마다 카운터 `+1` 하고 OS 뱃지에 반영                    |
-| 웹 포그라운드 재집계 | 복귀       | 진짜 값 `T'`를 다시 기록해 백그라운드 드리프트를 정정            |
+| writer               | 시점       | 동작                                                                                                |
+| -------------------- | ---------- | --------------------------------------------------------------------------------------------------- |
+| 웹 재집계            | 포그라운드 | 활성 클라우드 unread를 집계한 절대값 `T`를 카운터에 기록. **OS 뱃지에 닿는 것은 iOS뿐** (아래 경고) |
+| 네이티브 push 핸들러 | 백그라운드 | chat 푸시마다 카운터 `+1` 하고 OS 뱃지에 반영                                                       |
+| 웹 포그라운드 재집계 | 복귀       | 진짜 값 `T'`를 다시 기록해 백그라운드 드리프트를 정정                                               |
+
+> ⚠️ **안드로이드에서는 웹의 절대값이 런처 아이콘에 도달하지 않는다** (2026-09-07 확인). `NotificationService.setBadgeCount`가
+> 부르는 notifee의 badge API는 **iOS 전용**이고 그 외 플랫폼에서는 즉시 resolve하는 no-op이다
+> (`@notifee/react-native` `NotifeeApiModule.ts` — `setBadgeCount`/`getBadgeCount` 모두 `if (!isIOS)`로 빠진다).
+> 안드로이드 런처 숫자를 실제로 움직이는 유일한 지점은 `ChaticFirebaseMessagingService`가 알림에 붙이는
+> `setNumber(badgeCount)`이므로, 뱃지는 **떠 있는 알림에 종속**된다. 그리고 리포지토리에 알림을 취소하는
+> 코드가 없다 — 그래서 방을 읽어도 트레이의 알림이 남아 있으면 뱃지가 남는다. 이것이 "들어가서 봐도
+> 뱃지가 안 없어진다"의 안드로이드 쪽 원인 후보이고, **수정은 별 트랙**이다. 이 문서의 위 표는 그
+> 수정이 들어오기 전까지 iOS에만 온전히 참이다.
 
 핵심 제약: **양 플랫폼 모두 백그라운드 증가 경로에서 "현재 표시된 뱃지"를 읽을 수 없다.**
 iOS NSE는 `applicationIconBadgeNumber`에 접근할 수 없고, Android는 런처 뱃지를 읽는 공개 API가 없다.
@@ -102,7 +111,7 @@ flowchart TD
 | `src/app/features/home/UnreadBadgeRunner.tsx` (web)                                      | unread 집계 → `setBadgeCount`, 포그라운드 복귀 시 재-push                   |
 | `src/app/bridge/BadgeSyncBridge.ts`                                                      | `setBase(n)` TS wrapper (Android만 native 호출, iOS no-op)                  |
 | `src/app/services/notification/NotificationService.ts`                                   | `setBadgeCount`/`clearBadge`가 notifee + `BadgeSyncBridge.setBase`를 동기화 |
-| `android/.../module/BadgeSyncModule.kt`                                                  | `BadgeSync.setBase` native module                                           |
+| `android/.../module/BadgeSyncModule.kt`                                                  | `BadgeSync.setBase` / `getBase` native module                               |
 | `android/.../push/BadgeStore.kt`                                                         | Android 공유 카운터(SharedPreferences)                                      |
 | `android/.../push/ChaticFirebaseMessagingService.kt`                                     | 백그라운드 chat 푸시 시 카운터 증가                                         |
 | `ios/Chatic/AppDelegate.swift`                                                           | `app_active` 플래그 토글 + `resignActive`에서 base 캡처                     |
@@ -120,9 +129,15 @@ flowchart TD
 ## 알려진 한계
 
 - **Android 런처 의존**: 위 참고. 카운트 대신 dot만 뜨는 런처가 있다.
-- **`getBadgeCount`(notifee) stale**: 백그라운드 native 증가는 notifee 저장값을 갱신하지 않으므로
-  `FetchBadgeCount`는 stale할 수 있다. 웹은 native 뱃지를 읽지 않고 계산·set만 하므로 로직에는 무관하다
-  (디버그 표시 용도).
+- **`FetchBadgeCount`는 iOS에서만 참값이다**: iOS의 notifee `getBadgeCount`는 실제
+  `applicationIconBadgeNumber`를 읽지만, 안드로이드에서는 no-op이라 **항상 0**을 답한다. 그래서 안드로이드의
+  진짜 값을 읽는 창구로 `FetchBadgeBase`(공유 카운터 조회, `BadgeSync.getBase`)를 따로 뒀다 — 기존 메시지의
+  의미를 바꾸지 않은 이유는 웹이 앱보다 먼저 배포되기 때문이다(구버전 셸은 `NOT_FOUND`로 답하고 웹이 그걸
+  학습한다). 두 창구 모두 "모름"을 `null`로 답하고 0으로 위장하지 않는다.
+- **웹은 이제 뱃지를 읽는다**: 포그라운드 복귀와 앱 런 첫 push 직전에 기기 값을 읽어 **마지막으로 밀어넣은
+  값**과 대조하고, 어긋나면 `warn`으로 남긴다(ADR-0075, [정합성 검증 트리거](../../../libs/logger/docs/divergence-checks.md)).
+  현재 총합과 비교하지 않는 이유는 아이콘이 설계상 뒤처지기 때문이다 — 그러면 정상적인 읽음이 전부
+  불일치로 잡힌다.
 - **iOS 재백그라운드 창**: `didBecomeActive`(뱃지 0)와 웹 재-push 사이의 짧은 창에 앱이 다시
   백그라운드로 가면 base가 0으로 캡처될 수 있다. 다음 정상 포그라운드에서 self-heal 된다.
 
