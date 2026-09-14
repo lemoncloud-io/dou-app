@@ -476,6 +476,7 @@
 				CURRENT_PROJECT_VERSION = 76;
 				DEVELOPMENT_TEAM = CH8U9VM6SR;
 				ENABLE_BITCODE = NO;
+				ENVFILE = ".env.prod";
 				INFOPLIST_FILE = Chatic/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "${PRODUCT_NAME}";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.social-networking";
@@ -514,6 +515,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 76;
 				DEVELOPMENT_TEAM = CH8U9VM6SR;
+				ENVFILE = ".env.prod";
 				INFOPLIST_FILE = Chatic/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "${PRODUCT_NAME}";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.social-networking";
@@ -1011,6 +1013,7 @@
 				CURRENT_PROJECT_VERSION = 76;
 				DEVELOPMENT_TEAM = CH8U9VM6SR;
 				ENABLE_BITCODE = NO;
+				ENVFILE = ".env.dev";
 				INFOPLIST_FILE = Chatic/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "${PRODUCT_NAME}";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.social-networking";
@@ -1136,6 +1139,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 76;
 				DEVELOPMENT_TEAM = CH8U9VM6SR;
+				ENVFILE = ".env.dev";
 				INFOPLIST_FILE = Chatic/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "${PRODUCT_NAME}";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.social-networking";
