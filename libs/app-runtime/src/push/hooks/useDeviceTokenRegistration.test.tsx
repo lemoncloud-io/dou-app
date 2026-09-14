@@ -234,10 +234,13 @@ describe('useDeviceTokenRegistration — 공용 디바이스 토큰 등록', () 
             expect(mockMutateAsync).toHaveBeenCalledTimes(2);
         });
 
+        // The `jest.fn` generics spell out `NativeRecordMirror`'s signatures. Left to inference a
+        // fake reads as zero-arg returning `Promise<null>`, which makes `write.mock.calls[0][0]` an
+        // index into an empty tuple and refuses `read.mockResolvedValue(<a string>)`.
         it('네이티브 미러가 있으면 등록 성공 시 그쪽에도 기록한다', async () => {
             const nativeRecordMirror = {
-                read: jest.fn(() => Promise.resolve(null)),
-                write: jest.fn(() => Promise.resolve()),
+                read: jest.fn<Promise<string | null>, []>(() => Promise.resolve(null)),
+                write: jest.fn<Promise<void>, [string]>(() => Promise.resolve()),
             };
 
             renderHook(() => useDeviceTokenRegistration(makeDelegate({ nativeRecordMirror })));
@@ -249,14 +252,14 @@ describe('useDeviceTokenRegistration — 공용 디바이스 토큰 등록', () 
 
         it('웹 저장소가 비었어도 네이티브 기록이 있으면 등록하지 않는다 — webview 캐시 삭제', async () => {
             const nativeRecordMirror = {
-                read: jest.fn(() => Promise.resolve(null)),
-                write: jest.fn(() => Promise.resolve()),
+                read: jest.fn<Promise<string | null>, []>(() => Promise.resolve(null)),
+                write: jest.fn<Promise<void>, [string]>(() => Promise.resolve()),
             };
 
             const first = renderHook(() => useDeviceTokenRegistration(makeDelegate({ nativeRecordMirror })));
             await flush();
             expect(mockMutateAsync).toHaveBeenCalledTimes(1);
-            const persisted = nativeRecordMirror.write.mock.calls[0][0] as string;
+            const persisted = nativeRecordMirror.write.mock.calls[0][0];
             first.unmount();
 
             // The webview's own storage is wiped; only the native tier survives.
@@ -272,8 +275,8 @@ describe('useDeviceTokenRegistration — 공용 디바이스 토큰 등록', () 
 
         it('네이티브 미러가 거부해도 등록은 성공으로 남는다 — 구버전 앱', async () => {
             const nativeRecordMirror = {
-                read: jest.fn(() => Promise.resolve(null)),
-                write: jest.fn(() => Promise.reject(new Error('PREF_KEY_NOT_WRITABLE'))),
+                read: jest.fn<Promise<string | null>, []>(() => Promise.resolve(null)),
+                write: jest.fn<Promise<void>, [string]>(() => Promise.reject(new Error('PREF_KEY_NOT_WRITABLE'))),
             };
 
             const first = renderHook(() => useDeviceTokenRegistration(makeDelegate({ nativeRecordMirror })));

@@ -1,3 +1,5 @@
+import type { UserTokenView } from '@lemoncloud/chatic-backend-api';
+
 import { sessionAuthAdapter } from './sessionAuthAdapter';
 
 const mockBuildCredentialsByToken = jest.fn();

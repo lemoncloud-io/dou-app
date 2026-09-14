@@ -27,8 +27,11 @@ const mockedLoggerDebug = logger.debug as jest.Mock;
  * cloud HTTP refresh (ADR-0070). Every request now rides the injected lemon surface, so that is what
  * this file drives.
  */
+// The builder chains: `setBody`/`setParams` return the builder itself. That self-reference has to be
+// annotated — inferring it from the initializer is circular (TS7022/TS7024).
+type FakeBuilder = { setBody: jest.Mock<FakeBuilder>; setParams: jest.Mock<FakeBuilder>; execute: jest.Mock };
 const execute = jest.fn();
-const builder = { setBody: jest.fn(() => builder), setParams: jest.fn(() => builder), execute };
+const builder: FakeBuilder = { setBody: jest.fn(() => builder), setParams: jest.fn(() => builder), execute };
 const lemonSurface = { buildRequest: jest.fn(() => builder), buildSignedRequest: jest.fn(() => builder) };
 
 beforeEach(() => {

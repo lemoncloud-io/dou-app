@@ -1,4 +1,5 @@
 import { authIdRegistry } from './authIdRegistry';
+import type { AuthIdReseedTarget } from './authIdRegistry';
 import { bootstrapSocketConnection } from './bootstrapSocketConnection';
 import type { ISocketManager, SocketBindingConfig } from '../types';
 import type { SocketSessionDelegate } from './types';
@@ -8,6 +9,8 @@ jest.mock('@chatic/bridges', () => ({
 }));
 
 const CONFIG: SocketBindingConfig = { url: 'wss://example.test/socket', deviceId: 'device-1', wssType: 'relay' };
+
+type AuthRegisterOptions = Parameters<AuthIdReseedTarget['register']>[0];
 
 /**
  * Fake AuthController capturing the subscribed listeners so tests can drive state transitions, plus
@@ -22,7 +25,10 @@ const makeAuth = (order: string[]) => {
     return {
         // Mirrors AuthController.state; tests set it to drive the expired-resume throttle.
         state: '',
-        register: jest.fn(() => order.push('register')),
+        // Typed off the production contract rather than inferred: a zero-arg `jest.fn` makes
+        // `register.mock.calls[0][0]` an index into an empty tuple, so the registered `sign`
+        // callback cannot be read back out.
+        register: jest.fn((_opts: AuthRegisterOptions) => order.push('register')),
         start: jest.fn(() => order.push('start')),
         stop: jest.fn(() => order.push('stop')),
         onAuthState: jest.fn((listener: (state: string) => void) => {
@@ -340,10 +346,7 @@ describe('bootstrapSocketConnection', () => {
 
         await bootstrapSocketConnection({ manager, kind: 'relay', config: CONFIG, delegate });
 
-        const registeredSign = auth.register.mock.calls[0][0].sign as (
-            token: string,
-            ctx?: { target?: string }
-        ) => Promise<unknown>;
+        const registeredSign = auth.register.mock.calls[0][0].sign;
         await registeredSign('sdk-token', { target: 'uid@sid' });
         expect(delegate.signAuth).toHaveBeenCalledWith('relay', 'sdk-token', 'uid@sid');
     });
