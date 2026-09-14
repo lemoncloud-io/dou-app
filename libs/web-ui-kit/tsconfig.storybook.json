@@ -4,7 +4,17 @@
         "outDir": "out-tsc/storybook",
         "module": "esnext",
         "moduleResolution": "bundler",
-        "jsx": "preserve"
+        "jsx": "preserve",
+        // Declared as `types`, not as a `files` list of "../../node_modules/@nx/react/typings/*".
+        // A relative path cannot leave a git worktree, which has no node_modules of its own — node
+        // resolution walks up to the main checkout and a path in `files` does not. The literal list
+        // made `tsc -b` fail with TS6053 in every worktree. Same three shims, resolved the way
+        // tsconfig.lib.json resolves its own.
+        "types": [
+            "@nx/react/typings/styled-jsx.d.ts",
+            "@nx/react/typings/cssmodule.d.ts",
+            "@nx/react/typings/image.d.ts"
+        ]
     },
     "exclude": [
         "src/**/*.spec.ts",
@@ -29,10 +39,5 @@
         {
             "path": "./tsconfig.lib.json"
         }
-    ],
-    "files": [
-        "../../node_modules/@nx/react/typings/styled-jsx.d.ts",
-        "../../node_modules/@nx/react/typings/cssmodule.d.ts",
-        "../../node_modules/@nx/react/typings/image.d.ts"
     ]
 }
