@@ -3,13 +3,14 @@ import { createLogId } from '../core/logId';
 import type { LogEntry, LogLevel } from '../core/types';
 
 /**
- * The queue of entries not yet accepted by the server.
+ * The queue of entries not yet accepted by the server, and the package's only
+ * store.
  *
- * This is NOT the ring buffer. The ring buffer is a window onto "what just
- * happened" — it may die with the tab and `peek` leaves it intact. This queue
- * exists to survive: nothing leaves it until the server answers 2xx
+ * It exists to survive: nothing leaves it until the server answers 2xx
  * (at-least-once), so its owner persists it and its capacity is a hard limit
- * rather than a sliding window.
+ * rather than a sliding window. The diagnostic window a reader wants is the
+ * same rows — holding the send is what turns the queue into one — which is why
+ * there is no second store to keep in step with this one.
  *
  * Pure by design — persistence and scheduling live outside. The queue only
  * decides what is in it, what a batch contains, and what to drop under
