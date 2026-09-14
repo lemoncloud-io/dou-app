@@ -45,8 +45,8 @@ export interface OAuthHttpGateway {
     registerUserV2(body: RegisterUserV2Body, email?: boolean): Promise<UserTokenView>;
     login(body: LoginUserBody, email?: boolean): Promise<UserTokenView>;
     /** `POST {input.baseURL}/oauth/exchange-token` — baseURL is the caller's override (the target
-     * cloud's backend, not yet the active session's own host). See §route가 endpoint를 전부
-     * 결정하지 않는다 (libs/http/docs/architecture.md). */
+     * cloud's backend, not yet the active session's own host). Destination and signing are
+     * independent; see the README's "signed request that lands on somebody else's host". */
     exchangeToken(input: { baseURL: string; body: CloudExchangeTokenBody }): Promise<UserTokenView>;
     findAlias(body: FindAliasBody): Promise<FindAliasView>;
     verifyAlias(body: VerifyAliasBody): Promise<VerifyAliasView>;
