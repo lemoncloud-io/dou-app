@@ -1,6 +1,6 @@
 module.exports = {
-    // 전역 무접근 게이트 — navigator가 없는 환경에서 green인 것 자체가 전역 읽기 부재의 증명
-    // (libs/auth-sign/docs/architecture.md §검증 방법). jsdom을 쓰지 않는다.
+    // The no-globals gate: passing in an environment that has no `navigator` is itself the evidence
+    // that nothing reads one (libs/auth-sign/README.md, "How to verify"). Do not switch to jsdom.
     testEnvironment: 'node',
     transformIgnorePatterns: ['node_modules/(?!(@chatic|@lemoncloud)/)'],
     moduleNameMapper: {
