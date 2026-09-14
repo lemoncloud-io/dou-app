@@ -1,9 +1,6 @@
 import { useMemo } from 'react';
 import type { PageTransitionConfig, PlatformType } from '@lemoncloud/react-page-transition';
-import {
-    useGoBack as useGoBackOriginal,
-    useNavigateWithTransition as useNavigateWithTransitionOriginal,
-} from '@lemoncloud/react-page-transition';
+import { useNavigateWithTransition as useNavigateWithTransitionOriginal } from '@lemoncloud/react-page-transition';
 
 import { useDeviceInfo } from '@chatic/device-utils';
 
@@ -35,10 +32,4 @@ const usePageTransitionConfig = (): PageTransitionConfig => {
 export const useNavigateWithTransition = () => {
     const config = usePageTransitionConfig();
     return useNavigateWithTransitionOriginal(config);
-};
-
-/** Wrapper with @chatic/app-messages platform detection. See @lemoncloud/react-page-transition for API docs. */
-export const useGoBack = () => {
-    const config = usePageTransitionConfig();
-    return useGoBackOriginal(config);
 };
