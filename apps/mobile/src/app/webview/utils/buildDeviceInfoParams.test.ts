@@ -13,7 +13,7 @@ const cached: CachedDeviceInfo = {
 };
 
 const dynamic: DynamicDeviceInfo = {
-    stage: 'PROD',
+    stage: 'prod',
     consoleEnabled: false,
     appLanguage: 'ko',
     firebaseInstallId: 'fid-1',
@@ -28,7 +28,7 @@ describe('buildDeviceInfoParams — 주입 deviceInfo 조립', () => {
         expect(params).toMatchObject({
             platform: 'ios',
             applicationName: 'chatic',
-            stage: 'PROD',
+            stage: 'prod',
             deviceModel: 'iPhone15,2',
             appVersion: '1.0.0',
             buildNumber: '42',

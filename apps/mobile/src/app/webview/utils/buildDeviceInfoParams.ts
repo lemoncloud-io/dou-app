@@ -1,3 +1,5 @@
+import type { Env } from '@chatic/app-messages';
+
 import { buildInjectedUniqueId } from './buildInjectedUniqueId';
 import type { DeviceInfoParams } from './injectionScripts';
 
@@ -33,7 +35,8 @@ export interface CachedDeviceInfo {
  * Values that can change during the app lifecycle and must be supplied per render.
  */
 export interface DynamicDeviceInfo {
-    stage: string;
+    /** Already converted to the `Env` vocabulary — see `toEnvStage`. */
+    stage: Env;
     /**
      * Whether this build's console listener is live — the web reads it to decide
      * whether relaying `debug` reaches anything.

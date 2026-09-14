@@ -5,7 +5,7 @@ import DeviceInfo from 'react-native-device-info';
 import Config from 'react-native-config';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { APP_USER_AGENT_PREFIX, getAppLanguage, t } from '../utils';
+import { APP_USER_AGENT_PREFIX, getAppLanguage, t, toEnvStage } from '../utils';
 import { getVersionCheckResult, useResolvedTheme } from '../hooks';
 import { useKeyboardHeight } from './hooks/useKeyboardHeight';
 import { getLogUploadHoldScript, getSafeAreaScript, getSyncInjectionScript } from './utils/injectionScripts';
@@ -116,7 +116,7 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
         // immediately. This bag only needs to be current for the NEXT cold start.
         configBag: configKvService.getAll(),
         deviceInfo: buildDeviceInfoParams(CACHED_DEVICE_INFO, {
-            stage: Config.VITE_ENV || 'PROD',
+            stage: toEnvStage(Config.VITE_ENV),
             // Same flag that gates the console subscription in `provider.ts`.
             // Tying them together is the point: the web relays `debug` if and
             // only if something over here will print it.
