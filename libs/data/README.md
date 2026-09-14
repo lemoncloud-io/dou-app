@@ -1,242 +1,174 @@
 # @chatic/data
 
-`@chatic/data`는 remote data source · local data source · repository를 조립해 앱이 사용할 **headless data layer**를 제공한다.
+**headless data layer.** 앱이 쓸 데이터 표면 전부를 조립해 하나의 배럴로 내보낸다 — 도메인 모델과
+매퍼, 로컬 캐시의 저장·stream 발행, 서버로 나가는 outbound 호출, 그리고 이 셋을 묶는 repository
+facade.
 
-핵심 원칙은 하나다.
+이 문서는 **개요와 구조**만 다룬다. 레이어별 상세는 [`docs/`](#문서) 아래 폴더가 정본이다.
 
-- **읽기는 항상 local stream** — UI는 `observe*` 만 구독한다.
-- **remote는 side-effect command** — write/refresh는 명시적 메서드 호출이다.
-- **UI는 네트워크를 직접 호출하지 않는다.**
+## 목적
 
-socket 연결의 생애주기(연결/재인증/sync 타이밍)는 이 라이브러리가 소유하지 않는다. 외부 sync orchestrator(`libs/app-runtime`)가 repository의 `refresh*` / `cacheWrite*`를 호출하면, repository가 그 결과를 local cache에 반영하고 stream으로 재방출한다.
+앱은 `@chatic/data` 배럴만 본다. 소비 파일 211개 중 내부 경로를 직접 import하는 것은 하나도 없다.
 
-> 상세 문서는 [`docs/`](./docs/README.md) 트리를 참조한다. 이 README는 전체 그림과 진입점만 다룬다.
+이 lib은 **소켓 연결의 생애주기를 소유하지 않는다.** 연결·재인증·sync 타이밍은 `libs/app-runtime`의
+sync orchestrator 소관이다. orchestrator가 repository의 `refresh*` / `cacheWrite*`를 부르면
+repository가 그 결과를 로컬에 반영하고 stream으로 재방출한다. repository 입장에서 그 호출이 UI에서
+왔는지 orchestrator에서 왔는지는 구분하지 않는다.
 
----
+## 설계 원칙
 
-## 1. 디렉토리 구조
+1. **읽기는 항상 local stream.** UI는 `observe*`만 구독한다. remote 응답을 직접 렌더하는 경로는 계약 위반이다.
+2. **remote는 side-effect command.** write와 refresh는 명시적 메서드 호출이다. 자동 dispatcher나 event bus는 없다.
+3. **UI는 네트워크를 직접 호출하지 않는다.** 모든 데이터 콜은 repository를 지난다 (ADR-0036).
+4. **remote는 축이고, 그 아래는 전송 수단이다.** `remote/`가 local의 반대편이고 그 안에서 `socket-`과 `http-`로 갈린다.
+5. **요청 시점 문맥을 캡처한다.** 늦게 도착한 응답이 전환된 스코프를 오염시키면 안 된다. scope 캡처는 repository의 책임이고, local은 `contextOverride`로 그것을 받는다.
+6. **서버 payload · 서버 view · 로컬 domain model은 같은 형태라고 가정하지 않는다.** 책임 경계가 다르면 별도 타입으로 둔다.
+7. **캐시 어댑터를 고르지 않는다.** 어느 도메인이 IndexedDB를 쓰고 어느 것이 네이티브 SQLite를 쓰는지는 `libs/app-runtime`의 `resolveCacheBackend`가 판정한다.
 
-핵심 로직은 `libs/data/src/data` 아래 레이어별로 분리되어 있다.
+## 범위
 
-```text
-libs/data/src/
-├── data/
-│   ├── domain/            # 도메인 모델 + 매퍼 (서버 view → local read-model)
-│   ├── local/             # 로컬 인프라 (storages 어댑터, databases, data-sources-v2)
-│   ├── remote/            # 원격 통신 (gateways, data-sources, sockets 최소 계약)
-│   ├── repositories-v2/   # data facade (현행 repository)
-│   ├── repositories/      # 공유 계약만 보관 (DataContext / DataContextProvider)
-│   └── events/            # 도메인 이벤트 타입 + EventBus (V2 미사용, 아래 주의 참조)
-└── index.ts               # Public API 진입점
-```
+**포함** — 도메인 모델·매퍼, 로컬 data source와 stream 엔진, `CacheStorage` 포트, 소켓·HTTP
+gateway 타입(`Pick<>`)과 data source, repository facade 13종, `DataContext` 계약.
 
-> **V1은 제거됐다.** 도메인 repository / local data source는 모두 `repositories-v2` · `local/data-sources-v2`에 있다. `repositories/`는 이제 `DataContext` 계약만 re-export하고, `events/`의 EventBus는 V2 경로에서 쓰지 않는다.
+**제외** — 소켓 전송 런타임(`@lemoncloud/chatic-sockets-lib`), 저장 엔진 구현(`@chatic/db`의
+`IndexedDBAdapter`·`NativeDBAdapter`·`ChatQueryExecutor`), HTTP 클라이언트(`@chatic/http`),
+sync 타이밍·연결 생애주기·캐시 라우팅(`libs/app-runtime`), 서버 소켓 spec.
 
----
-
-## 2. 레이어 의존성
-
-repository가 local·remote 인프라를 지휘한다. V2 계약에서 repository는 socket event를 직접 구독하지 않는다 — 외부 sync orchestrator가 repository 메서드를 호출한다.
+## 구조
 
 ```mermaid
 flowchart TD
-    classDef repository fill:#e6f7ff,stroke:#91d5ff,stroke-width:2px,color:#003a8c;
+    classDef repo fill:#e6f7ff,stroke:#91d5ff,stroke-width:2px,color:#003a8c;
     classDef local fill:#f6ffed,stroke:#b7eb8f,stroke-width:2px,color:#135200;
     classDef remote fill:#fff7e6,stroke:#ffd591,stroke-width:2px,color:#873800;
     classDef domain fill:#f9f0ff,stroke:#d3adf7,stroke-width:2px,color:#22075e;
     classDef ext fill:#ffffff,stroke:#d9d9d9,stroke-width:2px,color:#595959,stroke-dasharray: 5 5;
 
-    UI["UI Layer (React Hooks)"]:::ext
-    Sync["Sync Orchestrator<br/>(libs/app-runtime)"]:::ext
+    UI["UI (React hooks)"]:::ext
+    Sync["sync orchestrator<br/>libs/app-runtime"]:::ext
 
-    Repo["RepositoryV2<br/><i>data facade</i>"]:::repository
-    Local["LocalDataSourceV2 + CacheStorage<br/><i>snapshot 저장 · stream 발행</i>"]:::local
-    Remote["SocketDataSource + Gateways<br/><i>outbound gateway thin wrapper</i>"]:::remote
-    Domain["Domain<br/><i>models · mappers</i>"]:::domain
+    Repo["Repository × 13<br/><i>data facade</i>"]:::repo
+    Local["LocalDataSource × 9<br/><i>snapshot 저장 · stream 발행</i>"]:::local
+    Remote["SocketDataSource × 11<br/>HttpDataSource × 5"]:::remote
+    Domain["domain<br/><i>models · mappers</i>"]:::domain
 
-    UI -->|"observe* (읽기 stream)"| Repo
-    UI -->|"write command"| Repo
-    Sync -.->|"refresh* / cacheWrite*"| Repo
+    DB["@chatic/db<br/><i>저장 엔진</i>"]:::ext
+    Sock["chatic-sockets-lib"]:::ext
+    Http["@chatic/http"]:::ext
 
-    Repo -->|"local write/read + observe"| Local
-    Repo -->|"outbound command"| Remote
-
-    Repo & Local & Remote -->|"map entities"| Domain
+    UI -->|"observe* · write command"| Repo
+    Sync -.->|"refresh* · cacheWrite*"| Repo
+    Repo --> Local
+    Repo --> Remote
+    Repo -.->|"view → domain"| Domain
+    Local -->|"CacheStorage 포트"| DB
+    Remote -->|"gateway Pick&lt;&gt;"| Sock
+    Remote -->|"gateway Pick&lt;&gt;"| Http
 ```
 
----
+`local`은 `remote`를 부르지 않는다. 둘을 잇는 것은 repository 하나다.
 
-## 3. 핵심 클래스 / 인터페이스
-
-```mermaid
-classDiagram
-    class DataContextProvider {
-        <<interface>>
-        +getContext() DataContext
-        +setContext(context) void
-    }
-
-    class BaseRepositoryV2 {
-        <<abstract>>
-        #getRequestContext() DataContext
-        #getNormalizedContext(context) DataContext
-        #assertRequiredString(value, field) string
-        +dispose() void
-    }
-
-    class IChatRepositoryV2 {
-        <<interface>>
-        +observeList(query, cb) Unsubscribe
-        +observeItem(id, cb) Unsubscribe
-        +refreshList(query) Promise
-        +sendChat(payload) Promise
-        +cacheClearByChannelId(channelId) Promise
-    }
-    class ChatRepositoryV2
-
-    BaseRepositoryV2 <|-- ChatRepositoryV2
-    IChatRepositoryV2 <|.. ChatRepositoryV2
-    DataContextProvider <.. BaseRepositoryV2
-
-    class ILocalDataSourceV2 {
-        <<interface>>
-        +cacheRead(id, override) Promise
-        +cacheReadList(query, override) Promise
-        +observeItem(id, cb, override) Unsubscribe
-        +observeList(query, cb, override) Unsubscribe
-        +cacheWrite(item, override) Promise
-        +cacheDelete(id, override) Promise
-        +cacheClear(override) Promise
-    }
-
-    class BaseLocalDataSourceV2 {
-        <<abstract>>
-        #getScopeKey(override) string
-        #createListObserverKey(parts, override) string
-        #scheduleItemReemit(ids) void
-        #scheduleListReemit(prefixes) void
-        #scheduleFullReemit() void
-    }
-    class ChatLocalDataSourceV2
-
-    BaseLocalDataSourceV2 <|-- ChatLocalDataSourceV2
-    ILocalDataSourceV2 <|.. ChatLocalDataSourceV2
-
-    class CacheStorage {
-        <<interface>>
-        +save(id, item) Promise
-        +load(id) Promise
-        +loadAll(options) Promise
-        +delete(id) Promise
-        +clearAll() Promise
-        +clearByChannelId(channelId) Promise
-    }
-    class BaseDbAdapter {
-        <<abstract>>
-        #getScope() Scope
-    }
-    class IndexedDBAdapter
-    class NativeDBAdapter
-
-    CacheStorage <|.. BaseDbAdapter
-    BaseDbAdapter <|-- IndexedDBAdapter
-    BaseDbAdapter <|-- NativeDBAdapter
-```
-
----
-
-## 4. 데이터 흐름
-
-### 4.1 읽기 (local-first stream)
+### 읽기와 쓰기
 
 ```mermaid
 sequenceDiagram
-    autonumber
-    actor UI as React Hook
-    participant Repo as ChatRepositoryV2
-    participant LDS as ChatLocalDataSourceV2
-    participant DB as CacheStorage
+    participant UI
+    participant R as ChatRepositoryV2
+    participant L as ChatLocalDataSourceV2
+    participant S as ChatSocketDataSource
 
-    UI->>Repo: observeList(query, cb)
-    Repo->>LDS: observeList(query, cb)
-    LDS->>DB: scope 파티션 조회 (cid/sid/uid)
-    DB-->>LDS: snapshot
-    LDS-->>UI: 즉시 1회 발행 (구독 시작)
-    Note over LDS,UI: 이후 local이 바뀌면 영향받은 observer만 재발행
+    UI->>L: observeList(query) [via R]
+    L-->>UI: 로컬 snapshot (즉시 1회)
+
+    UI->>R: refreshList(query)
+    R->>R: getRequestContext() 로 scope 캡처
+    R->>S: fetchChat(query)
+    S-->>R: ChatView[]
+    R->>R: view → DomainChat 매핑
+    R->>L: cacheWriteMany(items, 캡처한 scope)
+    L->>L: scheduleListReemit(prefixes) · 50ms debounce
+    L-->>UI: 영향받은 observer만 재발행
 ```
 
-### 4.2 쓰기 (optimistic command)
+### 디렉토리
 
-```mermaid
-sequenceDiagram
-    autonumber
-    actor UI as React Hook
-    participant Repo as ChatRepositoryV2
-    participant LDS as ChatLocalDataSourceV2
-    participant RDS as ChatSocketDataSource
-
-    UI->>Repo: sendChat(payload)
-    Note over Repo,LDS: optimistic pending message 생성
-    Repo->>LDS: cacheWrite(pendingChat)
-    LDS-->>UI: observe* stream 재발행 (Pending 표시)
-
-    Repo->>RDS: send() (gateway 호출)
-    RDS-->>Repo: 서버 확정 chat
-    Repo->>LDS: cacheWrite(confirmed) / 실패 시 isFailed 마킹
-    LDS-->>UI: stream 재발행 (Pending → Confirmed)
+```text
+libs/data/src/
+├── index.ts          공개 배럴 (export * 8줄)
+├── domain/           도메인 모델 + 매퍼
+├── local/
+│   ├── data-sources-v2/ 도메인별 LocalDataSource 9종 + stream 엔진 BaseLocalDataSourceV2
+│   ├── ports/        CacheStorage · indexeddb · metrics · policy · search 포트
+│   └── stableHash.ts scope key 해시
+├── remote/
+│   ├── gateways/     socket.ts · http.ts — 도메인이 쓸 capability만 Pick<>
+│   ├── socket-data-sources/  11종 + 팩토리
+│   └── http-data-sources/    5종 + 팩토리
+└── repositories-v2/     facade 13종 + BaseRepositoryV2 + DataContext + scopeGuards
 ```
 
-### 4.3 서버 변경분 반영 (sync orchestrator)
+## 시나리오
 
-```mermaid
-sequenceDiagram
-    autonumber
-    participant Sync as Sync Orchestrator (app-runtime)
-    participant Repo as ChannelRepositoryV2
-    participant LDS as ChannelLocalDataSourceV2
-    participant UI as React Hook
+### 1. 방을 열어 메시지를 읽는다
 
-    Sync->>Repo: syncChannels(since)
-    Note over Repo: channel.sync 결과 해석
-    Repo->>LDS: cacheWriteMany(list) / cacheDelete(stale ids)
-    LDS-->>UI: 구독 중인 observe* stream 재발행
+`useChats`가 `chat.observeList({ channelId, limit })`를 구독한다. 구독 즉시 로컬 snapshot이 1회
+발행된다 — 네트워크를 기다리지 않는다. 같은 훅이 `chat.refreshList`를 불러 `chat.feed`를 요청하고,
+응답은 로컬에 **merge**된다(overwrite가 아니다). merge가 끝나면 **그 채널의** list observer가
+재발행된다 — 재발행 프리픽스는 채널 단위라 같은 채널의 cursor·limit·sort·keyword 변형이 함께
+깨어나고, 홈 프리뷰가 쓰는 `chats-last` catch-all도 함께 깨어난다. 반환된 cursor 메타는 다음 페이지 요청의 입력으로만 쓰고 렌더 source로 쓰지 않는다.
+
+### 2. 메시지를 보낸다
+
+`chat.sendChat`이 낙관적 pending 행을 로컬에 먼저 쓴다. 그 행은 서버 번호를 받기 전이라 `chatNo: 0`
+이다. remote 호출이 실패하면 `isFailed`로 마킹하고, 성공하면 서버 스냅샷으로 대체한다.
+
+### 3. orchestrator가 채널 변경분을 밀어넣는다
+
+`syncChannels(since)`가 `channel.sync({ since })`를 부른다. `since: 0`은 full sync, `since > 0`은
+delta다. 응답의 `list`는 변경된 채널이고 `ids`는 지금 내가 속한 전체 채널 id다. repository는 `list`를
+쓰고 `ids`에 없는 채널을 stale remove한다. 다음 `since`는 `syncMeta`가 보관한다.
+
+채널 sync는 채널 **목록**만 갱신한다. 메시지는 가져오지 않는다. 서버가 채널마다 `lastChat$`를 실어
+보내지만 매퍼는 그것을 **의도적으로 읽지 않는다** — 마지막 메시지와 그 시각은 chat 캐시 소관이다
+(ADR-0057, `domain/mappers.ts`).
+
+### 4. 클라우드를 전환한다
+
+`DataContextHolder`가 새 `cid`를 받는다. repository는 문맥을 보관하지 않고 매 호출마다
+`DataContextProvider`로 최신 값을 읽으므로 재생성이 필요 없다. observer는 `cid`/`sid`/`uid` 튜플의
+`stableHash`로 격리되어 있어서, scope가 바뀌면 다른 observer 집합이 활성화된다.
+
+### 5. 방을 나갔다 다시 들어온다
+
+퇴장해도 그 방의 메시지 행은 캐시에 남는다 — chat sync plan에 `onRemove`가 없고, 이력은
+lazy-load와 오프라인을 위해 유지된다. 그런데 화면은 서버 응답이 아니라 캐시를 렌더한다. 그래서 두
+장치가 함께 걸린다 (ADR-0067).
+
+- **표시 게이트** `isInJoinWindow(chat, joinedNo)` — 서버와 같은 규칙(`chatNo > joinedNo`)을 캐시를 읽는 자리에 건다. `joinedNo`가 없으면 아무것도 숨기지 않고, `chatNo`가 falsy면 통과시킨다(낙관적 전송 행이 사라지지 않게).
+- **purge** — 본인 나가기 성공과 내 join 행 제거, 두 명시 신호에만 건다. 추론 기반 정리에는 붙이지 않는다. chat 삭제는 되돌릴 수 없다.
+
+### 6. HTTP 전용 도메인을 읽는다
+
+구독 가능한 로컬 캐시가 없는 도메인이 셋 있다 — `report`, `subscription`, 그리고 `cloud`의 카탈로그
+조회. 이들은 로컬에 쓰지 않는다. 캐시 의미는 소비자 쪽 react-query 어댑터가 소유한다.
+
+## 문서
+
+| 폴더 | 다루는 것 |
+| ---- | --------- |
+| [docs/local/](./docs/local/README.md) | 저장·조회·stream 발행. stream 모델, 스코프와 캐시 슬롯, chat cursor, cache clear |
+| [docs/remote/](./docs/remote/README.md) | outbound 서버 호출. gateway 매핑, SocketDataSource별 호출, HTTP 축, **이름 규약** |
+| [docs/repositories/](./docs/repositories/README.md) | data facade. 3가지 계약, context와 scope, 배선, cache clear 원칙, 퇴장과 재입장 |
+| [docs/repositories/domains.md](./docs/repositories/domains.md) | 도메인 13종 메서드 카탈로그 (찾는 문서) |
+
+## 검증 방법
+
+```bash
+npx tsc -b libs/data/tsconfig.lib.json
+npx jest --config libs/data/jest.config.js
 ```
 
-> 서버→클라이언트 push 신호(`domain.sync` 등) 자체는 repository가 구독하지 않는다. orchestrator가 신호를 해석해 위 `refresh*` / `sync*` 경로로 변환한다.
-
----
-
-## 5. 핵심 메커니즘
-
-### 5.1 DataContext & dynamic scoping
-
-repository 인스턴스는 한 번 생성되면 유지된다. cloud(`cid`)·계정(`uid`)·place(`sid`)가 바뀌어도 재생성하지 않는다.
-
-- `DataContextProvider`(`DataContextHolder`)를 통해 repository는 매 호출마다 **최신 context**를 읽는다.
-- repository는 remote 응답 적재 전 `getRequestContext()`로 요청 시점 scope를 **캡처**한다. cloud 전환 중 늦게 온 응답이 현재 scope를 오염시키지 않도록 격리한다.
-- local 캐시 저장은 scope 파티션을 타며, observer는 `cid`/`sid`/`uid` 튜플 해시로 격리된다.
-
-### 5.2 stream 재발행 (BaseLocalDataSourceV2)
-
-UI는 항상 `observe*`만 본다. mutation 후 전체 재발행이 아니라 영향 범위만 다시 계산한다 — item id별(`scheduleItemReemit`), list prefix별(`scheduleListReemit`), 전체(`scheduleFullReemit`). 재발행은 50ms로 debounce된다.
-
-### 5.3 events / EventBus (V2 미사용)
-
-`events/`의 `DomainEventMap` · `EventBusEngine`은 제거된 V1 `BaseRepository`가 쓰던 경로다. **V2는 EventBus 기반 자동 반영을 쓰지 않는다.** V2의 local 반영은 repository의 명시적 메서드(`cacheWrite*` / `cacheDelete*`) 호출로만 이뤄진다.
-
----
-
-## 6. Public API
-
-진입점은 [`src/index.ts`](./src/index.ts)다. domain · local(data-sources-v2 / storages / databases) · remote(gateways / sockets / data-sources) · repositories(계약) · repositories-v2를 re-export한다.
-
----
-
-## 7. 더 읽기
-
-| 문서                                                | 내용                                                   |
-| --------------------------------------------------- | ------------------------------------------------------ |
-| [docs/README.md](./docs/README.md)                  | 전체 개요 · 데이터 흐름 · domain·events                |
-| [docs/remote/](./docs/remote/README.md)             | gateway 매핑 · DataSource 호출 · 요청 제한             |
-| [docs/repositories/](./docs/repositories/README.md) | V2 facade 계약 · 도메인별 메서드 · sync 해석           |
-| [docs/local/](./docs/local/README.md)               | stream 모델 · scope · storages/databases · chat cursor |
+- 타입체크는 `tsc -b tsconfig.lib.json`이어야 한다. `libs/data`에서 `tsc --noEmit`은 0건을 검사하고 성공한다.
+- data source 25종은 전부 대응 테스트가 있고, repository는 13종 중 12종이다 — `SyncMetaRepositoryV2`만 없다. 수치는 위 명령이 답한다.
+- 다운스트림 확인: `apps/web`·`apps/desktop-web`·`libs/app-runtime`의 타입체크. 배럴 식별자가 바뀌면 여기서 잡힌다.
+- 낡은 `dist`/`out-tsc`가 유령 에러를 만든다. 디렉토리를 물리 이동한 뒤에는 `rm -rf libs/data/dist libs/data/out-tsc`로 강제 삭제하고 다시 본다.
