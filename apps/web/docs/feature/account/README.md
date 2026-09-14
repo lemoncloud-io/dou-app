@@ -4,7 +4,7 @@
 
 ## 책임
 
-이메일 기반 **가입**과 **비밀번호 재설정** 흐름을 담당한다. 두 흐름 모두 이메일 → 인증코드 검증 → 비밀번호 설정의 다단계 구조이며, web-core `useVerifyAlias`로 백엔드 검증 서비스와 통신한다.
+이메일 기반 **가입**과 **비밀번호 재설정** 흐름을 담당한다. 두 흐름 모두 이메일 → 인증코드 검증 → 비밀번호 설정의 다단계 구조이며, app-runtime `useVerifyAlias`로 백엔드 검증 서비스와 통신한다.
 
 로그인 자체와 세션 위임은 [auth](../auth/README.md)가 담당한다. account는 "계정을 만들고 비번을 복구하는" 화면 묶음이다.
 
@@ -24,20 +24,20 @@
 ```
 features/account/
   pages/        # 위 6개 화면
-  components/    # 재사용 폼 부품 (EmailInputPage, VerifyCodePage, SetPasswordPage, VerificationCodeInput, FloatingButton, DouLogo)
-  constants/     # VERIFICATION_CODE_LENGTH(6), VERIFICATION_TIMER_SECONDS(180), MIN_PASSWORD_LENGTH(4)
-  utils/         # isValidEmail, formatTime
+  components/    # 재사용 폼 부품 (EmailInputPage, VerifyCodePage, SetPasswordPage, FloatingButton, DouLogo)
+  constants/     # MIN_PASSWORD_LENGTH(4) 하나뿐
+  pages/         # 화면 6개
   routes/        # AccountRoutes
-  index.ts
+  index.tsx
 ```
 
-`hooks/`·`types/`는 없다 — 인증 로직은 web-core 훅에 위임하고, 화면 상태는 페이지 로컬이다.
+`hooks/`·`types/`는 없다 — 인증 로직은 `runtime.session.*` 훅에 위임하고, 화면 상태는 페이지 로컬이다.
 
 ## 데이터 흐름
 
-- **`useVerifyAlias`** (web-core) — 가입/재설정의 다단계 검증을 모두 처리한다. `mode`로 흐름을 구분: 가입은 `mode: 'signup'`, 재설정은 `mode: 'find'`. `step`으로 단계 진행: `send`(코드 발송) → `check`(코드 확인) → `confirm`/`change`(비번 확정).
-- **`useFindAlias`** (web-core) — 재설정에서 발송 전 계정 존재 여부를 확인한다(이메일 등록 여부 노출을 줄이는 패턴).
-- **`useSessionIdentity`** (web-core) — 가입 시 `uid`를 가져온다(가입 진입 전 익명 세션이 선행).
+- **`useVerifyAlias`** (`runtime.session`) — 가입/재설정의 다단계 검증을 모두 처리한다. `mode`로 흐름을 구분: 가입은 `mode: 'signup'`, 재설정은 `mode: 'find'`. `step`으로 단계 진행: `send`(코드 발송) → `check`(코드 확인) → `confirm`/`change`(비번 확정).
+- **`useFindAlias`** (`runtime.session`) — 재설정에서 발송 전 계정 존재 여부를 확인한다(이메일 등록 여부 노출을 줄이는 패턴).
+- **`useSessionIdentity`** (`runtime.session`) — 가입 시 `uid`를 가져온다(가입 진입 전 익명 세션이 선행).
 
 ## 주요 결정/특이점
 
@@ -45,3 +45,8 @@ features/account/
 - **인증코드 3분 타이머** + 6자리 입력 완료 시 자동 진행.
 - **폼 부품은 일반화**되어 있다(`translationPrefix` prop) — 가입/재설정이 같은 컴포넌트를 재사용한다.
 - i18n 리소스는 원격 로드라 리포에 JSON이 없다.
+
+**이 폴더에 없는 것들.** `VerificationCodeInput`은 `app/ui/components/`에 있고,
+`VERIFICATION_CODE_LENGTH`·`VERIFICATION_TIMER_SECONDS`와 `isValidEmail`·`formatCountdown`은
+`app/utils/verification.ts`에 있다 — 인증 코드 입력은 계정 생성 밖(전화번호 인증 등)에서도 쓰기
+때문이다. `utils/` 디렉토리는 이 폴더에 없다.

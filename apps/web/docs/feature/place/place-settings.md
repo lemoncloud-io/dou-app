@@ -1,6 +1,6 @@
 # 플레이스 설정 (Place Settings)
 
-> 상태: Live · 최종 갱신: 2026-09-07 · 관련 ADR: [[ADR-0031]](../../../../docs/adr/0031-place-settings-hub.md) (설정 허브) · [[ADR-0047]](../../../../docs/adr/0047-place-detail-read-only-screen.md) (플레이스 정보 화면·개명) · [[ADR-0074]](../../../../docs/adr/0074-place-introduction-text.md) (소개 문구 — 0047의 `desc` 배제 취소)
+> 상태: Live · 최종 갱신: 2026-09-07 · 관련 ADR: [[ADR-0031]](../../../../../docs/adr/0031-place-settings-hub.md) (설정 허브) · [[ADR-0047]](../../../../../docs/adr/0047-place-detail-read-only-screen.md) (플레이스 정보 화면·개명) · [[ADR-0074]](../../../../../docs/adr/0074-place-introduction-text.md) (소개 문구 — 0047의 `desc` 배제 취소)
 
 ## 목적
 

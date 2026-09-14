@@ -53,10 +53,10 @@ yarn mobile:deploy:android:prod -m "..."
 ## 구성 요소
 
 | 파일                            | 역할                                                                                                         |
-| ------------------------------- | ------------------------------------------------------------------------------------------------------------ | ------------------- | ------------------------------ |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------ |
 | `scripts/version-mobile.js`     | 버전 범프. Android `build.gradle`을 단일 소스로 삼고 iOS와 어긋나면 중단. 테스트: `yarn mobile:version:test` |
 | `scripts/deploy-mobile.sh`      | 배포 진입점. 메시지 수집 → fastlane 레인 디스패치                                                            |
-| `apps/mobile/fastlane/Fastfile` | `ios dev                                                                                                     | prod`, `android dev | prod` 4개 레인 (빌드 + 업로드) |
+| `apps/mobile/fastlane/Fastfile` | 레인 4개 — `ios dev`·`ios prod`·`android dev`·`android prod` (빌드 + 업로드)                                 |
 | `apps/mobile/fastlane/.env`     | 자격증명 (gitignore). 템플릿: `.env.example`                                                                 |
 
 ## 트러블슈팅

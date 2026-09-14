@@ -12,7 +12,7 @@ accepted — the decision still stands, but the machinery it describes has moved
 > `docs/cache-architecture-spec.md` cited below was deleted in the same pass (it described that
 > subsystem as current); its surviving content now lives in
 > [cache-storage-routing.md](../../libs/app-runtime/docs/data/cache-storage-routing.md) and
-> `libs/data/docs/local/`. **The safety net this ADR decided on is still in force**: the per-channel
+> `libs/data/docs/local/README.md`. **The safety net this ADR decided on is still in force**: the per-channel
 > chat cap lives in `IndexedDBAdapter` (`maxChatsPerChannel`) and is injected as a
 > `CacheAssemblyOptions` field through `configureDataRuntime`.
 
@@ -102,7 +102,7 @@ Why the planned migration was not the fix:
 - **There is no working abstraction to migrate into.** `EvictionStrategy` and
   `CapacityPolicy` have exactly one implementation each repo-wide, and both are inert:
   `DefaultEvictionStrategy`'s three hooks are no-ops and `DefaultCapacityPolicy.getLimit()`
-  returns `null` (`libs/data/src/data/local/storages/defaultPolicies.ts`). Worse, nothing
+  returns `null` (`libs/data/src/local/storages/defaultPolicies.ts`). Worse, nothing
   reaches them: they live inside `HotColdCacheStorageStrategy`, and `localFactory` no longer
   constructs it on any path — native goes to `NativeDbOnlyCacheStorageStrategy` and everything
   else to `IndexedDbOnlyCacheStorageStrategy`, neither of which wraps `DynamicCacheStorage`.

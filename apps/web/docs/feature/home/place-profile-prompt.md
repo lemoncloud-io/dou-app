@@ -1,6 +1,6 @@
 # 플레이스 프로필 미설정 유도
 
-> 상태: Live · 최종 갱신: 2026-08-03 · 관련 ADR: [0040](../../../../../docs/adr/0040-self-chat-title-and-profile-setup-nudge.md) (현행), [0039](../../../../../docs/adr/0039-dm-display-name-chain-and-invite-profile-release.md) (프로필 강제 해제), [0012](../../../../../docs/adr/0012-place-profile-creation.md) (원 생성 플로우)
+> 상태: Live · 최종 갱신: 2026-09-10 · 관련 ADR: [0040](../../../../../docs/adr/0040-self-chat-title-and-profile-setup-nudge.md) (현행), [0039](../../../../../docs/adr/0039-dm-display-name-chain-and-invite-profile-release.md) (프로필 강제 해제), [0012](../../../../../docs/adr/0012-place-profile-creation.md) (원 생성 플로우)
 
 ## 목적
 
@@ -227,7 +227,7 @@ const memberName = needsProfileSetup
 
 ### 3) 플레이스 표시 이름 — `resolvePlaceDisplayName`
 
-[resolvePlaceDisplayName.ts](../../../src/app/features/home/lib/resolvePlaceDisplayName.ts).
+[resolvePlaceDisplayName.ts](../../../src/app/utils/resolvePlaceDisplayName.ts).
 순수 함수 + `HOME_PLACE_ID = '0000'` 상수.
 
 ```ts
@@ -242,7 +242,8 @@ resolvePlaceDisplayName(place, { isDefaultCloud }, t): string
 소비처는 둘이다.
 
 - [PlaceItem.tsx](../../../src/app/features/home/components/PlaceItem.tsx) — 이미 받는
-  `isHomePlace` prop을 `ctx.isDefaultCloud`로 넘긴다(동작 불변, ko 라벨 문자열만 바뀜).
+  `isDefaultCloud: false`를 넘긴다 — `isHomePlace` prop 은 제거됐고, 중계는 이 섹션을 렌더하지
+  않으므로 하드코딩이다. 리졸버가 `HOME_PLACE_ID` 를 자체적으로 알아본다.
 - [useActivePlaceName.ts](../../../src/app/hooks/useActivePlaceName.ts) — `selectedCloudId`를
   함께 읽고, 관찰한 place 행이 아직 없으면 `{ id: sid }`로 폴백한다. **여기가 `default` 원문
   노출을 실제로 고치는 지점**이다(생성/수정 다이얼로그 제목).
@@ -252,7 +253,7 @@ resolvePlaceDisplayName(place, { isDefaultCloud }, t): string
 
 ### 4) 가드 스위치 — `PlaceProfileForm.exit`
 
-[PlaceProfileForm.tsx](../../../src/app/features/home/components/PlaceProfileForm.tsx).
+[PlaceProfileForm.tsx](../../../src/app/ui/components/PlaceProfileForm.tsx).
 `exit`을 optional로 바꿨다. 별도 boolean(`confirmOnExit` 등)을 두지 않고 **카피의 부재 자체를
 스위치로 쓴다** — 가드를 켜려면 보여줄 문구가 필요하므로 두 값이 항상 함께 움직인다.
 
@@ -313,10 +314,10 @@ UUID인 상태가 남아 있으면 "체인은 하나"가 사실이 아니다.
       동일 emit 반복이 리렌더를 쌓지 않음.
     - [MemberListItem.test.tsx](../../../src/app/features/channels/components/MemberListItem.test.tsx) —
       `needsProfileSetup`의 밑줄 유무 + `MY` 배지 병존.
-    - [PlaceProfileCreateDialog.test.tsx](../../../src/app/features/home/components/PlaceProfileCreateDialog.test.tsx) —
+    - [PlaceProfileCreateDialog.test.tsx](../../../src/app/ui/components/PlaceProfileCreateDialog.test.tsx) —
       `98a4685ff^`에서 복원한 회귀 가드 + 제목에 해석된 플레이스 이름 주입 + **`exit` 유무에 따른
       가드 on/off** 두 케이스.
-    - [resolvePlaceDisplayName.test.ts](../../../src/app/features/home/lib/resolvePlaceDisplayName.test.ts) —
+    - [resolvePlaceDisplayName.test.ts](../../../src/app/utils/resolvePlaceDisplayName.test.ts) —
       `isDefaultCloud`·`id === '0000'`·일반 place·이름 없음·place 자체가 없음.
     - 회귀: `ChannelList.test.tsx`·`selfChatTitle.test.ts`·`resolveChannelTitle.test.ts`·
       `PlaceProfileForm*`·`PlaceProfileEditDialog.test.tsx`.

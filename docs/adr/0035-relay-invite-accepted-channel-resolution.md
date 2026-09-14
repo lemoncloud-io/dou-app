@@ -63,7 +63,7 @@ ADR-0033/0034로 구현·통합된 중계서버 1:1 초대 기능에 대해 "초
   조건 모두 거짓이다. `apps/web/docs/feature/home/README.md:51-52`도 "relay는 기본
   플레이스 1개, ＋플레이스 추가 없음"으로 명시한다. 보강 근거로,
   `syncChannels`가 `$.sid` 없는 행을 버리는데도
-  (`libs/data/src/data/repositories-v2/ChannelRepositoryV2.ts:169-171`) relay 홈에
+  (`libs/data/src/repositories-v2/ChannelRepositoryV2.ts:169-171`) relay 홈에
   DM 방이 정상 표시되므로 relay 채널은 기본 플레이스 `sid`를 갖는다. **필터는
   유지한다.**
 - **DM `channelId`를 클라이언트가 조합해서 만든다** — 현재 불가능하다.

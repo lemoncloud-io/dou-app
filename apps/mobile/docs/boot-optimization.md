@@ -147,17 +147,18 @@ provider.x`로 서비스를 즉시 읽고, 그 배럴이 부팅 경로에서 imp
 **접근 체인 전체**를 지연시킨다:
 
 - [`provider.ts`](../src/app/services/provider.ts): 비필수 서비스를 lazy getter로 전환(최초 접근 시
-  생성·memoize). `sqliteDatabase` getter가 최초 생성 시 `initTables()`를 부른다(생성자에서 이동).
-  DataSource들은 `dataSources` memoized getter로 묶는다.
-    - **Eager 유지:** `logService`·`consoleLogger`·`logUploadQueueService`·`keyValueStorage`·
-      `bootMetricsService`·`notificationService`·`pushEventManager`·`deeplinkManager`·`deeplinkService`·
-      `firebaseCrashlyticsService`(부팅 크래시 관측성 — `init()` 즉시 호출 유지).
+  생성·memoize). 스키마 초기화는 `SqliteDatabase` 자신이 소유한다 — 생성자가 `this.ready =
+this.initTables()`로 걸어 두고 모든 쿼리가 그것을 기다리므로, provider getter는 `initTables()`를
+  호출하지도 await하지도 않는다. DataSource들은 `dataSources` memoized getter로 묶는다.
+    - **Eager 유지:** `logService`·`logUploadQueueService`·`keyValueStorage`·`bootMetricsService`·
+      `notificationService`·`pushEventManager`·`deeplinkManager`·`deeplinkService`·
+      `pendingReportQueueService`·`firebaseCrashlyticsService`(부팅 크래시 관측성 — `init()` 즉시 호출 유지).
       로그 큐가 eager인 이유는 성능이 아니라 **유실 방어**다: 큐는 hub 구독으로 채워지므로
       `init()`보다 먼저 나온 엔트리는 어디에도 남지 않는다(원칙 15). lazy로 돌리면 안 된다.
     - **Lazy:** `sqliteDatabase` + 9 DataSource + `cacheCrudService`·`cacheSearchService`·
       `uploadService`·`testRecordService`, 그리고 `deviceService`·`clipboardService`·`smsService`·
       `permissionService`·`oauthService`·`dynamicAppIconService`·`firebaseInstallationService`·
-      `subscriptionIapService`·`preferenceService`.
+      `subscriptionIapService`·`preferenceService`·`versionService`·`unfurlService`.
 - [`services/index.ts`](../src/app/services/index.ts): SQLite 계열 5개(`sqliteDatabase`·
   `cacheCrudService`·`cacheSearchService`·`uploadService`·`testRecordService`)의 eager const export
   제거 — 배럴 로드 시 getter 발동을 막는다. 소비처는 `provider.x`로 접근. 저비용 서비스는 배럴 const로
@@ -182,14 +183,10 @@ provider.x`로 서비스를 즉시 읽고, 그 배럴이 부팅 경로에서 imp
       캐싱 값 매핑·composite uniqueId·deviceModel 폴백.
     - 4.3 — [`deeplinkUtils.test.ts`](../src/app/services/deeplinks/deeplinkUtils.test.ts): native route
       state가 평탄 구조(`Modal`/`Main` 최상위)를 반환.
-    - 전체 mobile 스위트: 19 통과 / 109 테스트 통과.
 - **회귀 스모크(실기기):** 딥링크 진입, 백버튼, 포그라운드 복귀, lazy 전환된 캐시/검색/업로드/테스트레코드
   첫 사용 동작.
 - **BootMetrics(실기기):** 단계별 콜드부팅 3회+ 중앙값 전후 비교(FAB 디버그 메뉴 › 부팅 성능). 특히 4.4는
   웹 첫 캐시 메시지의 SQLite open 지연을 함께 관찰. 목표: `load-start` 중앙값 −150ms 이상.
-- **알려진 사전 실패(변경 무관 베이스라인):** typecheck의 nx-svg 타이핑 누락, 그리고 jest에서
-  `useDeepLinkNavigation.test.ts`(native-stack ESM 미설정)·`useUploadHandler.test.ts`(전이 네이티브
-  모듈 로드) 2개 스위트 — baseline에서도 동일하게 미실행.
 
 ### 측정 결과 (실기기, 콜드 4회 중앙값)
 

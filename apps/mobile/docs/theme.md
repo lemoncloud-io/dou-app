@@ -251,8 +251,6 @@ flowchart LR
 yarn nx test mobile && yarn nx test web
 ```
 
-> `apps/mobile`의 `useUploadHandler` · `useDeepLinkNavigation` 두 스위트는 `@react-navigation`의 ESM이 `transformIgnorePatterns`에 없어 실패한다 — 테마와 무관한 기존 문제다.
-
 **수동 확인** — 각 항목은 **OS를 다크로 설정한 상태에서 라이트 테마 사용자로** 확인해야 의미가 있다. 이 조합이 모든 증상의 재현 조건이다.
 
 1. 콜드 스타트: 스플래시→첫 화면 사이에 다크 배경이 보이지 않는다.

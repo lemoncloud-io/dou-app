@@ -71,7 +71,7 @@ export const useSentInviteLogStore = create<SentInviteLogState>((set, get) => ({
  * Exists because the server view never carries the phone number in full — `MyInviteView` only
  * exposes a masked `last4` (ADR-0033) — so detecting "you already invited this number" and
  * labeling the waiting screen both need a client-side record of what was actually typed.
- * Persisted to localStorage rather than repositories-v2: this is a small phone->invite lookup
+ * Persisted to localStorage rather than the repository layer: this is a small phone->invite lookup
  * with no offline/sync requirement, not a synced domain collection.
  *
  * Callers must key `record`/`findByPhone` with the same phone representation: E.164, via

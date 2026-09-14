@@ -1,6 +1,6 @@
 # 플레이스 생성 · 그룹방 생성 (Place / Channel Create)
 
-> 상태: Live · 최종 갱신: 2026-07-20 · 관련 ADR: [0018](../../../../../docs/adr/0018-place-channel-create-web-ui-kit-rebuild.md)
+> 상태: Live · 최종 갱신: 2026-09-10 · 관련 ADR: [0018](../../../../../docs/adr/0018-place-channel-create-web-ui-kit-rebuild.md)
 
 ## 목적
 
@@ -13,7 +13,7 @@ owner가 새 **플레이스(=Site)** 와 **그룹방(=Channel)** 을 개설하�
 `@chatic/ui-kit`(shadcn)으로 만들어졌고 생성 후 이동이 없다. 이번 작업은 개정 Figma에 맞춰 두 화면을
 `@chatic/web-ui-kit`으로 **재구축**하고, 이동·owner 게이팅·이미지·개수 한도를 배선한다.
 
-프로필 설정 오버레이([place-profile-create.md](./place-profile-create.md))와는 다르다 — 저쪽은 "플레이스 안에서
+프로필 설정 오버레이([place-profile-prompt.md](./place-profile-prompt.md))와는 다르다 — 저쪽은 "플레이스 안에서
 내 프로필 만들기", 이쪽은 "플레이스/그룹방 자체를 개설". 다만 UI 레이아웃이 동일해 그 다이얼로그를 시각·구조
 레퍼런스로 삼는다.
 
@@ -41,7 +41,7 @@ owner가 새 **플레이스(=Site)** 와 **그룹방(=Channel)** 을 개설하�
 - [CreateChannelDialog](../../../src/app/features/home/components/CreateChannelDialog.tsx) 재구축 — 동일 골격,
   그룹 기본 글리프·문구, `stereo: 'private'` 유지.
 - 생성 후 이동: 플레이스 → `switchSite(newSiteId)`, 그룹방 → `navigate(ROUTES.channels.room(newChannelId))`.
-- 이미지 배선: [useCreatePlace](../../../src/app/features/home/hooks/useCreatePlace.ts)에 `thumbnail` 추가
+- 이미지 배선: [useCreatePlace](../../../src/app/hooks/useCreatePlace.ts)에 `thumbnail` 추가
   (`PlaceCreateInput`은 이미 지원), 그룹방은 `channel.create`가 `thumbnail`을 받는다는 ADR-0018 전제하에
   `{ stereo, name, thumbnail }` 단일 스텝.
 - owner 게이팅: [useUserPermissions](../../../src/app/hooks/useUserPermissions.ts)에 클라우드 소유
@@ -53,9 +53,9 @@ owner가 새 **플레이스(=Site)** 와 **그룹방(=Channel)** 을 개설하�
 
 **제외**
 
-- 프로필 설정 오버레이(`place-profile-create.md`) 로직 — 시각 참고만, 건드리지 않음.
+- 프로필 설정 오버레이(`place-profile-prompt.md`) 로직 — 시각 참고만, 건드리지 않음.
 - 그룹방 PRO 게이트 정책 자체 — 현행 `planTier === 'pro'` 유지, owner 게이트를 그 위에 얹기만.
-- 미사용 프로토타입 [CreateChannelPage](../../../src/app/features/channels/pages/CreateChannelPage.tsx) +
+- 미사용 프로토타입 `CreateChannelPage` +
   `/channels/create` 라우트 — 정리(삭제) 후보로 다루되 신규 라우트는 만들지 않음.
 - 1:1 대화 생성, 검색 등 미구현 기능.
 - 서버측 owner/한도 강제(백엔드 소관).
@@ -65,7 +65,7 @@ owner가 새 **플레이스(=Site)** 와 **그룹방(=Channel)** 을 개설하�
 ### 플레이스 생성
 
 1. **진입** — owner 클라우드에서 홈 Place 섹션 하단 `+`(add place) 행을 누른다. owner가 아니거나 렐리/초대
-   클라우드면 애초에 `+`가 없다. 이미 5개면 `+`는 있으나 누르면 "플레이스는 최대 5개까지 만들 수 있어요" 토스트.
+   클라우드면 애초에 `+`가 없다. 상한(`MAX_PLACES = 10`)에 닿으면 `+`는 있으나 누르면 `PlaceLimitDialog`가 열린다 — 슬롯 비우기와 클라우드 추가 두 출구를 준다.
 2. **입력** — 타이틀 "플레이스를 만들어서 대화를 시작해 보세요" + 부제. 이름 1~20자일 때만 `완료` 활성. 20자
    초과 시 빨간 테두리 + "21/20" + 힌트, `완료` 비활성.
 3. **사진(선택)** — 아바타 `+` → 파일 선택. 10MB 이하 webp/png/jpeg, 통과 시 150px 정사각 base64 미리보기.
@@ -74,7 +74,7 @@ owner가 새 **플레이스(=Site)** 와 **그룹방(=Channel)** 을 개설하�
    뜨고 재시도할 수 있다. 프로필 생성은 강제하지 않는다 — ADR-0045 결정 4가 한 번 넣었다가 되돌렸다: 새
    사이트의 owner 프로필 row는 `place.create`가 만들어주지 않고, `profile.set`(`updateSiteProfile`)은
    UPDATE 전용이라 그 자리에서 쓰려고 하면 항상 404가 난다(재시도로도 해소 불가 — 백엔드 한계). owner도
-   다른 진입자와 동일하게 방 설정 nudge([place-profile-create.md](./place-profile-create.md), ADR-0040)로
+   다른 진입자와 동일하게 방 설정 nudge([place-profile-prompt.md](./place-profile-prompt.md), ADR-0040)로
    프로필을 나중에 채운다.
 5. **이탈** — X/esc/overlay 시 입력값이 있으면 "중단하시겠어요?" 확인 모달, 없으면 즉시 닫힘.
 
@@ -149,7 +149,7 @@ owner 게이팅은 클라우드 컨텍스트(렐리 1:1 vs 클라우드 그룹)�
 대화`(placeholder)를, 클라우드에선 owner에게만 `그룹 방 만들기`를 보인다. 렐리의 미구독자에게는 `그룹 방
 만들기`가 업셀 행으로 한 줄 더 붙는다(`showGroupCreate = !isDefaultCloud || !isPro`).
 - 한도 체크는 개수를 아는 HomePage 핸들러에서 한다. `handleCreatePlace`는 `ownedPlaceCount >= MAX_PLACES`
-  (relay 구독행 `stereo === 'place'` 제외 카운트)면 `homePage.placeLimitReached` 토스트 후 return.
+  (relay 구독행 `stereo === 'place'` 제외 카운트)면 `PlaceLimitDialog`를 연 뒤 return.
   `handleCreateGroup`은 렐리면 상한 체크 없이 곧바로 구독 유도로 빠지고(업셀 전용 입구라 렐리 플레이스의
   채널 수가 상한 토스트로 바뀌면 안 된다), 클라우드에선 `channels.length >= MAX_CHANNELS_PER_PLACE`면
   `homePage.channelLimitReached` 토스트 후 return(그다음 PRO 게이트). 단, dev-class 빌드(`VITE_ENV` DEV/LOCAL, `isDevBuild()`)에서는 두 한도
@@ -175,10 +175,10 @@ owner 게이팅은 클라우드 컨텍스트(렐리 1:1 vs 클라우드 그룹)�
   (`CreateChannelDialog`와 동일한 `submitting` 상태 패턴). 프로필 생성 스텝을 뒤에 강제로 붙였던
   적이 있으나(ADR-0045 결정 4) 되돌렸다 — 백엔드가 신규 사이트의 첫 프로필 write를 지원하지 않아
   (`place.create`가 owner 프로필 row를 만들지 않고 `profile.set`은 UPDATE 전용) 항상 404가 났다.
-- [useCreatePlace.ts](../../../src/app/features/home/hooks/useCreatePlace.ts): 시그니처를
+- [useCreatePlace.ts](../../../src/app/hooks/useCreatePlace.ts): 시그니처를
   `createPlace({ name, thumbnail }: { name: string; thumbnail?: string })`로 넓혀 payload에 thumbnail 통과.
   `PlaceCreateInput`(`PlaceBodyData`)이 이미 `thumbnail?`을 가지므로 리포/원격은 무변경(payload passthrough,
-  [PlaceRepositoryV2.ts:89](../../../../../libs/data/src/data/repositories-v2/PlaceRepositoryV2.ts)).
+  [PlaceRepositoryV2.ts:89](../../../../../libs/data/src/repositories-v2/PlaceRepositoryV2.ts)).
 
 ### 4) CreateChannelDialog 재구축
 
@@ -186,12 +186,10 @@ owner 게이팅은 클라우드 컨텍스트(렐리 1:1 vs 클라우드 그룹)�
 - 완료: `await createChannel({ stereo: 'private', name, thumbnail })` →
   `navigate(ROUTES.channels.room(created.id))`. `useCreateChannel`은 이미 `DomainChannel`을 반환한다
   ([useCreateChannel.ts](../../../src/app/features/channels/hooks/useCreateChannel.ts)).
-- **thumbnail 전제(ADR-0018)**: `ChannelCreateRequestData`는 현재 `{ stereo, name }`뿐이다
-  ([channel/types.d.ts:3](../../../../../node_modules/@lemoncloud/chatic-sockets-api/dist/lib/channel/types.d.ts)).
-  `channel.create` payload는 게이트웨이로 그대로 전달되므로
-  ([ChannelSocketDataSource.ts:90](../../../../../libs/data/src/data/remote/socket-data-sources/ChannelSocketDataSource.ts)),
-  타입에 `thumbnail?`이 추가되면 배선은 자동이다. **착수 시 소켓 API의 thumbnail 지원 여부를 먼저 확인**하고,
-  미지원이면 타입 확장/백엔드 협의가 블로커(→ 리스크 섹션).
+- **thumbnail 배선은 끝났다(ADR-0018).** 착수 시 블로커로 남겨 뒀던 항목인데 해소됐다 —
+  `CreateChannelPayload = ChannelCreateInput & { thumbnail?: string }`이고
+  ([useCreateChannel.ts](../../../src/app/features/channels/hooks/useCreateChannel.ts)),
+  `CreateChannelDialog`가 실제로 thumbnail을 넘긴다.
 
 ### 5) 그룹 아바타 글리프 — web-ui-kit
 

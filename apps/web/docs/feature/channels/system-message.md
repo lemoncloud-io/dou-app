@@ -1,5 +1,7 @@
 # channels — 시스템 메시지 (입퇴장)
 
+> 상태: Live · 최종 갱신: 2026-09-10 · 관련 ADR: [ADR-0048](../../../../../docs/adr/0048-unread-count-derivation-contract.md) (unread 파생) · [ADR-0067](../../../../../docs/adr/0067-rejoin-hides-prior-messages.md) (표시 게이트) · [ADR-0045](../../../../../docs/adr/0045-web-emoji-reaction-and-thread.md) (리액션 subType)
+
 > 대상: `apps/web/src/app/features/channels` · 참조 구현: `apps/testbed/src/app/pages/ChatRoomPage.tsx`
 > 서버 스펙: `chatic-socials-api/docs/specs/chat-system-message` (다른 리포)
 
@@ -15,11 +17,11 @@
 
 서버 패키지(`@lemoncloud/chatic-socials-api`)가 스펙을 반영하면서 `ChatView`/`ChannelView`에 필드가 추가됐고, 도메인 타입이 상속으로 이를 **자동 포함**한다 — 로컬 타입 확장은 없다.
 
-| 타입                   | 필드                                      | 의미                                                                                        |
-| ---------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------- |
-| `DomainChat.stereo`    | `'' \| 'user' \| 'system'`                | `system`이면 시스템 메시지                                                                  |
-| `DomainChat.subType`   | `'' \| 'join' \| 'leave'` (`ChatSubType`) | 입장/퇴장 구분 코드                                                                         |
-| `DomainChannel.metaNo` | `number?`                                 | 비집계 이벤트 누적(`chatNo − metaNo` = 사용자 메시지 수). 홈 안읽음 뱃지가 사용(§안읽은 수) |
+| 타입                   | 필드                                                 | 의미                                                                                                                   |
+| ---------------------- | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `DomainChat.stereo`    | `'' \| 'user' \| 'system'`                           | `system`이면 시스템 메시지                                                                                             |
+| `DomainChat.subType`   | `join` · `leave` · **`reaction`** 등 (`ChatSubType`) | 입장/퇴장 구분 코드. `reaction`은 시스템 메시지가 아니라 리액션 이벤트이고, 아래 피드 필터가 존재하는 이유다(ADR-0045) |
+| `DomainChannel.metaNo` | `number?`                                            | 비집계 이벤트 누적(`chatNo − metaNo` = 사용자 메시지 수). 홈 안읽음 뱃지가 사용(§안읽은 수)                            |
 
 `ChatSubType`은 `@chatic/data`에서 re-export하므로 앱은 `import type { ChatSubType } from '@chatic/data'`로 쓴다.
 
@@ -30,6 +32,14 @@
 ### 판별
 
 `useChats`가 `DomainChat` → `ClientChatView` 매핑 시 `isSystem = stereo === 'system'`을 노출한다([data-layer.md](./data-layer.md) §메시지). 시스템 메시지는 `isSameGroup`에서 제외되어 일반 메시지와 묶이지 않는다.
+
+**다만 subType만으로 렌더가 결정되지 않는다.** 피드에 닿기 전 세 필터를 지난다.
+
+1. `isInJoinWindow(chat, joinedNo)` — 재입장 이전 행을 전부 제거한다(ADR-0067). 아래 문구·톤 규칙은 이 창을 통과한 행에만 적용된다.
+2. `isOwnSystemChat(chat, uid)` = `stereo === 'system' && ownerId === uid` — **내가 주체인 입퇴장 알림은 나에게 보이지 않는다.** 남의 입퇴장만 보인다.
+3. `isFeedVisible(chat)` = `!parentId && subType !== 'reaction'` — 스레드 답글과 리액션 이벤트를 뺀다.
+
+세 필터는 `useChats`가 소유하고 정의는 `@chatic/data`의 `domain/chatPreview.ts`에 있다.
 
 ### subType → i18n
 
@@ -86,7 +96,12 @@ pill을 유지한다.
 - 시스템 메시지는 렌더 분기에서 일찍 반환되어 `ReadStatus`(읽음/안읽음 수)를 **그리지 않는다**.
 - `useJoinPositions.getReadCount`는 chatNo 커서 기반이라 별도 필터가 없어도 시스템 버블엔 표시되지 않는다.
 
-> 채널 **목록의 안읽음 뱃지**(홈)는 `home/hooks/useChannelUnreads.ts`에서 `metaNo`로 시스템 메시지를 제외한다 — head를 사용자 메시지 수로 환산해 읽음 커서와 비교한다: `unread = max(0, (channel.chatNo − channel.metaNo) − readNo)`. 읽음 커서 `readNo`는 채널 임베드 `$join`이 아니라 **구독 join 목록**(`home/hooks/useMyJoins.ts`가 채널별 `registerJoin`으로 확보)의 `max(readNo, chatNo)`를 쓴다. join 행이 아직 없으면 0(뱃지 없음).
+> 채널 **목록의 안읽음 뱃지**(홈)는 `app/utils/countUnread.ts`가 계산한다. head와 커서를 **각자의
+> `metaNo`로** 사용자-메시지 스케일에 맞춘 뒤 뺀다 — `max(0, userHead − (readNo − cursorMetaNo))`,
+> 여기서 `userHead = chatNo − headMetaNo`이고 `cursorMetaNo = join.metaNo ?? headMetaNo`다.
+> 커서를 환산하지 않고 빼면 그 사이 시스템 이벤트만큼 **적게** 센다 — ADR-0048이 그 이유로 이전
+> 공식을 폐기했다. 읽음 커서는 채널 임베드 `$join`이 아니라 **구독 join 목록**(`app/hooks/useMyJoins.ts`)의
+> `max(readNo, chatNo)`를 쓴다. join 행이 아직 없으면 0(뱃지 없음).
 
 ## 발행 경로 (참고)
 

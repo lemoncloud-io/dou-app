@@ -17,19 +17,24 @@ WebView 안의 웹 앱이 typed bridge message로 모바일 기능을 요청한�
 7. [upload](./docs/upload.md) — 대용량 파일 업로드
 8. [deploy](./docs/deploy.md) — 버전 범프와 스토어 업로드 파이프라인
 
+부팅 성능을 건드리게 되면 [boot-metrics](./docs/boot-metrics.md)(무엇을 어떻게 재는지)를 먼저 읽고
+[boot-optimization](./docs/boot-optimization.md)(1차 최적화가 무엇을 바꿨는지)으로 간다.
+
 ## 카테고리 맵
 
-| 카테고리                                                                           | 이럴 때 본다                                               | 주요 코드                                                                                                     |
-| ---------------------------------------------------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| [architecture](./docs/architecture.md)                                             | 앱 구조, 시작 흐름, 계층 소유권                            | `src/main.tsx`, `src/app/App.tsx`, `src/app/features`                                                         |
-| [native-module](./docs/native-module.md)                                           | Android/iOS 네이티브 API, 파일/업로드 브릿지, OS 동작      | `src/app/bridge`, `android/app/src/main/java/io/chatic/dou`, `ios/Bridges`                                    |
-| [service](./docs/service.md)                                                       | 모바일 도메인 동작, 의존성 주입, 공유 인스턴스             | `src/app/services/provider.ts`, `src/app/services`                                                            |
-| [webview](./docs/webview.md) · [디버깅](./docs/webview-debugging.md)               | 웹→앱 메시지, 주입 런타임, 브릿지 핸들러, 원격 인스펙터    | `src/app/webview`                                                                                             |
-| [cache](./docs/cache.md)                                                           | SQLite, MMKV, 로컬 data source, 캐시 브릿지 API            | `src/app/database`, `src/app/data/cache`, `src/app/services/cache`                                            |
-| [theme](./docs/theme.md)                                                           | 라이트 기본, 상태바·배경 적용, 웹↔네이티브 테마 동기화    | `src/app/stores/themeStorage.ts`, `src/app/features/core/components/SystemBars.tsx`                           |
-| [push](./docs/push.md) · [badge](./docs/badge.md) · [deeplink](./docs/deeplink.md) | FCM/APNs, 포그라운드 이벤트, 뱃지 카운트, 탭·딥링크 라우팅 | `src/app/services/notification`, `src/app/services/deeplinks`, `android/app/src/main/java/io/chatic/dou/push` |
-| [upload](./docs/upload.md)                                                         | 대용량 파일 업로드, 네이티브 업로드 엔진, 업로드 복구      | `src/app/services/upload`, `src/app/webview/hooks/useUploadHandler.ts`                                        |
-| [deploy](./docs/deploy.md)                                                         | 버전 범프, TestFlight/Play 업로드, 배포 자격증명 세팅      | `scripts/version-mobile.js`, `scripts/deploy-mobile.sh`, `fastlane/Fastfile`                                  |
+| 카테고리                                                                                  | 이럴 때 본다                                               | 주요 코드                                                                                                     |
+| ----------------------------------------------------------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| [architecture](./docs/architecture.md)                                                    | 앱 구조, 시작 흐름, 계층 소유권                            | `src/main.tsx`, `src/app/App.tsx`, `src/app/features`                                                         |
+| [native-module](./docs/native-module.md)                                                  | Android/iOS 네이티브 API, 파일/업로드 브릿지, OS 동작      | `src/app/bridge`, `android/app/src/main/java/io/chatic/dou`, `ios/Bridges`                                    |
+| [service](./docs/service.md)                                                              | 모바일 도메인 동작, 의존성 주입, 공유 인스턴스             | `src/app/services/provider.ts`, `src/app/services`                                                            |
+| [webview](./docs/webview.md) · [디버깅](./docs/webview-debugging.md)                      | 웹→앱 메시지, 주입 런타임, 브릿지 핸들러, 원격 인스펙터    | `src/app/webview`                                                                                             |
+| [cache](./docs/cache.md)                                                                  | SQLite, MMKV, 로컬 data source, 캐시 브릿지 API            | `src/app/database`, `src/app/data/cache`, `src/app/services/cache`                                            |
+| [theme](./docs/theme.md)                                                                  | 라이트 기본, 상태바·배경 적용, 웹↔네이티브 테마 동기화    | `src/app/stores/themeStorage.ts`, `src/app/features/core/components/SystemBars.tsx`                           |
+| [push](./docs/push.md) · [badge](./docs/badge.md) · [deeplink](./docs/deeplink.md)        | FCM/APNs, 포그라운드 이벤트, 뱃지 카운트, 탭·딥링크 라우팅 | `src/app/services/notification`, `src/app/services/deeplinks`, `android/app/src/main/java/io/chatic/dou/push` |
+| [upload](./docs/upload.md)                                                                | 대용량 파일 업로드, 네이티브 업로드 엔진, 업로드 복구      | `src/app/services/upload`, `src/app/webview/hooks/useUploadHandler.ts`                                        |
+| [deploy](./docs/deploy.md)                                                                | 버전 범프, TestFlight/Play 업로드, 배포 자격증명 세팅      | `scripts/version-mobile.js`, `scripts/deploy-mobile.sh`, `fastlane/Fastfile`                                  |
+| [boot-metrics](./docs/boot-metrics.md) · [boot-optimization](./docs/boot-optimization.md) | 부팅 타임라인 계측, 임계경로, lazy 전환 규칙               | `src/app/services/perf`, `src/app/services/provider.ts`                                                       |
+| [app-update](./docs/app-update.md)                                                        | 스토어 라이브 버전 비교, 업데이트 안내 팝업                | `src/app/services/version`, `src/app/webview/hooks/useAppUpdateHandler.ts`                                    |
 
 ## 작업 규칙
 

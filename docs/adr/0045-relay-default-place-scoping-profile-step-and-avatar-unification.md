@@ -10,7 +10,7 @@
 
 1. **기본플레이스가 클라우드 목록에 섞인다.** `UserRepositoryV2.getMyProfile`이 프로필에
    임베디드된 `$site`를 활성 컨텍스트가 무엇이든 place 캐시에 저장한다
-   (`libs/data/src/data/repositories-v2/UserRepositoryV2.ts:114`). 클라우드(cid ≠ `default`)로
+   (`libs/data/src/repositories-v2/UserRepositoryV2.ts:114`). 클라우드(cid ≠ `default`)로
    전환한 상태에서도 이 쓰기가 일어나 기본플레이스 행이 클라우드 스코프 캐시에 남고, 홈
    플레이스 목록에 섞여 보인다. `refreshList`는 `cacheWriteMany`만 하고 삭제하지 않으므로
    (`PlaceRepositoryV2.ts:84-91`) 일단 오염된 행은 저절로 사라지지 않는다.

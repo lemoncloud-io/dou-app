@@ -26,12 +26,16 @@ flowchart TD
 
 ## 주요 진입점
 
-| 파일                                                 | 역할                                                                          |
-| ---------------------------------------------------- | ----------------------------------------------------------------------------- |
-| `src/main.tsx`                                       | React Native 앱 등록                                                          |
-| `src/main-web.tsx`                                   | 웹 타깃 entrypoint                                                            |
-| `src/app/App.tsx`                                    | navigation, 딥링크 linking, notification channel 초기화, debug overlay 마운트 |
-| `src/app/features/core/navigation/RootNavigator.tsx` | 단일 native stack — MainScreen을 직접 호스팅 (boot-optimization.md 4.3)       |
+| 파일                                                 | 역할                                                                                                                  |
+| ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `src/main.tsx`                                       | React Native 앱 등록                                                                                                  |
+| `src/main-web.tsx`                                   | 웹 타깃 entrypoint                                                                                                    |
+| `src/app/App.tsx`                                    | NavigationContainer·SafeAreaProvider·SystemBars, notification channel 초기화, 업데이트 알림, debug FAB/overlay 마운트 |
+| `src/app/features/core/navigation/RootNavigator.tsx` | 단일 native stack — MainScreen을 직접 호스팅 (boot-optimization.md 4.3)                                               |
+
+React Navigation의 `linking` 설정은 쓰지 않는다. 딥링크는 `DeepLinkManager`가 RN `Linking`으로 직접
+잡고 `useDeepLinkNavigation`이 `OnNavigate`로 웹에 넘긴다 — 네이티브 라우트로 가는 건 `target=native`
+딥링크뿐이고, 그건 `navigationRef.reset()`으로 적용한다. [deeplink.md](./deeplink.md) 참고.
 
 ## 계층별 책임
 

@@ -10,7 +10,7 @@
 > `UserInviteRequestData`/`UserInviteBatchRequestData` 전부 무자리) 이번에도 제외한다. 아래
 > 본문의 "제외" 절은 그대로 유효하다 — 클라우드 확장은 백엔드 후속 이후 별도 ADR로 다룬다.
 
-> **이름 안내 (2026-09-01):** 이 문서가 쓰는 `*RemoteDataSource` · `RemoteGatewayBundle` · `*DomainGateway` · `remoteFactory` · `remote/data-sources/`는 **당시 이름**이다. 소켓 축이 `Socket` 접두로 옮겨간 뒤의 대응표는 [libs/data/docs/remote/README.md](../../libs/data/docs/remote/README.md#이름-규약-2026-09-01-리네임)에 있다. 기록이므로 본문은 그대로 둔다.
+> **이름 안내 (2026-09-01):** 이 문서가 쓰는 `*RemoteDataSource` · `RemoteGatewayBundle` · `*DomainGateway` · `remoteFactory` · `remote/data-sources/`는 **당시 이름**이다. 소켓 축이 `Socket` 접두로 옮겨간 뒤의 대응표는 [libs/data/docs/remote/README.md](../../libs/data/docs/remote/README.md#이름-규약)에 있다. 기록이므로 본문은 그대로 둔다.
 
 ## 맥락 (Context)
 
@@ -23,7 +23,7 @@ ISO alpha-2이고 미지정 시 `KR`이며, **발송과 증명에 같은 값을 
 
 **데이터 층도 이미 뚫려 있다.** `PhoneCodeSendOptions.countryCode` ·
 `PhoneCodeProveOptions.countryCode`가 `AuthRemoteDataSource`에 선언돼 패킷까지 전달되고
-(`libs/data/src/data/remote/data-sources/AuthRemoteDataSource.ts:41,53,145,160`),
+(`libs/data/src/remote/data-sources/AuthRemoteDataSource.ts:41,53,145,160`),
 `AuthRepositoryV2`가 통과시키며, `useLinkAccount`의 `PhoneCodeProveArgs`에도 자리가 있다.
 `AuthRemoteDataSource.test.ts:152`에는 `countryCode: 'JP'` 케이스까지 들어 있다.
 

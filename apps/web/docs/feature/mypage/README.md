@@ -44,7 +44,7 @@
 계정 스코프이므로(프로필·구독·내가 가진 클라우드) 헤더의 이름과 같은 주체를 봐야 한다.
 `useRuntimeProfile().isGuest`는 활성 토큰을 읽어서, 클라우드에 접속하는 순간 **위임된 클라우드
 유저의 role**을 답한다 — 로그인한 사용자 이름 바로 옆에 "로그인 필요" 카드가 뜨던 원인이다.
-relay 토큰이 유일한 답인 이유는 아래 [세 종류의 프로필](#세-종류의-프로필)의 캐시 키 설명과 같다. **무료 구독 D-N(잔여일) 상태는 이번 범위 제외** — 서버에 "현재 체험 중" 신뢰 플래그가 없어 보류(→ [리스크](#리스크와-미지수-임시)).
+relay 토큰이 유일한 답인 이유는 아래 [세 종류의 프로필](#세-종류의-프로필)의 캐시 키 설명과 같다. **무료 구독 D-N(잔여일) 상태는 이번 범위 제외** — 서버에 "현재 체험 중" 신뢰 플래그가 없어 보류(→ [리스크](#미해결)).
 
 | 상태             | 조건                   | 루트(`/mypage`) 구성                                         |
 | ---------------- | ---------------------- | ------------------------------------------------------------ |
@@ -56,7 +56,7 @@ relay 토큰이 유일한 답인 이유는 아래 [세 종류의 프로필](#세
 
 설정 depth는 게스트에게도 열려 있다(피드백은 미인증 세션도 받는다 — ADR-0047). 로그아웃 카드만 `!isGuest` 게이트다.
 
-> 구독 상태 단일 원천은 `useMembershipInfo()`([web-core](../../../../../libs/web-core/src/hooks/subscription/index.ts)). 플랫폼 매칭을 강제하는 `useIsSubscriptionAvailable()`은 웹에서 부적합하므로 쓰지 않는다.
+> 구독 상태 단일 원천은 `useMembershipInfo()`([app/hooks/useMembership.ts](../../../src/app/hooks/useMembership.ts)). 플랫폼 매칭을 강제하는 `useIsSubscriptionAvailable()`은 웹에서 부적합하므로 쓰지 않는다.
 
 ### 카드 구조
 
@@ -114,7 +114,7 @@ features/mypage/
 
 ## 데이터 흐름
 
-세션 상태는 web-core / app-runtime 훅으로만 읽는다(core 객체 직접 접근 금지, [architecture/README.md](../../architecture/README.md)).
+세션 상태는 `runtime.session.*` 훅으로만 읽는다(core 객체 직접 접근 금지, [architecture/README.md](../../architecture/README.md)).
 
 - 계정 게스트 여부 → `useIsAccountGuest()` (relay 토큰 기준, 허브 분기가 쓰는 것)
 - 클라우드 활성 → `useRuntimeProfile()` (`isCloudActive`). 이 훅의 `isGuest`는 "지금 접속한

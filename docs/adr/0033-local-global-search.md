@@ -199,8 +199,8 @@ apps/web에 검색 기능이 없다. 헤더의 검색 버튼은 배선만 되어
 - 진입점: `apps/web/src/app/features/home/pages/HomePage.tsx` (`handleSearch` 플레이스홀더)
 - 레퍼런스 구현: `apps/desktop-web/src/app/features/search/*`,
   `apps/desktop-web/src/app/shared/stores/useMessageJumpStore.ts`
-- 스토리지: `libs/data/src/data/local/databases/IndexedDBDatabase.ts`
-  (`TYPE_CID_UID_INDEX`), `libs/data/src/data/local/storages/IndexedDBAdapter.ts`,
+- 스토리지: `libs/data/src/local/databases/IndexedDBDatabase.ts`
+  (`TYPE_CID_UID_INDEX`), `libs/data/src/local/storages/IndexedDBAdapter.ts`,
   `NativeDBAdapter.ts`
 - 네이티브 전역 검색 기존 경로: `libs/app-messages/src/types/model/cache.ts`
   (`SearchGlobalCacheDataPayload`),

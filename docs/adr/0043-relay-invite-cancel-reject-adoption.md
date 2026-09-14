@@ -7,7 +7,7 @@
 > [ADR-0037](0037-invite-accept-popup-group-and-dm-variants.md)(수락 팝업 변형).
 > 본 ADR은 ADR-0033을 뒤집지 않는다 — 그 문서가 "백엔드 요청 1·2번"으로 미뤄 둔 자리가 채워진 것이다.
 
-> **이름 안내 (2026-09-01):** 이 문서가 쓰는 `*RemoteDataSource` · `RemoteGatewayBundle` · `*DomainGateway` · `remoteFactory` · `remote/data-sources/`는 **당시 이름**이다. 소켓 축이 `Socket` 접두로 옮겨간 뒤의 대응표는 [libs/data/docs/remote/README.md](../../libs/data/docs/remote/README.md#이름-규약-2026-09-01-리네임)에 있다. 기록이므로 본문은 그대로 둔다.
+> **이름 안내 (2026-09-01):** 이 문서가 쓰는 `*RemoteDataSource` · `RemoteGatewayBundle` · `*DomainGateway` · `remoteFactory` · `remote/data-sources/`는 **당시 이름**이다. 소켓 축이 `Socket` 접두로 옮겨간 뒤의 대응표는 [libs/data/docs/remote/README.md](../../libs/data/docs/remote/README.md#이름-규약)에 있다. 기록이므로 본문은 그대로 둔다.
 
 ## 맥락 (Context)
 
@@ -65,7 +65,7 @@
 
 1. **버전 범프** — `chatic-sockets-lib 0.4.12→0.4.13`, `chatic-sockets-api 0.26.709→0.26.710`,
    `chatic-backend-api ^0.26.706→0.26.709`.
-2. **배선 관통** — `InviteDomainGateway`의 `Pick`(`libs/data/src/data/remote/gateways/index.ts`)에
+2. **배선 관통** — `InviteDomainGateway`의 `Pick`(`libs/data/src/remote/gateways/index.ts`)에
    `cancel`·`reject` 추가 → `InviteRemoteDataSource` → `InviteRepositoryV2` →
    `useRelayInviteMutations`에 `cancelInvite(code)`·`rejectInvite(code)`. 기존 create/get/accept와
    같은 결로만 넓히고, 데이터 레이어 구조는 건드리지 않는다(ADR-0036은 별도 대기).

@@ -49,7 +49,7 @@ cid 오버라이드가 아니라 **sid 오버라이드**다.
 - **명시적 cid 인자, 공유 컨텍스트 변경 금지**: cid는 항상 호출 인자로
   받는다. 공유 `DataContextHolder`를 임시로 바꿔치기하는 접근은 금지 —
   과거 `runWithGlobalContext`가 그 방식으로 cross-cloud 데이터 오염을
-  일으킨 전례가 있다(`libs/data/src/data/local/storages/utils.ts:64-70`).
+  일으킨 전례가 있다(`libs/data/src/local/storages/utils.ts:64-70`).
 
 ## 범위
 
@@ -161,7 +161,7 @@ sequenceDiagram
 
 ## 상세 구현
 
-### 계약 (신규: `libs/data/src/data/local/search/types.ts`)
+### 계약 (신규: `libs/data/src/local/search/types.ts`)
 
 ```ts
 export interface GlobalCacheSearchQuery {
@@ -294,7 +294,7 @@ query: { channelId, sort: 'desc', limit: 1 } }` — SQL이 `channel_id`,
 
 ## 검증 방법
 
-- **공유 계약 테스트** (`libs/data/src/data/local/search/*.test.ts`):
+- **공유 계약 테스트** (`libs/data/src/local/search/*.test.ts`):
   동일 픽스처(채널/사이트/채팅 뷰, 2개 cid 파티션, 타 uid 오염 데이터
   포함)와 동일 기대 결과 테이블을 두 소스에 적용한다.
     - `IndexedDbGlobalSearchSource`: `fake-indexeddb`로 실제 IndexedDB에

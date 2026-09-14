@@ -229,4 +229,4 @@ await deviceGateway.readDevice('my-device-id');
 
 - ClientSocketV2는 이번 스코프에서 구현하지 않는다.
 - SyncScheduler는 외부 상태 감지에 영향을 받는 객체이기 때문에 타입 정의 및 인터페이스 개발까지를 스코프로 한다.
-- 작업범위는 libs/data/src/data/\* 와 web/src/app/shared/data로 한정한다.
+- 작업범위는 libs/data/src/\* 와 web/src/app/shared/data로 한정한다.

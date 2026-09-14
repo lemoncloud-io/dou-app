@@ -28,7 +28,7 @@ function AppInner() {
 
 **재인증은 자동이다.** 만료 refresh·재연결 재인증은 SDK `ClientSocketAuth`가, 물리 소켓을 유지한 채 신원만 바뀌는 경우(게스트→소셜 승격)는 `SocketReauthBinder`가 처리한다. 앱이 수동으로 `auth.update`를 보내면 안 된다(이중 발화).
 
-근거: `apps/web/src/app/runtime/AppRuntime.tsx`, `apps/testbed/src/app/app.tsx`, [libs/app-runtime/docs/runtime/session-lifecycle.md](../../../../libs/app-runtime/docs/runtime/session-lifecycle.md)
+근거: `apps/web/src/app/runtime/AppRuntime.tsx`, `apps/testbed/src/app/app.tsx`, [libs/app-runtime/docs/connection/session-lifecycle.md](../../../../libs/app-runtime/docs/connection/session-lifecycle.md)
 
 ---
 
@@ -89,7 +89,7 @@ useEffect(() => {
 
 > `auth:update` 송신은 데이터 쓰기가 아니라 재인증이며 `SocketAuthBinder`가 자동 처리한다 — 앱에서 보내지 않는다.
 
-근거: `libs/data/src/data/repositories-v2/*`
+근거: `libs/data/src/repositories-v2/*`
 
 ---
 
@@ -190,9 +190,9 @@ cursor는 **TTL 1일**을 가진다(`meta` 캐시 TTL). sync 성공마다 `setSy
 
 만료 판정은 저장된 `expiresAt`이 아니라 **읽기 시점에** `__cacheMeta.lastSyncedAt + TTL`로 계산한다. 과거 "never expire" 정책으로 저장된 행에도 현재 TTL이 소급 적용된다.
 
-근거: `libs/data/src/data/local/data-sources-v2/SyncMetaLocalDataSourceV2.ts`, `libs/data/src/data/local/storages/utils.ts`
+근거: `libs/data/src/local/data-sources-v2/SyncMetaLocalDataSourceV2.ts`, `libs/data/src/local/ports/policy.ts`
 
-근거: `libs/data/src/data/repositories-v2/{SyncMetaRepositoryV2,ChannelRepositoryV2,ProfileRepositoryV2}.ts`
+근거: `libs/data/src/repositories-v2/{SyncMetaRepositoryV2,ChannelRepositoryV2,ProfileRepositoryV2}.ts`
 
 ---
 

@@ -71,7 +71,7 @@ React Native 내장 `URL`(`react-native/Libraries/Blob/URL.js`)의 `.search` 게
 
 - 읽기(`searchParams.get/has/forEach`, `.search`/`.pathname`/`.hash` 게터)는 안전하다.
 - **쓰기는 문자열로 직접 조립**한다(값은 `encodeURIComponent`). `convertShortUrlWithEnvsSync`,
-  `resolvePushPath`가 이 방식으로 되어 있다. (앱 전역에 `react-native-url-polyfill`은 설치되어 있지 않음.)
+  `resolvePushTapPath`가 이 방식으로 되어 있다. (앱 전역에 `react-native-url-polyfill`은 설치되어 있지 않음.)
 
 ## 변경 체크리스트
 
