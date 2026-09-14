@@ -1,4 +1,5 @@
 import { recoverUnverifiedSockets } from './recoverUnverifiedSockets';
+import type { AuthIdReseedTarget } from './authIdRegistry';
 import type { ISocketManager } from '../types';
 import type { SocketSessionDelegate } from './types';
 
@@ -23,6 +24,11 @@ jest.mock('../../session/auth/credentialFreshness', () => ({
     credentialFreshness: { timeToExpiry: () => 30 * 60_000, isStale: () => false },
 }));
 
+// Typed off the production contract rather than inferred: a zero-arg `jest.fn` makes
+// `register.mock.calls[0][0]` an index into an empty tuple, so the registered `sign` callback
+// cannot be read back out.
+type AuthRegisterOptions = Parameters<AuthIdReseedTarget['register']>[0];
+
 /**
  * Fake per-slot client capturing the recovery sequence in `order` (prefixed by kind so the two
  * slots stay distinguishable). `authState` mirrors AuthController.state.
@@ -30,7 +36,7 @@ jest.mock('../../session/auth/credentialFreshness', () => ({
 const makeClient = (kind: string, order: string[], { authState = '', state = 'connected' } = {}) => {
     const auth = {
         state: authState,
-        register: jest.fn(() => order.push(`${kind}:register`)),
+        register: jest.fn((_opts: AuthRegisterOptions) => order.push(`${kind}:register`)),
         stop: jest.fn(() => order.push(`${kind}:stop`)),
     };
     return {
@@ -138,10 +144,7 @@ describe('recoverUnverifiedSockets', () => {
 
         await recoverUnverifiedSockets({ manager: makeManager({ relay }), delegate });
 
-        const registeredSign = relay.auth.register.mock.calls[0][0].sign as (
-            token: string,
-            ctx?: { target?: string }
-        ) => Promise<unknown>;
+        const registeredSign = relay.auth.register.mock.calls[0][0].sign;
         await registeredSign('sdk-token', { target: 'uid@sid' });
         expect(delegate.signAuth).toHaveBeenCalledWith('relay', 'sdk-token', 'uid@sid');
     });

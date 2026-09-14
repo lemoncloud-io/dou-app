@@ -26,7 +26,7 @@ jest.mock('../../http/gateways', () => ({
 // same-named factory under test.
 const createDataHttpDataSources = jest.fn(({ gateways }: { gateways: unknown }) => ({ gateways }));
 jest.mock('@chatic/data', () => ({
-    createHttpDataSources: (...args: unknown[]) => createDataHttpDataSources(...args),
+    createHttpDataSources: (args: { gateways: unknown }) => createDataHttpDataSources(args),
 }));
 
 beforeEach(() => jest.clearAllMocks());

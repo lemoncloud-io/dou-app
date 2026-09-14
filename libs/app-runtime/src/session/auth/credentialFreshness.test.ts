@@ -1,5 +1,5 @@
 /**
- * The route-keyed "is the signing credential still alive?" read. What matters here is that relay and
+ * The owner-keyed "is the signing credential still alive?" read. What matters here is that relay and
  * cloud are answered from their OWN stores — a cross-wired answer would send the recovery to the
  * wrong server — and that "cannot tell" is never reported as stale.
  */
@@ -41,11 +41,13 @@ describe('credentialFreshness.timeToExpiry', () => {
         expect(mockGetRelayToken).not.toHaveBeenCalled();
     });
 
-    it('oauth·iap도 relay 자격증명으로 서명하므로 relay와 같은 답을 준다', () => {
+    // 예전엔 `oauth`·`iap`도 물어보고 relay와 같은 답이 나오는지 봤다. 키가 `HttpRoute`에서
+    // `CredentialOwner`(relay·cloud)로 바뀌면서 그 둘은 물어볼 수 없는 값이 됐다 — 자기 자격증명이
+    // 없는 라우트라서다. 남는 계약은 "이미 지난 자격증명은 음수로 돌려준다" 쪽이다.
+    it('이미 지난 자격증명은 음수로 남은 시간을 돌려준다 — 0으로 깎지 않는다', () => {
         mockGetRelayToken.mockReturnValue(relayTokenWith(atOffset(-1_000)));
 
-        expect(credentialFreshness.timeToExpiry('oauth', NOW)).toBe(-1_000);
-        expect(credentialFreshness.timeToExpiry('iap', NOW)).toBe(-1_000);
+        expect(credentialFreshness.timeToExpiry('relay', NOW)).toBe(-1_000);
     });
 
     it('세션이 없으면 null — 0이 아니다', () => {
