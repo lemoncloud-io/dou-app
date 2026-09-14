@@ -102,7 +102,7 @@ Android는 **data-only FCM**(notification 객체 없음)이고 배너는 네이�
 정확히 가장 흔한 상황이다. 슬롯 두 개는 동시에 붙어 있으므로 relay 클라이언트는 그때도 살아 있다.
 
 그래서 kind 고정 구독 프리미티브(`onSlotType`)를 쓴다 — 코어 설계는
-[app-runtime/socket/kind-scoped-routing.md](../../../../../libs/app-runtime/docs/socket/kind-scoped-routing.md).
+[app-runtime/socket/kind-scoped-routing.md](../../../../../libs/app-runtime/docs/socket/README.md).
 
 ### 받으면 하는 일
 

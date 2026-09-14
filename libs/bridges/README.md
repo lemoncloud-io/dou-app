@@ -339,7 +339,7 @@ is not a readiness ping but a capability handshake, and the answer has to come f
 config rather than from a shell that might forget to wire it. The mobile host passes three
 cache-capability fields into it; the desktop host passes none, has no local cache DB, and is read by
 the web as legacy. The negotiation those fields feed is
-[`app-runtime`'s](../app-runtime/docs/data/cache-contract-versions.md).
+[`app-runtime`'s](../app-runtime/docs/data/README.md).
 
 ## Scenarios
 

@@ -68,6 +68,6 @@
 
 앱이 의존하는 라이브러리의 공식 가이드:
 
-- [`libs/app-runtime/docs`](../../../libs/app-runtime/docs/README.md) — 세션 허브 · runtime · socket · http · data
+- [`libs/app-runtime/docs`](../../../libs/app-runtime/README.md) — 세션 허브 · runtime · socket · http · data
 - [`libs/data/docs`](../../../libs/data/docs) — repository · local/remote data source
 - [`libs/logger/docs`](../../../libs/logger/README.md) — 통합 로깅

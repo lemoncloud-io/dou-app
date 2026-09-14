@@ -1,7 +1,7 @@
 // The `data` facade group — repositories, the cache tier, and the offline outbox.
 //
 // `useRuntimeRepositories`/`useGlobalCacheSearch` used to live in a `runtime/` module — a module
-// that was not one of the engines in docs/architecture.md's table and whose six hooks each belonged
+// that was not one of the engines in libs/app-runtime/README.md's table and whose six hooks each belonged
 // to `data`, `connection` or `session` by consumer intent. It was dissolved once the facade made
 // that mismatch explicit: the hooks now sit in the module whose group publishes them.
 

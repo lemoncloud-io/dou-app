@@ -32,4 +32,4 @@
 - 게스트 게이트·번호 인증 — [auth/phone-verification.md](../auth/phone-verification.md)
 - 국가 코드·번호 검증 — [auth/international-phone-input.md](../auth/international-phone-input.md)
 - 홈 목록의 초대 행 — [home/README.md](../home/README.md)
-- 로컬 캐시(초대 목록) — [libs/app-runtime/docs/data/invite-local-cache.md](../../../../../libs/app-runtime/docs/data/invite-local-cache.md)
+- 로컬 캐시(초대 목록) — [libs/app-runtime/docs/data/invite-local-cache.md](../../../../../libs/data/docs/repositories/README.md)

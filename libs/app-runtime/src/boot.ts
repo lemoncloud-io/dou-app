@@ -1,6 +1,6 @@
 // The `boot` facade group — what an app's ENTRY POINT touches, once, before anything renders.
 //
-// It has no module of its own on purpose: booting is not an engine (see docs/architecture.md's
+// It has no module of its own on purpose: booting is not an engine (see libs/app-runtime/README.md's
 // engine table — session · socket · http · sync · data), it is the act of handing those engines
 // their configuration. So this file is a barrel and nothing else; the logic stays in the module
 // that OWNS each piece (`init.ts` for the wiring, `data/` for the data policies, `http/transport`

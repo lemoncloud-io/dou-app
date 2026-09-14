@@ -13,7 +13,7 @@
 > [dm-chat.md](../channels/dm-chat.md). `useRelayInvites`에는 `enabled` 옵션이 생겼다(호출부가
 > 화면 조건에 따라 조회 자체를 세울 수 있다).
 > 이전 개정(2026-08-13, ADR-0052): `invite.list`가 로컬 우선 읽기로 전환됐다 — 상세는
-> [invite-local-cache.md](../../../../../libs/app-runtime/docs/data/invite-local-cache.md) 참고.
+> [invite-local-cache.md](../../../../../libs/data/docs/repositories/README.md) 참고.
 > 이전 개정(2026-08-04, ADR-0043): 백엔드 요청 1번(`invite.cancel` + `canceled`)·2번(`invite.reject` +
 > `rejected`)이 도착 — sockets-lib `0.4.13` / sockets-api `0.26.710` / backend-api `0.26.709`.
 > 취소 스텁(로컬 숨김)을 실 API로, 거절 상태 표시를 실 상태로 전환했고, 재발급을 "이전 초대
@@ -388,6 +388,6 @@ stateDiagram-v2
 ## 로컬 캐싱 (ADR-0052, 착수 완료)
 
 `invite.list`가 로컬 우선 읽기로 전환됐다 — 상세 설계·다이어그램·검증 방법은
-[invite-local-cache.md](../../../../../libs/app-runtime/docs/data/invite-local-cache.md) 참고.
+[invite-local-cache.md](../../../../../libs/data/docs/repositories/README.md) 참고.
 `useLocallyCanceledInvites`(로컬 취소 기록)는 그 트랙에서 캐시 레이어(`dismissedAt` 필드)로
 흡수됐다 — `canceledInviteIds`(localStorage)는 일회성 마이그레이션의 읽기 전용 소스로만 남는다.

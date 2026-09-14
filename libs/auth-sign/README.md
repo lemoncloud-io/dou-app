@@ -22,7 +22,7 @@ grep -rn "@chatic/auth-sign/" --include='*.ts' --include='*.tsx' apps libs | gre
 **This lib does not decide what to sign with.** Which `authId` a socket kind uses, where the
 `accountId` and `identityId` come from, when a refresh is due, and what happens to the refreshed
 token afterwards are all `libs/app-runtime`'s — see
-[`session/auth`](../app-runtime/docs/socket/auth/signing.md). This lib receives material as
+[`session/auth`](../app-runtime/docs/auth/signing.md). This lib receives material as
 arguments and returns a string.
 
 ### Why it is a separate lib
@@ -178,7 +178,7 @@ and passes them here.
 `$auth.id` and not `Token.authId`: the relay server looks the auth model up by `$auth.id` and keys
 the HMAC with it, so the other id produces a signature the server cannot reproduce and the socket
 fails permanently with `no auth model`. That contract is
-[`signing.md` §1](../app-runtime/docs/socket/auth/signing.md); this lib only sees the id that choice
+[`signing.md` §1](../app-runtime/docs/auth/signing.md); this lib only sees the id that choice
 produced, which is why the fixtures below pin both kinds separately.
 
 ### 2. cloud socket sign callback
@@ -202,7 +202,7 @@ misreading the formula, and `LemonHmacSigner.spec.ts` asserts the invariant dire
 _2026-09._ The formula used to live in web-core as `calcSignature` in `awsSigning.ts`, alongside the
 SigV4 request signer it has nothing to do with. That name survives in
 `libs/app-runtime/src/session/auth/utils/calcSignature.ts` and throughout
-[`signing.md`](../app-runtime/docs/socket/auth/signing.md), so a review comment about
+[`signing.md`](../app-runtime/docs/auth/signing.md), so a review comment about
 "calcSignature" is about this formula.
 
 ## How to verify

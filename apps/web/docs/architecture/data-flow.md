@@ -28,7 +28,7 @@ function AppInner() {
 
 **재인증은 자동이다.** 만료 refresh·재연결 재인증은 SDK `ClientSocketAuth`가, 물리 소켓을 유지한 채 신원만 바뀌는 경우(게스트→소셜 승격)는 `SocketReauthBinder`가 처리한다. 앱이 수동으로 `auth.update`를 보내면 안 된다(이중 발화).
 
-근거: `apps/web/src/app/runtime/AppRuntime.tsx`, `apps/testbed/src/app/app.tsx`, [libs/app-runtime/docs/runtime/session-lifecycle.md](../../../../libs/app-runtime/docs/runtime/session-lifecycle.md)
+근거: `apps/web/src/app/runtime/AppRuntime.tsx`, `apps/testbed/src/app/app.tsx`, [libs/app-runtime/docs/runtime/session-lifecycle.md](../../../../libs/app-runtime/docs/session/README.md)
 
 ---
 
@@ -45,7 +45,7 @@ function AppInner() {
 
 > `isVerified`는 "이 연결에 대해 `auth.update`가 ok된 시점"이다. 소켓 게이트웨이를 거치는 호출(목록 fetch 등)은 `isVerified` 이후에 실행해야 새 세션 기준으로 동작한다.
 
-근거: [libs/app-runtime/docs/socket/README.md](../../../../libs/app-runtime/docs/socket/README.md), [libs/app-runtime/docs/public-surface.md](../../../../libs/app-runtime/docs/public-surface.md)
+근거: [libs/app-runtime/docs/socket/README.md](../../../../libs/app-runtime/docs/socket/README.md), [libs/app-runtime/docs/public-surface.md](../../../../libs/app-runtime/README.md)
 
 ---
 
@@ -202,4 +202,4 @@ cursor는 **TTL 1일**을 가진다(`meta` 캐시 TTL). sync 성공마다 `setSy
 
 `DataManager.destroy()`는 더 이상 부를 필요가 없다 — no-op이다. 데이터 스코프는 `ActiveScope`가 세션 스토어에서 read 시점에 파생하므로, 세션이 비면 다음 read부터 다른 파티션을 본다.
 
-근거: [libs/app-runtime/docs/session/architecture.md](../../../../libs/app-runtime/docs/session/architecture.md)
+근거: [libs/app-runtime/docs/session/architecture.md](../../../../libs/app-runtime/docs/session/README.md)

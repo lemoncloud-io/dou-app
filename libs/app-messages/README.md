@@ -299,7 +299,7 @@ predate the rest. `supportedCacheTypes` is a name list, which a web build conver
 each". `cacheDomainVersions` is the measured per-domain contract version (ADR-0053) and wins when
 present. A host with no local cache DB — the Electron main process — sends none of them and is read
 as legacy. The full negotiation is
-[`app-runtime`'s](../app-runtime/docs/data/cache-contract-versions.md).
+[`app-runtime`'s](../app-runtime/docs/data/README.md).
 
 ## How to verify
 
