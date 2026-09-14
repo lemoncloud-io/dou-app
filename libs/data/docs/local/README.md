@@ -1,37 +1,57 @@
-# local (`libs/data/src/data/local`)
+# local — storing, reading, emitting streams
 
-local 레이어는 앱이 읽는 로컬 데이터의 **저장 · 조회 · stream 발행**을 담당한다.
+> Status: Live · Last updated: 2026-09-14 · Overview in the [lib README](../../README.md) · Canonical code: [local/data-sources/types.ts](../../src/local/data-sources/types.ts) · [local/ports/cacheStorage.ts](../../src/local/ports/cacheStorage.ts)
 
-local은 remote를 직접 호출하지 않는다. repository가 적재한 remote 결과를 UI read-model로 재방출하는 계층이다. 즉 "동기화 로직"이 아니라 "동기화 결과를 안전하게 저장하고 stream으로 내보내는 계층"이다.
+The local layer handles **storing, reading and emitting streams** for the local data an app reads.
 
-> **V1은 제거됐다.** 현재 local data source는 `data-sources-v2`만 존재한다.
+`local` never calls `remote` directly. It is the layer that re-emits, as a UI read-model, the remote
+results a repository wrote. In other words it is not "sync logic" — it is "the layer that safely stores
+the result of a sync and sends it out on a stream".
 
-## 구성
+## Layout
 
-```txt
+```text
 local/
-  data-sources-v2/   도메인별 LocalDataSourceV2 + BaseLocalDataSourceV2(stream)
-  databases/         storage 위 복합 조회 (현재 chat query executor)
-  storages/          CacheStorage 어댑터 (IndexedDB / Native)
+  data-sources/  9 per-domain LocalDataSources + the BaseLocalDataSource stream engine
+  ports/            ports that receive external implementations — cacheStorage · indexeddb · metrics · policy · search
+  stableHash.ts     scope key hash
 ```
 
-- **`storages/`** — `CacheStorage<TType>` 어댑터 두 종: `IndexedDBAdapter`(웹), `NativeDBAdapter`(네이티브 브릿지). scope(`cid`/`uid`)는 `BaseDbAdapter`가 결정한다. 도메인별로 **어느 어댑터를 쓸지 고르는 책임은 이 라이브러리에 없다** — `@chatic/app-runtime`의 `resolveCacheBackend`가 소유한다([cache-storage-routing.md](../../../app-runtime/docs/data/cache-storage-routing.md)).
-- **`databases/`** — storage 위의 복합 조회 계층. 현재는 cursor 기반 역순 페이징을 처리하는 `ChatQueryExecutor`와 `IndexedDBDatabase`.
-- **`data-sources-v2/`** — 도메인별 local data source. 공통 계약 `ILocalDataSourceV2`와 stream 엔진 `BaseLocalDataSourceV2`를 따른다.
+**The storage engine is not in this lib.** The `CacheStorage` implementations (`IndexedDBAdapter`,
+`NativeDBAdapter`, `BaseDbAdapter`) and the compound queries (`ChatQueryExecutor`, `IndexedDBDatabase`)
+all live in `@chatic/db`. `ports/` declares only the interfaces those implementations satisfy.
 
-## 역할
+**And on native, `@chatic/db` is not the end of the line either.** `NativeDBAdapter` holds no rows —
+it turns every call into a bridge message. The SQLite that actually stores them belongs to the app
+shell, which is a separate deploy. A cache read therefore crosses three packages:
 
-- 로컬 snapshot 조회 / stream 발행
-- partial merge / normalize
-- scope(`cid` / `sid` / `uid`) 분리
-- repository가 적재한 remote 결과를 UI read-model로 재방출
+```text
+libs/data     LocalDataSource → the CacheStorage port
+libs/db       IndexedDBAdapter   web    · rows live here, in the browser's IndexedDB
+              NativeDBAdapter    native · a bridge client holding no rows
+                                            ↓ SaveCacheData · FetchCacheData · …
+apps/mobile   CacheCrudService → SqliteDatabase   native · rows live here
+              database/sqlite/schema.ts · tables.ts · services/cache/cacheDomainVersions.ts
+```
 
-## 공통 계약
+Which of the two a domain gets is decided by neither of them — `resolveCacheBackend` in
+`@chatic/app-runtime` owns that.
 
-정본: [data-sources-v2/types.ts](../../src/data/local/data-sources-v2/types.ts).
+**Choosing which adapter a domain gets is not this lib's job either.** `resolveCacheBackend` in
+`@chatic/app-runtime` decides environment, type pins and native capability in one place — see
+[cache-storage-routing.md](../../../app-runtime/docs/data/cache-storage-routing.md).
+
+## Responsibilities
+
+- Reading local snapshots and emitting streams
+- Partial merge and normalization
+- Scope separation (`cid` / `uid`)
+- Re-emitting, as a UI read-model, the remote results a repository wrote
+
+## The shared contract
 
 ```ts
-interface ILocalDataSourceV2<TItem, TListQuery, TListResult> {
+interface ILocalDataSource<TItem, TListQuery, TListResult> {
     cacheRead(id, contextOverride?): Promise<TItem | null>;
     cacheReadList(query, contextOverride?): Promise<TListResult | null>;
 
@@ -46,14 +66,135 @@ interface ILocalDataSourceV2<TItem, TListQuery, TListResult> {
 }
 ```
 
-모든 메서드가 `contextOverride`를 받는다 — repository가 캡처한 요청 시점 scope를 호출 단위로 덮어쓰기 위해서다.
+Every method takes a `contextOverride` — so that the request-time scope a repository captured can be
+applied per call.
 
-## 도메인 목록
+## Domains
 
-`channel`, `chat`, `cloud`, `join`, `place`, `profile`, `user`, `syncMeta`.
+`channel`, `chat`, `cloud`, `invite`, `join`, `place`, `profile`, `user`, `syncMeta` — nine.
 
-팩토리: [data-sources-v2/index.ts](../../src/data/local/data-sources-v2/index.ts) — `createLocalDataSourcesV2(contextProvider, storages)`.
+Factory: [data-sources/index.ts](../../src/local/data-sources/index.ts) —
+`createLocalDataSources(contextProvider, storages, options?)`. `options.routingFingerprint` flows only
+into `syncMeta`, so a cursor can notice that its storage moved (ADR-0053).
 
-## 더 읽기
+## The stream model
 
-- [architecture.md](./architecture.md) — stream 모델, scope·캐시 슬롯, storages/databases 계층, chat cursor, cache clear.
+`BaseLocalDataSource` is the core of it. The UI only ever looks at `observe*`, and when a repository
+touches local, **only the affected observers** are recomputed.
+
+- **Item observers and list observers are separate** — registered through `observeItemQuery(id, …)` and `observeListQuery(key, …)`. Subscribing emits once immediately and returns an unsubscribe function.
+- **A list observer key is built from the query** — `createListObserverKey(parts, …)` combines the scope key with the query parts. A different query is a different observer.
+- **Re-emission is scoped to what was affected** — a mutation does not re-emit everything.
+    - `scheduleItemReemit(ids)` — only the observers for those ids
+    - `scheduleListReemit(prefixes)` — only the list observers whose key starts with a prefix
+    - `scheduleFullReemit()` — everything (a scope switch, a clear, and so on)
+- **Debounced flush** — re-emissions are collected on a 50ms timer and flushed at once (duplicate notifications are removed in the process).
+
+## Scope and cache slots
+
+A scope is `cid` (cloud) and `uid` (user) — **the same pair the storage partition uses**
+(`AdapterScope`, `ports/policy.ts`). Observers are isolated by the `stableHash` of that pair
+(`getScopeKey`); a missing `cid`/`uid` normalizes to `'default'`.
+
+**`sid` is not part of it (ADR-0085).** It used to be, and that split one physical partition across
+several observer scopes: a write made under one place never reemitted an observer that had subscribed
+under another, even though both read the very same rows. A place switch clears and re-selects the
+place on its own timeline, so the two disagreed routinely and the rail went stale on screen while the
+cache held the data.
+
+Per-place views are isolated where they are actually asked for — the `|sid:<sid>|` segment of a list
+key (`ChannelLocalDataSource`, `ProfileLocalDataSource`). The rule that keeps this sound: **a field
+that reaches storage belongs in the observer key**, never in the scope alone. Put another way, if a
+read's answer depends on a value, that value has to be in the key, because observers sharing a key
+share one query execution.
+
+Physical storage is per `CacheStorage<TType>` slot. There are nine slot keys: `channel`, `chat`, `user`,
+`join`, `site`, `invitecloud`, `profile`, `meta`, `invite`.
+
+Three domain→slot mappings need care (the slot is reused because the entity is the same).
+
+| Domain     | Slot          |
+| ---------- | ------------- |
+| `place`    | `site`        |
+| `cloud`    | `invitecloud` |
+| `syncMeta` | `meta`        |
+
+The policy that decides the storage scope (`cid`/`uid`) per type is **owned by this lib** —
+`resolveScopedContext` in `ports/policy.ts`. `BaseDbAdapter` in `@chatic/db` imports it from
+`@chatic/data` and uses it. That is, the engine knows only how to store; it does not know the scope
+rules.
+
+## Chat cursors and local
+
+Local's job is not to compute a cursor. It is to return a snapshot for the query a repository gave it.
+
+Taking `ChatLocalDataSource`:
+
+- `cacheReadList({ channelId, cursorNo?, limit? })` / `observeList(...)`
+- `cacheClearByChannelId(channelId)`
+
+Watch for:
+
+- The latest page and an earlier page have different queries, so they have different observer keys.
+- The merge policy for a `chat.feed` response is the repository's responsibility (local stores and re-emits).
+- `cursorNo` is a discriminator for fetching an earlier page, not a baseline for the latest sync.
+
+## Cache clear
+
+What gets deleted and when — the scope semantics, the irreversibility of deleting chat, the purge
+triggers on leaving and rejoining — is policy at the repository layer, and the canonical text is
+[the cache clear rules](../repositories/README.md#cache-clear-rules). What is written here is only **how**
+storage carries that request out.
+
+### Three paths for a channel-scoped delete
+
+`clearByChannelId` does the same job a different way per adapter
+([ADR-0067](../../../../docs/adr/0067-rejoin-hides-prior-messages.md)).
+
+| Adapter                    | How                                                                                                                             |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `IndexedDBAdapter`         | A channel index range cursor                                                                                                    |
+| `NativeDBAdapter`          | The bridge message `ClearCacheDataByChannel` → `DELETE … WHERE cid=? AND uid=? AND channel_id=?` (one round trip, zero payload) |
+| `BaseDbAdapter` (fallback) | `loadAll({ channelId })` → `deleteAll(ids)`                                                                                     |
+
+Why this was not done by adding a `channelId` field to the existing `ClearCacheData`: web ships ahead of
+the app, so **an older app would ignore the field it does not know and wipe the entire table for that
+scope.** With a new type, the same situation becomes a `NOT_FOUND`, which the adapter learns once
+(`resetNativeClearByChannelSupport` is the test seam) and then drops to the fallback. It is the same
+idiom as `FetchManyCacheData` and `FetchLastChatsData`, but the fallback has a different character — a
+read that fails can come back empty-handed, while a delete's fallback has to actually finish the same
+job.
+
+The fallback read narrows to the channel for the domains that declared `channelId` as a query (chat and
+join). So emptying one room does not send an entire table across the bridge. A failure that is not
+`NOT_FOUND` (a timeout, say) is not learned from; it is rethrown as is.
+
+## Adding a cache domain
+
+[Adding a server call](../remote/README.md#adding-a-server-call) covers the outbound side. A domain
+that also needs a **subscribable local cache** reaches across three libs and the native shell, and
+only the middle of it is type-checked. Work top to bottom.
+
+| #   | Where                                                                                                                                                                                                                                                           | Caught by                                                                                             |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| 1   | `CacheType` in [`libs/app-messages`](../../../app-messages/src/types/model/cache.ts) — the bridge vocabulary, not a local name                                                                                                                                  | the compiler, everywhere the union is switched on                                                     |
+| 2   | A slot in `createCacheStorages` ([ports/cacheStorage.ts](../../src/local/ports/cacheStorage.ts))                                                                                                                                                                | [cacheStorage.test.ts](../../src/local/ports/cacheStorage.test.ts) pins the slots **and their order** |
+| 3   | The data source itself — extend `BaseLocalDataSource`, then add the key to `LocalDataSources` and its line in `createLocalDataSources` ([data-sources/index.ts](../../src/local/data-sources/index.ts))                                                         | the compiler                                                                                          |
+| 4   | `REQUIRED_DOMAIN_VERSION` in app-runtime [`nativeCacheSupport.ts`](../../../app-runtime/src/data/nativeCacheSupport.ts), when the domain needs a minimum shell version — the app declares its own side in `apps/mobile` `services/cache/cacheDomainVersions.ts` | **nothing**                                                                                           |
+| 5   | The SQLite side in `apps/mobile` — a data source, a `CacheCrudService` arm, and the table in `database/sqlite/schema.ts`. `@chatic/db` needs no line: `NativeDBAdapter` is generic over `CacheType`                                                             | **nothing**                                                                                           |
+| 6   | A repository — `buildRepositories` plus `DOMAIN_KEYS` in [repositories/index.test.ts](../../src/repositories/index.test.ts)                                                                                                                                     | that test                                                                                             |
+
+**Steps 4 and 5 fail in silence, and the silence is by design.** `resolveCacheBackend` sends a type
+the installed shell cannot hold to web storage instead (ADR-0053) — that is the deliberate fallback
+for a shell that predates the domain, because the web deploys ahead of the app. The app end agrees:
+`CacheCrudService.getDataSource` answers `null` for a type it does not know rather than throwing,
+because a throw would arrive on the web as a bridge error and muddy that very fallback. Nothing logs
+an error. The cache simply reads empty for as long as the native side is missing, which is
+indistinguishable from a permanent cold miss. So a new cache domain is not finished when it compiles;
+it is finished when the shell that stores it has shipped.
+
+## Notes for implementers and tests
+
+- The context must be read at **call time**, not at construction time (a repository injects the scope it captured via `contextOverride`).
+- The request-time context and the response-time context can differ → capture the scope in the repository.
+- Scope poisoning and the `chat.feed` merge policy are the repository's responsibility → [notes for implementers and tests](../repositories/README.md#notes-for-implementers-and-tests).

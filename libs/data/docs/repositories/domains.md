@@ -1,134 +1,148 @@
-# 도메인별 repository
+# The 13 domains
 
-> 개요·계약은 [README.md](./README.md). 각 도메인의 메서드와 sync 결과 해석을 정리한다. 시그니처 정본은 각 `*RepositoryV2.ts`.
+> Status: Live · Last updated: 2026-09-14 · Shared rules in the [repositories README](./README.md) · Canonical code: [repositories/](../../src/repositories/)
 
-repository V2는 서버에서 온 변경분을 local read-model로 해석하는 계층이다. 외부 sync orchestrator가 `refresh*` / `sync*` / `cacheWrite*`를 호출하면, repository는 그 결과를 local에 반영하고 stream으로 재방출한다.
+The per-domain facade catalogue for `repositories/`. A table for looking up which method reads local
+and which hits remote, and what rule differs per domain — **a document you look things up in**, not one
+you read through.
+
+The shared rules — contracts, context, cache clear — are in [README.md](./README.md).
+
+Some domains have no `local` and some have no `socket`. Which domain receives what is held as a table in
+[repository wiring](./README.md#repository-wiring).
 
 ---
 
-## Channel
+### Channel
 
-`observeList` · `observeItem` · `refreshList(query)` · `syncChannels(since)` · `createChannel` · `updateChannel` · `inviteChannel` · `leaveChannel` · `deleteChannel` · `getSelfChannel` · `getUnreads` · `cache*`
+`observeList` · `observeItem` · `refreshList(query)` · `fetchList(query)` · `syncChannels(since)` ·
+`createChannel` · `updateChannel` · `inviteChannel` · `leaveChannel` · `deleteChannel` ·
+`getSelfChannel` · `getUnreads` · `cache*`
 
-- `syncChannels(since)` — `channel.sync({ since })` 결과를 해석한다. `since: 0`은 full sync, `since > 0`은 변경분이다. 응답의 `list`는 변경된 채널 스냅샷, `ids`는 현재 내가 속한 전체 채널 id, `syncedAt`은 다음 `since`로 저장할 값이다. repository는 `list`를 local에 write하고, `ids`에 없는 채널을 **stale remove**한다.
-- `refreshList(query)` — `channel.mine` 기반 보조 초기 조회 경로. sync 중심 구조에서 canonical source는 `syncChannels`다.
-- `leaveChannel` / `deleteChannel` — optimistic local remove 후 실패 시 복구. 본인 나가기는 **서버 응답이 온 뒤에** 그 채널의 chat 캐시까지 비운다 → [퇴장과 재입장](#퇴장과-재입장).
-- 나간 직후 짧은 시간(`LEFT_CHANNEL_GUARD_MS`, 10초) 동안은 `refreshList`/`syncChannels` 응답에 그 채널이 들어 있어도 캐시에 다시 쓰지 않는다. 나가기 직전에 발행된 in-flight 응답이 방금 지운 채널을 되살리는 것을 막는 가드다. **시한부인 것이 핵심** — 영구히 잡아 두면 재입장한 채널도 세션 내내 목록에 돌아오지 못한다.
-- **chat 메시지는 fetch하지 않는다.** channel sync는 각 채널의 `chatNo` / `lastChat$`만 포함한 **채널 목록**만 갱신한다. 실제 메시지는 chat 화면이 `ChatRepositoryV2.refreshList`(=`chat.feed`)로 따로 가져온다.
+- `syncChannels(since)` — interprets the result of `channel.sync({ since })`. `since: 0` is a full sync, `since > 0` is a delta. The response's `list` is the snapshot of changed channels, `ids` is every channel id I currently belong to, and `syncedAt` is the value to store as the next `since`. The repository writes `list` to local and **stale-removes** any channel missing from `ids`.
+- `refreshList(query)` — the secondary initial-load path, based on `channel.mine`. In a sync-centred structure the canonical source is `syncChannels`.
+- `fetchList(query)` — the counterpart to `refreshList`, except it **returns the result without writing to local.** Use it when the server list is needed without touching the cache.
+- `leaveChannel` / `deleteChannel` — optimistic local remove, restored on failure. A self-leave empties that channel's chat cache too, **after the server responds** → [leaving and rejoining](./README.md#leaving-and-rejoining).
+- For a short window right after leaving (`LEFT_CHANNEL_GUARD_MS`, 10 seconds), a `refreshList`/`syncChannels` response is not written back to the cache even if that channel is in it. It guards against an in-flight response issued just before the leave resurrecting a channel that was just removed. **Being time-bounded is the point** — held forever, a rejoined channel could never return to the list for the rest of the session.
+- **It does not fetch chat messages.** Channel sync refreshes the channel list only. The actual messages are fetched separately by the chat screen through `ChatRepository.refreshList` (= `chat.feed`).
+- The server ships a `lastChat$` on each channel, but **the mapper does not read it.** The last message and its timestamp belong to the chat cache (ADR-0057, `domain/mappers.ts`). It is not used as a preview seed either.
 
-## Chat
+### Chat
 
-`observeList` · `observeItem` · `refreshList(query)` · `getChat` · `sendChat` · `updateChat` · `deleteChat` · `cache*` · `cacheClearByChannelId(channelId)`
+`observeList` · `observeItem` · `observeLastList` · `refreshList(query)` · `getChat` · `sendChat` ·
+`updateChat` · `deleteChat` · `setReaction` · `cache*` · `cacheReadLastList` ·
+`cacheClearByChannelId(channelId)`
 
-- `sendChat` — optimistic pending message 생성, 실패 시 `isFailed` 마킹.
-- `refreshList` — `chat.feed` 응답을 local에 merge한다. `ChatRefreshResult`로 cursor 메타(`cursorNo`, `readNo` 등)를 반환할 수 있지만, **메시지 렌더 source는 항상 local stream**이다. 반환 메타는 pagination 입력에만 쓴다.
-- list query key는 `channelId + cursorNo + limit`로 구분된다(이전 페이지와 최신 페이지는 다른 query).
-- 커서 책임 분리 → [채팅 커서](#채팅-커서) 참조.
-- `cacheClearByChannelId(channelId)` — 한 채널의 메시지만 비운다. 호출자는 `ChannelRepositoryV2`(본인 나가기)와 join sync plan(강퇴·타 기기 퇴장) 둘뿐이다 → [퇴장과 재입장](#퇴장과-재입장).
+- `sendChat` — creates an optimistic pending message, marked `isFailed` on failure.
+- `refreshList` — merges the `chat.feed` response into local. It can return cursor metadata (`cursorNo`, `readNo`, …) as a `ChatRefreshResult`, but **the render source for messages is always the local stream.** The returned metadata is input for pagination only.
+- The list query key is built from **every field that reaches storage** — seven parts: `chats`, `channel`, `cursor`, `limit`, `unsent`, `sort`, `keyword` (`local/data-sources/ChatLocalDataSource.ts`). Drop even one and two different reads collapse onto one key and share a wrong answer. That is why an earlier page and the latest page are different queries.
+- `setReaction` is a UI write command (`chat.reaction`). `observeLastList` / `cacheReadLastList` are the per-channel last-message path the home preview uses (ADR-0057).
+- On the split of cursor responsibilities → [chat cursors](./README.md#chat-cursors).
+- `cacheClearByChannelId(channelId)` — empties one channel's messages. There are only two callers: `ChannelRepository` (a self-leave) and the join sync plan (being kicked, leaving from another device) → [leaving and rejoining](./README.md#leaving-and-rejoining).
 
-## Cloud
+### Cloud
 
-`observeList` · `observeItem` · `getCloud` · `updateCloud` · `deleteCloud` · `cache*`
+`observeList` · `observeItem` · `getCloud` · `updateCloud` · `deleteCloud` ·
+`fetchCloudCatalog` · `verifyCloudEmail` · `makeCloud` · `releaseCloud` · `cache*`
 
-- `CloudGateway`의 `get` / `update` / `delete` 기반. **create는 없다.**
-- Cloud는 최상위 조직 단위(`cid`)로, place/site와 달리 scope root 역할이다.
-- 캐시 정책은 item 중심(`cid` 기반).
+- The socket axis is based on `CloudGateway`'s `get` / `update` / `delete`. **`cloud.create` is not in the socket bundle.**
+- The HTTP axis handles the catalogue (`list`) plus `make` / `release` / `verifyEmail`. **HTTP results are not written to local** — the catalogue's cache owner is a react-query adapter.
+- Cloud is the top-level organizational unit (`cid`); unlike place/site it acts as the scope root.
 
-## Join
+### Join
 
-`observeList` · `observeItem` · `refreshList(query)` · `getJoin` · `readChat` · `updateJoin` · `joinChannel` · `cache*`
+`observeList` · `observeItem` · `refreshList(query)` · `getJoin` · `readChat` · `updateJoin` ·
+`joinChannel` · `cache*`
 
-- 단건 조회/수정은 1급 `JoinGateway`(`getJoin`=`join.get`, `updateJoin`=`join.update`), 읽음(`readChat`=`chat.read`)·참여(`joinChannel`=`channel.join`)는 보조 command다.
-- `readChat` — optimistic read cursor 전진 후 remote 실패 시 복구. unread 감소는 `chat.read` 단일 결과가 아니라, join 스냅샷과 channel 스냅샷이 다시 만나는 과정에서 확정된다.
-- `updateJoin` — nick / notify / role 메타 수정.
-- read-state의 sync는 외부 orchestrator가 `getJoin` 결과를 `cacheWrite` / `cacheDelete`로 밀어넣는 식으로 처리하고, `JoinRepositoryV2`는 그 결과의 local cache 소유자다.
+- Single-item read and write go through the first-class `JoinGateway` (`getJoin` = `join.get`, `updateJoin` = `join.update`); marking read (`readChat` = `chat.read`) and joining (`joinChannel` = `channel.join`) are helper commands.
+- `readChat` — advances the read cursor optimistically, restored if remote fails. The unread count is not settled by the single `chat.read` result; it is settled as the join snapshot and the channel snapshot meet again.
+- `updateJoin` — edits the nick / notify / role metadata.
+- Read-state sync is handled by the external orchestrator pushing `getJoin` results in through `cacheWrite` / `cacheDelete`, and `JoinRepository` owns the local cache of that result.
 
-## Place
+### Place
 
-`observeList` · `observeItem` · `refreshList(query?)` · `createPlace` · `getPlace` · `updatePlace` · `deletePlace` · `cache*`
+`observeList` · `observeItem` · `refreshList(query?)` · `createPlace` · `getPlace` ·
+`updatePlace` · `deletePlace` · `cache*`
 
-- `PlaceGateway`(`place.create/get/update/delete`) + 목록 조회용 `UserGateway.mySite` 기반의 도메인.
-- Place는 사용자가 소속/생성한 공간(workspace) 단위다. 주기적 delta sync가 아니라 scope(cid) 전환 시 `refreshList`로 현재 cloud의 place 목록을 다시 읽는 방식이다.
-- local-first: remote 결과를 `PlaceLocalDataSourceV2`에 적재 후 `observe*`로 읽는다.
+- Based on `PlaceGateway` (`place.create/get/update/delete`) plus `UserGateway.mySite` for listing.
+- A Place is the workspace unit a user belongs to or created. Rather than a periodic delta sync, it re-reads the current cloud's place list with `refreshList` on a scope (cid) switch.
+- Local-first: remote results are written to `PlaceLocalDataSource` and then read through `observe*`.
 
-## Profile
+### Profile
 
-`observeList` · `observeItem` · `refreshItem(id)` · `getMyProfile()` · `setProfile` · `setMyProfile` · `syncProfiles(since)` · `cache*`
+`observeList` · `observeItem` · `refreshItem(id)` · `getMyProfile()` · `setProfile` ·
+`setMyProfile` · `syncProfiles(since)` · `cache*`
 
-- **User 도메인에서 완전히 분리된** site별 사용자 프로필 도메인. 전용 `ProfileGateway`(`get`/`getMine`/`set`/`sync`)만 의존한다.
-- `refreshItem(id)` — `profile.get`(id = `${sid}:${uid}`) 결과를 local 반영.
-- `getMyProfile()` — `profile.get-mine`(현재 세션) 결과를 local 반영.
-- `setProfile` / `setMyProfile` — optimistic write + 실패 rollback.
-- `syncProfiles(since)` — `profile.sync` delta 결과를 local cache에 upsert / remove. 응답에서 특정 uid가 `null`이면 해당 프로필을 삭제한다.
-- 캐시 key는 `${sid}:${uid}` 형식.
+- The per-site user profile domain, **fully separated from the User domain**. It depends only on the dedicated `ProfileGateway` (`get`/`getMine`/`set`/`sync`).
+- `refreshItem(id)` — writes the result of `profile.get` (id = `${sid}:${uid}`) to local.
+- `getMyProfile()` — writes the result of `profile.get-mine` (the current session) to local.
+- `setProfile` / `setMyProfile` — optimistic write with rollback on failure.
+- `syncProfiles(since)` — upserts/removes the `profile.sync` delta into the local cache. A `null` for a given uid in the response deletes that profile.
+- Cache keys take the form `${sid}:${uid}`.
 
-## User
+### User
 
-`observeList` · `observeItem` · `refreshList(query)` · `updateProfile` · `requestInvite` · `requestInviteBatch` · `syncChannelUsers` · `cache*`
+`observeList` · `observeItem` · `getMyProfile` · `updateProfile` · `requestInvite` ·
+`requestInviteBatch` · `syncChannelUsers` · `listRelayUsers` · `tryFetchProfile` ·
+`updateProfileHttp` · `cache*`
 
-- `syncChannelUsers` — `channel.sync-users` 결과를 local에 반영.
-- `updateProfile`(`user.update`)은 사용자 본인 **계정** 프로필 수정으로, site-profile(→ Profile 도메인)과 별개다.
-- profile 관련 책임은 User에서 제거됐다.
+- `syncChannelUsers` — writes the result of `channel.sync-users` to local.
+- `updateProfile` (`user.update`) edits the user's own **account** profile, which is separate from the site profile (→ the Profile domain).
+- The HTTP axis (`listRelayUsers`, `tryFetchProfile`, `updateProfileHttp`) is the relay console and profile probe path.
+- It reads the `join` and `place` local sources too, in order to assemble invite candidates.
+- `refreshList` is **not on the interface** — it exists only as a public class method. Channel, Join and Place declare it on their interfaces, so User is the one exception.
 
-## SyncMeta
+### Invite
+
+`list` · `create` · `get` · `accept` · `cancel` · `reject` · `dismiss` · `undismiss` ·
+`observeList` · `cacheReadList` · `cache*`
+
+- The 1:1 DM invite-code domain. The composition root **pins** the gateway to the relay slot — it must not follow the active cloud (ADR-0033).
+- Reading one's own list is local-first (ADR-0052 introduced the `invite` cache slot), but the remaining commands (`create`/`accept`/`cancel`/`reject`/`get`) have no cache slot.
+- `dismiss` / `undismiss` are local display state, not server state.
+
+### Auth
+
+`sendPhoneCode` · `verifyPhoneCode` · `confirmPhoneCode` · `verifySocialAccount` ·
+`confirmSocialAccount` · `registerUser` · `registerUserV2` · `findAlias` · `verifyAlias` ·
+`loginWithInviteCode` · `fetchInviteInfo` · `registerDevice` · `login` · `verifyNativeToken` ·
+`exchangeCode` · `delegateCloud` · `exchangeToken`
+
+- **Remote-only.** A surface of session identity commands with nothing to cache.
+- On the socket axis every phone/social proof goes out as the single `auth.linkAccount` packet — assembling `type`/`mode`/`step` is `AuthSocketDataSource`'s monopoly.
+- The HTTP axis carries signup, aliases and invite login plus the session-material actions (`login`, `exchangeCode`, `delegateCloud`, `exchangeToken`). What is missing is the two refresh calls, and they cannot be added because the wire vocabulary itself no longer has them → [http.md's gateway Pick](../remote/http.md#gateway-pick).
+
+### Device
+
+`syncDevice` · `syncStatus` · `updateRemotePushMute` · `registerPushDevice`
+
+- **Remote-only.** Lookup signals and push settings, so there is nothing to cache.
+- Only the socket gateway is routed — `save`/`read`/`sync` go to the `active` slot, while `updateRemote`, the relay-owned push setting, goes to relay (ADR-0027).
+- `registerPushDevice` is on the HTTP axis and is injected with `IDeviceRegistrationHttpSource` (a single method) only. **This repository imposes no limit of its own** — it passes `body` and `opts?.force` straight through. The once-per-install gate lives in `useDeviceTokenRegistration` in `libs/app-runtime` (ADR-0077).
+
+### Report
+
+`submitIssue` · `uploadLogBatch`
+
+- **Remote-only and HTTP-only.** It does not even have a socket data source.
+- Diagnostics are not domain data, but they are a data call, so they pass through this layer (ADR-0036). Errors are thrown as they are, unwrapped — the status code is the input to classification upstream → [http.md's report lane](../remote/http.md#the-report-lane).
+
+### Subscription
+
+`fetchPlans` · `validateGoogle` · `validateApple` · `fetchActiveSubscriptions` ·
+`fetchReceiptDetail` · `fetchMembershipInfo` · `validateMembership` ·
+`fetchAdminMemberships` · `updateMembershipByAdmin` · `fetchAdminClouds`
+
+- **Remote-only and HTTP-only.** The same shape as `Report`.
+- Tiers and quotas are decided by the server (ADR-0060). The cache semantics belong to a react-query adapter on the consumer side.
+- The last three are the admin console surface (ADR-0082). Being remote-only is the point for them: these reads are other users' records and must never reach a local cache. `fetchAdminClouds` rides this repository rather than `Cloud` on purpose → [http.md's admin console surface](../remote/http.md#the-admin-console-surface).
+
+### SyncMeta
 
 `getSyncedAt(kind)` · `setSyncedAt(kind, syncedAt)`
 
-- **remote data source가 없는 local-only repository.** sync cursor(예: `channel.sync`의 `since`)를 `cid`/`uid` scope에 보관·조회한다.
-- 즉, "다음 `since`를 어디에 저장하나"의 답이 이 repository다. 정본: [SyncMetaRepositoryV2.ts](../../src/data/repositories-v2/SyncMetaRepositoryV2.ts).
+- **A local-only repository with no remote data source.** It stores and reads sync cursors (for instance `channel.sync`'s `since`) under the `cid`/`uid` scope.
+- In other words, this repository is the answer to "where does the next `since` get stored".
+- A cursor points at another domain's data, so when that data moves storage the cursor starts lying that it has "already synced". `routingFingerprint` catches that mismatch (ADR-0053).
 
 ---
-
-## 채팅 커서
-
-채팅은 cursor 기반이라 두 책임을 분리한다.
-
-- **최신 메시지 감지**는 `channel`의 `chatNo` 기준 — channel sync가 준 `chatNo`와 local max `chatNo`를 비교한다.
-- **이전 페이지 pagination**은 `chat.feed`의 `cursorNo` 기준.
-
-둘은 같은 값이 아니다. `cursorNo`는 older page 조회용 query 구분자이지 latest sync 기준값이 아니다.
-
-## cache clear 원칙
-
-- `cacheClear()`는 현재 repository scope 기준 clear다(전체 clear 아님).
-- `ChatRepositoryV2`는 `cacheClearByChannelId(channelId)`를 추가로 제공한다.
-- 로그아웃 · cloud 전환 · 테스트 초기화에서 clear 범위를 명확히 결정해야 한다.
-- **chat 삭제는 되돌릴 수 없다.** 다른 도메인은 잘못 지워도 서버가 다시 채워 주지만, 메시지 피드는 `join.joinedNo`로 창이 잡혀 있어 그 이전은 서버도 주지 않는다. 그래서 chat 삭제는 추론이 아니라 명시 신호에만 건다 → 아래.
-
-## 퇴장과 재입장
-
-재입장은 처음 들어온 것과 같아야 한다. 서버는 재입장 시 join 커서를 리셋하고 피드를 `chatNo > joinedNo`로 창을 잡지만, **클라이언트는 서버 응답이 아니라 로컬 chat 캐시를 렌더한다.** 퇴장해도 그 방의 메시지 행은 캐시에 남으므로(chat sync plan에는 `onRemove`가 없다 — 이력은 lazy-load/오프라인을 위해 유지된다) 두 장치가 함께 필요하다. 결정 근거는 [ADR-0067](../../../../docs/adr/0067-rejoin-hides-prior-messages.md).
-
-**① 표시 게이트 — `isInJoinWindow(chat, joinedNo)`** (`src/data/domain/joinWindow.ts`)
-
-서버와 같은 규칙(`chatNo > joinedNo`)을 캐시를 읽는 자리에 건다. 예외 둘이 의미를 갖는다:
-
-- `joinedNo`가 없으면 아무것도 숨기지 않는다. 서버가 이 필드를 싣기 전에 쓰인 행이 있고, 없는 값을 대신 추측하면 멀쩡한 이력이 사라진다.
-- `chatNo`가 falsy면 통과시킨다. 낙관적 전송 행은 서버 번호를 받기 전까지 `chatNo: 0`이라, 이 예외가 없으면 **방금 보낸 메시지가 사라진다.**
-
-소비자는 apps/web의 방 피드·홈 프리뷰·전역 검색 셋이다. 이 게이트는 ②의 중복이 아니라 ②가 닿지 못하는 것(이미 캐시를 쌓아 둔 기존 설치, 강퇴, 타 기기 퇴장)을 덮는 소급 방어선이다.
-
-방 피드에서는 **렌더 직전이 아니라 `useChats`가 캐시를 받는 자리**에 건다. 표시용 목록에만 걸면 같은 훅이 내보내는 `rawChats`(리액션 폴딩·스레드 구성·"1번 행이 로드됐나")가 다른 경계를 갖게 되고, 그러면 캐시에 남은 퇴장 전 1번 행 때문에 **중간에 재입장한 사람에게만 "대화의 시작" 블록이 뜬다** — 처음 초대받은 사람은 못 보는 것을. 페이징 커서도 같은 이유로 참여 이전 `chatNo`를 잡으면 안 된다.
-
-**② purge — 명시 신호에만**
-
-| 신호              | 위치                                      |
-| ----------------- | ----------------------------------------- |
-| 본인 나가기 성공  | `ChannelRepositoryV2.leaveChannel`        |
-| 내 join 행의 제거 | join sync plan의 `onRemove` (app-runtime) |
-
-`ChannelSyncPlan.onRemove`와 `syncChannels`의 stale prune에는 **붙이지 않는다.** 추론 기반 정리의 오판 한 번이 복구 불가능한 이력 손실이 되기 때문이다.
-
-purge는 낙관적으로 하지 않고 서버 확인 뒤에 하며, 실패해도 나가기 자체는 성공으로 끝난다 — 이미 일어난 퇴장을 실패로 보고하는 쪽이 더 큰 거짓말이고, 남은 행은 ①이 가린다.
-
-## 더 읽기
-
-- [local/architecture.md](../local/architecture.md) — 이 정책을 storage가 어떻게 수행하는지(어댑터별 채널 한정 삭제 경로, 브릿지 메시지와 구버전 폴백).
-- [socket sync usage](../../../app-runtime/docs/socket/sync/usage.md) — join 행 제거가 purge 신호가 되는 경로(app-runtime 소관).
-
-## 구현 / 테스트 시 주의
-
-- remote 응답 적재 전 요청 시점 context를 캡처한다(`getRequestContext`). cloud 전환 중 늦게 도착한 응답이 현재 scope를 오염시키면 안 된다.
-- `sid` fallback 오류는 cross-place 오염으로 이어진다.
-- `chat.feed`는 overwrite보다 merge가 중요하다.
-- hook이 remote 반환 리스트를 직접 렌더하는 경로가 남으면 V2 목표를 어긴다.

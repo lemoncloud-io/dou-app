@@ -1,5 +1,5 @@
 import { runtime } from '@chatic/app-runtime';
-import type { DataRepositoriesV2 } from '@chatic/data';
+import type { DataRepositories } from '@chatic/data';
 
 import { updateUserProfile, type UpdateUserProfilePayload } from './updateUserProfile';
 
@@ -9,7 +9,7 @@ import { updateUserProfile, type UpdateUserProfilePayload } from './updateUserPr
  * Returns a callback the UI awaits.
  */
 export const useUpdateUserProfile = () => {
-    const repos = runtime.data.useRuntimeRepositories() as unknown as DataRepositoriesV2;
+    const repos = runtime.data.useRuntimeRepositories() as unknown as DataRepositories;
 
     return (payload: UpdateUserProfilePayload) =>
         updateUserProfile(p => repos.user.updateProfile(p as Parameters<typeof repos.user.updateProfile>[0]), payload);

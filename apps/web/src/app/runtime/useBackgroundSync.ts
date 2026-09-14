@@ -153,7 +153,7 @@ export const useBackgroundSync = (): void => {
                     try {
                         const profileSyncKind = `profile-sync:${cid}:${activeSiteId}`;
                         const since = await repos.syncMeta.getSyncedAt(profileSyncKind);
-                        const { syncedAt } = await repos.profile.syncProfiles(since);
+                        const { syncedAt } = await repos.profile.syncProfiles(since, activeSiteId);
                         await repos.syncMeta.setSyncedAt(profileSyncKind, syncedAt);
                         syncStreakReporter.succeed('profile-delta');
                     } catch (error) {
@@ -186,7 +186,7 @@ export const useBackgroundSync = (): void => {
         // cloud servers do not expose channel.get-self.
         if (!activeSiteId || !isRelayServer) return;
         try {
-            await repos.channel.getSelfChannel();
+            await repos.channel.getSelfChannel(undefined, activeSiteId);
             syncStreakReporter.succeed('self-channel');
         } catch (error) {
             // best-effort: retried on the next place entry

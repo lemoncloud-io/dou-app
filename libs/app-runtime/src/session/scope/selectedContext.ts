@@ -20,16 +20,21 @@ import { getGlobalSessionContext } from '../store';
  * unchanged because they pass their own values.
  */
 export const deriveSelectedContext = (): DataContext => {
-    const { activeServer, cloud, identity } = getGlobalSessionContext();
+    const { cloud, identity } = getGlobalSessionContext();
 
     // Cache scope follows the SELECTED cloud, not the committed one — a switch pre-applies the cid
     // optimistically so cid-scoped observers re-subscribe to the target's cache immediately. The
     // `committed` view (ActiveScope.committed) is what stays frozen through that window.
     const selectedCloudId = cloud?.cloudId ?? undefined;
 
+    // No `sid` here, deliberately (ADR-0085). The cache scope is `{cid, uid}` — the same shape the
+    // storage partition uses — and a site is something a CALLER names, not something the data layer
+    // reads off the ambient session. Seeding it here is what made a write race a site switch:
+    // `switchSite` pre-applies the sid before the token commits, so a write landing in that window
+    // was tagged for one site and sent under another's session. Repositories that need a site take
+    // it as an argument and put it on the context they hand down.
     return {
         cid: selectedCloudId && selectedCloudId !== 'default' ? selectedCloudId : 'default',
-        sid: activeServer.siteId ?? undefined,
         uid: identity.userId ?? undefined,
     };
 };

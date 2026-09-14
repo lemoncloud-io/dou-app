@@ -1,20 +1,20 @@
 import { logger } from '@chatic/bridges';
 
-import type { DataRepositoriesV2, DataRepositoriesV2Options } from '@chatic/data';
+import type { DataRepositories, DataRepositoriesOptions } from '@chatic/data';
 import { DataManager } from './DataManager';
 import type { CacheAssemblyOptions, IDataManager } from './types';
 
 export interface DataRuntime {
     manager: IDataManager;
-    repositories: DataRepositoriesV2;
+    repositories: DataRepositories;
 }
 
 let dataRuntimeSingleton: DataRuntime | null = null;
-let pendingRepositoryOptions: DataRepositoriesV2Options | undefined;
+let pendingRepositoryOptions: DataRepositoriesOptions | undefined;
 let pendingCacheOptions: CacheAssemblyOptions | undefined;
 
 const createDataRuntime = (
-    repositoryOptions?: DataRepositoriesV2Options,
+    repositoryOptions?: DataRepositoriesOptions,
     cacheOptions?: CacheAssemblyOptions
 ): DataRuntime => {
     const manager = new DataManager(repositoryOptions, cacheOptions);
@@ -27,7 +27,7 @@ const createDataRuntime = (
 
 export interface DataRuntimeConfig {
     /** Repository policies, e.g. apps/web's relay-only embedded-$site persistence (ADR-0045). */
-    repositories?: DataRepositoriesV2Options;
+    repositories?: DataRepositoriesOptions;
     /** Cache assembly policies, e.g. desktop-web's per-channel chat cap. */
     cache?: CacheAssemblyOptions;
 }
@@ -64,6 +64,6 @@ export const getDataManager = (): IDataManager => {
     return getDataRuntime().manager;
 };
 
-export const getRepositories = (): DataRepositoriesV2 => {
+export const getRepositories = (): DataRepositories => {
     return getDataRuntime().repositories;
 };

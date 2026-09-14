@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import { runtime } from '@chatic/app-runtime';
-import type { DataRepositoriesV2, DomainChat } from '@chatic/data';
+import type { DataRepositories, DomainChat } from '@chatic/data';
 
 /**
  * Latest cached chat for a channel row's last-message preview. Testbed mirror of the web home hook:
@@ -10,7 +10,7 @@ import type { DataRepositoriesV2, DomainChat } from '@chatic/data';
  * max chatNo defensively. Replaces the server-embedded `lastChat$`, which is no longer delivered.
  */
 export const useLastChat = (channelId: string): DomainChat | undefined => {
-    const repos = runtime.data.useRuntimeRepositories() as unknown as DataRepositoriesV2;
+    const repos = runtime.data.useRuntimeRepositories() as unknown as DataRepositories;
     const [lastChat, setLastChat] = useState<DomainChat | undefined>(undefined);
 
     runtime.sync.useChatSync(channelId);

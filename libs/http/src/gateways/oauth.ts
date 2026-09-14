@@ -35,7 +35,7 @@ export const isAwsAccountNo = (value: string): boolean => /^\d{12}$/.test(value)
 /**
  * Token/account issuance wire vocabulary — `POST /oauth/*` and the two relay resources
  * (`delegate-cloud`, `invite-code`) that hand out session material. Full surface lives here; the
- * data-layer `HttpGatewayBundle` (`libs/data/src/data/remote/gateways/http.ts`) deliberately
+ * data-layer `HttpGatewayBundle` (`libs/data/src/remote/gateways/http.ts`) deliberately
  * `Pick<>`s only the non-session actions out of it — `login`/`exchangeToken`/`delegateCloud`/
  * `registerDevice` stay reachable only through this gateway directly (3단계 `session/auth`).
  */

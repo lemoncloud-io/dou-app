@@ -32,7 +32,7 @@ export interface HomePlacesResult {
  * mount point left to reintroduce the push. The explicit contextOverride stays because
  * `ActiveScope.getContext()` also folds in the socket's bound cid as `socketCid`, which this hook does
  * not want mixed into its scope key — passing {cid, uid} keeps the observer keyed purely on the
- * session-selected cloud. See PlaceLocalDataSourceV2 reemit-routing tests.
+ * session-selected cloud. See PlaceLocalDataSource reemit-routing tests.
  */
 export const useHomePlaces = (): HomePlacesResult => {
     const { place } = runtime.data.useRuntimeRepositories();

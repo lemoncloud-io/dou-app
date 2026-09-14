@@ -20,6 +20,10 @@ export const PlaceProfilePage = () => {
     const { t } = useTranslation();
     const navigate = useNavigateWithTransition();
     const { profile: profileRepository } = runtime.data.useRuntimeRepositories();
+    // The save names its place. `setMyProfile` used to read the active sid off the data context,
+    // which races a site switch (ADR-0085); this page is only reached for the active place, so the
+    // session selection IS that place — it just says so now.
+    const { selectedSiteId } = runtime.session.useSessionSelection();
     const { profile: myProfile } = useMyProfile();
     // Only a settled signal, not the verdict: `useMyProfile` cannot say whether its null means
     // "loading" or "no profile", and this page must render an empty form in the second case.
@@ -70,7 +74,7 @@ export const PlaceProfilePage = () => {
                 continueLabel: t('placeProfileEdit.exitContinue'),
             }}
             onSubmit={async ({ nick, thumbnail }) => {
-                await profileRepository.setMyProfile({ nick, thumbnail });
+                await profileRepository.setMyProfile({ nick, thumbnail }, selectedSiteId ?? '');
             }}
             onDone={close}
             onExit={close}

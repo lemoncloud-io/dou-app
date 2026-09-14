@@ -89,8 +89,8 @@
 | `AppLogInfoLogContext` (type)                                                | `libs/bridges/src/logger/appLogInfoCodec.ts:19`                                       |
 | `useGoBack`                                                                  | `libs/shared/src/hooks/usePageTransition.ts:41`                                       |
 | `PaginationType` · `ErrorMessageType` (type)                                 | `libs/shared/src/types/index.ts:28` · `consts/index.ts:46`                            |
-| `SiteProfileBody` · `SiteProfileView` · `DomainInviteCloud` (type)           | `libs/data/src/data/domain/models.ts:50,51,55`                                        |
-| `CacheStorageItem` (type)                                                    | `libs/data/src/data/local/ports/cacheStorage.ts:44`                                   |
+| `SiteProfileBody` · `SiteProfileView` · `DomainInviteCloud` (type)           | `libs/data/src/domain/models.ts:50,51,55`                                             |
+| `CacheStorageItem` (type)                                                    | `libs/data/src/local/ports/cacheStorage.ts:44`                                        |
 | `ScrollDataPayload` · `WebMessageAppHandler` · `WebMessageHandlerMap` (type) | `libs/app-messages/src/types/model/system.ts:235` · `web-message-response.ts:105,127` |
 | `CloudSessionIssueTokenResult` (type)                                        | `libs/app-runtime/src/session/store/types.ts:74`                                      |
 | `IconProps` (type)                                                           | `libs/web-ui-kit/src/resources/icons/index.ts:35`                                     |
@@ -226,11 +226,11 @@ ADR-0070 결정 1·4의 근거를 서술한 헤더 주석이 이 파일에 있�
 사용자 지시로 `ISocketClient` 하나만 떼어 삭제했다. 배치 A(§1-A-5)의 항목이며, 폴더에 이
 인터페이스밖에 없어 `remote/socket-clients/` 자체가 사라졌다.
 
-| 삭제                         | 파일                                                  |
-| ---------------------------- | ----------------------------------------------------- |
-| `ISocketClient` (interface)  | `libs/data/src/data/remote/socket-clients/clients.ts` |
-| 배럴 파일째                  | `libs/data/src/data/remote/socket-clients/index.ts`   |
-| `libs/data` 루트 배럴 재수출 | `libs/data/src/index.ts`                              |
+| 삭제                         | 파일                                             |
+| ---------------------------- | ------------------------------------------------ |
+| `ISocketClient` (interface)  | `libs/data/src/remote/socket-clients/clients.ts` |
+| 배럴 파일째                  | `libs/data/src/remote/socket-clients/index.ts`   |
+| `libs/data` 루트 배럴 재수출 | `libs/data/src/index.ts`                         |
 
 부수 갱신: `libs/data/docs/remote/README.md` 3곳(구성 트리 · 폴더 설명 · 2026-09-01 리네임 표의
 `remote/sockets/clients/` 행).

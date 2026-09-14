@@ -35,7 +35,7 @@
 
 ### 백엔드 능력 (조사)
 
-- `JoinRepositoryV2.updateJoin` ([libs/data/.../JoinRepositoryV2.ts:125](../../libs/data/src/data/repositories-v2/JoinRepositoryV2.ts))이 `join.update` 액션을 감싼다.
+- `JoinRepository.updateJoin` ([libs/data/.../JoinRepository.ts:125](../../libs/data/src/repositories/JoinRepository.ts))이 `join.update` 액션을 감싼다.
   입력은 `{ channelId?, userId?, id?, nick?, notify? }` — **`nick`(텍스트)과 `notify`만** 반영하며 **thumbnail 필드는 없다**.
   명시 id가 없으면 local cache에서 `channelId + userId`로 join을 해석한다. 단, 이 메서드를 감싸는 앱 훅은 아직 없다.
 - 프로필 편집기 `PlaceProfileFormDialog`/`PlaceProfileEditDialog`([apps/web/.../home/components](../../apps/web/src/app/features/home/components/PlaceProfileFormDialog.tsx))가
@@ -113,7 +113,7 @@
 
 - **ADR-0014의 "멤버 닉네임 편집 out-of-scope" 입장이 일부 전환된다.** 초대받은자가 `join.update.nick`으로 자기 개인 방 이름을 갖게 되며, `MemberProfileDialog`의 관련 주석/전제도 갱신 대상이다(멤버 프로필 이름 자체는 여전히 읽기전용, 방 이름만 개인화).
 - **`join.nick` 병합은 표시 전역에 영향.** 방 이름을 노출하는 모든 소비처가 일관되게 개인 이름을 보여줘야 하므로 병합은 파생 계층에 두고, 채널명 노출 지점을 점검해야 한다.
-- **신규 앱 훅 필요.** `updateJoin`을 감싸는 훅이 없으므로 추가한다. optimistic write는 `JoinRepositoryV2`가 이미 처리한다.
+- **신규 앱 훅 필요.** `updateJoin`을 감싸는 훅이 없으므로 추가한다. optimistic write는 `JoinRepository`가 이미 처리한다.
 - **`친구 설정`·`신고`는 시각만 반영.** 두 항목은 노출되지만 동작하지 않는다 — QA/사용자에게 "미구현 노출"임을 명확히 해 오해를 막는다.
 - **notify 토글은 그대로 UI-only.** `join.update.notify`로 배선 가능해졌지만 이번 범위 밖이며, 후속 작업 후보로 남는다.
 - **kit 우선.** 방 정보/멤버 프로필의 아바타·입력·리스트·상단바를 kit 프리미티브(`ProfileAvatar/TextField/ModalTopBar/ListRow` 등)로 정리하고, 누락 시 kit에 정의해 hex/아이콘 직접 인라인을 제거한다.

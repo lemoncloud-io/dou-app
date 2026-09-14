@@ -27,7 +27,7 @@ flowchart TD
 
 - local · socket · http 세 데이터소스 번들을 조립해 **생성자에서 1회** repository 그래프를 만든다
 - repository에 [`ActiveScope`](../../src/session/scope/ActiveScope.ts)를 `DataContextProvider`로
-  주입한다. scope는 매 read마다 intent(`{cid, sid, uid}`)에 live `socketCid`(= `getBoundCid()`)를
+  주입한다. scope는 매 read마다 intent(`{cid, uid}`)에 live `socketCid`(= `getBoundCid()`)를
   합성하므로, repository가 socket이 붙은 클라우드와 캐시 컨텍스트 클라우드의 **불일치를 감지해 오염
   쓰기를 스킵**할 수 있다(cross-cloud 가드 — [../session/architecture.md](../session/architecture.md)).
 - **local 데이터소스는 intent만 받는다** — `socketCid` 없이. 그들의 일은 캐시 파티션 키

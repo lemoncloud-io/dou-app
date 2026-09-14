@@ -3,7 +3,7 @@
  * - react-query surface over the relay's admin membership endpoints (ADR-0082).
  *
  * The wire itself lives in the shared layers (`libs/http` gateway → `libs/data` data source →
- * `SubscriptionRepositoryV2`), following the `users` feature rather than the app-local
+ * `SubscriptionRepository`), following the `users` feature rather than the app-local
  * `report-logs` one. Only the hooks and their cache keys belong to this console.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';

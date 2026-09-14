@@ -11,7 +11,7 @@ import type { ChannelUnreads } from './useChannelUnreads';
  * Three surfaces need this and each used to assemble it for itself: `UnreadBadgeRunner` (app-icon
  * `total`), `UnifiedLayout` (bottom-nav `total`) and `HomePage` (`byPlace` dots + the per-row
  * counts). The cache layer already shares the storage read between observers on the same key
- * (see BaseLocalDataSourceV2), so the duplication cost was not I/O — it was three observer
+ * (see BaseLocalDataSource), so the duplication cost was not I/O — it was three observer
  * callbacks per channel, three `Map` rebuilds and three O(channels) aggregations on every join or
  * channel write, one of them inside the layout that wraps every route.
  *

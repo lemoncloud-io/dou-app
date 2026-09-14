@@ -8,7 +8,7 @@
 
 참고 스펙(서버, 이미 확정): `chatic-sockets-api/docs/specs/update-remote-device/{00-requirement,01-spec,02-design}.md`
 
-> **이름 안내 (2026-09-01):** 이 문서가 쓰는 `*RemoteDataSource` · `RemoteGatewayBundle` · `*DomainGateway` · `remoteFactory` · `remote/data-sources/`는 **당시 이름**이다. 소켓 축이 `Socket` 접두로 옮겨간 뒤의 대응표는 [libs/data/docs/remote/README.md](../../libs/data/docs/remote/README.md#이름-규약-2026-09-01-리네임)에 있다. 기록이므로 본문은 그대로 둔다.
+> **이름 안내 (2026-09-01):** 이 문서가 쓰는 `*RemoteDataSource` · `RemoteGatewayBundle` · `*DomainGateway` · `remoteFactory` · `remote/data-sources/`는 **당시 이름**이다. 소켓 축이 `Socket` 접두로 옮겨간 뒤의 대응표는 [libs/data/docs/remote/README.md](../../libs/data/docs/remote/README.md#naming-history)에 있다. 기록이므로 본문은 그대로 둔다.
 
 ## 맥락 (Context)
 
@@ -77,7 +77,7 @@ kind) 소켓으로 API를 쏘는 케이스는 앞으로 반복되므로, 그 능
 
 3. **라우팅 골격 (libs/data)** — 위 "라우팅"의 `SocketRoute` + `routed()` + 메서드 `route` 인자(기본 `'active'`).
     - device는 이 골격의 첫 소비자. `DeviceRemoteDataSource.updateRemoteDevice({ muted }, route?)`,
-      `DeviceRepositoryV2.updateRemotePushMute(muted, opts?: { route })` 추가.
+      `DeviceRepository.updateRemotePushMute(muted, opts?: { route })` 추가.
     - 기존 device gateway(save/read/**sync**)는 **그대로 active로 유지**한다 — 뷰잉/프레즌스(sync)는
       현재 활성 서버 기준이어야 하므로 목적지를 옮기지 않는다.
 

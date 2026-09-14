@@ -64,7 +64,7 @@ relay 핸드셰이크가 끝날 때까지 목록이 비어 있던 문제와, 오
 - `CacheType`에 `invite` 추가 — `CacheInviteView`·`InviteQueryOptions`·TTL·스토리지 묶음.
 - 네이티브 `invites` 테이블 + 마이그레이션(스키마 버전 10) + `InviteDataSource` +
   `SUPPORTED_CACHE_TYPES` 등록.
-- 웹 `InviteLocalDataSourceV2`와 `InviteRepositoryV2` 배선(remote-only → local-first).
+- 웹 `InviteLocalDataSource`와 `InviteRepository` 배선(remote-only → local-first).
 - 자격증명 제거 매퍼(`toCacheInviteView`)와 그 회귀 테스트.
 - dismiss 필드(`dismissedAt`) 도입과 `canceledInviteIds`(localStorage) 일회성 마이그레이션,
   `useCanceledInviteReconcile`의 원천 교체.
@@ -89,7 +89,7 @@ relay 핸드셰이크가 끝날 때까지 목록이 비어 있던 문제와, 오
    react-query의 `invite.list` (원격, `useKindVerified('relay')` 게이트).
 3. 로컬 관찰자가 먼저 응답한다. 지난 세션의 초대 카드가 relay 핸드셰이크를 기다리지 않고 그려진다.
    이 행들에는 `code`·`deeplink`가 없다.
-4. relay가 verified가 되면 `invite.list`가 발사되고, `InviteRepositoryV2.list`가 응답을
+4. relay가 verified가 되면 `invite.list`가 발사되고, `InviteRepository.list`가 응답을
    자격증명 제거 후 캐시에 갈아엎는다(기본 클라우드일 때만). 관찰자가 재발화하고, 훅은 캐시·원격
    행을 병합한다 — 겹치는 id는 원격 값(코드 포함)으로 완전히 대체하되 캐시의 `dismissedAt`은
    옮겨 붙인다.
@@ -154,7 +154,7 @@ relay 핸드셰이크가 끝날 때까지 목록이 비어 있던 문제와, 오
 ### S7. 클라우드 활성 중
 
 `selectedCloudId !== 'default'`여도 `invite.list`는 돈다(조회는 게이트되지 않는다). 이때
-`InviteRepositoryV2`는 모든 로컬 쓰기(`mirrorToCache`/`dismiss`/`undismiss`/`cacheWriteMany`/
+`InviteRepository`는 모든 로컬 쓰기(`mirrorToCache`/`dismiss`/`undismiss`/`cacheWriteMany`/
 `cacheWrite`/`cacheDelete`/`cacheClear`)를 `isDefaultCloud()` 확인 후 건너뛴다. 렌더도 홈/플레이스
 양쪽에서 `isDefaultCloud`로 이미 게이트돼 있다
 ([HomePage.tsx:356](../../../../apps/web/src/app/features/home/pages/HomePage.tsx),
@@ -172,8 +172,8 @@ flowchart LR
     OBS["observeList"]
   end
   subgraph D["libs/data"]
-    REPO["InviteRepositoryV2"]
-    LDS["InviteLocalDataSourceV2"]
+    REPO["InviteRepository"]
+    LDS["InviteLocalDataSource"]
     RDS["InviteSocketDataSource<br/>(relay 고정)"]
     MAP["toCacheInviteView<br/>allowlist"]
   end
@@ -258,7 +258,7 @@ export type InviteQueryOptions = BaseQueryOptions;
 
 `Omit`은 컴파일 시점 보증일 뿐이고, 실제 방어는 §4의 허용 목록 매퍼다.
 
-TTL은 [local/ports/policy.ts](../../../data/src/data/local/ports/policy.ts)의 `CACHE_TTL_MS`에
+TTL은 [local/ports/policy.ts](../../../data/src/local/ports/policy.ts)의 `CACHE_TTL_MS`에
 `invite: 100 * 12 * 30 * DAY_MS`(무만료, `chat`·`invitecloud`와 동일)로 넣었다. 만료 판정은 서버
 `state`/`expiredAt`이 전부이고, 캐시 TTL로 행을 죽이면 즉시 렌더 목적이 훼손되기 때문이다.
 
@@ -280,10 +280,10 @@ TTL은 [local/ports/policy.ts](../../../data/src/data/local/ports/policy.ts)의 
 
 ### 3. 저장소 배선 — `libs/data` / `libs/app-runtime`
 
-- `LocalCacheStorages`에 `invite`([local/ports/cacheStorage.ts](../../../data/src/data/local/ports/cacheStorage.ts)),
+- `LocalCacheStorages`에 `invite`([local/ports/cacheStorage.ts](../../../data/src/local/ports/cacheStorage.ts)),
   `createCacheStorages`에 `storageFactory('invite', ...)`([localFactory.ts](../../src/data/factories/localFactory.ts)).
-- `LocalDataSourcesV2`에 `invite`, `createLocalDataSourcesV2`에 생성
-  ([data-sources-v2/index.ts](../../../data/src/data/local/data-sources-v2/index.ts)).
+- `LocalDataSources`에 `invite`, `createLocalDataSources`에 생성
+  ([data-sources/index.ts](../../../data/src/local/data-sources/index.ts)).
 - [localFactory.ts](../../src/data/factories/localFactory.ts)의 `createLocalDataSources`
   storages 맵에 `invite: storages.invite`.
 - IndexedDB/`NativeDBAdapter`는 손댈 것이 없었다 — 둘 다 타입 제네릭이라 그대로 통과한다
@@ -291,7 +291,7 @@ TTL은 [local/ports/policy.ts](../../../data/src/data/local/ports/policy.ts)의 
 
 ### 4. 자격증명 제거 매퍼
 
-[inviteCacheView.ts](../../../data/src/data/local/data-sources-v2/inviteCacheView.ts).
+[inviteCacheView.ts](../../../data/src/local/data-sources/inviteCacheView.ts).
 
 저장 직전 변환은 스프레드가 아니라 **허용 목록**이다 — `Omit` 타입은 초과 프로퍼티를 런타임에서
 막지 못하고, 서버가 뷰에 무엇을 더 실을지 우리가 정하지 않는다. 실제로 존재가 확인되지 않은
@@ -304,10 +304,10 @@ TTL은 [local/ports/policy.ts](../../../data/src/data/local/ports/policy.ts)의 
 회귀 테스트(`inviteCacheView.test.ts`)는 결과 키 집합이 허용 목록과 정확히 일치하는지 확인한다 —
 `code`/`deeplink`가 없는지만 보는 테스트는 다음에 추가되는 자격증명 필드를 놓친다.
 
-### 5. `InviteLocalDataSourceV2`
+### 5. `InviteLocalDataSource`
 
-[InviteLocalDataSourceV2.ts](../../../data/src/data/local/data-sources-v2/InviteLocalDataSourceV2.ts).
-`PlaceLocalDataSourceV2`와 같은 형태(`BaseLocalDataSourceV2` 상속)에 초대 고유 규칙 둘:
+[InviteLocalDataSource.ts](../../../data/src/local/data-sources/InviteLocalDataSource.ts).
+`PlaceLocalDataSource`와 같은 형태(`BaseLocalDataSource` 상속)에 초대 고유 규칙 둘:
 
 - `cacheReadList`는 **`createdAt` 내림차순**, 동률/부재는 `id` 역순으로 tie-break한다.
 - `cacheWrite`/`cacheWriteMany`는 **평범한 필드 스프레드 병합**(`{...existing, ...item, id, cid,
@@ -317,9 +317,9 @@ uid}`)이다 — 별도 분기 없이 이것만으로 "응답이 언급한 필�
 - 목록 반영 경로에 삭제가 없다 — 창 밖 행을 지우지 않는다는 결정은 "응답에 없는 id는 건드리지
   않는다"이므로 upsert만으로 성립한다. `cacheDelete`는 reconcile의 스텁 정리 전용이다.
 
-### 6. `InviteRepositoryV2`
+### 6. `InviteRepository`
 
-[InviteRepositoryV2.ts](../../../data/src/data/repositories-v2/InviteRepositoryV2.ts). remote-only에서
+[InviteRepository.ts](../../../data/src/repositories/InviteRepository.ts). remote-only에서
 local-first 접근면으로 승격했다. 생성자는 `(remote, local, context)` 순서.
 
 ```ts
@@ -462,8 +462,8 @@ npx vitest run --config apps/testbed/vite.config.mts
 
 - `inviteCacheView.test.ts` — 허용 목록 키 집합 정확 일치, 미지의 여분 필드·`code`/`deeplink`/
   `phone`/`hashPhone` 차단.
-- `InviteLocalDataSourceV2.test.ts` — 정렬, 갈아엎기 + `dismissedAt` 보존, 응답에 없는 행 보존.
-- `InviteRepositoryV2.test.ts` — `list`의 캐시 미러링·코드 포함 원본 반환, 로컬 쓰기 7종 전부의
+- `InviteLocalDataSource.test.ts` — 정렬, 갈아엎기 + `dismissedAt` 보존, 응답에 없는 행 보존.
+- `InviteRepository.test.ts` — `list`의 캐시 미러링·코드 포함 원본 반환, 로컬 쓰기 7종 전부의
   `cid!=='default'` 스킵.
 - `localFactory.test.ts` — `invite` 라우팅 매트릭스(보고 전 web / 보고 후 native), 두 환경 모두의
   전체 매트릭스.

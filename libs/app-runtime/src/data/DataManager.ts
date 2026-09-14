@@ -1,18 +1,18 @@
-import type { DataContext, DataContextProvider, DataRepositoriesV2, DataRepositoriesV2Options } from '@chatic/data';
+import type { DataContext, DataContextProvider, DataRepositories, DataRepositoriesOptions } from '@chatic/data';
+import { createRepositories } from '@chatic/data';
 
 import { ActiveScope, deriveSelectedContext } from '../session/scope';
 import { getCommittedCloudId } from '../session/store';
 import { createHttpDataSources } from './factories/httpFactory';
 import { createLocalDataSources } from './factories/localFactory';
 import { createSocketDataSources } from './factories/socketFactory';
-import { createRepositories } from './factories/repositoryFactory';
 import type { CacheAssemblyOptions, IDataManager } from './types';
 import { getSocketManager } from '../socket/runtime';
 
 export class DataManager implements IDataManager {
-    private readonly repositories: DataRepositoriesV2;
+    private readonly repositories: DataRepositories;
 
-    constructor(repositoryOptions?: DataRepositoriesV2Options, cacheOptions?: CacheAssemblyOptions) {
+    constructor(repositoryOptions?: DataRepositoriesOptions, cacheOptions?: CacheAssemblyOptions) {
         const { socketDataSources } = createSocketDataSources();
         // Local sources get the SELECTED scope only — no `socketCid`. Their job is to key cache partitions
         // (`${type}:${cid}:${uid}:${id}`), and the bound-socket view is a repository-level judgement.
@@ -45,13 +45,13 @@ export class DataManager implements IDataManager {
         this.repositories = createRepositories({
             socketDataSources,
             localDataSources,
-            contextProvider: scope,
+            context: scope,
             options: repositoryOptions,
             httpDataSources,
         });
     }
 
-    public getRepositories(): DataRepositoriesV2 {
+    public getRepositories(): DataRepositories {
         return this.repositories;
     }
 

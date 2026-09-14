@@ -2,7 +2,7 @@
 
 > 상태: Accepted · 결정일: 2026-07-30 · 관련: [ADR-0033](./0033-relay-dm-invite-and-auth-parallel-tracks.md) (대안 1건 대체)
 
-> **이름 안내 (2026-09-01):** 이 문서가 쓰는 `*RemoteDataSource` · `RemoteGatewayBundle` · `*DomainGateway` · `remoteFactory` · `remote/data-sources/`는 **당시 이름**이다. 소켓 축이 `Socket` 접두로 옮겨간 뒤의 대응표는 [libs/data/docs/remote/README.md](../../libs/data/docs/remote/README.md#이름-규약-2026-09-01-리네임)에 있다. 기록이므로 본문은 그대로 둔다.
+> **이름 안내 (2026-09-01):** 이 문서가 쓰는 `*RemoteDataSource` · `RemoteGatewayBundle` · `*DomainGateway` · `remoteFactory` · `remote/data-sources/`는 **당시 이름**이다. 소켓 축이 `Socket` 접두로 옮겨간 뒤의 대응표는 [libs/data/docs/remote/README.md](../../libs/data/docs/remote/README.md#naming-history)에 있다. 기록이므로 본문은 그대로 둔다.
 
 ## 맥락 (Context)
 
@@ -46,11 +46,11 @@ RuntimeConnectionHost/RuntimeAuthHost 중복 배선 ⑦ V1 부재의 전면 V2 �
 
 ### 1. gateway 직접 노출 폐지 — repository 승격
 
-ADR-0033의 대안 "초대 목록을 repositories-v2로 승격 — 버림"을 **대체**한다.
+ADR-0033의 대안 "초대 목록을 repositories로 승격 — 버림"을 **대체**한다.
 `useRuntimeRepositories`(캐시 경유)와 `useRuntimeGateways`(캐시 우회)라는 두 접근
 표면의 공존 자체가 혼선이므로, 원칙의 단일성을 우선한다.
 
-- relay invite → `InviteRepositoryV2` 신설. auth 커맨드(`verifyHashAlias`,
+- relay invite → `InviteRepository` 신설. auth 커맨드(`verifyHashAlias`,
   `attachSocial`)의 귀속(신설 vs 기존 repository 확장)은 스펙 단계에서 확정.
 - **승격의 목적은 접근 표면 단일화이지 영속화 의무가 아니다.** "오프라인 요구
   없음"이라는 ADR-0033의 사실 판단은 여전히 유효하며, remote-only 또는 메모리
@@ -60,8 +60,8 @@ ADR-0033의 대안 "초대 목록을 repositories-v2로 승격 — 버림"을 **
 
     > **이행 완료 (2026-07-31)** — `useRuntimeGateways`·`DirectGateways`·`getGateways`·
     > `remoteFactory`의 gateways 반출이 모두 삭제됐고, `apps/web`의 세 훅
-    > (`useRelayInvites`·`useVerifyHashAlias`·`useAttachSocial`)이 `InviteRepositoryV2`/
-    > `AuthRepositoryV2`로 전환됐다. 게이트웨이를 직접 잡는 경로는 남아 있지 않다.
+    > (`useRelayInvites`·`useVerifyHashAlias`·`useAttachSocial`)이 `InviteRepository`/
+    > `AuthRepository`로 전환됐다. 게이트웨이를 직접 잡는 경로는 남아 있지 않다.
 
 ### 2. app-runtime 구조 정리 — 점검된 꼬임 전면 채택
 

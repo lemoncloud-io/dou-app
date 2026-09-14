@@ -324,7 +324,7 @@ describe('AppBridgeHost Buffering & Event Flushing', () => {
             JsonProtocol.encode({
                 type: 'FetchManyCacheData',
                 refId: 'ref-1',
-                data: { type: 'chat', ids: ['c1'] },
+                data: { type: 'chat', ids: ['c1'], cid: 'cloud-a', uid: 'me' },
             }) as string
         );
 
@@ -340,7 +340,9 @@ describe('AppBridgeHost Buffering & Event Flushing', () => {
             throw new Error('boom');
         }) as any);
 
-        await host.handleMessage(JsonProtocol.encode({ type: 'SendLog', refId: 'ref-2', data: {} }) as string);
+        await host.handleMessage(
+            JsonProtocol.encode({ type: 'SendLog', refId: 'ref-2', data: { message: 'boom' } }) as string
+        );
 
         const response = JsonProtocol.decode(mockSendToWeb.mock.calls[0][0]) as any;
         expect(response).toEqual(expect.objectContaining({ type: 'ERROR', success: false }));

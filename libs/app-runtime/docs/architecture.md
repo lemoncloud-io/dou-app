@@ -633,7 +633,8 @@ export const useRuntimeSocketSlots = (): RuntimeSocketSlots => {
 
 - 호스트가 `useRuntimeSocketSlots()`를 내부에서 호출한다. `slots` prop은 테스트/특수 진입점을 위해
   optional로 남아 있다.
-- cid/sid/uid 공식은 `deriveSelectedContext` 하나뿐이다.
+- cid/uid 공식은 `deriveSelectedContext` 하나뿐이다. 사이트는 거기에 넣지 않는다 — 캐시 스코프의
+  축이 아니라 호출자가 지목하는 값이다 (ADR-0085).
 - 훅은 `['relay:token', 'cloud:token', 'selection']` **세 시그널만** 구독하고, 그에 맞춰 좁힌 스냅샷
   (`getSocketSlotContext` → `SocketSlotContext { relay, cloud }`)만 읽는다. 구독만 좁히고 스냅샷은
   넓게 두면 안 듣는 시그널의 값을 조용히 렌더하므로, 둘은 항상 함께 넓혀야 한다 — 그래서 좁은 쪽이

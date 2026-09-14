@@ -5,7 +5,7 @@ import type { DomainProfile } from '@chatic/data';
 
 /**
  * The place owner's display profile (nick + photo), addressed the way a profile is: the place plus
- * who owns it (`${sid}@${uid}` — ProfileRepositoryV2.makeProfileId).
+ * who owns it (`${sid}@${uid}` — ProfileRepository.makeProfileId).
  *
  * The place row carries `owner$`, but its `name` is an internal identifier (`"LMN:1000051"`), not a
  * person's name — so the owner has to be resolved through the profile domain, which is also the

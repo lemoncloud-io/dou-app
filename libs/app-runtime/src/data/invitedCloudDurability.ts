@@ -1,4 +1,4 @@
-import type { DomainCloud, ICloudRepositoryV2 } from '@chatic/data';
+import type { DomainCloud, ICloudRepository } from '@chatic/data';
 
 import { getRepositories } from './runtime';
 import type { CloudDelegationTokenView } from '@lemoncloud/chatic-backend-api';
@@ -9,7 +9,7 @@ import type { CloudDelegationTokenView } from '@lemoncloud/chatic-backend-api';
  * for any cloud the user holds a grant to — the only frontend source of an invited cloud's endpoints
  * once the cache DB is gone. A revoked/expired grant rejects here and the caller skips that cloud.
  */
-const rehydrateInvitedCloud = async (cloud: ICloudRepositoryV2, cloudId: string): Promise<void> => {
+const rehydrateInvitedCloud = async (cloud: ICloudRepository, cloudId: string): Promise<void> => {
     const del: CloudDelegationTokenView = await getRepositories().auth.delegateCloud(cloudId);
     await cloud.cacheWrite({
         id: cloudId,
@@ -29,7 +29,7 @@ const rehydrateInvitedCloud = async (cloud: ICloudRepositoryV2, cloudId: string)
  * specific cloud, never the list. Closing that gap needs a server list API (ADR-0030).
  */
 export const recoverInvitedCloudIfMissing = async (
-    cloud: ICloudRepositoryV2,
+    cloud: ICloudRepository,
     cloudId: string | undefined
 ): Promise<void> => {
     if (!cloudId) return;
@@ -48,7 +48,7 @@ export const recoverInvitedCloudIfMissing = async (
  * name, so `cloud.get` is the only source of a fresh name. No-op for a non-invited active cloud or
  * when the name is unchanged.
  */
-export const syncInvitedCloudName = async (cloud: ICloudRepositoryV2, cloudId: string | undefined): Promise<void> => {
+export const syncInvitedCloudName = async (cloud: ICloudRepository, cloudId: string | undefined): Promise<void> => {
     if (!cloudId) return;
     const existing = await cloud.cacheRead(cloudId);
     if (existing?.cloudType !== 'invited') return;

@@ -334,7 +334,7 @@ desktop-web `HomePage`에 **같은 값이 네 번** 선언돼 있다. §feature�
 | ------------------------- | ------ | ----------- | --------- | ------------------------------------------------------------- |
 | `cache.ttl.defaultMs`     | number | `1_800_000` | live      | `local/ports/policy.ts` (channel·join·profile·site·user 공통) |
 | `cache.ttl.metaMs`        | number | `300_000`   | live      | 같음 — **마이그레이션 임시값**                                |
-| `cache.retiredGroupTtlMs` | number | `60_000`    | live      | `data-sources-v2/types.ts:83`                                 |
+| `cache.retiredGroupTtlMs` | number | `60_000`    | live      | `data-sources/types.ts:83`                                    |
 
 **`cache.ttl.metaMs`가 이 스윕 전체에서 가장 설득력 있는 사례다.** 코드 주석이 직접 이렇게 적고 있다:
 

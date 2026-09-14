@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { runtime } from '@chatic/app-runtime';
 import { useCloudSessionCatalog } from '../hooks/useCloudCatalog';
-import type { DataRepositoriesV2, DomainChannel, DomainCloud, DomainPlace } from '@chatic/data';
+import type { DataRepositories, DomainChannel, DomainCloud, DomainPlace } from '@chatic/data';
 import { metricsCollector } from '../metrics/MetricsCollector';
 import { useRenderCount } from '../metrics/useRuntimeMetrics';
 import { NameFormDialog } from '../features/manage/NameFormDialog';
@@ -49,7 +49,7 @@ export const ChatHomePage = () => {
     const { logoutCloudSession } = runtime.session.useLogoutCloudSession();
     const { switchSite, isSwitching: isSiteSwitching } = runtime.session.useSiteSwitch();
 
-    const repos = runtime.data.useRuntimeRepositories() as unknown as DataRepositoriesV2;
+    const repos = runtime.data.useRuntimeRepositories() as unknown as DataRepositories;
     // isVerified gates the list-discovery network calls: place/channel lists come from
     // socket gateways (UserGateway.mySite / channel list), so a fetch before the new
     // session is verified would run against the stale (pre-switch) session.
@@ -138,7 +138,7 @@ export const ChatHomePage = () => {
         try {
             const profileSyncKind = `profile-sync:${cid}:${activeSiteId}`;
             const since = await repos.syncMeta.getSyncedAt(profileSyncKind);
-            const { syncedAt } = await repos.profile.syncProfiles(since);
+            const { syncedAt } = await repos.profile.syncProfiles(since, activeSiteId);
             await repos.syncMeta.setSyncedAt(profileSyncKind, syncedAt);
         } catch {
             // best-effort: 실패 시 워터마크를 전진시키지 않아 다음 틱에 같은 since로 재시도된다
@@ -172,7 +172,7 @@ export const ChatHomePage = () => {
         }
         return repos.channel.observeList({ sid: activeSiteId }, result => {
             // On the relay/default cloud the channel cache read does NOT isolate by sid
-            // (ChannelLocalDataSourceV2.cacheReadList bypasses the sid filter when cid==='default'),
+            // (ChannelLocalDataSource.cacheReadList bypasses the sid filter when cid==='default'),
             // so observeList can surface the previous site's channels mid-switch. Filter to the
             // active site here so a relay site switch never flashes the prior site's list. On a
             // cloud (cid!='default') the list is already sid-scoped, so this is a no-op.
@@ -234,7 +234,7 @@ export const ChatHomePage = () => {
     };
     const handleCreateChannel = async (name: string) => {
         const payload = buildChannelCreate(name);
-        if (payload) await repos.channel.createChannel(payload);
+        if (payload) await repos.channel.createChannel(payload, activeSiteId ?? '');
     };
     const handleEditChannel = (id: string) => async (name: string) => {
         const payload = buildChannelUpdate(id, name);

@@ -5,7 +5,7 @@
 >
 > 외부 계약 원본: `chatic-sockets-api` `docs/specs/chat-emoji-reaction/` (01-spec.md · 05-client-guide.md, Rev 2026-07-31)
 
-> **이름 안내 (2026-09-01):** 이 문서가 쓰는 `*RemoteDataSource` · `RemoteGatewayBundle` · `*DomainGateway` · `remoteFactory` · `remote/data-sources/`는 **당시 이름**이다. 소켓 축이 `Socket` 접두로 옮겨간 뒤의 대응표는 [libs/data/docs/remote/README.md](../../libs/data/docs/remote/README.md#이름-규약-2026-09-01-리네임)에 있다. 기록이므로 본문은 그대로 둔다.
+> **이름 안내 (2026-09-01):** 이 문서가 쓰는 `*RemoteDataSource` · `RemoteGatewayBundle` · `*DomainGateway` · `remoteFactory` · `remote/data-sources/`는 **당시 이름**이다. 소켓 축이 `Socket` 접두로 옮겨간 뒤의 대응표는 [libs/data/docs/remote/README.md](../../libs/data/docs/remote/README.md#naming-history)에 있다. 기록이므로 본문은 그대로 둔다.
 
 ## 맥락 (Context)
 
@@ -18,10 +18,10 @@
 
 **엔진 계층은 이미 끝나 있다.** 새로 뚫을 배선이 없다.
 
-- `ChatRepositoryV2.setReaction()`이 낙관적 이벤트 행(`chatNo: 0` 센티넬 → fold가 마지막으로 정렬)
-  생성·서버 이벤트로 교체·실패 시 삭제까지 처리한다 (`libs/data/src/data/repositories-v2/ChatRepositoryV2.ts:190`).
+- `ChatRepository.setReaction()`이 낙관적 이벤트 행(`chatNo: 0` 센티넬 → fold가 마지막으로 정렬)
+  생성·서버 이벤트로 교체·실패 시 삭제까지 처리한다 (`libs/data/src/repositories/ChatRepository.ts:190`).
 - `ChatRemoteDataSource.setReaction()`이 `chat.reaction` 패킷을 부른다 (`libs/data/.../ChatRemoteDataSource.ts:77`).
-- `sendChat`은 `parentId`를 통과시키고 `createOptimisticChat`도 읽는다 (`ChatRepositoryV2.ts:277`).
+- `sendChat`은 `parentId`를 통과시키고 `createOptimisticChat`도 읽는다 (`ChatRepository.ts:277`).
 
 **apps/web은 이 둘을 아무도 부르지 않을 뿐이다.**
 
@@ -45,7 +45,7 @@
 (직접 확인: `Type '"reaction"' is not assignable to type '"" | "join" | "leave" | undefined'`).
 그래서 엔진이 `as DomainChat` 생캐스팅으로 밀어넣고 있고, `ChatDomainGateway` Pick에는 `'reaction'`이
 빠져 있는데 `ChatRemoteDataSource`가 `ChatDomainGateway['reaction']`을 참조한다 — 런타임은 되고
-타입만 안 맞는 상태다 (`libs/data/src/data/remote/gateways/index.ts:26`).
+타입만 안 맞는 상태다 (`libs/data/src/remote/gateways/index.ts:26`).
 
 **범프 가능성을 조사했고, 순전히 가산적이었다.** `0.26.412 → 0.26.721`에서 `.d.ts` 5개만 바뀌고
 제거·축소가 하나도 없다.
@@ -146,7 +146,7 @@ ko/en 번역에 **쓰이지 않는 `chat.room.messageActions` 키가 이미 있�
 
 가산적임을 확인했으므로 로컬 augmentation을 쓰지 않는다. 범프와 함께:
 
-- `ChatRepositoryV2.setReaction`의 `as DomainChat` 생캐스팅을 제거한다.
+- `ChatRepository.setReaction`의 `as DomainChat` 생캐스팅을 제거한다.
 - `ChatDomainGateway` Pick에 `'reaction'`을 정직하게 추가한다 (`libs/data/.../gateways/index.ts:26`).
 
 ### 범위 (포함/제외)

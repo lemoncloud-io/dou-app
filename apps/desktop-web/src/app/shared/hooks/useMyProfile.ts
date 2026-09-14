@@ -20,6 +20,9 @@ import type { DomainProfile } from '@chatic/data';
  */
 export const useMyProfile = () => {
     const { profile: profileRepository } = runtime.data.useRuntimeRepositories();
+    // The save names its place. `setMyProfile` used to read it off the ambient data context, which
+    // a site switch pre-applies before the token commits (ADR-0085).
+    const { selectedSiteId } = runtime.session.useSessionSelection();
     const [profile, setProfile] = useState<DomainProfile | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
@@ -43,7 +46,7 @@ export const useMyProfile = () => {
         async (body: ProfileBody): Promise<DomainProfile> => {
             setIsSaving(true);
             try {
-                const result = await profileRepository.setMyProfile(body);
+                const result = await profileRepository.setMyProfile(body, selectedSiteId ?? '');
                 setProfile(result);
                 return result;
             } finally {

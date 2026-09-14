@@ -15,7 +15,7 @@ jest.mock('@chatic/app-runtime', () => ({
         },
     },
 }));
-// Sender profiles come from ProfileRepositoryV2 via this hook; it has its own test file.
+// Sender profiles come from ProfileRepository via this hook; it has its own test file.
 jest.mock('./useSenderProfiles', () => ({ useSenderProfiles: jest.fn(() => new Map()) }));
 jest.mock('@chatic/bridges', () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } }));
 

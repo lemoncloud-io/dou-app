@@ -27,7 +27,7 @@ Decision #1(채팅방 설정 레이아웃)·#4(알림을 별도 Dialog로)는 �
   클릭 불가 → 완전 신규.
 - **알림 설정 화면도 없다**(과거 stub 제거, README 참조).
 
-백엔드 제약(핵심): `ChannelRepositoryV2`에 **멤버별 별명(nick) 쓰기·알림 설정 뮤테이션이
+백엔드 제약(핵심): `ChannelRepository`에 **멤버별 별명(nick) 쓰기·알림 설정 뮤테이션이
 없다.** 현재 존재하는 쓰기는 `createChannel`/`updateChannel`/`inviteChannel`/`leaveChannel`/
 `deleteChannel`뿐이다.
 

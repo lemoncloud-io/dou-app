@@ -11,7 +11,7 @@
 - self 판별: `useChannel.ts:13` — `isSelfChat = stereo === 'self'`
 - 룸 읽음표시 숨김: `ChannelRoomPage.tsx:85` — `showReadReceipt = !isSelfChat && activeCount >= 2`
 - 룸 헤더 `kind='direct'`, self 빈 상태(펜 아이콘 + 안내문), 초대 다이얼로그 미노출
-- join.nick 저장 하위 파이프라인 완비 — 게이트웨이 `join.update`(body `{ id, nick?, notify?, role? }`), `JoinRepositoryV2.updateJoin`(`repositories-v2/JoinRepositoryV2.ts:125`, nick 처리 + channelId/userId로 composite id resolve), `useRuntimeRepositories().join`으로 노출
+- join.nick 저장 하위 파이프라인 완비 — 게이트웨이 `join.update`(body `{ id, nick?, notify?, role? }`), `JoinRepository.updateJoin`(`repositories/JoinRepository.ts:125`, nick 처리 + channelId/userId로 composite id resolve), `useRuntimeRepositories().join`으로 노출
 
 **어긋난 것 / 없는 것**
 

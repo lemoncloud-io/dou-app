@@ -3,8 +3,8 @@ import type { CacheStorage, DataContextProvider, ICacheMetricsSource, IGlobalCac
 import {
     type CacheStorageFactory,
     createCacheStorages,
-    createLocalDataSourcesV2 as createDataLocalDataSources,
-    type LocalDataSourcesV2,
+    createLocalDataSources as createDataLocalDataSources,
+    type LocalDataSources,
 } from '@chatic/data';
 import {
     ChatQueryExecutor,
@@ -109,7 +109,7 @@ export const createLocalDataSources = ({
     contextProvider: DataContextProvider;
     cacheStorageFactory?: CacheStorageFactory;
     cache?: CacheAssemblyOptions;
-}): LocalDataSourcesV2 => {
+}): LocalDataSources => {
     // Sync cursors describe data in OTHER domains' stores, so a cursor outlives the routing it was
     // written under and would claim "already synced" over a store the data no longer lives in
     // (ADR-0053). Recording each decision as the storages are actually built keeps the fingerprint

@@ -46,7 +46,7 @@
 
 ### 기존 코드에서 확인된 것
 
-- 읽기: `useMyProfile()` → `ProfileRepositoryV2.observeItem` + `getMyProfile()`(반환 `DomainProfile | null`)로 **활성 플레이스에 내 프로필이 있는지** 관측 가능.
+- 읽기: `useMyProfile()` → `ProfileRepository.observeItem` + `getMyProfile()`(반환 `DomainProfile | null`)로 **활성 플레이스에 내 프로필이 있는지** 관측 가능.
 - 쓰기: `profileRepository.setMyProfile({ nick, thumbnail })` — 편집 화면(`SiteProfileEditPage`)이 이미 쓰는 경로.
 - 이미지 처리: `resizeImageToBase64(file, 150)` 재사용 가능(≤10MB, webp/png/jpeg).
 - 프론트 지속 상태: `apps/web/src/app/stores/usePreferenceStore.ts` (zustand + localStorage/네이티브 브리지) 가 표준 패턴.

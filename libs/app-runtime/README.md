@@ -48,7 +48,7 @@ import { runtime } from '@chatic/app-runtime';
 
 export const App = () => {
     // 소켓 슬롯은 Host가 세션에서 스스로 파생합니다(`useRuntimeSocketSlots`) — 앱은 아무것도
-    // 넘기지 않습니다. 캐시 스코프(cid/sid/uid)는 소비자가 스토어에서 읽습니다.
+    // 넘기지 않습니다. 캐시 스코프(cid/uid)는 소비자가 스토어에서 읽습니다.
     return (
         // Host가 세션 init을 게이트하고, 완료 후 아래를 마운트합니다:
         //   SocketBinder · SocketReauthBinder
@@ -68,7 +68,8 @@ export const App = () => {
 
 ### 1. 데이터 리포지토리 획득 (`runtime.data.useRuntimeRepositories`)
 
-현재 활성 스코프(`cid`/`sid`/`uid`)에 바인딩된 Chatic 리포지토리 묶음을 가져옵니다.
+현재 활성 스코프(`cid`/`uid`)에 바인딩된 Chatic 리포지토리 묶음을 가져옵니다. 사이트(`sid`)는
+스코프가 아니라 호출자가 메서드 인자로 지목하는 값입니다 (ADR-0085).
 
 ```tsx
 import { runtime } from '@chatic/app-runtime';

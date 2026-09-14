@@ -18,23 +18,21 @@ export interface MyPlaceProfileInput {
  */
 export const useSetMyPlaceProfile = (): ((value: MyPlaceProfileInput, siteId?: string) => Promise<void>) => {
     const { profile: profileRepository } = runtime.data.useRuntimeRepositories();
+    const { selectedSiteId } = runtime.session.useSessionSelection();
 
     return useCallback(
         async ({ nick, thumbnail }: MyPlaceProfileInput, siteId?: string) => {
             // Discards the saved profile the write resolves to: the form's onSubmit is
             // Promise<void>, and readers observe the profile cache instead of this return value.
-            if (siteId) {
-                // Pinned write. `setMyProfile` reads the sid off the ambient context, which a site
-                // switch only PRE-APPLIES optimistically before the token commits (app-runtime
-                // `switchSite`) — a write racing that switch lands on the previous place. The
-                // place-create flow knows exactly which place the profile belongs to, so it says so.
-                await profileRepository.setProfile({ nick, thumbnail, siteId, active: true } as Parameters<
-                    typeof profileRepository.setProfile
-                >[0]);
-                return;
-            }
-            await profileRepository.setMyProfile({ nick, thumbnail });
+            //
+            // One path. The write names its place — the caller's when it knows one (the place-create
+            // flow does), otherwise the selected place. This used to fork: `setMyProfile` read the
+            // site off the ambient data context, which a site switch only PRE-APPLIES before the
+            // token commits, so a write racing that switch landed on the previous place. The fork
+            // existed to dodge that; now that the site is an argument there is nothing to dodge
+            // (ADR-0085).
+            await profileRepository.setMyProfile({ nick, thumbnail }, siteId ?? selectedSiteId ?? '');
         },
-        [profileRepository]
+        [profileRepository, selectedSiteId]
     );
 };

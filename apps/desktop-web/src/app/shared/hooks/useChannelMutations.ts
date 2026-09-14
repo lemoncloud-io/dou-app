@@ -27,6 +27,9 @@ import { runtime } from '@chatic/app-runtime';
  */
 export const useDesktopChannelMutations = () => {
     const { channel: channelRepository, join: joinRepository } = runtime.data.useRuntimeRepositories();
+    // Tags the optimistic row created below; the repository used to take it off the ambient data
+    // context, which disagrees with the session during a site switch (ADR-0085).
+    const { selectedSiteId } = runtime.session.useSessionSelection();
     const [isMutating, setIsMutating] = useState(false);
 
     const run = useCallback(<T>(op: () => Promise<T>): Promise<T> => {
@@ -37,9 +40,9 @@ export const useDesktopChannelMutations = () => {
     const createChannel = useCallback(
         (payload: ChannelCreateInput): Promise<DomainChannel> => {
             if (!payload.stereo) return Promise.reject(new Error('stereo is required'));
-            return run(() => channelRepository.createChannel(payload));
+            return run(() => channelRepository.createChannel(payload, selectedSiteId ?? ''));
         },
-        [channelRepository, run]
+        [channelRepository, run, selectedSiteId]
     );
 
     const updateChannel = useCallback(

@@ -19,7 +19,7 @@ const committed = (count: number, channelId = 'channel-main') =>
     Array.from({ length: count }, (_, index) => chat(`c-${String(index + 1).padStart(3, '0')}`, index + 1, channelId));
 
 /**
- * chat_no 0 = 미전송 행(낙관적 전송 중이거나 실패). `ChatLocalDataSourceV2`가 이 값을 쓰고
+ * chat_no 0 = 미전송 행(낙관적 전송 중이거나 실패). `ChatLocalDataSource`가 이 값을 쓰고
  * `mappers.ts`가 서버 chatNo 없는 응답을 여기로 강등한다.
  */
 const unsent = (id: string, createdAt: number, channelId = 'channel-main') => ({

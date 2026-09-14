@@ -69,7 +69,7 @@ apps/web에 검색 진입점을 제공한다. 키워드 하나로 **활성 클�
     - **발신자 신원은 플레이스 표시 프로필이다** — 이름은 `profile.nick`, 사진은
       `profile.thumbnail`. 프로필 id는 `${sid}@${uid}`이며 **uid는 그 채팅의 주인
       (`chat.ownerId`), sid는 그 채팅이 속한 채널의 sid**다(쿼리 컨텍스트의 sid가 아니다).
-    - **프로필은 `ProfileRepositoryV2`에서 불러온다** — 검색 소스(캐시 전용)가 아니다.
+    - **프로필은 `ProfileRepository`에서 불러온다** — 검색 소스(캐시 전용)가 아니다.
       프로필 sync는 방 안에서만 멤버별로 등록되므로(`useChannelProfiles`) 한 번도 열지
       않은 방의 발신자는 캐시에 없다. 리포지토리는 캐시에 있는 것은 `observeList({ sid })`로
       관측하고 없는 것은 `refreshItem('${sid}@${uid}')`로 **실제로 당겨와** 캐시에 쓴다.
@@ -167,7 +167,7 @@ search/
 ├── pages/SearchPage.tsx          # 입력 + 최근검색어 + 섹션별 결과 렌더
 ├── hooks/useGlobalSearch.ts      # 디바운스 + 병렬 질의 + 섹션 데이터 조립
 ├── hooks/useSearchContext.ts     # resolveContext 호출 + 행 표시 모델 조립
-├── hooks/useSenderProfiles.ts    # 채팅 발신자 프로필 로드 (ProfileRepositoryV2)
+├── hooks/useSenderProfiles.ts    # 채팅 발신자 프로필 로드 (ProfileRepository)
 ├── hooks/useRecentSearches.ts    # usePreferenceStore 래핑 (LRU/삭제)
 ├── hooks/useSearchNavigate.ts    # 결과 클릭 → (cid/sid 전환) → 라우팅
 ├── components/ResultRow.tsx      # 순수 표시 행 (leading/title/subtitle/context/badge/trailing)

@@ -66,7 +66,7 @@ export interface ClientContainerOptions {
  * 불변조건 1), and the raw gateway packet bypasses everything that makes it safe — the epoch
  * serialization, the controller's own `_token`, the refresh timer rearm, and the `onTokenRefresh`
  * writeback that re-mints the AWS credentials. Same Pick policy as `AuthSocketDomainGateway`
- * (libs/data/src/data/remote/gateways/socket.ts): leaving an action out of the Pick is what keeps a
+ * (libs/data/src/remote/gateways/socket.ts): leaving an action out of the Pick is what keeps a
  * caller from reaching it. `switch`/`logout` are out for the same reason — they move session state
  * the lab does not own.
  */

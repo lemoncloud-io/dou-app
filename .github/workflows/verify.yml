@@ -1,0 +1,96 @@
+name: verify
+
+# The repo had no verification workflow. The other five build and deploy, `lint-staged` runs eslint
+# on staged files, and nothing else ran — so a type error or a failing test surfaced only when
+# somebody happened to run the command locally, and a fair amount of both accumulated unseen.
+#
+# What this gate covers is what passes today, listed explicitly. The projects left out are named at
+# the bottom with the reason, so shrinking that list is a visible piece of work rather than a
+# forgotten one.
+
+on:
+    pull_request:
+    push:
+        branches:
+            - develop
+
+concurrency:
+    group: verify-${{ github.ref }}
+    cancel-in-progress: true
+
+jobs:
+    verify:
+        name: lint · typecheck · test
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version-file: '.nvmrc'
+
+            - name: Get Yarn cache path
+              id: yarn-cache-dir-path
+              run: echo "dir=$(yarn cache dir)" >> $GITHUB_OUTPUT
+
+            - name: Cache dependencies
+              id: cache-dependencies
+              uses: actions/cache@v4
+              with:
+                  path: |
+                      ${{ steps.yarn-cache-dir-path.outputs.dir }}
+                      node_modules
+                  key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+                  restore-keys: |
+                      ${{ runner.os }}-yarn-
+
+            - name: Install dependencies
+              if: ${{ steps.cache-dependencies.outputs.cache-hit != 'true' }}
+              run: yarn install --frozen-lockfile
+
+            # Green across all 27 projects, so no exclusions here.
+            - name: Lint
+              run: npx nx run-many -t lint
+
+            # `--exclude` and not an allowlist: a project's dependencies are typechecked whether or
+            # not they are selected, so excluding the red ones only works while nothing green
+            # depends on them. `web` is excluded for that reason alone — it is clean on its own
+            # (`npx tsc --noEmit -p apps/web/tsconfig.app.json`), but its target pulls web-ui-kit.
+            - name: Typecheck
+              run: >
+                  npx nx run-many -t typecheck
+                  --exclude=@chatic/web-ui-kit,web,desktop-web,block-kit-builder,@chatic/landing,@chatic/mobile,chatic-deferred-link-cleanup
+
+            - name: Test
+              run: >
+                  npx nx run-many -t test
+                  --exclude=@chatic/bridges,@chatic/auth-sign,block-kit,web,@chatic/landing
+
+            # libs/db, libs/app-runtime and libs/bridges are missing from the root `workspaces`
+            # array (it still names `libs/bridge` and `libs/socket`, neither of which exists), so nx
+            # infers no `test` target for them and `run-many -t test` skips them without a word —
+            # 903 tests that had never run anywhere. Calling jest directly is what the lib READMEs
+            # already document. Fixing `workspaces` would make these three lines unnecessary.
+            - name: Test the libs nx cannot see
+              run: |
+                  npx jest --config libs/db/jest.config.js
+                  npx jest --config libs/app-runtime/jest.config.js
+                  npx jest --config libs/bridges/jest.config.js
+
+            # Left out of the gate, with the reason. Measured 2026-09-14.
+            #
+            #   typecheck   desktop-web                  21 errors, the long-standing baseline
+            #               @chatic/web-ui-kit            3, all in *.stories.tsx
+            #               @chatic/mobile               red
+            #               @chatic/landing              red
+            #               block-kit-builder            red
+            #               chatic-deferred-link-cleanup red
+            #               web                          clean alone; blocked by web-ui-kit
+            #
+            #   test        web                           7 failing of 2720 — useSetMyPlaceProfile,
+            #                                             PlaceProfilePage, useBackgroundSync
+            #               @chatic/auth-sign             1 failing of 12 (LemonHmacSigner.spec)
+            #               @chatic/bridges               `yarn test` cannot resolve jest; runs
+            #                                             above through the direct step instead
+            #               block-kit · @chatic/landing   red

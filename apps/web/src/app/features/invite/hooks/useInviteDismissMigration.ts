@@ -59,7 +59,7 @@ const clearLegacyCanceledIds = (): void => {
  * fields) — it is a one-way, shrinking-to-empty migration source, not a setting with a default and
  * an override. Read directly off its legacy key rather than through the registry.
  *
- * Gated on the default (relay) cloud being active: `InviteRepositoryV2`'s local writes are
+ * Gated on the default (relay) cloud being active: `InviteRepository`'s local writes are
  * themselves cid-gated (a write while some other cloud is active would seed an orphan row nothing
  * ever reads back), and marking the migration done before a real write landed would silently drop
  * the legacy records. The empty case (no legacy records at all — the common case for any install

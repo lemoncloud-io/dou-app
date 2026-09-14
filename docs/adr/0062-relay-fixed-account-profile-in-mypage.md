@@ -5,13 +5,13 @@
 - 대체: [ADR-0045](0045-relay-default-place-scoping-profile-step-and-avatar-unification.md) 결정 5 (2026-08-06 되돌림)
 - 관련: [ADR-0034](0034-relay-home-cloud-sheet-and-cloud-guide-redesign.md), [ADR-0042](0042-account-linking-server-slots.md), [ADR-0052](0052-invite-local-cache.md), [kind-scoped-routing.md](../../libs/app-runtime/docs/socket/kind-scoped-routing.md)
 
-> **이름 안내 (2026-09-01):** 이 문서가 쓰는 `*RemoteDataSource` · `RemoteGatewayBundle` · `*DomainGateway` · `remoteFactory` · `remote/data-sources/`는 **당시 이름**이다. 소켓 축이 `Socket` 접두로 옮겨간 뒤의 대응표는 [libs/data/docs/remote/README.md](../../libs/data/docs/remote/README.md#이름-규약-2026-09-01-리네임)에 있다. 기록이므로 본문은 그대로 둔다.
+> **이름 안내 (2026-09-01):** 이 문서가 쓰는 `*RemoteDataSource` · `RemoteGatewayBundle` · `*DomainGateway` · `remoteFactory` · `remote/data-sources/`는 **당시 이름**이다. 소켓 축이 `Socket` 접두로 옮겨간 뒤의 대응표는 [libs/data/docs/remote/README.md](../../libs/data/docs/remote/README.md#naming-history)에 있다. 기록이므로 본문은 그대로 둔다.
 
 ## 맥락
 
 MY 페이지와 그 하위 화면(계정 정보 · 프로필 수정 · 계정 연동 · 탈퇴)은 전부 **계정 레벨** 화면이다. 그런데 표시·편집이 모두 활성 세션을 따르고 있어서, 클라우드에 접속한 동안에는 같은 화면이 **클라우드 위임 레코드**를 보여주고 고쳤다. 클라우드 위임은 별도 백엔드에서 **다른 uid**를 발급하므로(`POST {cloudBackend}/oauth/exchange-token`), 사용자에게는 "클라우드를 바꾸면 내 계정이 바뀌는" 화면이었다.
 
-ADR-0045 결정 5가 이미 이 문제를 지적하고 `useMyUser`를 relay 스코프로 고정하려 했으나 **되돌려졌다**. 원인은 캐시였다: 로컬 캐시의 물리 키가 `${type}:${cid}:${uid}:${id}`이고 `UserLocalDataSourceV2`의 **읽기 경로가 `contextOverride`를 무시**하기 때문에, 클라우드가 활성인 동안에는 relay `user` 행을 되읽을 방법이 없다. 데이터 레이어에서 목적지만 relay로 바꾸면 응답은 relay 계정(relay uid)인데 캐시 파티션은 클라우드 것이어서, 그 행을 관찰하는 `useRuntimeProfile`(isGuest·권한)이 빈손이 된다.
+ADR-0045 결정 5가 이미 이 문제를 지적하고 `useMyUser`를 relay 스코프로 고정하려 했으나 **되돌려졌다**. 원인은 캐시였다: 로컬 캐시의 물리 키가 `${type}:${cid}:${uid}:${id}`이고 `UserLocalDataSource`의 **읽기 경로가 `contextOverride`를 무시**하기 때문에, 클라우드가 활성인 동안에는 relay `user` 행을 되읽을 방법이 없다. 데이터 레이어에서 목적지만 relay로 바꾸면 응답은 relay 계정(relay uid)인데 캐시 파티션은 클라우드 것이어서, 그 행을 관찰하는 `useRuntimeProfile`(isGuest·권한)이 빈손이 된다.
 
 한편 이미 깨져 있던 것이 하나 더 있다. `auth.linkAccount`는 진작부터 relay에 고정돼 있는데(메인유저가 relay 뒤 중앙 백엔드에 산다), 그 게이트인 `useLinkedAccounts`는 활성 세션의 `link$`를 읽고 있었다 — relay에서 맺은 연동이 클라우드 안에서는 "미연동"으로 읽히는 읽기·쓰기 스코프 불일치.
 
@@ -40,5 +40,5 @@ ADR-0045 결정 5가 이미 이 문제를 지적하고 `useMyUser`를 relay 스�
 ## 대안
 
 - **데이터 레이어에서 `user.profile`/`user.update`를 relay로 라우팅** — ADR-0045 결정 5가 시도했다가 되돌린 길. 캐시 파티션이 그대로 남고, `useRuntimeProfile`이 관찰하는 uid와 응답의 uid가 어긋난다. `libs`를 통해 desktop-web까지 영향이 간다.
-- **`InviteRepositoryV2`처럼 `cid === 'default'`일 때만 캐시 쓰기** — 저장소를 쓰면서 파티션 오염은 피하지만, 클라우드 활성 중에는 캐시가 비어 있어 결국 매번 소켓을 타야 한다. 그러면 저장소를 쓰는 이유가 사라진다. 토큰을 직접 읽는 편이 짧고 정직하다.
+- **`InviteRepository`처럼 `cid === 'default'`일 때만 캐시 쓰기** — 저장소를 쓰면서 파티션 오염은 피하지만, 클라우드 활성 중에는 캐시가 비어 있어 결국 매번 소켓을 타야 한다. 그러면 저장소를 쓰는 이유가 사라진다. 토큰을 직접 읽는 편이 짧고 정직하다.
 - **relay HTTP로 프로필 조회/수정** — `libs/web-core/src/api/users.ts`에 그런 엔드포인트가 없다. 예전 `PUT /users/{uid}`는 소켓 액션으로 대체되면서 사라졌다.
