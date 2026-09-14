@@ -55,8 +55,8 @@ jobs:
 
             # `--exclude` and not an allowlist: a project's dependencies are typechecked whether or
             # not they are selected, so excluding the red ones only works while nothing green
-            # depends on them. `web` is excluded for that reason alone — it is clean on its own
-            # (`npx tsc --noEmit -p apps/web/tsconfig.app.json`), but its target pulls web-ui-kit.
+            # depends on them. That is why a project can be clean on its own and still have to sit
+            # on this list until whatever it pulls goes green — which is how `web` came off it.
             - name: Typecheck
               run: >
                   npx nx run-many -t typecheck
@@ -88,6 +88,6 @@ jobs:
             #   test        web                           7 failing of 2720 — useSetMyPlaceProfile,
             #                                             PlaceProfilePage, useBackgroundSync
             #               block-kit                     6 spec files, but no jest config and no
-            #                                             test script — see docs/plans/
-            #                                             libs-module-harness-rollout.md
+            #                                             test script, so nothing runs them. Giving
+            #                                             it one is a decision, not a fix.
             #               @chatic/landing               red
