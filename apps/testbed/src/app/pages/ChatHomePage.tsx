@@ -138,7 +138,7 @@ export const ChatHomePage = () => {
         try {
             const profileSyncKind = `profile-sync:${cid}:${activeSiteId}`;
             const since = await repos.syncMeta.getSyncedAt(profileSyncKind);
-            const { syncedAt } = await repos.profile.syncProfiles(since);
+            const { syncedAt } = await repos.profile.syncProfiles(since, activeSiteId);
             await repos.syncMeta.setSyncedAt(profileSyncKind, syncedAt);
         } catch {
             // best-effort: 실패 시 워터마크를 전진시키지 않아 다음 틱에 같은 since로 재시도된다
@@ -234,7 +234,7 @@ export const ChatHomePage = () => {
     };
     const handleCreateChannel = async (name: string) => {
         const payload = buildChannelCreate(name);
-        if (payload) await repos.channel.createChannel(payload);
+        if (payload) await repos.channel.createChannel(payload, activeSiteId ?? '');
     };
     const handleEditChannel = (id: string) => async (name: string) => {
         const payload = buildChannelUpdate(id, name);

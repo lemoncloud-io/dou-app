@@ -153,7 +153,7 @@ export const useBackgroundSync = (): void => {
                     try {
                         const profileSyncKind = `profile-sync:${cid}:${activeSiteId}`;
                         const since = await repos.syncMeta.getSyncedAt(profileSyncKind);
-                        const { syncedAt } = await repos.profile.syncProfiles(since);
+                        const { syncedAt } = await repos.profile.syncProfiles(since, activeSiteId);
                         await repos.syncMeta.setSyncedAt(profileSyncKind, syncedAt);
                         syncStreakReporter.succeed('profile-delta');
                     } catch (error) {

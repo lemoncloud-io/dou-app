@@ -319,9 +319,39 @@ describe('ChannelRepository', () => {
         const { repository, channelSocketDataSource, channelLocalDataSource } = createRepository();
         channelSocketDataSource.fetchChannel.mockResolvedValue({ list: [] });
 
-        await repository.refreshList({});
+        await repository.refreshList({ sid: 'site-1' } as any);
 
         expect(channelLocalDataSource.cacheWriteMany).not.toHaveBeenCalled();
+    });
+
+    // ADR-0085 — the site is named by the caller, never taken off the ambient context. The provider
+    // above sits on 'site-1', so a caller naming 'site-2' proves which of the two wins.
+    it('refreshList refuses a query with no sid rather than falling back to the ambient one', async () => {
+        const { repository, channelSocketDataSource } = createRepository();
+
+        await expect(repository.refreshList({} as any)).rejects.toThrow(/query\.sid/);
+        // It must give up BEFORE asking the server: an unattributed answer is what opens the prune
+        // gate that would delete another site's cached channels.
+        expect(channelSocketDataSource.fetchChannel).not.toHaveBeenCalled();
+    });
+
+    it('createChannel tags the optimistic row with the CALLER site, not the ambient one', async () => {
+        const { repository, channelSocketDataSource, channelLocalDataSource } = createRepository();
+        channelSocketDataSource.createChannel.mockResolvedValue({ id: 'ch-new', sid: 'site-2' });
+
+        await repository.createChannel({ name: 'new' } as any, 'site-2');
+
+        expect(channelLocalDataSource.cacheWrite).toHaveBeenCalledWith(
+            expect.objectContaining({ sid: 'site-2' }),
+            expect.anything()
+        );
+    });
+
+    it('createChannel refuses to write an optimistic row it cannot attribute to a site', async () => {
+        const { repository, channelLocalDataSource } = createRepository();
+
+        await expect(repository.createChannel({ name: 'new' } as any, '')).rejects.toThrow(/siteId/);
+        expect(channelLocalDataSource.cacheWrite).not.toHaveBeenCalled();
     });
 
     it('getSelfChannel: writes the remote result (notes-to-self) to the local cache and returns it', async () => {

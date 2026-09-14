@@ -45,7 +45,9 @@ export const useBackgroundSync = (): void => {
             /* best-effort */
         });
 
-        void repos.channel.refreshList({}).catch(() => {
+        // `channel.mine` answers for whichever site the socket session is on; naming the site we
+        // BELIEVE that is what tags the rows and gates the prune inside refreshList (ADR-0085).
+        void repos.channel.refreshList({ sid: activeSiteId ?? '' }).catch(() => {
             /* best-effort */
         });
 
@@ -67,7 +69,7 @@ export const useBackgroundSync = (): void => {
         try {
             const profileSyncKind = `profile-sync:${cid}:${activeSiteId}`;
             const since = await repos.syncMeta.getSyncedAt(profileSyncKind);
-            const { syncedAt } = await repos.profile.syncProfiles(since);
+            const { syncedAt } = await repos.profile.syncProfiles(since, activeSiteId);
             await repos.syncMeta.setSyncedAt(profileSyncKind, syncedAt);
         } catch {
             // best-effort: on failure the watermark is not advanced → retried with the same since next tick

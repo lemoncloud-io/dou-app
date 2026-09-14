@@ -40,7 +40,12 @@ export interface IChannelRepository extends DisposableRepository {
     ): () => void;
     observeItem(id: string, callback: (item: DomainChannel | null) => void): () => void;
 
-    refreshList(query: DomainChannelListPayload): Promise<void>;
+    /**
+     * `channel.mine` — refreshes ONE site's list. `query.sid` is required: the answer describes
+     * whichever site the socket session is on, so the caller's belief about that site is what tags
+     * the rows and gates the prune below (ADR-0085).
+     */
+    refreshList(query: DomainChannelListPayload & { sid: string }): Promise<void>;
     // Fetch the channel list (with detail) straight from the server WITHOUT touching the cache.
     // The cache keys channels by `cid:uid:id` with no sid and channel ids collide across places, so
     // it can only hold one place's channels at a time; a flat returned list lets a caller aggregate
@@ -49,7 +54,8 @@ export interface IChannelRepository extends DisposableRepository {
     // Cloud-wide delta sync (channel.sync) — pulls channels changed since the cursor across all
     // places and advances syncedAt. Named like profile.syncProfiles for consistency.
     syncChannels(since: number): Promise<SyncChannelsResult>;
-    createChannel(payload: ChannelCreateInput): Promise<DomainChannel>;
+    /** `channel.create` — `siteId` is the site the optimistic row is tagged with (ADR-0085). */
+    createChannel(payload: ChannelCreateInput, siteId: string): Promise<DomainChannel>;
     updateChannel(payload: ChannelUpdateInput): Promise<DomainChannel>;
     inviteChannel(payload: ChatInviteInput): Promise<DomainChannel>;
     leaveChannel(payload: ChatLeaveInput): Promise<DomainChannel>;
@@ -165,7 +171,7 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
         return this.channelLocalDataSource.cacheClear(this.getRepositoryContext());
     }
 
-    public async refreshList(query: DomainChannelListPayload): Promise<void> {
+    public async refreshList(query: DomainChannelListPayload & { sid: string }): Promise<void> {
         // `channel.mine` does not filter by sid — the server returns every channel for
         // the current session's site. Two distinct concerns must NOT be conflated:
         //   1. each channel's `sid` field (used by the local sid filter) must be the
@@ -188,7 +194,10 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
             });
             return;
         }
-        const targetSid = query.sid ?? requestContext.sid;
+        // Named by the caller, never read off the ambient context: `targetSid` does not only tag the
+        // mapped rows, it opens the prune gate below. An absent one makes `answersForTarget` true
+        // unconditionally, which lets a response about another site delete this site's channels.
+        const targetSid = this.assertRequiredString(query.sid, 'query.sid');
         const mappingContext = this.getNormalizedContext({ ...requestContext, sid: targetSid });
         const remote = await this.channelSocketDataSource.fetchChannel(
             {
@@ -275,14 +284,19 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
         };
     }
 
-    public async createChannel(payload: ChannelCreateInput): Promise<DomainChannel> {
+    public async createChannel(payload: ChannelCreateInput, siteId: string): Promise<DomainChannel> {
         const tempId = `optimistic-channel-${Date.now()}`;
         const requestContext = this.getRequestContext();
         const normalizedContext = this.getNormalizedContext(requestContext);
+        // The optimistic row needs a site of its own: it is what routes the row to the site-filtered
+        // list observers, and `cacheWrite` refuses a channel whose sid cannot be resolved. The caller
+        // names it — the server creates the channel in its session's site, and the ambient sid used
+        // to stand in for that (ADR-0085).
+        const sid = this.assertRequiredString(siteId, 'siteId');
         // Optimistic rows are domain partials; cacheWrite normalizes the missing fields.
         const optimistic: Partial<DomainChannel> = {
             id: tempId,
-            sid: normalizedContext.sid || '',
+            sid,
             name: (payload as { name?: string }).name,
             updatedAt: Date.now(),
         };

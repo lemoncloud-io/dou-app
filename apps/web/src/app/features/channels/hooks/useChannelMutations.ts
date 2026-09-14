@@ -23,6 +23,9 @@ const INITIAL_PENDING: PendingState = { start: false, update: false, delete: fal
  */
 export const useChannelMutations = () => {
     const { channel: channelRepository, join: joinRepository } = runtime.data.useRuntimeRepositories();
+    // The optimistic row created below is tagged with this. The repository used to take it off the
+    // ambient data context, which disagrees with the session during a site switch (ADR-0085).
+    const { selectedSiteId } = runtime.session.useSessionSelection();
     const [isPending, setIsPending] = useState<PendingState>(INITIAL_PENDING);
 
     // Toggle one action's pending flag around its promise, and log the failure on the way out.
@@ -43,8 +46,8 @@ export const useChannelMutations = () => {
 
     const createChannel = useCallback(
         (payload: ChannelCreateInput): Promise<DomainChannel> =>
-            run('start', () => channelRepository.createChannel(payload)),
-        [channelRepository, run]
+            run('start', () => channelRepository.createChannel(payload, selectedSiteId ?? '')),
+        [channelRepository, run, selectedSiteId]
     );
 
     const updateChannel = useCallback(

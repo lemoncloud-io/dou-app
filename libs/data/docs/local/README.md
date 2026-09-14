@@ -21,6 +21,22 @@ local/
 `NativeDBAdapter`, `BaseDbAdapter`) and the compound queries (`ChatQueryExecutor`, `IndexedDBDatabase`)
 all live in `@chatic/db`. `ports/` declares only the interfaces those implementations satisfy.
 
+**And on native, `@chatic/db` is not the end of the line either.** `NativeDBAdapter` holds no rows —
+it turns every call into a bridge message. The SQLite that actually stores them belongs to the app
+shell, which is a separate deploy. A cache read therefore crosses three packages:
+
+```text
+libs/data     LocalDataSource → the CacheStorage port
+libs/db       IndexedDBAdapter   web    · rows live here, in the browser's IndexedDB
+              NativeDBAdapter    native · a bridge client holding no rows
+                                            ↓ SaveCacheData · FetchCacheData · …
+apps/mobile   CacheCrudService → SqliteDatabase   native · rows live here
+              database/sqlite/schema.ts · tables.ts · services/cache/cacheDomainVersions.ts
+```
+
+Which of the two a domain gets is decided by neither of them — `resolveCacheBackend` in
+`@chatic/app-runtime` owns that.
+
 **Choosing which adapter a domain gets is not this lib's job either.** `resolveCacheBackend` in
 `@chatic/app-runtime` decides environment, type pins and native capability in one place — see
 [cache-storage-routing.md](../../../app-runtime/docs/data/cache-storage-routing.md).
@@ -148,19 +164,21 @@ join). So emptying one room does not send an entire table across the bridge. A f
 that also needs a **subscribable local cache** reaches across three libs and the native shell, and
 only the middle of it is type-checked. Work top to bottom.
 
-| #   | Where                                                                                                                                                                                                   | Caught by                                                                                             |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| 1   | `CacheType` in [`libs/app-messages`](../../../app-messages/src/types/model/cache.ts) — the bridge vocabulary, not a local name                                                                          | the compiler, everywhere the union is switched on                                                     |
-| 2   | A slot in `createCacheStorages` ([ports/cacheStorage.ts](../../src/local/ports/cacheStorage.ts))                                                                                                        | [cacheStorage.test.ts](../../src/local/ports/cacheStorage.test.ts) pins the slots **and their order** |
-| 3   | The data source itself — extend `BaseLocalDataSource`, then add the key to `LocalDataSources` and its line in `createLocalDataSources` ([data-sources/index.ts](../../src/local/data-sources/index.ts)) | the compiler                                                                                          |
-| 4   | `REQUIRED_DOMAIN_VERSION` in app-runtime [`nativeCacheSupport.ts`](../../../app-runtime/src/data/nativeCacheSupport.ts), when the domain needs a minimum shell version                                  | **nothing**                                                                                           |
-| 5   | The native shell's own SQLite store                                                                                                                                                                     | **nothing**                                                                                           |
-| 6   | A repository — `buildRepositories` plus `DOMAIN_KEYS` in [repositories/index.test.ts](../../src/repositories/index.test.ts)                                                                             | that test                                                                                             |
+| #   | Where                                                                                                                                                                                                                                                           | Caught by                                                                                             |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| 1   | `CacheType` in [`libs/app-messages`](../../../app-messages/src/types/model/cache.ts) — the bridge vocabulary, not a local name                                                                                                                                  | the compiler, everywhere the union is switched on                                                     |
+| 2   | A slot in `createCacheStorages` ([ports/cacheStorage.ts](../../src/local/ports/cacheStorage.ts))                                                                                                                                                                | [cacheStorage.test.ts](../../src/local/ports/cacheStorage.test.ts) pins the slots **and their order** |
+| 3   | The data source itself — extend `BaseLocalDataSource`, then add the key to `LocalDataSources` and its line in `createLocalDataSources` ([data-sources/index.ts](../../src/local/data-sources/index.ts))                                                         | the compiler                                                                                          |
+| 4   | `REQUIRED_DOMAIN_VERSION` in app-runtime [`nativeCacheSupport.ts`](../../../app-runtime/src/data/nativeCacheSupport.ts), when the domain needs a minimum shell version — the app declares its own side in `apps/mobile` `services/cache/cacheDomainVersions.ts` | **nothing**                                                                                           |
+| 5   | The SQLite side in `apps/mobile` — a data source, a `CacheCrudService` arm, and the table in `database/sqlite/schema.ts`. `@chatic/db` needs no line: `NativeDBAdapter` is generic over `CacheType`                                                             | **nothing**                                                                                           |
+| 6   | A repository — `buildRepositories` plus `DOMAIN_KEYS` in [repositories/index.test.ts](../../src/repositories/index.test.ts)                                                                                                                                     | that test                                                                                             |
 
 **Steps 4 and 5 fail in silence, and the silence is by design.** `resolveCacheBackend` sends a type
 the installed shell cannot hold to web storage instead (ADR-0053) — that is the deliberate fallback
-for a shell that predates the domain, because the web deploys ahead of the app. Nothing logs an
-error. The cache simply reads empty for as long as the native side is missing, which is
+for a shell that predates the domain, because the web deploys ahead of the app. The app end agrees:
+`CacheCrudService.getDataSource` answers `null` for a type it does not know rather than throwing,
+because a throw would arrive on the web as a bridge error and muddy that very fallback. Nothing logs
+an error. The cache simply reads empty for as long as the native side is missing, which is
 indistinguishable from a permanent cold miss. So a new cache domain is not finished when it compiles;
 it is finished when the shell that stores it has shipped.
 

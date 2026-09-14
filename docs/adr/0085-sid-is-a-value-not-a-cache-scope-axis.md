@@ -142,18 +142,36 @@ sid와 서버가 실제로 쓰는 사이트가 어긋난다.
 
 | 덩어리                    | 자리                                                                                                                              | 처리                     |
 | ------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | ------------------------ |
-| **읽기 기본값**           | `ChannelRepository:191`, `ChannelLocalDataSource:55`·`:208`, `ProfileLocalDataSource:37`·`:244`                                   | 삭제. 타는 호출부가 없다 |
+| **읽기 기본값**           | `ChannelLocalDataSource:55`·`:208`, `ProfileLocalDataSource:37`·`:244`                                                            | 삭제. 타는 호출부가 없다 |
 | **쓰기 태그·매핑 폴백**   | `mappers:93`·`:215`, `ChannelLocalDataSource:111`·`:153`, `ProfileLocalDataSource:190`·`:219`, `ProfileSocketDataSource:54`·`:74` | 삭제. 사고의 출처다      |
-| **"내 현재 사이트" 계약** | `ProfileRepository:106`·`:150`·`:158`                                                                                             | 명시 인자로 올린다       |
+| **"내 현재 사이트" 계약** | `ProfileRepository:106`·`:150`·`:158`, `ChannelRepository:191`                                                                    | 명시 인자로 올린다       |
 
 세 번째만 시그니처가 바뀐다.
 
 - `setMyProfile(body)` → `setMyProfile(body, siteId)`
 - `syncProfiles(since)` → `syncProfiles(since, siteId)`
 - `setProfile`의 `input.siteId || context.sid` 폴백은 사라지고 `input.siteId`가 필수가 된다
+- `ChannelRepository.refreshList(query)`는 `query.sid`를 요구한다
+
+> **2026-09-14 보정 (구현 중).** `refreshList`를 처음엔 "읽기 기본값"으로 분류했다. 틀렸다.
+> 거기서 나온 `targetSid`는 응답 행에 사이트를 붙이기만 하는 게 아니라 **prune 게이트**
+> (`answersForTarget`)도 연다. 폴백만 떼면 `targetSid`가 `undefined`가 되어 `!targetSid`가 참이 되고,
+> **다른 사이트를 설명하는 응답이 이 사이트의 캐시를 지운다** — 주변 주석이 그러면 안 된다고 적어둔
+> 바로 그 경로다. 그래서 이 행은 "명시 인자" 덩어리로 옮겼다.
 
 호출부는 이미 sid를 쥐고 있다. `useSetMyPlaceProfile`은 두 갈래(핀 고정 / ambient)를 하나로 합칠
 수 있고, 그 갈래를 만든 주석도 같이 사라진다.
+
+바꿔야 할 호출부는 10곳이고 앱 셋에 걸쳐 있다.
+
+| 앱             | 자리                                                                                                |
+| -------------- | --------------------------------------------------------------------------------------------------- |
+| `apps/web`     | `PlaceProfilePage:73`, `useSetMyPlaceProfile:36`, `useBackgroundSync:156`                           |
+| `apps/testbed` | `RuntimeOverlay:411`, `ChatHomePage:141`                                                            |
+| `desktop-web`  | `useMyProfile:46`, `useBackgroundSync:70`·`:48`, `useRealtimeProfileSync:40`, `useRefreshOnPush:35` |
+
+`desktop-web` 다섯 곳이 이 트랙에서 가장 조심할 자리다 — 그 앱은 push로만 배포되고 되돌릴 수단이
+없으며 CI에 테스트 워크플로 자체가 없다. **맨 마지막에 손댄다.**
 
 배관도 같이 사라진다 — `getNormalizedContext`의 sid 정규화(`repositories/types.ts:79`),
 `BaseLocalDataSource.getSid`(`local/data-sources/types.ts:145`), 그리고 **생산자인

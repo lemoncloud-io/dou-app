@@ -26,13 +26,20 @@ import { runtime } from '@chatic/app-runtime';
  */
 export const useRefreshOnPush = (): void => {
     const { channel } = runtime.data.useRuntimeRepositories();
+    const { selectedSiteId } = runtime.session.useSessionSelection();
     const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    // Through a ref, not a dep: the site is needed when the debounce FIRES, and putting it in the
+    // effect deps would tear down and rebind the push/message listeners on every site switch.
+    // `channel.mine` answers for whichever site the socket session is on — naming the site we
+    // believe that is what tags the rows and gates the prune inside refreshList (ADR-0085).
+    const sidRef = useRef(selectedSiteId);
+    sidRef.current = selectedSiteId;
 
     useEffect(() => {
         const schedule = () => {
             if (timerRef.current) clearTimeout(timerRef.current);
             timerRef.current = setTimeout(() => {
-                void channel.refreshList({}).catch(() => undefined);
+                void channel.refreshList({ sid: sidRef.current ?? '' }).catch(() => undefined);
             }, 300);
         };
 

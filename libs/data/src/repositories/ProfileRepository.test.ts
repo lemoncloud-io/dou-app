@@ -42,7 +42,7 @@ describe('ProfileRepository', () => {
             syncedAt: 123,
         });
 
-        const result = await repository.syncProfiles(0);
+        const result = await repository.syncProfiles(0, 'site-1');
 
         // profile.sync delta → cache writes for the active site scope.
         expect(profileSocketDataSource.sync).toHaveBeenCalledWith({ since: 0 }, expect.anything());
@@ -151,7 +151,35 @@ describe('ProfileRepository', () => {
         });
     });
 
-    it('uses the scoped sid when setMyProfile delegates to setProfile (profile.set)', async () => {
+    // ADR-0085 — the site is an argument now. The provider sits on 'site-1', so an empty argument
+    // must fail rather than quietly resolve to it.
+    it('setMyProfile refuses an empty siteId instead of falling back to the ambient one', async () => {
+        const { repository, profileSocketDataSource } = createRepository();
+
+        await expect(repository.setMyProfile({ nick: 'x' } as any, '')).rejects.toThrow(/siteId/);
+        expect(profileSocketDataSource.set).not.toHaveBeenCalled();
+    });
+
+    it('syncProfiles refuses an empty siteId — its response rows carry no site of their own', async () => {
+        const { repository, profileSocketDataSource } = createRepository();
+
+        await expect(repository.syncProfiles(0, '')).rejects.toThrow(/siteId/);
+        expect(profileSocketDataSource.sync).not.toHaveBeenCalled();
+    });
+
+    it('syncProfiles stamps the CALLER site on the context the mapper reads', async () => {
+        const { repository, profileSocketDataSource } = createRepository();
+        profileSocketDataSource.sync.mockResolvedValue({ upserts: [], removals: [], syncedAt: 1 });
+
+        await repository.syncProfiles(0, 'site-2');
+
+        expect(profileSocketDataSource.sync).toHaveBeenCalledWith(
+            { since: 0 },
+            expect.objectContaining({ sid: 'site-2' })
+        );
+    });
+
+    it('setMyProfile stamps the site the CALLER named onto the delegated setProfile (profile.set)', async () => {
         const { repository, profileSocketDataSource, profileLocalDataSource } = createRepository();
         profileSocketDataSource.set.mockResolvedValue({
             id: 'site-1@me',
@@ -162,7 +190,7 @@ describe('ProfileRepository', () => {
             nick: 'After',
         });
 
-        const result = await repository.setMyProfile({ nick: 'After' } as any);
+        const result = await repository.setMyProfile({ nick: 'After' } as any, 'site-1');
 
         expect(profileSocketDataSource.set).toHaveBeenCalledWith(
             expect.objectContaining({ siteId: 'site-1' }),

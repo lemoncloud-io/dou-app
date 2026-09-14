@@ -37,7 +37,7 @@ export const useRealtimeProfileSync = (): void => {
             try {
                 const key = `profile-sync:${cid}:${selectedSiteId}`;
                 const since = await repos.syncMeta.getSyncedAt(key);
-                const { syncedAt } = await repos.profile.syncProfiles(since);
+                const { syncedAt } = await repos.profile.syncProfiles(since, selectedSiteId);
                 await repos.syncMeta.setSyncedAt(key, syncedAt);
             } catch {
                 // best-effort: the 60s background poll catches up if this pull fails

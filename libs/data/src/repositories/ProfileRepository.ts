@@ -23,12 +23,12 @@ export interface IProfileRepository extends DisposableRepository {
     refreshItem(id: string): Promise<DomainProfile | null>;
     /** profile.get-mine — reads my profile for the current session and writes it to local. */
     getMyProfile(): Promise<DomainProfile | null>;
-    /** profile.set — saves a profile (optimistically). */
+    /** profile.set — saves a profile (optimistically). `payload.siteId` says which site. */
     setProfile(payload: ProfileSetInput): Promise<DomainProfile>;
-    /** profile.set — saves my profile on the current site. */
-    setMyProfile(body: ProfileBody): Promise<DomainProfile>;
-    /** profile.sync — upserts/removes the multi-profile delta sync result into local. */
-    syncProfiles(since: number): Promise<ProfileSyncResult>;
+    /** profile.set — saves my profile on `siteId`. The caller names the site; see ADR-0085. */
+    setMyProfile(body: ProfileBody, siteId: string): Promise<DomainProfile>;
+    /** profile.sync — upserts/removes the multi-profile delta sync result for `siteId` into local. */
+    syncProfiles(since: number, siteId: string): Promise<ProfileSyncResult>;
 
     cacheRead(id: string): Promise<DomainProfile | null>;
     cacheReadList(query?: DomainProfileListPayload): Promise<DomainListResult<DomainProfile> | null>;
@@ -103,7 +103,10 @@ export class ProfileRepository extends BaseRepository implements IProfileReposit
         const requestContext = this.getRequestContext();
         const normalizedContext = this.getNormalizedContext(requestContext);
         const input = payload as { siteId?: string; userId?: string; active?: boolean };
-        const sid = this.assertRequiredString(input.siteId || normalizedContext.sid, 'sid');
+        // The payload names the site. It used to fall back to the ambient sid, which races a site
+        // switch: `switchSite` pre-applies the sid before the token commits, so a write landing in
+        // that window was tagged for one site and sent under another's session (ADR-0085).
+        const sid = this.assertRequiredString(input.siteId, 'siteId');
         const uid = this.assertRequiredString(input.userId || normalizedContext.uid, 'uid');
         const profileId = this.makeProfileId(sid, uid);
         const existing = profileId ? await this.profileLocalDataSource.cacheRead(profileId, requestContext) : null;
@@ -145,17 +148,19 @@ export class ProfileRepository extends BaseRepository implements IProfileReposit
         }
     }
 
-    public setMyProfile(body: ProfileBody): Promise<DomainProfile> {
-        const normalizedContext = this.getNormalizedContext();
-        const sid = this.assertRequiredString(normalizedContext.sid, 'sid');
+    // `async` so a missing siteId REJECTS rather than throwing synchronously out of a method that
+    // declares `Promise` — a caller using `.catch()` instead of `await` would never see it otherwise.
+    public async setMyProfile(body: ProfileBody, siteId: string): Promise<DomainProfile> {
+        const sid = this.assertRequiredString(siteId, 'siteId');
         return this.setProfile({ ...body, siteId: sid, active: true } as ProfileSetInput);
     }
 
-    public async syncProfiles(since: number): Promise<ProfileSyncResult> {
+    public async syncProfiles(since: number, siteId: string): Promise<ProfileSyncResult> {
         const requestContext = this.getRequestContext();
-        const normalizedContext = this.getNormalizedContext(requestContext);
-        // Sync is scoped to the active site; fail fast if it is missing.
-        this.assertRequiredString(normalizedContext.sid, 'sid');
+        // Sync is scoped to ONE site and the response rows do not name it, so the caller's site id
+        // is what the mapper stamps on them (ADR-0085). Fail fast rather than write unattributed rows.
+        const sid = this.assertRequiredString(siteId, 'siteId');
+        const normalizedContext = { ...this.getNormalizedContext(requestContext), sid };
 
         const { upserts, removals, syncedAt } = await this.profileSocketDataSource.sync({ since }, normalizedContext);
 

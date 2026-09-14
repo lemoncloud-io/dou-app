@@ -365,7 +365,8 @@ const UserProfileSection = () => {
 };
 
 // Edits the current user's site profile (nick/thumbnail) for the active place. Writes via
-// repos.profile.setMyProfile (optimistic cache + profile.set), which uses the live sid/uid.
+// repos.profile.setMyProfile (optimistic cache + profile.set); the site is named by this component
+// (ADR-0085) and is the same `sid` the profile id below is built from.
 const SiteProfileSection = () => {
     const repos = runtime.data.useRuntimeRepositories() as unknown as DataRepositories;
     const { activeServer } = runtime.session.useGlobalSession();
@@ -408,10 +409,13 @@ const SiteProfileSection = () => {
         setSaved(false);
         setSaving(true);
         try {
-            await repos.profile.setMyProfile({
-                nick: nick.trim(),
-                ...(thumbnail.trim() ? { thumbnail: thumbnail.trim() } : {}),
-            });
+            await repos.profile.setMyProfile(
+                {
+                    nick: nick.trim(),
+                    ...(thumbnail.trim() ? { thumbnail: thumbnail.trim() } : {}),
+                },
+                sid
+            );
             setSaved(true);
         } catch (e: any) {
             setError(e?.message ?? String(e));
