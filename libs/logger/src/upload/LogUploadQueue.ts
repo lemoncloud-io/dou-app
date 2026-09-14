@@ -1,3 +1,5 @@
+import { createLogId } from '../core/logId';
+
 import type { LogEntry, LogLevel } from '../core/types';
 
 /**
@@ -159,11 +161,25 @@ export class LogUploadQueue {
         return [...this.entries];
     }
 
-    /** Replaces contents, e.g. restoring a persisted queue or adopting an orphan. */
+    /**
+     * Replaces contents, e.g. restoring a persisted queue or adopting an orphan.
+     *
+     * **An id-less entry is given one here.** `id` is both the server's dedup key and the key the
+     * host acks by, so an entry without one can be uploaded but never removed: it ships again on
+     * every cycle and the server stores a fresh document each time. Records written by a build whose
+     * persistence dropped the field are exactly that case, and they are already on devices — so
+     * they are repaired on the way in rather than left to loop.
+     *
+     * Minting rather than discarding, for the same reason `CoreLogger.ingest` backfills a relayed
+     * entry's id: the entry is real and the only thing missing is a key. A fresh id can let one
+     * already-uploaded entry through a second time, which is the strictly better failure — the
+     * alternative is an entry that can never leave.
+     */
     public restore(restored: LogEntry[]): void {
         // A release build discards any `debug` a previous (watched) build left
         // behind: nothing there can read it, and it would occupy the store.
-        this.entries = this.acceptDebug ? restored : restored.filter(entry => entry.level !== 'debug');
+        const kept = this.acceptDebug ? restored : restored.filter(entry => entry.level !== 'debug');
+        this.entries = kept.map(entry => (entry.id ? entry : { ...entry, id: createLogId() }));
         this.enforceCapacity();
     }
 

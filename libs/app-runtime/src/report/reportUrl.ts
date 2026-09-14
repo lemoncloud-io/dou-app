@@ -12,6 +12,12 @@
  * segments are opaque resource ids the report already carries, query strings
  * are not.
  *
+ * **The same policy now also runs on every log entry** — `@chatic/logger`'s `redactText` masks
+ * query values inside any url it finds in a message or a string field. This file stays separate for
+ * one reason: `PRESERVED_PARAMS` below. A report is internal and needs the invite traceable; an
+ * uploaded log is not, so the log path preserves nothing. Any change to how a query is masked
+ * belongs in both.
+ *
  * Values are masked wholesale rather than by key name. Which parameter holds
  * the secret depends on the link that produced it, so a deny-list of names is a
  * guess — and the diagnostic value is in WHICH parameters were present, which

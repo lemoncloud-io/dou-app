@@ -218,3 +218,45 @@ describe('엔트리 id와 발생 시점 컨텍스트', () => {
         expect(entry.uid).toBe('u-old');
     });
 });
+
+/**
+ * The third argument used to mean different things per level: `error` unwrapped `{ error, data }`,
+ * the other three stored it whole. 42 call sites wrote the options shape at `warn`/`info`/`debug`
+ * anyway, so every one of them buried its fields at `data.data` and left `entry.error` empty —
+ * including the `observation` discriminator that ADR-0075 exists to make readable.
+ */
+describe('세 번째 인자는 레벨과 무관하게 같은 뜻이다', () => {
+    it.each(['debug', 'info', 'warn', 'error'] as const)('%s가 { error, data }를 풀어 담는다', level => {
+        const { entries, unsubscribe } = collect();
+        const boom = new Error('boom');
+
+        logger[level]('SOCKET', 'failed', { error: boom, data: { observation: 'sync-streak', streak: 3 } });
+        unsubscribe();
+
+        expect(entries).toHaveLength(1);
+        expect(entries[0].error).toBe(boom);
+        expect(entries[0].data).toEqual({ observation: 'sync-streak', streak: 3 });
+    });
+
+    it.each(['debug', 'info', 'warn'] as const)('%s에 넘긴 평범한 객체는 data로 남는다', level => {
+        const { entries, unsubscribe } = collect();
+
+        logger[level]('SOCKET', 'reconnected', { kind: 'relay', connectCount: 2 });
+        unsubscribe();
+
+        expect(entries[0].data).toEqual({ kind: 'relay', connectCount: 2 });
+        expect(entries[0].error).toBeUndefined();
+    });
+
+    // error만 시그니처가 다른 채로 남는다 — 예외를 그대로 넘기는 축약형이 오래 쓰였다.
+    it('error에 예외를 바로 넘기면 error 필드로 간다', () => {
+        const { entries, unsubscribe } = collect();
+        const boom = new Error('boom');
+
+        logger.error('SOCKET', 'failed', boom);
+        unsubscribe();
+
+        expect(entries[0].error).toBe(boom);
+        expect(entries[0].data).toBeUndefined();
+    });
+});

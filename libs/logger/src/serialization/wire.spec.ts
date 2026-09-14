@@ -131,4 +131,41 @@ describe('toWireLogEntry — 자격증명 마스킹', () => {
 
         expect(wire.error).toContain('boom');
     });
+
+    /**
+     * `message`는 `safeStringify`를 타지 않는다 — 이미 문자열이라 그대로 필드로 들어간다. 그래서
+     * 여기가 유일한 마스킹 지점이고, 이 테스트가 없으면 §2·§3이 요구하는 "서버 문구를 message에
+     * 넣는다"는 트리거가 그대로 평문 유출 경로가 된다.
+     */
+    it('message 안에 박힌 값도 마스킹한다', () => {
+        const wire = toWireLogEntry({
+            ...base,
+            message: '409 CONFLICT - user someone@user.test already exists',
+        });
+
+        expect(wire.message).toBe('409 CONFLICT - user [EMAIL] already exists');
+    });
+
+    it('message의 status와 요청 타입은 그대로 남는다', () => {
+        const wire = toWireLogEntry({ ...base, message: '404 NOT FOUND - relay.request(join.get)' });
+
+        expect(wire.message).toBe('404 NOT FOUND - relay.request(join.get)');
+    });
+
+    it('data가 벌거벗은 문자열로 와도 마스킹한다', () => {
+        // 키가 없으면 이름 기반 판정이 성립하지 않는다 — 모양 축만 남는다.
+        const wire = toWireLogEntry({ ...base, data: 'reply-to: someone@user.test' });
+
+        expect(wire.data).not.toContain('someone@user.test');
+        expect(wire.data).toContain('[EMAIL]');
+    });
+
+    it('존재 플래그는 살려 둔다 — 값을 안 싣기 위해 만든 필드다', () => {
+        const wire = toWireLogEntry({ ...base, data: { hasCode: true, hasPassword: false, errorCode: 409 } });
+
+        expect(wire.data).toContain('"hasCode":true');
+        expect(wire.data).toContain('"hasPassword":false');
+        expect(wire.data).toContain('"errorCode":409');
+        expect(wire.data).not.toContain('[REDACTED]');
+    });
 });

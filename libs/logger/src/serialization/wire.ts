@@ -1,4 +1,5 @@
 import { pickLogContext } from '../core/logContext';
+import { redactText } from '../redaction/valuePatterns';
 import { safeStringify } from './safeStringify';
 import { truncateText } from './truncateText';
 
@@ -13,8 +14,18 @@ import type { LogContext, LogEntry } from '../core/types';
  * capped here, and only known fields are copied, so an accidental payload
  * cannot ride along into storage.
  *
- * Masking is `safeStringify`'s job — it walks keys, unwraps Errors, breaks
+ * Masking of `data`/`error` is `safeStringify`'s job — it walks keys, unwraps Errors, breaks
  * cycles, and (see there) also looks inside strings that are themselves JSON.
+ *
+ * `message` is masked HERE, because nothing else can. It never reaches `safeStringify`: it is
+ * already a string and goes straight to the field, so until this call it was the one part of an
+ * entry that left the device with no masking at all. Key-based masking is no help either — a
+ * message has no keys. What it does have is interpolated values, and a `message` is where a server's
+ * own error text ends up verbatim (§2·§3 of the trigger catalog ask for the status in the message),
+ * and what a server puts in that text is not the client's decision.
+ *
+ * Masked BEFORE the cap, not after: capping first would leave the tail of a long secret in place
+ * once the placeholder no longer fit.
  *
  * There is no batch envelope. The server stores one entry as one document and
  * hoists the query axes off the entry itself, so a flat list is all it wants.
@@ -64,7 +75,7 @@ export const toWireLogEntry = (entry: LogEntry): WireLogEntry =>
         id: entry.id,
         level: entry.level,
         tag: entry.tag,
-        message: entry.message === undefined ? undefined : cap(entry.message),
+        message: entry.message === undefined ? undefined : cap(redactText(entry.message)),
         data: asWireText(entry.data),
         error: asWireText(entry.error),
         timestamp: entry.timestamp,
