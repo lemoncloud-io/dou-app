@@ -1,10 +1,13 @@
 <network-security-config>
     <domain-config cleartextTrafficPermitted="true">
         <domain includeSubdomains="true">REDACTED_BUCKET_NAME.s3-website.ap-northeast-2.amazonaws.com</domain>
+        <!--
+            localhost covers the local run: `mobile:android:local` sets up `adb reverse`, so the
+            emulator reaches the host's web dev server at localhost:5003 rather than a LAN address.
+            10.0.2.2 is kept as the emulator's built-in host alias. Do NOT add personal LAN IPs here
+            - they used to be committed one per developer. See apps/mobile/docs/local-run.md.
+        -->
         <domain includeSubdomains="true">10.0.2.2</domain>
         <domain includeSubdomains="true">localhost</domain>
-        <domain includeSubdomains="true">192.168.1.13</domain>
-        <domain includeSubdomains="true">192.168.1.129:5003</domain>
-        <domain includeSubdomains="true">192.168.1.129</domain>
     </domain-config>
 </network-security-config>
