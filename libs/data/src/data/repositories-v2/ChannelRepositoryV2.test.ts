@@ -324,6 +324,85 @@ describe('ChannelRepositoryV2', () => {
         expect(channelLocalDataSource.cacheWriteMany).not.toHaveBeenCalled();
     });
 
+    it('syncChannels — ids가 비어 있으면 무엇도 지우지 않는다', async () => {
+        const { repository, channelSocketDataSource, channelLocalDataSource } = createRepository();
+        // An empty active-id set is the same untrustworthy answer refreshList already refuses to act
+        // on: bound socket, session/site not ready yet. Acting on it here took the whole cloud's
+        // list, and nothing in apps/web fetches a channel.mine snapshot to put it back — so every
+        // 1:1 room went permanently, while channel.get-self kept restoring the notes-to-self one.
+        channelSocketDataSource.syncChannel.mockResolvedValue({ list: [], ids: [], syncedAt: 300 });
+        channelLocalDataSource.cacheReadList.mockResolvedValue({
+            list: [
+                { id: 'ch-dm-1', sid: 'site-1' },
+                { id: 'ch-dm-2', sid: 'site-1' },
+            ],
+        });
+
+        const result = await repository.syncChannels(0);
+
+        expect(channelLocalDataSource.cacheDeleteMany).not.toHaveBeenCalled();
+        expect(result.removedCount).toBe(0);
+    });
+
+    it('syncChannels — ids가 있으면 거기 없는 행을 정리하고, 지웠다는 사실을 남긴다', async () => {
+        const { repository, channelSocketDataSource, channelLocalDataSource } = createRepository();
+        channelSocketDataSource.syncChannel.mockResolvedValue({ list: [], ids: ['ch-1'], syncedAt: 300 });
+        channelLocalDataSource.cacheReadList.mockResolvedValue({
+            list: [
+                { id: 'ch-1', sid: 'site-1' },
+                { id: 'ch-gone', sid: 'site-1' },
+            ],
+        });
+
+        const result = await repository.syncChannels(0);
+
+        expect(channelLocalDataSource.cacheDeleteMany).toHaveBeenCalledWith(['ch-gone'], {
+            cid: 'cloud-a',
+            sid: 'site-1',
+            uid: 'me',
+        });
+        expect(result.removedCount).toBe(1);
+        // The only path that can empty the list used to take it in silence — removedCount is
+        // returned and no caller reads it, so the entry is the only trace a prune leaves.
+        expect(logger.warn).toHaveBeenCalledWith(
+            'CACHE',
+            expect.stringContaining('pruned local rows'),
+            expect.objectContaining({ data: expect.objectContaining({ removedCount: 1, removedIds: ['ch-gone'] }) })
+        );
+    });
+
+    it('restoreList — 스냅샷을 캐시에 쓰되 무엇도 지우지 않는다', async () => {
+        const { repository, channelSocketDataSource, channelLocalDataSource } = createRepository();
+        // The repair call. channel.mine answers for the socket session's site while the relay cache
+        // is read across every site, so a prune from here could take rooms the response never spoke
+        // for — writing is safe in a way deleting is not.
+        channelSocketDataSource.fetchChannel.mockResolvedValue({ list: [{ id: 'ch-1', sid: 'site-1' }] });
+        channelLocalDataSource.cacheReadList.mockResolvedValue({
+            list: [
+                { id: 'ch-1', sid: 'site-1' },
+                { id: 'ch-other', sid: 'site-2' },
+            ],
+        });
+
+        await repository.restoreList({});
+
+        expect(channelLocalDataSource.cacheWriteMany).toHaveBeenCalledWith(
+            [{ id: 'ch-1', sid: 'site-1' }],
+            expect.anything()
+        );
+        expect(channelLocalDataSource.cacheDeleteMany).not.toHaveBeenCalled();
+    });
+
+    it('restoreList — 빈 스냅샷이면 캐시를 건드리지 않는다', async () => {
+        const { repository, channelSocketDataSource, channelLocalDataSource } = createRepository();
+        channelSocketDataSource.fetchChannel.mockResolvedValue({ list: [] });
+
+        await repository.restoreList({});
+
+        expect(channelLocalDataSource.cacheWriteMany).not.toHaveBeenCalled();
+        expect(channelLocalDataSource.cacheDeleteMany).not.toHaveBeenCalled();
+    });
+
     it('getSelfChannel: 원격 조회 결과(나와의 채팅)를 로컬 캐시에 기록하고 반환한다', async () => {
         const { repository, channelSocketDataSource, channelLocalDataSource } = createRepository();
         channelSocketDataSource.getSelfChannel.mockResolvedValue({ id: 'self-channel', sid: 'site-1' });

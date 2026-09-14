@@ -28,6 +28,9 @@ import { isForeignContext } from './scopeGuards';
 const unionIds = (base: string[] | undefined, added: string[]): string[] =>
     Array.from(new Set([...(base ?? []), ...added]));
 
+/** How many pruned ids the prune entry names before the counts have to speak for the rest. */
+const PRUNE_LOG_ID_LIMIT = 20;
+
 export interface SyncChannelsResult {
     syncedAt: number;
     removedCount: number;
@@ -42,6 +45,10 @@ export interface IChannelRepositoryV2 extends DisposableRepositoryV2 {
     observeItem(id: string, callback: (item: DomainChannel | null) => void): () => void;
 
     refreshList(query: DomainChannelListPayload): Promise<void>;
+    // The same `channel.mine` snapshot as refreshList, written but never pruned — the way back for
+    // a list that is otherwise assembled from deltas alone. See the implementation for why the
+    // absence of the prune is the point.
+    restoreList(query: DomainChannelListPayload): Promise<void>;
     // Fetch the channel list (with detail) straight from the server WITHOUT touching the cache.
     // The cache keys channels by `cid:uid:id` with no sid and channel ids collide across places, so
     // it can only hold one place's channels at a time; a flat returned list lets a caller aggregate
@@ -166,14 +173,28 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
         return this.channelLocalDataSource.cacheClear(this.getRepositoryContext());
     }
 
-    public async refreshList(query: DomainChannelListPayload): Promise<void> {
-        // `channel.mine` does not filter by sid — the server returns every channel for
-        // the current session's site. Two distinct concerns must NOT be conflated:
-        //   1. each channel's `sid` field (used by the local sid filter) must be the
-        //      viewed site → tag it via the mapping context.
-        //   2. the cache write/read/delete must run under the LIVE context so the list
-        //      re-emit lands on the same scope key observers subscribed with; tagging the
-        //      write context with query.sid instead would silently miss those observers.
+    /**
+     * `channel.mine` for one site, written to the cache. Everything {@link refreshList} and
+     * {@link restoreList} share — which is everything up to, but not including, the decision to
+     * DELETE. That decision is the only thing that separates the two, so it is the only thing left
+     * outside here.
+     *
+     * Returns the rows it wrote plus the contexts the caller needs to reason about them, or `null`
+     * when it wrote nothing and the caller must do nothing either.
+     *
+     * `channel.mine` does not filter by sid — the server returns every channel for
+     * the current session's site. Two distinct concerns must NOT be conflated:
+     *   1. each channel's `sid` field (used by the local sid filter) must be the
+     *      viewed site → tag it via the mapping context.
+     *   2. the cache write/read/delete must run under the LIVE context so the list
+     *      re-emit lands on the same scope key observers subscribed with; tagging the
+     *      write context with query.sid instead would silently miss those observers.
+     */
+    private async ingestSnapshot(query: DomainChannelListPayload): Promise<{
+        domainList: DomainChannel[];
+        requestContext: DataContext;
+        targetSid: string | undefined;
+    } | null> {
         const requestContext = this.getRequestContext();
         // The socket that answers `channel.mine` may still serve the OUTGOING cloud during a
         // switch (cache cid already flipped). Writing its list under the new cid poisons the
@@ -182,12 +203,14 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
         if (isForeignContext(rawContext)) {
             // Intended drop, but a silent one leaves the stale list it produces unexplained — the
             // aggregator batches these so a switch costs one entry, not one per skip (ADR-0075).
+            // `channel-refresh` covers the restore too: the source names the SKIP SITE, and both
+            // callers are this one `channel.mine` request.
             foreignDropAggregator.record({
                 source: 'channel-refresh',
                 cid: rawContext.cid ?? 'default',
                 socketCid: rawContext.socketCid ?? 'none',
             });
-            return;
+            return null;
         }
         const targetSid = query.sid ?? requestContext.sid;
         const mappingContext = this.getNormalizedContext({ ...requestContext, sid: targetSid });
@@ -209,9 +232,17 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
         // is bound to the new cloud but its session/site may not be ready, so `channel.mine` answers
         // with an empty list; writing or pruning against that would wipe the real (sync-plan-populated)
         // channels and leave "No channels yet". A genuinely empty cloud settles on a later response.
-        if (domainList.length === 0) return;
+        if (domainList.length === 0) return null;
 
         await this.channelLocalDataSource.cacheWriteMany(domainList, requestContext);
+
+        return { domainList, requestContext, targetSid };
+    }
+
+    public async refreshList(query: DomainChannelListPayload): Promise<void> {
+        const ingested = await this.ingestSnapshot(query);
+        if (!ingested) return;
+        const { domainList, requestContext, targetSid } = ingested;
 
         const serverIds = new Set(domainList.map(item => item.id));
         const localResult = await this.channelLocalDataSource.cacheReadList(query, requestContext);
@@ -227,6 +258,26 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
         if (staleIds.length > 0 && answersForTarget) {
             await this.channelLocalDataSource.cacheDeleteMany(staleIds, requestContext);
         }
+    }
+
+    /**
+     * The same snapshot as {@link refreshList}, with the prune left out on purpose.
+     *
+     * Repair, not authority. The list a client shows is otherwise assembled entirely from deltas —
+     * `channel.sync` for the rooms, `channel.get-self` for the one notes-to-self room — and a delta
+     * stream has no way back: once a row is dropped from the cache the cursor keeps advancing, and
+     * only a CHANGE to that room would ever re-send it. So a row lost to a bad prune, a failed
+     * write or a cleared cache stays lost. This is the call that ends that.
+     *
+     * It must not delete, and that is the whole reason it is a separate method rather than a flag
+     * on `refreshList`. A repair that can also destroy is not a repair: `channel.mine` answers for
+     * the socket session's site while the relay cache is read across every site
+     * (`ChannelLocalDataSourceV2.cacheReadList` skips sid scoping on the default cloud), so a prune
+     * from here could take rooms the response was never speaking for. Writing is safe in a way
+     * deleting is not — a row written twice is the same row.
+     */
+    public async restoreList(query: DomainChannelListPayload): Promise<void> {
+        await this.ingestSnapshot(query);
     }
 
     public async fetchList(query: DomainChannelListPayload): Promise<DomainListResult<DomainChannel>> {
@@ -258,7 +309,22 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
             await this.channelLocalDataSource.cacheWriteMany(domainList, { ...requestContext, sid: '' });
         }
         let removedCount = 0;
-        if (remote.ids) {
+        // `ids` is the server's FULL active-channel set ("삭제 감지용"), so a local row missing from
+        // it has genuinely gone — but only when the answer can be trusted to BE that set, and an
+        // EMPTY one cannot be. It is the same untrustworthy answer `refreshList` already refuses to
+        // act on (see its guard above): right after a switch or a reconnect the socket is bound
+        // while its session/site is not ready, and the call comes back with nothing.
+        //
+        // Acting on it here is worse than there. This prune is not scoped to one site — on relay
+        // `cacheReadList` skips sid scoping entirely — so an empty answer takes the whole cloud's
+        // list, and `apps/web` never fetches a `channel.mine` snapshot, so what goes is gone: the
+        // cursor below advances all the same, and a delta only ever re-sends what CHANGED after it.
+        // (The self-chat survives that, because `channel.get-self` puts it back on every place
+        // entry — which is why an emptied relay list reads as "the 1:1 rooms disappeared".)
+        //
+        // Waiting costs nothing. An account that really has no channels keeps its stale rows until
+        // the first response that carries an id, and that response prunes them.
+        if (remote.ids?.length) {
             const activeIds = new Set(remote.ids);
             const localResult = await this.channelLocalDataSource.cacheReadList({}, requestContext);
             const staleIds = (localResult?.list || [])
@@ -267,6 +333,20 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
             if (staleIds.length > 0) {
                 await this.channelLocalDataSource.cacheDeleteMany(staleIds, requestContext);
                 removedCount = staleIds.length;
+                // The only path that can empty the channel list, and it used to take it in silence:
+                // `removedCount` is returned but no caller has ever read it. Written here, where the
+                // two sets are, so a list that LOST rows can be told apart from one that never
+                // received them — the question the sync-target stop entry already answers for the
+                // per-channel half. The ids are capped because `data` is length-capped in storage;
+                // the counts carry the shape when the list is truncated.
+                logger.warn('CACHE', '[ChannelRepositoryV2] channel delta pruned local rows', {
+                    data: {
+                        cid: requestContext.cid ?? 'default',
+                        removedCount,
+                        activeCount: activeIds.size,
+                        removedIds: staleIds.slice(0, PRUNE_LOG_ID_LIMIT),
+                    },
+                });
             }
         }
 

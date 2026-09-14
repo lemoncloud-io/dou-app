@@ -69,12 +69,14 @@ export const useBackgroundSync = (): void => {
     // Place snapshot + channel/profile delta sync with watermarks, plus the sent-invite list.
     // place.refreshList and invite.list are full snapshots (no cursor); channel.syncChannels /
     // profile.syncProfiles are delta APIs, so the stored syncedAt is passed as `since` and the
-    // returned syncedAt is persisted back.
+    // returned syncedAt is persisted back. The channel block adds a write-only `channel.mine`
+    // snapshot after its delta on the edges only — the deltas' way back, see there.
     const refreshActiveLists = useCallback(
         async ({ periodic = false }: { periodic?: boolean } = {}) => {
-            // These are four INDEPENDENT socket domains (user profile, channel delta, profile delta,
+            // These are four INDEPENDENT socket domains (user profile, channel, profile delta,
             // sent invites) plus the fire-and-forget place snapshot — they share no data dependency,
-            // so run them concurrently.
+            // so run them concurrently. The channel block is the one that is two calls deep, and
+            // they are sequential within it on purpose.
             // Awaiting them serially cost ~3 sequential socket round trips on every switch / 60s poll /
             // foreground; Promise.all collapses that to one round-trip depth. Each block keeps its own
             // getSyncedAt → sync → setSyncedAt watermark ordering internally.
@@ -108,6 +110,33 @@ export const useBackgroundSync = (): void => {
                         // Which is exactly why a STREAK of these matters — the cursor stays put and the
                         // channel list stops discovering anything (ADR-0075).
                         syncStreakReporter.fail('channel-delta', error);
+                    }
+
+                    // Repair snapshot. The delta above is the ONLY thing that adds rooms to this
+                    // list — `channel.get-self` covers the one notes-to-self room and nothing else
+                    // does — and a delta has no way back: a row that leaves the cache is re-sent
+                    // only if that room later changes, because the cursor has already moved past
+                    // it. So every cause of a lost row (a bad prune, a failed write, a cleared
+                    // cache) used to be permanent, and on relay it read as "the 1:1 rooms are
+                    // gone" — the self-chat is put back, the rest is not.
+                    //
+                    // `restoreList` writes without pruning, so this can only ever ADD; the delta
+                    // keeps sole authority over removals. It runs after the delta for that reason —
+                    // the snapshot should be the last word on what exists.
+                    //
+                    // Not on the periodic tick. The edges are what this is for — app entry,
+                    // reconnect, a switch, a foreground return — which is where a list is rebuilt
+                    // and where the user is about to look at it. A minute-by-minute snapshot would
+                    // pay for a repair that is almost never needed. Needs a site, like every other
+                    // site-scoped call here.
+                    if (periodic || !activeSiteId) return;
+                    try {
+                        await repos.channel.restoreList({});
+                        syncStreakReporter.succeed('channel-snapshot');
+                    } catch (error) {
+                        // best-effort: the next edge re-asks, and the delta still carries changes
+                        // in the meantime.
+                        syncStreakReporter.fail('channel-snapshot', error);
                     }
                 })(),
 
@@ -179,8 +208,11 @@ export const useBackgroundSync = (): void => {
 
     // Load the "나와의 채팅" (notes-to-self) channel for the active site via channel.get-self, which
     // caches it so it appears in the channel list. Runs on every place entry (rising edge + site
-    // switch); the cloud-wide delta sync (syncChannels) keeps the rest of the list converging, so no
-    // full channel.mine snapshot is needed here.
+    // switch); the rest of the list converges through the cloud-wide delta sync (syncChannels) and
+    // the repair snapshot beside it (restoreList) — both in refreshActiveLists.
+    //
+    // This staying separate is what made a lost row look like a 1:1-only bug: an emptied channel
+    // cache got its notes-to-self room back from here and nothing else back from anywhere.
     const loadSelfChannel = useCallback(async () => {
         // Only when a place is selected AND we are on the relay server (not a cloud server) —
         // cloud servers do not expose channel.get-self.

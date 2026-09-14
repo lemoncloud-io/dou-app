@@ -37,6 +37,7 @@ import { useAppForeground } from '../bridge';
 const refreshList = jest.fn();
 const getSelfChannel = jest.fn();
 const syncChannels = jest.fn();
+const restoreChannels = jest.fn();
 const syncProfiles = jest.fn();
 const getMyProfile = jest.fn();
 const getSyncedAt = jest.fn();
@@ -72,6 +73,7 @@ beforeEach(() => {
     refreshList.mockResolvedValue(undefined);
     getSelfChannel.mockResolvedValue(undefined);
     syncChannels.mockResolvedValue({ syncedAt: 100 });
+    restoreChannels.mockResolvedValue(undefined);
     syncProfiles.mockResolvedValue({ syncedAt: 200 });
     getSyncedAt.mockResolvedValue(0);
     setSyncedAt.mockResolvedValue(undefined);
@@ -80,7 +82,7 @@ beforeEach(() => {
     inviteCacheReadList.mockResolvedValue(cachedInvites());
     (runtime.data.useRuntimeRepositories as jest.Mock).mockReturnValue({
         place: { refreshList },
-        channel: { getSelfChannel, syncChannels },
+        channel: { getSelfChannel, syncChannels, restoreList: restoreChannels },
         profile: { syncProfiles },
         user: { getMyProfile },
         syncMeta: { getSyncedAt, setSyncedAt },
@@ -210,6 +212,78 @@ describe('useBackgroundSync — 백그라운드 동기화', () => {
         });
 
         expect(getSelfChannel).not.toHaveBeenCalled();
+    });
+
+    it('상승 엣지에서 채널 복구 스냅샷을 델타 뒤에 1회 부른다', async () => {
+        setVerified(false);
+        const { rerender } = renderHook(() => useBackgroundSync());
+        expect(restoreChannels).not.toHaveBeenCalled();
+
+        setVerified(true);
+        await act(async () => {
+            rerender();
+        });
+
+        expect(restoreChannels).toHaveBeenCalledTimes(1);
+        // Order matters: the snapshot is the repair, so it must be the last word on what exists.
+        expect(syncChannels.mock.invocationCallOrder[0]).toBeLessThan(restoreChannels.mock.invocationCallOrder[0]);
+    });
+
+    it('주기 타이머 틱에서는 복구 스냅샷을 부르지 않는다', async () => {
+        jest.useFakeTimers();
+        setVerified(true);
+        renderHook(() => useBackgroundSync());
+
+        await act(async () => undefined); // mount rising edge
+        expect(restoreChannels).toHaveBeenCalledTimes(1);
+
+        await act(async () => {
+            jest.advanceTimersByTime(60_000);
+        });
+        // The repair is for the edges; paying for it every minute buys nothing.
+        expect(syncChannels).toHaveBeenCalledTimes(2);
+        expect(restoreChannels).toHaveBeenCalledTimes(1);
+
+        jest.useRealTimers();
+    });
+
+    it('활성 사이트가 없으면 복구 스냅샷을 건너뛴다', async () => {
+        setSession('default', null);
+        setVerified(false);
+        const { rerender } = renderHook(() => useBackgroundSync());
+        setVerified(true);
+        await act(async () => {
+            rerender();
+        });
+
+        expect(restoreChannels).not.toHaveBeenCalled();
+    });
+
+    it('델타가 실패해도 복구 스냅샷은 그대로 쏜다', async () => {
+        // The delta failing is exactly when the list most needs the snapshot, so the repair must not
+        // be chained to its success.
+        syncChannels.mockRejectedValue(new Error('boom'));
+        setVerified(false);
+        const { rerender } = renderHook(() => useBackgroundSync());
+        setVerified(true);
+        await act(async () => {
+            rerender();
+        });
+
+        expect(restoreChannels).toHaveBeenCalledTimes(1);
+    });
+
+    it('복구 스냅샷 실패가 다른 동기화를 막지 않는다', async () => {
+        restoreChannels.mockRejectedValue(new Error('boom'));
+        setVerified(false);
+        const { rerender } = renderHook(() => useBackgroundSync());
+        setVerified(true);
+        await act(async () => {
+            rerender();
+        });
+
+        expect(syncChannels).toHaveBeenCalledTimes(1);
+        expect(syncProfiles).toHaveBeenCalledTimes(1);
     });
 
     it('self 채널 조회 실패가 다른 동기화를 막지 않는다', async () => {

@@ -11,6 +11,10 @@ export type SyncPath =
     | 'place-refresh'
     | 'my-profile'
     | 'channel-delta'
+    // The repair snapshot beside the delta above. Its own path because the two fail for different
+    // reasons and only one of them being down is the interesting state: the delta stalling is a
+    // stale list, the snapshot stalling is a list with no way back.
+    | 'channel-snapshot'
     | 'profile-delta'
     | 'sent-invites'
     | 'self-channel';
