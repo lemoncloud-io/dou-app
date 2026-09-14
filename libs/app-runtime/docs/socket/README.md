@@ -1,139 +1,278 @@
-# Socket Domain Spec
+# socket — two slots behind one facade
 
-## 목적
+`SocketManager` holds up to two `ClientSocketV2` clients at once: **relay**, on whenever a relay token
+exists, and **cloud**, on only while a cloud session is active. Almost everything that talks to a
+socket does not care which — gateways, sync and the UI address an **active facade** that resolves to
+cloud when a cloud slot is bound and relay otherwise. Only slot lifecycle, and the handful of things
+that must reach one specific server, address a `kind`.
 
-`socket` 도메인은 `@lemoncloud/chatic-sockets-lib` v2 기반 transport를 앱이 안정적으로 사용하도록 감싸는 레이어다.
+The React layer that turns session state into slots and drives them lives in `connection/`; it is
+covered here because the two halves only make sense together.
 
-핵심 두 가지:
+## Layout
 
-1. socket client 생성·교체·상태는 `SocketManager`가 소유한다. relay·cloud **두 슬롯**을 독립 관리하며, gateway/sync에는 하나의 **active-facade**로 노출한다.
-2. 인증 수명주기는 SDK `AuthController`(`client.auth`)가 소유한다. 상태를 들고 있는 controller 클래스는 없다. bootstrap 시퀀싱과 SDK 구독 배선은 `SocketBinder`가 호출하는 순수 함수 `bootstrapSocketConnection(...)`가, same-connection 재인증은 `SocketReauthBinder`가 담당한다.
+```text
+socket/                              32 source files, 21 tests
+├── SocketManager.ts   775 lines   the class. Nothing else is exported from this file
+├── types.ts                       SocketKind · SocketBindingConfig · SocketState · ISocketManager
+├── constants.ts                   AUTH_OPTIONS · SDK_REFRESH_CYCLE_MS · DEFAULT_VERIFY_TIMEOUT_MS · INITIAL_SOCKET_STATE
+├── runtime.ts                     getSocketManager — the one creation point
+├── socketFailureReporter.ts       classifies and reports rejected requests
+├── utils/                         annotateSocketError · getSocketErrorCode
+├── auth/          17 files        → docs/auth/
+└── sync/           8 files        → docs/sync/
 
-> 인증 소유 경계·상태 머신·서명/writeback 계약은 [../auth/README.md](./auth/README.md) · [../auth/usage.md](./auth/usage.md) · [../auth/signing.md](./auth/signing.md)가 SSoT다. 이 문서는 socket 계층에서 그것을 어떻게 배선하는지만 다룬다.
-
-## 핵심 구조
-
-```mermaid
-flowchart TD
-  Binder["SocketBinder (slot: relay / cloud)"] --> Bootstrap["bootstrapSocketConnection()"]
-  Reauth["SocketReauthBinder"] --> ReauthFn["reauthenticateActiveSocket()"]
-  Delegate["SocketSessionDelegate (per-kind)"] --> Bootstrap
-  Delegate --> ReauthFn
-  Bootstrap --> Manager["SocketManager (relay + cloud slots)"]
-  ReauthFn --> Manager
-  Bootstrap --> Auth["client.auth: AuthController (SDK)"]
-  Manager --> Client["createClientSocketV2({ auth: AUTH_OPTIONS })"]
-  Client --> Auth
-  Gateways["Remote Gateways"] --> Manager
-  Sync["SyncManager"] --> Manager
+connection/                          11 source files
+├── RuntimeConnectionHost.tsx      both hosts — one component, one switch
+├── SocketBinder.tsx               boots and tears down each slot
+├── SocketReauthBinder.tsx         re-authenticates a slot whose identity changed
+├── types.ts                       RuntimeSocketSlot · RuntimeSocketSlots
+├── utils/socketRebootKey.ts       the identity key both binders must agree on
+└── hooks/                         useRuntimeSocketSlots · useSocketSessionDelegate ·
+                                   useRuntimeSocketState · useKindVerified · useConnectivity
 ```
 
-## 듀얼 슬롯 + active-facade
+`socket/types.ts` has **zero value exports**, which is not an accident: `socket/index.ts` does
+`export * from './types'`, so a value placed there would land on the barrel every in-package consumer
+imports. `constants.ts` exists to hold those values instead, and it imports no runtime module — which
+is what lets `session/hooks/app/**` read `SDK_REFRESH_CYCLE_MS` without dragging the SDK in behind
+`SocketManager`.
 
-`SocketManager`는 `Map<SocketKind, ClientEntry>`로 `relay`·`cloud` 두 client를 **동시에** 들 수 있다. 각 슬롯은 자신의 `AuthController`·`boundCid`·인증 상태를 갖는다.
+## Responsibilities
 
-- **per-kind 접근**: `ensure(config, kind)`, `getClient(kind)`, `connect(kind)`, `setAuthenticated(kind, bool)`, `destroy(kind)`.
-- **active-facade**: `request/send/onType/onMessage/onState/onError`는 kind를 받지 않고 **active slot**(cloud가 있으면 cloud, 없으면 relay — `getActiveKind`)으로 위임한다. gateway는 어느 슬롯이 active인지 몰라도 된다.
-- `getBoundCid()` — active slot이 부팅 시 고정한 cid. sync/data가 cross-cloud frame을 걸러내는 데 쓴다.
+`SocketManager` owns: creating, rebuilding and destroying a client per kind; mirroring each slot's
+SDK authentication flag and composing it with transport state into a broadcast `SocketState`; the
+active facade; re-binding listeners across a client swap; freezing and reporting each slot's bound
+cloud id; and naming the call that produced a failed request.
 
-## 컴포넌트 책임
+It does **not** own: token acquisition or renewal, expiry refresh, reconnect re-authentication or the
+`auth.update` handshake — all the SDK's ([docs/auth/](../auth/README.md)); 401 detection and retry,
+which no longer exist anywhere; waiting for a connection before a request; or creating a sync runtime
+([docs/sync/](../sync/README.md)).
 
-### `SocketManager`
+**`request` does not wait for the socket to open.** Called before connect, the SDK rejects
+immediately with `503 SOCKET NOT CONNECTED`. Gating is the caller's job, through `isVerified`,
+`waitUntilVerified` or `waitUntilKindVerified`.
 
-책임:
+## The shared contract
 
-- kind별 `ClientSocketV2` 생성(`ensure`)·교체·`destroy`
-- kind별 인증 상태 미러링(`setAuthenticated`) + transport 연결과 합성한 `SocketState` 방송(`subscribe`)
-- active-facade `request/send/onType/onMessage/onState/onError`
-- client 교체 시 listener 재바인딩(`subscribeClient`)
-- 슬롯별 client 라이프사이클 방송(`subscribeSlotClients`) — 바인드/재빌드 시 `(kind, client)`, teardown 직전 `(kind, null)`. 같은 변경에서 active 알림(`subscribeClient`)보다 **먼저** 발화해, 슬롯별 부착물(SyncManager의 slot runtime)이 replay 전에 존재하도록 보장
-- `waitUntilVerified(timeoutMs=10_000)` — verified까지 대기(성공/실패 bool, reject 안 함)
-- **실패한 호출의 이름 붙이기** — facade를 빠져나가는 에러 메시지 뒤에 `<kind>.<action>(<type>)`을 덧붙인다. SDK의 transport 실패(`503 SOCKET NOT CONNECTED - WebSocketTransport.send()`)는 호출자가 누구든 동일해서, minify된 프로덕션 스택만으로는 **어느 요청이 닫힌 소켓과 레이스했는지** 알 수 없다. 모든 요청이 이 facade를 지나므로 kind와 type을 둘 다 아는 유일한 지점이다. 지켜야 할 세 가지: 상태코드는 **맨 앞에 유지**(`getSocketErrorCode`가 prefix를 읽는다), 원본 객체를 **wrap하지 않고 rethrow**(stack·`errorCode` 보존, Error가 아닌 rejection은 그대로 통과), 메시지가 이미 type을 담고 있으면 **건너뛴다**(SDK의 `408 REQUEST TIMEOUT - <type>[mid]`; 동시에 idempotent)
+### One interface, four concerns
 
-비책임:
+`ISocketManager` is a single interface with 24 members, grouped by comment banners rather than split
+into four types. The split was tried and withdrawn: four interfaces were exported and recomposed on
+the next line, and not one gateway ever declared the narrow slice it used — which made it a new
+public surface with zero consumers, exactly the category the barrel cleanup exists to remove. When a
+narrow type is genuinely needed, the repo's habit is a `Pick` at the point of use, the way
+`ScopedSocketClient` and `ActiveScope`'s `BoundCidSource` do it.
 
-- token 획득/갱신 정책, 만료 refresh, 재연결 재인증, `auth.update` orchestration — **SDK `AuthController`** 소유
-- **401 감지/재시도** — `request`는 더 이상 401을 가로채거나 재연결·retry를 하지 않는다(제거됨)
-- **연결 대기/재시도** — `request`는 소켓이 open일 때까지 기다려주지 않는다. 연결 전에 부르면 SDK가 즉시 `503 SOCKET NOT CONNECTED`로 reject하며, 게이팅은 여전히 호출처 책임(`isVerified` / `waitUntilVerified`)이다
-- sync runtime 생성 — `SyncManager` 소유
+| Concern                                        | Members                                                                                                                                                                                                 |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Slot lifecycle** — the only per-`kind` group | `ensure` · `connect` · `destroy` · `setAuthenticated` · `rebindCid`                                                                                                                                     |
+| **Request and push** — active facade           | `request` · `send` · `onType` · `onSlotType` · `onMessage` · `onState` · `onError` · `disconnect`                                                                                                       |
+| **Observation** — no lifecycle, no sending     | `getClient` · `getScopedClient` · `getSnapshot` · `subscribe` · `subscribeClient` · `subscribeSlotClients` · `waitUntilVerified` · `waitUntilKindVerified` · `isKindVerified` · `subscribeKindVerified` |
+| **Cache attribution**                          | `getBoundCid`                                                                                                                                                                                           |
 
-### `bootstrapSocketConnection(...)` (함수)
-
-`SocketBinder`의 각 슬롯이 config 변경 시 호출하는 순수 async 함수. 상태를 들고 있는 클래스가 아니며, 반환한 cleanup으로 구독을 해제한다.
-
-책임 — 순서 **`ensure` → 구독 → `register`+게이트 닫기 → `device.save:ok`/disconnect 구독 → `connect`**:
-
-1. `kind`는 SocketBinder가 슬롯별로 **명시 전달**(config에서 재유도하지 않음 — wssType 누락 시 relay 슬롯을 덮어쓰는 footgun 방지); `manager.ensure(config, kind)`
-2. `onAuthState` → `manager.setAuthenticated(kind, state==='authenticated')`; `expired` → `delegate.onAuthExpired(kind)`
-3. `onTokenRefresh` → `delegate.commitRefreshedToken(kind, view)`
-4. `delegate.getAuthRegistration(kind)` → `client.auth.register({ token, authId, sign })`(토큰만 시드) → `auth.stop()`(게이트 닫기: SDK의 `onState('connected')` 자동 발사 억제) — **`connect` 전에**
-5. `client.onMessage`에서 `device.save:ok` 필터 → `auth.start()`(게이트 열기: connected+토큰이면 `auth.update` 발사); `client.onState` closed/closing/idle → `auth.stop()`(재연결 대비 게이트 재폐쇄). `device.save:ok`는 `device.save` 요청의 응답이라 `onType`으로는 안 오고 `onMessage`로만 온다.
-6. `manager.connect(kind)`
-
-비책임:
-
-- 토큰 갱신 타이밍·만료 refresh·재연결 재인증·백오프·site switch — SDK `AuthController` 소유
-- **`auth.update`는 `device.save:ok` 이후에만 발사**(백엔드가 device 미등록 시 `auth.update`를 처리 못 함 — SDK의 connect-time 자동 발사를 stop/start 게이트로 억제·지연). **`client.auth.ready()` 호출 없음**(근거 → [../auth/README.md §3](./auth/README.md))
-
-### `SocketReauthBinder` / `reauthenticateActiveSocket(...)`
-
-같은 연결에서 신원(토큰)만 바뀌는 경우 — 실질적으로 **relay의 게스트→소셜 승격** 하나다 — 를 재인증한다. cloud는 감시하지 않는다: 전환이 항상 wss를 바꿔 리부트되기 때문이며(불변조건), 같은 클라우드의 토큰 재발급은 `renewCloudSession`이 직접 호출한다. relay 슬롯의 `identityToken` 변화를 reboot가 아닐 때만 관측 → `reauthenticateActiveSocket({ manager, delegate, kind })` 호출. `token===auth.token` no-op 가드 + `logout→register` resume 경로(상세 → [../auth/README.md §3](./auth/README.md)).
-
-## 상태 모델
-
-`SocketState`:
-
-- `state` — SDK 인증 상태 문자열
-- `isConnected` — transport 연결 여부
-- `isVerified` — `authenticated && connected` 파생
-- `connectionId` — **현재 항상 `null`(미배선, 알려진 갭)**
-
-주의:
-
-- device 등록 여부는 runtime 내부 세부라 socket public state에 드러내지 않는다.
-- `isVerified`는 kind별 SDK 상태(`setAuthenticated`)와 transport 연결을 합성한 active-facade 값이다. `useRuntimeSocketState()`가 UI에 노출한다.
-
-## 생성 규칙 — `createClientSocketV2`
-
-- `SocketManager` 내부에서만 호출하며 **`auth: AUTH_OPTIONS`를 넘긴다**(값·근거 → [../auth/README.md §2](./auth/README.md)).
-- `ensure(config, kind)`: config가 같으면 재사용, 바뀌면 기존 client를 파기하고 새로 생성하며 `boundCid`를 고정한다.
-
-## 인증 규칙 (요약)
-
-인증 수명주기는 SDK `AuthController`가 소유하고 socket 계층은 등록·구독·재인증 트리거만 배선한다. 만료 refresh·재연결 재인증·백오프는 모두 SDK 자동이며, socket 계층은 주기 타이머나 401 recovery를 두지 않는다. refresh/switch 성공분은 `onTokenRefresh` → `delegate.commitRefreshedToken(kind, view)`로 `session/store`에 단방향 writeback한다. 상세 상태 머신·파라미터 → [../auth/README.md §5](./auth/README.md).
-
-## site 전환 / 로그아웃 헬퍼
-
-socket 계층은 `client.auth`를 직접 노출하지 않고 `socket/auth/` 안의 헬퍼로 감싼다. 이 원함수들은 루트에서 export하지 않으며(내부 전용), 앱은 `session/`의 react-query 훅(`useSiteSwitch` · `useSessionLogout` · `useLogoutCloudSession`)으로 소비한다:
-
-- **`switchSite(siteId)`** ([switchSite.ts](../../src/socket/auth/switchSite.ts)) — 같은 소켓 내 site 변경. optimistic `applySelectedSite` → `waitUntilVerified()` → `client.auth.switch(`${uid}@${siteId}`)` → 실패 시 롤백·rethrow. 종류 변경(relay↔cloud, wss URL 변경)은 switch가 아니라 **새 소켓 생성**이며 `SocketBinder` 재부팅이 처리한다.
-- **`logoutSession(options?)`** ([logoutSession.ts](../../src/socket/auth/logoutSession.ts)) — 두 슬롯 best-effort `auth.logout()` + `logoutRelaySession()`(전체 로컬 정리). relay 토큰 소멸 → 두 슬롯 tear down.
-- **`logoutCloudSession()`** ([logoutCloudSession.ts](../../src/socket/auth/logoutCloudSession.ts)) — cloud 슬롯 best-effort `auth.logout()` + cloud 세션 teardown. cloud 슬롯만 tear down, relay 유지.
-
-## 외부 계약 — `SocketSessionDelegate`
-
-소켓 계층과 `session/`(세션 허브)을 잇는 계약. 모든 메서드가 소켓 **`kind`** 를 받는다(전역 active 참조 금지 — [../auth/signing.md §0](./auth/signing.md)). 배선은 app-runtime의 [`useSocketSessionDelegate`](../../src/connection/hooks/useSocketSessionDelegate.ts)가 소유하며, 앱이 주입하지 않는다.
+### A slot, and its bound cloud
 
 ```ts
-export interface SocketSessionDelegate {
-    // register 초기값: kind 기준 { token, authId } (relay/cloud 분기)
-    getAuthRegistration(kind: SocketKind): Promise<{ token: string; authId: string } | null>;
-    // SDK sign 콜백 본문. token 인자는 무시(kind 기준 서명), target은 switch 식별용
-    signAuth(kind: SocketKind, token: string, target?: string): Promise<{ signature: string; current: string }>;
-    // onTokenRefresh/switch 결과를 kind 저장소로 단방향 writeback
-    commitRefreshedToken(kind: SocketKind, view: AuthTokenView): Promise<void> | void;
-    // AuthController가 expired에 도달했을 때: cloud→logoutCloudSession, relay→logoutRelaySession(자동 로그아웃)
-    onAuthExpired?(kind: SocketKind): Promise<void> | void;
+interface SocketBindingConfig {
+    url: string;
+    deviceId: string;
+    wssType?: 'relay' | 'cloud';
+    cid?: string;
 }
 ```
 
-### gateway 사용 규칙
+`ensure(config, kind)` reuses the slot when the config is unchanged, and otherwise destroys the
+client and builds a new one — freezing `cid` as that slot's `boundCid`. That frozen value is the
+whole reason the field exists: a cloud switch flips the cache cid optimistically while the outgoing
+cloud's socket is still attached and still delivering frames, and those frames must not be written
+under the incoming cloud's cid. `getBoundCid()` reports the **active** slot's, and `ActiveScope`
+splices it into every repository read as `socketCid`.
 
-- gateway는 raw client를 직접 참조하지 않고 `SocketManager`의 active-facade(`request/send/onType`)만 쓴다.
-- socket 교체 시 listener 재바인딩은 `SocketManager`가 책임진다. (이 request facade가 과거 `ManagedSocketClientProxy` 역할을 흡수했다 — 별도 프록시 클래스는 없다.)
+`rebindCid(kind, cid)` re-points a slot without rebooting it — needed only for a same-wss cloud
+switch, where the URL does not change so `ensure` never re-runs.
 
-## 관련 문서
+### Active facade, and the two escapes from it
 
-- [../architecture.md](../architecture.md) — 전체 아키텍처·소유 규칙
-- [../public-surface.md](../public-surface.md) — 공개 API 표면
-- [../runtime/README.md](../runtime/README.md) — composition root·binder 역할
+`request` / `send` / `onType` / `onMessage` / `onState` / `onError` take no `kind`. A gateway does not
+know which slot is active, and that is the point.
+
+Some traffic must reach one specific server anyway — a setting whose owner sits behind relay, or a
+unicast the server only delivers on the relay connection even while a cloud is up. Two escapes exist,
+and they behave differently on purpose.
+
+**`getScopedClient(kind)` returns a stable `Pick<ISocketManager, 'request' | 'send' | 'onType'>`
+pinned to one slot.** It captures no client: `request` and `send` resolve `entries.get(kind)` on
+every call, so a slot rebuilt underneath it is picked up rather than held stale. With the slot
+unbound they **throw**. That is deliberate — a pin exists to guarantee a destination, and quietly
+falling back to the active slot would send a relay-only write to a cloud.
+
+**`onSlotType(kind, type, listener)` is the subscription counterpart, and it does not throw.** A
+request finishes the moment it is made; a subscription has to outlive the slot it was registered on,
+so the manager owns the entry and re-attaches it every time that slot rebinds — the same
+owned-subscription machinery as active `onType`, triggered by the slot's own rebind instead of an
+active-slot change. Registering against an unbound slot is a standing declaration ("attach when this
+slot exists"), and the relay slot is briefly absent during boot; it waits, and it never leaks onto
+the other slot. Re-binding happens in one place, `notifySlotClient`, because that is the single path
+both `ensure` and `teardownEntry` pass through — and teardown notifies while the client is still
+alive, so the old subscription is cleanly detached.
+
+Verification has per-kind counterparts for the same reason: `isKindVerified(kind)` (a snapshot),
+`waitUntilKindVerified(kind, timeoutMs?)` (one-shot, resolves `false` on timeout, never rejects) and
+`subscribeKindVerified(kind, listener)` (fires immediately, then on every change). Anything pinned
+with `getScopedClient` must gate on these — `waitUntilVerified` would wait on cloud the moment a
+cloud session came up.
+
+### State
+
+```ts
+interface SocketState {
+    state: ClientSocketState; // raw transport state
+    isConnected: boolean; // state === 'connected'
+    isVerified: boolean; // that slot is authenticated AND connected
+    connectionId: string | null;
+}
+```
+
+This is the **active** slot's state, broadcast through `subscribe` and surfaced by
+`useRuntimeSocketState()`. Device registration is a sync-runtime detail and deliberately not on it.
+
+`connectionId` is **always `null`** — nothing assigns it. It is a known gap, not a value to branch on.
+
+Two subscriptions to clients, and they are not interchangeable. `subscribeClient` fires with the
+**active** slot's client and again whenever the active slot changes. `subscribeSlotClients` fires per
+slot — `(kind, client)` on bind or rebuild, `(kind, null)` just before a teardown — replaying the
+currently bound slots on subscribe. For any one mutation **the slot notification comes first**, so a
+per-slot attachment exists before active-facade consumers react. `SyncManager` depends on that
+ordering.
+
+### Failed requests get a name, and a volume policy
+
+Everything goes through the facade, so it is the one place that knows both the kind and the message
+type. `annotateSocketError` appends `<kind>.<action>(<type>)` to the error message on the way out.
+Three rules keep that safe: the status code stays at the **front** (`getSocketErrorCode` parses a
+leading `[1-5]\d{2}`), the original object is rethrown rather than wrapped (stack and `errorCode`
+survive, and a non-`Error` rejection passes straight through), and it is skipped when the message
+already contains the type — which makes it idempotent. Without it, the SDK's
+`503 SOCKET NOT CONNECTED - WebSocketTransport.send()` is identical for every caller, and a minified
+production stack cannot say which request raced a closing socket.
+
+`socketFailureReporter` turns those rejections into log entries, which they previously never produced
+at all: a server's `*:error` frame settles the pending promise and calls no emitter, so whether
+anything was recorded depended on who happened to catch it. The classification exists for volume, not
+for interest:
+
+| Class         | Codes         | Treatment                                                                                |
+| ------------- | ------------- | ---------------------------------------------------------------------------------------- |
+| `unavailable` | 503 · 499     | Folded into a per-kind streak: the 1st warns, the 5th errors, the rest are silent        |
+| `timeout`     | 408           | One `warn` each — the request was accepted and never answered, and a retry may well work |
+| `server`      | anything else | One `error` each: a decision the server made about one request                           |
+
+503 is raised per send attempt while the transport is down; 499 rejects every in-flight and queued
+request at once when the socket closes. Both mean "there is no socket", which the connection-level
+triggers already report better — and while the socket is down, every registered sync target fails on
+every poll. **Anything that reached the server resets the streak, whatever its verdict**, including a
+403: a refusal proves the socket is up, so counting it as "still down" would keep the streak alive
+forever. A success that ends a streak emits one `info` naming how many were lost. A healthy device
+produces nothing, and no payload or response body is ever recorded — the status and the request type
+are the diagnosis; the arguments are where the personal data is.
+
+## Usage
+
+### Mounting the host
+
+```tsx
+<runtime.connection.RuntimeConnectionHost>{children}</runtime.connection.RuntimeConnectionHost>
+```
+
+`RuntimeHostProps` is `{ slots?, children? }`. **`slots` is normally omitted** — the host derives them
+itself. It remains as an override for tests and for a host that must inject them.
+
+The host is the single init driver: `useRelaySessionInit()` runs session initialization once and the
+host renders `null` until it resolves, so no binder mounts against an unprepared session. It also
+owns the per-kind auth delegate (`useSocketSessionDelegate`), so an app injects nothing, and it calls
+`useRelaySessionKeepAlive` above the gate.
+
+`RuntimeAuthHost` is the same component with background guest login switched off, for a console that
+must not silently acquire a session. It is a second named export rather than a prop with a default
+because a forgotten prop would hand a console a guest session and nothing would say so — the name is
+the safeguard.
+
+### How a slot is derived
+
+[`useRuntimeSocketSlots()`](../../src/connection/hooks/useRuntimeSocketSlots.ts) subscribes to exactly
+three signal kinds — `relay:token`, `cloud:token`, `selection` — and reads the matching narrow
+snapshot. **Both have to be narrowed together**: subscribing to a subset while reading the full
+context renders values from signals nobody is listening to. `identity` is excluded deliberately; boot
+alone emits it twice and every login adds one, each of which used to re-render this hook and hand
+both binders a new-but-equal slots object.
+
+Four rules produce the result:
+
+- **Each slot is gated on its own server having a token.** The relay wss is a static env value that exists before login, so gating on the URL alone would boot a socket with nothing to authenticate with. Login turns a slot on; logout turns it off.
+- **`identityToken` rides beside `config`, not inside it.** `SocketBinder`'s reboot key reads only `config`, so a token refresh leaves the config stable and the socket alive, while `SocketReauthBinder` watches this field per slot.
+- **The cloud slot carries no `identityToken` at all.** No two clouds share a wss host, so every cloud switch changes the URL and rebuilds the slot — there is no live connection to re-authenticate. That is an invariant, and a violation would be silent, so `SocketBinder` raises an error if a switch ever arrives on the same wss. A cloud token re-issued _without_ a switch is therefore invisible to both binders, and `renewCloudSession` re-registers explicitly.
+- **The cloud slot's cid is the committed cloud**, read from the delegation token — not the selected one, which flips at the start of a switch. Using the selected value made the config describe two clouds at once during the optimistic window: the target's cid next to the outgoing cloud's URL and token.
+
+### The two binders
+
+`SocketBinder` manages each slot independently. A slot's config appearing calls
+`bootstrapSocketConnection`; disappearing calls `manager.destroy(kind)`. The **reboot key** is
+`url|deviceId|wssType` and nothing else ([`socketRebootKey.ts`](../../src/connection/utils/socketRebootKey.ts)),
+and both binders read it from that one file so they cannot drift apart. `cid` is excluded because a
+cid-only change is an optimistic cloud switch — rebooting there would re-freeze `boundCid` to the
+target while still attached to the outgoing socket, which is precisely the cache poisoning
+`boundCid` exists to prevent. The identity token is excluded because a refresh must not reboot a
+healthy socket. On a real reboot the binder reads the current config, cid included, from a ref.
+
+It also calls `getSyncManager()` in its render body. That looks stray and is not: a slot's sync
+runtime must exist _before_ the slot binds, because the runtime owns that connection's
+`device.save`, and `device.save:ok` is what opens the auth gate. It used to work by accident —
+whichever code touched a repository first built the data manager, which built the socket runtime,
+which built sync — and this call states the requirement instead.
+
+`SocketReauthBinder` watches each slot's `identityToken` and calls `reauthenticateActiveSocket` when
+it moves **and a reboot is not already happening**, since a reboot re-registers anyway.
+
+### Reading connection state
+
+| Hook                      | Answers                                                                     |
+| ------------------------- | --------------------------------------------------------------------------- |
+| `useRuntimeSocketState()` | The **active** slot's `{ state, isConnected, isVerified, connectionId }`    |
+| `useKindVerified(kind)`   | Is _this_ kind verified, whatever is active — for gating a kind-pinned call |
+| `useConnectivity()`       | What to tell the **user**: `online` · `reconnecting` · `offline`            |
+
+`useConnectivity` is a display verdict, not an auth verdict, which is why it was never folded into
+`deriveAuthStatus`: it answers "what do we say", while `AuthStatus` answers "what does the runtime
+do". Its truth table encodes one asymmetry — `navigator.onLine` is a **reliable negative** (`false`
+proves there is no network and outranks every socket state, because a dropped link can sit in
+`connected` until the next frame fails) and an **unreliable positive** (`true` only proves an
+interface is up). So with the browser online, a closed socket reads as **reconnecting, not offline**:
+the fault is ours, and telling the user to check their wifi sends them after the wrong thing. Boot
+(`state === 'idle'`) reads as `online`, because nothing has been attempted yet.
+
+### What not to do
+
+- **Do not take a raw `ClientSocketV2` and hold it.** Clients are rebuilt on every config change. Use the facade, or `getScopedClient(kind)`, which re-resolves per call.
+- **Do not add a silent fallback to a kind-pinned request.** Throwing is the contract; the alternative is a relay-only write landing on a cloud server with no trace.
+- **Do not make a kind-pinned subscription throw when the slot is unbound.** It is a declaration, not a call, and the relay slot is legitimately absent for part of boot.
+- **Do not gate a `getScopedClient` call on `waitUntilVerified`.** That waits on cloud whenever cloud is up. Use `waitUntilKindVerified(kind)`.
+- **Do not put `cid` or the identity token into the reboot key.** Each exclusion has a specific failure attached, and both binders share the key.
+- **Do not put a value in `types.ts`.** `socket/index.ts` re-exports it wholesale.
+- **Do not branch on `connectionId`.** It is always `null`.
+
+## Notes for implementers and tests
+
+- `SocketManager.test.ts` mocks `createClientSocketV2` and drives a fake client. It is the biggest test in the package, and the kind-scoped cases are the ones that encode intent: a pinned request must survive a slot rebuild (lazy resolution), a pinned subscription must re-attach after a rebuild with the old one detached, registering on an unbound slot must not throw and must attach on the next `ensure`, and `destroy(kind)` must not leak a subscription onto the other slot.
+- Six listener sets live on the manager. When adding one, decide first whether it is active-scoped or slot-scoped — and remember that a slot notification must precede the active one for the same mutation.
+- `getSocketManager()` is a lazy process singleton with no reset seam. A test that needs a fresh manager constructs `new SocketManager()` directly.
+- `utils/annotateSocketError.ts` has no test of its own; its behaviour is asserted through the facade in `SocketManager.test.ts`.
+- `authUpdateAbsence.test.ts` sits in this folder but guards the whole package: it walks `src/**`, strips comments and fails if any code builds the string `'auth.update'`.
+
+## Further reading
+
+- [docs/auth/](../auth/README.md) — what `bootstrapSocketConnection` and `reauthenticateActiveSocket` do on these slots
+- [docs/sync/](../sync/README.md) — the per-slot runtimes `subscribeSlotClients` exists for
+- [docs/session/](../session/README.md) — the signals `useRuntimeSocketSlots` subscribes to
+- [`libs/data`](../../../data/README.md) — the gateways that bind to the active facade, and the relay-pinned ones

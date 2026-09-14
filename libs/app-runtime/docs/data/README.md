@@ -1,129 +1,180 @@
-# Data Domain Spec
+# data — assembling the repository graph
 
-## 목적
+[`libs/data`](../../../data/README.md) has no opinion about which storage engine backs a cache, which
+socket a gateway talks to, or what the current cache scope is. This folder supplies all three: it
+builds the three data-source bundles, injects the scope, and hands the result to `createRepositories`.
+The output is what `useRuntimeRepositories()` returns.
 
-`data` 도메인은 repository, local data source, remote data source를 조립해 앱이 사용할 headless data runtime을 제공한다.
+It owns nothing about _reading_ data. Streams, merges and cursors are the data layer's; sync timing
+is [docs/sync/](../sync/README.md)'s.
 
-이 문서에서 중요한 점은 `data`가 소켓 lifecycle을 소유하지 않는다는 것이다.
+## Layout
 
-## 조립 구조
-
-```mermaid
-flowchart TD
-  SocketManager["SocketManager"] --> Gateways["socket gateways"]
-  Gateways --> Remote["socket data sources"]
-  HttpManager["HttpManager"] --> HttpGw["http gateways"]
-  HttpGw --> Http["http data sources"]
-  Scope["ActiveScope (session/scope)"] --> Local["local data sources"]
-  Scope --> Repo["Repositories"]
-  Remote --> Repo
-  Http --> Repo
-  Local --> Repo
+```text
+data/                              17 source files, 8 tests
+├── DataManager.ts                two public methods. Everything is built in the constructor
+├── runtime.ts                    configureDataRuntime · getDataRuntime · getDataManager · getRepositories
+├── types.ts                      IDataManager · CacheAssemblyOptions
+├── cacheStorageRouting.ts        resolveCacheBackend — the one routing decision
+├── nativeCacheSupport.ts         what the installed shell says it can store
+├── invitedCloudDurability.ts     the one domain the server cannot re-list
+├── outbox.ts                     the offline chat outbox — a machine, not a policy
+├── index.ts                      the `data` facade group
+├── factories/                    socketFactory · localFactory · httpFactory
+└── hooks/                        useRuntimeRepositories · useGlobalCacheSearch ·
+                                  useInvitedCloudNameSync · useRegisterDeviceTokenMutation · queryKeys
 ```
 
-## 책임
+`factories/localFactoryFallback.test.ts` has no source file of its own: it covers the web-fallback
+log inside `localFactory.ts` and lives apart because it needs the bridge mocked.
 
-### `DataManager`
+## Responsibilities
 
-- local · socket · http 세 데이터소스 번들을 조립해 **생성자에서 1회** repository 그래프를 만든다
-- repository에 [`ActiveScope`](../../src/session/scope/ActiveScope.ts)를 `DataContextProvider`로
-  주입한다. scope는 매 read마다 intent(`{cid, uid}`)에 live `socketCid`(= `getBoundCid()`)를
-  합성하므로, repository가 socket이 붙은 클라우드와 캐시 컨텍스트 클라우드의 **불일치를 감지해 오염
-  쓰기를 스킵**할 수 있다(cross-cloud 가드 — [../session/architecture.md](../session/architecture.md)).
-- **local 데이터소스는 intent만 받는다** — `socketCid` 없이. 그들의 일은 캐시 파티션 키
-  (`${type}:${cid}:${uid}:${id}`)를 만드는 것이고, bound-socket 관점의 판정은 repository 층의 몫이다.
-- `getSocketManager()`는 **매 호출마다 해석**한다(생성 시점에 캡처하지 않는다). 런타임이 지연 조립되므로
-  생성 시점 인스턴스를 붙들면 아직 없는 매니저를 고정하거나 재조립을 놓친다.
+### `DataManager` — two methods, one constructor
 
-> **`ensure(context)`·`destroy()`는 없다.** 스코프가 매 read마다 `session/store`에서 파생되면서
-> 커밋할 것이 없어졌고, 컨텍스트를 받아 두고 무시하는 메서드는 "밀어 넣으면 반영된다"는 오해를
-> 초대하므로 표면에서 지웠다. 커밋을 되살리면 관측자가 stale cid로 구독하던 render-lag가 돌아온다.
-> 세션을 비우는 것은 로그아웃 경로의 일이지 이 매니저의 일이 아니다. 남은 표면은 `getRepositories()`와
-> `getContext()` 둘뿐이다.
+```ts
+interface IDataManager {
+    getRepositories(): DataRepositories;
+    getContext(): DataContext;
+}
+```
 
-### `socketFactory` · `httpFactory` · `localFactory`
+**`ensure(context)` and `destroy()` are gone.** They had already become no-ops once the scope moved
+to read-time derivation, and a method that accepts a context while ignoring it invites a caller to
+believe pushing one works. Clearing the _session_ is the logout path's job; the scope follows it.
+`RuntimeDataBinder`, which used to push that context on every session render, was deleted with them —
+so there is no mount point left to revive it from. Reviving the commit brings back the render lag
+where an observer subscribed under a stale cid and never received the post-commit write.
 
-- `socketFactory` — socket 기반 gateway 조립 → socket data source 번들
-- `httpFactory` — `HttpManager`의 게이트웨이 → http data source 번들
-- `localFactory` — 캐시 백엔드 실체화(`getCacheStorage`) + 공유 IndexedDB 연결, `getCacheMetricsSource`
-- 셋 다 repository가 사용할 인터페이스만 반환한다. 게이트웨이 인스턴스는 밖으로 나오지 않는다.
+The constructor builds everything once, in order: the socket data sources, the local ones (with the
+app's cache options), the HTTP ones, an `ActiveScope`, and then the repositories with that scope as
+their `DataContextProvider`. `getSocketManager()` is resolved **per call, never captured** — the
+runtime is assembled lazily, so holding an instance from construction time either pins a manager that
+does not exist yet or misses a rebuild.
 
-### repository
+**Local data sources receive only the selected scope**, without `socketCid`. Their job is to build a
+cache partition key (`${type}:${cid}:${uid}:${id}`); deciding whether a write belongs to the cloud the
+socket is actually attached to is the repository layer's, and that is what `ActiveScope.getContext()`
+splices `socketCid` in for.
 
-- local/remote 결과 해석
-- cache merge/remove
-- observe stream 제공
+### The three factories
 
-## 비책임
+Each returns only the interfaces a repository consumes; no gateway instance escapes.
 
-`data`는 아래를 직접 처리하지 않는다.
+- **`socketFactory`** builds the socket gateway bundle over `SocketManager`. Most entries bind to the active facade; the auth and invite gateways are pinned to relay with `getScopedClient('relay')`, and `device` is a routed trio (`{ active, relay, cloud }`) so the one relay-only device write can name its destination without every caller learning about routing. The auth bundle has **no `update` slot** — building an `auth.update` packet is the SDK's job alone.
+- **`httpFactory`** builds five HTTP data sources over the gateways in [docs/http/](../http/README.md): auth, user, cloud, subscription, report.
+- **`localFactory`** materializes `resolveCacheBackend`'s verdict as an adapter and wires nine storages — `channel`, `chat`, `inviteCloud`, `invite`, `join`, `profile`, `site`, `user`, `meta`. It holds the package's only module-level mutable state, a shared `IndexedDBDatabase`, because a database connection is a physical shared resource.
 
-- token refresh
-- 401 recovery orchestration
-- socket reconnect policy
-- sync runtime 생성/정지
+`localFactory` also produces two side outputs. It logs **one line per boot** naming the domains a
+native shell could not hold, so "why is this app re-downloading everything" is answerable from the
+client — and nothing at all on a plain browser, where web storage is not a fallback. And it records a
+**routing fingerprint**, which is what stops a sync cursor outliving the storage it described; both
+are in [cache-storage-routing.md](./cache-storage-routing.md).
 
-## transport 의존 규칙
+### Boot policy
 
-- `socketFactory`는 raw client에 직접 의존하지 않는다 — `SocketManager`의 stable active-facade를 쓴다.
-- `httpFactory`는 HTTP 클라이언트를 만들지 않는다 — `http/`가 조립한 게이트웨이를 받는다.
+```ts
+initAppRuntime({ data: { repositories, cache } });
+```
 
-이 규칙의 목적:
+`configureDataRuntime` registers the app's policy **before** the runtime singleton is built. Calls
+**merge** per key, so one app can register `repositories` and another `cache` without either knowing
+about the other. A call that arrives after the runtime exists is **ignored with a warning** rather
+than throwing or rebuilding — the graph is assembled once in a constructor, so there is nothing to
+apply it to.
 
-- socket 교체·슬롯 전환이 data 조립 로직으로 새지 않게 하기 위함
-- retry/rebind/서명 책임을 data가 떠안지 않게 하기 위함
+`CacheAssemblyOptions` has exactly one field, `maxChatsPerChannel`. Unset means unbounded, which is
+what every client did before and still does unless it opts in. It only bites on web storage; inside a
+native shell chat always routes to SQLite.
 
-## sync와의 경계
+### The four hooks
 
-- sync plan의 lifecycle은 `SyncManager`가 소유한다.
-- sync plan callback 결과를 local cache에 반영하는 것은 repository가 소유한다.
+| Hook                               | Returns                                                                  |
+| ---------------------------------- | ------------------------------------------------------------------------ |
+| `useRuntimeRepositories()`         | The repository graph, bound to the current scope                         |
+| `useGlobalCacheSearch()`           | `{ search, resolveContext }` — a search across every cloud's partition   |
+| `useInvitedCloudNameSync()`        | Fills in an invited cloud's name once its socket verifies. Native only   |
+| `useRegisterDeviceTokenMutation()` | The one REST call the runtime still owns — sold through the `push` group |
 
-정리:
+`cloudsKeys` is the only query key left here, because the runtime is one of the things that
+invalidates it — `useLogin` does, right after a login — while the apps invalidate it after their own
+cloud-changing actions. The other REST hooks went down to the app layer, where their only
+consumers were screens and react-query was the whole cache; keeping a catalogue copy per app is
+deliberate duplication, and what is shared is the repository call.
 
-- `SyncManager` = 언제 sync할지
-- `repository` = sync 결과를 어떻게 반영할지
+### The offline outbox
 
-## 런타임 반응 시나리오
+`createChatOutbox(options)` is a **machine, and activation is the app's opt-in** — `apps/web` never
+constructs one, so this export cannot change behaviour by existing.
 
-### cloud/site 전환
+```ts
+interface ChatOutbox {
+    start(): void;
+    stop(): void; // deactivates; the queue is kept
+    setReady(ready: boolean): void; // pass `isConnected && isVerified`
+    enqueue(input: OutboxEnqueueInput): void;
+    remove(id: string): void;
+    pending(channelId?: string): readonly OutboxEntry[];
+    flush(): Promise<void>;
+}
+```
 
-- 밀어넣는 단계가 없다. 선택 상태가 `session/store`에서 바뀌는 순간 `ActiveScope`가 다음 read부터
-  새 scope를 보고하고, repository는 그 기준으로 캐시를 읽는다.
-- 낙관 창(cid는 뒤집혔지만 소켓은 아직 옛 클라우드) 동안의 오염은 `socketCid` 합성 + scope guard가 막는다.
-- socket/session 계층의 재인증은 별도 책임이다.
+The guarantee is **at-least-once, in order, per channel** — not exactly-once, because the wire carries
+no idempotency key. What shapes the rest:
 
-### logout
+- **One attempt per ready transition.** That is structural, not a setting: there is no attempt counter and no backoff timer, so a flapping connection cannot turn into a send storm.
+- **Queues are per channel**, each with its own promise chain, and concurrent drains collapse into one.
+- **Dequeue is by identity, never by position** — an entry removed while a drain is in flight must not shift the one being sent.
+- **`hasLanded` is asymmetric.** `true` is strong; `false` only means "could not find it", so the entry is resent.
+- **A failed send retires the entry** and leaves the row marked failed, where the user can retry it deliberately.
 
-- 세션 teardown은 세션 레이어가 소유한다. `DataManager`에는 teardown 표면이 없다 — 지울 로컬 상태가
-  없기 때문이다.
-- 로컬 캐시는 비우지 않는다 — scope가 바뀌면 다른 파티션을 읽을 뿐이다.
+### Invited clouds
 
-## 저장소 선택과 web↔app 배포 스큐
+An invited cloud is the one domain with no server list API: if the row leaves the cache there is
+nothing to restore it from. Two functions defend it, both best-effort and both idempotent:
 
-`resolveCacheBackend(type)`(`cacheStorageRouting.ts`)가 도메인별 저장소를 고른다 — 라우팅
-결정의 단일 지점이며, `getCacheStorage`(`factories/localFactory.ts`)는 그 결과를 어댑터로
-실체화만 한다. 전체 설계는 [cache-storage-routing.md](cache-storage-routing.md) 참고. 판정은 셋뿐이다.
+- `recoverInvitedCloudIfMissing(cloud, cid)` — when a push names a cloud that is not in the cache, re-issue the relay delegation token and rebuild the endpoint from it. No name is written; the connection fills that in later. Since the one-time web-to-native migration was removed, this is the **only** recovery path left, and it is reactive: it repairs a cloud a push happens to name, never the list.
+- `syncInvitedCloudName(cloud, cid)` — a delegation token carries no name, so the authoritative one is read with `cloud.get` once the socket verifies. This is the only source for it.
 
-1. 브라우저(네이티브 브리지 없음) → 항상 web(IndexedDB).
-2. `WEB_PINNED_CACHE_TYPES`에 고정된 타입 → web(IndexedDB). 현재 비어 있다.
-3. **네이티브가 못 다루는 도메인** → web(IndexedDB). 그 외 → native(NativeDB/SQLite).
+The gap that remains is real and needs a backend change: a store wiped completely (a reinstall, a
+full cache clear) with no push carrying a cid has no recovery path. That is the price of the
+single-source rule, which is itself deliberate — a second parallel registry diverges, and then two
+answers exist with no way to tell which is right.
 
-3번이 배포 스큐 대응이다. 웹은 앱보다 먼저 배포되므로 **웹이 아는 CacheType이
-설치된 앱이 아는 것보다 많을 수 있다**. 그런 타입을 그냥 보내면 네이티브 `CacheCrudService`의
-`default:` 분기가 `success: true` + `null`로 답한다 — 에러가 아니라 **영원히 빈 캐시**로 보인다.
+## Usage
 
-판정은 **도메인별 계약 판번호**로 한다(ADR-0053): 앱은 자신이 **구현한** 판을 핸드셰이크로 보고하고,
-웹은 자신이 **요구하는** 판을 선언해 도메인마다 비교한다. 앱 보고는 실제 도달한 DB 상태에서 도출하고,
-서버 목록 API가 없어 캐시가 곧 권위인 도메인(`invitecloud`)은 아예 게이트 대상에서 뺀다. 판번호 체계,
-보고 형식, 새 도메인·새 판 추가 절차는 **[cache-contract-versions.md](cache-contract-versions.md)가
-소유한다** — 이 절은 라우팅에서 그 판정이 어디에 끼는지만 가리킨다.
+```ts
+// React
+const { channel, chat } = runtime.data.useRuntimeRepositories();
 
-## 관련 문서
+// Outside React — the same graph, resolved synchronously
+const repos = getRepositories();
+```
 
-- [cache-storage-routing.md](cache-storage-routing.md) — 캐시 저장소 라우팅 설계 (ADR-0051)
-- [cache-contract-versions.md](cache-contract-versions.md) — 도메인별 캐시 계약 판번호 협상 (ADR-0053) — 위 3번 판정의 소유 문서
-- [invite-local-cache.md](invite-local-cache.md) — 초대 목록 로컬 캐시·자격증명 분리 (ADR-0052) — `invite` CacheType이 스큐 게이트를 실제로 처음 통과한 사례
-- [invite-cloud-durability.md](invite-cloud-durability.md) — 초대클라우드 푸시 복구·이름 동기화
-- [../session/architecture.md](../session/architecture.md) — `ActiveScope` 세 뷰·판정 함수 소유자
-- [../architecture.md](../architecture.md) — 전체 아키텍처·소유 규칙
-- [../socket/sync/README.md](../socket/sync/README.md) — sync 결과의 cache 반영 경계
+Everything else about using a repository — subscribing with `observe*`, refreshing, writing —
+belongs to [`libs/data`](../../../data/README.md).
+
+### What not to do
+
+- **Do not add a direct-gateway escape hatch.** Every read and write goes through a repository, and gateway instances stay inside `data/` and `http/`.
+- **Do not revive `ensure`/`destroy` on `DataManager`.** The scope is derived at read time; a setter that ignores its argument is worse than no setter.
+- **Do not capture `getSocketManager()` at construction.** Resolve it per call.
+- **Do not put a routing branch in a factory, an adapter or an app.** `resolveCacheBackend` is the one decision point, and a second one drifts from it invisibly.
+- **Do not call `configureDataRuntime` after first repository access.** It is silently ignored (with a warning), which reads as "my policy does nothing".
+- **Do not give the outbox a retry timer.** One attempt per ready transition is the guarantee, and a timer turns a flapping socket into a send storm.
+
+## Notes for implementers and tests
+
+- The factories are stateless functions — receive, assemble, return. Module-level mutable state is allowed only for a physical shared resource (the IndexedDB connection) and for the runtime singletons.
+- `createLocalDataSources` accepts an injected `cacheStorageFactory`. Injecting one leaves the routing fingerprint empty, which **disables** the cursor check — fine in a test, but it means a fingerprint test has to use the real factory.
+- `nativeCacheSupport` exports `LOCAL_AUTHORITY_CACHE_TYPES` and `REQUIRED_DOMAIN_VERSION` for its own tests only; neither is on the package barrel, and `REQUIRED_DOMAIN_VERSION` is empty in production.
+- `setNativeCacheSupport` must run before the data runtime is built — `apps/web` calls it from `main.tsx`. A report arriving later cannot move a routing decision that has already been made, and `resetNativeCacheSupport()` is the test seam.
+- `localFactory.test.ts` asserts a full type × environment matrix rather than individual cases, so a routing change cannot slip in as a side effect of something else.
+
+## Further reading
+
+- [cache-storage-routing.md](./cache-storage-routing.md) — where a cache type lands, and the version negotiation behind it
+- [docs/session/](../session/README.md) — `ActiveScope`, the thing injected into every repository
+- [docs/http/](../http/README.md) — the gateways `httpFactory` builds over
+- [docs/sync/](../sync/README.md) — what writes into these repositories without a screen asking
+- [`libs/data`](../../../data/README.md) · [`libs/db`](../../../db/README.md) — the repository layer and the storage engines
