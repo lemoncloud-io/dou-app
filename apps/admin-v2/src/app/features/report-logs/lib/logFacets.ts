@@ -33,7 +33,19 @@ export interface FacetValue {
  * the list; the rail hides a facet with fewer than two values, which is what keeps that
  * from happening in practice.
  */
-export const FACET_KEYS = ['level', 'tag', 'app', 'env', 'appVersion', 'webVersion', 'route', 'source', 'os'] as const;
+export const FACET_KEYS = [
+    'level',
+    'tag',
+    'app',
+    'env',
+    'appVersion',
+    'webVersion',
+    'route',
+    'source',
+    'os',
+    'osVersion',
+    'model',
+] as const;
 
 export type FacetKey = (typeof FACET_KEYS)[number];
 
@@ -48,17 +60,15 @@ export type Facets = Record<FacetKey, FacetValue[]>;
  * tells you how many are unaccounted for.
  */
 export const buildFacets = (rows: ReportLogRow[]): Facets => {
-    const counters: Record<FacetKey, Map<string, number>> = {
-        level: new Map(),
-        tag: new Map(),
-        app: new Map(),
-        env: new Map(),
-        appVersion: new Map(),
-        webVersion: new Map(),
-        route: new Map(),
-        source: new Map(),
-        os: new Map(),
-    };
+    // Derived from `FACET_KEYS` rather than listed again: a hand-written literal here has to be
+    // edited in step with that list, and nothing but the compiler notices when it is not.
+    const counters = FACET_KEYS.reduce(
+        (acc, key) => {
+            acc[key] = new Map<string, number>();
+            return acc;
+        },
+        {} as Record<FacetKey, Map<string, number>>
+    );
 
     for (const row of rows) {
         for (const key of FACET_KEYS) {
@@ -116,6 +126,8 @@ const searchableOf = (row: ReportLogRow): string => {
         row.source,
         row.route,
         row.os,
+        row.osVersion,
+        row.model,
         row.appVersion,
         row.webVersion,
     ]

@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { parseReportLog } from './parseReportLog';
+import { parseReportLog, formatOs } from './parseReportLog';
 
 const errorPayload = {
     message: 'Boom failed\nsecond line',
@@ -333,8 +333,45 @@ describe('parseReportLog — 추적·파셋 축', () => {
         expect(row.appVersion).toBe('1.4.0');
         expect(row.webVersion).toBe('0.59.0');
         expect(row.route).toBe('/chat/1');
-        // OS and its version read as one value; that is the axis worth grouping by.
-        expect(row.os).toBe('iOS 18.1');
+        // Name and version stay APART. They are stored and filtered separately
+        // (chatic-backend-api#41), so joining them here would make a facet selection send
+        // `iOS 18.1` at a field holding `iOS` and match nothing. `formatOs` joins for display.
+        expect(row.os).toBe('iOS');
+        expect(row.osVersion).toBe('18.1');
+    });
+
+    it('joins the two only for display', () => {
+        expect(formatOs('iOS', '18.1')).toBe('iOS 18.1');
+        expect(formatOs('iOS', undefined)).toBe('iOS');
+        expect(formatOs(undefined, '18.1')).toBe('18.1');
+        expect(formatOs(undefined, undefined)).toBeUndefined();
+    });
+
+    it('lifts the device model, which had no row field before', () => {
+        const row = parseReportLog({
+            id: 'l3',
+            createdAt: 1,
+            meta: { level: 'info', tag: 'DEVICE', model: 'iPhone16' },
+        });
+
+        expect(row.model).toBe('iPhone16');
+    });
+
+    // `readAxis` prefers `meta` and falls back to the record's own field, so the top-level
+    // copies #41 writes are read without a second code path.
+    it('reads the round-2 axes from the hoisted record copy too', () => {
+        const row = parseReportLog({
+            id: 'l4',
+            createdAt: 1,
+            os: 'android',
+            osVersion: '15',
+            model: 'Pixel9',
+            meta: { level: 'info', tag: 'DEVICE' },
+        } as never);
+
+        expect(row.os).toBe('android');
+        expect(row.osVersion).toBe('15');
+        expect(row.model).toBe('Pixel9');
     });
 
     it('reads the hoisted record copy when the entry omitted an axis', () => {

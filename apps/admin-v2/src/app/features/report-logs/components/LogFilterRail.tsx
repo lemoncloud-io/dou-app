@@ -67,6 +67,8 @@ const CLIENT_FACETS: Array<{ key: FacetKey; label: string; onServer?: true }> = 
     { key: 'app', label: 'App' },
     { key: 'env', label: '환경' },
     { key: 'os', label: 'OS', onServer: true },
+    { key: 'osVersion', label: 'OS 버전', onServer: true },
+    { key: 'model', label: '기기', onServer: true },
 ];
 
 const fieldClass =
