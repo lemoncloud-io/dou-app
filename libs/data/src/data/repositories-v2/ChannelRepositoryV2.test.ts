@@ -10,6 +10,13 @@ jest.mock('@chatic/bridges', () => ({
 }));
 
 describe('ChannelRepositoryV2', () => {
+    // `logger` is the one mock shared across tests — the collaborators are rebuilt by
+    // `createRepository()` for each. Without this its calls accumulate, and any test that counts
+    // entries reads the previous test's as its own.
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
     const createRepository = () => {
         // Mock remote and local collaborators independently so orchestration behavior is easy to assert.
         const channelSocketDataSource = {
@@ -324,51 +331,94 @@ describe('ChannelRepositoryV2', () => {
         expect(channelLocalDataSource.cacheWriteMany).not.toHaveBeenCalled();
     });
 
-    it('syncChannels — ids가 비어 있으면 무엇도 지우지 않는다', async () => {
+    it('syncChannels — ids에 없는 행이 있어도 지우지 않고 기록만 한다', async () => {
         const { repository, channelSocketDataSource, channelLocalDataSource } = createRepository();
-        // An empty active-id set is the same untrustworthy answer refreshList already refuses to act
-        // on: bound socket, session/site not ready yet. Acting on it here took the whole cloud's
-        // list, and nothing in apps/web fetches a channel.mine snapshot to put it back — so every
-        // 1:1 room went permanently, while channel.get-self kept restoring the notes-to-self one.
-        channelSocketDataSource.syncChannel.mockResolvedValue({ list: [], ids: [], syncedAt: 300 });
+        // The real payload that settled this: `ids` is not symmetric between the two members of a
+        // 1:1 room. The room `1001669@1001670` came back for 1001669 and not for 1001670, so the
+        // side it was missing for deleted it on every sync while the other side kept it.
+        channelSocketDataSource.syncChannel.mockResolvedValue({
+            list: [],
+            ids: ['U:1001670'],
+            syncedAt: 300,
+        });
         channelLocalDataSource.cacheReadList.mockResolvedValue({
             list: [
-                { id: 'ch-dm-1', sid: 'site-1' },
-                { id: 'ch-dm-2', sid: 'site-1' },
+                { id: 'U:1001670', sid: 'site-1' },
+                { id: '1001669@1001670', sid: 'site-1' },
             ],
         });
 
-        const result = await repository.syncChannels(0);
+        await repository.syncChannels(0);
 
         expect(channelLocalDataSource.cacheDeleteMany).not.toHaveBeenCalled();
-        expect(result.removedCount).toBe(0);
+        expect(logger.warn).toHaveBeenCalledWith(
+            'CACHE',
+            expect.stringContaining('does not list rows the cache holds'),
+            expect.objectContaining({
+                data: expect.objectContaining({ missingCount: 1, missingIds: ['1001669@1001670'] }),
+            })
+        );
     });
 
-    it('syncChannels — ids가 있으면 거기 없는 행을 정리하고, 지웠다는 사실을 남긴다', async () => {
+    it('syncChannels — 같은 불일치는 한 번만 기록한다', async () => {
         const { repository, channelSocketDataSource, channelLocalDataSource } = createRepository();
+        // The poll runs every 60s. A standing disagreement written on each one would evict the
+        // entries that explain it.
         channelSocketDataSource.syncChannel.mockResolvedValue({ list: [], ids: ['ch-1'], syncedAt: 300 });
         channelLocalDataSource.cacheReadList.mockResolvedValue({
             list: [
                 { id: 'ch-1', sid: 'site-1' },
-                { id: 'ch-gone', sid: 'site-1' },
+                { id: 'ch-missing', sid: 'site-1' },
             ],
         });
 
-        const result = await repository.syncChannels(0);
+        await repository.syncChannels(0);
+        await repository.syncChannels(300);
 
-        expect(channelLocalDataSource.cacheDeleteMany).toHaveBeenCalledWith(['ch-gone'], {
-            cid: 'cloud-a',
-            sid: 'site-1',
-            uid: 'me',
-        });
-        expect(result.removedCount).toBe(1);
-        // The only path that can empty the list used to take it in silence — removedCount is
-        // returned and no caller reads it, so the entry is the only trace a prune leaves.
-        expect(logger.warn).toHaveBeenCalledWith(
-            'CACHE',
-            expect.stringContaining('pruned local rows'),
-            expect.objectContaining({ data: expect.objectContaining({ removedCount: 1, removedIds: ['ch-gone'] }) })
+        const gapEntries = (logger.warn as jest.Mock).mock.calls.filter(([, message]) =>
+            `${message}`.includes('does not list rows the cache holds')
         );
+        expect(gapEntries).toHaveLength(1);
+    });
+
+    it('syncChannels — 불일치가 사라졌다 다시 생기면 다시 기록한다', async () => {
+        const { repository, channelSocketDataSource, channelLocalDataSource } = createRepository();
+        channelSocketDataSource.syncChannel.mockResolvedValue({ list: [], ids: ['ch-1'], syncedAt: 300 });
+        channelLocalDataSource.cacheReadList.mockResolvedValueOnce({
+            list: [
+                { id: 'ch-1', sid: 'site-1' },
+                { id: 'ch-missing', sid: 'site-1' },
+            ],
+        });
+        await repository.syncChannels(0);
+
+        // Gap closed — the memo clears.
+        channelLocalDataSource.cacheReadList.mockResolvedValueOnce({ list: [{ id: 'ch-1', sid: 'site-1' }] });
+        await repository.syncChannels(300);
+
+        // Same gap returns; it is news again.
+        channelLocalDataSource.cacheReadList.mockResolvedValueOnce({
+            list: [
+                { id: 'ch-1', sid: 'site-1' },
+                { id: 'ch-missing', sid: 'site-1' },
+            ],
+        });
+        await repository.syncChannels(600);
+
+        const gapEntries = (logger.warn as jest.Mock).mock.calls.filter(([, message]) =>
+            `${message}`.includes('does not list rows the cache holds')
+        );
+        expect(gapEntries).toHaveLength(2);
+    });
+
+    it('syncChannels — 비교가 실패해도 동기화는 커서를 들고 끝난다', async () => {
+        const { repository, channelSocketDataSource, channelLocalDataSource } = createRepository();
+        // The comparison is diagnostic. Throwing would fail the sync, hold the cursor back and
+        // freeze the list — worse than a missing entry.
+        channelSocketDataSource.syncChannel.mockResolvedValue({ list: [], ids: ['ch-1'], syncedAt: 300 });
+        channelLocalDataSource.cacheReadList.mockRejectedValue(new Error('boom'));
+
+        await expect(repository.syncChannels(0)).resolves.toEqual({ syncedAt: 300 });
     });
 
     it('restoreList — 스냅샷을 캐시에 쓰되 무엇도 지우지 않는다', async () => {

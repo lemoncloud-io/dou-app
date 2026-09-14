@@ -28,12 +28,11 @@ import { isForeignContext } from './scopeGuards';
 const unionIds = (base: string[] | undefined, added: string[]): string[] =>
     Array.from(new Set([...(base ?? []), ...added]));
 
-/** How many pruned ids the prune entry names before the counts have to speak for the rest. */
-const PRUNE_LOG_ID_LIMIT = 20;
+/** How many ids the active-id gap entry names before the counts have to speak for the rest. */
+const GAP_LOG_ID_LIMIT = 20;
 
 export interface SyncChannelsResult {
     syncedAt: number;
-    removedCount: number;
 }
 
 export interface IChannelRepositoryV2 extends DisposableRepositoryV2 {
@@ -92,6 +91,9 @@ const LEFT_CHANNEL_GUARD_MS = 10_000;
 export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRepositoryV2 {
     /** channelId → the moment its leave guard lapses (see {@link LEFT_CHANNEL_GUARD_MS}). */
     private readonly leftChannelGuards = new Map<string, number>();
+
+    /** cid → the last active-id gap already reported, so a standing one is said once, not per poll. */
+    private readonly reportedIdGaps = new Map<string, string>();
 
     constructor(
         private readonly channelSocketDataSource: IChannelSocketDataSource,
@@ -295,7 +297,7 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
                 cid: rawContext.cid ?? 'default',
                 socketCid: rawContext.socketCid ?? 'none',
             });
-            return { syncedAt: since, removedCount: 0 };
+            return { syncedAt: since };
         }
         const normalizedContext = this.getNormalizedContext(requestContext);
         // Sync ingests channels across all places, so map without binding to the active sid.
@@ -308,52 +310,73 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
         if (domainList.length > 0) {
             await this.channelLocalDataSource.cacheWriteMany(domainList, { ...requestContext, sid: '' });
         }
-        let removedCount = 0;
-        // `ids` is the server's FULL active-channel set ("삭제 감지용"), so a local row missing from
-        // it has genuinely gone — but only when the answer can be trusted to BE that set, and an
-        // EMPTY one cannot be. It is the same untrustworthy answer `refreshList` already refuses to
-        // act on (see its guard above): right after a switch or a reconnect the socket is bound
-        // while its session/site is not ready, and the call comes back with nothing.
+        // **The delta does not remove.** `ids` is documented as the full active-channel set, and this
+        // used to prune against it. The set is not symmetric between the two members of a 1:1 room:
+        // the room `1001669@1001670` is listed for 1001669 and absent for 1001670. The side it is
+        // missing for deleted the room on every sync — and since `channel.get-self` puts the
+        // notes-to-self room back while nothing puts the others back, that read on screen as "my 1:1
+        // rooms disappeared".
         //
-        // Acting on it here is worse than there. This prune is not scoped to one site — on relay
-        // `cacheReadList` skips sid scoping entirely — so an empty answer takes the whole cloud's
-        // list, and `apps/web` never fetches a `channel.mine` snapshot, so what goes is gone: the
-        // cursor below advances all the same, and a delta only ever re-sends what CHANGED after it.
-        // (The self-chat survives that, because `channel.get-self` puts it back on every place
-        // entry — which is why an emptied relay list reads as "the 1:1 rooms disappeared".)
+        // A row the server merely did not mention is not evidence that I am out of the room. The two
+        // paths that ARE evidence keep the job: `leaveChannel` for the leave made here, and the sync
+        // target's 403/404 stop for a room the server actually refuses to serve. Between them a real
+        // departure still reaches the cache, and a gap in someone's id set no longer destroys local
+        // data that only `channel.mine` can bring back.
         //
-        // Waiting costs nothing. An account that really has no channels keeps its stale rows until
-        // the first response that carries an id, and that response prunes them.
-        if (remote.ids?.length) {
-            const activeIds = new Set(remote.ids);
-            const localResult = await this.channelLocalDataSource.cacheReadList({}, requestContext);
-            const staleIds = (localResult?.list || [])
-                .map(item => item.id)
-                .filter((id): id is string => !!id && !activeIds.has(id));
-            if (staleIds.length > 0) {
-                await this.channelLocalDataSource.cacheDeleteMany(staleIds, requestContext);
-                removedCount = staleIds.length;
-                // The only path that can empty the channel list, and it used to take it in silence:
-                // `removedCount` is returned but no caller has ever read it. Written here, where the
-                // two sets are, so a list that LOST rows can be told apart from one that never
-                // received them — the question the sync-target stop entry already answers for the
-                // per-channel half. The ids are capped because `data` is length-capped in storage;
-                // the counts carry the shape when the list is truncated.
-                logger.warn('CACHE', '[ChannelRepositoryV2] channel delta pruned local rows', {
-                    data: {
-                        cid: requestContext.cid ?? 'default',
-                        removedCount,
-                        activeCount: activeIds.size,
-                        removedIds: staleIds.slice(0, PRUNE_LOG_ID_LIMIT),
-                    },
-                });
-            }
-        }
+        // The disagreement is still worth knowing — it is the signal that says when the server side
+        // is fixed — so it is measured and reported instead of acted on.
+        await this.reportActiveIdGap(remote.ids, requestContext);
 
-        return {
-            syncedAt: remote.syncedAt,
-            removedCount,
-        };
+        return { syncedAt: remote.syncedAt };
+    }
+
+    /**
+     * Name the cached rows the delta's active-id set does not mention — and change nothing.
+     *
+     * This is the comparison the prune used to act on, kept for what it tells us and stripped of what
+     * it did. The read it costs is the one the prune already paid, so nothing new is spent.
+     *
+     * **Said once per distinct gap.** The sync runs on every 60s poll, so a standing disagreement
+     * would write the same entry all day and evict the entries that explain it. A gap that closes
+     * clears the memo, so the next one is reported again.
+     *
+     * **A failure here is swallowed.** This is diagnostic: letting it throw would fail the sync,
+     * which would hold the cursor back and freeze the list — a far worse outcome than a missing
+     * entry.
+     */
+    private async reportActiveIdGap(ids: string[] | undefined, requestContext: DataContext): Promise<void> {
+        if (!ids?.length) return;
+        const cid = requestContext.cid ?? 'default';
+        try {
+            const activeIds = new Set(ids);
+            const localResult = await this.channelLocalDataSource.cacheReadList({}, requestContext);
+            const missing = (localResult?.list || [])
+                .map(item => item.id)
+                .filter((id): id is string => !!id && !activeIds.has(id))
+                .sort();
+
+            if (missing.length === 0) {
+                this.reportedIdGaps.delete(cid);
+                return;
+            }
+            const signature = missing.join(',');
+            if (this.reportedIdGaps.get(cid) === signature) return;
+            this.reportedIdGaps.set(cid, signature);
+
+            logger.warn('CACHE', '[ChannelRepositoryV2] channel delta does not list rows the cache holds', {
+                data: {
+                    cid,
+                    missingCount: missing.length,
+                    activeCount: activeIds.size,
+                    missingIds: missing.slice(0, GAP_LOG_ID_LIMIT),
+                },
+            });
+        } catch (error) {
+            logger.warn('CACHE', '[ChannelRepositoryV2] could not compare the delta active-id set', {
+                error,
+                data: { cid },
+            });
+        }
     }
 
     public async createChannel(payload: ChannelCreateInput): Promise<DomainChannel> {
