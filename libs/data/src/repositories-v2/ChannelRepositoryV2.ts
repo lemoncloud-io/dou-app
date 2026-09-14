@@ -21,7 +21,6 @@ import type { IChannelSocketDataSource } from '../remote/socket-data-sources';
 import type { DataContext, DataContextProvider } from './types';
 import { BaseRepositoryV2, type DisposableRepositoryV2 } from './types';
 import { foreignDropAggregator } from '@chatic/logger';
-
 import { isForeignContext } from './scopeGuards';
 
 /** Merge id lists without duplicates, preserving the existing order. */

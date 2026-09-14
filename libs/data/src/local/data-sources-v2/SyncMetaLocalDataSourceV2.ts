@@ -1,6 +1,6 @@
 import type { CacheMetaView } from '@chatic/app-messages';
-import { logger, type ObservationData } from '@chatic/bridges';
 import type { DataContextProvider } from '../../repositories-v2/types';
+import { logger, type ObservationData } from '@chatic/bridges';
 import type { CacheStorage } from '../ports';
 import { resolveTtlMs } from '../ports/policy';
 import { BaseLocalDataSourceV2 } from './types';

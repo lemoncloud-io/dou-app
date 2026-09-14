@@ -11,7 +11,6 @@ import type {
 import type { DataContextProvider } from './types';
 import { BaseRepositoryV2, type DisposableRepositoryV2 } from './types';
 import { foreignDropAggregator } from '@chatic/logger';
-
 import { isForeignContext } from './scopeGuards';
 
 export interface IPlaceRepositoryV2 extends DisposableRepositoryV2 {
