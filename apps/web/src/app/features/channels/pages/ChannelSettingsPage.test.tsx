@@ -33,7 +33,11 @@ jest.mock('react-router-dom', () => ({
     useLocation: () => ({ state: null }),
 }));
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
-jest.mock('@chatic/bridges', () => ({ logger: { error: jest.fn() } }));
+// Every level, not just `error`: the page's divergence check logs `warn`, and a partial logger mock
+// turns that into a TypeError inside an effect cleanup.
+jest.mock('@chatic/bridges', () => ({
+    logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+}));
 jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
 // One factory for the whole module: the page reads the session identity here, and the role gate too

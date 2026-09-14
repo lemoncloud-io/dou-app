@@ -68,6 +68,7 @@ import type {
     FetchAppIconPayload,
     FetchAppIconListPayload,
     FetchFcmTokenPayload,
+    FetchBadgeBasePayload,
     FetchBadgeCountPayload,
     FetchPushMarksPayload,
     ShowNotificationPayload,
@@ -124,6 +125,7 @@ export type WebMessagePayloadMap = {
     // 2. Notification
     FetchFcmToken: FetchFcmTokenPayload;
     FetchBadgeCount: FetchBadgeCountPayload;
+    FetchBadgeBase: FetchBadgeBasePayload;
     FetchPushMarks: FetchPushMarksPayload;
     SetBadgeCount: SetBadgeCountPayload;
     ShowNotification: ShowNotificationPayload;

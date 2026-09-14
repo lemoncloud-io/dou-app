@@ -1,4 +1,5 @@
 import type { CacheType } from '@chatic/app-messages';
+import { logger } from '@chatic/bridges';
 import type { CursorQueryOptions, IIndexedDB, IndexedDbRow } from '@chatic/data';
 
 const DB_NAME = 'ChaticWebCacheDB';
@@ -37,6 +38,13 @@ export class IndexedDBDatabase implements IIndexedDB {
                 const db = (event.target as IDBOpenDBRequest).result;
                 let store: IDBObjectStore;
 
+                // A schema move rebuilds indexes and can leave a domain briefly unreadable, so the
+                // version it came from is what explains a cold cache right after an update
+                // (ADR-0075). One line per upgrade, which happens at most once per version.
+                logger.info('CACHE', `web cache schema upgrade v${event.oldVersion} → v${event.newVersion}`, {
+                    data: { from: event.oldVersion, to: event.newVersion },
+                });
+
                 if (!db.objectStoreNames.contains(STORE_NAME)) {
                     store = db.createObjectStore(STORE_NAME, { keyPath: 'key' });
                 } else {
@@ -61,16 +69,28 @@ export class IndexedDBDatabase implements IIndexedDB {
             request.onsuccess = () => {
                 const db = request.result;
                 db.onclose = () => {
+                    // Forced shut by the browser (storage pressure, profile eviction) rather than by
+                    // us. Reads in flight fail and the reopen below is the recovery — silent, this
+                    // looked like a burst of unrelated cache errors.
+                    logger.warn('CACHE', 'web cache closed unexpectedly — reopening');
                     this.dbPromise = this.openDB();
                 };
                 db.onversionchange = () => {
+                    // Another tab is upgrading the schema. Holding the connection would block it, so
+                    // this one steps aside and reopens — the multi-tab contention signal.
+                    logger.warn('CACHE', 'web cache version changed in another tab — reopening');
                     db.close();
                     this.dbPromise = this.openDB();
                 };
                 resolve(db);
             };
 
-            request.onerror = () => reject(request.error);
+            request.onerror = () => {
+                // No local cache for this session at all: every read misses and every write throws.
+                // The rejection alone reached callers as an anonymous failure per operation.
+                logger.error('CACHE', 'web cache failed to open', { error: request.error });
+                reject(request.error);
+            };
         });
     }
 
@@ -211,7 +231,14 @@ export class IndexedDBDatabase implements IIndexedDB {
         });
     }
 
-    async clearByRange(indexName: string, range: IDBKeyRange): Promise<void> {
+    /**
+     * Returns how many rows were removed.
+     *
+     * The count already existed here; it was thrown away. Callers that know WHAT they were evicting
+     * (a channel, a scope) need it to say so — this function knows only an index range, so it
+     * reports the number and lets the caller name it (ADR-0075).
+     */
+    async clearByRange(indexName: string, range: IDBKeyRange): Promise<number> {
         const keysToDelete = await this.readOperation<IDBValidKey[]>(store => {
             const index = store.index(indexName);
             return index.getAllKeys(range);
@@ -219,5 +246,6 @@ export class IndexedDBDatabase implements IIndexedDB {
         if (keysToDelete.length > 0) {
             await this.deleteAll(keysToDelete as string[]);
         }
+        return keysToDelete.length;
     }
 }

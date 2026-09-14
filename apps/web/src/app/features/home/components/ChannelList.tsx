@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { BellOff } from 'lucide-react';
@@ -33,6 +33,9 @@ import type { ChannelSortMethod } from '../../../stores/preferenceKeys';
 import { ROUTES } from '../../../routes/paths';
 import { useLastChats } from '../../../hooks/useLastChats';
 import { useBlurLastMessage, useChannelUnreads, useMyProfile } from '../../../hooks';
+import { divergenceReporter } from '../../../runtime/logging/divergenceReporter';
+import { readMarkRegistry } from '../../../runtime/logging/readMarkRegistry';
+import { readCursorOf } from '../../../utils/countUnread';
 import { resolveChannelAvatar, resolveChannelTitle } from '../../channels/lib';
 import { messagePlainText } from '../../channels/utils/messagePlainText';
 import { toPlainPreview } from '../../channels/utils/messageTokens';
@@ -283,6 +286,33 @@ export const ChannelList = ({
     const { userId: uid } = runtime.session.useSessionIdentity();
     // Unread is derived directly from the channel stream plus my join stream passed from HomePage.
     const { byChannel: unreadByChannel } = useChannelUnreads(channels, joinByChannel);
+    // Unread divergence (ADR-0075). A room the user read should draw no count here; when it still
+    // does, this separates the two causes — a read cursor that never landed in the cache, versus a
+    // cursor that did land while the `chatNo - metaNo` conversion still nets a count (ADR-0048).
+    //
+    // Once per list mount, not per render: the channel and join streams push constantly, and a
+    // comparison on every recompute would spend the device's log budget on a room that is merely
+    // busy. `readMarkRegistry` only holds rooms actually visited this session, so a fresh launch
+    // compares nothing.
+    const checkedRef = useRef(false);
+    useEffect(() => {
+        if (checkedRef.current || channels.length === 0) return;
+        checkedRef.current = true;
+        for (const channel of channels) {
+            const marked = readMarkRegistry.markOf(channel.id);
+            if (marked === undefined) continue;
+            const join = joinByChannel?.get(channel.id);
+            divergenceReporter.unread({
+                channelId: channel.id,
+                markedChatNo: marked,
+                cursorChatNo: readCursorOf(join),
+                headChatNo: channel.chatNo,
+                drawn: unreadByChannel[channel.id] ?? 0,
+                hasReadMetaNo: join?.metaNo !== undefined,
+            });
+        }
+    }, [channels, joinByChannel, unreadByChannel]);
+
     // 1:1 peers for every DM row, named by ONE list-level profile subscription (not one per row).
     const dmPeers = useDmPeers(sid, channels, uid);
     // Last-message previews for every row, from ONE combined observation (ADR-0057): the whole

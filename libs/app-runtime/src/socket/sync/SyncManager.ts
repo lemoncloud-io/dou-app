@@ -105,7 +105,7 @@ export class SyncManager implements ISyncManager {
 
         for (const [key, entry] of [...this.watchEntries.entries()]) {
             if (entry.uid === uid) continue;
-            logger.info('SOCKET', '[SyncManager] account changed — retiring the previous session target', {
+            logger.info('SYNC', '[SyncManager] account changed — retiring the previous session target', {
                 data: { key, from: entry.uid, to: uid },
             });
             this.cancelGraceStop(key);
@@ -130,7 +130,7 @@ export class SyncManager implements ISyncManager {
         // hand the new session an entry still tagged with the previous uid, which is how a target
         // keeps polling after the account under it moved. A scope change is a different target.
         if (entry && (entry.cid !== cid || entry.uid !== uid)) {
-            logger.info('SOCKET', '[SyncManager] target re-registered under a new scope — retagging', {
+            logger.info('SYNC', '[SyncManager] target re-registered under a new scope — retagging', {
                 data: { key, from: { cid: entry.cid, uid: entry.uid }, to: { cid, uid } },
             });
             this.stopTarget(entry.target);
@@ -307,7 +307,7 @@ export class SyncManager implements ISyncManager {
             try {
                 previous.stopAllSync();
             } catch (error) {
-                logger.warn('SOCKET', '[SyncManager] Failed to stop targets on the outgoing runtime', { error });
+                logger.warn('SYNC', '[SyncManager] Failed to stop targets on the outgoing runtime', { error });
             }
         }
 
@@ -372,7 +372,7 @@ export class SyncManager implements ISyncManager {
             // the socket is verified) would otherwise be an invisible, total sync stop.
             if (!this.warnedUidMismatch) {
                 this.warnedUidMismatch = true;
-                logger.warn('SOCKET', '[SyncManager] target belongs to another session — not started', {
+                logger.warn('SYNC', '[SyncManager] target belongs to another session — not started', {
                     data: { target, uid, currentUid: this.getUid() },
                 });
             }
@@ -382,7 +382,7 @@ export class SyncManager implements ISyncManager {
         try {
             entry.runtime.startSync(target);
         } catch (error) {
-            logger.warn('SOCKET', '[SyncManager] Failed to start sync target', {
+            logger.warn('SYNC', '[SyncManager] Failed to start sync target', {
                 error,
                 data: { target },
             });
@@ -403,7 +403,7 @@ export class SyncManager implements ISyncManager {
         try {
             entry.runtime.stopSync(target);
         } catch (error) {
-            logger.warn('SOCKET', '[SyncManager] Failed to stop sync target', {
+            logger.warn('SYNC', '[SyncManager] Failed to stop sync target', {
                 error,
                 data: { target },
             });
@@ -415,7 +415,7 @@ export class SyncManager implements ISyncManager {
             runtime.stopAllSync();
             void runtime.stop();
         } catch (error) {
-            logger.warn('SOCKET', '[SyncManager] Failed to detach sync runtime', { error });
+            logger.warn('SYNC', '[SyncManager] Failed to detach sync runtime', { error });
         }
     }
 }

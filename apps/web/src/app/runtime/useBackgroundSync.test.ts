@@ -3,6 +3,7 @@ import { useIsMutating } from '@tanstack/react-query';
 
 import { runtime } from '@chatic/app-runtime';
 
+import { syncStreakReporter } from './logging/syncStreakReporter';
 import { useBackgroundSync } from './useBackgroundSync';
 
 jest.mock('@tanstack/react-query', () => ({ useIsMutating: jest.fn() }));
@@ -27,6 +28,9 @@ jest.mock('@chatic/app-runtime', () => ({
 
 // Capture the foreground handler so tests can fire the signal directly.
 jest.mock('../bridge', () => ({ useAppForeground: jest.fn() }));
+jest.mock('./logging/syncStreakReporter', () => ({
+    syncStreakReporter: { fail: jest.fn(), succeed: jest.fn(), reset: jest.fn() },
+}));
 
 import { useAppForeground } from '../bridge';
 
@@ -492,5 +496,73 @@ describe('useBackgroundSync — 백그라운드 동기화', () => {
             rerender();
         });
         expect(getSelfChannel).toHaveBeenCalled();
+    });
+});
+
+describe('useBackgroundSync — 실패 스트릭 통지 (ADR-0075)', () => {
+    const fail = syncStreakReporter.fail as jest.Mock;
+    const succeed = syncStreakReporter.succeed as jest.Mock;
+
+    /** verified 상승 엣지 한 번으로 전 경로를 한 바퀴 돌린다. */
+    const runOnce = async () => {
+        setVerified(false);
+        const { rerender } = renderHook(() => useBackgroundSync());
+        setVerified(true);
+        await act(async () => {
+            rerender();
+        });
+    };
+
+    it('모두 성공하면 경로마다 복구를 통지한다', async () => {
+        await runOnce();
+
+        const paths = succeed.mock.calls.map(call => call[0]);
+        expect(paths).toEqual(
+            expect.arrayContaining([
+                'place-refresh',
+                'my-profile',
+                'channel-delta',
+                'profile-delta',
+                'sent-invites',
+                'self-channel',
+            ])
+        );
+        expect(fail).not.toHaveBeenCalled();
+    });
+
+    // 워터마크가 전진하지 않는 바로 그 경로 — 스트릭이 쌓이는 것이 정체의 신호다.
+    it('채널 델타 동기화가 실패하면 그 경로로 실패를 통지한다', async () => {
+        syncChannels.mockRejectedValue(new Error('boom'));
+
+        await runOnce();
+
+        expect(fail).toHaveBeenCalledWith('channel-delta', expect.any(Error));
+        expect(succeed.mock.calls.map(call => call[0])).not.toContain('channel-delta');
+    });
+
+    it('워터마크 저장이 실패해도 같은 경로의 실패로 센다', async () => {
+        setSyncedAt.mockRejectedValue(new Error('cursor write failed'));
+
+        await runOnce();
+
+        expect(fail).toHaveBeenCalledWith('channel-delta', expect.any(Error));
+    });
+
+    it('한 경로가 실패해도 다른 경로의 성공은 그대로 통지된다', async () => {
+        getMyProfile.mockRejectedValue(new Error('boom'));
+
+        await runOnce();
+
+        expect(fail).toHaveBeenCalledWith('my-profile', expect.any(Error));
+        expect(succeed).toHaveBeenCalledWith('channel-delta');
+    });
+
+    it('실패해도 재시도 정책은 그대로다 — 예외가 호출부로 새지 않는다', async () => {
+        refreshList.mockRejectedValue(new Error('boom'));
+        syncProfiles.mockRejectedValue(new Error('boom'));
+
+        await expect(runOnce()).resolves.toBeUndefined();
+        expect(fail).toHaveBeenCalledWith('place-refresh', expect.any(Error));
+        expect(fail).toHaveBeenCalledWith('profile-delta', expect.any(Error));
     });
 });

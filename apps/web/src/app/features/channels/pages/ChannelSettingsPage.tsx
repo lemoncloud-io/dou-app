@@ -1,5 +1,5 @@
 import { ChevronRight, Plus } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useParams } from 'react-router-dom';
 
@@ -31,6 +31,7 @@ import {
     useJoinMutations,
 } from '../hooks';
 import { resolveChannelAvatar } from '../lib';
+import { divergenceReporter } from '../../../runtime/logging/divergenceReporter';
 import { getRoomDistance } from '../utils/roomDistance';
 import { canReinviteDm } from '../utils/dmInviteState';
 import { hasLeftChannel } from '../utils/membership';
@@ -78,6 +79,45 @@ export const ChannelSettingsPage = () => {
         // (Figma 4052-12242). Read inline: `isDmChat` is derived after the early returns below.
         keepLeftMembers: channel?.stereo === 'dm',
     });
+
+    // Member divergence (ADR-0075). The roster (`channel.memberIds`) and the join rows should name
+    // the same people. `useChannelMembers` unions the two and only drops a row whose join says the
+    // person LEFT — so a roster id with NO join row at all is still rendered, which is the
+    // "removed member is still listed" report this check exists to evidence.
+    //
+    // Reported on unmount, once per visit, and that timing is load-bearing: the join cache streams
+    // in, so a mid-hydration snapshot would count every member as roster-only. By the time the user
+    // leaves the screen both sides have settled. The ref carries the latest values into the cleanup,
+    // which would otherwise close over the first render's.
+    const memberSourcesRef = useRef<{ memberIds?: string[]; joins: typeof joins }>({ joins: [] });
+    useEffect(() => {
+        memberSourcesRef.current = { memberIds: channel?.memberIds, joins };
+    }, [channel?.memberIds, joins]);
+    useEffect(
+        () => () => {
+            if (!channelId) return;
+            const { memberIds, joins: rows } = memberSourcesRef.current;
+            const roster = (memberIds ?? []).filter(Boolean);
+            const joinedIds = new Set(rows.map(row => row.userId).filter(Boolean) as string[]);
+            const activeIds = new Set(
+                rows
+                    .filter(row => !hasLeftChannel(row))
+                    .map(row => row.userId)
+                    .filter(Boolean) as string[]
+            );
+            divergenceReporter.member({
+                channelId,
+                // A roster id with no join row of any kind — these are the ones being rendered.
+                // Someone whose join says "left" is excluded: the list already drops them, so that
+                // staleness has no symptom to report.
+                rosterOnly: roster.filter(id => !joinedIds.has(id)).length,
+                joinOnly: [...activeIds].filter(id => !roster.includes(id)).length,
+                joinCount: rows.length,
+                rosterKnown: memberIds !== undefined,
+            });
+        },
+        [channelId]
+    );
 
     const { leaveChannel, deleteChannel, isPending } = useChannelMutations();
     const { updateJoin } = useJoinMutations();

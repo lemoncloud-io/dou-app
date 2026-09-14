@@ -79,7 +79,8 @@ export interface IIndexedDB {
     /**
      * 인덱스 기반으로 범위(IDBKeyRange)에 부합하는 모든 레코드를 삭제합니다.
      */
-    clearByRange(indexName: string, range: IDBKeyRange): Promise<void>;
+    /** Removes every row in `range` and returns how many were removed. */
+    clearByRange(indexName: string, range: IDBKeyRange): Promise<number>;
 
     /**
      * 인덱스 범위를 최신순으로 훑어 skip개를 건너뛴 첫 레코드의 **인덱스 키**를 반환합니다.

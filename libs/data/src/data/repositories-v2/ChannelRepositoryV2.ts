@@ -20,6 +20,8 @@ import type {
 import type { IChannelSocketDataSource } from '../remote/socket-data-sources';
 import type { DataContext, DataContextProvider } from './types';
 import { BaseRepositoryV2, type DisposableRepositoryV2 } from './types';
+import { foreignDropAggregator } from '@chatic/logger';
+
 import { isForeignContext } from './scopeGuards';
 
 /** Merge id lists without duplicates, preserving the existing order. */
@@ -178,6 +180,13 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
         // target partition, so skip when the socket's bound cloud differs from the active cid.
         const rawContext = this.getRepositoryContext();
         if (isForeignContext(rawContext)) {
+            // Intended drop, but a silent one leaves the stale list it produces unexplained — the
+            // aggregator batches these so a switch costs one entry, not one per skip (ADR-0075).
+            foreignDropAggregator.record({
+                source: 'channel-refresh',
+                cid: rawContext.cid ?? 'default',
+                socketCid: rawContext.socketCid ?? 'none',
+            });
             return;
         }
         const targetSid = query.sid ?? requestContext.sid;
@@ -230,6 +239,11 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
         const requestContext = this.getRequestContext();
         const rawContext = this.getRepositoryContext();
         if (isForeignContext(rawContext)) {
+            foreignDropAggregator.record({
+                source: 'channel-sync',
+                cid: rawContext.cid ?? 'default',
+                socketCid: rawContext.socketCid ?? 'none',
+            });
             return { syncedAt: since, removedCount: 0 };
         }
         const normalizedContext = this.getNormalizedContext(requestContext);
@@ -406,7 +420,13 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
         // Skip the cache write when the answering socket is still bound to a different cloud (the
         // switch optimistic window) so we don't poison the target partition. Mirrors refreshList.
         const rawContext = this.getRepositoryContext();
-        if (!isForeignContext(rawContext)) {
+        if (isForeignContext(rawContext)) {
+            foreignDropAggregator.record({
+                source: 'channel-self',
+                cid: rawContext.cid ?? 'default',
+                socketCid: rawContext.socketCid ?? 'none',
+            });
+        } else {
             await this.channelLocalDataSource.cacheWrite(domain, requestContext);
         }
         return domain;

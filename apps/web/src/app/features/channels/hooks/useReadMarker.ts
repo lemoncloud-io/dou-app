@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef } from 'react';
 
 import { logger } from '@chatic/bridges';
 
+import { readMarkRegistry } from '../../../runtime/logging/readMarkRegistry';
+
 interface UseReadMarkerParams {
     channelId: string;
     // channel.chatNo — the room's latest chat number, available before messages load.
@@ -40,13 +42,18 @@ export const useReadMarker = ({
         if (lastReadChatNoRef.current !== null && channelChatNo <= lastReadChatNoRef.current) return;
 
         lastReadChatNoRef.current = channelChatNo;
-        readMessage({ channelId, chatNo: channelChatNo }).catch(error => {
-            lastReadChatNoRef.current = null;
-            logger.error('CHAT', 'Failed to read on channel entry', {
-                error,
-                data: { channelId, chatNo: channelChatNo },
+        readMessage({ channelId, chatNo: channelChatNo })
+            // Record only what the server accepted: the divergence check asks whether the cache
+            // followed a read the room actually completed, so an optimistic value would make a
+            // failed read look like a cache that fell behind (ADR-0075).
+            .then(() => readMarkRegistry.record(channelId, channelChatNo))
+            .catch(error => {
+                lastReadChatNoRef.current = null;
+                logger.error('CHAT', 'Failed to read on channel entry', {
+                    error,
+                    data: { channelId, chatNo: channelChatNo },
+                });
             });
-        });
     }, [channelChatNo, channelId, readMessage, isVerified]);
 
     // Stage 2: correct upward once messages load, and re-mark on foreground return / resync.
@@ -58,13 +65,15 @@ export const useReadMarker = ({
             if (lastReadChatNoRef.current !== null && lastChatNo <= lastReadChatNoRef.current) return;
 
             lastReadChatNoRef.current = lastChatNo;
-            readMessage({ channelId, chatNo: lastChatNo }).catch(error => {
-                lastReadChatNoRef.current = null;
-                logger.error('CHAT', 'Failed to read latest message', {
-                    error,
-                    data: { channelId, chatNo: lastChatNo },
+            readMessage({ channelId, chatNo: lastChatNo })
+                .then(() => readMarkRegistry.record(channelId, lastChatNo))
+                .catch(error => {
+                    lastReadChatNoRef.current = null;
+                    logger.error('CHAT', 'Failed to read latest message', {
+                        error,
+                        data: { channelId, chatNo: lastChatNo },
+                    });
                 });
-            });
         };
 
         const handleVisibilityChange = () => {
@@ -88,9 +97,11 @@ export const useReadMarker = ({
     const markSent = useCallback(
         (chatNo: number) => {
             lastReadChatNoRef.current = chatNo;
-            readMessage({ channelId, chatNo }).catch(error => {
-                logger.error('CHAT', 'Failed to read sent message', { error, data: { channelId, chatNo } });
-            });
+            readMessage({ channelId, chatNo })
+                .then(() => readMarkRegistry.record(channelId, chatNo))
+                .catch(error => {
+                    logger.error('CHAT', 'Failed to read sent message', { error, data: { channelId, chatNo } });
+                });
         },
         [channelId, readMessage]
     );

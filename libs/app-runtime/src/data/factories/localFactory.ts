@@ -15,9 +15,10 @@ import {
     NativeDBAdapter,
     NativeGlobalSearchSource,
 } from '@chatic/db';
-import { webClient } from '@chatic/bridges';
+import { logger, webClient } from '@chatic/bridges';
 import { resolveCacheBackend } from '../cacheStorageRouting';
 import { isNativeApp } from '../../utils/isNativeApp';
+import { isNativeCacheTypeUsable } from '../nativeCacheSupport';
 
 import type { CacheAssemblyOptions } from '../types';
 
@@ -74,6 +75,32 @@ export const getCacheMetricsSource = (): ICacheMetricsSource => new NativeCacheM
 /**
  * 환경에 맞는 스토리지를 판별하고 LocalDataSource 묶음을 조립하여 반환하는 훅입니다.
  */
+/**
+ * Records the cache domains a native shell could not hold, so they went to web storage instead.
+ *
+ * The consequence is a cold cache for those domains — reads miss until the data is re-fetched — and
+ * it happens when the installed shell predates the domain's storage edition. Diagnosing "why is
+ * this app re-downloading everything" from the client side is otherwise guesswork (ADR-0075).
+ *
+ * One entry per boot with the domain list, not one per domain: routing is decided per storage as
+ * they are built, and a dozen lines would bury the boot log. And nothing at all on a plain browser —
+ * there every domain is web storage by definition, so it is not a fallback.
+ */
+const reportNativeCacheFallback = (routed: string[]): void => {
+    if (!isNativeApp() || routed.length === 0) return;
+
+    const fellBack = routed
+        .filter(entry => entry.endsWith(':web'))
+        .map(entry => entry.split(':')[0])
+        // Web-pinned domains are meant to live there; only a capability shortfall is news.
+        .filter(type => !isNativeCacheTypeUsable(type as CacheType));
+    if (fellBack.length === 0) return;
+
+    logger.info('CACHE', `${fellBack.length} cache domain(s) fell back to web storage`, {
+        data: { domains: fellBack.sort() },
+    });
+};
+
 export const createLocalDataSources = ({
     contextProvider, // 주입 파라미터 변경
     cacheStorageFactory,
@@ -97,6 +124,7 @@ export const createLocalDataSources = ({
         });
     const storages = createCacheStorages(contextProvider, factory);
     const routingFingerprint = routed.length > 0 ? routed.sort().join(',') : undefined;
+    reportNativeCacheFallback(routed);
 
     return createDataLocalDataSources(
         contextProvider,

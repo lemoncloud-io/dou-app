@@ -18,6 +18,7 @@ import { CloudActivatedRunner, CloudPushMarkRunner, UnreadBadgeRunner } from '..
 import { BackgroundSyncRunner } from './BackgroundSyncRunner';
 import { InvitedCloudDurabilityRunner } from './InvitedCloudDurabilityRunner';
 import { MyUserSeedRunner } from './MyUserSeedRunner';
+import { QueueLossRunner } from './QueueLossRunner';
 import { PreferenceLoader } from './PreferenceLoader';
 import { useCloudCredentialRenewal } from './useCloudCredentialRenewal';
 import { useRelayCredentialRefresh } from './useRelayCredentialRefresh';
@@ -71,6 +72,7 @@ export const AppRuntime = () => {
                     <CloudActivatedRunner />
                     <MyUserSeedRunner />
                     <InvitedCloudDurabilityRunner />
+                    <QueueLossRunner />
                     {/* Mirrors the two shared observations out to the debug overlay, which is mounted
                         outside AppRuntime and so cannot consume the providers. Nothing mounts below it
                         unless debug mode is unlocked. */}

@@ -1,6 +1,11 @@
 import type { CacheTtlMeta } from '@chatic/app-messages';
+import { logger } from '@chatic/bridges';
 import type { CacheStorage } from '../ports';
 import { SyncMetaLocalDataSourceV2 } from './SyncMetaLocalDataSourceV2';
+
+jest.mock('@chatic/bridges', () => ({
+    logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+}));
 
 const MINUTE_MS = 60 * 1000;
 // Mirror of the sync-cursor TTL in storages/utils (`meta`). Kept explicit so the test pins the
@@ -142,5 +147,69 @@ describe('SyncMetaLocalDataSourceV2 — 라우팅이 바뀐 커서', () => {
             syncedAt: 5678,
             routing: ROUTING,
         });
+    });
+});
+
+describe('SyncMetaLocalDataSourceV2 — 커서 폐기 기록 (ADR-0075)', () => {
+    const ROUTING = 'chat:native,channel:native';
+    const warn = logger.warn as jest.Mock;
+
+    const createSource = (
+        loaded?: { syncedAt?: number; routing?: string; __cacheMeta?: CacheTtlMeta } | null,
+        routingFingerprint?: string
+    ) => {
+        const storage = {
+            load: jest.fn().mockResolvedValue(loaded ?? null),
+            save: jest.fn().mockResolvedValue(undefined),
+        } as unknown as CacheStorage<'meta'>;
+        const contextProvider = {
+            getContext: () => ({ cid: 'cloud-a', uid: 'me' }),
+            setContext: () => undefined,
+        };
+        return new SyncMetaLocalDataSourceV2(contextProvider, storage, routingFingerprint);
+    };
+
+    beforeEach(() => jest.clearAllMocks());
+
+    // 커서를 버리면 다음 동기화가 since=0으로 전부 다시 받아온다 — 그 폭증이 어디서 왔는지 남아야 한다.
+    it('라우팅 지문이 바뀌어 버릴 때 사유와 함께 남긴다', async () => {
+        const source = createSource({ syncedAt: 1234, routing: 'old-routing' }, ROUTING);
+
+        await expect(source.getSyncedAt('channel-sync:cloud-a')).resolves.toBe(0);
+        expect(warn).toHaveBeenCalledTimes(1);
+        expect(warn.mock.calls[0][0]).toBe('SYNC');
+        expect(warn.mock.calls[0][2]).toEqual({
+            observation: 'sync-cursor-retired',
+            cursorKind: 'channel-sync:cloud-a',
+            reason: 'routing-changed',
+        });
+    });
+
+    it('TTL이 지나 버릴 때는 다른 사유로 남긴다', async () => {
+        const stale = { lastSyncedAt: Date.now() - 60 * 60 * 1000 } as CacheTtlMeta;
+        const source = createSource({ syncedAt: 1234, routing: ROUTING, __cacheMeta: stale }, ROUTING);
+
+        await expect(source.getSyncedAt('profile-sync:cloud-a:s1')).resolves.toBe(0);
+        expect(warn.mock.calls[0][2]).toEqual({
+            observation: 'sync-cursor-retired',
+            cursorKind: 'profile-sync:cloud-a:s1',
+            reason: 'expired',
+        });
+    });
+
+    // 행이 아예 없는 것은 첫 동기화다 — 평범한 콜드 스타트를 폐기로 세면 부팅마다 잡음이 된다.
+    it('행이 없으면(첫 동기화) 아무것도 남기지 않는다', async () => {
+        const source = createSource(null, ROUTING);
+
+        await expect(source.getSyncedAt('channel-sync:cloud-a')).resolves.toBe(0);
+        expect(warn).not.toHaveBeenCalled();
+    });
+
+    it('유효한 커서를 읽을 때는 남기지 않는다', async () => {
+        const meta = { lastSyncedAt: Date.now() } as CacheTtlMeta;
+        const source = createSource({ syncedAt: 1234, routing: ROUTING, __cacheMeta: meta }, ROUTING);
+
+        await expect(source.getSyncedAt('channel-sync:cloud-a')).resolves.toBe(1234);
+        expect(warn).not.toHaveBeenCalled();
     });
 });

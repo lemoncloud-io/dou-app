@@ -3,6 +3,8 @@
 // ts-jest CJS 파싱 불가)로 이어졌지만 이제는 `@chatic/config`(import.meta 0)로 이어져 파싱은
 // 더 이상 문제가 아니다 — 그래도 이 테스트가 실제로 쓰지 않는 세션 의존을 끊어 격리하는 목은
 // 그대로 둔다.
+import { logger } from '@chatic/bridges';
+
 import { createSyncPlans } from './plans';
 
 jest.mock('../../session', () => new Proxy({}, { get: () => jest.fn() }));
@@ -163,5 +165,84 @@ describe('join plan onRemove — 퇴장한 방의 메시지 캐시 정리 (ADR-0
         onRemove({ id: 'not-a-composite-id' });
 
         expect(cacheClearByChannelId).not.toHaveBeenCalled();
+    });
+});
+
+/**
+ * 스케줄러가 타깃을 영구 정지시키면 lib의 plan이 `onStopped`에서 우리 `onRemove`를 부른다 —
+ * 즉 **정지가 곧 삭제다**. 그 삭제에는 원래 트리거가 있었고(위 스위트) 삭제를 부른 이유에는
+ * 없었다.
+ *
+ * `@chatic/bridges`를 모듈로 목하지 않고 실물에 spy를 건다. 부분 목(`{ logger: { error } }`)은
+ * 이 트랙에서 세 번 다른 스위트를 깨뜨렸다 — 같은 모듈을 간접 소비하는 쪽이 나머지 export를
+ * 잃기 때문이다. spy는 그 위험이 없다.
+ */
+describe('plan onStopped — 정지를 삭제 전에 남긴다', () => {
+    const errorSpy = jest.spyOn(logger, 'error').mockImplementation();
+
+    beforeEach(() => {
+        errorSpy.mockClear();
+        mockRepositories.current = {
+            channel: { cacheDelete: jest.fn() },
+            place: { cacheDelete: jest.fn() },
+            profile: { cacheDelete: jest.fn() },
+            join: { cacheDelete: jest.fn() },
+            chat: { cacheClearByChannelId: jest.fn() },
+        };
+        mockDataContext.current = { cid: 'cloud-a', uid: 'me' };
+        mockBoundCid.current = 'cloud-a';
+    });
+
+    afterAll(() => errorSpy.mockRestore());
+
+    const planOf = (domain: string) =>
+        createSyncPlans(() => mockBoundCid.current).find(candidate => candidate.domain === domain);
+
+    /** lib의 onStopped는 스냅샷을 읽어 onRemove로 넘긴다 — 최소한 그것만 있으면 된다. */
+    const CTX = { readSnapshot: () => undefined } as never;
+
+    const FAILURE = {
+        target: { type: 'join' },
+        error: new Error('404 NOT FOUND'),
+        kind: 'gone' as const,
+        failures: 2,
+        goneStreak: 2,
+    };
+
+    it.each(['channel', 'place', 'profile', 'chat', 'join'])('%s plan이 정지를 error로 남긴다', domain => {
+        planOf(domain)?.onStopped?.({ type: domain, id: 't-1' } as never, FAILURE as never, CTX);
+
+        expect(errorSpy).toHaveBeenCalledTimes(1);
+        expect(errorSpy.mock.calls[0][0]).toBe('SYNC');
+        expect(errorSpy.mock.calls[0][1]).toContain(domain);
+    });
+
+    // 이 둘이 없으면 "서버가 404를 두 번 줬다"와 "정말 탈퇴됐다"를 밖에서 구분할 수 없다.
+    it('정지 사유와 연속 실패 수를 함께 싣는다', () => {
+        planOf('join')?.onStopped?.({ type: 'join', id: 'ch-1@me' } as never, FAILURE as never, CTX);
+
+        const options = errorSpy.mock.calls[0][2] as { error: unknown; data: Record<string, unknown> };
+        expect(options.error).toBe(FAILURE.error);
+        expect(options.data).toMatchObject({ domain: 'join', kind: 'gone', failures: 2, goneStreak: 2 });
+        expect(options.data.targetId).toBe('ch-1@me');
+    });
+
+    it('삭제보다 먼저 기록한다 — 삭제가 던지거나 앱이 죽어도 엔트리는 이미 나갔다', () => {
+        const order: string[] = [];
+        errorSpy.mockImplementation(() => void order.push('log'));
+        const cacheDelete = jest.fn(() => void order.push('delete'));
+        mockRepositories.current = { join: { cacheDelete }, chat: { cacheClearByChannelId: jest.fn() } };
+
+        const plan = planOf('join');
+        // lib의 onStopped는 readSnapshot을 거쳐 onRemove로 간다.
+        plan?.onStopped?.(
+            { type: 'join', id: 'ch-1@me' } as never,
+            FAILURE as never,
+            {
+                readSnapshot: () => undefined,
+            } as never
+        );
+
+        expect(order).toEqual(['log', 'delete']);
     });
 });

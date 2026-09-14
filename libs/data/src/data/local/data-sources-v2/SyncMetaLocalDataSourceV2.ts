@@ -1,4 +1,5 @@
 import type { CacheMetaView } from '@chatic/app-messages';
+import { logger, type ObservationData } from '@chatic/bridges';
 import type { DataContextProvider } from '../../repositories-v2/types';
 import type { CacheStorage } from '../ports';
 import { resolveTtlMs } from '../ports/policy';
@@ -44,18 +45,47 @@ export class SyncMetaLocalDataSourceV2 extends BaseLocalDataSourceV2 implements 
 
     public async getSyncedAt(kind: string): Promise<number> {
         const row = await this.cacheStorage.load(kind);
+        // No row at all is a first sync, not a retirement — the common cold-start path stays silent.
         if (!row) return 0;
         // A cursor written before this stamp existed has no `routing` and cannot be shown to
         // describe the current one, so it retires too — one extra full re-sync, once.
-        if (this.routingFingerprint && row.routing !== this.routingFingerprint) return 0;
+        if (this.routingFingerprint && row.routing !== this.routingFingerprint) {
+            this.reportRetired(kind, 'routing-changed');
+            return 0;
+        }
         // Expiry is computed at read time from lastSyncedAt (the local save time) instead of
         // the stored expiresAt: rows written under the old "never expire" policy carry a
         // far-future expiresAt, and read-time computation applies the current TTL retroactively.
         // Rows without cache meta (e.g. legacy adapters) are treated as expired — the safe
         // fallback is a one-time full re-sync.
         const savedAt = row.__cacheMeta?.lastSyncedAt;
-        if (!savedAt || savedAt + resolveTtlMs('meta') <= Date.now()) return 0;
+        if (!savedAt || savedAt + resolveTtlMs('meta') <= Date.now()) {
+            this.reportRetired(kind, 'expired');
+            return 0;
+        }
         return row.syncedAt ?? 0;
+    }
+
+    /**
+     * Records that a cursor was thrown away, and why.
+     *
+     * Retiring a cursor is correct in both cases, but it is never free: the next sync runs with
+     * `since = 0` and pulls the domain in full, which is a request burst on the server and a slow
+     * first screen on the client. Silently returning 0 made that burst unattributable — and a
+     * routing fingerprint that changes on every boot (a real failure mode, not a hypothesis) would
+     * charge it forever with nothing to point at (ADR-0075).
+     *
+     * A missing row is deliberately NOT reported: that is a first sync, the ordinary cold path.
+     */
+    private reportRetired(cursorKind: string, reason: 'routing-changed' | 'expired'): void {
+        // `cursorKind`, not `kind`: this value names WHICH cursor (`channel-sync:<cid>`), and a bare
+        // `kind` collided with the divergence entries' discriminator, where it named which
+        // comparison. The discriminator is now `observation` for every structured entry.
+        logger.warn('SYNC', `sync cursor retired (${reason}) — full re-sync follows`, {
+            observation: 'sync-cursor-retired',
+            cursorKind,
+            reason,
+        } satisfies ObservationData);
     }
 
     public async setSyncedAt(kind: string, syncedAt: number): Promise<void> {

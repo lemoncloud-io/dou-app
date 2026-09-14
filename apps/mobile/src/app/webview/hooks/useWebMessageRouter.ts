@@ -52,8 +52,14 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
     // --- Domain-specific Handlers (memoized with useCallback) ---
     const { fetchSafeAreaInfo } = useSafeAreaHandler();
     const { handleFetchBackgroundStatus, handleDismissResumeOverlay } = useAppStateHandler(bridge, dismissOverlay);
-    const { fetchFcmToken, handleDeleteFcmToken, handleFetchBadgeCount, handleSetBadgeCount, handleFetchPushMarks } =
-        useFcmHandler(bridge);
+    const {
+        fetchFcmToken,
+        handleDeleteFcmToken,
+        handleFetchBadgeCount,
+        handleFetchBadgeBase,
+        handleSetBadgeCount,
+        handleFetchPushMarks,
+    } = useFcmHandler(bridge);
     const {
         fetchProducts,
         fetchCurrentPurchases,
@@ -132,6 +138,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
         fetchFcmToken,
         handleDeleteFcmToken,
         handleFetchBadgeCount,
+        handleFetchBadgeBase,
         handleSetBadgeCount,
         handleFetchPushMarks,
         fetchSafeAreaInfo,
@@ -213,6 +220,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             fetchFcmToken,
             handleDeleteFcmToken,
             handleFetchBadgeCount,
+            handleFetchBadgeBase,
             handleSetBadgeCount,
             handleFetchPushMarks,
             fetchSafeAreaInfo,
@@ -298,6 +306,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             FetchFcmToken: message => handlersRef.current.fetchFcmToken(message),
             DeleteFcmToken: message => handlersRef.current.handleDeleteFcmToken(message),
             FetchBadgeCount: message => handlersRef.current.handleFetchBadgeCount(message),
+            FetchBadgeBase: message => handlersRef.current.handleFetchBadgeBase(message),
             SetBadgeCount: message => handlersRef.current.handleSetBadgeCount(message),
             FetchPushMarks: message => handlersRef.current.handleFetchPushMarks(message),
             FetchSafeArea: message => handlersRef.current.fetchSafeAreaInfo(message),

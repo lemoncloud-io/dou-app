@@ -14,6 +14,9 @@ const viewOf = (entries: LogEntry[]) => ({
     snapshot: () => entries,
     clear: jest.fn(),
     flush: jest.fn(() => Promise.resolve()),
+    // Part of the contract but not exercised here — the eviction counter is read by
+    // `queueLossObserver`, which has its own suite.
+    droppedCount: () => 0,
 });
 
 describe('logQueueView', () => {

@@ -1,8 +1,10 @@
-import { render } from '@testing-library/react';
+import { act, render } from '@testing-library/react';
 
 import { appBridge } from '../../bridge/appBridge';
 import { useOnBackgroundStatusChanged } from '../../bridge/useHandleAppMessage';
 import { useActiveCloudUnreads, useOtherCloudUnread } from '../../hooks';
+import { divergenceReporter } from '../../runtime/logging/divergenceReporter';
+import { nativeBadgeReader } from '../../runtime/logging/nativeBadgeReader';
 import { UnreadBadgeRunner } from './UnreadBadgeRunner';
 
 jest.mock('@chatic/app-runtime', () => ({
@@ -13,7 +15,11 @@ jest.mock('@chatic/app-runtime', () => ({
     },
 }));
 jest.mock('../../bridge/appBridge', () => ({ appBridge: { setBadgeCount: jest.fn() } }));
+jest.mock('../../runtime/logging/nativeBadgeReader', () => ({
+    nativeBadgeReader: { read: jest.fn().mockResolvedValue(null), reset: jest.fn() },
+}));
 jest.mock('../../bridge/useHandleAppMessage', () => ({ useOnBackgroundStatusChanged: jest.fn() }));
+jest.mock('../../runtime/logging/divergenceReporter', () => ({ divergenceReporter: { badge: jest.fn() } }));
 jest.mock('../../hooks', () => ({
     useActiveCloudUnreads: jest.fn(),
     useOtherCloudUnread: jest.fn(),
@@ -24,6 +30,8 @@ const useBg = useOnBackgroundStatusChanged as jest.Mock;
 const unreadsMock = useActiveCloudUnreads as jest.Mock;
 const otherMock = useOtherCloudUnread as jest.Mock;
 const refreshOther = jest.fn();
+const fetchBadge = nativeBadgeReader.read as jest.Mock;
+const badgeDivergence = divergenceReporter.badge as jest.Mock;
 
 // Pull the latest foreground handler the component registered so tests can fire it directly.
 const latestForegroundHandler = () => useBg.mock.calls[useBg.mock.calls.length - 1][0];
@@ -89,5 +97,50 @@ describe('UnreadBadgeRunner — 앱 뱃지 동기화', () => {
         latestForegroundHandler()({ data: { isForeground: false } });
 
         expect(setBadge).not.toHaveBeenCalled();
+    });
+
+    describe('뱃지 정합성 대조 (ADR-0075)', () => {
+        beforeEach(() => fetchBadge.mockResolvedValue(null));
+
+        // 콜드 스타트: 아이콘에는 백그라운드 푸시가 남긴 값이 있고, 웹이 계산한 총합이 진실이다.
+        it('첫 push 전에 아이콘 값을 읽어 곧 쓸 총합과 대조한다', async () => {
+            fetchBadge.mockResolvedValue(2);
+            unreadsMock.mockReturnValue({ total: 0 });
+            otherMock.mockReturnValue({ byCloud: {}, total: 0, refresh: refreshOther });
+
+            await act(async () => {
+                render(<UnreadBadgeRunner />);
+            });
+
+            expect(badgeDivergence).toHaveBeenCalledWith({ web: 0, native: 2, active: 0, others: 0 });
+        });
+
+        // 대조 기준은 "마지막으로 밀어넣은 값"이다 — 현재 총합과 비교하면 정상적인 읽음이 전부
+        // 불일치로 잡힌다(아이콘은 설계상 뒤처진다).
+        it('포그라운드 복귀 시 마지막으로 push한 값과 대조한다', async () => {
+            await act(async () => {
+                render(<UnreadBadgeRunner />);
+            });
+            badgeDivergence.mockClear();
+            fetchBadge.mockResolvedValue(9);
+
+            await act(async () => {
+                latestForegroundHandler()({ data: { isForeground: true } });
+            });
+
+            expect(badgeDivergence).toHaveBeenCalledWith({ web: 5, native: 9, active: 3, others: 2 });
+        });
+
+        it('total이 바뀔 때마다 대조하지는 않는다 (fire-and-forget 쓰기와 경합한다)', async () => {
+            const { rerender } = await act(async () => render(<UnreadBadgeRunner />));
+            badgeDivergence.mockClear();
+
+            unreadsMock.mockReturnValue({ total: 7 });
+            await act(async () => {
+                rerender(<UnreadBadgeRunner />);
+            });
+
+            expect(badgeDivergence).not.toHaveBeenCalled();
+        });
     });
 });

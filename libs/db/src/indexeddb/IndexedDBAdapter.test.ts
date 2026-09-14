@@ -1,8 +1,13 @@
 import 'fake-indexeddb/auto';
 import type { IIndexedDB } from '@chatic/data';
+import { logger } from '@chatic/bridges';
 import { ChatQueryExecutor } from './ChatQueryExecutor';
 import { IndexedDBDatabase } from './IndexedDBDatabase';
 import { IndexedDBAdapter } from './IndexedDBAdapter';
+
+jest.mock('@chatic/bridges', () => ({
+    logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+}));
 
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 
@@ -43,7 +48,7 @@ const createStubDb = (overrides: Partial<Record<keyof IIndexedDB, jest.Mock>> = 
         delete: jest.fn().mockResolvedValue(undefined),
         deleteAll: jest.fn().mockResolvedValue(undefined),
         clearAll: jest.fn().mockResolvedValue(undefined),
-        clearByRange: jest.fn().mockResolvedValue(undefined),
+        clearByRange: jest.fn().mockResolvedValue(0),
         findNewestKeyBeyond: jest.fn().mockResolvedValue(null),
         ...overrides,
     }) as unknown as IIndexedDB;
@@ -324,5 +329,104 @@ describe('IndexedDBAdapter — 세션이 없으면 건너뛴다', () => {
         session.uid = 'me';
         await adapter.save('c-1', chat('c-1'));
         expect(stub.save).toHaveBeenCalledWith(expect.objectContaining({ key: 'chat:cloud-a:me:c-1' }));
+    });
+});
+
+describe('IndexedDBAdapter — 버린 것을 기록한다 (ADR-0075)', () => {
+    const warn = logger.warn as jest.Mock;
+    const error = logger.error as jest.Mock;
+    const info = logger.info as jest.Mock;
+    const quota = () => new DOMException('quota', 'QuotaExceededError');
+
+    beforeEach(() => jest.clearAllMocks());
+
+    // 축출이 성공하면 사용자는 아무것도 못 느끼지만 옛 대화가 사라졌다 — 재시도 결과가 절반의 정보다.
+    it('쿼터 초과를 축출로 복구하면 재시도 결과까지 한 줄로 남긴다', async () => {
+        const save = jest.fn().mockRejectedValueOnce(quota()).mockResolvedValueOnce(undefined);
+        const storage = new IndexedDBAdapter(
+            createStubDb({ save, findNewestKeyBeyond: jest.fn().mockResolvedValue(null) }),
+            'chat',
+            scopeOf('quota-ok', 'u1'),
+            { maxChatsPerChannel: 5 }
+        );
+
+        await storage.save('c-01', chat('c-01', { chatNo: 1 }));
+
+        expect(warn).toHaveBeenCalledTimes(1);
+        expect(warn.mock.calls[0][0]).toBe('CACHE');
+        expect(warn.mock.calls[0][1]).toContain('retry ok');
+        expect(error).not.toHaveBeenCalled();
+    });
+
+    it('축출 후 재시도도 실패하면 error로 올리고 다시 던진다', async () => {
+        const save = jest.fn().mockRejectedValue(quota());
+        const storage = new IndexedDBAdapter(
+            createStubDb({ save, findNewestKeyBeyond: jest.fn().mockResolvedValue(null) }),
+            'chat',
+            scopeOf('quota-fail', 'u1'),
+            { maxChatsPerChannel: 5 }
+        );
+
+        await expect(storage.save('c-01', chat('c-01', { chatNo: 1 }))).rejects.toThrow();
+        expect(error.mock.calls[0][1]).toContain('retry after eviction failed');
+    });
+
+    // 상한이 없는 클라이언트는 안전망이 아예 없다 — 쓰기가 그냥 유실된다.
+    it('비울 대상이 없으면 error로 남기고 던진다', async () => {
+        const save = jest.fn().mockRejectedValue(quota());
+        const storage = new IndexedDBAdapter(createStubDb({ save }), 'user', scopeOf('quota-none', 'u1'));
+
+        await expect(storage.save('u-01', { id: 'u-01' } as any)).rejects.toThrow();
+        expect(error.mock.calls[0][1]).toContain('nothing to evict');
+        expect(warn).not.toHaveBeenCalled();
+    });
+
+    it('상한 축출이 실제로 지웠을 때 채널과 건수를 남긴다', async () => {
+        const clearByRange = jest.fn().mockResolvedValue(4);
+        const storage = new IndexedDBAdapter(
+            createStubDb({ clearByRange, findNewestKeyBeyond: jest.fn().mockResolvedValue(['k']) }),
+            'chat',
+            scopeOf('evict-count', 'u1'),
+            { maxChatsPerChannel: 5 }
+        );
+
+        await storage.save('c-06', chat('c-06', { chatNo: 6 }));
+
+        expect(info).toHaveBeenCalledTimes(1);
+        expect(info.mock.calls[0][2]).toMatchObject({ data: { channelId: 'channel-main', removed: 4, limit: 5 } });
+    });
+
+    it('지운 것이 없으면 축출 로그를 남기지 않는다', async () => {
+        const storage = new IndexedDBAdapter(
+            createStubDb({
+                clearByRange: jest.fn().mockResolvedValue(0),
+                findNewestKeyBeyond: jest.fn().mockResolvedValue(['k']),
+            }),
+            'chat',
+            scopeOf('evict-zero', 'u1'),
+            { maxChatsPerChannel: 5 }
+        );
+
+        await storage.save('c-06', chat('c-06', { chatNo: 6 }));
+
+        expect(info).not.toHaveBeenCalled();
+    });
+
+    // 호출부는 전체가 저장됐다고 듣고, 그중 하나가 그냥 없다.
+    it('id 없는 항목이 saveAll에서 탈락하면 건수를 남긴다', async () => {
+        const storage = new IndexedDBAdapter(createStubDb(), 'chat', scopeOf('drop-id', 'u1'));
+
+        await storage.saveAll([chat('c-01'), { ...chat('c-02'), id: undefined }] as any);
+
+        expect(warn).toHaveBeenCalledTimes(1);
+        expect(warn.mock.calls[0][2]).toMatchObject({ data: { dropped: 1, total: 2, type: 'chat' } });
+    });
+
+    it('전부 id가 있으면 탈락 로그를 남기지 않는다', async () => {
+        const storage = new IndexedDBAdapter(createStubDb(), 'chat', scopeOf('drop-none', 'u1'));
+
+        await storage.saveAll([chat('c-01'), chat('c-02')]);
+
+        expect(warn).not.toHaveBeenCalled();
     });
 });

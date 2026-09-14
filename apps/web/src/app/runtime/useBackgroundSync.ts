@@ -5,6 +5,7 @@ import { runtime } from '@chatic/app-runtime';
 
 import { useAppForeground } from '../bridge';
 import { INVITE_LIST_LIMIT } from '../hooks/useRelayInvites';
+import { syncStreakReporter } from './logging/syncStreakReporter';
 
 // Periodic background-sync interval. The user-facing requirement is "about a minute"; lists
 // only re-discover added/removed entries here, so a coarse cadence is intentional.
@@ -77,16 +78,21 @@ export const useBackgroundSync = (): void => {
             // Awaiting them serially cost ~3 sequential socket round trips on every switch / 60s poll /
             // foreground; Promise.all collapses that to one round-trip depth. Each block keeps its own
             // getSyncedAt → sync → setSyncedAt watermark ordering internally.
-            void repos.place.refreshList().catch(() => {
-                /* best-effort */
-            });
+            void repos.place
+                .refreshList()
+                .then(() => syncStreakReporter.succeed('place-refresh'))
+                // Still best-effort — the retry policy is unchanged and the next tick re-asks. What
+                // changes is that a run of failures now says so once instead of never (ADR-0075).
+                .catch(error => syncStreakReporter.fail('place-refresh', error));
 
             await Promise.all([
                 // Refresh the current-session user profile (User domain); the repository caches the embedded
                 // $site into the place store. Keeps the account profile + active site fresh.
-                repos.user.getMyProfile().catch(() => {
+                repos.user
+                    .getMyProfile()
+                    .then(() => syncStreakReporter.succeed('my-profile'))
                     // best-effort: a failed profile refresh leaves the previous cache intact
-                }),
+                    .catch(error => syncStreakReporter.fail('my-profile', error)),
 
                 // Channel delta sync — channel.sync spans the whole cloud, so the cursor is keyed by cid.
                 // Each channel is stored tagged with its own sid, sgeo this is correct across site switches.
@@ -96,8 +102,12 @@ export const useBackgroundSync = (): void => {
                         const since = await repos.syncMeta.getSyncedAt(channelSyncKind);
                         const { syncedAt } = await repos.channel.syncChannels(since);
                         await repos.syncMeta.setSyncedAt(channelSyncKind, syncedAt);
-                    } catch {
-                        // best-effort: watermark not advanced → retried with the same since next tick
+                        syncStreakReporter.succeed('channel-delta');
+                    } catch (error) {
+                        // best-effort: watermark not advanced → retried with the same since next tick.
+                        // Which is exactly why a STREAK of these matters — the cursor stays put and the
+                        // channel list stops discovering anything (ADR-0075).
+                        syncStreakReporter.fail('channel-delta', error);
                     }
                 })(),
 
@@ -129,8 +139,10 @@ export const useBackgroundSync = (): void => {
                     if (periodic && !(await hasPendingSentInvite())) return;
                     try {
                         await repos.invite.list({ limit: INVITE_LIST_LIMIT });
-                    } catch {
+                        syncStreakReporter.succeed('sent-invites');
+                    } catch (error) {
                         // best-effort: the next edge or tick re-asks
+                        syncStreakReporter.fail('sent-invites', error);
                     }
                 })(),
 
@@ -143,8 +155,10 @@ export const useBackgroundSync = (): void => {
                         const since = await repos.syncMeta.getSyncedAt(profileSyncKind);
                         const { syncedAt } = await repos.profile.syncProfiles(since);
                         await repos.syncMeta.setSyncedAt(profileSyncKind, syncedAt);
-                    } catch {
+                        syncStreakReporter.succeed('profile-delta');
+                    } catch (error) {
                         // best-effort: watermark not advanced → retried with the same since next tick
+                        syncStreakReporter.fail('profile-delta', error);
                     }
                 })(),
             ]);
@@ -173,8 +187,10 @@ export const useBackgroundSync = (): void => {
         if (!activeSiteId || !isRelayServer) return;
         try {
             await repos.channel.getSelfChannel();
-        } catch {
+            syncStreakReporter.succeed('self-channel');
+        } catch (error) {
             // best-effort: retried on the next place entry
+            syncStreakReporter.fail('self-channel', error);
         }
     }, [repos.channel, activeSiteId, isRelayServer]);
 
