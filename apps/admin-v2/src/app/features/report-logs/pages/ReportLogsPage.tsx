@@ -147,10 +147,22 @@ export const ReportLogsPage = () => {
      * would advance the watermark past the rows that did not fit and strand them
      * permanently. A fresh walk is the only way to get them.
      */
+    /**
+     * Collect again from scratch — what the operator means by refreshing.
+     *
+     * The probe is reset as part of it, not left alone: its finds are measured against the
+     * watermark of the corpus that is being replaced, so keeping them would announce rows the new
+     * walk is already bringing in. A banner offering rows that are about to appear anyway reads as
+     * the merge being broken.
+     */
+    const reload = () => {
+        probe.reset();
+        corpus.reload();
+    };
+
     const acceptIncoming = () => {
         if (probe.overflowed) {
-            probe.reset();
-            corpus.reload();
+            reload();
             return;
         }
         corpus.appendHead(probe.take());
@@ -175,7 +187,7 @@ export const ReportLogsPage = () => {
                         cap={corpus.cap}
                         error={corpus.error}
                         fetchedAt={corpus.fetchedAt}
-                        onRetry={corpus.reload}
+                        onRetry={reload}
                     />
                 </div>
                 <div className="flex items-center gap-2">
@@ -210,7 +222,7 @@ export const ReportLogsPage = () => {
                     </button>
                     <button
                         type="button"
-                        onClick={corpus.reload}
+                        onClick={reload}
                         disabled={corpus.isCollecting}
                         className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-muted disabled:opacity-50"
                     >

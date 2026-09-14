@@ -7,7 +7,14 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { CORPUS_CAP, CORPUS_PAGE_SIZE, corpusStatus, nextCorpusPage, type CorpusPage } from './corpusPaging';
+import {
+    CORPUS_CAP,
+    CORPUS_PAGE_SIZE,
+    MAX_CORPUS_PAGES,
+    corpusStatus,
+    nextCorpusPage,
+    type CorpusPage,
+} from './corpusPaging';
 import type { ReportLogRow } from './parseReportLog';
 
 const row = (id: string): ReportLogRow => ({
@@ -72,6 +79,15 @@ describe('corpusStatus', () => {
     it('handles no pages at all', () => {
         expect(corpusStatus([])).toEqual({ rows: [], total: 0, truncated: false });
     });
+
+    // Truncation used to require hitting the ceiling, which made every other early stop silent —
+    // the screen claimed a complete corpus while holding a fraction of the set.
+    it('reports truncation whenever the server holds more, ceiling or not', () => {
+        const status = corpusStatus([page('a', 100, 7_700, 100)], 1_000);
+
+        expect(status.rows).toHaveLength(100);
+        expect(status.truncated).toBe(true);
+    });
 });
 
 describe('nextCorpusPage', () => {
@@ -104,6 +120,60 @@ describe('nextCorpusPage', () => {
         const repeats: CorpusPage = { rows: first.rows, total: 10_000, returned: 100 };
 
         expect(nextCorpusPage([first, repeats], 1_000, 100)).toBe(2);
+    });
+
+    /**
+     * One repeated page is tolerated (above); a run of them is the endless walk.
+     *
+     * Batch upload stamps a whole batch with one `createdAt`, and `from`/`size` over a non-unique
+     * sort key is unstable inside a tie band — so "a full page of rows we already have" is a
+     * shape this server really produces.
+     */
+    it('gives up after a second consecutive page that added nothing', () => {
+        const first = page('a', 100, 10_000, 100);
+        const repeats: CorpusPage = { rows: first.rows, total: 10_000, returned: 100 };
+
+        expect(nextCorpusPage([first, repeats, repeats], 1_000, 100)).toBeUndefined();
+    });
+
+    it('resets the stall count when a page does add something', () => {
+        const first = page('a', 100, 10_000, 100);
+        const repeats: CorpusPage = { rows: first.rows, total: 10_000, returned: 100 };
+        const fresh = page('b', 100, 10_000, 100);
+
+        expect(nextCorpusPage([first, repeats, fresh], 1_000, 100)).toBe(3);
+    });
+
+    it('stops at the request ceiling however full the pages look', () => {
+        // The backstop. Every other condition reads the response, so a response that always looks
+        // like "there is more" defeats it; this one counts requests.
+        const pages = Array.from({ length: MAX_CORPUS_PAGES }, (_, i) => page(`p${i}-`, 100, 1_000_000, 100));
+
+        expect(nextCorpusPage(pages, 1_000_000, 100)).toBeUndefined();
+    });
+
+    /**
+     * The property that matters more than any single condition: the walk ends. Without it,
+     * `hasNextPage` never goes false, and the console derives "collecting" from it — which
+     * disables both the re-collect button and the new-log probe, so the screen can neither
+     * refresh nor notice arrivals.
+     */
+    it('terminates on a server that always answers with a full page of repeats', () => {
+        const stuck = (): CorpusPage => ({
+            rows: Array.from({ length: CORPUS_PAGE_SIZE }, (_, i) => row(`dup${i}`)),
+            total: 7_700,
+            returned: CORPUS_PAGE_SIZE,
+        });
+
+        const pages: CorpusPage[] = [];
+        let guard = 0;
+        while (nextCorpusPage(pages) !== undefined && guard < 100) {
+            pages.push(stuck());
+            guard += 1;
+        }
+
+        expect(guard).toBeLessThan(100);
+        expect(pages.length).toBeLessThanOrEqual(MAX_CORPUS_PAGES);
     });
 
     it('treats a page size of zero as one, closing the only endless path', () => {
