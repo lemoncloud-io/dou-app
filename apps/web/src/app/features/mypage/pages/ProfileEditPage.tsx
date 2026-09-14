@@ -15,6 +15,17 @@ import { KeyboardAwareLayout, fixedViewportScreen } from '../../../ui/layouts';
 const MAX_NAME_LENGTH = 30;
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
 
+/**
+ * The screen shows the same "too large" message for a codec failure as for an oversized file, so
+ * the two are indistinguishable to the user and were indistinguishable to us. Size and type are
+ * what separate them; the file's contents are never recorded (ADR-0075).
+ */
+const logImageEncodeFailure = (error: unknown, file: File): void =>
+    logger.warn('PROFILE', 'profile image encoding failed', {
+        error,
+        data: { sizeBytes: file.size, type: file.type },
+    });
+
 export const ProfileEditPage = () => {
     const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
@@ -75,7 +86,8 @@ export const ProfileEditPage = () => {
         try {
             const base64 = await resizeImageToBase64(file, 150);
             setImageUrl(base64);
-        } catch {
+        } catch (error) {
+            logImageEncodeFailure(error, file);
             setImageSizeError(true);
         }
 

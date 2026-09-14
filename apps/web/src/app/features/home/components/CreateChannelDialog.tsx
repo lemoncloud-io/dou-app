@@ -33,6 +33,17 @@ interface CreateChannelDialogProps {
  * @chatic/web-ui-kit; mirrors CreatePlaceDialog. Owner/PRO/limit gating lives in the caller
  * (HomePage). See place-channel-create.md.
  */
+/**
+ * The screen shows the same "too large" message for a codec failure as for an oversized file, so
+ * the two are indistinguishable to the user and were indistinguishable to us. Size and type are
+ * what separate them; the file's contents are never recorded (ADR-0075).
+ */
+const logImageEncodeFailure = (error: unknown, file: File): void =>
+    logger.warn('CHANNEL', 'channel image encoding failed', {
+        error,
+        data: { sizeBytes: file.size, type: file.type },
+    });
+
 export const CreateChannelDialog = ({ open, onOpenChange }: CreateChannelDialogProps) => {
     const { t } = useTranslation();
     const navigate = useNavigateWithTransition();
@@ -79,7 +90,8 @@ export const CreateChannelDialog = ({ open, onOpenChange }: CreateChannelDialogP
             const base64 = await resizeImageToBase64(file, 150);
             setThumbnail(base64);
             setNotice(null);
-        } catch {
+        } catch (error) {
+            logImageEncodeFailure(error, file);
             setNotice({ variant: 'error', message: t('createChannel.imageSizeError') });
         }
     };

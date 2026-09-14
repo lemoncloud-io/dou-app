@@ -7,6 +7,9 @@ import type { MySiteView } from '@lemoncloud/chatic-backend-api';
 let mockPlace: Partial<MySiteView> | null = null;
 const navigate = jest.fn();
 const observeItem = jest.fn();
+const mockLogger = { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() };
+jest.mock('@chatic/bridges', () => ({ logger: mockLogger }));
+
 const updatePlace = jest.fn();
 const toast = jest.fn();
 
@@ -140,5 +143,36 @@ describe('PlaceEditPage — 소개 문구', () => {
         rerender(<PlaceEditPage />);
 
         expect(descBox()).toHaveValue('작성 중');
+    });
+});
+
+describe('PlaceEditPage — 저장 실패 기록 (ADR-0075)', () => {
+    // 토스트가 문자 그대로 "알 수 없는 오류"인데, 지금까지 남는 것도 그만큼이었다.
+    it('저장 실패를 어떤 필드가 실렸는지와 함께 error로 남긴다', async () => {
+        updatePlace.mockRejectedValue(new Error('save boom'));
+        render(<PlaceEditPage />);
+
+        fireEvent.change(screen.getByLabelText(/placeEdit\.nameLabel/), { target: { value: '새 이름' } });
+        fireEvent.click(submit());
+
+        await waitFor(() => expect(mockLogger.error).toHaveBeenCalled());
+        expect(mockLogger.error.mock.calls[0][0]).toBe('PLACE');
+        expect(mockLogger.error.mock.calls[0][1]).toBe('place save failed');
+        expect(mockLogger.error.mock.calls[0][2].data).toEqual({
+            placeId: 'p1',
+            descChanged: false,
+            imageChanged: false,
+        });
+    });
+
+    it('저장이 성공하면 아무것도 남기지 않는다', async () => {
+        updatePlace.mockResolvedValue(undefined);
+        render(<PlaceEditPage />);
+
+        fireEvent.change(screen.getByLabelText(/placeEdit\.nameLabel/), { target: { value: '새 이름' } });
+        fireEvent.click(submit());
+
+        await waitFor(() => expect(updatePlace).toHaveBeenCalled());
+        expect(mockLogger.error).not.toHaveBeenCalled();
     });
 });

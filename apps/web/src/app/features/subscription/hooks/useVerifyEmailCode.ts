@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 
 import { runtime } from '@chatic/app-runtime';
+import { logger } from '@chatic/bridges';
 import { useCustomMutation } from '@chatic/shared';
 
 import { IS_DEV } from '../consts';
@@ -48,8 +49,19 @@ export const useVerifyEmailCode = (): ((request: EmailVerifyRequest) => Promise<
 
     return useCallback(
         async (request: EmailVerifyRequest) => {
-            // Discards the mutation result: the dialog only branches on resolve vs reject.
-            await verifyEmail.mutateAsync(request);
+            try {
+                // Discards the mutation result: the dialog only branches on resolve vs reject.
+                await verifyEmail.mutateAsync(request);
+            } catch (error) {
+                // The step is the whole point of this entry: all four legs share one hook and one
+                // endpoint, so without it a failure says only "email verification broke" and not
+                // which leg — send, resend, check or confirm. The address is not recorded (ADR-0075).
+                logger.error('ACCOUNT', `email verification failed at step=${request.step}`, {
+                    error,
+                    data: { step: request.step, hasCode: !!request.code, hasCloudId: !!request.cloudId },
+                });
+                throw error;
+            }
         },
         [verifyEmail]
     );

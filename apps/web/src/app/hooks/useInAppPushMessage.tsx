@@ -3,12 +3,19 @@ import { matchPath } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import { runtime } from '@chatic/app-runtime';
+import { logger } from '@chatic/bridges';
 import type { AppMessageData } from '@chatic/app-messages';
 
 import { useOnReceiveNotification, usePushNavigate } from '../bridge';
+import { pushEntryRegistry } from '../runtime/logging/pushEntryRegistry';
 import { ROUTES } from '../routes/paths';
 import { InAppNotificationCard } from '../ui/components/InAppNotificationCard';
-import { extractPushBannerFields, resolveInAppPushRoute, type InAppPushData } from '../utils/resolveInAppPushRoute';
+import {
+    extractPushBannerFields,
+    extractPushMessageId,
+    resolveInAppPushRoute,
+    type InAppPushData,
+} from '../utils/resolveInAppPushRoute';
 
 /** Fixed toast id so consecutive pushes replace the banner instead of stacking. */
 const IN_APP_PUSH_TOAST_ID = 'in-app-push-message';
@@ -52,14 +59,41 @@ export const useInAppPushMessage = (): void => {
             const notification = message.data?.notification;
             const title = notification?.title;
             const body = notification?.body;
-            if (!title && !body) return;
-
             const data: InAppPushData = notification?.data ?? {};
+            const messageId = extractPushMessageId(data);
+
+            /**
+             * One entry per foreground receipt, carrying the verdict rather than a second entry for
+             * it (ADR-0075). This is the app's only always-mounted `OnReceiveNotification`
+             * subscriber, so the receipt was previously recorded only while the debug screen
+             * happened to be open — and under the wrong tag, with the push's title in it.
+             *
+             * Never the title or body: a push body is message content (catalog rule 8).
+             */
+            const record = (presented: boolean, reason?: string) =>
+                logger.info('PUSH_EVENT', `push received — ${presented ? 'banner shown' : `suppressed (${reason})`}`, {
+                    messageId,
+                    presented,
+                    reason,
+                    hasTitle: !!title,
+                    hasBody: !!body,
+                });
+
+            if (!title && !body) {
+                // Data-only push: the badge consumes it, so there is nothing to show. Recorded all
+                // the same — a silent push arriving is exactly what a badge investigation needs.
+                record(false, 'silent');
+                return;
+            }
+
             // Read through the `payload` merge, never off `data` directly: senders nest these
             // fields, so a raw read silently disarms both rules below (see
             // `extractPushBannerFields`).
             const { ownerId, channelId, channelName, thumbnail } = extractPushBannerFields(data);
-            if (userId && ownerId && ownerId === String(userId)) return;
+            if (userId && ownerId && ownerId === String(userId)) {
+                record(false, 'own-message');
+                return;
+            }
 
             // The current channel is read from the live pathname (not `useLocation`) so the
             // check sees where the user is at event time, without re-rendering per route.
@@ -67,10 +101,16 @@ export const useInAppPushMessage = (): void => {
                 const isViewingChannel = VIEWING_CHANNEL_ROUTES.some(
                     pattern => matchPath(pattern, window.location.pathname)?.params.channelId === channelId
                 );
-                if (isViewingChannel) return;
+                if (isViewingChannel) {
+                    // The distinction a bare "no banner appeared" report cannot make: the push DID
+                    // arrive and was deliberately folded because the room was already open.
+                    record(false, 'viewing-channel');
+                    return;
+                }
             }
 
             const route = resolveInAppPushRoute(data);
+            record(true);
             toast.custom(
                 toastId => (
                     <InAppNotificationCard
@@ -81,6 +121,14 @@ export const useInAppPushMessage = (): void => {
                             route
                                 ? () => {
                                       toast.dismiss(toastId);
+                                      // Hand the push's id to the room this opens, so its entry is
+                                      // logged under the same correlation key as the receipt above
+                                      // (ADR-0075). Bounded and self-clearing — see the registry.
+                                      if (channelId) pushEntryRegistry.begin(channelId, messageId);
+                                      logger.info('PUSH_EVENT', 'in-app banner tapped', {
+                                          messageId,
+                                          channelId,
+                                      });
                                       void navigateToPush(route);
                                   }
                                 : undefined

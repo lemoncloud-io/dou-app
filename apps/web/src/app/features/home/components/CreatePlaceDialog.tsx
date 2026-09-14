@@ -38,6 +38,17 @@ interface CreatePlaceDialogProps {
  * matter how long the client waits. The owner picks up their profile later via the existing
  * room-settings nudge (ADR-0040), same as everyone else. See place-channel-create.md.
  */
+/**
+ * The screen shows the same "too large" message for a codec failure as for an oversized file, so
+ * the two are indistinguishable to the user and were indistinguishable to us. Size and type are
+ * what separate them; the file's contents are never recorded (ADR-0075).
+ */
+const logImageEncodeFailure = (error: unknown, file: File): void =>
+    logger.warn('PLACE', 'place image encoding failed', {
+        error,
+        data: { sizeBytes: file.size, type: file.type },
+    });
+
 export const CreatePlaceDialog = ({ open, onOpenChange }: CreatePlaceDialogProps) => {
     const { t } = useTranslation();
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -83,7 +94,8 @@ export const CreatePlaceDialog = ({ open, onOpenChange }: CreatePlaceDialogProps
             const base64 = await resizeImageToBase64(file, 150);
             setThumbnail(base64);
             setNotice(null);
-        } catch {
+        } catch (error) {
+            logImageEncodeFailure(error, file);
             setNotice({ variant: 'error', message: t('createPlace.imageSizeError') });
         }
     };

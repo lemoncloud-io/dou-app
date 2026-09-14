@@ -59,6 +59,16 @@ export const LoginPage = () => {
     const leaveForReturnTo = () => {
         const { returnTo } = (location.state ?? {}) as LoginLocationState;
         const cameFromInsideTheApp = !!returnTo && window.history.length > 1;
+        // "I signed in and it took me to home instead of where I was" is a report about THIS branch,
+        // and its two causes are indistinguishable from the outside: no `returnTo` (an entry point
+        // bypassed useNavigateToLogin) or a history stack of one (a fresh WebView load, a deep link,
+        // a reload). Recording both inputs beside the branch turns that report into an answer —
+        // this is the login-completion milestone the catalog asks for (ADR-0075).
+        logger.info('AUTH', `leaving login — ${cameFromInsideTheApp ? 'back to origin' : 'fallback to home'}`, {
+            hadReturnTo: !!returnTo,
+            historyLength: window.history.length,
+            wentBack: cameFromInsideTheApp,
+        });
         const leaving = cameFromInsideTheApp
             ? navigate(-1)
             : // Deep link or refresh landed here directly, so there is nothing to go back to.

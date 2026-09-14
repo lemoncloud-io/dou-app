@@ -1,7 +1,7 @@
 import { useCallback, useEffect } from 'react';
 import { DeviceEventEmitter, Platform } from 'react-native';
 import { logger, notificationService, pushEventManager } from '../../services';
-import { PushMarksBridge } from '../../bridge';
+import { BadgeSyncBridge, PushMarksBridge } from '../../bridge';
 import type { IAppBridgeHost } from '@chatic/bridges';
 import type { WebMessageData } from '@chatic/app-messages';
 
@@ -31,7 +31,9 @@ export const useFcmHandler = (bridge: IAppBridgeHost) => {
                 }
 
                 if (token) {
-                    logger.debug('NOTIFICATION', 'Success set token.' + token);
+                    // Existence, never the value: an FCM/APNs token is a credential (catalog rule 8),
+                    // and `debug` entries still reach the server on non-release builds.
+                    logger.info('NOTIFICATION', 'push token acquired', { platform: Platform.OS });
                     return { type: 'OnFetchFcmToken' as const, success: true, data: { token } };
                 } else {
                     throw new Error('Failed to generate FCM Token');
@@ -87,6 +89,29 @@ export const useFcmHandler = (bridge: IAppBridgeHost) => {
         }
     }, []);
 
+    /**
+     * Answers the shared badge counter — the only value on Android that knows the real badge, since
+     * `FetchBadgeCount` is served by notifee whose badge API is iOS-only and answers a constant 0
+     * there. A separate message rather than a changed meaning for the old one, because the web ships
+     * ahead of the app: an older shell answers `NOT_FOUND` and the web learns "unknown" from that
+     * (ADR-0075).
+     *
+     * `base: null` means unknown, never zero — see BadgeSyncBridge.getBase.
+     */
+    const handleFetchBadgeBase = useCallback(async (_message: WebMessageData<'FetchBadgeBase'>) => {
+        try {
+            const base = await BadgeSyncBridge.getBase();
+            return { type: 'OnFetchBadgeBase' as const, success: true, data: { base } };
+        } catch (e: any) {
+            logger.error('NOTIFICATION', 'Fetch badge base error.', e);
+            return {
+                type: 'OnFetchBadgeBase' as const,
+                success: false,
+                error: { code: 'BADGE_ERROR', message: e.message },
+            };
+        }
+    }, []);
+
     const handleFetchPushMarks = useCallback(async (_message: WebMessageData<'FetchPushMarks'>) => {
         try {
             const marks = await PushMarksBridge.drain();
@@ -117,7 +142,11 @@ export const useFcmHandler = (bridge: IAppBridgeHost) => {
                     notification: {
                         title: remoteMessage.notification?.title,
                         body: remoteMessage.notification?.body,
-                        data: remoteMessage.data,
+                        // `messageId` folded into the payload so the web can correlate this receipt
+                        // with the tap and the room it opens (ADR-0075). The Android native path
+                        // already injects it; on iOS it arrives as a top-level field the web never
+                        // saw, so without this merge the chain has no key on that platform.
+                        data: { messageId: remoteMessage.messageId, ...remoteMessage.data },
                     },
                 },
             });
@@ -130,7 +159,19 @@ export const useFcmHandler = (bridge: IAppBridgeHost) => {
 
         // Android native foreground push listener
         const foregroundPushSubscription = DeviceEventEmitter.addListener('onForegroundPushReceived', event => {
-            logger.info('NOTIFICATION', 'Received Android native foreground push event:', event);
+            // Ids only — the event carries the push's title and body, which are message content
+            // (catalog rule 8) and this entry reaches the server on release builds.
+            //
+            // Kept even though the Kotlin service logs the same arrival and the web logs what it did
+            // with it: those are three different hops (OS → RN → web), and a push that vanishes
+            // between them is only locatable if each hop says it saw it. Foreground receipts are
+            // bounded by messages arriving while the app is open, so the volume is not the
+            // per-frame kind the catalog forbids.
+            logger.info('PUSH_EVENT', 'foreground push relayed to web', {
+                messageId: event.messageId,
+                channelId: event.channelId,
+                type: event.type,
+            });
             try {
                 // The FCM payload verbatim (`event.data`), then the fields nested in its `payload`
                 // JSON on top — the nested copy is the authoritative one for `channelId`/`ownerId`,
@@ -196,6 +237,7 @@ export const useFcmHandler = (bridge: IAppBridgeHost) => {
         fetchFcmToken,
         handleDeleteFcmToken,
         handleFetchBadgeCount,
+        handleFetchBadgeBase,
         handleSetBadgeCount,
         handleFetchPushMarks,
     };

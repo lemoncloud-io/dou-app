@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 
 import { runtime } from '@chatic/app-runtime';
+import { logger } from '@chatic/bridges';
 import type { DomainJoin } from '@chatic/data';
 import type { ChannelUpdateJoinInput } from '@lemoncloud/chatic-sockets-api';
 
@@ -19,10 +20,17 @@ export const useJoinMutations = () => {
     const { join: joinRepository } = runtime.data.useRuntimeRepositories();
     const [isPending, setIsPending] = useState<PendingState>(INITIAL_PENDING);
 
-    // Toggle the pending flag around the promise (mirrors useChannelMutations).
+    // Toggle the pending flag around the promise, and log the failure (mirrors useChannelMutations).
+    // A silent failure here leaves the user's own join row — their nick and mute flag — at its old
+    // value with no trace of the write that was refused.
     const run = useCallback(<T>(key: PendingKey, op: () => Promise<T>): Promise<T> => {
         setIsPending(prev => ({ ...prev, [key]: true }));
-        return op().finally(() => setIsPending(prev => ({ ...prev, [key]: false })));
+        return op()
+            .catch((error: unknown) => {
+                logger.error('CHAT', `join ${key} failed`, { error });
+                throw error;
+            })
+            .finally(() => setIsPending(prev => ({ ...prev, [key]: false })));
     }, []);
 
     const updateJoin = useCallback(

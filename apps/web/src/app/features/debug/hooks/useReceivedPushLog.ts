@@ -1,7 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
 
-import { logger } from '@chatic/bridges';
-
 import { useOnReceiveNotification } from '../../../bridge';
 import { normalizeReceivedPush, type NormalizedPush } from '../lib';
 
@@ -31,7 +29,6 @@ export const useReceivedPushLog = (): UseReceivedPushLog => {
 
     useOnReceiveNotification(message => {
         const normalized = normalizeReceivedPush(message, Date.now());
-        logger.info('PUSH', `Received notification: ${normalized.title}`, normalized);
 
         const id = `${normalized.receivedAt}-${(seqRef.current += 1)}`;
         setEntries(prev => [{ id, ...normalized }, ...prev].slice(0, MAX_ENTRIES));

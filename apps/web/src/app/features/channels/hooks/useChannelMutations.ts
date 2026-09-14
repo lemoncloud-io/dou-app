@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 
 import { runtime } from '@chatic/app-runtime';
+import { logger } from '@chatic/bridges';
 import type { DomainChannel } from '@chatic/data';
 import type {
     ChannelCreateInput,
@@ -24,10 +25,20 @@ export const useChannelMutations = () => {
     const { channel: channelRepository, join: joinRepository } = runtime.data.useRuntimeRepositories();
     const [isPending, setIsPending] = useState<PendingState>(INITIAL_PENDING);
 
-    // Toggle one action's pending flag around its promise.
+    // Toggle one action's pending flag around its promise, and log the failure on the way out.
+    //
+    // Logging belongs on this shared runner rather than in each action: every channel write already
+    // funnels through it, so a new action cannot forget the entry. These are socket-path writes, so
+    // the "HTTP failures are logged by the transport alone" rule does not apply — nothing else
+    // records them today, which is why a failed leave left no trace at all.
     const run = useCallback(<T>(key: PendingKey, op: () => Promise<T>): Promise<T> => {
         setIsPending(prev => ({ ...prev, [key]: true }));
-        return op().finally(() => setIsPending(prev => ({ ...prev, [key]: false })));
+        return op()
+            .catch((error: unknown) => {
+                logger.error('CHANNEL', `channel ${key} failed`, { error });
+                throw error;
+            })
+            .finally(() => setIsPending(prev => ({ ...prev, [key]: false })));
     }, []);
 
     const createChannel = useCallback(
@@ -57,13 +68,25 @@ export const useChannelMutations = () => {
                 // `joined` value forever and useChannelMembers keeps rendering them. Mark it left
                 // here, in the same local join cache the member list observes.
                 if (payload.userId && payload.channelId) {
-                    await joinRepository.cacheWrite({
-                        id: `${payload.channelId}@${payload.userId}`,
-                        channelId: payload.channelId,
-                        userId: payload.userId,
-                        joined: 0,
-                        reason: 'kicked',
-                    });
+                    try {
+                        await joinRepository.cacheWrite({
+                            id: `${payload.channelId}@${payload.userId}`,
+                            channelId: payload.channelId,
+                            userId: payload.userId,
+                            joined: 0,
+                            reason: 'kicked',
+                        });
+                    } catch (error) {
+                        // Distinct from a failed leave: the server DID remove them, but the local
+                        // mark that stops the member list rendering them did not land — which is
+                        // exactly the "removed member still listed" report. The runner's generic
+                        // entry cannot tell the two apart, so name this one before rethrowing.
+                        logger.error('CHANNEL', 'kick succeeded but local join mark failed', {
+                            error,
+                            data: { channelId: payload.channelId },
+                        });
+                        throw error;
+                    }
                 }
                 return domain;
             }),

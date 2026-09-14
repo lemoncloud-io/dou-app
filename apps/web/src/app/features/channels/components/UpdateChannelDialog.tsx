@@ -28,6 +28,17 @@ const NAME_MAX = 20;
  *   MY personal room name (`join.update` nick), shown only to me. Ownership is
  *   derived from the observed channel, so no mode prop is needed.
  */
+/**
+ * The screen shows the same "too large" message for a codec failure as for an oversized file, so
+ * the two are indistinguishable to the user and were indistinguishable to us. Size and type are
+ * what separate them; the file's contents are never recorded (ADR-0075).
+ */
+const logImageEncodeFailure = (error: unknown, file: File): void =>
+    logger.warn('CHANNEL', 'channel image encoding failed', {
+        error,
+        data: { sizeBytes: file.size, type: file.type },
+    });
+
 export const UpdateChannelDialog = ({ open, onOpenChange, channelId }: UpdateChannelDialogProps) => {
     const { t } = useTranslation();
     const { channel } = useChannel(channelId ?? null);
@@ -84,7 +95,8 @@ export const UpdateChannelDialog = ({ open, onOpenChange, channelId }: UpdateCha
         try {
             const base64 = await resizeImageToBase64(file, 150);
             setThumbnail(base64);
-        } catch {
+        } catch (error) {
+            logImageEncodeFailure(error, file);
             setImageSizeError(true);
         }
     };

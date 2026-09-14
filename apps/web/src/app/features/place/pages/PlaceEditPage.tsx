@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 
+import { logger } from '@chatic/bridges';
 import { cn } from '@chatic/lib/utils';
 import { resizeImageToBase64, useNavigateWithTransition } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
@@ -116,7 +117,14 @@ export const PlaceEditPage = () => {
         try {
             const base64 = await resizeImageToBase64(file, 150);
             setImageUrl(base64);
-        } catch {
+        } catch (error) {
+            // The screen shows the same "too large" message it shows for an oversized file, so a
+            // codec failure and a size refusal are indistinguishable to the user AND to us. The
+            // file's size and type are what separate them; its contents are never recorded.
+            logger.warn('PLACE', 'place image encoding failed', {
+                error,
+                data: { sizeBytes: file.size, type: file.type },
+            });
             setImageSizeError(true);
         }
     };
@@ -141,7 +149,14 @@ export const PlaceEditPage = () => {
                 ...(isImageDirty && { thumbnail: imageUrl }),
             });
             navigate(-1);
-        } catch {
+        } catch (error) {
+            // The toast says "unknown error" literally, and until now that was also true of what
+            // was left behind. Which fields were in play matters: a name-only save and one carrying
+            // a fresh thumbnail fail for different reasons (ADR-0075).
+            logger.error('PLACE', 'place save failed', {
+                error,
+                data: { placeId, descChanged: isDescDirty, imageChanged: isImageDirty },
+            });
             toast({ title: t('error.unknownError'), variant: 'destructive' });
         }
     };

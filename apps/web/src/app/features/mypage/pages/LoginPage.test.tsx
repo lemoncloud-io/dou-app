@@ -1,5 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 
+import { logger } from '@chatic/bridges';
+
 import { LoginPage } from './LoginPage';
 
 const navigate = jest.fn();
@@ -164,6 +166,35 @@ describe('LoginPage — 로그인 후 복귀', () => {
         expect(navigate).not.toHaveBeenCalledWith('//evil.example.com', expect.anything());
         expect(navigate).toHaveBeenCalledWith(-1);
     });
+    // "로그인했더니 원래 화면이 아니라 홈으로 갔다"는 신고가 가리키는 분기다. 원인이 둘인데
+    // (returnTo 부재 / 히스토리 1칸) 밖에서는 구분이 안 되므로 두 입력을 분기와 함께 남긴다.
+    it('복귀 분기와 그 입력 두 개를 info로 남긴다', async () => {
+        withHistoryLength(3);
+        currentLocation = { state: { returnTo: '/subscription/plans' } };
+        render(<LoginPage />);
+
+        await signInWithGoogle();
+
+        await waitFor(() => expect(navigate).toHaveBeenCalled());
+        const info = (logger.info as jest.Mock).mock.calls.find(call => String(call[1]).includes('leaving login'));
+        expect(info?.[0]).toBe('AUTH');
+        expect(info?.[1]).toContain('back to origin');
+        expect(info?.[2]).toEqual({ hadReturnTo: true, historyLength: 3, wentBack: true });
+    });
+
+    it('히스토리가 한 칸이면 returnTo가 있어도 폴백으로 기록된다', async () => {
+        withHistoryLength(1);
+        currentLocation = { state: { returnTo: '/subscription/plans' } };
+        render(<LoginPage />);
+
+        await signInWithGoogle();
+
+        await waitFor(() => expect(navigate).toHaveBeenCalled());
+        const info = (logger.info as jest.Mock).mock.calls.find(call => String(call[1]).includes('leaving login'));
+        expect(info?.[1]).toContain('fallback to home');
+        expect(info?.[2]).toEqual({ hadReturnTo: true, historyLength: 1, wentBack: false });
+    });
+
     // 딥링크·새로고침으로 로그인 화면에 직접 도달한 경우. 기본값이 조용히 동작해야 한다.
     it('returnTo가 없으면 홈으로 복귀한다', async () => {
         render(<LoginPage />);

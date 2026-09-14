@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { useLocation, useParams, useSearchParams } from 'react-router-dom';
 
 import { logger } from '@chatic/bridges';
+
+import { pushEntryRegistry } from '../../../runtime/logging/pushEntryRegistry';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { runtime } from '@chatic/app-runtime';
 import type { DomainChannel } from '@chatic/data';
@@ -260,6 +262,37 @@ export const ChannelRoomPage = () => {
         loadMore,
         loadUntil,
     } = useChats(memoizedChatParams);
+
+    /**
+     * Push-tap entry chain (ADR-0075). Only rooms reached by tapping a push record anything: the
+     * registry hands over that push's id and how long the routing took, and the second effect closes
+     * the chain when messages actually appear. Two entries, one correlation key — which is what makes
+     * "tapped a push and the conversation never showed" answerable, by saying whether the room even
+     * opened and whether it was routing or loading that took the time.
+     */
+    const pushEntryRef = useRef<{ messageId?: string } | null>(null);
+    const pushReadyLoggedRef = useRef(false);
+    useEffect(() => {
+        if (!channelId) return;
+        const pending = pushEntryRegistry.consume(channelId);
+        if (!pending) return;
+        pushEntryRef.current = { messageId: pending.messageId };
+        logger.info('PUSH_EVENT', 'room opened from push tap', {
+            messageId: pending.messageId,
+            channelId,
+            routingMs: pending.elapsedMs,
+        });
+    }, [channelId]);
+    useEffect(() => {
+        if (!pushEntryRef.current || pushReadyLoggedRef.current) return;
+        if (isChatLoading || messages.length === 0) return;
+        pushReadyLoggedRef.current = true;
+        logger.info('PUSH_EVENT', 'push-opened room showed its messages', {
+            messageId: pushEntryRef.current.messageId,
+            channelId,
+            count: messages.length,
+        });
+    }, [channelId, isChatLoading, messages]);
 
     /**
      * The room's very first message is loaded, so the intro block belongs at the top of the thread.

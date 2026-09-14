@@ -20,7 +20,15 @@ export class SubscriptionIapService implements ISubscriptionIapService {
     }
 
     public async init(): Promise<boolean> {
-        return initConnection();
+        try {
+            return await initConnection();
+        } catch (error) {
+            // A failed store connection kills every later purchase, and it used to be a bare
+            // rethrow: the user saw "payment failed" while the reason — the connection never
+            // opened — existed nowhere (ADR-0075).
+            this.logService.error('IAP', 'Store connection failed', error as Error);
+            throw error;
+        }
     }
 
     /**
@@ -130,7 +138,7 @@ export class SubscriptionIapService implements ISubscriptionIapService {
 
         this.logService.info(
             'IAP',
-            `Attempting purchase: id=${id}, offerToken=${offerToken}, oldPlanId=${oldPlanId}, newPlanId=${newPlanId}`
+            `Attempting purchase: id=${id}, hasOfferToken=${!!offerToken}, oldPlanId=${oldPlanId}, newPlanId=${newPlanId}`
         );
 
         const googleRequest: any =
@@ -158,17 +166,32 @@ export class SubscriptionIapService implements ISubscriptionIapService {
             }
         }
 
-        await requestPurchase({
-            type: 'subs',
-            request: {
-                apple: { sku: id, andDangerouslyFinishTransactionAutomatically: false },
-                google: googleRequest,
-            },
-        });
+        try {
+            await requestPurchase({
+                type: 'subs',
+                request: {
+                    apple: { sku: id, andDangerouslyFinishTransactionAutomatically: false },
+                    google: googleRequest,
+                },
+            });
+        } catch (error) {
+            // The store's own refusal. The web records that a purchase failed, but only this layer
+            // ever sees WHY — the catalog puts this entry in the service, not the bridge handler,
+            // for that reason.
+            this.logService.error('IAP', `Store refused purchase: id=${id}`, error as Error);
+            throw error;
+        }
     }
 
     public async finish(purchase: Purchase): Promise<Purchase> {
-        await finishTransaction({ purchase, isConsumable: false });
+        try {
+            await finishTransaction({ purchase, isConsumable: false });
+        } catch (error) {
+            // An unfinished transaction is re-presented by the store, which is how a purchase that
+            // already validated turns into a second charge.
+            this.logService.error('IAP', `Finish transaction failed: id=${purchase.productId}`, error as Error);
+            throw error;
+        }
         return purchase;
     }
 

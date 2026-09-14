@@ -31,7 +31,8 @@ class ChaticFirebaseMessagingService : FirebaseMessagingService() {
 
     override fun onNewToken(token: String) {
         super.onNewToken(token)
-        NativeLogger.log("debug", TAG, "Refreshed token: $token")
+        // The token itself is a credential (catalog rule 8) — record that it rotated, not what to.
+        NativeLogger.log("info", TAG, "FCM token refreshed")
     }
 
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
@@ -68,11 +69,17 @@ class ChaticFirebaseMessagingService : FirebaseMessagingService() {
         val finalTitle = translate(i18nJson, titleLocKey, titleLocArgs)
         val finalBody = translate(i18nJson, bodyLocKey, bodyLocArgs)
 
-        NativeLogger.log("debug", TAG, "Translated Title: $finalTitle, Body: $finalBody")
+        // Lengths, never the strings: a push title/body is message content, and `debug` entries
+        // still reach the server on non-release builds.
+        NativeLogger.log("debug", TAG, "Translated push copy: titleLen=${finalTitle.length}, bodyLen=${finalBody.length}")
 
         // 2. Check if the app is currently in the foreground
         if (isAppInForeground(this)) {
-            NativeLogger.log("debug", TAG, "App is in foreground. Skipping native banner, emitting bridge event.")
+            NativeLogger.log(
+                "info",
+                TAG,
+                "push received (foreground) — relaying to web, messageId=$messageId, channel=$channelId"
+            )
             emitForegroundEvent(
                 messageId = messageId,
                 type = type,
@@ -86,7 +93,7 @@ class ChaticFirebaseMessagingService : FirebaseMessagingService() {
             )
         } else {
             if (silent) {
-                NativeLogger.log("debug", TAG, "Silent push received in background. Skipping notification banner.")
+                NativeLogger.log("info", TAG, "push received (background, silent) — no banner, messageId=$messageId")
             } else {
                 // Background chat pushes bump the app-icon badge: the socket (and the web that owns
                 // the badge) is suspended here, so this native handler is the only place a
@@ -104,7 +111,14 @@ class ChaticFirebaseMessagingService : FirebaseMessagingService() {
                 } else {
                     null
                 }
-                NativeLogger.log("debug", TAG, "App is in background/killed. Displaying native notification banner. badge=$badgeCount")
+                // `info`, not `debug`: this is the moment the badge moves without the web's knowledge, and
+                // `debug` is dropped entirely on release builds — which left the badge-vs-unread
+                // reports with no evidence at all on the path that causes them (ADR-0075).
+                NativeLogger.log(
+                    "info",
+                    TAG,
+                    "push received (background) — banner shown, badge=$badgeCount, messageId=$messageId, channel=$channelId"
+                )
                 displayNotification(
                     messageId = messageId,
                     channelId = channelId,
@@ -202,7 +216,8 @@ class ChaticFirebaseMessagingService : FirebaseMessagingService() {
                 channelName = json.optString("channelName").takeIf { it.isNotEmpty() }
             )
         } catch (e: Exception) {
-            NativeLogger.log("error", TAG, "Failed to parse push cloud hint: $payload", e)
+            // The payload carries the channel name — content, so the exception stands alone.
+            NativeLogger.log("error", TAG, "Failed to parse push cloud hint", e)
             PushCloudHint(null, null, null, null, null)
         }
     }
