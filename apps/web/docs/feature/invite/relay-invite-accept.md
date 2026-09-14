@@ -353,7 +353,7 @@ flowchart TD
 ```mermaid
 sequenceDiagram
     participant H as useAwaitInviteChannel
-    participant R as ChannelRepositoryV2
+    participant R as ChannelRepository
     participant S as sockets-api
 
     H->>R: cacheReadList({ sid }) — 기존 채널 스냅샷

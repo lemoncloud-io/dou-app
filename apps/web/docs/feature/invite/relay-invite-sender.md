@@ -304,29 +304,29 @@ stateDiagram-v2
 
 ### 핵심 파일
 
-| 파일                                                                      | 역할                                                                                                                                                                                      |
-| ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `libs/data/src/data/remote/gateways/socket.ts`                            | `InviteSocketDomainGateway = Pick<InviteGateway, 'create'\|'get'\|'list'\|'accept'\|'cancel'\|'reject'>` — 0.4.13 게이트웨이의 두 메서드를 도메인 표면에 노출.                            |
-| `libs/data/src/data/remote/socket-data-sources/InviteSocketDataSource.ts` | `cancelInvite(code)`/`rejectInvite(code)` 추가 — `acceptInvite`와 같은 모양(`gateway.cancel<MyInviteView>({ code })`).                                                                    |
-| `libs/data/src/data/repositories-v2/InviteRepositoryV2.ts`                | `cancel(code)`/`reject(code)` 추가 — 원격 패스스루(기존 원칙 유지).                                                                                                                       |
-| `apps/web/src/app/hooks/useRelayInvites.ts`                               | `useRelayInviteMutations`에 `cancelInvite`/`rejectInvite` 뮤테이션 추가(onSuccess 목록 무효화, `isPending` 포함). `InviteState`는 lib 범프로 5종이 된다.                                  |
-| `apps/web/src/app/features/invite/utils/inviteCode.ts`                    | **신규** — `composeInviteCode({ id, code })` → `invt:<id>:<code>` \| `undefined`. 조립 전용, 저장·로그 금지.                                                                              |
-| `apps/web/src/app/features/invite/utils/inviteStatus.ts`                  | 리졸버에서 플래그 파라미터 제거 — `rejected`는 정식 상태로 인식(`REJECTED_STATE` 문자열 우회 삭제). 카피 리졸버 2종(`resolve*Key`)은 카피 단일화로 삭제.                                  |
-| `apps/web/src/app/features/invite/hooks/useRetireInvite.ts`               | **신규** — 위 retire 규칙 표의 구현. `retire(invite): Promise<'canceled'\|'dismissed'\|'conflict'\|'failed'\|'skipped'>`. 재발급 경로 둘(대기 화면·폼)이 공유.                            |
-| `apps/web/src/app/features/invite/hooks/useCanceledInviteReconcile.ts`    | **신규** — S9의 일회성 reconcile. 홈에서 마운트, 세션당 1회, 순차 실행.                                                                                                                   |
-| `apps/web/src/app/features/invite/hooks/useLocallyCanceledInvites.ts`     | 존속하되 역할 축소 — "rejected 행 dismiss + legacy reconcile 대기 기록". 문서 주석 갱신.                                                                                                  |
-| `apps/web/src/app/features/invite/hooks/useInviteWaitingStatus.ts`        | 대상 invite 조회 + 30초 폴링(무변경).                                                                                                                                                     |
-| `apps/web/src/app/features/invite/hooks/useAcceptedChannelSync.ts`        | 수락 감지 후 채널 대기 + 타임아웃(무변경).                                                                                                                                                |
-| `apps/web/src/app/features/invite/hooks/useInviteListRows.ts`             | 필터 확장 — `pending`/`expired`/`rejected` + `!isCanceled`(dismiss).                                                                                                                      |
-| `apps/web/src/app/features/invite/components/ReinviteDialog.tsx`          | 3변형 유지 — `declined`가 이제 도달 가능. `expired` 설명은 단일 카피(취소가 실제로 나가므로 "기존 링크는 사용할 수 없다").                                                                |
-| `apps/web/src/app/features/invite/components/InviteChannelRow.tsx`        | `resolveInviteRowBadge(invite.state)` — 플래그 인자 삭제. 거절 행 둘째 줄 `contactInvite.rowStatus.declined`.                                                                             |
-| `apps/web/src/app/features/invite/pages/ContactInvitePage.tsx`            | 재초대 분기에 declined 추가, `handleReissue`가 `useRetireInvite`를 선행.                                                                                                                  |
-| `apps/web/src/app/features/invite/pages/InviteWaitingPage.tsx`            | 취소 확인 → `cancelInvite` 실호출(S6), rejected 상태 블록(S8), 재발급 retire 선행(S5·S5b), 종국 상태에서 취소 버튼 숨김. `useLocallyCanceledInvites` 의존 축소.                           |
-| `apps/web/src/app/stores/usePreferenceStore.ts` / `preferenceKeys.ts`     | `clearInviteCanceled(id)` 액션 **추가**(reconcile용). `declinedInvites` 슬라이스·키·액션 **삭제**(수신자 문서 참고).                                                                      |
-| `apps/web/src/app/features/invite/flags.ts`                               | **삭제** — 네 플래그 모두 존재 이유 소멸(ADR-0043 결정 9).                                                                                                                                |
-| `apps/web/src/app/hooks/useSentInviteLog.ts`                              | 무변경 — 재발급 자료(이름/번호 역조회).                                                                                                                                                   |
-| `apps/web/src/app/features/home/pages/HomePage.tsx`                       | `useCanceledInviteReconcile()` 마운트 한 줄 추가.                                                                                                                                         |
-| `apps/web/public/locales/{ko,en}/translation.json`                        | `inviteWaiting.rejected.*`·`inviteWaiting.cancelFailed` 추가. `inviteWaiting.cancelDialog.descriptionStub`·`contactInvite.reinvite.expired.descriptionAutoRevoke`(본문으로 승격 후) 삭제. |
+| 파일                                                                   | 역할                                                                                                                                                                                      |
+| ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `libs/data/src/remote/gateways/socket.ts`                              | `InviteSocketDomainGateway = Pick<InviteGateway, 'create'\|'get'\|'list'\|'accept'\|'cancel'\|'reject'>` — 0.4.13 게이트웨이의 두 메서드를 도메인 표면에 노출.                            |
+| `libs/data/src/remote/socket-data-sources/InviteSocketDataSource.ts`   | `cancelInvite(code)`/`rejectInvite(code)` 추가 — `acceptInvite`와 같은 모양(`gateway.cancel<MyInviteView>({ code })`).                                                                    |
+| `libs/data/src/repositories/InviteRepository.ts`                       | `cancel(code)`/`reject(code)` 추가 — 원격 패스스루(기존 원칙 유지).                                                                                                                       |
+| `apps/web/src/app/hooks/useRelayInvites.ts`                            | `useRelayInviteMutations`에 `cancelInvite`/`rejectInvite` 뮤테이션 추가(onSuccess 목록 무효화, `isPending` 포함). `InviteState`는 lib 범프로 5종이 된다.                                  |
+| `apps/web/src/app/features/invite/utils/inviteCode.ts`                 | **신규** — `composeInviteCode({ id, code })` → `invt:<id>:<code>` \| `undefined`. 조립 전용, 저장·로그 금지.                                                                              |
+| `apps/web/src/app/features/invite/utils/inviteStatus.ts`               | 리졸버에서 플래그 파라미터 제거 — `rejected`는 정식 상태로 인식(`REJECTED_STATE` 문자열 우회 삭제). 카피 리졸버 2종(`resolve*Key`)은 카피 단일화로 삭제.                                  |
+| `apps/web/src/app/features/invite/hooks/useRetireInvite.ts`            | **신규** — 위 retire 규칙 표의 구현. `retire(invite): Promise<'canceled'\|'dismissed'\|'conflict'\|'failed'\|'skipped'>`. 재발급 경로 둘(대기 화면·폼)이 공유.                            |
+| `apps/web/src/app/features/invite/hooks/useCanceledInviteReconcile.ts` | **신규** — S9의 일회성 reconcile. 홈에서 마운트, 세션당 1회, 순차 실행.                                                                                                                   |
+| `apps/web/src/app/features/invite/hooks/useLocallyCanceledInvites.ts`  | 존속하되 역할 축소 — "rejected 행 dismiss + legacy reconcile 대기 기록". 문서 주석 갱신.                                                                                                  |
+| `apps/web/src/app/features/invite/hooks/useInviteWaitingStatus.ts`     | 대상 invite 조회 + 30초 폴링(무변경).                                                                                                                                                     |
+| `apps/web/src/app/features/invite/hooks/useAcceptedChannelSync.ts`     | 수락 감지 후 채널 대기 + 타임아웃(무변경).                                                                                                                                                |
+| `apps/web/src/app/features/invite/hooks/useInviteListRows.ts`          | 필터 확장 — `pending`/`expired`/`rejected` + `!isCanceled`(dismiss).                                                                                                                      |
+| `apps/web/src/app/features/invite/components/ReinviteDialog.tsx`       | 3변형 유지 — `declined`가 이제 도달 가능. `expired` 설명은 단일 카피(취소가 실제로 나가므로 "기존 링크는 사용할 수 없다").                                                                |
+| `apps/web/src/app/features/invite/components/InviteChannelRow.tsx`     | `resolveInviteRowBadge(invite.state)` — 플래그 인자 삭제. 거절 행 둘째 줄 `contactInvite.rowStatus.declined`.                                                                             |
+| `apps/web/src/app/features/invite/pages/ContactInvitePage.tsx`         | 재초대 분기에 declined 추가, `handleReissue`가 `useRetireInvite`를 선행.                                                                                                                  |
+| `apps/web/src/app/features/invite/pages/InviteWaitingPage.tsx`         | 취소 확인 → `cancelInvite` 실호출(S6), rejected 상태 블록(S8), 재발급 retire 선행(S5·S5b), 종국 상태에서 취소 버튼 숨김. `useLocallyCanceledInvites` 의존 축소.                           |
+| `apps/web/src/app/stores/usePreferenceStore.ts` / `preferenceKeys.ts`  | `clearInviteCanceled(id)` 액션 **추가**(reconcile용). `declinedInvites` 슬라이스·키·액션 **삭제**(수신자 문서 참고).                                                                      |
+| `apps/web/src/app/features/invite/flags.ts`                            | **삭제** — 네 플래그 모두 존재 이유 소멸(ADR-0043 결정 9).                                                                                                                                |
+| `apps/web/src/app/hooks/useSentInviteLog.ts`                           | 무변경 — 재발급 자료(이름/번호 역조회).                                                                                                                                                   |
+| `apps/web/src/app/features/home/pages/HomePage.tsx`                    | `useCanceledInviteReconcile()` 마운트 한 줄 추가.                                                                                                                                         |
+| `apps/web/public/locales/{ko,en}/translation.json`                     | `inviteWaiting.rejected.*`·`inviteWaiting.cancelFailed` 추가. `inviteWaiting.cancelDialog.descriptionStub`·`contactInvite.reinvite.expired.descriptionAutoRevoke`(본문으로 승격 후) 삭제. |
 
 라우팅(`ROUTES.invite.contact` / `ROUTES.invite.waiting(inviteId)`), 리스트 통합 조건(default
 클라우드 한정), 프로필 전제조건 게이트, SMS 본문 조립은 종전과 같다 — 각각의 상세는 이전 서술이
@@ -347,7 +347,7 @@ stateDiagram-v2
   `npx tsc --build apps/web/tsconfig.app.json`을 한 번 돌린다(TS6305 노이즈 제거).
 - 단위 테스트: `npx jest --config apps/web/jest.config.js --runInBand --watchman=false` +
   `libs/data` 스위트. 이번 개정이 갱신/신설하는 스위트:
-    - `libs/data` — `InviteSocketDataSource.test.ts`·`InviteRepositoryV2.test.ts`에 cancel/reject
+    - `libs/data` — `InviteSocketDataSource.test.ts`·`InviteRepository.test.ts`에 cancel/reject
       패스스루 케이스 추가.
     - `useRelayInvites.test.ts`(있으면)/뮤테이션 — cancel/reject가 목록을 무효화하는지.
     - `utils/inviteCode.test.ts` **신규** — 조립 규칙(둘 다 있을 때만, 형식).

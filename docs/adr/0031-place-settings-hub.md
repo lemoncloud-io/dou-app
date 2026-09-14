@@ -14,7 +14,7 @@
 
 조사 결과, 상당 부분이 이미 존재한다:
 
-- **플레이스 엔티티(이름/썸네일) 편집 로직·API**: `useUpdatePlace({sid,name,thumbnail})` → `PlaceRepositoryV2.updatePlace`(옵티미스틱+롤백). 화면 `PlaceInfoPage`가 있으나 어디서도 진입하지 않는 고아 페이지이며, 오너 가드가 반대로 뒤집힌 버그(`if (place.isOwner) navigate(-1)`)가 있다. 오너 판별은 서버 제공 `place.isOwner`.
+- **플레이스 엔티티(이름/썸네일) 편집 로직·API**: `useUpdatePlace({sid,name,thumbnail})` → `PlaceRepository.updatePlace`(옵티미스틱+롤백). 화면 `PlaceInfoPage`가 있으나 어디서도 진입하지 않는 고아 페이지이며, 오너 가드가 반대로 뒤집힌 버그(`if (place.isOwner) navigate(-1)`)가 있다. 오너 판별은 서버 제공 `place.isOwner`.
 - **플레이스 유저 프로필(닉네임/사진, `${sid}@${uid}` 스코프)**: `PlaceProfileEditDialog` + 공용 폼 `PlaceProfileFormDialog` + `setMyProfile({nick,thumbnail})` 로 이미 완성. 홈 드롭다운의 "프로필"에서 열림.
 - **진입 드롭다운**: `HomePage.tsx` `profileMenu`(프로필/알림/설정), Radix `DropdownMenu`(`@chatic/ui-kit`) 기반. `isCloudOwner`, `selectedSiteId` 이미 이 위치에서 접근 가능.
 - **정렬 UI 재료**: `BottomSheet` + `SheetOption`(라디오 행), 클라이언트 선호 저장소 `preferenceKeys.ts` + `usePreferenceStore`(localStorage `chatic-*`) 완비. 현재 채팅방 정렬은 "최근 활동순" 고정.

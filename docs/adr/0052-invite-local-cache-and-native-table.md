@@ -94,7 +94,7 @@ stale-while-revalidate로 한정한다. 캐시를 읽어 먼저 그리고, `invi
 ### 범위
 
 **포함** — `CacheType`에 `invite` 추가와 그에 딸린 타입 맵·TTL·스토리지 묶음, 네이티브 테이블·
-마이그레이션·`InviteDataSource`·`SUPPORTED_CACHE_TYPES`·브릿지 페이로드, 웹 `InviteLocalDataSourceV2`와
+마이그레이션·`InviteDataSource`·`SUPPORTED_CACHE_TYPES`·브릿지 페이로드, 웹 `InviteLocalDataSource`와
 repository 배선, 로컬 취소 기록 흡수와 그 마이그레이션.
 
 **제외** — 커서 페이징(창 밖 판정의 근본 해결), 초대 상태 푸시 알림(백엔드 요청 4번), `invite`

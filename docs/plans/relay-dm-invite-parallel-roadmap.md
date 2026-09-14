@@ -6,7 +6,7 @@
 독립 브랜치/워크트리에서 작업하고, 트랙 간 의존은 아래 **인터페이스 계약**으로만
 접촉한다.
 
-> **이름 안내 (2026-09-01):** 이 로드맵이 쓰는 `remote/gateways/index.ts` · `MockSocketClient` 등은 **작성 당시 이름**이다. 소켓 축 리네임 뒤의 대응표는 [libs/data/docs/remote/README.md](../../libs/data/docs/remote/README.md#이름-규약-2026-09-01-리네임)에 있고, `MockSocketClient`는 참조 0으로 삭제됐다(이 문서가 말하듯 테스트 seam은 게이트웨이다).
+> **이름 안내 (2026-09-01):** 이 로드맵이 쓰는 `remote/gateways/index.ts` · `MockSocketClient` 등은 **작성 당시 이름**이다. 소켓 축 리네임 뒤의 대응표는 [libs/data/docs/remote/README.md](../../libs/data/docs/remote/README.md#naming-history)에 있고, `MockSocketClient`는 참조 0으로 삭제됐다(이 문서가 말하듯 테스트 seam은 게이트웨이다).
 
 ## 참조
 
@@ -91,7 +91,7 @@ Track 0이 만들고 전 트랙이 소비한다. 위치는 기존 패턴을 따�
 // ── Track 0 산출 ──────────────────────────────────────────────
 // 2026-08-04 개정(ADR-0043): 백엔드 요청 1·2번(취소·거절) 도착으로 state 유니온이 5종으로
 // 넓어지고 cancelInvite/rejectInvite가 추가됐다. 계약을 바꾸는 규칙대로 이 문서를 먼저 고쳤다.
-/** invite.list 폴링 (react-query). 초대는 repositories-v2로 승격하지 않는다(ADR-0033). */
+/** invite.list 폴링 (react-query). 초대는 repositories로 승격하지 않는다(ADR-0033). */
 useRelayInvites(state?: 'pending' | 'accepted' | 'canceled' | 'rejected' | 'expired'): {
     invites: MyInviteView[]; isLoading: boolean; refetch(): Promise<unknown>;
 }
@@ -140,7 +140,7 @@ useSentInviteLog(): {
 
 1. ~~의존성 범프: `@lemoncloud/chatic-sockets-lib` `0.4.8 → 0.4.9`,
    `@lemoncloud/chatic-backend-api` `^0.26.405 → ^0.26.704`.~~ **완료**
-2. ~~invite 게이트웨이 배선~~ **완료** — `libs/data/src/data/remote/gateways/index.ts`
+2. ~~invite 게이트웨이 배선~~ **완료** — `libs/data/src/remote/gateways/index.ts`
    에 연결되고 `libs/app-runtime`의 `useRuntimeGateways`로 노출된다(현재는 폐지 — `useRuntimeRepositories().invite`)
    (`socketFactory`·`DataManager`·`MockSocketGateways` 포함).
 3. ~~위 인터페이스 계약의 훅 구현 + 단위 테스트.~~ **완료** — 훅은 통합 시점에,
@@ -456,8 +456,8 @@ Figma 대조와 QA가 끝나면 통합 브랜치 → `develop` PR 1건. 본문�
 ```
 /dev-2_implement docs/plans/relay-dm-invite-parallel-roadmap.md 의 Track 0(공통 기반) 나머지를 구현해줘.
 ADR: docs/adr/0033-relay-dm-invite-and-auth-parallel-tracks.md
-통합 브랜치에서 직접 작업한다(별도 워크트리 없음). 의존성 범프와 게이트웨이 배선은 이미 끝났다(cd98a0492, 249fe3543) — ~~libs/app-runtime의 useRuntimeGateways로 invite 게이트웨이가 나온다~~ → **2026-07-31부터 `useRuntimeRepositories().invite`(InviteRepositoryV2)** 다. 게이트웨이 직접 표면은 ADR-0036으로 폐지됐다. 거기서 이어라.
-남은 범위: (1) 로드맵 "인터페이스 계약" 절의 useRelayInvites / useRelayInviteMutations / useVerifyHashAlias / useAttachSocial 훅 + 단위 테스트(MockSocketClient 패턴). 초대는 repositories-v2로 승격하지 않는다 — react-query다. 위치는 기존 useInviteInfo/useVerifyAlias 관례를 따라라.
+통합 브랜치에서 직접 작업한다(별도 워크트리 없음). 의존성 범프와 게이트웨이 배선은 이미 끝났다(cd98a0492, 249fe3543) — ~~libs/app-runtime의 useRuntimeGateways로 invite 게이트웨이가 나온다~~ → **2026-07-31부터 `useRuntimeRepositories().invite`(InviteRepository)** 다. 게이트웨이 직접 표면은 ADR-0036으로 폐지됐다. 거기서 이어라.
+남은 범위: (1) 로드맵 "인터페이스 계약" 절의 useRelayInvites / useRelayInviteMutations / useVerifyHashAlias / useAttachSocial 훅 + 단위 테스트(MockSocketClient 패턴). 초대는 repositories로 승격하지 않는다 — react-query다. 위치는 기존 useInviteInfo/useVerifyAlias 관례를 따라라.
 (2) parseInviteDeeplink(apps/web/.../home/types/invite.ts)에 relay 마커 → isRelayInvite 추가. 기존 클라우드 초대 판정(isInviteEntry)에 회귀 금지.
 계약 시그니처는 로드맵 문서가 원본이다 — 바꿔야 하면 로드맵부터 고치고 이유를 남겨라. 나머지 4개 트랙이 이 문서를 읽는다.
 검증: yarn web:test 관련 스위트 + libs/data·libs/app-runtime 스펙 + dev 스테이지에서 invite.create→list 왕복.

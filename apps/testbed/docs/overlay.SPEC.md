@@ -98,7 +98,7 @@ DB Browser는 `ChaticWebCacheDB`(IndexedDB)의 `cache_store` 테이블을
 현재 코드 근거:
 
 - `libs/app-runtime/src/runtime/useRuntimeRepositories.ts` — repositories hook
-- `libs/data/src/data/repositories-v2/index.ts` — `DataRepositoriesV2` 인터페이스
+- `libs/data/src/repositories/index.ts` — `DataRepositories` 인터페이스
 - `libs/app-messages/src/types/model/cache.ts` — `CacheQueryMap` 쿼리 옵션 정의
 
 #### 3.3.3 쿼리 결과 패널
@@ -121,7 +121,7 @@ DB Browser는 `ChaticWebCacheDB`(IndexedDB)의 `cache_store` 테이블을
 
 #### 3.3.5 구현 접근 방식
 
-- DB 데이터 접근은 반드시 `useRuntimeRepositories()` hook을 통해 얻은 `DataRepositoriesV2`를 사용한다
+- DB 데이터 접근은 반드시 `useRuntimeRepositories()` hook을 통해 얻은 `DataRepositories`를 사용한다
 - 직접 IndexedDB API 호출 및 `CacheStorage<T>` 직접 접근을 금지한다
 - 쿼리 결과는 오버레이 내 로컬 상태로만 관리하며 전역 스토어에 반영하지 않는다
 

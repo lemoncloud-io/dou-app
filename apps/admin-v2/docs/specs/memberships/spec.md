@@ -12,8 +12,8 @@
 
 ## 설계 원칙
 
-- **관리자 읽기는 로컬 캐시에 들어가지 않는다.** 목록에 뜨는 것은 전부 남의 유저의 멤버십과 Cloud다. `CloudRepositoryV2` 경로는 `toDomainCloud(view, context)`로 **현재 세션의 컨텍스트를 기준으로** 도메인 매핑하고, `resolveCloudType`이 소유/초대를 시청자 기준으로 분류한다([CloudHttpDataSource.ts:28](../../../../../libs/data/src/data/remote/http-data-sources/CloudHttpDataSource.ts)). 남의 Cloud를 그리로 태우면 분류가 조용히 틀린다. 그래서 관리자 표면은 **로컬 데이터소스가 아예 없는** subscription 레인에만 붙인다.
-- **뷰는 그대로 통과시킨다.** subscription 레인의 기존 관례를 따른다 — "no domain model exists for this axis yet; views pass through unchanged (alias-level)"([SubscriptionHttpDataSource.ts:22](../../../../../libs/data/src/data/remote/http-data-sources/SubscriptionHttpDataSource.ts)). 관리자 화면 하나를 위해 도메인 모델을 새로 만들지 않는다. `aggr`처럼 도메인 매핑이 떨어뜨리는 값도 그대로 살아 온다.
+- **관리자 읽기는 로컬 캐시에 들어가지 않는다.** 목록에 뜨는 것은 전부 남의 유저의 멤버십과 Cloud다. `CloudRepository` 경로는 `toDomainCloud(view, context)`로 **현재 세션의 컨텍스트를 기준으로** 도메인 매핑하고, `resolveCloudType`이 소유/초대를 시청자 기준으로 분류한다([CloudHttpDataSource.ts:28](../../../../../libs/data/src/remote/http-data-sources/CloudHttpDataSource.ts)). 남의 Cloud를 그리로 태우면 분류가 조용히 틀린다. 그래서 관리자 표면은 **로컬 데이터소스가 아예 없는** subscription 레인에만 붙인다.
+- **뷰는 그대로 통과시킨다.** subscription 레인의 기존 관례를 따른다 — "no domain model exists for this axis yet; views pass through unchanged (alias-level)"([SubscriptionHttpDataSource.ts:22](../../../../../libs/data/src/remote/http-data-sources/SubscriptionHttpDataSource.ts)). 관리자 화면 하나를 위해 도메인 모델을 새로 만들지 않는다. `aggr`처럼 도메인 매핑이 떨어뜨리는 값도 그대로 살아 온다.
 - **호출자가 고르면 안 되는 값은 게이트웨이가 박는다.** `CloudHttpGateway.list`가 `view: 'mine'`을 고정한 선례를 따른다([clouds.ts:7](../../../../../libs/http/src/gateways/clouds.ts)). 관리자 Cloud 조회의 `view: 'admin'`도 같다. `list`를 느슨하게 고치지 않고 **메서드를 따로 둔다** — 두 조회는 권한도 대상도 다르다.
 - **파생 규칙은 한 벌만 둔다.** 오버라이드 활성 판정은 서버 계약(SPEC §3.3)이고, 콘솔과 앱이 각자 구현하면 갈린다. 백엔드 스펙이 같은 함정을 적어 두었다 — "파생은 진입점 하나다. 둘 다 열어 두면 호출자가 오버라이드를 모르는 쪽을 골라 조용히 틀린다." 순수 함수 하나를 공유한다.
 - **되돌리기 어려운 조작은 확인을 거친다.** 차단은 Cloud를 멈추고 `auto`는 Cloud를 만든다. 표시가 아니라 실제 변경이다.
@@ -31,7 +31,7 @@
 - 안전장치 넷: 사유 필수 · 확인 다이얼로그 · `auto` 기본 꺼짐 · 대상 서버 배지.
 - 상단 네비에 `Memberships` 등록.
 - `apps/web`의 구독 판정을 오버라이드에 맞춤 — `blocked` 상태 신설, `isSuper` 읽기 제거.
-- 공유 계층 확장: `libs/http` 게이트웨이 → `libs/data` 데이터소스 → `SubscriptionRepositoryV2`.
+- 공유 계층 확장: `libs/http` 게이트웨이 → `libs/data` 데이터소스 → `SubscriptionRepository`.
 - `@lemoncloud/chatic-backend-api` `0.26.810` → `0.26.811`.
 
 **제외**
@@ -97,14 +97,14 @@
 flowchart TD
     P["MembershipsPage · MembershipDetailDrawer<br/>(apps/admin-v2)"]
     H["api/membershipsQuery.ts<br/>react-query 훅 + 캐시 키"]
-    R["SubscriptionRepositoryV2<br/>(libs/data)"]
+    R["SubscriptionRepository<br/>(libs/data)"]
     D["SubscriptionHttpDataSource<br/>뷰 그대로 통과"]
     G["subscriptions 게이트웨이<br/>(libs/http)"]
     S["relay<br/>/memberships · /clouds · /products"]
 
     P --> H --> R --> D --> G --> S
 
-    C["CloudRepositoryV2<br/>세션 컨텍스트로 도메인 매핑"]
+    C["CloudRepository<br/>세션 컨텍스트로 도메인 매핑"]
     P -.->|"쓰지 않는다<br/>남의 Cloud가 시청자 기준으로 분류된다"| C
     style C stroke-dasharray: 4 4
 ```
@@ -176,14 +176,14 @@ libs/http/src/gateways/
   subscriptions.ts                        adminMemberships · updateMembershipByAdmin · adminClouds
   subscriptions.spec.ts                   URL·고정 파라미터 검증 (11건)
 
-libs/data/src/data/remote/gateways/
+libs/data/src/remote/gateways/
   http.ts                                 SubscriptionHttpDomainGateway 의 Pick<> 화이트리스트
 
-libs/data/src/data/remote/http-data-sources/
+libs/data/src/remote/http-data-sources/
   SubscriptionHttpDataSource.ts           같은 셋 + AdminOverrideOptions (auto 의 wire 인코딩)
 
-libs/data/src/data/repositories-v2/
-  SubscriptionRepositoryV2.ts             같은 셋을 위임
+libs/data/src/repositories/
+  SubscriptionRepository.ts             같은 셋을 위임
 
 libs/shared/src/utils/
   membershipOverride.ts                   isAdminOverrideActive · resolveEffectiveProductId
@@ -241,13 +241,13 @@ package.json · yarn.lock                  chatic-backend-api ^0.26.811
 
 ### 2. 데이터소스와 리포지토리 — 통과만 한다
 
-`SubscriptionHttpDataSource`와 `SubscriptionRepositoryV2`에 같은 셋을 그대로 얹는다. 두 클래스 모두 게이트웨이 호출을 위임하기만 하는 형태라 새로 정할 것이 없다. 리포지토리의 `requireHttp()` 가드도 그대로 탄다.
+`SubscriptionHttpDataSource`와 `SubscriptionRepository`에 같은 셋을 그대로 얹는다. 두 클래스 모두 게이트웨이 호출을 위임하기만 하는 형태라 새로 정할 것이 없다. 리포지토리의 `requireHttp()` 가드도 그대로 탄다.
 
-계층이 하나 더 있다. `SubscriptionHttpDomainGateway`가 게이트웨이 메서드를 `Pick<>`으로 화이트리스트하고 있어, 세 메서드를 거기 더해야 데이터소스에서 보인다([http.ts](../../../../../libs/data/src/data/remote/gateways/http.ts)).
+계층이 하나 더 있다. `SubscriptionHttpDomainGateway`가 게이트웨이 메서드를 `Pick<>`으로 화이트리스트하고 있어, 세 메서드를 거기 더해야 데이터소스에서 보인다([http.ts](../../../../../libs/data/src/remote/gateways/http.ts)).
 
 `auto`의 wire 인코딩(`1` 또는 없음)은 데이터소스가 쥔다. 콘솔은 `auto: true`라고만 말한다 — `CloudHttpDataSource.makeCloud`의 `dryRun`이 같은 자리에 같은 이유로 있다.
 
-`subscription`은 이미 런타임에 배선돼 있다 — `createRepositoriesV2`가 `httpDataSources?.subscription`을 넘기고([repositories-v2/index.ts:90](../../../../../libs/data/src/data/repositories-v2/index.ts)), `httpFactory`가 `subscriptionGateway()`를 만든다([httpFactory.ts:27](../../../../../libs/app-runtime/src/data/factories/httpFactory.ts)). admin-v2는 `main.tsx`의 `initAppRuntime()` 뒤에 `runtime.data.useRuntimeRepositories()`로 바로 받는다. **배선 작업이 따로 없다.**
+`subscription`은 이미 런타임에 배선돼 있다 — `createRepositories`가 `httpDataSources?.subscription`을 넘기고([repositories/index.ts:90](../../../../../libs/data/src/repositories/index.ts)), `httpFactory`가 `subscriptionGateway()`를 만든다([httpFactory.ts:27](../../../../../libs/app-runtime/src/data/factories/httpFactory.ts)). admin-v2는 `main.tsx`의 `initAppRuntime()` 뒤에 `runtime.data.useRuntimeRepositories()`로 바로 받는다. **배선 작업이 따로 없다.**
 
 ### 3. 공유 파생 함수
 

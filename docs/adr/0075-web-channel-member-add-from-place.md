@@ -10,7 +10,7 @@
 ### 요구
 
 owner가 **이미 이 클라우드를 쓰고 있는 특정 유저**를 채널에 넣고 싶다. 수단은
-`ChannelRepositoryV2.inviteChannel`(`channel.invite`).
+`ChannelRepository.inviteChannel`(`channel.invite`).
 
 ### 서버가 줄 수 있는 것 — 전수 확인
 
@@ -23,7 +23,7 @@ owner가 **이미 이 클라우드를 쓰고 있는 특정 유저**를 채널에
 
 | 영역            | 현존 자산                                                                                                                                                                                 |
 | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 직접 추가 API   | `ChannelRepositoryV2.inviteChannel` — `ChatInviteInput = { channelId, userIds[] }`. **낙관적 쓰기·롤백·응답 union까지 이미 들어 있다**(ADR-0072가 넣음)                                   |
+| 직접 추가 API   | `ChannelRepository.inviteChannel` — `ChatInviteInput = { channelId, userIds[] }`. **낙관적 쓰기·롤백·응답 union까지 이미 들어 있다**(ADR-0072가 넣음)                                     |
 | 앱 래퍼         | [`useChannelMutations.ts`](../../apps/web/src/app/features/channels/hooks/useChannelMutations.ts)의 `inviteChannel`                                                                       |
 | 피커 UI 껍데기  | [`InvitePage.tsx`](../../apps/web/src/app/features/channels/pages/InvitePage.tsx)가 이미 `SearchInput` + `SelectableUserItem` + `SelectedAvatarRow` + `FloatingButton` 다중선택 조합      |
 | 플레이스 프로필 | `profileRepository.observeList({ sid })` + 캐시 미스 `refreshItem('${sid}@${uid}')` — [`useChannelProfiles`](../../apps/web/src/app/features/channels/hooks/useChannelProfiles.ts)의 기계 |

@@ -102,7 +102,7 @@ Why the planned migration was not the fix:
 - **There is no working abstraction to migrate into.** `EvictionStrategy` and
   `CapacityPolicy` have exactly one implementation each repo-wide, and both are inert:
   `DefaultEvictionStrategy`'s three hooks are no-ops and `DefaultCapacityPolicy.getLimit()`
-  returns `null` (`libs/data/src/data/local/storages/defaultPolicies.ts`). Worse, nothing
+  returns `null` (`libs/data/src/local/storages/defaultPolicies.ts`). Worse, nothing
   reaches them: they live inside `HotColdCacheStorageStrategy`, and `localFactory` no longer
   constructs it on any path — native goes to `NativeDbOnlyCacheStorageStrategy` and everything
   else to `IndexedDbOnlyCacheStorageStrategy`, neither of which wraps `DynamicCacheStorage`.

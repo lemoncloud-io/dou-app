@@ -21,8 +21,8 @@
    미구현이었고, `SYNC` 태그는 리포 전체에서 **한 번도 쓰이지 않았다**.
 
 2. **클라우드 전환 중 캐시 쓰기가 조용히 버려졌다.** `isForeignContext`가 참이면 캐시 쓰기를 건너뛰고
-   조기 return한다 — [ChannelRepositoryV2](../../../libs/data/src/data/repositories-v2/ChannelRepositoryV2.ts) 3곳,
-   [PlaceRepositoryV2](../../../libs/data/src/data/repositories-v2/PlaceRepositoryV2.ts) 1곳, 그리고
+   조기 return한다 — [ChannelRepository](../../../libs/data/src/repositories/ChannelRepository.ts) 3곳,
+   [PlaceRepository](../../../libs/data/src/repositories/PlaceRepository.ts) 1곳, 그리고
    [plans.ts](../../../libs/app-runtime/src/socket/sync/plans.ts)의 프레임 드롭 6곳. **10곳 전부 로그가 없었다.**
    의도된 드롭이지만, 전환 중 무엇이 몇 건 누락됐는지가 남지 않으면 그 뒤의 낡은 화면·틀린 카운트가
    설명되지 않는다.
@@ -99,7 +99,7 @@
   모두 자기 안에서 처리하고 아무 신호도 내지 않는다. 다만 **정지는 관측 가능하다** — plan의
   `onStopped`가 우리 코드로 돌아오므로, 그 지점은 포함 범위다.)
   (**커서 만료는 여기 있었던 항목이 아니다** — 2026-09-07 정정: SDK가 아니라
-  [`SyncMetaLocalDataSourceV2`](../../data/src/data/local/data-sources-v2/SyncMetaLocalDataSourceV2.ts)에
+  [`SyncMetaLocalDataSource`](../../data/src/local/data-sources/SyncMetaLocalDataSource.ts)에
   있어 관측 가능하고, 지금은 포함 범위다.)
 - **행 단위 JSON 파싱 손상.** 웹 저장소는 객체를 그대로 담아 행 파싱 단계가 없고, 네이티브 쪽 파싱
   실패는 이미 `STORAGE`로 남고 있다 — 카탈로그의 이 행은 지금 구조에 대응하는 지점이 없다.
@@ -278,7 +278,7 @@ lib(`@chatic/data`와 `@chatic/app-runtime`)이고, 둘 다 이미 `@chatic/brid
 - 첫 드롭이 창을 열고, 창이 닫힐 때 상태를 비운다. **타이머는 드롭이 있을 때만 존재한다** — 상시
   인터벌은 유휴 기기에 비용을 남긴다.
 
-호출부 10곳: 저장소 4곳(`ChannelRepositoryV2` 3, `PlaceRepositoryV2` 1)과 [plans.ts](../../../libs/app-runtime/src/socket/sync/plans.ts)의
+호출부 10곳: 저장소 4곳(`ChannelRepository` 3, `PlaceRepository` 1)과 [plans.ts](../../../libs/app-runtime/src/socket/sync/plans.ts)의
 `dropForeignFrame` 6곳. plans 쪽은 `dropForeignFrame` **한 함수 안에서** 알리므로 6곳을 각각 고치지
 않는다 — 초크포인트가 이미 하나다.
 
@@ -330,7 +330,7 @@ start/stop/detach 관련 4건은 `SOCKET`으로 나가고 있었다. 카탈로�
 
 ### 6. 동기화 커서 폐기
 
-[SyncMetaLocalDataSourceV2](../../data/src/data/local/data-sources-v2/SyncMetaLocalDataSourceV2.ts)의
+[SyncMetaLocalDataSource](../../data/src/local/data-sources/SyncMetaLocalDataSource.ts)의
 `getSyncedAt`은 세 경우에 0을 답한다. **행이 없는 경우는 남기지 않는다** — 첫 동기화이고, 정상이다.
 나머지 둘은 `warn` / `SYNC`로 사유를 구분해 남긴다.
 
@@ -409,21 +409,21 @@ status는 [getSocketErrorCode](../../app-runtime/src/socket/utils/socketErrorCod
 
 **유닛** — 세 조각 모두 상태 기계라 순수 테스트가 가능하다.
 
-| 무엇                                                    | 어디                                                                         |
-| ------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| 스트릭 세 전이와 임계 초과 침묵, 경로별 독립            | `apps/web/src/app/runtime/logging/syncStreakReporter.test.ts`                |
-| 소켓 실패 3분류·슬롯별 스트릭·서버 응답이 스트릭을 끊음 | `libs/app-runtime/src/socket/socketFailureReporter.test.ts`                  |
-| 파사드가 실패를 남기는 배선                             | `libs/app-runtime/src/socket/SocketManager.test.ts` (기존 스위트 확장)       |
-| 선행 status 읽기(덧붙은 호출자 이름 포함)               | `libs/app-runtime/src/socket/utils/socketErrorCode.test.ts`                  |
-| 5개 plan의 정지 기록과 **삭제보다 먼저** 라는 순서      | `libs/app-runtime/src/socket/sync/plans.test.ts` (기존 스위트 확장)          |
-| 창 집계, 묶음 분리, 드롭 없으면 침묵                    | `libs/logger/src/observation/foreignDropAggregator.spec.ts`                  |
-| 유실 증가분만 남기기, 뷰 부재 시 무해                   | `apps/web/src/app/runtime/logging/queueLossObserver.test.ts`                 |
-| 배경 동기화 각 경로가 실패·복구를 알리는지              | `apps/web/src/app/runtime/useBackgroundSync.test.ts` (기존 스위트 확장)      |
-| 쿼터 복구·축출 건수·`id` 탈락                           | `libs/db/src/indexeddb/IndexedDBAdapter.test.ts` (기존 스위트 확장)          |
-| DB 열기·업그레이드·재오픈                               | `libs/db/src/indexeddb/IndexedDBDatabase.test.ts`                            |
-| 커서 폐기 두 사유와 "행 없음은 침묵"                    | `libs/data/src/data/local/data-sources-v2/SyncMetaLocalDataSourceV2.test.ts` |
-| 웹 폴백이 네이티브에서만·부팅당 1회                     | `libs/app-runtime/src/data/factories/localFactory.test.ts`                   |
-| 연락처 모양과 권한 거부 레벨                            | `apps/mobile/src/app/services/device/DeviceService.test.ts`                  |
+| 무엇                                                    | 어디                                                                    |
+| ------------------------------------------------------- | ----------------------------------------------------------------------- |
+| 스트릭 세 전이와 임계 초과 침묵, 경로별 독립            | `apps/web/src/app/runtime/logging/syncStreakReporter.test.ts`           |
+| 소켓 실패 3분류·슬롯별 스트릭·서버 응답이 스트릭을 끊음 | `libs/app-runtime/src/socket/socketFailureReporter.test.ts`             |
+| 파사드가 실패를 남기는 배선                             | `libs/app-runtime/src/socket/SocketManager.test.ts` (기존 스위트 확장)  |
+| 선행 status 읽기(덧붙은 호출자 이름 포함)               | `libs/app-runtime/src/socket/utils/socketErrorCode.test.ts`             |
+| 5개 plan의 정지 기록과 **삭제보다 먼저** 라는 순서      | `libs/app-runtime/src/socket/sync/plans.test.ts` (기존 스위트 확장)     |
+| 창 집계, 묶음 분리, 드롭 없으면 침묵                    | `libs/logger/src/observation/foreignDropAggregator.spec.ts`             |
+| 유실 증가분만 남기기, 뷰 부재 시 무해                   | `apps/web/src/app/runtime/logging/queueLossObserver.test.ts`            |
+| 배경 동기화 각 경로가 실패·복구를 알리는지              | `apps/web/src/app/runtime/useBackgroundSync.test.ts` (기존 스위트 확장) |
+| 쿼터 복구·축출 건수·`id` 탈락                           | `libs/db/src/indexeddb/IndexedDBAdapter.test.ts` (기존 스위트 확장)     |
+| DB 열기·업그레이드·재오픈                               | `libs/db/src/indexeddb/IndexedDBDatabase.test.ts`                       |
+| 커서 폐기 두 사유와 "행 없음은 침묵"                    | `libs/data/src/local/data-sources/SyncMetaLocalDataSource.test.ts`      |
+| 웹 폴백이 네이티브에서만·부팅당 1회                     | `libs/app-runtime/src/data/factories/localFactory.test.ts`              |
+| 연락처 모양과 권한 거부 레벨                            | `apps/mobile/src/app/services/device/DeviceService.test.ts`             |
 
 **함정** — `@chatic/bridges` 목이 부분적이다. `useBackgroundSync.test.ts`가 `logger.warn`/`info`를
 갖고 있는지 먼저 확인한다. 이 트랙에서 세 번 깨진 함정이라, 새 스위트는 모듈 목 대신 **실물 logger에

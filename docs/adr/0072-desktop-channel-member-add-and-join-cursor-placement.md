@@ -12,12 +12,12 @@
 
 ### 이미 있는 것
 
-| 영역                 | 현존 자산                                                                                                                                                                 |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 직접 추가 API        | `ChannelRepositoryV2.inviteChannel` → `ChannelRemoteDataSource.inviteChannel` → `gateway.invite`. `ChatInviteInput = { channelId, userIds[] }`. 엔진까지 왕복이 이미 돈다 |
-| 앱 래퍼              | [`useChannelMutations.ts`](../../apps/desktop-web/src/app/shared/hooks/useChannelMutations.ts)의 `inviteChannel`, apps/web도 동형                                         |
-| 멤버 목록            | [`useChannelMembers.ts`](../../apps/desktop-web/src/app/features/channels/hooks/useChannelMembers.ts) — 유저 캐시를 `channelIds`로 필터해 관찰                            |
-| 전화번호 릴레이 초대 | `InviteDialog` + `useCreateInvite` → `user.invite-batch`. 계정 없는 사람에게 보낼 링크를 만든다                                                                           |
+| 영역                 | 현존 자산                                                                                                                                                               |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 직접 추가 API        | `ChannelRepository.inviteChannel` → `ChannelRemoteDataSource.inviteChannel` → `gateway.invite`. `ChatInviteInput = { channelId, userIds[] }`. 엔진까지 왕복이 이미 돈다 |
+| 앱 래퍼              | [`useChannelMutations.ts`](../../apps/desktop-web/src/app/shared/hooks/useChannelMutations.ts)의 `inviteChannel`, apps/web도 동형                                       |
+| 멤버 목록            | [`useChannelMembers.ts`](../../apps/desktop-web/src/app/features/channels/hooks/useChannelMembers.ts) — 유저 캐시를 `channelIds`로 필터해 관찰                          |
+| 전화번호 릴레이 초대 | `InviteDialog` + `useCreateInvite` → `user.invite-batch`. 계정 없는 사람에게 보낼 링크를 만든다                                                                         |
 
 ### 공백
 
@@ -73,7 +73,7 @@
 
 아무도 그 필드를 읽지 않는다 — 모든 소비자는 `channel.$join`을 읽고, 채널별 커서의 집은
 `channelId@userId`로 키잉된 **join 캐시**다. 그런데도 그냥 뗄 수 없었다:
-`UserRepositoryV2.refreshList`가 **이미 매핑된 유저**에서 join을 수확하고 있었기 때문이다.
+`UserRepository.refreshList`가 **이미 매핑된 유저**에서 join을 수확하고 있었기 때문이다.
 mapper에서만 떼면 join 캐시 hydration이 통째로 죽는다.
 
 수확 지점을 raw view로 옮긴다 — `fetchUsers`가 `{ users, joins }`를 반환하고
@@ -105,7 +105,7 @@ apps/web은 자체 초대 흐름(ADR-0022)을 그대로 유지한다.
   엔드포인트가 없어 **갈라질 원본 자체가 없다.** 두 번째 클라이언트가 피커를 요구하는
   날 옮긴다.
 - **`inviteChannel`이 유저 캐시 쓰기까지 소유** — 올바른 깊이지만 리포지토리에
-  `IUserLocalDataSourceV2` 주입이 필요해 DI 팩토리와 기존 테스트 다수에 번진다. 별건.
+  `IUserLocalDataSource` 주입이 필요해 DI 팩토리와 기존 테스트 다수에 번진다. 별건.
 - **`inviteChannel`을 비낙관적으로 두고 리페치** — 프로젝트 mutation 규칙에 어긋난다.
 
 ## 결과 (Consequences)

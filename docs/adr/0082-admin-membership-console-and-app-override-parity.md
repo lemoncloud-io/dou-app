@@ -54,7 +54,7 @@
 
 **1. 화면 셋을 admin-v2에 만든다.** 멤버십 목록 · 관리자 오버라이드 · 유저별 Cloud 목록. 상단 내비에 항목을 하나 더한다.
 
-**2. 배선은 공유 libs 3계층을 쓴다.** `libs/http`의 `subscriptions` 게이트웨이 → `libs/data`의 `SubscriptionHttpDataSource` → `SubscriptionRepositoryV2`를 확장하고, 앱은 `runtime.data.useRuntimeRepositories()`로 받는다. `users` 피처의 선례를 따른다. 구독 표면이 이미 그 세 계층에 있고, 리포지토리는 이미 런타임에 배선돼 있어 admin-v2에서 바로 쓸 수 있다.
+**2. 배선은 공유 libs 3계층을 쓴다.** `libs/http`의 `subscriptions` 게이트웨이 → `libs/data`의 `SubscriptionHttpDataSource` → `SubscriptionRepository`를 확장하고, 앱은 `runtime.data.useRuntimeRepositories()`로 받는다. `users` 피처의 선례를 따른다. 구독 표면이 이미 그 세 계층에 있고, 리포지토리는 이미 런타임에 배선돼 있어 admin-v2에서 바로 쓸 수 있다.
 
 **3. 타입은 패키지를 `0.26.811`로 올려서 얻는다.** `package.json`이 이미 `^0.26.810`이라 락파일만 갱신하면 된다. 810과 811의 차이는 필드 6개 추가와 `@deprecated` 주석뿐이고 깨지는 변경이 없다(두 tarball 실측).
 

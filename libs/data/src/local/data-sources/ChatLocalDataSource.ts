@@ -186,10 +186,6 @@ export class ChatLocalDataSource extends BaseLocalDataSource implements IChatLoc
         const id = this.assertRequiredString(item.id, 'id');
 
         const context = this.getContext(contextOverride);
-        if (!context.sid) {
-            throw new Error('[ChatLocalDataSource] sid is required in context to save chat.');
-        }
-
         const existing = await this.cacheStorage.load(id);
         const cid = context.cid || 'default';
         const merged: DomainChat = {
@@ -218,10 +214,6 @@ export class ChatLocalDataSource extends BaseLocalDataSource implements IChatLoc
         if (validItems.length === 0) return;
 
         const context = this.getContext(contextOverride);
-        if (!context.sid) {
-            throw new Error('[ChatLocalDataSource] sid is required in context to save chats.');
-        }
-
         const cid = context.cid || 'default';
         const existingById = this.indexById(await this.cacheStorage.loadMany(validItems.map(item => item.id!)));
 

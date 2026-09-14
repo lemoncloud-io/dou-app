@@ -1,6 +1,6 @@
 # ADR-0081: libs/data 문서 정본을 분량으로 가르고, `src/data` 중첩을 걷어낸다
 
-> 상태: Accepted · 결정일: 2026-09-09 · 개정: 2026-09-14 (결정 4·5를 보류로 내림) · 관련: [ADR-0036](./0036-data-surface-unification-app-runtime-cleanup.md) (이름 규약 계승)
+> 상태: Accepted · 결정일: 2026-09-09 · 개정: 2026-09-14 (결정 4·5 실행 완료) · 관련: [ADR-0036](./0036-data-surface-unification-app-runtime-cleanup.md) (이름 규약 계승)
 
 ## 맥락 (Context)
 
@@ -9,13 +9,13 @@
 
 ### 문서가 없는 코드를 설명한다 (5건)
 
-| 문서                          | 주장                                                                       | 실제                                                         |
-| ----------------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| `docs/README.md`              | `### events (src/data/events)` 섹션 전체 (`DomainEventMap`, `eventBus.ts`) | 디렉토리 자체가 없다                                         |
-| `docs/README.md`              | 트리에 `repositories/` — "공유 계약 보관"                                  | 없다. `DataContext`는 `repositories-v2/types.ts:18`로 옮겼다 |
-| `README.md`                   | 위 두 가지를 그대로 반복                                                   | 같은 오류가 두 곳에 있다                                     |
-| `docs/repositories/README.md` | 도메인 8개 (`channel, chat, cloud, join, place, profile, user, syncMeta`)  | 13개다. `auth·device·invite·report·subscription`이 빠졌다    |
-| `docs/repositories/README.md` | "`src/data/repositories`는 `DataContext`만 보관"                           | 없다                                                         |
+| 문서                          | 주장                                                                       | 실제                                                      |
+| ----------------------------- | -------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `docs/README.md`              | `### events (src/data/events)` 섹션 전체 (`DomainEventMap`, `eventBus.ts`) | 디렉토리 자체가 없다                                      |
+| `docs/README.md`              | 트리에 `repositories/` — "공유 계약 보관"                                  | 없다. `DataContext`는 `repositories/types.ts:18`로 옮겼다 |
+| `README.md`                   | 위 두 가지를 그대로 반복                                                   | 같은 오류가 두 곳에 있다                                  |
+| `docs/repositories/README.md` | 도메인 8개 (`channel, chat, cloud, join, place, profile, user, syncMeta`)  | 13개다. `auth·device·invite·report·subscription`이 빠졌다 |
+| `docs/repositories/README.md` | "`src/data/repositories`는 `DataContext`만 보관"                           | 없다                                                      |
 
 `docs/remote/README.md`는 정확했다 (Socket 11종 · Http 5종이 실제와 맞는다).
 
@@ -37,7 +37,7 @@ socket lifecycle 문단. 위의 오류 2건도 양쪽에 함께 있다.
 
 ```ts
 // libs/app-runtime/src/data/factories/localFactory.ts:5
-createLocalDataSourcesV2 as createDataLocalDataSources,
+createLocalDataSources as createDataLocalDataSources,
 ```
 
 `libs/app-runtime`은 이미 V2 없는 이름을 쓴다 — `createRepositories`, `createLocalDataSources`.
@@ -108,69 +108,72 @@ libs/data/src/                      libs/data/src/
 ├── index.ts                        ├── index.ts
 └── data/                           ├── domain/
     ├── domain/                     ├── local/
-    ├── local/                      │   ├── data-sources-v2/
-    │   ├── data-sources-v2/        │   ├── ports/
+    ├── local/                      │   ├── data-sources/
+    │   ├── data-sources/        │   ├── ports/
     │   ├── ports/                  │   └── stableHash.ts
     │   └── stableHash.ts           ├── remote/
     ├── remote/                     │   ├── gateways/
     │   ├── gateways/               │   ├── socket-data-sources/
     │   ├── socket-data-sources/    │   └── http-data-sources/
-    │   └── http-data-sources/      └── repositories-v2/
-    └── repositories-v2/
+    │   └── http-data-sources/      └── repositories/
+    └── repositories/
 ```
 
 **바뀌는 것은 `data/` 한 겹뿐이다.** 레이어 경계도, 디렉토리 이름의 `-v2`도 그대로 둔다
-(개정 전 초안은 `-v2`도 함께 뗐다 — 결정 4가 보류되면서 이름은 건드리지 않는 쪽으로 되돌렸다).
+(결정 4로 `-v2`도 함께 뗐다 — 평탄화와 리네임은 별개 단계로 나눠 적용했다).
 도메인 수직 슬라이싱은 하지 않는다.
 
-### 4. `V2` 접미사 제거는 **보류한다** (2026-09-14 개정)
+### 4. `V2` 접미사를 뗀다
 
-> **개정 이유.** 초안은 이 트랙에서 함께 제거하기로 했으나, 이 PR의 파급을 문서 범위로 묶기로
-> 하면서 뺐다. 아래 대응표는 **후속 작업의 입력**으로 남긴다 — 판단이 바뀐 게 아니라 시점이
-> 미뤄진 것이다.
+> **경과.** 한 번 보류로 내렸다가(2026-09-14) 같은 날 되살려 실행했다. 보류의 이유는 "이 PR의
+> 파급을 문서 범위로 묶는다"였는데, 트랙 범위가 `libs/data` 하나로 좁아지면서 그 이유가
+> 사라졌다. 실측 파급은 `libs/data` 밖 **93파일**(apps/web 35 · app-runtime 25 · testbed 17 ·
+> db 7 · desktop-web 3 · admin-v2 3 · mobile 2)이고, 전부 배럴을 지나는 타입·심볼 참조다.
 >
-> 보류의 대가는 맥락에 적은 그대로다: `libs/data`만 `V2`를 말하고 `app-runtime`은 안 말하는
-> split 상태가 유지되고, `localFactory.ts`의 import 별칭도 그대로 남는다.
+> 리네임이 만든 타입 오류는 **0건**이다. desktop-web 21건과 mobile의 잔여 오류는 리네임 이전
+> 워크트리에서 같은 수로 측정된 선재 부채다.
 
-후속으로 넘기는 대응표:
+적용한 대응표:
 
-| 지금                                               | 이후                                           |
-| -------------------------------------------------- | ---------------------------------------------- |
-| `repositories-v2/`                                 | `repositories/`                                |
-| `local/data-sources-v2/`                           | `local/data-sources/`                          |
-| `XxxRepositoryV2` · `IXxxRepositoryV2`             | `XxxRepository` · `IXxxRepository`             |
-| `BaseRepositoryV2`                                 | `BaseRepository`                               |
-| `createRepositoriesV2`                             | `createRepositories`                           |
-| `DataRepositoriesV2` · `DataRepositoriesV2Options` | `DataRepositories` · `DataRepositoriesOptions` |
-| `XxxLocalDataSourceV2` · `IXxxLocalDataSourceV2`   | `XxxLocalDataSource` · `IXxxLocalDataSource`   |
-| `LocalDataSourcesV2`                               | `LocalDataSources`                             |
-| `createLocalDataSourcesV2`                         | `createLocalDataSources`                       |
+| 지금                                           | 이후                                           |
+| ---------------------------------------------- | ---------------------------------------------- |
+| `repositories/`                                | `repositories/`                                |
+| `local/data-sources/`                          | `local/data-sources/`                          |
+| `XxxRepository` · `IXxxRepository`             | `XxxRepository` · `IXxxRepository`             |
+| `BaseRepository`                               | `BaseRepository`                               |
+| `createRepositories`                           | `createRepositories`                           |
+| `DataRepositories` · `DataRepositoriesOptions` | `DataRepositories` · `DataRepositoriesOptions` |
+| `XxxLocalDataSource` · `IXxxLocalDataSource`   | `XxxLocalDataSource` · `IXxxLocalDataSource`   |
+| `LocalDataSources`                             | `LocalDataSources`                             |
+| `createLocalDataSources`                       | `createLocalDataSources`                       |
 
 데이터 레이어와 무관한 `V2`는 건드리지 않는다 — `apps/admin-v2` 경로, `useRegisterUserV2`,
 `useChatOutbox`·`useCloudCatalog` 등의 지역 식별자. 전역 치환이 아니라 위 표의 이름만 옮긴다.
 
 `Invite` 도메인이 함정이다. `I` 접두 인터페이스와 도메인 이름이 겹쳐서
-`IInviteRepositoryV2`와 `InviteRepositoryV2`가 나란히 있다. 정규식으로 `I` 접두를 다루면 이 둘이
+`IInviteRepository`와 `InviteRepository`가 나란히 있다. 정규식으로 `I` 접두를 다루면 이 둘이
 섞인다. 도메인 이름을 명시한 치환만 쓴다.
 
-### 5. `repositoryFactory` 삭제도 **보류한다** (2026-09-14 개정)
-
-> 결정 4에 딸린 결과라 함께 미뤄진다. 이름 충돌이 생기지 않으면 껍데기를 지울 이유도 아직 없다.
+### 5. `repositoryFactory`를 삭제한다
 
 `V2`를 떼면 `libs/data`의 `createRepositories`와 `app-runtime`의 래퍼 이름이 겹친다.
 `factories/repositoryFactory.ts`는 `context` ↔ `contextProvider` 키만 바꿔주는 30줄 껍데기다.
 삭제하고 `DataManager`가 `@chatic/data`의 `createRepositories`를 직접 부른다.
 
 `factories/localFactory.ts`는 남긴다. 스토리지 라우팅과 fingerprint 로직이 있어서 성격이 다르다.
-import 별칭만 없앤다.
+
+> **2026-09-14 보정 — 별칭은 못 없앤다.** 이 결정은 "import 별칭만 없앤다"고 적었는데 틀렸다.
+> 별칭(`createLocalDataSources as createDataLocalDataSources`)이 있던 이유가 `V2`가 아니었다.
+> `localFactory.ts`가 **자기 함수도** `createLocalDataSources`로 내보내므로, 접미사를 떼면
+> 두 이름이 정확히 겹친다. 별칭은 그대로 둔다.
 
 ### 순서와 검증
 
 1. **평탄화** — 외부 파급 0. libs/data 내부에서 닫힌다.
-2. ~~**`V2` 제거 + `repositoryFactory` 삭제**~~ — 보류(결정 4·5).
+2. **`V2` 제거 + `repositoryFactory` 삭제** — 배럴 밖 93파일. 다운스트림 타입체크로 확인한다.
 3. **문서 재작성** — 1단계의 결과를 기술한다.
 
-파급이 0인 쪽만 이번 범위다. 단계마다
+단계마다
 `npx tsc -b libs/data/tsconfig.lib.json`과 jest를 돌린다. 워크트리에 `node_modules`가 없으므로
 메인 체크아웃에서 심링크를 붙이고 끝나면 제거한다.
 
@@ -229,7 +232,7 @@ import 별칭만 없앤다.
 2. `apps/web` — 문서 55개, 가장 크다
 3. 루트 `docs/` 중복 트리 3건 병합 — **처음부터 하지 않는다.** 2026-08-20에 같은 작업을 끝냈지만 워크트리가 사라져 유실됐다 (어느 브랜치에도 안 남았다). 판정 결과가 `~/.claude/plans/docs-partitioned-seahorse.md`에 살아 있으니 그것부터 읽는다 — spec 18개의 이전·폐기 판정과 당시 발견한 버그 2건(admin 딥링크 구형 형식, Firestore 지연 딥링크 death)이 들어 있다.
 4. ADR 번호 충돌 정리
-5. **`V2` 접미사 제거 + `repositoryFactory` 삭제** — 결정 4·5의 보류분. 대응표는 위에 그대로 있고,
-   평탄화가 이미 끝나 있으므로 남은 것은 이름 치환 하나다(외부 119파일).
+5. ~~**`V2` 접미사 제거 + `repositoryFactory` 삭제**~~ — 이 트랙에서 함께 끝냈다(결정 4·5).
+   실측 외부 파급은 119파일이 아니라 **93파일**이었다.
 
 유실 사고의 교훈은 이 트랙에 이미 반영했다 — 단계마다 커밋한다. 워크트리를 끝까지 안 비운다.

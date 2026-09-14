@@ -1,6 +1,6 @@
 # 플레이스 생성·그룹방 생성 화면: web-ui-kit 재구축 + 생성 후 이동·owner 게이팅·이미지·한도
 
-> **이름 안내 (2026-09-01):** 이 문서가 쓰는 `*RemoteDataSource` · `RemoteGatewayBundle` · `*DomainGateway` · `remoteFactory` · `remote/data-sources/`는 **당시 이름**이다. 소켓 축이 `Socket` 접두로 옮겨간 뒤의 대응표는 [libs/data/docs/remote/README.md](../../libs/data/docs/remote/README.md#이름-규약-2026-09-01-리네임)에 있다. 기록이므로 본문은 그대로 둔다.
+> **이름 안내 (2026-09-01):** 이 문서가 쓰는 `*RemoteDataSource` · `RemoteGatewayBundle` · `*DomainGateway` · `remoteFactory` · `remote/data-sources/`는 **당시 이름**이다. 소켓 축이 `Socket` 접두로 옮겨간 뒤의 대응표는 [libs/data/docs/remote/README.md](../../libs/data/docs/remote/README.md#naming-history)에 있다. 기록이므로 본문은 그대로 둔다.
 
 ## Status
 
@@ -39,13 +39,13 @@ Figma에 **플레이스 생성**(노드 `3036-12309`)과 **그룹방 생성**(�
   이미지 리사이즈는 `resizeImageToBase64`(`@chatic/shared`) 재사용. **현 Figma 기준 신규 kit 컴포넌트는 불필요**
   (textarea·select 없음). 이미지 글리프 `IconImage`는 kit에 이미 존재(`db8f2b6a`).
 - **이미지 API.** `place.create`는 body에 `thumbnail?`을 **지원**(`PlaceBodyData`)하나 `useCreatePlace`/
-  `PlaceRepositoryV2`가 `name`만 넘긴다. `channel.create`(`ChannelCreateRequestData`)는 현재 타입상
+  `PlaceRepository`가 `name`만 넘긴다. `channel.create`(`ChannelCreateRequestData`)는 현재 타입상
   `{ stereo, name }`만 노출하나(thumbnail은 `ChannelUpdateRequestData`에만 존재), **이번 작업은 `channel.create`가
   `thumbnail`을 지원한다고 가정하고 단일 스텝으로 구현한다**(2026-07-20 사용자 확정). 즉 소켓 타입/백엔드가
   `channel.create` body에 `thumbnail`을 받는 것을 전제로 하며, 타입이 아직 미노출이면 `ChannelCreateInput`
   확장이 선행되어야 한다.
 - **owner 신호.** 전역 `userRole`은 `guest`/`user`뿐(클라우드 소유 아님). 그러나 `DomainCloud.cloudType`
-  (`'invited' | 'owner'`)이 **클라우드 소유 신호**로 존재(`mappers.ts:222`, `CloudRepositoryV2.ts:32`).
+  (`'invited' | 'owner'`)이 **클라우드 소유 신호**로 존재(`mappers.ts:222`, `CloudRepository.ts:32`).
   현재 게이팅은 `canCreatePlace = !isGuest && isCloudActive`, `canCreateChannel = true`로 owner 개념이 없다.
 - **한도 상수 충돌(정리 필요).** `apps/web/src/app/utils/consts.ts`에 `MAX_PLACES=5`, `MAX_CHANNELS_PER_PLACE=5`,
   `GUEST_MAX_CHANNELS=1`이 있으나 **어디서도 import되지 않는 죽은 코드**다. 실제 값은 `useUserPermissions.ts`
@@ -75,9 +75,9 @@ Figma에 **플레이스 생성**(노드 `3036-12309`)과 **그룹방 생성**(�
   을 **`cloudType === 'owner'`**(+ 기존 `!isGuest && isCloudActive`, 렐리 클라우드 제외)로 좁힌다. 서버가 최종
   권한 주체이므로 클라이언트는 진입점 노출/차단 및 사전 검증 역할이다.
 - **(5) 이미지 배선(둘 다 단일 스텝).**
-    - 플레이스: `useCreatePlace`/`PlaceRepositoryV2` 경로에 `thumbnail`을 뚫어 `place.create` 한 번에 전송.
+    - 플레이스: `useCreatePlace`/`PlaceRepository` 경로에 `thumbnail`을 뚫어 `place.create` 한 번에 전송.
     - 그룹방: `channel.create`가 `thumbnail`을 지원한다고 가정하고 `{ stereo, name, thumbnail }`을 **한 번에 전송**.
-      필요 시 `ChannelCreateInput`/리포(`useCreateChannel`·`ChannelRepositoryV2`·`ChannelRemoteDataSource`)
+      필요 시 `ChannelCreateInput`/리포(`useCreateChannel`·`ChannelRepository`·`ChannelRemoteDataSource`)
       경로에 `thumbnail`을 추가한다. create→update 2스텝은 쓰지 않는다.
 - **(6) 한도 처리.** 플레이스 최대 5, 그룹방(플레이스당) 최대 100. 생성(+) 진입점은 **항상 노출**하고, 한도
   초과 시도 시 **안내 토스트**로 막는다(현 `handleCreatePlace`의 거부-토스트 패턴과 일관). 한도 상수는

@@ -14,10 +14,10 @@
 기존 CRUD 경로(`observeList`/`cacheReadList`)는 전역 `DataContextHolder`의
 활성 cid 파티션만 읽으므로 크로스 클라우드 검색에 쓸 수 없다 — 이 계약은
 그 옆에 신설하는 **읽기 전용 별도 경로**다. 리포지토리의
-`LocalDataSourceV2ContextOverride`는 이 용도로 쓸 수 없다: `cacheRead`는
-오버라이드를 무시하고(`ChannelLocalDataSourceV2.ts:39`), `cacheReadList`는
+`LocalDataSourceContextOverride`는 이 용도로 쓸 수 없다: `cacheRead`는
+오버라이드를 무시하고(`ChannelLocalDataSource.ts:39`), `cacheReadList`는
 오버라이드를 sid 필터링에만 쓰며 `loadAll()` 자체는 여전히 활성 cid
-파티션을 읽는다(`ChannelLocalDataSourceV2.ts:53`). 즉 기존 오버라이드는
+파티션을 읽는다(`ChannelLocalDataSource.ts:53`). 즉 기존 오버라이드는
 cid 오버라이드가 아니라 **sid 오버라이드**다.
 
 ## 설계 원칙
@@ -49,7 +49,7 @@ cid 오버라이드가 아니라 **sid 오버라이드**다.
 - **명시적 cid 인자, 공유 컨텍스트 변경 금지**: cid는 항상 호출 인자로
   받는다. 공유 `DataContextHolder`를 임시로 바꿔치기하는 접근은 금지 —
   과거 `runWithGlobalContext`가 그 방식으로 cross-cloud 데이터 오염을
-  일으킨 전례가 있다(`libs/data/src/data/local/storages/utils.ts:64-70`).
+  일으킨 전례가 있다(`libs/data/src/local/storages/utils.ts:64-70`).
 
 ## 범위
 
@@ -65,7 +65,7 @@ cid 오버라이드가 아니라 **sid 오버라이드**다.
   채널별 최신 chat을 읽는다. 양쪽 구현 모두 기존 배선만 사용하므로 **네이티브 앱
   릴리스 불필요**(근거는 "상세 구현" 참조).
   **표시 프로필은 이 계약에 없다** — 이 경로는 캐시만 읽으므로 미방문 방의 발신자를
-  이름 지을 수 없다. 검색 결과의 발신자 프로필은 앱 계층이 `ProfileRepositoryV2`로
+  이름 지을 수 없다. 검색 결과의 발신자 프로필은 앱 계층이 `ProfileRepository`로
   불러온다(없으면 `refreshItem`으로 페치, [[web-search-page]] 참조).
   네이티브 왕복 수(`3 × 클라우드 + 채널 참조`)는 실기기에서 아직 측정하지
   않았다 — 느리면 최신 chat 조회를 화면에 보이는 행으로 제한하거나 배치
@@ -161,7 +161,7 @@ sequenceDiagram
 
 ## 상세 구현
 
-### 계약 (신규: `libs/data/src/data/local/search/types.ts`)
+### 계약 (신규: `libs/data/src/local/search/types.ts`)
 
 ```ts
 export interface GlobalCacheSearchQuery {
@@ -171,7 +171,7 @@ export interface GlobalCacheSearchQuery {
 
 export interface GlobalCacheSearchResult {
     channels: CacheChannelView[];
-    sites: CacheSiteView[]; // site = place (PlaceLocalDataSourceV2.ts:15)
+    sites: CacheSiteView[]; // site = place (PlaceLocalDataSource.ts:15)
     chats: CacheChatView[];
 }
 
@@ -294,7 +294,7 @@ query: { channelId, sort: 'desc', limit: 1 } }` — SQL이 `channel_id`,
 
 ## 검증 방법
 
-- **공유 계약 테스트** (`libs/data/src/data/local/search/*.test.ts`):
+- **공유 계약 테스트** (`libs/data/src/local/search/*.test.ts`):
   동일 픽스처(채널/사이트/채팅 뷰, 2개 cid 파티션, 타 uid 오염 데이터
   포함)와 동일 기대 결과 테이블을 두 소스에 적용한다.
     - `IndexedDbGlobalSearchSource`: `fake-indexeddb`로 실제 IndexedDB에

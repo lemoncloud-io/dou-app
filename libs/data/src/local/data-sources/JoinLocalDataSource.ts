@@ -71,9 +71,6 @@ export class JoinLocalDataSource extends BaseLocalDataSource implements IJoinLoc
         contextOverride?: LocalDataSourceContextOverride
     ): Promise<void> {
         const context = this.getContext(contextOverride);
-        if (!context.sid) {
-            throw new Error('[JoinLocalDataSource] sid is required in context to save join.');
-        }
         const id = this.assertRequiredString(this.normalizeJoinId(item.id, item.channelId, item.userId), 'id');
 
         const existing = await this.cacheStorage.load(id);
@@ -107,10 +104,6 @@ export class JoinLocalDataSource extends BaseLocalDataSource implements IJoinLoc
         if (validItems.length === 0) return;
 
         const context = this.getContext(contextOverride);
-        if (!context.sid) {
-            throw new Error('[JoinLocalDataSource] sid is required in context to save joins.');
-        }
-
         const cid = context.cid || 'default';
         const existingById = this.indexById(await this.cacheStorage.loadMany(validItems.map(item => item.id!)));
 

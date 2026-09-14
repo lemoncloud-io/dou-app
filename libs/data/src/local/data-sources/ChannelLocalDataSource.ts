@@ -1,7 +1,6 @@
 import type { DomainChannel, DomainChannelListPayload, DomainListResult } from '../../domain';
 import { createDomainListResult } from '../../domain';
 import type { DataContextProvider } from '../../repositories/types';
-import { stableHash } from '../stableHash';
 import type { CacheStorage } from '../ports';
 import {
     BaseLocalDataSource,
@@ -21,20 +20,6 @@ export class ChannelLocalDataSource extends BaseLocalDataSource implements IChan
         private readonly cacheStorage: CacheStorage<'channel'>
     ) {
         super(contextProvider);
-    }
-
-    /**
-     * Channels are a cloud-wide cache (channel.sync spans every site of the cloud) and the storage
-     * layer partitions them by {cid, uid} only. The base observer scope, however, also keys by the
-     * transient active `sid`, so a channel write made under one sid never reemits an observer that
-     * subscribed under a different sid — on a cloud/site switch the rail then stays stale even though
-     * the rows are cached (the same failure PlaceLocalDataSource documents). Drop `sid` from the
-     * scope to match the storage partition; per-site views stay isolated via the `|sid:<sid>` list-key
-     * suffix, and `cid` keeps clouds from bleeding into each other.
-     */
-    protected override getScopeKey(contextOverride?: LocalDataSourceContextOverride): string {
-        const context = this.getContext(contextOverride);
-        return stableHash({ cid: context.cid || 'default', sid: '', uid: context.uid || 'default' });
     }
 
     public async cacheRead(

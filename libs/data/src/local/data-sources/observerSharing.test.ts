@@ -327,3 +327,57 @@ describe('item observer scope isolation', () => {
         expect(observer).not.toHaveBeenCalled();
     });
 });
+
+describe('sid is not part of the observer scope (ADR-0085)', () => {
+    it('two observers on the same id under different sids are ONE group — they read storage once', async () => {
+        const counters: Counters = { loadAll: 0, load: 0 };
+        const provider = createContextProvider({ cid: 'cloud-a', sid: 'site-1', uid: 'u' });
+        const dataSource = new UserLocalDataSource(provider as any, createMemoryStorage(counters));
+
+        const fromSite1 = jest.fn();
+        const fromSite2 = jest.fn();
+        // Storage partitions by {cid, uid} only, so these two read the very same physical row.
+        // While sid was in the scope key they were separate groups and read it twice.
+        dataSource.observeItem('u1', fromSite1, { sid: 'site-1' });
+        dataSource.observeItem('u1', fromSite2, { sid: 'site-2' });
+        await flushPromises();
+
+        expect(counters.load).toBe(1);
+    });
+
+    it('a write under one sid wakes the observer that subscribed under another', async () => {
+        const counters: Counters = { loadAll: 0, load: 0 };
+        const provider = createContextProvider({ cid: 'cloud-a', sid: 'site-1', uid: 'u' });
+        const dataSource = new UserLocalDataSource(provider as any, createMemoryStorage(counters));
+
+        const observer = jest.fn();
+        dataSource.observeItem('u1', observer, { sid: 'site-1' });
+        await flushPromises();
+        observer.mockClear();
+
+        // The failure this pins: a site switch clears and re-selects the sid on its own timeline, so
+        // the write and the subscription routinely disagreed on it — and the row went stale on screen
+        // even though the cache held it.
+        await dataSource.cacheWrite({ id: 'u1', name: 'written-under-site-2' } as any, { sid: 'site-2' });
+        await new Promise(resolve => setTimeout(resolve, 80));
+
+        expect(observer).toHaveBeenCalled();
+        expect(observer.mock.calls[observer.mock.calls.length - 1][0]?.name).toBe('written-under-site-2');
+    });
+
+    it('cid still splits the scope — dropping sid did not widen it to other clouds', async () => {
+        const counters: Counters = { loadAll: 0, load: 0 };
+        const provider = createContextProvider({ cid: 'cloud-a', sid: 'site-1', uid: 'u' });
+        const dataSource = new UserLocalDataSource(provider as any, createMemoryStorage(counters));
+
+        const observer = jest.fn();
+        dataSource.observeItem('u1', observer, { cid: 'cloud-a' });
+        await flushPromises();
+        observer.mockClear();
+
+        await dataSource.cacheWrite({ id: 'u1', name: 'other-cloud' } as any, { cid: 'cloud-b' });
+        await new Promise(resolve => setTimeout(resolve, 80));
+
+        expect(observer).not.toHaveBeenCalled();
+    });
+});

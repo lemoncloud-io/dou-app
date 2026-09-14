@@ -34,7 +34,7 @@
 
 - 중계서버(`relay` / `chatic-pushes-api`) 수정 일체 — `reg-dev`의 알림 발송 조건, 응답 계약, SNS endpoint 재활성화 로직
 - 푸시 **수신** 이후의 모든 것 (OS 알림, 배지, 토스트, cid 역추적) → [cross-cloud-push.md](./cross-cloud-push.md)
-- 디바이스 GLOBAL 푸시 mute (소켓 `device.update-remote`) → `DeviceRepositoryV2.updateRemotePushMute`
+- 디바이스 GLOBAL 푸시 mute (소켓 `device.update-remote`) → `DeviceRepository.updateRemotePushMute`
 - 데스크톱 네이티브 저장 — Electron main에 Preference 핸들러가 없다. 데스크톱은 웹 계층만 쓴다.
 - 원격 킬스위치 / 피처 플래그 인프라 (ADR-0077에서 명시적으로 제외)
 

@@ -1,222 +1,178 @@
-# remote — outbound 서버 호출
+# remote — outbound server calls
 
-> 상태: Live · 최종 갱신: 2026-09-09 · 개요는 [lib README](../../README.md) · 정본 코드: [gateways/socket.ts](../../src/remote/gateways/socket.ts) · [gateways/http.ts](../../src/remote/gateways/http.ts)
+> Status: Live · Last updated: 2026-09-14 · Overview in the [lib README](../../README.md) · Canonical code: [gateways/](../../src/remote/gateways/) · Per-axis detail in [socket.md](./socket.md) · [http.md](./http.md)
 
-remote 레이어는 **outbound 서버 호출**만 담당한다. gateway thin wrapper이며, socket 연결의
-생애주기·재연결·sync 타이밍은 알지 못한다.
+The remote layer handles **outbound server calls** and nothing else. It is a thin gateway wrapper; it
+knows nothing about the socket connection's lifecycle, reconnection, or sync timing.
 
-## 구성
+This document holds what the two axes **share**. Per-domain mapping tables and axis-specific traps live
+in the axis documents.
 
-`remote`는 **축**(local의 반대편)이고, 그 아래 이름은 **전송 수단**을 말한다.
+## Two axes
+
+`remote` is the **axis** (the opposite side of local), and the names under it say the **transport**.
 
 ```text
 remote/
   gateways/
-    socket.ts              SocketGatewayBundle + 도메인별 Pick<>
-    http.ts                HttpGatewayBundle + 도메인별 Pick<>
-    index.ts               배럴
-  socket-data-sources/     SocketDataSource 11종 + 팩토리
-  http-data-sources/       HttpDataSource 5종 + 팩토리
+    socket.ts              SocketGatewayBundle + per-domain Pick<>
+    http.ts                HttpGatewayBundle + per-domain Pick<>
+    index.ts               barrel
+    __mocks__/             createMockSocketGateways (socket axis only)
+  socket-data-sources/     11 SocketDataSources + createSocketDataSources
+  http-data-sources/       5 HttpDataSources + createHttpDataSources
 ```
 
-- **`gateways/`** — 각 도메인이 실제로 쓰는 capability만 추려 도메인 gateway 타입을 정의한다(`Pick<>` 조합). `@chatic/http`·소켓 lib에서 **타입만** 가져온다.
-- **`socket-data-sources/`** — 도메인별 `SocketDataSource`. 주입받은 gateway 메서드를 호출하는 얇은 래퍼다. `createSocketDataSources({ gateways })`가 생성 지점을 한곳에 모은다.
-- **`http-data-sources/`** — 도메인별 `HttpDataSource`. 같은 층의 HTTP 축이며 `createHttpDataSources({ gateways })`가 대칭 팩토리다.
+The two are deliberately symmetric. What one axis does, the other does in the same place.
 
-## 핵심 계약
+|                     | Socket axis                              | HTTP axis                              |
+| ------------------- | ---------------------------------------- | -------------------------------------- |
+| Gateway types       | `gateways/socket.ts`                     | `gateways/http.ts`                     |
+| Bundle              | `SocketGatewayBundle` (11 domains)       | `HttpGatewayBundle` (5 domains)        |
+| Data sources        | `socket-data-sources/` (11)              | `http-data-sources/` (5)               |
+| Factory             | `createSocketDataSources({ gateways })`  | `createHttpDataSources({ gateways })`  |
+| Composition root    | app-runtime `factories/socketFactory.ts` | app-runtime `factories/httpFactory.ts` |
+| Types come from     | `@lemoncloud/chatic-sockets-lib`         | `@chatic/http`                         |
+| Mirrors local cache | some domains do (`getCloud` and friends) | **never** — react-query owns it        |
+| Test mocks          | shared `createMockSocketGateways`        | built inline per test                  |
 
-`SocketDataSource`는 gateway 타입만 주입받는다. socket action string이나 model-event 라우팅을 알지 않는다.
+| Document                 | What it covers                                                                                |
+| ------------------------ | --------------------------------------------------------------------------------------------- |
+| [socket.md](./socket.md) | 11 gateway mappings, where absence is the contract, routing (`RoutedGateway`), request limits |
+| [http.md](./http.md)     | 5 gateway Picks, why it holds no cache, the admin console surface, the report lane            |
+
+## The shared contract
+
+### Gateways are injected through the constructor
+
+A data source knows exactly one gateway type — its own. It does not know socket action strings, HTTP
+paths, or routing rules.
 
 ```ts
-// 예: ChatSocketDataSource 는 ChatSocketDomainGateway 만 안다
+export class ChatSocketDataSource implements IChatSocketDataSource {
+    constructor(private readonly gateway: ChatSocketDomainGateway) {}
+}
+
 export const createSocketDataSources = ({ gateways }: { gateways: SocketGatewayBundle }): SocketDataSources => ({
     chat: new ChatSocketDataSource(gateways.chat),
     // ...
 });
 ```
 
-번들 키는 **앱 쪽 도메인 이름**이지 와이어 모듈 이름이 아니다 — `join`이 `chat.read`·`channel.join`을
-합치고 `place`가 `user.mySite`를 끌어오듯, `connection`도 와이어 모듈 `sockets`(액션
-`sockets/find-connection`)에 붙는다. 와이어 이름은 `socketFactory`의 `createDomainGateway('sockets', …)`
-한 줄에만 남는다.
+### `Pick<>` makes the consumer own the contract
 
-## 소켓 gateway 매핑
+The original gateway is never taken whole. Only the capabilities a domain actually uses are picked into
+a domain gateway type. **The calling side's own type says what is available.**
 
-`gateways/socket.ts`는 각 소켓 도메인이 쓰는 capability만 `Pick<>`으로 추려 도메인 gateway 타입을
-만든다. 한 도메인이 여러 원본 gateway를 묶기도 한다(`join`, `place`, `user`).
+The socket axis goes one step further and uses the **absence** in a `Pick<>` as a seal — it leaves
+live-but-`@deprecated` actions out so callers cannot reach them. The HTTP axis does not do this. That
+is the only difference between the two axes, and
+[socket.md](./socket.md#where-absence-is-the-contract) and [http.md](./http.md#gateway-pick) each cover
+their side.
 
-| 도메인 gateway                  | 타입 정의                                                                                                                     | 소비하는 SocketDataSource    |
-| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ---------------------------- |
-| `AuthSocketDomainGateway`       | `Pick<AuthGateway, 'linkAccount'>`                                                                                            | `AuthSocketDataSource`       |
-| `ChannelSocketDomainGateway`    | `Pick<ChannelGateway, 'mine' \| 'sync' \| 'update' \| 'delete' \| 'create' \| 'invite' \| 'leave' \| 'getSelf' \| 'unreads'>` | `ChannelSocketDataSource`    |
-| `ChatSocketDomainGateway`       | `Pick<ChatGateway, 'send' \| 'feed' \| 'get' \| 'update' \| 'delete' \| 'reaction'>`                                          | `ChatSocketDataSource`       |
-| `JoinSocketDomainGateway`       | `JoinGateway & Pick<ChatGateway, 'read'> & Pick<ChannelGateway, 'join'>`                                                      | `JoinSocketDataSource`       |
-| `PlaceSocketDomainGateway`      | `Pick<PlaceGateway, 'create' \| 'get' \| 'update' \| 'delete'> & Pick<UserGateway, 'mySite'>`                                 | `PlaceSocketDataSource`      |
-| `UserSocketDomainGateway`       | `Pick<ChannelGateway, 'listUser' \| 'syncUsers'> & Pick<UserGateway, 'update' \| 'profile' \| 'invite' \| 'inviteBatch'>`     | `UserSocketDataSource`       |
-| `InviteSocketDomainGateway`     | `Pick<InviteGateway, 'create' \| 'get' \| 'list' \| 'accept' \| 'cancel' \| 'reject'>`                                        | `InviteSocketDataSource`     |
-| `DeviceSocketDomainGateway`     | `Pick<DeviceGateway, 'save' \| 'read' \| 'sync' \| 'updateRemote'>` — 번들에는 `RoutedGateway<>`로 들어간다                   | `DeviceSocketDataSource`     |
-| `CloudSocketDomainGateway`      | `Pick<CloudGateway, 'update' \| 'get' \| 'delete'>`                                                                           | `CloudSocketDataSource`      |
-| `ProfileSocketDomainGateway`    | `Pick<ProfileGateway, 'get' \| 'getMine' \| 'set' \| 'sync'>`                                                                 | `ProfileSocketDataSource`    |
-| `ConnectionSocketDomainGateway` | `Pick<DomainGateway, 'request'>`                                                                                              | `ConnectionSocketDataSource` |
+### view → domain happens once, here
 
-설계 포인트:
+The data source is where a server view becomes a domain model. Callers receive domain shapes only. The
+exception is session material, where mapping would drop the very thing the caller wants; those pass
+through raw, and the axis documents name each one.
 
-- **Join**은 1급 `JoinGateway`(단건 `join.get` / `join.update`)에 보조 command(`chat.read`, `channel.join`)를 합쳐 묶는다.
-- **Place**는 `PlaceGateway` CRUD에 목록 조회용 `UserGateway.mySite`를 더한다. Site 도메인은 Place로 일원화됐고, 물리 캐시 슬롯은 기존 `site`를 재사용한다([local.md](../local/README.md#스코프와-캐시-슬롯) 참조).
-- **Cloud**는 `get` / `update` / `delete`만 노출한다. `cloud.create`는 gateway 묶음에 없다.
-- **User**는 계정 프로필(`user.profile`)까지 포함한다. 사이트(플레이스) 프로필은 별개 도메인이고 `ProfileSocketDomainGateway`가 전담한다.
-- **Auth**의 `linkAccount`는 phone/email/social × link/login × send/resend/verify/confirm을 하나로 받는 계정 증명 패킷이다. 이것이 대체한 `verifyHashAlias`·`attachSocial`은 와이어에 `@deprecated`로 남아 있지만 이 `Pick`에 **일부러 없다** — 호출부가 옛 패킷에 닿는 것을 막는 유일한 장치다(ADR-0042).
-- **Device**만 라우팅된다. 번들 항목이 `RoutedGateway<DeviceSocketDomainGateway>`라서 `save`/`read`/`sync`는 `active` 슬롯으로, relay 소유 푸시 설정인 `updateRemote`는 relay로 간다(ADR-0027, [kind-scoped-routing.md](../../../app-runtime/docs/socket/kind-scoped-routing.md)).
-- **Invite**(1:1 DM 초대 코드)는 컴포지션 루트가 relay 슬롯에 **고정**한다 — 활성 클라우드를 따라가면 안 되기 때문이다. `UserSocketDomainGateway.invite`(클라우드 대량 초대, ADR-0016)와 다른 도메인이다(ADR-0033).
-- **Connection**의 번들 키는 `connection`이지만 와이어 모듈은 `sockets`다(액션 `sockets/find-connection`).
+### `context: DataContext` is the request-time scope
 
-## SocketDataSource별 호출
+The `context` in a method signature is the request-time scope **the caller captured and passed in**. It
+keeps a late response from poisoning a scope that has since switched. Capturing it is the repository's
+job (`BaseRepository.getRequestContext()`).
 
-| SocketDataSource             | 공개 메서드 → gateway 호출                                                                                                                                                                           |
-| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `AuthSocketDataSource`       | `sendPhoneCode()` · `verifyPhoneCode()` · `confirmPhoneCode()` · `verifySocialAccount()` · `confirmSocialAccount()`(모두 `auth.linkAccount`, `type`·`mode`·`step` 조립을 이 층이 독점)               |
-| `ChannelSocketDataSource`    | `fetchChannel()`, `syncChannel()`, `createChannel()`, `updateChannel()`, `deleteChannel()`, `inviteChannel()`, `leaveChannel()`, `getSelfChannel()`, `getUnreads()`                                  |
-| `ChatSocketDataSource`       | `sendChat()`, `fetchChat()`, `getChat()`, `updateChat()`, `deleteChat()`, `setReaction()`(`chat.reaction`)                                                                                           |
-| `JoinSocketDataSource`       | `getJoin()`(`join.get`), `updateJoin()`(`join.update`), `readChat()`(`chat.read`), `joinChannel()`(`channel.join`)                                                                                   |
-| `PlaceSocketDataSource`      | `fetchPlace()`(`user.mySite`, 목록), `createPlace()`, `getPlace()`, `updatePlace()`, `deletePlace()`                                                                                                 |
-| `UserSocketDataSource`       | `fetchUsers()`(`channel.listUser`), `syncChannelUsers()`(`channel.syncUsers`), `getMyProfile()`(`user.profile`), `updateProfile()`(`user.update`), `requestInvite()`(`user.invite`), `inviteBatch()` |
-| `InviteSocketDataSource`     | `listInvites()`, `createInvite()`, `getInvite()`, `acceptInvite()`, `cancelInvite()`, `rejectInvite()`                                                                                               |
-| `DeviceSocketDataSource`     | `saveDevice()` · `readDevice()` · `syncDevice()`(`active` 슬롯), `updateRemoteDevice()`(`relay` 고정)                                                                                                |
-| `CloudSocketDataSource`      | `getCloud()`, `updateCloud()`, `deleteCloud()`                                                                                                                                                       |
-| `ProfileSocketDataSource`    | `get()`, `getMine()`, `set()`, `sync()`                                                                                                                                                              |
-| `ConnectionSocketDataSource` | `findConnection()` → `request('find-connection', payload)`                                                                                                                                           |
+HTTP domains that hold no cache still take this argument. Today it only carries mapping metadata, but
+keeping the signatures symmetric means the interface will not change when cache semantics arrive.
 
-## HTTP 축
+## Usage
 
-소켓 축과 같은 파일 계층·같은 패턴이다. `@chatic/http`에서 **타입만** 가져온다.
+### This layer is not a surface the app calls
 
-### gateway Pick
+Every data call goes through a repository (ADR-0036). Even the composition root does not hand the
+gateway bundle back — the bundle exists only long enough to build the data sources, then is dropped.
 
-`gateways/http.ts`의 `HttpGatewayBundle`은 도메인 5종이다.
+The entry point, the rules that hold, and the wiring map belong to
+[the lib README's Usage](../../README.md#usage). What follows here is only the procedure for **adding**
+something to this layer.
 
-| 도메인 gateway                  | Pick 대상                                                                                                                                                                                                                         | 소비하는 HttpDataSource      |
-| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- |
-| `AuthHttpDomainGateway`         | `OAuthHttpGateway` — 12종: `registerUser` · `registerUserV2` · `findAlias` · `verifyAlias` · `loginInvite` · `inviteInfo` · `registerDevice` · `login` · `verifyNativeToken` · `exchangeCode` · `delegateCloud` · `exchangeToken` | `AuthHttpDataSource`         |
-| `UserHttpDomainGateway`         | `UserHttpGateway` — `list` · `tryProfile` · `updateProfile` · `registerDevice`                                                                                                                                                    | `UserHttpDataSource`         |
-| `CloudHttpDomainGateway`        | `CloudHttpGateway` — `list` · `update` · `make` · `release` · `verifyEmail`                                                                                                                                                       | `CloudHttpDataSource`        |
-| `SubscriptionHttpDomainGateway` | `SubscriptionHttpGateway` — `plans` · `validateGoogle` · `validateApple` · `receipts` · `receiptDetail` · `membership` · `validateMembership`                                                                                     | `SubscriptionHttpDataSource` |
-| `ReportHttpDomainGateway`       | `ReportHttpGateway` — `reportIssue` · `uploadLogBatch` (전량)                                                                                                                                                                     | `ReportHttpDataSource`       |
+### Adding a server call
 
-`Pick<>`의 목적은 소비자가 계약을 소유하는 것이다. 소켓 번들은 그 부재를 봉쇄 장치로도 쓴다 —
-`@deprecated` 패킷을 빼서 호출부가 옛 어휘에 닿지 못하게 한다. HTTP auth 번들은 그렇지 않다:
-세션 재료를 낳는 액션(`login` · `exchangeCode` · `delegateCloud` · `exchangeToken` ·
-`verifyNativeToken`)까지 전부 들어 있다.
+This is the case of adding one action to an existing domain. Work top to bottom.
 
-빠진 것은 `refreshCloudToken` · `refreshAuthToken` 둘이고, **넣을 수가 없다** — 와이어 어휘 자체에
-더 이상 존재하지 않는다(ADR-0070 결정 2). 그 부재는 주석이 아니라 테스트가 지킨다:
-`@chatic/http`의 `gateways/refreshAbsence.spec.ts`.
+1. **Put the action in the gateway `Pick<>`** — `gateways/socket.ts` or `gateways/http.ts`. Before you do, read [where absence is the contract](./socket.md#where-absence-is-the-contract) in socket.md. Reviving a name listed there unlocks something that was deliberately sealed.
+2. **Touch the composition root — only when needed.** On the socket axis, `auth`, `join`, `place`, `user` and `cloud` are assembled by `socketFactory` as object literals, so a line has to be added there. Every other socket domain and all of the HTTP domains pass their gateway through whole, so **the factory stays untouched**.
+3. **Add the method to the data source** — both the `I*` interface and the class. Map to the domain model here if one exists; if mapping would drop a value the caller needs (session material), pass it through raw and leave the reason in a comment.
+4. **Expose it on the repository** — capture the scope with `getRequestContext()` before calling remote, and pass that context down to the data source. If the result is written to local, write it under the captured context.
+5. **Add tests** — the data source test is the smallest unit. On the socket axis, add a `jest.fn()` for the new action to `createMockSocketGateways` as well (a cast keeps the type checker from catching a missing one).
 
-`ReportHttpDomainGateway`도 전량을 취한다. 이 게이트웨이에는 withhold할 것이 없고, `Pick<>`은
-계약을 소비자가 소유하게 두기 위해서만 남아 있다.
+The barrel needs no changes. `index.ts` is `export *`, so new symbols leave on their own.
 
-### HttpDataSource와 캐시 의미
+**For a new domain** three more places apply — the key in `SocketGatewayBundle` (or `HttpGatewayBundle`),
+the `SocketDataSources` interface plus its construction line in `createSocketDataSources`, and
+`buildRepositories` and `dispose()` in `repositories/index.ts`.
 
-`HttpDataSource`는 소켓 data-source와 같은 형태다 — `implements I*` + gateway 생성자 주입 +
-view→domain 단일 경계. 다른 점이 하나 있다.
+### What not to do
 
-**HTTP 계열은 local cache에 쓰지 않는다.** 소켓 쪽 `getCloud`가 하는 `persistCloud` 같은 미러링을
-하지 않는다. 카탈로그의 캐시 주인은 소비자 쪽 react-query 어댑터다.
+- **Call a data source or a gateway from the UI.** Call a repository (ADR-0036).
+- **Render a remote response directly.** Reads always come from a local stream. Write the remote return value to local, and let the screen see what `observe*` re-emits.
+- **Read the context after the response arrives.** Capture it right before the request. During a cloud switch a late response will otherwise poison the current scope.
+- **Wrap errors.** The status code is the input to classification upstream. The report lane especially.
+- **Call `remote` from `local`.** The one thing that joins the two axes is a repository.
 
-`context: DataContext`를 받는 이유는 소켓 data-source와 같다 — 늦게 도착한 응답이 전환된 스코프를
-오염시키지 않도록 요청 시점 문맥을 고정한다. HTTP 카탈로그는 캐시를 안 쓰므로 지금은 매핑
-부가정보용이지만, 시그니처 대칭을 지켜 두면 캐시 의미가 생겨도 인터페이스가 바뀌지 않는다.
+## Naming history
 
-`UserHttpDataSource`는 인터페이스 분리를 하나 더 갖는다. 디바이스 등록의 소비자는 device
-repository이므로 `IDeviceRegistrationHttpSource`(`registerPushDevice` 하나)를 별도 선언하고,
-`IUserHttpDataSource`가 그것을 `extends`한다. repository 생성자는 항상 자기가 쓸 인터페이스만
-받는다 — device repository는 좁은 쪽을, user repository는 넓은 쪽을 받는다.
+This layer was renamed once. When a document written with the old names turns up, read it through the
+table below. **The bodies of past ADRs are left alone** — they are records of their moment.
 
-### 두 `UserView`는 서로 대입되지 않는다
+### 2026-09-01 — the socket axis moved to a `Socket` prefix
 
-HTTP 축의 사용자 매핑에는 함정이 하나 있다. `toDomainUser`(`domain/mappers.ts`)는 소켓 축의
-`UserView`(`@lemoncloud/chatic-socials-api`)로 타입이 고정돼 있고, HTTP/OAuth 축의 동명 타입
-(`@lemoncloud/chatic-backend-api`)은 `stereo` 유니온이 더 넓다(`'#alias'` · `'session'` · `'#code'`
-— 소켓 도메인이 볼 일 없는 OAuth 내부 마커). 신원 필드는 같지만 **구조적으로 대입되지 않는다.**
+`remote` is the axis (the opposite of local) and the names under it say the transport. The socket axis
+used to claim `Remote` while only HTTP said `Http`, which made the classes in
+`remote/http-data-sources/` read as "the thing that is not remote". Moving the socket axis to `Socket`
+made the two symmetric. The HTTP axis did not change by a single character.
 
-`http-data-sources/httpUserMapping.ts`의 `toDomainUserFromHttp`가 명시적 캐스트로 이 둘을 잇는다 —
-새 매퍼를 만들지 않고 기존 것을 다리로 쓴다. `stereo` 값에 따라 분기해야 할 일이 생기면, 그때가
-캐스트를 더 넓히는 게 아니라 **HTTP 축에 자기 `toDomainUser`를 주는** 신호다.
+| Before                                              | Now                                                           |
+| --------------------------------------------------- | ------------------------------------------------------------- |
+| `remote/data-sources/`                              | `remote/socket-data-sources/`                                 |
+| `XxxRemoteDataSource` · `IXxxRemoteDataSource`      | `XxxSocketDataSource` · `IXxxSocketDataSource`                |
+| `RemoteDataSources` · `createRemoteDataSources`     | `SocketDataSources` · `createSocketDataSources`               |
+| `RemoteGatewayBundle`                               | `SocketGatewayBundle`                                         |
+| `XxxDomainGateway` (socket)                         | `XxxSocketDomainGateway`                                      |
+| `MockRemoteGateways` · `createMockRemoteGateways`   | `MockSocketGateways` · `createMockSocketGateways`             |
+| app-runtime `factories/remoteFactory.ts`            | `factories/socketFactory.ts`                                  |
+| app-runtime `createHttpDataSourceBundle`            | `createHttpDataSources`                                       |
+| `SocketsRemoteDataSource` · bundle key `sockets`    | `ConnectionSocketDataSource` · bundle key `connection`        |
+| `SocketDomainGateway`                               | `ConnectionSocketDomainGateway`                               |
+| `gateways/index.ts` (socket types + http re-export) | `gateways/socket.ts` ‖ `gateways/http.ts` + barrel `index.ts` |
 
-### 리포트 lane
+### 2026-09-14 — the `V2` suffix is gone
 
-`ReportHttpDataSource`는 이 층의 예외다. **매핑할 도메인도 캐시 슬롯도 없다.** 진단(diagnostics)은
-도메인 데이터가 아니지만 데이터 콜이긴 하므로, ADR-0036의 "모든 데이터 콜은 repository를 거친다"에
-남은 마지막 예외를 없애는 쪽을 택했다(2026-09-02). 통과 계층이다 — 매핑 없음, 캐시 없음, 로깅 없음.
+V1 had been gone for a long time while the whole data layer still carried `V2`, in directory names and
+identifiers alike — and `libs/app-runtime` already used the V2-free names, so the boundary between the
+two forced an import alias. Removing the suffix closed that split
+([ADR-0081](../../../../docs/adr/0081-libs-data-doc-canon-and-layer-flattening.md) decisions 4 and 5).
 
-이관에서 성질이 바뀐 것 넷:
+| Before                                             | Now                                            |
+| -------------------------------------------------- | ---------------------------------------------- |
+| `repositories-v2/`                                 | `repositories/`                                |
+| `local/data-sources-v2/`                           | `local/data-sources/`                          |
+| `XxxRepositoryV2` · `IXxxRepositoryV2`             | `XxxRepository` · `IXxxRepository`             |
+| `BaseRepositoryV2` · `DisposableRepositoryV2`      | `BaseRepository` · `DisposableRepository`      |
+| `createRepositoriesV2`                             | `createRepositories`                           |
+| `DataRepositoriesV2` · `DataRepositoriesV2Options` | `DataRepositories` · `DataRepositoriesOptions` |
+| `XxxLocalDataSourceV2` · `IXxxLocalDataSourceV2`   | `XxxLocalDataSource` · `IXxxLocalDataSource`   |
+| `BaseLocalDataSourceV2` · `ILocalDataSourceV2`     | `BaseLocalDataSource` · `ILocalDataSource`     |
+| `LocalDataSourcesV2` · `createLocalDataSourcesV2`  | `LocalDataSources` · `createLocalDataSources`  |
 
-1. **로깅 예외가 관례에서 계약으로.** "로그 업로드는 `withNetworkLog`를 안 타는 진입점을 골라 쓴다"는 주석 규율이 게이트웨이의 `bypass: ['networkLog']`가 됐다. 호출부가 전송을 조립하지 않으므로 규율을 어길 여지가 사라진다.
-2. **`allowRecordError`가 `report-bulk`에 붙는다.** 200 본문의 `dropped`는 서버가 개별 엔트리에 내린 판정이지 실패한 호출이 아니다 — `throwIfApiError`로 승격되면 업로더가 이미 수락된 배치를 재전송한다.
-3. **endpoint가 정적 env에서 동적 relay로.** 예전 상수는 `WEB_DOU_ENDPOINT`(빌드 값)를 읽었고 게이트웨이는 `resolveEndpoint('relay')`를 읽는다. 값은 같은 `DOU_ENDPOINT`이고, 달라지는 것은 딥링크 `?_backend` 오버라이드가 리포트에도 적용된다는 점이다.
-4. **자격증명 회복 1회가 붙는다.** `HttpClient.run`이 서명 만료로 실패한 요청을 재발급 후 한 번 재전송한다. 오래 백그라운드에 있던 뒤의 flush가 실제로 나가는 경로다. 회복 경로는 로깅을 하므로 "업로드 실패가 로그를 낳지 않는다"는 성질은 **요청 자체**에 한정된다(회복 시도당 최대 1건, 재귀 없음).
+`V2` that has nothing to do with the data layer (`ClientSocketV2`, `registerUserV2`,
+`RegisterUserV2Body`, `useWebSocketV2`, …) was never in scope and is untouched. So is the
+`apps/admin-v2` path.
 
-분류(`retry`/`discard`/`ok`)는 `app-runtime/report/logBatch.ts`에 있다 — 큐의 어휘
-(`UploadOutcome`)는 로거 파이프라인 소유이고 data가 그것을 알 이유가 없다. 그래서 데이터소스와
-repository는 **에러를 감싸지 않고 그대로 던진다**(상태 코드가 분류의 입력이다).
-
-### REST 훅 소비처 — ADR-0070의 수치는 과다 계상이다
-
-ADR-0070 §맥락은 REST 훅 6개의 소비를 `18·22·8·6·4·2`로 적었다. 부푼 값이다. `desktop-web`에
-`useCloudSessionCatalog`를 감싼 **동명의 자체 `useClouds`**가 있어서 합산됐다.
-
-2026-08-27에 전수 grep으로 다시 셌을 때는 훅마다 한 자리 수였고 `useVerifyNativeAppToken`은 0곳,
-즉 이관 대상이 아니라 삭제 후보였다. 그 표는 여기 옮기지 않았다 — 이관이 끝난 뒤로 소비처가 계속
-움직이고(그 사이 `libs/web-core`는 4개 형제 lib으로 갈라졌다), 문서에 박아 둔 숫자는 읽는 사람을
-틀리게 만든다. 지금 값이 필요하면 직접 세는 것이 맞다.
-
-## 클라이언트 측 요청 제한
-
-`SocketDataSource` 호출자는 socket 클라이언트의 클라이언트 측 backpressure를 인지해야 한다. 이
-값들은 `@lemoncloud/chatic-sockets-lib` 소유이고 **이 리포에서는 확인할 수 없다** — 아래는 소비
-관점의 참고값이니, 정확한 값이 필요하면 그 lib을 봐야 한다. 호출 결과(특히 reject)를 해석하는 것은
-`libs/data` 호출자의 몫이라 여기 남긴다.
-
-| 항목                | 기본값 | 비고                                                |
-| ------------------- | ------ | --------------------------------------------------- |
-| 동시 in-flight 허용 | 32     | 초과분은 pending으로                                |
-| pending 허용        | 512    | in-flight 포화 시 대기                              |
-| request timeout     | 30s    | 서버 무응답 시 클라이언트가 timeout                 |
-| client-side 429     | —      | pending 초과 시 서버와 무관하게 클라이언트가 reject |
-
-클라이언트 측 429는 서버 HTTP 429와 다르다. sync 루프 요청도 같은 in-flight 슬롯을 공유하므로,
-호출자는 두 종류의 reject를 구분해 처리해야 한다.
-
-## 이름 규약
-
-이 레이어는 한 번 개명됐다. 옛 이름으로 쓰인 문서를 만나면 아래 표로 옮겨 읽으면 된다.
-**과거 ADR 본문은 그대로 둔다** — 그 시점의 기록이다.
-
-### 2026-09-01 — 소켓 축이 `Socket` 접두로
-
-`remote`는 축(local의 반대)이고 그 아래 이름은 전송 수단을 말한다. 예전에는 소켓 축이 `Remote`를
-선점하고 HTTP만 `Http`를 써서, `remote/http-data-sources/`의 클래스가 "remote가 아닌 것"처럼
-읽혔다. 소켓 축을 `Socket`으로 옮겨 둘을 대칭으로 맞췄다. HTTP 축은 한 글자도 바뀌지 않았다.
-
-| 예전                                              | 지금                                                        |
-| ------------------------------------------------- | ----------------------------------------------------------- |
-| `remote/data-sources/`                            | `remote/socket-data-sources/`                               |
-| `XxxRemoteDataSource` · `IXxxRemoteDataSource`    | `XxxSocketDataSource` · `IXxxSocketDataSource`              |
-| `RemoteDataSources` · `createRemoteDataSources`   | `SocketDataSources` · `createSocketDataSources`             |
-| `RemoteGatewayBundle`                             | `SocketGatewayBundle`                                       |
-| `XxxDomainGateway` (소켓)                         | `XxxSocketDomainGateway`                                    |
-| `MockRemoteGateways` · `createMockRemoteGateways` | `MockSocketGateways` · `createMockSocketGateways`           |
-| app-runtime `factories/remoteFactory.ts`          | `factories/socketFactory.ts`                                |
-| app-runtime `createHttpDataSourceBundle`          | `createHttpDataSources`                                     |
-| `SocketsRemoteDataSource` · 번들 키 `sockets`     | `ConnectionSocketDataSource` · 번들 키 `connection`         |
-| `SocketDomainGateway`                             | `ConnectionSocketDomainGateway`                             |
-| `gateways/index.ts`(소켓 타입 본문 + http 재수출) | `gateways/socket.ts` ‖ `gateways/http.ts` + 배럴 `index.ts` |
-
-### `V2` 접미사는 아직 붙어 있다
-
-V1이 제거된 뒤에도 데이터 레이어 전체가 `V2`를 달고 있다 — 디렉토리(`repositories-v2/` ·
-`local/data-sources-v2/`)와 식별자 양쪽이다. [ADR-0081](../../../../docs/adr/0081-libs-data-doc-canon-and-layer-flattening.md)이
-제거를 결정했다가 **결정 4·5를 보류로 내렸으므로**(2026-09-14), 지금 코드에서 보는 이름이 곧 현행이다.
-대응표는 그 ADR에 후속 작업의 입력으로 남아 있다.
-
-데이터 레이어와 무관한 `V2`(`ClientSocketV2` · `registerUserV2` · `RegisterUserV2Body` 등)는
-애초에 대상이 아니다.
+Two things moved in `libs/app-runtime` alongside it. `factories/repositoryFactory.ts` is gone — it was
+a 30-line shell whose only job was renaming `contextProvider` to `context`, and once both sides said
+`createRepositories` it would have collided with the thing it wrapped; `DataManager` now calls
+`@chatic/data`'s `createRepositories` directly. `factories/localFactory.ts` stays, and **so does its
+import alias** (`createLocalDataSources as createDataLocalDataSources`): ADR-0081 expected the alias to
+disappear with the suffix, but app-runtime's own `createLocalDataSources` — the one that does storage
+routing — now has exactly the same name, so the collision is real regardless of `V2`.

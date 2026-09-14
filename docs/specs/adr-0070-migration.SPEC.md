@@ -440,7 +440,7 @@ admin-v2 `UsersPage`의 `data.total` → `data.meta.total`, apps/web `CloudManag
 낙관적 `setQueryData`의 `total` → `meta.total`. 나머지 소비처는 전부 `data.list`만 읽는다.
 `DomainCloud`/`DomainUser`는 뷰의 초집합(`{...api}` 스프레드)이라 필드 읽기는 무변경이다.
 
-**`params` 누락 하나를 고쳤다.** `ICloudRepositoryV2.makeCloud`/`releaseCloud`가 게이트웨이의
+**`params` 누락 하나를 고쳤다.** `ICloudRepository.makeCloud`/`releaseCloud`가 게이트웨이의
 `params`를 받지 않아서, 그대로 옮기면 dev 드라이런(`dryRun: 1`, ADR-0060 §7)과 클라우드 삭제의
 `cascade: 1`이 **조용히 사라질** 뻔했다. 두 메서드에 이름 있는 옵션(`CloudMakeOptions`·
 `CloudReleaseOptions`)을 붙였다 — 와이어의 `1` 인코딩은 `CloudHttpDataSource`에 남으므로 앱은

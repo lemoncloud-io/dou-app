@@ -105,7 +105,7 @@ web-core를 그대로 두고 내부만 `web-config`/`web-transport`/`web-api`/`w
 훅 6개(`useClouds` 18곳 · `useCloudSessionCatalog` 22곳 · `useRegisterDeviceToken` 8곳 ·
 `useVerifyEmail` 6곳 · `useUsers` 4곳 · `useVerifyNativeAppToken` 2곳 — 심볼을 참조하는 파일
 기준이며, desktop-web에 `useCloudSessionCatalog`를 감싼 **동명의 자체 `useClouds`**가 따로 있어
-합산된다. web-core 판만 세면 더 작다 — [libs/data/docs/http-data-path.md](../../libs/data/docs/http-data-path.md) 표 참조)가 repository 밖에서
+합산된다. web-core 판만 세면 더 작다 — [libs/data/docs/remote/http.md](../../libs/data/docs/remote/http.md) 표 참조)가 repository 밖에서
 데이터를 읽는다 — ADR-0036이 "모든 데이터 콜은 repository를 거친다" 원칙의 **유일한 미해결
 위반**으로 지목한 항목이다.
 
@@ -364,7 +364,7 @@ libs/data/src/                        ← @chatic/data — 유지: 도메인 + d
 ├── domain/                           DomainUser · toDomainUser … (기존)
 ├── local/
 │   ├── ports/                        CacheStorage · IIndexedDB · IGlobalCacheSearchSource (어댑터 인터페이스)
-│   └── data-sources-v2/              *LocalDataSourceV2 클래스 9개 — CacheStorage 인터페이스만 봄 (기존)
+│   └── data-sources/              *LocalDataSource 클래스 9개 — CacheStorage 인터페이스만 봄 (기존)
 ├── remote/
 │   ├── gateways/                     RemoteGatewayBundle ‖ HttpGatewayBundle (lib 타입 Pick<>)
 │   ├── data-sources/                 소켓 구현체 11개 (기존)
@@ -372,7 +372,7 @@ libs/data/src/                        ← @chatic/data — 유지: 도메인 + d
 │           예: class UserHttpDataSource implements IUserHttpDataSource {
 │                   constructor(private readonly gateway: UserHttpGateway) {}
 │               }
-└── repositories-v2/                  RepositoryV2 클래스 13개 (기존)
+└── repositories/                  Repository 클래스 13개 (기존)
 
 libs/db/src/                          ← 신설 — 저장 엔진 (CacheStorage·IIndexedDB 구현)
 ├── indexeddb/                        IndexedDBAdapter · IndexedDBDatabase · ChatQueryExecutor
@@ -410,8 +410,8 @@ libs/db/src/                          ← 신설 — 저장 엔진 (CacheStorage
    `data`는 모른다.
 2. **경계를 넘는 것은 인터페이스와 도메인 타입뿐이다.** repository·data-source 생성자는 `I*`
    타입만 받고, 엔진 클래스는 팩토리 밖으로 나가지 않는다.
-3. **공유 메커니즘은 Base 추상 클래스로, 계약은 인터페이스로.** `BaseRepositoryV2`(dispose·
-   context)와 `IUserRepositoryV2`(호출 표면)의 기존 분업 그대로 — Base는 구현 편의이므로 계약이
+3. **공유 메커니즘은 Base 추상 클래스로, 계약은 인터페이스로.** `BaseRepository`(dispose·
+   context)와 `IUserRepository`(호출 표면)의 기존 분업 그대로 — Base는 구현 편의이므로 계약이
    아니며, 소비자는 항상 인터페이스를 잡는다.
 4. **게이트웨이는 소비자 소유 `Pick<>`.** `data`가 lib 게이트웨이 타입에서 쓸 액션·경로만 골라
    선언한다 — lib 표면 전체가 흘러들어오는 것을 막는, `data`가 소켓 게이트웨이에 이미 쓰는
@@ -529,12 +529,12 @@ libs/data/src/                         ← 유지(leaf): 도메인 + data-source
 ├── domain/                              DomainUser · toDomainUser …
 ├── local/
 │   ├── ports/                           CacheStorage · IIndexedDB · IGlobalCacheSearchSource
-│   └── data-sources-v2/                 *LocalDataSourceV2 9개 — 인터페이스만 봄
+│   └── data-sources/                 *LocalDataSource 9개 — 인터페이스만 봄
 ├── remote/
 │   ├── gateways/                        RemoteGatewayBundle ‖ HttpGatewayBundle (lib 타입 Pick<>)
 │   ├── data-sources/                    소켓 구현체 11개
 │   └── http-data-sources/               Auth · User · Cloud · Subscription ← 신설
-└── repositories-v2/                     Repository 13개 — I* 생성자 주입
+└── repositories/                     Repository 13개 — I* 생성자 주입
 
 libs/db/src/                           ← 신설: 저장 엔진 (data의 인터페이스를 구현, 결정 5)
 ├── indexeddb/                           IndexedDBAdapter · IndexedDBDatabase · ChatQueryExecutor
@@ -670,7 +670,7 @@ graph LR
 **모든 HTTP 요청이 게이트웨이 액션이 됐고, `session/auth`는 `data`를 지난다.** 세션 모듈이
 요청을 직접 만들던 3곳(refresh·OAuth 교환 2종)이 사라졌고, 게이트웨이 인스턴스를 아는 코드는
 전부 `data/` 안이다. 토큰 생성 액션을 `data`에서 배제하던 규칙은 폐기했다 —
-`AuthRepositoryV2.confirmPhoneCode`가 이미 `$token`을 반환하며 "수행하되 해석하지 않는다"는
+`AuthRepository.confirmPhoneCode`가 이미 `$token`을 반환하며 "수행하되 해석하지 않는다"는
 규칙을 쓰고 있었고, HTTP 레인만 다른 규칙일 이유가 없었다(결정 5 갱신).
 
 **이름층 하나를 걷어냈다.** 4·5단계에서 옮겨온 호출들 앞에 `session/auth/api.ts`와
@@ -700,7 +700,7 @@ graph LR
 
 그래서 13심볼 중 12개를 앱으로 내렸다(결정 5의 ②안 항목 참고). 세 가지가 부수적으로 드러났다:
 
-- **`params` 누락.** `ICloudRepositoryV2.makeCloud`/`releaseCloud`가 게이트웨이의 `params`를
+- **`params` 누락.** `ICloudRepository.makeCloud`/`releaseCloud`가 게이트웨이의 `params`를
   받지 않아서, 그대로 옮기면 dev 드라이런(`dryRun: 1`)과 삭제의 `cascade: 1`이 조용히 사라진다.
   이름 있는 옵션으로 통과시켰고 와이어의 `1` 인코딩은 `data`에 남겼다.
 - **`tryFetchProfile`의 자리는 원래 호출부였다.** `libs/data`가 이미 그렇게 적어 뒀다 —

@@ -16,7 +16,7 @@
 - 같은 adapter 인스턴스라도 context가 변경되면 즉시 다른 scope를 바라봅니다.
 - 캐시 레코드에는 `lastSyncedAt`, `expiresAt` TTL 메타데이터가 `__cacheMeta`로 함께 저장됩니다.
     - **다만 어떤 어댑터도 조회 시 만료를 판정하거나 GC하지 않습니다.** `expiresAt`을 읽는 곳은
-      `SyncMetaLocalDataSourceV2`뿐이고, 그마저 저장된 `expiresAt`이 아니라 `lastSyncedAt`으로 현재
+      `SyncMetaLocalDataSource`뿐이고, 그마저 저장된 `expiresAt`이 아니라 `lastSyncedAt`으로 현재
       TTL 정책을 다시 계산합니다. 즉 지금 `expiresAt`은 기록만 되고 아무 동작도 하지 않습니다 —
       TTL에 의존하는 동작을 새로 만들려면 판정 지점을 먼저 만들어야 합니다.
 
@@ -29,7 +29,7 @@
   `loadMany`는 `FetchManyCacheData` 한 번으로 접고, 이 메시지를 모르는 구버전 앱에서는 id별 조회로
   자동 폴백합니다(`NativeDBAdapter.loadMany`).
 - **`loadMany`는 결과의 길이도 순서도 보장하지 않습니다.** 없는 id는 빠집니다. 반드시 id로 다시
-  색인하세요(`BaseLocalDataSourceV2.indexById`). `existing[index]`로 짝을 맞추면 캐시에 없는 항목
+  색인하세요(`BaseLocalDataSource.indexById`). `existing[index]`로 짝을 맞추면 캐시에 없는 항목
   하나 때문에 그 뒤 전부가 남의 기존 행과 병합됩니다.
 - 읽기(`load`/`loadMany`/`loadAll`)는 **같은 페이로드가 동시에 여러 번 요청되면 왕복 한 번으로
   합쳐집니다**(`NativeDBAdapter`의 in-flight 중복 제거). 캐시가 아니라 "비행 중인 동안"만 유효한

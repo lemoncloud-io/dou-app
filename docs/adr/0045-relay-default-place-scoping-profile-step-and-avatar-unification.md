@@ -8,21 +8,21 @@
 플레이스(=Site) 트랙에서 데이터 계층 결함 셋, 플로우 공백 하나, 표시 정책 하나, UI 킷 부채
 하나가 함께 확인됐다. 한 브랜치(worktree `relay-default-place-avatar-ui`)에서 같이 다룬다.
 
-1. **기본플레이스가 클라우드 목록에 섞인다.** `UserRepositoryV2.getMyProfile`이 프로필에
+1. **기본플레이스가 클라우드 목록에 섞인다.** `UserRepository.getMyProfile`이 프로필에
    임베디드된 `$site`를 활성 컨텍스트가 무엇이든 place 캐시에 저장한다
-   (`libs/data/src/data/repositories-v2/UserRepositoryV2.ts:114`). 클라우드(cid ≠ `default`)로
+   (`libs/data/src/repositories/UserRepository.ts:114`). 클라우드(cid ≠ `default`)로
    전환한 상태에서도 이 쓰기가 일어나 기본플레이스 행이 클라우드 스코프 캐시에 남고, 홈
    플레이스 목록에 섞여 보인다. `refreshList`는 `cacheWriteMany`만 하고 삭제하지 않으므로
-   (`PlaceRepositoryV2.ts:84-91`) 일단 오염된 행은 저절로 사라지지 않는다.
+   (`PlaceRepository.ts:84-91`) 일단 오염된 행은 저절로 사라지지 않는다.
 
 2. **생성 직후 목록 반영이 안 된다.** `createPlace`는 단건 `cacheWrite`만 한다
-   (`PlaceRepositoryV2.ts:93-99`). 서버 순서 스탬프(`order`)는 `refreshList`만 찍으므로
+   (`PlaceRepository.ts:93-99`). 서버 순서 스탬프(`order`)는 `refreshList`만 찍으므로
    단건 쓰기로는 목록 정렬·반영이 보장되지 않는다.
 
 3. **place.update가 400으로 죽는다.** 백엔드가 `@id (string) is required - place.update(-)`를
    반환한다. 원인은 호출부: `PlaceInfoPage`가 `{ sid, name, thumbnail }`만 보낸다
    (`apps/web/src/app/features/place/pages/PlaceInfoPage.tsx:106-110`). `id`가 없으니
-   `PlaceRepositoryV2.updatePlace`의 낙관적 캐시 쓰기(`payload.id` 기반)도 함께 스킵된다.
+   `PlaceRepository.updatePlace`의 낙관적 캐시 쓰기(`payload.id` 기반)도 함께 스킵된다.
    place에서 `id === sid`다.
 
 4. **플레이스 생성 후 프로필이 없다.** 생성 플로우(`CreatePlaceDialog` → `createPlace` →
@@ -56,8 +56,8 @@
 
 ### 1. 임베디드 `$site` 저장을 옵션화하고, apps/web은 relay일 때만 저장한다
 
-`UserRepositoryV2`에 임베디드 `$site`의 place-캐시 저장 여부를 제어하는 옵션(컨텍스트를 받는
-predicate)을 연다. 주입처는 리포지토리 와이어링(`createRepositoriesV2`)이고, **기본값은 현행
+`UserRepository`에 임베디드 `$site`의 place-캐시 저장 여부를 제어하는 옵션(컨텍스트를 받는
+predicate)을 연다. 주입처는 리포지토리 와이어링(`createRepositories`)이고, **기본값은 현행
 유지(항상 저장)** — desktop-web은 아무것도 바뀌지 않는다. apps/web만 `cid === 'default'`일 때
 저장하는 predicate를 주입한다.
 
@@ -66,13 +66,13 @@ predicate)을 연다. 주입처는 리포지토리 와이어링(`createRepositor
 
 ### 2. `createPlace`는 성공 직후 리포지토리 내부에서 `refreshList`를 이어 호출한다
 
-호출자마다 챙기게 하지 않고 `PlaceRepositoryV2.createPlace` 안에서 후속 `refreshList`로
+호출자마다 챙기게 하지 않고 `PlaceRepository.createPlace` 안에서 후속 `refreshList`로
 서버 스냅샷(order 스탬핑 포함)을 즉시 반영한다. 모든 호출자가 일관되게 혜택을 본다.
 
 ### 3. place.update에 `id`를 필수로 싣는다 (`id === sid`)
 
 `PlaceInfoPage` 호출부에 `id: placeId`를 추가하고, 재발 방지로
-`PlaceRepositoryV2.updatePlace`에서 `id`가 없고 `sid`가 있으면 `id = sid`로 정규화한다.
+`PlaceRepository.updatePlace`에서 `id`가 없고 `sid`가 있으면 `id = sid`로 정규화한다.
 정규화 덕에 낙관적 캐시 쓰기/롤백 경로도 함께 살아난다.
 
 ### 4. 플레이스 생성 플로우의 마지막 스텝으로 프로필 생성을 넣는다 — 스킵 불가 — ❌ 되돌림 (2026-08-10)

@@ -146,12 +146,27 @@ export abstract class BaseLocalDataSource {
         return this.getContext(contextOverride).sid;
     }
 
+    /**
+     * The observer scope, deliberately the same shape as the storage partition
+     * (`AdapterScope` = `{cid, uid}`, `ports/policy.ts`).
+     *
+     * It used to key by `sid` too, which split ONE physical partition across several observer
+     * scopes: a write made under one sid never reemitted an observer that had subscribed under a
+     * different one, even though both read the very same rows. Three data sources had already
+     * overridden that away after hitting it in production — places (`placeCache>0` yet `usePlaces`
+     * saw nothing, because a cloud switch clears and re-selects the sid on its own timeline),
+     * channels (the same stale rail), and clouds (one global partition split per active cloud).
+     * ADR-0085 moved the judgement here, next to where the storage partition is defined, so the two
+     * can no longer disagree.
+     *
+     * Per-site views stay isolated where they are actually asked for — the `|sid:<sid>|` segment of
+     * a list key (`ChannelLocalDataSource`, `ProfileLocalDataSource`). That is the rule this scope
+     * leans on: **a field that reaches storage belongs in the key**, never in the scope alone.
+     */
     protected getScopeKey(contextOverride?: LocalDataSourceContextOverride): string {
         const context = this.getContext(contextOverride);
-        // Scope hashing keeps observers isolated per cid/sid/uid tuple.
         return stableHash({
             cid: context.cid || 'default',
-            sid: context.sid || '',
             uid: context.uid || 'default',
         });
     }
@@ -196,9 +211,9 @@ export abstract class BaseLocalDataSource {
      * later subscriber the earlier scope's data. In a domain where a row with the same id exists after
      * a cloud switch, that silently shows somebody else's data.
      *
-     * The scope definition is owned by `getScopeKey`, so a subclass override (ChannelLocalDataSource
-     * dropping `sid`) applies here too — observation and re-emit pass through the same function, so the
-     * two cannot drift apart.
+     * The scope definition is owned by `getScopeKey`, so a subclass override (CloudLocalDataSource
+     * pinning its one global partition) applies here too — observation and re-emit pass through the
+     * same function, so the two cannot drift apart.
      */
     private createItemObserverKey(id: string, contextOverride?: LocalDataSourceContextOverride): string {
         return `${this.getScopeKey(contextOverride)}|item|${id}`;

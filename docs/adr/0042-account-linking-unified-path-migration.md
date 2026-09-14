@@ -3,7 +3,7 @@
 > 상태: Accepted · 결정일: 2026-08-03
 > 선행: [ADR-0033](./0033-relay-dm-invite-and-auth-parallel-tracks.md) · [ADR-0034](./0034-inviter-phone-verification-guest-gate-and-sheet.md) · [ADR-0036](./0036-data-surface-unification-app-runtime-cleanup.md)
 
-> **이름 안내 (2026-09-01):** 이 문서가 쓰는 `*RemoteDataSource` · `RemoteGatewayBundle` · `*DomainGateway` · `remoteFactory` · `remote/data-sources/`는 **당시 이름**이다. 소켓 축이 `Socket` 접두로 옮겨간 뒤의 대응표는 [libs/data/docs/remote/README.md](../../libs/data/docs/remote/README.md#이름-규약-2026-09-01-리네임)에 있다. 기록이므로 본문은 그대로 둔다.
+> **이름 안내 (2026-09-01):** 이 문서가 쓰는 `*RemoteDataSource` · `RemoteGatewayBundle` · `*DomainGateway` · `remoteFactory` · `remote/data-sources/`는 **당시 이름**이다. 소켓 축이 `Socket` 접두로 옮겨간 뒤의 대응표는 [libs/data/docs/remote/README.md](../../libs/data/docs/remote/README.md#naming-history)에 있다. 기록이므로 본문은 그대로 둔다.
 
 ## 맥락 (Context)
 
@@ -39,8 +39,8 @@
   `useSocialLinks.ts:17`)뿐이다. `useSocialLinks.ts:64-70`이 그 추측을 "TODO(backend)
   request #6"으로 적어 뒀고 `link$`가 그 요청이다.
 - **`link$`의 읽기 경로는 이미 열려 있다.** 앱은 이미 `user.profile`을 부르고
-  (`useMyUser.ts:39` → `UserRepositoryV2.getMyProfile`), 파이프라인 전 구간이 spread
-  기반이라(`UserRemoteDataSource.ts:71` → `mappers.ts:172` → `UserLocalDataSourceV2.ts:96`
+  (`useMyUser.ts:39` → `UserRepository.getMyProfile`), 파이프라인 전 구간이 spread
+  기반이라(`UserRemoteDataSource.ts:71` → `mappers.ts:172` → `UserLocalDataSource.ts:96`
   → IndexedDB) 모르는 필드가 버려지지 않는다. **막는 것은 타입뿐이다** — 경계 타입이
   `@lemoncloud/chatic-socials-api`의 `UserView`인데 페이로드는 backend-api의 `MyUserView`다.
 - **두 초대 진입점은 둘 다 게스트 전용이라 항상 `login`이다.** `mode: 'link'`가 필요한
@@ -81,7 +81,7 @@
 
 `verifyHashAlias`·`attachSocial` 호출부를 남기지 않는다. 이관 지점:
 
-- `AuthDomainGateway`(`libs/data/src/data/remote/gateways/index.ts:21`)의 `Pick`에 `linkAccount`를
+- `AuthDomainGateway`(`libs/data/src/remote/gateways/index.ts:21`)의 `Pick`에 `linkAccount`를
   더하고, `remoteFactory.ts:58-62`에서 **relay 스코프 클라이언트로 핀**한다(구 둘과 동일).
 - `AuthRemoteDataSource`가 `type`·`mode`·`step` 조립을 소유한다. 지금 `step` 파생이 이 층에
   있으므로(`:68-92`) 자리를 옮기지 않는다.
@@ -268,7 +268,7 @@ ADR-0034가 이미 `isGuest` 게이트를 깔아 뒀으므로 자리를 새로 �
   폴백이 유일한 계약이다.
 - **백필 전에는 §6의 좁히기가 사실상 동작하지 않는다.** 기존 유저의 `link$`가 비어 `isGuest`
   기준으로 물러나므로 지금과 같게 동작한다. 안전하지만, 이 작업의 가치 일부가 백필에 묶인다.
-- **`cacheWrite`가 merge라 stale `link$`가 남는다**(`UserLocalDataSourceV2.ts:96-102`). 한번
+- **`cacheWrite`가 merge라 stale `link$`가 남는다**(`UserLocalDataSource.ts:96-102`). 한번
   쓰인 값은 이후 응답이 그 자리를 빼먹어도 캐시에 남는다. 연동 해제가 생기면 버그가 되므로,
   해제를 열 때 replace 시맨틱을 함께 판단해야 한다.
 - **`link$`가 타입에 안 보인다.** 읽는 쪽 교차 타입에 의존하므로, 서버가 모양을 바꿔도

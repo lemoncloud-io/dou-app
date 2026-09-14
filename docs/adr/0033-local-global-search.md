@@ -91,7 +91,7 @@ apps/web에 검색 기능이 없다. 헤더의 검색 버튼은 배선만 되어
       행에 소속 플레이스·채널 이름, 안읽음 수, 마지막 메시지를 표시하려면
       결과 행 밖의 캐시 행이 필요하지만, 리포지토리의 컨텍스트 오버라이드는
       cid 오버라이드가 아니라 sid 오버라이드여서 쓸 수 없다
-      (`ChannelLocalDataSourceV2.ts:39,53`). 그래서 검색 소스에
+      (`ChannelLocalDataSource.ts:39,53`). 그래서 검색 소스에
       `resolveContext`를 함께 두고 cid를 항상 명시 인자로 받는다 — 공유
       `DataContextHolder`를 임시 변경하는 방식은 과거 cross-cloud 오염
       사고를 근거로 금지한다. 따라서 **검색 결과 렌더링은 리포지토리·sync
@@ -199,8 +199,8 @@ apps/web에 검색 기능이 없다. 헤더의 검색 버튼은 배선만 되어
 - 진입점: `apps/web/src/app/features/home/pages/HomePage.tsx` (`handleSearch` 플레이스홀더)
 - 레퍼런스 구현: `apps/desktop-web/src/app/features/search/*`,
   `apps/desktop-web/src/app/shared/stores/useMessageJumpStore.ts`
-- 스토리지: `libs/data/src/data/local/databases/IndexedDBDatabase.ts`
-  (`TYPE_CID_UID_INDEX`), `libs/data/src/data/local/storages/IndexedDBAdapter.ts`,
+- 스토리지: `libs/data/src/local/databases/IndexedDBDatabase.ts`
+  (`TYPE_CID_UID_INDEX`), `libs/data/src/local/storages/IndexedDBAdapter.ts`,
   `NativeDBAdapter.ts`
 - 네이티브 전역 검색 기존 경로: `libs/app-messages/src/types/model/cache.ts`
   (`SearchGlobalCacheDataPayload`),
