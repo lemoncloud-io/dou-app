@@ -4,3 +4,4 @@ export * from './i18n';
 export * from './promise';
 export { toErrorMessage } from './toErrorMessage';
 export { toContactInfo } from './contactInfo';
+export { toEnvStage } from './stage';

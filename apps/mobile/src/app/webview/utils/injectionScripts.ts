@@ -1,4 +1,5 @@
 import type { EdgeInsets } from 'react-native-safe-area-context';
+import type { Env } from '@chatic/app-messages';
 
 import type { ThemeMode } from '../../stores/themeMode';
 
@@ -14,7 +15,12 @@ export interface DeviceInfoParams {
     runId: string;
     platform: string;
     applicationName: string;
-    stage: string;
+    /**
+     * `Env`, not `VITE_ENV`. The web reads this global back as `Env` and it becomes part of the push
+     * application name, so the conversion (`toEnvStage`) has to happen before it gets here — typing
+     * it as `Env` is what makes the compiler say so.
+     */
+    stage: Env;
     /**
      * Whether the app's console listener is live in this build.
      *

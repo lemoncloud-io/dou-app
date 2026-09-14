@@ -72,8 +72,8 @@ stack이 이스케이프된 한 줄로 눌려 있어 실제 위치(`SocketManage
    시뮬레이터는 이 단계가 필요 없다.
 3. 기기를 Mac에 USB로 연결한다. (시뮬레이터는 자동 인식)
 4. 앱(Dev 스킴, `io.chatic.dou.dev`)을 실행해 웹뷰 화면까지 진입한다.
-5. Safari → 상단 **개발자용** 메뉴 → `[기기 또는 시뮬레이터 이름]` → 웹뷰 URL(예: `192.168.1.129:5003`)
-   선택 → Web Inspector 창이 열린다.
+5. Safari → 상단 **개발자용** 메뉴 → `[기기 또는 시뮬레이터 이름]` → 웹뷰 URL(로컬 실행이면
+   `localhost:5003`) 선택 → Web Inspector 창이 열린다.
 6. Console/Sources/Network를 연다. 예: 위 503 로그의 `SocketManager.ts:121` 프레임을 Sources에서
    클릭하면 원본 코드 줄로 점프한다.
 

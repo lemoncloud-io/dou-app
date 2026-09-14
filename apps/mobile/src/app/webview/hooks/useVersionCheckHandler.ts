@@ -5,7 +5,8 @@ import Config from 'react-native-config';
 
 import { onVersionCheckComplete } from '../../hooks';
 import type { IAppBridgeHost } from '@chatic/bridges';
-import type { Env, OnUpdateDeviceInfoPayload, Platform as AppPlatform } from '@chatic/app-messages';
+import type { OnUpdateDeviceInfoPayload, Platform as AppPlatform } from '@chatic/app-messages';
+import { toEnvStage } from '../../utils';
 
 /**
  * Sends version check result to WebView via OnUpdateDeviceInfo bridge message.
@@ -21,7 +22,7 @@ export const useVersionCheckHandler = (bridge: IAppBridgeHost) => {
                 type: 'OnUpdateDeviceInfo',
                 data: {
                     platform: Platform.OS.toLowerCase() as AppPlatform,
-                    stage: (Config.VITE_ENV || 'PROD') as Env,
+                    stage: toEnvStage(Config.VITE_ENV),
                     application: DeviceInfo.getApplicationName(),
                     currentVersion: appVersion,
                     latestVersion: result.latestVersion,

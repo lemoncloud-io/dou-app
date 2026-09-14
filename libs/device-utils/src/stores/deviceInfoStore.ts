@@ -24,6 +24,41 @@ declare global {
     }
 }
 
+/**
+ * Every spelling a shell has ever injected, mapped onto `Env`.
+ *
+ * Three vocabularies reach this one global. Mobile injects `Env` today but older installs still
+ * send `VITE_ENV` verbatim (`'LOCAL' | 'DEV' | 'PROD'`), and desktop sends `'dev' | 'prod'` —
+ * `'dev'` is not an `Env` member but is what the push broker's SNS application is named after
+ * (`chatic-desktop-dev`, docs/specs/cross-cloud-push.md), so it is deliberately left alone on the
+ * wire and translated here instead.
+ *
+ * The old-mobile rows are not optional. The web deploys before the app does, so there is always a
+ * window where a new web reads an old shell's global; dropping those spellings would relabel every
+ * installed app as `'local'` until it updates.
+ */
+const ENV_BY_INJECTED: Readonly<Record<string, Env>> = {
+    local: 'local',
+    stage: 'stage',
+    prod: 'prod',
+    // Desktop's wire value — kept as-is on the wire for the push broker.
+    dev: 'stage',
+    // Mobile <= the release that started injecting `Env`.
+    LOCAL: 'local',
+    DEV: 'stage',
+    PROD: 'prod',
+};
+
+/**
+ * Narrows the shell-injected stage string, rather than asserting it.
+ *
+ * `as Env` was hiding the mismatch above: it let `'DEV'` and `'dev'` through into `DeviceInfo.stage`
+ * unchanged, so the two shells disagreed on what the same stage was called. An unrecognized value
+ * falls back to `'local'`, the least privileged stage — the same default this read has always used
+ * when the global is absent (plain web).
+ */
+const toEnv = (raw: string | undefined): Env => ENV_BY_INJECTED[raw ?? ''] ?? 'local';
+
 export interface DeviceInfoStore {
     deviceInfo: DeviceInfo | null;
     versionInfo: VersionInfo | null;
@@ -37,7 +72,7 @@ export const useDeviceInfoStore = create<DeviceInfoStore>(set => ({
     syncDeviceAndVersionInfo: () => {
         const platform = (window.CHATIC_APP_PLATFORM as Platform) || 'web';
         const application = window.CHATIC_APP_APPLICATION || '';
-        const stage = (window.CHATIC_APP_STAGE as Env) || 'local';
+        const stage = toEnv(window.CHATIC_APP_STAGE);
         const deviceToken = window.CHATIC_APP_DEVICE_TOKEN;
         const deviceId = window.CHATIC_APP_DEVICE_ID;
         const deviceModel = window.CHATIC_APP_DEVICE_MODEL;

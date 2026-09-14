@@ -11,7 +11,7 @@ import type { DeviceInfoParams } from './injectionScripts';
 const makeParams = (overrides: Partial<DeviceInfoParams> = {}): DeviceInfoParams => ({
     platform: 'ios',
     applicationName: 'chatic',
-    stage: 'PROD',
+    stage: 'prod',
     uniqueId: 'device-1:fid-1',
     deviceModel: 'iPhone15,2',
     appVersion: '1.0.0',

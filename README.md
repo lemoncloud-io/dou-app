@@ -216,6 +216,12 @@ cp apps/mobile/.env.example apps/mobile/.env
 > [!WARNING]
 > Environment files (`.env`) must exist before building. The app will not start without them.
 
+> [!IMPORTANT]
+> **Migrating an existing mobile checkout.** `apps/mobile/.env` used to be the dev env on iOS; it is
+> now the LOCAL env on both platforms, and dev/prod builds read `.env.dev` / `.env.prod`. Move your
+> current dev values to `apps/mobile/.env.dev`, then recreate `.env` from `.env.example`. Android is
+> unaffected — it already read `.env.dev` / `.env.prod`.
+
 <details>
 <summary>Firebase configuration (Mobile only)</summary>
 
@@ -243,13 +249,22 @@ yarn admin:start            # http://localhost:5001
 # Landing page
 yarn landing:start          # http://localhost:5004
 
-# Mobile — Start Metro bundler
+# Mobile — Local run: web dev server + Metro + the app, in one command
+yarn mobile:ios:local       # iOS Simulator, WebView -> http://localhost:5003
+yarn mobile:android:local   # Android Emulator, same address via `adb reverse`
+
+# Mobile — Start Metro bundler only
 yarn mobile:start
 
-# Mobile — Run on simulator/emulator
+# Mobile — Run against the deployed web (dev/prod)
 yarn mobile:ios:dev         # iOS Simulator
 yarn mobile:android:dev     # Android Emulator
 ```
+
+> [!NOTE]
+> `mobile:*:local` needs `apps/mobile/.env` (the LOCAL env — same meaning as in web). Copy it once
+> with `cp apps/mobile/.env.example apps/mobile/.env`. See
+> [apps/mobile/docs/local-run.md](apps/mobile/docs/local-run.md).
 
 > [!TIP]
 > Run `npx nx graph` to visualize the dependency graph of all apps and libraries.
@@ -296,34 +311,36 @@ yarn landing:deploy:prod
 <details>
 <summary><strong>iOS Commands</strong></summary>
 
-| Command                               | Description                        |
-| ------------------------------------- | ---------------------------------- |
-| `yarn mobile:pod`                     | Install CocoaPods dependencies     |
-| `yarn mobile:ios:dev`                 | Run dev build on iPhone Simulator  |
-| `yarn mobile:ios:prod`                | Run prod build on iPhone Simulator |
-| `yarn mobile:ios:dev:device`          | Run dev build on physical device   |
-| `yarn mobile:ios:dev:release`         | Release dev build on Simulator     |
-| `yarn mobile:ios:dev:release:device`  | Release dev build on device        |
-| `yarn mobile:ios:prod:release`        | Release prod build on Simulator    |
-| `yarn mobile:ios:prod:release:device` | Release prod build on device       |
-| `yarn mobile:ios:clean`               | Clean iOS build artifacts          |
+| Command                               | Description                          |
+| ------------------------------------- | ------------------------------------ |
+| `yarn mobile:pod`                     | Install CocoaPods dependencies       |
+| `yarn mobile:ios:local`               | Local run against the web dev server |
+| `yarn mobile:ios:dev`                 | Run dev build on iPhone Simulator    |
+| `yarn mobile:ios:prod`                | Run prod build on iPhone Simulator   |
+| `yarn mobile:ios:dev:device`          | Run dev build on physical device     |
+| `yarn mobile:ios:dev:release`         | Release dev build on Simulator       |
+| `yarn mobile:ios:dev:release:device`  | Release dev build on device          |
+| `yarn mobile:ios:prod:release`        | Release prod build on Simulator      |
+| `yarn mobile:ios:prod:release:device` | Release prod build on device         |
+| `yarn mobile:ios:clean`               | Clean iOS build artifacts            |
 
 </details>
 
 <details>
 <summary><strong>Android Commands</strong></summary>
 
-| Command                              | Description                   |
-| ------------------------------------ | ----------------------------- |
-| `yarn mobile:android:dev`            | Run dev build on emulator     |
-| `yarn mobile:android:prod`           | Run prod build on emulator    |
-| `yarn mobile:android:build:apk:dev`  | Build dev APK                 |
-| `yarn mobile:android:build:apk:prod` | Build prod APK                |
-| `yarn mobile:android:build:aab:dev`  | Build dev AAB (Play Store)    |
-| `yarn mobile:android:build:aab:prod` | Build prod AAB (Play Store)   |
-| `yarn mobile:android:install:dev`    | Install dev APK via ADB       |
-| `yarn mobile:android:install:prod`   | Install prod APK via ADB      |
-| `yarn mobile:android:clean`          | Clean Android build artifacts |
+| Command                              | Description                          |
+| ------------------------------------ | ------------------------------------ |
+| `yarn mobile:android:local`          | Local run against the web dev server |
+| `yarn mobile:android:dev`            | Run dev build on emulator            |
+| `yarn mobile:android:prod`           | Run prod build on emulator           |
+| `yarn mobile:android:build:apk:dev`  | Build dev APK                        |
+| `yarn mobile:android:build:apk:prod` | Build prod APK                       |
+| `yarn mobile:android:build:aab:dev`  | Build dev AAB (Play Store)           |
+| `yarn mobile:android:build:aab:prod` | Build prod AAB (Play Store)          |
+| `yarn mobile:android:install:dev`    | Install dev APK via ADB              |
+| `yarn mobile:android:install:prod`   | Install prod APK via ADB             |
+| `yarn mobile:android:clean`          | Clean Android build artifacts        |
 
 </details>
 
@@ -375,20 +392,25 @@ yarn landing:deploy:prod
 <details>
 <summary><strong>Mobile</strong> (<code>apps/mobile/.env</code>)</summary>
 
-| Variable                              | Description                 |
-| ------------------------------------- | --------------------------- |
-| `VITE_ENV`                            | Environment (`DEV`, `PROD`) |
-| `VITE_WEBVIEW_BASE_URL`               | WebView base URL            |
-| `VITE_WS_ENDPOINT`                    | WebSocket endpoint          |
-| `VITE_SUBSCRIPTION_IAP_SKUS_IOS`      | iOS IAP product SKUs        |
-| `VITE_SUBSCRIPTION_IAP_SKUS_ANDROID`  | Android IAP product SKUs    |
-| `VITE_SUBSCRIPTION_IAP_PLANS_ANDROID` | Android IAP plan IDs        |
-| `VIEW_APP_NAME`                       | Display app name            |
-| `VITE_GOOGLE_WEB_CLIENT_ID`           | Google OAuth web client ID  |
-| `ANDROID_KEYSTORE_FILE`               | Android keystore file path  |
-| `ANDROID_KEYSTORE_PASSWORD`           | Android keystore password   |
-| `ANDROID_KEY_ALIAS`                   | Android key alias           |
-| `ANDROID_KEY_PASSWORD`                | Android key password        |
+`.env` is the LOCAL env, `.env.dev` / `.env.prod` are the built ones — the same split web uses.
+Which file a build reads is decided by the build configuration (iOS `ENVFILE` build setting,
+Android `envConfigFiles`), not by the script. See
+[apps/mobile/docs/local-run.md](apps/mobile/docs/local-run.md).
+
+| Variable                              | Description                          |
+| ------------------------------------- | ------------------------------------ |
+| `VITE_ENV`                            | Environment (`LOCAL`, `DEV`, `PROD`) |
+| `VITE_WEBVIEW_BASE_URL`               | WebView base URL                     |
+| `VITE_WS_ENDPOINT`                    | Unused — no code reads it            |
+| `VITE_SUBSCRIPTION_IAP_SKUS_IOS`      | iOS IAP product SKUs                 |
+| `VITE_SUBSCRIPTION_IAP_SKUS_ANDROID`  | Android IAP product SKUs             |
+| `VITE_SUBSCRIPTION_IAP_PLANS_ANDROID` | Android IAP plan IDs                 |
+| `VIEW_APP_NAME`                       | Display app name                     |
+| `VITE_GOOGLE_WEB_CLIENT_ID`           | Google OAuth web client ID           |
+| `ANDROID_KEYSTORE_FILE`               | Android keystore file path           |
+| `ANDROID_KEYSTORE_PASSWORD`           | Android keystore password            |
+| `ANDROID_KEY_ALIAS`                   | Android key alias                    |
+| `ANDROID_KEY_PASSWORD`                | Android key password                 |
 
 </details>
 

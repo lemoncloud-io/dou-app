@@ -30,6 +30,23 @@ export const DEEP_LINK_DOMAINS = ['app.chatic.io', 'app-dev.chatic.io'] as const
 export const DEEPLINK_DOMAIN_PROD = 'app.chatic.io';
 export const DEEPLINK_DOMAIN_DEV = 'app-dev.chatic.io';
 
+/**
+ * The custom scheme this build's OS registration actually uses.
+ *
+ * The registration itself is decided by the BUILD CONFIGURATION, not by the env file: iOS sets
+ * `APP_URL_SCHEME` per configuration (`chatic-dev` on Debug Dev / Release Dev) and Android sets the
+ * `appScheme` manifest placeholder per flavor. This function re-derives the same mapping from
+ * `VITE_ENV` so runtime code can rebuild a scheme URL, so its polarity has to match what those
+ * configurations register — every non-prod configuration registers `chatic-dev`.
+ *
+ * That is why the test is `=== 'PROD'` and not `=== 'DEV'`: with `VITE_ENV=LOCAL` on a dev
+ * configuration (see apps/mobile/docs/local-run.md) the old `=== 'DEV'` form computed `chatic` while the OS had
+ * registered `chatic-dev`, and warm-start links stopped resolving. `isCustomZipAllowed` already
+ * gates on the same `!== 'PROD'` polarity.
+ */
+export const getAppScheme = (): (typeof CUSTOM_SCHEMES)[number] =>
+    Config.VITE_ENV === 'PROD' ? 'chatic' : 'chatic-dev';
+
 // AWS region hosting the invite backend API Gateway; used to expand `api`+`stage` into `_backend`.
 const INVITE_BACKEND_REGION = 'ap-northeast-2';
 
@@ -399,9 +416,8 @@ const reconstructDeepLinkUrl = (path: string): string => {
     if (path.startsWith('http://') || path.startsWith('https://') || path.includes('://')) {
         return path;
     }
-    const scheme = Config.VITE_ENV === 'DEV' ? 'chatic-dev' : 'chatic';
     const cleanPath = path.startsWith('/') ? path.slice(1) : path;
-    return `${scheme}://${cleanPath}`;
+    return `${getAppScheme()}://${cleanPath}`;
 };
 
 /**
