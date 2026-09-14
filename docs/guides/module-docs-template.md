@@ -15,12 +15,15 @@
    [Do not lean on ADRs](#do-not-lean-on-adrs).
 2. **One canon per fact.** If `README.md` and `docs/` say the same thing, one of them is wrong.
    Write it once and link to it.
-3. **Where the canon lives is already decided.** A module with a `docs/` folder keeps it there. A
-   module without one keeps everything in `README.md`. Create `docs/` only when the module needs
-   more than three documents.
-4. **Where a module has both**, `README.md` holds **overview and structure** and `docs/<topic>/`
-   holds the detail. The README is not a 20-line pointer — someone who opens the module sees the
-   whole map without opening a second file.
+3. **Every module has a `README.md` at its root.** It is the entry point, and it always holds the
+   **overview and structure** — purpose, principles, scope, the layer map, the directory tree,
+   usage. Someone who opens the module sees the whole map without opening a second file. A
+   `README.md` is never a 20-line pointer, and a module never leads with a bare `docs/` folder.
+4. **`docs/` holds detail, and only when there is enough of it.** One topic's worth of detail lives
+   in the README. Split a `docs/<topic>/` out when the module has more than about three topics, or
+   when the README would run past roughly 300 lines of detail on top of its overview. A module with
+   a single `docs/architecture.md` is the shape this rule exists to remove: fold it into the README
+   and delete it, the way `libs/data` did.
 
 ## What never goes in
 
