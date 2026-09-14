@@ -1,107 +1,187 @@
-# web-ui-kit
+# @chatic/web-ui-kit
 
-> 최종 갱신: 2026-07-15 · 대상 경로: `libs/web-ui-kit`
+**The Figma design system of the mobile web app, as components.** It holds the screen-shaped building
+blocks `apps/web` renders — headers, list rows, chat bubbles, bottom sheets, avatars, the token set
+they are coloured from and the icon set they draw — and exports every one of them through a single
+barrel.
 
-모바일 웹 앱(`apps/web`)의 Figma 디자인 시스템을 코드로 구현한 컴포넌트 라이브러리. 패키지명 `@chatic/web-ui-kit`.
+It is not the repo's generic component library. That is [`libs/ui-kit`](../ui-kit), and the line
+between the two is the first thing to get right — see [The boundary with
+`libs/ui-kit`](#the-boundary-with-libsui-kit).
 
-## 개요
+## Purpose
 
-`@chatic/ui-kit`(shadcn 기반 공용 프리미티브, `web`/`desktop-web`/`admin` 공유)과 달리, 이 라이브러리는 **모바일 웹 전용**으로 Figma 스펙의 화면 단위 빌딩 블록(헤더, 플로팅 CTA, 아바타, 리스트 행 등)을 담는다. 오버레이 같은 일부 컴포넌트는 내부적으로 `@chatic/ui-kit`의 Radix 프리미티브(`alert-dialog`, `sheet`)를 조합한다.
+`apps/web` is the only consumer, and it sees the `@chatic/web-ui-kit` barrel and nothing else.
+Imports that reach past it into internal paths number **zero**, which is why the directory tree here
+can be rearranged with no blast radius outside the lib.
 
-핵심 설계 원칙(코드 전반에서 일관 적용):
-
-- **Stateless · slot 기반**: 도메인/데이터/i18n에 결합하지 않는다. 텍스트·아바타·액션은 prop/슬롯으로 주입받고, 상태(열림/펼침 등)는 호스트가 소유한다.
-- **i18n-agnostic**: aria-label 등은 영어 기본값 + prop 오버라이드(`switcherLabel`, `backLabel`, `label` 등). 번역은 소비 앱이 주입한다.
-- **디자인 토큰만 사용**: 색상은 `resources/styles/tokens.css`의 시맨틱 토큰(`text-foreground`, `bg-surface`, `bg-brand-ink`, `text-main-accent` 등). raw hex 금지.
-- **아이콘 단일 출처**: 컴포넌트는 `lucide-react`를 직접 import하지 않고 [resources/icons](src/resources/icons/index.ts)의 `Icon*` 별칭만 사용한다.
-- **클래스 병합**: `cn`은 `@chatic/lib/utils`에서 import.
-- 컴포넌트마다 `*.test.tsx`(Jest + Testing Library)와 `*.stories.tsx`(Storybook) 동반.
-
-## 구조
-
-3계층(resources → foundations → composites)으로 나뉘며, 상위 계층이 하위 계층을 조합한다.
-
-```
-libs/web-ui-kit/src/
-├── resources/              # 디자인 원자원 (색/토큰/아이콘/에셋)
-│   ├── styles/tokens.css   # HSL 시맨틱 토큰 (라이트/다크)
-│   ├── icons/              # lucide 재노출 단일 출처 + DefaultPlaceIcon
-│   └── assets/             # dou-logo.svg, dou-mark.svg (번들러 URL export)
-├── foundations/            # 기본 컴포넌트 (단일 책임)
-│   ├── avatar/             # ProfileAvatar · PlaceAvatar · ChatAvatar (+ avatarBase 내부 공유)
-│   ├── badge/              # Badge · PlanBadge · StatusBadge · UnreadBadge · VerifiedBadge
-│   ├── bubble/             # MessageBubble
-│   ├── button/             # Button · OutlineButton · FloatingButton · InlineActionButton
-│   │                       #   IconButton · ButtonGroup · SubscriptionButton · TextLink (+ floatingPanel)
-│   ├── input/              # TextField · SearchInput · MessageInput · VerificationCodeInput
-│   ├── checkbox/ · switch/ · divider/ · text/ · toast/
-├── composites/             # foundations 조합 (화면 블록)
-│   ├── header/             # AppHeader · ChatRoomHeader · ModalTopBar
-│   ├── overlay/            # AlertDialog · BottomSheet · SheetOption  (@chatic/ui-kit Radix 위)
-│   ├── layout/             # ListSection · ScreenLayout
-│   ├── section/            # SectionHeader · GroupLabel
-│   ├── list/               # ListRow · SelectableUserItem
-│   ├── chat/               # MessageRow · DateDivider · SystemMessage
-│   ├── feedback/           # EmptyState
-│   └── subscription/       # BenefitItem
-└── index.ts                # 공개 배럴 (resources → foundations → composites 순 재노출)
+```bash
+grep -rn "@chatic/web-ui-kit/" --include='*.ts' --include='*.tsx' apps libs | grep -v node_modules
 ```
 
-- **AppHeader** ([composites/header/AppHeader.tsx](src/composites/header/AppHeader.tsx)): 홈 상단 헤더. `kind="no-cloud"`(DoU 브랜드 마크+chevron) / `kind="cloud"`(클라우드 아바타+이름+chevron), 우측은 구독 배지(`planTier`)+검색+프로필 공통. 프로필 `avatar`를 생략하면 기본 글리프로 폴백. `switcherMenu` 슬롯에 DropdownMenu를 넣으면 Radix가 열림 상태를 소유.
-- **ListRow** ([composites/list/ListRow.tsx](src/composites/list/ListRow.tsx)): 설정/메뉴/멤버 행의 범용 프리미티브. leading/trailing 슬롯, `onClick` 시 button, rest-props 통과.
-- **Button** ([foundations/button/Button.tsx](src/foundations/button/Button.tsx)): 버튼 시스템의 기반(solid/outline/ghost × green/black/gray). Outline/Floating/Subscription/InlineAction 프리셋이 이를 확장.
+This lib **owns no state, no data and no copy.** It does not fetch, it does not know a domain model,
+and it does not translate. Text and avatars arrive as props or slots, open/expanded state is owned by
+the host, and `aria-label` defaults are English strings a caller overrides. Everything above that —
+the screens, the hooks, the i18n catalogue — is `apps/web`.
 
-## 다이어그램
+## The boundary with `libs/ui-kit`
+
+Two component libraries sit side by side, and the split is not by quality or by age. It is this:
+
+|                    | `libs/ui-kit`                                                            | `libs/web-ui-kit` (here)                                       |
+| ------------------ | ------------------------------------------------------------------------ | -------------------------------------------------------------- |
+| What it is         | 29 shadcn/ui primitives under `src/components/ui/`, plus the `cn` helper | The DoU mobile design system                                   |
+| Named after        | The interaction — `dialog`, `sheet`, `popover`, `tabs`                   | The place on screen — `AppHeader`, `ChatRoomHeader`, `ListRow` |
+| Where it came from | `npx shadcn@latest add <name>` — regenerable                             | A Figma node, drawn by hand against the spec                   |
+| Who uses it        | `apps/web`, `apps/desktop-web`, `apps/admin-v2`, `libs/shared`           | `apps/web` only                                                |
+| Decides            | Focus, portal, ARIA, dismiss — behaviour                                 | Spacing, colour, type, glyph — appearance                      |
+
+**The rule: a component belongs in `ui-kit` when more than one app could name it without saying
+"DoU", and here when it only makes sense inside a DoU mobile screen.** `Sheet` is a sheet anywhere.
+`BottomSheet` — rounded top, drag handle, safe-area inset, keyboard-aware footer — is this app's
+sheet.
+
+The dependency runs **one way: this lib imports `ui-kit`, `ui-kit` never imports this lib.** That is
+what keeps `desktop-web` and `admin-v2` free of mobile-web components.
+
+It is also a thin arrow. Production code here reaches into `ui-kit` for **3 of its 29 primitives**,
+in 4 files:
+
+```bash
+grep -rn "@chatic/ui-kit/components" libs/web-ui-kit/src --include='*.tsx' | grep -v '\.stories\.'
+```
+
+`alert-dialog` and `sheet` (overlay), `dropdown-menu` (both headers). Every one of them is pulled in
+for Radix behaviour that is not worth reimplementing — focus trap, portal, escape and overlay
+dismiss, ARIA wiring. Nothing visual is pulled in: `AlertDialog.tsx` goes as far as importing
+`@radix-ui/react-alert-dialog` directly for the raw `Cancel`/`Action` nodes, because `ui-kit`'s
+styled wrappers inject `buttonVariants` and `mt-2` through a Radix `Slot`, which concatenates rather
+than tailwind-merges and breaks the two-up action row.
+
+`cn` is the one other thing taken from that package, as `@chatic/lib/utils` — 71 files import it.
+
+## Design principles
+
+1. **Stateless and slot-based.** A component takes what it draws and reports what was clicked. Open,
+   expanded and selected state lives in the host. `AppHeader`'s `switcherMenu` is a slot precisely so
+   Radix owns the open state, not this lib.
+2. **i18n-agnostic.** Labels default to English (`selectLabel = 'Select photo'`) and every one is a
+   prop. A Korean string hard-coded in a component is a bug; a Korean string in a JSDoc comment
+   naming a Figma layer is not.
+3. **Semantic tokens, not colours.** Components use `text-foreground`, `bg-surface`, `bg-brand-ink`,
+   `border-avatar-ring` — never a raw hex. The exception is deliberate and documented in place:
+   `CloudAvatar`'s 8-colour name-hash palette is a rotation, not a meaning, so it has no semantic
+   token. Two more are drift, not exception. The grep, not this sentence, is the check:
+
+    ```bash
+    grep -rnE "(bg|text|border)-\[#" libs/web-ui-kit/src --include='*.tsx' | grep -v '\.stories\.'
+    ```
+
+4. **One icon source.** Exactly one file imports `lucide-react` — `resources/icons/index.ts` — and
+   components import `Icon*` aliases from it. Swapping the icon library later touches that file and
+   nothing else. An alias with no current caller is the normal state of a kit barrel, not dead code.
+5. **Layers only point down.** `composites` → `foundations` → `resources`, and never back up. A
+   foundation that needs a composite is a sign the composite is in the wrong layer.
+6. **Every component has a test and a story.** 75 spec files and 65 story files against 73 exported
+   components. The story is the visual contract for QA and design; the test is the behavioural one.
+
+## Scope
+
+**In** — Figma-spec components for the mobile web app, the semantic token sheet they resolve against,
+the icon aliases and brand assets they draw, and the Storybook showcase that renders all of it.
+
+**Out** — the shadcn/ui primitives (`libs/ui-kit`); anything `apps/desktop-web` or `apps/admin-v2`
+renders (they use `libs/ui-kit` directly and import nothing from here); screen composition, routing,
+data and translation (`apps/web`); the block-renderer components (`libs/block-kit`).
+
+## Structure
 
 ```mermaid
-graph TD
-    subgraph app["소비 앱 (apps/web)"]
-        A["import from<br/>@chatic/web-ui-kit"]
-    end
-    subgraph kit["@chatic/web-ui-kit"]
-        C["composites<br/>(header · overlay · list · chat · ...)"]
-        F["foundations<br/>(button · input · avatar · badge · ...)"]
-        R["resources<br/>(tokens · icons · assets)"]
-    end
-    P["@chatic/ui-kit<br/>(Radix: alert-dialog, sheet, dropdown-menu)"]
-    U["@chatic/lib/utils<br/>(cn)"]
+flowchart TD
+    classDef comp fill:#e6f7ff,stroke:#91d5ff,stroke-width:2px,color:#003a8c;
+    classDef found fill:#f6ffed,stroke:#b7eb8f,stroke-width:2px,color:#135200;
+    classDef res fill:#fff7e6,stroke:#ffd591,stroke-width:2px,color:#873800;
+    classDef ext fill:#ffffff,stroke:#d9d9d9,stroke-width:2px,color:#595959,stroke-dasharray: 5 5;
 
-    A --> C
-    A --> F
+    App["apps/web<br/><i>98 files</i>"]:::ext
+    SB["Storybook showcase<br/><i>.storybook/</i>"]:::ext
+
+    C["composites × 38<br/><i>screen blocks — header · overlay · list · chat · …</i>"]:::comp
+    F["foundations × 35<br/><i>single-purpose — button · input · avatar · badge · …</i>"]:::found
+    R["resources<br/><i>tokens.css · 36 icons · 7 assets</i>"]:::res
+
+    UK["@chatic/ui-kit<br/><i>3 of 29 primitives</i>"]:::ext
+    CN["@chatic/lib/utils<br/><i>cn</i>"]:::ext
+
+    App -->|"barrel only"| C
+    App -->|"barrel only"| F
+    SB --> C
     C --> F
     C --> R
     F --> R
-    C -. overlay/header .-> P
-    F --> U
-    C --> U
+    C -.->|"overlay · header"| UK
+    C --> CN
+    F --> CN
 ```
 
-## API
+Arrows never point up. `foundations` imports no composite, `resources` imports nothing at all, and
+foundation groups do not import each other — `avatar` knows nothing about `badge`. Composites compose
+each other exactly once, `ListSection` → `SectionHeader`.
 
-공개 진입점은 배럴 하나뿐 — [src/index.ts](src/index.ts). 소비 측은 항상 패키지 루트에서 import한다.
+### Where a component goes
+
+```mermaid
+flowchart TD
+    Q1{"Would another app<br/>name it without saying DoU?"}
+    Q2{"Does it compose<br/>other components?"}
+    UK["libs/ui-kit<br/>shadcn primitive"]
+    CO["composites/&lt;group&gt;"]
+    FO["foundations/&lt;group&gt;"]
+
+    Q1 -->|yes| UK
+    Q1 -->|no| Q2
+    Q2 -->|yes| CO
+    Q2 -->|no| FO
+```
+
+### Directories
+
+```text
+libs/web-ui-kit/src/
+├── index.ts       public barrel — resources, then foundations, then composites
+├── resources/
+│   ├── styles/tokens.css   105 lines of HSL channels, light + `.dark`
+│   ├── icons/              36 exports: lucide aliases + Figma-exported glyphs
+│   └── assets/             7 brand images, exported as bundler-resolved URLs
+├── foundations/   11 groups, 35 components
+│   avatar(7) · button(9) · input(6) · badge(5) · brand(2) ·
+│   bubble · checkbox · divider · switch · text · toast (1 each)
+└── composites/    9 groups, 38 components
+    chat(12) · list(5) · overlay(4) · section(4) · header(3) ·
+    layout(3) · subscription(3) · feedback(2) · navigation(2)
+```
+
+Three files are internal — used across a group but absent from every barrel, so grepping the public
+API will not find them:
+
+- `foundations/avatar/avatarBase.tsx` — `AvatarShell`, the ringed circle `ChatAvatar` and
+  `PlaceAvatar` are both drawn on.
+- `foundations/button/floatingPanel.ts` — the shared class string for floating surfaces.
+- `composites/header/HeaderGlass.tsx` — the blurred header backdrop.
+
+## Usage
+
+One entry point: the package root.
 
 ```ts
-import { AppHeader, ListRow, Button, TextField, PlanBadge } from '@chatic/web-ui-kit';
-import { IconSearch, douLogo } from '@chatic/web-ui-kit'; // 아이콘/에셋도 동일 배럴
+import { AppHeader, Button, IconSearch, ListRow, PlanBadge, ProfileAvatar, douLogo } from '@chatic/web-ui-kit';
 ```
 
-노출 심볼(계층별):
-
-- **resources**: `Icon*`(ArrowUp/Check/CircleAlert/ChevronDown/House/ChevronLeft/ChevronRight/Loader2/MessageCircle/More/Plus/Search/Sparkles/User/X/Zap 등 별칭), `DefaultPlaceIcon`, `douLogo`, `douMark`
-- **foundations**: `Button` `ButtonGroup` `OutlineButton` `FloatingButton` `InlineActionButton` `IconButton` `SubscriptionButton` `TextLink` · `TextField` `SearchInput` `MessageInput` `VerificationCodeInput` · `ProfileAvatar` `PlaceAvatar` `ChatAvatar` · `Badge` `PlanBadge` `StatusBadge` `UnreadBadge` `VerifiedBadge` · `MessageBubble` · `Checkbox` `Switch` `Divider` `Text` `Toast`
-- **composites**: `AppHeader` `ChatRoomHeader` `ModalTopBar` · `AlertDialog` `BottomSheet` `SheetOption` · `ListSection` `ScreenLayout` · `SectionHeader` `GroupLabel` · `ListRow` `SelectableUserItem` · `MessageRow` `DateDivider` `SystemMessage` · `EmptyState` · `BenefitItem`
-
-각 컴포넌트는 `*Props` 인터페이스를 export하며 `className` 통과를 지원한다. 모든 prop에는 JSDoc이 달려 있으니 소스가 곧 API 문서다.
-
-## 사용 방법
-
-**토큰 로드(필수)**: 색상은 CSS 변수 기반이라 소비 앱(또는 Storybook 프리뷰)이 [src/resources/styles/tokens.css](src/resources/styles/tokens.css)의 토큰을 로드해야 한다. `apps/web`는 자체 tailwind config가 동일 토큰을 정의하고 `createGlobPatternsForDependencies`로 이 라이브러리 소스를 content 스캔에 포함한다.
-
-**컴포넌트 조합 예시** (헤더 — 구독 배지는 `planTier`로 노출, i18n 라벨은 앱이 주입):
+Icons and image assets come out of the same barrel as components. Every component exports a `*Props`
+interface, accepts `className`, and carries JSDoc on each prop naming the Figma node it implements —
+the source is the API reference, and there is no generated one.
 
 ```tsx
-import { AppHeader, ProfileAvatar } from '@chatic/web-ui-kit';
-
 <AppHeader
     kind="cloud"
     name={cloudName}
@@ -114,15 +194,115 @@ import { AppHeader, ProfileAvatar } from '@chatic/web-ui-kit';
     switcherLabel={t('homeHeader.selectCloud')}
     searchLabel={t('homeHeader.search')}
     profileLabel={t('homeHeader.profile')}
-/>;
+/>
 ```
 
-**개발 커맨드** (Nx 추론 타깃 — `project.json` targets는 비어 있고 플러그인이 주입):
+### Wiring
+
+Nothing is assembled here — there is no provider and no root component to mount. What a host has to
+supply is the token layer the classes resolve against, and the two hosts do it differently:
+
+```text
+Storybook    .storybook/preview.css  →  @import src/resources/styles/tokens.css
+                                        + libs/web-ui-kit/tailwind.config.js
+
+apps/web     src/styles.css          →  re-declares the same custom properties
+                                        + apps/web/tailwind.config.js, whose content globs
+                                          reach this lib through createGlobPatternsForDependencies
+```
+
+`apps/web` does **not** import `tokens.css`. The two files hold the same variables and are kept in
+parity by hand, which is why both carry comments pointing at each other. A token added here without
+being added to `apps/web/src/styles.css` renders correctly in Storybook and transparent in the app.
+
+## Scenarios
+
+### 1. Adding a component
+
+Decide the layer with the diagram above, then add three files to the group — `Thing.tsx`,
+`Thing.test.tsx`, `Thing.stories.tsx` — and one line to the group's `index.ts`. Nothing needs
+touching at the `src/index.ts` level: the top barrel re-exports whole groups.
+
+### 2. Adding an icon
+
+A lucide glyph becomes a semantic alias in `resources/icons/index.ts`
+(`export const IconPin: LucideIcon = Pin`). A Figma-exported glyph with no lucide equivalent becomes
+its own `IconThing.tsx` in the same folder and is re-exported from that barrel. Never import
+`lucide-react` from a component.
+
+### 3. Reaching for a Radix primitive
+
+Import it from `@chatic/ui-kit/components/ui/<name>` and restyle the content node. If the styled
+wrapper's own classes fight the Figma layout — the concatenation problem `AlertDialog.tsx` hit — drop
+to `@radix-ui/react-<name>` for that node only and leave a comment saying why. Do not restyle the
+primitive inside `libs/ui-kit`: three other consumers render it.
+
+### 4. Picking an avatar
+
+Seven components draw a circle and they are not interchangeable.
+
+| Component       | Use when                                                                                                                                                            |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ImageAvatar`   | A photo URL exists and nothing else is needed. Numeric `size`, default 46                                                                                           |
+| `ProfileAvatar` | The 86px profile circle, with a `+` badge when `onSelect` is passed. Absorbs the photo-missing fallback itself through `glyph`: `user` / `group` / `place` / `home` |
+| `DefaultAvatar` | A person or room with no photo, in a list row or header. `variant`: `user` / `group`                                                                                |
+| `PlaceAvatar`   | A place's initial on the single brand disc — every place shares one tone                                                                                            |
+| `CloudAvatar`   | A cloud's initial on a tone hashed from its name, so a cloud keeps its colour                                                                                       |
+| `ChatAvatar`    | A chat with no photo — a speech bubble on a faint navy tint                                                                                                         |
+| `AvatarGroup`   | Overlapping stack plus a member count. Presentational — the host builds the nodes and owns the self-vs-peer ring                                                    |
+
+Two inconsistencies are real and worth knowing before you match a design: `DefaultAvatar` rings
+itself with `border-border` while `AvatarShell` and `ProfileAvatar` use `border-avatar-ring`, and
+`ChatAvatar`'s `sm/md/lg` is 36/46/56 where `PlaceAvatar` and `CloudAvatar` read 36/40/46. Folding
+all seven into one variant-driven `Avatar` is an open decision (ADR-0045, decision 6) that has not
+been taken; until it is, the divergence is the state of the code and not a bug to fix in passing.
+
+The one avatar rule that is easy to get wrong: `ProfileAvatar glyph="home"` is the only placeholder
+on a _light_ disc, and the DoU character it draws paints no circle of its own, so it is inset to
+58/86 of the diameter instead of going full-bleed. A new illustration that does paint its own circle
+goes full-bleed like `glyph="place"`. Mixing the two paths makes the character overflow its ring.
+
+### 5. Changing a colour
+
+Change the custom property, not the class. A new token means three edits: the `:root` and `.dark`
+blocks in `resources/styles/tokens.css`, the `colors` map in `tailwind.config.js`, and the matching
+declarations in `apps/web/src/styles.css`. Missing the third is the failure mode described under
+[Wiring](#wiring).
+
+### 6. Writing a test
+
+`jest.config.js` runs jsdom, registers `@testing-library/jest-dom` through `src/test-setup.ts`, and
+maps CSS and image imports to the stubs in `src/__mocks__/`. It also maps `@chatic/*` to lib sources
+directly, so a change in `libs/ui-kit` is picked up with no build step. Assert behaviour and
+accessible names; leave pixel values to the story.
+
+## How to verify
 
 ```bash
-nx test web-ui-kit            # Jest 단위 테스트
-nx lint web-ui-kit            # ESLint
-nx storybook web-ui-kit       # 컴포넌트 쇼케이스 (QA/디자이너용)
-nx build-storybook web-ui-kit # 정적 Storybook 사이트 빌드
-nx build web-ui-kit           # 라이브러리 빌드
+npx tsc -b libs/web-ui-kit/tsconfig.json --force   # the lib and the 75 spec files
+npx jest --config libs/web-ui-kit/jest.config.js
+```
+
+- Type checking must be `tsc -b`. Inside the lib, `tsc --noEmit` checks zero files and succeeds, so
+  passing it proves nothing.
+- **Stories are not in that check.** `tsconfig.json` references `tsconfig.lib.json` and
+  `tsconfig.spec.json` only. `*.stories.tsx` carries 3 known type errors that
+  `.github/workflows/verify.yml` records as existing debt, and it is built separately by Storybook's
+  own Vite pipeline. To see them: `npx tsc -b libs/web-ui-kit/tsconfig.storybook.json --force`.
+- Jest does not type check — the base sets `isolatedModules`, so ts-jest transpiles. That is why the
+  spec project is referenced: without it, a prop a test passes that the component no longer accepts
+  compiles fine and fails at runtime, or not at all.
+- `tsconfig.spec.json` must **not** set `module: "commonjs"`. The base's `moduleResolution: bundler`
+  rejects it with TS5095, which is how these spec files went without a type check.
+- A stale `dist`/`out-tsc` produces phantom errors after a directory moves. `rm -rf` and look again.
+- Downstream: `apps/web` is the only consumer of a changed barrel identifier, and `nx typecheck web`
+  covers it. `verify.yml` currently excludes both `@chatic/web-ui-kit` and `web` from its typecheck
+  step — both pass now, so run them by hand until that list is trimmed.
+
+```bash
+npx nx typecheck @chatic/web-ui-kit
+npx nx typecheck web
+npx nx lint web-ui-kit
+npx nx storybook web-ui-kit         # the visual showcase, light/dark toolbar, 390px frame
+npx nx build-storybook web-ui-kit
 ```
