@@ -16,7 +16,7 @@ desktop theme and is covered where it differs.
 | Figma mobile design system                                                    | `apps/web` screens, cited per component inside `libs/web-ui-kit` (node ids in the source comments)                                                                                 |
 | `apps/desktop-web/src/styles.css`                                             | Desktop token values, light and dark, hex of the Figma source beside each                                                                                                          |
 | `apps/web/src/styles.css` + `libs/web-ui-kit/src/resources/styles/tokens.css` | Mobile web token values. The two files must agree, the kit renders inside the app and inside Storybook                                                                             |
-| `apps/block-kit-builder/src/styles.css`                                       | Byte-identical to desktop-web's copy by intent, plus `syntax.css` for the payload editor                                                                                           |
+| `apps/block-kit-builder/src/styles.css`                                       | Same token names as desktop-web, sage-tinted values, plus `syntax.css` for the payload editor                                                                                      |
 | `apps/*/tailwind.config.js`                                                   | Token to utility mapping, type scale, radius, shadows, motion                                                                                                                      |
 
 Figma variables read from node `187-3` (the desktop palette):
@@ -44,11 +44,11 @@ Figma variables read from node `187-3` (the desktop palette):
 
 Three clients, one engine (`libs/app-runtime`). Presentation is rebuilt per platform.
 
-| App                      | Shape                                                                                 | Theme file                                  | Kit                                                                                                       |
-| ------------------------ | ------------------------------------------------------------------------------------- | ------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `apps/desktop-web`       | Slack-style desktop, Electron shell in `apps/desktop`                                 | desktop `styles.css`                        | `libs/ui-kit` (shadcn/Radix) + `libs/block-kit`                                                           |
-| `apps/web`               | Phone-shaped mobile web inside a React Native WebView, capped at 430px anywhere wider | web `styles.css`                            | `libs/web-ui-kit` (Figma mobile system) + `libs/ui-kit` primitives underneath overlays + `libs/block-kit` |
-| `apps/block-kit-builder` | Three-pane authoring tool for Block Kit messages                                      | copy of desktop `styles.css` + `syntax.css` | `libs/ui-kit` + `libs/block-kit`                                                                          |
+| App                      | Shape                                                                                 | Theme file                                     | Kit                                                                                                       |
+| ------------------------ | ------------------------------------------------------------------------------------- | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `apps/desktop-web`       | Slack-style desktop, Electron shell in `apps/desktop`                                 | desktop `styles.css`                           | `libs/ui-kit` (shadcn/Radix) + `libs/block-kit`                                                           |
+| `apps/web`               | Phone-shaped mobile web inside a React Native WebView, capped at 430px anywhere wider | web `styles.css`                               | `libs/web-ui-kit` (Figma mobile system) + `libs/ui-kit` primitives underneath overlays + `libs/block-kit` |
+| `apps/block-kit-builder` | Three-pane authoring tool for Block Kit messages                                      | desktop token set, sage-tinted, + `syntax.css` | `libs/ui-kit` + `libs/block-kit`                                                                          |
 
 `libs/block-kit` is the one message renderer. It asks for semantic classes (`text-body`,
 `bg-well`, `border-hairline`) and each app answers with its own value, so a preview in the
@@ -370,4 +370,4 @@ project CLAUDE.md). Optimistic writes render at once; nothing flashes a stale va
 | Primitives                          | `libs/ui-kit/src/components/ui/`                                                                                                                                                                  |
 | Message renderer                    | `libs/block-kit/src/{BlockKitMessage.tsx,messageClasses.ts}`                                                                                                                                      |
 | Theme switch                        | `libs/theme/src/`, ADR-0054                                                                                                                                                                       |
-| Layout decisions                    | `docs/adr/0011-*.md` (mobile shell), `0014` / `0021` / `0023` / `0024` (Figma refinements), `0083` (desktop favorites)                                                                            |
+| Layout decisions                    | `docs/adr/0011-*.md` (mobile shell), `0014` / `0021` / `0023` / `0024` (Figma refinements), `0083-desktop-favorites-*`                                                                            |
