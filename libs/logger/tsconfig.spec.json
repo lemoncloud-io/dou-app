@@ -1,9 +1,20 @@
+// libs/logger/tsconfig.spec.json
 {
     "extends": "./tsconfig.json",
     "compilerOptions": {
-        "outDir": "../../dist/out-tsc",
-        "module": "commonjs",
+        // A subdirectory of its own: tsconfig.lib.json emits to ../../dist/out-tsc, and two
+        // composite programs writing the same .d.ts paths overwrite each other's output.
+        "outDir": "../../dist/out-tsc/logger-spec",
+        // `module` is NOT overridden to commonjs here. The base sets `moduleResolution: bundler`,
+        // which rejects commonjs (TS5095) and left this config unable to compile at all — which is
+        // how test files went years without a type check. ts-jest emits CommonJS for jest on its
+        // own; this config only has to be checkable.
         "types": ["jest", "node"]
     },
-    "include": ["jest.config.js", "src/**/*.ts"]
+    // `__mocks__` is listed explicitly even though `src/**/*.ts` already covers it: tsconfig.lib.json
+    // excludes that folder, and the nx typecheck target derives its cache inputs from these globs —
+    // without this entry a change to a shared mock would not invalidate the cache.
+    "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.d.ts", "src/**/__mocks__/**/*.ts"],
+    // The same sibling projects tsconfig.lib.json references — none. This lib imports no sibling.
+    "references": []
 }
