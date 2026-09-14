@@ -258,7 +258,7 @@ export type InviteQueryOptions = BaseQueryOptions;
 
 `Omit`은 컴파일 시점 보증일 뿐이고, 실제 방어는 §4의 허용 목록 매퍼다.
 
-TTL은 [local/ports/policy.ts](../../../data/src/data/local/ports/policy.ts)의 `CACHE_TTL_MS`에
+TTL은 [local/ports/policy.ts](../../../data/src/local/ports/policy.ts)의 `CACHE_TTL_MS`에
 `invite: 100 * 12 * 30 * DAY_MS`(무만료, `chat`·`invitecloud`와 동일)로 넣었다. 만료 판정은 서버
 `state`/`expiredAt`이 전부이고, 캐시 TTL로 행을 죽이면 즉시 렌더 목적이 훼손되기 때문이다.
 
@@ -280,10 +280,10 @@ TTL은 [local/ports/policy.ts](../../../data/src/data/local/ports/policy.ts)의 
 
 ### 3. 저장소 배선 — `libs/data` / `libs/app-runtime`
 
-- `LocalCacheStorages`에 `invite`([local/ports/cacheStorage.ts](../../../data/src/data/local/ports/cacheStorage.ts)),
+- `LocalCacheStorages`에 `invite`([local/ports/cacheStorage.ts](../../../data/src/local/ports/cacheStorage.ts)),
   `createCacheStorages`에 `storageFactory('invite', ...)`([localFactory.ts](../../src/data/factories/localFactory.ts)).
-- `LocalDataSourcesV2`에 `invite`, `createLocalDataSourcesV2`에 생성
-  ([data-sources-v2/index.ts](../../../data/src/data/local/data-sources-v2/index.ts)).
+- `LocalDataSources`에 `invite`, `createLocalDataSources`에 생성
+  ([data-sources/index.ts](../../../data/src/local/data-sources-v2/index.ts)).
 - [localFactory.ts](../../src/data/factories/localFactory.ts)의 `createLocalDataSources`
   storages 맵에 `invite: storages.invite`.
 - IndexedDB/`NativeDBAdapter`는 손댈 것이 없었다 — 둘 다 타입 제네릭이라 그대로 통과한다
@@ -291,7 +291,7 @@ TTL은 [local/ports/policy.ts](../../../data/src/data/local/ports/policy.ts)의 
 
 ### 4. 자격증명 제거 매퍼
 
-[inviteCacheView.ts](../../../data/src/data/local/data-sources-v2/inviteCacheView.ts).
+[inviteCacheView.ts](../../../data/src/local/data-sources-v2/inviteCacheView.ts).
 
 저장 직전 변환은 스프레드가 아니라 **허용 목록**이다 — `Omit` 타입은 초과 프로퍼티를 런타임에서
 막지 못하고, 서버가 뷰에 무엇을 더 실을지 우리가 정하지 않는다. 실제로 존재가 확인되지 않은
@@ -306,7 +306,7 @@ TTL은 [local/ports/policy.ts](../../../data/src/data/local/ports/policy.ts)의 
 
 ### 5. `InviteLocalDataSourceV2`
 
-[InviteLocalDataSourceV2.ts](../../../data/src/data/local/data-sources-v2/InviteLocalDataSourceV2.ts).
+[InviteLocalDataSourceV2.ts](../../../data/src/local/data-sources-v2/InviteLocalDataSourceV2.ts).
 `PlaceLocalDataSourceV2`와 같은 형태(`BaseLocalDataSourceV2` 상속)에 초대 고유 규칙 둘:
 
 - `cacheReadList`는 **`createdAt` 내림차순**, 동률/부재는 `id` 역순으로 tie-break한다.
@@ -319,7 +319,7 @@ uid}`)이다 — 별도 분기 없이 이것만으로 "응답이 언급한 필�
 
 ### 6. `InviteRepositoryV2`
 
-[InviteRepositoryV2.ts](../../../data/src/data/repositories-v2/InviteRepositoryV2.ts). remote-only에서
+[InviteRepositoryV2.ts](../../../data/src/repositories-v2/InviteRepositoryV2.ts). remote-only에서
 local-first 접근면으로 승격했다. 생성자는 `(remote, local, context)` 순서.
 
 ```ts

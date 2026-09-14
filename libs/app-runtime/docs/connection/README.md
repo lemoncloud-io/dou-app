@@ -5,9 +5,9 @@
 호스트가 세션 상태를 **소켓 슬롯**으로 파생시키고 바인더를 조립하는 층을 서술한다. transport 엔진을
 직접 만들지 않고, 생성 책임은 하위 manager들에 위임한다.
 
-> 이 문서는 한때 `src/runtime/` 모듈의 스펙이었다. 그 모듈은 해체됐다(엔진 축이 아니었고, 훅 6개가
-> 각각 `connection`·`data`·`session` 소속이었다) — 슬롯 파생과 바인더는 `src/connection/`에 있다.
-> 폴더명(`docs/runtime/`)은 인바운드 링크 5개 때문에 그대로 뒀다.
+> 이 문서는 한때 `src/runtime/` 모듈의 스펙이었다. 그 모듈은 해체됐다 — 엔진 축이 아니었고 훅
+> 6개가 각각 `connection`·`data`·`session` 소속이었다. 슬롯 파생과 바인더는 `src/connection/`에
+> 있고, 문서 폴더도 거기 맞춰 `docs/connection/`으로 옮겼다.
 
 ## 핵심 개념: `RuntimeSocketSlots`
 

@@ -4,7 +4,7 @@ import { join } from 'path';
 /**
  * ADR-0070 설계 원칙 — this lib must stay a platform-neutral leaf: zero `@chatic/*`/`@lemoncloud/*`
  * runtime deps, and no global reads (`navigator`, `new Date(`). Enforced by absence, not by a
- * runtime check (libs/auth-sign/docs/architecture.md §검증 방법 — 의존 0 게이트 · 전역 무접근 게이트).
+ * runtime check (libs/auth-sign/README.md §검증 — 의존 0 게이트 · 전역 무접근 게이트).
  * The lemon-web-core equivalence test in LemonHmacSigner.spec.ts is the one intentional exception,
  * hence non-spec files only.
  */

@@ -7,6 +7,6 @@ import type { HttpClient } from '../client';
  * `executeRelayRequest`/`executeSignedRelayRequest` split), so a route-dispatching `request()` would
  * just be a second, redundant way to say the same thing. `resolveEndpoint` (2단계 addition to
  * `HttpClient`) is what lets a gateway build its own `baseURL` without knowing the host itself.
- * See libs/data/docs/http-data-path.md §검증 방법 — "HttpManager.getExecutor() 표면 미합의".
+ * See libs/http/docs/architecture.md for the executor/port structure this resolves to.
  */
 export type HttpGatewayExecutor = HttpClient;

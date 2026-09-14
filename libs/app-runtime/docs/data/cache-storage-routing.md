@@ -22,7 +22,7 @@ Cold-only로 전환된 뒤 실질 결정은 "타입별로 웹 저장소(IndexedD
 - **핀과 게이트는 사유와 함께 선언한다.** 특정 타입을 웹에 고정할 때는 테이블 항목에 이유(버그
   우회, 스큐 방어)를 주석으로 남긴다. **사유가 사라지면 항목도 지운다** — `profile`이 그렇게
   들어왔다 나갔다(네이티브 writer 수정 배포 후 제거).
-- **팩토리는 상태가 없다.** 데이터 레이어 팩토리 3형제(local/remote/repository)는 모두
+- **팩토리는 상태가 없다.** 데이터 레이어 팩토리 3형제(local/socket/http)는 모두
   "받아서 조립해 반환"만 한다. 모듈 레벨 뮤터블 상태는 물리 공유 자원(공유 IndexedDB 연결)과
   런타임 싱글톤(runtime.ts)에만 허용한다.
 - **앱 정책은 조립 시점에 주입한다.** chat 상한 같은 앱별 정책은 부팅 순서에 의존하는 세터가
@@ -70,10 +70,10 @@ flowchart TD
 ```mermaid
 flowchart LR
     subgraph 앱 부팅
-        A["apps/web main.tsx\nconfigureDataRuntime({ repositories })"] --> P["runtime.ts\npending 등록 (생성 전, 병합)"]
-        B["apps/desktop-web main.tsx\nconfigureDataRuntime({ cache: { maxChatsPerChannel: 1000 } })"] --> P
+        A["apps/web main.tsx\nruntime.boot.initAppRuntime({ data })"] --> P["init.ts\nconfigureDataRuntime (내부 전용)"]
+        B["apps/desktop-web main.tsx\nruntime.boot.initAppRuntime()"] --> P
     end
-    P --> DM["DataManager(ctx, repoOpts, cacheOpts)"]
+    P --> DM["DataManager(repoOpts?, cacheOpts?)"]
     DM --> LF["createLocalDataSources\n({ contextProvider, cache })"]
     LF --> GS["getCacheStorage(type, provider, cache)\n→ resolveCacheBackend"]
 ```
@@ -86,8 +86,8 @@ flowchart LR
   ② `WEB_PINNED_CACHE_TYPES`(현재 비어 있음 — 항목마다 사유 주석 필수)면 `'web'`
   ③ `isNativeCacheTypeUsable(type)` 부정이면 `'web'` ④ 그 외 `'native'`.
 - 순수 판정 모듈 — I/O·어댑터 생성 없음. `isNativeApp()`(환경 축)은 여기 살았지만 캐시 개념이
-  아니어서 [`src/utils/isNativeApp.ts`](../../src/utils/isNativeApp.ts)로 옮겼다(소비자 4곳 중
-  하나가 이 파일이다).
+  아니어서 [`src/utils/isNativeApp.ts`](../../src/utils/isNativeApp.ts)로 옮겼다. 앱은 이 함수를
+  `runtime.boot.isNativeApp()` 으로 받는다.
 
 **[localFactory.ts](../../src/data/factories/localFactory.ts)** — 상태 없는 조립.
 
@@ -99,14 +99,15 @@ flowchart LR
 - `getGlobalCacheSearchSource()`: 환경 직결 — 네이티브면 `NativeGlobalSearchSource`(SQLite가
   source of truth), 아니면 `IndexedDbGlobalSearchSource`(ADR-0033: 기대 동작 동일).
 - `createLocalDataSources({ contextProvider, cacheStorageFactory?, cache? })`: `cache`를 기본
+- `getCacheMetricsSource()`: 네이티브 캐시 계측의 읽기·리셋 포트 인스턴스(ADR-0070 결정 5). 디버그 화면이 `@chatic/db` 를 직접 import 하지 않게 하는 자리다.
   팩토리 클로저에 바인딩해 storage 묶음을 조립한다.
 
 **[runtime.ts](../../src/data/runtime.ts)** — 앱 정책의 pre-boot 등록.
 
-- `configureDataRuntime({ repositories?, cache? })`: 런타임 싱글톤 생성 전 등록. 두 정책 종류를
-  각각 따로 등록할 수 있도록 호출은 **병합**된다(apps/web은 `repositories`, desktop-web은 `cache`).
+- `configureDataRuntime({ repositories?, cache? })`: **`init.ts` 내부 전용**이다. 앱은 이것을 직접 부르지 않고 `runtime.boot.initAppRuntime({ data })` 만 부른다 — 부팅 호출이 하나로 좁혀지면서 이 함수는 표면에서 빠졌다. 런타임 싱글톤 생성 전 등록이고, 두 정책 종류를
+  각각 따로 등록할 수 있도록 호출은 **병합**된다.
   늦은 호출은 경고 후 무시(레포지토리·스토리지는 DataManager 생성자에서 1회 조립되므로).
-- `getDataRuntime()`이 pending 등록을 `DataManager(ctx, repoOpts, cacheOpts)`로 전달한다.
+- `getDataRuntime()`이 pending 등록을 `DataManager(repoOpts?, cacheOpts?)`로 전달한다. **ctx 인자는 없다** — 스코프는 read 시점에 `ActiveScope` 가 파생하므로 생성자가 들고 있을 것이 없다(ADR-0070).
 
 **[nativeCacheSupport.ts](../../src/data/nativeCacheSupport.ts)** — 핸드셰이크 게이트.
 

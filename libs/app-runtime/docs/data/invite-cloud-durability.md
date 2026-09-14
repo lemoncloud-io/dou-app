@@ -25,7 +25,7 @@
 
 1. **캐시 DB가 초대클라우드의 단일 원천** — 별도의 병행 저장소(localStorage 레지스트리 등)를 두지
    않는다. 두 원천은 divergence로 데이터가 꼬일 수 있어 의도적으로 배제한다.
-2. **엔드포인트는 로컬에 영구 복제하지 않고 relay에서 재발급** — `issueCloudDelegationToken(cloudId)`가
+2. **엔드포인트는 로컬에 영구 복제하지 않고 relay에서 재발급** — 릴레이의 위임 토큰 발급(프론트 심볼은 `getRepositories().auth.delegateCloud(cloudId)`)이
    `backend`/`wss`/`cid`를 돌려주므로 cid만 알면 재구성할 수 있다.
 3. **이 도메인의 저장소를 옮기는 변경은 이관 다리를 전제 조건으로 한다** — 사후 보완이 아니다.
    다른 도메인과 달리 저장소 이동이 "재동기화로 복구되는 내구성 하락"이 아니라 **소실**이기 때문이다.
@@ -77,7 +77,9 @@ flowchart TD
 
 ## 상세 구현
 
-핵심 모듈은 [invitedCloudDurability.ts](../../src/data/invitedCloudDurability.ts) 하나다.
+핵심 use-case 는 [invitedCloudDurability.ts](../../src/data/invitedCloudDurability.ts) 에 있고, 그것을
+트리거하는 훅은 [hooks/useInvitedCloudNameSync.ts](../../src/data/hooks/useInvitedCloudNameSync.ts) 로
+분리돼 있다 — 훅 배치 가드 테스트(`src/hookPlacement.test.ts`)가 이 이동을 사례로 박제해 뒀다.
 
 - `recoverInvitedCloudIfMissing(cloud, cid)` — 캐시에 없는 cid만 `rehydrateInvitedCloud`(relay 재발급
   → 엔드포인트 cacheWrite)로 재구성. 이름은 넣지 않는다(연결 후 채움). 다리를 걷은 뒤 **유일한

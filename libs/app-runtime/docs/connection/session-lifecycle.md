@@ -18,7 +18,9 @@
    **유일한 init 드라이버**다 — 예전에 `TransportBootstrap`이 독립적으로 init을 다시 트리거하던
    중복 초기화가 이 통합으로 사라졌다.
 2. **delegate 소유** — `const delegate = useSocketSessionDelegate()`로 per-kind 소켓 인증 delegate를
-   만들어 소켓 바인더에 넘긴다. 앱이 delegate를 주입하지 않는다(Host props는 `{ binding, children }`뿐).
+   만들어 소켓 바인더에 넘긴다. 앱이 delegate를 주입하지 않는다. Host props 는
+   `RuntimeHostProps = { slots?, children }` 이고, `slots` 는 테스트 오버라이드다 — Host 가
+   `useRuntimeSocketSlots()` 로 슬롯을 **스스로 파생**한다(ADR-0076 G5).
 3. **relay keep-alive** — `useRelaySessionKeepAlive(true)`를 Host에서 직접 호출한다(게이트보다 위에서
    호출돼 init 진행 여부와 무관하게 relay 세션 부재 시 백그라운드 게스트 로그인으로 복구). 별도
    render-null 러너 컴포넌트는 없다. **오프라인이면 시도하지 않고, 실패한 시도는 엣지에서 다시
@@ -27,7 +29,7 @@
 4. **자식 마운트 순서**.
 
 ```tsx
-export const RuntimeConnectionHost = ({ binding, children }: RuntimeConnectionHostProps) => {
+const ConnectionHost = ({ slots, children, guestKeepAlive }: RuntimeHostProps & { guestKeepAlive: boolean }) => {
     const isSessionReady = useRelaySessionInit(); // 유일한 세션 init 드라이버
     const delegate = useSocketSessionDelegate();
     useRelaySessionKeepAlive(true); // relay 세션 부재 시 백그라운드 게스트 로그인으로 복구
@@ -36,8 +38,8 @@ export const RuntimeConnectionHost = ({ binding, children }: RuntimeConnectionHo
 
     return (
         <>
-            <SocketBinder binding={binding} delegate={delegate} />
-            <SocketReauthBinder binding={binding} delegate={delegate} />
+            <SocketBinder slots={activeSlots} delegate={delegate} />
+            <SocketReauthBinder slots={activeSlots} delegate={delegate} />
             {children}
         </>
     );
@@ -46,22 +48,31 @@ export const RuntimeConnectionHost = ({ binding, children }: RuntimeConnectionHo
 
 - **역할 분리**: 상태 전이·유스케이스 실행은 `session/` 훅이 소유하고, Host는 인라인 훅 호출 + 바인더
   마운트 단위일 뿐이다.
-- **토큰 refresh는 Host에서 돌리지 않는다** — 소켓 토큰(relay 주기 refresh 포함)은 SDK
-  `ClientSocketAuth`가 만료 기반으로 소유한다. 이 패키지 어디에도 주기 refresh 루프가 없고, refresh
-  엔드포인트를 치는 코드 자체가 없다([../session/architecture.md](../session/architecture.md)).
+- **Host는 refresh 루프를 돌리지 않는다** — 소켓 토큰의 만료 기반 갱신은 SDK `ClientSocketAuth`가
+  소유한다. 다만 "이 패키지에 refresh 가 없다"는 뜻은 아니다. `requestRelaySessionRefresh`가
+  `auth.refresh()`를 직접 부르고, `useSessionStalenessGuard`가 30초 기본 주기로 검사 루프를
+  돌린다([../session/architecture.md](../session/architecture.md)). Host 가 그것을 마운트하지 않을
+  뿐이다.
 - 데이터 스코프를 밀어 넣는 바인더는 **없다**. `ActiveScope`가 read 시점에 파생하므로 커밋할 것이
   없고, 그래서 자리만 지키던 `RuntimeDataBinder`도 삭제했다([./README.md](./README.md)).
 
 ---
 
-## 3. `RuntimeAuthHost` — 인증 전용 축소판
+## 3. `RuntimeAuthHost` — 같은 Host, 플래그 하나
 
-세션 토큰만 신선하게 유지하고 chat 데이터 sync·게스트 keep-alive는 원치 않는 호스트(예: 관리 콘솔)를
-위한 판이다. `SocketBinder` + `SocketReauthBinder`만 마운트한다.
+축소판이 아니다. 두 Host 모두 같은 `ConnectionHost` 컴포넌트이고 `guestKeepAlive` 하나만 다르다.
 
-의도적으로 뺀 것:
+```tsx
+export const RuntimeConnectionHost = (props: RuntimeHostProps) => <ConnectionHost {...props} guestKeepAlive />;
+export const RuntimeAuthHost = (props: RuntimeHostProps) => <ConnectionHost {...props} guestKeepAlive={false} />;
+```
 
-- `useRelaySessionKeepAlive` — 명시 로그인이 필요한 호스트가 조용히 게스트 세션을 얻으면 안 된다.
+그래서 `useRelaySessionKeepAlive` 는 **빠진 게 아니라 인자가 `false`** 이고, children 도 그대로
+렌더된다. 명시 로그인이 필요한 호스트(예: 관리 콘솔)가 조용히 게스트 세션을 얻지 않게 하려는
+의도는 같지만, 구현은 분기가 아니라 플래그다.
+
+예전에는 실제로 51줄짜리 사본이었다. 한 줄만 다른 사본을 두면 연결 계약이 바뀔 때마다 두 번
+고쳐야 하고, 두 번째 사본이 바로 빠뜨리는 자리라서 합쳤다.
 
 데이터 스코프 바인더는 두 Host 모두 마운트하지 않는다 — 그런 바인더가 더는 존재하지 않는다.
 

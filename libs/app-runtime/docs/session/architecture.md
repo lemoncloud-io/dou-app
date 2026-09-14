@@ -305,7 +305,7 @@ apps/web의 `contextOverride` 우회(`useHomePlaces` · `useActiveCloudChannels`
 ### 판정 함수의 소유자는 `@chatic/data`다
 
 판정 호출부의 다수가 `data` 안에 있고 `data`는 leaf라 app-runtime을 import할 수 없다. 그래서 판정은
-`DataContext` 값만 받는 **순수 함수**로 `@chatic/data`(`repositories-v2/scopeGuards.ts`)가 소유하고,
+`DataContext` 값만 받는 **순수 함수**로 `@chatic/data`(`repositories/scopeGuards.ts`)가 소유하고,
 `session/scope`와 `socket/sync`는 그것을 호출하는 소비자다.
 
 ```ts
@@ -398,5 +398,5 @@ cloud refresh 400 시 relay 재발급 → cloud 재교환 → 1회 재시도하�
 - [../architecture.md](../architecture.md) — 5축 소유 규칙·모듈 구조
 - [../public-surface.md](../public-surface.md) — 세션 허브가 배럴로 내는 것
 - [../socket/auth/README.md](../socket/auth/README.md) · [signing.md](../socket/auth/signing.md) — SDK 소유 경계·서명 계약
-- [../runtime/README.md](../runtime/README.md) — `RuntimeSocketSlots`의 소켓 슬롯 파생
+- [../connection/README.md](../connection/README.md) — `RuntimeSocketSlots`의 소켓 슬롯 파생
 - [`libs/http/docs/architecture.md`](../../../http/docs/architecture.md) — HTTP 실행기·정책

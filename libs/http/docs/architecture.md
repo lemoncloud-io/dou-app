@@ -52,9 +52,9 @@ HTTP 통신의 전부 — 요청 실행기, 전송 규칙(리트라이·에러 �
 
 - `gateways/`(oauth·users·clouds·subscriptions 경로·메서드 소유) — 2단계에서
   `HttpGatewayBundle`·`http-data-sources`·`httpFactory`와 함께
-  ([HTTP 데이터 경로](../../data/docs/http-data-path.md) 문서 소관)
+  ([HTTP 데이터 경로](../../data/docs/remote/README.md) 문서 소관)
 - `calcSignature`(lemon HMAC, awsSigning.ts:25)
-  — 3단계 `@chatic/auth-sign` 신설 시 이관([auth-sign architecture](../../auth-sign/docs/architecture.md)).
+  — 3단계 `@chatic/auth-sign` 신설 시 이관([auth-sign](../../auth-sign/README.md)).
   refresh 서명 재료라 refresh 소유권 재배선과 함께 움직여야 한다
 - `transport/authRuntime.ts`(OAuth 코드 교환) — 3단계 세션 이관 소속
   ([세션 허브 architecture](../../app-runtime/docs/session/architecture.md))
@@ -64,7 +64,7 @@ HTTP 통신의 전부 — 요청 실행기, 전송 규칙(리트라이·에러 �
   `LemonTransportConfig`로 주입받는다
 - ~~`logBatch`·`reportIssue`의 실제 이관~~ — **2026-09-02에 들어왔다.** 와이어 어휘는
   [`gateways/report.ts`](../src/gateways/report.ts)(`ReportHttpGateway`)이고, 두 호출은
-  `data`의 `report` repository를 거친다([HTTP 데이터 경로](../../data/docs/http-data-path.md)).
+  `data`의 `report` repository를 거친다([HTTP 데이터 경로](../../data/docs/remote/README.md)).
   1단계가 만든 `bypass: ['networkLog']` 계약의 첫 실사용자가 이것이다.
   (`reportError`는 이관 대상이 아니라 2026-09에 폐지됐다)
 
@@ -81,7 +81,7 @@ lib이 실제로 수행하는 요청 형태다. **1단계 서술을 현행으로
    lemon 자체 저장소의 signing material로 서명한다.
 
     > 1단계가 이 자리에 적어 둔 `generateToken`(`POST /auth/0/generate-token`)은 **이관되지
-    > 않았다** — 리포 전체 소비가 0이어서다([http-data-path.md](../../data/docs/http-data-path.md)
+    > 않았다** — 리포 전체 소비가 0이어서다([remote.md](../../data/docs/remote/README.md)
     > §실측이 삭제 후보로 올려 뒀고, `apps/admin-v2`의 주석 한 줄만 그 엔드포인트를 언급한다).
     > 서명 실행기의 현행 소비자는 3번이다.
 
@@ -397,16 +397,13 @@ http-data-source)는 2단계에서 붙는다. relay 경로 executor에는 web-co
 
 ## 검증 방법
 
-아래 4개 lib이 project reference로 연결돼 있어(`tsconfig.lib.json`의 `references`), 하나를 빌드하면
-의존 그래프 전체가 함께 검증된다.
+`libs/app-runtime`의 `tsconfig.lib.json`이 이 lib을 포함해 형제 lib들을 project reference로 물고
+있어서, app-runtime 하나를 빌드하면 의존 그래프 전체가 함께 검증된다. (1단계 당시 4개였고 지금은
+더 늘었다 — 정확한 목록은 그 파일의 `references` 배열이다.) `libs/http` 자신은 `@chatic/*` 의존이
+0이라 `references`가 비어 있다.
 
-**실측 (2026-09-07)** — 1단계 당시 값에서 갱신했다. `libs/web-core` 행은 사라졌다(패키지 삭제).
-
-| 대상               | 결과                     |
-| ------------------ | ------------------------ |
-| `libs/http` jest   | **13스위트 / 84케이스**  |
-| `libs/app-runtime` | **62스위트 / 517케이스** |
-| `tsc -b`           | 0건                      |
+수치는 적지 않는다 — 아래 명령이 답한다. (예전 이 자리에 있던 `libs/web-core` 행은 패키지와 함께
+사라졌고, 남은 두 줄 중 app-runtime 값은 그새 낡아 있었다.)
 
 `libs/http` 스펙이 지키는 것: `error/classify.spec.ts`(분류) · `log/networkLog.spec.ts`(sink 목 —
 redact는 sink 책임이라 raw 값으로 검증) · `client.spec.ts`(실행기 라우팅) ·

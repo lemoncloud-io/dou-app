@@ -9,7 +9,7 @@ const hmac = (message: string, key: string): string => encBase64.stringify(hmacS
  * lemon HMAC — `hmac(hmac(hmac(data, authId), accountId), identityId)`,
  * `data = [current, accountId, identityId, '', userAgent].join('&')`. The 4th slot is always `''`:
  * this is not a caller convention, it is invariant to the formula itself (both the pre-lib web-core
- * copy and lemon-web-core's own `calcSignature` hardcode it — see docs/architecture.md §서명식).
+ * copy and lemon-web-core's own `calcSignature` hardcode it — see README.md §서명식).
  * `payload.identityToken` is kept for call-site compatibility but is never read.
  *
  * Pure — no network, no storage, no globals. `current`/`userAgent` are required inputs (the

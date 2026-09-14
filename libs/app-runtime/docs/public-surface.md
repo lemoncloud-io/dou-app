@@ -45,7 +45,7 @@ const repos = runtime.data.useRuntimeRepositories();
 | 심볼                                                                                            | 설명                                                                                                                                                                                                         |
 | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `initAppRuntime({ data? })`                                                                     | **부팅 진입점.** render 전에 한 번. 세션 store env 주입 + 자격증명 복구 배선 + `data` 정책 등록(데이터 런타임 생성 **전**이어야 하고, 늦으면 경고 후 무시). 순서 계약은 [architecture.md](./architecture.md) |
-| `AppRuntimeConfig` · `DataRuntimeConfig` · `CacheAssemblyOptions` · `DataRepositoriesV2Options` | 부팅 옵션 타입 전부. 마지막 것은 `@chatic/data` 소속이지만 여기서 재수출한다 — 런타임을 설정하려고 조립 대상 패키지를 알아야 하는 것이 파사드의 구멍이었다                                                   |
+| `AppRuntimeConfig` · `DataRuntimeConfig` · `CacheAssemblyOptions` · `DataRepositoriesOptions` | 부팅 옵션 타입 전부. 마지막 것은 `@chatic/data` 소속이지만 여기서 재수출한다 — 런타임을 설정하려고 조립 대상 패키지를 알아야 하는 것이 파사드의 구멍이었다                                                   |
 | `setNativeCacheSupport(report)` · `NativeCacheSupport`                                          | 네이티브가 핸드셰이크로 보고한 저장 가능 타입·스키마 버전. 웹 선배포 스큐 방어. 부팅 **후** 비동기로 도착하므로 config 필드가 아니라 setter다                                                                |
 | `isNativeApp()`                                                                                 | 네이티브 WebView 여부                                                                                                                                                                                        |
 | `webTransport` · `startWebTransportInit()`                                                      | sealed transport. `startWebTransportInit`은 앱이 부를 필요가 없어야 하는 프리미티브다 — 유일 init 드라이버는 `connection.RuntimeConnectionHost`이고, desktop-web의 auth 훅 3개가 마지막 호출자다             |
@@ -178,7 +178,7 @@ const App = () => {
   (`useSocketSessionDelegate`)가 소유하므로 앱이 주입하지 않는다.
 - Host 내부에서 `useRelaySessionInit` init 게이트 뒤에 바인더들을 조립하고, relay keep-alive
   (`useRelaySessionKeepAlive`)는 게이트 위에서 인라인 호출한다
-  ([runtime/session-lifecycle.md](./runtime/session-lifecycle.md)).
+  ([connection/session-lifecycle.md](./connection/session-lifecycle.md)).
 - 인증 문맥(토큰/site) 변경은 SDK `ClientSocketAuth`(만료·재연결 자동)와 `SocketReauthBinder`
   (same-connection 신원 교체)가 담당한다. site 전환은 `useSiteSwitch`.
 - sync는 별도 binder 없이 `SyncManager` 내부 서비스로 동작한다.
@@ -187,7 +187,7 @@ const App = () => {
 
 - [architecture.md](./architecture.md)
 - [session/architecture.md](./session/architecture.md)
-- [runtime/README.md](./runtime/README.md)
+- [connection/README.md](./connection/README.md)
 - [socket/README.md](./socket/README.md)
 - [socket/sync/README.md](./socket/sync/README.md)
 - [data/README.md](./data/README.md)
