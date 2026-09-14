@@ -21,6 +21,8 @@ import { ThreadFooter } from './ThreadFooter';
 // A message longer than this is truncated in the bubble with a "view all" affordance.
 const MAX_MESSAGE_LENGTH = 200;
 const LONG_PRESS_DELAY_MS = 450;
+// How far the finger may drift and still count as a hold rather than a scroll — a fingertip's wobble.
+const MOVE_CANCEL_PX = 10;
 
 /** Per-message read state — computed by the container from join cursors. */
 export interface MessageReadInfo {
@@ -181,17 +183,38 @@ export const ChannelMessageRow = ({
             timerRef.current = null;
         }
     };
+    // Where the press started, so a drag can be told from a hold (touch only — see below).
+    const pressOriginRef = useRef<{ x: number; y: number } | null>(null);
     const handlePointerDown = (event: ReactPointerEvent<HTMLSpanElement>) => {
-        event.preventDefault();
+        // NOT on touch: preventing the default of a `pointerdown` cancels the browser's own
+        // panning for that gesture, so a finger landing on a bubble could not scroll the list —
+        // and a thread is mostly bubbles, which is why scrolling died in bands down the screen.
+        // The default this was suppressing (drag-select, the iOS selection callout) is handled by
+        // the span's `select-none` / `touch-callout-none` instead, which costs the gesture nothing.
+        if (event.pointerType === 'mouse') event.preventDefault();
         if (!content || isDeleted) return;
         if (event.pointerType === 'mouse' && event.button !== 0) return;
         clearTimer();
         longPressFiredRef.current = false;
+        pressOriginRef.current = { x: event.clientX, y: event.clientY };
         timerRef.current = window.setTimeout(() => {
             timerRef.current = null;
             longPressFiredRef.current = true;
             onLongPress();
         }, LONG_PRESS_DELAY_MS);
+    };
+    // A touch implicitly captures the pointer to its target, so scrolling away from the bubble
+    // fires neither `pointerleave` nor `pointercancel` until the finger lifts — without this the
+    // hold would mature mid-scroll and the action sheet would open on a flick.
+    const handlePointerMove = (event: ReactPointerEvent<HTMLSpanElement>) => {
+        const origin = pressOriginRef.current;
+        if (timerRef.current === null || !origin) return;
+        if (
+            Math.abs(event.clientX - origin.x) > MOVE_CANCEL_PX ||
+            Math.abs(event.clientY - origin.y) > MOVE_CANCEL_PX
+        ) {
+            clearTimer();
+        }
     };
     const handleContextMenu = (event: ReactMouseEvent<HTMLSpanElement>) => {
         if (!content || isDeleted) return;
@@ -299,8 +322,15 @@ export const ChannelMessageRow = ({
                     // `min-w-0`: as a flex item this span defaults to `min-width: auto`
                     // (= its min-content width), and min-width beats max-width — a long
                     // unbroken message would push it past `max-w-full` and out of the row.
-                    className={cn('inline-flex min-w-0 max-w-full', drawnBlocks && 'w-full')}
+                    // `select-none` (and the WebKit callout suppression) replaces what the old
+                    // `preventDefault()` on pointerdown did — without taking the scroll gesture
+                    // down with it. See `handlePointerDown`.
+                    className={cn(
+                        'inline-flex min-w-0 max-w-full select-none [-webkit-touch-callout:none]',
+                        drawnBlocks && 'w-full'
+                    )}
                     onPointerDown={handlePointerDown}
+                    onPointerMove={handlePointerMove}
                     onPointerUp={clearTimer}
                     onPointerLeave={clearTimer}
                     onPointerCancel={clearTimer}
