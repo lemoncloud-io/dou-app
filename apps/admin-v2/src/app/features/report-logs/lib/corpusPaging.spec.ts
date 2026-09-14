@@ -182,13 +182,13 @@ describe('nextCorpusPage', () => {
 });
 
 describe('shipped defaults', () => {
-    it('reaches the ceiling in two round trips', () => {
+    it('reaches the ceiling in a single round trip', () => {
+        // The cap is one page, which is what lets the range default to open: a walk that
+        // cannot exceed one request costs the same whether the operator bounded it or not.
         const full = page('a', CORPUS_PAGE_SIZE, 100_000, CORPUS_PAGE_SIZE);
-        expect(nextCorpusPage([full])).toBe(1);
 
-        const second = page('b', CORPUS_PAGE_SIZE, 100_000, CORPUS_PAGE_SIZE);
-        expect(nextCorpusPage([full, second])).toBeUndefined();
-        expect(corpusStatus([full, second]).rows).toHaveLength(CORPUS_CAP);
+        expect(nextCorpusPage([full])).toBeUndefined();
+        expect(corpusStatus([full]).rows).toHaveLength(CORPUS_CAP);
     });
 
     it('stays inside the Elasticsearch result window', () => {

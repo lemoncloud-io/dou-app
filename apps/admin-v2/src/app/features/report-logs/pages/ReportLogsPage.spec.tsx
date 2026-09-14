@@ -86,54 +86,22 @@ describe('ReportLogsPage — 수집', () => {
         expect(screen.getByText('로그인 실패')).toBeTruthy();
     });
 
-    it('defaults the range to today rather than walking the whole store', async () => {
+    it('sends no range until the operator sets one', async () => {
         servePage([entry()]);
 
         renderPage();
 
         await screen.findByText('1건 전수 수집 완료');
-        // A bounded first request is what keeps the initial paint off the 7.7k-record store.
-        expect(lastParams().from).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+        // The range is the operator's to move, so nothing is assumed on their behalf. The
+        // walk is still bounded — by the cap, which `CorpusProgress` reports when it bites.
+        expect(lastParams().from).toBeUndefined();
+        expect(lastParams().to).toBeUndefined();
     });
 
-    it('walks every page until the set is exhausted', async () => {
-        // A full page then a short one — the walk must not stop at the first. A "full" page
-        // is whatever the corpus asks for, so the fixture reads the constant rather than
-        // hardcoding it; the page size is a tuning decision and this test is not about it.
-        const full = CORPUS_PAGE_SIZE;
-        const total = full + 50;
-        const page = (prefix: string, count: number) =>
-            Array.from({ length: count }, (_, i) => entry({ message: `${prefix}-${i}` }, `${prefix}${i}`));
-        fetchReportLogs.mockImplementation(async params => {
-            const index = Number(params?.page ?? 0);
-            return index === 0 ? { list: page('p0', full), total } : { list: page('p1', 50), total };
-        });
-
-        renderPage();
-
-        expect(await screen.findByText(`${total.toLocaleString()}건 전수 수집 완료`)).toBeTruthy();
-    });
-
-    it('counts a record once when deep paging hands it back twice', async () => {
-        // The `from`/`size` window shifts under a `createdAt` sort when records share a
-        // timestamp, so page 1 can repeat a row from page 0.
-        const last = CORPUS_PAGE_SIZE - 1;
-        const page0 = Array.from({ length: CORPUS_PAGE_SIZE }, (_, i) => entry({ message: `row-${i}` }, `dup${i}`));
-        fetchReportLogs.mockImplementation(async params => {
-            const page = Number(params?.page ?? 0);
-            return page === 0
-                ? { list: page0, total: CORPUS_PAGE_SIZE + 1 }
-                : {
-                      list: [page0[last], entry({ message: 'genuinely new' }, 'fresh')],
-                      total: CORPUS_PAGE_SIZE + 1,
-                  };
-        });
-
-        renderPage();
-
-        await screen.findByText('genuinely new');
-        expect(screen.getAllByText(`row-${last}`)).toHaveLength(1);
-    });
+    // The multi-page walk and its cross-page dedupe are no longer reachable from this
+    // screen: `CORPUS_CAP` is one page, so a full page IS the ceiling. The rules themselves
+    // still live in `nextCorpusPage`/`corpusStatus` — raising the cap brings them back —
+    // and `lib/corpusPaging.spec.ts` drives them directly with an explicit cap.
 
     // The request count is a design property of this screen, not an implementation detail:
     // a walk used to cost 50 round trips and every axis change paid it again. These lock in
@@ -147,10 +115,11 @@ describe('ReportLogsPage — 수집', () => {
         expect(fetchReportLogs).toHaveBeenCalledOnce();
     });
 
-    it('spends exactly two requests to reach the ceiling, not one per render', async () => {
-        // The walk is driven from an effect now, which is the one place it could stack
-        // requests: a render caused by the first page landing must not launch another
-        // fetch for a page already in flight.
+    it('stops at the ceiling after one request, not one per render', async () => {
+        // The walk is driven from an effect, which is the one place it could stack
+        // requests: the render caused by the page landing must not launch another fetch.
+        // A full page IS the ceiling now (`CORPUS_CAP` = `CORPUS_PAGE_SIZE`), so an open
+        // range costs exactly this much no matter how much the store holds.
         const full = Array.from({ length: CORPUS_PAGE_SIZE }, (_, i) => entry({ message: `p${i}` }, `p${i}`));
         fetchReportLogs.mockImplementation(async params => {
             const index = Number(params?.page ?? 0);
@@ -162,9 +131,9 @@ describe('ReportLogsPage — 수집', () => {
 
         renderPage();
 
-        await screen.findByText(/상한 1,000건까지만 수집/);
-        expect(fetchReportLogs.mock.calls.length).toBe(2);
-        expect(fetchReportLogs.mock.calls.map(c => c[0]?.page)).toEqual([0, 1]);
+        await screen.findByText(/상한 500건까지만 수집/);
+        expect(fetchReportLogs.mock.calls.length).toBe(1);
+        expect(fetchReportLogs.mock.calls.map(c => c[0]?.page)).toEqual([0]);
     });
 
     it('spends nothing on axis changes that are immediately superseded', async () => {
@@ -227,6 +196,36 @@ describe('ReportLogsPage — 수집', () => {
         fireEvent.click(screen.getByText('다시 수집'));
 
         await waitFor(() => expect(fetchReportLogs.mock.calls.length).toBeGreaterThan(spent));
+    });
+
+    it('drops the other cached corpora too, so hopping back re-walks', async () => {
+        // The complaint this answers: press 다시 수집, then unpin — and the previous axes are
+        // served from a corpus collected BEFORE the refresh, quietly older than the server.
+        // Refreshing has to mean "throw away what is held", not just "re-ask for these axes".
+        servePage([entry()]);
+        renderPage();
+        await screen.findByText('1건 전수 수집 완료');
+
+        // Cache a second set of axes, then come back so both are held.
+        fireEvent.change(screen.getByLabelText('레벨'), { target: { value: 'warn' } });
+        await waitFor(() => expect(lastParams().level).toBe('warn'));
+        fireEvent.change(screen.getByLabelText('레벨'), { target: { value: '' } });
+        // Nothing to wait on in the DOM here — coming back is a cache hit, so it issues no
+        // request and changes no text. The wait is for the axes to settle into the query key
+        // before the click, which is a timer (`AXES_SETTLE_MS`), not a render.
+        await new Promise(resolve => setTimeout(resolve, 400));
+        const cached = fetchReportLogs.mock.calls.length;
+
+        fireEvent.click(screen.getByText('다시 수집'));
+        await waitFor(() => expect(fetchReportLogs.mock.calls.length).toBeGreaterThan(cached));
+        expect(lastParams().level).toBeUndefined();
+        const spent = fetchReportLogs.mock.calls.length;
+
+        // Held from before the refresh, so this must walk again rather than replay the cache.
+        fireEvent.change(screen.getByLabelText('레벨'), { target: { value: 'warn' } });
+
+        await waitFor(() => expect(fetchReportLogs.mock.calls.length).toBeGreaterThan(spent));
+        expect(lastParams().level).toBe('warn');
     });
 
     it('surfaces a failure with a retry instead of an empty screen', async () => {

@@ -213,7 +213,12 @@ export const ReportLogsPage = () => {
                     <button
                         type="button"
                         onClick={() =>
-                            downloadTextFile(`log-console-${server.stage}-${server.from}.csv`, rowsToCsv(filtered))
+                            // The range is optional, so the filename says `all` rather than
+                            // trailing a bare dash when no start date is set.
+                            downloadTextFile(
+                                `log-console-${server.stage}-${server.from || 'all'}.csv`,
+                                rowsToCsv(filtered)
+                            )
                         }
                         disabled={filtered.length === 0}
                         className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-muted disabled:opacity-50"

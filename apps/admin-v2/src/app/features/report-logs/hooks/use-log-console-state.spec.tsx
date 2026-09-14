@@ -9,7 +9,7 @@ import { act, render, screen } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 
-import { todayLocalDate, useLogConsoleState, type LogConsoleState } from './use-log-console-state';
+import { useLogConsoleState, type LogConsoleState } from './use-log-console-state';
 
 let api: LogConsoleState;
 
@@ -31,10 +31,13 @@ const setup = (initial = '/report-logs') => {
 const params = (search: string) => new URLSearchParams(search);
 
 describe('useLogConsoleState — 기본값', () => {
-    it('defaults the range to today so the first walk is bounded', () => {
+    it('leaves the range open, for the operator to set', () => {
+        // No default day. A date the operator did not choose reads as the whole picture
+        // while it is actually one day's slice, and the range is the axis they came to
+        // move. The cap still bounds the walk, and `CorpusProgress` says when it bit.
         setup();
 
-        expect(api.server.from).toBe(todayLocalDate());
+        expect(api.server.from).toBe('');
         expect(api.server.to).toBe('');
     });
 

@@ -19,17 +19,20 @@ export const CORPUS_PAGE_SIZE = 500;
 /**
  * Ceiling on rows collected for one set of axes.
  *
- * At a 500-row page this is two round trips for the whole corpus, and one whenever the
- * server total already fits a page — what a screen people keep open all day can afford to
- * spend on every filter change. A bigger corpus buys more accurate tag and version counts
- * and pays in requests, memory and time-to-first-paint; the counts are corpus-scoped
- * either way and the screen says so, so when this is not enough the answer is a narrower
- * range, which the truncation notice asks for.
+ * Set to one page, so the corpus is ONE round trip whatever the range asks for. That is
+ * what makes an open range affordable: the date filters default to empty (the range is the
+ * operator's to set), and without a ceiling that matches the page size, opening the screen
+ * would walk the whole store before painting anything.
  *
- * `from = limit * page`, so the deepest request here is `from=500` — far inside
+ * A bigger corpus buys more accurate tag and version counts and pays in requests, memory
+ * and time-to-first-paint; the counts are corpus-scoped either way and the screen says so,
+ * so when this is not enough the answer is a narrower range, which the truncation notice
+ * asks for.
+ *
+ * `from = limit * page`, so no request here goes past `from=0` — far inside
  * Elasticsearch's default `max_result_window` of 10,000.
  */
-export const CORPUS_CAP = 1_000;
+export const CORPUS_CAP = 500;
 
 /**
  * Hard ceiling on requests per set of axes — the backstop that makes the walk terminate whatever
@@ -40,7 +43,7 @@ export const CORPUS_CAP = 1_000;
  * deduped count, which is exactly the quantity that stalls when pages repeat, so it cannot fire in
  * the situation it most needs to. This one counts requests, and those only go up.
  *
- * The healthy walk is `CORPUS_CAP / CORPUS_PAGE_SIZE` = two pages, so this leaves generous room for
+ * The healthy walk is `CORPUS_CAP / CORPUS_PAGE_SIZE` = one page, so this leaves generous room for
  * repeat-heavy bands while bounding what one filter change can cost.
  */
 export const MAX_CORPUS_PAGES = 8;

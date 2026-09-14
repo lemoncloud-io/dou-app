@@ -79,12 +79,6 @@ export interface LogConsoleState {
     clearClientAxes: () => void;
 }
 
-/** Today in the viewer's timezone as `YYYY-MM-DD`, matching the date inputs' format. */
-export const todayLocalDate = (now: Date = new Date()): string => {
-    const pad = (n: number) => `${n}`.padStart(2, '0');
-    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-};
-
 const oneOf = <T extends string>(value: string | null, allowed: T[], fallback: T): T =>
     value && (allowed as string[]).includes(value) ? (value as T) : fallback;
 
@@ -93,23 +87,18 @@ export const useLogConsoleState = (): LogConsoleState => {
 
     const read = useCallback((key: string) => searchParams.get(key) ?? '', [searchParams]);
 
-    // Default the range to today rather than leaving it open. An unbounded range would
-    // start a walk across the whole 7.7k-record store on first paint and hit the cap
-    // before showing anything useful; a day is the unit an operator actually asks about.
-    const from = read('from') || todayLocalDate();
-
     const server = useMemo<ServerAxes>(
         () => ({
             stage: oneOf<ReportStage>(searchParams.get('stage'), ['v1', 'd1'], 'v1'),
             kind: oneOf<ReportKind>(searchParams.get('kind'), REPORT_KINDS, 'all'),
-            from,
+            from: read('from'),
             to: read('to'),
             level: read('level'),
             uid: read('uid'),
             cid: read('cid'),
             runId: read('runId'),
         }),
-        [searchParams, read, from]
+        [searchParams, read]
     );
 
     const client = useMemo<ClientAxes>(() => {
