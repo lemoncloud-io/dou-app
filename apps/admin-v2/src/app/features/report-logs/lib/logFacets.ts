@@ -5,12 +5,16 @@
  * This exists because the backend's aggregation is hardwired: `buildQuery` always
  * aggregates on `stereo` and takes no parameter for anything else (chatic-backend-api
  * `abstract-services.ts`). So there is no server-side "count by tag" or "count by app
- * version" to ask for, and the axes those questions need are not even filterable — they
- * live inside the record's `meta`.
+ * version" to ask for.
+ *
+ * **Counting and filtering have come apart.** chatic-backend-api #41 lifted `tag`, the two
+ * versions, `route` and the device fields to top-level copies, so those axes ARE filterable now
+ * and the corpus is narrowed on the server when one is selected. The aggregation was not part of
+ * that change, so the counts shown here are still computed from the collected rows.
  *
  * The counts are therefore corpus-scoped, and the UI must say so. That is not a
  * shortcoming to paper over: it is the honest reach of what the console can compute
- * without a backend change (ADR-0083).
+ * without a backend aggregation change (ADR-0083).
  */
 import type { ReportLogRow } from './parseReportLog';
 

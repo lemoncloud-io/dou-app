@@ -35,7 +35,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 
-import { fetchReportLogs, type FetchReportLogsParams } from '../api/reportLogApi';
+import { ROUND_2_AXES, fetchReportLogs, type FetchReportLogsParams } from '../api/reportLogApi';
 import { CORPUS_CAP, CORPUS_PAGE_SIZE, corpusStatus, nextCorpusPage, type CorpusPage } from '../lib/corpusPaging';
 import { parseReportLog, type ReportLogRow } from '../lib/parseReportLog';
 
@@ -89,8 +89,15 @@ export interface LogCorpus {
  */
 export const CORPUS_QUERY_PREFIX = ['admin-v2', 'report-logs', 'corpus'] as const;
 
-/** The axes that define a corpus, as one list — the type, the key and the probe share it. */
-export const CORPUS_AXES = ['stage', 'type', 'from', 'to', 'level', 'runId', 'uid', 'cid'] as const;
+/**
+ * The axes that define a corpus, as one list — the type, the key and the probe share it.
+ *
+ * The round-2 axes are here rather than left to the client-side pass because they narrow the
+ * corpus ITSELF. That is the whole point of lifting them server-side: the old facet pass could
+ * only choose among values that happened to land in the collected page, so asking for one tag
+ * across a week returned whatever that tag had inside the newest 500 rows of everything.
+ */
+export const CORPUS_AXES = ['stage', 'type', 'from', 'to', 'level', 'runId', 'uid', 'cid', ...ROUND_2_AXES] as const;
 
 export type CorpusParams = Pick<FetchReportLogsParams, (typeof CORPUS_AXES)[number]>;
 

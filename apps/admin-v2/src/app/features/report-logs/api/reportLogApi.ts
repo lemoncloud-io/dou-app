@@ -121,7 +121,37 @@ export interface FetchReportLogsParams {
     uid?: string;
     /** (optional) cloud-id filter — `MockModel.cid`, hoisted by `saveLogEntry`. */
     cid?: string;
+    /**
+     * Round 2 axes (chatic-backend-api #41): `tag`, the two versions, `route` and the three
+     * device fields, lifted to top-level copies so they can be filtered on. Round 1 lifted
+     * `sid`/`uid`/`cid`/`runId`/`level` and left these inside `meta`, where no filter reaches.
+     *
+     * **Exact match, single value.** They go out as `term: {'<field>.keyword': v}`, so there is no
+     * range (`appVersion >= 1.4.0`), no prefix (`route` starting `/chat/`) and no OR within one
+     * axis. Widening that is a `doGetList` change, not a field change.
+     *
+     * **Only records written after the backend deploy carry them.** There is no backfill — a full
+     * rewrite would be a table scan without a GSI — so narrowing on any of these silently excludes
+     * everything older. `SERVER_AXIS_CAVEAT` is what says so on screen.
+     */
+    tag?: string;
+    appVersion?: string;
+    webVersion?: string;
+    route?: string;
+    os?: string;
+    osVersion?: string;
+    model?: string;
 }
+
+/**
+ * The round-2 axes, as one list — so the params builder, the corpus key and the caveat copy
+ * cannot disagree about which filters carry this restriction.
+ */
+export const ROUND_2_AXES = ['tag', 'appVersion', 'webVersion', 'route', 'os', 'osVersion', 'model'] as const;
+
+/** What the screen must say wherever one of {@link ROUND_2_AXES} can be set. */
+export const SERVER_AXIS_CAVEAT =
+    '태그·버전·화면·기기 필터는 완전일치 단일값이고, 백엔드 배포 이후 저장된 기록에만 걸립니다.';
 
 /**
  * Query params for the list call. Filters are included only when non-empty — the
@@ -138,6 +168,7 @@ export const buildReportLogListParams = ({
     runId,
     uid,
     cid,
+    ...rest
 }: FetchReportLogsParams = {}): Record<string, string | number> => ({
     page,
     limit,
@@ -148,6 +179,10 @@ export const buildReportLogListParams = ({
     ...(runId ? { runId } : {}),
     ...(uid ? { uid } : {}),
     ...(cid ? { cid } : {}),
+    // Same "omit when empty" rule as the axes above: the backend reads an absent key as no
+    // filter, while an empty string would be matched literally against `<field>.keyword` and
+    // return nothing. Spread from a list so adding an axis is one edit, not two.
+    ...Object.fromEntries(ROUND_2_AXES.flatMap(axis => (rest[axis] ? [[axis, rest[axis] as string]] : []))),
 });
 
 /**
@@ -163,23 +198,15 @@ export const buildReportLogListParams = ({
  * the newest page.
  */
 export const fetchReportLogs = async ({
-    page = 0,
-    limit = 100,
     stage = 'v1',
-    type,
-    from,
-    to,
-    level,
-    runId,
-    uid,
-    cid,
+    ...params
 }: FetchReportLogsParams = {}): Promise<ReportLogListResponse> => {
     const { data } = await runtime.boot.webTransport
         .buildSignedRequest({
             method: 'GET',
             baseURL: `${DOU_BASE}/dou-${stage}/mocks/0/list`,
         })
-        .setParams(buildReportLogListParams({ page, limit, type, from, to, level, runId, uid, cid }))
+        .setParams(buildReportLogListParams(params))
         .execute<ReportLogListResponse>();
     return data ?? {};
 };

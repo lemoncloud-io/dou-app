@@ -63,7 +63,7 @@ describe('useLogConsoleState — URL 왕복', () => {
     it('reads server axes out of the query string', () => {
         setup('/report-logs?stage=d1&kind=log-entry&from=2026-09-01&to=2026-09-02&level=error&uid=u1&cid=c1&runId=r1');
 
-        expect(api.server).toEqual({
+        expect(api.server).toMatchObject({
             stage: 'd1',
             kind: 'log-entry',
             from: '2026-09-01',
@@ -73,6 +73,37 @@ describe('useLogConsoleState — URL 왕복', () => {
             cid: 'c1',
             runId: 'r1',
         });
+    });
+
+    /**
+     * The round-2 axes share their search params with the facet dropdowns, so one selection has to
+     * reach BOTH — the server narrowing and the client pass — or the two disagree about what is on
+     * screen. `toMatchObject` above would not catch them going missing, hence this.
+     */
+    it('reads the round-2 axes as server axes too, from the params the facets write', () => {
+        setup(
+            '/report-logs?tag=UPLOAD&appVersion=1.4.0&webVersion=0.62.0&route=/chat&os=iOS&osVersion=18.0&model=iPhone16'
+        );
+
+        expect(api.server).toMatchObject({
+            tag: 'UPLOAD',
+            appVersion: '1.4.0',
+            webVersion: '0.62.0',
+            route: '/chat',
+            os: 'iOS',
+            osVersion: '18.0',
+            model: 'iPhone16',
+        });
+        // And the same values still reach the client pass, which is what keeps the selection
+        // working while the backend change is undeployed and the params are ignored.
+        expect(api.client.facets).toMatchObject({ tag: 'UPLOAD', appVersion: '1.4.0' });
+    });
+
+    it('leaves an unset round-2 axis empty so the params builder omits it', () => {
+        setup('/report-logs?stage=d1');
+
+        expect(api.server.tag).toBe('');
+        expect(api.server.model).toBe('');
     });
 
     it('reads client axes out of the query string', () => {

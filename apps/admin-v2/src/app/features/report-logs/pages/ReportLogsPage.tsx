@@ -21,7 +21,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { STEREO_BY_KIND } from '../api/reportLogApi';
+import { ROUND_2_AXES, STEREO_BY_KIND } from '../api/reportLogApi';
 import { useLogConsoleState } from '../hooks/use-log-console-state';
 import { useLogCorpus, type CorpusParams } from '../hooks/use-log-corpus';
 import { useNewLogProbe } from '../hooks/use-new-log-probe';
@@ -72,6 +72,9 @@ export const ReportLogsPage = () => {
             uid: server.uid || undefined,
             cid: server.cid || undefined,
             runId: server.runId || undefined,
+            // Empty means "no filter": an empty string would be matched literally against
+            // `<field>.keyword` and come back with nothing.
+            ...Object.fromEntries(ROUND_2_AXES.map(axis => [axis, server[axis] || undefined])),
         }),
         [server]
     );

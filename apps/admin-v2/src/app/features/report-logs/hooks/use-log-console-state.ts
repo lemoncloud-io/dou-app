@@ -21,7 +21,7 @@
 import { useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
-import type { ReportKind, ReportStage } from '../api/reportLogApi';
+import { ROUND_2_AXES, type ReportKind, type ReportStage } from '../api/reportLogApi';
 import { FACET_KEYS, type FacetKey, type FacetSelection } from '../lib/logFacets';
 import { PIN_KEYS, type PinKey } from '../lib/pinAxes';
 
@@ -45,7 +45,7 @@ const CLIENT_FACET_KEYS = FACET_KEYS.filter((key): key is Exclude<FacetKey, 'lev
 const REPORT_KINDS: ReportKind[] = ['all', 'error', 'issue', 'log-entry'];
 
 /** Server-side axes. These define the corpus. */
-export interface ServerAxes {
+export interface ServerAxes extends Record<(typeof ROUND_2_AXES)[number], string> {
     stage: ReportStage;
     kind: ReportKind;
     from: string;
@@ -97,6 +97,14 @@ export const useLogConsoleState = (): LogConsoleState => {
             uid: read('uid'),
             cid: read('cid'),
             runId: read('runId'),
+            // Read from the SAME search params the facet dropdowns write, so one selection
+            // narrows the corpus server-side and the client pass at the same time. Keeping both
+            // is deliberate: until the backend deploy these params are silently ignored, and the
+            // client pass is what still makes the selection do something.
+            ...(Object.fromEntries(ROUND_2_AXES.map(axis => [axis, read(axis)])) as Record<
+                (typeof ROUND_2_AXES)[number],
+                string
+            >),
         }),
         [searchParams, read]
     );

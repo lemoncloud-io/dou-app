@@ -270,10 +270,40 @@ describe('ReportLogsPage — 서버 축 vs 수집분 축', () => {
         renderPage();
         await screen.findByText('2건 전수 수집 완료');
 
-        fireEvent.change(screen.getByLabelText('태그 (2)'), { target: { value: 'chat' } });
+        fireEvent.change(screen.getByLabelText('태그 (2) · 서버'), { target: { value: 'chat' } });
 
         // Still two options after selecting one — otherwise there is no way back.
-        await waitFor(() => expect(screen.getByLabelText('태그 (2)')).toBeTruthy());
+        await waitFor(() => expect(screen.getByLabelText('태그 (2) · 서버')).toBeTruthy());
+    });
+
+    /**
+     * chatic-backend-api #41 lifted `tag` to a top-level field, so choosing it narrows the corpus
+     * on the server rather than only hiding fetched rows. Before that it could only pick among
+     * values that happened to land in the collected page.
+     */
+    it('sends a tag selection to the server as a filter', async () => {
+        servePage([entry(), entry({ tag: 'chat', message: '다른 태그' })]);
+        renderPage();
+        await screen.findByText('2건 전수 수집 완료');
+        const before = fetchReportLogs.mock.calls.length;
+
+        fireEvent.change(screen.getByLabelText('태그 (2) · 서버'), { target: { value: 'chat' } });
+
+        await waitFor(() => expect(fetchReportLogs.mock.calls.length).toBeGreaterThan(before));
+        expect(lastParams().tag).toBe('chat');
+    });
+
+    /**
+     * The dropdown is hidden below two values, which a server-narrowed axis always reaches — it
+     * collects only its own value. Hiding it then would take the control away the moment it was
+     * used and leave no route back to `전체`.
+     */
+    it('keeps a selected facet visible even when it is the only value left', async () => {
+        servePage([entry({ tag: 'chat', message: '하나뿐' })]);
+        renderPage('/report-logs?tag=chat');
+        await screen.findByText('1건 전수 수집 완료');
+
+        expect(screen.getByLabelText('태그 (1) · 서버')).toBeTruthy();
     });
 });
 
