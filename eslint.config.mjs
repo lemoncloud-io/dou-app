@@ -58,6 +58,29 @@ export default [
         },
     },
     {
+        // `@chatic/data` is a headless data layer whose whole safety story is that apps see the
+        // barrel and nothing else — that is what lets the lib be rearranged with no blast radius
+        // outside it. The invariant used to be a grep in the lib README; this is the same check,
+        // run on every lint. `libs/data` itself is exempt: inside the lib, relative paths are how
+        // the layers talk.
+        files: ['**/*.ts', '**/*.tsx'],
+        ignores: ['libs/data/**'],
+        rules: {
+            '@typescript-eslint/no-restricted-imports': [
+                'error',
+                {
+                    patterns: [
+                        {
+                            group: ['@chatic/data/*'],
+                            message:
+                                'Import from the `@chatic/data` barrel. Paths inside it are closed — see libs/data/README.md.',
+                        },
+                    ],
+                },
+            ],
+        },
+    },
+    {
         // Native `title` tooltips wait on the browser (a second or more, restarting on every
         // mouse move) and ignore the app's TooltipProvider — desktop-web hints go through `Hint`.
         files: ['apps/desktop-web/src/**/*.tsx'],

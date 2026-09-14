@@ -37,7 +37,10 @@ export class ChannelLocalDataSource extends BaseLocalDataSource implements IChan
     ): Promise<DomainListResult<DomainChannel> | null> {
         const context = this.getContext(contextOverride);
         const allChannels = await this.cacheStorage.loadAll();
-        const placeId = query.sid ?? context.sid;
+        // No `sid` in the query means EVERY site of this cloud. It used to fall back to the ambient
+        // sid, which made the same call answer differently depending on which site happened to be
+        // selected — while the observer key could not see that difference (ADR-0085).
+        const placeId = query.sid;
         const isDefaultCloud = context.cid === 'default';
         const scopedChannels =
             isDefaultCloud || !placeId ? allChannels : allChannels.filter(channel => channel.sid === placeId);
@@ -190,7 +193,7 @@ export class ChannelLocalDataSource extends BaseLocalDataSource implements IChan
     }
 
     private getListKey(query: DomainChannelListPayload, contextOverride?: LocalDataSourceContextOverride): string {
-        const sid = query.sid ?? this.getSid(contextOverride) ?? '__all__';
+        const sid = query.sid ?? '__all__';
         return this.createListObserverKey(
             [
                 'channels',

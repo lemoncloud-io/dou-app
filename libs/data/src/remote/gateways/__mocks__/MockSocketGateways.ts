@@ -1,7 +1,12 @@
 import type { SocketGatewayBundle } from '..';
 
+/**
+ * Recurses into nested gateway objects so a `RoutedGateway<G>` (`device`) mocks all three of its
+ * slots. Stopping at the first level left `device.active.save` typed as the raw function, and a test
+ * calling `.mockResolvedValue()` on it had no type at all to check against.
+ */
 type MockedGateway<T> = {
-    [K in keyof T]: T[K] extends (...args: any[]) => any ? jest.MockedFunction<T[K]> : T[K];
+    [K in keyof T]: T[K] extends (...args: any[]) => any ? jest.MockedFunction<T[K]> : MockedGateway<T[K]>;
 };
 
 export type MockSocketGatewayBundle = {

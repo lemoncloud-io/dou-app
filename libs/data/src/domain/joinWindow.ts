@@ -29,5 +29,5 @@ import type { DomainChat } from './models';
  *   one, so a plain `chatNo > joinedNo` would hide the message the user just typed. A row with no
  *   server number is by definition one I created after joining.
  */
-export const isInJoinWindow = (chat: Pick<DomainChat, 'chatNo'>, joinedNo?: number): boolean =>
+export const isInJoinWindow = (chat: Partial<Pick<DomainChat, 'chatNo'>>, joinedNo?: number): boolean =>
     !joinedNo || !chat.chatNo || chat.chatNo > joinedNo;

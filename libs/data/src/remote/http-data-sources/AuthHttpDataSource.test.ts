@@ -15,6 +15,12 @@ describe('AuthHttpDataSource', () => {
             verifyAlias: jest.fn(),
             loginInvite: jest.fn(),
             inviteInfo: jest.fn(),
+            registerDevice: jest.fn(),
+            login: jest.fn(),
+            verifyNativeToken: jest.fn(),
+            exchangeCode: jest.fn(),
+            delegateCloud: jest.fn(),
+            exchangeToken: jest.fn(),
         };
         dataSource = new AuthHttpDataSource(gateway);
     });

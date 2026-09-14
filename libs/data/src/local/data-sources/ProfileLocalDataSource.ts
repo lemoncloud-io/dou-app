@@ -32,9 +32,11 @@ export class ProfileLocalDataSource extends BaseLocalDataSource implements IProf
 
     public async cacheReadList(
         query?: DomainProfileListPayload,
-        contextOverride?: LocalDataSourceContextOverride
+        _contextOverride?: LocalDataSourceContextOverride
     ): Promise<DomainListResult<DomainProfile> | null> {
-        const sid = query?.sid || query?.siteId || this.getSid(contextOverride) || '';
+        // Only the query decides the site filter — an ambient fallback would make the same query
+        // answer differently per selected site, invisibly to the observer key (ADR-0085).
+        const sid = query?.sid || query?.siteId || '';
         const uid = query?.uid || query?.userId;
         // Storage partitions only by cid/uid; sid is a logical filter applied here in memory.
         const allItems = await this.cacheStorage.loadAll();
@@ -241,7 +243,7 @@ export class ProfileLocalDataSource extends BaseLocalDataSource implements IProf
         return this.createListObserverKey(
             [
                 'profiles',
-                `sid:${query?.sid || query?.siteId || this.getSid(contextOverride) || '__all__'}`,
+                `sid:${query?.sid || query?.siteId || '__all__'}`,
                 `uid:${query?.uid || query?.userId || '__all__'}`,
             ],
             contextOverride

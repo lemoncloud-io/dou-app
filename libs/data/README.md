@@ -234,11 +234,13 @@ consumer side.
 ## How to verify
 
 ```bash
-npx tsc -b libs/data/tsconfig.lib.json
+npx tsc -b libs/data/tsconfig.lib.json     # the lib
+npx tsc -b libs/data/tsconfig.spec.json    # tests and __mocks__
 npx jest --config libs/data/jest.config.js
 ```
 
 - Type checking must be `tsc -b tsconfig.lib.json`. Inside `libs/data`, `tsc --noEmit` checks zero files and succeeds.
+- **The two type checks are separate on purpose.** `tsconfig.lib.json` excludes `*.test.ts` and `__mocks__/**`, and jest does not type check at all — the base sets `isolatedModules`, so ts-jest transpiles. Without the second command a broken test fixture (a mock missing an action, say) surfaces only as `… is not a function` at runtime. `nx typecheck @chatic/data` runs both, but it also runs every dependency's own typecheck, which is not green today.
 - All 25 data sources have a matching test, and 12 of the 13 repositories do — `SyncMetaRepository` is the one without. The commands above are what answer this, not this sentence.
 - Downstream check: type check `apps/web`, `apps/desktop-web` and `libs/app-runtime`. A changed barrel identifier surfaces there.
 - A stale `dist`/`out-tsc` produces phantom errors. After physically moving a directory, force-delete them with `rm -rf libs/data/dist libs/data/out-tsc` and look again.

@@ -9,5 +9,24 @@
         // own; this config only has to be checkable.
         "types": ["jest", "node"]
     },
-    "include": ["src/**/*.ts", "src/**/*.d.ts"]
+    // `__mocks__` is listed explicitly even though `src/**/*.ts` already covers it: tsconfig.lib.json
+    // excludes that folder, and the nx typecheck target derives its cache inputs from these globs —
+    // without this entry a change to a shared mock would not invalidate the cache.
+    "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/__mocks__/**/*.ts"],
+    // The same sibling projects tsconfig.lib.json references. A composite project has to reach its
+    // dependencies through references, or their sources come in as unlisted files (TS6307).
+    "references": [
+        {
+            "path": "../logger/tsconfig.lib.json"
+        },
+        {
+            "path": "../http/tsconfig.lib.json"
+        },
+        {
+            "path": "../bridges/tsconfig.lib.json"
+        },
+        {
+            "path": "../app-messages/tsconfig.lib.json"
+        }
+    ]
 }

@@ -44,7 +44,7 @@ const createMemoryStorage = (): CacheStorage<'join'> => {
                 .map(id => ({ ...map.get(id) }))
                 .reverse();
         },
-        async loadAll(options?: any) {
+        async loadAll(options) {
             loadAllCalls += 1;
             const list = Array.from(map.values()).map(item => ({ ...item }));
             if (!options?.channelId) return list;
@@ -62,7 +62,7 @@ const createMemoryStorage = (): CacheStorage<'join'> => {
         async clearByChannelId() {
             // not used here
         },
-    } as unknown as CacheStorage<'join'>;
+    };
 };
 
 const createSource = () => {

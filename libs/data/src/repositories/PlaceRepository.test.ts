@@ -199,14 +199,16 @@ describe('PlaceRepository', () => {
 
     it('writes to the request-time snapshot even if the global context changes before remote resolve', async () => {
         const mutableContext = { cid: 'cloud-a', sid: 'site-1', uid: 'me' };
-        let resolveRemote: ((value: unknown) => void) | null = null;
+        // The executor runs synchronously, so the resolver is assigned before anything below can
+        // reach it — hence the definite assignment. Declaring it `| null = null` instead made the
+        // control-flow analysis narrow it to `null` (an assignment inside a callback is not seen as
+        // having run), and the call site below stopped typechecking.
+        let resolveRemote!: (value: unknown) => void;
+        const pendingRemote = new Promise(resolve => {
+            resolveRemote = resolve;
+        });
         const placeSocketDataSource = {
-            fetchPlace: jest.fn().mockImplementation(
-                () =>
-                    new Promise(resolve => {
-                        resolveRemote = resolve;
-                    })
-            ),
+            fetchPlace: jest.fn().mockReturnValue(pendingRemote),
             createPlace: jest.fn(),
             getPlace: jest.fn(),
             updatePlace: jest.fn(),
@@ -229,7 +231,7 @@ describe('PlaceRepository', () => {
 
         const pending = repository.refreshList({});
         Object.assign(mutableContext, { cid: 'cloud-b', sid: 'site-9', uid: 'other' });
-        resolveRemote?.({ list: [{ id: 'place-1', name: 'A' }] });
+        resolveRemote({ list: [{ id: 'place-1', name: 'A' }] });
 
         await pending;
 
