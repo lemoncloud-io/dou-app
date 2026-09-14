@@ -14,15 +14,17 @@ const builder: LemonRequestBuilder = {
     execute,
 };
 
+// `jest.Mocked<T>` pins each mock's ARGUMENT tuple to the interface's, so a zero-arg implementation
+// does not satisfy it — the mock has to declare the config it ignores.
 const lemonSurface: jest.Mocked<LemonRequestSurface> = {
-    buildRequest: jest.fn(() => builder),
-    buildSignedRequest: jest.fn(() => builder),
+    buildRequest: jest.fn((_config: { method: string; baseURL: string }) => builder),
+    buildSignedRequest: jest.fn((_config: { method: string; baseURL: string }) => builder),
 };
 
+// `resolveEndpoint` is the only required port. There is no `getCredential`/`getIdentityToken` here:
+// signing happens inside the lemon builder, so the client never reads credential material itself.
 const ports: HttpRuntimePorts = {
     resolveEndpoint: () => 'https://api.test',
-    getCredential: () => null,
-    getIdentityToken: () => null,
 };
 
 beforeEach(() => {

@@ -19,12 +19,15 @@ const builder: LemonRequestBuilder = {
 };
 
 const lemonSurface: jest.Mocked<LemonRequestSurface> = {
-    buildRequest: jest.fn(() => builder),
-    buildSignedRequest: jest.fn(() => builder),
+    buildRequest: jest.fn((_config: { method: string; baseURL: string }) => builder),
+    buildSignedRequest: jest.fn((_config: { method: string; baseURL: string }) => builder),
 };
 
 /** Axios' shape for "the request never came back with a response". */
 const networkError = () => Object.assign(new Error('Network Error'), { code: 'ERR_NETWORK' });
+
+/** `.catch(e => e)` hands back `unknown`; the cases below assert on the axios error's own fields. */
+type ThrownAxiosError = Error & { code?: string };
 
 const portsWith = (isCredentialStale?: (route: HttpRoute) => boolean): HttpRuntimePorts => ({
     resolveEndpoint: () => 'https://api.test',
@@ -109,7 +112,7 @@ describe('signed request failure — credential attribution', () => {
             .catch(e => e);
 
         expect(staleCredentialMarker.isMarked(error)).toBe(false);
-        expect(error.message).toBe('Network Error');
+        expect((error as ThrownAxiosError).message).toBe('Network Error');
     });
 
     it('원래 에러를 그대로 던진다 — 표시는 덧붙일 뿐 대체하지 않는다', async () => {
@@ -125,7 +128,7 @@ describe('signed request failure — credential attribution', () => {
             .catch(e => e);
 
         expect(error).toBe(original);
-        expect(error.code).toBe('ERR_NETWORK');
+        expect((error as ThrownAxiosError).code).toBe('ERR_NETWORK');
     });
 
     it('표시된 에러는 network가 아니라 AUTHENTICATION으로 분류된다 — 리포트 카테고리가 뒤집히는 지점', async () => {
