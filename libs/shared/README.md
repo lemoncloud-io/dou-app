@@ -1,7 +1,7 @@
 # @chatic/shared
 
-**One barrel of React-side parts that more than one front end reaches for.** It holds nine
-presentational components, twelve hook modules, the per-place sidebar preferences, seven small helpers
+**One barrel of React-side parts that more than one front end reaches for.** It holds six
+presentational components, seven hook modules, the per-place sidebar preferences, five small helpers
 and two constant tables, and exports all of it from a single entry point that five projects import.
 
 It is a catch-all rather than a layer, and that has a measurable cost. [Scope](#scope) states what the
@@ -27,8 +27,8 @@ grep -rln "@chatic/shared" --include='*.ts' --include='*.tsx' apps libs | grep -
 This lib **owns no domain data and makes no network call.** It reads no server model except four
 fields of `MembershipView`, and it stores nothing of its own: the two preference keys it shapes are
 persisted by `@chatic/config`, and every other cached value belongs to `@chatic/data`. It is also not
-the design system — `Button`, `Dialog`, `Input`, `Label` and `cn` come from `@chatic/ui-kit`, and
-components here compose them.
+the design system — `Button`, `Dialog` and the `cn` helper all come from `@chatic/ui-kit`, and the
+components here compose `Button` and `cn` rather than declaring a primitive of their own.
 
 ## Design principles
 
@@ -52,11 +52,14 @@ components here compose them.
    (ADR-0079), and even that is no escape hatch for a module-load constant, because `config.init()`
    runs in each app's entry point, after this module has already evaluated. `useVersionCheck`'s
    polling interval is the worked example: its env branch was deleted rather than moved.
-7. **A component added here brings no translations with it.** `VersionUpdateBanner` and
-   `TokenGeneratorModal` call `useTranslation()` against `version.*` and `authTest.*` keys that live in
-   the consuming app's locale files. The three error screens break this rule — they render the
-   hardcoded Korean `ERROR_MESSAGES` table in `consts/`. That split is an inconsistency, not a design;
-   follow the i18n side of it.
+7. **A component added here brings no translations with it.** `VersionUpdateBanner` calls
+   `useTranslation()` against `version.*` keys that live in the consuming app's locale files. The three
+   error screens break this rule — they render the hardcoded Korean `ERROR_MESSAGES` table in
+   `consts/`. That split is an inconsistency, not a design; follow the i18n side of it.
+8. **An export with no reader is a defect, not inventory.** Nothing in the repo type checks against
+   an unused export, so the only thing that catches one is the sweep in
+   [Scope](#the-membership-rule-and-where-it-fails). Run it before you add, and run it when you remove
+   a consumer — a barrel is where deleted call sites leave their residue.
 
 ## Scope
 
@@ -64,22 +67,30 @@ components here compose them.
 sidebar preferences and their scope key, the swappable session-storage adapter, and small pure
 helpers over the DOM and over dates, query keys and images.
 
-**Out** — design-system primitives (`@chatic/ui-kit`), logging (`@chatic/bridges`, `logger`), images
-and logos (`@chatic/assets`), device and platform facts (`@chatic/device-utils`), setting keys, lanes
-and persistence (`@chatic/config`), domain data (`@chatic/data`), and the HTTP client and its error
-classification (`@chatic/http`).
+**Out** — design-system primitives, `Toaster` included (`@chatic/ui-kit`), logging
+(`@chatic/bridges`, `logger`), images and logos (`@chatic/assets`), device and platform facts
+(`@chatic/device-utils`), setting keys, lanes and persistence (`@chatic/config`), domain data
+(`@chatic/data`), the HTTP client and its error classification, `throwIfApiError` included
+(`@chatic/http`), and the transport types the SDK already declares — `ListResult` from
+`@lemoncloud/chatic-backend-api`, `Params` from `@lemoncloud/lemon-web-core`.
+
+Those four are named rather than left implied because each is the kind of thing that reads as harmless
+on the way in: a `sonner` wrapper, a four-line copy of the HTTP client's error promoter, two interfaces
+the SDK already declares. A duplicate in a barrel five projects import is not harmless. It is a second
+answer to a settled question, and call sites split between the two answers without anyone deciding to.
 
 ### The membership rule, and where it fails
 
 That "In" list is a description of what is here, not a rule that decides what should be. The honest
 version is: **a thing lands in `@chatic/shared` when a second app needs it and no existing module
-obviously owns it.** A module with that rule accumulates, and this one has. Four measurements, each
-reproducible:
+obviously owns it.** A module with that rule accumulates faster than it sheds, because nothing in the
+build objects to an export that nobody imports. Three measurements, each reproducible:
 
-- **Eleven runtime exports have no reader anywhere in the repo** — `Loader`, `Toaster`,
-  `TokenGeneratorModal`, `useBlocker`, `useLocalStorage`, `usePagination`, `useDeviceId`, `useTick`,
-  `useGoBack`, `deleteUndefinedProperty` and `throwIfApiError`. That is ten whole files and 626 of the
-  lib's 2,077 non-test lines, `TokenGeneratorModal` alone being 348 of them.
+- **`types/` has no reader at all.** Its four declarations — `PaginationType`, `TokenGenerateRequest`,
+  `TokenGenerateResponse` and `TokenGeneratorFormState` — are named by no file outside this lib and by
+  no file inside it. `consts/` carries two more of the same kind, `StorePlatform` and
+  `ErrorMessageType`. Types cost nothing at run time, which is exactly why nothing ever forces the
+  question.
 
     ```bash
     # per symbol: is it named in any file that imports @chatic/shared?
@@ -87,19 +98,20 @@ reproducible:
       | grep -v node_modules | grep -v '^libs/shared/' | xargs grep -lw '<symbol>'
     ```
 
-- **Two exports are duplicates of the module that owns them.** `utils/throwIfApiError.ts` is
-  character-for-character `libs/http/src/client.ts`'s helper of the same name — and it is `libs/http`'s
-  copy that every caller actually reaches, because the HTTP client applies it. `types/index.ts`
-  re-declares `ListResult` and `Params`; every consumer imports those from
-  `@lemoncloud/chatic-backend-api` and `@lemoncloud/lemon-web-core` instead.
-- **A third duplicate is shadowed at the call site.** `components/Toaster.tsx` wraps `sonner`, and
-  `apps/web` mounts `@chatic/ui-kit`'s `Toaster` next to `sonner`'s own — neither of them this one.
+    A zero from that sweep is a question, not a verdict — many exports here are reached only from
+    inside the lib, `ERROR_MESSAGES` and the `preferences/` writers among them. Check `libs/shared/src`
+    too before concluding anything is unused.
+
+- **Reach across the barrel is lopsided.** `useNavigateWithTransition` is named in 74 of the 138
+  consumer files. Nine exports are named in exactly one, and nine more in two. A module whose contents
+  range that far apart in demand is not one concern, and the single-consumer end is where the next
+  thing to move out comes from — one consumer means one owner, and that owner is a feature.
 - **The barrel is DOM-bound, and a React Native app imports it anyway.** `apps/mobile` takes exactly
   two constants from here, `STORE_URLS` and `getStoreUrl`. Its `package.json` nonetheless lists
   `react-router-dom`, `sonner` and `next-themes` as dependencies while its own source imports none of
-  them, and it reaches neither of those three through `@chatic/ui-kit`, which it does not import at
-  all. They are reachable only through this barrel. Its two test files `jest.mock('@chatic/shared')`
-  wholesale for the same reason.
+  them, and it does not import `@chatic/ui-kit` at all. Only `react-router-dom` is still reachable
+  through this barrel, by way of `NotFoundPage` and `RouterErrorFallback`; the other two entries answer
+  to nothing. Its two test files `jest.mock('@chatic/shared')` wholesale for the same reason.
 
 None of that is a reason to leave. It is the reason to ask, before adding: does `@chatic/ui-kit`,
 `@chatic/config`, `@chatic/device-utils` or the feature itself own this? `@chatic/shared` is the
@@ -119,13 +131,13 @@ flowchart TD
 
     Barrel["src/index.ts<br/><i>the only entry point</i>"]:::grp
 
-    Comp["components/ × 9<br/><i>React, DOM</i>"]:::grp
-    Hooks["hooks/ × 12<br/><i>React</i>"]:::grp
+    Comp["components/ × 6<br/><i>React, DOM</i>"]:::grp
+    Hooks["hooks/ × 7<br/><i>React</i>"]:::grp
     Prefs["preferences/ × 3<br/><i>per-place UI settings</i>"]:::pure
-    Utils["utils/ × 7"]:::pure
+    Utils["utils/ × 5"]:::pure
     Const["consts/ · types/"]:::pure
 
-    UiKit["@chatic/ui-kit<br/><i>Button · Dialog · cn</i>"]:::ext
+    UiKit["@chatic/ui-kit<br/><i>Button · cn</i>"]:::ext
     Assets["@chatic/assets<br/><i>Logo</i>"]:::ext
     Bridges["@chatic/bridges<br/><i>logger</i>"]:::ext
     Cfg["@chatic/config<br/><i>config · useConfigValue</i>"]:::ext
@@ -148,9 +160,10 @@ flowchart TD
 ```
 
 **The six directories are not layers.** Five of them import nothing from each other; only
-`components/` reaches sideways, into `hooks/`, `consts/` and `types/`. There is no order to respect
-and no dependency to invert — which is exactly why the barrel is the only thing holding the module
-together, and why [Scope](#scope) has to do the work a layer map would otherwise do.
+`components/` reaches sideways, into `hooks/` and `consts/`. Nothing reaches `types/` at all. There is
+no order to respect and no dependency to invert — which is exactly why the barrel is the only thing
+holding the module together, and why [Scope](#scope) has to do the work a layer map would otherwise
+do.
 
 ### Writing a per-place preference
 
@@ -185,12 +198,12 @@ older build left malformed is repaired by the next write rather than propagated.
 ```text
 libs/shared/src/
 ├── index.ts          public barrel — six lines of `export *`
-├── components/       9 components + index; all React, all DOM
+├── components/       6 components + index; all React, all DOM
 ├── consts/           STORE_URLS, and ERROR_MESSAGES inline in index.ts
-├── hooks/            12 hook modules + index
+├── hooks/            7 hook modules + index
 ├── preferences/      pinnedChannels · channelOrder · placeScope + index
-├── types/            index.ts and nothing else — six type declarations
-└── utils/            7 single-purpose helpers + index
+├── types/            index.ts and nothing else — four declarations, no reader
+└── utils/            5 single-purpose helpers + index
 ```
 
 Four things the filenames do not tell you.
@@ -200,11 +213,12 @@ Four things the filenames do not tell you.
   `errorMessages.ts` to open.
 - **`hooks/useGlobalLoader.tsx` holds the zustand store, not a component.** It is `.tsx` and contains
   no JSX. The overlay that reads the store is `components/GlobalLoader.tsx`.
-- **`@chatic/lib/utils`, imported by two components, is `libs/ui-kit/src/utils`.** The alias does not
-  name ui-kit; `tsconfig.base.json`'s `paths` is where that is settled.
-- **`usePageTransition.ts` exports `useNavigateWithTransition` and `useGoBack`,** thin wrappers that
-  feed `@lemoncloud/react-page-transition` a platform from `@chatic/device-utils`. The first is by far
-  the most-imported symbol in the lib.
+- **`@chatic/lib/utils`, imported by `VersionUpdateBanner`, is `libs/ui-kit/src/utils`.** The alias does
+  not name ui-kit; `tsconfig.base.json`'s `paths` is where that is settled.
+- **`usePageTransition.ts` exports `useNavigateWithTransition`,** a thin wrapper that feeds
+  `@lemoncloud/react-page-transition` a platform from `@chatic/device-utils`. It is by far the
+  most-imported symbol in the lib, and the file also holds the private `usePageTransitionConfig` that
+  builds that platform.
 
 ## Usage
 
@@ -333,6 +347,11 @@ does — it builds `./tsconfig.json` with no argument, and that config reference
 - A stale `dist`/`out-tsc` produces phantom errors after a directory moves. Force-delete both —
   `rm -rf libs/shared/out-tsc dist/out-tsc` — and look again.
 - Downstream: a changed barrel identifier reaches `apps/web`, `apps/desktop-web`, `apps/admin-v2`,
-  `apps/mobile` and `libs/app-runtime`. `.github/workflows/verify.yml` type checks `admin-v2` and
-  `@chatic/app-runtime`; `web`, `desktop-web` and `@chatic/mobile` are on its exclusion list, so those
-  three are the ones to run by hand. Its test step excludes `web` alone of this lib's consumers.
+  `apps/mobile` and `libs/app-runtime`. `.github/workflows/verify.yml` type checks `web`, `admin-v2`
+  and `@chatic/app-runtime`; `desktop-web` and `@chatic/mobile` are on its exclusion list, so those two
+  are the ones to run by hand. Its test step excludes `web` alone of this lib's consumers.
+- **`desktop-web` fails its type check either way.** Its baseline is 21 errors, none of them in a file
+  that imports this barrel, and the workflow records the same number. Diff the error list against that
+  baseline rather than reading a red run as your own — and remember that `@chatic/mobile` reports a
+  `TS6053` for `@nx/react-native/typings/svg.d.ts` when it runs from a git worktree, because the
+  script's literal `node_modules` path does not resolve upward the way Node does.
