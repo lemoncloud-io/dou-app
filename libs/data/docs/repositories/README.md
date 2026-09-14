@@ -36,17 +36,24 @@ user-event path.
 
 `BaseRepository` uses no event bus and no cachePolicy. It provides only what is commonly needed.
 
-- `getRequestContext()` — captures a snapshot of `cid`/`sid`/`uid` at call time. **Because the request-time and response-time contexts can differ, the context has to be captured before a remote response is written.**
+- `getRequestContext()` — captures a snapshot of the context at call time. **Because the request-time and response-time contexts can differ, the context has to be captured before a remote response is written.**
 - `getNormalizedContext()` — normalizes a missing `cid` to `'default'`.
 - `assertRequiredString` — validates a required identifier.
 - `dispose()` — the factory routes every repository's cleanup here. There is nothing to release at the base level today; it is the seat for a subclass that holds a resource.
 
 ## Context and scope
 
-`DataContext` is `cid` (the connected cloud), `sid` (the selected place) and `uid` (the current user). A
+`DataContext` is `cid` (the connected cloud) and `uid` (the current user) — the cache scope. A
 repository does not hold the context; it reads the current value through a `DataContextProvider` on
-every call (`DataContextHolder`). So a cloud or place switch requires no rebuild, and `withContext(snapshot)`
+every call (`DataContextHolder`). So a cloud switch requires no rebuild, and `withContext(snapshot)`
 can produce a copy pinned to a specific context.
+
+`sid` is **not** ambient (ADR-0085). The field exists on `DataContext`, but nothing seeds it: a
+repository that needs a place takes it as an argument (`setMyProfile(body, siteId)`,
+`syncProfiles(since, siteId)`, `createChannel(payload, siteId)`, `getSelfChannel(payload, siteId)`,
+`refreshList({ sid })`) and puts it on the context it hands down. It has to travel that way because
+`profile.sync`, `channel.mine` and `channel.get-self` return rows carrying no place of their own —
+the caller's value is the only thing that can tag them.
 
 ## The core contract
 
@@ -229,7 +236,7 @@ whatever rows remain.
 ## Notes for implementers and tests
 
 - Capture the request-time context before writing a remote response (`getRequestContext`). A response arriving late during a cloud switch must not poison the current scope.
-- A `sid` fallback mistake leads to cross-place contamination.
+- Never fall back to the context for a `sid` a caller did not give. That fallback is what tagged writes for the wrong place during a site switch (ADR-0085); ask the caller instead.
 - For `chat.feed`, merging matters more than overwriting.
 - If a path remains where a hook renders a remote return list directly, it breaks this lib's goal.
 - HTTP injection (`httpDataSources`) is optional. Calling an HTTP method without it throws an explicit error.

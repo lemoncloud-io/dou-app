@@ -202,8 +202,9 @@ timestamp belong to the chat cache (ADR-0057, `domain/mappers.ts`).
 
 `DataContextHolder` receives a new `cid`. Repositories do not hold the context; they read the current
 value through `DataContextProvider` on every call, so nothing has to be rebuilt. Observers are isolated
-by the `stableHash` of the `cid`/`sid`/`uid` tuple, so a changed scope activates a different set of
-observers.
+by the `stableHash` of the `cid`/`uid` pair, so a changed scope activates a different set of
+observers. A place switch does NOT change that scope — see
+[docs/local/README.md](./docs/local/README.md#scope-and-cache-slots).
 
 ### 5. Leaving a room and coming back
 
@@ -242,5 +243,8 @@ npx jest --config libs/data/jest.config.js
 - Type checking must be `tsc -b tsconfig.lib.json`. Inside `libs/data`, `tsc --noEmit` checks zero files and succeeds.
 - **The two type checks are separate on purpose.** `tsconfig.lib.json` excludes `*.test.ts` and `__mocks__/**`, and jest does not type check at all — the base sets `isolatedModules`, so ts-jest transpiles. Without the second command a broken test fixture (a mock missing an action, say) surfaces only as `… is not a function` at runtime. `nx typecheck @chatic/data` runs both, but it also runs every dependency's own typecheck, which is not green today.
 - All 25 data sources have a matching test, and 12 of the 13 repositories do — `SyncMetaRepository` is the one without. The commands above are what answer this, not this sentence.
-- Downstream check: type check `apps/web`, `apps/desktop-web` and `libs/app-runtime`. A changed barrel identifier surfaces there.
+- Downstream check: a changed barrel identifier reaches eight projects — `apps/web`, `apps/desktop-web`,
+  `libs/app-runtime`, `apps/testbed`, `libs/db`, `libs/block-kit`, `apps/admin-v2` and `@chatic/mobile`.
+  `.github/workflows/verify.yml` type checks every one of them except `apps/web`, `apps/desktop-web` and
+  `@chatic/mobile`, so those three are the ones to run by hand.
 - A stale `dist`/`out-tsc` produces phantom errors. After physically moving a directory, force-delete them with `rm -rf libs/data/dist libs/data/out-tsc` and look again.

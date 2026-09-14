@@ -45,7 +45,7 @@ Which of the two a domain gets is decided by neither of them — `resolveCacheBa
 
 - Reading local snapshots and emitting streams
 - Partial merge and normalization
-- Scope separation (`cid` / `sid` / `uid`)
+- Scope separation (`cid` / `uid`)
 - Re-emitting, as a UI read-model, the remote results a repository wrote
 
 ## The shared contract
@@ -92,10 +92,21 @@ touches local, **only the affected observers** are recomputed.
 
 ## Scope and cache slots
 
-A scope is `cid` (cloud), `sid` (place) and `uid` (user). Observers are isolated by the `stableHash` of
-that tuple (`getScopeKey`). Missing `cid`/`uid` normalize to `'default'`, and a missing `sid` normalizes
-to `''` — **not** using `'default'` there is the point (having no place and having a place named
-'default' are different scopes).
+A scope is `cid` (cloud) and `uid` (user) — **the same pair the storage partition uses**
+(`AdapterScope`, `ports/policy.ts`). Observers are isolated by the `stableHash` of that pair
+(`getScopeKey`); a missing `cid`/`uid` normalizes to `'default'`.
+
+**`sid` is not part of it (ADR-0085).** It used to be, and that split one physical partition across
+several observer scopes: a write made under one place never reemitted an observer that had subscribed
+under another, even though both read the very same rows. A place switch clears and re-selects the
+place on its own timeline, so the two disagreed routinely and the rail went stale on screen while the
+cache held the data.
+
+Per-place views are isolated where they are actually asked for — the `|sid:<sid>|` segment of a list
+key (`ChannelLocalDataSource`, `ProfileLocalDataSource`). The rule that keeps this sound: **a field
+that reaches storage belongs in the observer key**, never in the scope alone. Put another way, if a
+read's answer depends on a value, that value has to be in the key, because observers sharing a key
+share one query execution.
 
 Physical storage is per `CacheStorage<TType>` slot. There are nine slot keys: `channel`, `chat`, `user`,
 `join`, `site`, `invitecloud`, `profile`, `meta`, `invite`.

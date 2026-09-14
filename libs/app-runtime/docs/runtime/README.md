@@ -34,7 +34,7 @@ export interface RuntimeSocketSlots {
 
 파생 규칙:
 
-> **캐시 문맥(`{cid, sid, uid}`)은 이 훅의 출력이 아니다.** 예전 `RuntimeBinding` 은 `context` 필드로
+> **캐시 문맥(`{cid, uid}`)은 이 훅의 출력이 아니다.** 예전 `RuntimeBinding` 은 `context` 필드로
 > 그것도 실었지만 읽는 프로덕션 코드가 없었고, 공식이
 > [`deriveSelectedContext`](../../src/session/scope/selectedContext.ts) 와 글자 단위로 같았다. 데이터
 > 스코프의 원천은 [`ActiveScope`](../../src/session/scope/ActiveScope.ts) 가 매 read 마다

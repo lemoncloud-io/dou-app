@@ -19,8 +19,16 @@ beforeEach(() => {
 });
 
 describe('deriveSelectedContext — 파생 규칙 (useRuntimeBinding에서 옮겨온 식)', () => {
-    it('선택된 클라우드·활성 사이트·사용자로 스코프를 만든다', () => {
-        expect(deriveSelectedContext()).toEqual({ cid: 'c1', sid: 'site-1', uid: 'u1' });
+    it('선택된 클라우드와 사용자로 스코프를 만든다 — 사이트는 넣지 않는다', () => {
+        // 스코프는 저장 파티션과 같은 모양(`{cid, uid}`)이다. 사이트는 호출자가 인자로 지목하는
+        // 값이지 데이터 레이어가 세션에서 주워 오는 값이 아니다 (ADR-0085).
+        expect(deriveSelectedContext()).toEqual({ cid: 'c1', uid: 'u1' });
+    });
+
+    it('활성 사이트가 있어도 sid 키 자체를 만들지 않는다', () => {
+        // `toEqual`은 `sid: undefined`와 키 부재를 구분하지 못하므로 키로 직접 확인한다.
+        // 여기서 sid가 다시 생기면 사이트 전환 경합이 그대로 돌아온다.
+        expect('sid' in deriveSelectedContext()).toBe(false);
     });
 
     it('클라우드가 없거나 default면 cid는 default다', () => {
@@ -31,12 +39,12 @@ describe('deriveSelectedContext — 파생 규칙 (useRuntimeBinding에서 옮�
         expect(deriveSelectedContext().cid).toBe('default');
     });
 
-    it('sid·uid가 없으면 undefined로 남긴다 — 빈 문자열로 바꾸지 않는다', () => {
+    it('uid가 없으면 undefined로 남긴다 — 빈 문자열로 바꾸지 않는다', () => {
         mockGetGlobalSessionContext.mockReturnValue(
             session({ activeServer: { siteId: null }, identity: { userId: null } })
         );
 
-        expect(deriveSelectedContext()).toEqual({ cid: 'c1', sid: undefined, uid: undefined });
+        expect(deriveSelectedContext()).toEqual({ cid: 'c1', uid: undefined });
     });
 
     // 커밋된 값이 아니라 선택값을 따르는 것이 낙관적 전환의 핵심이다. 커밋 뷰는

@@ -61,7 +61,8 @@ export interface IChannelRepository extends DisposableRepository {
     leaveChannel(payload: ChatLeaveInput): Promise<DomainChannel>;
     deleteChannel(payload: ChannelDeleteInput): Promise<DomainChannel>;
 
-    getSelfChannel(payload?: ChannelGetSelfInput): Promise<DomainChannel>;
+    /** `channel.get-self` — `siteId` tags the returned row; the response carries no site (ADR-0085). */
+    getSelfChannel(payload: ChannelGetSelfInput | undefined, siteId: string): Promise<DomainChannel>;
     getUnreads(payload?: ChannelUnreadsInput): Promise<UnreadsSummaryView>;
 
     cacheRead(id: string): Promise<DomainChannel | null>;
@@ -303,7 +304,12 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
         await this.channelLocalDataSource.cacheWrite(optimistic, requestContext);
 
         try {
-            const domain = await this.channelSocketDataSource.createChannel(payload, normalizedContext);
+            // Mapped under the caller's site: the create response carries none, and the optimistic
+            // row above lives under a temp id, so this write has no cached sid to inherit either.
+            const domain = await this.channelSocketDataSource.createChannel(payload, {
+                ...normalizedContext,
+                sid,
+            });
             await this.channelLocalDataSource.cacheWrite(domain, requestContext);
             await this.channelLocalDataSource.cacheDelete(tempId, requestContext);
             return domain;
@@ -426,9 +432,13 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
     // Fetch the "notes-to-self" (notes-to-self) channel for the active site and cache it so it shows in
     // the channel list. Mirrors createChannel's context handling: map under the normalized context
     // (tags the active sid) and write under the live request context so list observers re-emit.
-    public async getSelfChannel(payload?: ChannelGetSelfInput): Promise<DomainChannel> {
+    public async getSelfChannel(payload: ChannelGetSelfInput | undefined, siteId: string): Promise<DomainChannel> {
         const requestContext = this.getRequestContext();
-        const normalizedContext = this.getNormalizedContext(requestContext);
+        // `channel.get-self` answers with no site on the row (measured), and this is the FIRST write
+        // of that row, so there is no cached sid to fall back to either. The caller's site is the
+        // only thing that can tag it.
+        const sid = this.assertRequiredString(siteId, 'siteId');
+        const normalizedContext = { ...this.getNormalizedContext(requestContext), sid };
         const domain = await this.channelSocketDataSource.getSelfChannel(payload ?? {}, normalizedContext);
         // Skip the cache write when the answering socket is still bound to a different cloud (the
         // switch optimistic window) so we don't poison the target partition. Mirrors refreshList.

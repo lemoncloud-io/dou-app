@@ -13,7 +13,7 @@
 ```tsx
 function AppInner() {
     // Host가 세션에서 relay/cloud 소켓 슬롯을 스스로 파생한다 (`useRuntimeSocketSlots`).
-    // 캐시 스코프(cid/sid/uid)는 여기로 흐르지 않는다 — 소비자가 스토어에서 읽는다.
+    // 캐시 스코프(cid/uid)는 여기로 흐르지 않는다 — 소비자가 스토어에서 읽는다.
     return (
         <RuntimeConnectionHost>
             <BrowserRouter>

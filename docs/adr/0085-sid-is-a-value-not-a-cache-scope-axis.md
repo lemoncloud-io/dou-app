@@ -136,50 +136,72 @@ sid와 서버가 실제로 쓰는 사이트가 어긋난다.
 
 ## 결정 (Decision)
 
-### 1. `DataContext`에서 sid를 제거한다
+### 1. 생산자가 sid를 심지 않는다. 필드는 명시 전달 수단으로 남는다
 
-결정 2·3을 적용하고 나면 ambient sid를 읽는 자리는 18곳이 남는다. 세 덩어리이고, 처리도 셋으로 갈린다.
+ambient sid의 출처는 하나다 — `deriveSelectedContext`가 세션의 활성 사이트를 컨텍스트에 얹는
+한 줄(`libs/app-runtime/src/session/scope/selectedContext.ts:32`). **그 줄을 지운다.** 사이트가
+필요한 리포지토리는 인자로 받고, 자기가 아래로 넘기는 컨텍스트에 그 값을 직접 얹는다.
 
-| 덩어리                    | 자리                                                                                                                              | 처리                     |
-| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | ------------------------ |
-| **읽기 기본값**           | `ChannelLocalDataSource:55`·`:208`, `ProfileLocalDataSource:37`·`:244`                                                            | 삭제. 타는 호출부가 없다 |
-| **쓰기 태그·매핑 폴백**   | `mappers:93`·`:215`, `ChannelLocalDataSource:111`·`:153`, `ProfileLocalDataSource:190`·`:219`, `ProfileSocketDataSource:54`·`:74` | 삭제. 사고의 출처다      |
-| **"내 현재 사이트" 계약** | `ProfileRepository:106`·`:150`·`:158`, `ChannelRepository:191`                                                                    | 명시 인자로 올린다       |
+`DataContext.sid` 필드는 남는다. 지우지 않는 이유는 측정에서 나왔다.
 
-세 번째만 시그니처가 바뀐다.
+| 응답               | sid를 싣나       | 근거                                                              |
+| ------------------ | ---------------- | ----------------------------------------------------------------- |
+| `profile.get-mine` | **싣는다**       | 실측 — `siteId: "0000"`                                           |
+| `profile.sync`     | **안 싣는다**    | 서버 타입 `ProfileSyncMap` = `uid → {nick, thumbnail, updatedAt}` |
+| `channel.get-self` | **안 싣는다**    | 실측 — 키 14개에 sid 없고 `$`에도 없다                            |
+| `channel.mine`     | **안 싣는다**    | `ChannelModel`에 sid 필드 자체가 없다                             |
+| `channel.sync`     | 싣는다 — `$.sid` | `ChannelRepository`가 그걸 전제로 거른다                          |
 
-- `setMyProfile(body)` → `setMyProfile(body, siteId)`
+**세 응답이 사이트를 아예 안 보낸다.** 그 행에 사이트를 붙이는 유일한 경로가 호출자→리포지토리→
+remote→매퍼로 흐르는 컨텍스트의 sid다. 폴백을 지우면 `sid: ''`가 되고
+`ChannelLocalDataSource.cacheWrite`가 throw한다.
+
+그래서 세 덩어리의 처리가 이렇게 갈린다.
+
+| 덩어리                    | 자리                                                                                                                              | 처리                             |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | -------------------------------- |
+| **읽기 기본값**           | `ChannelLocalDataSource:55`·`:208`, `ProfileLocalDataSource:37`·`:244`                                                            | 삭제. 타는 호출부가 없다         |
+| **쓰기 태그·매핑 폴백**   | `mappers:93`·`:215`, `ChannelLocalDataSource:111`·`:153`, `ProfileLocalDataSource:190`·`:219`, `ProfileSocketDataSource:54`·`:74` | **유지.** 이제 명시로만 채워진다 |
+| **"내 현재 사이트" 계약** | `ProfileRepository`, `ChannelRepository`                                                                                          | 명시 인자로 올린다               |
+
+시그니처가 바뀌는 것들:
+
+- `setMyProfile(body)` → `setMyProfile(body, siteId)` (그리고 `async`로 — 없는 siteId가 동기 throw가 아니라 reject가 되도록)
 - `syncProfiles(since)` → `syncProfiles(since, siteId)`
 - `setProfile`의 `input.siteId || context.sid` 폴백은 사라지고 `input.siteId`가 필수가 된다
-- `ChannelRepository.refreshList(query)`는 `query.sid`를 요구한다
+- `refreshList(query)`는 `query.sid`를 요구한다
+- `createChannel(payload)` → `createChannel(payload, siteId)`
+- `getSelfChannel(payload)` → `getSelfChannel(payload, siteId)`
 
-> **2026-09-14 보정 (구현 중).** `refreshList`를 처음엔 "읽기 기본값"으로 분류했다. 틀렸다.
-> 거기서 나온 `targetSid`는 응답 행에 사이트를 붙이기만 하는 게 아니라 **prune 게이트**
-> (`answersForTarget`)도 연다. 폴백만 떼면 `targetSid`가 `undefined`가 되어 `!targetSid`가 참이 되고,
-> **다른 사이트를 설명하는 응답이 이 사이트의 캐시를 지운다** — 주변 주석이 그러면 안 된다고 적어둔
-> 바로 그 경로다. 그래서 이 행은 "명시 인자" 덩어리로 옮겼다.
+뒤의 둘은 **캐시에 없는 행을 처음 쓰는 경로**라서 명시가 필수다. 나머지(`updateChannel`·
+`inviteChannel`·`leaveChannel`)는 이미 캐시된 행이 있어 `existing?.sid`가 받아준다.
 
-호출부는 이미 sid를 쥐고 있다. `useSetMyPlaceProfile`은 두 갈래(핀 고정 / ambient)를 하나로 합칠
-수 있고, 그 갈래를 만든 주석도 같이 사라진다.
+> **2026-09-14 보정 둘 (구현 중).**
+>
+> 1. `refreshList`를 처음엔 "읽기 기본값"으로 분류했다. 틀렸다. 거기서 나온 `targetSid`는 응답 행에
+>    사이트를 붙이기만 하는 게 아니라 **prune 게이트**(`answersForTarget`)도 연다. 폴백만 떼면
+>    `targetSid`가 `undefined`가 되어 **다른 사이트를 설명하는 응답이 이 사이트의 캐시를 지운다.**
+> 2. 이 결정은 원래 "`DataContext`에서 sid를 제거한다"였다. 실측이 뒤집었다 — 위 표대로 매퍼의
+>    폴백이 **살아있는 유일한 경로**였다. 필드까지 지우려면 remote 레이어 메서드 ~10개에 `siteId`
+>    파라미터를 새로 달아야 하고, `update`·`invite`·`leave`는 캐시된 행에서 사이트를 먼저 찾아와야
+>    한다. 런타임 동작은 생산자만 끄는 것과 같다. 얻는 건 타입 보장 하나뿐이라 지금은 하지 않는다.
 
-바꿔야 할 호출부는 10곳이고 앱 셋에 걸쳐 있다.
+호출부는 이미 사이트를 쥐고 있었다. `useSetMyPlaceProfile`은 두 갈래(핀 고정 / ambient)가 하나로
+합쳐졌고, 그 갈래를 만든 주석도 같이 사라졌다.
 
-| 앱             | 자리                                                                                                |
-| -------------- | --------------------------------------------------------------------------------------------------- |
-| `apps/web`     | `PlaceProfilePage:73`, `useSetMyPlaceProfile:36`, `useBackgroundSync:156`                           |
-| `apps/testbed` | `RuntimeOverlay:411`, `ChatHomePage:141`                                                            |
-| `desktop-web`  | `useMyProfile:46`, `useBackgroundSync:70`·`:48`, `useRealtimeProfileSync:40`, `useRefreshOnPush:35` |
+바꾼 호출부는 14곳이고 앱 셋에 걸쳐 있다.
 
-`desktop-web` 다섯 곳이 이 트랙에서 가장 조심할 자리다 — 그 앱은 push로만 배포되고 되돌릴 수단이
-없으며 CI에 테스트 워크플로 자체가 없다. **맨 마지막에 손댄다.**
+| 앱             | 자리                                                                                                         |
+| -------------- | ------------------------------------------------------------------------------------------------------------ |
+| `apps/web`     | `PlaceProfilePage`, `useSetMyPlaceProfile`, `useChannelMutations`, `useBackgroundSync`(×2)                   |
+| `apps/testbed` | `RuntimeOverlay`, `ChatHomePage`(×2)                                                                         |
+| `desktop-web`  | `useMyProfile`, `useChannelMutations`, `useBackgroundSync`(×2), `useRealtimeProfileSync`, `useRefreshOnPush` |
 
-배관도 같이 사라진다 — `getNormalizedContext`의 sid 정규화(`repositories/types.ts:79`),
-`BaseLocalDataSource.getSid`(`local/data-sources/types.ts:145`), 그리고 **생산자인
-`deriveSelectedContext`의 `sid: activeServer.siteId`**(`libs/app-runtime/src/session/scope/selectedContext.ts:32`).
-마지막 것이 이 트랙에서 `libs/data` 밖을 건드리는 유일한 자리다.
+`useRefreshOnPush`만 사이트를 안 쥐고 있어서 세션 선택을 새로 물렸다. ref로 읽는다 — 의존성에 넣으면
+사이트가 바뀔 때마다 push 리스너가 재바인딩된다. 이웃 훅 네 곳이 같은 이유로 같은 패턴을 쓴다.
 
-`DataContext`에 남는 것은 `cid`·`uid`·`socketCid`다. 스코프(`AdapterScope` = `{cid, uid}`)와
-그것을 지키는 값 하나. **스코프 키에 sid를 다시 넣는 실수가 타입 수준에서 불가능해진다.**
+배관도 같이 사라진다 — `getNormalizedContext`의 sid 정규화와 `BaseLocalDataSource.getSid`는
+읽는 곳이 없어지면 함께 지운다.
 
 ### 2. base `getScopeKey`에서 sid를 뺀다
 
@@ -216,7 +238,8 @@ override 2개(`Channel`·`Place`)는 base와 같아지므로 **삭제한다**. `
   이 결정의 영향을 받지 않는다.
 - `V2` 접미사 제거(ADR-0081 결정 4)와 섞지 않는다.
 - 저장소를 sid로 파티션하는 방향은 검토하지 않았다.
-- `DomainChannel.sid`·`DomainProfile.sid` 같은 **행 위의 sid**는 그대로다. 사라지는 것은 ambient 컨텍스트의 sid뿐이다.
+- `DomainChannel.sid`·`DomainProfile.sid` 같은 **행 위의 sid**는 그대로다. 사라지는 것은 sid를 컨텍스트에 자동으로 얹던 생산자다.
+- `DataContext`에서 sid 필드를 지우는 것은 이번 범위가 아니다 (결정 1의 보정 2 참고).
 
 ## 잃는 것 (의도된 손실)
 
@@ -230,14 +253,11 @@ override 2개(`Channel`·`Place`)는 base와 같아지므로 **삭제한다**. `
   않는다. 지금까지는 스코프 키의 sid가 그 실수를 **우연히** 덮어주고 있었다. 이후로는 덮어주지
   않는다. 규칙 자체는 새로 생기는 게 아니다 — `ChatLocalDataSource:306`이 이미 같은 말을 적어놨다:
   "저장소에 닿는 모든 필드는 키에 있어야 한다".
-- **매핑의 마지막 폴백이 사라진다.** 서버 응답에 `sid`도 `$.sid`도 `siteId`도 없을 때, 지금은
-  ambient sid가 마지막으로 그 행에 사이트를 붙여준다 (`mappers:93`·`:215`). 이후에는 `''`가 되고,
-  `ChannelLocalDataSource`의 쓰기는 sid를 못 풀면 throw한다. **조용한 오태깅이 시끄러운 실패로
-  바뀐다.** 방향은 맞지만 무해하지는 않다 — 구현 전에 실제 페이로드로 확인할 것: `channel.sync`는
-  `$.sid`를 보내고(`ChannelRepository:253`이 그걸 전제로 거른다) `profile.sync`는 응답에 sid가
-  없어서 `ProfileSocketDataSource:54`가 컨텍스트로 채운다. **후자가 이 결정의 유일한 실질 위험이다.**
-  `profile.sync` 호출부가 sid를 넘기게 되면(결정 1) 같은 값이 그 자리로 전달되므로 메워지지만,
-  그 경로가 실제로 이어지는지는 구현에서 확인해야 한다.
+- **사이트를 대신 채워주던 그물이 사라진다.** 사이트가 필요한 자리에서 호출자가 값을 안 주면
+  이제 `[Repository] siteId is required.`로 터진다. 예전에는 활성 사이트가 조용히 대신 들어갔다.
+  **조용한 오태깅이 시끄러운 실패로 바뀌는 것이고, 그게 의도다** — 조용히 들어가던 그 값이 사이트
+  전환 중에는 틀린 값이었다. 대신 화면이 사이트를 모르는 상태에서 쓰기가 일어나면 이전에는 (잘못이든)
+  저장되던 것이 이제는 실패한다. 호출부 14곳은 전부 사이트를 쥐고 있었으므로 실제 노출은 없다.
 - **미래에 sid로 물리 파티션을 나누기로 하면 이 결정을 되돌려야 한다.** 대가는 작다 — 그때는
   `AdapterScope`와 저장 키부터 바꿔야 하고, 스코프 키 복원은 그 작업의 한 줄이다.
 - **Chat·Join 쓰기에서 "sid가 없다"는 신호가 사라진다.** 그 신호가 무엇을 잡아준 적은 없지만,
@@ -245,12 +265,13 @@ override 2개(`Channel`·`Place`)는 base와 같아지므로 **삭제한다**. `
 
 ## 검토한 대안
 
-- **`DataContext.sid`를 남기고 의미만 주석으로 재정의한다.** ("값이지 축이 아니다"를 문서와 주석에
-  적고 코드는 그대로 둔다.) 파급이 0이다. **기각** — 초안의 결정이었고 한 번 뒤집었다. 기각 이유는
-  둘이다. 첫째, 파급이 크다고 봤던 근거가 측정에서 무너졌다 — 읽기 폴백은 타는 호출부가 없고,
-  시그니처가 바뀌는 것은 `ProfileRepository`의 메서드 셋뿐이다. 둘째, 남겨둔 ambient sid는
-  중립적인 잔재가 아니라 **쓰기 경합의 원인**이고, 그건 주석으로 못 막는다 —
-  `useSetMyPlaceProfile`이 이미 우회 코드로 증명했다.
+- **`DataContext.sid`를 남기고 의미만 주석으로 재정의한다.** (문서와 주석만 고치고 코드는 그대로.)
+  **기각** — 남겨둔 ambient sid는 중립적인 잔재가 아니라 쓰기 경합의 원인이고, 그건 주석으로 못
+  막는다. `useSetMyPlaceProfile`이 이미 우회 코드로 증명했다.
+- **`DataContext`에서 sid 필드까지 없앤다.** 필요한 쪽만 명시 인자로 받으면 의미 혼동이 구조적으로
+  불가능해진다. **기각(지금은)** — 결정 1의 보정 2에 적은 그대로다. 실측 결과 매퍼의 폴백이 살아있는
+  유일한 경로였고, 필드를 지우면 remote 레이어 10개 메서드에 파라미터를 새로 달고 세 메서드는 캐시
+  조회를 먼저 해야 한다. 런타임 동작은 생산자만 끄는 것과 같다.
 - **override를 남기고 base만 고친다.** `Channel`·`Place`의 override를 명시적 no-op으로 유지해
   "여기는 sid를 안 쓴다"를 눈에 보이게 둔다. **기각** — base와 같은 코드가 두 벌 남고, 다음에
   base가 바뀌면 두 곳이 조용히 갈라진다. 주석으로 남길 사실을 코드로 남길 이유가 없다.

@@ -186,7 +186,7 @@ export const useBackgroundSync = (): void => {
         // cloud servers do not expose channel.get-self.
         if (!activeSiteId || !isRelayServer) return;
         try {
-            await repos.channel.getSelfChannel();
+            await repos.channel.getSelfChannel(undefined, activeSiteId);
             syncStreakReporter.succeed('self-channel');
         } catch (error) {
             // best-effort: retried on the next place entry

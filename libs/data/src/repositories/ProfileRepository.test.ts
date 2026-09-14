@@ -1,7 +1,9 @@
 import { ProfileRepository } from './ProfileRepository';
 
 describe('ProfileRepository', () => {
-    const createRepository = (context: Record<string, unknown> = { cid: 'cloud-a', sid: 'site-1', uid: 'me' }) => {
+    // No ambient `sid` in the default context: the producer stopped seeding one (ADR-0085), so a
+    // path that still needed one fails here instead of quietly borrowing the fixture's.
+    const createRepository = (context: Record<string, unknown> = { cid: 'cloud-a', uid: 'me' }) => {
         // Profile owns its dedicated gateway: get / getMine / set / sync.
         const profileSocketDataSource = {
             get: jest.fn(),
@@ -55,12 +57,11 @@ describe('ProfileRepository', () => {
                     nick: 'Alice',
                 }),
             ],
-            { cid: 'cloud-a', sid: 'site-1', uid: 'me' }
+            { cid: 'cloud-a', uid: 'me' }
         );
         // Null deltas represent resets, so they should be translated into cache deletions.
         expect(profileLocalDataSource.cacheDeleteMany).toHaveBeenCalledWith(['site-1@user-2'], {
             cid: 'cloud-a',
-            sid: 'site-1',
             uid: 'me',
         });
         expect(result).toEqual({ syncedAt: 123, updatedCount: 1, removedCount: 1 });
@@ -84,7 +85,7 @@ describe('ProfileRepository', () => {
         // The rollback should restore the previous local snapshot after the remote failure.
         expect(profileLocalDataSource.cacheWrite).toHaveBeenLastCalledWith(
             expect.objectContaining({ nick: 'Before' }),
-            { cid: 'cloud-a', sid: 'site-1', uid: 'me' }
+            { cid: 'cloud-a', uid: 'me' }
         );
     });
 
@@ -109,7 +110,7 @@ describe('ProfileRepository', () => {
         expect(profileSocketDataSource.get).toHaveBeenCalledWith({ id: 'site-1@me' }, expect.anything());
         expect(profileLocalDataSource.cacheWrite).toHaveBeenCalledWith(
             expect.objectContaining({ id: 'site-1@me', sid: 'site-1', uid: 'me' }),
-            { cid: 'cloud-a', sid: 'site-1', uid: 'me' }
+            { cid: 'cloud-a', uid: 'me' }
         );
         expect(result).toEqual(expect.objectContaining({ id: 'site-1@me' }));
     });
@@ -130,7 +131,7 @@ describe('ProfileRepository', () => {
         expect(profileSocketDataSource.getMine).toHaveBeenCalled();
         expect(profileLocalDataSource.cacheWrite).toHaveBeenCalledWith(
             expect.objectContaining({ id: 'site-1@me', sid: 'site-1', uid: 'me' }),
-            { cid: 'cloud-a', sid: 'site-1', uid: 'me' }
+            { cid: 'cloud-a', uid: 'me' }
         );
         expect(result).toEqual(expect.objectContaining({ id: 'site-1@me' }));
     });
@@ -146,7 +147,6 @@ describe('ProfileRepository', () => {
 
         expect(profileLocalDataSource.cacheClear).toHaveBeenCalledWith({
             cid: 'cloud-a',
-            sid: 'site-1',
             uid: 'me',
         });
     });
@@ -198,7 +198,7 @@ describe('ProfileRepository', () => {
         );
         expect(profileLocalDataSource.cacheWrite).toHaveBeenCalledWith(
             expect.objectContaining({ sid: 'site-1', uid: 'me' }),
-            { cid: 'cloud-a', sid: 'site-1', uid: 'me' }
+            { cid: 'cloud-a', uid: 'me' }
         );
         expect(result).toEqual(expect.objectContaining({ id: 'site-1@me' }));
     });

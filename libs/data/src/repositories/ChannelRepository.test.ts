@@ -38,7 +38,9 @@ describe('ChannelRepository', () => {
             cacheClearByChannelId: jest.fn(),
         };
         const contextProvider = {
-            getContext: () => ({ cid: 'cloud-a', sid: 'site-1', uid: 'me' }),
+            // No `sid`: the producer stopped seeding one (ADR-0085), so a repository that still needed
+            // an ambient site would fail here rather than quietly borrow the fixture's.
+            getContext: () => ({ cid: 'cloud-a', uid: 'me' }),
             setContext: () => undefined,
         };
 
@@ -68,12 +70,10 @@ describe('ChannelRepository', () => {
         // Helper methods should stay thin wrappers so hooks can rely on a consistent context-bound API.
         expect(channelLocalDataSource.cacheRead).toHaveBeenCalledWith('ch-1', {
             cid: 'cloud-a',
-            sid: 'site-1',
             uid: 'me',
         });
         expect(channelLocalDataSource.cacheClear).toHaveBeenCalledWith({
             cid: 'cloud-a',
-            sid: 'site-1',
             uid: 'me',
         });
     });
@@ -89,12 +89,12 @@ describe('ChannelRepository', () => {
         expect(channelLocalDataSource.cacheWrite).toHaveBeenNthCalledWith(
             1,
             { id: 'ch-1', memberIds: ['me', 'u-2', 'u-3'] },
-            { cid: 'cloud-a', sid: 'site-1', uid: 'me' }
+            { cid: 'cloud-a', uid: 'me' }
         );
         expect(channelLocalDataSource.cacheWrite).toHaveBeenNthCalledWith(
             2,
             { id: 'ch-1', sid: 'site-1', memberIds: ['me', 'u-2', 'u-3'] },
-            { cid: 'cloud-a', sid: 'site-1', uid: 'me' }
+            { cid: 'cloud-a', uid: 'me' }
         );
         expect(result.memberIds).toEqual(['me', 'u-2', 'u-3']);
     });
@@ -111,7 +111,6 @@ describe('ChannelRepository', () => {
 
         expect(channelLocalDataSource.cacheWrite).toHaveBeenLastCalledWith(existing, {
             cid: 'cloud-a',
-            sid: 'site-1',
             uid: 'me',
         });
     });
@@ -127,6 +126,9 @@ describe('ChannelRepository', () => {
 
         await repository.refreshList({ sid: 'site-1', detail: true, limit: 100 } as any);
 
+        // The mapping context carries the site the CALLER named — that is what tags rows whose
+        // response has no site of its own. The cache write below goes under the request context,
+        // which has no sid at all (ADR-0085).
         expect(channelSocketDataSource.fetchChannel).toHaveBeenCalledWith(
             { sid: 'site-1', detail: true, limit: 100 },
             { cid: 'cloud-a', sid: 'site-1', uid: 'me' }
@@ -136,7 +138,7 @@ describe('ChannelRepository', () => {
                 { id: 'ch-1', sid: 'site-1' },
                 { id: 'ch-2', sid: 'site-1' },
             ],
-            { cid: 'cloud-a', sid: 'site-1', uid: 'me' }
+            { cid: 'cloud-a', uid: 'me' }
         );
     });
 
@@ -207,7 +209,6 @@ describe('ChannelRepository', () => {
 
         expect(chatLocalDataSource.cacheClearByChannelId).toHaveBeenCalledWith('ch-1', {
             cid: 'cloud-a',
-            sid: 'site-1',
             uid: 'me',
         });
     });
@@ -274,7 +275,6 @@ describe('ChannelRepository', () => {
 
         expect(channelLocalDataSource.cacheDeleteMany).toHaveBeenCalledWith(['ch-gone'], {
             cid: 'cloud-a',
-            sid: 'site-1',
             uid: 'me',
         });
     });
@@ -287,7 +287,6 @@ describe('ChannelRepository', () => {
 
         expect(channelLocalDataSource.cacheDelete).toHaveBeenCalledWith('ch-1', {
             cid: 'cloud-a',
-            sid: 'site-1',
             uid: 'me',
         });
     });
@@ -303,7 +302,7 @@ describe('ChannelRepository', () => {
         expect(channelLocalDataSource.cacheDelete).not.toHaveBeenCalled();
         expect(channelSocketDataSource.leaveChannel).toHaveBeenCalledWith(
             { channelId: 'ch-1', userId: 'other-user' },
-            { cid: 'cloud-a', sid: 'site-1', uid: 'me' }
+            { cid: 'cloud-a', uid: 'me' }
         );
 
         // The kicked channel is NOT filtered out of a subsequent snapshot merge.
@@ -358,7 +357,15 @@ describe('ChannelRepository', () => {
         const { repository, channelSocketDataSource, channelLocalDataSource } = createRepository();
         channelSocketDataSource.getSelfChannel.mockResolvedValue({ id: 'self-channel', sid: 'site-1' });
 
-        await expect(repository.getSelfChannel({} as any)).resolves.toEqual({ id: 'self-channel', sid: 'site-1' });
+        await expect(repository.getSelfChannel({} as any, 'site-1')).resolves.toEqual({
+            id: 'self-channel',
+            sid: 'site-1',
+        });
+        // The response carries no site of its own, so the caller's is what reaches the mapper.
+        expect(channelSocketDataSource.getSelfChannel).toHaveBeenCalledWith(
+            {},
+            expect.objectContaining({ sid: 'site-1' })
+        );
         // The self channel must land in the cache so the channel list observers pick it up.
         expect(channelLocalDataSource.cacheWrite).toHaveBeenCalledWith(
             { id: 'self-channel', sid: 'site-1' },
