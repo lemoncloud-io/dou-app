@@ -19,7 +19,7 @@ export interface NetworkRequestMeta {
 /**
  * Structured payload handed to the log sink. Fields are RAW here — `@chatic/http` has zero
  * `@chatic/*` runtime dependencies, and redact/truncate live in `@chatic/logger`, so applying them
- * is the sink's job, not this lib's. See ADR-0070 결정 3 / libs/http architecture doc §상세 구현.
+ * is the sink's job, not this lib's (ADR-0070 결정 3; see the README's design principle 6).
  */
 export interface NetworkLogFields {
     outcome: 'success' | 'error';
