@@ -296,8 +296,11 @@ npx jest --config libs/web-ui-kit/jest.config.js
   rejects it with TS5095, which is how these spec files went without a type check.
 - A stale `dist`/`out-tsc` produces phantom errors after a directory moves. `rm -rf` and look again.
 - Downstream: `apps/web` is the only consumer of a changed barrel identifier, and `nx typecheck web`
-  covers it. `verify.yml` currently excludes both `@chatic/web-ui-kit` and `web` from its typecheck
-  step — both pass now, so run them by hand until that list is trimmed.
+  covers it. Both this project and `web` are in `verify.yml`'s typecheck step, so CI catches a break
+  here without a hand check.
+- **Stories are type checked too.** `tsconfig.json` references the lib, spec **and** storybook
+  projects, so a `*.stories.tsx` that no longer matches its component is a build failure rather than
+  a surprise in the Storybook UI.
 
 ```bash
 npx nx typecheck @chatic/web-ui-kit

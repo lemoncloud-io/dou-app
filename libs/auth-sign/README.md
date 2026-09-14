@@ -228,12 +228,12 @@ The suite has three parts, and they prove different things.
 
 Traps:
 
-- **One test fails, and it is the assertion that is stale.** `LemonHmacSigner.spec.ts` asserts
-  `typeof navigator === 'undefined'` as evidence that nothing reads the global. Node 21 and later
-  ship a global `navigator`, so the assertion fails under the current runtime while the property it
-  was checking still holds — `purity.spec.ts` proves the same thing by grep, and it passes.
-  `.github/workflows/verify.yml` records this as 1 failing of 12 and excludes this project from the
-  CI test gate for it. The typecheck gate does cover it.
+- **Do not assert the absence of a global as evidence.** `LemonHmacSigner.spec.ts` used to open with
+  `expect(typeof navigator).toBe('undefined')`, which checks the runtime rather than the code — Node
+  21 and later ship a global `navigator`, so it began failing while the property it meant to protect
+  still held. It now signs with an explicit `userAgent` that differs from any global and asserts the
+  fixed relay signature, which holds either way. `purity.spec.ts` proves the wider "reads no global"
+  property by source inspection. All 12 pass, and this project is in the CI test gate.
 - **`jest.config.js` uses `testEnvironment: 'node'` deliberately.** Running the suite green without
   jsdom is itself part of the "no globals" evidence. Do not switch it to jsdom.
 - Type checking must be `tsc -b`. Inside a lib, `tsc --noEmit` checks zero files and succeeds.
