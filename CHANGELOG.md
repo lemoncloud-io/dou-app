@@ -1,5 +1,33 @@
 # Changelog
 
+## [2026-09-14] - No version updates
+
+### Features
+
+- (admin-v2/report-logs) give OS version and model their own facets
+- (admin-v2/report-logs) filter the corpus by tag, version, route and device
+- (logging) follow a push to the room, and close the web write-path gaps
+- (logging) report disagreement, failed socket requests, and what was thrown away
+- (logger) give entries one vocabulary, three masking axes, and a store that keeps them
+
+### Bug Fixes
+
+- (web/channels) make the header clearance scrollable content, not padding
+- (web/channels) let a finger scroll the thread from on top of a bubble
+- (admin-v2/report-logs) stop the corpus walk from running forever
+
+### Documentation
+
+- (adr) record the divergence-trigger and log-coverage decisions (ADR-0075)
+
+### Refactor
+
+- (admin-v2/report-logs) open the range by default and make refresh mean refresh
+
+### Chores
+
+- (mobile) bump app versions 0.24.2
+
 ## [2026-09-13] - No version updates
 
 ### Bug Fixes
