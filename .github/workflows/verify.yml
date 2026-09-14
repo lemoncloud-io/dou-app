@@ -60,7 +60,7 @@ jobs:
             - name: Typecheck
               run: >
                   npx nx run-many -t typecheck
-                  --exclude=@chatic/web-ui-kit,web,desktop-web,block-kit-builder,@chatic/landing,@chatic/mobile,chatic-deferred-link-cleanup
+                  --exclude=desktop-web,block-kit-builder,@chatic/landing,@chatic/mobile,chatic-deferred-link-cleanup
 
             # `libs/db` and `libs/app-runtime` ran through a separate step until the root
             # `workspaces` array was fixed to `libs/*` — it still named `libs/bridge` and
@@ -75,12 +75,20 @@ jobs:
             # Left out of the gate, with the reason. Measured 2026-09-14.
             #
             #   typecheck   desktop-web                  21 errors, the long-standing baseline
-            #               @chatic/web-ui-kit            3, all in *.stories.tsx
             #               @chatic/mobile               red
             #               @chatic/landing              red
             #               block-kit-builder            red
             #               chatic-deferred-link-cleanup red
-            #               web                          clean alone; blocked by web-ui-kit
+            #
+            #   @chatic/web-ui-kit and web both left this list on 2026-09-14. web-ui-kit's
+            #   tsconfig.json referenced tsconfig.storybook.json, which is what pulled 3 story
+            #   errors into `tsc -b`; it references the spec project now instead, and `web` was
+            #   only ever excluded because its target pulls web-ui-kit.
+            #
+            #   The cost: *.stories.tsx is no longer type checked anywhere. The 3 errors are still
+            #   there — ManageChannelItem (an avatarType union), PlanCompareCard ×2 (spread of a
+            #   non-object). Fixing them and putting tsconfig.storybook.json back alongside the
+            #   spec reference is what closes this properly.
             #
             #   test        web                           7 failing of 2720 — useSetMyPlaceProfile,
             #                                             PlaceProfilePage, useBackgroundSync
