@@ -52,7 +52,10 @@ describe('serializeLogs — 평탄화 + 트렁케이션', () => {
     it('필드 길이를 PER_FIELD_CHAR_LIMIT로 자른다', () => {
         const long = 'x'.repeat(PER_FIELD_CHAR_LIMIT + 500);
         const [out] = serializeLogs([entry({ message: long })]);
-        expect(out.message.length).toBeLessThanOrEqual(PER_FIELD_CHAR_LIMIT + 20); // + truncation suffix
+        // Every wire field is optional — `compact` drops the keys that were never set — so the
+        // presence of `message` is its own assertion before its length can be measured.
+        expect(out.message).toBeDefined();
+        expect(out.message?.length).toBeLessThanOrEqual(PER_FIELD_CHAR_LIMIT + 20); // + truncation suffix
         expect(out.message).toContain('…');
     });
 
@@ -69,7 +72,10 @@ describe('serializeLogs — 평탄화 + 트렁케이션', () => {
         // Newest kept, oldest dropped, and output stays chronological.
         expect(out[out.length - 1].timestamp).toBe(total - 1);
         expect(out[0].timestamp).toBe(total - fitCount);
-        expect(out.map(l => l.timestamp)).toEqual([...out.map(l => l.timestamp)].sort((a, b) => a - b));
+        // `timestamp` is optional on the wire shape; the two assertions above already fail if one
+        // went missing, so the sort comparator can work on a narrowed copy.
+        const timestamps = out.map(l => l.timestamp ?? -1);
+        expect(timestamps).toEqual([...timestamps].sort((a, b) => a - b));
     });
 
     it('빈 입력은 빈 배열을 반환한다', () => {

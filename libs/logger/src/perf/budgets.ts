@@ -5,7 +5,8 @@ import type { PerfBudget, PerfMetricName } from './types';
  *
  * `Record<PerfMetricName, PerfBudget>` will not compile if a metric is missing
  * a budget, so the scenario list and the targets cannot drift apart. This is the
- * runtime source of truth for the numbers documented in `docs/perf-metrics.md`.
+ * runtime source of truth for the numbers; `docs/perf/README.md` explains what
+ * each endpoint is and why the statistics differ.
  *
  * FCP/LCP are judged at p75 because their thresholds were defined at p75; the
  * app scenarios use p95 so the tail is answered for.
