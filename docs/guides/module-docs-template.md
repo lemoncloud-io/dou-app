@@ -42,21 +42,29 @@ know what the code used to do is a work log.
 One exception, and `libs/data` uses it: a **naming history** section is worth keeping when old names
 still appear in review comments or in sibling modules. Keep it dated and short.
 
-## Do not lean on ADRs
+## Do not lean on the root `docs/` tree
 
-`docs/adr/` is being retired in a follow-up track. Module docs must survive that.
+**The whole root `docs/` tree is being retired** — all 137 files of it, `docs/adr/` included. Its
+contents are either a fact that belongs to a module or a record of finished work, and this canon is
+where the first kind lands. Module docs have to survive the tree's removal.
 
-- **Do not add new `docs/adr/` links** from a module document.
+- **Do not add new links into `docs/`** from a module document. Not to `adr/`, not to `specs/`, not
+  to `plans/`.
 - When a module's behaviour only makes sense with a decision's reasoning, **absorb the reasoning**
   into the module doc in your own words. A rule worth following is worth stating where it is
   enforced.
-- Existing ADR links are not an error to chase down on sight. Replace them as you rewrite the
-  section they sit in.
+- Existing links are not an error to chase down on sight. Replace them as you rewrite the section
+  they sit in — every module rewrite removes a few.
 - Inline references with no link (`ADR-0036`) are fine as provenance and cost nothing when the file
-  disappears. A markdown link to `../adr/...` is the thing that breaks.
+  disappears. A markdown link to `../../../docs/adr/…` is the thing that breaks. There are 163 of
+  those across module docs today, against 609 harmless plain-text mentions.
 
-The practical test: if `docs/adr/` were deleted tomorrow, would this document still teach someone
-how to work in this module? If not, the missing part belongs here.
+The practical test: if `docs/` were deleted tomorrow, would this document still teach someone how to
+work in this module? If not, the missing part belongs here.
+
+This page is itself in `docs/guides/`, so it moves too — into `AGENTS.md`, the one repo-wide file
+that outlives the tree. The inventory and destinations are in
+[the rollout plan](../plans/libs-module-harness-rollout.md#where-root-docs-goes).
 
 ## README skeleton
 

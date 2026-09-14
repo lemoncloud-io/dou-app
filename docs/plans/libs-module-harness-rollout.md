@@ -52,9 +52,51 @@ The shape, the tone and the deletion categories are in
 [module-docs-template.md](../guides/module-docs-template.md). Two points that decide scope here:
 
 - **English.** Module docs under `libs/*` and `apps/*`.
-- **`docs/adr/` is being retired in a follow-up track.** Do not add links into it. Where a module's
-  behaviour only makes sense with a decision's reasoning, write the reasoning into the module doc.
-  This is not optional cleanup — it is the reason the doc lane exists at all.
+- **The whole root `docs/` tree is being retired**, not just `docs/adr/`. Do not add links into it.
+  Where a module's behaviour only makes sense with a decision's reasoning, write the reasoning into
+  the module doc. This is not optional cleanup — it is the reason the doc lane exists at all.
+
+## Where root `docs/` goes
+
+The repo keeps two doc trees today: one per module, and a 137-file, 28,500-line tree at the root.
+The root tree is going away. Everything in it is either a fact that belongs to a module, or a record
+of work that is finished.
+
+This is the destination, not the schedule — the migration is its own track and it runs **after** the
+module docs exist, because it migrates _into_ them.
+
+| Path                                                    | Files |  Lines | What it is                                         | Where it goes                                                                                                                                |
+| ------------------------------------------------------- | ----: | -----: | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `adr/`                                                  |    96 | 15,620 | Decision records                                   | Absorb the reasoning into the module whose behaviour depends on it. Delete the rest                                                          |
+| `specs/`                                                |    20 |  6,278 | Feature specs; `.SPEC.md`/`.TASK.md` are forecasts | `cache/*` → `libs/data`, `libs/db` · `mobile/push*` → `libs/app-runtime` · `search/*` → `apps/web` · `block-kit-messages` → `libs/block-kit` |
+| `frontend-handover.md` ＋ `frontend-handover/`          |     2 |  1,710 | Handover prose ＋ a hooks catalogue                | `apps/web`                                                                                                                                   |
+| `plans/`                                                |     7 |  1,583 | Rollout plans, most already finished               | Delete on completion. This file is the last one out                                                                                          |
+| `spec/`                                                 |     2 |    739 | `config-registry-keys` ＋ `web-core/`              | `libs/config` · **`web-core/` describes a module that no longer exists — delete**                                                            |
+| `chat-link-preview.md`                                  |     1 |    705 | Feature detail                                     | `apps/web` or `libs/block-kit`, whichever owns the behaviour                                                                                 |
+| `audit/`                                                |     3 |    697 | Dated point-in-time snapshots                      | Delete once acted on. An audit is a work log with a date on it                                                                               |
+| `DEEP-LINKING.md` ＋ `-V2.md` ＋ `deep-linking-assets/` |     3 |    547 | A duplicated pair plus assets                      | One survives, into `apps/web` or `apps/mobile`                                                                                               |
+| `guides/`                                               |     2 |    374 | `trace-report` ＋ this canon's template            | `trace-report` → `apps/admin-v2` · **the template → `AGENTS.md`**                                                                            |
+| `invite-accept-entry.md`                                |     1 |    283 | Feature detail                                     | `apps/web`                                                                                                                                   |
+
+The four deletion categories in the template decide each file. Most of `specs/` is category 1 — a
+name like `use-websocket-v2-refactoring.TASK.md` (306 lines) announces a work log. Take the living
+facts out and drop the tense.
+
+`AGENTS.md` is where the doc canon ends up, because it is the one repo-wide file that outlives the
+tree and agents already read it first.
+
+### Blast radius
+
+Module docs reference the ADR tree in two forms, and only one of them breaks.
+
+| Form                                      | Count | On deletion  |
+| ----------------------------------------- | ----: | ------------ |
+| Markdown links (`](../../../docs/adr/…)`) |   163 | **Break**    |
+| Plain text (`ADR-0036`, no link)          |   609 | Cost nothing |
+
+163 links across roughly 40 files. They are not chased down on sight — each one is replaced as the
+section it sits in gets rewritten, which is what every WP in this plan is already doing. That is why
+the rule is "do not add new ones" rather than "remove them now".
 
 ## Current state
 
