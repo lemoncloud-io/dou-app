@@ -333,18 +333,19 @@ describe('ChannelRepositoryV2', () => {
 
     it('syncChannels — ids에 없는 행이 있어도 지우지 않고 기록만 한다', async () => {
         const { repository, channelSocketDataSource, channelLocalDataSource } = createRepository();
-        // The real payload that settled this: `ids` is not symmetric between the two members of a
-        // 1:1 room. The room `1001669@1001670` came back for 1001669 and not for 1001670, so the
-        // side it was missing for deleted it on every sync while the other side kept it.
+        // A row the answer does not mention is not evidence that I left the room, and the cost of
+        // being wrong is one-way: the cursor advances past what was deleted, so a delta never
+        // re-sends it. On relay only the notes-to-self room survives such a deletion, because
+        // `channel.get-self` puts that one back and nothing puts the rest back.
         channelSocketDataSource.syncChannel.mockResolvedValue({
             list: [],
-            ids: ['U:1001670'],
+            ids: ['ch-self'],
             syncedAt: 300,
         });
         channelLocalDataSource.cacheReadList.mockResolvedValue({
             list: [
-                { id: 'U:1001670', sid: 'site-1' },
-                { id: '1001669@1001670', sid: 'site-1' },
+                { id: 'ch-self', sid: 'site-1' },
+                { id: 'ch-dm', sid: 'site-1' },
             ],
         });
 
@@ -355,7 +356,7 @@ describe('ChannelRepositoryV2', () => {
             'CACHE',
             expect.stringContaining('does not list rows the cache holds'),
             expect.objectContaining({
-                data: expect.objectContaining({ missingCount: 1, missingIds: ['1001669@1001670'] }),
+                data: expect.objectContaining({ missingCount: 1, missingIds: ['ch-dm'] }),
             })
         );
     });

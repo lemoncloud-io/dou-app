@@ -311,20 +311,23 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
             await this.channelLocalDataSource.cacheWriteMany(domainList, { ...requestContext, sid: '' });
         }
         // **The delta does not remove.** `ids` is documented as the full active-channel set, and this
-        // used to prune against it. The set is not symmetric between the two members of a 1:1 room:
-        // the room `1001669@1001670` is listed for 1001669 and absent for 1001670. The side it is
-        // missing for deleted the room on every sync — and since `channel.get-self` puts the
-        // notes-to-self room back while nothing puts the others back, that read on screen as "my 1:1
-        // rooms disappeared".
+        // used to prune against it — deleting every cached row the set does not mention.
         //
-        // A row the server merely did not mention is not evidence that I am out of the room. The two
-        // paths that ARE evidence keep the job: `leaveChannel` for the leave made here, and the sync
-        // target's 403/404 stop for a room the server actually refuses to serve. Between them a real
-        // departure still reaches the cache, and a gap in someone's id set no longer destroys local
-        // data that only `channel.mine` can bring back.
+        // The client cannot check that claim. From here, "I am out of that room" and "the answer did
+        // not happen to list it" are the same observation, and only one of them is a reason to throw
+        // local data away. Nor is being wrong symmetric: this prune is not scoped to a site (on relay
+        // `cacheReadList` skips sid scoping entirely), and a delta has no way back — the cursor
+        // advances past whatever was deleted, so only a later CHANGE to that room re-sends it. What
+        // survives such a deletion on relay is the notes-to-self room alone, because
+        // `channel.get-self` puts that one back on every place entry and nothing puts the rest back.
         //
-        // The disagreement is still worth knowing — it is the signal that says when the server side
-        // is fixed — so it is measured and reported instead of acted on.
+        // So removal is left to the two paths that DO carry evidence: `leaveChannel` for the leave
+        // made here, and the sync target's 403/404 stop for a room the server actually refuses to
+        // serve. A real departure still reaches the cache through them.
+        //
+        // The disagreement is still worth knowing — a room the cache holds and the server does not
+        // list is either a stale row or a server-side gap, and both are worth a look — so it is
+        // measured and reported instead of acted on.
         await this.reportActiveIdGap(remote.ids, requestContext);
 
         return { syncedAt: remote.syncedAt };
