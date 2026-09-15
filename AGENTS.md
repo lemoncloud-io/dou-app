@@ -24,13 +24,7 @@ edit, and prefer it over inference from the source.
   guides, plans, specs and audits that used to sit in `docs/` alongside these are gone. A module's own
   canon still has to stand on its own regardless of what either tree says.
 
-## Writing a module's docs
-
-`libs/data` is the worked example — its `README.md` and `docs/repositories/README.md` show the shape
-and the tone a module doc should have. Read those before writing or judging one; where they disagree
-with anything below, the module wins.
-
-### Decisions live in `docs/adr/`
+## Decisions live in `docs/adr/`
 
 One decision per file, numbered, named after what was decided, and **written in English** like every
 other document in this repo. An ADR records why a decision was made and what it cost. It is not a
@@ -49,18 +43,6 @@ the ADR that replaced it. Deleting it would lose the reasoning the replacement a
 
 The practical test for a module doc: would it teach someone how to work in this module with no other
 source available? If not, the missing part belongs in it.
-
-### Tone
-
-Four habits carry most of `libs/data`'s value:
-
-- **Count things.** "13 repository facades", "9 LocalDataSources", "5 gateway Picks". A count tells
-  the reader whether they have seen everything.
-- **Say where something is not.** Absence is as useful as presence.
-- **Give the command, not the claim.** "All 25 data sources have a matching test" ages badly; the
-  command that proves it does not.
-- **Explain the rule that a diagram cannot draw.** `local` never calls `remote` is one sentence and
-  it is the whole architecture.
 
 ## Verifying a change
 
