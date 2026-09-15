@@ -1,51 +1,180 @@
-# onboarding
+# onboarding — the two first-run screens
 
-> 대상: `apps/web/src/app/features/onboarding`
+`apps/web/src/app/features/onboarding` owns the two screens a person sees before they have anything
+of their own: the **first-run carousel** that introduces the app, and the **setup wizard** that names
+a cloud, a place and a profile after a subscription clears. They share a directory and nothing else
+— different mount points, different copy sources, different progress indicators.
 
-## 책임
+The feature holds no session and no repository. The wizard calls app-level hooks
+(`useCreatePlace`, `useSetMyPlaceProfile`, `useUpdateCloudProfile`) and the carousel calls nothing at
+all; whether the carousel is shown is decided outside this feature, by
+[`useOnboarding()`](../../../src/app/hooks/useOnboarding.ts).
 
-최초 실행 시 앱의 핵심 가치를 소개하는 **첫 실행 게이트**다. 4단계 슬라이드 투어를 모달로 띄우고, 사용자가 마지막 단계를 완료하거나 SKIP하면 완료 상태를 저장해 다시 표시하지 않는다.
+## Layout
 
-## 게이트 동작
+```text
+apps/web/src/app/features/onboarding/
+├── index.tsx        the barrel — exports OnboardingModal and OnboardingRoutes, nothing else
+├── routes.tsx       one route: `setup` under `/onboarding/*`
+├── components/      6 — OnboardingModal · Header · Content · Footer · StepIndicator · WizardProgress
+├── hooks/           2 — useOnboardingNavigation, useOnboardingSteps
+├── pages/           1 — SetupWizardPage
+└── types/steps.ts   the OnboardingStep interface, and only the interface
+```
 
-`HomePage` 위에 **오버레이 모달**로 마운트된다(라우팅 차단 아님).
+There is no constant file holding the carousel's copy. `types/steps.ts` declares
+`OnboardingStep` (`id`, `title`, `description`, `image`) and stops there —
+`useOnboardingSteps()` builds the four steps at render time.
+
+## Responsibilities
+
+**In** — the carousel's slides, swipe and step position; the wizard's three steps, their commit
+order and their draft state; the wizard's route.
+
+**Out** —
+
+- **Whether the carousel opens.** `useOnboarding()` in `app/hooks/` reads the flag, and `HomePage`
+  mounts the modal. This feature exports a controlled component and takes `open` as a prop.
+- **The flag's storage.** `ui.onboardingCompleted` is a registry key in
+  [`@chatic/config`](../../../../../libs/config/README.md).
+- **Creating the cloud, place and profile.** The wizard calls `app/hooks/` mutations; the writes
+  belong to [`@chatic/data`](../../../../../libs/data/README.md) through `runtime.data`.
+- **Place profile editing after first run.** That is [home](../home/README.md)'s overlay.
+
+## The shared contract
+
+### First-run state is one config key, and its polarity flips twice
+
+The stored value is `ui.onboardingCompleted` — **true means the carousel is done**. What the screens
+read is `isFirstRun`, its negation. Between the two there is a second inversion nobody expects, so
+all three places that touch it are worth knowing together.
+
+| Where                                                                               | Reads/writes                          | Polarity                             |
+| ----------------------------------------------------------------------------------- | ------------------------------------- | ------------------------------------ |
+| [`app/hooks/useOnboarding.ts`](../../../src/app/hooks/useOnboarding.ts)             | `config` key `ui.onboardingCompleted` | `isFirstRun = !onboardingCompleted`  |
+| [`app/runtime/PreferenceLoader.tsx`](../../../src/app/runtime/PreferenceLoader.tsx) | legacy bridge key `isFirstRun`        | decoded by negating the bridge value |
+| [`app/config/shellKvAdapter.ts`](../../../src/app/config/shellKvAdapter.ts)         | legacy bridge key `isFirstRun`        | written back negated                 |
+
+The two legacy paths exist because the web ships before the app: a native build that predates the
+config bag still answers only to the old `isFirstRun` preference, so reads fall back to it and writes
+degrade to it. A build new enough to inject `CHATIC_APP_CONFIG_BAG` never takes either path.
+
+`completeOnboarding()` and `resetOnboarding()` write with `{ lane: 'shell' }`. The lane is not
+decoration — `local` sits below a native-hydrated shell value in the lane order, so a `local` write
+is accepted and then silently shadowed on the next boot.
+
+### Three things read the flag, and one of them is not a screen
+
+```mermaid
+flowchart TD
+    Cfg["config key ui.onboardingCompleted"] --> Hook["useOnboarding()"]
+    Hook --> Home["HomePage — mounts OnboardingModal(open=isFirstRun)"]
+    Hook --> Gate["InviteEntryGate — holds the /invite/accept redirect"]
+    Hook --> Set["SettingsPage — resetOnboarding() + navigate to root"]
+    Wiz["SetupWizardPage"] -.->|does not read it| Cfg
+```
+
+[`InviteEntryGate`](../../../src/app/routes/InviteEntryGate.tsx) is the one that surprises people. It
+guards the root path and forwards `/?provider=invite&…` to the accept page, but **while `isFirstRun`
+is true it holds that redirect** so the carousel stays in front. It holds the redirect rather than
+the accept screen on purpose: home leaves the query string alone, so finishing the carousel
+re-renders the gate and the invite proceeds from there. Completing onboarding is therefore a
+navigation event for a person who arrived on an invite link, and breaking the flag breaks invite
+landing, not just the tour.
+
+The wizard is deliberately absent from that diagram. It does not read or write the flag, and
+finishing it does not mark onboarding complete.
+
+### Copy comes from two different places
+
+- **Carousel** — `useOnboardingSteps()` builds all four steps in TypeScript, branching on
+  `i18n.language` for ko/en and pulling images from `@chatic/assets`. Two numbers in slide 1 are
+  interpolated from `MAX_PLACES` and `MAX_CHANNELS_PER_PLACE` rather than written into the sentence,
+  because the slide is a promise about what the app allows and it kept promising the old limits after
+  they moved. The 100 in slide 3 stays a literal: no constant owns a room's member capacity, and the
+  nearest one (`MAX_INVITE_SELECTION`) caps a different thing.
+- **Wizard** — every string is a `setupWizard.*` key in
+  `apps/web/public/locales/{ko,en}/translation.json`.
+
+Only the buttons are shared with i18n on the carousel side (`onboarding.prev` / `next` / `done`).
+
+### The wizard commits step by step
+
+`SetupWizardPage` does not batch. Step 1 renames the selected cloud, step 2 creates a place, step 3
+sets the profile for that place — each one awaits its mutation before the step advances, because the
+steps depend on each other (the profile is a profile _of_ the place made a moment earlier). A failure
+therefore leaves the earlier steps done, and a retry resumes where it stopped.
+
+Step 1 has no photo field. `CloudModel` carries no image on the server, so there is nowhere to put
+one; `i18n.test.ts` asserts that `setupWizard.cloud.photoLabel` stays undefined in both locales so
+nobody adds the label back without adding the field.
+
+Step 1 also has no close button. The subscription is already paid for and the cloud needs a name
+before anything can be created in it; steps 2 and 3 can be closed out to home.
+
+## Usage
+
+The barrel exports exactly two symbols.
 
 ```tsx
-// HomePage.tsx
-<OnboardingModal open={isFirstRun} onComplete={completeOnboarding} />
+// features/home/pages/HomePage.tsx
+const { isFirstRun, completeOnboarding } = useOnboarding();
+<OnboardingModal open={isFirstRun} onComplete={completeOnboarding} />;
+
+// routes/PrivateRoutes.tsx — lazy, under `onboarding/*`
+{ path: 'onboarding/*', element: withSuspense(OnboardingRoutes) }
 ```
 
-- `isFirstRun` / `completeOnboarding`은 `usePreferenceStore`에서 온다([stores](../../architecture/stores.md)).
-- `isFirstRun === true`(미완료)면 모달이 열린다. 완료 시 `completeOnboarding()` → `isFirstRun = false` + 영속 저장.
-- 라우트를 막지 않으므로, 온보딩 진행 중에도 백그라운드의 홈 콘텐츠는 이미 로드된다.
+`onComplete` fires on the last step's DONE, on SKIP, and on any dismissal of the dialog — the modal
+routes all three through the same prop, so there is no "skipped" state distinct from "completed".
 
-## 상태 저장
+### What not to do
 
-[stores](../../architecture/stores.md)의 preference 경로를 따른다(이중 계층).
+- **Do not read the config key directly from a screen.** Go through `useOnboarding()`; it owns the
+  negation and the lane, and a direct `config.set('ui.onboardingCompleted', …)` without
+  `{ lane: 'shell' }` is the bug that reads as "onboarding comes back after a restart".
+- **Do not reuse `StepIndicator` for the wizard, or `WizardProgress` for the carousel.** They encode
+  different navigation models. The carousel's dots are unconnected and only the current one is
+  filled, because any slide is reachable by swipe. The wizard's rail joins its dots and fills up to
+  the current step, because the steps are a sequence and you cannot skip ahead.
+- **Do not add a slide by adding a constant.** `useOnboardingNavigation(totalSteps)` counts the list
+  `useOnboardingSteps()` returns. The module constant that used to answer this carried a second,
+  Korean-only copy of every string that nothing rendered.
+- **Do not give the wizard a back-out on step 1.** See above.
 
-- **Web**: localStorage `chatic-onboarding-completed`(동기 L1, 시작 시 즉시 읽음).
-- **Native**: bridge `isFirstRun` 키 — WebView 캐시 초기화 후에도 지속. `PreferenceLoader`가 시작 시 fetch.
-- **의미 반전 주의**: 저장값 `'true'` = "완료됨", `isFirstRun` 상태는 그 역. 구 키명을 유지해 기존 사용자와 호환한다.
+## Notes for implementers and tests
 
-## 구조
+- **Nothing navigates to `/onboarding/setup`.** The route is mounted and `ROUTES.onboarding.setup`
+  exists, but no caller in `apps/web`, `apps/mobile` or `libs` sends anyone there — the page is
+  reachable only by typing the URL. The subscription flow that is meant to hand off to it does not
+  yet.
 
-```
-features/onboarding/
-  components/
-    OnboardingModal.tsx     # 컨테이너 — 스와이프 제스처(50px 임계), 슬라이드 애니메이션
-    OnboardingHeader.tsx    # 스텝 인디케이터 + SKIP
-    OnboardingContent.tsx   # 단계별 제목·설명·이미지
-    OnboardingFooter.tsx    # PREV / NEXT·DONE
-    StepIndicator.tsx       # 4개 닷 인디케이터
-  hooks/
-    useOnboardingSteps.ts       # i18n 기반 4단계 OnboardingStep[] 생성
-    useOnboardingNavigation.ts  # currentStep + handleNext/handlePrev, isFirst/isLast
-  types/steps.ts            # OnboardingStep, ONBOARDING_STEPS
-  index.tsx                 # OnboardingModal만 공개
-```
+    ```bash
+    grep -rn "onboarding.setup\|/onboarding/setup" apps libs --include='*.ts' --include='*.tsx' | grep -v node_modules
+    ```
 
-## 주요 결정/특이점
+- **The carousel is an overlay, not a route.** It mounts over `HomePage`, so home's data loads
+  behind it. A test for home mocks the whole feature barrel
+  (`jest.mock('../../onboarding', …)`) rather than the modal's internals.
+- **Two specs guard this feature**, and they guard the two copy sources:
+  `hooks/useOnboardingSteps.test.ts` (four steps, the live limits rather than the retired 5/5 pair,
+  per-language copy and images) and `i18n.test.ts` (every `setupWizard.*` key present in ko and en,
+  `{{max}}` and `{{place}}` interpolations intact, no cloud photo label). Both run with the app's
+  suite.
 
-- **공개 표면 최소화**: barrel은 `OnboardingModal`만 노출한다(HomePage가 유일 소비자).
-- **콘텐츠는 i18n 동적 생성**: 단계 텍스트는 `useOnboardingSteps()`가 언어별로 만든다. `types/steps.ts` 상수는 참고용 기본값.
-- 라이프사이클: `PreferenceLoader`(native에서 `isFirstRun` hydrate) → HomePage 렌더 → `usePreferenceStore`로 모달 조건부 표시.
+    ```bash
+    npx jest --config apps/web/jest.config.js features/onboarding
+    ```
+
+- **Neither screen has a snapshot or a story.** Visual changes are checked in the browser preview,
+  and the carousel needs `isFirstRun` to be true — clear the key or use the settings row.
+
+## Further reading
+
+- [architecture/stores.md](../../architecture/stores.md) — where app-level state lives and what is
+  left in the preference store.
+- [`@chatic/config`](../../../../../libs/config/README.md) — the registry, the lanes, and what
+  `persist: 'shell'` means.
+- [mypage](../mypage/README.md) — the settings row that calls `resetOnboarding()`.
+- [home](../home/README.md) — the host of the carousel, and the place-profile overlay that follows
+  it.
