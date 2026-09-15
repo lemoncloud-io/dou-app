@@ -1,235 +1,245 @@
-# 계정 연동 통합 경로 (`auth.link-account` · `link$`)
+# account-linking — one packet proves every credential
 
-> 상태: Live · 최종 갱신: 2026-08-03 · 관련 ADR: ADR-0042 · 시나리오 전수표: account-linking-scenarios.md
->
-> 대상: `AuthSocketDomainGateway` · `AuthSocketDataSource` · `AuthRepository` · `useLinkAccount` · `useLinkedAccounts`
+`auth.link-account` is the single place a user proves they own something: a phone number, a social
+account, in principle an email address. One packet covers all of it, and three fields decide which
+request it is — `type` (what is being proved), `mode` (what happens when the proof lands) and `step`
+(where in the exchange this call sits).
 
-## 목적
+This document owns that contract and the wiring underneath it. The screens that drive it live
+elsewhere: [phone-verification.md](./phone-verification.md) for the number sheet and screen,
+[account](../account/README.md) for the `/mypage/account` linking card.
 
-계정 수단(번호·이메일·소셜)의 소유를 증명하는 자리를 **앱에서도 하나로** 만든다.
+## Layout
 
-서버가 구 경로 둘(`auth.verify-hash-alias`·`auth.attach-social`)을 `auth.link-account` 하나로
-합치고 옛것에 `@deprecated`를 달았다. 백엔드는 *"앱이 옮기면 한 벌로 지운다"*고 대기 중이므로,
-이 문서가 다루는 이관이 그 제거의 전제다.
-
-동시에 서버가 **`UserView.link$`** 를 열었다 — 이 유저가 어떤 수단을 달았는지 알려 주는 자리다.
-그전까지 앱은 그걸 알 방법이 없어 localStorage 추측으로 대신했다.
-
-이 문서가 소유하는 것:
-
-- **수단·모드·단계 계약** — `type` × `mode` × `step`이 요청 하나를 정하는 규칙과 응답 유니온.
-- **`linkAccount` 배선** — 게이트웨이 → 데이터 소스 → 리포지토리 → 훅, 그리고 relay 핀.
-- **`link$` 읽기** — 어떤 경로로 오고, 왜 타입에 안 보이고, 없을 때 어떻게 물러나는가.
-
-수단별 화면은 각자의 문서가 소유한다 — 번호는
-[phone-verification.md](./phone-verification.md), 소셜은
-[social-links.md](../account/social-links.md).
-
-백엔드 계약 원본: `chatic-sockets-api/docs/specs/relay-server-invite/`(앱용 정본은
-`05-client-guide.md`) · 정책 원본: `chatic-backend-api`
-`feat/relay-server-user-invite-v2`의 `docs/specs/relay-server-user-invite/account-linking-design.md`.
-
-## 설계 원칙
-
-- **의도는 요청이 밝힌다. 응답을 열어 보고 분기하지 않는다.** `mode`가 `link`인지 `login`인지는
-  호출부가 세션 역할로 정하고, 그 값이 곧 "이 증명이 끝나면 무엇이 되는가"다.
-- **모드는 세션 역할에서 파생한다 — 기본값을 두지 않는다.** 게스트는 `login`, 메인유저는 `link`다.
-  어긋나면 폴백이 아니라 에러이므로(메인유저+`login`=400, 게스트+`link`=403) `mode`를 필수 인자로
-  두어 호출부가 잊을 수 없게 한다.
-- **`verify`는 물어보는 자리, `confirm`은 커밋하는 자리.** `link`에서 막히는 이유를 응답으로
-  주는 것은 `verify`뿐이고 `confirm`은 같은 상황을 409·403으로 던진다. 그래서 연동 화면은
-  반드시 `verify`를 먼저 부른다.
-- **`link$`는 힌트, 차단은 서버.** `link$`로 화면을 미리 고를 뿐이고, 진짜 판정은 `verify`의
-  `linkable`과 `confirm`의 에러다.
-- **"없음"과 "모름"을 절대 섞지 않는다.** `link$`가 안 오는 이유는 두 가지(프로필 미도착 ·
-  서버가 그 자리를 짓지 않음)이고 둘 다 "수단이 없다"와 구별할 수 없다. 모르면 판정하지 않고
-  이전 기준으로 물러난다.
-- **패킷 조립은 데이터 소스가 독점한다.** 그 위 어느 층도 `type`·`mode`·`step` 문자열을 쓰지
-  않는다. 조합의 성립 여부는 백엔드가 가리므로, 이 층은 유니온이 허용하는 조합만 짓고 나머지는
-  타입이 거절하게 둔다.
-- **에러 분기는 `errorCode`(HTTP status)로만 한다.** `getSocketErrorCode`
-  (`apps/web/src/app/utils/errors.ts:20`)를 쓰고 메시지 문자열을 파싱하지 않는다.
-- **번호·이메일·OTP·초대 코드는 요청 body에만 산다.** 로그·URL·쿼리 키에 남기지 않는다.
-
-## 범위
-
-**포함**
-
-- `AuthSocketDomainGateway`의 `linkAccount` + 컴포지션 루트의 relay 핀
-- `AuthSocketDataSource`의 5개 메서드(번호 send/verify/confirm, 소셜 verify/confirm)
-- `AuthRepository`의 같은 5개 위임
-- `useLinkAccount`(뮤테이션 묶음) · `useLinkedAccounts`(`link$` 3상태 판정)
-- `MyUser` 타입의 `link$` 확장
-
-**제외**
-
-- **이메일 수단** — 서버가 발송을 `501`로 끊는다. 타입 자리만 지나가고 화면이 없다.
-- **연동 해제** — 서버 미결정. `SOCIAL_UNLINK_ENABLED = false` 유지.
-- **번호 변경 · 수단당 여러 계정 · 소셜/이메일의 `login` 모드** — 전부 서버 미결정.
-- **디바이스 유저의 소셜 로그인** — 소켓에 없다. backend REST 경로이고
-  [auth/README.md](./README.md)의 OAuth 흐름이 소유한다.
-- **경계 타입을 backend-api로 통일하는 일** — `link$`만 읽는 쪽에서 넓힌다.
-- **세션 토큰 설치** — `applySessionToken`이 소유한다([phone-verification.md](./phone-verification.md)).
-
-## 시나리오
-
-전수표는 account-linking-scenarios.md에 있다.
-이 문서는 **경로가 갈리는 두 축**만 적는다.
-
-### 1. `login` — 게스트가 메인유저가 된다 (번호만)
-
-```ts
-await send(phone, { mode: 'login', code }); // code는 초대 맥락에서만
-await confirm(phone, otp, { mode: 'login' }); // → { loggedIn, isNew, $token }
-```
-
-**`verify`를 건너뛴다.** `login`의 `verify`는 `{ verified: true }`뿐이라 사용자가 얻는 것이 없고,
-`confirm`이 같은 코드로 유효성까지 답한다. 그래서 6자리가 차면 곧바로 확정한다.
-
-확정 응답의 `$token`으로 세션이 바뀐다 — `applySessionToken`이 web-core와 살아 있는 relay 소켓에
-새 신원을 심은 **뒤에야** `onVerified`가 뜬다. `isNew`로 가입/복귀 첫 화면이 갈린다.
-
-### 2. `link` — 메인유저가 수단을 하나 더 단다
-
-```ts
-await send(phone, { mode: 'link' }); // 소셜에는 이 단계가 없다
-const c = await verify(phone, otp, { mode: 'link' }); // → { linkable, reason?, hint? }
-if (c.linkable) await confirm(phone, otp, { mode: 'link' }); // → { linked, hint } — 토큰 없음
-```
-
-**`verify`를 반드시 거친다.** `linkable: false`면 확정 버튼을 끄고 `reason`을 보여 준다
-(`'occupied'` = 그 계정이 남의 것, `'type-linked'` = 그 수단을 이미 다른 값으로 달아 둠).
-`confirm`은 같은 상황을 409·403으로만 답하므로 물어보는 쪽이 낫다.
-
-**토큰이 오지 않는다.** 세션이 그대로이므로 설치할 것이 없다.
-
-### 3. `link$` 읽기 — 3상태로 답한다
-
-```ts
-const { phone, social, phoneHint, socialProvider } = useLinkedAccounts();
-// phone·social: 'linked' | 'absent' | 'unknown'
-```
-
-`link$` 객체 자체가 없으면 `'unknown'`이다. 있으면 그 안의 항목 유무가 그대로 판정이다 — 서버가
-뷰를 지었다는 뜻이므로 빠진 항목은 정말 없는 것이다.
-
-**`'unknown'`에서 게이트를 걸면 안 된다.** 소셜로 가입한 기존 유저에게 소셜 연동을 다시 요구하고
-(403 `type-linked`), 번호 유저에게 이미 가진 번호를 다시 인증하라고 하게 된다.
-
-## 다이어그램
-
-### 배선 (relay 핀)
+The path is four layers deep and each one adds exactly one thing.
 
 ```mermaid
 graph TD
-    UI["화면<br/>PhoneVerifySheet · AccountLinkSection"]
-    HK["useLinkAccount<br/>(뮤테이션 5개)"]
-    RP["AuthRepository"]
-    DS["AuthSocketDataSource<br/>type·mode·step 조립"]
-    GW["AuthSocketDomainGateway<br/>Pick&lt;AuthGateway, 'update' | 'linkAccount'&gt;"]
-    RF["socketFactory<br/>getScopedClient('relay')"]
-    SRV["relay 서버<br/>auth.link-account"]
+    UI["screens<br/>PhoneVerifySheet · PhoneVerifyScreen · AccountLinkSection"]
+    HK["useLinkAccount<br/>5 mutations + pending flags"]
+    RP["AuthRepository<br/>remote only"]
+    DS["AuthSocketDataSource<br/>assembles type · mode · step"]
+    GW["AuthSocketDomainGateway<br/>Pick&lt;AuthGateway, 'linkAccount'&gt;"]
+    RF["socketFactory<br/>relayAuthGateway"]
+    SRV["relay server<br/>auth.link-account"]
 
-    UI --> HK --> RP --> DS --> GW
-    RF -.->|linkAccount만 relay 고정| GW
-    GW --> SRV
+    UI --> HK --> RP --> DS --> GW --> SRV
+    RF -.->|pinned at composition| GW
 ```
 
-`auth.update`는 **active 슬롯**에 남는다 — 어느 소켓이 살아 있든 그걸 인증하는 패킷이라서다.
-`linkAccount`만 relay에 고정된다: 그것이 해석하는 메인유저가 relay 뒤 중앙 백엔드에 살기 때문이다
-(`socketFactory.ts:57-61`).
+| Layer             | File                                                               |
+| ----------------- | ------------------------------------------------------------------ |
+| Gateway `Pick`    | `libs/data/src/remote/gateways/socket.ts`                          |
+| Relay pin         | `libs/app-runtime/src/data/factories/socketFactory.ts`             |
+| Data source       | `libs/data/src/remote/socket-data-sources/AuthSocketDataSource.ts` |
+| Repository        | `libs/data/src/repositories/AuthRepository.ts`                     |
+| Hook              | `apps/web/src/app/hooks/useLinkAccount.ts`                         |
+| Linked-state read | `apps/web/src/app/hooks/useLinkedAccounts.ts`                      |
 
-### 단계 × 모드 → 응답
+The bundle is pinned to the **relay** socket at composition time, not chosen per call, so no caller
+can forget a route argument. It has to be relay: the main user this packet resolves lives on the
+central backend behind the relay, whichever cloud happens to be connected.
+
+`AuthSocketDomainGateway` is `Pick<AuthGateway, 'linkAccount'>` — one member. **`auth.update` is
+deliberately not in it.** That packet is the socket handshake and belongs to the SDK's
+`AuthController` alone; a second sender would authenticate a session the controller cannot account
+for, because every input to its state machine is keyed to packets it sent itself. `libs/app-runtime`
+enforces the absence with a test that walks its own source and fails on the string —
+see [`libs/app-runtime`](../../../../../libs/app-runtime/docs/auth/README.md).
+
+## Responsibilities
+
+This layer decides **which packet to build**. It does not decide whether the proof succeeds, and it
+does not decide what the session becomes — the request says that, and the server answers.
+
+`AuthSocketDataSource` holds a monopoly on the packet vocabulary. Nothing above it writes the string
+`'link'`, `'confirm'` or `'social'`. The layer builds only combinations the type union permits and
+lets TypeScript reject the rest, because the server does not police which combinations exist.
+
+`AuthRepository` is remote-only. There is no entity here to cache: a proof is an event, not a row.
+
+## The shared contract
+
+### The request declares the intent
+
+```ts
+export type AccountLinkMode = 'link' | 'login';
+```
+
+| `mode`    | Who calls it         | What the session does           | What comes back                   |
+| --------- | -------------------- | ------------------------------- | --------------------------------- |
+| `'login'` | a device (guest)     | changes — becomes the main user | `{ loggedIn, isNew, $token }`     |
+| `'link'`  | an already-main user | unchanged                       | `{ linked, hint }` — **no token** |
+
+The caller derives the mode from the session role (`isGuest`) and passes it as a required argument.
+It has no default, on purpose: picking the wrong one is an error rather than a fallback — a main user
+sending `login` gets 400, a device session sending `link` gets 403 — and a required argument is what
+keeps both out of reach.
+
+Never read the response to work out which happened. The request already said.
+
+### Four steps, and when to skip one
 
 ```mermaid
 stateDiagram-v2
     [*] --> sent: send / resend
-    sent --> verified_link: verify (mode=link)
-    sent --> verified_login: verify (mode=login) — 건너뜀
-    verified_link --> linked: confirm (linkable=true)
-    verified_link --> blocked: linkable=false + reason
-    sent --> loggedIn: confirm (mode=login)
-    linked --> [*]: 세션 불변 · 토큰 없음
-    loggedIn --> [*]: 세션 교체 · $token
-    blocked --> [*]: 확정 버튼 비활성
+    sent --> checked: verify (mode=link)
+    checked --> linked: confirm · linkable true
+    checked --> blocked: linkable false + reason
+    sent --> loggedIn: confirm (mode=login) — verify skipped
+    linked --> [*]: session unchanged, no token
+    loggedIn --> [*]: session replaced, $token
+    blocked --> [*]: the commit button stays shut
 ```
 
-### `link$`가 앱까지 오는 길
+- **`send` / `resend`** — the data source derives the step from a `resend` flag, so a caller never
+  spells either out. Social has no send step at all: Apple and Google already did the proving.
+- **`verify`** changes nothing on the server and is safe to repeat. On `mode: 'link'` it is the only
+  place that will _tell_ you a commit is blocked, answering `{ linkable: false, reason }` where the
+  reason is `'occupied'` (the credential is someone else's) or `'type-linked'` (this user already has
+  one of that kind). On `mode: 'login'` it only reports that the code is valid, which `confirm`
+  reports anyway.
+- **`confirm`** commits. It meets the two blocked situations with a 409 and a 403 and no explanation.
 
-```mermaid
-graph LR
-    SRV["서버<br/>UserProfile$"] --> RDS["UserSocketDataSource:71<br/>$user 추출"]
-    RDS --> MAP["toDomainUser<br/>mappers.ts:172 (...api)"]
-    MAP --> LDS["UserLocalDataSource:96<br/>cacheWrite (...item)"]
-    LDS --> IDB[(IndexedDB)]
-    IDB --> MU["useMyUser<br/>observeItem"]
-    MU --> LA["useLinkedAccounts<br/>3상태 판정"]
+So a **linking** screen always verifies first and a **login** screen never does. That asymmetry is
+the single most important thing on this page.
+
+There is no "extend the timer" step. An extend action resends, which issues a fresh code and a fresh
+`expiredAt` but does **not** reset the wrong-answer counter.
+
+### Options that must not be sent as `false`
+
+`PhoneCodeSendOptions` carries delivery switches — `sms`, `slack`, `dryRun` — whose server defaults
+are all "on" except `dryRun`. An unset switch is **omitted from the packet entirely**. Writing a
+literal `false` turns a channel off rather than leaving it alone, which is how a dev build stops
+receiving codes over Slack.
+
+`countryCode` is an ISO alpha-2 default for a local (`0…`) number; the server defaults to `KR`, and
+the value used to prove must match the value used to send.
+
+The **invite code rides on `send` only**. The prove steps' union has no slot for it — number and
+invite are matched once, at delivery, and on `mode: 'login'` a number that does not match the invite
+gets no SMS at all (400 at send time). The type enforces this; there is nowhere to put the code
+later even by mistake.
+
+### Errors are read as status codes
+
+Every branch goes through `getSocketErrorCode` (`apps/web/src/app/utils/errors.ts`). Nothing parses
+a message string.
+
+| Situation                                                    | Code |
+| ------------------------------------------------------------ | ---- |
+| Rate limits — cooldown, per-number, per-device, wrong-answer | 429  |
+| Wrong code                                                   | 403  |
+| `confirm` on a credential that is someone else's             | 409  |
+| `confirm` on a kind this user already has                    | 403  |
+| Mode/role mismatch (main user + `login`)                     | 400  |
+
+Phone numbers, email addresses, OTPs and invite codes stay in the request body. They never reach a
+log line, a cache key or a query key.
+
+### Reading what is already linked
+
+`UserView.link$` is the server's answer to "what has this user proved". `useLinkedAccounts` turns it
+into three states per credential — `'linked'`, `'absent'`, `'unknown'` — plus display-only `phoneHint`
+and `socialProvider`.
+
+`'unknown'` means the `link$` object is missing entirely, which happens when the profile has not
+landed or when the server never built the slot. **Never gate on it.** Treating it as `'absent'` asks
+a social-registered user to link social (403 `type-linked`) and asks a phone user to verify a number
+they already own. Fall back to the previous criterion — usually `isGuest` — instead.
+
+`link$` is a hint for choosing a screen. The thing that actually blocks a bad link is `verify`'s
+answer or `confirm`'s status code.
+
+**Where it comes from is not the data layer.** `useMyUser` reads the account fields off the stored
+relay token and refreshes them once from `user.profile`, writing the response back into the token.
+It is not read out of the local cache, and it cannot be: the cache is keyed by `cid` and `uid`, so
+while a cloud is active the relay user's row is unreachable. `link$` does not appear on the boundary
+type either — `MyUser` widens `DomainUser` with `photo`, `email`, `link$` and `userRole`, because
+every hop is a spread rather than a field allowlist. The cost of that is real: a server-side shape
+change will not fail the build.
+
+## Usage
+
+### Proving a number
+
+```ts
+const { send, verify, confirm } = useLinkAccount();
+
+// login — a guest becoming the main user. No verify.
+await send(phone, { mode: 'login', code: inviteCode });
+const { $token } = await confirm(phone, otp, { mode: 'login' });
+
+// link — a main user adding a credential. Verify first, always.
+await send(phone, { mode: 'link' });
+const check = await verify(phone, otp, { mode: 'link' });
+if (check.linkable) await confirm(phone, otp, { mode: 'link' });
 ```
 
-전 구간이 spread다 — 필드 화이트리스트가 없어서 **모르는 필드가 버려지지 않는다.** 막는 것은
-타입뿐이고, 읽는 쪽에서 넓혀 쓴다.
+On `mode: 'login'` the `$token` must be installed before anything else is issued or accepted, or
+those calls answer 403. `applySessionToken` owns that installation —
+[phone-verification.md](./phone-verification.md) covers the ordering.
 
-## 상세 구현
+### Adding a credential kind
 
-### 전송 계층
+1. Extend the union in `AuthSocketDataSource` so the new `type`/`step` combination exists. If the
+   combination is not expressible, it is not supported.
+2. Add the method to `IAuthSocketDataSource` and delegate it from `AuthRepository`. Remote only.
+3. Expose it as a mutation on `useLinkAccount`, taking `mode` as a required argument.
+4. Verify before confirming, unless the kind has no `linkable` answer.
 
-| 파일                                                               | 역할                                                                                                                                                                                                            |
-| ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `libs/data/src/remote/gateways/socket.ts:21`                       | `AuthSocketDomainGateway = Pick<AuthGateway, 'update' \| 'linkAccount'>`. 구 둘을 **일부러 빼 둔다** — `AuthGateway`에는 아직 `@deprecated`로 남아 있고, 이 `Pick`이 호출부가 그걸 집는 것을 막는 유일한 장치다 |
-| `libs/app-runtime/src/data/factories/socketFactory.ts:57-61`       | `linkAccount: relayAuthGateway.linkAccount`. 목적지를 컴포지션 시점에 고정해 호출부가 route 인자로 잊을 수 없게 한다                                                                                            |
-| `libs/data/src/remote/socket-data-sources/AuthSocketDataSource.ts` | `type`·`mode`·`step` 조립을 **독점**한다. `sendPhoneCode`(`resend`로 step 파생) · `verifyPhoneCode` · `confirmPhoneCode` · `verifySocialAccount` · `confirmSocialAccount`                                       |
-| `libs/data/src/repositories/AuthRepository.ts`                     | 같은 5개를 위임한다. remote-only — 여기엔 캐시할 엔티티가 없다(ADR-0036)                                                                                                                                        |
+### What not to do
 
-**미지정 발송 스위치는 페이로드에서 빠진다.** `sms: false`를 리터럴로 실으면 채널이 꺼져 버리므로,
-지정한 것만 넘겨 서버 기본값(`dryRun=false`·`sms=true`·`slack=true`)이 살게 한다.
+- **Do not spell a packet field above the data source.** A `mode: 'link'` string in a component means
+  the vocabulary has leaked out of the one layer that owns it.
+- **Do not add a second `auth.update` sender.** The absence is enforced by a test, and the reason is
+  in [`libs/app-runtime`](../../../../../libs/app-runtime/docs/auth/README.md).
+- **Do not pass delivery switches as `false` to mean "default".** Omit them.
+- **Do not branch on the response shape to learn the mode.** The request knew.
+- **Do not treat `'unknown'` as `'absent'`.**
 
-**초대 코드는 `send`에만 실린다.** 증명 단계(`verify`·`confirm`)의 유니온에는 그 자리가 아예 없다 —
-번호·초대 대조는 발송에서 한 번 일어난다. 구 경로는 `check`에도 동봉했으나 새 계약에서는 불가능하고,
-타입이 이를 강제한다.
+## Notes for implementers and tests
 
-### 앱 훅
+- **Email is typed but has no screen.** The server answers 501 on an email send. The slot exists in
+  the vocabulary and nothing drives it.
+- **Unlinking does not exist.** There is no detach packet, and `SOCIAL_UNLINK_ENABLED` stays `false`
+  in `apps/web/src/app/features/mypage/flags.ts` until one arrives.
+- **Several credentials of one kind is not a client limitation.** `link$.social` is a single slot and
+  the server enforces it with `type-linked`. Changing a number, a second account of the same kind and
+  a `login` mode for social or email are all undefined server-side.
+- **The first paint has no `link$`.** Until `user.profile` answers, the token seed is all there is,
+  so the `'unknown'` rule covers that window too.
+- **An omitted field does not clear a stored one.** The token patch drops `undefined` values; only an
+  explicit `null` clears. That is deliberate — a slim response must not erase the auth carrier — but
+  it means a stale `link$` can outlive the response that dropped it, which has to be re-judged the day
+  an unlink endpoint exists.
+- **A backfill for older accounts may not have run.** Those users read `'unknown'` and the linking
+  card stays hidden. Nothing wrong is displayed, but nothing useful is either.
 
-| 파일                                          | 역할                                                                                                                                                                              |
-| --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `apps/web/src/app/hooks/useLinkAccount.ts`    | 5개 뮤테이션 + pending 플래그. 패킷의 단계를 네 호출로 노출하고 `mode`를 인자로 받는다                                                                                            |
-| `apps/web/src/app/hooks/useLinkedAccounts.ts` | `link$` → `LinkedState` 3상태(`'linked'`·`'absent'`·`'unknown'`) + 표시용 `phoneHint`·`socialProvider`                                                                            |
-| `apps/web/src/app/hooks/useMyUser.ts:12`      | `MyUser = DomainUser & { photo?; email?; link$? }`. 경계 타입은 socials-api의 `UserView`인데 페이로드는 backend-api의 `MyUserView`라, `photo`/`email`이 이미 쓰는 기법으로 넓힌다 |
+## How to verify
 
-`link$`가 타입에 안 보이는 대가: 서버가 모양을 바꿔도 컴파일이 잡아 주지 않는다. 경계 타입을
-통일하는 일은 이 작업의 범위를 넘어 미뤄 두었다.
+```bash
+npx jest --config libs/data/jest.config.js --runInBand --watchman=false --testPathPatterns "Auth"
+npx jest --config libs/app-runtime/jest.config.js --runInBand --watchman=false --testPathPatterns "socketFactory"
+npx jest --config apps/web/jest.config.js --runInBand --watchman=false --testPathPatterns "PhoneVerify|useSocialLinks|ContactInvitePage"
+npx tsc -b apps/web/tsconfig.app.json
+```
 
-### 첫 페인트의 공백
+The `libs/data` run covers the assembly — the mode axis, the step derivation from `resend`, the
+omission of unset switches, the absence of `code` on the prove steps — and fixes the contract that
+`linkable: false` is a **response**, not a thrown error. The `socketFactory` run covers the relay pin,
+observed through the data source because the gateway bundle is not handed out.
 
-`user.profile` 응답이 오기 전 구간은 토큰 시드만 있다(`useSeedMyUserCache.ts:22-29`). 그래서
-`link$`가 그때는 없을 수 있고, `'unknown'` 규칙이 이 구간도 그대로 덮는다.
-`LoggedInView.$token`이 `UserTokenView extends UserView`라 서버가 그 자리를 채우면 해소되지만
-보장은 없다.
+Type checking must be `tsc -b`. A `--noEmit -p` run reads the libraries' last-emitted `.d.ts` files,
+so a stale `dist` invents errors that the source does not contain.
 
-**`cacheWrite`는 merge다**(`UserLocalDataSource.ts:96-102`). 한번 쓰인 `link$`는 이후 응답이
-그 자리를 빼먹어도 캐시에 남는다. 지금은 연동 해제가 없어 무해하지만, 해제를 열 때 replace
-시맨틱을 함께 판단해야 한다.
+## Further reading
 
-## 검증 방법
-
-- `npx jest --config libs/data/jest.config.js --runInBand --watchman=false --testPathPatterns "Auth"` —
-  데이터 소스의 조립(모드 축·step 파생·미지정 스위치 누락·증명 단계에 `code` 부재)과 리포지토리 위임.
-  `linkable: false`를 에러로 바꾸지 않는다는 계약도 여기 고정돼 있다.
-- `npx jest --config libs/app-runtime/jest.config.js --runInBand --watchman=false --testPathPatterns "socketFactory"` —
-  **relay 핀 계약**. 네 단계 전부가 relay 슬롯으로 가고 `auth.update`만 active에 남는지. 게이트웨이
-  번들을 내주지 않으므로(ADR-0036) 데이터 소스 경유로 관측한다.
-- `npx jest --config apps/web/jest.config.js --runInBand --watchman=false --testPathPatterns "PhoneVerify|useSocialLinks|ContactInvitePage"` —
-  모드별 경로, `linkable: false` 카피, `link$` 3상태 게이팅.
-- `npx tsc -b apps/web/tsconfig.app.json` — 프로젝트 레퍼런스 빌드. 라이브러리 `dist`가 낡은
-  상태에서 `--noEmit -p`를 쓰면 stale `.d.ts`를 읽어 실재하지 않는 에러가 난다.
-- 수동: 게스트로 번호 로그인 → 초대 발급까지 403 없이 / 소셜 가입 유저로 마이페이지에서 번호 연동
-  (`verify`가 `linkable`을 답하는지) / `link$`가 안 오는 환경에서 섹션이 조용히 접히는지.
-
-## 서버에 확인이 필요한 것
-
-셋 다 착수를 막지 않는다 — 전부 "없으면 물러난다"로 설계했다.
-
-| #   | 무엇                                           | 답이 "아니오"면                                                                                                    |
-| --- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| 1   | 기존 유저 `link$` **백필 패치**가 돌았나       | 기존 유저의 `link$`가 비어 발급 게이트가 사실상 동작하지 않는다. `isGuest` 기준으로 물러난다                       |
-| 2   | `user.profile`이 `$user.link$`를 **실어 오나** | `link$` 읽기가 성립하지 않는다. `GET /users/0/profile`(`libs/web-core/src/api/auth.ts:128`, 죽은 코드)이 폴백 카드 |
-| 3   | `invite.get`이 `last4`를 **실어 오나**         | 발송 전 사전 대조를 건너뛰고 서버 400에 의존한다                                                                   |
+- [phone-verification.md](./phone-verification.md) — the two shells that drive this packet, and the
+  `$token` installation on the login path.
+- [international-phone-input.md](./international-phone-input.md) — how a number reaches E.164 before
+  it is sent.
+- [account](../account/README.md) — the `/mypage/account` card that reads `link$` and links social.
+- [`libs/app-runtime`](../../../../../libs/app-runtime/docs/auth/README.md) — who owns the socket
+  handshake, and why nothing here may send it.
