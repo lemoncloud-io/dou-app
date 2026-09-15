@@ -226,45 +226,11 @@ yarn install
 
 ### Environment Setup
 
-Copy the example environment files and fill in your values:
-
-```bash
-# Web
-cp apps/web/.env.example apps/web/.env
-
-# Admin V2
-cp apps/admin-v2/.env.example apps/admin-v2/.env
-
-# Mobile
-cp apps/mobile/.env.example apps/mobile/.env
-
-# Testbed (experimental app)
-cp apps/testbed/.env.example apps/testbed/.env
-```
+Full checklist — which `.env` files, Firebase config, and (for release builds only) signing
+credentials a fresh checkout needs — lives in **[ONBOARDING.md](./ONBOARDING.md)**.
 
 > [!WARNING]
 > Environment files (`.env`) must exist before building. The app will not start without them.
-
-> [!IMPORTANT]
-> **Migrating an existing mobile checkout.** `apps/mobile/.env` used to be the dev env on iOS; it is
-> now the LOCAL env on both platforms, and dev/prod builds read `.env.dev` / `.env.prod`. Move your
-> current dev values to `apps/mobile/.env.dev`, then recreate `.env` from `.env.example`. Android is
-> unaffected — it already read `.env.dev` / `.env.prod`.
-
-<details>
-<summary>Firebase configuration (Mobile only)</summary>
-
-```bash
-# iOS — copy and fill with your Firebase config
-cp apps/mobile/ios/Firebase/GoogleService-Info.plist.example \
-   apps/mobile/ios/Firebase/GoogleService-Info-Dev.plist
-
-# Android — copy and fill with your Firebase config
-cp apps/mobile/android/app/src/google-services.json.example \
-   apps/mobile/android/app/src/dev/google-services.json
-```
-
-</details>
 
 ## Development
 
