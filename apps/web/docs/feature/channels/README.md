@@ -31,7 +31,7 @@ This feature does **not** own:
 - **relay 1:1 invites** — issuing and accepting belongs to `invite`
   ([../invite/README.md](../invite/README.md)); a DM's re-invite hands off to it;
 - **push routing into a room or a thread** — `notifications`
-  ([../notifications/README.md](../notifications/README.md));
+  ([../notifications/README.md](../../bridge/push-navigation.md));
 - **caches, cursors, the join window and the feed predicates** — `@chatic/data`
   ([libs/data](../../../../../libs/data/README.md));
 - **presentation primitives** — `@chatic/web-ui-kit`, with Block Kit bodies drawn by

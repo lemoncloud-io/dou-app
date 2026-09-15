@@ -53,7 +53,7 @@ this folder — because desktop-web needs to read the exact same record apps/web
 
 | Registry key                | Retired `PreferenceState` field       | Consuming hook                                        |
 | --------------------------- | ------------------------------------- | ----------------------------------------------------- |
-| `ui.theme`                  | `theme`                               | `useTheme` (`app/hooks`) — see [theme.md](./theme.md) |
+| `ui.theme`                  | `theme`                               | `useTheme` (`app/hooks`) — see [theme.md](../shell/theme.md) |
 | `ui.blurLastMessage`        | `blurLastMessage`                     | `useBlurLastMessage` (`app/hooks`)                    |
 | `ui.onboardingCompleted`    | `isFirstRun` (opposite polarity)      | `useOnboarding` (`app/hooks`)                         |
 | `ui.pushMuted`              | `pushMuted`                           | `useDevicePushMute` (`features/mypage/hooks`)         |
@@ -98,7 +98,7 @@ to how apps/web sits on top of it:
    in their pre-paint scripts, and `@chatic/theme`'s `ThemeProvider` does too. `syncThemeFromSharedKey()`
    in `app/config/legacyPreferenceMigration.ts` re-mirrors `vite-ui-theme` into `ui.theme`'s
    namespaced storage on every boot, and `useTheme.ts`'s `setTheme` writes `vite-ui-theme` directly
-   in addition to calling `config.set()`. Full detail in [theme.md](./theme.md).
+   in addition to calling `config.set()`. Full detail in [theme.md](../shell/theme.md).
 
 ## Legacy carry-over — `legacyPreferenceMigration.ts`
 

@@ -2,9 +2,9 @@
 
 Covers `apps/web/src/app/hooks/useTheme.ts`, `runtime/ThemeApplier.tsx` and
 `config/legacyPreferenceMigration.ts`. The value model, default, storage format and web↔native
-contract are owned by [`apps/mobile/docs/theme.md`](../../../mobile/docs/theme.md) — this document
+contract are owned by [`apps/mobile/docs/theme.md`](../../../mobile/docs/system/theme.md) — this document
 covers only the web-internal wiring. The storage/lane mechanism itself is
-[`@chatic/config`](../../../../libs/config/README.md)'s canon; see also [stores.md](./stores.md)
+[`@chatic/config`](../../../../libs/config/README.md)'s canon; see also [stores.md](../state/stores.md)
 for how apps/web wires into that mechanism generally.
 
 Theme is the `ui.theme` registry key of `@chatic/config` (moved 2026-09-09, retiring the old

@@ -149,8 +149,8 @@ The web side of this feature depends on two things from the shell, and on nothin
 
 The records are written inside the same guard that increments the app-icon badge, so a push that
 does not raise a badge does not leave a mark either. The native badge counter itself is a separate
-concern — marks are never added to it. See [`apps/mobile`](../../../../../apps/mobile/docs/badge.md)
-for the counter and [push](../../../../../apps/mobile/docs/push.md) for why a background push cannot
+concern — marks are never added to it. See [`apps/mobile`](../../../../../apps/mobile/docs/push/badge.md)
+for the counter and [push](../../../../../apps/mobile/docs/push/README.md) for why a background push cannot
 reach the web layer.
 
 ## Notes for implementers and tests

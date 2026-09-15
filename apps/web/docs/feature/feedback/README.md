@@ -177,4 +177,4 @@ puts `user.isAuthenticated: false` in the payload rather than refusing.
 - [`@chatic/app-runtime`](../../../../../libs/app-runtime/README.md) — `runtime.report`, the wire
   body, and what the sender adds on top of `extras`.
 - [mypage](../mypage/README.md) — the settings row that leads here.
-- [architecture/logging.md](../../architecture/logging.md) — why the logs travel separately.
+- [architecture/logging.md](../../observability/logging.md) — why the logs travel separately.

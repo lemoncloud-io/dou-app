@@ -171,7 +171,7 @@ routes all three through the same prop, so there is no "skipped" state distinct 
 
 ## Further reading
 
-- [architecture/stores.md](../../architecture/stores.md) — where app-level state lives and what is
+- [architecture/stores.md](../../state/stores.md) — where app-level state lives and what is
   left in the preference store.
 - [`@chatic/config`](../../../../../libs/config/README.md) — the registry, the lanes, and what
   `persist: 'shell'` means.

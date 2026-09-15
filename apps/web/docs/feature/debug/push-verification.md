@@ -67,7 +67,7 @@ It starts empty on every panel mount and is not written to the log buffer, so a 
 the screen was opened leaves no trace here.
 
 What happens after a tap — turning the payload into a route, and holding it until the router is
-ready — belongs to `app/bridge/navigation/`; see [notifications](../notifications/README.md).
+ready — belongs to `app/bridge/navigation/`; see [notifications](../../bridge/push-navigation.md).
 
 ### Reproducing a push without a server
 
@@ -94,6 +94,6 @@ posts and say so instead of implying a reply.
 ## Further reading
 
 - [README](./README.md) — the gate, the panel, and the rest of the catalogue.
-- [notifications](../notifications/README.md) — device token registration in production, and push
+- [notifications](../../bridge/push-navigation.md) — device token registration in production, and push
   tap routing.
-- [architecture/bridge.md](../../architecture/bridge.md) — the single native ↔ web message seam.
+- [architecture/bridge.md](../../bridge/README.md) — the single native ↔ web message seam.

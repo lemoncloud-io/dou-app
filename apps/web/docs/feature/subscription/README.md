@@ -284,7 +284,7 @@ sequenceDiagram
 `OnPurchaseError`, which a resolver ref turns back into a promise. Every store failure passes
 through that one handler, so it is the only place that logs them — and a `user-cancelled` code is
 logged as `info`, because a cancellation is an ordinary outcome and filing it as an error misreads
-the funnel. See [architecture/bridge.md](../../architecture/bridge.md) for the seam itself.
+the funnel. See [architecture/bridge.md](../../bridge/README.md) for the seam itself.
 
 `useRestorePurchases` is the recovery path for the gap in the middle: the store charged, the
 validation never landed. It re-validates every receipt the store still holds, and exists as a hook
@@ -346,8 +346,8 @@ uses, which is the fastest way to exercise a purchase path without a real charge
 
 ## Further reading
 
-- [architecture/bridge.md](../../architecture/bridge.md) — the single native ↔ web message seam.
-- [architecture/stores.md](../../architecture/stores.md) — why the cross-feature request seams are
+- [architecture/bridge.md](../../bridge/README.md) — the single native ↔ web message seam.
+- [architecture/stores.md](../../state/stores.md) — why the cross-feature request seams are
   zustand stores.
 - [home/README.md](../home/README.md) — the banners and the cloud switcher that raise the requests.
 - [mypage/README.md](../mypage/README.md) — cloud management, where a cloud is actually released.

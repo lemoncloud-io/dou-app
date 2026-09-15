@@ -1,6 +1,6 @@
 # Theme — light default and the web↔native sync
 
-> Related: [../webview/README.md](../webview/README.md) (the injection table) · [../boot/boot-optimization.md](../boot/boot-optimization.md) (the boot path) · [apps/web theme doc](../../../web/docs/architecture/theme.md) (web-internal state and DOM application)
+> Related: [../webview/README.md](../webview/README.md) (the injection table) · [../boot/boot-optimization.md](../boot/boot-optimization.md) (the boot path) · [apps/web theme doc](../../../web/docs/shell/theme.md) (web-internal state and DOM application)
 
 **This document owns the web↔native theme contract** — the value model, the default, the storage
 format, and the boot-time sync. `apps/web/docs/architecture/theme.md` covers only the web-internal
@@ -228,7 +228,7 @@ no push, since the side that changed it (the web) already knows.
 ### Web side
 
 Web owns `ui.theme` as a `@chatic/config` registry key (`persist: 'shell'`, default `'light'`) — the
-consuming detail is the [web theme doc](../../../web/docs/architecture/theme.md)'s. This document's
+consuming detail is the [web theme doc](../../../web/docs/shell/theme.md)'s. This document's
 concern is only the second channel that config write does not cover:
 
 | File                                                                             | Role                                                                                                                                                                                                                          |

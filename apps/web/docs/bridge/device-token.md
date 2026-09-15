@@ -3,7 +3,7 @@
 A push can only reach this install once its device token is registered with the broker. The token
 itself is native property: only the shell can ask FCM or APNs for one. This document covers the two
 files in `apps/web` that bridge that gap, and nothing else — **the registration policy is not the
-app's**, it belongs to [`@chatic/app-runtime`](../../../../../libs/app-runtime/docs/push/README.md)
+app's**, it belongs to [`@chatic/app-runtime`](../../../../libs/app-runtime/docs/push/README.md)
 and is canonical there.
 
 ## Layout
@@ -17,7 +17,7 @@ apps/web/src/app/bridge/
 
 Two source files and one test (`useDeviceTokenRegistration.test.ts`). There is no
 `DebugPushPage.tsx` and no `/debug/push` route to open: verification lives in the debug overlay's
-Push screen — see [debug](../debug/README.md).
+Push screen — see [debug](../feature/debug/README.md).
 
 ## Responsibilities
 
@@ -61,7 +61,7 @@ Four fields, and each one is a decision:
 - **`stage` is deliberately absent.** A mobile build carries its stage in the flavour's
   `google-services.json`, so the broker's default is the right project. Desktop is the shell where
   omitting it is a bug — the contract for that is in the
-  [app-runtime push doc](../../../../../libs/app-runtime/docs/push/README.md).
+  [app-runtime push doc](../../../../libs/app-runtime/docs/push/README.md).
 
 `installId` is not passed either. The runtime resolves device identity itself through
 `useDynamicDeviceId`, the same source the socket side uses, so passing a second one from here would
@@ -77,7 +77,7 @@ to hold a token, and code that reads the global instead fails silently rather th
 `deviceId` does arrive, but it is not the raw hardware id: the shell concatenates the Firebase
 installation id onto it. That lookup is asynchronous, so a very early read can see the raw id alone.
 `installId` (`CHATIC_APP_INSTALLATION_ID`) stays the raw id. The mobile side of that composition is
-documented in [apps/mobile](../../../../mobile/README.md).
+documented in [apps/mobile](../../../mobile/README.md).
 
 ## The mirror is allowed to fail
 
@@ -116,9 +116,9 @@ that a zero-argument host cannot supply.
 
 ## Further reading
 
-- [app-runtime push](../../../../../libs/app-runtime/docs/push/README.md) — the registration policy,
+- [app-runtime push](../../../../libs/app-runtime/docs/push/README.md) — the registration policy,
   the record's two tiers, the triggers, and the endpoint-recovery trade it accepts
-- [notifications](./README.md) — what happens to a push once it arrives
-- [debug](../debug/README.md) — the overlay screen that checks registration on a real device
-- [apps/mobile](../../../../mobile/README.md) — permission prompts, token issuance, notification
+- [notifications](./push-navigation.md) — what happens to a push once it arrives
+- [debug](../feature/debug/README.md) — the overlay screen that checks registration on a real device
+- [apps/mobile](../../../mobile/README.md) — permission prompts, token issuance, notification
   channels

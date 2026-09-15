@@ -223,7 +223,7 @@ see [chat-room.md](./chat-room.md).
   [../home/README.md](../home/README.md).
 - Reply pushes are ordinary message pushes, so a tap lands on the channel first and hops to the
   thread only if the pushed chat turns out to be a reply. That routing lives in the notifications
-  surface — [../notifications/README.md](../notifications/README.md).
+  surface — [../notifications/README.md](../../bridge/push-navigation.md).
 - The derivations are pure and tested directly: `foldReactions.test.ts` (normalisation convergence,
   last-action-wins, optimistic ordering), `buildThread.test.ts` (both encodings, reactions excluded,
   `lastReplyNo` / owner), plus component tests for the chips, the sheets and the footer.

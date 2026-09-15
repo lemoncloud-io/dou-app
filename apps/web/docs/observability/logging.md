@@ -92,5 +92,5 @@ queue instead of pausing it.
 
 - The entry contract, the hub, masking, and the upload schedule are canonical in
   [`@chatic/logger`](../../../../libs/logger/README.md).
-- The web→native relay (`setupBridgeLogger`) is [bridge.md](./bridge.md).
+- The web→native relay (`setupBridgeLogger`) is [bridge.md](../bridge/README.md).
 - The debug overlay itself is [debug feature](../feature/debug/README.md).

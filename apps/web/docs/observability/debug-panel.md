@@ -93,5 +93,5 @@ machine, the on-device checklist — is in
   unlock gate, the manifest, how to add a screen.
 - [`libs/app-messages`](../../../../libs/app-messages/README.md) — the request/reply contract every
   bridge command follows, including the web-ships-before-app rule.
-- [`bridge.md`](./bridge.md) — the `appBridge` / `useOn*` pattern the panel's screens use like any
+- [`bridge.md`](../bridge/README.md) — the `appBridge` / `useOn*` pattern the panel's screens use like any
   other feature.

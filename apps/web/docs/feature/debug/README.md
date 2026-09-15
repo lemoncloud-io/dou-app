@@ -7,7 +7,7 @@ the panel is an overlay mounted beside the router, and the only way in is the ga
 
 This document covers what the feature owns and the rules that break things when ignored. How the
 panel itself is put together, and why the app's own debug UI was folded into it, is the
-[architecture](../../architecture/README.md) layer's subject.
+[architecture](../../README.md) layer's subject.
 
 ## Layout
 
@@ -53,7 +53,7 @@ and their copy; the runtime metric collectors.
   [`@chatic/logger`](../../../../../libs/logger/README.md) owns the queue, the listeners and the
   upload.
 - **Push tap routing.** `app/bridge/navigation/` resolves an `OnNavigate` into a route — see
-  [notifications](../notifications/README.md). The Push screen only observes.
+  [notifications](../../bridge/push-navigation.md). The Push screen only observes.
 
 ## The shared contract
 
@@ -234,10 +234,10 @@ Nothing else. The registry, the menu, the tab strip and the size rules all deriv
 
 ## Further reading
 
-- [architecture](../../architecture/README.md) — how the panel is assembled and what moved into it
+- [architecture](../../README.md) — how the panel is assembled and what moved into it
   from the native shell.
 - [push-verification.md](./push-verification.md) — the on-device runbook for the Push and Device
   Info screens.
 - [mypage](../mypage/README.md) — the Lab page that hosts the tap target.
-- [notifications](../notifications/README.md) — what happens after a push is tapped.
+- [notifications](../../bridge/push-navigation.md) — what happens after a push is tapped.
 - [`@chatic/config`](../../../../../libs/config/README.md) · [`@chatic/logger`](../../../../../libs/logger/README.md)

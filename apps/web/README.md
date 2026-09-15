@@ -56,7 +56,7 @@ directly, and it should stay that way — the command above says whether it has.
    a raw setter.
 3. **`shared` imports no feature.** `ui/`, `hooks/`, `stores/`, `utils/`, `bridge/` and `config/`
    contain zero imports from `features/`. That is what makes them safe to import from anywhere; the
-   rule and the command that checks it are in [docs/architecture/](./docs/architecture/README.md).
+   rule and the command that checks it are in [docs/README.md](./docs/README.md).
 4. **Features do not import each other.** Two features that need the same thing promote it to
    `app/hooks/`, `app/ui/components/` or `app/utils/`. A `features/a → features/b` import is a
    refactor that was skipped.
@@ -138,7 +138,7 @@ The hits are react-query's own `refetch`, plus exactly one real `fetch`: `Licens
 endpoint is the violation.
 
 Import direction _inside_ `app/` — which of those boxes may name which — is decided in
-[docs/architecture/](./docs/architecture/README.md) and not restated here.
+[docs/README.md](./docs/README.md) and not restated here.
 
 ### Boot
 
@@ -208,9 +208,10 @@ Files you cannot guess from the name:
   those by concrete path (`app/utils/webVitals`) or the barrel becomes unloadable under the test
   transform.
 
-Two feature folders have no doc of their own: `appUpdate` (the update prompt host mounted in
-`app.tsx`) and `search`. Conversely `docs/feature/notifications/` documents `app/bridge/navigation`,
-which is not a feature folder at all.
+`docs/feature/` carries one folder per feature in `app/features/`, and the names match exactly — the
+`diff` in [docs/README.md](./docs/README.md) is what enforces that. Code that has no feature folder
+is documented by category instead: push-tap routing and device token registration are
+[docs/bridge/](./docs/bridge/README.md), because their entry point is `app/bridge/navigation`.
 
 ### Vocabulary
 
@@ -312,7 +313,7 @@ the new page. Then update the feature's `docs/feature/<group>/README.md`.
 Call the repository hook from `runtime.data` and render what it observes. Do not fetch, do not
 cache in component state, and do not reach for `@chatic/data` internals — the facade on
 `runtime.data` is the supported surface. Refresh, sync and delta reconciliation are
-[docs/architecture/](./docs/architecture/README.md)'s `data-flow.md`.
+[docs/state/data-flow.md](./docs/state/data-flow.md).
 
 ### 3. Switch cloud or place
 
@@ -339,25 +340,20 @@ The theme is a setting (`ui.theme`) that `app/runtime/ThemeApplier.tsx` mirrors 
 `app.tsx` installs the global handlers — `window.onerror`, `unhandledrejection`, capture-phase
 resource-load failures, CSP violations — and every one of them writes through `logger` from
 `@chatic/bridges`. The entries reach the upload queue started in `main.tsx`. The in-app view is the
-debug overlay (`DebugOverlayHost`), documented under `docs/architecture/`.
+debug overlay (`DebugOverlayHost`), documented under [docs/observability/](./docs/observability/README.md).
 
 ## Documents
 
-| Folder                                                                | What it covers                                                                                                           |
-| --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| [docs/architecture/](./docs/architecture/README.md)                   | Directory placement, data flow, routing, the native bridge, global stores, theme, logging, layout shell, the debug panel |
-| [docs/feature/account/](./docs/feature/account/README.md)             | Sign-up and password reset, both through email verification                                                              |
-| [docs/feature/auth/](./docs/feature/auth/README.md)                   | Login, session delegation, invite acceptance                                                                             |
-| [docs/feature/channels/](./docs/feature/channels/README.md)           | Channel list, chat room, threads, channel settings and invites                                                           |
-| [docs/feature/debug/](./docs/feature/debug/README.md)                 | The developer overlay and its runtime unlock                                                                             |
-| [docs/feature/feedback/](./docs/feature/feedback/README.md)           | Feedback submission, with logs and device info attached                                                                  |
-| [docs/feature/home/](./docs/feature/home/README.md)                   | The main tabs, the lists, and the cloud switch sheet                                                                     |
-| [docs/feature/invite/](./docs/feature/invite/README.md)               | Relay 1:1 invites — sending and accepting                                                                                |
-| [docs/feature/mypage/](./docs/feature/mypage/README.md)               | The account hub, settings depth, and policy pages                                                                        |
-| [docs/feature/notifications/](./docs/feature/notifications/README.md) | Push tap routing and device token registration (implemented in `app/bridge/navigation`)                                  |
-| [docs/feature/onboarding/](./docs/feature/onboarding/README.md)       | The first-run setup gate — cloud, then place, then profile                                                               |
-| [docs/feature/place/](./docs/feature/place/README.md)                 | Place (site) detail and its settings pages                                                                               |
-| [docs/feature/subscription/](./docs/feature/subscription/README.md)   | Subscription status, plans, and in-app purchase                                                                          |
+The detail lives under [`docs/`](./docs/README.md). `docs/README.md` is the layering contract — where
+a new file goes, and which direction an import may point — and the index of everything below it.
+
+| Folder | What it covers |
+| --- | --- |
+| [docs/feature/](./docs/feature/) | One folder per feature in `app/features/`, names matching exactly — a README each, plus a topic file per screen or flow that reads on its own |
+| [docs/shell/](./docs/shell/README.md) | The frame every screen is drawn into — layout chrome, the route tables, and theme |
+| [docs/state/](./docs/state/README.md) | How data reaches a screen — the zustand stores, preference plumbing, observe/refresh/sync |
+| [docs/bridge/](./docs/bridge/README.md) | The single seam to the native shell — `appBridge`, push-tap routing, device token registration |
+| [docs/observability/](./docs/observability/README.md) | The logger hub and the upload queue, and the debug panel's side of the bridge |
 
 ## How to verify
 

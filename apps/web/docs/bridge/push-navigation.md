@@ -33,11 +33,11 @@ badges.
 **Out:**
 
 - Banner assembly and delivery on the device, permission prompts, notification channels, and the
-  deep-link plumbing on the native side — [apps/mobile](../../../../mobile/README.md).
+  deep-link plumbing on the native side — [apps/mobile](../../../mobile/README.md).
 - Registering this install's token — [device-token](./device-token.md), and the policy behind it in
-  [app-runtime push](../../../../../libs/app-runtime/docs/push/README.md).
-- The cross-cloud unread dot a background push marks — [home](../home/README.md).
-- Per-device push mute, which is an account setting — [mypage](../mypage/README.md).
+  [app-runtime push](../../../../libs/app-runtime/docs/push/README.md).
+- The cross-cloud unread dot a background push marks — [home](../feature/home/README.md).
+- Per-device push mute, which is an account setting — [mypage](../feature/mypage/README.md).
 
 ## The shared contract
 
@@ -238,7 +238,7 @@ so it arrives on the relay socket even while a cloud socket is active. `onType` 
 _active_ slot, which would miss this exactly when it matters most — sitting inside cloud A while
 cloud B finishes provisioning is the common case, not the edge one. `onSlotType('relay', …)` is the
 primitive that fixes it, and the slot model behind it is in
-[app-runtime socket](../../../../../libs/app-runtime/docs/socket/README.md).
+[app-runtime socket](../../../../libs/app-runtime/docs/socket/README.md).
 
 Two effects, independent on purpose:
 
@@ -281,6 +281,6 @@ the best-effort paths and the follow-on site switch are all covered from there.
 What a test cannot reach: the shell's own tap paths. Android and iOS get from a banner tap to
 `OnNavigate` by different routes — one through the native intent and `Linking`, the other through
 the notification-open callback — and they converge on the same contract only on a real device. Both
-are documented in [apps/mobile](../../../../mobile/README.md). Confirm the crossover by hand: enter a
+are documented in [apps/mobile](../../../mobile/README.md). Confirm the crossover by hand: enter a
 cloud session, receive a relay DM push, tap it from the shade and from the in-app banner, and check
 that you reach the relay room with no re-login and with the cloud session closed.

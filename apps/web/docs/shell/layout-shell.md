@@ -117,5 +117,5 @@ sheet), and it is the mistake to watch for in a new one.
 
 ## Further reading
 
-- [architecture README](./README.md) — the three rings, and why `shared` (which includes
+- [architecture README](../README.md) — the three rings, and why `shared` (which includes
   `ui/layouts/`) never imports a feature.

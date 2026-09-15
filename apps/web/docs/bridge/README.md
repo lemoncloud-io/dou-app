@@ -12,6 +12,15 @@ goes through this folder's hooks.
 grep -rln "from '@chatic/bridges'" apps/web/src/app/features --include='*.ts' --include='*.tsx'
 ```
 
+This document is also the index for the category. Two subjects are large enough to own their own
+file, and both are bridge code rather than feature code — there is no `features/notifications/`
+folder:
+
+| Document | Owns |
+| --- | --- |
+| [push-navigation.md](./push-navigation.md) | Where a tapped push lands — path handover, session state, and the back stack |
+| [device-token.md](./device-token.md) | The shell adapter that hands a push token to `runtime.push`, and its native mirror |
+
 ## Outbound: `appBridge`
 
 `appBridge` (`appBridge.ts`) wraps every `webClient.post`/`webClient.request` call the app makes —
@@ -55,7 +64,7 @@ handlers resolve or reject — turning an event pair back into the `Promise` the
 
 ## Device token registration
 
-Registration policy (auth gating, once-per-install dedup, retry) lives in `@chatic/app-runtime`'s
+Summarised here; the file-level detail is [device-token.md](./device-token.md). Registration policy (auth gating, once-per-install dedup, retry) lives in `@chatic/app-runtime`'s
 `runtime.push`. `useDeviceTokenRegistration.ts` supplies only the three pieces only this shell can:
 the FCM token fetch (`appBridge.fetchFcmToken()`), the platform read off
 `window.CHATIC_APP_PLATFORM`, and a native-side mirror of the registration record
@@ -72,7 +81,6 @@ paying that wait branches on `isNative()` first rather than calling through and 
 ## Related
 
 - Preference read/write over the bridge (`FetchPreference`, `PreferenceLoader`) is
-  [stores.md](./stores.md).
-- The web→native log relay (`setupBridgeLogger`) is [logging.md](./logging.md).
-- Push-tap routing (`app/bridge/navigation/`) is
-  [notifications feature](../feature/notifications/README.md).
+  [stores.md](../state/stores.md).
+- The web→native log relay (`setupBridgeLogger`) is [logging.md](../observability/logging.md).
+- Push-tap routing (`app/bridge/navigation/`) is [push-navigation.md](./push-navigation.md).

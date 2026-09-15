@@ -8,7 +8,7 @@ single thing most likely to be got wrong here.
 The feature holds no session and no repository of its own. Every read is a hook from `app/hooks/` or
 [`@chatic/app-runtime`](../../../../../libs/app-runtime/README.md); the chrome around it — the
 floating nav, safe areas, keyboard insets — belongs to
-[architecture/layout-shell.md](../../architecture/layout-shell.md).
+[architecture/layout-shell.md](../../shell/layout-shell.md).
 
 ## Layout
 
@@ -218,7 +218,7 @@ Screens read state through hooks and never touch a core object:
 
 ## Further reading
 
-- [architecture/layout-shell.md](../../architecture/layout-shell.md) — the nav, safe areas and
+- [architecture/layout-shell.md](../../shell/layout-shell.md) — the nav, safe areas and
   keyboard insets these screens sit inside.
 - [account](../account/README.md) — social links and the account-credential story.
 - [debug](../debug/README.md) · [feedback](../feedback/README.md) — the two features Lab and

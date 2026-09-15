@@ -268,7 +268,7 @@ Traps:
   list that consumes the sort preference.
 - [mypage/README.md](../mypage/README.md) — the account-level profile, which is a different record
   from the per-place one edited here.
-- [architecture/data-flow.md](../../architecture/data-flow.md) — the observe / refresh / sync
+- [architecture/data-flow.md](../../state/data-flow.md) — the observe / refresh / sync
   contract these screens read through.
 - [`@chatic/data`](../../../../../libs/data/README.md) — the place repository, the cache partition,
   and why `sid` travels as an argument.
