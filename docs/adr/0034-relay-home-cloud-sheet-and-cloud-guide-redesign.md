@@ -1,154 +1,220 @@
-# ADR-0034: 중계 홈 단순화 · 클라우드 전환 시트 섹션화 · 클라우드 안내화면 신설
+# ADR-0034: Simplify the relay home, section the cloud switch sheet, add a cloud guide screen
 
-> 상태: Accepted · 결정일: 2026-08-03
+> Status: Accepted · Decided: 2026-08-03
 
-## 맥락 (Context)
+## Context
 
-Figma에서 중계(DoU Home) 홈, 클라우드 전환 시트, 그리고 신규 "내 클라우드 안내" 화면의 디자인이 개정되었다.
+Figma revised the designs for the relay (DoU Home) home, the cloud switch sheet, and a new "My cloud
+guide" screen.
 
-| 화면                               | Figma 노드                                                                               |
-| ---------------------------------- | ---------------------------------------------------------------------------------------- |
-| 중계 홈 (개정)                     | [3486-26403](https://www.figma.com/design/ViwLfjc5Eoq7BpEXFfFj3W/DoU?node-id=3486-26403) |
-| 클라우드 홈 (대조 기준, 변경 없음) | [2931-8181](https://www.figma.com/design/ViwLfjc5Eoq7BpEXFfFj3W/DoU?node-id=2931-8181)   |
-| 전환 시트 — 내 클라우드 0개        | [3477-23611](https://www.figma.com/design/ViwLfjc5Eoq7BpEXFfFj3W/DoU?node-id=3477-23611) |
-| 전환 시트 — 목록 있음              | [3486-25407](https://www.figma.com/design/ViwLfjc5Eoq7BpEXFfFj3W/DoU?node-id=3486-25407) |
-| 전환 시트 — 전 섹션 접힘           | [3486-25889](https://www.figma.com/design/ViwLfjc5Eoq7BpEXFfFj3W/DoU?node-id=3486-25889) |
-| 내 클라우드 안내 (신규)            | [3519-29515](https://www.figma.com/design/ViwLfjc5Eoq7BpEXFfFj3W/DoU?node-id=3519-29515) |
+| Screen                                     | Figma node                                                                               |
+| ------------------------------------------ | ---------------------------------------------------------------------------------------- |
+| Relay home (revised)                       | [3486-26403](https://www.figma.com/design/ViwLfjc5Eoq7BpEXFfFj3W/DoU?node-id=3486-26403) |
+| Cloud home (reference baseline, unchanged) | [2931-8181](https://www.figma.com/design/ViwLfjc5Eoq7BpEXFfFj3W/DoU?node-id=2931-8181)   |
+| Switch sheet — zero owned clouds           | [3477-23611](https://www.figma.com/design/ViwLfjc5Eoq7BpEXFfFj3W/DoU?node-id=3477-23611) |
+| Switch sheet — with a list                 | [3486-25407](https://www.figma.com/design/ViwLfjc5Eoq7BpEXFfFj3W/DoU?node-id=3486-25407) |
+| Switch sheet — every section collapsed     | [3486-25889](https://www.figma.com/design/ViwLfjc5Eoq7BpEXFfFj3W/DoU?node-id=3486-25889) |
+| My cloud guide (new)                       | [3519-29515](https://www.figma.com/design/ViwLfjc5Eoq7BpEXFfFj3W/DoU?node-id=3519-29515) |
 
-기존 구현 상태:
+What the implementation looks like today:
 
-- 중계·클라우드 홈은 [HomePage.tsx](../../apps/web/src/app/features/home/pages/HomePage.tsx) 하나가 `isDefaultCloud` 분기로 렌더하며, 중계에서도 `PlaceList`로 기본 플레이스 1개를 노출한다 (ADR-0014 항목 4, `apps/web/docs/feature/home/README.md`).
-- 전환 시트 [CloudSessionSheet.tsx](../../apps/web/src/app/features/home/components/CloudSessionSheet.tsx)는 `TabBar`로 `내 클라우드` / `초대된 클라우드` 2탭을 전환하고, `＋ 클라우드 추가`는 소유 클라우드가 0개일 때만 시트 고정 footer에 노출한다.
-- 클라우드 구독을 안내하는 화면은 없다. 구독 유도는 토스트/인라인 문구뿐이다.
-- 행의 2줄 표기(소유 = `cloud.email`, 초대 = `{owner}님의 클라우드`), 상태 배지, 프로비저닝 30초 폴링은 이미 구현되어 있다.
+- The relay and cloud homes are rendered by one file, [HomePage.tsx](../../apps/web/src/app/features/home/pages/HomePage.tsx),
+  branching on `isDefaultCloud`, and relay also shows the single default place through `PlaceList`
+  (ADR-0014 item 4, `apps/web/docs/feature/home/README.md`).
+- The switch sheet [CloudSessionSheet.tsx](../../apps/web/src/app/features/home/components/CloudSessionSheet.tsx)
+  uses a `TabBar` to switch between two tabs, "My clouds" and "Invited clouds", and shows
+  "＋ Add cloud" in the sheet's fixed footer only when the user owns zero clouds.
+- There is no screen that explains the cloud subscription. The only prompts are a toast and inline
+  text.
+- The two-line row layout (owned = `cloud.email`, invited = "{owner}'s cloud"), the status badges, and
+  the 30-second provisioning poll are already implemented.
 
-제약:
+Constraints:
 
-- 컴포넌트는 `@chatic/web-ui-kit` 기반으로 구현하고, 누락된 컴포넌트는 해당 라이브러리에 새로 정의한 뒤 사용한다.
-- 결제는 IAP를 경유하므로 기존 `SubscriptionSelectDialog → EmailVerifyDialog → IAP` 경로는 건드리지 않는다.
-- i18n은 `ko` / `en` 두 로케일 모두 채운다.
+- Components are built on `@chatic/web-ui-kit`. A missing component is defined in that library first
+  and then used.
+- Payment goes through IAP, so the existing `SubscriptionSelectDialog → EmailVerifyDialog → IAP` path
+  is not touched.
+- i18n is filled in for both the `ko` and `en` locales.
 
-## 결정 (Decision)
+## Decision
 
-### 1. 중계 홈에서 Place 섹션 제거 (중계 모드 한정)
+### 1. Remove the Place section from the relay home (relay mode only)
 
-- `isDefaultCloud === true`일 때 `PlaceList`를 렌더하지 않는다. 헤더 → 프로모션 배너 → `Chat` 섹션 순으로만 구성한다.
-- 클라우드 모드(`isDefaultCloud === false`)의 Place 섹션은 `플레이스 추가` 포함 그대로 유지한다 (Figma 2931-8181).
-- 중계 플레이스는 **항상 정확히 1개이며 자동 연결**된다. `useHomePlaces` + `useSwitchPlace`의 "활성 플레이스가 없으면 첫 플레이스 자동 선택" 동작은 그대로 유지하고, 세션 연결은 유지한 채 UI 노출만 제거한다.
-- `/place/:id` 라우트와 헤더 프로필 드롭다운의 플레이스 설정 경로는 존치한다. 홈 리스트를 통한 진입점만 사라진다.
+- When `isDefaultCloud === true`, `PlaceList` is not rendered. The layout is header → promo banner →
+  `Chat` section, and nothing else.
+- In cloud mode (`isDefaultCloud === false`) the Place section stays exactly as it is, including
+  "Add place" (Figma 2931-8181).
+- A relay place is **always exactly one and connects automatically**. The "select the first place when
+  no place is active" behaviour of `useHomePlaces` + `useSwitchPlace` stays as it is; the session
+  connection is kept and only the UI is removed.
+- The `/place/:id` route and the place-settings path in the header profile dropdown both stay. Only
+  the entry point through the home list disappears.
 
-### 2. 프로모션 배너 신설 (홈 · 시트 공용)
+### 2. A new promo banner (shared by home and sheet)
 
-- `@chatic/web-ui-kit`에 `PromoBanner`를 추가한다: 리딩 아이콘 슬롯 + 2줄 본문 + 옵셔널 액션 링크 + 옵셔널 닫기 버튼.
-    - 중계 홈: 링크(`클라우드 추가 >`) + 닫기 모두 사용.
-    - 전환 시트: 닫기만 사용(링크 없음. `＋ 클라우드 추가` 버튼이 별도로 존재).
-- **노출 조건**: 소유 클라우드가 0개일 때만. 1개 이상이면 두 위치 모두 미노출.
-- **닫기 지속성**: 홈과 시트가 **단일 dismiss 키를 공유**한다. `usePreferenceStore`에 dismiss 시각을 저장하고 **24시간 TTL**을 적용해 하루 뒤 재노출한다. 시트에서 닫으면 `내 클라우드` 섹션은 `＋ 클라우드 추가` 버튼만 남는다.
-- 배너의 `클라우드 추가 >` 링크는 **기존 플로우를 유지**한다 (`SubscriptionSelectDialog → EmailVerifyDialog → IAP`). 안내화면을 경유하지 않는다. <br>**→ 2026-08-04 개정: 아래 [개정 이력](#개정-이력) 1번으로 뒤집혔다. 배너는 안내화면으로 보낸다.**
+- Add `PromoBanner` to `@chatic/web-ui-kit`: a leading icon slot, two lines of body text, an optional
+  action link, and an optional close button.
+    - Relay home: uses both the link ("Add cloud >") and close.
+    - Switch sheet: close only, no link — "＋ Add cloud" exists as a separate button.
+- **When it shows**: only when the user owns zero clouds. With one or more, it shows in neither place.
+- **Dismiss persistence**: home and sheet **share a single dismiss key**. The dismiss timestamp is
+  stored in `usePreferenceStore` with a **24-hour TTL**, so it comes back a day later. Dismissing it
+  in the sheet leaves the "My clouds" section with just the "＋ Add cloud" button.
+- The banner's "Add cloud >" link **keeps the existing flow** (`SubscriptionSelectDialog →
+EmailVerifyDialog → IAP`). It does not route through the guide screen. <br>**→ Revised 2026-08-04:
+  reversed by [Revision history](#revision-history) note 1 below. The banner goes to the guide
+  screen.**
 
-### 3. 클라우드 전환 시트를 탭 → 접기 섹션 3개로 재편
+### 3. Rework the cloud switch sheet from tabs into three collapsible sections
 
-- `TabBar`를 폐지하고 `CollapsibleSection` 3개로 구성한다: `Home` / `내 클라우드 N` / `초대된 클라우드 N`. 초대 개수 배지는 섹션 카운트로 흡수한다.
-- `CollapsibleSection`을 확장한다 — 두 슬롯 모두 **접힌 상태에서도 보여야 한다** (Figma 3486-25889 근거):
-    - `description`: 헤더 아래 서브캡션 (`나만의 공간에서 그룹 대화 시작`).
-    - `footer`: 접기 대상 body 바깥의 고정 영역 (`＋ 클라우드 추가`).
-- `＋ 클라우드 추가`는 시트 고정 footer에서 **`내 클라우드` 섹션 footer로 이동**하고, 소유 클라우드 개수와 무관하게 **항상 노출**한다. 기존 "0개일 때만" 규칙은 폐지한다.
-- `내 클라우드` 섹션: 0개면 `PromoBanner`, 1개 이상이면 `description`을 표시한다.
-- 유지: 행 2줄 표기, 상태 배지(reserved/suspended/expired/error), 프로비저닝 스피너와 30초 폴링, `내 클라우드 준비 완료` 토스트, 선택 항목 상단 고정(`sortCloudsForSwitcher`), 시트 90vh 고정 높이(전 섹션 접힘 상태 포함).
-- **이름 편집 연필을 시트에서 제거**한다. `CloudNameEditDialog`는 사용처가 없어지므로 삭제하고, 클라우드 이름 변경은 `/mypage/cloud-profile` 단일 경로로 통합한다.
-- `Home` 행의 선택 표시는 라임 원형 체크로 통일한다.
+- Drop the `TabBar` and use three `CollapsibleSection`s: "Home" / "My clouds N" / "Invited clouds N".
+  The invite-count badge is absorbed into the section count.
+- Extend `CollapsibleSection` — both slots **must be visible even when collapsed** (evidence: Figma
+  3486-25889):
+    - `description`: a sub-caption under the header ("Start a group conversation in your own space").
+    - `footer`: a fixed area outside the collapsible body ("＋ Add cloud").
+- "＋ Add cloud" **moves from the sheet's fixed footer into the "My clouds" section footer** and is
+  **always visible**, regardless of how many clouds are owned. The old "only when zero" rule is
+  dropped.
+- "My clouds" section: shows `PromoBanner` when the count is zero, and the `description` when it is
+  one or more.
+- Kept: the two-line rows, the status badges (reserved/suspended/expired/error), the provisioning
+  spinner and its 30-second poll, the "Your cloud is ready" toast, pinning the selected item to the
+  top (`sortCloudsForSwitcher`), and the sheet's fixed 90vh height (including the all-collapsed
+  state).
+- **The name-edit pencil is removed from the sheet.** `CloudNameEditDialog` has no remaining consumer,
+  so it is deleted, and renaming a cloud is consolidated onto the single `/mypage/cloud-profile` path.
+- The selection mark on the "Home" row becomes the lime circular check, like the others.
 
-### 4. 클라우드 안내화면 신설 — `/subscription/guide`
+### 4. A new cloud guide screen — `/subscription/guide`
 
-- 라우트 `ROUTES.subscription.guide = '/subscription/guide'`를 추가하고, **마이페이지 "구독" MenuCard의 ListRow를 진입점**으로 둔다. <br>**→ 2026-08-04 개정: 홈 배너도 진입점이 되었다. [개정 이력](#개정-이력) 1번 참고.**
-- 구성: `ModalTopBar`(back) → 히어로(3줄 타이틀 + 102px 클라우드 일러스트) → `DoU Home` 카드(FREE 배지 + 제한 3항목) → 3점 장식 → `내 클라우드` 카드(PRO 배지 + 혜택 3항목 + 앱 스크린샷) → 하단 고정 CTA.
-- 3점 장식은 캐러셀 인디케이터가 아니라 크기가 커지는 **정적 데코**다. 화면 전체는 단일 세로 스크롤이다.
-- 하단 CTA `7일 무료 시작하기`는 `/subscription/plans`로 navigate한다. **"7일"은 `product.trialDays`로 동적 렌더링**하고, 값이 없으면 트라이얼 언급 없는 문구로 폴백한다.
+- Add the route `ROUTES.subscription.guide = '/subscription/guide'`, with **the ListRow of the
+  "Subscription" MenuCard on My Page as the entry point**. <br>**→ Revised 2026-08-04: the home banner
+  became an entry point too. See [Revision history](#revision-history) note 1.**
+- Layout: `ModalTopBar` (back) → hero (three-line title + 102px cloud illustration) → `DoU Home` card
+  (FREE badge + three limits) → three-dot ornament → "My cloud" card (PRO badge + three benefits + app
+  screenshot) → fixed CTA at the bottom.
+- The three dots are a **static ornament** that grows in size, not a carousel indicator. The whole
+  screen is a single vertical scroll.
+- The bottom CTA "Start your 7-day free trial" navigates to `/subscription/plans`. **The "7 days" is
+  rendered from `product.trialDays`**, and when there is no value it falls back to copy that does not
+  mention a trial.
 
-### 5. web-ui-kit 신규/확장 및 에셋
+### 5. New and extended web-ui-kit pieces, and assets
 
-| 항목                 | 조치                                                                                                  |
-| -------------------- | ----------------------------------------------------------------------------------------------------- |
-| `PromoBanner`        | 신규 (composites/feedback)                                                                            |
-| 플랜 비교 카드       | 신규 (composites/subscription) — 배지 + 제목 + 항목 리스트 + 옵셔널 미디어. 기존 `BenefitItem` 재사용 |
-| `CollapsibleSection` | `description` · `footer` prop 추가                                                                    |
-| 라임 원형 체크       | 아이콘 리소스로 추출 (현재 `lucide-react` 직접 사용)                                                  |
-| 클라우드 일러스트    | 신규 asset — 102px(안내화면) / 소형(배너)                                                             |
-| 안내화면 앱 스크린샷 | 신규 이미지 asset (196×229)                                                                           |
+| Item                 | Action                                                                                                        |
+| -------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `PromoBanner`        | New (composites/feedback)                                                                                     |
+| Plan comparison card | New (composites/subscription) — badge + title + item list + optional media. Reuses the existing `BenefitItem` |
+| `CollapsibleSection` | Add the `description` and `footer` props                                                                      |
+| Lime circular check  | Extracted as an icon resource (currently uses `lucide-react` directly)                                        |
+| Cloud illustration   | New asset — 102px (guide screen) / small (banner)                                                             |
+| Guide app screenshot | New image asset (196×229)                                                                                     |
 
-### 범위 제외
+### Out of scope
 
-- `apps/desktop-web`의 `CloudRail` / `useCloudSwitchFlow`는 이번 범위에서 제외한다.
-- 결제·IAP 로직, `SubscriptionSelectDialog`, `EmailVerifyDialog` 내부 변경 없음.
-- 세션 전환 파이프라인(`switchCloudSession`, `logoutCloudSession`) 변경 없음.
+- `CloudRail` / `useCloudSwitchFlow` in `apps/desktop-web` are out of scope this time.
+- No changes to payment/IAP logic, or inside `SubscriptionSelectDialog` and `EmailVerifyDialog`.
+- No changes to the session switch pipeline (`switchCloudSession`, `logoutCloudSession`).
 
-## 대안 (Alternatives)
+## Alternatives
 
-- **중계 홈 Place 섹션 유지, 배너만 추가** — Figma와 불일치하고, 중계에서 플레이스가 항상 1개·자동 연결이라 리스트가 정보를 더하지 않는다. 기각.
-- **플레이스 내용물 유무에 따른 조건부 숨김** — 중계 플레이스가 1개로 고정이므로 분기할 이유가 없다. 상태에 따라 레이아웃이 흔들리는 비용만 남는다. 기각.
-- **시트 탭 구조 유지** — 세 그룹(중계 / 소유 / 초대)을 한 화면에서 동시에 스캔할 수 없고, 초대 개수를 배지로 따로 표현해야 한다. 기각.
-- **안내화면을 클라우드 추가 플로우 앞단에 삽입** — 검증된 IAP 구매 전환 경로에 스텝을 추가하는 리스크가 크다. 별도 진입만 채택. 기각.
-- **안내화면으로 기존 `/subscription` 개편** — 그 화면은 구독 상태 관리 역할이라 신규 사용자용 안내와 목적이 다르다. 기각.
-- **배너 dismiss 영구 저장 / 세션 한정** — 영구는 재유입 기회를 잃고, 세션 한정은 너무 자주 뜬다. 24시간 TTL 채택. 기각.
-- **시트 이름 편집 연필 유지** — Figma 3개 시안 모두에 없고, 마이페이지에 이미 이름 변경 경로가 있다. 기각.
-- **"7일" 문구 하드코딩** — 상품 설정과 어긋나면 허위 고지가 된다. `trialDays` 연동 채택. 기각.
-- **desktop-web 동시 반영** — 좌측 레일 구조라 섹션화 디자인을 그대로 옮길 수 없고 별도 설계가 필요하다. 다음 트랙으로 분리. 기각.
+- **Keep the Place section on the relay home and only add the banner** — it does not match Figma, and
+  since a relay place is always one and connects automatically, the list adds no information.
+  Rejected.
+- **Hide the section conditionally based on whether the place has content** — a relay place is fixed
+  at one, so there is nothing to branch on. All that remains is the cost of a layout that shifts with
+  state. Rejected.
+- **Keep the sheet's tab structure** — the three groups (relay / owned / invited) cannot be scanned at
+  once on one screen, and the invite count has to be expressed separately as a badge. Rejected.
+- **Insert the guide screen in front of the add-cloud flow** — adding a step to a proven IAP purchase
+  conversion path is a large risk. Only the separate entry point is adopted. Rejected.
+- **Rework the existing `/subscription` into the guide** — that screen manages subscription state, a
+  different purpose from a guide for new users. Rejected.
+- **Persist the banner dismiss forever / limit it to the session** — forever loses the chance to bring
+  people back, and session-only shows up too often. The 24-hour TTL is adopted. Rejected.
+- **Keep the name-edit pencil in the sheet** — it is in none of the three Figma frames, and My Page
+  already has a rename path. Rejected.
+- **Hardcode the "7 days" copy** — if it diverges from the product configuration it becomes a false
+  claim. Binding to `trialDays` is adopted. Rejected.
+- **Apply this to desktop-web at the same time** — its left rail structure means the sectioned design
+  cannot be ported as is, and it needs its own design. Split into a later track. Rejected.
 
-## 결과 (Consequences)
+## Consequences
 
-얻는 것:
+What is gained:
 
-- 중계 홈이 `Chat` 한 섹션으로 단순해지고, 남은 여백을 구독 유도 배너가 사용한다.
-- 전환 시트에서 중계·소유·초대 클라우드를 한 화면에서 동시에 확인할 수 있고, `＋ 클라우드 추가`가 항상 보이므로 클라우드를 이미 보유한 사용자의 추가 구독 경로가 열린다.
-- 신규 사용자가 클라우드 가치를 이해할 수 있는 안내 화면이 생긴다.
-- `PromoBanner`, 플랜 비교 카드, `CollapsibleSection` 확장이 web-ui-kit 공용 자산으로 남는다.
+- The relay home simplifies down to one `Chat` section, and the space that frees up is used by the
+  subscription promo banner.
+- The switch sheet shows relay, owned, and invited clouds on one screen at once, and because
+  "＋ Add cloud" is always visible, users who already own a cloud have a path to subscribing to
+  another.
+- New users get a screen that explains what a cloud is worth.
+- `PromoBanner`, the plan comparison card, and the `CollapsibleSection` extension remain as shared
+  web-ui-kit assets.
 
-감수하는 트레이드오프:
+Trade-offs accepted:
 
-- **문서 갱신 필요**: ADR-0014 항목 4의 중계 표기와 `apps/web/docs/feature/home/README.md` 중계 사양(기본 플레이스 노출)이 이 ADR로 대체된다.
-- **중계에서 `/place/:id` 홈 진입점 소멸** — 헤더 프로필 드롭다운과 딥링크만 남는다. 중계 플레이스 설정에 접근하려면 드롭다운을 알아야 한다.
-- **시트 내 이름 변경 회귀** — `CloudNameEditDialog` 삭제로, 이름을 바꾸려면 마이페이지까지 이동해야 한다.
-- **웹/데스크톱 전환 UI 언어 불일치** — desktop-web이 따라오기 전까지 두 플랫폼의 클라우드 전환 UX가 다르다.
-- **"7일" 카피가 IAP 상품 설정에 종속** — `trialDays` 변경 시 문구가 함께 바뀌고, 값이 비면 폴백 문구가 노출된다.
-- **배너 24시간 TTL은 기기 로컬 시계 기준** — 시계 조작으로 우회 가능하나, 프로모션 배너라 허용한다.
-- **번들 크기 증가** — 안내화면 앱 스크린샷 이미지 에셋이 추가된다.
+- **Documentation has to be updated**: the relay description in ADR-0014 item 4 and the relay spec in
+  `apps/web/docs/feature/home/README.md` (showing the default place) are superseded by this ADR.
+- **The home entry point to `/place/:id` disappears in relay** — only the header profile dropdown and
+  deep links remain. Reaching relay place settings requires knowing about the dropdown.
+- **Renaming in the sheet regresses** — with `CloudNameEditDialog` deleted, renaming means going to My
+  Page.
+- **Web and desktop speak different switch-UI languages** — until desktop-web follows, the cloud
+  switch UX differs between the two platforms.
+- **The "7 days" copy depends on the IAP product configuration** — changing `trialDays` changes the
+  copy with it, and an empty value shows the fallback copy.
+- **The banner's 24-hour TTL runs off the device's local clock** — it can be worked around by changing
+  the clock, which is acceptable for a promo banner.
+- **The bundle grows** — the guide screen's app screenshot is a new image asset.
 
-## 개정 이력
+## Revision history
 
-ADR 본문은 결정 당시의 기록이라 지우지 않는다. 이후 뒤집힌 것만 여기에 덧붙인다.
+The body of an ADR is the record as of the decision, so it is not deleted. Only what was later
+reversed is appended here.
 
-### 1. 홈 배너 → 안내화면 경유 (2026-08-04)
+### 1. Home banner → routes through the guide screen (2026-08-04)
 
-**뒤집힌 결정**: 결정 2·4의 "홈 배너는 안내화면을 경유하지 않고 `SubscriptionSelectDialog`로 직행한다".
+**Reversed decision**: from decisions 2 and 4, "the home banner goes straight to
+`SubscriptionSelectDialog` without routing through the guide screen".
 
-**변경 후**: 중계 홈 배너의 `클라우드 추가 >`는 `/subscription/guide`로 이동한다. 전환 시트 footer의
-`＋ 클라우드 추가`는 **그대로 플랜 피커로 직행한다**.
+**After the change**: "Add cloud >" on the relay home banner navigates to `/subscription/guide`.
+"＋ Add cloud" in the switch sheet footer **still goes straight to the plan picker**.
 
-**이유**: 원래는 "검증된 구매 전환 경로에 스텝을 추가하는 리스크"를 피하려 직행을 택했다. 그런데 두 진입점의
-사용자 맥락이 다르다 — 배너를 보는 사람은 클라우드가 뭔지 아직 모르는 상태이고, 시트 footer를 누르는 사람은
-이미 클라우드 관리 화면까지 들어와 무엇을 사는지 아는 상태다. 전자에게는 설명이 먼저 필요하고, 후자에게
-설명을 끼우는 것은 실제로 불필요한 스텝이다.
+**Why**: going direct was originally chosen to avoid "the risk of adding a step to a proven purchase
+conversion path". But the user context differs between the two entry points — someone looking at the
+banner does not yet know what a cloud is, while someone tapping the sheet footer has already come into
+the cloud management screen and knows what they are buying. The first needs an explanation first; for
+the second, inserting an explanation really is an unnecessary step.
 
-**감수하는 것**: 같은 문구("클라우드 추가")를 가진 두 진입점의 목적지가 다르다. 맥락 차이가 근거이지만,
-사용자가 두 경로를 번갈아 쓰면 일관성 없게 느낄 수 있다.
+**What is accepted**: two entry points with the same copy ("Add cloud") now have different
+destinations. The context difference is the reasoning, but a user who alternates between the two paths
+may find it inconsistent.
 
-### 2. 안내화면 통합 시도 철회 — 결정 4 원복 (2026-08-19)
+### 2. The guide-screen consolidation attempt was withdrawn — decision 4 restored (2026-08-19)
 
-**뒤집힌 결정**: 없음. 결정 4(`/subscription/guide` 신설)를 **되돌리는 구현이 ADR 개정 없이 들어갔다가
-철회된** 기록이다.
+**Reversed decision**: none. This is a record of **an implementation that undid decision 4 (adding
+`/subscription/guide`) without revising the ADR, and was then withdrawn**.
 
-**경과**: 커밋 `13be9b49`가 `CloudGuidePage`와 `/subscription/guide` 라우트를 삭제하고, 안내 내용을
-플랜 피커(`SubscriptionPlansPage`)에 합쳤다. 근거는 "안내가 홈 진입점이 건너뛰는 화면에 놓여 절반이 못 본다"
-였는데, 이는 위 개정 1이 이미 해결한 문제다(홈 배너는 2026-08-04부터 안내화면을 경유한다). 후속 커밋
-`86b109be`가 `cloudGuide.pro.*` 문구를 `benefits.*`로 옮기고, `96baca75`가 문서와 프리뷰 이미지를 지웠다.
+**What happened**: commit `13be9b49` deleted `CloudGuidePage` and the `/subscription/guide` route and
+merged the guide content into the plan picker (`SubscriptionPlansPage`). The reasoning was "the guide
+sits on a screen that the home entry point skips, so half the users never see it" — a problem revision
+1 above had already solved (the home banner has routed through the guide screen since 2026-08-04). A
+follow-up commit `86b109be` moved the `cloudGuide.pro.*` strings to `benefits.*`, and `96baca75`
+deleted the document and the preview images.
 
-**변경 후**: 결정 4로 원복한다. `guide`와 `plans`는 다시 별개 화면이며, Figma에도 두 프레임이 각각 살아
-있다(3519-29515 `내 클라우드 안내` / 2870-33021 `구독 안내 화면`). 진입점은 개정 1 그대로다. 통합 기간에
-`benefits.*`로 옮겨간 문구는 플랜 피커 몫으로 남기고, 안내화면은 `cloudGuide.*`를 자체 보유한다.
+**After the change**: restore decision 4. `guide` and `plans` are separate screens again, and Figma
+also still has both frames (3519-29515 "My cloud guide" / 2870-33021 "Subscription guide screen").
+The entry points are as revision 1 left them. The strings that moved to `benefits.*` during the
+consolidation stay with the plan picker, and the guide screen holds its own `cloudGuide.*`.
 
-**이유**: `web-ui-kit`의 `PlanCompareCard`·`PlanBulletList`는 이 화면 전용으로 만들어져 삭제 후에도
-남아 앱 사용처 0건인 고아가 됐고, `MyPage`의 "Read-only pitch … (ADR-0034)" 주석과 `HomePage`의
-`openCloudGuide()` 함수명은 사라진 화면을 계속 가리키고 있었다. 구현이 ADR과 어긋난 상태였다.
+**Why**: `PlanCompareCard` and `PlanBulletList` in `web-ui-kit` were built for this screen only, so
+after the deletion they remained as orphans with zero app consumers, and the "Read-only pitch …
+(ADR-0034)" comment in `MyPage` plus the `openCloudGuide()` function name in `HomePage` kept pointing
+at a screen that no longer existed. The implementation was out of step with the ADR.
 
-**감수하는 것**: 구독 혜택 3항목이 두 화면에 중복 표기된다. 두 화면이 별개라는 판단을 우선했고, 각 화면의
-문구가 독립적으로 다듬어질 수 있도록 네임스페이스를 분리해 두었다.
+**What is accepted**: the three subscription benefits are stated on two screens. The judgement that
+the two screens are separate came first, and the namespaces were kept apart so each screen's copy can
+be refined independently.

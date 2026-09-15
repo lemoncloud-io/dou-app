@@ -1,150 +1,171 @@
-# ADR-0052: 초대 목록 로컬 캐시 — 네이티브 테이블 신설과 자격증명 분리
+# ADR-0052: Invite List Local Cache — a New Native Table and Credential Separation
 
-> 상태: Accepted · 결정일: 2026-08-13
-> · [ADR-0051](0051-cache-storage-routing-simplification.md)이 만든 배포 스큐 게이트의 첫 실사용
-> · [ADR-0043](0043-relay-invite-cancel-reject-adoption.md)의 로컬 취소 기록을 캐시로 흡수
+> Status: Accepted · Decided: 2026-08-13
+> · The first real use of the deploy-skew gate created by [ADR-0051](0051-cache-storage-routing-simplification.md)
+> · Absorbs the local cancel record from [ADR-0043](0043-relay-invite-cancel-reject-adoption.md) into the cache
 
-## 맥락 (Context)
+## Context
 
-`invite.list`는 지금 **메모리 전용**이다. react-query 캐시뿐이고(`staleTime: 0`) 로컬 DB에 남지
-않아, 콜드 부팅마다 relay 핸드셰이크가 끝날 때까지 목록이 비어 있고 오프라인에서는 아무것도
-못 보여준다. 채널·메시지는 이미 로컬 저장소를 1차 소스로 쓰므로 초대만 예외다
-([relay-invite-sender.md](../../apps/web/docs/feature/invite/relay-invite-sender.md)의 "재설계 항목").
+`invite.list` is **in-memory only** today. It is only the react-query cache (`staleTime: 0`) and never
+lands in the local DB, so on every cold boot the list is empty until the relay handshake finishes, and
+offline it shows nothing at all. Channels and messages already treat local storage as their primary
+source, so invite is the exception
+([relay-invite-sender.md](../../apps/web/docs/feature/invite/relay-invite-sender.md)'s "items to
+redesign").
 
-`invite`는 이 리포에서 **처음 추가되는 `CacheType`** 이라 제약이 겹쳐 있다.
+`invite` is the **first `CacheType` ever added** in this repo, so several constraints stack up.
 
-- **웹이 앱보다 먼저 배포된다.** 새 타입을 그냥 네이티브로 보내면 구앱의 `CacheCrudService`
-  `default:` 분기가 `success: true` + `null`로 답해 **영원히 빈 캐시**로 보인다.
-- **`code`는 식별자가 아니라 자격증명이다.** 딥링크 본문 외 어디에도 나가지 않는 것이 현행 규칙인데,
-  `MyInviteView`에는 `code`뿐 아니라 **`deeplink`가 `?code=<code>` 형태로 코드를 통째 품고 있다.**
-- **캐시는 권위가 될 수 없다.** 수락·거절은 남의 기기에서 일어나고 알림 패킷이 없다.
-- **삭제 판정이 모호하다.** `limit: 100` 창 밖으로 밀린 행과 서버에서 사라진 행이 응답상 구별되지
-  않는다.
-- **로컬 취소 기록이 별도 저장소에 있다.** `usePreferenceStore.canceledInviteIds`(localStorage)가
-  거절 행 dismiss와 레거시 취소 스탬프를 담고 있어, 초대 상태의 원천이 둘로 갈려 있다.
+- **The web deploys before the app.** Sending the new type straight to native means the old app's
+  `CacheCrudService` `default:` branch answers `success: true` + `null` — a **permanently empty
+  cache**.
+- **`code` is a credential, not an identifier.** The current rule is that it never leaves anywhere
+  except the deep-link body, yet `MyInviteView` carries not just `code` but a **`deeplink` that
+  embeds the whole code as `?code=<code>`.**
+- **The cache can never be authoritative.** Accept and reject happen on someone else's device, and
+  there is no notification packet for them.
+- **Deletion is ambiguous.** A row pushed out of the `limit: 100` window and a row that was actually
+  deleted server-side look identical in the response.
+- **The local cancel record lives in a separate store.** `usePreferenceStore.canceledInviteIds`
+  (localStorage) holds both reject-row dismissals and legacy cancel stamps, so the source of truth for
+  invite state is split in two.
 
-### 이 트랙이 배포 스큐 게이트의 첫 실사용이다
+### This track is the first real use of the deploy-skew gate
 
-ADR-0051이 만든 게이트(브릿지 핸드셰이크가 앱의 저장 가능 타입·스키마 버전을 보고 → 웹이 그에 따라
-저장소를 고름)는 지금까지 **가상의 미래 타입으로만 테스트**돼 있었다. `invite`가 그 기계를 실제
-타입으로 처음 통과시킨다.
+The gate ADR-0051 built (the bridge handshake reports the app's storable types and schema version →
+the web picks a storage backend accordingly) had, until now, **only ever been tested with a
+hypothetical future type**. `invite` is the first real type to actually run that machine.
 
-## 결정 (Decision)
+## Decision
 
-### 1. 네이티브 테이블과 스키마 마이그레이션을 먼저 만든다
+### 1. Build the native table and schema migration first
 
-`invites` 테이블을 여는 마이그레이션을 추가하고(`TARGET_VERSION`이 따라 오른다), 다른 도메인과 같은
-`(cid, uid, id, data)` 스키마와 `InviteDataSource`를 둔다. `SUPPORTED_CACHE_TYPES`에 `invite`를
-등록해 앱이 핸드셰이크로 보고하게 한다.
+Add a migration that opens an `invites` table (bumping `TARGET_VERSION` along with it), using the same
+`(cid, uid, id, data)` schema as other domains, plus an `InviteDataSource`. Register `invite` in
+`SUPPORTED_CACHE_TYPES` so the app reports it through the handshake.
 
-**`LEGACY_NATIVE_CACHE_TYPES`에는 넣지 않는다.** 그 집합은 이미 출시된 모든 앱이 저장할 수 있는
-타입만 담는 동결 목록이고, `invite`는 정의상 거기 해당하지 않는다. 결과적으로 구앱에서는
-`resolveCacheBackend('invite')`가 `'web'`을 답해 IndexedDB로 가고, 앱이 업데이트되어 보고를
-시작하면 네이티브로 옮겨간다 — 별도 게이트 선언 없이 스큐가 흡수된다.
+**Do not add it to `LEGACY_NATIVE_CACHE_TYPES`.** That set is a frozen list of types every already-shipped
+app can store, and `invite` does not qualify by definition. As a result, on old apps
+`resolveCacheBackend('invite')` answers `'web'` and goes to IndexedDB, and once the app updates and
+starts reporting, it moves to native — skew is absorbed without declaring a separate gate.
 
-`MIN_SCHEMA_VERSION_BY_TYPE`에도 넣지 않는다. 표준 blob 스키마라 웹이 네이티브가 materialize한
-컬럼·인덱스에 의존하지 않기 때문이다.
+Also skip `MIN_SCHEMA_VERSION_BY_TYPE`. It uses the standard blob schema, so the web never depends on
+columns or indexes that native has to materialize.
 
-### 2. 자격증명은 타입에서 제거한다
+### 2. Strip the credential out of the type
 
-캐시 뷰 `CacheInviteView`는 `MyInviteView`에서 **`code`와 `deeplink`를 모두 제외**한 형태로
-정의한다. 런타임에서 지우는 방식은 쓰지 않는다 — 스프레드 한 번이면 되살아나고, 실제로 chat
-경로에서 `{...query}` 스프레드가 키에 없는 필드를 저장소까지 흘려보낸 전례가 있다.
+Define the cache view `CacheInviteView` as `MyInviteView` with **both `code` and `deeplink` excluded.**
+Do not rely on stripping them at runtime — one spread brings them back to life, and there is precedent:
+a `{...query}` spread on the chat path once let a field that was not in any key leak all the way down
+to storage.
 
-코드가 필요한 동작(재초대·취소)은 캐시 히트여도 **서버 재조회로 코드를 얻는다.**
+Actions that need the code (reinvite, cancel) **re-fetch it from the server**, even on a cache hit.
 
-### 3. 캐시는 즉시 렌더용이고 항상 재검증한다
+### 3. The cache is for instant render and always revalidates
 
-stale-while-revalidate로 한정한다. 캐시를 읽어 먼저 그리고, `invite.list`를 항상 발사해 결과로
-갱신한다. 캐시 값만 믿고 상태를 판정하는 경로는 만들지 않는다.
+Limit this to stale-while-revalidate. Read the cache first and render it, then always fire
+`invite.list` and refresh with the result. Never build a path that judges state from the cache value
+alone.
 
-> **추가 노트 (2026-08-18) — 캐시에 쓰는 곳은 `list` 미러만이 아니다.** 이 결정문은 재검증(`list`)
-> 경로만 명시했고, 구현도 그것만 미러했다. 그 결과 캐시가 **자기 기기의 행동보다 한 왕복 뒤처졌다**:
-> 방금 발급한 초대는 후속 `list`가 돌기 전까지 로컬에 없어서 콜드부트·오프라인 대기 화면이 비었고,
-> 방금 취소한 초대는 같은 창 동안 캐시에서 `pending`이라고 주장했다. 그래서 **내가 소유한 초대에 대한
-> 서버의 답은 모두 미러한다** — `list` + `create` + `cancel`. 결정 2·3은 그대로다: 같은 allowlist
-> 매핑(`code`/`deeplink` 제외)과 같은 cid 게이트를 지나고, `list`는 여전히 매번 발사된다.
-> `accept`/`reject`는 **미러하지 않는다** — 수신자 커맨드이고 수신자의 `invite.list`는 그 행을 돌려주지
-> 않으므로, 캐시에 넣으면 아무도 다시 읽지 않는 고아 행이 된다.
+> **Addendum (2026-08-18) — the `list` mirror is not the only place that writes to the cache.** This
+> decision only named the revalidation (`list`) path, and the implementation mirrored only that. As a
+> result the cache **trailed its own device's actions by one round trip**: an invite just issued was
+> missing locally until the next `list` ran, leaving cold-boot and offline waiting screens empty, and
+> an invite just canceled still claimed `pending` in the cache for that same window. So **every server
+> response about an invite I own is now mirrored** — `list` + `create` + `cancel`. Decisions 2 and 3
+> are unchanged: the same allowlist mapping (excluding `code`/`deeplink`) and the same cid gate apply,
+> and `list` still fires every time. `accept`/`reject` are **not mirrored** — they are recipient
+> commands, and the recipient's `invite.list` does not return that row, so putting it in the cache
+> would create an orphan row nobody ever reads again.
 
-### 4. 삭제는 "창 안 = 권위, 창 밖 = 보존"
+### 4. Deletion is "inside the window = authoritative, outside the window = preserved"
 
-응답에 들어온 범위(`limit` 창) 안에서는 응답이 권위다 — 그 범위의 캐시 행은 응답으로 갈아엎는다.
-창 밖 행은 **보존한다.** 좀비 행이 남을 수 있지만, 창 밖으로 밀린 오래된 초대가 조용히 사라지는
-것보다 낫다. 커서 페이징이 생기면 재검토한다.
+Within the range the response covers (the `limit` window), the response is authoritative — cache rows
+in that range are overwritten by the response. Rows outside the window are **preserved.** Zombie rows
+can remain, but that beats an old invite that got pushed out of the window silently disappearing.
+Revisit once cursor paging exists.
 
-### 5. 로컬 취소 기록을 캐시로 흡수한다
+### 5. Absorb the local cancel record into the cache
 
-`canceledInviteIds`(localStorage)를 없애고 dismiss 상태를 **캐시 행의 필드**로 옮긴다. 초대 상태의
-원천이 하나로 줄고, 목록 필터가 두 저장소를 합성하지 않아도 된다.
+Drop `canceledInviteIds` (localStorage) and move the dismiss state onto **a field on the cache row.**
+The source of truth for invite state drops to one, and the list filter no longer has to compose two
+stores.
 
-기존 기록은 **일회성 마이그레이션**으로 옮긴다. `useCanceledInviteReconcile`(레거시 취소 스탬프를
-실제 `invite.cancel`로 배출하는 훅)은 그 역할이 남아 있으므로 유지하되, 읽는 원천만 캐시로 바꾼다.
+Move existing records with a **one-time migration.** `useCanceledInviteReconcile` (the hook that emits
+legacy cancel stamps as real `invite.cancel` calls) keeps its role, since that role still matters, but
+switches the source it reads from to the cache.
 
-### 6. 캐시 스코프는 기본값 `(cid, uid)`를 그대로 쓴다
+### 6. Cache scope keeps the default `(cid, uid)`
 
-초대 행은 `isDefaultCloud`일 때만 렌더되므로
-([HomePage.tsx](../../apps/web/src/app/features/home/pages/HomePage.tsx)) 캐시가 의미 있는 시점의
-`cid`는 항상 `default`이고, 클라우드 전환으로 목록이 비는 문제가 생기지 않는다.
+Invite rows only render when `isDefaultCloud`
+([HomePage.tsx](../../apps/web/src/app/features/home/pages/HomePage.tsx)), so whenever the cache
+matters the `cid` is always `default`, and cloud switching never causes the list to go empty.
 
-단 **조회는 게이트되지 않아** 클라우드 활성 상태에서도 `invite.list`가 돈다. 그때 캐시에 쓰면 그
-클라우드 파티션에 고아 행이 쌓이므로, **쓰기도 `default`일 때만 수행한다.** `contextOverride`로
-물리 파티션을 바꾸는 방식은 쓸 수 없다(읽기 경로가 override를 무시한다).
+However, **reads are not gated** — `invite.list` still runs even while a cloud is active. Writing to
+the cache then would pile up orphan rows in that cloud partition, so **writes also happen only when
+`default`.** Using `contextOverride` to change the physical partition is not an option (the read path
+ignores the override).
 
-### 범위
+### Scope
 
-**포함** — `CacheType`에 `invite` 추가와 그에 딸린 타입 맵·TTL·스토리지 묶음, 네이티브 테이블·
-마이그레이션·`InviteDataSource`·`SUPPORTED_CACHE_TYPES`·브릿지 페이로드, 웹 `InviteLocalDataSource`와
-repository 배선, 로컬 취소 기록 흡수와 그 마이그레이션.
+**In** — adding `invite` to `CacheType` and its accompanying type map, TTL, and storage bundle; the
+native table, migration, `InviteDataSource`, `SUPPORTED_CACHE_TYPES`, and bridge payload; the web
+`InviteLocalDataSource` and repository wiring; absorbing the local cancel record and its migration.
 
-**제외** — 커서 페이징(창 밖 판정의 근본 해결), 초대 상태 푸시 알림(백엔드 요청 4번), `invite`
-캐시의 전역 검색 노출.
+**Out** — cursor paging (the real fix for the out-of-window ambiguity), push notifications for invite
+state (backend request #4), exposing the `invite` cache to global search.
 
-## 대안 (Alternatives)
+## Alternatives
 
-- **`invite`를 `LEGACY_NATIVE_CACHE_TYPES`에 추가** — 구앱에서도 네이티브로 보내 즉시 durable하게
-  만든다. 그 집합의 의미("이미 출시된 모든 앱이 저장 가능")를 거짓으로 만들고, 구앱에서 영원히 빈
-  캐시를 만든다. 기각.
-- **`code`를 캐시에 넣고 접근 계층에서 가린다** — 재초대·취소가 서버 왕복 없이 끝난다. 자격증명이
-  디스크에 남는다는 사실은 변하지 않고, 가리는 계층을 우회하는 경로가 하나만 생겨도 무너진다. 기각.
-- **응답으로 캐시 전체 교체** — 좀비 행이 없고 단순하다. 창 밖으로 밀린 초대가 조용히 사라져
-  "오프라인에서도 보인다"는 목적 자체를 훼손한다. 기각.
-- **로컬 취소 기록을 localStorage에 유지** — 변경폭이 작고 되돌리기 쉽다. 초대 상태의 원천이 둘로
-  남아 목록 필터가 계속 두 저장소를 합성해야 하고, 캐시를 넣는 이번 작업이 정확히 그 중복을 없앨
-  기회다. 기각.
-- **초대 캐시를 전역 스코프로 고정** — 초대 게이트웨이가 relay에 고정된 것과 일치시키는 안
-  (`invitecloud`가 그렇게 한다). 초대 행이 기본 클라우드에서만 렌더되므로 실익이 없고, 전역 고정은
-  스코프 규칙의 예외를 하나 더 만든다. 기각.
-- **ADR-0036(데이터 레이어 리팩터링) 이후로 미루기** — 원 문서가 제안한 순서다. 네이티브 절반은
-  배포 선행이 필수라 미룰수록 웹 쪽 착수가 늦어지고, gateway 위에 얹는 부분은 repository 배선뿐이라
-  이관 비용이 크지 않다고 판단해 진행한다.
+- **Add `invite` to `LEGACY_NATIVE_CACHE_TYPES`** — sends it to native even from old apps, making it
+  durable immediately. This falsifies that set's meaning ("every already-shipped app can store it")
+  and creates a permanently empty cache on old apps. Rejected.
+- **Put `code` in the cache and hide it at the access layer** — reinvite and cancel finish without a
+  server round trip. The fact that the credential sits on disk does not change, and a single bypass of
+  the hiding layer collapses the whole protection. Rejected.
+- **Replace the whole cache with the response** — no zombie rows, and simple. An invite pushed out of
+  the window silently disappearing defeats the very point of "visible offline." Rejected.
+- **Keep the local cancel record in localStorage** — smaller diff, easy to revert. The source of truth
+  for invite state stays split in two, and the list filter keeps having to compose both stores — this
+  work is exactly the opportunity to remove that duplication. Rejected.
+- **Pin the invite cache to global scope** — matches how the invite gateway is pinned to relay
+  (`invitecloud` does this). There is no real benefit since invite rows only render on the default
+  cloud, and a global pin adds one more exception to the scope rule. Rejected.
+- **Defer until after ADR-0036 (data layer refactor)** — the order the original document proposed. The
+  native half must ship first regardless, so deferring only delays the web side's start, and the part
+  layered on the gateway is just repository wiring — judged not costly enough to defer. Proceeding
+  now.
 
-## 결과 (Consequences)
+## Consequences
 
-**얻는 것**
+**What is gained**
 
-- 콜드 부팅·오프라인에서 초대 목록이 즉시 보인다 — 다른 도메인과 같은 로컬 우선 읽기.
-- 자격증명이 디스크에 닿지 않는다는 것이 **타입으로 강제**된다.
-- 초대 상태의 원천이 하나로 준다(캐시). 목록 필터가 두 저장소를 합성하지 않는다.
-- ADR-0051의 스큐 게이트가 실제 타입으로 처음 검증된다 — 구앱은 웹 저장소, 신앱은 네이티브.
+- The invite list is visible instantly on cold boot and offline — the same local-first read every
+  other domain gets.
+- Credentials never touching disk is **enforced by the type.**
+- The source of truth for invite state drops to one (the cache). The list filter no longer composes
+  two stores.
+- ADR-0051's skew gate gets its first real-type verification — old apps get web storage, new apps get
+  native.
 
-**감수할 트레이드오프**
+**Trade-offs accepted**
 
-- **배포 순서 제약이 생긴다.** 네이티브(테이블·마이그레이션·보고)가 먼저 나가야 앱이 초대를 durable
-  하게 저장한다. 그전까지는 웹 저장소로 가며, OS가 WebView IndexedDB를 비우면 초대 캐시가 사라진다
-  (서버 재조회로 복구되므로 유실은 아니다).
-- **창 밖 좀비 행이 남을 수 있다.** 커서 페이징 전까지는 해소되지 않는다.
-- **재초대·취소가 서버 왕복을 유지한다.** 코드를 캐시에 두지 않기로 한 대가다.
-- 로컬 취소 기록 마이그레이션이 일회성 코드로 남는다 — 배출이 끝나면 제거 대상이다.
+- **A deploy-order constraint now exists.** Native (table, migration, reporting) has to ship first for
+  the app to store invites durably. Until then it goes to web storage, and if the OS clears the
+  WebView's IndexedDB the invite cache is lost (not a real loss, since the server re-fetch recovers
+  it).
+- **Zombie rows outside the window can remain.** Unresolved until cursor paging exists.
+- **Reinvite and cancel keep a server round trip.** The cost of not putting the code in the cache.
+- The local cancel record migration stays as one-time code — remove it once it has finished emitting.
 
-## 아직 정하지 않은 것
+## Open questions
 
-- dismiss 필드의 이름과 형태(불리언 vs 시각), 그리고 서버가 같은 초대를 다시 `pending`으로 돌릴 때
-  dismiss를 유지할지 해제할지.
-- 캐시 TTL 값. 다른 도메인은 30분이고 초대는 상태가 외부에서 바뀌므로 재검증이 항상 돌지만, 만료
-  판정을 캐시 TTL에 맡길지 서버 `state`에만 맡길지 정해야 한다.
+- The name and shape of the dismiss field (boolean vs. timestamp), and whether dismiss should be kept
+  or cleared when the server puts the same invite back to `pending`.
+- The cache TTL value. Other domains use 30 minutes, and invite always revalidates since its state
+  changes externally — still, it needs to be decided whether expiry judgment rests on the cache TTL or
+  purely on the server `state`.
 
-## 다음 단계
+## Next steps
 
-[[dev-2_implement]] Phase A: 이 ADR을 입력으로 스펙 작성(테이블 스키마, `CacheInviteView` 정의,
-마이그레이션 단계, 타입 추가의 파급 목록, dismiss 필드 마이그레이션, 테스트 매트릭스).
+[[dev-2_implement]] Phase A: write the spec from this ADR (table schema, `CacheInviteView` definition,
+migration steps, the ripple list from adding the type, the dismiss-field migration, the test matrix).

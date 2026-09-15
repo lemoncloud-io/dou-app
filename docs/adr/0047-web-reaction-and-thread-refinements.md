@@ -1,266 +1,291 @@
-# ADR-0047: 리액션·스레드 후속 다듬기 — 칩 옆 추가 버튼 · 반응 정보는 칩 롱프레스 전용 시트 · 홈 미리보기는 마지막 메시지만 · 스레드는 채널과 같은 맥락(헤더·알림·스크롤) · 삭제 메시지 표기
+# ADR-0047: Reaction/thread follow-up polish — an add button beside the chips · reaction info moves to a chip-long-press-only sheet · the home preview shows only the last real message · threads share the channel's context (header, notifications, scroll) · mark deleted messages
 
-> 상태: Accepted · 결정일: 2026-08-07
-> 선행: [ADR-0045](./0045-web-emoji-reaction-and-thread.md) (이모지 리액션·스레드 도입) · [ADR-0008](./0008-threads-client-derived-from-parentid.md) (스레드를 `parentId`에서 클라이언트가 파생)
-> 관련: [ADR-0046](./0046-web-feature-ownership-and-barrel-hygiene.md) (피처 소유권·배럴 위생)
+> Status: Accepted · Decided: 2026-08-07
+> Follows: [ADR-0045](./0045-web-emoji-reaction-and-thread.md) (introducing emoji reactions · threads) ·
+> [ADR-0008](./0008-threads-client-derived-from-parentid.md) (threads client-derived from `parentId`)
+> Related: [ADR-0046](./0046-web-feature-ownership-and-barrel-hygiene.md) (feature ownership · barrel hygiene)
 
-## 맥락 (Context)
+## Context
 
-ADR-0045로 `apps/web`에 리액션과 스레드가 들어간 뒤 실사용에서 걸린 것들을 정리한다. 대부분
-새 기능이 아니라 **이미 만든 표면의 마감**이며, 셋은 실재하는 결함이다.
+After ADR-0045 landed reactions and threads in `apps/web`, real usage surfaced a set of loose ends. Most of
+these aren't new features — they're **finishing touches on a surface already built** — but three are
+genuine defects.
 
-### 1. 칩이 있는 메시지에 하나 더 얹는 비용이 처음과 같다
+### 1. Adding one more reaction to an already-reacted message costs as much as the first
 
-리액션을 추가하는 유일한 경로가 롱프레스(450ms) → 액션 시트다. 이미 칩이 달린 메시지에
-두 번째 이모지를 붙이려면 같은 450ms와 같은 시트를 다시 거쳐야 한다. 칩 줄은
-`flex flex-wrap`이고 칩이 없으면 줄 자체를 렌더하지 않으므로
-([ReactionChips.tsx:27](../apps/web/src/app/features/channels/components/ReactionChips.tsx)),
-줄의 마지막 항목으로 추가 버튼을 붙이면 "1개 이상일 때만 노출"이 구조상 자동으로 성립한다.
+The only path to adding a reaction is a long press (450ms) → action sheet. Attaching a second emoji to a
+message that already has a chip means going through the same 450ms and the same sheet again. The chip row
+is `flex flex-wrap` and doesn't render at all when there are no chips
+(`apps/web/src/app/features/channels/components/ReactionChips.tsx:27`), so appending an add button as the
+last item in that row makes "only shown once there's at least one" hold automatically, by construction.
 
-### 2. 누가 눌렀는지는 스크린리더만 알 수 있다
+### 2. Only a screen reader knows who tapped what
 
-`foldReactions`가 `userIds`를 이미 들고 있는데, 그 정보가 닿는 곳은 칩의 `aria-label`
-(`chat.room.reactionWho`) 하나다. 눈으로 보는 사용자는 개수만 본다. ADR-0045가 "리액션한
-사람 목록 상세 시트"를 후속으로 남겨둔 항목이고, **재료는 전부 로컬에 있다.**
+`foldReactions` already holds `userIds`, but that information only reaches the chip's `aria-label`
+(`chat.room.reactionWho`) — a sighted user sees only a count. ADR-0045 left "a detail sheet listing who
+reacted" as a follow-up item, and **all the material for it already exists locally.**
 
-### 3. 관측 창이 리액션으로 고갈되면 홈 행이 빈 채널처럼 보인다
+### 3. When the observation window fills up with reactions, a home row looks like an empty channel
 
-ADR-0045는 리액션을 미리보기에서 통째로 걷어냈다(`pickPreviewChat`). preview와 time이 **둘 다**
-`lastChat`에서 나오므로([ChannelList.tsx:113](../apps/web/src/app/features/home/components/ChannelList.tsx))
-"옛 본문 + 새 시각" 같은 어긋남은 없다. 문제는 창 크기다 — `PREVIEW_LOOKBACK = 10`이라 최근
-10행이 전부 리액션이면 `lastChat`이 `undefined`가 되고 preview·time이 빈 문자열이 되어
-**대화가 있는 채널이 빈 채널처럼 보인다.**
+ADR-0045 stripped reactions out of the preview entirely (`pickPreviewChat`). Since preview and time **both**
+come from `lastChat`
+(`apps/web/src/app/features/home/components/ChannelList.tsx:113`), there's no mismatch like "stale text with
+a fresh timestamp." The problem is window size — `PREVIEW_LOOKBACK = 10`, so if the most recent 10 rows are
+all reactions, `lastChat` becomes `undefined` and both the preview and the time turn into empty strings,
+making **a channel with an active conversation look like an empty one.**
 
-정렬은 조사 결과 **리액션에 거의 반응하지 않는다.** `'recent'`의 1차 키가 내 join의
-`updatedAt`([sortChannels.ts:40](../apps/web/src/app/utils/sortChannels.ts))이라 남이 무엇을
-보내든 순서가 바뀌지 않는다. 리액션에 민감한 것은 join이 없을 때만 타는 폴백
-(`lastActivityAt`)뿐이다. 곁가지로 **남의 새 메시지도 홈 순서를 바꾸지 않는다**는 선재 특성이
-드러났으나 이번 범위가 아니다(후속 참조).
+Investigation shows sort order is **barely affected by reactions.** The `'recent'` primary key is my own
+join's `updatedAt` (`apps/web/src/app/utils/sortChannels.ts:40`), so nothing anyone else sends changes the
+ordering. Only the fallback used when there's no join (`lastActivityAt`) is sensitive to reactions. As a side
+finding, **other people's new messages don't reorder the home list either** — a preexisting characteristic,
+out of scope here (see Follow-ups).
 
-### 4. 스레드 헤더에 채널 맥락이 없고 채널 종류를 무시한다
+### 4. The thread header has no channel context, and ignores channel kind
 
-`title={t('chat.thread.title')}`로 "스레드"만 띄우고
-([ThreadPage.tsx:207](../apps/web/src/app/features/channels/pages/ThreadPage.tsx)), 어느 방의
-스레드인지 알 수 없다. 게다가 `kind="group"`이 하드코딩돼 DM·셀프 채팅에서도 그룹 글리프가 뜬다.
+It just shows "Thread" via `title={t('chat.thread.title')}`
+(`apps/web/src/app/features/channels/pages/ThreadPage.tsx:207`), with no indication of which room the
+thread belongs to. Worse, `kind="group"` is hardcoded, so DMs and self-chats also show the group glyph.
 
-### 5. 답글 푸터 아바타가 말풍선 아바타와 다를 수 있다
+### 5. The reply footer avatar can differ from the message row avatar
 
-`ThreadFooter`는 `replier.thumbnail`(답글의 `owner$.thumbnail`, 서버 임베드)만 쓰는데, 메시지
-행은 `profileMap`(사이트 프로필)을 **우선**한다. 같은 사람이 두 자리에서 다른 얼굴로 보이고,
-낙관적 답글은 `owner$`가 없어 아바타가 아예 뜨지 않는다.
+`ThreadFooter` uses only `replier.thumbnail` (the reply's server-embedded `owner$.thumbnail`), while the
+message row **prioritizes** `profileMap` (the site profile). The same person can show a different face in
+the two spots, and an optimistic reply has no `owner$` at all, so its avatar doesn't render.
 
-### 6. 삭제된 메시지가 삭제되지 않은 것처럼 보인다
+### 6. A deleted message doesn't look deleted
 
-`isPreviewableChat`은 tombstone(`hidden`)을 **일부러 허용**한다. 근거는 "진짜 그 채널의 마지막
-메시지이고, 피드가 tombstone으로 제자리에 유지한다"였는데 — **그건 데스크톱 전제였다.** 그쪽은
-"This message was deleted."로 렌더하지만 `apps/web`에는 그 분기가 없다. `hidden`은 링크 프리뷰와
-리액션 칩만 막고([ChannelMessageRow.tsx:104,110](../apps/web/src/app/features/channels/components/ChannelMessageRow.tsx))
-말풍선은 `content`를 그대로 찍는다. 삭제 문구 i18n 키도 없다.
+`isPreviewableChat` **deliberately allows** tombstones (`hidden`). The reasoning was "it really is that
+channel's last message, and the feed keeps it in place as a tombstone" — **but that was a desktop
+assumption.** Desktop renders "This message was deleted." there, but `apps/web` has no such branch.
+`hidden` only suppresses the link preview and reaction chips
+(`apps/web/src/app/features/channels/components/ChannelMessageRow.tsx:104,110`), and the bubble still prints
+`content` as-is. There's no i18n key for deletion copy either.
 
-눈에 잘 안 띈 이유가 있다. `apps/web`의 `deleteMessage`는 서버 soft delete가 아니라 **캐시
-삭제**이고 실패/대기 행에만 쓰인다. 즉 `hidden` 행은 **데스크톱 같은 다른 클라이언트가 삭제했을
-때만** 들어온다. 결과적으로 "데스크톱에서 지운 메시지가 모바일에는 그대로 남는다"가 현재 동작이다.
+There's a reason this went unnoticed. `apps/web`'s `deleteMessage` is not a server soft delete but a
+**cache-only delete**, used only for failed/pending rows. So a `hidden` row only ever arrives **when a
+different client, like desktop, deleted it.** The net effect today: "a message deleted on desktop stays
+intact on mobile."
 
-### 7. 스레드가 "그 방"으로 취급되지 않는 자리가 둘 더 있다
+### 7. There are two more places where a thread isn't treated as "the room"
 
-헤더(§4)는 눈에 띄는 증상이었을 뿐, 같은 뿌리를 가진 결함이 둘 더 드러났다.
+The header (§4) was just the visible symptom — two more defects with the same root cause surfaced.
 
-- **인앱 배너.** "지금 보고 있는 방은 배너를 띄우지 않는다"는 판정이 방 라우트 하나만
-  매칭한다. 스레드는 매칭되지 않으므로, **답글을 쓰는 동안 내 전송의 왕복이 배너로 되돌아온다.**
-  본문 피드에서 억제되는 것이 스레드에서 뜨는 것은 규칙이 아니라 누락이다.
-- **스크롤 위치.** 방 → 스레드는 라우트 전환이고 방 페이지는 언마운트된다. 돌아오면
-  `flex-col-reverse` 목록이 `scrollTop 0`, 곧 바닥에서 다시 시작한다. 히스토리를 읽다가 답글
-  푸터를 눌렀다는 이유만으로 최신 메시지로 떨어지는 셈이다. ADR-0045가 스레드를 전체화면
-  라우트로 만들 때 따라온 비용인데 그때는 드러나지 않았다.
+- **In-app banner.** The check for "don't show a banner for the room you're currently viewing" matches only
+  the room route. Threads don't match, so **the round trip of my own message being sent bounces back as a
+  banner while I'm typing a reply.** What's suppressed in the main feed showing up in the thread isn't a
+  rule — it's an omission.
+- **Scroll position.** Room → thread is a route change, and the room page unmounts. Coming back, the
+  `flex-col-reverse` list starts again at `scrollTop 0`, i.e. the bottom. Someone reading through history who
+  taps the reply footer gets dropped to the latest message for no other reason. This is a cost that came
+  along when ADR-0045 made threads a full-screen route, unnoticed at the time.
 
-## 결정 (Decision)
+## Decision
 
-### 1. 칩 줄 마지막에 리액션 추가 버튼을 두고, 이모지 피커를 바로 연다
+### 1. Put an add-reaction button at the end of the chip row, opening the emoji picker directly
 
-액션 시트를 거치지 않는다. 이 버튼을 누른 시점에 의도는 이미 "리액션 추가"로 확정돼 있으므로
-복사·답글이 섞인 시트를 한 단계 더 보여줄 이유가 없다. `EmojiPickerSheet`를 그대로 재사용한다.
+Skip the action sheet. By the time this button is tapped, intent is already fixed as "add a reaction," so
+there's no reason to show one more sheet that mixes in copy/reply. Reuse `EmojiPickerSheet` as-is.
 
-칩이 없을 때는 이 버튼도 나오지 않는다 — 줄 자체가 렌더되지 않기 때문이며, 이는 의도된
-동작이다(모든 메시지 아래 빈 스트립을 상시 예약하는 비용이 기능이 버는 값보다 크다는
-ADR-0045의 판단을 유지).
+When there are no chips, this button doesn't appear either — because the row itself doesn't render, and
+that is intentional (keeps ADR-0045's judgment that reserving an empty strip under every single message
+costs more than the feature is worth).
 
-### 2. 반응 정보는 칩을 꾹 눌러 여는 전용 시트에 넣고, 반응자의 얼굴을 보여준다
+### 2. Put reaction info in a dedicated sheet opened by long-pressing a chip, showing reactors' faces
 
-`ReactionDetailSheet`를 별도 바텀시트로 만든다: **이모지별 탭**(이모지 + 인원 수, 가로 스크롤)
-아래에 그 이모지에 반응한 사람들의 **프로필 사진 + 이름** 목록. 롱프레스한 칩의 탭이 선택된
-채로 열린다.
+Build `ReactionDetailSheet` as a separate bottom sheet: **per-emoji tabs** (emoji + headcount, horizontally
+scrollable) above a list of **profile photo + name** for everyone who reacted with that emoji. It opens with
+the tab for the long-pressed chip preselected.
 
-**칩은 제스처 둘을 빈도로 나눠 갖는다** — 탭은 토글(가장 흔한 동작이 가장 싼 제스처를 갖는다),
-꾹 누르기는 상세. 반대로 배치하면 가장 흔한 동작을 더 어려운 제스처로 밀어내는 교환이 된다.
-하나의 제스처가 둘을 동시에 일으키지 않도록, 롱프레스로 끝난 제스처에 따라오는 `click`은 삼킨다.
-롱프레스 임계값은 말풍선과 상수 하나(`LONG_PRESS_DELAY_MS`)를 공유한다 — 값이 갈리면 같은
-제스처가 손가락이 닿은 위치에 따라 다르게 느껴진다.
+**The chip splits two gestures by frequency** — tap toggles (the most common action gets the cheapest
+gesture), long-press opens detail. The reverse assignment would push the most common action onto the harder
+gesture. To keep one gesture from firing both, a `click` that follows a long-press is swallowed. The
+long-press threshold shares the same constant (`LONG_PRESS_DELAY_MS`) as the message bubble — if the values
+diverge, the same gesture would feel different depending on where a finger lands.
 
-**메시지 액션 시트에는 넣지 않는다.** 두 시트는 서로 다른 질문에 답한다 — 액션 시트는 "이
-메시지에 무엇을 할 수 있나", 이 시트는 "이 반응에 누가 있나". 그리고 얼굴은 액션 시트에 없는
-세로 공간을 요구한다. 같은 정보를 두 곳에 두지 않는다.
+**It does not go into the message action sheet.** The two sheets answer different questions — the action
+sheet answers "what can I do with this message," this one answers "who's behind this reaction." And faces
+need vertical space the action sheet doesn't have. The same information doesn't live in two places.
 
-> 이 항목은 **최초 결정을 뒤집은 것**이다. 처음에는 "새 표면을 만들지 않고 기존 롱프레스 시트
-> 안 구획으로"였으나, 실제 화면을 놓고 보니 (a) 반응자를 이름만으로 식별하기 어렵고
-> (b) 가변 높이 목록이 액션 시트의 다른 항목들을 밀어내며 (c) 이모지가 여럿일 때 구획이
-> 액션 시트를 지배했다. 뒤집힌 안의 근거는 대안 섹션에 남겨 뒀다.
+> This item **reverses the original decision**. The initial call was "don't build a new surface — add a
+> section inside the existing long-press sheet," but looking at the real screen surfaced three problems:
+> (a) reactors are hard to identify by name alone, (b) a variable-height list pushes the action sheet's other
+> items around, and (c) with multiple emoji, the section dominates the action sheet. The reasoning behind the
+> reversed option is kept in Alternatives.
 
-### 3. 홈 미리보기는 마지막 실제 메시지만 보여준다 — 리액션은 관여하지 않는다
+### 3. The home preview shows only the last real message — reactions don't participate
 
-ADR-0045의 입장을 유지한다. 리액션 배지를 홈 행에 붙이는 안을 검토했으나 버렸다(대안 참조):
-대상이 최신 메시지일 때만 붙는 반쪽 커버리지라 신호로 신뢰할 수 없고, 행동으로 이어지지 않으며,
-"리액션은 행이 아니라 메시지 아래 칩"이라는 멘탈모델과 어긋난다.
+Keep ADR-0045's position. Attaching a reaction badge to the home row was considered and dropped (see
+Alternatives): it only covers the case where the target is the latest message, which is a half-coverage
+signal that can't be trusted, doesn't lead to action, and clashes with the mental model that "reactions are
+chips under a message, not a row."
 
-**따라서 판별 로직은 바뀌지 않는다.** `isPreviewableChat`의 세 술어가 이미 정답이고, 각각 다른
-것을 잡는다:
+**So the classification logic doesn't change.** `isPreviewableChat`'s three predicates are already correct,
+and each one catches something different:
 
-| 술어                  | 잡는 것                                                                                                |
-| --------------------- | ------------------------------------------------------------------------------------------------------ |
-| `stereo !== 'system'` | join/leave **+ 리액션 이벤트** (리액션은 항상 `system`이다)                                            |
-| `!parentId`           | 스레드 답글 — `stereo:'user'`라 위 술어에 안 걸린다                                                    |
-| `!isFailed`           | 실패한 내 전송 — 역시 `user`이고, `chatNo: 0` 센티넬이 항상 최신으로 정렬돼 미리보기를 영구히 붙잡는다 |
+| Predicate             | What it catches                                                                                                        |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `stereo !== 'system'` | join/leave **+ reaction events** (reactions are always `system`)                                                       |
+| `!parentId`           | thread replies — they're `stereo: 'user'`, so the predicate above doesn't catch them                                   |
+| `!isFailed`           | my own failed send — also `user`, and its `chatNo: 0` sentinel always sorts as latest, permanently pinning the preview |
 
-즉 "system만 걸러내면 되는가"의 답은 아니오다. 리액션은 `system` 가드로 이미 걸러지지만 답글과
-실패 전송은 별도 술어가 필요하다. `isFeedVisible`의 `subType !== 'reaction'`은 중복이지만
-의도를 명시하는 이중 안전장치로 남긴다 — 서버가 언젠가 리액션을 `system`이 아니게 바꿔도 버틴다.
+So the answer to "is filtering out `system` enough" is no. Reactions are already filtered out by the
+`system` guard, but replies and failed sends need their own predicates. `isFeedVisible`'s
+`subType !== 'reaction'` is redundant but is kept as a belt-and-suspenders guard that documents intent — it
+holds up even if the server ever stops treating reactions as `system`.
 
-**`PREVIEW_LOOKBACK`을 10 → 30으로 올린다.** 이것만이 이 항목의 실제 변경이며, 근거는 배지가
-아니라 §3의 빈 행 결함이다. 마지막 실제 메시지를 찾으려면 리액션 버스트를 건너뛸 창이 필요하다.
-비용은 홈 행마다의 캐시 관측 범위이고, 행 하나당 30행은 감당 가능한 수준으로 판단한다.
+**Raise `PREVIEW_LOOKBACK` from 10 to 30.** This is the only actual change in this item, and it's driven by
+the empty-row defect in §3, not by badges. Finding the last real message needs a window wide enough to skip
+past a burst of reactions. The cost is per-row cache observation, and 30 rows per home row is judged
+affordable.
 
-### 4. 스레드 헤더는 채널 헤더와 같게 만든다
+### 4. Make the thread header match the channel header
 
-`useChannelTitle`의 같은 제목 체인(join nick → DM 피어 nick → 채널명 → 폴백)과 같은
-아바타 규칙, `kind`도 채널 종류(`self`/`direct`/`group`)를 따르게 한다. 방과 스레드가 같은
-방의 두 화면이므로 헤더가 갈라질 이유가 없다.
+Use the same title chain as `useChannelTitle` (join nick → DM peer nick → channel name → fallback) and the
+same avatar rule, and follow the channel's actual kind (`self`/`direct`/`group`) for `kind` too. A room and
+its thread are two screens of the same room, so there's no reason for the headers to diverge.
 
-"스레드"라는 표기는 헤더에서 빼고 내용 상단의 루트 메시지 모양에 맡긴다 — 루트 + 구분선 +
-답글 목록이라는 구조 자체가 스레드임을 말한다.
+The "Thread" label is dropped from the header and left to the root-message shape at the top of the content
+— the structure itself (root + divider + reply list) already says this is a thread.
 
-### 4-1. 스레드는 알림과 스크롤에서도 채널과 같은 맥락으로 취급한다
+### 4-1. Treat threads the same as the channel for notifications and scroll too
 
-헤더만 통일하고 끝낼 일이 아니었다. 스레드가 "그 방의 다른 화면"이라면 방에서 성립하는 규칙이
-스레드에서도 성립해야 하는데, 두 곳이 어긋나 있었다.
+Unifying the header wasn't enough. If a thread is "another screen of that room," the rules that hold in the
+room should hold in the thread too — and two places didn't.
 
-- **인앱 푸시 배너.** "지금 보고 있는 방은 배너를 띄우지 않는다"는 판정이 방 라우트만 보고
-  있었다. 그래서 스레드에서 답글을 쓰는 동안 **내 전송의 왕복이 배너로 되돌아왔다.** 판정에
-  스레드 라우트를 함께 넣는다.
-- **읽던 스크롤 위치.** 스레드로 가면 방 페이지가 언마운트되고, 돌아오면 역방향 목록이
-  `scrollTop 0`(=바닥)에서 다시 시작한다. 히스토리를 읽다가 답글 푸터를 누른 사람이 돌아올 때
-  최신 메시지로 떨어진다. 떠나기 직전 offset을 맡겨 두고 다음 마운트가 **한 번만** 꺼내
-  복원한다.
+- **In-app push banner.** The check for "don't show a banner for the room currently being viewed" only
+  looked at the room route. So **the round trip of my own send bounced back as a banner while replying in a
+  thread.** The thread route is now included in that check.
+- **Reading scroll position.** Going to a thread unmounts the room page, and coming back, the reverse list
+  restarts at `scrollTop 0` (= the bottom). Someone reading through history who taps the reply footer lands
+  at the latest message on return. The offset right before leaving is stashed, and the next mount restores
+  it **exactly once**.
 
-    **일회성인 것이 핵심이다.** 홈에서 방으로 들어갈 때는 최신 메시지에 착지하는 것이 메신저
-    관례이므로, 복원은 "스레드에서 돌아온 진입"에만 붙어야 한다. 모든 진입에 복원을 걸면 다른
-    기능이 된다.
+    **Being one-shot is the point.** Landing on the latest message when entering a room from home is
+    messenger convention, so the restore must only attach to "an entry returning from a thread." Restoring on
+    every entry would be a different feature.
 
-### 5. 아바타 해석 체인을 하나로 모은다
+### 5. Consolidate avatar resolution into one chain
 
-`ThreadFooter`의 답글자 아바타도 메시지 행과 같은 우선순위(사이트 프로필 → 멤버 user 캐시 →
-임베드 `owner$`)로 해석한다. `buildThreadIndex`가 `repliers[].thumbnail`에 임베드 값을 담아
-두는 것은 유지하되, **표시 단계에서 프로필을 우선**시킨다. 파생 유틸이 프로필 캐시를 알게
-만들지 않는 것이 요점이다 — 파생은 순수하게 두고 해석은 UI에서 한다.
+`ThreadFooter`'s replier avatar now resolves with the same priority as the message row (site profile →
+member user cache → embedded `owner$`). `buildThreadIndex` keeps embedding the value in
+`repliers[].thumbnail`, but **display prioritizes the profile at the display stage.** The point is to keep
+the derivation utility from knowing about the profile cache — derivation stays pure, resolution happens in
+the UI.
 
-### 6. 삭제된 메시지는 방과 홈 양쪽에서 tombstone으로 표기한다
+### 6. Mark deleted messages as tombstones in both the room and home
 
-- **방**: `hidden` 행의 본문 대신 "삭제된 메시지입니다" 문구를 렌더한다. 말풍선 자리는 유지한다
-  — 메시지가 그냥 사라지면 읽고 있던 사람에게 무슨 일이 있었는지 설명이 남지 않는다. 전체보기
-  affordance도 함께 끈다(이미 꺼진 링크 프리뷰·칩과 같은 이유).
-- **홈**: 마지막 메시지가 tombstone이면 미리보기도 같은 문구를 쓴다. 원문을 노출하지 않는다.
-- 문구는 i18n 키 하나(`chat.room.deletedMessage`)로 두 자리가 공유한다.
+- **Room**: render "This message was deleted" in place of the body for a `hidden` row. Keep the bubble slot
+  — if the message just vanished, there's nothing left to tell the reader who was in the middle of reading
+  it what happened. The full-view affordance is turned off too (same reason the link preview and chips are
+  already off).
+- **Home**: if the last message is a tombstone, the preview uses the same copy. The original text is never
+  shown.
+- One i18n key (`chat.room.deletedMessage`) is shared by both spots.
 
-`isPreviewableChat`이 tombstone을 계속 허용한다는 점은 **바꾸지 않는다.** 진짜 그 채널의 마지막
-메시지이고, 이제 방과 홈이 둘 다 tombstone으로 렌더하므로 원래 전제가 성립하게 된다. 미리보기에서만
-빼면 홈은 옛 메시지를, 방은 삭제된 것을 보여주어 둘이 어긋난다.
+That `isPreviewableChat` keeps allowing tombstones through is **not changed.** It really is that channel's
+last message, and now that both room and home render it as a tombstone, the original premise finally holds.
+Excluding it only from the preview would leave home showing stale text while the room shows "deleted" —
+the two would disagree.
 
-### 범위 (포함/제외)
+### Scope
 
-**포함** — 칩 줄의 추가 버튼 · 칩 롱프레스로 여는 반응자 상세 시트(이모지별 탭 + 프로필 사진) ·
-`PREVIEW_LOOKBACK` 확대 · 스레드 헤더 통일 · 스레드에서의 인앱 배너 억제 · 스레드 왕복 스크롤
-복원 · 아바타 해석 통일 · tombstone 표기(방·홈) · ADR-0046 준수를 위한 `useRecentEmojiStore`
-이동(`app/stores/` → `features/channels/stores/`; 채팅 도메인 전용 스토어이므로 도메인 피처가
-소유한다).
+**In** — the chip row's add button · the reactor-detail sheet opened by chip long-press (per-emoji tabs +
+profile photos) · widening `PREVIEW_LOOKBACK` · unifying the thread header · suppressing the in-app banner in
+threads · thread round-trip scroll restore · unified avatar resolution · tombstone display (room · home) ·
+moving `useRecentEmojiStore` (`app/stores/` → `features/channels/stores/`) for ADR-0046 compliance (it's a
+chat-domain-only store, so the domain feature owns it).
 
-곁다리로 **인앱 배너 카드의 시각 개편**(왼쪽 액센트 바 → 아바타 + 제목 + 스니펫, 슬랙 관례)이
-같이 들어간다. 아키텍처 결정이 아니라 표현 변경이고, 위 배너 억제 작업과 같은 파일을 건드리므로
-분리하지 않았다. 내려오는 모션은 이미 `top-center` 토스트의 기본 동작이라 손대지 않았다.
+Along for the ride: **a visual redesign of the in-app banner card** (left accent bar → avatar + title +
+snippet, following Slack's convention). This is a presentational change, not an architectural decision, and
+it's bundled in because it touches the same files as the banner-suppression work above. The drop-in motion
+is already the `top-center` toast's default behavior, untouched.
 
-**제외** — 홈 행의 리액션 배지(대안에서 기각) · 리액션 푸시(서버가 `stereo !== 'user'`에 push
-leg를 붙이지 않는다) · 리액션 전용 미읽음 카운터(서버에 자리가 없다) · 홈 정렬 기준 손대기 ·
-`apps/web`에서 보낸 메시지를 서버 soft delete로 지우는 기능(지금은 캐시 삭제뿐이며 별개 작업) ·
-답글 개수의 서버 집계 · 데스크톱 코드 변경 · 파생 유틸의 `libs` 승격.
+**Out** — a reaction badge on the home row (rejected, see Alternatives) · push for reactions (the server
+doesn't attach a push leg to anything other than `stereo !== 'user'`) · a reaction-specific unread counter
+(no slot for it on the server) · touching the home sort criteria · deleting a message sent from `apps/web`
+via server soft delete (today it's cache-delete only, a separate piece of work) · server-side aggregation of
+reply counts · desktop changes · promoting derivation utilities to `libs`.
 
-## 대안 (Alternatives)
+## Alternatives
 
-- **홈 행에 리액션 배지 (대상이 최신 메시지일 때만)** — 검토 후 버렸다. 커버리지가 원리적으로
-  반쪽이어서(오래된 메시지에 달린 반응은 영구히 안 보임) 사용자가 "리액션은 홈에 보인다"를
-  학습할 수 없고, 안 보일 때 "반응이 없구나"로 오해하게 된다. 게다가 행동으로 이어지지 않는다 —
-  미리보기의 역할은 "방에 들어갈지" 판단인데 그 판단에 기여하지 않는다. `foldReactions`의 사용처가
-  홈까지 셋으로 늘어 계약 변경의 파급도 커진다.
-- **리액션 대상 메시지를 항상 미리보기로 끌어올리기** — 버렸다. 무엇에 반응했는지는 정확해지나
-  오래된 본문이 최신 자리에 올라와 목록이 시간순으로 읽히지 않는다.
-- **홈 행에 "OO님이 👍 반응했어요" 문장을 합성** — 버렸다. 통지성은 가장 높지만 미읽음이
-  아닌데도 행의 본문이 바뀌어, 안 읽은 메시지가 있는 것처럼 읽힌다. "누가 내 메시지에 반응했다"의
-  올바른 도구는 알림이고, 리액션에는 푸시가 없으므로 이 안은 **없는 알림의 약한 대용품**이 된다.
-- **행 시간을 리액션 시각으로 갱신** — 버렸다. 본문은 그대로인데 시간만 새것이 되어 보이는
-  본문과 시간이 다른 대상을 가리킨다.
-- **반응자 목록을 메시지 액션 시트 안의 구획으로** — **처음 채택했다가 뒤집었다**(결정 2 참조).
-  표면을 늘리지 않는다는 이점은 실재했으나 셋이 걸렸다: 이름만으로는 누구인지 알기 어렵고(얼굴이
-  필요한데 그 자리에 세로 공간이 없다), 가변 높이 목록이 퀵 리액션 줄·복사·답글의 위치를
-  반응자 수에 따라 흔들며, 이모지가 여럿인 메시지에서는 구획이 시트를 지배한다. 구획을 시트 맨
-  위로 올리고 자체 스크롤 상한을 두는 완화책까지 넣어 봤지만, 근본적으로 **한 시트가 두 질문에
-  답하려 한 것**이 문제였다.
-- **칩 탭 = 상세 열기, 롱프레스 = 토글** — 버렸다. 칩의 일차 기능은 토글이고, 가장 흔한 동작을
-  더 어려운 제스처로 밀어내는 교환이다. 채택한 배치는 그 반대다(탭 = 토글, 롱프레스 = 상세).
-- **스레드 진입 여부와 무관하게 방 스크롤을 항상 복원** — 버렸다. 홈에서 방으로 들어갈 때
-  최신 메시지가 아니라 며칠 전 읽던 자리에 착지하게 되어, 미읽음을 확인하러 들어온 사람의
-  기대를 깬다. 복원을 스레드 왕복 한 번으로 제한하는 편이 훨씬 좁고 정확하다.
-- **칩 옆 `+`가 액션 시트를 열기** — 버렸다. 통로가 하나로 수렴하는 이점은 있으나, 의도가 이미
-  좁혀진 상황에서 선택지를 다시 넓혀 보여주는 셈이다.
-- **스레드 헤더를 2줄로 (상단 "스레드" + 하단 채널명)** — 버렸다. 맥락은 가장 풍부하지만 모바일
-  헤더 높이를 늘리고, 방과 스레드의 헤더 모양이 갈라진다.
-- **tombstone을 미리보기에서만 제외** (`isPreviewableChat`에 `!hidden`) — 버렸다. 가장 싸지만
-  방은 여전히 원문을 보여주므로 근본 문제가 남고, 홈은 옛 메시지를 보여주어 두 화면이 어긋난다.
+- **A reaction badge on the home row (only when the target is the latest message)** — considered and
+  dropped. Coverage is fundamentally half (reactions on an older message stay permanently invisible), so
+  users can't learn "reactions show up on home," and its absence reads as "no one reacted." It also doesn't
+  lead to action — the preview's job is to help decide "should I open this room," and this doesn't feed that
+  decision. `foldReactions`'s call sites would also grow to three, including home, widening the blast radius
+  of a contract change.
+- **Always promote the reacted-to message to the preview slot** — dropped. Accurately shows what was
+  reacted to, but an old message sitting in the newest slot breaks the list's chronological reading.
+- **Synthesize a sentence on the home row like "So-and-so reacted 👍"** — dropped. Highest notification value,
+  but changes the row's body text even when there's no unread, making it read as if there's an unread
+  message. The right tool for "someone reacted to my message" is a notification, and since reactions carry
+  no push, this option is a **weak substitute for a notification that doesn't exist**.
+- **Bump the row's timestamp to the reaction time** — dropped. The body stays old while the time looks fresh,
+  so body and time point at different events.
+- **Reactor list as a section inside the message action sheet** — **initially chosen, then reversed** (see
+  decision 2). The benefit of not adding a new surface was real, but three things broke it: names alone don't
+  identify who's who (faces need vertical space that section doesn't have), a variable-height list shifts the
+  quick-reaction row/copy/reply positions depending on reactor count, and with multiple emoji the section
+  dominates the sheet. Mitigations were tried — moving the section to the top of the sheet, capping its own
+  scroll height — but fundamentally **one sheet was trying to answer two questions.**
+- **Chip tap = open detail, long-press = toggle** — dropped. A chip's primary function is toggling, and this
+  swaps the most common action onto the harder gesture. The adopted assignment is the reverse (tap = toggle,
+  long-press = detail).
+- **Always restore room scroll regardless of thread entry** — dropped. Entering a room from home would land
+  on a days-old reading position instead of the latest message, breaking the expectation of someone who came
+  in to check unreads. Limiting restore to a single thread round trip is far narrower and more accurate.
+- **Have the `+` beside the chip open the action sheet** — dropped. There's a benefit to converging on one
+  path, but it re-widens the choices right when intent has already narrowed.
+- **A two-line thread header (top "Thread" + bottom channel name)** — dropped. Richest context, but grows the
+  mobile header height, and splits the room and thread header shapes apart.
+- **Exclude tombstones only from the preview** (`isPreviewableChat` gets `!hidden`) — dropped. Cheapest, but
+  the room still shows the original text, so the root problem remains, and home shows stale text while the
+  two screens disagree.
 
-## 결과 (Consequences)
+## Consequences
 
-- **리액션은 홈에서 계속 보이지 않는다.** 누가 내 메시지에 반응해도 홈은 무음이다(미읽음 배지도
-  `metaNo` 상계로 잡지 않는다). 알고 지는 부채이며, 제대로 된 해결은 서버측 요약이나 알림
-  표면이다(후속 참조).
-- **홈 행마다의 캐시 관측이 10행 → 30행으로 늘어난다.** 행 수만큼 곱해지므로 채널이 많은
-  사용자에서 관측 비용이 증가한다. 체감 성능 회귀가 보이면 되돌릴 첫 후보다.
-- **`foldReactions`의 사용처는 방·스레드 둘로 유지된다.** 배지를 접은 직접적 이득이다.
-- **채팅 표면의 롱프레스가 둘이 된다** — 말풍선(액션 시트)과 칩(반응자 시트). 임계값은 공유
-  상수 하나이므로 감각은 같지만, 손가락이 어디에 닿았는지에 따라 다른 시트가 열린다는 것을
-  학습해야 한다. 칩은 시각적으로 뚜렷이 구분되는 요소라 감당 가능하다고 판단한다.
-- **반응자 목록이 프로필 캐시에 의존한다.** 이름과 얼굴 모두 사이트 프로필 → 멤버 user 캐시
-  순으로 풀리므로, 프로필이 아직 동기화되지 않은 멤버는 기본 아바타와 id로 보일 수 있다.
-  인원 수는 fold에서 나오므로 그 경우에도 칩과 어긋나지 않는다.
-- **스레드 헤더가 방 헤더와 같아져 "지금 스레드에 있다"는 신호가 약해진다.** 루트 메시지와
-  구분선이 그 역할을 대신하며, 뒤로가기가 채널로 돌아가는 것(ADR-0045의 2단 이동)이 보조한다.
-- **아바타 해석이 UI 층에 모인다.** 파생 유틸은 순수하게 남지만, 아바타를 보여주는 곳마다
-  같은 우선순위를 반복 적용해야 한다. 지금은 방·스레드·푸터 셋이다.
-- **크로스 클라이언트 삭제가 처음으로 모바일에 반영된다.** 데스크톱에서 지운 메시지가 모바일에서
-  원문 그대로 보이던 것이 tombstone으로 바뀐다. 반대로, `apps/web`은 여전히 보낸 메시지를 지울
-  수단이 없어 tombstone을 **만들 수는 없고 읽을 수만** 있다 — 비대칭이 남는다.
-- **스레드에서는 그 채널의 인앱 배너를 영영 보지 못한다.** 방과 같은 규칙이므로 의도된
-  것이지만, 스레드에 오래 머무는 동안 본문 채널에 쌓이는 메시지는 배너로 알려지지 않는다.
-  미읽음 배지와 뒤로가기 후의 피드가 그 역할을 한다.
-- **방 스크롤 복원이 모듈 수준 맵에 남는다.** 세션 동안 방문한 채널 수만큼 숫자 하나씩
-  쌓이고(무시할 수준), 새로고침하면 사라진다. 복원이 필요한 상황 자체가 한 번의 왕복이므로
-  영속화할 이유가 없다.
-- **`useRecentEmojiStore` 경로가 바뀐다.** ADR-0046 준수이며, storage key
-  (`chatic.emoji.recent`)는 유지하므로 사용자 데이터에는 영향이 없다.
+- **Reactions remain invisible on home.** Even if someone reacts to my message, home stays silent (the
+  unread badge doesn't net it in via `metaNo` either). A known, accepted debt — a proper fix needs a
+  server-side summary or a notification surface (see Follow-ups).
+- **Per-home-row cache observation grows from 10 rows to 30.** Since it's multiplied per row, observation
+  cost rises for users with many channels. The first thing to revert if a perceptible performance regression
+  shows up.
+- **`foldReactions`'s call sites stay at two: room and thread.** The direct benefit of folding the badge.
+- **The chat surface now has two long-press gestures** — the bubble (action sheet) and the chip (reactor
+  sheet). The threshold is one shared constant, so it feels the same, but users have to learn that which
+  sheet opens depends on where their finger landed. The chip is visually distinct enough that this is judged
+  manageable.
+- **The reactor list depends on the profile cache.** Both name and face resolve via site profile → member
+  user cache in order, so a member whose profile hasn't synced yet may show a default avatar and an id. The
+  headcount comes from the fold, so it still matches the chip in that case.
+- **The thread header now matching the room header weakens the "I'm in a thread" signal.** The root message
+  and its divider take over that role, and back-navigation returning to the channel (ADR-0045's two-step
+  move) helps too.
+- **Avatar resolution now converges in the UI layer.** The derivation utility stays pure, but every place
+  that shows an avatar has to reapply the same priority order. Today that's three places: room, thread,
+  footer.
+- **Cross-client deletion is reflected on mobile for the first time.** A message deleted on desktop, which
+  used to show intact, now becomes a tombstone. Conversely, since `apps/web` still has no way to delete a
+  sent message, it **can only read tombstones, never create them** — an asymmetry that remains.
+- **A thread never shows that channel's in-app banner.** This is intentional, matching the room's rule, but
+  messages piling up in the parent channel while lingering long in a thread go unannounced by banner. The
+  unread badge and the feed after going back cover that role.
+- **Room scroll restore lives in a module-level map.** It accumulates one number per channel visited during
+  the session (negligible), and clears on refresh. Since the situation needing restore is itself a single
+  round trip, there's no reason to persist it.
+- **`useRecentEmojiStore`'s path changes.** This is ADR-0046 compliance; the storage key
+  (`chatic.emoji.recent`) is unchanged, so there's no impact on user data.
 
-## 후속 (Follow-ups)
+## Follow-ups
 
-- **홈 정렬이 남의 새 메시지에 반응하지 않는다.** `'recent'`의 1차 키가 내 join의 `updatedAt`
-  이어서, 리액션뿐 아니라 **일반 메시지도** 홈 순서를 바꾸지 않는다. 이번 조사에서 드러난
-  선재 특성이고 리액션과 무관하므로 분리했다. 별도 ADR.
-- **리액션 가시성을 홈/알림에 제대로 싣는 방법.** 서버가 채널 레코드에 최신 리액션 요약을
-  싣거나 알림 표면이 생기면 관측 창과 무관해진다. 배지 안을 버린 것은 "지금 이 도구로는 아니다"
-  라는 판단이고 필요 자체를 부정한 것이 아니다. 백엔드 후속.
-- **`apps/web`에서 보낸 메시지 삭제.** 지금은 캐시 삭제(실패/대기 행)뿐이라 tombstone을 읽기만
-  한다. 서버 soft delete를 붙이는 별개 작업.
-- `desktop-web`의 대응 표면(hover 툴바·사이드 패널)에 같은 다듬기를 적용할지 여부. 이번
-  트랙은 `apps/web`만 건드린다.
+- **Home sort doesn't react to other people's new messages.** Since `'recent'`'s primary key is my own
+  join's `updatedAt`, not just reactions but **ordinary messages too** don't reorder home. A preexisting
+  characteristic surfaced by this investigation, unrelated to reactions, so it's split out. Separate ADR.
+- **How to properly surface reaction visibility on home/notifications.** Once the server carries a recent-
+  reaction summary on the channel record, or a notification surface exists, this becomes independent of the
+  observation window. Dropping the in-sheet badge was a judgment that "not with this tool, not now," not a
+  denial of the need itself. Backend follow-up.
+- **Deleting a message sent from `apps/web`.** Today it's cache-delete only (failed/pending rows), so
+  tombstones are only ever read, never created. A separate piece of work to add server soft delete.
+- Whether to apply the same polish to `desktop-web`'s equivalent surface (hover toolbar · side panel). This
+  track only touches `apps/web`.

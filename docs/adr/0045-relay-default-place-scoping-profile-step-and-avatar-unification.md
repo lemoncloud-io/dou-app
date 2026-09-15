@@ -1,171 +1,187 @@
-# ADR-0045: 기본플레이스는 relay 스코프에만 저장하고, 플레이스 생성 마지막 스텝에 프로필 생성을 넣고, 표시용 아바타를 단일 컴포넌트로 통합한다
+# ADR-0045: Store the default place in the relay scope only, add profile creation as the last step of place creation, and unify display avatars into one component
 
-> 상태: Accepted · 결정일: 2026-08-06
-> 선행: [ADR-0034](./0034-inviter-phone-verification-guest-gate-and-sheet.md) · [ADR-0036](./0036-data-surface-unification-app-runtime-cleanup.md) · [ADR-0039](./0039-dm-display-name-chain-and-invite-profile-release.md) · [ADR-0040](./0040-self-chat-title-and-profile-setup-nudge.md) · [ADR-0041](./0041-place-profile-as-invite-precondition.md)
+> Status: Accepted · Decided: 2026-08-06
+> Follows: [ADR-0034](./0034-inviter-phone-verification-guest-gate-and-sheet.md) · [ADR-0036](./0036-data-surface-unification-app-runtime-cleanup.md) · [ADR-0039](./0039-dm-display-name-chain-and-invite-profile-release.md) · [ADR-0040](./0040-self-chat-title-and-profile-setup-nudge.md) · [ADR-0041](./0041-place-profile-as-invite-precondition.md)
 
-## 맥락 (Context)
+## Context
 
-플레이스(=Site) 트랙에서 데이터 계층 결함 셋, 플로우 공백 하나, 표시 정책 하나, UI 킷 부채
-하나가 함께 확인됐다. 한 브랜치(worktree `relay-default-place-avatar-ui`)에서 같이 다룬다.
+On the place (= Site) track, three data layer defects, one gap in the flow, one display policy, and
+one UI kit debt were found together. They are handled on one branch (worktree
+`relay-default-place-avatar-ui`).
 
-1. **기본플레이스가 클라우드 목록에 섞인다.** `UserRepository.getMyProfile`이 프로필에
-   임베디드된 `$site`를 활성 컨텍스트가 무엇이든 place 캐시에 저장한다
-   (`libs/data/src/repositories/UserRepository.ts:114`). 클라우드(cid ≠ `default`)로
-   전환한 상태에서도 이 쓰기가 일어나 기본플레이스 행이 클라우드 스코프 캐시에 남고, 홈
-   플레이스 목록에 섞여 보인다. `refreshList`는 `cacheWriteMany`만 하고 삭제하지 않으므로
-   (`PlaceRepository.ts:84-91`) 일단 오염된 행은 저절로 사라지지 않는다.
+1. **The default place mixes into the cloud list.** `UserRepository.getMyProfile` writes the `$site`
+   embedded in the profile into the place cache whatever the active context is
+   (`libs/data/src/repositories/UserRepository.ts:114`). That write happens even while switched to a
+   cloud (cid ≠ `default`), so the default place row stays in the cloud-scoped cache and shows up mixed
+   into the home place list. `refreshList` only does `cacheWriteMany` and never deletes
+   (`PlaceRepository.ts:84-91`), so once a row is polluted it does not go away on its own.
 
-2. **생성 직후 목록 반영이 안 된다.** `createPlace`는 단건 `cacheWrite`만 한다
-   (`PlaceRepository.ts:93-99`). 서버 순서 스탬프(`order`)는 `refreshList`만 찍으므로
-   단건 쓰기로는 목록 정렬·반영이 보장되지 않는다.
+2. **The list does not reflect a creation right away.** `createPlace` only does a single-item
+   `cacheWrite` (`PlaceRepository.ts:93-99`). The server order stamp (`order`) is only stamped by
+   `refreshList`, so a single-item write does not guarantee list ordering or reflection.
 
-3. **place.update가 400으로 죽는다.** 백엔드가 `@id (string) is required - place.update(-)`를
-   반환한다. 원인은 호출부: `PlaceInfoPage`가 `{ sid, name, thumbnail }`만 보낸다
-   (`apps/web/src/app/features/place/pages/PlaceInfoPage.tsx:106-110`). `id`가 없으니
-   `PlaceRepository.updatePlace`의 낙관적 캐시 쓰기(`payload.id` 기반)도 함께 스킵된다.
-   place에서 `id === sid`다.
+3. **place.update dies with a 400.** The backend returns
+   `@id (string) is required - place.update(-)`. The cause is the caller: `PlaceInfoPage` sends only
+   `{ sid, name, thumbnail }` (`apps/web/src/app/features/place/pages/PlaceInfoPage.tsx:106-110`).
+   With no `id`, the optimistic cache write in `PlaceRepository.updatePlace` (which is based on
+   `payload.id`) is skipped along with it. In place, `id === sid`.
 
-4. **플레이스 생성 후 프로필이 없다.** 생성 플로우(`CreatePlaceDialog` → `createPlace` →
-   `switchSite` → 닫기)에 플레이스 유저 프로필(닉/사진) 생성 스텝이 없다. 초대로 들어온
-   멤버는 ADR-0041이 프로필 생성을 전제조건으로 강제하므로, 프로필 없는 입장자는 사실상
-   플레이스를 만든 owner뿐이다.
+4. **There is no profile after creating a place.** The creation flow (`CreatePlaceDialog` →
+   `createPlace` → `switchSite` → close) has no step for creating the place user profile (nickname and
+   photo). Members who arrive by invite are forced through profile creation as a precondition by
+   ADR-0041, so in practice the only entrant without a profile is the owner who created the place.
 
-5. **MyPage 상단이 클라우드 프로필로 바뀐다.** `useMyUser`가 활성 컨텍스트의 user 캐시를
-   관찰하므로(`apps/web/src/app/hooks/useMyUser.ts`) 클라우드 전환 시 상단 헤더가 클라우드
-   프로필을 보여준다. 사용처 네 곳(MyPage·ProfileEditPage·WithdrawalPage·useLinkedAccounts)
-   전부 계정 레벨 화면이다.
+5. **The top of MyPage changes to the cloud profile.** `useMyUser` observes the user cache of the
+   active context (`apps/web/src/app/hooks/useMyUser.ts`), so on a cloud switch the top header shows
+   the cloud profile. All four usage sites (MyPage, ProfileEditPage, WithdrawalPage, useLinkedAccounts)
+   are account-level screens.
 
-6. **아바타가 유형별로 파편화돼 있고 Figma와 어긋난다.** web-ui-kit 인벤토리:
+6. **Avatars are fragmented by type and diverge from Figma.** The web-ui-kit inventory:
    `ImageAvatar / ProfileAvatar / PlaceAvatar / ChatAvatar / CloudAvatar / DefaultAvatar(user|group) / AvatarGroup`
-    - `defaultPlaceAvatar` asset. 그룹방·프로필·플레이스·클라우드·dm/self별 디자인 기준이
-      Figma에 갱신됐다(아래 링크). desktop-web은 web-ui-kit을 쓰지 않아 파급은 apps/web으로
-      한정된다.
+    - the `defaultPlaceAvatar` asset. The design baselines for group room, profile, place, cloud, and
+      dm/self have been updated in Figma (links below). desktop-web does not use web-ui-kit, so the
+      radius is limited to apps/web.
 
-### 제약
+### Constraints
 
-- `libs/data`는 apps/web과 desktop-web이 공유한다. 앱별 표시 정책을 라이브러리에 하드코딩하면
-  desktop-web까지 끌려간다.
-- 프로필 부재 판정에는 동기화 지연 오탐 전력이 있다(설정했는데도 "설정하라" 노출).
-  리액티브 읽기의 로딩-중 `null`과 진짜 부재를 구분하지 못한 것이 원인이었고,
-  `isPlaceProfileAbsent`(`apps/web/src/app/utils/placeProfile.ts`)가 그 교훈의 산물이다
-  (await + `active === false` 확정 플래그 + fail-open, ADR-0041 결정 5).
-- 클라우드 소켓에 연결된 상태에서 relay로의 원격 fetch는 보장되지 않는다. relay 고정 표시는
-  relay 스코프 캐시 읽기가 기본이 되어야 한다.
+- `libs/data` is shared by apps/web and desktop-web. Hardcoding a per-app display policy into the
+  library drags desktop-web along with it.
+- Profile-absence checks have a history of false positives from sync lag (telling the user to "set it
+  up" when they already had). The cause was failing to distinguish a loading-state `null` on a reactive
+  read from a genuine absence, and `isPlaceProfileAbsent`
+  (`apps/web/src/app/utils/placeProfile.ts`) is the product of that lesson (await + a definite
+  `active === false` flag + fail-open, ADR-0041 decision 5).
+- A remote fetch to relay is not guaranteed while connected to a cloud socket. Pinning the display to
+  relay has to be based on reading the relay-scoped cache.
 
-## 결정 (Decision)
+## Decision
 
-### 1. 임베디드 `$site` 저장을 옵션화하고, apps/web은 relay일 때만 저장한다
+### 1. Make storing the embedded `$site` optional, and have apps/web store it only on relay
 
-`UserRepository`에 임베디드 `$site`의 place-캐시 저장 여부를 제어하는 옵션(컨텍스트를 받는
-predicate)을 연다. 주입처는 리포지토리 와이어링(`createRepositories`)이고, **기본값은 현행
-유지(항상 저장)** — desktop-web은 아무것도 바뀌지 않는다. apps/web만 `cid === 'default'`일 때
-저장하는 predicate를 주입한다.
+Open an option on `UserRepository` (a predicate that takes the context) controlling whether the
+embedded `$site` is written to the place cache. It is injected at repository wiring
+(`createRepositories`), and **the default keeps current behaviour (always store)** — nothing changes
+for desktop-web. Only apps/web injects a predicate that stores when `cid === 'default'`.
 
-게이트만으로는 이미 오염된 행이 남으므로 **클라우드 스코프에 저장된 기본플레이스 잔재를
-정리한다**(정리 메커니즘 — 마이그레이션성 삭제냐 목록 필터냐 — 는 구현 스펙에서 확정).
+The gate alone leaves already-polluted rows behind, so **clean up the default place leftovers stored in
+the cloud scope** (the cleanup mechanism — a migration-style delete or a list filter — is settled in the
+implementation spec).
 
-### 2. `createPlace`는 성공 직후 리포지토리 내부에서 `refreshList`를 이어 호출한다
+### 2. `createPlace` calls `refreshList` next, inside the repository, right after success
 
-호출자마다 챙기게 하지 않고 `PlaceRepository.createPlace` 안에서 후속 `refreshList`로
-서버 스냅샷(order 스탬핑 포함)을 즉시 반영한다. 모든 호출자가 일관되게 혜택을 본다.
+Rather than making every caller remember, follow up with `refreshList` inside
+`PlaceRepository.createPlace` so the server snapshot (including the order stamping) is reflected
+immediately. Every caller benefits consistently.
 
-### 3. place.update에 `id`를 필수로 싣는다 (`id === sid`)
+### 3. Carry `id` on place.update as required (`id === sid`)
 
-`PlaceInfoPage` 호출부에 `id: placeId`를 추가하고, 재발 방지로
-`PlaceRepository.updatePlace`에서 `id`가 없고 `sid`가 있으면 `id = sid`로 정규화한다.
-정규화 덕에 낙관적 캐시 쓰기/롤백 경로도 함께 살아난다.
+Add `id: placeId` at the `PlaceInfoPage` call site, and to prevent a recurrence normalize `id = sid` in
+`PlaceRepository.updatePlace` when `id` is missing and `sid` is present. The normalization also revives
+the optimistic cache write and rollback path.
 
-### 4. 플레이스 생성 플로우의 마지막 스텝으로 프로필 생성을 넣는다 — 스킵 불가 — ❌ 되돌림 (2026-08-10)
+### 4. Add profile creation as the last step of the place creation flow — not skippable — ❌ Reverted (2026-08-10)
 
-> 구현 후 실사용에서 되돌렸다. `place.create`는 새 사이트의 owner 프로필 row를 만들지 않고,
-> `profile.set`이 라우팅되는 백엔드 액션(`updateSiteProfile`)은 UPDATE 전용이라 기존 row가
-> 없으면 항상 404가 난다. `createPlace` → `switchSite`가 이미 성공한 뒤에도 재현되고(동기화
-> 지연이 아니라 구조적 한계), 4.5초 걸친 재시도로도 해소되지 않았다 — 백엔드가 첫 프로필
-> 생성 경로를 지원하지 않는 한 클라이언트 쪽에서 고칠 방법이 없다. `CreatePlaceDialog`는
-> `CreateChannelDialog`와 같은 모양(다이얼로그가 직접 `place.create`+`switchSite`를 들고
-> 성공 시 닫힘)으로 되돌렸고, `PlaceProfileCreateDialog` 강제 오픈은 제거했다. owner도 다른
-> 진입자와 동일하게 방 설정 nudge(ADR-0040)로 프로필을 나중에 채운다.
+> Reverted after implementation, in real use. `place.create` does not create an owner profile row for
+> the new site, and the backend action `profile.set` routes to (`updateSiteProfile`) is UPDATE-only, so
+> with no existing row it always 404s. It reproduces even after `createPlace` → `switchSite` has already
+> succeeded (a structural limit, not sync lag), and retrying across 4.5 seconds did not resolve it —
+> there is no way to fix this on the client unless the backend supports a first-profile creation path.
+> `CreatePlaceDialog` was reverted to the same shape as `CreateChannelDialog` (the dialog itself holds
+> `place.create` + `switchSite` and closes on success), and the forced opening of
+> `PlaceProfileCreateDialog` was removed. The owner fills in the profile later through the room settings
+> nudge (ADR-0040), like any other entrant.
 >
-> > **재채택 (2026-08-19):** relay 고정 자체는 [ADR-0062](0062-relay-fixed-account-profile-in-mypage.md)로
-> > 돌아왔다. 다만 이 결정이 적으로 삼았던 경로(캐시 스코프 pin + 데이터 레이어 라우팅)는 채택되지 않았다 —
-> > 읽기 경로가 컨텍스트 오버라이드를 무시하므로 애초에 불가능하다는 것이 §6 조사의 결론이었다. ADR-0062는
-> > 캐시를 아예 쓰지 않고 **relay 토큰**을 소스로 삼고, 쓰기는 relay 소켓 슬롯에 고정한다.
+> > **Re-adopted (2026-08-19):** relay pinning itself came back as
+> > [ADR-0062](0062-relay-fixed-account-profile-in-mypage.md). But the path this decision argued against
+> > (cache scope pin + data layer routing) was not adopted — §6 of the investigation concluded it was
+> > impossible in the first place, because the read path ignores the context override. ADR-0062 does not
+> > use the cache at all: it takes the **relay token** as the source and pins writes to the relay socket
+> > slot.
 
-아래는 철회된 원문이다.
+What follows is the withdrawn original text.
 
-`CreatePlaceDialog` 성공(생성 + 전환) 직후 `PlaceProfileCreateDialog`를 **생성 플로우의
-마지막 스텝으로 자동 오픈**하고, 이 진입에서는 닫기(X)를 제공하지 않는다 — 프로필을 만들어야
-플로우가 끝난다. 방금 만든 플레이스에는 프로필이 확실히 없으므로 부재 판정이 필요 없고,
-동기화 지연 오탐 문제도 원천적으로 발생하지 않는다.
+Right after `CreatePlaceDialog` succeeds (create + switch), **automatically open
+`PlaceProfileCreateDialog` as the last step of the creation flow**, and offer no close (X) on this
+entry — the flow ends only once the profile is created. A place just created definitely has no profile,
+so no absence check is needed, and the sync-lag false positive problem cannot arise at all.
 
-범위 한정: **이 강제는 새 플레이스 생성 플로우에만 적용한다.** 기존 진입점 — 방 설정
-nudge(ADR-0040), 초대 경로(ADR-0041) — 는 지금처럼 스킵 가능하게 유지한다. ADR-0039의
-"프로필을 강제 스텝으로 두지 않는다"는 원칙은 이 한 지점에서만 의도적으로 뒤집는다
-(부분 Supersede가 아니라 예외 추가 — 생성자는 자기 플레이스의 첫 멤버이므로 초대 수락자와
-같은 수준의 전제조건을 갖는 게 ADR-0041과 오히려 정합적이다).
+Scope limit: **this enforcement applies only to the new place creation flow.** The existing entry
+points — the room settings nudge (ADR-0040) and the invite path (ADR-0041) — stay skippable as they are
+today. ADR-0039's principle of "do not make the profile a mandatory step" is deliberately overturned at
+this one point (an exception added, not a partial supersede — the creator is the first member of their
+own place, so holding them to the same precondition as an invite accepter is if anything more
+consistent with ADR-0041).
 
-### 5. `useMyUser`를 relay 스코프로 고정한다 — ❌ 되돌림 (2026-08-06) → ↩︎ [ADR-0062](0062-relay-fixed-account-profile-in-mypage.md)가 다른 방식으로 재채택 (2026-08-19)
+### 5. Pin `useMyUser` to the relay scope — ❌ Reverted (2026-08-06) → ↩︎ re-adopted a different way by [ADR-0062](0062-relay-fixed-account-profile-in-mypage.md) (2026-08-19)
 
-> 이 결정만 구현 후 철회했다. 의도한 규칙은 "계정 프로필은 항상 relay"가 아니라 **활성 세션을 따른다**
-> — 클라우드 세션이면 그 클라우드의 user 프로필, 릴레이면 릴레이 user 프로필. `user.update`도 양쪽
-> 서버에서 동작하며 활성 소켓이 닿는 쪽 레코드를 고치므로, 표시와 쓰기가 같이 활성 소켓을 따르면
-> 불일치 자체가 없다. `useMyUser`는 활성 컨텍스트 관찰로 복귀했고, 이를 위해 들어갔던 relay 값 보관·
-> `getRelaySessionUser`·`ProfileEditPage` 저장 게이트·`user.update` relay 핀은 모두 제거했다.
-> 경위: [relay-default-place-scoping.md](../../apps/web/docs/feature/place/relay-default-place-scoping.md) §6.
-> 나머지 결정(1~4·6)은 유효하다.
+> This decision alone was withdrawn after implementation. The intended rule is not "the account profile
+> is always relay" but **follow the active session** — the cloud's user profile in a cloud session, the
+> relay user profile on relay. `user.update` works on both servers and edits the record the active socket
+> reaches, so if display and write both follow the active socket there is no mismatch at all. `useMyUser`
+> went back to observing the active context, and the relay value retention, `getRelaySessionUser`, the
+> `ProfileEditPage` save gate, and the `user.update` relay pin that had gone in for it were all removed.
+> Background: [relay-default-place-scoping.md](../../apps/web/docs/feature/place/relay-default-place-scoping.md) §6.
+> The remaining decisions (1–4 and 6) are valid.
 
-아래는 철회된 원문이다.
+What follows is the withdrawn original text.
 
-훅 자체를 relay(cid=`default`) 스코프 고정으로 바꾼다 — 캐시 읽기는 relay 스코프로 pin하고
-(기존 `withContext` / 컨텍스트 오버라이드 메커니즘 활용), 원격 fetch는 relay 연결일 때만
-수행한다. 클라우드 전환 중에는 relay 스코프 캐시(+ 세션 시드) 값이 그대로 보인다.
-사용처 네 곳 모두 계정 레벨 화면이므로 일괄 적용하며, MyPage 상단은 클라우드로 전환해도
-relay 프로필만 보이게 된다.
+Change the hook itself to be pinned to the relay (cid=`default`) scope — pin cache reads to the relay
+scope (using the existing `withContext` / context override mechanism) and perform the remote fetch only
+on a relay connection. While switched to a cloud, the relay-scoped cache (plus session seed) value stays
+visible. All four usage sites are account-level screens, so it is applied across all of them, and the
+top of MyPage shows only the relay profile even after switching to a cloud.
 
-### 6. 표시용 아바타를 variant 기반 단일 `Avatar`로 통합 재설계한다
+### 6. Redesign display avatars into a single variant-based `Avatar`
 
-web-ui-kit의 표시용 아바타(플레이스·클라우드·그룹방·dm/self·chat placeholder·user, 사진
-포함)를 Figma 기준으로 variant 기반 단일 `Avatar` 컴포넌트로 새로 만들고, apps/web 사용처를
-전면 교체한다. **통합 경계**: 편집용 `ProfileAvatar`(사진 선택 버튼)와 `AvatarGroup`(겹침
-레이아웃)은 성격이 달라 별도 컴포넌트로 유지하되 내부 렌더는 새 `Avatar`를 쓴다.
+Rebuild web-ui-kit's display avatars (place, cloud, group room, dm/self, chat placeholder, user,
+including photos) as a single variant-based `Avatar` component against the Figma baseline, and replace
+every usage site in apps/web. **Unification boundary**: the editing `ProfileAvatar` (the photo picker
+button) and `AvatarGroup` (the overlapping layout) are different in character, so they stay separate
+components — but their internal rendering uses the new `Avatar`.
 
-디자인 기준(Figma DoU):
+Design baselines (Figma DoU):
 
-- 플레이스: [3700-11621](https://www.figma.com/design/ViwLfjc5Eoq7BpEXFfFj3W/DoU?node-id=3700-11621&m=dev) · [3769-34384](https://www.figma.com/design/ViwLfjc5Eoq7BpEXFfFj3W/DoU?node-id=3769-34384&m=dev) · [3700-11935](https://www.figma.com/design/ViwLfjc5Eoq7BpEXFfFj3W/DoU?node-id=3700-11935&m=dev) · [3408-27532](https://www.figma.com/design/ViwLfjc5Eoq7BpEXFfFj3W/DoU?node-id=3408-27532&m=dev)
-- 프로필: [3644-58498](https://www.figma.com/design/ViwLfjc5Eoq7BpEXFfFj3W/DoU?node-id=3644-58498&m=dev) · [3408-27063](https://www.figma.com/design/ViwLfjc5Eoq7BpEXFfFj3W/DoU?node-id=3408-27063&m=dev) · [2981-16916](https://www.figma.com/design/ViwLfjc5Eoq7BpEXFfFj3W/DoU?node-id=2981-16916&m=dev)
-- 클라우드: [3037-19916](https://www.figma.com/design/ViwLfjc5Eoq7BpEXFfFj3W/DoU?node-id=3037-19916&m=dev)
-- 그룹방: [3158-26215](https://www.figma.com/design/ViwLfjc5Eoq7BpEXFfFj3W/DoU?node-id=3158-26215&m=dev)
+- Place: [3700-11621](https://www.figma.com/design/ViwLfjc5Eoq7BpEXFfFj3W/DoU?node-id=3700-11621&m=dev) · [3769-34384](https://www.figma.com/design/ViwLfjc5Eoq7BpEXFfFj3W/DoU?node-id=3769-34384&m=dev) · [3700-11935](https://www.figma.com/design/ViwLfjc5Eoq7BpEXFfFj3W/DoU?node-id=3700-11935&m=dev) · [3408-27532](https://www.figma.com/design/ViwLfjc5Eoq7BpEXFfFj3W/DoU?node-id=3408-27532&m=dev)
+- Profile: [3644-58498](https://www.figma.com/design/ViwLfjc5Eoq7BpEXFfFj3W/DoU?node-id=3644-58498&m=dev) · [3408-27063](https://www.figma.com/design/ViwLfjc5Eoq7BpEXFfFj3W/DoU?node-id=3408-27063&m=dev) · [2981-16916](https://www.figma.com/design/ViwLfjc5Eoq7BpEXFfFj3W/DoU?node-id=2981-16916&m=dev)
+- Cloud: [3037-19916](https://www.figma.com/design/ViwLfjc5Eoq7BpEXFfFj3W/DoU?node-id=3037-19916&m=dev)
+- Group room: [3158-26215](https://www.figma.com/design/ViwLfjc5Eoq7BpEXFfFj3W/DoU?node-id=3158-26215&m=dev)
 - dm/self: [3451-21343](https://www.figma.com/design/ViwLfjc5Eoq7BpEXFfFj3W/DoU?node-id=3451-21343&m=dev)
 
-구현 시 Figma 데스크톱 앱 MCP로 노드를 직접 읽는다(해당 파일을 Figma 데스크톱에서 열어둘 것).
+Read the nodes directly with the Figma desktop app MCP while implementing (keep that file open in Figma
+desktop).
 
-## 대안 (Alternatives)
+## Alternatives
 
-- **프로필 입장 게이트** — 플레이스 입장 시 프로필 부재를 판정해 강제 모달을 띄우는 안.
-  비정상 이탈·기존 플레이스까지 커버하는 장점이 있으나, 부재 판정 오탐 리스크(동기화 지연
-  전력)와 적용 범위 실수 시 닫기 불가 모달에 갇히는 트랩 리스크를 안는다. 검토 끝에 기각 —
-  생성 시점 강제로 단순화한다.
-- **생성 다이얼로그 2스텝 시퀀스**(플레이스 정보 → 프로필 정보 → 마지막에
-  `createPlace`→`switchSite`→`setMyProfile` 연쇄) — 이탈 시 아무것도 안 만들어져 "필수"가
-  자연스럽지만, 마지막 제출이 비동기 3연쇄가 되어 중간 실패 분기(플레이스는 생성됐는데
-  프로필 저장 실패 등)로 흐름이 꼬일 수 있어 기각.
-- **이탈 시 플레이스 롤백**(`deletePlace`) — 강제성은 확보되나 생성-삭제 왕복과 전환 복귀까지
-  얽혀 실패 모드가 더 많다. 기각.
-- **`libs/data`에 `cid === 'default'` 하드코딩** — 가장 짧지만 앱 표시 정책이 공유
-  라이브러리에 박혀 desktop-web까지 강제된다. 옵션 주입으로 대체.
-- **아바타 유형별 컴포넌트 유지 + 시각 정합만** — 파급은 작지만 파편화가 그대로 남는다.
-  통합 재설계로 결정(사용자 선택).
+- **A profile entry gate** — check for a missing profile on entering a place and show a forced modal.
+  It has the advantage of covering abnormal exits and existing places too, but it carries the false
+  positive risk of absence checks (the sync lag history) and the trap risk of being stuck in a
+  non-closable modal if the scope is applied wrong. Rejected after review — simplified to enforcement at
+  creation time.
+- **A two-step creation dialog sequence** (place info → profile info → then `createPlace` →
+  `switchSite` → `setMyProfile` chained at the end) — nothing gets created if the user leaves, which
+  makes "mandatory" natural, but the final submit becomes a chain of three async calls and the flow can
+  tangle on mid-chain failure branches (the place is created but the profile save fails, and so on).
+  Rejected.
+- **Roll the place back on exit** (`deletePlace`) — enforcement is achieved, but a create-delete round
+  trip plus reverting the switch adds more failure modes. Rejected.
+- **Hardcode `cid === 'default'` into `libs/data`** — the shortest, but it bakes an app display policy
+  into a shared library and forces it on desktop-web. Replaced by option injection.
+- **Keep per-type avatar components and only align them visually** — a small radius, but the
+  fragmentation stays. Decided on the unified redesign (user's choice).
 
-## 결과 (Consequences)
+## Consequences
 
-- 클라우드 홈에서 기본플레이스가 사라지고, relay에서만 보인다. desktop-web은 옵션 기본값
-  덕에 동작 변화가 없다.
-- 플레이스 생성 직후 목록 반영·정렬이 보장되고, 이름/사진 수정이 다시 동작한다(400 해소).
-- ~~새 플레이스의 owner는 반드시 프로필을 갖게 되어, 초대 수락자(ADR-0041)와 전제조건이
-  대칭이 된다.~~ 결정 4가 되돌려지며 무효. owner도 방 설정 nudge(ADR-0040)로 프로필을
-  나중에 채우는, 초대 수락자 이외 진입자와 같은 처지로 남는다.
-- MyPage 계열 화면은 클라우드 전환과 무관하게 일관된 계정(relay) 프로필을 보여준다.
-  **트레이드오프**: 클라우드 연결 중에는 relay 원격 fetch를 못 하므로 캐시가 오래됐다면
-  이전 값이 보인다(다음 relay 연결에서 갱신).
-- 아바타는 단일 API로 수렴하지만 apps/web 10개 feature 영역의 사용처 교체가 필요한 규모
-  있는 UI 작업이 된다. 기존 유형별 컴포넌트는 교체 완료 후 제거한다.
+- The default place disappears from cloud home and is visible only on relay. desktop-web has no
+  behaviour change thanks to the option default.
+- List reflection and ordering right after creating a place are guaranteed, and editing the name/photo
+  works again (the 400 is resolved).
+- ~~The owner of a new place is guaranteed to have a profile, making the precondition symmetric with an
+  invite accepter (ADR-0041).~~ Void, since decision 4 was reverted. The owner stays in the same
+  position as every entrant other than an invite accepter, filling in the profile later through the room
+  settings nudge (ADR-0040).
+- The MyPage family of screens shows a consistent account (relay) profile regardless of cloud switching.
+  **Trade-off**: while connected to a cloud, a relay remote fetch is impossible, so if the cache is old
+  the previous value is shown (refreshed on the next relay connection).
+- Avatars converge on a single API, but it becomes a sizeable UI job to replace usage sites across 10
+  feature areas in apps/web. The existing per-type components are removed once the replacement is
+  complete.

@@ -1,200 +1,233 @@
-# ADR-0075: 정합성 검증 트리거를 신설한다 — 값 불일치를 클라이언트가 판정해 `warn`으로 남긴다
+# ADR-0075: Establish divergence-check triggers — the client judges value mismatches and leaves them as `warn`
 
-> 상태: Accepted · 결정일: 2026-09-07
+> Status: Accepted · Decided: 2026-09-07
 >
-> 관련: [ADR-0047](./0047-unified-logging-core-and-report-traceability.md) (통합 로깅 코어) · [ADR-0066](./0066-log-pipeline-collector-listener-split.md) (수집기·리스너 분리 — 파이프라인 구조 정본) · [ADR-0063](./0063-log-upload-source-port-and-native-charge-queue.md) (업로드 소스 포트) · [ADR-0071](./0071-performance-budget-and-metric-events-over-the-log-pipeline.md) (성능 지표 — **이 ADR이 쓰지 않기로 한 레인**) · [ADR-0048](./0048-unread-count-derivation-contract.md) (안 읽음 파생 계약 — 대조의 기준값) · [ADR-0056](./0056-place-cloud-unread-dot-from-cache-and-push.md) (뱃지·푸시마크)
+> Related: [ADR-0047](./0047-unified-logging-core-and-report-traceability.md) (unified logging core) · [ADR-0066](./0066-log-pipeline-collector-listener-split.md) (collector/listener split — canonical pipeline structure) · [ADR-0063](./0063-log-upload-source-port-and-native-charge-queue.md) (upload source port) · [ADR-0071](./0071-performance-budget-and-metric-events-over-the-log-pipeline.md) (performance metrics — **the lane this ADR chose not to use**) · [ADR-0048](./0048-unread-count-derivation-contract.md) (unread derivation contract — the reference value for comparison) · [ADR-0056](./0056-place-cloud-unread-dot-from-cache-and-push.md) (badge and push marks)
 >
-> **트리거 카탈로그의 정본은 이 문서가 아니다.** 어디에 무엇을 어떤 레벨·태그로 심는지는 knowledge vault `projects/@lemoncloud-io/dou-app/log-collection/triggers.md`가 정본이고, 이 ADR은 **그 표에 새 절(정합성 검증)을 추가하기로 한 결정**과 그 이유를 기록한다. 구현 서술은 [`libs/logger/docs/architecture.md`](../../libs/logger/docs/architecture.md)(Live)에 남는다.
+> **This document is not the canonical trigger catalog.** Where and at what level/tag things get
+> logged is owned by the knowledge vault's
+> `projects/@lemoncloud-io/dou-app/log-collection/triggers.md`; this ADR records **the decision to
+> add a new section (divergence checks) to that table** and the reasoning for it. The
+> implementation narrative lives in
+> [`libs/logger/docs/architecture.md`](../../libs/logger/docs/architecture.md) (Live). (Note: this
+> path has since moved — see [libs/logger's documents table](../../libs/logger/README.md).)
 
-## 맥락 (Context)
+## Context
 
-필드 이슈 15건 목록(2026-08-03 ~ 09-07)에서 출발했다. 그중 로깅으로 답이 나오는 것들을
-골라보니 공통점이 하나 있었다 — **실패가 아니라 어긋남이다.**
+This started from a list of 15 field issues (2026-08-03 to 09-07). Picking out the ones logging
+could answer revealed a common thread — **they are not failures, they are mismatches.**
 
-- 앱 아이콘 뱃지와 인앱 안 읽음 카운트가 다르다 (#1)
-- 방을 나갔는데 목록의 안 읽음이 남는다 (#11)
-- 나간 멤버가 채팅방 설정에 남는다 (#2)
-- 클라우드명을 바꿨는데 한 화면만 옛 이름이다 (#14)
+- The app icon badge and the in-app unread count disagree (#1)
+- Leaving a room, yet the list still shows it as unread (#11)
+- A member who left still shows up in the channel settings (#2)
+- A cloud was renamed, but one screen keeps showing the old name (#14)
 
-어느 것도 예외를 던지지 않고, 요청이 실패하지도 않는다. 두 값이 다를 뿐이다. 그런데 기존
-트리거 카탈로그는 **실패 지향**이다 — "무엇이 실패했나"를 기록하도록 설계돼 있어, 아무것도
-실패하지 않은 어긋남에는 걸리는 지점이 없다. 트리거를 카탈로그대로 더 심어도 이 계열은
-영원히 안 잡힌다.
+None of these throw an exception or fail a request. Two values simply disagree. But the existing
+trigger catalog is **failure-oriented** — it's designed to record "what failed," so it has no hook
+for a mismatch where nothing failed. Adding more triggers per the catalog as it stands would never
+catch this class of issue.
 
-조사에서 나온 사실들 — 이 결정의 근거다.
+Facts from the investigation — the basis for this decision.
 
-1. **뱃지는 쓰는 주체가 셋인데 전이 로그가 0이다.** 웹이 파생한 총합(활성 클라우드 + 그 외
-   클라우드) → 네이티브 아이콘 → 네이티브 base 저장 → 이후 백그라운드 푸시가 그 base에서
-   증가. 게다가 웹의 쓰기는 **fire-and-forget**이라 웹은 자기가 밀어 넣은 값이 반영됐는지조차
-   모른다. 읽기 경로(`FetchBadgeCount`)는 브릿지 타입과 **네이티브 핸들러가 이미 구현돼
-   있는데 웹 호출부가 없다** — 단 그 조회가 진짜 아이콘 값을 답하는 것은 iOS뿐이다(§5).
-2. **안드로이드 백그라운드/킬 상태 푸시 수신과 뱃지 증가가 `debug`다.** `debug`는 릴리스
-   빌드에서 콘솔·브릿지·저장소 어디에도 남지 않는다 — 운영에서 #1의 결정적 순간은 흔적이
-   0이다.
-3. **웹의 유일한 푸시 수신 로그가 디버그 화면 훅 안에 있다.** 그 화면이 떠 있을 때만 돈다.
-   태그도 `PUSH`로 카탈로그(`PUSH_EVENT`)와 어긋나고, **푸시 제목을 그대로 싣는다** — 금지
-   규칙 6 위반.
-4. **결제는 웹이 카탈로그를 거의 다 따르고, 네이티브 서비스 층에 구멍이 셋 있다.** 사전
-   거절·시작·타임아웃·영수증 검증·finish 실패가 웹에 다 있다. 카탈로그가 "핸들러가
-   아니라 **서비스 계층**에서"라고 못박은 네이티브 IAP 서비스에도 로그가 3건 있지만,
-   **초기화·구매 실패·finish 실패**가 비어 있고 그중 초기화와 finish는 try/catch조차 없다.
-   #13(iOS 구글
-   로그인 후 결제 실패)은 이미 있는 `IAP warn: purchase refused before store
-{reason:'social-link-missing'}`가 답일 가능성이 높다 — 로그가 없어서 모르는 게 아니라
-   **그 로그를 찾을 방법이 없어서** 모르는 상태다.
-5. **조회 축이 좁다.** 어드민은 서버사이드로 `stereo`·날짜·`level`·`runId`만 필터한다.
-   `uid`·`tag`·메시지 검색은 가져온 페이지(기본 100건) 안의 클라이언트 필터이고, `data`는
-   2000자 문자열 캡이라 숫자 축 쿼리가 성립하지 않는다. QA 이슈는 전부 "특정 사용자의 그
-   순간"인데 그걸 좁힐 축이 없다.
-6. **`PERF` 레인은 사건 진단에 못 쓴다.** `runId` 해시 기반 **10% 세션 샘플링**이라 QA가
-   신고한 그 세션이 표본에 들 확률이 10분의 1이다. 지표는 분포용이지 사건용이 아니다.
-7. **콜드스타트 푸시 탭은 수신과 진입이 서로 다른 `runId`에 걸린다.** 앱이 죽어 있을 때 온
-   푸시의 수신은 네이티브 쪽에서 일어나고, 탭 이후 방 진입은 새 런이다. `runId` 조인만으로는
-   체인이 끊긴다.
-8. **어긋남이 일어나는 코드에 로그가 없다.** 채널 변경/나가기 뮤테이션, join(읽음 커서)
-   뮤테이션, 안 읽음 파생 훅 모두 로그 0건이다 — 카탈로그가 지정한 "나가기 실패 = error
-   CHANNEL"조차 구현돼 있지 않다.
+1. **The badge has three writers and zero transition logs.** Web derives a total (active cloud +
+   other clouds) → the native icon → a native base store → later background pushes increment from
+   that base. On top of that, web's write is **fire-and-forget**, so web doesn't even know whether
+   the value it pushed took effect. The read path (`FetchBadgeCount`) has a bridge type and **the
+   native handler is already implemented, but web has no call site** — though only on iOS does that
+   query actually answer with the real icon value (§5).
+2. **Android's background/killed-state push receipt and badge increment are `debug`.** `debug`
+   leaves no trace anywhere — console, bridge, or storage — in release builds. In production, the
+   decisive moment for #1 has zero footprint.
+3. **Web's only push-receipt log lives inside a debug-screen hook.** It only runs while that screen
+   is open. Its tag is also `PUSH`, mismatched against the catalog (`PUSH_EVENT`), and **it logs
+   the push title verbatim** — a violation of Prohibited Rule 6.
+4. **Payments are almost fully covered on the web side, with three holes in the native service
+   layer.** Web already has pre-rejection, start, timeout, receipt validation, and finish-failure
+   logging. The native IAP service layer — which the catalog explicitly says belongs at the
+   **service layer, not the handler** — has 3 log lines, but **initialization, purchase failure,
+   and finish failure** are empty, and initialization and finish don't even have a try/catch.
+   #13 (payment failure after Google sign-in on iOS) is most likely already answered by the existing
+   `IAP warn: purchase refused before store {reason:'social-link-missing'}` — it's not that the log
+   doesn't exist, it's that **there's no way to find that log.**
+5. **The query axes are narrow.** Admin filters server-side only by `stereo`, date, `level`, and
+   `runId`. `uid`, `tag`, and message search are client-side filters within the fetched page
+   (default 100 entries), and `data` is a 2000-character string cap, so numeric-axis server queries
+   don't work. Every QA issue is "this specific user at this specific moment," and there is no axis
+   to narrow to that.
+6. **The `PERF` lane can't be used for incident diagnosis.** With **10% session sampling** based on
+   a `runId` hash, the reported session has a 1-in-10 chance of even being in the sample. Metrics
+   are for distributions, not incidents.
+7. **A cold-start push tap splits receipt and entry across different `runId`s.** When the app is
+   dead, a push's receipt happens natively, and the room entry after the tap is a new run. `runId`
+   joins alone break the chain.
+8. **The code where mismatches happen has no logging.** The channel change/leave mutation, the join
+   (read cursor) mutation, and the unread-derivation hook all have zero log lines — even the
+   catalog-specified "leave failure = error CHANNEL" isn't implemented.
 
-## 결정 (Decision)
+## Decision
 
-### 1. 정합성 검증(divergence)을 트리거 클래스로 신설한다
+### 1. Establish divergence checking as a new trigger class
 
-두 소스가 일치해야 하는 지점에서 **클라이언트가 직접 비교하고, 어긋날 때만 남긴다.** 값이
-맞으면 아무것도 기록하지 않는다.
+Wherever two sources are supposed to agree, **the client compares them directly and only records
+when they diverge.** Nothing is recorded when the values match.
 
-레벨은 `warn`이다. 기능이 실패한 게 아니라 비정상이지만 진행된 상태이므로 카탈로그의 레벨
-판정 기준에 그대로 맞고, **더 중요하게는 `level`이 서버가 필터할 수 있는 유일한 의미 축이기
-때문이다**(맥락 5). 판정을 클라이언트로 옮기는 것이 좁은 조회 축을 우회하는 방법이다 —
-"값을 다 올려두고 나중에 비교한다"는 서버가 값으로 필터할 수 없는 한 성립하지 않는다.
+The level is `warn`. This is not a functional failure, it's an abnormal-but-proceeding state, which
+fits the catalog's level criteria as-is, and **more importantly, `level` is the only meaningful axis
+the server can filter on** (Context 5). Moving the judgment to the client is how the narrow query
+axis gets sidestepped — "upload every value and compare them later" only works if the server can
+filter by value, which it cannot.
 
-일반 `warn`과 섞이지 않게, 불일치 엔트리는 `data`에 대조 결과를 담는 전용 키를 갖는다.
-message에 숫자를 문장으로 섞지 않는다(ADR-0071 원칙 2와 같은 이유) — 양쪽 값과 차이가 각각
-키를 가져야 분석이 정규식이 아니라 `JSON.parse`가 된다.
+To avoid mixing with ordinary `warn`s, a mismatch entry has a dedicated key in `data` for the
+comparison result. No mixing numbers into message sentences (same reasoning as ADR-0071 Principle 2) — both values and the delta each need their own key, so analysis is `JSON.parse`, not regex.
 
-대조쌍은 이번 범위에서 넷이다.
+There are four comparison pairs in this round.
 
-| 대조쌍    | 좌변                                    | 우변                                        | 대상 이슈 |
-| --------- | --------------------------------------- | ------------------------------------------- | --------- |
-| 뱃지      | 웹이 파생한 총합(활성 + 그 외 클라우드) | 네이티브가 들고 있는 아이콘 값 (**iOS만**)  | #1 · #7   |
-| 안 읽음   | 채널 목록에 그려진 카운트               | 방을 떠날 때 확정된 읽음 커서로 재계산한 값 | #11       |
-| 멤버      | 채널 설정에 그려진 멤버 목록            | join 레코드로 해석한 실제 참여자            | #2        |
-| 표시 이름 | 로컬 이름 캐시의 클라우드명             | 릴레이 카탈로그가 답한 같은 클라우드명      | #14       |
+| Pair         | Left side                                    | Right side                                           | Target issue |
+| ------------ | -------------------------------------------- | ---------------------------------------------------- | ------------ |
+| Badge        | Web-derived total (active + other clouds)    | The icon value native is holding (**iOS only**)      | #1, #7       |
+| Unread       | The count rendered in the channel list       | Recomputed from the read cursor settled at room exit | #11          |
+| Members      | The member list rendered in channel settings | Actual participants as resolved from join records    | #2           |
+| Display name | The cloud name in the local name cache       | The same cloud name as answered by the relay catalog | #14          |
 
-**대조 시점은 포그라운드 복귀와 값 변경 시다.** 이 둘이 이미 재동기화 hook이 걸려 있는 지점이고,
-백그라운드에서 벌어진 드리프트는 복귀 시점에 드러난다. **렌더마다·폴링 주기마다 대조하지
-않는다** — 카탈로그 금지 규칙 2와 같은 이유로, 대화가 한번 톡한 방에서만 수십 건이 나와
-미전송 큐 예산을 밀어낸다.
+**The check runs on foreground return and on value change.** Both are already points with a
+re-sync hook attached, and drift that happened in the background surfaces on return.
+**It does not run on every render or polling tick** — for the same reason as Prohibited Rule 2 —
+since a single chatty room could produce dozens of entries and push out the unsent-queue budget.
 
-> **구현 시 정정 (2026-09-07):** "값 변경 시"는 대조쌍마다 성립하지 않았다. 뱃지는 쓰기가
-> fire-and-forget이고 아이콘이 설계상 뒤처지므로, 값이 바뀐 순간 비교하면 **정상적인 읽음이 전부
-> 불일치로 잡힌다**. 그래서 뱃지는 "마지막으로 밀어넣은 값"을 기준으로 **앱 런 첫 push 직전과
-> 포그라운드 복귀에** 대조한다. 안 읽음은 목록 마운트당 1회, 멤버는 화면을 떠날 때 1회다(수화 도중
-> 스냅샷이 오탐을 만든다). 원칙 — 상시·렌더 단위로 하지 않는다 — 은 그대로다. 시점별 근거는
-> [정합성 검증 트리거](../../libs/logger/docs/divergence-checks.md) §상세 구현에 있다.
+> **Correction made during implementation (2026-09-07):** "on value change" didn't hold for every
+> pair. Since the badge write is fire-and-forget and the icon is designed to lag, comparing right
+> when the value changes would flag **every normal read as a mismatch**. So the badge is checked
+> against "the last pushed value" at **the app run's first push and on foreground return**. Unread
+> is checked once per list mount; members are checked once when leaving the screen (a snapshot
+> mid-hydration produces a false positive). The principle — not continuous, not per-render — holds.
+> The reasoning for each timing lives in
+> [divergence checks](../../libs/logger/docs/divergence-checks.md) §Implementation detail. (Note:
+> this path has since moved — see [libs/logger's documents table](../../libs/logger/README.md).)
 
-### 2. 판정만 하고 보정하지 않는다
+### 2. Judge only, do not correct
 
-불일치를 발견해도 값을 다시 밀어 고치지 않는다. 이 ADR은 진단 전용이다. 보정을 같이 넣으면
-증상이 사라지는 대신 **원인을 숨긴다** — 자동으로 메워지면 어디서 갈라졌는지 모르는 채로
-지표만 예뻐진다. 보정은 원인이 특정된 뒤 별 트랙으로 간다.
+Finding a mismatch does not push a corrected value back. This ADR is diagnostic only. Adding
+correction alongside it would make the symptom disappear while **hiding the cause** — silently
+patched over, the metrics look fine while nobody knows where it diverged. Correction is a separate
+track, once the root cause is identified.
 
-### 3. 푸시 상관 키는 FCM `messageId`다
+### 3. The push correlation key is the FCM `messageId`
 
-푸시 하나를 네 지점에서 같은 키로 부른다 — 네이티브 수신 · 탭 · 딥링크 라우팅 · 웹의 방 진입.
-`runId`가 갈리는 콜드스타트 경로(맥락 7)에서도 체인이 이어지고, 중복 푸시 재발 감지도 같은
-키로 성립한다. `messageId`는 개인정보가 아니므로 redact 경계를 넓히지 않는다. **푸시 제목·본문은
-계속 싣지 않는다**(금지 규칙 6) — 현행 위반(맥락 3)도 이때 함께 걷는다.
+One push is referred to by the same key at four points — native receipt, tap, deep-link routing,
+and the web's room entry. The chain holds even through the cold-start path where `runId` splits
+(Context 7), and repeat-push detection can use the same key too. `messageId` is not personal data,
+so it doesn't widen the redaction boundary. **Push title/body still never get logged**
+(Prohibited Rule 6) — this also sweeps up the existing violation (Context 3).
 
-### 4. 조회 축은 서버에 요청한다
+### 4. Query axes are requested from the server
 
-`uid`·`tag` 서버사이드 필터를 백엔드에 요청한다. 창구는 vault 레인의
-`client-upload-spec.md` 회신이다 — 구체 API 형식은 서버가 쓰고 클라이언트는 요구사항만
-전달하는 기존 규약을 따른다. 이 요청이 배포되기 전에도 §1의 `warn` 판정으로 좁힐 수는 있으므로
-**이 트랙이 서버 배포를 기다리지 않는다.**
+Request `uid`/`tag` server-side filters from the backend. The channel is the vault lane's
+`client-upload-spec.md` reply — following the existing convention where the server writes the
+concrete API shape and the client only conveys requirements. Since §1's `warn` judgment already
+narrows things down before this ships, **this track does not wait on the server deploy.**
 
-### 5. 두 레인으로 나눠 진행한다
+### 5. Split into two lanes
 
-| 레인         | 내용                                                                                                                                                       | 배포 제약                 |
-| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
-| 웹 단독      | iOS 뱃지 대조 · 안 읽음 · 멤버 · 표시 이름 대조 · 푸시마크 drain 승격 · 결제 갭 · 채널 뮤테이션 · 소켓 재연결 구독                                         | 없음 — 웹만 배포하면 성립 |
-| 앱 배포 대기 | 안드로이드 뱃지 대조(`BadgeSync.getBase` + `FetchBadgeBase` 신설) · 백그라운드 푸시 수신 레벨 승격 · 네이티브 IAP 서비스 층 · 푸시 상관 키의 네이티브 절반 | 앱 배포 후 유효           |
+| Lane                     | Content                                                                                                                                                                      | Deploy constraint             |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
+| Web-only                 | iOS badge check, unread, members, display-name check, promoting the push-mark drain, payment gaps, channel mutations, socket reconnect subscription                          | None — ships once web deploys |
+| Waiting on an app deploy | Android badge check (`BadgeSync.getBase` + new `FetchBadgeBase`), promoting background push-receipt level, native IAP service layer, native half of the push correlation key | Valid only after app deploy   |
 
-**뱃지 대조는 iOS에서만 웹 단독으로 성립한다** (2026-09-07 스펙 작성 중 정정). iOS의
-`FetchBadgeCount`는 실제 아이콘 값을 돌려주므로 웹만 배포하면 된다. 안드로이드는 notifee의 badge
-API가 non-iOS에서 하드 no-op이라 그 조회가 **항상 0**을 답하고, 진짜 값을 들고 있는 네이티브
-카운터를 읽는 브릿지가 없다 — 대조를 그대로 심으면 안드로이드 전 기기가 상시 불일치로 잡힌다.
-그래서 안드로이드 쪽은 네이티브 getter 신설과 함께 앱 배포 레인으로 내렸다. (같은 조사에서 이
-no-op이 이슈 #1의 안드로이드 쪽 원인 후보로 드러났으나, 그 수정은 이 트랙 밖이다.)
+**The badge check only stands on web alone for iOS** (corrected 2026-09-07 while writing the spec).
+iOS's `FetchBadgeCount` returns the real icon value, so shipping web alone is enough. On Android,
+notifee's badge API is a hard no-op on non-iOS, so that query **always answers 0**, and there's no
+bridge to read the native counter that actually holds the real value — checking against it as-is
+would flag every Android device as a permanent mismatch. So Android moves to the app-deploy lane
+along with adding the native getter. (The same investigation surfaced this no-op as a candidate
+cause for #1's Android side, but fixing that is out of this track.)
 
-### 6. 카탈로그 정본을 갱신하고 기존 부채를 정리한다
+### 6. Update the canonical catalog and clean up existing debt along the way
 
-vault `triggers.md`에 정합성 검증 절을 신설하고 푸시·결제 보강분을 반영한다. 같은 길에 기존
-부일치도 맞춘다 — 클라우드 전환/관리의 `CLOUD` vs `APP`, 웹 푸시 수신의 `PUSH` vs
-`PUSH_EVENT`. "코드보다 표를 먼저 고친다"는 카탈로그 규칙을 지키기 위해, 표를 먼저 고치고
-구현이 따라간다.
+Add a divergence-check section to vault's `triggers.md`, and reflect the push/payment
+enhancements. On the way, fix existing mismatches too — `CLOUD` vs `APP` in cloud switch/manage,
+and `PUSH` vs `PUSH_EVENT` in web push receipt. To honor the catalog rule "fix the table before the
+code," the table is fixed first and the implementation follows.
 
-### 범위
+### Scope
 
-**포함** — 대상 이슈 7건(#1 뱃지 · #2 멤버 동기화 · #7 알림 · #10 푸시 진입 · #11 안 읽음 잔존 ·
-#13 iOS 결제 · #14 표시 이름), 푸시·결제의 카탈로그 갭, 소켓 재연결·포기 구독, 채널
-나가기·멤버 동기화 트리거, vault 카탈로그 갱신.
+**In** — the 7 target issues (#1 badge, #2 member sync, #7 notification, #10 push entry, #11
+lingering unread, #13 iOS payment, #14 display name), the push/payment catalog gaps, socket
+reconnect/give-up subscription, channel-leave/member-sync triggers, and the vault catalog update.
 
-**제외**
+**Out**
 
-- **캐시 값 vs 서버 값 대조.** #14는 서버 왕복 없이 다룬다 — **클라이언트 내부 두 리더 대조**로
-  잡힌다. (인터뷰 때는 두 화면이 같은 값을 다르게 읽는다고 가정했으나, 스펙 작성 중 확인한
-  실제 구조는 다르다: MY의 두 화면은 릴레이 카탈로그 한 쿼리를 공유해 서로 어긋날 수 없고,
-  진짜 두 번째 소스는 홈 헤더가 카탈로그보다 우선하는 **로컬 이름 캐시**다. 대조쌍을 그에 맞게
-  고쳤고, 서버 왕복이 필요 없다는 결론은 그대로다.)
-- **미전송 큐 유실률 관측.** 트리거가 늘면 드롭도 늘고 지금은 증거가 버려졌는지 알 방법이
-  없다는 문제는 실재하지만, 별 과제다(ADR-0071 §제외에 이미 후속으로 적혀 있다).
-- **이슈 #15(연락처 이름 누락)** · **자동 보정** · **신규 `PERF` 지표** · **서버 측 구현·대시보드**.
-- **이슈 #3 · #5 · #6.** 로깅 트랙이 아니라 수정·기능 트랙이고 각자 결정 기록이 따로 있다.
+- **Comparing cache values against server values.** #14 is handled without a server round trip — it
+  is caught with a **client-side, two-reader comparison.** (The interview stage assumed the two
+  screens read the same value differently, but the actual structure confirmed while writing the
+  spec is different: MY's two screens share one relay-catalog query, so they can't diverge from
+  each other; the real second source is the **local name cache** that the home header prioritizes
+  over the catalog. The comparison pair was adjusted accordingly, and the conclusion that no server
+  round trip is needed still stands.)
+- **Observing unsent-queue loss rates.** More triggers mean more drops, and right now there's no
+  way to know whether evidence was thrown away — real, but a separate task (already noted as a
+  follow-up in ADR-0071 §Out of scope).
+- **Issue #15 (missing contact name)**, **automatic correction**, **new `PERF` metrics**,
+  **server-side implementation/dashboards**.
+- **Issues #3, #5, #6.** These are fix/feature tracks, not logging tracks, and each has its own
+  decision record.
 
-## 대안 (Alternatives)
+## Alternatives
 
-1. **값 스냅샷만 늘리고 판정은 오프라인에서.** 뱃지·커서·카운트를 `info`로 남기고 내려받아
-   스크립트로 대조하는 안. 버렸다 — 서버가 값으로 필터할 수 없어 매 사건마다 사람이
-   다운로드해 비교해야 하고, 그 비용이 곧 "안 보게 되는" 비용이다. 클라이언트가 한 줄 비교하면
-   `level` 하나로 찾힌다.
-2. **클라이언트 판정 없이 서버 필터 확장만.** `uid`·`tag`가 열리면 사용자 단위로는 좁혀지지만,
-   좁힌 다음 여전히 사람이 두 값을 눈으로 대조해야 한다. 판정과 조회는 대체재가 아니라
-   보완재라서 §1과 §4를 함께 한다.
-3. **이슈 #10을 `PERF` 지표로.** 푸시 탭→방 표시 구간을 6번째 예산으로 추가하는 안. 버렸다 —
-   10% 세션 샘플링이라 신고된 세션이 표본에 없을 확률이 90%다. 지표는 "전체가 느려졌나"에
-   답하고, 이번 요구는 "이 사람의 이 순간에 무슨 일이 있었나"다.
-4. **불일치 발견 시 자동 보정까지.** 사용자 증상은 즉시 사라지지만 원인이 은폐된다(§2).
-5. **`runId` + 타임스탬프 상관으로 충분.** 포그라운드에서는 되지만 콜드스타트 푸시 탭 —
-   이슈 #10의 핵심 상황 — 에서 수신과 진입이 다른 런에 걸려 끊긴다(맥락 7).
-6. **푸시 수신을 `debug`로 유지.** 볼륨은 아끼지만 릴리스에서 아무것도 안 남는다. 카탈로그도
-   이미 `info`로 지정해 뒀으므로 코드가 표를 어긴 상태다.
-7. **대조를 상시(렌더·폴링마다) 수행.** 색종도는 가장 높지만 미전송 큐의 건수·바이트 예산을
-   소진시켜 축출을 부르고, 축출은 오래된 것부터라 **사고 원인 쪽이 먼저 버려진다.**
+1. **Only add more value snapshots, judge offline.** Log the badge, cursor, and counts as `info`
+   and compare them offline by script. Rejected — the server can't filter by value, so every
+   incident requires someone to download and compare by hand, and that cost is the cost of "nobody
+   looks at it." A one-line client comparison lets `level` alone find it.
+2. **Server filter expansion without client-side judgment.** Opening `uid`/`tag` narrows to a user,
+   but after narrowing, someone still has to eyeball the two values. Judgment and querying are
+   complements, not substitutes, so §1 and §4 are both done.
+3. **Treat issue #10 as a `PERF` metric.** Add the push-tap-to-room-display span as a 6th budget.
+   Rejected — with 10% session sampling, there's a 90% chance the reported session isn't in the
+   sample. Metrics answer "did things slow down overall," and this need is "what happened to this
+   person at this moment."
+4. **Auto-correct on finding a mismatch.** The user's symptom disappears immediately, but the cause
+   gets hidden (§2).
+5. **`runId` plus timestamp correlation is enough.** Works in the foreground, but breaks at cold
+   start — the core situation in issue #10 — where receipt and entry land in different runs
+   (Context 7).
+6. **Keep push receipt at `debug`.** Saves volume, but nothing survives in release. The catalog
+   already specifies `info`, so the code is already out of step with the table.
+7. **Run checks continuously (every render/poll).** Highest resolution, but burns through the
+   unsent queue's count/byte budget and triggers eviction, and eviction discards the oldest first —
+   **exactly the incident's cause gets dropped first.**
 
-## 결과 (Consequences)
+## Consequences
 
-**얻는 것**
+**What is gained**
 
-- 어긋남 계열 이슈가 `level=warn` 필터 하나로 조회된다 — 서버 변경 없이 오늘부터.
-- 뱃지가 처음으로 **읽히는 값**이 된다(iOS 먼저, 안드로이드는 앱 레인). fire-and-forget 쓰기만 있던 단방향 경로가 닫힌다.
-- 릴리스 빌드에서 백그라운드 푸시 수신·뱃지 증가가 남는다 — #1의 절반이 처음 보인다.
-- 푸시 하나를 `messageId`로 끝까지 따라갈 수 있어 #10·#12 계열이 재발했을 때 체인이 남는다.
-- 소켓 재연결·포기 구독으로 "왜 끊겼나"가 열린다 — #7·#10·#11이 공통으로 의지하는 신호다.
+- Mismatch-class issues become queryable with a single `level=warn` filter — starting today, with
+  no server change.
+- The badge becomes a **readable value** for the first time (iOS first, Android in the app lane).
+  The one-way, fire-and-forget-only write path closes.
+- Background push receipt and badge increment survive in release builds — half of #1 becomes
+  visible for the first time.
+- A single push can be traced end-to-end by `messageId`, so the #10/#12 class leaves a chain if it
+  recurs.
+- Socket reconnect/give-up subscription opens up "why did it disconnect" — a signal #7, #10, and
+  #11 all depend on.
 
-**감수하는 것**
+**What is accepted**
 
-- **엔트리 볼륨이 늘어난다.** 대조는 불일치 때만 남기므로 정상 상태의 비용은 0에 가깝지만,
-  실제로 어긋난 기기에서는 warn이 반복될 수 있다. 시점을 복귀·값 변경으로 묶은 것이 그
-  상한이다.
-- **`warn`의 의미가 둘로 늘어난다** — "비정상이지만 진행됐다"와 "값이 어긋났다". 어드민에서
-  섞여 보이므로 `data`의 전용 키로 구분하고, 카탈로그에 별 절로 적어 둔다.
-- **대조 코드가 로그를 부른다는 위험.** 리스너 안에서 `logger`를 부르면 즉시 재진입이고,
-  전송 경로의 로깅은 실제로 재현된 재귀다(금지 규칙 3·4). 대조는 **화면·훅 층**에서만 돌고,
-  리스너·전송 경로에는 절대 넣지 않는다.
-- **앱 배포 대기 절반이 남는다.** 네이티브 레인이 유효해지기까지 #1의 백그라운드 절반과 #13의
-  스토어 실패 원인은 계속 안 보인다. 웹 레인만으로 먼저 나가는 것을 전제로 한 분리다.
-- **`uid`·`tag` 필터는 서버 배포를 기다린다.** 그때까지 사용자 단위 좁히기는 여전히 페이지
-  내 클라이언트 검색이다.
-- **카탈로그와 코드가 잠시 어긋난 상태를 지난다.** 표를 먼저 고치므로, 구현이 따라붙기 전까지
-  표에는 "이렇게 기록한다"만 있고 코드는 아직 아니다. 카탈로그가 상태표가 아니라 계약이라는
-  기존 원칙 그대로다.
+- **Entry volume grows.** Since checks only leave a record on mismatch, the cost is near zero in
+  the normal case, but on a genuinely diverged device, `warn` can repeat. Tying the timing to
+  return/value-change is the cap on that.
+- **`warn` now carries two meanings** — "abnormal but proceeded" and "values diverged." They look
+  mixed together in admin, so they are distinguished by a dedicated key in `data`, and the catalog
+  spells this out as its own section.
+- **A risk that the check code itself triggers logging.** Calling `logger` from within a listener
+  is immediate re-entrancy, and this recursion has actually been reproduced on the transport path
+  (Prohibited Rules 3, 4). Checks run only at the **screen/hook layer**, never inside a listener or
+  the transport path.
+- **Half of the app-deploy lane remains outstanding.** Until the native lane goes live, #1's
+  background half and #13's store-failure cause stay invisible. The split assumes the web lane
+  ships first on its own.
+- **The `uid`/`tag` filter waits on a server deploy.** Until then, narrowing to a user is still a
+  client-side search within a page.
+- **The catalog and code pass through a brief mismatch.** Because the table is fixed first, until
+  the implementation catches up, the table says "this is how it will be recorded" while the code
+  isn't there yet. Consistent with the existing principle that the catalog is a contract, not a
+  status table.

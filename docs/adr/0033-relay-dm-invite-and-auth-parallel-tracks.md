@@ -1,141 +1,154 @@
-# ADR-0033: 1:1(DM) 중계 초대·전화번호 인증 도입 — 인터페이스 선반영과 병렬 트랙 분할
+# ADR-0033: Relay 1:1 (DM) invites and phone verification — build the interfaces ahead, split into parallel tracks
 
-> 상태: Accepted · 결정일: 2026-07-29
+> Status: Accepted · Decided: 2026-07-29
 
-## 맥락 (Context)
+## Context
 
-백엔드(중계서버 1:1 초대)가 완료됐다. `chatic-sockets-api`에 웹소켓 패킷 6종이
-배선·테스트·셀프리뷰까지 끝났고(`invite.create/get/list/accept`,
-`auth.verify-hash-alias`, `auth.attach-social`), 클라이언트 게이트웨이가
-`@lemoncloud/chatic-sockets-lib@0.4.9`로 배포돼 있다. 계약 원본:
-`chatic-sockets-api/docs/specs/relay-server-invite/` (특히 `05-client-guide.md`).
+The backend (relay-server 1:1 invites) is done. Six websocket packets in `chatic-sockets-api` are wired,
+tested and self-reviewed (`invite.create/get/list/accept`, `auth.verify-hash-alias`,
+`auth.attach-social`), and the client gateway ships in `@lemoncloud/chatic-sockets-lib@0.4.9`. The
+contract itself lives in `chatic-sockets-api/docs/specs/relay-server-invite/` (especially
+`05-client-guide.md`).
 
-앱 쪽 현황 (조사로 확인):
+Where the app stands (from the survey):
 
-- 홈 ＋메뉴의 "1:1 대화" 진입점은 placeholder 토스트만 띄운다
+- The "1:1 chat" entry in home's ＋ menu only raises a placeholder toast
   (`apps/web/src/app/features/home/pages/HomePage.tsx:224`).
-- DM 방/설정 화면은 존재한다(`stereo === 'dm'`, ADR-0032). **생성 파이프라인만 없다.**
-- 초대 수락 팝업 `InviteDialog`(클라우드 초대용, ADR-0016), 채팅방 관리 화면
-  (`PlaceChannelManagePage`, `/place/:placeId/settings/channels`), 딥링크 V2의
-  `invt:` 코드 파싱, 네이티브 `SendSms`/`openShareSheet`/`copyClipBoard` 브릿지가
-  이미 있어 재사용 가능하다.
-- 전화번호 자기(自己) 인증 UI는 전무하다. 이메일 인증(send/resend/check 스텝)
-  패턴만 있다.
-- 앱 의존성이 낡았다: `chatic-sockets-lib@0.4.8`(invite 게이트웨이 없음),
-  `chatic-backend-api@^0.26.405`(신규 타입 없음).
+- The DM room and settings screens exist (`stereo === 'dm'`, ADR-0032). **Only the creation pipeline is
+  missing.**
+- The invite accept popup `InviteDialog` (for cloud invites, ADR-0016), the chat room management screen
+  (`PlaceChannelManagePage`, `/place/:placeId/settings/channels`), deeplink V2's `invt:` code parsing, and
+  the native `SendSms` / `openShareSheet` / `copyClipBoard` bridges all exist and can be reused.
+- There is no UI for verifying your own phone number. Only the email verification pattern
+  (send/resend/check steps) exists.
+- The app's dependencies are stale: `chatic-sockets-lib@0.4.8` (no invite gateway),
+  `chatic-backend-api@^0.26.405` (no new types).
 
-핵심 백엔드 계약 (백엔드 코드로 검증):
+The key backend contract (verified against the backend code):
 
-- 초대는 코드만 만든다. **방은 수락 순간 비동기 생성**되고 수락 응답에 channelId가
-  없다 — 채널 sync 이벤트를 기다려야 한다.
-- 번호 인증 성공(`step=check`)은 곧 **로그인**이다 — 응답의 `$token`으로 세션이
-  디바이스 유저 → 메인유저로 바뀌며, **연결 신원 갱신은 클라이언트 책임**이다
-  (`auth.refresh`/`auth.switch` 또는 재연결).
-- 초대 상태는 `pending / accepted / expired` 셋뿐이고 에러가 아닌 `:ok` 필드로 온다.
-- 응답 뷰에 `expiredAt`(만료 시각)과 `inviter$`(초대자 UserHead)가 포함된다 —
-  카운트다운·초대자 표시는 서버 값으로 렌더 가능하다.
-- 수락 알림이 없다 — 초대자 화면은 `invite.list` 재조회(폴링)로 갱신한다.
-- 서버는 초대 SMS를 보내지 않는다 — 딥링크 전달은 앱 몫이다.
+- An invite creates only a code. **The room is created asynchronously at the moment of acceptance**, and
+  the accept response carries no channelId — the channel sync event has to be waited for.
+- A successful number verification (`step=check`) **is a sign-in** — the response's `$token` changes the
+  session from the device user to the main user, and **refreshing the connection's identity is the
+  client's job** (`auth.refresh` / `auth.switch`, or a reconnect).
+- An invite has three states only, `pending / accepted / expired`, and they arrive in the `:ok` fields
+  rather than as an error.
+- The response view includes `expiredAt` (the expiry time) and `inviter$` (the inviter's UserHead) — the
+  countdown and the inviter display can be rendered from server values.
+- There is no acceptance notification — the inviter's screen refreshes by re-querying `invite.list`
+  (polling).
+- The server does not send the invite SMS — delivering the deeplink is the app's job.
 
-Figma 디자인(채팅방 관리·초대·대기·수락·전화번호 인증 전 화면 확인)은 백엔드
-계약보다 넓다. 디자인에는 있으나 백엔드에 없는 것: **초대 취소, 초대 거절(+거절
-상태 뱃지), 재초대 시 이전 링크 자동 만료, 발급 전 "이미 1:1 대화가 있어요" 감지,
-소셜 연동 목록 조회/해제, OTP "시간 연장"**. 유효시간 카피도 어긋난다(디자인
-24시간 vs 백엔드 3일 하드코딩).
+The Figma design (the chat room management, invite, waiting, accept and phone verification screens were
+all reviewed) is wider than the backend contract. In the design but absent from the backend:
+**cancelling an invite, declining an invite (plus a declined badge), automatically expiring the previous
+link on re-invite, detecting "you already have a 1:1 chat" before issuing, listing and detaching social
+connections, and "extend the time" for the OTP**. The validity copy disagrees too (24 hours in the
+design vs. 3 days hardcoded in the backend).
 
-## 결정 (Decision)
+## Decision
 
-1. **갭은 인터페이스 선반영으로 대응한다.** 디자인의 버튼·상태 UI는 그대로
-   만들되 백엔드가 없는 액션은 스텁(주석 + 비활성/로컬 처리)으로 두고, 백엔드
-   API가 추가되면 연결만 하면 되는 구조로 짠다. 필요한 백엔드 API 요청 목록을
-   로드맵 문서에 별도 산출한다.
-2. **발급 전 "이미 1:1 대화가 있어요" 다이얼로그는 v1에서 구현하지 않는다.**
-   번호→유저 매핑이 서버 해시 전용이라 클라이언트가 알 방법이 없다. 같은 번호
-   재초대는 백엔드가 같은 유저·기존 방으로 이어주는 것이 안전망이다. (백엔드가
-   발급 응답에 기존 방 시그널을 실어주면 그때 연결한다 — 인터페이스 선반영.)
-3. **병렬의 단위는 Claude 세션(워크트리)이다.** 트랙별 워크트리/브랜치를 분리해
-   동시 작업하고, 트랙 간 의존은 로드맵에 명시한 인터페이스 계약(훅·컴포넌트
-   시그니처)으로 끊는다. 트랙 구성: Track 0 공통 기반(선행) → Track A 인증·세션 /
-   Track B 초대자 흐름 / Track C 수신자 흐름 / Track D 소셜 관리 (병렬).
-4. **초대 링크는 SMS 작성기로 전달한다.** 기존 `SendSms` 브릿지(모바일 핸들러
-   `useSmsHandler` + `SmsService`, sms: URI 본문 프리필)를 재사용하고 웹 쪽 송신부만
-   추가한다. 비네이티브 환경 폴백은 클립보드 복사.
-5. **전화번호 인증은 실 API 상대로 개발한다.** `auth.verify-hash-alias`는 배선
-   완료 상태다. 개발/QA는 `dryRun`·`slack` 발송 스위치를 쓴다. 실제 SMS 발송
-   인프라 연결은 백엔드 소관이며 클라 코드는 영향 없다.
-6. **대상 앱은 desktop-web을 제외한 전부다.** `apps/web`(모바일 웹뷰 + 브라우저
-   폴백)과 `apps/mobile`(브릿지 배선)이 범위다. desktop-web 전용 최적화는 이번
-   범위에서 제외한다.
-7. **소셜 관리 화면까지 포함한다.** 마이페이지 계정 관리에 소셜 연동 관리 UI를
-   만들고 `auth.attach-social`을 연결한다. 연동 목록 조회·해제는 백엔드 API가
-   없으므로 인터페이스 선반영(스텁) + 백엔드 요청 목록에 포함한다.
-8. **유효시간은 서버 3일 기준.** 클라이언트는 응답의 `expiredAt`으로만 렌더하고
-   기간을 하드코딩하지 않는다. 디자인 카피("24시간")는 3일로 수정 요청한다.
+1. **The gaps are handled by building the interfaces ahead.** Build the design's buttons and state UI as
+   drawn, but leave the actions with no backend as stubs (a comment plus a disabled or local-only
+   behaviour), structured so that adding the backend API means only connecting it. Produce the list of
+   backend APIs needed as a separate roadmap document.
+2. **The pre-issue "you already have a 1:1 chat" dialog is not built in v1.** The number-to-user mapping
+   is a server-side hash only, so the client has no way to know. Re-inviting the same number is safe
+   because the backend connects it to the same user and the existing room. (If the backend puts an
+   existing-room signal in the issue response, connect it then — the interface is built ahead.)
+3. **The unit of parallelism is a Claude session (a worktree).** Each track gets its own worktree and
+   branch and runs concurrently, with inter-track dependencies cut by the interface contracts (hook and
+   component signatures) named in the roadmap. The tracks: Track 0, the shared foundation (first) → Track
+   A, auth and session / Track B, the inviter's flow / Track C, the recipient's flow / Track D, social
+   management (in parallel).
+4. **The invite link is delivered through the SMS composer.** Reuse the existing `SendSms` bridge (the
+   mobile handler `useSmsHandler` plus `SmsService`, prefilling the body of an sms: URI) and add only the
+   web-side sender. In a non-native environment, fall back to copying to the clipboard.
+5. **Phone verification is developed against the real API.** `auth.verify-hash-alias` is already wired.
+   Development and QA use the `dryRun` and `slack` delivery switches. Connecting real SMS delivery
+   infrastructure belongs to the backend and does not affect the client code.
+6. **Every app but desktop-web is in scope.** That is `apps/web` (the mobile WebView plus the browser
+   fallback) and `apps/mobile` (the bridge wiring). desktop-web-specific optimisation is out of scope.
+7. **The social management screen is included.** Build the social connection management UI in My Page's
+   account management and connect `auth.attach-social`. Listing and detaching have no backend API, so the
+   interface is built ahead (stubbed) and included in the list of backend requests.
+8. **Validity follows the server's 3 days.** The client renders only from the response's `expiredAt` and
+   never hardcodes a duration. Request that the design copy ("24 hours") be changed to 3 days.
 
-    > **개정 (2026-07-31)** — 반대로 결론났다. 제품이 **유효기간 1일**을 택했고, 디자인이 처음부터
-    > `HH:mm:ss` 한 줄이었던 것도 그 전제였다(ADR-0037 결정 1 철회 주석 참고). 카피 수정 요청은
-    > 철회하고 **서버 TTL을 3일 → 1일로 바꾸는 백엔드 요청**으로 대체한다.
+    > **Revision (2026-07-31)** — the opposite was decided. The product chose **a validity of one day**,
+    > and that was also the premise behind the design showing a single `HH:mm:ss` line from the start (see
+    > the withdrawal note on ADR-0037 decision 1). The copy change request is withdrawn and replaced by
+    > **a backend request to change the server TTL from 3 days to 1 day**.
     >
-    > 클라이언트는 그대로 둔다 — 기간을 하드코딩하지 않으므로 서버가 바뀌는 날 저절로 맞는다.
-    > `days > 0` 분기(ADR-0037 결정 3의 하이브리드 표기)도 **남긴다**: TTL이 바뀌기 전에 지우면
-    > 3일 링크가 시·분·초만 보여 거짓이 되고, 바뀐 뒤에는 그냥 도달하지 않는 안전망이 된다.
+    > The client is left alone — it hardcodes no duration, so it matches by itself the day the server
+    > changes. The `days > 0` branch (the hybrid format from ADR-0037 decision 3) **stays** as well:
+    > removing it before the TTL changes would make a 3-day link show only hours, minutes and seconds and
+    > therefore lie, and afterwards it simply becomes a safety net that is never reached.
 
-9. **OTP "시간 연장"은 재전송으로 매핑한다.** 백엔드에 연장 개념이 없다. 타이머는
-   send/resend 응답의 `expiredAt` 기준으로 렌더하고, 연장·재전송 모두
-   `step=resend`를 부른다 (오답 카운터가 유지된다는 안내 포함).
-10. **수락 플로우 스텝 순서는 인증 → 프로필 → 수락이다.** `needVerify=true`면
-    번호 인증, 인증 후 relay 플레이스 프로필(`profile.nick`)이 없으면 프로필 설정,
-    그다음 `invite.accept` → 채널 sync 대기 → 입장. 표시명 `***<뒷4자리>` 유저가
-    존재하므로 표시단에서 감안한다.
+9. **The OTP's "extend the time" maps to resend.** The backend has no notion of extending. The timer
+   renders from the `expiredAt` in the send/resend response, and both extending and resending call
+   `step=resend` (with a note that the wrong-answer counter is preserved).
+10. **The acceptance flow's steps go verify → profile → accept.** With `needVerify=true`, verify the
+    number; after verification, if there is no relay place profile (`profile.nick`), set up the profile;
+    then `invite.accept` → wait for the channel sync → enter. Users whose display name is
+    `***<last 4 digits>` exist, so the display layer has to account for that.
 
-    > **개정 (2026-07-31, [ADR-0039](0039-dm-display-name-chain-and-invite-profile-release.md) 결정 5)**
-    > 프로필 스텝을 **삭제**했다. 순서는 **인증 → 수락**이다. 프로필은 플레이스 설정
-    > 허브에서 사후 설정한다. 표시명 `***<뒷4자리>`에 대한 감안은 그래서 더 중요해졌다.
+    > **Revision (2026-07-31, [ADR-0039](0039-dm-display-name-chain-and-invite-profile-release.md)
+    > decision 5)** The profile step was **deleted**. The order is **verify → accept**. The profile is set
+    > afterwards from the place settings hub, which makes accounting for the `***<last 4 digits>` display
+    > name more important still.
 
-    > **재개정 (2026-08-03, [ADR-0041](0041-place-profile-as-invite-precondition.md) 결정 3)**
-    > 위 삭제를 철회했다. 순서는 **본 항목의 원안대로 인증 → 프로필 → 수락**으로 복귀한다.
-    > 다만 프로필은 강제 스텝이 아니라 `invite.accept`의 **전제조건**이다 — X를 누르면 수락하지
-    > 않고 초대 확인 화면으로 돌아간다. 초대자 쪽(`ContactInvitePage`)에도 같은 구조가 붙는다.
+    > **Re-revision (2026-08-03, [ADR-0041](0041-place-profile-as-invite-precondition.md) decision 3)**
+    > That deletion was withdrawn. The order returns to **verify → profile → accept, as originally written
+    > here**. But the profile is not a forced step: it is a **precondition** of `invite.accept` — pressing
+    > X does not accept and returns to the invite confirmation screen. The same structure attaches to the
+    > inviter's side (`ContactInvitePage`).
 
-11. **산출물은 ADR(본 문서) + 로드맵 + 트랙별 킥오프 프롬프트.** 로드맵:
-    [docs/plans/relay-dm-invite-parallel-roadmap.md](../plans/relay-dm-invite-parallel-roadmap.md).
+11. **The deliverables are this ADR, the roadmap, and a kickoff prompt per track.** The roadmap was
+    `docs/plans/relay-dm-invite-parallel-roadmap.md`, in the root docs tree that has since been removed.
 
-## 대안 (Alternatives)
+## Alternatives
 
-- **갭 대응: 계약 내 축소(v1에서 취소·거절 UI 제거)** — 로드맵은 단순해지지만
-  백엔드 API 추가 시 화면을 다시 짜야 하고, 디자인과의 괴리가 커진다. 버림.
-- **갭 대응: 이번 로드맵에 backend-api 확장 트랙 포함** — 저장소·팀 경계를 넘어
-  일정 결합이 생긴다. 클라이언트는 스텁으로 진행 가능하므로 요청 목록 전달로
-  충분하다. 버림.
-- **링크 전달: 공유시트(`openShareSheet`)** — 추가 작업이 가장 적지만 디자인
-  카피("SMS로 초대 링크를 보내요")와 어긋난다. SMS 작성기 브릿지가 이미 있어
-  비용 차이도 작다. 버림 (공유시트는 후속 개선 후보로 남김).
-- **링크 전달: 서버 SMS 발송** — `sendInviteSms`(ncloud 템플릿)는 클라우드 bulk
-  초대용 별도 REST이고 중계 초대 흐름에 미배선. 백엔드 작업 필요 + 발송 비용.
-  버림.
-- **유효시간: 백엔드를 24시간으로 변경 요청** — 백엔드 수정을 유발하고, 3일은
-  이미 확정 구현. 카피 수정이 싸다. 버림. → **2026-07-31에 이 대안을 택했다**(D8 개정 참고):
-  제품이 1일로 정했으므로 카피가 아니라 서버 TTL을 바꾼다.
-- **초대 목록을 IndexedDB 리포지토리(repositories)로 승격** — 초대는 오프라인
-  요구가 없고 폴링으로 즉시 조회 가능하다. react-query 훅 + UI 병합으로 충분.
-  버림 (수락 알림이 push 기반으로 바뀌면 재검토).
-  → **이 기각은 [ADR-0036](./0036-data-surface-unification-app-runtime-cleanup.md)이
-  대체했다** (2026-07-30, 접근 표면 단일화 — 영속화 의무 없는 repository 승격).
+- **Handling the gaps by narrowing to the contract (dropping the cancel and decline UI in v1)** — the
+  roadmap gets simpler, but the screens have to be rebuilt when the backend APIs arrive, and the
+  divergence from the design grows. Dropped.
+- **Handling the gaps by adding a backend-api extension track to this roadmap** — it crosses repository
+  and team boundaries and couples the schedules. The client can proceed with stubs, so handing over the
+  request list is enough. Dropped.
+- **Link delivery through the share sheet (`openShareSheet`)** — the least work, but it contradicts the
+  design copy ("We'll send the invite link by SMS"). The SMS composer bridge already exists, so the cost
+  difference is small. Dropped (the share sheet remains a candidate for later).
+- **Link delivery through server-side SMS** — `sendInviteSms` (an ncloud template) is a separate REST
+  endpoint for bulk cloud invites and is not wired into the relay invite flow. It needs backend work and
+  costs money to send. Dropped.
+- **Validity: ask the backend to change it to 24 hours** — it causes a backend change, and 3 days is
+  already implemented. Changing the copy is cheaper. Dropped. → **This alternative was chosen on
+  2026-07-31** (see the D8 revision): the product settled on one day, so the server TTL changes rather
+  than the copy.
+- **Promote the invite list into an IndexedDB repository** — invites have no offline requirement and
+  polling reads them immediately. A react-query hook plus merging in the UI is enough. Dropped (revisit if
+  acceptance notifications become push-based).
+  → **This rejection was superseded by
+  [ADR-0036](./0036-data-surface-unification-app-runtime-cleanup.md)** (2026-07-30, unifying the access
+  surface — a repository promotion with no persistence obligation).
 
-## 결과 (Consequences)
+## Consequences
 
-- 얻는 것: 4개 트랙이 워크트리로 동시 진행 가능하고, 백엔드 API가 추가될 때
-  UI 재작업 없이 스텁만 교체하면 된다. 카운트다운·초대자 표시가 서버 값 기반이라
-  정책 변경에 클라 배포가 불필요하다.
-- 감수하는 것:
-    - 스텁 상태의 버튼(초대 취소, 소셜 해제 등)이 실제 동작 없이 배포될 수 있어
-      노출 여부를 트랙별 구현에서 플래그로 제어해야 한다.
-    - 초대 대기 화면은 폴링이라 수락 반영에 지연이 있다 (백엔드 알림 추가 시 해소).
-    - 거절 상태 뱃지("초대 거절")는 백엔드 상태가 생기기 전까지 실데이터로 그릴 수
-      없다 — 해당 행은 만료와 동일 취급된다.
-    - ~~디자인 카피 수정(24시간→3일)을 디자인 팀에 요청해야 한다.~~ → 철회(D8 개정). 대신 서버
-      TTL을 1일로 바꾸는 백엔드 요청이 남는다.
-    - 세션 전환($token 반영)이 SocketManager 듀얼 슬롯(relay+cloud) 전반에 걸치는
-      가장 큰 리스크로 남는다 — Track A에서 우선 검증한다.
-- 되돌리는 조건: 백엔드가 수락 알림·dm channelId 동기 회수를 구현하면 폴링·채널
-  대기 로직을 이벤트 기반으로 교체한다 (스펙 문서 "재검토 조건"과 동일).
+- What is gained: four tracks can run concurrently in worktrees, and when a backend API arrives only the
+  stub has to be swapped, with no UI rework. The countdown and the inviter display come from server
+  values, so a policy change needs no client release.
+- What is accepted:
+    - Stubbed buttons (cancelling an invite, detaching a social account) can ship without working, so
+      whether they are visible has to be controlled by a flag in each track's implementation.
+    - The invite waiting screen polls, so acceptance shows up with a delay (resolved when the backend adds
+      a notification).
+    - The declined badge ("Invite declined") cannot be drawn from real data until the backend has that
+      state — such a row is treated the same as expired.
+    - ~~The design copy change (24 hours → 3 days) has to be requested from the design team.~~ →
+      Withdrawn (the D8 revision). What remains is the backend request to change the server TTL to one
+      day.
+    - The session switch (applying `$token`) across SocketManager's dual slots (relay plus cloud) remains
+      the biggest risk — verified first in Track A.
+- When to reverse: once the backend implements an acceptance notification and returns the dm channelId
+  synchronously, replace the polling and channel-waiting logic with event-driven versions (the same as the
+  spec document's "revisit triggers").

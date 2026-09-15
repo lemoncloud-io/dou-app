@@ -1,109 +1,114 @@
-# ADR-0081: libs/data 문서 정본을 분량으로 가르고, `src/data` 중첩을 걷어낸다
+# ADR-0081: Split libs/data's doc canon by size, and flatten the `src/data` nesting
 
-> 상태: Accepted · 결정일: 2026-09-09 · 개정: 2026-09-14 (결정 4·5 실행 완료) · 관련: [ADR-0036](./0036-data-surface-unification-app-runtime-cleanup.md) (이름 규약 계승)
+> Status: Accepted · Decided: 2026-09-09 · Updated: 2026-09-14 (Decisions 4·5 carried out) · Related: [ADR-0036](./0036-data-surface-unification-app-runtime-cleanup.md) (naming convention this document inherits)
 
-## 맥락 (Context)
+## Context
 
-리포 전체 문서 최신화 트랙의 첫 단계다. `libs/data`를 먼저 하는 이유는 하나다 — 여기서 정한
-문서 규칙이 나머지 11개 문서 트리의 본이 된다.
+This is the first step of the repo-wide documentation refresh track. `libs/data` goes first for one reason — the
+documentation rules decided here become the template for the other 11 doc trees.
 
-### 문서가 없는 코드를 설명한다 (5건)
+### Documenting code that doesn't exist (5 cases)
 
-| 문서                          | 주장                                                                       | 실제                                                      |
-| ----------------------------- | -------------------------------------------------------------------------- | --------------------------------------------------------- |
-| `docs/README.md`              | `### events (src/data/events)` 섹션 전체 (`DomainEventMap`, `eventBus.ts`) | 디렉토리 자체가 없다                                      |
-| `docs/README.md`              | 트리에 `repositories/` — "공유 계약 보관"                                  | 없다. `DataContext`는 `repositories/types.ts:18`로 옮겼다 |
-| `README.md`                   | 위 두 가지를 그대로 반복                                                   | 같은 오류가 두 곳에 있다                                  |
-| `docs/repositories/README.md` | 도메인 8개 (`channel, chat, cloud, join, place, profile, user, syncMeta`)  | 13개다. `auth·device·invite·report·subscription`이 빠졌다 |
-| `docs/repositories/README.md` | "`src/data/repositories`는 `DataContext`만 보관"                           | 없다                                                      |
+| Document                      | Claim                                                                              | Reality                                                            |
+| ----------------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `docs/README.md`              | the whole `### events (src/data/events)` section (`DomainEventMap`, `eventBus.ts`) | the directory itself doesn't exist                                 |
+| `docs/README.md`              | `repositories/` in the tree — "holds shared contracts"                             | it doesn't. `DataContext` moved to `repositories/types.ts:18`      |
+| `README.md`                   | repeats both claims above                                                          | the same errors sit in two places                                  |
+| `docs/repositories/README.md` | 8 domains (`channel, chat, cloud, join, place, profile, user, syncMeta`)           | there are 13. `auth·device·invite·report·subscription` are missing |
+| `docs/repositories/README.md` | "`src/data/repositories` only holds `DataContext`"                                 | it doesn't exist                                                   |
 
-`docs/remote/README.md`는 정확했다 (Socket 11종 · Http 5종이 실제와 맞는다).
+`docs/remote/README.md` was accurate (Socket, 11 kinds · Http, 5 kinds — matches reality).
 
-### 문서 분량의 66%가 작업 로그다
+### 66% of the doc volume is a work log
 
-`docs/http-data-path.md`가 614줄 · 45KB다. 섹션 제목이 성격을 그대로 드러낸다 — "3단계 예고",
-"검증 방법", "구현 중 문서에서 벗어난 지점", "실측이 문서 예측과 정확히 일치한 것". 참조 문서가
-아니라 완료된 트랙의 작업 기록이다.
+`docs/http-data-path.md` is 614 lines, 45KB. The section titles alone give away the character — "Preview of step 3,"
+"How to verify," "Where the implementation left the doc," "What measurement matched the doc's prediction exactly."
+Not a reference — a work log of a finished track.
 
-### 정본이 둘이다
+### There are two canons
 
-`README.md` 242줄과 `docs/README.md` 63줄이 도입부를 거의 그대로 중복한다 — 핵심 원칙 3줄,
-socket lifecycle 문단. 위의 오류 2건도 양쪽에 함께 있다.
+`README.md` (242 lines) and `docs/README.md` (63 lines) duplicate the intro almost verbatim — the same 3-line core
+principle, the same socket-lifecycle paragraph. The two errors above sit in both.
 
-### 문서를 읽다 코드 문제가 드러났다
+### Reading the docs surfaced a code problem
 
-"V1은 제거됐다"는 주석이 README 3곳에 있다. V1이 없는데 `V2` 접미사가 **119파일**에 남아 있다.
-그리고 경계에서 별칭을 강제한다.
+A "V1 is gone" comment appears in three README files. There's no V1, yet the `V2` suffix remains on **119 files**.
+And a forced alias sits right at the boundary.
 
 ```ts
 // libs/app-runtime/src/data/factories/localFactory.ts:5
 createLocalDataSources as createDataLocalDataSources,
 ```
 
-`libs/app-runtime`은 이미 V2 없는 이름을 쓴다 — `createRepositories`, `createLocalDataSources`.
-**`libs/data`만 V2를 말하고 나머지는 안 말하는 상태**다.
+`libs/app-runtime` already uses names without `V2` — `createRepositories`, `createLocalDataSources`. **Only
+`libs/data` still speaks V2; nothing else does.**
 
-### 파급 실측
+### Blast-radius measurement
 
-- **배럴 우회 0건.** `@chatic/data` 소비 파일 213개가 전부 배럴만 쓴다. `@chatic/data/...` 내부 경로 import는 없다.
-- 따라서 `src/data/**` 재배치는 **외부 파급 0**이고 내부 109파일만 바뀐다.
-- `V2` 식별자 제거는 배럴로 나가므로 **외부 119파일**이 바뀐다.
-- 안전망: `libs/data` 테스트 45파일 · 348케이스.
+- **Zero barrel bypasses.** All 213 files consuming `@chatic/data` go through the barrel only. No file imports
+  `@chatic/data/...` internal paths directly.
+- So relocating `src/data/**` has **zero external blast radius** — only the 109 internal files change.
+- Removing the `V2` identifier goes out through the barrel, so **119 external files** change.
+- Safety net: `libs/data` has 45 test files · 348 cases.
 
-### 리포 전체 배치가 4갈래다
+### The repo-wide layout splits four ways
 
-| 패턴                             | 해당 모듈                                                                                       |
-| -------------------------------- | ----------------------------------------------------------------------------------------------- |
-| README + `docs/` 둘 다 큼 (중복) | `data` (242줄 + 8), `app-runtime` (132줄 + 24)                                                  |
-| `docs/`만                        | `auth-sign`, `http`, `logger`, `apps/web`(55), `admin-v2`, `testbed`, `mobile`                  |
-| README만                         | `app-messages`(202줄), `bridges`(271줄), `db`, `web-ui-kit`                                     |
-| 아무것도 없음                    | `block-kit`, `i18n-mobile`, `policy-content`, `web-config`, `desktop-web`, `desktop`, `landing` |
+| Pattern                                 | Modules                                                                                         |
+| --------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| README + `docs/` both large (duplicate) | `data` (242 lines + 8), `app-runtime` (132 lines + 24)                                          |
+| `docs/` only                            | `auth-sign`, `http`, `logger`, `apps/web` (55), `admin-v2`, `testbed`, `mobile`                 |
+| README only                             | `app-messages` (202 lines), `bridges` (271 lines), `db`, `web-ui-kit`                           |
+| Neither                                 | `block-kit`, `i18n-mobile`, `policy-content`, `web-config`, `desktop-web`, `desktop`, `landing` |
 
-`device-utils`·`shared`·`theme`의 README는 nx 스캐폴드 3줄 그대로다 —
+`device-utils`·`shared`·`theme`'s READMEs are still the plain 3-line nx scaffold —
 `This library was generated with Nx`.
 
-## 결정 (Decision)
+## Decision
 
-### 1. 문서 정본은 분량으로 가른다 (리포 전체 규칙)
+### 1. The doc canon splits by size (repo-wide rule)
 
-- **정본은 하나다.** `README.md`와 `docs/`가 같은 사실을 말하면 하나를 진입점으로 강등한다.
-- **정본 위치는 이미 정해진 것을 존중한다.** `docs/`가 있으면 `docs/`, 없으면 `README.md`.
-- **`docs/`를 새로 만드는 기준**만 문서 3개 초과다.
-- 같은 사실은 정본 한 곳에만 쓰고 나머지는 링크한다.
-- `docs/`가 정본인 모듈의 `README.md`는 **개요와 구조**를 갖는다 — 목적·설계 원칙·범위·레이어
-  지도·디렉토리·시나리오, 그리고 `docs/` 폴더 색인. 상세는 `docs/` 아래 **주제별 폴더**가 갖는다.
+- **There's one canon.** When `README.md` and `docs/` state the same fact, one gets demoted to an entry point.
+- **The canon location respects what's already decided.** `docs/` if it exists, otherwise `README.md`.
+- **The only bar for creating a new `docs/`** is more than 3 documents.
+- The same fact lives in exactly one canonical place; everywhere else links to it.
+- A module whose canon is `docs/` still has a `README.md` with **an overview and structure** — purpose, design
+  principles, scope, the layer map, the directory tree, scenarios, plus an index of the `docs/` folder. Detail lives
+  under `docs/`, split by **topic**.
 
-`libs/data`는 문서 8개이고 정본이 둘이다. `README.md`가 개요·구조를 갖고, `docs/` 아래를
-레이어별 폴더(`local/` · `remote/` · `repositories/`)로 가른다.
+`libs/data` has 8 documents and two canons. `README.md` holds the overview and structure, and `docs/` splits by
+layer folder (`local/` · `remote/` · `repositories/`).
 
-> **2026-09-09 보정.** 처음에는 "문서 3개 이하면 `README.md` 하나"로 적었다. 그 규칙은
-> `libs/http`·`libs/db`·`libs/auth-sign`·`libs/logger`를 오탐으로 잡는다 — 네 곳 모두 문서가
-> 1~2개지만 이미 `docs/architecture.md`가 정본이고, 60개 문서가 쓰는 컨벤션과 ADR-0070 상호
-> 링크를 재직해야 얻는 게 없다. 규칙의 진짜 대상은 정본이 **둘인** 곳(`data`, `app-runtime`)이었다.
+> **2026-09-09 correction.** The rule originally read "3 or fewer documents means a single `README.md`." That rule
+> misfires on `libs/http`·`libs/db`·`libs/auth-sign`·`libs/logger` — all four have just 1-2 documents, but
+> `docs/architecture.md` is already the canon there, and there's nothing to gain by re-siting the conventions and
+> ADR-0070 cross-links that 60 documents already use. The rule's real target was modules with **two** canons
+> (`data`, `app-runtime`).
 >
-> **2026-09-14 개정.** "README는 20줄 진입점"을 버렸다. 그 모양이면 모듈에 들어온 사람이 구조를
-> 보려고 `docs/`를 한 번 더 열어야 하고, 개요 문서(`architecture.md`)와 README가 같은 말을 나눠
-> 갖는다 — 정본이 둘이라는 원래 문제가 형태만 바꿔 남는다. 지금 규칙은 **README가 개요와 구조,
-> `docs/<주제>/`가 상세**다. `libs/data`가 첫 적용이고 `architecture.md`는 README로 흡수돼 사라졌다.
+> **2026-09-14 revision.** Dropped "README is a 20-line entry point." That shape means someone entering the module
+> has to open `docs/` a second time just to see the structure, and the overview document (`architecture.md`) and
+> README end up splitting the same statements between them — the original two-canons problem survives in a new
+> shape. The rule now is **README holds the overview and structure, `docs/<topic>/` holds detail.** `libs/data` is
+> the first application, and `architecture.md` was absorbed into README and deleted.
 
-이 기준이면 손대지 않는 곳이 분명해진다 — `bridges`(271줄)·`app-messages`(202줄)는 `README.md`가
-유일한 정본이고, `http`·`db`·`auth-sign`·`logger`는 `docs/`가 유일한 정본이다.
+Under this rule, the modules to leave untouched are clear — `bridges` (271 lines) · `app-messages` (202 lines) have
+`README.md` as their only canon, and `http`·`db`·`auth-sign`·`logger` have `docs/` as their only canon.
 
-### 2. 삭제 대상은 4범주다
+### 2. Deletions fall into 4 categories
 
-1. **작업로그·계획·예고·검증절차** — 코드로 검증할 수 없는 시제. 결정 기록으로 남길 값은 `docs/adr/`이 이미 맡는다.
-2. **중복** — 같은 사실이 두 곳에 있으면 정본만 남기고 링크로 바꾼다.
-3. **없는 코드를 설명하는 섹션** — 갱신할 대상이 없으니 통째로 삭제한다.
-4. **nx 스캐폴드 README** — `device-utils`·`shared`·`theme` 3건.
+1. **Work log · plan · preview · verification procedure** — tense that code can't verify. Anything worth keeping as
+   a decision record is already covered by `docs/adr/`.
+2. **Duplication** — the same fact in two places keeps only the canon and turns the other into a link.
+3. **Sections describing code that doesn't exist** — deleted outright, since there's nothing to update them against.
+4. **Nx scaffold README** — the 3 cases: `device-utils`·`shared`·`theme`.
 
-`docs/http-data-path.md`는 1번에 해당한다. 살아있는 사실만 `docs/remote.md`로 흡수하고
-원본을 삭제한다. 흡수 대상은 세 가지다 — gateway 매핑 표, HttpDataSource 5종의 도메인 매핑·캐시 의미,
-`ReportHttpDataSource`가 도메인 없이 이 층을 지나는 이유.
+`docs/http-data-path.md` falls under category 1. Only the still-true facts get absorbed into `docs/remote.md`, and
+the original is deleted. Three things get absorbed — the gateway mapping table, the domain mapping · cache semantics
+of the 5 HttpDataSource kinds, and why `ReportHttpDataSource` passes through this layer with no domain.
 
-### 3. `src/data` 중첩을 한 단계 걷어낸다
+### 3. Flatten the `src/data` nesting by one level
 
 ```text
-# 지금                              # 이후
+# before                             # after
 libs/data/src/                      libs/data/src/
 ├── index.ts                        ├── index.ts
 └── data/                           ├── domain/
@@ -119,23 +124,22 @@ libs/data/src/                      libs/data/src/
     └── repositories/
 ```
 
-**바뀌는 것은 `data/` 한 겹뿐이다.** 레이어 경계도, 디렉토리 이름의 `-v2`도 그대로 둔다
-(결정 4로 `-v2`도 함께 뗐다 — 평탄화와 리네임은 별개 단계로 나눠 적용했다).
-도메인 수직 슬라이싱은 하지 않는다.
+**Only the `data/` layer changes.** The layer boundaries and the `-v2` suffix in directory names stay as they are
+(Decision 4 removes `-v2` too — flattening and renaming were applied as separate steps). No domain vertical slicing.
 
-### 4. `V2` 접미사를 뗀다
+### 4. Drop the `V2` suffix
 
-> **경과.** 한 번 보류로 내렸다가(2026-09-14) 같은 날 되살려 실행했다. 보류의 이유는 "이 PR의
-> 파급을 문서 범위로 묶는다"였는데, 트랙 범위가 `libs/data` 하나로 좁아지면서 그 이유가
-> 사라졌다. 실측 파급은 `libs/data` 밖 **93파일**(apps/web 35 · app-runtime 25 · testbed 17 ·
-> db 7 · desktop-web 3 · admin-v2 3 · mobile 2)이고, 전부 배럴을 지나는 타입·심볼 참조다.
+> **Progress.** Held back once (2026-09-14), then reinstated and carried out the same day. The reason for holding
+> back was "keep this PR's blast radius scoped to docs"; that reason went away once the track's scope narrowed to
+> just `libs/data`. Measured blast radius outside `libs/data` is **93 files** (apps/web 35 · app-runtime 25 · testbed
+> 17 · db 7 · desktop-web 3 · admin-v2 3 · mobile 2), all type/symbol references through the barrel.
 >
-> 리네임이 만든 타입 오류는 **0건**이다. desktop-web 21건과 mobile의 잔여 오류는 리네임 이전
-> 워크트리에서 같은 수로 측정된 선재 부채다.
+> The rename produced **zero** type errors. desktop-web's 21 and mobile's remaining ones are pre-existing debt,
+> measured at the same count in a worktree from before the rename.
 
-적용한 대응표:
+The mapping applied:
 
-| 지금                                           | 이후                                           |
+| Before                                         | After                                          |
 | ---------------------------------------------- | ---------------------------------------------- |
 | `repositories/`                                | `repositories/`                                |
 | `local/data-sources/`                          | `local/data-sources/`                          |
@@ -147,92 +151,105 @@ libs/data/src/                      libs/data/src/
 | `LocalDataSources`                             | `LocalDataSources`                             |
 | `createLocalDataSources`                       | `createLocalDataSources`                       |
 
-데이터 레이어와 무관한 `V2`는 건드리지 않는다 — `apps/admin-v2` 경로, `useRegisterUserV2`,
-`useChatOutbox`·`useCloudCatalog` 등의 지역 식별자. 전역 치환이 아니라 위 표의 이름만 옮긴다.
+`V2` unrelated to the data layer stays untouched — the `apps/admin-v2` path, `useRegisterUserV2`,
+`useChatOutbox`·`useCloudCatalog`'s local identifiers, and so on. Not a global replace — only the names in the table
+above move.
 
-`Invite` 도메인이 함정이다. `I` 접두 인터페이스와 도메인 이름이 겹쳐서
-`IInviteRepository`와 `InviteRepository`가 나란히 있다. 정규식으로 `I` 접두를 다루면 이 둘이
-섞인다. 도메인 이름을 명시한 치환만 쓴다.
+The `Invite` domain is a trap. Its `I`-prefixed interface collides with the domain name, so `IInviteRepository` and
+`InviteRepository` sit side by side. A regex that handles the `I` prefix would mix the two up. Only replacements that
+name the domain explicitly are used.
 
-### 5. `repositoryFactory`를 삭제한다
+### 5. Delete `repositoryFactory`
 
-`V2`를 떼면 `libs/data`의 `createRepositories`와 `app-runtime`의 래퍼 이름이 겹친다.
-`factories/repositoryFactory.ts`는 `context` ↔ `contextProvider` 키만 바꿔주는 30줄 껍데기다.
-삭제하고 `DataManager`가 `@chatic/data`의 `createRepositories`를 직접 부른다.
+Once `V2` is dropped, `libs/data`'s `createRepositories` collides in name with `app-runtime`'s wrapper.
+`factories/repositoryFactory.ts` is a 30-line shell that just renames the `context` ↔ `contextProvider` key. It's
+deleted, and `DataManager` calls `@chatic/data`'s `createRepositories` directly.
 
-`factories/localFactory.ts`는 남긴다. 스토리지 라우팅과 fingerprint 로직이 있어서 성격이 다르다.
+`factories/localFactory.ts` stays — it has storage routing and fingerprint logic, a different nature.
 
-> **2026-09-14 보정 — 별칭은 못 없앤다.** 이 결정은 "import 별칭만 없앤다"고 적었는데 틀렸다.
-> 별칭(`createLocalDataSources as createDataLocalDataSources`)이 있던 이유가 `V2`가 아니었다.
-> `localFactory.ts`가 **자기 함수도** `createLocalDataSources`로 내보내므로, 접미사를 떼면
-> 두 이름이 정확히 겹친다. 별칭은 그대로 둔다.
+> **2026-09-14 correction — the alias can't be removed.** This decision said "only the import alias goes away," and
+> that was wrong. The alias (`createLocalDataSources as createDataLocalDataSources`) wasn't there because of `V2`.
+> `localFactory.ts` **also exports its own function** as `createLocalDataSources`, so once the suffix is dropped, the
+> two names collide exactly. The alias stays.
 
-### 순서와 검증
+### Order and verification
 
-1. **평탄화** — 외부 파급 0. libs/data 내부에서 닫힌다.
-2. **`V2` 제거 + `repositoryFactory` 삭제** — 배럴 밖 93파일. 다운스트림 타입체크로 확인한다.
-3. **문서 재작성** — 1단계의 결과를 기술한다.
+1. **Flatten** — zero external blast radius. Closed within libs/data.
+2. **Remove `V2` + delete `repositoryFactory`** — 93 files outside the barrel. Confirmed with downstream typecheck.
+3. **Rewrite docs** — describes the result of step 1.
 
-단계마다
-`npx tsc -b libs/data/tsconfig.lib.json`과 jest를 돌린다. 워크트리에 `node_modules`가 없으므로
-메인 체크아웃에서 심링크를 붙이고 끝나면 제거한다.
+Run `npx tsc -b libs/data/tsconfig.lib.json` and jest after each step. The worktree has no `node_modules`, so a
+symlink from the main checkout is attached and removed once done.
 
-### 범위에서 제외
+### Out of scope
 
-- 도메인 수직 슬라이싱
-- 배럴 명시화 — `index.ts`의 `export *` 8줄을 유지한다
-- ADR 번호 충돌 (0027×3, 0033×3, 0034×4, 0045×3, 0047×4, 0075×2)과 빠진 번호 (0038, 0061, 0064, 0065, 0069)
-- 루트 `docs/` 중복 트리 — `spec/` vs `specs/`, `frontend-handover.md` vs 동명 폴더, `DEEP-LINKING.md` vs `-V2.md`
-- `libs/data` 밖 11개 문서 트리 — 규칙만 여기서 정하고 적용은 다음 단계다
+- Domain vertical slicing
+- Making the barrel explicit — keeps `index.ts`'s 8 lines of `export *`
+- ADR number collisions (0027×3, 0033×3, 0034×4, 0045×3, 0047×4, 0075×2) and missing numbers (0038, 0061, 0064, 0065, 0069)
+- The duplicate root `docs/` trees — `spec/` vs `specs/`, `frontend-handover.md` vs the folder of the same name,
+  `DEEP-LINKING.md` vs `-V2.md`
+- The 11 doc trees outside `libs/data` — only the rule gets set here; applying it is a later step
 
-## 대안 (Alternatives)
+## Alternatives
 
-**문서만 고치고 `V2`는 둔다.** 버렸다. "V1은 제거됐다"는 주석 3개가 계속 남는다. 문서가 V2의 뜻을
-설명하는 데 지면을 쓴다. 원인이 코드에 있는데 문서로 덮는 셈이다.
+**Fix the docs only, leave `V2` alone.** Dropped. The three "V1 is gone" comments would keep sitting there. The docs
+would keep spending space explaining what V2 means. The problem lives in the code but gets papered over in docs.
 
-**도메인 수직 슬라이싱** (`src/domains/chat/{ChatRepository, ChatLocalDataSource, ChatSocketDataSource}.ts`).
-버렸다. 축이 비대칭이다 — repository 13개, socket DS 11개, local DS 9개, http DS 5개. 13개 폴더
-모양이 들쭉날쭉해지고, "읽기는 local · remote는 command" 원칙이 디렉토리에서 사라진다.
+**Domain vertical slicing**
+(`src/domains/chat/{ChatRepository, ChatLocalDataSource, ChatSocketDataSource}.ts`). Dropped. The axes are
+asymmetric — 13 repositories, 11 socket DS, 9 local DS, 5 http DS. The shape of the 13 folders would be uneven, and
+the "reads are local · remote is command" principle would disappear from the directory structure.
 
-**모든 모듈에 `docs/` 정본을 강제한다.** 버렸다. `bridges` 271줄과 `app-messages` 202줄까지 분해해야
-해서 트랙이 비대해진다. 분량 기준이면 그 둘은 지금 모양이 맞다.
+**Force a `docs/` canon on every module.** Dropped. It would mean breaking up `bridges`'s 271 lines and
+`app-messages`'s 202 lines too, bloating the track. Under the size rule, those two are already the right shape.
 
-**모듈당 `README.md` 하나로 통산한다.** 버렸다. `apps/web` 문서 55개나 `libs/data` 4개 레이어를
-한 파일에 넣을 수 없다.
+**Consolidate into one `README.md` per module.** Dropped. `apps/web`'s 55 documents, or `libs/data`'s 4 layers,
+can't fit into a single file.
 
-**`http-data-path.md`를 `docs/adr/`로 이관한다.** 버렸다. 같은 결정은 ADR-0036이 이미 담고 있다.
-작업 로그가 ADR 폴더를 늘릴 이유가 없다.
+**Move `http-data-path.md` into `docs/adr/`.** Dropped. The same decision is already covered by ADR-0036. A work log
+has no reason to swell the ADR folder.
 
-**`V2` 제거를 먼저 하고 평탄화를 나중에.** 버렸다. 두 변경이 한 diff에 섞인다. 파급 0인 쪽이 먼저다.
+**Remove `V2` first, flatten later.** Dropped. The two changes would mix into one diff. The zero-blast-radius one
+goes first.
 
-## 결과 (Consequences)
+## Consequences
 
-### 얻는 것
+### What is gained
 
-- 문서 5건의 거짓이 사라지고 정본이 하나가 된다.
-- `libs/data` 문서 분량이 크게 줄어든다 — `http-data-path.md` 614줄과 README 중복분.
-- 경계에서 별칭이 사라진다. `app-runtime`과 `libs/data`가 같은 이름을 말한다.
-- 나머지 11개 트리에 적용할 규칙이 생긴다. 재인터뷰 없이 이어갈 수 있다.
+- The 5 false claims disappear, and there's one canon.
+- `libs/data`'s doc volume drops sharply — `http-data-path.md`'s 614 lines and the README duplication.
+- The alias at the boundary disappears. `app-runtime` and `libs/data` say the same name.
+- A rule now exists for the other 11 trees. It can continue without a re-interview.
 
-### 감수하는 것
+### What is accepted
 
-- **커밋 3개가 109~213파일을 건드린다.** 리베이스 충돌 표면이 크다. 이 워크트리는 다른 세션과 git 인덱스를 공유하니 커밋할 때 경로를 명시해 스테이징한다.
-- **의미 충돌은 타입체크만 잡는다.** 순수 리네임이라 리베이스 후 재검증이 필수다.
-- **nx의 낡은 `dist`/`out-tsc`가 유령 에러를 만든다.** 디렉토리를 물리 이동하면 다운스트림 typecheck가 옛 심볼을 본다. 진단 전에 `rm -rf`로 강제 삭제한다.
-- **`desktop-web`은 push로만 배포되고 되돌릴 수단이 없다.** 이 트랙이 건드리는 `desktop-web` 파일은 리네임에 한정한다.
-- **옛 이름으로 쓰인 ADR은 그대로 둔다.** 2026-09-01 리네임 때와 같은 방식이다 — `libs/data/docs/remote/README.md`의 대응표에 `V2` 제거 행을 덧붙이고, 과거 ADR 본문은 기록이므로 손대지 않는다.
+- **3 commits touch 109-213 files.** Rebase-conflict surface is large. This worktree shares its git index with other
+  sessions, so staging names paths explicitly at commit time.
+- **Only the typecheck catches semantic collisions.** It's a pure rename, so re-verification after rebase is
+  mandatory.
+- **Nx's stale `dist`/`out-tsc` produces phantom errors.** Moving a directory physically makes downstream typecheck
+  see old symbols. Force-delete with `rm -rf` before diagnosing.
+- **`desktop-web` only deploys via push and has no way back.** This track's touches to `desktop-web` files are
+  limited to the rename.
+- **ADRs written with the old names stay as they are.** Same approach as the 2026-09-01 rename — a `V2`-removal row
+  is appended to `libs/data/docs/remote/README.md`'s mapping table, and past ADR bodies are left alone since they're
+  a record.
 
-## 다음 단계
+## Next steps
 
-`dev-2_implement`의 스펙 작성(Phase A)으로 넘긴다.
+Hands off to `dev-2_implement`'s spec writing (Phase A).
 
-리포 전체 트랙의 이후 순서 후보:
+Candidate order for the rest of the repo-wide track:
 
-1. `libs/app-runtime` — 문서 24개, 두 번째로 크고 README 중복도 같은 모양이다
-2. `apps/web` — 문서 55개, 가장 크다
-3. 루트 `docs/` 중복 트리 3건 병합 — **처음부터 하지 않는다.** 2026-08-20에 같은 작업을 끝냈지만 워크트리가 사라져 유실됐다 (어느 브랜치에도 안 남았다). 판정 결과가 `~/.claude/plans/docs-partitioned-seahorse.md`에 살아 있으니 그것부터 읽는다 — spec 18개의 이전·폐기 판정과 당시 발견한 버그 2건(admin 딥링크 구형 형식, Firestore 지연 딥링크 death)이 들어 있다.
-4. ADR 번호 충돌 정리
-5. ~~**`V2` 접미사 제거 + `repositoryFactory` 삭제**~~ — 이 트랙에서 함께 끝냈다(결정 4·5).
-   실측 외부 파급은 119파일이 아니라 **93파일**이었다.
+1. `libs/app-runtime` — 24 documents, the second largest, with the same README-duplication shape
+2. `apps/web` — 55 documents, the largest
+3. Merging the 3 duplicate root `docs/` trees — **not starting from scratch.** The same work was finished on
+   2026-08-20 but the worktree disappeared and it was lost (it never landed on any branch). The verdict survives at
+   `~/.claude/plans/docs-partitioned-seahorse.md` — read that first. It holds the migrate/discard verdicts for 18
+   specs and 2 bugs found at the time (admin's stale deep-link format, Firestore's delayed-deep-link death).
+4. Clean up ADR number collisions
+5. ~~**Remove the `V2` suffix + delete `repositoryFactory`**~~ — finished together within this track (Decisions 4·5).
+   Measured external blast radius was **93 files**, not 119.
 
-유실 사고의 교훈은 이 트랙에 이미 반영했다 — 단계마다 커밋한다. 워크트리를 끝까지 안 비운다.
+The lesson from the loss is already reflected in this track — commit at every step. Never leave the worktree empty
+until the end.

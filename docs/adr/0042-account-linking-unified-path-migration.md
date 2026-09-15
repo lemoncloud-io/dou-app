@@ -1,323 +1,346 @@
-# ADR-0042: 계정 연동 통합 경로(`auth.link-account`)로 전면 이관
-
-> 상태: Accepted · 결정일: 2026-08-03
-> 선행: [ADR-0033](./0033-relay-dm-invite-and-auth-parallel-tracks.md) · [ADR-0034](./0034-inviter-phone-verification-guest-gate-and-sheet.md) · [ADR-0036](./0036-data-surface-unification-app-runtime-cleanup.md)
+# ADR-0042: Migrate wholesale to the unified account linking path (`auth.link-account`)
+
+> Status: Accepted · Decided: 2026-08-03
+> Follows: [ADR-0033](./0033-relay-dm-invite-and-auth-parallel-tracks.md) · [ADR-0034](./0034-inviter-phone-verification-guest-gate-and-sheet.md) · [ADR-0036](./0036-data-surface-unification-app-runtime-cleanup.md)
+
+> **Naming note (2026-09-01):** the `*RemoteDataSource` · `RemoteGatewayBundle` · `*DomainGateway` ·
+> `remoteFactory` · `remote/data-sources/` names this document uses are **the names of the time**. The
+> mapping after the socket axis moved to the `Socket` prefix is in
+> [libs/data/docs/remote/README.md](../../libs/data/docs/remote/README.md#naming-history). This is a record,
+> so the body is left as it is.
+
+## Context
+
+The server has gathered the account verification paths into one. The source is `chatic-sockets-api`
+`docs/specs/relay-server-invite/` (Rev 2026-07-31, with 05-client-guide.md as the canon for the app), and the
+policy source is `docs/specs/relay-server-user-invite/account-linking-design.md` on the
+`feat/relay-server-user-invite-v2` branch of `chatic-backend-api`.
+
+Three things changed.
+
+1. **Means, mode and step unified into one.** Phone, email and social are all received by the single
+   `auth.link-account` packet. It is a discriminated union of `type` (what you prove with) · `mode` (what happens
+   after the proof: `link` = attach the means to the current session / `login` = open a session as the owner of
+   that account) · `step` (`send`, `resend`, `verify`, `confirm`).
+2. **Proof and commit are split.** `verify` only answers whether the code is correct and changes nothing. Only
+   the `verify` of `mode: 'link'` returns `{ linkable, reason }` (`reason`: `'occupied'` = that account belongs to
+   someone else / `'type-linked'` = that means is already attached with a different value), and **`confirm`
+   answers the same situations with 409/403 errors.**
+3. **`UserView.link$` appeared.** It is the place where the server tells us which means a user has attached
+   (`{ phone?, email?, social? }`, each entry being `{ hint, provider, linkedAt }`).
+
+The two old paths (`auth.verify-hash-alias` · `auth.attach-social`) keep working but are marked `@deprecated`, and
+the backend is waiting, _"we delete them as a set once the app moves"_. This work is the precondition for that
+removal.
+
+### The app's current state, as confirmed by investigation
 
-> **이름 안내 (2026-09-01):** 이 문서가 쓰는 `*RemoteDataSource` · `RemoteGatewayBundle` · `*DomainGateway` · `remoteFactory` · `remote/data-sources/`는 **당시 이름**이다. 소켓 축이 `Socket` 접두로 옮겨간 뒤의 대응표는 [libs/data/docs/remote/README.md](../../libs/data/docs/remote/README.md#naming-history)에 있다. 기록이므로 본문은 그대로 둔다.
+- **There is no way to call `auth.link-account`.** The `AuthGateway` of `chatic-sockets-lib@0.4.9` has only
+  `verifyHashAlias` and `attachSocial`; `linkAccount` first appears in **0.4.12**.
+- **There is no `verify` step at all.** `AuthRemoteDataSource.ts:68-92` uses only the old path's `step: 'check'`,
+  and `usePhoneVerify.ts:270` commits automatically as soon as the 6th digit is reached.
+- **There is no concept of "does the user hold a phone number".** The signals we have are `isGuest`
+  (`useRuntimeProfile.ts:60`), the per-invite `needVerify`, and a localStorage guess
+  (`chatic-linked-social-providers`, `useSocialLinks.ts:17`). `useSocialLinks.ts:64-70` records that guess as
+  "TODO(backend) request #6", and `link$` is that request.
+- **The read path for `link$` is already open.** The app already calls `user.profile`
+  (`useMyUser.ts:39` → `UserRepository.getMyProfile`), and the whole pipeline is spread-based
+  (`UserRemoteDataSource.ts:71` → `mappers.ts:172` → `UserLocalDataSource.ts:96` → IndexedDB), so unknown fields
+  are not dropped. **The only thing in the way is types** — the boundary type is `UserView` from
+  `@lemoncloud/chatic-socials-api`, while the payload is backend-api's `MyUserView`.
+- **Both invite entry points are guest-only, so they are always `login`.** The place that needs `mode: 'link'` (a
+  social signup who is already a main user but has no phone number) does not exist yet.
 
-## 맥락 (Context)
+### Two open items that need server confirmation
+
+This ADR does not wait for the answers; it picks **the side where the screen does not break whichever way the
+answer goes.**
+
+- **Backfilling `link$` for existing users.** The design document presumes "a one-off patch that walks the
+  accounts and fills users in before the new path opens", but that task is absent from the 7 implementation steps
+  of `account-linking-plan.md`. Before the backfill, `link$.social` is empty for users who signed up with social,
+  and `link$.phone` is empty for users who signed up with a phone number.
+- **Whether `user.profile` carries `link$`.** By type it does, since `UserProfile$.$user: UserView`. But the
+  design document states that "when producing a response, the stored object is not shipped as is; only the display
+  slots are picked and rebuilt", so the code that builds the view lives separately per path, and whether the
+  `/profile` path builds that slot is not in the document.
 
-서버가 계정 인증 경로를 하나로 모았다. 원본은 `chatic-sockets-api`
-`docs/specs/relay-server-invite/`(Rev 2026-07-31, 05-client-guide.md가 앱용 정본)이고
-정책 원본은 `chatic-backend-api` `feat/relay-server-user-invite-v2` 브랜치의
-`docs/specs/relay-server-user-invite/account-linking-design.md`다.
+## Decision
 
-바뀐 것은 셋이다.
+### 1. Bump three libraries — a hard precondition
 
-1. **수단·모드·단계 하나로 통합.** 번호·이메일·소셜을 `auth.link-account` 한 패킷이 받는다.
-   `type`(무엇으로 증명) · `mode`(증명 뒤에 무엇을 하나: `link`=지금 세션에 수단을 단다 /
-   `login`=그 계정 주인으로 세션을 연다) · `step`(`send`·`resend`·`verify`·`confirm`)의
-   판별 유니온이다.
-2. **증명과 확정이 갈렸다.** `verify`는 코드가 맞는지까지만 답하고 아무것도 바꾸지 않는다.
-   `mode: 'link'`의 `verify`만 `{ linkable, reason }`을 주고(`reason`: `'occupied'`=그 계정이
-   남의 것 / `'type-linked'`=그 수단을 이미 다른 값으로 달아 둠), **`confirm`은 같은 상황을
-   409·403 에러로 답한다.**
-3. **`UserView.link$`가 생겼다.** 유저가 어떤 수단을 달았는지 서버가 알려 주는 자리다
-   (`{ phone?, email?, social? }`, 각 항목이 `{ hint, provider, linkedAt }`).
+| Package                          | Current                     | Bump to     | Why                                                                                      |
+| -------------------------------- | --------------------------- | ----------- | ---------------------------------------------------------------------------------------- |
+| `@lemoncloud/chatic-sockets-lib` | `0.4.9` (pinned)            | `0.4.12`    | `AuthGateway.linkAccount` · the `AuthLinkAccountInput` discriminated union               |
+| `@lemoncloud/chatic-backend-api` | `^0.26.704` (705 installed) | `^0.26.706` | the `LinkAccountBody`/`LinkAccountView` unions · `LoggedInView.isNew` · `UserView.link$` |
+| `@lemoncloud/chatic-sockets-api` | `0.26.704` (pinned)         | `0.26.709`  | `auth.link-account` plus the wiring for the 4 invite packets                             |
+
+Without the versions, no item in this ADR can be started. Bump all three in one commit and confirm
+`npx tsc --noEmit` is green first.
+
+**Error code handling is unaffected by this bump.** The rejection path of 0.4.9 and 0.4.12
+(`pending-request-store.js`) is byte-identical, and both discard the `errorCode` of the `:error` frame and keep
+only the `message.error` string. `getSocketErrorCode` (`utils/errors.ts:20`) is already defended to read
+`errorCode` first and fall back to prefix parsing, so it survives unchanged.
+
+### 2. Migrate the old paths wholesale — down to zero call sites
+
+No call sites of `verifyHashAlias` or `attachSocial` are left. The migration points:
 
-구 경로 둘(`auth.verify-hash-alias` · `auth.attach-social`)은 동작을 유지하되 `@deprecated`가
-달렸고, 백엔드는 *"앱이 옮기면 한 벌로 지운다"*고 대기 중이다. 이 작업이 그 제거의 전제다.
+- Add `linkAccount` to the `Pick` of `AuthDomainGateway` (`libs/data/src/remote/gateways/index.ts:21`), and
+  **pin it to the relay-scoped client** in `remoteFactory.ts:58-62` (same as the old two).
+- `AuthRemoteDataSource` owns assembling `type`, `mode` and `step`. The `step` derivation lives in this layer today
+  (`:68-92`), so it does not move.
+- Replace the app hooks `useVerifyHashAlias` and `useAttachSocial` with `linkAccount`-based ones.
 
-### 조사로 확인한 앱의 현재 상태
+Once the migration is done, the old-path deletion the backend is waiting on is unblocked.
 
-- **`auth.link-account`를 부를 수단이 없다.** `chatic-sockets-lib@0.4.9`의 `AuthGateway`는
-  `verifyHashAlias`·`attachSocial`뿐이고 `linkAccount`는 **0.4.12**에서 처음 나온다.
-- **`verify` 단계가 아예 없다.** `AuthRemoteDataSource.ts:68-92`가 구 경로의 `step: 'check'`
-  하나만 쓰고, `usePhoneVerify.ts:270`이 6자리에 닿으면 자동으로 곧바로 확정한다.
-- **"번호를 보유했나"라는 개념이 없다.** 가진 신호는 `isGuest`(`useRuntimeProfile.ts:60`),
-  초대별 `needVerify`, 그리고 localStorage 추측(`chatic-linked-social-providers`,
-  `useSocialLinks.ts:17`)뿐이다. `useSocialLinks.ts:64-70`이 그 추측을 "TODO(backend)
-  request #6"으로 적어 뒀고 `link$`가 그 요청이다.
-- **`link$`의 읽기 경로는 이미 열려 있다.** 앱은 이미 `user.profile`을 부르고
-  (`useMyUser.ts:39` → `UserRepository.getMyProfile`), 파이프라인 전 구간이 spread
-  기반이라(`UserRemoteDataSource.ts:71` → `mappers.ts:172` → `UserLocalDataSource.ts:96`
-  → IndexedDB) 모르는 필드가 버려지지 않는다. **막는 것은 타입뿐이다** — 경계 타입이
-  `@lemoncloud/chatic-socials-api`의 `UserView`인데 페이로드는 backend-api의 `MyUserView`다.
-- **두 초대 진입점은 둘 다 게스트 전용이라 항상 `login`이다.** `mode: 'link'`가 필요한
-  자리(이미 메인유저인데 번호가 없는 소셜 가입자)가 아직 없다.
+### 3. The session role picks the mode — no branching on the opened response
+
+`isGuest` means `mode: 'login'`, a main user means `mode: 'link'`. A mismatch is an error (a main user calling
+`login` gets **400**, a guest calling `link` gets **403**) — picking by role in advance means we never meet either.
+ADR-0034 already laid down the `isGuest` gate, so no new place is created.
 
-### 서버 확인이 필요한 미결 둘
+### 4. `verify`/`confirm` are split only in `link`
 
-이 ADR은 답을 기다리지 않고, **답이 어느 쪽이어도 화면이 깨지지 않는 쪽**을 고른다.
+| Mode                                     | Flow                                                          | Why                                                                                                                                                                            |
+| ---------------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `link` (phone and social linking)        | `verify` → show `linkable` on screen → `confirm` from the CTA | When `linkable: false`, the commit button is disabled and the `reason` is explained. `confirm` answers the same situations only with 409/403 errors, so asking first is better |
+| `login` (phone login in the invite flow) | a single automatic `confirm` (current behaviour kept)         | The `verify` of `login` only answers `{ verified: true }`, so there is nothing to gain. The UX of the two existing invite flows is untouched                                   |
 
-- **기존 유저 `link$` 백필.** 설계 문서는 "새 경로를 열기 전에 계정을 훑어 유저를 채우는
-  일회성 패치"를 전제하는데 `account-linking-plan.md`의 구현 순서 7단계에 그 작업이 없다.
-  백필 전이면 이미 소셜로 가입한 유저의 `link$.social`이, 번호로 가입한 유저의
-  `link$.phone`이 비어 있다.
-- **`user.profile`이 `link$`를 실어 오는지.** 타입으로는 `UserProfile$.$user: UserView`라
-  온다. 하지만 설계 문서가 "응답으로 낼 때는 저장 객체를 그대로 싣지 않고 표시 자리만 골라
-  새로 짓는다"고 적어 뒀으므로 뷰를 짓는 코드가 경로마다 따로 있고, `/profile` 경로가 그
-  자리를 짓는지는 문서에 없다.
+The automatic submit of `usePhoneVerify.ts:270` and the `pendingToken` retry structure survive as they are on the
+`login` path.
 
-## 결정 (Decision)
+### 5. Treat `link$` as "use it if it is there, otherwise we do not know"
 
-### 1. 라이브러리 3종을 올린다 — 하드 전제조건
+**The truth about blocking is not `link$`.** The contract is the server errors (403 `type-linked` / 409 `occupied`)
+and the `linkable` that the `verify` of `mode: 'link'` returns; `link$` is **a hint for picking the screen in
+advance**.
 
-| 패키지                           | 현재                   | 올릴 값     | 이유                                                                                 |
-| -------------------------------- | ---------------------- | ----------- | ------------------------------------------------------------------------------------ |
-| `@lemoncloud/chatic-sockets-lib` | `0.4.9` (고정)         | `0.4.12`    | `AuthGateway.linkAccount` · `AuthLinkAccountInput` 판별 유니온                       |
-| `@lemoncloud/chatic-backend-api` | `^0.26.704` (설치 705) | `^0.26.706` | `LinkAccountBody`/`LinkAccountView` 유니온 · `LoggedInView.isNew` · `UserView.link$` |
-| `@lemoncloud/chatic-sockets-api` | `0.26.704` (고정)      | `0.26.709`  | `auth.link-account` + 초대 4개 패킷 배선                                             |
+- If `link$.phone` is present → show "verified `****{hint}`" and do not ask for verification.
+- If `link$.phone` is **absent, or `link$` itself is absent** → make no judgement and fall back to the criterion
+  used so far (`isGuest`). We do not distinguish between "empty because the backfill has not run" and "genuinely
+  has no phone number".
 
-버전 없이는 이 ADR의 어떤 항목도 착수할 수 없다. 세 개를 한 커밋으로 올리고
-`npx tsc --noEmit` 초록을 먼저 확인한다.
+Done this way, a later backfill does not require redrawing the screen; only the precision goes up.
 
-**에러 코드 처리는 이 버전업에 영향받지 않는다.** 0.4.9와 0.4.12의 거절 경로
-(`pending-request-store.js`)는 바이트 단위로 동일하고, 둘 다 `:error` 프레임의 `errorCode`를
-버리고 `message.error` 문자열만 남긴다. `getSocketErrorCode`(`utils/errors.ts:20`)는 이미
-`errorCode`를 먼저 읽고 접두 파싱으로 폴백하도록 방어돼 있어 그대로 산다.
+The read sites are `useMyUser` and `useRuntimeProfile`, and **the type is widened on the reading side** — exactly
+the technique already used by `MyUser = DomainUser & { photo?, email? }` (`useMyUser.ts:14`) and `SessionUserView`
+(`useRuntimeProfile.ts:12`). The boundary type (socials-api `UserView`) is not switched to backend-api. That is
+beyond the scope of this work.
 
-### 2. 구 경로를 전면 이관한다 — 호출부 0개까지
+### 6. Narrow the eligibility to issue an invite to "holds a phone number" — a client gate
 
-`verifyHashAlias`·`attachSocial` 호출부를 남기지 않는다. 이관 지점:
+This is the point guide §A-1 left open with _"this may later be narrowed to require phone verification"_. The gate
+of `ContactInvitePage` widens from `isGuest` to:
 
-- `AuthDomainGateway`(`libs/data/src/remote/gateways/index.ts:21`)의 `Pick`에 `linkAccount`를
-  더하고, `remoteFactory.ts:58-62`에서 **relay 스코프 클라이언트로 핀**한다(구 둘과 동일).
-- `AuthRemoteDataSource`가 `type`·`mode`·`step` 조립을 소유한다. 지금 `step` 파생이 이 층에
-  있으므로(`:68-92`) 자리를 옮기지 않는다.
-- 앱 훅 `useVerifyHashAlias`·`useAttachSocial`을 `linkAccount` 기반으로 교체한다.
+- Guest → phone **login** (`mode: 'login'`) — the current `PhoneVerifySheet`, unchanged.
+- A main user whose `link$.phone` is **read as explicitly absent** → phone **linking** (`mode: 'link'`).
+- Otherwise (main user with a phone number, or `link$` could not be read) → the issue form.
 
-이관이 끝나면 백엔드가 대기 중인 구 경로 삭제가 풀린다.
+**The server does not enforce this policy** — it still allows a user with social only to issue invites. It is the
+same setup ADR-0034 established: **the client gate is UX and the server 403 is the contract.** The 403 fallback at
+`ContactInvitePage.tsx:126` stays as the safety net.
 
-### 3. 모드는 세션 역할이 고른다 — 응답을 열어 보고 분기하지 않는다
+The `confirm` of `mode: 'link'` **does not return a token** (the session is unchanged). `applySessionToken.ts:48`
+already handles an empty `$token` as a linking-only no-op, so the session layer is not touched.
 
-`isGuest`면 `mode: 'login'`, 메인유저면 `mode: 'link'`. 어긋나면 에러다(메인유저가 `login`을
-부르면 **400**, 게스트가 `link`를 부르면 **403**) — 역할로 미리 고르면 이 둘을 만나지 않는다.
-ADR-0034가 이미 `isGuest` 게이트를 깔아 뒀으므로 자리를 새로 만들지 않는다.
+### 7. Open both phone and social in the my-page account linking section
 
-### 4. `verify`/`confirm`은 `link`에서만 나눈다
+- Drop the `SOCIAL_LINK_ENABLED` (`features/mypage/flags.ts:29`) precondition.
+- **Retire the localStorage guess (`chatic-linked-social-providers`)** and switch the display to `link$`. If
+  `link$` cannot be read, do not assert a state — collapse the section. That is better than showing a wrong state.
+- Add a place for phone linking (`mode: 'link'`, the two-step flow of §4).
+- Move the `attachSocial` call to `linkAccount({ type: 'social', mode: 'link' })`. The native-bridge-only
+  restriction (the `isNative()` guard at `useSocialLinks.ts:94`) stays.
 
-| 모드                              | 흐름                                                    | 이유                                                                                                                           |
-| --------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `link` (번호·소셜 연동)           | `verify` → `linkable`을 눈으로 보여줌 → CTA로 `confirm` | `linkable: false`면 확정 버튼을 끄고 `reason`을 안내한다. `confirm`은 같은 상황을 409·403 에러로만 답하므로 물어보는 쪽이 낫다 |
-| `login` (초대 흐름의 번호 로그인) | 자동 `confirm` 단발 (현행 유지)                         | `login`의 `verify`는 `{ verified: true }`만 답해 얻는 것이 없다. 기존 초대 두 흐름의 UX를 건드리지 않는다                      |
+### 8. On invite accept, compare the phone number by `last4` **before** sending
+
+The most the app can know about "is the number typed in the number that was invited" is **the last 4 digits**. The
+server does not store the raw number (only a hash) and does not ship it in the response either, so a more precise
+comparison is fundamentally impossible.
 
-`usePhoneVerify.ts:270`의 자동 제출과 `pendingToken` 재시도 구조는 `login` 경로에서 그대로 산다.
+Today not even those 4 digits are used — `usePhoneVerify` takes only `inviteCode` (`:38`, `:102`), and when the
+number does not match, the message appears **only after one server round trip** (the 400 branch at `:163`).
 
-### 5. `link$`는 "있으면 쓰고 없으면 모른다"로 취급한다
+Pass `last4` down to `PhoneVerifyScreen` and compare it at the send button first. On a mismatch, do not call the
+server and show `phoneVerify.inviteMismatch` right there.
 
-**차단의 진실은 `link$`가 아니다.** 서버 에러(403 `type-linked` / 409 `occupied`)와
-`mode: 'link'`의 `verify`가 주는 `linkable`이 계약이고, `link$`는 **화면을 미리 고르는 힌트**다.
+- The value is already in hand. `flow.invite` is exposed as state (`useRelayInviteFlow.ts:91,239`) and its type is
+  `RelayInviteView & …` (`:25`), so `last4` is attached. It reads directly where `RelayInviteAccept.tsx:59` mounts
+  `PhoneVerifyScreen`.
+- **Keep the server 400 branch as it is.** A 4-digit match is not a definitive verdict (with a different country
+  code the tail can match a different number), and the full comparison is done by the server against the hash.
+  Same setup as §6 — the client comparison is UX, the server is the contract.
+- **Skip the comparison when `last4` does not arrive.** There is no documented guarantee that `invite.get` (the
+  accept side) ships `last4` — the place the app reads `last4` today (`InviteChannelRow.tsx:38`) is the issuer's
+  `invite.list`. Fall back by the same rule as §5.
 
-- `link$.phone`이 있으면 → "인증됨 `****{hint}`"를 보여주고 인증을 요구하지 않는다.
-- `link$.phone`이 **없거나 `link$` 자체가 없으면** → 판정하지 않고 지금까지의 기준
-  (`isGuest`)으로 물러난다. 백필 전이라 비어 있는 것과 정말 번호가 없는 것을 구별하지 않는다.
+What is gained is immediate feedback with zero round trips, and not burning the send limit (10/day per number ·
+20/day per device) on a typo. Whether a wrong-number attempt turns that counter is not in the spec, so not burning
+it is the safer side.
 
-이렇게 하면 백필이 나중에 와도 화면을 다시 짜지 않고, 정밀도만 올라간다.
+**No re-invite comparison is done in the issue flow.** `useSentInviteLog.ts:64` notes the same point in a comment,
+but it is a separate matter.
 
-읽는 자리는 `useMyUser`·`useRuntimeProfile`이며, **타입은 읽는 쪽에서 넓힌다** —
-`MyUser = DomainUser & { photo?, email? }`(`useMyUser.ts:14`)와
-`SessionUserView`(`useRuntimeProfile.ts:12`)가 이미 쓰는 기법 그대로다. 경계 타입
-(socials-api `UserView`)을 backend-api로 바꾸지 않는다. 그건 이 작업의 범위를 넘는다.
+### 9. Put phone login side by side on the my-page login screen
 
-### 6. 초대 발급 자격을 "번호 보유"로 좁힌다 — 클라 게이트
+Right now the only way to become a main user with a phone number is **the invite flow** (§A-1, §A-2). Add phone
+login to `LoginPage` to create a login path unrelated to invites (`mode: 'login'`, no invite code).
 
-가이드 §A-1이 *"나중에 번호 인증을 요구하도록 좁힐 수 있다"*고 열어 둔 지점이다.
-`ContactInvitePage`의 게이트를 `isGuest`에서 다음으로 넓힌다:
+**Put them side by side on one screen.** The social buttons on top, and below them "or log in with your phone
+number".
 
-- 게스트 → 번호 **로그인**(`mode: 'login'`) — 현행 `PhoneVerifySheet` 그대로.
-- 메인유저인데 `link$.phone`이 **명시적으로 없다고 읽힌 경우** → 번호 **연동**(`mode: 'link'`).
-- 그 외(메인유저 + 번호 있음, 또는 `link$`를 못 읽음) → 발급 폼.
-
-**서버는 이 정책을 지키지 않는다** — 소셜만 가진 유저의 발급을 여전히 허용한다. ADR-0034가
-잡은 구도와 같다: **클라 게이트는 UX이고 서버 403이 계약이다.** `ContactInvitePage.tsx:126`의
-403 폴백을 안전망으로 그대로 남긴다.
-
-`mode: 'link'`의 `confirm`은 **토큰을 주지 않는다**(세션 불변). `applySessionToken.ts:48`이
-빈 `$token`을 연동 전용 no-op으로 이미 처리하므로 세션 층을 건드리지 않는다.
-
-### 7. 마이페이지 계정 연동 섹션을 번호·소셜 둘 다 연다
-
-- `SOCIAL_LINK_ENABLED`(`features/mypage/flags.ts:29`) 전제를 해제한다.
-- **localStorage 추측(`chatic-linked-social-providers`)을 폐기하고** 표시를 `link$`로 바꾼다.
-  `link$`를 못 읽으면 상태를 단정하지 않고 섹션을 접는다 — 틀린 상태를 보여주는 것보다 낫다.
-- 번호 연동 자리를 신설한다(`mode: 'link'`, §4의 2단 흐름).
-- `attachSocial` 호출을 `linkAccount({ type: 'social', mode: 'link' })`로 옮긴다.
-  네이티브 브릿지 전용 제약(`useSocialLinks.ts:94` `isNative()` 가드)은 그대로다.
-
-### 8. 초대 수락에서 번호를 발송 **전에** `last4`로 대조한다
-
-"입력한 번호가 초대받은 번호인가"를 앱이 알 수 있는 최대치는 **뒷 4자리**다. 서버가 번호
-원문을 저장하지 않고(해시만) 응답에도 싣지 않으므로 이보다 정밀한 비교는 원천적으로 불가능하다.
-
-지금은 그 4자리조차 쓰지 않는다 — `usePhoneVerify`가 `inviteCode`만 받고(`:38`, `:102`),
-번호가 어긋나면 **서버 왕복을 한 번 한 뒤에야** 안내가 뜬다(`:163`의 400 분기).
-
-`PhoneVerifyScreen`에 `last4`를 내려 발송 버튼에서 먼저 대조한다. 어긋나면 서버를 부르지 않고
-그 자리에서 `phoneVerify.inviteMismatch`를 띄운다.
-
-- 값은 이미 손에 있다. `flow.invite`가 상태로 노출돼 있고(`useRelayInviteFlow.ts:91,239`)
-  타입이 `RelayInviteView & …`(`:25`)라 `last4`가 붙어 있다. `RelayInviteAccept.tsx:59`가
-  `PhoneVerifyScreen`을 마운트하는 자리에서 그대로 읽힌다.
-- **서버 400 분기를 그대로 남긴다.** 4자리 일치는 확정 판정이 아니고(국가코드가 다르면 꼬리가
-  같아도 다른 번호다), 전체 대조는 서버가 해시로 한다. §6과 같은 구도다 — 클라 대조는 UX,
-  서버가 계약.
-- **`last4`가 안 오면 대조를 건너뛴다.** `invite.get`(수락 쪽)이 `last4`를 싣는다는 보장이
-  문서에 없다 — 앱이 지금 `last4`를 읽는 자리(`InviteChannelRow.tsx:38`)는 발급자의
-  `invite.list`다. §5와 같은 규칙으로 물러난다.
-
-얻는 것은 왕복 0회의 즉시 피드백과, 오타로 발송 상한(하루 10회/번호 · 20회/기기)을 태우지
-않는 것이다. 틀린 번호 시도가 그 카운터를 도는지는 스펙에 나오지 않으므로 안 태우는 쪽이 안전하다.
-
-**발급 흐름의 재초대 대조는 하지 않는다.** `useSentInviteLog.ts:64`가 같은 지점을 주석으로
-적어 뒀지만 별건이다.
-
-### 9. 마이페이지 로그인 화면에 번호 로그인을 나란히 둔다
-
-지금 번호로 메인유저가 되는 길은 **초대 흐름밖에 없다**(§A-1·A-2). `LoginPage`에 번호 로그인을
-더해 초대와 무관한 로그인 경로를 만든다(`mode: 'login'`, 초대 코드 없음).
-
-**한 화면에 나란히 둔다.** 소셜 버튼이 위, 그 아래 "또는 휴대폰 번호로 로그인".
-
-- **계정 갈라짐 경고를 번호 섹션 바로 위에 인라인으로 둔다.** `PhoneVerifyBanner`는 쓰지
-  않는다 — 그건 `ROUTES.mypage.login`으로 **보내는** 컴포넌트이고, 여기가 그 도착지다
-  (`PhoneVerifyBanner.tsx:26`). 자기 자신으로 보내는 배너를 달면 안 된다.
-- **방어의 성격이 바뀐다.** 지금까지는 "번호 화면에서 소셜 화면으로 보낸다"였고, 이제는 "두
-  선택지를 같은 화면에 소셜 먼저로 보여준다"다. 스펙이 요구하는 것은 막는 것이 아니라
-  알리는 것이므로(_"서버가 미리 막지 못하므로… 이 안내가 유일한 방어다"_) 이 쪽이 더 이르게
-  닿는다. 초대 흐름의 `PhoneVerifyBanner`는 그대로 남는다 — 거기는 선택지가 하나뿐이다.
-- **`isNew`로 성공 후 첫 화면을 고른다** — 참이면 가입, 거짓이면 복귀.
-- 성공 후 히스토리 정리(`LoginPage.tsx:43-51`의 `window.history.go(-stepsBack)`)를 번호
-  경로와 공유한다.
-
-**번호 로그인은 `isNative()` 가드를 걸지 않는다 — 브라우저 로그인을 개방한다.**
-소켓 호출이라 네이티브가 필요 없다. 지금 `LoginPage`는 소셜을 네이티브에서만 보여주고
-브라우저에는 `mobileOnly`만 띄우므로(`:107-111`) **브라우저 빌드는 로그인이 아예 불가능하다.**
-그 문구를 소셜 전용으로 좁히고 번호 섹션은 항상 보여준다.
-
-**브라우저에서는 갈라짐 경고의 탈출구가 없다.** 소셜 로그인이 네이티브 전용이라(D)
-"소셜로 먼저 로그인하세요"가 브라우저에서 실행 불가능한 안내가 된다. 브라우저에서는 문구를
-**"기존 계정이 있다면 앱에서 소셜로 로그인해 주세요"**로 바꿔 안내에 그친다 — 이동 링크를
-주지 않는다.
-
-#### 9-a. 보강: 번호 로그인은 운영에서 노출하지 않는다 (2026-08-03)
-
-위 §9를 구현한 뒤 **구독이 소셜 연동에 걸려 있다는 사실**이 확인됐다 — 구독은 클라우드에 붙고,
-클라우드 소유는 소셜 계정 기반이다. 즉 번호만으로 가입한 유저는 결제해도 멤버십이 붙을 자리가 없다.
-
-그래서 번호 로그인 진입점을 `isDevBuild()`(`VITE_ENV` DEV/LOCAL) 뒤로 두고 **운영은 소셜을 유일한
-로그인으로 유지한다.** §9의 판단(자리·순서·경고 문구)은 그대로 유효하고, 배선과 테스트도 남아 있다 —
-바뀐 것은 노출 시점뿐이다. 그 커플링과 갈라짐 안내가 정리되면 스위치 한 줄로 연다.
-
-브라우저 문구도 이 스위치를 따른다: 번호 로그인이 숨겨져 있으면 "앱에서 로그인해 주세요"가 사실이고,
-보이는 빌드에서는 **소셜만** 앱 전용이라 문구가 갈린다.
-
-#### 9-b. 구독 호출은 소셜 부재를 스토어 앞에서 거절한다
-
-`validateMembership`은 **구매 뒤에** 돌기 때문에 거기서 실패하면 돈은 나가고 구독은 안 붙는다.
-`useSubscriptionIap.purchaseAndValidate`가 스토어를 열기 전에 거절한다.
-
-**`link$.social`이 `'absent'`일 때만 막는다.** `'unknown'`(프로필 미도착 · 백필 안 된 기존 계정)을
-"소셜 없음"으로 읽으면 **기존 유료 사용자의 갱신을 막는다** — §5의 규칙이 여기서 특히 값을 한다.
-복구(`restorePurchases`)는 막지 않는다: 이미 존재하는 결제는 누군가의 것이고, 각 건이 서버 검증을
-거쳐 실패 시 건너뛰므로 최악이 0건이다.
-
-### 범위에서 빼는 것
-
-- **이메일 수단.** 서버가 발송을 `501`로 끊는다. 타입 자리만 지나가게 두고 화면을 만들지 않는다.
-- **연동 해제.** 서버 미결정 항목이다. `SOCIAL_UNLINK_ENABLED = false`를 유지한다.
-- **번호 변경 · 수단당 여러 계정 · 소셜/이메일의 `login` 모드.** 전부 서버 미결정이다.
-- **경계 타입을 backend-api로 통일하는 일.** `link$`만 읽는 쪽에서 넓힌다.
-- **`errorCode`를 프레임에서 꺼내 Error에 붙이는 일.** lib 쪽 숙제다.
-- **`user.profile`을 REST `GET /users/0/profile`로 옮기는 일.** `fetchProfile`
-  (`libs/web-core/src/api/auth.ts:128`)이 죽은 코드로 이미 있어 폴백 카드로만 남긴다.
-
-## 대안 (Alternatives)
-
-**신규 자리만 `linkAccount`, 기존 초대 흐름은 구 경로 유지.** 가장 작지만 두 경로가 병존하고
-이관이 숙제로 남는다. 백엔드의 구 경로 삭제가 계속 막히고, 서버가 "판정은 갈리지 않는다"고
-보장해도 앱 안에 같은 일을 하는 코드가 둘이 된다. 버렸다.
-
-**`verify`/`confirm`을 두 모드 모두 나누기.** 일관되지만 `login`의 `verify`는 `{ verified: true }`
-뿐이라 사용자가 얻는 것이 없고, 초대 수락에 왕복 한 번이 더 든다. 버렸다.
-
-**`link$`를 쓰지 않고 `verify`의 `linkable`만으로 판정.** 읽기 의존이 사라져 백필 미결이 아예
-문제가 안 된다. 하지만 사용자가 번호를 입력하고 OTP를 받은 **뒤에야** "이미 달려 있다"를 알게
-되고, 마이페이지 연동 상태 표시는 localStorage 추측을 계속 써야 한다. 버렸다.
-
-**백엔드 답(백필·`user.profile` 뷰)을 기다린 뒤 착수.** 확실하지만, §5처럼 짜면 답이 어느
-쪽이어도 화면을 다시 짜지 않는다. 기다릴 이유가 없다. 버렸다.
-
-**`link$`를 못 읽을 때 localStorage 추측으로 폴백.** 두 진실을 섞으면 어느 쪽이 틀렸는지
-추적할 수 없다. 못 읽으면 단정하지 않는 쪽(§7)을 골랐다.
-
-## 결과 (Consequences)
-
-얻는 것:
-
-- 계정 수단을 증명하는 자리가 앱에도 하나가 된다. 수단이 늘어도 호출부가 늘지 않는다.
-- 백엔드가 대기 중인 구 경로(`verify-hash-alias`·`attach-social`) 삭제가 풀린다.
-- 연동 상태의 진실이 서버로 옮겨간다 — localStorage 추측과 `hasAnyLinked` 프록시가 사라지고
-  `useSocialLinks.ts:64-70`의 TODO(backend) request #6이 닫힌다.
-- 연동 화면이 "버튼 눌렀는데 에러" 대신 `linkable`로 미리 막는다.
-- 소셜만 가진 유저에게도 번호를 요구할 수 있게 되어, 계정이 갈라지는 사고 표면이 줄어든다.
-
-감수하는 트레이드오프:
-
-- **발급 게이트가 클라 전용이다.** 서버가 지키지 않으므로 다른 클라이언트는 우회한다. 403
-  폴백이 유일한 계약이다.
-- **백필 전에는 §6의 좁히기가 사실상 동작하지 않는다.** 기존 유저의 `link$`가 비어 `isGuest`
-  기준으로 물러나므로 지금과 같게 동작한다. 안전하지만, 이 작업의 가치 일부가 백필에 묶인다.
-- **`cacheWrite`가 merge라 stale `link$`가 남는다**(`UserLocalDataSource.ts:96-102`). 한번
-  쓰인 값은 이후 응답이 그 자리를 빼먹어도 캐시에 남는다. 연동 해제가 생기면 버그가 되므로,
-  해제를 열 때 replace 시맨틱을 함께 판단해야 한다.
-- **`link$`가 타입에 안 보인다.** 읽는 쪽 교차 타입에 의존하므로, 서버가 모양을 바꿔도
-  컴파일이 잡아 주지 않는다.
-- **첫 페인트에는 `link$`가 없을 수 있다.** 토큰 시드(`useSeedMyUserCache.ts:22-29`)만 있는
-  구간이다. `LoggedInView.$token`이 `UserTokenView extends UserView`이므로 서버가 그 자리를
-  채우면 해소되지만, 보장은 없다. §5의 "못 읽으면 물러난다"가 이 구간도 덮는다.
-- **에러 분기가 문구 접두 파싱에 계속 의존한다.** lib이 `errorCode`를 Error에 붙이지 않는다.
-  버전업이 이걸 고쳐 주지 않으므로 서버 문구가 바뀌면 조용히 깨진다.
-- **소셜 연동은 여전히 네이티브 전용이다.** 브라우저 빌드는 `mobileOnly` 토스트로 끝난다.
-- **브라우저 로그인이 처음으로 열린다**(§9). 지금까지 없던 조합이 정상 상태가 된다 — 번호로만
-  로그인했고 소셜을 달 수 없고(C-1이 네이티브 전용) 갈라짐 경고의 탈출구도 없는 세션이다.
-  네이티브 전용 기능이 이 세션에서 어떻게 보이는지 확인해야 한다.
-- **갈라짐 방어가 두 모양으로 갈린다** — 초대 흐름은 이동 배너(`PhoneVerifyBanner`),
-  로그인 화면은 인라인 문구. 같은 위험을 두 문구로 관리하게 되므로 카피가 어긋나지 않게
-  묶어 둔다.
-
-## 다음 단계
-
-이 ADR을 입력으로 `dev-2_implement`의 스펙 작성(Phase A)으로 넘긴다. 착수 순서는
-**§1 버전업 → §2 게이트웨이·데이터 소스 이관 → §4 `verify` 도입 → §5 `link$` 읽기 →
-§6 발급 게이트 → §7 마이페이지**다. §1이 초록이 되기 전에는 나머지가 컴파일되지 않는다.
-§8은 다른 항목에 의존하지 않으므로 어디에 끼워도 된다.
-
-시나리오·단계·응답의 전수 대조표는
-[docs/plans/account-linking-scenarios.md](../plans/account-linking-scenarios.md)에 따로 두었다.
-Phase A 스펙의 입력이다.
-
-서버에 확인할 것 셋(백필 · `user.profile`의 `link$` · `invite.get`의 `last4`)은 착수를
-막지 않지만, 답이 오면 §5~§8의 정밀도가 올라가므로 병행해서 물어 둔다.
-
-### 후속 요청 — `link` 모드에도 초대 대조를 넣어 달라 (2026-08-05 추가)
-
-프로덕션에서 발견된 `400 @mode[login] is for device session`을 고치면서 드러난 구멍이다.
-초대 수락 화면은 이제 세션 종류에 따라 `login`/`link`를 고르는데(§3), **`link` 경로에는
-초대 번호 대조가 서버에 아예 없다** — `chatic-backend-api` `src/lib/auth/link-account.ts:286`이
-`const code = mode === 'login' ? … : ''` 뒤에 `if (code)`로 `assertInviteMatched`를 감싸고 있어
-`link`에서는 진입 자체가 불가능하다.
-
-문제는 **되돌릴 수 없다는 것**이다. `commitLink`가 번호를 계정에 붙이고 나면 `judgeLink`가
-`type-linked`로 재연결을 영구히 막으며(같은 파일 `:136`, "수단 교체는 범위 밖"), 백엔드 전체에
-해제 엔드포인트가 없다(`grep -riE "unlink|detach" src` → 0건). 즉 초대와 다른 번호를 이 경로로
-인증하면 그 번호가 계정에 영구히 박히고, 초대받은 번호는 영원히 연결할 수 없어 그 초대도,
-그 번호로 오는 이후의 모든 초대도 수락 불가가 된다.
-
-클라이언트가 할 수 있는 방어는 `invite.get`의 `last4` 대조뿐이라 지금 그것을 강제한다 —
-발송 전 하드 차단(`usePhoneVerify`), 그리고 `last4`가 없으면 `link` 경로의 인증을 아예 시작하지
-않는다(`useRelayInviteFlow`). 하지만 뒤 4자리는 국가에 무관하고 클라이언트 전용이라, 되돌릴 수
-없는 쓰기의 방어로는 충분하지 않다.
-
-**요청:** `link` 모드에서도 `code`를 읽어 `commitLink` 전에 `assertInviteMatched`를 돌려 달라.
-대조가 먼저고 링킹은 그 다음이어야 한다. 그때 위 클라이언트 방어는 이중 안전장치로 남긴다.
+- **Put the account-divergence warning inline, right above the phone section.** `PhoneVerifyBanner` is not used —
+  that is the component that **sends** you to `ROUTES.mypage.login`, and this is that destination
+  (`PhoneVerifyBanner.tsx:26`). A banner that sends you to yourself must not be attached.
+- **The nature of the defence changes.** Until now it was "send them from the phone screen to the social screen";
+  now it is "show both options on the same screen, with social first". What the spec asks for is not blocking but
+  informing (_"the server cannot block it in advance… this notice is the only defence"_), so this side reaches the
+  user earlier. The `PhoneVerifyBanner` of the invite flow stays — there, there is only one option.
+- **Pick the first screen after success with `isNew`** — true means signup, false means return.
+- Share the post-success history cleanup (`window.history.go(-stepsBack)` at `LoginPage.tsx:43-51`) with the phone
+  path.
+
+**Phone login does not carry an `isNative()` guard — browser login is opened up.** It is a socket call, so native
+is not needed. Today `LoginPage` shows social only on native and shows browsers just `mobileOnly` (`:107-111`), so
+**login is outright impossible in the browser build.** Narrow that copy to social only and always show the phone
+section.
+
+**In the browser there is no escape hatch from the divergence warning.** Because social login is native-only (D),
+"log in with social first" becomes advice that cannot be carried out in a browser. In the browser the copy changes
+to the literal **"기존 계정이 있다면 앱에서 소셜로 로그인해 주세요"** ("if you have an existing account, please log
+in with social in the app") and stops at informing — no navigation link is given.
+
+#### 9-a. Reinforcement: phone login is not exposed in production (2026-08-03)
+
+After implementing §9 above, **the fact that subscriptions hang off social linking** was confirmed — a subscription
+attaches to a cloud, and cloud ownership is based on the social account. That is, a user who signed up with a phone
+number alone has nowhere for a membership to attach even if they pay.
+
+So the phone login entry point goes behind `isDevBuild()` (`VITE_ENV` DEV/LOCAL) and **production keeps social as
+the only login.** The judgements of §9 (the place, the order, the warning copy) remain valid, and the wiring and
+tests remain too — the only thing that changed is when it is exposed. Once that coupling and the divergence notice
+are sorted out, it opens with a one-line switch.
+
+The browser copy follows this switch too: when phone login is hidden, "please log in in the app" is true, and in a
+build where it is visible **only social** is app-only, so the copy diverges.
+
+#### 9-b. The subscription call rejects a missing social in front of the store
+
+`validateMembership` runs **after the purchase**, so failing there means the money leaves and the subscription does
+not attach. `useSubscriptionIap.purchaseAndValidate` rejects before opening the store.
+
+**Block only when `link$.social` is `'absent'`.** Reading `'unknown'` (profile not yet arrived · an existing
+account not yet backfilled) as "no social" would **block renewals for existing paying users** — the rule of §5
+earns its keep especially here. Restores (`restorePurchases`) are not blocked: a payment that already exists
+belongs to someone, and each one goes through server validation and is skipped on failure, so the worst case is
+zero items.
+
+### What is taken out of scope
+
+- **The email means.** The server cuts sending off with a `501`. The type slot is let through but no screen is
+  built.
+- **Unlinking.** Undecided on the server. `SOCIAL_UNLINK_ENABLED = false` stays.
+- **Changing the phone number · multiple accounts per means · the `login` mode for social and email.** All
+  undecided on the server.
+- **Unifying the boundary type onto backend-api.** Only `link$` is widened on the reading side.
+- **Pulling `errorCode` out of the frame and attaching it to the Error.** That is homework on the lib side.
+- **Moving `user.profile` to the REST `GET /users/0/profile`.** `fetchProfile`
+  (`libs/web-core/src/api/auth.ts:128`) already exists as dead code, so it is kept only as a fallback card.
+
+## Alternatives
+
+**`linkAccount` only in the new places, the existing invite flows keeping the old path.** The smallest option, but
+the two paths coexist and the migration is left as homework. The backend's old-path deletion stays blocked, and
+even if the server guarantees "the verdict does not diverge", there are two pieces of code doing the same job in
+the app. Dropped.
+
+**Splitting `verify`/`confirm` in both modes.** Consistent, but the `verify` of `login` is only
+`{ verified: true }`, so the user gains nothing, and invite accept costs one more round trip. Dropped.
+
+**Deciding from the `linkable` of `verify` alone, without using `link$`.** The read dependency disappears, so the
+open backfill question stops being a problem at all. But the user only learns "it is already attached" **after**
+typing the number and receiving the OTP, and the my-page linking status display would have to keep using the
+localStorage guess. Dropped.
+
+**Waiting for the backend's answers (the backfill and the `user.profile` view) before starting.** Certain, but
+written as in §5 the screen does not need redrawing whichever way the answer goes. There is no reason to wait.
+Dropped.
+
+**Falling back to the localStorage guess when `link$` cannot be read.** Mixing two truths makes it impossible to
+trace which one was wrong. We chose the side that asserts nothing when it cannot read (§7).
+
+## Consequences
+
+What is gained:
+
+- The place that proves an account means becomes one in the app too. Adding a means does not add a call site.
+- The old-path deletion the backend is waiting on (`verify-hash-alias`, `attach-social`) is unblocked.
+- The truth about linking status moves to the server — the localStorage guess and the `hasAnyLinked` proxy
+  disappear, and the TODO(backend) request #6 at `useSocialLinks.ts:64-70` closes.
+- The linking screen blocks ahead of time with `linkable` instead of "pressed the button and got an error".
+- A phone number can be required even of users with social only, shrinking the surface for accident of a diverging
+  account.
+
+Trade-offs accepted:
+
+- **The issue gate is client-only.** The server does not enforce it, so other clients bypass it. The 403 fallback
+  is the only contract.
+- **Before the backfill, the narrowing of §6 does not really work.** Existing users' `link$` is empty, so we fall
+  back to the `isGuest` criterion and behave exactly as today. Safe, but part of the value of this work is tied to
+  the backfill.
+- **`cacheWrite` is a merge, so stale `link$` lingers** (`UserLocalDataSource.ts:96-102`). Once a value is written,
+  it stays in the cache even if later responses omit that slot. It becomes a bug once unlinking exists, so replace
+  semantics have to be judged together with opening unlinking.
+- **`link$` is invisible in the types.** It depends on an intersection type on the reading side, so the compiler
+  will not catch it if the server changes the shape.
+- **`link$` may be absent on the first paint.** That is the stretch where only the token seed
+  (`useSeedMyUserCache.ts:22-29`) exists. Since `LoggedInView.$token` is `UserTokenView extends UserView`, it is
+  resolved if the server fills that slot, but there is no guarantee. §5's "fall back when it cannot be read" covers
+  this stretch too.
+- **Error branching keeps depending on parsing the message prefix.** The lib does not attach `errorCode` to the
+  Error. The version bump does not fix this, so it breaks silently if the server copy changes.
+- **Social linking is still native-only.** The browser build ends in a `mobileOnly` toast.
+- **Browser login is opened for the first time** (§9). A combination that did not exist until now becomes a normal
+  state — a session that logged in with a phone number only, cannot attach social (C-1 is native-only), and has no
+  escape hatch from the divergence warning. How native-only features look in that session has to be checked.
+- **The divergence defence splits into two shapes** — the invite flow has a navigating banner
+  (`PhoneVerifyBanner`), the login screen has inline copy. The same risk is managed with two pieces of copy, so
+  keep them tied together so they do not drift.
+
+## Next steps
+
+This ADR is handed on as the input to the spec writing (Phase A) of `dev-2_implement`. The order of work is
+**§1 version bump → §2 gateway and data source migration → §4 introducing `verify` → §5 reading `link$` →
+§6 the issue gate → §7 my page**. Nothing else compiles until §1 is green. §8 depends on no other item, so it can
+be slotted in anywhere.
+
+The exhaustive comparison table of scenarios, steps and responses is kept separately in
+docs/plans/account-linking-scenarios.md, which lived in the root docs tree and has since been removed. It is the
+input to the Phase A spec.
+
+The three things to confirm with the server (the backfill · `link$` in `user.profile` · `last4` in `invite.get`) do
+not block starting, but answers raise the precision of §5–§8, so ask them in parallel.
+
+### Follow-up request — please add invite comparison to the `link` mode too (added 2026-08-05)
+
+This is a hole that surfaced while fixing the `400 @mode[login] is for device session` found in production. The
+invite accept screen now picks `login`/`link` by session kind (§3), but **the `link` path has no invite number
+comparison on the server at all** — `src/lib/auth/link-account.ts:286` of `chatic-backend-api` has
+`const code = mode === 'login' ? … : ''` and then wraps `assertInviteMatched` in `if (code)`, so it cannot be
+entered at all under `link`.
+
+The problem is **that it cannot be undone**. Once `commitLink` attaches the number to the account, `judgeLink`
+permanently blocks reattachment with `type-linked` (same file `:136`, "swapping the means is out of scope"), and
+there is no unlink endpoint anywhere in the backend (`grep -riE "unlink|detach" src` → 0 hits). That is, verifying
+a number different from the invited one through this path pins that number to the account permanently, the invited
+number can never be linked, and so that invite — and every later invite to that number — becomes unacceptable.
+
+The only defence the client can mount is the `last4` comparison from `invite.get`, so that is enforced now — a hard
+block before sending (`usePhoneVerify`), and if `last4` is missing, verification on the `link` path is not started
+at all (`useRelayInviteFlow`). But the last 4 digits are country-agnostic and client-only, so they are not enough as
+the defence for an irreversible write.
+
+**Request:** read `code` in `link` mode too, and run `assertInviteMatched` before `commitLink`. The comparison must
+come first and the linking second. At that point the client defences above stay as a second layer of safety.

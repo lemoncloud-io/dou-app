@@ -1,91 +1,131 @@
-# ADR-0034: 웹 디버그 오버레이 진입 — 10탭 + 입장 코드 2단계 게이트
+# ADR-0034: Entering the web debug overlay — a two-stage gate, ten taps plus an entry code
 
-> 상태: Accepted · 결정일: 2026-08-03
+> Status: Accepted · Decided: 2026-08-03
 
-## 맥락 (Context)
+## Context
 
-- 현재 웹 디버그 오버레이는 **제스처 하나로만** 열린다. MyPage의 "앱 버전" ListRow를 3초 내 10회 탭하면 즉시 언락된다 (`apps/web/src/app/features/debug/hooks/useDebugMode.ts:60`, `apps/web/src/app/features/mypage/pages/MyPage.tsx:229`). 지식 검증 단계가 없어 **일반 유저가 우발적으로 진입할 수 있다.**
-- 오버레이가 노출하는 도구는 관찰용이 아니다. DB Browser, My Profile Editor, Email Login, Chunk Upload Test, Cache DB Test 등 **실제 데이터·세션을 직접 조작**하는 항목이 포함된다 (`apps/web/src/app/features/debug/overlay/debugMenu.ts:25-46`). 일반 유저 진입은 데이터 손상과 CS 유입으로 직결된다.
-- 리포지토리에 **관리자/운영자 권한 판별 로직이 존재하지 않는다.** `userRole`은 있으나 `'guest'` 여부 판별에만 쓰인다 (`libs/app-runtime/src/runtime/useRuntimeProfile.ts:51`). 서버 권한 기반 게이팅은 백엔드 신규 설계가 필요하다.
-- 디버그 모드 진입점은 리포 전체에 3개다.
+- Today the web debug overlay opens **on a gesture alone**. Ten taps within three seconds on MyPage's
+  "App version" ListRow unlock it immediately
+  (`apps/web/src/app/features/debug/hooks/useDebugMode.ts:60`,
+  `apps/web/src/app/features/mypage/pages/MyPage.tsx:229`). There is no knowledge check, so **an ordinary
+  user can get in by accident.**
+- The tools the overlay exposes are not read-only. It includes DB Browser, My Profile Editor, Email
+  Login, Chunk Upload Test and Cache DB Test — items that **manipulate real data and sessions directly**
+  (`apps/web/src/app/features/debug/overlay/debugMenu.ts:25-46`). An ordinary user getting in leads
+  straight to data damage and support tickets.
+- **The repository has no logic that identifies an administrator or operator.** `userRole` exists but is
+  used only to test for `'guest'` (`libs/app-runtime/src/runtime/useRuntimeProfile.ts:51`). Gating on
+  server-side permissions would need new backend design.
+- There are three debug mode entry points in the repo.
 
-    | 서피스      | 게이트                                                                                                | 저장소                             | 지속성          |
-    | ----------- | ----------------------------------------------------------------------------------------------------- | ---------------------------------- | --------------- |
-    | web         | 앱 버전 10탭 / 3초                                                                                    | sessionStorage `chatic-debug-mode` | 탭 종료 시 해제 |
-    | desktop-web | PlaceRail divider 7탭 / 1.5초 (`apps/desktop-web/src/app/features/chat/components/PlaceRail.tsx:127`) | localStorage `__dou_debug_mode`    | 영구            |
-    | mobile      | 자체 제스처 없음 — 웹 언락이 브릿지로 전파                                                            | MMKV `debugSettings`               | 영구            |
+    | Surface     | Gate                                                                                                                | Storage                            | Persistence                 |
+    | ----------- | ------------------------------------------------------------------------------------------------------------------- | ---------------------------------- | --------------------------- |
+    | web         | 10 taps on the app version within 3s                                                                                | sessionStorage `chatic-debug-mode` | Cleared when the tab closes |
+    | desktop-web | 7 taps on the PlaceRail divider within 1.5s (`apps/desktop-web/src/app/features/chat/components/PlaceRail.tsx:127`) | localStorage `__dou_debug_mode`    | Permanent                   |
+    | mobile      | No gesture of its own — the web unlock propagates over the bridge                                                   | MMKV `debugSettings`               | Permanent                   |
 
-- 단, `apps/web/src/main.tsx:46`이 **웹 부팅마다 `appBridge.setDebugMode(false)`** 를 전송한다. 따라서 모바일 MMKV에 남은 언락 상태는 매 부팅 초기화되며, **웹 게이트가 사실상 모바일 게이트다** (PROD 기준. non-PROD 네이티브 빌드는 컴파일 타임 플래그로 FAB가 뜨지만 내부 배포 전용이다).
-- 위협 모델은 **"일반 유저의 우발적·호기심성 진입 차단"** 으로 한정한다. 번들을 리버싱해 코드를 추출하는 의도적 공격자는 이번 대상이 아니다.
+- But `apps/web/src/main.tsx:46` sends **`appBridge.setDebugMode(false)` on every web boot**. So any
+  unlocked state left in mobile's MMKV is cleared each boot, and **the web gate is effectively the mobile
+  gate** (in PROD; a non-PROD native build shows the FAB through a compile-time flag, but that is for
+  internal distribution only).
+- The threat model is limited to **"stop an ordinary user getting in by accident or curiosity"**. A
+  deliberate attacker who reverses the bundle to extract the code is not the target here.
 
-## 결정 (Decision)
+## Decision
 
-### 1. 2단계 게이트 — 제스처(1차) + 입장 코드(2차)
+### 1. A two-stage gate — the gesture (first) plus an entry code (second)
 
-기존 10탭 제스처를 **유지**하고, 그 뒤에 코드 검증을 추가한다.
+**Keep** the existing ten-tap gesture and add a code check behind it.
 
-- 10탭 성공 → 즉시 언락하지 않고 **입장 코드 입력 다이얼로그**를 연다.
-- 코드가 일치할 때만 `setEnabled(true)`를 호출한다.
-- 제스처는 진입 경로 자체를 숨기는 1차 필터로 남는다. 코드가 유출되어도 **진입 경로를 모르면 사용할 수 없다.**
+- Ten taps no longer unlock immediately; they **open an entry code dialog**.
+- `setEnabled(true)` is called only when the code matches.
+- The gesture remains a first filter that hides the entry path itself. Even if the code leaks, **it is
+  useless to someone who does not know the way in.**
 
-### 2. 코드 소스 = `VITE_DEBUG_CODE` 환경변수, 미설정 시 fail-closed
+### 2. The code comes from the `VITE_DEBUG_CODE` environment variable, and it fails closed when unset
 
-- 6자리 숫자. 값은 `VITE_DEBUG_CODE`로 주입한다 (`apps/web/.env.example` 및 CI 시크릿에 항목 추가).
-- **환경변수가 비어 있으면 게이트 전체를 비활성화한다.** 10탭을 해도 다이얼로그가 뜨지 않고 아무 일도 일어나지 않는다.
-- 기본값 폴백을 두지 않는다. CI 시크릿 누락이 프로덕션 구멍으로 이어지는 경로를 원천 차단한다.
+- Six digits, injected as `VITE_DEBUG_CODE` (an entry is added to `apps/web/.env.example` and to the CI
+  secrets).
+- **With the variable empty, the whole gate is disabled.** Ten taps open no dialog and nothing happens.
+- There is no default fallback. That removes the path where a missing CI secret becomes a hole in
+  production.
 
-### 3. 오입력 3회 → 다이얼로그 닫고 처음부터
+### 3. Three wrong entries → close the dialog and start over
 
-- 3회 실패 시 다이얼로그를 닫고 탭 카운터를 리셋한다. 재시도하려면 10탭부터 다시 해야 한다.
-- 쿨다운 타이머나 실패 횟수 영속화는 하지 않는다. 재진입 비용(10탭)만으로 무작위 대입은 충분히 억제된다.
+- After three failures the dialog closes and the tap counter resets. Retrying means ten taps again.
+- There is no cooldown timer and no persisted failure count. The cost of re-entry (ten taps) suppresses
+  brute force well enough.
 
-### 4. 지속성은 현행 유지
+### 4. Persistence stays as it is
 
-- 언락 상태는 계속 sessionStorage `chatic-debug-mode`에 저장한다. 탭/앱을 닫으면 해제되고 다음에 10탭 + 코드를 다시 요구한다.
-- 별도 만료 타이머를 추가하지 않는다. 세션 스코프가 이미 그 역할을 한다.
+- The unlocked state continues to live in sessionStorage `chatic-debug-mode`. Closing the tab or app
+  clears it, and the next time ten taps plus the code are required again.
+- No separate expiry timer is added. The session scope already does that job.
 
-### 5. UI는 web-ui-kit 컴포넌트 재사용
+### 5. The UI reuses a web-ui-kit component
 
-- `libs/web-ui-kit/src/foundations/input/VerificationCodeInput.tsx`를 사용한다. 숫자 전용 입력, `length` 기본 6, `error` prop, 스토리·테스트가 이미 갖춰져 있고 현재 앱에서 미사용 상태다.
-- 계정 인증용 `apps/web/src/app/features/account/components/VerificationCodeInput.tsx`를 복제하지 않는다.
+- Use `libs/web-ui-kit/src/foundations/input/VerificationCodeInput.tsx`. It is numeric-only, `length`
+  defaults to 6, it has an `error` prop, and it already has stories and tests while going unused in the
+  app today.
+- Do not copy the account verification component
+  `apps/web/src/app/features/account/components/VerificationCodeInput.tsx`.
 
-### 범위
+### Scope
 
-**포함** — `apps/web`의 디버그 모드 진입 경로. 모바일은 웹 언락에 종속되므로 자동으로 새 게이트 뒤로 들어간다.
+**In** — the debug mode entry path in `apps/web`. Mobile depends on the web unlock, so it automatically
+moves behind the new gate.
 
-**제외**
+**Out**
 
-- `apps/desktop-web`의 PlaceRail 7탭 게이트 (localStorage 영구). 별도 과제로 남긴다.
-- 모바일 셸의 자체 진입 경로 및 non-PROD 네이티브 빌드의 컴파일 타임 FAB 플래그.
-- 서버 권한(role) 기반 게이팅.
-- 디버그 메뉴 항목별 세분화된 권한 구분.
+- `apps/desktop-web`'s seven-tap PlaceRail gate (with permanent localStorage). Left as separate work.
+- The mobile shell's own entry path and the compile-time FAB flag in non-PROD native builds.
+- Gating on server-side permissions (role).
+- Per-item permission granularity within the debug menu.
 
-## 대안 (Alternatives)
+## Alternatives
 
-- **서버 권한(role) 기반 게이팅** — 가장 견고하지만 리포에 관리자 개념 자체가 없어 백엔드 스키마·API 신설이 선행되어야 한다. "우발적 진입 차단"이라는 위협 모델 대비 과도하다.
-- **시간 기반(TOTP) 또는 날짜 파생 코드** — 유출 내성은 높으나 운영자가 매번 현재 코드를 계산해야 하고 기기 시계 오차에 취약하다. 얻는 것에 비해 운영 부담이 크다.
-- **소스에 상수 하드코딩** — 가장 단순하지만 이 리포는 OSS 미러로 공개된다(ADR-0005). 평문 코드가 그대로 노출된다.
-- **10탭 제거하고 코드 입력만** — 진입 UI가 화면에 보이면 오히려 존재가 드러나 호기심을 유발한다. 숨겨진 제스처가 1차 필터로서 실질적 가치가 있다.
-- **DEV/LOCAL에서 코드 스킵** — 로컬 개발은 편해지지만 `VITE_ENV` 오설정이 곧 구멍이 되고 분기가 늘어난다. `.env` 한 줄 추가가 더 저렴하다.
-- **언락 후 만료 타이머 추가** — sessionStorage 스코프가 이미 세션 종료 시 해제를 보장한다. 중복 방어다.
+- **Gating on server-side permissions (role)** — the most solid, but the repo has no notion of an
+  administrator at all, so a backend schema and API would have to come first. Excessive against a threat
+  model of "stop accidental entry".
+- **A time-based (TOTP) or date-derived code** — more resistant to leaks, but an operator has to compute
+  the current code every time and it is sensitive to device clock skew. The operational burden outweighs
+  the gain.
+- **Hardcode the constant in the source** — simplest, but this repo is published as an OSS mirror
+  (ADR-0005). The code would be exposed in plain text.
+- **Drop the ten taps and ask for the code alone** — a visible entry UI advertises that the thing exists
+  and invites curiosity. The hidden gesture has real value as a first filter.
+- **Skip the code in DEV/LOCAL** — easier locally, but a misconfigured `VITE_ENV` then becomes the hole,
+  and the branching grows. One extra line in `.env` is cheaper.
+- **Add an expiry timer after unlocking** — the sessionStorage scope already guarantees clearing at the
+  end of the session. Redundant defence.
 
-## 결과 (Consequences)
+## Consequences
 
-**얻는 것**
+**What is gained**
 
-- 일반 유저가 연타만으로 데이터 조작 도구에 도달할 수 없게 된다.
-- 코드가 유출되어도 환경변수 교체 + 재배포로 즉시 무효화할 수 있다. 소스 수정이 필요 없다.
-- 배포 환경별로 다른 코드를 쓸 수 있어, 스테이징 코드가 프로덕션에서 통하지 않는다.
-- 웹 한 곳만 수정해도 모바일 경로가 함께 닫힌다 (`main.tsx:46` 킬 스위치 덕분).
+- An ordinary user can no longer reach data-manipulation tools by tapping repeatedly.
+- A leaked code is invalidated immediately by swapping the environment variable and redeploying. No
+  source change needed.
+- Different codes per deployment environment, so a staging code does not work in production.
+- Fixing one place, the web, closes the mobile path too (thanks to the `main.tsx:46` kill switch).
 
-**감수하는 것**
+**What is accepted**
 
-- 코드는 번들에 포함되므로 리버싱하는 공격자는 막지 못한다. 이는 선택한 위협 모델의 의도된 경계다.
-- 운영자가 디버그 도구를 쓸 때마다 10탭 + 6자리 입력을 해야 한다. 세션 스코프라 앱을 다시 열 때마다 반복된다.
-- `VITE_DEBUG_CODE`가 배포 파이프라인의 신규 시크릿이 된다. 워크플로 배선(`Generate env file` 4개 블록)은 되어 있으나 **시크릿 등록은 사람이 해야 하고, 등록하지 않은 환경은 게이트가 꺼진 채로 남는다** — 누락이 조용한 실패로 보이지 않도록 [entry-gate.md](../../apps/web/docs/feature/debug/entry-gate.md)의 "CI 주입"에 시크릿 이름과 함께 적어 두었다.
-- desktop-web의 7탭 백도어가 남는다. 더 쉬운 게이트에 영구 저장이라 실질적으로 더 취약하며, 후속 과제로 처리해야 한다.
+- The code is in the bundle, so it does not stop an attacker who reverses it. That is the deliberate
+  boundary of the chosen threat model.
+- An operator has to do ten taps plus six digits every time they want the debug tools. Being
+  session-scoped, that repeats each time the app is reopened.
+- `VITE_DEBUG_CODE` becomes a new secret in the deploy pipeline. The workflow wiring (four
+  `Generate env file` blocks) is done, but **registering the secret is a human step, and an environment
+  where it is not registered is left with the gate off** — so that the omission does not look like a
+  silent failure, the secret's name is written down under "CI injection" in
+  [entry-gate.md](../../apps/web/docs/feature/debug/entry-gate.md).
+- desktop-web's seven-tap back door remains. With an easier gate and permanent storage it is genuinely
+  more exposed, and it has to be handled as follow-up work.
 
-**정리 대상 (구현 시 함께 확인)**
+**Cleanup (check these during implementation)**
 
-- `apps/web/src/app/features/debug/lib/isDevEnv.ts` — 호출부가 없는 dead code. 배럴 export와 테스트만 남아 있다.
-- `apps/web/docs/feature/debug/README.md` — "DEV/LOCAL에서 자동 활성"이라는 서술이 현재 코드와 불일치한다. 이번 변경과 함께 갱신한다.
+- `apps/web/src/app/features/debug/lib/isDevEnv.ts` — dead code with no callers. Only the barrel export
+  and a test remain.
+- `apps/web/docs/feature/debug/README.md` — its claim of "automatically enabled in DEV/LOCAL" disagrees
+  with the current code. Update it with this change.

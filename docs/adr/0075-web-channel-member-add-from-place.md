@@ -1,168 +1,187 @@
-# ADR-0075: 웹의 채널 멤버 추가는 플레이스 프로필 피커로, 초대 페이지의 기본 탭에 둔다
+# ADR-0075: Add web channel members via a place-profile picker, placed as the invite page's default tab
 
-> 상태: Accepted · 결정일: 2026-09-07
-> · [ADR-0072](./0072-desktop-channel-member-add-and-join-cursor-placement.md)(데스크탑 멤버 추가 — **같은 문제의 첫 구현**. 그 문서가 예고한 "두 번째 클라이언트"가 이 ADR이다)
-> · [ADR-0022](./0022-channel-invite-page-web-ui-kit.md)(apps/web 초대 페이지 — 연락처 배치초대·초대링크. 이 ADR이 그 페이지에 탭을 얹는다)
-> · [ADR-0015](./0015-channel-settings-ui-refresh.md)(채널 설정 UI·owner 판정) · [ADR-0032](./0032-dm-chat-room-screen.md)(DM은 고정 1:1이라 초대하지 않는다)
+> Status: Accepted · Decided: 2026-09-07
+> · [ADR-0072](./0072-desktop-channel-member-add-and-join-cursor-placement.md) (desktop member add — **the first implementation of the same problem**. This ADR is the "second client" that document foreshadowed)
+> · [ADR-0022](./0022-channel-invite-page-web-ui-kit.md) (apps/web invite page — batch contact invites, invite links. This ADR adds a tab onto that page)
+> · [ADR-0015](./0015-channel-settings-ui-refresh.md) (channel settings UI, owner determination) · [ADR-0032](./0032-dm-chat-room-screen.md) (DMs are fixed 1:1, so no inviting)
 
-## 맥락 (Context)
+## Context
 
-### 요구
+### The requirement
 
-owner가 **이미 이 클라우드를 쓰고 있는 특정 유저**를 채널에 넣고 싶다. 수단은
-`ChannelRepository.inviteChannel`(`channel.invite`).
+An owner wants to add a **specific user who is already using this cloud** to a channel. The
+mechanism is `ChannelRepository.inviteChannel` (`channel.invite`).
 
-### 서버가 줄 수 있는 것 — 전수 확인
+### What the server can offer — checked exhaustively
 
-소켓 액션 목록에서 유저를 나열하는 것은 **`channel.list-user`와 `channel.sync-users` 둘뿐이고,
-둘 다 채널 하나에 스코프**된다. `place.*`에는 멤버 목록이 없고 `user.*`에도 디렉터리성 액션이
-없다. 즉 **"이 플레이스 사람 아무나"를 서버에 물을 방법이 없다.** 후보 풀은 클라이언트가
-로스터를 합쳐 만드는 수밖에 없으며, 이는 ADR-0072가 데스크탑에서 마주친 것과 같은 제약이다.
+Of the socket actions, only **`channel.list-user` and `channel.sync-users` enumerate users, and
+both are scoped to a single channel**. `place.*` has no member list, and `user.*` has no
+directory-style action either. In other words, **there is no way to ask the server for "anyone in
+this place."** The candidate pool has to be built by the client merging rosters — the same
+constraint ADR-0072 ran into on desktop.
 
-### 이미 있는 것
+### What already exists
 
-| 영역            | 현존 자산                                                                                                                                                                                 |
-| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 직접 추가 API   | `ChannelRepository.inviteChannel` — `ChatInviteInput = { channelId, userIds[] }`. **낙관적 쓰기·롤백·응답 union까지 이미 들어 있다**(ADR-0072가 넣음)                                     |
-| 앱 래퍼         | [`useChannelMutations.ts`](../../apps/web/src/app/features/channels/hooks/useChannelMutations.ts)의 `inviteChannel`                                                                       |
-| 피커 UI 껍데기  | [`InvitePage.tsx`](../../apps/web/src/app/features/channels/pages/InvitePage.tsx)가 이미 `SearchInput` + `SelectableUserItem` + `SelectedAvatarRow` + `FloatingButton` 다중선택 조합      |
-| 플레이스 프로필 | `profileRepository.observeList({ sid })` + 캐시 미스 `refreshItem('${sid}@${uid}')` — [`useChannelProfiles`](../../apps/web/src/app/features/channels/hooks/useChannelProfiles.ts)의 기계 |
-| owner 판정      | `ChannelSettingsPage`의 `isOwner = !!channel?.isOwner` — "친구 추가" 행을 이미 게이트한다                                                                                                 |
-| 선례            | 데스크탑 `AddMembersDialog` + `useInviteCandidates`(ADR-0072). **참조만 하고 수정하지 않는다**                                                                                            |
+| Area                | Existing asset                                                                                                                                                                                           |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Direct-add API      | `ChannelRepository.inviteChannel` — `ChatInviteInput = { channelId, userIds[] }`. **Optimistic write, rollback, and response union are already in place** (added by ADR-0072)                            |
+| App wrapper         | `inviteChannel` in [`useChannelMutations.ts`](../../apps/web/src/app/features/channels/hooks/useChannelMutations.ts)                                                                                     |
+| Picker UI shell     | [`InvitePage.tsx`](../../apps/web/src/app/features/channels/pages/InvitePage.tsx) already combines `SearchInput` + `SelectableUserItem` + `SelectedAvatarRow` + `FloatingButton` multi-select            |
+| Place profiles      | `profileRepository.observeList({ sid })` + cache-miss `refreshItem('${sid}@${uid}')` — the machinery behind [`useChannelProfiles`](../../apps/web/src/app/features/channels/hooks/useChannelProfiles.ts) |
+| Owner determination | `ChannelSettingsPage`'s `isOwner = !!channel?.isOwner` — already gates the "add friend" row                                                                                                              |
+| Precedent           | Desktop's `AddMembersDialog` + `useInviteCandidates` (ADR-0072). **Referenced only, not modified**                                                                                                       |
 
-### 공백
+### Gaps
 
-1. **웹에서 `inviteChannel`을 부르는 UI가 없다.** repo에서 이 함수를 부르는 웹 코드는 래퍼
-   자신뿐이고 화면 호출부는 0이다.
-2. **owner의 "친구 추가"는 전화번호 초대로만 간다.** 계정이 없는 사람에게 링크를 보내는
-   흐름은 있는데, **이미 옆방에 있는 사람을 이 방에 넣는 길이 없다.**
+1. **No web UI calls `inviteChannel`.** The only web code in the repo calling this function is the
+   wrapper itself; there are 0 screen call sites.
+2. **The owner's "add friend" only goes through phone-number invites.** There is a flow for sending
+   a link to someone without an account, but **no path for adding someone already in another room
+   to this room.**
 
-### 웹이 데스크탑과 다른 두 가지 — 결정을 갈랐다
+### Two ways web differs from desktop — these shaped the decision
 
-1. **멤버 목록의 시드가 다르다.** 웹 `ChannelSettingsPage`는 `useChannelMembers`에
-   `channel.memberIds`를 넘기고, 표시 이름은 `profileMap`(플레이스 프로필) → `member.name` →
-   `memberId` 순으로 떨어진다. `inviteChannel`이 `memberIds`를 낙관적으로 갱신하므로 **초대
-   즉시 행이 뜬다.** 데스크탑은 멤버를 유저 캐시의 `channelIds`로 읽어서 초대 응답이 그 캐시를
-   건드리지 않아 별도 쓰기가 필요했다(ADR-0072 결정 2 후반부). 웹에는 그 함정이 없다.
-2. **owner 게이트가 이미 있다.** 데스크탑은 `channel.invite`가 owner-only인지 확인하지 못해
-   게이트를 걸지 않기로 했다(ADR-0072 결정 5). 웹은 그 자리에 이미 `isOwner` 분기가 서 있다.
+1. **The member list is seeded differently.** Web's `ChannelSettingsPage` passes
+   `channel.memberIds` into `useChannelMembers`, and the display name falls back in order:
+   `profileMap` (place profile) → `member.name` → `memberId`. Since `inviteChannel` already updates
+   `memberIds` optimistically, **the row appears the instant the invite happens.** Desktop reads
+   members from the user cache's `channelIds`, and since the invite response doesn't touch that
+   cache, it needed a separate write (ADR-0072 decision 2, second half). Web has no such trap.
+2. **The owner gate already exists.** Desktop couldn't confirm whether `channel.invite` is
+   owner-only, so it chose not to add a gate (ADR-0072 decision 5). Web already has an `isOwner`
+   branch sitting right there.
 
-## 결정 (Decision)
+## Decision
 
-### 1. 초대 페이지를 탭 둘로 나누고, **플레이스가 기본 탭**이다
+### 1. Split the invite page into two tabs, with **place as the default tab**
 
-진입점은 늘리지 않는다 — 설정 화면의 owner 전용 "친구 추가" 행 하나가 그대로
-`ROUTES.channels.invite(channelId)`로 가고, 그 페이지 안에서 탭을 고른다.
+No new entry point is added — the settings screen's owner-only "add friend" row still goes to
+`ROUTES.channels.invite(channelId)`, and the tab choice happens inside that page.
 
-| 탭                  | 내용                                                     |
-| ------------------- | -------------------------------------------------------- |
-| **플레이스** (기본) | 이 플레이스에서 이미 나와 방을 같이 쓰는 사람 — **신규** |
-| 연락처              | 기기 연락처 배치초대 + 초대 링크 — 기존 그대로(ADR-0022) |
+| Tab                 | Content                                                          |
+| ------------------- | ---------------------------------------------------------------- |
+| **Place** (default) | People already sharing a room with me in this place — **new**    |
+| Contacts            | Device-contact batch invite + invite link — unchanged (ADR-0022) |
 
-기본을 플레이스로 두는 이유: 대다수 상황에서 넣고 싶은 사람은 **이미 이 클라우드에 있다.**
-연락처 초대는 계정이 없는 사람을 부르는 다른 제품이고, 그쪽이 필요한 경우가 더 드물다.
+Why place is the default: in most situations, the person you want to add is **already in this
+cloud.** Contact invite is a different product for reaching someone without an account, and that
+case is rarer.
 
-두 탭은 **별개의 선택 상태와 별개의 확정 동작**을 가진다. 플레이스 탭은 `channel.invite`로
-즉시 넣고, 연락처 탭은 `user.invite-batch`로 링크를 만든다. 선택을 탭 사이에서 공유하지
-않는다 — 섞이면 "확정" 버튼 하나가 두 가지 다른 일을 하게 된다.
+The two tabs have **separate selection state and separate confirm actions.** The place tab adds
+immediately via `channel.invite`; the contacts tab builds a link via `user.invite-batch`. Selection
+is not shared between tabs — sharing it would make one "confirm" button do two different things.
 
-### 2. 후보는 **타깃 채널의 플레이스** 안에서만 모은다
+### 2. Candidates are gathered only within **the target channel's place**
 
-`이 채널의 sid에 속한 내 다른 채널들의 멤버 합집합 − 이 채널의 현재 멤버 − 나`.
-데스크탑 `useInviteCandidates`와 같은 정의이며, 이유도 같다(서버에 디렉터리가 없다).
+`the union of members of my other channels under this channel's sid − this channel's current
+members − myself`. Same definition as desktop's `useInviteCandidates`, for the same reason (no
+server directory).
 
-클라우드 전체로 넓히지 않는다. **플레이스 프로필이 sid 스코프**라, 다른 플레이스 사람은
-이 플레이스에 보여줄 닉·사진이 아예 없다. 채널도 플레이스 소속이라 서버가 받아줄지부터
-미확인이다. 결정 3의 표시 규칙과 정면으로 충돌하는 범위는 택하지 않는다.
+This is not widened to the whole cloud. **Place profiles are scoped by sid**, so someone from a
+different place has no nickname or photo to show in this place at all. Channels also belong to a
+place, so whether the server would even accept it is unverified. A scope that directly conflicts
+with decision 3's display rule is not chosen.
 
-제외 소스는 **둘**이다 — 로스터 읽기 결과 그리고 채널 레코드의 `memberIds`. 로스터 fetch가
-실패해도 이미 방에 있는 사람이 후보로 뜨지 않는다(ADR-0072가 같은 방어를 쓴다).
+There are two exclusion sources — the roster read results and the channel record's `memberIds`.
+Even if a roster fetch fails, someone already in the room won't show up as a candidate (ADR-0072
+uses the same defense).
 
-### 3. 후보는 **플레이스 프로필**로 그린다
+### 3. Candidates are rendered with **place profiles**
 
-전역 유저 레코드의 이름이 아니라 이 플레이스에서 쓰는 닉·사진으로 보여준다. 같은 화면
-(설정의 멤버 목록)이 이미 그렇게 그리므로, 피커에서 고른 사람과 넣고 난 뒤 목록에 뜨는
-사람이 **다른 이름으로 보이면 안 된다.**
+Shown with the nickname/photo used in this place, not the name from the global user record. Since
+the same screen (the settings member list) already renders that way, the person picked in the
+picker and the person shown in the list after adding them **must not appear under different
+names.**
 
-경로는 `useChannelProfiles`와 같다: `observeList({ sid })`로 관찰하고 캐시에 없는 후보만
-`refreshItem('${sid}@${uid}')`로 한 번 채운다. 폴백 체인도 설정 화면과 동일하게
-`프로필 닉 → 유저 레코드 name → userId` 순으로 맞춘다 — 아직 플레이스 프로필을 만들지 않은
-사람이 빈 행으로 보이지 않게 한다.
+The path mirrors `useChannelProfiles`: observe with `observeList({ sid })`, and fill only the
+candidates missing from cache with a single `refreshItem('${sid}@${uid}')`. The fallback chain
+matches the settings screen exactly: profile nickname → user record name → userId — so someone who
+hasn't set up a place profile yet doesn't show up as a blank row.
 
-부수 효과: 피커가 프로필을 캐시에 올려두므로, 초대 직후 멤버 목록의 새 행이 **곧바로 제
-이름으로** 뜬다.
+Side effect: since the picker already warms the profile cache, the new row in the member list shows
+**the correct name immediately** right after the invite.
 
-### 4. owner 게이트는 웹 기존 것을 유지한다
+### 4. Keep web's existing owner gate
 
-`isOwner && !isDmChat`. 데스크탑처럼 서버 거부를 토스트로 노출하는 쪽으로 바꾸지 않는다 —
-웹 설정 화면의 다른 행들이 모두 이 판정을 쓰고 있어, 여기만 열면 한 화면 안에서 권한 규칙이
-어긋난다. 서버가 실제로 누구에게나 허용하더라도 **클라이언트가 더 좁게 잡는 방향은 안전하다.**
+`isOwner && !isDmChat`. Not switching to desktop's approach of surfacing server rejection via a
+toast — every other row on web's settings screen already uses this determination, so opening just
+this one would break the permission rule's consistency within a single screen. Even if the server
+actually allows anyone, **the client erring narrower is the safe direction.**
 
-`channel.invite`의 서버측 권한 규칙은 여전히 미확인이다(ADR-0072에서 넘어온 미결). 확인되면
-게이트를 서버 규칙에 맞춘다.
+`channel.invite`'s server-side permission rule is still unverified, carried over from ADR-0072. Once
+confirmed, the gate is aligned to the server rule.
 
-### 5. 후보 집계는 **apps/web에 둔다** — `libs/data`로 올리지 않는다
+### 5. Candidate aggregation stays **in apps/web** — not promoted to `libs/data`
 
-ADR-0072가 "두 번째 클라이언트가 피커를 요구하는 날 옮긴다"고 예고했지만, 옮기지 않는다.
+ADR-0072 foreshadowed "move it the day a second client needs a picker," but it is not moved.
 
-- **desktop-web은 수정하지 않는다**(작업 제약). 데스크탑을 갈아끼우지 못하면 승격해도
-  공유가 아니라 _"공유하려고 올렸는데 한쪽만 쓰는"_ 상태가 된다. 중복은 그대로 남고 엔진에
-  소비자 하나짜리 모듈이 하나 더 생긴다.
-- **두 구현이 실제로 같지 않다.** 웹은 결정 3에 따라 플레이스 프로필로 그리고, 데스크탑은
-  유저 레코드로 그린다. 데이터 출처가 갈리므로 지금 합치면 분기 있는 공용 훅이 된다.
+- **desktop-web is not modified** (a work constraint). If desktop can't be swapped in, promoting it
+  would result not in sharing but in a module that's _"promoted to be shared, but only one side
+  uses it."_ The duplication stays, and the engine gains one more module with a single consumer.
+- **The two implementations aren't actually the same.** Per decision 3, web renders with place
+  profiles, while desktop renders with the user record. Since the data sources diverge, merging
+  them now would produce a shared hook full of branches.
 
-데스크탑 수정이 열리는 날 두 구현을 나란히 놓고 옮긴다. 그때까지 이 결정이 ADR-0072의
-예고를 **연기**한다.
+Once desktop modification opens up, the two implementations are placed side by side and merged.
+Until then, this decision **defers** ADR-0072's forecast.
 
-### 6. 유저 캐시 직접 쓰기는 하지 않는다
+### 6. No direct user-cache write
 
-ADR-0072 결정 2의 후반부(초대 성공 후 고른 레코드를 유저 캐시에 쓰기)를 웹은 채택하지 않는다.
-맥락 §웹이 다른 두 가지 1에서 보듯 웹의 멤버 목록은 `channel.memberIds`로 시드되고 그 필드는
-`inviteChannel`이 이미 낙관적으로 갱신한다. 웹에서 그 쓰기는 **고칠 것이 없는 문제를 고치는
-코드**다.
+Web does not adopt the second half of ADR-0072 decision 2 (writing the chosen record to the user
+cache after a successful invite). As shown in §Two ways web differs from desktop, item 1, web's
+member list is seeded from `channel.memberIds`, and `inviteChannel` already updates that field
+optimistically. On web, that write would be **fixing a problem that doesn't need fixing.**
 
-### 범위 밖 (Out of scope)
+### Out of scope
 
-- **DM에 사람 추가.** 1:1은 고정 편성이다(ADR-0032). 기존 `!isDmChat` 게이트를 그대로 둔다.
-- **연락처 탭의 동작 변경.** 탭 안으로 들어갈 뿐 흐름·문구·API는 그대로다.
-- **`channel.invite` 권한 규칙 확정.** 백엔드 확인이 선행돼야 한다(결정 4).
-- **플레이스 멤버 전원 피커.** 서버에 멤버 목록 API가 없다. 신규 엔드포인트가 생기면 결정 2를
-  다시 연다.
-- **desktop-web 변경** — 참조만 한다.
-- **초대 대기 상태 표시.** join 카운터가 "초대됐지만 미입장"과 "나감"을 구분하지 못한다는
-  기존 문제가 그대로다(`utils/membership`). 추측해서 뱃지를 그리지 않는다.
+- **Adding people to a DM.** 1:1 is fixed membership (ADR-0032). The existing `!isDmChat` gate stays
+  as-is.
+- **Behavior changes to the contacts tab.** It only moves inside a tab — the flow, copy, and API
+  stay the same.
+- **Finalizing `channel.invite`'s permission rule.** Requires backend confirmation first
+  (decision 4).
+- **A full place-member picker.** The server has no member-list API. If a new endpoint appears,
+  decision 2 gets revisited.
+- **desktop-web changes** — referenced only.
+- **Showing an invite-pending state.** The existing problem that the join counter can't
+  distinguish "invited but not yet entered" from "left" (`utils/membership`) remains as-is. No
+  badge is drawn on a guess.
 
-## 대안 (Alternatives)
+## Alternatives
 
-**설정 화면에 행을 하나 더 둔다** — 두 초대가 서로 다른 제품이라는 것을 진입점에서부터
-드러낼 수 있다. 그러나 owner는 "이 방에 사람 넣기"라는 한 가지 의도로 오는데 문 앞에서
-수단을 먼저 고르게 된다. 탭이면 들어와서 고를 수 있고, 기본 탭이 대다수 의도를 맞춘다.
+**Add another row to the settings screen** — makes it clear from the entry point itself that the
+two invites are different products. But an owner arrives with a single intent, "put someone in this
+room," and would have to pick the mechanism before even getting in. A tab lets them pick after
+entering, and the default tab matches the majority intent.
 
-**전화번호 초대를 걷어내고 대체한다** — 데스크탑이 간 길이다(ADR-0072 결정 4). 웹에서는
-기각: 데스크탑과 달리 **웹의 연락처 초대는 프로덕션에 나가 있고, 계정 없는 사람에게 도달하는
-유일한 경로다.** 지우면 제품 기능이 사라진다.
+**Remove and replace the phone-number invite** — the path desktop took (ADR-0072 decision 4).
+Rejected for web: unlike desktop, **web's contact invite is live in production and is the only path
+to reach someone without an account.** Removing it would remove a shipped product feature.
 
-**후보를 클라우드 전체에서 모은다** — 사용자가 처음 말한 범위. 결정 2의 이유로 기각.
-플레이스 프로필이 sid 스코프라 표시할 이름이 없고, 서버 수락 여부도 미확인이다.
+**Gather candidates across the whole cloud** — the user's initial framing of the scope. Rejected
+for the reasons in decision 2. Place profiles are sid-scoped, so there's no name to display, and
+server acceptance is unverified.
 
-**수동 userId 입력** — 가장 작은 구현. 그러나 웹은 모바일 화면이고 id를 복사해 올 자리가
-없다(데스크탑은 프로필 팝오버가 id를 복사해 준다). 검색창이 id도 매칭하게 두면 붙여넣기는
-여전히 동작한다.
+**Manual userId entry** — the smallest build. But web is a mobile-width screen with no place to
+paste an id from (desktop's profile popover copies the id). Leaving the search box able to match by
+id means pasting still works.
 
-**userId로 초대링크 생성** — 서버에 그 경로가 없다. 신규 스펙 없이는 불가(ADR-0072와 동일).
+**Generate an invite link by userId** — the server has no such route. Not possible without a new
+spec (same as ADR-0072).
 
-## 결과 (Consequences)
+## Consequences
 
-- **웹에서 처음으로 `channel.invite`가 화면에서 불린다.** 지금까지 웹의 이 API는 래퍼만 있고
-  호출부가 없었다.
-- **초대 페이지가 두 제품을 담는다.** 연락처 탭은 손대지 않지만 페이지는 탭 셸을 갖게 되고,
-  `web-ui-kit`에 인페이지 탭 컨트롤이 없으면 거기 신설한다 — 화면에서 임기응변하지 않는다.
-- **데스크탑과 웹에 거의 같은 후보 훅이 둘 남는다.** 의도적인 부채이며, 갚는 시점은
-  desktop-web 수정이 열리는 날로 못박는다(결정 5).
-- **후보 훅은 채널 수만큼 요청을 낸다.** 피커가 열려 있을 때만 마운트한다. 데스크탑이 같은
-  이유로 같은 제약을 걸었다.
-- **소켓이 unverified일 때의 처리를 정해야 한다.** 데스크탑은 슬립/웨이크 후 무한 unverified
-  경로 때문에 캐시 풀을 내주고 false→true 엣지에서 네트워크 패스를 다시 돈다. 웹에도 같은
-  선택지가 있으며 스펙 단계에서 확정한다.
-- **미결 두 개가 남는다**: `channel.invite`의 서버 권한 규칙(결정 4), 인페이지 탭 컨트롤의
-  디자인 출처(Figma 확인 필요).
+- **`channel.invite` is called from a screen on web for the first time.** Until now this API only
+  had a wrapper with no call site.
+- **The invite page now holds two products.** The contacts tab is untouched, but the page gains a
+  tab shell, and if `web-ui-kit` has no in-page tab control, one is added there — not improvised on
+  the screen.
+- **Desktop and web end up with two nearly-identical candidate hooks.** This is intentional debt,
+  and repayment is pinned to the day desktop-web modification opens up (decision 5).
+- **The candidate hook fires one request per channel.** Mounted only while the picker is open.
+  Desktop constrains itself the same way for the same reason.
+- **Behavior when the socket is unverified needs deciding.** Desktop serves the cache pool because
+  of the indefinite-unverified path after sleep/wake, then re-runs the network path on the
+  false→true edge. Web has the same option available and confirms it at the spec stage.
+- **Two open items remain**: `channel.invite`'s server permission rule (decision 4), and the design
+  source for the in-page tab control (needs a Figma check).

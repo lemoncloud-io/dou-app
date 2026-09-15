@@ -1,104 +1,166 @@
-# ADR-0067: 재입장은 처음 들어온 것과 같아야 한다 — joinedNo 표시 게이트와 chat 캐시 purge
+# ADR-0067: Rejoining must look like joining for the first time — the joinedNo display gate and chat cache purge
 
-> 상태: Accepted · 결정일: 2026-08-25
+> Status: Accepted · Decided: 2026-08-25
 
-## 맥락 (Context)
+## Context
 
-서버(`chatic-socials-api`)가 `0.26.810a`(PR #28, `fix(joins): reset cursors on re-join so prior messages stay hidden`)에서 재입장 커서 리셋을 고쳤다. `makeJoin`의 재활성 경로가 커서를 프록시 캐시에서 떠낸 복사본에 병합해 저장이 누락되던 문제로, 병합 대상을 `inc`가 돌려준 캐시 노드로 바꾸고 덮어쓸 필드를 `chatNo`·`joinedNo`·`metaNo`·`notify` 넷으로 좁혔다. 이제 재입장 시 저장소의 커서가 채널 현재값으로 리셋되고, 피드는 `listFeed`의 `chatNo > joinedNo` 규칙에 걸려 퇴장 전 메시지를 돌려주지 않는다.
+The server (`chatic-socials-api`) fixed the rejoin cursor reset in `0.26.810a` (PR #28,
+`fix(joins): reset cursors on re-join so prior messages stay hidden`). `makeJoin`'s reactivation path was merging
+cursors into a copy skimmed off the proxy cache, so the save was silently dropped; the fix changed the merge target
+to the cache node `inc` returns, and narrowed the fields it overwrites to four: `chatNo` · `joinedNo` · `metaNo` ·
+`notify`. Now, on rejoin, the storage cursor resets to the channel's current value, and the feed hits `listFeed`'s
+`chatNo > joinedNo` rule and no longer returns messages from before the departure.
 
-**그런데 이 수정만으로는 앱 화면이 전혀 달라지지 않는다.** 클라이언트는 서버 응답을 렌더하지 않고 로컬 캐시를 구독해 렌더하기 때문이다.
+**But this fix alone changes nothing on screen.** The client doesn't render the server response — it subscribes to
+and renders a local cache.
 
-### 서버 fix가 화면에 닿지 않는 이유
+### Why the server fix never reaches the screen
 
-메시지 스트림은 [`useChats`](../../apps/web/src/app/features/channels/hooks/useChats.ts)의 `chatRepository.observeList` — 캐시 구독이다. 그리고 퇴장 경로 어디서도 chat 캐시를 치우지 않는다:
+The message stream is [`useChats`](../../apps/web/src/app/features/channels/hooks/useChats.ts)'s
+`chatRepository.observeList` — a cache subscription. And nowhere on the departure path is the chat cache cleared:
 
-- [`ChannelRepository.leaveChannel`](../../libs/data/src/repositories/ChannelRepository.ts)은 **channel** 캐시만 지운다.
-- `ChatSyncPlan`에는 `onRemove`가 없다 — [`plans.ts`](../../libs/app-runtime/src/socket/sync/plans.ts) 주석이 "메시지 이력은 lazy-load/오프라인을 위해 유지한다"고 의도적으로 밝혀 둔 설계다.
-- `ChatRepository.refreshList`는 `cacheWriteMany`만 하고 prune하지 않는다. 서버가 더 이상 주지 않는 행은 그대로 남는다.
-- `cacheClearByChannelId`는 존재하지만 **프로덕션 호출자가 0건**이다.
-- 캐시는 네이티브 SQLite / IndexedDB 영속이라 앱을 재시작해도 남는다.
+- [`ChannelRepository.leaveChannel`](../../libs/data/src/repositories/ChannelRepository.ts) only clears the
+  **channel** cache.
+- `ChatSyncPlan` has no `onRemove` — a comment in [`plans.ts`](../../libs/app-runtime/src/socket/sync/plans.ts)
+  deliberately states the design: "message history is kept for lazy-load/offline."
+- `ChatRepository.refreshList` only does `cacheWriteMany` and doesn't prune. Rows the server no longer sends stay
+  put.
+- `cacheClearByChannelId` exists but has **0 production callers.**
+- The cache persists on native SQLite / IndexedDB, so it survives an app restart.
 
-누수는 세 갈래다. **피드**(방에 들어가면 퇴장 전 대화가 그대로), **홈 프리뷰**(`observeLastList`도 같은 chat 캐시 파생이라 서버가 `getByChannel({joinedNo})`로 null을 줘도 옛 메시지가 프리뷰로 남는다), **전역 검색**(`IndexedDbGlobalSearchSource`가 chat 테이블 전체를 훑고, [`useSearchContext`](../../apps/web/src/app/features/search/hooks/useSearchContext.ts)는 채널 행이 없는 chat을 버리지 않고 `channelName: undefined`로 렌더한다 — 재입장과 무관하게 지금도 나간 채널 메시지가 검색된다).
+The leak has three branches. **The feed** (entering the room shows the pre-departure conversation as-is), **the
+home preview** (`observeLastList` derives from the same chat cache, so even when the server returns null via
+`getByChannel({joinedNo})`, the old message stays in the preview), and **global search**
+(`IndexedDbGlobalSearchSource` scans the whole chat table, and
+[`useSearchContext`](../../apps/web/src/app/features/search/hooks/useSearchContext.ts) doesn't drop a chat with no
+matching channel row — it renders it with `channelName: undefined` — meaning messages from a channel you've left are
+already searchable today, independent of rejoining).
 
-### 그 앞을 막는 별개의 버그
+### A separate bug that blocks this in front
 
-[`ChannelRepository`](../../libs/data/src/repositories/ChannelRepository.ts)의 `leftChannelIds`는 인메모리 Set으로 `refreshList`와 `syncChannels` **둘 다**를 필터하는데, 지워지는 곳은 leave 실패 롤백뿐이다. [`DataManager`](../../libs/app-runtime/src/data/DataManager.ts)는 repositories를 생성자에서 한 번만 만들고 `ensure()`로 컨텍스트만 갈아끼우므로 이 Set은 클라우드 전환에도 살아남는다. 즉 **나갔다가 다시 초대받으면 새로고침 전까지 채널이 목록에 돌아오지 않는다.** 재입장 동작을 검증할 수조차 없다.
+[`ChannelRepository`](../../libs/data/src/repositories/ChannelRepository.ts)'s `leftChannelIds` is an in-memory Set
+that filters **both** `refreshList` and `syncChannels`, but it's only ever cleared on a leave-failure rollback.
+[`DataManager`](../../libs/app-runtime/src/data/DataManager.ts) constructs repositories once in its constructor and
+only swaps context via `ensure()`, so this Set survives even a cloud switch. In other words, **leave, then get
+reinvited, and the channel doesn't come back to the list until a refresh.** Rejoin behavior can't even be verified
+without fixing this first.
 
-### 브릿지에 대해 확인한 것
+### What was checked about the bridge
 
-네이티브 chat 테이블은 이미 `channel_id` 컬럼으로 필터한다([`ChatDataSource`](../../apps/mobile/src/app/data/cache/ChatDataSource.ts)) — 방 피드를 읽는 바로 그 경로라 **배포된 모든 앱 빌드가 지원한다**. 따라서 채널 한정 purge에 브릿지 신규 메시지는 필수가 아니다. [`storages/types.ts`](../../libs/data/src/local/storages/types.ts)의 "테이블 전체를 브릿지로 끌어온다"는 경고는 base가 `loadAll()`을 인자 없이 부르기 때문이고, `ChatQueryOptions.channelId`가 있는 chat에는 해당하지 않는다.
+The native chat table already filters by the `channel_id` column
+([`ChatDataSource`](../../apps/mobile/src/app/data/cache/ChatDataSource.ts)) — the exact path used to read a room's
+feed — so **every deployed app build supports it.** A channel-scoped purge therefore doesn't require a new bridge
+message. The warning in [`storages/types.ts`](../../libs/data/src/local/data-sources/types.ts) about "pulling an
+entire table over the bridge" is about the base calling `loadAll()` with no arguments, and doesn't apply to a chat
+call carrying `ChatQueryOptions.channelId`.
 
-### API 계약
+### API contract
 
-이번 서버 변경에 스키마 변화는 없다. 클라의 `^0.26.721` caret이 `0.26.810a`를 이미 커버하므로 타입/버전 대응은 불필요하다. 응답에서 `stereo`·`sid`·`nick`·`role`이 이제 보존값으로 내려오지만 클라는 `join.stereo`를 읽는 곳이 없다.
+This server change carries no schema change. The client's `^0.26.721` caret already covers `0.26.810a`, so no
+type/version work is needed. The response now returns `stereo`·`sid`·`nick`·`role` as preserved values, but the
+client reads `join.stereo` nowhere.
 
-## 결정 (Decision)
+## Decision
 
-### 1. joinedNo 표시 게이트를 세 소비 지점에 건다
+### 1. Put a joinedNo display gate at three consumption points
 
-`myJoin.joinedNo` 이하의 `chatNo`를 렌더 단계에서 드롭한다. 서버 `listFeed`와 같은 근거를 쓰므로 규칙이 두 벌로 갈라지지 않는다. 적용 지점은 **방 피드**, **홈 마지막 메시지 프리뷰**, **전역 검색 결과** 셋 다. 검색은 컨텍스트가 이미 `joinsByRef`(channelId 키, 내 join)를 unread 계산용으로 싣고 있어 재료가 준비돼 있다.
+Drop `chatNo` entries at or below `myJoin.joinedNo` at render time. This uses the same basis as the server's
+`listFeed`, so the rule isn't forked into two versions. It applies at all three points: **the room feed**, **the
+home last-message preview**, and **global search results.** Search is ready for this — its context already carries
+`joinsByRef` (keyed by channelId, my own joins) for unread computation.
 
-이 게이트는 purge의 중복이 아니라 **소급 방어선**이다. 배포 시점에 이미 캐시를 쌓아 둔 기존 설치 베이스와, purge 신호가 닿지 않는 경로(아래 4)를 이것이 덮는다.
+This gate isn't a duplicate of the purge — it's a **retroactive line of defense.** It covers the existing install
+base whose cache is already populated as of deploy time, plus the path where a purge signal never arrives (item 4
+below).
 
-### 2. chat 캐시 purge는 명시 신호에만 붙인다
+### 2. Chat cache purge attaches only to explicit signals
 
-- `leaveChannel` 성공 (self-leave)
-- `JoinSyncPlan.onRemove`가 **내** join 행을 지울 때
+- `leaveChannel` success (self-leave)
+- `JoinSyncPlan.onRemove` removing **my own** join row
 
-`ChannelSyncPlan.onRemove`와 `syncChannels`의 stale prune에는 붙이지 않는다. 채널 캐시 오삭제는 서버가 다시 채워주지만 **chat 오삭제는 복구가 안 된다** — 서버는 `joinedNo` 이후만 주기 때문이다. 추론 기반 prune의 오판 한 번이 이력을 영구히 날리는 쪽보다, 누수를 표시 게이트에 맡기는 쪽을 택한다.
+It does **not** attach to `ChannelSyncPlan.onRemove` or `syncChannels`'s stale prune. A wrongly deleted channel cache
+gets refilled by the server anyway, but **a wrongly deleted chat cache can't be recovered** — the server only sends
+what's after `joinedNo`. A single bad call in inference-based pruning permanently erasing history is worse than
+leaving the leak to the display gate, so the display gate wins.
 
-### 3. 브릿지에 `ClearCacheDataByChannel`을 추가하고, 폴백을 정본 경로로 둔다
+### 3. Add `ClearCacheDataByChannel` to the bridge, with the fallback as the canonical path
 
-- **폴백(모든 앱 빌드에서 동작):** `loadAll({ channelId })` → ids → `deleteAll(ids)`. 왕복 2회, 한 채널분만 오간다. `ChatLocalDataSource`가 `TType='chat'`을 알고 있으므로 타입 안전하게 직접 처리한다.
-- **최적화(신규 메시지):** 네이티브에서 `DELETE … WHERE cid=? AND uid=? AND channel_id=?` 한 방. 왕복 1회, 페이로드 0.
-- **폴백 전환:** 이 메시지를 모르는 앱 빌드의 `NOT_FOUND`를 1회 받으면 학습해 이후로는 시도하지 않는다. `FetchManyCacheData`·`FetchLastChats`가 이미 쓰는 선례를 그대로 따른다.
+- **Fallback (works on every app build):** `loadAll({ channelId })` → ids → `deleteAll(ids)`. Two round trips,
+  scoped to one channel. `ChatLocalDataSource` already knows `TType='chat'`, so it handles this in a type-safe way
+  directly.
+- **Optimization (new message):** a single native `DELETE … WHERE cid=? AND uid=? AND channel_id=?`. One round trip,
+  zero payload.
+- **Fallback switch:** after one `NOT_FOUND` from an app build that doesn't know this message, learn it and stop
+  trying afterward — the same pattern already used by `FetchManyCacheData`/`FetchLastChats`.
 
-기존 `ClearCacheData`에 `channelId`를 얹는 방식은 채택하지 않는다 — 구버전 앱이 모르는 필드를 무시하고 **해당 스코프의 chat 테이블 전체를 지운다.**
+Adding a `channelId` to the existing `ClearCacheData` is not adopted — a legacy app would ignore the field it
+doesn't know and **wipe the entire chat table for that scope.**
 
-### 4. `leftChannelIds`를 영구 블록에서 시한부 가드로 바꾼다
+### 4. Turn `leftChannelIds` from a permanent block into a time-boxed guard
 
-이 Set의 목적은 "leave 직전에 발행된 in-flight 응답이 방금 지운 채널을 되살리는 것"을 막는 레이스 가드다. 그 목적에는 짧은 유예로 충분하고, 세션 내내 유지될 이유가 없다. 유예 값과 만료 처리 방식은 스펙에서 정한다.
+The purpose of this Set is a race guard: preventing an in-flight response published right before a leave from
+resurrecting the channel it just deleted. That purpose only needs a short grace period — there's no reason for it to
+persist for the whole session. The grace value and expiry handling are set at the spec stage.
 
-### 5. `notify` 리셋은 서버를 그대로 따른다
+### 5. `notify` reset just follows the server
 
-재입장하면 음소거가 풀리는 것은 서버 의도된 동작이다. 클라는 값을 반영만 하고 별도 안내 UI를 만들지 않는다.
+Rejoining unmuting is server-intended behavior. The client only reflects the value and adds no separate
+notification UI.
 
-### 범위 밖
+### Out of scope
 
-- `apps/desktop-web` — 참조만 하고 수정하지 않는다.
-- 일회성 캐시 마이그레이션 — 표시 게이트가 소급 커버를 맡는다.
-- `joinedNo` 전진을 감지한 자동 purge — 삭제 경로를 명시 신호 하나로 유지한다.
+- `apps/desktop-web` — referenced but not modified.
+- One-off cache migration — the display gate covers retroactively.
+- Auto-purge triggered by detecting `joinedNo` advancing — the delete path stays a single explicit signal.
 - `apps/testbed`.
 
-## 대안 (Alternatives)
+## Alternatives
 
-**표시 게이트만 하고 캐시는 손대지 않는다.** 브릿지 무관에 즉시 배포 가능하지만, 나간 채널의 메시지가 캐시와 검색 인덱스에 영구히 남는다. 전역 검색 누수는 이 방식으로 못 고친다.
+**Only the display gate, leave the cache alone.** Deployable immediately regardless of the bridge, but messages
+from a left channel stay in the cache and search index permanently. This approach can't fix the global search leak.
 
-**purge를 채널 소멸 전 경로에 붙인다.** 강퇴·타기기 퇴장까지 누수 없이 덮지만, 추론 기반 prune의 오판이 복구 불가능한 이력 손실로 직결된다. 손실의 비대칭성(채널 오삭제는 값싸고 chat 오삭제는 영구) 때문에 버렸다.
+**Attach the purge to a channel-teardown path.** Would also cover kicks and cross-device departures with no leak,
+but a bad call in inference-based pruning turns into unrecoverable history loss. Rejected for the loss asymmetry
+(a wrongly deleted channel is cheap, a wrongly deleted chat is permanent).
 
-**`ClearCacheData`에 `channelId` 필드를 추가한다.** 메시지 하나로 끝나지만 구버전 앱이 필드를 무시하고 테이블 전체를 지운다. 웹이 앱보다 먼저 배포되는 구조에서 이건 조용한 데이터 손실이다.
+**Add a `channelId` field to `ClearCacheData`.** A single message solves it, but a legacy app ignores the field and
+wipes the whole table. In a structure where the web deploys before the app, that's silent data loss.
 
-**`joinedNo` 전진을 감지해 그 이하를 자동 purge한다.** 마이그레이션 없이 기존 캐시까지 정리되고 강퇴 경로도 덮이지만, 삭제 트리거가 명시 신호 하나에서 파생 신호로 늘어난다. 삭제 경로를 좁게 유지하는 쪽을 택했다.
+**Detect `joinedNo` advancing and auto-purge below it.** Cleans up existing cache with no migration and also covers
+kicks, but grows the delete trigger from one explicit signal to include a derived one. Chose to keep the delete path
+narrow instead.
 
-**일회성 정리 마이그레이션.** 캐시 용량까지 회수하지만 비가역이고, 표시 게이트로 같은 사용자 효과를 되돌릴 수 있게 얻는다.
+**A one-off cleanup migration.** Would also reclaim cache capacity, but is irreversible, whereas the display gate
+gets the same user-facing effect while staying reversible.
 
-## 결과 (Consequences)
+## Consequences
 
-**얻는 것**
+**What is gained**
 
-- 재입장이 실제로 처음 들어온 것처럼 보인다 — 피드·홈 프리뷰·검색 세 곳 모두.
-- 기존 누수 하나가 같이 닫힌다: 나간 채널의 메시지가 채널명 없이 전역 검색에 뜨던 문제.
-- 재입장한 채널이 세션 안에서 목록으로 돌아온다.
-- **웹만 배포해도 전부 동작한다.** 앱 배포는 purge를 왕복 1회로 줄이는 최적화일 뿐이고, 앱이 따라오면 학습 폴백이 알아서 빠른 경로로 전환된다.
+- Rejoining actually looks like joining for the first time — across the feed, the home preview, and search.
+- An existing leak closes as a side effect: messages from a left channel showing up in global search with no
+  channel name.
+- A rejoined channel returns to the list within the session.
+- **Shipping the web alone makes all of this work.** The app deploy is only an optimization that cuts the purge down
+  to one round trip, and once the app catches up, the learned fallback switches over to the fast path on its own.
 
-**감수하는 것**
+**What is accepted**
 
-- **강퇴·타기기 퇴장은 purge되지 않는다.** [`useChannelMutations`](../../apps/web/src/app/features/channels/hooks/useChannelMutations.ts) 주석이 밝히듯 서버는 강퇴 대상자에게 join 갱신을 푸시하지 않는다 — 강퇴당한 기기에서 `JoinSyncPlan.onRemove`는 신뢰할 수 없다. 이 경로는 표시 게이트만으로 가려지고 캐시에는 데이터가 남는다.
-- **첫 페인트 노출 창.** `joinedNo`는 방 진입 시 `syncChannelUsers`의 `$join`으로 갱신되므로, 재입장 직후 그 응답이 오기 전 한 프레임 동안 게이트가 옛(더 작은) 값으로 동작한다.
-- **캐시 용량은 즉시 회수되지 않는다.** 게이트가 가릴 뿐이므로 기존 설치 베이스의 옛 행은 남는다.
-- **`openFeed`와 충돌한다.** 서버에는 `joinedNo` 가드를 무시하는 `openFeed`가 있고 클라는 지금 이 값을 어디서도 보내지 않는다. 훗날 "과거 이력 공개" 기능을 도입하면 표시 게이트를 그 채널에서 꺼야 한다.
-- 브릿지 메시지가 하나 늘어난다 — 네이티브 구현·QA·앱 배포가 따라붙는다.
+- **Kicks and cross-device departures are not purged.** As a comment in
+  [`useChannelMutations`](../../apps/web/src/app/features/channels/hooks/useChannelMutations.ts) notes, the server
+  doesn't push a join update to the person being kicked — `JoinSyncPlan.onRemove` can't be trusted on the kicked
+  device. This path is covered only by the display gate; data stays in the cache.
+- **A first-paint exposure window.** `joinedNo` updates via `syncChannelUsers`'s `$join` on room entry, so for one
+  frame right after rejoining, before that response arrives, the gate runs on the old (smaller) value.
+- **Cache size isn't reclaimed immediately.** Since the gate only hides, old rows from the existing install base
+  remain.
+- **Conflicts with `openFeed`.** The server has an `openFeed` that ignores the `joinedNo` guard, and the client
+  currently sends this value nowhere. If a "reveal past history" feature is introduced later, the display gate must
+  be turned off for that channel.
+- One more bridge message — carrying native implementation, QA, and an app deploy along with it.
 
-**후속**
+**Follow-ups**
 
-`leftChannelIds` 수정 전까지는 재입장 QA가 앱 재시작을 전제로 해야 한다. 구현 순서는 이 가드를 먼저 푸는 쪽이 나머지 검증을 가능하게 한다.
+Until the `leftChannelIds` fix lands, rejoin QA must assume an app restart. The implementation order should fix this
+guard first, since it's what makes the rest of the verification possible.
+</content>

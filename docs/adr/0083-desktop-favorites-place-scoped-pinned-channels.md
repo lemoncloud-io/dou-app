@@ -1,66 +1,81 @@
-# ADR-0083: desktop 즐겨찾기는 `ui.pinnedChannels`(place 스코프)로 옮기고, 로그아웃 때 지운다
+# ADR-0083: move desktop favorites to `ui.pinnedChannels` (place-scoped), and clear it on logout
 
-> 상태: Accepted · 결정일: 2026-09-11 · 구현: `3a65fef9` · `ec59ca7b` · `c50dd01e` · `6f12d9ac` ·
+> Status: Accepted · Decided: 2026-09-11 · Implemented: `3a65fef9` · `ec59ca7b` · `c50dd01e` · `6f12d9ac` ·
 > `3fd4604a` · `0879cb5a` · `3bbf995c` · `0cc9106e` · `45f1664c` · `278f213e` · `14c8100`
-> 범위: `libs/shared/src/preferences/**` · `libs/config/src/registry/ui.ts` ·
+> Scope: `libs/shared/src/preferences/**` · `libs/config/src/registry/ui.ts` ·
 > `apps/desktop-web/src/app/features/chat/components/{ChannelList,SortableSection,ChannelRowMenu}.tsx` ·
-> `apps/desktop-web/src/app/shared/{hooks/useAccountResetOnLogout.ts,utils/migrateLegacyFavorites.ts}` · `apps/web/src/app/stores/**`
-> 관련: [ADR-0079](./0079-config-registry-and-lane-resolver.md) (`ui.*` 레코드·lane), KB dou-app-place-list-ordering
+> `apps/desktop-web/src/app/shared/{hooks/useAccountResetOnLogout.ts,utils/migrateLegacyFavorites.ts}` ·
+> `apps/web/src/app/stores/**`
+> Related: [ADR-0079](./0079-config-registry-and-lane-resolver.md) (`ui.*` records · lane), KB
+> dou-app-place-list-ordering
 
-## 맥락 (Context)
+## Context
 
-desktop-web 사이드바에 즐겨찾기(핀), 드래그 재정렬, 행 컨텍스트 메뉴를 얹는다. 즐겨찾기의 저장소가 문제였다.
+desktop-web's sidebar is getting favorites (pins), drag reordering, and a row context menu. Where
+favorites are stored turned out to be the problem.
 
-- desktop에는 자체 `useFavoriteChannelsStore`(`chatic-favorite-channels`, zustand persist)가 있었다.
-  CLAUDE.md twin 규칙이 금하는 그대로 — apps/web의 핀과 별개 트윈이고, 배열 순서가 없어 정렬과 결합할 수 없다.
-- 반면 apps/web의 핀은 `ui.pinnedChannels`(config registry, place 스코프, 순서 있는 배열)에 이미 있다.
-  `placeScopeKey(cloudId, siteId)` 하나에 장소별 배열 — 정렬이 "핀 배열 순서 = 표시 순서"로 공짜다.
+- desktop had its own `useFavoriteChannelsStore` (`chatic-favorite-channels`, zustand persist) — exactly
+  what the CLAUDE.md twin rule forbids: a separate twin of apps/web's pins, with no ordering, so it
+  couldn't combine with sorting.
+- apps/web's pins, by contrast, already live in `ui.pinnedChannels` (config registry, place-scoped,
+  ordered array). One array per `placeScopeKey(cloudId, siteId)` — ordering comes for free as "pin array
+  order = display order."
 
-## 결정 (Decision)
+## Decision
 
-### 1. desktop favorites는 `ui.pinnedChannels`를 읽는다 — 트윈을 지운다
+### 1. Desktop favorites read `ui.pinnedChannels` — the twin is deleted
 
-`usePinnedChannels(scope)`·`setChannelPinned`·파서를 `libs/shared/src/preferences/`로 올리고,
-apps/web은 그쪽에서 import한다(동작 불변). desktop의 `useFavoriteChannelsStore`는 삭제했다.
-즐겨찾기 섹션은 핀 배열 순서 그대로를 표시 순서로 쓴다.
+`usePinnedChannels(scope)`, `setChannelPinned`, and the parser move up into `libs/shared/src/preferences/`,
+and apps/web imports from there (behavior unchanged). desktop's `useFavoriteChannelsStore` is deleted. The
+favorites section uses the pin array's order as its display order, as-is.
 
-### 2. 채널 순서는 `ui.channelOrder`(config registry, place 스코프 JSON)에 저장한다
+### 2. Channel order is stored in `ui.channelOrder` (config registry, place-scoped JSON)
 
-`applyChannelOrder(ids, stored)` = 저장된 id(존재하는 것만, 저장 순) + 나머지 이름순.
-`moveChannel`은 없는 id를 가지치기한다. 섹션(Channels/DMs)별 DnD는 한 배열의 자기 슬라이스만 재작성하고,
-즐겨찾기 재정렬은 `ui.pinnedChannels[scope]` 배열에 직접 쓴다. 새 채널은 이름순 끝에, 삭제된 채널은
-다음 쓰기 때 가지치기 — 별도 리셋 UI는 v1에 없다. 핀은 예외다: 재정렬은 화면에 보이는 핀의 순서만
-받고, 목록에 잠시 없는 핀(재입장·sync 지연)은 제자리를 지킨다(`setPinnedChannelOrder`). 핀을 지우는
-경로는 해제(`toggle`) 하나다.
+`applyChannelOrder(ids, stored)` = stored ids that still exist, in stored order, plus the rest by name.
+`moveChannel` prunes ids that no longer exist. Per-section (Channels/DMs) DnD only rewrites its own slice
+of the array, and reordering favorites writes directly into the `ui.pinnedChannels[scope]` array. New
+channels go to the end in name order, and deleted channels are pruned on the next write — no separate
+reset UI exists in v1. Pins are the exception: reordering only accepts the order of pins currently visible
+on screen, and a pin temporarily absent from the list (re-entry, sync lag) keeps its place
+(`setPinnedChannelOrder`). The only path that removes a pin is unpinning (`toggle`).
 
-### 3. 레거시 favorites는 place를 처음 볼 때 lazy migrate 한다
+### 3. Legacy favorites are lazily migrated the first time a place is seen
 
-id에 place 정보가 없으므로: 그 place 채널 목록에 존재하는 id만 스코프로 이동(append, dedupe),
-나머지는 구 키에 남겨 다른 place에서 마이그레이션 기회를 남긴다. 비면 키 삭제, 깨진 JSON은 무음 삭제.
-로그아웃은 `chatic-favorite-channels`도 계속 클리어한다 — 미마이그레이션 잔여 id가 다음 계정으로
-새는 것을 막는다(플랜 체크리스트의 "구 키 제거"에서 diverge, spec의 logout 불변식이 우선).
+Since the old id carries no place information: only ids present in that place's channel list are moved
+into scope (append, dedupe), and the rest stay in the old key so other places still get a chance to
+migrate. Logout still clears `chatic-favorite-channels` too — this stops un-migrated leftover ids from
+leaking into the next account (a deliberate divergence from the plan checklist's "remove the old key,"
+since the spec's logout invariant takes priority). An empty key is deleted; broken JSON is silently
+dropped.
 
-### 4. 로그아웃은 `ui.pinnedChannels`/`ui.channelOrder`를 클리어한다
+### 4. Logout clears `ui.pinnedChannels`/`ui.channelOrder`
 
-`config.clear(..., { lane: 'local' })`로 저장된 키와 메모리 레인 값을 함께 지운다. 공용 place에서
-다음 계정으로 핀/순서가 새는 것을 막는다. apps/web은 클리어하지 않는다 — 웹은 로그아웃이 곧
-리로드가 아니고, 플랜 결정(Decision 표 "Logout: clear both config keys")이 desktop에만 적용된다.
+`config.clear(..., { lane: 'local' })` clears both the stored key and the in-memory lane value together.
+This stops pins/order from leaking to the next account on a shared place. apps/web is not cleared — for
+web, logout is not the same as a reload, and the plan's decision (Decision table, "Logout: clear both
+config keys") applies to desktop only.
 
-### 5. 컨텍스트 메뉴는 행당 인스턴스가 아니라 사이드바당 하나다
+### 5. The context menu is one instance per sidebar, not one per row
 
-`ChannelRowMenu`가 열 때 `menuTargetId`를 기록하고, dialogs(Rename/AddMembers/Confirm)는
-ChannelList에 한 번만 렌더된다. `onRemoved`는 **제거된 행이 열려 있는 채널일 때만** 선택을
-지운다 — 배경 채널에서 leave하면 채팅 창이 유지된다(통합 스펙으로 고정).
+`ChannelRowMenu` records `menuTargetId` when it opens, and the dialogs (Rename/AddMembers/Confirm) render
+exactly once on `ChannelList`. `onRemoved` clears the selection **only when the removed row is the
+currently open channel** — leaving a background channel keeps the chat window open (fixed by the unified
+spec).
 
-## 대안 (Alternatives)
+## Alternatives
 
-- **desktop zustand 유지 + 변환 레이어**: 트윈이 남고, 순서 저장이 또 한 벌 필요하다. 기각.
-- **즐겨찾기 로그아웃 시 보존**: apps/web과의 불일치를 줄이지만, 공용 place에서 계정 간 누수. 기각.
-- **전역 migration(기동 시 일괄)**: 채널 목록이 place마다 다르므로 기각 — lazy가 id↔place를 정확히 풀린다.
+- **Keep desktop's zustand plus a conversion layer**: the twin remains, and order storage still needs a
+  second copy. Rejected.
+- **Preserve favorites across logout**: reduces divergence from apps/web, but leaks across accounts on a
+  shared place. Rejected.
+- **A global migration (bulk, at startup)**: rejected because the channel list differs by place — lazy
+  migration is what resolves id↔place correctly.
 
-## 결과 (Consequences)
+## Consequences
 
-- 알림 모드 해석(`channelNotifyMode(state, id, joinNotify?)`)·핀·순서가 모두 `libs/shared`/config로
-  모였다 — 표면이 달라도 레코드는 하나다.
-- 표시 순서가 서버가 아니라 클라이언트 레코드가 되므로, 서버 `channel` 순서 필드가 생겨도 리더만 바꾸면 된다.
-- trade-off: 로그아웃마다 핀/순서가 사라진다(의도 — 공용 기기 전제). 웹과 동작이 다름은 이 ADR이 기록한다.
+- Notify-mode interpretation (`channelNotifyMode(state, id, joinNotify?)`), pins, and ordering are all
+  consolidated into `libs/shared`/config — different surfaces, one record.
+- Display order is now a client record instead of the server's, so if a server `channel` order field ever
+  appears, only the reader needs to change.
+- Trade-off: pins/order are lost on every logout (intentional — assumes a shared device). This ADR
+  documents that its behavior differs from web.

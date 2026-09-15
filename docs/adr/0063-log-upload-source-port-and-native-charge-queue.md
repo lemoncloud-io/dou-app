@@ -1,165 +1,242 @@
-# ADR-0063: 로그 업로드 소스를 포트로 분리하고, 하이브리드에서는 앱 큐를 단일 집결지로 둔다
+# ADR-0063: Split the log upload source into a port, and make the app queue the single collection point in hybrid
 
-> 상태: Accepted · 결정일: 2026-08-21
-> 관련: [ADR-0047](./0047-unified-logging-core-and-report-traceability.md) (통합 로깅 코어 — §4 스냅샷 의미론·`LogSource` 원칙, 주기 업로드는 범위 제외) · [ADR-0050](./0050-redact-report-breadcrumbs.md) (breadcrumb redact)
+> Status: Accepted · Decided: 2026-08-21
+> Related: [ADR-0047](./0047-unified-logging-core-and-report-traceability.md) (unified logging core — §4 snapshot semantics, `LogSource`
+> principle; periodic upload was out of scope) · [ADR-0050](./0050-redact-report-breadcrumbs.md) (breadcrumb redact)
 
-## 맥락 (Context)
+## Context
 
-ADR-0047은 **주기적 로그 업로드 파이프라인을 명시적으로 범위에서 제외**했다("후속 트랙. 백엔드 협의 필요"). 그 후속 트랙이 구현되어 `POST /hello/report-bulk` 경로가 살아 있고, 설계 정본은 그동안 리포 밖 vault 레인에 있었다. 이 ADR은 그중 **클라이언트 구조 결정**을 리포로 가져온다.
+ADR-0047 **explicitly excluded the periodic log upload pipeline from scope** ("a follow-up track. Needs backend
+alignment"). That follow-up track has since been implemented — the `POST /hello/report-bulk` route is live — and its
+design of record has lived in a vault lane outside this repo the whole time. This ADR brings the **client structure
+decision** from that track into the repo.
 
-2026-08-21 감사에서 웹뷰→네이티브 로그 캡처 경로의 결함 3건이 확인됐다.
+The 2026-08-21 audit confirmed three defects in the webview-to-native log capture path.
 
-### ① 브레드크럼 버퍼를 파괴적으로 비운다 — ADR-0047 §4 위반
+### ① The breadcrumb buffer is drained destructively — a violation of ADR-0047 §4
 
-ADR-0047 §4는 이미 이렇게 정했다.
+ADR-0047 §4 already settled this:
 
-> **스냅샷 의미론** — breadcrumb 조회는 항상 `peek`(유지)이다. `poll`(소비)은 다음 리포트·디버그 UI의 히스토리를 지우고 조회 경로끼리 소비 경쟁을 일으키므로 금지한다 (`poll`은 주기 업로드 같은 배출형 소비자가 생기는 후속 트랙의 몫).
+> **Snapshot semantics** — reading the breadcrumb is always `peek` (non-consuming). `poll` (consuming) is forbidden
+> because it erases the history for the next report or the debug UI and creates a consumption race between read
+> paths (`poll` belongs to a follow-up track once a draining consumer — such as periodic upload — exists).
 
-0047은 배출형 소비자의 등장을 예견했지만, 그 소비자가 **브레드크럼과 같은 버퍼를 겨냥할 것**이라고는 가정하지 않았다. 구현은 그걸 했다. `drainNative`([logUploader.ts:94](../../apps/web/src/app/runtime/logUploader.ts:94))가 flush마다 `PollAppLogBuffer` → `logBuffer.poll()`([useLogBufferHandler.ts:37](../../apps/mobile/src/app/webview/hooks/useLogBufferHandler.ts:37))로 앱 버퍼를 `headroom()`만큼 걷어간다. 정상 상태의 headroom은 450+이므로 사실상 버퍼 전체다.
+0047 anticipated a draining consumer would eventually appear, but it did not assume that consumer would **target the
+same buffer as the breadcrumb**. The implementation did exactly that. `drainNative`
+(`apps/web/src/app/runtime/logUploader.ts:94`) calls `PollAppLogBuffer` → `logBuffer.poll()`
+([useLogBufferHandler.ts:37](../../apps/mobile/src/app/webview/hooks/useLogBufferHandler.ts:37)) on every flush,
+sweeping the app buffer by `headroom()`. In steady state, headroom is 450+, which is effectively the whole buffer.
 
-한편 리포트 브레드크럼은 같은 버퍼를 `fetchAppLogBuffer` → `peek()`([nativeLogSource.ts:41](../../apps/web/src/app/bridge/nativeLogSource.ts:41))로 비파괴 조회한다. **한 버퍼에 소비자가 둘인데 한쪽만 파괴적**이라, flush 직후 크래시는 브레드크럼이 거의 백지다.
+Meanwhile the report breadcrumb reads the same buffer non-destructively via `fetchAppLogBuffer` → `peek()`
+(`apps/web/src/app/bridge/nativeLogSource.ts:41`). **One buffer has two consumers, and only one of them is
+destructive**, so a crash right after a flush finds the breadcrumb nearly blank.
 
-게다가 걷어간 `debug`는 `pushAll`의 필터([LogUploadQueue.ts](../../libs/logger/src/upload/LogUploadQueue.ts))에서 즉시 폐기된다 → **서버에도 없고 버퍼에도 없는 순수 소멸**.
+Worse, the `debug` entries that were swept up are immediately discarded by the filter in `pushAll`
+([LogUploadQueue.ts](../../libs/logger/src/upload/LogUploadQueue.ts)) → **gone from the server and gone from the
+buffer, pure loss.**
 
-### ② 건당 릴레이 + 레벨 무필터가 사본 없는 로그를 밀어낸다
+### ② Per-entry relaying plus no level filter pushes out logs that have no second copy
 
-`createNativeForwarder`가 레벨 구분 없이 전 엔트리를 `SendLog`로 릴레이했고, 최대 유입원은 `withNetworkLog`의 성공 로그 — **HTTP 요청 1건당 `debug` 1건**([networkLog.ts:98](../../libs/web-core/src/transport/networkLog.ts:98)). 링버퍼 축출은 레벨 무관 oldest-first([RingBuffer.ts](../../libs/logger/src/core/RingBuffer.ts))다.
+`createNativeForwarder` relayed every entry to `SendLog` regardless of level, and the largest source was the success
+logs from `withNetworkLog` — **one `debug` per HTTP request** (`libs/web-core/src/transport/networkLog.ts:98`). Ring
+buffer eviction is level-agnostic, oldest-first (`libs/logger/src/core/RingBuffer.ts`).
 
-`pushAll`의 주석이 정확히 이 위험을 지목한다 — _"evict native-only entries that have no second copy"_. 그러나 그 방어는 **업로드 큐**에 있고 실제 축출은 한 단계 앞인 **앱 링버퍼**에서 일어난다. 웹 엔트리는 웹 큐에 사본이 있지만 네이티브 발원 로그(RN 전역 예외·FCM·Kotlin `NativeLogger`)는 사본이 없어 영구 유실이다.
+A comment in `pushAll` names exactly this risk — _"evict native-only entries that have no second copy."_ But that
+guard sits in the **upload queue**, while the actual eviction happens one step earlier, in the **app ring buffer**.
+Web entries have a copy in the web queue, but native-originated logs (RN global exceptions, FCM, Kotlin
+`NativeLogger`) have no copy and are permanently lost.
 
-건당 릴레이는 브릿지 비용 문제이기도 하다. 응답 왕복은 이미 제거됐지만([AppBridgeHost.ts:214](../../libs/bridges/src/app/AppBridgeHost.ts:214)) 상방 `postMessage` 자체가 로그 건수만큼 발생한다.
+Per-entry relaying is also a bridge-cost problem. The response round trip has already been removed
+([AppBridgeHost.ts:214](../../libs/bridges/src/app/AppBridgeHost.ts:214)), but the upward `postMessage` itself still
+fires once per log.
 
-### ③ 파괴적 poll에는 전송 유실 구간이 있다
+### ③ Destructive poll has a transmission-loss window
 
-`logBufferService.poll()`은 즉시 `persistNow()`로 MMKV에서 그 엔트리를 지운다. 이후 경로는 웹 메모리 큐 → 전송 → `onSettled`에서 localStorage 저장이다. **삭제와 저장 사이에 프로세스가 죽으면 그 엔트리는 어디에도 없다.** 하필 앱이 죽는 순간의 로그가 가장 필요한데 그것이 유실된다.
+`logBufferService.poll()` immediately calls `persistNow()` to erase the entry from MMKV. The rest of the path is: web
+memory queue → send → localStorage save in `onSettled`. **If the process dies between the delete and the save, that
+entry exists nowhere.** The moment the app dies is exactly when its logs matter most, and that is the moment they
+are lost.
 
-리포트 경로는 같은 문제를 이미 피했다. `PendingReportQueueService`는 `FetchPendingReports`(읽기만) + `AckPendingReports`(전송 성공 후 삭제) 2단계다. **로그 경로만 이 관용구를 따르지 않았다.**
+The report path has already avoided this problem. `PendingReportQueueService` is a two-step
+`FetchPendingReports` (read-only) + `AckPendingReports` (delete after successful send). **Only the log path failed
+to follow this idiom.**
 
-### 근본 원인
+### Root cause
 
-앱 링버퍼 하나가 **성격이 정반대인 두 일**을 겸한다.
+A single app ring buffer serves **two jobs with opposite natures.**
 
-|                   | 필요한 성질                                         |
-| ----------------- | --------------------------------------------------- |
-| 크래시 브레드크럼 | 전 레벨 보존 · 읽어도 안 지움 · `debug`가 가치 있음 |
-| 서버 전송 대기줄  | 보내면 지움 · `debug`는 안 보냄                     |
+|                       | Required properties                                           |
+| --------------------- | ------------------------------------------------------------- |
+| Crash breadcrumb      | Keep all levels · never erased by reading · `debug` has value |
+| Server transmit queue | Erase once sent · never send `debug`                          |
 
-한 통에 넣으면 반드시 한쪽이 다른 쪽을 망친다. 세 결함 전부가 이 하나에서 파생한다.
+Put both in one container and one of them will always corrupt the other. All three defects trace back to this one
+thing.
 
-### 재사용 가능한 기존 자산
+### Reusable existing assets
 
-- `createLogUploadQueue`·`createLogUploadScheduler`([libs/logger](../../libs/logger/src/upload/LogUploadQueue.ts)) — 현재 `apps/web` 단독 사용. 모바일은 전 히스토리에서 한 번도 쓰지 않았다.
-- `LogSource` 포트([types.ts](../../libs/logger/src/core/types.ts)) + ADR-0047 §4의 원칙: **"병합 버퍼의 소유자는 항상 가장 바깥 셸."**
-- `PendingReportQueueService`의 Fetch/Ack 2단계 관용구와 MMKV 영속 패턴.
+- `createLogUploadQueue` · `createLogUploadScheduler` (`libs/logger` — [LogUploadQueue.ts](../../libs/logger/src/upload/LogUploadQueue.ts)) —
+  currently used only by `apps/web`. Mobile has never used it in its entire history.
+- The `LogSource` port ([types.ts](../../libs/logger/src/core/types.ts)) plus the ADR-0047 §4 principle: **"the
+  merged buffer's owner is always the outermost shell."**
+- `PendingReportQueueService`'s Fetch/Ack two-step idiom and its MMKV persistence pattern.
 
-## 결정 (Decision)
+## Decision
 
-### 1. 앱에 전송 전용 큐를 신설하고, 링버퍼는 브레드크럼 전용으로 되돌린다
+### 1. Give the app a dedicated transmit queue, and return the ring buffer to breadcrumb-only
 
-앱은 두 저장소를 갖는다.
+The app gets two stores.
 
-- **링버퍼**(현행 500, 전 레벨) — 브레드크럼 전용. **업로드 경로가 절대 건드리지 않는다.** ADR-0047 §4의 `peek` 전용 규칙이 여기서 회복된다.
-- **전송 큐**(신설, non-debug, MMKV 영속) — 배출 전용. `libs/logger`의 `createLogUploadQueue`를 그대로 쓴다.
+- **Ring buffer** (current, 500 entries, all levels) — breadcrumb only. **The upload path never touches it.** The
+  ADR-0047 §4 peek-only rule is restored here.
+- **Transmit queue** (new, non-debug, MMKV-persisted) — drain only. Reuses `createLogUploadQueue` from
+  `libs/logger` as-is.
 
-이로써 웹이 이미 갖춘 구조(브레드크럼 버퍼 + 전송 큐 분리)와 **대칭**이 된다.
+This makes the app symmetric with the structure the web already has (breadcrumb buffer separated from transmit
+queue).
 
-### 2. 하이브리드에서 웹은 주기적으로 앱에 배치 충전한다 — 건당 릴레이 폐지
+### 2. In hybrid, the web periodically charges the app in batches — per-entry relaying is retired
 
-웹 로그는 웹 큐에 쌓이고, 웹이 **주기적으로 배치 단위로** 앱에 넘긴다(이하 _충전_). 로그 건당 브릿지 메시지 1건이던 것이 주기당 1건이 된다.
+Web logs accumulate in the web queue, and the web hands them to the app **periodically, in batches** (called
+_charge_ below). What used to be one bridge message per log entry becomes one message per period.
 
-앱은 충전 페이로드를 받아 **레벨로 갈라 넣는다.**
+The app receives the charge payload and **splits it by level.**
 
-- 전 레벨 → 링버퍼 (브레드크럼에 웹 로그가 계속 합류 — ADR-0047 §4의 병합 버퍼 유지)
-- non-debug → 전송 큐
+- All levels → ring buffer (web logs keep joining the breadcrumb — the ADR-0047 §4 merged-buffer rule is preserved)
+- non-debug → transmit queue
 
-`debug`를 충전에 포함하는 이유: 배치라 비용이 낮고, 링버퍼가 더는 파괴적으로 비워지지 않으므로 브레드크럼에 안전하게 남는다. HTTP 요청 흐름은 크래시 조사에서 가장 자주 필요한 문맥이다.
+Why `debug` is included in the charge: it's batched so the cost is low, and the ring buffer is no longer drained
+destructively, so it stays safely in the breadcrumb. HTTP request flow is the context crash investigations need
+most often.
 
-### 3. 업로드 소스를 포트로 명세한다 — `LogUploadSource`
+### 3. Specify the upload source as a port — `LogUploadSource`
 
-업로더는 자기가 어디서 가져오는지 몰라야 한다. ADR-0047 §4가 브레드크럼에 대해 세운 원칙을 업로드로 **확장**하는 것이며, 새 원칙이 아니다.
+The uploader must not know where it fetches from. This **extends** the principle ADR-0047 §4 already established
+for the breadcrumb to uploading — it is not a new principle.
 
 ```ts
 interface LogUploadSource {
-    fetch(limit: number): Promise<LogEntry[]>; // 비파괴
-    ack(ids: string[]): Promise<void>; // 전송 성공 후 삭제
+    fetch(limit: number): Promise<LogEntry[]>; // non-destructive
+    ack(ids: string[]): Promise<void>; // delete after successful send
 }
 ```
 
-| 환경                | 소스                          | `ack`의 의미        |
-| ------------------- | ----------------------------- | ------------------- |
-| 하이브리드          | 앱 전송 큐 (브릿지 Fetch/Ack) | 앱 MMKV 큐에서 삭제 |
-| 웹 단독 · 구버전 앱 | 웹 큐 (로컬 래핑)             | 웹 큐에서 `remove`  |
+| Environment           | Source                                | Meaning of `ack`               |
+| --------------------- | ------------------------------------- | ------------------------------ |
+| Hybrid                | App transmit queue (bridge Fetch/Ack) | Delete from the app MMKV queue |
+| Web-only · legacy app | Web queue (local wrapping)            | `remove` from the web queue    |
 
-`isNative()` 분기가 업로더 내부에 흩어지지 않고 **부팅 시 주입 한 곳**으로 모인다 — `setReportLogSource`와 같은 모양이다.
+The `isNative()` branch no longer scatters through the uploader — it collapses into **one injection point at
+boot**, the same shape as `setReportLogSource`.
 
-### 4. 폴은 Fetch/Ack 2단계 — 파괴적 poll 폐지
+### 4. Poll becomes Fetch/Ack in two steps — destructive poll is retired
 
-`fetch`(비파괴) → 서버 전송 → 성공 확인 → `ack(ids)` → 앱 큐에서 삭제. 결함 ③의 전송 유실 구간이 닫힌다. 전송이 실패하면 엔트리는 앱 MMKV에 남아 다음 주기·다음 부팅에 재시도된다.
+`fetch` (non-destructive) → send to server → confirm success → `ack(ids)` → delete from the app queue. This closes
+the transmission-loss window from defect ③. If the send fails, the entry stays in app MMKV and is retried on the
+next period or the next boot.
 
-중복 충전(응답 유실 후 재시도)은 `createLogUploadQueue`의 `pushAll`이 이미 하는 **id 디둡**으로 막힌다. 서버도 id upsert이므로 이중 안전망이다.
+Duplicate charges (retries after a lost response) are already blocked by the id dedup that `pushAll` performs in
+`createLogUploadQueue`. The server also does an id upsert, so this is a double safety net.
 
-### 5. 리듬을 둘로 분리한다
+### 5. Split the rhythm into two
 
-현재 스케줄러는 큐를 동기로 부른다(`nextBatch`·`remove`·`sendableSize` — [LogUploadScheduler.ts](../../libs/logger/src/upload/LogUploadScheduler.ts)). 브릿지는 비동기라 하이브리드에서 앱 큐 크기를 동기로 알 수 없다. 그래서 트리거를 두 리듬으로 나눈다.
+The current scheduler calls the queue synchronously (`nextBatch` · `remove` · `sendableSize` —
+[LogUploadScheduler.ts](../../libs/logger/src/upload/LogUploadScheduler.ts)). The bridge is asynchronous, so in
+hybrid the web cannot synchronously know the app queue's size. So the triggers are split into two rhythms.
 
-| 리듬                     | 트리거                                            | 판단 주체                   |
-| ------------------------ | ------------------------------------------------- | --------------------------- |
-| **충전** (웹 큐 → 앱 큐) | 웹 큐 크기 · 주기 · 백그라운드                    | 웹이 자기 큐를 동기로 본다  |
-| **업로드** (소스 → 서버) | 주기 · 백그라운드 · 충전 응답이 알려준 앱 큐 크기 | 응답에 `size`를 실어 보낸다 |
+| Rhythm                             | Trigger                                                              | Who decides                               |
+| ---------------------------------- | -------------------------------------------------------------------- | ----------------------------------------- |
+| **Charge** (web queue → app queue) | Web queue size · period · background                                 | Web looks at its own queue synchronously  |
+| **Upload** (source → server)       | Period · background · app queue size reported by the charge response | The response carries `size` along with it |
 
-응답에 크기를 싣는 것은 기존 `OnPollAppLogBuffer`·`OnFetchAppLogBuffer`가 이미 하는 방식이다. 웹 단독에서는 충전 대상이 없어 **두 리듬이 자연히 하나로 붕괴**하므로 별도 분기가 필요 없다.
+Carrying size in the response is exactly what `OnPollAppLogBuffer` and `OnFetchAppLogBuffer` already do. In web-only
+mode there is no charge target, so **the two rhythms naturally collapse into one** — no separate branch is needed.
 
-### 6. 큐 수명 — opt-out은 삭제, 로그아웃은 유지
+### 6. Queue lifetime — opt-out deletes, logout keeps
 
-- **opt-out**(수집 거부): 충전을 중단하고 **앱 큐를 삭제**한다. "수집하지 말라"는 의사에 기존 적재분이 남아 나가면 어긋난다.
-- **로그아웃**: 큐를 **유지**한다. 엔트리는 dispatch 시점의 `uid`/`cid`를 스스로 들고 있고(ADR-0047 원칙 9) 서버가 조회 축을 엔트리에서 뽑으므로, 다음 사람이 로그인해도 계정이 섞이지 않는다. 한 기기에서 계정을 바꾸는 것은 이 앱에서 평범하며, 지우면 세션 문제가 남긴 바로 그 엔트리를 잃는다(커밋 `90ce5f7e`의 논리를 앱 큐로 계승).
+- **Opt-out** (declining collection): stop charging and **delete the app queue**. Leaving existing accumulated
+  entries to go out would contradict the intent to stop collecting.
+- **Logout**: **keep** the queue. Entries carry their own `uid`/`cid` from the moment they were dispatched (ADR-0047
+  principle 9), and the server derives its query axes from the entry itself, so a subsequent login on the same
+  device does not mix accounts. Switching accounts on one device is ordinary for this app, and deleting the queue
+  would lose exactly the entries left behind by a session problem (carrying forward the reasoning of commit
+  `90ce5f7e` into the app queue).
 
-### 7. 호환성 — 구버전 앱은 웹 단독과 같은 경로
+### 7. Compatibility — legacy apps take the same path as web-only
 
-충전·Fetch/Ack는 신규 브릿지 메시지다. 구버전 앱은 `NOT_FOUND`를 돌려주므로, 웹은 **런타임 capability 확인**으로 웹 큐 직송으로 내려간다. `isNative()` 만으로 판단하지 않는다 — 웹이 앱보다 먼저 배포되기 때문이다.
+Charge and Fetch/Ack are new bridge messages. A legacy app returns `NOT_FOUND`, so the web **checks the runtime
+capability** and falls back to sending straight to the web queue. This is not decided by `isNative()` alone — the
+web deploys before the app.
 
-이 폴백은 **웹이 앱에 종속되지 않게 하는 장치**이기도 하다. 앱 경로가 막혔을 때 웹 로그까지 멈추는 것은 현행 대비 후퇴이므로 허용하지 않는다.
+This fallback is also **what keeps the web from depending on the app.** If the app path is blocked, halting web logs
+too would be a regression from the current state, and that is not acceptable.
 
-### 범위 제외
+### Out of scope
 
-- **순서보장** — 충전이 주기적이라 웹 엔트리는 자기 발생 시각보다 늦게 앱 큐에 들어간다. 서버 저장은 엔트리가 `timestamp`를 들고 있어 거의 무해하지만, **브레드크럼 인터리빙**은 어긋난다. 후속 논의.
-- **용량 수치·주기 값** — 앱 큐 상한, 충전 주기, MMKV 직렬화 예산은 스펙 단계에서 정한다.
-- **서버 계약** — `POST /hello/report-bulk`는 이미 배포됐고 이 결정으로 바뀌지 않는다.
-- **네이티브 코드 컴파일 검증** — ADR-0047 트랙에서 미검증으로 남은 항목이며 여기서도 해소하지 않는다.
+- **Ordering guarantees** — because charging is periodic, web entries land in the app queue later than their actual
+  occurrence time. Server storage is nearly unaffected since entries carry their own `timestamp`, but **breadcrumb
+  interleaving** is off. Follow-up discussion.
+- **Capacity numbers and period values** — the app queue's cap, the charge period, and the MMKV serialization
+  budget are set at the spec stage.
+- **Server contract** — `POST /hello/report-bulk` is already deployed and unaffected by this decision.
+- **Native code compile verification** — this remains unverified from the ADR-0047 track and is not resolved here
+  either.
 
-## 대안 (Alternatives)
+## Alternatives
 
-- **(a) 파괴적 poll에 레벨 필터만 추가** — 최소 변경으로 결함 ①의 `debug` 소멸만 막는다. ②(축출)와 ③(전송 유실)이 그대로 남고, 두 일을 한 버퍼가 겸하는 근본 구조도 유지된다. 기각.
-- **(b) 웹 `debug` 릴레이 영구 차단** — 웹 전용 배포로 ②를 즉시 해소한다. 그러나 하이브리드 브레드크럼에서 웹 `debug`(=HTTP 요청 흐름)를 영구 포기한다. **응급처치로만 채택** — 아래 "선행 조치" 참조.
-- **(c) 릴레이 폐지 + 리포트 시점 병합** — 브릿지 로그 트래픽이 0이 되어 가장 싸다. 그러나 하이브리드의 병합 버퍼가 사라져 ADR-0047 §4의 "가장 바깥 셸이 소유" 원칙과 충돌하고, 네이티브 크래시 리포트가 웹 문맥을 잃는다. 기각.
-- **(d) 앱이 직접 서버로 전송** — 서명 토큰은 WebView 안의 웹 세션만 발급·보유하므로 성립하지 않는다(ADR-0047 §8과 동일한 제약).
-- **(e) 웹은 직송, 네이티브만 앱 큐 경유** — 큐가 둘로 남아 디둡·순서·용량을 두 곳에서 관리해야 하고, 웹 로그가 MMKV 내구성을 얻지 못한다(WebView가 죽으면 debounce 구간 유실). 기각.
+- **(a) Add only a level filter to the destructive poll** — the minimal change, blocking only the `debug` loss of
+  defect ①. ② (eviction) and ③ (transmission loss) remain, and the underlying structure of one buffer serving two
+  jobs is unchanged. Rejected.
+- **(b) Permanently block web `debug` relaying** — a web-only deploy resolves ② immediately. But it permanently
+  gives up web `debug` (= HTTP request flow) from the hybrid breadcrumb. **Adopted only as an emergency measure** —
+  see "Interim measure" below.
+- **(c) Retire relaying and merge at report time** — cheapest, since bridge log traffic drops to zero. But it
+  removes the hybrid merged buffer, conflicting with the ADR-0047 §4 "outermost shell owns it" principle, and native
+  crash reports lose web context. Rejected.
+- **(d) The app sends straight to the server** — doesn't hold up, since the signed token is issued and held only by
+  the web session inside the WebView (the same constraint as ADR-0047 §8).
+- **(e) Web sends directly, only native goes through the app queue** — leaves two queues, requiring dedup, ordering,
+  and capacity to be managed in two places, and web logs never gain MMKV durability (lost during the debounce window
+  if the WebView dies). Rejected.
 
-### 선행 조치 (이미 적용)
+### Interim measure (already applied)
 
-대안 (b)를 **응급처치로 먼저 적용했다** — [nativeForwarder.ts](../../libs/bridges/src/logger/nativeForwarder.ts)에 `debug` 릴레이 게이트. 웹 전용 변경이라 앱 배포를 기다리지 않고 ②의 출혈을 막는다. 이 결정의 앱 배포가 나가는 시점에 **게이트를 해제**한다(결정 2가 `debug`를 배치로 다시 실어 보낸다).
+Alternative (b) was **already applied as an emergency measure** — a `debug` relay gate in
+[nativeForwarder.ts](../../libs/bridges/src/logger/nativeForwarder.ts). It's a web-only change, so it stops the
+bleeding from ② without waiting for an app deploy. **The gate lifts** once this decision's app deploy goes out
+(decision 2 carries `debug` back in batch form).
 
-## 결과 (Consequences)
+## Consequences
 
-**얻는 것**
+**What is gained**
 
-- ADR-0047 §4의 `peek` 전용 규칙이 회복된다 — 브레드크럼이 업로드에 의해 파괴되지 않는다.
-- 사본 없는 네이티브 발원 로그가 전송 큐에서 분리되어, 링버퍼 축출이 영구 유실을 뜻하지 않는다.
-- 전송 유실 구간이 닫힌다 — 앱이 죽는 순간의 로그가 MMKV에 남아 다음 부팅에 회수된다.
-- 브릿지 로그 트래픽이 로그 건수에 비례하지 않는다(건당 → 주기당).
-- 웹 로그가 MMKV 내구성을 얻는다 — WebView가 죽어도 살아남는다.
-- 웹/네이티브 로그가 한 큐에서 병합되어 한 배치로 나가고, 용량·backpressure를 한 곳에서 관리한다.
-- 업로더가 환경을 모른다 — 하이브리드/단독 분기가 주입 지점 한 곳으로 모인다.
+- The ADR-0047 §4 peek-only rule is restored — the breadcrumb is no longer destroyed by uploading.
+- Native-originated logs with no second copy are separated from the transmit queue, so ring buffer eviction no
+  longer means permanent loss.
+- The transmission-loss window is closed — logs from the moment the app dies stay in MMKV and are recovered on the
+  next boot.
+- Bridge log traffic no longer scales with log count (per-entry → per-period).
+- Web logs gain MMKV durability — they survive a WebView death.
+- Web and native logs merge into one queue and go out as one batch, with capacity and backpressure managed in one
+  place.
+- The uploader doesn't know its environment — the hybrid/standalone branch collapses to one injection point.
 
-**감수하는 것**
+**What is accepted**
 
-- 하이브리드에서 웹 엔트리가 브릿지를 두 번 탄다(충전 상방, 폴 하방). 둘 다 배치라 주기당 2건이며, 건당 1건이던 현행보다 싸다.
-- 스케줄러가 async 소스 기반으로 바뀐다 — 현재 동기 큐 호출 3곳을 고쳐야 하고, `beforeFlush: drainNative` 우회는 제거된다.
-- 신규 브릿지 메시지 2쌍이 늘고, 구버전 앱 폴백 경로를 유지해야 한다.
-- 브레드크럼 인터리빙 순서가 어긋난 채 남는다(범위 제외).
-- 앱 큐가 단일 집결지가 되므로 MMKV 쓰기량·용량 상한 설계가 새 관심사가 된다.
+- In hybrid, web entries cross the bridge twice (charge upward, poll downward). Both are batched, so it's two calls
+  per period — cheaper than the current one call per entry.
+- The scheduler moves to an async source basis — the three current synchronous queue calls need fixing, and the
+  `beforeFlush: drainNative` workaround is removed.
+- Two new pairs of bridge messages are added, and the legacy-app fallback path must be maintained.
+- Breadcrumb interleaving order stays off (out of scope).
+- The app queue becomes a single collection point, so MMKV write volume and capacity cap design become a new
+  concern.
 
-## 관련
+## Related
 
-- 이 트랙의 상세 실행 계획·서버 계약 회신은 리포 밖 knowledge vault 레인(`projects/@lemoncloud-io/dou-app/log-collection`)에 있다. 2026-08-21 기준 그 레인은 vault 브랜치 `feat/2026-08-13-dou-log-collection-lane`에 있고 **아직 머지되지 않았다**. 이 ADR은 그중 클라이언트 구조 결정만 리포로 가져온 것이다.
-- 서버 쪽 정본: vault `projects/@lemoncloud-io/chatic-backend-api/log-batch-ingest`.
+- The detailed execution plan and server contract responses for this track live outside the repo, in the knowledge
+  vault lane (`projects/@lemoncloud-io/dou-app/log-collection`). As of 2026-08-21 that lane is on the vault branch
+  `feat/2026-08-13-dou-log-collection-lane` and **has not been merged.** This ADR brings only the client structure
+  decision from that lane into the repo.
+- Server-side record of truth: vault `projects/@lemoncloud-io/chatic-backend-api/log-batch-ingest`.
+  </content>

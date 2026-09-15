@@ -1,43 +1,76 @@
-# ADR-0033: 앱 업데이트 안내 — 라이브 버전 직접 조회, iOS 우선 적용
+# ADR-0033: App update prompts — query the live version directly, iOS first
 
-> 상태: Accepted · 결정일: 2026-07-29
+> Status: Accepted · Decided: 2026-07-29
 
-## 맥락 (Context)
+## Context
 
-- 앱(WebView 하이브리드)의 현재 버전과 스토어에 실제 게시된(라이브) 버전을 비교해, 웹 화면에서 업데이트 안내 팝업을 노출하고 스토어로 이동시키는 기능이 필요하다.
-- 기존에는 모바일 셸이 iTunes lookup으로 iOS 버전만 확인해 `window.CHATIC_APP_*` 전역 주입 + 네이티브 Alert로 처리했다. 웹이 원하는 시점에 조회할 수단(request/response)이 없고, `shouldUpdate`가 주입 경로에선 문자열, bridge push에선 boolean으로 타입이 불일치했다.
-- 핵심 제약: **심사중(승인 전) 버전을 "업데이트 있음"으로 오탐하면 안 된다.** 사용자가 스토어에 가도 받을 수 없는 버전을 안내하게 되기 때문.
-- Android는 라이브 버전을 조회할 공개 API가 없다 (Play Developer API는 서버 인증 필요).
+- The app (a WebView hybrid) needs to compare its current version with the version actually published
+  (live) in the store, show an update prompt on the web screen, and send the user to the store.
+- Previously the mobile shell checked only the iOS version through an iTunes lookup and handled it with a
+  `window.CHATIC_APP_*` global injection plus a native alert. The web had no way (request/response) to
+  query when it wanted, and `shouldUpdate` was a string on the injection path and a boolean on the bridge
+  push — a type mismatch.
+- The key constraint: **a version in review (not yet approved) must never be reported as "an update is
+  available"**, because the user would be sent to the store for something they cannot get.
+- Android has no public API for the live version (the Play Developer API needs server authentication).
 
-## 결정 (Decision)
+## Decision
 
-1. **버전 소스 = 실제 게시된 라이브 버전만 사용한다.**
-   - iOS: 앱 내에서 iTunes lookup(`https://itunes.apple.com/lookup?bundleId=io.chatic.dou`)으로 조회. 승인·출시된 버전만 반환되므로 self-correcting이며 인증·백엔드가 불필요하다.
-   - Android: 백엔드 엔드포인트(`GET /app-version?platform=android`, 서버가 Play Developer API로 조회)가 유일한 안전한 소스이나, **이번 범위에서 제외**한다.
-2. **범위 = iOS 우선(iOS-first).** Android는 versionService에서 항상 "업데이트 없음"으로 안전 처리한다 (현재도 미지원이므로 회귀 아님). 계약(contract)은 플랫폼 중립으로 설계해 Android 백엔드 연동 시 프론트 계층 변경이 최소화되도록 한다.
-3. **통신 = request/response 추가 + 기존 주입 유지.**
-   - `libs/app-messages`에 `CheckAppUpdate`/`OnCheckAppUpdate`(응답: `{platform, currentVersion, latestVersion, updateAvailable, storeUrl, forceUpdate?}`), `OpenStore`/`OnOpenStore` 계약 추가.
-   - 웹이 `appBridge.checkAppUpdate()`로 on-demand 조회, 네이티브가 결과 반환. `updateAvailable`을 boolean으로 반환해 기존 문자열 주입의 타입 불일치를 해소한다.
-   - 기존 `window.CHATIC_APP_*` 전역 주입은 첫 렌더용으로 유지.
-4. **모바일 로직 = 서비스로 추출.** 기존 `useAppVersionCheck` 훅 로직을 `apps/mobile/src/app/services/version`(기존 서비스 패턴: types/클래스/provider 싱글턴)으로 이관하고, 훅·주입·알림·브리지 핸들러는 서비스의 소비자가 된다.
-5. **팝업 = 선택형 업데이트 안내.** 버전당 1회 노출(persist, `usePreferenceStore`에 `dismissedUpdateVersion` 추가), 강제 업데이트 아님. `forceUpdate` 필드만 계약에 예약해 둔다.
+1. **The version source is the actually published live version, and nothing else.**
+    - iOS: queried in-app through an iTunes lookup
+      (`https://itunes.apple.com/lookup?bundleId=io.chatic.dou`). It returns only approved, released
+      versions, so it is self-correcting and needs no authentication or backend.
+    - Android: a backend endpoint (`GET /app-version?platform=android`, with the server querying the Play
+      Developer API) is the only safe source, and it is **out of scope this round**.
+2. **Scope = iOS first.** Android is handled safely in versionService by always reporting "no update"
+   (it is unsupported today, so this is not a regression). The contract is designed platform-neutral, so
+   wiring Android to the backend later changes as little of the front end as possible.
+3. **Communication = add request/response, keep the existing injection.**
+    - Add the `CheckAppUpdate` / `OnCheckAppUpdate` contract (response:
+      `{platform, currentVersion, latestVersion, updateAvailable, storeUrl, forceUpdate?}`) and
+      `OpenStore` / `OnOpenStore` to `libs/app-messages`.
+    - The web queries on demand with `appBridge.checkAppUpdate()` and native returns the result.
+      `updateAvailable` is returned as a boolean, resolving the type mismatch of the old string injection.
+    - The existing `window.CHATIC_APP_*` global injection stays, for the first render.
+4. **The mobile logic becomes a service.** Move the logic of the existing `useAppVersionCheck` hook into
+   `apps/mobile/src/app/services/version` (the existing service pattern: types, a class, a provider
+   singleton), leaving the hook, the injection, the alert and the bridge handler as consumers of that
+   service.
+5. **The prompt is an optional update notice.** Shown once per version (persisted by adding
+   `dismissedUpdateVersion` to `usePreferenceStore`), not a forced update. Only the `forceUpdate` field is
+   reserved in the contract.
 
-**포함:** app-messages 계약, versionService(iOS iTunes 조회 + 비교 + 스토어 오픈), 기존 훅/주입 리팩터, WebView 브리지 핸들러, 웹 appBridge 확장, 웹 업데이트 안내 팝업, MyPage 스토어 이동 정리.
+**In scope:** the app-messages contract, versionService (the iOS iTunes lookup, the comparison, opening
+the store), refactoring the existing hook and injection, the WebView bridge handler, extending the web
+appBridge, the web update prompt, and tidying the store link on MyPage.
 
-**제외(후속 작업):** Android 라이브 버전 조회(백엔드 `GET /app-version` 준비 후 연동), 강제 업데이트 UI, What's New 표시, 네이티브 앱 레포 쪽 `registerHandler` 배선(이 repo 밖 — 별도 확인 필요).
+**Out of scope (follow-up):** querying the Android live version (once the backend `GET /app-version` is
+ready), a forced-update UI, a What's New view, and the `registerHandler` wiring in the native app repo
+(outside this repo — it needs checking separately).
 
-## 대안 (Alternatives)
+## Alternatives
 
-- **Firebase Remote Config로 최신 버전 배포** — 폐기. 콘솔/CI에서 버전 bump 시점에 수동 발행하면 심사중 버전을 라이브로 오탐하는 창이 생기고, 라이브 버전 직접 조회로 대체 가능해지자 RC·신규 네이티브 의존성·네이티브 리빌드·발행 스크립트가 전부 불필요해졌다.
-- **웹에서 직접 iTunes lookup 호출** — 폐기. 버전 판단 책임이 네이티브 셸에 있고(현재 버전도 DeviceInfo로 네이티브만 안다), 브라우저 CORS 제약도 있다.
-- **주입 전역(`CHATIC_APP_*`)만으로 처리** — 폐기. 첫 렌더 이후(foreground 복귀 등) 재조회가 불가능하고, 문자열/boolean 타입 불일치를 고착시킨다.
-- **Android도 이번에 포함** — 보류. 백엔드 엔드포인트가 선행되어야 하며, 준비 전까지는 어떤 프론트 구현도 오탐 위험만 만든다.
+- **Publish the latest version through Firebase Remote Config** — dropped. Publishing by hand from the
+  console or CI when the version bumps opens a window where a version in review is reported as live, and
+  once querying the live version directly became possible, Remote Config, a new native dependency, a
+  native rebuild and the publishing script were all unnecessary.
+- **Call the iTunes lookup from the web directly** — dropped. Deciding the version is the native shell's
+  responsibility (it is the only side that knows the current version, through DeviceInfo), and the browser
+  has CORS limits.
+- **Handle it with the injected globals (`CHATIC_APP_*`) alone** — dropped. It cannot re-query after the
+  first render (on returning to the foreground, say), and it cements the string/boolean type mismatch.
+- **Include Android in this round** — held. The backend endpoint has to come first, and until it exists
+  any front-end implementation only creates the risk of a false positive.
 
-## 결과 (Consequences)
+## Consequences
 
-- **얻는 것:** 심사중 오탐이 구조적으로 불가능(라이브 버전만 조회). iOS는 백엔드·인증 없이 동작. 웹이 원하는 시점(ready/foreground)에 조회 가능. 버전 로직이 서비스로 모여 테스트 가능해짐.
-- **감수하는 것:**
-  - Android 사용자는 백엔드 연동 전까지 업데이트 안내를 받지 못한다 (기존과 동일).
-  - iTunes lookup은 CDN 캐시로 출시 직후 수 시간 지연될 수 있다 — 선택형 안내이므로 허용.
-  - 네이티브 앱 레포의 브리지 핸들러 등록은 이 repo 밖 작업으로 남는다.
-- Android 연동 시: versionService의 `getLatestVersion('android')`만 백엔드 fetch로 교체하면 되고, 계약·웹 팝업·스토어 이동은 그대로 재사용된다.
+- **What is gained:** a false positive for a version in review is structurally impossible (only the live
+  version is queried). iOS works with no backend and no authentication. The web can query when it wants
+  (on ready, on foreground). The version logic gathers into a service and becomes testable.
+- **What is accepted:**
+    - Android users get no update prompt until the backend is wired up (the same as today).
+    - The iTunes lookup can lag by a few hours after a release because of CDN caching — acceptable for an
+      optional notice.
+    - Registering the bridge handler in the native app repo remains work outside this repo.
+- When Android is wired up: only versionService's `getLatestVersion('android')` has to become a backend
+  fetch, and the contract, the web prompt and the store link are reused unchanged.

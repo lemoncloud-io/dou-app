@@ -1,172 +1,268 @@
-# ADR-0077: 푸시 디바이스 등록(`reg-dev`)을 설치당 1회로 제한하고 모바일·데스크톱 구현을 하나로 합친다
+# ADR-0077: Cap push device registration (`reg-dev`) at once per install, and merge the mobile and desktop implementations into one
 
-> 상태: Accepted · 결정일: 2026-09-08
+> Status: Accepted · Decided: 2026-09-08
 
-## 맥락 (Context)
+## Context
 
-중계서버의 디바이스 토큰 등록 API(`POST {relay}/users/0/reg-dev`)가 **같은 유저·같은 디바이스에서 반복 호출**되고 있다. 이 API는 호출될 때마다 DoU의 chatic 채널로 알림을 발송하므로, 중복 호출이 그대로 알림 노이즈로 드러났다.
+The relay's device-token registration API (`POST {relay}/users/0/reg-dev`) is being called
+**repeatedly for the same user, same device.** This API sends a notification to DoU's chatic
+channel every time it's called, so the duplicate calls have shown up directly as notification
+noise.
 
-### 현재 호출 구조
+### Current call structure
 
-등록 정책은 `libs/app-runtime/src/push/hooks/useDeviceTokenRegistration.ts`에 있고, 앱(`apps/web`)은 FCM 토큰 fetch와 platform 값만 델리게이트로 주입한다. 트리거가 두 개다.
+The registration policy lives in
+`libs/app-runtime/src/push/hooks/useDeviceTokenRegistration.ts`, and the app (`apps/web`) only
+injects the FCM token fetch and the platform value as a delegate. There are two triggers.
 
-1. **인증 성립 시** (`isAuthenticated` → true): `floor.reset()` 후 무조건 1회 — 부팅마다 최소 1회
-2. **포그라운드 복귀 시** (`focus` + `visibilitychange`): 60초 스로틀만 걸고 재호출
+1. **On authentication** (`isAuthenticated` → true): unconditionally once after `floor.reset()` —
+   at least once per boot
+2. **On foreground return** (`focus` + `visibilitychange`): re-fires with only a 60-second throttle
 
-그리고 항상 `force: true`로 보낸다.
+And it always sends `force: true`.
 
-### 반복 호출은 사고 대응으로 의도된 동작이었다
+### The repeated calls were an intentional incident response
 
-토큰 값이 같으면 등록을 건너뛰는 dedup은 과거에 **의도적으로 제거**됐고, 그 근거가 코드 세 곳에 남아 있다 (`session/store/identityStore.ts`, `apps/desktop-web`의 훅 주석).
+Dedup by matching token values was **deliberately removed** in the past, and the reasoning survives
+in three places in the code (`session/store/identityStore.ts`, a hook comment in
+`apps/desktop-web`).
 
-> SNS는 배달 1회 실패로 platform endpoint를 disable시키고, `CreatePlatformEndpoint`는 죽은 endpoint를 되살리지 못한다. 토큰 일치 dedup을 하면 그 기기는 재설치 전까지 영구히 푸시를 못 받는다.
+> SNS disables a platform endpoint after a single delivery failure, and `CreatePlatformEndpoint`
+> cannot revive a dead endpoint. Dedup by token match would leave that device permanently unable to
+> receive push until reinstall.
 
-즉 "focus마다 force 재등록"은 죽은 endpoint를 되살리는 유일한 클라이언트 측 복구 경로다.
+In other words, "force re-register on every focus" is the only client-side recovery path for
+reviving a dead endpoint.
 
-### 중복의 진짜 발생원
+### The real source of the duplication
 
-- 60초 스로틀이 **in-memory**라서 앱 재시작마다 리셋된다 → 부팅 반복은 전혀 막지 못한다.
-- 포그라운드 복귀 경로는 상한이 없다 → 하루에 앱을 여러 번 여닫는 유저가 호출량의 다수를 만든다.
+- The 60-second throttle is **in-memory**, so it resets on every app restart → repeated boots are
+  not throttled at all.
+- The foreground-return path has no cap → users who open and close the app many times a day
+  produce most of the call volume.
 
-따라서 "부팅 시 호출"만 손대는 개선은 실효가 작다.
+So an improvement that only touches "the call on boot" has little real effect.
 
-### 구현이 두 벌이다
+### The implementation is duplicated
 
-- `libs/app-runtime` 훅 — 모바일(`apps/web`)이 사용
-- `apps/desktop-web/src/app/shared/hooks/useDeviceTokenRegistration.ts` — 런타임 훅을 쓰지 않고 자체 구현. 같은 문제를 그대로 갖고 있다.
+- `libs/app-runtime`'s hook — used by mobile (`apps/web`)
+- `apps/desktop-web/src/app/shared/hooks/useDeviceTokenRegistration.ts` — its own implementation
+  that doesn't use the runtime hook, and carries the same problem as-is
 
-데스크톱 훅에는 런타임 훅에 **없는 필드**가 있다.
+The desktop hook has a field **missing from the runtime hook**.
 
 ```ts
 stage: window.CHATIC_APP_STAGE,
-// 없으면 브로커가 자기 기본값('dev')을 써서
-// 프로덕션 데스크톱이 chatic-desktop-dev SNS 앱에 등록된다
+// If omitted, the broker falls back to its own default ('dev'),
+// registering production desktop against the chatic-desktop-dev SNS app
 ```
 
-`DeviceTokenDelegate`에는 `stage`가 아예 없다.
+`DeviceTokenDelegate` has no `stage` field at all.
 
-### 제약
+### Constraints
 
-- **중계서버(relay/pushes-api)는 이번 범위에서 수정할 수 없다.** 알림 발송 조건을 "상태가 실제로 바뀐 등록"으로 좁히는 서버 측 대응은 선택지에서 빠진다.
-- 목표는 알림 노이즈 완화가 아니라 **요청 횟수 자체를 1회 수준으로 줄이는 것**이다.
-- 오늘(2026-09-08) 내 배포를 목표로 한다.
-- `apps/desktop-web` 수정 금지 원칙([[no-touch-desktop-web]], ADR-0045)은 **이번 작업에 한해 명시적으로 해제**됐다.
+- **The relay (relay/pushes-api) cannot be modified within this round.** A server-side fix that
+  narrows the notification-send condition to "registration whose state actually changed" is off
+  the table.
+- The goal isn't softening the notification noise — it's **cutting the call count itself down to
+  about once.**
+- The target is to ship today (2026-09-08).
+- The `apps/desktop-web` no-modification rule ([[no-touch-desktop-web]], ADR-0045) is **explicitly
+  waived for this work only.**
 
-### 저장소 사실
+### Storage facts
 
-`@chatic/shared`의 `storage`는 기본이 `sessionStorage`지만, 네이티브 셸(RN WebView / Electron) 안에서는 `libs/web-config/src/env.ts`가 `localStorage`로 교체한다. 등록 훅이 도는 조건(델리게이트 non-null ⟺ 네이티브 셸)과 범위가 정확히 일치한다.
+`@chatic/shared`'s `storage` defaults to `sessionStorage`, but inside a native shell (RN WebView /
+Electron), `libs/web-config`'s `env.ts` (`libs/web-config/src/env.ts`) swaps it for `localStorage`.
+The condition under which the registration hook runs (delegate non-null ⟺ native shell) matches
+that scope exactly.
 
-다만 WebView의 localStorage는 앱의 캐시 삭제나 저장소 압박으로 사라진다. 기록이 사라지면 "미등록"으로 읽혀 재등록이 일어나므로 기능은 안전하지만, 호출 감축 목표는 그만큼 새는 셈이다. 모바일에는 이미 `blurLastMessage`가 같은 이유("survives webview cache clears")로 네이티브에 저장되는 선례가 있고, 그 경로는 `SavePreference` 브릿지와 `PreferenceKey` 화이트리스트(`apps/mobile/.../usePreferenceCacheHandler.ts`)로 통제된다.
+However, a WebView's localStorage can be wiped by the app's cache clear or storage pressure. If the
+record disappears, it reads as "not registered" and triggers re-registration, so the feature stays
+safe, but the call-reduction goal leaks by that much. Mobile already has a precedent —
+`blurLastMessage` is stored natively for the same reason ("survives webview cache clears"), and
+that path is controlled through the `SavePreference` bridge and the `PreferenceKey` whitelist
+(`apps/mobile/.../usePreferenceCacheHandler.ts`).
 
-## 결정 (Decision)
+## Decision
 
-### 1. 등록 상한을 "설치당 1회"로 한다
+### 1. Cap registration at "once per install"
 
-등록이 성공하면 그 사실을 영구 저장소에 기록하고, 기록이 유효한 동안에는 `reg-dev`를 호출하지 않는다.
+Once registration succeeds, record that fact in persistent storage, and skip calling `reg-dev`
+while the record is valid.
 
-### 2. 기록 키
+### 2. Record key
 
 ```
 push-reg:v1:<uid>:<deviceId>:<platform>
 ```
 
-- 저장 값에 **등록에 성공한 토큰**을 함께 담는다.
-- 키가 다르거나(계정 전환·기기 식별자 변경·platform 변경) 저장된 토큰이 현재 토큰과 다르면(토큰 로테이션) **기록을 무시하고 즉시 등록**한다. dedup은 "스킵"이 아니라 "변경 없음일 때만 스킵"이다.
-- 키의 `v1`은 **정책 버전**이다. 나중에 `v2`로 올리는 것만으로 전 기기가 1회 강제 재등록된다 — 추가 인프라 없이 확보되는 재등록 브로드캐스트 수단이다.
-- 키는 `@`로 시작하지 않게 한다. `?logout=1` 정리 루틴이 `@` 접두 키를 지우기 때문이다(지워져도 uid가 키에 있어 동작은 안전하지만, 불필요한 재등록을 만들지 않는다).
+- The stored value also carries **the token that succeeded at registration.**
+- If the key differs (account switch, device identifier change, platform change) or the stored
+  token differs from the current one (token rotation), **the record is ignored and registration
+  happens immediately.** Dedup means "skip only when nothing changed," not "skip."
+- The `v1` in the key is a **policy version.** Bumping it to `v2` later forces every device to
+  re-register once — a re-registration broadcast mechanism that costs no extra infrastructure.
+- The key doesn't start with `@`. The `?logout=1` cleanup routine deletes `@`-prefixed keys (even
+  if deleted, the uid is embedded in the key so behavior stays safe, but this avoids an unnecessary
+  re-registration).
 
-### 2-1. 모바일은 네이티브에도 미러링한다
+### 2-1. Mobile also mirrors the record natively
 
-WebView 캐시 삭제를 견디도록, 모바일에서는 같은 기록을 네이티브 `pushRegistration` preference에도 쓴다. 두 계층의 역할이 다르다.
+To survive a WebView cache clear, mobile also writes the same record to the native
+`pushRegistration` preference. The two layers play different roles.
 
-- **웹 계층(localStorage)** — 동기. 포그라운드 복귀 경로가 브릿지 왕복 없이 판단할 수 있게 하는 것이 존재 이유다.
-- **네이티브 계층(MMKV)** — 비동기. 마운트 후 1회 hydrate해 메모리에 올리고, 웹 계층이 비어 있는데 네이티브가 답할 수 있으면 웹 계층을 백필한다.
+- **Web layer (localStorage)** — synchronous. Its reason for existing is letting the
+  foreground-return path decide without a bridge round trip.
+- **Native layer (MMKV)** — asynchronous. Hydrated into memory once after mount, and it backfills
+  the web layer whenever the web layer is empty but native can answer.
 
-미러는 `DeviceTokenDelegate.nativeRecordMirror`로 주입한다 — 브릿지 지식은 앱이 갖고 런타임은 모른다는 기존 역전을 그대로 따른다. 데스크톱은 Preference 브릿지가 없으므로(main 핸들러 4개뿐) 미러 없이 웹 계층만 쓴다.
+The mirror is injected via `DeviceTokenDelegate.nativeRecordMirror` — following the existing
+inversion where the app owns bridge knowledge and the runtime doesn't. Desktop has no Preference
+bridge (only 4 main handlers), so it uses the web layer only, with no mirror.
 
-**웹이 앱보다 먼저 배포되므로, 릴리스 직후에는 미러가 동작하지 않는 것이 정상이다.** 구버전 앱은 화이트리스트에 키가 없어 쓰기를 `PREF_KEY_NOT_WRITABLE`로 거부하고, 읽기는 화이트리스트가 없어 빈 값을 돌려준다. 두 경우 모두 웹 계층만으로 미러 이전과 똑같이 동작한다 — 새 앱이 깔린 기기부터 내구성이 올라간다.
+**Since web deploys before the app, it's expected behavior for the mirror not to work right after a
+release.** An older app has no key in its whitelist, so a write is rejected with
+`PREF_KEY_NOT_WRITABLE`, and a read returns empty since there's no whitelist entry. In both cases,
+behavior stays identical to before the mirror existed, using the web layer alone — durability only
+improves on devices that have picked up the new app.
 
-화이트리스트 확장은 보안 경계 변경이다. 기존 잠금은 `debugSettings`가 `webviewBaseUrlOverride`를 들고 있어 웹에서 쓰게 두면 다음 실행의 WebView origin을 탈취당할 수 있기 때문인데, `pushRegistration`은 네이티브가 읽지도 해석하지도 않는 불투명한 JSON이라 그 표면을 넓히지 않는다.
+Extending the whitelist is a security-boundary change. The existing lock exists because
+`debugSettings` carries `webviewBaseUrlOverride`, and letting web write it could hijack the next
+run's WebView origin — but `pushRegistration` is opaque JSON that native neither reads nor
+interprets, so it doesn't widen that surface.
 
-### 3. 트리거별 동작
+### 3. Behavior per trigger
 
-- **인증 성립(부팅/로그인) 경로**: 항상 셸에서 토큰을 fetch한다(로컬 브릿지 호출이라 저렴) → 키와 토큰을 비교 → 다를 때만 등록. 토큰 로테이션은 다음 부팅에 잡힌다.
-- **포그라운드 복귀 경로**: 현재 uid·deviceId·platform에 대한 **성공 기록이 이미 있으면 토큰 fetch도 하지 않고 즉시 종료**한다. 기록이 없을 때만(= 첫 등록이 아직 성공하지 못한 상태) 기존대로 동작한다.
+- **Authentication (boot/login) path**: always fetch the token from the shell (a cheap local bridge
+  call) → compare against the key and token → register only if different. Token rotation is caught
+  on the next boot.
+- **Foreground-return path**: if a **success record already exists** for the current
+  uid/deviceId/platform, **exit immediately without even fetching the token.** Only when there's no
+  record (= the first registration hasn't succeeded yet) does it behave as before.
 
-복귀 경로 리스너를 제거하지 않고 남기는 이유는, "권한을 나중에 허용한 유저"의 첫 등록을 재시도하는 유일한 경로이기 때문이다. 성공 후에는 사실상 no-op이 된다.
+The return-path listener stays rather than being removed, because it's the only path that retries
+first registration for "a user who granted permission later." After success it's effectively a
+no-op.
 
-### 4. 실패는 기록하지 않는다
+### 4. Failure is not recorded
 
-등록이 실패하거나 토큰이 비어 있으면 기록을 쓰지 않는다. 다음 트리거에서 즉시 재시도된다. 기존의 실패 시 스로틀 리셋 동작은 유지한다.
+If registration fails or the token is empty, no record is written. It retries immediately on the
+next trigger. The existing throttle-reset-on-failure behavior is kept.
 
-### 5. `force: true`는 유지한다
+### 5. `force: true` stays
 
-호출 횟수는 줄이되, 실제로 호출할 때는 여전히 SNS endpoint를 재생성·재활성화하도록 강제한다.
+While the call count drops, whenever it does call, it still forces the SNS endpoint to be recreated
+and reactivated.
 
-### 6. 두 벌의 구현을 하나로 합친다
+### 6. Merge the two implementations into one
 
-`apps/desktop-web`의 자체 훅을 폐기하고 `libs/app-runtime`의 훅을 사용하도록 통합한다. 통합 시 다음을 반드시 옮긴다.
+Retire `apps/desktop-web`'s own hook and switch it to use `libs/app-runtime`'s hook. During the
+merge, the following must be carried over.
 
-- **`stage`를 `DeviceTokenDelegate`에 추가하고 데스크톱이 `window.CHATIC_APP_STAGE`를 주입**한다. 누락하면 프로덕션 데스크톱이 dev SNS 앱에 등록되어 푸시가 통째로 죽는다.
-- 데스크톱의 토큰 획득은 요청/응답이 아니라 이벤트(`FetchFcmToken` → `OnFetchFcmToken`)다. 이를 `fetchDeviceToken: () => Promise<string | null>` 계약에 맞게 감싸는 어댑터가 데스크톱 앱 쪽에 필요하다.
+- **Add `stage` to `DeviceTokenDelegate`, and have desktop inject `window.CHATIC_APP_STAGE`.**
+  Omitting it means production desktop registers against the dev SNS app, killing push entirely.
+- Desktop's token acquisition is event-based (`FetchFcmToken` → `OnFetchFcmToken`), not
+  request/response. The desktop app side needs an adapter wrapping this to match the
+  `fetchDeviceToken: () => Promise<string | null>` contract.
 
-### 7. 킬스위치는 넣지 않는다
+### 7. No kill switch
 
-원격으로 이 동작을 끄는 수단(웹 상수 재배포, 정적 `flags.json`, 피처 플래그 인프라)은 이번에 만들지 않는다. 되돌리는 수단은 앱/웹 재배포와 정책 버전 키(`v1`→`v2`)다.
+No mechanism to remotely turn this off (redeploying web constants, a static `flags.json`, feature
+flag infrastructure) is built this round. Reverting relies on an app/web redeploy and the policy
+version key (`v1` → `v2`).
 
-### 범위
+### Scope
 
-**포함**
+**In**
 
-- `libs/app-runtime` 등록 훅의 dedup·저장 로직
-- `DeviceTokenDelegate`에 `stage`, `subscribeTokenChange`, `nativeRecordMirror` 추가
-- `apps/web` 델리게이트 조정 + 네이티브 미러 배선
-- `libs/app-messages` `PreferenceKey`에 `pushRegistration` 추가, `apps/mobile` 브릿지 화이트리스트 확장
-- `apps/desktop-web` 훅 폐기 및 런타임 훅으로 통합 (데스크톱 토큰 이벤트 어댑터 포함)
+- The dedup/storage logic in `libs/app-runtime`'s registration hook
+- Adding `stage`, `subscribeTokenChange`, `nativeRecordMirror` to `DeviceTokenDelegate`
+- Adjusting `apps/web`'s delegate + wiring the native mirror
+- Adding `pushRegistration` to `libs/app-messages`'s `PreferenceKey`, extending `apps/mobile`'s
+  bridge whitelist
+- Retiring `apps/desktop-web`'s hook and merging into the runtime hook (including the desktop token
+  event adapter)
 
-**제외**
+**Out**
 
-- 중계서버(relay/pushes-api) 수정 — `reg-dev` 알림 발송 조건, 응답 계약 변경 일체
-- 데스크톱 네이티브 저장 — Electron main에 Preference 핸들러 자체가 없어 신설이 필요하다. 데스크톱은 웹 계층만 쓴다.
-- 피처 플래그 / 원격 킬스위치 인프라
-- 디버그 화면의 수동 재등록 UI 변경 (`usePushRegistration`은 그대로 두며, 기존대로 서버에 직접 등록을 시도하므로 지원 대응용 경로로는 계속 동작한다)
+- Relay (relay/pushes-api) changes — anything about `reg-dev`'s notification-send condition or
+  response contract
+- Native storage on desktop — Electron main has no Preference handler at all; adding one would be
+  new work. Desktop uses only the web layer.
+- Feature flags / remote kill switch infrastructure
+- Changes to the debug screen's manual re-registration UI (`usePushRegistration` is left as-is; it
+  still registers directly against the server as before, so it keeps working as a support-facing
+  path)
 
-## 대안 (Alternatives)
+## Alternatives
 
-**일 1회 상한 (영구 스로틀 24시간)** — 기기당 하루 최대 1회로 제한하되 24시간마다 재등록해 죽은 SNS endpoint를 자동 복구한다. 호출량 목표를 만족하면서 복구 경로를 유일하게 살리는 안이었고 처음 추천했으나, "요청 횟수 자체를 1회 정도로" 라는 목표에 미달한다고 판단해 채택하지 않았다.
+**Once-per-day cap (permanent 24-hour throttle)** — cap at once per device per day, but
+re-register every 24 hours to auto-recover a dead SNS endpoint. This would meet the call-volume
+goal while being the only option that keeps the recovery path fully alive, and was the initial
+recommendation, but was not adopted because it falls short of the goal of "roughly once, period."
 
-**콜드스타트당 1회 (복귀 경로 제거)** — 구현이 가장 단순하지만 호출 상한이 없다. WebView가 OS에 종료되고 재기동되는 횟수까지 세면 하루 수십 회가 나올 수 있어, 문제를 실질적으로 해결하지 못한다.
+**Once per cold start (remove the return path)** — simplest to implement, but has no cap at all. If
+the OS kills and restarts the WebView repeatedly, the count could reach dozens per day, so it
+doesn't actually solve the problem.
 
-**앱/웹 버전 변경 시 1회 재등록** — 저장 키에 버전을 포함시켜 사실상 "배포당 1회"로 만드는 안. 평상시 호출은 0이고 배포 주기마다 죽은 endpoint가 살아나므로 비용 대비 효과가 컸으나, "설치당 1회"를 엄격히 유지하기로 해 제외했다. 정책 버전 키(`v1`)가 수동으로 같은 효과를 낼 수 있는 자리를 남겨둔다.
+**Re-register once on app/web version change** — include the version in the storage key, making it
+effectively "once per release." Ordinary calls become 0, and a dead endpoint gets revived at every
+release cadence, giving a strong cost-benefit ratio, but was excluded to keep strictly to "once per
+install." The policy version key (`v1`) leaves room to achieve the same effect manually.
 
-**서버 측 알림 조건 변경** — `reg-dev`가 매 호출이 아니라 "endpoint 신규 생성 / 토큰 변경 / 재활성화"처럼 상태가 실제로 바뀐 경우에만 chatic 채널로 알리게 하는 안. 알림 노이즈라는 증상에는 가장 정확한 대응이지만, 호출량 자체는 줄지 않고 중계서버 수정이 범위 밖이라 제외했다.
+**Change the server-side notification condition** — have `reg-dev` notify the chatic channel only
+when something actually changed — new endpoint creation, token change, reactivation — rather than
+on every call. The most precise fix for the notification-noise symptom, but doesn't reduce call
+volume itself, and relay modification is out of scope.
 
-**원격 킬스위치 (웹 상수 재배포 / 정적 `flags.json`)** — 웹 번들이 네이티브 앱보다 먼저 배포되므로 웹 상수 하나만으로도 재배포 수준의 원복 수단이 되고, 정적 JSON을 두면 무배포 원복까지 가능하다. 다만 fetch·타임아웃·캐시 TTL이 새 실패면으로 추가되고 당일 배포 목표와 상충해 채택하지 않았다. 후속 작업으로 남긴다.
+**Remote kill switch (redeploy web constants / static `flags.json`)** — since the web bundle
+deploys before the native app, a single web constant already gives a redeploy-level revert
+mechanism, and a static JSON would even allow a no-deploy revert. But it adds fetch, timeout, and
+cache-TTL as new failure surfaces, conflicting with today's ship target, so it was not adopted.
+Left as a follow-up.
 
-**설치당 1회 + 디버그 화면 수동 재등록 버튼** — 지원팀이 개별 사용자를 살려낼 탈출구를 추가하는 안. 별도 UI 작업 없이도 기존 디버그 화면의 등록 확인 기능이 실제 등록 호출을 수행하므로, 새로 만들지 않기로 했다.
+**Once-per-install plus a manual re-register button on the debug screen** — adds an escape hatch
+for support to revive an individual user. Not built, since the existing debug screen's registration
+check already performs a real registration call with no extra UI needed.
 
-## 결과 (Consequences)
+## Consequences
 
-### 얻는 것
+### What is gained
 
-- `reg-dev` 호출이 기기당 사실상 1회로 수렴한다. 부팅 반복·포그라운드 복귀 어느 쪽으로도 새 호출이 발생하지 않는다.
-- chatic 채널 알림 노이즈가 같은 비율로 사라진다.
-- 포그라운드 복귀 시 브릿지 토큰 fetch 왕복도 함께 사라진다(성공 기록이 있는 경우).
-- 등록 로직이 한 벌로 줄어, 데스크톱과 모바일이 같은 정책을 공유한다.
-- 정책 버전 키 덕분에, 전 기기 강제 재등록이 상수 한 글자 변경 + 배포로 가능하다.
+- `reg-dev` calls converge to effectively once per device. Neither repeated boots nor foreground
+  returns produce new calls.
+- Chatic-channel notification noise drops by the same proportion.
+- The bridge token-fetch round trip on foreground return also disappears (when a success record
+  exists).
+- Registration logic drops to one implementation, so desktop and mobile share the same policy.
+- Thanks to the policy version key, forcing every device to re-register is a one-character constant
+  change plus a deploy.
 
-### 감수하는 트레이드오프
+### Trade-offs accepted
 
-- **SNS platform endpoint가 disable되면 그 기기는 스스로 복구하지 못한다.** 재설치, 토큰 로테이션, 계정 전환, 또는 정책 버전 상향 배포 중 하나가 있어야 복구된다. 이는 과거에 dedup을 제거하게 만든 바로 그 실패 모드이며, 이번 결정으로 의식적으로 되돌리는 부분이다. 사용자는 "푸시가 안 온다"는 사실을 신고하지 않는 경향이 있어 침묵 실패가 되기 쉽다.
-- **네이티브 미러는 그 침묵 실패를 조금 더 길게 만든다.** WebView 캐시 삭제는 dark 기기가 우발적으로 되살아나는 몇 안 되는 경로였는데, 미러가 기록을 붙잡고 있으면 그 경로가 사라진다. 호출 감축과 맞바꾼 부분이며, 모바일에만 해당한다(데스크톱은 웹 계층뿐이라 종전대로 캐시 삭제로 복구된다).
-- 원격 킬스위치가 없으므로, 위 실패가 광범위하게 발생하면 원복에 앱/웹 재배포가 필요하다.
-- 토큰 로테이션 감지가 **부팅 시점**으로 미뤄진다. 세션 중간에 토큰이 갱신되면 다음 부팅까지 서버의 토큰이 낡은 상태로 남는다.
-- 데스크톱 훅 통합은 회귀 위험이 있는 변경이다. 특히 `stage` 누락은 프로덕션 데스크톱 푸시를 전면 중단시키므로 배포 전 검증이 필수다.
+- **Once an SNS platform endpoint is disabled, that device cannot recover on its own.** Recovery
+  needs one of: reinstall, token rotation, account switch, or a policy-version-bump deploy. This is
+  the exact failure mode that led to dedup being removed in the past, and this decision
+  consciously reintroduces it. Users tend not to report "push isn't arriving," so this tends to
+  become a silent failure.
+- **The native mirror makes that silent failure last a bit longer.** A WebView cache clear used to
+  be one of the few paths by which a dark device accidentally came back to life; with the mirror
+  holding the record, that path closes. This is traded for the call reduction, and it only applies
+  to mobile (desktop has only the web layer, so it still recovers via cache clear as before).
+- Since there's no remote kill switch, if the above failure occurs broadly, reverting requires an
+  app/web redeploy.
+- Token-rotation detection is pushed to **boot time**. If the token refreshes mid-session, the
+  server keeps a stale token until the next boot.
+- Merging the desktop hook is a change with regression risk. In particular, a missing `stage` would
+  cut off production desktop push entirely, so pre-deploy verification is required.
 
-### 되돌리는 방법
+### How to revert
 
-정책 버전 키를 올리면(`v1` → `v2`) 전 기기가 1회 재등록한다. dedup 자체를 무르려면 저장 조회를 우회하도록 고치고 웹을 재배포한다(웹은 스토어 심사 없이 배포되므로 다음 부팅에 반영된다).
+Bumping the policy version key (`v1` → `v2`) forces every device to re-register once. To undo
+dedup itself, change the code to bypass the storage check and redeploy web (web deploys without app
+store review, so it takes effect on the next boot).
 
-## 다음 단계
+## Next steps
 
-이 ADR을 입력으로 [[dev-2_implement]]의 스펙 작성(Phase A)으로 넘어간다.
+Take this ADR as input into [[dev-2_implement]]'s spec-writing stage (Phase A).

@@ -1,123 +1,208 @@
-# ADR-0071: 메인 시나리오에 성능 예산을 정하고, 지표를 기존 로그 파이프에 `info` 이벤트로 실어 보낸다
+# ADR-0071: Set a performance budget for the main scenarios, and carry metrics as `info` events over the existing log pipe
 
-> 상태: Accepted · 결정일: 2026-08-27
-> 관련: [ADR-0065](./0065-hybrid-performance-trace-profiler.md) (인앱 트레이스 프로파일러 — 원격 수집을 공백으로 남김. **이 ADR과 병행 레인**) · [ADR-0063](./0063-log-upload-source-port-and-native-charge-queue.md) (로그 업로드 파이프·앱 큐) · [ADR-0047](./0047-unified-logging-core-and-report-traceability.md) (로깅 코어·`LogContext`) · [ADR-0050](./0050-redact-report-breadcrumbs.md) (redact) · [ADR-0027](./0027-native-webview-early-mount-boot-optimization.md) (측정 규율·부팅 베이스라인) · [ADR-0057](./0057-home-last-chat-preview-single-query.md) / [ADR-0058](./0058-navigation-churn-grace-and-seeding.md) (수작업 측정으로 잡은 홈 폭주)
+> Status: Accepted · Decided: 2026-08-27
+> Related: [ADR-0065](./0065-hybrid-performance-trace-profiler.md) (in-app trace profiler — leaves remote collection blank. **A parallel lane to this ADR**) · [ADR-0063](./0063-log-upload-source-port-and-native-charge-queue.md) (log upload pipe, native queue) · [ADR-0047](./0047-unified-logging-core-and-report-traceability.md) (logging core, `LogContext`) · [ADR-0050](./0050-redact-report-breadcrumbs.md) (redaction) · [ADR-0027](./0027-native-webview-early-mount-boot-optimization.md) (measurement discipline, boot baseline) · [ADR-0057](./0057-home-last-chat-preview-single-query.md) / [ADR-0058](./0058-navigation-churn-grace-and-seeding.md) (home-screen storm caught by manual measurement)
 
-## 맥락 (Context)
+## Context
 
-### 요구
+### The requirement
 
-메인 시나리오에 **목표치를 세우고 그 달성 여부를 실사용자 데이터로 감시**한다. 요구된 목표는 5개다.
+Set **targets for the main scenarios and watch whether they are met using real-user data.** Five
+targets are required.
 
-- 부팅 → 1.5s · 클라우드 전환(접속) → 1s · 사이트 전환 → 1s
-- 표준 지표: FCP 1.8s · LCP 2.5s · INP 200ms
-- 표준 지표는 항시 측정, 샘플링 후 서버로 전송
+- Boot → 1.5s · cloud switch (connect) → 1s · place switch → 1s
+- Standard metrics: FCP 1.8s · LCP 2.5s · INP 200ms
+- Standard metrics are always measured, sampled, then sent to the server
 
-이 트랙의 산출은 **감시 가능한 상태를 만드는 것**까지다 — 목표 미달을 자동으로 알리거나 릴리스를 막는 게이트는 포함하지 않는다.
+This track's deliverable stops at **making the system observable** — it does not include
+automatically alerting on missed targets or gating releases.
 
-### 이미 있는 것 — 절반은 이미 돌고 있다
+### What already exists — half of this is already running
 
-| 영역           | 현존 자산                                                                                                                                                                                                                            |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 부팅 계측      | [`BootMetricsService`](../../apps/mobile/src/app/services/perf/BootMetricsService.ts) — 네이티브 6마일스톤 + 웹 스냅샷 병합, MMKV 50건. `totalMs` = WebAppReady 수신 시각                                                            |
-| 부팅 지표 전송 | **이미 서버에 간다.** `BootMetricsService.ts:152`가 `logService.info('PERF', 'Boot record persisted (cold, total 1099ms)')`를 남기고, ADR-0063 파이프(앱 charge queue → 웹 Fetch/Ack → `POST /hello/report-bulk`)가 이를 실어 보낸다 |
-| 표준 지표      | [`webVitals.ts`](../../apps/web/src/app/utils/webVitals.ts) — `web-vitals@5.1`로 LCP/FCP/INP/CLS/TTFB를 **이미 수집**. 그러나 `reportVital`로 인메모리 오버레이 스토어에 넣고 DEV 콘솔에 찍을 뿐, **서버로는 한 줄도 나가지 않는다** |
-| 전송 파이프    | `createLogUploadQueue` + `LogUploadScheduler` — 60초 주기·배치 50건·백오프 `[5s, 30s, 120s]`·5회 후 give-up ([uploadPolicy.ts](../../libs/logger/src/upload/uploadPolicy.ts))                                                        |
-| 분석 축        | [`LogContext`](../../libs/logger/src/core/types.ts)가 `runId`·`appVersion`·`webVersion`·`os`·`osVersion`·`model`·`route`·`sid`·`cid`·`uid`를 **모든 엔트리에 자동으로 실어준다**                                                     |
-| 세션 동일성    | 네이티브가 `window.CHATIC_APP_RUN_ID`로 runId를 웹에 주입 ([injectionScripts.ts:92](../../apps/mobile/src/app/webview/utils/injectionScripts.ts:92)) — 웹과 네이티브가 **같은 `runId`를 공유**                                       |
+| Area                  | Existing asset                                                                                                                                                                                                                                                      |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Boot instrumentation  | [`BootMetricsService`](../../apps/mobile/src/app/services/perf/BootMetricsService.ts) — merges 6 native milestones with a web snapshot, 50 entries in MMKV. `totalMs` is the timestamp when `WebAppReady` is received                                               |
+| Boot metric transport | **Already reaches the server.** `BootMetricsService.ts:152` emits `logService.info('PERF', 'Boot record persisted (cold, total 1099ms)')`, and the ADR-0063 pipe (app charge queue → web Fetch/Ack → `POST /hello/report-bulk`) carries it                          |
+| Standard metrics      | [`webVitals.ts`](../../apps/web/src/app/utils/webVitals.ts) — **already collects** LCP/FCP/INP/CLS/TTFB via `web-vitals@5.1`. But `reportVital` only puts them in an in-memory overlay store and logs to the DEV console — **not a single line reaches the server** |
+| Transport pipe        | `createLogUploadQueue` + `LogUploadScheduler` — 60s interval · 50-entry batches · backoff `[5s, 30s, 120s]` · gives up after 5 tries ([uploadPolicy.ts](../../libs/logger/src/upload/uploadPolicy.ts))                                                              |
+| Analysis axes         | [`LogContext`](../../libs/logger/src/core/types.ts) **automatically carries** `runId`, `appVersion`, `webVersion`, `os`, `osVersion`, `model`, `route`, `sid`, `cid`, `uid` on every entry                                                                          |
+| Session identity      | The native shell injects `runId` into the web via `window.CHATIC_APP_RUN_ID` ([injectionScripts.ts:92](../../apps/mobile/src/app/webview/utils/injectionScripts.ts:92)) — web and native **share the same `runId`**                                                 |
 
-### 공백
+### Gaps
 
-1. **숫자가 자유 텍스트 안에 있다.** 부팅 지표는 서버에 도착하지만 `total 1099ms`라는 문장이라, 집계하려면 정규식 파싱을 해야 하고 구간별 마크는 아예 실리지 않는다.
-2. **클라우드 전환·사이트 전환은 계측 자체가 없다.** 목표치 3개 중 2개가 미측정.
-3. **표준 지표는 기기 밖으로 안 나간다.**
-4. **샘플링 개념이 없다.** 지금은 전 세션의 로그가 전량 올라간다.
-5. **목표치의 끝점이 정의된 적 없다.** [boot-metrics.md](../../apps/mobile/docs/boot-metrics.md)가 직접 경고하듯 `totalMs`(v0.19.2 평균 1099ms · 최대 1643ms)와 체감 부팅(평균 1255ms · 최대 2115ms)은 **다른 숫자**다. 어느 쪽으로 재느냐에 따라 1.5s 목표는 여유롭게 통과하거나 아슬아슬하게 걸린다.
+1. **Numbers live inside free text.** The boot metric reaches the server, but as the sentence
+   `total 1099ms`, so aggregation needs regex parsing and per-phase marks aren't carried at all.
+2. **Cloud switch and place switch have no instrumentation at all.** Two of the three scenario
+   targets are unmeasured.
+3. **Standard metrics never leave the device.**
+4. **There is no sampling concept.** Every session's logs are uploaded in full today.
+5. **The endpoints of the targets have never been pinned down.** As
+   [boot-metrics.md](../../apps/mobile/docs/boot-metrics.md) itself warns, `totalMs` (v0.19.2
+   average 1099ms · max 1643ms) and perceived boot (average 1255ms · max 2115ms) are **different
+   numbers**. Depending on which one you measure, the 1.5s target either passes comfortably or
+   barely clears the bar.
 
-### 제약
+### Constraints
 
-- **ADR-0065는 원격 수집을 명시적으로 범위에서 뺐다** — "프로덕션 실사용자 원격 텔레메트리는 이번 범위가 아니다". 0065는 아직 develop 미머지이고 `libs/perf`도 존재하지 않는다.
-- **`LogUploadQueue`의 드롭 우선순위는 `['debug', 'info', 'warn', 'error']`** ([LogUploadQueue.ts:57](../../libs/logger/src/upload/LogUploadQueue.ts:57)). 백프레셔(500건 / 512KB)가 걸리면 `debug` 다음이 `info`다.
-- **웹이 앱보다 먼저 배포된다** — 새 브릿지 메시지는 `NOT_FOUND` 1회 학습 폴백이 필수.
-- **브릿지 송신 경로에서 `logger` 호출 금지** (재귀 실증).
-- `apps/desktop` · `apps/desktop-web`도 `libs/logger`·`libs/web-core`를 공유한다 — 가만히 두면 수집이 번진다.
-- 클라우드 전환은 **사이트 전환을 유발한다** — `useSwitchPlace`가 활성 사이트가 비면 첫 사이트를 자동 선택한다 ([useSwitchPlace.ts:31](../../apps/web/src/app/features/home/hooks/useSwitchPlace.ts:31)). 두 구간은 실행 시간이 겹친다.
+- **ADR-0065 explicitly excludes remote collection** — "production real-user remote telemetry is
+  out of scope for this round." 0065 is not yet merged into develop, and `libs/perf` does not exist
+  yet.
+- **`LogUploadQueue`'s drop priority is `['debug', 'info', 'warn', 'error']`**
+  ([LogUploadQueue.ts:57](../../libs/logger/src/upload/LogUploadQueue.ts:57)). Under backpressure
+  (500 entries / 512KB), `info` is the second tier dropped after `debug`.
+- **Web deploys before the app** — any new bridge message needs a one-time `NOT_FOUND` learned
+  fallback.
+- **No `logger` calls on the bridge send path** (recursion has been proven in practice).
+- `apps/desktop` and `apps/desktop-web` also share `libs/logger` and `libs/web-core` — left alone,
+  collection spreads to them.
+- Cloud switch **triggers a place switch** — `useSwitchPlace` auto-selects the first place when
+  the active place is empty ([useSwitchPlace.ts:31](../../apps/web/src/app/features/home/hooks/useSwitchPlace.ts:31)).
+  The two phases overlap in execution time.
 
-## 결정 (Decision)
+## Decision
 
-### 1. 성능 예산 — 끝점과 판정 통계를 못박는다
+### 1. Performance budget — pin down endpoints and the statistic used to judge them
 
-| 지표              | 시작                                          | 끝                                               | 목표           | 판정                       |
-| ----------------- | --------------------------------------------- | ------------------------------------------------ | -------------- | -------------------------- |
-| **부팅**          | 네이티브 baseline (provider 생성 ≈ JS 엔트리) | `WebAppReady` 수신 = 현행 `totalMs`              | **1.5s**       | p95                        |
-| **클라우드 전환** | 클라우드 선택 입력                            | `switchCloudSession` 뮤테이션 resolve            | **1s**         | p95                        |
-| **사이트 전환**   | 사이트 선택 입력                              | `switchSite`(SDK `auth.switch`) 뮤테이션 resolve | **1s**         | p95                        |
-| **FCP**           | `timeOrigin`                                  | `web-vitals` `onFCP`                             | **1.8s**       | p75                        |
-| **LCP**           | `timeOrigin`                                  | `web-vitals` `onLCP`                             | **2.5s**       | p75                        |
-| INP               | —                                             | —                                                | (200ms 참고치) | **전송 제외**, 로컬 관측만 |
+| Metric           | Start                                          | End                                                | Target                 | Statistic                                           |
+| ---------------- | ---------------------------------------------- | -------------------------------------------------- | ---------------------- | --------------------------------------------------- |
+| **Boot**         | Native baseline (provider creation ≈ JS entry) | `WebAppReady` received = current `totalMs`         | **1.5s**               | p95                                                 |
+| **Cloud switch** | Cloud selection input                          | `switchCloudSession` mutation resolves             | **1s**                 | p95                                                 |
+| **Place switch** | Place selection input                          | `switchSite` (SDK `auth.switch`) mutation resolves | **1s**                 | p95                                                 |
+| **FCP**          | `timeOrigin`                                   | `web-vitals` `onFCP`                               | **1.8s**               | p75                                                 |
+| **LCP**          | `timeOrigin`                                   | `web-vitals` `onLCP`                               | **2.5s**               | p75                                                 |
+| INP              | —                                              | —                                                  | (200ms reference only) | **Excluded from transport**, local observation only |
 
-- **부팅은 현행 `totalMs`를 쓴다.** 이미 계측돼 있어 오늘부터 감시가 가능하고, 정의가 안정적이라 버전 간 비교가 성립한다. 대신 **`totalMs`는 체감 부팅이 아니다** — React 렌더 전 시점이며, 체감(라우터 언블록)은 v0.19.2 실측에서 평균 1255ms·최대 2115ms로 더 나쁘다. 이 목표를 "사용자가 1.5초 안에 화면을 본다"로 읽으면 안 된다. 체감 종점의 계측은 후속 과제로 남긴다.
-- **판정 통계는 시나리오 p95 / 표준 지표 p75.** 표준 지표의 임계값은 원래 p75 기준으로 정의된 값이라 그 정의를 그대로 따르고, 메인 시나리오는 꼬리 구간까지 책임지도록 더 엄격하게 잡는다.
-- **클라우드 전환과 사이트 전환은 분리해서 잰다.** 각각 자기 뮤테이션이 resolve될 때까지이고, 목표 1s는 각 구간에 개별 적용된다. 클라우드 전환 뒤에 자동으로 붙는 사이트 전환은 사이트 전환 지표가 잡는다. 두 구간의 합(= 클라우드 진입 체감)은 별도 지표로 둘 수 있으나 이번 목표치의 대상은 아니다.
-- **INP는 서버로 보내지 않는다.** INP는 페이지 수명 동안 계속 갱신되는 값인데 웹뷰 SPA는 수명이 앱 세션 전체라 확정 시점이 없다. 갱신마다 보내면 한 세션이 중복 엔트리를 다수 만들고, hidden 시점 스냅샷은 별도 생애주기 배선을 요구한다. 수집·오버레이 표시는 지금처럼 유지하고 전송만 뺀다 — 필요해지면 그때 확정 시점을 정해 별도로 결정한다.
+- **Boot uses the current `totalMs`.** It is already instrumented, so watching can start today,
+  and its definition is stable, so it holds up across versions. But **`totalMs` is not perceived
+  boot** — it lands before React renders, and perceived boot (router unblock) is worse in v0.19.2
+  measurements: average 1255ms, max 2115ms. Do not read this target as "the user sees the screen
+  within 1.5 seconds." Instrumenting the perceived endpoint is left as a follow-up.
+- **The judging statistic is p95 for the scenarios and p75 for the standard metrics.** The
+  thresholds for the standard metrics were originally defined on p75, so we keep that definition,
+  and the main scenarios are held to a stricter bar that also accounts for the tail.
+- **Cloud switch and place switch are measured separately.** Each runs until its own mutation
+  resolves, and the 1s target applies to each phase individually. The place switch that
+  automatically follows a cloud switch is caught by the place-switch metric. The sum of the two
+  (= perceived cloud-entry time) can be a separate metric, but it is not a target of this round.
+- **INP is not sent to the server.** INP keeps updating over a page's lifetime, and a webview SPA's
+  lifetime is the whole app session, so there is no settled point to report. Sending it on every
+  update would create many duplicate entries per session, and a hidden-time snapshot needs its own
+  lifecycle wiring. Collection and overlay display stay as they are; only transport is dropped — if
+  this becomes necessary, a settled point will be decided separately then.
 
-### 2. 샘플링 — `runId` 해시로 세션 단위
+### 2. Sampling — session-scoped by a `runId` hash
 
-샘플 단위는 **앱-런 1회(= `runId` 1개)** 다. 뽑힌 세션은 그 안의 부팅·전환·바이탈을 **전량** 보내고, 뽑히지 않은 세션은 지표를 한 건도 만들지 않는다.
+The sampling unit is **one app run (= one `runId`).** A selected session sends **all** of its boot,
+transition, and vitals metrics; an unselected session produces zero metric entries.
 
-판정은 `hash(runId) % 100 < N` — **순수함수**다. 그래서:
+The decision is `hash(runId) % 100 < N` — a **pure function**. As a result:
 
-- **네이티브와 웹이 조율 없이 같은 답에 도달한다.** runId는 이미 주입으로 공유되므로 샘플 결정을 전달할 **브릿지 메시지가 필요 없고**, 따라서 "웹이 앱보다 먼저 배포된다" 제약도 발생하지 않는다.
-- 세션 단위라 분포가 왜곡되지 않고, "부팅이 느렸던 세션은 전환도 느렸나" 같은 세션 내 상관을 볼 수 있다.
+- **Native and web arrive at the same answer without coordinating.** Since `runId` is already
+  shared via injection, no bridge message is needed to convey the sampling decision, so the "web
+  deploys before the app" constraint never comes into play here either.
+- Because it is session-scoped, distribution isn't skewed, and it lets us see within-session
+  correlation, e.g. "did a session with a slow boot also have a slow switch?"
 
-비율 `N`의 1차 값은 10%로 시작하고 표본 수·트래픽을 보고 조정한다. 상수는 한 곳에만 둔다. 이벤트 단위 샘플링은 쓰지 않는다 — 세션 내 상관이 끊긴다.
+The initial value of the ratio `N` is 10%, adjusted once sample counts and traffic are observed.
+The constant lives in exactly one place. Event-level sampling is not used — it would break
+within-session correlation.
 
-### 3. 전송 — 새 엔드포인트를 파지 않고 `info` 로그 이벤트로 싣는다
+### 3. Transport — no new endpoint; carry metrics as `info` log events
 
-지표는 **`level: 'info'`, `tag: 'PERF'`** 의 로그 엔트리로 기존 파이프(ADR-0063)에 태워 `POST /hello/report-bulk`로 보낸다. `BootMetricsService`가 이미 쓰고 있는 관용구를 잇는 것이며, 백엔드 협의·신규 스키마·신규 엔드포인트가 0이다.
+Metrics ride the existing pipe (ADR-0063) as log entries with **`level: 'info'`, `tag: 'PERF'`**,
+sent via `POST /hello/report-bulk`. This continues the idiom `BootMetricsService` already uses,
+with zero backend negotiation, zero new schema, and zero new endpoint.
 
-- **숫자는 `data`에 구조화해서 담는다.** 자유 텍스트 문장에 숫자를 섞지 않는다 — 지표 종류, 값(ms), 목표 대비 판정, 구간 마크가 각각 키를 갖는다. 파싱이 정규식이 아니라 `JSON.parse`가 되도록.
-- **분석 축은 새로 만들지 않는다.** `LogContext`가 `runId`·`appVersion`·`webVersion`·`os`·`osVersion`·`model`·`route`를 이미 모든 엔트리에 실어주므로, 버전별 회귀 비교와 기기별 편향 분석이 추가 비용 없이 성립한다. 지표가 자체 식별자를 덧붙이지 않으므로 ADR-0050의 redact 경계도 새로 넓어지지 않는다.
-- **집계는 서버가 하지 않는다.** 값이 `data` 문자열(2000자 캡) 안에 있으므로 서버 측 숫자 축 집계·쿼리는 불가능하다. `tag=PERF`로 필터해 원본 이벤트를 내려받아 오프라인에서 p75/p95를 낸다. 세션당 지표는 한 자릿수 건이라 원본 축적 비용이 작다. 대시보드·자동 집계는 이번 범위 밖이며, 필요해지면 그때 전용 지표 스키마를 백엔드와 별도 결정한다.
+- **Numbers go into `data` as structured fields.** No mixing numbers into free-text sentences —
+  metric kind, value (ms), pass/fail against the target, and phase mark each get their own key, so
+  parsing is `JSON.parse`, not regex.
+- **No new analysis axes are created.** Since `LogContext` already carries `runId`, `appVersion`,
+  `webVersion`, `os`, `osVersion`, `model`, and `route` on every entry, version-over-version
+  regression comparison and device-bias analysis come for free. Because metrics don't attach their
+  own identifiers, ADR-0050's redaction boundary doesn't need to widen either.
+- **The server does not aggregate.** Since values sit inside the `data` string (capped at 2000
+  characters), server-side numeric-axis aggregation and querying are not possible. Filter by
+  `tag=PERF`, download the raw events, and compute p75/p95 offline. Since each session only
+  produces a single-digit number of metrics, the cost of raw accumulation is small. Dashboards and
+  automatic aggregation are out of scope for this round; when they become necessary, a dedicated
+  metric schema will be decided separately with the backend.
 
-### 4. 드롭 편향을 방어한다
+### 4. Defend against drop bias
 
-`info`는 백프레셔에서 `debug` 다음으로 버려진다. 진단 로그가 지표보다 우선하는 순서 자체는 옳지만, **로그를 많이 뱉는 기기일수록 큐가 붐비고 그런 기기가 대체로 느리다** — 방치하면 p95를 만드는 표본이 선택적으로 먼저 사라져 분포가 낙관적으로 왜곡된다. 지표는 개별 로그와 달리 유실이 무작위여야 의미가 있다.
+`info` is dropped second, right after `debug`, under backpressure. It's correct for diagnostic logs
+to outrank metrics in general, but **the noisier a device's logs, the more its queue fills up, and
+noisy devices also tend to be the slow ones** — left unchecked, the samples that would form the p95
+tail get selectively dropped first, skewing the distribution optimistic. Metrics only mean something
+if loss is random, unlike individual log lines.
 
-두 가지로 막는다.
+Two guards.
 
-1. **세션 샘플링이 1차 방어다.** 애초에 소수 세션만 지표를 만들므로 큐 예산(500건 / 512KB) 잠식이 작다.
-2. **유실률을 관측 가능하게 만든다.** 드롭이 발생하면 그 카운트를 다음 지표 이벤트에 실어 보낸다. 분포를 해석할 때 "이 표본이 얼마나 걸러진 것인가"를 알 수 있어야 한다.
+1. **Session sampling is the primary defense.** Because only a minority of sessions produce
+   metrics at all, the pressure on the queue budget (500 entries / 512KB) stays small.
+2. **Make the loss rate observable.** When a drop happens, its count rides on the next metric
+   event. When interpreting the distribution, we need to know how much of the sample was already
+   filtered out.
 
-드롭 우선순위 자체는 바꾸지 않는다 — 지표를 살리자고 `warn`/`error`를 밀어내는 건 더 나쁜 거래다.
+The drop priority itself is not changed — protecting metrics by pushing `warn`/`error` aside would
+be a worse trade.
 
-### 5. 범위 — 모바일 하이브리드 한정
+### 5. Scope — mobile hybrid only
 
-- 대상은 **`apps/mobile` 웹뷰 안의 `apps/web`** 이다. 목표치 3개가 전부 앱 시나리오이고, 부팅 `totalMs`는 네이티브 계측이라 브라우저에는 존재하지도 않는다.
-- **`apps/desktop` · `apps/desktop-web` · 브라우저 단독 접속은 명시적으로 off.** 공유 lib에 얹는 구조상 기본값이 off가 아니면 자동으로 번진다.
-- 계측 지점은 콜사이트가 아니라 초크포인트다 — 부팅은 `BootMetricsService`, 전환은 두 뮤테이션, 바이탈은 기존 `webVitals.ts`. 새로 만드는 건 지표 이벤트의 형태와 샘플링 판정뿐이다.
+- The target is **`apps/web` inside the `apps/mobile` webview**. All three scenario targets are app
+  scenarios, and boot `totalMs` is native instrumentation that doesn't even exist in a plain
+  browser.
+- **`apps/desktop`, `apps/desktop-web`, and browser-only access are explicitly off.** Since this
+  sits on a shared lib, anything other than off by default spreads automatically.
+- Instrumentation points are chokepoints, not call sites — boot is `BootMetricsService`, switches
+  are the two mutations, vitals are the existing `webVitals.ts`. The only new thing is the shape of
+  the metric event and the sampling decision.
 
-## 대안 (Alternatives)
+## Alternatives
 
-- **전용 지표 엔드포인트·스키마를 백엔드와 새로 정의** — 서버에서 p95를 바로 쿼리할 수 있고 지표가 로그 큐 예산을 다투지 않는다. 버렸다: 백엔드 협의가 선행돼야 해서 "준비"가 몇 주 밀린다. 지금 필요한 건 축적 시작이다. 규모가 커지면 이 대안으로 옮긴다.
-- **부팅 종점을 체감 부팅(라우터 언블록)으로** — 사용자 체감에 더 충실하다. 버렸다: 신규 계측과 베이스라인 재측정이 선행돼야 하고, 실측상 p95가 목표를 넘어 시작부터 상시 적색이 된다. 대신 `totalMs`가 체감이 아니라는 한계를 문서에 명시하고 후속 과제로 남겼다.
-- **이벤트 단위 샘플링** — 지표별 볼륨을 개별 조절할 수 있다. 버렸다: 한 세션의 구간들을 이어 보는 분석이 끊기고, 네이티브·웹이 각자 주사위를 굴려 같은 세션에서 서로 다른 결정을 낸다.
-- **샘플 결정을 브릿지 메시지로 전달** — 명시적이다. 버렸다: `runId` 해시가 같은 결과를 메시지 0건으로 낸다. 신규 메시지는 "웹 선배포" 제약과 `NOT_FOUND` 폴백을 끌고 온다.
-- **ADR-0065를 폐기하고 이 결정에 흡수** — 문서가 하나로 준다. 버렸다: 두 트랙은 소비자가 다르다(개발자의 원인 추적 vs 목표치 감시). 계측 초크포인트는 공유하되 별도 레인으로 병행한다.
-- **지표를 `warn`으로 올려 드롭에서 보호** — 편향이 근본적으로 사라진다. 버렸다: 레벨의 의미를 왜곡해 경보 신호를 오염시킨다. 진단 로그가 지표보다 우선하는 게 맞다.
+- **Define a dedicated metrics endpoint and schema with the backend** — lets the server query p95
+  directly, and metrics don't compete for the log queue budget. Rejected: backend coordination
+  would have to happen first, pushing "ready" back weeks. What's needed right now is to start
+  accumulating data. Move to this alternative once scale demands it.
+- **Move the boot endpoint to perceived boot (router unblock)** — more faithful to user experience.
+  Rejected: it requires new instrumentation and re-measuring the baseline first, and real
+  measurements show p95 already exceeding the target, making it perpetually red from day one.
+  Instead, the document notes that `totalMs` is not perceived time, and leaves the follow-up open.
+- **Event-level sampling** — lets per-metric volume be tuned individually. Rejected: it breaks
+  analysis that follows the phases of a single session, and native and web would each roll their
+  own dice, landing on different decisions within the same session.
+- **Pass the sample decision over a bridge message** — explicit. Rejected: the `runId` hash gives
+  the same result with zero messages. A new message would drag in the "web deploys first"
+  constraint and the `NOT_FOUND` fallback.
+- **Retire ADR-0065 and absorb it into this decision** — one fewer document. Rejected: the two
+  tracks have different consumers (developer root-cause tracing vs. target monitoring).
+  Instrumentation chokepoints are shared, but the two lanes run in parallel separately.
+- **Raise metrics to `warn` to protect them from drops** — removes the bias at its root. Rejected:
+  it distorts the meaning of the level and pollutes the alert signal. Diagnostic logs should
+  outrank metrics.
 
-## 결과 (Consequences)
+## Consequences
 
-**얻는 것**
+**What is gained**
 
-- 목표치 5개가 **끝점·판정 통계까지 정의된 계약**이 된다. "부팅 1.5s"가 사람마다 다른 숫자를 가리키던 상태가 끝난다.
-- 실사용자 분포를 **버전·기기·OS 축으로** 볼 수 있다 — `LogContext` 덕분에 추가 비용 없이. ADR-0057/0058의 효과 측정이 "앱 배포 후 숙제"로 남아 있던 것도 이 축 위에서 처음 가능해진다.
-- 백엔드 변경 0, 신규 브릿지 메시지 0으로 시작한다.
+- The five targets become **contracts with defined endpoints and judging statistics.** "Boot 1.5s"
+  no longer means a different number to different people.
+- Real-user distributions can be viewed **by version, device, and OS axis** — at no extra cost,
+  thanks to `LogContext`. This also makes it possible, for the first time, to measure the effect of
+  ADR-0057/0058, which had been left as "homework for after the app ships."
+- Starts with zero backend changes and zero new bridge messages.
 
-**감수하는 것**
+**What is accepted**
 
-- **서버에서 지표를 집계할 수 없다.** p75/p95는 원본을 내려받아 밖에서 낸다. 표본이 커지면 이 방식이 먼저 한계에 닿고, 그때가 전용 스키마로 옮길 시점이다.
-- **지표가 로그 큐 예산을 함께 쓴다.** 샘플링과 드롭 카운터로 완화하지만 완전히 없애지는 못한다.
-- **부팅 목표는 체감보다 관대하다.** `totalMs` p95가 1.5s를 통과해도 사용자가 1.5초에 화면을 본다는 뜻이 아니다. 이 간극은 문서로만 막혀 있으므로, 체감 종점 계측이 붙기 전까지 해석할 때마다 상기해야 한다.
-- **INP는 감시 대상에서 빠진다.** 인터랙션 반응성 회귀는 당분간 서버 데이터로 잡히지 않는다.
-- **샘플링 비율이 낮으면 드문 기기의 표본이 안 모인다.** 특정 모델의 회귀는 늦게 발견될 수 있다.
+- **The server cannot aggregate metrics.** p75/p95 are computed offline from downloaded raw data.
+  As the sample grows, this approach hits its limits first, and that is the point to move to a
+  dedicated schema.
+- **Metrics share the log queue budget.** Sampling and the drop counter mitigate this but do not
+  eliminate it.
+- **The boot target is more generous than perceived experience.** Even if `totalMs` p95 clears
+  1.5s, that does not mean the user sees the screen in 1.5 seconds. This gap is only guarded by
+  documentation, so it must be remembered on every interpretation until a perceived-time endpoint
+  is instrumented.
+- **INP falls out of observability.** Interaction-responsiveness regressions won't be caught by
+  server data for now.
+- **A low sampling rate means rare devices won't accumulate samples.** A regression on a specific
+  model may be found late.

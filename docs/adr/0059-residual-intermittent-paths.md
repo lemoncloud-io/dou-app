@@ -1,38 +1,71 @@
-# ADR-0059: 간헐 재발 경로 봉합 — 재연결 스냅샷 유지, 첫 쿼리 재시도, 폴백 dirty 축소
+# ADR-0059: Close residual intermittent-recurrence paths — keep the reconnect snapshot, retry the first query, shrink the fallback dirty set
 
-> 상태: Accepted · 결정일: 2026-08-15
+> Status: Accepted · Decided: 2026-08-15
 
-## 맥락 (Context)
+## Context
 
-[ADR-0057](0057-home-last-chat-preview-single-query.md)/[ADR-0058](0058-navigation-churn-grace-and-seeding.md) 이후에도 같은 증상(프리뷰 미표시·요청 몰림)이 **간헐적으로** 재발할 수 있는 경로가 셋 남아 있었다:
+Even after [ADR-0057](0057-home-last-chat-preview-single-query.md)/[ADR-0058](0058-navigation-churn-grace-and-seeding.md),
+three paths remained where the same symptoms (missing previews, request pile-ups) could **still recur
+intermittently**:
 
-1. **재연결 스탬피드.** 폴링 plan(channel/place/profile/join)의 라이브러리 기본값은 `onConnected`에서 스냅샷을 리셋한다 — 재연결 직후 첫 폴이 무조건 "변경됨"으로 판정되어, 포그라운드 복귀(모바일 WebView에서는 일상)마다 **등록된 전 타깃 수만큼의 동일-데이터 쓰기 → 리이밋 → 재조회 연쇄**가 났다. ADR-0058의 유예/보존은 화면 전환 churn만 덮고 이 경로는 못 덮는다.
-2. **첫 쿼리 실패의 침묵** (감사의 P0-4, 미구현으로 남아 있었음). 옵저버 첫 쿼리가 실패하면(브릿지 타임아웃 등) 콜백이 한 번도 불리지 않아 그 행이 빈 채로 고착됐다 — 다음 쓰기 리이밋이나 재구독까지 회복 경로가 없었다.
-3. **구버전 앱 폴백 증폭** (ADR-0057이 만든 새 결함). 결합 last-chat 옵저버는 `chats-last|` 전역 프리픽스로 깨어나므로 어느 채널의 쓰기든 재실행되는데, fast path가 없는 구버전 앱에서는 재실행 한 번이 **채널 N개의 윈도우 읽기(N왕복)** 였다. 쓰기 버스트(재연결 catch-up, 연속 전송) 동안 플러시마다 N왕복 — 원래 폭주의 재연이 될 수 있었다. 웹 단독 배포 기간에는 이 폴백이 곧 프로덕션 경로다.
+1. **Reconnect stampede.** The polling plans' library default (channel/place/profile/join) resets the
+   snapshot on `onConnected` — the first poll right after reconnecting is unconditionally judged "changed,"
+   so every foreground resume (routine on a mobile WebView) produced a **same-data write → re-limit →
+   re-fetch chain for every registered target**. ADR-0058's grace/preservation only covers screen-transition
+   churn, not this path.
+2. **Silent first-query failure** (the audit's P0-4, which had been left unimplemented). If an observer's
+   first query fails (e.g. a bridge timeout), the callback is never called and that row stays stuck empty
+   — with no recovery path until the next write re-limit or re-subscription.
+3. **Older-app fallback amplification** (a new defect created by ADR-0057). The combined last-chat
+   observer wakes on the `chats-last|` global prefix, so a write to any channel re-runs it; on an older app
+   with no fast path, one re-run cost **a window read for all N channels (N round trips)**. During a write
+   burst (reconnect catch-up, consecutive sends), that was N round trips per flush — potentially a replay
+   of the original storm. During the web-only deployment window, this fallback is the production path.
 
-참고: 같은 시기 제기된 "코드블록 렌더링 원인설"은 기각 — `toPlainPreview`는 펜스를 첫 비어있지 않은 줄로 평탄화하며(과거의 구두점 quadratic 프리즈도 이미 선형화됨), 유일한 실증 코너는 **빈 코드블록만 있는 메시지가 빈 프리뷰가 되는** 콘텐츠 케이스뿐이다(폭주·입장오류와 무관, 별도 product 결정 대상).
+Note: a "code-block rendering" theory raised around the same time was rejected — `toPlainPreview` already
+flattens a fence to its first non-blank line (and the old punctuation-driven quadratic freeze was already
+linearized). The only real corner case is a message with **only an empty code block**, which becomes an
+empty preview (unrelated to the storm or the entry error, a separate product decision).
 
-## 결정 (Decision)
+## Decision
 
-### 1. 폴링 plan 전부 `resetSnapshotOnConnected: false`
+### 1. Every polling plan gets `resetSnapshotOnConnected: false`
 
-우리 소비자(onUpdate = 캐시 쓰기)는 "재연결 후 최소 1회 onUpdate" 보장이 필요 없다 — 캐시에 같은 행이 이미 있다. 스냅샷을 유지하면 오프라인 동안 실제로 바뀐 행(updatedAt 전진)만 쓴다. 세션 경계(클라우드 전환·로그아웃)는 scheduler `stopAll`이 스냅샷을 함께 비우므로 낡은 기준선이 세션을 넘지 못한다.
+Our consumer (onUpdate = a cache write) does not need the "at least one onUpdate after reconnect"
+guarantee — the same row is already in the cache. Keeping the snapshot means only rows that actually
+changed while offline (an advanced `updatedAt`) get written. Session boundaries (cloud switch, logout)
+still clear the snapshot through the scheduler's `stopAll`, so a stale baseline never crosses a session.
 
-### 2. 옵저버 첫 쿼리 실패 시 1초 뒤 1회 재시도
+### 2. On observer first-query failure, retry once after 1 second
 
-성공하면 값을 심고 **그 시점의 모든 대기 콜백**에 전달한다(첫 시도의 in-flight에 합류했던 구독자들도 같은 실패로 무소식이므로). 재시도는 한 번뿐이다 — 실패의 주원인이 순간 혼잡이라 한 번이면 대부분 회복되고, 지속 장애에서 루프는 혼잡의 연료가 된다. 그 이후의 회복은 기존 경로(쓰기 리이밋·재구독)가 맡는다.
+On success, plant the value and deliver it to **every callback waiting at that point** (subscribers who
+joined the first attempt's in-flight also had no result, since they shared the same failure). Retry only
+once — the dominant cause of a failure is a momentary spike, which one retry usually clears; under
+sustained failure, a loop only feeds the congestion. Recovery beyond that relies on the existing paths
+(write re-limit, re-subscription).
 
-### 3. 폴백 dirty 축소 — 쓰기가 건드린 채널만 재읽기
+### 3. Shrink the fallback dirty set — re-read only channels a write actually touched
 
-`ChatLocalDataSource`가 채널별 마지막 판정을 메모하고(`${scopeKey}|${channelId}`), 모든 변이가 지나는 단일 깔때기(`getAffectedListPrefixes`)에서 건드린 채널을 dirty로 표시한다. 폴백 재실행은 dirty 채널만 윈도우를 다시 읽고 나머지는 메모를 재사용한다 — 쓰기 버스트당 비용이 N왕복에서 "실제로 바뀐 채널 수"로 준다. dirty는 읽기 **전에** 선점(claim)한다: 읽는 도중 도착한 쓰기의 재표시가 살아남아 다음 실행이 재읽기하므로, 쓰기 이전 데이터를 담은 메모가 낡은 채 재사용될 수 없다. `cacheClear`는 깔때기를 지나지 않으므로 메모를 직접 비운다.
+`ChatLocalDataSource` memoizes the last verdict per channel (`${scopeKey}|${channelId}`) and marks a
+channel dirty at the single funnel every mutation passes through (`getAffectedListPrefixes`). The fallback
+re-run then re-reads the window only for dirty channels and reuses the memo for the rest — cost per write
+burst drops from N round trips to "however many channels actually changed." Dirty is claimed **before**
+the read: a write that lands mid-read re-marks the channel, and that mark survives, so the next run
+re-reads it — a memo built on pre-write data can never be reused stale. `cacheClear` bypasses the funnel,
+so it clears the memo directly.
 
-## 남은 간헐 경로 (인지된 채 수용)
+## Remaining intermittent paths (acknowledged, accepted)
 
-- 시드 없는 진입(푸시·딥링크·검색)은 여전히 10초 resolve 타이머를 탄다 — 단 혼잡 자체가 제거되어 실측 지연이 타이머에 닿을 일이 급감했다.
-- 방 화면의 pending 행 윈도우 탈락(캐시 100건 이상 채널, ack 전 잠깐 미표시)은 네이티브 `includeUnsent` 구현으로 닫는다 — 별도 작업 칩 발행.
-- 네이티브 핸들러의 오류 마스킹(`success:true, items:null`)은 형제 핸들러 전체의 계약이라 이번에 건드리지 않았다 — 바꾸려면 브릿지 오류 계약 전반의 ADR이 필요하다.
+- An entry with no seed (push, deep link, search) still goes through the 10-second resolve timer — but with
+  the congestion itself removed, measured latency rarely reaches the timer anymore.
+- Pending-row window drop in the room screen (channels with 100+ cached rows, briefly not shown before
+  ack) is closed by a native `includeUnsent` implementation — a separate work item was filed for it.
+- Error masking in native handlers (`success: true, items: null`) is a contract shared by every sibling
+  handler and was not touched here — changing it would need an ADR for the bridge error contract as a
+  whole.
 
-## 관련
+## References
 
 - [ADR-0057](0057-home-last-chat-preview-single-query.md) · [ADR-0058](0058-navigation-churn-grace-and-seeding.md)
-- 스펙: [docs/specs/cache/last-chat-preview.md](../specs/cache/last-chat-preview.md) (폴백 dirty 축소 반영)
+- Spec: docs/specs/cache/last-chat-preview.md (lived in the root docs tree, which has since been removed;
+  reflects the fallback dirty-set shrink)
