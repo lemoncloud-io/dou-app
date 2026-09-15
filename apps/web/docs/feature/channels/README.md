@@ -1,55 +1,248 @@
 # channels
 
-> 대상: `apps/web/src/app/features/channels` · 참조 구현: `apps/testbed/src/app/pages/CreateChannelPage.tsx`
+**The conversation itself: the room, the thread, the settings screen and the invite flow.** This
+feature owns `apps/web/src/app/features/channels` — every screen you reach once a channel has been
+chosen. It observes the channel, its members and its messages, writes sends, reads, reactions,
+membership changes and invites, and exports one thing to the rest of the app: `ChannelRoutes`.
 
-## 책임
+This document covers the **overview and structure**. The per-topic detail is canonical in the
+sibling files listed under [Documents](#documents).
 
-채팅방(Channel)의 생성·대화·설정을 담당한다. 채널 메타·멤버·메시지를 관측하고, 메시지 전송/읽음/초대 같은 쓰기를 repository로 수행한다.
+## Purpose
 
-## 화면
+`index.tsx` exports `ChannelRoutes`, and `routes/PrivateRoutes.tsx` is its only consumer. Everything
+else is internal — but five other features reach into this one for pieces of it. What they take:
 
-| 페이지                | 경로(`ROUTES.channels.*`)             | 설명                                  |
+```bash
+grep -rn "channels/" --include='*.ts' --include='*.tsx' apps/web/src/app/features apps/web/src/app/routes \
+  | grep "from '" | grep -v "^apps/web/src/app/features/channels"
+```
+
+Today that is `ConfirmDialog` (four callers), `resolveChannelTitle` / `resolveChannelAvatar` and
+`useDmPeers` (the home list and place channel management, which must name a room exactly as the room
+does), and `messagePlainText` / `toPlainPreview`. The title and avatar resolvers are shared **on
+purpose** — see [dm-and-self-chat.md](./dm-and-self-chat.md). The rest is the ordinary pressure of a
+shared component sitting in a feature folder.
+
+This feature does **not** own:
+
+- **the channel list** — that is `home` ([../home/README.md](../home/README.md)), including unread
+  badges and previews;
+- **relay 1:1 invites** — issuing and accepting belongs to `invite`
+  ([../invite/README.md](../invite/README.md)); a DM's re-invite hands off to it;
+- **push routing into a room or a thread** — `notifications`
+  ([../notifications/README.md](../notifications/README.md));
+- **caches, cursors, the join window and the feed predicates** — `@chatic/data`
+  ([libs/data](../../../../../libs/data/README.md));
+- **presentation primitives** — `@chatic/web-ui-kit`, with Block Kit bodies drawn by
+  `@chatic/block-kit`.
+
+## Design principles
+
+1. **A page owns data and orchestration; a component owns how it looks.** Every visible element
+   comes from `@chatic/web-ui-kit`, assembled here. A screen never invents a colour or a glyph.
+2. **One page per surface, not per stereo.** `ChannelRoomPage` serves group, 1:1 and self rooms;
+   the differences are variants and gates passed into components. Scrolling, keyboard handling,
+   grouping, reactions, threads, read cursors and paging are identical across all three, and
+   splitting the page would duplicate every one of them.
+3. **One answer per question, shared by every surface that asks it.** A room's title, its avatar,
+   a person's display name, who the DM peer is — each has exactly one resolver, because the bug
+   they exist to prevent is the same room reading differently in the list and in the room.
+4. **Reads observe the cache; freshness is a separate registration.** No screen fetches to render.
+5. **Derive before you filter.** Reactions and threads are built from the unfiltered cache window;
+   the feed filter runs after, on the rendering list only.
+6. **Guess nothing about a person's state.** Where the server cannot distinguish two situations —
+   invited versus departed is the standing example — the screen says less rather than guessing.
+
+## Scope
+
+**In** — the room and its message stream, the full-screen thread, reactions, the settings screen and
+its dialogs, the channel invite screens, and the hooks and pure derivations behind them.
+
+**Out** — the home list and its badges (`home`), relay invite issue and accept (`invite`), push
+navigation (`notifications`), place profiles beyond opening their editor (`place` / `home`), and
+everything below the repository call (`@chatic/data`, `@chatic/app-runtime`).
+
+## Structure
+
+```mermaid
+flowchart TD
+    Routes["routes/PrivateRoutes"] --> Index["index.tsx — ChannelRoutes"]
+    Index --> Pages["pages/ — 5 screens"]
+    Pages --> Components["components/ — 25"]
+    Pages --> Hooks["hooks/ — 23"]
+    Components --> Hooks
+    Pages --> Lib["lib/ — title · avatar resolvers"]
+    Pages --> Utils["utils/ — 21 pure modules"]
+    Components --> Utils
+    Hooks --> Runtime["@chatic/app-runtime — repositories, sync, session"]
+    Components --> Kit["@chatic/web-ui-kit"]
+    Runtime --> Data["@chatic/data"]
+
+    classDef external stroke-dasharray: 5 5;
+    class Runtime,Kit,Data external;
+```
+
+The arrow that is missing is the point: **a component never calls a repository.** Data enters
+through `hooks/`, and a component receives it as props — which is why the pure modules in `utils/`
+and `lib/` can be tested without React or a runtime.
+
+### The room, end to end
+
+```mermaid
+sequenceDiagram
+    participant U as reader
+    participant P as ChannelRoomPage
+    participant H as hooks/
+    participant R as repositories (app-runtime)
+    participant S as sync
+
+    U->>P: open /channels/:id/room
+    P->>H: useChannel · useChannelJoins · useChats
+    H->>R: observeItem / observeList (cache only)
+    H->>S: useChannelSync · useChatSync · registerJoin per member
+    R-->>P: channel, joins, messages
+    P->>H: useReadMarker → readChat(channel.chatNo), then the newest message
+    U->>P: type and send
+    P->>R: sendChat — optimistic row, then the socket
+    S-->>R: chat.sync echo, same id, idempotent
+    R-->>P: the row settles, the read cursor advances
+```
+
+### Screens
+
+| Page                  | Route (`ROUTES.channels.*`)           | What it is                            |
 | --------------------- | ------------------------------------- | ------------------------------------- |
-| `ChannelRoomPage`     | `/channels/:channelId/room`           | 채팅방 — 메시지 목록·입력·스크롤·읽음 |
-| `ThreadPage`          | `/channels/:channelId/thread/:rootNo` | 스레드 — 루트 + 답글 목록·답글 전송   |
-| `ChannelSettingsPage` | `/channels/:channelId/settings`       | 채널 설정 — 멤버·초대·나가기/삭제¹    |
-| `CreateRoomPage`      | `/channels/create`                    | 방 생성                               |
+| `ChannelRoomPage`     | `/channels/:channelId/room`           | the conversation                      |
+| `ThreadPage`          | `/channels/:channelId/thread/:rootNo` | one root message and its replies      |
+| `ChannelSettingsPage` | `/channels/:channelId/settings`       | name, notification, members, leave    |
+| `InvitePage`          | `/channels/:channelId/invite`         | add people: place tab and contact tab |
+| `InviteLinkPage`      | `/channels/:channelId/invite/link`    | the issued invite link                |
 
-¹ 삭제는 그룹 전용이다 — 1:1은 owner도 나가기뿐이고, 재초대가 그 방을 계속 쓰기 때문이다
-([dm-chat.md](./dm-chat.md)).
+There is no create-channel screen here: a room is created from `home`, and a self chat is created by
+the server.
 
-## 구조
+### Directories
 
+```text
+apps/web/src/app/features/channels/
+├── index.tsx        ChannelRoutes — the only export the app uses
+├── pages/           5 screens
+├── components/      25 components, each with its Props co-located
+├── hooks/           23 hooks — observe, sync, mutate
+├── lib/             the two cross-surface resolvers: title and avatar
+├── utils/           21 pure modules — derivations, predicates, formatters
+├── stores/          useRecentEmojiStore (zustand, persisted)
+└── types/           the view models
 ```
-features/channels/
-  types/      # 모델/뷰 타입만 (Domain* re-export + ClientChatView/ClientChannelView/ChannelMember 등)
-  hooks/      # 읽기·쓰기 액션 훅 (→ data-layer.md)
-  components/ # 프레젠테이션 (Props는 각 파일에 co-locate)
-  pages/      # 위 3개 화면
-  index.ts    # ChannelRoutes
+
+Files whose contents the name does not give away:
+
+- `types/index.ts` — `ClientChannelView`, `ClientChatView` and `ChannelMember`, plus re-exports of
+  the domain models, so feature code imports its types from one place. There is no `types/` file per
+  model to open.
+- `lib/` holds only `resolveChannelTitle` and `resolveChannelAvatar`: the two answers other features
+  are allowed to borrow. Everything else that is pure lives in `utils/`.
+- `utils/membership.ts` — `hasLeftChannel`, `isChannelMember`, `isSomeoneElsesSelfChat`, three
+  questions about a join row that nothing else can answer.
+- `utils/displayName.ts` — the one chain that turns a user id into a name.
+
+The native bridge is used in four places and nothing new is asked of it: `getContacts`,
+`openShareSheet`, `openSettings` and `openURL`.
+
+## Usage
+
+```tsx
+// routes/PrivateRoutes.tsx
+<Route path="/channels/*" element={<ChannelRoutes />} />
 ```
 
-훅은 `hooks/`에, 모델·뷰 타입은 `types/`에 모은다. 컴포넌트 Props는 각 컴포넌트에 co-locate한다(중앙화하지 않음).
+Inside a screen, data comes from the hooks:
 
-## 데이터 흐름
+```tsx
+const { channel } = useChannel(channelId);
+const { joins, myJoin, activeMemberIds, cursorByUser } = useChannelJoins(channelId);
+const { messages, rawChats, loadMore } = useChats({ channelId, limit: 100, joinedNo: myJoin?.joinedNo });
+```
 
-repository observe + sync 등록 모델을 따른다([architecture/data-flow.md](../../architecture/data-flow.md)). 훅별 상세는 [data-layer.md](./data-layer.md). 입퇴장 시스템 메시지 모델·렌더는 [system-message.md](./system-message.md), 메시지에 딸려 오는 구조화 첨부(`attach$`)는 [message-attachment.md](./message-attachment.md). 채팅방 화면 UI는 [chat-room-ui.md](./chat-room-ui.md), 이모지 리액션·스레드는 [emoji-reaction-and-thread.md](./emoji-reaction-and-thread.md), 채널 설정·프로필·알림 UI는 [channel-settings-ui.md](./channel-settings-ui.md). 채널 유형별 상세는 나와의 채팅 [self-chat.md](./self-chat.md), 1:1(DM) [dm-chat.md](./dm-chat.md).
+### Wiring
 
-요약:
+```text
+app.tsx
+└── RuntimeConnectionHost        (repositories, sync, session — @chatic/app-runtime)
+    └── PrivateRoutes
+        └── ChannelRoutes        (this feature)
+            └── ChannelRoomPage
+                ├── useChannel / useChannelJoins / useChannelMembers / useChannelProfiles
+                ├── useChats  → useChatSync, useForegroundChatRefresh
+                ├── useJoinPositions → registerJoin per member
+                └── useReadMarker, useChatScroll, useMessageJump
+```
 
-- **채널 메타** — `useChannel`이 `observeItem` + `useChannelSync`.
-- **멤버** — `useChannelMembers`가 user(신원) + join(읽음/역할) observe를 병합. `isVerified` 이후 로드.
-- **메시지** — `useChats`가 `observeList({channelId, limit})`. cursor 페이징은 관측 윈도우 확장.
-- **읽음** — `useChatMutations.readMessage` → `repos.join.readChat`. `useJoinPositions`가 멤버별 readNo 동기화.
+## Scenarios
 
-## 네이티브 브릿지
+### 1. Opening a room
 
-신규 네이티브 기능은 없다. 기존 `appBridge`만 사용한다 — `getContacts`(연락처), `openShareSheet`(초대 공유), `copyClipBoard`(복사), `openSettings`(권한 거부 시 설정 이동). 권한 거부 시 `PermissionDeniedBanner`가 `openSettings()`로 안내한다.
+`useChannel` observes the row and registers channel sync; a `null` before any row has arrived means
+"still fetching", not "no such channel". `useChats` observes the newest 100 rows, windowed by my
+`join.joinedNo`. The read marker fires immediately with `channel.chatNo`, then corrects to the
+newest message once the list lands.
 
-## 미구현(의도적 부재)
+### 2. Sending
 
-- **UI만 있고 미연동** — 알림 설정(토글 로컬 상태), 멤버 프로필의 `신고`·`친구 설정`(인라인 리스트 행, 토스트만).
-  백엔드 뮤테이션이 없어 표시/행만 둔다([channel-settings-ui.md](./channel-settings-ui.md), ADR-0023).
-- **연동됨** — 초대받은 멤버의 **개인 방 이름**(`join.update` nick, "나에게만 표시")과 멤버 추방(kick,
-  `leaveChannel({channelId, userId})`, 소유자만)은 실제 연동([channel-settings-ui.md](./channel-settings-ui.md), ADR-0023).
-- **범위 밖** — 타 멤버 별명 편집(`친구 설정` 보류), 멤버 차단, 방 생성 사진 업로드. 필요해지면 재도입한다.
+`sendChat` writes an optimistic row with no `chatNo`, which sorts to the bottom of the list. The
+server's reply and the `chat.sync` echo carry the same id, so the cache converges without a flicker,
+and the sender's read cursor advances through the new message.
+
+### 3. Reacting
+
+The tap resolves to `on` or `off` against the folded state, the repository writes the returned event
+into the chat cache, and the fold re-runs. The event never appears in the feed — it is filtered out
+there and folded into a chip instead.
+
+### 4. Replying in a thread
+
+The reply carries `parentId` as the root's full `<channelId>:<chatNo>` id. It is hidden from the
+feed, shown on the thread page, and counted as unseen against the read cursor snapshotted when the
+room was opened.
+
+### 5. The 1:1 peer leaves
+
+Their join row goes inactive, the composer locks, and a derived footer says where the invite stands
+— absent, pending with a countdown, rejected or expired — with a re-invite CTA whenever there is
+nothing live to wait for.
+
+### 6. Adding people
+
+The place tab derives its candidate pool from channels the cache already holds and calls
+`channel.invite` once; the contact tab reads device contacts and issues invites by phone number, or
+hands back a link.
+
+## Documents
+
+| File                                                   | What it covers                                                                              |
+| ------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
+| [data-layer.md](./data-layer.md)                       | the 23 hooks: observing, sync registration, paging, read cursors, the writes                |
+| [chat-room.md](./chat-room.md)                         | the room screen: header, stream, message row, system notices, attachments, composer, scroll |
+| [reactions-and-threads.md](./reactions-and-threads.md) | the fold, the toggle, gestures, the emoji picker, thread derivation, the thread page        |
+| [channel-settings.md](./channel-settings.md)           | the settings screen, the member list and the four dialogs                                   |
+| [dm-and-self-chat.md](./dm-and-self-chat.md)           | per-stereo identity: title chain, avatar rule, the DM peer, peer absence and re-invite      |
+| [invite.md](./invite.md)                               | the two invite screens: place candidates, device contacts, the invite link                  |
+
+## How to verify
+
+```bash
+npx jest --config apps/web/jest.config.js --runInBand --watchman=false apps/web/src/app/features/channels
+npx tsc -p apps/web/tsconfig.app.json --noEmit
+```
+
+Traps that apply here:
+
+- The app type-checks against the **built** `.d.ts` of the libraries, not their sources, so a change
+  to `@chatic/web-ui-kit` or `@chatic/data` needs that library built first or the app reports
+  "property does not exist". A stale `dist`/`out-tsc` produces phantom `TS6305` errors; delete the
+  `*.tsbuildinfo` files under it and build again.
+- Jest does not type-check — a broken fixture surfaces at runtime as "… is not a function".
+- Downstream of this feature: `home`, `place`, `search`, `invite` and `mypage` all import from it
+  (see the grep under [Purpose](#purpose)), so a change to `lib/`, `utils/` or `hooks/` reaches
+  their suites too. Run the whole app project when touching those.
