@@ -1,119 +1,142 @@
-# ADR-0027: RN-WebView 하이브리드 부팅 1차 최적화 (네이티브 pre-webview 구간 단축)
+# ADR-0027: First round of RN-WebView hybrid boot optimisation (shortening the native pre-webview stretch)
 
-> 상태: Accepted · 결정일: 2026-07-23
+> Status: Accepted · Decided: 2026-07-23
 
-## 맥락 (Context)
+## Context
 
-`apps/mobile`은 네이티브 셸이 단일 WebView를 호스팅하는 하이브리드 구조다. 부팅은 완전 직렬이라
-네이티브 pre-webview 지연이 WebView URL 로드 시작(`load-start`)을 통째로 뒤로 민다.
+`apps/mobile` is a hybrid: a native shell hosting a single WebView. Boot is entirely serial, so any
+native pre-webview delay pushes the start of the WebView URL load (`load-start`) back wholesale.
 
-선행 계측(`boot-performance-instrumentation`, commit `1c32ac84`, develop 반영 완료)의 실측
-(v0.19.2, 콜드 8건)에서 네이티브 pre-webview 구간이 부팅의 **53%(평균 580ms)**를 차지했고
-콜드 변동폭이 컸다(326→882ms). JS 엔트리 기준 세부 병목:
+Earlier instrumentation (`boot-performance-instrumentation`, commit `1c32ac84`, already on develop)
+measured (v0.19.2, eight cold boots) the native pre-webview stretch at **53% of boot (580ms on
+average)**, with wide cold variance (326 → 882ms). The detailed bottlenecks, measured from the JS
+entry:
 
-- `app-mount → main-screen`: 251ms — NavigationContainer + 네비게이터 2겹 마운트
-- `main-screen → load-start`: 206ms — WebView 인스턴스 생성 + injection 스크립트 준비
+- `app-mount → main-screen`: 251ms — mounting NavigationContainer plus two layers of navigator
+- `main-screen → load-start`: 206ms — creating the WebView instance plus preparing the injection script
 
-**제약과 근거(코드 조사):**
+**Constraints and evidence (from reading the code):**
 
-- 진입점 `main.tsx` → `App.tsx`가 `./services` 배럴 import → `provider.ts:174` 싱글톤이
-  registerComponent 전에 동기 생성. 생성자에서 MMKV·SQLite open·9개 DataSource·캐시/업로드/IAP/
-  아이콘/SMS/OAuth/Crashlytics를 전부 동기 인스턴스화(`provider.ts:81-164`).
-- `App.tsx:56` `SafeAreaProvider`에 `initialWindowMetrics` 없음 → insets 비동기 측정 왕복까지
-  자식 렌더 지연.
-- `RootNavigator`(native stack, 1스크린=`MainNavigator`) + `MainNavigator`(native stack,
-  1스크린=`MainScreen`) → 네이티브 컨테이너 2겹 중복.
-- `AppWebView.tsx:58,72-76` `getUniqueIdSync()`·`getApplicationName()`·`getDeviceId()` 등
-  동기 DeviceInfo 브릿지 호출이 injection 스크립트(WebView 생성 전 필요) 임계경로에서 렌더마다 반복.
-- 이미 양호: WebView source URL은 `Config.VITE_WEBVIEW_BASE_URL` 정적, `initTables()` void,
-  IAP/deeplink init이 useEffect 비동기, 핸들러 등록이 이벤트 버퍼링이라 로드를 막지 않음.
+- The entry point `main.tsx` → `App.tsx` imports the `./services` barrel, so the `provider.ts:174`
+  singleton is constructed synchronously before registerComponent. Its constructor synchronously
+  instantiates MMKV, opens SQLite, and builds nine DataSources plus cache, upload, IAP, icon, SMS, OAuth
+  and Crashlytics (`provider.ts:81-164`).
+- `App.tsx:56` gives `SafeAreaProvider` no `initialWindowMetrics`, so children wait for an asynchronous
+  inset measurement round trip.
+- `RootNavigator` (a native stack with one screen, `MainNavigator`) plus `MainNavigator` (a native stack
+  with one screen, `MainScreen`) → two redundant native containers.
+- `AppWebView.tsx:58,72-76` calls synchronous DeviceInfo bridges (`getUniqueIdSync()`,
+  `getApplicationName()`, `getDeviceId()`) on the critical path of the injection script — which is
+  needed before the WebView is created — on every render.
+- Already fine: the WebView source URL is the static `Config.VITE_WEBVIEW_BASE_URL`, `initTables()` is
+  void, IAP and deeplink init are asynchronous in useEffect, and handler registration buffers events so
+  it does not block the load.
 
-**진행 이력 정정:** 동일 계획이 이전 브랜치 `claude/boot-performance-optimization-d90642`에서
-4.1~4.3까지 구현됐으나 develop에 머지되지 않았고 로컬·원격 어디에도 남아있지 않음(유실). 따라서 이
-브랜치(`develop` 기준)에서 **네 단계 모두 새로 구현**한다. 이번 세션은 **실기기 콜드부팅
-BootMetrics 전후 측정이 가용**하므로, "단계별 독립 커밋 → 실기기 3회+ 중앙값 측정 → 효과 없으면 그
-단계만 리버트" 규율을 온전히 적용한다.
+**A correction to the history:** the same plan was implemented up to 4.1–4.3 on an earlier branch,
+`claude/boot-performance-optimization-d90642`, but it never merged to develop and survives neither
+locally nor remotely (lost). So **all four steps are implemented afresh** on this branch (based on
+`develop`). This session **can measure BootMetrics on a real device before and after a cold boot**, so
+the discipline applies in full: one independent commit per step, at least three measurements on a real
+device with the median compared, and a revert of just that step when it shows no effect.
 
-## 결정 (Decision)
+## Decision
 
-네이티브 pre-webview 구간을 저리스크→고리스크 순 4단계로 단축한다. 각 단계는 독립 커밋 + 전후
-BootMetrics 비교. `disciplined-implementation` 규율(영어 주석·검증 체크리스트·유닛 테스트) 준수.
+Shorten the native pre-webview stretch in four steps, lowest risk first. Each step is an independent
+commit with a before-and-after BootMetrics comparison. The `disciplined-implementation` rules (English
+comments, a verification checklist, unit tests) apply.
 
-**4.1 `SafeAreaProvider` `initialWindowMetrics` 주입 (저리스크·고효과)**
-`react-native-safe-area-context`의 `initialWindowMetrics`를 주입해 insets 비동기 측정 왕복을
-제거, 네비게이터·MainScreen을 첫 프레임에 렌더. `app-mount → main-screen` 직격.
+**4.1 Pass `initialWindowMetrics` to `SafeAreaProvider` (low risk, high value)**
+Injecting `initialWindowMetrics` from `react-native-safe-area-context` removes the asynchronous inset
+measurement round trip, so the navigator and MainScreen render on the first frame. This hits
+`app-mount → main-screen` directly.
 
-**4.2 DeviceInfo 동기 호출 모듈 레벨 캐싱 (저리스크·중효과)**
-`getUniqueIdSync()`·`getApplicationName()`·`getDeviceId()`·`getVersion()`·`getBuildNumber()`를
-모듈 레벨 1회 상수로 승격(이미 version/build/userAgent는 그렇게 함, `AppWebView.tsx:28-32`).
-injection 스크립트 prop 계산에서 동기 브릿지 왕복 제거. injection 값 동일성 유닛 테스트로 보장.
+**4.2 Cache the synchronous DeviceInfo calls at module level (low risk, medium value)**
+Promote `getUniqueIdSync()`, `getApplicationName()`, `getDeviceId()`, `getVersion()` and
+`getBuildNumber()` to module-level constants computed once (version, build and userAgent already are —
+`AppWebView.tsx:28-32`). That removes the synchronous bridge round trips from computing the injection
+script prop. A unit test pins the injected values as unchanged.
 
-**4.3 네비게이터 스택 병합 (중리스크·고효과)**
-`RootNavigator`가 `MainScreen`을 직접 호스팅하는 **단일 native stack**으로 병합, `MainNavigator`
-삭제. 계약 보존:
+**4.3 Merge the navigator stacks (medium risk, high value)**
+Merge into **a single native stack** where `RootNavigator` hosts `MainScreen` directly, and delete
+`MainNavigator`. The contracts are preserved:
 
-- `RootStackParamList`을 평탄화(`{ Main: undefined }`), `MainStackParamList` 중첩 제거,
-  `navigationRef` 타입 갱신.
-- 딥링크 native route state를 단일 레벨로 평탄화. 현재 `deeplinkUtils.ts:409`의
+- Flatten `RootStackParamList` (`{ Main: undefined }`), drop the nested `MainStackParamList`, and update
+  the `navigationRef` type.
+- Flatten the deeplink native route state to a single level. `deeplinkUtils.ts:409` today produces
   `{ routes: [{ name: 'Main', state: { routes: [{ name: 'Main' }] } }] }` → `{ routes: [{ name: 'Main' }] }`.
-- **Debug/Modal native 라우트는 네비게이터에 미등록된 죽은 경로**(`useDeepLinkNavigation.ts:81-82`
-  주석, `ModalScreen`/Debug 스크린 미등록 확인) → 중첩 분기 제거.
-- **불변 유지:** web-route `OnNavigate` 경로, `navigationRef.reset()` 호출 규약,
-  `useDeepLinkNavigation`의 콜드/웜 캡처 흐름. `deeplinkUtils.test.ts` 갱신.
+- **The Debug and Modal native routes are dead paths, unregistered in the navigator**
+  (`useDeepLinkNavigation.ts:81-82` says so in a comment, and `ModalScreen` and the Debug screens are
+  confirmed unregistered) → the nested branch goes.
+- **Invariants kept:** the web-route `OnNavigate` path, the `navigationRef.reset()` calling convention,
+  and `useDeepLinkNavigation`'s cold and warm capture flows. `deeplinkUtils.test.ts` is updated.
 
-**4.4 provider 비필수 초기화 lazy 전환 (중고리스크·고효과, 마지막·서비스별 점진)**
-WebView URL 로드에 불필요한 계층을 lazy getter로 전환(최초 접근 시 생성). `InteractionManager`
-지연 대신 lazy getter를 써서 "처음 쓸 때 준비 안 됨" 리스크를 구조적으로 차단.
+**4.4 Make non-essential provider initialisation lazy (medium-high risk, high value, last, service by
+service)**
+Convert the layers the WebView URL load does not need into lazy getters (built on first access). Lazy
+getters are used instead of an `InteractionManager` delay, which structurally removes the "not ready
+when first used" risk.
 
-- **Eager 유지(부팅/웹뷰 임계경로):** `logService`·`consoleLogger`·`keyValueStorage(MMKV)`·
-  `bootMetricsService`(기반·저비용), `deeplinkService`·`deeplinkManager`·`notificationService`
-  (콜드스타트가 첫 렌더에 `getInitialUrl`/`getInitialNotification` 호출), **`firebaseCrashlyticsService`
-  (부팅 구간 크래시 관측성 우선 — 성능보다 관측성 채택)**.
-- **Lazy 전환:** `sqliteDatabase` + 9개 DataSource + `cacheCrudService`·`cacheSearchService`·
-  `testRecordService`·`uploadService`(최중량), `subscriptionIapService`·`dynamicAppIconService`·
-  `smsService`·`oauthService`·`clipboardService`·`permissionService`·`preferenceService`·
-  `deviceService`.
+- **Stays eager (the boot and webview critical path):** `logService`, `consoleLogger`,
+  `keyValueStorage (MMKV)`, `bootMetricsService` (foundational and cheap), `deeplinkService`,
+  `deeplinkManager`, `notificationService` (a cold start calls `getInitialUrl` /
+  `getInitialNotification` on the first render), and **`firebaseCrashlyticsService` (crash
+  observability during boot beats the performance — observability wins)**.
+- **Goes lazy:** `sqliteDatabase` plus the nine DataSources, `cacheCrudService`, `cacheSearchService`,
+  `testRecordService`, `uploadService` (the heaviest), `subscriptionIapService`,
+  `dynamicAppIconService`, `smsService`, `oauthService`, `clipboardService`, `permissionService`,
+  `preferenceService` and `deviceService`.
 
-**포함/제외(범위):**
+**Scope:**
 
-- 포함: 위 4단계(네이티브 pre-webview 구간).
-- 제외: 웹 측 번들·런타임 최적화(2차), 서비스워커 캐싱(3차), 배포/CDN 정책, 네이티브 앱 프로세스~JS
-  엔트리 미계측 구간.
+- In: the four steps above (the native pre-webview stretch).
+- Out: web-side bundle and runtime optimisation (round two), service worker caching (round three),
+  deploy and CDN policy, and the uninstrumented stretch from the native app process to the JS entry.
 
-## 대안 (Alternatives)
+## Alternatives
 
-- **WebView 프리워밍 풀** — 기각. RN은 컴포넌트 마운트 시 인스턴스를 생성하므로 풀링 효과 대비 복잡도가
-  높다. source가 정적이고 단일 웹뷰라 4.1~4.3으로 충분.
-- **`InteractionManager` 기반 provider 초기화 지연** — 기각. 지연된 서비스를 첫 렌더 직후 동기 기대하는
-  경로가 있으면 "준비 안 됨"으로 깨진다. lazy getter의 "접근 시 생성" 보장이 구조적으로 더 안전.
-- **이전 브랜치 `d90642` 리베이스/체리픽** — 불가. 로컬·원격 모두 유실. 새로 구현.
-- **Crashlytics도 lazy 전환**(문서 원안) — 기각. 부팅 구간 크래시 리포팅 공백이 생김. 관측성 우선.
+- **A WebView pre-warming pool** — rejected. RN creates the instance when the component mounts, so
+  pooling costs more complexity than it returns. With a static source and a single webview, 4.1–4.3 are
+  enough.
+- **Delaying provider initialisation with `InteractionManager`** — rejected. If any path expects a
+  delayed service synchronously right after the first render, it breaks with "not ready". A lazy
+  getter's build-on-access guarantee is structurally safer.
+- **Rebasing or cherry-picking the earlier `d90642` branch** — impossible; it is lost both locally and
+  remotely. Implemented afresh.
+- **Making Crashlytics lazy too** (as the document originally proposed) — rejected. It would leave a gap
+  in crash reporting during boot. Observability first.
 
-## 결과 (Consequences)
+## Consequences
 
-**얻는 것**
+**What is gained**
 
-- 목표: 콜드부팅 `load-start` 중앙값 **−150ms 이상** 단축(BootMetrics 전후 비교로 판정).
-    - **실측(콜드 4회 중앙값): `load-start` 438 → 156.5ms, −281.5ms 로 목표 초과 달성.** 최대 기여는
-      4.1+4.3(`app-mount→main-screen` 220ms→≈0), 다음 4.4(`provider-ready` 54→4.5ms). 4.2는 측정상 무효.
-      상세는 boot-optimization.md 측정 결과.
-- 네이티브 컨테이너 1레이어 제거로 마운트 비용·구조 단순화.
-- 단계별 독립 커밋 → 효과 없거나 회귀 시 해당 단계만 리버트.
+- The goal: cut the cold-boot `load-start` median by **at least 150ms** (judged by comparing BootMetrics
+  before and after).
+    - **Measured (median of four cold boots): `load-start` 438 → 156.5ms, −281.5ms — past the goal.**
+      The largest contribution was 4.1 + 4.3 (`app-mount→main-screen` 220ms → ≈0), then 4.4
+      (`provider-ready` 54 → 4.5ms). 4.2 was not measurable. The details are in the measurement results
+      in boot-optimization.md.
+- One fewer native container layer, so a lower mount cost and a simpler structure.
+- Independent commits per step, so a step with no effect or a regression is reverted on its own.
 
-**감수하는 트레이드오프·리스크**
+**Trade-offs and risks accepted**
 
-- **4.3 스택 병합:** 라우트 이름·`navigationRef` 계약에 의존하는 코드가 깨질 수 있음 → 병합 전 참조
-  전수 확인 완료(navigationRef 사용처, deeplink native route state, Modal/Debug 미등록 확인).
-  회귀 스모크(딥링크 진입, 백버튼, 포그라운드 복귀) 필수.
-- **4.4 SQLite lazy:** 웹이 첫 캐시 메시지를 보낼 때 SQLite open이 최초 접근에서 동기 발생 → 그 경로가
-  느려질 수 있음. **실기기 측정으로 트레이드오프 확인**하고, 유의미하면 해당 서비스만 eager 복귀.
-- **계측 오차:** 콜드/웜 상태에 따라 변동이 커 단계별 3회 이상 측정 후 중앙값 비교.
+- **4.3, merging the stacks:** code that depends on route names or the `navigationRef` contract can
+  break → every reference was checked before merging (navigationRef call sites, the deeplink native
+  route state, and confirming Modal and Debug are unregistered). A regression smoke test (deeplink
+  entry, the back button, returning to the foreground) is mandatory.
+- **4.4, lazy SQLite:** when the web sends its first cache message, opening SQLite happens
+  synchronously on first access, so that path can be slower. **Confirm the trade-off by measuring on a
+  real device** and, if it matters, return just that service to eager.
+- **Measurement noise:** variance between cold and warm states is large, so each step is measured at
+  least three times and the medians compared.
 
-**검증 방법**
+**How it is verified**
 
-- 각 단계: 타입체크 + 관련 유닛 테스트 + 실기기 콜드부팅 3회 BootMetrics 전후 비교(부팅 성능 기록 화면).
-- 회귀: 딥링크 진입, 백버튼, 포그라운드 복귀, lazy 전환된 캐시/업로드 등 첫 사용 동작 확인.
-- 판정: `load-start` 중앙값 −150ms 이상이면 목표 달성.
-- 알려진 사전 실패(변경 무관 베이스라인): 워크트리 typecheck의 stale
-  `@lemoncloud/chatic-sockets-api` + 누락 nx-svg 타이핑(6건), `useDeepLinkNavigation.test.ts`의
-  native-stack ESM transform 미설정.
+- Per step: a type check, the relevant unit tests, and a BootMetrics before-and-after comparison over
+  three cold boots on a real device (through the boot performance screen).
+- Regressions: deeplink entry, the back button, returning to the foreground, and the first use of
+  anything made lazy (cache, upload).
+- The verdict: goal met if the `load-start` median improves by at least 150ms.
+- Known pre-existing failures (baseline, unrelated to this change): the worktree type check's stale
+  `@lemoncloud/chatic-sockets-api` plus six missing nx-svg typings, and the native-stack ESM transform
+  not configured for `useDeepLinkNavigation.test.ts`.
