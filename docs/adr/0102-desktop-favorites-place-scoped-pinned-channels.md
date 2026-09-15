@@ -1,4 +1,4 @@
-# ADR-0083: move desktop favorites to `ui.pinnedChannels` (place-scoped), and clear it on logout
+# ADR-0102: move desktop favorites to `ui.pinnedChannels` (place-scoped), and clear it on logout
 
 > Status: Accepted · Decided: 2026-09-11 · Implemented: `3a65fef9` · `ec59ca7b` · `c50dd01e` · `6f12d9ac` ·
 > `3fd4604a` · `0879cb5a` · `3bbf995c` · `0cc9106e` · `45f1664c` · `278f213e` · `14c8100`

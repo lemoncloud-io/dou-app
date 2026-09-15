@@ -1,4 +1,4 @@
-# ADR-0045: Store the default place in the relay scope only, add profile creation as the last step of place creation, and unify display avatars into one component
+# ADR-0094: Store the default place in the relay scope only, add profile creation as the last step of place creation, and unify display avatars into one component
 
 > Status: Accepted · Decided: 2026-08-06
 > Follows: [ADR-0034](./0034-inviter-phone-verification-guest-gate-and-sheet.md) · [ADR-0036](./0036-data-surface-unification-app-runtime-cleanup.md) · [ADR-0039](./0039-dm-display-name-chain-and-invite-profile-release.md) · [ADR-0040](./0040-self-chat-title-and-profile-setup-nudge.md) · [ADR-0041](./0041-place-profile-as-invite-precondition.md)

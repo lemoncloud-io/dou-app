@@ -1,4 +1,4 @@
-# ADR-0027: An admin-v2 screen listing report logs
+# ADR-0087: An admin-v2 screen listing report logs
 
 > Status: Accepted · Decided: 2026-07-23
 

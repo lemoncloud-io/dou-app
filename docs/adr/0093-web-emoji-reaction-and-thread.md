@@ -1,4 +1,4 @@
-# ADR-0045: Add emoji reactions and threads to apps/web — full-screen thread, action sheet, app-local utilities
+# ADR-0093: Add emoji reactions and threads to apps/web — full-screen thread, action sheet, app-local utilities
 
 > Status: Accepted · Decided: 2026-08-05
 > Follows: [ADR-0008](./0008-threads-client-derived-from-parentid.md) (threads derived by the client from `parentId`, with mobile deferred as out of scope) · [ADR-0024](./0024-group-chat-room-figma-redesign.md) · [ADR-0032](./0032-dm-chat-room-screen.md)

@@ -1,4 +1,4 @@
-# ADR-0033: Global search over the local cache (places, channels, clouds, messages, plus message jump)
+# ADR-0088: Global search over the local cache (places, channels, clouds, messages, plus message jump)
 
 > Status: Accepted · Decided: 2026-07-29 · Updated: 2026-08-06 (search narrowed to the active cloud, the place switch settled, context lookup added)
 

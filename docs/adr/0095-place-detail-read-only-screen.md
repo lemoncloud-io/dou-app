@@ -1,4 +1,4 @@
-# ADR-0047: Add a read-only "place info" screen, and rename the existing edit screen to `edit`
+# ADR-0095: Add a read-only "place info" screen, and rename the existing edit screen to `edit`
 
 > Status: Accepted (partially amended) · Decided: 2026-08-07
 > · **Amendment**: [ADR-0074](./0074-place-introduction-text.md) reversed the exclusion of the intro text

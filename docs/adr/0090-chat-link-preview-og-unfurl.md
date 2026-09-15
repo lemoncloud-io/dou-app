@@ -1,4 +1,4 @@
-# ADR-0034: Chat link previews — og unfurl in the mobile shell, images loaded remotely
+# ADR-0090: Chat link previews — og unfurl in the mobile shell, images loaded remotely
 
 > Status: Accepted · Decided: 2026-07-31 · Implementation update: 2026-08-01 (decisions 2 and 9 — see the notes under each)
 >

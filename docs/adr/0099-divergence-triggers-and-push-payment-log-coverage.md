@@ -1,4 +1,4 @@
-# ADR-0075: Establish divergence-check triggers — the client judges value mismatches and leaves them as `warn`
+# ADR-0099: Establish divergence-check triggers — the client judges value mismatches and leaves them as `warn`
 
 > Status: Accepted · Decided: 2026-09-07
 >

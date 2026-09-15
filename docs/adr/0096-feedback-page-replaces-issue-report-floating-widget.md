@@ -1,4 +1,4 @@
-# ADR-0047: Remove the issue-report floating widget and switch to a "Send feedback" page under My Page
+# ADR-0096: Remove the issue-report floating widget and switch to a "Send feedback" page under My Page
 
 > Status: Accepted · Decided: 2026-08-07
 > Related: [ADR-0017](./0017-issue-report-floating-widget.md) (superseded by this decision) ·

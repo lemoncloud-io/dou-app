@@ -1,4 +1,4 @@
-# ADR-0033: Relay 1:1 (DM) invites and phone verification — build the interfaces ahead, split into parallel tracks
+# ADR-0089: Relay 1:1 (DM) invites and phone verification — build the interfaces ahead, split into parallel tracks
 
 > Status: Accepted · Decided: 2026-07-29
 

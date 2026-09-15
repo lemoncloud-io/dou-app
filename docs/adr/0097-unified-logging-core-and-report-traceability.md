@@ -1,4 +1,4 @@
-# ADR-0047: Unify the logging core into a platform-neutral `libs/logger`, and strengthen report traceability
+# ADR-0097: Unify the logging core into a platform-neutral `libs/logger`, and strengthen report traceability
 
 > Status: Accepted (the report-traceability decisions are Superseded) · Decided: 2026-08-10
 >

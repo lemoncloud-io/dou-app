@@ -1,4 +1,4 @@
-# ADR-0081: Split libs/data's doc canon by size, and flatten the `src/data` nesting
+# ADR-0100: Split libs/data's doc canon by size, and flatten the `src/data` nesting
 
 > Status: Accepted · Decided: 2026-09-09 · Updated: 2026-09-14 (Decisions 4·5 carried out) · Related: [ADR-0036](./0036-data-surface-unification-app-runtime-cleanup.md) (naming convention this document inherits)
 

@@ -1,4 +1,4 @@
-# ADR-0075: Get the app ready to receive cloud-activated notifications
+# ADR-0098: Get the app ready to receive cloud-activated notifications
 
 > Status: Accepted · Decided: 2026-09-07
 

@@ -1,4 +1,4 @@
-# ADR-0034: Entering the web debug overlay — a two-stage gate, ten taps plus an entry code
+# ADR-0092: Entering the web debug overlay — a two-stage gate, ten taps plus an entry code
 
 > Status: Accepted · Decided: 2026-08-03
 
