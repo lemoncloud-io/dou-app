@@ -284,10 +284,7 @@ the lanes. There are four store apps — iOS and Android, each dev and prod. See
 | [docs/webview.md](./docs/webview.md)                     | The message boundary in detail — handlers, the injected runtime, the router        |
 | [docs/webview-debugging.md](./docs/webview-debugging.md) | Attaching a remote inspector to the WebView running inside the app                 |
 
-These fifteen are written in Korean and predate the rules in [AGENTS.md](../../AGENTS.md); they are
-the detail, and this README is the map. One of them is wrong today:
-`webview-debugging.md` describes a `SendLogBatch` message, and no such type exists — the web log path
-is one `SendLog` per entry, as in [scenario 5](#5-a-log-entry-crosses-the-boundary).
+These fifteen are the detail, and this README is the map.
 
 ## How to verify
 
