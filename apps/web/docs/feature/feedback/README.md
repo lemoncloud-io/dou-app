@@ -12,12 +12,7 @@ through `runtime.report.reportIssue`, which belongs to
 
 ## Layout
 
-```text
-apps/web/src/app/features/feedback/
-├── index.ts                    re-exports pages/
-├── pages/FeedbackPage.tsx      the whole screen — fields, photo encoding, the 5-photo budget
-└── lib/buildReportContext.ts   the auto-attached context, as a pure function
-```
+Two source files — the page, and `lib/buildReportContext.ts` — and their specs.
 
 Two collaborators live outside the feature and are the reason a reader gets lost looking for them:
 
@@ -97,18 +92,6 @@ omitted entirely rather than sent as `[]` when nothing has been recorded.
 
 ### Attachments buy storage by giving up the Slack ping
 
-```mermaid
-flowchart TD
-    Page["FeedbackPage — title, body, photos"] --> Ctx["buildReportContext()"]
-    Ctx --> Extras["extras: device · version · online · viewport · path · routeTrail"]
-    Page --> Images["images: base64 JPEG ×0–5"]
-    Extras --> Report["runtime.report.reportIssue(title, body, extras)"]
-    Images --> Report
-    Report --> Decide{"any images?"}
-    Decide -- no --> Slack["saved + posted to Slack"]
-    Decide -- yes --> Quiet["saved silently — silent: true"]
-```
-
 The whole payload is serialized into one `message` string, and that string becomes the Slack message
 text. A single base64 photo blows past Slack's ~40k character limit. Sending the images in a
 separate `meta` field was tried and the backend does not persist client `meta`, so `message` is the
@@ -129,12 +112,7 @@ A photo batch the browser cannot decode rejects that batch only; already-attache
 
 ## Usage
 
-The page is mounted by mypage's route table and takes no props.
-
-```tsx
-// features/mypage/routes/index.tsx — the URL lives under the hub, the page belongs here
-<Route path="feedback" element={<FeedbackPage />} />
-```
+The page takes no props; its URL lives under the hub, and mypage's route table mounts it.
 
 Guests can submit. The row in `SettingsPage` sits outside the `isGuest` branch, and `reportIssue`
 puts `user.isAuthenticated: false` in the payload rather than refusing.
@@ -177,4 +155,4 @@ puts `user.isAuthenticated: false` in the payload rather than refusing.
 - [`@chatic/app-runtime`](../../../../../libs/app-runtime/README.md) — `runtime.report`, the wire
   body, and what the sender adds on top of `extras`.
 - [mypage](../mypage/README.md) — the settings row that leads here.
-- [architecture/logging.md](../../observability/logging.md) — why the logs travel separately.
+- [observability/logging.md](../../observability/logging.md) — why the logs travel separately.
