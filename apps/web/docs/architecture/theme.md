@@ -1,91 +1,116 @@
-# 테마
+# theme — state, DOM application, and the native sync
 
-> 대상: `apps/web/src/app/hooks/useTheme.ts` · `runtime/ThemeApplier.tsx` · `config/legacyPreferenceMigration.ts`
-> 계약 소유: 값 모델·기본값·저장 포맷·웹↔네이티브 동기화는 [apps/mobile/docs/theme.md](../../../mobile/docs/theme.md)가 소유한다. 이 문서는 웹 내부 상세만 다룬다. 저장·레인 메커니즘 자체의 정본은 [`@chatic/config` 아키텍처 문서](../../../../libs/config/README.md)와 [stores.md](./stores.md).
+Covers `apps/web/src/app/hooks/useTheme.ts`, `runtime/ThemeApplier.tsx` and
+`config/legacyPreferenceMigration.ts`. The value model, default, storage format and web↔native
+contract are owned by [`apps/mobile/docs/theme.md`](../../../mobile/docs/theme.md) — this document
+covers only the web-internal wiring. The storage/lane mechanism itself is
+[`@chatic/config`](../../../../libs/config/README.md)'s canon; see also [stores.md](./stores.md)
+for how apps/web wires into that mechanism generally.
 
-web의 테마는 `@chatic/config`의 `ui.theme` 레지스트리 키다(2026-09-09 이관, 구 `usePreferenceStore` 폐기). 공용 `@chatic/theme`(ThemeProvider)는 더 이상 web에서 쓰지 않는다 — admin/desktop-web/landing 전용으로 남아 있다.
+Theme is the `ui.theme` registry key of `@chatic/config` (moved 2026-09-09, retiring the old
+`usePreferenceStore`). The shared `@chatic/theme` package (its `ThemeProvider`) is no longer used
+by web — it stays in use by admin-v2, desktop-web and landing only.
 
-## 값 모델
+## Value model
 
 ```ts
 type Theme = 'dark' | 'light' | 'system';
 ```
 
-- 기본값은 **`'light'`** — 저장된 값이 없으면 OS 컬러 스킴을 보지 않는다. `'system'`을 기본으로 두면 웹(`matchMedia`)과 네이티브 셸(RN `useColorScheme`)이 각각 해석하므로, 한쪽만 해석을 끝낸 프레임에서 화면이 갈린다.
-- `'system'`은 값으로는 계속 지원하고, 고른 경우 OS 설정 변경이 matchMedia `change` 리스너로 **실시간 반영**된다. 다만 **현재 UI에 `'system'` 선택 수단이 없다** — 세 토글([`SettingsControl`](../../src/app/ui/components/SettingsControl.tsx) · [`Sidebar`](../../src/app/ui/components/Sidebar.tsx) · [`MyPage`](../../src/app/features/mypage/pages/MyPage.tsx))이 모두 light↔dark 이진이다.
+- The default is **`'light'`** — with no stored value, the OS color scheme is not consulted. If
+  `'system'` were the default, web (`matchMedia`) and the native shell (RN `useColorScheme`) would
+  each resolve it independently, and a frame where only one side had resolved would show a visibly
+  split screen.
+- `'system'` is still a supported value, and choosing it keeps a live OS change reflected through
+  a `matchMedia` `change` listener. But **no current UI lets a user choose it** — all three
+  toggles ([`SettingsControl`](../../src/app/ui/components/SettingsControl.tsx),
+  [`Sidebar`](../../src/app/ui/components/Sidebar.tsx),
+  [`MyPage`](../../src/app/features/mypage/pages/MyPage.tsx)) are light↔dark binary switches.
 
-## 구성 요소
+## Components
 
-| 역할        | 위치                          | 책임                                                                            |
-| ----------- | ----------------------------- | ------------------------------------------------------------------------------- |
-| 상태·영속화 | `@chatic/config`의 `ui.theme` | 레인 리졸버 + `shell` persist(브릿지 동기화 + 로컬 미러). 정본은 상단 링크 참고 |
-| 소비 API    | `hooks/useTheme`              | `{ theme, setTheme, isDarkTheme }` — `@chatic/theme`의 useTheme과 동일 API      |
-| DOM 적용    | `runtime/ThemeApplier`        | `<html>`의 `light`/`dark` 클래스 + `meta[theme-color]`. 렌더 없음               |
+| Role                | Location                      | Responsibility                                                                           |
+| ------------------- | ----------------------------- | ---------------------------------------------------------------------------------------- |
+| State + persistence | `@chatic/config`'s `ui.theme` | Lane resolution + `shell` persist (bridge sync + local mirror). Canon at the link above. |
+| Consumer API        | `hooks/useTheme`              | `{ theme, setTheme, isDarkTheme }` — same shape as `@chatic/theme`'s `useTheme`.         |
+| DOM application     | `runtime/ThemeApplier`        | The `light`/`dark` class on `<html>` and `meta[theme-color]`. Renders nothing.           |
 
-`ThemeApplier`는 `app.tsx`에서 AppRuntime **바깥**에 마운트한다 — 세션 준비 전(로그인 화면 등)에도 테마가 맞아야 하기 때문. `useTheme`이 `@chatic/config`의 전역 싱글턴을 구독하므로 Context는 필요 없다.
+`ThemeApplier` mounts in `app.tsx` **outside** `AppRuntime`, because the theme has to be correct
+before a session exists (the login screen, for instance). `useTheme` subscribes to `@chatic/config`'s
+global singleton, so no Context is needed.
 
-`meta[theme-color]`를 `ThemeApplier`에서도 갱신하는 이유: `index.html`의 프리페인트 스크립트는 부팅 시 한 번만 돌기 때문에, 인앱 테마 변경 후 리로드 전까지 모바일 상단 시스템 UI 색이 stale하게 남는다. meta는 `id`가 아니라 `meta[name="theme-color"]`로 찾는다 — `id`에 결합하면 그 속성을 지웠을 때 동기화가 조용히 죽는다.
+`ThemeApplier` also updates `meta[theme-color]` because `index.html`'s pre-paint script only runs
+once, at boot — without this, an in-app theme change would leave the mobile status bar color stale
+until the next reload. It looks the meta tag up by `meta[name="theme-color"]`, not by `id`: binding
+to an `id` would silently break the sync the moment that attribute is removed.
 
-**`--splash-bg`는 `ThemeApplier`가 건드리지 않는다.** 유일한 소비자가 `index.html`의 `#root` 안에 있는 `#splash` 자리표시자이고, React가 첫 커밋에서 그것을 교체한 뒤에야 이 컴포넌트가 처음 실행되므로 쓰기가 무의미하다. 프리페인트 스크립트가 세팅하는 것만 효과가 있다.
+**`ThemeApplier` never touches `--splash-bg`.** Its only consumer is the `#splash` placeholder
+inside `index.html`'s `#root`, and React replaces that placeholder on its first commit — before
+`ThemeApplier` ever runs. Only the pre-paint script's own write to that variable has any effect.
 
-색상 쌍(`#121212`/`#ffffff`)은 import가 불가능한 곳에 여러 번 손으로 유지된다 — `index.html`의 프리페인트 스크립트와 anti-flash `<style>` 블록, `apps/desktop-web/index.html`, `apps/mobile`의 `getThemeBackgroundColor`. 팔레트를 바꾸려면 전부 함께 고쳐야 한다.
+The color pair (`#121212`/`#ffffff`) is hand-maintained in several places that cannot import a
+shared constant: `index.html`'s pre-paint script and its anti-flash `<style>` block,
+`apps/desktop-web/index.html`, and `apps/mobile`'s `getThemeBackgroundColor`. Changing the palette
+means changing all of them together.
 
-## 저장 흐름 — 두 채널이 함께 간다
+## Storage flow — three channels, one write
 
-`ui.theme`는 `persist: 'shell'`이라 `config.set('ui.theme', theme, { lane: 'shell' })`가
-브릿지(`SaveConfigValue`)로 확인 응답 + 1회 재시도 + 로컬 미러를 전부 처리한다(정본:
-`@chatic/config` 아키텍처 문서). 하지만 그것만으로는 부족하다 — 네이티브 자신의 상태바·루트
-배경·`window.CHATIC_APP_THEME` 사전 주입은 `ConfigKvService`가 아니라 **네이티브의 옛
-`themeStore`**(모바일 `usePreferenceCacheHandler`의 `'theme'` 케이스가 갱신)를 본다. 그래서
-`hooks/useTheme.ts`의 `setTheme`은 **두 번 쓴다**:
+`ui.theme` is `persist: 'shell'`, so `config.set('ui.theme', theme, { lane: 'shell' })` already
+handles the bridge round-trip (`SaveConfigValue`), one retry, and the local mirror — canon in the
+[`@chatic/config` README](../../../../libs/config/README.md). That alone is not enough, though:
+the native shell's own status bar, root background and `window.CHATIC_APP_THEME` pre-injection
+read the native's own legacy `themeStore` (updated by the mobile `usePreferenceCacheHandler`'s
+`'theme'` case), not `ConfigKvService`. So `hooks/useTheme.ts`'s `setTheme` writes **twice**:
 
-1. `config.set('ui.theme', theme, { lane: 'shell' })` — 다음 부팅에 `config.get('ui.theme')`이
-   풀릴 저장소.
-2. `appBridge.savePreferenceConfirmed({ key: 'theme', value: theme })` (네이티브에서만,
-   확인 응답 + 1회 재시도) — 네이티브 자신의 UI가 보는 저장소.
+1. `config.set('ui.theme', theme, { lane: 'shell' })` — the storage `config.get('ui.theme')`
+   resolves from on the next boot.
+2. `appBridge.savePreferenceConfirmed({ key: 'theme', value: theme })` (native only, confirmed
+   with one retry) — the storage native's own UI reads.
 
-거기에 `localStorage.setItem('vite-ui-theme', theme)`까지 더해 총 **세 곳**에 쓴다 —
-`vite-ui-theme`는 web 전용이 아니라 5개 앱이 공유하는 키이기 때문(아래 참고). 세 채널 중 어느
-하나가 실패해도 나머지는 독립적으로 성공한다: 신뢰할 수 있는 자기 치유 경로가 없는 건 2번뿐이라,
-확인 응답 + 재시도는 거기에만 있다 — 네이티브가 상태바를 소유하는데 그 쓰기가 유실되면 두 계층이
-영구히 어긋나기 때문이다.
+On top of that, `localStorage.setItem('vite-ui-theme', theme)` makes a third write —
+`vite-ui-theme` is not private to web; it is shared by five apps (see below). Each of the three
+channels can fail independently without breaking the others: only the second has no self-healing
+path, which is why it alone gets confirmation + retry — if native owns the status bar and this
+write is lost, the two layers stay wrong until the next full app restart.
 
-**읽기**는 `useConfigValue('ui.theme')`(`@chatic/config/react`)가 전부다 — 로컬 캐시·네이티브
-주입·기본값 순서는 `@chatic/config`의 레인 리졸버가 결정하며(정본 링크), 이 문서에서 다시
-설명하지 않는다.
+**Reading** is just `useConfigValue('ui.theme')` (`@chatic/config/react`) — local cache, native
+injection and default-value ordering are decided by `@chatic/config`'s lane resolver and are not
+re-explained here.
 
-### 첫 페인트는 여전히 `index.html`의 몫이다
+### First paint is still `index.html`'s job
 
-`@chatic/config`는 `main.tsx`가 부팅할 때 초기화된다 — 그보다 먼저 그려지는 첫 페인트는 `config`를
-아직 모른다. `index.html`의 프리페인트 스크립트는 그래서 **바뀌지 않았다**:
-`localStorage.getItem('vite-ui-theme') || window.CHATIC_APP_THEME || 'light'`를 그대로 동기로
-읽는다. `window.CHATIC_APP_THEME`은 네이티브가 `injectedJavaScriptBeforeContentLoaded`로 주입하는
-전역이고, 이 값도 위 "네이티브 자신의 themeStore"에서 나온다 — `setTheme`이 그 스토어를 계속
-갱신해야 하는 또 다른 이유다.
+`@chatic/config` initializes when `main.tsx` boots — the first paint, which happens earlier, does
+not know about it yet. `index.html`'s pre-paint script is therefore unchanged: it synchronously
+reads `localStorage.getItem('vite-ui-theme') || window.CHATIC_APP_THEME || 'light'`.
+`window.CHATIC_APP_THEME` is the global the native shell injects via
+`injectedJavaScriptBeforeContentLoaded`, sourced from the same native `themeStore` above — another
+reason `setTheme` has to keep that store current.
 
-[`PreferenceLoader`](../../src/app/runtime/PreferenceLoader.tsx)의 레거시 브릿지 폴백은 부팅
-주입(`CHATIC_APP_CONFIG_BAG`)이 없는 구버전 셸을 위한 보조 경로로 남는다 —
-`config.snapshot('ui.theme')?.isOverridden`이 false일 때만 `FetchPreference`로 값을 가져와
-`{ lane: 'shell' }`로 채운다.
+[`PreferenceLoader`](../../src/app/runtime/PreferenceLoader.tsx)'s legacy bridge fallback remains
+as a secondary path for a shell old enough to lack the boot injection
+(`CHATIC_APP_CONFIG_BAG`): only when `config.snapshot('ui.theme')?.isOverridden` is false does it
+fetch the value via `FetchPreference` and write it with `{ lane: 'shell' }`.
 
-### bridge 값 파싱 주의
+### Parsing bridge values
 
-모바일은 과거 테마를 zustand persist로 저장했으므로, bridge/주입으로 읽은 값이 평문(`'dark'`)이
-아니라 **JSON 봉투**(`{"state":{"theme":"dark"},"version":0}`)일 수 있다.
-`parseThemeBridgeValue`(`stores/preferenceParsers.ts`, `PreferenceLoader`가 사용)가 두 형태를 모두
-정규화하고, 해석 불가 값은 무시한다. 모바일도 이제 평문으로 통일해 쓰지만, 아직 새 버전 쓰기를
-거치지 않은 기기가 있어 호환 읽기는 유지한다.
+Mobile used to store the theme via zustand persist, so a value read off the bridge or the boot
+injection can arrive as a JSON envelope (`{"state":{"theme":"dark"},"version":0}`) instead of a
+plain string (`'dark'`). `parseThemeBridgeValue` (`stores/preferenceParsers.ts`, used by
+`PreferenceLoader`) normalizes both shapes and discards anything unrecognized. Mobile now writes
+plain strings too, but some devices haven't gone through a write since the format changed, so the
+compatible read stays.
 
-## 마이그레이션 메모
+## Migration notes
 
-- **`vite-ui-theme`는 옮기지 않고 영구히 미러링한다.** 이 키는 web 전용이 아니라 `index.html`
-  프리페인트 스크립트 5개(web·desktop-web·admin-v2·testbed·block-kit-builder)와 `@chatic/theme`의
-  `ThemeProvider`(admin-v2·desktop-web·landing)가 전부 직접 읽고 쓰는 공유 계약이다 — 다른 config
-  키처럼 새 이름으로 옮기고 지우면 이 5곳이 깨진다. `config/legacyPreferenceMigration.ts`의
-  `syncThemeFromSharedKey()`가 매 부팅 `vite-ui-theme` → `ui.theme`의 네임스페이스 저장소로
-  동기화하고, 원본은 지우지 않는다.
-- 기본값이 `'system'` → `'light'`로 바뀐 건 그대로다(2025년 어느 시점 결정, 저장값이 없던 사용자만
-  영향).
-- 네이티브에 남아 있던 **레거시 봉투 포맷의** `'system'`은 모바일 셸이 초기화 시점에 `'light'`로
-  접고 평문으로 되쓴다. 평문으로 저장된 `'system'`은 명시적 선택으로 존중되므로, 웹이 저장된
-  `'system'`을 존중하는 것과 어긋나지 않는다.
+- **`vite-ui-theme` is mirrored forever, not moved.** This key is not web-only — `index.html`'s
+  pre-paint scripts in five apps (web, desktop-web, admin-v2, testbed, block-kit-builder) and
+  `@chatic/theme`'s `ThemeProvider` (admin-v2, desktop-web, landing) all read and write it directly,
+  so renaming and deleting it the way other config keys were migrated would break those five call
+  sites. `config/legacyPreferenceMigration.ts`'s `syncThemeFromSharedKey()` re-syncs
+  `vite-ui-theme` into `ui.theme`'s namespaced storage on every boot instead, without ever deleting
+  the original.
+- The default flip from `'system'` to `'light'` stands (a decision from 2025, affecting only users
+  with no stored value).
+- A legacy-envelope `'system'` still found on the native side is folded to `'light'` by the mobile
+  shell at init and re-written as a plain string. A plain-string `'system'` is honored as an
+  explicit choice, which does not conflict with web also honoring a stored `'system'`.
