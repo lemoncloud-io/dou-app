@@ -28,7 +28,7 @@ apps/web/docs/architecture/
 
 This document decides **which direction an import may point** inside `apps/web/src/app`. It decides
 nothing about what a library does — those contracts live in each library's own README, linked from
-the [app README](../README.md).
+the [app README](../../README.md).
 
 ## The shared contract
 
@@ -121,5 +121,5 @@ Source comments in this app are English. So are these documents.
 
 ## Further reading
 
-- [apps/web README](../README.md) — purpose, scope, directory tree, and what the app delegates.
+- [apps/web README](../../README.md) — purpose, scope, directory tree, and what the app delegates.
 - [`../feature/`](../feature/) — one folder per feature group, each with its own README.
