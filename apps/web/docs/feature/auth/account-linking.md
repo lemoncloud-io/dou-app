@@ -11,30 +11,10 @@ elsewhere: [phone-verification.md](./phone-verification.md) for the number sheet
 
 ## Layout
 
-The path is four layers deep and each one adds exactly one thing.
-
-```mermaid
-graph TD
-    UI["screens<br/>PhoneVerifySheet · PhoneVerifyScreen · AccountLinkSection"]
-    HK["useLinkAccount<br/>5 mutations + pending flags"]
-    RP["AuthRepository<br/>remote only"]
-    DS["AuthSocketDataSource<br/>assembles type · mode · step"]
-    GW["AuthSocketDomainGateway<br/>Pick&lt;AuthGateway, 'linkAccount'&gt;"]
-    RF["socketFactory<br/>relayAuthGateway"]
-    SRV["relay server<br/>auth.link-account"]
-
-    UI --> HK --> RP --> DS --> GW --> SRV
-    RF -.->|pinned at composition| GW
-```
-
-| Layer             | File                                                               |
-| ----------------- | ------------------------------------------------------------------ |
-| Gateway `Pick`    | `libs/data/src/remote/gateways/socket.ts`                          |
-| Relay pin         | `libs/app-runtime/src/data/factories/socketFactory.ts`             |
-| Data source       | `libs/data/src/remote/socket-data-sources/AuthSocketDataSource.ts` |
-| Repository        | `libs/data/src/repositories/AuthRepository.ts`                     |
-| Hook              | `apps/web/src/app/hooks/useLinkAccount.ts`                         |
-| Linked-state read | `apps/web/src/app/hooks/useLinkedAccounts.ts`                      |
+The path is four layers deep and each one adds exactly one thing: a screen drives `useLinkAccount`
+(`apps/web/src/app/hooks/`), which calls `AuthRepository`, which delegates to `AuthSocketDataSource`
+— the layer that assembles `type`, `mode` and `step` — which sends through a gateway bundle that
+`socketFactory` pinned to the relay socket.
 
 The bundle is pinned to the **relay** socket at composition time, not chosen per call, so no caller
 can forget a route argument. It has to be relay: the main user this packet resolves lives on the
@@ -79,18 +59,6 @@ keeps both out of reach.
 Never read the response to work out which happened. The request already said.
 
 ### Four steps, and when to skip one
-
-```mermaid
-stateDiagram-v2
-    [*] --> sent: send / resend
-    sent --> checked: verify (mode=link)
-    checked --> linked: confirm · linkable true
-    checked --> blocked: linkable false + reason
-    sent --> loggedIn: confirm (mode=login) — verify skipped
-    linked --> [*]: session unchanged, no token
-    loggedIn --> [*]: session replaced, $token
-    blocked --> [*]: the commit button stays shut
-```
 
 - **`send` / `resend`** — the data source derives the step from a `resend` flag, so a caller never
   spells either out. Social has no send step at all: Apple and Google already did the proving.
@@ -164,18 +132,9 @@ change will not fail the build.
 
 ### Proving a number
 
-```ts
-const { send, verify, confirm } = useLinkAccount();
-
-// login — a guest becoming the main user. No verify.
-await send(phone, { mode: 'login', code: inviteCode });
-const { $token } = await confirm(phone, otp, { mode: 'login' });
-
-// link — a main user adding a credential. Verify first, always.
-await send(phone, { mode: 'link' });
-const check = await verify(phone, otp, { mode: 'link' });
-if (check.linkable) await confirm(phone, otp, { mode: 'link' });
-```
+`useLinkAccount` exposes `send`, `verify` and `confirm`, each taking `mode` explicitly. A login proof
+is `send` then `confirm`; a link proof is `send`, `verify`, and `confirm` only when the verify
+answered `linkable`.
 
 On `mode: 'login'` the `$token` must be installed before anything else is issued or accepted, or
 those calls answer 403. `applySessionToken` owns that installation —
