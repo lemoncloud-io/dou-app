@@ -12,28 +12,10 @@ the unfiltered window**, because the rows it needs are exactly the rows the feed
 
 ## Layout
 
-```text
-utils/
-├── foldReactions.ts      reaction events → Map<targetId, ReactionTally[]>, plus hasMyReaction
-├── buildThread.ts        threadRootId · buildThreadIndex · buildThread · countUnseenReplies
-├── emoji.ts              the curated picker set
-└── longPress.ts          LONG_PRESS_DELAY_MS, shared by bubbles and chips
-stores/useRecentEmojiStore.ts   recents (LRU 16, persisted) + QUICK_REACTIONS
-hooks/useReactions.ts           the toggle
-components/
-├── ReactionChips.tsx      the chip row under a message, ending in an add button
-├── ReactionDetailSheet.tsx who reacted, one tab per emoji
-├── MessageActionSheet.tsx  the long-press sheet: quick row, thread, copy
-├── EmojiPickerSheet.tsx    the full picker
-└── ThreadFooter.tsx        "N replies", repliers' faces, the unseen dot
-pages/ThreadPage.tsx        the full-screen thread
-```
-
-The emoji set is nine categories:
-
-```bash
-grep -c "key: '" apps/web/src/app/features/channels/utils/emoji.ts
-```
+Four pure modules carry the derivations — `foldReactions.ts`, `buildThread.ts`, the curated
+`emoji.ts` set (nine categories) and `longPress.ts`, whose single threshold is shared by bubbles and
+chips. Everything else is presentation: the chip row, the reactor sheet, the action sheet, the
+picker, the thread footer and the thread page. `useRecentEmojiStore` holds the device-local recents.
 
 ## Responsibilities
 
@@ -45,14 +27,6 @@ impure and its tests heavy; the cost is that the precedence chain is applied at 
 today the message row, the thread footer and the reactor sheet.
 
 ## Fold first, filter second
-
-```text
-chat.feed / chat.sync ─┐
-setReaction optimistic ─┼─→ chat cache ─→ useChats().rawChats ─┬─→ foldReactions   → chips, reactor sheet
-sendChat(parentId)     ─┘                                      ├─→ buildThreadIndex → thread footer
-                                                               ├─→ buildThread      → ThreadPage
-                                                               └─→ isFeedVisible    → useChats().messages → the feed
-```
 
 `rawChats` is the cache window before the feed filter. Derive from `messages` instead and the
 material is gone — reaction events and replies are precisely what the filter removes, and my own
@@ -88,13 +62,10 @@ The server does not toggle. `action` is the **target state**, so the caller has 
 one — which is why `useReactions().toggleReaction(chatId, emoji, isMine)` takes `isMine` from the
 fold rather than looking it up.
 
-```text
-tap → hasMyReaction decides 'on' | 'off'
-    → ChatRepository.setReaction writes the returned event into the chat cache
-    → the fold re-runs, the chip updates without waiting for the broadcast
-    → chat.sync echoes the same id → idempotent write, no flicker
-    → on rejection the repository rolls back and useReactions sets failedId
-```
+The tap resolves to `on` or `off` against the fold, `setReaction` writes the returned event straight
+into the chat cache so the chip updates without waiting for the broadcast, and the `chat.sync` echo
+carries the same id — an idempotent write, no flicker. A rejection rolls the cache back and sets
+`failedId`.
 
 `failedId` is keyed by message id, not a boolean: one hook instance serves the whole room, so the
 flag has to say which row it belongs to. Without it the chip appears and vanishes on its own and
@@ -222,8 +193,8 @@ see [chat-room.md](./chat-room.md).
   instead of filtering after the fact — that is the home list's concern, see
   [../home/README.md](../home/README.md).
 - Reply pushes are ordinary message pushes, so a tap lands on the channel first and hops to the
-  thread only if the pushed chat turns out to be a reply. That routing lives in the notifications
-  surface — [../notifications/README.md](../../bridge/push-navigation.md).
+  thread only if the pushed chat turns out to be a reply. That routing lives in
+  [bridge/push-navigation.md](../../bridge/push-navigation.md).
 - The derivations are pure and tested directly: `foldReactions.test.ts` (normalisation convergence,
   last-action-wins, optimistic ordering), `buildThread.test.ts` (both encodings, reactions excluded,
   `lastReplyNo` / owner), plus component tests for the chips, the sheets and the footer.

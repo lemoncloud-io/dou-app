@@ -11,30 +11,6 @@ This document covers the room's own surface. Reactions, the action sheet and the
 [data-layer.md](./data-layer.md); the 1:1 footer and composer lock are in
 [dm-and-self-chat.md](./dm-and-self-chat.md).
 
-## Layout
-
-The room is one page plus the components that draw a row:
-
-```text
-pages/ChannelRoomPage.tsx      the container
-components/
-├── ChannelMessageRow.tsx      one message: bubble or card, attachment, unfurl, chips, thread footer
-├── MessageText.tsx            tokenized body — URLs and code, not markdown
-├── MessageCodeBlock.tsx       fenced code inside a bubble
-├── MessageLinkPreview.tsx     the unfurl card derived from a URL in the text
-├── MessageAttachment.tsx      the sender's structured `attach$` card
-├── MessageDetailDialog.tsx    the in-page overlay behind "view all"
-├── RoomIntro.tsx              the thread's opening block, one variant per stereo
-└── RoomSkeleton.tsx           the pre-resolution placeholder
-utils/
-├── messageTokens.ts           the tokenizer (text · url · code · codeBlock)
-├── messagePlainText.ts        body → plain text, for the overlay and the clipboard
-├── systemMessage.ts           subType → i18n suffix key
-├── chatAttachment.ts          the three attachment predicates
-├── openExternalUrl.ts         every outbound link leaves through here
-└── orderMemberIds.ts          owner-first participant ordering for the header stack
-```
-
 ## Responsibilities
 
 The page decides **what the room means**: which stereo it is, who the participants are, what is
@@ -45,13 +21,11 @@ one component, three variants, one call site.
 
 ## The header
 
-| Slot       | Source                                                                                                                                                            |
-| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `kind`     | `self` · `direct` · `group`, from the channel's stereo — picks the fallback glyph                                                                                 |
-| `title`    | `useChannelTitle(channel, { joinNick: myJoin?.nick, peerNick: dmPeer?.profileNick })`                                                                             |
-| `avatar`   | [`resolveChannelAvatar`](../../../src/app/features/channels/lib/resolveChannelAvatar.ts) — self: my place-profile photo, dm: the peer's, else `channel.thumbnail` |
-| `meta`     | groups only: `AvatarGroup` of the participant stack + `channel.memberCount`                                                                                       |
-| `moreMenu` | one item, Settings, navigating with `state: { roomDistance: 1 }`                                                                                                  |
+The header takes its `kind` from the channel's stereo, which picks the fallback glyph; its title from
+`useChannelTitle` (with my join nick and the peer's profile nick as overrides); and its avatar from
+`resolveChannelAvatar` — my place-profile photo in a self chat, the peer's in a DM, and
+`channel.thumbnail` otherwise. Its only menu item is Settings, navigated with
+`state: { roomDistance: 1 }`.
 
 The participant stack is `orderMemberIdsOwnerFirst(ownerId, activeMemberIds, 5)` — owner leftmost,
 then active members, capped at five — with each id resolved through the site profile and then the
@@ -84,19 +58,9 @@ and fades once scrolling stops.
 ## A message row
 
 [`ChannelMessageRow`](../../../src/app/features/channels/components/ChannelMessageRow.tsx) renders
-the body and then, as separate rows in the same column, the things that comment on it:
-
-```text
-bubble  or  Block Kit card     the message
-  ↓
-MessageAttachment (attach$)    the sender's own structured body
-  ↓
-MessageLinkPreview             the unfurl WE derived from a URL in the text
-  ↓
-ReactionChips                  reactions on it
-  ↓
-ThreadFooter                   replies to it
-```
+the body and then, as separate rows in the same column, the things that comment on it: the sender's
+own `attach$` card, then the link preview the client derived, then the reaction chips, then the
+thread footer.
 
 The order of the first two is the argument for the whole list: `attach$` is part of what the sender
 sent, the unfurl is something the client found. The last three sit **outside** the long-press
@@ -169,11 +133,8 @@ event total) for that, which is the home feature's concern.
 (`meta` itself is reserved by `CoreModel`). **The server preserves it and never interprets it**, so
 every check is the client's:
 
-| Function                  | Answers                                                         |
-| ------------------------- | --------------------------------------------------------------- |
-| `hasAttachmentContent`    | is there anything to draw? An empty `{}` renders no card at all |
-| `resolveAttachmentAccent` | what colour is the left rail?                                   |
-| `safeAttachmentUrl`       | is `sourceUrl` a link we may offer?                             |
+Three predicates carry it: whether there is anything to draw at all (an empty `{}` renders no card),
+what colour the left rail is, and whether `sourceUrl` is a link the client may offer.
 
 Nothing in the domain or cache layer handles `attach$` specially: `ChatView` does not exclude it,
 `toDomainChat` spreads, `ClientChatView` extends `DomainChat`, and the native cache stores the row

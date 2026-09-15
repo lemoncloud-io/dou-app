@@ -12,27 +12,11 @@ what the app layer does with them.
 
 ## Layout
 
-```text
-apps/web/src/app/features/channels/hooks/
-├── index.ts                     barrel — 23 hooks
-├── useChannel.ts                channel row + sync registration → ClientChannelView
-├── useChannelJoins.ts           the join observer: joins, myJoin, activeMemberIds, cursorByUser
-├── useChannelMembers.ts         roster × join × user cache → ChannelMember[]
-├── useChannelProfiles.ts        site profiles (nick/photo) per member, polled
-├── useChannelTitle.ts           the title chain, for single-channel screens
-├── useChats.ts                  the message window: messages, rawChats, loadMore, loadUntil
-├── useChatScroll.ts             reverse-scroll anchoring and restore
-├── useForegroundChatRefresh.ts  refetch the newest page on entry / foreground (warm cache only)
-├── useJoinPositions.ts          read counts + per-member join sync registration
-├── useReadMarker.ts             advances my read cursor in two stages
-├── useMessageJump.ts            scroll to and flash a searched message
-├── useUrlMetadata.ts            link-preview metadata, module-level FIFO cache
-├── useReactions.ts              reaction toggle (see reactions-and-threads.md)
-├── useDmPeer.ts / useDmPeers.ts the other participant, for one room / for a list
-├── useDmInviteState.ts          peer-gone + invite state (see dm-and-self-chat.md)
-├── useInviteCandidates.ts       invitable people from cache alone (see invite.md)
-└── use*Mutations.ts             the four write hooks, below
-```
+One hook per file under `features/channels/hooks/`, exported from one barrel. They fall into four
+groups: the observers (`useChannel`, `useChannelJoins`, `useChannelMembers`, `useChannelProfiles`,
+`useChats`), the sync registrars (`useJoinPositions`, `useForegroundChatRefresh`), the screen
+mechanics (`useChatScroll`, `useReadMarker`, `useMessageJump`, `useUrlMetadata`), and the four
+`use*Mutations` write hooks.
 
 23 hooks, 18 of them with a co-located `*.test.ts`. The command that says which five have none:
 
@@ -189,20 +173,10 @@ Two of these are worth knowing before you call them:
 
 ## Usage
 
-```tsx
-const { channel, isLoading, isError } = useChannel(channelId, { seed });
-const { joins, myJoin, activeMemberIds, cursorByUser } = useChannelJoins(channelId);
-const { members } = useChannelMembers({ channelId, memberIds: channel?.memberIds, joins });
-const { profileMap } = useChannelProfiles(channel?.sid ?? null, activeMemberIds);
-const { messages, rawChats, hasMore, loadMore } = useChats({
-    channelId,
-    limit: 100,
-    joinedNo: myJoin?.joinedNo,
-});
-```
-
-The order matters: `useChannelJoins` feeds three of the calls below it, and `useChannelProfiles`
-needs the `sid` off the channel row.
+A screen calls the observers in dependency order: `useChannel` first, then `useChannelJoins` — whose
+`joins` and `activeMemberIds` feed `useChannelMembers`, `useChannelProfiles` (which also needs the
+`sid` off the channel row) and `useChats`'s `joinedNo`. Passing those down is the rule in § One
+observer per cache per screen, not a convenience.
 
 ### Adding a hook
 

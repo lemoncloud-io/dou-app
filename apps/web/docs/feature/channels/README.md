@@ -5,8 +5,8 @@ feature owns `apps/web/src/app/features/channels` — every screen you reach onc
 chosen. It observes the channel, its members and its messages, writes sends, reads, reactions,
 membership changes and invites, and exports one thing to the rest of the app: `ChannelRoutes`.
 
-This document covers the **overview and structure**. The per-topic detail is canonical in the
-sibling files listed under [Documents](#documents).
+This document is the map. Every per-topic detail is canonical in the sibling files listed under
+[Documents](#documents), and nothing is restated here.
 
 ## Purpose
 
@@ -30,8 +30,7 @@ This feature does **not** own:
   badges and previews;
 - **relay 1:1 invites** — issuing and accepting belongs to `invite`
   ([../invite/README.md](../invite/README.md)); a DM's re-invite hands off to it;
-- **push routing into a room or a thread** — `notifications`
-  ([../notifications/README.md](../../bridge/push-navigation.md));
+- **push routing into a room or a thread** — [bridge/push-navigation.md](../../bridge/push-navigation.md);
 - **caches, cursors, the join window and the feed predicates** — `@chatic/data`
   ([libs/data](../../../../../libs/data/README.md));
 - **presentation primitives** — `@chatic/web-ui-kit`, with Block Kit bodies drawn by
@@ -65,76 +64,13 @@ everything below the repository call (`@chatic/data`, `@chatic/app-runtime`).
 
 ## Structure
 
-```mermaid
-flowchart TD
-    Routes["routes/PrivateRoutes"] --> Index["index.tsx — ChannelRoutes"]
-    Index --> Pages["pages/ — 5 screens"]
-    Pages --> Components["components/ — 25"]
-    Pages --> Hooks["hooks/ — 23"]
-    Components --> Hooks
-    Pages --> Lib["lib/ — title · avatar resolvers"]
-    Pages --> Utils["utils/ — 21 pure modules"]
-    Components --> Utils
-    Hooks --> Runtime["@chatic/app-runtime — repositories, sync, session"]
-    Components --> Kit["@chatic/web-ui-kit"]
-    Runtime --> Data["@chatic/data"]
+**A component never calls a repository.** Data enters through `hooks/`, and a component receives it
+as props — which is why the pure modules in `utils/` and `lib/` can be tested without React or a
+runtime.
 
-    classDef external stroke-dasharray: 5 5;
-    class Runtime,Kit,Data external;
-```
-
-The arrow that is missing is the point: **a component never calls a repository.** Data enters
-through `hooks/`, and a component receives it as props — which is why the pure modules in `utils/`
-and `lib/` can be tested without React or a runtime.
-
-### The room, end to end
-
-```mermaid
-sequenceDiagram
-    participant U as reader
-    participant P as ChannelRoomPage
-    participant H as hooks/
-    participant R as repositories (app-runtime)
-    participant S as sync
-
-    U->>P: open /channels/:id/room
-    P->>H: useChannel · useChannelJoins · useChats
-    H->>R: observeItem / observeList (cache only)
-    H->>S: useChannelSync · useChatSync · registerJoin per member
-    R-->>P: channel, joins, messages
-    P->>H: useReadMarker → readChat(channel.chatNo), then the newest message
-    U->>P: type and send
-    P->>R: sendChat — optimistic row, then the socket
-    S-->>R: chat.sync echo, same id, idempotent
-    R-->>P: the row settles, the read cursor advances
-```
-
-### Screens
-
-| Page                  | Route (`ROUTES.channels.*`)           | What it is                            |
-| --------------------- | ------------------------------------- | ------------------------------------- |
-| `ChannelRoomPage`     | `/channels/:channelId/room`           | the conversation                      |
-| `ThreadPage`          | `/channels/:channelId/thread/:rootNo` | one root message and its replies      |
-| `ChannelSettingsPage` | `/channels/:channelId/settings`       | name, notification, members, leave    |
-| `InvitePage`          | `/channels/:channelId/invite`         | add people: place tab and contact tab |
-| `InviteLinkPage`      | `/channels/:channelId/invite/link`    | the issued invite link                |
-
-There is no create-channel screen here: a room is created from `home`, and a self chat is created by
-the server.
-
-### Directories
-
-```text
-apps/web/src/app/features/channels/
-├── index.tsx        ChannelRoutes — the only export the app uses
-├── pages/           5 screens
-├── components/      25 components, each with its Props co-located
-├── hooks/           23 hooks — observe, sync, mutate
-├── lib/             the two cross-surface resolvers: title and avatar
-├── utils/           21 pure modules — derivations, predicates, formatters
-├── stores/          useRecentEmojiStore (zustand, persisted)
-└── types/           the view models
-```
+Five screens sit behind `ChannelRoutes`: the room, the full-screen thread, settings, and the two
+invite screens (adding people, and the issued link). There is no create-channel screen here — a room
+is created from `home`, and a self chat is created by the server.
 
 Files whose contents the name does not give away:
 
@@ -150,74 +86,6 @@ Files whose contents the name does not give away:
 Six native bridge calls are made from this feature and no new capability is asked of the shell:
 `getContacts`, `openShareSheet`, `openSettings`, `openURL`, `copyClipBoard` and
 `fetchUrlMetadata`.
-
-## Usage
-
-```tsx
-// routes/PrivateRoutes.tsx
-<Route path="/channels/*" element={<ChannelRoutes />} />
-```
-
-Inside a screen, data comes from the hooks:
-
-```tsx
-const { channel } = useChannel(channelId);
-const { joins, myJoin, activeMemberIds, cursorByUser } = useChannelJoins(channelId);
-const { messages, rawChats, loadMore } = useChats({ channelId, limit: 100, joinedNo: myJoin?.joinedNo });
-```
-
-### Wiring
-
-```text
-app.tsx
-└── RuntimeConnectionHost        (repositories, sync, session — @chatic/app-runtime)
-    └── PrivateRoutes
-        └── ChannelRoutes        (this feature)
-            └── ChannelRoomPage
-                ├── useChannel / useChannelJoins / useChannelMembers / useChannelProfiles
-                ├── useChats  → useChatSync, useForegroundChatRefresh
-                ├── useJoinPositions → registerJoin per member
-                └── useReadMarker, useChatScroll, useMessageJump
-```
-
-## Scenarios
-
-### 1. Opening a room
-
-`useChannel` observes the row and registers channel sync; a `null` before any row has arrived means
-"still fetching", not "no such channel". `useChats` observes the newest 100 rows, windowed by my
-`join.joinedNo`. The read marker fires immediately with `channel.chatNo`, then corrects to the
-newest message once the list lands.
-
-### 2. Sending
-
-`sendChat` writes an optimistic row with no `chatNo`, which sorts to the bottom of the list. The
-server's reply and the `chat.sync` echo carry the same id, so the cache converges without a flicker,
-and the sender's read cursor advances through the new message.
-
-### 3. Reacting
-
-The tap resolves to `on` or `off` against the folded state, the repository writes the returned event
-into the chat cache, and the fold re-runs. The event never appears in the feed — it is filtered out
-there and folded into a chip instead.
-
-### 4. Replying in a thread
-
-The reply carries `parentId` as the root's full `<channelId>:<chatNo>` id. It is hidden from the
-feed, shown on the thread page, and counted as unseen against the read cursor snapshotted when the
-room was opened.
-
-### 5. The 1:1 peer leaves
-
-Their join row goes inactive, the composer locks, and a derived footer says where the invite stands
-— absent, pending with a countdown, rejected or expired — with a re-invite CTA whenever there is
-nothing live to wait for.
-
-### 6. Adding people
-
-The place tab derives its candidate pool from channels the cache already holds and calls
-`channel.invite` once; the contact tab reads device contacts and issues invites by phone number, or
-hands back a link.
 
 ## Documents
 
