@@ -8,25 +8,13 @@ This is the relay half of `/invite/accept`. The route also carries cloud invitat
 is a different backend contract — REST, and a room that already exists — and it lives in
 [auth](../auth/README.md). See [README](./README.md) for how a link reaches the route at all.
 
-## Layout
-
-```text
-apps/web/src/app/features/invite/accept/    22 sources, 9 tests
-├── InviteAcceptPage.tsx     the route; picks a lane and calls no data hook of its own
-├── types.ts                 parseInviteDeeplink, isInviteEntry, isRelayInvite, InviteInfo
-├── components/  10          RelayInviteAccept (the phase switch) + the shared accept screen
-├── hooks/        7          useRelayInviteFlow, useResolveInviteChannel, the 3 cloud entry steps
-└── lib/          2          inviteEntryRedirect
-```
+## Responsibilities
 
 `RelayInviteAccept` holds no decisions — it is a list of `if (flow.phase === …)` returns. Every
-judgement is in the hook, which is why the state diagram below is the whole feature.
-
-The third tier of the room hunt is **not** here: `useAwaitInviteChannel` sits in
-`apps/web/src/app/hooks/`, because the waiting screen on the sender's side watches for a channel the
-same way and neither lane owns it.
-
-## Responsibilities
+judgement is in `useRelayInviteFlow`, which is why the phases below are the whole feature. The third
+tier of the room hunt is the one piece outside the folder: `useAwaitInviteChannel` sits in
+`apps/web/src/app/hooks/`, because the sender's waiting screen watches for a channel the same way
+and neither lane owns it.
 
 This lane decides **when it is safe to accept**, and what to show when it is not. It decides nothing
 about how a phone number is proved, nothing about how a place profile is saved, and nothing about
@@ -79,40 +67,12 @@ them "someone else got there first" would be false and would hide the one thing 
 
 ### `advance()` re-validates, structurally
 
-```mermaid
-stateDiagram-v2
-    direction TB
-    [*] --> loading
-    loading --> review: state = pending
-    loading --> notice: expired / accepted / canceled / rejected / error
+`review` is the only phase a user acts from, and both actions leave it through one function:
+`decline()` opens the confirm, `accept()` calls `advance()`. `advance()` re-reads the invite, then
+branches to `verifying`, `profiling`, `awaitingChannel`, `closed` or a terminal `notice` — and the
+handlers for verification and the profile call `advance()` again rather than continuing on their own.
 
-    review --> declining: decline
-    declining --> review: cancel
-    declining --> closed: reject succeeds
-    declining --> notice: 409 → alreadyJoined, or an error
-    review --> notice: countdown reaches zero
-    review --> submitting: accept
-
-    state revalidated <<choice>>
-    submitting --> revalidated: invite.get
-    revalidated --> notice: any final state, or an error
-    revalidated --> verifying: needVerify
-    revalidated --> notice: needVerify but already verified → wrongNumber
-    revalidated --> profiling: no place profile (and a sid exists)
-    revalidated --> awaitingChannel: accepted, no channelId
-    revalidated --> closed: accepted with a channelId
-    revalidated --> verifying: 403 before verifying
-
-    verifying --> submitting: verified
-    verifying --> review: abandoned
-    profiling --> submitting: saved
-    profiling --> review: closed
-    awaitingChannel --> closed: resolved, or gave up after 20s
-    notice --> closed: dismissed
-```
-
-Every arrow out of `verifying` and `profiling` goes back through `submitting`, because both
-handlers call the same `advance()`, and `advance()` **begins with `invite.get`**. Verification takes
+That loop is the contract: **`advance()` begins with `invite.get`.** Verification takes
 minutes, and in that window the inviter can cancel, the link can lapse, or the recipient can decline
 from another device. Re-validation is not something a caller remembers to do; it is the first thing
 the only path forward does.

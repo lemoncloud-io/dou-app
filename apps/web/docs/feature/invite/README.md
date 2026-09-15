@@ -5,9 +5,8 @@ name and a phone number, the app issues a relay invite and hands the deeplink to
 the other person opens that link, proves the number is theirs, and lands in a DM room that did not
 exist a moment earlier.
 
-The two ends share almost nothing but the code shape, so each has its own document. This one is the
-map: what the folder holds, how a link finds its way in, and where the neighbouring features take
-over.
+The two ends share almost nothing but the code shape, so each has its own document. This one holds
+what both obey.
 
 ## Scope
 
@@ -59,53 +58,24 @@ over.
 6. **Gates render instead of the form, never on top of it.** An unmet precondition never leaves a
    submittable form underneath a dialog, not even for a frame.
 
-## Structure
+`accept/types.ts` is the file whose name hides its importance: `parseInviteDeeplink`, `isInviteEntry`
+and `isRelayInvite` decide whether a query string is an invitation at all and which lane it belongs
+to. There is no `flags.ts` — the feature-flag file that once gated the unbuilt halves of this flow is
+gone, along with every branch it protected.
 
-```text
-apps/web/src/app/features/invite/          43 sources, 26 tests
-├── pages/            3    ContactInvitePage, InviteWaitingPage — the sender's two screens
-├── components/       4    ReinviteDialog, InviteChannelRow, InviterVerifyPrompt
-├── hooks/            8    the sender lane: retire, poll, list rows, dismiss, migration
-├── utils/            5    inviteCode, inviteStatus, inviteMessageCopy, sendInviteMessage,
-│                          buildInviteEntryParams
-└── accept/                the recipient lane — its own sub-tree
-    ├── InviteAcceptPage.tsx   the /invite/accept route; branches relay vs cloud and nothing else
-    ├── types.ts               deeplink parsing and the two predicates that classify a link
-    ├── components/  10        RelayInviteAccept, CloudInviteAccept, and the shared accept screen
-    ├── hooks/        7        useRelayInviteFlow (the state machine), the three cloud entry steps
-    └── lib/          2        inviteEntryRedirect
-```
+## Every link ends at one route
 
-`types.ts` is the file whose name hides its importance: `parseInviteDeeplink`, `isInviteEntry` and
-`isRelayInvite` live there, and those three decide whether a query string is an invitation at all
-and which lane it belongs to. There is no `flags.ts` — the feature-flag file that once gated the
-unbuilt halves of this flow is gone, along with every branch it protected.
-
-### Every link ends at one route
-
-```mermaid
-flowchart TD
-    S["/s?code=…&api=…&stage=…<br/>share link"] --> BEP[buildInviteEntryParams]
-    L["landing page /<br/>native converter"] --> Q
-    BEP --> Q["/?provider=invite&code=…<br/>&_backend=… or &relay=1"]
-    Q --> G[InviteEntryGate<br/>at the root of both route sets]
-    G -->|isFirstRun| ONB[onboarding keeps the query]
-    G -->|resolveInviteAcceptRedirect| A["/invite/accept?…"]
-    A --> P[InviteAcceptPage]
-    P -->|relay marker| R[RelayInviteAccept]
-    P -->|no marker| C[CloudInviteAccept]
-```
-
-`/?provider=invite&…` will keep arriving forever — it is the address baked into every installed app
-build, and no store release changes that. `InviteEntryGate` catches it at the root of both the
-signed-in and signed-out route sets and redirects **before home renders**, so someone arriving on an
+Share links (`/s?code=…`), the landing page and the native converter all funnel into
+`/?provider=invite&…`, and that address will keep arriving forever — it is baked into every
+installed app build, and no store release changes it. `InviteEntryGate` catches it at the root of
+**both** route sets and redirects to `/invite/accept` before home renders, so someone arriving on an
 invitation never pays for the place list, channel list, unread aggregation and membership lookup
-they are about to navigate away from.
+they are about to navigate away from. During first run, onboarding keeps the query instead.
 
-The rule the diagram cannot draw: **the absence of a backend address is itself the relay signal.**
-A relay link carries no address because the relay server needs none, so `buildInviteEntryParams`
-detects that and always emits an explicit `relay=1`. Everything downstream gates on the marker and
-never has to infer relay from a missing `_backend`.
+**The absence of a backend address is itself the relay signal.** A relay link carries no address
+because the relay server needs none, so `buildInviteEntryParams` detects that and always emits an
+explicit `relay=1`. Everything downstream gates on the marker and never has to infer relay from a
+missing `_backend`; `InviteAcceptPage` branches on it and does nothing else.
 
 `/invite/accept` is registered in `commonRoutes`, so it renders in both auth states and sits outside
 `UnifiedLayout`. Both halves matter. An invite deeplink routinely lands before the background guest
@@ -113,20 +83,15 @@ login finishes, and a private path would fall to the `*` catch-all and take the 
 it. No shell means no home data hooks and no bottom nav — but it also means the page mounts
 `useBackHandler` itself, since that normally arrives with the layout.
 
-### Routes
-
-| Page                | Path (`ROUTES.invite.*`)    | Notes                                                      |
-| ------------------- | --------------------------- | ---------------------------------------------------------- |
-| `ContactInvitePage` | `/invite/contact`           | The issue form; route state also puts it in re-invite mode |
-| `InviteWaitingPage` | `/invite/:inviteId/waiting` | Countdown, polling, cancel, reissue                        |
-| `InviteAcceptPage`  | `/invite/accept`            | The recipient's entry. Common route, no shell              |
+The sender's two screens are ordinary private routes: the issue form (`/invite/contact`, which route
+state also puts into re-invite mode) and the waiting screen (`/invite/:inviteId/waiting`).
 
 ## The two lanes
 
-| Document                                           | What it covers                                                                                                         |
-| -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Document | What it covers |
+| --- | --- |
 | [relay-invite-sender.md](./relay-invite-sender.md) | The issue form and its three gates, SMS hand-off, re-invite detection, the retire rules, the waiting screen, list rows |
-| [relay-invite-accept.md](./relay-invite-accept.md) | The accept state machine, the notice mapping, the profile precondition, decline, and the three-tier room hunt          |
+| [relay-invite-accept.md](./relay-invite-accept.md) | The accept state machine, the notice mapping, the profile precondition, decline, and the three-tier room hunt |
 
 ## Where the backend still has gaps
 

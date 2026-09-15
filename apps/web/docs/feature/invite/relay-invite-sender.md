@@ -8,29 +8,16 @@ codes**, and most of this document is the consequences of enforcing it.
 See [README](./README.md) for the folder map and the rules both lanes share, and
 [relay-invite-accept.md](./relay-invite-accept.md) for what the person on the other end sees.
 
-## Layout
-
-```text
-apps/web/src/app/features/invite/
-├── pages/ContactInvitePage.tsx     the issue form, three gates, re-invite mode
-├── pages/InviteWaitingPage.tsx     countdown, polling, cancel, reissue, the accepted hand-off
-├── components/  ReinviteDialog · InviteChannelRow · InviterVerifyPrompt
-├── hooks/       useRetireInvite · useInviteWaitingStatus · useAcceptedChannelSync ·
-│                useInviteListRows · useLocallyCanceledInvites ·
-│                useCanceledInviteReconcile · useInviteDismissMigration · useInviteCountdown
-└── utils/       inviteCode · inviteStatus · inviteMessageCopy · sendInviteMessage
-```
-
-Three things this lane needs live outside the folder, because other features share them:
-`useRelayInvites` (the list query and every mutation) and `useSentInviteLog` in
-`apps/web/src/app/hooks/`, and the list rows themselves, rendered by home's `ChannelList` and by
-`PlaceChannelManagePage`.
-
 ## Responsibilities
 
 This lane decides **which invite is the live one for a given person** and what happens to the
 previous one. It decides nothing about how a number is validated or verified, nothing about how the
 recipient's flow behaves, and nothing about how an invite row is cached.
+
+Three things it needs live outside the feature folder, because other features share them:
+`useRelayInvites` (the list query and every mutation) and `useSentInviteLog` in
+`apps/web/src/app/hooks/`, and the list rows themselves, rendered by home's `ChannelList` and by
+`PlaceChannelManagePage`.
 
 ## The shared contract
 
