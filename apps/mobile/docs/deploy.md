@@ -1,69 +1,74 @@
 # Deploy
 
-모바일 앱(iOS/Android × dev/prod, 총 4개 스토어 앱)을 로컬 맥에서 명령 한 번으로 스토어에
-업로드하는 파이프라인을 다룬다. 심사 제출/출시 버튼은 자동화하지 않는다 — 업로드까지만 자동이고,
-그 뒤는 App Store Connect / Play Console에서 사람이 결정한다.
+A local-Mac, one-command pipeline that builds and uploads the mobile app (iOS/Android × dev/prod,
+four store apps total) to the stores. Only the upload is automated — submitting for review or
+releasing is a human decision made in App Store Connect / Play Console.
 
-## 배포 대상
+## Targets
 
-| 앱           | 식별자              | 채널                |
-| ------------ | ------------------- | ------------------- |
-| iOS dev      | `io.chatic.dou.dev` | TestFlight (dev 앱) |
-| iOS prod     | `io.chatic.dou`     | TestFlight          |
-| Android dev  | `io.chatic.dou.dev` | Play 비공개 테스트  |
-| Android prod | `io.chatic.dou`     | Play internal 트랙  |
+| App          | Identifier          | Channel              |
+| ------------ | ------------------- | -------------------- |
+| iOS dev      | `io.chatic.dou.dev` | TestFlight (dev app) |
+| iOS prod     | `io.chatic.dou`     | TestFlight           |
+| Android dev  | `io.chatic.dou.dev` | Play closed testing  |
+| Android prod | `io.chatic.dou`     | Play internal track  |
 
-## 최초 1회 세팅
+## One-time setup
 
-1. **fastlane 설치** — `brew install fastlane` (Homebrew fastlane은 자체 Ruby를 내장하므로
-   시스템 Ruby 버전과 무관하다.)
-2. **자격증명 파일 준비** — `apps/mobile/fastlane/` 디렉터리에 그대로 둔다
-   (`.p8`/`.json` 모두 gitignore 확인됨, 커밋되지 않는다)
-    - App Store Connect API Key `.p8` 파일 + Key ID + Issuer ID
-    - Play Console 서비스 계정 JSON **2개** — Android dev/prod는 서로 다른 Google Cloud
-      계정이므로 각 계정의 JSON이 필요하다 (`PLAY_JSON_KEY_PATH`, `PLAY_JSON_KEY_PATH_DEV`)
-    - Android release keystore (`chatic-dou.keystore`) + 비밀번호
-3. **env 작성** — `apps/mobile/fastlane/.env.example`을 `.env`로 복사해 채운다.
-    - 키 파일 경로는 파일명만 쓰면 `fastlane/` 기준으로 해석된다. 절대경로/`~`도 가능.
-    - dev 앱이 별도 Apple 계정을 쓰면 `*_DEV` 변수를 채운다. 비워두면 공용 값으로 폴백한다.
-    - Play 비공개 테스트 트랙 이름이 콘솔에서 `alpha`가 아니면 `PLAY_TRACK_DEV`를 조정한다.
+1. **Install fastlane** — `brew install fastlane` (Homebrew's fastlane bundles its own Ruby, so the
+   system Ruby version does not matter).
+2. **Place credentials** in `apps/mobile/fastlane/` (both `.p8` and `.json` are gitignored there, so
+   nothing is committed):
+    - an App Store Connect API key: the `.p8` file, its Key ID and Issuer ID
+    - **two** Play Console service-account JSON files — Android dev and prod live in different Google
+      Cloud accounts, so both `PLAY_JSON_KEY_PATH` and `PLAY_JSON_KEY_PATH_DEV` are needed
+    - the Android release keystore (`chatic-dou.keystore`) and its password
+3. **Write `.env`** — copy `apps/mobile/fastlane/.env.example` to `.env` and fill it in.
+    - A key-file path that is just a filename resolves against `fastlane/`; absolute paths and `~`
+      also work.
+    - Set the `*_DEV` variables only when the dev app uses a separate Apple account — left empty, dev
+      deploys fall back to the shared values.
+    - Adjust `PLAY_TRACK_DEV` if the Play closed-testing track is not named `alpha` in the console.
 
-## 배포 플로우
+## Deploy flow
 
 ```bash
-# 1. 버전 올리기 — iOS(pbxproj)/Android(build.gradle) 4개 필드를 한 번에 동기화하고 커밋
+# 1. Bump the version — syncs the 4 iOS (pbxproj) + Android (build.gradle) fields and commits
 yarn mobile:version patch          # major | minor | patch
-yarn mobile:version build          # 같은 버전 재업로드용: 빌드번호만 +1
+yarn mobile:version build          # re-upload the same version: bump only the build number
 
-# 2. 배포 — 업데이트 메시지 입력(-m 생략 시 프롬프트) → 빌드 → 스토어 업로드
-yarn mobile:deploy:dev -m "채팅 이미지 업로드 버그 수정"
-yarn mobile:deploy:prod -m "0.19.1 안정성 개선"
+# 2. Deploy — collects release notes (prompts if -m is omitted) → build → store upload
+yarn mobile:deploy:dev -m "fix chat image upload bug"
+yarn mobile:deploy:prod -m "0.19.1 stability improvements"
 
-# 플랫폼 하나만
+# One platform only
 yarn mobile:deploy:ios:dev -m "..."
 yarn mobile:deploy:android:prod -m "..."
 ```
 
-- 입력한 메시지는 TestFlight "What to Test"와 Play 릴리즈 노트(`PLAY_LOCALE`, 기본 en-US)에
-  들어간다. 릴리즈 노트는 영어로 작성한다.
-- 스토어는 같은 빌드번호(versionCode/CFBundleVersion) 재업로드를 거부하므로, 업로드 실패 후
-  재시도가 아니라 **성공한 업로드를 다시 올리려면** `yarn mobile:version build`가 선행돼야 한다.
-- iOS는 changelog 반영을 위해 빌드 프로세싱 완료를 기다린다(수 분~수십 분 소요될 수 있음).
+- The release notes become TestFlight's "What to Test" and the Play release notes (`PLAY_LOCALE`,
+  default `en-US`); write them in English.
+- A store rejects a re-upload of the same build number (`versionCode`/`CFBundleVersion`), so
+  **re-uploading a build that already succeeded** needs `yarn mobile:version build` first — this is
+  not a retry-after-failure step.
+- iOS deploy waits for build processing to finish before it can apply the changelog (can take minutes
+  to tens of minutes).
 
-## 구성 요소
+## Components
 
-| 파일                            | 역할                                                                                                         |
-| ------------------------------- | ------------------------------------------------------------------------------------------------------------ | ------------------- | ------------------------------ |
-| `scripts/version-mobile.js`     | 버전 범프. Android `build.gradle`을 단일 소스로 삼고 iOS와 어긋나면 중단. 테스트: `yarn mobile:version:test` |
-| `scripts/deploy-mobile.sh`      | 배포 진입점. 메시지 수집 → fastlane 레인 디스패치                                                            |
-| `apps/mobile/fastlane/Fastfile` | `ios dev                                                                                                     | prod`, `android dev | prod` 4개 레인 (빌드 + 업로드) |
-| `apps/mobile/fastlane/.env`     | 자격증명 (gitignore). 템플릿: `.env.example`                                                                 |
+| File                            | Role                                                                                                                                              |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `scripts/version-mobile.js`     | version bump. Treats Android `build.gradle` as the single source of truth and aborts if iOS has drifted from it. Test: `yarn mobile:version:test` |
+| `scripts/deploy-mobile.sh`      | deploy entry point — collects the release message, then dispatches the fastlane lane                                                              |
+| `apps/mobile/fastlane/Fastfile` | four lanes (`ios dev\|prod`, `android dev\|prod`), each building and uploading                                                                    |
+| `apps/mobile/fastlane/.env`     | credentials (gitignored); template at `.env.example`                                                                                              |
 
-## 트러블슈팅
+## Troubleshooting
 
-- **iOS 서명 실패** — 프로젝트는 Automatic signing이며, 레인이 `-allowProvisioningUpdates`와
-  ASC API 키로 서명 자산을 갱신한다. 실패하면 Xcode에서 해당 스킴을 한 번 열어 서명 상태를 확인한다.
-- **Play 업로드 403** — 서비스 계정이 해당 패키지(특히 dev 앱)에 초대되어 있는지 Play Console
-  → 설정 → API 액세스에서 확인한다.
-- **버전 어긋남 에러** — `version-mobile.js`가 "out of sync"로 중단하면 누군가 한쪽 플랫폼만
-  수동 수정한 상태다. 두 파일의 버전 필드를 손으로 맞춘 뒤 재시도한다.
+- **iOS signing failure** — the project uses Automatic signing; the lane refreshes signing assets
+  itself with `-allowProvisioningUpdates` and the ASC API key. If it still fails, open the scheme once
+  in Xcode to check its signing status.
+- **Play upload 403** — check Play Console → Setup → API access that the service account is invited
+  to that package (the dev app especially).
+- **Version-mismatch error** — `version-mobile.js` aborts with "out of sync" when one platform was
+  edited by hand. Align both files' version fields manually, then retry.
