@@ -1,6 +1,6 @@
 # PR Types
 
-<!-- 체크박스 "[ ]"를 "[x]"로 작성하여 체크해주세요 -->
+<!-- Check a box by changing "[ ]" to "[x]" -->
 
 - [ ] Feature
 - [ ] Bugfix
@@ -13,14 +13,18 @@
 - [ ] Documentation content changes
 - [ ] Other... Please describe:
 
-# Related Workflowy
-
-<!-- (Option) 관련 workflowy 작업 링크 -->
-
 # Changes
 
-<!-- 작업내용 설명 -->
+<!-- Describe what changed and why -->
+
+# Verification
+
+<!-- See AGENTS.md "Reviewing a change" — check what you actually did before opening this PR -->
+
+- [ ] Lint / typecheck / test passed locally for the projects touched
+- [ ] Module `README.md` or `docs/<topic>/` updated if this change altered documented behavior
+- [ ] A new or updated ADR is included if this change encodes a decision, not just a fix
 
 # To Reviewers
 
-<!-- 리뷰어가 특히 봐줬으면 하는 내용, 이슈 공유 등 -->
+<!-- What you'd like reviewers to focus on, known issues, etc. -->
