@@ -1,54 +1,33 @@
 # Chatic
 
-An Nx monorepo — four apps under `apps/`, sixteen libraries under `libs/`.
+Nx monorepo: `apps/` (4), `libs/` (16).
 
 ## Before you start
 
-Build, run, test, lint and deploy commands, the tech stack, and environment setup are in
-[`README.md`](./README.md) — read that first if you don't already know them. This file covers what
-governs the code and its docs once you're working in it.
+- Build, run, test, lint, deploy commands: [`README.md`](./README.md).
 
-## Read a module's own docs before changing it
+## Module docs
 
-Every module keeps its own canon, maintained with the code rather than after it. Find it before you
-edit, and prefer it over inference from the source.
+- Before editing a module, read its own `README.md` (and `docs/<topic>/` if it has one). Prefer it
+  over inferring behavior from source.
+- Root `docs/` holds only `docs/adr/` (decisions) and `docs/infra/` (config/code that deploys outside
+  the Nx workspace, e.g. Firebase). Nothing else lives there — links to any other `docs/` path are
+  dead.
+- If a module's behavior only makes sense with a decision's reasoning, write that reasoning into the
+  module doc itself, in your own words. Don't rely on a reader following an ADR link.
 
-- The canon is the module's `README.md`, plus a `docs/` folder beside it when there is enough detail
-  to split. `README.md` holds the overview and structure; `docs/<topic>/` holds the detail.
-- Some modules have neither yet. There is nothing to read in those.
-- **The root `docs/` folder holds two things: decisions and infrastructure that has no project of its
-  own.** `docs/adr/` is the decision record — see
-  [Decisions live in `docs/adr/`](#decisions-live-in-docsadr). `docs/infra/` is config and code that
-  deploys outside this Nx workspace (a Firebase project, a `.well-known` file) and so has no `apps/`
-  or `libs/` project to live in; each subfolder there is its own small canon, README first. The
-  guides, plans, specs and audits that used to sit in `docs/` alongside these are gone. A module's own
-  canon still has to stand on its own regardless of what either tree says.
+## ADRs (`docs/adr/`)
 
-## Decisions live in `docs/adr/`
-
-One decision per file, numbered, named after what was decided, and **written in English** like every
-other document in this repo. An ADR records why a decision was made and what it cost. It is not a
-work log, and it is not where a module's rules are kept.
-
-A module doc must still stand on its own. Where behaviour only makes sense with a decision's
-reasoning, **write the reasoning into the module doc in your own words** — a rule worth following is
-worth stating where it is enforced. The ADR is the provenance, not the reference manual.
-
-A bare inline reference (`ADR-0036`) is enough in module docs and costs nothing. Links into
-`docs/adr/` and `docs/infra/` resolve — use one where a reader would follow it. Links to any other
-path under `docs/` are dead — the guides, plans, specs and audits that used to sit there are gone.
-
-An ADR that a later decision overturns keeps its file and says so in its status line, with a link to
-the ADR that replaced it. Deleting it would lose the reasoning the replacement argues against.
-
-The practical test for a module doc: would it teach someone how to work in this module with no other
-source available? If not, the missing part belongs in it.
+- One decision per file, numbered, in English. Records why a decision was made and what it cost —
+  not a work log, not where a module's rules live.
+- Bare `ADR-0036` mentions are fine in module docs; link into `docs/adr/` only where the reader should
+  actually follow it.
+- A superseded ADR keeps its file; mark its status line and link to the ADR that replaced it. Don't
+  delete it.
 
 ## Verifying a change
 
-- A library's type check is `tsc -b`. Inside a lib, `tsc --noEmit` checks zero files and succeeds, so
-  passing it proves nothing.
-- `tsc -b libs/<name>/tsconfig.json` covers the lib **and** its specs, because `tsconfig.json`
-  references both projects. That is what the CI `typecheck` target runs.
-- `.github/workflows/verify.yml` is the CI gate, and it names the projects it leaves out. Those are
-  the ones to check by hand.
+- Typecheck a lib with `tsc -b libs/<name>/tsconfig.json`, not `tsc --noEmit` (checks 0 files inside a
+  lib, always "passes").
+- `.github/workflows/verify.yml` lists the projects it excludes from typecheck/test — check those by
+  hand.
