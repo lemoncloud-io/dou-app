@@ -1,147 +1,98 @@
-# 플레이스 프로필 (생성·수정)
+# place-profile — the identity home shows, and the name it shows it under
 
-> 상태: Live · 최종 갱신: 2026-08-03 · 관련 ADR: 0012, 0020, 0040 (생성 래퍼 복원 · `exit` 선택화)
+A profile is **per place**: a nick and a photo scoped to one site, not to the account. Home is where
+that profile is _read_ — the top-right avatar, the name in the profile dropdown — and where its
+absence is announced. Home does not contain the form that creates or edits one.
 
-## 목적
+This document owns home's two rules: which source the header identity comes from, and how a place's
+name is turned into something a user should see. The form, its two entry points and the room-settings
+nudge belong to [place](../place/README.md) and [channels](../channels/README.md).
 
-플레이스(=Site)마다 사용자가 쓰는 프로필(이름·사진)을 **만들고 고치는** 화면. 두 흐름을 하나의 공통 오버레이로 제공한다.
+## Header identity — one tier, chosen whole
 
-- **생성**: 프로필이 없어서 막히는 자리에서 띄운다 — 방 설정의 내 멤버 행(ADR-0040)과 초대 두 경로(ADR-0041). 홈 진입 시 자동으로 강요하던 경로는 `98a4685ff`로 사라졌다. 언제 띄우는지는 [place-profile-prompt.md](./place-profile-prompt.md)가 소유한다.
-- **수정**: 홈 헤더 드롭다운의 "프로필"에서 열어 이미 있는 프로필을 고친다.
+`features/home/lib/resolveHeaderProfile.ts` picks an identity tier and takes the name and the image
+from the same tier. There is no cross-source mixing: an empty field is never back-filled from a
+lower tier, because a name from one source beside a photo from another is a person who does not
+exist.
 
-플레이스(공간) 자체를 개설하는 [CreatePlaceDialog](../../../src/app/features/home/components/CreatePlaceDialog.tsx), 클라우드 프로필을 고치는 [CloudProfileEditPage](../../../src/app/features/mypage/pages/CloudProfileEditPage.tsx)와는 별개다.
+| Tier        | Chosen when                             | Home passes it          |
+| ----------- | --------------------------------------- | ----------------------- |
+| `'site'`    | the place profile has a nick or a photo | yes                     |
+| `'account'` | the account record has a name or photo  | **no** — see below      |
+| `'setup'`   | neither                                 | the fallback that fires |
 
-## 설계 원칙
+**Home never supplies the account tier.** `HomePage` calls the resolver with `siteName` and
+`siteImageUrl` only, so on home the resolver has exactly two outcomes: the place profile, or the
+setup prompt. The account tier exists in the function for other callers; reading the resolver alone
+would suggest home falls back to the account name, and it does not.
 
-- **생성과 수정은 한 몸통을 공유한다.** UI·상태 로직이 사실상 동일(같은 `setMyProfile` 저장 경로, 같은 Figma 레이아웃)하므로 공통 컴포넌트(`PlaceProfileFormDialog`)를 두고 생성/수정은 얇은 래퍼로 둔다. 차이는 **문구·초기값·성공 처리뿐**이다.
-    - 이는 ADR-0012의 "생성과 편집을 분리한다 / 편집 화면은 손대지 않는다" 원칙을 ADR-0020로 **개정한 결과**다. 분리로 인한 쌍둥이 중복·UX 불일치를 없앤다.
-- **UI는 `@chatic/web-ui-kit`으로 조립한다.** 부족한 조각은 화면에서 임기응변하지 말고 라이브러리에 추가한 뒤 쓴다. (이번 범위에서는 신규 컴포넌트·아이콘 추가 불필요 — 모두 기존 자산으로 충당.)
-- **수정은 라우트가 아니라 오버레이다.** 생성과 진입 형태를 맞춰, 홈 위에 뜨는 다이얼로그로 통일한다. 전용 URL/딥링크는 두지 않는다.
-- **플레이스 프로필은 클라우드 종류를 가리지 않는다.** default cloud(중계 서버)에서도 `selectedSiteId`가 relay core에서 나와 per-site 프로필이 존재하므로(생성 감지도 default cloud에서 동작), 드롭다운 "프로필"은 클라우드 종류와 무관하게 **항상 이 수정 다이얼로그**를 연다. 기존의 "default cloud → `account.edit`" 분기는 없앤다.
-- **활성 플레이스가 없으면 진입을 막는다.** 편집 대상(sid)이 없으면 프로필을 로드·저장할 수 없으므로, 활성 플레이스가 없을 때 드롭다운 "프로필" 항목을 **비활성(disabled)** 처리한다(오동작·빈 다이얼로그 방지).
-- **저장 가능 조건과 이탈 가드를 dirty로 통일한다.** `isDirty = nick/thumbnail이 초기값과 다름`. 생성은 초기값이 비어 있어 "입력이 있으면 dirty", 수정은 "바뀌면 dirty"로 자연히 갈린다.
+That refusal is the point. The account record's `name` is `***<last 4 digits>` for a phone signup
+and a raw UUID otherwise — never something to print where a person's name belongs. The avatar
+follows the same rule: `displayImageUrl` is `myProfile?.thumbnail` with no account-photo fallback,
+and `ProfileAvatar` draws its own default glyph when that is empty.
 
-## 범위
+## The nudge — where a missing profile is announced
 
-**포함**
+`kind === 'setup'` renders `homePage.setupProfile` ("프로필을 설정해주세요" / "Set up your profile")
+in place of the name, in the header pill and at the top of the profile dropdown.
 
-- 공통 `PlaceProfileFormDialog` 추출(아바타 + 이름 필드 + 설명 + 완료 CTA + 이미지 처리 + 이탈 확인 모달 + 인라인 토스트).
-- `PlaceProfileCreateDialog`를 공통 래퍼로 리팩터(동작 불변).
-- 신규 `PlaceProfileEditDialog`(공통 래퍼) — 기존 `SiteProfileEditPage`를 대체.
-- 라우팅 Page → 오버레이 전환: `mypage`의 `site-profile` Route·`ROUTES.mypage.account.siteProfile` 상수 제거, 홈 드롭다운을 navigate→다이얼로그 open으로.
-- 이름 글자 수를 30 → **20**으로 통일(Figma·생성과 일치).
-- i18n: `placeProfileEdit` 블록 추가, 미사용이 되는 `profileEdit.site*` 키 정리.
+That is home's **entire** involvement in profile setup, and deliberately so:
 
-**제외**
+- **Nothing is forced.** Entering a place does not open a setup dialog. A user with no place profile
+  uses the app normally; the nudge sits in a name slot that was empty anyway.
+- **The nudge never grows a surface of its own.** No banner, no toast. It appears only where a name
+  was going to be printed and there is none.
+- **Only my own profile is nudged.** Someone else's missing profile is not something I can fix, so
+  there is nowhere for a tap to go. Other people's rows keep their normal fallbacks.
 
-- `PlaceEditPage`(플레이스 이름·이미지 편집) 개선 — 이번 Figma와 무관. 플레이스 엔티티 정보 조회는 이후 `PlaceDetailPage`로 분리됐다(ADR-0047).
-- `CloudProfileEditPage`·`ProfileEditPage` 자체 변경 — 다만 홈 드롭다운은 더 이상 `account.edit`로 가지 않는다(항상 수정 다이얼로그). `account.edit` 라우트/페이지는 다른 진입점을 위해 유지.
-- 생성 감지 로직(`usePlaceProfilePrompt`)·건너뜀 store 변경.
+The dropdown's single action is `플레이스 설정` → `ROUTES.place.settings(selectedSiteId)`, and the
+profile form is reached from that hub. The entry is `disabled` when no site is active, because the
+route is keyed by a site id and there would be nothing to open. It works on the relay too — relay
+still supplies a `selectedSiteId`.
 
-## 시나리오
+The other place a missing profile is announced is my own member row in room settings, which taps
+straight through to the create dialog. That row, its `hasSnapshot` gate and the dialog are owned by
+[channels](../channels/README.md).
 
-### 수정 (신규 흐름)
+## Place display name — never the backend string
 
-1. **진입** — 홈 헤더 프로필 아이콘 → 드롭다운 "프로필"을 누르면 수정 오버레이가 열린다. **클라우드 종류(default/일반) 무관.** 단, 활성 플레이스가 없으면 이 항목은 비활성(disabled)이라 열리지 않는다.
-2. **초기값** — `useMyProfile`이 관측하는 현재 per-site 프로필의 이름·사진이 필드에 채워진다.
-3. **편집** — 이름/사진을 바꾼다. 초기값과 달라야("dirty") "완료"가 활성화된다. 이름은 1~20자 필수, 20자 초과 시 빨간 테두리 + "21/20" + 에러 문구로 "완료" 비활성.
-4. **사진 변경(선택)** — 아바타 "+"로 파일 선택. 10MB 이하 webp/png/jpeg만, 초과 시 에러 문구. 통과하면 150px 정사각 base64 미리보기.
-5. **완료** — `setMyProfile({ nick, thumbnail })` 호출. 성공 시 "프로필이 수정되었습니다." 토스트를 잠깐 띄우고 오버레이를 닫는다.
-6. **이탈** — X/esc/overlay 클릭 시, 변경사항이 있으면 확인 모달("변경사항을 저장하지 않고 나갈까요?"), 없으면 바로 닫힌다. 제출 중에는 닫기 무시.
+The relay's personal place is named `default`/`#default` at the backend and has site id `0000`. That
+string must not reach a screen. `apps/web/src/app/utils/resolvePlaceDisplayName.ts` is the single
+pure function that decides:
 
-### 생성 (기존 흐름 유지)
-
-기존과 동일: 홈이 미설정 플레이스를 감지해 오버레이 표시 → 이름(필수)·사진 입력 → 완료 시 "프로필 설정이 완료되었습니다." → 나가기는 세션 건너뜀 기록. (감지·건너뜀은 [별도 문서 흐름](#다이어그램) 참고, 이번 변경 없음.)
-
-## 다이어그램
-
-### 컴포넌트 의존 관계 (공통 추출 후)
-
-```mermaid
-flowchart TD
-    HP[HomePage] --> CRE[PlaceProfileCreateDialog<br/>래퍼]
-    HP --> EDT[PlaceProfileEditDialog<br/>래퍼]
-    HP --> HOOK[usePlaceProfilePrompt<br/>생성 감지]
-    EDT -->|초기값 관측| MP[useMyProfile]
-    CRE --> FORM[PlaceProfileFormDialog<br/>공통 몸통]
-    EDT --> FORM
-    FORM -->|저장| PR[profileRepository.setMyProfile]
-    FORM -->|이미지 리사이즈| RS[resizeImageToBase64]
-    FORM --> UIK["@chatic/web-ui-kit:<br/>Dialog · ModalTopBar · ProfileAvatar ·<br/>TextField · FloatingButton · AlertDialog · Toast · Text"]
+```ts
+resolvePlaceDisplayName(place, { isDefaultCloud }, t): string;
 ```
 
-### 진입 분기 (홈 드롭다운 "프로필")
+It returns the branded `placeList.defaultPlace` label ("두유 홈" / "DoU Home") when `isDefaultCloud`
+is true **or** `place.id === HOME_PLACE_ID` (`'0000'`), and `place.name` otherwise.
 
-```mermaid
-flowchart TD
-    A[드롭다운 열림] --> B{활성 플레이스 있나?}
-    B -- 아니오 --> C['프로필' 항목 disabled]
-    B -- 예 --> D['프로필' 클릭 가능]
-    D --> E[setEditOpen#40;true#41;<br/>PlaceProfileEditDialog 오버레이<br/>클라우드 종류 무관]
-```
+Two signals rather than one, because the callers hold different things. A hook that knows the
+session knows `selectedCloudId`; a list row holds only a place object. `HOME_PLACE_ID` is the real
+runtime sid, so the row still resolves correctly on its own — the home rail's `PlaceItem` passes
+`isDefaultCloud: false` and relies entirely on the id, since the place section is not rendered on
+the relay at all.
 
-## 상세 구현
+`useActivePlaceName` is the hook form: it observes the active place row and runs the same function,
+falling back to `{ id: sid }` when the row is not cached yet so a dialog title never flashes empty.
+It drops the previous row on **every** sid change — keeping it would go on answering "두유 홈" after
+a switch away from the relay, because the retained row still has id `0000`.
 
-### 1) 공통 몸통 — `PlaceProfileFormDialog`
+Keeping this a pure function rather than a hook is what stops the list row and the dialog title from
+drifting apart.
 
-신규 `apps/web/src/app/features/home/components/PlaceProfileFormDialog.tsx`. 현재 [PlaceProfileCreateDialog.tsx](../../../src/app/features/home/components/PlaceProfileCreateDialog.tsx)의 골격·상태·이미지·이탈 로직을 그대로 이관해 일반화한다.
+## Notes for implementers and tests
 
-- Props(문구·초기값·콜백 주입):
-    - `open`, `title`(개행 가능), `subtitle?`(없으면 미표시 — 수정 화면은 부제 없음),
-    - `initialNick?`, `initialThumbnail?`(생성은 미지정 → 빈 문자열),
-    - `submitLabel`, `successToast`, `saveError`, `imageSizeError`, `nameLabel`, `nameHint`, `namePlaceholder?`, `photoLabel`, `photoOptional`, `closeLabel`,
-    - `exit: { title; description; leaveLabel; continueLabel }`,
-    - `onSubmit(v: { nick: string; thumbnail?: string }): Promise<void>`, `onDone()`, `onExit()`.
-- 상태/파생:
-    - `name`/`thumbnail`은 **열림 전이(false→true) 시 1회** `initialNick`/`initialThumbnail`로 seed(생성은 빈값). 편집 초기값은 관측 캐시에서 오므로 열려 있는 동안 재emit돼도 사용자 입력을 덮지 않도록 래치(`seededRef`)로 재-seed를 막는다.
-    - `isDirty = name !== initialNick || thumbnail !== initialThumbnail`.
-    - `isValidName = trim 1자 이상 && length ≤ 20`, `isOverLimit = length > 20`.
-    - `canSubmit = isValidName && isDirty && !submitting`. (생성은 초기값이 비어 있어 dirty가 name 필수와 사실상 일치)
-- 레이아웃/컴포넌트: 기존 생성 다이얼로그와 동일(`Dialog` slide-up 풀스크린 + `ModalTopBar`(onClose) + 스크롤 본문 + `FloatingButton`, a11y용 `sr-only` 타이틀). `TextField`는 `required maxLength={20} enforceMaxLength={false}`, 초과 시 `error`.
-- 저장/토스트/이탈: `onSubmit` 성공 → `successToast`(`variant=positive`) 잠깐 표시 후 `SUCCESS_CLOSE_DELAY(1300ms)` 뒤 `onDone`; 실패/이미지초과 → `variant=error` 인라인 토스트. `requestClose`: 제출 중이면 무시, **`exit` 카피가 있고** `isDirty`면 `AlertDialog`, 아니면 `onExit`. `exit`의 부재 자체가 가드 스위치다 — 별도 boolean을 두지 않는다.
+- Do not add an account-name fallback to the home header. The value it would print is a masked phone
+  number or a UUID, and it would appear exactly when the nudge is most useful.
+- A profile edit reaches home through the observed cache, not through a session refresh, so no
+  re-login or re-fetch is needed to see it.
+- `PlaceItem` hard-codes `isDefaultCloud: false`. If the place section ever renders on the relay,
+  that argument has to become real or the home place will print `default`.
 
-### 2) 생성 래퍼 — `PlaceProfileCreateDialog`
+## Further reading
 
-`PlaceProfileFormDialog`에 생성 문구를 주입하는 얇은 래퍼. 시그니처는 `{ open, placeName, onDone, onExit, exit? }`.
-
-- `title = t('placeProfileCreate.title', { place })`, `subtitle = t('placeProfileCreate.subtitle')`, 초기값 없음.
-- `onSubmit = async ({nick, thumbnail}) => { await profileRepository.setMyProfile({ nick, thumbnail }); }`.
-- 문구는 기존 `placeProfileCreate.*` 키 유지.
-- **`placeName`은 호출자가 해석한 값을 넘긴다** — `useActivePlaceName()`이 `resolvePlaceDisplayName`을 거치므로 홈 플레이스는 백엔드 원문(`default`)이 아니라 `두유 홈`으로 온다.
-- **`exit`은 선택이다.** 넘기면 미저장 이탈 가드가 붙고(방 설정 유도 경로), 생략하면 X가 곧바로 닫는다(초대 경로 — 되돌아가면 초대를 안 한 것일 뿐이라 물을 것이 없다). `dismissible`은 노출하지 않는다 — 강제 생성 경로가 없다.
-- 이 파일은 `98a4685ff`가 지웠다가 ADR-0040이 되살린 것이다.
-
-### 3) 수정 래퍼 — `PlaceProfileEditDialog`
-
-신규 `apps/web/src/app/features/home/components/PlaceProfileEditDialog.tsx`. 시그니처 `{ open, placeName, onClose }`.
-
-- 초기값: `useMyProfile().profile`의 `nick`/`thumbnail`.
-- `title = t('placeProfileEdit.title', { place })`(= "<플레이스>에\n적용 중인 프로필 입니다."), 부제 없음.
-- `onSubmit = ({nick, thumbnail}) => profileRepository.setMyProfile({ nick, thumbnail })`.
-- `onDone = onClose`, `onExit = onClose`.
-
-### 4) 라우팅 Page 제거 & 홈 배선
-
-- 삭제: [SiteProfileEditPage.tsx](../../../src/app/features/mypage/pages/SiteProfileEditPage.tsx) 및 `mypage/pages/index.ts` export, `mypage/routes/index.tsx`의 `site-profile` Route, [paths.ts](../../../src/app/routes/paths.ts)의 `mypage.account.siteProfile`.
-- [HomePage.tsx](../../../src/app/features/home/pages/HomePage.tsx):
-    - `PlaceProfileEditDialog` import·마운트(`open={isEditOpen}` / `onClose`), 로컬 `isEditOpen` state 추가.
-    - 드롭다운 프로필 항목을 클라우드 종류와 무관하게 `setIsEditOpen(true)`로 변경. `hasActivePlace = !!selectedSiteId`(프로필 키의 실제 소스 = `useMyProfile`이 읽는 값)가 false면 `DropdownMenuItem`에 `disabled`. default cloud도 relay가 `selectedSiteId`를 주므로 열린다.
-    - `profileTarget` 상수 제거(더 이상 `account.edit`/`siteProfile` 분기 없음). `ROUTES.mypage.account.edit`는 다른 진입점용으로 남김.
-- `home/components/index.ts`에 `PlaceProfileFormDialog`·`PlaceProfileEditDialog` export 추가.
-
-### 5) i18n
-
-- `apps/web/public/locales/{ko,en}/translation.json`에 `placeProfileEdit` 블록 추가:
-    - `title`("<{{place}}>에\n적용 중인 프로필 입니다."), `successToast`("프로필이 수정되었습니다."), `saveError`, `exitTitle`, `exitDescription`, `exitLeave`, `exitContinue`.
-    - 공유 라벨(nameLabel/nameHint/namePlaceholder/photoLabel/photoOptional/done/close/imageSizeError)은 각 래퍼가 자기 네임스페이스(`placeProfileCreate`/`placeProfileEdit`)의 키를 주입한다. 두 블록에 동일 값을 두어 흐름별로 문구를 독립 조정할 수 있게 했다(공통 몸통은 문구를 모른다).
-- 정리: `SiteProfileEditPage` 제거로 미사용이 되는 `profileEdit.tabSite`·`siteDescription1`·`siteDescription2`·`siteSaveSuccess`·`siteSaveError` 제거(다른 소비자 없음 확인 후). 나머지 `profileEdit.*`(ProfileEditPage/CloudProfileEditPage용)는 유지.
-
-## 검증 방법
-
-- **유닛/컴포넌트 테스트** (신규 32개 전부 통과, home/mypage 회귀 113개 통과):
-    - `PlaceProfileFormDialog.test.tsx`(신규): dirty 기반 완료 활성/비활성, 20자 초과 카운터/에러, `onSubmit` 호출(nick trim), 초기값 seed(수정), 입력/변경 유무에 따른 이탈 확인 모달 vs 즉시 exit, 성공 토스트→지연 onDone, 실패 토스트+재활성, 이미지 초과/리사이즈.
-    - `PlaceProfileCreateDialog.test.tsx`(기존): 래퍼 리팩터 후에도 기존 케이스 그대로 통과(회귀 가드).
-    - `PlaceProfileEditDialog.test.tsx`(신규): `useMyProfile` 초기값 프리필, 저장 성공 토스트→닫힘, 변경 없을 때 완료 비활성.
-- **정적 검사**: `nx typecheck web` 통과, 변경 파일 ESLint 통과. 삭제한 라우트/키의 참조 부재(`site-profile`, `siteProfile`, `SiteProfileEditPage`, 제거 i18n 키) grep 확인.
-- **수동 확인(로컬 프리뷰, worktree vite)**: 앱 부팅·렌더 정상(빌드/임포트/런타임 에러 없음, 콘솔은 백엔드 소켓 503만 — 로컬에 백엔드·인증 없음). 리팩터된 **생성 다이얼로그가 공통 `PlaceProfileFormDialog`를 통해 정상 렌더**됨을 확인(제목/부제/아바타+Plus/이름 0/20/`20글자 이내` 힌트/완료 비활성 — Figma 일치). **수정 다이얼로그의 UI 진입(헤더 드롭다운 "프로필")은 default cloud 게스트 세션에서 `showProfileButton` 규칙상 드롭다운이 숨겨져 로컬 구동으로 도달 불가** → 진입 배선(클라우드 무관 열림, 활성 플레이스 없으면 비활성)과 초기값/저장/이탈은 유닛 테스트로 검증. 배포 QA에서 비게스트 세션 기준 대조 권장.
-- **정적 검사**: 변경 파일 ESLint 통과. `nx typecheck`는 이 worktree에서 프로젝트 레퍼런스/SVG 앰비언트 등으로 **변경 이전부터 다수 실패**(환경 이슈)하며, 실패 항목 중 이번 변경 파일을 참조하는 것은 없음.
+- [README](./README.md) — the header, dropdown and place rail these values feed
+- [place](../place/README.md) — the profile form, the settings hub and its routes
+- [channels](../channels/README.md) — the room-settings member row and its nudge
+- [`libs/data`](../../../../../libs/data/README.md) — the profile cache and `setMyProfile`
