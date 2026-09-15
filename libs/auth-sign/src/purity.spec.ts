@@ -30,8 +30,8 @@ describe('auth-sign purity gate', () => {
     });
 
     it('reads no global (navigator, new Date()) for signing material', () => {
-        // Strip comments first — the constraint is documented in prose (e.g. "전역(navigator) 읽기
-        // 금지") right next to the fields it protects, which would otherwise self-trigger this gate.
+        // Strip comments first. The constraint is described in prose next to the fields it
+        // protects, and those sentences name `navigator`, which would self-trigger this gate.
         const stripComments = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
         const offenders = files.filter(file =>
             /\bnavigator\b|\bnew Date\(/.test(stripComments(readFileSync(file, 'utf8')))
