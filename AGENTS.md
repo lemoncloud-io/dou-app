@@ -2,6 +2,13 @@
 
 Nx monorepo: `apps/` (4), `libs/` (16).
 
+## Language
+
+Everything written into the repo or its GitHub surface is in English: code comments, module
+`README.md`/`docs/<topic>/`, `docs/adr/`, commit messages, and PR titles/bodies. This is a
+deliberate, repo-wide policy — earlier PRs used a mixed Korean/English title convention; new ones
+don't. Chat responses to the user are unaffected by this rule.
+
 ## Before you start
 
 - Build, run, test, lint, deploy commands: [`README.md`](./README.md).
