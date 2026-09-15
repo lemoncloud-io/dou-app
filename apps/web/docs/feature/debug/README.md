@@ -6,26 +6,10 @@ plus the hidden gate that decides whether that panel exists at all. There is no 
 the panel is an overlay mounted beside the router, and the only way in is the gate.
 
 This document covers what the feature owns and the rules that break things when ignored. How the
-panel itself is put together, and why the app's own debug UI was folded into it, is the
-[architecture](../../README.md) layer's subject.
+panel itself is put together, and why the app's own debug UI was folded into it, is
+[observability/debug-panel.md](../../observability/debug-panel.md)'s subject.
 
 ## Layout
-
-```text
-apps/web/src/app/features/debug/
-├── index.ts        the barrel — hooks, components, debugOverlayActions, DebugObservationReporter
-├── i18n.ts         every word the panel shows, one table per language
-├── overlay/        the panel — host, store, manifest, registry, chrome, 22 screens
-│   ├── screenManifest.ts   the single catalog: keys, icons, sections, sizes, shell requirement
-│   ├── screenRegistry.tsx  the React half — each manifest entry becomes a React.lazy component
-│   ├── screenIcons.tsx     icon name → lucide component, exhaustive against the manifest
-│   └── screens/            23 files for 22 screens (DBBrowser.tsx is DBBrowserScreen's body)
-├── metrics/        5 modules — MetricsCollector, bootMarks, longTasks, reportBootMetrics, useRuntimeMetrics
-├── hooks/          6 — useDebugMode, useDebugUnlock, useDebugOperation, useCopyFeedback, usePushRegistration, useReceivedPushLog
-├── lib/            10 pure helpers — verifyDebugCode, buildDeviceInfoRows, buildAppDeeplink, logFilter, …
-├── components/     6 — Row, Section, CopyRow, CopyButton, HintRow, DebugUnlockDialog
-└── consts/         3 constants, no env reads
-```
 
 Things that sound like they are here and are not:
 
@@ -53,7 +37,7 @@ and their copy; the runtime metric collectors.
   [`@chatic/logger`](../../../../../libs/logger/README.md) owns the queue, the listeners and the
   upload.
 - **Push tap routing.** `app/bridge/navigation/` resolves an `OnNavigate` into a route — see
-  [notifications](../../bridge/push-navigation.md). The Push screen only observes.
+  [bridge/push-navigation.md](../../bridge/push-navigation.md). The Push screen only observes.
 
 ## The shared contract
 
@@ -81,18 +65,10 @@ exactly the build where it is needed.
 
 ### The gate is a gesture and a code, and it fails closed
 
-```mermaid
-stateDiagram-v2
-    [*] --> Locked
-    Locked --> Locked: tap (< 10) — counter resets after 3s
-    Locked --> Locked: 10 taps, no entry code configured (silent)
-    Locked --> Challenge: 10 taps within 3s, code configured
-    Challenge --> Challenge: wrong code — attempt + 1, input cleared
-    Challenge --> Locked: cancel, or 3 wrong attempts
-    Challenge --> Unlocked: code matches
-    Unlocked --> Locked: "disable debug mode" from the panel home
-    Unlocked --> [*]: tab closes — sessionStorage is gone
-```
+Ten taps within three seconds (the counter resets after three) raise the challenge dialog — but only
+when an entry code is configured; without one the taps do nothing at all, silently. Three wrong codes
+put the counter back to zero, and cancelling does the same. An unlock lives in `sessionStorage`, so
+it ends with the tab, and the panel's own home can disable it.
 
 The two halves do different jobs and neither replaces the other: **the gesture hides that a door
 exists, the code asks whether you are allowed through it.** A person who hits ten taps by accident
@@ -167,17 +143,9 @@ app-wide boundary and replace the entire UI — a read-only inspector taking the
 
 ## Usage
 
-The panel opens itself; the only calls outside this feature are the unlock and a direct open.
-
-```tsx
-// features/mypage/pages/LabPage.tsx — the hidden tap target
-const { isChallengeOpen, hasError, registerTap, submitCode, cancelChallenge } = useDebugUnlock(
-    config.get<string>('debug.entryCode')
-);
-
-// once unlocked, jump straight to a size
-debugOverlayActions.open('full');
-```
+The panel opens itself. The only calls from outside this feature are the Lab page's `useDebugUnlock`
+— handed the `debug.entryCode` row — and `debugOverlayActions.open(size)` to jump straight to a size
+once unlocked.
 
 ### How to add a screen
 
@@ -234,10 +202,10 @@ Nothing else. The registry, the menu, the tab strip and the size rules all deriv
 
 ## Further reading
 
-- [architecture](../../README.md) — how the panel is assembled and what moved into it
-  from the native shell.
+- [observability/debug-panel.md](../../observability/debug-panel.md) — how the panel is assembled
+  and what moved into it from the native shell.
 - [push-verification.md](./push-verification.md) — the on-device runbook for the Push and Device
   Info screens.
 - [mypage](../mypage/README.md) — the Lab page that hosts the tap target.
-- [notifications](../../bridge/push-navigation.md) — what happens after a push is tapped.
+- [bridge/push-navigation.md](../../bridge/push-navigation.md) — what happens after a push is tapped.
 - [`@chatic/config`](../../../../../libs/config/README.md) · [`@chatic/logger`](../../../../../libs/logger/README.md)
