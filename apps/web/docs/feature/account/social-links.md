@@ -229,9 +229,13 @@ nudge, let the server decide.
 - **The one-time backfill may not have reached an account.** A user who registered through social
   before the unified path can read `'unknown'`, and the section stays hidden for them. The screen
   shows nothing wrong, but its value is tied to that backfill.
-- **The user cache merges rather than replaces** (`UserLocalDataSource`), so a `link$` value that was
-  written once survives a later response that omits the field. Harmless while nothing can be
+- **A written `link$` cannot be erased by omission.** `useMyUser` keeps the account fields on the
+  relay token and patches them from a one-shot `user.profile`, dropping `undefined` values so a slim
+  response cannot wipe a field — only an explicit `null` clears one. Harmless while nothing can be
   unlinked; it has to be re-judged when an unlink endpoint arrives.
+- **There is no local cache row to read.** The account profile comes off the stored relay token, not
+  out of IndexedDB: the cache is keyed by `cid` and `uid`, so while a cloud is active the relay
+  user's row is physically unreachable. Do not reach for the user repository to answer this question.
 - **Re-confirming a provider the user already has is not specified.** `verify` answers `type-linked`
   first, so the case does not reach a user — but do not build on an assumption about `confirm` there.
 - **Cancelling the native sheet is not an error.** `appBridge.oauthLogin` resolves with a `null`
