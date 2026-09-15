@@ -1,52 +1,125 @@
-# 아키텍처
+# architecture — the boundaries that cross every feature
 
-`apps/web`의 횡단(cross-cutting) 구조를 다룬다. 특정 feature가 아니라 앱 전체에 걸치는 경계·규칙이다.
+Nine topics that no single feature owns: how a file finds its directory, how data reaches a screen,
+how the router is assembled, how the app talks to its native shell, where global state lives, how
+the theme is applied, how a log entry leaves the browser, how the layout chrome is composed, and how
+the debug overlay is built.
 
-- [directory-structure](./directory-structure.md) — 파일 배치 단일 기준 (레이어 · feature 표준 · 결정 트리)
-- [data-flow](./data-flow.md) — observe/sync/refresh 데이터 흐름, 리프레시 타이밍, 델타 동기화, 로그아웃 캐시
-- [routing](./routing.md) — 3-tier 라우팅과 `ROUTES` 빌더
-- [bridge](./bridge.md) — 네이티브 ↔ 웹 메시지 단일 접점
-- [stores](./stores.md) — 전역 preference store
-- [theme](./theme.md) — 테마 상태·적용·bridge 동기화
-- [logging](./logging.md) — pub/sub 로거, 환경별 sink 배선, 로그 버퍼
+A rule belongs here when breaking it in one feature breaks another. A rule that only concerns one
+screen belongs in that feature's own doc under [`../feature/`](../feature/).
 
-## 레이어 경계
+## Layout
 
-앱은 세션·소켓·데이터를 직접 들고 있지 않는다. 세 라이브러리에 위임하고, 그 위에서 화면을 조립한다.
-
-```
-apps/web
- ├─ web-core      : relay/cloud 세션, activeServer, 선택 상태(cid/sid/uid), 토큰
- ├─ app-runtime   : runtime binding, socket lifecycle, repository, sync
- └─ data          : repository fetch, 로컬 캐시 CRUD, observe 스트림, DB
-```
-
-| 레이어          | 책임                                                                                |
-| --------------- | ----------------------------------------------------------------------------------- |
-| **web-core**    | 세션 상태/인증/선택(cid·sid·uid)의 단일 기준. 세션 변경은 반드시 세션 훅 경유.      |
-| **app-runtime** | `RuntimeConnectionHost`로 부트스트랩, 소켓 수명·재인증, repository/sync 제공.       |
-| **data**        | repository V2(`observeList`/`observeItem`/`refreshList`/`sendChat` 등) + 로컬 캐시. |
-| **app(web)**    | 화면/라우트. observe로 읽고, sync로 갱신을 등록하고, 쓰기는 repository로.           |
-
-## 의존 방향
-
-```
-features  ─────▶  횡단(ui/{components,layouts} · hooks · stores · utils)
-   │                     ▲
-   └──────────▶  runtime / bridge / monitoring / routes
+```text
+apps/web/docs/architecture/
+├── README.md                this file — layering and the rules that cross features
+├── directory-structure.md   where a new file goes
+├── data-flow.md             observe / refresh / sync, and who triggers which
+├── routing.md               the three route tables and the ROUTES builder
+├── bridge.md                the single native ↔ web message seam
+├── stores.md                global state, and the preference store
+├── theme.md                 theme state, application, and shell sync
+├── logging.md               the logger hub, its listeners, and the upload queue
+├── layout-shell.md          layouts, safe areas, and keyboard insets
+└── debug-panel.md           the in-app debug overlay
 ```
 
-- **단방향**: `features` → `횡단`/`플랫폼`. 역방향 금지(횡단·런타임은 특정 feature를 import하지 않는다).
-- **feature 간 직접 import 금지**: 공유가 필요하면 횡단으로 승격한다.
-- `routes`는 feature의 pages를 합성하는 지점이므로 `routes → features` 참조만 허용.
+## Responsibilities
 
-## 절대 규칙
+This document decides **which direction an import may point** inside `apps/web/src/app`. It decides
+nothing about what a library does — those contracts live in each library's own README, linked from
+the [app README](../README.md).
 
-- **`libs/socket`(`@chatic/socket`) 직접 접근 금지.** 소켓은 `@chatic/app-runtime`이 추상화한다. 앱은 `useRuntimeSocketState`/repository/sync 훅만 쓴다.
-- **web-core core 객체 직접 사용 금지**: `cloudCore`/`identityCore`/`relayCore`/`webCore`는 공개 API가 아니다. 공개 훅/서비스로만 접근.
-- **세션 선택 상태(cloud/site)를 직접 setter로 바꾸지 않는다.** 전환 훅(`useSwitchCloudSession`/`useSiteSwitch`)으로만 변경 — `useRefreshCloudSiteSession`은 ADR-0070에서 죽은 HTTP refresh 체인과 함께 삭제됐다.
-- **코드 주석은 영어, 문서/대화는 한국어.**
+## The shared contract
 
-## 참조 구현
+### The three rings
 
-`apps/testbed`가 이 아키텍처의 참조 구현이다. 특히 `app.tsx`(부트스트랩), `pages/ChatHomePage.tsx`(observe/sync/리프레시 종합), `pages/CreateChannelPage.tsx`(채팅 sync/전송)를 본다.
+```mermaid
+flowchart TD
+    classDef root fill:#e6f7ff,stroke:#91d5ff,stroke-width:2px,color:#003a8c;
+    classDef feat fill:#f6ffed,stroke:#b7eb8f,stroke-width:2px,color:#135200;
+    classDef shared fill:#fff7e6,stroke:#ffd591,stroke-width:2px,color:#873800;
+    classDef ext fill:#ffffff,stroke:#d9d9d9,stroke-width:2px,color:#595959,stroke-dasharray: 5 5;
+
+    Root["composition root<br/>app.tsx · runtime/ · routes/"]:::root
+    Feat["features/ × 13<br/><i>pages · components · hooks</i>"]:::feat
+    Shared["shared<br/>ui/ · hooks/ · stores/ · utils/ · bridge/ · config/"]:::shared
+    Libs["@chatic/app-runtime · bridges · data · config<br/>web-ui-kit · shared · app-messages"]:::ext
+
+    Root --> Feat
+    Root --> Shared
+    Feat --> Shared
+    Shared --> Libs
+    Feat --> Libs
+    Root --> Libs
+```
+
+The arrow the diagram cannot draw is the one that is missing: **`shared` imports no feature.** The
+composition root may mount a feature — that is what a composition root is for — but `ui/`, `hooks/`,
+`stores/`, `utils/`, `bridge/` and `config/` contain zero imports from `features/`, and that is what
+makes them safe to import from anywhere.
+
+```bash
+grep -rn "from '.*features/" apps/web/src/app/{ui,hooks,stores,utils,bridge,config} \
+  --include='*.ts' --include='*.tsx'
+```
+
+Exactly three places import a feature, and each is a composition root: `app.tsx` mounts `appUpdate`
+and the debug overlay, `routes/` composes each feature's pages into a route table, and
+`runtime/AppRuntime.tsx` mounts the background runners that `home` and `debug` own.
+
+### Features do not import each other
+
+Two features that need the same hook promote it to `app/hooks/`, the same component to
+`app/ui/components/`, the same pure function to `app/utils/`. A `features/a → features/b` import is
+a refactor that was skipped.
+
+The one seam that looks like an exception is not one: `routes/` reaches into
+`features/invite/accept/lib/` and `features/invite/utils/` for the redirect logic that has to run
+_before_ the invite pages mount. That is the composition root resolving a route, not one feature
+calling another.
+
+### The app owns no session, socket or cache
+
+Every one of those is a library's. The app calls hooks and it never holds the primitive:
+
+- **Session, socket, repositories, sync** — `runtime.*` from `@chatic/app-runtime`, seven groups
+  under one identifier (`runtime.session`, `runtime.connection`, `runtime.data`, `runtime.sync`,
+  `runtime.boot`, `runtime.push`, `runtime.report`).
+- **The native shell** — `@chatic/bridges`, reached only through `app/bridge/` (see
+  [bridge.md](./bridge.md)).
+- **Reads and writes** — repositories from `@chatic/data`, obtained through `runtime.data`.
+- **Settings** — `config` from `@chatic/config`, initialised once in `main.tsx`.
+
+Direct construction of a socket, a token or a cache adapter inside `apps/web` is a contract
+violation. There is no `@chatic/socket` to import and no session core object to reach for; the
+transport (`@lemoncloud/chatic-sockets-lib`) is assembled by `@chatic/app-runtime` and the app never
+names it.
+
+### Selection state changes through a switch hook
+
+`cid` (cloud), `sid` (place/site) and `uid` are session state, and setting them is a multi-step
+operation — re-auth, socket rebind, cache repartition. The app calls the hook that performs all of
+it (`app/runtime/useSiteSwitch.ts`, and the cloud switch under
+[`features/home`](../feature/home/README.md)) and never a raw setter.
+
+### Comments are English
+
+Source comments in this app are English. So are these documents.
+
+## Notes for implementers
+
+- **`main.tsx` is ordered by contract, not by taste.** The log listeners are attached before
+  anything can log, `config.init()` precedes every lazy setting read, and `runtime.boot`
+  `initAppRuntime()` precedes every session read. Each boundary carries a comment saying what breaks
+  if a line moves across it. Read those before inserting anything.
+- **`app/utils/index.ts` deliberately excludes the modules that read `import.meta.env`.** Import
+  those by concrete path (`app/utils/webVitals`), or the barrel becomes unloadable under the test
+  transform.
+- **A test that imports a barrel pulls the whole barrel.** Import the concrete module in a spec when
+  the barrel drags in something the test environment cannot load.
+
+## Further reading
+
+- [apps/web README](../README.md) — purpose, scope, directory tree, and what the app delegates.
+- [`../feature/`](../feature/) — one folder per feature group, each with its own README.
