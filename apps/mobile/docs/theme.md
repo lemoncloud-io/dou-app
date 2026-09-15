@@ -76,11 +76,15 @@ No step reads the OS color scheme.
 
 ### 2. The user switches to dark from the web
 
-1. `setTheme('dark')` updates the web store, caches to `localStorage`, and sends `SavePreference`.
+1. `setTheme('dark')` (`apps/web/src/app/hooks/useTheme.ts`) makes three independent writes:
+   `config.set('ui.theme', 'dark', { lane: 'shell' })`, a confirmed-with-one-retry
+   `appBridge.savePreferenceConfirmed({ key: 'theme', value: 'dark' })`, and
+   `localStorage.setItem('vite-ui-theme', 'dark')`.
 2. `ThemeApplier` updates the `<html>` class, `meta[theme-color]` and `--splash-bg` — no reload needed
    for the mobile status bar area to follow.
-3. Native's `usePreferenceCacheHandler` validates and calls `themeStore.setTheme('dark')`, which
-   writes MMKV and flips `SystemBars`, the root background and `ResumeOverlay`.
+3. Native's `usePreferenceCacheHandler` validates the `SavePreference` payload and calls
+   `themeStore.setTheme('dark')`, which writes MMKV and flips `SystemBars`, the root background and
+   `ResumeOverlay`.
 
 ### 3. Background resume
 
@@ -117,7 +121,7 @@ sequenceDiagram
     participant Store as themeStore (native)
     participant WV as AppWebView
     participant HTML as index.html pre-paint
-    participant WStore as usePreferenceStore (web)
+    participant WStore as useTheme / config (web)
 
     Note over Store: module evaluation (synchronous)
     Store->>MMKV: getSync('theme')
@@ -131,7 +135,7 @@ sequenceDiagram
     HTML->>HTML: localStorage -> injected global -> 'light'
     Note over HTML: html class, theme-color, --splash-bg
     HTML-->>WStore: same priority for the initial value
-    WStore->>WStore: cache to localStorage if sourced from injection
+    WStore->>WStore: config.init() reads localStorage/injection into 'ui.theme'
 ```
 
 ### System-bar reapplication triggers
@@ -223,23 +227,25 @@ no push, since the side that changed it (the web) already knows.
 
 ### Web side
 
-The consuming detail lives in the [web theme doc](../../web/docs/architecture/theme.md); only the
-points this contract touches:
+Web owns `ui.theme` as a `@chatic/config` registry key (`persist: 'shell'`, default `'light'`) — the
+consuming detail is the [web theme doc](../../web/docs/architecture/theme.md)'s. This document's
+concern is only the second channel that config write does not cover:
 
-| File                                                                             | Change                                                                                                       |
-| -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| [`stores/preferenceKeys.ts`](../../web/src/app/stores/preferenceKeys.ts)         | `theme.defaultValue`: `'system'` → `'light'`                                                                 |
-| [`stores/usePreferenceStore.ts`](../../web/src/app/stores/usePreferenceStore.ts) | `readInitialTheme()` — local cache → `window.CHATIC_APP_THEME` → `'light'`; caches an injected value locally |
-| [`index.html`](../../web/index.html)                                             | Pre-paint script falls back to the injected global, defaults to light                                        |
-| [`runtime/ThemeApplier.tsx`](../../web/src/app/runtime/ThemeApplier.tsx)         | Also updates `meta[theme-color]` (looked up by `meta[name=...]`)                                             |
-| [`bridge/appBridge.ts`](../../web/src/app/bridge/appBridge.ts)                   | `savePreferenceConfirmed` — a `request`, not a fire-and-forget `post`                                        |
+| File                                                                             | Role                                                                                                                                                                                                                          |
+| -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`hooks/useTheme.ts`](../../web/src/app/hooks/useTheme.ts)                       | `setTheme` writes `config.set('ui.theme', theme, { lane: 'shell' })`, `localStorage['vite-ui-theme']`, **and** `appBridge.savePreferenceConfirmed({ key: 'theme', value: theme })` — three independent channels for one value |
+| [`index.html`](../../web/index.html)                                             | Pre-paint script: `localStorage['vite-ui-theme'] \|\| window.CHATIC_APP_THEME \|\| 'light'`, unchanged by the `@chatic/config` migration since it runs before `config.init()`                                                 |
+| [`runtime/ThemeApplier.tsx`](../../web/src/app/runtime/ThemeApplier.tsx)         | Updates `<html>` class and `meta[theme-color]` (looked up by `meta[name=...]`)                                                                                                                                                |
+| [`runtime/PreferenceLoader.tsx`](../../web/src/app/runtime/PreferenceLoader.tsx) | Fallback `FetchPreference` read for a shell old enough to predate boot injection, decoded by `parseThemeBridgeValue`                                                                                                          |
 
-**Theme writes confirm and retry once.** `setTheme` calls `savePreferenceConfirmed` directly instead
-of the generic `persistPreference`, because theme is the one preference whose loss does not
-self-heal: native owns the status bar and the root background, and if `SavePreference` is lost while
-the web has already cached its own value, `readInitialTheme` never looks at the injected global again
-— the two sides stay wrong permanently. The UI still updates optimistically; confirmation happens in
-the background so a slow or dead bridge never blocks the toggle.
+**The bridge write exists only because native reads its own separate store.** `config.set(...,
+{ lane: 'shell' })` is what `config.get('ui.theme')` resolves from on the _next_ boot, and what
+`ConfigKvService`/`getConfigBagScript` inject for `@chatic/config` to hydrate from. But native's
+status bar, root background, resume overlay and its own `window.CHATIC_APP_THEME` pre-paint
+injection all read the older, separate `themeStore` this document owns — `ConfigKvService` never
+touches it. `appBridge.savePreferenceConfirmed` (confirmed, one retry) is what keeps that store
+current; it is the one write of the three that does not self-heal, since a lost write leaves native
+and web permanently disagreeing until a full restart.
 
 `ThemeApplier` never writes `--splash-bg` — its only consumer is the `#splash` placeholder inside
 `index.html`, which React replaces on its first commit, before `ThemeApplier` ever runs. Only the
@@ -257,7 +263,7 @@ pre-paint script's write to that variable has any effect.
 | Resume/rotation reapplication, stale closures, keyboard-resize filtering, iOS branch, unsubscription | [`SystemBars.test.tsx`](../src/app/features/core/components/SystemBars.test.tsx)                  |
 | Injection script carries mode, escaping                                                              | [`injectionScripts.test.ts`](../src/app/webview/utils/injectionScripts.test.ts)                   |
 | Bridge `theme` write, invalid/escape-payload rejection, legacy-envelope acceptance                   | [`usePreferenceCacheHandler.test.ts`](../src/app/webview/hooks/usePreferenceCacheHandler.test.ts) |
-| Light default, injected-global fallback, priority order, confirm-and-retry                           | [`usePreferenceStore.test.ts`](../../web/src/app/stores/usePreferenceStore.test.ts)               |
+| Light default, native-store confirm-and-retry, three-channel write                                   | [`useTheme.test.tsx`](../../web/src/app/hooks/useTheme.test.tsx)                                  |
 | `meta[theme-color]` update, `name` lookup, `--splash-bg` untouched                                   | [`ThemeApplier.test.tsx`](../../web/src/app/runtime/ThemeApplier.test.tsx)                        |
 
 ```bash
