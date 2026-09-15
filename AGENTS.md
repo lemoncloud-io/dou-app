@@ -31,3 +31,7 @@ Nx monorepo: `apps/` (4), `libs/` (16).
   lib, always "passes").
 - `.github/workflows/verify.yml` lists the projects it excludes from typecheck/test — check those by
   hand.
+- A stale `dist`/`out-tsc` after a directory move produces phantom type errors. `rm -rf` it and
+  recheck before trusting the error.
+- Adding a new workspace `lib` as a dependency needs `nx sync` (project references). Nothing in CI
+  catches a missed reference for you.
