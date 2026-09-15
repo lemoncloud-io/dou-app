@@ -2,6 +2,12 @@
 
 An Nx monorepo — four apps under `apps/`, sixteen libraries under `libs/`.
 
+## Before you start
+
+Build, run, test, lint and deploy commands, the tech stack, and environment setup are in
+[`README.md`](./README.md) — read that first if you don't already know them. This file covers what
+governs the code and its docs once you're working in it.
+
 ## Read a module's own docs before changing it
 
 Every module keeps its own canon, maintained with the code rather than after it. Find it before you
