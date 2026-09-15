@@ -10,9 +10,9 @@ edit, and prefer it over inference from the source.
 - The canon is the module's `README.md`, plus a `docs/` folder beside it when there is enough detail
   to split. `README.md` holds the overview and structure; `docs/<topic>/` holds the detail.
 - Some modules have neither yet. There is nothing to read in those.
-- **There is no repo-wide docs tree.** The root `docs/` folder is gone — decisions are recorded
-  outside this repository now. A module's own canon is the only documentation the repo carries, so
-  anything a reader needs has to be in it.
+- **The root `docs/` folder holds decisions, and nothing else.** `docs/adr/` is the one repo-wide
+  tree that survives; the guides, plans, specs and audits that used to sit beside it are gone. A
+  module's own canon still has to stand on its own — see [Decisions live in `docs/adr/`](#decisions-live-in-docsadr).
 
 ## Writing a module's docs
 
@@ -21,7 +21,8 @@ section is wrong.
 
 ### The four rules
 
-1. **English.** Every module document under `libs/*` and `apps/*` is written in English.
+1. **English.** Every document in the repo is written in English — module docs under `libs/*` and
+   `apps/*`, and the ADRs under `docs/adr/`.
 2. **One canon per fact.** If `README.md` and `docs/` say the same thing, one of them is wrong.
    Write it once and link to it.
 3. **Every module has a `README.md` at its root.** It is the entry point, and it always holds the
@@ -49,16 +50,24 @@ know what the code used to do is a work log.
 One exception, and `libs/data` uses it: a **naming history** section is worth keeping when old names
 still appear in review comments or in sibling modules. Keep it dated and short.
 
-### Decisions live outside this repo
+### Decisions live in `docs/adr/`
 
-A module doc must stand on its own. Where behaviour only makes sense with a decision's reasoning,
-**write the reasoning into the module doc in your own words** — a rule worth following is worth
-stating where it is enforced.
+One decision per file, numbered, named after what was decided, and **written in English** like every
+other document in this repo. An ADR records why a decision was made and what it cost. It is not a
+work log, and it is not where a module's rules are kept.
 
-Bare inline references (`ADR-0036`) are fine as provenance and cost nothing. A markdown link to a
-path under `docs/` is what breaks, and there is nothing at the other end any more.
+A module doc must still stand on its own. Where behaviour only makes sense with a decision's
+reasoning, **write the reasoning into the module doc in your own words** — a rule worth following is
+worth stating where it is enforced. The ADR is the provenance, not the reference manual.
 
-The practical test: would this document teach someone how to work in this module with no other
+A bare inline reference (`ADR-0036`) is enough in module docs and costs nothing. Links into
+`docs/adr/` resolve again, so use one where a reader would follow it. Links to any other path under
+`docs/` are dead — that part of the tree is gone.
+
+An ADR that a later decision overturns keeps its file and says so in its status line, with a link to
+the ADR that replaced it. Deleting it would lose the reasoning the replacement argues against.
+
+The practical test for a module doc: would it teach someone how to work in this module with no other
 source available? If not, the missing part belongs in it.
 
 ### README skeleton
