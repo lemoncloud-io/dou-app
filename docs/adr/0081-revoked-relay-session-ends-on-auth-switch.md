@@ -1,16 +1,16 @@
-# ADR-0081: 서버가 revoke한 relay 세션은 그 세션의 판정이다 — `auth.switch`에서 로컬로 끝낸다
+# ADR-0081: A server-revoked relay session is that session's verdict — end it locally at `auth.switch`
 
-> 상태: Accepted · 결정일: 2026-09-11 · 구현: `af161996` (PR #445)
-> 범위: `libs/app-runtime/src/socket/auth/revokedSession.ts` (신규) · `libs/app-runtime/src/socket/auth/switchSite.ts`
-> 관련: [ADR-0076](./0076-app-runtime-auth-single-verdict-and-typed-session-events.md) (인증 상태 단일 판정 —
-> 이 문서는 그 판정 목록에 빠져 있던 "revoke"를 다룬다) · [ADR-0070](./0070-app-runtime-session-hub.md)
+> Status: Accepted · Decided: 2026-09-11 · Implementation: `af161996` (PR #445)
+> Scope: `libs/app-runtime/src/socket/auth/revokedSession.ts` (new) · `libs/app-runtime/src/socket/auth/switchSite.ts`
+> Related: [ADR-0076](./0076-app-runtime-auth-single-verdict-and-typed-session-events.md) (single verdict for auth
+> state — this document covers "revoke," missing from that verdict list) · [ADR-0070](./0070-app-runtime-session-hub.md)
 
-## 맥락 (Context)
+## Context
 
-### 증상
+### Symptom
 
-desktop-web에서 클라우드 타일을 누르면 `Couldn't switch cloud. Try again.` 토스트가 뜨고, 30초쯤 뒤 세션이
-통째로 사라졌다. 콘솔에는 부팅 직후부터 서로 다른 세 경로의 403이 찍혀 있었다.
+On desktop-web, tapping a cloud tile shows a `Couldn't switch cloud. Try again.` toast, and about 30 seconds later
+the entire session disappears. The console shows 403s from three different paths starting right after boot.
 
 ```
 GET  …/clouds/0/list?limit=-1&view=mine   403 (Forbidden)
@@ -19,100 +19,105 @@ AuthSwitchError: auth.switch failed: server
   Caused by: Error: 403 NOT ALLOWED - session revoked @refreshAccessToken(…) - auth.switch:error
 ```
 
-세 경로가 한꺼번에 실패했다는 것은 기능의 버그가 아니라 세션 하나가 죽었다는 뜻이다. `session revoked`는
-만료(`expired`)도 서명 오류(`invalid sign`)도 아닌 **revoke**다.
+Three paths failing at once means it's not a feature bug — one session died. `session revoked` is neither expiry
+(`expired`) nor a signature error (`invalid sign`) — it's a **revoke**.
 
-### revoke는 되돌릴 수 없다
+### A revoke can't be undone
 
-백엔드는 `POST /users/0/logout`(`doLogout`)에서 auth row에 `revoked`를 찍는다. 그 뒤로는 그 세션의
-refresh와 issue를 전부 `403 NOT ALLOWED - session revoked @<scope>`로 막는다(chatic-backend-api
-`service/backend-proxy.ts`). 클라이언트가 가진 무엇으로도 이 세션을 살릴 수 없다. refresh도 403이고,
-클라우드 전환의 첫 단계인 `delegate-cloud`도 relay 서명 요청이라 403이다.
+The backend stamps `revoked` onto the auth row in `POST /users/0/logout` (`doLogout`). After that, every refresh and
+issue for that session gets blocked with `403 NOT ALLOWED - session revoked @<scope>`
+(chatic-backend-api `service/backend-proxy.ts`). Nothing the client holds can revive this session. Refresh is 403,
+and `delegate-cloud` — the first step of switching clouds — is also a relay signing request, so it's 403 too.
 
-### 런타임은 revoke된 세션을 로그인 상태로 본다
+### The runtime treats a revoked session as still logged in
 
-`identity.isAuthenticated`는 **세션 존재** 판정이다(`hasStoredRelaySession`). 죽은 토큰도 저장소에
-있으니 true다. 그래서 `useRelaySessionKeepAlive`의 게스트 로그인이 돌지 않고, 화면마다 제각기 일반 실패를
-보인다. 세션은 결국 `RelayCredentialRenewer.onTerminalExpiry`가 SDK 실패 한도와 30초 확인 창을 지난 뒤에
-끝내지만, 왜 끝났는지는 어디에도 남지 않는다.
+`identity.isAuthenticated` is a **session-exists** verdict (`hasStoredRelaySession`). A dead token is still in
+storage, so it reads true. So `useRelaySessionKeepAlive`'s guest login doesn't run, and each screen shows its own
+generic failure independently. The session eventually ends once `RelayCredentialRenewer.onTerminalExpiry` passes the
+SDK's failure limit and its 30-second confirmation window, but nothing records why it ended.
 
-### 원인은 로그아웃 자신이었다
+### The root cause was logout itself
 
-`7139e42c`가 `libs/web-config`를 은퇴시키면서 `?logout=1`을 읽어 저장 키를 지우던 부수효과도 같이
-사라졌다. 로그아웃은 서버에서 세션을 revoke하고, `/?logout=1`로 돌아온 문서는 그 토큰을 지우지 않고 다시
-부팅했다. 청소는 `1a83ee65`(`logoutStorageSweep.ts`)에서 복구됐고 운영은 develop 재배포로 정상화됐다.
+When `7139e42c` retired `libs/web-config`, it also removed the side effect that read `?logout=1` and cleared storage
+keys. Logout revokes the session on the server, and the document that returns to `/?logout=1` no longer cleared that
+token before rebooting. The cleanup was restored in `1a83ee65` (`logoutStorageSweep.ts`), and operations went back to
+normal with a develop redeploy.
 
-그래도 저장된 토큰이 서버에서 죽는 경로는 남는다. 다른 기기의 `?aid=` 로그아웃, 관리자 revoke, 청소가
-다시 끊기는 경우다. 이 결정은 그 경로들의 **안전망**이다.
+Still, the path where a stored token dies on the server side remains. Another device's `?aid=` logout, an admin
+revoke, or the cleanup breaking again are all cases. This decision is the **safety net** for those paths.
 
-## 결정 (Decision)
+## Decision
 
-### 1. revoke 거절은 이번 요청이 아니라 세션의 판정으로 읽는다
+### 1. Read a revoke rejection as the session's verdict, not this request's
 
-`isRevokedSessionError`는 오류의 `cause` 체인 어디에든 `session revoked`가 있으면 true를 준다. 문자열
-매칭인 이유는 그 정보가 문자열로만 존재하기 때문이다. 소켓이 서버 오류를 텍스트로 운반하므로 읽을 상태
-코드가 없다. 순환 `cause`는 깊이 상한 5로 끊는다.
+`isRevokedSessionError` returns true if `session revoked` shows up anywhere in the error's `cause` chain. It's a
+string match because that information only exists as a string — the socket carries the server error as text, and
+there's no status code to read. A circular `cause` is cut off at depth 5.
 
-### 2. 감지 지점은 `auth.switch` 하나다
+### 2. There is exactly one detection point: `auth.switch`
 
-`switchSite`의 `catch`만 판정을 부른다. 다른 두 후보는 이 정보를 받을 수 없다.
+Only `switchSite`'s `catch` calls the verdict. The other two candidates can't receive this information.
 
-| 경로                                         | revoke를 읽을 수 있나 | 이유                                                                                                 |
-| -------------------------------------------- | --------------------- | ---------------------------------------------------------------------------------------------------- |
-| `auth.switch`                                | 있다                  | `AuthSwitchError`가 서버 오류를 `cause`로 보존한다                                                   |
-| `auth.refresh`                               | 없다                  | SDK `doRefresh`가 서버 오류를 버리고 `Error('auth.refresh failed: server')`로 던진다                 |
-| 서명 HTTP (`clouds/0/list`·`delegate-cloud`) | 없다                  | API Gateway 403에 CORS 헤더가 없어 브라우저가 네트워크 실패로 보고한다 (`HttpManager`가 이미 문서화) |
+| Path                                           | Can it read revoke? | Why                                                                                                                             |
+| ---------------------------------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `auth.switch`                                  | yes                 | `AuthSwitchError` preserves the server error as `cause`                                                                         |
+| `auth.refresh`                                 | no                  | the SDK's `doRefresh` drops the server error and throws `Error('auth.refresh failed: server')`                                  |
+| Signed HTTP (`clouds/0/list`·`delegate-cloud`) | no                  | API Gateway's 403 carries no CORS header, so the browser reports it as a network failure (`HttpManager` already documents this) |
 
-`switchSite`는 판정 뒤에도 기존대로 낙관적 site를 롤백하고 오류를 다시 던진다. 호출자 계약은 바뀌지 않는다.
+`switchSite` still rolls back the optimistic site and rethrows the error after the verdict, exactly as before. The
+caller's contract doesn't change.
 
-### 3. teardown은 `clearAndRedirect`다 — `logoutSession`이 아니다
+### 3. Teardown is `clearAndRedirect` — not `logoutSession`
 
-`logoutSession`은 먼저 소켓 `auth.logout`을 쏘는데, 이미 revoke된 세션에는 같은 가드가 403을 준다. 더
-revoke할 것도 없다. 필요한 것은 **로컬** teardown뿐이다. `relaySession.clearAndRedirect()`가 `/?logout=1`로
-보내면 다음 문서의 `logoutStorageSweeper`가 저장된 토큰을 지운다. 그러면 `useRelaySessionKeepAlive`가
-세션 부재를 보고 게스트 로그인을 돈다.
+`logoutSession` fires a socket `auth.logout` first, and on an already-revoked session, the same guard returns 403.
+There's nothing left to revoke. Only a **local** teardown is needed. `relaySession.clearAndRedirect()` goes to
+`/?logout=1`, and the next document's `logoutStorageSweeper` clears the stored token. Then
+`useRelaySessionKeepAlive` sees no session and runs the guest login.
 
-토큰 삭제가 이 모듈이 아니라 다음 문서의 청소에 있다는 분리는 의도된 것이다. 이 분리가 끊겼던 기간에
-생긴 좀비 세션을 끝내려고 이 모듈이 생겼다.
+Keeping token deletion in the next document's cleanup rather than this module is deliberate. This module exists to
+end the zombie sessions created during the period that separation was broken.
 
-### 4. 페이지 수명당 한 번만
+### 4. Only once per page lifetime
 
-revoke된 세션은 모든 요청을 실패시키므로, 리다이렉트가 실제로 이동하기 전에 판정이 여러 번 떨어질 수 있다.
-모듈 플래그로 한 번만 처리하고, 테스트용 `resetRevokedSessionHandling`을 둔다.
+A revoked session fails every request, so the verdict can fire multiple times before the redirect actually navigates.
+A module-level flag handles it once, with a test-only `resetRevokedSessionHandling`.
 
-## 대안 (Alternatives)
+## Alternatives
 
-- **`isAuthenticated`를 유효성 판정으로 바꾼다** — 기각. 유효성은 서버 왕복 없이는 알 수 없고,
-  ADR-0076이 정리한 판정 구조 전체에 걸린다. 이번 결함은 존재 판정이 틀려서가 아니라 revoke 신호를 아무도
-  읽지 않아서 생겼다.
-- **`logoutSession`으로 정상 로그아웃한다** — 기각. 첫 단계인 `auth.logout`이 403으로 실패한다(결정 3).
-- **refresh·HTTP 경로에도 판정을 넣는다** — 보류. 두 경로 모두 전달 계층이 정보를 잃는다(결정 2 표).
-  코드가 아니라 SDK·게이트웨이의 한계라 이 변경의 범위 밖이다.
-- **`onTerminalExpiry`에 맡긴다(현상 유지)** — 기각. 끝나는 상태는 같지만, 그 전에 30초 동안 원인 모를
-  403이 이어지고 기록도 남지 않는다.
+- **Turn `isAuthenticated` into a validity verdict** — rejected. Validity can't be known without a server round trip,
+  and it touches the entire verdict structure ADR-0076 laid out. This defect wasn't caused by a wrong existence
+  verdict — it was caused by nobody reading the revoke signal.
+- **Log out normally via `logoutSession`** — rejected. Its first step, `auth.logout`, fails with 403 (Decision 3).
+- **Add the verdict to the refresh and HTTP paths too** — deferred. Both paths lose the information at the transport
+  layer (the table in Decision 2). That's an SDK/gateway limitation, not this change's code, and out of this change's
+  scope.
+- **Leave it to `onTerminalExpiry` (current behavior)** — rejected. The end state is the same, but 30 seconds of
+  unexplained 403s happen first, with nothing recorded.
 
-## 결과 (Consequences)
+## Consequences
 
-### 얻는 것
+### What is gained
 
-- place 전환이 revoke를 만나면 즉시 게스트 세션으로 회복한다. 로그에 `[revokedSession]` 원인이 남는다.
-- `switchSite.test.ts`의 revoke 케이스는 수정 없이 red다(11건 중 1건 실패). `revokedSession.test.ts` 6건이
-  `cause` 체인, 비슷한 오류 3종(`invalid sign`·`refresh failed: server`·`not-connected`), 순환 `cause`를
-  고정한다.
+- A place switch that hits a revoke recovers immediately into a guest session. The log carries a `[revokedSession]`
+  cause.
+- `switchSite.test.ts`'s revoke case is red without modification (1 of 11 failing). `revokedSession.test.ts`'s 6
+  cases pin down the `cause` chain, 3 similar-looking errors (`invalid sign`·`refresh failed: server`·
+  `not-connected`), and circular `cause`.
 
-### 감수하는 트레이드오프
+### Trade-offs accepted
 
-- **클라우드 타일만 누른 세션은 여전히 일반 토스트를 본다.** 클라우드 전환의 실패 지점은 서명 HTTP라
-  revoke를 읽지 못한다. 그 경우는 기존 `onTerminalExpiry` 경로로 끝난다.
-- 이메일·소셜 사용자는 다시 로그인해야 한다. revoke된 세션은 복구 대상이 아니며, 자동 로그아웃과 같은 끝
-  상태에 더 빨리 도달할 뿐이다.
+- **A session that only ever tapped a cloud tile still sees the generic toast.** Cloud switching's failure point is
+  the signed HTTP call, which can't read revoke. That case still ends through the existing `onTerminalExpiry` path.
+- Email/social users must log in again. A revoked session isn't meant to be recovered — this just reaches the same
+  end state as an automatic logout, faster.
 
-### 되돌리는 방법
+### When to reverse
 
-`switchSite.ts`의 `isRevokedSessionError` 분기 한 곳을 지우면 이전 동작으로 돌아간다.
+Delete the single `isRevokedSessionError` branch in `switchSite.ts` to return to the previous behavior.
 
-## 다음 단계
+## Next steps
 
-- 감지 범위를 넓히려면 sockets-lib의 `doRefresh`가 refresh 실패의 서버 오류를 `cause`로 보존해야 한다.
-  그러면 `requestRelaySessionRefresh`의 `catch`에서 같은 판정을 부를 수 있다.
-- 수동 검증은 미완이다: revoke된 세션으로 부팅한 뒤 place를 전환해 리다이렉트와 게스트 재로그인을 확인한다.
+- Widening detection requires sockets-lib's `doRefresh` to preserve the server error from a failed refresh as
+  `cause`. Then `requestRelaySessionRefresh`'s `catch` could call the same verdict.
+- Manual verification is still pending: boot with a revoked session, switch place, and confirm the redirect and
+  guest re-login.

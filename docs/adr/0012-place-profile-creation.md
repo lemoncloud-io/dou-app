@@ -1,134 +1,165 @@
-# 0012. 플레이스 프로필 "생성" 화면 도입
+# 0012. A dedicated screen for creating a place profile
 
-> 상태: Accepted (등장 규칙은 Superseded) · 결정일: 2026-07-15
+> Status: Accepted (the appearance rule is Superseded) · Decided: 2026-07-15
 >
-> **"화면이 등장하는 규칙"(홈 진입 감지 + 세션 스코프 건너뛰기)은 더 이상 유효하지 않다.**
-> `98a4685ff`(2026-07-28)가 홈 진입 강제를 제거하면서 `usePlaceProfilePrompt`·`PlaceProfileCreateDialog`를
-> 삭제했고, 당시 ADR로 기록되지 않았다. 생성 화면이 등장하는 규칙은 이제
-> [ADR-0041](0041-place-profile-as-invite-precondition.md)이 정한다 — 홈 진입이 아니라 **초대 경로 두 곳**
-> (초대자의 통화처 초대 진입, 피초대자의 `invite.accept` 직전)이며, 건너뛰기 기록 대신 "프로필 없이는
-> 초대가 성립하지 않는다"는 전제조건 구조를 쓴다.
+> **The "when the screen appears" rule — home-entry detection plus session-scoped skipping — no
+> longer holds.** `98a4685ff` (2026-07-28) dropped the forced prompt on home entry and deleted
+> `usePlaceProfilePrompt` and `PlaceProfileCreateDialog`, and was not recorded as an ADR at the time.
+> What makes the creation screen appear is now settled by
+> [ADR-0041](0041-place-profile-as-invite-precondition.md): not home entry but **the two invite
+> paths** — the inviter entering a contact invite, and the invitee just before `invite.accept` — and
+> instead of a skip record it uses a precondition, "no invite without a profile".
 >
-> 화면 자체에 관한 결정(구현 방침 1·2·4·7·8, 5개 Figma 상태, 이름 20자·사진 선택)은 그대로 유효하다.
-> 단 결정 8이 말하는 "이탈 확인 모달"은 Figma `3026-12027`을 `나가기 · 계속 설정` 2버튼으로 **오독한**
-> 것이다(실제로는 2버튼 변형이 hidden이고 `계속 설정` 단일 버튼뿐이다). ADR-0041은 그 모달을 구현하지
-> 않고 X를 곧바로 이전 화면으로 보낸다.
+> The decisions about the screen itself still hold (implementation points 1, 2, 4, 7, 8, the five
+> Figma states, the 20-character name and the optional photo). One exception: the "leave
+> confirmation modal" in point 8 **misread** Figma `3026-12027` as two buttons, Leave · Keep setting
+> up. The two-button variant is hidden there; only Keep setting up exists. ADR-0041 does not build
+> that modal and sends X straight back to the previous screen.
 
-## 한 줄 요약
+## In one line
 
-플레이스(=Site)마다 사용자가 쓰는 프로필(이름·사진)을 **처음 만드는** 전용 화면을 새로 만든다. 이미 있는 프로필을 고치는 편집 화면과는 별개다.
+Add a dedicated screen for **creating** the profile (name and photo) a user carries in a given place
+(= Site). It is separate from the edit screen that changes a profile which already exists.
 
 ---
 
-## 맥락 (Context)
+## Context
 
-### 무엇을 만드는가 — 용어부터 정리
+### What is being built — the terms first
 
-처음 요청은 "플레이스 생성 화면"이었지만, 첨부된 Figma 5개 노드를 열어보니 실제로 그리는 건 **"\<플레이스\>에 사용할 프로필을 만들어 주세요"** 화면이었다. 즉 다음 셋을 명확히 구분해야 한다.
+The request said "place creation screen", but the five attached Figma nodes draw something else:
+**"Please set up the profile you will use in \<place\>"**. Three things have to be kept apart.
 
-| 대상                       | 무엇을 만드는가                                         | 담당 (기존/신규)           |
-| -------------------------- | ------------------------------------------------------- | -------------------------- |
-| **플레이스(Site)**         | 공간 자체를 개설 (이름만)                               | 기존 `CreatePlaceDialog`   |
-| **플레이스 프로필 — 생성** | 그 플레이스에서 쓸 내 프로필(이름·사진)을 **처음 만듦** | **이번에 신규 구현**       |
-| **플레이스 프로필 — 편집** | 이미 만든 프로필을 나중에 수정                          | 기존 `SiteProfileEditPage` |
+| Subject                      | What gets created                                       | Owner (existing / new)     |
+| ---------------------------- | ------------------------------------------------------- | -------------------------- |
+| **Place (Site)**             | The space itself (name only)                            | Existing `CreatePlaceDialog` |
+| **Place profile — create**   | **First** creation of my profile (name, photo) there     | **New, this round**        |
+| **Place profile — edit**     | Later changes to a profile that exists                   | Existing `SiteProfileEditPage` |
 
-이번 작업은 가운데 칸, **"플레이스 프로필 생성"** 이다. (이전 논의에서 "온보딩"이라 불렀으나 개념이 다르다. 첫 실행/가입 흐름이 아니라, "이 플레이스에서 쓸 프로필이 아직 없으니 지금 만든다"는 **생성 행위**로 본다.)
+This work is the middle row, **creating a place profile**. Earlier discussion called it "onboarding",
+which is a different concept. It is not a first-run or sign-up flow; it is the **act of creating** a
+profile that this place does not have yet.
 
-### Figma 5개 노드 = 한 화면의 상태들
+### The five Figma nodes are states of one screen
 
-| 노드         | 상태                                                                  |
-| ------------ | --------------------------------------------------------------------- |
-| `3026-11374` | 초기 — 빈 입력, "완료" 비활성                                         |
-| `3026-11473` | 입력 완료 — 이름·사진 채움, "완료" 활성                               |
-| `3026-11612` | 제출 중 로딩 + "프로필 설정이 완료되었습니다" 토스트                  |
-| `3026-11728` | 글자수 초과 에러 — 21/20, 빨간 테두리                                 |
-| `3026-12027` | 이탈 확인 모달 — "프로필 설정을 중단하시겠어요?" / 나가기 · 계속 설정 |
+| Node         | State                                                                        |
+| ------------ | ---------------------------------------------------------------------------- |
+| `3026-11374` | Initial — empty fields, "Done" disabled                                      |
+| `3026-11473` | Filled — name and photo set, "Done" enabled                                  |
+| `3026-11612` | Submitting, with the "Profile set up" toast                                  |
+| `3026-11728` | Length error — 21/20, red border                                             |
+| `3026-12027` | Leave confirmation — "Stop setting up your profile?" / Leave · Keep setting up |
 
-### 기존 코드에서 확인된 것
+### What the existing code already gives
 
-- 읽기: `useMyProfile()` → `ProfileRepository.observeItem` + `getMyProfile()`(반환 `DomainProfile | null`)로 **활성 플레이스에 내 프로필이 있는지** 관측 가능.
-- 쓰기: `profileRepository.setMyProfile({ nick, thumbnail })` — 편집 화면(`SiteProfileEditPage`)이 이미 쓰는 경로.
-- 이미지 처리: `resizeImageToBase64(file, 150)` 재사용 가능(≤10MB, webp/png/jpeg).
-- 프론트 지속 상태: `apps/web/src/app/stores/usePreferenceStore.ts` (zustand + localStorage/네이티브 브리지) 가 표준 패턴.
-- 컴포넌트: 요청 지시대로 `@chatic/web-ui-kit` 기반. **앱에서 이 라이브러리를 쓰는 첫 화면**이 된다. 필요한 조각 대부분(`ModalTopBar`·`TextField`·`Button`/`FloatingButton`·`AlertDialog`·`Toast`·`ProfileAvatar`)이 이미 있다.
+- Reading: `useMyProfile()` → `ProfileRepository.observeItem` plus `getMyProfile()` (returns
+  `DomainProfile | null`), so **whether I have a profile in the active place** is observable.
+- Writing: `profileRepository.setMyProfile({ nick, thumbnail })` — the path the edit screen
+  (`SiteProfileEditPage`) already uses.
+- Images: `resizeImageToBase64(file, 150)` is reusable (≤10MB, webp/png/jpeg).
+- Persisted front-end state: `apps/web/src/app/stores/usePreferenceStore.ts` (zustand plus
+  localStorage / the native bridge) is the standard pattern.
+- Components: `@chatic/web-ui-kit`, as the request directs. This becomes **the first screen in the app
+  to use the library**. Most of the pieces exist already — `ModalTopBar`, `TextField`, `Button` /
+  `FloatingButton`, `AlertDialog`, `Toast`, `ProfileAvatar`.
 
 ---
 
-## 결정 (Decision)
+## Decision
 
-### 화면이 등장하는 규칙
+### When the screen appears
 
-홈에서 **현재 활성 플레이스에 내 프로필이 있는지** 감지해서, 없고 + 사용자가 전에 "나가기"로 건너뛴 적도 없으면 프로필 생성 화면을 띄운다.
+Home detects **whether I have a profile in the currently active place**. If I do not, and I have not
+skipped this place before with Leave, the creation screen opens.
 
 ```mermaid
 flowchart TD
-    A[홈 진입 / 활성 플레이스 변경] --> B{이 플레이스에<br/>내 프로필 있나?}
-    B -- 있음 --> Z[아무것도 안 함]
-    B -- 없음 --> C{전에 '나가기'로<br/>건너뛴 플레이스인가?}
-    C -- 예 --> Z
-    C -- 아니오 --> D[프로필 생성 화면 띄움]
-    D --> E{사용자 선택}
-    E -- 완료 --> F[setMyProfile 저장<br/>→ 프로필 생김 → 다신 안 뜸]
-    E -- 나가기 --> G[store에 '이 플레이스 건너뜀' 기록<br/>→ 다신 안 뜸]
+    A[Home entry / active place change] --> B{Do I have a profile<br/>in this place?}
+    B -- yes --> Z[Do nothing]
+    B -- no --> C{Skipped before<br/>with 'Leave'?}
+    C -- yes --> Z
+    C -- no --> D[Open the profile creation screen]
+    D --> E{User choice}
+    E -- Done --> F[setMyProfile saves<br/>→ profile exists → never shown again]
+    E -- Leave --> G[record 'this place skipped' in the store<br/>→ not shown again]
 ```
 
-이 규칙 덕분에 "새로 만든 플레이스", "초대받아 참여한 플레이스", "예전에 만들었는데 프로필만 없는 플레이스"를 **트리거 종류와 상관없이 한 곳에서** 처리한다.
+The rule handles a newly created place, a place joined by invite and an old place that simply has no
+profile **in one place, whatever the trigger was**.
 
-### 세 화면의 관계
+### How the three screens relate
 
 ```mermaid
 flowchart LR
-    subgraph 기존
-      P[플레이스 개설<br/>CreatePlaceDialog<br/>이름만]
-      E[프로필 편집<br/>SiteProfileEditPage<br/>/mypage/site-profile]
+    subgraph Existing
+      P[Create place<br/>CreatePlaceDialog<br/>name only]
+      E[Edit profile<br/>SiteProfileEditPage<br/>/mypage/site-profile]
     end
-    subgraph 신규
-      C[프로필 생성<br/>본 ADR<br/>홈 감지 오버레이]
+    subgraph New
+      C[Create profile<br/>this ADR<br/>overlay from home detection]
     end
     P -.-> C
-    C -->|프로필 생김| E
+    C -->|profile now exists| E
 ```
 
-### 구현 방침 (포함)
+### Implementation points (in scope)
 
-1. **신규 화면을 따로 만든다.** 기존 편집 화면 `SiteProfileEditPage`는 손대지 않는다. (생성과 편집은 UI·제약이 달라 합치면 서로 방해된다.)
-2. **풀스크린 오버레이(다이얼로그)** 로 만든다 — `CreatePlaceDialog`와 같은 방식. **전용 URL 라우트는 두지 않는다.**
-3. **감지 러너는 `home` 피처에 둔다** (`UnreadBadgeRunner`와 같은 러너 패턴).
-4. **입력 규칙**: 이름 **1~20자 필수**, 사진 **선택**(Figma 그대로). 사진은 ≤10MB(webp/png/jpeg), 150px 정사각 리사이즈 후 base64.
-5. **데이터**: 읽기 `useMyProfile()`, 쓰기 `profileRepository.setMyProfile({ nick, thumbnail })`.
-6. **"나가기"(건너뛰기)**: 저장 없이 닫되, **"이 플레이스는 건너뜀"을 프론트 store(세션 스코프, `sessionStorage`)에 남긴다.** `usePreferenceStore` 패턴을 따라 플레이스(sid)별로 기록해 이번 세션 동안 같은 플레이스에서 다시 뜨지 않게 한다. 프로필은 프로필 화면에서 언제든 수정 가능하므로 영구 차단하지 않고 세션 종료 후에는 다시 프롬프트할 수 있다. (완료로 프로필을 만든 경우엔 감지 조건이 저절로 풀려 다시 안 뜬다.)
-7. **web-ui-kit 우선**: `@chatic/web-ui-kit` 컴포넌트로 조립하고, 없는 조각(예: **"+ 배지 + 파일 선택"이 붙은 편집형 아바타**)은 라이브러리에 새로 정의해 쓴다.
-8. **다섯 상태 모두 구현**: 초기 / 입력 완료 / 제출 로딩+성공 토스트 / 20자 초과 에러 / 이탈 확인 모달.
+1. **Build a new screen.** Leave the existing edit screen, `SiteProfileEditPage`, alone. Creation and
+   editing differ in UI and constraints; merging them makes both worse.
+2. **A full-screen overlay (dialog)**, the same shape as `CreatePlaceDialog`. **No dedicated URL
+   route.**
+3. **The detection runner lives in the `home` feature** — the runner pattern `UnreadBadgeRunner` uses.
+4. **Input rules**: the name is **required, 1–20 characters**; the photo is **optional** (as Figma
+   has it). A photo is ≤10MB (webp/png/jpeg), resized to a 150px square and stored as base64.
+5. **Data**: read through `useMyProfile()`, write through
+   `profileRepository.setMyProfile({ nick, thumbnail })`.
+6. **Leave (skip)**: close without saving, but **record "this place was skipped" in a front-end store
+   scoped to the session (`sessionStorage`)**. Following the `usePreferenceStore` pattern, the record
+   is per place (sid), so the same place does not prompt again this session. A profile can be edited
+   from the profile screen at any time, so the suppression is not permanent — a later session may
+   prompt again. (Finishing with Done removes the detection condition by itself.)
+7. **web-ui-kit first**: assemble from `@chatic/web-ui-kit`, and where a piece is missing — for
+   example **an editable avatar with a "+" badge and a file picker** — define it in the library and
+   use it from there.
+8. **Build all five states**: initial, filled, submitting with the success toast, over-20 error, and
+   leave confirmation.
 
-### 하지 않는 것 (제외)
+### Out of scope
 
-- 플레이스(Site) 개설 자체 — `CreatePlaceDialog` 소관.
-- 기존 `SiteProfileEditPage`·`CloudProfileEditPage` 리워크·통합.
-- 전용 URL 라우트 및 딥링크 진입.
+- Creating the place (Site) itself — that is `CreatePlaceDialog`'s job.
+- Reworking or merging the existing `SiteProfileEditPage` and `CloudProfileEditPage`.
+- A dedicated URL route and deeplink entry.
 
 ---
 
-## 대안 (Alternatives)
+## Alternatives
 
-| 검토한 대안                                               | 버린 이유                                                                                                                                                                                |
-| --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 기존 편집 화면을 "생성/편집 겸용"으로 개조                | 생성 화면 고유 요소(이탈 모달·X 닫기 모달 UI·20자)와 편집 화면(뒤로가기 헤더·30자)이 충돌. 안정적인 편집 화면을 흔들 이유가 없음.                                                        |
-| 전용 라우트 페이지로 구현                                 | 등장 방식이 "홈에서 프로필 유무 감지"로 정해져 URL 진입점이 불필요. 오버레이가 더 정합적.                                                                                                |
-| 건너뛰기 플래그를 백엔드에 저장 / 영구(localStorage) 저장 | 백엔드 저장은 API 비용이 크고, 영구 저장은 실수로 나가기 시 그 플레이스에서 영영 유도를 못 받음. 프로필이 언제든 수정 가능하므로 **세션 스코프 프론트 store**로 결정(세션당 1회만 억제). |
-| 이름 30자(편집 화면과 통일)                               | Figma가 20/20에서 에러를 명시 → 20자 채택.                                                                                                                                               |
+| Alternative                                                    | Why it was dropped                                                                                                                                                                                             |
+| -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Convert the edit screen into a create/edit hybrid               | The creation-only parts (leave modal, X-close modal UI, 20 characters) collide with the edit screen (back-arrow header, 30 characters). No reason to destabilise a working edit screen.                         |
+| Implement it as a dedicated route page                          | It appears through "home detects a missing profile", so there is no URL entry point to serve. An overlay fits better.                                                                                            |
+| Store the skip flag on the backend, or permanently in localStorage | A backend write costs an API for little; permanent storage means one accidental Leave silences that place forever. Since a profile stays editable, a **session-scoped front-end store** won — suppress once per session. |
+| A 30-character name, matching the edit screen                   | Figma shows the error at 20/20, so 20 it is.                                                                                                                                                                    |
 
 ---
 
-## 결과 (Consequences)
+## Consequences
 
-**좋아지는 것**
+**What gets better**
 
-- 플레이스마다 프로필 없는 상태가 자연스럽게 메꿔진다. 진입 경로가 무엇이든 한 규칙으로 처리된다.
-- `@chatic/web-ui-kit`의 앱 내 첫 실사용 사례가 되어 라이브러리를 검증한다. 부족한 컴포넌트(편집형 아바타 등)가 이때 드러나 보강된다.
+- Places without a profile get filled in naturally, and every entry path is handled by one rule.
+- It becomes the first real use of `@chatic/web-ui-kit` inside the app, which tests the library. The
+  gaps it has — an editable avatar, for one — surface here and get filled.
 
-**감수할 것 / 주의할 것**
+**What to accept, and to watch**
 
-- **건너뛰기 기록이 세션 스코프**라, 앱/탭을 다시 열면(새 세션) 프로필 미설정 플레이스에서 다시 프롬프트한다. 영구 억제가 아니므로 실수로 나가기를 눌러도 다음 세션에 다시 안내받고, 그 사이에도 프로필 화면에서 직접 설정할 수 있다. — 의도된 동작.
-- ⚠️ **원 요청의 "라우트 정의"와 다르게 신규 URL 라우트를 만들지 않는다.** 딥링크 직접 진입은 지원하지 않으며 필요 시 추후 추가. — 원 요청 문구와의 차이라 구현 전 재확인 여지 있음.
-- **감지 기준**은 "프로필 자체가 없음(null)"과 "프로필은 있는데 이름이 비어 있음"을 구분해야 헛등장을 막는다. 구현 단계에서 정확히 정의 필요.
-- 홈에서 뜨는 다른 오버레이(초대·구독 요구·이메일 인증 등)와 **표시 우선순위 충돌**을 구현 단계에서 정리해야 한다.
+- **The skip record is session scoped**, so reopening the app or tab prompts again in a place that
+  still has no profile. It is not permanent suppression: an accidental Leave is recoverable next
+  session, and the profile screen is available meanwhile. This is intended.
+- ⚠️ **Unlike the original request's "define a route", no new URL route is added.** Direct deeplink
+  entry is unsupported and can be added later. This differs from the request's wording, so it is worth
+  re-confirming before implementation.
+- **The detection rule** has to separate "no profile at all (null)" from "a profile with an empty
+  name" or the screen appears for nothing. The implementation has to define this precisely.
+- **Display priority against the other overlays home raises** (invite, subscription prompt, email
+  verification) has to be settled during implementation.

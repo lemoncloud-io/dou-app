@@ -1,149 +1,165 @@
-# Badge
+# App icon badge
 
-앱 아이콘 뱃지 카운트의 생애주기를 다룬다 — 포그라운드 집계(웹), 백그라운드 증가(네이티브),
-그리고 포그라운드 복귀 시 조정(reconcile). push 수신 파이프라인 자체는 [push.md](./push.md) 참고.
+The app-icon badge count's lifecycle — foreground totals from web, background increments in
+native, and reconciliation on foreground return. The push receive pipeline itself is in
+[push.md](./push.md).
 
-## 배경 / 문제
+## Why native has to increment
 
-- 뱃지의 원래 유일한 writer는 웹 `UnreadBadgeRunner`다. 활성 클라우드의 unread를 집계해
-  브릿지 `SetBadgeCount`(절대값)로 내려주며, 이는 **소켓이 살아있는 포그라운드에서만** 동작한다.
-- OS가 백그라운드에서 앱을 suspend하면 소켓·주기 sync가 모두 멈춰 뱃지가 마지막 포그라운드 값에
-  고정된다. 그래서 백그라운드에 메시지가 쌓여도 아이콘 뱃지가 실시간으로 오르지 않는다.
-- 백그라운드에서 뱃지를 움직일 수 있는 유일한 실행 지점은 **OS 푸시 수신 시 네이티브 코드**다
-  (iOS Notification Service Extension / Android `FirebaseMessagingService`). JS/웹은 이때 잠들어 있다.
+The web's `UnreadBadgeRunner` (`apps/web/src/app/features/home/UnreadBadgeRunner.tsx`) is the
+badge's original writer: it sums unread across the active cloud and pushes an absolute count over
+`appBridge.setBadgeCount(n)`, which only works while the socket is alive — i.e. in the foreground.
+Once the OS suspends the app, the socket and periodic sync stop, and the badge freezes at its last
+foreground value.
 
-## 설계 원칙 — 네이티브 공유 카운터 = 단일 진실원
+The only place code runs while the app is backgrounded is the OS push handler — iOS's
+Notification Service Extension (NSE) and Android's `ChaticFirebaseMessagingService`. So a
+background badge bump has to happen there, in native code, without JS.
 
-앱 아이콘 뱃지 숫자의 진실원을 **네이티브 공유 저장소의 카운터**로 두고, 두 writer를 여기에 수렴시킨다.
+## Single source of truth: a native shared counter
 
-| writer               | 시점       | 동작                                                                                                |
-| -------------------- | ---------- | --------------------------------------------------------------------------------------------------- |
-| 웹 재집계            | 포그라운드 | 활성 클라우드 unread를 집계한 절대값 `T`를 카운터에 기록. **OS 뱃지에 닿는 것은 iOS뿐** (아래 경고) |
-| 네이티브 push 핸들러 | 백그라운드 | chat 푸시마다 카운터 `+1` 하고 OS 뱃지에 반영                                                       |
-| 웹 포그라운드 재집계 | 복귀       | 진짜 값 `T'`를 다시 기록해 백그라운드 드리프트를 정정                                               |
+Both writers converge on a counter kept in native shared storage.
 
-> ⚠️ **안드로이드에서는 웹의 절대값이 런처 아이콘에 도달하지 않는다** (2026-09-07 확인). `NotificationService.setBadgeCount`가
-> 부르는 notifee의 badge API는 **iOS 전용**이고 그 외 플랫폼에서는 즉시 resolve하는 no-op이다
-> (`@notifee/react-native` `NotifeeApiModule.ts` — `setBadgeCount`/`getBadgeCount` 모두 `if (!isIOS)`로 빠진다).
-> 안드로이드 런처 숫자를 실제로 움직이는 유일한 지점은 `ChaticFirebaseMessagingService`가 알림에 붙이는
-> `setNumber(badgeCount)`이므로, 뱃지는 **떠 있는 알림에 종속**된다. 그리고 리포지토리에 알림을 취소하는
-> 코드가 없다 — 그래서 방을 읽어도 트레이의 알림이 남아 있으면 뱃지가 남는다. 이것이 "들어가서 봐도
-> 뱃지가 안 없어진다"의 안드로이드 쪽 원인 후보이고, **수정은 별 트랙**이다. 이 문서의 위 표는 그
-> 수정이 들어오기 전까지 iOS에만 온전히 참이다.
+| Writer                   | When        | Effect                                                                                                    |
+| ------------------------ | ----------- | --------------------------------------------------------------------------------------------------------- |
+| Web re-aggregation       | Foreground  | Writes the absolute total `T` into the counter. **Only iOS's OS badge reflects it directly** (see below). |
+| Native push handler      | Background  | `+1` per chat push, written straight to the OS badge.                                                     |
+| Web foreground reconcile | App resumes | Re-writes the true total `T'`, correcting background drift.                                               |
 
-핵심 제약: **양 플랫폼 모두 백그라운드 증가 경로에서 "현재 표시된 뱃지"를 읽을 수 없다.**
-iOS NSE는 `applicationIconBadgeNumber`에 접근할 수 없고, Android는 런처 뱃지를 읽는 공개 API가 없다.
-따라서 증가는 반드시 **자체 저장한 base**에서 출발해야 하며, 그 base는 포그라운드에서 주입된다.
+**Android's absolute write never reaches the launcher icon.** `NotificationService.setBadgeCount`
+calls notifee's badge API, and `@notifee/react-native`'s `NotifeeApiModule.ts` guards both
+`setBadgeCount` and `getBadgeCount` behind `if (!isIOS)` — off iOS they resolve immediately as a
+no-op. The only thing that moves an Android launcher number is `ChaticFirebaseMessagingService.kt`
+calling `NotificationCompat.Builder.setNumber(badgeCount)` on each notification it posts, so the
+badge is tied to a still-showing notification. Nothing in this repo cancels a notification when
+its channel is read, so reading a room can leave the badge showing a stale count as long as the
+tray notification stays up — a separate, unfixed track.
 
-base 주입 방식만 플랫폼별로 다르다(비대칭):
+The table above is exactly true only on iOS until that gap closes.
 
-- **iOS** — 앱 프로세스는 라이브 뱃지를 읽을 수 있으므로 `applicationWillResignActive`에서
-  `applicationIconBadgeNumber`를 App Group에 **캡처**한다. JS가 값을 넘길 필요가 없다.
-- **Android** — 런처 뱃지를 못 읽으므로, 웹이 `SetBadgeCount` 할 때 `BadgeSync.setBase(n)`로
-  SharedPreferences에 **명시적으로** 기록한다.
+Neither background handler can read "what the badge currently shows" — iOS's NSE has no access to
+`applicationIconBadgeNumber`, and Android exposes no API to read the launcher badge back. Both
+increments therefore start from a **base the handler stores itself**, seeded from the foreground
+side. How that base gets seeded differs by platform:
 
-## 흐름
+- **iOS** — the app process can read the live badge, so `applicationWillResignActive` captures
+  `applicationIconBadgeNumber` into an App Group as the app backgrounds. JS never has to push it.
+- **Android** — the app can't read the launcher badge, so the web explicitly writes it: every
+  `setBadgeCount` call also calls `BadgeSyncBridge.setBase(n)`, which persists into
+  `SharedPreferences` via the `BadgeSync` native module.
+
+## Flow
 
 ```mermaid
 flowchart TD
-    subgraph FG["포그라운드 (소켓 live)"]
-        Web["UnreadBadgeRunner: unread 집계 T"] -->|"setBadgeCount(T)"| Notifee["notifee 뱃지 = T"]
-        Web -->|"BadgeSync.setBase(T) · Android only"| StoreA["Android SharedPreferences badge_count = T"]
+    subgraph FG["Foreground (socket live)"]
+        Web["UnreadBadgeRunner: aggregate unread T"] -->|"setBadgeCount(T)"| Notifee["notifee badge = T"]
+        Web -->|"BadgeSync.setBase(T) — Android only"| StoreA["Android SharedPreferences badge_count = T"]
     end
 
-    subgraph BG["백그라운드 (앱 suspend, 소켓 dead)"]
-        PushI["iOS chat push"] --> NSE["NSE: app_active=false 이면 badge_count+1"]
+    subgraph BG["Background (app suspended, socket dead)"]
+        PushI["iOS chat push"] --> NSE["NSE: app_active=false → badge_count+1"]
         NSE --> BadgeI["banner.badge = T+1"]
-        PushA["Android chat push"] --> FCM["FirebaseMessagingService 백그라운드 분기"]
+        PushA["Android chat push"] --> FCM["FirebaseMessagingService background branch"]
         FCM --> Inc["BadgeStore.increment()"]
         Inc --> BadgeA["notification.setNumber(T+1)"]
     end
 
-    subgraph RESUME["포그라운드 복귀"]
-        Active["iOS didBecomeActive: 뱃지=0, app_active=true"]
-        Resign["iOS willResignActive: app_active=false, badge_count = 라이브 뱃지 캡처"]
-        Reconcile["UnreadBadgeRunner: OnBackgroundStatusChanged(isForeground) → setBadgeCount(T') 재-push"]
+    subgraph RESUME["Foreground return"]
+        Active["iOS didBecomeActive: badge=0, app_active=true"]
+        Resign["iOS willResignActive: app_active=false, badge_count = live badge captured"]
+        Reconcile["UnreadBadgeRunner: OnBackgroundStatusChanged(isForeground) → setBadgeCount(T') re-push"]
     end
 
-    FG -.->|"앱 백그라운드 진입"| Resign
+    FG -.->|"app backgrounds"| Resign
     Resign -.-> BG
-    BG -.->|"앱 열기"| Active
+    BG -.->|"app opens"| Active
     Active -.-> Reconcile
     Reconcile -.-> FG
 ```
 
-## 증가 대상 규칙
+## What increments, and what doesn't
 
-세 규칙 모두 iOS NSE(`applyBadgeIncrementIfNeeded`)와 Android FCM 서비스(`isChatChannel` + 백그라운드 분기)에
-동일하게 적용된다.
+The same three rules apply to both iOS's NSE (`applyBadgeIncrementIfNeeded`) and Android's FCM
+service (`isChatChannel` plus its background branch):
 
-- **chat 채널만**: `dou_chat`, `dou_chat_muted`. 뮤트도 포함하는데, 웹의 unread 집계가 뮤트 채널을
-  제외하지 않으므로 일관성을 위해서다. `dou_notice`/`dou_marketing`/`dou_cloud`는 증가시키지 않는다.
-- **포그라운드 가드**: 포그라운드에선 웹이 소켓으로 이미 뱃지를 갱신하므로 네이티브 증가를 막아
-  이중 카운트를 방지한다. iOS는 App Group `app_active` 플래그, Android는 `isAppInForeground()`로 판단한다.
-- **silent 제외**: silent 푸시는 배너도 없고 뱃지도 올리지 않는다.
+- **Chat channels only**: `dou_chat` and `dou_chat_muted`. Muted counts too — the web's unread
+  aggregation does not exclude muted channels, so this keeps them consistent. `dou_notice`,
+  `dou_marketing` and `dou_cloud` never increment the badge.
+- **Foreground guard**: in the foreground the web already updates the badge over the socket, so
+  native increments are skipped to avoid double-counting. iOS checks the App Group `app_active`
+  flag; Android checks `isAppInForeground()`.
+- **Silent pushes are excluded**: a silent push shows no banner and does not touch the badge.
 
-## 플랫폼 상세
+## Platform detail
 
-### iOS — App Group 공유 카운터
+### iOS — App Group shared counter
 
-- App Group `group.io.chatic.dou`를 app(dev/prod)과 NSE 양쪽 entitlements에 등록한다.
-- App Group keys: `badge_count`(Int), `app_active`(Bool).
-- `AppDelegate.applicationDidBecomeActive` → 뱃지 0 클리어 + `app_active=true`.
-- `AppDelegate.applicationWillResignActive` → `app_active=false` + `badge_count`에 라이브 뱃지 캡처.
-- `NotificationService.applyBadgeIncrementIfNeeded` (NSE) → chat && `!app_active` 일 때만 `badge_count+1` 후 `content.badge` 설정.
-- **Provisioning (수동, 코드 밖)**: Apple Developer 포털에서 4개 app id(app·NSE × dev·prod)에
-  App Groups capability를 켜고 프로비저닝 프로파일을 재발급해야 한다. Xcode의
-  "Signing & Capabilities"에서 `group.io.chatic.dou`가 붙었는지 확인한다.
+- App Group `group.io.chatic.dou` is registered on both the app (dev/prod) and NSE entitlements.
+- App Group keys: `badge_count` (Int), `app_active` (Bool).
+- `AppDelegate.applicationDidBecomeActive` clears the badge to 0 and sets `app_active = true`.
+- `AppDelegate.applicationWillResignActive` sets `app_active = false` and captures the live badge
+  into `badge_count`.
+- `NotificationService.applyBadgeIncrementIfNeeded` (NSE) increments `badge_count` and sets
+  `content.badge` only when the channel is chat and `app_active` is false.
+- **Provisioning (manual, outside the code)**: the Apple Developer portal needs the App Groups
+  capability enabled and the provisioning profiles reissued for all four app ids (app × NSE, dev ×
+  prod). Confirm `group.io.chatic.dou` is attached under Xcode's Signing & Capabilities.
 
-### Android — SharedPreferences 공유 카운터
+### Android — SharedPreferences shared counter
 
-- `BadgeStore` (`chatic_badge` prefs, key `badge_count`): get/set/increment.
-- `ChaticFirebaseMessagingService` 백그라운드 분기(chat, non-silent)에서 `BadgeStore.increment()` 후
-  `NotificationCompat.Builder.setNumber()`로 반영한다.
-- **런처 의존**: Android 아이콘 뱃지 카운트 표시는 런처마다 다르다(notifee가 겪는 것과 동일한 한계).
-  숫자를 지원하지 않는 런처는 알림에서 오는 dot만 표시한다.
+- `BadgeStore` (`chatic_badge` prefs, key `badge_count`) exposes get/set/increment.
+- `ChaticFirebaseMessagingService`'s background branch (chat, non-silent) calls
+  `BadgeStore.increment()` and reflects the result with `NotificationCompat.Builder.setNumber()`.
+- **Launcher-dependent**: whether the number renders at all depends on the launcher, the same
+  limitation notifee has upstream. Launchers without number support show only a dot.
 
-## 주요 파일
+## Key files
 
-| 파일                                                                                     | 역할                                                                        |
-| ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| `src/app/features/home/UnreadBadgeRunner.tsx` (web)                                      | unread 집계 → `setBadgeCount`, 포그라운드 복귀 시 재-push                   |
-| `src/app/bridge/BadgeSyncBridge.ts`                                                      | `setBase(n)` TS wrapper (Android만 native 호출, iOS no-op)                  |
-| `src/app/services/notification/NotificationService.ts`                                   | `setBadgeCount`/`clearBadge`가 notifee + `BadgeSyncBridge.setBase`를 동기화 |
-| `android/.../module/BadgeSyncModule.kt`                                                  | `BadgeSync.setBase` / `getBase` native module                               |
-| `android/.../push/BadgeStore.kt`                                                         | Android 공유 카운터(SharedPreferences)                                      |
-| `android/.../push/ChaticFirebaseMessagingService.kt`                                     | 백그라운드 chat 푸시 시 카운터 증가                                         |
-| `ios/Chatic/AppDelegate.swift`                                                           | `app_active` 플래그 토글 + `resignActive`에서 base 캡처                     |
-| `ios/ChaticNotificationServiceExtension/NotificationService.swift`                       | 백그라운드 chat 푸시 시 App Group 카운터 증가                               |
-| `ios/ChaticNotificationServiceExtension/ChaticNotificationServiceExtension.entitlements` | NSE App Group entitlement                                                   |
+| File                                                                                     | Role                                                                            |
+| ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `apps/web/src/app/features/home/UnreadBadgeRunner.tsx`                                   | Aggregates unread → `setBadgeCount`, re-pushes on foreground return             |
+| `src/app/bridge/BadgeSyncBridge.ts`                                                      | `setBase(n)` TS wrapper — calls native only on Android, no-op on iOS            |
+| `src/app/services/notification/NotificationService.ts`                                   | `setBadgeCount`/`clearBadge` keep notifee and `BadgeSyncBridge.setBase` in sync |
+| `android/.../module/BadgeSyncModule.kt`                                                  | `BadgeSync.setBase` / `getBase` native module                                   |
+| `android/.../push/BadgeStore.kt`                                                         | Android shared counter (SharedPreferences)                                      |
+| `android/.../push/ChaticFirebaseMessagingService.kt`                                     | Bumps the counter on a background chat push                                     |
+| `ios/Chatic/AppDelegate.swift`                                                           | Toggles `app_active`, captures the base on `resignActive`                       |
+| `ios/ChaticNotificationServiceExtension/NotificationService.swift`                       | Bumps the App Group counter on a background chat push                           |
+| `ios/ChaticNotificationServiceExtension/ChaticNotificationServiceExtension.entitlements` | NSE App Group entitlement                                                       |
 
-## 조정 타임라인 (예시)
+## Reconciliation timeline (example)
 
-1. 포그라운드: 웹이 unread `T=3` 집계 → 뱃지 3, 카운터 3.
-2. 앱 백그라운드: (iOS) `resignActive`가 `badge_count=3` 캡처, `app_active=false`.
-3. 백그라운드 chat 푸시 2개: 카운터 3→4→5, 뱃지 5.
-4. 앱 열기: (iOS) `didBecomeActive`가 뱃지 0 + `app_active=true` → 웹이 재연결·재집계해
-   `setBadgeCount(T')` 재-push → 뱃지·카운터가 진짜 값으로 정정.
+1. Foreground: web aggregates unread `T=3` → badge 3, counter 3.
+2. App backgrounds: (iOS) `resignActive` captures `badge_count=3`, sets `app_active=false`.
+3. Two background chat pushes arrive: counter 3→4→5, badge 5.
+4. App opens: (iOS) `didBecomeActive` clears the badge and sets `app_active=true` → the web
+   reconnects, re-aggregates, and re-pushes `setBadgeCount(T')` → badge and counter both settle on
+   the true value.
 
-## 알려진 한계
+## Known limits
 
-- **Android 런처 의존**: 위 참고. 카운트 대신 dot만 뜨는 런처가 있다.
-- **`FetchBadgeCount`는 iOS에서만 참값이다**: iOS의 notifee `getBadgeCount`는 실제
-  `applicationIconBadgeNumber`를 읽지만, 안드로이드에서는 no-op이라 **항상 0**을 답한다. 그래서 안드로이드의
-  진짜 값을 읽는 창구로 `FetchBadgeBase`(공유 카운터 조회, `BadgeSync.getBase`)를 따로 뒀다 — 기존 메시지의
-  의미를 바꾸지 않은 이유는 웹이 앱보다 먼저 배포되기 때문이다(구버전 셸은 `NOT_FOUND`로 답하고 웹이 그걸
-  학습한다). 두 창구 모두 "모름"을 `null`로 답하고 0으로 위장하지 않는다.
-- **웹은 이제 뱃지를 읽는다**: 포그라운드 복귀와 앱 런 첫 push 직전에 기기 값을 읽어 **마지막으로 밀어넣은
-  값**과 대조하고, 어긋나면 `warn`으로 남긴다(ADR-0075, [정합성 검증 트리거](../../../libs/logger/docs/divergence-checks.md)).
-  현재 총합과 비교하지 않는 이유는 아이콘이 설계상 뒤처지기 때문이다 — 그러면 정상적인 읽음이 전부
-  불일치로 잡힌다.
-- **iOS 재백그라운드 창**: `didBecomeActive`(뱃지 0)와 웹 재-push 사이의 짧은 창에 앱이 다시
-  백그라운드로 가면 base가 0으로 캡처될 수 있다. 다음 정상 포그라운드에서 self-heal 된다.
+- **Android is launcher-dependent** — see above; some launchers show only a dot, never a number.
+- **`FetchBadgeCount` is only true on iOS**: iOS's notifee `getBadgeCount()` reads the real
+  `applicationIconBadgeNumber`; on Android it is a no-op and always answers 0. Reading Android's
+  real value goes through the separate `FetchBadgeBase` message (`BadgeSync.getBase`) instead —
+  the older message's meaning was left alone because the web ships ahead of the app: an older shell
+  answers `NOT_FOUND`, and the web learns from that. Both messages answer "unknown" as `null`,
+  never disguised as 0.
+- **The web now reads the badge back**: on foreground return, and just before the first push of a
+  run, it reads the device value and compares it against the **last value it pushed** — a mismatch
+  is logged as a `warn` (ADR-0075, see `apps/web/src/app/runtime/logging/`). It compares against
+  the last pushed value rather than the current total because the icon is expected to lag by
+  design; comparing against the live total would flag every legitimate read as a divergence.
+- **iOS re-background window**: if the app re-backgrounds in the short window between
+  `didBecomeActive` (badge cleared) and the web's re-push, the base can be captured as 0. The next
+  normal foreground self-heals it.
 
-## 검증
+## Verification
 
-- **유닛**: `BadgeSyncBridge.test.ts`, `NotificationService.test.ts`(모바일), `UnreadBadgeRunner.test.tsx`(웹).
-- **기기(수동)**: `scripts/send-test-push.js`로 백그라운드 chat 푸시 → 뱃지 증가 관찰, 앱 열기 → 재집계 정정,
-  뮤트 포함/공지·마케팅 제외, 포그라운드 이중 카운트 없음 확인. Kotlin/Swift는 저장소에 유닛 테스트
-  하네스가 없어 기기 검증으로 대체한다.
+- **Unit**: `BadgeSyncBridge.test.ts`, `NotificationService.test.ts` (mobile),
+  `UnreadBadgeRunner.test.tsx` (web).
+- **Device (manual)**: send a background chat push, confirm the badge increments; open the app,
+  confirm it reconciles; confirm muted channels count and notice/marketing don't; confirm no
+  double-count in the foreground. Kotlin and Swift have no unit test harness in this repo, so
+  device verification is the only check for the native halves.

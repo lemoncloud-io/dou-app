@@ -1,67 +1,113 @@
-# ADR-0026: 나와의 채팅(self) 채널 유형 web 반영
+# ADR-0026: Bring the self chat channel type into web
 
-> 상태: Accepted · 결정일: 2026-07-20
+> Status: Accepted · Decided: 2026-07-20
 
-## 맥락 (Context)
+## Context
 
-`apps/web`의 채널 피처는 `stereo === 'self'`로 "나와의 채팅"을 이미 부분적으로 처리하고 있으나, 최근 Figma 리디자인(채널 룸 개선, ADR-0021 후속)에 맞춰 self 유형을 정리해야 한다. 조사에서 드러난 현황과 요구사항은 다음과 같다.
+The channel feature in `apps/web` already handles "self chat" partially through `stereo === 'self'`,
+but the type needs tidying up for the recent Figma redesign (the channel room refinement, following
+ADR-0021). What the survey found, and what is required:
 
-**이미 있는 것**
+**What already exists**
 
-- self 판별: `useChannel.ts:13` — `isSelfChat = stereo === 'self'`
-- 룸 읽음표시 숨김: `ChannelRoomPage.tsx:85` — `showReadReceipt = !isSelfChat && activeCount >= 2`
-- 룸 헤더 `kind='direct'`, self 빈 상태(펜 아이콘 + 안내문), 초대 다이얼로그 미노출
-- join.nick 저장 하위 파이프라인 완비 — 게이트웨이 `join.update`(body `{ id, nick?, notify?, role? }`), `JoinRepository.updateJoin`(`repositories/JoinRepository.ts:125`, nick 처리 + channelId/userId로 composite id resolve), `useRuntimeRepositories().join`으로 노출
+- Self detection: `useChannel.ts:13` — `isSelfChat = stereo === 'self'`
+- The room hides read status: `ChannelRoomPage.tsx:85` —
+  `showReadReceipt = !isSelfChat && activeCount >= 2`
+- The room header uses `kind='direct'`, the self empty state (pen icon plus guidance), and no invite
+  dialog
+- The whole pipeline below join.nick is in place — the `join.update` gateway (body
+  `{ id, nick?, notify?, role? }`), `JoinRepository.updateJoin` (`repositories/JoinRepository.ts:125`,
+  which handles nick and resolves the composite id from channelId/userId), exposed through
+  `useRuntimeRepositories().join`
 
-**어긋난 것 / 없는 것**
+**What is inconsistent or missing**
 
-1. self 판별 기준 불일치 — 홈 목록은 `ChannelList.tsx:44`에서 `memberNo === 1`로 판별(channels 피처는 `stereo === 'self'`).
-2. 룸 헤더가 self일 때 `channel.name`을 무시하고 고정 라벨 `channelList.selfChannel`을 표시(`ChannelRoomPage.tsx:349`) → 이름을 바꿔도 헤더에 안 보임.
-3. self 채널 이름 수정이 설정에서 막혀 있음(`ChannelSettingsPage.tsx:145-146` — 이름 행 클릭 비활성).
-4. web `useChannelMutations`는 `join` repository를 꺼내지 않음 → join.nick을 쓰는 앱-레벨 뮤테이션이 없음(desktop-web은 `setChannelNotify`가 `joinRepository.updateJoin` 사용).
-5. `$join.nick`을 읽거나 쓰는 코드가 전무.
+1. Self detection disagrees — the home list decides with `memberNo === 1`
+   (`ChannelList.tsx:44`), while the channels feature uses `stereo === 'self'`.
+2. For a self chat the room header ignores `channel.name` and shows the fixed label
+   `channelList.selfChannel` (`ChannelRoomPage.tsx:349`) → renaming never shows up in the header.
+3. Renaming a self channel is blocked in settings (`ChannelSettingsPage.tsx:145-146` — the name row is
+   not clickable).
+4. web's `useChannelMutations` does not pull the `join` repository → there is no app-level mutation
+   that writes join.nick (desktop-web's `setChannelNotify` does use `joinRepository.updateJoin`).
+5. Nothing reads or writes `$join.nick` at all.
 
-**Figma 참조 (DoU / node)**
+**Figma references (DoU / node)**
 
-- 룸 빈 상태 `3185-13109`, 룸 메시지 `3186-13530`, 방 정보(설정) `3185-13278`, 이름 수정 인풋 케이스 `3165-26764`, 홈 목록 아이템 `3209-14565`
+- Room empty state `3185-13109`, room with messages `3186-13530`, room info (settings) `3185-13278`,
+  the rename input case `3165-26764`, the home list item `3209-14565`
 
-## 결정 (Decision)
+## Decision
 
-### 포함 (In scope)
+### In scope
 
-1. **self 판별을 `stereo === 'self'`로 통일.** 홈 `ChannelList`의 `memberNo === 1` 판별을 제거하고 `stereo === 'self'`로 교체한다. (self 표시/배지/멤버수 pill 로직도 이 기준을 따른다.)
+1. **Unify self detection on `stereo === 'self'`.** Remove the `memberNo === 1` test from the home
+   `ChannelList` and replace it with `stereo === 'self'`. (The self display, badge and member-count
+   pill logic follow the same test.)
 
-2. **self 채널 이름은 `$join.nick`으로 저장/표시** (채널의 `name`이 아님).
-    - 저장: `join.update`(`JoinUpdateRequestBody.nick`) 경로 사용. web는 ADR-0025에서 도입된 `useJoinMutations().updateJoin({ channelId, userId, nick })`를 그대로 재사용한다(알림 토글과 동일 훅). `userId`는 `channel.$join?.userId`(없으면 세션 uid)에서 취득.
-    - 표시(룸 헤더 · 홈 목록 · 설정 이름 행): **`$join.nick || site 프로필 nick`**. 커스텀 nick이 있으면 그것을, 없으면 **활성 site 프로필의 이름**(`useMyProfile().profile?.nick`)을 fallback으로 쓴다. 계정(user 레코드) name은 raw id/UUID일 수 있어 쓰지 않는다. 그래도 없으면 `channelList.selfChannel` 라벨. 홈 목록은 self일 때 `MY` 배지 + 이 제목으로 노출한다(`3209-14565`).
+2. **A self channel's name is stored and shown through `$join.nick`**, not the channel's `name`.
+    - Storing: use the `join.update` path (`JoinUpdateRequestBody.nick`). web reuses
+      `useJoinMutations().updateJoin({ channelId, userId, nick })`, introduced in ADR-0025 — the same
+      hook as the notification toggle. `userId` comes from `channel.$join?.userId`, falling back to the
+      session uid.
+    - Showing (room header, home list, the settings name row): **`$join.nick || the site profile
+      nick`**. Use the custom nick where there is one; otherwise fall back to **the active site
+      profile's name** (`useMyProfile().profile?.nick`). The account (user record) name is not used,
+      because it can be a raw id or UUID. With neither, use the `channelList.selfChannel` label. In the
+      home list, a self chat shows the `MY` badge plus this title (`3209-14565`).
 
-3. **self 이름 수정 진입점 = 설정 상단 이름 행.** `ChannelSettingsPage`에서 self여도 이름 행을 클릭 가능하게 열고, 이름 수정 UI를 띄운다. 입력 스펙(`3165-26764`): 이름 전용, 최대 20자, 글자 카운터(예 `8/20`), placeholder `Self Chat`, 헬퍼 "20글자 이내로 입력해 주세요". self는 썸네일 편집을 노출하지 않는다(그룹의 `UpdateChannelDialog`와 달리 name-only). 저장은 2번의 join.nick 경로로 연결한다.
+3. **Renaming starts from the name row at the top of settings.** On `ChannelSettingsPage`, make the
+   name row clickable for a self chat too, and open the rename UI. The input spec (`3165-26764`): name
+   only, 20 characters maximum, a character counter (`8/20`), placeholder `Self Chat`, helper "Use 20
+   characters or fewer." Self chat does not expose thumbnail editing (unlike a group's
+   `UpdateChannelDialog`, this is name-only). Saving goes through the join.nick path from point 2.
 
-4. **읽음 숫자 미노출 유지.** self 룸에서는 메시지별 안 읽은 사람 수(ReadReceipt)를 표시하지 않는다(이미 구현됨, `ChannelRoomPage.tsx:85`). 시간 옆 카운트/`all_done` 등 읽음 관련 요소 모두 숨김(Figma에서 hidden).
+4. **Read counts stay hidden.** A self room does not show the per-message unread count (ReadReceipt),
+   which is already the case (`ChannelRoomPage.tsx:85`). Every read-related element — the count beside
+   the time, `all_done` — stays hidden (Figma hides them).
 
-5. **Figma UI 반영.** 룸(빈 상태/메시지) · 방 정보(설정) · 이름 수정 · 홈 아이템 4(+1) 화면을 `@libs/web-ui-kit` 컴포넌트로 맞춘다. 설정 화면(`3185-13278`)은 self일 때 "방 친구"(소유자 1명)만 노출하고 알림/멤버 추가/나가기 섹션은 숨긴다. 룸 ⋯ 메뉴는 "방 정보"(설정) 단일 항목.
+5. **Apply the Figma UI.** Bring the room (empty and with messages), room info (settings), rename and
+   home item screens — four, plus one — onto `@libs/web-ui-kit` components. For a self chat the settings
+   screen (`3185-13278`) shows only "Room friends" (one owner) and hides the notification, add-member
+   and leave sections. The room's ⋯ menu has a single item, "Room info" (settings).
 
-6. **컴포넌트는 `@libs/web-ui-kit` 기반.** 누락 시 해당 라이브러리에 정의 후 사용. 아이콘은 `resources/icons`의 시맨틱 별칭을 사용하고, 커스텀 글리프가 필요하면 그쪽에 추가한다.
+6. **Components come from `@libs/web-ui-kit`.** Anything missing is defined there first. Icons use the
+   semantic aliases in `resources/icons`, and a custom glyph is added there.
 
-### 제외 (Out of scope)
+### Out of scope
 
-- **self 채널 생성 경로.** web에는 현재 self 채널을 만드는 UI/로직이 없다(생성 시 `stereo: 'private'`만). self 채널은 서버 측에서 이미 존재한다고 가정하고, 이번엔 읽기/이름수정/사용만 다룬다.
-- desktop-web 반영(이번 작업은 `apps/web`에 한정).
-- 홈 안읽음 배지 로직 변경 — self는 자연히 unread가 쌓이지 않으므로 별도 처리하지 않는다.
+- **Creating a self channel.** web has no UI or logic that creates one today (creation only ever sets
+  `stereo: 'private'`). Self channels are assumed to exist already, server-side, and this round covers
+  reading, renaming and using them.
+- desktop-web (this work is limited to `apps/web`).
+- Changing the home unread badge logic — a self chat naturally accumulates no unread, so it needs no
+  special handling.
 
-## 대안 (Alternatives)
+## Alternatives
 
-- **이름을 `channel.name`에 저장** (그룹과 동일 경로): 기각. 사용자 지정에 따라 self 이름은 join별 nick(`join.update`)으로 관리하며, 하위 파이프라인도 이미 nick 기준으로 완비돼 있다.
-- **판별을 `memberNo === 1`로 유지/통일**: 기각. member 수는 상태에 따라 흔들릴 수 있고 요구사항이 "stereo의 self"로 명시. `stereo === 'self'`가 안정적 단일 기준.
-- **이름 수정 진입을 룸 ⋯ 메뉴에 별도 항목으로 추가**: 기각. 그룹 설정과 일관되게 설정 상단 이름 행을 진입점으로 통일(Figma 설정 화면에 이름 행이 없더라도 진입점 일관성을 우선).
-- **그룹 `UpdateChannelDialog`를 그대로 재사용**: 부분 기각. 저장 경로(join.nick)와 레이아웃(name-only + 카운터, 썸네일 없음)이 달라, self용 분기/전용 편집 UI가 필요하다(구체 구조는 스펙 단계에서 확정).
+- **Store the name in `channel.name`** (the same path as a group): rejected. By the user's decision a
+  self chat's name is managed as the per-join nick (`join.update`), and the pipeline below is already
+  built around nick.
+- **Keep or unify detection on `memberNo === 1`**: rejected. A member count moves with state, and the
+  requirement names "the self stereo" explicitly. `stereo === 'self'` is the stable single test.
+- **Add renaming as its own item in the room's ⋯ menu**: rejected. Consistency with group settings
+  wins — the name row at the top of settings is the entry point (even though the Figma settings screen
+  has no name row).
+- **Reuse the group's `UpdateChannelDialog` as is**: partly rejected. The save path (join.nick) and the
+  layout (name-only with a counter, no thumbnail) differ, so a self branch or a dedicated editor is
+  needed (the exact structure is settled in the spec phase).
 
-## 결과 (Consequences)
+## Consequences
 
-- **얻는 것**: self 판별이 단일 기준(`stereo === 'self'`)으로 정리되어 홈/룸/설정 간 표시 불일치가 사라진다. 이름 수정이 join.nick 경로로 동작해 헤더·목록·설정에 일관 반영되고, Figma 리디자인이 web-ui-kit 컴포넌트로 반영된다.
-- **트레이드오프 / 후속**:
-    - join.nick 쓰기는 기존 `useJoinMutations`(ADR-0025)를 재사용한다 — 별도 뮤테이션을 새로 만들지 않는다.
-    - self 이름 편집 경로가 그룹(채널명)과 달라(부분) 편집 UI가 분기된다 — 유지보수 시 두 경로를 인지해야 한다.
-    - fallback은 **site 프로필 nick**(`useMyProfile`)으로 확정했다 — 계정 user name(raw id/UUID 가능)은 쓰지 않는다.
-    - web-ui-kit `TextField`에 글자 카운터/헬퍼 어포던스가 없으면 라이브러리에 보강이 필요할 수 있다.
-- 다음 단계: 이 ADR을 입력으로 dev-2_implement의 스펙 작성(Phase A)으로 넘어간다.
+- **What is gained**: self detection lands on a single test (`stereo === 'self'`), so home, the room
+  and settings stop disagreeing. Renaming works through the join.nick path and shows up consistently in
+  the header, the list and settings, and the Figma redesign is expressed in web-ui-kit components.
+- **Trade-offs and follow-ups**:
+    - Writing join.nick reuses the existing `useJoinMutations` (ADR-0025) — no new mutation.
+    - The self rename path differs from a group's (channel name), so the editing UI branches —
+      maintenance has to keep both in mind.
+    - The fallback is settled as **the site profile nick** (`useMyProfile`); the account user name
+      (possibly a raw id or UUID) is not used.
+    - If web-ui-kit's `TextField` lacks the character counter and helper affordances, the library may
+      need extending.
+- Next step: this ADR feeds the spec phase (Phase A) of dev-2_implement.

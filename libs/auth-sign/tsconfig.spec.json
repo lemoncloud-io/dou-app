@@ -1,10 +1,25 @@
+// libs/auth-sign/tsconfig.spec.json
 {
     "extends": "./tsconfig.json",
     "compilerOptions": {
         "outDir": "../../dist/out-tsc",
-        "module": "commonjs",
+        // `module` is NOT overridden to commonjs here. The base sets `moduleResolution: bundler`,
+        // which rejects commonjs (TS5095) and left this config unable to compile at all — which is
+        // how the spec files went unchecked. ts-jest emits CommonJS for jest on its own; this config
+        // only has to be checkable.
+        //
+        // `esModuleInterop` stays. `LemonHmacSigner.ts` default-imports two crypto-js submodules and
+        // `LemonHmacSigner.spec.ts` imports the ESM-only `@lemoncloud/lemon-web-core`; without the
+        // interop helpers ts-jest's CommonJS output reaches for `.default` and the calls blow up at
+        // runtime. The base config does not set it, so it is set here, scoped to the tests.
         "esModuleInterop": true,
         "types": ["jest", "node"]
     },
-    "include": ["jest.config.js", "src/**/*.ts"]
+    // `src/**/*.ts` already covers everything this lib has, but `__mocks__` is named anyway: the nx
+    // typecheck target derives its cache inputs from these globs, and tsconfig.lib.json does not
+    // include that folder. Without the entry, a future shared mock would not invalidate the cache.
+    "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/__mocks__/**/*.ts"],
+    // Mirrors tsconfig.lib.json's list, which is empty: this lib depends on no sibling `@chatic/*`
+    // project, and `purity.spec.ts` fails the build if one ever appears.
+    "references": []
 }

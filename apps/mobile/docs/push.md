@@ -1,31 +1,39 @@
 # Push
 
-Push 아키텍처는 FCM/APNs 권한, 토큰 등록, notification channel 설정, 뱃지 카운트, 그리고 WebView로의
-포그라운드 전달을 소유한다. 알림 탭 네비게이션은 deep link coordinator(`useDeepLinkNavigation`)에 위임해,
-탭과 딥링크가 하나의 `OnNavigate` owner를 공유한다 — Click Routing 참고.
+This shell owns FCM/APNs permission, token registration, Android notification channels, the app-icon
+badge, and relaying a foreground push to the WebView. Notification-tap navigation is not handled
+here — it is delegated to the deep-link coordinator (`useDeepLinkNavigation`), so a tap and an OS
+deep link share one `OnNavigate` owner. See [Click routing](#click-routing).
 
-현재 아키텍처는 JS `setBackgroundMessageHandler`나 `OfflinePushQueue`를 쓰지 않는다. Android
-백그라운드/killed 전달은 네이티브 `FirebaseMessagingService`가 처리하고, iOS 백그라운드/killed 배너는
-네이티브 `Notification Service Extension`이 지역화한다. iOS 포그라운드·알림 탭 APNs 이벤트는
-`PushNotificationIOS`를 통해 전달된다.
+There is no JS `setBackgroundMessageHandler` and no offline push queue. Android background/killed
+delivery is handled by the native `ChaticFirebaseMessagingService`; iOS background/killed banners are
+localized by the native `NotificationServiceExtension`. iOS foreground and notification-tap APNs
+events arrive through `PushNotificationIOS`.
 
-백그라운드 chat 푸시는 앱 아이콘 뱃지도 네이티브에서 증가시키며(이때 소켓/웹은 suspend 상태), 웹이 다음
-포그라운드에서 진짜 카운트를 다시 집계한다. 이 뱃지 lifecycle(포그라운드 집계·백그라운드 증가·복귀 시
-reconcile)은 [badge.md](./badge.md)에서 별도로 다룬다.
+A background chat push also increments the app-icon badge natively (the socket and the web are
+suspended then), and the web re-aggregates the true count on the next foreground. That lifecycle
+(foreground aggregation, background increment, resume reconcile) is covered separately in
+[badge.md](./badge.md).
 
-## 주요 파일
+## Files
 
-| 파일                                                                             | 역할                                                                                                                                            |
-| -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/app/App.tsx`                                                                | 앱 마운트 시 Android notification channel 생성                                                                                                  |
-| `src/app/services/notification/NotificationService.ts`                           | 권한, 토큰, APNs 등록, channel 생성, 뱃지, FCM/APNs 리스너                                                                                      |
-| `src/app/services/notification/PushEventManager.ts`                              | OS/네이티브 이벤트와 WebView 브릿지 사이의 in-memory 포그라운드 이벤트 broker                                                                   |
-| `src/app/webview/hooks/useFcmHandler.ts`                                         | 토큰·뱃지·포그라운드 푸시(`OnReceiveNotification`)만 담당하는 WebView 브릿지 핸들러                                                             |
-| `src/app/webview/hooks/useDeepLinkNavigation.ts`                                 | 인바운드 네비게이션 단일 owner: 알림 탭 + OS 딥링크 → `OnNavigate` (경로는 `deeplinkUtils`의 `resolvePushTapPath` / `resolveDeepLink`가 생성)   |
-| `android/app/src/main/java/io/chatic/dou/push/ChaticFirebaseMessagingService.kt` | Android 네이티브 FCM receiver, 지역화된 notification builder, 포그라운드 native→JS emitter, `cid`/`sid`→link 병합                               |
-| `ios/Chatic/AppDelegate.swift`                                                   | iOS APNs delegate를 `RNCPushNotificationIOS`로 연결; 포그라운드 시스템 배너 suppress                                                            |
-| `ios/ChaticNotificationServiceExtension/NotificationService.swift`               | iOS 백그라운드/killed 배너 지역화; `loc_key`/`loc_args`를 `assets/locales/{lang}.json`에서 해석(loc-args는 네이티브 배열/JSON 문자열 모두 수용) |
-| `src/app/features/debug/screens/NotificationTestScreen.tsx`                      | 권한·토큰·뱃지·리스너 동작 수동 진단                                                                                                            |
+| File                                                               | Role                                                                                                                                                              |
+| ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/app/App.tsx`                                                  | creates the Android notification channels at mount                                                                                                                |
+| `src/app/services/notification/NotificationService.ts`             | permission, token, APNs registration, channel creation, badge, FCM/APNs listeners                                                                                 |
+| `src/app/services/notification/PushEventManager.ts`                | in-memory foreground-event broker between OS/native events and the WebView bridge                                                                                 |
+| `src/app/webview/hooks/useFcmHandler.ts`                           | WebView bridge handler for token, badge and push-mark requests, and the foreground push relay (`OnReceiveNotification`)                                           |
+| `src/app/webview/hooks/useDeepLinkNavigation.ts`                   | single owner of inbound navigation: notification taps + OS deep links → `OnNavigate` (paths built by `resolvePushTapPath` / `resolveDeepLink` in `deeplinkUtils`) |
+| `src/app/bridge/BadgeSyncBridge.ts`                                | Android-only mirror of the web's true badge total, so a background push increments from it                                                                        |
+| `src/app/bridge/PushMarksBridge.ts`                                | drains the cross-cloud push-mark records a background push wrote natively                                                                                         |
+| `android/.../push/ChaticFirebaseMessagingService.kt`               | Android FCM receiver: localizes copy, emits the foreground event, writes the badge/push-mark, merges `cid`/`sid` into the tap link                                |
+| `android/.../push/BadgeStore.kt`, `PushMarkStore.kt`               | the shared-preferences badge counter and the push-mark ring buffer (cap 100), same file                                                                           |
+| `ios/Chatic/AppDelegate.swift`                                     | wires APNs callbacks to `RNCPushNotificationIOS`; suppresses the foreground system banner; hands the badge base to the App Group before backgrounding             |
+| `ios/ChaticNotificationServiceExtension/NotificationService.swift` | localizes background/killed banners from `assets/locales/{lang}.json`; increments the shared badge and appends a push-mark record while the app is backgrounded   |
+
+There is no native push diagnostics screen any more — `NotificationTestScreen.tsx` was removed with
+the rest of the native debug UI (ADR-0080); the equivalent is the web debug panel's `Push` screen
+(`apps/web/src/app/features/debug/overlay/screens/PushScreen.tsx`).
 
 ## Structure
 
@@ -55,22 +63,22 @@ flowchart TD
     Navigate --> WebView
 ```
 
-## Android 전달
+## Android delivery
 
-`ChaticFirebaseMessagingService`는 data message를 받아 다음 필드를 해석한다:
+`ChaticFirebaseMessagingService` receives a data message and reads these fields:
 
-| Payload 필드                     | 의미                                                                                                      |
-| -------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `id` / `messageId`               | notification 식별자                                                                                       |
-| `type`                           | 앱 레벨 notification 타입                                                                                 |
-| `channel_id` / `channelId`       | Android notification channel, 기본값 `dou_chat`                                                           |
-| `link` / `clickAction`           | 사용자가 알림을 열 때 라우팅되는 URL                                                                      |
-| `title_loc_key`, `titleLocKey`   | 지역화 title key                                                                                          |
-| `title_loc_args`, `titleLocArgs` | 지역화 title args                                                                                         |
-| `loc_key`, `bodyLocKey`          | 지역화 body key                                                                                           |
-| `loc_args`, `bodyLocArgs`        | 지역화 body args                                                                                          |
-| `data` / `payload`               | 커스텀 JSON 메타데이터(`cid`/`sid` 포함); JS 포그라운드 이벤트로 전달되고, `cid`/`sid`는 탭 link에 병합됨 |
-| `silent`                         | 앱이 백그라운드/killed일 때 네이티브 배너를 skip                                                          |
+| Payload field                    | Meaning                                                                                                     |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `id` / `messageId`               | notification identifier                                                                                     |
+| `type`                           | app-level notification type                                                                                 |
+| `channel_id` / `channelId`       | Android notification channel, defaults to `dou_chat`                                                        |
+| `link` / `clickAction`           | the URL the tap routes to                                                                                   |
+| `title_loc_key`, `titleLocKey`   | localized title key                                                                                         |
+| `title_loc_args`, `titleLocArgs` | localized title args                                                                                        |
+| `loc_key`, `bodyLocKey`          | localized body key                                                                                          |
+| `loc_args`, `bodyLocArgs`        | localized body args                                                                                         |
+| `data` / `payload`               | custom JSON metadata (`cid`/`sid` included); forwarded as the foreground event and merged into the tap link |
+| `silent`                         | skips the native banner while the app is background/killed                                                  |
 
 ```mermaid
 sequenceDiagram
@@ -91,35 +99,44 @@ sequenceDiagram
     else app background/killed and silent
         Native->>Native: skip native banner
     else app background/killed and not silent
-        Native->>Native: merge cid/sid into link, display native notification
+        Native->>Native: merge cid/sid into link, bump badge/push-mark, display native notification
     end
 ```
 
-## iOS 전달
+A background/killed **chat** push (channel `dou_chat` or `dou_chat_muted`) also increments the shared
+badge counter (`BadgeStore`) and, if the payload carries `cid`/`uid`/`channelId`, appends a raw
+cross-cloud push-mark record (`PushMarkStore`, ADR-0056) — see [Cross-cloud push mark](#cross-cloud-push-mark).
+Notice, marketing and cloud pushes touch neither.
 
-`AppDelegate`는 `UNUserNotificationCenter.current().delegate`를 설정하고 APNs 콜백을
-`RNCPushNotificationIOS`로 전달한다.
+## iOS delivery
 
-포그라운드 APNs 알림은 `RNCPushNotificationIOS.didReceiveRemoteNotification(...)`으로 JS에 전달되고,
-시스템 포그라운드 presentation 콜백은 `[]`를 받으므로 앱이 활성일 때 iOS는 시스템 배너를 띄우지 않는다.
+`AppDelegate` sets `UNUserNotificationCenter.current().delegate` and forwards APNs callbacks to
+`RNCPushNotificationIOS`.
 
-**알림 탭**은 포그라운드 수신과 _다른_ JS 이벤트를 탄다. iOS는 탭을 `UNNotificationResponse`로 전달하며,
-`AppDelegate.userNotificationCenter(_:didReceive:)`가 이를 `RNCPushNotificationIOS.didReceive(response)`로
-포워딩한다. JS 쪽에서는 이것이 **`localNotification`** 이벤트로 뜬다 — `notification` 이벤트(포그라운드 수신)도
-아니고 FCM의 `onNotificationOpenedApp`도 아니다(delegate를 수동으로 배선했기 때문에 FCM은 탭을 못 본다).
-그래서 `NotificationService.onNotificationOpenedApp`은 iOS에서 `localNotification`을 구독한다. 이 분기가
-없으면 iOS 백그라운드/warm 탭이 조용히 유실되어 `OnNavigate`에 도달하지 못한다. Cold-start 탭은 대신
-`getInitialNotification()`으로 들어온다.
+A foreground APNs notification reaches JS via
+`RNCPushNotificationIOS.didReceiveRemoteNotification(...)`, and the system foreground-presentation
+callback answers `[]`, so iOS shows no system banner while the app is active.
 
-백그라운드/killed non-silent 푸시(`mutable-content: 1`로 전송)는 배너 표시 전에 **Notification Service
-Extension**(`ChaticNotificationServiceExtension/NotificationService.swift`)이 가로챈다. `title_loc_key`/`loc_key`와
-`title_loc_args`/`loc_args`를 읽어 `assets/locales/{lang}.json`에서 템플릿을 해석하고 `{0}` placeholder를
-치환해 배너 title/body를 다시 쓴다(`dou_chat_muted`/`dou_marketing`은 소리도 끈다). Silent 푸시는 Extension을
-실행하지 **않는다**.
+**A tap** rides a _different_ JS event than foreground receipt. iOS delivers a tap as a
+`UNNotificationResponse`, and `AppDelegate.userNotificationCenter(_:didReceive:)` forwards it to
+`RNCPushNotificationIOS.didReceive(response)`. On the JS side this surfaces as the **`localNotification`**
+event — not the `notification` event (foreground receipt) and not FCM's `onNotificationOpenedApp`
+(FCM never sees the tap, because the delegate is wired manually). `NotificationService.onNotificationOpenedApp`
+subscribes to `localNotification` on iOS for exactly this reason; without that branch a background/warm
+tap on iOS is silently lost and never reaches `OnNavigate`. A cold-start tap instead arrives through
+`getInitialNotification()`.
 
-`loc_args`/`title_loc_args`는 네이티브 JSON 배열(`["Raine"]` — 실제 백엔드의 APNs)로도, JSON 인코딩된
-문자열(`"[\"Raine\"]"` — FCM 형태의 테스트 도구)로도 도착할 수 있고, Extension은 둘 다 수용한다. args가
-없거나 파싱 불가면 템플릿이 치환되지 않아 배너에 리터럴 `{0}`이 남는다.
+A background/killed non-silent push (sent with `mutable-content: 1`) is intercepted before the banner
+is shown by the **Notification Service Extension**
+(`ChaticNotificationServiceExtension/NotificationService.swift`). It reads `title_loc_key`/`loc_key`
+and `title_loc_args`/`loc_args`, resolves the template from `assets/locales/{lang}.json`, and
+substitutes `{0}`-style placeholders into the banner title/body (`dou_chat_muted`/`dou_marketing` also
+mute the sound). A silent push never runs the extension.
+
+`loc_args`/`title_loc_args` may arrive as a native JSON array (`["Raine"]` — the real backend's APNs
+shape) or as a JSON-encoded string (`"[\"Raine\"]"` — FCM-shaped test tooling), and the extension
+accepts both. Missing or unparseable args leave the template unsubstituted, so the banner shows a
+literal `{0}`.
 
 ```mermaid
 sequenceDiagram
@@ -140,41 +157,63 @@ sequenceDiagram
     Broker->>Web: OnReceiveNotification
 ```
 
-## WebView 브릿지 API
+## WebView bridge API
 
-`useFcmHandler`가 처리하는 WebView 요청:
+Requests `useFcmHandler` answers:
 
-| 요청              | 결과                                                                  |
-| ----------------- | --------------------------------------------------------------------- |
-| `FetchFcmToken`   | 권한 요청, iOS는 APNs 등록, iOS는 APNs 토큰 / Android는 FCM 토큰 반환 |
-| `FetchBadgeCount` | 네이티브 launcher 뱃지 카운트 반환                                    |
-| `SetBadgeCount`   | 네이티브 launcher 뱃지 카운트 설정                                    |
+| Request           | Result                                                                                                                                                                                |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `FetchFcmToken`   | requests permission, registers APNs on iOS, returns the APNs token (iOS) or FCM token (Android)                                                                                       |
+| `DeleteFcmToken`  | drops the FCM token so the next `FetchFcmToken` mints a fresh one (used by the web debug panel's push screen to test re-registration); reports success whether a token existed or not |
+| `FetchBadgeCount` | returns the native launcher badge count                                                                                                                                               |
+| `SetBadgeCount`   | sets the native launcher badge count                                                                                                                                                  |
+| `FetchBadgeBase`  | returns the shared badge base (`BadgeSyncBridge.getBase()`) — Android only; `null` means unknown on iOS or an older shell, never zero                                                 |
+| `FetchPushMarks`  | drains the cross-cloud push-mark records (`PushMarksBridge.drain()`)                                                                                                                  |
 
-또한 구독하는 것(포그라운드 수신만):
+It also subscribes to (foreground receipt only):
 
 - `notificationService.onMessage(...)`
 - `DeviceEventEmitter.addListener('onForegroundPushReceived', ...)`
 - `pushEventManager.onReceiveNotification(...)`
 
-알림 탭(`onNotificationOpenedApp`, `getInitialNotification`)은 여기가 아니라 `useDeepLinkNavigation`이 구독한다.
+Notification taps (`onNotificationOpenedApp`, `getInitialNotification`) are subscribed by
+`useDeepLinkNavigation`, not here.
 
-## Click Routing
+## Cross-cloud push mark
 
-알림 탭 네비게이션은 push 핸들러가 아니라 `useDeepLinkNavigation`이 소유한다. 탭 시 `deeplinkService.resolvePushTap`
-(`resolvePushTapPath`가 구현)으로 WebView 상대 경로를 해석해 `OnNavigate` 브릿지 이벤트로 웹에 곧장 넘긴다 —
-`Linking.openURL` round-trip이 **없다**. `AppBridgeHost`가 `WebAppReady`까지 이벤트를 버퍼링하므로,
-cold-start 탭도 웹 handshake가 끝나는 즉시 전달된다(별도의 시작 지연이 필요 없다).
+A background chat push carries the current-cloud badge count, but a device may hold several clouds,
+and the socket for the _other_ clouds is suspended the whole time the app is backgrounded — so a
+message in one of them never reaches the web at all until the next launch. Android's
+`ChaticFirebaseMessagingService` and iOS's `NotificationServiceExtension` each append a raw hint
+(`cid`, `uid`, `channelId`, `sid`, `channelName` — whichever the payload carries) to a shared,
+platform-local store the moment they bump the badge (ADR-0056). Neither side interprets the hint; that
+happens once, on the web (`resolvePushCloudId.ts`).
 
-`resolvePushTapPath`는 notification `link`(fallback `clickAction`)를 받아 `payload`의 `cid`/`sid`를 쿼리에
-병합한다. 웹이 클라우드/사이트 컨텍스트를 네비게이션 쿼리에서 읽기 때문이다(웹 쪽 `resolvePushNavigation` 참고).
-link가 없으면 `null`을 반환하고, 이 경우 탭은 앱을 포그라운드로 올리기만 한다. Android는 병합이 이미
-네이티브에서 일어나므로(Android 전달 참고), `resolvePushTapPath`의 payload 병합은 주로 iOS 경로다.
+Both stores are a capped ring buffer of **100** records and are drained (read once, then cleared) by
+`FetchPushMarks` → `PushMarksBridge.drain()` on the next launch or foreground, so a cloud whose only
+sign of life was a backgrounded push can still be marked unread.
 
-플랫폼별로 탭이 `useDeepLinkNavigation`에 닿는 경로가 다르다: Android warm/백그라운드 탭은 FCM의
-`onNotificationOpenedApp`으로, iOS warm/백그라운드 탭은 `localNotification` 이벤트로 도착한다(iOS 전달 참고).
-Cold-start 탭은 양 플랫폼 모두 `getInitialNotification()`을 쓴다.
+## Click routing
 
-푸시 탭과 딥링크가 함께 수렴하는 `OnNavigate` 경로 계약은 [`deeplink.md`](./deeplink.md)를 참고한다.
+Notification-tap navigation belongs to `useDeepLinkNavigation`, not the push handler. On a tap,
+`deeplinkService.resolvePushTap` (implemented by `resolvePushTapPath`) resolves a WEBVIEW_URL-relative
+path and hands it straight to the web as an `OnNavigate` bridge event — there is **no** `Linking.openURL`
+round-trip. `AppBridgeHost` buffers the event until `WebAppReady`, so a cold-start tap is delivered as
+soon as the web handshake completes, with no extra startup delay.
+
+`resolvePushTapPath` reads the notification's `link` (falling back to `clickAction`) and merges the
+`cid`/`sid` from `payload` into its query, because the web reads cloud/site context from the
+navigation query (see the web's `resolvePushNavigation`). With no link it returns `null` and the tap
+only foregrounds the app. Android merges `cid`/`sid` natively (see [Android delivery](#android-delivery)),
+so `resolvePushTapPath`'s own merge mainly serves the iOS path.
+
+The route from tap to `useDeepLinkNavigation` differs per platform: Android warm/background taps
+arrive through FCM's `onNotificationOpenedApp`, iOS warm/background taps through the
+`localNotification` event (see [iOS delivery](#ios-delivery)). Cold-start taps use
+`getInitialNotification()` on both platforms.
+
+The `OnNavigate` contract that a push tap and a deep link converge on is covered in
+[deeplink.md](./deeplink.md).
 
 ```mermaid
 sequenceDiagram
@@ -192,102 +231,113 @@ sequenceDiagram
     Bridge->>Bridge: buffer until WebAppReady, then flush to WebView
 ```
 
-## 뱃지 동작
+## Badge behavior
 
-- `NotificationService.onMessage`, `onNotificationOpenedApp`, `getInitialNotification`은 `clearBadge()`를 호출한다.
-- `AppDelegate.applicationDidBecomeActive`도 iOS 앱 아이콘 뱃지 숫자를 클리어한다.
-- WebView는 브릿지 요청으로 뱃지 카운트를 명시적으로 가져오고 설정할 수 있다.
+- `NotificationService.onMessage`, `onNotificationOpenedApp` and `getInitialNotification` all call `clearBadge()`.
+- `AppDelegate.applicationDidBecomeActive` also clears the iOS app-icon badge.
+- The WebView can explicitly fetch and set the badge count over the bridge.
 
-> 백그라운드 증가·포그라운드 reconcile을 포함한 뱃지 카운터 lifecycle 전체는 [badge.md](./badge.md)에서 다룬다.
+The full badge lifecycle — background increment, foreground reconcile — is in [badge.md](./badge.md).
 
-## 클라우드 활성 알림
+## Cloud activation push
 
-> 상태: Live · 최종 갱신: 2026-09-07 · 관련 ADR: [[ADR-0075]](../../../docs/adr/0075-cloud-activated-notification-app-readiness.md)
+When a cloud is first activated, the server sends its owner one notification: over the socket
+(`cloud.activated`, handled by the web) if connected, otherwise a push. The push spec:
 
-클라우드가 처음 활성이 되면 서버가 소유자에게 알림 한 건을 보낸다. 접속 중이면 웹소켓
-(`cloud.activated`, 웹이 처리), 아니면 **푸시**다. 푸시 쪽 규격은 이렇다.
+| Field                  | Value                                                                                          |
+| ---------------------- | ---------------------------------------------------------------------------------------------- |
+| `type`                 | `cloud` → the push service derives channel `dou_cloud` (the server does not send `channel_id`) |
+| `title_loc_key`        | `push_cloud_activate_title`                                                                    |
+| `title_loc_args`       | `[cloud name \|\| cloud id]`                                                                   |
+| `loc_key` / `loc_args` | **absent** — the title is the whole message                                                    |
+| `link`                 | **absent**                                                                                     |
+| `data`                 | `cid` (cloud id), `uid` (owner id)                                                             |
 
-| 필드                   | 값                                                                                        |
-| ---------------------- | ----------------------------------------------------------------------------------------- |
-| `type`                 | `cloud` → 채널은 푸시 서비스가 `dou_cloud`로 도출한다 (서버가 `channel_id`를 싣지 않는다) |
-| `title_loc_key`        | `push_cloud_activate_title`                                                               |
-| `title_loc_args`       | `[클라우드 이름 \|\| 클라우드 식별자]`                                                    |
-| `loc_key` / `loc_args` | **없다** — 제목 한 줄이다                                                                 |
-| `link`                 | **없다**                                                                                  |
-| `data`                 | `cid`(클라우드 id) · `uid`(소유자 id)                                                     |
+### Translation keys
 
-### 번역 키
+`push_cloud_activate_title` must exist in **all four** locale sets — each has a different consumer, so
+a missing one only breaks that path:
 
-`push_cloud_activate_title`은 **네 벌 전부**에 있어야 한다. 벌마다 소비자가 다르므로 하나가 빠지면
-그 경로에서만 문구가 깨진다.
+| Location                                              | Consumer                         | If missing                               |
+| ----------------------------------------------------- | -------------------------------- | ---------------------------------------- |
+| `src/app/utils/i18n/locales/{ko,en}.ts`               | native shell UI                  | shell copy only (push unaffected)        |
+| `android/app/src/main/assets/locales/{ko,en}.json`    | `ChaticFirebaseMessagingService` | literal key on the Android banner        |
+| `ios/assets/locales/{ko,en}.json`                     | iOS app                          | literal key in the app                   |
+| `ios/ChaticNotificationServiceExtension/{ko,en}.json` | the extension                    | literal key on the iOS background banner |
 
-| 자리                                                  | 소비자                           | 빠지면                          |
-| ----------------------------------------------------- | -------------------------------- | ------------------------------- |
-| `src/app/utils/i18n/locales/{ko,en}.ts`               | 네이티브 셸 UI                   | 셸 문구 (푸시엔 영향 없음)      |
-| `android/app/src/main/assets/locales/{ko,en}.json`    | `ChaticFirebaseMessagingService` | Android 배너에 리터럴 키        |
-| `ios/assets/locales/{ko,en}.json`                     | iOS 앱                           | iOS 앱 내 문구                  |
-| `ios/ChaticNotificationServiceExtension/{ko,en}.json` | NSE                              | iOS 백그라운드 배너에 리터럴 키 |
+The copy is ko `{0} 클라우드가 준비되었습니다`, en `{0} is ready` — the particle is detached from the
+variable (Korean grammar picks "이" or "가" by the name's final sound, which cannot be fixed for an
+arbitrary name). Every new key that carries a variable follows the same rule.
 
-문구는 ko `{0} 클라우드가 준비되었습니다`, en `{0} is ready`. **조사를 변수에서 뗀 형태다** — 이름
-끝 종성에 따라 "이/가"가 갈리므로 임의의 이름에 맞출 수 없다. 변수를 넣는 새 키는 전부 이 규칙을 따른다.
+It is not in `TranslationKey` (`src/app/utils/i18n/types.ts`) — neither is the existing
+`push_chat_message_title`. Push keys are assembled natively and never go through the shell's `t()`.
 
-`src/app/utils/i18n/types.ts`의 `TranslationKey`에는 넣지 않는다 — 기존 `push_chat_message_title`도
-없다. 푸시 키는 네이티브가 조립하고 셸의 `t()`를 타지 않는다.
+[`localeParity.test.ts`](../src/app/services/notification/localeParity.test.ts) is what keeps the four
+sets in sync: it diffs the native three against the shell locale's flat `push_*` key set, checks for
+empty values, and checks that the activation title still has a `{0}` slot (a missing arg makes the
+fallback title a literal `cloud`).
 
-네 벌이 어긋나는 것은 [`localeParity.test.ts`](../src/app/services/notification/localeParity.test.ts)가
-막는다 — 셸 로케일의 평면 `push_*` 키 집합을 기준으로 네이티브 3벌을 대조하고, 값이 비어 있는지와
-활성 제목이 `{0}` 자리를 갖는지까지 본다(인자가 빠지면 발송 계층 폴백 제목이 리터럴 `cloud`가 된다).
+**The Extension target's bundled resources are outside that test's reach.** If
+`ios/ChaticNotificationServiceExtension/*.json` is missing from the Extension target's Copy Bundle
+Resources, the file exists but only the banner breaks — check manually.
 
-**Extension 타깃 번들은 그 테스트가 못 잡는다.** `ios/ChaticNotificationServiceExtension/*.json`이
-Extension 타깃의 Copy Bundle Resources에 들어 있지 않으면 파일은 있는데 배너만 깨진다. 수동 확인 항목이다.
+### Tap destination
 
-### 탭 목적지
+With no `link`, the app must apply the spec's "empty `link` means root" rule itself, and **the tap's
+route to the web differs per platform, so both need fixing together.**
 
-`link`가 없으므로 규격 정본의 "`link`가 비면 루트"를 앱이 지켜야 하는데, **탭이 웹에 닿는 경로가
-플랫폼마다 달라 두 곳을 함께 고쳐야 한다.**
+| Path                             | No-link handling                                                                                                                                                           |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| iOS tap (warm, background, cold) | if the type is in `resolvePushTapPath`'s `ROOTED_PUSH_TYPES` (currently just `cloud`), resolves to `'/'`                                                                   |
+| Android background/killed tap    | `ChaticFirebaseMessagingService.rootTapLinkFor` puts `<scheme>://` on the intent's data URI, and RN `Linking` → `resolveDeepLink` reads it as `{ kind: 'web', path: '/' }` |
 
-| 경로                          | 무링크 처리                                                                                                                                                      |
-| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| iOS 탭 (warm·background·cold) | `resolvePushTapPath`의 `ROOTED_PUSH_TYPES`(현재 `cloud` 하나)에 들면 `'/'`                                                                                       |
-| Android 백그라운드·종료 탭    | `ChaticFirebaseMessagingService.rootTapLinkFor`가 인텐트 data URI로 `<scheme>://`를 싣고, RN `Linking` → `resolveDeepLink`가 `{ kind: 'web', path: '/' }`로 푼다 |
+**Android needs its own path** because `displayNotification` attaches no data URI to the intent at all
+when the link is empty. RN `Linking` only ever surfaces the data URI (`MainActivity` never reads the
+`clickAction` extra), and a data-only push never fires FCM's `onNotificationOpenedApp` either — so a
+JS-only fix would leave **Android taps going nowhere**, which is exactly the path a user who keeps the
+app closed relies on. The scheme comes from the flavor's `app_scheme` string resource (`chatic` prod,
+`chatic-dev` dev).
 
-**Android가 별도인 이유**는 `displayNotification`이 링크가 빈 문자열이면 인텐트에 data URI를 **아예
-붙이지 않기** 때문이다. RN `Linking`은 data URI만 노출하고(`clickAction` extra는 `MainActivity`가 읽지
-않는다), data-only 푸시라 FCM의 `onNotificationOpenedApp`도 발화하지 않는다. 그래서 JS만 고치면
-**Android 탭은 아무 데도 가지 않는다** — 앱을 닫아 둔 사용자가 이 기능의 대상인데 정확히 그 경로다.
-스킴은 flavor의 `app_scheme` 문자열 리소스(prod `chatic`, dev `chatic-dev`)에서 읽는다.
+**Narrowing by type** matters because a missing link means two different things: a cloud push has no
+link by contract, but a chat push missing its link is a malformed payload. Sending the latter home too
+would steal the screen the user was on. A `link`, when present, always wins regardless of type.
 
-**유형으로 좁히는 이유**는 무링크가 두 가지 뜻이기 때문이다. 클라우드 푸시는 계약상 링크가 없지만,
-채팅 푸시에 링크가 빠진 것은 잘못 만들어진 페이로드다. 후자까지 홈으로 보내면 사용자가 보던 화면을
-잘못된 페이로드가 뺏는다. `link`가 있으면 유형과 무관하게 링크가 이긴다.
+**The two lists are kept in sync by hand** — Kotlin's `PUSH_TYPE_CLOUD` and JS's `ROOTED_PUSH_TYPES`
+share no type. Adding a rooted type means updating both.
 
-**두 목록은 손으로 맞춘다** — Kotlin의 `PUSH_TYPE_CLOUD`와 JS의 `ROOTED_PUSH_TYPES`를 잇는 타입이
-없다. 유형이 늘면 양쪽을 함께 늘린다.
+The tap does not switch to the activated cloud — product decided the destination is home, and the
+title alone says which cloud (hence no body).
 
-해당 클라우드로 전환하지 않는다 — 기획이 이동을 홈으로 확정했고, 그 전제 위에서 제목이 어느
-클라우드인지 알리도록 문구가 정해졌다(본문 없이 제목 한 줄인 이유).
+### Badge and unread
 
-### 배지·안 읽음
+`dou_cloud` is not a chat channel. Android's `isChatChannel(channelId)` gate and iOS's
+`applyBadgeIncrementIfNeeded` chat gate already exclude it, so **native code does nothing extra here**
+— neither the badge nor a cross-cloud mark moves for this push.
 
-`dou_cloud`는 대화 채널이 아니다. Android는 `isChatChannel(channelId)`, iOS는
-`applyBadgeIncrementIfNeeded`의 chat 게이트가 이미 막고 있으므로 **네이티브는 손대지 않는다.**
-배지도, 크로스 클라우드 마크도 이 푸시로는 움직이지 않는다.
+## Constraints
 
-## 제약
+- JS background push handling does not go back into `main.tsx` unless the native Android/iOS lifecycle
+  design changes.
+- Android localized notification text comes from `ChaticFirebaseMessagingService` reading
+  `assets/locales/{lang}.json`, falling back to English when missing.
+- iOS background/killed banner text is localized by the Notification Service Extension from
+  `assets/locales/{lang}.json` (English fallback); `loc_args`/`title_loc_args` accept both the native
+  JSON array (APNs) and a JSON string. `assets/locales/*.json` must be bundled into **both** the app
+  target's and the **Extension** target's Copy Bundle Resources.
+- Foreground push delivery is deliberately decoupled through `PushEventManager` — the WebView may not
+  be mounted yet when the OS/native callback fires.
+- Background/killed silent Android pushes currently skip the native banner and are not persisted to a
+  JS offline queue.
+- `cid`/`sid` reach the web only through the `OnNavigate` path query, never a separate channel: Android
+  merges them into the link URI natively, iOS merges them in `resolvePushTapPath`. The web strips them
+  in `resolvePushNavigation`.
 
-- 네이티브 Android/iOS lifecycle 설계가 바뀌지 않는 한 `main.tsx`에 JS 백그라운드 푸시 처리를 다시 넣지 않는다.
-- Android 지역화 notification 텍스트는 `ChaticFirebaseMessagingService`가 `assets/locales/{lang}.json`에서 해석하며, 없으면 영어로 fallback한다.
-- iOS 백그라운드/killed 배너 텍스트는 Notification Service Extension이 `assets/locales/{lang}.json`에서 지역화한다(fallback 영어). `loc_args`/`title_loc_args`는 네이티브 JSON 배열(APNs)과 JSON 문자열 모두 수용해 동일한 위치 args로 해석한다. `assets/locales/*.json`은 앱 타깃뿐 아니라 **Extension 타깃의** Copy Bundle Resources에 반드시 포함돼야 한다.
-- 포그라운드 푸시 전달은 의도적으로 `PushEventManager`로 decouple돼 있다. OS/네이티브 콜백이 시작될 때 WebView가 마운트되지 않았을 수 있다.
-- 백그라운드/killed Android silent 푸시는 현재 네이티브 배너를 skip하며 JS offline queue로 persist하지 않는다.
-- `cid`/`sid`는 별도 채널이 아니라 `OnNavigate` 경로 쿼리로 웹에 도달한다: Android는 네이티브에서 link URI에 병합하고, iOS는 `resolvePushPath`에서 병합한다. 웹은 `resolvePushNavigation`에서 이를 제거한다.
+## Change checklist
 
-## 변경 체크리스트
-
-- 변경이 Android 네이티브 전달, iOS APNs 전달, JS 브릿지 전달 중 어디에 영향을 주는가?
-- Android 포그라운드 전달이 여전히 `useFcmHandler`가 기대하는 필드로 `onForegroundPushReceived`를 emit하는가?
-- 알림 탭 payload가 여전히 `link`(또는 `clickAction`)를 포함하는가?
-- `cid`/`sid`가 여전히 웹에 전달되는가 — Android는 link 쿼리에 네이티브 병합, iOS는 `resolvePushPath` 경유?
-- `NotificationService.createNotificationChannel`과 `ChaticFirebaseMessagingService.createNotificationChannel`의 channel 동작이 일관되는가?
-- payload 지역화가 바뀌었다면, iOS Notification Service Extension이 여전히 `assets/locales`에서 `loc_args`(네이티브 배열·JSON 문자열 양쪽)를 해석하고, 그 JSON 파일이 Extension 타깃에 번들되는가?
-- 포그라운드 시스템 배너가 양 플랫폼에서 의도대로 suppress되는가?
+- Does the change touch Android native delivery, iOS APNs delivery, or the JS bridge delivery — or more than one?
+- Does Android foreground delivery still emit `onForegroundPushReceived` with the fields `useFcmHandler` expects?
+- Does the tap payload still carry `link` (or `clickAction`)?
+- Do `cid`/`sid` still reach the web — merged into the link query on Android, via `resolvePushPath` on iOS?
+- Do `NotificationService.createNotificationChannel` and `ChaticFirebaseMessagingService.createNotificationChannel` still agree on channel behavior?
+- If payload localization changed, does the iOS Notification Service Extension still resolve `loc_args` (both native-array and JSON-string shapes) from `assets/locales`, and is that JSON bundled into the Extension target?
+- Is the foreground system banner still suppressed on both platforms as intended?

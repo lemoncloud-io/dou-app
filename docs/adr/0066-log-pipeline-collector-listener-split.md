@@ -1,123 +1,195 @@
-# ADR-0066: 로그 파이프라인을 "수집기 하나 + 독립 리스너들"로 재편하고, 웹→앱은 낱건 발행으로 되돌린다
+# ADR-0066: Reorganize the log pipeline into "one collector + independent listeners", and revert web→app to per-entry publishing
 
-> 상태: Accepted · 결정일: 2026-08-24
-> 관련: [ADR-0063](./0063-log-upload-source-port-and-native-charge-queue.md) (**부분 개정** — 소스 포트·앱 큐·Fetch/Ack는 유지, 배치 충전은 폐지) · [ADR-0047](./0047-unified-logging-core-and-report-traceability.md) (통합 로깅 코어) · [ADR-0050](./0050-redact-report-breadcrumbs.md)
-> 구현 서술 문서: [libs/logger/docs/architecture.md](../../libs/logger/docs/architecture.md) — 이 ADR이 승인되면 그 문서는 다시 개정 대상이 된다.
+> Status: Accepted · Decided: 2026-08-24
+> Related: [ADR-0063](./0063-log-upload-source-port-and-native-charge-queue.md) (**partial revision** — the source
+> port, app queue, and Fetch/Ack are kept; batch charging is retired) · [ADR-0047](./0047-unified-logging-core-and-report-traceability.md)
+> (unified logging core) · [ADR-0050](./0050-redact-report-breadcrumbs.md)
+> Implementation narrative doc: `libs/logger/docs/architecture.md` — once this ADR is accepted, that document is
+> due for another revision.
 
-## 맥락 (Context)
+## Context
 
-로그 파이프라인은 ADR-0047(통합 코어) → ADR-0063(소스 포트·앱 큐·배치 충전) → 링버퍼 폐지를 거치며 세 번 축소됐다. 코드는 동작하지만, 목표 구조와 대조하면 **"pub/sub"이라는 이름만 남고 실제로는 절차가 한 덩어리로 뭉쳐 있다.**
+The log pipeline has shrunk three times, through ADR-0047 (unified core) → ADR-0063 (source port, app queue, batch
+charging) → ring buffer retirement. The code works, but measured against the target structure, **only the name
+"pub/sub" survives — in practice the procedure is one lump.**
 
-목표 구조는 이렇다.
+The target structure is:
 
-- 앱/웹 각각 **수집기(hub) 하나** + 그 위에 **독립 리스너들**
-- `libs/logger`는 공통 타입·부품의 정본이자, **플랫폼에 따라 소스를 갈아끼워 서버로 전송하는 업로더**의 소유자
-- 모바일 저장소는 `apps/mobile/src/app/database/mmkv` 모듈을 쓴다
+- One **collector (hub)** each for app and web, with **independent listeners** on top of it
+- `libs/logger` is the single source of truth for shared types and parts, and also owns the **uploader**, which
+  swaps sources by platform and sends to the server
+- Mobile storage uses the `apps/mobile/src/app/database/mmkv` module
 
-### 확인된 어긋남
+### Confirmed gaps
 
-**① 웹의 리스너가 1개다.** [logUploader.ts:206](../../apps/web/src/app/runtime/logging/logUploader.ts:206)의 단일 `logHub.subscribe` 콜백 하나가 큐 push + 스토리지 persist + 네이티브 charge + 업로드 notify를 순서대로 수행한다. 리스너 3개가 아니라 "리스너 1개 안의 절차 4개"다.
+**① The web has 1 listener.** The single `logHub.subscribe` callback in
+`apps/web/src/app/runtime/logging/logUploader.ts:206` performs queue push, storage persist, native charge, and
+upload notify in sequence. That's not 3 listeners — it's "1 listener wrapping 4 procedures."
 
-**② 웹의 콘솔 리스너를 apps/web이 소유하지 않는다.** [setupBridgeLogger.ts](../../libs/bridges/src/logger/setupBridgeLogger.ts)가 `isNative()`로 분기해 콘솔/네이티브 싱크를 붙인다. 웹 리스너가 `libs/bridges`에 산다.
+**② `apps/web` doesn't own the web's console listener.** [setupBridgeLogger.ts](../../libs/bridges/src/logger/setupBridgeLogger.ts)
+branches on `isNative()` to attach the console/native sinks. The web listener lives in `libs/bridges`.
 
-**③ web→native 경로가 2개다.** 낱건 `nativeForwarder`(bridges)와 배치 `LogChargePump`(web)가 공존하고, `standDownNativeRelay()`라는 런타임 전환 장치로 겨우 봉합돼 있다.
+**③ There are 2 web→native paths.** Per-entry `nativeForwarder` (bridges) and batched `LogChargePump` (web)
+coexist, barely held together by a runtime switch called `standDownNativeRelay()`.
 
-**④ 가장 큰 충돌 — 리스너 하나가 배치기(batcher)를 품고 있다.**
+**④ The biggest conflict — one listener contains a batcher.**
 
-웹의 네이티브 sender는 리스너인데 배치로 보낸다. `LogListener`의 시그니처는 `(entry) => void` — **낱건**이다. 그래서 배치를 보내려면 리스너가 버퍼·타이머·트리거 규칙(크기, `error` 하한, 주기)을 스스로 품어야 하고, 그것이 [LogChargePump](../../apps/web/src/app/runtime/logging/LogChargePump.ts) 185줄이다.
+The web's native sender is a listener, but it sends in batches. `LogListener`'s signature is `(entry) => void` —
+**per entry.** So to send batches, the listener has to carry its own buffer, timer, and trigger rules (size, an
+`error` floor, a period) on its own — and that's `LogChargePump` (`apps/web/src/app/runtime/logging/LogChargePump.ts`),
+185 lines.
 
-그 결과 이 리스너 하나만 다른 둘과 성질이 다르다.
+The result is that this one listener has a different nature from the other two.
 
-|             | 콘솔             | 저장             | 네이티브 sender                        |
-| ----------- | ---------------- | ---------------- | -------------------------------------- |
-| 상태        | 없음             | 저장소           | **버퍼 + 타이머 + 마지막 charge 시각** |
-| 실패 처리   | 리스너 안에서 끝 | 리스너 안에서 끝 | **비동기로 리스너 밖으로 샌다**        |
-| 엔트리 보유 | 즉시 버림        | 넘겨주고 버림    | **수십 초 들고 있는다**                |
-| 트리거 정책 | 없음             | 없음             | **자기 것을 갖는다 (업로더와 별개로)** |
+|                  | Console                  | Storage                  | Native sender                                |
+| ---------------- | ------------------------ | ------------------------ | -------------------------------------------- |
+| State            | None                     | Storage                  | **Buffer + timer + last charge time**        |
+| Failure handling | Ends inside the listener | Ends inside the listener | **Leaks async out of the listener**          |
+| Entry retention  | Discards immediately     | Passes on and discards   | **Holds for tens of seconds**                |
+| Trigger policy   | None                     | None                     | **Has its own (separate from the uploader)** |
 
-마지막 줄이 특히 값을 치른다 — 전송 리듬을 정하는 규칙이 sender와 업로더 **두 곳**에 생기고, 둘이 어긋나면 어디를 봐야 하는지 알 수 없다.
+The last row is the most expensive one — the rules that decide send rhythm end up in **two places**, the sender and
+the uploader, and when they drift apart there's no single place to look.
 
-> **주의 — 이전 판의 오진 정정.** 이 자리에는 원래 "배치 `charge`는 큐에 직행하므로 앱의 Crashlytics·콘솔 리스너가 웹 로그를 못 본다"고 적혀 있었다. **사실이 아니다.** [useLogBatchHandler.ts:48](../../apps/mobile/src/app/webview/hooks/useLogBatchHandler.ts:48)이 `entries.forEach(ingestLogEntry)`를 `charge`보다 **먼저** 부르므로, 배치 경로도 이미 hub에 발행하고 리스너 셋이 모두 웹 로그를 본다. `source === 'web'` 필터도 "웹을 배제하는 장치"가 아니라 **hub 발행과 charge가 겹쳐 이중 적재되는 것을 막는 장치**다. 같은 이유로 `standDownNativeRelay()`는 위험한 봉합이 아니라 안전한 정리였다. 이 ADR이 낱건을 택하는 근거는 위의 리스너 대칭성 하나이며, "리스너가 못 본다"는 근거는 **철회한다.**
+> **Correction to a prior misdiagnosis in this spot.** This section used to say "the batched `charge` goes straight
+> to the queue, so the app's Crashlytics and console listeners never see web logs." **That's not true.**
+> [useLogBatchHandler.ts:48](../../apps/mobile/src/app/webview/hooks/useLogBatchHandler.ts:48) calls
+> `entries.forEach(ingestLogEntry)` **before** `charge`, so the batched path already publishes to the hub too, and
+> all three listeners already see web logs. The `source === 'web'` filter isn't "a device that excludes web" either
+> — it's **a guard against double-loading when the hub publish and the charge overlap.** For the same reason,
+> `standDownNativeRelay()` was a safe cleanup, not a dangerous patch. This ADR's reason for choosing per-entry is the
+> listener-symmetry argument above alone, and the "listeners can't see it" reasoning is **withdrawn.**
 
-**⑤ 모바일 저장소가 @mmkv 모듈을 우회한다.** [persistence.ts](../../apps/mobile/src/app/services/log/uploadQueue/persistence.ts)가 `createMMKV()`를 직접 호출한다.
+**⑤ Mobile storage bypasses the @mmkv module.** [persistence.ts](../../apps/mobile/src/app/services/log/uploadQueue/persistence.ts)
+calls `createMMKV()` directly.
 
-**⑥ pub/sub에 숨은 리스너가 있다.** [runtime.ts:17](../../libs/logger/src/runtime.ts:17)에서 `CoreLogger`가 `fallback: ConsoleLogSink`를 물고 있어, 구독자가 0이면 아무도 구독하지 않았는데 콘솔이 찍힌다. `standDownNativeRelay`가 구독을 해제하지 않고 "가만히 있게" 만드는 이유도 이 fallback 때문이다 — 구독자 수가 줄면 콘솔이 되살아난다.
+**⑥ pub/sub has a hidden listener.** In [runtime.ts:17](../../libs/logger/src/runtime.ts:17), `CoreLogger` holds a
+`fallback: ConsoleLogSink`, so when there are 0 subscribers, the console still prints even though nobody subscribed.
+This fallback is also why `standDownNativeRelay` unsubscribes nothing and just "sits still" — reducing the
+subscriber count would resurrect the console.
 
-**⑦ 모니터가 하이브리드에서 빈 화면이다.** [LogBufferScreen](../../apps/web/src/app/features/debug/overlay/screens/LogBufferScreen.tsx:8)은 `getLogQueueView()`로 **웹 큐만** 본다. 하이브리드에선 charge 후 웹 큐가 비므로 앱이 들고 있는 적재분이 안 보인다.
+**⑦ The monitor shows a blank screen in hybrid.** [LogBufferScreen](../../apps/web/src/app/features/debug/overlay/screens/LogBufferScreen.tsx:8)
+looks only at the **web queue** via `getLogQueueView()`. In hybrid, once the web queue empties after a charge, the
+backlog the app is holding is invisible.
 
-**⑧ 배럴 우회 — 이미 수정됨.** `services/log/native/`의 세 파일이 `from 'libs/logger/src'`로 import돼 있었다. `tsconfig.base.json`의 `baseUrl: "."` 때문에 `tsc`는 조용히 통과시키지만, 모바일 jest는 `moduleNameMapper`를 `compilerOptions.paths`에서만 만들고 Metro도 같아서 **로드 시점에 터진다**(`Cannot find module 'libs/logger/src'`). `b9f3163f`에서 `@chatic/logger`로 복구됐고, 복구 후 세 파일이 원본과 바이트 동일해 git이 R100 순수 rename으로 기록했다 — **고치고 나면 diff에 흔적이 남지 않는 부류의 결함**이라 사례로 남긴다. 리포에 다른 `from 'libs/...'`는 0건이다.
+**⑧ A barrel bypass — already fixed.** Three files under `services/log/native/` were importing
+`from 'libs/logger/src'`. `tsc` silently accepts this because of `tsconfig.base.json`'s `baseUrl: "."`, but mobile
+jest builds its `moduleNameMapper` only from `compilerOptions.paths`, and so does Metro, so this **blows up at load
+time** (`Cannot find module 'libs/logger/src'`). It was fixed in `b9f3163f` to `@chatic/logger`, and after the fix
+the three files were byte-identical to the originals, so git recorded it as a pure R100 rename — **a class of
+defect that leaves no trace in the diff once fixed**, worth recording as a case study. There are 0 other
+`from 'libs/...'` imports left in the repo.
 
-## 결정 (Decision)
+## Decision
 
-### 0. 구독자 명단과, 구독자가 아닌 것
+### 0. The subscriber roster, and what is not a subscriber
 
-**지금은 각 플랫폼에 셋씩이다.** 이건 상한이 아니라 오늘의 명단이다.
+**Right now there are three per platform.** This is today's roster, not a ceiling.
 
-|             | `apps/web`                 | `apps/mobile`                     |
-| ----------- | -------------------------- | --------------------------------- |
-| 내보내는 애 | 네이티브로 낱건 보내는 애  | Firebase(Crashlytics)로 보내는 애 |
-| 저장하는 애 | localStorage에 저장하는 애 | mmkv에 저장하는 애                |
-| 찍는 애     | 콘솔로 찍는 애             | 콘솔로 찍는 애                    |
+|          | `apps/web`                | `apps/mobile`                   |
+| -------- | ------------------------- | ------------------------------- |
+| Exporter | Sends per entry to native | Sends to Firebase (Crashlytics) |
+| Storer   | Saves to localStorage     | Saves to mmkv                   |
+| Printer  | Prints to console         | Prints to console               |
 
-**구독자는 앞으로 늘어난다.** 그게 이 재편의 목적이다 — 로그를 새로 소비할 일이 생겼을 때(성능 트레이스 수집, 특정 태그만 거르는 진단 싱크, 세션 리플레이, 서드파티 SDK 연동) **기존 셋 중 하나를 고쳐 끼워넣는 게 아니라 넷째를 구독시키면 되는 상태**로 만드는 것. 지금 구조가 그걸 못 하는 이유가 바로 [logUploader.ts:206](../../apps/web/src/app/runtime/logging/logUploader.ts:206)의 뭉친 콜백이다 — 새 소비자를 붙이려면 남의 절차 사이에 줄을 끼워야 한다.
+**The subscriber count will grow.** That's the point of this reorganization — when a new consumer of logs shows up
+(performance trace collection, a diagnostic sink that filters a specific tag, session replay, a third-party SDK
+integration), the goal is to reach a state where **subscribing a fourth listener is enough**, rather than reworking
+one of the existing three to fit it in. The reason today's structure can't do that is exactly the lumped-together
+callback at [logUploader.ts:206](../../apps/web/src/app/runtime/logging/logUploader.ts:206) — adding a new consumer
+means threading a line through someone else's procedure.
 
-그러니 이 절이 고정하는 것은 **개수가 아니라 두 가지 경계**다.
+So what this section fixes is **not a count but two boundaries.**
 
-**① 업로더와 모니터는 구독자가 아니다.** 둘 다 저장하는 애가 남긴 것을 읽을 뿐이며, **엔트리를 건건이 보지 않는다.** 지금 현행이 무너져 있는 지점이 여기다 — 구독 콜백이 `scheduler.notify(entry)`를 불러 업로더가 사실상 네 번째 구독자로 붙어 있다. §1이 이걸 없앤다.
+**① The uploader and the monitor are not subscribers.** Both only read what the storer left behind — they **never
+see entries one by one.** This is exactly where the current implementation is broken: the subscribe callback calls
+`scheduler.notify(entry)`, so the uploader is effectively bolted on as a fourth subscriber. §1 removes this.
 
-**② 로그를 보는 방법은 구독뿐이다.** 링버퍼가 사라진 뒤로 "나중에 조회한다"는 경로는 없다. 저장하는 애가 남긴 것을 읽거나, 구독하거나 둘 중 하나다.
+**② Subscribing is the only way to see a log.** Once the ring buffer is gone, there is no "look it up later" path.
+You either read what the storer left, or you subscribe. One or the other.
 
-**③ 배치는 서버 경계에서만 일어난다.** 파이프라인 전체가 낱건으로 움직이고, **묶는 것은 업로더 하나뿐**이다.
+**③ Batching happens only at the server boundary.** The whole pipeline moves per entry, and **the uploader is the
+only thing that batches.**
 
-| 구간                 | 단위          | 왜                                                                           |
-| -------------------- | ------------- | ---------------------------------------------------------------------------- |
-| `logger.*` → hub     | 낱건          | 발행 시점이 곧 발생 시점                                                     |
-| hub → 리스너 셋      | 낱건          | `LogListener` 시그니처가 낱건                                                |
-| 웹 → 앱 (브릿지)     | 낱건          | in-process IPC라 묶는 이득이 작다. 묶으면 리스너가 배치기를 품는다 (§맥락 ④) |
-| 저장하는 애 → 저장소 | 낱건 (`push`) | 리스너 경로라 await할 수 없다                                                |
-| **저장소 → 서버**    | **배치**      | 네트워크 왕복이 비싸고, 서버에 bulk 수신 엔드포인트가 있다                   |
+| Stage                | Unit               | Why                                                                                                          |
+| -------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------ |
+| `logger.*` → hub     | Per entry          | The moment of publishing is the moment it happened                                                           |
+| hub → listener set   | Per entry          | `LogListener`'s signature is per entry                                                                       |
+| web → app (bridge)   | Per entry          | It's in-process IPC, so batching gains little. Batching would make the listener carry a batcher (§Context ④) |
+| Storer → storage     | Per entry (`push`) | It's on the listener path, so it can't `await`                                                               |
+| **Storage → server** | **Batch**          | Network round trips are expensive, and the server has a bulk-ingest endpoint                                 |
 
-이 선이 "왜 sender는 낱건인데 업로더는 배치냐"에 매번 답하지 않아도 되게 한다. **묶을 가치가 있는 경계는 프로세스 밖으로 나가는 곳 하나뿐**이라는 것이 답이다.
+This line means we don't have to keep answering "why is the sender per-entry but the uploader batched." The answer
+is: **the only boundary worth batching is the single place that crosses out of the process.**
 
-#### 새 구독자가 지켜야 하는 것
+#### What a new subscriber must honor
 
-늘어나도 되는 대신, 붙는 쪽이 만족해야 하는 계약이 있다. 전부 기존 코드가 이미 대가를 치르고 배운 것들이다.
+Growing the roster is allowed, but joining it comes with obligations — all of them lessons this codebase has
+already paid for.
 
-- **`logger`를 부르지 않는다.** 리스너는 `LogHub.publish` 안에서 동기로 돈다. 리스너 안에서 로그를 찍으면 그대로 재진입해 무한 재귀다. 실패는 `console`로만 알린다.
-- **엔트리를 변형하지 않는다.** [LogHub.publish](../../libs/logger/src/core/LogHub.ts)는 **같은 객체 참조**를 모든 리스너에 넘긴다. 한 리스너가 `entry`를 손대면 그 뒤 리스너들이 오염된 것을 본다. 읽기 전용으로 다룬다.
-- **자기 실패를 스스로 삼킨다.** hub가 `try/catch`로 격리해 주지만, 그건 _다른 리스너를 지키기 위한_ 장치다. 던지면 조용히 먹히므로 리스너 자신은 아무것도 알 수 없다.
-- **빨라야 한다.** `publish`는 동기 `forEach`다. 리스너가 느리면 **로그를 찍은 쪽 코드가 느려진다.** 무거운 일은 리스너 안에서 하지 말고 넘겨야 한다.
-- **레벨 정책은 자기가 정한다.** hub는 전 레벨을 그대로 흘려보낸다. `debug`를 받을지는 리스너의 선택이다 — 콘솔은 받고, 저장하는 애와 Crashlytics는 버린다.
-- **업로드 경로 밖의 싱크는 스스로 마스킹한다.** redaction은 wire 직렬화 안에서 일어나므로, `entry.data`를 직접 읽는 리스너는 **마스킹되지 않은 원본**을 본다. Crashlytics 리스너가 `redactSensitive`를 자기 손으로 부르는 이유가 이것이다.
-- **관심 있는 엔트리보다 먼저 구독한다.** 버퍼가 없으므로 구독 전에 발행된 것은 영영 못 본다. 부팅 순서에 자기 자리를 잡아야 한다.
+- **Never call `logger`.** A listener runs synchronously inside `LogHub.publish`. If a listener logs, it re-enters
+  immediately, an infinite recursion. Report failures with `console` only.
+- **Never mutate the entry.** [LogHub.publish](../../libs/logger/src/core/LogHub.ts) passes the **same object
+  reference** to every listener. If one listener touches `entry`, every listener after it sees the corruption. Treat
+  it as read-only.
+- **Swallow your own failures.** The hub isolates listeners with `try/catch`, but that's _to protect the other
+  listeners_, not you. A throw is silently swallowed, so the listener itself learns nothing.
+- **Be fast.** `publish` is a synchronous `forEach`. A slow listener **slows down the code that logged.** Heavy work
+  doesn't belong inside a listener — hand it off.
+- **Decide your own level policy.** The hub passes every level through unfiltered. Whether to accept `debug` is the
+  listener's own call — the console takes it; the storer and Crashlytics drop it.
+- **Mask your own data outside the upload path.** Redaction happens inside wire serialization, so a listener that
+  reads `entry.data` directly sees the **unmasked original.** That's why the Crashlytics listener calls
+  `redactSensitive` itself.
+- **Subscribe before the entries you care about.** There is no buffer, so anything published before you subscribe
+  is gone forever. Claim your spot in the boot order.
 
-### 1. 업로더는 **주기로만** 돈다
+### 1. The uploader runs **only on a schedule**
 
-`notify` 기반의 크기 트리거와 `error` 즉시 트리거를 **폐지한다.** 업로더는 자기 타이머로 깨어나 저장소에서 배치를 당겨 보내고 다시 잔다. 엔트리 발생을 관찰할 이유가 없어지므로 §0의 경계 ①이 배선 없이 저절로 성립한다.
+The size trigger and the immediate `error` trigger based on `notify` are **retired.** The uploader wakes on its own
+timer, pulls a batch from storage, sends it, and sleeps again. There's no longer a reason to observe entries as they
+occur, so §0's boundary ① holds without any wiring for it.
 
-주기 외에 전송이 일어나는 경우는 **명시적 `flushNow()` 호출** 하나뿐이다. `pagehide`·로그아웃처럼 "지금 안 보내면 기회가 없는" 시점에 호스트가 부른다. 이것은 트리거가 아니라 생애주기 신호이므로 §0의 경계 ①과 충돌하지 않는다.
+The only other time a send happens is an explicit **`flushNow()` call.** A host calls it at moments like
+`pagehide` or logout — "if we don't send now, there's no other chance." This is a lifecycle signal, not a trigger,
+so it doesn't conflict with §0's boundary ①.
 
-#### 빈 주기에는 서버를 부르지 않는다
+#### An empty period never calls the server
 
-주기마다 하는 일은 **저장소에서 당겨오기 → 비어 있으면 아무것도 안 하고 다시 자기** 순서다. `peek`이 빈 배열을 주면 `send`를 부르지 않는다. 저장소가 아예 안 잡힐 때(하이브리드에서 브릿지 왕복이 실패한 경우)도 같은 취급이다 — 아무것도 놓아준 적이 없으므로 잃은 것이 없고, 다음 주기에 다시 온다.
+Every period does the same thing: **pull from storage → if empty, do nothing and sleep again.** If `peek` returns an
+empty array, `send` is never called. The same applies when storage isn't even reachable (a failed bridge round trip
+in hybrid) — nothing was ever released, so nothing is lost, and the next period tries again.
 
-현행 [LogUploadScheduler.ts:255](../../libs/logger/src/upload/LogUploadScheduler.ts:255)가 이미 이렇게 한다. 여기 적어 두는 이유는 **재편 중에 조용히 사라지기 쉬운 종류의 규칙**이기 때문이다. 빠지면 유휴 상태의 기기가 주기마다 빈 요청을 서버에 쏜다.
+Today's [LogUploadScheduler.ts:255](../../libs/logger/src/upload/LogUploadScheduler.ts:255) already does this. It's
+written down here because it's **the kind of rule that quietly disappears during a rewrite.** Drop it and an idle
+device fires empty requests at the server every period.
 
-`ack`도 같다 — 놓아줄 것이 없으면 부르지 않는다.
+`ack` follows the same rule — if there's nothing to release, it's not called.
 
-**단, `peek` 자체는 하이브리드에서 주기마다 브릿지를 한 번 탄다.** 이것은 없앨 수 없고, 없애려 해서도 안 된다. `size()`가 마지막 왕복의 캐시값이라(§3) "지난번에 0이었으니 이번에도 0"으로 건너뛰고 싶어지지만, **앱 저장소에는 웹이 모르는 사이 네이티브 발원 로그(RN 예외·FCM·Kotlin/Swift)가 들어온다.** 캐시로 판단하면 그 로그들은 영영 안 나간다. 물어보는 왕복 하나는 주기당 1회이므로 그대로 낸다.
+**However, `peek` itself still crosses the bridge once per period in hybrid.** This can't be removed and shouldn't
+be. `size()` is a cached value from the last round trip (§3), so it's tempting to skip the call with "it was 0 last
+time, so it's probably 0 now" — but **native-originated logs (RN exceptions, FCM, Kotlin/Swift) can land in the app
+store without the web knowing.** Deciding from the cache means those logs never go out. The one round trip of asking
+is once per period, and that stays.
 
-**`flushNow()`가 실효를 갖는 것은 웹 단독일 때뿐이다.** 하이브리드에서는 업로더가 웹에 있고 백그라운드 전환을 아는 것은 앱이며([useAppStateHandler](../../apps/mobile/src/app/webview/hooks/useAppStateHandler.ts:12)), WebView에서 앱 백그라운드 시 `visibilitychange`가 뜨는지는 플랫폼별로 갈린다. 더 근본적으로 **앱이 죽는 순간 웹은 이미 죽었거나 죽는 중**이다.
+**`flushNow()` only has real effect when web-only.** In hybrid, the uploader lives in the web, but knowing about a
+background transition is the app's job ([useAppStateHandler](../../apps/mobile/src/app/webview/hooks/useAppStateHandler.ts:12)),
+and whether `visibilitychange` fires in the WebView when the app backgrounds varies by platform. More fundamentally,
+**by the time the app is dying, the web is already dead or dying.**
 
-이 구멍을 앱→웹 "지금 flush해라" 메시지로 메우지 **않는다.** 메울 필요가 없기 때문이다 — 하이브리드에서 로그는 앱 mmkv에 **영속**으로 남아 있고, 못 보낸 것은 다음 실행의 첫 주기에 나간다. 웹 단독도 localStorage라 마찬가지다. `flushNow()`는 "빨리 보내면 좋은" 최적화이지 유실을 막는 장치가 아니며, 유실을 막는 것은 저장소의 영속성이다.
+This gap is **not** patched with an app→web "flush now" message, because it doesn't need patching — in hybrid, logs
+persist in app mmkv, and anything unsent goes out in the next run's first period. Web-only is the same, via
+localStorage. `flushNow()` is an optimization ("nice to send it fast"), not a loss-prevention device — storage
+persistence is what prevents loss.
 
-`error`가 즉시 나가지 않는 대가는 §결과에 적는다.
+The cost of `error` not going out immediately is written in §Consequences.
 
-### 2. 웹→앱 sender를 **낱건**으로 되돌린다 — 리스너를 리스너 모양으로
+### 2. Revert the web→app sender to **per-entry** — a listener shaped like a listener
 
-**유일한 근거는 리스너 패턴과의 정합이다**(§맥락 ④). 배치가 기능적으로 부족해서가 아니다 — 배치도 hub에 발행하고 있고 그 점은 잘 돌아간다.
+**The only justification is alignment with the listener pattern** (§Context ④). It's not that batching is
+functionally lacking — it already publishes to the hub, and that part works fine.
 
-낱건으로 바꾸면 sender 리스너가 이렇게 된다.
+Switching to per-entry turns the sender listener into this:
 
 ```ts
 const nativeSender: LogListener = entry =>
@@ -127,256 +199,411 @@ const nativeSender: LogListener = entry =>
     });
 ```
 
-버퍼도, 타이머도, 트리거 규칙도, 비동기 실패 경로도 없다. §0이 리스너에게 요구하는 계약(무상태·즉시·자기 실패 흡수·엔트리 비보유)을 **노력 없이** 만족한다. 앱은 받은 것을 `ingestLogEntry`로 hub에 발행하고 — 지금 배치 핸들러가 하는 것과 **같은 동작이다** — 리스너 셋이 각자 받는다.
+No buffer, no timer, no trigger rules, no async failure path. It satisfies the contract §0 asks of listeners
+(stateless, immediate, swallows its own failures, holds no entries) **without effort.** The app publishes what it
+receives to the hub via `ingestLogEntry` — **the same thing the current batch handler already does** — and each of
+the three listeners picks it up.
 
-`charge()`와 `source === 'web'` 필터도 함께 사라진다. 둘 다 "hub 발행과 큐 적재를 한 메시지가 동시에 한다"는 겹침을 처리하려고 있던 것이고, 낱건에서는 그 겹침 자체가 없다 — sender는 발행만 하고, 적재는 앱의 저장 리스너가 hub에서 받아 한다.
+`charge()` and the `source === 'web'` filter disappear along with it. Both existed to handle the overlap of "one
+message both publishes to the hub and loads the queue"; per-entry has no such overlap — the sender only publishes,
+and loading happens when the app's storage listener receives it from the hub.
 
-#### 레벨 정책 — sender는 `debug`를 보내지 않는다
+#### Level policy — the sender does not send `debug`
 
-이전 판은 "`prodRelease`에서만 `debug`를 생략한다"고 적었다. **구현 불가다** — 웹은 앱의 빌드 변종을 알 방법이 없다(핸드셰이크에 그런 필드가 없다). 웹 prod 번들을 앱 dev 빌드에 붙이는 조합이 흔하므로 웹이 자기 번들 모드로 판단하면 그 조합에서 어긋나고, 핸드셰이크에 필드를 새로 넣는 것도 답이 아니다 — 구버전 앱에는 그 필드가 없으므로 같은 문제를 한 단계 옮길 뿐이다.
+The previous version said "omit `debug` only in `prodRelease`." **That's not implementable** — the web has no way
+to know the app's build variant (the handshake has no such field). Pairing a web prod bundle with an app dev build
+is common, so if the web decides from its own bundle mode, that combination breaks, and adding a field to the
+handshake isn't the answer either — a legacy app has no such field, which just moves the same problem one level
+over.
 
-그래서 **sender는 앱이 그것을 찍을 수 있을 때만 `debug`를 보낸다.** 판단 근거는 앱이 WebView 로드 시점에 주입하는 `window.CHATIC_APP_CONSOLE_ENABLED`이고, 그 값은 앱이 콘솔을 구독할 때 쓰는 바로 그 플래그다 — 빌드 변종을 stage 문자열로 추측하지 않고, "저쪽에서 찍히기는 하는가"를 직접 답한다. 구버전 앱은 주입하지 않고 그것은 false로 읽히므로 기본값은 "안 보낸다"이다.
+So **the sender sends `debug` only when the app is actually able to print it.** The basis is
+`window.CHATIC_APP_CONSOLE_ENABLED`, which the app injects at WebView load time — the exact same flag the app uses
+to decide whether to subscribe the console. It doesn't guess the build variant from a stage string — it directly
+answers "is anyone printing this on the other side?" A legacy app never injects it, so it reads as false, and the
+default is "don't send."
 
-릴리스에서 안 보내는 이유는 그대로다: 이것이 sender 리스너가 갖는 유일한 정책이고, §0의 "레벨 정책은 리스너가 정한다"에 해당한다. 근거는 소비자 계산이다 — 앱의 영속 sink 둘(저장·Crashlytics)은 `debug`를 버리므로, 유일한 소비자인 앱 콘솔을 위해 최대 유입원(`withNetworkLog`의 요청당 1건)을 전부 브릿지에 태우는 거래가 성립하지 않는다.
+The reason for not sending in release is unchanged: this is the sender listener's only policy, and it's an instance
+of §0's "level policy is the listener's own call." The reasoning is consumer accounting — the app's two persistent
+sinks (storage, Crashlytics) both drop `debug`, so putting the largest source (one per request from
+`withNetworkLog`) onto the bridge just for the sole consumer — the app console — isn't a trade worth making.
 
-**그 대가로 하이브리드에서 웹 `debug`를 볼 곳이 필요하다.** §5가 `consoleInNative`를 dev 예외로 되살리는 이유가 이것이다.
+**In exchange, hybrid needs somewhere to see web `debug`.** That's why §5 revives `consoleInNative` as a dev
+exception.
 
-#### ADR-0063과의 관계 — 비용을 감수한다는 뜻이다
+#### Relation to ADR-0063 — this means accepting a cost
 
-이전 판은 "0063이 문제 삼은 것은 레벨 무필터였지 낱건이 아니다"라고 적었다. **원문을 유리하게 읽은 것이다.** 0063은 별도 문단으로 이렇게 썼다.
+The previous version said "what 0063 objected to was the unfiltered levels, not per-entry itself." **That reads the
+original text charitably.** 0063 wrote, in its own paragraph:
 
-> 건당 릴레이는 브릿지 비용 문제이기도 하다. 응답 왕복은 이미 제거됐지만 상방 `postMessage` 자체가 로그 건수만큼 발생한다.
+> Per-entry relaying is also a bridge-cost problem. The response round trip has already been removed, but the
+> upward `postMessage` itself still fires once per log.
 
-그러니 이 결정은 "0063이 틀렸다"가 아니라 **"0063이 옳게 지목한 비용을, 리스너 대칭성을 얻기 위해 감수한다"**이다.
+So this decision is not "0063 was wrong" — it's **"we accept the cost 0063 correctly identified, in exchange for
+listener symmetry."**
 
-**다만 이것은 미지의 형태로 뛰어드는 것이 아니다.** 이 리포가 실제로 지나온 순서가 그렇게 말한다.
+**This isn't a leap into an unknown shape, though.** The actual sequence this repo went through says as much.
 
-| 날짜                    | 형태                 | 비고                                                                                                                                                                            |
-| ----------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 2026-07-08 (`3d29e1f5`) | 낱건 **+ 응답 왕복** | [useLogHandler.ts:29](../../apps/mobile/src/app/webview/hooks/useLogHandler.ts:29)가 기록한 정체 증폭이 일어난 구간. 원인은 엔트리마다 도는 `evaluateJavascript` **응답**이었다 |
-| 2026-08-14 (`91eae1d8`) | 낱건 **단방향**      | 응답 왕복 제거. **이 ADR이 되돌아가려는 바로 그 형태**                                                                                                                          |
-| 2026-08-21 (`1c4bcab6`) | 배치                 | 도입 동기는 ADR-0063의 링버퍼·파괴적 poll(①②③)이었고, 브릿지 비용은 부차적으로 덧붙은 지적이었다                                                                                |
+| Date                    | Shape                               | Notes                                                                                                                                                                                                     |
+| ----------------------- | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-07-08 (`3d29e1f5`) | Per-entry **+ response round trip** | The congestion amplification recorded by [useLogHandler.ts:29](../../apps/mobile/src/app/webview/hooks/useLogHandler.ts:29) happened here. The cause was the per-entry `evaluateJavascript` **response**. |
+| 2026-08-14 (`91eae1d8`) | Per-entry **one-way**               | The response round trip was removed. **The exact shape this ADR is returning to.**                                                                                                                        |
+| 2026-08-21 (`1c4bcab6`) | Batched                             | Motivated by ADR-0063's ring buffer / destructive poll (①②③); the bridge cost was a secondary point tacked on                                                                                             |
 
-즉 **낱건 단방향은 이미 한 주간 실제로 돌았고 그 구간의 사고 기록은 없다.** 0063이 낱건을 지목했을 때 인용한 사고는 응답 왕복 시절의 것이고, 그 원인은 배치 도입보다 1주 먼저 제거됐다. 낱건 복귀는 새 위험을 들이는 것이 아니라 **10일 전 상태로 돌아가는 것**이다.
+In other words, **per-entry one-way already ran for real for about a week, with no recorded incidents during that
+window.** The incident 0063 cited when it flagged per-entry belongs to the response-round-trip era, and its cause
+was removed a week before batching was even introduced. Returning to per-entry isn't introducing a new risk — it's
+**going back to where things stood 10 days earlier.**
 
-실측이 여전히 필요한 이유는 사고 전력이 아니라 **볼륨이 그때와 다르기 때문**이다 — `e954a18d`가 `apps/web`에 로그 트리거 약 30개를 새로 심었으므로, 낱건 단방향이 검증된 한 주보다 지금 초당 건수가 많다.
+Measurement is still needed, not because of incident history but because **volume is different from back then** —
+`e954a18d` planted roughly 30 new log triggers into `apps/web`, so per-second counts are now higher than during the
+week per-entry one-way was validated.
 
-0063에서 **살아남는 것**: 소스를 포트로 분리한다는 발상, 앱의 전송 대기 저장소, `Fetch`/`Ack` 2단계(전송 성공 후 삭제).
+What **survives** from 0063: the idea of splitting the source into a port, the app's transmit-pending storage, and
+the two-step `Fetch`/`Ack` (delete after a successful send).
 
-### 3. 인터페이스 — 읽는 쪽과 쓰는 쪽을 나눈다
+### 3. Interface — separate the reading side from the writing side
 
-플랫폼 분기를 **호출부가 아니라 주입으로** 없애는 것이 이 절의 목적이다. 다만 포트 하나로는 안 된다 — 하이브리드에서 웹은 **저장하지 않으면서 읽기만 하기** 때문이다. 쓰기까지 한 인터페이스에 묶으면 그 구현체가 못 하는 메서드를 갖게 되고, 타입이 거짓말을 한다.
+The point of this section is to remove the platform branch **from the call site into injection.** But one port isn't
+enough — in hybrid, the web **only reads, and never stores** (§context). Binding writing into the same interface
+would give that implementation methods it can't perform, and the type would lie.
 
 ```ts
-/** 업로더·모니터가 저장소를 다루는 창구. 로컬이든 브릿지 너머든 같다. */
+/** The window through which the uploader and monitor reach storage. Same whether local or across the bridge. */
 export interface LogStoreReader {
-    /** 오래된 순 최대 limit개. 제거하지 않는다(비파괴). */
+    /** Up to `limit`, oldest first. Non-destructive — does not remove. */
     peek(limit: number): Promise<LogEntry[]>;
     /**
-     * 전송이 끝났거나 포기한 것을 놓아준다. 유일한 정상 배출구.
-     * ids가 아니라 entries를 받는다 — `id`가 없는 엔트리도 놓아줄 수 있어야
-     * 하기 때문이다. ids만 받으면 그런 엔트리는 영원히 다시 조회된다.
+     * Releases entries that were sent or given up on. The only normal drain path.
+     * Takes entries, not ids — because entries without an `id` must be releasable
+     * too. If it only took ids, such entries would be queried forever.
      */
     ack(entries: LogEntry[]): Promise<void>;
-    /** 버린다. 모니터의 명시적 제거. */
+    /** Discards everything. The monitor's explicit clear. */
     clear(): Promise<void>;
-    /** 마지막 왕복이 보고한 대기 건수. 표시용이므로 근사치여도 된다. */
+    /** The pending count reported by the last round trip. Display-only, so an approximation is fine. */
     size(): number;
 }
 
-/** 저장하는 애가 hub에서 받아 넣는 쪽. 항상 로컬이고 동기다. */
+/** The side the storer uses to load what it gets from the hub. Always local, always synchronous. */
 export interface LogStoreWriter {
-    /** 적재. 상한을 넘으면 오래된 것부터 버린다. `debug`는 받지 않는다. */
+    /** Load. Drops the oldest entries once the cap is exceeded. Does not accept `debug`. */
     push(entry: LogEntry): void;
 }
 
-/** 실제로 무언가를 담는 저장소는 둘 다이다. */
+/** Whatever actually holds something implements both. */
 export interface LogStore extends LogStoreReader, LogStoreWriter {}
 
-/** writer를 hub 리스너로 바꾸는 어댑터. 이것이 "저장하는 애"다. */
+/** The adapter that turns a writer into a hub listener. This is the "storer." */
 export const toLogListener =
     (writer: LogStoreWriter): LogListener =>
     entry =>
         writer.push(entry);
 ```
 
-`peek`/`ack`/`clear`가 `Promise`인 이유는 **브릿지 구현이 존재하기 때문**이다. 로컬 구현은 동기로 끝내고 이미 resolve된 값을 돌려준다. 반대로 `push`와 `size`는 동기다 — `push`는 hub publish 안에서 도는 리스너 경로라 await할 수 없고(§0), `size`는 표시용이라 마지막 왕복이 보고한 값을 캐시해 답한다.
+The reason `peek`/`ack`/`clear` return a `Promise` is **because a bridge implementation exists.** The local
+implementation finishes synchronously and returns an already-resolved value. `push` and `size`, in contrast, are
+synchronous — `push` runs on the listener path inside a hub publish and can't be awaited (§0), and `size` is
+display-only, so it caches and answers with the value the last round trip reported.
 
-포트를 만족하는 것은 둘이다. **`BridgeLogStore` 같은 세 번째 클래스는 만들지 않는다.**
+Two things satisfy the port. **No third class like `BridgeLogStore` is created.**
 
-|                        | 무엇이 포트를 만족하나                         | 비고                      |
-| ---------------------- | ---------------------------------------------- | ------------------------- |
-| 웹 단독                | localStorage 기반 저장소                       | reader + writer 둘 다     |
-| 앱                     | mmkv 기반 저장소 (@mmkv 모듈 경유)             | reader + writer 둘 다     |
-| 하이브리드의 웹 업로더 | **`appBridge` 호출을 포트 모양으로 감싼 객체** | reader만. 저장소가 아니다 |
+|                       | What satisfies the port                                      | Notes                     |
+| --------------------- | ------------------------------------------------------------ | ------------------------- |
+| Web-only              | localStorage-based store                                     | Both reader and writer    |
+| App                   | mmkv-based store (via the @mmkv module)                      | Both reader and writer    |
+| Hybrid's web uploader | **An object wrapping `appBridge` calls to look like a port** | Reader only. Not a store. |
 
-마지막 줄이 클래스가 아닌 이유는, **그것이 저장소가 아니기 때문**이다. 아무것도 담지 않고 `peek`/`ack`/`clear`를 그대로 브릿지 호출로 넘길 뿐이다. 이름에 `Store`가 붙으면 담는다는 뜻이 되어 거짓말이 된다.
+The last row isn't a class because **it isn't a store.** It holds nothing — it just forwards `peek`/`ack`/`clear`
+straight through as bridge calls. A name with `Store` in it would imply it holds something, which would be a lie.
 
-그리고 이 역할은 **이미 코드에 있다** — [createNativeUploadSource()](../../apps/web/src/app/runtime/logging/nativeUploadSource.ts:98)가 `LogUploadSource`를 만족하는 객체 리터럴을 돌려준다. 이번 재편에서 할 일은 새로 만드는 것이 아니라 **포트가 `LogStoreReader`로 넓어진 만큼(`clear` 추가) 그 리터럴을 맞춰 주는 것**뿐이다.
+And this role is **already in the code** — [createNativeUploadSource()](../../apps/web/src/app/runtime/logging/nativeUploadSource.ts:98)
+already returns an object literal that satisfies `LogUploadSource`. What this reorganization needs isn't a new
+object — just **adjusting that literal to match the widened port `LogStoreReader`** (adding `clear`).
 
-| 호출           | 브릿지 메시지         | 상태                                              |
-| -------------- | --------------------- | ------------------------------------------------- |
-| `peek(limit)`  | `FetchLogUploadQueue` | 있음 (비파괴, 응답이 `size`를 함께 준다)          |
-| `ack(entries)` | `AckLogUploadQueue`   | 있음 (ids를 추출해 실어 보낸다)                   |
-| `clear()`      | `ClearLogUploadQueue` | 있음                                              |
-| `size()`       | —                     | 마지막 `peek`/`ack` 응답의 `size`를 캐시해 답한다 |
-| `push(entry)`  | —                     | **없다.** reader라서 애초에 요구되지 않는다       |
+| Call           | Bridge message        | Status                                                             |
+| -------------- | --------------------- | ------------------------------------------------------------------ |
+| `peek(limit)`  | `FetchLogUploadQueue` | Exists (non-destructive, response includes `size`)                 |
+| `ack(entries)` | `AckLogUploadQueue`   | Exists (extracts ids to send)                                      |
+| `clear()`      | `ClearLogUploadQueue` | Exists                                                             |
+| `size()`       | —                     | Answers with the cached `size` from the last `peek`/`ack` response |
+| `push(entry)`  | —                     | **Doesn't exist.** It's a reader, so it was never required         |
 
-`size()`에 왕복이 필요 없는 것은 `OnFetchLogUploadQueuePayload`·`OnAckLogUploadQueuePayload`가 이미 갱신된 크기를 실어 주기 때문이다. §1에서 크기 트리거가 사라졌으므로 이 값의 소비자는 모니터 표시뿐이고, 한 주기 늦은 근사치로 충분하다.
+`size()` needs no round trip because `OnFetchLogUploadQueuePayload`/`OnAckLogUploadQueuePayload` already carry the
+updated size. Since §1 removes the size trigger, this value's only consumer is the monitor's display, and a
+one-period-stale approximation is enough.
 
-`push`가 없는 것이 reader/writer를 나눈 실익이다. 업로더와 모니터는 reader만 쥐므로 **적재를 시도할 수단 자체가 없고**, §0의 경계 ①이 타입 수준에서 성립한다. 과장하지는 말자 — 이것이 막는 것은 거기까지이고, 하이브리드에서 웹의 저장 리스너를 실수로 붙이는 것은 런타임 조건이라 여전히 컴파일된다. 그건 테스트의 몫이다.
+The absence of `push` is the real payoff of splitting reader/writer. The uploader and monitor only hold a reader,
+so **there is no way for them to attempt loading**, and §0's boundary ① holds at the type level. Let's not overstate
+it though — that's as far as it goes; accidentally attaching the web's storer listener in hybrid is a runtime
+condition, so it still compiles. That's the test suite's job.
 
-#### 이 형태가 주는 것
+#### What this shape gives us
 
-- 업로더에서 `isNative()` 분기가 **사라진다.** 현행 [logUploader.ts](../../apps/web/src/app/runtime/logging/logUploader.ts)는 `useNativeSource()`를 `fetch`/`ack`/`pendingSize` 세 군데에서 매번 다시 묻는데, 어느 reader를 주입할지 부팅 시 한 번 정하면 그 분기가 통째로 없어진다.
-- 모니터도 `LogStoreReader` 하나만 본다 — "인터페이스는 동일한데 플랫폼에 따라 다른 것"이 이 포트로 실현된다.
-- 업로더가 받는 것은 reader뿐이므로, **업로더는 로그를 적재할 능력 자체가 없다.** §0의 경계 ①이 타입 수준에서 강제된다.
-- 업로더는 `peek(limit)`으로 묶어 받고 `ack(entries)`로 묶어 놓아준다 — §0 경계 ③의 "배치는 여기 하나뿐"이 포트 모양에 그대로 나타난다. 반대로 writer의 `push`는 낱건이다.
+- The `isNative()` branch **disappears** from the uploader. The current
+  [logUploader.ts](../../apps/web/src/app/runtime/logging/logUploader.ts) asks `useNativeSource()` again at three
+  separate spots — `fetch`/`ack`/`pendingSize` — and deciding which reader to inject once at boot removes that
+  branch entirely.
+- The monitor also looks at just one `LogStoreReader` — "the interface is the same, only the platform behind it
+  differs" is realized through this port.
+- The uploader only receives a reader, so **it has no ability to load logs at all.** §0's boundary ① is enforced at
+  the type level.
+- The uploader batches with `peek(limit)` and releases in batches with `ack(entries)` — §0 boundary ③'s "batching
+  happens only here" shows up directly in the port's shape. The writer's `push`, by contrast, is per-entry.
 
 ```ts
 export interface LogUploaderOptions {
-    store: LogStoreReader; // 플랫폼은 여기서 이미 결정돼 있다
+    store: LogStoreReader; // the platform decision is already made here
     send(entries: LogEntry[]): Promise<UploadOutcome>;
-    isEnabled?(): boolean; // 디버그 메뉴의 on/off
+    isEnabled?(): boolean; // debug-menu on/off
     intervalMs?: number;
     batchSize?: number;
 }
 ```
 
-기존 `LogUploadSource`(`fetch`/`ack`/`pendingSize`)는 `LogStoreReader`로 **승격되어 흡수된다.** 실질적 변화는 `clear`가 포트에 들어오고(모니터가 쓰던 것이 제자리를 찾는다), `pendingSize`의 `undefined` 반환이 없어지는 것뿐이다.
+The existing `LogUploadSource` (`fetch`/`ack`/`pendingSize`) is **promoted and absorbed** into `LogStoreReader`. The
+practical change is just that `clear` joins the port (giving the monitor's existing use a proper home), and
+`pendingSize`'s `undefined` return goes away.
 
-### 4. 저장하는 애는 **웹·앱 모두 용량 상한을 갖는다**
+### 4. The storer has **caps on both web and app**
 
-`push`가 상한을 강제한다. 넘으면 **오래된 것부터** 버리고, 버린 사실은 건별이 아니라 **사건당 한 줄**로 알린다 — 저장소의 문제가 저장소를 채우는 원인이 되면 안 된다.
+`push` enforces the cap. Once exceeded, it drops **the oldest first**, and reports the drop **once per event, not
+per entry** — the storage problem must never become a cause of filling the storage.
 
-양쪽 모두에 두는 이유는 각각 다르다.
+The reason for capping both is different in each case.
 
-- **앱(mmkv)** — 정상 배출구가 `ack` 하나뿐이라, 오프라인이나 서버 장애가 길어지면 무한히 자란다. 상한이 없으면 디스크가 유일한 한계가 된다.
-- **웹(localStorage)** — 오리진 전체가 5–10MB를 공유한다. 로그가 그걸 다 먹으면 **로그와 무관한 기능이 먼저 깨진다.** 앱보다 상한이 더 절실한 쪽이다.
+- **App (mmkv)** — the only normal drain is `ack`, so if offline or a server outage runs long, this grows
+  unboundedly. Without a cap, disk is the only limit.
+- **Web (localStorage)** — the whole origin shares 5–10MB. If logs eat all of it, **unrelated features break
+  first.** This side needs the cap more urgently than the app does.
 
-상한은 **건수와 바이트 둘 다** 걸어야 한다. 건수만 걸면 큰 `data`를 실은 엔트리 몇 개가 예산을 넘기고, 바이트만 걸면 직렬화 비용이 매 `push`마다 든다. 구체적 수치는 스펙 단계에서 정한다.
+The cap needs to be enforced on **both count and bytes.** Count alone lets a handful of large-`data` entries blow the
+budget; bytes alone means paying serialization cost on every `push`. The exact numbers are set at the spec stage.
 
-### 5. `apps/web` — 수집기 1개 + 리스너 3개
+### 5. `apps/web` — 1 collector + 3 listeners
 
-리스너는 **항상 이 셋**이고, 플랫폼에 따라 켜지는 조합만 다르다.
+The listeners are **always these three** — only which combination is turned on differs by platform.
 
-| 리스너                                | 웹 단독 | 하이브리드 |
-| ------------------------------------- | ------- | ---------- |
-| 네이티브로 낱건 보내는 애             | OFF     | **ON**     |
-| 콘솔로 찍는 애                        | **ON**  | OFF        |
-| 스토리지에 저장하는 애 (localStorage) | **ON**  | OFF        |
+| Listener                        | Web-only | Hybrid |
+| ------------------------------- | -------- | ------ |
+| Sends per entry to native       | OFF      | **ON** |
+| Prints to console               | **ON**   | OFF    |
+| Saves to storage (localStorage) | **ON**   | OFF    |
 
-하이브리드에서 웹은 **앱이 저장소를 서빙한다고 확인된 뒤로는 아무것도 쌓지 않는다.** 낱건으로 넘기므로 배치를 묶을 적재공간이 필요 없고, 확인 뒤에는 "적재는 앱이 한다"가 단일 규칙이 된다. 확인 전 부팅 창의 예외는 아래에 있다. 이때 웹의 업로더는 브릿지 기반 `LogStoreReader`(§3)를 주입받아 앱 저장소를 읽는다.
+In hybrid, the web **stops accumulating anything once it's confirmed the app is serving the store.** With per-entry
+handoff there's no batch to hold accumulated storage for, and once confirmed, "the app does the loading" becomes a
+single rule. The exception during the pre-confirmation boot window is below. During this time, the web's uploader
+is injected the bridge-based `LogStoreReader` (§3), reading the app's store.
 
-`logUploader`의 단일 콜백은 해체한다. 지금 그 콜백 하나가 하고 있는 큐 push · 스토리지 persist · 네이티브 charge · 업로드 notify 중, 앞의 둘은 **저장하는 애**로 접히고, 셋째는 **네이티브로 보내는 애**가 되며, 넷째는 §1에서 폐지된다.
+`logUploader`'s single callback is dismantled. Of the four things that one callback currently does — queue push,
+storage persist, native charge, upload notify — the first two fold into the **storer**, the third becomes the
+**per-entry sender**, and the fourth is retired in §1.
 
-콘솔 리스너는 `libs/bridges`에서 `apps/web`으로 소유권을 옮긴다.
+The console listener's ownership moves from `libs/bridges` to `apps/web`.
 
-**dev 빌드에 한해 하이브리드에서도 웹 콘솔을 켠다** — 즉 현행 `consoleInNative`를 폐지하지 않고 dev 예외로 남긴다. 이전 판은 이것을 폐지 목록에 올렸으나, §2가 sender에서 `debug`를 빼면서 **하이브리드에서 웹 `debug`를 볼 곳이 없어졌다.** 릴리스에서는 그대로 꺼지므로 "플랫폼별로 콘솔 하나만"이라는 의도(리소스 절약)는 지켜지고, 되살아나는 것은 개발 중 웹뷰 인스펙터 경로뿐이다.
+**In dev builds, the web console stays on even in hybrid** — that is, the current `consoleInNative` isn't retired,
+it's kept as a dev exception. The previous version put this on the retirement list, but §2 removes `debug` from the
+sender, which means **there's nowhere left to see web `debug` in hybrid.** In release it still turns off, so the
+intent behind "one console per platform" (saving resources) still holds — what comes back is only the webview
+inspector path during development.
 
-**구버전 앱 폴백을 둔다.** 초판은 두지 않기로 했고 그것이 **틀렸다** — 정정 근거는 아래 박스에 있다.
+**A legacy-app fallback stays.** The first draft decided against one, and that **was wrong** — see the correction
+box below for the reasoning.
 
-하이브리드에서 앱이 `FetchLogUploadQueue`를 `NOT_FOUND`로 거절하면 웹이 자기 저장소로 되돌아가 직접 전송한다. 그리고 그 답이 오기 전까지의 **부팅 창을 위해, 하이브리드에서도 처음에는 로컬에 쌓는다** — 앱이 저장소를 서빙한다고 확인되는 순간 그 사본을 버린다. 확인 전에는 쌓지 않는 쪽을 택하면 하필 세션의 나머지를 설명하는 구간을 잃는다.
+If the app rejects `FetchLogUploadQueue` with `NOT_FOUND` in hybrid, the web falls back to its own store and sends
+directly. And **for the boot window before that answer arrives, hybrid also accumulates locally at first** —
+discarding that copy the moment the app is confirmed to be serving the store. Choosing not to accumulate before
+confirmation would lose exactly the window that explains the rest of the session.
 
-이는 §5의 "하이브리드에서 웹은 아무것도 쌓지 않는다"를 **"확인된 뒤로는 쌓지 않는다"로 약화**시킨다. 의도한 약화이고, 대가는 부팅 창 동안의 중복 사본 하나다.
+This weakens §5's "the web stops accumulating anything in hybrid" to **"stops accumulating once confirmed."** The
+weakening is intentional, and the cost is one duplicate copy during the boot window.
 
-> **정정 (2026-08-24, 배포본 대조 후).**
-> 초판은 폴백 생략을 "의도적 예외"로 두고 근거를 *"`SendLog`는 2026-07-08부터 있던 경로라 NOT_FOUND 창이 좁다"*로 적었다.
-> **그 근거는 `SendLog`에만 맞고 `Fetch`/`Ack`/`Clear`에는 틀리다** — 그 셋은 ADR-0063 작업에서 처음 생기는 메시지이고, `develop`(배포 기준)에는 없다.
-> 배포본을 실제로 대조해 확인한 것: develop 앱에는 `FetchLogUploadQueue`·`AckLogUploadQueue`·`ClearLogUploadQueue` 핸들러가 **없고**, 앱 전송 큐 자체가 없으며, develop 웹에는 상시 업로더가 없어 로그가 리포트 첨부로만 서버에 갔다.
-> 따라서 폴백을 생략하면 "구버전 앱 사용자"가 아니라 **앱이 배포되기 전까지 모든 하이브리드 사용자**의 로그가 서버에 도달하지 않는다. 엣지 케이스가 아니라 기본 상태였다.
+> **Correction (2026-08-24, after checking against the deployed build).**
+> The first draft treated skipping the fallback as an "intentional exception," reasoned as _"`SendLog` is a path
+> that has existed since 2026-07-08, so the NOT_FOUND window is narrow."_
+> **That reasoning holds only for `SendLog`, and is wrong for `Fetch`/`Ack`/`Clear`** — those three are new messages
+> introduced by the ADR-0063 work, and `develop` (the deployed baseline) doesn't have them.
+> Checking the actual deployed build confirmed it: the develop app has **no** handlers for
+> `FetchLogUploadQueue`/`AckLogUploadQueue`/`ClearLogUploadQueue`, and no app transmit queue exists at all; develop
+> web has no standing uploader, so logs only reached the server as report attachments.
+> So skipping the fallback wouldn't fail "users on legacy app versions" — it would fail **every hybrid user until
+> the app is deployed.** Not an edge case — the default state.
 
-### 6. `apps/mobile` — 수집기(hub) 1개 + 리스너 3개
+### 6. `apps/mobile` — 1 collector (hub) + 3 listeners
 
-셋 다 항상 켜져 있다. 웹과 달리 플랫폼 분기가 없다.
+All three are always on. Unlike the web, there's no platform branch.
 
-- **Firebase(Crashlytics)로 보내는 애** — `debug` 제외 (현행 유지)
-- **콘솔로 찍는 애** — `libs/logger`의 공유 `ConsoleLogSink`를 쓴다. 모바일 자체 `ConsoleLogger`는 **삭제**한다.
-- **mmkv에 저장하는 애** — `debug` 제외. 상한까지 계속 적재된다.
+- **Sends to Firebase (Crashlytics)** — excludes `debug` (unchanged from today)
+- **Prints to console** — uses `libs/logger`'s shared `ConsoleLogSink`. Mobile's own `ConsoleLogger` is **deleted.**
+- **Saves to mmkv** — excludes `debug`. Keeps loading up to the cap.
 
-`LogUploadQueueService`는 mmkv 기반 `LogStore`로 축소된다. `charge()`와 웹 필터가 빠지고, `LogStore` 구현 + mmkv 영속만 남는다. **앱 hub의 유일한 저장 구독자**이며, 업로더는 브릿지 너머에서 이걸 읽을 뿐 구독하지 않는다.
+`LogUploadQueueService` shrinks to an mmkv-based `LogStore`. `charge()` and the web filter go away, leaving just the
+`LogStore` implementation plus mmkv persistence. It's **the app hub's only storage subscriber**, and the uploader
+only reads it across the bridge — it never subscribes.
 
-**저장소가 줄어드는 경로**는 셋이다. 주 소비처는 업로더다.
+There are three paths by which **storage shrinks**. The main one is the uploader.
 
-- 업로더의 `ack` — 서버가 받은 것을 놓아준다 (주 경로)
-- 모니터의 `clear` — 디버그 메뉴에서 명시적으로 버린다
-- 상한 초과 eviction — §4
+- The uploader's `ack` — releases what the server has received (the main path)
+- The monitor's `clear` — an explicit wipe from the debug menu
+- Cap-exceeded eviction — §4
 
-업로드 자체를 **끄는 레버**는 디버그 메뉴(모니터)에서 제어한다. 끄면 적재는 계속되고 전송만 멈춘다.
+The **lever that turns uploading off** is controlled from the debug menu (monitor). Turning it off keeps loading
+going and only stops sending.
 
-저장은 `apps/mobile/src/app/database/mmkv` 모듈을 쓴다. **단, 재진입 제약이 있다** — §결과 참조.
+Storage uses the `apps/mobile/src/app/database/mmkv` module. **With one re-entrancy constraint** — see Consequences.
 
-### 7. `libs/logger` — 공통 정본 + 업로더의 소유자
+### 7. `libs/logger` — the shared source of truth, and the uploader's owner
 
-- 타입·계약(`LogEntry`, `LogLevel`, `LogContext`, `LogListener`, **`LogStore` / `LogStoreReader` / `LogStoreWriter`**)과 공용 부품(hub, `CoreLogger`, redaction, serialization, 업로더, `ConsoleLogSink`)의 정본
-- **업로더의 합성 지점을 `apps/web`에서 `libs/logger`로 옮긴다.** 소스를 갈아끼워 서버로 보내는 주체가 logger가 된다.
-- logger는 `isNative()`를 직접 묻지 않는다. `libs/bridges`에 의존하면 방향이 뒤집히므로, **`LogStoreReader`와 `send`를 주입받는다**(§3).
-- **`CoreLogger`의 콘솔 fallback을 제거한다.** 구독자 수에 따라 몰래 켜지는 싱크는 pub/sub이 아니다. 콘솔이 필요하면 명시적으로 구독한다.
+- Source of truth for types and contracts (`LogEntry`, `LogLevel`, `LogContext`, `LogListener`, **`LogStore` /
+  `LogStoreReader` / `LogStoreWriter`**) and shared parts (hub, `CoreLogger`, redaction, serialization, the
+  uploader, `ConsoleLogSink`)
+- **Moves the uploader's composition point from `apps/web` to `libs/logger`.** logger becomes the thing that swaps
+  sources and sends to the server.
+- logger never asks `isNative()` directly. Depending on `libs/bridges` would invert the dependency direction, so
+  instead it's **injected `LogStoreReader` and `send`** (§3).
+- **Removes `CoreLogger`'s console fallback.** A sink that quietly turns on based on subscriber count isn't
+  pub/sub. If the console is needed, subscribe to it explicitly.
 
-업로더는 **웹에서만 돈다**(웹 단독이든 하이브리드든). 앱이 직접 전송하지 않는 이유는 §대안 참조.
+The uploader runs **only on the web** (web-only or hybrid, either way). The reason the app doesn't send directly is
+in Alternatives.
 
-### 8. 모니터 — 인터페이스 하나, 주입된 store가 다를 뿐
+### 8. Monitor — one interface, only the injected store differs
 
-모니터는 `LogStoreReader`로 읽고(`peek`) 지운다(`clear`). 웹 단독이면 로컬 저장소가, 하이브리드면 브릿지 기반 reader가 주입된다 — **업로더와 같은 객체를 받는다.** `clearLogUploadQueue`·`fetchLogUploadQueue` 브릿지가 이미 있으므로 새로 만들 것은 없다.
+The monitor reads with `LogStoreReader` (`peek`) and clears (`clear`). Web-only gets the local store injected;
+hybrid gets the bridge-based reader — **the same object the uploader receives.** The `clearLogUploadQueue` and
+`fetchLogUploadQueue` bridge calls already exist, so there's nothing new to build.
 
-**모니터도 구독자가 아니다**(§0 경계 ①). 저장하는 애가 남긴 것만 본다 — 따라서 저장하는 애가 버리는 것(`debug`)은 모니터에도 보이지 않는다. 하이브리드에서 웹 `debug`를 보는 곳은 앱 콘솔이지 모니터가 아니다.
+**The monitor is not a subscriber either** (§0 boundary ①). It only sees what the storer left, so what the storer
+drops (`debug`) is invisible to the monitor too. In hybrid, the place to see web `debug` is the app console, not the
+monitor.
 
-### 폐지 목록
+### Retirement list
 
-`LogChargePump` · `SendLogBatch` 배치 충전 · `standDownNativeRelay()` · `CoreLogger`의 콘솔 fallback · 모바일 `ConsoleLogger` · `LogUploadQueueService.charge()` · `source === 'web'` 필터 · **`LogUploadScheduler.notify()`와 크기/`error` 즉시 트리거** · **`LogUploadSource`**(`LogStoreReader`로 흡수) · **업로더 내부의 `useNativeSource()` 분기**
+`LogChargePump` · `SendLogBatch` batch charging · `standDownNativeRelay()` · `CoreLogger`'s console fallback ·
+mobile `ConsoleLogger` · `LogUploadQueueService.charge()` · the `source === 'web'` filter ·
+**`LogUploadScheduler.notify()` and the size/`error` immediate trigger** · **`LogUploadSource`** (absorbed into
+`LogStoreReader`) · **the `useNativeSource()` branch inside the uploader**
 
-**폐지하지 않기로 되돌린 것**
+**Reversed back from "retire" to "keep"**
 
-- 하이브리드 dev의 웹 콘솔 — `consoleInNative` 옵션 자체는 없어졌고, 그 규칙은 `apps/web`의 `attachConsoleListener({ isDev })`가 갖는다(§5).
-- 구버전 앱 폴백 — §5의 정정 박스 참조.
+- The hybrid dev web console — the `consoleInNative` option itself is gone, and its rule now belongs to
+  `apps/web`'s `attachConsoleListener({ isDev })` (§5).
+- The legacy-app fallback — see the correction box in §5.
 
-**함께 넣은 것**: 낱건 sender의 **반복 접기.** 1초 창 안에서 동일한 `level|tag|message`가 5건을 넘으면 그 이후는 세기만 하고, 창이 지난 뒤 첫 발생에 `(+N identical suppressed)`로 함께 보고한다.
+**Also added**: **repetition folding** for the per-entry sender. Within a 1-second window, once an identical
+`level|tag|message` combination exceeds 5 occurrences, further ones are only counted, and reported together at the
+first occurrence after the window closes, as `(+N identical suppressed)`.
 
-이 경로가 하이브리드에서 상시 유일해지므로 필요해진 것이고, 막는 대상은 하나다 — 네트워크가 멎었을 때 타임아웃마다 같은 `error`가 나고, 각각이 UI 스레드에서 `postMessage`를 쓰고, 그 경합이 캐시를 느리게 만들어 경고를 더 낳는 되먹임. 평시에는 아무 일도 하지 않는다: 브릿지를 건너는 `info` 이상은 전부 이벤트성이고(최대 유입원인 요청 로그는 `debug`라 애초에 안 건넌다), 띄엄띄엄 나는 같은 줄은 접히지 않는다.
+This path becomes the sole always-on path in hybrid, which is why it's needed, and it targets one thing — a
+feedback loop where a stalled network produces the same `error` on every timeout, each one uses `postMessage` on the
+UI thread, and the resulting contention slows the cache down and produces more warnings. In the ordinary case it
+does nothing: anything crossing the bridge at `info` or above is event-like (the largest source, request logs, is
+`debug` and never crosses at all), and the same line occurring sparsely is not folded.
 
-**버퍼가 아니라 카운터 표다.** 엔트리를 들고 있지 않으므로 리스너 모양은 나머지 둘과 같다(§0 경계 ③). 대가는 **접힌 엔트리가 지연이 아니라 유실**이라는 것 — 임계를 넘은 n번째 동일 줄이 갖는 정보가 사실상 개수뿐이라는 판단이고, 개수는 살아남는다.
+**It's a counter table, not a buffer.** It holds no entries, so its listener shape matches the other two (§0
+boundary ③). The cost is that **a folded entry is lost, not delayed** — the judgment call is that once past the
+threshold, the n-th identical line carries essentially only a count as information, and the count survives.
 
-## 대안 (Alternatives)
+## Alternatives
 
-**앱이 직접 서버로 전송한다.** 크래시 후 다음 부팅에 웹뷰 없이도 보낼 수 있어 매력적이지만, `apps/mobile`에는 **인증된 백엔드 API 클라이언트가 없다.** 세션은 웹(lemon-web-core)에만 있으므로 RN에 서명 경로를 새로 포팅해야 한다. 이 트랙의 비용을 훨씬 넘어선다. 채택하지 않았다.
+**The app sends straight to the server.** Attractive because it could send even without the webview, right after a
+crash on the next boot. But `apps/mobile` has **no authenticated backend API client.** The session lives only in
+the web (lemon-web-core), so this would require porting a signing path to RN from scratch — far beyond this track's
+cost. Not adopted.
 
-**배치 충전을 유지하고, 앱이 배치를 hub에 재발행한다.** 브릿지 왕복을 아끼면서 리스너 3개가 다 보게 하는 방법이었다. 버린 이유는 (a) 웹이 배치를 묶을 적재공간을 다시 가져야 해서 "하이브리드에서 웹은 안 쌓는다"가 깨지고, (b) Crashlytics 브레드크럼이 배치 주기만큼 늦어져 크래시 직전 구간이 비며, (c) `LogChargePump`의 트리거 규칙(크기·주기·error 하한)이 그대로 남는다. 낱건이 이 셋을 한꺼번에 없앤다.
+**Keep batch charging, and have the app republish the batch to the hub.** A way to save bridge round trips while
+still letting all three listeners see everything. Rejected because (a) the web would again need accumulation space
+to build the batch, breaking "the web doesn't accumulate in hybrid"; (b) Crashlytics breadcrumbs would lag by the
+batch period, leaving the moment right before a crash blank; (c) `LogChargePump`'s trigger rules (size, period,
+`error` floor) would remain as-is. Per-entry removes all three at once.
 
-**하이브리드에서도 웹 스토리지를 켜서 charge 실패의 그물로 쓴다.** 낱건 전환으로 "charge 실패"라는 사건 자체가 사라져 근거가 약해졌고, 저장소가 둘이 되어 "적재는 앱이 한다"는 단일 규칙이 깨진다. 버렸다.
+**Turn on web storage even in hybrid, as a safety net for charge failures.** Switching to per-entry removes the
+event "a charge failed" entirely, weakening the rationale, and having two stores breaks the single rule "the app
+does the loading." Rejected.
 
-**모바일 `ConsoleLogger`를 남긴다.** 초기 인터뷰에서는 "각자 별도 구현"으로 기울었으나, 두 구현이 하는 일이 같아 공유 `ConsoleLogSink`로 통일했다. **켜고 끄는 조건**만 플랫폼별로 다르다.
+**Keep mobile's `ConsoleLogger`.** Early interviews leaned toward "each platform implements its own," but since both
+implementations do the same thing, they were unified into the shared `ConsoleLogSink`. Only the **on/off condition**
+differs by platform.
 
-**`libs/logger`의 `ConsoleLogSink`까지 없애고 각 앱이 자체 구현한다.** 목표 문장의 "별도로 구현"에 가장 충실하지만 동일 코드를 두 벌 두게 된다. 채택하지 않았다.
+**Also remove `libs/logger`'s `ConsoleLogSink` and have each app implement its own.** Most faithful to the goal
+phrase "implemented separately," but leaves identical code duplicated twice. Not adopted.
 
-## 결과 (Consequences)
+## Consequences
 
-**얻는 것**
+**What is gained**
 
-- `logHub`를 구독하는 것 외에 로그를 보는 경로가 없어진다. 숨은 fallback도, 큐 직행 경로도 사라진다.
-- 웹→앱 경로가 하나뿐이라 `standDownNativeRelay` 같은 런타임 전환 장치가 필요 없다. 이중 발행 방지 장치도 함께 사라진다.
-- 앱의 Crashlytics 브레드크럼이 **웹 로그를 즉시** 받는다. 배치 지연만큼의 사각지대가 없어진다.
-- **네 번째 소비자를 붙이는 일이 기존 코드를 건드리지 않는 작업이 된다.** 지금은 뭉친 콜백 사이에 줄을 끼워야 하고, 그래서 새 소비자마다 기존 절차의 순서·실패 처리·레벨 정책을 다시 이해해야 한다. §0의 계약만 만족하면 되는 상태로 바뀐다.
-- 업로더가 엔트리를 관찰하지 않으므로 `logHub`와의 결합이 완전히 끊긴다. 업로더 테스트에 hub가 필요 없어지고, "send path에서 `logger`를 부르지 않는다"는 금지 규칙이 지킬 것이 아니라 **구조적으로 성립하는 사실**이 된다.
-- `LogStoreReader` 하나로 모으면서 업로더·모니터에서 `isNative()` 분기가 사라진다. 플랫폼 결정이 부팅 시 주입 한 번으로 끝난다. 읽기/쓰기를 나눈 덕에 "업로더는 적재하지 않는다"와 "하이브리드 웹은 적재하지 않는다"가 주석이 아니라 타입이 된다.
+- There is no path to seeing a log other than subscribing to `logHub`. Both the hidden fallback and the direct-queue
+  path disappear.
+- With one web→app path, a runtime switch like `standDownNativeRelay` is no longer needed. The double-publish guard
+  disappears along with it.
+- The app's Crashlytics breadcrumb **receives web logs immediately.** The blind spot equal to the batch delay is
+  gone.
+- **Adding a fourth consumer becomes work that doesn't touch existing code.** Today it means threading a line
+  through a lumped callback, so every new consumer has to relearn the order, failure handling, and level policy of
+  the existing procedure. It changes to a state where satisfying §0's contract is enough.
+- Since the uploader no longer observes entries, it's fully decoupled from `logHub`. The uploader's tests no longer
+  need a hub, and "never call `logger` on the send path" changes from a rule to keep to **a structural fact.**
+- Consolidating into one `LogStoreReader` removes the `isNative()` branch from the uploader and monitor. The
+  platform decision ends with one injection at boot. Splitting read/write turns "the uploader doesn't load" and
+  "hybrid web doesn't load" from comments into types.
 
-**감수하는 것**
+**What is accepted**
 
-- **브릿지 부하가 늘어난다.** 엔트리당 상방 `postMessage` 1회다. ADR-0063이 이 비용을 지목했고 그 지적은 유효하다. 다만 되돌아가는 형태(낱건 **단방향**)는 2026-08-14~08-21에 실제로 돌았고 사고가 없었다(§2 표) — 0063이 인용한 정체 증폭은 그보다 앞선 **응답 왕복** 시절의 것이다. 남는 리스크는 그때보다 **볼륨이 늘었다는 것** 하나이며(`e954a18d`의 신규 트리거 약 30개), 그래서 실측은 하되 이것을 미지의 도박으로 취급하지는 않는다.
-- **구버전 앱에서는 그 기기의 웹 로그가 통째로 유실된다.** "웹이 먼저 배포된다"는 원칙에 대한 의도적 예외다. 근거: 낱건 relay는 새 메시지 타입이 아니라 **이미 존재하는 `SendLog`**를 쓰므로 `NOT_FOUND`가 나는 창이 실제로는 매우 좁다. 다만 이 판단이 틀리면(예: `SendLog` 핸들러가 없는 구버전이 실사용 중이면) 조용히 로그가 사라지므로, **구현 시 `SendLog` 지원 하한 버전을 실측으로 확인**해야 한다. 확인 결과가 나쁘면 이 결정만 되돌린다.
-- **`error`가 즉시 서버로 가지 않는다.** 업로더가 주기로만 도므로(§1), 에러 발생부터 서버 도달까지 최대 1주기가 걸린다. 감수하는 근거는 (a) 크래시 자체는 Crashlytics가 별도로 잡고 그쪽은 **리스너라서 즉시**이며, (b) 못 보낸 것은 저장소에 영속으로 남아 다음 실행 첫 주기에 나간다는 것이다. `flushNow()`는 웹 단독에서만 실효가 있고 하이브리드에서는 기대할 수 없다(§1) — **유실을 막는 것은 flush가 아니라 저장소의 영속성**이며, 이 설계에서 그 둘을 혼동하지 않는 것이 중요하다.
-- **크기 트리거가 없어 폭주 시 저장소가 주기 내내 자란다.** `info`가 초당 수십 건 나는 구간에서는 다음 주기까지 상한(§4)에만 의존한다. 상한이 낮으면 오래된 것이 버려지고, 높으면 저장소가 부푼다 — 주기와 상한을 함께 정해야 하는 이유이고, 스펙 단계에서 실측할 항목이다.
-- **상한 초과분은 조용히 사라진다.** eviction은 오래된 것부터이므로, 폭주 구간의 **앞부분**(대개 원인에 가장 가까운 로그)이 먼저 버려진다. 버림 사실을 사건당 한 줄로 남기지만 그 로그 자체도 같은 파이프라인을 탄다.
-- **웹뷰 새로고침 시 미전송 웹 로그가 유실된다.** 하이브리드에서 웹이 아무것도 쌓지 않으므로, 발행 직후 브릿지에 실린 것 외에는 사본이 없다. 낱건이라 창이 한 건 수준으로 좁다는 것이 근거다.
-- **mmkv 재진입 위험이 생긴다.** [MmkvStorage:27](../../apps/mobile/src/app/database/mmkv/MmkvStorage.ts:27)은 생성자로 `ILogService`를 받아 저장 실패를 `logService.error`로 로깅한다. 로그 저장 리스너가 이걸 그대로 쓰면 `저장 실패 → 로그 발행 → hub → 저장 리스너 → 저장 실패` 루프가 돈다. 지금 `createMMKV()`를 직접 부르는 상태가 (의도했든 아니든) 이 루프를 피하고 있다. **@mmkv 모듈을 재사용하되, 로그 경로에는 로깅하지 않는 인스턴스를 준다** — 실패는 `console`로만 알린다. 이는 vault 카탈로그의 §금지 규칙 4("send path에서 `logger`를 부르지 않는다")와 같은 규칙의 저장 경로 판본이다.
-- **`libs/logger` → `apps/web` 방향이 뒤집힌다.** 업로더가 logger로 가면서 소스·`send`를 주입받는 배선이 늘어난다. 합성 지점이 한 곳이라는 대가로 받아들인다.
-- **문서 부채.** [libs/logger/docs/architecture.md](../../libs/logger/docs/architecture.md)는 `e1bb4376`에서 Live로 전환됐는데, 이 ADR이 그 서술의 상당 부분(배치 충전·stand-down·저장소 배치)을 무효화한다. 구현과 함께 갱신해야 한다.
-- **ADR 번호 혼잡.** 0064·0065는 다른 세션의 미커밋 워크트리가 선점했고, 0063은 과거에 한 번 충돌한 이력이 있다. 이 문서는 0066을 쓴다.
+- **Bridge load goes up.** One upward `postMessage` per entry. ADR-0063 flagged this cost, and that point still
+  holds. But the shape being returned to (per-entry **one-way**) ran for real between 2026-08-14 and 2026-08-21 with
+  no incidents (§2 table) — the congestion amplification 0063 cited belongs to the earlier **response round-trip**
+  era. The one remaining risk is that **volume has grown since then** (roughly 30 new triggers from `e954a18d`), so
+  measurement is still needed, but this is not treated as an unknown gamble.
+- **On legacy apps, that device's web logs are lost entirely.** A deliberate exception to "the web deploys first."
+  The reasoning: the per-entry relay isn't a new message type — it uses the **already-existing `SendLog`** — so the
+  window where `NOT_FOUND` occurs is actually very narrow. If this judgment turns out wrong (say, a legacy version
+  without a `SendLog` handler is still in active use), logs silently vanish, so **the minimum supported `SendLog`
+  version must be measured during implementation.** If that measurement comes back bad, only this decision gets
+  reverted.
+- **`error` no longer reaches the server immediately.** Since the uploader runs only on schedule (§1), an error can
+  take up to one full period to reach the server. The reasoning for accepting this: (a) the crash itself is caught
+  separately by Crashlytics, and that path is a listener, so it's immediate; (b) what didn't get sent persists in
+  storage and goes out in the next run's first period. `flushNow()` only has real effect web-only and can't be
+  relied on in hybrid (§1) — **what prevents loss is storage persistence, not flush**, and it matters not to
+  confuse the two in this design.
+- **With no size trigger, storage grows for the whole period during a burst.** In a stretch where `info` fires
+  dozens of times per second, the only backstop until the next period is the cap (§4). Too low a cap drops old
+  entries; too high and storage swells — which is why period and cap must be set together, and why it's a
+  measurement item at the spec stage.
+- **Entries past the cap vanish silently.** Since eviction is oldest-first, the **front** of a burst (usually the
+  logs closest to the cause) gets dropped first. The drop is logged once per event, but that log itself rides the
+  same pipeline.
+- **Unsent web logs are lost on a webview refresh.** Since the web accumulates nothing in hybrid, there's no copy
+  beyond whatever already made it onto the bridge right after publishing. The reasoning is that being per-entry
+  keeps the window as narrow as one entry.
+- **mmkv re-entrancy risk appears.** [MmkvStorage:27](../../apps/mobile/src/app/database/mmkv/MmkvStorage.ts:27)
+  takes an `ILogService` in its constructor and logs storage failures via `logService.error`. If the log storer
+  listener uses this as-is, a loop runs: `storage failure → log published → hub → storer listener → storage
+failure`. Today's direct `createMMKV()` call happens (intentionally or not) to avoid this loop. **Reuse the @mmkv
+  module, but give it an instance that doesn't log on the log path** — failures go to `console` only. This is the
+  storage-path version of the same rule as vault catalog §prohibition 4 ("never call `logger` on the send path").
+- **The `libs/logger` → `apps/web` direction reverses.** As the uploader moves into logger, the wiring that injects
+  the source and `send` grows. Accepted as the cost of having one composition point.
+- **Documentation debt.** `libs/logger/docs/architecture.md` went Live in `e1bb4376`, and this ADR invalidates a
+  substantial part of its narrative (batch charging, stand-down, batched storage). It must be updated alongside the
+  implementation.
+- **ADR number congestion.** 0064 and 0065 were claimed by another session's uncommitted worktree, and 0063 has
+  already collided once in the past. This document uses 0066.
 
-## 열린 항목
+## Open items
 
-- **낱건 relay의 브릿지 부하 실측.** 형태 자체는 한 주간 검증됐으므로(§2 표) 확인할 것은 **볼륨 증가분**이다 — `e954a18d`의 신규 트리거를 포함해 `info` 이상이 릴리스 조건에서 초당 몇 건인지, 캐시 왕복과 경쟁하는지. 결과가 나쁘면 되돌릴 곳은 §2 하나뿐이고, 나머지 결정(리스너 분리·`LogStore` 포트·상한·주기 전용 업로더)은 배치 sender로도 그대로 성립한다.
-- **업로드 주기와 저장소 상한을 함께 정한다.** 둘이 독립 변수가 아니다 — 주기가 길수록 상한이 커야 하고, 상한이 낮으면 폭주 구간의 앞부분을 잃는다. 건수/바이트 두 축의 구체값은 스펙 단계에서 실측으로 정한다.
-- `SendLog` 지원 하한 앱 버전 실측 — 폴백이 덮는 것은 `Fetch`/`Ack`가 없는 앱이고, `SendLog`조차 없는 앱이 실사용 중이라면 그 기기에서는 앱 콘솔·Crashlytics 경로가 비게 된다(서버 전송은 웹 폴백이 덮는다).
-- dev 빌드에서 낱건 relay의 브릿지 부하 실측.
-- 앱 콘솔 리스너의 게이트가 `__DEV__`인지 "`prodRelease`가 아닌 빌드"인지 확정. 둘은 다르다 — 스테이징 릴리스 빌드에서 `__DEV__`는 false다.
-- `LogStoreReader.size()`의 첫 호출 — 왕복 전이면 캐시가 비어 0을 답한다. 모니터 첫 진입이 빈 화면으로 보이지 않게 `peek` 이후에만 표시하거나, 초기값을 `undefined`로 구분한다.
+- **Measure the per-entry relay's bridge load.** The shape itself was already validated for a week (§2 table), so
+  what needs checking is **the increase in volume** — how many `info`-or-above entries per second under release
+  conditions, including the new triggers from `e954a18d`, and whether it competes with cache round trips.
+- **Set the upload period and storage cap together.** They aren't independent — a longer period needs a bigger cap,
+  and a low cap loses the front of a burst. The concrete count/byte values on both axes are set through measurement
+  at the spec stage.
+- Measure the minimum supported app version for `SendLog` — the fallback covers apps without `Fetch`/`Ack`, and if
+  even `SendLog` is missing from an app version still in active use, that device's app console and Crashlytics
+  paths go empty (server transmission is still covered by the web fallback).
+- Measure the per-entry relay's bridge load in dev builds too.
+- Decide whether the app console listener's gate is `__DEV__` or "not a `prodRelease` build." The two differ — in a
+  staging release build, `__DEV__` is false.
+- The first call to `LogStoreReader.size()` — before the round trip, the cache is empty and reads as 0. Either show
+  it only after the first `peek`, or distinguish an initial `undefined` value, so the monitor's first entry doesn't
+  look like an empty screen.
+  </content>

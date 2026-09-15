@@ -1,74 +1,108 @@
-# home — 마지막 메시지 미리보기 (last-chat)
+# last-chat — the message preview under every channel row
 
-> 대상: `apps/web/src/app/features/home` · 참조 구현: `apps/testbed/src/app/pages/ChatHomePage.tsx`
->
-> **아래 "흐름"·"등록 범위"는 행 단위 `useLastChat` 시절의 서술이다.** ADR-0057이 이를 리스트 레벨
-> `useLastChats` + `chat.observeLastList` 하나로 대체했다 — 현재 구현의 정본은
-> [docs/specs/cache/last-chat-preview.md](../../../../../docs/specs/cache/last-chat-preview.md)다.
+The home channel list prints the last message of each room under its name, and orders the list by
+the time that message was sent. Both come from **one list-level observation of the chat cache**, so
+the text a row shows and the position it holds can never tell two different stories.
 
-## 배경
+This document owns where that value comes from. What the row looks like is in
+[README](./README.md); the caches themselves belong to [`@chatic/data`](../../../../../libs/data/README.md).
 
-채널 행의 **마지막 메시지 미리보기(내용/시간/작성자)**는 예전엔 서버가 `ChannelView.lastChat$`에 실어
-보냈다. 서버가 더 이상 `lastChat$`를 내려주지 않으므로, 홈은 **보이는 채널별 chat 동기화**에서 마지막
-메시지를 직접 얻어 노출한다.
+## The server's `lastChat$` is not the source
 
-## 흐름
+`ChannelView` carries a `lastChat$` summary and the client deliberately drops it.
+`toDomainChannel` in `libs/data/src/domain/mappers.ts` maps a channel without ever reading that
+field, so `DomainChannel` has no server-side notion of a last message. Folding one in would give a
+single channel two disagreeing answers to "when did this last move" — the summary's, and the chat
+cache's.
 
-렌더된 채널 행마다 `useLastChat(channelId)` 하나로 **등록·prime·구독**을 묶는다. 이 훅은 방(room)의
-`useChats`와 같은 위치 — **앱별 홈 훅**으로 둔다(app-runtime은 엔진, 프레젠테이션 훅은 앱): web는
-`apps/web/src/app/features/home/hooks/useLastChat.ts`, testbed는 `apps/testbed/src/app/pages/useLastChat.ts`.
-내부는 app-runtime이 공개한 `useChatSync`(등록+prime)와 `chat.observeList`(구독)를 조합한다.
+The rule lives in the mapper, so it holds for every consumer of a channel, not just home:
 
-1. **등록 + prime** — 내부에서 `useChatSync(channelId)`를 호출한다. chat 타깃을 register(ref-count)하고,
-   `isVerified` 게이트로 prime한다 — 캐시가 비면 첫 페이지를 fetch하고, 캐시 max chatNo로 plan 기준선
-   (`updateLocalSnapshot`)을 맞춘다. `ChatSyncPlan.run`은 no-op이라 register만으로는 아무것도 안 불러온다.
-2. **구독** — `chat.observeList({ channelId, limit: 1 })`로 chat 캐시를 관측한다. observeList는 chat_no
-   내림차순이라 보통 최신 1건이지만, 정렬에 흔들리지 않도록 방어적으로 **max chatNo**를 고른다.
-3. **라이브** — 새 메시지는 `ChatSyncPlan.onTrigger`(서버 `chat.sync` push)가 chat 캐시에 append하고,
-   observe가 재emit → 미리보기가 실시간 갱신된다.
-4. **해제** — 행이 목록에서 빠지면(unmount) register와 observe 구독이 모두 자동 해제된다.
+```bash
+grep -rn "lastChat\$" --include='*.ts' libs/data/src
+```
 
-## 등록 범위 — 보이는 채널만
+## The read — `useLastChats`
 
-`ChannelItem`(web) / `ChannelRow`(testbed)가 **렌더될 때** 등록하므로, 선택된 place의 보이는 채널만 chat을
-동기화한다. place 탭을 바꾸면 이전 행은 해제되고 새 행이 prime한다. 기존 per-row `useChannelSync`와 동일한
-생명주기다.
+`apps/web/src/app/hooks/useLastChats.ts` takes the rendered channels and returns a
+`Map<channelId, DomainChat>`.
 
-> 비용: cold 채널은 첫 진입 시 첫 페이지 fetch가 한 번 발생한다(캐시가 차면 재fetch 없음). 전체 채널이
-> 아니라 렌더된 행으로 범위를 좁혀 비용을 억제한다.
+1. It builds a **sorted, comma-joined key** of the channel ids. Re-ordering the list (a pin, a sort
+   change) produces the same key, so the subscription is not torn down when only the order moved.
+2. It subscribes once with `chat.observeLastList(channelIds, …)`. That is one repository call for
+   the whole list, not one per row.
+3. It filters each row against my join window (`isInJoinWindow` against `join.joinedNo`). Leaving a
+   channel does not clear its chat cache, so a channel I re-joined would otherwise preview a
+   message from before I left — one the server no longer serves.
 
-## 안읽음(unread)과의 관계 — 불변
+The filter is applied in a `useMemo` **outside** the subscription effect. `joinByChannel` is a fresh
+Map on most renders, and depending on it inside the effect would re-open the whole list's
+subscription every time a read cursor moved.
 
-이 변경은 **미리보기 소스만** chat 캐시로 옮겼다. 안읽음은 그대로다 — `useChannelUnreads`는 채널 메타의
-`channel.chatNo`(서버가 계속 전송)와 채널에 임베드된 `$join.chatNo`로 계산하며, chat 등록/구독에 의존하지
-않는다(`hooks/useChannelUnreads.ts`).
+`useLastChats` is a pure cache read. It issues no request; a channel whose cache is empty simply has
+no preview.
 
-## 정렬 — 미리보기와 같은 출처 (2026-08-18)
+## The write — `useChatSyncRegistration`
 
-홈·관리 화면의 기본 순서는 **미리보기가 찍는 그 시각**이다. `sortChannels`가 `useLastChats`의 결과를
-`lastChatByChannel`로 받아 `createdAtMs` 내림차순으로 정렬하므로, 행에 보이는 시각과 행의 위치가 갈라질 수
-없다(ADR-0055 결정 2, ADR-0057의 리스트 레벨 읽기 위에 재반영).
+Because the list only reads, something else has to put newer messages into the cache, or the
+previews sit still until the room is opened. `apps/web/src/app/hooks/useChatSyncRegistration.ts`
+is that writer, and it is mounted by the surface rather than by a row. It has two mechanisms,
+because `ChatSyncPlan.run` is a no-op and registering alone loads nothing:
 
-- **내 `join.updatedAt`은 정렬에 쓰지 않는다** — 내가 방을 *읽을 때*도 갱신되므로 "방이 움직인 시각"이
-  아니다. `joinByChannel`은 닉네임·음소거 표시용으로만 남는다.
-- **캐시에 메시지가 없는 채널만** `channel.updatedAt`으로 자리를 잡는다.
-- **서버의 `lastChat$`는 쓰지 않는다** — `toDomainChannel`은 `updatedAt`만 둔다.
+- **Target registration** — `sync.registerChat(channelId)` per channel, so a `chat.sync` frame
+  arriving for any of the site's channels is appended live. Registration is ref-counted by key, so
+  an open room's own registration for the same channel dedups into this one.
+- **Head-triggered catch-up** — a channel whose polled head (`channel.chatNo`) has run ahead of
+  what the chat cache holds gets one page of `CATCH_UP_LIMIT` (30) pulled. This is the convergence
+  guarantee: it does not care whether a push was delivered, missed or scoped away, and it fires only
+  for channels that actually moved.
 
-## 파일 지도
+The catch-up lives in the registration hook and not in the list component on purpose — rendering a
+row must never be the thing that makes a network call.
 
-| 파일                                           | 역할                                                         |
-| ---------------------------------------------- | ------------------------------------------------------------ |
-| `apps/web/.../home/hooks/useLastChat.ts`       | web `useLastChat` — 등록+prime+구독(방의 `useChats` 홈 버전) |
-| `apps/testbed/.../pages/useLastChat.ts`        | testbed `useLastChat` — web과 동일 로직(앱별 사본)           |
-| `apps/web/.../home/components/ChannelList.tsx` | `ChannelItem`이 `useLastChat`로 내용/시간을 렌더             |
-| `apps/testbed/.../pages/ChatHomePage.tsx`      | 인라인 행을 `ChannelRow`로 추출해 `useLastChat` 사용         |
+Both hooks derive their key the same way, from the same sorted channel ids, so the two
+`observeLastList` calls resolve to one shared observation rather than two.
 
-> app-runtime에는 공용 프리미티브(`useChatSync`, `chat.observeList`)만 두고, 조합 훅은 앱에 둔다 —
-> 방의 `useChats`와 동일한 배치. 두 앱은 별도 앱이라 훅을 공유하지 않고 각자 사본을 갖는다.
+## Ordering — the same value the row prints
 
-## 관련 문서
+`apps/web/src/app/utils/sortChannels.ts` takes the map as `lastChatByChannel` and orders by each
+chat's `createdAtMs ?? createdAt`, descending. An optimistic row carries `createdAt = now`, so
+sending a message floats its channel before the server answers. The `unread` sort method and the
+pinned set are applied as stable passes on top of that order, so a pin always wins. Two rules follow
+from the activity time itself:
 
-- [components.md](./components.md) · [README.md](./README.md) — 홈 컴포넌트/기능 개요
-- [../../architecture/data-flow.md](../../architecture/data-flow.md) — observe/sync/refresh 데이터 흐름
-- `libs/app-runtime/docs/socket/sync/chat-sync.md` — `ChatSyncPlan`과 `chat.feed`의 분업, prime 소유
-- `libs/app-runtime/docs/socket/sync/screen-registration-map.md` — 화면별 sync 등록 지도
+- **A channel with no cached message falls back to `channel.updatedAt`.** It has no activity time of
+  its own, and that includes a channel just re-joined whose old rows the join-window filter removed.
+- **My `join.updatedAt` is never used for ordering.** It also moves when I merely _read_ a room, so
+  it is not "when the room last moved". `joinByChannel` stays for the nickname and mute readouts.
+
+## Unread is a separate calculation
+
+Changing the preview source changed nothing about unread. `useChannelUnreads` works from the
+channel's own `channel.chatNo` and the embedded `$join` cursor, and depends on neither the chat
+registration nor this observation. See [unread-dot](./unread-dot.md).
+
+## Where it is consumed
+
+| Surface                                           | What it does with the map                              |
+| ------------------------------------------------- | ------------------------------------------------------ |
+| `features/home/components/ChannelList.tsx`        | Preview text and time per row, plus the list order     |
+| `features/place/pages/PlaceChannelManagePage.tsx` | Same read at page level for the manage list            |
+| `features/search/hooks/useSearchContext.ts`       | Explains why search must NOT register a row-level sync |
+
+## Notes for implementers and tests
+
+- Do not reintroduce a per-row hook. A row-level `useLastChat` costs one subscription per visible
+  channel and reopens them all on any re-order. `apps/desktop-web` still has one; it is a separate
+  app with a separate list and is not a precedent for this one.
+- A preview that will not update is almost always a missing write, not a missing read — check that
+  the surface mounts `useChatSyncRegistration`, not that the observation fired.
+- An empty preview on a re-joined channel is correct behaviour, not a bug.
+
+## Further reading
+
+- [README](./README.md) — the home screen the list belongs to
+- [unread-dot](./unread-dot.md) — the unread formula and its surfaces
+- [`libs/data`](../../../../../libs/data/README.md) — the chat cache, `observeLastList` and the
+  channel mapper
+- [`libs/app-runtime`](../../../../../libs/app-runtime/README.md) — `SyncManager`, `registerChat`
+  and `ChatSyncPlan`

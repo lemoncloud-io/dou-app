@@ -1,6 +1,6 @@
 # Memberships — 관리자 구독 관리
 
-> 상태: Live · 최종 갱신: 2026-09-10 · 관련 ADR: [ADR-0082](../../../../../docs/adr/0082-admin-membership-console-and-app-override-parity.md)
+> 상태: Live · 최종 갱신: 2026-09-10 · 관련 ADR: ADR-0082
 
 ## 목적
 

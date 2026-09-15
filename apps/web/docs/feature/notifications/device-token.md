@@ -1,73 +1,124 @@
-# device-token (푸시 토큰 등록)
+# device-token — the shell adapter that hands a push token to the runtime
 
-> 대상: `apps/web/src/app/bridge` (`useDeviceTokenRegistration`, `GlobalBridgeListener`)
-> 관련: [notifications](./README.md) · [debug/push-verification](../debug/push-verification.md) · [architecture/bridge](../../architecture/bridge.md)
+A push can only reach this install once its device token is registered with the broker. The token
+itself is native property: only the shell can ask FCM or APNs for one. This document covers the two
+files in `apps/web` that bridge that gap, and nothing else — **the registration policy is not the
+app's**, it belongs to [`@chatic/app-runtime`](../../../../../libs/app-runtime/docs/push/README.md)
+and is canonical there.
 
-## 책임
+## Layout
 
-로그인(세션 인증) 후 네이티브 푸시 토큰(FCM/APNs)을 서버에 등록한다. 일반 브라우저에서는 플랫폼이 없어 no-op다.
-
-## 토큰 출처 — 브릿지 전용
-
-- 푸시 토큰은 **네이티브만 발급**한다. 웹은 [`appBridge.fetchFcmToken()`](../../../src/app/bridge/appBridge.ts)(브릿지 `FetchFcmToken` → `OnFetchFcmToken`)로만 취득한다.
-- ⚠️ **`deviceToken`은 `window` 글로벌로 주입되지 않는다.** 네이티브가 주입하는 건 `CHATIC_APP_DEVICE_ID`·`CHATIC_APP_INSTALLATION_ID` 뿐이다([`injectionScripts.ts`](../../../../mobile/src/app/webview/utils/injectionScripts.ts)). 따라서 `useDeviceInfo().deviceInfo.deviceToken`은 항상 비어 있다 — 토큰이 필요하면 반드시 브릿지로 물어봐야 한다.
-- 반면 `deviceId`(글로벌 `CHATIC_APP_DEVICE_ID`)는 온다. 단, 원시 `DeviceInfo.getUniqueId`가 아니라 **Firebase installation id를 이어붙인 `deviceId:firebaseInstallId` 조합**이다([`buildInjectedUniqueId.ts`](../../../../mobile/src/app/webview/utils/buildInjectedUniqueId.ts), [`AppWebView.tsx`](../../../../mobile/src/app/webview/AppWebView.tsx)). Firebase id는 비동기 조회([`useFirebaseInstallId.ts`](../../../../mobile/src/app/webview/hooks/useFirebaseInstallId.ts))라 아직 없으면 원시 device id만 들어간다. 그래서 디버그의 Device Info 블록은 이 `deviceId`를 글로벌에서 바로 읽는다. (한편 `installId`=`CHATIC_APP_INSTALLATION_ID`는 여전히 원시 device id다.)
-
-## 등록 흐름
-
-```
-GlobalBridgeListener (앱 전역 마운트)
-  → useDeviceTokenRegistration()                   # 셸 지식만 있는 어댑터
-     → window.CHATIC_APP_PLATFORM 있음?            (없으면 delegate: null → no-op)
-     → runtime.push.useDeviceTokenRegistration(delegate)
-        → 인증됨?                                   (아니면 종료)
-        → 등록 기록이 이 계정·기기·토큰을 이미 덮고 있나?  → 종료
-        → appBridge.fetchFcmToken()                # 네이티브에서 토큰 취득
-        → POST /users/0/reg-dev?force=true          # signed relay
-        → 성공 시에만 등록 기록 저장
+```text
+apps/web/src/app/bridge/
+├── GlobalBridgeListener.tsx          mounts the hook app-wide, above the router
+├── useDeviceTokenRegistration.ts     the shell delegate — 2 pieces of shell knowledge, nothing else
+└── appBridge.ts                      `fetchFcmToken`, `fetchPreference`, `savePreferenceConfirmed`
 ```
 
-- 진입점: [`GlobalBridgeListener.tsx`](../../../src/app/bridge/GlobalBridgeListener.tsx) → [`useDeviceTokenRegistration.ts`](../../../src/app/bridge/useDeviceTokenRegistration.ts) — 이 파일은 토큰 취득 방법과 platform만 주입하는 어댑터다.
-- 등록 정책 전부: `libs/app-runtime/src/push/` → [push-device-registration.md](../../../../../docs/specs/push-device-registration.md).
-- API: `POST /users/0/reg-dev` (`libs/http/src/gateways/users.ts`, `registerDevice`).
+Two source files and one test (`useDeviceTokenRegistration.test.ts`). There is no
+`DebugPushPage.tsx` and no `/debug/push` route to open: verification lives in the debug overlay's
+Push screen — see [debug](../debug/README.md).
 
-## 요청/응답 계약
+## Responsibilities
 
-**요청 `RegisterDeviceTokenBody`** — `deviceId`, `deviceToken`, `platform`(`ios`|`android`), `application`(`'chatic'`), `installId`, `version?`, `meta?`.
+| Layer                 | What it decides                                                                                                            |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `apps/web` (this doc) | How a token is obtained, which platform string to send, and where the durable record can be mirrored                       |
+| `@chatic/app-runtime` | Whether to register at all: auth gating, once-per-install dedup, the record's shape and storage, the retry floor, the call |
 
-**응답 `RegisterDeviceResult`** — `deviceToken`(매칭된 토큰), `Application`, `Device`, `User`, `took`.
-`User`에는 서버 등록의 진실이 담긴다: `endpoint`(SNS ARN), `registeredAt`, `deviceId`.
+The split is an inversion, the same one the socket auth delegate uses: the runtime never learns what
+a shell is, and the shell never learns the policy. Outside a native shell the delegate is `null` and
+the runtime hook is a no-op — a plain browser tab registers nothing.
 
-## 중복 방지 — 설치당 1회
+## What the app supplies
 
-app-runtime이 등록 성공을 `push-reg:v1:<uid>:<deviceId>:<platform>`(localStorage)에 남기고, 그 기록이 현재 계정·기기·토큰과 일치하는 한 다시 호출하지 않는다. 기록은 불리언이 아니라 등록에 성공한 **토큰**을 담으므로 토큰 로테이션·계정 전환은 그대로 재등록된다.
+```ts
+// apps/web/src/app/bridge/useDeviceTokenRegistration.ts
+const platform = window.CHATIC_APP_PLATFORM;
+if (!platform) return null; // plain browser → the runtime hook is a no-op
 
-같은 기록을 네이티브 `pushRegistration` preference(MMKV)에도 민다 — WebView 캐시가 지워져도 살아남게 하기 위해서다. 부팅 시 1회 hydrate해서 localStorage가 비었으면 네이티브 값으로 백필한다. 쓰기는 `apps/mobile`의 브릿지 화이트리스트를 타므로, **웹이 앱보다 먼저 배포되는 구간에서는 거부되는 게 정상**이고 그동안은 localStorage만으로 종전과 같이 동작한다.
+return {
+    fetchDeviceToken: () =>
+        appBridge
+            .fetchFcmToken()
+            .then(r => r.data?.token ?? null)
+            .catch(() => null),
+    platform,
+    application: 'chatic',
+    nativeRecordMirror,
+};
+```
 
-포그라운드 복귀는 기록이 있으면 브릿지 왕복도 하지 않는다. 부팅 시에는 토큰을 fetch해 비교하는데, 모바일에서 토큰 로테이션이 잡히는 지점이 거기뿐이기 때문이다.
+Four fields, and each one is a decision:
 
-⚠️ 이 dedup은 SNS endpoint 자가복구를 포기한 대가다(ADR-0077). endpoint가 죽은 기기는 재설치·토큰 로테이션·계정 전환·정책 버전 상향 중 하나가 있어야 복구되며, 개별 구제는 아래 디버그 도구로 한다.
+- **`fetchDeviceToken`** is the whole reason this adapter exists. A rejected fetch resolves to `null`
+  rather than throwing — a denied permission prompt is an ordinary outcome, and the runtime retries
+  on the next trigger.
+- **`platform`** comes from the injected `window.CHATIC_APP_PLATFORM`. Shell globals are written
+  before the web app boots, so the `useMemo` has no dependencies and resolves once.
+- **`nativeRecordMirror`** is a durable home for the runtime's record, reached through the
+  `pushRegistration` preference. Both halves are best-effort by design, for the reason below.
+- **`stage` is deliberately absent.** A mobile build carries its stage in the flavour's
+  `google-services.json`, so the broker's default is the right project. Desktop is the shell where
+  omitting it is a bug — the contract for that is in the
+  [app-runtime push doc](../../../../../libs/app-runtime/docs/push/README.md).
 
-## 등록여부 확인 — 읽기 전용 조회는 없음
+`installId` is not passed either. The runtime resolves device identity itself through
+`useDynamicDeviceId`, the same source the socket side uses, so passing a second one from here would
+introduce a way for the two to disagree.
 
-백엔드에 "내 기기가 등록됐는지" 조회하는 GET 엔드포인트가 **없다.** 확인은 **멱등 재등록(POST `reg-dev`, `force`)** 으로 하고, 응답의 `User.endpoint`/`registeredAt`를 읽어 판정한다. (순수 조회가 아니라 서버 상태를 갱신할 수 있음 — 정상 등록 흐름과 동일.)
+## The token does not arrive as a global
 
-디버그 도구가 이 확인을 수행한다 — `/debug/push` 페이지 또는 dev 빌드의 **RuntimeOverlay '디바이스' 탭**(우하단 `debug` 버튼) → 절차는 [debug/push-verification](../debug/push-verification.md).
+Only `CHATIC_APP_PLATFORM`, `CHATIC_APP_DEVICE_ID` and `CHATIC_APP_INSTALLATION_ID` are injected
+into the WebView. `CHATIC_APP_DEVICE_TOKEN` is read by `@chatic/device-utils` but nothing writes it,
+so **`useDeviceInfo().deviceInfo.deviceToken` is always empty**. Asking the bridge is the only way
+to hold a token, and code that reads the global instead fails silently rather than loudly.
 
-## 수신 (참고)
+`deviceId` does arrive, but it is not the raw hardware id: the shell concatenates the Firebase
+installation id onto it. That lookup is asynchronous, so a very early read can see the raw id alone.
+`installId` (`CHATIC_APP_INSTALLATION_ID`) stays the raw id. The mobile side of that composition is
+documented in [apps/mobile](../../../../mobile/README.md).
 
-- **백그라운드/종료**: 네이티브 배너 → 탭 → `OnNavigate` → [navigation 처리](./README.md).
-- **포그라운드**: `OnReceiveNotification`. 프로덕션 toast/nav는 미구현이며, 디버그 소비처 [`useReceivedPushLog`](../../../src/app/features/debug/hooks/useReceivedPushLog.ts)가 수신을 기록하고 `logger.info('PUSH', …)`로 Log Buffer에 남긴다.
+## The mirror is allowed to fail
 
-## 파일 맵
+The record decides whether `reg-dev` is called at all, so it has to outlive the WebView's own
+storage — a cache clear would otherwise read as "never registered" and re-register every device it
+touched. The native `pushRegistration` preference is that second copy.
 
-| 파일                                                   | 역할                                               |
-| ------------------------------------------------------ | -------------------------------------------------- |
-| `bridge/GlobalBridgeListener.tsx`                      | 인증 후 등록 훅을 앱 전역에서 마운트               |
-| `bridge/useDeviceTokenRegistration.ts`                 | 셸 델리게이트 어댑터 (토큰 취득 + platform)        |
-| `bridge/appBridge.ts` (`fetchFcmToken`)                | `FetchFcmToken` 브릿지 요청                        |
-| app-runtime `push/hooks/useDeviceTokenRegistration.ts` | 등록 정책 전부 (트리거·dedup·재시도)               |
-| app-runtime `push/registrationRecord.ts`               | 설치당 1회 등록 기록                               |
-| `libs/http` `gateways/users.ts` (`registerDevice`)     | `POST /users/0/reg-dev` (signed relay)             |
-| `features/debug/pages/DebugPushPage.tsx`               | 토큰 조회·등록 확인·포그라운드 수신 목록 (디버그)  |
-| `dev/overlays/RuntimeOverlay.tsx` ('디바이스')         | 위 정보를 dev 오버레이에서도 노출 (동일 훅 재사용) |
+Writes go through the shell's bridge allowlist. An app build whose allowlist predates the key
+refuses the write with `PREF_KEY_NOT_WRITABLE`, and reads are not allowlisted at all, so they come
+back empty. **The web bundle deploys ahead of the app, so a refused mirror is the normal state right
+after a release.** Both outcomes are swallowed; the runtime keeps its web-storage copy and behaves
+exactly as it does without a mirror. Treating either as an error would turn a routine deploy window
+into a flood of reports.
+
+## Where it is mounted
+
+`GlobalBridgeListener` — rendered once in `app.tsx`, outside the router. The hook needs no route
+context, and mounting it above the router means a push token is registered on a login that happens
+on any screen. The same listener owns the device-info update reaction and the foreground
+resume-overlay dismiss; nothing else.
+
+Mounting is the app's choice rather than the runtime's, because the delegate needs shell context
+that a zero-argument host cannot supply.
+
+## Notes for implementers
+
+- `POST /users/0/reg-dev` is built by `libs/http`'s `users` gateway and reached through the
+  runtime's mutation. The app never calls it directly — the debug screen's check is the one
+  exception, and it goes through the same runtime mutation so that it confirms the record
+  production actually writes.
+- **There is no read-only "is my device registered" endpoint.** Confirming registration means an
+  idempotent re-register and reading `User.endpoint` / `registeredAt` off the response, which can
+  update server state. That is what the debug overlay's Push screen does.
+- A delegate whose identity changes every render will not re-subscribe to token changes; the runtime
+  reads `subscribeTokenChange` once on mount.
+
+## Further reading
+
+- [app-runtime push](../../../../../libs/app-runtime/docs/push/README.md) — the registration policy,
+  the record's two tiers, the triggers, and the endpoint-recovery trade it accepts
+- [notifications](./README.md) — what happens to a push once it arrives
+- [debug](../debug/README.md) — the overlay screen that checks registration on a real device
+- [apps/mobile](../../../../mobile/README.md) — permission prompts, token issuance, notification
+  channels

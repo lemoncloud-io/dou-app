@@ -49,48 +49,45 @@ jobs:
               if: ${{ steps.cache-dependencies.outputs.cache-hit != 'true' }}
               run: yarn install --frozen-lockfile
 
-            # Green across all 27 projects, so no exclusions here.
+            # Green across all 26 projects, so no exclusions here.
             - name: Lint
               run: npx nx run-many -t lint
 
             # `--exclude` and not an allowlist: a project's dependencies are typechecked whether or
             # not they are selected, so excluding the red ones only works while nothing green
-            # depends on them. `web` is excluded for that reason alone — it is clean on its own
-            # (`npx tsc --noEmit -p apps/web/tsconfig.app.json`), but its target pulls web-ui-kit.
+            # depends on them. That is why a project can be clean on its own and still have to sit
+            # on this list until whatever it pulls goes green — which is how `web` came off it.
             - name: Typecheck
               run: >
                   npx nx run-many -t typecheck
-                  --exclude=@chatic/web-ui-kit,web,desktop-web,block-kit-builder,@chatic/landing,@chatic/mobile,chatic-deferred-link-cleanup
+                  --exclude=desktop-web,block-kit-builder,@chatic/landing,@chatic/mobile,chatic-deferred-link-cleanup
 
+            # `libs/db` and `libs/app-runtime` ran through a separate step until the root
+            # `workspaces` array was fixed to `libs/*` — it still named `libs/bridge` and
+            # `libs/socket`, neither of which exists, so nx inferred no `test` target for them and
+            # `run-many` skipped them silently. They are covered by the line below now, and so is
+            # `@chatic/bridges`, whose `yarn test` could not resolve jest for the same reason.
             - name: Test
               run: >
                   npx nx run-many -t test
-                  --exclude=@chatic/bridges,@chatic/auth-sign,block-kit,web,@chatic/landing
-
-            # libs/db, libs/app-runtime and libs/bridges are missing from the root `workspaces`
-            # array (it still names `libs/bridge` and `libs/socket`, neither of which exists), so nx
-            # infers no `test` target for them and `run-many -t test` skips them without a word —
-            # 903 tests that had never run anywhere. Calling jest directly is what the lib READMEs
-            # already document. Fixing `workspaces` would make these three lines unnecessary.
-            - name: Test the libs nx cannot see
-              run: |
-                  npx jest --config libs/db/jest.config.js
-                  npx jest --config libs/app-runtime/jest.config.js
-                  npx jest --config libs/bridges/jest.config.js
+                  --exclude=block-kit,web,@chatic/landing
 
             # Left out of the gate, with the reason. Measured 2026-09-14.
             #
             #   typecheck   desktop-web                  21 errors, the long-standing baseline
-            #               @chatic/web-ui-kit            3, all in *.stories.tsx
             #               @chatic/mobile               red
             #               @chatic/landing              red
             #               block-kit-builder            red
             #               chatic-deferred-link-cleanup red
-            #               web                          clean alone; blocked by web-ui-kit
+            #
+            #   @chatic/web-ui-kit and web both left this list on 2026-09-14, and nothing was
+            #   traded away for it: the 3 story errors were fixed, so tsconfig.json references
+            #   lib, spec AND storybook. Source, tests and stories are all type checked.
+            #   (`web` was only ever excluded because its target pulls web-ui-kit.)
             #
             #   test        web                           7 failing of 2720 — useSetMyPlaceProfile,
             #                                             PlaceProfilePage, useBackgroundSync
-            #               @chatic/auth-sign             1 failing of 12 (LemonHmacSigner.spec)
-            #               @chatic/bridges               `yarn test` cannot resolve jest; runs
-            #                                             above through the direct step instead
-            #               block-kit · @chatic/landing   red
+            #               block-kit                     6 spec files, but no jest config and no
+            #                                             test script, so nothing runs them. Giving
+            #                                             it one is a decision, not a fix.
+            #               @chatic/landing               red

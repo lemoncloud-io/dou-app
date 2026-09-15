@@ -119,6 +119,7 @@ describe('원격 레인 — 못 읽는 페이로드', () => {
             stage: () => 'DEV',
             buildStage: () => 'DEV',
             platform: () => 'web',
+            raw: () => undefined,
             wired: () => ({ shell: true, local: true, server: true }),
         });
 

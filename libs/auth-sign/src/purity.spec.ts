@@ -2,11 +2,10 @@ import { readFileSync, readdirSync } from 'fs';
 import { join } from 'path';
 
 /**
- * ADR-0070 설계 원칙 — this lib must stay a platform-neutral leaf: zero `@chatic/*`/`@lemoncloud/*`
- * runtime deps, and no global reads (`navigator`, `new Date(`). Enforced by absence, not by a
- * runtime check (libs/auth-sign/docs/architecture.md §검증 방법 — 의존 0 게이트 · 전역 무접근 게이트).
- * The lemon-web-core equivalence test in LemonHmacSigner.spec.ts is the one intentional exception,
- * hence non-spec files only.
+ * This lib must stay a platform-neutral leaf: zero `@chatic/*`/`@lemoncloud/*` runtime deps, and no
+ * global reads (`navigator`, `new Date(`) — design principles 1 and 3 in libs/auth-sign/README.md.
+ * Enforced by absence, not by a runtime check. The lemon-web-core equivalence test in
+ * LemonHmacSigner.spec.ts is the one intentional exception, hence non-spec files only.
  */
 function nonSpecSourceFiles(dir: string): string[] {
     const files: string[] = [];
@@ -31,8 +30,8 @@ describe('auth-sign purity gate', () => {
     });
 
     it('reads no global (navigator, new Date()) for signing material', () => {
-        // Strip comments first — the constraint is documented in prose (e.g. "전역(navigator) 읽기
-        // 금지") right next to the fields it protects, which would otherwise self-trigger this gate.
+        // Strip comments first. The constraint is described in prose next to the fields it
+        // protects, and those sentences name `navigator`, which would self-trigger this gate.
         const stripComments = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
         const offenders = files.filter(file =>
             /\bnavigator\b|\bnew Date\(/.test(stripComments(readFileSync(file, 'utf8')))

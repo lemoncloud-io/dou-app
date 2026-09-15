@@ -1,101 +1,142 @@
-# 전역 설정 (구 preference)
+# stores — global client state, and the preference-store migration
 
-> 대상: `apps/web/src/app/stores`, `apps/web/src/app/config`, `apps/web/src/app/hooks`
-> 정본: [`@chatic/config` 아키텍처 문서](../../../../libs/config/docs/architecture.md) (ADR-0079/0080)
+Covers `apps/web/src/app/stores` (8 files) and the handful of `app/hooks`/feature hooks that read
+and write settings through it. Two different things live under this one folder name, and the
+folder itself only fully explains the first:
 
-영구 앱 상태는 더 이상 `usePreferenceStore` 하나로 통합되지 않는다 — `@chatic/config`의 레지스트리
-키(`ui.*`)로 옮겨갔다. 이 문서는 `@chatic/config`가 이미 설명하는 레인·정책을 반복하지 않고,
-**apps/web이 그 라이브러리를 어떻게 배선했는지**만 적는다.
+1. **Transient client-only state** — four zustand stores, none of them persisted.
+2. **Preference plumbing** — types, constants and defensive parsers for the settings that used to
+   live in a single `usePreferenceStore` and now live in [`@chatic/config`](../../../../libs/config/README.md)'s
+   `ui.*` registry keys (ADR-0079/0080). The lane/persistence policy is that library's canon; this
+   section says only how apps/web wires into it.
 
-## 상태는 어디 있나
+## Transient zustand stores
 
-각 설정은 이제 `config.get('ui.<key>')`가 답한다. `apps/web/src/app/stores/`에는 저장소가 아니라
-스토리지와 무관한 순수 도메인 값만 남는다: `Theme`/`ChannelSortMethod` 타입,
-`DEFAULT_CHANNEL_SORT`, `CLOUD_PROMO_DISMISS_TTL_MS`,
-`MAX_RECENT_SEARCHES` (`preferenceKeys.ts`) — 그리고 `type:'json'` 키의 방어적
-파서/정규화 함수(`channelSort`/`recentSearches`/`cloudPromoDismissedAt`/레거시
-테마 봉투, `preferenceParsers.ts`).
+None of these persist anything — each is scoped to one interaction and reset (or simply
+unmounted) when it ends.
 
-`placeScopeKey`/`isPlaceScopeKey`와 고정 채널 슬라이스(`normalizePinnedChannels`/`parsePinnedChannels`/
-`setChannelPinned`/`setPinnedChannelOrder`/`usePinnedChannels(scope)`)는 데스크톱이 같은 레코드를
-읽도록 `@chatic/shared`(`libs/shared/src/preferences/`)로 옮겼다 — 데스크톱 즐겨찾기가
-`ui.pinnedChannels`를 공유 레코드로 쓰기 위함(ADR-0083 제안). 훅 표의 `usePinnedChannels` 행도
-같은 위치를 가리킨다.
+| Store                     | File                         | Holds                                                                                                                                                                |
+| ------------------------- | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `useMessageJumpStore`     | `useMessageJumpStore.ts`     | The pending "scroll to this message" target for a search-result jump, keyed by `channelId`/`chatNo` plus a `nonce` so a repeat jump to the same message still fires. |
+| `useAddCloudRequest`      | `useAddCloudRequest.ts`      | Whether the "add a cloud" flow should open, raised from `home` and consumed by `AddCloudFlowHost`.                                                                   |
+| `useEmailBindRequest`     | `useEmailBindRequest.ts`     | The cloud id awaiting an email bind, raised from wherever a screen notices an unbound cloud and consumed by `EmailBindRequestHost`.                                  |
+| `usePendingInviteChannel` | `usePendingInviteChannel.ts` | The channel id to open once an invite acceptance lands the user on `home`.                                                                                           |
 
-| 레지스트리 키               | 옛 `PreferenceState` 필드 | 훅                                     |
-| --------------------------- | ------------------------- | -------------------------------------- |
-| `ui.theme`                  | `theme`                   | `useTheme` (`app/hooks`)               |
-| `ui.blurLastMessage`        | `blurLastMessage`         | `useBlurLastMessage`                   |
-| `ui.onboardingCompleted`    | `isFirstRun` (반대 극성)  | `useOnboarding`                        |
-| `ui.pushMuted`              | `pushMuted`               | `useDevicePushMute`                    |
-| `ui.channelSort`            | `channelSort`             | `useChannelSort`                       |
-| `ui.pinnedChannels`         | `pinnedChannels`          | `usePinnedChannels` (`@chatic/shared`) |
-| `ui.recentSearches`         | `recentSearches`          | `useRecentSearches`                    |
-| `ui.dismissedUpdateVersion` | `dismissedUpdateVersion`  | `useAppUpdatePrompt`                   |
-| `ui.cloudPromoDismissedAt`  | `cloudPromoDismissedAt`   | `useCloudPromo`                        |
+`useAddCloudRequest` and `useEmailBindRequest` exist because features do not import each other
+(design principle 4 in the [app README](../../README.md)): the subscription flow and the screens
+that need to trigger it live in different feature folders, so triggering it goes through a store
+that a runtime-mounted host (not a feature) subscribes to.
 
-각 훅은 `useConfigValue('ui.x')`(`@chatic/config/react`)로 읽고 `config.set('ui.x', value, {
-lane })`으로 쓴다 — **레인 선택이 키마다 고정이다.** `persist:'shell'`인 키(theme·
-blurLastMessage·onboardingCompleted)는 반드시 `{ lane: 'shell' }`로 쓴다: `local`로 쓰면
-네이티브가 채운 `shell` 레인보다 우선순위가 낮아 조용히 가려진다(`ConfigLanePolicy`의 행 순서).
-나머지는 `persist:'local'`, `{ lane: 'local' }`.
+## The preference-store migration
 
-`canceledInvites`는 표에 없다 — config 키가 되지 않았다. ADR-0043 시절의 레거시 취소 스탬프를
-invite 캐시의 `dismissedAt`으로 옮기는 **드레이닝 전용** 데이터라 `useInviteDismissMigration.ts`가
-레거시 키(`dou.relayInvite.locallyCanceled.v1`)를 직접 읽고 지운다. `language`/`debugSettings`는
-`usePreferenceStore`가 관리한 적이 없는 죽은 선언이었다(아래 "범위 밖" 참고) — config로도
-옮기지 않았다.
+Permanent app settings are no longer one `usePreferenceStore` — they moved to `@chatic/config`'s
+registry keys (`ui.*`). `app/stores/` keeps only the parts that have nothing to do with where a
+value is stored:
 
-## 저장 모델
+- `preferenceKeys.ts` — the `Theme` and `ChannelSortMethod` types, `DEFAULT_CHANNEL_SORT`,
+  `CLOUD_PROMO_DISMISS_TTL_MS`, `MAX_RECENT_SEARCHES`.
+- `preferenceParsers.ts` — defensive parse/normalize functions for the `type: 'json'` keys
+  (`channelSort`, `recentSearches`, `cloudPromoDismissedAt`) plus `parseThemeBridgeValue` for the
+  legacy native theme envelope. `@chatic/config` only validates that a `json`-typed value is
+  parseable JSON; it has no notion of what shape a "channel sort map" should have, so that
+  product-shape validation lives here.
 
-`@chatic/config`의 레인·`persist` 정책이 정본이다(위 링크). apps/web 쪽에서 알아야 할 건 두
-가지뿐이다.
+The per-place pin and order primitives moved further out, to
+[`@chatic/shared`](../../../../libs/shared/README.md)'s `libs/shared/src/preferences/` — not to
+this folder — because desktop-web needs to read the exact same record apps/web writes:
+`placeScopeKey`/`isPlaceScopeKey` (`placeScope.ts`), `normalizePinnedChannels`/`setChannelPinned`/
+`setPinnedChannelOrder`/`usePinnedChannels(scope)` (`pinnedChannels.ts`), and the parallel
+`normalizeChannelOrder`/`setChannelOrder`/`applyChannelOrder`/`moveChannel`/`useChannelOrder(scope)`
+(`channelOrder.ts`) for the sidebar's non-favorite ordering.
 
-1. **`persist:'shell'` 키는 네이티브 브릿지 + 로컬 미러 둘 다에 쓰인다.** `ConfigFacade`가
-   `storageFor('shell')`을 `local` 스토리지로도 풀어주므로, 셸이 없는 평범한 브라우저에서도
-   다음 새로고침에 값이 살아남는다 — 셸이 있으면 `shell` 레인이 항상 이긴다(우선순위 불변).
-2. **`ui.theme`만 예외다.** 저장 위치가 `@chatic/config`의 네임스페이스 키
-   (`@chatic/config.ui.theme`)가 아니라 여전히 `vite-ui-theme`다 — 이 키를 `index.html`
-   프리페인트 스크립트 5개(web·desktop-web·admin-v2·testbed·block-kit-builder)와
-   `@chatic/theme`의 `ThemeProvider`가 전부 직접 읽고 쓴다(공유 기기 계약).
-   `app/config/legacyPreferenceMigration.ts`의 `syncThemeFromSharedKey()`가 매 부팅
-   `vite-ui-theme`를 `ui.theme`의 네임스페이스 저장소로 동기화하고, `useTheme.ts`의 `setTheme`은
-   `config.set()`과 별개로 `vite-ui-theme`에도 직접 쓴다.
+### Registry keys and their hooks
 
-## 레거시 저장값 승계 — `legacyPreferenceMigration.ts`
+| Registry key                | Retired `PreferenceState` field       | Consuming hook                                        |
+| --------------------------- | ------------------------------------- | ----------------------------------------------------- |
+| `ui.theme`                  | `theme`                               | `useTheme` (`app/hooks`) — see [theme.md](./theme.md) |
+| `ui.blurLastMessage`        | `blurLastMessage`                     | `useBlurLastMessage` (`app/hooks`)                    |
+| `ui.onboardingCompleted`    | `isFirstRun` (opposite polarity)      | `useOnboarding` (`app/hooks`)                         |
+| `ui.pushMuted`              | `pushMuted`                           | `useDevicePushMute` (`features/mypage/hooks`)         |
+| `ui.channelSort`            | `channelSort`                         | `useChannelSort` (`app/hooks`)                        |
+| `ui.pinnedChannels`         | `pinnedChannels`                      | `usePinnedChannels` (`@chatic/shared`)                |
+| `ui.channelOrder`           | — (new registry key, no legacy field) | `useChannelOrder` (`@chatic/shared`)                  |
+| `ui.recentSearches`         | `recentSearches`                      | `useRecentSearches` (`features/search/hooks`)         |
+| `ui.dismissedUpdateVersion` | `dismissedUpdateVersion`              | `useAppUpdatePrompt` (`features/appUpdate/hooks`)     |
+| `ui.cloudPromoDismissedAt`  | `cloudPromoDismissedAt`               | `useCloudPromo` (`features/home/hooks`)               |
 
-`main.tsx`가 `config.init()` **이전에** 호출한다 — `hydrateStorage()`가 읽어들이는 값을 이 시점에
-채워 둬야 하기 때문이다.
+Every hook reads with `useConfigValue('ui.x')` (`@chatic/config/react`) and writes with
+`config.set('ui.x', value, { lane })` — **the lane is fixed per key, not a caller's choice.** The
+three keys with `persist: 'shell'` (`theme`, `blurLastMessage`, `onboardingCompleted`) must write
+with `{ lane: 'shell' }`: a `local` write lands in a lower-priority row than a native-hydrated
+`shell` value and is silently shadowed (`ConfigLanePolicy`'s row order, in the
+[`@chatic/config` README](../../../../libs/config/README.md)). Every other key here is
+`persist: 'local'`, written with `{ lane: 'local' }`.
 
-- `migrateLegacyPreferences()` — 일회성. 옛 `chatic-*`/`dou.relayInvite.*` 키를 읽어
-  `storageKeyFor(newKey)`에 다시 쓰고 옛 키를 지운다. 옛 키가 없으면(이미 이관됨, 또는 애초에 값이
-  없던 사용자) 아무 일도 하지 않는다 — 플래그가 아니라 "옛 키가 남아 있는가"로 완료 여부를
-  판단하므로, 삭제가 곧 완료 표시다.
-- `syncThemeFromSharedKey()` — 위에서 설명한 영구(매 부팅) 동기화. 이관이 아니라 미러링이라 옛
-  키를 지우지 않는다.
+```bash
+grep -rn "lane: 'shell'" apps/web/src/app/hooks apps/web/src/app/features --include='*.ts'
+```
 
-## Native hydration — `PreferenceLoader`
+`canceledInvites` is not in this table — it never became a config key. It is legacy,
+ADR-0043-era cancel-stamp data that `useInviteDismissMigration.ts`
+(`features/invite/hooks/`) reads directly off its old localStorage key
+(`dou.relayInvite.locallyCanceled.v1`) and drains, one-way, into the invite cache's
+`dismissedAt` field. `language` and `debugSettings` are also absent: `usePreferenceStore` never
+actually managed either (see "Out of scope" below), so neither moved.
 
-세 키(`ui.blurLastMessage`·`ui.onboardingCompleted`·`ui.theme`)만 구 셸 대비 비동기 폴백을
-갖는다 — 웹이 앱보다 먼저 배포되므로, `CHATIC_APP_CONFIG_BAG` 부팅 주입을 아직 모르는 구버전
-앱에서는 `config.snapshot(key)?.isOverridden`이 계속 false다. 그 경우에만 레거시
-`FetchPreference` 브릿지로 값을 가져와 `{ lane: 'shell' }`로 채운다 — 새 부팅 주입이 있었다면
-했을 일을 느리게 대신하는 것이며, 이 값도 그대로 로컬 미러에 남아 다음 부팅부터는 폴백 없이
-동기로 풀린다.
+## Storage model
 
-`isFirstRun`(레거시, `true`=온보딩 미완료) → `onboardingCompleted`(신규, `true`=완료)는 극성이
-반대라 폴백 경로에서 반전한다. 테마는 모바일의 zustand-persist JSON 봉투 형태로 올 수 있어
-`parseThemeBridgeValue`로 정규화한다.
+`@chatic/config`'s lane and `persist` policy is canonical (linked above). Two things are specific
+to how apps/web sits on top of it:
 
-## 범위 밖 (의도)
+1. **A `persist: 'shell'` key is written to both the native bridge and a local mirror.**
+   `ConfigFacade` resolves `storageFor('shell')` to `local` storage too, so a value written on a
+   plain browser tab (no shell) still survives the next reload — when a shell is present, its
+   `shell` lane always wins (the priority order never changes).
+2. **`ui.theme` is the one exception.** Its storage key is not `@chatic/config`'s namespaced key
+   (`@chatic/config.ui.theme`) — it is still the legacy `vite-ui-theme`, because five apps
+   (web, desktop-web, admin-v2, testbed, block-kit-builder) read and write that exact key directly
+   in their pre-paint scripts, and `@chatic/theme`'s `ThemeProvider` does too. `syncThemeFromSharedKey()`
+   in `app/config/legacyPreferenceMigration.ts` re-mirrors `vite-ui-theme` into `ui.theme`'s
+   namespaced storage on every boot, and `useTheme.ts`'s `setTheme` writes `vite-ui-theme` directly
+   in addition to calling `config.set()`. Full detail in [theme.md](./theme.md).
 
-- `debugSettings` (`chatic_debug_mode`) — `usePreferenceStore` 시절에도 관리한 적 없는 죽은
-  선언이었다(ADR-0080 결정 13이 지운 URL 전환 기능의 잔재). config로 옮기지 않았다.
-- `language` — 리포 전체에서 `chatic-language`를 읽거나 쓰는 곳이 0곳이었다. 실제 언어는
-  i18next의 `LanguageDetector`가 완전히 별도 키(`@${PROJECT}_${ENV}.i18nextLng`)로 자체 관리한다.
-  `ui.language` 레지스트리 키는 선언돼 있지만 아직 소비자가 없다 — i18next를 config로 갈아끼우는
-  건 이번 이관과 별개의, 더 큰 작업이다.
-- 모바일 `debugSettingsStore`(`mockServiceMode`·`overlay*` 등) — 쓰는 화면 자체가 아직 없어
-  통합하지 않았다. `logUploadHold`/`debugModeEnabled`는 이 스토어와 무관한 전용 브릿지 메시지로
-  이미 동작한다.
-- 세션/토큰 → web-core.
+## Legacy carry-over — `legacyPreferenceMigration.ts`
+
+`main.tsx` calls `migrateLegacyPreferences()` **before** `config.init()`, because `hydrateStorage()`
+(inside `init()`) is what reads the values this function writes.
+
+- `migrateLegacyPreferences()` — one-time. Reads the old `chatic-*` localStorage keys, writes each
+  decoded value under `storageKeyFor(newKey)`, then deletes the old key regardless of whether the
+  decode succeeded. There is no completion flag: "does the old key still exist" is itself the
+  completion check, so a user who already migrated (or never had a value) is a no-op on every later
+  boot.
+- `syncThemeFromSharedKey()` — the permanent, every-boot mirror described above. It is a mirror,
+  not a migration, so it never deletes `vite-ui-theme`.
+
+## Native hydration fallback — `PreferenceLoader`
+
+Only three keys (`ui.blurLastMessage`, `ui.onboardingCompleted`, `ui.theme`) have an async fallback
+to the legacy native bridge. Because web ships before the app, an app build old enough to not know
+about the `CHATIC_APP_CONFIG_BAG` boot injection leaves `config.snapshot(key)?.isOverridden` false
+for these keys. `PreferenceLoader` only fires in that case: it calls the legacy `FetchPreference`
+bridge and writes the result with `{ lane: 'shell' }` — doing, slowly, what the boot injection would
+have done, and leaving the value in the local mirror so the next boot resolves synchronously without
+this fallback.
+
+`isFirstRun` (legacy, `true` = onboarding not done) inverts to `onboardingCompleted` (`true` = done)
+in that fallback path — the two fields have opposite polarity. The theme value can arrive in the
+mobile zustand-persist JSON envelope, which `parseThemeBridgeValue` normalizes.
+
+## Out of scope (deliberately)
+
+- **`debugSettings`** (`chatic_debug_mode`) — a dead declaration even under `usePreferenceStore`:
+  the URL-toggle feature it backed was removed (ADR-0080 decision 13). Never became a config key.
+- **`language`** — nothing in the repo reads or writes `chatic-language`. The actual UI language is
+  owned end-to-end by i18next's `LanguageDetector`, under its own separate key
+  (`@${PROJECT}_${ENV}.i18nextLng`). A `ui.language` registry key is declared in
+  `libs/config/src/registry/ui.ts` but has no consumer yet — folding i18next into `@chatic/config`
+  is a separate, larger piece of work.
+- **Mobile's `debugSettingsStore`** (`mockServiceMode`, `overlay*`, …) — apps/web has no screen that
+  would use it, so it was never integrated. `logUploadHold`/`debugModeEnabled` already work through
+  their own dedicated bridge messages, independent of this store.
+- **Session and tokens** — owned by `web-core` / `@chatic/app-runtime`, not this folder.

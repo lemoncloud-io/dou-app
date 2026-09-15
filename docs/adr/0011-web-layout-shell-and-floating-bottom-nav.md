@@ -1,88 +1,95 @@
-# 웹 레이아웃 셸에 플로팅 하단 네비게이션을 1회 배치하고, 네비는 web-ui-kit 컴포넌트로 이전
+# Mount the floating bottom navigation once in the web layout shell, and move the nav into web-ui-kit
 
-> 상태: Accepted · 결정일: 2026-07-15
+> Status: Accepted · Decided: 2026-07-15
 
-`apps/web`의 하단 네비게이션은 현재 `apps/web/src/app/ui/components/BottomNavigation.tsx`에
-존재하며, 공용 셸이 아니라 `HomePage`·`MyPage`가 **각각 개별적으로** `<BottomNavigation />`을
-렌더링한다. 형태는 `w-[166px]`의 작은 중앙 알약형 플로팅 바(Chat / My 2탭)다. MyPage는
-카드형 메뉴를 `apps/web` 자체 마크업으로 그리고 있으며 `libs/web-ui-kit` 컴포넌트를 쓰지 않는다.
-`libs/web-ui-kit`에는 하단 네비게이션 컴포넌트가 아직 없다.
+`apps/web`'s bottom navigation lives in `apps/web/src/app/ui/components/BottomNavigation.tsx`, and it
+is rendered **separately by `HomePage` and `MyPage`** rather than by a shared shell. It is a small
+centred pill, `w-[166px]`, with two tabs (Chat / My). MyPage draws its card menu with `apps/web`'s own
+markup and uses no `libs/web-ui-kit` components. `libs/web-ui-kit` has no bottom navigation component
+yet.
 
-이번 작업은 (1) 하단 네비게이션을 참고 Figma 디자인(node `1937-26448`) 그대로 "전체화면 폭을
-차지하며 떠 있는 플로팅" 형태로 재설계하고, (2) 이를 `libs/web-ui-kit`의 순수 UI 컴포넌트로
-이전하며, (3) 공용 셸(`UnifiedLayout`)에 단 1회만 올려 라우트에 따라 표시/숨김·활성 탭을
-제어하고, (4) MyPage 및 관련 웹 레이아웃 셸을 web-ui-kit 기반으로 정리하는 것을 목표로 한다.
+This round (1) redesigns the bottom navigation to match the reference Figma (node `1937-26448`) — a
+floating bar that spans the full width — (2) moves it into `libs/web-ui-kit` as a pure UI component,
+(3) mounts it exactly once in the shared shell (`UnifiedLayout`), which then owns visibility and the
+active tab, and (4) rebuilds MyPage and the surrounding web shell on web-ui-kit.
 
-## 결정 (Decision)
+## Decision
 
-- **네비게이션 UI를 `libs/web-ui-kit`로 이전한다.** 새 컴포넌트 폴더
-  `libs/web-ui-kit/src/composites/navigation/`에 stateless·slot 기반 하단 네비 컴포넌트를 정의하고
-  `composites/index.ts`·최상위 배럴에 노출한다. 컴포넌트 세트 컨벤션(`*.tsx` + `*.test.tsx` +
-  `*.stories.tsx`, `*Props` export, `cn`·시맨틱 토큰·`Icon*` 별칭만 사용)을 따른다. 라우팅·활성
-  판정·전환 애니메이션 등 앱 로직은 web-ui-kit로 넘기지 않고 `apps/web` 쪽 얇은 어댑터가 소유한다.
+- **Move the navigation UI into `libs/web-ui-kit`.** Define a stateless, slot-based bottom navigation
+  component under a new folder, `libs/web-ui-kit/src/composites/navigation/`, and export it from
+  `composites/index.ts` and the top-level barrel. Follow the component-set convention (`*.tsx` +
+  `*.test.tsx` + `*.stories.tsx`, a `*Props` export, `cn` plus semantic tokens plus `Icon*` aliases
+  only). App logic — routing, active-tab detection, transition animation — stays out of web-ui-kit and
+  belongs to a thin adapter on the `apps/web` side.
 
-- **공용 셸(`UnifiedLayout`)에 1회만 배치한다.** `HomePage`·`MyPage`의 개별
-  `<BottomNavigation />` 렌더를 제거하고, 셸이 유일하게 네비를 그린다. 페이지가 늘어도 중복·누락이
-  생기지 않게 한다.
+- **Mount it once, in the shared shell (`UnifiedLayout`).** Remove the individual
+  `<BottomNavigation />` renders from `HomePage` and `MyPage`; the shell is the only thing that draws
+  the nav. Adding pages then cannot duplicate or forget it.
 
-- **라우트 기반 표시/숨김.** 하단 네비는 **메인 탭 목적지에서만** 노출한다: `/`(Chat),
-  `/mypage`(My). 그 외 모든 상세·편집·채팅방·설정 하위 화면에서는 숨긴다. 활성 탭은 현재 경로에서
-  파생한다(루트는 정확 일치, 나머지는 prefix 매칭).
+- **Route-driven visibility.** The bottom nav shows **only on main tab destinations**: `/` (Chat) and
+  `/mypage` (My). It hides on every detail, edit, chat room and settings screen below them. The active
+  tab derives from the current path — exact match at the root, prefix match otherwise.
 
-- **탭 구성은 현행 2탭 유지**: Chat(`/`) / My(`/mypage`). 개수·종류는 이번에 늘리지 않는다.
+- **Keep the two tabs.** Chat (`/`) and My (`/mypage`). Neither the number nor the kind changes here.
 
-- **형태는 Figma 그대로.** 하단 네비는 **전체폭 플로팅 영역**(뒤에 gradation layer, 375×98)
-  안에 **중앙 정렬 글래스 알약**(166×62, Blur + Fill + Glass Effect/Liquid Glass Frost)이 떠 있는
-  구조다. 알약 안에 채팅/MY 2탭(각 48×48, 아이콘 + 라벨)과 채팅 탭 우상단 언리드 배지(빨강
-  `#F41F52`, `+999` 표기)를 둔다. 활성 탭은 다크 필(`#222325`), 비활성은 `#53555B`. 정확한
-  치수·색·여백은 Figma를 원천으로 dev-2에서 반영한다.
+- **Take the shape from Figma.** The nav is a **full-width floating area** (a gradation layer behind
+  it, 375×98) holding a **centred glass pill** (166×62, Blur + Fill + Glass Effect / Liquid Glass
+  Frost). Inside the pill are the two tabs, Chat and MY (48×48 each, icon plus label), with an unread
+  badge at the top right of the Chat tab (red `#F41F52`, rendered `+999`). The active tab is a dark
+  pill (`#222325`), inactive is `#53555B`. Exact sizes, colours and spacing come from Figma and are
+  applied in dev-2.
 
-- **스크롤과 safe-area.** 본문이 길어지면 스크롤은 페이지/셸 본문 컨테이너가 담당하고
-  (`overflow-y-auto overscroll-contain`), 플로팅 네비는 그 위에 겹쳐 뜬다. 네비 컨테이너는
-  터치 통과(`pointer-events` 격리)를 유지하고, 하단 여백은 네이티브 주입 CSS 변수
-  `--safe-bottom`(Tailwind `pb-safe-bottom` / `calc(var(--safe-bottom,0px) + …)`)으로 처리한다.
-  본문은 네비 높이만큼 하단 여백을 확보해 마지막 콘텐츠가 가리지 않게 한다.
+- **Scrolling and safe area.** When content grows, the page or shell body container scrolls
+  (`overflow-y-auto overscroll-contain`) and the floating nav sits above it. The nav container stays
+  click-through (`pointer-events` isolated), and its bottom inset uses the CSS variable the native
+  shell injects, `--safe-bottom` (Tailwind `pb-safe-bottom` / `calc(var(--safe-bottom,0px) + …)`). The
+  body reserves bottom padding the height of the nav so the last item is not covered.
 
-- **MyPage 및 웹 셸 정리.** MyPage의 카드형 메뉴·프로필 섹션을 web-ui-kit 컴포넌트
-  (`ListSection`·`ListRow`·`ScreenLayout`·아바타·배지 등)로 재구성한다. 누락 컴포넌트가 있으면
-  web-ui-kit에 먼저 정의한 뒤 사용한다.
+- **Clean up MyPage and the web shell.** Rebuild MyPage's card menu and profile section out of
+  web-ui-kit components (`ListSection`, `ListRow`, `ScreenLayout`, avatars, badges). Where a component
+  is missing, define it in web-ui-kit first and then use it.
 
-- **MyPage는 4가지 상태로 렌더한다.** 참고 Figma(node `1937-26448`/`26598`/`26749`/`27282`)
-  기준:
-    1. 비로그인(`27282`): 프로필·내 정보·구독·계정 관리·로그아웃 **없음**. "로그인하기" 헤더
-       (부제 "로그인하고, 대화내용을 안전하게 관리하세요.") + 약관/앱 버전 카드만. 하단 네비는
-       채팅 비활성·MY 활성.
-    2. 로그인 O · 구독 미가입(`26448`): 구독 카드 행이 "구독 관리".
-    3. 로그인 O · 무료 구독 중(`26598`): "무료 구독 이용 중" + `D-N` 배지.
-    4. 로그인 O · 구독 중(`26749`): "구독 이용 중".
-       상단 프로필의 아바타·이름·이메일은 **계정(account) 프로필**을 표시한다(클라우드/사이트 프로필
-       아님). Figma에 hidden 상태로 존재하는 메뉴(플레이스 설정, 나와의 채팅방 설정, 백업, 프로필
-       편집 펜슬, 계정 전환 chevron)는 이번 범위에서 제외한다.
+- **MyPage renders four states.** Against the reference Figma (nodes `1937-26448` / `26598` / `26749`
+  / `27282`):
+    1. Signed out (`27282`): **no** profile, my info, subscription, account management or sign-out. A
+       "Sign in" header (subtitle: "Sign in and keep your conversations safe") plus the terms and app
+       version card, nothing else. In the bottom nav, Chat is inactive and MY is active.
+    2. Signed in, no subscription (`26448`): the subscription row reads "Manage subscription".
+    3. Signed in, on the free plan (`26598`): "Free plan" plus a `D-N` badge.
+    4. Signed in, subscribed (`26749`): "Subscribed".
+       The avatar, name and email at the top show the **account** profile, not the cloud or site
+       profile. The menu items Figma keeps hidden (place settings, self-chat settings, backup, the
+       profile edit pencil, the account switch chevron) are out of scope here.
 
-## 대안 (Alternatives)
+## Alternatives
 
-- **현행 페이지별 렌더 유지**: 각 페이지가 `<BottomNavigation />`을 직접 렌더. 변경 최소지만 탭
-  화면이 늘 때마다 중복·누락 위험이 커지고 라우트 기반 숨김 규칙을 페이지마다 반복해야 한다. 기각.
+- **Keep rendering per page**: each page renders `<BottomNavigation />` itself. Smallest change, but
+  every new tab screen risks a duplicate or an omission, and the route-based hiding rule has to be
+  repeated in each page. Rejected.
 
-- **네비를 `apps/web`에 그대로 두고 스타일만 개선**: web-ui-kit 이전 없이 형태만 Figma에 맞춤.
-  "컴포넌트는 web-ui-kit 기반" 요구와 어긋나고, 순수 UI/앱 로직 분리 컨벤션과도 맞지 않아 기각.
+- **Leave the nav in `apps/web` and only restyle it**: match Figma without moving it into web-ui-kit.
+  Rejected — it contradicts the "components come from web-ui-kit" requirement and the convention that
+  separates pure UI from app logic.
 
-- **라우팅 로직까지 web-ui-kit로 이전**: 네비 컴포넌트가 `react-router`·활성 판정을 직접 소유.
-  라이브러리를 앱 라우팅에 결합시켜 재사용성과 stateless 원칙을 해쳐 기각. 어댑터 분리 채택.
+- **Move the routing logic into web-ui-kit too**: the nav component owns `react-router` and active-tab
+  detection itself. Rejected — it couples the library to app routing and breaks the stateless
+  principle. The adapter split wins.
 
-- **항상 노출(숨김 없음)**: 모든 화면에 네비 유지. 상세·편집·채팅방 화면에서 방해가 되고 참고
-  디자인과 어긋나 기각.
+- **Always visible (never hidden)**: keep the nav on every screen. Rejected — it gets in the way on
+  detail, edit and chat room screens, and it contradicts the reference design.
 
-## 결과 (Consequences)
+## Consequences
 
-- 셸이 네비의 단일 소유자가 되어 표시/숨김·활성 규칙이 한 곳(`UnifiedLayout`)에 모인다. 새 탭
-  화면 추가 시 페이지에 네비 코드를 넣을 필요가 없다.
-- `HomePage`·`MyPage`에서 네비 겹침 회피용으로 쓰던 `pb-32` 등 하드코딩 여백을 셸 기준으로
-  재정리해야 한다. 이 두 페이지의 하단 여백/스크롤 처리가 바뀐다.
-- `apps/web`의 기존 `BottomNavigation.tsx`는 제거하고 web-ui-kit 컴포넌트 + 얇은 어댑터로 대체한다
-  (deprecate가 아니라 replace).
-- web-ui-kit에 네비 컴포넌트·필요 시 누락 컴포넌트가 추가되어 스토리북·테스트 대상이 늘어난다.
-- 시각 스펙은 Figma에 종속된다. 참고 노드(`1937-26448`/`26598`/`26749`/`27282`)의 스크린샷·구조·
-  색 토큰을 확보했으므로 dev-2에서 픽셀 정합을 맞출 수 있다.
-- MyPage가 인증·구독 상태에 따라 4갈래로 분기하므로, 상태 판정 소스(로그인 여부, 구독 상태/무료
-  체험 잔여일 `D-N`)를 어떤 훅/스토어에서 가져올지 dev-2 스펙에서 확정해야 한다.
+- The shell becomes the nav's single owner, so visibility and active-tab rules live in one place
+  (`UnifiedLayout`). A new tab screen needs no nav code of its own.
+- The hardcoded padding `HomePage` and `MyPage` used to clear the nav (`pb-32` and friends) has to be
+  reworked against the shell. Bottom spacing and scroll handling change on both pages.
+- `apps/web`'s existing `BottomNavigation.tsx` is removed and replaced by the web-ui-kit component plus
+  a thin adapter — replaced, not deprecated.
+- web-ui-kit gains the nav component, and any missing component it needs, so the storybook and test
+  surface grows.
+- The visual spec depends on Figma. Screenshots, structure and colour tokens for the reference nodes
+  (`1937-26448` / `26598` / `26749` / `27282`) are captured, so dev-2 can match it pixel for pixel.
+- MyPage branches four ways on auth and subscription state, so the dev-2 spec has to settle which hook
+  or store each signal comes from (signed in or not, subscription state, free-trial days remaining
+  `D-N`).

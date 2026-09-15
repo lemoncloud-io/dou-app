@@ -1,82 +1,120 @@
 # Deep Link
 
-딥링크(유니버설 링크 / 커스텀 스킴)와 푸시 알림 탭은 모두 **하나의 목표**로 수렴한다:
-`WEBVIEW_URL` 기준 상대 경로(`path`)를 만들어 `OnNavigate` 브릿지 이벤트로 웹에 넘기는 것.
-모바일은 도메인을 재계산하지 않는다 — 프론트 도메인은 항상 `WEBVIEW_URL`(`VITE_WEBVIEW_BASE_URL`)이고,
-클라우드/사이트 컨텍스트(`cid`/`sid`)는 그 경로의 쿼리에 실려 웹이 읽는다.
+The deferred-deep-link backend (Firestore rules/indexes, cleanup functions, `.well-known` assets)
+lives outside this app, at [docs/infra/deep-linking/](../../../docs/infra/deep-linking/README.md) —
+this doc covers only what runs inside the shell once a link arrives.
 
-## 주요 파일
+Universal links, the custom scheme, and a push notification tap all converge on **one goal**: turn
+the inbound intent into a `WEBVIEW_URL`-relative `path`, and hand it to the web via the `OnNavigate`
+bridge event. The shell never recomputes the frontend domain — the base is always `WEBVIEW_URL`
+(`VITE_WEBVIEW_BASE_URL`), and cloud/site context (`cid`/`sid`) travels as query parameters on that
+path for the web to read.
 
-| 파일                                                      | 역할                                                                                                                            |
-| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `src/app/services/deeplinks/DeepLinkManager.ts`           | OS 딥링크 URL 캡처 (cold start 초기 URL + warm start 이벤트 구독)                                                               |
-| `src/app/services/deeplinks/DeeplinkService.ts`           | 단일 해석기. `resolveInbound(url)`(web/native/invalid) · `resolvePushTap(data)`. `handleUrl`은 로컬/디버그 트리거               |
-| `src/app/services/deeplinks/deeplinkUtils.ts`             | 순수 헬퍼: 검증, 초대 변환(`convertShortUrlWithEnvsSync`), 상대경로 축약(`resolveDeepLink`), cid/sid 병합(`resolvePushTapPath`) |
-| `src/app/webview/hooks/useDeepLinkNavigation.ts`          | 인바운드 네비게이션 단일 소유자. OS 딥링크·초대링크·푸시 탭 캡처 → `OnNavigate`(web) / `navigationRef`(native) / 에러           |
-| `src/app/features/core/navigation/navigationRef.ts`       | `target=native` 라우트 적용을 위한 공유 navigation ref ([`push.md`](./push.md) 참고)                                            |
-| `apps/web/.../bridge/navigation/resolvePushNavigation.ts` | (웹) `OnNavigate` 경로에서 `cid`/`sid`를 추출·제거하고 클라우드/사이트를 전환                                                   |
+## Key files
 
-## 구조
+| File                                                      | Role                                                                                                                                                                                        |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/app/services/deeplinks/DeepLinkManager.ts`           | Captures raw OS URLs — cold-start (`getInitialURL`, plus an iOS native-module fallback for a buffered universal link, plus a short wait for a late `url` event) and warm-start subscription |
+| `src/app/services/deeplinks/DeeplinkService.ts`           | The single resolver: `resolveInbound(url)` (`web`/`native`/`invalid`) and `resolvePushTap(data)`                                                                                            |
+| `src/app/services/deeplinks/deeplinkUtils.ts`             | Pure helpers: validation, invite conversion (`convertShortUrlWithEnvsSync`), path reduction (`resolveDeepLink`), cid/sid merge (`resolvePushTapPath`)                                       |
+| `src/app/webview/hooks/useDeepLinkNavigation.ts`          | Single owner of inbound navigation: OS links, invite links and push taps → `OnNavigate` (web) / `navigationRef` (native) / the error screen                                                 |
+| `src/app/features/core/navigation/navigationRef.ts`       | Shared navigation ref for applying `target=native` routes (see [push.md](./push.md))                                                                                                        |
+| `apps/web/.../bridge/navigation/resolvePushNavigation.ts` | (web) Extracts and strips `cid`/`sid` from the `OnNavigate` path and switches cloud/site                                                                                                    |
+
+## Structure
 
 ```mermaid
 flowchart TD
     OS["OS deep link / universal link"] --> Manager["DeepLinkManager"]
-    Push["푸시 탭 (onNotificationOpenedApp / getInitialNotification)"] --> Coord
+    Push["Push tap (onNotificationOpenedApp / getInitialNotification)"] --> Coord
     Manager --> Coord["useDeepLinkNavigation"]
     Coord --> Resolve["DeeplinkService.resolveInbound / resolvePushTap"]
     Resolve -->|"native (target=native)"| Native["navigationRef.reset (Debug/Modal)"]
-    Resolve -->|"web / 푸시 탭"| Navigate["bridge.pushEvent(OnNavigate, { path })"]
-    Resolve -->|"invalid"| Error["deepLinkError 화면"]
+    Resolve -->|"web / push tap"| Navigate["bridge.pushEvent(OnNavigate, { path })"]
+    Resolve -->|"invalid"| Error["deepLinkError screen"]
     Navigate --> Web["WebView (resolvePushNavigation)"]
 ```
 
-## 초대 링크 변환
+The bridge buffers `OnNavigate` until the `WebAppReady` handshake completes (see
+[webview.md](./webview.md)), so a cold-start link or tap is delivered as soon as the web is ready —
+no manual startup delay is needed.
 
-초대 링크는 웹이 인식 가능한 폼으로 변환해야 한다. `convertShortUrlWithEnvsSync`가 담당한다.
-입력 폼은 두 가지이고, **`relay` 플래그의 존재 여부가 판별자**다.
+## Invite link conversion
 
-**① 클라우드 폼** (백엔드 주소를 링크가 실어 나름)
+An invite link must be converted into a form the web recognizes; `convertShortUrlWithEnvsSync` does
+this. There are two input forms, and **whether `relay` is present is the discriminator**.
 
-- **입력**: `https://app-dev.chatic.io/s?code=invt:910447:...&api=uzjpiaey7a&stage=dev`
-- **출력(상대 경로)**: `/?code=invt:910447:...&provider=invite&version=2&_backend=https://uzjpiaey7a.execute-api.ap-northeast-2.amazonaws.com/dev`
+**① Cloud form** (the link itself carries a backend address)
 
-**② 릴레이 폼** (릴레이 서버는 백엔드 주소가 필요 없음)
+- Input: `https://app-dev.chatic.io/s?code=invt:910447:...&api=uzjpiaey7a&stage=dev`
+- Output (relative path): `/?code=invt:910447:...&provider=invite&version=2&_backend=https://uzjpiaey7a.execute-api.ap-northeast-2.amazonaws.com/dev`
 
-- **입력**: `https://app-dev.chatic.io/s?code=invt:910447:...&relay`
-- **출력(상대 경로)**: `/?code=invt:910447:...&provider=invite&version=2&relay=1`
+**② Relay form** (the relay server needs no backend address)
 
-변환 규칙:
+- Input: `https://app-dev.chatic.io/s?code=invt:910447:...&relay`
+- Output (relative path): `/?code=invt:910447:...&provider=invite&version=2&relay=1`
 
-- `code`는 그대로 보존하고 `provider=invite`, `version=2`를 붙인다.
-- `_backend`는 `backend` 파라미터가 있으면 그대로, 없고 `api`+`stage`가 있으면 `https://{api}.execute-api.{region}.amazonaws.com/{stage}`로 조립한다 (`region`은 `INVITE_BACKEND_REGION = ap-northeast-2` 상수).
-- 릴레이 폼은 `_backend`를 **생략하는 대신 `relay=1`을 명시**한다. 웹이 "`_backend`가 없으니 릴레이"라고 추론하지 않고 마커로 판정하게 하기 위한 규격이다. 백엔드 주소는 웹의 `getDynamicRelayBackend()`(env 릴레이 엔드포인트)가 채운다.
-- `relay`는 **값이 아니라 존재 여부(`searchParams.has`)로 판별**한다. 값 없는 `&relay`는 `get('relay') === ''`(빈 문자열)이라 진위값 검사로는 놓친다. 들어온 형태(`&relay`, `relay=`)와 무관하게 출력은 항상 `relay=1`로 정규화한다.
-- 소비한 파라미터(`code`/`api`/`stage`/`backend`/`relay`)는 forward 루프에서 제외한다. 그 외 쿼리 파라미터(`utm_*` 등)는 그대로 전달한다.
-- **도메인은 넣지 않는다.** 출력은 호스트 없는 상대 경로이며, 최종 도메인은 하위 `toLocalUrl`이 `WEBVIEW_URL`로 붙인다. (예전의 `getFrontendDomainForUrl` "dev" 문자열 휴리스틱과 `FRONTEND_DOMAIN_*` 상수는 제거됨 — 도메인 소스는 `.env`의 `VITE_WEBVIEW_BASE_URL` 하나로 일원화.)
+Conversion rules:
 
-## OnNavigate 경로 계약
+- `code` is preserved as-is; `provider=invite` and `version=2` are appended.
+- `_backend` comes from `backend` verbatim if present, otherwise from `api`+`stage` as
+  `https://{api}.execute-api.{region}.amazonaws.com/{stage}` (`region` is the
+  `INVITE_BACKEND_REGION = ap-northeast-2` constant).
+- A relay-form link **omits `_backend` and states `relay=1` explicitly** instead — a deliberate
+  marker so the web decides "relay" from that flag rather than from the absence of `_backend`. The
+  backend address for a relay link comes from the web's own `getDynamicRelayBackend()` (an env
+  relay endpoint).
+- `relay` is judged by **presence (`searchParams.has`), never by value** — a bare `&relay` parses to
+  an empty-string value, which a truthiness check on `get('relay')` would miss. Whatever form it
+  arrives in (`&relay`, `relay=`), the output is always normalized to `relay=1`.
+- Consumed parameters (`code`/`api`/`stage`/`backend`/`relay`) are excluded from the forward loop;
+  everything else (`utm_*`, etc.) passes through unchanged.
+- **No domain is added.** The output is a host-less relative path; the final domain is applied later
+  by `WEBVIEW_URL`.
 
-`OnNavigate`로 웹에 넘기는 `path`는 다음을 지킨다:
+A `/s/{code}` legacy short-code link is no longer supported and resolves to `invalid` —
+`convertShortUrlWithEnvsSync` throws for it, and the old Firestore-backed short-URL lookup it used is
+gone.
 
-- **형태**: `pathname + search + hash` (도메인 없는 상대 경로). 웹뷰의 base는 항상 `WEBVIEW_URL`이다.
-- **`cid`/`sid`**: 쿼리 파라미터로 싣는다. 웹(`resolvePushNavigation`)이 이를 읽어 클라우드/사이트를 전환한 뒤 쿼리에서 제거하고 라우팅한다. 즉 `cid`/`sid`는 라우트 파라미터가 아니라 세션 컨텍스트다.
-- 딥링크 경로와 푸시 탭 경로가 모두 `DeeplinkService`(→ `useDeepLinkNavigation`)를 거쳐 동일한 `OnNavigate` 계약으로 수렴한다.
+## The `OnNavigate` path contract
 
-## ⚠️ React Native URL 함정 (회귀 주의)
+The `path` handed to the web via `OnNavigate` follows these rules:
 
-경로/쿼리를 조립할 때 **`new URL(...).searchParams.set()` 후 `.pathname + .search`를 읽는 패턴을 쓰지 말 것.**
-React Native 내장 `URL`(`react-native/Libraries/Blob/URL.js`)의 `.search` 게터는 원본 문자열(`_url`)을
-정규식으로 파싱해 돌려주며, `URLSearchParams.set()`로 넣은 값을 **반영하지 않는다.** 그 결과 초대 링크가
-쿼리를 통째로 잃고 `/`로 붕괴한다. Node/Jest의 `URL`은 반영하므로 유닛 테스트는 통과하고 기기에서만 깨진다.
+- **Shape**: `pathname + search + hash` — no domain. The WebView's base is always `WEBVIEW_URL`.
+- **`cid`/`sid`** travel as query parameters. The web (`resolvePushNavigation`) reads them, switches
+  cloud/site, then strips them and routes on what remains — they are session context, not route
+  parameters.
+- Both the deep-link path and the push-tap path go through `DeeplinkService` (via
+  `useDeepLinkNavigation`) and converge on this same contract.
 
-- 읽기(`searchParams.get/has/forEach`, `.search`/`.pathname`/`.hash` 게터)는 안전하다.
-- **쓰기는 문자열로 직접 조립**한다(값은 `encodeURIComponent`). `convertShortUrlWithEnvsSync`,
-  `resolvePushPath`가 이 방식으로 되어 있다. (앱 전역에 `react-native-url-polyfill`은 설치되어 있지 않음.)
+For a push tap specifically, `resolvePushTapPath` also decides what a **linkless** payload does: a
+push whose `type` is one of `ROOTED_PUSH_TYPES` (currently just `cloud`, whose payload carries no
+`link` by contract) resolves to `/`; every other linkless payload resolves to `null` and only
+foregrounds the app — a chat push with no link is treated as a malformed payload, not a request to
+navigate away from wherever the user already is. When a link does exist, `cid`/`sid` are merged into
+its query only if the link does not already carry them explicitly.
 
-## 변경 체크리스트
+## ⚠️ React Native URL pitfall (regression risk)
 
-- 새 경로/쿼리 조립이 RN `URL`의 `searchParams.set()`+`.search` 패턴에 의존하지 않는가? (위 함정 참고)
-- 새 딥링크 유형이 `resolveInbound`(웹) / `buildNativeRouteState`(네이티브)에 반영됐는가?
-- 초대 링크 출력이 도메인 없는 상대 경로인가? 프론트 도메인이 `WEBVIEW_URL` 외의 곳에서 재계산되지 않는가?
-- `OnNavigate`의 `path`가 `pathname+search+hash` 형태이고, `cid`/`sid`가 쿼리에 실리는가?
-- 웹의 `resolvePushNavigation` 계약(`cid`/`sid`를 쿼리에서 읽고 제거)과 어긋나지 않는가?
+When assembling a path or query, **do not use `new URL(...).searchParams.set()` and then read
+`.pathname + .search`.** React Native's built-in `URL` (`react-native/Libraries/Blob/URL.js`)
+derives its `.search` getter from the original string (`_url`) via regex, and does **not** reflect
+values set through `URLSearchParams.set()`. The result is an invite link silently losing its entire
+query and collapsing to `/`. Node's/Jest's `URL` does reflect the mutation, so a unit test passes
+while a real device breaks.
+
+- Reading (`searchParams.get/has/forEach`, the `.search`/`.pathname`/`.hash` getters) is safe.
+- **Write by assembling the string directly** (`encodeURIComponent` each value) — this is how
+  `convertShortUrlWithEnvsSync` and `resolvePushTapPath` build their output.
+  (`react-native-url-polyfill` is not installed anywhere in the app.)
+
+## Change checklist
+
+- Does any new path/query assembly avoid RN `URL`'s `searchParams.set()` + `.search` pattern? (see
+  the pitfall above)
+- Is a new deep-link kind reflected in `resolveDeepLink` (native) and in whatever consumes `resolveInbound` on the web side?
+- Is an invite link's output a host-less relative path, with the frontend domain never recomputed
+  outside `WEBVIEW_URL`?
+- Is `OnNavigate`'s `path` shaped `pathname+search+hash`, with `cid`/`sid` carried in the query?
+- Does it still match the web's `resolvePushNavigation` contract (read `cid`/`sid` from the query,
+  then strip them)?

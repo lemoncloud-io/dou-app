@@ -1,6 +1,7 @@
 import { logger } from '@chatic/bridges';
 
 import { findAlias, verifyAlias } from '../../auth/authActions';
+import type { VerifyAliasBody } from '../../auth/authActions';
 import { useFindAlias } from './useFindAlias';
 import { useVerifyAlias } from './useVerifyAlias';
 
@@ -30,10 +31,12 @@ const findMock = findAlias as jest.Mock;
 beforeEach(() => jest.clearAllMocks());
 
 describe('useVerifyAlias — 계정 이메일 검증 실패 기록', () => {
-    const body = {
-        type: 'email' as const,
-        mode: 'signup' as const,
-        step: 'check' as const,
+    // Typed as the production body, not `as const` literals: the second case varies `step` to
+    // 'change' and adds a password, and a `typeof body` cast would have pinned `step` to 'check'.
+    const body: VerifyAliasBody = {
+        type: 'email',
+        mode: 'signup',
+        step: 'check',
         alias: 'someone@user.test',
         code: '123456',
     };
@@ -41,7 +44,7 @@ describe('useVerifyAlias — 계정 이메일 검증 실패 기록', () => {
     // 한 엔드포인트가 두 여정 × 다섯 단계를 겸한다 — mode·step 없이는 어느 다리가 끊겼는지 모른다.
     it('mode와 step을 message와 data에 함께 남긴다', async () => {
         verifyMock.mockRejectedValue(new Error('boom'));
-        const run = useVerifyAlias() as unknown as (b: typeof body) => Promise<unknown>;
+        const run = useVerifyAlias() as unknown as (b: VerifyAliasBody) => Promise<unknown>;
 
         await expect(run(body)).rejects.toThrow('boom');
 
@@ -59,7 +62,7 @@ describe('useVerifyAlias — 계정 이메일 검증 실패 기록', () => {
 
     it('주소·코드·비밀번호를 엔트리에 싣지 않는다', async () => {
         verifyMock.mockRejectedValue(new Error('boom'));
-        const run = useVerifyAlias() as unknown as (b: typeof body) => Promise<unknown>;
+        const run = useVerifyAlias() as unknown as (b: VerifyAliasBody) => Promise<unknown>;
 
         await expect(run({ ...body, step: 'change', password: 'hunter2' })).rejects.toThrow();
 
@@ -72,7 +75,7 @@ describe('useVerifyAlias — 계정 이메일 검증 실패 기록', () => {
 
     it('성공하면 아무것도 남기지 않는다', async () => {
         verifyMock.mockResolvedValue({});
-        const run = useVerifyAlias() as unknown as (b: typeof body) => Promise<unknown>;
+        const run = useVerifyAlias() as unknown as (b: VerifyAliasBody) => Promise<unknown>;
 
         await expect(run(body)).resolves.toEqual({});
         expect(error).not.toHaveBeenCalled();

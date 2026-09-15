@@ -1,135 +1,128 @@
-# 채팅 화면을 web-ui-kit 기반으로 전면 재구성 (케이스별 헤더 · 이원화 읽음 표시)
+# Rebuild the chat screen on web-ui-kit — per-case headers, two read-status modes
 
 ## Status
 
-accepted · 결정일: 2026-07-15
+accepted · decided 2026-07-15
 
 ## Context
 
-DoU 디자인(Figma) 업데이트로 채팅방(채널방) 화면이 개선되었고, 이를 코드에
-반영해야 한다. 요구사항의 핵심은 **채팅 유형별로 헤더/읽음 표시가 모두 다르다**는
-것이다: 나와의 채팅 · 그룹 1명 · 그룹 2명 · 그룹 n명.
+A DoU design (Figma) update reworked the chat room screen, and the code has to follow it. The core
+requirement is that **the header and the read status differ by chat type**: self chat, a group of
+one, a group of two, a group of n.
 
-현재 구현(`apps/web/src/app/features/channels/pages/ChannelRoomPage.tsx`)의 제약:
+Constraints in the current implementation
+(`apps/web/src/app/features/channels/pages/ChannelRoomPage.tsx`):
 
-- 헤더·메시지리스트·말풍선·입력창이 한 파일에 인라인으로 들어간 **모놀리식**
-  구조다.
-- 헤더 로직은 **이분법**이다 — `isSelfChat`이면 "나와의 채팅" 고정 라벨,
-  그 외에는 `채널명 + 숫자(memberCount)`. 1명/2명/n명 구분이 없고 **헤더에
-  아바타가 없다**.
-- 읽음 표시(`components/ReadStatus.tsx`)는 구버전이다 — 미읽음 카운트만 노란색으로
-  표시한다.
-- 메시지 200자 초과 시 `전체보기`는 라우트 이동이 아니라 인페이지 상태
-  오버레이(`setExpandedMessage`)로 연다.
+- Header, message list, bubbles and the composer are inlined in one file — a **monolith**.
+- The header logic is **binary**. `isSelfChat` gives a fixed "Self Chat" label; everything else gets
+  `channel name + memberCount`. There is no 1 / 2 / n split, and **the header carries no avatars**.
+- The read status (`components/ReadStatus.tsx`) is the old one — it shows an unread count in yellow
+  and nothing else.
+- Past 200 characters, "see all" opens an in-page state overlay (`setExpandedMessage`) rather than a
+  route.
 
-디자인 시스템(`libs/web-ui-kit`, `@chatic/web-ui-kit`)에는 최근 커밋으로 채팅
-컴포넌트가 이미 추가돼 있으나, 이번 케이스를 표현하기엔 부족하다:
+The design system (`libs/web-ui-kit`, `@chatic/web-ui-kit`) gained chat components in recent commits,
+but not enough to express these cases:
 
-- `ChatRoomHeader`는 `kind='direct' | 'group'` 두 종류뿐이고 — **멤버 수 표시가
-  없고, 여러 명 아바타를 겹쳐 보여주는 컴포넌트(AvatarGroup/Stack)가 라이브러리에
-  아예 없다**.
-- `MessageRow`/`MessageBubble`/`DateDivider`/`SystemMessage`/`MessageInput`은
-  존재하나 화면에서 아직 사용되지 않는다.
+- `ChatRoomHeader` has two kinds only, `kind='direct' | 'group'` — **no member count, and the library
+  has no overlapping-avatar component (AvatarGroup/Stack) at all**.
+- `MessageRow`, `MessageBubble`, `DateDivider`, `SystemMessage` and `MessageInput` exist but are not
+  used by the screen yet.
 
-Figma 9개 노드 분석 결과 확정된 사실:
+What nine Figma nodes settled:
 
-- **헤더**: 나와의 채팅은 제목만, 그룹은 제목 아래에 **겹친 아바타 스택 + 전체
-  인원 숫자**(예: 아바타 2개 + "2", 인원 많으면 아바타 4개 + "22").
-- **읽음 표시 이원화**(스펙 노드 1922-37684): 1:1은 `읽음`/`안읽음` 텍스트,
-  다수는 `읽음 N · 안읽음 M` 숫자 카운트. 카운트 2인 방은 텍스트, 22인 방은
-  숫자로 렌더되는 것이 스크린샷으로 확인됨 → **헤더 숫자는 나를 포함한 전체
-  인원**이다.
-- **전체보기**는 자체 헤더("메시지 전체보기")를 가진 화면(1922-37666).
-- **입력창 상태**(스펙 노드 1922-37774): 입력 전 / 포커싱 / 입력 중 /
-  Max Height / Max Height 스크롤.
-- Figma에는 그룹 화면이 "2명"과 "22명(n명)" 둘뿐 — **"그룹 1명" 화면이 없어**
-  유일하게 스펙이 비어 있었다(아래 결정에서 확정).
+- **Header.** Self chat shows the title only. A group shows an **overlapping avatar stack plus the
+  total member count** under the title — two avatars and "2", or four avatars and "22" for a crowded
+  room.
+- **Two read-status modes** (spec node 1922-37684): 1:1 uses the words read / unread, a crowd uses
+  counts, `read N · unread M`. Screenshots confirm a room of 2 renders as text and a room of 22
+  renders as counts, so **the header number counts me in**.
+- **See all** is a screen with its own header, "See whole message" (1922-37666).
+- **Composer states** (spec node 1922-37774): empty, focused, typing, max height, max height
+  scrolling.
+- Figma has only the 2-member and 22-member group screens. **There is no "group of one" screen**, so
+  that was the one case with no spec — settled below.
 
 ## Decision
 
-### 1. 채팅 화면 전면 재구성
+### 1. Rebuild the chat screen
 
-`ChannelRoomPage`의 인라인 마크업(헤더·메시지리스트·말풍선·읽음표시·입력창·전체보기)을
-**모두 `@chatic/web-ui-kit` 컴포넌트로 교체**한다. `ChannelRoomPage`는 데이터
-조회/파생과 컨테이너 로직만 남기고, 프레젠테이션은 라이브러리에 위임한다.
+Replace every piece of inline markup in `ChannelRoomPage` — header, message list, bubbles, read
+status, composer, see-all — **with `@chatic/web-ui-kit` components**. `ChannelRoomPage` keeps data
+fetching, derivation and container logic; presentation moves to the library.
 
-### 2. web-ui-kit 확장 (누락 컴포넌트 신규 정의)
+### 2. Extend web-ui-kit with the missing components
 
-- **`AvatarGroup` 신규 추가** — 멤버 아바타를 겹쳐서 최대 4개까지 노출하고 전체
-  인원 카운트를 함께 표시하는 프레젠테이션 컴포넌트. stateless·슬롯 기반의
-  라이브러리 컨벤션(README)을 따른다.
-- **`ChatRoomHeader` 확장** — 제목 아래에 `AvatarGroup + 카운트`를 배치하는
-  서브타이틀 슬롯을 추가한다. 케이스 분기(self/group)를 표현할 수 있게 한다.
-- **읽음 표시 컴포넌트를 두 모드로 재정의** — `읽음`/`안읽음` 텍스트 모드와
-  `읽음 N · 안읽음 M` 숫자 모드. 현재의 미읽음-카운트-only 표시를 대체한다.
+- **Add `AvatarGroup`.** A presentational component that overlaps up to four member avatars and shows
+  the total count beside them. It follows the library convention: stateless, slot-based (README).
+- **Extend `ChatRoomHeader`** with a subtitle slot that holds `AvatarGroup + count`, so the header can
+  express the self / group split.
+- **Redefine the read-status component with two modes** — the read / unread text mode, and the
+  `read N · unread M` count mode. It replaces today's unread-count-only display.
 
-### 3. 대 분류: `self`(나와의 채팅) | `group`
+### 3. Two top-level kinds: `self` and `group`
 
-채팅방의 **대 분류는 두 가지**(`self`, `group`)만 고려한다. web-ui-kit
-`ChatRoomHeader`의 `kind='direct'`(1:1 DM)는 **아직 구현 미정이라 이번 범위에서
-제외**한다. `self`는 `stereo === 'self'`로 판별하고, 그 외는 모두 `group`으로
-다룬다. 헤더 카운트는 **나를 포함한 전체 인원**이다.
+A chat room has **two top-level kinds only**, `self` and `group`. web-ui-kit's
+`ChatRoomHeader` `kind='direct'` (a 1:1 DM) is **out of scope here because the design is not settled**.
+`self` is `stereo === 'self'`; everything else is a `group`. The header count **includes me**.
 
-| 대분류            | 조건                | 헤더                                               | 읽음 표시          |
-| ----------------- | ------------------- | -------------------------------------------------- | ------------------ |
-| 나와의 채팅(self) | `stereo === 'self'` | 제목만("Self Chat"), 아바타/카운트 없음, 메뉴 표시 | 없음               |
-| `group`           | 그 외 전부          | 제목 + 아바타 스택 + 전체 카운트                   | 인원수 기준 (아래) |
+| Kind             | Condition           | Header                                                  | Read status        |
+| ---------------- | ------------------- | ------------------------------------------------------- | ------------------ |
+| Self chat (self) | `stereo === 'self'` | Title only ("Self Chat"), no avatars or count, menu on   | None               |
+| `group`          | everything else     | Title + avatar stack + total count                       | By member count    |
 
-`group`의 인원수 하위 케이스:
+The member-count sub-cases of `group`:
 
-| 그룹 인원(전체) | 헤더                                | 읽음 표시                |
-| --------------- | ----------------------------------- | ------------------------ |
-| 1명(나 혼자)    | 제목 + 카운트 "1", 아바타 스택 없음 | 없음                     |
-| 2명             | 제목 + 아바타 2 + "2"               | `읽음`/`안읽음` 텍스트   |
-| n명(3명+)       | 제목 + 아바타 최대 4 + "N"          | `읽음 N · 안읽음 M` 숫자 |
+| Group size (total) | Header                                     | Read status               |
+| ------------------ | ------------------------------------------ | ------------------------- |
+| 1 (just me)        | Title + count "1", no avatar stack         | None                      |
+| 2                  | Title + 2 avatars + "2"                    | read / unread as words    |
+| n (3+)             | Title + up to 4 avatars + "N"              | `read N · unread M` counts |
 
-- **"그룹 1명" = 다른 멤버가 모두 나가거나 아직 아무도 안 들어온, 나 혼자 남은
-  그룹**(전체 1명)으로 확정한다. 카운트 "1", 읽을 상대가 없으므로 읽음 표시 없음.
+- **"Group of one" means a group where everyone else left or nobody has joined yet** — a total of
+  one. Count "1", and no read status, because there is nobody to read.
 
-### 4. 읽음 표시 규칙
+### 4. Read-status rules
 
-- 표시 모드는 **인원수 기준**으로 결정한다: 전체 2명이면 텍스트 모드, 3명 이상이면
-  숫자 카운트 모드. 나와의 채팅/그룹 1명은 표시하지 않는다.
-- 카운트는 **메시지별**로 계산한다(각 멤버의 `join.readNo` 커서를 메시지
-  `chatNo`와 비교) — 기존 데이터 계층 능력을 그대로 활용한다.
-- 읽음 표시는 **모든 채팅에서 노출**한다(나와의 채팅·그룹 1명은 표시 대상 아님).
-  클라우드 타입으로 노출 여부를 가르지 않는다.
+- The mode follows **member count**: two members render words, three or more render counts. Self chat
+  and a group of one render nothing.
+- The count is computed **per message** — each member's `join.readNo` cursor against the message's
+  `chatNo`. This is what the data layer already does.
+- Read status shows **in every chat** (self chat and a group of one are not display cases). Cloud type
+  does not decide whether it appears.
 
-### 5. 전체보기
+### 5. See all
 
-전체보기는 **현재의 인페이지 오버레이 방식을 유지**하고, Figma("메시지 전체보기")에
-맞춰 스타일만 반영한다. 별도 라우트로 분리하지 않는다.
+See all **keeps the in-page overlay** and only takes the Figma styling ("See whole message"). It does
+not become its own route.
 
 ## Considered Options
 
-- **`ChatRoomHeader`에 케이스를 하드코딩 vs `AvatarGroup`을 별도 컴포넌트로 분리** —
-  분리를 채택. 겹친 아바타 스택은 재사용 가치가 있고, 헤더를 slot 기반으로 얇게
-  유지하는 라이브러리 컨벤션에 맞는다.
-- **전체보기를 별도 라우트로 분리 vs 오버레이 유지** — 오버레이 유지를 채택.
-  Figma는 풀스크린으로 보이지만, 현재 오버레이 동작이 이미 충분하고 라우트 추가는
-  변경 폭을 넓힌다. 스타일만 개선한다.
-- **헤더/읽음표시만 개선 vs 화면 전면 재구성** — 전면 재구성을 채택. 디자인이
-  화면 전반(버블·입력창·날짜구분·시스템메시지 포함)에 걸쳐 개선됐고, web-ui-kit에
-  대응 컴포넌트가 이미 있어 이참에 인라인 마크업을 정리하는 편이 낫다.
+- **Hardcode the cases into `ChatRoomHeader` vs. split `AvatarGroup` out** — split. An overlapping
+  avatar stack is worth reusing, and keeping the header thin and slot-based is the library convention.
+- **Move see all to its own route vs. keep the overlay** — keep the overlay. Figma draws it full
+  screen, but the overlay already behaves well and a new route widens the change. Only the styling
+  changes.
+- **Touch only the header and the read status vs. rebuild the screen** — rebuild. The design moved
+  across the whole screen (bubbles, composer, date dividers, system messages), web-ui-kit already has
+  the matching components, and clearing out the inline markup is better done in the same pass.
 
 ## Consequences
 
-- web-ui-kit 재사용성이 올라가고 `ChannelRoomPage`가 컨테이너 역할로 슬림해진다.
-  `AvatarGroup`·`ChatRoomHeader`·읽음표시 컴포넌트는 신규/변경이므로 스토리북과
-  테스트(`*.stories.tsx`, `*.test.tsx`)를 동반해야 한다(라이브러리 컨벤션).
-- "그룹 1명" 케이스는 Figma에 없어 본 ADR에서 스펙을 확정했다(카운트 "1", 읽음
-  표시 없음). 추후 디자인이 나오면 이 결정을 갱신한다.
-- `direct`(1:1 DM) 헤더는 이번 범위에서 제외한다. `self`가 아닌 모든 채널을
-  `group`으로 처리하므로, 추후 `direct`를 도입하려면 판별 기준과 헤더 분기를
-  새로 정의해야 한다(본 ADR을 갱신).
-- 읽음 카운트가 메시지별 `join.readNo` 파생에 의존하므로, 커서가 아직 동기화되지
-  않은 구간에서는 카운트가 과소 표시될 수 있다(기존 데이터 계층의 한계를 그대로
-  승계).
+- web-ui-kit gets more reuse and `ChannelRoomPage` slims down to a container. `AvatarGroup`,
+  `ChatRoomHeader` and the read-status component are new or changed, so each needs a story and a test
+  (`*.stories.tsx`, `*.test.tsx`) per library convention.
+- The "group of one" case has no Figma screen, so this ADR fixed its spec: count "1", no read status.
+  Revisit this decision when a design arrives.
+- The `direct` (1:1 DM) header is out of scope. Every non-`self` channel is treated as a `group`, so
+  introducing `direct` later means defining both the detection rule and the header branch — and
+  updating this ADR.
+- Read counts derive from per-message `join.readNo`, so while cursors are still syncing the count can
+  read low. That is the data layer's existing limit, inherited as is.
 
-## 다음 단계
+## Next steps
 
-이 ADR을 입력으로 `dev-2_implement`의 스펙 작성(Phase A)으로 넘어간다. 스펙에서
-확정할 세부(구현 레벨): `AvatarGroup`의 정확한 노출 개수/오버플로 규칙과 표시할
-멤버 선정, `ChatRoomHeader` 서브타이틀 슬롯 API, 읽음 표시 컴포넌트 props,
-입력창 상태별 스타일 토큰 — 필요한 Figma 노드는 `get_design_context`로 정밀
-추출한다.
+This ADR feeds the spec phase (Phase A) of `dev-2_implement`. The spec settles the implementation
+detail: how many avatars `AvatarGroup` shows and its overflow rule, which members it picks, the
+`ChatRoomHeader` subtitle slot API, the read-status component props, and the composer's per-state
+style tokens — pulling the Figma nodes it needs through `get_design_context`.

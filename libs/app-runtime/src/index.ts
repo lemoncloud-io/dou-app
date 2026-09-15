@@ -29,7 +29,7 @@
 // publishes outward, and nothing inside the package imports one.
 //
 // [`public-surface.test.ts`](./public-surface.test.ts) locks the group membership symbol by symbol.
-// See also docs/public-surface.md.
+// See also the Public surface section of libs/app-runtime/README.md.
 
 // There is no second, un-grouped lane. The 67 names were flat until 275 consumer files were moved
 // onto the groups in one pass, and keeping a flat alias afterwards would mean shipping every symbol

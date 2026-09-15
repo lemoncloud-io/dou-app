@@ -1,9 +1,42 @@
+// libs/shared/tsconfig.spec.json
 {
     "extends": "./tsconfig.json",
     "compilerOptions": {
-        "outDir": "../../dist/out-tsc",
-        "module": "commonjs",
-        "types": ["jest", "node"]
+        // A sub-directory of its own, NOT the `../../dist/out-tsc` tsconfig.lib.json emits into.
+        // The spec project compiles the same `src/**` files the lib project does, so a shared
+        // outDir would have two programs writing the same `.d.ts` paths — one of them with `jsx`
+        // and the jest types, one without.
+        "outDir": "../../dist/out-tsc/shared-spec",
+        // `module` is NOT overridden to commonjs here. The base sets `moduleResolution: bundler`,
+        // which rejects commonjs (TS5095) and left this config unable to compile at all — which is
+        // how these test files went years without a type check. ts-jest emits CommonJS for jest on
+        // its own; this config only has to be checkable.
+        "types": ["jest", "node", "vite/client"],
+        // The lib holds `.tsx` components, and the spec project compiles them alongside the tests.
+        "jsx": "react-jsx"
     },
-    "include": ["jest.config.js", "src/**/*.ts", "src/**/*.tsx"]
+    // `__mocks__` is listed explicitly even though `src/**/*.ts` already covers it: tsconfig.lib.json
+    // excludes that folder, and the nx typecheck target derives its cache inputs from these globs —
+    // without this entry a change to a shared mock would not invalidate the cache.
+    "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.d.ts", "src/**/__mocks__/**/*.ts"],
+    // The same sibling projects tsconfig.lib.json references. A composite project has to reach its
+    // dependencies through references, or their sources come in as unlisted files (TS6307).
+    // `assets` is at the REPO ROOT, not under `libs/` — `../assets/` would fail with TS5083.
+    "references": [
+        {
+            "path": "../config/tsconfig.lib.json"
+        },
+        {
+            "path": "../device-utils/tsconfig.lib.json"
+        },
+        {
+            "path": "../bridges/tsconfig.lib.json"
+        },
+        {
+            "path": "../ui-kit/tsconfig.lib.json"
+        },
+        {
+            "path": "../../assets/tsconfig.lib.json"
+        }
+    ]
 }

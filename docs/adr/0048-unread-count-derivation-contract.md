@@ -1,42 +1,47 @@
-# ADR-0048: 안 읽음 수는 `chatNo − metaNo` 스케일에서 파생한다 — 클라이언트 세 개의 공통 계약
+# ADR-0048: Derive unread count on the `chatNo − metaNo` scale — a shared contract across three clients
 
-> 상태: Accepted · 결정일: 2026-08-10
-> 관련: [ADR-0045](./0045-web-emoji-reaction-and-thread.md) (이모지 리액션·스레드 도입) · [ADR-0047](./0047-web-reaction-and-thread-refinements.md) (리액션·스레드 후속)
+> Status: Accepted · Decided: 2026-08-10
+> Related: [ADR-0045](./0045-web-emoji-reaction-and-thread.md) (introducing emoji reactions · threads) ·
+> [ADR-0047](./0047-web-reaction-and-thread-refinements.md) (reaction/thread follow-up)
 
-## 맥락 (Context)
+## Context
 
-이모지 리액션이 들어오면서 안 읽음 뱃지가 조용히 틀리기 시작했다. 다 읽은 채널에 누가 반응만
-달아도 사이드바와 플레이스 레일에 숫자가 붙는다. 원인은 뱃지 코드의 실수가 아니라, **서버가
-이미 갖고 있는 구분을 클라이언트가 각자 다시 유도하다가 갈라진 것**이다.
+Once emoji reactions shipped, unread badges quietly started going wrong. A channel that's fully read gets a
+number attached the moment anyone adds a reaction. The cause isn't a bug in badge code — it's that **the
+client re-derives, on its own, a distinction the server already has, and the derivations diverged.**
 
-같은 값을 세 클라이언트가 각각 계산한다. 표현은 플랫폼마다 다시 만들지만 이 계산은 표현이
-아니라 계약인데, 계약이 어디에도 적혀 있지 않아 세 구현이 서로 다른 전제 위에 서 있었다.
-이 문서가 그 계약의 정본이다.
+Three clients each compute the same value. The presentation is rightly rebuilt per platform, but this
+calculation is a contract, not presentation — and since the contract was written down nowhere, the three
+implementations ended up standing on different assumptions. This document is that contract, now made
+canonical.
 
-### 서버가 이미 하고 있는 구분
+### The distinction the server already makes
 
-채널마다 `chatNo`라는 단조 증가 번호가 **하나** 있고, 사람이 쓴 메시지와 시스템 이벤트가 같은
-시퀀스를 나눠 쓴다. 서버는 챗을 쓸 때마다 집계 대상인지 판정해 카운터를 함께 올린다.
+Each channel has **one** monotonically increasing number, `chatNo`, shared by both human messages and system
+events. Every time the server writes a chat, it decides whether it counts toward the aggregate and advances
+the counter accordingly.
 
 ```ts
 // chatic-socials-api  src/modules/chats/proxy.ts:327
-/** unread 집계 대상 메시지인지 — 현재는 user 메시지만 집계(system 등은 metaNo로 분리) */
+/** Whether this message counts toward unread aggregation — currently only user messages count
+ *  (system etc. are split off via metaNo) */
 public isCountable(stereo?: ChatStereo): boolean {
     return stereo === 'user';
 }
 
-// 같은 파일 :357 — user가 아니면 chatNo와 metaNo를 함께 올린다
+// same file :357 — non-user messages advance both chatNo and metaNo together
 const $next = this.isCountable(model?.stereo) ? { chatNo: 1, metaNo: 0 } : { chatNo: 1, metaNo: 1 };
 ```
 
-여기서 이 문서 전체가 의존하는 불변조건이 나온다.
+This is the invariant the entire document depends on.
 
-> **`chatNo − metaNo` = 그 지점까지의 사용자 메시지 개수.**
-> 시스템 챗은 두 값을 함께 올리므로 이 차이에 기여하지 않는다 — 즉 시스템 이벤트에 **불변**이다.
+> **`chatNo − metaNo` = the count of user messages up to that point.**
+> Since a system chat advances both values together, it never contributes to this difference — it is
+> **invariant** with respect to system events.
 
-읽음 커서에도 같은 환산이 필요하다. `join.chatNo`는 **통합 시퀀스 위의 위치**이지 사용자 메시지
-개수가 아니기 때문이다. 그래서 서버는 읽음 처리 시점의 `channel.metaNo`를 `join.metaNo`로
-스냅샷해 둔다. 서버 자신의 계산이 정본이다.
+The read cursor needs the same conversion, because `join.chatNo` is **a position on the merged sequence**,
+not a count of user messages. So the server snapshots `channel.metaNo` at the time of reading, as
+`join.metaNo`. The server's own calculation is canonical.
 
 ```ts
 // chatic-socials-api  src/modules/chats/proxy.ts:155
@@ -50,102 +55,106 @@ public calcUnreadCount($channel: ChannelModel, $join?: JoinModel): number {
 }
 ```
 
-### 리액션이 왜 이걸 건드렸나
+### Why reactions broke this
 
-리액션은 필드가 아니라 **챗 레코드**다 — `stereo: 'system'`, `subType: 'reaction'`
-(`chatic-socials-api` `src/lib/chats/set-reaction.ts`). 즉 `chatNo` 한 칸을 차지한다. UI에
-칩으로 보이는 것은 클라이언트가 `foldReactions`로 접어 그린 결과일 뿐이다.
+A reaction is not a field, it's a **chat record** — `stereo: 'system'`, `subType: 'reaction'`
+(`chatic-socials-api` `src/lib/chats/set-reaction.ts`). That is, it takes up one `chatNo` slot. What shows up
+in the UI as a chip is only the client-side folded result of `foldReactions`.
 
-join/leave도 같은 방식으로 슬롯을 먹지만 드물어서 눈에 안 띄었다. 리액션은 자주 일어나므로
-같은 결함을 매일 드러냈다.
+Join/leave events take the same kind of slot too, but they're rare enough that it went unnoticed. Reactions
+are frequent, so they surfaced the same defect every day.
 
-### 왜 서버의 `channel.unreadCount`를 그냥 안 쓰나
+### Why not just use the server's `channel.unreadCount`
 
-두 가지 이유로 못 쓴다. 첫째, 백엔드가 최종 일관성이라 쓰기 직후 읽으면 낡은 값이 온다
-(`CLAUDE.md`의 mutation cache rule과 같은 이유). 둘째, 서버는 **보낸 사람의 읽음 커서를
-자동으로 전진시키지 않는다** — 방금 내가 쓴 메시지가 나에게 안 읽음으로 잡힌다. 그래서
-클라이언트가 파생한다. 서버 값은 읽음 경계를 아직 하나도 모를 때의 폴백으로만 쓴다.
+Can't, for two reasons. First, the backend is eventually consistent, so reading right after a write returns
+a stale value (the same reason as `CLAUDE.md`'s mutation cache rule). Second, the server **doesn't
+automatically advance the sender's own read cursor** — a message I just sent gets marked as unread for me.
+So the client derives it. The server value is used only as a fallback, for when the client doesn't yet know
+any read boundary.
 
-## 결정 (Decision)
+## Decision
 
-**안 읽음 수는 양변을 사용자 메시지 스케일로 환산한 뒤 뺀다.**
+**Derive unread count by converting both sides onto the user-message scale before subtracting.**
 
 ```
 unread = (channel.chatNo − channel.metaNo) − (join.chatNo − join.metaNo)
 ```
 
-지켜야 할 규칙 네 가지.
+Four rules to follow.
 
-### 1. 머리와 `metaNo`는 같은 레코드에서 읽는다
+### 1. Read the head and its `metaNo` from the same record
 
-`channel.chatNo`와 `channel.metaNo`는 한 스냅샷의 두 필드다. 머리를 `lastChat$.chatNo`에서
-가져오면 **다른 시점의 스냅샷**이 되고, 거기서 이 레코드의 `metaNo`를 빼면 시퀀스의 다른
-지점에서 잰 시스템 개수를 빼게 된다. 커서 쪽도 같다 — `join.chatNo`와 `join.metaNo`는 반드시
-같은 join 행에서 나와야 한다.
+`channel.chatNo` and `channel.metaNo` are two fields of one snapshot. Take the head from `lastChat$.chatNo`
+and it becomes **a snapshot from a different point in time** — subtracting this record's `metaNo` from it
+subtracts the system count measured at a different point in the sequence. The cursor side is the same —
+`join.chatNo` and `join.metaNo` must come from the same join row.
 
-### 2. 커서 스냅샷이 없으면 예전 계산으로 degrade한다
+### 2. Degrade to the old calculation when there's no cursor snapshot
 
-서버가 `join.metaNo`를 남기기 전에 쓰인 행에는 그 값이 없다. 그때는 `channel.metaNo`를 대신
-써서 보정을 0으로 만든다 — 결과는 예전의 슬롯 차이와 같고, 그 채널을 한 번 읽으면 서버가
-스냅샷을 채우며 스스로 교정된다. 서버의 `calcUnreadCount`가 하는 것과 같은 폴백이다.
+A join row written before the server started keeping `join.metaNo` has no such value. In that case,
+substitute `channel.metaNo`, making the correction zero — the result equals the old slot-difference
+calculation, and it self-corrects the moment that channel is read once and the server fills in the snapshot.
+This is the same fallback the server's own `calcUnreadCount` performs.
 
-> **재검토 노트 (2026-08-18, 두 차례) — 결론은 "폴백을 유지한다"다.**
+> **Reconsideration notes (2026-08-18, twice) — the conclusion is "keep the fallback."**
 >
-> 14:00 커밋(`c84545a6`)은 이 폴백을 버리고 스냅샷이 없으면 커서를 **환산하지 않고 그대로 빼기로**
-> 했다. 근거는 이랬다: 슬롯 차이는 읽은 뒤 달린 시스템 챗을 안 읽은 메시지로 세므로 리액션마다
-> 뱃지가 오르고, `channel.metaNo`는 커서가 아니라 **지금 머리의** 시스템 개수이므로 폴백 안에서
-> 규칙 1을 스스로 어긴다는 것.
+> The 14:00 commit (`c84545a6`) dropped this fallback and, when there's no snapshot, subtracted the cursor
+> **unconverted, as-is.** The reasoning: the slot-difference approach counts system chats added after the
+> read as unread, so the badge climbs with every reaction, and `channel.metaNo` is **the current head's**
+> system count, not the cursor's — so inside the fallback it violates Rule 1 on its own.
 >
-> 24분 뒤 14:24 커밋(`6bb46bc5`)이 그 결정을 **되돌렸다.** 환산하지 않은 차이는 반대로 과소
-> 집계라 실제로 안 읽은 메시지를 숨기고, 그쪽이 더 나쁘다는 판단이다. **현재 코드는 폴백을 쓴다**
-> (`readMetaNo ?? headMetaNo`).
+> 24 minutes later, the 14:24 commit (`6bb46bc5`) **reverted** that decision. The unconverted difference
+> instead **under-counts**, hiding actually-unread messages, and that was judged worse. **The current code
+> uses the fallback** (`readMetaNo ?? headMetaNo`).
 >
-> 남는 사실관계는 정직하게 적어 둔다. `headMetaNo >= readMetaNo`가 항상 성립하므로 폴백은 **항상
-> 높게** 나오고, 머리까지 읽은 방도 리액션이 달릴 때마다 뱃지가 1씩 오른다 — 14:00 커밋이 지적한
-> 그 결함은 사실이며 여전히 남아 있다(`countUnread.test.ts`의 "still reads non-zero as system events
-> land after a snapshot-less read to the head"가 그 모양을 고정해 둔다). 환산 안 하는 쪽은 항상 낮게
-> 나온다. 스냅샷 없는 행에 정확한 답은 없고, 어느 방향으로 틀릴지를 고른 것이다. 두 경우 모두 그
-> 방을 한 번 읽으면 서버가 스냅샷을 채우며 영구히 정확해진다.
+> The remaining fact is recorded honestly here. `headMetaNo >= readMetaNo` always holds, so the fallback is
+> always **too high**, and even a room read all the way to the head keeps climbing by 1 for every reaction
+> that lands — the defect the 14:00 commit pointed at is real and still present
+> (`countUnread.test.ts`'s "still reads non-zero as system events land after a snapshot-less read to the
+> head" pins down that shape). The unconverted side is always **too low**. There is no exact answer for a
+> snapshot-less row — only a choice of which direction to be wrong in. In both cases, reading that room once
+> makes the server fill the snapshot and become permanently accurate.
 >
-> 이 트레이드오프를 다시 열려면 두 커밋을 모두 읽고 시작할 것. 그리고 14:00 커밋은 코드(공식)를
-> 바꾸지 않고 테스트·이 문서만 새 계약으로 옮겼고, 14:24 커밋은 테스트 두 개만 되돌려서 나머지
-> 테스트 4건과 이 노트가 실제 동작과 어긋난 채 남아 있었다 — 2026-08-19에 코드 기준으로 맞췄다.
+> To reopen this trade-off, read both commits first. And: the 14:00 commit changed only the tests and this
+> document to the new contract, not the code (the formula); the 14:24 commit reverted only two of those
+> tests, leaving the other 4 tests and this note out of sync with actual behavior — that was corrected to
+> match the code on 2026-08-19.
 
-### 3. "내 메시지가 최신이면 0" 지름길은 **사용자 메시지에만** 건다
+### 3. Gate the "my message is latest → 0" shortcut to **user messages only**
 
-보낸 사람의 커서가 전진하지 않는 문제를 가리려고 이 지름길이 있다. 그런데 내가 남긴
-*리액션*도 채널의 최신 챗이 된다. 게이트 없이 두면 읽지도 않은 채널에 👍 하나만 눌러도 뱃지가
-통째로 사라진다. 판정은 이미 있는 것을 쓴다 — `isNotifiableChat`(= `stereo !== 'system'`),
-OS 배너와 사이드바 미리보기가 쓰는 바로 그 술어다.
+This shortcut exists to paper over the sender's-cursor-doesn't-advance problem. But my own _reaction_ also
+becomes the channel's latest chat. Without a gate, tapping 👍 on a channel I haven't even read would zero out
+the whole badge. The check reuses something that already exists —
+`isNotifiableChat` (= `stereo !== 'system'`), the very predicate OS banners and the sidebar preview use.
 
-> **주의** — 이 지름길과 `metaNo` 네팅은 "이 챗이 세어야 하는가"라는 같은 질문에 서로 다른
-> 메커니즘으로 답한다. 하나는 `stereo`에 대한 클라이언트 술어, 하나는 서버 카운터다. 서버의
-> 비집계 집합이 정확히 `stereo === 'user'`의 여집합인 동안에만 둘이 일치한다. 그 집합이
-> 넓어지면 **조용히** 어긋난다.
+> **Caution** — this shortcut and `metaNo` netting answer the same question, "should this chat count," with
+> two different mechanisms. One is a client-side predicate on `stereo`, the other is a server counter. They
+> agree only as long as the server's non-countable set is exactly the complement of `stereo === 'user'`. If
+> that set widens, they'll diverge **silently**.
 
-### 4. 로컬 읽음 커서는 경쟁하는 경계가 아니라 상한이다
+### 4. A local read cursor is an upper bound, not a competing boundary
 
-서버 커서는 왕복이 있어 늦으므로 이 기기가 읽은 지점을 따로 들 수 있다. 그 값에는
-`metaNo` 스냅샷이 없어 스케일이 안 맞으므로, 서버 커서와 나란히 놓고 "더 멀리 읽은 쪽"을
-고르면 안 된다. 대신 상한으로 쓴다 — "`localReadNo`까지 읽었으니 그 위의 슬롯 수보다 많이 안
-읽었을 수는 없다". 이래야 채널을 읽은 직후 메시지 하나가 왔을 때 밀린 개수가 통째로 다시 뜨지
-않는다.
+Since the server cursor round-trips and lags, this device may keep its own separate read point. That value
+has no `metaNo` snapshot, so its scale doesn't match — never place it side by side with the server cursor and
+pick "whichever read further." Use it as an upper bound instead — "having read up to `localReadNo`, unread
+can't exceed the slot count above it." This is what keeps the badge from fully reappearing the instant one
+new message arrives right after a channel was read.
 
-## 현재 구현 (Current state)
+## Current state
 
-| 표면               | 파일                                                  | 계약 준수                                                         |
-| ------------------ | ----------------------------------------------------- | ----------------------------------------------------------------- |
-| 서버 (정본)        | `chatic-socials-api` `src/modules/chats/proxy.ts:155` | 기준                                                              |
-| `apps/desktop-web` | `src/app/shared/utils/channelUnread.ts`               | ✅ 규칙 1~4 전부                                                  |
-| `apps/testbed`     | `src/app/features/unread/computeUnreads.ts`           | ⚠️ 네팅은 맞으나 머리를 `lastChat$.chatNo`에서 가져와 규칙 1 위반 |
-| `apps/web`         | `src/app/utils/countUnread.ts`                        | ✅ 규칙 1·2 (커서 환산 + 스냅샷 없을 때 폴백 — 위 재검토 노트)    |
+| Surface            | File                                                  | Contract compliance                                                                              |
+| ------------------ | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| Server (canonical) | `chatic-socials-api` `src/modules/chats/proxy.ts:155` | baseline                                                                                         |
+| `apps/desktop-web` | `src/app/shared/utils/channelUnread.ts`               | ✅ Rules 1–4 in full                                                                             |
+| `apps/testbed`     | `src/app/features/unread/computeUnreads.ts`           | ⚠️ Netting is correct, but takes the head from `lastChat$.chatNo`, violating Rule 1              |
+| `apps/web`         | `src/app/utils/countUnread.ts`                        | ✅ Rules 1–2 (converted cursor + fallback when no snapshot — see the reconsideration note above) |
 
-`apps/desktop-web`만 규칙 3·4를 갖는다. 서버 `unreadCount` 폴백과 로컬 커서 상한도 데스크톱
-전용이다 — 모바일에는 둘 다 없다.
+Only `apps/desktop-web` has Rules 3–4. Both the server `unreadCount` fallback and the local-cursor upper
+bound are desktop-only — mobile has neither.
 
-### 알려진 불일치: `apps/web`이 커서를 환산하지 않는다
+### A known inconsistency: `apps/web` doesn't convert the cursor
 
-`apps/web`은 머리만 환산하고 커서는 통합 시퀀스 값을 그대로 뺀다.
+`apps/web` converts only the head; the cursor still subtracts the merged-sequence value as-is.
 
 ```ts
 // apps/web/src/app/utils/countUnread.ts
@@ -155,45 +164,49 @@ readNo?: number;
 const userHead = Math.max(0, (headChatNo ?? 0) - (headMetaNo ?? 0));
 return Math.max(0, userHead - readNo);
 
-// 그 readNo의 출처 — 두 값 모두 통합 스케일이다
+// where that readNo comes from — both values here are on the merged scale
 export const readCursorOf = (join?: { readNo?: number; chatNo?: number }): number | undefined =>
     join ? Math.max(join.readNo ?? 0, join.chatNo ?? 0) : undefined;
 ```
 
-`join.chatNo`가 사용자 메시지 스케일이라는 전제 위에 서 있고, 그 전제가 `useChannelUnreads`의
-주석에 "이러면 per-cursor metaNo 없이도 시스템 메시지가 netting된다"라고 명시돼 있다. 서버는
-그렇게 보지 않는다 — `markAsRead`가 커서 슬롯의 `metaNo`를 굳이 스냅샷하는 이유가 바로
-`join.chatNo`가 통합 스케일이기 때문이다. API 응답의 `readNo`도 `$join.chatNo`를 그대로 담는다
-(`chatic-socials-api` `src/modules/chats/api-chats.ts:102`).
+This rests on the premise that `join.chatNo` is on the user-message scale, and that premise is stated
+explicitly in a comment on `useChannelUnreads`: "this way system messages get netted out even without a
+per-cursor metaNo." The server doesn't see it that way — the reason `markAsRead` bothers to snapshot the
+cursor slot's `metaNo` is precisely that `join.chatNo` is on the merged scale. The API response's `readNo`
+also carries `$join.chatNo` as-is (`chatic-socials-api` `src/modules/chats/api-chats.ts:102`).
 
-결과적으로 `join.metaNo`만큼 과잉 차감된다. 방향이 **항상 과소 집계**라서(뱃지가 실제보다 작게
-나오거나 아예 안 뜬다) 눈에 잘 안 띈다. 리액션 버그가 과대 집계로 시끄러웠던 것과 대칭이다.
+The net effect is over-subtraction by `join.metaNo`. This goes unnoticed because the direction is **always
+under-counting** (the badge reads lower than it should, or doesn't show at all) — the mirror image of the
+reaction bug, which was loud because it over-counted.
 
-미수정으로 남긴 이유: 데스크톱 리액션 수정(PR #418) 범위 밖이고, 고치면 모바일 뱃지 숫자가
-바뀌는 동작 변경이라 별건으로 다뤄야 한다.
+Left unfixed for now because it's outside the scope of the desktop reaction fix (PR #418), and fixing it
+would change mobile badge numbers — a behavior change that needs to be handled as its own piece of work.
 
-### `apps/testbed`의 머리 선택
+### `apps/testbed`'s choice of head
 
-`computeUnreads`는 `latestChatNo = lastChat$.chatNo ?? channel.chatNo`로 머리를 잡으면서
-`latestMeta`는 `channel.metaNo`에서 가져온다. 두 값이 다른 스냅샷일 때 규칙 1을 어긴다.
-진단용 표면이라 실사용 영향은 없지만, 여기서 읽은 숫자를 다른 화면과 대조할 때 오해를 만든다.
+`computeUnreads` takes the head as `latestChatNo = lastChat$.chatNo ?? channel.chatNo` while taking
+`latestMeta` from `channel.metaNo`. When the two are different snapshots, this violates Rule 1. It's a
+diagnostic surface with no real-usage impact, but it can produce misleading numbers when cross-checked
+against other screens.
 
-## 결과 (Consequences)
+## Consequences
 
-- **좋아지는 것** — 계약이 한 곳에 적혔다. 새 표면을 만들 때 "이미 있는 세 구현 중 어느 걸
-  베낄까"가 아니라 이 문서를 본다. 리액션 외에 어떤 시스템 챗이 추가돼도 뱃지는 자동으로 옳다.
-- **비용** — 계산이 네 곳에 복제돼 있다. 공유 라이브러리로 빼는 것이 옳지만 마땅한 집이 없고
-  (`libs/socket-data`는 `src` 없이 dist만 남은 죽은 패키지), 위의 web/desktop 불일치를 먼저
-  정리하지 않으면 틀린 전제를 엔진에 굳히게 된다. **불일치 해소가 추출의 선행 조건이다.**
-- **타입 지연** — 발행된 `@lemoncloud/chatic-socials-api`가 `join.metaNo`와
-  `ChatSubType.reaction`을 아직 선언하지 않는다(설치 `0.26.412`, 서버 `0.26.722`). 클라이언트는
-  좁은 캐스트로 읽는다. 캐시 경로는 `libs/app-messages`의 `CacheJoinView`를 넓혀 정리했지만
-  `ChannelView.$join`에서 오는 자리는 캐스트가 남아 있다. SDK가 따라오면 그 자리들을 찾아야
-  한다.
+- **What improves** — the contract is written down in one place. Building a new surface means checking this
+  document instead of "which of the three existing implementations should I copy." When any other system
+  chat type gets added, badges stay correct automatically.
+- **Cost** — the calculation is duplicated across four places. Extracting it into a shared library would be
+  the right move, but there's no natural home for it (`libs/socket-data` is a dead package with only `dist`,
+  no `src`), and extracting before fixing the web/desktop inconsistency above would bake a wrong premise into
+  the shared engine. **Resolving the inconsistency is a precondition for extraction.**
+- **Type lag** — the published `@lemoncloud/chatic-socials-api` doesn't yet declare `join.metaNo` or
+  `ChatSubType.reaction` (installed `0.26.412`, server `0.26.722`). Clients read these via narrow casts. The
+  cache path was cleaned up by widening `libs/app-messages`'s `CacheJoinView`, but the cast remains where
+  `ChannelView.$join` supplies the value. Once the SDK catches up, those spots need to be found and cleaned.
 
-## 후속 (Follow-ups)
+## Follow-ups
 
-- [ ] `apps/web`의 커서 환산 수정 — 위 "알려진 불일치". 동작 변경이라 별도 PR.
-- [ ] `apps/testbed`의 머리/`metaNo` 레코드 일치 (규칙 1).
-- [ ] 위 둘이 정리된 뒤 공유 파생 함수 추출 위치 결정.
-- [ ] SDK 업그레이드 시 `join.metaNo` 캐스트 제거.
+- [ ] Fix `apps/web`'s cursor conversion — the "known inconsistency" above. A behavior change, so a separate
+      PR.
+- [ ] Align `apps/testbed`'s head/`metaNo` to the same record (Rule 1).
+- [ ] Decide where to extract the shared derivation function once the two items above are resolved.
+- [ ] Remove the `join.metaNo` cast once the SDK is upgraded.

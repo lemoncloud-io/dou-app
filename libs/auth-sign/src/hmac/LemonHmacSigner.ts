@@ -6,15 +6,15 @@ import type { AuthSignResult, IAuthSigner, SignatureContext, SignaturePayload } 
 const hmac = (message: string, key: string): string => encBase64.stringify(hmacSHA256(message, key));
 
 /**
- * lemon HMAC — `hmac(hmac(hmac(data, authId), accountId), identityId)`,
- * `data = [current, accountId, identityId, '', userAgent].join('&')`. The 4th slot is always `''`:
- * this is not a caller convention, it is invariant to the formula itself (both the pre-lib web-core
- * copy and lemon-web-core's own `calcSignature` hardcode it — see docs/architecture.md §서명식).
- * `payload.identityToken` is kept for call-site compatibility but is never read.
+ * lemon HMAC — `hmac(hmac(hmac(data, authId), accountId), identityId)`, where
+ * `data = [current, accountId, identityId, '', userAgent].join('&')`.
  *
- * Pure — no network, no storage, no globals. `current`/`userAgent` are required inputs (the
- * pre-lib version defaulted them to `new Date().toISOString()`/`navigator.userAgent`, which made it
- * unusable outside a browser — see 설계 원칙 "전역 읽기 금지").
+ * The 4th slot is always `''`. That is a property of the formula and not a caller convention, so
+ * `payload.identityToken` is accepted and never read.
+ *
+ * Pure: no network, no storage, no globals. `current` and `userAgent` are required inputs rather
+ * than defaults, because a default would have to read `new Date()` or `navigator`, and this lib
+ * runs under Node and React Native as well as a browser.
  */
 export class LemonHmacSigner implements IAuthSigner {
     sign(payload: SignaturePayload, context: SignatureContext): AuthSignResult {

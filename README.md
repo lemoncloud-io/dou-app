@@ -14,7 +14,7 @@
   <img src="https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white&style=flat-square" alt="TypeScript 5.9" />
   <img src="https://img.shields.io/badge/Vite-7-646CFF?logo=vite&logoColor=white&style=flat-square" alt="Vite 7" />
   <img src="https://img.shields.io/badge/Nx-22-143055?logo=nx&logoColor=white&style=flat-square" alt="Nx 22" />
-  <img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="MIT License" />
+  <img src="https://img.shields.io/badge/License-Apache_2.0-green?style=flat-square" alt="Apache 2.0 License" />
 </p>
 
 <p align="center">
@@ -27,14 +27,18 @@
 
 ## Overview
 
-DoU is an Nx monorepo powering a real-time messaging and community platform across **4 applications** and **15 shared libraries** — web, mobile, and admin interfaces from a single codebase.
+DoU is an Nx monorepo powering a real-time messaging and community platform across **8 applications** and **16 shared libraries** — web, mobile, desktop, and admin interfaces from a single codebase.
 
-| App         | Description                      | Stack                              |
-| ----------- | -------------------------------- | ---------------------------------- |
-| **Web**     | Main user-facing web app         | React 19 + Vite + Tailwind CSS     |
-| **Admin**   | Admin dashboard                  | React 19 + Vite + Tailwind CSS     |
-| **Mobile**  | iOS & Android native app         | React Native 0.83 + WebView bridge |
-| **Landing** | Landing page & deep link handler | React 19 + Vite                    |
+| App                   | Description                                              | Stack                              |
+| --------------------- | -------------------------------------------------------- | ---------------------------------- |
+| **Web**               | Main user-facing web app                                 | React 19 + Vite + Tailwind CSS     |
+| **Admin V2**          | Admin dashboard                                          | React 19 + Vite + Tailwind CSS     |
+| **Mobile**            | iOS & Android native app — WebView shell around Web      | React Native 0.83 + WebView bridge |
+| **Landing**           | Marketing site, policy pages & invite-link bounce page   | React 19 + Vite                    |
+| **Desktop**           | Electron shell around Desktop Web                        | Electron + electron-vite           |
+| **Desktop Web**       | Web client rendered inside the Desktop Electron shell    | React 19 + Vite + Tailwind CSS     |
+| **Block Kit Builder** | Visual editor for `@chatic/block-kit` message blocks     | React 19 + Vite + Tailwind CSS     |
+| **Testbed**           | Experimental app for validating data/config/socket flows | React 19 + Vite + Tailwind CSS     |
 
 <details>
 <summary><strong>Table of Contents</strong></summary>
@@ -79,7 +83,7 @@ DoU is an Nx monorepo powering a real-time messaging and community platform acro
 | **Routing**      | React Router 6, React Navigation 7     |
 | **Forms**        | React Hook Form 7                      |
 | **i18n**         | i18next 25                             |
-| **Testing**      | Vitest 4, Jest 29, Testing Library     |
+| **Testing**      | Vitest 4, Jest 30, Testing Library     |
 | **Code Quality** | ESLint 9, Prettier, Husky, Commitlint  |
 
 ## Architecture
@@ -88,31 +92,42 @@ DoU is an Nx monorepo powering a real-time messaging and community platform acro
 graph TB
     subgraph Apps
         WEB["apps/web<br/>React Web App<br/><i>:5003</i>"]
-        ADMIN["apps/admin<br/>Admin Dashboard<br/><i>:5001</i>"]
-        MOBILE["apps/mobile<br/>React Native"]
+        ADMINV2["apps/admin-v2<br/>Admin Dashboard<br/><i>:5001</i>"]
         LANDING["apps/landing<br/>Landing Page<br/><i>:5004</i>"]
+        DESKWEB["apps/desktop-web<br/>Desktop Web Client<br/><i>:5005</i>"]
+        BKB["apps/block-kit-builder<br/>Block Kit Builder<br/><i>:5006</i>"]
+        TESTBED["apps/testbed<br/>Experimental App"]
+        MOBILE["apps/mobile<br/>React Native shell"]
+        DESKTOP["apps/desktop<br/>Electron shell"]
     end
 
     subgraph Core["Core Libraries"]
-        WEBCORE["web-core<br/>Auth & API Client"]
-        UIKIT["ui-kit<br/>29 Radix Components"]
+        DATA["data<br/>Headless Data Layer"]
+        HTTP["http<br/>Request Execution & Policy"]
+        CONFIG["config<br/>Runtime Settings"]
+        UIKIT["ui-kit<br/>29 Radix/shadcn Components"]
         SHARED["shared<br/>Utils & Hooks"]
         THEME["theme<br/>Dark / Light Mode"]
     end
 
-    subgraph Features["Feature Libraries"]
-        AUTH[auth]
-        CHATS[chats]
-        SOCKET[socket]
-        USERS[users]
-        APPMSG[app-messages]
-        DEVICE[device-utils]
+    subgraph Native["Native Bridge Libraries"]
+        RUNTIME["app-runtime<br/>Session & Runtime"]
+        BRIDGES["bridges<br/>WebView Transport"]
+        APPMSG["app-messages<br/>Bridge Message Vocabulary"]
+        DEVICE["device-utils<br/>Injected Device Info"]
+        DB["db<br/>Cache Storage Engines"]
+        LOGGER["logger<br/>Cross-Platform Logging"]
+        AUTHSIGN["auth-sign<br/>HMAC Request Signing"]
     end
 
-    WEB --> WEBCORE & UIKIT & SHARED & THEME
-    WEB --> AUTH & CHATS & SOCKET & USERS
-    ADMIN --> WEBCORE & UIKIT & SHARED & THEME
-    MOBILE --> SHARED & THEME & SOCKET & DEVICE & APPMSG
+    MOBILE --> BRIDGES & APPMSG
+    DESKTOP --> DESKWEB
+    WEB --> DATA & UIKIT & SHARED & THEME & CONFIG
+    WEB --> RUNTIME & BRIDGES & DEVICE
+    DESKWEB --> DATA & UIKIT & SHARED & THEME & RUNTIME
+    ADMINV2 --> DATA & UIKIT & SHARED & THEME
+    RUNTIME --> DATA & HTTP & AUTHSIGN
+    DATA --> DB & HTTP
 ```
 
 ### Project Structure
@@ -121,26 +136,36 @@ graph TB
 dou-app/
 ├── apps/
 │   ├── web/                 # Main web application (port 5003)
-│   ├── admin/               # Admin dashboard (port 5001)
+│   ├── admin-v2/            # Admin dashboard (port 5001)
+│   ├── landing/             # Marketing site & policy pages (port 5004)
+│   ├── desktop-web/         # Web client for the Desktop shell (port 5005)
+│   ├── block-kit-builder/   # Block Kit visual editor (port 5006)
+│   ├── testbed/             # Experimental app for data/config/socket flows
 │   ├── mobile/              # React Native app (iOS + Android)
 │   │   ├── android/
 │   │   ├── ios/
 │   │   └── src/
-│   └── landing/             # Landing page (port 5004)
+│   └── desktop/             # Electron shell (hosts desktop-web)
 ├── libs/
-│   ├── web-core/            # Auth, API client, initialization
-│   ├── ui-kit/              # Shared UI components (shadcn/ui)
+│   ├── data/                # Headless data layer (models, cache, repositories)
+│   ├── db/                  # Cache storage engines (IndexedDB / native SQLite)
+│   ├── http/                # Request execution, retry & logging policy
+│   ├── config/              # Runtime settings facade
+│   ├── app-runtime/         # Session, sockets, repositories, sync runtimes
+│   ├── bridges/             # WebView transport between web and native shell
+│   ├── app-messages/        # Bridge message vocabulary (web <-> native)
+│   ├── device-utils/        # Injected device info, reader hooks
+│   ├── auth-sign/           # Lemon HMAC request signing
+│   ├── logger/              # Cross-platform logging core
+│   ├── policy-content/      # Legal text (terms, privacy, child safety)
+│   ├── block-kit/           # Message block model consumed by block-kit-builder
+│   ├── ui-kit/              # Generic UI components (shadcn/ui)
+│   ├── web-ui-kit/          # Mobile-web design system components
 │   ├── shared/              # Common utilities and hooks
-│   ├── theme/               # Theme provider (dark/light)
-│   ├── auth/                # Authentication logic
-│   ├── chats/               # Chat functionality
-│   ├── socket/              # WebSocket integration
-│   ├── users/               # User management
-│   ├── app-messages/        # Messaging types and stores
-│   └── device-utils/        # Device info and stores
+│   └── theme/               # Theme provider (dark/light)
 ├── assets/                  # Shared images, logos, icons
 ├── scripts/                 # Build and deployment scripts
-├── docs/                    # Documentation
+├── docs/                    # ADRs (docs/adr/) and infra config (docs/infra/)
 └── .github/workflows/       # CI/CD pipelines
 ```
 
@@ -163,11 +188,14 @@ The mobile app uses a **WebView + Native Bridge** pattern:
 All apps share code through `@chatic/*` path aliases:
 
 ```typescript
-import { useAuth } from '@chatic/web-core';
+import { runtime } from '@chatic/app-runtime';
 import { Button } from '@chatic/ui-kit';
-import { useWebSocket } from '@chatic/socket';
+import { config } from '@chatic/config';
 import { ThemeProvider } from '@chatic/theme';
 ```
+
+Before editing a lib, read its own `README.md` — each one documents what it owns and, where a
+decision's reasoning matters, links back to the ADR that made it (see [`docs/adr/`](docs/adr/)).
 
 ## Getting Started
 
@@ -198,65 +226,47 @@ yarn install
 
 ### Environment Setup
 
-Copy the example environment files and fill in your values:
-
-```bash
-# Web
-cp apps/web/.env.example apps/web/.env
-
-# Admin
-cp apps/admin/.env.example apps/admin/.env
-
-# Mobile
-cp apps/mobile/.env.example apps/mobile/.env
-```
+Full checklist — which `.env` files, Firebase config, and (for release builds only) signing
+credentials a fresh checkout needs — lives in **[ONBOARDING.md](./ONBOARDING.md)**.
 
 > [!WARNING]
 > Environment files (`.env`) must exist before building. The app will not start without them.
-
-> [!IMPORTANT]
-> **Migrating an existing mobile checkout.** `apps/mobile/.env` used to be the dev env on iOS; it is
-> now the LOCAL env on both platforms, and dev/prod builds read `.env.dev` / `.env.prod`. Move your
-> current dev values to `apps/mobile/.env.dev`, then recreate `.env` from `.env.example`. Android is
-> unaffected — it already read `.env.dev` / `.env.prod`.
-
-<details>
-<summary>Firebase configuration (Mobile only)</summary>
-
-```bash
-# iOS — copy and fill with your Firebase config
-cp apps/mobile/ios/Firebase/GoogleService-Info.plist.example \
-   apps/mobile/ios/Firebase/GoogleService-Info-Dev.plist
-
-# Android — copy and fill with your Firebase config
-cp apps/mobile/android/app/src/google-services.json.example \
-   apps/mobile/android/app/src/dev/google-services.json
-```
-
-</details>
 
 ## Development
 
 ```bash
 # Web app
-yarn web:start              # http://localhost:5003
+yarn web:start                # http://localhost:5003
 
 # Admin dashboard
-yarn admin:start            # http://localhost:5001
+yarn admin-v2:start           # http://localhost:5001
 
 # Landing page
-yarn landing:start          # http://localhost:5004
+yarn landing:start            # http://localhost:5004
+
+# Desktop web client (served standalone, or hosted by the Desktop shell)
+yarn desktop-web:start        # http://localhost:5005
+
+# Block Kit Builder
+yarn block-kit-builder:start  # http://localhost:5006
+
+# Testbed (experimental app)
+yarn testbed:start
+
+# Desktop — Electron shell + its web client, in one command
+yarn desktop:start            # deployed desktop-web build
+yarn desktop:start:local      # local desktop-web dev server
 
 # Mobile — Local run: web dev server + Metro + the app, in one command
-yarn mobile:ios:local       # iOS Simulator, WebView -> http://localhost:5003
-yarn mobile:android:local   # Android Emulator, same address via `adb reverse`
+yarn mobile:ios:local         # iOS Simulator, WebView -> http://localhost:5003
+yarn mobile:android:local     # Android Emulator, same address via `adb reverse`
 
 # Mobile — Start Metro bundler only
 yarn mobile:start
 
 # Mobile — Run against the deployed web (dev/prod)
-yarn mobile:ios:dev         # iOS Simulator
-yarn mobile:android:dev     # Android Emulator
+yarn mobile:ios:dev           # iOS Simulator
+yarn mobile:android:dev       # Android Emulator
 ```
 
 > [!NOTE]
@@ -273,12 +283,17 @@ yarn mobile:android:dev     # Android Emulator
 
 ```bash
 # Build individual apps
-yarn web:build:dev          # Development build
-yarn web:build:prod         # Production build
-yarn admin:build:dev
-yarn admin:build:prod
+yarn web:build:dev              # Development build
+yarn web:build:prod             # Production build
+yarn admin-v2:build:dev
+yarn admin-v2:build:prod
 yarn landing:build:dev
 yarn landing:build:prod
+yarn desktop-web:build:dev
+yarn desktop-web:build:prod
+yarn block-kit-builder:build:dev
+yarn block-kit-builder:build:prod
+yarn desktop:build               # Electron shell
 
 # Build all apps at once
 yarn build:all:dev
@@ -296,13 +311,29 @@ Deployment uses AWS S3 + CloudFront. Required environment variables:
 | `DEPLOY_PROD_CF_DISTRIBUTION_ID` | CloudFront distribution ID (prod) |
 
 ```bash
-yarn web:deploy:dev         # Deploy web to dev
-yarn web:deploy:prod        # Deploy web to prod
-yarn admin:deploy:dev
-yarn admin:deploy:prod
+yarn web:deploy:dev              # Deploy web to dev
+yarn web:deploy:prod             # Deploy web to prod
+yarn admin-v2:deploy:dev
+yarn admin-v2:deploy:prod
 yarn landing:deploy:dev
 yarn landing:deploy:prod
+yarn desktop-web:deploy:dev
+yarn desktop-web:deploy:prod
+yarn block-kit-builder:deploy:dev
+yarn block-kit-builder:deploy:prod
+
+# Desktop is packaged, not deployed to S3/CloudFront
+yarn desktop:package:mac:dev
+yarn desktop:package:mac:prod:signed
+yarn desktop:package:win:dev
+yarn desktop:package:win:prod
 ```
+
+> [!IMPORTANT]
+> `desktop-web` only deploys automatically on push to `develop`/`main` — `force-deploy.yml` (manual
+> redeploy/rollback) covers Web, Admin V2 and Landing only. The Desktop Electron shell loads
+> `desktop-web` from a remote URL at runtime, so a `desktop-web` deploy reaches every running Desktop
+> user immediately, and the only way back is a revert commit pushed through the same pipeline.
 
 ## Mobile Development
 
@@ -370,7 +401,7 @@ yarn landing:deploy:prod
 </details>
 
 <details>
-<summary><strong>Admin</strong> (<code>apps/admin/.env</code>)</summary>
+<summary><strong>Admin V2</strong> (<code>apps/admin-v2/.env</code>)</summary>
 
 | Variable                     | Description                          |
 | ---------------------------- | ------------------------------------ |
@@ -384,6 +415,17 @@ yarn landing:deploy:prod
 | `VITE_WS_ENDPOINT`           | WebSocket endpoint                   |
 | `VITE_DOU_ENDPOINT`          | DoU API endpoint                     |
 | `VITE_FRONT_ENDPOINT`        | Frontend URL for cross-linking       |
+| `VITE_FIREBASE_*`            | Firebase web config (7 keys)         |
+
+</details>
+
+<details>
+<summary><strong>Desktop Web / Testbed / Block Kit Builder</strong></summary>
+
+Same shape as Web's `VITE_*` variables (`apps/desktop-web/.env`, `apps/testbed/.env`,
+`apps/block-kit-builder/.env` — each has its own `.env.example`). `desktop-web` additionally reads
+`VITE_SOC_ENDPOINT`, `VITE_IAP_ENDPOINT` and `VITE_DEBUG_CODE`; `testbed` mirrors Admin V2's
+`VITE_FRONT_ENDPOINT` for cross-linking.
 
 </details>
 
@@ -414,15 +456,19 @@ Android `envConfigFiles`), not by the script. See
 
 ## CI/CD
 
-GitHub Actions workflows are configured for automated deployment:
+| Workflow                | Trigger                          | Description                                                                                                                   |
+| ----------------------- | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `verify.yml`            | Pull requests, push to `develop` | Typecheck & test — only the projects listed as covered; excluded projects are named at the bottom of the file with the reason |
+| `deploy-dev.yml`        | Push to `develop`                | Auto-detect changed apps, build & deploy to dev                                                                               |
+| `deploy-prod.yml`       | Push to `main`                   | Build, deploy to prod & create a GitHub release                                                                               |
+| `force-deploy.yml`      | Manual dispatch                  | Force (re)deploy Web / Admin V2 / Landing to dev or prod — no other app                                                       |
+| `build-desktop.yml`     | Manual dispatch                  | Build unsigned macOS `.dmg` + Windows `.exe` installers, publish to a rolling `desktop-dev` / `desktop-prod` GitHub Release   |
+| `build-desktop-win.yml` | Manual dispatch                  | Windows-only variant of the above                                                                                             |
 
-| Workflow           | Trigger           | Description                                     |
-| ------------------ | ----------------- | ----------------------------------------------- |
-| `deploy-dev.yml`   | Push to `develop` | Auto-detect changed apps, build & deploy to dev |
-| `deploy-prod.yml`  | Push to `main`    | Build, deploy to prod & create GitHub release   |
-| `force-deploy.yml` | Manual dispatch   | Force deploy specific apps                      |
-
-The CI pipeline automatically detects which apps have changed and only builds/deploys the affected ones.
+`deploy-dev`/`deploy-prod` auto-detect which apps changed and only build/deploy the affected ones —
+this is the only path that ships `desktop-web` (see the note in
+[Building & Deployment](#building--deployment)). `verify.yml` was added later than the rest; before
+it, nothing in CI ran a type check or a test.
 
 ## Code Quality
 
@@ -447,8 +493,9 @@ yarn clean:cache            # Clear Vite/Nx caches
 
 Pre-commit hooks (via Husky) automatically run linting and formatting on staged files. Commit messages are enforced with [Conventional Commits](https://www.conventionalcommits.org/) via Commitlint.
 
-`yarn check:undefined-names` is deliberately outside those hooks — it type-checks all 24
-projects and takes about 20 seconds, which is too slow per commit. Run it yourself after any
+`yarn check:undefined-names` is deliberately outside those hooks — it type-checks every buildable
+project (an app or lib with a `tsconfig.app.json`/`tsconfig.lib.json`, 23 today) and takes about 20
+seconds, which is too slow per commit. Run it yourself after any
 change that moves or extracts a symbol. It catches what nothing else here can: ESLint disables
 `no-undef` on TypeScript files, Vite strips types without resolving free identifiers, and a test
 only sees the error if something renders that line. Pass a project name to narrow it
@@ -464,4 +511,4 @@ only sees the error if something renders that line. Pass a project name to narro
 
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+This project is licensed under the Apache License 2.0. See the [LICENSE](LICENSE) file for details.

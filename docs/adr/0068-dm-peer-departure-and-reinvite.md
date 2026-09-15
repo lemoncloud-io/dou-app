@@ -1,182 +1,287 @@
-# ADR-0068: 1:1 방의 상대 부재와 재초대 — 파생 상태 푸터, 같은 방 재입장, 24시간 링크
+# ADR-0068: Peer departure and reinvite in a 1:1 room — a derived status footer, rejoining the same room, a 24-hour link
 
-> 상태: Accepted · 결정일: 2026-08-25
-> · [ADR-0032](0032-dm-chat-room-screen.md)(DM 화면)·[ADR-0039](0039-dm-display-name-chain-and-invite-profile-release.md)(이름 체인)의 후속
-> · [ADR-0067](0067-rejoin-hides-prior-messages.md)(재입장 표시 게이트)이 이 시나리오의 전제를 깐다
-> · relay 초대 발신 흐름은 [relay-invite-sender.md](../../apps/web/docs/feature/invite/relay-invite-sender.md), 수락은 [relay-invite-accept.md](../../apps/web/docs/feature/invite/relay-invite-accept.md)
+> Status: Accepted · Decided: 2026-08-25
+> · Follows [ADR-0032](0032-dm-chat-room-screen.md) (DM screen) · [ADR-0039](0039-dm-display-name-chain-and-invite-profile-release.md) (name chain)
+> · [ADR-0067](0067-rejoin-hides-prior-messages.md) (rejoin display gate) lays the groundwork this scenario assumes
+> · The relay invite send flow is [relay-invite-sender.md](../../apps/web/docs/feature/invite/relay-invite-sender.md),
+> accept is [relay-invite-accept.md](../../apps/web/docs/feature/invite/relay-invite-accept.md)
 
-## 맥락 (Context)
+## Context
 
-ADR-0032/0039가 만든 것은 "이미 존재하는 DM 방을 여는 화면"이다. 그 **다음**이 비어 있었다 — 상대가 방을 나가면 화면은 아무 말도 하지 않고, 아무도 없는 방에 계속 메시지를 쓸 수 있고, 다시 부를 방법이 없다.
+What ADR-0032/0039 built is "the screen that opens an existing DM room." What came **after** that was empty — when a
+peer leaves the room, the screen says nothing, you can keep writing into an empty room, and there's no way to call
+them back.
 
-Figma 16개 노드가 그 공백을 한 바퀴로 그린다 ([4041-33606](https://www.figma.com/design/ViwLfjc5Eoq7BpEXFfFj3W/DoU?node-id=4041-33606) 외).
+16 Figma nodes draw a full loop across that gap ([4041-33606](https://www.figma.com/design/ViwLfjc5Eoq7BpEXFfFj3W/DoU?node-id=4041-33606)
+and others).
 
-| 구간                                      | 노드                                              | 현재 상태                                                     |
-| ----------------------------------------- | ------------------------------------------------- | ------------------------------------------------------------- |
-| 빈 방 + 입장 안내                         | 4041-33854 · 4068-15612                           | 구현됨 (`RoomIntro` dm variant)                               |
-| 상대 퇴장 — 안내 + CTA + 입력창 잠금      | 4041-33606 · 4068-15233                           | **없음**                                                      |
-| 재초대 폼 / 확인 / 연락처 변경            | 4068-15512 · 4068-15399 · 4059-13443 · 4142-24843 | 폼은 `ContactInvitePage`에 있으나 방에서 진입하는 경로가 없음 |
-| 방 안 초대 상태 + 유효시간 카운트다운     | 4062-14154 · 4062-14493 · 4064-14672              | **없음**                                                      |
-| 재입장 완료 — 입력창 재활성               | 4055-13019                                        | **없음**                                                      |
-| 방 설정(DM) — "대화방 나감" 행, 방 나가기 | 4052-12242                                        | 현재 코드가 나간 멤버를 **의도적으로 숨김**                   |
-| 친구 정보 시트                            | 4052-12782                                        | `JoinNickDialog`가 같은 자리를 다른 모양으로 차지             |
-| 나가기 확인                               | 4068-16586                                        | `ConfirmDialog` leave variant 재사용 가능                     |
-| 초대 링크 알럿 3종                        | 4038-11895                                        | 수락측 dialog 세트에 대응물이 이미 있음                       |
+| Segment                                                | Node                                              | Current state                                                                    |
+| ------------------------------------------------------ | ------------------------------------------------- | -------------------------------------------------------------------------------- |
+| Empty room + entry intro                               | 4041-33854 · 4068-15612                           | Implemented (`RoomIntro` dm variant)                                             |
+| Peer departure — notice + CTA + input lock             | 4041-33606 · 4068-15233                           | **None**                                                                         |
+| Reinvite form / confirmation / change contact          | 4068-15512 · 4068-15399 · 4059-13443 · 4142-24843 | The form exists in `ContactInvitePage`, but there's no entry point from the room |
+| In-room invite state + expiry countdown                | 4062-14154 · 4062-14493 · 4064-14672              | **None**                                                                         |
+| Rejoin complete — input reactivated                    | 4055-13019                                        | **None**                                                                         |
+| Room settings (DM) — a "left the chat" row, leave room | 4052-12242                                        | Current code **deliberately hides** members who left                             |
+| Friend info sheet                                      | 4052-12782                                        | `JoinNickDialog` occupies the same spot with a different look                    |
+| Leave confirmation                                     | 4068-16586                                        | The `ConfirmDialog` leave variant is reusable                                    |
+| 3 invite-link alerts                                   | 4038-11895                                        | Equivalent counterparts already exist on the accept side                         |
 
-### 조사에서 결정을 좌우한 사실들
+### Facts from the investigation that shaped the decision
 
-1. **서버는 이미 "기존 방으로 재초대"를 지원한다.** `InviteCreateRequestData`에 `channelId?`("이 코드가 입장시키는 채널")와 `expiresDays?`(미지정 시 3)가 있다. 웹의 `RelayInviteCreateInput`은 `{phone, name, countryCode}`뿐이라 **channelId를 보내지 않는다** — 그래서 지금은 수락이 항상 새 DM 방을 만든다.
-2. **ADR-0067이 재입장의 데이터 쪽을 이미 닫았다.** 서버가 재입장 시 커서를 리셋하고 클라가 `joinedNo` 표시 게이트로 퇴장 전 메시지를 가린다. 즉 "남아 있던 쪽은 이력 유지, 돌아온 쪽은 빈 방"이 이미 성립한다.
-3. **"초대 링크 유효시간 HH:mm:ss 남음"은 저장된 메시지가 될 수 없다.** 초 단위로 흐르는 값이다. 반면 `chat.subType`은 현재 `'join' | 'leave'` 둘뿐이다(`utils/systemMessage.ts`).
-4. **상대의 전화번호를 알아낼 방법이 없다.** `MyInviteView`는 `last4`만 준다(`InviteChannelRow`가 `contactInvite.maskedPhone`으로 `***5678` 렌더). 번호 가입자의 user `name`도 `***<뒷4자리>`다. 번호 원문은 `dou.relayInvite.sentLog.v2`(localStorage) — **내가 이 기기에서 발급한 초대에 한해서만** 남아 있다.
-5. **"링크로 보내기"는 번호를 우회하지 못한다.** 초대 코드는 번호 결속이고, 수락측이 `last4` 대조에 걸려 "초대받은 번호가 아닙니다."로 끝난다. 그룹의 링크 초대(`AddFriendSheet`)도 이름+번호를 먼저 받고 링크만 돌려주는 구조다 — 링크는 전달 수단이지 대상 지정이 아니다.
-6. **나간 멤버를 목록에서 지우는 것은 버그 수정의 결과였다.** `useChannelMembers`가 `hasLeftChannel(join)`으로 거른다. `join.joined === 0`이 "초대됐지만 미입장"과 "나감" 둘 다를 뜻해서 퇴장자에게 "초대 대기" 뱃지가 붙던 문제를 `joinedNo`/`reason`으로 판별해 막은 것이다(`utils/membership.ts`).
-7. **Figma 카피 "24시간동안 유효합니다"는 기존 원칙과 어긋난다.** relay 발신 문서의 설계 원칙은 _"유효시간은 서버 값만 렌더한다 — 카피에 기간을 하드코딩하지 않는다(ADR-0033 D8 — 3일)"_.
-8. **채널 스코프 초대 API가 둘이다.** `user.invite`(`{channelId?, name, phone}`, 그룹 친구 추가가 사용)와 `invite.create`(`{phone, name, channelId?, countryCode?, expiresDays?}`, relay 1:1이 사용). 유효시간 조절·국가코드·`invite.list`/`cancel`/`reject` 상태 라이프사이클은 후자에만 있다.
+1. **The server already supports "reinvite into the existing room."** `InviteCreateRequestData` has `channelId?`
+   ("the channel this code admits into") and `expiresDays?` (defaults to 3 when unset). The web's
+   `RelayInviteCreateInput` is `{phone, name, countryCode}` only — it **never sends channelId** — so accepting today
+   always creates a new DM room.
+2. **ADR-0067 already closed the data side of rejoining.** The server resets cursors on rejoin and the client hides
+   pre-departure messages with the `joinedNo` display gate. That is, "the one who stayed keeps history, the one who
+   returns sees an empty room" already holds.
+3. **"Invite link expires in HH:mm:ss" can't be a stored message.** It's a value that ticks by the second. Meanwhile
+   `chat.subType` today is only `'join' | 'leave'` (`utils/systemMessage.ts`).
+4. **There's no way to learn the peer's phone number.** `MyInviteView` gives only `last4`
+   (`InviteChannelRow` renders it via `contactInvite.maskedPhone` as `***5678`). A number-based user's `name` is also
+   `***<last 4 digits>`. The original number lives only in `dou.relayInvite.sentLog.v2` (localStorage) — **only for
+   invites I issued from this device.**
+5. **"Send by link" doesn't bypass the phone number.** An invite code is bound to a phone number, and the accept
+   side hits the `last4` comparison, ending in "This is not the invited number." The group's link invite
+   (`AddFriendSheet`) also takes a name+phone first and only returns the link afterward — a link is a delivery
+   mechanism, not a target designation.
+6. **Hiding departed members from the list was the result of a bug fix.** `useChannelMembers` filters with
+   `hasLeftChannel(join)`. `join.joined === 0` meant both "invited but not yet joined" and "left," which caused an
+   "invite pending" badge to show on someone who had left; that was fixed by discriminating on
+   `joinedNo`/`reason` (`utils/membership.ts`).
+7. **The Figma copy "valid for 24 hours" contradicts an existing principle.** The relay-send doc's design principle
+   is _"render only the server's expiry value — never hardcode a duration in copy (ADR-0033 D8 — 3 days)."_
+8. **There are two channel-scoped invite APIs.** `user.invite` (`{channelId?, name, phone}`, used by group add-friend)
+   and `invite.create` (`{phone, name, channelId?, countryCode?, expiresDays?}`, used by relay 1:1). Only the latter
+   has adjustable expiry, country code, and the `invite.list`/`cancel`/`reject` state lifecycle.
 
-## 결정 (Decision)
+## Decision
 
-### 1. 방 안 초대 상태는 **클라이언트 파생 푸터**로 그린다
+### 1. In-room invite state is drawn as a **client-derived footer**
 
-스트림 맨 아래에, 그 방의 최신 invite 상태에서 파생한 블록 하나를 렌더한다. 서버에 새 `subType`을 만들지 않는다.
+Render one block at the bottom of the stream, derived from that room's latest invite state. No new server
+`subType` is created.
 
-- 파생 입력: `hasLeftChannel(peerJoin)` + 이 채널을 향하는 최신 `MyInviteView`(`invite.list`의 `channelId` 매치).
-- 담는 것: 퇴장 보조 문구("다시 대화하려면 초대해 주세요."), 초대 완료/거절/만료 문구, `expiredAt` 기반 실시간 카운트다운, **다시 초대하기 CTA**.
-- 담지 않는 것: 입·퇴장 사실 자체. 그것은 지금도 서버 시스템 메시지(`join`/`leave`)로 오고 그대로 스트림에 남는다.
+- Derived inputs: `hasLeftChannel(peerJoin)` + the latest `MyInviteView` pointing at this channel (matched by
+  `invite.list`'s `channelId`).
+- What it holds: departure-support copy ("Invite them to talk again."), invite complete/rejected/expired copy, a
+  live countdown from `expiredAt`, and a **reinvite CTA**.
+- What it doesn't hold: the join/leave fact itself. That still arrives as a server system message
+  (`join`/`leave`) and stays in the stream as-is.
 
-**"친구 초대가 완료되었습니다"는 발송 완료를 뜻한다** — 수락이 아니다. 수락은 뒤따르는 `join` 시스템 메시지가 말한다(4055-13019가 두 문장을 나란히 보여주는 이유).
+**"Friend invited" means the invite was sent** — not accepted. Acceptance is spoken by the `join` system message
+that follows it (this is why 4055-13019 shows both sentences side by side).
 
-카운트다운은 초 단위 tick이므로 이 블록은 **현재 상태**이고 이력이 아니다. 상대가 돌아오면 사라진다.
+The countdown is a per-second tick, so this block is **current state**, not history. It disappears once the peer
+comes back.
 
-### 2. 재초대는 `invite.create({ channelId })`로 **같은 방에 다시 들여보낸다**
+### 2. Reinviting **puts them back into the same room** via `invite.create({ channelId })`
 
-새 방을 만들지 않는다. 그 결과 방 하나가 "이 상대와의 1:1"이라는 정체성을 계속 유지하고, ADR-0067의 게이트가 "돌아온 쪽은 빈 방"을 보장한다.
+No new room is created. As a result a single room keeps its identity as "the 1:1 with this person," and ADR-0067's
+gate guarantees "whoever returns sees an empty room."
 
-- API는 `invite.create`를 쓴다(`user.invite`가 아니다) — `expiresDays`·`countryCode`가 있고 `invite.list`/`cancel`/`reject` 상태를 그대로 쓸 수 있어 결정 1의 푸터가 읽을 자료가 한 곳에 모인다.
-- `RelayInviteCreateInput`에 `channelId`와 `expiresDays`를 연다.
-- 대상은 **같은 상대**로 본다. "연락처 변경"은 같은 사람의 바뀐 번호를 고치는 용도이며, 제3자를 이 방에 넣는 경로는 만들지 않는다.
+- The API is `invite.create` (not `user.invite`) — it has `expiresDays`·`countryCode`, and can use the
+  `invite.list`/`cancel`/`reject` state as-is, so decision 1's footer reads all its material from one place.
+- Open up `channelId` and `expiresDays` on `RelayInviteCreateInput`.
+- The target is treated as **the same person.** "Change contact" is for correcting the same person's changed number
+  — no path is created for adding a third party into this room.
 
-### 3. "다시 초대하기"는 **번호 입력 화면으로 직행**한다 — 확인 단계 없음
+### 3. "Reinvite" goes **straight to the phone-entry screen** — no confirmation step
 
-`다시 초대하기` → 이름·번호 입력 폼 → `완료` → SMS 발송 → 방으로 복귀.
+`Reinvite` → name/phone entry form → `Done` → SMS sent → return to room.
 
-- 이름은 지난 초대/퇴장자 이름으로 프리필한다. 번호는 로컬 로그에 있으면 프리필하고, 없으면 빈 칸이다 — **어느 쪽이든 같은 화면**이다.
-- Figma의 확인 화면(4059-13443 · 4068-15399, "…님을 다시 초대할까요?")은 이번 구현에서 쓰지 않는다. 통과할 화면을 하나로 줄이는 쪽을 택했다.
-- 번호를 모르는 것은 **막을 이유가 아니라 입력받을 이유다.** 방에서 오는 재초대는 언제나 폼을 지나므로 "이 기기에 정보가 없다"는 막다른 길이 이 경로에는 존재하지 않는다.
+- The name is prefilled from the last invite/departed-member name. The phone is prefilled if it's in the local log,
+  otherwise blank — **either way, it's the same screen.**
+- Figma's confirmation screen (4059-13443 · 4068-15399, "Reinvite ...?") is not used in this implementation. Chose
+  to cut one screen from the flow.
+- Not knowing the number is **a reason to ask for input, not a reason to block.** A reinvite from within a room
+  always goes through the form, so the dead end of "this device has no information" doesn't exist on this path.
 
-> **구현 중 정정 (2026-08-25)** — 초안은 `reissueMissingLog`("이 기기에 남은 정보가 없어 다시 초대할 수 없어요") 문구를 **폐기**한다고 적었으나, 그 문구는 방이 아니라 [`InviteWaitingPage`](../../apps/web/src/app/features/invite/pages/InviteWaitingPage.tsx)의 "초대 다시 하기" 경로에 있다. 그 화면에는 번호를 물어볼 폼이 없어 유일한 가드다. 폐기하지 않고 그대로 둔다 — 이 결정이 없애는 것은 **방에서 재초대할 때의** 막다른 길뿐이다.
+> **Correction during implementation (2026-08-25)** — the draft said it would **remove** the
+> `reissueMissingLog` copy ("No information left on this device, can't reinvite"), but that copy isn't in the room —
+> it's on [`InviteWaitingPage`](../../apps/web/src/app/features/invite/pages/InviteWaitingPage.tsx)'s "Reinvite"
+> path. That screen has no form to ask for a number, so it's the only guard it has. It's not removed and stays as
+> is — all this decision removes is **the dead end when reinviting from a room.**
 
-### 4. 초대 링크 유효시간은 **24시간으로 통일**하되, 카피는 서버 값에서 파생한다
+### 4. Invite link expiry is **unified to 24 hours**, with copy derived from the server value
 
-- 모든 `invite.create`에 `expiresDays: 1`을 싣는다. 신규 1:1 초대와 재초대가 같은 규칙을 쓴다.
-- 화면 문구는 응답의 `expiredAt`에서 계산한다. **"24시간"을 문자열로 박지 않는다** — ADR-0033 D8의 원칙을 유지한 채 사실만 24시간으로 맞춘다. 서버 기본값이 바뀌어도 화면은 거짓말하지 않는다.
+- Every `invite.create` call carries `expiresDays: 1`. New 1:1 invites and reinvites use the same rule.
+- Screen copy is computed from the response's `expiredAt`. **"24 hours" is never a hardcoded string** — this keeps
+  ADR-0033 D8's principle while matching the fact to 24 hours. If the server default ever changes, the screen
+  doesn't lie.
 
-### 5. 상대가 없으면 입력창을 잠근다
+### 5. Lock the composer when the peer is gone
 
-`hasLeftChannel(peerJoin)`이 참이면 작성기를 비활성화한다(4041-33606). 상대가 재입장하면 되돌아온다(4055-13019). 아무도 받지 않는 메시지를 보내 read receipt가 영구히 `1`로 남는 상태를 만들지 않는다.
+When `hasLeftChannel(peerJoin)` is true, disable the composer (4041-33606). It reactivates once the peer rejoins
+(4055-13019). This avoids sending a message nobody will receive and leaving the read receipt permanently stuck at
+`1`.
 
-### 6. 방 설정(DM)에서 나간 멤버를 "대화방 나감"으로 표시한다 — DM에 한해서
+### 6. Show a departed member as "left the chat" in room settings (DM) — DM only
 
-- `hasLeftChannel` 필터를 **DM에서만** 푼다. 판별 근거는 그대로 join 행(`joined === 0` + `joinedNo`/`reason`)이다 — 새 자료가 필요하지 않다.
-- 그룹은 현행(숨김)을 유지한다. 활동이 많은 그룹의 멤버 목록이 퇴장자로 오염되는 문제를 되살리지 않는다.
-- 사실 6(퇴장자에게 "초대 대기" 뱃지가 붙던 문제)이 이 행에 재발하지 않아야 한다 — 이 행이 말하는 것은 "나감"이며 초대 상태가 아니다.
+- Relax the `hasLeftChannel` filter **only for DM.** The basis stays the same join row (`joined === 0` +
+  `joinedNo`/`reason`) — no new data is needed.
+- Groups keep the current behavior (hidden). This avoids reviving the problem of an active group's member list
+  getting cluttered with departed members.
+- Fact 6 (the "invite pending" badge bug on departed members) must not recur on this row — what this row states is
+  "left," not invite status.
 
-### 7. DM은 owner도 "방 나가기"다 — 삭제 없음
+### 7. In DM, even the owner "leaves the room" — no delete
 
-`ChannelSettingsPage`의 `isOwner ? 삭제 : 나가기` 분기를 DM에서는 항상 나가기로 고정한다(4052-12242에 삭제 행이 없다). 재초대로 방이 지속해야 하는데 초대자가 방을 지울 수 있으면 재초대할 방이 사라진다. 확인 다이얼로그는 4068-16586 한 장으로 통일한다.
+`ChannelSettingsPage`'s `isOwner ? Delete : Leave` branch is pinned to always-leave for DM (4052-12242 has no delete
+row). Rejoining needs the room to persist, and if the inviter can delete the room, there's nothing left to rejoin.
+Consolidate the confirmation dialog to the single 4068-16586.
 
-### 8. 친구 정보 시트는 기존 `JoinNickDialog`를 갈아낀 것이다 — UI는 "친구 이름", 자료는 **채널 별명**
+### 8. The friend info sheet is a reskin of the existing `JoinNickDialog` — UI says "friend name," data is the **channel nickname**
 
-4052-12782는 새 자료가 아니라 **`join.nick` 편집기의 새 디자인**이다. 카피와 레이아웃을 이 디자인으로 바꾸고 아바타·"대화방 나감" 상태·다시 초대하기 CTA를 얹는다. 저장소도 상태도 새로 만들지 않고, ADR-0039의 이름 체인(내 `join.nick` → 상대 `profile.nick` → `channel.name` → 공통 라벨)은 그대로다.
+4052-12782 isn't new data — it's a **new design for the `join.nick` editor.** Swap in this design's copy and layout,
+and add the avatar, "left the chat" status, and reinvite CTA. No new storage or state; ADR-0039's name chain (my
+own `join.nick` → the peer's `profile.nick` → `channel.name` → a common label) stays as-is.
 
-**이 매핑을 여기 못 박아 둔다 — 자료의 뜻과 화면의 말이 다르기 때문이다.**
+**Pinning down this mapping here matters — because what the data means and what the screen says diverge.**
 
-| 층   | 부르는 이름 | 실제                                                                |
-| ---- | ----------- | ------------------------------------------------------------------- |
-| 화면 | 친구 이름   | "설정한 친구 이름은 나에게만 표시됩니다" — 1:1에서는 이 표현이 맞다 |
-| 자료 | 채널 별명   | `join.nick` = **"내가 이 방에 붙인 이름"** (ADR-0039 맥락 1)        |
+| Layer  | Called           | Actually                                                                 |
+| ------ | ---------------- | ------------------------------------------------------------------------ |
+| Screen | Friend name      | "The friend name you set is shown only to you" — accurate wording in 1:1 |
+| Data   | Channel nickname | `join.nick` = **"the name I gave this room"** (ADR-0039 context 1)       |
 
-`join.nick`은 사람에 붙는 값이 **아니다.** 같은 필드를 `resolveChannelTitle`이 self·dm·group-member 세 경우에 똑같이 쓰고(그룹 멤버에게는 문자 그대로 "방 이름"이다), `resolveDmTitle`의 폴백이 `channel.name`으로 떨어지는 것이 그 증거다. 1:1에서는 방이 곧 그 사람이라 두 뜻이 겹쳐 보이지만, **겹쳐 보이는 것이지 같은 것이 아니다.**
+`join.nick` is **not** a value attached to a person. `resolveChannelTitle` uses the exact same field identically for
+self, dm, and group-member cases (for a group member it's literally "the room's name"), and `resolveDmTitle`'s
+fallback to `channel.name` proves it. In 1:1, the room happens to be that person, so the two meanings look the same
+— but **looking the same is not being the same.**
 
-따라서:
+Therefore:
 
-- 화면 카피는 Figma대로 "친구 이름"으로 간다.
-- 이 값을 **사람 단위 별칭으로 확장 해석하지 않는다.** 다른 방에서 같은 상대에게 같은 이름이 보일 것을 보장하지 않는다(§결과).
-- 컴포넌트 이름 `JoinNickDialog`는 그대로 둔다 — 쓰는 자료를 정확히 가리키고 있고, 개념 혼동은 이 표가 닫는다.
+- Screen copy follows Figma as "friend name."
+- This value is **not reinterpreted as a per-person alias.** There is no guarantee the same name shows for the same
+  peer in a different room (§Consequences).
+- The component name `JoinNickDialog` stays as-is — it correctly names the data it uses, and this table is what
+  closes the conceptual confusion.
 
-### 9. 초대 링크 알럿 3종은 기존 수락측 dialog에 정렬한다
+### 9. The 3 invite-link alerts align with the existing accept-side dialogs
 
-4038-11895의 세 알럿은 이미 있는 것들의 카피 정렬이다 — `dialog.alreadyJoined`("이미 참여한 초대입니다.") · `dialog.notFound`/`inviteCanceled` · 이미 소진된 코드. 새 상태 판정을 만들지 않고, 판정은 계속 `getSocketErrorCode`로 한다(에러 문자열 파싱 금지).
+The three alerts in 4038-11895 are copy alignment with things that already exist — `dialog.alreadyJoined`
+("Already joined this invite.") · `dialog.notFound`/`inviteCanceled` · an already-consumed code. No new state
+determination is created; determination still comes from `getSocketErrorCode` (no parsing error strings).
 
-### 10. 푸시를 전제로 삼지 않는다 — 정확성의 기준은 "화면을 열었을 때"
+### 10. Push is never assumed — correctness is measured "at the moment the screen is opened"
 
-푸터가 필요한 세 정보의 조달 경로가 서로 다르고, 그중 푸시에 기대는 것은 하나도 없다.
+The footer needs three pieces of information, and they arrive by three different paths, none of which relies on
+push.
 
-| 정보                    | 경로                                                                                              | 푸시   |
-| ----------------------- | ------------------------------------------------------------------------------------------------- | ------ |
-| 상대가 방에 있나        | `JoinSyncPlan`(join 행 `joined` 0↔1) + `join`/`leave` 시스템 메시지가 `ChatSyncPlan`을 타고 온다 | 불필요 |
-| 내 초대가 수락/거절됐나 | `invite.list` 재조회 — **초대자 알림은 백엔드 미구현**(요청 4번)                                  | 없음   |
-| 링크가 만료됐나         | `expiredAt`으로 클라가 판정                                                                       | 불필요 |
+| Information                     | Path                                                                                                    | Push     |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------- | -------- |
+| Is the peer in the room         | `JoinSyncPlan` (join row `joined` 0↔1) + `join`/`leave` system messages riding `ChatSyncPlan`          | Unneeded |
+| Was my invite accepted/rejected | `invite.list` refetch — **the inviter-side notification is not implemented on the backend** (request 4) | None     |
+| Has the link expired            | The client determines it from `expiredAt`                                                               | Unneeded |
 
-- 초대 상태는 `useRelayInvites`의 기존 기계를 그대로 쓴다: `refetchOnWindowFocus`는 항상 켜져 있고, `refetchInterval`은 `pollIntervalMs` opt-in이며 `refetchIntervalInBackground`가 기본 false다. 방 화면은 **pending 초대가 있을 때만** 폴링을 켜고, 상대가 들어오거나 종국 상태가 되면 끈다 — `InviteWaitingPage`와 같은 규칙이다.
-- **새 폴링 루프를 만들지 않는다.** 켜고 끄는 조건만 방 화면이 정한다.
-- 목표는 "실시간 통보"가 아니라 **"방을 열면 그 순간 정확하다"**다. 방을 보고 있는 동안은 소켓이 즉시성을 주고, 밖에 있었다면 진입/포커스 시 한 번에 맞춰진다.
+- Invite state reuses `useRelayInvites`'s existing machinery: `refetchOnWindowFocus` is always on,
+  `refetchInterval` is `pollIntervalMs` opt-in, and `refetchIntervalInBackground` defaults to false. The room screen
+  turns on polling **only while a pending invite exists**, and turns it off once the peer joins or the invite
+  reaches a terminal state — the same rule `InviteWaitingPage` uses.
+- **No new polling loop is created.** Only the on/off condition is newly decided by the room screen.
+- The goal is not "real-time notification" but **"correct the instant the room is opened."** While looking at the
+  room, the socket gives immediacy; while away, entry/focus catches it up in one shot.
 
-### 범위 밖 (Out of scope)
+### Out of scope
 
-- **`apps/desktop-web`** — 참조만 하고 수정하지 않는다.
+- **`apps/desktop-web`** — referenced but not modified.
 - `apps/testbed`.
-- 제3자를 기존 DM 방에 초대하는 경로(결정 2).
-- 확인 화면 2장(4059-13443 · 4068-15399) 구현(결정 3).
-- 그룹 방의 퇴장자 표시(결정 6).
-- 수락·거절의 초대자 푸시 알림 신설 — 백엔드 미구현이며 결정 10의 폴링이 흡수한다.
-- 시스템 메시지(`join`/`leave`)의 서버측 푸시 발송 여부 변경 — 클라는 오면 받고 안 와도 동작한다(§결과).
-- 퇴장 시스템 메시지의 **그룹** 스타일 변경 — DM 푸터의 적색 문구는 DM에 한한다.
+- Inviting a third party into an existing DM room (decision 2).
+- Implementing the 2 confirmation screens (4059-13443 · 4068-15399) (decision 3).
+- Showing departed members in group rooms (decision 6).
+- New inviter-side push notifications for accept/reject — not implemented on the backend, and decision 10's
+  polling absorbs it.
+- Changing whether the server pushes system messages (`join`/`leave`) — the client works whether or not they
+  arrive (§Consequences).
+- Changing the **group** style of departure system messages — the DM footer's red copy is DM-only.
 
-## 대안 (Alternatives)
+## Alternatives
 
-**초대 상태를 서버 시스템 메시지(`invite-sent`/`invite-rejected`/`invite-expired`)로 만든다.** 이력으로 영구히 남고 양쪽이 같은 것을 본다. 버린 이유: 카운트다운은 어차피 파생이어야 하고, 백엔드 선행 작업이 이 트랙 전체를 대기시키며, 웹이 앱보다 먼저 배포되는 구조에서 미지원 `subType` 폴백이 또 하나 필요해진다.
+**Make invite state a server system message (`invite-sent`/`invite-rejected`/`invite-expired`).** Persists as
+history and both sides see the same thing. Rejected because the countdown has to be derived anyway, this would
+stall the whole track on backend prerequisite work, and in a structure where the web deploys before the app, an
+unsupported `subType` needs yet another fallback.
 
-**`userId` 기반 재초대 API를 백엔드에 요청한다** — "이 방에서 나간 멤버를 다시 부른다". 서버가 이미 join 행을 갖고 있으니 번호를 아예 묻지 않아도 되고 PII를 다루지 않는다. **가장 깔끔한 답이지만** 새 API가 나올 때까지 CTA가 동작할 수 없어 트랙이 멈춘다. 번호 기반으로 먼저 배포하고 이 경로는 후속으로 남긴다(§후속).
+**Ask the backend for a `userId`-based reinvite API** — "bring back a member who left this room." Since the server
+already holds the join row, it wouldn't need to ask for a phone number at all, avoiding PII handling. **The
+cleanest answer**, but the CTA can't function until the new API ships, stalling the track. Ship the phone-based
+version first and leave this path for later (§Follow-ups).
 
-**번호 없는 공개 초대 링크.** 사용자가 번호를 입력할 필요가 없어진다. 버린 이유: 번호 결속이 1:1의 보안 모델 자체다 — 링크를 주운 아무나 남의 1:1 방에 들어온다. `phone`은 계약상 필수 필드이기도 하다.
+**A public invite link with no phone number.** Removes the need for the user to enter a number. Rejected because
+phone binding is the security model of 1:1 itself — anyone who picks up the link would get into someone else's 1:1
+room. `phone` is also a contractually required field.
 
-**재초대 시 새 방을 만든다(현행 유지).** 클라 변경이 가장 적다. 버린 이유: Figma의 "같은 방에서 퇴장 → 재초대 → 재입장" 시나리오 전체가 성립하지 않고, 같은 사람과의 대화가 방 목록에 계속 새로 쌓인다.
+**Create a new room on reinvite (keep current behavior).** The smallest client change. Rejected because the whole
+Figma scenario of "leave → reinvite → rejoin, same room" wouldn't hold, and conversations with the same person would
+keep piling up as new rooms in the room list.
 
-**"친구 이름" 카피를 "방 이름"으로 바로잡는다.** 자료의 뜻(채널 별명)과 화면의 말이 정확히 일치하고 중복 DM에서도 거짓말을 하지 않는다. 버린 이유: 1:1에서 사용자가 실제로 하는 일은 "이 친구를 뭐라고 부를지 정하는 것"이고, "방 이름"은 그 행위를 더 멀리서 설명한다. Figma 카피를 살리고 매핑을 결정 8에 문서화하는 쪽을 택했다.
+**Correct the "friend name" copy to "room name."** Matches the data's meaning (channel nickname) exactly and never
+lies even in a duplicate DM. Rejected because what a user is actually doing in 1:1 is "deciding what to call this
+friend," and "room name" describes that action from further away. Chose to keep Figma's copy and document the
+mapping in decision 8 instead.
 
-**사람 단위 별칭을 새 자료로 만든다(백엔드 요청).** 카피와 자료가 일치하고 중복 DM에서도 이름이 하나다. 버린 이유: 새 상태·동기화·이름 체인 재설계(ADR-0039 수정)가 딸려 오고 백엔드 대기가 생긴다. 지금 필요한 것은 화면 하나이지 새 도메인이 아니다.
+**Make a per-person alias a new data field (backend request).** Copy and data would match, and the name would be
+one value even across duplicate DMs. Rejected because it drags in new state, sync, and a name-chain redesign
+(revising ADR-0039), plus a backend wait. What's needed right now is one screen, not a new domain.
 
-**유효시간을 3일로 두고 카피만 서버값에서 파생한다.** 백엔드 계약 무변경. 버린 이유: Figma가 3개 화면에서 24시간을 말하고 있고, 링크 수명이 짧은 쪽이 번호 결속 초대의 위험 노출도 줄인다.
+**Keep the expiry at 3 days and only derive the copy from the server value.** No backend contract change. Rejected
+because Figma states 24 hours across 3 screens, and a shorter link lifetime also reduces the exposure window of a
+phone-bound invite.
 
-**나간 멤버를 모든 방에서 표시한다.** 일관되고 "누가 나갔는지"를 항상 알 수 있다. 버린 이유: 사실 6이 고친 문제(퇴장자로 오염된 그룹 멤버 목록)를 되살린다.
+**Show departed members in every room.** Consistent, and "who left" is always knowable. Rejected because it
+revives the problem fact 6 fixed (a group member list polluted with departed members).
 
-**퇴장 후에도 입력창을 열어둔다.** 혼잣말이라도 남길 수 있다(self-chat처럼). 버린 이유: DM은 self-chat이 아니고, 보낸 메시지의 읽음 뱃지 `1`이 영구히 남아 "안 읽음"을 영원히 주장한다.
+**Leave the composer open after departure.** Lets you leave a note to yourself, like self-chat. Rejected because DM
+is not self-chat, and the sent message's read badge `1` would permanently claim "unread."
 
-## 결과 (Consequences)
+## Consequences
 
-**얻는 것**
+**What is gained**
 
-- 상대가 나간 1:1이 막다른 길이 아니게 된다 — 방이 상태를 말하고, 부를 방법을 그 자리에서 준다.
-- 백엔드 신규 작업 없이 **웹만 배포해도 전부 동작한다.** `channelId`·`expiresDays`는 이미 계약에 있는 필드다.
-- ADR-0067이 깔아둔 재입장 게이트가 처음으로 사용자에게 보이는 기능이 된다.
-- 방 하나가 한 상대와의 대화로 계속 남아, 같은 사람과의 1:1이 목록에 여러 개 쌓이지 않는다.
-- 초대 링크 수명이 3일 → 24시간으로 줄어 노출 창이 좁아진다.
+- A 1:1 whose peer left is no longer a dead end — the room states what happened and offers a way to call them back,
+  right there.
+- **Shipping the web alone makes all of this work**, with no new backend work. `channelId`·`expiresDays` are
+  already in the contract.
+- ADR-0067's rejoin gate becomes, for the first time, a feature users actually see.
+- A single room stays a persistent conversation with one person, so the same 1:1 doesn't pile up as multiple rooms
+  in the list.
+- Invite link lifetime shrinks from 3 days to 24 hours, narrowing the exposure window.
 
-**감수하는 것**
+**What is accepted**
 
-- **"친구 초대가 완료되었습니다"는 이력으로 남지 않는다.** 상대가 돌아오면 파생 푸터가 사라지므로, Figma 4055-13019처럼 재입장 후에도 그 문장이 위에 남아 있는 모습은 재현되지 않는다 — **디자이너 확인 필요 항목.**
-- **재초대할 때마다 번호를 다시 입력해야 할 수 있다.** 내가 피초대자였던 방, 기기를 바꾼 경우, localStorage가 비워진 경우 모두 그렇다. 상대 번호를 모르면 재초대할 수 없다는 사실 자체는 남는다.
-- **비-owner 멤버가 `channelId`를 실어 초대할 수 있는지 서버 권한을 실측해야 한다.** 그리고 수락이 새 방을 만들지 않고 그 채널의 join을 재활성하는지, `invite.list` 행에 `channelId`가 유지되는지도 함께 확인해야 한다 — 세 가지 모두 결정 2의 전제다(스펙 단계 검증 항목).
-- **앱 밖에 있을 때 상대의 재입장을 실시간으로 알 수 없을 수 있다.** `join` 시스템 메시지에 서버가 푸시를 쏘는지는 클라 코드로 확정할 수 없다 — `metaNo`로 시스템 메시지를 안읽음에서 빼는 계약(ADR-0048)을 보면 안 쏠 가능성이 있다. **QA 실측 항목.** 안 쏘더라도 기능은 깨지지 않고, "A가 방을 열면 정확해진다"로 내려앉는다.
-- **초대 상태 판정이 `invite.list`의 100건 창에 의존한다.** 오래된 초대가 창 밖으로 밀리면 푸터가 상태를 모르는 채로 "다시 초대하기"만 내밀게 된다 — 나쁜 실패는 아니지만 정확하지도 않다.
-- **"친구 이름"이 방마다 다를 수 있다.** 자료가 채널 별명이므로(결정 8), 같은 상대와 DM 방이 둘 이상이면 방마다 다른 값이 저장된다. 중복 DM은 실제로 생길 수 있다 — "이미 1:1 대화가 있어요" 사전 감지가 아직 없어서(ADR-0033 D2, v1 미구현) 내가 초대해 만든 방과 상대가 나를 초대해 만든 방이 따로 존재할 수 있다. 사람 단위 별칭으로 옮기려면 그때 마이그레이션이 필요하다.
-- **DM과 그룹의 퇴장자 표시 규칙이 갈린다.** 같은 목록 컴포넌트가 stereo에 따라 다르게 동작하므로 `hasLeftChannel` 호출부에 분기가 하나 생긴다.
-- **DM에서는 방을 지울 수 없다.** 양쪽이 모두 나간 방은 아무도 열지 않는 채로 서버에 남는다.
-- **유효시간 24시간은 신규 초대에도 적용된다.** 3일에 기대고 있던 사용자(주말에 보낸 초대)의 링크가 더 빨리 죽는다.
+- **"Friend invited" doesn't persist as history.** The derived footer disappears once the peer returns, so the
+  Figma 4055-13019 look — where that sentence stays visible above the messages even after rejoining — isn't
+  reproduced. **Needs designer confirmation.**
+- **You may have to re-enter the number on every reinvite.** True for a room where I was the invitee, a device
+  switch, or a cleared localStorage. The underlying fact — that you can't reinvite without knowing the peer's number
+  — remains.
+- **Server permissions need real-world verification for whether a non-owner member can invite with `channelId`.**
+  And whether accepting reactivates that channel's join instead of creating a new room, and whether `invite.list`
+  rows retain `channelId`, also need confirming — all three are premises of decision 2 (spec-stage verification
+  items).
+- **Real-time awareness of a peer rejoining may not reach you while outside the app.** Whether the server pushes
+  for the `join` system message can't be settled from client code alone — looking at the contract that excludes
+  system messages from unread via `metaNo` (ADR-0048), it might not push. **A QA measurement item.** Even if it
+  doesn't, the feature doesn't break — it just falls back to "correct once A opens the room."
+- **Invite-state determination depends on `invite.list`'s 100-row window.** If an old invite gets pushed out of the
+  window, the footer offers only "reinvite" without knowing the state — not a bad failure, but not accurate either.
+- **"Friend name" can differ room by room.** Since the data is the channel nickname (decision 8), if there are two
+  or more DM rooms with the same peer, each room stores its own value. A duplicate DM can genuinely happen — "you
+  already have a 1:1 with them" pre-detection doesn't exist yet (ADR-0033 D2, v1 unimplemented), so a room I created
+  by inviting them and a room they created by inviting me can exist side by side. Moving to a per-person alias would
+  need a migration at that point.
+- **The departed-member display rule diverges between DM and group.** The same list component behaves differently
+  by stereo, so one branch appears at the `hasLeftChannel` call site.
+- **A DM room can't be deleted.** A room both sides have left stays on the server, opened by no one.
+- **The 24-hour expiry also applies to new invites.** Users who relied on 3 days (an invite sent over a weekend)
+  will see their link die sooner.
 
-**후속**
+**Follow-ups**
 
-- `userId` 기반 재초대 API를 백엔드에 요청한다. 도착하면 결정 3의 번호 입력 단계만 건너뛰면 되고 나머지 UI는 그대로 산다.
-- ADR-0039가 남긴 "초대 시 입력한 친구 이름을 `join.nick`으로 자동 반영하는 배선"이 결정 8과 같은 자리를 건드린다 — 스펙 단계에서 소유권을 정리한다.
-- 결정 1의 푸터가 사라지는 동작(위 트레이드오프 1)에 대한 디자이너 확인.
+- Request a `userId`-based reinvite API from the backend. Once it arrives, only decision 3's phone-entry step needs
+  to be skipped — the rest of the UI stays as-is.
+- The wiring ADR-0039 left as future work — auto-reflecting the friend name entered at invite time into
+  `join.nick` — touches the same spot as decision 8. Sort out ownership at the spec stage.
+- Designer confirmation on decision 1's footer disappearing (trade-off 1 above).
+  </content>

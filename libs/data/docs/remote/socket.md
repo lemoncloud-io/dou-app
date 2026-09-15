@@ -89,7 +89,7 @@ for a silent leak to the active cloud. Re-open a route parameter when a second, 
 caller-dependent destination appears.
 
 The wiring itself belongs to
-[app-runtime's kind-scoped-routing](../../../app-runtime/docs/socket/kind-scoped-routing.md).
+[app-runtime's kind-scoped-routing](../../../app-runtime/docs/socket/README.md).
 
 ## Calls by SocketDataSource
 

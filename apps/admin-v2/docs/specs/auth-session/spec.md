@@ -1,6 +1,6 @@
 # Auth & Session — 로그인 하이드레이션 · 토큰 리프레시
 
-> 상태: Approved · 최종 갱신: 2026-07-23 · 관련 ADR: [ADR-0028](../../../../../docs/adr/0028-admin-v2-auth-refresh-and-log-analysis.md)
+> 상태: Approved · 최종 갱신: 2026-07-23 · 관련 ADR: ADR-0028
 
 ## 목적
 

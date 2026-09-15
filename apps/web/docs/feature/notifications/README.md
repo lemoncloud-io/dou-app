@@ -1,135 +1,286 @@
-# notifications
+# notifications — where a tapped push lands
 
-> 대상: `apps/web/src/app/bridge/navigation` · 관련: [push-crossover-routing](./push-crossover-routing.md), [device-token](./device-token.md), [debug/push-verification](../debug/push-verification.md), [architecture/bridge.md](../../architecture/bridge.md), [architecture/routing.md](../../architecture/routing.md)
+A push notification is assembled and drawn by the native shell. The web app's share begins the
+moment someone taps it: take the path the shell hands over, put the session in the state that path
+needs, and land the reader on the right screen without wrecking the back button.
 
-## 책임
+**There is no `features/notifications/` folder.** This group documents code that lives in four
+places, and the entry point is a bridge folder rather than a feature:
 
-푸시 알림 탭·딥링크로 네이티브가 보내는 **능동 네비게이션**(`OnNavigate`)을 받아, 대상 화면(주로 채널방)으로 이동시킨다. 대상이 다른 클라우드/사이트에 있으면 **클라우드 전환 → 사이트 전환 → 이동** 순서를 보장한다.
-
-푸시 배너 조립·표시는 네이티브(Android `FirebaseMessagingService`, iOS Notification Service Extension) 책임이고, 웹은 배너 탭 이후의 **앱 내부 라우팅만** 담당한다.
-
-## 경로 계약
-
-네이티브가 보내는 `OnNavigate` 페이로드는 `{ path, replace? }`이며, `path`는 웹 라우트와 정합한다. cid/sid는 링크 쿼리로 전달된다.
-
-| 형태            | 예시                                            | 처리                                                                                                                   |
-| --------------- | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| 정규 라우트     | `/channels/1000001/room`                        | 그대로 이동                                                                                                            |
-| 크로스-클라우드 | `/channels/1000001/room?cid=cloud_1&sid=site_9` | `cid`/`sid`로 전환 후 이동 (쿼리는 target에서 제거)                                                                    |
-| 중계서버발      | `/channels/1000001/room?cid=%23` (`cid='#'`)    | 클라우드 활성 시 `logoutCloudSession()`으로 relay 복귀 후 이동 → [push-crossover-routing](./push-crossover-routing.md) |
-| 스펙 폴백       | `channel?channelId=1000001`                     | `/channels/1000001/room`으로 정규화                                                                                    |
-| 기타 경로       | `/auth/login?code=xyz`                          | 그대로 통과 (`cid`/`sid`만 있으면 추출·제거)                                                                           |
-
-> `cid`/`sid`는 라우트 파라미터가 아니라 세션 컨텍스트이므로 이동 target에서 제거한다.
-
-## 구조
-
-```
-bridge/navigation/
-  resolvePushNavigation.ts   # 순수 함수: path → { target, cid, sid } (정규화 + cid/sid 추출)
-  usePushNavigate.ts         # 공용 원시: 해석 → 핸드셰이크 대기 → switchCloud → switchSite → 히스토리 정규화
-  useHandlePushNavigation.ts # 네이티브 OnNavigate(탭·딥링크) 진입점 → usePushNavigate
-  pendingNavigationStore.ts  # 라우터 마운트 전에 도착한 OnNavigate를 보관해 재생
-  index.ts
-features/notifications/
-  hooks/useInAppPushMessage.tsx    # 포그라운드 인앱 배너 + 탭 → usePushNavigate
-  utils/resolveInAppPushRoute.ts   # 인앱 페이로드 → raw path
+```text
+apps/web/src/app/
+├── bridge/navigation/          6 sources, 4 tests — the whole tap path
+│   ├── pendingNavigationStore.ts    holds a pre-mount OnNavigate and replays it
+│   ├── resolvePushNavigation.ts     pure: raw path → { target, cid, sid, chatId }
+│   ├── resolveThreadTarget.ts       pure: notified chat → thread route, or null
+│   ├── usePushNavigate.ts           the primitive both entry points converge on
+│   ├── useHandlePushNavigation.ts   native OnNavigate entry point
+│   └── index.ts
+├── hooks/useInAppPushMessage.tsx    foreground banner + tap → usePushNavigate
+├── utils/resolveInAppPushRoute.ts   foreground payload → raw path, plus the field extractors
+└── features/home/CloudActivatedRunner.tsx   the one notification that arrives over the socket
 ```
 
-`UnifiedLayout`이 `useHandlePushNavigation()`과 `useInAppPushMessage()`를 소비한다. **두 진입점이 같은 `usePushNavigate`로 수렴해** 네이티브 탭과 인앱 배너 탭이 동일하게 동작한다. 라우터 트리 내부에서만 동작한다(`useNavigate` 의존).
+Device token registration is the other half of the story and has its own document —
+[device-token](./device-token.md).
 
-## 흐름
+## Responsibilities
+
+This group decides **where a push lands and in which session context**. It decides nothing about how
+a push looks in the notification shade, nothing about whether a push is sent, and nothing about
+badges.
+
+**Out:**
+
+- Banner assembly and delivery on the device, permission prompts, notification channels, and the
+  deep-link plumbing on the native side — [apps/mobile](../../../../mobile/README.md).
+- Registering this install's token — [device-token](./device-token.md), and the policy behind it in
+  [app-runtime push](../../../../../libs/app-runtime/docs/push/README.md).
+- The cross-cloud unread dot a background push marks — [home](../home/README.md).
+- Per-device push mute, which is an account setting — [mypage](../mypage/README.md).
+
+## The shared contract
+
+### One path, four fields
+
+The shell sends `OnNavigate { path, replace? }`. `path` is a web route, and the interesting part is
+its query string. `resolvePushNavigation` splits it into four:
+
+| Field    | Source                     | Why it is not part of the route                                                         |
+| -------- | -------------------------- | --------------------------------------------------------------------------------------- |
+| `target` | pathname + surviving query | What the router is actually given                                                       |
+| `cid`    | `?cid=`                    | Session context — which cloud's repository holds this channel                           |
+| `sid`    | `?sid=`                    | Session context — which site's token is needed                                          |
+| `chatId` | `?chatId=`                 | A routing hint consumed **after** landing, not a route param (see the thread leg below) |
+
+All three are stripped from `target`. They have to be: `navigateNormalized` compares the target
+against the live location to avoid re-navigating, and a target still carrying context params would
+make two taps on the same room look like two different destinations.
+
+`replace` is logged and then ignored. History normalization supersedes it either way.
+
+Two shapes are accepted beyond the canonical one. `channel?channelId={id}` is normalized to
+`/channels/{id}/room` — the context params are read _before_ that branch, because it rebuilds the
+target from `channelId` alone and would otherwise drop them. Anything unparseable passes through
+untouched rather than being dropped; an empty path goes to the root.
+
+### Two entry points, one primitive
+
+```mermaid
+flowchart TD
+    N["native tap / deep link<br/>OnNavigate"] --> S[pendingNavigationStore]
+    S --> H[useHandlePushNavigation]
+    F["foreground push<br/>OnReceiveNotification"] --> B[useInAppPushMessage]
+    B -- "banner tap" --> R[resolveInAppPushRoute]
+    R --> P
+    H --> P[usePushNavigate]
+    P --> RES[resolvePushNavigation]
+    P --> SW["switch: relay return / cloud / site"]
+    SW --> NAV[navigateNormalized]
+    NAV --> T["hopToThread, when chatId is present"]
+```
+
+`UnifiedLayout` mounts `useHandlePushNavigation()` and `useInAppPushMessage()`. Both need the router
+tree — they rely on `useNavigate`.
+
+**Everything routing-related goes in `usePushNavigate` and nowhere else.** That is the rule the
+diagram exists to make visible: a branch added there applies to an OS tap and an in-app banner tap
+at once, and a branch added anywhere else applies to one of them and quietly not the other.
+
+### The switch must complete before the navigation
+
+Channel data is read from the _active_ server's repository. Navigate first and the room page looks
+for a channel the active repository has never heard of. So every transition is awaited, in this
+order, and only then is the route changed:
 
 ```
-네이티브 푸시 탭
-  → OnNavigate { path } (bridge)
-  → useHandlePushNavigation
-     → resolvePushNavigation(path) → { target, cid, sid }
-     → cid === '#' && 클라우드 활성 ? await logoutCloudSession()  (relay 복귀, ADR-0045)
-     → cid ≠ '#' && cid !== 현재 cloud ? await switchCloud(cid)   (사이트 clear됨)
-     → sid && sid !== 현재 site   ? await switchSite(sid)
-     → navigateNormalized(target)   # 방을 떠날 때만 replace, 그 외에는 push
+wait for the socket handshake (10s ceiling)
+  → recover an evicted invited cloud (native only)
+  → logoutCloudSession()   if this is a relay push and a cloud is active
+  → switchCloud(cid)       if the push names a different cloud
+  → switchSite(sid)        if the push names a different site
+  → navigateNormalized(target)
+  → hopToThread(chatId)    if the push named a chat
 ```
 
-**전환은 반드시 이동보다 먼저 await한다.** 채널 데이터는 활성 서버(`activeServer`)의 repository에서 로드되므로([`useChannel`](../../../src/app/features/channels/hooks/useChannel.ts)), 전환 전에 이동하면 방이 채널을 찾지 못한다. `switchCloud`는 선택 사이트를 clear하므로 사이트 전환은 그 뒤에 온다.
+A cloud/site switch re-issues tokens against the active server, so attempting one over a half-open
+socket races the connection and rolls the selection back. Hence the handshake gate. If it times out,
+the switch is skipped and the route is attempted anyway — **every failure path here is best-effort**,
+because stranding someone on the screen they were already on is worse than landing them somewhere
+that may not load.
 
-**히스토리는 방만 버린다.** 반복 탭이 `[home, roomA, roomB, …]`로 방을 쌓으면 뒤로가기가 죽은 방들을 훑게 되므로, **떠나는 화면이 방일 때만** 현재 엔트리를 replace한다. 마이페이지처럼 사용자가 스스로 고른 화면은 push해서 뒤로가기가 돌아올 자리를 남긴다 — 이전에는 "홈이 아니면 전부 replace"였고, 그래서 마이페이지에서 인앱 메시지를 탭하면 뒤로가기가 죽었다.
+`switchCloud` clears the selected site, which is the whole reason site comes second.
 
-**캐시에 없는 방이라고 즉시 홈으로 보내지 않는다.** `observeItem`은 첫 응답을 로컬 캐시만 보고 주므로 처음 보는 방은 fetch 중에도 `null`이 온다. 그걸 부재로 단정해 리다이렉트하면 `useChannelSync`가 언마운트돼 그 fetch까지 끊기고, 방이 영구히 열리지 않았다. 이제 [`useChannel`](../../../src/app/features/channels/hooks/useChannel.ts)이 행이 도착할 때까지 기다리고, 제한 시간을 넘기면 홈으로 튕기는 대신 방 화면이 에러와 돌아가기를 보여준다([ChannelRoomPage.tsx](../../../src/app/features/channels/pages/ChannelRoomPage.tsx)).
+Overlapping pushes are dropped rather than queued. A rapid second event arriving while the first is
+still awaiting a switch would interleave two switches and double-navigate, so an in-flight ref
+processes one at a time.
 
-전환 실패 시에도 best-effort로 `navigate(target)`을 시도해 사용자가 멈추지 않게 한다.
+### The relay sentinel
 
-## 관련 훅 (web-core)
+The backend marks a relay-origin push with the literal `cid` `'#'`. It is not a cloud id, and it is
+**not** the session layer's internal `'default'` sentinel — different layer, different meaning. It is
+interpreted in `usePushNavigate` and never forwarded to a session API. Getting this wrong means
+calling `switchCloud('#')`.
 
-| 훅                                         | 용도                                                |
-| ------------------------------------------ | --------------------------------------------------- |
-| `useSessionSelection`                      | 현재 `selectedCloudId` / `selectedSiteId` 읽기      |
-| `useSwitchCloudSession().switchCloud(cid)` | 클라우드 전환 (위임 토큰 교환, 사이트 clear)        |
-| `useSiteSwitch().switchSite(sid)`          | 사이트 전환 (`uid@sid` 토큰 갱신)                   |
-| `useLogoutCloudSession()` (app-runtime)    | 클라우드만 이탈해 relay 복귀 (relay 푸시 `cid='#'`) |
+Leaving a cloud for relay does not need a re-login: relay auth underpins the cloud session through
+delegation-token exchange, so relay is still valid while a cloud is active and `logoutCloudSession()`
+is enough to land back on it.
 
-## 모바일 탭 라우팅
+| Currently in | Push origin (`cid`) | What happens                                       |
+| ------------ | ------------------- | -------------------------------------------------- |
+| relay        | relay (`'#'`)       | Nothing to switch — navigate                       |
+| relay        | cloud `c1`          | `switchCloud('c1')` → navigate                     |
+| cloud `c1`   | cloud `c2`          | `switchCloud('c2')` → navigate                     |
+| cloud `c1`   | relay (`'#'`)       | `logoutCloudSession()` → navigate, still signed in |
+| anywhere     | no `cid`            | Nothing to switch — navigate                       |
 
-Android는 **data-only FCM**(notification 객체 없음)이고 배너는 네이티브가 조립한다. 배너 탭 → 웹 `OnNavigate`까지:
+The guard that makes row 1 and row 5 safe is structural rather than a special case:
+`needsCloudSwitch` is `!!cid && !isRelayPush && cid !== selectedCloudId`, so `'#'` has no path to
+`switchCloud` at all. The invited-cloud recovery step is narrowed the same way — `'#'` is not a cloud
+to recover.
 
-- **Android(백그라운드/콜드스타트) 탭**: 네이티브 서비스가 `payload`의 `cid`/`sid`를 링크 쿼리에 병합한 뒤 `action=ACTION_VIEW` + `data=Uri.parse(link)`로 `PendingIntent`를 세팅한다([`ChaticFirebaseMessagingService.kt`](../../../../mobile/android/app/src/main/java/io/chatic/dou/push/ChaticFirebaseMessagingService.kt)). 탭 시 RN(`0.83`)이 `Linking` `'url'` 이벤트를 자동 emit → `DeepLinkManager` → `useWebViewDeepLink` → OnNavigate. 콜드스타트는 `Linking.getInitialURL()` 경로. **`MainActivity` 추가 오버라이드 불필요.** ✅
-- **iOS 탭**: iOS는 `aps.alert` + `mutable-content:1`이라 RNFirebase `onNotificationOpenedApp` / `getInitialNotification`([`useFcmHandler.ts`](../../../../mobile/src/app/webview/hooks/useFcmHandler.ts))이 발화한다. `resolvePushPath`가 `link` + `payload`의 `cid`/`sid`를 경로 쿼리로 합쳐 `OnNavigate`를 브릿지로 **직접 발행**한다(`Linking.openURL` 왕복 없음). 콜드스타트는 브릿지 버퍼가 `WebAppReady`까지 보관 후 전달. 실기기 검증 권장.
-- **Foreground**: 네이티브 이벤트 → `OnReceiveNotification` → [`useInAppPushMessage`](../../../src/app/hooks/useInAppPushMessage.tsx)가 인앱 배너를 띄우고, **탭하면 `usePushNavigate`로 네이티브 탭과 같은 경로를 탄다**(전환 + 히스토리 정규화). 페이로드→경로 변환은 [`resolveInAppPushRoute`](../../../src/app/utils/resolveInAppPushRoute.ts). 지금 보고 있는 방의 메시지는 배너를 띄우지 않는다. 디버그 소비처 [`useReceivedPushLog`](../../../src/app/features/debug/hooks/useReceivedPushLog.ts)도 함께 수신을 기록한다 → [device-token](./device-token.md).
-- **cid/sid 전달**: `cid`/`sid`는 `payload`에 있고 `link`와 별개다. 모바일이 이를 `OnNavigate` 경로 쿼리로 병합해 웹까지 넘긴다 — Android는 네이티브에서 링크 URI에, iOS는 `resolvePushPath`에서. 웹은 위 [경로 계약](#경로-계약)대로 쿼리에서 읽어 전환·제거한다. 모바일 상세: [mobile/docs/push.md](../../../../mobile/docs/push.md), [mobile/docs/deeplink.md](../../../../mobile/docs/deeplink.md).
+"Is a cloud active" is read from `useGlobalSession().activeServer.kind`, not from
+`selectedCloudId !== 'default'`. The former is committed session truth; the latter is a selection
+that can be ahead of it.
 
-> data-only인 Android 탭은 RNFirebase 콜백을 발화시키지 않으므로 네이티브 인텐트 → `Linking` 경로가 담당하고, iOS는 반대로 RNFirebase 콜백 경로를 쓴다. 두 경로 모두 동일한 `OnNavigate { path }` 계약으로 수렴한다.
+A `sid` alongside `'#'` takes the ordinary `switchSite` branch afterwards. Whether relay pushes ever
+carry one is unsettled in the payload spec, and no special handling is added for a case nobody has
+observed.
 
-## 클라우드 활성 알림 — 웹소켓 경로
+### History: only a room is disposable
 
-> 상태: Live · 최종 갱신: 2026-09-07 · 관련 ADR: [[ADR-0075]](../../../../../docs/adr/0075-cloud-activated-notification-app-readiness.md)
+Repeated push taps used to stack `[home, roomA, roomB, …]`, so back walked through dead rooms
+instead of leaving the chat. `navigateNormalized` has three rules:
 
-클라우드가 처음 활성이 되면 서버가 알림 한 건을 던지고, 전달 계층이 갈래를 정한다 —
-**접속 중이면 웹소켓, 아니면 푸시.** 접속 중일 때는 푸시가 **나가지 않으므로**, 웹소켓을 듣지 않으면
-앱을 켜 둔 사용자는 아무것도 받지 못한다. 이 절은 그 웹소켓 쪽을 담당한다 (푸시 쪽은
-[mobile/docs/push.md](../../../../mobile/docs/push.md)).
+1. **Already at the exact target** (pathname _and_ query) — skip. Re-navigating would remount the
+   page and stack a duplicate entry for the same screen. The query has to participate: an invite
+   deep link lands on `/` with its whole meaning in the query string, and a pathname-only comparison
+   silently swallows it when the reader is already at home.
+2. **Leaving a channel room** — replace it. Rooms are peers a push hops between.
+3. **Anywhere else** — push, so the screen underneath survives.
 
-| 항목        | 값                                                                    |
-| ----------- | --------------------------------------------------------------------- |
-| 봉투 `type` | `cloud.activated`                                                     |
-| `subject`   | `cloud:<id>`                                                          |
-| `data`      | `{ id, name }`                                                        |
-| 도착 슬롯   | **relay** — 서버가 `targetType: 'user'`로 중계서버 배포에 unicast한다 |
+Rule 2 is the narrow one on purpose. It once read "anywhere but home", which meant a push tapped
+from `/mypage` replaced mypage and back skipped it — and when mypage was the only entry, back had
+nowhere to go at all. Every screen that is not a room is one the reader chose.
 
-### relay 고정 구독
+### The thread leg
 
-`SocketManager.onType()`은 **active 슬롯**에만 붙고, active는 "cloud 있으면 cloud, 없으면 relay"다.
-그대로 쓰면 **사용자가 클라우드 안에 있을 때 놓친다** — 두 번째·세 번째 클라우드를 추가하는,
-정확히 가장 흔한 상황이다. 슬롯 두 개는 동시에 붙어 있으므로 relay 클라이언트는 그때도 살아 있다.
+A push names a channel, so a tap lands on the room. But a thread reply is an ordinary chat that
+raises its own push while being hidden from the main feed — landing in the room would show the
+reader everything except the message they were notified about.
 
-그래서 kind 고정 구독 프리미티브(`onSlotType`)를 쓴다 — 코어 설계는
-[app-runtime/socket/kind-scoped-routing.md](../../../../../libs/app-runtime/docs/socket/kind-scoped-routing.md).
+So when `chatId` is present the room is the first stop, not the destination. `hopToThread` reads the
+chat (cache first, `getChat` as the cold path), asks `resolveThreadTarget` whether it has a
+`parentId`, and pushes the thread route on top if it does. `null` is the common and correct answer.
 
-### 받으면 하는 일
+Three things about it are deliberate. The hop is **pushed**, never routed through
+`navigateNormalized`, which would replace the room it was just placed on top of. It is **ordered
+after** the room, so back reads thread → room → wherever the reader came from, and so the room's own
+load warms the cache this lookup reads. And it is **silent on every failure**, including a location
+check before and after the awaits: the reader is already on a screen that makes sense, and hijacking
+one they navigated to themselves in the meantime is worse than no hop.
 
-[`CloudActivatedRunner`](../../../src/app/features/home/CloudActivatedRunner.tsx)가 `AppRuntime`의
-`CloudPushMarkRunner` 옆에 마운트돼 두 가지를 한다.
+### Cold start
 
-1. **클라우드 목록 캐시 무효화** (`runtime.data.cloudsKeys.all`) — 프로비저닝 행이 즉시 활성으로 바뀐다.
-   이것만으로도 홈을 보고 있는 사용자에게는 "준비됐다"가 화면에 나타난다.
-2. **인앱 배너** — 다른 화면을 보고 있어도 알게 한다. 제목 인자는 이벤트의 `name`, 비어 있으면 `id`다
-   (이름 없이 만들어진 클라우드가 실제로 있다 — 푸시 문구와 같은 폴백).
+On cold start the shell flushes its buffered tap as soon as the web app sends _any_ bridge message —
+long before the session initializes and the router tree mounts. The bridge client drops events with
+no listener, so the tap used to vanish and the app booted to home.
 
-**두 효과는 독립이다.** 무효화는 언제나 돈다. 배너는 `i18n.exists('notifications.cloudActivated.title')`
-일 때만 뜬다 — 웹 i18n은 원격 리소스라 키가 아직 없는 클라이언트가 있고, 리터럴 키가 적힌 배너보다
-배너가 없는 편이 낫다. 그 사이에도 목록은 갱신된다.
+`pendingNavigationStore.start()` runs in `main.tsx` before render, subscribes there, and holds the
+event until `useHandlePushNavigation` registers. Only the latest unconsumed event is kept: repeated
+taps during boot should land on the last one. The held event is cleared before delivery so a
+StrictMode remount cannot replay a navigation that already happened.
 
-**배너에 클릭 동작을 두지 않는다.** 푸시 탭은 홈으로 가기로 확정됐으므로, 배너만 해당 클라우드로
-전환하면 같은 알림이 도착 경로에 따라 다른 곳으로 데려간다.
+### The foreground banner
 
-토스트 id는 고정이다 — 업그레이드로 여러 클라우드가 한꺼번에 준비되면 배너가 쌓이지 않고 교체된다.
+A push arriving while the app is open does not reach the shade. `useInAppPushMessage` draws it as a
+toast card and routes a tap through `usePushNavigate`, so it behaves exactly like an OS tap.
 
-### 푸시와 겹치지 않는가
+Payload fields are read through a **merge of `payload` over the top-level `data`**, never off `data`
+directly. Senders nest these fields, and Android's foreground path overwrites top-level `channelId`
+with the OS notification channel, which matches no room route. Reading directly is what silently
+disarmed both suppression rules below.
 
-겹치지 않는다. 전달 계층이 접속 여부로 **하나만** 고른다. 다만 소켓이 끊긴 채 앱이 포그라운드인
-드문 경우에는 푸시가 포그라운드로 도착할 수 있고, 그때는 기존 `useInAppPushMessage`가 제목만 있는
-클릭 없는 카드로 띄운다 — 억제 규칙 둘(`ownerId` 자기 에코, 현재 방)은 채팅 필드가 없어 no-op이 되고,
-깨지지 않는다. 유형별 카드 분기는 두지 않는다.
+Three suppressions, each recorded rather than swallowed — a `PUSH_EVENT` log entry per receipt
+carries the verdict, never the title or body, because a push body is message content:
 
-## 미구현(의도적 부재)
+| Verdict           | When                                                       |
+| ----------------- | ---------------------------------------------------------- |
+| `silent`          | No title and no body — a data-only push the badge consumes |
+| `own-message`     | `ownerId` is my own id: my own send echoed back            |
+| `viewing-channel` | Already reading that channel, in the room **or a thread**  |
 
-- **배지 최종 반영**: `payload.badge` + 활성 채팅방·unread 조합. 별도 과제.
+The thread counts as the same room seen from a different angle — and it is where your own send
+round-trip would otherwise raise a banner while you type.
+
+The headline is the channel name when known, falling back to the push title; sender titles baked by
+the backend are unreliable. The name is shown as-is, with no `#` prefix — that is a public-channel
+convention this product has no equivalent of, and the payload carries no stereo, so it was landing
+on 1:1 and self rooms too.
+
+A tap registers the push's id against the channel before navigating, so the room's own log entry
+joins the receipt under one correlation key. One push can cross app runs when the app was killed,
+which puts receipt and entry under different run ids; the sender-assigned id is the only thing that
+survives that.
+
+## Cloud activation arrives over the socket, not as a push
+
+When a cloud first goes active the server sends **one** notification and the delivery layer picks
+the transport: websocket while the owner is connected, push otherwise. Because it picks one, a
+connected owner gets **no push**. Without a socket subscription, an owner with the app open learns
+nothing until they happen to look at the cloud list.
+
+`CloudActivatedRunner`, mounted under `AppRuntime` beside `CloudPushMarkRunner`, is that
+subscription. It listens for the `cloud.activated` envelope, whose `data` carries `{ id, name }`.
+
+**It pins to the relay slot.** The unicast targets a user and is delivered by the relay deployment,
+so it arrives on the relay socket even while a cloud socket is active. `onType` binds to the
+_active_ slot, which would miss this exactly when it matters most — sitting inside cloud A while
+cloud B finishes provisioning is the common case, not the edge one. `onSlotType('relay', …)` is the
+primitive that fixes it, and the slot model behind it is in
+[app-runtime socket](../../../../../libs/app-runtime/docs/socket/README.md).
+
+Two effects, independent on purpose:
+
+- **The cache invalidation always runs**, turning the provisioning row into an active one. For
+  someone looking at the list, that alone is the whole notification.
+- **The banner renders only when its copy resolves.** Web i18n is served remotely, so the key can be
+  absent on a client whose bundle predates it, and a banner reading
+  `notifications.cloudActivated.title` is worse than no banner. The list still updates underneath.
+
+The banner has no click action. A push for the same event goes to the root, and one notification
+should not land somewhere different depending on how it arrived. Its toast id is fixed, so an
+upgrade that provisions several clouds replaces the banner instead of stacking them.
+
+The envelope type is a string the backend picks, enforced by no shared type. A rename there goes
+silent here.
+
+## What not to do
+
+- **Do not add a routing branch outside `usePushNavigate`.** It will apply to one entry point and
+  not the other, and the bug report will say "works from the notification but not the banner".
+- **Do not forward `'#'` to a session API.** It is a payload marker, not a cloud id.
+- **Do not navigate before awaiting the switch.** The room will not find its channel.
+- **Do not widen the replace rule past channel rooms.** That is the bug it was narrowed to fix.
+- **Do not read push fields off `data` directly.** Use the extractors in `resolveInAppPushRoute.ts`,
+  which all share one merge rule.
+- **Do not route the thread hop through `navigateNormalized`.** It would replace the room underneath
+  it.
+
+## How to verify
+
+```bash
+npx jest --config apps/web/jest.config.js --testPathPatterns "bridge/navigation|useInAppPushMessage|resolveInAppPushRoute|CloudActivatedRunner"
+npx tsc -b apps/web/tsconfig.json
+```
+
+`useHandlePushNavigation.test.ts` is where `usePushNavigate`'s behaviour is specified — the hook is
+driven through its entry point rather than directly, so the relay-sentinel rows, the recovery guard,
+the best-effort paths and the follow-on site switch are all covered from there.
+
+What a test cannot reach: the shell's own tap paths. Android and iOS get from a banner tap to
+`OnNavigate` by different routes — one through the native intent and `Linking`, the other through
+the notification-open callback — and they converge on the same contract only on a real device. Both
+are documented in [apps/mobile](../../../../mobile/README.md). Confirm the crossover by hand: enter a
+cloud session, receive a relay DM push, tap it from the shade and from the in-app banner, and check
+that you reach the relay room with no re-login and with the cloud session closed.

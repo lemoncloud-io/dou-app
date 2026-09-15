@@ -1,10 +1,10 @@
 import { cloudGateway, oauthGateway, reportGateway, resetGateways, subscriptionGateway, userGateway } from './gateways';
 
-const createOAuthHttpGateway = jest.fn(() => ({ tag: 'oauth' }));
-const createUserHttpGateway = jest.fn(() => ({ tag: 'user' }));
-const createCloudHttpGateway = jest.fn(() => ({ tag: 'cloud' }));
-const createSubscriptionHttpGateway = jest.fn(() => ({ tag: 'subscription' }));
-const createReportHttpGateway = jest.fn(() => ({ tag: 'report' }));
+const createOAuthHttpGateway = jest.fn((..._args: unknown[]) => ({ tag: 'oauth' }));
+const createUserHttpGateway = jest.fn((..._args: unknown[]) => ({ tag: 'user' }));
+const createCloudHttpGateway = jest.fn((..._args: unknown[]) => ({ tag: 'cloud' }));
+const createSubscriptionHttpGateway = jest.fn((..._args: unknown[]) => ({ tag: 'subscription' }));
+const createReportHttpGateway = jest.fn((..._args: unknown[]) => ({ tag: 'report' }));
 const getHttpManager = jest.fn(() => ({ executor: true }));
 
 jest.mock('@chatic/http', () => ({

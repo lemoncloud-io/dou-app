@@ -17,8 +17,8 @@ const builder: LemonRequestBuilder = {
 };
 
 const lemonSurface: jest.Mocked<LemonRequestSurface> = {
-    buildRequest: jest.fn(() => builder),
-    buildSignedRequest: jest.fn(() => builder),
+    buildRequest: jest.fn((_config: { method: string; baseURL: string }) => builder),
+    buildSignedRequest: jest.fn((_config: { method: string; baseURL: string }) => builder),
 };
 
 const networkError = () => Object.assign(new Error('Network Error'), { code: 'ERR_NETWORK' });

@@ -1,9 +1,22 @@
 {
     "extends": "./tsconfig.json",
     "compilerOptions": {
-        "outDir": "../../dist/out-tsc",
-        "module": "commonjs",
+        // Its own directory under `dist/out-tsc`. tsconfig.lib.json emits there too, and two
+        // composite programs writing the same `.d.ts` paths overwrite each other's output.
+        "outDir": "../../dist/out-tsc/config-spec",
+        // `module` is NOT overridden to commonjs here. The base sets `moduleResolution: bundler`,
+        // which rejects commonjs (TS5095) and left this config unable to compile at all — which is
+        // how the test files went without a type check. ts-jest emits CommonJS for jest on its own;
+        // this config only has to be checkable.
         "types": ["jest", "node"]
     },
-    "include": ["jest.config.js", "src/**/*.ts"]
+    // `__mocks__` is listed explicitly even though `src/**/*.ts` already covers it: tsconfig.lib.json
+    // excludes that folder, and the nx typecheck target derives its cache inputs from these globs —
+    // without this entry a change to a shared mock would not invalidate the cache. `jest.config.js`
+    // was in this list and is not source; it is dropped.
+    "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.d.ts", "src/**/__mocks__/**/*.ts"],
+    // The same sibling projects tsconfig.lib.json references — which for this lib is none at all.
+    // `@chatic/config` imports no other `@chatic` module by design, and the empty array says so
+    // rather than leaving the reader to wonder whether it was forgotten.
+    "references": []
 }

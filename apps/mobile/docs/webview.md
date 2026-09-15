@@ -1,21 +1,31 @@
 # WebView
 
-WebView는 웹 앱과 모바일 shell의 경계다. 웹 앱은 typed message를 보내고, 모바일은 handler/service/native module을 통해 결과를 반환한다.
+The WebView is the message boundary between the web client and the native shell: the web posts a
+typed message, and a handler hook answers it through a service.
 
-> 웹뷰 로그·에러를 코드 레벨까지 관측하려면(Safari Web Inspector / `chrome://inspect`) [webview-debugging.md](./webview-debugging.md) 참고.
+> To inspect webview console output and errors at the code level (Safari Web Inspector /
+> `chrome://inspect`), see [webview-debugging.md](./webview-debugging.md).
 
-## 주요 파일
+## Key files
 
-| 파일                                           | 역할                                               |
-| ---------------------------------------------- | -------------------------------------------------- |
-| `src/app/webview/AppWebView.tsx`               | WebView 렌더, 런타임 스크립트 주입, readiness 처리 |
-| `src/app/webview/core/bridge.ts`               | low-level JSON post/receive 헬퍼                   |
-| `src/app/webview/hooks/useWebMessageRouter.ts` | 중앙 message router                                |
-| `src/app/webview/hooks/*Handler.ts`            | 도메인별 핸들러                                    |
-| `src/app/webview/utils/injectionScripts.ts`    | safe area, device info, console override 주입      |
-| `src/app/webview/hooks/useAppBridge.ts`        | bridge 생성과 WebView message 바인딩               |
+| File                                           | Role                                                                          |
+| ---------------------------------------------- | ----------------------------------------------------------------------------- |
+| `src/app/webview/AppWebView.tsx`               | Renders the `WebView`, wires the injected runtime scripts, tracks ready state |
+| `src/app/webview/hooks/useBaseBridge.ts`       | Builds the `AppBridgeHost` (`@chatic/bridges`) and its `onMessage` handler    |
+| `src/app/webview/hooks/useAppBridge.ts`        | Thin wrapper exposing `{ bridge, onMessage }` to `MainScreen`                 |
+| `src/app/webview/hooks/useWebMessageRouter.ts` | Central message router; queues and dispatches to 25 handler hooks             |
+| `src/app/webview/hooks/*Handler.ts`            | 25 domain handlers, one per capability group                                  |
+| `src/app/webview/utils/injectionScripts.ts`    | Builds the scripts injected before the WebView loads                          |
 
-## 구조
+`webview/core/bridge.ts` (`createBridge`, `postAppMessage`, `receiveWebMessage`) has no importer
+anywhere in `apps/mobile/src` — the bridge actually in use is `AppBridgeHost` from `@chatic/bridges`,
+assembled in `useBaseBridge.ts`.
+
+```bash
+grep -rln "from '.*core/bridge'" apps/mobile/src
+```
+
+## Structure
 
 ```mermaid
 flowchart TD
@@ -33,7 +43,7 @@ flowchart TD
     Other --> Services
 ```
 
-## Message 시나리오
+## Message flow
 
 ```mermaid
 sequenceDiagram
@@ -51,32 +61,59 @@ sequenceDiagram
     Handler-->>Web: bridge response or event
 ```
 
-## Runtime Messages
+`useWebMessageRouter` queues incoming messages and processes them one at a time, so a slow handler
+cannot let a later message overtake it.
 
-`AppWebView.tsx` intercepts these messages before normal bridge routing:
+## The WebAppReady handshake
 
-| Message                       | 동작                                             |
-| ----------------------------- | ------------------------------------------------ |
-| `WebAppReady`                 | loading state 해제, debug runtime state 갱신     |
-| `ResumeReady`                 | iOS resume overlay 해제                          |
-| `SavePreference` with `theme` | native theme store 갱신 ([theme.md](./theme.md)) |
+`WebAppReady` is not one of the 25 routed messages — `AppBridgeHost` (`@chatic/bridges`) answers it
+internally, inside `handleMessage`, before a message ever reaches `useWebMessageRouter`. It is a
+capability handshake, not a plain ready ping: the reply reports the app's local-cache schema version
+and supported cache types (read from the SQLite install, warmed in parallel with the WebView's bundle
+load) so a web build newer than this app can route unsupported cache domains to its own storage
+instead of a silent void. `useBaseBridge.ts` passes an `onAppReady` callback into `AppBridgeHost`;
+`MainScreen` uses it to clear the `ResumeOverlay`-adjacent loading state and mark the
+`bootMetricsService` `web-app-ready` timestamp. `DismissResumeOverlay`, by contrast, is a normal
+routed message — `useAppStateHandler` answers it like any other handler — that fires when the web's
+own repaint animation after a resume has finished, and is what actually hides `ResumeOverlay`.
+
+| Message                       | What it does                                                                                              |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `WebAppReady`                 | Handshake, answered inside `@chatic/bridges`; buffers and flushes any push events queued before it        |
+| `DismissResumeOverlay`        | Routed handler (`useAppStateHandler`); clears the resume overlay after the web's repaint                  |
+| `SavePreference` with `theme` | Routed handler (`usePreferenceCacheHandler`); updates the native theme store — see [theme.md](./theme.md) |
 
 ## Injection
 
-WebView load 전에 다음 runtime data가 script로 주입된다.
+Before the WebView loads, `injectionScripts.ts` assembles one script (`getSyncInjectionScript`) that
+sets these globals, guarded so a runtime failure reports itself through `SendLog` (tag `INJECTION`)
+instead of surfacing as an opaque "Script error.":
 
-- safe area inset
-- keyboard height
-- device id (`CHATIC_APP_DEVICE_ID` = `deviceId:firebaseInstallId` 조합) / platform / app version / build number
-- installation id (`CHATIC_APP_INSTALLATION_ID` = 원시 device id) / latest version check result
-- 영속화된 테마(`CHATIC_APP_THEME`) — 웹의 프리페인트 스크립트가 첫 페인트에 읽는다. [theme.md](./theme.md) 참고
-- console override script
+- safe-area insets and keyboard height, as CSS variables
+- device info: run id, platform, stage, app/OS version, build number, language, device model
+- `CHATIC_APP_CONSOLE_ENABLED` — whether relaying `debug` logs to native is worth it in this build.
+  The legacy `__console__` relay script it replaced is gone; `SendLog` is now the only web→native log
+  channel (ADR-0047).
+- device identity: `CHATIC_APP_UNIQUE_DEVICE_ID` (raw device id) and
+  `CHATIC_APP_FIREBASE_INSTALLATION_ID` (empty until the async Firebase lookup resolves), plus two
+  `@deprecated` globals kept for older web bundles — `CHATIC_APP_DEVICE_ID`
+  (`uniqueDeviceId:firebaseInstallId`, built by
+  [`buildInjectedUniqueId.ts`](../src/app/webview/utils/buildInjectedUniqueId.ts)) and
+  `CHATIC_APP_INSTALLATION_ID` (confusingly named — it is the bare device id, not a Firebase id)
+- the persisted theme (`CHATIC_APP_THEME`), read by the web's pre-paint script — see
+  [theme.md](./theme.md)
+- `CHATIC_APP_CONFIG_BAG` — `@chatic/config`'s shell-lane KV bag, so `config.init()` can hydrate
+  synchronously before the web's first paint
 
-> device id는 원시 `DeviceInfo.getUniqueId`에 Firebase installation id를 이어붙인 값이다([`buildInjectedUniqueId.ts`](../src/app/webview/utils/buildInjectedUniqueId.ts)). Firebase id는 비동기 조회([`useFirebaseInstallId.ts`](../src/app/webview/hooks/useFirebaseInstallId.ts))라 아직 없으면 원시 device id만 들어간다.
+All string values are `JSON.stringify`-interpolated rather than quoted directly: an unescaped quote
+or backslash from native data (a localized app name, an odd Android device-model string) would
+otherwise break out of the literal and throw inside a script with no `<script src>` to attribute the
+error to.
 
-## 변경 체크리스트
+## Change checklist
 
-- 새 WebView message type이 typed package와 handler/router에 모두 반영됐는가?
-- handler가 service 호출만 하고 domain logic을 과도하게 갖지 않는가?
-- WebView ready 전후로 호출되어도 안전한가?
-- bridge response/event 이름이 web contract와 일치하는가?
+- Is a new WebView message type reflected in `@chatic/app-messages` and in both a handler and the
+  router?
+- Does a handler only call a service, without carrying its own domain logic?
+- Is it safe to call before and after WebView ready?
+- Do the bridge response/event names match the web contract?

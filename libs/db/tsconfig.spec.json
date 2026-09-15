@@ -1,9 +1,30 @@
+// libs/db/tsconfig.spec.json
 {
     "extends": "./tsconfig.json",
     "compilerOptions": {
         "outDir": "../../dist/out-tsc",
-        "module": "commonjs",
-        "types": ["jest", "node"]
+        // `module` is NOT overridden to commonjs here. The base sets `moduleResolution: bundler`,
+        // which rejects commonjs (TS5095) and left this config unable to compile at all — which is
+        // how the test files went without a type check. ts-jest emits CommonJS for jest on its own;
+        // this config only has to be checkable.
+        "jsx": "react-jsx",
+        "types": ["jest", "node", "@nx/react/typings/cssmodule.d.ts", "@nx/react/typings/image.d.ts"]
     },
-    "include": ["jest.config.js", "src/**/*.ts"]
+    // `__mocks__` is listed explicitly even though `src/**/*.ts` already covers it: tsconfig.lib.json
+    // excludes that folder, and the nx typecheck target derives its cache inputs from these globs —
+    // without this entry a change to a shared mock would not invalidate the cache.
+    "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.d.ts", "src/**/__mocks__/**/*.ts"],
+    // The same sibling projects tsconfig.lib.json references. A composite project has to reach its
+    // dependencies through references, or their sources come in as unlisted files (TS6307).
+    "references": [
+        {
+            "path": "../app-messages/tsconfig.lib.json"
+        },
+        {
+            "path": "../bridges/tsconfig.lib.json"
+        },
+        {
+            "path": "../data/tsconfig.lib.json"
+        }
+    ]
 }

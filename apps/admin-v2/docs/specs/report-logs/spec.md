@@ -1,6 +1,6 @@
 # Report Logs — 로그 추적 콘솔
 
-> 상태: Live · 최종 갱신: 2026-09-10 · 관련 ADR: [ADR-0027](../../../../../docs/adr/0027-admin-v2-report-log-list.md), [ADR-0083](../../../../../docs/adr/0083-admin-log-monitoring-console.md)
+> 상태: Live · 최종 갱신: 2026-09-10 · 관련 ADR: ADR-0027, ADR-0083
 
 ## 목적
 

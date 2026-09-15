@@ -20,8 +20,8 @@ const builder: LemonRequestBuilder = {
 };
 
 const lemonSurface: jest.Mocked<LemonRequestSurface> = {
-    buildRequest: jest.fn(() => builder),
-    buildSignedRequest: jest.fn(() => builder),
+    buildRequest: jest.fn((_config: { method: string; baseURL: string }) => builder),
+    buildSignedRequest: jest.fn((_config: { method: string; baseURL: string }) => builder),
 };
 
 /** No `isCredentialStale`, so nothing is marked stale and the recovery branch stays out of the way. */

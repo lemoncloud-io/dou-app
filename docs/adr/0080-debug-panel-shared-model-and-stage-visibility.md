@@ -1,512 +1,539 @@
-# ADR-0080: 디버그는 웹이 전부 조작한다 — 모델 공유 · 빌드 스테이지 노출 · 앱은 실행만
+# ADR-0080: The web controls debug entirely — shared model, build-stage visibility, the app only executes
 
-> 상태: **Accepted** · 작성일: 2026-09-08 · 구현: **대부분 Live** (2026-09-10 실측 — 아래 §구현 상태)
-> 기반은 서 있다: [ADR-0079](./0079-config-registry-and-lane-resolver.md)의 1~7단계가 구현·커밋됐다
-> (범용 KV 셸 레인 · 84키 레지스트리 · `snapshotAll()`). 이 문서의 결정은 그 위에 얹힌다.
-> **순서 불변조건: 결정 11이 결정 12보다 먼저다** — 결정 12의 근거 자체가 "결정 11로 버튼이 전부
-> 웹에 있으면 FAB이 열 곳이 없다"이므로, 웹 패널 없이 앱 UI를 지우면 양쪽 모두 조작 수단이 없어진다.
-> 범위: `apps/web/src/app/features/debug/**` · `apps/mobile/src/app/features/debug/**` (화면 15개 ·
-> 5,917줄) · `apps/mobile/src/app/webview/AppWebView.tsx` (자동 복구) · `apps/mobile/src/app/App.tsx` ·
-> `apps/web/src/main.tsx` (주석) · `libs/app-messages` (화면별 명령) · 공유 모델 모듈 신설
-> 관련: [ADR-0079](./0079-config-registry-and-lane-resolver.md) (설정 레지스트리 — 결정 3의 스키마와
-> 결정 9의 범용 패널을 이 문서가 두 곳에서 수정한다) ·
-> [레지스트리 키 제안](../spec/config-registry-keys.md)
+> Status: **Accepted** · Written: 2026-09-08 · Implementation: **mostly Live** (measured 2026-09-10 — see §Implementation status below)
+> The foundation is in place: [ADR-0079](./0079-config-registry-and-lane-resolver.md)'s steps 1-7 are implemented and committed
+> (the general-purpose KV shell lane · the 84-key registry · `snapshotAll()`). This document's decisions build on top of that.
+> **Ordering invariant: Decision 11 must land before Decision 12** — Decision 12's own justification is "once Decision 11 puts
+> every button on the web, the FAB has nothing left to open," so deleting the app's UI before the web panel exists leaves
+> neither side with a way to operate anything.
+> Scope: `apps/web/src/app/features/debug/**` · `apps/mobile/src/app/features/debug/**` (15 screens ·
+> 5,917 lines) · `apps/mobile/src/app/webview/AppWebView.tsx` (auto-recovery) · `apps/mobile/src/app/App.tsx` ·
+> `apps/web/src/main.tsx` (comment) · `libs/app-messages` (per-screen commands) · a new shared model module
+> Related: [ADR-0079](./0079-config-registry-and-lane-resolver.md) (config registry — this document amends its
+> Decision 3 schema and its Decision 9 general-purpose panel in two places) ·
+> Registry key proposal, which lived in the root docs tree, which has since been removed.
 
-> 실측 기준 커밋: `4501835e3` (2026-09-08). 구현 실측: `5f1f2ff4f` (2026-09-10).
+> Commit as measured: `4501835e3` (2026-09-08). Implementation as measured: `5f1f2ff4f` (2026-09-10).
 
-## 구현 상태 (2026-09-10)
+## Implementation status (2026-09-10)
 
-| 결정                             | 상태        | 실물                                                                   |
-| -------------------------------- | ----------- | ---------------------------------------------------------------------- |
-| 1 공유 순수 TS 모듈              | **무효**    | 공유할 상대가 없어졌다 — 아래 델타 ①                                   |
-| 2 `platforms` · 합집합           | 미구현      | 다음 단계로 남음 — 아래 델타 ②                                         |
-| 3 분류 · 이름 · 언어 통일        | 구현 (변형) | `features/debug/i18n.ts` — 아래 델타 ③                                 |
-| 4 `buildStage` 노출              | **절반**    | 레지스트리 행은 있으나 패널이 안 읽는다 — 아래 델타 ④                  |
-| 5 `env.stage` / `env.buildStage` | 구현        | `libs/config/src/registry/env.ts`                                      |
-| 6 `meta: true` 제외              | 구현        | `types.ts`의 `meta` · `ConfigScreen`의 `isHidden`                      |
-| 7 컴포넌트 비공유 · 시각 규약    | **무효**    | 맞출 상대가 없다 (델타 ①). 규약 문서도 불필요                          |
-| 9 `main.tsx` 주석 정정           | 구현        | `apps/web/src/main.tsx`                                                |
-| 11 조작은 전부 웹                | 구현        | 화면 22개가 웹에 있다                                                  |
-| 12 앱 디버그 UI 0                | 구현        | `818698ea8` — `apps/mobile/.../features/debug` 없음, FAB 없음          |
-| 13 웹 주소 변경 기능 삭제        | 구현        | `4b80a76b7` — `EnvironmentSettingsScreen` 없음                         |
-| 14 버튼 셋                       | **2/3**     | 로그 지금 보내기 · 지금 설정 보기 = 있음 / 캐시 도메인별 비우기 = 없음 |
+| Decision                                   | Status                | What actually exists                                                                 |
+| ------------------------------------------ | --------------------- | ------------------------------------------------------------------------------------ |
+| 1 shared pure TS module                    | **moot**              | Nothing left to share with — see delta ① below                                       |
+| 2 `platforms` · union                      | not implemented       | left for a later step — see delta ② below                                            |
+| 3 unify category · name · language         | implemented (variant) | `features/debug/i18n.ts` — see delta ③ below                                         |
+| 4 expose `buildStage`                      | **half**              | the registry row exists but the panel does not read it — see delta ④ below           |
+| 5 split `env.stage` / `env.buildStage`     | implemented           | `libs/config/src/registry/env.ts`                                                    |
+| 6 exclude `meta: true`                     | implemented           | `meta` in `types.ts` · `isHidden` in `ConfigScreen`                                  |
+| 7 no shared components · visual convention | **moot**              | nothing left to align with (delta ①). A convention doc is unnecessary too            |
+| 9 fix the `main.tsx` comment               | implemented           | `apps/web/src/main.tsx`                                                              |
+| 11 all control lives on the web            | implemented           | 22 screens live on the web                                                           |
+| 12 zero debug UI in the app                | implemented           | `818698ea8` — no `apps/mobile/.../features/debug`, no FAB                            |
+| 13 remove the web-address-change feature   | implemented           | `4b80a76b7` — no `EnvironmentSettingsScreen`                                         |
+| 14 the button set                          | **2/3**               | send logs now · view current settings now = present / clear cache by domain = absent |
 
-이 문서가 예정하지 않았던 것도 함께 구현됐다. **패널 구조 자체의 재편**(`5f1f2ff4f`)이다 — 화면 목록이
-`debugMenu.ts`와 `MiniPanel.TABS` 두 곳에 있던 것을 `overlay/screenManifest.ts` 하나로 합치고, 셸 3개를
-`DebugPanel.tsx` 하나로 줄이고, 모드(mini/float/expanded)를 크기 축(`mini`·`dock`·`full`)으로 바꿨다.
-**크기가 무엇이 보이는지까지 정하던 것**이 카탈로그가 갈라진 원인이었다. 화면 2개도 새로 생겼다:
-`BridgeScreen`(채널 감지 · Ping 왕복 · 임의 명령)과, 그리기만 하던 `ConfigScreen`의 편집 기능.
+Something this document did not plan for also got built. **The panel's own structure got reworked** (`5f1f2ff4f`) — the
+screen list, which used to live in both `debugMenu.ts` and `MiniPanel.TABS`, is now one file, `overlay/screenManifest.ts`;
+three shells collapsed into one `DebugPanel.tsx`; and the modes (mini/float/expanded) became a size axis
+(`mini`·`dock`·`full`). **Size used to decide what was visible at all** — that was the reason the catalog had split.
+Two screens are also new: `BridgeScreen` (channel detection · Ping round-trip · arbitrary commands), and edit
+capability added to what used to be a read-only `ConfigScreen`.
 
-### 델타 ① — 결정 1·7의 전제가 사라졌다
+### Delta ① — the premise behind Decisions 1 and 7 is gone
 
-결정 1은 웹과 모바일이 메뉴 모델을 공유하게 만들려는 것이었고, 결정 7은 두 패널의 시각을 규약으로
-맞추려는 것이었다. **결정 12가 앱의 디버그 UI를 전부 지우면서 공유할 상대도, 맞출 상대도 없어졌다.**
-`libs/shared`가 RN 비안전이라 새 lib이 필요하다던 미결 ①도 같이 사라진다 — 매니페스트는
-`apps/web` 안에 있으면 된다. 결정 2의 `platforms`만 살아남는다(앱 셸 유무 판정은 여전히 필요하다).
+Decision 1 wanted the web and mobile to share a menu model, and Decision 7 wanted a convention to align the two
+panels' visuals. **Decision 12 deleted all of the app's debug UI, so there is nothing left to share with and nothing
+left to align with.** Open question ① — that a new lib would be needed because `libs/shared` is not RN-safe — goes
+away with it: the manifest just needs to live inside `apps/web`. Only Decision 2's `platforms` survives (whether a
+screen needs the app shell is still a real question).
 
-### 델타 ② — `platforms` 대신 `requiresShell`
+### Delta ② — `requiresShell` instead of `platforms`
 
-결정 2는 웹·모바일 화면의 **합집합**을 만들고 각 항목이 어느 플랫폼 것인지 배열로 적으려는 것이었다.
-합집합의 상대가 사라졌으므로(델타 ①) 남은 질문은 하나다 — **이 화면이 네이티브 셸을 필요로 하는가.**
-배열 대신 `requiresShell?: true` 한 칸이고, 8개 화면(기기 정보 · 커스텀 zip · 부팅 기록 · 푸시 ·
-SMS · OAuth · 인앱결제 · 딥링크)이 갖는다.
+Decision 2 wanted to build the **union** of web and mobile screens, with each item carrying an array of which platform
+it belonged to. With no counterpart left to union with (delta ①), only one question remains — **does this screen need
+the native shell.** Instead of an array it's a single `requiresShell?: true`, and 8 screens carry it (device info ·
+custom zip · boot records · push · SMS · OAuth · in-app purchase · deep link).
 
-게이트는 셸이 한 곳에서 건다. 브라우저에서 그 화면을 고르면 화면 대신 "앱 안에서만 동작합니다"가
-뜨고, 메뉴 행에는 `앱 전용` 배지가, 칩에는 흐린 상태가 붙는다. **화면마다 `isNative`를 넣던 방식은
-9개 중 5개만 갖고 있었다** — 한 곳으로 옮기면서 빠질 수 없게 됐다.
+The gate is enforced in exactly one place. Picking that screen in a browser shows "Only works inside the app" instead
+of the screen, the menu row gets an `App only` badge, and the chip renders in a dimmed state. **Putting `isNative` on
+each screen individually only covered 5 of 9** — moving it to one place makes it impossible to skip.
 
-셸 유무는 1초 간격으로 다시 읽는다(`useShellPresence`). 셸의 주입 전역은 웹이 마운트된 뒤에 나타날 수
-있고 — `WebBridgeClient`가 폴링하는 이유가 그것이다 — 첫 렌더에 판정하면 셸이 있는 기기에서 계속
-"셸 없음"이라고 말하게 된다. 구독자는 패널이 열려 있을 때만 존재한다.
+Shell presence is re-read on a 1-second interval (`useShellPresence`). The shell's injected globals can appear only
+after the web has mounted — that's why `WebBridgeClient` polls — so deciding this on first render would keep telling a
+shell-equipped device "no shell" forever. The subscriber only exists while the panel is open.
 
-부분적으로 셸을 쓰는 화면(로그 버퍼 · 캐시 지표 · 브릿지)은 이 표시를 갖지 않는다. 브라우저에서도
-쓸모가 있고, 브릿지 화면은 **셸이 없다는 사실을 보고하는 것이 존재 이유**다.
+Screens that use the shell only partially (log buffer · cache metrics · bridge) don't carry this indicator. They're
+useful in a browser too, and the bridge screen's **entire reason to exist is reporting that there's no shell.**
 
-### 델타 ③ — 언어를 고정하지 않고 표를 두 벌 뒀다
+### Delta ③ — no fixed language, two tables instead
 
-결정 3은 "언어는 한국어로 고정한다"였다. 구현은 `ko`/`en` 표를 한 벌씩 두고 앱 언어를 따라간다
-(`features/debug/i18n.ts`). 표가 `DebugScreenKey`로 타입이 걸려 있어 **새 화면은 두 언어를 다 적어야
-컴파일된다** — 결정 3이 막으려던 드리프트는 고정보다 이쪽이 더 강하게 막는다. 표는 번들에 있다:
-부팅이 깨졌을 때 여는 패널이 `/locales` 요청 성공에 기대면 그 상황에서 라벨이 키로 뜬다.
+Decision 3 said "fix the language to Korean." The implementation keeps one `ko`/`en` table each and follows the app's
+language (`features/debug/i18n.ts`). The tables are typed against `DebugScreenKey`, so **a new screen must fill in
+both languages to compile** — the drift Decision 3 wanted to stop is stopped harder this way than by fixing one
+language. The tables ship in the bundle: the panel you open when boot is broken can't depend on a successful
+`/locales` request, or labels show up as raw keys in that situation.
 
-**남은 어긋남:** 화면 이름만 표로 갔고 **화면 본문 카피는 아직 한국어 하드코딩**이다. 앱 언어가 영어인
-기기에서는 헤더가 영어, 본문이 한국어로 보인다. 화면이 자기 이름을 `h1`으로 또 쓰던 것은 지웠으므로
-같은 이름이 두 언어로 겹쳐 보이지는 않는다.
+**What's still mismatched:** only the screen names went into the table — **screen body copy is still hardcoded in
+Korean.** On a device set to English, the header shows English while the body shows Korean. Screens no longer render
+their own name as an `h1` too, so at least the same name doesn't show doubled in two languages.
 
-### 델타 ④ — 노출 판정은 행이 하고, sessionStorage는 언락 기록으로 남는다
+### Delta ④ — the row decides visibility, and sessionStorage is the unlock record
 
-`useDebugMode`가 `debug.overlayEnabled`를 읽는다. DEV 번들에서 세션 저장소가 비어 있어도 패널이
-열리는 것을 실측했다 — 10탭 마찰이 값을 만들지 못하는 곳에서 사라졌다. PROD는 행이 false이므로
-지금과 똑같이 10탭 + 입장 코드를 요구한다.
+`useDebugMode` reads `debug.overlayEnabled`. Measurement showed the panel opening even with an empty session storage
+in a DEV bundle — the 10-tap friction disappeared exactly where the row already makes the value true. PROD keeps the
+row false, so it still requires 10 taps + entry code exactly as before.
 
-**두 원천이 남는 것은 의도다.** 행은 정책이고(스테이지 규칙, `env.buildStage` 판정 — 결정 5),
-sessionStorage는 언락 기록이다. 후자는 `config.init()` 전에도 동작하고 PROD의 유일한 입구다.
-둘 중 하나라도 참이면 열린다. 끄기는 **둘 다** 꺼야 한다 — 언락 기록만 지우면 LOCAL/DEV에서는
-스테이지 규칙이 다시 켜서 "웹이 다시 끌 수 있다"가 거짓이 된다.
+**Keeping two sources is intentional.** The row is policy (the stage rule, decided via `env.buildStage` — Decision 5),
+and sessionStorage is the unlock record. The latter works before `config.init()` runs and is PROD's only entry point.
+Either one being true opens the panel. Turning it off requires clearing **both** — clearing only the unlock record
+would leave LOCAL/DEV turning it back on via the stage rule, making "the web can turn it back off" false.
 
-언락은 `system.overridesUnlocked`도 함께 연다. 이 배선이 없어서 PROD에서는 `surface: 'dev'` 키가
-전부 읽기 전용으로 떴을 것이다(결정 4의 로컬 레인 전제가 무너진다).
+Unlocking also opens `system.overridesUnlocked`. Without this wiring, `surface: 'dev'` keys would have shown up
+read-only in PROD (Decision 4's local-lane premise would collapse).
 
-## 맥락 (Context)
+## Context
 
-### 1. 모델을 공유하려던 의도가 있었지만 복사로 끝났고, 이미 드리프트했다
+### 1. Sharing the model was the intent, but it ended as a copy, and it has already drifted
 
-[웹 debugMenu.ts](../../apps/web/src/app/features/debug/overlay/debugMenu.ts) 첫 줄이 스스로를 이렇게
-선언한다.
+The first line of [web debugMenu.ts](../../apps/web/src/app/features/debug/overlay/debugMenu.ts) declares its own
+intent.
 
 > `// Web counterpart of the mobile debug menu model (apps/mobile .../debug/debugMenu.ts).`
 
-의도는 명시적이었는데 수단이 복사였다. 결과:
+The intent was explicit, but the mechanism was copying. The result:
 
-| 항목                                 | 웹                        | 모바일                                  |
-| ------------------------------------ | ------------------------- | --------------------------------------- |
-| `DebugMenuItem` · `DebugMenuSection` | 동일                      | **동일 — 순수 중복**                    |
-| `DEBUG_SCREEN_TITLES` 파생 reduce    | 동일                      | **동일 — 순수 중복**                    |
-| 섹션 분류                            | `Tools` / `Data` / `Info` | `기능 테스트` / `환경설정` / `모니터링` |
-| 언어                                 | 영어                      | **한국어**                              |
-| `UploadTest` 제목                    | `Chunk Upload Test`       | `대용량 업로드 테스트`                  |
+| Item                                 | Web                       | Mobile                                                  |
+| ------------------------------------ | ------------------------- | ------------------------------------------------------- |
+| `DebugMenuItem` · `DebugMenuSection` | identical                 | **identical — pure duplication**                        |
+| `DEBUG_SCREEN_TITLES` derived reduce | identical                 | **identical — pure duplication**                        |
+| Section categories                   | `Tools` / `Data` / `Info` | "Feature tests" / "Environment settings" / "Monitoring" |
+| Language                             | English                   | **Korean**                                              |
+| `UploadTest` title                   | `Chunk Upload Test`       | "Large upload test" (Korean copy)                       |
 
-같은 도구가 분류 체계와 언어를 달리 갖고, 같은 화면이 두 이름을 갖는다. 타입은 중복이고 데이터는 갈라졌다 —
-복사가 만드는 전형적 결과이며, 방치하면 화면이 늘 때마다 벌어진다.
+The same tool ends up with different category schemes and different languages, and the same screen ends up with two
+names. The type is duplicated and the data has diverged — the typical outcome of copying, and it will keep happening
+every time a screen is added if left alone.
 
-### 2. 화면 목록이 두 개의 닫힌 유니온이라 겹침이 암묵적이다
+### 2. The screen list is two closed unions, so overlap is implicit
 
-웹 `DebugScreenKey` 10종, 모바일 `DebugOverlayScreenKey` 14종. `UploadTest`는 양쪽에 있고, 개념이 겹치는
-쌍이 더 있다(웹 `DeviceInfo` ↔ 모바일 `DeviceTest`, 웹 `LogBuffer` ↔ 모바일 `Monitoring`, 웹 `BootTab` ↔
-모바일 `BootPerformance`). 어느 화면이 어느 플랫폼에 있는지는 **두 파일을 나란히 읽어야만** 알 수 있고,
-한쪽 패널에서 상대 플랫폼 화면으로 갈 방법이 없다.
+10 web `DebugScreenKey` variants, 14 mobile `DebugOverlayScreenKey` variants. `UploadTest` is on both, and there are
+more conceptually overlapping pairs (web `DeviceInfo` ↔ mobile `DeviceTest`, web `LogBuffer` ↔ mobile `Monitoring`,
+web `BootTab` ↔ mobile `BootPerformance`). The only way to know which screen lives on which platform is **to read
+both files side by side**, and there's no way to reach the other platform's screen from either panel.
 
-### 3. 노출 정책이 LOCAL/DEV에서 마찰만 만든다
+### 3. The exposure policy only creates friction on LOCAL/DEV
 
-양쪽 모두 언락(10탭 + 엔트리 코드)을 요구한다. 언락 자체는 이미 하나다 —
-[`setDebugModeEnabled`](../../apps/web/src/app/features/debug/hooks/useDebugMode.ts)가 sessionStorage ·
-`appBridge.setDebugMode()` · 주입 전역을 한 번에 쓰고, 주석이 "Single unlock/lock covers both layers
-(PROD included)"라고 적는다.
+Both sides require unlocking (10 taps + entry code). The unlock itself is already unified —
+[`setDebugModeEnabled`](../../apps/web/src/app/features/debug/hooks/useDebugMode.ts) writes sessionStorage ·
+`appBridge.setDebugMode()` · the injected global all at once, and its comment says "Single unlock/lock covers both
+layers (PROD included)."
 
-문제는 **스테이지 무관하게 같은 게이트**라는 것이다. 로컬 개발 중에도 웹 오버레이를 열려면 10탭을 해야
-한다. LOCAL/DEV에서 이 마찰의 보안 가치는 0이다.
+The problem is **the same gate regardless of stage.** Opening the web overlay during local development still requires
+10 taps. On LOCAL/DEV this friction has zero security value.
 
-### 4. `main.tsx`의 주석이 보안 게이트를 오해시킨다 (실측 정정)
+### 4. The `main.tsx` comment misleads about the security gate (corrected by measurement)
 
-[main.tsx](../../apps/web/src/main.tsx)가 이렇게 적고 있다.
+[main.tsx](../../apps/web/src/main.tsx) currently reads:
 
 > NOTE: this only hides the FAB on PROD builds, where the native gate is `debugModeEnabled` alone.
 > **Non-PROD builds also show it via a compile-time flag the web cannot change** — that needs a native build.
 
-**현 트리에서 이는 사실이 아니다.** [App.tsx:56](../../apps/mobile/src/app/App.tsx:56)의 FAB 마운트 조건은
-`debugModeEnabled && !isDebugOverlayVisible`뿐이고, 다른 마운트 경로가 없다. 모바일에서 `__DEV__`는
-콘솔·WebView 디버깅·로그 싱크에만 쓰이며 **디버그 패널 노출에는 관여하지 않는다.**
+**This is not true in the current tree.** `apps/mobile/src/app/App.tsx:56`'s FAB mount condition is just
+`debugModeEnabled && !isDebugOverlayVisible`, and there is no other mount path. On mobile, `__DEV__` is only used for
+console · WebView debugging · log sinks and **plays no role in whether the debug panel shows.**
 
-빌드 스테이지 게이트는 하나뿐이고 그것도 FAB이 아니라 메뉴 **안의 항목** 하나다 —
-[`ALLOW_ENVIRONMENT_SETTINGS = Config.VITE_ENV !== 'PROD'`](../../apps/mobile/src/app/features/core/components/FloatingMenu.tsx:11)이
-"환경설정"(임의 URL 로딩)만 가린다. 그 주석의 근거는 정확하다.
+There is exactly one build-stage gate, and it isn't on the FAB — it's on a single **item inside the menu**:
+`apps/mobile/src/app/features/core/components/FloatingMenu.tsx:11`'s
+`ALLOW_ENVIRONMENT_SETTINGS = Config.VITE_ENV !== 'PROD'`
+hides only "Environment settings" (loading an arbitrary URL). That comment's basis is accurate.
 
-낡은 주석이 "PROD 이외에는 웹이 못 끄는 노출 경로가 있다"고 믿게 만들며, 이는 보안 판단을 잘못된 전제
-위에 세운다. 정정 대상이다.
+The stale comment leads readers to believe "outside of PROD there's an exposure path the web can't turn off," and
+that puts a security judgment on a false premise. It needs correcting.
 
-### 5. 시각 토큰을 공유할 방법이 지금 없다
+### 5. There is currently no way to share visual tokens
 
-[libs/theme](../../libs/theme/src/provider/ThemeProvider.tsx)는 React + `window.document.documentElement` +
-`matchMedia`로 **웹 전용**이다. 모바일은 자기 테마를 쓴다. 즉 "디자인을 비슷하게"의 시각 절반은 플랫폼
-중립 토큰 레이어를 먼저 만들어야 하고, 그것은 제품 UI 전체가 걸린 별개의 큰 작업이다.
+[libs/theme](../../libs/theme/src/provider/ThemeProvider.tsx) is **web-only** — React +
+`window.document.documentElement` + `matchMedia`. Mobile has its own theme. So half of "make it look similar" means
+building a platform-neutral token layer first, and that is a separate, large effort that touches the entire product UI.
 
-## 결정 (Decision)
+## Decision
 
-### 결정 1 — 메뉴 모델을 공유 순수 TS 모듈로 승격한다
+### Decision 1 — Promote the menu model to a shared, pure TS module
 
-`DebugMenuItem` · `DebugMenuSection` · 섹션 배열 · 파생 타이틀 맵을 한 곳이 소유하고 양쪽이 임포트한다.
-React 의존 0 — 웹 파일이 이미 "Pure data so navigation and rendering can be unit-tested without React"라고
-적어둔 성질을 그대로 유지한다.
+One place owns `DebugMenuItem` · `DebugMenuSection` · the section array · the derived title map, and both sides
+import it. Zero React dependency — this keeps the property the web file already documents: "Pure data so navigation
+and rendering can be unit-tested without React."
 
-**위치는 스펙 단계 결정으로 남긴다.** `libs/shared`는 `useLocalStorage` 같은 웹 API를 들고 있어 RN에서
-임포트하면 위험하다. 새 작은 lib이냐 기존 lib의 서브패스 진입점이냐는 lib 경계 정책과 함께 정한다.
+**The location is left as a spec-stage decision.** `libs/shared` carries web APIs like `useLocalStorage`, which is
+unsafe to import from RN. Whether this needs a new small lib or a subpath entry point on an existing lib gets decided
+together with lib-boundary policy.
 
-### 결정 2 — 모델이 화면 가용성을 명시하고, 목록은 합집합이다
+### Decision 2 — The model declares screen availability, and the list is a union
 
 ```ts
 export interface DebugMenuItem {
-    key: DebugScreenKey; // 웹·모바일 키를 하나의 유니온으로 합친다
+    key: DebugScreenKey; // merges the web and mobile keys into one union
     title: string;
     platforms: readonly ('web' | 'native')[];
 }
 ```
 
-목록은 **합집합**이다. 각 패널은 자기 플랫폼 화면을 직접 렌더하고, 상대 플랫폼 전용 화면은 **브릿지
-딥링크 항목으로 표시**한다(네이티브 셸이 있을 때만 활성). 이것이 "두 패널이 하나의 도구처럼 느껴지게"
-만드는 실질이며, §맥락 2의 암묵적 겹침을 타입으로 드러낸다.
+The list is a **union**. Each panel renders its own platform's screens directly, and screens exclusive to the other
+platform show up as **a bridge deep-link item** (active only when the native shell is present). This is what actually
+makes "the two panels feel like one tool," and it turns §Context 2's implicit overlap into a type.
 
-### 결정 3 — 섹션 분류 · 이름 · 언어를 하나로 통일한다. 언어는 한국어다
+### Decision 3 — Unify category · name · language into one. The language is Korean
 
-분류는 모바일 쪽 축(`기능 테스트` / `환경설정` / `모니터링`)을 기준으로 웹 화면을 배치한다 — 웹의
-`Tools`/`Data`/`Info`는 성질이 아니라 편의 묶음이라 확장 규칙이 없다.
+Categories follow the mobile-side axis ("Feature tests" / "Environment settings" / "Monitoring") and web screens get
+placed into it — web's `Tools`/`Data`/`Info` are a convenience grouping, not a property, and they carry no extension
+rule.
 
-**언어는 한국어로 고정한다.** 이 패널의 사용자는 팀의 개발자와 QA이고, QA 문서 정본이 한국어다. 코드 주석
-영어 관례는 코드에 적용되는 것이고 화면 문구에는 적용되지 않는다. 같은 화면이 두 이름을 갖는 상태
-(§맥락 1)가 이 결정으로 사라진다.
+**The language is fixed to Korean.** This panel's users are the team's developers and QA, and the QA docs canon is in
+Korean. The code-comments-in-English convention applies to code, not to on-screen copy. The state where the same
+screen has two names (§Context 1) goes away with this decision.
 
-### 결정 4 — 노출은 `env.buildStage`로 판정한다. LOCAL/DEV는 기본 노출, PROD는 fail-closed
+### Decision 4 — Exposure is decided by `env.buildStage`. LOCAL/DEV expose by default, PROD fails closed
 
-ADR-0079의 레지스트리 행으로 표현한다.
+Expressed as an ADR-0079 registry row.
 
 ```ts
 'debug.overlayEnabled': {
-    title: '디버그 오버레이',
-    description: '디버그 화면 진입을 연다. PROD는 10탭 + 엔트리 코드가 필요하다.',
+    title: 'Debug overlay',
+    description: 'Enables entry to debug screens. PROD requires 10 taps + entry code.',
     type: 'boolean',
     defaultValue: false,
-    byStage: { LOCAL: true, DEV: true },   // PROD는 false 유지 (스테이지는 이 셋뿐 — ADR-0079 결정 14)
+    byStage: { LOCAL: true, DEV: true },   // PROD stays false (there are only these three stages — ADR-0079 Decision 14)
     writableBy: ['shell', 'local'],
     persist: 'session',
-    meta: true,                             // 결정 6
+    meta: true,                             // Decision 6
 }
 ```
 
-LOCAL/DEV에서는 10탭 없이 열리고, PROD에서는 지금과 똑같이 언락을 요구한다. 웹과 네이티브가 **같은 행을
-읽으므로** 정책이 한 벌이 된다.
+On LOCAL/DEV it opens without 10 taps; on PROD it requires the unlock exactly as today. Web and native **read the
+same row**, so policy becomes one thing.
 
-`writableBy`에 `'local'`을 남기는 것이 의도된 선택이다. PROD 이슈를 브라우저나 desktop-web에서 재현할 때
-10탭+코드 경로가 유일한 입구이므로, 셸만 쓰게 만들면 그 경우가 막힌다. **엔트리 코드 검증은 `config`가
-아니라 호출부 플로우가 계속 소유한다** — 인증은 설정 레지스트리의 일이 아니다.
+Keeping `'local'` in `writableBy` is a deliberate choice. When reproducing a PROD issue in a browser or in
+desktop-web, the 10-tap+code path is the only entry point, so limiting writes to the shell alone would block that
+case. **Owning entry-code verification stays with the calling flow, not with `config`** — authentication is not the
+config registry's job.
 
-### 결정 5 — `env.stage`와 `env.buildStage`를 분리한다 (ADR-0079 수정)
+### Decision 5 — Split `env.stage` and `env.buildStage` (amends ADR-0079)
 
-노출 판정을 스테이지로 옮기는 순간 스테이지는 보안 관련 입력이 된다. 그런데 현행
-[env.ts](../../libs/web-config/src/env.ts)는 이렇게 읽는다.
+The moment exposure decisions move onto stage, stage becomes a security-relevant input. But the current
+[env.ts](../../libs/web-config/src/env.ts) reads:
 
 ```ts
 export const WEB_ENV = (window.ENV || import.meta.env.VITE_ENV || '').toLowerCase();
 ```
 
-**형태상 주입 전역이 빌드 상수를 이긴다.** 다만 실측하면 `window.ENV`를 쓰는 코드는 **0건**이므로
-(ADR-0079 §맥락 5) **오늘 위조 경로가 실재하지는 않는다.** 이 분리는 이미 뚫린 구멍을 막는 것이 아니라,
-**합쳤을 때 생길 구멍을 미리 막는 예방 조치**다.
+**By shape, the injected global wins over the build constant.** But measurement shows **zero** code reading
+`window.ENV` (ADR-0079 §Context 5), so **there is no live forgery path today.** This split is not closing a hole
+that's already been exploited — it's a **preventive measure against a hole that combining them would create.**
 
-예방이 필요한 이유는 두 값이 실제로 존재하기 때문이다. `VITE_ENV`(빌드 주입)와 `CHATIC_APP_STAGE`
-(셸 주입, `deviceInfoStore`가 소비)가 오늘 서로 만나지 않을 뿐 둘 다 살아 있고, 한 레지스트리에 `env.stage`
-하나로 넣으면 그 순간 만난다. 그래서 두 값을 나눈다.
+The prevention matters because both values genuinely exist. `VITE_ENV` (build-injected) and `CHATIC_APP_STAGE`
+(shell-injected, consumed by `deviceInfoStore`) don't meet today, but both are alive, and putting them into one
+`env.stage` registry entry would make them meet. So the two are kept apart.
 
-| 키               | 원천                             | 위조 가능 | 용도                               |
-| ---------------- | -------------------------------- | --------- | ---------------------------------- |
-| `env.stage`      | 주입 우선 (현행 동작 유지)       | 가능      | 표시 · 로그 컨텍스트 · 비보안 규칙 |
-| `env.buildStage` | **`import.meta.env.VITE_ENV`만** | 불가      | **보안 규칙 전용**                 |
+| Key              | Source                                   | Forgeable | Use                                        |
+| ---------------- | ---------------------------------------- | --------- | ------------------------------------------ |
+| `env.stage`      | injection-first (keeps current behavior) | yes       | display · log context · non-security rules |
+| `env.buildStage` | **`import.meta.env.VITE_ENV` only**      | no        | **security rules only**                    |
 
-`byStage` 규칙 중 보안 성질을 갖는 것(`debug.*` · `system.overridesUnlocked`)은 `env.buildStage`로 판정한다.
-PROD 번들은 어떤 셸에서 돌든 PROD다. 대가는 "DEV 앱에 PROD 웹 번들을 얹으면 패널이 안 보인다"인데, 위험을
-번들이 지므로 그것이 옳은 방향이다.
+`byStage` rules that carry security properties (`debug.*` · `system.overridesUnlocked`) are decided by
+`env.buildStage`. A PROD bundle is PROD no matter which shell it runs under. The trade-off is "a DEV app running a
+PROD web bundle won't show the panel," and it's right that the risk sits with the bundle.
 
-### 결정 6 — `meta: true` 키는 범용 패널이 렌더하지 않는다 (ADR-0079 수정)
+### Decision 6 — `meta: true` keys are not rendered by the general-purpose panel (amends ADR-0079)
 
-ADR-0079 결정 9는 셸 디버그 화면을 "봉투를 그대로 렌더하는 범용 화면"으로 만든다. 그러면
-`system.overridesUnlocked`와 `debug.overlayEnabled`도 한 행이므로 **패널이 자기를 여는 스위치를 담는다.**
-잠금을 풀어야 들어가는 화면 안에 잠금을 푸는 스위치가 있는 순환이고, 전용 플로우(10탭 + 엔트리 코드)를
-우회하는 구멍이다.
+ADR-0079 Decision 9 turns the shell debug screen into "a general-purpose screen that renders the envelope as-is." If
+so, `system.overridesUnlocked` and `debug.overlayEnabled` are just another row, so **the panel would carry the switch
+that unlocks it.** That's a cycle — the switch that unlocks the screen sits inside the screen you need to be unlocked
+to enter — and a hole around the dedicated flow (10 taps + entry code).
 
-레지스트리 스키마에 표시를 추가한다.
+Add a marker to the registry schema.
 
 ```ts
-/** 범용 패널이 이 키의 편집 UI를 렌더하지 않는다. 전용 플로우만 쓸 수 있다. */
+/** The general-purpose panel does not render an edit UI for this key. Only the dedicated flow can use it. */
 meta?: boolean;
 ```
 
-대상: `system.overridesUnlocked` · `system.remote.enabled` · `debug.overlayEnabled` · `debug.entryCode`.
+Applies to: `system.overridesUnlocked` · `system.remote.enabled` · `debug.overlayEnabled` · `debug.entryCode`.
 
-이것은 `writableBy`(어느 레인이 쓸 수 있나)와 다른 축이다 — `meta`는 "쓰기 전에 무엇을 증명해야 하나"가
-레지스트리 밖에 있음을 표시한다. 증명 자체는 config가 소유하지 않는다(결정 4).
+This is a different axis from `writableBy` (which lane can write). `meta` marks "what must be proven before writing"
+as living outside the registry. The proof itself isn't owned by config (Decision 4).
 
-### 결정 7 — 컴포넌트는 공유하지 않는다. 시각은 규약으로 맞춘다
+### Decision 7 — Don't share components. Align visuals by convention
 
-React DOM과 React Native 컴포넌트는 공유할 수 없고, 공유 토큰 레이어도 없다(§맥락 5). 플랫폼 중립 토큰을
-만드는 것은 제품 UI 전체가 걸린 별개 트랙이며, **디버그 패널은 그 트랙을 시작할 근거로 약하다.**
+React DOM and React Native components can't be shared, and there's no shared token layer either (§Context 5).
+Building platform-neutral tokens is a separate track that touches the whole product UI, and **the debug panel is a
+weak reason to start that track.**
 
-대신 짧은 규약 문서로 맞춘다: 같은 섹션 순서 · 같은 행 모양(라벨 좌 · 값 우 · 탭하면 복사) · 같은 빈 상태
-문구 · 같은 위험 항목 표시. 공유 컴포넌트 없이 "같은 도구" 인식의 대부분을 얻는다.
+Instead, align them with a short convention document: same section order · same row shape (label left, value right,
+tap to copy) · same empty-state copy · same danger-item marker. Gets most of the "same tool" perception without
+shared components.
 
-### 결정 8 — ~~패널 내용은 통합하지 않는다~~ → **뒤집음.** 결정 11을 따른다
+### Decision 8 — ~~Don't consolidate panel content~~ → **Reversed.** Follows Decision 11
 
-초안은 "모델 · 진입점 · 범용 키 편집 화면 셋만 통합하고 내용은 그대로 둔다"였다. 근거는 두 패널이 서로의
-레이어를 못 보므로 통합하려면 모든 조회를 브릿지 왕복으로 만들어야 한다는 것이었다.
+The draft said "only consolidate the model, the entry point, and the general-purpose key editor screen; leave the
+content as-is." The reasoning was that the two panels can't see each other's layers, so consolidating would mean
+turning every read into a bridge round trip.
 
-그 비용 계산은 맞지만 결론이 틀렸다. 리모콘 그림(결정 10)을 끝까지 따르면 **버튼은 전부 리모콘에 있어야
-한다.** 결정 11이 대신한다.
+That cost calculation is right, but the conclusion was wrong. Following the remote-control picture (Decision 10) to
+its end means **every button has to be on the remote.** Decision 11 supersedes this one.
 
-### 결정 9 — `main.tsx`의 낡은 주석을 정정한다
+### Decision 9 — Fix the stale `main.tsx` comment
 
-§맥락 4의 문장을 현 코드에 맞게 고친다. 보안 게이트에 대한 잘못된 전제를 남겨두는 것 자체가 위험이며,
-결정 4의 근거가 이 사실에 의존한다.
+Correct §Context 4's text to match the current code. Leaving a false premise about a security gate in place is itself
+a risk, and Decision 4's reasoning depends on this fact.
 
-### 결정 10 — 웹이 리모콘이고 앱이 기기다
+### Decision 10 — The web is the remote, the app is the device
 
-앞의 결정 아홉 개가 각각 맞는 말이지만, 왜 그렇게 나눴는지는 한 그림으로 설명된다.
-**웹이 리모콘이고 앱이 기기다.**
+The nine decisions above are each individually correct, but the reason they split this way is one picture.
+**The web is the remote, and the app is the device.**
 
-| 리모콘(웹)이 하는 일  | 기기(앱)가 하는 일             |
-| --------------------- | ------------------------------ |
-| 키가 무슨 뜻인지 안다 | 글자를 보관한다. 뜻은 모른다   |
-| 버튼을 그린다         | 켤 때 값을 통째로 넘겨준다     |
-| 기기 화면을 연다      | 열어준다                       |
-| 값을 바꾼다           | 바꾼 값을 지켜서 다음에도 준다 |
+| What the remote (web) does | What the device (app) does                          |
+| -------------------------- | --------------------------------------------------- |
+| Knows what a key means     | Stores the letters. Doesn't know the meaning        |
+| Draws the button           | Hands over the whole value when turned on           |
+| Opens the device's screen  | Lets it open                                        |
+| Changes the value          | Keeps the changed value and hands it back next time |
 
-여기서 여러 결정이 자동으로 따라온다. 새 버튼을 만들 때 TV를 새로 사지 않는다 —
-그래서 새 토글에 앱 릴리스가 0회다(ADR-0079 결정 9). 리모콘이 기기 화면을 열 수 있어야
-하므로 브릿지 딥링크가 필요하다(결정 2). 리모콘 하나가 두 기기를 다루려면 버튼 목록이
-한 벌이어야 하므로 모델을 공유한다(결정 1).
+Several decisions follow from this automatically. You don't buy a new TV for a new button — so a new toggle costs
+zero app releases (ADR-0079 Decision 9). The remote must be able to open a device screen, so the bridge deep link is
+needed (Decision 2). A single remote handling two devices needs one button list, so the model is shared (Decision 1).
 
-#### 전원 버튼도 리모콘에 있다
+#### The power button is on the remote too
 
-초안은 잠금 해제만 앱에서 하게 두려 했다. "리모콘은 잃어버릴 수 있고 링크 한 줄이 곧 리모콘"이라는
-이유였는데 **비유가 틀렸다.** 잠금 해제는 URL이 아니라 **10탭 제스처 + 입장 코드**다. 링크로는 못 한다.
+The draft wanted to leave only the unlock on the app. The reasoning was "a remote can get lost, and one link is
+effectively the remote" — but **the analogy is wrong.** Unlocking isn't a URL, it's **a 10-tap gesture + entry code.**
+A link can't do that.
 
-실측하면 더 분명하다. 앱에서 `debugModeEnabled`를 켜는 곳은 브릿지 메시지 핸들러 하나뿐이고
-([usePerfHandler.ts:30](../../apps/mobile/src/app/webview/hooks/usePerfHandler.ts:30)), **앱에는 독자적인
-잠금 해제 경로가 없다.** 지금도 웹이 유일한 열쇠다.
+Measurement makes it clearer still. The only place the app turns on `debugModeEnabled` is a single bridge message
+handler (`apps/mobile/src/app/webview/hooks/usePerfHandler.ts:30`), and **the app has no independent unlock path of
+its own.** The web is already the only key.
 
-그래서 예외를 두지 않는다. **버튼은 전원까지 전부 리모콘에 있다.** 자세한 근거는
-[ADR-0079 결정 5](./0079-config-registry-and-lane-resolver.md).
+So no exception is carved out. **Every button, down to the power button, lives on the remote.** For the full reasoning,
+see [ADR-0079 Decision 5](./0079-config-registry-and-lane-resolver.md).
 
-#### 리모콘은 눌렸는지 알아야 한다
+#### The remote needs to know it was pressed
 
-이 그림이 빠진 것 하나를 짚는다. **앱에 값을 쓸 때 답을 받아야 한다.**
+One thing missing from this picture: **writing a value to the app needs an acknowledgment.**
 
-지금 브릿지 쓰기는 보내고 끝이다. 그러면 화면은 "껐다"고 하는데 실제로는 안 꺼진 상태가
-생긴다. 리모콘이 눌렸는지 모르면 리모콘이 아니다.
+Bridge writes today fire and forget. That leaves a state where the screen says "turned off" while the app hasn't
+actually turned it off. A remote that doesn't know whether it was pressed isn't a remote.
 
-이 코드는 이미 같은 문제를 한 번 겪었다. 테마만 예외로 답을 받고 한 번 다시 보낸다
-([usePreferenceStore](../../apps/web/src/app/stores/usePreferenceStore.ts)의 `syncThemeToNative`).
-그 주석이 이유를 적어두었다 — 테마는 쓰기가 사라지면 스스로 못 고치는 유일한 설정이고,
-보내고 잊는 방식으로는 사라진 것을 알 수 없다.
+This code has already hit this once. Theme is the one exception that gets an acknowledgment and retries once
+(`syncThemeToNative` in [usePreferenceStore](../../apps/web/src/app/stores/usePreferenceStore.ts)). Its comment
+explains why — theme is the one setting that can't self-correct once the write is lost, and fire-and-forget can't
+tell you it was lost.
 
-**설정 값은 전부 그 성질을 갖는다.** 그래서 앱에 쓰는 경로(ADR-0079 결정 9의
-`SaveConfigValue`)는 답을 받고, 실패하면 한 번 다시 보내고, 그래도 안 되면 화면에
-"저장 못 함"을 표시한다. 조용히 성공한 척하지 않는다.
+**Every config value has that same property.** So the path that writes to the app (ADR-0079 Decision 9's
+`SaveConfigValue`) waits for an acknowledgment, retries once on failure, and shows "not saved" on the screen if it
+still fails. It never silently pretends to succeed.
 
-### 결정 11 — 조작은 전부 웹에서 한다. 앱은 실행만 한다
+### Decision 11 — All control happens on the web. The app only executes
 
-앱 디버그 화면 15개(**5,917줄**)의 **버튼을 웹으로 옮긴다.** 앱에는 실제 동작과 네이티브 UI만 남는다.
+Move the **buttons** for the app's 15 debug screens (**5,917 lines**) to the web. Only actual behavior and native UI
+stays in the app.
 
-| 무엇        | 어디                                            |
-| ----------- | ----------------------------------------------- |
-| 누르는 버튼 | **웹**                                          |
-| 실제 실행   | 앱 (네이티브 API를 부르는 것은 앱만 할 수 있다) |
-| 결과 표시   | **웹** — 앱이 결과를 돌려준다                   |
-| 시스템 창   | 앱 (권한 요청 · 결제 창은 OS가 띄운다)          |
+| What               | Where                                                          |
+| ------------------ | -------------------------------------------------------------- |
+| The button pressed | **web**                                                        |
+| Actual execution   | app (only the app can call native APIs)                        |
+| Result display     | **web** — the app hands the result back                        |
+| System dialogs     | app (permission prompts · payment sheets are raised by the OS) |
 
-각 화면마다 브릿지 명령이 하나씩 필요하고, 그 명령을 만들 때는 앱 릴리스가 든다. **이건 새 토글과 다르다** —
-새 토글은 앱 릴리스가 0회지만, 새 *동작*을 웹에서 부르려면 앱이 그 동작을 알아야 한다. 한 번 뚫어두면
-그다음부터 그 화면의 버튼 배치·문구는 웹에서 바꾼다.
+Each screen needs its own bridge command, and creating that command costs an app release. **This differs from a new
+toggle** — a new toggle costs zero app releases, but calling a new _action_ from the web requires the app to know
+that action. Once punched through once, that screen's button layout and copy afterward change on the web.
 
-#### 브릿지 테스트 화면은 삭제한다
+#### Delete the bridge test screen
 
-`BridgeTestScreen`(452줄)을 지운다.
+Delete `BridgeTestScreen` (452 lines).
 
-원래 이 화면을 앱에 남기려던 근거는 "브릿지로 브릿지를 시험할 수 없다"였다. 맞는 말이지만 화면을 정당화하지
-못한다. **브릿지가 죽으면 앱이 웹을 못 띄운다.** 흰 화면이 그 사실을 이미 알려준다. 452줄짜리 화면이
-따로 알려줄 것이 없다.
+The original reason to keep this screen in the app was "you can't test the bridge over the bridge." True, but it
+doesn't justify the screen. **If the bridge dies, the app can't launch the web.** The white screen already tells you
+that. A 452-line screen has nothing extra to say.
 
-브릿지 상태는 화면이 아니라 **핸드셰이크와 로그**가 말한다. 그쪽이 자동이고 항상 켜져 있다.
+Bridge status is told by the **handshake and logs**, not a screen — those are automatic and always on.
 
-#### 환경설정 화면은 옮기지 않고 없앤다
+#### The environment-settings screen isn't moved — it's removed
 
-환경설정 화면(281줄)은 웹으로 옮기지 않는다. **기능 자체를 뺀다** — 결정 13.
+The environment-settings screen (281 lines) isn't moved to the web. **The feature itself is cut** — Decision 13.
 
-### 결정 12 — 앱에서 디버그 UI를 전부 없앤다. FAB도 지운다
+### Decision 12 — Remove all debug UI from the app. Drop the FAB too
 
-결정 11로 버튼이 전부 웹에 있으면 FAB이 열 곳이 없다. 앱에 남는 셋은 모두 사람이 누를 필요가 없다.
+Once Decision 11 puts every button on the web, the FAB has nowhere to open. All three things left in the app need no
+human tap.
 
-| 앱에 남는 것      | 무엇이 시작하나       |
-| ----------------- | --------------------- |
-| 실제 동작 실행    | 웹이 부른다           |
-| 권한 창 · 결제 창 | OS가 띄운다           |
-| 자동 복구         | 알아서 돈다 (결정 11) |
+| What stays in the app       | What starts it                |
+| --------------------------- | ----------------------------- |
+| Executing real actions      | the web calls it              |
+| Permission · payment sheets | the OS raises them            |
+| Auto-recovery               | runs on its own (Decision 11) |
 
-그래서 [`FloatingMenu`](../../apps/mobile/src/app/features/core/components/FloatingMenu.tsx)와
-`DebugHomeScreen`, 그리고 `App.tsx`의 마운트 조건을 지운다. **앱에서 디버그 UI가 0이 된다.**
+So [`FloatingMenu`](../../apps/mobile/src/app/features/core/components/FloatingMenu.tsx), `DebugHomeScreen`, and the
+mount condition in `App.tsx` are deleted. **The app's debug UI drops to zero.**
 
-**이 삭제는 결정 11 뒤에만 성립한다.** 위 표의 "웹이 부른다"가 실제로 부를 수 있어야 한다는 뜻이다 —
-웹 패널이 아직 없는 상태에서 이것만 먼저 하면 QA가 어느 쪽에서도 손댈 수 없다. 2026-09-10 기준
-미착수: `apps/mobile/src/app/features/debug` **32파일 7,237줄**(화면 15개 5,917줄) · `FloatingMenu.tsx`
-202줄 · `App.tsx` 마운트 조건이 모두 그대로다.
+**This deletion only holds once Decision 11 is in place.** The "web calls it" row in the table above requires the
+call to actually work — doing this alone before the web panel exists leaves QA unable to touch either side. As of
+2026-09-10, not yet started: `apps/mobile/src/app/features/debug` **32 files, 7,237 lines** (15 screens,
+5,917 lines) · `FloatingMenu.tsx` 202 lines · the `App.tsx` mount condition all remain unchanged.
 
-전원 버튼을 따로 남길 필요도 없다 — 잠금 해제가 웹에 있으므로(결정 10) 앱에 마지막 스위치 하나를
-남기려던 안은 성립하지 않는다.
+There's no need to leave a separate power button either — since the unlock lives on the web (Decision 10), the idea
+of leaving one last switch in the app no longer holds.
 
-#### 웹이 완전히 죽으면 어떻게 하나
+#### What if the web dies completely
 
-두 경우로 갈린다.
+Two cases.
 
-**잘못된 주소를 넣은 경우** — 결정 11의 자동 복구가 되돌린다. 사람이 누를 것이 없다.
+**A bad address got set** — Decision 11's auto-recovery reverts it. There's nothing for a human to press.
 
-**기본 배포 자체가 망가진 경우** — 그 기기에서 고칠 일이 아니다. 모든 사용자가 같이 겪는 문제이고
-웹을 다시 배포해야 한다. QA가 자기 폰에서 해결할 수 있는 성격이 아니므로 앱 화면이 있어도 쓸모가 없다.
+**The default deployment itself is broken** — that's not something to fix on that device. Every user hits the same
+problem, and the web needs to be redeployed. This isn't something QA can solve on their own phone, so an app screen
+would be useless even if it existed.
 
-두 경우 모두 앱 UI를 필요로 하지 않는다.
+Neither case needs app UI.
 
-### 결정 13 — 웹 주소를 바꾸는 기능을 없앤다
+### Decision 13 — Remove the ability to change the web address
 
-목록으로 제한하는 안을 검토했지만, **기능 자체를 뺀다.**
+A list-restricted version was considered, but **the feature itself is cut.**
 
-이 화면은 웹이 어느 곳에서 로드될지 정한다. 지금 코드가 스스로를 이렇게 부른다.
+This screen decides where the web loads from. The current code describes itself this way:
 
-> 환경설정 항목은 webview URL 덮어쓰기(**아무 주소나 로딩**)를 노출한다 — **운영 보안 표면**이라
-> 비PROD 빌드에서만 제공한다
-> ([FloatingMenu.tsx:11](../../apps/mobile/src/app/features/core/components/FloatingMenu.tsx:11) 주석)
+> The environment-settings item exposes webview URL overrides (**loading any address**) — a **production security
+> surface** offered only in non-PROD builds
+> (comment in `apps/mobile/src/app/features/core/components/FloatingMenu.tsx:11`)
 
-목록 제한은 "아무 주소나"를 없애지만 **"잘못된 환경"은 못 막는다.** 목록에 있는 주소도 결국 개발
-환경이고, 운영 사용자의 기기가 개발 백엔드를 보는 것 자체가 위험하다. 그래서 목록을 넣어도 PROD는
-계속 닫아야 하는데, 그러면 **닫힌 채로 유지되는 기능을 위해 목록·검증·복구를 다 만드는 셈**이 된다.
+A list restriction removes "any address," but it **doesn't stop "the wrong environment."** Even a listed address is
+still a development environment, and a production user's device pointing at a dev backend is dangerous on its own.
+So even with a list, PROD still has to stay closed, which means **building the list, its validation, and its recovery
+just to keep a feature permanently closed.**
 
-#### 대신 빌드로 가른다
+#### Split by build instead
 
-환경을 바꾸려면 그 환경의 빌드를 쓴다. `VITE_WEBVIEW_BASE_URL`이 빌드 시점에 박히고, 런타임에는 바뀌지
-않는다. 이미 있는 값이라 새로 만들 것이 없다.
+To change environments, use that environment's build. `VITE_WEBVIEW_BASE_URL` gets baked in at build time and doesn't
+change at runtime. It's already there — nothing new to build.
 
-`debug.webviewBaseUrl`과 `debug.environmentSettings` 두 키를 레지스트리에서 뺀다. 대신 빌드 사실
-`env.webviewBaseUrl`(읽기 전용)만 남겨 디버그 화면이 "지금 어디서 로드됐는지"를 보여준다.
-[EnvironmentSettingsScreen](../../apps/mobile/src/app/features/debug/screens/EnvironmentSettingsScreen.tsx)
-281줄은 삭제한다.
+Drop `debug.webviewBaseUrl` and `debug.environmentSettings` from the registry. Keep only the read-only build fact
+`env.webviewBaseUrl`, so the debug screen can show "where this loaded from right now."
+`apps/mobile/src/app/features/debug/screens/EnvironmentSettingsScreen.tsx`, 281 lines, is deleted.
 
-#### 그래서 자동 복구도 필요 없다
+#### So auto-recovery isn't needed either
 
-결정 11이 넣기로 했던 자동 복구는 **잘못된 주소로 갈아탄 기기를 되살리려는 것**이었다. 갈아탈 수 없으면
-되살릴 일도 없다. 함께 뺀다.
+The auto-recovery Decision 11 planned to add was **meant to rescue a device that had switched to a bad address.**
+With no way to switch, there's nothing to rescue. It's dropped along with it.
 
-`AppWebView`에 로드 실패 처리가 없다는 사실은 그대로 남지만, 성격이 달라진다. 기본 배포가 깨진 경우는
-**모든 사용자가 같이 겪는 일**이고 그 기기에서 고칠 수 있는 것이 아니다 — 웹을 다시 배포해야 한다.
-그 상황에 앱이 할 수 있는 유용한 일이 없으므로 안전망을 만들 이유도 없다.
+The fact that `AppWebView` has no load-failure handling still stands, but its character changes. A broken default
+deployment is something **every user hits together**, and it isn't something that device can fix — the web has to be
+redeployed. There's nothing useful the app can do in that case, so there's no reason to build a safety net.
 
-#### 감수하는 것
+#### What is accepted
 
-개발자가 로컬 웹을 앱에서 보려면 **로컬용 빌드를 따로 써야 한다.** 앱을 다시 설치해야 하므로
-환경 전환이 지금보다 번거로워진다. 그 대가로 운영 보안 표면 하나와 복구 장치 하나가 통째로 사라진다.
+A developer wanting to view local web in the app **needs a separate local build.** Reinstalling the app makes
+switching environments more of a hassle than today. In exchange, one production security surface and one recovery
+mechanism disappear entirely.
 
-커스텀 zip으로 웹 번들을 넣는 기능(`customZipLocalRoot` · `customZipServerUrl`)은 성격이 같지만 이번
-결정 범위 밖이다 — 레지스트리에 없고 앱 내부 상태로 남아 있다. 같이 정리할지는 별도로 본다.
+The feature that loads a web bundle from a custom zip (`customZipLocalRoot` · `customZipServerUrl`) has the same
+character but is out of this decision's scope — it isn't in the registry and stays as internal app state. Whether to
+clean it up together is looked at separately.
 
-### 결정 14 — 이미 있는 코드에 버튼을 셋 더 단다
+### Decision 14 — Add three buttons to code that already exists
 
-키가 아니라 **동작**이다. 값을 갖지 않으므로 레지스트리에 들어가지 않고, 결정 1의 공유 메뉴 모델에
-항목으로 들어간다.
+These are **actions**, not keys. They carry no value, so they don't go into the registry — they become items in
+Decision 1's shared menu model.
 
-셋 다 **기능은 이미 있고 부를 방법만 없는 것**들이다. 새로 만드는 코드가 거의 없다.
+All three are **things the feature already does, but nothing can call.** Almost no new code needs writing.
 
-| 항목                     | 이미 있는 것                                                                          | 지금 왜 못 쓰나                                                        |
-| ------------------------ | ------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| **로그 지금 보내기**     | [`LogUploadScheduler.flushNow()`](../../libs/logger/src/upload/LogUploadScheduler.ts) | 앱 종료·로그아웃 때만 불린다. 버그를 막 재현한 직후 보낼 방법이 없다   |
-| **지금 설정 전체 보기**  | `config.snapshotAll()` (ADR-0079 결정 3·16)                                           | 화면이 없다. 목록만 그리면 된다                                        |
-| **캐시 도메인별 비우기** | 캐시 화면의 비우기 경로                                                               | "전체 비우기"만 있다. 채널만·프로필만 비우고 재현하고 싶은 경우가 잦다 |
+| Item                      | What already exists                                                                   | Why it can't be used today                                                                          |
+| ------------------------- | ------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| **Send logs now**         | [`LogUploadScheduler.flushNow()`](../../libs/logger/src/upload/LogUploadScheduler.ts) | Only fires on app quit/logout. No way to send right after reproducing a bug                         |
+| **View current settings** | `config.snapshotAll()` (ADR-0079 Decisions 3·16)                                      | There's no screen. Just needs to render the list                                                    |
+| **Clear cache by domain** | The cache screen's clear path                                                         | Only "clear everything" exists. Clearing just channel or just profile to reproduce is a common need |
 
-`platforms`는 셋 다 `['web']`이다 — 웹이 부르고 웹이 결과를 보여준다. 캐시 비우기만 네이티브 캐시를
-함께 비워야 하므로 브릿지 명령이 하나 필요하다(결정 11의 화면별 명령에 포함).
+`platforms` is `['web']` for all three — the web calls it and the web shows the result. Only cache clearing needs a
+bridge command, since it must clear native cache too (included in Decision 11's per-screen commands).
 
-**이 셋을 고른 기준을 적어둔다.** 디버그 화면에 뭘 더 넣을지는 끝이 없으므로, **"코드는 있는데 부를 길이
-없는 것"**을 먼저 본다. 새 기능을 디버그 화면에서 시작하지 않는다.
+**Writing down the criterion behind picking these three.** What else to add to the debug screen has no natural end,
+so **"code exists but has no way to be called"** is looked at first. New features don't start life on the debug
+screen.
 
-## 대안 (Alternatives)
+## Alternatives
 
-**컴포넌트까지 공유한다 (react-native-web 등).** 시각이 진짜로 같아지지만 웹 번들에 RN 호환 레이어가
-들어오고, 두 패널이 보는 레이어가 애초에 다르므로 공유할 화면 자체가 적다. 비용이 이득을 크게 넘는다.
+**Share components too (react-native-web, etc).** Visuals become genuinely identical, but an RN compatibility layer
+enters the web bundle, and the two panels see different layers to begin with, so there's little to actually share.
+The cost far outweighs the benefit.
 
-**패널 내용을 앱에 그대로 둔다.** 브릿지 계약이 늘지 않는다. 하지만 리모콘 그림이 반쪽만 남는다 —
-버튼이 두 곳에 흩어져 있으면 어느 쪽에서 무엇을 하는지 매번 기억해야 한다. 기각(결정 11).
-"브릿지가 고장 나면 못 쓴다"는 반론은 성립하지 않는다. 브릿지가 죽으면 앱이 웹을 못 띄우므로 흰 화면이
-이미 답을 준다.
+**Leave panel content as-is in the app.** The bridge contract doesn't grow. But the remote picture stays half-built —
+buttons scattered across two places means remembering, every time, which one does what. Rejected (Decision 11). The
+objection "unusable if the bridge breaks" doesn't hold — if the bridge dies the app can't launch the web anyway, so
+the white screen already answers that.
 
-**시각 토큰 레이어를 먼저 만든다.** 순서상 옳아 보이지만 제품 UI 전체가 걸린 트랙을 디버그 패널을 이유로
-착수하게 된다. 규약으로 대체 가능한 이득에 그 비용을 쓰지 않는다(결정 7).
+**Build the visual token layer first.** Order-wise it looks right, but it means starting a track that touches the
+entire product UI for the sake of a debug panel. Not worth spending that cost on a benefit a convention can
+substitute for (Decision 7).
 
-**노출을 `env.stage`(주입 우선)로 판정한다.** 코드가 짧아지고 키가 하나 줄지만, 위조 가능한 값이 보안
-게이트가 된다. 리패키징된 셸이 `'DEV'`를 보고하면 PROD 번들에서 패널이 열린다. 기각(결정 5).
+**Decide exposure via `env.stage` (injection-first).** Shorter code, one fewer key, but a forgeable value becomes a
+security gate. A repackaged shell reporting `'DEV'` would open the panel in a PROD bundle. Rejected (Decision 5).
 
-**지금처럼 복사를 유지한다.** 두 파일이 각자 자유롭다. 다만 §맥락 1이 이미 드리프트의 증거이므로,
-"유지"는 사실상 "계속 벌어지게 둔다"와 같다. 기각.
+**Keep the current copy as-is.** Both files stay free to diverge on their own. But §Context 1 is already evidence of
+drift, so "keep" really means "let it keep happening." Rejected.
 
-## 결과 (Consequences)
+## Consequences
 
-**얻는 것.**
+**What is gained.**
 
-- **버튼이 한곳에 있다.** 어느 쪽에서 무엇을 하는지 매번 기억하지 않아도 된다.
-- **화면 문구·배치를 앱 릴리스 없이 바꾼다.** 한 번 명령을 뚫어두면 그다음은 웹 배포로 끝난다.
-- **앱에서 디버그 UI가 0이 된다** — FAB · 디버그 홈 · 화면 15개. 앱은 실행만 한다.
-- **452줄이 사라진다** — 브릿지 테스트 화면. 흰 화면이 이미 알려주는 것을 화면으로 또 알릴 이유가 없다.
-- **운영 보안 표면 하나가 사라진다.** "아무 주소나 로딩"이 없어지고, 그것을 지키려던 목록·검증·복구
-  장치도 만들 필요가 없다. 화면 281줄도 같이 삭제된다.
-- 타입 중복이 사라지고, 화면이 늘어도 분류·언어가 갈라지지 않는다.
-- 어느 화면이 어느 플랫폼에 있는지가 타입으로 드러나고, 한 진입점에서 양쪽을 볼 수 있다.
-- LOCAL/DEV에서 10탭 마찰이 사라진다. 정책이 한 행이므로 웹과 네이티브가 어긋날 수 없다.
-- 위조 가능한 값이 보안 게이트가 되는 것을 사전에 막는다(결정 5).
-- 범용 패널이 자기 자물쇠를 렌더하는 구멍이 닫힌다(결정 6).
-- 보안 게이트에 대한 낡은 오해가 코드에서 제거된다(결정 9).
+- **Buttons live in one place.** No need to remember every time which side does what.
+- **Screen copy and layout change without an app release.** Punch a command through once, and everything after that
+  is a web deploy.
+- **The app's debug UI drops to zero** — FAB · debug home · 15 screens. The app only executes.
+- **452 lines disappear** — the bridge test screen. No reason for a screen to say what a white screen already says.
+- **One production security surface disappears.** "Load any address" is gone, along with the list · validation ·
+  recovery machinery that would have protected it. The 281-line screen is deleted too.
+- Type duplication disappears, and adding screens no longer splits category or language.
+- Which screen lives on which platform is now visible in the type, and both sides can be seen from one entry point.
+- The 10-tap friction on LOCAL/DEV disappears. Policy is one row, so web and native can't drift apart.
+- Pre-empts a forgeable value becoming a security gate (Decision 5).
+- Closes the hole where the general-purpose panel renders its own lock (Decision 6).
+- The stale misunderstanding about the security gate is removed from the code (Decision 9).
 
-**감수하는 것.**
+**What is accepted.**
 
-- **이관 표면이 크다.** 화면 15개 5,917줄의 버튼을 옮기고, 화면마다 브릿지 명령을 뚫는다. 명령을 뚫을
-  때마다 앱 릴리스가 든다 — 새 토글의 "앱 릴리스 0회"는 여기에 해당하지 않는다.
-- **환경 전환이 번거로워진다.** 로컬 웹을 앱에서 보려면 로컬용 빌드를 따로 설치해야 한다.
-- **시각은 여전히 두 벌이다.** 규약으로 맞추는 것은 강제되지 않으므로 리뷰 규율에 의존한다.
-- **공유 모듈의 위치가 미결이다.** `libs/shared`가 RN 비안전이라 새 lib이 필요할 수 있고, 60줄 데이터를
-  위한 lib은 과해 보인다 — 드리프트 증거가 그 판단을 지탱한다.
-- **키 유니온 합집합이 커진다.** 웹 10 + 모바일 14에서 겹침을 정리하면 20종 안팎이며, 각 패널은 자기와
-  무관한 키도 타입으로 안다. `platforms`가 그 대가로 얻는 명시성이다.
-- **ADR-0079를 두 곳 수정한다** — 결정 3의 스키마(`meta` 추가)와 레지스트리 `env.*`(`buildStage` 추가).
-  0079는 커밋된 문서이므로 수정 이력이 이 ADR에 남는다.
-- **`env.buildStage` 분리가 혼동을 만들 수 있다.** 스테이지가 두 개라는 사실을 모르면 보안 규칙에
-  `env.stage`를 쓰는 사고가 가능하다. 레지스트리 주석과 드리프트 게이트(0079 미결 ⑧)가 방어선이다.
+- **The migration surface is large.** Moving buttons for 15 screens totaling 5,917 lines, and punching a bridge
+  command through for each. Every command punched through costs an app release — the "zero app releases" of a new
+  toggle doesn't apply here.
+- **Switching environments gets more cumbersome.** Viewing local web in the app needs a separate local build
+  installed.
+- **Visuals are still two separate things.** Alignment by convention isn't enforced, so it depends on review
+  discipline.
+- **Where the shared module lives is undecided.** `libs/shared` isn't RN-safe, so a new lib may be needed, and a lib
+  for 60 lines of data looks like overkill — the evidence of drift is what supports that judgment anyway.
+- **The key union grows.** Web's 10 plus mobile's 14, once overlap is resolved, comes to roughly 20, and each panel
+  now knows about keys it has nothing to do with, as a type. That's the explicitness `platforms` buys.
+- **Amends ADR-0079 in two places** — Decision 3's schema (adds `meta`) and the registry's `env.*` (adds
+  `buildStage`). 0079 is a committed document, so this amendment history lives in this ADR.
+- **Splitting `env.buildStage` can cause confusion.** Not knowing there are two stages makes it possible to
+  accidentally use `env.stage` in a security rule. The registry comment and the drift gate (ADR-0079 open question ⑧)
+  are the defense.
 
-## 미결 — 스펙 단계로 넘긴다
+## Open questions — handed to the spec stage
 
-> 2026-09-10 갱신: ①·②·⑥은 결정 12(앱 디버그 UI 삭제)로 사라졌고, ④·⑤는 구현으로 답이 났다.
-> 남은 것은 ③의 잔여분과, 새로 생긴 두 가지(§구현 상태 델타 ②·④)다.
+> Updated 2026-09-10: ①·②·⑥ are gone because of Decision 12 (deleting the app's debug UI), and ④·⑤ have been
+> answered by implementation. What remains is the leftover part of ③, and two new ones (§Implementation status
+> deltas ②·④).
 
-1. ~~**공유 모델 모듈의 위치.**~~ → **해당 없음.** 공유할 상대가 없다(델타 ①). 매니페스트는
-   `apps/web/src/app/features/debug/overlay/screenManifest.ts`에 있다.
-2. ~~**겹치는 화면 쌍의 처리.**~~ → **해당 없음.** 앱 쪽 화면이 전부 삭제돼 겹칠 쌍이 없다.
-3. **화면별 브릿지 명령.** 대부분 뚫렸다 — 화면들이 `appBridge`의 기존 명령을 부른다. 남은 것은
-   결정 14의 캐시 도메인별 비우기 하나이며, 이것은 네이티브 캐시를 함께 비워야 해서 명령이 필요하다.
-   **범용 실행 명령은 만들지 않는다**는 제약은 그대로다.
-4. ~~**커스텀 zip 기능의 처분.**~~ → **웹으로 이식했다**(`4b80a76b7`). 로더는 웹에 있고 화면은
-   `CustomZipScreen`이다. PROD는 앱이 거부한다.
-5. ~~**확인 응답의 실패 표시.**~~ → **행 하나에 붙는다**(`ce5fd3a77`). `useDebugOperation.run`이
-   결과 줄에 쓰고, 앱 버전이 모르는 명령은 실패와 구분해 "이 앱 버전이 지원하지 않습니다"로 적는다.
-   설정 화면의 거부 사유도 같은 방식으로 행 아래에 붙는다.
-6. ~~**시각 규약 문서의 소유자.**~~ → **해당 없음.** 맞출 상대가 없다(델타 ①).
-7. ~~STAGING의 노출~~ → **해당 없음.** 이 리포의 스테이지는 `LOCAL`·`DEV`·`PROD` 셋뿐이고 `STAGING`은
-   존재하지 않는다(ADR-0079 결정 14의 실측). 초안이 일반적인 4단 스테이지를 가정한 오류였다.
+1. ~~**Where the shared model module lives.**~~ → **N/A.** There's nothing to share with (delta ①). The manifest
+   lives at `apps/web/src/app/features/debug/overlay/screenManifest.ts`.
+2. ~~**How to handle overlapping screen pairs.**~~ → **N/A.** The app-side screens are all deleted, so there are no
+   pairs to overlap.
+3. **Per-screen bridge commands.** Most are punched through — screens call `appBridge`'s existing commands. What's
+   left is Decision 14's clear-cache-by-domain, which needs a command because it must also clear native cache. The
+   constraint **no generic execute command** still holds.
+4. ~~**Disposition of the custom-zip feature.**~~ → **Ported to the web** (`4b80a76b7`). The loader lives on the web
+   and the screen is `CustomZipScreen`. PROD is refused by the app.
+5. ~~**Failure display for acknowledgments.**~~ → **Attaches to a single row** (`ce5fd3a77`). `useDebugOperation.run`
+   writes it into the result line, and commands the app version doesn't recognize are distinguished from failures as
+   "This app version doesn't support this." The settings screen's refusal reasons attach the same way, below the row.
+6. ~~**Who owns the visual convention document.**~~ → **N/A.** There's nothing to align with (delta ①).
+7. ~~Exposure on STAGING~~ → **N/A.** This repo only has three stages — `LOCAL`·`DEV`·`PROD` — and `STAGING` doesn't
+   exist (measured in ADR-0079 Decision 14). The draft's assumption of a generic four-stage setup was an error.

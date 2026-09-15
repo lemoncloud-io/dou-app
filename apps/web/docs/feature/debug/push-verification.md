@@ -1,64 +1,99 @@
-# 푸시 검증 절차
+# push-verification — proving the push pipeline on a device
 
-> 대상: `apps/web/src/app/features/debug` — DebugOverlay 확장 모드의 `PushScreen`, `DeviceInfoScreen`
-> 관련: [notifications](../notifications/README.md) · [device-token](../notifications/device-token.md) · [bridge](../../architecture/bridge.md)
+Server → FCM/APNs → native shell → WebView is four hops, and a push that never arrives gives the
+same symptom at every one of them. This is the on-device procedure that narrows it down, using two
+screens of the debug panel: **Push** and **Device Info**. It answers three questions in order —
+which device am I, is its token registered on the server, and does a push actually land.
 
-푸시 파이프라인(서버 → FCM/APNs → 네이티브 셸 → 웹뷰)이 실제로 동작하는지 **디바이스에서** 확인하는 절차다. 세 가지를 다룬다 — ① deviceId 확인, ② deviceToken 서버 등록여부, ③ 푸시 도착 검증.
+Both screens are marked `requiresShell`, so the panel refuses to render them in a plain browser.
+That is not a limitation to work around: a browser has no push token, and there is nothing here to
+verify without the shell.
 
-## 표시 위치
+## Preconditions
 
-디버그 오버레이(우하단 `debug` 플로팅 버튼)의 확장 모드에서 본다 — 여는 법은 [README의 게이팅](./README.md#게이팅--런타임-언락) 참고 (DEV/LOCAL은 자동 활성, 그 외는 앱 버전 10탭 언락):
+- Running inside the **native app**, iOS or Android.
+- Notification permission granted.
+- **Signed in** — registration is an authenticated call.
+- Debug mode unlocked. On LOCAL/DEV the stage rule opens the panel for you; otherwise it is the
+  10-tap plus entry code described in the [README](./README.md#the-gate-is-a-gesture-and-a-code-and-it-fails-closed).
 
-| 스크린                     | 위치                       | 내용                              |
-| -------------------------- | -------------------------- | --------------------------------- |
-| **Push (Token & Receive)** | 확장 모드 홈 → Push        | 토큰 서버 등록 확인, 수신 목록    |
-| **Device Info**            | 확장 모드 홈 → Device Info | deviceId/installId/platform, 복사 |
+## 1. Which device am I
 
-## 사전 조건
+The **Device Info** screen lists six rows, each tappable to copy: Device ID, Install ID, Platform,
+Model, Stage, Application. They come from the globals the shell injects, so an absent field renders
+as `-` rather than throwing.
 
-- **네이티브 앱**(iOS/Android)에서 실행해야 한다. 일반 브라우저는 푸시 토큰이 없다(웹은 브릿지로만 토큰을 얻음).
-- 알림 권한을 **허용**한 상태.
-- **로그인**(세션)이 되어 있어야 한다 — 서버 등록은 인증 세션으로만 호출된다.
-- 디버그 언락: 마이페이지 앱 버전 텍스트를 3초 내 10번 탭. (DEV/LOCAL 빌드는 언락 없이 열린다.)
+`Device ID` is `deviceInfo.uniqueDeviceId` on its own. **The push token is deliberately not here** —
+the shell never injects it as a global, so it can only be fetched over the bridge, which is what the
+Push screen does.
 
-## ① deviceId 확인
+## 2. Is the token registered on the server
 
-**Device Info** 스크린에서 `Device ID`(= `window.CHATIC_APP_DEVICE_ID` = 네이티브 `DeviceInfo.getUniqueId`와 Firebase installation id를 이은 `deviceId:firebaseInstallId` 조합), `Install ID`, `Platform`을 본다. 각 행을 탭하면 클립보드로 복사된다.
+Push screen → **Server Registration** → `Check`.
 
-> `deviceToken`은 여기 없다 — 네이티브가 글로벌로 주입하지 않으므로 Push 페이지에서 브릿지로 조회한다.
+1. `FetchFcmToken` over the bridge returns the live token, shown in the `Token` row.
+2. That token is sent to `register-device` with `force: true`.
+3. The response is summarized: `Registered on server` or `Not registered`, plus `Endpoint` (the SNS
+   ARN), `Registered` (a timestamp) and `Status` when the server supplies one.
 
-## ② deviceToken 서버 등록여부
+**This check writes.** The backend exposes no read-only lookup, so the only way to ask "is this
+token registered" is an idempotent re-registration — the same call production makes. It can refresh
+server state; it cannot corrupt it.
 
-Push 스크린 → **Server Registration** → `Check`.
+It also uses the same identity production uses: `useDynamicDeviceId()` supplies `deviceId` and
+`firebaseInstallationId`, so the record this confirms is the record the app actually writes.
+The `state` line reports where the run stopped:
 
-1. 브릿지 `FetchFcmToken`으로 현재 토큰을 가져온다(`Token`).
-2. 서버에 **register-device**(멱등, `force`)를 호출한다.
-3. 응답을 요약해 판정한다:
-    - `Registered on server` + `Endpoint`(SNS ARN) + `Registered`(시각) 표시 → 서버에 등록됨.
-    - `Token match = yes`면 서버가 돌려준 토큰이 방금 보낸 토큰과 일치.
+| `state`     | Meaning                                                       |
+| ----------- | ------------------------------------------------------------- |
+| `no-native` | opened outside the app shell — there is no token to find      |
+| `no-token`  | the shell returned none: permission denied, or not issued yet |
+| `checking`  | the register call is in flight                                |
+| `done`      | the server answered; read the summary                         |
+| `error`     | the call threw; the message is printed below the rows         |
 
-> ⚠️ 백엔드에 읽기 전용 조회 API가 없어, 확인은 **멱등 재등록(POST `/users/0/reg-dev`)**으로 이뤄진다. 순수 조회가 아니라 서버 상태를 갱신할 수 있다(정상 등록 흐름과 동일).
+## 3. Does a push land
 
-상태값: `no-native`(앱 밖) · `no-token`(권한 거부/미발급) · `checking` · `done` · `error`.
+**Send** one from the backend push API or the Firebase console, addressed to the token copied in
+step 2. Where it arrives depends on the app's state:
 
-## ③ 푸시 도착 검증
+| App state            | Path                                    | Where to look                        |
+| -------------------- | --------------------------------------- | ------------------------------------ |
+| Foreground           | native → bridge `OnReceiveNotification` | Push screen, **Received** section    |
+| Background or killed | OS banner → tap → bridge `OnNavigate`   | the banner, then the screen it opens |
 
-**발송** — 대상 기기의 `deviceToken`(또는 해당 사용자)로 푸시를 보낸다. 백엔드 푸시 API 또는 Firebase 콘솔(FCM)에서 발송.
+The Received list is in-memory and holds the **last 20** foreground pushes (`useReceivedPushLog`).
+It starts empty on every panel mount and is not written to the log buffer, so a push received before
+the screen was opened leaves no trace here.
 
-**관측** — 앱 상태별로 도달 지점이 다르다:
+What happens after a tap — turning the payload into a route, and holding it until the router is
+ready — belongs to `app/bridge/navigation/`; see [notifications](../notifications/README.md).
 
-| 앱 상태         | 도달 경로                                 | 관측 위치                                          |
-| --------------- | ----------------------------------------- | -------------------------------------------------- |
-| 포그라운드      | 네이티브 → 브릿지 `OnReceiveNotification` | Push 스크린 **Received** 목록 + Log Buffer(`PUSH`) |
-| 백그라운드/종료 | OS 알림 배너 → 탭 → `OnNavigate`          | 배너 표시 후 탭 시 해당 화면으로 이동              |
+### Reproducing a push without a server
 
-- 포그라운드 수신은 `useReceivedPushLog`가 목록에 쌓고 `logger.info('PUSH', ...)`로 [Log Buffer](./README.md)에도 남긴다.
-- 백그라운드 탭 이동은 payload의 `link`/`clickAction`과 `cid`/`sid`로 목적지를 만든다(`resolvePushPath`).
+The Push screen's operations row drives the shell directly: delete the FCM token, request
+notification permission, raise a local notification, read or zero the badge count, and **reproduce a
+push tap**. The last one calls `openURL` with the app's own scheme, so the OS hands the URL back as
+an inbound deeplink — the same round trip a real tap makes. The scheme is resolved per build by
+`buildAppDeeplink`, never written literally, because a dev build registers a different one and a
+hardcoded scheme would open the other channel's app on a device that has both.
 
-## 트러블슈팅
+Operations that answer are labelled with their result; `openURL` and `setBadgeCount` are fire-and-forget
+posts and say so instead of implying a reply.
 
-- **Token이 `(not fetched)`/`no-token`**: 알림 권한 거부 또는 토큰 미발급. OS 설정에서 권한 확인.
-- **`no-native`**: 브라우저에서 연 경우. 네이티브 앱에서 실행.
-- **배너는 오는데 Received 목록에 안 뜸**: 앱이 포그라운드가 아니었을 수 있음(백그라운드는 배너 경로).
-- **등록은 됐는데 안 옴**: `Endpoint`가 비었는지 확인. 서버 발송 대상 토큰/사용자가 맞는지 대조(Device Info의 deviceId, Push의 Token 복사해 비교).
-- **배너 텍스트가 `{0}`으로 뜸(iOS)**: `loc_args` 치환 실패. iOS Notification Service Extension이 `loc_args`를 네이티브 배열/JSON 문자열 양쪽으로 처리하는지, `assets/locales/*.json`이 Extension 타깃에 번들됐는지 확인(`apps/mobile/docs/push.md`). 로컬 재현: `node scripts/send-test-push.js ios <apns-token> --loc-args-array`.
+## Troubleshooting
+
+| Symptom                                      | Likely cause                                                                                       |
+| -------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `Token` shows `(not fetched)`, or `no-token` | Notification permission denied, or the token has not been issued yet. Check OS settings.           |
+| `no-native`                                  | Opened in a browser. The screen only works inside the app.                                         |
+| Banner arrives, Received stays empty         | The app was not in the foreground — that is the banner path, and it does not reach this list.      |
+| Registered, but nothing arrives              | Check `Endpoint` is not empty, then compare the token you sent against the one in the `Token` row. |
+| Banner text renders as `{0}` on iOS          | `loc_args` substitution failed in the iOS notification service extension.                          |
+
+## Further reading
+
+- [README](./README.md) — the gate, the panel, and the rest of the catalogue.
+- [notifications](../notifications/README.md) — device token registration in production, and push
+  tap routing.
+- [architecture/bridge.md](../../architecture/bridge.md) — the single native ↔ web message seam.

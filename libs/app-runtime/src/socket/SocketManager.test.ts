@@ -118,8 +118,12 @@ describe('SocketManager error annotation', () => {
 
         const manager = bootRelay(client);
 
-        const error = await manager.request('chat.feed').catch((e: Error) => e);
+        const caught = await manager.request('chat.feed').catch((e: Error) => e);
 
+        // `request()` resolves `unknown`, so the settled value is narrowed before `.message` is read.
+        // The instanceof also pins that it rejected at all rather than resolving past the assertions.
+        expect(caught).toBeInstanceOf(Error);
+        const error = caught as Error;
         expect(error.message).toBe('503 SOCKET NOT CONNECTED - WebSocketTransport.send() - relay.request(chat.feed)');
         // getSocketErrorCode reads the LEADING code — appending must not displace it.
         expect(error.message).toMatch(/^503/);
@@ -141,11 +145,12 @@ describe('SocketManager error annotation', () => {
     });
 
     it('annotates a send() that hits a dead socket', () => {
-        const client = makeClient({
-            send: jest.fn(() => {
-                throw new Error('503 SOCKET NOT CONNECTED - WebSocketTransport.send()');
-            }),
-        });
+        // `send` is overloaded (type + data, or a whole message), so a throwing fake cannot be
+        // written to match the intersection directly. The cast is on the fake, not the assertion.
+        const send = jest.fn(() => {
+            throw new Error('503 SOCKET NOT CONNECTED - WebSocketTransport.send()');
+        }) as unknown as jest.Mocked<ClientSocketV2>['send'];
+        const client = makeClient({ send });
 
         const manager = bootRelay(client);
 

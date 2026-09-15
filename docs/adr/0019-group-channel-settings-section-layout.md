@@ -1,113 +1,121 @@
-# 그룹 채널 설정 화면 개편 — 섹션 리스트형 레이아웃 + 인라인 알림 토글
+# Group channel settings rework — a sectioned list layout with an inline notification toggle
 
 ## Status
 
 accepted
 
-결정일: 2026-07-20
+Decided: 2026-07-20
 
-부분 Supersedes: [ADR-0015](0015-channel-settings-ui-refresh.md) — Decision #1(채팅방 설정 레이아웃)·#4(알림을 별도 Dialog로).
+Partly supersedes: [ADR-0015](0015-channel-settings-ui-refresh.md) — decision #1 (the chat room
+settings layout) and #4 (notifications in their own dialog).
 
 ## Context
 
-그룹 채널 설정 화면(`방 설정`)이 새 DoU 디자인으로 다시 리디자인됐다
-(Figma 파일 `ViwLfjc5Eoq7BpEXFfFj3W`).
+The group channel settings screen (`Room settings`) was redesigned again in the new DoU design (Figma
+file `ViwLfjc5Eoq7BpEXFfFj3W`).
 
-- 소유자 뷰: node `3164-12510` ("그룹방 #소유자 설정")
-- 초대받은 멤버 뷰: node `3164-14262`
+- Owner view: node `3164-12510` ("Group room #owner settings")
+- Invited member view: node `3164-14262`
 
-대상 화면은 [ChannelSettingsPage.tsx](../../apps/web/src/app/features/channels/pages/ChannelSettingsPage.tsx)
-단일 화면이며, 소유자/초대받은 멤버 유형에 따라 UI가 갈린다.
+The target is one screen, `apps/web/src/app/features/channels/pages/ChannelSettingsPage.tsx`, whose UI
+branches on owner vs. invited member.
 
-### ADR-0015와의 관계 (핵심)
+### How this relates to ADR-0015 (the important part)
 
-[ADR-0015](0015-channel-settings-ui-refresh.md)(2026-07-16)는 **이전 Figma 배치(node 2935-\*)**
-기준으로 채널 설정 화면을 이미 개편했고, 그 결과가 **현재 코드**다 — 상단 아이콘
-액션 버튼(친구 초대 · 알림 · 방 삭제) + 가운데 정렬 방 정보 레이아웃.
+[ADR-0015](0015-channel-settings-ui-refresh.md) (2026-07-16) already reworked the channel settings
+screen against **the previous Figma batch (nodes 2935-\*)**, and that result is **the current code** —
+icon action buttons at the top (invite friends · notifications · delete room) over a centred room info
+layout.
 
-이번 새 노드(3164-\*)는 **섹션 리스트형 레이아웃**으로 바뀌었다. 결정적으로 ADR-0015는
-이 "섹션 리스트형 + 인라인 알림 토글" 레이아웃을 당시 **"1:1 채팅 전용"으로 보고 명시적으로
-범위에서 제외**했으나([0015 line 89-92](0015-channel-settings-ui-refresh.md)), 새 노드
-이름이 "그룹방 #소유자 설정"이므로 디자인이 진화해 **그룹방에도 이 레이아웃을 적용**하게 됐다.
-따라서 이번 작업은 ADR-0015의 Decision #1·#4를 뒤집는다.
+The new nodes (3164-\*) move to a **sectioned list layout**. Crucially, ADR-0015 saw this "sectioned
+list plus inline notification toggle" layout as **1:1-chat-only and explicitly excluded it**
+([0015 lines 89-92](0015-channel-settings-ui-refresh.md)) — but the new node is named "Group room
+#owner settings", so the design has evolved and **the layout now applies to group rooms too**. This
+work therefore reverses decisions #1 and #4 of ADR-0015.
 
-### 현재 구현 vs 새 디자인
+### Current implementation vs. the new design
 
-| 요소        | 현재 (ADR-0015)                     | 새 디자인 (3164-\*)                                   |
-| ----------- | ----------------------------------- | ----------------------------------------------------- |
-| 방 이름     | 가운데 아바타 + 밑줄 "수정" 링크    | 좌측 정렬 행 (아바타 + 이름 + `>` chevron)            |
-| 대화방 알림 | 상단 아이콘 버튼 → Dialog           | "대화방 설정" 섹션의 **인라인 토글 스위치**           |
-| 친구 추가   | 상단 아이콘 버튼                    | "방 친구" 섹션의 **리스트 행**(+아이콘, 소유자만)     |
-| 삭제/나가기 | 상단 아이콘 버튼                    | **하단 빨간 텍스트**(방 삭제 / 방 나가기)             |
-| 멤버 뱃지   | 방장=초록 체크박스 · MY=네이비 pill | 방장=초록 텍스트 pill · MY(동일) · 초대 대기 중(회색) |
+| Element           | Today (ADR-0015)                          | New design (3164-\*)                                          |
+| ----------------- | ----------------------------------------- | ------------------------------------------------------------- |
+| Room name         | Centred avatar plus an underlined "Edit"  | A left-aligned row (avatar + name + `>` chevron)              |
+| Room notifications | Icon button at the top → dialog           | An **inline toggle switch** in the "Room settings" section    |
+| Add friends       | Icon button at the top                    | A **list row** in the "Room friends" section (+ icon, owner only) |
+| Delete / leave    | Icon button at the top                    | **Red text at the bottom** (delete room / leave room)         |
+| Member badges     | Owner = green checkbox · MY = navy pill   | Owner = green text pill · MY (same) · Invitation pending (grey) |
 
-### 도메인 제약 (핵심)
+### Domain constraints (the important part)
 
-- **"초대 거절" 상태를 표현할 필드가 없다.** `JoinModel.joined`는 이진값(`0`=미참여/탈퇴,
-  `1`=참여 중)이고, `JoinStereo`는 역할(owner/admin/member)일 뿐 상태가 아니다. 프론트만으로는
-  "초대 대기 중"과 "초대 거절"을 구분할 수 없다.
-- **알림 설정 뮤테이션이 없다.** ADR-0015대로 멤버별 알림 쓰기 백엔드가 없어 알림 토글은
-  로컬 상태(미연동)로만 둔다.
-- 소유자 판별은 기존 `channel.isOwner`(`ownerId === myUid`)를 그대로 재사용한다.
-- 초대 대기 중 판별은 기존 `$join.joined === 0`을 재사용한다.
-- **그룹 채팅 판별**: `ChannelStereo`는 `'' | 'dm' | 'self' | 'public' | 'private'`이며,
-  `stereo`가 `dm`·`self`가 **아니면 그룹 채팅**(`''`/`public`/`private` 모두 그룹)을 의미한다.
-  이 화면은 그룹 채팅 대상이며, 기존 `isSelfChat`(`stereo === 'self'`) 분기는 유지한다.
+- **There is no field that expresses "invitation declined".** `JoinModel.joined` is binary (`0` = not
+  joined or left, `1` = joined), and `JoinStereo` is a role (owner/admin/member), not a state. The
+  front end alone cannot tell "invitation pending" from "invitation declined".
+- **There is no notification mutation.** As in ADR-0015, there is no backend write for per-member
+  notifications, so the toggle stays local state (unwired).
+- Owner detection reuses the existing `channel.isOwner` (`ownerId === myUid`).
+- Pending-invitation detection reuses the existing `$join.joined === 0`.
+- **Group chat detection**: `ChannelStereo` is `'' | 'dm' | 'self' | 'public' | 'private'`, and
+  anything that is **not** `dm` or `self` is a group chat (`''`, `public` and `private` all count).
+  This screen targets group chats, and the existing `isSelfChat` (`stereo === 'self'`) branch stays.
 
 ## Decision
 
-### 범위 (포함)
+### In scope
 
-1. **`ChannelSettingsPage` 셸을 섹션 리스트형으로 재구성** — 상단 아이콘 액션 버튼 →
-   다음 구조로 교체:
-    - **방 이름 행**: 좌측 정렬(아바타 + 이름 + `>`). 소유자·멤버 모두 탭 가능.
-      소유자 탭 → 기존 `UpdateChannelDialog`(편집). 멤버 탭 → 방 정보 다이얼로그(읽기전용).
-    - **"대화방 설정" 섹션** → **대화방 알림 인라인 토글**(on/off).
-    - **"방 친구" 섹션** → 친구 추가 행(소유자만, 기존 `InviteFriendsDialog` 진입) + 멤버 목록.
-    - **하단 빨간 텍스트** → 소유자=방 삭제, 멤버=방 나가기(기존 `ConfirmDialog` 재사용).
-2. **멤버 뱃지 재정비** — `MemberListItem`을 새 뱃지로: 방장(초록 텍스트 pill),
-   MY(네이비 pill·유지), 초대 대기 중(회색 pill, `$join.joined === 0`). 방장 뱃지는
-   소유자 행에 표시, MY 뱃지는 본인 행에 표시.
-3. **알림 = 단순 on/off 인라인 토글** — 3단계 다이얼로그(전체/멘션/끄기) 대신 on/off 토글로
-   단순화. 데이터 연동은 없음(로컬 상태). 기존 `RoomNotificationDialog`는 이 화면에서 미사용.
-4. **컴포넌트는 `@chatic/web-ui-kit` 기반** — 이미 존재하는 프리미티브 재사용:
-   `Switch`, `Badge`/`StatusBadge`, `SectionHeader`/`GroupLabel`, `ListRow`, `Avatar`, `Divider`.
-   누락된 뱃지 변형(방장/초대 대기 중 등)이나 행 조합은 라이브러리에 신규 정의 후 사용한다
-   (stateless · slot · i18n-agnostic 라벨 props · 토큰 사용 · `*.test.tsx` + `*.stories.tsx`
-   동반 — ADR-0010/0013/0015 계승).
-5. **아이콘 리소스** — chevron·plus·toggle 등 표준 아이콘은 기존(lucide/web-ui-kit) 재사용,
-   Figma 전용 커스텀 글리프가 있으면 `web-ui-kit/resources/icons`로 추출해 사용한다.
+1. **Restructure the `ChannelSettingsPage` shell as a sectioned list** — replace the icon action
+   buttons at the top with:
+    - **The room name row**: left aligned (avatar + name + `>`), tappable by owner and member alike.
+      An owner's tap opens the existing `UpdateChannelDialog` (edit); a member's tap opens a read-only
+      room info dialog.
+    - **A "Room settings" section** → the **inline room notification toggle** (on/off).
+    - **A "Room friends" section** → the add-friend row (owner only, opening the existing
+      `InviteFriendsDialog`) plus the member list.
+    - **Red text at the bottom** → delete room for an owner, leave room for a member (reusing the
+      existing `ConfirmDialog`).
+2. **Rework the member badges** — give `MemberListItem` the new badges: owner (green text pill), MY
+   (navy pill, unchanged) and invitation pending (grey pill, `$join.joined === 0`). The owner badge
+   shows on the owner's row, the MY badge on my own.
+3. **Notifications become a plain on/off inline toggle** — simplified from the three-way dialog (all /
+   mentions / off). No data wiring (local state). The existing `RoomNotificationDialog` goes unused on
+   this screen.
+4. **Components come from `@chatic/web-ui-kit`** — reuse the primitives that exist: `Switch`,
+   `Badge` / `StatusBadge`, `SectionHeader` / `GroupLabel`, `ListRow`, `Avatar`, `Divider`. A missing
+   badge variant (owner, invitation pending) or row combination is defined in the library first
+   (stateless, slot-based, i18n-agnostic label props, tokens, with `*.test.tsx` and `*.stories.tsx`
+   alongside — inherited from ADR-0010 / 0013 / 0015).
+5. **Icon resources** — standard icons (chevron, plus, toggle) reuse what exists (lucide /
+   web-ui-kit); any custom Figma glyph is extracted into `web-ui-kit/resources/icons` first.
 
-### 범위 (제외)
+### Out of scope
 
-- **"초대 거절" 뱃지·상태** — 백엔드가 pending과 구분되는 상태를 제공할 때 후속 처리.
-  이번엔 "초대 대기 중"만.
-- **알림 설정의 실제 데이터 연동** — 백엔드 뮤테이션 신규 필요(ADR-0015와 동일). UI-only 유지.
-- **연결 Dialog(정보 수정·프로필 상세)의 재스타일** — 셸만 교체하고 기존 Dialog는 재사용.
-  멤버용 읽기전용 방 정보 표시는 소규모 추가로 포함하되, 신규 디자인 반영은 별도 노드 확보 시 후속.
-- **신고하기** — Figma에서 hidden 처리되어 이번 범위 제외.
-- **1:1(self) 채팅 레이아웃** — 기존 `isSelfChat` 분기 유지, 변경 없음.
+- **The "invitation declined" badge and state** — follow-up work for when the backend offers a state
+  distinct from pending. Only "invitation pending" this round.
+- **Real data wiring for notification settings** — it needs a new backend mutation (same as ADR-0015).
+  It stays UI only.
+- **Restyling the dialogs this screen opens** (info editing, profile detail) — only the shell is
+  replaced, and the existing dialogs are reused. The read-only room info view for members is included
+  as a small addition, but applying the new design to it waits for its own node.
+- **Report** — hidden in Figma, so out of scope.
+- **The 1:1 (self) chat layout** — the existing `isSelfChat` branch stays unchanged.
 
 ## Alternatives
 
-- **ADR-0015를 통째로 Superseded 처리** — 0015는 정보 수정·프로필 상세·확인 다이얼로그 등
-  여전히 유효한 결정을 담고 있어 통째로 폐기하지 않고, 뒤집히는 Decision #1·#4만 부분 Supersede로
-  상호 링크한다.
-- **"초대 거절"을 `reason` 등 기존 필드로 파생** — 실제 데이터 보장이 없어 오표시 위험.
-  백엔드 신호 확정 전까지 제외.
-- **알림 3단계(전체/멘션/끄기) 유지** — 새 디자인이 on/off 토글이라 UI 불일치. 디자인 우선으로
-  단순 토글 채택.
-- **친구 추가를 `inviteRule === 'all'` 기반으로 노출** — 모델엔 존재하나 디자인은 소유자 전용만
-  표기. 디자인 기준으로 owner-only 유지, inviteRule 대응은 후속 고려.
+- **Supersede ADR-0015 entirely** — 0015 still holds valid decisions about info editing, profile
+  detail and the confirmation dialogs, so rather than discarding it, only the reversed decisions #1 and
+  #4 are partly superseded, and the two link to each other.
+- **Derive "invitation declined" from an existing field such as `reason`** — no guarantee the data is
+  there, so it risks showing the wrong thing. Excluded until the backend signal is settled.
+- **Keep the three-way notification dialog (all / mentions / off)** — it contradicts the new design's
+  on/off toggle. The design wins and the toggle is adopted.
+- **Show add-friend based on `inviteRule === 'all'`** — it exists in the model, but the design marks
+  the row owner-only. Owner-only stands, with `inviteRule` support considered later.
 
 ## Consequences
 
-- **얻는 것**: 그룹 채널 설정 화면이 최신 섹션 리스트형 디자인으로 정비되고, 소유자/멤버 분기가
-  뱃지·하단 액션으로 명확해진다. web-ui-kit의 검증된 프리미티브(Switch/Badge/Section/ListRow)를
-  재사용하므로 신규 컴포넌트가 최소화된다.
-- **트레이드오프**: 알림 토글은 여전히 로컬 상태(미연동)라 재진입 시 초기화된다 — 기대치 관리를
-  위해 UI-only임을 명확히 한다. "초대 거절"은 디자인에 있으나 이번엔 미구현이므로 디자인과 구현
-  사이 간극이 남는다(백엔드 준비 후 후속).
-- **관련**: [ADR-0015](0015-channel-settings-ui-refresh.md)(직전 채널 설정 개편, 부분 Superseded),
-  [ADR-0010](0010-chat-screen-webuikit-rebuild.md)(web-ui-kit 재구성 원칙),
-  [ADR-0013](0013-home-screen-web-ui-kit-migration.md)(마이그레이션 패턴).
+- **What is gained**: the group channel settings screen moves to the current sectioned-list design, and
+  the owner / member split reads clearly through the badges and the bottom action. Reusing proven
+  web-ui-kit primitives (Switch, Badge, Section, ListRow) keeps new components to a minimum.
+- **The trade-off**: the notification toggle is still local state (unwired) and resets on reopen — say
+  plainly that it is UI-only so expectations are managed. "Invitation declined" exists in the design
+  but not in the implementation, so a gap between the two remains until the backend is ready.
+- **Related**: [ADR-0015](0015-channel-settings-ui-refresh.md) (the previous channel settings rework,
+  partly superseded), [ADR-0010](0010-chat-screen-webuikit-rebuild.md) (the web-ui-kit rebuild
+  principles), [ADR-0013](0013-home-screen-web-ui-kit-migration.md) (the migration pattern).

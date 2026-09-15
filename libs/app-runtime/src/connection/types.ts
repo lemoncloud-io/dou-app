@@ -2,7 +2,7 @@
 //
 // This file was `runtime/types.ts` until the `runtime/` module was dissolved (its six hooks belonged
 // to `data`, `connection` and `session` by consumer intent, and `runtime/` was not one of the
-// engines in docs/architecture.md's table). `SessionProfile` moved with its hook, to
+// engines in libs/app-runtime/README.md's table). `SessionProfile` moved with its hook, to
 // `session/hooks/session/readers/useRuntimeProfile.ts`.
 
 import type { SocketBindingConfig } from '../socket/types';

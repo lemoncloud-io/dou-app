@@ -8,7 +8,6 @@ const executeSignedRelayRequest = jest.fn();
 const exec: HttpGatewayExecutor = {
     executeRelayRequest,
     executeSignedRelayRequest,
-    executeCloudRequest: jest.fn(),
     resolveEndpoint: route => `https://${route}.test`,
 };
 

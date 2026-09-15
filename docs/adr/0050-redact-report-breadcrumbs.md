@@ -1,52 +1,89 @@
-# ADR-0050: 리포트에 실리는 로그를 스크러빙 없이 보내던 정책을 끝내고, 키 기반 마스킹을 적용한다
+# ADR-0050: End the no-scrubbing policy for logs attached to reports, and apply key-based masking
 
-> 상태: Accepted · 결정일: 2026-08-11
-> 관련: [ADR-0017](./0017-issue-report-floating-widget.md) (v1 "스크러빙 없이 첨부" 결정 — 이미 Superseded) · [ADR-0047 통합 로깅](./0047-unified-logging-core-and-report-traceability.md) (이 항목을 "정책 변경은 별도 결정"으로 범위 제외) · [ADR-0029](./0029-error-report-categorization-and-enrichment.md)
+> Status: Accepted · Decided: 2026-08-11
+> Related: [ADR-0017](./0017-issue-report-floating-widget.md) (the v1 "attach without scrubbing" decision —
+> already Superseded) ·
+> [ADR-0047 unified logging](./0047-unified-logging-core-and-report-traceability.md) (scoped this item out as
+> "a policy change is a separate decision") · [ADR-0029](./0029-error-report-categorization-and-enrichment.md)
 
-## 맥락 (Context)
+## Context
 
-ADR-0017이 이슈 제보 v1을 정하면서 "**로그·디바이스 상태는 스크러빙 없이 자동 첨부**(v1). 별도 동의 절차 없음"이라고 못박았다(45행). 당시 전제는 좁았다 — 사용자가 의도적으로 누른 제보 한 건이, 팀이 보는 채널로, 그때 한 번 나간다.
+When ADR-0017 defined issue-report v1, it stated flatly: "**logs and device state are auto-attached without
+scrubbing** (v1). No separate consent flow." (line 45). The premise at the time was narrow — one deliberate,
+user-initiated report, sent once, to a channel the team watches.
 
-그 전제가 이후 세 번 넓어졌다.
+That premise has since widened three times.
 
-- **ADR-0029**가 자동 에러 리포트(`reportError`)에도 같은 로그 tail을 붙였다. 이제 사용자 의도와 무관하게, 에러가 날 때마다 나간다.
-- **ADR-0047**이 하이브리드에서 breadcrumb 소스를 네이티브 통합 버퍼로 돌렸다. 웹 로그만 담기던 자리에 네이티브 로그까지 섞인다.
-- 같은 ADR-0047이 **버퍼를 영속화**했다 — 웹은 sessionStorage, 모바일은 MMKV. 전송되는 순간만 존재하던 데이터가 기기에 남는다.
+- **ADR-0029** attached the same log tail to automatic error reports (`reportError`) too. Now it goes out
+  every time an error occurs, regardless of user intent.
+- **ADR-0047** switched the breadcrumb source, on hybrid, to the native merged buffer. Native logs now mix
+  into a slot that used to hold only web logs.
+- The same ADR-0047 **persisted the buffer** — sessionStorage on web, MMKV on mobile. Data that used to exist
+  only for the instant of transmission now stays on the device.
 
-여기에 리포트가 도착하는 곳이 공유 Slack 채널이라는 사실이 겹친다. "팀만 본다"는 v1의 근거는 채널 범위가 넓어지고 저장까지 생긴 지금 성립하지 않는다.
+On top of that, reports land in a shared Slack channel. v1's premise of "only the team sees it" no longer
+holds now that the channel's reach has widened and storage has entered the picture.
 
-한편 같은 리포에 이미 답이 있었다. transport의 네트워크 로깅(`libs/web-core/src/transport/networkLog.ts`)은 요청 params·body에 `redactSensitive`를 적용하고 있었고, 마스킹 대상 키 목록(`SENSITIVE_KEYS`)과 구현(`libs/logger/src/redaction/redact.ts`)도 이미 있었다. **breadcrumb 경로만 그 처리를 비켜 가고 있었다** — 즉 같은 코드베이스가 "무엇이 비밀인가"에 대해 두 개의 답을 갖고 있었다.
+Meanwhile, this same repo already had the answer. Transport's network logging
+(`libs/http/src/log/networkLog.ts`) already applies `redactSensitive` to request params/body, and both the
+masked-key list (`SENSITIVE_KEYS`) and its implementation (`libs/logger/src/redaction/redact.ts`) already
+existed. **Only the breadcrumb path was bypassing that treatment** — that is, the same codebase held two
+different answers to "what counts as a secret."
 
-## 결정 (Decision)
+## Decision
 
-**`safeStringify`(`libs/logger/src/serialization/safeStringify.ts`)에서 필드명 기반 마스킹을 적용한다.** `SENSITIVE_KEYS`에 걸리는 키의 값은 `[REDACTED]`로 대체한다.
+**Apply field-name-based masking inside `safeStringify`** (`libs/logger/src/serialization/safeStringify.ts`).
+Any value under a key that matches `SENSITIVE_KEYS` is replaced with `[REDACTED]`.
 
-- **적용 지점은 `safeStringify` 한 곳.** `serializeLogs`의 소비자가 리포트(`reportError`·`reportIssue`)와 영속화(sessionStorage·MMKV) 전부라, 여기 한 번 걸면 전 구간이 덮인다.
-- **JSON replacer 안에서 판단한다.** 중첩 객체와 배열 원소까지 닿고, Error 분기보다 **먼저** 검사해 민감한 키에 담긴 Error가 name/message/stack으로 펼쳐지며 새는 경로를 막는다.
-- **판단 기준은 transport와 동일한 `SENSITIVE_KEYS`를 쓴다.** 목록을 새로 만들지 않는다 — 두 경로가 갈라지면 한쪽만 갱신되는 것이 시간 문제다.
+- **The single application point is `safeStringify`.** `serializeLogs`'s consumers are exactly the report
+  paths (`reportError`/`reportIssue`) and persistence (sessionStorage/MMKV), so one gate here covers the
+  whole surface.
+- **The check runs inside the JSON replacer.** It reaches nested objects and array elements, and runs
+  **before** the Error branch, closing off the leak where an Error stored under a sensitive key gets
+  expanded into name/message/stack.
+- **The criterion is the same `SENSITIVE_KEYS` transport already uses.** No new list is created — if the two
+  paths diverged, it would only be a matter of time before one got updated and the other didn't.
 
-### 범위 밖
+### Out of scope
 
-- **문자열 안에 박힌 비밀.** 필드명이 없으면 판단 근거가 없다. 패턴 추측(정규식으로 JWT/키 모양 찾기)은 평범한 메시지를 훼손하는 오탐 비용이 크다고 보고 넣지 않는다. `message`에 토큰을 직접 넣는 호출부가 있다면 그건 호출부에서 고칠 문제다.
-- **사용자 동의 절차.** ADR-0017의 "별도 동의 없음"은 유지한다. 이번 결정은 무엇을 보내느냐이지 어떻게 동의를 받느냐가 아니다.
-- **디바이스 스냅샷.** `buildReportContext`가 이미 푸시 토큰·영구 식별자를 제외하도록 필드를 골라 담고 있다(별도 조치 불필요).
+- **Secrets embedded inside a string.** With no field name to key off of, there's no basis for a decision.
+  Pattern guessing (regex-hunting for JWT/key shapes) is left out, judged too costly in false positives that
+  corrupt ordinary messages. If some call site puts a token directly into `message`, that's a bug to fix at
+  the call site.
+- **User consent flow.** ADR-0017's "no separate consent" stands. This decision is about what gets sent, not
+  how consent is obtained.
+- **The device snapshot.** `buildReportContext` already curates its fields to exclude push tokens and
+  persistent identifiers (no action needed here).
 
-## 대안 (Alternatives)
+## Alternatives
 
-- **현행 유지(스크러빙 없음).** ADR-0017의 명시적 결정이라 존중할 근거는 있었다. 그러나 그 결정의 전제(사용자 의도 · 1회성 · 전송뿐)가 셋 다 무효가 된 뒤라, 유지는 결정의 승계가 아니라 방치에 가깝다.
-- **리포트 전송 직전에만 마스킹(`reportError` 안).** 전송 경로만 덮고 **기기에 남는 영속 데이터는 그대로**다. 영속화가 이번 위험의 절반이라 반쪽짜리다.
-- **버퍼 적재 시점에 마스킹(`dispatch`).** 가장 강하지만, 개발자가 콘솔·디버그 오버레이에서 보는 값까지 가려져 디버깅 도구로서의 가치를 잃는다. 로컬에 남는 것과 밖으로 나가는 것의 기준은 달라야 한다.
-- **값 패턴 기반 스크러빙.** 필드명 없이도 잡지만 오탐이 크고, 무엇이 가려졌는지 예측할 수 없어 신뢰를 잃는다.
+- **Keep the current no-scrubbing policy.** ADR-0017's decision was explicit and there was a case for
+  honoring it — but now that all three premises behind it (user intent, one-time, transmission-only) are
+  void, keeping it is closer to neglect than to honoring the original decision.
+- **Mask only right before report transmission (inside `reportError`).** Covers only the send path — **the
+  data that persists on the device is untouched.** Persistence is half of this risk, so this is a half
+  measure.
+- **Mask at buffer-append time (`dispatch`).** The strongest option, but it also hides values from the
+  developer looking at the console or the debug overlay, destroying the tool's value for debugging. What
+  stays local and what goes out should be held to different standards.
+- **Value-pattern-based scrubbing.** Catches things with no field name too, but with high false positives,
+  and there's no way to predict what got redacted, eroding trust in the tool.
 
-## 결과 (Consequences)
+## Consequences
 
-**얻는 것**
+**What is gained**
 
-- 공유 채널로 나가는 리포트와 기기에 남는 로그 양쪽에서 토큰·비밀번호·자격증명이 값 그대로 노출되지 않는다.
-- transport와 breadcrumb이 같은 기준을 쓰게 되어, `SENSITIVE_KEYS` 한 곳만 갱신하면 두 경로가 함께 따라온다.
+- Tokens, passwords, and credentials no longer appear as plain values, either in reports leaving through the
+  shared channel or in logs sitting on the device.
+- Transport and breadcrumbs now share one standard — updating `SENSITIVE_KEYS` in one place keeps both paths
+  in sync.
 
-**감수할 트레이드오프**
+**Trade-offs accepted**
 
-- **키 이름에 `token` 등이 들어가면 비밀이 아니어도 가려진다.** `deviceToken`이 대표적인데, 실제로 이 세션에서 그 마스킹을 보고 "요청 본문이 오염됐다"고 오해한 사례가 있었다. 마스킹은 로그 표현에만 적용되고 실제 요청은 원본 그대로다.
-- 문자열에 박힌 비밀은 여전히 통과한다 — 덮이지 않은 구멍으로 남겨두고 기록한다.
-- 디버깅 시 값이 필요하면 로컬 콘솔·디버그 오버레이(마스킹 전 버퍼)를 봐야 한다.
+- **A key merely containing a word like `token` gets masked even when it isn't secret.** `deviceToken` is
+  the prime example — in this very session, someone actually saw that masking and mistook it for "the request
+  body got corrupted." Masking only applies to the logged representation; the real request goes out
+  unmodified.
+- Secrets embedded inside a string still pass through — a deliberately left gap, recorded here.
+- If you need the real value for debugging, check the local console or the debug overlay (the pre-masking
+  buffer).

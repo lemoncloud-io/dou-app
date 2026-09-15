@@ -1,66 +1,256 @@
 # auth
 
-> 대상: `apps/web/src/app/features/auth`
+**What `apps/web/src/app/features/auth` owns is proof of identity, not screens.** Three of its four
+pages are plumbing — a compatibility shim, a logout runner, an OAuth callback — and the substance is
+the phone-verification machine, the two shells that present it, and the hook every screen must use
+to send a user to login.
 
-## 책임
+Session state, tokens, signing and refresh are not here. They belong to
+[`libs/app-runtime`](../../../../../libs/app-runtime/docs/session/README.md), and this feature reaches
+them through the `runtime.session.*` facade.
 
-로그인·로그아웃·OAuth 콜백·**초대 수락**을 담당한다. 인증 처리는 web-core 세션 훅에 위임하고, auth feature는 흐름 조립(파싱 → 로그인 → 세션 hydrate/전환 → 이동)만 한다. 계정 생성·비번 재설정은 [account](../account/README.md)가 담당한다.
+## Purpose
 
-## 화면
+Two questions land in this feature: _who is this session_, and _how does a user prove they are
+someone else_. Everything under `features/auth` answers one of them.
 
-| 페이지              | 경로(`ROUTES.auth.*`)  | 설명                                                     |
-| ------------------- | ---------------------- | -------------------------------------------------------- |
-| `LoginPage`         | `/auth/login`          | 로그인 진입. invite 딥링크면 수락 흐름, 아니면 로딩 표시 |
-| `LogoutPage`        | `/auth/logout`         | 캐시 클리어 + 릴레이 세션 종료                           |
-| `OAuthResponsePage` | `/auth/oauth-response` | OAuth 리다이렉트 콜백 처리                               |
+Creating an account by email and resetting a password are next door in
+[account](../account/README.md). Issuing and accepting a relay invite are in
+[invite](../invite/README.md) — this feature only supplies the verification screen those flows open.
 
-## 구조
+The invariant worth checking: nothing here builds a session by hand.
 
-```
-features/auth/
-  components/
-    PhoneVerifyScreen.tsx     # 전화번호 인증 풀스크린 (relay 초대 수락용) → phone-verification.md
-    PhoneVerifySheet.tsx      # 같은 본문의 바텀시트 셸 (발급 · 마이페이지)
-    PhoneVerifyFields.tsx     # 두 셸이 공유하는 입력 본문
-    PhoneVerifyBanner.tsx     # 계정 갈라짐 방어 배너 (소셜 로그인으로 이동) — 풀스크린 셸 전용
-  hooks/
-    useInviteAccept.ts        # 초대 수락: 로그인 → 클라우드 진입 → 홈 이동
-    useInviteCloudEntry.ts    # 토큰 기반 switchCloud + switchSite (로그인과 분리)
-    useOAuthLogin.ts          # OAuth 리다이렉트 콜백 처리
-    useOtpExpiryCountdown.ts  # 서버 expiredAt 기준 초 단위 카운트다운
-    useClearCache.ts          # 전 레포 캐시 클리어 (로그아웃용)
-  types/
-    auth.ts                   # InviteParams + parseInviteDeeplink / isInviteDeeplink
-  utils/                      # phone(한국 휴대폰 검증·표시) / env(dev 빌드 판별)
-  pages/                      # LoginPage / LogoutPage / OAuthResponsePage (UI + 훅 호출)
-  routes/
-  index.tsx                   # AuthRoutes + PhoneVerifyScreen/PhoneVerifyBanner export
+```bash
+grep -rn "from '@chatic/app-runtime'" apps/web/src/app/features/auth --include='*.ts' --include='*.tsx'
 ```
 
-## 데이터 흐름 (web-core 신 public API)
+Every hit should be a `runtime.session.*` or `runtime.data.*` call.
 
-세션 변경은 모두 web-core 훅 경유다(core 객체 직접 접근 금지).
+## Design principles
 
-| 용도                           | API                                                                         |
-| ------------------------------ | --------------------------------------------------------------------------- |
-| 초대 로그인(토큰 반환)         | `useInviteFlow().runInviteFlow({ code, backend })`                          |
-| 클라우드/사이트 전환           | `useSwitchCloudSession().switchCloud(id)`, `useSiteSwitch().switchSite(id)` |
-| OAuth 코드 교환(세션 커밋까지) | `createCredentialsByProvider(provider, code)`                               |
-| 초대 코드 로그인(api)          | `loginWithInviteCode(code, delegatorId, backend?)` (delegatorId 필수)       |
-| 로그아웃                       | `useSessionLogout()`                                                        |
-| 캐시 클리어                    | 레포별 `cacheClear()` 순회 (`useClearCache`)                                |
+1. **A shell holds chrome, a hook holds behaviour.** `PhoneVerifyScreen` and `PhoneVerifySheet`
+   differ only in framing; both drive `usePhoneVerify`. Adding a third presentation must change no
+   behaviour.
+2. **The request declares the intent.** `mode` (`'login'` | `'link'`) is derived from the session
+   role by the caller and passed in. Nothing reads a response to work out what just happened.
+3. **A session switch completes before the caller is told.** `applySessionToken` installs a new
+   identity into the session store _and_ the live relay socket before `onVerified` fires, so the next
+   call does not 403 on a stale identity.
+4. **Errors branch on status codes.** `getSocketErrorCode` is the only input; a server message is not
+   a contract. Log the raw failure anyway — most of these codes cover more than one condition.
+5. **Credentials live in the request body.** Numbers, codes, OTPs and invite codes never reach a log
+   line, a URL, a cache key or a query key.
+6. **Login is an interruption, not a destination.** A user sent to login is in the middle of
+   something; finishing returns them to it. One hook enforces that, and a test over the source tree
+   enforces the hook.
 
-## 흐름 요약
+## Scope
 
-- **초대 수락** — 상세는 [invite.md](./invite.md).
-- **계정 연동 통합 경로** — 상세는 [account-linking.md](./account-linking.md).
-  `auth.link-account` 하나가 번호·이메일·소셜을 받고, `type`×`mode`×`step`이 요청을 정한다.
-  게이트웨이·데이터 소스·`link$` 읽기가 여기 있다.
-- **전화번호 인증 (relay 1:1 초대 · 마이페이지)** — 상세는
-  [phone-verification.md](./phone-verification.md). `PhoneVerifyScreen`/`PhoneVerifySheet`가
-  `auth.link-account`를 돌린다. `mode: 'login'`의 `confirm`이 주는 `$token`은
-  `applySessionToken`(`@chatic/app-runtime`)으로 같은 소켓 연결의 신원을 메인유저로 바꾼 뒤
-  `onVerified`를 부른다. `mode: 'link'`는 세션을 건드리지 않는다.
-- **OAuth 콜백** — `useOAuthLogin`이 `code`/`provider`/`state` 파싱 → `createCredentialsByProvider`(또는 invite는 `loginWithInviteCode`)가 세션 커밋까지 끝냄 → `state.from`으로 이동. 예전엔 교환이 transport 크레덴셜만 만들어서 뒤이어 `refreshRelaySession({ syncProfile: true })`으로 identity를 복구해야 했지만, 교환 응답을 그대로 커밋하도록 고치면서 그 호출이 사라졌다(ADR-0070 불변조건 1·2).
-- **로그아웃** — `LogoutPage`가 `useClearCache().clearAllCache()`(전 레포 `cacheClear`)로 캐시를 비운 뒤 `useSessionLogout()`으로 릴레이 세션을 종료한다. 릴레이 로그아웃되면 **런타임이 자동으로 게스트 로그인**을 수행하므로 다음 세션은 깨끗한 캐시에서 시작한다.
-- **게스트/디바이스 로그인** — auth에서 다루지 않는다(런타임 자동 처리). 비-invite `/auth/login` 진입은 로딩 표시만.
+**In** — the OAuth callback, the logout runner, the `/auth/login` shim, the phone verification
+machine and its shells, the account-split banner, and the login entry hook.
+
+**Out**
+
+- Session state, token refresh, signing, socket authentication —
+  [`libs/app-runtime`](../../../../../libs/app-runtime/docs/session/README.md).
+- Email sign-up and password reset — [account](../account/README.md).
+- The relay invite flows, deeplink parsing and cloud entry — [invite](../invite/README.md).
+- The login **screen** — it lives in [mypage](../mypage/README.md); this feature owns how users get
+  there and where they return to.
+
+## Structure
+
+```mermaid
+flowchart TD
+    Pages["pages/<br/>LoginPage shim · LogoutPage · OAuthResponsePage"]
+    Shells["components/<br/>PhoneVerifyScreen · PhoneVerifySheet · PhoneVerifyFields · PhoneVerifyBanner"]
+    Hooks["hooks/<br/>usePhoneVerify · useOAuthLogin · useNavigateToLogin · useOtpExpiryCountdown"]
+    Shared["app/hooks · app/utils<br/>useLinkAccount · useLinkedAccounts · phoneNumber · errors"]
+    RT[["@chatic/app-runtime<br/>runtime.session · runtime.data"]]
+
+    Pages --> Hooks
+    Shells --> Hooks
+    Hooks --> Shared
+    Hooks --> RT
+    Shared --> RT
+
+    classDef external stroke-dasharray: 5 5
+    class RT external
+```
+
+The arrow that does not exist runs from a shell to the runtime. A shell renders; it never calls a
+mutation or touches a session.
+
+### Directories
+
+```text
+apps/web/src/app/features/auth/
+├── index.tsx        re-exports components and routes only — pages stay internal
+├── pages/           LoginPage (a shim), LogoutPage, OAuthResponsePage
+├── components/      the two shells, the shared fields, the account-split banner
+├── hooks/           5 hooks, listed below
+├── routes/          AuthRoutes — three routes plus a catch-all back to login
+└── utils/phone.ts   isValidKoreanPhone, formatPhoneNumber — tested, and called by nobody
+```
+
+| Hook                    | What it does                                                                       |
+| ----------------------- | ---------------------------------------------------------------------------------- |
+| `usePhoneVerify`        | The verification state machine — both modes, all four steps, the session switch    |
+| `useOtpExpiryCountdown` | A one-second tick over the server's `expiredAt`                                    |
+| `useOAuthLogin`         | Reads the provider redirect, exchanges the code, navigates to `state.from`         |
+| `useNavigateToLogin`    | The only sanctioned way to send a user to the login screen                         |
+| `useClearCache`         | Clears all seven repository caches. Exported from the barrel, and currently unused |
+
+`PhoneVerifyFields` is deliberately absent from `components/index.ts`; its consumers import the
+concrete file. Two files in this feature import concrete modules rather than barrels for the same
+reason — a barrel pulls the whole runtime surface, which will not load under the jsdom test setup.
+
+## Usage
+
+### Sending a user to login
+
+```tsx
+const goToLogin = useNavigateToLogin();
+// …
+<button onClick={goToLogin}>{t('mypage.login')}</button>;
+```
+
+Never `navigate(ROUTES.mypage.login)`. A test walks the source tree and fails on any file outside the
+hook and the route table that names that route in either spelling.
+
+### Opening verification
+
+```tsx
+<PhoneVerifySheet mode={isGuest ? 'login' : 'link'} onVerified={close} onClose={close} />
+```
+
+The full-screen shell additionally takes `context` (`'invite-accept'` | `'invite-create'`), which
+picks its hero copy. See [phone-verification.md](./phone-verification.md).
+
+### Wiring
+
+```text
+AppRoutes
+└── AuthRoutes                (routes/index.tsx)
+    ├── /auth/login           LoginPage → <Navigate to={`/${search}`} replace />
+    ├── /auth/logout          LogoutPage → runtime.session.useSessionLogout()
+    ├── /auth/oauth-response  OAuthResponsePage → useOAuthLogin()
+    └── *                     → /auth/login
+```
+
+## Scenarios
+
+### 1. An OAuth redirect comes back
+
+`useOAuthLogin` runs once on mount, reading `code`, `provider` and `state` from the query string. A
+code shorter than six characters is treated as a failed callback: it logs, toasts and returns to the
+login route.
+
+Otherwise `runtime.session.createCredentialsByProvider(provider, code)` exchanges the code, and the
+exchange **commits the session itself** — there is no follow-up refresh to recover identity fields.
+The destination is `state.from`, falling back to `/home` when the state parameter will not parse.
+
+`provider=invite` is the one branch that does not exchange: it requires a `delegatorId` on the
+session and throws without one. The whole run is wrapped so that throw is logged as an AUTH failure
+rather than escaping as an unhandled rejection.
+
+### 2. `/auth/login` is opened
+
+It is a shim, not a screen. Already-distributed deeplinks — the landing page and the native converter
+both still build this address — arrive with `provider=invite&code=…&_backend=…`, and the page
+forwards to the root route carrying the query string untouched.
+
+Forwarding straight to the accept page would skip the entry gate at the root, which is the one place
+that knows onboarding comes before an invite on a first run.
+
+### 3. A user logs out
+
+`LogoutPage` fires once, guarded by a ref, and calls `runtime.session.useSessionLogout()` — a
+best-effort socket `auth.logout` followed by local teardown. A rejected teardown is logged, because
+the screen otherwise renders a spinner forever with nothing written down.
+
+The page does **not** clear repository caches. `useClearCache` exists and does that for all seven
+repositories, but nothing calls it today.
+
+Once the relay session ends, the runtime signs a guest back in on its own, so the next session starts
+authenticated as the same device user.
+
+### 4. A user is sent to login, and comes back
+
+This is the reason `useNavigateToLogin` exists.
+
+```mermaid
+sequenceDiagram
+    participant E as an entry point
+    participant H as useNavigateToLogin
+    participant L as mypage LoginPage
+    participant R as react-router
+
+    E->>H: goToLogin()
+    H->>H: capture pathname + search + hash
+    H->>R: navigate('/mypage/login', { state: { returnTo } })
+    R->>L: render
+    L->>L: social or (dev builds) phone login
+    L->>R: navigate(-1) — or '/' replace when there is nothing to go back to
+    R-->>E: the screen the user left, no reload
+```
+
+**The hook captures the origin, not the call site.** The fallback is home, so a call site that forgot
+to pass one would still "work" — and the mistake would surface only as someone's subscription flow
+being cut short. `search` and `hash` ride along, because a screen that keeps state in the query string
+only half-returns without them. The hook also refuses to point back at the login route itself.
+
+**It is router state, never a query parameter.** `?returnTo=` would put an arbitrary path in the login
+URL and hand it to a navigation. Router state lives on the history entry and cannot be injected from
+outside.
+
+**Returning is a back navigation, not a replace.** The entry point _pushed_ the login screen, so the
+stack reads `[…, returnTo, /mypage/login]`. A `replace` would leave `[…, returnTo, returnTo]`, where
+the first back press stays on the same screen and the user reads it as broken. Going back drops the
+login entry and keeps everything before it. It also means `returnTo` is read purely as a **flag** —
+"did we arrive from inside the app" — and no string ever reaches the router, so there is no redirect
+surface to reason about.
+
+The fallback is home with `replace`, used when there is no `returnTo` (a deeplink, a refresh) or no
+history to go back to (a fresh WebView with router state but no stack). It passes `transition` and
+`direction: 'back'` explicitly, because the transition helper disables animation by default when
+`replace` is set.
+
+Three entry points use the hook today — the MY page header, `PhoneVerifyBanner`, and the subscription
+plans screen. The subscription **status** screen deliberately is not one: it routes to the plans
+screen, which is where a guest is asked. The list is not fixed by a test; the invariant is.
+
+### 5. A login fails or is cancelled
+
+Nothing navigates. The user stays on the login screen with a toast, and pressing back returns them
+where they came from, because the history was never rewound.
+
+### 6. A guest proves a number
+
+Covered in full by [phone-verification.md](./phone-verification.md): the send, the pinned country,
+the confirm, and the two guards around installing the returned `$token`.
+
+## Documents
+
+| File                                                           | What it covers                                                                      |
+| -------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| [account-linking.md](./account-linking.md)                     | The `auth.link-account` contract — type, mode, step, the relay pin, reading `link$` |
+| [phone-verification.md](./phone-verification.md)               | The verification machine, both shells, error copy, and the session switch           |
+| [international-phone-input.md](./international-phone-input.md) | Country selection, mobile-only validation, E.164 on the wire, keeping metadata lazy |
+
+## How to verify
+
+```bash
+npx jest --config apps/web/jest.config.js --runInBand --watchman=false --testPathPatterns "features/auth"
+npx tsc -b apps/web/tsconfig.app.json
+```
+
+- `loginEntryPoints.test.ts` is the one to read before adding a screen that links to login: it scans
+  the source tree, so a new entry point is covered the day it is written.
+- Type checking must be `tsc -b`. A `--noEmit -p` run reads the libraries' last-emitted `.d.ts`
+  files, so a stale `dist` produces errors that are not in the source.
+- The i18n resources load remotely. A wrong translation key renders as the raw key rather than
+  failing a build, and the screen tests stub `t` to echo its key — so changing a key breaks
+  assertions while changing its value does not.
+- Downstream of this feature: [invite](../invite/README.md) and [mypage](../mypage/README.md) both
+  import its components. Run their suites when a shell's props change.

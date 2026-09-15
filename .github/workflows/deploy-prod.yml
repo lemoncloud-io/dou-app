@@ -38,6 +38,19 @@ jobs:
                           - 'apps/admin-v2/tsconfig*.json'
                           - 'apps/admin-v2/tailwind.config.js'
                           - 'apps/admin-v2/postcss.config.js'
+                          # Shared sources. Every deployable app compiles these in, so a change
+                          # confined to one of them has to redeploy the app that carries it.
+                          #
+                          # `libs/**` deliberately, not the specific libs this app imports. A
+                          # hand-maintained list is what produced the bug this replaces: the
+                          # filters listed only `apps/<name>/**`, so a change to libs/data,
+                          # libs/shared or libs/policy-content set has-changes=false and shipped
+                          # nothing — a legal-text fix would sit on the branch until an unrelated
+                          # app change carried it out. Over-deploying costs a build; under-deploying
+                          # is silent. If the wasted builds ever matter, derive the set from
+                          # `nx affected` rather than by hand.
+                          - 'libs/**'
+                          - 'assets/**'
                       web:
                           - 'apps/web/src/**'
                           - 'apps/web/public/**'
@@ -47,6 +60,19 @@ jobs:
                           - 'apps/web/tsconfig*.json'
                           - 'apps/web/tailwind.config.js'
                           - 'apps/web/postcss.config.js'
+                          # Shared sources. Every deployable app compiles these in, so a change
+                          # confined to one of them has to redeploy the app that carries it.
+                          #
+                          # `libs/**` deliberately, not the specific libs this app imports. A
+                          # hand-maintained list is what produced the bug this replaces: the
+                          # filters listed only `apps/<name>/**`, so a change to libs/data,
+                          # libs/shared or libs/policy-content set has-changes=false and shipped
+                          # nothing — a legal-text fix would sit on the branch until an unrelated
+                          # app change carried it out. Over-deploying costs a build; under-deploying
+                          # is silent. If the wasted builds ever matter, derive the set from
+                          # `nx affected` rather than by hand.
+                          - 'libs/**'
+                          - 'assets/**'
                       landing:
                           - 'apps/landing/src/**'
                           - 'apps/landing/public/**'
@@ -56,6 +82,19 @@ jobs:
                           - 'apps/landing/tsconfig*.json'
                           - 'apps/landing/tailwind.config.js'
                           - 'apps/landing/postcss.config.js'
+                          # Shared sources. Every deployable app compiles these in, so a change
+                          # confined to one of them has to redeploy the app that carries it.
+                          #
+                          # `libs/**` deliberately, not the specific libs this app imports. A
+                          # hand-maintained list is what produced the bug this replaces: the
+                          # filters listed only `apps/<name>/**`, so a change to libs/data,
+                          # libs/shared or libs/policy-content set has-changes=false and shipped
+                          # nothing — a legal-text fix would sit on the branch until an unrelated
+                          # app change carried it out. Over-deploying costs a build; under-deploying
+                          # is silent. If the wasted builds ever matter, derive the set from
+                          # `nx affected` rather than by hand.
+                          - 'libs/**'
+                          - 'assets/**'
                       desktopweb:
                           - 'apps/desktop-web/src/**'
                           - 'apps/desktop-web/index.html'
@@ -64,6 +103,19 @@ jobs:
                           - 'apps/desktop-web/tsconfig*.json'
                           - 'apps/desktop-web/tailwind.config.js'
                           - 'apps/desktop-web/postcss.config.js'
+                          # Shared sources. Every deployable app compiles these in, so a change
+                          # confined to one of them has to redeploy the app that carries it.
+                          #
+                          # `libs/**` deliberately, not the specific libs this app imports. A
+                          # hand-maintained list is what produced the bug this replaces: the
+                          # filters listed only `apps/<name>/**`, so a change to libs/data,
+                          # libs/shared or libs/policy-content set has-changes=false and shipped
+                          # nothing — a legal-text fix would sit on the branch until an unrelated
+                          # app change carried it out. Over-deploying costs a build; under-deploying
+                          # is silent. If the wasted builds ever matter, derive the set from
+                          # `nx affected` rather than by hand.
+                          - 'libs/**'
+                          - 'assets/**'
                       blockkitbuilder:
                           - 'apps/block-kit-builder/src/**'
                           - 'apps/block-kit-builder/index.html'
@@ -72,12 +124,19 @@ jobs:
                           - 'apps/block-kit-builder/tsconfig*.json'
                           - 'apps/block-kit-builder/tailwind.config.js'
                           - 'apps/block-kit-builder/postcss.config.js'
-                          # The builder is that lib plus editor chrome, so a
-                          # lib-only change has to redeploy it. Note the
-                          # asymmetry: web and desktop-web draw the same blocks
-                          # and do NOT list it, so a lib-only change ships to the
-                          # builder alone. Widening theirs is a separate change.
-                          - 'libs/block-kit/**'
+                          # Shared sources. Every deployable app compiles these in, so a change
+                          # confined to one of them has to redeploy the app that carries it.
+                          #
+                          # `libs/**` deliberately, not the specific libs this app imports. A
+                          # hand-maintained list is what produced the bug this replaces: the
+                          # filters listed only `apps/<name>/**`, so a change to libs/data,
+                          # libs/shared or libs/policy-content set has-changes=false and shipped
+                          # nothing — a legal-text fix would sit on the branch until an unrelated
+                          # app change carried it out. Over-deploying costs a build; under-deploying
+                          # is silent. If the wasted builds ever matter, derive the set from
+                          # `nx affected` rather than by hand.
+                          - 'libs/**'
+                          - 'assets/**'
 
             - name: Set matrix for changed projects
               id: set-matrix

@@ -1,146 +1,156 @@
-# ADR-0034: 초대자 번호 인증 — 게스트 사전 게이트와 바텀시트 표현
+# ADR-0034: Inviter phone verification — a guest pre-gate, presented as a bottom sheet
 
-> 상태: Accepted · 결정일: 2026-07-30 · 선행: [ADR-0033](./0033-relay-dm-invite-and-auth-parallel-tracks.md)
+> Status: Accepted · Decided: 2026-07-30 · Follows: [ADR-0033](./0033-relay-dm-invite-and-auth-parallel-tracks.md)
 
-## 맥락 (Context)
+## Context
 
-ADR-0033의 Track A는 `PhoneVerifyScreen`을 만들었고 Track B는 초대 발급 화면을 만들었지만,
-**둘을 잇는 진입점이 배선되지 않았다.** 통합 후 리뷰에서 확인된 사실:
+Track A of ADR-0033 built `PhoneVerifyScreen` and Track B built the invite issuing screen, but **the
+entry point that joins them was never wired.** What the post-integration review found:
 
-- `apps/web/src/app/features/invite/pages/ContactInvitePage.tsx:95` — 발급이 403이면
-  토스트만 띄우고 끝난다. 코드 주석은 "Track A의 `PhoneVerifyScreen`이 착륙하면 그게
-  정식 경로"라고 적혀 있는데 Track A는 이미 머지됐다. 통합에서 닫히지 않은 이음새다.
-- `PhoneVerifyScreen`의 `context: 'invite-create'` 분기는 **호출부가 0개**다 — 타입
-  선언에만 존재하고, `phoneVerify.descriptionInviteCreate` 카피도 앱에서 도달 불가다.
-- 백엔드 가이드 §A-1은 _"막히면 번호 인증(A-1)으로 보내면 된다"_ 고 규정한다.
+- `apps/web/src/app/features/invite/pages/ContactInvitePage.tsx:95` — on a 403 from issuing, it raises a
+  toast and stops. A code comment says "when Track A's `PhoneVerifyScreen` lands, that is the real path",
+  and Track A has already merged. This is a seam integration never closed.
+- `PhoneVerifyScreen`'s `context: 'invite-create'` branch has **zero callers** — it exists only in the
+  type declaration, and the `phoneVerify.descriptionInviteCreate` copy is unreachable in the app.
+- The backend guide §A-1 states that _"when blocked, send the user to phone verification (A-1)"_.
 
-동시에 **디자인이 갱신됐다.** 새 노드 둘:
+At the same time **the design was updated.** Two new nodes:
 
-| 노드         | 무엇                                                                                                                                                   |
-| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `3578-67319` | 게스트 인터셉트 화면 — 친구 초대 헤더 아래 "안전한 초대를 위해 / 휴대폰 번호를 인증해 주세요" + 초록 CTA "휴대폰 번호 인증하기". 폼 대신 이것만 보인다 |
-| `3586-16255` | 번호 인증 **바텀시트** — 타이틀 행("휴대폰 번호 인증" + 원형 X) + 좌측 정렬 안내 2줄 + 번호/인증번호 두 필드 + 완료                                    |
+| Node         | What                                                                                                                                                                                                     |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `3578-67319` | The guest intercept screen — under the Invite friends header, "For a safe invite / please verify your phone number" plus a green CTA, "Verify phone number". That is all that shows, instead of the form |
+| `3586-16255` | Phone verification as a **bottom sheet** — a title row ("Verify phone number" plus a circular X), two left-aligned lines of guidance, the number and code fields, and Done                               |
 
-갱신의 핵심은 **인증이 풀스크린이 아니라 바텀시트**라는 점이고, Track A가 구현한
-풀스크린(`3421-59180`, 수락 흐름)과 표현이 갈라진다. 다만 시트 안의 입력부는
-메타데이터상 `General Input` 두 개가 카운터 슬롯에 `인증 요청`/`재전송`을 넣고
-`[-]제외…` helper와 숨겨진 `인증번호 타임`을 갖는 **기존 구현과 동일한 구조**다.
+The heart of the update is that **verification is a bottom sheet rather than a full screen**, which
+diverges from the full screen Track A built (`3421-59180`, the acceptance flow). The inputs inside the
+sheet are, by their metadata, two `General Input`s with `Request code` / `Resend` in the counter slot,
+a `[-]excluding…` helper and a hidden `code timer` — **the same structure as the existing
+implementation**.
 
-요구사항으로 추가된 제약:
+Added constraints from the requirements:
 
-- 인증은 **게스트 세션일 때만** 시작된다 (403 이후가 아니라 사전 게이트).
-- 컴포넌트는 `libs/web-ui-kit` 기반. 없으면 그 라이브러리에 먼저 정의한다.
-- 아이콘이 있으면 리소스를 따온다.
+- Verification starts **only in a guest session** (a pre-gate, not something after a 403).
+- Components come from `libs/web-ui-kit`. Anything missing is defined there first.
+- Where there is an icon, pull the resource.
 
-조사 결과 **web-ui-kit에 추가할 것이 없다.** 기존 `BottomSheet`가 디자인과 일치한다 —
-`rounded-t-[16px]`, glass 헤더(17px semibold 타이틀 + 우측 닫기),
-닫기 버튼 `size-6 rounded-full bg-muted` + `IconClose size-[18px]`(Figma `3586:16827`의
-24×24 프레임 안 18×18 X와 동일), `footer` 슬롯, `pb-safe-bottom`. 아이콘도
-`IconClose`(lucide `X`)로 이미 있어 추출할 리소스가 없다.
+The survey found **nothing to add to web-ui-kit.** The existing `BottomSheet` matches the design —
+`rounded-t-[16px]`, a glass header (a 17px semibold title plus a close button on the right), the close
+button `size-6 rounded-full bg-muted` plus `IconClose size-[18px]` (identical to the 18×18 X inside
+Figma `3586:16827`'s 24×24 frame), a `footer` slot, and `pb-safe-bottom`. The icon exists as well,
+`IconClose` (lucide `X`), so there is no resource to extract.
 
-## 결정 (Decision)
+## Decision
 
-### 1. 게이트는 세션 역할 기반 사전 게이트다
+### 1. The gate is a pre-gate on the session role
 
-`useRuntimeProfile().isGuest`(`libs/app-runtime/src/runtime/useRuntimeProfile.ts:54`)로
-판정한다. 게스트면 `ContactInvitePage`가 폼 대신 인터셉트 화면을 렌더한다 — 같은 라우트,
-같은 헤더(`친구 초대`)이므로 새 라우트를 만들지 않는다.
+Decide with `useRuntimeProfile().isGuest`
+(`libs/app-runtime/src/runtime/useRuntimeProfile.ts:54`). For a guest, `ContactInvitePage` renders the
+intercept screen instead of the form — the same route and the same header (`Invite friends`), so no new
+route is created.
 
-이 훅은 `useSyncExternalStore` 기반이라 인증 성공 후 **자동으로 뒤집힌다**
-(`applySessionToken` → `loginRelayByToken` → `notifySessionStateChanged()` →
-컨텍스트 캐시 무효화 → 리스너 팬아웃). 별도 리프레시나 수동 갱신이 필요 없다.
+That hook is built on `useSyncExternalStore`, so it **flips by itself** after a successful verification
+(`applySessionToken` → `loginRelayByToken` → `notifySessionStateChanged()` → context cache invalidation
+→ listener fan-out). No separate refresh or manual update is needed.
 
-**403 폴백은 그대로 남긴다.** 가이드가 "메인유저 여부는 서버가 판정한다"고 못박으므로
-클라 게이트는 UX이고 서버 403이 계약이다. 소셜 유저처럼 게스트가 아니면서 발급이
-막히는 경우가 정책 변경으로 생기면 그 경로가 안전망이 된다.
+**The 403 fallback stays.** The guide is explicit that "the server decides whether you are a main user",
+so the client gate is UX and the server's 403 is the contract. If a policy change creates a case where
+issuing is blocked for someone who is not a guest — a social user, say — that path is the safety net.
 
-### 2. 적용 범위는 홈 ＋버튼의 1:1(DM) 초대 진입점 하나다
+### 2. The scope is one entry point: the 1:1 (DM) invite from home's ＋ button
 
-`HomePage.tsx:230`의 `handleCreateOneOnOne` → `ROUTES.invite.contact` 경로에만 게이트를
-단다. 클라우드·그룹 초대 경로(`channels/InvitePage`, `AddFriendSheet`)는 건드리지 않는다.
+The gate attaches only to the `handleCreateOneOnOne` → `ROUTES.invite.contact` path at
+`HomePage.tsx:230`. The cloud and group invite paths (`channels/InvitePage`, `AddFriendSheet`) are
+untouched.
 
-**수락 흐름(Track C)은 불변이다.** `invite.get`의 `needVerify`는 서버가 채우는 필드이고
-가이드 §B-3이 _"`needVerify`를 무시하고 바로 수락해도 서버가 다시 판정해 막는다"_ 고
-명시하므로 클라이언트가 끌 수 있는 스위치가 아니다. 수락 화면은 풀스크린
-(`3421-59180`)과 `useRelayInviteFlow`의 `verifying` 분기를 그대로 유지한다.
+**The acceptance flow (Track C) is unchanged.** `needVerify` on `invite.get` is a field the server fills
+in, and guide §B-3 states that _"accepting immediately while ignoring `needVerify` is still blocked,
+because the server decides again"_, so it is not a switch the client can turn off. The acceptance screen
+keeps the full screen (`3421-59180`) and `useRelayInviteFlow`'s `verifying` branch as they are.
 
-### 3. 본문을 추출하고 셸을 분리한다
+### 3. Extract the body, split the shells
 
 ```
-PhoneVerifyFields   ← 입력·타이머·재전송·에러 분기·세션 전환 (로직 전부)
-├── PhoneVerifyScreen  (풀스크린 Dialog — 기존, 수락 흐름)
-└── PhoneVerifySheet   (BottomSheet — 신규, 발급 흐름)
+PhoneVerifyFields   ← the inputs, timer, resend, error branches, session switch (all the logic)
+├── PhoneVerifyScreen  (a full-screen Dialog — existing, the acceptance flow)
+└── PhoneVerifySheet   (a BottomSheet — new, the issuing flow)
 ```
 
-로드맵 인터페이스 계약 `<PhoneVerifyScreen context inviteCode? onVerified onClose>`의
-시그니처를 **바꾸지 않는다** — Track C의 `RelayInviteDialog`는 무변경이다. 신규 시트는
-같은 props를 받는 형제 컴포넌트다.
+The roadmap's interface contract
+`<PhoneVerifyScreen context inviteCode? onVerified onClose>` **keeps its signature** — Track C's
+`RelayInviteDialog` does not change. The new sheet is a sibling component taking the same props.
 
-`presentation` prop을 더하는 대안을 버린 이유는 아래 "대안" 참고.
+Why the alternative of adding a `presentation` prop was dropped is in "Alternatives" below.
 
-### 4. 계정 갈라짐 방어 배너는 시트에서 제외한다
+### 4. The account-fork warning banner is left out of the sheet
 
-새 디자인에 없으므로 디자인을 따른다. **수락 화면(풀스크린)에는 유지한다** — 가이드가
-배너를 규정한 자리가 그쪽(§알아 둘 제약: "수락 화면에서 … 보여 준다")이다.
+The new design does not have it, and the design wins. **It stays on the acceptance screen (the full
+screen)** — that is where the guide places it ("§constraints to know: show it … on the acceptance
+screen").
 
-감수하는 위험은 "결과"에 기록하고, 디자인 요청 목록에 카피 추가를 올린다.
+The risk accepted is recorded under "Consequences", and adding copy goes on the design request list.
 
-### 5. 완료 CTA는 활성 초록 / 비활성 회색이다
+### 5. The Done CTA is green when enabled, grey when disabled
 
-Figma의 `Solid button_Black` 인스턴스는 비활성 렌더링을 가리킨다. 기존
-`Button tone="green"` + `disabled:bg-control-idle disabled:text-placeholder`가 이미 그
-동작이므로 **구현 변경이 없다.** 수락 화면의 초록 완료와도 일치한다.
+Figma's `Solid button_Black` instance is a rendering of the disabled state. The existing
+`Button tone="green"` plus `disabled:bg-control-idle disabled:text-placeholder` already behaves that
+way, so **no implementation change**. It also matches the green Done on the acceptance screen.
 
-### 포함 / 제외
+### Scope
 
-**포함** — 게스트 인터셉트 화면, `PhoneVerifySheet`, 본문 추출 리팩터,
-`ContactInvitePage` 게이트 배선 + 403 폴백을 시트로 연결, 신규 카피,
-`ContactInvitePage.test.tsx`의 403 토스트 단언 갱신.
+**In** — the guest intercept screen, `PhoneVerifySheet`, the body extraction refactor, wiring the gate
+in `ContactInvitePage` and connecting the 403 fallback to the sheet, the new copy, and updating the 403
+toast assertion in `ContactInvitePage.test.tsx`.
 
-**제외** — 수락 흐름(Track C) 일체, 다른 초대 경로의 게이트, `needVerify` 정책,
-`libs/web-ui-kit` 신규 컴포넌트·아이콘(불필요로 확인), 인증 로직 자체(검증 완료).
+**Out** — the acceptance flow (Track C) entirely, gates on the other invite paths, the `needVerify`
+policy, new `libs/web-ui-kit` components and icons (confirmed unnecessary), and the verification logic
+itself (already verified).
 
-## 대안 (Alternatives)
+## Alternatives
 
-- **`presentation?: 'fullscreen' | 'sheet'` prop 추가** — 파일 하나로 끝나지만 한
-  컴포넌트가 두 셸을 분기해 커지고, 셸별 레이아웃 차이(중앙 정렬 히어로 vs 좌측 정렬
-  안내, 하단 고정 vs footer 슬롯)가 조건문으로 뒤섞인다. 버림.
-- **403 반응형 진입만 유지(사전 게이트 없음)** — 게스트가 이름·번호를 다 채우고 제출한
-  뒤에야 막힌다. 새 디자인이 인터셉트를 명시하므로 버림. 단 폴백으로는 남긴다.
-- **수락 흐름도 바텀시트로 통일** — 두 진입점의 인증 경험이 하나가 되지만 수락 화면
-  Figma는 여전히 풀스크린이고 Track C는 검증이 끝난 영역이다. 디자인 확인 후 별도
-  과제로 버림.
-- **배너를 시트에도 유지** — 가이드가 "유일한 방어"로 규정하지만 새 디자인에 없고,
-  발급 측은 초대를 보내는 쪽이라 노출이 상대적으로 낮다. 사용자 결정으로 버림.
-- **인터셉트를 새 라우트로 분리** — 헤더·타이틀이 동일하고 인증 성공 시 같은 화면에서
-  폼으로 전환돼야 하므로 라우트 전환이 오히려 군더더기다. 버림.
+- **Add a `presentation?: 'fullscreen' | 'sheet'` prop** — one file and done, but a single component then
+  branches over two shells and grows, with the per-shell layout differences (a centred hero vs.
+  left-aligned guidance, a pinned bottom vs. a footer slot) tangled in conditionals. Dropped.
+- **Keep only the reactive 403 entry (no pre-gate)** — a guest fills in the name and number and is blocked
+  only after submitting. The new design specifies an intercept, so dropped. It does stay as a fallback.
+- **Make the acceptance flow a bottom sheet too** — the verification experience would be one thing at both
+  entry points, but the acceptance screen's Figma is still a full screen and Track C is verified territory.
+  Dropped pending design confirmation, as separate work.
+- **Keep the banner in the sheet too** — the guide calls it "the only defence", but the new design lacks
+  it and the issuing side is the one sending the invite, so exposure is relatively lower. Dropped by the
+  user's decision.
+- **Split the intercept into a new route** — the header and title are identical, and a successful
+  verification has to reveal the form on the same screen, so a route change would be superfluous.
+  Dropped.
 
-## 결과 (Consequences)
+## Consequences
 
-**얻는 것**
+**What is gained**
 
-- 게스트가 폼을 채우기 전에 막히므로 헛수고가 없고, ADR-0033의 마지막 미배선 이음새가
-  닫힌다. `context: 'invite-create'`와 그 카피가 죽은 코드에서 벗어난다.
-- 본문 추출로 인증 로직이 한 곳에 남아 셸이 늘어도 분기가 늘지 않는다. 검증된 에러
-  분기·타이머·세션 전환을 복제하지 않는다.
-- `isGuest`가 반응형이라 인증 완료 후 별도 신호 없이 폼이 드러난다.
-- web-ui-kit 신규 컴포넌트가 없어 디자인 시스템 표면이 늘지 않는다.
+- A guest is stopped before filling in the form, so no effort is wasted, and ADR-0033's last unwired seam
+  is closed. `context: 'invite-create'` and its copy stop being dead code.
+- Extracting the body leaves the verification logic in one place, so more shells do not mean more
+  branches. The verified error branches, timer and session switch are not duplicated.
+- Because `isGuest` is reactive, the form appears after verification with no extra signal.
+- With no new web-ui-kit component, the design system surface does not grow.
 
-**감수하는 것**
+**What is accepted**
 
-- **invite-create 경로에 계정 갈라짐 위험이 남는다.** 소셜 이력이 있는 사용자가 이
-  시트에서 번호부터 인증하면 별개 유저가 생기고 나중에 합칠 수 없다(가이드 §알아 둘
-  제약). 서버가 막지 못하고, 이번 결정으로 배너도 없다. 디자인 요청 목록에 올린다.
-- 같은 인증 동작이 진입점에 따라 다른 셸로 보인다(수락=풀스크린, 발급=시트). 디자인
-  확인 후 통일 여지를 남긴다.
-- `ContactInvitePage.test.tsx:112-123`의 403 토스트 단언이 깨진다 — 의도된 변경이므로
-  시트 진입 단언으로 갱신한다.
-- 인터셉트 CTA가 하단 고정이 아니라 카피 바로 아래(화면 상단 1/3)라 레포의 다른
-  풀스크린 폼과 위치 관례가 다르다. 디자인이 명시적이므로 디자인을 따른다.
+- **The account-fork risk remains on the invite-create path.** A user with a social history who verifies
+  by number in this sheet creates a separate user that cannot be merged later (guide §constraints to
+  know). The server cannot prevent it, and with this decision there is no banner either. It goes on the
+  design request list.
+- The same verification looks like a different shell depending on the entry point (acceptance = full
+  screen, issuing = a sheet). Room to unify them is left for after design confirmation.
+- The 403 toast assertion at `ContactInvitePage.test.tsx:112-123` breaks — an intended change, so it is
+  updated to assert the sheet opening.
+- The intercept CTA sits right under the copy (the top third of the screen) rather than pinned to the
+  bottom, which differs from the position convention of other full-screen forms in the repo. The design
+  is explicit, so the design wins.
 
-**되돌리는 조건**
+**When to reverse**
 
-- 디자인이 수락 화면도 시트로 통일하면 — `PhoneVerifyScreen`(풀스크린 셸)을 지우고
-  `PhoneVerifySheet` 하나로 모은다. 본문 추출이 이미 돼 있어 셸 삭제로 끝난다.
-- 백엔드가 발급 측 번호 인증을 필수로 좁히면 — 사전 게이트 조건을 `isGuest`에서
-  "번호 미인증"으로 넓힌다(현재는 소셜 유저도 발급 가능).
+- If the design unifies the acceptance screen into a sheet as well — delete `PhoneVerifyScreen` (the
+  full-screen shell) and keep `PhoneVerifySheet` alone. With the body already extracted, deleting the
+  shell is the whole job.
+- If the backend narrows issuing to require phone verification — widen the pre-gate condition from
+  `isGuest` to "number not verified" (today a social user can issue as well).

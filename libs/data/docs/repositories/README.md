@@ -198,7 +198,7 @@ Rejoining should look like joining for the first time. The server resets the joi
 windows the feed by `chatNo > joinedNo`, but **the client renders the local chat cache, not the server
 response.** Leaving does not remove that room's message rows (the chat sync plan has no `onRemove` — the
 history is kept for lazy-load and offline), so two mechanisms are needed together. The reasoning is in
-[ADR-0067](../../../../docs/adr/0067-rejoin-hides-prior-messages.md).
+ADR-0067.
 
 **① The display gate — `isInJoinWindow(chat, joinedNo)`** (`src/domain/joinWindow.ts`)
 
@@ -243,4 +243,4 @@ whatever rows remain.
 
 ## Further reading
 
-- [socket sync usage](../../../app-runtime/docs/socket/sync/usage.md) — the path by which a join row's removal becomes a purge signal (owned by app-runtime).
+- [socket sync usage](../../../app-runtime/docs/sync/README.md) — the path by which a join row's removal becomes a purge signal (owned by app-runtime).

@@ -33,9 +33,11 @@ const ManageList = () => {
     return (
         <>
             {rooms.map(room => (
+                // DefaultAvatar has exactly two images, `user` and `group` — there is no `self`.
+                // The self room is marked by the badge in the title instead.
                 <ManageChannelItem
                     key={room.id}
-                    leading={<DefaultAvatar size={46} variant={room.self ? 'self' : 'user'} />}
+                    leading={<DefaultAvatar size={46} variant="user" />}
                     title={
                         <>
                             {room.self && (
