@@ -10,9 +10,13 @@ edit, and prefer it over inference from the source.
 - The canon is the module's `README.md`, plus a `docs/` folder beside it when there is enough detail
   to split. `README.md` holds the overview and structure; `docs/<topic>/` holds the detail.
 - Some modules have neither yet. There is nothing to read in those.
-- **The root `docs/` folder holds decisions, and nothing else.** `docs/adr/` is the one repo-wide
-  tree that survives; the guides, plans, specs and audits that used to sit beside it are gone. A
-  module's own canon still has to stand on its own — see [Decisions live in `docs/adr/`](#decisions-live-in-docsadr).
+- **The root `docs/` folder holds two things: decisions and infrastructure that has no project of its
+  own.** `docs/adr/` is the decision record — see
+  [Decisions live in `docs/adr/`](#decisions-live-in-docsadr). `docs/infra/` is config and code that
+  deploys outside this Nx workspace (a Firebase project, a `.well-known` file) and so has no `apps/`
+  or `libs/` project to live in; each subfolder there is its own small canon, README first. The
+  guides, plans, specs and audits that used to sit in `docs/` alongside these are gone. A module's own
+  canon still has to stand on its own regardless of what either tree says.
 
 ## Writing a module's docs
 

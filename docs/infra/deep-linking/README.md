@@ -1,118 +1,53 @@
-# Deep Linking Assets
+# Deep-linking assets
 
-딥링크 시스템 구성에 필요한 에셋들입니다.
+The Firebase-side pieces of the deferred-deep-link flow — the part with no home in an Nx
+project because it deploys to Firebase, not to an app or a lib.
 
-## 파일 구조
-
-```
-deep-linking-assets/
-├── README.md                    # 이 파일
-├── firestore.indexes.json       # Firestore 인덱스 설정
-├── firestore.rules              # Firestore 보안 규칙 (있는 경우)
-└── firebase-functions/          # Cloud Functions
-    ├── index.ts                 # 만료된 링크 정리 함수
-    ├── package.json
-    └── tsconfig.json
+```text
+docs/infra/deep-linking/
+├── README.md                     this file
+├── web-deferred-deeplink.ts      the landing-page write path (Firestore doc shape, TTL)
+├── firestore.rules               create/read/delete open, update closed
+├── firestore.indexes.json        the fingerprint + expiresAt composite index
+├── firebase-functions/           scheduled + HTTP cleanup of expired links
+└── .well-known/                  apple-app-site-association, assetlinks.json
 ```
 
----
+The landing page that writes a `deferredDeepLinks` document lives in
+[`apps/landing`](../../../apps/landing/README.md) (`features/deeplink/`), and the app that reads one
+back is `apps/mobile` — see [its deeplink doc](../../../apps/mobile/docs/deeplink.md). Neither imports
+`web-deferred-deeplink.ts` directly; it is the reference shape for what the landing page writes and
+Firestore stores, not a shared module.
 
-## 1. Firestore 인덱스 배포
-
-### 방법 1: Firebase CLI
+## Deploying the Firestore index
 
 ```bash
-# Firebase 프로젝트 루트에서
-cp docs/deep-linking-assets/firestore.indexes.json firestore.indexes.json
+cp docs/infra/deep-linking/firestore.indexes.json firestore.indexes.json
 firebase deploy --only firestore:indexes
 ```
 
-### 방법 2: Firebase Console (UI)
+Or in the Firebase console: Firestore → Indexes → composite index on `deferredDeepLinks`,
+`fingerprint` (ascending) then `expiresAt` (descending).
 
-1. Firebase Console → Firestore Database → 인덱스 탭
-2. "복합 인덱스 만들기" 클릭
-3. 설정:
-    - **컬렉션 ID**: `deferredDeepLinks`
-    - **필드 1**: `fingerprint` (Ascending)
-    - **필드 2**: `expiresAt` (Descending)
-
----
-
-## 2. Cloud Functions 배포
-
-만료된 deferred deep link를 자동으로 정리하는 함수입니다.
-
-### 설치 및 배포
+## Deploying the cleanup functions
 
 ```bash
-# 1. Firebase Functions 폴더로 이동
-cd docs/deep-linking-assets/firebase-functions
-
-# 2. 의존성 설치
+cd docs/infra/deep-linking/firebase-functions
 npm install
-
-# 3. 빌드 및 배포
 npm run deploy
 ```
 
-### 함수 목록
-
-| 함수명                            | 타입      | 설명                               |
+| Function                          | Trigger   | Does                               |
 | --------------------------------- | --------- | ---------------------------------- |
-| `cleanupExpiredDeferredLinks`     | Scheduled | 매시 정각에 실행, 만료된 링크 삭제 |
-| `cleanupExpiredDeferredLinksHttp` | HTTP      | 수동 트리거용 엔드포인트           |
+| `cleanupExpiredDeferredLinks`     | Scheduled | Runs hourly, deletes expired links |
+| `cleanupExpiredDeferredLinksHttp` | HTTP      | Same cleanup, for a manual trigger |
 
-### 로그 확인
+`firebase functions:log` shows the run history.
 
-```bash
-firebase functions:log
-```
+## Firestore rules
 
----
-
-## 3. Firestore 보안 규칙 (권장)
-
-```javascript
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    // Deferred deep links - 웹에서 쓰기, 앱에서 읽기/삭제
-    match /deferredDeepLinks/{docId} {
-      // 누구나 생성 가능 (랜딩 페이지에서)
-      allow create: if true;
-
-      // fingerprint가 일치하면 읽기/삭제 가능
-      allow read, delete: if true;
-
-      // 수정은 불가
-      allow update: if false;
-    }
-  }
-}
-```
-
-**주의**: 위 규칙은 기본 예시입니다. 프로덕션에서는 요청 레이트 제한, 문서 크기 제한 등 추가 보안 조치가 필요할 수 있습니다.
-
----
-
-## 4. 랜딩 페이지 배포
-
-- **Production**: `libs/deeplinks/src/landing-page/index.html` → `app.chatic.io`
-- **Development**: `libs/deeplinks/src/landing-page/index.dev.html` → `app-dev.chatic.io`
-
-### Firebase Hosting 설정 예시
-
-```json
-{
-    "hosting": {
-        "public": "public",
-        "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
-        "rewrites": [
-            {
-                "source": "**",
-                "destination": "/index.html"
-            }
-        ]
-    }
-}
-```
+`firestore.rules` in this folder is the deployed policy: anyone can create a `deferredDeepLinks`
+document (the landing page has no auth), anyone can read or delete one (matched by `fingerprint`,
+not by owner), and updates are closed — a link is written once and only ever deleted, never edited.
+That is intentionally permissive; it relies on the fingerprint being unguessable and the TTL cleanup
+above, not on access control.
