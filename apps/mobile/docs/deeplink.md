@@ -1,5 +1,9 @@
 # Deep Link
 
+The deferred-deep-link backend (Firestore rules/indexes, cleanup functions, `.well-known` assets)
+lives outside this app, at [docs/infra/deep-linking/](../../../docs/infra/deep-linking/README.md) —
+this doc covers only what runs inside the shell once a link arrives.
+
 Universal links, the custom scheme, and a push notification tap all converge on **one goal**: turn
 the inbound intent into a `WEBVIEW_URL`-relative `path`, and hand it to the web via the `OnNavigate`
 bridge event. The shell never recomputes the frontend domain — the base is always `WEBVIEW_URL`

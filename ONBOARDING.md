@@ -76,3 +76,11 @@ None of these release/signing credentials are committed — `.gitignore` exclude
 `.env*` (aside from desktop's non-secret `.env.dev`/`.env.production`), every
 `GoogleService-Info-{Dev,Prod}.plist`, `google-services.json`, `*.keystore` (except
 `debug.keystore`), and `*.p8`. Only the `.example` templates are tracked.
+
+## Not needed for local dev — deployed infra, not app config
+
+[`docs/infra/`](./docs/infra/) holds config/code that deploys outside the Nx workspace, to Firebase
+rather than to an app or a lib. [`docs/infra/deep-linking/`](./docs/infra/deep-linking/README.md)
+is the current example: the Firestore rules, indexes, and cleanup functions behind the deferred
+deep-link flow. Deep links and universal links themselves work locally with no setup from this
+folder — it only matters to whoever deploys or changes that backend.
