@@ -1,5 +1,146 @@
 # Changelog
 
+## [2026-09-15] - root@0.62.2, @chatic/web@0.49.4, @chatic/landing@0.4.2, @chatic/desktop-web@0.12.2
+
+### Bug Fixes
+
+- rescue the deep-link assets from the deleted docs tree
+- (web-ui-kit) fix the three story errors and type check stories again
+
+### Documentation
+
+- (onboarding) note deep-linking infra is deploy-only, not local dev setup
+- (readme) add ONBOARDING.md and link to it from Environment Setup
+- (agents) require English for docs, comments, commits, and PR title/body
+- (github) drop Related Workflowy and add a Verification checklist to the PR template
+- (agents) add review and result-document rules to the harness
+- (adr) renumber the 9 duplicate ADR numbers to be unique
+- (readme) sync the app/lib inventory, license badge, and architecture diagram
+- (agents) add the stale-dist and nx-sync verification traps
+- (agents) rewrite AGENTS.md as rules, not explanation
+- (agents) remove the libs/data worked-example framing from AGENTS.md
+- (agents) drop the four rules, the never-goes-in table and both skeletons
+- (agents) point AGENTS.md at README.md for repo orientation
+- (agents) fix a self-contradiction docs/infra/ left in the link rule
+- (infra) rewrite the deep-linking README and finish the docs/ canon update
+- move infra/deep-linking under docs/infra/
+- (mobile) drop the stale korean/sendlogbatch caveat from the README
+- (mobile) fix stale web-side theme references
+- (mobile) rewrite the deeplink doc in english
+- (mobile) rewrite the webview doc in english
+- (mobile) rewrite the boot-metrics doc in english
+- (mobile) rewrite the deploy doc in english
+- (mobile) rewrite the push doc in english
+- (mobile) rewrite the webview-debugging doc in english
+- (mobile) rewrite the theme doc in english
+- (mobile) rewrite the upload doc in english
+- (mobile) rewrite the app-update doc in english
+- (mobile) rewrite the service doc in english
+- (mobile) rewrite the cache doc in english
+- (mobile) rewrite the badge doc in english
+- (mobile) rewrite the native-module doc in english
+- (mobile) rewrite the boot-optimization doc in english
+- (mobile) rewrite the local-run doc in english
+- (web) rewrite the data flow and routing docs in english
+- (web) rewrite the layout shell doc in english
+- (adr) rewrite ADR-0032 through 0085 in english
+- (web) rewrite the logging doc in english
+- (web) rewrite the native bridge doc in english
+- (web) rewrite the theme doc in english
+- (web) rewrite the debug panel architecture doc in english
+- (web) rewrite the stores doc in english
+- (web) rewrite the directory structure doc in english
+- (adr) rewrite ADR-0023 through 0031 in english
+- (web) point the architecture index at the app readme
+- (web) state the channel rules in the present tense
+- (web) 스코핑 문서에서 철회된 설계를 걷어낸다
+- (web) rewrite the channels readme as the group's entry point
+- (adr) rewrite ADR-0006 through 0022 in english
+- (web) rewrite the mypage group doc in english
+- (web) rewrite the channel invite doc in english
+- (web) 플레이스 문서를 README 하나로 합친다
+- (web) rewrite the relay invite sender doc around the retire rule
+- (web) merge the dm and self chat docs into one stereo doc
+- (web) rewrite the relay invite accept doc against the code
+- (web) rewrite the feedback group doc in english
+- (web) rewrite the auth entry point and fold two files into it
+- (web) merge the settings page and its dialogs into one doc
+- (web) make the invite readme the group's map, not a pointer
+- (web) rewrite the debug group doc and fold the entry gate into it
+- (web) rewrite the international phone input doc in english
+- (web) 구독 문서를 그룹 README 하나로 접는다
+- (web) rewrite the reactions and threads doc against the code
+- (web) 홈 README를 그룹 진입점으로 다시 쓰고 둘을 지운다
+- (web) rewrite the phone verification doc in english
+- (web) merge push crossover routing into the notifications readme
+- bring the ADRs back into the repo
+- (web) fold the three room documents into one chat-room doc
+- (web) rewrite the account-linking contract in english
+- (web) 생성 흐름 문서를 계획서에서 참조 문서로 바꾼다
+- (web) rewrite the onboarding group doc in english
+- (web) rewrite the push device-token doc as a shell adapter contract
+- (web) 플레이스 프로필 문서 둘을 하나로 합친다
+- (web) correct where the linked-credential state is read from
+- (web) rewrite the channels data layer doc in english
+- (web) 언리드 표시 문서를 웹이 소유한 범위로 줄인다
+- (web) rewrite the account-linking screen doc in english
+- (web) 홈 미리보기 문서를 현재 구현에 맞춘다
+- (web) rewrite the account group entry point in english
+- (landing) name the six packages the dependency table weighs
+- (landing) give the public site its own canon
+- (mobile) fold architecture into the readme and rewrite it in english
+- (web) 서버 직통 금지 규칙에 확인 명령과 예외를 붙인다
+- (web) 앱 루트에 README를 두고 docs 인덱스를 접는다
+- (auth-sign) make the comments describe the code, not its history
+- (web) rewrite the architecture entry point in english
+- repoint what wp-9b moved, in markdown and in source comments
+- (app-runtime) rewrite the data, http and push topics
+- (app-runtime) rewrite the socket and sync topics
+- (app-runtime) split the session hub and socket auth into topics
+- (app-runtime) fold the architecture spec into the readme
+- (bridges) rewrite the readme against the code it describes
+- (app-messages) rewrite the readme as the module's canon
+- (policy-content) document the versioning and delivery contract
+- (ui-kit) write the module canon over the nx scaffold
+- (theme) replace the nx scaffold with the shared-key contract
+- (device-utils) replace the nx scaffold with the shell-globals contract
+- correct three readmes my own later commits falsified
+- remove the root docs tree and fold its canon into AGENTS.md
+- (config) write the module canon, and drop the implementation log
+- (logger) give the lib a readme and split its docs by subject
+- (shared) describe the barrel that is left
+- (http) fold the architecture doc into a README
+- record wave 1 and the three findings that outgrew it
+- (shared) write the module canon, and name what shared has become
+- (web-ui-kit) rewrite the README around the ui-kit boundary
+- (http) repoint the auth-sign link at its readme
+- (db) fold the architecture doc into the README
+- (auth-sign) fold the architecture doc into a readme
+- record that the whole root docs tree is being retired
+- make the README the entry point in every module
+- set the module doc canon and plan the libs rollout
+
+### Refactor
+
+- (shared) remove the exports no consumer reaches
+
+### Other
+
+- test: (data) cover stableHash, SyncMetaRepository, and httpUserMapping
+- ci: deploy an app when the libs it compiles in change
+- build: (web-ui-kit) resolve the storybook typings by name, not by relative path
+- build: (app-runtime) type check the 77 spec files
+- build: (http) type check the spec project, and fix the mocks it caught
+- build: (config) type check the spec project, and fix the fixture it caught
+- test: (auth-sign) assert the signer ignores the global, not that it is absent
+- build: (logger) type check the 21 spec files
+- ci: type check web-ui-kit and web, and repoint the avatar links
+- build: (shared) type check the test files
+- build: (web-ui-kit) type check the 75 spec files
+- build: (db) type check the tests
+- build: (auth-sign) type check the spec files
+- build: name every lib a workspace so nx can see their tests
+
 ## [2026-09-14] - root@0.62.1, @chatic/web@0.49.3, @chatic/desktop-web@0.12.1
 
 ### Refactor
