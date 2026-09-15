@@ -80,7 +80,7 @@ same branch:
 
 Self and DM ignore `channel.thumbnail` entirely: neither room has a way to set one — settings routes
 both to the join-nick dialog — and the row stands for a person. Deciding the glyph separately per
-screen is what once left a group showing a one-person glyph in the home list and a chat-bubble
+screen is how a group ends up with a one-person glyph in the home list and a chat-bubble
 placeholder in settings.
 
 ## Finding the peer
@@ -120,9 +120,8 @@ rather than from `useDmPeer` (which consumes the profile map — reading it ther
 
 ## When the 1:1 peer leaves
 
-A DM whose peer is gone used to be a dead end: nothing said so, messages could still be sent to
-nobody, and there was no way to bring them back. Three things answer that now, all driven by one
-derivation.
+A DM with nobody on the other side has to say so, refuse to send into it, and offer a way back.
+Three pieces do that, all driven by one derivation.
 
 ### `hasLeftChannel` — has this person actually left?
 

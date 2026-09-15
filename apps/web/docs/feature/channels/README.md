@@ -147,8 +147,9 @@ Files whose contents the name does not give away:
   questions about a join row that nothing else can answer.
 - `utils/displayName.ts` — the one chain that turns a user id into a name.
 
-The native bridge is used in four places and nothing new is asked of it: `getContacts`,
-`openShareSheet`, `openSettings` and `openURL`.
+Six native bridge calls are made from this feature and no new capability is asked of the shell:
+`getContacts`, `openShareSheet`, `openSettings`, `openURL`, `copyClipBoard` and
+`fetchUrlMetadata`.
 
 ## Usage
 

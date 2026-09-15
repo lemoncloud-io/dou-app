@@ -76,8 +76,8 @@ keeps rendering them. That detail belongs to the hook; see [data-layer.md](./dat
 
 One list, shared by the group section and the self chat's, built from `useChannelMembers` and
 decorated with `useChannelProfiles`. A row resolves its name as **place-profile nick → the user
-row's name → "me" / "unknown user"**. The member id is deliberately not a rung: it used to sit
-before the label, so an unresolved member showed a raw UUID and the label was unreachable.
+row's name → "me" / "unknown user"**. The member id is deliberately not a rung: put it before the
+label and an unresolved member shows a raw UUID, with the label unreachable.
 
 Badges are `owner` and `mine`. **There is no "invite pending" badge**, and its absence is a
 decision: the join counter reads `0` both for "invited, never came in" and for "left", so badging on

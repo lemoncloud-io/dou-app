@@ -39,9 +39,9 @@ utils/
 
 The page decides **what the room means**: which stereo it is, who the participants are, what is
 read, what may be sent. It does not decide how a bubble looks. The rule that keeps this honest is
-that a stereo branch lives in a component, not in the page — `ChannelRoomPage` holds seven stereo
-branches and passes a `variant` or a gate everywhere else. `RoomIntro` is the model: one component,
-three variants, one call site.
+that a stereo branch lives in a component, not in the page: `ChannelRoomPage` derives `isSelfChat`
+/ `isDmChat` / `isGroupChat` and then passes a `variant` or a gate down. `RoomIntro` is the model —
+one component, three variants, one call site.
 
 ## The header
 
@@ -272,9 +272,10 @@ pin always won.
 
 ## Notes for implementers and tests
 
-- `ChannelRoomPage` has no test file (1,100 lines, 48 hook calls). Logic added for this screen goes
-  into a pure util or a component so it can be tested — that constraint is why `orderMemberIds`,
-  `systemMessage`, `chatAttachment`, `messageTokens` and `displayName` exist as pure modules.
+- `ChannelRoomPage` has no test file, and it is the largest file in the feature. Logic added for
+  this screen goes into a pure util or a component so it can be tested — that constraint is why
+  `orderMemberIds`, `systemMessage`, `chatAttachment`, `messageTokens` and `displayName` exist as
+  pure modules.
 - Attachment behaviour is pinned by `chatAttachment.test.ts` (scheme filter, empty attachment,
   colour mapping) and `MessageAttachment.test.tsx` (field rendering, external open, no link for a
   dangerous scheme, rail colour, seconds-based `ts`).

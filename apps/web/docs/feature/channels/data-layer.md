@@ -96,7 +96,7 @@ another member's join row to a non-member, so a room reached by a stale push wou
 `useChannelJoins` exists because four consumers wanted the same join list: the roster's read state,
 the read cursors, my own row (nick / notify) and the active-member set. They shared the storage
 read and not the React state, so one join write produced three callbacks and three derivations.
-The screen now subscribes once and passes `joins` down — `useChannelMembers` takes them as a
+The screen subscribes once and passes `joins` down — `useChannelMembers` takes them as a
 parameter rather than opening its own observer.
 
 ### `myJoin`, never `channel.$join`
@@ -230,9 +230,9 @@ needs the `sid` off the channel row.
 - **Do not treat the first `null` from `observeItem` as a missing channel.** It answers from the
   local cache alone, so a room the device has never seen answers `null` while the fetch is in
   flight. `useChannel` keeps `isLoading` true until a row arrives or a 10s timeout turns it into
-  `isError`; acting on that first `null` used to redirect home, which unmounted the sync that would
-  have cached the row, and the room could never be opened again. A `null` _after_ a row has been
-  seen is a real removal and resolves immediately.
+  `isError`. Acting on that first `null` — redirecting home, say — unmounts the sync that would have
+  cached the row, and the room can never be opened again. A `null` _after_ a row has been seen is a
+  real removal and resolves immediately.
 
 ## Notes for implementers and tests
 
