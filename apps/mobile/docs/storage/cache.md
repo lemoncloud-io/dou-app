@@ -32,7 +32,7 @@ flowchart TD
 ## Data sources
 
 `services/provider.ts` builds ten `data/cache/*DataSource` instances lazily, all over the same
-`SqliteDatabase` handle (see [boot-optimization.md](./boot-optimization.md)):
+`SqliteDatabase` handle (see [../boot/boot-optimization.md](../boot/boot-optimization.md)):
 
 | File                       | Domain                                                     |
 | -------------------------- | ---------------------------------------------------------- |
@@ -94,7 +94,7 @@ a time turned into real cost — 50 chat rows saved as 51 round trips.
   (`AppBridgeHost.processRequest`), and `NativeDBAdapter.loadMany` in `libs/db` treats that as a
   one-time signal to fall back to per-id fetches for the rest of that session. Adding a new cache
   message needs this fallback path covered on the web side too, because the web ships ahead of the
-  app — see [`@chatic/db`](../../../libs/db/README.md).
+  app — see [`@chatic/db`](../../../../libs/db/README.md).
 
 ## Handlers that send no response
 

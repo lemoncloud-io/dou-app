@@ -1,7 +1,7 @@
 # Deep Link
 
 The deferred-deep-link backend (Firestore rules/indexes, cleanup functions, `.well-known` assets)
-lives outside this app, at [docs/infra/deep-linking/](../../../docs/infra/deep-linking/README.md) —
+lives outside this app, at [docs/infra/deep-linking/](../../../../docs/infra/deep-linking/README.md) —
 this doc covers only what runs inside the shell once a link arrives.
 
 Universal links, the custom scheme, and a push notification tap all converge on **one goal**: turn
@@ -18,7 +18,7 @@ path for the web to read.
 | `src/app/services/deeplinks/DeeplinkService.ts`           | The single resolver: `resolveInbound(url)` (`web`/`native`/`invalid`) and `resolvePushTap(data)`                                                                                            |
 | `src/app/services/deeplinks/deeplinkUtils.ts`             | Pure helpers: validation, invite conversion (`convertShortUrlWithEnvsSync`), path reduction (`resolveDeepLink`), cid/sid merge (`resolvePushTapPath`)                                       |
 | `src/app/webview/hooks/useDeepLinkNavigation.ts`          | Single owner of inbound navigation: OS links, invite links and push taps → `OnNavigate` (web) / `navigationRef` (native) / the error screen                                                 |
-| `src/app/features/core/navigation/navigationRef.ts`       | Shared navigation ref for applying `target=native` routes (see [push.md](./push.md))                                                                                                        |
+| `src/app/features/core/navigation/navigationRef.ts`       | Shared navigation ref for applying `target=native` routes (see [../push/README.md](../push/README.md))                                                                                                        |
 | `apps/web/.../bridge/navigation/resolvePushNavigation.ts` | (web) Extracts and strips `cid`/`sid` from the `OnNavigate` path and switches cloud/site                                                                                                    |
 
 ## Structure
@@ -36,7 +36,7 @@ flowchart TD
 ```
 
 The bridge buffers `OnNavigate` until the `WebAppReady` handshake completes (see
-[webview.md](./webview.md)), so a cold-start link or tap is delivered as soon as the web is ready —
+[../webview/README.md](../webview/README.md)), so a cold-start link or tap is delivered as soon as the web is ready —
 no manual startup delay is needed.
 
 ## Invite link conversion

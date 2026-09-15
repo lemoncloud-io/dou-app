@@ -2,7 +2,7 @@
 
 `BootMetricsService` (`src/app/services/perf/BootMetricsService.ts`) times the app launch, from
 process start to WebView interactivity, on both the native and web sides, and persists one record per
-boot into an MMKV ring buffer. See also [webview.md](./webview.md) and [service.md](./service.md).
+boot into an MMKV ring buffer. See also [../webview/README.md](../webview/README.md) and [../native/service.md](../native/service.md).
 
 ## Timeline
 

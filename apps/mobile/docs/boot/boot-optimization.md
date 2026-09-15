@@ -34,7 +34,7 @@ flowchart TD
    losing a boot-window crash report is worse than the delay it avoids.
 4. **External contracts survive.** Collapsing the navigator into one stack keeps route names,
    `navigationRef` semantics, and the deep-link `OnNavigate` path unchanged — see
-   [deeplink.md](./deeplink.md).
+   [../system/deeplink.md](../system/deeplink.md).
 
 ## What is deferred, and how
 
@@ -86,7 +86,7 @@ callback bodies rather than destructuring it at the top of the hook, so renderin
 itself trigger construction.
 
 The first SQLite-backed message the web sends — cache, search, upload, or test-record — is what
-actually opens the database. See [cache.md](./cache.md) and [upload.md](./upload.md).
+actually opens the database. See [../storage/cache.md](../storage/cache.md) and [../storage/upload.md](../storage/upload.md).
 
 ## Out of scope
 
@@ -95,9 +95,9 @@ here — none of them sit on this app's native pre-WebView path.
 
 ## Verification
 
-- [`buildDeviceInfoParams.test.ts`](../src/app/webview/utils/buildDeviceInfoParams.test.ts) covers
+- [`buildDeviceInfoParams.test.ts`](../../src/app/webview/utils/buildDeviceInfoParams.test.ts) covers
   the cached-value mapping into the injected `DeviceInfoParams`.
-- [`deeplinkUtils.test.ts`](../src/app/services/deeplinks/deeplinkUtils.test.ts) covers the
+- [`deeplinkUtils.test.ts`](../../src/app/services/deeplinks/deeplinkUtils.test.ts) covers the
   single-stack native route state (`Main`/`Modal` as top-level siblings).
 - Boot timing itself is not asserted by a unit test — it is read from the on-device timeline in
   [boot-metrics.md](./boot-metrics.md) (FAB debug menu › Boot Performance). Reordering anything

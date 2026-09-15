@@ -1,6 +1,6 @@
 # Theme — light default and the web↔native sync
 
-> Related: [webview.md](./webview.md) (the injection table) · [boot-optimization.md](./boot-optimization.md) (the boot path) · [apps/web theme doc](../../web/docs/architecture/theme.md) (web-internal state and DOM application)
+> Related: [../webview/README.md](../webview/README.md) (the injection table) · [../boot/boot-optimization.md](../boot/boot-optimization.md) (the boot path) · [apps/web theme doc](../../../web/docs/architecture/theme.md) (web-internal state and DOM application)
 
 **This document owns the web↔native theme contract** — the value model, the default, the storage
 format, and the boot-time sync. `apps/web/docs/architecture/theme.md` covers only the web-internal
@@ -155,13 +155,13 @@ flowchart LR
 
 | File                                                                                              | Role                                                                                                                                                                                                                                              |
 | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`stores/themeStore.ts`](../src/app/stores/themeStore.ts)                                         | `ThemeMode` state, initialized from a synchronous MMKV read. No zustand `persist`.                                                                                                                                                                |
-| [`stores/themeMode.ts`](../src/app/stores/themeMode.ts)                                           | The pure value model — `ThemeMode`, `DEFAULT_THEME_MODE`, `parseThemeMode`. No storage or provider dependency, so a value-only consumer (the bridge handler) does not have to pull in the services provider to be tested against the real parser. |
-| [`stores/themeStorage.ts`](../src/app/stores/themeStorage.ts)                                     | Reads/writes the `theme` key, migrates legacy formats, folds envelope `'system'`.                                                                                                                                                                 |
-| [`database/mmkv/MmkvStorage.ts`](../src/app/database/mmkv/MmkvStorage.ts)                         | `getSync`/`setSync` — MMKV is natively synchronous, so the existing async methods now just wrap these.                                                                                                                                            |
-| [`services/preference/PreferenceService.ts`](../src/app/services/preference/PreferenceService.ts) | Exposes the sync methods; `themeStore` does not bypass this service layer.                                                                                                                                                                        |
+| [`stores/themeStore.ts`](../../src/app/stores/themeStore.ts)                                         | `ThemeMode` state, initialized from a synchronous MMKV read. No zustand `persist`.                                                                                                                                                                |
+| [`stores/themeMode.ts`](../../src/app/stores/themeMode.ts)                                           | The pure value model — `ThemeMode`, `DEFAULT_THEME_MODE`, `parseThemeMode`. No storage or provider dependency, so a value-only consumer (the bridge handler) does not have to pull in the services provider to be tested against the real parser. |
+| [`stores/themeStorage.ts`](../../src/app/stores/themeStorage.ts)                                     | Reads/writes the `theme` key, migrates legacy formats, folds envelope `'system'`.                                                                                                                                                                 |
+| [`database/mmkv/MmkvStorage.ts`](../../src/app/database/mmkv/MmkvStorage.ts)                         | `getSync`/`setSync` — MMKV is natively synchronous, so the existing async methods now just wrap these.                                                                                                                                            |
+| [`services/preference/PreferenceService.ts`](../../src/app/services/preference/PreferenceService.ts) | Exposes the sync methods; `themeStore` does not bypass this service layer.                                                                                                                                                                        |
 
-[`languageStore`](../src/app/stores/languageStore.ts) still uses `persist` + `storageAdapter` — language
+[`languageStore`](../../src/app/stores/languageStore.ts) still uses `persist` + `storageAdapter` — language
 is not a first-paint value, so an async restore is not a problem there.
 
 **Storage format.** MMKV values follow `MmkvStorage`'s `JSON.stringify`/`JSON.parse` convention.
@@ -179,25 +179,25 @@ An unrecognized value falls back to `'light'`.
 
 | File                                                                                            | Role                                                                                                                          |
 | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| [`features/core/components/SystemBars.tsx`](../src/app/features/core/components/SystemBars.tsx) | Status bar and Android system bar application; subscribes to `AppState` and `Dimensions` for idempotent reapplication.        |
-| [`bridge/SystemBarsBridge.ts`](../src/app/bridge/SystemBarsBridge.ts)                           | Android native module wrapper.                                                                                                |
-| [`hooks/useResolvedTheme.ts`](../src/app/hooks/useResolvedTheme.ts)                             | `mode` → `resolvedTheme`/`isDark`/`backgroundColor`. `getThemeBackgroundColor` is the single source for the background color. |
+| [`features/core/components/SystemBars.tsx`](../../src/app/features/core/components/SystemBars.tsx) | Status bar and Android system bar application; subscribes to `AppState` and `Dimensions` for idempotent reapplication.        |
+| [`bridge/SystemBarsBridge.ts`](../../src/app/bridge/SystemBarsBridge.ts)                           | Android native module wrapper.                                                                                                |
+| [`hooks/useResolvedTheme.ts`](../../src/app/hooks/useResolvedTheme.ts)                             | `mode` → `resolvedTheme`/`isDark`/`backgroundColor`. `getThemeBackgroundColor` is the single source for the background color. |
 
 Orientation detection filters `Dimensions`' `'change'` event down to an actual landscape/portrait
 flip: the raw event also fires on Android `adjustResize` keyboard open/close, and reapplying on every
 keyboard toggle would cross the native bridge for no reason.
 
-Background color is unified at three call sites: [`webview/AppWebView.tsx`](../src/app/webview/AppWebView.tsx),
-[`features/core/components/ResumeOverlay.tsx`](../src/app/features/core/components/ResumeOverlay.tsx)
-and [`features/main/screens/MainScreen.tsx`](../src/app/features/main/screens/MainScreen.tsx) all read
+Background color is unified at three call sites: [`webview/AppWebView.tsx`](../../src/app/webview/AppWebView.tsx),
+[`features/core/components/ResumeOverlay.tsx`](../../src/app/features/core/components/ResumeOverlay.tsx)
+and [`features/main/screens/MainScreen.tsx`](../../src/app/features/main/screens/MainScreen.tsx) all read
 `useResolvedTheme().backgroundColor` instead of a local light/dark constant.
-[`features/main/screens/ModalScreen.tsx`](../src/app/features/main/screens/ModalScreen.tsx) keeps a
+[`features/main/screens/ModalScreen.tsx`](../../src/app/features/main/screens/ModalScreen.tsx) keeps a
 hardcoded `#1E1E1E` for its modal surface — out of scope, treated as an intentional surface color, not
 a background.
 
 ### Bridge input validation
 
-[`usePreferenceCacheHandler.ts`](../src/app/webview/hooks/usePreferenceCacheHandler.ts)'s `theme` case
+[`usePreferenceCacheHandler.ts`](../../src/app/webview/hooks/usePreferenceCacheHandler.ts)'s `theme` case
 validates with `parseThemeMode` before writing to the store; an unrecognized value is rejected with
 `PREF_INVALID_VALUE` rather than stored. Without this, an invalid value would persist verbatim and
 degrade the status bar to light on every subsequent boot with no trace of why.
@@ -206,8 +206,8 @@ degrade the status bar to light on every subsequent boot with no trace of why.
 
 | File                                                                                | Role                                                                                         |
 | ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| [`webview/utils/injectionScripts.ts`](../src/app/webview/utils/injectionScripts.ts) | `getThemeScript(mode)` sets `window.CHATIC_APP_THEME`, folded into `getSyncInjectionScript`. |
-| [`webview/AppWebView.tsx`](../src/app/webview/AppWebView.tsx)                       | Passes `useThemeStore`'s mode as an injection parameter.                                     |
+| [`webview/utils/injectionScripts.ts`](../../src/app/webview/utils/injectionScripts.ts) | `getThemeScript(mode)` sets `window.CHATIC_APP_THEME`, folded into `getSyncInjectionScript`. |
+| [`webview/AppWebView.tsx`](../../src/app/webview/AppWebView.tsx)                       | Passes `useThemeStore`'s mode as an injection parameter.                                     |
 
 `AppWebView`'s `injectedJavaScriptBeforeContentLoaded` runs before the document parses, so
 `index.html`'s pre-paint script can read this value. The value is `JSON.stringify`-escaped before
@@ -228,15 +228,15 @@ no push, since the side that changed it (the web) already knows.
 ### Web side
 
 Web owns `ui.theme` as a `@chatic/config` registry key (`persist: 'shell'`, default `'light'`) — the
-consuming detail is the [web theme doc](../../web/docs/architecture/theme.md)'s. This document's
+consuming detail is the [web theme doc](../../../web/docs/architecture/theme.md)'s. This document's
 concern is only the second channel that config write does not cover:
 
 | File                                                                             | Role                                                                                                                                                                                                                          |
 | -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`hooks/useTheme.ts`](../../web/src/app/hooks/useTheme.ts)                       | `setTheme` writes `config.set('ui.theme', theme, { lane: 'shell' })`, `localStorage['vite-ui-theme']`, **and** `appBridge.savePreferenceConfirmed({ key: 'theme', value: theme })` — three independent channels for one value |
-| [`index.html`](../../web/index.html)                                             | Pre-paint script: `localStorage['vite-ui-theme'] \|\| window.CHATIC_APP_THEME \|\| 'light'`, unchanged by the `@chatic/config` migration since it runs before `config.init()`                                                 |
-| [`runtime/ThemeApplier.tsx`](../../web/src/app/runtime/ThemeApplier.tsx)         | Updates `<html>` class and `meta[theme-color]` (looked up by `meta[name=...]`)                                                                                                                                                |
-| [`runtime/PreferenceLoader.tsx`](../../web/src/app/runtime/PreferenceLoader.tsx) | Fallback `FetchPreference` read for a shell old enough to predate boot injection, decoded by `parseThemeBridgeValue`                                                                                                          |
+| [`hooks/useTheme.ts`](../../../web/src/app/hooks/useTheme.ts)                       | `setTheme` writes `config.set('ui.theme', theme, { lane: 'shell' })`, `localStorage['vite-ui-theme']`, **and** `appBridge.savePreferenceConfirmed({ key: 'theme', value: theme })` — three independent channels for one value |
+| [`index.html`](../../../web/index.html)                                             | Pre-paint script: `localStorage['vite-ui-theme'] \|\| window.CHATIC_APP_THEME \|\| 'light'`, unchanged by the `@chatic/config` migration since it runs before `config.init()`                                                 |
+| [`runtime/ThemeApplier.tsx`](../../../web/src/app/runtime/ThemeApplier.tsx)         | Updates `<html>` class and `meta[theme-color]` (looked up by `meta[name=...]`)                                                                                                                                                |
+| [`runtime/PreferenceLoader.tsx`](../../../web/src/app/runtime/PreferenceLoader.tsx) | Fallback `FetchPreference` read for a shell old enough to predate boot injection, decoded by `parseThemeBridgeValue`                                                                                                          |
 
 **The bridge write exists only because native reads its own separate store.** `config.set(...,
 { lane: 'shell' })` is what `config.get('ui.theme')` resolves from on the _next_ boot, and what
@@ -257,14 +257,14 @@ pre-paint script's write to that variable has any effect.
 
 | Covers                                                                                               | Location                                                                                          |
 | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| Format absorption, script-escape rejection, closed return type                                       | [`themeMode.test.ts`](../src/app/stores/themeMode.test.ts)                                        |
-| Legacy migration, per-format `'system'` handling, rewrite conditions                                 | [`themeStorage.test.ts`](../src/app/stores/themeStorage.test.ts)                                  |
-| Synchronous init at module evaluation; init alone does not write                                     | [`themeStore.test.ts`](../src/app/stores/themeStore.test.ts)                                      |
-| Resume/rotation reapplication, stale closures, keyboard-resize filtering, iOS branch, unsubscription | [`SystemBars.test.tsx`](../src/app/features/core/components/SystemBars.test.tsx)                  |
-| Injection script carries mode, escaping                                                              | [`injectionScripts.test.ts`](../src/app/webview/utils/injectionScripts.test.ts)                   |
-| Bridge `theme` write, invalid/escape-payload rejection, legacy-envelope acceptance                   | [`usePreferenceCacheHandler.test.ts`](../src/app/webview/hooks/usePreferenceCacheHandler.test.ts) |
-| Light default, native-store confirm-and-retry, three-channel write                                   | [`useTheme.test.tsx`](../../web/src/app/hooks/useTheme.test.tsx)                                  |
-| `meta[theme-color]` update, `name` lookup, `--splash-bg` untouched                                   | [`ThemeApplier.test.tsx`](../../web/src/app/runtime/ThemeApplier.test.tsx)                        |
+| Format absorption, script-escape rejection, closed return type                                       | [`themeMode.test.ts`](../../src/app/stores/themeMode.test.ts)                                        |
+| Legacy migration, per-format `'system'` handling, rewrite conditions                                 | [`themeStorage.test.ts`](../../src/app/stores/themeStorage.test.ts)                                  |
+| Synchronous init at module evaluation; init alone does not write                                     | [`themeStore.test.ts`](../../src/app/stores/themeStore.test.ts)                                      |
+| Resume/rotation reapplication, stale closures, keyboard-resize filtering, iOS branch, unsubscription | [`SystemBars.test.tsx`](../../src/app/features/core/components/SystemBars.test.tsx)                  |
+| Injection script carries mode, escaping                                                              | [`injectionScripts.test.ts`](../../src/app/webview/utils/injectionScripts.test.ts)                   |
+| Bridge `theme` write, invalid/escape-payload rejection, legacy-envelope acceptance                   | [`usePreferenceCacheHandler.test.ts`](../../src/app/webview/hooks/usePreferenceCacheHandler.test.ts) |
+| Light default, native-store confirm-and-retry, three-channel write                                   | [`useTheme.test.tsx`](../../../web/src/app/hooks/useTheme.test.tsx)                                  |
+| `meta[theme-color]` update, `name` lookup, `--splash-bg` untouched                                   | [`ThemeApplier.test.tsx`](../../../web/src/app/runtime/ThemeApplier.test.tsx)                        |
 
 ```bash
 yarn nx test mobile && yarn nx test web

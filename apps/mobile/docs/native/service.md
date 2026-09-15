@@ -2,7 +2,7 @@
 
 `src/app/services` is where domain behaviour runs. A webview handler, a native screen, or a debug
 screen calls into a service; none of them implement behaviour themselves. This is the layer
-[the app README](../README.md#design-principles) means by "services are the execution boundary, and
+[the app README](../../README.md#design-principles) means by "services are the execution boundary, and
 they look only downward" — `services/` imports nothing from `webview/` or `features/`.
 
 ## Layout
@@ -48,13 +48,13 @@ is framed, what the reply payload looks like, or how a native screen renders —
   `dynamicAppIconService`, `firebaseInstallationService`, `subscriptionIapService`,
   `preferenceService`, `configKvService`, `versionService`, `unfurlService`. `sqliteDatabase` opens
   on the first read of any lazy getter that needs it, not at boot — see
-  [boot-optimization.md](./boot-optimization.md) section 4.4, which this split exists to satisfy.
+  [../boot/boot-optimization.md](../boot/boot-optimization.md) section 4.4, which this split exists to satisfy.
 
 `services/index.ts` re-exports every domain's barrel plus the commonly used singletons — but not the
 SQLite-backed ones. A module-level `export const x = provider.x` for those would invoke the lazy
 getter at barrel load, which happens during boot, defeating the split above. Consumers read
 `provider.cacheCrudService` (etc.) at the point of use instead. `useServices()` (in
-[`hooks/useServices.ts`](../src/app/hooks/useServices.ts)) mirrors the same split for React
+[`hooks/useServices.ts`](../../src/app/hooks/useServices.ts)) mirrors the same split for React
 consumers: it exposes every eager and non-SQLite lazy service, and omits the SQLite-backed ones for
 the identical reason — it runs during `MainScreen` render, before the WebView starts loading.
 
@@ -106,13 +106,13 @@ in a comment on `configKvService`.
   provider state has to construct the service under test directly rather than going through
   `provider`.
 - Jest does not type-check; `apps/mobile/tsconfig.json` excludes every `*.test.ts(x)` from the
-  project it references (see [the app README](../README.md#how-to-verify)). A service spec with a
+  project it references (see [the app README](../../README.md#how-to-verify)). A service spec with a
   broken fixture surfaces as "`... is not a function`" at runtime, not as a compile error.
 
 ## Further reading
 
-- [native-module.md](./native-module.md) — the bridge layer a service calls into for anything the OS
+- [README.md](./README.md) — the bridge layer a service calls into for anything the OS
   has to do.
-- [cache.md](./cache.md) — `CacheCrudService`/`CacheSearchService` and the SQLite data sources behind
+- [../storage/cache.md](../storage/cache.md) — `CacheCrudService`/`CacheSearchService` and the SQLite data sources behind
   them, this domain's largest.
-- [boot-optimization.md](./boot-optimization.md) — why the split between eager and lazy exists.
+- [../boot/boot-optimization.md](../boot/boot-optimization.md) — why the split between eager and lazy exists.

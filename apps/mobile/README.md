@@ -61,7 +61,7 @@ source tree only in comments.
 6. **Boot order is load-bearing.** `App.tsx` seeds safe-area insets synchronously from
    `initialWindowMetrics` and the navigator hosts `MainScreen` directly, so the WebView starts loading
    before any async round-trip can delay it. Reordering these is a measurable regression, not a
-   refactor — see [docs/boot-optimization.md](./docs/boot-optimization.md).
+   refactor — see [docs/boot/boot-optimization.md](./docs/boot/boot-optimization.md).
 
 ## Scope
 
@@ -164,7 +164,7 @@ apps/mobile/
 ├── android/               Kotlin: MainActivity, bridge, handler, module, push, service, worker
 ├── ios/                   Swift: Chatic, Bridges, ChaticNotificationServiceExtension
 ├── fastlane/              store upload lanes
-└── docs/                  15 topic documents — see Documents
+└── docs/                  7 categories, 15 topic documents — see Documents
 ```
 
 There is no `screens/` directory to open beyond `features/main`, and no `api/` directory at all —
@@ -194,7 +194,7 @@ yarn mobile:sync             # nx sync-deps mobile
 ```
 
 `yarn mobile:local:check` is the guard the local-run scripts call first: it fails with a copy-paste
-fix when `apps/mobile/.env` is missing. See [docs/local-run.md](./docs/local-run.md).
+fix when `apps/mobile/.env` is missing. See [docs/release/local-run.md](./docs/release/local-run.md).
 
 ### Wiring
 
@@ -234,22 +234,22 @@ Declare the request and response types in
 `services/<domain>/`, register it in `services/provider.ts`, and add a handler hook under
 `webview/hooks/` wired into `useWebMessageRouter`. If it needs the OS, add the TypeScript module under
 `bridge/` and both native implementations — Kotlin under `android/app/src/main/java/io/chatic/dou/`
-and Swift under `ios/Bridges/`. See [docs/native-module.md](./docs/native-module.md) and
-[docs/service.md](./docs/service.md).
+and Swift under `ios/Bridges/`. See [docs/native/README.md](./docs/native/README.md) and
+[docs/native/service.md](./docs/native/service.md).
 
 ### 3. A push arrives
 
 Firebase delivers to native. In the background the native side increments the badge and marks the
 push; on a tap, `DeepLinkManager` and `DeeplinkService` resolve a route and hand it to the web client
 as a message rather than navigating natively. The web client owns the destination; the shell only
-knows which one it is. See [docs/push.md](./docs/push.md),
-[docs/badge.md](./docs/badge.md) and [docs/deeplink.md](./docs/deeplink.md).
+knows which one it is. See [docs/push/README.md](./docs/push/README.md),
+[docs/push/badge.md](./docs/push/badge.md) and [docs/system/deeplink.md](./docs/system/deeplink.md).
 
 ### 4. The web client reads or writes the cache
 
 `useCrudCacheHandler` and `useSearchCacheHandler` route to `CacheCrudService` and `CacheSearchService`
 over the SQLite data sources in `data/`. The web client holds no rows of its own — this is the only
-durable store on the device besides MMKV. See [docs/cache.md](./docs/cache.md).
+durable store on the device besides MMKV. See [docs/storage/cache.md](./docs/storage/cache.md).
 
 ### 5. A log entry crosses the boundary
 
@@ -262,29 +262,24 @@ the store's subscription picks it up like any native entry. `useLogStoreHandler`
 
 `yarn mobile:version` bumps, `scripts/deploy-mobile.sh` builds and uploads, and `fastlane/` carries
 the lanes. There are four store apps — iOS and Android, each dev and prod. See
-[docs/deploy.md](./docs/deploy.md).
+[docs/release/deploy.md](./docs/release/deploy.md).
 
 ## Documents
 
-| Document                                                 | What it covers                                                                     |
-| -------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| [docs/app-update.md](./docs/app-update.md)               | Launch-time version check and the update alert the shell shows                     |
-| [docs/badge.md](./docs/badge.md)                         | App icon badge count — foreground totals from web, background increments in native |
-| [docs/boot-metrics.md](./docs/boot-metrics.md)           | The boot timeline `BootMetricsService` records, and where the marks are read       |
-| [docs/boot-optimization.md](./docs/boot-optimization.md) | Why the WebView mounts early and what the navigator does not do                    |
-| [docs/cache.md](./docs/cache.md)                         | SQLite and MMKV persistence, the local data sources, the cache bridge API          |
-| [docs/deeplink.md](./docs/deeplink.md)                   | Universal links, custom scheme and push taps converging on one route               |
-| [docs/deploy.md](./docs/deploy.md)                       | Version bump and store upload for the four store apps                              |
-| [docs/local-run.md](./docs/local-run.md)                 | Running the web dev server, Metro and a simulator together; the `.env` this needs  |
-| [docs/native-module.md](./docs/native-module.md)         | Android and iOS native modules, and the parity contract between them               |
-| [docs/push.md](./docs/push.md)                           | FCM/APNs permission, token registration, notification channels, foreground events  |
-| [docs/service.md](./docs/service.md)                     | The execution boundary in `services/` and the DI rules in `provider.ts`            |
-| [docs/theme.md](./docs/theme.md)                         | Light default, status bar and background, web↔native theme sync                   |
-| [docs/upload.md](./docs/upload.md)                       | Large file upload through the native upload manager, and recovery                  |
-| [docs/webview.md](./docs/webview.md)                     | The message boundary in detail — handlers, the injected runtime, the router        |
-| [docs/webview-debugging.md](./docs/webview-debugging.md) | Attaching a remote inspector to the WebView running inside the app                 |
+The detail lives under [`docs/`](./docs/README.md), in seven categories. Each category folder has a
+`README.md` that is either its lead document or a short index.
 
-These fifteen are the detail, and this README is the map.
+| Category | What it covers |
+| --- | --- |
+| [docs/webview/](./docs/webview/README.md) | The message boundary in detail — handlers, the injected runtime, the router, and remote debugging |
+| [docs/boot/](./docs/boot/README.md) | Why the WebView mounts early, what is deferred, and the boot timeline that proves it |
+| [docs/native/](./docs/native/README.md) | The three-way native parity contract, and the execution boundary in `services/` |
+| [docs/push/](./docs/push/README.md) | FCM/APNs registration, notification channels, click routing, and the app icon badge |
+| [docs/storage/](./docs/storage/README.md) | SQLite and MMKV persistence, the local data sources, and resumable file upload |
+| [docs/system/](./docs/system/README.md) | OS-level state shared with the web — theme sync and deep links |
+| [docs/release/](./docs/release/README.md) | Store builds, the launch-time update check, and running against a local web dev server |
+
+Those are the detail, and this README is the map.
 
 ## How to verify
 

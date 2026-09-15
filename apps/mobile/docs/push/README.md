@@ -213,7 +213,7 @@ arrive through FCM's `onNotificationOpenedApp`, iOS warm/background taps through
 `getInitialNotification()` on both platforms.
 
 The `OnNavigate` contract that a push tap and a deep link converge on is covered in
-[deeplink.md](./deeplink.md).
+[../system/deeplink.md](../system/deeplink.md).
 
 ```mermaid
 sequenceDiagram
@@ -272,7 +272,7 @@ arbitrary name). Every new key that carries a variable follows the same rule.
 It is not in `TranslationKey` (`src/app/utils/i18n/types.ts`) — neither is the existing
 `push_chat_message_title`. Push keys are assembled natively and never go through the shell's `t()`.
 
-[`localeParity.test.ts`](../src/app/services/notification/localeParity.test.ts) is what keeps the four
+[`localeParity.test.ts`](../../src/app/services/notification/localeParity.test.ts) is what keeps the four
 sets in sync: it diffs the native three against the shell locale's flat `push_*` key set, checks for
 empty values, and checks that the activation title still has a `{0}` slot (a missing arg makes the
 fallback title a literal `cloud`).

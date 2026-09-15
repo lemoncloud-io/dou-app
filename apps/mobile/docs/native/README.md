@@ -10,11 +10,11 @@ one platform failing at runtime with no type error, since `NativeModules.<Name>`
 
 | Layer                        | Path                                                            |
 | ---------------------------- | --------------------------------------------------------------- |
-| TypeScript wrapper           | [`src/app/bridge/*Bridge.ts`](../src/app/bridge/) — 7 files     |
+| TypeScript wrapper           | [`src/app/bridge/*Bridge.ts`](../../src/app/bridge/) — 7 files     |
 | Android package + module     | `android/app/src/main/java/io/chatic/dou/bridge`, `.../module`  |
 | Android push delivery        | `android/app/src/main/java/io/chatic/dou/push`                  |
 | Android background upload    | `android/app/src/main/java/io/chatic/dou/service`, `.../worker` |
-| iOS bridge                   | [`ios/Bridges`](../ios/Bridges)                                 |
+| iOS bridge                   | [`ios/Bridges`](../../ios/Bridges)                                 |
 | iOS app delegate integration | `ios/Chatic/AppDelegate.swift`                                  |
 
 ## Responsibilities
@@ -49,7 +49,7 @@ service — the mark data has no processing beyond forwarding it to the web.
 
 One native module falls outside this table: `NativeLoggerModule` (Android and iOS) is an
 event-emitter the native side pushes logs through, wired directly in
-[`services/log/native/nativeLoggerBridge.ts`](../src/app/services/log/native/nativeLoggerBridge.ts)
+[`services/log/native/nativeLoggerBridge.ts`](../../src/app/services/log/native/nativeLoggerBridge.ts)
 rather than as a `bridge/*Bridge.ts` command wrapper — there is nothing for JS to call, only a
 `ChaticNativeLog` event to subscribe to.
 
@@ -96,5 +96,5 @@ rather than as a `bridge/*Bridge.ts` command wrapper — there is nothing for JS
 ## Further reading
 
 - [service.md](./service.md) — the layer that calls these wrappers and owns the behaviour around them.
-- [badge.md](./badge.md) — the badge-count flow `BadgeSyncBridge` and `PushMarksBridge` both feed.
-- [push.md](./push.md) — the push-delivery path with no TypeScript wrapper of its own.
+- [../push/badge.md](../push/badge.md) — the badge-count flow `BadgeSyncBridge` and `PushMarksBridge` both feed.
+- [../push/README.md](../push/README.md) — the push-delivery path with no TypeScript wrapper of its own.

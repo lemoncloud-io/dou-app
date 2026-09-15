@@ -31,7 +31,7 @@ flowchart TD
 ```
 
 `UploadService` (`provider.uploadService`, lazily constructed — see
-[boot-optimization.md](./boot-optimization.md)) is a singleton holding an in-memory
+[../boot/boot-optimization.md](../boot/boot-optimization.md)) is a singleton holding an in-memory
 `Map<uploadId, UploadTaskState>` alongside the SQLite row: the map carries this session's live
 callbacks, the row is what survives a restart.
 

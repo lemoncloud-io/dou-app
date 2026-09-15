@@ -2,7 +2,7 @@
 
 The app-icon badge count's lifecycle — foreground totals from web, background increments in
 native, and reconciliation on foreground return. The push receive pipeline itself is in
-[push.md](./push.md).
+[README.md](./README.md).
 
 ## Why native has to increment
 

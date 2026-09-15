@@ -81,7 +81,7 @@ own repaint animation after a resume has finished, and is what actually hides `R
 | ----------------------------- | --------------------------------------------------------------------------------------------------------- |
 | `WebAppReady`                 | Handshake, answered inside `@chatic/bridges`; buffers and flushes any push events queued before it        |
 | `DismissResumeOverlay`        | Routed handler (`useAppStateHandler`); clears the resume overlay after the web's repaint                  |
-| `SavePreference` with `theme` | Routed handler (`usePreferenceCacheHandler`); updates the native theme store — see [theme.md](./theme.md) |
+| `SavePreference` with `theme` | Routed handler (`usePreferenceCacheHandler`); updates the native theme store — see [../system/theme.md](../system/theme.md) |
 
 ## Injection
 
@@ -98,10 +98,10 @@ instead of surfacing as an opaque "Script error.":
   `CHATIC_APP_FIREBASE_INSTALLATION_ID` (empty until the async Firebase lookup resolves), plus two
   `@deprecated` globals kept for older web bundles — `CHATIC_APP_DEVICE_ID`
   (`uniqueDeviceId:firebaseInstallId`, built by
-  [`buildInjectedUniqueId.ts`](../src/app/webview/utils/buildInjectedUniqueId.ts)) and
+  [`buildInjectedUniqueId.ts`](../../src/app/webview/utils/buildInjectedUniqueId.ts)) and
   `CHATIC_APP_INSTALLATION_ID` (confusingly named — it is the bare device id, not a Firebase id)
 - the persisted theme (`CHATIC_APP_THEME`), read by the web's pre-paint script — see
-  [theme.md](./theme.md)
+  [../system/theme.md](../system/theme.md)
 - `CHATIC_APP_CONFIG_BAG` — `@chatic/config`'s shell-lane KV bag, so `config.init()` can hydrate
   synchronously before the web's first paint
 

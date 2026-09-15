@@ -11,9 +11,9 @@ rather than a manual env edit and a native rebuild.
 | ------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
 | `apps/mobile/.env`, `.env.dev`, `.env.prod`                                                                               | local / dev-build / prod-build env files |
 | `apps/mobile/.env.example`                                                                                                | template for `.env`                      |
-| [`src/app/utils/stage.ts`](../src/app/utils/stage.ts)                                                                     | `Config.VITE_ENV` → `Env` conversion     |
-| [`src/app/services/deeplinks/deeplinkUtils.ts`](../src/app/services/deeplinks/deeplinkUtils.ts)                           | `getAppScheme()`                         |
-| [`android/app/src/main/res/xml/network_security_config.xml`](../android/app/src/main/res/xml/network_security_config.xml) | Android cleartext allowlist              |
+| [`src/app/utils/stage.ts`](../../src/app/utils/stage.ts)                                                                     | `Config.VITE_ENV` → `Env` conversion     |
+| [`src/app/services/deeplinks/deeplinkUtils.ts`](../../src/app/services/deeplinks/deeplinkUtils.ts)                           | `getAppScheme()`                         |
+| [`android/app/src/main/res/xml/network_security_config.xml`](../../android/app/src/main/res/xml/network_security_config.xml) | Android cleartext allowlist              |
 | root `package.json`                                                                                                       | every `mobile:*` script                  |
 
 ## Responsibilities
@@ -43,8 +43,8 @@ see it — a GUI build has no shell environment for a script to override.
 
 | Platform | Mapping lives in                                                                                                                                                                   | dev        | prod        | local override                 |
 | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | ----------- | ------------------------------ |
-| iOS      | per-configuration `ENVFILE` build setting, next to `APP_URL_SCHEME`, in [`project.pbxproj`](../ios/Chatic.xcodeproj/project.pbxproj) (`Debug`/`Release`/`Debug Dev`/`Release Dev`) | `.env.dev` | `.env.prod` | `--extraParams "ENVFILE=.env"` |
-| Android  | `envConfigFiles` in [`build.gradle`](../android/app/build.gradle)                                                                                                                  | `.env.dev` | `.env.prod` | `ENVFILE=.env`                 |
+| iOS      | per-configuration `ENVFILE` build setting, next to `APP_URL_SCHEME`, in [`project.pbxproj`](../../ios/Chatic.xcodeproj/project.pbxproj) (`Debug`/`Release`/`Debug Dev`/`Release Dev`) | `.env.dev` | `.env.prod` | `--extraParams "ENVFILE=.env"` |
+| Android  | `envConfigFiles` in [`build.gradle`](../../android/app/build.gradle)                                                                                                                  | `.env.dev` | `.env.prod` | `ENVFILE=.env`                 |
 
 `ENVFILE` sits beside `APP_URL_SCHEME` deliberately: scheme registration and env selection move
 together, and `getAppScheme()` below depends on that pairing staying in sync.
@@ -63,7 +63,7 @@ adb reverse tcp:5003 tcp:5003
 ```
 
 This forwards the emulator's `localhost:5003` to the host, so
-[`apps/web/vite.config.mts`](../../web/vite.config.mts)'s dev server never needs to bind beyond
+[`apps/web/vite.config.mts`](../../../web/vite.config.mts)'s dev server never needs to bind beyond
 `localhost`. `network_security_config.xml` allows cleartext for `localhost` and `10.0.2.2` only — no
 developer's LAN IP is in the file. `adb reverse` does not survive an emulator restart; the local
 scripts rerun it every time.
@@ -106,7 +106,7 @@ missing `.env`.
 The OS-registered scheme comes from the build configuration too: `APP_URL_SCHEME` on iOS, the
 per-flavor `appScheme` manifest placeholder on Android. When runtime code needs to rebuild a scheme
 URL — React Navigation hands a warm-start deep link back as a path with no scheme —
-[`getAppScheme()`](../src/app/services/deeplinks/deeplinkUtils.ts) recomputes it:
+[`getAppScheme()`](../../src/app/services/deeplinks/deeplinkUtils.ts) recomputes it:
 
 ```ts
 export const getAppScheme = (): (typeof CUSTOM_SCHEMES)[number] =>
@@ -114,22 +114,22 @@ export const getAppScheme = (): (typeof CUSTOM_SCHEMES)[number] =>
 ```
 
 The test is `=== 'PROD'`, not `=== 'DEV'`: every non-prod configuration, including `LOCAL`,
-registers `chatic-dev`. [`isCustomZipAllowed`](../src/app/customZip/customZipGate.ts) uses the same
+registers `chatic-dev`. [`isCustomZipAllowed`](../../src/app/customZip/customZipGate.ts) uses the same
 `!== 'PROD'` polarity. Both call sites — `reconstructDeepLinkUrl` in the same file, and
-[`DeeplinkService`](../src/app/services/deeplinks/DeeplinkService.ts)'s constructor — go through
+[`DeeplinkService`](../../src/app/services/deeplinks/DeeplinkService.ts)'s constructor — go through
 `getAppScheme()` rather than recomputing it.
 
 ### The stage vocabulary the WebView is told about
 
 `Config.VITE_ENV` (`LOCAL`/`DEV`/`PROD`) and `Env` (`local`/`stage`/`prod`) are different
-vocabularies. [`toEnvStage()`](../src/app/utils/stage.ts) is the one place that converts; an
+vocabularies. [`toEnvStage()`](../../src/app/utils/stage.ts) is the one place that converts; an
 unrecognized value falls back to `'prod'`, the conservative direction, matching the old
 `Config.VITE_ENV || 'PROD'` default. The result is injected as `window.CHATIC_APP_STAGE` (in
-[`AppWebView`](../src/app/webview/AppWebView.tsx)) and sent again in the `OnUpdateDeviceInfo` bridge
-event ([`useVersionCheckHandler`](../src/app/webview/hooks/useVersionCheckHandler.ts)); both payload
+[`AppWebView`](../../src/app/webview/AppWebView.tsx)) and sent again in the `OnUpdateDeviceInfo` bridge
+event ([`useVersionCheckHandler`](../../src/app/webview/hooks/useVersionCheckHandler.ts)); both payload
 types narrow `stage` to `Env`, so a call site that forgets the conversion fails to compile.
 
-On the web side, [`deviceInfoStore`](../../../libs/device-utils/src/stores/deviceInfoStore.ts) reads
+On the web side, [`deviceInfoStore`](../../../../libs/device-utils/src/stores/deviceInfoStore.ts) reads
 the injected global through a lookup table rather than an `as Env` cast — the cast let
 `'DEV'`/`'dev'` through unmapped. An unrecognized value there falls back to `'local'`.
 
@@ -138,7 +138,7 @@ the injected global through a lookup table rather than an `as Env` cast — the 
 application name from it (`<platform>-<application>-<stage>`, per ADR-0056/cross-cloud-push) and
 that name is fixed as `chatic-desktop-{dev,prod}` — no `-stage` variant exists. Mobile's own push
 registration never sends stage at all
-([`useDeviceTokenRegistration.ts`](../../web/src/app/bridge/useDeviceTokenRegistration.ts) omits it
+([`useDeviceTokenRegistration.ts`](../../../web/src/app/bridge/useDeviceTokenRegistration.ts) omits it
 deliberately). So the outbound push string never changes; `deviceInfoStore`'s lookup table is what
 absorbs all three spellings on the read side.
 
@@ -156,6 +156,6 @@ absorbs all three spellings on the read side.
 
 ## Further reading
 
-- [webview-debugging.md](./webview-debugging.md) — attaching a remote inspector once the app is
+- [../webview/webview-debugging.md](../webview/webview-debugging.md) — attaching a remote inspector once the app is
   running, local or otherwise.
 - [deploy.md](./deploy.md) — the dev/prod builds this doc's local override sits next to.
