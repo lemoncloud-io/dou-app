@@ -1,81 +1,355 @@
-# subscription
+# subscription — the plan a user is on, and the clouds it allows
 
-> 대상: `apps/web/src/app/features/subscription`
+`apps/web/src/app/features/subscription` owns one product: **DoU Pro, sold as tiers 1 through 5,
+where the tier number is the number of clouds the account may hold at once.** Around that it owns
+four decisions — which tiers may be sold, which state the membership is in, whether another cloud
+may be created, and what a tier change sends to the store — plus the in-app purchase flow that
+executes them through the native bridge.
 
-## 책임
+Every one of those decisions is a pure function in `lib/` with a hook in `hooks/` that feeds it
+server data. Screens branch on the result; they never re-derive it, and no other feature derives it
+at all.
 
-구독(멤버십) 현황 표시와 플랜 선택·구매·등급 변경, 그리고 클라우드 보유 한도 판정을 담당한다.
-인앱결제(IAP)는 네이티브 브릿지를 통해 수행한다.
+## Layout
 
-> tier 목록·한도·서열·구독 상태 4종·초과 클라우드 판정은 [tier-and-quota.md](./tier-and-quota.md)에
-> 정리돼 있다 — 이 피처의 도메인 로직 정본이다.
-
-## 화면
-
-| 페이지                     | 경로(`ROUTES.subscription.*`) | 설명                                                 |
-| -------------------------- | ----------------------------- | ---------------------------------------------------- |
-| `SubscriptionPage`         | `/subscription`               | 구독 현황(상태 4종, 초과 배너, 복원, 약관)           |
-| `CloudGuidePage`           | `/subscription/guide`         | 내 클라우드 안내 — FREE vs PRO 비교 (읽기 전용 소개) |
-| `SubscriptionPlansPage`    | `/subscription/plans`         | 구독 안내 — 혜택 + tier 선택 + 주의사항              |
-| `SubscriptionCompletePage` | `/subscription/complete`      | 구독 완료 → 설정 위자드로 인계                       |
-
-### 구독 진입 흐름
-
-`guide`와 `plans`는 **별개 화면**이다 — 앞은 "왜 구독하나"(Figma 3519-29515), 뒤는 "어느 tier인가"(2870-33021).
-
-```
-마이페이지 「나만의 클라우드 알아보기」 ┐
-홈 프로모션 배너 「클라우드 추가 >」   ┴→ /subscription/guide ─CTA→ /subscription/plans → IAP → /subscription/complete
-클라우드 전환 시트 footer ─────────────────────(guide 우회)────→ /subscription/plans
+```text
+apps/web/src/app/features/subscription/
+├── index.ts                  SubscriptionRoutes · AddCloudFlowHost · EmailBindRequestHost · CloudMembershipSummary
+├── pages/                    4 screens
+├── lib/                      7 pure modules — no React, no network
+├── hooks/                    13 hooks — server data fed into lib/
+├── components/               9 components + subscription-select/ (PlanCard · PolicyFooter · TierRefusalDialog)
+├── types/index.ts            NativePurchase · PurchaseProduct · PurchaseError · PageState
+├── consts/index.ts           IS_DEV · APP_ID · POLICY_BASE_URL
+└── routes/index.tsx          the four routes under /subscription
 ```
 
-진입점별 목적지는 ADR-0034 §4와 그 2026-08-04 개정이 정본이다. 전환 시트만 안내를 건너뛴다 — 이미 클라우드 관리
-중인 사용자에게 소개 화면은 뒷걸음질이기 때문이다.
+The files worth naming, because the filename does not give them away:
 
-## 구조
+| File                      | What it decides                                                                    |
+| ------------------------- | ---------------------------------------------------------------------------------- |
+| `lib/plans.ts`            | Tier order, adjacency, the catalog join, the allowance lookup, the display name    |
+| `lib/quota.ts`            | Clouds owned, whether one more may be created, which clouds sit past the allowance |
+| `lib/membershipStatus.ts` | The five states and entitlement, admin override included                           |
+| `lib/nativeProducts.ts`   | The store-catalog join and the purchase payload                                    |
+| `lib/cloudEmails.ts`      | Email reuse and unbound clouds                                                     |
+| `lib/emailVerify.ts`      | `EmailVerifyRefusal` — the tag that separates an intended refusal from a failure   |
+| `hooks/usePlanCatalog.ts` | The single read of "what we sell and what the user is on"                          |
 
+There is no `SubscriptionSelectDialog` and no second plan picker: `SubscriptionPlansPage` is the
+only screen that sells a tier.
+
+## Responsibilities
+
+This feature decides what to **offer** and what to **say**. It does not decide what is allowed —
+the server does, and it is the only party that can:
+
+- `guardQuota` is atomic and returns 409 when a cloud would overflow the allowance. The app's own
+  quota check exists so the user is told why a button will not work, not to enforce anything.
+- Receipts are validated server-side only. `POST /memberships/0` verifies against Apple or Google
+  (backend-api → iap-api) before creating or renewing the membership; no client hits iap-api's
+  `/validate/<platform>` route, which was never reachable with a client credential.
+- Price is whatever the store says. `lib/price.ts` passes `displayPrice` through and formats
+  nothing — a tax-inclusive local price is not something the app may compute.
+
+It also refuses to execute anything irreversible. Clouds past the allowance are detected and named;
+releasing one happens in `mypage`'s cloud management, at the user's hand.
+
+## The shared contract
+
+### 1. Every tier fact comes from the server catalog
+
+`GET /products/plans` is the source of the sellable list, the allowance (`maxClouds`), the tier
+order (`sort`) and the trial length (`trialDays`). None of it is duplicated as an app constant, so a
+pricing change ships without an app release.
+
+The membership is joined to that catalog by `productId`, never read for product fields directly:
+
+```ts
+const currentPlan = findPlanById(plans, summary.productId) ?? receiptPlan;
 ```
-features/subscription/
-  pages/
-    SubscriptionPage.tsx
-    CloudGuidePage.tsx          # FREE vs PRO 소개 (web-ui-kit PlanCompareCard 조립)
-    SubscriptionPlansPage.tsx
-    SubscriptionCompletePage.tsx
-  lib/                        # 순수 판정 (React·네트워크 무지) — tier-and-quota.md
-    plans.ts · quota.ts · membershipStatus.ts · nativeProducts.ts · cloudEmails.ts
-  hooks/
-    useSubscriptionIap.ts   # IAP: 구매·검증·복원 (appBridge 경유)
-    usePlanCatalog.ts       # 상품 목록 + 현재 상품 + 상태 요약 (단일 진입점)
-    usePlanOptions.ts       # tier별 선택 가능 여부·사유
-    useCloudQuota.ts        # 클라우드 한도 판정 (모든 "＋ 추가"가 쓰는 하나)
-    useExcessClouds.ts · useTierPurchase.ts · useAddCloud.ts
-    useUnboundClouds.ts     # 복원용 이메일이 없는 클라우드 감지
-    useCloudEmailGuard.ts · useVerifyEmailCode.ts
-  components/
-    AddCloudFlowHost.tsx      # 클라우드 추가 요청 수신 (PrivateShell이 마운트)
-    EmailVerifyDialog.tsx     # 이메일 인증 (ui/에서 이관 · web-ui-kit 조립)
-    LoginRequiredDialog.tsx · TierChangeNotice.tsx · ExcessCloudBanner.tsx
-    EmailRequiredBanner.tsx   # 복원용 이메일이 빈 클라우드를 이름으로 지목
-    SubscriptionBenefits.tsx
-    subscription-select/      #   PlanCard · PolicyFooter · TierRefusalDialog
-  types/
-    index.ts                # PurchaseProduct · NativePurchase · PurchaseError · PageState
-  consts/
-    index.ts                # IS_DEV · APP_ID · POLICY_BASE_URL
-  routes/
-  index.ts                  # SubscriptionRoutes · AddCloudFlowHost
+
+**`membership.product$` is a head.** The relay attaches the product with `asHead(model)`, and
+`ProductHead` is `{ id, name, nameEn, platform }` — no `maxClouds`, no `sort`, no `trialDays`. The
+read still compiles, because `MembershipView.product$` is typed as the wider `ProductView`
+(`Partial<ProductModel>`), and then it is `undefined` at runtime. Anything that reads an allowance
+off the membership is silently broken; `resolveMaxClouds` against the catalog is the only correct
+lookup.
+
+`productId` is stored `#`-prefixed (`#pro-tier-01`) and matches `product.id` in the catalog once
+`stripPlanId` removes the `#`. A raw `#pro-tier-01` on screen means the join failed —
+`planDisplayName` falls back to the id deliberately, so the failure looks like one.
+
+The catalog call sends **no `platform` filter**. The server always filters by stage anyway, so one
+unfiltered call returns both stores' tiers: the sellable list is narrowed to this build's platform
+in `selectSellablePlans`, while the join still resolves a membership bought on the other store. A
+platform-filtered list cannot — an iOS purchase read on an Android session would lose its allowance.
+
+### 2. Five states, and the override that comes first
+
+`summarizeMembership(membership, plan, now)` collapses a membership into exactly five states:
+
+| State             | Means                                    | `isEntitled` | New cloud |
+| ----------------- | ---------------------------------------- | ------------ | --------- |
+| `none`            | Never subscribed, or `status === 'none'` | ✗            | ✗         |
+| `active`          | Paid period running (payment retry too)  | ✓            | ✓         |
+| `cancelScheduled` | Cancelled, paid period still running     | ✓            | ✗         |
+| `expired`         | `validUntil` has passed                  | ✗            | ✗         |
+| `blocked`         | An operator shut it off from the console | ✗            | ✗         |
+
+Two rules hold this together, and both were bought with production bugs:
+
+**Entitlement is not the server's `isValid`.** That flag goes false the moment `canceledAt` is set,
+while the paid period keeps running. Reading it as entitlement zeroes the allowance of someone who
+has already paid for the month and flags their clouds as excess. The paid window decides
+entitlement; `isValid` only decides whether the server will provision, which is why
+`cancelScheduled` keeps its allowance but cannot add a cloud.
+
+**`blocked` is not `expired`.** The store keeps charging through an operator block, so telling that
+user their subscription expired is wrong in the direction that produces support tickets.
+
+The admin override is read first and wins, matching the relay's own derivation. The fields are
+`adminStatus`, `adminUntil` and `adminProductId` on `MembershipModel` (`adminAt`, `adminBy` and
+`adminReason` record who did it and why). `adminStatus === 'active'` grants — state `active`, with
+the allowance read from `adminProductId` — and `expired`/`canceled` block.
+
+The judgement runs off those raw fields, not off the stored `status`: the relay derives `status`
+once at write time and nothing sweeps it afterwards, so a lapsed grant still reads `active` there.
+Comparing `adminUntil` to the render clock is right the moment it passes. Both predicates,
+`isAdminOverrideActive` and `resolveEffectiveProductId`, come from
+[`@chatic/shared`](../../../../../libs/shared/README.md) and are shared with the admin console — the
+same server contract is not implemented twice.
+
+`isSuper` is **not** read. It was the earlier spelling of an indefinite grant, the relay stopped
+deriving from it, and its holders were migrated onto overrides; it is marked deprecated in the
+backend types. Reading it here would keep a second, staler axis alive in one client.
+
+Entitlement and the store also come apart, which is why `SubscriptionSummary` carries
+`hasLiveReceipt` next to `isEntitled`. A grant is entitled with nothing at the store; a block leaves
+the store charging with entitlement gone. Anything that talks to the store — replacing a plan,
+naming an `oldPlanId` — follows `hasLiveReceipt`.
+
+`trialDaysLeft` is `validFrom + trialDays` measured against now, and it is reported only when the
+result lands inside `(0, trialDays]`. The stores disagree subtly about what the receipt's start
+timestamp means, and a wrong number here is a promise to the user.
+
+### 3. The allowance
+
+`useCloudQuota` is the one place that answers "may another cloud be added". `used` counts clouds
+whose `status !== 'expired'`; `limit` is `currentPlan.maxClouds`, or `null` when the join could not
+resolve it.
+
+`null` is **not zero**. A granted membership with no product, or a catalog that has not loaded,
+means the app does not know — so it does not refuse. The server says no if the answer is no.
+
+Reasons are suppressed while the inputs are still loading: "구독이 필요해요" over a half-loaded
+membership is worse than a moment of silence.
+
+`findExcessClouds` names the clouds past the allowance after a downgrade, ordered by `cloudNo` (the
+owner's own creation sequence) so the newest are the ones over the line. That ordering is the app's
+guess at what a server-side cleanup would choose, and `ExcessCloudBanner` says so rather than
+presenting it as settled. The banner has no delete button.
+
+### 4. Buying a tier, and replacing one
+
+Adjacency is **app policy**, not a store or backend rule. A tier change may move one step:
+
+| Current        | Target              | Kind                    |
+| -------------- | ------------------- | ----------------------- |
+| none           | `sort === 1`        | `new`                   |
+| none           | any other           | `blocked` (`entryTier`) |
+| a running tier | the same tier       | `current`               |
+| a running tier | one step up or down | `upgrade` / `downgrade` |
+| a running tier | two or more steps   | `blocked` (`tierJump`)  |
+
+The reason is that each cloud carries its own email verification: a tier 1 → 3 jump would collect
+two verifications before either cloud is usable, and a multi-step drop would strand clouds that no
+UI can release yet. `getTierRefusal` splits the two `blocked` cases because they read nothing alike
+to the user, and `nearestSelectablePlan` offers the closest pickable tier instead (ties go to the
+cheaper one).
+
+The plan a change replaces is `replaceablePlan` — the **receipt's** plan, and only while
+`hasLiveReceipt` holds. An admin grant must never be named as the plan the store is replacing.
+
+The store join key differs per store, and getting it wrong fails silently: on Apple the config key
+is the product id, while on Google every tier shares one parent SKU (`ProductView.planId`) and the
+key is the _base plan_ id. `matchNativeProduct` is the only join, and `lib/nativeProducts.test.ts`
+guards the parent-SKU regression.
+
+`buildPurchaseProduct` then fixes two things for a replacement:
+
+- the offer is always `base`. The free trial exists once, on the first tier-1 subscription; sending
+  its token on a replacement is refused by the store or bills the wrong offer.
+- `oldPlanId` (the `#`-stripped current product id) must be present on Android. The shell derives
+  the replacement mode from old-vs-new plan rank, and without it the store books a brand-new
+  subscription instead of an upgrade.
+
+### 5. Two refusals before the store opens
+
+`purchaseAndValidate` refuses ahead of the charge, because `validateMembership` runs _after_ the
+store has taken the money — failing there would leave a paid subscription with nothing to attach to.
+
+1. **Guest.** "Log in" is the actionable instruction. This is a backstop; both entry points route a
+   guest to login before the email step.
+2. **No social credential.** A subscription attaches to a cloud and cloud ownership is
+   social-account based. Only a definite `'absent'` blocks — `'unknown'` means the profile has not
+   landed or the server never built the `link$` slot, and refusing on that would stop paying
+   customers from renewing.
+
+## Usage
+
+### Screens
+
+| Page                       | Route (`ROUTES.subscription.*`) | What it is                                          |
+| -------------------------- | ------------------------------- | --------------------------------------------------- |
+| `SubscriptionPage`         | `/subscription`                 | Status, excess banner, restore, policy links        |
+| `CloudGuidePage`           | `/subscription/guide`           | Read-only pitch: free relay vs. a subscribed cloud  |
+| `SubscriptionPlansPage`    | `/subscription/plans`           | The tier picker, benefits, refusal dialog, purchase |
+| `SubscriptionCompletePage` | `/subscription/complete`        | Confirmation, then hand-off to the setup wizard     |
+
+`guide` and `plans` are separate on purpose: the first argues **why** a cloud, the second asks
+**which tier**. The MyPage card and the home promo banner land on `guide`, because someone reading a
+banner does not yet know what a cloud is. The cloud switcher sheet goes straight to `plans` — that
+user is already managing clouds, so the pitch would be a step backwards (ADR-0034 §4).
+
+### Adding a cloud without a purchase
+
+A purchase only ever provisions one cloud, so every cloud past the first on a multi-cloud tier is
+created by `useAddCloud`. The affordances live on other screens, and features do not import each
+other, so the request arrives through a store seam:
+
+```mermaid
+flowchart LR
+    classDef feat fill:#f6ffed,stroke:#b7eb8f,stroke-width:2px,color:#135200;
+    classDef seam fill:#fff7e6,stroke:#ffd591,stroke-width:2px,color:#873800;
+    classDef root fill:#e6f7ff,stroke:#91d5ff,stroke-width:2px,color:#003a8c;
+
+    Home["features/home<br/>HomePage · CloudSessionSheet"]:::feat
+    Store["stores/useAddCloudRequest"]:::seam
+    Shell["routes/PrivateShell"]:::root
+    Host["AddCloudFlowHost"]:::feat
+    Quota["useCloudQuota"]:::feat
+
+    Home -->|requestAddCloud| Store
+    Store --> Host
+    Shell -->|mounts| Host
+    Host --> Quota
+    Quota -->|room to spare| Dialog["EmailVerifyDialog → useAddCloud"]:::feat
+    Quota -->|notEntitled| Plans["navigate → /subscription/plans"]:::root
+    Quota -->|limitReached · cancelScheduled| Toast["reason toast"]:::feat
 ```
 
-- **타입은 `types/`로 통합**: `NativePurchase`는 `WebMessageResponse<'FetchCurrentPurchases'>`에서 파생해 브릿지 계약과 동기화된다.
-- **상수는 `consts/`로 통합**: 환경 분기 상수(`IS_DEV`/`APP_ID`/`POLICY_BASE_URL`). 약관 URL도 `POLICY_BASE_URL` 재사용. 판매 가능한 상품 목록은 **상수가 아니라 서버**에서 온다(ADR-0060).
-- **판정은 `lib/`, 데이터 결합은 `hooks/`**: `lib/`의 함수는 입력만 받는 순수 함수라 테스트가 값 비교로 끝난다.
+`useEmailBindRequest` + `EmailBindRequestHost` are the same shape for binding an email to a cloud
+that has none. Both hosts render `null` — and run no queries — until asked, so app boot does not
+gain a membership fetch.
 
-## IAP 흐름
+The host mounts on `PrivateShell` rather than `AppRuntime` because the flow navigates and therefore
+needs router context; `AppRuntime` is a sibling of the router, outside it.
 
-`useSubscriptionIap`이 구매·검증·복원을 담당한다. 모든 결제 통신은 `app/bridge` 경유다([architecture/bridge.md](../../architecture/bridge.md)).
+Email verification is **optional** at this step. A cloud reaches `active` with no email bound, so
+skipping leaves one to register later (`EmailRequiredBanner`, `findUnboundClouds`) rather than
+blocking cloud creation on it. What is not optional is uniqueness: `useCloudEmailGuard` refuses a
+reused address on `send`/`resend`, before a code goes out, because the backend does not error — it
+silently overwrites the first cloud's `verify$.cloudId` pointer and breaks that cloud's release
+cascade. A released (`expired`) cloud frees its address again.
 
-- 구매 요청: `appBridge.purchase(...)` (void) — `Purchase`는 결과가 push로 오는 예외 케이스다.
-- 결과 수신: `useOnPurchaseSuccess` / `useOnPurchaseError` push 훅. resolver ref 패턴으로 Promise화한다.
-- feature에서 `webClient`를 직접 호출하지 않는다.
+### The purchase round trip
 
-> 검증 흐름은 web-core 훅(`useValidateApple`/`useValidateGoogle` 등)이 남아 있으나, 일반 IAP 경로는 `useSubscriptionIap` 하나로 충분하다(개발용 API Tester 패널은 제거됨).
+```mermaid
+sequenceDiagram
+    autonumber
+    participant U as User
+    participant P as SubscriptionPlansPage
+    participant T as useTierPurchase
+    participant B as appBridge (native shell)
+    participant S as POST /memberships/0
+
+    U->>P: picks a tier
+    P->>T: changeKindOf(plan) → upgrade | downgrade | new
+    U->>P: confirms (TierChangeNotice states the billing effect)
+    P->>T: resolveNativeProduct(plan)
+    T->>B: fetchProducts()
+    B-->>T: IapProductSubscription[] → matchNativeProduct
+    P->>U: EmailVerifyDialog (skippable)
+    P->>T: purchaseTier(plan, matched, email?)
+    T->>B: purchase({ id, newPlanId, offerToken, oldPlanId? })
+    B-->>T: OnPurchaseSuccess (push event, not a response)
+    T->>S: validate receipt server-side
+    S-->>T: MembershipView (isValid)
+    T->>B: finishPurchaseTransaction
+    T->>T: invalidate subscriptionKeys · cloudsKeys
+```
+
+`Purchase` is the bridge's one push-result command: the result arrives as `OnPurchaseSuccess` /
+`OnPurchaseError`, which a resolver ref turns back into a promise. Every store failure passes
+through that one handler, so it is the only place that logs them — and a `user-cancelled` code is
+logged as `info`, because a cancellation is an ordinary outcome and filing it as an error misreads
+the funnel. See [architecture/bridge.md](../../architecture/bridge.md) for the seam itself.
+
+`useRestorePurchases` is the recovery path for the gap in the middle: the store charged, the
+validation never landed. It re-validates every receipt the store still holds, and exists as a hook
+because two screens reach it — the status screen and the picker's policy footer.
+
+### What not to do
+
+- **Do not read a product field off the membership.** `product$` is a head. Join the catalog.
+- **Do not gate entitlement on `isValid`.** It is false throughout a scheduled cancellation.
+- **Do not treat `limit === null` as zero.** It means unresolved; let the server refuse.
+- **Do not call `useTierPurchase` to learn what the current plan is.** A second instance stands up a
+  second `useSubscriptionIap`, and therefore a duplicate `OnPurchaseSuccess` subscription. Read
+  `usePlanCatalog` directly — that is why `usePlanOptions` does.
+- **Do not import this feature from another one.** Raise a request through `stores/useAddCloudRequest`
+  or `stores/useEmailBindRequest`; for a read-only membership line, compose the exported
+  `CloudMembershipSummary`. The barrel re-exports `SubscriptionRoutes`, so importing it drags every
+  subscription page into the calling chunk.
+- **Do not surface a raw error message.** `throwIfApiError` throws backend strings and axios throws
+  `"Request failed with status code 500"`; both would land in a toast. Only an `EmailVerifyRefusal`
+  is shown verbatim, and `isEmailVerifyRefusal` matches by name so it survives chunk boundaries.
+- **Do not disable a refused tier card with HTML `disabled`.** It swallows the tap and reads as a
+  broken button. `PlanCard` stays tappable with `aria-disabled`, and the tap opens
+  `TierRefusalDialog` with the actual rule.
+
+## Notes for implementers and tests
+
+Fifteen test files, and the pure modules in `lib/` are testable by value comparison alone:
+
+```bash
+npx jest --config apps/web/jest.config.js --testPathPatterns="features/subscription"
+```
+
+The suites worth knowing before you change something:
+
+| Suite                              | Guards                                                                         |
+| ---------------------------------- | ------------------------------------------------------------------------------ |
+| `lib/membershipStatus.test.ts`     | Five states, admin override, `cancelScheduled` keeps entitlement, trial bounds |
+| `lib/quota.test.ts`                | Per-state refusal reasons, `limit=null` never blocks, newest clouds are excess |
+| `lib/plans.test.ts`                | `#` join, Apple/Google key confusion, adjacency, head-only membership → `null` |
+| `lib/nativeProducts.test.ts`       | Parent-SKU regression, `base` offer on a change, `oldPlanId` attached          |
+| `hooks/useSubscriptionIap.test.ts` | Guest and social-link refusals, Android replacement payload                    |
+| `i18n.test.ts`                     | ko/en keys exist and `{{max}}` / `{{count}}` / `{{days}}` survive              |
+
+Type checking is `tsc -b`; the full app checklist is in the [app README](../../../README.md).
+
+The traps that are not in the tests:
+
+| Trap                       | What happens                                                                                                                                                                                                                                                                   |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `IS_DEV` dry run           | `useAddCloud` passes `dryRun` in dev, mirroring the membership route, so no real infrastructure is provisioned. Cloud creation on tiers 2–5 is therefore not exercised in dev.                                                                                                 |
+| Android plan order         | `ANDROID_PLAN_LIST` in `apps/mobile/src/app/services/subscriptionIap/config.ts` derives an upgrade/downgrade rank from the env list's `indexOf`. If that order diverges from tier order, the direction flips — passing an exact `oldPlanId` is what keeps the judgement sound. |
+| `make` returns early       | `POST /clouds/0/make` returns once the model exists (`status=init`); workspace assignment and deploy follow asynchronously with no SLA. The success toast means accepted, not ready — the switcher shows the provisioning state.                                               |
+| One email per cloud, today | Reaching tier 5 needs five addresses. Until the backend supports one account across several clouds, that is the practical ceiling on tier 2+ conversion.                                                                                                                       |
+| Store price only           | Off-native there is no store and therefore no `displayPrice`; callers fall back to the server's reference value.                                                                                                                                                               |
+
+The debug overlay's IAP screen (`features/debug`) maps 1:1 onto the bridge commands this feature
+uses, which is the fastest way to exercise a purchase path without a real charge. See
+[debug/README.md](../debug/README.md).
+
+## Further reading
+
+- [architecture/bridge.md](../../architecture/bridge.md) — the single native ↔ web message seam.
+- [architecture/stores.md](../../architecture/stores.md) — why the cross-feature request seams are
+  zustand stores.
+- [home/README.md](../home/README.md) — the banners and the cloud switcher that raise the requests.
+- [mypage/README.md](../mypage/README.md) — cloud management, where a cloud is actually released.
+- [`@chatic/data`](../../../../../libs/data/README.md) — `SubscriptionRepository` and `cloud.makeCloud`
+  behind `runtime.data.useRuntimeRepositories()`.
