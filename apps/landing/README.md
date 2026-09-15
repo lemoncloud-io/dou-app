@@ -134,7 +134,9 @@ project landing` and `nx show project @chatic/landing` both resolve to it.
 
 ## Dependencies: why a marketing site pulls a bridge and a logger
 
-Nx reports five libraries. Only two are imported by a file in this app:
+Nx's graph gives this app five libraries under `libs/` — `app-messages`, `bridges`, `logger`,
+`policy-content`, `theme` — plus the root `assets` project. Only three of the six are imported by a
+file here:
 
 | Library                  | Reached how               | Used for                                                    |
 | ------------------------ | ------------------------- | ----------------------------------------------------------- |
