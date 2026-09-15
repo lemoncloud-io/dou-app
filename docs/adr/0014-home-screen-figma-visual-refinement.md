@@ -1,110 +1,134 @@
-# 홈 화면: Figma 개정 디자인 반영 — 플로팅 네비·렐리 클라우드·카운트·아바타 정렬
+# Home screen: apply the revised Figma design — floating nav, the relay cloud, counts, avatar alignment
 
 ## Status
 
 accepted
 
-결정일: 2026-07-16
+Decided: 2026-07-16
 
-관련 ADR: [[0011-web-layout-shell-and-floating-bottom-nav]](./0011-web-layout-shell-and-floating-bottom-nav.md) (플로팅 네비 확장),
-[[0013-home-screen-web-ui-kit-migration]](./0013-home-screen-web-ui-kit-migration.md) (본 개정의 베이스)
+Related ADRs: [[0011-web-layout-shell-and-floating-bottom-nav]](./0011-web-layout-shell-and-floating-bottom-nav.md)
+(the floating nav it extends), [[0013-home-screen-web-ui-kit-migration]](./0013-home-screen-web-ui-kit-migration.md)
+(the base this revision builds on)
 
 ## Context
 
-ADR-0013로 홈 화면(`apps/web/src/app/features/home`)이 `@chatic/web-ui-kit`로 마이그레이션되어
-헤더·Place/Chat 섹션·행·클라우드 시트가 디자인 시스템 컴포넌트로 교체됐다. 이후 Figma에서 홈 화면의
-**개정 디자인**이 나왔고(노드 `2931-8611`, `2933-9999`, `2933-9794`), 그에 맞춰 시각을 다듬는 것이 이번
-작업이다.
+ADR-0013 migrated the home screen (`apps/web/src/app/features/home`) to `@chatic/web-ui-kit`, so the
+header, the Place and Chat sections, the rows and the cloud sheet are design-system components. Figma
+then produced a **revised design** for home (nodes `2931-8611`, `2933-9999`, `2933-9794`), and this
+round applies it.
 
-사용자가 보고한 이슈 중 다수는 **이미 코드에 구현돼 있다** — 조사 결과 현재 브랜치 상태와 요청이 어긋난다:
+Several of the reported issues are **already implemented**. Investigation found the request and the
+current branch out of step:
 
-| #   | 요청                                 | 현재 코드 상태                                                                                                                                 | 근거                        |
-| --- | ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
-| 1   | 바텀네비가 채팅 목록을 가림          | `FloatingTabBar`는 이미 `pointer-events-none`로 플로팅. 다만 하단에 96px `from-background` **그라디언트 백드롭**이 뒤 콘텐츠를 시각적으로 덮음 | `FloatingTabBar.tsx:58-61`  |
-| 2   | Place 선택 마크 + 미읽음 레드닷      | **구현됨** (`VerifiedBadge` + 레드닷)                                                                                                          | `PlaceItem.tsx:41-48`       |
-| 3   | 사진 원형 크롭                       | **버그** — 채널 썸네일이 사각형으로 렌더(원본 크기). `PlaceItem`은 정상, `ChannelList`만 깨짐                                                  | `ChannelList.tsx:65-68`     |
-| 4   | 렐리 클라우드 "DoU Home" 표기 + 마크 | **없음** — 렐리(default)는 클라우드 목록 미표시                                                                                                | `CloudItem.tsx`             |
-| 5   | 클라우드 선택 체크 + 레이아웃 변경   | 체크 아이콘은 **구현됨**; 레이아웃은 개정 필요                                                                                                 | `CloudItem.tsx:81`          |
-| 6   | 채널 미읽음 뱃지                     | **구현됨** (`UnreadBadge variant="pill"`)                                                                                                      | `ChannelList.tsx:100`       |
-| 7   | Place/Chat 개수 텍스트 옆 표기       | 미배선 — 단, `CollapsibleSection`에 `count?` prop이 **이미 존재**                                                                              | `CollapsibleSection.tsx:11` |
+| #   | Request                                          | State in the code                                                                                                                         | Evidence                    |
+| --- | ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
+| 1   | The bottom nav covers the chat list              | `FloatingTabBar` already floats with `pointer-events-none`. But a 96px `from-background` **gradient backdrop** at the bottom visually covers the content behind it | `FloatingTabBar.tsx:58-61`  |
+| 2   | Place selection mark plus an unread red dot      | **Implemented** (`VerifiedBadge` plus the red dot)                                                                                         | `PlaceItem.tsx:41-48`       |
+| 3   | Circular photo crop                              | **A bug** — channel thumbnails render as squares at their original size. `PlaceItem` is fine; only `ChannelList` is broken                  | `ChannelList.tsx:65-68`     |
+| 4   | A "DoU Home" label plus mark for the relay cloud | **Missing** — relay (default) is not listed among the clouds                                                                               | `CloudItem.tsx`             |
+| 5   | Cloud selection check plus a layout change       | The check icon is **implemented**; the layout needs the revision                                                                            | `CloudItem.tsx:81`          |
+| 6   | Channel unread badge                             | **Implemented** (`UnreadBadge variant="pill"`)                                                                                             | `ChannelList.tsx:100`       |
+| 7   | Counts beside the Place and Chat titles          | Not wired — though `CollapsibleSection` **already has** a `count?` prop                                                                     | `CollapsibleSection.tsx:11` |
 
-즉 작업의 성격은 **주로 개정 Figma 디자인 반영**이며, 항목 3은 별개의 실제 렌더링 버그다(사용자 스크린샷으로
-확인). 나머지 항목은 대개 "없어서 새로 만드는" 것이 아니라 "기존 구현을 개정 디자인에 맞춰 정렬"하는 것이다.
+So the work is **mostly applying the revised Figma design**, and item 3 is a separate, real rendering
+bug (confirmed by the user's screenshot). The rest is not "build what is missing" but "align what
+exists with the revised design".
 
-**항목 3 근본 원인** — `ListRow`는 `leading`을 `flex` 래퍼로 감싼다(`ListRow.tsx:52`). `PlaceItem`의 썸네일
-`<span size-[46px]>`은 그 flex의 직속 자식이라 blockify되어 크기가 먹지만, `ChannelList`는 멤버수 오버레이
-뱃지 때문에 `<div className="relative">`로 한 겹 더 감싸(`ChannelList.tsx:65`) 썸네일 `<span>`이 블록 div
-안의 `display:inline` 요소가 된다. 인라인 요소는 `width`/`height`를 무시하므로 `size-[46px]`가 적용되지 않고,
-`<img size-full>`이 원본 크기로 커져 사각형으로 보인다(`rounded-full`은 거대 사각형 모서리만 깎음). 스크린샷의
-"멤버 뱃지가 큰 사각형 좌상단"이 이를 증명한다.
+**Root cause of item 3** — `ListRow` wraps `leading` in a `flex` wrapper (`ListRow.tsx:52`).
+`PlaceItem`'s thumbnail `<span size-[46px]>` is a direct child of that flex, so it is blockified and
+its size applies. `ChannelList` adds another wrapper, `<div className="relative">`
+(`ChannelList.tsx:65`), for the member-count overlay badge, which leaves the thumbnail `<span>` an
+`display:inline` element inside a block div. An inline element ignores `width` and `height`, so
+`size-[46px]` never applies, `<img size-full>` grows to its original size, and the result is a square
+(`rounded-full` only rounds the corners of a huge square). The screenshot — a member badge at the top
+left of a big square — shows exactly this.
 
-figma MCP 인증이 완료되어 개정 디자인 3개 노드를 직접 확인했다. 확정된 시각 스펙:
+Figma MCP authentication came through, so the three revised nodes were read directly. The settled
+visual spec:
 
-- **`2931-8611` (홈)** — 섹션 제목 옆 회색 카운트(`Place 1`, `Chat 4`). Place 선택=파란 체크·미선택+미읽음
-  =레드닷(현행과 일치). **채널 멤버수는 이름 뒤 회색 pill로 인라인** 표시(현재는 아바타 좌상단 오버레이 →
-  변경 필요). 미읽음=핑크 pill 트레일링(일치).
-- **`2933-9794` (클라우드 전환)** — `내 클라우드` 목록 최상단에 **"DoU Home"** 행(초록 DoU 마크). 선택 마크가
-  **왼쪽 보라 체크 → 오른쪽(트레일링) 초록 체크(✓)**로 이동. 행 = [아바타][이름/서브타이틀] … [트레일링 체크].
-- **`2933-9999` (DoU 마크)** — 초록 원(`#90c304`, `--main2_color`) + 레몬 캐릭터. 레몬 글리프는 kit에 이미
-  있는 `dou-logo.svg`(28×28)와 일치 → 재사용하고 초록 원만 CSS로 입힌다(새 export 불필요).
+- **`2931-8611` (home)** — a grey count beside the section title (`Place 1`, `Chat 4`). A selected
+  place gets a blue check; an unselected place with unread gets a red dot (matching today). The
+  **channel member count moves inline, as a grey pill after the name** (today it overlays the top left
+  of the avatar, so this changes). Unread stays a pink trailing pill (matches).
+- **`2933-9794` (cloud switch)** — a **"DoU Home"** row at the top of the `My clouds` list, with the
+  green DoU mark. The selection mark moves **from a purple check on the left to a green check (✓) on
+  the right (trailing)**. A row is [avatar][name / subtitle] … [trailing check].
+- **`2933-9999` (the DoU mark)** — a green circle (`#90c304`, `--main2_color`) with the lemon
+  character. The lemon glyph matches `dou-logo.svg` (28×28), which the kit already has, so reuse it and
+  add the green circle in CSS. No new export.
 
-라벨 언어 확정: Figma는 한국어 UI에서도 "DoU Home"으로 렌더하나, **한국어="두유 홈" / 영어="DoU Home"**으로
-i18n 분기한다(사용자 확정). Figma 렌더와 의도적으로 다르다.
+Label language, settled: Figma renders "DoU Home" even in the Korean UI, but the label branches on
+i18n — **Korean "두유 홈" / English "DoU Home"** (the user decided this). It deliberately differs from
+the Figma render.
 
 ## Decision
 
-홈 화면을 개정 Figma에 맞춰 **web-ui-kit 우선**으로 다듬는다. ADR-0013의 원칙(프레젠테이션만 교체, 데이터
-흐름·미읽음·last-chat·sync 등록 모델 보존)을 그대로 계승한다. 색상 hex·아이콘을 홈에 직접 박지 않고, 누락된
-프리미티브가 있으면 `@chatic/web-ui-kit`에 정의 후 가져다 쓴다.
+Refine the home screen against the revised Figma, **web-ui-kit first**. It inherits ADR-0013's
+principle: replace presentation only, and preserve data flow, unread, last-chat and the sync
+registration model. No colour hex or icon goes into home directly; a missing primitive is defined in
+`@chatic/web-ui-kit` and imported from there.
 
-**포함**
+**In scope**
 
-- **(1) 플로팅 네비 — 백드롭 제거.** `FloatingTabBar`의 96px `from-background` 그라디언트 백드롭을 **우선
-  제거**해 뒤 콘텐츠가 그대로 노출되는지 확인한다. pill만 플로팅하고 뒤 영역은 완전 노출이 목표. (kit 변경 →
-  ADR-0011 소산물이므로 홈·마이페이지 등 네비를 쓰는 전 화면에 영향. 제거 후 가독성 재검증.)
-- **(4) 렐리 클라우드 표기 — 신규.** 중계(default) 접속을 클라우드 전환 시트 `내 클라우드` 목록 **최상단**에
-  **"두유 홈"(한국어) / "DoU Home"(영어)** 라벨 + 초록 DoU 마크로 노출한다(Figma `2933-9794`/`2933-9999`).
-  활성 시 트레일링 초록 체크. DoU 마크는 kit 기존 `dou-logo.svg` 재사용 + 초록 원 CSS(새 애셋 불필요).
-- **(5) 클라우드 선택 레이아웃 개정.** `CloudItem`의 선택 체크를 **왼쪽 보라(`#C139E3`) → 오른쪽 트레일링
-  초록 체크**로 옮기고, 행을 `[아바타][이름/서브타이틀] … [트레일링 체크]`로 재구성한다(Figma `2933-9794`).
-- **(2)(6) Place·채널 마크/뱃지 정렬.** Place 선택 파란 체크·미읽음 레드닷은 현행 유지(Figma 일치). 채널
-  **멤버수를 아바타 오버레이 → 이름 뒤 회색 pill 인라인**으로 옮긴다. 미읽음 핑크 pill(트레일링)은 유지
-  (Figma `2931-8611`).
-- **(3) 아바타 원형 크롭 버그 수정.** 반복되는 "썸네일 img → 원형 크롭" 패턴을 `@chatic/web-ui-kit`의
-  **재사용 이미지 아바타 프리미티브**로 추출한다(예: 기존 `avatarBase`에 `src` 지원, 또는 `PlaceAvatar`/
-  `ChatAvatar`가 이미지 소스를 받도록). 블록 레벨 박스로 크기를 강제해 인라인 span 버그를 원천 차단하고,
-  Place/Channel 양쪽에서 사용한다. 헤더/시트 등 남은 미크롭 지점도 같은 프리미티브로 통일.
-- **(7) 섹션 카운트 배선.** `PlaceList`/`ChannelList`에서 `CollapsibleSection`의 기존 `count` prop에
-  `places.length`/`channels.length`를 넘겨 Place·Chat 제목 옆에 개수를 노출한다(신규 컴포넌트 불필요).
+- **(1) Floating nav — remove the backdrop.** Remove `FloatingTabBar`'s 96px `from-background`
+  gradient backdrop **first**, and check that the content behind it is fully visible. The goal is that
+  only the pill floats and the area behind it is untouched. (This is a kit change and therefore a
+  descendant of ADR-0011, so it affects every screen that uses the nav — home, my page and the rest.
+  Re-check readability after removing it.)
+- **(4) The relay cloud — new.** Show the relay (default) connection at the **top** of the `My clouds`
+  list in the cloud switch sheet, labelled **"두유 홈" (Korean) / "DoU Home" (English)** with the green
+  DoU mark (Figma `2933-9794` / `2933-9999`). When active, it gets the trailing green check. The mark
+  reuses the kit's `dou-logo.svg` plus a green circle in CSS — no new asset.
+- **(5) Revise the cloud selection layout.** Move `CloudItem`'s selection check **from the purple
+  (`#C139E3`) one on the left to a green trailing check on the right**, and restructure the row as
+  [avatar][name / subtitle] … [trailing check] (Figma `2933-9794`).
+- **(2)(6) Align the place and channel marks and badges.** The blue place check and the unread red dot
+  stay as they are (they match Figma). The **channel member count moves from the avatar overlay to a
+  grey inline pill after the name**. The pink trailing unread pill stays (Figma `2931-8611`).
+- **(3) Fix the circular avatar crop.** Extract the repeated "thumbnail img → circular crop" pattern
+  into a **reusable image avatar primitive** in `@chatic/web-ui-kit` — give the existing `avatarBase`
+  a `src`, or let `PlaceAvatar` / `ChatAvatar` take an image source. Forcing a block-level box makes
+  the inline-span bug impossible, and both Place and Channel use it. The remaining uncropped spots
+  (header, sheet) move to the same primitive.
+- **(7) Wire the section counts.** Pass `places.length` / `channels.length` into
+  `CollapsibleSection`'s existing `count` prop from `PlaceList` / `ChannelList`, so the counts appear
+  beside the Place and Chat titles. No new component.
 
-**제외**
+**Out of scope**
 
-- 데이터 흐름·미읽음·last-chat·sync 등록 로직 변경(ADR-0013 계승).
-- 검색·1:1 대화 생성 등 미구현 기능의 실제 동작(별도 작업).
+- Changes to data flow, unread, last-chat or sync registration logic (inherited from ADR-0013).
+- Making the unbuilt features actually work — search, creating a 1:1 chat. Separate work.
 
 ## Alternatives
 
-- **런타임 버그 헌팅으로 접근** — 2·3·5·6이 안 보이는 원인을 디버깅. 사용자가 "개정 디자인 반영"으로 성격을
-  확정해 기각. (코드엔 이미 존재하므로 버그가 아니라 디자인 갱신 문제.)
-- **카운트·플로팅 네비용 kit 컴포넌트 신규 제작** — 불필요. `CollapsibleSection.count`와 `FloatingTabBar`가
-  이미 존재하므로 신규 제작은 중복.
-- **홈에 hex/아이콘 직접 인라인** — web-ui-kit 우선 원칙(ADR-0013)에 위배되어 기각.
-- **Figma 없이 상식 기준 즉시 구현** — 개정 디자인의 정확한 스펙을 놓칠 위험. 사용자가 인증 후 재개를 선택.
+- **Treat it as a runtime bug hunt** — debug why 2, 3, 5 and 6 are not visible. Rejected: the user
+  settled the nature of the work as "apply the revised design". The code already has them, so it is a
+  design-update problem, not a bug.
+- **Build new kit components for the counts and the floating nav** — unnecessary.
+  `CollapsibleSection.count` and `FloatingTabBar` already exist, so building again would duplicate
+  them.
+- **Inline hex and icons in home** — rejected; it breaks the web-ui-kit-first principle (ADR-0013).
+- **Implement immediately from common sense, without Figma** — risks missing the revised design's
+  exact spec. The user chose to authenticate and resume.
 
 ## Consequences
 
-- **네비 백드롭 제거는 전역 영향.** `FloatingTabBar`는 ADR-0011로 shell이 소유해 홈뿐 아니라 네비를 쓰는 모든
-  탭 화면에 적용된다. 그라디언트 제거 후 스크롤 콘텐츠가 pill 뒤로 지나갈 때 가독성을 각 화면에서 재확인해야
-  한다.
-- **변경 폭은 항목별로 갈린다.** 7은 배선 수준, 2는 현행 유지, 6은 채널 멤버수 인라인화, 3은 kit 이미지
-  아바타 프리미티브 추출(버그 수정), 1·4·5는 새 작업(백드롭 제거, 렐리 표기, 체크 재배치)이다.
-- **항목 3은 kit에서 고친다.** 홈에서 span display를 땜질하지 않고 재사용 프리미티브로 추출해, 같은 인라인
-  span 버그가 다른 소비자에서 재발하지 않도록 한다(web-ui-kit 우선 원칙).
-- **DoU 마크는 기존 애셋 재사용.** kit `dou-logo.svg`(28×28)가 Figma 글리프와 일치해 새 export가 없다.
-  누락 프리미티브(이미지 아바타 등)가 나오면 라이브러리에 추가해 개정 Figma를 더 온전히 반영한다.
-- **"두유 홈"/"DoU Home" i18n 분기(확정).** 한국어 "두유 홈", 영어 "DoU Home". Figma 렌더("DoU Home")와
-  의도적으로 다르므로 구현 시 i18n 리소스로 처리하고 하드코딩하지 않는다.
+- **Removing the nav backdrop is global.** Per ADR-0011 the shell owns `FloatingTabBar`, so the change
+  reaches every tab screen that uses the nav, not just home. After the gradient goes, each screen has
+  to be re-checked for readability as content scrolls behind the pill.
+- **The size of the change differs per item.** 7 is wiring; 2 stays as it is; 6 inlines the channel
+  member count; 3 extracts a kit image-avatar primitive (a bug fix); 1, 4 and 5 are new work (removing
+  the backdrop, the relay label, moving the check).
+- **Item 3 is fixed in the kit.** Rather than patching span display in home, it becomes a reusable
+  primitive, so the same inline-span bug cannot come back in another consumer (web-ui-kit first).
+- **The DoU mark reuses an existing asset.** The kit's `dou-logo.svg` (28×28) matches the Figma glyph,
+  so there is no new export. Where a primitive is missing — an image avatar, say — it is added to the
+  library so the revised Figma is expressed more completely.
+- **The "두유 홈" / "DoU Home" i18n split is settled.** Korean "두유 홈", English "DoU Home". It
+  deliberately differs from the Figma render ("DoU Home"), so it goes through i18n resources and is
+  never hardcoded.
 
-## 다음 단계
+## Next steps
 
-[[dev-2_implement]] 스펙 작성(Phase A)으로 이어간다. 전 항목 착수 가능(미해결 없음).
+Continue into the spec phase (Phase A) of [[dev-2_implement]]. Every item is ready to start; nothing
+is unresolved.

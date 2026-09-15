@@ -1,75 +1,123 @@
-# 전 유저 대상 이슈 리포트 플로팅 위젯을 신규 독립 기능으로 만들고, 스크린샷은 Phase 2로 분리한다
+# Build the issue report floating widget as a new standalone feature for all users, and split screenshots into Phase 2
 
-> 상태: Superseded · 결정일: 2026-07-16
-> 대체: [ADR-0047](./0047-feedback-page-replaces-issue-report-floating-widget.md) — 플로팅 위젯을 걷어내고 마이페이지 진입 "피드백 보내기" 페이지로 전환(2026-08-07). 로그·디바이스 자동 첨부(`buildReportContext`)는 그대로 승계된다.
+> Status: Superseded · Decided: 2026-07-16
+> Replaced by: [ADR-0047](./0047-feedback-page-replaces-issue-report-floating-widget.md) — the floating
+> widget is removed in favour of a "Send feedback" page reached from My Page (2026-08-07). The
+> automatic log and device attachment (`buildReportContext`) carries over unchanged.
 
-## 맥락 (Context)
+## Context
 
-전 유저가 앱 어디서든 버그/이슈를 신고할 수 있는 기능을 만든다. 요구사항은 다음과 같다.
+Build a feature that lets any user report a bug or issue from anywhere in the app. The requirements:
 
-- 우측 하단에 **플로팅 버튼**으로 상주하며, 드래그로 **위치 변경 가능**
-- 플로팅으로 열리는 **이슈 리포팅 오버레이(폼)** 도 위치 변경 가능
-- `@libs/web-ui-kit` 컴포넌트 활용
-- **이슈 타이틀 + 본문 + 스크린샷** 첨부 전송
-- **최근 로그 50개, 디바이스 및 웹 상태**를 자동 추출·조합해 함께 전송
+- A **floating button** that stays in the bottom right and can be **dragged to another position**
+- The **issue reporting overlay (form)** it opens can also be moved
+- Built from `@libs/web-ui-kit` components
+- Sends an **issue title, a body and a screenshot** attachment
+- Automatically collects and attaches **the last 50 logs plus device and web state**
 
-착수 전 코드베이스 조사로 확인한 사실(재사용 가능한 기존 자산):
+What a survey of the codebase found before starting — existing assets worth reusing:
 
-- **이슈 폼과 전송 API가 이미 존재하나 어디에도 마운트되지 않음** — `apps/web/src/app/ui/components/ReportIssueDialog.tsx`, `reportIssue()` (`libs/web-core/src/api/common.ts:125`). `reportIssue`는 이미 env/url/user/cloud 컨텍스트를 자동 첨부해 Slack 리포트 엔드포인트(`${DOU_ENDPOINT}/hello/report`)로 POST 한다.
-- 로그: `logBuffer.peek(50)` (`@chatic/bridges`, 500개 링버퍼 — `libs/logger/src/runtime.ts`) 로 최근 50개 즉시 획득.
-- 디바이스/버전: `useDeviceInfo()` → `{ deviceInfo, versionInfo }` (`libs/device-utils/src/hooks/useDeviceInfo.ts`). 세션/유저/서버 컨텍스트: `getGlobalSessionContext()` / `getActiveSessionUser()` (web-core).
-- 드래그 패턴: `apps/web/src/app/features/debug/overlay/MiniPanel.tsx` 에 포인터 이벤트 기반 드래그 + 뷰포트 클램프가 이미 구현됨(단 위치 영속화는 없음). 고정 플로팅 버튼 패턴은 `DebugOverlayHost.tsx`.
-- 설정 영속화 패턴: `usePreferenceStore` + `PREFERENCES` 레지스트리(`apps/web/src/app/stores/`), MyPage의 `ListRow` + `Switch` 토글(`MyPage.tsx:168`).
-- **UI 키트 계층**: `@chatic/web-ui-kit`(제품 디자인 시스템: FloatingButton/BottomSheet/TextField/Button)은 내부적으로 `@chatic/ui-kit`(shadcn 프리미티브)을 감싼다. 둘은 경쟁 관계가 아니라 상하위 계층이다. 단 web-ui-kit에는 멀티라인 Textarea가 없다.
-- **스크린샷/이미지 인프라 부재**: 스크린샷 "캡처" 네이티브 브릿지 명령 없음, presigned/S3 이미지 호스팅 업로드 인프라 없음. 앱의 이미지 관례는 `resizeImageToBase64`를 통한 **base64 data URL** 인라인 전송. 네이티브 `OpenPhotoLibrary`/`OpenCamera` 브릿지는 `includeBase64` 옵션은 있으나 이를 감싼 웹 훅은 아직 없음.
+- **The issue form and the send API already exist, but are mounted nowhere** —
+  `apps/web/src/app/ui/components/ReportIssueDialog.tsx` and `reportIssue()`
+  (`libs/web-core/src/api/common.ts:125`). `reportIssue` already attaches env, url, user and cloud
+  context and POSTs to the Slack report endpoint (`${DOU_ENDPOINT}/hello/report`).
+- Logs: `logBuffer.peek(50)` (`@chatic/bridges`, a 500-entry ring buffer —
+  `libs/logger/src/runtime.ts`) gives the last 50 immediately.
+- Device and version: `useDeviceInfo()` → `{ deviceInfo, versionInfo }`
+  (`libs/device-utils/src/hooks/useDeviceInfo.ts`). Session, user and server context:
+  `getGlobalSessionContext()` / `getActiveSessionUser()` (web-core).
+- The drag pattern: `apps/web/src/app/features/debug/overlay/MiniPanel.tsx` already implements
+  pointer-event dragging with viewport clamping (it does not persist the position). The fixed floating
+  button pattern is in `DebugOverlayHost.tsx`.
+- The settings persistence pattern: `usePreferenceStore` plus the `PREFERENCES` registry
+  (`apps/web/src/app/stores/`), with the `ListRow` + `Switch` toggle on MyPage (`MyPage.tsx:168`).
+- **The UI kit layers**: `@chatic/web-ui-kit` (the product design system: FloatingButton, BottomSheet,
+  TextField, Button) wraps `@chatic/ui-kit` (shadcn primitives) internally. They are not competitors
+  but an upper and a lower layer. web-ui-kit has no multiline Textarea, though.
+- **No screenshot or image infrastructure**: there is no native bridge command to capture a
+  screenshot, and no presigned / S3 image upload hosting. The app's image convention is an inline
+  **base64 data URL** through `resizeImageToBase64`. The native `OpenPhotoLibrary` / `OpenCamera`
+  bridges have an `includeBase64` option, but no web hook wraps them yet.
 
-## 결정 (Decision)
+## Decision
 
-### 범위·대상
+### Scope and audience
 
-- **대상: 모든 최종 사용자.** 프로덕션 포함 항상 노출되는 플로팅 위젯(내부/디버그 게이팅 없음).
-- **신규 독립 기능**으로 제작(`apps/web/src/app/features/issue-report/`). 기존 `ReportIssueDialog`를 확장하거나 debug 오버레이에 통합하지 않는다. 단, 아래 로직 자산은 **재사용**한다: `reportIssue()`, `logBuffer`, `useDeviceInfo()`, 세션 컨텍스트 리더, MiniPanel의 드래그 패턴, `usePreferenceStore` 패턴.
-- **플레인 웹 + 네이티브 웹뷰 공통 지원** (`isNative()`로 분기).
+- **Audience: every end user.** The floating widget is always present, production included, with no
+  internal or debug gate.
+- Built as a **new standalone feature** (`apps/web/src/app/features/issue-report/`). It neither extends
+  the existing `ReportIssueDialog` nor joins the debug overlay. It does **reuse** the logic assets:
+  `reportIssue()`, `logBuffer`, `useDeviceInfo()`, the session context readers, MiniPanel's drag
+  pattern and the `usePreferenceStore` pattern.
+- **Supported on both plain web and the native WebView** (branching on `isNative()`).
 
 ### UI
 
-- `@chatic/web-ui-kit` 컴포넌트로 구성(오버레이는 BottomSheet, 입력은 TextField, CTA는 FloatingButton/Button). 멀티라인 본문은 web-ui-kit에 Textarea가 없어 `@chatic/ui-kit`의 Textarea를 폴백 사용(web-ui-kit가 ui-kit 상위 계층이므로 정합적).
-- **플로팅 버튼**: 우하단 기본 위치, 포인터 드래그로 이동(MiniPanel 패턴 재사용), 뷰포트 클램프.
-- **오버레이 폼**: 위치 이동 가능.
-- **위치·표시 상태 영속화**: 위치는 feature 전용 store(localStorage 백업)에 저장해 재방문 시 유지. 사용자가 버튼을 **숨길 수 있고**, 숨긴 뒤 **복구는 환경설정(MyPage) 토글**에서 처리(`usePreferenceStore`에 `local` strategy 키 추가).
+- Assembled from `@chatic/web-ui-kit` (BottomSheet for the overlay, TextField for inputs,
+  FloatingButton / Button for the CTA). The multiline body falls back to `@chatic/ui-kit`'s Textarea,
+  since web-ui-kit has none — consistent, as web-ui-kit sits above ui-kit.
+- **The floating button**: bottom right by default, moved by pointer drag (reusing the MiniPanel
+  pattern), clamped to the viewport.
+- **The overlay form**: movable as well.
+- **Position and visibility are persisted**: the position goes in a feature-owned store (backed by
+  localStorage) so it survives a revisit. A user can **hide the button**, and **restoring it is a
+  toggle in preferences (MyPage)** — a `local`-strategy key added to `usePreferenceStore`.
 
-### 전송 payload (v1)
+### The send payload (v1)
 
-- 기존 `reportIssue()`를 **확장**해 payload에 다음을 추가한다: `logs`(`logBuffer.peek(50)`), `device`/`version`(`useDeviceInfo()` 결과). 기존 user/cloud/env/url/timestamp는 그대로 유지.
-- **전송 목적지는 기존 Slack 리포트 엔드포인트(`/hello/report`) 유지.**
-- **로그·디바이스 상태는 스크러빙 없이 자동 첨부**(v1). 별도 동의 절차 없음.
+- **Extend** the existing `reportIssue()` payload with `logs` (`logBuffer.peek(50)`) and `device` /
+  `version` (from `useDeviceInfo()`). The existing user, cloud, env, url and timestamp stay.
+- **The destination stays the existing Slack report endpoint (`/hello/report`).**
+- **Logs and device state are attached automatically, unscrubbed** (v1). There is no separate consent
+  step.
 
-### 스크린샷 → Phase 2로 분리
+### Screenshots move to Phase 2
 
-- **v1 범위 제외.** v1은 타이틀 + 본문 + 로그 50개 + 디바이스/웹 상태만 전송한다.
-- Phase 2 방향(확정된 방침): 캡처는 **네이티브 톤 라이브러리/카메라 선택**(기존 `OpenPhotoLibrary`/`OpenCamera` 브릿지, 신규 네이티브 캡처 명령 없이), 플레인 웹은 `<input type=file>` 폴백. **전송 경로는 미해결 — 별도 설계 필요**(현재 Slack 텍스트 엔드포인트로는 이미지를 실을 수 없어 백엔드 이미지 엔드포인트 신설이 유력하며 크로스팀 작업).
+- **Out of scope for v1.** v1 sends the title, the body, 50 logs and device / web state.
+- The settled direction for Phase 2: capture through the **native photo library or camera picker**
+  (the existing `OpenPhotoLibrary` / `OpenCamera` bridges, with no new native capture command), with
+  an `<input type=file>` fallback on plain web. **The upload path is unresolved and needs its own
+  design** — the Slack text endpoint cannot carry an image, so a new backend image endpoint is the
+  likely answer, and that is cross-team work.
 
-## 대안 (Alternatives)
+## Alternatives
 
-- **기존 ReportIssueDialog 확장 / debug 오버레이 통합** — 가장 빠르나 debug 오버레이는 내부용 게이팅이라 전 유저 노출과 성격이 다르고 폼 UI 자유도가 떨어진다. → 로직만 재사용하고 UI는 신규 독립 기능으로.
-- **스크린샷 캡처: 웹 DOM 캡처(html-to-image)** — 신규 의존성으로 이 레포 안에서 자기완결 가능하나 크로스오리진 이미지/canvas/video 누락 등 정확도 한계. → 톤 라이브러리/카메라 선택으로 결정.
-- **스크린샷 캡처: 신규 네이티브 캡처 명령(`OnCaptureScreenshot`)** — "현재 화면 자동 캡처" UX에 가장 부합하나 네이티브 앱(별도 레포) 신규 개발 필요. → 채택하지 않음.
-- **이미지 전송: base64 인라인(기존 관례)** — 백엔드 작업 최소지만 Slack에 이미지로 렌더되지 않고 텍스트 용량 한계 리스크. → v1에서 스크린샷 자체를 이연하며 보류.
-- **플로팅 위치: 세션 동안만 유지** — 구현은 단순하나 "위치 변경 가능"의 기대(재방문 유지)에 못 미침. → store+localStorage 영속화로 결정.
+- **Extend the existing ReportIssueDialog / fold it into the debug overlay** — fastest, but the debug
+  overlay is gated for internal use, which is a different thing from shipping to every user, and it
+  constrains the form UI. → Reuse the logic, build the UI as a new standalone feature.
+- **Screenshot capture through web DOM capture (html-to-image)** — a new dependency, but
+  self-contained in this repo; accuracy suffers with cross-origin images, canvas and video. → The
+  photo library / camera picker won.
+- **Screenshot capture through a new native command (`OnCaptureScreenshot`)** — the best fit for
+  "capture the current screen automatically", but it needs new development in the native app (a
+  separate repo). → Not adopted.
+- **Image transfer as inline base64 (the existing convention)** — least backend work, but it does not
+  render as an image in Slack and risks the text size limit. → Held, since v1 defers screenshots
+  entirely.
+- **Keeping the floating position for the session only** — simpler, but it falls short of what "can be
+  moved" implies (that it survives a revisit). → Persisted in a store plus localStorage.
 
-## 결과 (Consequences)
+## Consequences
 
-**얻는 것**
+**What is gained**
 
-- 기존 `reportIssue`/`logBuffer`/`useDeviceInfo`/드래그 패턴/preference 패턴 재사용으로 중복 최소화, 빠른 출시.
-- 전 유저 셀프서비스 이슈 신고 + 자동 컨텍스트(로그·디바이스·유저·서버)로 디버깅 효율 상승.
-- 스크린샷을 Phase 2로 떼어내 v1을 이 레포 안에서 자기완결·백엔드 의존 없이 출시 가능.
+- Reusing `reportIssue`, `logBuffer`, `useDeviceInfo`, the drag pattern and the preference pattern
+  keeps duplication low and ships quickly.
+- Self-service issue reporting for every user, with automatic context (logs, device, user, server),
+  makes debugging faster.
+- Splitting screenshots into Phase 2 lets v1 ship self-contained in this repo with no backend
+  dependency.
 
-**감수하는 트레이드오프 / 리스크**
+**Trade-offs and risks accepted**
 
-- **요구사항 부분 이연**: 스크린샷 전송이 v1에 없음.
-- **프라이버시**: 로그 50개가 스크러빙 없이 전송되어 토큰·개인정보가 Slack으로 노출될 수 있음. (현재는 명시적으로 감수)
-- **채널 노이즈**: 전 유저 리포트가 내부 Slack 리포트 채널로 유입되어 스팸/노이즈 가능. 목적지·라우팅 재검토가 향후 필요할 수 있음.
-- **payload 비대화**: 로그 50개 첨부로 요청 크기가 커져 전송 실패/절단 가능성. 크기 상한·트렁케이션 정책을 스펙 단계에서 정한다.
-- **복구 발견성**: 버튼을 숨기면 복구가 환경설정에 의존 → 발견성이 낮을 수 있음. 환경설정 내 배치·문구를 명확히 해야 함.
-- **Phase 2 백엔드 의존**: 스크린샷 전송을 위해 백엔드 이미지 엔드포인트 신설(크로스팀)이 선행되어야 함.
+- **Part of the requirement is deferred**: v1 cannot send a screenshot.
+- **Privacy**: 50 logs are sent unscrubbed, so tokens and personal data can reach Slack. (Explicitly
+  accepted for now.)
+- **Channel noise**: reports from every user land in an internal Slack report channel, which may
+  become spam. The destination and routing may need revisiting.
+- **Payload size**: attaching 50 logs makes requests large enough to fail or be truncated. A size cap
+  and a truncation policy are settled in the spec phase.
+- **Discoverability of recovery**: hiding the button makes recovery depend on preferences, which may
+  be hard to find. Its placement and wording there have to be clear.
+- **A Phase 2 backend dependency**: sending screenshots requires a new backend image endpoint
+  (cross-team) first.

@@ -1,80 +1,121 @@
-# ADR-0022: 채널 초대 화면을 다이얼로그에서 페이지로 전환 + Figma UI 반영
+# ADR-0022: Move channel invites from a dialog to a page, and apply the Figma UI
 
-> 상태: Accepted · 결정일: 2026-07-20
+> Status: Accepted · Decided: 2026-07-20
 
-## 맥락 (Context)
+## Context
 
-기존 채널 초대는 슬라이드업 **다이얼로그**(`InviteFriendsDialog.tsx`)로 구현되어 있고, `ChannelRoomPage`와 `ChannelSettingsPage` 두 곳에서 `useState`로 열렸다. 로직은 네이티브 연락처(`appBridge.getContacts()`) 다중 선택 → 배치 초대(`useCreateInviteBatch`)이며, 웹에서는 연락처 접근이 불가해 `AddFriendSheet`(이름+번호 직접 입력)로 즉시 폴백한다.
+Channel invites are a slide-up **dialog** today (`InviteFriendsDialog.tsx`), opened with `useState`
+from two places, `ChannelRoomPage` and `ChannelSettingsPage`. The logic is multi-select over the native
+contact list (`appBridge.getContacts()`) followed by a batch invite (`useCreateInviteBatch`); on the
+web, where contacts are unavailable, it falls back immediately to `AddFriendSheet` (typing a name and
+number by hand).
 
-Figma에서 초대 흐름이 7개 화면으로 개선되었고(친구 선택 empty/선택/상한, 초대 링크 + 복사/공유 토스트, 연락처 권한 꺼짐), 이를 반영해야 한다. 요구사항:
+Figma reworked the invite flow into seven screens (friend selection empty / selected / at the limit,
+the invite link with its copy and share toasts, and contacts permission off), and the code has to
+follow. The requirements:
 
-- 초대 화면은 **팝업이 아니라 페이지**다.
-- 컴포넌트는 `@chatic/web-ui-kit` 기반으로 구현하고, 누락 컴포넌트는 라이브러리에 새로 정의 후 사용한다.
-- 필요한 아이콘 리소스는 Figma에서 따온다.
+- The invite screen is **a page, not a popup**.
+- Components come from `@chatic/web-ui-kit`, and anything missing is defined in the library first.
+- Icon resources are pulled from Figma.
 
-관련 Figma 노드: `3144-24277`(친구선택 0/100), `3143-23504`(10/100 선택), `3143-23575`(100/100 상한), `3143-23721`(초대 링크), `3153-25498`(링크 복사 토스트), `3153-25568`(공유 완료), `2910-36926`(연락처 권한 꺼짐).
+The Figma nodes: `3144-24277` (friend selection 0/100), `3143-23504` (10/100 selected), `3143-23575`
+(100/100, at the limit), `3143-23721` (invite link), `3153-25498` (link copied toast), `3153-25568`
+(shared), `2910-36926` (contacts permission off).
 
-## 결정 (Decision)
+## Decision
 
-### 라우팅 — 다이얼로그 → 페이지 전환
+### Routing — dialog becomes a page
 
-기존 `InviteFriendsDialog`를 라우팅되는 페이지로 **전환/대체**한다. 두 개의 라우트를 추가한다.
+`InviteFriendsDialog` is **replaced** by routed pages. Two routes are added.
 
-- `/channels/:channelId/invite` — 친구 선택 페이지
-- `/channels/:channelId/invite/link` — 초대 링크 페이지 (별도 라우트)
+- `/channels/:channelId/invite` — the friend selection page
+- `/channels/:channelId/invite/link` — the invite link page (its own route)
 
-`ROUTES.channels`(`apps/web/src/app/routes/paths.ts`)에 빌더를 추가하고, `channels/index.tsx`에 `<Route>`를 추가하며, `pages/index.ts`에 페이지를 export 한다. `ChannelRoomPage`(현재 라인 401 버튼)와 `ChannelSettingsPage`(현재 라인 174)의 진입점은 `useState` 열기 대신 `navigate()`로 바꾼다.
+Add the builders to `ROUTES.channels` (`apps/web/src/app/routes/paths.ts`), add the `<Route>`s in
+`channels/index.tsx`, and export the pages from `pages/index.ts`. The entry points in
+`ChannelRoomPage` (the button at line 401 today) and `ChannelSettingsPage` (line 174 today) change
+from opening `useState` to `navigate()`.
 
-상단 헤더는 다른 채널 페이지와의 일관성을 위해 앱의 `PageHeader`(`apps/web/src/app/ui/components/PageHeader.tsx`)를 재사용한다(kit `AppHeader`/`ModalTopBar` 아님). 초대 링크 페이지는 X(닫기) 어피어런스가 필요하므로 `PageHeader`에 close 변형이 없으면 이를 보강한다.
+The top header reuses the app's `PageHeader`
+(`apps/web/src/app/ui/components/PageHeader.tsx`) for consistency with the other channel pages, not the
+kit's `AppHeader` / `ModalTopBar`. The invite link page needs an X (close) affordance, so if
+`PageHeader` has no close variant, add one.
 
-### 플랫폼별 동작
+### Behaviour per platform
 
-- **네이티브**: 초대 버튼 → 친구 선택 페이지(디바이스 연락처 목록, 다중 선택).
-- **웹**: 디바이스 연락처 접근 불가 → 친구 선택 목록을 채우지 않고 **초대 링크 흐름**으로 진입한다.
+- **Native**: the invite button opens the friend selection page (the device's contacts, multi-select).
+- **Web**: no access to device contacts, so the friend list is not populated and the flow enters the
+  **invite link** path instead.
 
-### 초대 링크 흐름 (URL 소스)
+### The invite link flow (where the URL comes from)
 
-범용 채널 초대 링크를 반환하는 백엔드 엔드포인트는 없다. URL은 `requestInvite`(이름+전화번호 필수) 응답의 `Location` 딥링크로만 생성된다. 따라서 흐름은:
+There is no backend endpoint that returns a general-purpose channel invite link. The URL exists only as
+the `Location` deeplink in a `requestInvite` response, which requires a name and a phone number. So the
+flow is:
 
-1. 친구 선택 페이지 검색바의 링크 아이콘(네이티브) 또는 웹 진입점 클릭 →
-2. 이름+연락처 입력 **바텀시트**(기존 `AddFriendSheet` 성격) 등장 →
-3. 작성 후 공유 버튼 → `requestInvite` 네트워크 콜 →
-4. 응답 `Location` 링크를 획득 → **초대 링크 페이지**에 URL 노출 →
-5. "링크 공유하기"로 OS 공유 시트(네이티브) 또는 클립보드 복사(웹). 복사/공유 완료 시 토스트 및 버튼 상태("✓ 공유 완료").
+1. Tap the link icon in the friend selection page's search bar (native), or the web entry point →
+2. A **bottom sheet** for the name and contact appears (the role `AddFriendSheet` plays today) →
+3. Fill it in and press share → the `requestInvite` network call →
+4. Take the `Location` link from the response → show the URL on the **invite link page** →
+5. "Share link" opens the OS share sheet (native) or copies to the clipboard (web). On copy or share,
+   show a toast and update the button state ("✓ Shared").
 
-### 친구 선택 카운터 — 순수 선택 상한 100
+### The friend selection counter — a plain selection cap of 100
 
-`10/100`은 **한 번에 최대 100명 선택**을 뜻하는 순수 선택 상한이다. 기존의 `memberCount + 선택 ≤ 100` 정원 가드 방식과 달리 현재 멤버 수와 무관하다. 100 도달 시 "100명 까지 초대 가능해요" 토스트를 띄운다.
+`10/100` means **at most 100 selected at once** — a plain selection cap, unrelated to the current
+member count, unlike today's `memberCount + selection ≤ 100` capacity guard. At 100, show the toast
+"You can invite up to 100 people".
 
-### 기존 로직 재사용
+### Reusing the existing logic
 
-`InviteFriendsDialog`의 연락처 페치, 한국 휴대폰 번호 검증(`normalizeKoreanPhone`/`isValidKoreanPhone`/`extractValidPhone`), 배치 초대(1명=단건, 2명+=배치), `useCreateInviteBatch`/`useChannel` 훅은 그대로 재사용한다. UI 껍데기만 페이지 + kit 컴포넌트로 재구성한다.
+`InviteFriendsDialog`'s contact fetching, the Korean phone number validation (`normalizeKoreanPhone`,
+`isValidKoreanPhone`, `extractValidPhone`), the batch invite (one person = a single call, two or more =
+a batch), and the `useCreateInviteBatch` / `useChannel` hooks are all reused as they are. Only the UI
+shell is rebuilt as pages plus kit components.
 
-### web-ui-kit 신규/기존 컴포넌트
+### web-ui-kit, existing and new
 
-- 기존 재사용: `SelectableUserItem`(친구 항목), `SearchInput`(오른쪽 링크아이콘 액션 이미 지원), `Button`/`TextLink`, `ProfileAvatar` 등.
-- **신규(kit에 추가)**: 선택된 아바타 가로 스크롤 칩 행(제거 가능), 초대 링크 카드(그룹 아바타 + 이름 + URL 전체 노출 + 복사 아이콘).
-- 아이콘: 링크 아이콘 등 kit `resources/icons`에 없으면 Figma에서 SVG를 따와 semantic 컴포넌트로 추가한다.
-- 연락처 권한 꺼짐 패널(화면 7)은 앱 레벨 조합으로 두되 새 디자인("초대 링크 보내기" 버튼 + chevron)을 반영한다.
+- Reused: `SelectableUserItem` (a friend row), `SearchInput` (which already supports a right-hand link
+  icon action), `Button` / `TextLink`, `ProfileAvatar`.
+- **New (added to the kit)**: the horizontally scrolling row of selected avatar chips (each removable),
+  and the invite link card (group avatar, name, the full URL, a copy icon).
+- Icons: where the kit's `resources/icons` lacks one (the link icon, for example), pull the SVG from
+  Figma and add it as a semantic component.
+- The contacts-permission-off panel (screen 7) stays an app-level composition but takes the new design
+  (a "Send an invite link" button with a chevron).
 
-### 범위 (포함/제외)
+### Scope
 
-- **포함**: 7개 화면/상태 UI, 라우팅 전환, 두 진입점 재배선, 기존 초대 API 재연결(연락처 배치 초대 + 링크 생성/공유), i18n 키(`ko`/`en` 양쪽), kit 신규 컴포넌트/아이콘.
-- **제외**: 범용 채널 초대 링크 전용 백엔드 엔드포인트 신설(현행 `requestInvite` 기반 유지). 웹에서의 디바이스 연락처 접근(불가).
+- **In**: the seven screens and states, the routing change, rewiring both entry points, reconnecting
+  the existing invite APIs (contact batch invite plus link creation and sharing), the i18n keys (`ko`
+  and `en`), and the new kit components and icons.
+- **Out**: a new backend endpoint dedicated to general-purpose channel invite links (the existing
+  `requestInvite` remains the basis). Device contact access on the web (impossible).
 
-## 대안 (Alternatives)
+## Alternatives
 
-- **다이얼로그 유지, 페이지만 추가**: 두 초대 UI가 공존해 혼란. 요구사항("팝업 아님")과 배치. 기각.
-- **웹도 동일 친구 선택 UI(백엔드 친구/멤버 목록 소스)**: 채울 소스 확인·설계 비용이 크고 이번 범위를 넘음. 기각(웹=초대 링크).
-- **초대 링크를 오버레이/모달로**: X 닫기 어피어런스와 맞지만 "페이지" 요구와 배치되고 딥링크 진입이 어려움. 별도 라우트로 결정.
-- **범용 채널 초대링크 백엔드 신설**: 가장 깔끔하나 서버 작업 의존. 이번엔 `requestInvite`(이름+번호) 기반으로 처리.
-- **정원 인식 카운터 유지**: Figma는 순수 100 선택 상한을 표현하므로 표시 일관성을 위해 순수 상한 채택.
+- **Keep the dialog and only add the page**: two invite UIs coexisting is confusing, and it contradicts
+  the requirement ("not a popup"). Rejected.
+- **The same friend selection UI on the web, sourced from a backend friend or member list**: finding
+  and designing that source costs more than this round allows. Rejected (web = invite link).
+- **The invite link as an overlay or modal**: it fits the X-close affordance but contradicts the "page"
+  requirement and makes deeplink entry awkward. Its own route wins.
+- **A new backend general-purpose channel invite link**: cleanest, but it depends on server work. This
+  round works from `requestInvite` (name plus number).
+- **Keep the capacity-aware counter**: Figma expresses a plain cap of 100, so the plain cap is adopted
+  for display consistency.
 
-## 결과 (Consequences)
+## Consequences
 
-- 초대 흐름이 라우팅 기반이 되어 딥링크·뒤로가기·전환 애니메이션과 자연스럽게 통합된다.
-- `InviteFriendsDialog`는 페이지로 흡수되어 제거 대상이며, 이를 mock 하던 테스트(`ChannelSettingsPage.test.tsx`)와 두 진입점 코드가 함께 수정된다.
-- web-ui-kit에 재사용 가능한 초대 컴포넌트(선택 칩 행, 초대 링크 카드)가 추가되어 이후 화면에서도 재사용 가능.
-- 순수 100 선택 상한 채택으로, 방 정원 초과 여부는 서버가 최종 검증한다(클라이언트 표시는 선택 수 기준).
-- 초대 링크 URL이 `requestInvite`(이름+번호)에 의존하므로, 링크 화면 진입에는 항상 바텀시트 입력 단계가 선행한다. 순수 "그룹 범용 링크" UX(입력 없이 즉시 링크)는 백엔드 엔드포인트가 생기기 전까지 제공하지 않는다.
-- `PageHeader`에 close(X) 변형 보강이 필요할 수 있다(초대 링크 페이지).
+- The invite flow becomes route-based, so deeplinks, the back button and transition animations all
+  work naturally.
+- `InviteFriendsDialog` is absorbed into the pages and becomes deletable, along with the test that
+  mocks it (`ChannelSettingsPage.test.tsx`) and the code at both entry points.
+- web-ui-kit gains reusable invite components (the selection chip row, the invite link card) for later
+  screens.
+- With a plain cap of 100, whether the room's capacity is exceeded is decided by the server; the client
+  displays the selection count only.
+- Because the invite link URL depends on `requestInvite` (name plus number), reaching the link screen
+  always goes through the bottom-sheet input step. A pure "general group link" UX (a link with no
+  input) is not offered until a backend endpoint exists.
+- `PageHeader` may need a close (X) variant for the invite link page.

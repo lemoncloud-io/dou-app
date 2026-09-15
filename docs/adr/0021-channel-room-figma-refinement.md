@@ -1,103 +1,110 @@
-# ADR-0021: 채널 메인(채팅) 화면 Figma 디자인 개선
+# ADR-0021: Refine the channel (chat) screen against the Figma design
 
-> 상태: Accepted (일부 항목 Superseded) · 결정일: 2026-07-20
+> Status: Accepted (some items superseded) · Decided: 2026-07-20
 >
-> ⚠️ [ADR-0024](0024-group-chat-room-figma-redesign.md)가 본 ADR의 두 결정을 되돌린다:
-> ① 헤더 멤버 아바타 스택/카운트 제거 → **재도입**(소유자 최좌측·최대 5·총원 수),
-> ② 읽음표시 숫자형(안읽음만) → **`읽음 N · 안읽음 M` 2요소로 재확장**.
-> 그 외 항목(빈 상태 좌측정렬, 플로팅 날짜 pill, `IconGroup`/`DefaultAvatar variant`,
-> 말풍선 `#102346`)은 유효하다.
+> ⚠️ [ADR-0024](0024-group-chat-room-figma-redesign.md) reverses two of the decisions below:
+> ① the header member avatar stack and count are **brought back** (owner leftmost, at most 5, total
+> count), and ② the numeric read status (unread only) is **expanded again into two parts,
+> `read N · unread M`**.
+> The other items — left-aligned empty state, the floating date pill, `IconGroup` /
+> `DefaultAvatar variant`, the `#102346` bubble — still hold.
 
-## 맥락 (Context)
+## Context
 
-`apps/web/src/app/features/channels`의 채널 메인(채팅) 화면 디자인이 개선되어 코드에 반영이
-필요하다. 구현은 `@chatic/web-ui-kit` 기반으로 하고, 누락된 컴포넌트는 해당 라이브러리에
-정의 후 사용한다. 관련 선례로 [ADR-0010](0010-chat-screen-webuikit-rebuild.md)(채팅 화면
-web-ui-kit 재구축), [ADR-0014](0014-home-screen-figma-visual-refinement.md)(홈 화면 Figma
-시각 정제)가 있다.
+The design of the channel (chat) screen in `apps/web/src/app/features/channels` was refined, and the
+code has to follow. The implementation is `@chatic/web-ui-kit` based, and a missing component is
+defined in that library first. The precedents are [ADR-0010](0010-chat-screen-webuikit-rebuild.md)
+(the web-ui-kit rebuild of the chat screen) and
+[ADR-0014](0014-home-screen-figma-visual-refinement.md) (the home screen's Figma refinement).
 
-참조 Figma:
+Reference Figma:
 
-- 빈 상태(멤버 없음·메시지 없음): node `3143-23729`
-- 채팅 누적 케이스(스크롤·전체보기): node `3188-24125`
+- Empty state (no members, no messages): node `3143-23729`
+- Accumulated chat (scrolling, see all): node `3188-24125`
 
-현재 구현과 Figma의 주요 갭:
+The main gaps between the implementation and Figma:
 
-| 항목                   | 현재                                                                              | Figma                                                                                      |
-| ---------------------- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| 헤더                   | 이름 **중앙정렬**, 채널 이미지 없음, 이름 아래 멤버 아바타 스택+카운트(`meta` 행) | **채널 이미지 + 이름 좌측정렬**, 멤버 스택 없음                                            |
-| 빈 상태                | 중앙정렬 + 아이콘 원형, "초대하기"(Plus, solid 버튼)                              | 좌측정렬, 날짜 divider 아래 문구, "친구 초대하기"(chevron, outline 버튼), 아이콘 원형 없음 |
-| 스크롤 날짜            | `DateDivider`만                                                                   | 스크롤 중 우측 상단 플로팅 날짜 pill("7. 01 월")                                           |
-| 아이콘                 | lucide 래퍼(교체 예정 플레이스홀더)                                               | Figma 전용 글리프                                                                          |
-| 전체보기(long message) | 있음(200자 truncation)                                                            | 있음 (유지)                                                                                |
+| Item                  | Today                                                                            | Figma                                                                                                      |
+| --------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Header                | Name **centred**, no channel image, a member avatar stack and count below (`meta` row) | **Channel image plus name, left aligned**, no member stack                                                 |
+| Empty state           | Centred, a circular icon, "Invite" (Plus, solid button)                            | Left aligned, the copy under a date divider, "Invite friends" (chevron, outline button), no circular icon   |
+| Scroll date           | `DateDivider` only                                                                | A floating date pill at the top right while scrolling ("7. 01 Mon")                                        |
+| Icons                 | lucide wrappers (placeholders, to be replaced)                                     | Figma's own glyphs                                                                                         |
+| See all (long message) | Present (200-character truncation)                                                | Present (kept)                                                                                             |
 
-기술적 사실:
+Technical facts:
 
-- 헤더는 공용 `libs/web-ui-kit/src/composites/header/ChatRoomHeader.tsx`이며, 채널 룸은 항상
-  `kind="group"`으로 렌더링(중앙정렬 + `meta` 행). `direct` 변형은 [avatar + 이름 좌측]
-  형태로 이미 존재.
-- 채널 데이터에는 `thumbnail` 필드가 존재(`channel?.thumbnail`, 설정 화면에서 사용 중)
-  하므로 헤더 채널 이미지 소스로 사용 가능.
-- 아이콘은 `libs/web-ui-kit/src/resources/icons/index.ts`에서 lucide 래퍼로 관리되며 주석에
-  "추후 Figma SVG로 교체 예정인 플레이스홀더"로 명시됨. `IconUsers`, `IconChevronRight`,
-  `IconImage`, `DefaultAvatar`(1인, `IconUser`) 등 존재.
+- The header is the shared `libs/web-ui-kit/src/composites/header/ChatRoomHeader.tsx`, and the channel
+  room always renders it as `kind="group"` (centred, with the `meta` row). The `direct` variant already
+  has the [avatar + name, left aligned] shape.
+- Channel data carries a `thumbnail` field (`channel?.thumbnail`, already used on the settings screen),
+  so it can source the header's channel image.
+- Icons are managed as lucide wrappers in `libs/web-ui-kit/src/resources/icons/index.ts`, with a
+  comment marking them "placeholders, to be replaced with Figma SVGs". `IconUsers`,
+  `IconChevronRight`, `IconImage` and `DefaultAvatar` (one person, `IconUser`) exist.
 
-## 결정 (Decision)
+## Decision
 
-### 포함 (In scope)
+### In scope
 
-1. **헤더 재구성** — `ChatRoomHeader`의 `group` 변형 자체를 Figma대로 교체한다.
-    - [채널 이미지(`thumbnail`) + 이름] **좌측정렬**로 변경(사실상 `direct`와 통합되는 방향).
-    - 기존 멤버 아바타 스택/카운트(`meta` 행)는 **완전 제거**.
-    - `thumbnail`이 없는 채널은 **그룹 기본 아바타**(어두운 원 + 그룹 글리프, `IconUsers` 기반)를
-      노출한다. 기존 `DefaultAvatar`(1인)에 대응하는 그룹용 기본 아바타를 web-ui-kit에 추가.
+1. **Rebuild the header** — replace `ChatRoomHeader`'s `group` variant itself with the Figma version.
+    - [channel image (`thumbnail`) + name], **left aligned** (in effect converging with `direct`).
+    - The member avatar stack and count (the `meta` row) are **removed entirely**.
+    - A channel with no `thumbnail` shows a **default group avatar** (a dark circle with a group glyph,
+      based on `IconUsers`). Add that group counterpart to the existing single-person `DefaultAvatar`
+      in web-ui-kit.
 
-2. **빈 상태(메시지 없음) 재디자인** — 레이아웃/스타일만 Figma로 교체.
-    - 중앙정렬 + 아이콘 원형 → **좌측정렬**, 날짜 divider 아래 안내 문구 + "친구 초대하기"
-      **outline 버튼(chevron right)**.
-    - 노출 **게이팅 로직은 기존 유지**(방장 + 비게스트 + 클라우드 활성일 때만 초대 안내/버튼).
-      self chat 변형(PenLine 안내)도 기존 유지.
+2. **Redesign the empty state (no messages)** — layout and styling only.
+    - Centred with a circular icon → **left aligned**, the guidance copy under a date divider plus an
+      **outline "Invite friends" button (chevron right)**.
+    - **The gating logic stays as it is** (the invite guidance and button appear only for the owner,
+      non-guest, with an active cloud). The self-chat variant (the PenLine guidance) also stays.
 
-3. **스크롤 플로팅 날짜 pill** — 신규 구현. 스크롤 중 현재 보이는 메시지의 날짜를 우측 상단
-   sticky pill로 표시("7. 01 월" 형태). 스크롤 위치 트래킹 필요.
+3. **A floating date pill while scrolling** — new. While scrolling, show the date of the currently
+   visible message as a sticky pill at the top right ("7. 01 Mon"). This needs scroll-position
+   tracking.
 
-4. **아이콘 리소스** — 이 화면에 쓰이는 아이콘(그룹 기본 아바타 글리프, chevron, 읽음 표시 등)은
-   **Figma SVG로 추출**하여 web-ui-kit 아이콘 리소스에 반영(플레이스홀더 일부 실제 자산화).
+4. **Icon resources** — the icons this screen uses (the default group avatar glyph, the chevron, the
+   read status) are **extracted as Figma SVGs** into the web-ui-kit icon resources, turning some
+   placeholders into real assets.
 
-5. **메시지 버블/리스트 시각 정제** — Figma 토큰(mine=네이비 `blue_bk #102346` 계열,
-   other=그레이 계열, 반경/간격, 읽음 표시, 시간 표기)에 맞춰 `MessageBubble`/`MessageRow`
-   스타일을 정제. 전체보기(long message truncation)는 기존 동작 유지.
+5. **Refine the message bubble and list** — bring `MessageBubble` / `MessageRow` styling in line with
+   the Figma tokens (mine = the navy `blue_bk #102346` family, other = greys, radii and spacing, the
+   read status, the time format). See all (long message truncation) behaves as before.
 
-모든 신규/누락 컴포넌트는 `@chatic/web-ui-kit`에 정의 후 사용한다.
+Every new or missing component is defined in `@chatic/web-ui-kit` first.
 
-### 제외 (Out of scope)
+### Out of scope
 
-- 빈 상태 노출 조건(게이팅) 로직 변경.
-- 채팅 데이터 fetch/스크롤/무한로딩 로직(`useChatScroll` 등) 구조 변경 — 플로팅 날짜 pill에
-  필요한 스크롤 관측 외.
-- 헤더 우측 메뉴(⋯) 항목 구성 변경.
+- Changing the gating logic for the empty state.
+- Restructuring the chat fetch, scroll and infinite-loading logic (`useChatScroll` and friends) beyond
+  the scroll observation the floating date pill needs.
+- Changing what the header's right-hand ⋯ menu contains.
 
-## 대안 (Alternatives)
+## Alternatives
 
-- **헤더: 새 변형/prop 추가(기존 group 보존)** — 하위호환은 안전하나 채널 룸이 유일 사용처로
-  파악되어 API만 복잡해짐. → `group` 변형 자체 교체를 채택.
-- **헤더 멤버 카운트/스택 유지** — 인원 정보를 헤더에 남기는 안. Figma가 채널 이미지+이름만
-  두므로 정보 구조를 단순화하기로 하고 제거.
-- **빈 상태 게이팅을 전 멤버 노출로 완화** — Figma는 조건 없이 노출하지만, 권한 없는 멤버의
-  초대 버튼 처리 부담과 기존 제품 로직 유지를 위해 게이팅 보존.
-- **플로팅 날짜 pill 제외(다음 기회)** — 스크롤 트래킹 비용을 미루는 안. 이번 범위에 포함하기로
-  결정.
-- **아이콘 lucide 유지** — 가장 빠르나, 화면에 실제 노출되는 글리프의 디자인 정합성을 위해
-  Figma SVG 추출을 채택.
+- **Header: add a new variant or prop and keep `group`** — backwards compatible, but the channel room
+  turned out to be the only consumer, so it would only complicate the API. → Replace the `group`
+  variant itself.
+- **Keep the header member count and stack** — leaves the member information in the header. Figma has
+  only the channel image and name there, so the information structure is simplified and they go.
+- **Relax the empty-state gating so every member sees it** — Figma shows it unconditionally, but
+  handling an invite button for members without permission is a burden, and the existing product logic
+  wins. Gating is preserved.
+- **Leave the floating date pill for later** — defers the cost of scroll tracking. Decided to include
+  it in this round.
+- **Keep the lucide icons** — fastest, but the glyphs are actually on screen, so extracting the Figma
+  SVGs wins for design fidelity.
 
-## 결과 (Consequences)
+## Consequences
 
-- `ChatRoomHeader`의 `group` 변형이 바뀌므로 이를 참조하는 곳(현재 채널 룸)만 영향을 받는다.
-  다른 사용처가 발견되면 함께 검증해야 한다.
-- web-ui-kit에 그룹 기본 아바타 컴포넌트와 Figma 추출 아이콘이 추가되어 다른 화면에서도
-  재사용 가능해진다(자산화 이득).
-- 플로팅 날짜 pill로 스크롤 이벤트 관측 코드가 추가되어 스크롤 관련 로직의 복잡도가 소폭 증가.
-- 빈 상태 게이팅을 유지하므로 Figma와 100% 동일하지 않은 노출 조건이 남는다(권한 없는 멤버는
-  빈 화면). 이는 의도된 트레이드오프.
-- 다음 단계: 이 ADR을 입력으로 `dev-2_implement`의 스펙 작성(Phase A)으로 진행한다. 구현 전
-  Figma에서 정확한 색상·간격 토큰, 아이콘 SVG를 추출한다.
+- Changing `ChatRoomHeader`'s `group` variant affects only its consumers (the channel room today). If
+  another consumer turns up, it has to be verified too.
+- web-ui-kit gains the default group avatar and the extracted Figma icons, so other screens can reuse
+  them.
+- The floating date pill adds scroll-event observation, so the scroll logic gets slightly more
+  complex.
+- Keeping the empty-state gating leaves a condition that does not match Figma exactly (a member
+  without permission sees an empty screen). That is the intended trade-off.
+- Next step: this ADR feeds the spec phase (Phase A) of `dev-2_implement`. Before implementing, extract
+  the exact colour and spacing tokens and the icon SVGs from Figma.

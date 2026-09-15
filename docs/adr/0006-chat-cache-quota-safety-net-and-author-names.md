@@ -41,7 +41,7 @@ messaging app:
    flashed "Unknown". A stopgap added a parallel author-name cache in
    `localStorage` at the presentation layer, duplicating the `user` cache.
 
-3. The eviction/capacity gap is already self-reported as "구현 필요" in the spec
+3. The eviction/capacity gap is already self-reported as "implementation needed" in the spec
    (§11) — it is known, not a surprise to the original author.
 
 ## Decision
