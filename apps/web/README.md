@@ -125,9 +125,17 @@ flowchart TD
     Feat -.->|never| Backend
 ```
 
-The arrow the diagram draws only to forbid it is the dotted one: **no feature talks to a server.**
-There is no `fetch` against a Chatic endpoint anywhere in `apps/web/src/app/features`; a screen that
-needs server data asks a repository, and the repository is reached through `runtime.data`.
+The arrow the diagram draws only to forbid it is the dotted one: **no feature talks to a server.** A
+screen that needs server data asks a repository, and the repository is reached through
+`runtime.data`.
+
+```bash
+grep -rn "fetch(" apps/web/src/app/features --include='*.ts' --include='*.tsx' | grep -v '\.test\.'
+```
+
+The hits are react-query's own `refetch`, plus exactly one real `fetch`: `LicensesPage.tsx` reads
+`/licenses.json`, a static file served from this bundle's own origin. A hit against a Chatic
+endpoint is the violation.
 
 Import direction _inside_ `app/` — which of those boxes may name which — is decided in
 [docs/architecture/](./docs/architecture/README.md) and not restated here.
