@@ -1,21 +1,22 @@
 # Upload
 
-Upload 시스템은 WebView에서 시작된 대용량 파일 업로드를 native module과 local repository로 안정적으로 처리한다.
+Large-file upload started from the WebView, handed to the native upload engine, and tracked in
+SQLite so an interrupted transfer can be recovered after the app restarts.
 
-## 주요 파일
+## Files
 
-| 영역             | 파일                                                                           |
-| ---------------- | ------------------------------------------------------------------------------ |
-| WebView handler  | `src/app/webview/hooks/useUploadHandler.ts`                                    |
-| Service          | `src/app/services/upload/UploadService.ts`                                     |
-| Types            | `src/app/services/upload/types.ts`                                             |
-| Repository       | `src/app/services/upload/repository/SqliteUploadTaskDataSource.ts`             |
-| TS native bridge | `src/app/bridge/UploadManagerBridge.ts`, `src/app/bridge/FileManagerBridge.ts` |
-| Android          | `UploadManagerModule.kt`, `UploadBackgroundService.kt`, `UploadWorker.kt`      |
-| iOS              | `ios/Bridges/Upload/UploadManager.swift`, `UploadManager.m`                    |
-| Debug            | `src/app/features/debug/screens/UploadTestScreen.tsx`                          |
+| Area              | File                                                                           |
+| ----------------- | ------------------------------------------------------------------------------ |
+| WebView handler   | `src/app/webview/hooks/useUploadHandler.ts`                                    |
+| Service           | `src/app/services/upload/UploadService.ts`                                     |
+| Types             | `src/app/services/upload/types.ts`                                             |
+| Repository        | `src/app/services/upload/repository/SqliteUploadTaskDataSource.ts`             |
+| TS native bridges | `src/app/bridge/UploadManagerBridge.ts`, `src/app/bridge/FileManagerBridge.ts` |
+| Android           | `UploadManagerModule.kt`, `UploadBackgroundService.kt`, `UploadWorker.kt`      |
+| iOS               | `ios/Bridges/Upload/UploadManager.swift`, `UploadManager.m`                    |
+| Debug             | `src/app/features/debug/screens/UploadTestScreen.tsx`                          |
 
-## 구조
+## Structure
 
 ```mermaid
 flowchart TD
@@ -23,15 +24,18 @@ flowchart TD
     Handler --> Service["UploadService"]
     Service --> Repo["SqliteUploadTaskDataSource"]
     Repo --> SQLite["SQLite upload_tasks"]
-    Service --> FileBridge["FileManagerBridge"]
     Service --> UploadBridge["UploadManagerBridge"]
-    UploadBridge --> NativeUpload["Native upload engine"]
-    NativeUpload --> Progress["progress / complete / fail events"]
-    Progress --> Handler
-    Handler --> Web
+    UploadBridge --> NativeUpload["Native upload engine (Kotlin / Swift)"]
+    NativeUpload --> Progress["UploadManagerStateChanged events"]
+    Progress --> Service --> Handler --> Web
 ```
 
-## Start Upload 시나리오
+`UploadService` (`provider.uploadService`, lazily constructed — see
+[boot-optimization.md](./boot-optimization.md)) is a singleton holding an in-memory
+`Map<uploadId, UploadTaskState>` alongside the SQLite row: the map carries this session's live
+callbacks, the row is what survives a restart.
+
+## Starting an upload
 
 ```mermaid
 sequenceDiagram
@@ -39,18 +43,26 @@ sequenceDiagram
     participant Handler as useUploadHandler
     participant Service as UploadService
     participant Repo as Upload Repository
-    participant Native as Native Upload
+    participant Native as UploadManagerBridge
 
     Web->>Handler: RequestFileUpload
     Handler->>Service: uploadFile(payload)
-    Service->>Repo: persist upload task
-    Service->>Native: start upload
-    Native-->>Service: progress/status
-    Service-->>Handler: normalized status
+    Service->>Repo: find(uploadId) — same-file check for a resume offset
+    Service->>Repo: upsert(status: 'uploading', ...)
+    Service->>Native: enqueueUpload(payload + resume offset)
+    Native-->>Service: UploadManagerStateChanged (progress / completed / failed / cancelled)
+    Service->>Repo: updateProgress(...) / delete(...)
+    Service-->>Handler: OnUploadProgress / OnUploadComplete (pushEvent)
     Handler-->>Web: bridge event
 ```
 
-## Recovery 시나리오
+`uploadFile` persists the task before calling `enqueueUpload`, so a row exists even if the native
+call fails or the app is killed right after. It resumes from the row's `uploadedBytes` /
+`lastChunkIndex` only when the incoming `fileUri`/`fileName`/`fileSize`/`mimeType` match the
+persisted payload exactly — a different file reusing the same `uploadId` starts from zero instead of
+resuming into the wrong content.
+
+## Recovery
 
 ```mermaid
 sequenceDiagram
@@ -61,22 +73,33 @@ sequenceDiagram
 
     Web->>Handler: ListRecoverableUploads
     Handler->>Service: listRecoverableUploads()
-    Service->>Repo: load persisted tasks
-    Repo-->>Service: recoverable task list
-    Service-->>Handler: tasks
-    Handler-->>Web: OnListRecoverableUploads
+    Service->>Repo: listRecoverable()
+    Repo-->>Service: rows with status uploading/paused/failed
+    Service-->>Handler: OnListRecoverableUploads
+    Handler-->>Web: task list
+
+    Web->>Handler: RecoverUpload(uploadId)
+    Handler->>Service: uploadFile(persisted payload, uploadId)
 ```
 
-## 제약
+`listRecoverable` reads every row with status `uploading`, `paused`, or `failed`, downgrading a
+lingering `uploading` row to `paused` on read — the app process ended mid-transfer with no chance to
+update it, so recovery stays manual, never auto-resumed. `RecoverUpload` on an unknown `uploadId`
+answers `NOT_FOUND`. Completed and cancelled tasks are deleted from the table, not kept as history.
 
-- WebView JavaScript가 file binary/base64 전송을 직접 담당하지 않는다.
-- 장시간 전송은 native upload engine이 맡는다.
-- upload task metadata는 native 시작 전에 SQLite에 저장한다.
-- pause/resume/cancel/retry는 service와 native module 양쪽 상태가 일치해야 한다.
+## Constraints
 
-## 변경 체크리스트
+- The WebView never carries file bytes or base64 across the bridge — only metadata and progress.
+- The native module owns the transfer itself; `UploadService` only persists state and relays events.
+- A task is written to SQLite before native is asked to start, so recovery data exists even if the
+  native call never returns.
+- Pause/resume/cancel/retry must keep `UploadService`'s in-memory state and the native module in
+  sync — `pauseUpload`'s `task.status !== 'uploading'` guard is what catches a mismatch.
 
-- upload task state transition이 repository에 남는가?
-- Android/iOS native behavior가 동일한 contract를 지키는가?
-- progress/completion/error event가 WebView로 normalize되어 전달되는가?
-- app restart 후 recoverable task가 누락되지 않는가?
+## Checklist
+
+- Does every task state transition reach the repository, not just the in-memory map?
+- Do the Android and iOS implementations answer the same events and error codes?
+- Is a native `progress`/`completed`/`failed`/`cancelled` event normalized before reaching the web?
+- After a restart, does `listRecoverable` still return the task, and does the same-file check refuse
+  to resume a different file under a reused `uploadId`?
