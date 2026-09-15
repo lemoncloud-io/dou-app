@@ -16,18 +16,11 @@ group because the subject is account credentials — the same subject as
 
 ## Layout
 
-| File                                          | Role                                                                                              |
-| --------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| `components/AccountLinkSection.tsx`           | The card and its rows. Two guards, three rows, one sheet                                          |
-| `components/SocialProviderIcons.tsx`          | `GoogleIcon` and `AppleIcon`, shared with `mypage/LoginPage.tsx`                                  |
-| `hooks/useSocialLinks.ts`                     | Social linking: bridge token → `verifySocial` → `confirmSocial` → toast                           |
-| `flags.ts`                                    | `SOCIAL_UNLINK_ENABLED` (`false`). The only constant in the file                                  |
-| `pages/AccountInfoPage.tsx`                   | Mounts `<AccountLinkSection />`                                                                   |
-| `apps/web/src/app/hooks/useLinkedAccounts.ts` | Reads `link$` off the relay user and answers `'linked'` / `'absent'` / `'unknown'` per credential |
-| `apps/web/src/app/hooks/useLinkAccount.ts`    | The `auth.link-account` surface — `send`, `verify`, `confirm`, `verifySocial`, `confirmSocial`    |
-
-The last two live in the app's shared `hooks/` because the phone sheet, the subscription purchase
-gate and this card all read them. There is no hook or component under `features/account` involved.
+The card, its rows and the social-linking hook live in `features/mypage`; `flags.ts` there holds one
+constant, `SOCIAL_UNLINK_ENABLED` (`false`). The two hooks it reads — `useLinkedAccounts` (the
+`link$` reader) and `useLinkAccount` (the packet surface) — live in the app's shared `hooks/`,
+because the phone sheet, the subscription purchase gate and this card all use them. Nothing under
+`features/account` is involved.
 
 ## Responsibilities
 
@@ -109,17 +102,9 @@ around; the server has not defined it.
 
 `AccountLinkSection` renders two guards and then up to three rows.
 
-```mermaid
-flowchart TD
-    A[AccountInfoPage mounts the section] --> B{isGuest?}
-    B -- yes --> Z[render nothing]
-    B -- no --> C{social or phone is 'unknown'?}
-    C -- yes --> Z
-    C -- no --> D[card: Phone · Google · Apple if iOS]
-    D --> E{row linked?}
-    E -- yes --> F[hint text + unlink control, disabled]
-    E -- no --> G[link button]
-```
+`AccountLinkSection` renders nothing at all for a guest, and nothing when either slot reads
+`'unknown'`. Past those two guards it draws up to three rows, each either a hint plus a disabled
+unlink control, or a link button.
 
 - **Phone** opens `PhoneVerifySheet` with `mode="link"`. Linked, it shows the masked tail the server
   returned (`phoneHint`) — the full number is never sent back. The phone row passes no `onUnlink`, so
@@ -184,13 +169,8 @@ honest:
 
 ### Reading the state
 
-```tsx
-const linked = useLinkedAccounts();
-if (linked.phone === 'unknown' || linked.social === 'unknown') return null;
-```
-
-Never gate on `'unknown'` as though it were `'absent'`. Fall back on it — render nothing, skip the
-nudge, let the server decide.
+`useLinkedAccounts()` is the only reader. Never gate on `'unknown'` as though it were `'absent'` —
+fall back on it: render nothing, skip the nudge, let the server decide.
 
 ### Adding a credential kind
 
