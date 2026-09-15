@@ -65,8 +65,8 @@ reasoning, **write the reasoning into the module doc in your own words** — a r
 worth stating where it is enforced. The ADR is the provenance, not the reference manual.
 
 A bare inline reference (`ADR-0036`) is enough in module docs and costs nothing. Links into
-`docs/adr/` resolve again, so use one where a reader would follow it. Links to any other path under
-`docs/` are dead — that part of the tree is gone.
+`docs/adr/` and `docs/infra/` resolve — use one where a reader would follow it. Links to any other
+path under `docs/` are dead — the guides, plans, specs and audits that used to sit there are gone.
 
 An ADR that a later decision overturns keeps its file and says so in its status line, with a link to
 the ADR that replaced it. Deleting it would lose the reasoning the replacement argues against.
