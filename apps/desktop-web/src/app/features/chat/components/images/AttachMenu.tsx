@@ -33,7 +33,7 @@ export const AttachMenu = ({ onFiles }: AttachMenuProps) => {
                         aria-label={t('chat.attach.add')}
                         // mousedown default kept off so the editor keeps its caret.
                         onMouseDown={event => event.preventDefault()}
-                        className="focus-ring tactile flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-full bg-muted text-foreground transition-colors ease-tactile hover:bg-accent aria-expanded:bg-accent"
+                        className="focus-ring tactile hit-target flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-full bg-muted text-foreground transition-colors ease-tactile hover:bg-accent aria-expanded:bg-accent"
                     >
                         <Plus size={18} aria-hidden />
                     </button>

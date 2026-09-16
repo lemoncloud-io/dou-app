@@ -74,7 +74,7 @@ export const ComposerToolbar = () => {
                         onMouseDown={e => e.preventDefault()}
                         onClick={() => apply(editor)}
                         className={cn(
-                            'focus-ring tactile flex h-[26px] min-w-[26px] items-center justify-center rounded-md text-[15px] font-semibold transition-colors ease-tactile disabled:opacity-50',
+                            'focus-ring tactile flex h-8 min-w-8 items-center justify-center rounded-md text-[15px] font-semibold transition-colors ease-tactile disabled:opacity-50',
                             active[key]
                                 ? 'bg-accent text-foreground'
                                 : 'text-label hover:bg-accent hover:text-foreground'

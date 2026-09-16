@@ -32,7 +32,7 @@ import { ReactionBar } from './ReactionBar';
 import { ReadReceipt } from './ReadReceipt';
 import { BlockKitMessage, blocksToPlainText, resolveChatBlocks } from '@chatic/block-kit';
 
-import { RichText } from './RichText';
+import { RichText, type MentionResolver } from './RichText';
 
 // Active place id (with the relay 'default' sentinel), read at call time so a saved item is
 // tagged with the place it was captured in. Non-reactive on purpose: this value is only needed
@@ -73,6 +73,8 @@ interface MessageRowProps {
     onOpenThread?: (rootId: string) => void;
     /** Lowercased names that count as "me" — my mentions render highlighted. */
     selfNames?: string[];
+    /** Resolves an @mention to a member, so the mention opens their profile. */
+    resolveMention?: MentionResolver;
     /** chatNo of a message to flash (saved-item / search jump landed on it). */
     highlightChatNo?: number;
     /** Thread panel: qualify the header time with the day ("Today at 3:28 PM"). */
@@ -125,6 +127,12 @@ const ToolbarButton = ({ label, onClick, children, className, pressed }: Toolbar
 
 const STUCK_PENDING_MS = 60_000;
 
+/**
+ * Pointer devices hide the toolbar until hover; touch shows it always, so it is
+ * only made inert where it can actually be hidden.
+ */
+const CAN_HOVER = typeof window !== 'undefined' && window.matchMedia?.('(hover: hover)').matches === true;
+
 const formatTime = (ms: number): string => {
     if (!ms) return '';
     const date = new Date(ms);
@@ -169,6 +177,7 @@ export const MessageRow = memo(
         threadMeta,
         onOpenThread,
         selfNames,
+        resolveMention,
         highlightChatNo,
         withDayInTime,
         readCountOf,
@@ -180,6 +189,14 @@ export const MessageRow = memo(
         // indefinitely, then flipped to "Not delivered" on an unrelated update.
         // This ticks the block on its own schedule while anything in it is pending.
         const [, setStuckTick] = useState(0);
+        // Which message in this block the pointer or keyboard is on. The hover
+        // toolbar is hidden by opacity, not removed, so without this all seven of
+        // its buttons stayed in the tab order for every message — tabbing from the
+        // composer walked hundreds of invisible controls. The toolbar is `inert`
+        // unless its message is hovered, focused, or pinned open; the message itself
+        // is the one tab stop, and focusing it lets Tab continue into its toolbar.
+        const [hoverKey, setHoverKey] = useState<string | null>(null);
+        const [focusKey, setFocusKey] = useState<string | null>(null);
         const hasPending = group.messages.some(message => !!message.isPending);
         useEffect(() => {
             if (!hasPending) return;
@@ -375,8 +392,19 @@ export const MessageRow = memo(
                                 <div
                                     key={key}
                                     data-chat-no={message.chatNo}
+                                    tabIndex={0}
+                                    role="article"
+                                    aria-label={msgTime ? `${group.ownerName}, ${msgTime}` : group.ownerName}
+                                    onMouseEnter={() => setHoverKey(key)}
+                                    onMouseLeave={() => setHoverKey(curr => (curr === key ? null : curr))}
+                                    onFocus={() => setFocusKey(key)}
+                                    onBlur={e => {
+                                        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+                                            setFocusKey(curr => (curr === key ? null : curr));
+                                        }
+                                    }}
                                     className={cn(
-                                        'group/msg relative rounded-md transition-colors ease-tactile',
+                                        'group/msg relative rounded-md outline-none transition-colors ease-tactile focus-visible:ring-2 focus-visible:ring-ring',
                                         onOpenThread ? 'pr-20' : 'pr-12',
                                         message.chatNo != null &&
                                             message.chatNo === highlightChatNo &&
@@ -460,7 +488,13 @@ export const MessageRow = memo(
                                             <BlockKitMessage
                                                 blocks={blocks}
                                                 raw={content}
-                                                renderFallback={raw => <RichText content={raw} selfNames={selfNames} />}
+                                                renderFallback={raw => (
+                                                    <RichText
+                                                        content={raw}
+                                                        selfNames={selfNames}
+                                                        resolveMention={resolveMention}
+                                                    />
+                                                )}
                                             />
                                         </div>
                                     ) : (
@@ -474,7 +508,11 @@ export const MessageRow = memo(
                                                 isPending && 'opacity-50'
                                             )}
                                         >
-                                            <RichText content={content} selfNames={selfNames} />
+                                            <RichText
+                                                content={content}
+                                                selfNames={selfNames}
+                                                resolveMention={resolveMention}
+                                            />
                                             {wasEdited && (
                                                 <Hint label={t('chat.editedTitle')}>
                                                     <span className="ml-1 align-baseline text-micro text-muted-foreground">
@@ -555,6 +593,9 @@ export const MessageRow = memo(
                                     only thing still tying the grid to the message it acts on. */}
                                     {!isEditing && !message.hidden && ((onOpenThread && isSettled) || content) && (
                                         <div
+                                            inert={
+                                                CAN_HOVER && !isToolbarPinned && hoverKey !== key && focusKey !== key
+                                            }
                                             className={cn(
                                                 'absolute -top-10 right-0 z-10 flex items-center gap-0.5 rounded-lg border border-hairline bg-elevated p-0.5 shadow-overlay transition-[opacity,transform] duration-150 ease-tactile motion-reduce:transition-none motion-reduce:translate-x-0',
                                                 isToolbarPinned

@@ -290,6 +290,22 @@
             0 0 0 4px hsl(var(--focus-ring));
     }
 
+    /* Grow an isolated control's hit area to the 36px floor without changing how
+       big it looks. Only for controls with no close neighbour: overlapping hit
+       areas make a tap land on the wrong one. */
+    .hit-target {
+        position: relative;
+    }
+    .hit-target::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: max(100%, 36px);
+        height: max(100%, 36px);
+        transform: translate(-50%, -50%);
+    }
+
     /* Tactile press — GPU-only (transform), springy ease. No layout thrash. */
     .tactile {
         transition: transform 140ms cubic-bezier(0.16, 1, 0.3, 1);

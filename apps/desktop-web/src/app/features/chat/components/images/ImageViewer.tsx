@@ -160,7 +160,7 @@ export const ImageViewer = ({
                                         type="button"
                                         onClick={() => onDownload(current)}
                                         aria-label={t('chat.image.download')}
-                                        className="focus-ring flex h-7 w-7 items-center justify-center rounded-md text-foreground hover:bg-foreground/[0.08]"
+                                        className="focus-ring flex h-9 w-9 items-center justify-center rounded-md text-foreground hover:bg-foreground/[0.08]"
                                     >
                                         <Download size={18} aria-hidden />
                                     </button>
@@ -175,7 +175,7 @@ export const ImageViewer = ({
                                             <button
                                                 type="button"
                                                 aria-label={t('chat.image.menu')}
-                                                className="focus-ring flex h-7 w-7 items-center justify-center rounded-md bg-foreground/[0.08] text-foreground"
+                                                className="focus-ring flex h-9 w-9 items-center justify-center rounded-md bg-foreground/[0.08] text-foreground"
                                             >
                                                 <MoreVertical size={18} aria-hidden />
                                             </button>

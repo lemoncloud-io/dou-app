@@ -1,6 +1,6 @@
 import { Fragment, type ReactNode } from 'react';
 
-import { GROUP_MENTIONS, MENTION_TOKEN_SOURCE } from '../../../shared';
+import { GROUP_MENTIONS, MENTION_TOKEN_SOURCE, UserProfilePopover } from '../../../shared';
 
 // The message styles live in `@chatic/block-kit`: the block renderer needs them
 // and that renderer is what got shared.
@@ -13,6 +13,9 @@ import {
     MSG_QUOTE_CLASS,
 } from '@chatic/block-kit';
 
+/** Name (without the @) → the member it refers to, when the roster knows one. */
+export type MentionResolver = (name: string) => { userId: string; name: string } | undefined;
+
 // One pass over a non-code run: bold, italic, strikethrough, links, @mentions.
 // Bold is listed before italic so `**x**` matches as bold, not italic.
 const INLINE = new RegExp(
@@ -20,7 +23,12 @@ const INLINE = new RegExp(
     'gu'
 );
 
-const renderInline = (text: string, keyBase: string, selfNames?: string[]): ReactNode[] => {
+const renderInline = (
+    text: string,
+    keyBase: string,
+    selfNames?: string[],
+    resolveMention?: MentionResolver
+): ReactNode[] => {
     const nodes: ReactNode[] = [];
     let last = 0;
     INLINE.lastIndex = 0;
@@ -56,10 +64,23 @@ const renderInline = (text: string, keyBase: string, selfNames?: string[]): Reac
             const isSelf =
                 !!selfNames?.length &&
                 (GROUP_MENTIONS.includes(mention.toLowerCase()) || selfNames.includes(mention.slice(1).toLowerCase()));
+            const className = isSelf ? MSG_MENTION_SELF_CLASS : MSG_MENTION_CLASS;
+            // A mention that names a known member opens their profile, the same card
+            // an avatar opens. It used to be inert text, so checking who was
+            // mentioned meant finding one of their messages first.
+            const person = resolveMention?.(mention.slice(1));
             nodes.push(
-                <span key={key} className={isSelf ? MSG_MENTION_SELF_CLASS : MSG_MENTION_CLASS}>
-                    {mention}
-                </span>
+                person ? (
+                    <UserProfilePopover key={key} userId={person.userId} fallbackName={person.name}>
+                        <button type="button" className={`focus-ring rounded-sm ${className}`}>
+                            {mention}
+                        </button>
+                    </UserProfilePopover>
+                ) : (
+                    <span key={key} className={className}>
+                        {mention}
+                    </span>
+                )
             );
         }
         last = match.index + token.length;
@@ -70,20 +91,32 @@ const renderInline = (text: string, keyBase: string, selfNames?: string[]): Reac
 
 // Backtick `code` spans split out first so markdown inside them stays literal —
 // odd split indices are the captured spans.
-const renderCodeRuns = (text: string, keyBase: string, selfNames?: string[]): ReactNode[] =>
+const renderCodeRuns = (
+    text: string,
+    keyBase: string,
+    selfNames?: string[],
+    resolveMention?: MentionResolver
+): ReactNode[] =>
     text.split(/(`[^`\n]+`)/g).map((part, idx) =>
         idx % 2 === 1 ? (
             <code key={`${keyBase}-${idx}`} className={MSG_CODE_INLINE_CLASS}>
                 {part.slice(1, -1)}
             </code>
         ) : (
-            <Fragment key={`${keyBase}-${idx}`}>{renderInline(part, `${keyBase}-${idx}`, selfNames)}</Fragment>
+            <Fragment key={`${keyBase}-${idx}`}>
+                {renderInline(part, `${keyBase}-${idx}`, selfNames, resolveMention)}
+            </Fragment>
         )
     );
 
 // Group consecutive "> " lines into one quote block; other lines flow as-is
 // (the host preserves their newlines via whitespace-pre-wrap).
-const renderQuoteRuns = (text: string, keyBase: string, selfNames?: string[]): ReactNode[] => {
+const renderQuoteRuns = (
+    text: string,
+    keyBase: string,
+    selfNames?: string[],
+    resolveMention?: MentionResolver
+): ReactNode[] => {
     const nodes: ReactNode[] = [];
     let plain: string[] = [];
     let quote: string[] = [];
@@ -92,7 +125,7 @@ const renderQuoteRuns = (text: string, keyBase: string, selfNames?: string[]): R
         if (!plain.length) return;
         nodes.push(
             <Fragment key={`${keyBase}-p${block++}`}>
-                {renderCodeRuns(plain.join('\n'), `${keyBase}-p${block}`, selfNames)}
+                {renderCodeRuns(plain.join('\n'), `${keyBase}-p${block}`, selfNames, resolveMention)}
             </Fragment>
         );
         plain = [];
@@ -102,7 +135,7 @@ const renderQuoteRuns = (text: string, keyBase: string, selfNames?: string[]): R
         nodes.push(
             // block-level span: legal inside the host <p>, unlike <blockquote>.
             <span key={`${keyBase}-q${block++}`} className={MSG_QUOTE_CLASS}>
-                {renderCodeRuns(quote.join('\n'), `${keyBase}-q${block}`, selfNames)}
+                {renderCodeRuns(quote.join('\n'), `${keyBase}-q${block}`, selfNames, resolveMention)}
             </span>
         );
         quote = [];
@@ -126,6 +159,8 @@ interface RichTextProps {
     content: string;
     /** Lowercased names that count as "me" — my mentions render highlighted. */
     selfNames?: string[];
+    /** Makes a mention of a known member open that member's profile. */
+    resolveMention?: MentionResolver;
 }
 
 /**
@@ -136,7 +171,7 @@ interface RichTextProps {
  * @mentions). Block elements render as display:block <span>s because the host
  * wraps messages in a <p>.
  */
-export const RichText = ({ content, selfNames }: RichTextProps): ReactNode => {
+export const RichText = ({ content, selfNames, resolveMention }: RichTextProps): ReactNode => {
     if (!content) return null;
     return content.split(/(```[\s\S]*?```)/g).map((part, idx) => {
         if (idx % 2 === 1) {
@@ -147,6 +182,6 @@ export const RichText = ({ content, selfNames }: RichTextProps): ReactNode => {
                 </span>
             );
         }
-        return <Fragment key={idx}>{renderQuoteRuns(part, String(idx), selfNames)}</Fragment>;
+        return <Fragment key={idx}>{renderQuoteRuns(part, String(idx), selfNames, resolveMention)}</Fragment>;
     });
 };

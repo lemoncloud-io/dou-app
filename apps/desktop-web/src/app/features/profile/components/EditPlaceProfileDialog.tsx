@@ -159,23 +159,33 @@ export const EditPlaceProfileDialog = () => {
                         />
                     </div>
 
-                    {isError && <p className="text-sm text-destructive">{t('profile.place.failed')}</p>}
+                    {isError && (
+                        <p role="alert" className="text-sm text-destructive">
+                            {t('profile.place.failed')}
+                        </p>
+                    )}
 
-                    <div className="flex items-center justify-between gap-2 pt-2">
-                        {hasActiveProfile ? (
+                    {/* Reverting to the account identity changes how you appear to everyone
+                        in this place, so it does not sit in the Cancel/Save row where it
+                        reads as a third way to close the dialog. It gets its own block,
+                        with the consequence stated. */}
+                    {hasActiveProfile && (
+                        <div className="flex items-center justify-between gap-3 border-t border-hairline pt-3">
+                            <p className="text-xs text-muted-foreground">{t('profile.place.useAccountHint')}</p>
                             <Button
                                 type="button"
-                                variant="ghost"
+                                variant="outline"
                                 size="sm"
-                                className="text-muted-foreground"
+                                className="shrink-0"
                                 onClick={() => void handleUseAccount()}
                                 disabled={busy}
                             >
                                 {t('profile.place.useAccount')}
                             </Button>
-                        ) : (
-                            <span />
-                        )}
+                        </div>
+                    )}
+
+                    <div className="flex items-center justify-end gap-2 pt-2">
                         <div className="flex gap-2">
                             <Button
                                 type="button"

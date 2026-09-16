@@ -315,6 +315,7 @@ const resources = {
             'profile.place.changePhoto': 'Change photo',
             'profile.place.removePhoto': 'Remove',
             'profile.place.useAccount': 'Use account profile',
+            'profile.place.useAccountHint': 'Everyone in this place will see your account name and photo instead.',
             'profile.place.save': 'Save',
             'profile.place.saving': 'Saving...',
             'profile.place.cancel': 'Cancel',

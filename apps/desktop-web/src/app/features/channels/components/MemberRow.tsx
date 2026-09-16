@@ -67,7 +67,7 @@ export const MemberRow = ({ member, isMe, canKick, onKick }: MemberRowProps) => 
                         <button
                             type="button"
                             aria-label={t('channels.members.remove')}
-                            className="focus-ring flex items-center justify-center rounded p-1 text-muted-foreground opacity-100 transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100"
+                            className="focus-ring flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground opacity-100 transition-[color,background-color,opacity] hover:bg-destructive/10 hover:text-destructive focus-visible:opacity-100 aria-expanded:opacity-100 [@media(hover:hover)]:opacity-40 [@media(hover:hover)]:group-hover:opacity-100"
                         >
                             <MoreHorizontal size={16} />
                         </button>

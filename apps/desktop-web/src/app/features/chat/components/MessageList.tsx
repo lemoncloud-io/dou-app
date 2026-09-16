@@ -20,6 +20,7 @@ import {
 import { DateSeparator } from './DateSeparator';
 import { SystemNotice } from './SystemNotice';
 import { MessageRow, type ThreadMetaView } from './MessageRow';
+import type { MentionResolver } from './RichText';
 
 interface MessageListProps {
     messages: DomainChat[];
@@ -215,6 +216,16 @@ export const MessageList = ({
         }
         return view;
     }, [threadMeta, names, placeProfiles, viewer]);
+
+    // @name → member, for mentions that open a profile. Stable identity: rows are memo'd.
+    const resolveMention = useMemo<MentionResolver>(() => {
+        const byName = new Map<string, { userId: string; name: string }>();
+        names?.forEach((name, userId) => {
+            const key = name.trim().toLowerCase();
+            if (key && !byName.has(key)) byName.set(key, { userId, name });
+        });
+        return name => byName.get(name.toLowerCase());
+    }, [names]);
 
     // Lowercased "me" names for self-mention highlighting (profile name +
     // place nick under either of my ids — mirrors the notification filter).
@@ -571,6 +582,7 @@ export const MessageList = ({
                                     threadMeta={threadMetaView}
                                     onOpenThread={onOpenThread}
                                     selfNames={selfNames}
+                                    resolveMention={resolveMention}
                                     highlightChatNo={highlightChatNo ?? undefined}
                                     withDayInTime={threadReplyCount !== undefined}
                                     reactions={reactions}
