@@ -34,3 +34,4 @@ export * from './useRetainLeavingCloudBadge';
 export * from './useAppUpdate';
 export * from './useAccountResetOnLogout';
 export * from './useEscapeClose';
+export * from './useReducedMotion';

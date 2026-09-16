@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight, Download, MoreVertical, X } from 'lucide-rea
 
 import { cn } from '@chatic/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
+import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 
 import { Hint, avatarStyle } from '../../../../shared';
@@ -136,10 +137,10 @@ export const ImageViewer = ({
                                         type="button"
                                         onClick={onClose}
                                         aria-label={t('chat.image.close')}
-                                        className={cn(
-                                            'focus-ring absolute right-6 top-6 flex h-8 w-8 items-center justify-center rounded-md text-foreground transition-opacity hover:bg-foreground/[0.08]',
-                                            REVEAL
-                                        )}
+                                        // Persistent, unlike the secondary controls: with the app
+                                        // still visible behind a frosted layer, nothing else on
+                                        // screen says how to leave.
+                                        className="focus-ring absolute right-6 top-6 flex h-8 w-8 items-center justify-center rounded-md text-foreground transition-colors hover:bg-foreground/[0.08]"
                                     >
                                         <X size={20} aria-hidden />
                                     </button>
@@ -187,7 +188,7 @@ export const ImageViewer = ({
                             <aside className="flex w-[346px] shrink-0 flex-col border-l border-hairline bg-background">
                                 <header className="flex h-[68px] shrink-0 items-center justify-between border-b border-hairline px-6">
                                     <span className="text-[18px] font-semibold tracking-[-0.01em] text-foreground">
-                                        {t('chat.thread.title')}
+                                        {t('chat.image.setTitle', { count: images.length })}
                                     </span>
                                     <button
                                         type="button"
@@ -245,16 +246,20 @@ export const ImageViewer = ({
                                 </div>
                                 {onReply && (
                                     <div className="shrink-0 px-4 pb-4 pt-2">
-                                        <button
-                                            type="button"
+                                        {/* It used to borrow the composer's shape — input border,
+                                            placeholder colour, composer radius — so it read as
+                                            typeable and instead closed the viewer. It is a button,
+                                            and now looks like one. */}
+                                        <Button
+                                            variant="outline"
+                                            className="w-full"
                                             onClick={() => {
                                                 onClose();
                                                 onReply();
                                             }}
-                                            className="focus-ring flex w-full items-center rounded-2xl border border-input bg-background px-5 py-4 text-left text-[15px] text-placeholder transition-colors hover:border-main-accent"
                                         >
                                             {t('chat.image.reply')}
-                                        </button>
+                                        </Button>
                                     </div>
                                 )}
                             </aside>

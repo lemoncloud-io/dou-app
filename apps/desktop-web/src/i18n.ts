@@ -64,6 +64,8 @@ const resources = {
             'chat.jumpToLatest': 'Jump to latest',
             'chat.newMessageBadge_one': '{{count}} new message',
             'chat.newMessageBadge_other': '{{count}} new messages',
+            // Past the cap the exact number is unknown, so it is not asserted.
+            'chat.newMessageBadgeOverflow': '99+ new messages',
             'chat.threadEmpty': 'No messages yet',
             'chat.intro.label': 'Start of the conversation',
             'chat.intro.channel': 'This is the very start of #{{name}}. Everything said here stays in this channel.',
@@ -72,6 +74,9 @@ const resources = {
             'chat.threadEmptyHint': 'Be the first to send a message.',
             'chat.thread.title': 'Thread',
             'chat.image.copy': 'Copy image',
+            'chat.copyFailed': "Couldn't copy the message",
+            'chat.image.setTitle_one': '{{count}} image',
+            'chat.image.setTitle_other': '{{count}} images',
             'chat.image.copied': 'Image copied',
             'chat.image.copyFailed': "Couldn't copy the image",
             'chat.image.delete': 'Delete file',

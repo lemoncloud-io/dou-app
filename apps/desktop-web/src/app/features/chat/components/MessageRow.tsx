@@ -8,6 +8,7 @@ import { cn } from '@chatic/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@chatic/ui-kit/components/ui/popover';
+import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { runtime } from '@chatic/app-runtime';
 
@@ -174,6 +175,17 @@ export const MessageRow = memo(
     }: MessageRowProps) => {
         const { t } = useTranslation();
         const [copiedKey, setCopiedKey] = useState<string | null>(null);
+        // `isStuck` below compares Date.now() during render, which only moves when
+        // something else re-renders the row: a send that hung sat at 50% opacity
+        // indefinitely, then flipped to "Not delivered" on an unrelated update.
+        // This ticks the block on its own schedule while anything in it is pending.
+        const [, setStuckTick] = useState(0);
+        const hasPending = group.messages.some(message => !!message.isPending);
+        useEffect(() => {
+            if (!hasPending) return;
+            const timer = setInterval(() => setStuckTick(tick => tick + 1), 5_000);
+            return () => clearInterval(timer);
+        }, [hasPending]);
         // Which message in this block is open in the inline editor, and the text so far.
         // Local to the row: one message is edited at a time and the draft dies with it.
         const [editingKey, setEditingKey] = useState<string | null>(null);
@@ -234,11 +246,22 @@ export const MessageRow = memo(
         );
 
         const copy = (key: string, content: string) => {
-            void navigator.clipboard?.writeText(content).then(() => {
-                setCopiedKey(key);
-                if (copyTimer.current) clearTimeout(copyTimer.current);
-                copyTimer.current = setTimeout(() => setCopiedKey(curr => (curr === key ? null : curr)), 1200);
-            });
+            // Optional-chaining the API and then swallowing the rejection made a
+            // denied or unavailable clipboard completely silent: no tick, no error.
+            // Same two-branch handling the image copy already does.
+            const write = navigator.clipboard?.writeText(content);
+            if (!write) {
+                toast({ variant: 'destructive', description: t('chat.copyFailed') });
+                return;
+            }
+            void write.then(
+                () => {
+                    setCopiedKey(key);
+                    if (copyTimer.current) clearTimeout(copyTimer.current);
+                    copyTimer.current = setTimeout(() => setCopiedKey(curr => (curr === key ? null : curr)), 1200);
+                },
+                () => toast({ variant: 'destructive', description: t('chat.copyFailed') })
+            );
         };
 
         // Cancel a pending "copied" reset if this row unmounts mid-feedback.

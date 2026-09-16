@@ -6,7 +6,7 @@ import { ChevronDown, MessageSquare } from 'lucide-react';
 import type { DomainChat } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 
-import { Hint, Skeleton, resolveDisplay, useSiteProfileMap } from '../../../shared';
+import { Hint, Skeleton, resolveDisplay, useReducedMotion, useSiteProfileMap } from '../../../shared';
 import {
     buildMessageRows,
     isOwnMessage,
@@ -100,6 +100,7 @@ export const MessageList = ({
     intro,
 }: MessageListProps) => {
     const { t } = useTranslation();
+    const reducedMotion = useReducedMotion();
     const bottomRef = useRef<HTMLDivElement>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
     // Latched at mount (MessageList remounts per channel via its key), so a later
@@ -113,6 +114,12 @@ export const MessageList = ({
     // the whole window rides through all of them — reliable where scrollIntoView isn't.
     const pinToBottom = () => {
         cancelAnimationFrame(pinRafRef.current);
+        // Reduced motion gets one instant write, not 600ms of frames.
+        if (reducedMotion) {
+            const el = scrollRef.current;
+            if (el) el.scrollTop = el.scrollHeight;
+            return;
+        }
         const deadline = performance.now() + 600;
         const snap = () => {
             const el = scrollRef.current;
@@ -447,7 +454,10 @@ export const MessageList = ({
         }
     };
 
-    const scrollToBottom = () => bottomRef.current?.scrollIntoView({ block: 'end', behavior: 'smooth' });
+    // `behavior` is a JS argument, so the stylesheet's reduced-motion block cannot
+    // reach it — this is the one scroll the global override does not cover.
+    const scrollToBottom = () =>
+        bottomRef.current?.scrollIntoView({ block: 'end', behavior: reducedMotion ? 'auto' : 'smooth' });
 
     if (isLoading) {
         return (
@@ -572,7 +582,9 @@ export const MessageList = ({
                         className="focus-ring tactile absolute bottom-4 left-1/2 z-20 flex h-8 -translate-x-1/2 items-center gap-1.5 rounded-full bg-primary pl-3 pr-2.5 text-caption font-semibold text-primary-foreground shadow-overlay transition-transform ease-tactile hover:bg-primary/90"
                     >
                         <span className="tabular-nums">
-                            {t('chat.newMessageBadge', { count: newCount > 99 ? 99 : newCount })}
+                            {newCount > 99
+                                ? t('chat.newMessageBadgeOverflow')
+                                : t('chat.newMessageBadge', { count: newCount })}
                         </span>
                         <ChevronDown size={16} />
                     </button>
