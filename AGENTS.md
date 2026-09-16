@@ -1,6 +1,6 @@
 # Chatic
 
-Nx monorepo: `apps/` (4), `libs/` (16).
+Nx monorepo: `apps/` (8), `libs/` (16).
 
 ## Language
 
@@ -21,6 +21,29 @@ don't. Chat responses to the user are unaffected by this rule.
   `docs/` path are dead.
 - If a module's behavior only makes sense with a decision's reasoning, write that reasoning into the
   module doc itself, in your own words. Don't rely on a reader following an ADR link.
+- A module's `docs/` has one shape, and four rules hold it:
+    1. Every category folder has a `README.md` — either the category's lead document, or a short
+       index (keep an index short; an index that becomes the content is a document in the wrong
+       place).
+    2. A category name has to answer "does this document belong here?" on its own. Names that
+       cannot — `misc`, `etc`, `common`, and `architecture`, which only ever means "crosses more
+       than one feature" — are not used.
+    3. Depth stops at `docs/<category>/<topic>.md`. Needing another level means the category is
+       wrong, not that the tree needs deepening.
+    4. No topic files directly under `docs/` — `docs/README.md` is the only top-level document
+       there, and it states what belongs in which category.
+- **`apps/web` only:** `docs/feature/<name>/` exists when, and only when,
+  `src/app/features/<name>/` exists, and the names match exactly — `appUpdate` stays camelCase.
+  That folder is the one place the depth rule above is relaxed, because a feature owns several
+  screens that are read independently. The rule is machine-checkable, so check it rather than
+  reading the two trees:
+
+    ```bash
+    diff <(ls apps/web/src/app/features) <(ls apps/web/docs/feature)   # must print nothing
+    ```
+
+  Code with no feature folder is documented by category instead — push-tap routing lives in
+  `docs/bridge/`, not in a `feature/notifications/` that no `features/notifications/` backs.
 
 ## ADRs (`docs/adr/`)
 
