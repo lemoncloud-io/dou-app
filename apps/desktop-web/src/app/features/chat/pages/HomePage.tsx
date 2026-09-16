@@ -110,6 +110,7 @@ export const HomePage = () => {
     const selectedChannelId = useSelectedChannelStore(s => s.selectedChannelId);
     const selectChannel = useSelectedChannelStore(s => s.selectChannel);
     const requestMessageJump = useMessageJumpStore(s => s.request);
+    const setJumpOrigin = useMessageJumpStore(s => s.setOrigin);
     const openCreateChannel = useCreateChannelDialogStore(s => s.open);
     const openEditPlaceProfile = useEditPlaceProfileDialogStore(s => s.open);
     const settingsChannelId = useChannelSettingsStore(s => s.openChannelId);
@@ -169,6 +170,13 @@ export const HomePage = () => {
     // defer the channel select + scroll until its channels load (apply effect
     // below); otherwise jump in place. The scroll is skipped without a chatNo.
     const jumpToSaved = (channelId: string, chatNo?: number, placeId?: string, threadRootId?: string) => {
+        // Record the return point BEFORE anything moves. A jump inside the open
+        // channel is not a departure, so it records nothing.
+        setJumpOrigin(
+            selectedChannelId && selectedChannelId !== channelId
+                ? { placeId: selectedPlaceId ?? null, channelId: selectedChannelId }
+                : null
+        );
         if (placeId && placeId !== selectedPlaceId) {
             pendingChannelRef.current = channelId;
             // A thread reply opens the thread panel once its channel loads; a
@@ -380,6 +388,27 @@ export const HomePage = () => {
     }, [channels, selectedChannelId, openThread]);
 
     const selectedChannel = channels.find(channel => channel.id === selectedChannelId);
+
+    // The return leg of a jump. Offered only while the reader is somewhere other
+    // than where they started, and only while that channel is still in the list —
+    // a channel they were removed from is not somewhere to send them back to.
+    const jumpOrigin = useMessageJumpStore(s => s.origin);
+    const clearJumpOrigin = useMessageJumpStore(s => s.clearOrigin);
+    const originChannel =
+        jumpOrigin && jumpOrigin.channelId !== selectedChannelId
+            ? channels.find(channel => channel.id === jumpOrigin.channelId)
+            : undefined;
+    const jumpReturn =
+        jumpOrigin && originChannel
+            ? {
+                  originName: originChannel.name ?? originChannel.id ?? '',
+                  onReturn: () => {
+                      clearJumpOrigin();
+                      jumpToSaved(jumpOrigin.channelId, undefined, jumpOrigin.placeId ?? undefined);
+                  },
+                  onDismiss: clearJumpOrigin,
+              }
+            : undefined;
     const settingsChannel = settingsChannelId ? channels.find(channel => channel.id === settingsChannelId) : undefined;
     // The place rail owns switching; the sidebar header shows only the active name.
     const selectedPlace = places.find(place => place.id === selectedPlaceId);
@@ -461,7 +490,12 @@ export const HomePage = () => {
                                 isLoading={isLoading}
                                 selectedChannelId={selectedChannelId}
                                 query={query}
-                                onSelect={selectChannel}
+                                // Picking a channel from the list is a deliberate move,
+                                // not a detour, so it retires any pending return point.
+                                onSelect={id => {
+                                    clearJumpOrigin();
+                                    selectChannel(id);
+                                }}
                                 onJumpToMessage={(channelId, chatNo) => jumpToSaved(channelId, chatNo)}
                                 isDefaultMode={isDefaultMode}
                                 onCreateChannel={openCreateChannel}
@@ -475,6 +509,7 @@ export const HomePage = () => {
                         members={members}
                         membersLoading={membersLoading}
                         readCountOf={readCountOf}
+                        jumpReturn={jumpReturn}
                     />
                 }
                 panel={

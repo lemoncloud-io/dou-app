@@ -57,7 +57,12 @@ export const DesktopLayout = ({ rail, rail2, sidebar, main, panel, overlay }: De
                 {sidebar}
                 <PanelResizeHandle label={t('sidebar.resize')} panel={sidebarWidth} />
             </aside>
-            <main className="flex flex-1 flex-col overflow-hidden">{main}</main>
+            {/* A floor on the conversation itself, not only on each panel: the
+                sidebar and a docked trailing panel clamp independently, so only a
+                min-width here keeps the message column from being squeezed out
+                between them at a narrow desktop window. Same number as
+                MIN_CHAT_WIDTH in usePanelWidth, which clamps the panels. */}
+            <main className="flex min-w-[420px] flex-1 flex-col overflow-hidden">{main}</main>
             {panel}
             {overlay}
         </div>

@@ -34,6 +34,7 @@ import { useThreadStore } from '../stores';
 import { ChannelHeaderMenu } from './ChannelHeaderMenu';
 import { ChannelIntro } from './ChannelIntro';
 import { Composer } from './Composer';
+import { JumpReturnBar } from './JumpReturnBar';
 import { MessageList } from './MessageList';
 import { HEADER_ICON_BUTTON } from './headerStyles';
 import { AttachmentDropOverlay, AttachmentNoticeDialog } from './images';
@@ -46,9 +47,14 @@ interface ChatPaneProps {
     membersLoading?: boolean;
     /** Per-message read counts, from the one `useReadCounts` the host mounts per channel. */
     readCountOf?: ReadCountOf;
+    /**
+     * Where a jump brought the reader from, and how to go back. Supplied by the
+     * host, which owns both the channel list (for the name) and the jump itself.
+     */
+    jumpReturn?: { originName: string; onReturn: () => void; onDismiss: () => void };
 }
 
-export const ChatPane = ({ channel, members, membersLoading, readCountOf }: ChatPaneProps) => {
+export const ChatPane = ({ channel, members, membersLoading, readCountOf, jumpReturn }: ChatPaneProps) => {
     const { t } = useTranslation();
     const channelId = channel?.id ?? null;
     const myUid = runtime.session.useSessionIdentity().userId;
@@ -253,6 +259,13 @@ export const ChatPane = ({ channel, members, membersLoading, readCountOf }: Chat
                     <ChannelHeaderMenu channel={channel} myUid={myUid} />
                 </div>
             </header>
+            {jumpReturn && (
+                <JumpReturnBar
+                    originName={jumpReturn.originName}
+                    onReturn={jumpReturn.onReturn}
+                    onDismiss={jumpReturn.onDismiss}
+                />
+            )}
             <div className="relative flex min-h-0 flex-1 flex-col" {...dropHandlers}>
                 <MessageList
                     key={channelId}

@@ -5,6 +5,16 @@ const MIN_WIDTH = 280;
 const MAX_WIDTH = 720;
 const KEYBOARD_STEP = 16;
 
+/**
+ * The message column never gets narrower than this. The rails, the sidebar and a
+ * trailing panel were each clamped against a constant, and nothing clamped the
+ * sum: 136 + 480 + 720 = 1336px of chrome, so at a 1280px window the
+ * conversation could be squeezed to nothing with no floor at any width.
+ */
+export const MIN_CHAT_WIDTH = 420;
+/** Rails: 56px cloud + 80px place. Fixed, so they are part of the budget. */
+const RAIL_WIDTH = 136;
+
 /** The panel edge the drag handle sits on — the one facing the chat pane. */
 export type PanelEdge = 'left' | 'right';
 
@@ -36,8 +46,14 @@ export const usePanelWidth = ({
     minWidth = MIN_WIDTH,
     maxWidth = MAX_WIDTH,
 }: PanelWidthOptions) => {
+    // The live viewport, not just the constant: a panel may never claim so much
+    // that the chat column drops under MIN_CHAT_WIDTH.
     const clampWidth = useCallback(
-        (next: number): number => Math.min(maxWidth, Math.max(minWidth, next)),
+        (next: number): number => {
+            const room = window.innerWidth - RAIL_WIDTH - MIN_CHAT_WIDTH;
+            const ceiling = Math.max(minWidth, Math.min(maxWidth, room));
+            return Math.min(ceiling, Math.max(minWidth, next));
+        },
         [minWidth, maxWidth]
     );
     // Moving the pointer toward the chat pane grows the panel: leftward for a

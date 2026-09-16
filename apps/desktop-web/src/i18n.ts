@@ -116,6 +116,8 @@ const resources = {
             'chat.thread.view': 'View thread',
             'chat.thread.composerPlaceholder': 'Reply…',
             'chat.thread.resize': 'Resize thread panel',
+            'chat.jump.return': 'Back to {{name}}',
+            'chat.jump.dismissReturn': 'Dismiss return',
             'chat.thread.unavailable': "This message isn't loaded yet — scroll up in the channel to load it.",
             'chat.system.join': '{{name}} joined the channel',
             'chat.system.leave': '{{name}} left the channel',
