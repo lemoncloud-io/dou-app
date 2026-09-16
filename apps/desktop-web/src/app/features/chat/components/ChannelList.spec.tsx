@@ -294,14 +294,18 @@ describe('ChannelList keyboard reorder (Alt+Shift+↑/↓, slice 04)', () => {
         expect(pinned.reorder).toHaveBeenCalledWith(['C2', 'C1']);
     });
 
-    it('a plain ArrowDown still navigates — Alt+Shift is the only move chord', () => {
+    it('a plain ArrowDown moves focus and opens nothing — Enter is what opens a row', () => {
         const { nav, onSelect } = renderWithSelection('C1');
 
         act(() => {
             press(nav, 'ArrowDown');
         });
 
-        expect(onSelect).toHaveBeenCalledWith('C2');
+        // Focus lands on the row after the selected one; selecting on every arrow
+        // press would mount each channel's feed in turn and lose the reading
+        // position of the channel the user is actually in.
+        expect(document.activeElement).toBe(nav.querySelector('[data-channel-row="C2"]'));
+        expect(onSelect).not.toHaveBeenCalled();
         expect(storedOrder.set).not.toHaveBeenCalled();
     });
 

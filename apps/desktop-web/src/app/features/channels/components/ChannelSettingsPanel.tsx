@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Search, X } from 'lucide-react';
@@ -57,15 +57,6 @@ export const ChannelSettingsPanel = ({
     const setChannelNotifyPref = useNotificationPrefsStore(s => s.setChannelNotify);
     const { setChannelNotify } = useDesktopChannelMutations();
 
-    // Esc closes the panel (matches dropdowns/dialogs elsewhere).
-    useEffect(() => {
-        const onKeyDown = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') close();
-        };
-        window.addEventListener('keydown', onKeyDown);
-        return () => window.removeEventListener('keydown', onKeyDown);
-    }, [close]);
-
     const channelId = channel?.id ?? null;
     const isOwner = isChannelOwner(channel, myUid);
 
@@ -112,6 +103,7 @@ export const ChannelSettingsPanel = ({
             storageKey={'chatic.channelSettingsPanel.width'}
             defaultWidth={320}
             resizeLabel={t('channels.settings.resize')}
+            onClose={close}
             className="bg-elevated"
         >
             <header className="flex h-14 shrink-0 items-center justify-between border-b border-hairline px-4">

@@ -123,7 +123,11 @@ export const CloudRail = ({
                                         onClick={() => setPendingRemove(cloud)}
                                         disabled={isSwitching}
                                         aria-label={t('cloud.remove.action')}
-                                        className="focus-ring absolute -right-1 -top-1 z-10 hidden h-4 w-4 items-center justify-center rounded-full border border-rail bg-destructive text-destructive-foreground shadow-raised transition-opacity group-hover:flex disabled:opacity-50"
+                                        // `hidden` would drop it out of the accessibility
+                                        // tree entirely, leaving no keyboard path to
+                                        // removing a cloud. Hidden by opacity instead, and
+                                        // revealed on focus as well as hover.
+                                        className="focus-ring absolute -right-1 -top-1 z-10 flex h-4 w-4 items-center justify-center rounded-full border border-rail bg-destructive text-destructive-foreground opacity-0 shadow-raised transition-opacity focus-visible:opacity-100 group-hover:opacity-100 disabled:opacity-50"
                                     >
                                         <X className="h-2.5 w-2.5" aria-hidden />
                                     </button>

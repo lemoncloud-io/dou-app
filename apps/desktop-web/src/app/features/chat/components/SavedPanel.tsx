@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Bookmark, ChevronRight, Hash, X } from 'lucide-react';
@@ -101,15 +101,6 @@ export const SavedPanel = ({ channels, places, currentPlaceId, onSelect }: Saved
     const items = useSavedItemsStore(s => s.items);
     const remove = useSavedItemsStore(s => s.remove);
 
-    // Esc closes the panel (matches the other trailing panes).
-    useEffect(() => {
-        const onKeyDown = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') close();
-        };
-        window.addEventListener('keydown', onKeyDown);
-        return () => window.removeEventListener('keydown', onKeyDown);
-    }, [close]);
-
     const channelName = (channelId: string): string | undefined => channels.find(c => c.id === channelId)?.name;
     const placeName = (placeId: string): string => places.find(p => p.id === placeId)?.name ?? t('saved.otherPlace');
 
@@ -135,6 +126,7 @@ export const SavedPanel = ({ channels, places, currentPlaceId, onSelect }: Saved
             storageKey={'chatic.savedPanel.width'}
             defaultWidth={320}
             resizeLabel={t('saved.resize')}
+            onClose={close}
             className="bg-background"
         >
             <header className="flex h-14 shrink-0 items-center justify-between border-b border-hairline px-4">

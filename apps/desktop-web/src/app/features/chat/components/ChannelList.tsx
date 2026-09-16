@@ -109,6 +109,9 @@ const ChannelRow = ({ channel, label, icon, isActive, isFavorite, onSelect, rowR
                 ref={rowRef}
                 onClick={() => onSelect(id)}
                 aria-current={isActive ? 'true' : undefined}
+                // Arrow-key navigation focuses rows through this attribute rather
+                // than opening each one on the way past — see onKeyDown below.
+                data-channel-row={id}
                 className={cn(
                     'focus-ring flex h-[34px] w-full min-w-0 items-center gap-2 rounded-lg p-2 text-left transition-colors duration-150 ease-tactile',
                     isActive ? 'bg-primary/[0.08]' : 'hover:bg-accent'
@@ -326,8 +329,6 @@ export const ChannelList = ({
         return <div className="px-4 py-8 text-center text-callout text-muted-foreground">{t('sidebar.noMatches')}</div>;
     }
 
-    // Keyboard nav walks the rendered order: channels first, then DMs.
-    const navOrder = [...visibleRegular, ...visibleDms.map(row => row.channel)];
     // A filtered view is a subset — dragging it would write a partial order, so rows lock.
     const isFiltering = query.trim().length > 0;
 
@@ -389,11 +390,19 @@ export const ChannelList = ({
         }
         if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return; // OS/browser chords pass through
         e.preventDefault();
-        const idx = navOrder.findIndex(c => (c.id ?? '') === selectedChannelId);
+        // Arrows MOVE FOCUS; Enter/Space on the focused row opens it. Selecting on
+        // every arrow press mounted each channel's feed in turn, which threw away
+        // the reading position of the channel the user was actually in.
+        const rows = Array.from(e.currentTarget.querySelectorAll<HTMLButtonElement>('[data-channel-row]'));
+        if (rows.length === 0) return;
+        const focused = document.activeElement;
+        const from = rows.findIndex(el => el === focused);
         const delta = e.key === 'ArrowDown' ? 1 : -1;
-        const nextIdx = idx < 0 ? 0 : Math.min(navOrder.length - 1, Math.max(0, idx + delta));
-        const next = navOrder[nextIdx]?.id;
-        if (next) onSelect(next);
+        // Nothing in the list has focus yet: enter it at the selected row, so the
+        // first arrow press starts from where the user is, not from the top.
+        const start = from >= 0 ? from : rows.findIndex(el => el.dataset.channelRow === selectedChannelId);
+        const nextIdx = start < 0 ? 0 : Math.min(rows.length - 1, Math.max(0, start + delta));
+        rows[nextIdx]?.focus();
     };
 
     const channelGlyph = <Hash size={16} aria-hidden />;

@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { X } from 'lucide-react';
@@ -20,15 +19,6 @@ export const ProfilePanel = () => {
     const target = useProfilePanelStore(s => s.target);
     const close = useProfilePanelStore(s => s.close);
 
-    // Esc closes the panel (matches the settings panel / dialogs elsewhere).
-    useEffect(() => {
-        const onKeyDown = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') close();
-        };
-        window.addEventListener('keydown', onKeyDown);
-        return () => window.removeEventListener('keydown', onKeyDown);
-    }, [close]);
-
     if (!target) return null;
 
     return (
@@ -36,6 +26,7 @@ export const ProfilePanel = () => {
             storageKey={'chatic.profilePanel.width'}
             defaultWidth={320}
             resizeLabel={t('profile.panel.resize')}
+            onClose={close}
             className="bg-elevated"
         >
             <header className="flex h-14 shrink-0 items-center justify-between border-b border-hairline px-4">

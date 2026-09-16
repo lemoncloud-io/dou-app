@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { AtSign, ChevronRight, Hash, X } from 'lucide-react';
@@ -108,15 +108,6 @@ export const MentionsPanel = ({ channels, places, currentPlaceId, onSelect }: Me
     const markAllRead = useMentionsStore(s => s.markAllRead);
     const remove = useMentionsStore(s => s.remove);
 
-    // Esc closes the panel (matches the other trailing panes).
-    useEffect(() => {
-        const onKeyDown = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') close();
-        };
-        window.addEventListener('keydown', onKeyDown);
-        return () => window.removeEventListener('keydown', onKeyDown);
-    }, [close]);
-
     const channelName = (channelId: string): string | undefined => channels.find(c => c.id === channelId)?.name;
     const placeName = (placeId: string): string => places.find(p => p.id === placeId)?.name ?? t('saved.otherPlace');
 
@@ -144,6 +135,7 @@ export const MentionsPanel = ({ channels, places, currentPlaceId, onSelect }: Me
             storageKey={'chatic.mentionsPanel.width'}
             defaultWidth={320}
             resizeLabel={t('activity.resize')}
+            onClose={close}
             className="bg-background"
         >
             <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-hairline px-4">

@@ -68,11 +68,11 @@ export const ComposerToolbar = () => {
                         type="button"
                         aria-pressed={!!active[key]}
                         aria-label={t(`chat.composer.format.${key}`)}
-                        // mousedown (not click) so the editor keeps focus + selection.
-                        onMouseDown={e => {
-                            e.preventDefault();
-                            apply(editor);
-                        }}
+                        // mousedown only prevents the default focus steal — the editor
+                        // keeps its selection. The action itself runs on click, so
+                        // Enter and Space reach it too.
+                        onMouseDown={e => e.preventDefault()}
+                        onClick={() => apply(editor)}
                         className={cn(
                             'focus-ring tactile flex h-[26px] min-w-[26px] items-center justify-center rounded-md text-[15px] font-semibold transition-colors ease-tactile disabled:opacity-50',
                             active[key]
