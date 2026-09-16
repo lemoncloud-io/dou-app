@@ -8,6 +8,7 @@ import {
     AlertDialogContent,
     AlertDialogDescription,
     AlertDialogTitle,
+    AlertDialogFooter,
 } from '@chatic/ui-kit/components/ui/alert-dialog';
 
 interface ConfirmDialogProps {
@@ -51,7 +52,7 @@ export const ConfirmDialog = ({
                 <AlertDialogDescription className={cn(description ? 'line-clamp-3' : 'sr-only')}>
                     {description ?? title}
                 </AlertDialogDescription>
-                <div className="flex justify-end gap-2 pt-2">
+                <AlertDialogFooter className="gap-2 pt-2 sm:space-x-0">
                     <AlertDialogCancel disabled={isPending}>{t('common.cancel')}</AlertDialogCancel>
                     <AlertDialogAction
                         onClick={onConfirm}
@@ -62,7 +63,7 @@ export const ConfirmDialog = ({
                     >
                         {confirmLabel}
                     </AlertDialogAction>
-                </div>
+                </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
     );

@@ -69,21 +69,19 @@ export const SettingsPage = () => {
                     <ChevronLeft className="h-4 w-4" />
                     {t('settings.back')}
                 </Button>
-                <h1 className="text-base font-semibold text-foreground">{t('settings.title')}</h1>
+                <h1 className="text-heading text-foreground">{t('settings.title')}</h1>
                 {/* Every control here writes as it changes. Saying so once is what
                     stops a person hunting for a Save button that does not exist. */}
-                <span className="ml-auto text-xs text-muted-foreground">{t('settings.autosave')}</span>
+                <span className="ml-auto text-caption text-muted-foreground">{t('settings.autosave')}</span>
             </header>
 
             <div className="scrollbar-thin mx-auto w-full max-w-2xl flex-1 overflow-y-auto p-8">
                 <section className="flex flex-col gap-4">
-                    <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                        {t('settings.appearance')}
-                    </h2>
+                    <h2 className="text-overline uppercase text-muted-foreground">{t('settings.appearance')}</h2>
 
                     <div className="flex flex-col gap-6 rounded-xl border border-border bg-card p-5">
                         <div className="flex flex-col gap-2.5">
-                            <span id="settings-theme-label" className="text-sm font-medium text-foreground">
+                            <span id="settings-theme-label" className="text-callout font-medium text-foreground">
                                 {t('settings.theme')}
                             </span>
                             <div role="radiogroup" aria-labelledby="settings-theme-label" className="flex gap-2">
@@ -94,7 +92,7 @@ export const SettingsPage = () => {
                                         aria-checked={theme === option}
                                         onClick={() => setTheme(option)}
                                         className={cn(
-                                            'focus-ring tactile flex flex-1 flex-col items-center gap-2 rounded-lg border p-3 text-sm capitalize transition-colors ease-tactile',
+                                            'focus-ring tactile flex flex-1 flex-col items-center gap-2 rounded-lg border p-3 text-callout capitalize transition-colors ease-tactile',
                                             theme === option
                                                 ? 'border-primary bg-primary/10 font-semibold text-foreground'
                                                 : 'border-input text-muted-foreground hover:border-border hover:bg-accent'
@@ -119,7 +117,7 @@ export const SettingsPage = () => {
                         {/* Hidden while a single bundle ships — see LANGUAGE_OPTIONS. */}
                         {LANGUAGE_OPTIONS.length > 1 && (
                             <div className="flex flex-col gap-2.5">
-                                <span id="settings-language-label" className="text-sm font-medium text-foreground">
+                                <span id="settings-language-label" className="text-callout font-medium text-foreground">
                                     {t('settings.language')}
                                 </span>
                                 <div role="radiogroup" aria-labelledby="settings-language-label" className="flex gap-2">
@@ -130,7 +128,7 @@ export const SettingsPage = () => {
                                             aria-checked={i18n.language === lng}
                                             onClick={() => void i18n.changeLanguage(lng)}
                                             className={cn(
-                                                'focus-ring tactile rounded-lg border px-4 py-2 text-sm uppercase transition-colors ease-tactile',
+                                                'focus-ring tactile rounded-lg border px-4 py-2 text-callout uppercase transition-colors ease-tactile',
                                                 i18n.language === lng
                                                     ? 'border-primary bg-primary/10 font-semibold text-foreground'
                                                     : 'border-input text-muted-foreground hover:border-border hover:bg-accent'
@@ -149,16 +147,14 @@ export const SettingsPage = () => {
                 <LaunchAtLoginSection />
 
                 <section className="mt-8 flex flex-col gap-4">
-                    <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                        {t('settings.notifications')}
-                    </h2>
+                    <h2 className="text-overline uppercase text-muted-foreground">{t('settings.notifications')}</h2>
 
                     <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-card p-5">
                         <div className="flex min-w-0 flex-col gap-0.5">
-                            <span className="text-sm font-medium text-foreground">
+                            <span className="text-callout font-medium text-foreground">
                                 {t('settings.desktopNotifications')}
                             </span>
-                            <span className="text-xs text-muted-foreground">
+                            <span className="text-caption text-muted-foreground">
                                 {t('settings.desktopNotificationsHint')}
                             </span>
                         </div>
@@ -175,8 +171,10 @@ export const SettingsPage = () => {
                     <div className="flex flex-col gap-2 rounded-xl border border-border bg-card p-5">
                         <div className="flex items-center justify-between gap-4">
                             <div className="flex min-w-0 flex-col gap-0.5">
-                                <span className="text-sm font-medium text-foreground">{t('settings.devicePush')}</span>
-                                <span id="device-push-hint" className="text-xs text-muted-foreground">
+                                <span className="text-callout font-medium text-foreground">
+                                    {t('settings.devicePush')}
+                                </span>
+                                <span id="device-push-hint" className="text-caption text-muted-foreground">
                                     {t(
                                         pushMute.isSupported
                                             ? 'settings.devicePushHint'
@@ -195,7 +193,7 @@ export const SettingsPage = () => {
                             />
                         </div>
                         {pushMute.hasFailed && (
-                            <span id="device-push-error" className="text-xs text-destructive">
+                            <span id="device-push-error" className="text-caption text-destructive">
                                 {t('settings.devicePushFailed')}
                             </span>
                         )}
@@ -204,8 +202,12 @@ export const SettingsPage = () => {
                     <div className="flex flex-col gap-4 rounded-xl border border-border bg-card p-5">
                         <div className="flex items-center justify-between gap-4">
                             <div className="flex min-w-0 flex-col gap-0.5">
-                                <span className="text-sm font-medium text-foreground">{t('settings.quietHours')}</span>
-                                <span className="text-xs text-muted-foreground">{t('settings.quietHoursHint')}</span>
+                                <span className="text-callout font-medium text-foreground">
+                                    {t('settings.quietHours')}
+                                </span>
+                                <span className="text-caption text-muted-foreground">
+                                    {t('settings.quietHoursHint')}
+                                </span>
                             </div>
                             <Switch
                                 checked={quietEnabled}
@@ -215,16 +217,16 @@ export const SettingsPage = () => {
                         </div>
                         {quietHours && (
                             <div className="flex items-center gap-3">
-                                <label className="flex flex-col gap-1.5 text-xs text-muted-foreground">
+                                <label className="flex flex-col gap-1.5 text-caption text-muted-foreground">
                                     {t('settings.quietHoursStart')}
                                     <input
                                         type="time"
                                         value={quietHours.start}
                                         onChange={e => setQuietHours({ start: e.target.value, end: quietHours.end })}
-                                        className="focus-ring rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
+                                        className="focus-ring rounded-lg border border-input bg-background px-3 py-2 text-callout text-foreground"
                                     />
                                 </label>
-                                <label className="flex flex-col gap-1.5 text-xs text-muted-foreground">
+                                <label className="flex flex-col gap-1.5 text-caption text-muted-foreground">
                                     {t('settings.quietHoursEnd')}
                                     <input
                                         type="time"
@@ -232,7 +234,7 @@ export const SettingsPage = () => {
                                         onChange={e => setQuietHours({ start: quietHours.start, end: e.target.value })}
                                         aria-invalid={quietWindow == null ? true : undefined}
                                         aria-describedby="quiet-hours-window"
-                                        className="focus-ring rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
+                                        className="focus-ring rounded-lg border border-input bg-background px-3 py-2 text-callout text-foreground"
                                     />
                                 </label>
                             </div>
@@ -244,7 +246,7 @@ export const SettingsPage = () => {
                                 id="quiet-hours-window"
                                 role={quietWindow == null ? 'alert' : undefined}
                                 className={cn(
-                                    'text-xs',
+                                    'text-caption',
                                     quietWindow == null ? 'text-destructive' : 'text-muted-foreground'
                                 )}
                             >
@@ -262,9 +264,7 @@ export const SettingsPage = () => {
                 </section>
 
                 <section className="mt-8 flex flex-col gap-4">
-                    <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                        {t('settings.about')}
-                    </h2>
+                    <h2 className="text-overline uppercase text-muted-foreground">{t('settings.about')}</h2>
 
                     <div className="flex flex-col items-start gap-4 rounded-xl border border-border bg-card p-5">
                         <VersionInfo />

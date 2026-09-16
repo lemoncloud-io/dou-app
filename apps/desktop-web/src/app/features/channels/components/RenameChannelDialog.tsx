@@ -2,7 +2,13 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@chatic/ui-kit/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogTitle,
+    DialogFooter,
+} from '@chatic/ui-kit/components/ui/dialog';
 import { Input } from '@chatic/ui-kit/components/ui/input';
 import { Label } from '@chatic/ui-kit/components/ui/label';
 
@@ -80,14 +86,19 @@ export const RenameChannelDialog = ({ open, onOpenChange, channelId, currentName
                         </p>
                     )}
 
-                    <div className="flex justify-end gap-2 pt-2">
-                        <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={isMutating}>
+                    <DialogFooter className="gap-2 pt-2 sm:space-x-0">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => onOpenChange(false)}
+                            disabled={isMutating}
+                        >
                             {t('channels.rename.cancel')}
                         </Button>
                         <Button type="submit" disabled={isMutating || !isValid}>
                             {isMutating ? t('channels.rename.saving') : t('channels.rename.submit')}
                         </Button>
-                    </div>
+                    </DialogFooter>
                 </form>
             </DialogContent>
         </Dialog>

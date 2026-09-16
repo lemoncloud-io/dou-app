@@ -97,7 +97,7 @@ export const AddMembersDialog = ({ open, onOpenChange, channelId }: AddMembersDi
                         <div className="flex justify-end gap-2">
                             <Button
                                 type="button"
-                                variant="ghost"
+                                variant="outline"
                                 onClick={() => onOpenChange(false)}
                                 disabled={isAdding}
                             >

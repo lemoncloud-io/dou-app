@@ -2,7 +2,13 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@chatic/ui-kit/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogTitle,
+    DialogFooter,
+} from '@chatic/ui-kit/components/ui/dialog';
 import { Input } from '@chatic/ui-kit/components/ui/input';
 
 import { useInviteLogin } from '../hooks/useInviteLogin';
@@ -54,11 +60,15 @@ export const JoinWithInviteDialog = () => {
                         aria-label={t('auth.invite.placeholder')}
                         disabled={isSubmitting}
                     />
-                    {error && <p className="-mt-1 text-sm text-destructive">{inviteLoginErrorText(error, t)}</p>}
-                    <div className="flex justify-end gap-2 pt-1">
+                    {error && (
+                        <p role="alert" className="-mt-1 text-sm text-destructive">
+                            {inviteLoginErrorText(error, t)}
+                        </p>
+                    )}
+                    <DialogFooter className="gap-2 pt-2 sm:space-x-0">
                         <Button
                             type="button"
-                            variant="ghost"
+                            variant="outline"
                             onClick={() => handleOpenChange(false)}
                             disabled={isSubmitting}
                         >
@@ -67,7 +77,7 @@ export const JoinWithInviteDialog = () => {
                         <Button type="submit" disabled={isSubmitting || !code.trim()}>
                             {isSubmitting ? t('auth.invite.preparing') : t('auth.invite.submit')}
                         </Button>
-                    </div>
+                    </DialogFooter>
                 </form>
             </DialogContent>
         </Dialog>

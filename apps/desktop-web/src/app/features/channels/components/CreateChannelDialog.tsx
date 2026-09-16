@@ -4,7 +4,13 @@ import { useTranslation } from 'react-i18next';
 import { cn } from '@chatic/lib/utils';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogTitle,
+    DialogFooter,
+} from '@chatic/ui-kit/components/ui/dialog';
 import { Input } from '@chatic/ui-kit/components/ui/input';
 import { Label } from '@chatic/ui-kit/components/ui/label';
 
@@ -101,21 +107,25 @@ export const CreateChannelDialog = () => {
                         </div>
                     </div>
 
-                    {isError && <p className="text-sm text-destructive">{t('channels.create.failed')}</p>}
+                    {isError && (
+                        <p role="alert" className="text-sm text-destructive">
+                            {t('channels.create.failed')}
+                        </p>
+                    )}
 
-                    <div className="flex justify-end gap-2 pt-2">
+                    <DialogFooter className="gap-2 pt-2 sm:space-x-0">
                         <Button
                             type="button"
-                            variant="ghost"
+                            variant="outline"
                             onClick={() => handleOpenChange(false)}
                             disabled={isMutating}
                         >
                             {t('channels.create.cancel')}
                         </Button>
-                        <Button type="submit" disabled={isMutating || !name.trim()}>
+                        <Button type="submit" disabled={isMutating || !isValidChannelName(name)}>
                             {isMutating ? t('channels.create.creating') : t('channels.create.submit')}
                         </Button>
-                    </div>
+                    </DialogFooter>
                 </form>
             </DialogContent>
         </Dialog>
