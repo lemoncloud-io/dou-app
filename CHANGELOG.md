@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-09-16] - root@0.62.3, @chatic/web@0.49.5, @chatic/landing@0.4.3, @chatic/desktop-web@0.12.3
+
+### Documentation
+
+- repoint the doc paths PR #460 moved
+
 ## [2026-09-15] - root@0.62.2, @chatic/web@0.49.4, @chatic/landing@0.4.2, @chatic/desktop-web@0.12.2
 
 ### Bug Fixes
