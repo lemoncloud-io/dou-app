@@ -58,13 +58,8 @@ straight through to the create dialog. That row, its `hasSnapshot` gate and the 
 
 The relay's personal place is named `default`/`#default` at the backend and has site id `0000`. That
 string must not reach a screen. `apps/web/src/app/utils/resolvePlaceDisplayName.ts` is the single
-pure function that decides:
-
-```ts
-resolvePlaceDisplayName(place, { isDefaultCloud }, t): string;
-```
-
-It returns the branded `placeList.defaultPlace` label ("두유 홈" / "DoU Home") when `isDefaultCloud`
+pure function that decides. It takes the place, an `isDefaultCloud` flag and the translator, and
+returns the branded `placeList.defaultPlace` label ("두유 홈" / "DoU Home") when `isDefaultCloud`
 is true **or** `place.id === HOME_PLACE_ID` (`'0000'`), and `place.name` otherwise.
 
 Two signals rather than one, because the callers hold different things. A hook that knows the

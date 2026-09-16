@@ -8,21 +8,13 @@ single thing most likely to be got wrong here.
 The feature holds no session and no repository of its own. Every read is a hook from `app/hooks/` or
 [`@chatic/app-runtime`](../../../../../libs/app-runtime/README.md); the chrome around it — the
 floating nav, safe areas, keyboard insets — belongs to
-[architecture/layout-shell.md](../../architecture/layout-shell.md).
+[shell/layout-shell.md](../../shell/layout-shell.md).
 
 ## Layout
 
-```text
-apps/web/src/app/features/mypage/
-├── index.tsx      the barrel — components, hooks, pages, routes
-├── routes/        15 routes under /mypage (14 of the pages here, plus feedback's)
-├── pages/         14 — MyPage, SettingsPage, and the depths below them
-├── components/    6 — AccountLinkSection, AppIconSelectSheet, LanguageSelectSheet,
-│                      LogoutDialog, SocialProviderIcons, WithdrawalDialog
-├── hooks/         5 — useAppIcon, useUpdateProfile, useDevicePushMute, useSocialLinks, useDeleteCloud
-├── consts/        policy content re-exports
-└── flags.ts       SOCIAL_UNLINK_ENABLED — one boolean, waiting on a backend packet
-```
+Fourteen pages, six components, five hooks, and `flags.ts` — one boolean waiting on a backend packet.
+The route table declares fifteen routes: the fourteen pages here plus feedback's, whose screen lives
+in another feature.
 
 ### The three depths
 
@@ -96,21 +88,6 @@ sees a "sign in" card the moment they enter a cloud.
 a cloud session is active, so that is the hook to look at first if the logout row goes missing for
 someone who is plainly signed in.
 
-```mermaid
-flowchart TD
-    M["/mypage (tab)"] --> G{useIsAccountGuest}
-    G -- yes --> GUEST["sign-in card → /mypage/login"]
-    G -- no --> P["profile card → /mypage/account"]
-    G -- no --> S{membership?.isValid}
-    S -- true --> SUB1["subscription row → subscription.root"]
-    S -- false --> SUB0["subscription row → subscription.guide"]
-    G -- no --> C{clouds.length > 0}
-    C -- yes --> CLOUD["cloud row → /mypage/cloud-manage"]
-    M --> GEAR["header gear"] --> SET["/mypage/settings"]
-    SET --> NOTI["/mypage/settings/notifications"]
-    SET --> LAB["/mypage/settings/lab"]
-```
-
 ### Two rows change their destination, not their label
 
 - **Subscription.** The label is the same either way; `membership?.isValid` decides between the
@@ -158,23 +135,11 @@ because they have no nav.
 
 ## Usage
 
-The feature exports its route table; the router mounts it under `/mypage/*`.
-
-```tsx
-<MyPageRoutes />
-```
-
-Screens read state through hooks and never touch a core object:
-
-| Need                     | Hook                                              |
-| ------------------------ | ------------------------------------------------- |
-| Account guest-ness       | `useIsAccountGuest()`                             |
-| Account profile          | `useMyUser()` — `name`, `email`, `photo`, `link$` |
-| Subscription             | `useMembershipInfo()`                             |
-| Owned clouds             | `useCloudSessionCatalog()` / `useClouds()`        |
-| Selected cloud           | `runtime.session.useSessionSelection()`           |
-| Active cloud permissions | `runtime.session.useRuntimeProfile()`             |
-| Push mute                | `useDevicePushMute()`                             |
+The feature exports its route table, which the router mounts under `/mypage/*`. Screens read state
+through hooks and never touch a core object: `useIsAccountGuest` for the hub's branch, `useMyUser`
+for the account profile, `useMembershipInfo` for the subscription row, `useCloudSessionCatalog` /
+`useClouds` for owned clouds, `runtime.session.useSessionSelection` and `useRuntimeProfile` for the
+session, and `useDevicePushMute` for the mute toggle.
 
 ### What not to do
 
@@ -218,7 +183,7 @@ Screens read state through hooks and never touch a core object:
 
 ## Further reading
 
-- [architecture/layout-shell.md](../../architecture/layout-shell.md) — the nav, safe areas and
+- [shell/layout-shell.md](../../shell/layout-shell.md) — the nav, safe areas and
   keyboard insets these screens sit inside.
 - [account](../account/README.md) — social links and the account-credential story.
 - [debug](../debug/README.md) · [feedback](../feedback/README.md) — the two features Lab and

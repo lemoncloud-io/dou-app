@@ -9,35 +9,6 @@ The screens themselves are elsewhere — [phone-verification.md](./phone-verific
 
 ## Layout
 
-```mermaid
-graph TD
-    LIB["libphonenumber-js/mobile<br/>getCountries · isValidPhoneNumber · parsePhoneNumberFromString"]
-    UTIL["app/utils/phoneNumber.ts<br/>validation · country resolution · wire value"]
-    SHEET["ui/components/CountrySelectSheet<br/>search over 245 countries"]
-    TRIG["ui/components/CountrySelect<br/>leading trigger + sheet state"]
-    TF["web-ui-kit TextField<br/>leading slot"]
-    PVF["PhoneVerifyFields"]
-    UPV["usePhoneVerify<br/>country state + send pin"]
-    CIP["ContactInvitePage"]
-    IWP["InviteWaitingPage<br/>reissue"]
-    LOG["useSentInviteLog<br/>E.164 keys"]
-
-    LIB --> UTIL
-    UTIL --> SHEET
-    UTIL --> TRIG
-    UTIL --> UPV
-    UTIL --> CIP
-    UTIL --> IWP
-    SHEET --> TRIG
-    TF --> PVF
-    TF --> CIP
-    TRIG --> PVF
-    TRIG --> CIP
-    UPV --> PVF
-    CIP --> LOG
-    IWP --> LOG
-```
-
 `apps/web/src/app/utils/phoneNumber.ts` sits beside `errors.ts` and `placeProfile.ts` — a pure
 helper two features share. The picker is two files under `apps/web/src/app/ui/components/`:
 `CountrySelectSheet` is pure presentation taking `{ open, onOpenChange, value, onSelect }`, and
@@ -63,17 +34,15 @@ change means: the same invalidation as retyping the number.
 
 ### `apps/web/src/app/utils/phoneNumber.ts`
 
-| Export                                | What it does                                                                                    |
-| ------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `PhoneCountry = string`               | ISO alpha-2. A local alias, not the backend's union                                             |
-| `PhoneCountryOption`                  | One picker row — `{ code, name, dialCode }`                                                     |
-| `listPhoneCountries(lang)`            | All 245 countries the mobile metadata knows, localized and sorted. Memoized per language        |
-| `phoneCountryDialCode(code)`          | `+82`, or `null` for an unsupported code                                                        |
-| `isValidMobileNumber(input, country)` | Mobile-only validity. `false` when there is no country                                          |
-| `toE164(input, country)`              | The wire value, the invite-log key and the SMS composer's input — all three are this one string |
-| `readInternationalInput(input)`       | A `+…` string parsed into `{ country, national }`, else `null`                                  |
-| `resolveDefaultCountry()`             | The stored pick, else the locale's region, else `null` — both checked with `isSupportedCountry` |
-| `rememberCountry(code)`               | Writes `dou.phoneInput.country.v1`. A private-mode failure is swallowed                         |
+The module exports the country list (`listPhoneCountries`, all 245 the mobile metadata knows,
+localized, sorted and memoized per language), the dial code, mobile-only validation, the wire value,
+an international-paste parser, and the default-country resolution — the stored pick, else the
+locale's region, else `null`, each checked with `isSupportedCountry`. `rememberCountry` writes
+`dou.phoneInput.country.v1` and swallows a private-mode failure.
+
+Two behaviours are not obvious from a signature: `isValidMobileNumber` is `false` whenever there is
+no country, so an unfinished field never validates, and `toE164` assumes its caller already ran that
+check — if parsing still fails it returns the input's digits.
 
 There is no flag helper and no flag on a row: a picker row is the localized name plus the dial code.
 
@@ -185,27 +154,17 @@ the sheet resets the filter — a stale one reads as a broken sheet.
 
 ### Putting a country on a phone field
 
-```tsx
-<TextField
-    leading={<CountrySelect value={country} onChange={setCountry} />}
-    value={phoneInput}
-    onChange={handlePhoneChange}
-/>
-```
-
-`handlePhoneChange` must run `readInternationalInput` first and invalidate any outstanding code, and
-`onChange` on the picker must call `rememberCountry` and invalidate the same way. `usePhoneVerify` is
-the reference implementation of both.
+`CountrySelect` goes in `TextField`'s `leading` slot. The screen owns both halves of the
+invalidation: the number's `onChange` must run `readInternationalInput` first and invalidate any
+outstanding code, and the picker's `onChange` must call `rememberCountry` and invalidate the same
+way. `usePhoneVerify` is the reference implementation of both.
 
 ### Sending
 
-```ts
-await send(toE164(phoneInput, country), { countryCode: country, ... });
-```
-
-`ContactInvitePage` bundles the validated pair into an `IssueTarget` (`{ country, e164 }`) and every
-downstream call carries it: `createInvite`, the local log's `record` and `findByPhone`, and the SMS
-composer. The reissue dialog holds the same value.
+`toE164(phoneInput, country)` is the value sent, with `countryCode` alongside. `ContactInvitePage`
+bundles the validated pair into an `IssueTarget` (`{ country, e164 }`) and every downstream call
+carries it: `createInvite`, the local log's `record` and `findByPhone`, and the SMS composer. The
+reissue dialog holds the same value.
 
 ### What not to do
 

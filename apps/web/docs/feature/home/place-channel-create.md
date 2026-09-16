@@ -40,10 +40,8 @@ grep -rn "MAX_PLACES\|MAX_CHANNELS_PER_PLACE\|GUEST_MAX_CHANNELS" --include='*.t
 Ownership is derived in `HomePage`, not in `useUserPermissions`. The permissions hook has no cloud
 catalog and cannot see the relay exception, so the decision sits where the cloud context already is:
 
-```text
-isCloudOwner = !isDefaultCloud && !isInvitedCloud
-canAddPlace  = isCloudOwner && permissions.canCreatePlace
-```
+A cloud is mine when it is neither the relay nor an invited one, and the place entry additionally
+requires `permissions.canCreatePlace`.
 
 `cloudType` is only ever `'invited' | 'owner'` — the relay is a separate id, not a type — so a cloud
 that is neither the relay nor invited is one I own.
@@ -84,10 +82,9 @@ failure, and an `AlertDialog` on exit **only when something has been typed or pi
 A failure leaves the overlay open with an error notice and the submit re-enabled. Nothing is closed
 until the whole action, including the move, has succeeded.
 
-| Overlay               | Call                                                    | On success                           |
-| --------------------- | ------------------------------------------------------- | ------------------------------------ |
-| `CreatePlaceDialog`   | `createPlace({ name, thumbnail })`                      | `switchSite(created.id)`, then close |
-| `CreateChannelDialog` | `createChannel({ stereo: 'private', name, thumbnail })` | `navigate(ROUTES.channels.room(id))` |
+The place overlay calls `createPlace` and, on success, switches to the new site before closing; the
+room overlay calls `createChannel` with `stereo: 'private'` and navigates into the room. Rule 2 is
+why the move happens before the close.
 
 `useCreatePlace` and `useCreateChannel` are app-level hooks (`app/hooks` and
 `features/channels/hooks`), not home's — the onboarding wizard creates a place through the same

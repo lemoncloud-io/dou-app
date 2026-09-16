@@ -12,19 +12,10 @@ the screen: its sections, its writes, and the dialogs.
 
 ## Layout
 
-```text
-pages/ChannelSettingsPage.tsx    the screen
-components/
-├── MemberListItem.tsx           one member row: avatar, name, badge, "left the room" subtitle
-├── MemberProfileDialog.tsx      a member's profile and the actions the viewer has over them
-├── UpdateChannelDialog.tsx      the room's shared name and photo (groups)
-├── JoinNickDialog.tsx           MY private name for the room (self and DM)
-├── ConfirmDialog.tsx            delete / leave confirmation
-└── PlaceProfileEditDialog.tsx   my per-place profile, reached from my own member row
-```
-
-`PlaceProfileCreateDialog` is the one dialog that is not local — it lives in `ui/components`,
-because creating a place profile is not a channel concern; this screen only opens it.
+Six dialogs sit beside the page — the member row and its profile sheet, the room-name dialog
+(groups), the join-nick dialog (self and DM), a confirm, and my own place-profile editor.
+`PlaceProfileCreateDialog` is the one that is not local: it lives in `ui/components`, because
+creating a place profile is not a channel concern and this screen only opens it.
 
 ## The sections
 
@@ -46,13 +37,9 @@ Three rules behind that table:
 
 ## Writes
 
-| Action              | Call                                                                                             |
-| ------------------- | ------------------------------------------------------------------------------------------------ |
-| notification toggle | `useJoinMutations().updateJoin({ notify: 'all' \| 'none' })`                                     |
-| room name + photo   | `useChannelMutations().updateChannel`                                                            |
-| my private name     | `useJoinMutations().updateJoin({ nick })`                                                        |
-| kick a member       | `useChannelMutations().leaveChannel({ channelId, userId })`                                      |
-| leave / delete      | `leaveChannel({ channelId })` / `deleteChannel`, then `navigate(ROUTES.root, { replace: true })` |
+The notification toggle and my private name write `join.update`; the room's shared name and photo
+write `channel.update`; a kick and a leave are both `leaveChannel` (with and without a `userId`); a
+delete is `deleteChannel`. Leaving or deleting replaces the route with the root.
 
 ### The notification toggle
 
@@ -142,21 +129,6 @@ Remove re-confirms through `ConfirmDialog` before calling the kick. **Friend set
 UI-only**: neither has a backend, so both acknowledge with a toast. They are rows rather than hidden
 items because the design has them, and a toast manages the expectation better than a dead tap does.
 `canKick` also requires a non-DM room.
-
-## Scenarios
-
-1. **Owner opens a group.** Name row with a chevron, notification switch, "add friend" row, the
-   member list with an owner badge and my own `MY` badge, and a red delete row at the bottom.
-2. **An invited member opens the same room.** No add-friend row; the bottom row says leave; tapping
-   the name row opens the same dialog in its member mode, writing a private name.
-3. **The notification switch is tapped.** The switch moves immediately, `join.update` goes out, and
-   a failure restores it and toasts.
-4. **A 1:1.** The name row opens the friend-info sheet; there is no add-friend row and no kick; the
-   departed peer stays in the list with a "left the room" line, and the sheet carries the re-invite
-   CTA behind the same two gates the room's footer uses — not a guest, and nothing live to wait on.
-5. **The self chat.** Name row plus a single-member list, nothing else.
-6. **My row has no place profile.** It reads "profile setup required" and taps into the create
-   dialog, which guards a half-typed name on exit.
 
 ## What not to do
 

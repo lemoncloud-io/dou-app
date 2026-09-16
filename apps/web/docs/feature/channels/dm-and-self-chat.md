@@ -14,10 +14,9 @@ named, and what a 1:1 does when the other person leaves. The screens they appear
 The room header, the settings screen, the home list and place channel management all name and draw
 the same channel. Two shared resolvers keep them from disagreeing:
 
-| Question                | Resolver                                                                                        |
-| ----------------------- | ----------------------------------------------------------------------------------------------- |
-| What is it called?      | [`lib/resolveChannelTitle.ts`](../../../src/app/features/channels/lib/resolveChannelTitle.ts)   |
-| What does it look like? | [`lib/resolveChannelAvatar.ts`](../../../src/app/features/channels/lib/resolveChannelAvatar.ts) |
+Two shared resolvers answer "what is it called?" and "what does it look like?" — `lib/resolveChannelTitle.ts`
+and `lib/resolveChannelAvatar.ts`, the only two things in `lib/` and the only two other features may
+borrow.
 
 Single-channel screens call them through `useChannelTitle`; list rows call the pure functions
 directly, because the hook pulls in `useMyProfile` and would fetch once per row.
@@ -65,7 +64,8 @@ self chat, a DM and a group member, and in a group it literally means the room's
 with the same person keep two independent values.
 
 Writing it is `JoinNickDialog` — see [channel-settings.md](./channel-settings.md). An empty save
-clears it and the title falls back down the chain.
+clears it and the title falls back down the chain. The peer sees nothing of it, and my value keeps
+winning even if they rename themselves.
 
 ## Avatars
 
@@ -196,26 +196,6 @@ them and `useDmPeer` would return `null`, taking the footer and the CTA with it.
 filtering departed members out.
 
 A DM also has **no delete**, for either side. See [channel-settings.md](./channel-settings.md).
-
-## Scenarios
-
-1. **An invited peer with no profile.** The chain falls to `channel.name` and then the unnamed-peer
-   label, and the header shows the same string the home list does. The intro line names nobody.
-2. **The peer creates a profile.** All four surfaces change together as the profile reaches the
-   cache, avatars included.
-3. **I name the room.** `join.update` writes my `join.nick`; every surface updates at once, the peer
-   sees nothing, and my name keeps winning even if they rename themselves. Clearing it drops back to
-   their profile.
-4. **The peer leaves.** The leave notice lands in red, the footer appears, the composer locks, and
-   settings adds the "left the room" line.
-5. **I re-invite.** The form opens prefilled where possible, issues against this channel, hands off
-   to SMS and returns to the room; the footer becomes `pending` with a live countdown and the CTA
-   goes away.
-6. **The link expires, or is declined.** The footer changes its line and the CTA returns — with no
-   server round trip in the expiry case, because the client owns that judgement.
-7. **The peer accepts and returns.** The join notice arrives, the footer disappears, the composer
-   unlocks, and the "left the room" line clears. Their history restarts from their re-join — the
-   server windows it, and the client applies the same window ([libs/data](../../../../../libs/data/README.md)).
 
 ## What not to do
 

@@ -11,16 +11,8 @@ place from the URL rather than from the active session.
 
 ## Layout
 
-```text
-apps/web/src/app/features/place/
-├── index.tsx                          PlaceRoutes
-├── pages/                             5 screens
-├── components/ChannelSortSheet.tsx    the only component — a bottom sheet, not a page
-├── hooks/usePlaceOwnerProfile.ts      the only hook
-└── routes/index.tsx                   six routes, two of them the same page
-```
-
-There is no `types/` and no `lib/`. The edit path reuses `useUpdatePlace`, the profile form is the
+Five screens, one component (the channel-sort bottom sheet) and one hook (`usePlaceOwnerProfile`).
+There is no `types/` and no `lib/`: the edit path reuses `useUpdatePlace`, the profile form is the
 shared `ui/components/PlaceProfileForm`, and the place record is typed by `MySiteView` from the
 backend package.
 
@@ -65,13 +57,10 @@ entitled to see whose place they are in.
 
 ### Where the data comes from
 
-| Concern                     | Call                                                                                |
-| --------------------------- | ----------------------------------------------------------------------------------- |
-| The place record            | `runtime.data.useRuntimeRepositories().place.observeItem(placeId, cb)`              |
-| The owner's display name    | `usePlaceOwnerProfile(placeId, place.ownerId)` — profile id `${placeId}@${ownerId}` |
-| Name / introduction / image | `useUpdatePlace({ id, sid, name?, desc?, thumbnail? })` → `place.updatePlace`       |
-| My own nick and photo       | `profileRepository.setMyProfile(body, siteId)`                                      |
-| Channel sort                | `useChannelSort()` — the `ui.channelSort` config setting                            |
+The place record is an `observeItem` on the place repository; the owner's name comes from
+`usePlaceOwnerProfile`; name, introduction and image are written with `useUpdatePlace`; my own nick
+and photo with `profileRepository.setMyProfile`; and the channel sort is the `ui.channelSort`
+config setting.
 
 Two of those carry a rule worth stating.
 
@@ -108,24 +97,9 @@ why the owner section is absent there as a natural consequence of the data, not 
 
 ### The three branches on the information screen
 
-```mermaid
-flowchart TD
-    classDef q fill:#fff7e6,stroke:#ffd591,stroke-width:2px,color:#873800;
-    classDef out fill:#f6ffed,stroke:#b7eb8f,stroke-width:2px,color:#135200;
-
-    P["place.observeItem(placeId)"]:::out --> H{"id === HOME_PLACE_ID ('0000')"}:::q
-    H -->|yes| HA["avatar: home glyph on a light disc<br/>name: resolvePlaceDisplayName<br/>label: the owner variant<br/>no created-at row, no owner section"]:::out
-    H -->|no| CA["avatar: thumbnail, else the place glyph<br/>name: place.name"]:::out
-    CA --> L{"isOwner?"}:::q
-    L -->|truthy| LN["label: place name"]:::out
-    L -->|"falsy, absence included"| LI["label: invited place name"]:::out
-    CA --> O{"ownerId?"}:::q
-    O -->|yes| OR["owner row: avatar · owner badge · nick"]:::out
-    O -->|no| OS["no owner section"]:::out
-    P --> D{"desc?"}:::q
-    D -->|non-empty| DR["introduction row — on every place, no branch"]:::out
-    D -->|"empty or absent"| DS["no row"]:::out
-```
+The screen keys off one question — is this `HOME_PLACE_ID` (`'0000'`)? — and then off presence:
+`isOwner` picks the name label, `ownerId` decides whether the owner section exists, `createdAt`
+decides the date row, `desc` decides the introduction row.
 
 Three of those decisions are worth separating, because they look alike and are not:
 
@@ -179,21 +153,9 @@ an activity-ordered base.
 
 ### Getting to these screens
 
-```mermaid
-flowchart TD
-    classDef out fill:#e6f7ff,stroke:#91d5ff,stroke-width:2px,color:#003a8c;
-    classDef page fill:#f6ffed,stroke:#b7eb8f,stroke-width:2px,color:#135200;
-
-    Avatar["home — header profile avatar"]:::out --> DD["dropdown · one entry:<br/>place settings"]:::out
-    DD --> Hub["PlaceSettingsHubPage"]:::page
-    Hub -->|my profile| Prof["PlaceProfilePage"]:::page
-    Hub -->|"place profile (owner only)"| Edit["PlaceEditPage"]:::page
-    Hub -->|place information| Detail["PlaceDetailPage"]:::page
-    Hub -->|channel sort| Sheet["ChannelSortSheet"]:::page
-    Hub -->|channel management| Manage["PlaceChannelManagePage"]:::page
-    URL["/place/:placeId"]:::out --> Detail
-    Chan["channels — ChannelSettingsPage"]:::out -->|edit my nick| Dlg["PlaceProfileEditDialog<br/><i>the same form, as a dialog</i>"]:::out
-```
+Every route here is reached from home's header avatar dropdown, which has one entry — place settings
+— into the hub, and from there into the profile, edit, detail, sort and channel-management screens.
+`/place/:placeId` reaches the detail screen directly.
 
 The dropdown entry is disabled when no place is active, because every route here is keyed by a place
 id. The per-place profile has two front doors and one implementation: this group's
@@ -268,7 +230,7 @@ Traps:
   list that consumes the sort preference.
 - [mypage/README.md](../mypage/README.md) — the account-level profile, which is a different record
   from the per-place one edited here.
-- [architecture/data-flow.md](../../architecture/data-flow.md) — the observe / refresh / sync
+- [state/data-flow.md](../../state/data-flow.md) — the observe / refresh / sync
   contract these screens read through.
 - [`@chatic/data`](../../../../../libs/data/README.md) — the place repository, the cache partition,
   and why `sid` travels as an argument.

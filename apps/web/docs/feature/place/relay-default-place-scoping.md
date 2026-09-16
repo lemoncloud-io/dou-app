@@ -11,15 +11,11 @@ screen. This document is those six, in the order a reader meets them.
 
 ## Layout
 
-| Where                                                                       | What it holds                                                                                             |
-| --------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `libs/data/src/repositories/UserRepository.ts`                              | The `persistEmbeddedSite` write gate (§1)                                                                 |
-| `libs/data/src/repositories/PlaceRepository.ts`                             | `syncListSnapshot` reconciliation (§2), `createPlace` follow-up (§4), `updatePlace` id normalization (§5) |
-| `libs/data/src/local/data-sources/PlaceLocalDataSource.ts`                  | The read-time filter for the reserved id (§3)                                                             |
-| `libs/data/src/repositories/scopeGuards.ts`                                 | `isForeignContext` — the switch-in-progress guard                                                         |
-| `apps/web/src/main.tsx`                                                     | The app's injected policy (§1)                                                                            |
-| `apps/web/src/app/runtime/useBackgroundSync.ts`                             | The one production caller of `place.refreshList`                                                          |
-| `apps/web/src/app/hooks/useMyUser.ts`, `app/runtime/relayAccountGateway.ts` | The account profile, read and written (§6)                                                                |
+Four of the five mechanisms live in `@chatic/data` — the write gate on `UserRepository`, list
+reconciliation and the create/update rules on `PlaceRepository`, the read-time filter in
+`PlaceLocalDataSource`, and `isForeignContext` in `scopeGuards.ts`. The app supplies the policy in
+`main.tsx`, polls the reconciliation from `useBackgroundSync`, and owns the sixth piece outright:
+the account profile read in `useMyUser` and written through `relayAccountGateway`.
 
 ## Responsibilities
 
@@ -51,22 +47,10 @@ Two consequences run through everything below:
 ### 1. The write gate — `persistEmbeddedSite`
 
 `UserRepository.getMyProfile` writes the response's embedded `$site` into the place cache.
-A constructor option gates it:
-
-```ts
-persistEmbeddedSite?: (context: DataContext) => boolean;
-```
-
-Absent, it persists — the previous behaviour, unchanged for anyone who does not opt in. The web app
-opts in during boot, before the first repository access creates the data runtime:
-
-```ts
-runtime.boot.initAppRuntime({
-    data: {
-        repositories: { user: { persistEmbeddedSite: context => (context.cid ?? 'default') === 'default' } },
-    },
-});
-```
+A constructor option gates it: a predicate over the `DataContext`, which the repository consults
+before persisting. Absent, it persists — the previous behaviour, unchanged for anyone who does not
+opt in. The web app opts in during boot, allowing the write only while the context is the `default`
+partition, before the first repository access creates the data runtime.
 
 The path is `initAppRuntime` → `configureDataRuntime` → `DataManager` → `createRepositories`. The
 runtime singleton is lazy and builds its repositories once, so a late call cannot apply; it warns

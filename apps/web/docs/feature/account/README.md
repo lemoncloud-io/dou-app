@@ -57,74 +57,20 @@ from screen to `mode`/`step`.
 
 ## Structure
 
-```mermaid
-flowchart TD
-    Page[pages/*Page.tsx<br/>6 screens: mode + step + navigation]
-    Form[components/<br/>EmailInputPage · VerifyCodePage · SetPasswordPage]
-    Shared[app/ui + app/utils<br/>VerificationCodeInput · verification.ts]
-    RT[["@chatic/app-runtime<br/>runtime.session.*"]]
+A form component never calls a mutation — it takes a callback. That is what lets sign-up and reset
+share all three of them (`EmailInputPage`, `VerifyCodePage`, `SetPasswordPage`), with the page
+supplying `translationPrefix` and an `onSubmit`.
 
-    Page --> Form
-    Form --> Shared
-    Page --> RT
+Both journeys are the same three steps. Sign-up sends, checks and confirms; reset sends, checks and
+changes — and differs in two places: `ResetPasswordEmailPage` asks `useFindAlias` whether the address
+has a user **before** sending a code, and its last step carries the code forward from step two.
 
-    classDef external stroke-dasharray: 5 5
-    class RT external
-```
-
-The arrow that is missing is the one from `components/` to `runtime`. A form component never calls
-a mutation — it takes a callback. That is what lets sign-up and reset share all three of them.
-
-### The sign-up flow
-
-```mermaid
-sequenceDiagram
-    participant U as User
-    participant E as SignupEmailPage
-    participant V as SignupVerifyPage
-    participant P as SignupPasswordPage
-    participant RT as runtime.session.useVerifyAlias
-
-    U->>E: email
-    E->>RT: mode signup · step send · alias · userId
-    E->>V: navigate(replace, state {email, userId})
-    U->>V: 6 digits (auto-submits on the sixth)
-    V->>RT: mode signup · step check · code
-    V->>P: navigate(replace, state {email, userId})
-    U->>P: password + confirmation
-    P->>RT: mode signup · step confirm · password
-    P->>U: success toast, then /auth/login after 1.5s
-```
-
-Password reset is the same shape with `mode: 'find'`. It differs in two places: `ResetPasswordEmailPage`
-asks `useFindAlias` whether the address has a user **before** sending a code, and the last step is
-`step: 'change'` rather than `'confirm'`, carrying the code forward from step two.
-
-### Directories
-
-```text
-apps/web/src/app/features/account/
-├── index.tsx        re-exports components, constants, pages, routes
-├── pages/           6 screens — SignupEmail/Verify/Password, ResetPasswordEmail/Verify/New
-├── components/      5 files — EmailInputPage, VerifyCodePage, SetPasswordPage, FloatingButton, DouLogo
-├── constants/       MIN_PASSWORD_LENGTH (4). Nothing else lives here
-└── routes/          AccountRoutes — the six <Route> elements
-```
-
-There is no `hooks/`, no `types/` and no `utils/` to open. The mutations are the runtime's, the
-bodies are typed in `libs/http`, and the shared helpers moved out when a second feature needed
-them:
-
-| Symbol                                       | Lives in                                  |
-| -------------------------------------------- | ----------------------------------------- |
-| `VERIFICATION_CODE_LENGTH` (6)               | `apps/web/src/app/utils/verification.ts`  |
-| `VERIFICATION_TIMER_SECONDS` (180)           | `apps/web/src/app/utils/verification.ts`  |
-| `isValidEmail`, `formatCountdown`            | `apps/web/src/app/utils/verification.ts`  |
-| `VerificationCodeInput`                      | `apps/web/src/app/ui/components/`         |
-| `KeyboardAwareLayout`, `useFormKeyboardFlow` | `apps/web/src/app/ui/layouts`, `ui/hooks` |
-
-The subscription feature's `EmailVerifyDialog` is the second consumer of those primitives, which is
-why they are no longer local to this feature.
+There is no `hooks/`, no `types/` and no `utils/` to open, and `constants/` holds one value
+(`MIN_PASSWORD_LENGTH`). The mutations are the runtime's, the bodies are typed in `libs/http`, and
+the shared helpers moved out when a second feature needed them — the code length and timer, the
+email check and the countdown formatter live in `app/utils/verification.ts`, and
+`VerificationCodeInput`, `KeyboardAwareLayout` and `useFormKeyboardFlow` in `app/ui`. The
+subscription feature's `EmailVerifyDialog` is that second consumer.
 
 ## Screens
 
@@ -141,38 +87,13 @@ Both journeys end on `ROUTES.auth.login` after a success toast.
 
 ## Usage
 
-A page supplies the flow; the component supplies the form.
-
-```tsx
-const verifyAlias = runtime.session.useVerifyAlias();
-const userId = runtime.session.useSessionIdentity().userId ?? '';
-
-const handleSubmit = async (email: string) => {
-    try {
-        await verifyAlias.mutateAsync({ type: 'email', mode: 'signup', step: 'send', alias: email, userId });
-        navigate(ROUTES.account.signup.verify, { replace: true, state: { email, userId } });
-        return true;
-    } catch {
-        toast({ title: t('signup.sendCodeFailed'), variant: 'destructive' });
-        return false;
-    }
-};
-
-return <EmailInputPage translationPrefix="signup" onSubmit={handleSubmit} />;
-```
+A page supplies the flow, the component supplies the form: the page calls
+`runtime.session.useVerifyAlias()` with the `mode`/`step` pair its screen owns, navigates on with
+`replace` and the state the next screen needs, and returns `false` on failure so the form re-enables.
 
 `userId` on the sign-up leg comes from the guest session that already exists when the screen opens —
 the app boots into a device session before anyone reaches `/account/signup`. Reset does not send one,
 because the address is the identifier there.
-
-### Wiring
-
-```text
-AppRoutes
-└── AccountRoutes            (routes/index.tsx)
-    └── <page>               reads location.state, calls runtime.session.*
-        └── <form component> translationPrefix + callback
-```
 
 ## Scenarios
 

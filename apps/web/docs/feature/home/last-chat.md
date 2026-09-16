@@ -83,11 +83,9 @@ registration nor this observation. See [unread-dot](./unread-dot.md).
 
 ## Where it is consumed
 
-| Surface                                           | What it does with the map                              |
-| ------------------------------------------------- | ------------------------------------------------------ |
-| `features/home/components/ChannelList.tsx`        | Preview text and time per row, plus the list order     |
-| `features/place/pages/PlaceChannelManagePage.tsx` | Same read at page level for the manage list            |
-| `features/search/hooks/useSearchContext.ts`       | Explains why search must NOT register a row-level sync |
+Home's `ChannelList` prints the preview and takes the order from it; place channel management reads
+the same map at page level; and search deliberately reads it without registering a row-level sync —
+`useSearchContext` says why.
 
 ## Notes for implementers and tests
 

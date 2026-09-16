@@ -20,25 +20,10 @@ with a channel id. What is described here is only the group case.
 
 ## Layout
 
-```text
-pages/
-├── InvitePage.tsx           the tab shell, the contact tab, the batch invite
-└── InviteLinkPage.tsx       the issued link: card, copy, share
-components/
-├── PlaceInviteTab.tsx       the place tab: candidates, selection, channel.invite
-├── AddFriendSheet.tsx       name + phone, exchanged for a link
-└── PermissionDeniedBanner.tsx  contacts permission is off
-hooks/
-├── useInviteCandidates.ts   who can be added, derived from cache
-├── useCreateInviteBatch.ts  single / batch / link-only issue
-└── useUserMutations.ts      the repository calls underneath
-utils/
-├── deviceContact.ts         contact name, phone and search text
-└── koreanPhone.ts           validation and formatting for the sheet
-```
-
-`SegmentedTabs`, `SelectableUserItem`, `SelectedAvatarRow`, `SearchInput` and `InviteLinkCard` are
-`@chatic/web-ui-kit` components.
+Two pages (the tab shell with its contact tab, and the link page), three components (the place tab,
+the add-friend sheet, the permission banner), and two pure modules — `deviceContact.ts` for the name
+and phone chains, `koreanPhone.ts` for the sheet's validation. The pickers, the search input and the
+link card are `@chatic/web-ui-kit`.
 
 ## The tab shell
 
@@ -146,19 +131,6 @@ left to show.
 
 Both pages carry `roomDistance` through navigation state so the final step can pop the entire flow
 at once instead of leaving the settings and invite entries stacked underneath.
-
-## Scenarios
-
-1. **Add someone already in the place.** Open from settings, land on the place tab, pick from the
-   candidates, confirm — one `channel.invite`, a toast, back to settings with the new member listed.
-2. **Nobody to add.** The tab explains and points at the contact tab.
-3. **Invite from contacts.** Open the contact tab (permission is requested here, not before), pick
-   up to 100 rows with a valid number, confirm — one invite or a server-side batch.
-4. **Permission off.** The banner offers the OS settings and the link invite.
-5. **Invite by link.** Name and number in the sheet, then the link page: copy, or share, then back
-   to the room.
-6. **On the web.** The place tab opens with something to choose from; switching to contacts gives
-   the link prompt, since a browser has no contacts to read.
 
 ## What not to do
 

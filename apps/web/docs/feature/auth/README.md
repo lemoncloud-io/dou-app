@@ -60,83 +60,35 @@ machine and its shells, the account-split banner, and the login entry hook.
 
 ## Structure
 
-```mermaid
-flowchart TD
-    Pages["pages/<br/>LoginPage shim · LogoutPage · OAuthResponsePage"]
-    Shells["components/<br/>PhoneVerifyScreen · PhoneVerifySheet · PhoneVerifyFields · PhoneVerifyBanner"]
-    Hooks["hooks/<br/>usePhoneVerify · useOAuthLogin · useNavigateToLogin · useOtpExpiryCountdown"]
-    Shared["app/hooks · app/utils<br/>useLinkAccount · useLinkedAccounts · phoneNumber · errors"]
-    RT[["@chatic/app-runtime<br/>runtime.session · runtime.data"]]
+The arrow that does not exist runs from a shell to the runtime. `PhoneVerifyScreen`,
+`PhoneVerifySheet`, `PhoneVerifyFields` and `PhoneVerifyBanner` render; they never call a mutation or
+touch a session. Every judgement is in a hook, and every session read or write goes through
+`runtime.session.*`.
 
-    Pages --> Hooks
-    Shells --> Hooks
-    Hooks --> Shared
-    Hooks --> RT
-    Shared --> RT
+Two things in the folder are worth knowing before you grep for a caller:
 
-    classDef external stroke-dasharray: 5 5
-    class RT external
-```
+- `useClearCache` clears all seven repository caches, is exported from the barrel, and **nothing
+  calls it today** — including logout.
+- `utils/phone.ts` (`isValidKoreanPhone`, `formatPhoneNumber`) is tested and called by nobody; the
+  live validation is [international-phone-input.md](./international-phone-input.md)'s.
 
-The arrow that does not exist runs from a shell to the runtime. A shell renders; it never calls a
-mutation or touches a session.
-
-### Directories
-
-```text
-apps/web/src/app/features/auth/
-├── index.tsx        re-exports components and routes only — pages stay internal
-├── pages/           LoginPage (a shim), LogoutPage, OAuthResponsePage
-├── components/      the two shells, the shared fields, the account-split banner
-├── hooks/           5 hooks, listed below
-├── routes/          AuthRoutes — three routes plus a catch-all back to login
-└── utils/phone.ts   isValidKoreanPhone, formatPhoneNumber — tested, and called by nobody
-```
-
-| Hook                    | What it does                                                                       |
-| ----------------------- | ---------------------------------------------------------------------------------- |
-| `usePhoneVerify`        | The verification state machine — both modes, all four steps, the session switch    |
-| `useOtpExpiryCountdown` | A one-second tick over the server's `expiredAt`                                    |
-| `useOAuthLogin`         | Reads the provider redirect, exchanges the code, navigates to `state.from`         |
-| `useNavigateToLogin`    | The only sanctioned way to send a user to the login screen                         |
-| `useClearCache`         | Clears all seven repository caches. Exported from the barrel, and currently unused |
-
-`PhoneVerifyFields` is deliberately absent from `components/index.ts`; its consumers import the
-concrete file. Two files in this feature import concrete modules rather than barrels for the same
-reason — a barrel pulls the whole runtime surface, which will not load under the jsdom test setup.
+`PhoneVerifyFields` is deliberately absent from `components/index.ts`, and two files here import
+concrete modules rather than barrels, for the same reason: a barrel pulls the whole runtime surface,
+which will not load under the jsdom test setup.
 
 ## Usage
 
-### Sending a user to login
+Send a user to login with `useNavigateToLogin()` — never `navigate(ROUTES.mypage.login)`. A test
+walks the source tree and fails on any file outside the hook and the route table that names that
+route in either spelling.
 
-```tsx
-const goToLogin = useNavigateToLogin();
-// …
-<button onClick={goToLogin}>{t('mypage.login')}</button>;
-```
+Open verification by rendering a shell with the `mode` the caller derived (`'login'` for a guest,
+`'link'` for a main user without a number). The full-screen shell additionally takes `context`
+(`'invite-accept'` | `'invite-create'`), which picks its hero copy →
+[phone-verification.md](./phone-verification.md).
 
-Never `navigate(ROUTES.mypage.login)`. A test walks the source tree and fails on any file outside the
-hook and the route table that names that route in either spelling.
-
-### Opening verification
-
-```tsx
-<PhoneVerifySheet mode={isGuest ? 'login' : 'link'} onVerified={close} onClose={close} />
-```
-
-The full-screen shell additionally takes `context` (`'invite-accept'` | `'invite-create'`), which
-picks its hero copy. See [phone-verification.md](./phone-verification.md).
-
-### Wiring
-
-```text
-AppRoutes
-└── AuthRoutes                (routes/index.tsx)
-    ├── /auth/login           LoginPage → <Navigate to={`/${search}`} replace />
-    ├── /auth/logout          LogoutPage → runtime.session.useSessionLogout()
-    ├── /auth/oauth-response  OAuthResponsePage → useOAuthLogin()
-    └── *                     → /auth/login
-```
+The feature's three routes are plumbing: `/auth/login` forwards to the root route, `/auth/logout`
+runs the logout, `/auth/oauth-response` runs the callback, and anything else falls back to the first.
 
 ## Scenarios
 
@@ -177,23 +129,9 @@ authenticated as the same device user.
 
 ### 4. A user is sent to login, and comes back
 
-This is the reason `useNavigateToLogin` exists.
-
-```mermaid
-sequenceDiagram
-    participant E as an entry point
-    participant H as useNavigateToLogin
-    participant L as mypage LoginPage
-    participant R as react-router
-
-    E->>H: goToLogin()
-    H->>H: capture pathname + search + hash
-    H->>R: navigate('/mypage/login', { state: { returnTo } })
-    R->>L: render
-    L->>L: social or (dev builds) phone login
-    L->>R: navigate(-1) — or '/' replace when there is nothing to go back to
-    R-->>E: the screen the user left, no reload
-```
+This is the reason `useNavigateToLogin` exists. It captures the current pathname, search and hash,
+pushes the login route with them as router state, and the login screen returns with `navigate(-1)`.
+Four rules make that more than a convenience.
 
 **The hook captures the origin, not the call site.** The fallback is home, so a call site that forgot
 to pass one would still "work" — and the mistake would surface only as someone's subscription flow

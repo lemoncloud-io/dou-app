@@ -12,17 +12,8 @@ all; whether the carousel is shown is decided outside this feature, by
 
 ## Layout
 
-```text
-apps/web/src/app/features/onboarding/
-├── index.tsx        the barrel — exports OnboardingModal and OnboardingRoutes, nothing else
-├── routes.tsx       one route: `setup` under `/onboarding/*`
-├── components/      6 — OnboardingModal · Header · Content · Footer · StepIndicator · WizardProgress
-├── hooks/           2 — useOnboardingNavigation, useOnboardingSteps
-├── pages/           1 — SetupWizardPage
-└── types/steps.ts   the OnboardingStep interface, and only the interface
-```
-
-There is no constant file holding the carousel's copy. `types/steps.ts` declares
+Six components, two hooks, one page and one route. There is no constant file holding the carousel
+'s copy. `types/steps.ts` declares
 `OnboardingStep` (`id`, `title`, `description`, `image`) and stops there —
 `useOnboardingSteps()` builds the four steps at render time.
 
@@ -65,14 +56,8 @@ is accepted and then silently shadowed on the next boot.
 
 ### Three things read the flag, and one of them is not a screen
 
-```mermaid
-flowchart TD
-    Cfg["config key ui.onboardingCompleted"] --> Hook["useOnboarding()"]
-    Hook --> Home["HomePage — mounts OnboardingModal(open=isFirstRun)"]
-    Hook --> Gate["InviteEntryGate — holds the /invite/accept redirect"]
-    Hook --> Set["SettingsPage — resetOnboarding() + navigate to root"]
-    Wiz["SetupWizardPage"] -.->|does not read it| Cfg
-```
+Three things read it through `useOnboarding()`: `HomePage`, which mounts the carousel with it;
+`SettingsPage`, which resets it; and `InviteEntryGate`.
 
 [`InviteEntryGate`](../../../src/app/routes/InviteEntryGate.tsx) is the one that surprises people. It
 guards the root path and forwards `/?provider=invite&…` to the accept page, but **while `isFirstRun`
@@ -114,16 +99,9 @@ before anything can be created in it; steps 2 and 3 can be closed out to home.
 
 ## Usage
 
-The barrel exports exactly two symbols.
-
-```tsx
-// features/home/pages/HomePage.tsx
-const { isFirstRun, completeOnboarding } = useOnboarding();
-<OnboardingModal open={isFirstRun} onComplete={completeOnboarding} />;
-
-// routes/PrivateRoutes.tsx — lazy, under `onboarding/*`
-{ path: 'onboarding/*', element: withSuspense(OnboardingRoutes) }
-```
+The barrel exports exactly two symbols: `OnboardingModal`, which `HomePage` renders as a controlled
+dialog with `isFirstRun` and `completeOnboarding` from the hook, and `OnboardingRoutes`, mounted lazily
+under `onboarding/*`.
 
 `onComplete` fires on the last step's DONE, on SKIP, and on any dismissal of the dialog — the modal
 routes all three through the same prop, so there is no "skipped" state distinct from "completed".
@@ -171,7 +149,7 @@ routes all three through the same prop, so there is no "skipped" state distinct 
 
 ## Further reading
 
-- [architecture/stores.md](../../architecture/stores.md) — where app-level state lives and what is
+- [state/stores.md](../../state/stores.md) — where app-level state lives and what is
   left in the preference store.
 - [`@chatic/config`](../../../../../libs/config/README.md) — the registry, the lanes, and what
   `persist: 'shell'` means.

@@ -12,51 +12,15 @@ switch that follows a successful login-mode proof.
 
 ## Layout
 
-```text
-apps/web/src/app/features/auth/
-├── hooks/
-│   ├── usePhoneVerify.ts        the state machine — one file, both modes
-│   └── useOtpExpiryCountdown.ts a 1s tick over the server's expiredAt
-├── components/
-│   ├── PhoneVerifyFields.tsx    two TextFields, the dev switches, the over-limit dialog
-│   ├── PhoneVerifyScreen.tsx    full-screen shell — accept flow
-│   ├── PhoneVerifySheet.tsx     bottom-sheet shell — issue flow, mypage
-│   └── PhoneVerifyBanner.tsx    account-split warning, full-screen shell only
-└── utils/phone.ts               isValidKoreanPhone, formatPhoneNumber — no caller in the tree
-```
-
 Number parsing and validation are **not** in `features/auth/utils`. The machine imports
 `apps/web/src/app/utils/phoneNumber.ts` (`toE164`, `isValidMobileNumber`, `readInternationalInput`,
 `resolveDefaultCountry`, `rememberCountry`) — see
-[international-phone-input.md](./international-phone-input.md). The local `utils/phone.ts` has a
-test but no caller; the channels feature keeps its own Korean-number helpers.
-
-```mermaid
-graph TD
-    UPV["usePhoneVerify()<br/>state · send/resend/verify/confirm · applySessionToken"]
-    PVF["PhoneVerifyFields<br/>fields · dev switches · over-limit dialog"]
-    PVS["PhoneVerifyScreen<br/>full-screen Dialog"]
-    PVSH["PhoneVerifySheet<br/>BottomSheet"]
-    BAN["PhoneVerifyBanner"]
-    RIA["RelayInviteAccept<br/>features/invite/accept"]
-    CIP["ContactInvitePage<br/>features/invite"]
-    LP["mypage LoginPage"]
-    ALS["AccountLinkSection<br/>features/mypage"]
-
-    UPV --> PVF
-    PVF --> PVS
-    PVF --> PVSH
-    BAN -.->|full-screen only| PVS
-    PVS --> RIA
-    PVSH --> CIP
-    PVSH --> LP
-    PVSH --> ALS
-```
+[international-phone-input.md](./international-phone-input.md).
 
 A shell holds chrome and nothing else. Adding or removing one changes no behaviour — which is the
-property that let a fourth consumer (`AccountLinkSection`) appear without touching the machine.
-`PhoneVerifyFields` has a fifth consumer outside this feature: the subscription email dialog reuses
-the same field pair.
+property that let a fourth consumer (`AccountLinkSection` in mypage) appear without touching the
+machine, alongside the accept screen, the issue form and the login screen. `PhoneVerifyFields` has a
+fifth consumer outside this feature: the subscription email dialog reuses the same field pair.
 
 ## Responsibilities
 
@@ -153,27 +117,9 @@ the code field goes to an error state and submission is disabled; only a resend 
 
 `mode: 'login'`'s confirm returns a `$token`, and `runtime.session.applySessionToken` installs it
 **before** `onVerified` fires, so the caller's next `invite.create` or `invite.accept` runs on a
-connection that is already the main user.
-
-```mermaid
-sequenceDiagram
-    participant UI as usePhoneVerify
-    participant AST as applySessionToken
-    participant S as session store
-    participant SDK as relay AuthController
-    participant SRV as relay server
-
-    UI->>AST: applySessionToken($token)
-    Note over AST: pre-condition — no $auth.id,<br/>reject BEFORE committing
-    AST->>S: relaySession.loginByToken(view)
-    AST->>SDK: reauthenticateActiveSocket({ kind: 'relay' })
-    Note over SDK: logout() → register(newToken)<br/>same connection, no reconnect
-    SDK->>SRV: auth.update
-    SRV-->>SDK: authenticated
-    AST->>SDK: ready(), racing a 10s deadline
-    Note over AST: post-condition — controller token ≠<br/>the one committed ⇒ reject
-    AST-->>UI: resolve
-```
+connection that is already the main user. It commits the token to the session store, re-registers the
+relay socket in place (`logout()` then `register()`, no reconnect), and waits for `ready()` against a
+10-second deadline — with a check on each side of the commit.
 
 - **An empty `$token` is a no-op.** That is what a `link` confirm returns, so the path is simply not
   taken there.
@@ -202,23 +148,10 @@ error and flips the CTA to a retry that re-runs the **switch**, never the consum
 
 ### Driving a shell
 
-```tsx
-// accept flow — always login: the session opening the deeplink is a device user
-<PhoneVerifyScreen
-    context="invite-accept"
-    mode="login"
-    inviteCode={code}
-    inviteLast4={invite?.last4}
-    onVerified={continueAccepting}
-    onClose={dismiss}
-/>
-
-// mypage linking — the session is already a main user
-<PhoneVerifySheet mode="link" onVerified={close} onClose={close} />
-```
-
-`context` picks the hero copy and only the full-screen shell takes it, because only that shell has a
-hero.
+The caller passes `mode` — the accept flow is always `login`, since the session opening a deeplink is
+a device user, and mypage linking is always `link` — plus `onVerified`, `onClose`, and in an accept
+flow the `inviteCode` and `inviteLast4`. `context` picks the hero copy and only the full-screen shell
+takes it, because only that shell has a hero.
 
 ### Gating an entry point
 

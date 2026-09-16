@@ -57,23 +57,6 @@ is a different structure in a different app.
 
 ## Structure
 
-```mermaid
-flowchart TD
-    HP[HomePage] --> AH[AppHeader + profile DropdownMenu]
-    HP --> PB[CloudPromoBanner<br/>relay only]
-    HP --> PL[PlaceList → PlaceItem]
-    HP --> CL[ChannelList → rows + create popover]
-    HP --> CS[CloudSessionSheet]
-    CS --> CSI[DouHomeItem · CloudItem · InviteCloudItem · AddAccountButton]
-    HP --> DLG[CreatePlaceDialog · CreateChannelDialog<br/>PlaceLimitDialog · SubscriptionRequiredDialog]
-
-    HP -.-> RT[["runtime — session · data · sync · connection"]]
-    CL -.-> SH[["app/hooks — useLastChats · useChannelUnreads<br/>useChatSyncRegistration"]]
-
-    classDef ext stroke-dasharray: 4 3;
-    class RT,SH ext;
-```
-
 The arrow that does **not** exist: home never imports `features/subscription`. The add-cloud button
 raises a request on a store, and the private router mounts the flow's own host to answer it. That
 keeps a feature that owns payment dialogs out of the screen that merely offers them.
@@ -83,38 +66,17 @@ keeps a feature that owns payment dialogs out of the screen that merely offers t
 Three components live in this feature but are mounted by `AppRuntime`, not by the page, so they keep
 working on every route:
 
-```text
-AppRuntime
-├── ActiveCloudDataProvider   (app/hooks — the one channel + join observation)
-├── UnreadBadgeRunner         → app-icon badge total
-├── CloudPushMarkRunner       → cross-cloud push marks (foreground + native drain)
-└── CloudActivatedRunner      → 'cloud.activated' socket unicast → toast + catalog invalidation
-```
+Three components live in this feature but are mounted by `AppRuntime`, not by the page, so they keep
+working on every route: `UnreadBadgeRunner` (the app-icon badge total), `CloudPushMarkRunner`
+(cross-cloud push marks, foreground and native drain) and `CloudActivatedRunner` (the
+`cloud.activated` unicast → toast and catalog invalidation). The single channel and join observation
+they read sits beside them in `ActiveCloudDataProvider`.
 
 `CloudActivatedRunner` is pinned to the **relay** socket slot, not the active one. The unicast
 targets a user and is delivered by the relay deployment, so subscribing on the active slot would
 miss it exactly in the common case — sitting in cloud A while cloud B finishes provisioning.
 
-### Directories
-
-```text
-apps/web/src/app/features/home/
-├── index.tsx                      barrel — hooks, routes, pages, the 3 runners
-├── CloudActivatedRunner.tsx       app-global, mounted by AppRuntime
-├── CloudPushMarkRunner.tsx        app-global, mounted by AppRuntime
-├── UnreadBadgeRunner.tsx          app-global, mounted by AppRuntime
-├── pages/HomePage.tsx             the screen — all page state lives here
-├── routes/index.tsx               HomeRoutes, which renders HomePage and nothing else
-├── components/                    9 exported, plus PlaceItem (used only by PlaceList)
-│   └── cloud-session/             7 files — the switcher sheet's rows and helpers
-├── hooks/                         6 hooks; the barrel exports 5
-├── lib/resolveHeaderProfile.ts    header identity tiers
-├── stores/useCloudPushMarkStore.ts
-├── types/index.ts                 re-exports DomainChannel and DomainPlace — nothing of its own
-└── utils/resolvePushCloudId.ts    which cloud a push came from
-```
-
-Files whose contents the name does not give away:
+### Files whose contents the name does not give away
 
 - `components/ChannelEmptyState.tsx` — two readings of "no rooms here", `invited` and `owner`,
   because what the user can do about it differs.
@@ -131,72 +93,42 @@ Files whose contents the name does not give away:
 
 ## Usage
 
-Home is mounted by the private router as a route element:
-
-```tsx
-// routes/PrivateRoutes.tsx
-import { HomeRoutes } from '../features/home';
-```
-
-The runners are mounted separately, by `AppRuntime`:
-
-```tsx
-// runtime/AppRuntime.tsx
-import { CloudActivatedRunner, CloudPushMarkRunner, UnreadBadgeRunner } from '../features/home';
-```
-
-Those imports, plus `useUpdatePlace` — which `features/place`'s edit page takes from this barrel —
-are the only things outside home that reach into it:
+The private router mounts `HomeRoutes`; `AppRuntime` mounts the three runners. Those imports, plus
+`useUpdatePlace` — which `features/place`'s edit page takes from this barrel — are the only things
+outside home that reach into it:
 
 ```bash
 grep -rn "features/home'\|'\.\./\.\./home'" --include='*.ts' --include='*.tsx' apps/web/src
 ```
 
-## Scenarios
+## The two homes
 
-### 1. Relay home
+**Relay** (`selectedCloudId === 'default'`). The header is `kind="no-cloud"`. **No Place section is
+rendered** — the relay has one place and it is auto-selected, so the list would add nothing; the slot
+goes to `CloudPromoBanner`, which appears only while the account owns no cloud and has not dismissed
+it within the last 24 hours. The Chat section still fills normally, because place selection happens
+invisibly.
 
-`selectedCloudId === 'default'`. The header is `kind="no-cloud"` — the DoU logo, the plan pill,
-search, and the profile avatar. **No Place section is rendered**; its slot goes to
-`CloudPromoBanner`, which appears only while the account owns no cloud and has not dismissed it
-within the last 24 hours. Below it, the Chat section: sent invites first, then the self row and the
-1:1 rooms. Place selection still happens invisibly, so the list fills normally.
+**Cloud** (anything else). The header is `kind="cloud"`: a `CloudAvatar` built from the cloud's
+initials, since `CloudView` carries no image field, beside the cloud name — read from the local cache
+first and the relay catalog second, so a rename shows immediately. On a cold start with neither, the
+header shows a loading placeholder rather than a nameless circle. The Place section lists the cloud's
+places, the selected one carrying a badge and the others a dot when they have unread.
 
-### 2. Cloud home
+## Switching
 
-`selectedCloudId !== 'default'`. The header is `kind="cloud"` — a `CloudAvatar` built from the
-cloud's initials, because `CloudView` carries no image field, beside the cloud name. The name comes
-from the local cache first and the relay catalog second, so a rename shows here immediately. On a
-cold start with neither, the header shows a loading placeholder rather than a nameless circle.
+Tapping a place row calls `switchPlace(placeId)` → `switchSite`, which owns the optimistic apply, the
+commit and the rollback. With no place active — right after a cloud switch — `useSwitchPlace`
+auto-selects the first; with no place at all, the Chat section is replaced by an empty state.
 
-The Place section lists the cloud's places, the selected one carrying a `VerifiedBadge` and the
-others a dot when they have unread. An owner also gets `＋ 플레이스 추가`.
+`CloudSessionSheet` has three collapsible sections: the synthetic relay row (selecting it calls
+`logoutCloudSession`), owned clouds with the active one pinned to the top, and invited clouds. Add-a-
+cloud is a **footer**, so it survives collapsing. A provisioning row is not selectable; while the
+sheet is open and any row is provisioning, a 30-second poll refetches and a ready cloud raises a
+toast. The switcher is open to everyone, guests included — it is the way to reach DoU Home, see
+invited clouds, or subscribe.
 
-### 3. Switching place
-
-Tapping a place row calls `switchPlace(placeId)` → `switchSite`, which owns the optimistic apply,
-the commit and the rollback. When no place is active — right after a cloud switch, for instance —
-`useSwitchPlace` auto-selects the first. With no place at all, the Chat section is replaced by an
-`EmptyState` inviting the user to connect to one.
-
-### 4. Switching cloud
-
-The header's switcher opens `CloudSessionSheet`, a `BottomSheet` of three collapsible sections:
-`Home` (one synthetic relay row, selecting it calls `logoutCloudSession`), `내 클라우드` (owned
-clouds, sorted with the active one pinned to the top, with `＋ 클라우드 추가` as a **footer** so it
-survives collapsing), and `초대된 클라우드`. A provisioning row is not selectable and shows a
-spinner; while the sheet is open and any row is provisioning, a 30-second poll refetches and a
-ready cloud raises a toast. The switcher is open to everyone, guests included — it is the way to
-reach DoU Home, see invited clouds, or subscribe.
-
-### 5. Creating something
-
-The Place section's `＋` and the Chat section's create popover both route through `HomePage`
-handlers that gate on ownership, cap and plan before opening an overlay. The popover's contents
-differ by mode: on the relay `1:1 대화` plus, **only while unpaid**, a `그룹 방 만들기` upsell row;
-on a cloud, `그룹 방 만들기` alone. See [place-channel-create](./place-channel-create.md).
-
-### 6. Accepting an invite
+## When an invite lands
 
 Home does not draw the accept screen. When an invite deep link has been resolved elsewhere and a
 channel is pending, `HomePage` navigates straight into that room with `replace`. There is no
