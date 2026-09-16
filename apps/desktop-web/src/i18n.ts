@@ -333,6 +333,8 @@ const resources = {
             'toast.channelDeleted': 'Channel deleted',
             'toast.channelLeft': 'You left the channel',
             'toast.memberRemoved': 'Removed {{name}} from the channel',
+            'toast.undo': 'Undo',
+            'toast.undoRemove': 'Add them back to the channel',
 
             // Failure copy for channel actions. The transport's own wire text goes
             // to the console; these are what a person is shown. See

@@ -1,6 +1,7 @@
-import { useCallback, useState } from 'react';
+import { createElement, useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { ToastAction, type ToastActionElement } from '@chatic/ui-kit/components/ui/toast';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { useDesktopChannelMutations } from '../../../shared';
@@ -29,7 +30,7 @@ export const useChannelActions = (
     { onRemoved, resolveMemberName }: UseChannelActionsOptions = {}
 ) => {
     const { t } = useTranslation();
-    const { deleteChannel, leaveChannel, isMutating } = useDesktopChannelMutations();
+    const { deleteChannel, leaveChannel, inviteChannel, isMutating } = useDesktopChannelMutations();
 
     const [dialog, setDialog] = useState<ChannelDialogKind>(null);
     const [kickTarget, setKickTarget] = useState<string | null>(null);
@@ -77,14 +78,30 @@ export const useChannelActions = (
         try {
             await leaveChannel({ channelId, userId: kickTarget });
             // Removing someone is invisible from the roster alone if the list has
-            // not caught up yet, so say it happened — delete and leave both do.
-            toast({ description: t('toast.memberRemoved', { name: resolveMemberName?.(kickTarget) ?? '' }) });
+            // not caught up yet, so say it happened — delete and leave both do —
+            // and offer the way back: re-adding is the same invite the Add
+            // Members dialog sends, so a mis-click costs one more click, not a hunt.
+            const removedId = kickTarget;
+            const undo = () =>
+                void inviteChannel({ channelId, userIds: [removedId] }).catch(e =>
+                    toast({ variant: 'destructive', description: t(channelActionErrorKey(e)) })
+                );
+            toast({
+                description: t('toast.memberRemoved', { name: resolveMemberName?.(removedId) ?? '' }),
+                // The kit types its action as `ReactElement<typeof ToastAction>` (the
+                // component, not its props), which no created element satisfies.
+                action: createElement(
+                    ToastAction,
+                    { altText: t('toast.undoRemove'), onClick: undo },
+                    t('toast.undo')
+                ) as unknown as ToastActionElement,
+            });
         } catch (e) {
             toast({ variant: 'destructive', description: t(channelActionErrorKey(e)) });
         } finally {
             closeDialog();
         }
-    }, [channelId, kickTarget, resolveMemberName, leaveChannel, closeDialog, t]);
+    }, [channelId, kickTarget, resolveMemberName, leaveChannel, inviteChannel, closeDialog, t]);
 
     return { dialog, kickTarget, openDialog, openKick, closeDialog, onDelete, onLeave, onKick, isMutating };
 };

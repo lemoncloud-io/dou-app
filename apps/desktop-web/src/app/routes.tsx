@@ -5,6 +5,7 @@ import { isNative, webClient } from '@chatic/bridges';
 import { LoadingFallback } from '@chatic/shared';
 import { runtime } from '@chatic/app-runtime';
 
+import { useShortcutsDialogStore } from './features/chat/stores/useShortcutsDialogStore';
 import { AppShellSkeleton, parsePushDeeplink, usePendingOpenStore } from './shared';
 
 /**
@@ -33,11 +34,21 @@ const NotificationOpenListener = () => {
         return webClient.onEvent('OnReceiveNotification', message => {
             const deeplink = (message?.data as { notification?: { data?: { deeplink?: string } } })?.notification?.data
                 ?.deeplink;
+            // The shell's menu bar (Settings, Help → Keyboard Shortcuts) rides the same
+            // event with a `chatic-ui:` link rather than an open target.
+            if (deeplink === 'chatic-ui:settings') {
+                navigate('/settings');
+                return;
+            }
+            if (deeplink === 'chatic-ui:shortcuts') {
+                useShortcutsDialogStore.getState().setOpen(true);
+                return;
+            }
             const target = parsePushDeeplink(deeplink);
             if (!target) return;
             request(target);
         });
-    }, [request]);
+    }, [request, navigate]);
     return null;
 };
 
