@@ -28,7 +28,7 @@ export const DebugLoginPage = () => {
     );
 
     return (
-        <div className="relative flex h-screen items-center justify-center overflow-hidden bg-background">
+        <div className="relative flex h-full items-center justify-center overflow-hidden bg-background">
             <div
                 className="pointer-events-none absolute inset-0 opacity-60"
                 style={{

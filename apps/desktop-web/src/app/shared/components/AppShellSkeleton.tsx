@@ -6,7 +6,7 @@ import { Skeleton } from './Skeleton';
  * real UI fades in over the same skeleton instead of after a blank screen.
  */
 export const AppShellSkeleton = () => (
-    <div className="flex h-screen bg-background" role="status" aria-label="Loading">
+    <div className="flex h-full bg-background" role="status" aria-label="Loading">
         {/* cloud rail */}
         <div className="flex w-rail shrink-0 flex-col items-center gap-3 bg-rail pt-6">
             {Array.from({ length: 4 }).map((_, i) => (

@@ -34,7 +34,7 @@ export const DesktopLayout = ({ rail, rail2, sidebar, main, panel, overlay }: De
     });
 
     return (
-        <div className="relative flex h-dvh bg-background">
+        <div className="relative flex h-full bg-background">
             <nav
                 aria-label="Cloud workspaces"
                 className="flex w-rail shrink-0 flex-col items-center bg-rail px-1 pb-5 pt-[18px] text-rail-foreground"

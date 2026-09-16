@@ -52,9 +52,7 @@ export const UpdateBanner = () => {
             // Percent ticks many times a second — don't let a polite live region read each one.
             aria-live={status === 'downloading' ? 'off' : 'polite'}
             className={cn(
-                // z-40 (below ConnectionBanner's z-50) so the transient, more urgent offline bar
-                // wins if both happen to show.
-                'fixed inset-x-0 top-0 z-40 flex items-center justify-center gap-3 px-3 py-1.5 text-caption font-medium',
+                'flex items-center justify-center gap-3 px-3 py-1.5 text-caption font-medium',
                 isError ? 'bg-warning text-warning-foreground' : 'bg-primary text-primary-foreground'
             )}
         >
@@ -72,8 +70,8 @@ export const UpdateBanner = () => {
                     <span>{t('update.downloading', { percent })}</span>
                     <span className="h-1 w-24 overflow-hidden rounded-full bg-current/20" aria-hidden>
                         <span
-                            className="block h-full bg-current transition-all duration-300"
-                            style={{ width: `${percent}%` }}
+                            className="block h-full origin-left bg-current transition-transform duration-300"
+                            style={{ transform: `scaleX(${percent / 100})` }}
                         />
                     </span>
                 </>

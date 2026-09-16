@@ -26,7 +26,7 @@ export const AuthCard = ({ title, subtitle, children, onBack }: AuthCardProps) =
     const { t } = useTranslation();
 
     return (
-        <div className="flex h-screen items-center justify-center overflow-hidden bg-background">
+        <div className="flex h-full items-center justify-center overflow-hidden bg-background">
             <div className="flex w-full max-w-sm flex-col gap-5 rounded-2xl border border-border bg-card p-8 shadow-raised">
                 {onBack && (
                     <button

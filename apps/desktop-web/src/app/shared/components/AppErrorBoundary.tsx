@@ -18,7 +18,7 @@ import { Button } from '@chatic/ui-kit/components/ui/button';
 const ErrorScreen = ({ onReload }: { onReload: () => void }) => {
     const { t } = useTranslation();
     return (
-        <div className="flex h-screen items-center justify-center bg-background p-8">
+        <div className="flex h-full items-center justify-center bg-background p-8">
             <div className="flex w-full max-w-sm flex-col gap-4 rounded-2xl border border-border bg-card p-8">
                 <div className="flex flex-col gap-1">
                     <h1 className="text-title text-foreground">{t('error.boundary.title')}</h1>

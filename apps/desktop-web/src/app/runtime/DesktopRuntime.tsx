@@ -159,10 +159,20 @@ export const DesktopRuntime = () => {
                 <BackgroundSyncRunner />
                 <AuthedNotifications />
                 <ShellUnreadSync />
-                <ConnectionBanner />
-                {/* Desktop auto-update banner — always mounted (no-op in browser). */}
-                <UpdateBanner />
-                <AppRouter />
+                {/* The banners are a row in the layout, not fixed overlays. Fixed, they
+                    covered the shell's top row, and when both fired the update banner sat
+                    entirely under the connection banner. Stacked here, both show and the
+                    app below gives up exactly their height. */}
+                <div className="flex h-full flex-col">
+                    <div className="flex shrink-0 flex-col">
+                        <ConnectionBanner />
+                        {/* Desktop auto-update banner — always mounted (no-op in browser). */}
+                        <UpdateBanner />
+                    </div>
+                    <div className="relative min-h-0 flex-1">
+                        <AppRouter />
+                    </div>
+                </div>
                 <Toaster />
             </TooltipProvider>
         </runtime.connection.RuntimeConnectionHost>

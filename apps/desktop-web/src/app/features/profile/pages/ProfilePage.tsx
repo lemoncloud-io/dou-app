@@ -36,12 +36,11 @@ const ProfileField = ({ label, value, onCopy, copied, copyLabel, copiedLabel }: 
             <span className="truncate text-sm text-foreground">{value}</span>
         </div>
         {onCopy && (
-            <button
-                onClick={onCopy}
-                className="shrink-0 rounded-md px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/10"
-            >
+            // Kit button for the standard focus ring and a real target size. The old
+            // one was ~24px with no ring, and its lime label sat on white at 1.6:1.
+            <Button variant="ghost" size="sm" onClick={onCopy} className="shrink-0 text-primary-ink">
                 {copied ? copiedLabel : copyLabel}
-            </button>
+            </Button>
         )}
     </div>
 );
@@ -102,7 +101,7 @@ export const ProfilePage = () => {
     };
 
     return (
-        <div className="flex h-screen flex-col bg-background">
+        <div className="flex h-full flex-col bg-background">
             <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border px-6">
                 <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground" onClick={() => navigate('/')}>
                     <ChevronLeft className="h-4 w-4" />

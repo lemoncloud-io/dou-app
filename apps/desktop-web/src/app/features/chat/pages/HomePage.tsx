@@ -32,6 +32,7 @@ import {
     useLastChannelStore,
     useSelectedChannelStore,
     useSiteProfiles,
+    isSelfChannel,
     useUnreadStore,
 } from '../../../shared';
 import {
@@ -55,6 +56,13 @@ const isWindowActive = (): boolean =>
 
 /** Upper bound for awaiting the socket handshake before a push-driven cloud/place switch. */
 const HANDSHAKE_WAIT_TIMEOUT_MS = 10_000;
+
+/**
+ * How long a deferred landing (channel / place / jump / thread) stays armed.
+ * Comfortably past the handshake wait plus a switch; after it, the landing is
+ * dropped rather than left to fire on some later, unrelated navigation.
+ */
+const PENDING_LANDING_TTL_MS = 30_000;
 
 // A cloud/place switch re-issues tokens against the active server, so firing it over a
 // half-open socket (cold start / just-refocused window) races the connection, fails, and
@@ -152,6 +160,30 @@ export const HomePage = () => {
     // in — a same-tick open would be clobbered. Set for saved/mention thread replies.
     const pendingThreadRef = useRef<{ channelId: string; rootId: string } | null>(null);
 
+    // The refs above arm on intent and clear on success — with no failure branch.
+    // When a cross-place or cross-cloud switch rolls back, nothing consumes them,
+    // and they used to stay armed until any later load happened to match. Every
+    // cross-switch arming now starts this timer; when it fires, whatever is still
+    // pending is abandoned.
+    const pendingExpiryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const armPendingExpiry = () => {
+        if (pendingExpiryRef.current) clearTimeout(pendingExpiryRef.current);
+        pendingExpiryRef.current = setTimeout(() => {
+            pendingExpiryRef.current = null;
+            pendingChannelRef.current = null;
+            pendingPlaceRef.current = null;
+            pendingJumpRef.current = null;
+            pendingThreadRef.current = null;
+            pendingOpenAtBottomRef.current = null;
+        }, PENDING_LANDING_TTL_MS);
+    };
+    useEffect(
+        () => () => {
+            if (pendingExpiryRef.current) clearTimeout(pendingExpiryRef.current);
+        },
+        []
+    );
+
     // Open a thread on a channel that is being selected right now — the one rule every entry
     // point (saved item, mention, notification click) needs. Already the selected channel →
     // open inline, because nothing switches the panel shut and the deferred effect below would
@@ -183,6 +215,7 @@ export const HomePage = () => {
             // top-level message scrolls the main feed. Never both.
             pendingThreadRef.current = threadRootId ? { channelId, rootId: threadRootId } : null;
             pendingJumpRef.current = !threadRootId && chatNo != null ? { channelId, chatNo } : null;
+            armPendingExpiry();
             switchPlace(placeId);
             return;
         }
@@ -215,9 +248,11 @@ export const HomePage = () => {
             // (before the awaited switch) so the deferred landing is armed regardless.
             pendingChannelRef.current = channelId;
             pendingPlaceRef.current = placeId || null;
+            armPendingExpiry();
             void switchAfterHandshake(() => switchCloud(cloudId));
         } else if (placeId && placeId !== selectedPlaceId) {
             pendingChannelRef.current = channelId;
+            armPendingExpiry();
             void switchAfterHandshake(() => switchPlace(placeId));
         } else {
             selectChannel(channelId);
@@ -571,7 +606,9 @@ export const HomePage = () => {
             <JoinWithInviteDialog />
             <EditPlaceProfileDialog />
             <ShortcutsDialog />
-            <OnboardingDialog enabled={isDefaultMode} isChannelReady={channels.length > 0} />
+            {/* Ready means the Self Channel itself has arrived — not merely that some
+                channel has, which is what the card used to claim. */}
+            <OnboardingDialog enabled={isDefaultMode} isChannelReady={channels.some(isSelfChannel)} />
         </>
     );
 };
