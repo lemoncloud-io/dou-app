@@ -9,7 +9,7 @@ import { runtime } from '@chatic/app-runtime';
 
 import i18n from '../i18n';
 import { DesktopRuntime } from './runtime';
-import { AppShellSkeleton } from './shared';
+import { AppErrorBoundary, AppShellSkeleton } from './shared';
 
 const queryClient = new QueryClient({
     defaultOptions: {
@@ -37,9 +37,11 @@ export function App() {
         <I18nextProvider i18n={i18n}>
             <QueryClientProvider client={queryClient}>
                 <ThemeProvider>
-                    <Suspense fallback={bootFallback}>
-                        <DesktopRuntime />
-                    </Suspense>
+                    <AppErrorBoundary>
+                        <Suspense fallback={bootFallback}>
+                            <DesktopRuntime />
+                        </Suspense>
+                    </AppErrorBoundary>
                 </ThemeProvider>
             </QueryClientProvider>
         </I18nextProvider>

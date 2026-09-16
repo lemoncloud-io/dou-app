@@ -12,36 +12,34 @@ interface AuthCardProps {
 }
 
 /**
- * Shared auth-screen shell: full-screen ambient brand glow + a centered card
- * with the brand mark, title, and subtitle. The screen body (controls / form)
- * is passed as children. Used by WelcomePage and InviteLoginPage.
+ * Shared auth-screen shell: a centered card with the brand mark, title, and
+ * subtitle; the screen body (controls / form) is passed as children. Used by
+ * WelcomePage and InviteLoginPage.
+ *
+ * It used to sit on a two-stop radial brand glow, with an accent-tinted drop
+ * shadow on the card and another on the logo tile. Those are the decoration this
+ * product's brand explicitly rules out — the first screen a person sees should
+ * look like the app they are about to enter, not like a different product. The
+ * card is held by a hairline and spacing instead.
  */
 export const AuthCard = ({ title, subtitle, children, onBack }: AuthCardProps) => {
     const { t } = useTranslation();
 
     return (
-        <div className="relative flex h-screen items-center justify-center overflow-hidden bg-background">
-            <div
-                className="pointer-events-none absolute inset-0 opacity-60"
-                style={{
-                    background:
-                        'radial-gradient(60% 50% at 50% 0%, hsl(var(--primary) / 0.12), transparent 70%), radial-gradient(40% 40% at 80% 100%, hsl(var(--primary) / 0.08), transparent 70%)',
-                }}
-                aria-hidden
-            />
-            <div className="relative flex w-full max-w-sm flex-col gap-5 rounded-2xl border border-border bg-card p-8 shadow-xl shadow-primary/5">
+        <div className="flex h-screen items-center justify-center overflow-hidden bg-background">
+            <div className="flex w-full max-w-sm flex-col gap-5 rounded-2xl border border-border bg-card p-8 shadow-raised">
                 {onBack && (
                     <button
                         type="button"
                         onClick={onBack}
-                        className="-ml-1.5 flex items-center gap-1 self-start rounded-md px-1.5 py-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        className="focus-ring -ml-1.5 flex items-center gap-1 self-start rounded-md px-1.5 py-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
                     >
                         <ArrowLeft size={16} />
                         {t('common.back')}
                     </button>
                 )}
                 <div className="flex flex-col gap-3">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-xl font-bold text-primary-foreground shadow-lg shadow-primary/25">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-xl font-bold text-primary-foreground">
                         C
                     </div>
                     <div className="flex flex-col gap-1">
