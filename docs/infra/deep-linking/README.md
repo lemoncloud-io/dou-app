@@ -15,7 +15,7 @@ docs/infra/deep-linking/
 
 The landing page that writes a `deferredDeepLinks` document lives in
 [`apps/landing`](../../../apps/landing/README.md) (`features/deeplink/`), and the app that reads one
-back is `apps/mobile` — see [its deeplink doc](../../../apps/mobile/docs/deeplink.md). Neither imports
+back is `apps/mobile` — see [its deeplink doc](../../../apps/mobile/docs/system/deeplink.md). Neither imports
 `web-deferred-deeplink.ts` directly; it is the reference shape for what the landing page writes and
 Firestore stores, not a shared module.
 

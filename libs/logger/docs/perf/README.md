@@ -194,4 +194,4 @@ into the run, where the count is always zero.
 
 - [docs/entries/](../entries/README.md) — the entry a metric becomes, and the context it inherits
 - [docs/upload/](../upload/README.md) — the queue these entries compete for
-- [`apps/mobile/docs/boot-metrics.md`](../../../../apps/mobile/docs/boot-metrics.md) — how `boot`'s duration is defined and measured
+- [`apps/mobile/docs/boot/boot-metrics.md`](../../../../apps/mobile/docs/boot/boot-metrics.md) — how `boot`'s duration is defined and measured

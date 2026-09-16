@@ -334,7 +334,7 @@ describe('getAppScheme (OS 등록 스킴과의 일치)', () => {
 
     // The polarity is `=== 'PROD'`, not `=== 'DEV'`: every non-prod build configuration registers
     // `chatic-dev` with the OS (iOS `APP_URL_SCHEME`, Android `appScheme`), so LOCAL must land there
-    // too. See apps/mobile/docs/local-run.md.
+    // too. See apps/mobile/docs/release/local-run.md.
     it.each([
         ['PROD', 'chatic'],
         ['DEV', 'chatic-dev'],

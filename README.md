@@ -272,7 +272,7 @@ yarn mobile:android:dev       # Android Emulator
 > [!NOTE]
 > `mobile:*:local` needs `apps/mobile/.env` (the LOCAL env — same meaning as in web). Copy it once
 > with `cp apps/mobile/.env.example apps/mobile/.env`. See
-> [apps/mobile/docs/local-run.md](apps/mobile/docs/local-run.md).
+> [apps/mobile/docs/release/local-run.md](apps/mobile/docs/release/local-run.md).
 
 > [!TIP]
 > Run `npx nx graph` to visualize the dependency graph of all apps and libraries.
@@ -435,7 +435,7 @@ Same shape as Web's `VITE_*` variables (`apps/desktop-web/.env`, `apps/testbed/.
 `.env` is the LOCAL env, `.env.dev` / `.env.prod` are the built ones — the same split web uses.
 Which file a build reads is decided by the build configuration (iOS `ENVFILE` build setting,
 Android `envConfigFiles`), not by the script. See
-[apps/mobile/docs/local-run.md](apps/mobile/docs/local-run.md).
+[apps/mobile/docs/release/local-run.md](apps/mobile/docs/release/local-run.md).
 
 | Variable                              | Description                          |
 | ------------------------------------- | ------------------------------------ |
