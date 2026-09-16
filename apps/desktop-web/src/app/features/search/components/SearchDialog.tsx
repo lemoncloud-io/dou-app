@@ -35,15 +35,21 @@ const highlight = (content: string, query: string): ReactNode => {
 interface SearchDialogProps {
     channels: DomainChannel[];
     onSelect: (channelId: string) => void;
+    /**
+     * Scroll the feed to one matched message and flash it. Without it a match
+     * row can only open its channel, which drops the reader at the latest
+     * message instead of the one they searched for.
+     */
+    onJumpToMessage?: (channelId: string, chatNo: number) => void;
 }
 
 /**
  * Mod+Shift+F message search over the local chat cache (see useMessageSearch
  * for scope/limits). Hosted by ChannelList alongside the QuickSwitcher for the
- * same reason: the channel list + select handler already live there. Picking a
- * result jumps to its channel (message-level scroll is a later step).
+ * same reason: the channel list + select handler already live there. A channel
+ * header opens the channel; a match row jumps to that message.
  */
-export const SearchDialog = ({ channels, onSelect }: SearchDialogProps) => {
+export const SearchDialog = ({ channels, onSelect, onJumpToMessage }: SearchDialogProps) => {
     const { t } = useTranslation();
     const open = useSearchDialogStore(s => s.isOpen);
     const setOpen = useSearchDialogStore(s => s.setOpen);
@@ -99,8 +105,17 @@ export const SearchDialog = ({ channels, onSelect }: SearchDialogProps) => {
                 ) : (
                     <div className="scrollbar-thin flex flex-col gap-2 overflow-y-auto">
                         {results.map(result => {
+                            const channelId = result.channel.id;
                             const pickChannel = () => {
-                                if (result.channel.id) onSelect(result.channel.id);
+                                if (channelId) onSelect(channelId);
+                                setOpen(false);
+                            };
+                            // A match row carries its own chatNo, so it scrolls to the
+                            // matched message rather than the channel's latest one.
+                            const pickMessage = (chatNo?: number) => {
+                                if (!channelId) return setOpen(false);
+                                if (chatNo != null && onJumpToMessage) onJumpToMessage(channelId, chatNo);
+                                else onSelect(channelId);
                                 setOpen(false);
                             };
                             return (
@@ -120,7 +135,7 @@ export const SearchDialog = ({ channels, onSelect }: SearchDialogProps) => {
                                         <button
                                             key={chat.id ?? chat.tempId ?? chat.chatNo}
                                             type="button"
-                                            onClick={pickChannel}
+                                            onClick={() => pickMessage(chat.chatNo)}
                                             className="focus-ring tactile flex items-baseline gap-2 rounded-md py-1 pl-7 pr-3 text-left transition-colors ease-tactile hover:bg-accent/60"
                                         >
                                             <span className="min-w-0 flex-1 truncate text-callout text-muted-foreground">

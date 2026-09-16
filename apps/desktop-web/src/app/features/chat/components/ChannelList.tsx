@@ -39,6 +39,8 @@ interface ChannelListProps {
     selectedChannelId: string | null;
     query: string;
     onSelect: (channelId: string) => void;
+    /** Scroll the feed to one message — the search dialog's match rows use it. */
+    onJumpToMessage?: (channelId: string, chatNo: number) => void;
     /** Default Cloud has no channel creation — the empty-state hint must not point at a "+". */
     isDefaultMode: boolean;
     /** The Channels section's "+" (hidden on the Default Cloud, which cannot create channels). */
@@ -158,6 +160,7 @@ export const ChannelList = ({
     selectedChannelId,
     query,
     onSelect,
+    onJumpToMessage,
     isDefaultMode,
     onCreateChannel,
 }: ChannelListProps) => {
@@ -448,7 +451,7 @@ export const ChannelList = ({
         // channel list + select handler already are; it renders only when opened.
         <nav aria-label={t('sidebar.channels')} onKeyDown={onKeyDown} className="flex flex-col gap-4 px-4 pb-6 pt-3">
             <QuickSwitcher channels={channels} onSelect={onSelect} />
-            <SearchDialog channels={channels} onSelect={onSelect} />
+            <SearchDialog channels={channels} onSelect={onSelect} onJumpToMessage={onJumpToMessage} />
             <Divider />
             {favoriteRows.length > 0 && (
                 <>

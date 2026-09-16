@@ -35,6 +35,13 @@ module.exports = {
                     foreground: 'hsl(var(--primary-foreground))',
                     ink: 'hsl(var(--primary-ink))',
                 },
+                /* Theme-preview swatches. Fixed in both themes on purpose: a swatch
+                   depicts the theme it names, not the one currently applied. */
+                swatch: {
+                    light: 'hsl(var(--swatch-light))',
+                    dark: 'hsl(var(--swatch-dark))',
+                    border: 'hsl(var(--swatch-border))',
+                },
                 secondary: {
                     DEFAULT: 'hsl(var(--secondary))',
                     foreground: 'hsl(var(--secondary-foreground))',

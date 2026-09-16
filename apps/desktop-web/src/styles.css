@@ -23,6 +23,10 @@
         --primary-foreground: 0 0% 10%;
         /* Lime as TEXT on light surfaces: the fill is unreadable (1.6:1), this clears 4.5:1. */
         --primary-ink: 76 80% 26%;
+        /* Keyboard focus ring. The fill lime at 60% over white measures 1.26:1,
+           under the 3:1 WCAG 2.4.11 floor for a non-text indicator, so light mode
+           rings in the ink lime instead (5.1:1 on white). */
+        --focus-ring: 76 80% 26%;
 
         --secondary: 180 5% 96%; /* #F4F5F5 BK_50 */
         --secondary-foreground: 0 0% 10%;
@@ -59,7 +63,9 @@
 
         --border: 240 5% 92%; /* #EAEAEC BK_100 */
         --input: 240 6% 90%; /* #E5E5E8 composer box */
-        --ring: 220 5% 24%;
+        /* ui-kit's own focus ring. Pointed at --focus-ring so a kit-rendered
+           control and an app-rendered one show the same focus. */
+        --ring: var(--focus-ring);
 
         --radius: 0.5rem;
 
@@ -94,6 +100,13 @@
         --tab-inactive: 218 5% 46%;
         --overlay: 0 0% 0%;
 
+        /* Theme-preview swatches for the settings picker. Defined once and NOT
+           redefined under .dark: each swatch shows the theme it names, so it must
+           not follow the theme in force. */
+        --swatch-light: 0 0% 100%; /* light --background */
+        --swatch-dark: 90 3% 15%; /* dark --background, #252624 */
+        --swatch-border: 220 4% 55%; /* readable on both grounds */
+
         /* Layering + elevation primitives. */
         --elevated: 0 0% 100%;
         --hairline: 240 5% 92%; /* #EAEAEC */
@@ -117,6 +130,8 @@
         --primary-foreground: 120 3% 7%;
         /* On dark surfaces the fill lime already reads as text, so ink = fill. */
         --primary-ink: 76 87% 49%;
+        /* On dark the fill lime rings at 4.75:1 — it stays. */
+        --focus-ring: 76 87% 49%;
 
         --secondary: 120 3% 7%; /* #121312 chips, send button */
         --secondary-foreground: 60 7% 92%;
@@ -150,7 +165,7 @@
 
         --border: 96 4% 26%; /* #424540 */
         --input: 90 2% 24%; /* #3D3E3C composer box */
-        --ring: 60 2% 76%;
+        --ring: var(--focus-ring);
 
         /* Gray scale (dark) */
         --label: 60 2% 76%; /* #C3C3C1 */
@@ -259,7 +274,7 @@
         outline: none;
         box-shadow:
             0 0 0 2px hsl(var(--background)),
-            0 0 0 4px hsl(var(--primary) / 0.6);
+            0 0 0 4px hsl(var(--focus-ring));
     }
 
     /* Tactile press — GPU-only (transform), springy ease. No layout thrash. */

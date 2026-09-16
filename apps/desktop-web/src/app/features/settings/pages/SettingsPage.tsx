@@ -13,13 +13,20 @@ import { useDevicePushMute } from '../hooks';
 import { LaunchAtLoginSection } from './LaunchAtLoginSection';
 
 const THEME_OPTIONS: Theme[] = ['light', 'dark', 'system'];
+// One bundle ships today (see src/i18n.ts — the shared remote-backed i18n lands
+// in a later phase). A picker with a single choice is chrome, so it stays hidden
+// until there is a second language to pick.
 const LANGUAGE_OPTIONS = ['en'] as const;
 
-/** Mini preview swatch for each theme choice. */
+/**
+ * Mini preview swatch for each theme choice. The two solid halves of the system
+ * swatch are the light and dark grounds side by side — not a gradient blend,
+ * which would read as a third theme that does not exist.
+ */
 const THEME_SWATCH: Record<Theme, string> = {
-    light: 'border-zinc-300 bg-white',
-    dark: 'border-zinc-700 bg-zinc-900',
-    system: 'border-zinc-400 bg-gradient-to-r from-white to-zinc-900',
+    light: 'border-swatch-border bg-swatch-light',
+    dark: 'border-swatch-border bg-swatch-dark',
+    system: 'border-swatch-border bg-swatch-light',
 };
 
 export const SettingsPage = () => {
@@ -53,45 +60,65 @@ export const SettingsPage = () => {
 
                     <div className="flex flex-col gap-6 rounded-xl border border-border bg-card p-5">
                         <div className="flex flex-col gap-2.5">
-                            <span className="text-sm font-medium text-foreground">{t('settings.theme')}</span>
-                            <div className="flex gap-2">
+                            <span id="settings-theme-label" className="text-sm font-medium text-foreground">
+                                {t('settings.theme')}
+                            </span>
+                            <div role="radiogroup" aria-labelledby="settings-theme-label" className="flex gap-2">
                                 {THEME_OPTIONS.map(option => (
                                     <button
                                         key={option}
+                                        role="radio"
+                                        aria-checked={theme === option}
                                         onClick={() => setTheme(option)}
                                         className={cn(
-                                            'focus-ring flex flex-1 flex-col items-center gap-2 rounded-lg border p-3 text-sm capitalize transition-all active:scale-[0.98]',
+                                            'focus-ring tactile flex flex-1 flex-col items-center gap-2 rounded-lg border p-3 text-sm capitalize transition-colors ease-tactile',
                                             theme === option
                                                 ? 'border-primary bg-primary/10 font-semibold text-foreground'
                                                 : 'border-input text-muted-foreground hover:border-border hover:bg-accent'
                                         )}
                                     >
-                                        <span className={cn('h-6 w-10 rounded-md border', THEME_SWATCH[option])} />
+                                        <span
+                                            aria-hidden
+                                            className={cn(
+                                                'flex h-6 w-10 overflow-hidden rounded-md border',
+                                                THEME_SWATCH[option]
+                                            )}
+                                        >
+                                            {/* "System" is both grounds at once: two solid halves, no blend. */}
+                                            {option === 'system' && <span className="h-full w-1/2 bg-swatch-dark" />}
+                                        </span>
                                         {t(`settings.theme.${option}`)}
                                     </button>
                                 ))}
                             </div>
                         </div>
 
-                        <div className="flex flex-col gap-2.5">
-                            <span className="text-sm font-medium text-foreground">{t('settings.language')}</span>
-                            <div className="flex gap-2">
-                                {LANGUAGE_OPTIONS.map(lng => (
-                                    <button
-                                        key={lng}
-                                        onClick={() => void i18n.changeLanguage(lng)}
-                                        className={cn(
-                                            'focus-ring rounded-lg border px-4 py-2 text-sm uppercase transition-all active:scale-[0.98]',
-                                            i18n.language === lng
-                                                ? 'border-primary bg-primary/10 font-semibold text-foreground'
-                                                : 'border-input text-muted-foreground hover:border-border hover:bg-accent'
-                                        )}
-                                    >
-                                        {lng}
-                                    </button>
-                                ))}
+                        {/* Hidden while a single bundle ships — see LANGUAGE_OPTIONS. */}
+                        {LANGUAGE_OPTIONS.length > 1 && (
+                            <div className="flex flex-col gap-2.5">
+                                <span id="settings-language-label" className="text-sm font-medium text-foreground">
+                                    {t('settings.language')}
+                                </span>
+                                <div role="radiogroup" aria-labelledby="settings-language-label" className="flex gap-2">
+                                    {LANGUAGE_OPTIONS.map(lng => (
+                                        <button
+                                            key={lng}
+                                            role="radio"
+                                            aria-checked={i18n.language === lng}
+                                            onClick={() => void i18n.changeLanguage(lng)}
+                                            className={cn(
+                                                'focus-ring tactile rounded-lg border px-4 py-2 text-sm uppercase transition-colors ease-tactile',
+                                                i18n.language === lng
+                                                    ? 'border-primary bg-primary/10 font-semibold text-foreground'
+                                                    : 'border-input text-muted-foreground hover:border-border hover:bg-accent'
+                                            )}
+                                        >
+                                            {lng}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
-                        </div>
+                        )}
                     </div>
                 </section>
 

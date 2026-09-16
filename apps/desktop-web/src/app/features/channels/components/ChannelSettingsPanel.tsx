@@ -89,12 +89,14 @@ export const ChannelSettingsPanel = ({
     });
     const { openDialog, openKick, kickTarget } = actions;
 
+    // Resolution lives in channelNotifyMode (local pref → join.notify → mute map).
+    // Read above the early return: hooks must run in the same order on every
+    // render, including the ones where the channel has not resolved yet.
+    const notifyMode = useNotificationPrefsStore(s => channelNotifyMode(s, channelId ?? '', channel?.$join?.notify));
+
     if (!channel || !channelId) return null;
 
     const kickName = members.find(m => m.id === kickTarget)?.name ?? '';
-
-    // Resolution lives in channelNotifyMode (local pref → join.notify → mute map).
-    const notifyMode = useNotificationPrefsStore(s => channelNotifyMode(s, channelId, channel.$join?.notify));
 
     const onNotifyChange = (mode: ChannelNotifyMode) => {
         if (mode === notifyMode) return;

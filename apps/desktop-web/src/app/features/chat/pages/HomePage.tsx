@@ -462,6 +462,7 @@ export const HomePage = () => {
                                 selectedChannelId={selectedChannelId}
                                 query={query}
                                 onSelect={selectChannel}
+                                onJumpToMessage={(channelId, chatNo) => jumpToSaved(channelId, chatNo)}
                                 isDefaultMode={isDefaultMode}
                                 onCreateChannel={openCreateChannel}
                             />
