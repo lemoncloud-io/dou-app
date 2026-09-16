@@ -569,7 +569,7 @@ describe('ChannelList row context menu (slice 05)', () => {
             openRowMenu(row);
             fireEvent.click(screen.getByRole('menuitem', { name: 'Leave channel' }));
             // Real ChannelActionDialogs: the leave ConfirmDialog asks first.
-            fireEvent.click(await screen.findByRole('button', { name: 'Leave' }));
+            fireEvent.click(await screen.findByRole('button', { name: 'Leave channel' }));
             await waitFor(() =>
                 expect(menu.leaveChannel).toHaveBeenCalledWith(
                     expect.objectContaining({ channelId: expect.any(String) })

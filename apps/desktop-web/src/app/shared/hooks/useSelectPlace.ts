@@ -1,5 +1,8 @@
 import { useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 
+import { logger } from '@chatic/bridges';
+import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { runtime } from '@chatic/app-runtime';
 
 /**
@@ -17,13 +20,22 @@ import { runtime } from '@chatic/app-runtime';
 export const useSelectPlace = () => {
     const { selectedSiteId } = runtime.session.useSessionSelection();
     const { switchSite, isSwitching } = runtime.session.useSiteSwitch();
+    const { t } = useTranslation();
+    const { toast } = useToast();
 
     const switchPlace = useCallback(
         (placeId: string) => {
             if (isSwitching || placeId === selectedSiteId) return;
-            void switchSite(placeId);
+            // switchSite rolls its own sid back on failure, but said nothing about
+            // it: the tile click simply did nothing, while the cloud rail toasts on
+            // the same class of failure. Say it, the way the cloud rail does.
+            // `Promise.resolve` because switchSite is not guaranteed to return one.
+            void Promise.resolve(switchSite(placeId)).catch((e: unknown) => {
+                logger.error('SESSION', '[SelectPlace] switchFailed', { error: e });
+                toast({ title: t('place.switchFailed'), variant: 'destructive' });
+            });
         },
-        [switchSite, selectedSiteId, isSwitching]
+        [switchSite, selectedSiteId, isSwitching, t, toast]
     );
 
     return { switchPlace, isSwitching };

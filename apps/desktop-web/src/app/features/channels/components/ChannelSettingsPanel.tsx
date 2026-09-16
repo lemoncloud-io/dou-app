@@ -77,6 +77,7 @@ export const ChannelSettingsPanel = ({
             close();
             clearChannel();
         },
+        resolveMemberName: userId => members.find(m => m.id === userId)?.name ?? '',
     });
     const { openDialog, openKick, kickTarget } = actions;
 

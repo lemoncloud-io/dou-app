@@ -6,7 +6,8 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/u
 import { Input } from '@chatic/ui-kit/components/ui/input';
 import { Label } from '@chatic/ui-kit/components/ui/label';
 
-import { extractErrorMessage, useDesktopChannelMutations } from '../../../shared';
+import { useDesktopChannelMutations } from '../../../shared';
+import { CHANNEL_NAME_MAX, CHANNEL_NAME_MIN, channelActionErrorKey } from '../utils';
 
 interface RenameChannelDialogProps {
     open: boolean;
@@ -15,8 +16,8 @@ interface RenameChannelDialogProps {
     currentName: string;
 }
 
-const MIN = 2;
-const MAX = 20;
+const MIN = CHANNEL_NAME_MIN;
+const MAX = CHANNEL_NAME_MAX;
 
 /**
  * Rename a channel (name 2–20 chars → updateChannel). Matches CreateChannelDialog
@@ -49,7 +50,7 @@ export const RenameChannelDialog = ({ open, onOpenChange, channelId, currentName
         } catch (e) {
             // Surface the real backend message (socket or HTTP), e.g.
             // "403 NOT ALLOWED - action[update] is invalid @doPut(channels/U:1001095)".
-            setErrorMsg(extractErrorMessage(e));
+            setErrorMsg(t(channelActionErrorKey(e)));
         }
     };
 

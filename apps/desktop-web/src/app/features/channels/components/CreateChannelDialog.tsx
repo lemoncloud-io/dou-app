@@ -10,6 +10,7 @@ import { Label } from '@chatic/ui-kit/components/ui/label';
 
 import { useDesktopChannelMutations, useSelectedChannelStore } from '../../../shared';
 import { useCreateChannelDialogStore } from '../stores';
+import { CHANNEL_NAME_MAX, isValidChannelName } from '../utils';
 
 type Visibility = 'public' | 'private';
 
@@ -39,7 +40,7 @@ export const CreateChannelDialog = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         const trimmed = name.trim();
-        if (!trimmed || isMutating) return;
+        if (!isValidChannelName(trimmed) || isMutating) return;
         setIsError(false);
         try {
             const channel = await createChannel({ stereo: visibility, name: trimmed });
@@ -64,28 +65,37 @@ export const CreateChannelDialog = () => {
                             id="channel-name"
                             autoFocus
                             value={name}
+                            maxLength={CHANNEL_NAME_MAX}
                             onChange={e => setName(e.target.value)}
                             placeholder={t('channels.create.namePlaceholder')}
                             disabled={isMutating}
                         />
+                        <p className="text-xs text-muted-foreground">{t('channels.rename.lengthHint')}</p>
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                        <Label>{t('channels.create.visibility')}</Label>
-                        <div className="flex gap-2">
+                        <span id="create-channel-visibility">{t('channels.create.visibility')}</span>
+                        {/* A naked Public/Private pair says nothing about what either
+                            does, so each option carries its own consequence line. */}
+                        <div role="radiogroup" aria-labelledby="create-channel-visibility" className="flex gap-2">
                             {(['public', 'private'] as const).map(option => (
                                 <button
                                     key={option}
                                     type="button"
+                                    role="radio"
+                                    aria-checked={visibility === option}
                                     onClick={() => setVisibility(option)}
                                     className={cn(
-                                        'flex-1 rounded-md border px-3 py-2 text-sm',
+                                        'focus-ring flex flex-1 flex-col gap-0.5 rounded-md border px-3 py-2 text-left text-sm transition-colors',
                                         visibility === option
                                             ? 'border-primary bg-primary/10 font-semibold text-foreground'
                                             : 'border-input text-muted-foreground hover:bg-accent/50'
                                     )}
                                 >
                                     {t(`channels.create.${option}`)}
+                                    <span className="text-xs font-normal text-muted-foreground">
+                                        {t(`channels.create.${option}.hint`)}
+                                    </span>
                                 </button>
                             ))}
                         </div>
