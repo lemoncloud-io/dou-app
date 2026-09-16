@@ -257,13 +257,25 @@ export const HomePage = () => {
         }
         const inList = !!selectedPlaceId && places.some(p => p.id === selectedPlaceId);
         if (!inList && places.length > 0) {
-            const firstId = places[0]?.id;
-            // switchPlace → switchSite gives the first place its per-place token + socket
+            // The place you last had open in this cloud, when it still exists; the first
+            // place only when there is none. Returning to a cloud used to always land on
+            // its first place, whatever you had left it on.
+            const remembered = activeCloudId ? useLastChannelStore.getState().placeByCloud[activeCloudId] : undefined;
+            const targetId = remembered && places.some(p => p.id === remembered) ? remembered : places[0]?.id;
+            // switchPlace → switchSite gives the place its per-place token + socket
             // re-auth; otherwise the channel fetch hits an unauthed site and the shell stays
             // stuck on the empty state after a cloud-account login.
-            if (firstId) switchPlace(firstId);
+            if (targetId) switchPlace(targetId);
         }
-    }, [isDefaultMode, isSwitching, places, selectedPlaceId, switchPlace]);
+    }, [isDefaultMode, isSwitching, places, selectedPlaceId, switchPlace, activeCloudId]);
+
+    // Remember the place you have open in this cloud, for the restore above.
+    const rememberPlace = useLastChannelStore(s => s.rememberPlace);
+    useEffect(() => {
+        if (activeCloudId && selectedPlaceId && places.some(p => p.id === selectedPlaceId)) {
+            rememberPlace(activeCloudId, selectedPlaceId);
+        }
+    }, [activeCloudId, selectedPlaceId, places, rememberPlace]);
 
     // The settings + thread panels belong to one channel — close both on switch.
     // The profile panel follows for a clean pane handoff.
@@ -317,12 +329,14 @@ export const HomePage = () => {
         }
     }, [activityOpen, closeThread, closeSettings, closeProfile, closeSaved]);
 
-    // The saved + activity panes' rows belong to the place you opened them from —
-    // close both on any place or cloud switch so they never show another place's items.
+    // The saved + activity panes group their rows by place, current place first, so a
+    // place switch leaves them valid — and closing them there made the same row click
+    // produce two layouts (a cross-place jump closed the pane, a same-place jump kept
+    // it). Only a cloud switch retires them: their items belong to the cloud.
     useEffect(() => {
         closeSaved();
         closeActivity();
-    }, [selectedPlaceId, activeCloudId, closeSaved, closeActivity]);
+    }, [activeCloudId, closeSaved, closeActivity]);
 
     useEffect(() => {
         // Honor a pending notification / saved-jump target once its channel loads.

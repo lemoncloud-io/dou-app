@@ -4,10 +4,11 @@ import { useTranslation } from 'react-i18next';
 import { Hash, Search } from 'lucide-react';
 
 import type { DomainChannel } from '@chatic/data';
+import { cn } from '@chatic/lib/utils';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 
-import { messagePlainText } from '../../../shared';
-import { useMessageSearch } from '../hooks';
+import { messagePlainText, useListboxNav } from '../../../shared';
+import { SEARCH_MAX_CHANNELS, useMessageSearch } from '../hooks';
 import { useSearchDialogStore } from '../stores';
 
 const formatTime = (ms?: number): string => {
@@ -55,7 +56,7 @@ export const SearchDialog = ({ channels, onSelect, onJumpToMessage }: SearchDial
     const setOpen = useSearchDialogStore(s => s.setOpen);
     const toggleOpen = useSearchDialogStore(s => s.toggle);
     const [query, setQuery] = useState('');
-    const { results, isSearching } = useMessageSearch(open ? query : '', channels);
+    const { results, isSearching, isTruncated } = useMessageSearch(open ? query : '', channels);
 
     useEffect(() => {
         const onKeyDown = (e: KeyboardEvent) => {
@@ -75,6 +76,33 @@ export const SearchDialog = ({ channels, onSelect, onJumpToMessage }: SearchDial
     const trimmed = query.trim();
     const showEmpty = trimmed.length >= 2 && !isSearching && results.length === 0;
 
+    // One flat option list — each channel header, then its matches — so the
+    // arrows walk every result in the order it is drawn.
+    type Option = { key: string; channelId: string; chatNo?: number };
+    const options: Option[] = results.flatMap(result => {
+        const channelId = result.channel.id ?? '';
+        return [
+            { key: `ch:${channelId}`, channelId },
+            ...result.matches.map(chat => ({
+                key: `m:${channelId}:${chat.id ?? chat.tempId ?? chat.chatNo}`,
+                channelId,
+                chatNo: chat.chatNo,
+            })),
+        ];
+    });
+
+    // A channel header opens the channel; a match row carries its own chatNo, so
+    // it scrolls to the matched message rather than the channel's latest one.
+    const pick = (option: Option | undefined) => {
+        if (option?.channelId) {
+            if (option.chatNo != null && onJumpToMessage) onJumpToMessage(option.channelId, option.chatNo);
+            else onSelect(option.channelId);
+        }
+        setOpen(false);
+    };
+    const nav = useListboxNav(options.length, index => pick(options[index]), `${open}:${trimmed}`);
+    const indexOf = (key: string) => options.findIndex(o => o.key === key);
+
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogContent className="top-[15%] max-h-[70vh] translate-y-0 gap-2 overflow-hidden p-2 sm:max-w-lg">
@@ -86,6 +114,7 @@ export const SearchDialog = ({ channels, onSelect, onJumpToMessage }: SearchDial
                         autoFocus
                         value={query}
                         onChange={e => setQuery(e.target.value)}
+                        {...nav.inputProps}
                         placeholder={t('search.placeholder')}
                         aria-label={t('search.placeholder')}
                         className="flex-1 bg-transparent text-body text-foreground outline-none placeholder:text-placeholder"
@@ -103,27 +132,28 @@ export const SearchDialog = ({ channels, onSelect, onJumpToMessage }: SearchDial
                 ) : showEmpty ? (
                     <p className="px-3 py-4 text-center text-caption text-muted-foreground">{t('search.noResults')}</p>
                 ) : (
-                    <div className="scrollbar-thin flex flex-col gap-2 overflow-y-auto">
+                    <div
+                        id={nav.listboxId}
+                        role="listbox"
+                        className="scrollbar-thin flex flex-col gap-2 overflow-y-auto"
+                    >
                         {results.map(result => {
-                            const channelId = result.channel.id;
-                            const pickChannel = () => {
-                                if (channelId) onSelect(channelId);
-                                setOpen(false);
-                            };
-                            // A match row carries its own chatNo, so it scrolls to the
-                            // matched message rather than the channel's latest one.
-                            const pickMessage = (chatNo?: number) => {
-                                if (!channelId) return setOpen(false);
-                                if (chatNo != null && onJumpToMessage) onJumpToMessage(channelId, chatNo);
-                                else onSelect(channelId);
-                                setOpen(false);
-                            };
+                            const channelId = result.channel.id ?? '';
+                            const headerIndex = indexOf(`ch:${channelId}`);
                             return (
-                                <section key={result.channel.id} className="flex flex-col">
+                                <section key={channelId} role="group" className="flex flex-col">
                                     <button
+                                        id={nav.optionId(headerIndex)}
                                         type="button"
-                                        onClick={pickChannel}
-                                        className="focus-ring tactile flex items-center gap-1.5 rounded-md px-3 py-1.5 text-left text-caption font-semibold text-foreground transition-colors ease-tactile hover:bg-accent/60"
+                                        role="option"
+                                        tabIndex={-1}
+                                        aria-selected={headerIndex === nav.activeIndex}
+                                        onMouseEnter={() => nav.setActiveIndex(headerIndex)}
+                                        onClick={() => pick(options[headerIndex])}
+                                        className={cn(
+                                            'tactile flex items-center gap-1.5 rounded-md px-3 py-1.5 text-left text-caption font-semibold text-foreground transition-colors ease-tactile',
+                                            headerIndex === nav.activeIndex ? 'bg-accent' : 'hover:bg-accent/60'
+                                        )}
                                     >
                                         <Hash size={12} className="shrink-0 text-muted-foreground" aria-hidden />
                                         <span className="truncate">{result.channel.name ?? result.channel.id}</span>
@@ -131,25 +161,47 @@ export const SearchDialog = ({ channels, onSelect, onJumpToMessage }: SearchDial
                                             {t('search.matchCount', { count: result.matchCount })}
                                         </span>
                                     </button>
-                                    {result.matches.map(chat => (
-                                        <button
-                                            key={chat.id ?? chat.tempId ?? chat.chatNo}
-                                            type="button"
-                                            onClick={() => pickMessage(chat.chatNo)}
-                                            className="focus-ring tactile flex items-baseline gap-2 rounded-md py-1 pl-7 pr-3 text-left transition-colors ease-tactile hover:bg-accent/60"
-                                        >
-                                            <span className="min-w-0 flex-1 truncate text-callout text-muted-foreground">
-                                                {highlight(messagePlainText(chat.content), trimmed)}
-                                            </span>
-                                            <span className="shrink-0 text-micro tabular-nums text-muted-foreground">
-                                                {formatTime(chat.createdAt ?? chat.createdAtMs)}
-                                            </span>
-                                        </button>
-                                    ))}
+                                    {result.matches.map(chat => {
+                                        const index = indexOf(
+                                            `m:${channelId}:${chat.id ?? chat.tempId ?? chat.chatNo}`
+                                        );
+                                        return (
+                                            <button
+                                                key={chat.id ?? chat.tempId ?? chat.chatNo}
+                                                id={nav.optionId(index)}
+                                                type="button"
+                                                role="option"
+                                                tabIndex={-1}
+                                                aria-selected={index === nav.activeIndex}
+                                                onMouseEnter={() => nav.setActiveIndex(index)}
+                                                onClick={() => pick(options[index])}
+                                                className={cn(
+                                                    'tactile flex items-baseline gap-2 rounded-md py-1 pl-7 pr-3 text-left transition-colors ease-tactile',
+                                                    index === nav.activeIndex ? 'bg-accent' : 'hover:bg-accent/60'
+                                                )}
+                                            >
+                                                <span className="min-w-0 flex-1 truncate text-callout text-muted-foreground">
+                                                    {highlight(messagePlainText(chat.content), trimmed)}
+                                                </span>
+                                                <span className="shrink-0 text-micro tabular-nums text-muted-foreground">
+                                                    {formatTime(chat.createdAt ?? chat.createdAtMs)}
+                                                </span>
+                                            </button>
+                                        );
+                                    })}
                                 </section>
                             );
                         })}
                     </div>
+                )}
+                {/* The search is local and bounded; say so rather than let an empty
+                    result read as "this was never said". */}
+                {trimmed.length >= 2 && (
+                    <p className="border-t border-hairline px-3 pt-2 text-micro text-muted-foreground">
+                        {isTruncated
+                            ? t('search.scopeLimited', { limit: SEARCH_MAX_CHANNELS, total: channels.length })
+                            : t('search.scope')}
+                    </p>
                 )}
             </DialogContent>
         </Dialog>

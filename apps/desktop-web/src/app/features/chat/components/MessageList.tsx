@@ -5,6 +5,7 @@ import { ChevronDown, MessageSquare } from 'lucide-react';
 
 import type { DomainChat } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
+import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { Hint, Skeleton, resolveDisplay, useReducedMotion, useSiteProfileMap } from '../../../shared';
 import {
@@ -402,11 +403,14 @@ export const MessageList = ({
             return;
         }
         // Exhausted: no older history left or the budget was hit — stop re-firing.
+        // Say so. Giving up silently left the reader mid-history, paged back up to
+        // eight pages, with no highlight and no hint that the target was not found.
         if (!hasMore || jumpRef.current.pages >= MAX_JUMP_PAGES) {
             jumpRef.current.done = true;
+            toast({ description: t('chat.jump.notFound') });
             onJumpConsumed?.();
         }
-    }, [jumpTarget, messages, hasMore, isLoadingOlder, onLoadOlder, onJumpConsumed]);
+    }, [jumpTarget, messages, hasMore, isLoadingOlder, onLoadOlder, onJumpConsumed, t]);
 
     // Auto-fill the viewport: when the loaded page can't be scrolled (scrollHeight
     // fits the viewport) there's no scroll-up to trigger loadOlder, so older history

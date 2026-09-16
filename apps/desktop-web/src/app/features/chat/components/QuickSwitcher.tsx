@@ -7,12 +7,23 @@ import type { DomainChannel } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 
+import { useLastChannelStore, useListboxNav } from '../../../shared';
+
 const MAX_RESULTS = 8;
 
-/** Prefix matches first (Slack-style), then word-boundary/substring matches. */
-const rankChannels = (channels: DomainChannel[], query: string): DomainChannel[] => {
+/**
+ * Prefix matches first (Slack-style), then substring matches. With no query the
+ * list is what the person opened most recently — it used to be an arbitrary,
+ * unsorted first eight — topped up from the rest when there are few recents.
+ */
+const rankChannels = (channels: DomainChannel[], query: string, recent: string[]): DomainChannel[] => {
     const q = query.trim().toLowerCase();
-    if (!q) return channels.slice(0, MAX_RESULTS);
+    if (!q) {
+        const byId = new Map(channels.map(c => [c.id, c]));
+        const recents = recent.map(id => byId.get(id)).filter((c): c is DomainChannel => !!c);
+        const rest = channels.filter(c => !recent.includes(c.id ?? ''));
+        return [...recents, ...rest].slice(0, MAX_RESULTS);
+    }
     const label = (c: DomainChannel) => (c.name ?? c.id ?? '').toLowerCase();
     const starts = channels.filter(c => label(c).startsWith(q));
     const includes = channels.filter(c => !label(c).startsWith(q) && label(c).includes(q));
@@ -34,7 +45,7 @@ export const QuickSwitcher = ({ channels, onSelect }: QuickSwitcherProps) => {
     const { t } = useTranslation();
     const [open, setOpen] = useState(false);
     const [query, setQuery] = useState('');
-    const [activeIndex, setActiveIndex] = useState(0);
+    const recent = useLastChannelStore(s => s.recent);
 
     useEffect(() => {
         const onKeyDown = (e: KeyboardEvent) => {
@@ -47,34 +58,20 @@ export const QuickSwitcher = ({ channels, onSelect }: QuickSwitcherProps) => {
         return () => window.removeEventListener('keydown', onKeyDown);
     }, []);
 
-    // Fresh query/selection every time it opens.
+    // Fresh query every time it opens.
     useEffect(() => {
-        if (open) {
-            setQuery('');
-            setActiveIndex(0);
-        }
+        if (open) setQuery('');
     }, [open]);
 
-    const results = useMemo(() => rankChannels(channels, query), [channels, query]);
+    const results = useMemo(() => rankChannels(channels, query, recent), [channels, query, recent]);
 
-    const pick = (channel: DomainChannel) => {
-        if (!channel.id) return;
+    const pick = (channel: DomainChannel | undefined) => {
+        if (!channel?.id) return;
         onSelect(channel.id);
         setOpen(false);
     };
 
-    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === 'ArrowDown') {
-            e.preventDefault();
-            setActiveIndex(i => (results.length ? (i + 1) % results.length : 0));
-        } else if (e.key === 'ArrowUp') {
-            e.preventDefault();
-            setActiveIndex(i => (results.length ? (i - 1 + results.length) % results.length : 0));
-        } else if (e.key === 'Enter' && results[activeIndex]) {
-            e.preventDefault();
-            pick(results[activeIndex]);
-        }
-    };
+    const nav = useListboxNav(results.length, index => pick(results[index]), `${open}:${query}`);
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
@@ -86,11 +83,8 @@ export const QuickSwitcher = ({ channels, onSelect }: QuickSwitcherProps) => {
                     <input
                         autoFocus
                         value={query}
-                        onChange={e => {
-                            setQuery(e.target.value);
-                            setActiveIndex(0);
-                        }}
-                        onKeyDown={handleKeyDown}
+                        onChange={e => setQuery(e.target.value)}
+                        {...nav.inputProps}
                         placeholder={t('switcher.placeholder')}
                         aria-label={t('switcher.placeholder')}
                         className="flex-1 bg-transparent text-body text-foreground outline-none placeholder:text-placeholder"
@@ -101,18 +95,20 @@ export const QuickSwitcher = ({ channels, onSelect }: QuickSwitcherProps) => {
                         {t('switcher.noMatches')}
                     </p>
                 ) : (
-                    <ul role="listbox" className="flex flex-col">
+                    <ul id={nav.listboxId} role="listbox" className="flex flex-col">
                         {results.map((channel, i) => (
                             <li key={channel.id ?? i}>
                                 <button
+                                    id={nav.optionId(i)}
                                     type="button"
                                     role="option"
-                                    aria-selected={i === activeIndex}
-                                    onMouseEnter={() => setActiveIndex(i)}
+                                    tabIndex={-1}
+                                    aria-selected={i === nav.activeIndex}
+                                    onMouseEnter={() => nav.setActiveIndex(i)}
                                     onClick={() => pick(channel)}
                                     className={cn(
                                         'flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-callout transition-colors ease-tactile',
-                                        i === activeIndex
+                                        i === nav.activeIndex
                                             ? 'bg-accent text-foreground'
                                             : 'text-muted-foreground hover:bg-accent/60'
                                     )}

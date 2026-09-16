@@ -122,6 +122,7 @@ const resources = {
             'chat.thread.composerPlaceholder': 'Reply…',
             'chat.thread.resize': 'Resize thread panel',
             'chat.jump.return': 'Back to {{name}}',
+            'chat.jump.notFound': "Couldn't find that message. It may be older than this device has loaded.",
             'chat.jump.dismissReturn': 'Dismiss return',
             'chat.thread.unavailable': "This message isn't loaded yet — scroll up in the channel to load it.",
             'chat.system.join': '{{name}} joined the channel',
@@ -413,6 +414,9 @@ const resources = {
             'search.hint': 'Type at least 2 characters to search cached messages.',
             'search.searching': 'Searching…',
             'search.noResults': 'No messages found in loaded history.',
+            'search.scopeLimited':
+                'Searched {{limit}} of your {{total}} channels, and only messages already loaded on this device.',
+            'search.scope': 'Searches messages already loaded on this device.',
             'search.matchCount_one': '{{count}} match',
             'search.matchCount_other': '{{count}} matches',
             'shortcuts.navigate': 'Move between channels',

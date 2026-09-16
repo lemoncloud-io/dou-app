@@ -18,7 +18,7 @@ const MIN_QUERY_LENGTH = 2;
 /** Cached page scanned per channel — bounds work on big channels. */
 const PER_CHANNEL_LIMIT = 200;
 const MAX_MATCHES_PER_CHANNEL = 3;
-const MAX_CHANNELS = 30;
+export const SEARCH_MAX_CHANNELS = 30;
 
 /**
  * Local message search over the engine's chat cache (no search endpoint exists
@@ -42,7 +42,7 @@ export const useMessageSearch = (query: string, channels: DomainChannel[]) => {
         setIsSearching(true);
         const timer = setTimeout(() => {
             void Promise.all(
-                channels.slice(0, MAX_CHANNELS).map(async channel => {
+                channels.slice(0, SEARCH_MAX_CHANNELS).map(async channel => {
                     if (!channel.id) return null;
                     const page = await chatRepository
                         .cacheReadList({ channelId: channel.id, limit: PER_CHANNEL_LIMIT })
@@ -70,5 +70,9 @@ export const useMessageSearch = (query: string, channels: DomainChannel[]) => {
         };
     }, [query, channels, chatRepository]);
 
-    return { results, isSearching };
+    // The search silently covered only the first SEARCH_MAX_CHANNELS channels, and
+    // the empty state never said so. Callers state the scope when it binds.
+    const isTruncated = channels.length > SEARCH_MAX_CHANNELS;
+
+    return { results, isSearching, isTruncated };
 };
