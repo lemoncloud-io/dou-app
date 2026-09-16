@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { runtime } from '@chatic/app-runtime';
 
@@ -437,6 +437,24 @@ export const HomePage = () => {
 
     const selectedChannel = channels.find(channel => channel.id === selectedChannelId);
 
+    // Stable handlers for the sidebar, whose rows are memo'd. Picking a channel from
+    // the list is a deliberate move, not a detour, so it retires any return point.
+    const selectFromList = useCallback(
+        (id: string) => {
+            useMessageJumpStore.getState().clearOrigin();
+            selectChannel(id);
+        },
+        [selectChannel]
+    );
+    // jumpToSaved closes over render state; the ref keeps the handler identity fixed
+    // while always calling the current one.
+    const jumpToSavedRef = useRef(jumpToSaved);
+    jumpToSavedRef.current = jumpToSaved;
+    const jumpFromSearch = useCallback(
+        (channelId: string, chatNo: number) => jumpToSavedRef.current(channelId, chatNo),
+        []
+    );
+
     // The return leg of a jump. Offered only while the reader is somewhere other
     // than where they started, and only while that channel is still in the list —
     // a channel they were removed from is not somewhere to send them back to.
@@ -543,11 +561,8 @@ export const HomePage = () => {
                                 query={query}
                                 // Picking a channel from the list is a deliberate move,
                                 // not a detour, so it retires any pending return point.
-                                onSelect={id => {
-                                    clearJumpOrigin();
-                                    selectChannel(id);
-                                }}
-                                onJumpToMessage={(channelId, chatNo) => jumpToSaved(channelId, chatNo)}
+                                onSelect={selectFromList}
+                                onJumpToMessage={jumpFromSearch}
                                 isDefaultMode={isDefaultMode}
                                 onCreateChannel={openCreateChannel}
                             />

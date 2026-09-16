@@ -83,7 +83,13 @@ interface MessageRowProps {
      * Read/unread counts for a message, or null when it gets no receipt (see
      * `useReadCounts`). Absent on a surface that shows no receipts at all.
      */
-    readCountOf?: (chatNo: number, senderId?: string) => ReadCount | null;
+    /**
+     * The read receipt for this block's last message, as numbers rather than a
+     * getter. A getter keyed on every member's cursor changed identity on each
+     * receipt anywhere in the channel, and re-rendered every row with it.
+     */
+    receiptRead?: number;
+    receiptUnread?: number;
 }
 
 /**
@@ -126,6 +132,22 @@ const ToolbarButton = ({ label, onClick, children, className, pressed }: Toolbar
 );
 
 const STUCK_PENDING_MS = 60_000;
+
+const sameGroup = (a: MessageGroup, b: MessageGroup): boolean =>
+    a === b ||
+    (a.key === b.key &&
+        a.ownerId === b.ownerId &&
+        a.ownerName === b.ownerName &&
+        a.namePending === b.namePending &&
+        a.avatar === b.avatar &&
+        a.isMine === b.isMine &&
+        a.colorSeed === b.colorSeed &&
+        a.timestamp === b.timestamp &&
+        a.messages.length === b.messages.length &&
+        a.messages.every((m, i) => m === b.messages[i]));
+
+/** Structural equality for one small map entry (a reaction tally, a thread meta). */
+const sameEntry = (a: unknown, b: unknown): boolean => a === b || JSON.stringify(a) === JSON.stringify(b);
 
 /**
  * Pointer devices hide the toolbar until hover; touch shows it always, so it is
@@ -180,7 +202,8 @@ export const MessageRow = memo(
         resolveMention,
         highlightChatNo,
         withDayInTime,
-        readCountOf,
+        receiptRead,
+        receiptUnread,
     }: MessageRowProps) => {
         const { t } = useTranslation();
         const [copiedKey, setCopiedKey] = useState<string | null>(null);
@@ -221,7 +244,12 @@ export const MessageRow = memo(
         const remember = useRecentEmojiStore(s => s.remember);
         const { editMessage, deleteMessage, failure } = useMessageActions();
         const { toggleReaction, failedId: reactionFailedId } = useReactions();
-        const savedItems = useSavedItemsStore(s => s.items);
+        // Only this block's saved flags, as a string: zustand compares it by value,
+        // so saving a message elsewhere no longer re-renders every row. Selecting
+        // the whole `items` record did.
+        const messageKeys = group.messages.map(message => String(message.id ?? message.tempId ?? message.chatNo));
+        const savedFlags = useSavedItemsStore(s => messageKeys.map(k => (s.items[k] ? '1' : '0')).join(''));
+        const isSavedKey = (key: string) => savedFlags[messageKeys.indexOf(key)] === '1';
         const toggleSaved = useSavedItemsStore(s => s.toggle);
         const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
         // Blank the avatar initial while the name resolves so "U" (Unknown) never flashes.
@@ -364,9 +392,9 @@ export const MessageRow = memo(
                             // four messages sent a second apart. A message still in flight,
                             // failed or deleted has no meaningful count.
                             const isLastInGroup = i === group.messages.length - 1;
-                            const receipt =
-                                readCountOf && isLastInGroup && isSettled && !message.hidden && message.chatNo
-                                    ? readCountOf(message.chatNo, message.ownerId)
+                            const receipt: ReadCount | null =
+                                receiptRead != null && isLastInGroup && isSettled && !message.hidden && message.chatNo
+                                    ? { readCount: receiptRead, unreadCount: receiptUnread ?? 0 }
                                     : null;
                             // Keep the toolbar up whenever it owns something the reader is
                             // still looking at — the emoji grid, the delete dialog, or the
@@ -703,8 +731,8 @@ export const MessageRow = memo(
                                             )}
                                             {content && isSettled && (
                                                 <ToolbarButton
-                                                    label={savedItems[key] ? t('chat.unsave') : t('chat.save')}
-                                                    pressed={!!savedItems[key]}
+                                                    label={isSavedKey(key) ? t('chat.unsave') : t('chat.save')}
+                                                    pressed={isSavedKey(key)}
                                                     className="hover:bg-accent hover:text-foreground"
                                                     onClick={() =>
                                                         toggleSaved({
@@ -724,7 +752,7 @@ export const MessageRow = memo(
                                                     <Bookmark
                                                         size={16}
                                                         className={
-                                                            savedItems[key]
+                                                            isSavedKey(key)
                                                                 ? 'fill-current text-primary-ink'
                                                                 : undefined
                                                         }
@@ -892,6 +920,30 @@ export const MessageRow = memo(
                 </div>
             </div>
         );
+    },
+    (prev, next) => {
+        // `reactions` and `threadMeta` are whole-feed maps rebuilt on every message
+        // change, so a default shallow compare re-rendered every row whenever any
+        // one message changed. Everything else compares by identity as before;
+        // those two compare only the entries this block actually reads.
+        for (const k of Object.keys(next) as (keyof MessageRowProps)[]) {
+            if (k === 'reactions' || k === 'threadMeta' || k === 'group') continue;
+            if (prev[k] !== next[k]) return false;
+        }
+        // The group object is rebuilt on every feed change too; what matters is
+        // its fields and the identity of each message in it (the repository
+        // hands back a new object only for a message that actually changed).
+        if (!sameGroup(prev.group, next.group)) return false;
+        for (const message of next.group.messages) {
+            if (message.id && !sameEntry(prev.reactions?.get(message.id), next.reactions?.get(message.id))) {
+                return false;
+            }
+            if (message.chatNo != null) {
+                const no = String(message.chatNo);
+                if (!sameEntry(prev.threadMeta?.get(no), next.threadMeta?.get(no))) return false;
+            }
+        }
+        return true;
     }
 );
 

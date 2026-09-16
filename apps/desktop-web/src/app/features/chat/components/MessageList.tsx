@@ -117,14 +117,10 @@ export const MessageList = ({
     // lands short: the list keeps reflowing (avatars, wrapping, optimistic→server
     // swap, older-page auto-fill), each nudging the viewport off the bottom. Pinning
     // the whole window rides through all of them — reliable where scrollIntoView isn't.
+    // Every write is an instant jump, not an animation, so reduced motion needs no
+    // branch here: skipping the loop would only bring back the short landing.
     const pinToBottom = () => {
         cancelAnimationFrame(pinRafRef.current);
-        // Reduced motion gets one instant write, not 600ms of frames.
-        if (reducedMotion) {
-            const el = scrollRef.current;
-            if (el) el.scrollTop = el.scrollHeight;
-            return;
-        }
         const deadline = performance.now() + 600;
         const snap = () => {
             const el = scrollRef.current;
@@ -451,7 +447,18 @@ export const MessageList = ({
     // must NOT dismiss an unseen divider — track the previous state for the edge.
     const wasNearBottomRef = useRef(true);
 
+    // Scroll events fire many times per frame; the handler reads three layout
+    // properties each time. Coalesce to one pass per animation frame.
+    const scrollRafRef = useRef(0);
+    useEffect(() => () => cancelAnimationFrame(scrollRafRef.current), []);
     const onScroll = () => {
+        if (scrollRafRef.current) return;
+        scrollRafRef.current = requestAnimationFrame(() => {
+            scrollRafRef.current = 0;
+            handleScroll();
+        });
+    };
+    const handleScroll = () => {
         const el = scrollRef.current;
         if (!el) return;
         const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < NEAR_BOTTOM_PX;
@@ -573,6 +580,8 @@ export const MessageList = ({
                                     </div>
                                 );
                             }
+                            const last = row.group.messages[row.group.messages.length - 1];
+                            const receipt = readCountOf && last?.chatNo ? readCountOf(last.chatNo, last.ownerId) : null;
                             return (
                                 <MessageRow
                                     key={row.group.key}
@@ -587,7 +596,8 @@ export const MessageList = ({
                                     withDayInTime={threadReplyCount !== undefined}
                                     reactions={reactions}
                                     reactorName={reactorName}
-                                    readCountOf={readCountOf}
+                                    receiptRead={receipt?.readCount}
+                                    receiptUnread={receipt?.unreadCount}
                                 />
                             );
                         })}

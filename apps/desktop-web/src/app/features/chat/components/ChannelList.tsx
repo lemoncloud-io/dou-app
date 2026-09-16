@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Hash, Pencil, Plus, Star } from 'lucide-react';
@@ -87,12 +87,25 @@ export const CHANNEL_ROW_HINT_DELAY_MS = 600;
  * re-derives "is there something unread" for the name emphasis, or the two would
  * drift apart the moment one of them grew a condition.
  */
-const ChannelRow = ({ channel, label, icon, isActive, isFavorite, onSelect, rowRef }: ChannelRowProps) => {
+const ChannelRow = memo(function ChannelRow({
+    channel,
+    label,
+    icon,
+    isActive,
+    isFavorite,
+    onSelect,
+    rowRef,
+}: ChannelRowProps) {
     const { t } = useTranslation();
     const id = channel.id ?? '';
     const unread = channel.unreadCount ?? 0;
     const indicator = unreadIndicator({ unread, isDm: isDmBucket(channel), isActive });
-    const lastChat = useLastChat(id, lastChatNoOf(channel));
+    // The preview only ever appears in this row's tooltip, yet every row used to
+    // open a live chat subscription and a freshness fetch for it on mount — one
+    // per channel in the sidebar. The row now asks for it the first time the
+    // pointer or focus reaches it; the tooltip waits 600ms anyway.
+    const [wantsPreview, setWantsPreview] = useState(false);
+    const lastChat = useLastChat(wantsPreview ? id : '', lastChatNoOf(channel));
     // Slack's draft pencil: text left in another channel's composer is easy to forget.
     // Not on the open row — its composer is right there.
     const hasDraft = useComposerDraftStore(s => !isActive && !!s.drafts[id]?.trim());
@@ -107,6 +120,8 @@ const ChannelRow = ({ channel, label, icon, isActive, isFavorite, onSelect, rowR
         <Hint label={preview ? `${label}\n${preview}` : label} delayDuration={CHANNEL_ROW_HINT_DELAY_MS} side="right">
             <button
                 ref={rowRef}
+                onPointerEnter={() => setWantsPreview(true)}
+                onFocus={() => setWantsPreview(true)}
                 onClick={() => onSelect(id)}
                 aria-current={isActive ? 'true' : undefined}
                 // Arrow-key navigation focuses rows through this attribute rather
@@ -153,7 +168,10 @@ const ChannelRow = ({ channel, label, icon, isActive, isFavorite, onSelect, rowR
             </button>
         </Hint>
     );
-};
+});
+
+/** Module-level so its identity is stable and the memo'd rows can skip re-rendering. */
+const CHANNEL_GLYPH = <Hash size={16} aria-hidden />;
 
 const Divider = () => <div aria-hidden className="h-px w-full shrink-0 bg-hairline" />;
 
@@ -405,7 +423,6 @@ export const ChannelList = ({
         rows[nextIdx]?.focus();
     };
 
-    const channelGlyph = <Hash size={16} aria-hidden />;
     const row = (
         channel: DomainChannel,
         label: string,
@@ -447,7 +464,7 @@ export const ChannelList = ({
     // stored pin order; ids not in the current list are skipped.
     const favoriteById = new Map<string, { channel: DomainChannel; label: string; icon: ReactNode }>();
     for (const c of visibleRegular) {
-        favoriteById.set(c.id ?? '', { channel: c, label: c.name ?? c.id ?? '', icon: channelGlyph });
+        favoriteById.set(c.id ?? '', { channel: c, label: c.name ?? c.id ?? '', icon: CHANNEL_GLYPH });
     }
     for (const dm of dmRows) favoriteById.set(dm.channel.id ?? '', { channel: dm.channel, ...dm.identity });
     const favoriteRows = pinnedIds.flatMap(id => {
@@ -480,7 +497,7 @@ export const ChannelList = ({
                         id="ch"
                         title={t('sidebar.channels')}
                         items={visibleRegular.map(channel =>
-                            row(channel, channel.name ?? channel.id ?? '', channelGlyph, 'ch')
+                            row(channel, channel.name ?? channel.id ?? '', CHANNEL_GLYPH, 'ch')
                         )}
                         dragDisabled={isFiltering}
                         onReorder={makeSectionReorder('ch')}
