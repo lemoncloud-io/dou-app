@@ -17,8 +17,9 @@ don't. Chat responses to the user are unaffected by this rule.
 
 - Before editing a module, read its own `README.md` (and `docs/<topic>/` if it has one). Prefer it
   over inferring behavior from source.
-- Root `docs/` holds only `docs/adr/` (decisions). Nothing else lives there — links to any other
-  `docs/` path are dead.
+- Root `docs/` holds decisions (`docs/adr/`) and cross-repo infrastructure notes
+  (`docs/infra/`). A module's own documentation never lives there — it belongs beside the module,
+  in its `README.md` or its `docs/<category>/`.
 - If a module's behavior only makes sense with a decision's reasoning, write that reasoning into the
   module doc itself, in your own words. Don't rely on a reader following an ADR link.
 - A module's `docs/` has one shape, and four rules hold it:

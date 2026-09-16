@@ -3,7 +3,7 @@
 > Related: [../webview/README.md](../webview/README.md) (the injection table) · [../boot/boot-optimization.md](../boot/boot-optimization.md) (the boot path) · [apps/web theme doc](../../../web/docs/shell/theme.md) (web-internal state and DOM application)
 
 **This document owns the web↔native theme contract** — the value model, the default, the storage
-format, and the boot-time sync. `apps/web/docs/architecture/theme.md` covers only the web-internal
+format, and the boot-time sync. `apps/web/docs/shell/theme.md` covers only the web-internal
 wiring on top of this contract and defers here for all of that.
 
 ## Purpose

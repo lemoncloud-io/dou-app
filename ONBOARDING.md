@@ -41,7 +41,7 @@ values, following `apps/desktop/.env.example`.
 
 - **`.env` / `.env.dev` / `.env.prod`** — `.env.example` is the public template for the LOCAL env
   only. `.env.dev` and `.env.prod` carry real backend endpoints and aren't covered by a template;
-  ask a teammate for values. See [apps/mobile/docs/local-run.md](apps/mobile/docs/local-run.md).
+  ask a teammate for values. See [apps/mobile/docs/release/local-run.md](apps/mobile/docs/release/local-run.md).
 - **Firebase config (push notifications)**:
 
     ```bash

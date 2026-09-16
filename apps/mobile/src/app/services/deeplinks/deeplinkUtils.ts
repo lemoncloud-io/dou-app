@@ -40,7 +40,7 @@ export const DEEPLINK_DOMAIN_DEV = 'app-dev.chatic.io';
  * configurations register — every non-prod configuration registers `chatic-dev`.
  *
  * That is why the test is `=== 'PROD'` and not `=== 'DEV'`: with `VITE_ENV=LOCAL` on a dev
- * configuration (see apps/mobile/docs/local-run.md) the old `=== 'DEV'` form computed `chatic` while the OS had
+ * configuration (see apps/mobile/docs/release/local-run.md) the old `=== 'DEV'` form computed `chatic` while the OS had
  * registered `chatic-dev`, and warm-start links stopped resolving. `isCustomZipAllowed` already
  * gates on the same `!== 'PROD'` polarity.
  */
