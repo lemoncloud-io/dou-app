@@ -3,3 +3,4 @@ export * from './useThreadStore';
 export * from './useChatImagesStore';
 export * from './useSidebarSectionsStore';
 export * from './useOnboardingStore';
+export * from './useShortcutsDialogStore';

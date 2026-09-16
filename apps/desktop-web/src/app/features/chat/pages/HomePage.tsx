@@ -42,7 +42,6 @@ import {
     DesktopLayout,
     OnboardingDialog,
     PlaceRail,
-    ShortcutsDialog,
     SidebarHeader,
     SavedPanel,
     MentionsPanel,
@@ -605,7 +604,6 @@ export const HomePage = () => {
             <CreateChannelDialog />
             <JoinWithInviteDialog />
             <EditPlaceProfileDialog />
-            <ShortcutsDialog />
             {/* Ready means the Self Channel itself has arrived — not merely that some
                 channel has, which is what the card used to claim. */}
             <OnboardingDialog enabled={isDefaultMode} isChannelReady={channels.some(isSelfChannel)} />

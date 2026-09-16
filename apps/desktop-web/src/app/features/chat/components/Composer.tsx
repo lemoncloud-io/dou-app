@@ -135,7 +135,7 @@ const ComposerInner = ({
 
     return (
         <div
-            className="bg-background/[0.92] px-6 pb-5 pt-2 backdrop-blur-[8px]"
+            className="bg-background px-6 pb-5 pt-2"
             // Pasted images join the tray; pasted text still goes to the editor untouched.
             onPasteCapture={event => {
                 if (!onAddFiles) return;
@@ -172,6 +172,8 @@ const ComposerInner = ({
                                 contentEditable={
                                     <ContentEditable
                                         aria-label={placeholderText}
+                                        // Lets the empty-channel intro hand focus to the composer.
+                                        data-composer-input=""
                                         className="max-h-40 min-h-[34px] overflow-y-auto whitespace-pre-wrap break-words bg-transparent py-1.5 text-body text-foreground outline-none"
                                     />
                                 }

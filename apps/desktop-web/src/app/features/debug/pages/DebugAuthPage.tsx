@@ -68,7 +68,7 @@ export const DebugAuthPage = () => {
                 type="submit"
                 disabled={isSubmitting || !uid.trim() || !pwd}
                 className={cn(
-                    'h-10 rounded-lg bg-primary text-sm font-semibold text-primary-foreground transition-all',
+                    'h-10 rounded-lg bg-primary text-sm font-semibold text-primary-foreground transition-colors',
                     'hover:opacity-90 active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100'
                 )}
             >

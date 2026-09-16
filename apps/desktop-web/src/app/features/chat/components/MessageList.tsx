@@ -509,6 +509,11 @@ export const MessageList = ({
             <div
                 ref={scrollRef}
                 onScroll={onScroll}
+                role="log"
+                aria-live="polite"
+                aria-relevant="additions"
+                aria-busy={isLoadingOlder || undefined}
+                aria-label={t('chat.feedLabel')}
                 className="scrollbar-thin flex flex-1 flex-col gap-2 overflow-y-auto px-6 py-5"
             >
                 {isLoadingOlder && (

@@ -62,7 +62,7 @@ export const OAuthResponsePage = () => {
                         type="button"
                         onClick={() => navigate('/auth/welcome', { replace: true })}
                         className={cn(
-                            'h-11 rounded-full bg-primary text-sm font-semibold text-primary-foreground transition-all',
+                            'h-11 rounded-full bg-primary text-sm font-semibold text-primary-foreground transition-colors',
                             'hover:opacity-90 active:scale-[0.98]'
                         )}
                     >
@@ -74,7 +74,7 @@ export const OAuthResponsePage = () => {
                             <a
                                 href={deeplink}
                                 className={cn(
-                                    'flex h-11 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground transition-all',
+                                    'flex h-11 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground transition-colors',
                                     'hover:opacity-90 active:scale-[0.98]'
                                 )}
                             >

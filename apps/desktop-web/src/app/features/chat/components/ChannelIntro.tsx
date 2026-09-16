@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 
-import { Hash, Settings, Star, StickyNote } from 'lucide-react';
+import { Hash, PenLine, Settings, Star, StickyNote } from 'lucide-react';
 
 import { cn } from '@chatic/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
@@ -21,9 +21,13 @@ interface ChannelIntroProps {
     onOpenSettings?: () => void;
 }
 
-/** Shape shared by the two quiet actions under the intro. */
+/** Shape shared by the actions under the intro. */
 const INTRO_ACTION =
-    'focus-ring tactile flex items-center gap-1.5 rounded-lg border border-hairline bg-background px-3 py-1.5 text-[13px] font-medium text-foreground transition-colors ease-tactile hover:bg-accent';
+    'focus-ring tactile flex items-center gap-1.5 rounded-lg border border-hairline bg-background px-3 py-1.5 text-caption font-medium text-foreground transition-colors ease-tactile hover:bg-accent';
+/** The one filled action: writing is what an empty channel is for. */
+const INTRO_PRIMARY = 'border-transparent bg-primary text-primary-foreground hover:bg-primary/90';
+
+const focusComposer = () => document.querySelector<HTMLElement>('[data-composer-input]')?.focus();
 
 /**
  * The top of a conversation once its whole history is loaded (Slack's "This is the very
@@ -65,21 +69,23 @@ export const ChannelIntro = ({
                 </span>
             )}
             <div className="flex flex-col gap-1">
-                <h2 className="text-[24px] font-bold leading-tight tracking-[-0.02em] text-foreground">
-                    {kind === 'channel' ? `#${name}` : name}
-                </h2>
-                <p className="max-w-prose text-[15px] leading-relaxed text-label">
+                <h2 className="text-display text-foreground">{kind === 'channel' ? `#${name}` : name}</h2>
+                <p className="max-w-prose text-body text-label">
                     {kind === 'channel' && t('chat.intro.channel', { name })}
                     {kind === 'dm' && t('chat.intro.dm', { name })}
                     {kind === 'self' && t('chat.intro.self')}
                 </p>
                 {description && (
-                    <p className="max-w-prose whitespace-pre-line text-[14px] leading-relaxed text-muted-foreground">
-                        {description}
-                    </p>
+                    <p className="max-w-prose whitespace-pre-line text-callout text-muted-foreground">{description}</p>
                 )}
             </div>
             <div className="flex flex-wrap items-center gap-2">
+                {/* The empty channel's first screen had no path to the one thing it is
+                    for. This hands focus to the composer below. */}
+                <button type="button" onClick={focusComposer} className={cn(INTRO_ACTION, INTRO_PRIMARY)}>
+                    <PenLine size={15} aria-hidden />
+                    {t('chat.intro.writeFirst')}
+                </button>
                 <button type="button" onClick={onToggleFavorite} aria-pressed={isFavorite} className={INTRO_ACTION}>
                     <Star size={15} aria-hidden className={cn(isFavorite && 'fill-favorite text-favorite')} />
                     {t(isFavorite ? 'chat.header.unfavorite' : 'chat.header.favorite')}

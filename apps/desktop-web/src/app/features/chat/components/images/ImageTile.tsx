@@ -51,10 +51,12 @@ export const ImageTile = ({ image, overflow = 0, onOpen, onDownload, onCopy, onD
                 <img
                     src={image.url}
                     alt={image.name}
+                    loading="lazy"
+                    decoding="async"
                     draggable={false}
                     className={cn('h-full w-full object-cover', image.isUploading && 'scale-105 blur-[2px]')}
                 />
-                {(hasOverflow || image.isUploading) && <span aria-hidden className="absolute inset-0 bg-black/40" />}
+                {(hasOverflow || image.isUploading) && <span aria-hidden className="absolute inset-0 bg-overlay/40" />}
                 {(hasOverflow || image.isUploading) && (
                     <span className="absolute inset-0 flex items-center justify-center">
                         {image.isUploading && <ImageSpinner className="absolute h-11 w-11" />}

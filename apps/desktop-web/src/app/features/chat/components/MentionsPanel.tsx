@@ -175,7 +175,7 @@ export const MentionsPanel = ({ channels, places, currentPlaceId, onSelect }: Me
                     <p className="px-2 text-caption text-muted-foreground">{t('saved.deviceLocal')}</p>
                     {groups.map(group => (
                         <div key={group.key || 'none'} className="flex flex-col gap-1">
-                            <p className="sticky top-0 z-[1] flex items-center gap-2 bg-background/95 px-2 py-1 text-overline uppercase text-muted-foreground backdrop-blur">
+                            <p className="sticky top-0 z-[1] flex items-center gap-2 bg-background px-2 py-1 text-overline uppercase text-muted-foreground">
                                 <span className="truncate">{placeName(group.key)}</span>
                                 <span className="shrink-0 tabular-nums">{group.items.length}</span>
                             </p>

@@ -198,6 +198,9 @@ export const ChatPane = ({ channel, members, membersLoading, readCountOf, jumpRe
     return (
         <>
             <header className="flex h-[68px] shrink-0 items-center justify-between gap-2 border-b border-hairline px-6 py-2">
+                {/* The chat screen had no h1 — its top heading was the sidebar's h2. The
+                    open channel is what this screen is about, so it names the page. */}
+                <h1 className="sr-only">{headerName}</h1>
                 <div className="flex min-w-0 items-center gap-3.5">
                     <Hint label={desc ? `${t('chat.header.settings')} — ${desc}` : t('chat.header.settings')}>
                         <button

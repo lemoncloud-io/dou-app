@@ -53,7 +53,6 @@ export const ChannelHeaderMenu = ({ channel, myUid }: ChannelHeaderMenuProps) =>
                             {t('channels.settings.rename')}
                         </DropdownMenuItem>
                     )}
-                    {/* Invite is dev-only — hidden in production builds. */}
                     <DropdownMenuItem onClick={() => openDialog('add-members')} className="cursor-pointer py-2">
                         {t('channels.addMembers.open')}
                     </DropdownMenuItem>

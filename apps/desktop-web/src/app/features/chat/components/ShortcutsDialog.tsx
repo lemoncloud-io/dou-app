@@ -1,8 +1,9 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 
+import { useShortcutsDialogStore } from '../stores';
 import { isTypingTarget } from '../utils';
 
 const isMac = typeof navigator !== 'undefined' && navigator.platform.toLowerCase().includes('mac');
@@ -17,23 +18,27 @@ const Kbd = ({ children }: { children: ReactNode }) => (
 
 /**
  * Press "?" (or Mod+/) anywhere outside a text field to toggle a cheat sheet of
- * the app's keyboard shortcuts. Self-contained: owns its open state + listener.
+ * the app's keyboard shortcuts; the profile menu opens it too. Mounted once at
+ * the router, so it works on /settings and /profile — it used to live on the
+ * home route only, where the key did nothing anywhere else.
  */
 export const ShortcutsDialog = () => {
     const { t } = useTranslation();
-    const [open, setOpen] = useState(false);
+    const open = useShortcutsDialogStore(s => s.isOpen);
+    const setOpen = useShortcutsDialogStore(s => s.setOpen);
+    const toggle = useShortcutsDialogStore(s => s.toggle);
 
     useEffect(() => {
         const onKeyDown = (e: KeyboardEvent) => {
             if (isTypingTarget(e.target)) return;
             if (e.key === '?' || (e.key === '/' && (e.metaKey || e.ctrlKey))) {
                 e.preventDefault();
-                setOpen(prev => !prev);
+                toggle();
             }
         };
         window.addEventListener('keydown', onKeyDown);
         return () => window.removeEventListener('keydown', onKeyDown);
-    }, []);
+    }, [toggle]);
 
     const rows: Array<{ keys: ReactNode; label: string }> = [
         { keys: <Kbd>{MOD} K</Kbd>, label: t('shortcuts.search') },

@@ -32,7 +32,7 @@ export const ComposerAttachments = ({ attachments, onRemove }: ComposerAttachmen
                             className={cn('h-full w-full object-cover', attachment.isUploading && 'blur-[1px]')}
                         />
                         {attachment.isUploading && (
-                            <span className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/40">
+                            <span className="absolute inset-0 flex items-center justify-center rounded-2xl bg-overlay/40">
                                 <ImageSpinner className="h-5 w-5 border-2" />
                             </span>
                         )}

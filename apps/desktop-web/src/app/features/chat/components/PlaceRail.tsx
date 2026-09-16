@@ -27,6 +27,7 @@ import {
     useDebugModeStore,
     useDisplayProfile,
 } from '../../../shared';
+import { useShortcutsDialogStore } from '../stores';
 
 interface PlaceRailProps {
     places: DomainPlace[];
@@ -117,6 +118,7 @@ export const PlaceRail = ({
 }: PlaceRailProps) => {
     const { t } = useTranslation();
     const navigate = useNavigate();
+    const openShortcuts = useShortcutsDialogStore(s => s.setOpen);
     const openJoinDialog = useJoinDialogStore(s => s.open);
     const { userId } = runtime.session.useSessionIdentity();
     const { userName, photo } = runtime.session.useRuntimeProfile();
@@ -208,6 +210,7 @@ export const PlaceRail = ({
                 <DropdownMenuContent side="right" align="end" sideOffset={6}>
                     <DropdownMenuItem onClick={() => navigate('/profile')}>{t('rail.menu.profile')}</DropdownMenuItem>
                     <DropdownMenuItem onClick={() => navigate('/settings')}>{t('rail.menu.settings')}</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => openShortcuts(true)}>{t('shortcuts.title')}</DropdownMenuItem>
                     <DropdownMenuItem onClick={openJoinDialog}>{t('rail.menu.join')}</DropdownMenuItem>
                     {(import.meta.env.DEV || debugEnabled) && (
                         <DropdownMenuItem onClick={() => openDebugPanel(true)}>{t('rail.menu.debug')}</DropdownMenuItem>
