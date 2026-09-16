@@ -52,7 +52,9 @@ export const AttachMenu = ({ onFiles }: AttachMenuProps) => {
                         <FileIcon size={18} aria-hidden />
                         {t('chat.attach.menuTitle')}
                     </span>
-                    <span className="text-[13px] tracking-[-0.01em] text-placeholder">{t('chat.attach.menuHint')}</span>
+                    <span className="text-[13px] tracking-[-0.01em] text-muted-foreground">
+                        {t('chat.attach.menuHint')}
+                    </span>
                 </button>
             </PopoverContent>
             <input

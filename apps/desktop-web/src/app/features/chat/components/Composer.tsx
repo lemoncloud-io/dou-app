@@ -159,7 +159,7 @@ const ComposerInner = ({
                     {/* The newline key is the one thing people get wrong in a chat box; say it
                         while it matters (there is text) and stay out of the way otherwise. */}
                     {hasText && (
-                        <span className="ml-auto hidden text-[12px] text-placeholder animate-fade-in sm:block">
+                        <span className="ml-auto hidden text-[12px] text-muted-foreground animate-fade-in sm:block">
                             {t('chat.composer.newlineHint')}
                         </span>
                     )}

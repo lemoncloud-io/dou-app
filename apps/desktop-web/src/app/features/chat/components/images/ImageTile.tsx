@@ -67,7 +67,7 @@ export const ImageTile = ({ image, overflow = 0, onOpen, onDownload, onCopy, onD
             {!image.isUploading && !hasOverflow && (
                 <div
                     className={cn(
-                        'absolute right-2 top-2 flex items-center gap-2 rounded-lg border border-border bg-background/70 px-2 py-1.5 shadow-[0_1px_4px_rgba(0,0,0,0.08)] backdrop-blur-[4px] transition-opacity duration-150 ease-tactile',
+                        'absolute right-2 top-2 flex items-center gap-2 rounded-lg border border-border bg-background/70 px-2 py-1.5 shadow-raised transition-opacity duration-150 ease-tactile',
                         isMenuOpen ? 'opacity-100' : 'opacity-0 focus-within:opacity-100 group-hover/tile:opacity-100'
                     )}
                 >

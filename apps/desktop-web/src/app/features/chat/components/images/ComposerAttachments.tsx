@@ -42,7 +42,7 @@ export const ComposerAttachments = ({ attachments, onRemove }: ComposerAttachmen
                             type="button"
                             onClick={() => onRemove(attachment.id)}
                             aria-label={t('chat.attach.remove', { name: attachment.name })}
-                            className="focus-ring absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full border border-[#F4F5F5] bg-[#222325] text-white opacity-0 transition-opacity focus-visible:opacity-100 group-hover/att:opacity-100"
+                            className="focus-ring absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full border border-background bg-foreground text-background opacity-0 transition-opacity focus-visible:opacity-100 group-hover/att:opacity-100"
                         >
                             <X size={14} aria-hidden />
                         </button>

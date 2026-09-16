@@ -194,16 +194,16 @@ export const PlaceRail = ({
                     aria-label={selfName || t('rail.menu.profile')}
                     className="group relative transition-transform duration-150 ease-tactile tactile focus-ring rounded-full"
                 >
-                    {/* Figma "1명 Profile": navy (blue_bk #102346) disc with a green
-                        (Colors/Green #34C759) presence dot — same in both themes. */}
+                    {/* Figma "1명 Profile": the navy disc and green presence dot are
+                        fixed in both themes — see --profile-disc / --presence-online. */}
                     <Avatar className="h-12 w-12 rounded-full">
                         {userPhoto && <AvatarImage src={userPhoto} alt={selfName} className="rounded-full" />}
-                        <AvatarFallback className="rounded-full bg-[#102346] text-heading font-semibold text-white">
+                        <AvatarFallback className="rounded-full bg-profile-disc text-heading font-semibold text-profile-disc-foreground">
                             {userInitial || <User size={17} aria-hidden />}
                         </AvatarFallback>
                     </Avatar>
                     {/* presence dot — signals "you, signed in" so the slot reads intentional, not empty */}
-                    <span className="absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full border-2 border-rail-elevated bg-[#34C759]" />
+                    <span className="absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full border-2 border-rail-elevated bg-presence-online" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent side="right" align="end" sideOffset={6}>
                     <DropdownMenuItem onClick={() => navigate('/profile')}>{t('rail.menu.profile')}</DropdownMenuItem>

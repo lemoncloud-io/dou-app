@@ -275,7 +275,7 @@ interface ImageSetMetaProps {
 export const ImageSetMeta = ({ count, onDownloadAll }: ImageSetMetaProps) => {
     const { t } = useTranslation();
     return (
-        <div className="flex items-center gap-3 text-[13px] font-medium tracking-[-0.005em] text-placeholder">
+        <div className="flex items-center gap-3 text-[13px] font-medium tracking-[-0.005em] text-muted-foreground">
             <span>{t('chat.image.fileCount', { count })}</span>
             <button
                 type="button"

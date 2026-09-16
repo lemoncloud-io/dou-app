@@ -41,7 +41,7 @@ export const AttachmentNoticeDialog = ({ notice, onDismiss }: AttachmentNoticeDi
                 </div>
                 <AlertDialogAction
                     onClick={onDismiss}
-                    className="h-auto rounded-none border-t border-hairline bg-transparent py-3.5 text-[15px] font-semibold text-[#007AFF] shadow-none hover:bg-accent"
+                    className="h-auto rounded-none border-t border-hairline bg-transparent py-3.5 text-[15px] font-semibold text-primary-ink shadow-none hover:bg-accent"
                 >
                     {t('chat.attach.notice.ok')}
                 </AlertDialogAction>

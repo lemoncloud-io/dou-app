@@ -35,6 +35,11 @@ module.exports = {
                     foreground: 'hsl(var(--primary-foreground))',
                     ink: 'hsl(var(--primary-ink))',
                 },
+                presence: { online: 'hsl(var(--presence-online))' },
+                profile: {
+                    disc: 'hsl(var(--profile-disc))',
+                    'disc-foreground': 'hsl(var(--profile-disc-foreground))',
+                },
                 /* Theme-preview swatches. Fixed in both themes on purpose: a swatch
                    depicts the theme it names, not the one currently applied. */
                 swatch: {

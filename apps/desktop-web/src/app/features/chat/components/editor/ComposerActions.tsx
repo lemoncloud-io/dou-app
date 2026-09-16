@@ -52,8 +52,11 @@ export const ComposerActions = ({ canSend, onEmoji, onSend }: ComposerActionsPro
                     aria-label={t('chat.composer.send')}
                     className={cn(
                         'focus-ring tactile flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-lg transition-colors ease-tactile',
-                        // Figma GR2 fill with a white plane when there is something to send.
-                        canSend ? 'bg-main-accent text-white hover:opacity-90' : 'bg-muted text-placeholder'
+                        // Figma GR2 fill. The glyph is the dark ink, not white: white
+                        // on #90C304 measures 2.1:1, under the 3:1 an icon needs.
+                        canSend
+                            ? 'bg-main-accent text-primary-foreground hover:opacity-90'
+                            : 'bg-muted text-muted-foreground'
                     )}
                 >
                     <Send className="h-5 w-5 fill-current" aria-hidden />
