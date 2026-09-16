@@ -2,6 +2,7 @@ import { Suspense, lazy, useEffect } from 'react';
 import { Navigate, Route, BrowserRouter as Router, Routes, useNavigate } from 'react-router-dom';
 
 import { isNative, webClient } from '@chatic/bridges';
+import { LoadingFallback } from '@chatic/shared';
 import { runtime } from '@chatic/app-runtime';
 
 import { AppShellSkeleton, parsePushDeeplink, usePendingOpenStore } from './shared';
@@ -61,7 +62,7 @@ export const AppRouter = () => {
             {/* A signed-out person is on their way to Welcome, not to the chat
                 shell — showing its skeleton promises a workspace they do not have
                 yet. Same branch app.tsx makes for the boot fallback. */}
-            <Suspense fallback={isAuthenticated ? <AppShellSkeleton /> : null}>
+            <Suspense fallback={isAuthenticated ? <AppShellSkeleton /> : <LoadingFallback />}>
                 {/* Social Login deeplink (chatic://oauth) — pre-auth it signs in (router
                     flips branches); in-app (guest linking from Profile) it swaps the
                     session and reloads. */}

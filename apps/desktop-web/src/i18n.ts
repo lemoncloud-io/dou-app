@@ -65,7 +65,7 @@ const resources = {
             'chat.newMessageBadge_one': '{{count}} new message',
             'chat.newMessageBadge_other': '{{count}} new messages',
             // Past the cap the exact number is unknown, so it is not asserted.
-            'chat.newMessageBadgeOverflow': '99+ new messages',
+            'chat.newMessageBadgeOverflow': '{{cap}}+ new messages',
             'chat.threadEmpty': 'No messages yet',
             'chat.intro.label': 'Start of the conversation',
             'chat.intro.channel': 'This is the very start of #{{name}}. Everything said here stays in this channel.',

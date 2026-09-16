@@ -403,8 +403,11 @@ export const HomePage = () => {
             ? {
                   originName: originChannel.name ?? originChannel.id ?? '',
                   onReturn: () => {
-                      clearJumpOrigin();
                       jumpToSaved(jumpOrigin.channelId, undefined, jumpOrigin.placeId ?? undefined);
+                      // After, not before: jumpToSaved records the channel being left
+                      // as a new origin, and going back is the end of a detour, not
+                      // the start of one. Both of its paths record synchronously.
+                      clearJumpOrigin();
                   },
                   onDismiss: clearJumpOrigin,
               }

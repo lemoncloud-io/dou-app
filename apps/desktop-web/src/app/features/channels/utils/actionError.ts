@@ -27,11 +27,12 @@ export const channelActionErrorKey = (error: unknown): ChannelActionErrorKey => 
     logger.error('CHANNEL', '[ChannelAction] failed', { error, raw });
 
     const text = raw.toUpperCase();
-    if (text.includes('403') || text.includes('NOT ALLOWED') || text.includes('FORBIDDEN')) {
+    // Whole-number codes only: the wire text carries ids like `channels/U:1000404`.
+    if (/\b403\b/.test(text) || text.includes('NOT ALLOWED') || text.includes('FORBIDDEN')) {
         return 'errors.notAllowed';
     }
-    if (text.includes('404') || text.includes('NOT FOUND')) return 'errors.notFound';
-    if (text.includes('409') || text.includes('CONFLICT')) return 'errors.conflict';
+    if (/\b404\b/.test(text) || text.includes('NOT FOUND')) return 'errors.notFound';
+    if (/\b409\b/.test(text) || text.includes('CONFLICT')) return 'errors.conflict';
     if (text.includes('NETWORK') || text.includes('TIMEOUT') || text.includes('FAILED TO FETCH')) {
         return 'errors.network';
     }

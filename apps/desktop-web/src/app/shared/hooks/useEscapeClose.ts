@@ -18,7 +18,10 @@ const RADIX_LAYER_SELECTOR = [
     '[role="alertdialog"][data-state="open"]',
     '[role="menu"][data-state="open"]',
     '[role="listbox"][data-state="open"]',
-    '[data-radix-popper-content-wrapper]',
+    // Popper-positioned layers (popovers, dropdowns) — but not tooltips, which
+    // render through the same wrapper and appear on keyboard focus of the
+    // panel's own buttons; counting them made Escape a two-press close.
+    '[data-radix-popper-content-wrapper]:not(:has([role="tooltip"]))',
 ].join(',');
 
 /** True while a dialog, alert dialog, menu, or popper-positioned layer is open. */

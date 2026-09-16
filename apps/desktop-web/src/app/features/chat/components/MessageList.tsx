@@ -76,6 +76,9 @@ const DIVIDER_FADE_MS = 300;
 const isWindowActive = (): boolean =>
     typeof document === 'undefined' || (document.visibilityState === 'visible' && document.hasFocus());
 
+/** Past this the exact count is not asserted — the badge says "N+" instead. */
+const NEW_BADGE_CAP = 99;
+
 export const MessageList = ({
     messages,
     reactions,
@@ -582,8 +585,8 @@ export const MessageList = ({
                         className="focus-ring tactile absolute bottom-4 left-1/2 z-20 flex h-8 -translate-x-1/2 items-center gap-1.5 rounded-full bg-primary pl-3 pr-2.5 text-caption font-semibold text-primary-foreground shadow-overlay transition-transform ease-tactile hover:bg-primary/90"
                     >
                         <span className="tabular-nums">
-                            {newCount > 99
-                                ? t('chat.newMessageBadgeOverflow')
+                            {newCount > NEW_BADGE_CAP
+                                ? t('chat.newMessageBadgeOverflow', { cap: NEW_BADGE_CAP })
                                 : t('chat.newMessageBadge', { count: newCount })}
                         </span>
                         <ChevronDown size={16} />
