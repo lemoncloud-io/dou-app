@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
 
 import { Hint } from './Hint';
+import { PANE_HEADER, PANEL_TITLE } from './paneHeader';
 import { ResizablePanel } from './ResizablePanel';
 import { useProfilePanelStore } from '../stores/useProfilePanelStore';
 import { ProfileCardContent } from './ProfileCard';
@@ -29,8 +30,8 @@ export const ProfilePanel = () => {
             onClose={close}
             className="bg-elevated"
         >
-            <header className="flex h-14 shrink-0 items-center justify-between border-b border-hairline px-4">
-                <span className="truncate text-title text-foreground">{t('profile.panel.title')}</span>
+            <header className={`${PANE_HEADER} px-4`}>
+                <span className={PANEL_TITLE}>{t('profile.panel.title')}</span>
                 <Hint label={t('profile.panel.close')}>
                     <button
                         type="button"

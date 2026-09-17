@@ -9,3 +9,4 @@ export * from './ConnectionBanner';
 export * from './VersionInfo';
 export * from './UpdateBanner';
 export * from './AppErrorBoundary';
+export * from './paneHeader';

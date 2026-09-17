@@ -78,7 +78,7 @@ export const ImageTile = ({ image, overflow = 0, onOpen, onDownload, onCopy, onD
                             type="button"
                             onClick={onDownload}
                             aria-label={t('chat.image.download')}
-                            className="focus-ring flex h-7 w-7 items-center justify-center rounded text-foreground"
+                            className="focus-ring flex h-9 w-9 items-center justify-center rounded text-foreground"
                         >
                             <Download size={16} aria-hidden />
                         </button>
@@ -92,7 +92,7 @@ export const ImageTile = ({ image, overflow = 0, onOpen, onDownload, onCopy, onD
                                 <button
                                     type="button"
                                     aria-label={t('chat.image.menu')}
-                                    className="focus-ring flex h-7 w-7 items-center justify-center rounded bg-foreground/[0.08] text-foreground"
+                                    className="focus-ring flex h-9 w-9 items-center justify-center rounded bg-foreground/[0.08] text-foreground"
                                 >
                                     <MoreVertical size={16} aria-hidden />
                                 </button>

@@ -6,7 +6,16 @@ import { X } from 'lucide-react';
 import type { DomainChannel, DomainChat } from '@chatic/data';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { Hint, lastChatNoOf, useAuthorNames, useChatMutations, useChats, ResizablePanel } from '../../../shared';
+import {
+    Hint,
+    lastChatNoOf,
+    useAuthorNames,
+    useChatMutations,
+    useChats,
+    ResizablePanel,
+    PANE_HEADER,
+    PANEL_TITLE,
+} from '../../../shared';
 import type { ChannelMember } from '../../channels';
 import { buildMemberNames, buildThread, foldReactions } from '../utils';
 import { useFileDrop, useImageAttachments, useMentionables, useMessageViewer, type ReadCountOf } from '../hooks';
@@ -99,10 +108,8 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading, readCoun
             onClose={closeThread}
             className="bg-background"
         >
-            <header className="flex h-[68px] shrink-0 items-center justify-between border-b border-hairline px-6">
-                <span className="truncate text-[18px] font-semibold tracking-[-0.01em] text-foreground">
-                    {t('chat.thread.title')}
-                </span>
+            <header className={`${PANE_HEADER} px-6`}>
+                <span className={PANEL_TITLE}>{t('chat.thread.title')}</span>
                 <Hint label={t('chat.thread.close')}>
                     <button
                         type="button"

@@ -37,7 +37,7 @@ export const JumpReturnBar = ({ originName, onReturn, onDismiss }: JumpReturnBar
                 type="button"
                 onClick={onDismiss}
                 aria-label={t('chat.jump.dismissReturn')}
-                className="focus-ring tactile ml-auto flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile hover:bg-accent hover:text-foreground"
+                className="focus-ring tactile hit-target ml-auto flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile hover:bg-accent hover:text-foreground"
             >
                 <X size={14} aria-hidden />
             </button>

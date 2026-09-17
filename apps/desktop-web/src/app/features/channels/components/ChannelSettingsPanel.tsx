@@ -16,6 +16,8 @@ import {
     useNotificationPrefsStore,
     useSelectedChannelStore,
     type ChannelNotifyMode,
+    PANE_HEADER,
+    PANEL_TITLE,
 } from '../../../shared';
 import type { ChannelMember } from '../hooks';
 import { useChannelActions } from '../hooks';
@@ -107,8 +109,8 @@ export const ChannelSettingsPanel = ({
             onClose={close}
             className="bg-elevated"
         >
-            <header className="flex h-14 shrink-0 items-center justify-between border-b border-hairline px-4">
-                <span className="truncate text-title text-foreground">{t('channels.settings.title')}</span>
+            <header className={`${PANE_HEADER} px-4`}>
+                <span className={PANEL_TITLE}>{t('channels.settings.title')}</span>
                 <button
                     type="button"
                     aria-label={t('channels.settings.close')}

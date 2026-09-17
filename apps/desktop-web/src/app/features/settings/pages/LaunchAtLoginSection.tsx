@@ -60,7 +60,7 @@ export const LaunchAtLoginSection = () => {
                         {t('settings.launchAtLoginHint', 'Start DoU automatically when you sign in to this computer.')}
                     </span>
                 </div>
-                <Switch checked={state.enabled} onCheckedChange={toggle} aria-label={label} />
+                <Switch className="hit-target" checked={state.enabled} onCheckedChange={toggle} aria-label={label} />
             </div>
         </section>
     );

@@ -15,6 +15,8 @@ import {
     useMentionsStore,
     type MentionItem,
     formatShortDate,
+    PANE_HEADER,
+    PANEL_TITLE,
 } from '../../../shared';
 
 const formatMentionAt = formatShortDate;
@@ -72,7 +74,7 @@ const MentionRow = ({ item, channelName, removeLabel, onOpen, onRemove }: Mentio
                 type="button"
                 onClick={onRemove}
                 aria-label={removeLabel}
-                className="focus-ring tactile absolute right-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity ease-tactile hover:bg-accent hover:text-foreground focus-visible:opacity-100 group-hover/mention:opacity-100"
+                className="focus-ring tactile absolute right-1.5 top-1.5 flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity ease-tactile hover:bg-accent hover:text-foreground focus-visible:opacity-100 group-hover/mention:opacity-100"
             >
                 <X size={13} />
             </button>
@@ -135,8 +137,8 @@ export const MentionsPanel = ({ channels, places, currentPlaceId, onSelect }: Me
             onClose={close}
             className="bg-background"
         >
-            <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-hairline px-4">
-                <span className="truncate text-title text-foreground">{t('activity.title')}</span>
+            <header className={`${PANE_HEADER} px-4`}>
+                <span className={PANEL_TITLE}>{t('activity.title')}</span>
                 <div className="flex shrink-0 items-center gap-1">
                     {hasUnread && (
                         <button

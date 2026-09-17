@@ -14,6 +14,8 @@ import {
     useSavedPanelStore,
     type SavedItem,
     formatShortDate,
+    PANE_HEADER,
+    PANEL_TITLE,
 } from '../../../shared';
 
 const formatSavedAt = formatShortDate;
@@ -67,7 +69,7 @@ const SavedRow = ({ item, channelName, removeLabel, onOpen, onRemove }: SavedRow
                 type="button"
                 onClick={onRemove}
                 aria-label={removeLabel}
-                className="focus-ring tactile absolute right-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity ease-tactile hover:bg-accent hover:text-foreground focus-visible:opacity-100 group-hover/saved:opacity-100"
+                className="focus-ring tactile absolute right-1.5 top-1.5 flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity ease-tactile hover:bg-accent hover:text-foreground focus-visible:opacity-100 group-hover/saved:opacity-100"
             >
                 <X size={13} />
             </button>
@@ -126,8 +128,8 @@ export const SavedPanel = ({ channels, places, currentPlaceId, onSelect }: Saved
             onClose={close}
             className="bg-background"
         >
-            <header className="flex h-14 shrink-0 items-center justify-between border-b border-hairline px-4">
-                <span className="truncate text-title text-foreground">{t('saved.title')}</span>
+            <header className={`${PANE_HEADER} px-4`}>
+                <span className={PANEL_TITLE}>{t('saved.title')}</span>
                 <Hint label={t('saved.close')}>
                     <button
                         type="button"

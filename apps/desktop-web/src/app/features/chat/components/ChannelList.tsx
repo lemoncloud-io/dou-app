@@ -58,7 +58,7 @@ const ChannelSkeleton = () => {
     return (
         <div role="status" aria-label={t('chat.loadingChannels')} className="flex flex-col gap-2 px-4 py-4">
             {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="flex h-[34px] items-center gap-2 p-2">
+                <div key={i} className="flex h-9 items-center gap-2 p-2">
                     <Skeleton className="h-3 w-3 shrink-0 rounded-sm bg-muted animate-pulse" />
                     <Skeleton className="h-3 bg-muted animate-pulse" style={{ width: `${45 + ((i * 13) % 40)}%` }} />
                 </div>
@@ -146,7 +146,7 @@ const ChannelRow = memo(function ChannelRow({
                 // than opening each one on the way past — see onKeyDown below.
                 data-channel-row={id}
                 className={cn(
-                    'focus-ring flex h-[34px] w-full min-w-0 items-center gap-2 rounded-lg p-2 text-left transition-colors duration-150 ease-tactile',
+                    'focus-ring flex h-9 w-full min-w-0 items-center gap-2 rounded-lg p-2 text-left transition-colors duration-150 ease-tactile',
                     isActive ? 'bg-primary/[0.08]' : 'hover:bg-accent'
                 )}
             >
@@ -564,7 +564,7 @@ export const ChannelList = ({
                                         type="button"
                                         onClick={onCreateChannel}
                                         aria-label={t('rail.addChannel')}
-                                        className="focus-ring tactile flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-sidebar-foreground transition-colors ease-tactile hover:bg-accent"
+                                        className="focus-ring tactile hit-target flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-sidebar-foreground transition-colors ease-tactile hover:bg-accent"
                                     >
                                         <Plus size={16} aria-hidden />
                                     </button>

@@ -26,6 +26,8 @@ import {
     useOpenAtBottomStore,
     useReadCursorStore,
     useReadReceipts,
+    PANE_HEADER,
+    PANE_TITLE,
 } from '../../../shared';
 import type { ChannelMember } from '../../channels';
 import { useChannelSettingsStore } from '../../channels';
@@ -238,7 +240,7 @@ export const ChatPane = ({
 
     return (
         <>
-            <header className="flex h-[68px] shrink-0 items-center justify-between gap-2 border-b border-hairline px-6 py-2">
+            <header className={`${PANE_HEADER} px-6`}>
                 {/* The chat screen had no h1 — its top heading was the sidebar's h2. The
                     open channel is what this screen is about, so it names the page. */}
                 <h1 className="sr-only">{headerName}</h1>
@@ -267,9 +269,7 @@ export const ChatPane = ({
                             {!isDmChannel(channel) && !isSelfChannel(channel) && (
                                 <Hash size={16} aria-hidden className="shrink-0 text-foreground" />
                             )}
-                            <span className="truncate text-[18px] font-semibold tracking-[-0.01em] text-foreground hover:underline">
-                                {headerName}
-                            </span>
+                            <span className={`${PANE_TITLE} hover:underline`}>{headerName}</span>
                         </button>
                     </Hint>
                     {memberCount > 0 && (
@@ -277,7 +277,7 @@ export const ChatPane = ({
                             type="button"
                             onClick={() => openSettings(channelId)}
                             aria-label={t('channels.settings.memberCount', { count: memberCount })}
-                            className="focus-ring flex shrink-0 items-center gap-1 rounded-md bg-muted px-1.5 py-1 text-[13px] tabular-nums tracking-[-0.01em] text-label transition-colors hover:bg-accent"
+                            className="focus-ring hit-target flex shrink-0 items-center gap-1 rounded-md bg-muted px-1.5 py-1 text-caption tabular-nums text-label transition-colors hover:bg-accent"
                         >
                             <User size={16} aria-hidden />
                             {memberCount}

@@ -141,7 +141,7 @@ export const ImageViewer = ({
                                         // Persistent, unlike the secondary controls: with the app
                                         // still visible behind a frosted layer, nothing else on
                                         // screen says how to leave.
-                                        className="focus-ring absolute right-6 top-6 flex h-8 w-8 items-center justify-center rounded-md text-foreground transition-colors hover:bg-foreground/[0.08]"
+                                        className="focus-ring absolute right-6 top-6 flex h-9 w-9 items-center justify-center rounded-md text-foreground transition-colors hover:bg-foreground/[0.08]"
                                     >
                                         <X size={20} aria-hidden />
                                     </button>
@@ -195,7 +195,7 @@ export const ImageViewer = ({
                                         type="button"
                                         onClick={onClose}
                                         aria-label={t('chat.image.close')}
-                                        className="focus-ring flex h-8 w-8 items-center justify-center rounded-md text-foreground hover:bg-accent"
+                                        className="focus-ring flex h-9 w-9 items-center justify-center rounded-md text-foreground hover:bg-accent"
                                     >
                                         <X size={20} aria-hidden />
                                     </button>

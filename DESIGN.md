@@ -169,7 +169,7 @@ Hierarchy comes from weight and tracking, not only size.
 
 Fixed sizes that live in components rather than the scale, measured against Figma:
 
-- Channel header title: 18px semibold, tracking -0.01em, in a 68px header.
+- Pane headers share one contract (`PANE_HEADER` in `shared/components/paneHeader.ts`): 56px tall with a hairline. The conversation title is `text-title` (18px/700); a side panel's title is one step down at `text-heading`, so no panel outranks the conversation.
 - Message author: 16px bold, tracking -0.005em. Time beside it: 13px medium, tabular
   nums, `text-description`.
 - Sidebar action rows: 14px, tracking -0.01em, `text-label`.
@@ -224,9 +224,9 @@ Fixed: page header title 17px semibold; bubble text 16px, line-height 1.28, trac
 | Cloud rail      | `w-rail` = 68px, `bg-rail`, 48px tiles at 14px radius, user menu pinned bottom                                                           | 80px "Icon Rail", 48px tile                                              |
 | Place rail      | 68px, `bg-rail-elevated`, only when the cloud has places                                                                                 | 80px "Workspace Rail", 48px active / 40px inactive tiles with 12px label |
 | Channel sidebar | default 286px, drag 200 to 480, persisted in `chatic.sidebar.width`; `bg-sidebar`, hairline both edges                                   | 286px "Channel List Panel", 16px inset                                   |
-| Sidebar header  | place name, pill search 41px tall on `bg-well`, four 24px action rows (profile, notifications, activity, saved), hairline                | same                                                                     |
-| Channel row     | 34px tall, `#` or 24px avatar leading, star or 18px unread pill trailing, section header 43px with chevron and `+`                       | same                                                                     |
-| Main header     | 68px, hairline bottom, `#` + 18px title + member count chip, three 36px bordered icon squares (star, search, more)                       | same                                                                     |
+| Sidebar header  | place name, pill search 41px tall on `bg-well`, four 36px action rows (profile, notifications, activity, saved), hairline                | same                                                                     |
+| Channel row     | 36px tall, `#` or 24px avatar leading, star or 18px unread pill trailing, section header 43px with chevron and `+`                       | same                                                                     |
+| Main header     | 56px, hairline bottom, `#` + `text-title` + member count chip, three 36px bordered icon squares (star, search, more)                     | same                                                                     |
 | Message row     | 36px avatar, 16px name + 13px time, body `text-body`, hover `bg-accent/70` with a floating toolbar                                       | 35px avatar                                                              |
 | Composer        | boxed on `bg-input`, 50px toolbar row (+ B I S code), hairline, input area with emoji and send on the right, backdrop blur, 24px gutters | 121px box, 24px gutters                                                  |
 | Trailing panels | resizable, defaults: thread 384, settings / saved / mentions / profile 320, debug 440                                                    | —                                                                        |
@@ -315,7 +315,7 @@ icons from a bold "Solar" style set; in code they are the lucide equivalents.
   the rail tile on switch. `tailwindcss-animate` for Radix enter / exit.
 - **Reduced motion**: a global `prefers-reduced-motion: reduce` block collapses every
   animation and transition to 0.01ms. Nothing is gated on a transition finishing.
-- Targets: 36px minimum, 40px for primary controls.
+- Targets: 36px minimum, 40px for primary controls. An isolated control that must look smaller takes `hit-target`, which grows only its hit area.
 
 ## State vocabulary
 

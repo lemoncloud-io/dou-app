@@ -165,6 +165,7 @@ export const SettingsPage = () => {
                             </span>
                         </div>
                         <Switch
+                            className="hit-target"
                             checked={desktopEnabled}
                             onCheckedChange={setDesktopEnabled}
                             aria-label={t('settings.desktopNotifications')}
@@ -189,7 +190,10 @@ export const SettingsPage = () => {
                                 </span>
                             </div>
                             <Switch
-                                checked={pushMute.pushEnabled}
+                                className="hit-target"
+                                // Off wherever it cannot apply: a disabled switch showing "on"
+                                // claimed a push this browser was never going to receive.
+                                checked={pushMute.isSupported && pushMute.pushEnabled}
                                 onCheckedChange={pushMute.setPushEnabled}
                                 disabled={!pushMute.isSupported || pushMute.isPending}
                                 aria-label={t('settings.devicePush')}
@@ -216,6 +220,7 @@ export const SettingsPage = () => {
                                 </span>
                             </div>
                             <Switch
+                                className="hit-target"
                                 checked={quietEnabled}
                                 onCheckedChange={toggleQuiet}
                                 aria-label={t('settings.quietHours')}

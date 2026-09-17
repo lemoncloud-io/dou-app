@@ -505,7 +505,7 @@ export const MessageRow = memo(
                                                     size="sm"
                                                     onClick={saveEdit}
                                                     disabled={!isEditDirty}
-                                                    className="h-7 px-3 text-caption"
+                                                    className="h-9 px-3 text-caption"
                                                 >
                                                     {t('chat.editSave')}
                                                 </Button>
@@ -513,7 +513,7 @@ export const MessageRow = memo(
                                                     size="sm"
                                                     variant="ghost"
                                                     onClick={cancelEdit}
-                                                    className="h-7 px-3 text-caption"
+                                                    className="h-9 px-3 text-caption"
                                                 >
                                                     {t('common.cancel')}
                                                 </Button>
