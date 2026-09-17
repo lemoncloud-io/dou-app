@@ -117,8 +117,8 @@ Measured 2026-09-17 against the dev server: the server does advance `updatedAt` 
 successful edit, and `updatedAt > createdAt` for the same row once re-fetched). `updateChat` writes
 that response verbatim, so the person who just edited sees no marker until that room's rows are
 fetched again. Another client's view should not be affected, because it writes the row the server
-pushes over the socket rather than this response — but that was NOT verified, so treat it as
-reasoning, not measurement. Whether anything should be done here is undecided — do not "fix" it by
+pushes over the socket rather than this response — but that was NOT verified (no second client in a
+shared room was available at the time), so treat it as reasoning, not measurement. Whether anything should be done here is undecided — do not "fix" it by
 writing a client-side timestamp, which would assert an edit time the server never gave.
 
 **Long press.** 450ms, or a right-click, opens the action sheet. `pointerdown`'s default is only
