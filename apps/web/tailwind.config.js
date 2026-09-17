@@ -21,10 +21,11 @@ module.exports = {
         extend: {
             maxWidth: {
                 /**
-                 * The app's own width. `apps/web` renders inside a phone-sized WebView, so every
-                 * screen is laid out for that width; on anything wider (a tablet, a desktop browser
-                 * opening an invite link) the content caps here and centres rather than stretching
-                 * a phone layout across the viewport.
+                 * The upper bound of the phone class. `apps/web` fills the device it runs on —
+                 * a small phone, a foldable's cover screen, a foldable unfolded — and stops here;
+                 * on anything wider (a tablet, a desktop browser opening an invite link) the
+                 * content caps and centres rather than stretching a phone layout across the
+                 * viewport.
                  *
                  * Always paired with `w-full` and `mx-auto`: fill whatever the device gives, stop
                  * here, stay centred.
@@ -34,7 +35,19 @@ module.exports = {
                  * have to re-declare the cap themselves and cannot read a Tailwind token that only
                  * this app's config defines. One variable, both readers.
                  */
-                app: 'var(--app-width, 430px)',
+                app: 'var(--app-width, 860px)',
+
+                /**
+                 * The longest comfortable measure for a paragraph. Not a layout width — the column
+                 * still fills the device — but a bound on the words inside it: past roughly 40
+                 * characters of Korean a line stops being read and starts being scanned, and the
+                 * column is now wide enough (an unfolded foldable) to cross that on its own.
+                 *
+                 * Applies to read-only prose only: onboarding copy, terms, privacy, guidance
+                 * paragraphs. Form fields and actions deliberately do NOT take it — a bounded CTA
+                 * ends up stranded in the middle of the screen.
+                 */
+                reading: '30rem',
             },
             colors: {
                 border: 'hsl(var(--border))',

@@ -47,7 +47,7 @@ Three clients, one engine (`libs/app-runtime`). Presentation is rebuilt per plat
 | App                      | Shape                                                                                 | Theme file                                     | Kit                                                                                                       |
 | ------------------------ | ------------------------------------------------------------------------------------- | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
 | `apps/desktop-web`       | Slack-style desktop, Electron shell in `apps/desktop`                                 | desktop `styles.css`                           | `libs/ui-kit` (shadcn/Radix) + `libs/block-kit`                                                           |
-| `apps/web`               | Phone-shaped mobile web inside a React Native WebView, capped at 430px anywhere wider | web `styles.css`                               | `libs/web-ui-kit` (Figma mobile system) + `libs/ui-kit` primitives underneath overlays + `libs/block-kit` |
+| `apps/web`               | Phone-class mobile web inside a React Native WebView, fills the device, caps at 860px | web `styles.css`                               | `libs/web-ui-kit` (Figma mobile system) + `libs/ui-kit` primitives underneath overlays + `libs/block-kit` |
 | `apps/block-kit-builder` | Three-pane authoring tool for Block Kit messages                                      | desktop token set, sage-tinted, + `syntax.css` | `libs/ui-kit` + `libs/block-kit`                                                                          |
 
 `libs/block-kit` is the one message renderer. It asks for semantic classes (`text-body`,
@@ -226,7 +226,8 @@ cannot drift from the shell. Change it in one place or not at all.
 
 ### Mobile web shell (`UnifiedLayout.tsx`, ADR-0011)
 
-- `w-full max-w-app mx-auto`: fill the phone, cap at `--app-width` 430px anywhere wider.
+- `w-full max-w-app mx-auto`: fill the device, cap at `--app-width` 860px — the upper bound
+  of the phone class, not a phone's width, so a Pixel Fold unfolded (841px) is filled too.
   Overlays are portalled out of the shell, so `libs/ui-kit` and `libs/web-ui-kit` re-read
   the same variable.
 - Main tabs (`/`, `/mypage`) scroll the page and get the floating bottom nav. Detail

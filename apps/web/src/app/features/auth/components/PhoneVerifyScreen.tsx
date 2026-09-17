@@ -42,7 +42,14 @@ export const PhoneVerifyScreen = (props: PhoneVerifyScreenProps) => {
                 CTA landed 10px below a 640px viewport, and 310px below it once the keyboard was up).
                 Pinning the row to `minmax(0,1fr)` clamps it to the dialog, which is also what lets
                 the `min-h-0`/`min-w-0` below take effect. */}
-            <DialogContent className="grid-rows-[minmax(0,1fr)] h-full rounded-none p-0 sm:rounded-none" hideClose>
+            {/* `max-w-app` because this is a full-screen surface built on the notice variant. That
+                variant sizes itself to one card width, which is right for a confirm box and wrong
+                for a screen — without this the whole verification flow renders as a 311px strip.
+                A full-screen dialog follows the column, so it says so here. */}
+            <DialogContent
+                className="grid-rows-[minmax(0,1fr)] h-full max-w-app rounded-none p-0 sm:rounded-none"
+                hideClose
+            >
                 <DialogTitle className="sr-only">{t('phoneVerify.title')}</DialogTitle>
                 <DialogDescription className="sr-only">{t('phoneVerify.title')}</DialogDescription>
 

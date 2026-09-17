@@ -28,7 +28,7 @@ export const LimitExceededDialog = ({ open, onOpenChange, type, maxCount }: Limi
 
     return (
         <AlertDialog open={open} onOpenChange={onOpenChange}>
-            <AlertDialogContent className="max-w-[288px] gap-0 overflow-hidden rounded-[12px] border-0 p-0 shadow-[0px_0px_8px_0px_rgba(0,0,0,0.08)]">
+            <AlertDialogContent className="gap-0 overflow-hidden rounded-[12px] border-0 p-0 shadow-[0px_0px_8px_0px_rgba(0,0,0,0.08)]">
                 <AlertDialogHeader className="gap-2 px-[22px] pt-[22px] pb-0 text-center">
                     <AlertDialogTitle className="text-center text-[18px] font-semibold leading-[1.5]">
                         {title}

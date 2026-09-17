@@ -16,23 +16,27 @@ export const TermsPage = () => {
 
             {/* Content */}
             <div className="flex-1 overflow-y-auto px-5 py-6">
-                {/* Effective date */}
-                <p className="mb-6 text-right text-sm text-muted-foreground">
-                    {t('mypage.policy.effectiveDate')}: {currentVersion?.effectiveDate}
-                </p>
+                {/* The scroll container stays full width so the scrollbar sits at the screen edge;
+                    the prose inside it takes the reading measure and centres. */}
+                <div className="mx-auto max-w-reading">
+                    {/* Effective date */}
+                    <p className="mb-6 text-right text-sm text-muted-foreground">
+                        {t('mypage.policy.effectiveDate')}: {currentVersion?.effectiveDate}
+                    </p>
 
-                {/* Sections */}
-                <div className="space-y-8">
-                    {currentVersion?.sections.map((section, index) => (
-                        <div key={index}>
-                            <h2 className="mb-3 text-lg font-semibold text-foreground">{section.title}</h2>
-                            <div className="space-y-2 text-sm leading-relaxed text-muted-foreground">
-                                {section.content.split('\n').map((para, i) => (
-                                    <p key={i}>{para}</p>
-                                ))}
+                    {/* Sections */}
+                    <div className="space-y-8">
+                        {currentVersion?.sections.map((section, index) => (
+                            <div key={index}>
+                                <h2 className="mb-3 text-lg font-semibold text-foreground">{section.title}</h2>
+                                <div className="space-y-2 text-sm leading-relaxed text-muted-foreground">
+                                    {section.content.split('\n').map((para, i) => (
+                                        <p key={i}>{para}</p>
+                                    ))}
+                                </div>
                             </div>
-                        </div>
-                    ))}
+                        ))}
+                    </div>
                 </div>
             </div>
         </div>

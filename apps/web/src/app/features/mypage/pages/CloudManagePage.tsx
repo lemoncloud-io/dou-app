@@ -180,7 +180,13 @@ export const CloudManagePage = () => {
             {/* 삭제 확인 다이얼로그 */}
             {confirmCloud && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-                    <div className="mx-6 w-full max-w-[300px] rounded-[18px] bg-card p-6">
+                    {/* The one notice-dialog width, spelled out rather than inherited: like
+                        `SubscriptionRequiredDialog`, this is a hand-rolled overlay rather than a
+                        `DialogContent`, so it cannot pick up the variant that declares
+                        `--dialog-width`. The expression is that variant's — its `100% - 48px` term
+                        is also what the old `mx-6` was doing by hand. Changing one without the
+                        other is the bug to watch for. */}
+                    <div className="w-full max-w-[min(311px,calc(100%-48px))] rounded-[18px] bg-card p-6">
                         <h3 className="text-center text-[17px] font-semibold">
                             {t('mypage.cloudManage.deleteConfirmTitle')}
                         </h3>

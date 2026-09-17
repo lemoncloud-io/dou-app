@@ -45,7 +45,7 @@ export const DebugUnlockDialog = ({ isOpen, hasError, onSubmit, onCancel }: Debu
 
     return (
         <AlertDialog open={isOpen} onOpenChange={handleOpenChange}>
-            <AlertDialogContent className="max-w-[288px] gap-4 rounded-[12px] p-6">
+            <AlertDialogContent className="gap-4 rounded-[12px] p-6">
                 <AlertDialogTitle className="text-center text-[16px] font-semibold text-foreground">
                     Enter Debug Code
                 </AlertDialogTitle>

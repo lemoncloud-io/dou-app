@@ -29,13 +29,21 @@ const DialogOverlay = React.forwardRef<
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
 /**
- * Every variant caps at `--app-width` — the host app's own width, set by a phone-shaped app such
+ * Every variant caps at `--app-width` — the host app's own width, set by a phone-class app such
  * as `apps/web` and absent in a desktop host, where the `100%` fallback leaves the variant exactly
  * as it was. A dialog is `fixed` and portalled to `document.body`, so it escapes whatever column
  * the app shell centres its screens in; without a cap of its own, a full-screen dialog opened from
- * a 430px-wide app spans a 1440px browser while the screen behind it does not.
+ * a narrow-column app spans a 1440px browser while the screen behind it does not.
  *
- * `default` clamps with `min()` so the desktop 32rem still wins where no app width is declared.
+ * `default` is the notice-shaped dialog and does NOT follow the column: a card that grew to a
+ * 768px phone-class column would be a banner. It takes one width instead — `--dialog-width`,
+ * declared on the variant so no call site carries a number — which is a design width with a floor
+ * guard, `min(311px, 100% - 48px)`: 311 on anything roomy, and 24px of breathing room either side
+ * once the device is narrower than that. The third `min()` term is what scopes the rule: it reads
+ * `--app-width` with no fallback, so in a host that declares no app width the whole declaration is
+ * invalid, `--dialog-width` never resolves, and `max-width` falls back to the original 32rem. A
+ * desktop host is untouched by construction, not by remembering to check.
+ *
  * The two full-bleed variants pair `inset-0` with `mx-auto`: over-constrained horizontally with
  * auto margins, the panel centres on the same axis as the shell.
  */
@@ -43,7 +51,7 @@ const APP_WIDTH_CAP = 'max-w-[var(--app-width,100%)] mx-auto';
 
 const dialogVariants = {
     default:
-        'p-6 left-[50%] top-[50%] w-full max-w-[min(32rem,var(--app-width,100%))] translate-x-[-50%] translate-y-[-50%] border rounded-lg data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg',
+        'p-6 left-[50%] top-[50%] w-full [--dialog-width:min(311px,calc(100%_-_48px),var(--app-width))] max-w-[var(--dialog-width,min(32rem,100%))] translate-x-[-50%] translate-y-[-50%] border rounded-lg data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg',
     fullscreen: `inset-0 ${APP_WIDTH_CAP} pt-safe-top pb-safe-bottom pl-safe-left pr-safe-right w-full border-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]`,
     /** No placement or entrance of its own — the caller's `className` positions the panel. */
     bare: '',

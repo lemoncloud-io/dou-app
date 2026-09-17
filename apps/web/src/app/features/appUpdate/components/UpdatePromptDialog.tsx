@@ -21,7 +21,7 @@ export const UpdatePromptDialog = ({ open, onDismiss, onUpdate }: UpdatePromptDi
 
     return (
         <AlertDialog open={open} onOpenChange={isOpen => !isOpen && onDismiss()}>
-            <AlertDialogContent className="max-w-[288px] gap-0 overflow-hidden rounded-[12px] border-0 p-0 shadow-[0px_0px_8px_0px_rgba(0,0,0,0.08)]">
+            <AlertDialogContent className="gap-0 overflow-hidden rounded-[12px] border-0 p-0 shadow-[0px_0px_8px_0px_rgba(0,0,0,0.08)]">
                 <div className="flex flex-col items-center gap-[22px] pt-[22px]">
                     <div className="flex flex-col items-center gap-2 px-[22px] text-center">
                         <AlertDialogTitle className="text-[18px] font-semibold leading-[1.5] text-foreground">

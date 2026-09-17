@@ -1,5 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Moon, Settings, Sun } from 'lucide-react';
@@ -18,23 +17,10 @@ export const SettingsControl = ({ className = '' }: SettingsControlProps) => {
     const { theme, setTheme } = useTheme();
     const [isOpen, setIsOpen] = useState(false);
     const [currentLanguage, setCurrentLanguage] = useState(i18n.language || 'en');
-    const [buttonPosition, setButtonPosition] = useState({ top: 0, right: 0 });
-    const buttonRef = useRef<HTMLButtonElement>(null);
 
     useEffect(() => {
         setCurrentLanguage(i18n.language);
     }, [i18n.language]);
-
-    // 버튼 위치 계산
-    useEffect(() => {
-        if (isOpen && buttonRef.current) {
-            const rect = buttonRef.current.getBoundingClientRect();
-            setButtonPosition({
-                top: rect.bottom + 8,
-                right: window.innerWidth - rect.right,
-            });
-        }
-    }, [isOpen]);
 
     const handleThemeToggle = (e: React.MouseEvent) => {
         e.preventDefault();
@@ -61,11 +47,19 @@ export const SettingsControl = ({ className = '' }: SettingsControlProps) => {
         setIsOpen(false);
     };
 
-    // 드롭다운 패널을 포털로 렌더링
+    /**
+     * Positioned against the trigger, not against the viewport. The panel used to be portalled to
+     * `document.body` and placed with `right: window.innerWidth - rect.right`, measured once when
+     * it opened — a number that is stale the moment the viewport changes width, which on a
+     * foldable is a gesture away, and which put the panel somewhere the button no longer was.
+     * `absolute right-0 top-full` expresses the same intent as a relationship rather than a
+     * reading, so there is nothing to keep up to date. The backdrop stays viewport-sized because
+     * that is genuinely what it covers.
+     */
     const DropdownPanel = () => {
         if (!isOpen) return null;
 
-        return createPortal(
+        return (
             <>
                 {/* Backdrop */}
                 <div
@@ -79,10 +73,8 @@ export const SettingsControl = ({ className = '' }: SettingsControlProps) => {
 
                 {/* Settings Panel */}
                 <Card
-                    className="fixed border-0 p-4 space-y-3"
+                    className="absolute right-0 top-full mt-2 border-0 p-4 space-y-3"
                     style={{
-                        top: `${buttonPosition.top}px`,
-                        right: `${buttonPosition.right}px`,
                         width: '192px',
                         zIndex: 1000,
                         backgroundColor: 'hsl(var(--background) / 0.95)',
@@ -122,8 +114,7 @@ export const SettingsControl = ({ className = '' }: SettingsControlProps) => {
                         </Button>
                     </div>
                 </Card>
-            </>,
-            document.body
+            </>
         );
     };
 
@@ -131,7 +122,6 @@ export const SettingsControl = ({ className = '' }: SettingsControlProps) => {
         <div className={`relative ${className}`}>
             {/* Settings Button */}
             <Button
-                ref={buttonRef}
                 variant="ghost"
                 size="sm"
                 onClick={handleSettingsClick}

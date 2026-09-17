@@ -6,7 +6,7 @@ interface OnboardingContentProps {
 
 export const OnboardingContent = ({ step }: OnboardingContentProps) => {
     return (
-        <div className="flex h-full flex-col px-6 pt-4">
+        <div className="mx-auto flex h-full w-full max-w-reading flex-col px-6 pt-4">
             {/* Title */}
             <h1 className="mb-2 text-[24px] font-bold leading-[1.3] tracking-[-0.02em] text-foreground">
                 {step.title}
