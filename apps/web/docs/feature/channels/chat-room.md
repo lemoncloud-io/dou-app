@@ -116,9 +116,16 @@ Measured 2026-09-17 against the dev server: the server does advance `updatedAt` 
 `chat.update` RESPONSE carries the pre-update value (observed `updatedAt === createdAt` right after a
 successful edit, and `updatedAt > createdAt` for the same row once re-fetched). `updateChat` writes
 that response verbatim, so the person who just edited sees no marker until that room's rows are
-fetched again. Another client's view should not be affected, because it writes the row the server
-pushes over the socket rather than this response — but that was NOT verified (no second client in a
-shared room was available at the time), so treat it as reasoning, not measurement. Whether anything should be done here is undecided — do not "fix" it by
+fetched again.
+
+**The other party's screen is worse, and this part IS measured.** Two accounts in a 1:1 room,
+2026-09-17: the edited TEXT reaches the peer over the socket within a second, but the marker never
+appears there — not on arrival, not after leaving and re-entering the room, and not after a cold app
+restart. The author, by contrast, does get it after a full reload. The likely reason is the one this
+lane already knew about: a chat edit does not advance `chatNo`, so watermark-based delta sync has no
+reason to re-pull that row, and the peer keeps the socket-pushed copy — which carries the same stale
+`updatedAt` the update response does. In practice, then, an edited message currently shows no
+"edited" marker to the person it exists for. Whether anything should be done here is undecided — do not "fix" it by
 writing a client-side timestamp, which would assert an edit time the server never gave.
 
 **Long press.** 450ms, or a right-click, opens the action sheet. `pointerdown`'s default is only

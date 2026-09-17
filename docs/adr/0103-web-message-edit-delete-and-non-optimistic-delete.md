@@ -69,11 +69,18 @@ re-fetched shows `updatedAt > createdAt` and the marker lands. The marker is the
 one server round trip, as decision 4 below implies, but by "until that room is fetched again."
 Observed 2026-09-17 against the dev server.
 
+**And the other party's screen is worse.** Measured with two accounts in a 1:1 room on 2026-09-17:
+the edited text reaches the peer over the socket within a second, but the marker never appears
+there — not on arrival, not after re-entering the room, not after a cold app restart. The author at
+least gets it after a full reload. The likely mechanism is one this design already documented: an
+edit does not advance `chatNo`, so watermark-based delta sync never re-pulls the row and the peer
+keeps the socket-pushed copy, which carries the same stale `updatedAt`. So decision 2's guarantee —
+that an edited message is marked — does not hold today for the reader it is meant for.
+
 Left as is for now, and **not decided**: a client-side timestamp would assert an edit time the
 server never gave, and re-fetching after every edit doubles the wait on the one operation this
-design deliberately makes the user sit through. Another client's view should be unaffected — it
-writes the row the server pushes over the socket, not this response — but that was not verified.
-The open question is recorded in the vault lane, not here.
+design deliberately makes the user sit through — and would not help the peer at all, which is the
+side that matters. The open question is recorded in the vault lane, not here.
 
 The weakness this section was written for is a different one, and also real: this detects _the row
 was written again_, not _a person changed the text_. Any future server-side write to a chat row — a moderation flag, a pin, a counter
