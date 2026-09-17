@@ -156,7 +156,9 @@ to exactly two values, `chatic-desktop-{dev,prod}` — **`-stage` does not exist
   such mechanism.**
 - **An xcodebuild command-line build setting wins over everything.** Passing
   `run-ios --extraParams "ENVFILE=..."` overrides the project's build setting. The nx executor schema
-  already has `extraParams`.
+  already has `extraParams`. (The flag was later renamed `--extra-params` by the React Native CLI;
+  the decision is unchanged, only its spelling — see `apps/mobile/docs/release/local-run.md` for the
+  form that currently works.)
 - **Web deploys before the app.** App deployment is hard to reverse.
 
 ## Decision
@@ -240,10 +242,10 @@ add a second instance of the "build config and runtime both map it" problem flag
 
 Only local-run overrides this mapping.
 
-| Platform | How it's overridden                    | Basis                                                     |
-| -------- | -------------------------------------- | --------------------------------------------------------- |
-| iOS      | `run-ios --extraParams "ENVFILE=.env"` | A command-line build setting wins over everything         |
-| Android  | `ENVFILE=.env` environment variable    | Takes priority over `envConfigFiles` (`dotenv.gradle:27`) |
+| Platform | How it's overridden                     | Basis                                                     |
+| -------- | --------------------------------------- | --------------------------------------------------------- |
+| iOS      | `run-ios --extra-params "ENVFILE=.env"` | A command-line build setting wins over everything         |
+| Android  | `ENVFILE=.env` environment variable     | Takes priority over `envConfigFiles` (`dotenv.gradle:27`) |
 
 Existing scripts like `mobile:ios:dev` do not get `ENVFILE` added. The build config already decides it —
 adding it there too would put the same fact in two places.

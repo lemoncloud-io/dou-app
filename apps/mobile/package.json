@@ -2,6 +2,16 @@
     "name": "@chatic/mobile",
     "version": "0.0.1",
     "private": true,
+    "nx": {
+        "targets": {
+            "run-ios": {
+                "continuous": false
+            },
+            "run-android": {
+                "continuous": false
+            }
+        }
+    },
     "scripts": {
         "test": "jest --config ./jest.config.js",
         "upload:server": "node ../../scripts/upload-test-server.js"
