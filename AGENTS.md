@@ -4,22 +4,43 @@ Nx monorepo: `apps/` (8), `libs/` (16).
 
 ## Language
 
-Everything written into the repo or its GitHub surface is in English: code comments, module
-`README.md`/`docs/<topic>/`, `docs/adr/`, commit messages, and PR titles/bodies. This is a
-deliberate, repo-wide policy — earlier PRs used a mixed Korean/English title convention; new ones
-don't. Chat responses to the user are unaffected by this rule.
+Everything written into the repo or its GitHub surface is in English. Not a list to check
+against — code comments, module `README.md`/`docs/<topic>/`, `docs/adr/`, commit messages, PR
+titles and bodies, test names, and whatever comes next. This is a deliberate, repo-wide policy:
+earlier PRs used a mixed Korean/English title convention; new ones don't. Chat responses to the
+user are unaffected by this rule.
+
+**The one exception is translation resources** — `**/locales/**` and `**/i18n/**`. The Korean in
+those files is not writing about the product, it is the product's own words to its users, and
+translating it breaks the feature rather than following the rule. The exception is a path, so it
+needs no judgement call.
+
+Test names are not an exception. A name goes into CI logs and failure reports, which is exactly
+the surface this rule keeps in one language, and unlike a translation resource nothing breaks when
+it is in English. Names written before this was settled are left alone; new ones are English.
 
 ## Before you start
 
 - Build, run, test, lint, deploy commands: [`README.md`](./README.md).
+- The work here runs in an order: agree what is being built, implement it, review it, then commit
+  and open the PR. § Working order says what that means in this repo.
+- Four procedures live in `docs/config/skills/`. **Open the one that applies and follow it** — they
+  are not background reading, and they are not summarised here:
+
+    | Procedure                                                      | Open it when                                           |
+    | -------------------------------------------------------------- | ------------------------------------------------------ |
+    | [`dou-implement`](./docs/config/skills/dou-implement/SKILL.md) | writing code with its comments, tests and verification |
+    | [`dou-review`](./docs/config/skills/dou-review/SKILL.md)       | a change is finished and not yet committed             |
+    | [`dou-commit`](./docs/config/skills/dou-commit/SKILL.md)       | writing a commit message                               |
+    | [`dou-pr`](./docs/config/skills/dou-pr/SKILL.md)               | opening a pull request                                 |
 
 ## Module docs
 
 - Before editing a module, read its own `README.md` (and `docs/<topic>/` if it has one). Prefer it
   over inferring behavior from source.
-- Root `docs/` holds decisions (`docs/adr/`) and cross-repo infrastructure notes
-  (`docs/infra/`). A module's own documentation never lives there — it belongs beside the module,
-  in its `README.md` or its `docs/<category>/`.
+- Root `docs/` holds decisions (`docs/adr/`), cross-repo infrastructure notes (`docs/infra/`)
+  and the procedures agents follow (`docs/config/skills/`). A module's own documentation never
+  lives there — it belongs beside the module, in its `README.md` or its `docs/<category>/`.
 - If a module's behavior only makes sense with a decision's reasoning, write that reasoning into the
   module doc itself, in your own words. Don't rely on a reader following an ADR link.
 - A module's `docs/` has one shape, and four rules hold it:
@@ -43,8 +64,8 @@ don't. Chat responses to the user are unaffected by this rule.
     diff <(ls apps/web/src/app/features) <(ls apps/web/docs/feature)   # must print nothing
     ```
 
-  Code with no feature folder is documented by category instead — push-tap routing lives in
-  `docs/bridge/`, not in a `feature/notifications/` that no `features/notifications/` backs.
+    Code with no feature folder is documented by category instead — push-tap routing lives in
+    `docs/bridge/`, not in a `feature/notifications/` that no `features/notifications/` backs.
 
 ## ADRs (`docs/adr/`)
 
@@ -69,7 +90,14 @@ don't. Chat responses to the user are unaffected by this rule.
 ## Reviewing a change
 
 - Before calling a change done, run the same gate `verify.yml` runs for the projects you touched —
-  lint, typecheck (`tsc -b`, per above), test. Don't rely on CI to catch it first.
+  lint, typecheck (`tsc -b`, per above), test. Resolve that set rather than guessing it:
+  `npx nx show projects --affected --base=origin/develop`. Running it for those projects is the
+  point; a full `run-many` across all of them is not worth its wall-clock here. Don't rely on CI
+  to catch it first.
+- **Check that set against `verify.yml`'s exclusions, and say what you find.** A project on that
+  list is not checked by CI at all, so a green pipeline says nothing about it — run its gate by
+  hand and put "CI does not check this project" in the PR, pass or fail. The list shrinks as
+  projects are fixed off it, so read the workflow instead of carrying a remembered copy.
 - If the change encodes a decision rather than an obvious fix, check whether it needs a new or
   updated ADR under the existing ADR rules.
 - If the change leaves a module's own `README.md` or `docs/<topic>/` out of date — new behavior,
@@ -80,6 +108,42 @@ don't. Chat responses to the user are unaffected by this rule.
   own words — the same rule "Module docs" already states, applied to code comments too.
 - Fill `.github/pull_request_template.md` as the repo expects: PR type checkboxes, `Changes`, and
   `To Reviewers` — the last is where a reviewer's attention should be pointed, not a separate doc.
+
+## Public surface
+
+This repository is public. Nothing written into it may point at an internal document store or a
+private repository — no file paths into one, no issue or PR numbers from one. Two reasons: the
+path itself discloses internal structure, and a reader who cannot open the destination is handed
+a wall rather than a pointer.
+
+So the repo has to stand on its own. Where a change only makes sense with reasoning that lives
+elsewhere, write that reasoning here, in your own words — `docs/adr/` for a decision, the module
+doc for behaviour. Whatever genuinely cannot be published (a customer, a commercial term, an
+internal path, a negotiation with another team) does not belong in the repo at all, and leaving it
+out is what keeps the two from duplicating each other.
+
+## Branch names
+
+A branch name carries the domain noun of the work: `docs/app-docs-tree`,
+`feat/desktop-panel-resize`, `fix/revoked-session-recovery`. Base is `develop`, not `main`.
+
+A generated suffix on its own does not qualify — `claude/libs-modules-prep-c5e594` cannot be read
+back later as what it did, and the branch name is what ties a merged PR to the work it came from
+once the branch itself is gone.
+
+## Working order
+
+Agree, implement, review, then ship. The steps are small but the order is not decoration.
+
+- **Before implementing**, the scope, the non-goals and how the change will be verified are
+  settled. Not written down here necessarily — but if you cannot state them, that is the work to
+  do first, not a step to skip.
+- **Review before committing**, not after ([`dou-review`](./docs/config/skills/dou-review/SKILL.md)).
+  A fix for a finding then lands in the same commit as the change it corrects instead of trailing
+  behind it as "address review".
+- **What was agreed shows up in the PR body** — `Changes` carries the why and the scope, and
+  `To Reviewers` carries what was deliberately left alone. Where the change encodes a decision,
+  `docs/adr/` carries it, in the same PR as the implementation.
 
 ## Result documents (plans, specs, review notes)
 
