@@ -1,5 +1,29 @@
 # Changelog
 
+## [2026-09-17] - root@0.63.0, @chatic/web@0.50.0, @chatic/landing@0.4.4, @chatic/desktop-web@0.12.4
+
+### Features
+
+- (web) let people edit and delete their own messages
+- (data) own the message edit/delete predicates in the domain layer
+
+### Bug Fixes
+
+- (web) keep the delete confirmation reachable for a message with no spaces
+- (mobile) make the local iOS/Android run actually work
+- (data) stop deleting chats optimistically, and delete the broken rollback
+
+### Documentation
+
+- the edited marker never reaches the reader it exists for
+- (web) correct why the other-client path went unverified
+- correct the edited-marker behavior with what a live run measured
+- (adr) record the message edit/delete decisions, and sync the module docs
+
+### Other
+
+- ci: (web) put apps/web in the test gate, with its 7 failures fixed
+
 ## [2026-09-17] - No version updates
 
 ### Features
