@@ -1,6 +1,10 @@
 import { create } from 'zustand';
 
-export const ONBOARDED_KEY = 'chatic.desktop.onboarded';
+/**
+ * Seen-flag key, one per account. A single device-wide flag survived logout, so
+ * the next person to sign in on the same machine never saw the tips.
+ */
+export const onboardedKey = (userId: string) => `chatic.desktop.onboarded:${userId}`;
 
 interface OnboardingState {
     /** Bumped to reopen the tips on demand, after they were finished once. */

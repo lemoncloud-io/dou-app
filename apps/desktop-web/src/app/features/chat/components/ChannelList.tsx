@@ -53,16 +53,19 @@ interface ChannelListProps {
     onCreateChannel?: () => void;
 }
 
-const ChannelSkeleton = () => (
-    <div role="status" aria-label="Loading channels" className="flex flex-col gap-2 px-4 py-4">
-        {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="flex h-[34px] items-center gap-2 p-2">
-                <Skeleton className="h-3 w-3 shrink-0 rounded-sm bg-muted animate-pulse" />
-                <Skeleton className="h-3 bg-muted animate-pulse" style={{ width: `${45 + ((i * 13) % 40)}%` }} />
-            </div>
-        ))}
-    </div>
-);
+const ChannelSkeleton = () => {
+    const { t } = useTranslation();
+    return (
+        <div role="status" aria-label={t('chat.loadingChannels')} className="flex flex-col gap-2 px-4 py-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="flex h-[34px] items-center gap-2 p-2">
+                    <Skeleton className="h-3 w-3 shrink-0 rounded-sm bg-muted animate-pulse" />
+                    <Skeleton className="h-3 bg-muted animate-pulse" style={{ width: `${45 + ((i * 13) % 40)}%` }} />
+                </div>
+            ))}
+        </div>
+    );
+};
 
 interface ChannelRowProps {
     channel: DomainChannel;
@@ -316,11 +319,33 @@ export const ChannelList = ({
         return label.toLowerCase().includes(q) || (channel.name ?? channel.id ?? '').toLowerCase().includes(q);
     };
 
-    if (isLoading) return <ChannelSkeleton />;
+    // Mounted on every branch, the empty and loading ones included: ⌘K is the way
+    // out of a place with no channels, and it used to be dead exactly there.
+    const dialogs = (
+        <>
+            <QuickSwitcher
+                channels={channels}
+                onSelect={onSelect}
+                elsewhere={elsewhereChannels}
+                onSelectElsewhere={onSelectElsewhere}
+            />
+            <SearchDialog channels={channels} onSelect={onSelect} onJumpToMessage={onJumpToMessage} />
+        </>
+    );
+
+    if (isLoading) {
+        return (
+            <>
+                <ChannelSkeleton />
+                {dialogs}
+            </>
+        );
+    }
 
     if (channels.length === 0) {
         return (
             <div className="flex flex-col items-center gap-2 px-4 py-10 text-center">
+                {dialogs}
                 <span className="flex h-10 w-10 items-center justify-center rounded-lg border border-hairline bg-well text-lg text-muted-foreground shadow-well">
                     #
                 </span>
@@ -506,13 +531,7 @@ export const ChannelList = ({
         // The switcher lives here (not HomePage) because this is where the
         // channel list + select handler already are; it renders only when opened.
         <nav aria-label={t('sidebar.channels')} onKeyDown={onKeyDown} className="flex flex-col gap-4 px-4 pb-6 pt-3">
-            <QuickSwitcher
-                channels={channels}
-                onSelect={onSelect}
-                elsewhere={elsewhereChannels}
-                onSelectElsewhere={onSelectElsewhere}
-            />
-            <SearchDialog channels={channels} onSelect={onSelect} onJumpToMessage={onJumpToMessage} />
+            {dialogs}
             <Divider />
             {favoriteRows.length > 0 && (
                 <>

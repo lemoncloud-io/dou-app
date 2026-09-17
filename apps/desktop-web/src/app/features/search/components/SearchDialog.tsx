@@ -7,16 +7,11 @@ import type { DomainChannel } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 
-import { messagePlainText, useListboxNav } from '../../../shared';
+import { formatShortDate, messagePlainText, useListboxNav } from '../../../shared';
 import { SEARCH_MAX_CHANNELS, useMessageSearch } from '../hooks';
 import { useSearchDialogStore } from '../stores';
 
-const formatTime = (ms?: number): string => {
-    if (!ms) return '';
-    const date = new Date(ms);
-    if (Number.isNaN(date.getTime())) return '';
-    return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
-};
+const formatTime = formatShortDate;
 
 /** Bold the first occurrence of the query inside the message snippet. */
 const highlight = (content: string, query: string): ReactNode => {

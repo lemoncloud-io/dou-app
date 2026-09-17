@@ -40,7 +40,15 @@ import {
     type ReactionTally,
     type ReadCount,
 } from '../utils';
-import { Hint, Skeleton, UserProfilePopover, avatarStyle, useSavedItemsStore } from '../../../shared';
+import {
+    Hint,
+    Skeleton,
+    UserProfilePopover,
+    avatarStyle,
+    formatClockTime,
+    formatShortDate,
+    useSavedItemsStore,
+} from '../../../shared';
 import { useMessageActions, useReactions } from '../hooks';
 import { QUICK_REACTIONS, useRecentEmojiStore } from '../stores';
 import { EmojiPicker } from './EmojiPicker';
@@ -173,12 +181,7 @@ const sameEntry = (a: unknown, b: unknown): boolean => a === b || JSON.stringify
  */
 const CAN_HOVER = typeof window !== 'undefined' && window.matchMedia?.('(hover: hover)').matches === true;
 
-const formatTime = (ms: number): string => {
-    if (!ms) return '';
-    const date = new Date(ms);
-    if (Number.isNaN(date.getTime())) return '';
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-};
+const formatTime = formatClockTime;
 
 const isSameCalendarDay = (a: Date, b: Date): boolean =>
     a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
@@ -196,14 +199,7 @@ const formatDayTime = (ms: number, t: (key: string, opts?: Record<string, unknow
     let day: string;
     if (isSameCalendarDay(date, now)) day = t('chat.today');
     else if (isSameCalendarDay(date, yesterday)) day = t('chat.yesterday');
-    else {
-        day = date.toLocaleDateString(
-            [],
-            date.getFullYear() === now.getFullYear()
-                ? { month: 'short', day: 'numeric' }
-                : { year: 'numeric', month: 'short', day: 'numeric' }
-        );
-    }
+    else day = formatShortDate(ms);
     return t('chat.thread.headerTime', { day, time });
 };
 

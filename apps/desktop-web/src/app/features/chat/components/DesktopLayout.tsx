@@ -1,6 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { X } from 'lucide-react';
+
 import {
     MIN_CHAT_WIDTH,
     PanelResizeHandle,
@@ -61,6 +63,35 @@ export const useShellSidebar = () => useContext(ShellSidebarContext);
  * at 200% browser zoom, which reports as one) pushed the header actions and half
  * the message column off-screen behind a horizontal scrollbar.
  */
+/**
+ * First tab stops on the page, visible only while focused. One conversation is
+ * dozens of tab stops (every message is one), so without these the composer sat
+ * behind all of them.
+ */
+const SkipLinks = ({ onSidebar }: { onSidebar: () => void }) => {
+    const { t } = useTranslation();
+    const focusIn = (selector: string) => document.querySelector<HTMLElement>(selector)?.focus();
+    const links: { key: string; run: () => void }[] = [
+        { key: 'shell.skip.composer', run: () => focusIn('main [data-composer-input]') },
+        { key: 'shell.skip.messages', run: () => focusIn('main') },
+        { key: 'shell.skip.sidebar', run: onSidebar },
+    ];
+    return (
+        <div className="pointer-events-none absolute left-2 top-2 z-50 flex flex-col gap-1">
+            {links.map(link => (
+                <button
+                    key={link.key}
+                    type="button"
+                    onClick={link.run}
+                    className="focus-ring pointer-events-auto sr-only rounded-md bg-elevated px-3 py-2 text-callout font-medium text-foreground shadow-raised focus:not-sr-only"
+                >
+                    {t(link.key)}
+                </button>
+            ))}
+        </div>
+    );
+};
+
 export const DesktopLayout = ({ rail, rail2, sidebar, main, panel, overlay }: DesktopLayoutProps) => {
     const { t } = useTranslation();
     const isDrawer = useViewportNarrow();
@@ -100,6 +131,9 @@ export const DesktopLayout = ({ rail, rail2, sidebar, main, panel, overlay }: De
     useEscapeClose(isDrawer && isOpen ? close : undefined);
 
     const drawerOpen = isDrawer && isOpen;
+    // The drawer opens beside the rails, not over them: switching cloud or place
+    // is exactly what someone reaching for the channel list may want next.
+    const drawerLeft = rail2 ? 'left-[calc(theme(width.rail)*2)]' : 'left-[theme(width.rail)]';
 
     useEffect(() => {
         if (drawerOpen) sidebarWidth.panelRef.current?.focus();
@@ -108,22 +142,32 @@ export const DesktopLayout = ({ rail, rail2, sidebar, main, panel, overlay }: De
     return (
         <ShellSidebarContext.Provider value={{ isDrawer, isOpen, open, close }}>
             <div className="relative flex h-full bg-background">
+                <SkipLinks
+                    onSidebar={() => {
+                        if (isDrawer) open();
+                        else sidebarWidth.panelRef.current?.querySelector<HTMLElement>('nav button')?.focus();
+                    }}
+                />
                 <nav
-                    aria-label="Cloud workspaces"
+                    aria-label={t('shell.clouds')}
                     className="flex w-rail shrink-0 flex-col items-center bg-rail px-1 pb-5 pt-[18px] text-rail-foreground"
                 >
                     {rail}
                 </nav>
                 {rail2 && (
                     <nav
-                        aria-label="Places"
+                        aria-label={t('shell.places')}
                         className="flex w-rail shrink-0 flex-col items-center bg-rail-elevated px-1 pb-5 pt-6 text-rail-foreground"
                     >
                         {rail2}
                     </nav>
                 )}
                 {drawerOpen && (
-                    <div aria-hidden onClick={close} className="absolute inset-0 z-20 bg-overlay/40 animate-fade-in" />
+                    <div
+                        aria-hidden
+                        onClick={close}
+                        className={`absolute inset-y-0 right-0 z-20 bg-overlay/40 animate-fade-in ${drawerLeft}`}
+                    />
                 )}
                 {/* Unmounted while the drawer is shut, rather than hidden: the column's
                     own `flex` utility outranks the `hidden` attribute, so a hidden
@@ -137,12 +181,26 @@ export const DesktopLayout = ({ rail, rail2, sidebar, main, panel, overlay }: De
                         // docked column, where there is a neighbour to trade width with.
                         style={isDrawer ? undefined : { width: sidebarWidth.width }}
                         tabIndex={drawerOpen ? -1 : undefined}
+                        role={drawerOpen ? 'dialog' : undefined}
+                        aria-label={drawerOpen ? t('sidebar.channels') : undefined}
                         className={
                             isDrawer
-                                ? 'absolute inset-y-0 left-0 z-30 flex w-[286px] max-w-[85%] flex-col overflow-hidden border-r border-hairline bg-sidebar text-sidebar-foreground shadow-raised animate-fade-in'
+                                ? `absolute inset-y-0 ${drawerLeft} z-30 flex w-[286px] max-w-[85%] flex-col overflow-hidden border-r border-hairline bg-sidebar text-sidebar-foreground shadow-raised animate-fade-in`
                                 : 'relative z-10 flex shrink-0 flex-col overflow-hidden border-x border-hairline bg-sidebar text-sidebar-foreground'
                         }
                     >
+                        {drawerOpen && (
+                            <div className="flex shrink-0 justify-end px-2 pt-2">
+                                <button
+                                    type="button"
+                                    aria-label={t('sidebar.hide')}
+                                    onClick={close}
+                                    className="focus-ring tactile hit-target flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                                >
+                                    <X size={18} aria-hidden />
+                                </button>
+                            </div>
+                        )}
                         {sidebar}
                         {!isDrawer && <PanelResizeHandle label={t('sidebar.resize')} panel={sidebarWidth} />}
                     </aside>
@@ -152,10 +210,13 @@ export const DesktopLayout = ({ rail, rail2, sidebar, main, panel, overlay }: De
                 min-width here keeps the message column from being squeezed out
                 between them at a narrow desktop window. The floor is dropped once
                 the sidebar is a drawer, because then it is the only thing left
-                that could force the page to scroll sideways. */}
+                that could force the page to scroll sideways. It is inert under an
+                open drawer, so Tab stays between the rails and the list. */}
                 <main
+                    inert={drawerOpen || undefined}
+                    tabIndex={-1}
                     style={isDrawer ? undefined : { minWidth: MIN_CHAT_WIDTH }}
-                    className="flex min-w-0 flex-1 flex-col overflow-hidden"
+                    className="flex min-w-0 flex-1 flex-col overflow-hidden outline-none"
                 >
                     {main}
                 </main>

@@ -492,6 +492,23 @@ export const HomePage = () => {
 
     // jumpToSaved closes over render state; the ref keeps the handler identity fixed
     // while always calling the current one.
+    // The new channel is not in the list yet; the pending-channel effect selects
+    // it the moment the list carries it.
+    // it the moment the list carries it. When the cache already delivered it,
+    // there is no list change left to wait for, so select now.
+    const channelsRef = useRef(channels);
+    channelsRef.current = channels;
+    const openCreatedChannel = useCallback(
+        (channelId: string) => {
+            if (channelsRef.current.some(channel => channel.id === channelId)) {
+                selectChannel(channelId);
+                return;
+            }
+            pendingChannelRef.current = channelId;
+            armPendingExpiry();
+        },
+        [selectChannel]
+    );
     const openJoinDialog = useJoinDialogStore(s => s.open);
     const chatEmptyState = useMemo(
         () =>
@@ -673,7 +690,7 @@ export const HomePage = () => {
                     ) : undefined
                 }
             />
-            <CreateChannelDialog />
+            <CreateChannelDialog onCreated={openCreatedChannel} />
             <JoinWithInviteDialog />
             <EditPlaceProfileDialog />
             {/* Ready means the Self Channel itself has arrived — not merely that some

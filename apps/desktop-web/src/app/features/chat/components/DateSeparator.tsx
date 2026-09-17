@@ -1,5 +1,7 @@
 import { useTranslation } from 'react-i18next';
 
+import { formatLongDate } from '../../../shared';
+
 interface DateSeparatorProps {
     timestamp: number;
 }
@@ -22,7 +24,7 @@ export const DateSeparator = ({ timestamp }: DateSeparatorProps) => {
 
         if (isSameDay(date, now)) return t('chat.today');
         if (isSameDay(date, yesterday)) return t('chat.yesterday');
-        return date.toLocaleDateString([], { year: 'numeric', month: 'long', day: 'numeric' });
+        return formatLongDate(timestamp);
     };
 
     // The pill sticks to the top of the feed while its day scrolls by (MessageList wraps

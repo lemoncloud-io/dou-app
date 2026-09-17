@@ -76,15 +76,19 @@ export const usePanelWidth = ({
     // Moving the pointer toward the chat pane grows the panel: leftward for a
     // left-edge handle, rightward for a right-edge one.
     const grow = edge === 'left' ? 1 : -1;
-    const [width, setWidth] = useState(() => {
+    // The width the user chose, as opposed to the width the window allows now.
+    const [preferred] = useState(() => {
         const stored = Number(localStorage.getItem(storageKey));
-        return Number.isFinite(stored) && stored > 0 ? clampWidth(stored) : defaultWidth;
+        return Number.isFinite(stored) && stored > 0 ? stored : defaultWidth;
     });
+    const preferredRef = useRef(preferred);
+    const [width, setWidth] = useState(() => clampWidth(preferred));
     const widthRef = useRef(width);
     const panelRef = useRef<HTMLElement | null>(null);
     const endDragRef = useRef<(() => void) | null>(null);
 
     const persist = useCallback(() => {
+        preferredRef.current = widthRef.current;
         localStorage.setItem(storageKey, String(widthRef.current));
     }, [storageKey]);
 
@@ -129,12 +133,13 @@ export const usePanelWidth = ({
         };
     }, [storageKey, width]);
 
-    // The ceiling depends on the window, so a shrinking window re-clamps now
-    // rather than on the next drag. The stored preference is left alone: widening
-    // the window again restores it on the next mount.
+    // The ceiling depends on the window, so a resize re-clamps now rather than on
+    // the next drag. It clamps the preference, not the current width: clamping the
+    // current width only ever narrowed the panel, so one small window left it at
+    // its minimum until the app was reloaded.
     useEffect(() => {
         const onResize = () => {
-            const next = clampWidth(widthRef.current);
+            const next = clampWidth(preferredRef.current);
             if (next === widthRef.current) return;
             widthRef.current = next;
             setWidth(next);

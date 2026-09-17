@@ -11,30 +11,38 @@ import {
     DialogTitle,
     DialogFooter,
 } from '@chatic/ui-kit/components/ui/dialog';
-import { Input } from '@chatic/ui-kit/components/ui/input';
-import { Label } from '@chatic/ui-kit/components/ui/label';
 
-import { useDesktopChannelMutations, useSelectedChannelStore } from '../../../shared';
+import { useDesktopChannelMutations } from '../../../shared';
 import { useCreateChannelDialogStore } from '../stores';
-import { CHANNEL_NAME_MAX, isValidChannelName } from '../utils';
+import { isValidChannelName } from '../utils';
+import { ChannelNameField } from './ChannelNameField';
 
 type Visibility = 'public' | 'private';
 
-export const CreateChannelDialog = () => {
+interface CreateChannelDialogProps {
+    /**
+     * Open the new channel. Selecting it here raced the channel list: the id was
+     * not in it yet, so the host's auto-select put the previous channel back.
+     */
+    onCreated: (channelId: string) => void;
+}
+
+export const CreateChannelDialog = ({ onCreated }: CreateChannelDialogProps) => {
     const { t } = useTranslation();
     const isOpen = useCreateChannelDialogStore(s => s.isOpen);
     const close = useCreateChannelDialogStore(s => s.close);
-    const selectChannel = useSelectedChannelStore(s => s.selectChannel);
     const { createChannel, isMutating } = useDesktopChannelMutations();
 
     const [name, setName] = useState('');
     const [visibility, setVisibility] = useState<Visibility>('public');
     const [isError, setIsError] = useState(false);
+    const [showInvalid, setShowInvalid] = useState(false);
 
     const reset = () => {
         setName('');
         setVisibility('public');
         setIsError(false);
+        setShowInvalid(false);
     };
 
     const handleOpenChange = (next: boolean) => {
@@ -46,11 +54,15 @@ export const CreateChannelDialog = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         const trimmed = name.trim();
-        if (!isValidChannelName(trimmed) || isMutating) return;
+        if (isMutating) return;
+        if (!isValidChannelName(trimmed)) {
+            setShowInvalid(true);
+            return;
+        }
         setIsError(false);
         try {
             const channel = await createChannel({ stereo: visibility, name: trimmed });
-            if (channel.id) selectChannel(channel.id);
+            if (channel.id) onCreated(channel.id);
             reset();
             close();
             toast({ description: t('toast.channelCreated') });
@@ -65,26 +77,18 @@ export const CreateChannelDialog = () => {
                 <DialogTitle>{t('channels.create.title')}</DialogTitle>
                 <DialogDescription className="sr-only">{t('channels.create.title')}</DialogDescription>
                 <form onSubmit={handleSubmit} className="flex flex-col gap-4 pt-2">
-                    <div className="flex flex-col gap-1.5">
-                        <Label htmlFor="channel-name">{t('channels.create.nameLabel')}</Label>
-                        <Input
-                            id="channel-name"
-                            autoFocus
-                            value={name}
-                            maxLength={CHANNEL_NAME_MAX}
-                            onChange={e => setName(e.target.value)}
-                            placeholder={t('channels.create.namePlaceholder')}
-                            disabled={isMutating}
-                        />
-                        <div className="flex items-baseline justify-between gap-2">
-                            <p className="text-xs text-muted-foreground">{t('channels.rename.lengthHint')}</p>
-                            {/* The input truncates silently at the maximum; a counter is
-                                what tells someone their last keystrokes went nowhere. */}
-                            <p className="shrink-0 text-xs tabular-nums text-muted-foreground">
-                                {t('channels.nameCount', { count: name.trim().length, max: CHANNEL_NAME_MAX })}
-                            </p>
-                        </div>
-                    </div>
+                    <ChannelNameField
+                        id="channel-name"
+                        label={t('channels.create.nameLabel')}
+                        placeholder={t('channels.create.namePlaceholder')}
+                        value={name}
+                        onChange={value => {
+                            setName(value);
+                            setShowInvalid(false);
+                        }}
+                        disabled={isMutating}
+                        showInvalid={showInvalid}
+                    />
 
                     <div className="flex flex-col gap-1.5">
                         <span id="create-channel-visibility">{t('channels.create.visibility')}</span>
@@ -129,7 +133,7 @@ export const CreateChannelDialog = () => {
                         >
                             {t('channels.create.cancel')}
                         </Button>
-                        <Button type="submit" disabled={isMutating || !isValidChannelName(name)}>
+                        <Button type="submit" disabled={isMutating || name.trim().length === 0}>
                             {isMutating ? t('channels.create.creating') : t('channels.create.submit')}
                         </Button>
                     </DialogFooter>

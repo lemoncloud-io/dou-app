@@ -30,6 +30,16 @@ describe('shouldCaptureTyping', () => {
         expect(shouldCaptureTyping(press('h', {}, input))).toBe(false);
     });
 
+    // A letter typed on a focused channel row used to pull focus into the composer.
+    it('leaves keys aimed at a focused control alone', () => {
+        const button = document.createElement('button');
+        const option = document.createElement('div');
+        option.setAttribute('role', 'option');
+        document.body.append(button, option);
+        expect(shouldCaptureTyping(press(' ', {}, button))).toBe(false);
+        expect(shouldCaptureTyping(press('h', {}, option))).toBe(false);
+    });
+
     it('stays out of the way while a dialog is open', () => {
         const dialog = document.createElement('div');
         dialog.setAttribute('role', 'dialog');

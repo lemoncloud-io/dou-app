@@ -9,11 +9,10 @@ import {
     DialogTitle,
     DialogFooter,
 } from '@chatic/ui-kit/components/ui/dialog';
-import { Input } from '@chatic/ui-kit/components/ui/input';
-import { Label } from '@chatic/ui-kit/components/ui/label';
 
 import { useDesktopChannelMutations } from '../../../shared';
 import { CHANNEL_NAME_MAX, CHANNEL_NAME_MIN, channelActionErrorKey } from '../utils';
+import { ChannelNameField } from './ChannelNameField';
 
 interface RenameChannelDialogProps {
     open: boolean;
@@ -34,12 +33,14 @@ export const RenameChannelDialog = ({ open, onOpenChange, channelId, currentName
     const { updateChannel, isMutating } = useDesktopChannelMutations();
     const [name, setName] = useState(currentName);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
+    const [showInvalid, setShowInvalid] = useState(false);
 
     // Re-seed the input each time the dialog opens for a (possibly different) channel.
     useEffect(() => {
         if (open) {
             setName(currentName);
             setErrorMsg(null);
+            setShowInvalid(false);
         }
     }, [open, currentName]);
 
@@ -48,7 +49,11 @@ export const RenameChannelDialog = ({ open, onOpenChange, channelId, currentName
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!isValid || isMutating) return;
+        if (isMutating) return;
+        if (!isValid) {
+            setShowInvalid(true);
+            return;
+        }
         setErrorMsg(null);
         try {
             await updateChannel({ channelId, name: trimmed });
@@ -66,26 +71,18 @@ export const RenameChannelDialog = ({ open, onOpenChange, channelId, currentName
                 <DialogTitle>{t('channels.rename.title')}</DialogTitle>
                 <DialogDescription className="sr-only">{t('channels.rename.title')}</DialogDescription>
                 <form onSubmit={handleSubmit} className="flex flex-col gap-4 pt-2">
-                    <div className="flex flex-col gap-1.5">
-                        <Label htmlFor="rename-channel">{t('channels.rename.nameLabel')}</Label>
-                        <Input
-                            id="rename-channel"
-                            autoFocus
-                            value={name}
-                            maxLength={MAX}
-                            onChange={e => setName(e.target.value)}
-                            placeholder={t('channels.rename.namePlaceholder')}
-                            disabled={isMutating}
-                        />
-                        <div className="flex items-baseline justify-between gap-2">
-                            <p className="text-xs text-muted-foreground">{t('channels.rename.lengthHint')}</p>
-                            {/* The input truncates silently at the maximum; a counter is
-                                what tells someone their last keystrokes went nowhere. */}
-                            <p className="shrink-0 text-xs tabular-nums text-muted-foreground">
-                                {t('channels.nameCount', { count: name.trim().length, max: CHANNEL_NAME_MAX })}
-                            </p>
-                        </div>
-                    </div>
+                    <ChannelNameField
+                        id="rename-channel"
+                        label={t('channels.rename.nameLabel')}
+                        placeholder={t('channels.rename.namePlaceholder')}
+                        value={name}
+                        onChange={value => {
+                            setName(value);
+                            setShowInvalid(false);
+                        }}
+                        disabled={isMutating}
+                        showInvalid={showInvalid}
+                    />
 
                     {errorMsg && (
                         <p className="text-sm text-destructive break-words" role="alert">
@@ -102,7 +99,7 @@ export const RenameChannelDialog = ({ open, onOpenChange, channelId, currentName
                         >
                             {t('channels.rename.cancel')}
                         </Button>
-                        <Button type="submit" disabled={isMutating || !isValid}>
+                        <Button type="submit" disabled={isMutating || trimmed.length === 0}>
                             {isMutating ? t('channels.rename.saving') : t('channels.rename.submit')}
                         </Button>
                     </DialogFooter>

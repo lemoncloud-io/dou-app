@@ -14,13 +14,10 @@ import {
     useMentionsPanelStore,
     useMentionsStore,
     type MentionItem,
+    formatShortDate,
 } from '../../../shared';
 
-const formatMentionAt = (ms: number): string => {
-    const date = new Date(ms);
-    if (Number.isNaN(date.getTime())) return '';
-    return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
-};
+const formatMentionAt = formatShortDate;
 
 interface MentionRowProps {
     item: MentionItem;

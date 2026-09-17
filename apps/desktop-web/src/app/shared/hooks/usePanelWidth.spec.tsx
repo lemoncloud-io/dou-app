@@ -53,4 +53,25 @@ describe('usePanelWidth', () => {
         fireEvent.keyDown(screen.getByRole('separator'), { key: 'ArrowRight' });
         expect(width()).toBe(316);
     });
+
+    // One narrow window used to leave the panel at its minimum until a reload.
+    it('narrows with a small window and returns to the chosen width when it grows', () => {
+        const initial = window.innerWidth;
+        const setWindowWidth = (value: number) =>
+            act(() => {
+                Object.defineProperty(window, 'innerWidth', { configurable: true, value });
+                window.dispatchEvent(new Event('resize'));
+            });
+        try {
+            setWindowWidth(1400);
+            render(<Panel />);
+            expect(width()).toBe(300);
+            setWindowWidth(700);
+            expect(width()).toBe(200);
+            setWindowWidth(1400);
+            expect(width()).toBe(300);
+        } finally {
+            setWindowWidth(initial);
+        }
+    });
 });

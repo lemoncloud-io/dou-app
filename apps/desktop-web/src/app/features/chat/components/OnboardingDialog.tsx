@@ -1,12 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Check } from 'lucide-react';
 
+import { runtime } from '@chatic/app-runtime';
+
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 
-import { ONBOARDED_KEY, useOnboardingStore } from '../stores';
+import { onboardedKey, useOnboardingStore } from '../stores';
 
 interface OnboardingDialogProps {
     /** First-run trigger; false suppresses it (the dialog can still be reopened). */
@@ -34,9 +36,16 @@ interface OnboardingDialogProps {
  */
 export const OnboardingDialog = ({ enabled, showChannelStatus, isChannelReady }: OnboardingDialogProps) => {
     const { t } = useTranslation();
-    // Captured once at mount: a mid-session switch to the Default Cloud must not
-    // re-trigger onboarding, so `enabled` is read inside the lazy initializer.
-    const [open, setOpen] = useState(() => enabled && localStorage.getItem(ONBOARDED_KEY) !== '1');
+    const userId = runtime.session.useSessionIdentity().userId;
+    const [open, setOpen] = useState(false);
+    // Decided once per mount, as soon as the account is known: a later change of
+    // cloud must not re-trigger it mid-session.
+    const decidedRef = useRef(false);
+    useEffect(() => {
+        if (decidedRef.current || !enabled || !userId) return;
+        decidedRef.current = true;
+        if (localStorage.getItem(onboardedKey(userId)) !== '1') setOpen(true);
+    }, [enabled, userId]);
     const [step, setStep] = useState<1 | 2>(1);
 
     const reopenNonce = useOnboardingStore(s => s.reopenNonce);
@@ -50,7 +59,7 @@ export const OnboardingDialog = ({ enabled, showChannelStatus, isChannelReady }:
     if (!enabled && reopenNonce === 0) return null;
 
     const finish = () => {
-        localStorage.setItem(ONBOARDED_KEY, '1');
+        if (userId) localStorage.setItem(onboardedKey(userId), '1');
         setOpen(false);
     };
 

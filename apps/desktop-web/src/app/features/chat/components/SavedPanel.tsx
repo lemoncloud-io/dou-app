@@ -13,13 +13,10 @@ import {
     useSavedItemsStore,
     useSavedPanelStore,
     type SavedItem,
+    formatShortDate,
 } from '../../../shared';
 
-const formatSavedAt = (ms: number): string => {
-    const date = new Date(ms);
-    if (Number.isNaN(date.getTime())) return '';
-    return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
-};
+const formatSavedAt = formatShortDate;
 
 interface SavedRowProps {
     item: SavedItem;

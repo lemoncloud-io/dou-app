@@ -20,3 +20,4 @@ export * from './getAppVersion';
 export * from './electronApi';
 export * from './errors';
 export * from './platformKeys';
+export * from './formatDate';

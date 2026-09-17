@@ -51,6 +51,13 @@ export const setLanguage = (language: SupportedLanguage) => {
     }
 };
 
+// `lang` tells a screen reader which voice to read with, and a static
+// `lang="en"` had it read Korean text with an English one.
+const syncDocumentLanguage = (language: string) => {
+    if (typeof document !== 'undefined') document.documentElement.lang = language;
+};
+i18n.on('languageChanged', syncDocumentLanguage);
+
 void i18n.use(initReactI18next).init({
     resources,
     lng: initialLanguage(),
