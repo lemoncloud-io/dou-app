@@ -23,6 +23,7 @@ import {
 } from '@chatic/web-ui-kit';
 
 import { ChannelMessageRow } from '../components/ChannelMessageRow';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { DmInviteFooter } from '../components/DmInviteFooter';
 import { EmojiPickerSheet } from '../components/EmojiPickerSheet';
 import { MessageDetailDialog } from '../components/MessageDetailDialog';
@@ -41,6 +42,7 @@ import {
     useChannelProfiles,
     useChannelTitle,
     useChatMutations,
+    useMessageEditing,
     useChats,
     useChatScroll,
     useDmInviteState,
@@ -53,6 +55,7 @@ import {
 import type { ClientChatView } from '../types';
 import { copyMessageToClipboard } from '../utils/copyMessageToClipboard';
 import { resolveUserName, type DisplayNameSources } from '../utils/displayName';
+import { canModifyMessage } from '@chatic/data';
 import { messagePlainText } from '../utils/messagePlainText';
 import { useMessageJumpStore } from '../../../stores/useMessageJumpStore';
 import { buildThreadIndex, countUnseenReplies } from '../utils/buildThread';
@@ -310,6 +313,7 @@ export const ChannelRoomPage = () => {
     const isRoomLoading = isChannelLoading || isChatLoading;
 
     const { sendMessage, readMessage, deleteMessage } = useChatMutations();
+    const editing = useMessageEditing();
     const { toggleReaction, failedId: reactionFailedId } = useReactions();
     const rememberEmoji = useRecentEmojiStore(s => s.remember);
 
@@ -560,6 +564,26 @@ export const ChannelRoomPage = () => {
         setActionMessage(null);
         if (target?.chatNo) openThread(target);
     };
+
+    const handleEditAction = () => {
+        const target = actionMessage;
+        setActionMessage(null);
+        if (target) editing.startEdit(target);
+    };
+
+    const handleDeleteAction = () => {
+        const target = actionMessage;
+        setActionMessage(null);
+        if (target) editing.requestDelete(target);
+    };
+
+    // A one-line quote of the message being deleted, cut short so the dialog stays a dialog.
+    const deleteConfirmPreview = (() => {
+        const body = messagePlainText(editing.deleteTarget?.content ?? '').trim();
+        if (!body) return '';
+        const oneLine = body.replace(/\s+/g, ' ');
+        return oneLine.length > 60 ? `${oneLine.slice(0, 60)}…` : oneLine;
+    })();
 
     // Only the textarea may take the caret away from the textarea. Shared by the bottom bar's
     // pointer and mouse handlers — see the wrapper below for why both are needed.
@@ -1007,6 +1031,7 @@ export const ChannelRoomPage = () => {
                                                                 message.id && handleShowReactors(message.id, key)
                                                             }
                                                             avatarOf={avatarOfUser}
+                                                            edit={editing.editStateFor(message)}
                                                             threadMeta={threadMeta}
                                                             unseenReplyCount={unseenReplyCount}
                                                             formatThreadTime={formatTime}
@@ -1073,7 +1098,10 @@ export const ChannelRoomPage = () => {
                     placeholder={t('chat.room.inputPlaceholder')}
                     // Nobody left to receive it: a message sent into an empty 1:1 would carry an
                     // unread badge of `1` forever. Lifts the moment the peer is back (ADR-0068 결정 5).
-                    disabled={isPeerGone}
+                    //
+                    // Also locked while a message is being edited: two live fields on one screen
+                    // and there is no telling which one you are typing into (SPEC §6).
+                    disabled={isPeerGone || editing.isEditing}
                 />
             </div>
 
@@ -1087,11 +1115,37 @@ export const ChannelRoomPage = () => {
                 // optimistic temp id would 404 and orphan once the persisted swap lands.
                 canReact={!!actionMessage?.chatNo}
                 canReply={!!actionMessage?.chatNo}
+                // The shared verdict, so the room and the thread gate on exactly the same rule.
+                // Authorship stays this app's own `isOwner` — the value already deciding which
+                // side of the feed the bubble sits on.
+                canModify={!!actionMessage && canModifyMessage(actionMessage, actionMessage.isOwner)}
                 isCopying={isCopyingMessage}
                 onPickEmoji={handlePickEmoji}
                 onMoreEmoji={() => setEmojiPickerOpen(true)}
                 onCopy={() => void handleCopyMessage(actionMessage?.content)}
                 onReply={handleReplyAction}
+                onEdit={handleEditAction}
+                onDelete={handleDeleteAction}
+            />
+            <ConfirmDialog
+                open={!!editing.deleteTarget}
+                onOpenChange={open => !open && editing.cancelDelete()}
+                title={t('chat.room.deleteMessageTitle')}
+                // Shows WHICH message is going: the sheet is long-pressed open from a wall of
+                // bubbles, and delete sits next to edit.
+                description={deleteConfirmPreview || t('chat.room.deleteMessageDescription')}
+                confirmLabel={t('chat.room.deleteMessageConfirm')}
+                onConfirm={() => void editing.confirmDelete()}
+                isPending={editing.isDeleting}
+            />
+            <ConfirmDialog
+                open={editing.discardOpen}
+                onOpenChange={open => !open && editing.setDiscardOpen(false)}
+                title={t('chat.room.editDiscardTitle')}
+                description={t('chat.room.editDiscardDescription')}
+                confirmLabel={t('chat.room.editDiscardConfirm')}
+                onConfirm={editing.closeEdit}
+                variant="warning"
             />
             <ReactionDetailSheet
                 // Read from the live fold, not snapshotted: a reaction toggled away while the

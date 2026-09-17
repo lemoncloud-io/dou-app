@@ -14,11 +14,14 @@ const baseProps = {
     onOpenChange: jest.fn(),
     canReact: true,
     canReply: true,
+    canModify: false,
     isCopying: false,
     onPickEmoji: jest.fn(),
     onMoreEmoji: jest.fn(),
     onCopy: jest.fn(),
     onReply: jest.fn(),
+    onEdit: jest.fn(),
+    onDelete: jest.fn(),
 };
 
 beforeEach(() => {
@@ -98,5 +101,47 @@ describe('MessageActionSheet — 메시지 롱프레스 액션 시트', () => {
         fireEvent.click(screen.getByText('chat.thread.replyAction'));
         expect(baseProps.onCopy).toHaveBeenCalled();
         expect(baseProps.onReply).toHaveBeenCalled();
+    });
+
+    // 수정·삭제는 내 메시지일 때만 — 판정은 공유 `canModifyMessage`가 내리고 페이지가 넘겨준다.
+    it('canModify가 아니면 수정·삭제를 내지 않는다', () => {
+        render(<MessageActionSheet {...baseProps} />);
+
+        expect(screen.queryByText('chat.room.editMessage')).not.toBeInTheDocument();
+        expect(screen.queryByText('chat.room.deleteMessage')).not.toBeInTheDocument();
+    });
+
+    it('canModify면 수정·삭제를 기존 두 항목 아래에 붙인다', () => {
+        render(<MessageActionSheet {...baseProps} canModify />);
+
+        const labels = screen
+            .getAllByText(/^chat\.(room|thread)\.(replyAction|copyMessage|editMessage|deleteMessage)$/)
+            .map(node => node.textContent);
+        // 순서가 계약이다 — 기존 두 항목이 엄지 밑에서 움직이지 않아야 한다.
+        expect(labels).toEqual([
+            'chat.thread.replyAction',
+            'chat.room.copyMessage',
+            'chat.room.editMessage',
+            'chat.room.deleteMessage',
+        ]);
+    });
+
+    it('수정·삭제를 누르면 각각의 핸들러를 부른다', () => {
+        render(<MessageActionSheet {...baseProps} canModify />);
+
+        fireEvent.click(screen.getByText('chat.room.editMessage'));
+        expect(baseProps.onEdit).toHaveBeenCalledTimes(1);
+
+        fireEvent.click(screen.getByText('chat.room.deleteMessage'));
+        expect(baseProps.onDelete).toHaveBeenCalledTimes(1);
+    });
+
+    // 미전송 행의 ✕가 쓰는 'chat.room.delete'와 낱말이 겹치면, 사용자가 "아까 지운 것도 상대에게
+    // 안 보였다"고 읽는다. 서버 삭제는 별도 키다.
+    it('서버 삭제는 미전송 삭제와 다른 문구 키를 쓴다', () => {
+        render(<MessageActionSheet {...baseProps} canModify />);
+
+        expect(screen.getByText('chat.room.deleteMessage')).toBeInTheDocument();
+        expect(screen.queryByText('chat.room.delete')).not.toBeInTheDocument();
     });
 });

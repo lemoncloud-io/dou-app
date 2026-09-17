@@ -706,7 +706,21 @@
             "moreEmoji": "이모지 더보기",
             "pickEmoji": "이모지 선택",
             "copyCode": "복사",
-            "codeCopied": "복사됨"
+            "codeCopied": "복사됨",
+            "editMessage": "메시지 수정",
+            "editSave": "저장",
+            "editSaving": "저장 중",
+            "editFailed": "수정하지 못했습니다. 다시 저장해 주세요",
+            "editDiscardTitle": "수정을 취소할까요?",
+            "editDiscardDescription": "고친 내용은 저장되지 않습니다.",
+            "editDiscardConfirm": "취소하기",
+            "edited": "수정됨",
+            "editedDescription": "보낸 뒤 내용이 바뀐 메시지입니다",
+            "deleteMessage": "메시지 삭제",
+            "deleteMessageTitle": "메시지를 삭제할까요?",
+            "deleteMessageDescription": "삭제한 메시지는 되돌릴 수 없고, 대화 상대에게도 보이지 않습니다.",
+            "deleteMessageConfirm": "삭제",
+            "deleteMessageFailed": "메시지를 삭제하지 못했습니다. 잠시 후 다시 시도해 주세요"
         },
         "settings": {
             "title": "방 설정",
