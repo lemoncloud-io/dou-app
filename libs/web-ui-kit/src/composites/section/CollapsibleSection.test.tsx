@@ -44,6 +44,36 @@ describe('CollapsibleSection', () => {
         expect(screen.queryByText('row')).not.toBeInTheDocument();
     });
 
+    it('toggles the body when the header row itself is clicked', () => {
+        render(
+            <CollapsibleSection title="Place" toggleLabel="toggle">
+                <div>row</div>
+            </CollapsibleSection>
+        );
+
+        fireEvent.click(screen.getByText('Place'));
+
+        const toggle = screen.getByRole('button', { name: 'toggle' });
+        expect(toggle).toHaveAttribute('aria-expanded', 'false');
+
+        fireEvent.click(screen.getByText('Place'));
+        expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    });
+
+    it('leaves header actions to their own handler — a create click never toggles', () => {
+        const onAdd = jest.fn();
+        render(
+            <CollapsibleSection title="Chat" toggleLabel="toggle" actions={<button onClick={onAdd}>add</button>}>
+                <div>row</div>
+            </CollapsibleSection>
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: 'add' }));
+
+        expect(onAdd).toHaveBeenCalledTimes(1);
+        expect(screen.getByRole('button', { name: 'toggle' })).toHaveAttribute('aria-expanded', 'true');
+    });
+
     it('is controlled by the open prop and reports changes via onOpenChange', () => {
         const onOpenChange = jest.fn();
         render(

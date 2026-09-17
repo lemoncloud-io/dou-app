@@ -14,6 +14,11 @@ export interface SectionHeaderProps {
     count?: number;
     /** Right-aligned actions (icon buttons, chevrons, ...). */
     actions?: React.ReactNode;
+    /**
+     * Makes the header row itself clickable (e.g. to toggle a collapsible section). Clicks inside
+     * `actions` are NOT forwarded here — those controls own their own behaviour.
+     */
+    onClick?: () => void;
     className?: string;
 }
 
@@ -22,9 +27,12 @@ export interface SectionHeaderProps {
  * friend-picker lists: a bold title with an optional accent count and a slot for
  * right-aligned actions.
  */
-export const SectionHeader = ({ title, count, actions, className }: SectionHeaderProps) => {
+export const SectionHeader = ({ title, count, actions, onClick, className }: SectionHeaderProps) => {
     return (
-        <div className={cn('flex h-11 w-full items-center justify-between px-4', className)}>
+        <div
+            className={cn('flex h-11 w-full items-center justify-between px-4', onClick && 'cursor-pointer', className)}
+            onClick={onClick}
+        >
             <div className="flex items-center gap-1">
                 <span className="text-[18px] font-semibold leading-[25px] tracking-[-0.09px] text-foreground">
                     {title}
@@ -33,7 +41,14 @@ export const SectionHeader = ({ title, count, actions, className }: SectionHeade
                     <span className="text-[18px] font-semibold leading-[25px] text-foreground">{count}</span>
                 )}
             </div>
-            {actions && <div className="flex items-center gap-3">{actions}</div>}
+            {actions && (
+                <div
+                    className="flex items-center gap-3"
+                    onClick={onClick ? event => event.stopPropagation() : undefined}
+                >
+                    {actions}
+                </div>
+            )}
         </div>
     );
 };

@@ -36,8 +36,8 @@ export interface CollapsibleSectionProps {
 }
 
 /**
- * Collapsible list section — a SectionHeader whose trailing chevron toggles the
- * body open/closed, used for the home Place / Chat sections. Supports controlled
+ * Collapsible list section — a SectionHeader whose row (title, count and trailing chevron alike)
+ * toggles the body open/closed, used for the home Place / Chat sections. Supports controlled
  * (`open` + `onOpenChange`) and uncontrolled (`defaultOpen`) use; the chevron
  * rotates and the body height eases open/closed. Expanding mounts the body
  * immediately; collapsing keeps it mounted through the animation and then
@@ -106,6 +106,10 @@ export const CollapsibleSection = ({
             <SectionHeader
                 title={title}
                 count={count}
+                // The whole header row toggles, not just the chevron — the chevron is a small
+                // target on a phone, and the title/count beside it read as part of the same
+                // control. `actions` keeps its own clicks (SectionHeader stops them here).
+                onClick={toggle}
                 actions={
                     <>
                         {actions}
