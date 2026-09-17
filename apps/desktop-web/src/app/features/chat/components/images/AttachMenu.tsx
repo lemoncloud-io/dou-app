@@ -48,11 +48,11 @@ export const AttachMenu = ({ onFiles }: AttachMenuProps) => {
                     }}
                     className="flex w-full flex-col items-start gap-2 rounded-[10px] px-3 py-2.5 text-left outline-none transition-colors hover:bg-accent focus-visible:bg-accent"
                 >
-                    <span className="flex items-center gap-2 text-[14px] font-medium tracking-[-0.01em] text-foreground">
+                    <span className="flex items-center gap-2 text-callout font-medium tracking-[-0.01em] text-foreground">
                         <FileIcon size={18} aria-hidden />
                         {t('chat.attach.menuTitle')}
                     </span>
-                    <span className="text-[13px] tracking-[-0.01em] text-muted-foreground">
+                    <span className="text-caption tracking-[-0.01em] text-muted-foreground">
                         {t('chat.attach.menuHint')}
                     </span>
                 </button>

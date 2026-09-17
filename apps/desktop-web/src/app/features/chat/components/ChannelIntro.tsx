@@ -54,7 +54,7 @@ export const ChannelIntro = ({
                 <Avatar className="h-14 w-14 rounded-2xl">
                     {avatar && <AvatarImage src={avatar} alt="" className="rounded-2xl" />}
                     <AvatarFallback
-                        className="rounded-2xl text-[22px] font-semibold"
+                        className="rounded-2xl text-headline font-semibold"
                         style={avatarStyle(colorSeed ?? name)}
                     >
                         {name.charAt(0).toUpperCase() || '?'}

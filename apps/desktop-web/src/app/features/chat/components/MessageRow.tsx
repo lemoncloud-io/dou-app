@@ -359,13 +359,13 @@ export const MessageRow = memo(
                             <UserProfilePopover {...profileProps}>
                                 <button
                                     type="button"
-                                    className="focus-ring truncate rounded text-[16px] font-bold leading-tight tracking-[-0.005em] text-foreground hover:underline"
+                                    className="focus-ring truncate rounded text-lead font-bold leading-tight tracking-[-0.005em] text-foreground hover:underline"
                                 >
                                     {group.ownerName}
                                 </button>
                             </UserProfilePopover>
                         )}
-                        <span className="text-[13px] font-medium tabular-nums tracking-[-0.005em] text-description">
+                        <span className="text-caption font-medium tabular-nums tracking-[-0.005em] text-description">
                             {withDayInTime ? formatDayTime(group.timestamp, t) : formatTime(group.timestamp)}
                         </span>
                     </div>
@@ -458,7 +458,7 @@ export const MessageRow = memo(
                                     )}
                                 >
                                     {i > 0 && msgTime && (
-                                        <span className="absolute -left-12 top-0.5 hidden w-10 text-right text-[10px] tabular-nums text-muted-foreground/70 group-hover/msg:block">
+                                        <span className="absolute -left-12 top-0.5 hidden w-10 text-right text-nano tabular-nums text-muted-foreground/70 group-hover/msg:block">
                                             {msgTime}
                                         </span>
                                     )}
@@ -917,7 +917,7 @@ export const MessageRow = memo(
                                                                 />
                                                             )}
                                                             <AvatarFallback
-                                                                className="rounded text-[9px] font-semibold"
+                                                                className="rounded text-nano font-semibold"
                                                                 style={avatarStyle(replier.colorSeed)}
                                                             >
                                                                 {replier.name.charAt(0).toUpperCase() || '?'}

@@ -160,20 +160,29 @@ Hierarchy comes from weight and tracking, not only size.
 | Class           | Size / leading | Tracking | Weight | Used for                        |
 | --------------- | -------------- | -------- | ------ | ------------------------------- |
 | `text-display`  | 24 / 30        | -0.024em | 800    | onboarding, empty hero          |
-| `text-title`    | 18 / 26        | -0.017em | 700    | dialog titles                   |
+| `text-headline` | 20 / 28        | -0.012em | —      | drop overlay, large initials    |
+| `text-title`    | 18 / 26        | -0.017em | 700    | conversation title, dialogs     |
 | `text-heading`  | 15 / 22        | -0.009em | 600    | section heads, empty-state lead |
+| `text-lead`     | 16 / 24        | -0.006em | —      | message author, sidebar place   |
 | `text-body`     | 15 / 23.2      | -0.003em | 400    | message text, composer          |
 | `text-callout`  | 14 / 20.8      | -0.002em | 400    | rows, secondary copy            |
 | `text-caption`  | 13 / 17.6      | 0        | 400    | timestamps, hints               |
-| `text-micro`    | 11.5 / 15.2    | 0        | 400    | edited marker                   |
+| `text-micro`    | 11.5 / 15.2    | 0        | 400    | edited marker, date pill        |
+| `text-tiny`     | 11 / 16        | 0        | —      | unread pill, keycaps            |
+| `text-nano`     | 10 / 14        | 0        | —      | small-avatar initials, gutter   |
 | `text-overline` | 11 / 16        | +0.08em  | 600    | uppercase labels                |
 
-Fixed sizes that live in components rather than the scale, measured against Figma:
+A dash in the weight column means the step sets none, and the component picks it. No
+component uses an arbitrary `text-[Npx]`; a new size is a new step here, registered in
+`libs/ui-kit/src/utils/index.ts` so `cn()` keeps it apart from text colors.
+
+Component-level details, measured against Figma:
 
 - Pane headers share one contract (`PANE_HEADER` in `shared/components/paneHeader.ts`): 56px tall with a hairline. The conversation title is `text-title` (18px/700); a side panel's title is one step down at `text-heading`, so no panel outranks the conversation.
-- Message author: 16px bold, tracking -0.005em. Time beside it: 13px medium, tabular
+- Message author: `text-lead` bold, tracking -0.005em. Time beside it: `text-caption` medium, tabular
   nums, `text-description`.
-- Sidebar action rows: 14px, tracking -0.01em, `text-label`.
+- Sidebar action rows: `text-callout`, tracking -0.01em, `text-label`. The sidebar place
+  name is `text-lead` semibold, below the conversation title.
 - Unread pill: 11px semibold, tabular nums, in an 18px pill. Only DM rows count (reply debt); channel rows, place tiles and cloud tiles show a dot.
 - Avatar fallback initial: `text-caption` semibold in a 36px avatar.
 

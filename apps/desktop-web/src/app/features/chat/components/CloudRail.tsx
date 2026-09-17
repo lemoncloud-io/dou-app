@@ -110,7 +110,7 @@ export const CloudRail = ({
                                                 aria-current={isActive ? 'true' : undefined}
                                                 className={cn(
                                                     'relative flex h-12 w-12 items-center justify-center rounded-[14px] font-bold',
-                                                    Array.from(initial).length > 1 ? 'text-[16px]' : 'text-[20px]',
+                                                    Array.from(initial).length > 1 ? 'text-lead' : 'text-headline',
                                                     'transition-colors duration-150 ease-tactile tactile focus-ring',
                                                     // Figma Icon Rail: the active cloud is a black tile with a
                                                     // lime ring and lime initial; the others sit quiet on the rail.

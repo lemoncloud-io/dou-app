@@ -61,7 +61,9 @@ export const ImageTile = ({ image, overflow = 0, onOpen, onDownload, onCopy, onD
                     <span className="absolute inset-0 flex items-center justify-center">
                         {image.isUploading && <ImageSpinner className="absolute h-11 w-11" />}
                         {hasOverflow && (
-                            <span className="text-[32px] font-semibold tracking-[-0.01em] text-white">+{overflow}</span>
+                            <span className="text-display font-semibold tracking-[-0.01em] text-white">
+                                +{overflow}
+                            </span>
                         )}
                     </span>
                 )}

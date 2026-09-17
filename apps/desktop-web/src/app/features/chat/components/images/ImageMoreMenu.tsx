@@ -35,7 +35,7 @@ export const ImageMoreMenu = ({ trigger, onCopy, onDelete, onOpenChange, side = 
             <DropdownMenuContent align="end" side={side} className={cn('min-w-[125px]', FLOATING_MENU_SURFACE)}>
                 <DropdownMenuItem
                     onSelect={onCopy}
-                    className="cursor-pointer gap-2 rounded-[10px] px-3 py-2.5 text-[14px] font-medium tracking-[-0.01em] text-foreground"
+                    className="cursor-pointer gap-2 rounded-[10px] px-3 py-2.5 text-callout font-medium tracking-[-0.01em] text-foreground"
                 >
                     <Copy aria-hidden />
                     {t('chat.image.copy')}
@@ -44,7 +44,7 @@ export const ImageMoreMenu = ({ trigger, onCopy, onDelete, onOpenChange, side = 
                     <DropdownMenuItem
                         onSelect={onDelete}
                         className={cn(
-                            'cursor-pointer gap-2 rounded-[10px] px-3 py-2.5 text-[14px] font-medium tracking-[-0.01em]',
+                            'cursor-pointer gap-2 rounded-[10px] px-3 py-2.5 text-callout font-medium tracking-[-0.01em]',
                             'text-destructive focus:text-destructive'
                         )}
                     >

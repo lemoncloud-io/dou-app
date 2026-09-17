@@ -108,7 +108,7 @@ const PlaceTile = ({
             </span>
             <span
                 className={cn(
-                    'max-w-full truncate text-[14px] font-medium leading-tight text-rail-foreground transition-opacity',
+                    'max-w-full truncate text-callout font-medium leading-tight text-rail-foreground transition-opacity',
                     !isActive && 'opacity-70 group-hover:opacity-100'
                 )}
             >

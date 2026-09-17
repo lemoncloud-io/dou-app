@@ -8,7 +8,7 @@ import { useShortcutsDialogStore } from '../stores';
 import { isTypingTarget } from '../utils';
 
 const Kbd = ({ children }: { children: ReactNode }) => (
-    <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+    <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-tiny font-medium text-muted-foreground">
         {children}
     </kbd>
 );

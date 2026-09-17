@@ -153,7 +153,7 @@ const ChannelRow = memo(function ChannelRow({
                 <span className="flex shrink-0 items-center text-foreground">{icon}</span>
                 <span
                     className={cn(
-                        'min-w-0 flex-1 truncate text-[14px] tracking-[-0.01em]',
+                        'min-w-0 flex-1 truncate text-callout tracking-[-0.01em]',
                         isMuted ? 'text-muted-foreground' : 'text-sidebar-foreground',
                         indicator !== 'none' && 'font-semibold'
                     )}
@@ -181,7 +181,7 @@ const ChannelRow = memo(function ChannelRow({
                     </span>
                 )}
                 {indicator === 'count' && (
-                    <span className="flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full bg-badge-unread px-1 text-[11px] font-semibold tabular-nums text-badge-unread-foreground">
+                    <span className="flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full bg-badge-unread px-1 text-tiny font-semibold tabular-nums text-badge-unread-foreground">
                         <span aria-hidden>{unread > 99 ? '99+' : unread}</span>
                         <span className="sr-only">{t('sidebar.unreadCount', { count: unread })}</span>
                     </span>
@@ -284,7 +284,7 @@ export const ChannelList = ({
                 label: t('dm.you'),
                 icon: (
                     <Avatar className="h-6 w-6 shrink-0">
-                        <AvatarFallback className="text-[10px] font-semibold" style={avatarStyle(myUid ?? 'me')}>
+                        <AvatarFallback className="text-nano font-semibold" style={avatarStyle(myUid ?? 'me')}>
                             {t('dm.you').charAt(0).toUpperCase()}
                         </AvatarFallback>
                     </Avatar>
@@ -303,7 +303,7 @@ export const ChannelList = ({
                 <Avatar className="h-6 w-6 shrink-0">
                     {display.thumbnail && <AvatarImage src={display.thumbnail} alt={display.name} />}
                     <AvatarFallback
-                        className="text-[10px] font-semibold"
+                        className="text-nano font-semibold"
                         style={avatarStyle(counterpartId || display.name)}
                     >
                         {display.name.charAt(0).toUpperCase() || '?'}

@@ -26,7 +26,7 @@ const FORMATS = [
     { key: 'bold', glyph: 'B', glyphClass: '', apply: textFormat('bold') },
     { key: 'italic', glyph: 'I', glyphClass: 'italic', apply: textFormat('italic') },
     { key: 'strike', glyph: 'S', glyphClass: 'line-through', apply: textFormat('strikethrough') },
-    { key: 'code', glyph: '</>', glyphClass: 'text-[14px]', apply: textFormat('code') },
+    { key: 'code', glyph: '</>', glyphClass: 'text-callout', apply: textFormat('code') },
 ] as const;
 
 type FormatKey = (typeof FORMATS)[number]['key'];
@@ -74,7 +74,7 @@ export const ComposerToolbar = () => {
                         onMouseDown={e => e.preventDefault()}
                         onClick={() => apply(editor)}
                         className={cn(
-                            'focus-ring tactile flex h-9 min-w-9 items-center justify-center rounded-md text-[15px] font-semibold transition-colors ease-tactile disabled:opacity-50',
+                            'focus-ring tactile flex h-9 min-w-9 items-center justify-center rounded-md text-body font-semibold transition-colors ease-tactile disabled:opacity-50',
                             active[key]
                                 ? 'bg-accent text-foreground'
                                 : 'text-label hover:bg-accent hover:text-foreground'

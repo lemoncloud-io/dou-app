@@ -72,7 +72,7 @@ export const SidebarHeader = ({
                 {showPlaceSkeleton ? (
                     <Skeleton className="h-5 w-28" />
                 ) : (
-                    <h2 className="truncate px-0.5 text-[18px] font-semibold tracking-[-0.01em] text-sidebar-foreground">
+                    <h2 className="truncate px-0.5 text-lead font-semibold text-sidebar-foreground">
                         {isDefaultMode ? t('place.home') : placeName || t('place.none')}
                     </h2>
                 )}
@@ -84,7 +84,7 @@ export const SidebarHeader = ({
                         onChange={e => onQueryChange(e.target.value)}
                         placeholder={t('sidebar.search')}
                         aria-label={t('sidebar.search')}
-                        className="min-w-0 flex-1 bg-transparent text-[14px] tracking-[-0.01em] text-foreground outline-none placeholder:text-placeholder"
+                        className="min-w-0 flex-1 bg-transparent text-callout tracking-[-0.01em] text-foreground outline-none placeholder:text-placeholder"
                     />
                 </label>
             </div>

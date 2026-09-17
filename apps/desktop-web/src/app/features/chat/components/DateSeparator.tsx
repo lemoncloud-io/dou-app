@@ -36,7 +36,7 @@ export const DateSeparator = ({ timestamp }: DateSeparatorProps) => {
             <div className="pointer-events-none sticky top-0 z-10 flex justify-center pt-2">
                 <span
                     style={{ height: PILL_HEIGHT_PX }}
-                    className="pointer-events-auto flex items-center rounded-full border border-hairline bg-background px-3 text-[12px] font-medium tabular-nums text-label shadow-raised"
+                    className="pointer-events-auto flex items-center rounded-full border border-hairline bg-background px-3 text-micro font-medium tabular-nums text-label shadow-raised"
                 >
                     {formatLabel()}
                 </span>

@@ -76,7 +76,7 @@ export const ProfileCardContent = ({
                 <div className="mt-3 flex items-center gap-2">
                     <span className="truncate text-base font-bold tracking-tight text-foreground">{name}</span>
                     {isOwner && (
-                        <span className="shrink-0 rounded bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-primary">
+                        <span className="shrink-0 rounded bg-primary/15 px-1.5 py-0.5 text-nano font-semibold uppercase text-primary">
                             {t('channels.members.owner')}
                         </span>
                     )}
@@ -99,7 +99,7 @@ export const ProfileCardContent = ({
                         className="mt-2 flex w-full items-center justify-between gap-2 rounded-lg border border-border px-3 py-2 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
                         <span className="flex min-w-0 flex-col">
-                            <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                            <span className="text-nano font-medium uppercase tracking-wide text-muted-foreground">
                                 {t('profile.id')}
                             </span>
                             <span className="truncate text-xs text-foreground">{userId}</span>

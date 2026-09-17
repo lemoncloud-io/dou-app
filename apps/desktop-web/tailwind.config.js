@@ -116,6 +116,11 @@ module.exports = {
                 },
                 'badge-member': 'hsl(var(--badge-member))',
                 favorite: 'hsl(var(--favorite))',
+                illustration: {
+                    code: 'hsl(var(--illustration-code))',
+                    note: 'hsl(var(--illustration-note))',
+                    image: 'hsl(var(--illustration-image))',
+                },
                 'tab-active': 'hsl(var(--tab-active))',
                 'tab-inactive': 'hsl(var(--tab-inactive))',
                 overlay: 'hsl(var(--overlay))',
@@ -132,6 +137,12 @@ module.exports = {
             // Semantic type scale (size / leading / tracking / weight) — controls
             // hierarchy via weight+tracking, not just size (skill Rule 1).
             fontSize: {
+                // Steps below are named for the size, not a role, because each
+                // serves several: avatar initials, badges, keycaps, tile counts.
+                headline: ['1.25rem', { lineHeight: '1.75rem', letterSpacing: '-0.012em' }],
+                lead: ['1rem', { lineHeight: '1.5rem', letterSpacing: '-0.006em' }],
+                tiny: ['0.6875rem', { lineHeight: '1rem', letterSpacing: '0' }],
+                nano: ['0.625rem', { lineHeight: '0.875rem', letterSpacing: '0' }],
                 display: ['1.5rem', { lineHeight: '1.875rem', letterSpacing: '-0.024em', fontWeight: '800' }],
                 title: ['1.125rem', { lineHeight: '1.625rem', letterSpacing: '-0.017em', fontWeight: '700' }],
                 heading: ['0.9375rem', { lineHeight: '1.375rem', letterSpacing: '-0.009em', fontWeight: '600' }],

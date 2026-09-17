@@ -153,7 +153,7 @@ export const ImageViewer = ({
                                     isMenuOpen ? 'opacity-100' : REVEAL
                                 )}
                             >
-                                <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-foreground">
+                                <span className="min-w-0 flex-1 truncate text-caption font-medium text-foreground">
                                     {current.name}
                                 </span>
                                 <Hint label={t('chat.image.download')}>
@@ -188,7 +188,7 @@ export const ImageViewer = ({
                         {isMulti && (
                             <aside className="flex w-[346px] shrink-0 flex-col border-l border-hairline bg-background">
                                 <header className="flex h-[68px] shrink-0 items-center justify-between border-b border-hairline px-6">
-                                    <span className="text-[18px] font-semibold tracking-[-0.01em] text-foreground">
+                                    <span className="text-title font-semibold tracking-[-0.01em] text-foreground">
                                         {t('chat.image.setTitle', { count: images.length })}
                                     </span>
                                     <button
@@ -212,10 +212,10 @@ export const ImageViewer = ({
                                     </Avatar>
                                     <div className="flex min-w-0 flex-1 flex-col gap-2">
                                         <div className="flex items-baseline gap-2">
-                                            <span className="truncate text-[16px] font-bold text-foreground">
+                                            <span className="truncate text-lead font-bold text-foreground">
                                                 {author.name}
                                             </span>
-                                            <span className="shrink-0 text-[13px] font-medium text-description">
+                                            <span className="shrink-0 text-caption font-medium text-description">
                                                 {author.time}
                                             </span>
                                         </div>
@@ -281,7 +281,7 @@ interface ImageSetMetaProps {
 export const ImageSetMeta = ({ count, onDownloadAll }: ImageSetMetaProps) => {
     const { t } = useTranslation();
     return (
-        <div className="flex items-center gap-3 text-[13px] font-medium tracking-[-0.005em] text-muted-foreground">
+        <div className="flex items-center gap-3 text-caption font-medium tracking-[-0.005em] text-muted-foreground">
             <span>{t('chat.image.fileCount', { count })}</span>
             <button
                 type="button"

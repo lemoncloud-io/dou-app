@@ -49,7 +49,7 @@ export const MentionAutocomplete = ({ items, activeIndex, onSelect }: MentionAut
                 >
                     <Avatar className="h-5 w-5">
                         {item.thumbnail && <AvatarImage src={item.thumbnail} alt={item.name} />}
-                        <AvatarFallback className="text-[9px] font-semibold" style={avatarStyle(item.id)}>
+                        <AvatarFallback className="text-nano font-semibold" style={avatarStyle(item.id)}>
                             {item.name.charAt(0).toUpperCase() || '?'}
                         </AvatarFallback>
                     </Avatar>

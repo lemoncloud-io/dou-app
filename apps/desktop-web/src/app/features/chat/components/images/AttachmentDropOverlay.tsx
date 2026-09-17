@@ -8,14 +8,15 @@ import { MAX_ATTACHMENTS } from '../../utils';
  * The three fills of Figma's stacked-files mark ("#이미지 드래그 오버"). They are
  * illustration, not interface: the only place in the desktop client that carries a
  * hue other than the lime, and they stay fixed in both themes because the mark is
- * one drawing. Kept here rather than inline so the exception is countable.
+ * one drawing. The hues are the `illustration-*` tokens, kept apart from the
+ * interface palette so the exception is countable.
  * The glyphs on the two light fills are dark, not white — white measured 1.4:1 on
  * the yellow and 2.1:1 on the green, i.e. the icons were invisible.
  */
 const FILE_MARK = {
-    code: 'bg-[#5BC77A] text-black/70',
-    note: 'bg-[#F9D65C] text-black/70',
-    image: 'bg-[#2E9BEA] text-white',
+    code: 'bg-illustration-code text-black/70',
+    note: 'bg-illustration-note text-black/70',
+    image: 'bg-illustration-image text-white',
 } as const;
 
 /**
@@ -48,8 +49,10 @@ export const AttachmentDropOverlay = () => {
                     <Image size={28} aria-hidden />
                 </span>
             </span>
-            <p className="text-[20px] font-semibold tracking-[-0.01em] text-foreground">{t('chat.attach.dropTitle')}</p>
-            <p className="text-[14px] text-label">{t('chat.attach.dropHint', { count: MAX_ATTACHMENTS })}</p>
+            <p className="text-headline font-semibold tracking-[-0.01em] text-foreground">
+                {t('chat.attach.dropTitle')}
+            </p>
+            <p className="text-callout text-label">{t('chat.attach.dropHint', { count: MAX_ATTACHMENTS })}</p>
         </div>
     );
 };
