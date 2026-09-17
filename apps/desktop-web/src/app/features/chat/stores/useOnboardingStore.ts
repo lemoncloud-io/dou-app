@@ -7,9 +7,17 @@ import { create } from 'zustand';
 export const onboardedKey = (userId: string) => `chatic.desktop.onboarded:${userId}`;
 
 interface OnboardingState {
-    /** Bumped to reopen the tips on demand, after they were finished once. */
-    reopenNonce: number;
+    /**
+     * The account whose first-run check already ran this session. The dialog
+     * lives on the home screen, which remounts on every return from Profile or
+     * Settings; a per-mount flag reopened tips the person had just closed.
+     */
+    checkedFor: string | null;
+    markChecked: (userId: string) => void;
+    /** Settings asked to show the tips again; the dialog consumes it once. */
+    reopenRequested: boolean;
     reopen: () => void;
+    consumeReopen: () => void;
 }
 
 /**
@@ -18,6 +26,9 @@ interface OnboardingState {
  * reopens them through this.
  */
 export const useOnboardingStore = create<OnboardingState>(set => ({
-    reopenNonce: 0,
-    reopen: () => set(state => ({ reopenNonce: state.reopenNonce + 1 })),
+    checkedFor: null,
+    markChecked: userId => set({ checkedFor: userId }),
+    reopenRequested: false,
+    reopen: () => set({ reopenRequested: true }),
+    consumeReopen: () => set({ reopenRequested: false }),
 }));

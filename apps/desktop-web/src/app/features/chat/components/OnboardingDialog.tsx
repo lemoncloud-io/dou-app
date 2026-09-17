@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Check } from 'lucide-react';
@@ -38,25 +38,27 @@ export const OnboardingDialog = ({ enabled, showChannelStatus, isChannelReady }:
     const { t } = useTranslation();
     const userId = runtime.session.useSessionIdentity().userId;
     const [open, setOpen] = useState(false);
-    // Decided once per mount, as soon as the account is known: a later change of
-    // cloud must not re-trigger it mid-session.
-    const decidedRef = useRef(false);
-    useEffect(() => {
-        if (decidedRef.current || !enabled || !userId) return;
-        decidedRef.current = true;
-        if (localStorage.getItem(onboardedKey(userId)) !== '1') setOpen(true);
-    }, [enabled, userId]);
     const [step, setStep] = useState<1 | 2>(1);
-
-    const reopenNonce = useOnboardingStore(s => s.reopenNonce);
+    // Checked once per account per session, as soon as the account is known: a
+    // later change of cloud, or a return from another screen, must not re-trigger it.
+    const checkedFor = useOnboardingStore(s => s.checkedFor);
+    const markChecked = useOnboardingStore(s => s.markChecked);
     useEffect(() => {
-        if (reopenNonce === 0) return;
+        if (!enabled || !userId || checkedFor === userId) return;
+        markChecked(userId);
+        if (localStorage.getItem(onboardedKey(userId)) !== '1') setOpen(true);
+    }, [enabled, userId, checkedFor, markChecked]);
+
+    const reopenRequested = useOnboardingStore(s => s.reopenRequested);
+    const consumeReopen = useOnboardingStore(s => s.consumeReopen);
+    useEffect(() => {
+        if (!reopenRequested) return;
+        consumeReopen();
         setStep(1);
         setOpen(true);
-    }, [reopenNonce]);
+    }, [reopenRequested, consumeReopen]);
 
-    // A reopen from Settings works on any cloud; the first-run trigger is guest-only.
-    if (!enabled && reopenNonce === 0) return null;
+    if (!enabled && !open) return null;
 
     const finish = () => {
         if (userId) localStorage.setItem(onboardedKey(userId), '1');
