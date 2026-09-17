@@ -1,4 +1,7 @@
-@import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700;800&display=swap');
+/* Google Fonts does not serve Pretendard (that request answers 400), so the app
+   ran on the system fallback. jsDelivr carries the upstream release, subset by
+   Unicode range so a Latin-only screen fetches no Hangul. */
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.min.css');
 
 @tailwind base;
 @tailwind components;
@@ -23,6 +26,16 @@
         --primary-foreground: 0 0% 10%;
         /* Lime as TEXT on light surfaces: the fill is unreadable (1.6:1), this clears 4.5:1. */
         --primary-ink: 76 80% 26%;
+        /* Keyboard focus ring. The fill lime at 60% over white measures 1.26:1,
+           under the 3:1 WCAG 2.4.11 floor for a non-text indicator, so light mode
+           rings in the ink lime instead (5.1:1 on white). */
+        --focus-ring: 76 80% 26%;
+
+        /* Links in message text. They used to take --primary-ink, the same olive
+           lime as primary actions and the focus ring, so a link and a button were
+           the same colour and the accent stopped meaning "act here". A blue is the
+           one hue nobody reads as this brand: 7.59:1 on white (measured). */
+        --link: 217 72% 38%;
 
         --secondary: 180 5% 96%; /* #F4F5F5 BK_50 */
         --secondary-foreground: 0 0% 10%;
@@ -59,14 +72,19 @@
 
         --border: 240 5% 92%; /* #EAEAEC BK_100 */
         --input: 240 6% 90%; /* #E5E5E8 composer box */
-        --ring: 220 5% 24%;
+        /* ui-kit's own focus ring. Pointed at --focus-ring so a kit-rendered
+           control and an app-rendered one show the same focus. */
+        --ring: var(--focus-ring);
 
         --radius: 0.5rem;
 
         /* Figma gray scale */
         --label: 220 5% 24%; /* #3A3C40 BK_800 */
-        --placeholder: 218 4% 64%; /* #9FA2A7 BK_500 */
-        --description: 218 5% 54%; /* #84888F BK_600 timestamps */
+        /* BK_500 #9FA2A7 measures 2.6:1 on white and BK_600 #84888F 3.6:1, both
+           under the 4.5:1 this system holds placeholders and secondary text to.
+           Both take the same one-step darkening --muted-foreground already took. */
+        --placeholder: 218 5% 46%;
+        --description: 218 5% 46%; /* timestamps */
         --surface: 0 0% 100%;
         /* #90C304 main color/GR2 — the deeper lime: send button, composer focus ring. */
         --main-accent: 76 96% 39%;
@@ -86,13 +104,35 @@
         --bubble-mine-foreground: 0 0% 100%;
         --bubble-other: 180 5% 96%;
         --bubble-other-foreground: 0 0% 10%;
-        --badge-unread: 349 100% 59%; /* #FF2D55 Colors/Pink */
+        /* Figma's Colors/Pink #FF2D55 carries white at 3.6:1, under the 4.5:1 an
+           11px semibold count needs. Darkened one step to 5.3:1; the hue is the
+           Figma pink's own, so the badge still reads as the same signal. */
+        --badge-unread: 349 85% 45%;
         --badge-unread-foreground: 0 0% 100%;
         --badge-member: 76 87% 49%;
         --favorite: 35 100% 50%; /* #FF9500 Colors/Orange — the favorite star */
+        /* The drop overlay's stacked-files drawing: illustration, one drawing in
+           both themes, so the dark block does not redefine them. */
+        --illustration-code: 137 49% 57%; /* #5BC77A */
+        --illustration-note: 47 93% 67%; /* #F9D65C */
+        --illustration-image: 205 82% 55%; /* #2E9BEA */
         --tab-active: 0 0% 10%;
         --tab-inactive: 218 5% 46%;
         --overlay: 0 0% 0%;
+
+        /* Presence + the self avatar's disc. Figma "1명 Profile" (blue_bk #102346)
+           and Colors/Green #34C759 — fixed in both themes by design, so they are
+           defined here once and not redefined under .dark. */
+        --presence-online: 145 63% 49%;
+        --profile-disc: 219 63% 17%;
+        --profile-disc-foreground: 0 0% 100%;
+
+        /* Theme-preview swatches for the settings picker. Defined once and NOT
+           redefined under .dark: each swatch shows the theme it names, so it must
+           not follow the theme in force. */
+        --swatch-light: 0 0% 100%; /* light --background */
+        --swatch-dark: 90 3% 15%; /* dark --background, #252624 */
+        --swatch-border: 220 4% 55%; /* readable on both grounds */
 
         /* Layering + elevation primitives. */
         --elevated: 0 0% 100%;
@@ -117,6 +157,11 @@
         --primary-foreground: 120 3% 7%;
         /* On dark surfaces the fill lime already reads as text, so ink = fill. */
         --primary-ink: 76 87% 49%;
+        /* On dark the fill lime rings at 4.75:1 — it stays. */
+        --focus-ring: 76 87% 49%;
+
+        /* 6.84:1 on the dark main pane (#252624, measured). */
+        --link: 212 90% 72%;
 
         --secondary: 120 3% 7%; /* #121312 chips, send button */
         --secondary-foreground: 60 7% 92%;
@@ -150,7 +195,7 @@
 
         --border: 96 4% 26%; /* #424540 */
         --input: 90 2% 24%; /* #3D3E3C composer box */
-        --ring: 60 2% 76%;
+        --ring: var(--focus-ring);
 
         /* Gray scale (dark) */
         --label: 60 2% 76%; /* #C3C3C1 */
@@ -174,7 +219,7 @@
         --bubble-mine-foreground: 0 0% 100%;
         --bubble-other: 90 2% 18%;
         --bubble-other-foreground: 60 7% 92%;
-        --badge-unread: 349 100% 59%; /* #FF2D55 */
+        --badge-unread: 349 85% 45%; /* same darkened pink as light — see above */
         --badge-unread-foreground: 0 0% 100%;
         --badge-member: 76 87% 49%;
         --favorite: 35 100% 50%; /* #FF9500 */
@@ -259,7 +304,23 @@
         outline: none;
         box-shadow:
             0 0 0 2px hsl(var(--background)),
-            0 0 0 4px hsl(var(--primary) / 0.6);
+            0 0 0 4px hsl(var(--focus-ring));
+    }
+
+    /* Grow an isolated control's hit area to the 36px floor without changing how
+       big it looks. Only for controls with no close neighbour: overlapping hit
+       areas make a tap land on the wrong one. */
+    .hit-target {
+        position: relative;
+    }
+    .hit-target::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: max(100%, 36px);
+        height: max(100%, 36px);
+        transform: translate(-50%, -50%);
     }
 
     /* Tactile press — GPU-only (transform), springy ease. No layout thrash. */

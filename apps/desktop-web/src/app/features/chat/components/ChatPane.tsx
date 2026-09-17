@@ -4,14 +4,16 @@ import { useTranslation } from 'react-i18next';
 import { runtime } from '@chatic/app-runtime';
 import { placeScopeKey, usePinnedChannels } from '@chatic/shared';
 
-import { Hash, Search, Star, User } from 'lucide-react';
+import { Hash, PanelLeft, Plus, Search, Star, Ticket, User } from 'lucide-react';
 
 import type { DomainChannel, DomainChat } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
+import { Button } from '@chatic/ui-kit/components/ui/button';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import {
     Hint,
+    MOD_KEY,
     dmCounterpartId,
     displayName,
     isDmChannel,
@@ -24,9 +26,12 @@ import {
     useOpenAtBottomStore,
     useReadCursorStore,
     useReadReceipts,
+    useSelectedChannelStore,
+    PANE_HEADER,
+    PANE_TITLE,
 } from '../../../shared';
 import type { ChannelMember } from '../../channels';
-import { useChannelSettingsStore } from '../../channels';
+import { useChannelActions, useChannelSettingsStore } from '../../channels';
 import { useSearchDialogStore } from '../../search';
 import { buildMemberNames, buildThreadIndex, foldReactions, isFeedVisible } from '../utils';
 import { useFileDrop, useImageAttachments, useMentionables, useMessageViewer, type ReadCountOf } from '../hooks';
@@ -34,6 +39,8 @@ import { useThreadStore } from '../stores';
 import { ChannelHeaderMenu } from './ChannelHeaderMenu';
 import { ChannelIntro } from './ChannelIntro';
 import { Composer } from './Composer';
+import { useShellSidebar } from './DesktopLayout';
+import { JumpReturnBar } from './JumpReturnBar';
 import { MessageList } from './MessageList';
 import { HEADER_ICON_BUTTON } from './headerStyles';
 import { AttachmentDropOverlay, AttachmentNoticeDialog } from './images';
@@ -46,11 +53,30 @@ interface ChatPaneProps {
     membersLoading?: boolean;
     /** Per-message read counts, from the one `useReadCounts` the host mounts per channel. */
     readCountOf?: ReadCountOf;
+    /**
+     * Where a jump brought the reader from, and how to go back. Supplied by the
+     * host, which owns both the channel list (for the name) and the jump itself.
+     */
+    jumpReturn?: { originName: string; onReturn: () => void; onDismiss: () => void };
+    /**
+     * What the pane offers with no channel open. `pick` when the sidebar has
+     * channels, `create` when this place has none, `join` on the Default Cloud,
+     * which cannot create channels: there the only next step is an invite.
+     */
+    emptyState?: { mode: 'pick' | 'create' | 'join'; onAction?: () => void };
 }
 
-export const ChatPane = ({ channel, members, membersLoading, readCountOf }: ChatPaneProps) => {
+export const ChatPane = ({
+    channel,
+    members,
+    membersLoading,
+    readCountOf,
+    jumpReturn,
+    emptyState = { mode: 'pick' },
+}: ChatPaneProps) => {
     const { t } = useTranslation();
     const channelId = channel?.id ?? null;
+    const shell = useShellSidebar();
     const myUid = runtime.session.useSessionIdentity().userId;
     // Identity for naming own/optimistic messages (guest-UUID guard + per-channel
     // cloud id) — shared with the thread panel via useMessageViewer.
@@ -66,6 +92,9 @@ export const ChatPane = ({ channel, members, membersLoading, readCountOf }: Chat
     const handleDiscard = useCallback((message: DomainChat) => void discardMessage(message), [discardMessage]);
     const handleLoadOlder = useCallback(() => void loadOlder(), [loadOlder]);
     const openSettings = useChannelSettingsStore(s => s.open);
+    const clearChannel = useSelectedChannelStore(s => s.clearChannel);
+    // One instance for the header menu and the intro, so both open the same dialogs.
+    const channelActions = useChannelActions(channelId, { onRemoved: clearChannel });
     const openSearch = useSearchDialogStore(s => s.setOpen);
     // Favorites live on the shared `ui.pinnedChannels` record (the same one apps/web writes),
     // scoped to the active place. A null scope (cloud/place not settled) leaves the star a no-op
@@ -149,8 +178,31 @@ export const ChatPane = ({ channel, members, membersLoading, readCountOf }: Chat
                 <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-2xl font-semibold text-primary-ink">
                     #
                 </div>
-                <p className="text-heading text-foreground">{t('chat.empty')}</p>
-                <p className="max-w-xs text-caption text-muted-foreground">{t('chat.emptyHint')}</p>
+                <p className="text-heading text-foreground">{t(`chat.empty.${emptyState.mode}.title`)}</p>
+                <p className="max-w-xs text-caption text-muted-foreground">
+                    {t(`chat.empty.${emptyState.mode}.hint`, { mod: MOD_KEY })}
+                </p>
+                {emptyState.mode !== 'pick' && emptyState.onAction && (
+                    <Button className="focus-ring tactile mt-1 transition-colors" onClick={emptyState.onAction}>
+                        {emptyState.mode === 'create' ? (
+                            <Plus size={16} aria-hidden />
+                        ) : (
+                            <Ticket size={16} aria-hidden />
+                        )}
+                        {t(`chat.empty.${emptyState.mode}.action`)}
+                    </Button>
+                )}
+                {/* A drawer hides the list this copy points at. */}
+                {emptyState.mode === 'pick' && shell.isDrawer && (
+                    <Button
+                        variant="outline"
+                        className="focus-ring tactile mt-1 transition-colors"
+                        onClick={shell.open}
+                    >
+                        <PanelLeft size={16} aria-hidden />
+                        {t('sidebar.show')}
+                    </Button>
+                )}
             </div>
         );
     }
@@ -184,15 +236,35 @@ export const ChatPane = ({ channel, members, membersLoading, readCountOf }: Chat
             description={introKind === 'channel' ? desc : undefined}
             colorSeed={counterpartId ?? undefined}
             isFavorite={isFavorite}
+            isEmpty={messages.length === 0}
             onToggleFavorite={() => channelId && togglePinned(channelId)}
             onOpenSettings={introKind === 'channel' ? () => openSettings(channelId) : undefined}
+            onAddMembers={introKind === 'channel' ? () => channelActions.openDialog('add-members') : undefined}
         />
     );
 
     return (
         <>
-            <header className="flex h-[68px] shrink-0 items-center justify-between gap-2 border-b border-hairline px-6 py-2">
+            <header className={`${PANE_HEADER} px-6`}>
+                {/* The chat screen had no h1 — its top heading was the sidebar's h2. The
+                    open channel is what this screen is about, so it names the page. */}
+                <h1 className="sr-only">{headerName}</h1>
                 <div className="flex min-w-0 items-center gap-3.5">
+                    {/* Only reachable route to the channel list once the sidebar is a
+                        drawer; absent from the docked layout, where it would do nothing. */}
+                    {shell.isDrawer && (
+                        <Hint label={t('sidebar.show')}>
+                            <button
+                                type="button"
+                                onClick={shell.open}
+                                aria-label={t('sidebar.show')}
+                                aria-expanded={shell.isOpen}
+                                className={HEADER_ICON_BUTTON}
+                            >
+                                <PanelLeft size={16} aria-hidden />
+                            </button>
+                        </Hint>
+                    )}
                     <Hint label={desc ? `${t('chat.header.settings')} — ${desc}` : t('chat.header.settings')}>
                         <button
                             type="button"
@@ -202,9 +274,7 @@ export const ChatPane = ({ channel, members, membersLoading, readCountOf }: Chat
                             {!isDmChannel(channel) && !isSelfChannel(channel) && (
                                 <Hash size={16} aria-hidden className="shrink-0 text-foreground" />
                             )}
-                            <span className="truncate text-[18px] font-semibold tracking-[-0.01em] text-foreground hover:underline">
-                                {headerName}
-                            </span>
+                            <span className={`${PANE_TITLE} hover:underline`}>{headerName}</span>
                         </button>
                     </Hint>
                     {memberCount > 0 && (
@@ -212,7 +282,7 @@ export const ChatPane = ({ channel, members, membersLoading, readCountOf }: Chat
                             type="button"
                             onClick={() => openSettings(channelId)}
                             aria-label={t('channels.settings.memberCount', { count: memberCount })}
-                            className="focus-ring flex shrink-0 items-center gap-1 rounded-md bg-muted px-1.5 py-1 text-[13px] tabular-nums tracking-[-0.01em] text-label transition-colors hover:bg-accent"
+                            className="focus-ring hit-target flex shrink-0 items-center gap-1 rounded-md bg-muted px-1.5 py-1 text-caption tabular-nums text-label transition-colors hover:bg-accent"
                         >
                             <User size={16} aria-hidden />
                             {memberCount}
@@ -250,9 +320,16 @@ export const ChatPane = ({ channel, members, membersLoading, readCountOf }: Chat
                             <Search size={18} aria-hidden />
                         </button>
                     </Hint>
-                    <ChannelHeaderMenu channel={channel} myUid={myUid} />
+                    <ChannelHeaderMenu channel={channel} myUid={myUid} actions={channelActions} />
                 </div>
             </header>
+            {jumpReturn && (
+                <JumpReturnBar
+                    originName={jumpReturn.originName}
+                    onReturn={jumpReturn.onReturn}
+                    onDismiss={jumpReturn.onDismiss}
+                />
+            )}
             <div className="relative flex min-h-0 flex-1 flex-col" {...dropHandlers}>
                 <MessageList
                     key={channelId}

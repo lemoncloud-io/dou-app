@@ -1,15 +1,22 @@
-import { useCallback, useState } from 'react';
+import { createElement, useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { ToastAction, type ToastActionElement } from '@chatic/ui-kit/components/ui/toast';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { extractErrorMessage, useDesktopChannelMutations } from '../../../shared';
+import { useDesktopChannelMutations } from '../../../shared';
+import { channelActionErrorKey } from '../utils';
 
 export type ChannelDialogKind = 'rename' | 'add-members' | 'delete' | 'leave' | 'kick' | null;
 
 interface UseChannelActionsOptions {
     /** Called after a successful delete or self-leave (e.g. clear selection). */
     onRemoved?: () => void;
+    /**
+     * Resolve a member id to a display name, for the removal toast. A resolver
+     * rather than a name because the kick target is this hook's own state.
+     */
+    resolveMemberName?: (userId: string) => string;
 }
 
 /**
@@ -18,9 +25,12 @@ interface UseChannelActionsOptions {
  * useDesktopChannelMutations) and their teardown. Both ChannelHeaderMenu and
  * ChannelSettingsPanel consume this so the wiring lives in exactly one place.
  */
-export const useChannelActions = (channelId: string | null, { onRemoved }: UseChannelActionsOptions = {}) => {
+export const useChannelActions = (
+    channelId: string | null,
+    { onRemoved, resolveMemberName }: UseChannelActionsOptions = {}
+) => {
     const { t } = useTranslation();
-    const { deleteChannel, leaveChannel, isMutating } = useDesktopChannelMutations();
+    const { deleteChannel, leaveChannel, inviteChannel, isMutating } = useDesktopChannelMutations();
 
     const [dialog, setDialog] = useState<ChannelDialogKind>(null);
     const [kickTarget, setKickTarget] = useState<string | null>(null);
@@ -46,7 +56,7 @@ export const useChannelActions = (channelId: string | null, { onRemoved }: UseCh
             toast({ description: t('toast.channelDeleted') });
         } catch (e) {
             closeDialog();
-            toast({ variant: 'destructive', description: extractErrorMessage(e) });
+            toast({ variant: 'destructive', description: t(channelActionErrorKey(e)) });
         }
     }, [channelId, deleteChannel, closeDialog, onRemoved, t]);
 
@@ -59,7 +69,7 @@ export const useChannelActions = (channelId: string | null, { onRemoved }: UseCh
             toast({ description: t('toast.channelLeft') });
         } catch (e) {
             closeDialog();
-            toast({ variant: 'destructive', description: extractErrorMessage(e) });
+            toast({ variant: 'destructive', description: t(channelActionErrorKey(e)) });
         }
     }, [channelId, leaveChannel, closeDialog, onRemoved, t]);
 
@@ -67,12 +77,31 @@ export const useChannelActions = (channelId: string | null, { onRemoved }: UseCh
         if (!channelId || !kickTarget) return;
         try {
             await leaveChannel({ channelId, userId: kickTarget });
+            // Removing someone is invisible from the roster alone if the list has
+            // not caught up yet, so say it happened — delete and leave both do —
+            // and offer the way back: re-adding is the same invite the Add
+            // Members dialog sends, so a mis-click costs one more click, not a hunt.
+            const removedId = kickTarget;
+            const undo = () =>
+                void inviteChannel({ channelId, userIds: [removedId] }).catch(e =>
+                    toast({ variant: 'destructive', description: t(channelActionErrorKey(e)) })
+                );
+            toast({
+                description: t('toast.memberRemoved', { name: resolveMemberName?.(removedId) ?? '' }),
+                // The kit types its action as `ReactElement<typeof ToastAction>` (the
+                // component, not its props), which no created element satisfies.
+                action: createElement(
+                    ToastAction,
+                    { altText: t('toast.undoRemove'), onClick: undo },
+                    t('toast.undo')
+                ) as unknown as ToastActionElement,
+            });
         } catch (e) {
-            toast({ variant: 'destructive', description: extractErrorMessage(e) });
+            toast({ variant: 'destructive', description: t(channelActionErrorKey(e)) });
         } finally {
             closeDialog();
         }
-    }, [channelId, kickTarget, leaveChannel, closeDialog]);
+    }, [channelId, kickTarget, resolveMemberName, leaveChannel, inviteChannel, closeDialog, t]);
 
     return { dialog, kickTarget, openDialog, openKick, closeDialog, onDelete, onLeave, onKick, isMutating };
 };

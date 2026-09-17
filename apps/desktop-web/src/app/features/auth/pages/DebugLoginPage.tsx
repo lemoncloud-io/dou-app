@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import { Eye, EyeOff } from 'lucide-react';
 
@@ -11,6 +11,7 @@ import { useDebugLogin } from '../hooks';
 export const DebugLoginPage = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
+    const location = useLocation();
     const { submit, isSubmitting, isError } = useDebugLogin();
     const [uid, setUid] = useState('');
     const [pwd, setPwd] = useState('');
@@ -28,7 +29,7 @@ export const DebugLoginPage = () => {
     );
 
     return (
-        <div className="relative flex h-screen items-center justify-center overflow-hidden bg-background">
+        <div className="relative flex h-full items-center justify-center overflow-hidden bg-background">
             <div
                 className="pointer-events-none absolute inset-0 opacity-60"
                 style={{
@@ -93,7 +94,7 @@ export const DebugLoginPage = () => {
                     type="submit"
                     disabled={isSubmitting || !uid.trim() || !pwd}
                     className={cn(
-                        'h-11 rounded-full bg-primary text-sm font-semibold text-primary-foreground transition-all',
+                        'h-11 rounded-full bg-primary text-sm font-semibold text-primary-foreground transition-colors',
                         'hover:opacity-90 active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100'
                     )}
                 >
@@ -102,10 +103,12 @@ export const DebugLoginPage = () => {
 
                 <button
                     type="button"
-                    onClick={() => navigate('/auth/login')}
+                    // Back to wherever this page was opened from (welcome or invite);
+                    // a fresh load with no history lands on the welcome screen.
+                    onClick={() => (location.key === 'default' ? navigate('/auth/welcome') : navigate(-1))}
                     className="text-xs font-medium text-muted-foreground hover:text-foreground"
                 >
-                    {t('auth.debug.backToInvite')}
+                    {t('auth.debug.back')}
                 </button>
             </form>
         </div>

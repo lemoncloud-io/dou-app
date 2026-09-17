@@ -52,8 +52,11 @@ export const ComposerActions = ({ canSend, onEmoji, onSend }: ComposerActionsPro
                     aria-label={t('chat.composer.send')}
                     className={cn(
                         'focus-ring tactile flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-lg transition-colors ease-tactile',
-                        // Figma GR2 fill with a white plane when there is something to send.
-                        canSend ? 'bg-main-accent text-white hover:opacity-90' : 'bg-muted text-placeholder'
+                        // The same lime as every other primary action. Send used the darker
+                        // GR2, which put two limes side by side for one role.
+                        canSend
+                            ? 'bg-primary text-primary-foreground hover:opacity-90'
+                            : 'bg-muted text-muted-foreground'
                     )}
                 >
                     <Send className="h-5 w-5 fill-current" aria-hidden />

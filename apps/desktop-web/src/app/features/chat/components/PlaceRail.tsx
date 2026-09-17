@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
@@ -9,6 +9,7 @@ import type { DomainPlace } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 import { runtime } from '@chatic/app-runtime';
 
+import { ConfirmDialog } from '../../channels';
 import { useJoinDialogStore } from '../../auth';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 import {
@@ -22,10 +23,12 @@ import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import {
     Hint,
+    ScrollHint,
     isPlaceholderName,
     useAccountResetOnLogout,
     useDebugModeStore,
     useDisplayProfile,
+    useScrollOverflow,
 } from '../../../shared';
 
 interface PlaceRailProps {
@@ -49,6 +52,8 @@ interface PlaceTileProps {
     glyph?: ReactNode;
     isActive: boolean;
     unread: number;
+    /** Accessible name while the place has unread messages. */
+    unreadLabel?: string;
     isSwitching?: boolean;
     onSelect: (placeId: string) => void;
 }
@@ -56,12 +61,22 @@ interface PlaceTileProps {
 /** One place, Figma Workspace Rail style: a 48px icon box with the name under it.
  *  Active = the box fills with the rail's muted tone; color stays reserved for the
  *  cloud rail and thumbnails. */
-const PlaceTile = ({ id, name, thumbnail, glyph, isActive, unread, isSwitching, onSelect }: PlaceTileProps) => (
+const PlaceTile = ({
+    id,
+    name,
+    thumbnail,
+    glyph,
+    isActive,
+    unread,
+    unreadLabel,
+    isSwitching,
+    onSelect,
+}: PlaceTileProps) => (
     <Hint label={name}>
         <button
             onClick={() => onSelect(id)}
             disabled={isSwitching}
-            aria-label={name}
+            aria-label={unread > 0 ? unreadLabel : name}
             aria-current={isActive ? 'true' : undefined}
             className={cn(
                 'group flex w-full flex-col items-center gap-1 rounded-lg focus-ring',
@@ -84,15 +99,16 @@ const PlaceTile = ({ id, name, thumbnail, glyph, isActive, unread, isSwitching, 
                         tileInitial(name)
                     )}
                 </span>
+                {/* A dot, as on the cloud tiles and channel rows. A count here summed
+                    messages across rows that only dot, so "12" pointed at nothing a
+                    row inside would admit to. */}
                 {unread > 0 && (
-                    <span className="pointer-events-none absolute -right-1.5 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-badge-unread px-1 text-[11px] font-semibold leading-none text-badge-unread-foreground">
-                        {unread > 99 ? '99+' : unread}
-                    </span>
+                    <span className="pointer-events-none absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-rail-elevated bg-badge-unread" />
                 )}
             </span>
             <span
                 className={cn(
-                    'max-w-full truncate text-[14px] font-medium leading-tight text-rail-foreground transition-opacity',
+                    'max-w-full truncate text-callout font-medium leading-tight text-rail-foreground transition-opacity',
                     !isActive && 'opacity-70 group-hover:opacity-100'
                 )}
             >
@@ -122,6 +138,12 @@ export const PlaceRail = ({
     const { userName, photo } = runtime.session.useRuntimeProfile();
     const logout = runtime.session.useSessionLogout();
     const { resetAccount } = useAccountResetOnLogout();
+    // A guest account lives on this device and nothing can sign back into it, so
+    // logging out of one is a delete. A main account can always come back.
+    const { isGuest } = runtime.session.useRuntimeProfile();
+    const [confirmingLogout, setConfirmingLogout] = useState(false);
+
+    const runLogout = () => void resetAccount().finally(() => logout());
 
     // Self Display Profile: show my Place nick/photo here when set for this place.
     const globalName = isPlaceholderName(userName) ? '' : userName;
@@ -135,6 +157,8 @@ export const PlaceRail = ({
     const toggleDebug = useDebugModeStore(s => s.toggle);
     const openDebugPanel = useDebugModeStore(s => s.setOverlayOpen);
     const tapRef = useRef({ count: 0, last: 0 });
+    const placeScroll = useScrollOverflow<HTMLDivElement>();
+
     const onSecretTap = () => {
         const now = Date.now();
         const taps = tapRef.current;
@@ -143,7 +167,7 @@ export const PlaceRail = ({
         if (taps.count >= 7) {
             taps.count = 0;
             const next = toggleDebug();
-            toast({ title: next ? '🛠️ Debug mode ON' : 'Debug mode OFF' });
+            toast({ variant: 'info', title: t(next ? 'debug.mode.on' : 'debug.mode.off') });
         }
     };
 
@@ -151,32 +175,40 @@ export const PlaceRail = ({
         <div className="flex h-full w-full flex-col items-center">
             {/* overflow-y:auto clips overflow-x too — the pt/px give the -top/-right unread
                 badge room inside the clip box instead of slicing it. */}
-            <div className="-mt-2 flex w-full flex-1 flex-col items-stretch gap-4 overflow-y-auto scrollbar-hide px-1 pt-2">
-                {isDefaultMode ? (
-                    // Home / Guest: no joinable places, but show the default Home place
-                    // so the rail is never empty and the active place stays visible.
-                    <PlaceTile
-                        id="default"
-                        name={t('place.home')}
-                        glyph={<Home size={22} strokeWidth={2} aria-hidden />}
-                        isActive
-                        unread={0}
-                        onSelect={onSelectPlace}
-                    />
-                ) : (
-                    places.map(place => (
+            <div className="relative flex min-h-0 w-full flex-1 flex-col">
+                {placeScroll.above && <ScrollHint edge="top" surface="rail-elevated" />}
+                <div
+                    ref={placeScroll.ref}
+                    className="-mt-2 flex w-full flex-1 flex-col items-stretch gap-4 overflow-y-auto scrollbar-hide px-1 pt-2"
+                >
+                    {isDefaultMode ? (
+                        // Home / Guest: no joinable places, but show the default Home place
+                        // so the rail is never empty and the active place stays visible.
                         <PlaceTile
-                            key={place.id}
-                            id={place.id}
-                            name={place.name ?? place.id}
-                            thumbnail={place.thumbnail}
-                            isActive={place.id === selectedPlaceId}
-                            unread={unreadByPlace[place.id] ?? 0}
-                            isSwitching={isSwitching}
+                            id="default"
+                            name={t('place.home')}
+                            glyph={<Home size={22} strokeWidth={2} aria-hidden />}
+                            isActive
+                            unread={0}
                             onSelect={onSelectPlace}
                         />
-                    ))
-                )}
+                    ) : (
+                        places.map(place => (
+                            <PlaceTile
+                                key={place.id}
+                                id={place.id}
+                                name={place.name ?? place.id}
+                                thumbnail={place.thumbnail}
+                                isActive={place.id === selectedPlaceId}
+                                unread={unreadByPlace[place.id] ?? 0}
+                                unreadLabel={t('rail.placeUnread', { name: place.name ?? place.id })}
+                                isSwitching={isSwitching}
+                                onSelect={onSelectPlace}
+                            />
+                        ))
+                    )}
+                </div>
+                {placeScroll.below && <ScrollHint edge="bottom" surface="rail-elevated" />}
             </div>
 
             <button
@@ -194,16 +226,16 @@ export const PlaceRail = ({
                     aria-label={selfName || t('rail.menu.profile')}
                     className="group relative transition-transform duration-150 ease-tactile tactile focus-ring rounded-full"
                 >
-                    {/* Figma "1명 Profile": navy (blue_bk #102346) disc with a green
-                        (Colors/Green #34C759) presence dot — same in both themes. */}
+                    {/* Figma "1명 Profile": the navy disc and green presence dot are
+                        fixed in both themes — see --profile-disc / --presence-online. */}
                     <Avatar className="h-12 w-12 rounded-full">
                         {userPhoto && <AvatarImage src={userPhoto} alt={selfName} className="rounded-full" />}
-                        <AvatarFallback className="rounded-full bg-[#102346] text-heading font-semibold text-white">
+                        <AvatarFallback className="rounded-full bg-profile-disc text-heading font-semibold text-profile-disc-foreground">
                             {userInitial || <User size={17} aria-hidden />}
                         </AvatarFallback>
                     </Avatar>
                     {/* presence dot — signals "you, signed in" so the slot reads intentional, not empty */}
-                    <span className="absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full border-2 border-rail-elevated bg-[#34C759]" />
+                    <span className="absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full border-2 border-rail-elevated bg-presence-online" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent side="right" align="end" sideOffset={6}>
                     <DropdownMenuItem onClick={() => navigate('/profile')}>{t('rail.menu.profile')}</DropdownMenuItem>
@@ -213,11 +245,19 @@ export const PlaceRail = ({
                         <DropdownMenuItem onClick={() => openDebugPanel(true)}>{t('rail.menu.debug')}</DropdownMenuItem>
                     )}
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => void resetAccount().finally(() => logout())}>
+                    <DropdownMenuItem onClick={() => (isGuest ? setConfirmingLogout(true) : runLogout())}>
                         {t('rail.menu.logout')}
                     </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>
+            <ConfirmDialog
+                open={confirmingLogout}
+                onOpenChange={setConfirmingLogout}
+                title={t('rail.menu.logoutGuest.title')}
+                description={t('rail.menu.logoutGuest.description')}
+                confirmLabel={t('rail.menu.logout')}
+                onConfirm={runLogout}
+            />
         </div>
     );
 };

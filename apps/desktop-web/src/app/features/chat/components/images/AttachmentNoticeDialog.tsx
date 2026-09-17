@@ -29,19 +29,19 @@ export const AttachmentNoticeDialog = ({ notice, onDismiss }: AttachmentNoticeDi
                 <div className="flex flex-col items-center gap-2 px-6 pb-5 pt-6 text-center">
                     <AlertDialogTitle
                         className={cn(
-                            'whitespace-pre-line text-[16px] font-semibold leading-snug tracking-[-0.01em]',
+                            'whitespace-pre-line text-lead font-semibold leading-snug tracking-[-0.01em]',
                             notice === 'unsupported' ? 'text-destructive' : 'text-foreground'
                         )}
                     >
                         {notice && t(`chat.attach.notice.${notice}.title`)}
                     </AlertDialogTitle>
-                    <AlertDialogDescription className="whitespace-pre-line text-[13px] leading-snug text-label">
+                    <AlertDialogDescription className="whitespace-pre-line text-caption leading-snug text-label">
                         {notice && t(`chat.attach.notice.${notice}.body`)}
                     </AlertDialogDescription>
                 </div>
                 <AlertDialogAction
                     onClick={onDismiss}
-                    className="h-auto rounded-none border-t border-hairline bg-transparent py-3.5 text-[15px] font-semibold text-[#007AFF] shadow-none hover:bg-accent"
+                    className="h-auto rounded-none border-t border-hairline bg-transparent py-3.5 text-body font-semibold text-primary-ink shadow-none hover:bg-accent"
                 >
                     {t('chat.attach.notice.ok')}
                 </AlertDialogAction>

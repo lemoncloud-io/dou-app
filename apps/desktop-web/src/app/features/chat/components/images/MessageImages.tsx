@@ -62,7 +62,7 @@ const MessageImageGrid = ({
     return (
         <div className="mt-2 flex flex-col gap-2">
             {isSingle ? (
-                <span className="truncate text-[13px] font-medium tracking-[-0.005em] text-placeholder">
+                <span className="truncate text-caption font-medium tracking-[-0.005em] text-muted-foreground">
                     {images[0].name}
                 </span>
             ) : (

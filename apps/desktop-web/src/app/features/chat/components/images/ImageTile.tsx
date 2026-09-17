@@ -51,15 +51,19 @@ export const ImageTile = ({ image, overflow = 0, onOpen, onDownload, onCopy, onD
                 <img
                     src={image.url}
                     alt={image.name}
+                    loading="lazy"
+                    decoding="async"
                     draggable={false}
                     className={cn('h-full w-full object-cover', image.isUploading && 'scale-105 blur-[2px]')}
                 />
-                {(hasOverflow || image.isUploading) && <span aria-hidden className="absolute inset-0 bg-black/40" />}
+                {(hasOverflow || image.isUploading) && <span aria-hidden className="absolute inset-0 bg-overlay/40" />}
                 {(hasOverflow || image.isUploading) && (
                     <span className="absolute inset-0 flex items-center justify-center">
                         {image.isUploading && <ImageSpinner className="absolute h-11 w-11" />}
                         {hasOverflow && (
-                            <span className="text-[32px] font-semibold tracking-[-0.01em] text-white">+{overflow}</span>
+                            <span className="text-display font-semibold tracking-[-0.01em] text-white">
+                                +{overflow}
+                            </span>
                         )}
                     </span>
                 )}
@@ -67,7 +71,7 @@ export const ImageTile = ({ image, overflow = 0, onOpen, onDownload, onCopy, onD
             {!image.isUploading && !hasOverflow && (
                 <div
                     className={cn(
-                        'absolute right-2 top-2 flex items-center gap-2 rounded-lg border border-border bg-background/70 px-2 py-1.5 shadow-[0_1px_4px_rgba(0,0,0,0.08)] backdrop-blur-[4px] transition-opacity duration-150 ease-tactile',
+                        'absolute right-2 top-2 flex items-center gap-2 rounded-lg border border-border bg-background/70 px-2 py-1.5 shadow-raised transition-opacity duration-150 ease-tactile',
                         isMenuOpen ? 'opacity-100' : 'opacity-0 focus-within:opacity-100 group-hover/tile:opacity-100'
                     )}
                 >
@@ -76,7 +80,7 @@ export const ImageTile = ({ image, overflow = 0, onOpen, onDownload, onCopy, onD
                             type="button"
                             onClick={onDownload}
                             aria-label={t('chat.image.download')}
-                            className="focus-ring flex h-5 w-5 items-center justify-center rounded text-foreground"
+                            className="focus-ring flex h-9 w-9 items-center justify-center rounded text-foreground"
                         >
                             <Download size={16} aria-hidden />
                         </button>
@@ -90,7 +94,7 @@ export const ImageTile = ({ image, overflow = 0, onOpen, onDownload, onCopy, onD
                                 <button
                                     type="button"
                                     aria-label={t('chat.image.menu')}
-                                    className="focus-ring flex h-5 w-5 items-center justify-center rounded bg-foreground/[0.08] text-foreground"
+                                    className="focus-ring flex h-9 w-9 items-center justify-center rounded bg-foreground/[0.08] text-foreground"
                                 >
                                     <MoreVertical size={16} aria-hidden />
                                 </button>

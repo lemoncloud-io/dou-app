@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import type * as ReactDom from 'react-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -76,7 +77,16 @@ vi.mock('../hooks', () => ({ useLastChat: () => lastChat }));
 vi.mock('../../../shared/hooks/useAuthorNames', () => ({ useAuthorNames: () => new Map() }));
 vi.mock('../../../shared/hooks/useSiteProfiles', () => ({ useSiteProfileMap: () => ({}) }));
 // Both mount global keyboard/dialog machinery; this file is about what a row renders.
-vi.mock('./QuickSwitcher', () => ({ QuickSwitcher: () => null }));
+// `dialogStub.portal` turns the switcher into the shape that matters for the arrow-key
+// guard: a portalled input that is a React child of the nav but a DOM child of body.
+const dialogStub = vi.hoisted(() => ({ portal: false }));
+vi.mock('./QuickSwitcher', async () => {
+    const { createPortal } = (await vi.importActual('react-dom')) as typeof ReactDom;
+    return {
+        QuickSwitcher: () =>
+            dialogStub.portal ? createPortal(<input data-testid="dialog-input" />, document.body) : null,
+    };
+});
 vi.mock('../../search', () => ({ SearchDialog: () => null }));
 
 import '../../../../i18n';
@@ -294,15 +304,41 @@ describe('ChannelList keyboard reorder (Alt+Shift+↑/↓, slice 04)', () => {
         expect(pinned.reorder).toHaveBeenCalledWith(['C2', 'C1']);
     });
 
-    it('a plain ArrowDown still navigates — Alt+Shift is the only move chord', () => {
+    it('a plain ArrowDown moves focus and opens nothing — Enter is what opens a row', () => {
         const { nav, onSelect } = renderWithSelection('C1');
 
         act(() => {
             press(nav, 'ArrowDown');
         });
 
-        expect(onSelect).toHaveBeenCalledWith('C2');
+        // Focus lands on the row after the selected one; selecting on every arrow
+        // press would mount each channel's feed in turn and lose the reading
+        // position of the channel the user is actually in.
+        expect(document.activeElement).toBe(nav.querySelector('[data-channel-row="C2"]'));
+        expect(onSelect).not.toHaveBeenCalled();
         expect(storedOrder.set).not.toHaveBeenCalled();
+    });
+
+    it('an arrow inside an open dialog leaves the sidebar alone — portals bubble in the React tree', () => {
+        dialogStub.portal = true;
+        try {
+            const { nav, onSelect } = renderWithSelection('C1');
+            const input = screen.getByTestId('dialog-input');
+            input.focus();
+
+            act(() => {
+                fireEvent.keyDown(input, { key: 'ArrowDown' });
+            });
+
+            // The dialog owns its own list navigation; the sidebar handler must not
+            // steal focus to a row behind the modal, where the next Enter would
+            // switch channel instead of opening the result.
+            expect(document.activeElement).toBe(input);
+            expect(nav.querySelector('[data-channel-row="C2"]')).not.toBe(document.activeElement);
+            expect(onSelect).not.toHaveBeenCalled();
+        } finally {
+            dialogStub.portal = false;
+        }
     });
 
     it('Alt+Shift while filtering does nothing — a subset would write a partial order', () => {
@@ -565,7 +601,7 @@ describe('ChannelList row context menu (slice 05)', () => {
             openRowMenu(row);
             fireEvent.click(screen.getByRole('menuitem', { name: 'Leave channel' }));
             // Real ChannelActionDialogs: the leave ConfirmDialog asks first.
-            fireEvent.click(await screen.findByRole('button', { name: 'Leave' }));
+            fireEvent.click(await screen.findByRole('button', { name: 'Leave channel' }));
             await waitFor(() =>
                 expect(menu.leaveChannel).toHaveBeenCalledWith(
                     expect.objectContaining({ channelId: expect.any(String) })

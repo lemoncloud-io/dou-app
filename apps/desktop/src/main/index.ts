@@ -20,6 +20,7 @@ import {
     Tray,
 } from 'electron';
 import { resolveAppLanguage } from './appLanguage';
+import { menuLabels } from './menuLabels';
 import {
     applyCustomUi,
     disableCustomUi,
@@ -177,6 +178,23 @@ let tray: Tray | null = null;
 // The window the tray menu acts on. Module-scoped so refreshTrayMenu can rebuild after a
 // custom-UI change without threading the window through every caller.
 let trayWindow: BrowserWindow | null = null;
+
+// The bridge host of the live window, for menu items built before any window exists.
+let mainHost: AppBridgeHost | null = null;
+
+/**
+ * UI deeplinks the renderer understands (see the web's `parseUiDeeplink`). The menu
+ * bar had no Settings or Help entry, so on the desktop the only doors to either were
+ * in-app — and the shortcut sheet's only door was a key nothing on screen named.
+ */
+const openInWeb = (target: 'settings' | 'shortcuts' | 'switcher' | 'search'): void => {
+    const win = trayWindow;
+    if (win && !win.isDestroyed()) {
+        win.show();
+        win.focus();
+    }
+    if (mainHost) pushDeeplink(mainHost, `chatic-ui:${target}`);
+};
 
 /** Forward a deeplink URL to the web via the existing OnReceiveNotification event (web routes it). */
 const pushDeeplink = (host: AppBridgeHost, url: string): void => {
@@ -590,6 +608,7 @@ const customUiMenu = (): MenuItemConstructorOptions[] => {
 /** Native application menu with standard roles so copy/paste/zoom/window shortcuts work. */
 const buildAppMenu = (): Menu => {
     const isMac = process.platform === 'darwin';
+    const labels = menuLabels(app.getLocale());
     const viewSubmenu: MenuItemConstructorOptions[] = [
         { role: 'reload' },
         { type: 'separator' },
@@ -601,14 +620,75 @@ const buildAppMenu = (): Menu => {
         // DevTools in packaged builds too — internal distribution, needed to debug prod issues.
         { role: 'toggleDevTools' },
     ];
+    const settingsItem: MenuItemConstructorOptions = {
+        label: isMac ? `${labels.settings}…` : labels.settings,
+        accelerator: 'CommandOrControl+,',
+        click: () => openInWeb('settings'),
+    };
     const template: MenuItemConstructorOptions[] = [
-        ...(isMac ? [{ role: 'appMenu' } as MenuItemConstructorOptions] : []),
+        ...(isMac
+            ? [
+                  {
+                      role: 'appMenu',
+                      submenu: [
+                          { role: 'about' },
+                          { type: 'separator' },
+                          settingsItem,
+                          { type: 'separator' },
+                          { role: 'services' },
+                          { type: 'separator' },
+                          { role: 'hide' },
+                          { role: 'hideOthers' },
+                          { role: 'unhide' },
+                          { type: 'separator' },
+                          { role: 'quit' },
+                      ],
+                  } as MenuItemConstructorOptions,
+              ]
+            : []),
         // Cmd/Ctrl+W: `close` fires the window 'close' handler, so close-to-tray hides instead of destroying.
-        { label: 'File', submenu: [{ role: 'close' }] },
+        // Off macOS, Settings lives under File — the platform convention there.
+        {
+            label: labels.file,
+            submenu: isMac ? [{ role: 'close' }] : [settingsItem, { type: 'separator' }, { role: 'close' }],
+        },
         { role: 'editMenu' },
-        { label: 'View', submenu: viewSubmenu },
+        { label: labels.view, submenu: viewSubmenu },
+        // The app's own navigation, so it can be discovered from the menu bar. Shown,
+        // not registered, for the same reason as the shortcuts item below: the web
+        // binds these keys itself.
+        {
+            label: labels.go,
+            submenu: [
+                {
+                    label: labels.switcher,
+                    accelerator: 'CommandOrControl+K',
+                    registerAccelerator: false,
+                    click: () => openInWeb('switcher'),
+                },
+                {
+                    label: labels.search,
+                    accelerator: 'CommandOrControl+Shift+F',
+                    registerAccelerator: false,
+                    click: () => openInWeb('search'),
+                },
+            ],
+        },
         ...customUiMenu(),
         { role: 'windowMenu' },
+        {
+            role: 'help',
+            submenu: [
+                {
+                    label: labels.shortcuts,
+                    // Shown, not registered: the web already binds Mod+/ as a toggle, and
+                    // a registered accelerator would swallow the key before it got there.
+                    accelerator: 'CommandOrControl+/',
+                    registerAccelerator: false,
+                    click: () => openInWeb('shortcuts'),
+                },
+            ],
+        },
     ];
     return Menu.buildFromTemplate(template);
 };
@@ -681,6 +761,7 @@ const createWindow = (): BrowserWindow => {
     const host = new AppBridgeHost({
         sendToWeb: (message: string) => win.webContents.send(TO_WEB_CHANNEL, message),
     });
+    mainHost = host;
     registerHandlers(host, win);
 
     // Auto-update the shell (web updates remotely per ADR-0001). Ask-first UX: the

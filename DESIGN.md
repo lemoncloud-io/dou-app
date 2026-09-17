@@ -24,7 +24,7 @@ Figma variables read from node `187-3` (the desktop palette):
 | Figma name                    | Hex       | Where it lands                                                   |
 | ----------------------------- | --------- | ---------------------------------------------------------------- |
 | `main color/GR1`              | `#B0EA10` | `--primary` on every surface. The only hue in the system         |
-| (GR2, referenced in comments) | `#90C304` | `--main-accent`: send button, composer focus ring                |
+| (GR2, referenced in comments) | `#90C304` | `--main-accent`: the shared toast's success check and edge only  |
 | `blue_bk`                     | `#102346` | `--brand-ink` (web): avatar badge, active send, my bubble        |
 | `gray_blue`                   | `#E4EAEC` | not tokenised, unused in code                                    |
 | `Solid/Secondary/BK_50`       | `#F4F5F5` | `--secondary`, `--muted`, `--accent` hover, `--avatar-ring`      |
@@ -69,11 +69,22 @@ White on `#B0EA10` is 1.6:1, so:
 
 - **Fill**: `bg-primary text-primary-foreground` (dark ink on lime). Buttons, active tiles.
 - **Text on light surfaces**: `text-primary-ink`, a darkened lime that clears 4.5:1
-  (desktop light `76 80% 26%`). Links, mentions, active glyphs.
+  (desktop light `76 80% 26%`). Mentions, active glyphs.
 - **On dark surfaces** the fill already reads as text, so `--primary-ink` equals
   `--primary`.
 
-`libs/block-kit` resolves links and mentions to `primary-ink`, never `primary`.
+`libs/block-kit` resolves mentions to `primary-ink`, never `primary`.
+
+**Links are not the accent.** On desktop a URL in message text takes `text-link`
+(`--link`, light `217 72% 38%` at 7.59:1 on white, dark `212 90% 72%` at 6.84:1 on the
+dark pane) and is underlined at rest. Sharing the accent made a link and a button the
+same colour, which spends the one thing the accent is for, and colour alone cannot carry
+"this is a link" inside body text (WCAG 1.4.1). Mobile web already read links as blue
+(`--point-blue` `#2A7EF4`); desktop's is a darker blue because that one measures 3.6:1 on
+white, under the body-text floor. `libs/block-kit` links take `text-link` too, so every
+app that renders blocks defines `--link` (web keeps its blue, the builder previews
+desktop's). Block links still underline only on hover: underlining them at rest would
+change every message on mobile, which is a separate decision.
 
 ### Desktop palette (light, from Figma `247-10714`)
 
@@ -92,6 +103,7 @@ White on `#B0EA10` is 1.6:1, so:
 | `--destructive`                        | `3 100% 59%`   | `#FF3B30`                                            |
 | `--warning`                            | `38 92% 50%`   | connecting banner                                    |
 | `--badge-unread`                       | `349 100% 59%` | `#FF2D55`                                            |
+| `--link`                               | `217 72% 38%`  | URLs in message text (7.59:1 on white)               |
 | `--favorite`                           | `35 100% 50%`  | `#FF9500`                                            |
 | `--toast`                              | `222 75% 12%`  | `#081837`, always dark                               |
 
@@ -99,17 +111,18 @@ White on `#B0EA10` is 1.6:1, so:
 
 Warm near-neutral grays, same lime.
 
-| Token                                                     | Hex                                                   |
-| --------------------------------------------------------- | ----------------------------------------------------- |
-| `--background`                                            | `#252624` main pane                                   |
-| `--card` / `--sidebar` / `--rail-elevated` / `--elevated` | `#2E2F2D`                                             |
-| `--rail` / `--muted` / `--secondary` / `--well`           | `#121312`                                             |
-| `--foreground`                                            | `#EBEBE8`                                             |
-| `--accent` (hover)                                        | `#38393A`                                             |
-| `--border` / `--hairline`                                 | `#424540`                                             |
-| `--input`                                                 | `#3D3E3C`                                             |
-| `--focus-border`                                          | `#B0EA10` (composer focus is the lime itself on dark) |
-| `--toast`                                                 | `#F4F5F5` light card, dark text                       |
+| Token                                                     | Hex                                                      |
+| --------------------------------------------------------- | -------------------------------------------------------- |
+| `--background`                                            | `#252624` main pane                                      |
+| `--card` / `--sidebar` / `--rail-elevated` / `--elevated` | `#2E2F2D`                                                |
+| `--rail` / `--muted` / `--secondary` / `--well`           | `#121312`                                                |
+| `--foreground`                                            | `#EBEBE8`                                                |
+| `--accent` (hover)                                        | `#38393A`                                                |
+| `--border` / `--hairline`                                 | `#424540`                                                |
+| `--input`                                                 | `#3D3E3C`                                                |
+| `--focus-border`                                          | `#B0EA10` (composer focus is the lime itself on dark)    |
+| `--link`                                                  | `212 90% 72%` URLs in message text (6.84:1 on `#252624`) |
+| `--toast`                                                 | `#F4F5F5` light card, dark text                          |
 
 ### Mobile web palette
 
@@ -138,8 +151,9 @@ they are the message's actual words.
 
 ## Typography
 
-**Pretendard**, weights 400 / 500 / 600 / 700 / 800, loaded from Google Fonts with the
-system stack as fallback. Antialiased. Every app sets it on `html`.
+**Pretendard**, weights 400 / 500 / 600 / 700 / 800, with the system stack as fallback.
+Desktop loads it from jsDelivr (the upstream release, Unicode-range subset). `apps/web` still
+imports it from Google Fonts, which does not serve Pretendard, so web renders the fallback. Antialiased. Every app sets it on `html`.
 
 ### Desktop scale (`apps/desktop-web/tailwind.config.js`)
 
@@ -148,21 +162,30 @@ Hierarchy comes from weight and tracking, not only size.
 | Class           | Size / leading | Tracking | Weight | Used for                        |
 | --------------- | -------------- | -------- | ------ | ------------------------------- |
 | `text-display`  | 24 / 30        | -0.024em | 800    | onboarding, empty hero          |
-| `text-title`    | 18 / 26        | -0.017em | 700    | dialog titles                   |
+| `text-headline` | 20 / 28        | -0.012em | —      | drop overlay, large initials    |
+| `text-title`    | 18 / 26        | -0.017em | 700    | conversation title, dialogs     |
 | `text-heading`  | 15 / 22        | -0.009em | 600    | section heads, empty-state lead |
+| `text-lead`     | 16 / 24        | -0.006em | —      | message author, sidebar place   |
 | `text-body`     | 15 / 23.2      | -0.003em | 400    | message text, composer          |
 | `text-callout`  | 14 / 20.8      | -0.002em | 400    | rows, secondary copy            |
 | `text-caption`  | 13 / 17.6      | 0        | 400    | timestamps, hints               |
-| `text-micro`    | 11.5 / 15.2    | 0        | 400    | edited marker                   |
+| `text-micro`    | 11.5 / 15.2    | 0        | 400    | edited marker, date pill        |
+| `text-tiny`     | 11 / 16        | 0        | —      | unread pill, keycaps            |
+| `text-nano`     | 10 / 14        | 0        | —      | small-avatar initials, gutter   |
 | `text-overline` | 11 / 16        | +0.08em  | 600    | uppercase labels                |
 
-Fixed sizes that live in components rather than the scale, measured against Figma:
+A dash in the weight column means the step sets none, and the component picks it. No
+component uses an arbitrary `text-[Npx]`; a new size is a new step here, registered in
+`libs/ui-kit/src/utils/index.ts` so `cn()` keeps it apart from text colors.
 
-- Channel header title: 18px semibold, tracking -0.01em, in a 68px header.
-- Message author: 16px bold, tracking -0.005em. Time beside it: 13px medium, tabular
+Component-level details, measured against Figma:
+
+- Pane headers share one contract (`PANE_HEADER` in `shared/components/paneHeader.ts`): 56px tall with a hairline. The conversation title is `text-title` (18px/700); a side panel's title is one step down at `text-heading`, so no panel outranks the conversation.
+- Message author: `text-lead` bold, tracking -0.005em. Time beside it: `text-caption` medium, tabular
   nums, `text-description`.
-- Sidebar action rows: 14px, tracking -0.01em, `text-label`.
-- Unread pill: 11px semibold, tabular nums, in an 18px pill.
+- Sidebar action rows: `text-callout`, tracking -0.01em, `text-label`. The sidebar place
+  name is `text-lead` semibold, below the conversation title.
+- Unread pill: 11px semibold, tabular nums, in an 18px pill. Only DM rows count (reply debt); channel rows, place tiles and cloud tiles show a dot.
 - Avatar fallback initial: `text-caption` semibold in a 36px avatar.
 
 ### Mobile web scale (`apps/web/tailwind.config.js`)
@@ -213,9 +236,9 @@ Fixed: page header title 17px semibold; bubble text 16px, line-height 1.28, trac
 | Cloud rail      | `w-rail` = 68px, `bg-rail`, 48px tiles at 14px radius, user menu pinned bottom                                                           | 80px "Icon Rail", 48px tile                                              |
 | Place rail      | 68px, `bg-rail-elevated`, only when the cloud has places                                                                                 | 80px "Workspace Rail", 48px active / 40px inactive tiles with 12px label |
 | Channel sidebar | default 286px, drag 200 to 480, persisted in `chatic.sidebar.width`; `bg-sidebar`, hairline both edges                                   | 286px "Channel List Panel", 16px inset                                   |
-| Sidebar header  | place name, pill search 41px tall on `bg-well`, four 24px action rows (profile, notifications, activity, saved), hairline                | same                                                                     |
-| Channel row     | 34px tall, `#` or 24px avatar leading, star or 18px unread pill trailing, section header 43px with chevron and `+`                       | same                                                                     |
-| Main header     | 68px, hairline bottom, `#` + 18px title + member count chip, three 36px bordered icon squares (star, search, more)                       | same                                                                     |
+| Sidebar header  | place name, pill search 41px tall on `bg-well`, four 36px action rows (profile, notifications, activity, saved), hairline                | same                                                                     |
+| Channel row     | 36px tall, `#` or 24px avatar leading, star or 18px unread pill trailing, section header 43px with chevron and `+`                       | same                                                                     |
+| Main header     | 56px, hairline bottom, `#` + `text-title` + member count chip, three 36px bordered icon squares (star, search, more)                     | same                                                                     |
 | Message row     | 36px avatar, 16px name + 13px time, body `text-body`, hover `bg-accent/70` with a floating toolbar                                       | 35px avatar                                                              |
 | Composer        | boxed on `bg-input`, 50px toolbar row (+ B I S code), hairline, input area with emoji and send on the right, backdrop blur, 24px gutters | 121px box, 24px gutters                                                  |
 | Trailing panels | resizable, defaults: thread 384, settings / saved / mentions / profile 320, debug 440                                                    | —                                                                        |
@@ -305,7 +328,7 @@ icons from a bold "Solar" style set; in code they are the lucide equivalents.
   the rail tile on switch. `tailwindcss-animate` for Radix enter / exit.
 - **Reduced motion**: a global `prefers-reduced-motion: reduce` block collapses every
   animation and transition to 0.01ms. Nothing is gated on a transition finishing.
-- Targets: 36px minimum, 40px for primary controls.
+- Targets: 36px minimum, 40px for primary controls. An isolated control that must look smaller takes `hit-target`, which grows only its hit area.
 
 ## State vocabulary
 

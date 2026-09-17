@@ -40,16 +40,19 @@ export const ChannelActionDialogs = ({ channelId, channelName, kickName, actions
             <ConfirmDialog
                 open={dialog === 'delete'}
                 onOpenChange={onOpenChange}
-                title={t('channels.delete.title')}
+                title={t('channels.delete.title', { name: channelName })}
                 description={t('channels.delete.description')}
                 confirmLabel={t('channels.delete.confirm')}
                 onConfirm={onDelete}
                 isPending={isMutating}
             />
+            {/* Leaving is reversible — someone can add you back — so it does not get
+                the destructive treatment delete does. Same dialog, different weight. */}
             <ConfirmDialog
                 open={dialog === 'leave'}
                 onOpenChange={onOpenChange}
-                title={t('channels.leave.title')}
+                variant="default"
+                title={t('channels.leave.title', { name: channelName })}
                 description={t('channels.leave.description')}
                 confirmLabel={t('channels.leave.confirm')}
                 onConfirm={onLeave}

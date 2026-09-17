@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Bookmark, ChevronRight, Hash, X } from 'lucide-react';
@@ -13,13 +13,12 @@ import {
     useSavedItemsStore,
     useSavedPanelStore,
     type SavedItem,
+    formatShortDate,
+    PANE_HEADER,
+    PANEL_TITLE,
 } from '../../../shared';
 
-const formatSavedAt = (ms: number): string => {
-    const date = new Date(ms);
-    if (Number.isNaN(date.getTime())) return '';
-    return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
-};
+const formatSavedAt = formatShortDate;
 
 interface SavedRowProps {
     item: SavedItem;
@@ -70,7 +69,7 @@ const SavedRow = ({ item, channelName, removeLabel, onOpen, onRemove }: SavedRow
                 type="button"
                 onClick={onRemove}
                 aria-label={removeLabel}
-                className="focus-ring tactile absolute right-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity ease-tactile hover:bg-accent hover:text-foreground focus-visible:opacity-100 group-hover/saved:opacity-100"
+                className="focus-ring tactile absolute right-1.5 top-1.5 flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity ease-tactile hover:bg-accent hover:text-foreground focus-visible:opacity-100 group-hover/saved:opacity-100"
             >
                 <X size={13} />
             </button>
@@ -101,15 +100,6 @@ export const SavedPanel = ({ channels, places, currentPlaceId, onSelect }: Saved
     const items = useSavedItemsStore(s => s.items);
     const remove = useSavedItemsStore(s => s.remove);
 
-    // Esc closes the panel (matches the other trailing panes).
-    useEffect(() => {
-        const onKeyDown = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') close();
-        };
-        window.addEventListener('keydown', onKeyDown);
-        return () => window.removeEventListener('keydown', onKeyDown);
-    }, [close]);
-
     const channelName = (channelId: string): string | undefined => channels.find(c => c.id === channelId)?.name;
     const placeName = (placeId: string): string => places.find(p => p.id === placeId)?.name ?? t('saved.otherPlace');
 
@@ -135,10 +125,11 @@ export const SavedPanel = ({ channels, places, currentPlaceId, onSelect }: Saved
             storageKey={'chatic.savedPanel.width'}
             defaultWidth={320}
             resizeLabel={t('saved.resize')}
+            onClose={close}
             className="bg-background"
         >
-            <header className="flex h-14 shrink-0 items-center justify-between border-b border-hairline px-4">
-                <span className="truncate text-title text-foreground">{t('saved.title')}</span>
+            <header className={`${PANE_HEADER} px-4`}>
+                <span className={PANEL_TITLE}>{t('saved.title')}</span>
                 <Hint label={t('saved.close')}>
                     <button
                         type="button"
@@ -163,7 +154,7 @@ export const SavedPanel = ({ channels, places, currentPlaceId, onSelect }: Saved
                     <p className="px-2 text-caption text-muted-foreground">{t('saved.deviceLocal')}</p>
                     {groups.map(group => (
                         <div key={group.key || 'none'} className="flex flex-col gap-1">
-                            <p className="sticky top-0 z-[1] flex items-center gap-2 bg-background/95 px-2 py-1 text-overline uppercase text-muted-foreground backdrop-blur">
+                            <p className="sticky top-0 z-[1] flex items-center gap-2 bg-background px-2 py-1 text-overline uppercase text-muted-foreground">
                                 <span className="truncate">{placeName(group.key)}</span>
                                 <span className="shrink-0 tabular-nums">{group.items.length}</span>
                             </p>

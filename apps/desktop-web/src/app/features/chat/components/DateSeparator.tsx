@@ -1,11 +1,16 @@
 import { useTranslation } from 'react-i18next';
 
+import { formatLongDate } from '../../../shared';
+
 interface DateSeparatorProps {
     timestamp: number;
 }
 
 const isSameDay = (a: Date, b: Date): boolean =>
     a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+
+/** Fixed pill height; the rule behind it is positioned from the same number. */
+const PILL_HEIGHT_PX = 22;
 
 export const DateSeparator = ({ timestamp }: DateSeparatorProps) => {
     const { t } = useTranslation();
@@ -19,7 +24,7 @@ export const DateSeparator = ({ timestamp }: DateSeparatorProps) => {
 
         if (isSameDay(date, now)) return t('chat.today');
         if (isSameDay(date, yesterday)) return t('chat.yesterday');
-        return date.toLocaleDateString([], { year: 'numeric', month: 'long', day: 'numeric' });
+        return formatLongDate(timestamp);
     };
 
     // The pill sticks to the top of the feed while its day scrolls by (MessageList wraps
@@ -29,11 +34,17 @@ export const DateSeparator = ({ timestamp }: DateSeparatorProps) => {
     return (
         <>
             <div className="pointer-events-none sticky top-0 z-10 flex justify-center pt-2">
-                <span className="pointer-events-auto rounded-full border border-hairline bg-background px-3 py-0.5 text-[12px] font-medium tabular-nums text-label shadow-raised">
+                <span
+                    style={{ height: PILL_HEIGHT_PX }}
+                    className="pointer-events-auto flex items-center rounded-full border border-hairline bg-background px-3 text-micro font-medium tabular-nums text-label shadow-raised"
+                >
                     {formatLabel()}
                 </span>
             </div>
-            <div aria-hidden className="-mt-[19px] mb-3 h-px bg-hairline" />
+            {/* Pulled up to the pill's vertical centre. Both numbers come from the one
+                constant, so a type change can no longer strike the rule through the
+                messages below. */}
+            <div aria-hidden style={{ marginTop: -(PILL_HEIGHT_PX / 2 + 1) }} className="mb-3 h-px bg-hairline" />
         </>
     );
 };

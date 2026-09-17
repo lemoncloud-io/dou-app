@@ -5,8 +5,9 @@ import { ChevronDown, MessageSquare } from 'lucide-react';
 
 import type { DomainChat } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
+import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { Hint, Skeleton, resolveDisplay, useSiteProfileMap } from '../../../shared';
+import { Hint, Skeleton, resolveDisplay, useReducedMotion, useSiteProfileMap } from '../../../shared';
 import {
     buildMessageRows,
     isOwnMessage,
@@ -19,6 +20,7 @@ import {
 import { DateSeparator } from './DateSeparator';
 import { SystemNotice } from './SystemNotice';
 import { MessageRow, type ThreadMetaView } from './MessageRow';
+import type { MentionResolver } from './RichText';
 
 interface MessageListProps {
     messages: DomainChat[];
@@ -76,6 +78,9 @@ const DIVIDER_FADE_MS = 300;
 const isWindowActive = (): boolean =>
     typeof document === 'undefined' || (document.visibilityState === 'visible' && document.hasFocus());
 
+/** Past this the exact count is not asserted — the badge says "N+" instead. */
+const NEW_BADGE_CAP = 99;
+
 export const MessageList = ({
     messages,
     reactions,
@@ -100,6 +105,7 @@ export const MessageList = ({
     intro,
 }: MessageListProps) => {
     const { t } = useTranslation();
+    const reducedMotion = useReducedMotion();
     const bottomRef = useRef<HTMLDivElement>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
     // Latched at mount (MessageList remounts per channel via its key), so a later
@@ -111,6 +117,8 @@ export const MessageList = ({
     // lands short: the list keeps reflowing (avatars, wrapping, optimistic→server
     // swap, older-page auto-fill), each nudging the viewport off the bottom. Pinning
     // the whole window rides through all of them — reliable where scrollIntoView isn't.
+    // Every write is an instant jump, not an animation, so reduced motion needs no
+    // branch here: skipping the loop would only bring back the short landing.
     const pinToBottom = () => {
         cancelAnimationFrame(pinRafRef.current);
         const deadline = performance.now() + 600;
@@ -204,6 +212,16 @@ export const MessageList = ({
         }
         return view;
     }, [threadMeta, names, placeProfiles, viewer]);
+
+    // @name → member, for mentions that open a profile. Stable identity: rows are memo'd.
+    const resolveMention = useMemo<MentionResolver>(() => {
+        const byName = new Map<string, { userId: string; name: string }>();
+        names?.forEach((name, userId) => {
+            const key = name.trim().toLowerCase();
+            if (key && !byName.has(key)) byName.set(key, { userId, name });
+        });
+        return name => byName.get(name.toLowerCase());
+    }, [names]);
 
     // Lowercased "me" names for self-mention highlighting (profile name +
     // place nick under either of my ids — mirrors the notification filter).
@@ -392,11 +410,14 @@ export const MessageList = ({
             return;
         }
         // Exhausted: no older history left or the budget was hit — stop re-firing.
+        // Say so. Giving up silently left the reader mid-history, paged back up to
+        // eight pages, with no highlight and no hint that the target was not found.
         if (!hasMore || jumpRef.current.pages >= MAX_JUMP_PAGES) {
             jumpRef.current.done = true;
+            toast({ variant: 'info', description: t('chat.jump.notFound') });
             onJumpConsumed?.();
         }
-    }, [jumpTarget, messages, hasMore, isLoadingOlder, onLoadOlder, onJumpConsumed]);
+    }, [jumpTarget, messages, hasMore, isLoadingOlder, onLoadOlder, onJumpConsumed, t]);
 
     // Auto-fill the viewport: when the loaded page can't be scrolled (scrollHeight
     // fits the viewport) there's no scroll-up to trigger loadOlder, so older history
@@ -426,7 +447,18 @@ export const MessageList = ({
     // must NOT dismiss an unseen divider — track the previous state for the edge.
     const wasNearBottomRef = useRef(true);
 
+    // Scroll events fire many times per frame; the handler reads three layout
+    // properties each time. Coalesce to one pass per animation frame.
+    const scrollRafRef = useRef(0);
+    useEffect(() => () => cancelAnimationFrame(scrollRafRef.current), []);
     const onScroll = () => {
+        if (scrollRafRef.current) return;
+        scrollRafRef.current = requestAnimationFrame(() => {
+            scrollRafRef.current = 0;
+            handleScroll();
+        });
+    };
+    const handleScroll = () => {
         const el = scrollRef.current;
         if (!el) return;
         const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < NEAR_BOTTOM_PX;
@@ -447,7 +479,10 @@ export const MessageList = ({
         }
     };
 
-    const scrollToBottom = () => bottomRef.current?.scrollIntoView({ block: 'end', behavior: 'smooth' });
+    // `behavior` is a JS argument, so the stylesheet's reduced-motion block cannot
+    // reach it — this is the one scroll the global override does not cover.
+    const scrollToBottom = () =>
+        bottomRef.current?.scrollIntoView({ block: 'end', behavior: reducedMotion ? 'auto' : 'smooth' });
 
     if (isLoading) {
         return (
@@ -492,6 +527,11 @@ export const MessageList = ({
             <div
                 ref={scrollRef}
                 onScroll={onScroll}
+                role="log"
+                aria-live="polite"
+                aria-relevant="additions"
+                aria-busy={isLoadingOlder || undefined}
+                aria-label={t('chat.feedLabel')}
                 className="scrollbar-thin flex flex-1 flex-col gap-2 overflow-y-auto px-6 py-5"
             >
                 {isLoadingOlder && (
@@ -540,6 +580,8 @@ export const MessageList = ({
                                     </div>
                                 );
                             }
+                            const last = row.group.messages[row.group.messages.length - 1];
+                            const receipt = readCountOf && last?.chatNo ? readCountOf(last.chatNo, last.ownerId) : null;
                             return (
                                 <MessageRow
                                     key={row.group.key}
@@ -549,11 +591,13 @@ export const MessageList = ({
                                     threadMeta={threadMetaView}
                                     onOpenThread={onOpenThread}
                                     selfNames={selfNames}
+                                    resolveMention={resolveMention}
                                     highlightChatNo={highlightChatNo ?? undefined}
                                     withDayInTime={threadReplyCount !== undefined}
                                     reactions={reactions}
                                     reactorName={reactorName}
-                                    readCountOf={readCountOf}
+                                    receiptRead={receipt?.readCount}
+                                    receiptUnread={receipt?.unreadCount}
                                 />
                             );
                         })}
@@ -572,7 +616,9 @@ export const MessageList = ({
                         className="focus-ring tactile absolute bottom-4 left-1/2 z-20 flex h-8 -translate-x-1/2 items-center gap-1.5 rounded-full bg-primary pl-3 pr-2.5 text-caption font-semibold text-primary-foreground shadow-overlay transition-transform ease-tactile hover:bg-primary/90"
                     >
                         <span className="tabular-nums">
-                            {t('chat.newMessageBadge', { count: newCount > 99 ? 99 : newCount })}
+                            {newCount > NEW_BADGE_CAP
+                                ? t('chat.newMessageBadgeOverflow', { cap: NEW_BADGE_CAP })
+                                : t('chat.newMessageBadge', { count: newCount })}
                         </span>
                         <ChevronDown size={16} />
                     </button>

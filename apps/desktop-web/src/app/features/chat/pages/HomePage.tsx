@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { runtime } from '@chatic/app-runtime';
 
-import { JoinWithInviteDialog } from '../../auth';
+import { JoinWithInviteDialog, useJoinDialogStore } from '../../auth';
 import {
     ChannelSettingsPanel,
     CreateChannelDialog,
@@ -29,9 +29,11 @@ import {
     useMentionsPanelStore,
     useReadCursorStore,
     useSelectPlace,
+    useKnownChannelsStore,
     useLastChannelStore,
     useSelectedChannelStore,
     useSiteProfiles,
+    isSelfChannel,
     useUnreadStore,
 } from '../../../shared';
 import {
@@ -41,7 +43,6 @@ import {
     DesktopLayout,
     OnboardingDialog,
     PlaceRail,
-    ShortcutsDialog,
     SidebarHeader,
     SavedPanel,
     MentionsPanel,
@@ -55,6 +56,13 @@ const isWindowActive = (): boolean =>
 
 /** Upper bound for awaiting the socket handshake before a push-driven cloud/place switch. */
 const HANDSHAKE_WAIT_TIMEOUT_MS = 10_000;
+
+/**
+ * How long a deferred landing (channel / place / jump / thread) stays armed.
+ * Comfortably past the handshake wait plus a switch; after it, the landing is
+ * dropped rather than left to fire on some later, unrelated navigation.
+ */
+const PENDING_LANDING_TTL_MS = 30_000;
 
 // A cloud/place switch re-issues tokens against the active server, so firing it over a
 // half-open socket (cold start / just-refocused window) races the connection, fails, and
@@ -110,6 +118,7 @@ export const HomePage = () => {
     const selectedChannelId = useSelectedChannelStore(s => s.selectedChannelId);
     const selectChannel = useSelectedChannelStore(s => s.selectChannel);
     const requestMessageJump = useMessageJumpStore(s => s.request);
+    const setJumpOrigin = useMessageJumpStore(s => s.setOrigin);
     const openCreateChannel = useCreateChannelDialogStore(s => s.open);
     const openEditPlaceProfile = useEditPlaceProfileDialogStore(s => s.open);
     const settingsChannelId = useChannelSettingsStore(s => s.openChannelId);
@@ -151,6 +160,30 @@ export const HomePage = () => {
     // in — a same-tick open would be clobbered. Set for saved/mention thread replies.
     const pendingThreadRef = useRef<{ channelId: string; rootId: string } | null>(null);
 
+    // The refs above arm on intent and clear on success — with no failure branch.
+    // When a cross-place or cross-cloud switch rolls back, nothing consumes them,
+    // and they used to stay armed until any later load happened to match. Every
+    // cross-switch arming now starts this timer; when it fires, whatever is still
+    // pending is abandoned.
+    const pendingExpiryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const armPendingExpiry = () => {
+        if (pendingExpiryRef.current) clearTimeout(pendingExpiryRef.current);
+        pendingExpiryRef.current = setTimeout(() => {
+            pendingExpiryRef.current = null;
+            pendingChannelRef.current = null;
+            pendingPlaceRef.current = null;
+            pendingJumpRef.current = null;
+            pendingThreadRef.current = null;
+            pendingOpenAtBottomRef.current = null;
+        }, PENDING_LANDING_TTL_MS);
+    };
+    useEffect(
+        () => () => {
+            if (pendingExpiryRef.current) clearTimeout(pendingExpiryRef.current);
+        },
+        []
+    );
+
     // Open a thread on a channel that is being selected right now — the one rule every entry
     // point (saved item, mention, notification click) needs. Already the selected channel →
     // open inline, because nothing switches the panel shut and the deferred effect below would
@@ -169,12 +202,20 @@ export const HomePage = () => {
     // defer the channel select + scroll until its channels load (apply effect
     // below); otherwise jump in place. The scroll is skipped without a chatNo.
     const jumpToSaved = (channelId: string, chatNo?: number, placeId?: string, threadRootId?: string) => {
+        // Record the return point BEFORE anything moves. A jump inside the open
+        // channel is not a departure, so it records nothing.
+        setJumpOrigin(
+            selectedChannelId && selectedChannelId !== channelId
+                ? { placeId: selectedPlaceId ?? null, channelId: selectedChannelId }
+                : null
+        );
         if (placeId && placeId !== selectedPlaceId) {
             pendingChannelRef.current = channelId;
             // A thread reply opens the thread panel once its channel loads; a
             // top-level message scrolls the main feed. Never both.
             pendingThreadRef.current = threadRootId ? { channelId, rootId: threadRootId } : null;
             pendingJumpRef.current = !threadRootId && chatNo != null ? { channelId, chatNo } : null;
+            armPendingExpiry();
             switchPlace(placeId);
             return;
         }
@@ -207,9 +248,11 @@ export const HomePage = () => {
             // (before the awaited switch) so the deferred landing is armed regardless.
             pendingChannelRef.current = channelId;
             pendingPlaceRef.current = placeId || null;
+            armPendingExpiry();
             void switchAfterHandshake(() => switchCloud(cloudId));
         } else if (placeId && placeId !== selectedPlaceId) {
             pendingChannelRef.current = channelId;
+            armPendingExpiry();
             void switchAfterHandshake(() => switchPlace(placeId));
         } else {
             selectChannel(channelId);
@@ -249,13 +292,34 @@ export const HomePage = () => {
         }
         const inList = !!selectedPlaceId && places.some(p => p.id === selectedPlaceId);
         if (!inList && places.length > 0) {
-            const firstId = places[0]?.id;
-            // switchPlace → switchSite gives the first place its per-place token + socket
+            // The place you last had open in this cloud, when it still exists; the first
+            // place only when there is none. Returning to a cloud used to always land on
+            // its first place, whatever you had left it on.
+            const remembered = activeCloudId ? useLastChannelStore.getState().placeByCloud[activeCloudId] : undefined;
+            const targetId = remembered && places.some(p => p.id === remembered) ? remembered : places[0]?.id;
+            // switchPlace → switchSite gives the place its per-place token + socket
             // re-auth; otherwise the channel fetch hits an unauthed site and the shell stays
             // stuck on the empty state after a cloud-account login.
-            if (firstId) switchPlace(firstId);
+            if (targetId) switchPlace(targetId);
         }
-    }, [isDefaultMode, isSwitching, places, selectedPlaceId, switchPlace]);
+    }, [isDefaultMode, isSwitching, places, selectedPlaceId, switchPlace, activeCloudId]);
+
+    // Keep an index of this cloud's channels per place, built from the places you
+    // open. It is what lets the quick switcher offer a channel that lives in
+    // another place instead of pretending the cloud is one place wide.
+    const recordKnownChannels = useKnownChannelsStore(s => s.record);
+    useEffect(() => {
+        if (!activeCloudId || !selectedPlaceId || isDefaultMode || channels.length === 0) return;
+        recordKnownChannels(activeCloudId, selectedPlaceId, channels);
+    }, [activeCloudId, selectedPlaceId, isDefaultMode, channels, recordKnownChannels]);
+
+    // Remember the place you have open in this cloud, for the restore above.
+    const rememberPlace = useLastChannelStore(s => s.rememberPlace);
+    useEffect(() => {
+        if (activeCloudId && selectedPlaceId && places.some(p => p.id === selectedPlaceId)) {
+            rememberPlace(activeCloudId, selectedPlaceId);
+        }
+    }, [activeCloudId, selectedPlaceId, places, rememberPlace]);
 
     // The settings + thread panels belong to one channel — close both on switch.
     // The profile panel follows for a clean pane handoff.
@@ -309,12 +373,14 @@ export const HomePage = () => {
         }
     }, [activityOpen, closeThread, closeSettings, closeProfile, closeSaved]);
 
-    // The saved + activity panes' rows belong to the place you opened them from —
-    // close both on any place or cloud switch so they never show another place's items.
+    // The saved + activity panes group their rows by place, current place first, so a
+    // place switch leaves them valid — and closing them there made the same row click
+    // produce two layouts (a cross-place jump closed the pane, a same-place jump kept
+    // it). Only a cloud switch retires them: their items belong to the cloud.
     useEffect(() => {
         closeSaved();
         closeActivity();
-    }, [selectedPlaceId, activeCloudId, closeSaved, closeActivity]);
+    }, [activeCloudId, closeSaved, closeActivity]);
 
     useEffect(() => {
         // Honor a pending notification / saved-jump target once its channel loads.
@@ -344,7 +410,13 @@ export const HomePage = () => {
         if (!stillValid && channels.length > 0) {
             const scope = `${activeCloudId ?? 'default'}:${selectedPlaceId ?? ''}`;
             const remembered = useLastChannelStore.getState().byScope[scope];
-            const target = remembered && channels.some(c => c.id === remembered) ? remembered : channels[0]?.id;
+            // A place badged "1" used to open on whatever was first (or last read),
+            // which was routinely a channel with nothing new — the badge led
+            // nowhere. With no remembered channel, land on the first unread one and
+            // the badge resolves to the thing it was pointing at.
+            const firstUnread = channels.find(channel => (channel.unreadCount ?? 0) > 0)?.id;
+            const target =
+                remembered && channels.some(c => c.id === remembered) ? remembered : (firstUnread ?? channels[0]?.id);
             if (target) selectChannel(target);
         }
     }, [
@@ -380,6 +452,103 @@ export const HomePage = () => {
     }, [channels, selectedChannelId, openThread]);
 
     const selectedChannel = channels.find(channel => channel.id === selectedChannelId);
+
+    // Stable handlers for the sidebar, whose rows are memo'd. Picking a channel from
+    // the list is a deliberate move, not a detour, so it retires any return point.
+    const selectFromList = useCallback(
+        (id: string) => {
+            useMessageJumpStore.getState().clearOrigin();
+            selectChannel(id);
+        },
+        [selectChannel]
+    );
+    const jumpToSavedRef = useRef(jumpToSaved);
+    jumpToSavedRef.current = jumpToSaved;
+
+    // What the quick switcher can offer beyond the open place: the cloud's index,
+    // minus this place, named by the place each channel lives in. A place that is
+    // no longer in the rail is dropped rather than shown as an unnamed chip.
+    const knownByCloud = useKnownChannelsStore(s => s.byCloud);
+    const elsewhereChannels = useMemo(() => {
+        if (!activeCloudId || isDefaultMode) return [];
+        const known = knownByCloud[activeCloudId];
+        if (!known) return [];
+        const placeName = new Map(places.map(place => [place.id, place.name ?? place.id ?? '']));
+        return Object.values(known)
+            .filter(entry => entry.placeId !== selectedPlaceId && entry.name && placeName.has(entry.placeId))
+            .map(entry => ({
+                channelId: entry.channelId,
+                name: entry.name,
+                placeId: entry.placeId,
+                placeName: placeName.get(entry.placeId) ?? '',
+            }));
+    }, [knownByCloud, activeCloudId, isDefaultMode, selectedPlaceId, places]);
+
+    // Picking one of those is the same move as jumping to a saved message in
+    // another place: switch place, then land on the channel once it loads.
+    const selectElsewhere = useCallback((channelId: string, placeId: string) => {
+        jumpToSavedRef.current(channelId, undefined, placeId);
+    }, []);
+
+    // jumpToSaved closes over render state; the ref keeps the handler identity fixed
+    // while always calling the current one.
+    // The new channel is not in the list yet; the pending-channel effect selects
+    // it the moment the list carries it.
+    // it the moment the list carries it. When the cache already delivered it,
+    // there is no list change left to wait for, so select now.
+    const channelsRef = useRef(channels);
+    channelsRef.current = channels;
+    const openCreatedChannel = useCallback(
+        (channelId: string) => {
+            if (channelsRef.current.some(channel => channel.id === channelId)) {
+                selectChannel(channelId);
+                return;
+            }
+            pendingChannelRef.current = channelId;
+            armPendingExpiry();
+        },
+        [selectChannel]
+    );
+    const openJoinDialog = useJoinDialogStore(s => s.open);
+    const chatEmptyState = useMemo(
+        () =>
+            isLoading || channels.length > 0
+                ? ({ mode: 'pick' } as const)
+                : isDefaultMode
+                  ? ({ mode: 'join', onAction: openJoinDialog } as const)
+                  : ({ mode: 'create', onAction: openCreateChannel } as const),
+        [isLoading, channels.length, isDefaultMode, openJoinDialog, openCreateChannel]
+    );
+
+    const jumpFromSearch = useCallback(
+        (channelId: string, chatNo: number, threadRootId?: string) =>
+            jumpToSavedRef.current(channelId, chatNo, undefined, threadRootId),
+        []
+    );
+
+    // The return leg of a jump. Offered only while the reader is somewhere other
+    // than where they started, and only while that channel is still in the list —
+    // a channel they were removed from is not somewhere to send them back to.
+    const jumpOrigin = useMessageJumpStore(s => s.origin);
+    const clearJumpOrigin = useMessageJumpStore(s => s.clearOrigin);
+    const originChannel =
+        jumpOrigin && jumpOrigin.channelId !== selectedChannelId
+            ? channels.find(channel => channel.id === jumpOrigin.channelId)
+            : undefined;
+    const jumpReturn =
+        jumpOrigin && originChannel
+            ? {
+                  originName: originChannel.name ?? originChannel.id ?? '',
+                  onReturn: () => {
+                      jumpToSaved(jumpOrigin.channelId, undefined, jumpOrigin.placeId ?? undefined);
+                      // After, not before: jumpToSaved records the channel being left
+                      // as a new origin, and going back is the end of a detour, not
+                      // the start of one. Both of its paths record synchronously.
+                      clearJumpOrigin();
+                  },
+                  onDismiss: clearJumpOrigin,
+              }
+            : undefined;
     const settingsChannel = settingsChannelId ? channels.find(channel => channel.id === settingsChannelId) : undefined;
     // The place rail owns switching; the sidebar header shows only the active name.
     const selectedPlace = places.find(place => place.id === selectedPlaceId);
@@ -461,7 +630,12 @@ export const HomePage = () => {
                                 isLoading={isLoading}
                                 selectedChannelId={selectedChannelId}
                                 query={query}
-                                onSelect={selectChannel}
+                                // Picking a channel from the list is a deliberate move,
+                                // not a detour, so it retires any pending return point.
+                                onSelect={selectFromList}
+                                onJumpToMessage={jumpFromSearch}
+                                elsewhereChannels={elsewhereChannels}
+                                onSelectElsewhere={selectElsewhere}
                                 isDefaultMode={isDefaultMode}
                                 onCreateChannel={openCreateChannel}
                             />
@@ -474,6 +648,8 @@ export const HomePage = () => {
                         members={members}
                         membersLoading={membersLoading}
                         readCountOf={readCountOf}
+                        jumpReturn={jumpReturn}
+                        emptyState={chatEmptyState}
                     />
                 }
                 panel={
@@ -514,11 +690,12 @@ export const HomePage = () => {
                     ) : undefined
                 }
             />
-            <CreateChannelDialog />
+            <CreateChannelDialog onCreated={openCreatedChannel} />
             <JoinWithInviteDialog />
             <EditPlaceProfileDialog />
-            <ShortcutsDialog />
-            <OnboardingDialog enabled={isDefaultMode} isChannelReady={channels.length > 0} />
+            {/* Ready means the Self Channel itself has arrived — not merely that some
+                channel has, which is what the card used to claim. */}
+            <OnboardingDialog enabled showChannelStatus={isDefaultMode} isChannelReady={channels.some(isSelfChannel)} />
         </>
     );
 };

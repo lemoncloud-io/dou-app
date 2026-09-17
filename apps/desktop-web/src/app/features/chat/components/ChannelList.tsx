@@ -1,7 +1,7 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Hash, Pencil, Plus, Star } from 'lucide-react';
+import { BellOff, Hash, Pencil, Plus, Star } from 'lucide-react';
 
 import type { DomainChannel } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
@@ -20,7 +20,9 @@ import {
     messagePlainText,
     useAuthorNames,
     migrateLegacyFavorites,
+    channelNotifyMode,
     useComposerDraftStore,
+    useNotificationPrefsStore,
     useSelectedChannelStore,
     useSiteProfileMap,
 } from '../../../shared';
@@ -30,7 +32,7 @@ import { useLastChat } from '../hooks';
 import { useSidebarSectionsStore } from '../stores';
 import { isDmBucket, sidebarMoveChord, unreadIndicator } from '../utils';
 import { ChannelRowMenu } from './ChannelRowMenu';
-import { QuickSwitcher } from './QuickSwitcher';
+import { QuickSwitcher, type ElsewhereChannel } from './QuickSwitcher';
 import { SortableSection, type SectionItem } from './SortableSection';
 
 interface ChannelListProps {
@@ -39,22 +41,31 @@ interface ChannelListProps {
     selectedChannelId: string | null;
     query: string;
     onSelect: (channelId: string) => void;
+    /** Scroll the feed to one message — the search dialog's match rows use it. */
+    onJumpToMessage?: (channelId: string, chatNo: number, threadRootId?: string) => void;
+    /** Channels in the cloud's other places, for the quick switcher. */
+    elsewhereChannels?: ElsewhereChannel[];
+    /** Open a channel that lives in another place (switches place first). */
+    onSelectElsewhere?: (channelId: string, placeId: string) => void;
     /** Default Cloud has no channel creation — the empty-state hint must not point at a "+". */
     isDefaultMode: boolean;
     /** The Channels section's "+" (hidden on the Default Cloud, which cannot create channels). */
     onCreateChannel?: () => void;
 }
 
-const ChannelSkeleton = () => (
-    <div role="status" aria-label="Loading channels" className="flex flex-col gap-2 px-4 py-4">
-        {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="flex h-[34px] items-center gap-2 p-2">
-                <Skeleton className="h-3 w-3 shrink-0 rounded-sm bg-muted animate-pulse" />
-                <Skeleton className="h-3 bg-muted animate-pulse" style={{ width: `${45 + ((i * 13) % 40)}%` }} />
-            </div>
-        ))}
-    </div>
-);
+const ChannelSkeleton = () => {
+    const { t } = useTranslation();
+    return (
+        <div role="status" aria-label={t('chat.loadingChannels')} className="flex flex-col gap-2 px-4 py-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="flex h-9 items-center gap-2 p-2">
+                    <Skeleton className="h-3 w-3 shrink-0 rounded-sm bg-muted animate-pulse" />
+                    <Skeleton className="h-3 bg-muted animate-pulse" style={{ width: `${45 + ((i * 13) % 40)}%` }} />
+                </div>
+            ))}
+        </div>
+    );
+};
 
 interface ChannelRowProps {
     channel: DomainChannel;
@@ -85,15 +96,37 @@ export const CHANNEL_ROW_HINT_DELAY_MS = 600;
  * re-derives "is there something unread" for the name emphasis, or the two would
  * drift apart the moment one of them grew a condition.
  */
-const ChannelRow = ({ channel, label, icon, isActive, isFavorite, onSelect, rowRef }: ChannelRowProps) => {
+const ChannelRow = memo(function ChannelRow({
+    channel,
+    label,
+    icon,
+    isActive,
+    isFavorite,
+    onSelect,
+    rowRef,
+}: ChannelRowProps) {
     const { t } = useTranslation();
     const id = channel.id ?? '';
     const unread = channel.unreadCount ?? 0;
     const indicator = unreadIndicator({ unread, isDm: isDmBucket(channel), isActive });
-    const lastChat = useLastChat(id, lastChatNoOf(channel));
+    // The preview only ever appears in this row's tooltip, yet every row used to
+    // open a live chat subscription and a freshness fetch for it on mount — one
+    // per channel in the sidebar. The row now asks for it the first time the
+    // pointer or focus reaches it; the tooltip waits 600ms anyway.
+    const [wantsPreview, setWantsPreview] = useState(false);
+    const lastChat = useLastChat(wantsPreview ? id : '', lastChatNoOf(channel));
     // Slack's draft pencil: text left in another channel's composer is easy to forget.
     // Not on the open row — its composer is right there.
     const hasDraft = useComposerDraftStore(s => !isActive && !!s.drafts[id]?.trim());
+    // Muting a channel changed nothing here, so a channel that had been told to stay
+    // quiet looked the same as one that simply had nothing new — the silence read as
+    // a bug. 'mention' counts as muted for this glyph: both suppress the default.
+    // The join row types `notify` with an empty-string member the store does not
+    // model; '' means "never set", which is exactly what `undefined` means here.
+    const joinNotify = channel.$join?.notify;
+    const isMuted = useNotificationPrefsStore(
+        s => channelNotifyMode(s, id, joinNotify === '' ? undefined : joinNotify) !== 'all'
+    );
     // A deleted message keeps its place here and says so, the way the feed does: its
     // content survives the soft delete, and printing it would show text the row itself
     // says is gone.
@@ -105,22 +138,34 @@ const ChannelRow = ({ channel, label, icon, isActive, isFavorite, onSelect, rowR
         <Hint label={preview ? `${label}\n${preview}` : label} delayDuration={CHANNEL_ROW_HINT_DELAY_MS} side="right">
             <button
                 ref={rowRef}
+                onPointerEnter={() => setWantsPreview(true)}
+                onFocus={() => setWantsPreview(true)}
                 onClick={() => onSelect(id)}
                 aria-current={isActive ? 'true' : undefined}
+                // Arrow-key navigation focuses rows through this attribute rather
+                // than opening each one on the way past — see onKeyDown below.
+                data-channel-row={id}
                 className={cn(
-                    'focus-ring flex h-[34px] w-full min-w-0 items-center gap-2 rounded-lg p-2 text-left transition-colors duration-150 ease-tactile',
+                    'focus-ring flex h-9 w-full min-w-0 items-center gap-2 rounded-lg p-2 text-left transition-colors duration-150 ease-tactile',
                     isActive ? 'bg-primary/[0.08]' : 'hover:bg-accent'
                 )}
             >
                 <span className="flex shrink-0 items-center text-foreground">{icon}</span>
                 <span
                     className={cn(
-                        'min-w-0 flex-1 truncate text-[14px] tracking-[-0.01em] text-sidebar-foreground',
+                        'min-w-0 flex-1 truncate text-callout tracking-[-0.01em]',
+                        isMuted ? 'text-muted-foreground' : 'text-sidebar-foreground',
                         indicator !== 'none' && 'font-semibold'
                     )}
                 >
                     {label}
                 </span>
+                {isMuted && (
+                    <span className="flex shrink-0 items-center text-muted-foreground">
+                        <BellOff size={13} aria-hidden />
+                        <span className="sr-only">{t('sidebar.muted')}</span>
+                    </span>
+                )}
                 {hasDraft && (
                     <span className="flex shrink-0 items-center text-muted-foreground">
                         <Pencil size={14} aria-hidden />
@@ -136,7 +181,7 @@ const ChannelRow = ({ channel, label, icon, isActive, isFavorite, onSelect, rowR
                     </span>
                 )}
                 {indicator === 'count' && (
-                    <span className="flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full bg-badge-unread px-1 text-[11px] font-semibold tabular-nums text-badge-unread-foreground">
+                    <span className="flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full bg-badge-unread px-1 text-tiny font-semibold tabular-nums text-badge-unread-foreground">
                         <span aria-hidden>{unread > 99 ? '99+' : unread}</span>
                         <span className="sr-only">{t('sidebar.unreadCount', { count: unread })}</span>
                     </span>
@@ -148,7 +193,10 @@ const ChannelRow = ({ channel, label, icon, isActive, isFavorite, onSelect, rowR
             </button>
         </Hint>
     );
-};
+});
+
+/** Module-level so its identity is stable and the memo'd rows can skip re-rendering. */
+const CHANNEL_GLYPH = <Hash size={16} aria-hidden />;
 
 const Divider = () => <div aria-hidden className="h-px w-full shrink-0 bg-hairline" />;
 
@@ -158,6 +206,9 @@ export const ChannelList = ({
     selectedChannelId,
     query,
     onSelect,
+    onJumpToMessage,
+    elsewhereChannels,
+    onSelectElsewhere,
     isDefaultMode,
     onCreateChannel,
 }: ChannelListProps) => {
@@ -233,7 +284,7 @@ export const ChannelList = ({
                 label: t('dm.you'),
                 icon: (
                     <Avatar className="h-6 w-6 shrink-0">
-                        <AvatarFallback className="text-[10px] font-semibold" style={avatarStyle(myUid ?? 'me')}>
+                        <AvatarFallback className="text-nano font-semibold" style={avatarStyle(myUid ?? 'me')}>
                             {t('dm.you').charAt(0).toUpperCase()}
                         </AvatarFallback>
                     </Avatar>
@@ -252,7 +303,7 @@ export const ChannelList = ({
                 <Avatar className="h-6 w-6 shrink-0">
                     {display.thumbnail && <AvatarImage src={display.thumbnail} alt={display.name} />}
                     <AvatarFallback
-                        className="text-[10px] font-semibold"
+                        className="text-nano font-semibold"
                         style={avatarStyle(counterpartId || display.name)}
                     >
                         {display.name.charAt(0).toUpperCase() || '?'}
@@ -268,11 +319,33 @@ export const ChannelList = ({
         return label.toLowerCase().includes(q) || (channel.name ?? channel.id ?? '').toLowerCase().includes(q);
     };
 
-    if (isLoading) return <ChannelSkeleton />;
+    // Mounted on every branch, the empty and loading ones included: ⌘K is the way
+    // out of a place with no channels, and it used to be dead exactly there.
+    const dialogs = (
+        <>
+            <QuickSwitcher
+                channels={channels}
+                onSelect={onSelect}
+                elsewhere={elsewhereChannels}
+                onSelectElsewhere={onSelectElsewhere}
+            />
+            <SearchDialog channels={channels} onSelect={onSelect} onJumpToMessage={onJumpToMessage} />
+        </>
+    );
+
+    if (isLoading) {
+        return (
+            <>
+                <ChannelSkeleton />
+                {dialogs}
+            </>
+        );
+    }
 
     if (channels.length === 0) {
         return (
             <div className="flex flex-col items-center gap-2 px-4 py-10 text-center">
+                {dialogs}
                 <span className="flex h-10 w-10 items-center justify-center rounded-lg border border-hairline bg-well text-lg text-muted-foreground shadow-well">
                     #
                 </span>
@@ -323,8 +396,6 @@ export const ChannelList = ({
         return <div className="px-4 py-8 text-center text-callout text-muted-foreground">{t('sidebar.noMatches')}</div>;
     }
 
-    // Keyboard nav walks the rendered order: channels first, then DMs.
-    const navOrder = [...visibleRegular, ...visibleDms.map(row => row.channel)];
     // A filtered view is a subset — dragging it would write a partial order, so rows lock.
     const isFiltering = query.trim().length > 0;
 
@@ -372,6 +443,12 @@ export const ChannelList = ({
         makeSectionReorder('ch')(moveChannel(ids, id, from + delta, ids).map(orderedId => `ch:${orderedId}`));
     };
     const onKeyDown = (e: React.KeyboardEvent) => {
+        // The quick switcher and the search dialog are React children of this nav, but
+        // they render through a portal — so their keystrokes bubble here in the React
+        // tree while sitting outside it in the DOM. Without this guard, ArrowDown inside
+        // an open dialog moved focus to a sidebar row behind the modal, and the next
+        // Enter switched channel instead of opening the result.
+        if (!e.currentTarget.contains(e.target as Node)) return;
         if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
         const chord = sidebarMoveChord(e);
         if (chord !== null) {
@@ -386,14 +463,21 @@ export const ChannelList = ({
         }
         if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return; // OS/browser chords pass through
         e.preventDefault();
-        const idx = navOrder.findIndex(c => (c.id ?? '') === selectedChannelId);
+        // Arrows MOVE FOCUS; Enter/Space on the focused row opens it. Selecting on
+        // every arrow press mounted each channel's feed in turn, which threw away
+        // the reading position of the channel the user was actually in.
+        const rows = Array.from(e.currentTarget.querySelectorAll<HTMLButtonElement>('[data-channel-row]'));
+        if (rows.length === 0) return;
+        const focused = document.activeElement;
+        const from = rows.findIndex(el => el === focused);
         const delta = e.key === 'ArrowDown' ? 1 : -1;
-        const nextIdx = idx < 0 ? 0 : Math.min(navOrder.length - 1, Math.max(0, idx + delta));
-        const next = navOrder[nextIdx]?.id;
-        if (next) onSelect(next);
+        // Nothing in the list has focus yet: enter it at the selected row, so the
+        // first arrow press starts from where the user is, not from the top.
+        const start = from >= 0 ? from : rows.findIndex(el => el.dataset.channelRow === selectedChannelId);
+        const nextIdx = start < 0 ? 0 : Math.min(rows.length - 1, Math.max(0, start + delta));
+        rows[nextIdx]?.focus();
     };
 
-    const channelGlyph = <Hash size={16} aria-hidden />;
     const row = (
         channel: DomainChannel,
         label: string,
@@ -435,7 +519,7 @@ export const ChannelList = ({
     // stored pin order; ids not in the current list are skipped.
     const favoriteById = new Map<string, { channel: DomainChannel; label: string; icon: ReactNode }>();
     for (const c of visibleRegular) {
-        favoriteById.set(c.id ?? '', { channel: c, label: c.name ?? c.id ?? '', icon: channelGlyph });
+        favoriteById.set(c.id ?? '', { channel: c, label: c.name ?? c.id ?? '', icon: CHANNEL_GLYPH });
     }
     for (const dm of dmRows) favoriteById.set(dm.channel.id ?? '', { channel: dm.channel, ...dm.identity });
     const favoriteRows = pinnedIds.flatMap(id => {
@@ -447,8 +531,7 @@ export const ChannelList = ({
         // The switcher lives here (not HomePage) because this is where the
         // channel list + select handler already are; it renders only when opened.
         <nav aria-label={t('sidebar.channels')} onKeyDown={onKeyDown} className="flex flex-col gap-4 px-4 pb-6 pt-3">
-            <QuickSwitcher channels={channels} onSelect={onSelect} />
-            <SearchDialog channels={channels} onSelect={onSelect} />
+            {dialogs}
             <Divider />
             {favoriteRows.length > 0 && (
                 <>
@@ -468,7 +551,7 @@ export const ChannelList = ({
                         id="ch"
                         title={t('sidebar.channels')}
                         items={visibleRegular.map(channel =>
-                            row(channel, channel.name ?? channel.id ?? '', channelGlyph, 'ch')
+                            row(channel, channel.name ?? channel.id ?? '', CHANNEL_GLYPH, 'ch')
                         )}
                         dragDisabled={isFiltering}
                         onReorder={makeSectionReorder('ch')}
@@ -481,7 +564,7 @@ export const ChannelList = ({
                                         type="button"
                                         onClick={onCreateChannel}
                                         aria-label={t('rail.addChannel')}
-                                        className="focus-ring tactile flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-sidebar-foreground transition-colors ease-tactile hover:bg-accent"
+                                        className="focus-ring tactile hit-target flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-sidebar-foreground transition-colors ease-tactile hover:bg-accent"
                                     >
                                         <Plus size={16} aria-hidden />
                                     </button>

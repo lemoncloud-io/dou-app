@@ -32,22 +32,21 @@ interface ProfileFieldProps {
 const ProfileField = ({ label, value, onCopy, copied, copyLabel, copiedLabel }: ProfileFieldProps) => (
     <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3 last:border-b-0">
         <div className="flex min-w-0 flex-col gap-1">
-            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</span>
-            <span className="truncate text-sm text-foreground">{value}</span>
+            <span className="text-overline uppercase text-muted-foreground">{label}</span>
+            <span className="truncate text-callout text-foreground">{value}</span>
         </div>
         {onCopy && (
-            <button
-                onClick={onCopy}
-                className="shrink-0 rounded-md px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/10"
-            >
+            // Kit button for the standard focus ring and a real target size. The old
+            // one was ~24px with no ring, and its lime label sat on white at 1.6:1.
+            <Button variant="ghost" size="sm" onClick={onCopy} className="shrink-0 text-primary-ink">
                 {copied ? copiedLabel : copyLabel}
-            </button>
+            </Button>
         )}
     </div>
 );
 
 const SectionTitle = ({ children }: { children: string }) => (
-    <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{children}</h2>
+    <h2 className="text-overline uppercase text-muted-foreground">{children}</h2>
 );
 
 /**
@@ -102,13 +101,13 @@ export const ProfilePage = () => {
     };
 
     return (
-        <div className="flex h-screen flex-col bg-background">
+        <div className="flex h-full flex-col bg-background">
             <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border px-6">
                 <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground" onClick={() => navigate('/')}>
                     <ChevronLeft className="h-4 w-4" />
                     {t('profile.back')}
                 </Button>
-                <h1 className="text-base font-semibold text-foreground">{t('profile.title')}</h1>
+                <h1 className="text-heading text-foreground">{t('profile.title')}</h1>
             </header>
 
             <div className="scrollbar-thin mx-auto w-full max-w-2xl flex-1 overflow-y-auto p-8">
@@ -123,17 +122,15 @@ export const ProfilePage = () => {
                                 <AvatarImage src={displayPhoto} alt={displayName} className="rounded-xl" />
                             )}
                             <AvatarFallback
-                                className="rounded-xl text-xl font-semibold"
+                                className="rounded-xl text-title"
                                 style={avatarStyle(userId || displayName)}
                             >
                                 {initial}
                             </AvatarFallback>
                         </Avatar>
                         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                            <span className="truncate text-lg font-bold tracking-tight text-foreground">
-                                {displayName}
-                            </span>
-                            <span className="text-xs text-muted-foreground">
+                            <span className="truncate text-title tracking-tight text-foreground">{displayName}</span>
+                            <span className="text-caption text-muted-foreground">
                                 {hasPlaceProfile
                                     ? t('profile.thisPlaceHint', { place: placeLabel })
                                     : t('profile.usingAccountHere')}
@@ -166,8 +163,12 @@ export const ProfilePage = () => {
                     {showSocialLogin && (
                         <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-card p-5">
                             <div className="flex min-w-0 flex-col gap-0.5">
-                                <span className="text-sm font-medium text-foreground">{t('profile.signInGoogle')}</span>
-                                <span className="text-xs text-muted-foreground">{t('profile.signInGoogleHint')}</span>
+                                <span className="text-callout font-medium text-foreground">
+                                    {t('profile.signInGoogle')}
+                                </span>
+                                <span className="text-caption text-muted-foreground">
+                                    {t('profile.signInGoogleHint')}
+                                </span>
                             </div>
                             <Button
                                 variant="outline"

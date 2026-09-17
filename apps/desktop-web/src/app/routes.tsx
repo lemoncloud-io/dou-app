@@ -2,8 +2,12 @@ import { Suspense, lazy, useEffect } from 'react';
 import { Navigate, Route, BrowserRouter as Router, Routes, useNavigate } from 'react-router-dom';
 
 import { isNative, webClient } from '@chatic/bridges';
+import { LoadingFallback } from '@chatic/shared';
 import { runtime } from '@chatic/app-runtime';
 
+import { useQuickSwitcherStore } from './features/chat/stores/useQuickSwitcherStore';
+import { useShortcutsDialogStore } from './features/chat/stores/useShortcutsDialogStore';
+import { useSearchDialogStore } from './features/search/stores/useSearchDialogStore';
 import { AppShellSkeleton, parsePushDeeplink, usePendingOpenStore } from './shared';
 
 /**
@@ -32,17 +36,35 @@ const NotificationOpenListener = () => {
         return webClient.onEvent('OnReceiveNotification', message => {
             const deeplink = (message?.data as { notification?: { data?: { deeplink?: string } } })?.notification?.data
                 ?.deeplink;
+            // The shell's menu bar (Settings, Go, Help → Keyboard Shortcuts) rides the same
+            // event with a `chatic-ui:` link rather than an open target.
+            if (deeplink === 'chatic-ui:settings') {
+                navigate('/settings');
+                return;
+            }
+            if (deeplink === 'chatic-ui:shortcuts') {
+                useShortcutsDialogStore.getState().setOpen(true);
+                return;
+            }
+            // The switcher and search are mounted by the home screen, so go there first.
+            if (deeplink === 'chatic-ui:switcher' || deeplink === 'chatic-ui:search') {
+                navigate('/');
+                if (deeplink === 'chatic-ui:switcher') useQuickSwitcherStore.getState().setOpen(true);
+                else useSearchDialogStore.getState().setOpen(true);
+                return;
+            }
             const target = parsePushDeeplink(deeplink);
             if (!target) return;
             request(target);
         });
-    }, [request]);
+    }, [request, navigate]);
     return null;
 };
 
 // Route-level code splitting: the auth branch, the messenger shell, and the
 // settings/profile/debug pages each become their own chunk, so the initial load
 // ships only what the current branch needs. (Named exports → default mapping.)
+const ShortcutsDialog = lazy(() => import('./features/chat').then(m => ({ default: m.ShortcutsDialog })));
 const HomePage = lazy(() => import('./features/chat').then(m => ({ default: m.HomePage })));
 const ProfilePage = lazy(() => import('./features/profile').then(m => ({ default: m.ProfilePage })));
 const SettingsPage = lazy(() => import('./features/settings').then(m => ({ default: m.SettingsPage })));
@@ -58,7 +80,17 @@ export const AppRouter = () => {
     return (
         <Router>
             {isAuthenticated && <NotificationOpenListener />}
-            <Suspense fallback={<AppShellSkeleton />}>
+            {/* Route-independent, so "?" and the menu entry work on every page. */}
+            {isAuthenticated && (
+                // Its own boundary: the chat chunk loading must not blank the page.
+                <Suspense fallback={null}>
+                    <ShortcutsDialog />
+                </Suspense>
+            )}
+            {/* A signed-out person is on their way to Welcome, not to the chat
+                shell — showing its skeleton promises a workspace they do not have
+                yet. Same branch app.tsx makes for the boot fallback. */}
+            <Suspense fallback={isAuthenticated ? <AppShellSkeleton /> : <LoadingFallback />}>
                 {/* Social Login deeplink (chatic://oauth) — pre-auth it signs in (router
                     flips branches); in-app (guest linking from Profile) it swaps the
                     session and reloads. */}

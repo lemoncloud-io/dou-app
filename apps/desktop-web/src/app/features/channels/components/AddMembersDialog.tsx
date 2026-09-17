@@ -60,7 +60,7 @@ export const AddMembersDialog = ({ open, onOpenChange, channelId }: AddMembersDi
 
     return (
         <Dialog open={open} onOpenChange={next => !isAdding && onOpenChange(next)}>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent closeLabel={t('common.close')} className="sm:max-w-md">
                 <DialogTitle>{t('channels.addMembers.title')}</DialogTitle>
                 <DialogDescription>{t('channels.addMembers.description')}</DialogDescription>
                 <div className="flex flex-col gap-3 pt-2">
@@ -97,7 +97,7 @@ export const AddMembersDialog = ({ open, onOpenChange, channelId }: AddMembersDi
                         <div className="flex justify-end gap-2">
                             <Button
                                 type="button"
-                                variant="ghost"
+                                variant="outline"
                                 onClick={() => onOpenChange(false)}
                                 disabled={isAdding}
                             >

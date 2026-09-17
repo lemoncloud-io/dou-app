@@ -63,6 +63,9 @@ module.exports = {
                     // mentions in a shared message renderer resolve to this instead.
                     ink: 'hsl(var(--primary-ink))',
                 },
+                // Links in the shared message renderer. Kept apart from `primary.ink`,
+                // which also colors mentions, so each app can give links their own hue.
+                link: 'hsl(var(--link))',
                 secondary: {
                     DEFAULT: 'hsl(var(--secondary))',
                     foreground: 'hsl(var(--secondary-foreground))',

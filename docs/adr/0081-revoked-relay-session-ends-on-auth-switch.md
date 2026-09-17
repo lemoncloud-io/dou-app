@@ -74,6 +74,13 @@ There's nothing left to revoke. Only a **local** teardown is needed. `relaySessi
 `/?logout=1`, and the next document's `logoutStorageSweeper` clears the stored token. Then
 `useRelaySessionKeepAlive` sees no session and runs the guest login.
 
+> Amended 2026-09-17, desktop only. `apps/desktop-web` now mounts `RuntimeAuthHost`, the host without background
+> guest login, so on that shell the teardown above ends at the welcome screen instead of re-entering as a guest.
+> The reason is that the keep-alive also claimed the first paint of a deliberate visit: it minted a guest account
+> per window, which made the sign-in paths unreachable and turned Log out into a no-op. Recovery is one tap on
+> the welcome screen's own guest button. `apps/web`, `apps/mobile` and `apps/testbed` keep the behavior described
+> here.
+
 Keeping token deletion in the next document's cleanup rather than this module is deliberate. This module exists to
 end the zombie sessions created during the period that separation was broken.
 

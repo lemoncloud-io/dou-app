@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight, Download, MoreVertical, X } from 'lucide-rea
 
 import { cn } from '@chatic/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
+import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 
 import { Hint, avatarStyle } from '../../../../shared';
@@ -84,6 +85,7 @@ export const ImageViewer = ({
     return (
         <Dialog open={isOpen && !!current} onOpenChange={open => !open && onClose()}>
             <DialogContent
+                closeLabel={t('common.close')}
                 variant="bare"
                 hideClose
                 // Figma: the app stays visible behind the viewer, frosted rather than blacked out.
@@ -136,10 +138,10 @@ export const ImageViewer = ({
                                         type="button"
                                         onClick={onClose}
                                         aria-label={t('chat.image.close')}
-                                        className={cn(
-                                            'focus-ring absolute right-6 top-6 flex h-8 w-8 items-center justify-center rounded-md text-foreground transition-opacity hover:bg-foreground/[0.08]',
-                                            REVEAL
-                                        )}
+                                        // Persistent, unlike the secondary controls: with the app
+                                        // still visible behind a frosted layer, nothing else on
+                                        // screen says how to leave.
+                                        className="focus-ring absolute right-6 top-6 flex h-9 w-9 items-center justify-center rounded-md text-foreground transition-colors hover:bg-foreground/[0.08]"
                                     >
                                         <X size={20} aria-hidden />
                                     </button>
@@ -151,7 +153,7 @@ export const ImageViewer = ({
                                     isMenuOpen ? 'opacity-100' : REVEAL
                                 )}
                             >
-                                <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-foreground">
+                                <span className="min-w-0 flex-1 truncate text-caption font-medium text-foreground">
                                     {current.name}
                                 </span>
                                 <Hint label={t('chat.image.download')}>
@@ -159,7 +161,7 @@ export const ImageViewer = ({
                                         type="button"
                                         onClick={() => onDownload(current)}
                                         aria-label={t('chat.image.download')}
-                                        className="focus-ring flex h-7 w-7 items-center justify-center rounded-md text-foreground hover:bg-foreground/[0.08]"
+                                        className="focus-ring flex h-9 w-9 items-center justify-center rounded-md text-foreground hover:bg-foreground/[0.08]"
                                     >
                                         <Download size={18} aria-hidden />
                                     </button>
@@ -174,7 +176,7 @@ export const ImageViewer = ({
                                             <button
                                                 type="button"
                                                 aria-label={t('chat.image.menu')}
-                                                className="focus-ring flex h-7 w-7 items-center justify-center rounded-md bg-foreground/[0.08] text-foreground"
+                                                className="focus-ring flex h-9 w-9 items-center justify-center rounded-md bg-foreground/[0.08] text-foreground"
                                             >
                                                 <MoreVertical size={18} aria-hidden />
                                             </button>
@@ -186,14 +188,14 @@ export const ImageViewer = ({
                         {isMulti && (
                             <aside className="flex w-[346px] shrink-0 flex-col border-l border-hairline bg-background">
                                 <header className="flex h-[68px] shrink-0 items-center justify-between border-b border-hairline px-6">
-                                    <span className="text-[18px] font-semibold tracking-[-0.01em] text-foreground">
-                                        {t('chat.thread.title')}
+                                    <span className="text-title font-semibold tracking-[-0.01em] text-foreground">
+                                        {t('chat.image.setTitle', { count: images.length })}
                                     </span>
                                     <button
                                         type="button"
                                         onClick={onClose}
                                         aria-label={t('chat.image.close')}
-                                        className="focus-ring flex h-8 w-8 items-center justify-center rounded-md text-foreground hover:bg-accent"
+                                        className="focus-ring flex h-9 w-9 items-center justify-center rounded-md text-foreground hover:bg-accent"
                                     >
                                         <X size={20} aria-hidden />
                                     </button>
@@ -210,10 +212,10 @@ export const ImageViewer = ({
                                     </Avatar>
                                     <div className="flex min-w-0 flex-1 flex-col gap-2">
                                         <div className="flex items-baseline gap-2">
-                                            <span className="truncate text-[16px] font-bold text-foreground">
+                                            <span className="truncate text-lead font-bold text-foreground">
                                                 {author.name}
                                             </span>
-                                            <span className="shrink-0 text-[13px] font-medium text-description">
+                                            <span className="shrink-0 text-caption font-medium text-description">
                                                 {author.time}
                                             </span>
                                         </div>
@@ -229,7 +231,7 @@ export const ImageViewer = ({
                                                     className={cn(
                                                         'focus-ring aspect-square overflow-hidden rounded-2xl border border-hairline transition-shadow',
                                                         i === index &&
-                                                            'ring-2 ring-main-accent ring-offset-2 ring-offset-background'
+                                                            'ring-2 ring-primary ring-offset-2 ring-offset-background'
                                                     )}
                                                 >
                                                     <img
@@ -245,16 +247,20 @@ export const ImageViewer = ({
                                 </div>
                                 {onReply && (
                                     <div className="shrink-0 px-4 pb-4 pt-2">
-                                        <button
-                                            type="button"
+                                        {/* It used to borrow the composer's shape — input border,
+                                            placeholder colour, composer radius — so it read as
+                                            typeable and instead closed the viewer. It is a button,
+                                            and now looks like one. */}
+                                        <Button
+                                            variant="outline"
+                                            className="w-full"
                                             onClick={() => {
                                                 onClose();
                                                 onReply();
                                             }}
-                                            className="focus-ring flex w-full items-center rounded-2xl border border-input bg-background px-5 py-4 text-left text-[15px] text-placeholder transition-colors hover:border-main-accent"
                                         >
                                             {t('chat.image.reply')}
-                                        </button>
+                                        </Button>
                                     </div>
                                 )}
                             </aside>
@@ -275,7 +281,7 @@ interface ImageSetMetaProps {
 export const ImageSetMeta = ({ count, onDownloadAll }: ImageSetMetaProps) => {
     const { t } = useTranslation();
     return (
-        <div className="flex items-center gap-3 text-[13px] font-medium tracking-[-0.005em] text-placeholder">
+        <div className="flex items-center gap-3 text-caption font-medium tracking-[-0.005em] text-muted-foreground">
             <span>{t('chat.image.fileCount', { count })}</span>
             <button
                 type="button"

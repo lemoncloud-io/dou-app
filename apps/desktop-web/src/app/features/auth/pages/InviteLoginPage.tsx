@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
 import { cn } from '@chatic/lib/utils';
+import { Button } from '@chatic/ui-kit/components/ui/button';
 import { runtime } from '@chatic/app-runtime';
 
 import { AuthCard } from '../components';
@@ -21,13 +22,19 @@ export const InviteLoginPage = () => {
     // history (refresh / deep link), unlike navigate(-1).
     const handleBack = () => navigate(isAuthenticated ? '/' : '/auth/welcome');
 
+    // Set once login resolves; the navigate waits for the session to actually
+    // flip. Navigating on the promise alone raced the flip, and the router's
+    // unauthenticated catch-all then bounced a successful login back to Welcome.
+    const [loggedIn, setLoggedIn] = useState(false);
+    useEffect(() => {
+        if (loggedIn && isAuthenticated) navigate('/');
+    }, [loggedIn, isAuthenticated, navigate]);
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (isSubmitting) return;
-        // Navigate home on success so the in-app /join path advances; the
-        // unauthenticated path also lands here harmlessly after the auth flip.
         void login(code).then(ok => {
-            if (ok) navigate('/');
+            if (ok) setLoggedIn(true);
         });
     };
 
@@ -45,30 +52,26 @@ export const InviteLoginPage = () => {
                     placeholder={t('auth.invite.placeholder')}
                     aria-label={t('auth.invite.placeholder')}
                     disabled={isSubmitting}
+                    aria-invalid={error ? true : undefined}
+                    aria-describedby={error ? 'invite-code-error' : undefined}
                     className={cn(
-                        'h-11 rounded-lg border bg-background px-3 text-sm text-foreground outline-none transition-colors',
+                        'focus-ring h-11 rounded-lg border bg-background px-3 text-sm text-foreground outline-none transition-colors',
                         'border-input focus:border-focus-border disabled:opacity-50'
                     )}
                 />
-                {error && <p className="-mt-2 text-sm text-destructive">{inviteLoginErrorText(error, t)}</p>}
-                <button
-                    type="submit"
-                    disabled={isSubmitting || !code.trim()}
-                    className={cn(
-                        'h-11 rounded-full bg-primary text-sm font-semibold text-primary-foreground transition-all',
-                        'hover:opacity-90 active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100'
-                    )}
-                >
+                {/* role="alert" so a rejected code is announced, not just drawn. */}
+                {error && (
+                    <p id="invite-code-error" role="alert" className="-mt-2 text-sm text-destructive">
+                        {inviteLoginErrorText(error, t)}
+                    </p>
+                )}
+                <Button type="submit" size="lg" disabled={isSubmitting || !code.trim()}>
                     {isSubmitting ? t('auth.invite.preparing') : t('auth.invite.submit')}
-                </button>
+                </Button>
                 {import.meta.env.DEV && (
-                    <button
-                        type="button"
-                        onClick={() => navigate('/auth/debug')}
-                        className="text-xs font-medium text-muted-foreground hover:text-foreground"
-                    >
+                    <Button variant="link" size="sm" onClick={() => navigate('/auth/debug')}>
                         {t('auth.debug.link')}
-                    </button>
+                    </Button>
                 )}
             </form>
         </AuthCard>

@@ -6,6 +6,7 @@ export * from './ChannelList';
 export * from './ChatPane';
 export * from './ChannelIntro';
 export * from './ChannelHeaderMenu';
+export * from './JumpReturnBar';
 export * from './MessageList';
 export * from './MessageRow';
 export * from './ThreadPanel';

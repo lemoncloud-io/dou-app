@@ -164,9 +164,9 @@ const Section = ({
 
 const Stat = ({ label, value, sub }: { label: string; value: string; sub?: string }) => (
     <div className="rounded-lg border border-border/60 bg-background px-3 py-2">
-        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>
+        <p className="text-nano uppercase tracking-wide text-muted-foreground">{label}</p>
         <p className="mt-0.5 text-sm font-semibold text-foreground">{value}</p>
-        {sub && <p className="truncate text-[11px] text-muted-foreground">{sub}</p>}
+        {sub && <p className="truncate text-tiny text-muted-foreground">{sub}</p>}
     </div>
 );
 
@@ -234,7 +234,7 @@ const SocketFrameLog = () => {
                             {f.chatNo !== null && <span className="font-mono text-amber-600">#{f.chatNo}</span>}
                         </button>
                         {openSeq === f.seq && (
-                            <pre className="mt-1 max-h-60 overflow-auto rounded bg-muted p-2 text-[10px] leading-snug text-foreground">
+                            <pre className="mt-1 max-h-60 overflow-auto rounded bg-muted p-2 text-nano leading-snug text-foreground">
                                 {JSON.stringify(f.raw, null, 2)}
                             </pre>
                         )}
@@ -323,7 +323,7 @@ const CacheExplorer = ({
                         (열린 채널, {gap.count}개 저장 · 범위 {gap.min ?? '—'}…{gap.max ?? '—'})
                     </span>
                     {gap.ranges.length > 0 && (
-                        <div className="mt-1 font-mono text-[10px]">빠진 번호: {gap.ranges.join(', ')}</div>
+                        <div className="mt-1 font-mono text-nano">빠진 번호: {gap.ranges.join(', ')}</div>
                     )}
                 </div>
             )}
@@ -341,7 +341,7 @@ const CacheExplorer = ({
                             <span className="truncate font-mono text-foreground">{r.id}</span>
                         </button>
                         {openKey === r.key && (
-                            <pre className="mt-1 max-h-60 overflow-auto rounded bg-muted p-2 text-[10px] leading-snug text-foreground">
+                            <pre className="mt-1 max-h-60 overflow-auto rounded bg-muted p-2 text-nano leading-snug text-foreground">
                                 {JSON.stringify(r.data, null, 2)}
                             </pre>
                         )}

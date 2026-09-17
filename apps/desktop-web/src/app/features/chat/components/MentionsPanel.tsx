@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { AtSign, ChevronRight, Hash, X } from 'lucide-react';
@@ -14,13 +14,12 @@ import {
     useMentionsPanelStore,
     useMentionsStore,
     type MentionItem,
+    formatShortDate,
+    PANE_HEADER,
+    PANEL_TITLE,
 } from '../../../shared';
 
-const formatMentionAt = (ms: number): string => {
-    const date = new Date(ms);
-    if (Number.isNaN(date.getTime())) return '';
-    return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
-};
+const formatMentionAt = formatShortDate;
 
 interface MentionRowProps {
     item: MentionItem;
@@ -75,7 +74,7 @@ const MentionRow = ({ item, channelName, removeLabel, onOpen, onRemove }: Mentio
                 type="button"
                 onClick={onRemove}
                 aria-label={removeLabel}
-                className="focus-ring tactile absolute right-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity ease-tactile hover:bg-accent hover:text-foreground focus-visible:opacity-100 group-hover/mention:opacity-100"
+                className="focus-ring tactile absolute right-1.5 top-1.5 flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity ease-tactile hover:bg-accent hover:text-foreground focus-visible:opacity-100 group-hover/mention:opacity-100"
             >
                 <X size={13} />
             </button>
@@ -108,15 +107,6 @@ export const MentionsPanel = ({ channels, places, currentPlaceId, onSelect }: Me
     const markAllRead = useMentionsStore(s => s.markAllRead);
     const remove = useMentionsStore(s => s.remove);
 
-    // Esc closes the panel (matches the other trailing panes).
-    useEffect(() => {
-        const onKeyDown = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') close();
-        };
-        window.addEventListener('keydown', onKeyDown);
-        return () => window.removeEventListener('keydown', onKeyDown);
-    }, [close]);
-
     const channelName = (channelId: string): string | undefined => channels.find(c => c.id === channelId)?.name;
     const placeName = (placeId: string): string => places.find(p => p.id === placeId)?.name ?? t('saved.otherPlace');
 
@@ -144,10 +134,11 @@ export const MentionsPanel = ({ channels, places, currentPlaceId, onSelect }: Me
             storageKey={'chatic.mentionsPanel.width'}
             defaultWidth={320}
             resizeLabel={t('activity.resize')}
+            onClose={close}
             className="bg-background"
         >
-            <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-hairline px-4">
-                <span className="truncate text-title text-foreground">{t('activity.title')}</span>
+            <header className={`${PANE_HEADER} px-4`}>
+                <span className={PANEL_TITLE}>{t('activity.title')}</span>
                 <div className="flex shrink-0 items-center gap-1">
                     {hasUnread && (
                         <button
@@ -183,7 +174,7 @@ export const MentionsPanel = ({ channels, places, currentPlaceId, onSelect }: Me
                     <p className="px-2 text-caption text-muted-foreground">{t('saved.deviceLocal')}</p>
                     {groups.map(group => (
                         <div key={group.key || 'none'} className="flex flex-col gap-1">
-                            <p className="sticky top-0 z-[1] flex items-center gap-2 bg-background/95 px-2 py-1 text-overline uppercase text-muted-foreground backdrop-blur">
+                            <p className="sticky top-0 z-[1] flex items-center gap-2 bg-background px-2 py-1 text-overline uppercase text-muted-foreground">
                                 <span className="truncate">{placeName(group.key)}</span>
                                 <span className="shrink-0 tabular-nums">{group.items.length}</span>
                             </p>

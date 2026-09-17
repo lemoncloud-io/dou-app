@@ -339,7 +339,7 @@ export const DebugChatPage = () => {
                                                 <button
                                                     type="button"
                                                     onClick={() => void saveEditChat()}
-                                                    className="rounded border border-border px-2 py-1 text-[11px]"
+                                                    className="rounded border border-border px-2 py-1 text-tiny"
                                                 >
                                                     save
                                                 </button>
@@ -349,7 +349,7 @@ export const DebugChatPage = () => {
                                                         setEditingChatId('');
                                                         setEditingChatContent('');
                                                     }}
-                                                    className="rounded border border-border px-2 py-1 text-[11px]"
+                                                    className="rounded border border-border px-2 py-1 text-tiny"
                                                 >
                                                     cancel
                                                 </button>

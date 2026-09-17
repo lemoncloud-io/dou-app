@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link2 } from 'lucide-react';
 
+import { cn } from '@chatic/lib/utils';
+
 import { isNative, webClient } from '@chatic/bridges';
 
 /**
@@ -88,8 +90,27 @@ export const LinkPreviewCard = ({ url }: LinkPreviewCardProps) => {
         };
     }, [url]);
 
-    if (!meta) return null;
+    if (!isNative()) return null;
 
+    // The chip used to pop in at full height the moment the shell answered, pushing
+    // the text below it down under a reader who was mid-sentence. It now opens from
+    // zero height instead: the shift still happens, but as a visible motion rather
+    // than a jump (and instantly under reduced motion, via the global override).
+    // Reserving the height up front is worse — most links yield no metadata, so the
+    // reserved space would collapse again.
+    return (
+        <span
+            className={cn(
+                'grid transition-[grid-template-rows] duration-200 ease-tactile',
+                meta ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
+            )}
+        >
+            <span className="min-h-0 overflow-hidden">{meta && <LinkChip meta={meta} />}</span>
+        </span>
+    );
+};
+
+const LinkChip = ({ meta }: { meta: UrlMetadata }) => {
     return (
         <a
             href={meta.url}

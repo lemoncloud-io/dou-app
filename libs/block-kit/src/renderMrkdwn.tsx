@@ -31,7 +31,7 @@ const linkTo = (href: string, label: string, key: string): ReactNode => (
         href={href}
         target="_blank"
         rel="noreferrer noopener"
-        className="text-primary-ink underline-offset-2 hover:underline"
+        className="text-link underline-offset-2 hover:underline"
     >
         {label}
     </a>

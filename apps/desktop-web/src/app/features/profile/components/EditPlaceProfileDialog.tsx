@@ -5,7 +5,13 @@ import { resizeImageToBase64 } from '@chatic/shared';
 import { runtime } from '@chatic/app-runtime';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 import { Button } from '@chatic/ui-kit/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogTitle,
+    DialogFooter,
+} from '@chatic/ui-kit/components/ui/dialog';
 import { Input } from '@chatic/ui-kit/components/ui/input';
 import { Label } from '@chatic/ui-kit/components/ui/label';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
@@ -111,7 +117,7 @@ export const EditPlaceProfileDialog = () => {
 
     return (
         <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent closeLabel={t('common.close')} className="sm:max-w-md">
                 <div className="flex flex-wrap items-center gap-2">
                     <DialogTitle>{t('profile.place.title')}</DialogTitle>
                     {placeName && <PlaceChip name={placeName} />}
@@ -159,37 +165,45 @@ export const EditPlaceProfileDialog = () => {
                         />
                     </div>
 
-                    {isError && <p className="text-sm text-destructive">{t('profile.place.failed')}</p>}
+                    {isError && (
+                        <p role="alert" className="text-sm text-destructive">
+                            {t('profile.place.failed')}
+                        </p>
+                    )}
 
-                    <div className="flex items-center justify-between gap-2 pt-2">
-                        {hasActiveProfile ? (
+                    {/* Reverting to the account identity changes how you appear to everyone
+                        in this place, so it does not sit in the Cancel/Save row where it
+                        reads as a third way to close the dialog. It gets its own block,
+                        with the consequence stated. */}
+                    {hasActiveProfile && (
+                        <div className="flex items-center justify-between gap-3 border-t border-hairline pt-3">
+                            <p className="text-xs text-muted-foreground">{t('profile.place.useAccountHint')}</p>
                             <Button
                                 type="button"
-                                variant="ghost"
+                                variant="outline"
                                 size="sm"
-                                className="text-muted-foreground"
+                                className="shrink-0"
                                 onClick={() => void handleUseAccount()}
                                 disabled={busy}
                             >
                                 {t('profile.place.useAccount')}
                             </Button>
-                        ) : (
-                            <span />
-                        )}
-                        <div className="flex gap-2">
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                onClick={() => handleOpenChange(false)}
-                                disabled={isSaving}
-                            >
-                                {t('profile.place.cancel')}
-                            </Button>
-                            <Button type="submit" disabled={busy || !nick.trim()}>
-                                {isSaving ? t('profile.place.saving') : t('profile.place.save')}
-                            </Button>
                         </div>
-                    </div>
+                    )}
+
+                    <DialogFooter className="gap-2 pt-2 sm:space-x-0">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => handleOpenChange(false)}
+                            disabled={isSaving}
+                        >
+                            {t('profile.place.cancel')}
+                        </Button>
+                        <Button type="submit" disabled={busy || !nick.trim()}>
+                            {isSaving ? t('profile.place.saving') : t('profile.place.save')}
+                        </Button>
+                    </DialogFooter>
                 </form>
             </DialogContent>
         </Dialog>

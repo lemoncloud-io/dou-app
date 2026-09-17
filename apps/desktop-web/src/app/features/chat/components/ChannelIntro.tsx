@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 
-import { Hash, Settings, Star, StickyNote } from 'lucide-react';
+import { Hash, PenLine, Settings, Star, StickyNote, UserPlus } from 'lucide-react';
 
 import { cn } from '@chatic/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
@@ -16,14 +16,22 @@ interface ChannelIntroProps {
     avatar?: string;
     colorSeed?: string;
     isFavorite: boolean;
+    /** No messages yet — only then does the intro offer to write the first one. */
+    isEmpty?: boolean;
     onToggleFavorite: () => void;
     /** Channels only — a DM has no settings of its own. */
     onOpenSettings?: () => void;
+    /** Invite people — offered while the channel is still empty. */
+    onAddMembers?: () => void;
 }
 
-/** Shape shared by the two quiet actions under the intro. */
+/** Shape shared by the actions under the intro. */
 const INTRO_ACTION =
-    'focus-ring tactile flex items-center gap-1.5 rounded-lg border border-hairline bg-background px-3 py-1.5 text-[13px] font-medium text-foreground transition-colors ease-tactile hover:bg-accent';
+    'focus-ring tactile flex items-center gap-1.5 rounded-lg border border-hairline bg-background px-3 py-1.5 text-caption font-medium text-foreground transition-colors ease-tactile hover:bg-accent';
+/** The one filled action, and only on an empty channel: writing is what it is for. */
+const INTRO_PRIMARY = 'border-transparent bg-primary text-primary-foreground hover:bg-primary/90';
+
+const focusComposer = () => document.querySelector<HTMLElement>('[data-composer-input]')?.focus();
 
 /**
  * The top of a conversation once its whole history is loaded (Slack's "This is the very
@@ -37,8 +45,10 @@ export const ChannelIntro = ({
     avatar,
     colorSeed,
     isFavorite,
+    isEmpty = false,
     onToggleFavorite,
     onOpenSettings,
+    onAddMembers,
 }: ChannelIntroProps) => {
     const { t } = useTranslation();
     return (
@@ -47,7 +57,7 @@ export const ChannelIntro = ({
                 <Avatar className="h-14 w-14 rounded-2xl">
                     {avatar && <AvatarImage src={avatar} alt="" className="rounded-2xl" />}
                     <AvatarFallback
-                        className="rounded-2xl text-[22px] font-semibold"
+                        className="rounded-2xl text-headline font-semibold"
                         style={avatarStyle(colorSeed ?? name)}
                     >
                         {name.charAt(0).toUpperCase() || '?'}
@@ -65,25 +75,39 @@ export const ChannelIntro = ({
                 </span>
             )}
             <div className="flex flex-col gap-1">
-                <h2 className="text-[24px] font-bold leading-tight tracking-[-0.02em] text-foreground">
-                    {kind === 'channel' ? `#${name}` : name}
-                </h2>
-                <p className="max-w-prose text-[15px] leading-relaxed text-label">
+                <h2 className="text-display text-foreground">{kind === 'channel' ? `#${name}` : name}</h2>
+                <p className="max-w-prose text-body text-label">
                     {kind === 'channel' && t('chat.intro.channel', { name })}
                     {kind === 'dm' && t('chat.intro.dm', { name })}
                     {kind === 'self' && t('chat.intro.self')}
                 </p>
                 {description && (
-                    <p className="max-w-prose whitespace-pre-line text-[14px] leading-relaxed text-muted-foreground">
-                        {description}
-                    </p>
+                    <p className="max-w-prose whitespace-pre-line text-callout text-muted-foreground">{description}</p>
                 )}
             </div>
             <div className="flex flex-wrap items-center gap-2">
+                {/* The empty channel's first screen had no path to the one thing it is
+                    for. This hands focus to the composer below. Once the channel has
+                    messages the intro stays as a header, but the filled CTA goes: it
+                    outranked the conversation and said something untrue about it. */}
+                {isEmpty && (
+                    <button type="button" onClick={focusComposer} className={cn(INTRO_ACTION, INTRO_PRIMARY)}>
+                        <PenLine size={15} aria-hidden />
+                        {t('chat.intro.writeFirst')}
+                    </button>
+                )}
                 <button type="button" onClick={onToggleFavorite} aria-pressed={isFavorite} className={INTRO_ACTION}>
                     <Star size={15} aria-hidden className={cn(isFavorite && 'fill-favorite text-favorite')} />
                     {t(isFavorite ? 'chat.header.unfavorite' : 'chat.header.favorite')}
                 </button>
+                {/* A new channel holds only its creator; inviting people is the other
+                    thing its first screen is for. */}
+                {isEmpty && onAddMembers && (
+                    <button type="button" onClick={onAddMembers} className={INTRO_ACTION}>
+                        <UserPlus size={15} aria-hidden />
+                        {t('channels.addMembers.open')}
+                    </button>
+                )}
                 {onOpenSettings && (
                     <button type="button" onClick={onOpenSettings} className={INTRO_ACTION}>
                         <Settings size={15} aria-hidden />

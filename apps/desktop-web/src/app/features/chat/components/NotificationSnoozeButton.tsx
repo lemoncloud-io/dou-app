@@ -11,12 +11,10 @@ import {
     DropdownMenuTrigger,
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
 
-import { isDndActive, nextSnoozeUntilTomorrow, useNotificationPrefsStore } from '../../../shared';
+import { formatClockTime, isDndActive, nextSnoozeUntilTomorrow, useNotificationPrefsStore } from '../../../shared';
 import { SIDEBAR_ACTION_ROW } from './sidebarStyles';
 
 const MINUTE = 60_000;
-
-const formatTime = (ms: number): string => new Date(ms).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 
 /**
  * Sidebar action row to snooze notifications (global do-not-disturb). Self-contained:
@@ -46,13 +44,13 @@ export const NotificationSnoozeButton = () => {
                         )}
                     </span>
                     <span className="truncate">
-                        {t(labelKey, snoozeUntil ? { time: formatTime(snoozeUntil) } : undefined)}
+                        {t(labelKey, snoozeUntil ? { time: formatClockTime(snoozeUntil) } : undefined)}
                     </span>
                 </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-56 shadow-overlay">
                 <DropdownMenuLabel className="text-muted-foreground">
-                    {t(labelKey, snoozeUntil ? { time: formatTime(snoozeUntil) } : undefined)}
+                    {t(labelKey, snoozeUntil ? { time: formatClockTime(snoozeUntil) } : undefined)}
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => snoozeFor(30)} className="cursor-pointer py-2">

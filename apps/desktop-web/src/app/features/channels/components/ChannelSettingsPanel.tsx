@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Search, X } from 'lucide-react';
@@ -16,6 +16,8 @@ import {
     useNotificationPrefsStore,
     useSelectedChannelStore,
     type ChannelNotifyMode,
+    PANE_HEADER,
+    PANEL_TITLE,
 } from '../../../shared';
 import type { ChannelMember } from '../hooks';
 import { useChannelActions } from '../hooks';
@@ -57,15 +59,6 @@ export const ChannelSettingsPanel = ({
     const setChannelNotifyPref = useNotificationPrefsStore(s => s.setChannelNotify);
     const { setChannelNotify } = useDesktopChannelMutations();
 
-    // Esc closes the panel (matches dropdowns/dialogs elsewhere).
-    useEffect(() => {
-        const onKeyDown = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') close();
-        };
-        window.addEventListener('keydown', onKeyDown);
-        return () => window.removeEventListener('keydown', onKeyDown);
-    }, [close]);
-
     const channelId = channel?.id ?? null;
     const isOwner = isChannelOwner(channel, myUid);
 
@@ -86,15 +79,18 @@ export const ChannelSettingsPanel = ({
             close();
             clearChannel();
         },
+        resolveMemberName: userId => members.find(m => m.id === userId)?.name ?? '',
     });
     const { openDialog, openKick, kickTarget } = actions;
+
+    // Resolution lives in channelNotifyMode (local pref → join.notify → mute map).
+    // Read above the early return: hooks must run in the same order on every
+    // render, including the ones where the channel has not resolved yet.
+    const notifyMode = useNotificationPrefsStore(s => channelNotifyMode(s, channelId ?? '', channel?.$join?.notify));
 
     if (!channel || !channelId) return null;
 
     const kickName = members.find(m => m.id === kickTarget)?.name ?? '';
-
-    // Resolution lives in channelNotifyMode (local pref → join.notify → mute map).
-    const notifyMode = useNotificationPrefsStore(s => channelNotifyMode(s, channelId, channel.$join?.notify));
 
     const onNotifyChange = (mode: ChannelNotifyMode) => {
         if (mode === notifyMode) return;
@@ -110,10 +106,11 @@ export const ChannelSettingsPanel = ({
             storageKey={'chatic.channelSettingsPanel.width'}
             defaultWidth={320}
             resizeLabel={t('channels.settings.resize')}
+            onClose={close}
             className="bg-elevated"
         >
-            <header className="flex h-14 shrink-0 items-center justify-between border-b border-hairline px-4">
-                <span className="truncate text-title text-foreground">{t('channels.settings.title')}</span>
+            <header className={`${PANE_HEADER} px-4`}>
+                <span className={PANEL_TITLE}>{t('channels.settings.title')}</span>
                 <button
                     type="button"
                     aria-label={t('channels.settings.close')}
@@ -149,8 +146,8 @@ export const ChannelSettingsPanel = ({
 
                 <section className="flex flex-col gap-2 border-t border-hairline pt-4">
                     <h3 className="text-overline text-muted-foreground">
-                        {t('channels.settings.membersSection')} ·{' '}
-                        {t('channels.settings.memberCount', { count: memberCount })}
+                        {/* The count alone: "Members · 3 members" said the noun twice. */}
+                        {t('channels.settings.membersSection')} · <span className="tabular-nums">{memberCount}</span>
                     </h3>
                     {showMemberSearch && (
                         <div className="relative">
@@ -215,8 +212,15 @@ export const ChannelSettingsPanel = ({
                             </button>
                         ))}
                     </div>
+                </section>
+
+                {/* Leaving and deleting used to sit under the Notifications heading, so a
+                    mute decision and an irreversible one shared a group. They get their
+                    own, and the heading says what the group is for. */}
+                <section className="flex flex-col gap-2 border-t border-hairline pt-4">
+                    <h3 className="text-overline text-muted-foreground">{t('channels.settings.danger')}</h3>
                     <Button
-                        variant="ghost"
+                        variant="outline"
                         size="sm"
                         className="focus-ring tactile justify-start transition-colors"
                         onClick={() => openDialog('leave')}
@@ -225,9 +229,9 @@ export const ChannelSettingsPanel = ({
                     </Button>
                     {isOwner && (
                         <Button
-                            variant="ghost"
+                            variant="outline"
                             size="sm"
-                            className="focus-ring tactile justify-start text-destructive transition-colors hover:bg-destructive/10 hover:text-destructive"
+                            className="focus-ring tactile justify-start border-destructive/40 text-destructive transition-colors hover:bg-destructive/10 hover:text-destructive"
                             onClick={() => openDialog('delete')}
                         >
                             {t('channels.settings.delete')}

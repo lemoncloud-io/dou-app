@@ -92,7 +92,7 @@ const ComposerInner = ({
         // No upload API on the server yet: refuse the whole send rather than drop the
         // images silently or post their text without them. The text and the tray stay.
         if (attachments.length > 0) {
-            toast({ description: t('chat.attach.unavailable') });
+            toast({ variant: 'info', description: t('chat.attach.unavailable') });
             return;
         }
         onSend(markdown);
@@ -135,7 +135,7 @@ const ComposerInner = ({
 
     return (
         <div
-            className="bg-background/[0.92] px-6 pb-5 pt-2 backdrop-blur-[8px]"
+            className="bg-background px-6 pb-5 pt-2"
             // Pasted images join the tray; pasted text still goes to the editor untouched.
             onPasteCapture={event => {
                 if (!onAddFiles) return;
@@ -159,7 +159,7 @@ const ComposerInner = ({
                     {/* The newline key is the one thing people get wrong in a chat box; say it
                         while it matters (there is text) and stay out of the way otherwise. */}
                     {hasText && (
-                        <span className="ml-auto hidden text-[12px] text-placeholder animate-fade-in sm:block">
+                        <span className="ml-auto hidden text-micro text-muted-foreground animate-fade-in sm:block">
                             {t('chat.composer.newlineHint')}
                         </span>
                     )}
@@ -172,6 +172,8 @@ const ComposerInner = ({
                                 contentEditable={
                                     <ContentEditable
                                         aria-label={placeholderText}
+                                        // Lets the empty-channel intro hand focus to the composer.
+                                        data-composer-input=""
                                         className="max-h-40 min-h-[34px] overflow-y-auto whitespace-pre-wrap break-words bg-transparent py-1.5 text-body text-foreground outline-none"
                                     />
                                 }

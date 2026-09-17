@@ -33,7 +33,7 @@ export const AttachMenu = ({ onFiles }: AttachMenuProps) => {
                         aria-label={t('chat.attach.add')}
                         // mousedown default kept off so the editor keeps its caret.
                         onMouseDown={event => event.preventDefault()}
-                        className="focus-ring tactile flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-full bg-muted text-foreground transition-colors ease-tactile hover:bg-accent aria-expanded:bg-accent"
+                        className="focus-ring tactile hit-target flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-full bg-muted text-foreground transition-colors ease-tactile hover:bg-accent aria-expanded:bg-accent"
                     >
                         <Plus size={18} aria-hidden />
                     </button>
@@ -48,11 +48,13 @@ export const AttachMenu = ({ onFiles }: AttachMenuProps) => {
                     }}
                     className="flex w-full flex-col items-start gap-2 rounded-[10px] px-3 py-2.5 text-left outline-none transition-colors hover:bg-accent focus-visible:bg-accent"
                 >
-                    <span className="flex items-center gap-2 text-[14px] font-medium tracking-[-0.01em] text-foreground">
+                    <span className="flex items-center gap-2 text-callout font-medium tracking-[-0.01em] text-foreground">
                         <FileIcon size={18} aria-hidden />
                         {t('chat.attach.menuTitle')}
                     </span>
-                    <span className="text-[13px] tracking-[-0.01em] text-placeholder">{t('chat.attach.menuHint')}</span>
+                    <span className="text-caption tracking-[-0.01em] text-muted-foreground">
+                        {t('chat.attach.menuHint')}
+                    </span>
                 </button>
             </PopoverContent>
             <input

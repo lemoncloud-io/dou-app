@@ -96,8 +96,8 @@ describe('ThreadPanel', () => {
         render(<ThreadPanel channel={CHANNEL} rootId="C1:1" members={[]} />, { wrapper });
 
         // The chip, not the toolbar's quick-reaction button: only the chip is labelled
-        // "<emoji> — <reactors>", and only the chip means the reaction is on the message.
-        expect(screen.getByLabelText(/^👍 —/)).toBeTruthy();
+        // "<emoji> · <reactors>", and only the chip means the reaction is on the message.
+        expect(screen.getByLabelText(/^👍 ·/)).toBeTruthy();
     });
 
     // Same renderer as the feed. A reply that arrives as Block Kit is drawn here for

@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
-import { cn } from '@chatic/lib/utils';
+import { Button } from '@chatic/ui-kit/components/ui/button';
 
 import { AuthCard, GoogleIcon } from '../components';
 import { useGuestLogin } from '../hooks/useGuestLogin';
@@ -21,54 +21,55 @@ export const WelcomePage = () => {
 
     return (
         <AuthCard title={t('welcome.title')} subtitle={t('welcome.subtitle')}>
-            {isError && <p className="-mt-2 text-sm text-destructive">{t('welcome.registerFailed')}</p>}
+            {isError && (
+                <p role="alert" className="-mt-2 text-sm text-destructive">
+                    {t('welcome.registerFailed')}
+                </p>
+            )}
 
+            {/* One filled primary leads; the alternatives sit under it, and the
+                invite path is a link rather than a fourth identical pill. */}
             <div className="flex flex-col gap-2">
-                <button
-                    type="button"
+                <Button
+                    size="lg"
                     onClick={() => void submit()}
                     disabled={isSubmitting}
-                    className={cn(
-                        'h-11 rounded-full bg-primary text-sm font-semibold text-primary-foreground transition-all',
-                        'hover:opacity-90 active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100'
-                    )}
+                    aria-describedby="welcome-guest-note"
                 >
                     {isSubmitting ? t('welcome.starting') : isError ? t('welcome.retry') : t('welcome.start')}
-                </button>
+                </Button>
+                {/* The button mints a guest account. Saying so here, not only in the
+                    logout confirmation, is the difference between a choice and a surprise. */}
+                <p id="welcome-guest-note" className="-mt-0.5 text-center text-caption text-muted-foreground">
+                    {t('welcome.guestNote')}
+                </p>
                 {isSocialLoginEnabled() && (
-                    <button
-                        type="button"
+                    <Button
+                        variant="outline"
+                        size="lg"
                         onClick={() => startSocialLogin('google')}
                         disabled={isSubmitting}
-                        className={cn(
-                            'flex h-11 items-center justify-center gap-2 rounded-full border border-border text-sm font-medium text-foreground',
-                            'transition-colors hover:bg-accent disabled:opacity-50'
-                        )}
                     >
                         <GoogleIcon />
                         {t('auth.social.google')}
-                    </button>
+                    </Button>
                 )}
-                <button
-                    type="button"
-                    onClick={() => navigate('/auth/login')}
-                    disabled={isSubmitting}
-                    className="h-11 rounded-full border border-border text-sm font-medium text-foreground transition-colors hover:bg-accent disabled:opacity-50"
-                >
+                <Button variant="link" onClick={() => navigate('/auth/login')} disabled={isSubmitting}>
                     {t('welcome.haveInvite')}
-                </button>
+                </Button>
                 {/* Dev-only email/password sign-in. Gated on import.meta.env.DEV so it's
                     dead-code-eliminated from production builds — mirrors the /auth/debug
                     route guard in routes.tsx; never ships in the installed app. */}
                 {import.meta.env.DEV && (
-                    <button
-                        type="button"
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="border border-dashed border-border text-muted-foreground"
                         onClick={() => navigate('/auth/debug')}
                         disabled={isSubmitting}
-                        className="h-11 rounded-full border border-dashed border-border text-sm font-medium text-muted-foreground transition-colors hover:bg-accent disabled:opacity-50"
                     >
-                        디버그 로그인
-                    </button>
+                        {t('welcome.debugLogin')}
+                    </Button>
                 )}
             </div>
         </AuthCard>

@@ -32,7 +32,7 @@ export const ConnectionBanner = () => {
             role="status"
             aria-live="polite"
             className={cn(
-                'fixed inset-x-0 top-0 z-50 flex items-center justify-center gap-2 px-3 py-1 text-caption font-medium',
+                'flex items-center justify-center gap-2 px-3 py-1 text-caption font-medium',
                 offline ? 'bg-destructive text-destructive-foreground' : 'bg-warning/15 text-warning-foreground'
             )}
         >

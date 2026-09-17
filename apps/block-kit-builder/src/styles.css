@@ -27,6 +27,8 @@
         /* Lime as TEXT on light surfaces (links, mentions, active glyphs, tints):
            the fill lime is too light to read (2.5:1), this darkened lime clears 4.5:1. */
         --primary-ink: 76 62% 27%;
+        /* Links are blue, not the accent: the desktop client's values, which this previews. */
+        --link: 217 72% 38%;
 
         --secondary: 96 14% 96%;
         --secondary-foreground: 100 10% 10%;
@@ -122,6 +124,7 @@
         --primary-foreground: 90 10% 8%;
         /* On dark surfaces the fill lime already reads as text (8.6:1), so ink = fill. */
         --primary-ink: 76 61% 48%;
+        --link: 212 90% 72%;
 
         --secondary: 90 6% 15%;
         --secondary-foreground: 90 5% 98%;

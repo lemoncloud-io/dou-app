@@ -24,9 +24,9 @@ interface UnreadIndicatorInput {
  * The open row stays silent regardless — pre-existing behaviour, folded in so a
  * sidebar row asks this question once instead of deriving it twice.
  *
- * Scope is the channel sidebar. The place and cloud rails badge on their own
- * rules (`PlaceRail` always counts, `CloudRail` always dots) and do not come
- * through here — changing this function does not change them.
+ * Scope is the channel sidebar. The place and cloud rails always dot, which is
+ * the same ambient signal: a count there summed messages across rows that only
+ * dot. They do not come through here — changing this function does not change them.
  */
 export const unreadIndicator = ({ unread, isDm, isActive }: UnreadIndicatorInput): UnreadIndicator => {
     if (isActive) return 'none';

@@ -1,13 +1,32 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Bookmark, Check, ChevronRight, Copy, MessageSquare, Pencil, Reply, SmilePlus, Trash2 } from 'lucide-react';
+import {
+    Bookmark,
+    Check,
+    ChevronRight,
+    Copy,
+    MessageSquare,
+    MoreHorizontal,
+    Pencil,
+    Reply,
+    SmilePlus,
+    Trash2,
+} from 'lucide-react';
 
 import type { DomainChat } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 import { Button } from '@chatic/ui-kit/components/ui/button';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@chatic/ui-kit/components/ui/dropdown-menu';
 import { Popover, PopoverContent, PopoverTrigger } from '@chatic/ui-kit/components/ui/popover';
+import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { runtime } from '@chatic/app-runtime';
 
@@ -21,7 +40,15 @@ import {
     type ReactionTally,
     type ReadCount,
 } from '../utils';
-import { Hint, Skeleton, UserProfilePopover, avatarStyle, useSavedItemsStore } from '../../../shared';
+import {
+    Hint,
+    Skeleton,
+    UserProfilePopover,
+    avatarStyle,
+    formatClockTime,
+    formatShortDate,
+    useSavedItemsStore,
+} from '../../../shared';
 import { useMessageActions, useReactions } from '../hooks';
 import { QUICK_REACTIONS, useRecentEmojiStore } from '../stores';
 import { EmojiPicker } from './EmojiPicker';
@@ -31,7 +58,7 @@ import { ReactionBar } from './ReactionBar';
 import { ReadReceipt } from './ReadReceipt';
 import { BlockKitMessage, blocksToPlainText, resolveChatBlocks } from '@chatic/block-kit';
 
-import { RichText } from './RichText';
+import { RichText, type MentionResolver } from './RichText';
 
 // Active place id (with the relay 'default' sentinel), read at call time so a saved item is
 // tagged with the place it was captured in. Non-reactive on purpose: this value is only needed
@@ -72,6 +99,8 @@ interface MessageRowProps {
     onOpenThread?: (rootId: string) => void;
     /** Lowercased names that count as "me" — my mentions render highlighted. */
     selfNames?: string[];
+    /** Resolves an @mention to a member, so the mention opens their profile. */
+    resolveMention?: MentionResolver;
     /** chatNo of a message to flash (saved-item / search jump landed on it). */
     highlightChatNo?: number;
     /** Thread panel: qualify the header time with the day ("Today at 3:28 PM"). */
@@ -80,7 +109,13 @@ interface MessageRowProps {
      * Read/unread counts for a message, or null when it gets no receipt (see
      * `useReadCounts`). Absent on a surface that shows no receipts at all.
      */
-    readCountOf?: (chatNo: number, senderId?: string) => ReadCount | null;
+    /**
+     * The read receipt for this block's last message, as numbers rather than a
+     * getter. A getter keyed on every member's cursor changed identity on each
+     * receipt anywhere in the channel, and re-rendered every row with it.
+     */
+    receiptRead?: number;
+    receiptUnread?: number;
 }
 
 /**
@@ -90,7 +125,7 @@ interface MessageRowProps {
  */
 /** Shared shape of every icon button in the message hover toolbar; each adds its own hover pair. */
 const TOOLBAR_BUTTON =
-    'focus-ring tactile flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile';
+    'focus-ring tactile flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile';
 
 interface ToolbarButtonProps {
     label: string;
@@ -124,12 +159,29 @@ const ToolbarButton = ({ label, onClick, children, className, pressed }: Toolbar
 
 const STUCK_PENDING_MS = 60_000;
 
-const formatTime = (ms: number): string => {
-    if (!ms) return '';
-    const date = new Date(ms);
-    if (Number.isNaN(date.getTime())) return '';
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-};
+const sameGroup = (a: MessageGroup, b: MessageGroup): boolean =>
+    a === b ||
+    (a.key === b.key &&
+        a.ownerId === b.ownerId &&
+        a.ownerName === b.ownerName &&
+        a.namePending === b.namePending &&
+        a.avatar === b.avatar &&
+        a.isMine === b.isMine &&
+        a.colorSeed === b.colorSeed &&
+        a.timestamp === b.timestamp &&
+        a.messages.length === b.messages.length &&
+        a.messages.every((m, i) => m === b.messages[i]));
+
+/** Structural equality for one small map entry (a reaction tally, a thread meta). */
+const sameEntry = (a: unknown, b: unknown): boolean => a === b || JSON.stringify(a) === JSON.stringify(b);
+
+/**
+ * Pointer devices hide the toolbar until hover; touch shows it always, so it is
+ * only made inert where it can actually be hidden.
+ */
+const CAN_HOVER = typeof window !== 'undefined' && window.matchMedia?.('(hover: hover)').matches === true;
+
+const formatTime = formatClockTime;
 
 const isSameCalendarDay = (a: Date, b: Date): boolean =>
     a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
@@ -147,14 +199,7 @@ const formatDayTime = (ms: number, t: (key: string, opts?: Record<string, unknow
     let day: string;
     if (isSameCalendarDay(date, now)) day = t('chat.today');
     else if (isSameCalendarDay(date, yesterday)) day = t('chat.yesterday');
-    else {
-        day = date.toLocaleDateString(
-            [],
-            date.getFullYear() === now.getFullYear()
-                ? { month: 'short', day: 'numeric' }
-                : { year: 'numeric', month: 'short', day: 'numeric' }
-        );
-    }
+    else day = formatShortDate(ms);
     return t('chat.thread.headerTime', { day, time });
 };
 
@@ -168,12 +213,33 @@ export const MessageRow = memo(
         threadMeta,
         onOpenThread,
         selfNames,
+        resolveMention,
         highlightChatNo,
         withDayInTime,
-        readCountOf,
+        receiptRead,
+        receiptUnread,
     }: MessageRowProps) => {
         const { t } = useTranslation();
         const [copiedKey, setCopiedKey] = useState<string | null>(null);
+        // `isStuck` below compares Date.now() during render, which only moves when
+        // something else re-renders the row: a send that hung sat at 50% opacity
+        // indefinitely, then flipped to "Not delivered" on an unrelated update.
+        // This ticks the block on its own schedule while anything in it is pending.
+        const [, setStuckTick] = useState(0);
+        // Which message in this block the pointer or keyboard is on. The hover
+        // toolbar is hidden by opacity, not removed, so without this all seven of
+        // its buttons stayed in the tab order for every message — tabbing from the
+        // composer walked hundreds of invisible controls. The toolbar is `inert`
+        // unless its message is hovered, focused, or pinned open; the message itself
+        // is the one tab stop, and focusing it lets Tab continue into its toolbar.
+        const [hoverKey, setHoverKey] = useState<string | null>(null);
+        const [focusKey, setFocusKey] = useState<string | null>(null);
+        const hasPending = group.messages.some(message => !!message.isPending);
+        useEffect(() => {
+            if (!hasPending) return;
+            const timer = setInterval(() => setStuckTick(tick => tick + 1), 5_000);
+            return () => clearInterval(timer);
+        }, [hasPending]);
         // Which message in this block is open in the inline editor, and the text so far.
         // Local to the row: one message is edited at a time and the draft dies with it.
         const [editingKey, setEditingKey] = useState<string | null>(null);
@@ -185,6 +251,9 @@ export const MessageRow = memo(
         // left open, the grid covers the conversation and the click reads as if it did
         // not register — there is no visible chip while the request is in flight.
         const [pickerKey, setPickerKey] = useState<string | null>(null);
+        // The overflow menu portals out of the row, same as the emoji picker, so the
+        // toolbar has to stay up while it is open or it vanishes under the pointer.
+        const [menuKey, setMenuKey] = useState<string | null>(null);
         // Set when the picker closes because something was chosen, so the close handler
         // can tell a pick from an Escape. A ref, not state: it is read once during the
         // close and must not schedule a render of its own.
@@ -192,7 +261,12 @@ export const MessageRow = memo(
         const remember = useRecentEmojiStore(s => s.remember);
         const { editMessage, deleteMessage, failure } = useMessageActions();
         const { toggleReaction, failedId: reactionFailedId } = useReactions();
-        const savedItems = useSavedItemsStore(s => s.items);
+        // Only this block's saved flags, as a string: zustand compares it by value,
+        // so saving a message elsewhere no longer re-renders every row. Selecting
+        // the whole `items` record did.
+        const messageKeys = group.messages.map(message => String(message.id ?? message.tempId ?? message.chatNo));
+        const savedFlags = useSavedItemsStore(s => messageKeys.map(k => (s.items[k] ? '1' : '0')).join(''));
+        const isSavedKey = (key: string) => savedFlags[messageKeys.indexOf(key)] === '1';
         const toggleSaved = useSavedItemsStore(s => s.toggle);
         const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
         // Blank the avatar initial while the name resolves so "U" (Unknown) never flashes.
@@ -234,11 +308,22 @@ export const MessageRow = memo(
         );
 
         const copy = (key: string, content: string) => {
-            void navigator.clipboard?.writeText(content).then(() => {
-                setCopiedKey(key);
-                if (copyTimer.current) clearTimeout(copyTimer.current);
-                copyTimer.current = setTimeout(() => setCopiedKey(curr => (curr === key ? null : curr)), 1200);
-            });
+            // Optional-chaining the API and then swallowing the rejection made a
+            // denied or unavailable clipboard completely silent: no tick, no error.
+            // Same two-branch handling the image copy already does.
+            const write = navigator.clipboard?.writeText(content);
+            if (!write) {
+                toast({ variant: 'destructive', description: t('chat.copyFailed') });
+                return;
+            }
+            void write.then(
+                () => {
+                    setCopiedKey(key);
+                    if (copyTimer.current) clearTimeout(copyTimer.current);
+                    copyTimer.current = setTimeout(() => setCopiedKey(curr => (curr === key ? null : curr)), 1200);
+                },
+                () => toast({ variant: 'destructive', description: t('chat.copyFailed') })
+            );
         };
 
         // Cancel a pending "copied" reset if this row unmounts mid-feedback.
@@ -274,13 +359,13 @@ export const MessageRow = memo(
                             <UserProfilePopover {...profileProps}>
                                 <button
                                     type="button"
-                                    className="focus-ring truncate rounded text-[16px] font-bold leading-tight tracking-[-0.005em] text-foreground hover:underline"
+                                    className="focus-ring truncate rounded text-lead font-bold leading-tight tracking-[-0.005em] text-foreground hover:underline"
                                 >
                                     {group.ownerName}
                                 </button>
                             </UserProfilePopover>
                         )}
-                        <span className="text-[13px] font-medium tabular-nums tracking-[-0.005em] text-description">
+                        <span className="text-caption font-medium tabular-nums tracking-[-0.005em] text-description">
                             {withDayInTime ? formatDayTime(group.timestamp, t) : formatTime(group.timestamp)}
                         </span>
                     </div>
@@ -324,15 +409,16 @@ export const MessageRow = memo(
                             // four messages sent a second apart. A message still in flight,
                             // failed or deleted has no meaningful count.
                             const isLastInGroup = i === group.messages.length - 1;
-                            const receipt =
-                                readCountOf && isLastInGroup && isSettled && !message.hidden && message.chatNo
-                                    ? readCountOf(message.chatNo, message.ownerId)
+                            const receipt: ReadCount | null =
+                                receiptRead != null && isLastInGroup && isSettled && !message.hidden && message.chatNo
+                                    ? { readCount: receiptRead, unreadCount: receiptUnread ?? 0 }
                                     : null;
                             // Keep the toolbar up whenever it owns something the reader is
                             // still looking at — the emoji grid, the delete dialog, or the
                             // "Copied" tick that has not timed out yet. All three outlive the
                             // hover that opened them.
-                            const isToolbarPinned = isCopied || pickerKey === key || confirmingKey === key;
+                            const isToolbarPinned =
+                                isCopied || pickerKey === key || menuKey === key || confirmingKey === key;
                             // What Save is allowed to do. An edit to nothing is a delete
                             // everywhere else and would only blank the row here, and an edit
                             // to the same text is a no-op — so neither is offered. Disabling
@@ -352,8 +438,19 @@ export const MessageRow = memo(
                                 <div
                                     key={key}
                                     data-chat-no={message.chatNo}
+                                    tabIndex={0}
+                                    role="article"
+                                    aria-label={msgTime ? `${group.ownerName}, ${msgTime}` : group.ownerName}
+                                    onMouseEnter={() => setHoverKey(key)}
+                                    onMouseLeave={() => setHoverKey(curr => (curr === key ? null : curr))}
+                                    onFocus={() => setFocusKey(key)}
+                                    onBlur={e => {
+                                        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+                                            setFocusKey(curr => (curr === key ? null : curr));
+                                        }
+                                    }}
                                     className={cn(
-                                        'group/msg relative rounded-md transition-colors ease-tactile',
+                                        'group/msg relative rounded-md outline-none transition-colors ease-tactile focus-visible:ring-2 focus-visible:ring-ring',
                                         onOpenThread ? 'pr-20' : 'pr-12',
                                         message.chatNo != null &&
                                             message.chatNo === highlightChatNo &&
@@ -361,7 +458,7 @@ export const MessageRow = memo(
                                     )}
                                 >
                                     {i > 0 && msgTime && (
-                                        <span className="absolute -left-12 top-0.5 hidden w-10 text-right text-[10px] tabular-nums text-muted-foreground/70 group-hover/msg:block">
+                                        <span className="absolute -left-12 top-0.5 hidden w-10 text-right text-nano tabular-nums text-muted-foreground/70 group-hover/msg:block">
                                             {msgTime}
                                         </span>
                                     )}
@@ -408,7 +505,7 @@ export const MessageRow = memo(
                                                     size="sm"
                                                     onClick={saveEdit}
                                                     disabled={!isEditDirty}
-                                                    className="h-7 px-3 text-caption"
+                                                    className="h-9 px-3 text-caption"
                                                 >
                                                     {t('chat.editSave')}
                                                 </Button>
@@ -416,7 +513,7 @@ export const MessageRow = memo(
                                                     size="sm"
                                                     variant="ghost"
                                                     onClick={cancelEdit}
-                                                    className="h-7 px-3 text-caption"
+                                                    className="h-9 px-3 text-caption"
                                                 >
                                                     {t('common.cancel')}
                                                 </Button>
@@ -437,7 +534,13 @@ export const MessageRow = memo(
                                             <BlockKitMessage
                                                 blocks={blocks}
                                                 raw={content}
-                                                renderFallback={raw => <RichText content={raw} selfNames={selfNames} />}
+                                                renderFallback={raw => (
+                                                    <RichText
+                                                        content={raw}
+                                                        selfNames={selfNames}
+                                                        resolveMention={resolveMention}
+                                                    />
+                                                )}
                                             />
                                         </div>
                                     ) : (
@@ -451,7 +554,11 @@ export const MessageRow = memo(
                                                 isPending && 'opacity-50'
                                             )}
                                         >
-                                            <RichText content={content} selfNames={selfNames} />
+                                            <RichText
+                                                content={content}
+                                                selfNames={selfNames}
+                                                resolveMention={resolveMention}
+                                            />
                                             {wasEdited && (
                                                 <Hint label={t('chat.editedTitle')}>
                                                     <span className="ml-1 align-baseline text-micro text-muted-foreground">
@@ -532,6 +639,9 @@ export const MessageRow = memo(
                                     only thing still tying the grid to the message it acts on. */}
                                     {!isEditing && !message.hidden && ((onOpenThread && isSettled) || content) && (
                                         <div
+                                            inert={
+                                                CAN_HOVER && !isToolbarPinned && hoverKey !== key && focusKey !== key
+                                            }
                                             className={cn(
                                                 'absolute -top-10 right-0 z-10 flex items-center gap-0.5 rounded-lg border border-hairline bg-elevated p-0.5 shadow-overlay transition-[opacity,transform] duration-150 ease-tactile motion-reduce:transition-none motion-reduce:translate-x-0',
                                                 isToolbarPinned
@@ -637,91 +747,112 @@ export const MessageRow = memo(
                                                     <Reply size={16} />
                                                 </ToolbarButton>
                                             )}
-                                            {content && isSettled && (
-                                                <ToolbarButton
-                                                    label={savedItems[key] ? t('chat.unsave') : t('chat.save')}
-                                                    pressed={!!savedItems[key]}
-                                                    className="hover:bg-accent hover:text-foreground"
-                                                    onClick={() =>
-                                                        toggleSaved({
-                                                            id: key,
-                                                            channelId: message.channelId ?? '',
-                                                            chatNo: message.chatNo,
-                                                            content: plain,
-                                                            ownerName: group.ownerName,
-                                                            avatar: group.avatar,
-                                                            colorSeed: group.colorSeed,
-                                                            ownerId: group.ownerId,
-                                                            placeId: currentPlaceId(),
-                                                            parentId: message.parentId,
-                                                        })
-                                                    }
+                                            {/* Everything past Reply lives in one menu. Eight
+                                                same-sized icons made a strip nobody could aim at,
+                                                each one its own tab stop, and Delete sat a
+                                                mouse-width from Edit. The three frequent actions
+                                                stay out here; the rest are named in a list, where
+                                                a label is cheaper to read than an icon. */}
+                                            {(content || canModifyMessage(message, group.isMine)) && (
+                                                <DropdownMenu
+                                                    open={menuKey === key}
+                                                    onOpenChange={next => setMenuKey(next ? key : null)}
                                                 >
-                                                    <Bookmark
-                                                        size={16}
-                                                        className={
-                                                            savedItems[key]
-                                                                ? 'fill-current text-primary-ink'
-                                                                : undefined
-                                                        }
-                                                    />
-                                                </ToolbarButton>
-                                            )}
-                                            {content && (
-                                                <ToolbarButton
-                                                    label={isCopied ? t('chat.copied') : t('chat.copy')}
-                                                    onClick={() => copy(key, plain)}
-                                                    className="hover:bg-accent hover:text-foreground"
-                                                >
-                                                    {isCopied ? (
-                                                        <Check size={16} className="text-primary-ink" />
-                                                    ) : (
-                                                        <Copy size={16} />
-                                                    )}
-                                                </ToolbarButton>
-                                            )}
-                                            {canModifyMessage(message, group.isMine) && (
-                                                <>
-                                                    {/* No Edit on a Block Kit message, whichever way the
-                                                        blocks arrived. From `content` JSON, the editor is
-                                                        a plain textarea and would hand back the payload to
-                                                        edit by hand. From `blocks$`, `content` is only the
-                                                        server's summary — editing it would leave the card
-                                                        saying one thing and the summary another, and the
-                                                        server does not rebuild `blocks$` on update
-                                                        (knowledge#319 SPEC §4.3). Delete still applies —
-                                                        the message can still be wrong. */}
-                                                    {!blocks && (
-                                                        <>
-                                                            <ToolbarButton
-                                                                label={t('chat.edit')}
-                                                                onClick={() => {
-                                                                    setDraft(content);
-                                                                    setEditingKey(key);
-                                                                }}
-                                                                className="hover:bg-accent hover:text-foreground"
+                                                    <Hint label={t('chat.more')}>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <button
+                                                                type="button"
+                                                                aria-label={t('chat.more')}
+                                                                className={cn(
+                                                                    TOOLBAR_BUTTON,
+                                                                    'hover:bg-accent hover:text-foreground'
+                                                                )}
                                                             >
-                                                                <Pencil size={16} />
-                                                            </ToolbarButton>
-                                                            {/* Delete last, behind a rule. It was one
-                                                                of six identical icons, a mouse-width
-                                                                from Edit, and the only one you cannot
-                                                                undo — the strip gave the reader
-                                                                nothing to aim by. */}
-                                                            <span
-                                                                aria-hidden
-                                                                className="mx-0.5 h-5 w-px shrink-0 bg-hairline"
-                                                            />
-                                                        </>
-                                                    )}
-                                                    <ToolbarButton
-                                                        label={t('chat.delete')}
-                                                        onClick={() => setConfirmingKey(key)}
-                                                        className="hover:bg-destructive/10 hover:text-destructive"
-                                                    >
-                                                        <Trash2 size={16} />
-                                                    </ToolbarButton>
-                                                </>
+                                                                <MoreHorizontal size={16} />
+                                                            </button>
+                                                        </DropdownMenuTrigger>
+                                                    </Hint>
+                                                    <DropdownMenuContent align="end" side="bottom" className="w-48">
+                                                        {content && isSettled && (
+                                                            <DropdownMenuItem
+                                                                onSelect={() =>
+                                                                    toggleSaved({
+                                                                        id: key,
+                                                                        channelId: message.channelId ?? '',
+                                                                        chatNo: message.chatNo,
+                                                                        content: plain,
+                                                                        ownerName: group.ownerName,
+                                                                        avatar: group.avatar,
+                                                                        colorSeed: group.colorSeed,
+                                                                        ownerId: group.ownerId,
+                                                                        placeId: currentPlaceId(),
+                                                                        parentId: message.parentId,
+                                                                    })
+                                                                }
+                                                            >
+                                                                <Bookmark
+                                                                    size={14}
+                                                                    aria-hidden
+                                                                    className={
+                                                                        isSavedKey(key)
+                                                                            ? 'fill-current text-primary-ink'
+                                                                            : undefined
+                                                                    }
+                                                                />
+                                                                {isSavedKey(key) ? t('chat.unsave') : t('chat.save')}
+                                                            </DropdownMenuItem>
+                                                        )}
+                                                        {content && (
+                                                            <DropdownMenuItem onSelect={() => copy(key, plain)}>
+                                                                {isCopied ? (
+                                                                    <Check
+                                                                        size={14}
+                                                                        aria-hidden
+                                                                        className="text-primary-ink"
+                                                                    />
+                                                                ) : (
+                                                                    <Copy size={14} aria-hidden />
+                                                                )}
+                                                                {isCopied ? t('chat.copied') : t('chat.copy')}
+                                                            </DropdownMenuItem>
+                                                        )}
+                                                        {canModifyMessage(message, group.isMine) && (
+                                                            <>
+                                                                {/* No Edit on a Block Kit message, whichever way
+                                                                    the blocks arrived. From `content` JSON, the
+                                                                    editor is a plain textarea and would hand back
+                                                                    the payload to edit by hand. From `blocks$`,
+                                                                    `content` is only the server's summary —
+                                                                    editing it would leave the card saying one
+                                                                    thing and the summary another, and the server
+                                                                    does not rebuild `blocks$` on update
+                                                                    (knowledge#319 SPEC §4.3). Delete still
+                                                                    applies: the message can still be wrong. */}
+                                                                {!blocks && (
+                                                                    <DropdownMenuItem
+                                                                        onSelect={() => {
+                                                                            setDraft(content);
+                                                                            setEditingKey(key);
+                                                                        }}
+                                                                    >
+                                                                        <Pencil size={14} aria-hidden />
+                                                                        {t('chat.edit')}
+                                                                    </DropdownMenuItem>
+                                                                )}
+                                                                <DropdownMenuSeparator />
+                                                                {/* Last, behind a rule, and the only item that
+                                                                    cannot be undone. */}
+                                                                <DropdownMenuItem
+                                                                    onSelect={() => setConfirmingKey(key)}
+                                                                    className="text-destructive focus:text-destructive"
+                                                                >
+                                                                    <Trash2 size={14} aria-hidden />
+                                                                    {t('chat.delete')}
+                                                                </DropdownMenuItem>
+                                                            </>
+                                                        )}
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
                                             )}
                                         </div>
                                     )}
@@ -786,7 +917,7 @@ export const MessageRow = memo(
                                                                 />
                                                             )}
                                                             <AvatarFallback
-                                                                className="rounded text-[9px] font-semibold"
+                                                                className="rounded text-nano font-semibold"
                                                                 style={avatarStyle(replier.colorSeed)}
                                                             >
                                                                 {replier.name.charAt(0).toUpperCase() || '?'}
@@ -828,6 +959,30 @@ export const MessageRow = memo(
                 </div>
             </div>
         );
+    },
+    (prev, next) => {
+        // `reactions` and `threadMeta` are whole-feed maps rebuilt on every message
+        // change, so a default shallow compare re-rendered every row whenever any
+        // one message changed. Everything else compares by identity as before;
+        // those two compare only the entries this block actually reads.
+        for (const k of Object.keys(next) as (keyof MessageRowProps)[]) {
+            if (k === 'reactions' || k === 'threadMeta' || k === 'group') continue;
+            if (prev[k] !== next[k]) return false;
+        }
+        // The group object is rebuilt on every feed change too; what matters is
+        // its fields and the identity of each message in it (the repository
+        // hands back a new object only for a message that actually changed).
+        if (!sameGroup(prev.group, next.group)) return false;
+        for (const message of next.group.messages) {
+            if (message.id && !sameEntry(prev.reactions?.get(message.id), next.reactions?.get(message.id))) {
+                return false;
+            }
+            if (message.chatNo != null) {
+                const no = String(message.chatNo);
+                if (!sameEntry(prev.threadMeta?.get(no), next.threadMeta?.get(no))) return false;
+            }
+        }
+        return true;
     }
 );
 
