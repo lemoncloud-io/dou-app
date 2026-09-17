@@ -9,7 +9,7 @@ import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Switch } from '@chatic/ui-kit/components/ui/switch';
 
 import { useNotificationPrefsStore, VersionInfo } from '../../../shared';
-import { useOnboardingStore } from '../../chat/stores';
+import { useOnboardingStore, useShortcutsDialogStore } from '../../chat/stores';
 import { useDevicePushMute } from '../hooks';
 import { LaunchAtLoginSection } from './LaunchAtLoginSection';
 
@@ -53,6 +53,7 @@ export const SettingsPage = () => {
     const { theme, setTheme } = useTheme();
     const pushMute = useDevicePushMute();
     const reopenOnboarding = useOnboardingStore(s => s.reopen);
+    const openShortcuts = useShortcutsDialogStore(s => s.setOpen);
     const desktopEnabled = useNotificationPrefsStore(s => s.desktopEnabled);
     const setDesktopEnabled = useNotificationPrefsStore(s => s.setDesktopEnabled);
     const quietHours = useNotificationPrefsStore(s => s.quietHours);
@@ -268,17 +269,22 @@ export const SettingsPage = () => {
 
                     <div className="flex flex-col items-start gap-4 rounded-xl border border-border bg-card p-5">
                         <VersionInfo />
-                        {/* The only way back to the welcome tips once they were dismissed. */}
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                                reopenOnboarding();
-                                navigate('/');
-                            }}
-                        >
-                            {t('settings.showTips')}
-                        </Button>
+                        <div className="flex flex-wrap gap-2">
+                            {/* The only way back to the welcome tips once they were dismissed. */}
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                    reopenOnboarding();
+                                    navigate('/');
+                                }}
+                            >
+                                {t('settings.showTips')}
+                            </Button>
+                            <Button variant="outline" size="sm" onClick={() => openShortcuts(true)}>
+                                {t('shortcuts.title')}
+                            </Button>
+                        </div>
                     </div>
                 </section>
             </div>
