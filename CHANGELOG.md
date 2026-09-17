@@ -1,5 +1,54 @@
 # Changelog
 
+## [2026-09-17] - root@0.64.0, @chatic/desktop-web@0.13.0
+
+### Features
+
+- (desktop) localize the app menu and add a Go menu
+- (desktop-web) ship a Korean bundle and follow the system language
+- (desktop) add settings and help to the menu bar, undo removal
+- (desktop-web) give every jump a way back
+
+### Bug Fixes
+
+- (desktop-web) keep closed onboarding closed across home remounts
+- (desktop-web) remember places across restarts, and tidy small copy
+- (block-kit) color links with a link token, not the accent ink
+- (desktop-web) a welcome that says what it does, and honest labels
+- (desktop-web) load the typeface, one lime, and quieter rails
+- (desktop-web) one header contract, and 36px targets
+- (desktop-web) speak the app language, and keep keyboard paths short
+- (desktop-web) open thread hits, and give the empty home a way out
+- (desktop-web) one product name, and links that are not the accent
+- (desktop-web) unmount the shut drawer, localize the dialog close
+- (desktop-web) route catch-up, teach the shell, thin the message strip
+- (desktop-web) stop the UI overstating what it knows, and regroup
+- (desktop-web) make the welcome screen a real door, logout a real exit
+- (desktop-web) dialog arrows stay put, shell reflows at 200% zoom
+- (desktop-web) move keyboard shortcuts from profile menu to settings
+- (desktop-web) one dialog vocabulary, settings/profile on the scale
+- (desktop-web) keyboard path through the feed, mentions, and targets
+- (desktop-web) shortcut sheet everywhere, and the small polish items
+- (desktop-web) settings, onboarding, banners and stale landings
+- (desktop-web) finish the search and return paths
+- (desktop-web) address review of the impeccable pass
+- (desktop-web) stop the feed and viewer overstating what they know
+- (desktop-web) bring the auth branch onto the design system
+- (desktop-web) make destructive channel actions honest
+- (desktop-web) one panel dismiss contract, and keyboard dead ends
+- (desktop-web) meet the token contrast contract and retire raw hex
+- (desktop-web) repair P0 crash, focus ring contrast, and search jump
+
+### Refactor
+
+- (desktop-web) share the dialog open-state store, trim exports
+- (desktop-web) one wire-error classifier for invite and channels
+- (desktop-web) name every type size and illustration hue
+
+### Other
+
+- perf: (desktop-web) restore feed memo barriers, lazy sidebar previews
+
 ## [2026-09-17] - root@0.63.2, @chatic/web@0.50.2, @chatic/desktop-web@0.12.6
 
 ### Bug Fixes
