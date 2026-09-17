@@ -37,3 +37,4 @@ export * from './useEscapeClose';
 export * from './useReducedMotion';
 export * from './useListboxNav';
 export * from './useViewportNarrow';
+export * from './useScrollOverflow';

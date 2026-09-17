@@ -3,6 +3,8 @@ import { useMutation } from '@tanstack/react-query';
 
 import { runtime } from '@chatic/app-runtime';
 
+import { isEdited } from '../utils';
+
 /**
  * Edit and delete, for whichever message in a group the reader acts on.
  *
@@ -35,7 +37,15 @@ export const useMessageActions = () => {
     const [failure, setFailure] = useState<MessageActionFailure | null>(null);
 
     const edit = useMutation({
-        mutationFn: ({ id, content }: { id: string; content: string }) => chatRepository.updateChat({ id, content }),
+        mutationFn: async ({ id, content }: { id: string; content: string }) => {
+            const saved = await chatRepository.updateChat({ id, content });
+            // "(edited)" is inferred from `updatedAt` passing `createdAt`, and the row
+            // written after an edit was observed not to carry the moved timestamp, so
+            // the label only appeared after a reload. Stamp it locally; the next sync
+            // replaces it with the server's value.
+            if (saved && !isEdited(saved)) await chatRepository.cacheWrite({ ...saved, updatedAt: Date.now() });
+            return saved;
+        },
     });
     const remove = useMutation({
         mutationFn: (id: string) => chatRepository.deleteChat({ id }),

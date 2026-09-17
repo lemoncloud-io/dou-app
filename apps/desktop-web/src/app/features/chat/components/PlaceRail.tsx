@@ -23,10 +23,12 @@ import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import {
     Hint,
+    ScrollHint,
     isPlaceholderName,
     useAccountResetOnLogout,
     useDebugModeStore,
     useDisplayProfile,
+    useScrollOverflow,
 } from '../../../shared';
 
 interface PlaceRailProps {
@@ -50,6 +52,8 @@ interface PlaceTileProps {
     glyph?: ReactNode;
     isActive: boolean;
     unread: number;
+    /** Accessible name while the place has unread messages. */
+    unreadLabel?: string;
     isSwitching?: boolean;
     onSelect: (placeId: string) => void;
 }
@@ -57,12 +61,22 @@ interface PlaceTileProps {
 /** One place, Figma Workspace Rail style: a 48px icon box with the name under it.
  *  Active = the box fills with the rail's muted tone; color stays reserved for the
  *  cloud rail and thumbnails. */
-const PlaceTile = ({ id, name, thumbnail, glyph, isActive, unread, isSwitching, onSelect }: PlaceTileProps) => (
+const PlaceTile = ({
+    id,
+    name,
+    thumbnail,
+    glyph,
+    isActive,
+    unread,
+    unreadLabel,
+    isSwitching,
+    onSelect,
+}: PlaceTileProps) => (
     <Hint label={name}>
         <button
             onClick={() => onSelect(id)}
             disabled={isSwitching}
-            aria-label={name}
+            aria-label={unread > 0 ? unreadLabel : name}
             aria-current={isActive ? 'true' : undefined}
             className={cn(
                 'group flex w-full flex-col items-center gap-1 rounded-lg focus-ring',
@@ -85,10 +99,11 @@ const PlaceTile = ({ id, name, thumbnail, glyph, isActive, unread, isSwitching, 
                         tileInitial(name)
                     )}
                 </span>
+                {/* A dot, as on the cloud tiles and channel rows. A count here summed
+                    messages across rows that only dot, so "12" pointed at nothing a
+                    row inside would admit to. */}
                 {unread > 0 && (
-                    <span className="pointer-events-none absolute -right-1.5 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-badge-unread px-1 text-[11px] font-semibold leading-none text-badge-unread-foreground">
-                        {unread > 99 ? '99+' : unread}
-                    </span>
+                    <span className="pointer-events-none absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-rail-elevated bg-badge-unread" />
                 )}
             </span>
             <span
@@ -142,6 +157,8 @@ export const PlaceRail = ({
     const toggleDebug = useDebugModeStore(s => s.toggle);
     const openDebugPanel = useDebugModeStore(s => s.setOverlayOpen);
     const tapRef = useRef({ count: 0, last: 0 });
+    const placeScroll = useScrollOverflow<HTMLDivElement>();
+
     const onSecretTap = () => {
         const now = Date.now();
         const taps = tapRef.current;
@@ -158,32 +175,40 @@ export const PlaceRail = ({
         <div className="flex h-full w-full flex-col items-center">
             {/* overflow-y:auto clips overflow-x too — the pt/px give the -top/-right unread
                 badge room inside the clip box instead of slicing it. */}
-            <div className="-mt-2 flex w-full flex-1 flex-col items-stretch gap-4 overflow-y-auto scrollbar-hide px-1 pt-2">
-                {isDefaultMode ? (
-                    // Home / Guest: no joinable places, but show the default Home place
-                    // so the rail is never empty and the active place stays visible.
-                    <PlaceTile
-                        id="default"
-                        name={t('place.home')}
-                        glyph={<Home size={22} strokeWidth={2} aria-hidden />}
-                        isActive
-                        unread={0}
-                        onSelect={onSelectPlace}
-                    />
-                ) : (
-                    places.map(place => (
+            <div className="relative flex min-h-0 w-full flex-1 flex-col">
+                {placeScroll.above && <ScrollHint edge="top" surface="rail-elevated" />}
+                <div
+                    ref={placeScroll.ref}
+                    className="-mt-2 flex w-full flex-1 flex-col items-stretch gap-4 overflow-y-auto scrollbar-hide px-1 pt-2"
+                >
+                    {isDefaultMode ? (
+                        // Home / Guest: no joinable places, but show the default Home place
+                        // so the rail is never empty and the active place stays visible.
                         <PlaceTile
-                            key={place.id}
-                            id={place.id}
-                            name={place.name ?? place.id}
-                            thumbnail={place.thumbnail}
-                            isActive={place.id === selectedPlaceId}
-                            unread={unreadByPlace[place.id] ?? 0}
-                            isSwitching={isSwitching}
+                            id="default"
+                            name={t('place.home')}
+                            glyph={<Home size={22} strokeWidth={2} aria-hidden />}
+                            isActive
+                            unread={0}
                             onSelect={onSelectPlace}
                         />
-                    ))
-                )}
+                    ) : (
+                        places.map(place => (
+                            <PlaceTile
+                                key={place.id}
+                                id={place.id}
+                                name={place.name ?? place.id}
+                                thumbnail={place.thumbnail}
+                                isActive={place.id === selectedPlaceId}
+                                unread={unreadByPlace[place.id] ?? 0}
+                                unreadLabel={t('rail.placeUnread', { name: place.name ?? place.id })}
+                                isSwitching={isSwitching}
+                                onSelect={onSelectPlace}
+                            />
+                        ))
+                    )}
+                </div>
+                {placeScroll.below && <ScrollHint edge="bottom" surface="rail-elevated" />}
             </div>
 
             <button

@@ -6,11 +6,12 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 
 const updateChat = vi.fn();
 const deleteChat = vi.fn();
+const cacheWrite = vi.fn();
 
 vi.mock('@chatic/app-runtime', () => ({
     runtime: {
         data: {
-            useRuntimeRepositories: () => ({ chat: { updateChat, deleteChat } }),
+            useRuntimeRepositories: () => ({ chat: { updateChat, deleteChat, cacheWrite } }),
         },
     },
 }));
@@ -27,6 +28,7 @@ describe('useMessageActions', () => {
     beforeEach(() => {
         updateChat.mockReset().mockResolvedValue(undefined);
         deleteChat.mockReset().mockResolvedValue(undefined);
+        cacheWrite.mockReset().mockResolvedValue(undefined);
     });
 
     it('sends only the new content, addressed by the server id', async () => {
@@ -34,6 +36,25 @@ describe('useMessageActions', () => {
         act(() => result.current.editMessage('C1:4', 'fixed'));
 
         await waitFor(() => expect(updateChat).toHaveBeenCalledWith({ id: 'C1:4', content: 'fixed' }));
+    });
+
+    // "(edited)" used to wait for a reload because the saved row kept updatedAt === createdAt.
+    it('stamps the saved row as edited when the response did not', async () => {
+        updateChat.mockResolvedValue({ id: 'C1:4', content: 'fixed', createdAt: 100, updatedAt: 100 });
+        const { result } = renderHook(() => useMessageActions(), { wrapper });
+        act(() => result.current.editMessage('C1:4', 'fixed'));
+
+        await waitFor(() => expect(cacheWrite).toHaveBeenCalledTimes(1));
+        expect(cacheWrite.mock.calls[0]?.[0].updatedAt).toBeGreaterThan(100);
+    });
+
+    it('leaves a row the server already marked as edited alone', async () => {
+        updateChat.mockResolvedValue({ id: 'C1:4', content: 'fixed', createdAt: 100, updatedAt: 200 });
+        const { result } = renderHook(() => useMessageActions(), { wrapper });
+        act(() => result.current.editMessage('C1:4', 'fixed'));
+
+        await waitFor(() => expect(updateChat).toHaveBeenCalled());
+        expect(cacheWrite).not.toHaveBeenCalled();
     });
 
     it('deletes by id', async () => {

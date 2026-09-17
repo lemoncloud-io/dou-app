@@ -10,6 +10,8 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/u
 import { useLastChannelStore, useListboxNav } from '../../../shared';
 
 const MAX_RESULTS = 8;
+/** Rows kept for other places when this place alone could fill the list. */
+const ELSEWHERE_RESERVED = 3;
 
 /** A channel in another place of the same cloud, offered with the place it lives in. */
 export interface ElsewhereChannel {
@@ -42,8 +44,8 @@ interface QuickSwitcherProps {
     channels: DomainChannel[];
     onSelect: (channelId: string) => void;
     /**
-     * Channels in the cloud's other places, from the index of places the user has
-     * opened. Only searched, never listed with an empty query: the recents list is
+     * Channels in the cloud's other places (the host leaves the open place out),
+     * from the cloud-wide channel index. Only searched, never listed with an empty query: the recents list is
      * about where you were, and these are about where you are not.
      */
     elsewhere?: ElsewhereChannel[];
@@ -79,21 +81,19 @@ export const QuickSwitcher = ({ channels, onSelect, elsewhere = [], onSelectElse
         if (open) setQuery('');
     }, [open]);
 
-    const results = useMemo(() => rankChannels(channels, query, recent), [channels, query, recent]);
+    const ranked = useMemo(() => rankChannels(channels, query, recent), [channels, query, recent]);
 
-    // Only once the query rules out enough of this place to leave room, and only
-    // for names that match: a switcher that always listed the whole cloud would
-    // bury the channels a person actually works in.
-    const elsewhereResults = useMemo(() => {
+    // Only for a typed query, and only names that match: a switcher that always
+    // listed the whole cloud would bury the channels a person actually works in.
+    // Other places keep up to ELSEWHERE_RESERVED rows even when this place fills
+    // the list; they used to vanish exactly when the query was a common word.
+    const { results, elsewhereResults } = useMemo(() => {
         const q = query.trim().toLowerCase();
-        if (!q || !onSelectElsewhere) return [];
-        const room = MAX_RESULTS - results.length;
-        if (room <= 0) return [];
-        const openHere = new Set(channels.map(c => c.id));
-        return elsewhere
-            .filter(item => !openHere.has(item.channelId) && item.name.toLowerCase().includes(q))
-            .slice(0, room);
-    }, [elsewhere, query, results.length, channels, onSelectElsewhere]);
+        const matches = q && onSelectElsewhere ? elsewhere.filter(item => item.name.toLowerCase().includes(q)) : [];
+        const reserved = Math.min(ELSEWHERE_RESERVED, matches.length);
+        const here = ranked.slice(0, MAX_RESULTS - reserved);
+        return { results: here, elsewhereResults: matches.slice(0, MAX_RESULTS - here.length) };
+    }, [elsewhere, query, ranked, onSelectElsewhere]);
 
     const pick = (index: number) => {
         const here = results[index];

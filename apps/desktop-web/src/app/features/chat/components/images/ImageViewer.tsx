@@ -231,7 +231,7 @@ export const ImageViewer = ({
                                                     className={cn(
                                                         'focus-ring aspect-square overflow-hidden rounded-2xl border border-hairline transition-shadow',
                                                         i === index &&
-                                                            'ring-2 ring-main-accent ring-offset-2 ring-offset-background'
+                                                            'ring-2 ring-primary ring-offset-2 ring-offset-background'
                                                     )}
                                                 >
                                                     <img

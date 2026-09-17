@@ -14,10 +14,12 @@ export interface KnownChannel {
 const KNOWN_LIMIT = 400;
 
 interface KnownChannelsState {
-    /** cloudId → channelId → what we know about it. */
+    /**
+     * cloudId → `placeId:channelId` → what we know about it. Channel ids repeat
+     * across places, so the id alone would let one place's channel overwrite another's.
+     */
     byCloud: Record<string, Record<string, KnownChannel>>;
     record: (cloudId: string, placeId: string, channels: { id?: string; name?: string }[]) => void;
-    /** Everything known in this cloud outside the place that is currently open. */
     forget: (cloudId: string) => void;
 }
 
@@ -49,9 +51,10 @@ export const useKnownChannelsStore = create<KnownChannelsState>()(
                         const channelId = channel.id;
                         if (!channelId) continue;
                         const name = channel.name ?? '';
-                        const prev = next[channelId];
-                        if (prev && prev.name === name && prev.placeId === placeId) continue;
-                        next[channelId] = { channelId, placeId, name, seenAt };
+                        const key = `${placeId}:${channelId}`;
+                        const prev = next[key];
+                        if (prev && prev.name === name) continue;
+                        next[key] = { channelId, placeId, name, seenAt };
                         changed = true;
                     }
                     // A channel that left this place (deleted, or left) stays in the
@@ -65,7 +68,7 @@ export const useKnownChannelsStore = create<KnownChannelsState>()(
                                   [...entries]
                                       .sort((a, b) => b.seenAt - a.seenAt)
                                       .slice(0, KNOWN_LIMIT)
-                                      .map(entry => [entry.channelId, entry])
+                                      .map(entry => [`${entry.placeId}:${entry.channelId}`, entry])
                               );
                     return { byCloud: { ...state.byCloud, [cloudId]: trimmed } };
                 }),
@@ -77,6 +80,7 @@ export const useKnownChannelsStore = create<KnownChannelsState>()(
                     return { byCloud };
                 }),
         }),
-        { name: 'chatic-known-channels' }
+        // v1 keyed by channel id alone; dropping it costs one relearn from the cloud list.
+        { name: 'chatic-known-channels', version: 1, migrate: () => ({ byCloud: {} }) }
     )
 );

@@ -238,6 +238,7 @@ export const en = {
     'sidebar.unreadCount_one': '{{count}} unread message',
     'sidebar.unreadCount_other': '{{count}} unread messages',
     'sidebar.editMyProfile': 'Edit my profile here',
+    'rail.placeUnread': '{{name}}, unread messages',
     'rail.addChannel': 'Add channel',
     'rail.menu.profile': 'Profile',
     'rail.menu.settings': 'Settings',

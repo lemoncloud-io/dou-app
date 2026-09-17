@@ -5,7 +5,7 @@ import { webClient } from '@chatic/bridges';
 import { runtime } from '@chatic/app-runtime';
 
 import { computeChannelUnread } from '../utils';
-import { useReadCursorStore } from '../stores';
+import { useKnownChannelsStore, useReadCursorStore } from '../stores';
 
 const REFETCH_DEBOUNCE_MS = 300;
 
@@ -47,8 +47,19 @@ export const usePlaceUnreadCounts = (): Record<string, number> => {
             .fetchList({ hasSite: false, limit: 500 } as DomainChannelListPayload)
             .catch(() => null);
         if (seqRef.current !== seq || !result) return;
-        setChannels((result.list ?? []) as DomainChannel[]);
-    }, [channelRepository, isVerified]);
+        const list = (result.list ?? []) as DomainChannel[];
+        setChannels(list);
+        // The same list is the whole cloud's channel directory, so it also seeds the
+        // quick switcher's index: without it, Cmd+K only knew places opened by hand.
+        if (cloudId) {
+            const bySite = new Map<string, DomainChannel[]>();
+            for (const channel of list) {
+                if (channel.sid) bySite.set(channel.sid, [...(bySite.get(channel.sid) ?? []), channel]);
+            }
+            const { record } = useKnownChannelsStore.getState();
+            bySite.forEach((channels, sid) => record(cloudId, sid, channels));
+        }
+    }, [channelRepository, isVerified, cloudId]);
 
     const schedule = useCallback(() => {
         if (timerRef.current) clearTimeout(timerRef.current);

@@ -242,6 +242,7 @@ export const ko: EnTranslation = {
     'sidebar.unreadCount_one': '안 읽은 메시지 {{count}}개',
     'sidebar.unreadCount_other': '안 읽은 메시지 {{count}}개',
     'sidebar.editMyProfile': '여기서 내 프로필 수정',
+    'rail.placeUnread': '{{name}}, 읽지 않은 메시지 있음',
     'rail.addChannel': '채널 추가',
     'rail.menu.profile': '프로필',
     'rail.menu.settings': '설정',

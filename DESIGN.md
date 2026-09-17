@@ -24,7 +24,7 @@ Figma variables read from node `187-3` (the desktop palette):
 | Figma name                    | Hex       | Where it lands                                                   |
 | ----------------------------- | --------- | ---------------------------------------------------------------- |
 | `main color/GR1`              | `#B0EA10` | `--primary` on every surface. The only hue in the system         |
-| (GR2, referenced in comments) | `#90C304` | `--main-accent`: send button, composer focus ring                |
+| (GR2, referenced in comments) | `#90C304` | `--main-accent`: the shared toast's success check and edge only  |
 | `blue_bk`                     | `#102346` | `--brand-ink` (web): avatar badge, active send, my bubble        |
 | `gray_blue`                   | `#E4EAEC` | not tokenised, unused in code                                    |
 | `Solid/Secondary/BK_50`       | `#F4F5F5` | `--secondary`, `--muted`, `--accent` hover, `--avatar-ring`      |
@@ -149,8 +149,9 @@ they are the message's actual words.
 
 ## Typography
 
-**Pretendard**, weights 400 / 500 / 600 / 700 / 800, loaded from Google Fonts with the
-system stack as fallback. Antialiased. Every app sets it on `html`.
+**Pretendard**, weights 400 / 500 / 600 / 700 / 800, with the system stack as fallback.
+Desktop loads it from jsDelivr (the upstream release, Unicode-range subset). `apps/web` still
+imports it from Google Fonts, which does not serve Pretendard, so web renders the fallback. Antialiased. Every app sets it on `html`.
 
 ### Desktop scale (`apps/desktop-web/tailwind.config.js`)
 
@@ -173,7 +174,7 @@ Fixed sizes that live in components rather than the scale, measured against Figm
 - Message author: 16px bold, tracking -0.005em. Time beside it: 13px medium, tabular
   nums, `text-description`.
 - Sidebar action rows: 14px, tracking -0.01em, `text-label`.
-- Unread pill: 11px semibold, tabular nums, in an 18px pill.
+- Unread pill: 11px semibold, tabular nums, in an 18px pill. Only DM rows count (reply debt); channel rows, place tiles and cloud tiles show a dot.
 - Avatar fallback initial: `text-caption` semibold in a 36px avatar.
 
 ### Mobile web scale (`apps/web/tailwind.config.js`)

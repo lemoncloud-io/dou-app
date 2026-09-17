@@ -1,4 +1,7 @@
-@import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700;800&display=swap');
+/* Google Fonts does not serve Pretendard (that request answers 400), so the app
+   ran on the system fallback. jsDelivr carries the upstream release, subset by
+   Unicode range so a Latin-only screen fetches no Hangul. */
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.min.css');
 
 @tailwind base;
 @tailwind components;
