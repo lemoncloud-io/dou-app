@@ -12,8 +12,13 @@
          * Not "the width a phone is". Every surface FILLS the device it is on and stops here:
          * below this bound (every phone, a foldable's cover screen, a foldable unfolded) the
          * column is the device; above it (a tablet, a desktop browser opening an invite link) it
-         * caps and centres rather than stretching a phone layout across the viewport. 768px is the
-         * conventional tablet boundary, which is what the cap is really marking.
+         * caps and centres rather than stretching a phone layout across the viewport.
+         *
+         * 860px is the widest phone-class device measured, plus headroom: a Pixel Fold reports
+         * 841 CSS px unfolded. This deliberately is NOT the 768 tablet breakpoint — that number
+         * was the obvious guess, and it left the widest foldable on the market capped with a
+         * margin down each side, which is the exact complaint this bound exists to answer. If a
+         * wider foldable appears, this is the one number to raise.
          *
          * Read two ways: `max-w-app` inside `apps/web`, and `max-w-[var(--app-width,…)]` inside
          * `libs/ui-kit` / `libs/web-ui-kit`, where the value cannot be hardcoded because other apps
@@ -24,7 +29,7 @@
          * re-declare it themselves — from a lib that must not know this app's number. Widening the
          * app is this one edit; every reader follows, and nothing else should carry the number.
          */
-        --app-width: 768px;
+        --app-width: 860px;
 
         /* Chatic Light Theme */
         --background: 0 0% 100%;

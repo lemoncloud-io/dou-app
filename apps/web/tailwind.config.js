@@ -35,7 +35,7 @@ module.exports = {
                  * have to re-declare the cap themselves and cannot read a Tailwind token that only
                  * this app's config defines. One variable, both readers.
                  */
-                app: 'var(--app-width, 768px)',
+                app: 'var(--app-width, 860px)',
 
                 /**
                  * The longest comfortable measure for a paragraph. Not a layout width — the column

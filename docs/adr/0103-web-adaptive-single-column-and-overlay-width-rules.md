@@ -36,15 +36,26 @@ The constraint over all of it: `libs/ui-kit` and `libs/web-ui-kit` are shared wi
 
 ## Decision
 
-### 1. `--app-width` keeps its name and gains a new meaning: 768px, the upper bound of the phone class
+### 1. `--app-width` keeps its name and gains a new meaning: 860px, the upper bound of the phone class
 
 Not "the width of a phone". Every surface fills the device it is on and stops there. Below the
 bound the column _is_ the device, and that deliberately includes widths no phone has. Above it — a
 tablet, a desktop browser following an invite link — it caps and centres, exactly as before.
 
 Nothing about how the value is read changes, and that is the point of keeping one variable: six
-call sites already read it, and one edit moved all six. 768 borrows the conventional tablet
-boundary rather than introducing a number of our own.
+call sites already read it, and one edit moved all six.
+
+**The value is 860 because it was measured, and the obvious answer was wrong.** The first choice
+was 768, the conventional tablet breakpoint — a defensible number borrowed rather than invented.
+Running the app on a Pixel Fold showed that device reports **841 CSS px** unfolded, so at 768 the
+widest foldable on the market still rendered a capped column with a margin down each side. That is
+the exact complaint this bound exists to answer, so the borrowed number failed at the one case it
+was chosen for. 860 is the widest phone-class width measured plus headroom.
+
+The cost is that the bound no longer coincides with a recognisable breakpoint, so it has to carry
+its reasoning in a comment — and that a portrait tablet around 820–860 now fills rather than caps.
+That is acceptable because nothing restructures by width: a wider column is the same single column,
+and what is inside it already has its own bounds (§2).
 
 `ScreenLayout` in `libs/web-ui-kit` carried a second cap at `screen-sm`. Two caps mean some screens
 stop at 640 and others at 768. It reads the same variable now, with a fallback equal to its old cap
@@ -76,7 +87,7 @@ viewport it is actually attached to.
 - **Bottom sheets and full-screen dialogs follow the column.** A sheet fills an unfolded foldable,
   which is what that form factor does natively, and the wiring already did this — the value change
   carried them.
-- **Notice dialogs do not follow the column.** A confirm card stretched to 768px stops being a
+- **Notice dialogs do not follow the column.** A confirm card stretched to 860px stops being a
   card. `dialog` and `alert-dialog`'s `default` variant declare
   `--dialog-width: min(311px, calc(100% - 48px), var(--app-width))`: 311 is the design width, and
   `100% - 48px` keeps 24px either side once the device is narrower than the card. The eight
@@ -129,6 +140,11 @@ shared state with it. It also forfeits the state-preservation property of §5.
 unfolded device, which is the complaint that started this. Bounding what is inside the column
 (§2) addresses line length without giving up filling the device.
 
+**768px, the tablet breakpoint.** This was the original decision and it was measured out. See §1:
+a Pixel Fold is 841 CSS px unfolded, so 768 reproduced the very margins this work set out to
+remove. Recorded here rather than deleted, because "use the standard breakpoint" is the first idea
+anyone will have again.
+
 **Fluid typography.** Rejected. Type scale belongs to the design system, and scaling it by width
 would put every screen slightly out of step with Figma at every width.
 
@@ -160,8 +176,16 @@ fallback rather than by separation, so any future edit to these primitives has t
 no-app-width path. The existing convention — every use of the variable falls back to prior
 behaviour — is what carries that, and it is worth more than it looks.
 
-**Tablet and desktop layouts are explicitly not designed.** Past 768 the app caps and centres. It
-does not break, and it is not addressed; a real tablet layout is a separate decision.
+**Tablet and desktop layouts are explicitly not designed.** Past 860 the app caps and centres. It
+does not break, and it is not addressed; a real tablet layout is a separate decision. Note that a
+portrait tablet in the 820–860 range now fills the column rather than capping, which is a side
+effect of sizing the bound to the widest foldable rather than to a tablet breakpoint.
+
+**The bound is now a measured number, not a borrowed one, so it has no external anchor.** 768 could
+be justified by pointing at a breakpoint everyone recognises; 860 can only be justified by the
+device it was measured against. That is a real cost in legibility, paid to make the headline case
+actually work, and it means the reasoning has to travel with the value — which is why it is written
+into the variable's own comment rather than only here.
 
 **Chat surfaces were left alone deliberately.** `apps/web/src/app/features/channels/**` was owned by
 an in-flight branch while this work landed, so the shared primitives were changed in a way those
