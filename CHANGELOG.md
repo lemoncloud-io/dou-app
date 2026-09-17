@@ -1,5 +1,24 @@
 # Changelog
 
+## [2026-09-17] - root@0.63.2, @chatic/web@0.50.2, @chatic/desktop-web@0.12.6
+
+### Bug Fixes
+
+- (mobile) point the local-run hint at the doc that exists
+- (web) make the delete confirm actually wait, and drop editing state on room change
+
+### Documentation
+
+- (adr) record keeping agent procedures in docs/ and the general language rule
+- (agents) settle language, public surface, branch names and working order
+- (agents) port the implement, commit and pr procedures into the repo
+- correct three records that no longer match the code
+- (agents) add the dou-review procedure
+
+### Chores
+
+- (web) write the new test comments in English
+
 ## [2026-09-17] - root@0.63.1, @chatic/web@0.50.1, @chatic/landing@0.4.5, @chatic/desktop-web@0.12.5
 
 ### Features
