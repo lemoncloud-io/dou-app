@@ -1,5 +1,31 @@
 # Changelog
 
+## [2026-09-17] - root@0.63.1, @chatic/web@0.50.1, @chatic/landing@0.4.5, @chatic/desktop-web@0.12.5
+
+### Features
+
+- (web,web-ui-kit) make the app width a phone-class upper bound, not a phone width
+
+### Bug Fixes
+
+- (web/channels) bring the last two chat widths onto the shared rules
+- (web) raise the phone-class bound to 860 after measuring a real foldable
+- (web) keep the two full-screen verify dialogs on the column
+- (web) give long-form prose one reading measure, not the column
+- (web/mypage) bring the cloud-delete confirm onto the one dialog width
+- (web) stop small phones holding rows open with fixed widths
+- (web/onboarding) measure the carousel against its container, not the viewport
+- (web,ui-kit,web-ui-kit) give every notice dialog one width, declared once
+
+### Documentation
+
+- (adr) record why the notice dialog is 311 and not 288
+- describe the app width as a phone-class bound, with an ADR
+
+### Other
+
+- test: (web-ui-kit) frame stories at five phone-class widths
+
 ## [2026-09-17] - root@0.63.0, @chatic/web@0.50.0, @chatic/landing@0.4.4, @chatic/desktop-web@0.12.4
 
 ### Features
