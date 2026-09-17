@@ -40,6 +40,8 @@ module.exports = {
                     disc: 'hsl(var(--profile-disc))',
                     'disc-foreground': 'hsl(var(--profile-disc-foreground))',
                 },
+                /* Links in message text, the one hue that is not the brand accent. */
+                link: 'hsl(var(--link))',
                 /* Theme-preview swatches. Fixed in both themes on purpose: a swatch
                    depicts the theme it names, not the one currently applied. */
                 swatch: {

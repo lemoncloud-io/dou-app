@@ -69,11 +69,20 @@ White on `#B0EA10` is 1.6:1, so:
 
 - **Fill**: `bg-primary text-primary-foreground` (dark ink on lime). Buttons, active tiles.
 - **Text on light surfaces**: `text-primary-ink`, a darkened lime that clears 4.5:1
-  (desktop light `76 80% 26%`). Links, mentions, active glyphs.
+  (desktop light `76 80% 26%`). Mentions, active glyphs.
 - **On dark surfaces** the fill already reads as text, so `--primary-ink` equals
   `--primary`.
 
-`libs/block-kit` resolves links and mentions to `primary-ink`, never `primary`.
+`libs/block-kit` resolves mentions to `primary-ink`, never `primary`.
+
+**Links are not the accent.** On desktop a URL in message text takes `text-link`
+(`--link`, light `217 72% 38%` at 7.59:1 on white, dark `212 90% 72%` at 6.84:1 on the
+dark pane) and is underlined at rest. Sharing the accent made a link and a button the
+same colour, which spends the one thing the accent is for, and colour alone cannot carry
+"this is a link" inside body text (WCAG 1.4.1). Mobile web already read links as blue
+(`--point-blue` `#2A7EF4`); desktop's is a darker blue because that one measures 3.6:1 on
+white, under the body-text floor. `libs/block-kit` still resolves its own links to
+`primary-ink`; it renders inside both clients and has not been migrated.
 
 ### Desktop palette (light, from Figma `247-10714`)
 
@@ -92,6 +101,7 @@ White on `#B0EA10` is 1.6:1, so:
 | `--destructive`                        | `3 100% 59%`   | `#FF3B30`                                            |
 | `--warning`                            | `38 92% 50%`   | connecting banner                                    |
 | `--badge-unread`                       | `349 100% 59%` | `#FF2D55`                                            |
+| `--link`                               | `217 72% 38%`  | URLs in message text (7.59:1 on white)               |
 | `--favorite`                           | `35 100% 50%`  | `#FF9500`                                            |
 | `--toast`                              | `222 75% 12%`  | `#081837`, always dark                               |
 
@@ -99,17 +109,18 @@ White on `#B0EA10` is 1.6:1, so:
 
 Warm near-neutral grays, same lime.
 
-| Token                                                     | Hex                                                   |
-| --------------------------------------------------------- | ----------------------------------------------------- |
-| `--background`                                            | `#252624` main pane                                   |
-| `--card` / `--sidebar` / `--rail-elevated` / `--elevated` | `#2E2F2D`                                             |
-| `--rail` / `--muted` / `--secondary` / `--well`           | `#121312`                                             |
-| `--foreground`                                            | `#EBEBE8`                                             |
-| `--accent` (hover)                                        | `#38393A`                                             |
-| `--border` / `--hairline`                                 | `#424540`                                             |
-| `--input`                                                 | `#3D3E3C`                                             |
-| `--focus-border`                                          | `#B0EA10` (composer focus is the lime itself on dark) |
-| `--toast`                                                 | `#F4F5F5` light card, dark text                       |
+| Token                                                     | Hex                                                      |
+| --------------------------------------------------------- | -------------------------------------------------------- |
+| `--background`                                            | `#252624` main pane                                      |
+| `--card` / `--sidebar` / `--rail-elevated` / `--elevated` | `#2E2F2D`                                                |
+| `--rail` / `--muted` / `--secondary` / `--well`           | `#121312`                                                |
+| `--foreground`                                            | `#EBEBE8`                                                |
+| `--accent` (hover)                                        | `#38393A`                                                |
+| `--border` / `--hairline`                                 | `#424540`                                                |
+| `--input`                                                 | `#3D3E3C`                                                |
+| `--focus-border`                                          | `#B0EA10` (composer focus is the lime itself on dark)    |
+| `--link`                                                  | `212 90% 72%` URLs in message text (6.84:1 on `#252624`) |
+| `--toast`                                                 | `#F4F5F5` light card, dark text                          |
 
 ### Mobile web palette
 

@@ -54,7 +54,10 @@ const renderInline = (
                     href={url}
                     target="_blank"
                     rel="noreferrer noopener"
-                    className="text-primary-ink underline-offset-2 hover:underline"
+                    // Underlined at rest, not only on hover: colour alone cannot carry
+                    // "this is a link" inside body text (WCAG 1.4.1), and the colour it
+                    // used to carry was the brand accent, shared with every button.
+                    className="text-link underline underline-offset-2 hover:no-underline"
                 >
                     {url}
                 </a>

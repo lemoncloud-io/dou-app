@@ -4,7 +4,7 @@
  * the Korean bundle until it is translated too.
  */
 export const en = {
-    'auth.invite.title': 'Welcome to Chatic',
+    'auth.invite.title': 'Welcome to DoU',
     'auth.invite.subtitle': 'Enter your invite link or code to join.',
     'auth.join.title': 'Join a workspace',
     'auth.join.subtitle': 'Paste an invite link or code to join a workspace.',
@@ -43,7 +43,7 @@ export const en = {
     'auth.social.backToWelcome': 'Back to start',
     'profile.signInGoogle': 'Sign in with Google',
     'profile.signInGoogleHint': 'Use your account across devices. Replaces this guest session.',
-    'welcome.title': 'Welcome to Chatic',
+    'welcome.title': 'Welcome to DoU',
     'welcome.subtitle': 'Start chatting right away, or join a workspace with an invite.',
     'welcome.start': 'Start chatting',
     'welcome.starting': 'Setting up…',
@@ -268,7 +268,7 @@ export const en = {
     'settings.desktopNotifications': 'Desktop notifications',
     'settings.desktopNotificationsHint': 'Show an OS notification for new messages.',
     'settings.devicePush': 'Push notifications to this device',
-    'settings.devicePushHint': 'Receive notifications on this computer even when Chatic is closed.',
+    'settings.devicePushHint': 'Receive notifications on this computer even when DoU is closed.',
     'settings.devicePushShellOnly': 'Available in the desktop app only.',
     'settings.devicePushFailed': "Couldn't change this. Check your connection and try again.",
     'settings.quietHours': 'Quiet hours',
@@ -409,7 +409,7 @@ export const en = {
     'chat.header.search': 'Search messages',
     'chat.header.favorite': 'Add to favorites',
     'chat.header.unfavorite': 'Remove from favorites',
-    'onboarding.welcome.title': 'Welcome to Chatic',
+    'onboarding.welcome.title': 'Welcome to DoU',
     'onboarding.welcome.body':
         'This is your Self Channel, a private space for notes, links and drafts. Only you can see it.',
     'onboarding.welcome.bodyWorkspace':

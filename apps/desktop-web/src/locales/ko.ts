@@ -11,12 +11,12 @@ import type { EnTranslation } from './en';
  * thread 스레드 · reply 답글 · saved items 저장한 항목 · activity 활동 ·
  * unread 안 읽음 · mention 멘션 · reaction 반응 · invite 초대 · guest 게스트 ·
  * member 멤버 · favorites 즐겨찾기 · quiet hours 방해 금지 시간 · rail 레일.
- * Product nouns, keys and tokens stay verbatim: DoU, Chatic, Google, DM, Enter,
+ * Product nouns, keys and tokens stay verbatim: DoU, Google, DM, Enter,
  * Esc, invt:, OS, ⌘/⇧. 'Travel & places' is the emoji category, not the product
  * noun, so it is 여행과 장소 rather than 플레이스.
  */
 export const ko: EnTranslation = {
-    'auth.invite.title': 'Chatic에 오신 것을 환영해요',
+    'auth.invite.title': 'DoU에 오신 것을 환영해요',
     'auth.invite.subtitle': '초대 링크나 코드를 입력하면 참여할 수 있어요.',
     'auth.join.title': '워크스페이스 참여',
     'auth.join.subtitle': '초대 링크나 코드를 붙여넣으면 워크스페이스에 참여할 수 있어요.',
@@ -55,7 +55,7 @@ export const ko: EnTranslation = {
     'auth.social.backToWelcome': '처음으로 돌아가기',
     'profile.signInGoogle': 'Google로 로그인',
     'profile.signInGoogleHint': '여러 기기에서 같은 계정을 쓸 수 있어요. 지금의 게스트 세션은 대체돼요.',
-    'welcome.title': 'Chatic에 오신 것을 환영해요',
+    'welcome.title': 'DoU에 오신 것을 환영해요',
     'welcome.subtitle': '바로 대화를 시작하거나, 초대로 워크스페이스에 참여해요.',
     'welcome.start': '대화 시작',
     'welcome.starting': '준비 중…',
@@ -272,7 +272,7 @@ export const ko: EnTranslation = {
     'settings.desktopNotifications': '데스크톱 알림',
     'settings.desktopNotificationsHint': '새 메시지를 OS 알림으로 보여줘요.',
     'settings.devicePush': '이 기기로 푸시 알림',
-    'settings.devicePushHint': 'Chatic이 닫혀 있어도 이 컴퓨터로 알림을 받아요.',
+    'settings.devicePushHint': 'DoU가 닫혀 있어도 이 컴퓨터로 알림을 받아요.',
     'settings.devicePushShellOnly': '데스크톱 앱에서만 쓸 수 있어요.',
     'settings.devicePushFailed': '설정을 바꾸지 못했어요. 연결을 확인하고 다시 시도해 주세요.',
     'settings.quietHours': '방해 금지 시간',
@@ -407,7 +407,7 @@ export const ko: EnTranslation = {
     'chat.header.search': '메시지 검색',
     'chat.header.favorite': '즐겨찾기에 추가',
     'chat.header.unfavorite': '즐겨찾기에서 제거',
-    'onboarding.welcome.title': 'Chatic에 오신 것을 환영해요',
+    'onboarding.welcome.title': 'DoU에 오신 것을 환영해요',
     'onboarding.welcome.body': '여기는 셀프 채널이에요. 메모·링크·초안을 위한 나만의 공간이고, 나만 볼 수 있어요.',
     'onboarding.welcome.bodyWorkspace':
         '다른 사람들과 함께 쓰는 워크스페이스예요. 왼쪽에서 채널을 골라 읽어 보거나, 인사를 건네 보세요.',

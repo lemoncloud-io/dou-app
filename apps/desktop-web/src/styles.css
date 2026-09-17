@@ -28,6 +28,12 @@
            rings in the ink lime instead (5.1:1 on white). */
         --focus-ring: 76 80% 26%;
 
+        /* Links in message text. They used to take --primary-ink, the same olive
+           lime as primary actions and the focus ring, so a link and a button were
+           the same colour and the accent stopped meaning "act here". A blue is the
+           one hue nobody reads as this brand: 7.59:1 on white (measured). */
+        --link: 217 72% 38%;
+
         --secondary: 180 5% 96%; /* #F4F5F5 BK_50 */
         --secondary-foreground: 0 0% 10%;
 
@@ -145,6 +151,9 @@
         --primary-ink: 76 87% 49%;
         /* On dark the fill lime rings at 4.75:1 — it stays. */
         --focus-ring: 76 87% 49%;
+
+        /* 6.84:1 on the dark main pane (#252624, measured). */
+        --link: 212 90% 72%;
 
         --secondary: 120 3% 7%; /* #121312 chips, send button */
         --secondary-foreground: 60 7% 92%;
