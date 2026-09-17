@@ -108,8 +108,18 @@ cut on the first save. A test pins this.
 
 **Edited marker.** `isMessageEdited` from `@chatic/data` decides it, and it is an inference: the
 server has no edit flag, so what it really detects is that the row was written again. It excludes
-tombstones, unsent rows and missing timestamps. An optimistic edit shows its new text at once and
-picks the marker up when the server's record lands — marking early would mean un-marking on failure.
+tombstones, unsent rows and missing timestamps. Marking early is deliberately not done — it would
+mean un-marking on failure.
+
+**On the editor's own screen the marker is late, and later than "after the server responds."**
+Measured 2026-09-17 against the dev server: the server does advance `updatedAt` on an edit, but the
+`chat.update` RESPONSE carries the pre-update value (observed `updatedAt === createdAt` right after a
+successful edit, and `updatedAt > createdAt` for the same row once re-fetched). `updateChat` writes
+that response verbatim, so the person who just edited sees no marker until that room's rows are
+fetched again. Another client's view should not be affected, because it writes the row the server
+pushes over the socket rather than this response — but that was NOT verified, so treat it as
+reasoning, not measurement. Whether anything should be done here is undecided — do not "fix" it by
+writing a client-side timestamp, which would assert an edit time the server never gave.
 
 **Long press.** 450ms, or a right-click, opens the action sheet. `pointerdown`'s default is only
 prevented for a mouse: cancelling it on touch kills the browser's own panning for that gesture, and

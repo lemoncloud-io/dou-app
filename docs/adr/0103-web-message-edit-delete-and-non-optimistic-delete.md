@@ -61,8 +61,22 @@ new risk. If that answer is wrong, the alignment is visibly wrong first.
 `isMessageEdited` reports that `updatedAt` has moved past `createdAt`. We chose not to ask the
 server for a flag.
 
-The weakness is named rather than hidden: this detects _the row was written again_, not _a person
-changed the text_. Any future server-side write to a chat row — a moderation flag, a pin, a counter
+**Measured after this was written, and the cost is larger than stated here.** The premise — that an
+edit moves `updatedAt` past `createdAt` — holds on the server, but the `chat.update` RESPONSE
+carries the pre-update value. `updateChat` writes that response verbatim, so on the editor's own
+screen `updatedAt === createdAt` right after a successful save and no marker appears; the same row
+re-fetched shows `updatedAt > createdAt` and the marker lands. The marker is therefore not late by
+one server round trip, as decision 4 below implies, but by "until that room is fetched again."
+Observed 2026-09-17 against the dev server.
+
+Left as is for now, and **not decided**: a client-side timestamp would assert an edit time the
+server never gave, and re-fetching after every edit doubles the wait on the one operation this
+design deliberately makes the user sit through. Another client's view should be unaffected — it
+writes the row the server pushes over the socket, not this response — but that was not verified.
+The open question is recorded in the vault lane, not here.
+
+The weakness this section was written for is a different one, and also real: this detects _the row
+was written again_, not _a person changed the text_. Any future server-side write to a chat row — a moderation flag, a pin, a counter
 — would make every touched message read as edited. Three exclusions keep it honest today (deleted
 rows, whose delete is a `PUT` on the same row; unsent rows; missing timestamps), and the inference
 never leaks to callers, who ask only "was this edited". Keeping it in one file is what makes the
