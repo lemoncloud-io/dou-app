@@ -29,11 +29,11 @@ const DialogOverlay = React.forwardRef<
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
 /**
- * Every variant caps at `--app-width` — the host app's own width, set by a phone-shaped app such
+ * Every variant caps at `--app-width` — the host app's own width, set by a phone-class app such
  * as `apps/web` and absent in a desktop host, where the `100%` fallback leaves the variant exactly
  * as it was. A dialog is `fixed` and portalled to `document.body`, so it escapes whatever column
  * the app shell centres its screens in; without a cap of its own, a full-screen dialog opened from
- * a 430px-wide app spans a 1440px browser while the screen behind it does not.
+ * a narrow-column app spans a 1440px browser while the screen behind it does not.
  *
  * `default` is the notice-shaped dialog and does NOT follow the column: a card that grew to a
  * 768px phone-class column would be a banner. It takes one width instead — `--dialog-width`,

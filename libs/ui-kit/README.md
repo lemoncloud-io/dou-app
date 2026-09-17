@@ -234,11 +234,11 @@ done
 
 | File               | What a regenerate would destroy                                                                                                                                                                  |
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `dialog.tsx`       | `dialogVariants` (`default` · `fullscreen` · `bare` · `slide-up`), `hideClose`, `overlayClassName`, the `--app-width` cap and the safe-area padding                                              |
+| `dialog.tsx`       | `dialogVariants` (`default` · `fullscreen` · `bare` · `slide-up`), `hideClose`, `overlayClassName`, the `--app-width` cap, `default`'s own `--dialog-width`, and the safe-area padding           |
 | `toast.tsx`        | The whole surface: `bg-toast` tokens, left accent border, viewport pinned to the top under `pt-safe-top`, custom enter/exit animations                                                           |
 | `sheet.tsx`        | `hideClose`, and `mx-auto max-w-[var(--app-width,100%)]` on the `bottom` side                                                                                                                    |
 | `toaster.tsx`      | Status icons, `duration={1500}`, `swipeDirection="up"`, and the two-column body layout                                                                                                           |
-| `alert-dialog.tsx` | The same `--app-width` cap as `DialogContent`                                                                                                                                                    |
+| `alert-dialog.tsx` | The same `--dialog-width` rule as `DialogContent`'s `default` variant                                                                                                                            |
 | `input.tsx`        | The entire class list — `bg-surface`, `border-input-border`, `text-placeholder`, `focus-visible:border-focus-border`, and a flat `text-[16px]` where the generator writes `text-base md:text-sm` |
 | `use-toast.ts`     | `TOAST_REMOVE_DELAY = 1000`; upstream ships `1000000`, which keeps dismissed toasts in the store for 16 minutes                                                                                  |
 | `command.tsx`      | The `sr-only` `DialogTitle` / `DialogDescription` giving the dialog the accessible name Radix requires                                                                                           |
@@ -305,7 +305,19 @@ purpose: `dialog.tsx`, `alert-dialog.tsx` and `sheet.tsx` are `fixed` and portal
 `document.body`, so they escape the column the app shell centres its screens in and have to
 re-declare the cap themselves — and they cannot read a token that only one app's config defines.
 Every use falls back, `var(--app-width,100%)`, so a host that declares nothing keeps the original
-full-bleed behaviour.
+full-bleed behaviour. The value is that host's own upper bound, not a phone width: a host may set
+it wide enough that a surface following it fills a large device.
+
+That is why the notice dialog — `dialog` and `alert-dialog`'s `default` variant — does not follow
+it. A confirm card stretched to a phone-class column stops being a card, so the variant declares
+`--dialog-width: min(311px, calc(100% - 48px), var(--app-width))` and sizes itself from that. The
+third term is what keeps this library honest: it reads `--app-width` with **no fallback**, so in a
+host that declares none the declaration is invalid, `--dialog-width` never resolves, and
+`max-width` falls back to the original `32rem`. A host opts in by declaring an app width; it cannot
+be opted in by accident.
+
+The rule survives only while call sites carry no width class of their own — `cn` tailwind-merges in
+the caller's favour, so one leftover `max-w-[…]` opts that dialog out and nothing fails loudly.
 
 ## Scenarios
 

@@ -76,18 +76,25 @@ the inset.
 
 ## The app-width contract (`--app-width`)
 
-`apps/web` is drawn for a phone-sized WebView; the same bundle is also reachable from a desktop
-browser through an invite or share link. One rule covers both: every surface fills the device up to
-`--app-width` (430px, `apps/web/src/styles.css`) and centers past it.
+`apps/web` runs in a WebView on a phone-class device; the same bundle is also reachable from a
+desktop browser through an invite or share link. One rule covers both: every surface fills the
+device up to `--app-width` (768px, `apps/web/src/styles.css`) and centers past it.
 
-| Surface                                    | How it gets the cap                                                                    |
-| ------------------------------------------ | -------------------------------------------------------------------------------------- |
-| A route screen in normal flow              | the shell's own `w-full max-w-app mx-auto` — the page declares nothing                 |
-| A route screen taken out of flow (`fixed`) | `fixedViewportScreen` (`KeyboardAwareLayout.tsx`) = `fixed inset-0 mx-auto max-w-app`  |
-| A bottom sheet                             | `libs/ui-kit`'s `sheet` (`side="bottom"`) — `mx-auto max-w-[var(--app-width,100%)]`    |
-| A fullscreen / slide-up dialog             | `libs/ui-kit`'s `dialog` `fullscreen`/`slide-up` variants — the same cap               |
-| An ordinary dialog                         | `dialog` / `alert-dialog` default variant — `max-w-[min(32rem,var(--app-width,100%))]` |
-| A global floating bar                      | `FloatingTabBar` (web-ui-kit) reads the same variable directly                         |
+`--app-width` is the **upper bound of the phone class**, not the width of a phone. Below it the
+column IS the device, and that includes widths no phone has: a foldable unfolded is around 690px,
+and the app fills it. Above it — a tablet, a desktop browser — the column caps and centers, which
+is the behavior the invite path already relied on. 768 is the conventional tablet boundary, which
+is what the cap is really marking; it is deliberately not a Tailwind breakpoint, because nothing
+here restructures by width.
+
+| Surface                                    | How it gets the cap                                                                   |
+| ------------------------------------------ | ------------------------------------------------------------------------------------- |
+| A route screen in normal flow              | the shell's own `w-full max-w-app mx-auto` — the page declares nothing                |
+| A route screen taken out of flow (`fixed`) | `fixedViewportScreen` (`KeyboardAwareLayout.tsx`) = `fixed inset-0 mx-auto max-w-app` |
+| A bottom sheet                             | `libs/ui-kit`'s `sheet` (`side="bottom"`) — `mx-auto max-w-[var(--app-width,100%)]`   |
+| A fullscreen / slide-up dialog             | `libs/ui-kit`'s `dialog` `fullscreen`/`slide-up` variants — the same cap              |
+| A notice dialog                            | `dialog` / `alert-dialog` default variant — its own width, NOT the column (below)     |
+| A global floating bar                      | `FloatingTabBar` (web-ui-kit) reads the same variable directly                        |
 
 The number lives in exactly one place — `apps/web/src/styles.css` — because everything above it is
 either laid out in-flow under the shell (which owns the cap once) or `fixed` and portalled to
@@ -95,6 +102,30 @@ either laid out in-flow under the shell (which owns the cap once) or `fixed` and
 that re-declare it (`libs/ui-kit`, `libs/web-ui-kit`) are shared with `apps/desktop-web`, so they read
 the variable rather than a literal number and fall back to `100%` — a host that never sets
 `--app-width` is unaffected.
+
+### The one surface that does not follow the column
+
+A notice dialog — the small confirm/alert card — opts out. A card stretched to a 768px column stops
+being a card, so `dialog` and `alert-dialog`'s `default` variant declare a width of their own:
+
+```
+--dialog-width: min(311px, calc(100% - 48px), var(--app-width))
+```
+
+311px is the design width; `100% - 48px` keeps 24px of breathing room either side once the device
+is narrower than that. The third term is the scoping trick and the reason this is safe to put in a
+shared library: it reads `--app-width` with **no fallback**, so in a host that declares no app width
+the whole declaration is invalid, `--dialog-width` never resolves, and `max-width` falls back to the
+original `32rem`. `apps/desktop-web` is therefore untouched by construction rather than by remembering
+to check.
+
+The rule only holds while **call sites carry no width of their own**: `tailwind-merge` resolves a
+conflicting class in the caller's favor, so a single `max-w-[288px]` left behind silently opts that
+one dialog out. `SubscriptionRequiredDialog` is the known exception — it is a hand-rolled portal
+rather than a `DialogContent`, so it spells the same expression out and has to be changed alongside.
+
+Bottom sheets do **not** opt out. They follow the column and fill an unfolded foldable, which is
+what that form factor does natively.
 
 ```bash
 grep -rn "var(--app-width" libs/ui-kit/src libs/web-ui-kit/src --include='*.tsx' | grep -v test
@@ -114,6 +145,13 @@ sheet), and it is the mistake to watch for in a new one.
 - Resize to a desktop width and open a bottom sheet, a fullscreen dialog, and a `fixed` route side
   by side — all three should share the shell's column, and `document.documentElement.scrollWidth`
   should not exceed the viewport.
+- The widths worth checking are 320 (smallest phone), 344 (a foldable's cover screen), 690 (that
+  foldable unfolded) and 1024 (past the cap). At 690 the column fills the device and a notice
+  dialog stays 311 wide; at 1024 the column stops at 768 and centers. `libs/web-ui-kit`'s Storybook
+  carries these as viewport presets.
+- Fold and unfold with the message composer holding text. The layout is CSS, and nothing swaps a
+  component on width, so the text survives — that is the property to protect when adding anything
+  that reads a width in JavaScript.
 
 ## Further reading
 
