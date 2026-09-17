@@ -8,7 +8,7 @@ import { runtime } from '@chatic/app-runtime';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 
-import { onboardedKey, useOnboardingStore } from '../stores';
+import { hasSeenOnboarding, markOnboardingSeen, useOnboardingStore } from '../stores';
 
 interface OnboardingDialogProps {
     /** First-run trigger; false suppresses it (the dialog can still be reopened). */
@@ -30,9 +30,12 @@ interface OnboardingDialogProps {
  * guest on the Default Cloud — an invited member arrives in a workspace with
  * clouds, places and a switcher nobody has mentioned to them.
  *
- * Only finishing it — the Done button — marks it seen. Escape or an overlay
- * click used to write the same flag, so one stray key press lost the tips for
- * good; now it just closes them for this session. Settings can reopen them.
+ * Any close marks it seen — the Done button, the X, Escape, an overlay click.
+ * A dismissal used to live only in memory so that a stray Escape could not lose
+ * the tips for good, but the page reloads on its own (the renderer self-heals a
+ * socket wedged after sleep by reloading), and each reload brought the dialog
+ * back to a person who had already closed it. Losing them for good is no longer
+ * the risk it was: Settings reopens them on demand.
  */
 export const OnboardingDialog = ({ enabled, showChannelStatus, isChannelReady }: OnboardingDialogProps) => {
     const { t } = useTranslation();
@@ -46,7 +49,7 @@ export const OnboardingDialog = ({ enabled, showChannelStatus, isChannelReady }:
     useEffect(() => {
         if (!enabled || !userId || checkedFor === userId) return;
         markChecked(userId);
-        if (localStorage.getItem(onboardedKey(userId)) !== '1') setOpen(true);
+        if (!hasSeenOnboarding(userId)) setOpen(true);
     }, [enabled, userId, checkedFor, markChecked]);
 
     const reopenRequested = useOnboardingStore(s => s.reopenRequested);
@@ -60,8 +63,10 @@ export const OnboardingDialog = ({ enabled, showChannelStatus, isChannelReady }:
 
     if (!enabled && !open) return null;
 
-    const finish = () => {
-        if (userId) localStorage.setItem(onboardedKey(userId), '1');
+    // Both close paths write the flag, so a dismissal survives the next reload.
+    // The in-session store flag above only covers this page's lifetime.
+    const close = () => {
+        if (userId) markOnboardingSeen(userId);
         setOpen(false);
     };
 
@@ -70,7 +75,7 @@ export const OnboardingDialog = ({ enabled, showChannelStatus, isChannelReady }:
     );
 
     return (
-        <Dialog open={open} onOpenChange={isOpen => !isOpen && setOpen(false)}>
+        <Dialog open={open} onOpenChange={isOpen => !isOpen && close()}>
             <DialogContent closeLabel={t('common.close')} className="sm:max-w-sm">
                 {step === 1 ? (
                     <>
@@ -119,7 +124,7 @@ export const OnboardingDialog = ({ enabled, showChannelStatus, isChannelReady }:
                             <Button type="button" variant="ghost" onClick={() => setStep(1)}>
                                 {t('onboarding.back')}
                             </Button>
-                            <Button type="button" onClick={finish}>
+                            <Button type="button" onClick={close}>
                                 {t('onboarding.done')}
                             </Button>
                         </div>

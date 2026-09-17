@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@chatic/app-runtime', () => ({
     runtime: { session: { useSessionIdentity: () => ({ userId: 'u1' }) } },
@@ -36,6 +36,29 @@ describe('OnboardingDialog', () => {
         const first = mount();
         expect(screen.getByRole('dialog')).toBeTruthy();
         first.unmount();
+
+        mount();
+        expect(screen.queryByRole('dialog')).toBeNull();
+    });
+});
+
+// A dismissal used to survive only in memory, so every page reload — the wedge
+// self-heal after sleep, a restart, a manual refresh — brought the tips back.
+describe('OnboardingDialog after a reload', () => {
+    // A page load starts with empty stores and whatever localStorage kept, so the
+    // precondition is set here rather than inherited from the suite above.
+    beforeEach(() => {
+        localStorage.clear();
+        useOnboardingStore.setState({ checkedFor: null, reopenRequested: false });
+    });
+
+    it('stays closed after the person closed it and the page reloaded', () => {
+        const first = mount();
+        fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+        first.unmount();
+
+        // A reload keeps localStorage and drops every in-memory store.
+        useOnboardingStore.setState({ checkedFor: null, reopenRequested: false });
 
         mount();
         expect(screen.queryByRole('dialog')).toBeNull();
