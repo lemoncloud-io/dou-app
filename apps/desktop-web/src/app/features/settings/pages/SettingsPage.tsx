@@ -10,6 +10,7 @@ import { Switch } from '@chatic/ui-kit/components/ui/switch';
 
 import { useNotificationPrefsStore, VersionInfo } from '../../../shared';
 import { useOnboardingStore, useShortcutsDialogStore } from '../../chat/stores';
+import { SUPPORTED_LANGUAGES, setLanguage, type SupportedLanguage } from '../../../../i18n';
 import { useDevicePushMute } from '../hooks';
 import { LaunchAtLoginSection } from './LaunchAtLoginSection';
 
@@ -31,10 +32,12 @@ const quietWindowMinutes = (start: string, end: string): number | null => {
     if (s == null || e == null || s === e) return null;
     return (e - s + 24 * 60) % (24 * 60);
 };
-// One bundle ships today (see src/i18n.ts — the shared remote-backed i18n lands
-// in a later phase). A picker with a single choice is chrome, so it stays hidden
-// until there is a second language to pick.
-const LANGUAGE_OPTIONS = ['en'] as const;
+// The bundles that actually ship (src/i18n.ts owns the list). A picker with a
+// single choice is chrome, so it stays hidden until there is a second language.
+const LANGUAGE_OPTIONS = SUPPORTED_LANGUAGES;
+
+/** What each bundle calls itself, so the choice reads in the language it selects. */
+const LANGUAGE_LABEL: Record<SupportedLanguage, string> = { ko: '한국어', en: 'English' };
 
 /**
  * Mini preview swatch for each theme choice. The two solid halves of the system
@@ -115,7 +118,9 @@ export const SettingsPage = () => {
                             </div>
                         </div>
 
-                        {/* Hidden while a single bundle ships — see LANGUAGE_OPTIONS. */}
+                        {/* Hidden while a single bundle ships — see LANGUAGE_OPTIONS. The
+                            choice is remembered, and with none stored the app follows the
+                            system language. */}
                         {LANGUAGE_OPTIONS.length > 1 && (
                             <div className="flex flex-col gap-2.5">
                                 <span id="settings-language-label" className="text-callout font-medium text-foreground">
@@ -127,15 +132,15 @@ export const SettingsPage = () => {
                                             key={lng}
                                             role="radio"
                                             aria-checked={i18n.language === lng}
-                                            onClick={() => void i18n.changeLanguage(lng)}
+                                            onClick={() => setLanguage(lng)}
                                             className={cn(
-                                                'focus-ring tactile rounded-lg border px-4 py-2 text-callout uppercase transition-colors ease-tactile',
+                                                'focus-ring tactile rounded-lg border px-4 py-2 text-callout transition-colors ease-tactile',
                                                 i18n.language === lng
                                                     ? 'border-primary bg-primary/10 font-semibold text-foreground'
                                                     : 'border-input text-muted-foreground hover:border-border hover:bg-accent'
                                             )}
                                         >
-                                            {lng}
+                                            {LANGUAGE_LABEL[lng]}
                                         </button>
                                     ))}
                                 </div>
