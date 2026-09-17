@@ -146,7 +146,9 @@ Three files hold something the name does not give away:
 - `use-toast.ts` is not a component. It is the toast store — a reducer, a module-level listener list
   and `TOAST_LIMIT = 1` — and it is the single most imported module here, at 79 files.
 - `toaster.tsx` is the mount point, rendered once per app in `AppRuntime` / `DesktopRuntime`. It is
-  fully rewritten against `toast.tsx` and shares only its name with the generator's version.
+  fully rewritten against `toast.tsx` and shares only its name with the generator's version. It also
+  sets the dismiss timer for every app at once (5s): long enough to read a sentence and press an
+  Undo, which the earlier 1.5s was not.
 - `utils/index.ts` is where the `font-size` class group is registered with `tailwind-merge`, which
   is the reason `cn` is a wrapper rather than a re-export.
 

@@ -11,6 +11,14 @@ import { useLastChannelStore, useListboxNav } from '../../../shared';
 
 const MAX_RESULTS = 8;
 
+/** A channel in another place of the same cloud, offered with the place it lives in. */
+export interface ElsewhereChannel {
+    channelId: string;
+    name: string;
+    placeId: string;
+    placeName: string;
+}
+
 /**
  * Prefix matches first (Slack-style), then substring matches. With no query the
  * list is what the person opened most recently — it used to be an arbitrary,
@@ -33,6 +41,14 @@ const rankChannels = (channels: DomainChannel[], query: string, recent: string[]
 interface QuickSwitcherProps {
     channels: DomainChannel[];
     onSelect: (channelId: string) => void;
+    /**
+     * Channels in the cloud's other places, from the index of places the user has
+     * opened. Only searched, never listed with an empty query: the recents list is
+     * about where you were, and these are about where you are not.
+     */
+    elsewhere?: ElsewhereChannel[];
+    /** Switch place and open the channel there. */
+    onSelectElsewhere?: (channelId: string, placeId: string) => void;
 }
 
 /**
@@ -41,7 +57,7 @@ interface QuickSwitcherProps {
  * ChannelList because that's where the channel list and select handler already
  * live — the switcher renders nothing until opened.
  */
-export const QuickSwitcher = ({ channels, onSelect }: QuickSwitcherProps) => {
+export const QuickSwitcher = ({ channels, onSelect, elsewhere = [], onSelectElsewhere }: QuickSwitcherProps) => {
     const { t } = useTranslation();
     const [open, setOpen] = useState(false);
     const [query, setQuery] = useState('');
@@ -65,13 +81,35 @@ export const QuickSwitcher = ({ channels, onSelect }: QuickSwitcherProps) => {
 
     const results = useMemo(() => rankChannels(channels, query, recent), [channels, query, recent]);
 
-    const pick = (channel: DomainChannel | undefined) => {
-        if (!channel?.id) return;
-        onSelect(channel.id);
+    // Only once the query rules out enough of this place to leave room, and only
+    // for names that match: a switcher that always listed the whole cloud would
+    // bury the channels a person actually works in.
+    const elsewhereResults = useMemo(() => {
+        const q = query.trim().toLowerCase();
+        if (!q || !onSelectElsewhere) return [];
+        const room = MAX_RESULTS - results.length;
+        if (room <= 0) return [];
+        const openHere = new Set(channels.map(c => c.id));
+        return elsewhere
+            .filter(item => !openHere.has(item.channelId) && item.name.toLowerCase().includes(q))
+            .slice(0, room);
+    }, [elsewhere, query, results.length, channels, onSelectElsewhere]);
+
+    const pick = (index: number) => {
+        const here = results[index];
+        if (here?.id) {
+            onSelect(here.id);
+            setOpen(false);
+            return;
+        }
+        const there = elsewhereResults[index - results.length];
+        if (!there) return;
+        onSelectElsewhere?.(there.channelId, there.placeId);
         setOpen(false);
     };
 
-    const nav = useListboxNav(results.length, index => pick(results[index]), `${open}:${query}`);
+    const total = results.length + elsewhereResults.length;
+    const nav = useListboxNav(total, pick, `${open}:${query}`);
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
@@ -90,7 +128,7 @@ export const QuickSwitcher = ({ channels, onSelect }: QuickSwitcherProps) => {
                         className="flex-1 bg-transparent text-body text-foreground outline-none placeholder:text-placeholder"
                     />
                 </div>
-                {results.length === 0 ? (
+                {total === 0 ? (
                     <p className="px-3 py-4 text-center text-caption text-muted-foreground">
                         {t('switcher.noMatches')}
                     </p>
@@ -105,7 +143,7 @@ export const QuickSwitcher = ({ channels, onSelect }: QuickSwitcherProps) => {
                                     tabIndex={-1}
                                     aria-selected={i === nav.activeIndex}
                                     onMouseEnter={() => nav.setActiveIndex(i)}
-                                    onClick={() => pick(channel)}
+                                    onClick={() => pick(i)}
                                     className={cn(
                                         'flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-callout transition-colors ease-tactile',
                                         i === nav.activeIndex
@@ -118,6 +156,35 @@ export const QuickSwitcher = ({ channels, onSelect }: QuickSwitcherProps) => {
                                 </button>
                             </li>
                         ))}
+                        {elsewhereResults.map((item, offset) => {
+                            const i = results.length + offset;
+                            return (
+                                <li key={item.channelId}>
+                                    <button
+                                        id={nav.optionId(i)}
+                                        type="button"
+                                        role="option"
+                                        tabIndex={-1}
+                                        aria-selected={i === nav.activeIndex}
+                                        onMouseEnter={() => nav.setActiveIndex(i)}
+                                        onClick={() => pick(i)}
+                                        className={cn(
+                                            'flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-callout transition-colors ease-tactile',
+                                            i === nav.activeIndex
+                                                ? 'bg-accent text-foreground'
+                                                : 'text-muted-foreground hover:bg-accent/60'
+                                        )}
+                                    >
+                                        <Hash size={14} className="shrink-0" aria-hidden />
+                                        <span className="truncate">{item.name}</span>
+                                        {/* Which place it is in, because picking it moves the app there. */}
+                                        <span className="ml-auto shrink-0 truncate rounded bg-muted px-1.5 py-0.5 text-caption text-muted-foreground">
+                                            {item.placeName}
+                                        </span>
+                                    </button>
+                                </li>
+                            );
+                        })}
                     </ul>
                 )}
             </DialogContent>

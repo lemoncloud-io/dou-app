@@ -210,8 +210,15 @@ export const ChannelSettingsPanel = ({
                             </button>
                         ))}
                     </div>
+                </section>
+
+                {/* Leaving and deleting used to sit under the Notifications heading, so a
+                    mute decision and an irreversible one shared a group. They get their
+                    own, and the heading says what the group is for. */}
+                <section className="flex flex-col gap-2 border-t border-hairline pt-4">
+                    <h3 className="text-overline text-muted-foreground">{t('channels.settings.danger')}</h3>
                     <Button
-                        variant="ghost"
+                        variant="outline"
                         size="sm"
                         className="focus-ring tactile justify-start transition-colors"
                         onClick={() => openDialog('leave')}
@@ -220,9 +227,9 @@ export const ChannelSettingsPanel = ({
                     </Button>
                     {isOwner && (
                         <Button
-                            variant="ghost"
+                            variant="outline"
                             size="sm"
-                            className="focus-ring tactile justify-start text-destructive transition-colors hover:bg-destructive/10 hover:text-destructive"
+                            className="focus-ring tactile justify-start border-destructive/40 text-destructive transition-colors hover:bg-destructive/10 hover:text-destructive"
                             onClick={() => openDialog('delete')}
                         >
                             {t('channels.settings.delete')}

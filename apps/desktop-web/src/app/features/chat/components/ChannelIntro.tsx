@@ -16,6 +16,8 @@ interface ChannelIntroProps {
     avatar?: string;
     colorSeed?: string;
     isFavorite: boolean;
+    /** No messages yet — only then does the intro offer to write the first one. */
+    isEmpty?: boolean;
     onToggleFavorite: () => void;
     /** Channels only — a DM has no settings of its own. */
     onOpenSettings?: () => void;
@@ -24,7 +26,7 @@ interface ChannelIntroProps {
 /** Shape shared by the actions under the intro. */
 const INTRO_ACTION =
     'focus-ring tactile flex items-center gap-1.5 rounded-lg border border-hairline bg-background px-3 py-1.5 text-caption font-medium text-foreground transition-colors ease-tactile hover:bg-accent';
-/** The one filled action: writing is what an empty channel is for. */
+/** The one filled action, and only on an empty channel: writing is what it is for. */
 const INTRO_PRIMARY = 'border-transparent bg-primary text-primary-foreground hover:bg-primary/90';
 
 const focusComposer = () => document.querySelector<HTMLElement>('[data-composer-input]')?.focus();
@@ -41,6 +43,7 @@ export const ChannelIntro = ({
     avatar,
     colorSeed,
     isFavorite,
+    isEmpty = false,
     onToggleFavorite,
     onOpenSettings,
 }: ChannelIntroProps) => {
@@ -81,11 +84,15 @@ export const ChannelIntro = ({
             </div>
             <div className="flex flex-wrap items-center gap-2">
                 {/* The empty channel's first screen had no path to the one thing it is
-                    for. This hands focus to the composer below. */}
-                <button type="button" onClick={focusComposer} className={cn(INTRO_ACTION, INTRO_PRIMARY)}>
-                    <PenLine size={15} aria-hidden />
-                    {t('chat.intro.writeFirst')}
-                </button>
+                    for. This hands focus to the composer below. Once the channel has
+                    messages the intro stays as a header, but the filled CTA goes: it
+                    outranked the conversation and said something untrue about it. */}
+                {isEmpty && (
+                    <button type="button" onClick={focusComposer} className={cn(INTRO_ACTION, INTRO_PRIMARY)}>
+                        <PenLine size={15} aria-hidden />
+                        {t('chat.intro.writeFirst')}
+                    </button>
+                )}
                 <button type="button" onClick={onToggleFavorite} aria-pressed={isFavorite} className={INTRO_ACTION}>
                     <Star size={15} aria-hidden className={cn(isFavorite && 'fill-favorite text-favorite')} />
                     {t(isFavorite ? 'chat.header.unfavorite' : 'chat.header.favorite')}

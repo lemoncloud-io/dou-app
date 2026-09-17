@@ -192,6 +192,7 @@ export const ChatPane = ({ channel, members, membersLoading, readCountOf, jumpRe
             description={introKind === 'channel' ? desc : undefined}
             colorSeed={counterpartId ?? undefined}
             isFavorite={isFavorite}
+            isEmpty={messages.length === 0}
             onToggleFavorite={() => channelId && togglePinned(channelId)}
             onOpenSettings={introKind === 'channel' ? () => openSettings(channelId) : undefined}
         />

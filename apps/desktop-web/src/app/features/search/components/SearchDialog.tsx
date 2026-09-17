@@ -130,7 +130,12 @@ export const SearchDialog = ({ channels, onSelect, onJumpToMessage }: SearchDial
                 {trimmed.length < 2 ? (
                     <p className="px-3 py-4 text-center text-caption text-muted-foreground">{t('search.hint')}</p>
                 ) : showEmpty ? (
-                    <p className="px-3 py-4 text-center text-caption text-muted-foreground">{t('search.noResults')}</p>
+                    <div className="px-3 py-4 text-center">
+                        <p className="text-caption text-foreground">{t('search.noResults')}</p>
+                        {/* A cache-only search produces false negatives, and a bare
+                            "no results" lets someone conclude the message is gone. */}
+                        <p className="mt-1 text-caption text-muted-foreground">{t('search.noResultsHint')}</p>
+                    </div>
                 ) : (
                     <div
                         id={nav.listboxId}

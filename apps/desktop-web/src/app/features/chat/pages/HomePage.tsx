@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { runtime } from '@chatic/app-runtime';
 
@@ -29,6 +29,7 @@ import {
     useMentionsPanelStore,
     useReadCursorStore,
     useSelectPlace,
+    useKnownChannelsStore,
     useLastChannelStore,
     useSelectedChannelStore,
     useSiteProfiles,
@@ -303,6 +304,15 @@ export const HomePage = () => {
         }
     }, [isDefaultMode, isSwitching, places, selectedPlaceId, switchPlace, activeCloudId]);
 
+    // Keep an index of this cloud's channels per place, built from the places you
+    // open. It is what lets the quick switcher offer a channel that lives in
+    // another place instead of pretending the cloud is one place wide.
+    const recordKnownChannels = useKnownChannelsStore(s => s.record);
+    useEffect(() => {
+        if (!activeCloudId || !selectedPlaceId || isDefaultMode || channels.length === 0) return;
+        recordKnownChannels(activeCloudId, selectedPlaceId, channels);
+    }, [activeCloudId, selectedPlaceId, isDefaultMode, channels, recordKnownChannels]);
+
     // Remember the place you have open in this cloud, for the restore above.
     const rememberPlace = useLastChannelStore(s => s.rememberPlace);
     useEffect(() => {
@@ -446,10 +456,36 @@ export const HomePage = () => {
         },
         [selectChannel]
     );
-    // jumpToSaved closes over render state; the ref keeps the handler identity fixed
-    // while always calling the current one.
     const jumpToSavedRef = useRef(jumpToSaved);
     jumpToSavedRef.current = jumpToSaved;
+
+    // What the quick switcher can offer beyond the open place: the cloud's index,
+    // minus this place, named by the place each channel lives in. A place that is
+    // no longer in the rail is dropped rather than shown as an unnamed chip.
+    const knownByCloud = useKnownChannelsStore(s => s.byCloud);
+    const elsewhereChannels = useMemo(() => {
+        if (!activeCloudId || isDefaultMode) return [];
+        const known = knownByCloud[activeCloudId];
+        if (!known) return [];
+        const placeName = new Map(places.map(place => [place.id, place.name ?? place.id ?? '']));
+        return Object.values(known)
+            .filter(entry => entry.placeId !== selectedPlaceId && entry.name && placeName.has(entry.placeId))
+            .map(entry => ({
+                channelId: entry.channelId,
+                name: entry.name,
+                placeId: entry.placeId,
+                placeName: placeName.get(entry.placeId) ?? '',
+            }));
+    }, [knownByCloud, activeCloudId, isDefaultMode, selectedPlaceId, places]);
+
+    // Picking one of those is the same move as jumping to a saved message in
+    // another place: switch place, then land on the channel once it loads.
+    const selectElsewhere = useCallback((channelId: string, placeId: string) => {
+        jumpToSavedRef.current(channelId, undefined, placeId);
+    }, []);
+
+    // jumpToSaved closes over render state; the ref keeps the handler identity fixed
+    // while always calling the current one.
     const jumpFromSearch = useCallback(
         (channelId: string, chatNo: number) => jumpToSavedRef.current(channelId, chatNo),
         []
@@ -563,6 +599,8 @@ export const HomePage = () => {
                                 // not a detour, so it retires any pending return point.
                                 onSelect={selectFromList}
                                 onJumpToMessage={jumpFromSearch}
+                                elsewhereChannels={elsewhereChannels}
+                                onSelectElsewhere={selectElsewhere}
                                 isDefaultMode={isDefaultMode}
                                 onCreateChannel={openCreateChannel}
                             />

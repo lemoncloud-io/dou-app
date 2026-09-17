@@ -1,7 +1,7 @@
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Hash, Pencil, Plus, Star } from 'lucide-react';
+import { BellOff, Hash, Pencil, Plus, Star } from 'lucide-react';
 
 import type { DomainChannel } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
@@ -20,7 +20,9 @@ import {
     messagePlainText,
     useAuthorNames,
     migrateLegacyFavorites,
+    channelNotifyMode,
     useComposerDraftStore,
+    useNotificationPrefsStore,
     useSelectedChannelStore,
     useSiteProfileMap,
 } from '../../../shared';
@@ -30,7 +32,7 @@ import { useLastChat } from '../hooks';
 import { useSidebarSectionsStore } from '../stores';
 import { isDmBucket, sidebarMoveChord, unreadIndicator } from '../utils';
 import { ChannelRowMenu } from './ChannelRowMenu';
-import { QuickSwitcher } from './QuickSwitcher';
+import { QuickSwitcher, type ElsewhereChannel } from './QuickSwitcher';
 import { SortableSection, type SectionItem } from './SortableSection';
 
 interface ChannelListProps {
@@ -41,6 +43,10 @@ interface ChannelListProps {
     onSelect: (channelId: string) => void;
     /** Scroll the feed to one message — the search dialog's match rows use it. */
     onJumpToMessage?: (channelId: string, chatNo: number) => void;
+    /** Channels in the cloud's other places, for the quick switcher. */
+    elsewhereChannels?: ElsewhereChannel[];
+    /** Open a channel that lives in another place (switches place first). */
+    onSelectElsewhere?: (channelId: string, placeId: string) => void;
     /** Default Cloud has no channel creation — the empty-state hint must not point at a "+". */
     isDefaultMode: boolean;
     /** The Channels section's "+" (hidden on the Default Cloud, which cannot create channels). */
@@ -109,6 +115,15 @@ const ChannelRow = memo(function ChannelRow({
     // Slack's draft pencil: text left in another channel's composer is easy to forget.
     // Not on the open row — its composer is right there.
     const hasDraft = useComposerDraftStore(s => !isActive && !!s.drafts[id]?.trim());
+    // Muting a channel changed nothing here, so a channel that had been told to stay
+    // quiet looked the same as one that simply had nothing new — the silence read as
+    // a bug. 'mention' counts as muted for this glyph: both suppress the default.
+    // The join row types `notify` with an empty-string member the store does not
+    // model; '' means "never set", which is exactly what `undefined` means here.
+    const joinNotify = channel.$join?.notify;
+    const isMuted = useNotificationPrefsStore(
+        s => channelNotifyMode(s, id, joinNotify === '' ? undefined : joinNotify) !== 'all'
+    );
     // A deleted message keeps its place here and says so, the way the feed does: its
     // content survives the soft delete, and printing it would show text the row itself
     // says is gone.
@@ -135,12 +150,19 @@ const ChannelRow = memo(function ChannelRow({
                 <span className="flex shrink-0 items-center text-foreground">{icon}</span>
                 <span
                     className={cn(
-                        'min-w-0 flex-1 truncate text-[14px] tracking-[-0.01em] text-sidebar-foreground',
+                        'min-w-0 flex-1 truncate text-[14px] tracking-[-0.01em]',
+                        isMuted ? 'text-muted-foreground' : 'text-sidebar-foreground',
                         indicator !== 'none' && 'font-semibold'
                     )}
                 >
                     {label}
                 </span>
+                {isMuted && (
+                    <span className="flex shrink-0 items-center text-muted-foreground">
+                        <BellOff size={13} aria-hidden />
+                        <span className="sr-only">{t('sidebar.muted')}</span>
+                    </span>
+                )}
                 {hasDraft && (
                     <span className="flex shrink-0 items-center text-muted-foreground">
                         <Pencil size={14} aria-hidden />
@@ -182,6 +204,8 @@ export const ChannelList = ({
     query,
     onSelect,
     onJumpToMessage,
+    elsewhereChannels,
+    onSelectElsewhere,
     isDefaultMode,
     onCreateChannel,
 }: ChannelListProps) => {
@@ -482,7 +506,12 @@ export const ChannelList = ({
         // The switcher lives here (not HomePage) because this is where the
         // channel list + select handler already are; it renders only when opened.
         <nav aria-label={t('sidebar.channels')} onKeyDown={onKeyDown} className="flex flex-col gap-4 px-4 pb-6 pt-3">
-            <QuickSwitcher channels={channels} onSelect={onSelect} />
+            <QuickSwitcher
+                channels={channels}
+                onSelect={onSelect}
+                elsewhere={elsewhereChannels}
+                onSelectElsewhere={onSelectElsewhere}
+            />
             <SearchDialog channels={channels} onSelect={onSelect} onJumpToMessage={onJumpToMessage} />
             <Divider />
             {favoriteRows.length > 0 && (
