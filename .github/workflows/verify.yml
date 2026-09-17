@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
     verify:
-        name: lint · typecheck · test
+        name: doc links · lint · typecheck · test
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
@@ -48,6 +48,11 @@ jobs:
             - name: Install dependencies
               if: ${{ steps.cache-dependencies.outputs.cache-hit != 'true' }}
               run: yarn install --frozen-lockfile
+
+            # Documents are the one artifact no other step reads. Cheap, needs no build, and green
+            # across every tracked markdown file, so it runs first and fails fast.
+            - name: Doc links
+              run: yarn check:doc-links
 
             # Green across all 26 projects, so no exclusions here.
             - name: Lint

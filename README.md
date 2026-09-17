@@ -456,14 +456,14 @@ Android `envConfigFiles`), not by the script. See
 
 ## CI/CD
 
-| Workflow                | Trigger                          | Description                                                                                                                   |
-| ----------------------- | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `verify.yml`            | Pull requests, push to `develop` | Typecheck & test — only the projects listed as covered; excluded projects are named at the bottom of the file with the reason |
-| `deploy-dev.yml`        | Push to `develop`                | Auto-detect changed apps, build & deploy to dev                                                                               |
-| `deploy-prod.yml`       | Push to `main`                   | Build, deploy to prod & create a GitHub release                                                                               |
-| `force-deploy.yml`      | Manual dispatch                  | Force (re)deploy Web / Admin V2 / Landing to dev or prod — no other app                                                       |
-| `build-desktop.yml`     | Manual dispatch                  | Build unsigned macOS `.dmg` + Windows `.exe` installers, publish to a rolling `desktop-dev` / `desktop-prod` GitHub Release   |
-| `build-desktop-win.yml` | Manual dispatch                  | Windows-only variant of the above                                                                                             |
+| Workflow                | Trigger                          | Description                                                                                                                                    |
+| ----------------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `verify.yml`            | Pull requests, push to `develop` | Doc links, lint, typecheck & test — only the projects listed as covered; excluded projects are named at the bottom of the file with the reason |
+| `deploy-dev.yml`        | Push to `develop`                | Auto-detect changed apps, build & deploy to dev                                                                                                |
+| `deploy-prod.yml`       | Push to `main`                   | Build, deploy to prod & create a GitHub release                                                                                                |
+| `force-deploy.yml`      | Manual dispatch                  | Force (re)deploy Web / Admin V2 / Landing to dev or prod — no other app                                                                        |
+| `build-desktop.yml`     | Manual dispatch                  | Build unsigned macOS `.dmg` + Windows `.exe` installers, publish to a rolling `desktop-dev` / `desktop-prod` GitHub Release                    |
+| `build-desktop-win.yml` | Manual dispatch                  | Windows-only variant of the above                                                                                                              |
 
 `deploy-dev`/`deploy-prod` auto-detect which apps changed and only build/deploy the affected ones —
 this is the only path that ships `desktop-web` (see the note in
@@ -477,6 +477,7 @@ it, nothing in CI ran a type check or a test.
 yarn lint                   # Check for issues
 yarn lint:fix               # Auto-fix issues
 yarn check:undefined-names  # Fail on TS2304 — a name used but never imported; run after moving symbols
+yarn check:doc-links        # Fail on a dead markdown link, or an ADR link whose label and target disagree
 
 # Format
 yarn prettier               # Format all files

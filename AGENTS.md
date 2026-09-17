@@ -75,6 +75,14 @@ it is in English. Names written before this was settled are left alone; new ones
   actually follow it.
 - A superseded ADR keeps its file; mark its status line and link to the ADR that replaced it. Don't
   delete it.
+- **A number, once taken, is never reused** — not even for a file that was deleted or renumbered. The
+  number is the name every other document and comment refers to, so handing it to a second decision
+  turns every existing `ADR-00NN` mention into a silent pointer at the wrong record. Take the next
+  free number, and leave the gaps.
+- Renumbering an ADR is not a rename — it is a rename **plus** repointing everything that refers to
+  the old number, in the same change: links, module docs, and source comments. `yarn check:doc-links`
+  catches the links and the ADR links whose label and target disagree; bare `ADR-00NN` prose carries
+  no target, so nothing can catch those and they have to be read.
 
 ## Verifying a change
 
