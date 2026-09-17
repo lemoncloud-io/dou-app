@@ -80,8 +80,14 @@ viewport it is actually attached to.
   card. `dialog` and `alert-dialog`'s `default` variant declare
   `--dialog-width: min(311px, calc(100% - 48px), var(--app-width))`: 311 is the design width, and
   `100% - 48px` keeps 24px either side once the device is narrower than the card. The eight
-  disagreeing call-site widths are deleted; 311 wins over 288 because widening a card by 23px is
-  invisible while narrowing one moves away from the design.
+  disagreeing call-site widths are deleted.
+
+    311 over 288 is not a preference between two candidate widths. Checked against the design, the
+    card frame is 311 and 288 is the **content box inside it**, inset 11.5px either side — the two
+    numbers were never alternatives, and the five call sites using 288 had been sizing the card to
+    its own contents and losing the padding. This is what a width copied by hand from the wrong frame
+    looks like, and it is the argument for the number living in one place.
+
 - **Popovers and dropdowns anchor to their trigger**, neither the column nor the viewport.
 
 The scoping deserves its own note, because it is what makes a width rule safe to put in a library
