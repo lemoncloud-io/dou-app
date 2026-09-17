@@ -27,7 +27,7 @@
     "mobile:start": "npx dotenv -e apps/mobile/.env -- npx nx start mobile --reset-cache",
     "mobile:pod": "npx nx pod-install mobile",
     "!mobile-local": "------------- Mobile local run scripts -------------",
-    "mobile:local:check": "test -f apps/mobile/.env || (echo '' && echo '  Missing apps/mobile/.env - the local run needs it.' && echo '' && echo '    cp apps/mobile/.env.example apps/mobile/.env' && echo '' && echo '  See apps/mobile/docs/local-run.md' && echo '' && exit 1)",
+    "mobile:local:check": "test -f apps/mobile/.env || (echo '' && echo '  Missing apps/mobile/.env - the local run needs it.' && echo '' && echo '    cp apps/mobile/.env.example apps/mobile/.env' && echo '' && echo '  See apps/mobile/docs/release/local-run.md' && echo '' && exit 1)",
     "mobile:ios:local": "yarn mobile:local:check && concurrently --kill-others-on-fail -n web,metro,ios -c blue,magenta,green \"yarn web:start\" \"yarn mobile:start\" \"yarn mobile:ios:local:run\"",
     "mobile:android:local": "yarn mobile:local:check && concurrently --kill-others-on-fail -n web,metro,android -c blue,magenta,green \"yarn web:start\" \"yarn mobile:start\" \"yarn mobile:android:local:run\"",
     "mobile:ios:local:run": "npx nx run-ios mobile --scheme \"Chatic Dev\" --mode \"Debug Dev\" --simulator=\"iPhone 17 Pro\" --extra-params \"ENVFILE=.env\"",
