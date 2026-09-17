@@ -117,7 +117,7 @@ export const EditPlaceProfileDialog = () => {
 
     return (
         <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent closeLabel={t('common.close')} className="sm:max-w-md">
                 <div className="flex flex-wrap items-center gap-2">
                     <DialogTitle>{t('profile.place.title')}</DialogTitle>
                     {placeName && <PlaceChip name={placeName} />}

@@ -105,7 +105,10 @@ export const SearchDialog = ({ channels, onSelect, onJumpToMessage }: SearchDial
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
-            <DialogContent className="top-[15%] max-h-[70vh] translate-y-0 gap-2 overflow-hidden p-2 sm:max-w-lg">
+            <DialogContent
+                closeLabel={t('common.close')}
+                className="top-[15%] max-h-[70vh] translate-y-0 gap-2 overflow-hidden p-2 sm:max-w-lg"
+            >
                 <DialogTitle className="sr-only">{t('search.title')}</DialogTitle>
                 {/* The scope, not the title again: a screen reader announced the same
                     four words twice on open and learned nothing from the second. */}

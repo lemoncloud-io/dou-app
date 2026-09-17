@@ -62,7 +62,7 @@ export const RenameChannelDialog = ({ open, onOpenChange, channelId, currentName
 
     return (
         <Dialog open={open} onOpenChange={next => !isMutating && onOpenChange(next)}>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent closeLabel={t('common.close')} className="sm:max-w-md">
                 <DialogTitle>{t('channels.rename.title')}</DialogTitle>
                 <DialogDescription className="sr-only">{t('channels.rename.title')}</DialogDescription>
                 <form onSubmit={handleSubmit} className="flex flex-col gap-4 pt-2">

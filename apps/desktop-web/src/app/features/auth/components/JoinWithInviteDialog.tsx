@@ -48,7 +48,7 @@ export const JoinWithInviteDialog = () => {
 
     return (
         <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent closeLabel={t('common.close')} className="sm:max-w-md">
                 <DialogTitle>{t('auth.join.title')}</DialogTitle>
                 <DialogDescription>{t('auth.join.subtitle')}</DialogDescription>
                 <form onSubmit={handleSubmit} className="flex flex-col gap-4 pt-2">

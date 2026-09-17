@@ -83,7 +83,7 @@ export const ShortcutsDialog = () => {
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
-            <DialogContent className="sm:max-w-sm">
+            <DialogContent closeLabel={t('common.close')} className="sm:max-w-sm">
                 <DialogTitle>{t('shortcuts.title')}</DialogTitle>
                 <DialogDescription className="sr-only">{t('shortcuts.title')}</DialogDescription>
                 <ul className="flex flex-col gap-2 pt-2">

@@ -61,7 +61,7 @@ export const CreateChannelDialog = () => {
 
     return (
         <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent closeLabel={t('common.close')} className="sm:max-w-md">
                 <DialogTitle>{t('channels.create.title')}</DialogTitle>
                 <DialogDescription className="sr-only">{t('channels.create.title')}</DialogDescription>
                 <form onSubmit={handleSubmit} className="flex flex-col gap-4 pt-2">

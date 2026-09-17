@@ -125,22 +125,28 @@ export const DesktopLayout = ({ rail, rail2, sidebar, main, panel, overlay }: De
                 {drawerOpen && (
                     <div aria-hidden onClick={close} className="absolute inset-0 z-20 bg-overlay/40 animate-fade-in" />
                 )}
-                <aside
-                    ref={sidebarWidth.panelRef}
-                    // A drawer is a fixed-width overlay: the drag handle belongs to the
-                    // docked column, where there is a neighbour to trade width with.
-                    style={isDrawer ? undefined : { width: sidebarWidth.width }}
-                    hidden={isDrawer && !isOpen}
-                    tabIndex={drawerOpen ? -1 : undefined}
-                    className={
-                        isDrawer
-                            ? 'absolute inset-y-0 left-0 z-30 flex w-[286px] max-w-[85%] flex-col overflow-hidden border-r border-hairline bg-sidebar text-sidebar-foreground shadow-raised'
-                            : 'relative z-10 flex shrink-0 flex-col overflow-hidden border-x border-hairline bg-sidebar text-sidebar-foreground'
-                    }
-                >
-                    {sidebar}
-                    {!isDrawer && <PanelResizeHandle label={t('sidebar.resize')} panel={sidebarWidth} />}
-                </aside>
+                {/* Unmounted while the drawer is shut, rather than hidden: the column's
+                    own `flex` utility outranks the `hidden` attribute, so a hidden
+                    drawer stayed on screen over the conversation and swallowed its
+                    clicks. Nothing needs it mounted either — the channel list streams
+                    from the cache and repaints instantly when it opens. */}
+                {(!isDrawer || isOpen) && (
+                    <aside
+                        ref={sidebarWidth.panelRef}
+                        // A drawer is a fixed-width overlay: the drag handle belongs to the
+                        // docked column, where there is a neighbour to trade width with.
+                        style={isDrawer ? undefined : { width: sidebarWidth.width }}
+                        tabIndex={drawerOpen ? -1 : undefined}
+                        className={
+                            isDrawer
+                                ? 'absolute inset-y-0 left-0 z-30 flex w-[286px] max-w-[85%] flex-col overflow-hidden border-r border-hairline bg-sidebar text-sidebar-foreground shadow-raised animate-fade-in'
+                                : 'relative z-10 flex shrink-0 flex-col overflow-hidden border-x border-hairline bg-sidebar text-sidebar-foreground'
+                        }
+                    >
+                        {sidebar}
+                        {!isDrawer && <PanelResizeHandle label={t('sidebar.resize')} panel={sidebarWidth} />}
+                    </aside>
+                )}
                 {/* A floor on the conversation itself, not only on each panel: the
                 sidebar and a docked trailing panel clamp independently, so only a
                 min-width here keeps the message column from being squeezed out

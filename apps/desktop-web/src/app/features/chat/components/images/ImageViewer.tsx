@@ -85,6 +85,7 @@ export const ImageViewer = ({
     return (
         <Dialog open={isOpen && !!current} onOpenChange={open => !open && onClose()}>
             <DialogContent
+                closeLabel={t('common.close')}
                 variant="bare"
                 hideClose
                 // Figma: the app stays visible behind the viewer, frosted rather than blacked out.

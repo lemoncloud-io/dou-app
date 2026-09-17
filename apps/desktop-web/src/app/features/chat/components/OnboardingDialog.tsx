@@ -60,7 +60,7 @@ export const OnboardingDialog = ({ enabled, showChannelStatus, isChannelReady }:
 
     return (
         <Dialog open={open} onOpenChange={isOpen => !isOpen && setOpen(false)}>
-            <DialogContent className="sm:max-w-sm">
+            <DialogContent closeLabel={t('common.close')} className="sm:max-w-sm">
                 {step === 1 ? (
                     <>
                         {stepLabel}
@@ -93,7 +93,9 @@ export const OnboardingDialog = ({ enabled, showChannelStatus, isChannelReady }:
                     <>
                         {stepLabel}
                         <DialogTitle>{t('onboarding.tips.title')}</DialogTitle>
-                        <DialogDescription className="sr-only">{t('onboarding.tips.title')}</DialogDescription>
+                        {/* The title was also the description, so the card said its own
+                            heading twice and a screen reader read it twice. */}
+                        <DialogDescription>{t('onboarding.tips.body')}</DialogDescription>
                         <ul className="flex flex-col gap-2 pt-2 text-sm text-foreground">
                             <li>{t('onboarding.tips.send')}</li>
                             {/* What the rail and the switcher are for: the two things a

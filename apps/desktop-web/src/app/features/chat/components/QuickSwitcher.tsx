@@ -113,7 +113,7 @@ export const QuickSwitcher = ({ channels, onSelect, elsewhere = [], onSelectElse
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
-            <DialogContent className="top-[20%] translate-y-0 gap-2 p-2 sm:max-w-md">
+            <DialogContent closeLabel={t('common.close')} className="top-[20%] translate-y-0 gap-2 p-2 sm:max-w-md">
                 <DialogTitle className="sr-only">{t('switcher.title')}</DialogTitle>
                 <DialogDescription className="sr-only">{t('switcher.hint')}</DialogDescription>
                 <div className="flex items-center gap-2 border-b border-hairline px-2 pb-2">
