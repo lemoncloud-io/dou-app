@@ -149,9 +149,11 @@ silently. The `430` grep exists because this already happened once.
 `max-w-[…]` wins the merge and quietly leaves the shared rule. Nothing fails loudly. This is the
 specific mistake to look for in review of a new dialog.
 
-**`SubscriptionRequiredDialog` is a known duplicate.** It is a hand-rolled portal rather than a
-`DialogContent`, so it cannot inherit the variant and repeats the expression with a comment saying
-so. Moving it onto the shared primitive would remove the duplication and is worth doing separately.
+**Two dialogs are known duplicates.** `SubscriptionRequiredDialog` and `CloudManagePage`'s delete
+confirmation are hand-rolled overlays rather than `DialogContent`, so neither can inherit the
+variant, and each repeats the expression with a comment saying so. Moving both onto the shared
+primitive would remove the duplication and is worth doing separately — until then the number exists
+in three places, which is exactly the condition this decision set out to remove.
 
 **The desktop invariant is now structural but still shared.** `apps/desktop-web` is protected by a
 fallback rather than by separation, so any future edit to these primitives has to preserve the
