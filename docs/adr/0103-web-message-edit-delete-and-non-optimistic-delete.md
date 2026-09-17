@@ -1,4 +1,4 @@
-# ADR: message edit/delete on `apps/web`, shared predicates, and a delete that waits for the server
+# ADR-0103: message edit/delete on `apps/web`, shared predicates, and a delete that waits for the server
 
 > Status: Accepted · Decided: 2026-09-17
 > Scope: `apps/web/src/app/features/channels/**` · `apps/web/public/locales/{ko,en}/translation.json` ·
@@ -136,6 +136,25 @@ The test step excluded `web` because 7 of its 2720 tests failed, so every change
 verified by whoever remembered to run jest. All 7 were stale tests, not product bugs; they were
 fixed and `web` came off the exclusion list. This was scope this work did not need and took anyway
 — without it, a green CI says nothing about a change that is almost entirely `apps/web`.
+
+## Alternatives
+
+**Where the edit/delete predicates live.** Copying the rules into `apps/web` would have left two
+copies with no canonical one, both inside apps. Lifting desktop's copies into the shared layer is
+the clean end state but requires changing `apps/desktop-web`, which was out of scope. What was taken
+is the third: the canonical copy in the shared layer, with only `apps/web` moved onto it. Two copies
+still exist and the cost is real — edit the desktop copy and the same message behaves differently on
+two devices. Only a comment in the shared file names which one is canonical, which is discipline
+rather than a mechanism.
+
+**Keeping the delete optimistic.** Writing the tombstone before the server answers reads faster, but
+the cache write merges rather than replaces, so a failed request cannot be rolled back to the exact
+previous record. A delete that reports success and then quietly reappears is worse than one that
+waits, so the round trip is paid for and the dialog reports it.
+
+**A second action surface instead of a longer sheet.** The sheet's row count was previously treated
+as an invariant. A separate surface for edit/delete on a phone is worse than a sheet that is
+sometimes longer, so the new rows are appended below the existing two, which keep their positions.
 
 ## Consequences
 

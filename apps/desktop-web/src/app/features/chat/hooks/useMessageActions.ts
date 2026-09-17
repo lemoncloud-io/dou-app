@@ -13,10 +13,18 @@ import { runtime } from '@chatic/app-runtime';
  * two operations it was, because "couldn't save that change" is the wrong thing to say
  * about a delete that did not go through.
  *
- * Both operations go straight to the chat repository, which already writes the change
- * to the local cache before the request and restores the previous record if it fails —
- * the optimistic contract this app relies on everywhere. Repeating that here would give
- * the cache two writers racing over one row.
+ * Both operations go straight to the chat repository, and the two no longer behave the
+ * same way there. An edit is still optimistic: the repository writes it to the local
+ * cache before the request and restores the previous record if it fails. A delete is
+ * NOT — the repository writes nothing until the server answers, because the cache write
+ * merges rather than replaces and so cannot roll a tombstone back to the exact previous
+ * record. Either way, repeating the write here would give the cache two writers racing
+ * over one row.
+ *
+ * The consequence for this surface: between the press and the server's answer nothing
+ * visibly changes, and this hook does not expose the in-flight state that would let the
+ * row say so. `apps/web` does (its confirm dialog stays up and spins). Until that is
+ * matched here, a slow delete looks like a press that did nothing.
  *
  * Delete is a soft delete on both sides: the server maps `chat.delete` to
  * `PUT { hidden: true }` and the repository marks the cached row rather than dropping
