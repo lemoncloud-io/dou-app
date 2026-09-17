@@ -210,6 +210,7 @@ const resources = {
             'sidebar.search': 'Search channels',
             'sidebar.channels': 'Channels',
             'sidebar.resize': 'Resize sidebar',
+            'sidebar.show': 'Show channels',
             'sidebar.favorites': 'Favorites',
             'sidebar.draft': 'Draft',
             'sidebar.markRead': 'Mark as read',

@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { runtime } from '@chatic/app-runtime';
 import { placeScopeKey, usePinnedChannels } from '@chatic/shared';
 
-import { Hash, Search, Star, User } from 'lucide-react';
+import { Hash, PanelLeft, Search, Star, User } from 'lucide-react';
 
 import type { DomainChannel, DomainChat } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
@@ -34,6 +34,7 @@ import { useThreadStore } from '../stores';
 import { ChannelHeaderMenu } from './ChannelHeaderMenu';
 import { ChannelIntro } from './ChannelIntro';
 import { Composer } from './Composer';
+import { useShellSidebar } from './DesktopLayout';
 import { JumpReturnBar } from './JumpReturnBar';
 import { MessageList } from './MessageList';
 import { HEADER_ICON_BUTTON } from './headerStyles';
@@ -57,6 +58,7 @@ interface ChatPaneProps {
 export const ChatPane = ({ channel, members, membersLoading, readCountOf, jumpReturn }: ChatPaneProps) => {
     const { t } = useTranslation();
     const channelId = channel?.id ?? null;
+    const shell = useShellSidebar();
     const myUid = runtime.session.useSessionIdentity().userId;
     // Identity for naming own/optimistic messages (guest-UUID guard + per-channel
     // cloud id) — shared with the thread panel via useMessageViewer.
@@ -202,6 +204,21 @@ export const ChatPane = ({ channel, members, membersLoading, readCountOf, jumpRe
                     open channel is what this screen is about, so it names the page. */}
                 <h1 className="sr-only">{headerName}</h1>
                 <div className="flex min-w-0 items-center gap-3.5">
+                    {/* Only reachable route to the channel list once the sidebar is a
+                        drawer; absent from the docked layout, where it would do nothing. */}
+                    {shell.isDrawer && (
+                        <Hint label={t('sidebar.show')}>
+                            <button
+                                type="button"
+                                onClick={shell.open}
+                                aria-label={t('sidebar.show')}
+                                aria-expanded={shell.isOpen}
+                                className={HEADER_ICON_BUTTON}
+                            >
+                                <PanelLeft size={16} aria-hidden />
+                            </button>
+                        </Hint>
+                    )}
                     <Hint label={desc ? `${t('chat.header.settings')} — ${desc}` : t('chat.header.settings')}>
                         <button
                             type="button"

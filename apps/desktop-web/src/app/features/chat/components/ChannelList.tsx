@@ -394,6 +394,12 @@ export const ChannelList = ({
         makeSectionReorder('ch')(moveChannel(ids, id, from + delta, ids).map(orderedId => `ch:${orderedId}`));
     };
     const onKeyDown = (e: React.KeyboardEvent) => {
+        // The quick switcher and the search dialog are React children of this nav, but
+        // they render through a portal — so their keystrokes bubble here in the React
+        // tree while sitting outside it in the DOM. Without this guard, ArrowDown inside
+        // an open dialog moved focus to a sidebar row behind the modal, and the next
+        // Enter switched channel instead of opening the result.
+        if (!e.currentTarget.contains(e.target as Node)) return;
         if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
         const chord = sidebarMoveChord(e);
         if (chord !== null) {
