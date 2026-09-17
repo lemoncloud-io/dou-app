@@ -185,7 +185,9 @@ export const DesktopRuntime = () => {
                         <AppRouter />
                     </div>
                 </div>
-                <Toaster />
+                {/* Below the 56px conversation header, so a toast never covers the title
+                    or the header actions it may be reporting on. */}
+                <Toaster viewportClassName="top-14" />
             </TooltipProvider>
         </runtime.connection.RuntimeAuthHost>
     );

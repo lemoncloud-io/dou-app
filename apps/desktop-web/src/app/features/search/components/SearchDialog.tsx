@@ -41,7 +41,7 @@ interface SearchDialogProps {
      * row can only open its channel, which drops the reader at the latest
      * message instead of the one they searched for.
      */
-    onJumpToMessage?: (channelId: string, chatNo: number) => void;
+    onJumpToMessage?: (channelId: string, chatNo: number, threadRootId?: string) => void;
 }
 
 /**
@@ -78,7 +78,7 @@ export const SearchDialog = ({ channels, onSelect, onJumpToMessage }: SearchDial
 
     // One flat option list — each channel header, then its matches — so the
     // arrows walk every result in the order it is drawn.
-    type Option = { key: string; channelId: string; chatNo?: number };
+    type Option = { key: string; channelId: string; chatNo?: number; threadRootId?: string };
     const options: Option[] = results.flatMap(result => {
         const channelId = result.channel.id ?? '';
         return [
@@ -87,6 +87,9 @@ export const SearchDialog = ({ channels, onSelect, onJumpToMessage }: SearchDial
                 key: `m:${channelId}:${chat.id ?? chat.tempId ?? chat.chatNo}`,
                 channelId,
                 chatNo: chat.chatNo,
+                // A reply lives in its thread panel; the main feed never renders it,
+                // so scrolling the feed for it could only fail.
+                threadRootId: chat.parentId || undefined,
             })),
         ];
     });
@@ -95,8 +98,11 @@ export const SearchDialog = ({ channels, onSelect, onJumpToMessage }: SearchDial
     // it scrolls to the matched message rather than the channel's latest one.
     const pick = (option: Option | undefined) => {
         if (option?.channelId) {
-            if (option.chatNo != null && onJumpToMessage) onJumpToMessage(option.channelId, option.chatNo);
-            else onSelect(option.channelId);
+            if (option.chatNo != null && onJumpToMessage) {
+                onJumpToMessage(option.channelId, option.chatNo, option.threadRootId);
+            } else {
+                onSelect(option.channelId);
+            }
         }
         setOpen(false);
     };
@@ -135,12 +141,9 @@ export const SearchDialog = ({ channels, onSelect, onJumpToMessage }: SearchDial
                 {trimmed.length < 2 ? (
                     <p className="px-3 py-4 text-center text-caption text-muted-foreground">{t('search.hint')}</p>
                 ) : showEmpty ? (
-                    <div className="px-3 py-4 text-center">
-                        <p className="text-caption text-foreground">{t('search.noResults')}</p>
-                        {/* A cache-only search produces false negatives, and a bare
-                            "no results" lets someone conclude the message is gone. */}
-                        <p className="mt-1 text-caption text-muted-foreground">{t('search.noResultsHint')}</p>
-                    </div>
+                    // The footer below already states the cache-only scope; saying it here
+                    // too made the same caveat the loudest thing in the dialog.
+                    <p className="px-3 py-4 text-center text-caption text-foreground">{t('search.noResults')}</p>
                 ) : (
                     <div
                         id={nav.listboxId}

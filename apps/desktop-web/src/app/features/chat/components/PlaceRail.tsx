@@ -150,7 +150,7 @@ export const PlaceRail = ({
         if (taps.count >= 7) {
             taps.count = 0;
             const next = toggleDebug();
-            toast({ title: next ? '🛠️ Debug mode ON' : 'Debug mode OFF' });
+            toast({ variant: 'info', title: t(next ? 'debug.mode.on' : 'debug.mode.off') });
         }
     };
 

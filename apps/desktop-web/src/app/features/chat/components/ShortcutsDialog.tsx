@@ -3,12 +3,9 @@ import { useTranslation } from 'react-i18next';
 
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 
+import { ALT_KEY as ALT, MOD_KEY as MOD } from '../../../shared';
 import { useShortcutsDialogStore } from '../stores';
 import { isTypingTarget } from '../utils';
-
-const isMac = typeof navigator !== 'undefined' && navigator.platform.toLowerCase().includes('mac');
-const MOD = isMac ? '⌘' : 'Ctrl';
-const ALT = isMac ? '⌥' : 'Alt';
 
 const Kbd = ({ children }: { children: ReactNode }) => (
     <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
@@ -18,7 +15,7 @@ const Kbd = ({ children }: { children: ReactNode }) => (
 
 /**
  * Press "?" (or Mod+/) anywhere outside a text field to toggle a cheat sheet of
- * the app's keyboard shortcuts; the profile menu opens it too. Mounted once at
+ * the app's keyboard shortcuts; Settings opens it too. Mounted once at
  * the router, so it works on /settings and /profile — it used to live on the
  * home route only, where the key did nothing anywhere else.
  */

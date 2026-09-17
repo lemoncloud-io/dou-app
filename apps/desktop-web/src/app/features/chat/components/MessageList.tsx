@@ -414,7 +414,7 @@ export const MessageList = ({
         // eight pages, with no highlight and no hint that the target was not found.
         if (!hasMore || jumpRef.current.pages >= MAX_JUMP_PAGES) {
             jumpRef.current.done = true;
-            toast({ description: t('chat.jump.notFound') });
+            toast({ variant: 'info', description: t('chat.jump.notFound') });
             onJumpConsumed?.();
         }
     }, [jumpTarget, messages, hasMore, isLoadingOlder, onLoadOlder, onJumpConsumed, t]);

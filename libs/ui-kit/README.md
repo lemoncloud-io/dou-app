@@ -148,7 +148,9 @@ Three files hold something the name does not give away:
 - `toaster.tsx` is the mount point, rendered once per app in `AppRuntime` / `DesktopRuntime`. It is
   fully rewritten against `toast.tsx` and shares only its name with the generator's version. It also
   sets the dismiss timer for every app at once (5s): long enough to read a sentence and press an
-  Undo, which the earlier 1.5s was not.
+  Undo, which the earlier 1.5s was not. A toast is `default` (success check), `destructive`, or
+  `info` (a notice that is neither, which must not wear the check). `viewportClassName` lets an app
+  hold toasts clear of its own header.
 - `utils/index.ts` is where the `font-size` class group is registered with `tailwind-merge`, which
   is the reason `cn` is a wrapper rather than a re-export.
 

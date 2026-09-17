@@ -92,7 +92,7 @@ const ComposerInner = ({
         // No upload API on the server yet: refuse the whole send rather than drop the
         // images silently or post their text without them. The text and the tray stay.
         if (attachments.length > 0) {
-            toast({ description: t('chat.attach.unavailable') });
+            toast({ variant: 'info', description: t('chat.attach.unavailable') });
             return;
         }
         onSend(markdown);

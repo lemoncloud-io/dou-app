@@ -21,6 +21,15 @@ const MAX_MATCHES_PER_CHANNEL = 3;
 export const SEARCH_MAX_CHANNELS = 30;
 
 /**
+ * A row a search may return. Reaction events are chats too, and a deleted
+ * message keeps its text in the cache while the feed shows a tombstone, so
+ * neither may surface as a hit. Thread replies stay: the dialog opens their
+ * thread rather than scrolling the main feed, which never renders them.
+ */
+const isSearchable = (q: string) => (chat: DomainChat) =>
+    chat.subType !== 'reaction' && !chat.hidden && messagePlainText(chat.content).toLowerCase().includes(q);
+
+/**
  * Local message search over the engine's chat cache (no search endpoint exists
  * server-side — same approach as apps/web). Each channel's most recent cached
  * page is read with `cacheReadList` (local only), so typing never fans out
@@ -47,7 +56,7 @@ export const useMessageSearch = (query: string, channels: DomainChannel[]) => {
                     const page = await chatRepository
                         .cacheReadList({ channelId: channel.id, limit: PER_CHANNEL_LIMIT })
                         .catch(() => null);
-                    const all = (page?.list ?? []).filter(c => messagePlainText(c.content).toLowerCase().includes(q));
+                    const all = (page?.list ?? []).filter(isSearchable(q));
                     if (all.length === 0) return null;
                     const matches = [...all]
                         .sort((a, b) => (b.chatNo ?? 0) - (a.chatNo ?? 0))

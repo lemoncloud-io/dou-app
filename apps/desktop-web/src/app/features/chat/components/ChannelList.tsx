@@ -42,7 +42,7 @@ interface ChannelListProps {
     query: string;
     onSelect: (channelId: string) => void;
     /** Scroll the feed to one message — the search dialog's match rows use it. */
-    onJumpToMessage?: (channelId: string, chatNo: number) => void;
+    onJumpToMessage?: (channelId: string, chatNo: number, threadRootId?: string) => void;
     /** Channels in the cloud's other places, for the quick switcher. */
     elsewhereChannels?: ElsewhereChannel[];
     /** Open a channel that lives in another place (switches place first). */

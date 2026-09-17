@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { runtime } from '@chatic/app-runtime';
 
-import { JoinWithInviteDialog } from '../../auth';
+import { JoinWithInviteDialog, useJoinDialogStore } from '../../auth';
 import {
     ChannelSettingsPanel,
     CreateChannelDialog,
@@ -492,8 +492,20 @@ export const HomePage = () => {
 
     // jumpToSaved closes over render state; the ref keeps the handler identity fixed
     // while always calling the current one.
+    const openJoinDialog = useJoinDialogStore(s => s.open);
+    const chatEmptyState = useMemo(
+        () =>
+            isLoading || channels.length > 0
+                ? ({ mode: 'pick' } as const)
+                : isDefaultMode
+                  ? ({ mode: 'join', onAction: openJoinDialog } as const)
+                  : ({ mode: 'create', onAction: openCreateChannel } as const),
+        [isLoading, channels.length, isDefaultMode, openJoinDialog, openCreateChannel]
+    );
+
     const jumpFromSearch = useCallback(
-        (channelId: string, chatNo: number) => jumpToSavedRef.current(channelId, chatNo),
+        (channelId: string, chatNo: number, threadRootId?: string) =>
+            jumpToSavedRef.current(channelId, chatNo, undefined, threadRootId),
         []
     );
 
@@ -620,6 +632,7 @@ export const HomePage = () => {
                         membersLoading={membersLoading}
                         readCountOf={readCountOf}
                         jumpReturn={jumpReturn}
+                        emptyState={chatEmptyState}
                     />
                 }
                 panel={

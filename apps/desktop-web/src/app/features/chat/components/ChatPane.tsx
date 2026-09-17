@@ -4,14 +4,16 @@ import { useTranslation } from 'react-i18next';
 import { runtime } from '@chatic/app-runtime';
 import { placeScopeKey, usePinnedChannels } from '@chatic/shared';
 
-import { Hash, PanelLeft, Search, Star, User } from 'lucide-react';
+import { Hash, PanelLeft, Plus, Search, Star, Ticket, User } from 'lucide-react';
 
 import type { DomainChannel, DomainChat } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
+import { Button } from '@chatic/ui-kit/components/ui/button';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import {
     Hint,
+    MOD_KEY,
     dmCounterpartId,
     displayName,
     isDmChannel,
@@ -53,9 +55,22 @@ interface ChatPaneProps {
      * host, which owns both the channel list (for the name) and the jump itself.
      */
     jumpReturn?: { originName: string; onReturn: () => void; onDismiss: () => void };
+    /**
+     * What the pane offers with no channel open. `pick` when the sidebar has
+     * channels, `create` when this place has none, `join` on the Default Cloud,
+     * which cannot create channels: there the only next step is an invite.
+     */
+    emptyState?: { mode: 'pick' | 'create' | 'join'; onAction?: () => void };
 }
 
-export const ChatPane = ({ channel, members, membersLoading, readCountOf, jumpReturn }: ChatPaneProps) => {
+export const ChatPane = ({
+    channel,
+    members,
+    membersLoading,
+    readCountOf,
+    jumpReturn,
+    emptyState = { mode: 'pick' },
+}: ChatPaneProps) => {
     const { t } = useTranslation();
     const channelId = channel?.id ?? null;
     const shell = useShellSidebar();
@@ -157,8 +172,31 @@ export const ChatPane = ({ channel, members, membersLoading, readCountOf, jumpRe
                 <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-2xl font-semibold text-primary-ink">
                     #
                 </div>
-                <p className="text-heading text-foreground">{t('chat.empty')}</p>
-                <p className="max-w-xs text-caption text-muted-foreground">{t('chat.emptyHint')}</p>
+                <p className="text-heading text-foreground">{t(`chat.empty.${emptyState.mode}.title`)}</p>
+                <p className="max-w-xs text-caption text-muted-foreground">
+                    {t(`chat.empty.${emptyState.mode}.hint`, { mod: MOD_KEY })}
+                </p>
+                {emptyState.mode !== 'pick' && emptyState.onAction && (
+                    <Button className="focus-ring tactile mt-1 transition-colors" onClick={emptyState.onAction}>
+                        {emptyState.mode === 'create' ? (
+                            <Plus size={16} aria-hidden />
+                        ) : (
+                            <Ticket size={16} aria-hidden />
+                        )}
+                        {t(`chat.empty.${emptyState.mode}.action`)}
+                    </Button>
+                )}
+                {/* A drawer hides the list this copy points at. */}
+                {emptyState.mode === 'pick' && shell.isDrawer && (
+                    <Button
+                        variant="outline"
+                        className="focus-ring tactile mt-1 transition-colors"
+                        onClick={shell.open}
+                    >
+                        <PanelLeft size={16} aria-hidden />
+                        {t('sidebar.show')}
+                    </Button>
+                )}
             </div>
         );
     }

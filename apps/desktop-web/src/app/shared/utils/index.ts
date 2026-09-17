@@ -19,3 +19,4 @@ export * from './parsePushDeeplink';
 export * from './getAppVersion';
 export * from './electronApi';
 export * from './errors';
+export * from './platformKeys';

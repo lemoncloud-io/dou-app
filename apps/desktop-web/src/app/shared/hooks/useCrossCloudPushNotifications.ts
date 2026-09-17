@@ -127,7 +127,9 @@ const presentPush = async (
     // pending-open target (NotificationOpenListener routes home, HomePage switches
     // cloud/place → channel). The resolved source cloud is a no-op when already active.
     const channelId = data.channelId;
+    // A message from elsewhere is news, not a success: no check mark.
     toast({
+        variant: 'info',
         title: headline(data.channelName, 'DoU'),
         description: body ?? '',
         className: channelId ? 'cursor-pointer' : undefined,
