@@ -42,3 +42,29 @@ export const extractErrorMessage = (error: any): string => {
 
     return DEFAULT_ERROR_MESSAGE;
 };
+
+/** What a backend failure means, as far as its wire text says. */
+export type WireErrorKind = 'expired' | 'notFound' | 'conflict' | 'denied' | 'network' | 'invalid' | 'unknown';
+
+/**
+ * Classify a backend's wire text, e.g. `403 NOT ALLOWED - action[update] is
+ * invalid @doPut(...)`. That text is useful in a console and useless in front
+ * of a person, so callers map the kind to a sentence of their own and keep the
+ * raw text for the log.
+ *
+ * Status codes match as whole numbers only: the text carries ids such as
+ * `channels/U:1000404`. The order matters where one text carries two signals.
+ * An expired invite is also reported as invalid, and a wrong code arrives as
+ * `400 INVALID ... (not-found)`, so the specific kinds are tested first and a
+ * bare 400 last.
+ */
+export const classifyWireError = (raw: string): WireErrorKind => {
+    const text = raw.toUpperCase();
+    if (text.includes('EXPIRED')) return 'expired';
+    if (/\b404\b/.test(text) || text.includes('NOT FOUND') || text.includes('NOT-FOUND')) return 'notFound';
+    if (/\b409\b/.test(text) || text.includes('CONFLICT') || text.includes('ALREADY')) return 'conflict';
+    if (/\b403\b/.test(text) || text.includes('NOT ALLOWED') || text.includes('FORBIDDEN')) return 'denied';
+    if (text.includes('NETWORK') || text.includes('TIMEOUT') || text.includes('FAILED TO FETCH')) return 'network';
+    if (/\b400\b/.test(text) || text.includes('INVALID')) return 'invalid';
+    return 'unknown';
+};

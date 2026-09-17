@@ -1,5 +1,7 @@
 import { logger } from '@chatic/bridges';
 
+import { classifyWireError, type WireErrorKind } from '../../../shared';
+
 /**
  * Invite-login failure surfaced to the user. Two shapes:
  *  - `format` — the pasted input never reached the backend (local parse fail),
@@ -37,38 +39,25 @@ type InviteErrorKey =
     | 'auth.invite.failed.generic';
 
 /**
- * Classify the server's wire text. It used to be printed verbatim, so a mistyped
- * code produced `400 INVALID - @code[invt:bogus] is invalid (not-found)` in the
- * dialog: it reads as a crash, and it does not tell anyone what to do. The raw
- * text still reaches the console, where it is the useful thing.
- *
- * Whole-number codes only, and an unrecognised failure takes the generic line
- * rather than leaking the wire text.
+ * A mistyped code used to print the server's wire text verbatim
+ * (`400 INVALID - @code[invt:bogus] is invalid (not-found)`), which reads as a
+ * crash and says nothing about what to do. An unrecognised failure takes the
+ * generic line rather than leaking it; the raw text still reaches the console.
+ * A bare 400 means the code was not accepted, so it reads as not found.
  */
-const serverErrorKey = (raw: string): InviteErrorKey => {
-    const text = raw.toUpperCase();
-    if (text.includes('EXPIRED')) return 'auth.invite.failed.expired';
-    // The one the backend answers a wrong or revoked code with, `(not-found)`
-    // inside a 400, so the code test alone would send it to the generic line.
-    if (/\b404\b/.test(text) || text.includes('NOT FOUND') || text.includes('NOT-FOUND')) {
-        return 'auth.invite.failed.notFound';
-    }
-    if (/\b409\b/.test(text) || text.includes('CONFLICT') || text.includes('ALREADY')) {
-        return 'auth.invite.failed.already';
-    }
-    if (/\b403\b/.test(text) || text.includes('NOT ALLOWED') || text.includes('FORBIDDEN')) {
-        return 'auth.invite.failed.denied';
-    }
-    if (text.includes('NETWORK') || text.includes('TIMEOUT') || text.includes('FAILED TO FETCH')) {
-        return 'auth.invite.failed.network';
-    }
-    if (/\b400\b/.test(text) || text.includes('INVALID')) return 'auth.invite.failed.notFound';
-    return 'auth.invite.failed.generic';
+const KEY_BY_KIND: Record<WireErrorKind, InviteErrorKey> = {
+    expired: 'auth.invite.failed.expired',
+    notFound: 'auth.invite.failed.notFound',
+    invalid: 'auth.invite.failed.notFound',
+    conflict: 'auth.invite.failed.already',
+    denied: 'auth.invite.failed.denied',
+    network: 'auth.invite.failed.network',
+    unknown: 'auth.invite.failed.generic',
 };
 
 /** Resolve the user-facing line for an invite-login error. */
 export const inviteLoginErrorText = (error: InviteLoginError, t: (key: string) => string): string => {
     if (error.kind === 'format') return t('auth.invite.failed.format');
     logger.error('AUTH', '[InviteLogin] rejected', { raw: error.message });
-    return t(serverErrorKey(error.message));
+    return t(KEY_BY_KIND[classifyWireError(error.message)]);
 };
