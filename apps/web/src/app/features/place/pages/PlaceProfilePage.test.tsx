@@ -16,6 +16,10 @@ jest.mock('@chatic/app-runtime', () => ({
         data: {
             useRuntimeRepositories: () => ({ profile: { setMyProfile } }),
         },
+        // The save names its place since ADR-0085; the page reads it here.
+        session: {
+            useSessionSelection: () => ({ selectedSiteId: 'active-site' }),
+        },
     },
 }));
 jest.mock('../../../hooks', () => ({
