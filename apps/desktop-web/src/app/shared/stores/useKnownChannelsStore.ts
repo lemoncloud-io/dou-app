@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 /** One channel the user has seen, remembered so the switcher can offer it again. */
-export interface KnownChannel {
+interface KnownChannel {
     channelId: string;
     placeId: string;
     name: string;

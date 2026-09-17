@@ -26,8 +26,8 @@ const MENU_LABELS = {
     },
 } as const;
 
-export type MenuLabels = (typeof MENU_LABELS)[keyof typeof MENU_LABELS];
-
 /** @param locale what `app.getLocale()` returns, e.g. `ko-KR`. */
+type MenuLabels = (typeof MENU_LABELS)[keyof typeof MENU_LABELS];
+
 export const menuLabels = (locale: string): MenuLabels =>
     locale.toLowerCase().startsWith('ko') ? MENU_LABELS.ko : MENU_LABELS.en;
