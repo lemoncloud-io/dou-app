@@ -81,8 +81,10 @@ dark pane) and is underlined at rest. Sharing the accent made a link and a butto
 same colour, which spends the one thing the accent is for, and colour alone cannot carry
 "this is a link" inside body text (WCAG 1.4.1). Mobile web already read links as blue
 (`--point-blue` `#2A7EF4`); desktop's is a darker blue because that one measures 3.6:1 on
-white, under the body-text floor. `libs/block-kit` still resolves its own links to
-`primary-ink`; it renders inside both clients and has not been migrated.
+white, under the body-text floor. `libs/block-kit` links take `text-link` too, so every
+app that renders blocks defines `--link` (web keeps its blue, the builder previews
+desktop's). Block links still underline only on hover: underlining them at rest would
+change every message on mobile, which is a separate decision.
 
 ### Desktop palette (light, from Figma `247-10714`)
 
