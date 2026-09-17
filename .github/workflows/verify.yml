@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
     verify:
-        name: doc links · lint · typecheck · test
+        name: doc links · doc language · lint · typecheck · test
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
@@ -53,6 +53,11 @@ jobs:
             # across every tracked markdown file, so it runs first and fails fast.
             - name: Doc links
               run: yarn check:doc-links
+
+            # AGENTS.md's English policy, for the one surface nothing else in this file can see. Code
+            # comments carry the same rule but are a separate, much larger backlog — not gated yet.
+            - name: Doc language
+              run: yarn check:doc-korean
 
             # Green across all 26 projects, so no exclusions here.
             - name: Lint

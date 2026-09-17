@@ -19,6 +19,11 @@ Test names are not an exception. A name goes into CI logs and failure reports, w
 the surface this rule keeps in one language, and unlike a translation resource nothing breaks when
 it is in English. Names written before this was settled are left alone; new ones are English.
 
+- `yarn check:doc-korean` gates this for every tracked markdown file, `CHANGELOG.md` excepted (its
+  entries are a record of what a release said at the time). It does not flag a Korean UI string
+  quoted as data — `` `나와의 채팅` `` or `"두유 홈"` — only Korean prose. Code comments carry the same
+  rule but aren't gated yet; that backlog is tracked separately from this check.
+
 ## Before you start
 
 - Build, run, test, lint, deploy commands: [`README.md`](./README.md).
