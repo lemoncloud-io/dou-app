@@ -29,7 +29,7 @@ error reporting (`reportError`), the fallout wouldn't stay confined to the feedb
 Record<string, any>` ("additional context") looked like — and was implemented as — a slot separate from the
 Slack text, but dev measurement confirmed that **the backend does not persist the client's `meta`** (see
 decision 1 below). This is exactly what the
-[admin-v2 report-logs spec](../../apps/admin-v2/docs/specs/report-logs/spec.md) had flagged as "storage
+[admin-v2 report-logs doc](../../apps/admin-v2/docs/report-logs/README.md) had flagged as "storage
 shape unconfirmed." In the end, **`message` is the only field that gets saved.**
 
 **The existing resizer doesn't fit this use case.** `resizeImageToBase64` is a 150px **square center-crop** —
