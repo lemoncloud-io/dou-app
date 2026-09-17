@@ -406,7 +406,7 @@ export const ThreadPage = () => {
                     onKeyDown={handleKeyDown}
                     inputRef={inputRef}
                     placeholder={t('chat.thread.inputPlaceholder')}
-                    // One live field at a time — same rule as the room (SPEC §6).
+                    // One live field at a time — same rule as the room.
                     disabled={editing.isEditing}
                 />
             </div>

@@ -81,12 +81,35 @@ truncates because it has no bubble to cut. The cut also suppresses linking a URL
 bubble about what is literal text.
 
 **Status.** A pending row shows a clock, a failed row shows the failure line with retry and delete
-(mine only; delete is a cache delete, not a server one). Otherwise, if `read.show`, the row draws
+(mine only; that delete is a cache delete — it clears the row from this screen and the server never
+heard about the message. The server delete lives in the action sheet and is a different action with
+different wording). Otherwise, if `read.show`, the row draws
 `ReadReceipt` — or a spinner until `read.isReady`, meaning the join cursors have synced.
 
 The receipt's gates are set by the page: `show = !isSelfChat && activeMemberIds.length >= 2`, and
 `mode = isDmChat ? 'dm' : 'count'`. `count` prints `read N` plus `unread M` when M is non-zero;
 `dm` prints the single unread badge and nothing once it is read. A self chat never shows one.
+
+**Editing.** A message of mine can be edited in place from the action sheet: the bubble becomes a
+field where it sits, so the surrounding conversation stays put and the position says which message
+is changing. `useMessageEditing` owns the state for both this page and the thread page — one hook,
+because two copies would be two chances to answer the same question differently.
+
+Pressing save **locks the editor and waits**; only the server's acceptance closes it. A rejection
+comes back to an editor that still holds what was typed and can be saved again. Desktop closes
+immediately instead; mobile is the side that fails more often, and there closing on the press means
+a failure has nowhere to return to. While an editor is open the composer is disabled — two live
+fields and there is no telling which one you are typing into — and leaving with unsaved changes is
+confirmed.
+
+The editor is seeded from `message.content`, **never from what the bubble drew**. The bubble
+truncates at 200 characters, and seeding from the rendered string would destroy everything past the
+cut on the first save. A test pins this.
+
+**Edited marker.** `isMessageEdited` from `@chatic/data` decides it, and it is an inference: the
+server has no edit flag, so what it really detects is that the row was written again. It excludes
+tombstones, unsent rows and missing timestamps. An optimistic edit shows its new text at once and
+picks the marker up when the server's record lands — marking early would mean un-marking on failure.
 
 **Long press.** 450ms, or a right-click, opens the action sheet. `pointerdown`'s default is only
 prevented for a mouse: cancelling it on touch kills the browser's own panning for that gesture, and

@@ -1100,7 +1100,7 @@ export const ChannelRoomPage = () => {
                     // unread badge of `1` forever. Lifts the moment the peer is back (ADR-0068 결정 5).
                     //
                     // Also locked while a message is being edited: two live fields on one screen
-                    // and there is no telling which one you are typing into (SPEC §6).
+                    // and there is no telling which one you are typing into.
                     disabled={isPeerGone || editing.isEditing}
                 />
             </div>

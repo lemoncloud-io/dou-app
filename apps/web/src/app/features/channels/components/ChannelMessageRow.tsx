@@ -81,7 +81,7 @@ export interface ChannelMessageRowProps {
     formatThreadTime?: (date: Date) => string;
     /** Opens the full-screen thread. Absent on surfaces without one (the thread page itself). */
     onOpenThread?: () => void;
-    /** The in-place editor, when this message is the one being edited (SPEC §6 states 편집/저장 중/실패). */
+    /** The in-place editor, when this message is the one being edited. Absent means read. */
     edit?: MessageEditState;
 }
 

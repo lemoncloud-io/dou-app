@@ -26,8 +26,8 @@ beforeEach(() => {
 });
 
 describe('useSetMyPlaceProfile', () => {
-    // ADR-0085 folded the two write paths into one: the site is an argument, never read off the
-    // ambient data context. These two cases pin that there is exactly one call shape.
+    // The two write paths were folded into one: the site is an argument, never read off the
+    // ambient data context. These cases pin that there is exactly one call shape.
     it('sid 없이 부르면 선택된 플레이스를 실어 저장한다', async () => {
         const { result } = renderHook(() => useSetMyPlaceProfile());
 

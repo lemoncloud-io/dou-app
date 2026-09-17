@@ -16,8 +16,8 @@ import { useChatMutations } from './useChatMutations';
  * to drift. The surfaces differ only in which list they draw.
  *
  * What it holds is a small state machine over ONE target at a time — a phone shows one editor.
- * `editing` is the draft plus the in-flight/failed flags that SPEC §6's four states need; `read` is
- * simply the absence of a target.
+ * The target's draft plus its in-flight/failed flags are the three states an editor can be in;
+ * the fourth, read, is simply the absence of a target.
  */
 export const useMessageEditing = () => {
     const { t } = useTranslation();
@@ -119,7 +119,7 @@ export const useMessageEditing = () => {
     );
 
     return {
-        /** Truthy while an editor is open — the room locks its composer against it (SPEC §6). */
+        /** Truthy while an editor is open — the surfaces lock their composer against it. */
         isEditing: !!editTarget,
         hasUnsavedEdit,
         startEdit,
