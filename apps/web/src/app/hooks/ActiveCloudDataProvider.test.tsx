@@ -48,7 +48,7 @@ describe('ActiveCloudDataProvider — 앱 전체가 공유하는 단 하나의 �
             </ActiveCloudDataProvider>
         );
 
-        // sync: false — 앱을 띄우는 것만으로는 채널별 join 동기화를 하나도 등록하지 않는다(ADR-0056).
+        // sync: false — merely mounting the app does not register any per-channel join sync (ADR-0056).
         expect(myJoinsMock).toHaveBeenCalledWith(channels, { sync: false });
         expect(unreadsMock).toHaveBeenCalledWith(channels, joins);
         expect(screen.getByTestId('ids').textContent).toBe('c1');
@@ -57,7 +57,7 @@ describe('ActiveCloudDataProvider — 앱 전체가 공유하는 단 하나의 �
         expect(screen.getByTestId('total').textContent).toBe('4');
     });
 
-    // 첫 응답 전의 빈 목록과 "채널 없음"을 구분하는 신호라, 그대로 통과해야 한다.
+    // The signal that distinguishes an empty list before the first response from "no channels" — it must pass through unchanged.
     it('isLoaded는 관측의 답을 그대로 전달한다', () => {
         channelsMock.mockReturnValue({ channels: [], isLoaded: false });
 

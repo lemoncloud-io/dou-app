@@ -154,7 +154,7 @@ describe('useRelayInviteFlow — relay 핸드셰이크 게이트', () => {
         const held = holdHandshake();
         const { result } = mount();
 
-        // 콜드 부팅 재현: 핸드셰이크가 끝나기 전에는 한 발도 나가면 안 된다.
+        // Reproduces a cold boot: nothing must go out before the handshake finishes.
         await waitFor(() => expect(waitUntilKindVerified).toHaveBeenCalledWith('relay', 10_000));
         expect(getInvite).not.toHaveBeenCalled();
         expect(result.current.phase).toBe('loading');

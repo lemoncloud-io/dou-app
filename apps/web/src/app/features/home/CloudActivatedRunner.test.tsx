@@ -79,7 +79,7 @@ describe('CloudActivatedRunner', () => {
         expect(screen.getByText('notifications.cloudActivated.title:DoU')).toBeTruthy();
     });
 
-    // 이름 없이 만들어진 클라우드가 실제로 있다 — 푸시 문구와 같은 폴백을 쓴다.
+    // Clouds created without a name really do exist — use the same fallback as the push copy.
     it('이름이 비면 식별자로 대체한다', () => {
         mount()({ data: { id: 'cloud_1', name: '  ' } });
 
@@ -87,8 +87,8 @@ describe('CloudActivatedRunner', () => {
         expect(screen.getByText('notifications.cloudActivated.title:cloud_1')).toBeTruthy();
     });
 
-    // 웹 i18n은 원격 리소스라 이 키가 아직 없는 클라이언트가 있다. 리터럴 키가 뜬 배너보다
-    // 배너가 없는 편이 낫고, 목록 갱신은 그와 무관하게 일어나야 한다.
+    // Web i18n is a remote resource, so some clients don't have this key yet. No banner is better
+    // than a banner showing the literal key, and the list refresh must happen regardless.
     it('번역 키가 없으면 배너를 띄우지 않되 캐시는 무효화한다', () => {
         mockExists.mockReturnValue(false);
 
@@ -105,7 +105,8 @@ describe('CloudActivatedRunner', () => {
         expect(mockInvalidate).toHaveBeenCalledWith({ queryKey: runtime.data.cloudsKeys.all });
     });
 
-    // 푸시 탭은 홈으로 간다. 배너만 다른 곳으로 데려가면 같은 알림이 도착 경로에 따라 갈린다.
+    // Tapping the push notification goes to home. If the banner alone went somewhere else, the same
+    // notification would end up in different places depending on how it arrived.
     it('배너에 클릭 동작이 없다', () => {
         mount()({ data: { id: 'cloud_1', name: 'DoU' } });
 

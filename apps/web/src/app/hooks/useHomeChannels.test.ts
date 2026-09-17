@@ -36,8 +36,8 @@ describe('useHomeChannels — 공유 관측의 사이트별 슬라이스', () =>
         expect(result.current.isLoading).toBe(false);
     });
 
-    // 클라우드 전체 읽기는 sid로 격리되지 않는다(relay에서는 sid 스코프가 아예 무시된다) — 그래서
-    // 필터가 남아 있다. 두 번째 관측자를 여는 대신 JS에서 걸러낸다.
+    // The cloud-wide read is not isolated by sid (on the relay the sid scope is ignored entirely) —
+    // that's why the filter is still here. Filtering in JS instead of opening a second observer.
     it('sid가 없으면 빈 목록이다', () => {
         const { result } = renderHook(() => useHomeChannels(null), {
             wrapper: wrapper([channel('c1', 's1')]),
@@ -69,8 +69,8 @@ describe('useHomeChannels — 공유 관측의 사이트별 슬라이스', () =>
         expect(result.current.channels).toBe(first);
     });
 
-    // 채널이 없는 사이트와 첫 응답이 아직 안 온 사이트는 배열만으로 구분되지 않는다 — 공유 관측의
-    // isLoaded가 그 구분을 준다.
+    // A site with no channels and a site whose first response hasn't landed yet can't be told apart
+    // from the array alone — the shared observation's isLoaded is what makes that distinction.
     it('isLoading은 공유 관측의 첫 응답 여부를 따른다', () => {
         const { result } = renderHook(() => useHomeChannels('s1'), { wrapper: wrapper([], false) });
 

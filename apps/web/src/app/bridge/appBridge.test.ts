@@ -47,8 +47,9 @@ describe('appBridge — 네이티브 브릿지 호출', () => {
         expect(postMock).toHaveBeenLastCalledWith({ type: 'SetCanGoBack', data: { canGoBack: true } });
     });
 
-    // 회귀 고정: 로그인 시작은 응답을 기다리는 왕복이 아니다. request로 되돌리면 브릿지 기본 15초가
-    // 사람의 구글/애플 조작 시간에 걸려, 이미 발급된 자격증명이 폐기된다.
+    // Regression pin: starting login is not a round trip that waits for a response. Reverting to
+    // `request` would run into the bridge's default 15s budget against a human's Google/Apple
+    // interaction time, discarding a credential that had already been issued.
     it('startOAuthLogin은 request가 아니라 post로 요청만 쏜다', () => {
         appBridge.startOAuthLogin('google');
 
@@ -69,7 +70,7 @@ describe('appBridge — 네이티브 브릿지 호출', () => {
         appBridge.fetchFcmToken();
         expect(requestMock).toHaveBeenLastCalledWith({ type: 'FetchFcmToken', data: {} });
 
-        // 계정 연동만 응답을 기다린다. 사람이 조작하는 흐름이라 기본 15초를 쓰지 않는다.
+        // Only account linking waits for the response. Since it's a human-driven flow, it doesn't use the default 15s.
         appBridge.oauthLogin('apple');
         expect(requestMock).toHaveBeenLastCalledWith(
             { type: 'OAuthLogin', data: { provider: 'apple' } },
@@ -106,9 +107,9 @@ describe('appBridge — 네이티브 브릿지 호출', () => {
         });
     });
 
-    // 링버퍼가 폐지되면서 `*AppLogBuffer` 메서드 4개가 사라졌다. 메시지 타입과
-    // 앱 핸들러는 구버전 웹 호환으로 남지만 이 빌드는 부르지 않으므로, 부르지
-    // 않는다는 것 자체를 고정한다.
+    // With the ring buffer retired, the four `*AppLogBuffer` methods are gone. The message types and
+    // app handlers remain for older-web compatibility, but this build never calls them — this test
+    // pins exactly that: they are not called.
     it('폐지된 log-buffer 메서드를 더 이상 노출하지 않는다', () => {
         expect('fetchAppLogBuffer' in appBridge).toBe(false);
         expect('pollAppLogBuffer' in appBridge).toBe(false);
@@ -148,8 +149,8 @@ describe('appBridge — 네이티브 브릿지 호출', () => {
         expect(postMock).toHaveBeenLastCalledWith({ type: 'OpenStore', data: {} });
     });
 
-    // 핸드셰이크는 단방향 알림이 아니라 capability 교환이다 — 웹이 자기보다 구버전인 앱을
-    // 감지하려면 응답을 읽어야 한다(기록은 main.tsx가 한다).
+    // The handshake is not a one-way notification but a capability exchange — for the web to detect
+    // an app older than itself, it has to read the response (main.tsx does the recording).
     it('notifyWebAppReady는 request로 보내고 앱의 capability 응답을 돌려준다', async () => {
         const report = {
             cacheSchemaVersion: 7,
@@ -164,7 +165,7 @@ describe('appBridge — 네이티브 브릿지 호출', () => {
         expect(requestMock).toHaveBeenLastCalledWith({ type: 'WebAppReady', data: {} });
     });
 
-    // 네이티브가 없는 평범한 브라우저에서는 reject가 정상이다 — 부팅을 깨선 안 된다.
+    // On a plain browser with no native bridge, a reject is expected — it must not break boot.
     it('브릿지가 없어 요청이 실패하면 reject 대신 null이다', async () => {
         requestMock.mockRejectedValueOnce(new Error('no native bridge'));
 

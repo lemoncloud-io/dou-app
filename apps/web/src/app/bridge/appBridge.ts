@@ -287,7 +287,7 @@ export const appBridge = {
     },
 
     // ---------------------------------------------------------------
-    // Debug panel — app-side operations the web drives (ADR-0080 결정 11)
+    // Debug panel — app-side operations the web drives (ADR-0080 Decision 11)
     // ---------------------------------------------------------------
 
     /**
@@ -313,7 +313,8 @@ export const appBridge = {
     /**
      * The next three are facade-only: the message types and native handlers already existed, the
      * web client just never exposed them because nothing outside the app's own debug screens asked.
-     * Adding them costs no app release (ADR-0080 결정 11 — 새 명령을 만들기 전에 있는 것을 찾는다).
+     * Adding them costs no app release (ADR-0080 Decision 11 — look for what already exists before
+     * creating a new command).
      */
 
     /** Read the OS badge count the app currently shows. */
@@ -339,7 +340,7 @@ export const appBridge = {
     },
 
     /**
-     * Custom web zip (ADR-0080 결정 11 단계 5). PROD builds refuse `apply` — the app gates it on the
+     * Custom web zip (ADR-0080 Decision 11, step 5). PROD builds refuse `apply` — the app gates it on the
      * baked `VITE_ENV`, so the refusal comes back as an error rather than being decided here.
      */
     applyCustomZip(url: string): Promise<WebMessageResponse<'ApplyCustomZip'>> {
@@ -423,7 +424,7 @@ export const appBridge = {
     },
 
     // ---------------------------------------------------------------
-    // Config shell lane (ADR-0079 결정 9 — generic KV bridge)
+    // Config shell lane (ADR-0079 Decision 9 — generic KV bridge)
     // ---------------------------------------------------------------
 
     /** Persist one shell-lane config value, opaquely, and wait for native confirmation. */

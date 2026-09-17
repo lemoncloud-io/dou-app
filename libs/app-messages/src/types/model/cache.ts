@@ -8,50 +8,52 @@ import type {
 } from '@lemoncloud/chatic-socials-api';
 import type { CloudView, MyInviteView, MySiteView } from '@lemoncloud/chatic-backend-api';
 
-/** 캐시 가능한 도메인 타입 정의 */
+/** Definition of cacheable domain types */
 export type CacheType = 'channel' | 'chat' | 'user' | 'join' | 'site' | 'invitecloud' | 'profile' | 'meta' | 'invite';
 
 /**
- * 도메인별 캐시 계약의 판번호 (ADR-0053).
+ * Per-domain cache contract version number (ADR-0053).
  *
- * 앱은 **자신이 구현한** 판을, 웹은 **자신이 요구하는** 판을 각각 독립적으로 선언합니다. 같은 상수를
- * 양쪽이 import하면 협상이 아니라 항등식이 되므로, 여기서는 **타입만** 공유하고 값은 공유하지
- * 않습니다. 판번호는 단조 증가하며, 전역 SQLite 스키마 번호나 도메인이 추가된 시점과 무관합니다.
+ * The app declares the version it **implements**, and the web declares the version it
+ * **requires**, each independently. If both sides imported the same constant, it would become
+ * an identity rather than a negotiation, so here we share **only the type**, not the value.
+ * Version numbers increase monotonically and are unrelated to the global SQLite schema number or
+ * to when a domain was added.
  *
- * 설계 전체는 libs/app-runtime/docs/data/cache-contract-versions.md 참고.
+ * See libs/app-runtime/docs/data/cache-contract-versions.md for the full design.
  */
 export type CacheDomainVersions = Partial<Record<CacheType, number>>;
 
-/** 페이징 및 리스트 처리를 위한 공통 메타데이터 */
+/** Common metadata for paging and list handling */
 export type PagingMeta = {
-    page?: number; // 페이지 번호
-    cursorNo?: number; // 커서 번호
-    limit?: number; // 한 페이지당 아이템 수
-    total?: number; // 전체 아이템 수
-    readNo?: number; // 마지막으로 읽은 메시지 번호
+    page?: number; // Page number
+    cursorNo?: number; // Cursor number
+    limit?: number; // Items per page
+    total?: number; // Total item count
+    readNo?: number; // Number of the last message read
     took?: number;
 };
 
-/** 캐시 만료/동기화 메타데이터 */
+/** Cache expiration/sync metadata */
 export type CacheTtlMeta = {
     lastSyncedAt: number;
     expiresAt: number;
 };
 
-/** 캐시 모델 공통 메타 베이스 */
+/** Common meta base for cache models */
 export type CacheViewBase = {
     __cacheMeta?: CacheTtlMeta;
 };
 
-/** 모든 캐시 메시지의 공통 기반 필드 */
+/** Common base fields for every cache message */
 type CacheBasePayload<K extends CacheType> = {
-    type: K; // 도메인 타입
+    type: K; // Domain type
     cid: string; // Cloud ID
     uid: string; // User ID;
 };
 
 /*
- * 각 CacheType이 실제로 어떤 데이터 구조를 가지는지 매핑합니다.
+ * Maps each CacheType to the data structure it actually holds.
  */
 export type CacheModelMap = {
     channel: CacheChannelView;
@@ -68,7 +70,7 @@ export type CacheModelMap = {
 export type CacheModelOf<TType extends CacheType> = CacheModelMap[TType];
 export type CacheQueryOf<TType extends CacheType> = CacheQueryMap[TType];
 
-/** 클라우드/서버 정보 뷰 */
+/** Cloud/server info view */
 export type CacheCloudView = CloudView &
     CacheViewBase & {
         id: string;
@@ -76,11 +78,11 @@ export type CacheCloudView = CloudView &
         backend?: string;
         wss?: string;
         cid: string;
-        /** 초대받은 클라우드('invited') vs 본인 소유 클라우드('owner') 분류 */
+        /** Classifies a cloud as invited ('invited') vs. self-owned ('owner') */
         cloudType?: 'invited' | 'owner';
     };
 
-/** 채널 정보 뷰 (Site ID 및 도메인 필드 포함) */
+/** Channel info view (includes Site ID and domain fields) */
 export type CacheChannelView = ChannelView &
     CacheViewBase & {
         id: string;
@@ -88,40 +90,42 @@ export type CacheChannelView = ChannelView &
         sid: string;
         isNotificationEnabled: boolean;
         /**
-         * 정렬용 활성 시간. **옵셔널이다 — 이 값을 채우는 곳이 아직 없다.**
+         * Activity time used for sorting. **Optional — nothing currently populates this value.**
          *
-         * 필수로 선언돼 있었는데 `toDomainChannel`을 포함해 어떤 매퍼·데이터 소스도 쓰지 않아서
-         * `libs/data`가 빌드되지 않았고(그 stale `dist` 때문에 `apps/web`에 유령 타입 오류가 남았다),
-         * 매퍼가 임의로 채우는 것도 답이 아니다: 채널이 마지막으로 움직인 시각은 chat 캐시가
-         * 소유한다(ADR-0057), 그래서 `toDomainChannel`은 `lastChat$`을 의도적으로 읽지 않는다 —
-         * 여기에 서버 요약을 접어 넣으면 한 채널이 "언제 마지막으로 움직였나"에 두 가지 답을 갖는다.
-         * 유일한 독자(desktop-web ChannelList)도 `lastChat?.createdAt ?? channel.lastActivityAt`으로
-         * 읽고 `relativeTime`이 `undefined`를 받아 빈 문자열을 낸다. 저장 형태는 바뀌지 않으므로
-         * 캐시 판번호(ADR-0053)를 올릴 이유도 없다.
+         * It used to be declared required, but since no mapper or data source used it, including
+         * `toDomainChannel` — that left `libs/data` failing to build (and that stale `dist` was
+         * leaving phantom type errors in `apps/web`) — and having a mapper fill it in arbitrarily
+         * isn't the answer either: the chat cache owns "when a channel last moved" (ADR-0057), so
+         * `toDomainChannel` deliberately does not read `lastChat$` — folding a server summary in
+         * here would give one channel two different answers to "when did it last move." Its only
+         * reader (the desktop-web ChannelList) already reads
+         * `lastChat?.createdAt ?? channel.lastActivityAt`, and `relativeTime` renders an empty
+         * string when it receives `undefined`. The stored shape doesn't change, so there's no
+         * reason to bump the cache contract version (ADR-0053) either.
          */
         lastActivityAt?: number;
     };
 
-/** 채팅 메시지 뷰 (전송 상태 및 도메인 필드 포함) */
+/** Chat message view (includes send status and domain fields) */
 export type CacheChatView = ChatView &
     CacheViewBase & {
         id: string;
         cid: string;
         channelId: string;
         chatNo: number;
-        isPending: boolean; // 보정: non-optional
-        isFailed: boolean; // 보정: non-optional
-        createdAtMs: number; // 추가: 타임스탬프
-        updatedAtMs: number; // 추가: 타임스탬프
+        isPending: boolean; // Narrowed: non-optional
+        isFailed: boolean; // Narrowed: non-optional
+        createdAtMs: number; // Added: timestamp
+        updatedAtMs: number; // Added: timestamp
         tempId?: string;
     };
 
-/** 사이트 정보 뷰 */
+/** Site info view */
 export type CacheSiteView = MySiteView &
     CacheViewBase & {
         id: string;
         cid: string;
-        order: number; // 보정: non-optional
+        order: number; // Narrowed: non-optional
     };
 
 export type CacheJoinView = JoinView &
@@ -133,10 +137,11 @@ export type CacheJoinView = JoinView &
         joined: number;
         readNo: number;
         /**
-         * 읽음 커서(`chatNo`) 시점의 `channel.metaNo` 스냅샷. 서버가 join 페이로드로 내려주지만
-         * 발행된 `JoinView`가 아직 선언하지 않아 여기서 넓힌다. unread를 사용자 메시지 기준으로
-         * 계산할 때 쓴다 — `(channel.chatNo - channel.metaNo) - (join.chatNo - join.metaNo)`.
-         * 서버가 스냅샷을 남기기 전에 쓰인 행에는 없다.
+         * Snapshot of `channel.metaNo` at the time of the read cursor (`chatNo`). The server sends
+         * it in the join payload, but the published `JoinView` doesn't declare it yet, so it's
+         * widened here. Used when computing unread counts based on user messages —
+         * `(channel.chatNo - channel.metaNo) - (join.chatNo - join.metaNo)`.
+         * Absent on rows written before the server started leaving this snapshot.
          */
         metaNo?: number;
     };
@@ -148,8 +153,8 @@ export type CacheUserView = UserView &
     };
 
 /**
- * 동기화 커서 등 cid/uid 스코프의 키-값 메타데이터 뷰.
- * `id`가 메타 종류(예: 'channel-sync')이고, 값으로 sync 커서(`syncedAt`)를 담는다.
+ * Key-value metadata view scoped to cid/uid, such as sync cursors.
+ * `id` is the meta kind (e.g. 'channel-sync'), and the value holds the sync cursor (`syncedAt`).
  */
 export type CacheMetaView = CacheViewBase & {
     id: string;
@@ -157,58 +162,60 @@ export type CacheMetaView = CacheViewBase & {
     uid: string;
     syncedAt?: number;
     /**
-     * 이 커서를 저장할 때의 캐시 저장소 라우팅 지문 (ADR-0053).
+     * Cache storage routing fingerprint at the time this cursor was saved (ADR-0053).
      *
-     * 커서는 **다른 도메인**의 동기화 지점을 가리키므로, 그 도메인이 다른 저장소로 옮겨가면 커서만
-     * 남아 "이미 동기화됨"이라고 거짓말한다 — 새 저장소는 비어 있는데 델타만 받게 된다. 지문이
-     * 다르면 커서를 무효로 보고 전체 재동기화(`since=0`)로 떨어뜨린다.
+     * The cursor points at a sync position in **another domain**, so if that domain moves to a
+     * different store, a leftover cursor lies and says "already synced" — the new store is empty
+     * but only deltas get fetched. If the fingerprint differs, the cursor is treated as invalid
+     * and a full resync (`since=0`) is forced.
      */
     routing?: string;
 };
 
 /**
- * 발신자가 보낸 relay 1:1 초대 카드의 캐시 뷰.
+ * Cache view of a relay 1:1 invite card sent by the sender.
  *
- * `code`와 `deeplink`는 의도적으로 뺐다 — `code`는 식별자가 아니라 자격증명이고, `deeplink`는
- * `?code=<code>` 형태로 그것을 통째로 품는다. 이 타입에서 빠졌다는 사실은 컴파일 시점 계약일
- * 뿐이라, 실제 방어는 저장 직전 허용 목록 매퍼(`toCacheInviteView`)가 한다.
+ * `code` and `deeplink` are deliberately excluded — `code` is a credential, not an identifier, and
+ * `deeplink` embeds it whole as `?code=<code>`. Leaving them out of this type is only a
+ * compile-time contract; the actual enforcement happens in the allowlist mapper
+ * (`toCacheInviteView`) right before saving.
  */
 export type CacheInviteView = Omit<MyInviteView, 'code' | 'deeplink'> &
     CacheViewBase & {
         id: string;
         cid: string;
         uid: string;
-        /** 로컬에서 이 행을 숨긴 시각(epoch ms). 서버 상태가 아니라 이 기기의 표시 결정이다. */
+        /** When this row was locally hidden (epoch ms). A display decision on this device, not server state. */
         dismissedAt?: number;
     };
 
-/** 플레이스(사이트)별 표시 프로필 뷰 */
+/** Display profile view per place (site) */
 export type CacheProfileView = ProfileView &
     Partial<ProfileDisplay> &
     CacheViewBase & {
         id: string;
         cid: string;
-        sid: string; // 보정: non-optional
+        sid: string; // Narrowed: non-optional
         uid: string;
         userId: string;
-        updatedAtMs: number; // 추가: 갱신 시간
+        updatedAtMs: number; // Added: update time
     };
 
 /**
- * FetchAll/SaveAll 시 어떤 조건(정렬, 필터 등)으로 데이터를 식별할지 정의합니다.
+ * Defines which conditions (sort, filters, etc.) identify data during FetchAll/SaveAll.
  */
 export type BaseQueryOptions = {
     cid?: string;
     uid?: string;
 };
 
-/** 채널 목록 조회 쿼리 */
+/** Query for listing channels */
 export type ChannelQueryOptions = BaseQueryOptions & {
-    sid?: string; // 특정 사이트 내 채널 필터
-    keyword?: string; // 검색 키워드
+    sid?: string; // Filter channels within a specific site
+    keyword?: string; // Search keyword
 };
 
-/** 채팅 목록 조회 쿼리 */
+/** Query for listing chats */
 export type ChatQueryOptions = BaseQueryOptions & {
     channelId?: string;
     sort?: 'asc' | 'desc';
@@ -216,43 +223,44 @@ export type ChatQueryOptions = BaseQueryOptions & {
     limit?: number;
     cursorNo?: number;
     /**
-     * 미전송 행(`chatNo: 0` — 전송 중이거나 실패)을 최신 페이지에 함께 실어 준다.
+     * Includes unsent rows (`chatNo: 0` — sending or failed) alongside the latest page.
      *
-     * 기본값 false이고 그때 동작은 이 옵션이 없던 때와 **완전히 같다**. 옵트인인 이유는
-     * 같은 실행기를 `apps/web`(모바일)도 지나기 때문이다 — 켜는 쪽만 동작이 바뀐다.
-     * 왜 필요한지는 `ChatQueryExecutor`의 주석 참조.
+     * Defaults to false, in which case behavior is **exactly the same** as before this option
+     * existed. It's opt-in because `apps/web` (mobile) runs through the same executor — only the
+     * caller that turns it on sees a behavior change. See the comment on `ChatQueryExecutor` for
+     * why this is needed.
      */
     includeUnsent?: boolean;
 };
 
 export type InviteCloudQueryOptions = BaseQueryOptions;
 
-/** 참여 정보 조회 쿼리 */
+/** Query for join info */
 export type JoinQueryOptions = BaseQueryOptions & {
     channelId?: string;
     userId?: string;
 };
 
-/** 유저 정보 쿼리 */
+/** Query for user info */
 export type UserQueryOptions = BaseQueryOptions;
 
-/** 사이트 정보 쿼리 */
+/** Query for site info */
 export type SiteQueryOptions = BaseQueryOptions & {
-    keyword?: string; // 검색 키워드
+    keyword?: string; // Search keyword
 };
 
-/** 플레이스 프로필 쿼리 */
+/** Query for place profiles */
 export type ProfileQueryOptions = BaseQueryOptions & {
-    sid?: string; // 특정 사이트/플레이스 필터
+    sid?: string; // Filter by a specific site/place
 };
 
-/** 메타 쿼리 (cid/uid 스코프, 추가 필터 없음) */
+/** Meta query (scoped to cid/uid, no extra filters) */
 export type MetaQueryOptions = BaseQueryOptions;
 
-/** 초대 쿼리 (cid/uid 스코프, 추가 필터 없음) */
+/** Invite query (scoped to cid/uid, no extra filters) */
 export type InviteQueryOptions = BaseQueryOptions;
 
-/** 도메인별 쿼리 옵션 매핑 */
+/** Mapping of query options per domain */
 export type CacheQueryMap = {
     channel: ChannelQueryOptions;
     chat: ChatQueryOptions;
@@ -265,83 +273,88 @@ export type CacheQueryMap = {
     invite: InviteQueryOptions;
 };
 
-/** [요청] ID 기반 단일 데이터 조회 */
+/** [Request] Fetch a single item by ID */
 export type FetchCacheDataPayload = {
     [K in CacheType]: CacheBasePayload<K> & { id: string };
 }[CacheType];
 
-/** [응답] 단일 데이터 반환 (없으면 item은 null) */
+/** [Response] Returns a single item (item is null if not found) */
 export type OnFetchCacheDataPayload = {
     [K in CacheType]: CacheBasePayload<K> & { id: string; item: CacheModelMap[K] | null };
 }[CacheType];
 
 /**
- * [요청] ID 목록 기반 다건 조회.
+ * [Request] Fetch multiple items by a list of IDs.
  *
- * `FetchCacheData`를 id마다 보내는 것과 결과는 같지만, 브릿지 왕복이 1회입니다. 캐시 계층의 병합
- * 쓰기(`cacheWriteMany`)는 아이템마다 기존 행을 읽어야 하는데, 그게 왕복 N회가 되면서 네이티브
- * 저장소의 실제 비용이 되었습니다 — 채팅 50건 저장이 51 왕복입니다. SQLite 쿼리 N회는 인프로세스라
- * 싸고, 비싼 건 왕복이므로 왕복만 접습니다.
+ * Produces the same result as sending `FetchCacheData` once per id, but in a single bridge
+ * round trip. The cache layer's merge write (`cacheWriteMany`) has to read the existing row for
+ * each item, and when that turned into N round trips, it became a real cost on native storage —
+ * saving 50 chats meant 51 round trips. N in-process SQLite queries are cheap; round trips are
+ * what's expensive, so only the round trips are collapsed.
  *
- * 앱이 이 메시지를 모르면 host가 `NOT_FOUND`로 거절하고, 웹은 id별 조회로 폴백합니다
- * (`NativeDBAdapter.loadMany`) — 웹이 앱보다 먼저 배포되므로 폴백은 선택이 아니라 필수입니다.
+ * If the app doesn't know this message, the host rejects it with `NOT_FOUND` and the web falls
+ * back to per-id fetches (`NativeDBAdapter.loadMany`) — since the web ships ahead of the app, this
+ * fallback isn't optional, it's required.
  */
 export type FetchManyCacheDataPayload = {
     [K in CacheType]: CacheBasePayload<K> & { ids: string[] };
 }[CacheType];
 
 /**
- * [응답] 요청한 id들에 해당하는 행.
+ * [Response] Rows corresponding to the requested ids.
  *
- * 없는 id는 자리를 비워두지 않고 그냥 빠집니다 — 순서와 길이는 요청과 일치하지 않습니다. 호출자가
- * id로 다시 색인하므로(`loadMany`) 빈 자리를 채워 보낼 이유가 없고, `null` 자리는 전송량만 늘립니다.
+ * IDs that don't exist aren't left as empty slots — they're simply omitted, so order and length
+ * don't match the request. Since the caller re-indexes by id (`loadMany`), there's no reason to
+ * send padded empty slots, and `null` entries would only add to the payload size.
  */
 export type OnFetchManyCacheDataPayload = {
     [K in CacheType]: CacheBasePayload<K> & { ids: string[]; items: CacheModelMap[K][] | null };
 }[CacheType];
 
 /**
- * [요청] 채널별 최신 프리뷰 1건 조회 (chat 전용, ADR-0057).
+ * [Request] Fetch a single latest preview per channel (chat only, ADR-0057).
  *
- * 홈 채널 목록이 채널마다 최신 30행 윈도우를 읽는 대신, 목록 전체를 왕복 1회로 접습니다.
- * 프리뷰 판정(스레드 답글·리액션 이벤트·시스템 행·실패 전송 제외, 톰스톤 포함, 미전송 최신)은
- * 앱의 SQL이 수행하되 의미론의 최종 소유자는 웹입니다 — 웹은 응답 행을 재검증하고 불합격이면
- * 그 채널만 윈도우 조회로 폴백합니다.
+ * Instead of the home channel list reading a 30-row window per channel, this collapses the whole
+ * list into a single round trip. Preview eligibility (excluding thread replies, reaction events,
+ * system rows, and failed sends; including tombstones; preferring the latest unsent) is computed
+ * by the app's SQL, but the web remains the final owner of that semantics — it re-validates the
+ * returned rows and, if one fails, falls back to a windowed query for that channel only.
  *
- * 앱이 이 메시지를 모르면 host가 `NOT_FOUND`로 거절하고, 웹은 채널별 윈도우 조회로 폴백합니다
- * (`NativeDBAdapter.loadLastPerChannel`) — 웹이 앱보다 먼저 배포되므로 폴백은 선택이 아니라 필수입니다.
+ * If the app doesn't know this message, the host rejects it with `NOT_FOUND` and the web falls
+ * back to a per-channel windowed fetch (`NativeDBAdapter.loadLastPerChannel`) — since the web
+ * ships ahead of the app, this fallback isn't optional, it's required.
  */
 export type FetchLastChatsDataPayload = CacheBasePayload<'chat'> & { channelIds: string[] };
 
-/** 채널 하나의 최신 프리뷰 판정 결과 */
+/** Latest-preview eligibility result for one channel */
 export interface LastChatItem {
     channelId: string;
-    /** 그 채널 캐시의 최대 chatNo (프리뷰 가능 여부 무관) — 웹 head-트리거의 비교 기준 */
+    /** Max chatNo in that channel's cache (regardless of preview eligibility) — the baseline the web's head trigger compares against */
     lastNo: number;
-    /** 프리뷰 규칙을 통과한 최신 행. 채널에 프리뷰할 행이 없으면 null */
+    /** Latest row that passed the preview rules. null if the channel has no previewable row */
     item: CacheChatView | null;
 }
 
 /**
- * [응답] 요청한 채널들의 프리뷰 판정 결과.
+ * [Response] Preview eligibility results for the requested channels.
  *
- * `items: null`은 네이티브 처리 오류입니다(형제 핸들러들과 같은 관례) — 웹은 그 읽기 1회만
- * 폴백하고 미지원으로 학습하지 않습니다. 캐시에 행이 없는 채널은 null이 아니라
- * `{ lastNo: 0, item: null }`로 자리가 채워집니다.
+ * `items: null` signals a native processing error (same convention as sibling handlers) — the web
+ * only falls back for that single read and doesn't learn it as unsupported. A channel with no
+ * cached rows isn't represented by null but by `{ lastNo: 0, item: null }`.
  */
 export type OnFetchLastChatsDataPayload = CacheBasePayload<'chat'> & {
     channelIds: string[];
     items: LastChatItem[] | null;
 };
 
-/** [요청] 다수/페이징 데이터 조회 (query와 meta를 조합하여 캐시 키 생성) */
+/** [Request] Fetch multiple/paged data (combines query and meta to build the cache key) */
 export type FetchAllCacheDataPayload = {
     [K in CacheType]: CacheBasePayload<K> & {
         query?: CacheQueryMap[K] & PagingMeta;
     };
 }[CacheType];
 
-/** [응답] 다수 데이터 반환 */
+/** [Response] Returns multiple items */
 export type OnFetchAllCacheDataPayload = {
     [K in CacheType]: CacheBasePayload<K> & {
         items: CacheModelMap[K][] | null;
@@ -349,17 +362,17 @@ export type OnFetchAllCacheDataPayload = {
     };
 }[CacheType];
 
-/** [요청] 단일 데이터 저장 */
+/** [Request] Save a single item */
 export type SaveCacheDataPayload = {
     [K in CacheType]: CacheBasePayload<K> & { id: string; item: CacheModelMap[K] };
 }[CacheType];
 
-/** [응답] 단일 저장 결과 */
+/** [Response] Result of a single save */
 export type OnSaveCacheDataPayload = {
     [K in CacheType]: CacheBasePayload<K> & { id: string | null; success: boolean };
 }[CacheType];
 
-/** [요청] 다수 데이터 저장 (페이징 인덱싱 포함) */
+/** [Request] Save multiple items (including paging index) */
 export type SaveAllCacheDataPayload = {
     [K in CacheType]: CacheBasePayload<K> & {
         query?: CacheQueryMap[K] & PagingMeta;
@@ -367,7 +380,7 @@ export type SaveAllCacheDataPayload = {
     };
 }[CacheType];
 
-/** [응답] 다수 저장 결과 */
+/** [Response] Result of a multi-save */
 export type OnSaveAllCacheDataPayload = {
     [K in CacheType]: CacheBasePayload<K> & {
         ids: string[];
@@ -376,60 +389,62 @@ export type OnSaveAllCacheDataPayload = {
     };
 }[CacheType];
 
-/** [요청] 단일 삭제 */
+/** [Request] Delete a single item */
 export type DeleteCacheDataPayload = {
     [K in CacheType]: CacheBasePayload<K> & { id: string };
 }[CacheType];
 
-/** [응답] 단일 삭제 결과 */
+/** [Response] Result of a single delete */
 export type OnDeleteCacheDataPayload = {
     [K in CacheType]: CacheBasePayload<K> & { id: string | null; success: boolean };
 }[CacheType];
 
-/** [요청] 다수 ID 기반 삭제 */
+/** [Request] Delete by multiple IDs */
 export type DeleteAllCacheDataPayload = {
     [K in CacheType]: CacheBasePayload<K> & { ids: string[] };
 }[CacheType];
 
-/** [응답] 다수 삭제 결과 */
+/** [Response] Result of a multi-delete */
 export type OnDeleteAllCacheDataPayload = {
     [K in CacheType]: CacheBasePayload<K> & { ids: string[]; success: boolean };
 }[CacheType];
 
-/** [요청] 특정 도메인 테이블 전체 삭제 */
+/** [Request] Clear an entire domain table */
 export type ClearCacheDataPayload = {
     [K in CacheType]: CacheBasePayload<K>;
 }[CacheType];
 
-/** [응답] 초기화 결과 */
+/** [Response] Clear result */
 export type OnClearCacheDataPayload = {
     [K in CacheType]: CacheBasePayload<K> & { success: boolean };
 }[CacheType];
 
 /**
- * [요청] 한 채널의 행만 삭제 (ADR-0067).
+ * [Request] Delete only the rows for one channel (ADR-0067).
  *
- * `ClearCacheData`에 `channelId`를 얹지 않고 별도 메시지로 두는 이유: 웹이 앱보다 먼저 배포되므로
- * 이 필드를 모르는 구버전 앱은 그냥 무시하고 **해당 스코프의 테이블 전체를 지운다**. 새 타입이면
- * 같은 상황이 `NOT_FOUND`가 되고, 웹은 그걸 1회 학습해 읽고-지우는 폴백으로 내려간다.
+ * Why this is a separate message instead of adding `channelId` onto `ClearCacheData`: since the
+ * web ships ahead of the app, an older app that doesn't know this field simply ignores it and
+ * **clears the entire table for that scope**. Making it a new message type turns the same
+ * situation into `NOT_FOUND`, and the web learns that once and falls back to a read-then-delete
+ * approach.
  */
 export type ClearCacheDataByChannelPayload = {
     [K in CacheType]: CacheBasePayload<K> & { channelId: string };
 }[CacheType];
 
-/** [응답] 채널 한정 삭제 결과 */
+/** [Response] Result of a channel-scoped delete */
 export type OnClearCacheDataByChannelPayload = {
     [K in CacheType]: CacheBasePayload<K> & { channelId: string; success: boolean };
 }[CacheType];
 
-/** [요청] 키워드 기반 전역 검색 */
+/** [Request] Keyword-based global search */
 export type SearchGlobalCacheDataPayload = {
     keyword: string;
     cid?: string;
     uid?: string;
 };
 
-/** [응답] 전역 검색 결과 리스트 */
+/** [Response] List of global search results */
 export type OnSearchGlobalCacheDataPayload = {
     items: (CacheChatView | CacheChannelView | CacheSiteView)[];
 };

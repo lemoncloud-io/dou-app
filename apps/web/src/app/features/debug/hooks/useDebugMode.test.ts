@@ -2,7 +2,7 @@
 // never touches the real webClient.
 jest.mock('@chatic/bridges', () => ({ isNative: jest.fn() }));
 jest.mock('../../../bridge', () => ({ appBridge: { setDebugMode: jest.fn() } }));
-// The registry decides visibility by build stage (ADR-0080 결정 4); the facade is mocked so the
+// The registry decides visibility by build stage (ADR-0080 Decision 4); the facade is mocked so the
 // stage rule can be stated per test instead of standing up ports.
 const configGet = jest.fn();
 const configSet = jest.fn();

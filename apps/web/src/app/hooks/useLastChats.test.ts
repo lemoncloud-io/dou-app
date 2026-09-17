@@ -23,7 +23,7 @@ const row = (channelId: string, lastNo: number, chatNo?: number): DomainLastChat
     chat: chatNo === undefined ? null : ({ id: `m-${chatNo}`, channelId, chatNo } as never),
 });
 
-/** 마지막 구독의 콜백 — emit()으로 관측 결과 도착을 재현한다. */
+/** The last subscription's callback — emit() replays an observation result arriving. */
 let emitRows: (rows: DomainLastChat[]) => void = () => undefined;
 
 beforeEach(() => {
@@ -47,7 +47,7 @@ describe('useLastChats — 홈 목록의 결합 프리뷰 관측 (ADR-0057)', ()
         emitRows([row('ch-a', 3, 3), row('ch-b', 0)]);
 
         expect(result.current.get('ch-a')).toEqual(expect.objectContaining({ chatNo: 3 }));
-        // 프리뷰할 행이 없는 채널은 맵에서 빠진다 — 소비자는 undefined로 "프리뷰 없음"을 읽는다.
+        // A channel with no row to preview is left out of the map — consumers read undefined as "no preview".
         expect(result.current.get('ch-b')).toBeUndefined();
     });
 
@@ -60,8 +60,9 @@ describe('useLastChats — 홈 목록의 결합 프리뷰 관측 (ADR-0057)', ()
         expect(observeLastList).toHaveBeenCalledTimes(1);
     });
 
-    // 최근 메시지 적재는 이 화면 밖에서 따로 관리된다(네이티브 백그라운드 적재). 이 훅이
-    // fetch를 들고 있으면 목록 렌더가 곧 네트워크가 되는 구조로 되돌아간다 — 그 회귀를 잡는다.
+    // Loading recent messages is managed separately, outside this screen (native background
+    // loading). If this hook held a fetch, list rendering would go back to being coupled to the
+    // network — this catches that regression.
     it('순수 관측이다 — head가 앞서 있어도 네트워크(refreshList)를 만들지 않는다', () => {
         renderHook(() => useLastChats([channel('ch-a', 7)]));
 
@@ -88,7 +89,7 @@ describe('useLastChats — 재입장 이력 숨기기 (ADR-0067)', () => {
 
         emitRows([row('ch-a', 3, 3), row('ch-b', 9, 9)]);
 
-        // ch-a의 마지막 캐시 행은 퇴장 전 것이다 — 프리뷰 없는 채널이 된다.
+        // ch-a's last cached row predates leaving — it becomes a channel with no preview.
         expect(result.current.get('ch-a')).toBeUndefined();
         expect(result.current.get('ch-b')).toEqual(expect.objectContaining({ chatNo: 9 }));
     });

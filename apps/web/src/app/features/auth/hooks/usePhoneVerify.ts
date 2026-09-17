@@ -80,18 +80,18 @@ export interface PhoneVerifyFieldsState {
     /** Which country the number is read as. `null` until one is picked — a valid, quiet state. */
     country: PhoneCountry | null;
     onCountryChange: (country: PhoneCountry) => void;
-    /** Whether 인증 요청 may fire: a valid number, no live code, nothing in flight. */
+    /** Whether requesting a code may fire: a valid number, no live code, nothing in flight. */
     canRequestCode: boolean;
     onRequestCode: () => void;
     otp: string;
     onOtpChange: (value: string) => void;
-    /** A code is outstanding — the code field and 재전송 unlock, and the timer row appears. */
+    /** A code is outstanding — the code field and resend unlock, and the timer row appears. */
     codeSent: boolean;
     codeError: string;
     codeDescription: string;
     countdown: OtpExpiryCountdown | null;
     isBusy: boolean;
-    /** Both 재전송 and 시간 연장 land here; the argument only picks the over-limit dialog. */
+    /** Both resend and extend-time land here; the argument only picks the over-limit dialog. */
     onResend: (origin: PhoneVerifyLimit) => void;
     limit: PhoneVerifyLimit | null;
     onDismissLimit: () => void;
@@ -156,8 +156,9 @@ export const usePhoneVerify = ({
      * The `{phone, country}` the outstanding code was actually sent with, pinned at send time.
      *
      * The prove steps read THIS, not the live field. The contract requires the same country on send
-     * and on proof — "발송과 증명에 같은 값" (05-client-guide.md §계약) — and reading live state made
-     * that depend on the invalidation below never missing a case. Pinning makes it structural.
+     * and on proof — "same value on send and on verify" (05-client-guide.md §contract) — and reading
+     * live state made that depend on the invalidation below never missing a case. Pinning makes it
+     * structural.
      */
     const [sentWith, setSentWith] = useState<{ phone: string; country: PhoneCountry } | null>(null);
     const [otp, setOtp] = useState('');
@@ -190,7 +191,7 @@ export const usePhoneVerify = ({
     const resendExhausted = resendCount >= RESEND_LIMIT;
     const isBusy = loadingState !== 'idle';
     // A code is outstanding once a send/resend came back with an expiry. Retyping the number clears
-    // it, which re-arms 인증 요청 for the new number (Figma greys it out while a code is live).
+    // it, which re-arms requesting a code for the new number (Figma greys it out while a code is live).
     const codeSent = expiredAt !== undefined;
 
     const devSwitches = () => ({
@@ -272,7 +273,7 @@ export const usePhoneVerify = ({
             toast({ title: t('phoneVerify.sent') });
         } catch (error) {
             const code = getSocketErrorCode(error);
-            // Always log the raw failure. A 400 has several documented causes (§에러 코드) and the
+            // Always log the raw failure. A 400 has several documented causes (§error codes) and the
             // copy below can only guess at one of them — a production `@mode[login] is for device
             // session` read to users as a phone-number problem precisely because this catch was
             // silent, leaving the server's own message nowhere to be seen.
@@ -295,7 +296,7 @@ export const usePhoneVerify = ({
     };
 
     /**
-     * Shared by 재전송 and 시간 연장 — both are `step=resend` (D9). Past the client cap the server
+     * Shared by resend and extend-time — both are `step=resend` (D9). Past the client cap the server
      * is never asked; the design answers with a per-control dialog instead of a dead button.
      */
     const handleResend = async (origin: PhoneVerifyLimit) => {
@@ -320,7 +321,7 @@ export const usePhoneVerify = ({
             setOtpError('');
             submittedOtpRef.current = null; // a fresh code makes the previous submission irrelevant
             setResendCount(count => count + 1);
-            // The wrong-answer counter survives a resend (§발송 제한) — say so with the new code.
+            // The wrong-answer counter survives a resend (§send limits) — say so with the new code.
             toast({ title: t('phoneVerify.resent'), description: t('phoneVerify.resendKeepsCounter') });
         } catch (error) {
             const status = getSocketErrorCode(error);
@@ -357,7 +358,7 @@ export const usePhoneVerify = ({
      * Shared failure copy for the prove steps.
      *
      * `403` is the one code that means two different things — a wrong OTP, or "you already linked a
-     * different value for this credential" on a `link` confirm (§에러 코드). `vouched` disambiguates:
+     * different value for this credential" on a `link` confirm (§error codes). `vouched` disambiguates:
      * it is set only when a `verify` just accepted this very code, so a wrong OTP is no longer the
      * likely reading and `type-linked` is.
      */

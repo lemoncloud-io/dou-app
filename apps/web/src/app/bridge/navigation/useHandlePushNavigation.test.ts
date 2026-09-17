@@ -225,7 +225,7 @@ describe('useHandlePushNavigation', () => {
         });
 
         it("'#'는 native여도 invited-cloud 복구 대상이 아니다", async () => {
-            // clearAllMocks는 mockReturnValue를 지우지 않으므로 테스트 안에서 원복한다.
+            // clearAllMocks doesn't clear mockReturnValue, so restore it within the test.
             (runtime.boot.isNativeApp as jest.Mock).mockReturnValue(true);
             try {
                 setCloudActive();
@@ -289,12 +289,12 @@ describe('useHandlePushNavigation', () => {
             setResolved({ target: '/channels/roomB/room', cid: null, sid: null });
             await invoke();
 
-            // 두 번째 푸시: 앞선 replace로 이동한 방에서 또 다른 방으로.
+            // Second push: from the room reached via the earlier replace, to yet another room.
             setCurrentPath('/channels/roomB/room');
             setResolved({ target: '/channels/roomC/room', cid: null, sid: null });
             await invoke();
 
-            // 홈으로 rebase(push)하는 일이 없어야 한다 — 매번 현재 엔트리를 대체.
+            // There must be no rebase (push) back to home — the current entry is replaced every time.
             expect(navigate).not.toHaveBeenCalledWith('/', { replace: true });
             expect(navigate).toHaveBeenCalledWith('/channels/roomB/room', { replace: true });
             expect(navigate).toHaveBeenCalledWith('/channels/roomC/room', { replace: true });
@@ -311,8 +311,8 @@ describe('useHandlePushNavigation', () => {
         });
 
         it('방이 아닌 화면에서 받은 푸시는 그 화면을 남기고 push한다 (뒤로가기가 돌아올 자리)', async () => {
-            // 회귀: 마이페이지에서 인앱 메시지를 탭하면 마이페이지를 replace해서 뒤로가기가
-            // 건너뛰었고, 마이페이지가 유일한 엔트리면 돌아갈 곳이 아예 없었다.
+            // Regression: tapping an in-app message from My Page used to replace My Page, so back
+            // would skip over it — and if My Page was the only entry, there was nowhere to go back to at all.
             setCurrentPath('/mypage');
             setResolved({ target: '/channels/roomA/room', cid: null, sid: null });
 
@@ -376,7 +376,7 @@ describe('useHandlePushNavigation', () => {
         });
 
         it('네이티브 replace 플래그와 무관하게 정규화 규칙대로 네비게이션한다', async () => {
-            // 네이티브가 replace를 요청해도 규칙이 이긴다 — 방이 아닌 화면이므로 push다.
+            // Even when native requests replace, the rule wins — this isn't a room screen, so it's a push.
             setCurrentPath('/mypage');
             setResolved({ target: '/channels/roomA/room', cid: null, sid: null });
 

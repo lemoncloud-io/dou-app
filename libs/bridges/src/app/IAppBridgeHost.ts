@@ -7,21 +7,22 @@ import type {
 } from '@chatic/app-messages';
 
 /**
- * App(Native) 환경에서 Web(React 등)의 요청을 수신하고 처리하는 호스트(Host) 인터페이스입니다.
+ * A host interface that, in the App (Native) environment, receives and handles requests from the Web (React, etc.).
  */
 export interface IAppBridgeHost {
     /**
-     * [Web -> App] 브릿지 채널(WebView)을 통해 들어온 문자열 데이터를 파싱하고 알맞은 핸들러로 라우팅합니다.
+     * [Web -> App] Parses string data that arrived over the bridge channel (WebView) and routes it to the right handler.
      */
     handleMessage(data: string): Promise<void>;
 
     /**
-     * [Web -> App] 특정 RequestType에 대한 비즈니스 로직(핸들러)을 등록합니다.
-     * Web에서 해당 타입의 요청이 오면 이 핸들러가 실행되며, 반환값은 자동으로 Web으로 응답(Response)됩니다.
+     * [Web -> App] Registers the business logic (handler) for a specific RequestType.
+     * When a request of that type arrives from Web, this handler runs, and its return value is automatically sent back to Web as a response.
      *
-     * 아무것도 반환하지 않으면 응답을 보내지 않습니다. 응답을 기다리는 쪽이 없는 fire-and-forget
-     * 메시지(`SendLog`)를 위한 것으로, 그 응답은 웹에서 폐기되면서 브릿지 대역과 UI 스레드만
-     * 소모합니다 — `AppBridgeHost.processRequest` 참고.
+     * Returning nothing sends no response. This is for fire-and-forget messages (`SendLog`) that
+     * no one is waiting on a response for — that response would otherwise just be discarded on
+     * the web side, consuming bridge bandwidth and UI-thread time for nothing. See
+     * `AppBridgeHost.processRequest`.
      */
     registerHandler<K extends WebMessageType>(
         type: K,
@@ -31,12 +32,12 @@ export interface IAppBridgeHost {
     ): void;
 
     /**
-     * 등록된 특정 핸들러를 제거합니다.
+     * Removes a specific registered handler.
      */
     unregisterHandler(type: WebMessageType): void;
 
     /**
-     * [App -> Web] Web의 요청 없이 App(Native)에서 자발적으로 발생하는 단방향 이벤트를 푸시합니다.
+     * [App -> Web] Pushes a one-way event that originates spontaneously from the App (Native) side, without a Web request.
      */
     pushEvent<K extends AppMessageType>(message: AppMessageData<K>): void;
 }

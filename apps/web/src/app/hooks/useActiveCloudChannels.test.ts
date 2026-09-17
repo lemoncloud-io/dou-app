@@ -110,8 +110,9 @@ describe('useActiveCloudChannelsSource — 클라우드 전체 채널 구독', (
     });
 });
 
-// 접근 못 하게 된 사이트(레일에서 사라진 place)의 채널은 캐시에 남는다. 그 채널은 홈 목록에도
-// place 점에도 안 나타나는데 total에만 잡혀서, 읽을 수 없는 미읽음이 앱 뱃지에 영구히 남았다.
+// Channels of a site that became unreachable (a place gone from the rail) stay in the cache. That
+// channel shows up in neither the home list nor a place dot, yet it's still counted in total, so an
+// unreadable unread stayed on the app badge forever.
 describe('useActiveCloudChannelsSource — 닿을 수 없는 place 제외', () => {
     const placeObserveList = jest.fn();
 
@@ -146,8 +147,8 @@ describe('useActiveCloudChannelsSource — 닿을 수 없는 place 제외', () =
         expect(result.current.channels.map(c => c.id)).toEqual(['c1', 'c2']);
     });
 
-    // place 목록이 아직 안 온 상태를 "place 없음"으로 읽으면 클라우드 전환마다 뱃지가 0으로
-    // 깜빡인다. 모르는 동안에는 거르지 않는다.
+    // Reading a not-yet-arrived place list as "no places" would flash the badge to 0 on every cloud
+    // switch. Don't filter while it's still unknown.
     it('place 목록이 아직 없으면 거르지 않는다', () => {
         placeObserveList.mockImplementation(() => jest.fn());
         emit([channel('c1', 'site-1'), channel('c2', 'site-gone')]);
@@ -157,7 +158,7 @@ describe('useActiveCloudChannelsSource — 닿을 수 없는 place 제외', () =
         expect(result.current.channels.map(c => c.id)).toEqual(['c1', 'c2']);
     });
 
-    // sid가 아직 안 붙은 행은 고아가 아니라 동기화 중인 행이다.
+    // A row with no sid attached yet is not an orphan — it's a row still syncing.
     it('sid가 없는 채널은 남긴다', () => {
         emitPlaces(['site-1']);
         emit([channel('c1', 'site-1'), { id: 'c2' } as DomainChannel]);
@@ -168,7 +169,7 @@ describe('useActiveCloudChannelsSource — 닿을 수 없는 place 제외', () =
     });
 });
 
-// 얇은 훅은 공유 관측(ActiveCloudDataProvider)의 결과만 읽는다 — 자기 구독을 만들지 않는다.
+// The thin hook only reads the result of the shared observation (ActiveCloudDataProvider) — it does not create its own subscription.
 describe('useActiveCloudChannels — 공유 관측 읽기', () => {
     const wrapper =
         (value: { channels: DomainChannel[] }) =>
@@ -185,7 +186,7 @@ describe('useActiveCloudChannels — 공유 관측 읽기', () => {
     });
 
     it('프로바이더가 없으면 조용히 비어 있지 않고 던진다', () => {
-        // 조용한 폴백은 이 컨텍스트가 없애려던 중복 구독을, 조용한 빈 값은 영원히 0인 뱃지를 부른다.
+        // A silent fallback would bring back the duplicate subscriptions this context was meant to remove; a silent empty value would leave the badge permanently at 0.
         expect(() => renderHook(() => useActiveCloudChannels())).toThrow(/ActiveCloudDataProvider is missing/);
     });
 });

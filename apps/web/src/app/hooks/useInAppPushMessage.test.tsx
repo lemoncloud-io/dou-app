@@ -93,8 +93,8 @@ describe('useInAppPushMessage', () => {
         expect(toastCustom).toHaveBeenCalledTimes(1);
     });
 
-    // 스레드는 그 방의 다른 화면일 뿐이다 — 방에서 억제되는 배너가 스레드에서 뜨면,
-    // 답글을 쓰는 동안 내 전송 왕복이 그대로 배너로 돌아온다.
+    // A thread is just another screen of that room — if a banner suppressed in the room pops up in
+    // the thread, my own send round-trip while writing a reply comes right back as a banner.
     it('같은 채널의 스레드를 보고 있어도 배너를 띄우지 않는다', () => {
         setCurrentPath('/channels/abc/thread/42');
 
@@ -111,8 +111,9 @@ describe('useInAppPushMessage', () => {
         expect(toastCustom).toHaveBeenCalledTimes(1);
     });
 
-    // 발신자에 따라 이 필드들은 top-level이 아니라 `payload` JSON 안에 온다. 예전처럼 raw로 읽으면
-    // 두 억제 규칙이 조용히 통째로 죽는다 — 그래서 배너가 뜨지 말아야 할 때 떴다.
+    // Depending on the sender, these fields arrive inside the `payload` JSON rather than top-level.
+    // Reading them raw as before silently kills both suppression rules — which is why the banner
+    // showed up when it shouldn't have.
     it('payload에 중첩된 ownerId로도 내 메시지를 알아본다', () => {
         invoke({ title: 'T', body: 'B', data: { payload: JSON.stringify({ channelId: 'abc', ownerId: 'me' }) } });
 
@@ -127,8 +128,8 @@ describe('useInAppPushMessage', () => {
         expect(toastCustom).not.toHaveBeenCalled();
     });
 
-    // 안드로이드 포그라운드 경로는 top-level `channelId`에 OS 알림 채널("dou_chat")을 실어 보냈다.
-    // payload가 top-level을 이겨야 진짜 대화방 id가 라우트 비교에 쓰인다.
+    // The Android foreground path sent the OS notification channel ("dou_chat") in the top-level
+    // `channelId`. payload has to win over top-level for the real room id to be used in the route comparison.
     it('top-level channelId가 OS 알림 채널이어도 payload의 채널 id로 비교한다', () => {
         setCurrentPath('/channels/abc/room');
 
@@ -168,7 +169,8 @@ describe('useInAppPushMessage', () => {
         expect(navigateToPush).not.toHaveBeenCalled();
     });
 
-    // 방 이름은 그대로 쓴다 — `#`은 공개 채널 관례라 1:1·나와의 채팅에도 붙어 어색했다.
+    // The room name is used as-is — `#` is a public-channel convention, and attaching it to 1:1s and
+    // self-chats too looked awkward.
     it('채널명이 있으면 이름 그대로를 헤드라인으로 쓴다', () => {
         invoke({ title: 'T', body: 'B', data: { channelId: 'abc', channelName: 'general' } });
 
@@ -179,7 +181,7 @@ describe('useInAppPushMessage', () => {
         expect(screen.getByText('B')).toBeTruthy();
     });
 
-    // 배너는 방금 도착한 푸시만 띄우므로 시각 라벨은 계산 없이 항상 고정 문구다.
+    // The banner only ever shows a push that just arrived, so the time label is always the fixed string, with no computation.
     it('배너에는 항상 "지금" 라벨이 붙는다', () => {
         invoke({ title: 'T', body: 'B', data: { channelId: 'abc' } });
 

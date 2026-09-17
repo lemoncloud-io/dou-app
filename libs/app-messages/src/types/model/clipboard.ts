@@ -1,10 +1,10 @@
-/** [요청] 네이티브 클립보드에 텍스트 쓰기 */
+/** [Request] Write text to the native clipboard */
 export type CopyToClipboardPayload = {
-    /** 클립보드에 복사할 텍스트 */
+    /** Text to copy to the clipboard */
     text: string;
 };
 
-/** [응답] 네이티브 클립보드 쓰기 결과 */
+/** [Response] Result of writing to the native clipboard */
 export type OnCopyToClipboardPayload = {
     copied: boolean;
 };

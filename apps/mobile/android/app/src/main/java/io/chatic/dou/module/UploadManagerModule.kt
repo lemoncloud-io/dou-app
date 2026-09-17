@@ -23,14 +23,14 @@ import io.chatic.dou.service.UploadBackgroundService
 import io.chatic.dou.worker.UploadWorker
 
 /**
- * UploadManagerModule — JS ↔ Native 업로드 브릿지 모듈
+ * UploadManagerModule — JS ↔ Native upload bridge module.
  *
- * 구조:
- * - JS에서 enqueueUpload/pause/resume/cancel 호출 시 UploadBackgroundService로 Intent 전달
- * - enqueueUpload 시 WorkManager를 통해 UploadWorker도 등록 (Foreground Worker 보장)
- * - UploadBackgroundService의 브로드캐스트를 수신하여 JS로 이벤트 전달
+ * Structure:
+ * - When JS calls enqueueUpload/pause/resume/cancel, forwards an Intent to UploadBackgroundService
+ * - On enqueueUpload, also registers UploadWorker through WorkManager (guarantees a Foreground Worker)
+ * - Listens for UploadBackgroundService broadcasts and forwards the events to JS
  *
- * 이벤트 흐름:
+ * Event flow:
  * JS → enqueueUpload() → WorkManager(UploadWorker) + Service Intent
  * Service → BroadcastReceiver → JS(UploadManagerStateChanged)
  */
@@ -38,7 +38,7 @@ class UploadManagerModule(private val reactContext: ReactApplicationContext) : R
 
     override fun getName(): String = "UploadManager"
 
-    // RN 이벤트 이미터 필수 no-op 메서드
+    // Required no-op methods for the RN event emitter
     @ReactMethod
     fun addListener(eventName: String) {}
 
@@ -46,8 +46,8 @@ class UploadManagerModule(private val reactContext: ReactApplicationContext) : R
     fun removeListeners(count: Int) {}
 
     /**
-     * UploadBackgroundService 브로드캐스트 수신기.
-     * Service → JS 방향의 업로드 상태 이벤트를 중계.
+     * UploadBackgroundService broadcast receiver.
+     * Relays upload status events in the Service → JS direction.
      */
     private val eventReceiver: BroadcastReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -119,13 +119,13 @@ class UploadManagerModule(private val reactContext: ReactApplicationContext) : R
     }
 
     /**
-     * 새 업로드 태스크 등록.
+     * Registers a new upload task.
      *
-     * 동작:
-     * 1. WorkManager에 UploadWorker 등록 (Foreground Worker + 네트워크 제약)
-     * 2. UploadBackgroundService에 ACTION_ENQUEUE_UPLOAD Intent 전달
+     * Behavior:
+     * 1. Registers UploadWorker with WorkManager (Foreground Worker + network constraint)
+     * 2. Forwards an ACTION_ENQUEUE_UPLOAD Intent to UploadBackgroundService
      *
-     * WorkManager uniqueWork 정책: KEEP — 동일 uploadId 중복 시 기존 작업 유지
+     * WorkManager uniqueWork policy: KEEP — keeps the existing work if the same uploadId is duplicated
      */
     @ReactMethod
     fun enqueueUpload(payload: ReadableMap, promise: Promise) {
@@ -167,7 +167,7 @@ class UploadManagerModule(private val reactContext: ReactApplicationContext) : R
                 }
             }
 
-            // 1) WorkManager에 UploadWorker 등록 (Foreground Worker + 네트워크 제약)
+            // 1) Register UploadWorker with WorkManager (Foreground Worker + network constraint)
             val constraints = Constraints.Builder()
                 .setRequiredNetworkType(NetworkType.CONNECTED)
                 .build()
@@ -183,7 +183,7 @@ class UploadManagerModule(private val reactContext: ReactApplicationContext) : R
                 workRequest
             )
 
-            // 2) Foreground Service에 업로드 실행 위임
+            // 2) Delegate upload execution to the Foreground Service
             val intent = Intent(reactContext, UploadBackgroundService::class.java).apply {
                 action = UploadBackgroundService.ACTION_ENQUEUE_UPLOAD
                 putExtra("uploadId", uploadId)
@@ -246,7 +246,7 @@ class UploadManagerModule(private val reactContext: ReactApplicationContext) : R
     @ReactMethod
     fun cancelUpload(uploadId: String, promise: Promise) {
         try {
-            // WorkManager 작업도 함께 취소
+            // Also cancel the WorkManager job
             WorkManager.getInstance(reactContext).cancelUniqueWork("upload_$uploadId")
 
             val intent = Intent(reactContext, UploadBackgroundService::class.java).apply {

@@ -10,7 +10,7 @@ export interface InlineActionProps {
 
 /**
  * In-field / helper-row text link — what `TextField`'s `trailing` and `helperTrailing` slots are
- * documented to hold (인증 요청 · 재전송 · 시간 연장).
+ * documented to hold (request verification · resend · extend time).
  *
  * Lives here rather than beside one verification flow because both of them need the identical
  * control, and a design-system slot filled two different ways is how the two screens drift apart.

@@ -37,9 +37,9 @@ const mockNotifySessionStateChanged = jest.fn();
 const mockIsNative = jest.fn();
 const mockLoggerWarn = jest.fn();
 
-// `data`가 이 클래스의 유일한 HTTP 경로다 — 세션 재료 호출 전부의 목 이음새가 여기다.
-// 인자 모양은 repository 계약 그대로 검증한다(객체). 이름을 바꿔주던 `auth/api.ts` 어댑터가
-// 사라졌으므로, 지금 이 목이 실제 경계다.
+// `data` is this class's only HTTP path — this is the mock seam for every session-material call.
+// The argument shape is validated exactly as the repository contract has it (an object). The
+// `auth/api.ts` adapter that used to rename it is gone, so this mock is now the real boundary.
 jest.mock('../../data/runtime', () => ({
     getRepositories: () => ({
         auth: {
@@ -73,8 +73,9 @@ jest.mock('../../http/transport', () => ({
     },
 }));
 
-// 이관 전 web-core에서 `./contexts` · `./core` · `./contextStore` · `./utils` 네 모듈로 나뉘어
-// 있던 목을 하나로 합친 것 — 이제 전부 `session/store` 배럴 뒤에 있다.
+// Before the migration, this mock was split across four web-core modules — `./contexts`,
+// `./core`, `./contextStore`, `./utils` — and has now been merged into one; they all sit behind
+// the `session/store` barrel now.
 
 jest.mock('../store/stores', () => ({
     CLOUD_INVITED_BUNDLES_KEY: 'invited-cloud-bundles',
@@ -117,7 +118,7 @@ jest.mock('../store', () => ({
     getSelectedSiteId: (...args: unknown[]) => mockGetSelectedSiteId(...args),
     clearRelaySession: jest.fn(),
     rebuildSessionIdentity: jest.fn(),
-    // The store announces KINDS now (ADR-0076 결정 2). `mockNotifySessionStateChanged` stands for
+    // The store announces KINDS now (ADR-0076 decision 2). `mockNotifySessionStateChanged` stands for
     // `emit`, so the existing "was the session announced" assertions keep their meaning; `batch`
     // runs straight through because the collapsing is covered by signal.test.ts.
     sessionSignal: {
@@ -289,9 +290,10 @@ describe('session/auth/relaySession', () => {
         expect(mockSetSessionAuthenticated).toHaveBeenCalledWith(true);
     });
 
-    // OAuth 교환은 다른 로그인 경로와 같은 모양이어야 한다: 응답이 전체 relay 토큰 뷰이고
-    // applyRelaySession이 커밋한다. 예전에는 Token만 남기고 나머지를 버려서, 호출부가 버려진
-    // 필드를 되찾으려고 곧바로 refresh 엔드포인트를 쳤다 — 리포의 마지막 HTTP refresh였다.
+    // The OAuth exchange must have the same shape as the other login paths: the response is the full
+    // relay token view, and applyRelaySession commits it. It used to keep only the Token and drop
+    // the rest, so the caller immediately hit the refresh endpoint to recover the dropped fields —
+    // that was the repo's last HTTP refresh.
     it('OAuth 교환이 세션을 커밋한다 — 자격증명·relay 토큰·인증 플래그', async () => {
         const view = {
             id: 'user-1',

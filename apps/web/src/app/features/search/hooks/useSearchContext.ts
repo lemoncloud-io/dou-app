@@ -72,8 +72,8 @@ export interface SearchResultRows {
  *
  * These come from `resolveContext`, a batch read, rather than from per-row hooks: the home row's
  * `useChannelSync`/`useChatSync`/`useLastChats` would register a sync target per rendered row and
- * re-register on every keystroke (see docs/specs/search/web-search-page.md, "검색 결과 행은 데이터를
- * 당겨오지 않는다"). Rows therefore take a plain model and call nothing.
+ * re-register on every keystroke (see docs/specs/search/web-search-page.md, "search result rows
+ * don't pull their own data"). Rows therefore take a plain model and call nothing.
  *
  * Context arrives after the matches do, so rows render immediately with what the match carries
  * (name, thumbnail, member count) and the context-dependent fields fill in a beat later. A failed

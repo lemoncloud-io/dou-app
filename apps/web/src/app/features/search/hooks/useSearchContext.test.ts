@@ -103,7 +103,7 @@ describe('useSearchContext', () => {
             lastMessage: 'see you',
             lastMessageAt: 1700,
         });
-        // join.metaNo 없음 → head의 metaNo로 대체(ADR-0048 폴백). (20-2) - (8-2) = 12.
+        // join.metaNo is missing → falls back to head's metaNo (ADR-0048 fallback). (20-2) - (8-2) = 12.
         expect(row.unread).toBe(12);
     });
 

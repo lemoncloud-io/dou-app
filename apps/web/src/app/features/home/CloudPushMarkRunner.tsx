@@ -13,7 +13,7 @@ import { useCloudPushMarkStore } from './stores/useCloudPushMarkStore';
 import { RELAY_CLOUD_ID, resolvePushCloudId } from './utils/resolvePushCloudId';
 
 /**
- * Cross-cloud push → dot mark (ADR-0056 결정 2·3). Mounted once under AppRuntime, alongside
+ * Cross-cloud push → dot mark (ADR-0056 Decisions 2 & 3). Mounted once under AppRuntime, alongside
  * `UnreadBadgeRunner`.
  *
  * Two arrival paths feed the same mark store:
