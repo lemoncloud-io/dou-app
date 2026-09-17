@@ -73,16 +73,27 @@ export const OnboardingModal = ({ open, onComplete }: OnboardingModalProps) => {
                     onTouchMove={onTouchMove}
                     onTouchEnd={onTouchEnd}
                 >
+                    {/* The track measures itself against its own container, never the viewport.
+                        Steps used to be sized in viewport units, which is only the same thing
+                        while the column happens to BE the viewport — on any device past the cap
+                        each step was wider than the frame holding it, so the next step bled in at
+                        the edge. Percentages of the track hold at every width: the track is
+                        `totalSteps` frames wide, one frame is `100 / totalSteps` of it, and an
+                        advance moves by that same fraction. */}
                     <div
                         className="flex h-full"
                         style={{
-                            width: `${totalSteps * 100}vw`,
-                            transform: `translateX(calc(-${currentStep * 100}vw + ${dragOffset}px))`,
+                            width: `${totalSteps * 100}%`,
+                            transform: `translateX(calc(-${(currentStep * 100) / totalSteps}% + ${dragOffset}px))`,
                             transition: isDragging ? 'none' : 'transform 300ms ease-out',
                         }}
                     >
                         {onboardingSteps.map(step => (
-                            <div key={step.id} className="h-full w-screen flex-shrink-0">
+                            <div
+                                key={step.id}
+                                className="h-full flex-shrink-0"
+                                style={{ width: `${100 / totalSteps}%` }}
+                            >
                                 <OnboardingContent step={step} />
                             </div>
                         ))}
