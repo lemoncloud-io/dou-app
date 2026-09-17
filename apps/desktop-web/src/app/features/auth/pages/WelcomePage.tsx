@@ -30,9 +30,19 @@ export const WelcomePage = () => {
             {/* One filled primary leads; the alternatives sit under it, and the
                 invite path is a link rather than a fourth identical pill. */}
             <div className="flex flex-col gap-2">
-                <Button size="lg" onClick={() => void submit()} disabled={isSubmitting}>
+                <Button
+                    size="lg"
+                    onClick={() => void submit()}
+                    disabled={isSubmitting}
+                    aria-describedby="welcome-guest-note"
+                >
                     {isSubmitting ? t('welcome.starting') : isError ? t('welcome.retry') : t('welcome.start')}
                 </Button>
+                {/* The button mints a guest account. Saying so here, not only in the
+                    logout confirmation, is the difference between a choice and a surprise. */}
+                <p id="welcome-guest-note" className="-mt-0.5 text-center text-caption text-muted-foreground">
+                    {t('welcome.guestNote')}
+                </p>
                 {isSocialLoginEnabled() && (
                     <Button
                         variant="outline"

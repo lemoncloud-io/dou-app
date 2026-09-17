@@ -59,9 +59,11 @@ export const JoinWithInviteDialog = () => {
                         placeholder={t('auth.invite.placeholder')}
                         aria-label={t('auth.invite.placeholder')}
                         disabled={isSubmitting}
+                        aria-invalid={error ? true : undefined}
+                        aria-describedby={error ? 'join-invite-error' : undefined}
                     />
                     {error && (
-                        <p role="alert" className="-mt-1 text-sm text-destructive">
+                        <p id="join-invite-error" role="alert" className="-mt-1 text-sm text-destructive">
                             {inviteLoginErrorText(error, t)}
                         </p>
                     )}

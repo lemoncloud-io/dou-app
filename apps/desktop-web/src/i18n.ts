@@ -19,6 +19,9 @@ export const SUPPORTED_LANGUAGES = ['ko', 'en'] as const;
 
 export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number];
 
+/** What each bundle calls itself, so a choice reads in the language it selects. */
+export const LANGUAGE_LABELS: Record<SupportedLanguage, string> = { ko: '한국어', en: 'English' };
+
 const STORED_LANGUAGE_KEY = 'chatic.language';
 
 const isSupported = (value: string | null | undefined): value is SupportedLanguage =>

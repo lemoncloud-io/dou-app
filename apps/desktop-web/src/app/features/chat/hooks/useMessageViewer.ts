@@ -13,8 +13,11 @@ import type { MessageViewer } from '../utils';
  */
 export const useMessageViewer = (channel: DomainChannel | undefined): MessageViewer => {
     const { userId: myUid } = runtime.session.useSessionIdentity();
-    const { userName } = runtime.session.useRuntimeProfile();
+    const { userName, photo } = runtime.session.useRuntimeProfile();
     const myName = isPlaceholderName(userName) ? '' : userName;
     const cloudUid = channel?.$join?.userId ?? null;
-    return useMemo(() => ({ uid: myUid, name: myName, cloudUid }), [myUid, myName, cloudUid]);
+    return useMemo(
+        () => ({ uid: myUid, name: myName, cloudUid, photo: photo || undefined }),
+        [myUid, myName, cloudUid, photo]
+    );
 };

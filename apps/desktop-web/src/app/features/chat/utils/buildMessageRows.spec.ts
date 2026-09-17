@@ -59,3 +59,20 @@ describe('buildMessageRows — system rows', () => {
         expect(rows[1]).toMatchObject({ kind: 'system', authorName: '' });
     });
 });
+
+describe('buildMessageRows — author avatar', () => {
+    // A cached row carries no embedded thumbnail; mine fell back to an initial after a reload.
+    it('uses my account photo for my own messages when the row has none', () => {
+        const rows = buildMessageRows(
+            [
+                chat({ id: 'C1:1', chatNo: 1, ownerId: 'me-cloud', content: 'mine' }),
+                chat({ id: 'C1:2', chatNo: 2, ownerId: 'ada', content: 'theirs' }),
+            ],
+            { ...VIEWER, photo: 'data:me' }
+        );
+
+        const groups = rows.flatMap(row => (row.kind === 'group' ? [row.group] : []));
+        expect(groups[0]).toMatchObject({ isMine: true, avatar: 'data:me' });
+        expect(groups[1]).toMatchObject({ isMine: false, avatar: undefined });
+    });
+});

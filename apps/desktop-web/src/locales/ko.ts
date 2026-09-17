@@ -8,7 +8,7 @@ import type { EnTranslation } from './en';
  *
  * One Korean term per English term, held across the whole file:
  * cloud 클라우드 · place 플레이스 · channel 채널 · workspace 워크스페이스 ·
- * thread 스레드 · reply 답글 · saved items 저장한 항목 · activity 활동 ·
+ * thread 스레드 · reply 답글 · saved items 저장한 항목 · mentions 멘션 ·
  * unread 안 읽음 · mention 멘션 · reaction 반응 · invite 초대 · guest 게스트 ·
  * member 멤버 · favorites 즐겨찾기 · quiet hours 방해 금지 시간 · rail 레일.
  * Product nouns, keys and tokens stay verbatim: DoU, Google, DM, Enter,
@@ -30,7 +30,7 @@ export const ko: EnTranslation = {
     'auth.invite.failed.already': '이미 이 워크스페이스에 참여해 있어요. 왼쪽 레일에서 선택해 주세요.',
     'auth.invite.failed.denied': '이 계정으로는 쓸 수 없는 초대예요. 초대를 받은 계정으로 로그인해 주세요.',
     'auth.invite.failed.network': '서버에 연결하지 못했어요. 연결을 확인하고 다시 시도해 주세요.',
-    'auth.invite.failed.generic': '로그인하지 못했어요. 코드를 확인하고 다시 시도해 주세요.',
+    'auth.invite.failed.generic': '이 코드로 참여하지 못했어요. 코드를 확인하고 다시 시도해 주세요.',
     'auth.debug.title': '디버그 로그인',
     'auth.debug.subtitle': '개발용 이메일·비밀번호 로그인이에요.',
     'auth.debug.email': '이메일',
@@ -42,7 +42,7 @@ export const ko: EnTranslation = {
     'auth.debug.failed': '로그인하지 못했어요. 계정 정보를 확인해 주세요.',
     'auth.debug.showPassword': '비밀번호 표시',
     'auth.debug.hidePassword': '비밀번호 숨기기',
-    'auth.debug.backToInvite': '초대 로그인으로 돌아가기',
+    'auth.debug.back': '뒤로',
     'auth.debug.link': '디버그 로그인',
     'auth.social.google': 'Google로 계속하기',
     'auth.social.signingIn': '로그인 중…',
@@ -60,6 +60,7 @@ export const ko: EnTranslation = {
     'welcome.start': '대화 시작',
     'welcome.starting': '준비 중…',
     'welcome.retry': '다시 시도',
+    'welcome.guestNote': '이 기기에서만 쓰는 게스트 계정으로 시작해요.',
     'welcome.haveInvite': '초대를 받았어요',
     'welcome.debugLogin': '디버그 로그인',
     'welcome.registerFailed': '시작하지 못했어요. 연결을 확인하고 다시 시도해 주세요.',
@@ -167,12 +168,12 @@ export const ko: EnTranslation = {
     'snooze.off': '일시 중지 해제',
     'snooze.activeUntil': '{{time}}까지 알림 꺼짐',
     'snooze.activeQuiet': '방해 금지 시간이라 알림 꺼짐',
-    'activity.title': '활동',
+    'activity.title': '멘션',
     'activity.empty': '아직 멘션이 없어요',
     'activity.emptyHint': '누군가 나를 @멘션하면 여기에 표시돼요.',
     'activity.markAllRead': '모두 읽음으로 표시',
-    'activity.close': '활동 닫기',
-    'activity.resize': '활동 패널 크기 조절',
+    'activity.close': '멘션 닫기',
+    'activity.resize': '멘션 패널 크기 조절',
     'chat.failed': '전송 실패',
     'chat.retry': '다시 시도',
     'chat.reaction.add': '반응 추가',

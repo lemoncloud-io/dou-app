@@ -10,7 +10,7 @@ import { Switch } from '@chatic/ui-kit/components/ui/switch';
 
 import { useNotificationPrefsStore, VersionInfo } from '../../../shared';
 import { useOnboardingStore, useShortcutsDialogStore } from '../../chat/stores';
-import { SUPPORTED_LANGUAGES, setLanguage, type SupportedLanguage } from '../../../../i18n';
+import { LANGUAGE_LABELS, SUPPORTED_LANGUAGES, setLanguage } from '../../../../i18n';
 import { useDevicePushMute } from '../hooks';
 import { LaunchAtLoginSection } from './LaunchAtLoginSection';
 
@@ -35,9 +35,6 @@ const quietWindowMinutes = (start: string, end: string): number | null => {
 // The bundles that actually ship (src/i18n.ts owns the list). A picker with a
 // single choice is chrome, so it stays hidden until there is a second language.
 const LANGUAGE_OPTIONS = SUPPORTED_LANGUAGES;
-
-/** What each bundle calls itself, so the choice reads in the language it selects. */
-const LANGUAGE_LABEL: Record<SupportedLanguage, string> = { ko: '한국어', en: 'English' };
 
 /**
  * Mini preview swatch for each theme choice. The two solid halves of the system
@@ -140,7 +137,7 @@ export const SettingsPage = () => {
                                                     : 'border-input text-muted-foreground hover:border-border hover:bg-accent'
                                             )}
                                         >
-                                            {LANGUAGE_LABEL[lng]}
+                                            {LANGUAGE_LABELS[lng]}
                                         </button>
                                     ))}
                                 </div>

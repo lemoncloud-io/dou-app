@@ -46,6 +46,12 @@ export interface MessageViewer {
      * id once the message persists — so both ids identify my own messages.
      */
     cloudUid?: string | null;
+    /**
+     * My account photo. A message read back from the cache carries no embedded
+     * `owner$.thumbnail`, so after a reload my own rows showed an initial while
+     * the rail showed my photo.
+     */
+    photo?: string;
 }
 
 /** Split a run of same-author messages when they are more than this far apart. */
@@ -220,7 +226,11 @@ export const buildMessageRows = (
             const placeNick = place?.nick?.trim();
             // Same single merge as every other surface (resolveDisplay): a Place
             // nick/thumbnail overrides the global fallback resolved above.
-            const display = resolveDisplay(place, resolvedName ?? '', message.owner$?.thumbnail);
+            const display = resolveDisplay(
+                place,
+                resolvedName ?? '',
+                message.owner$?.thumbnail ?? (isMine ? viewer.photo : undefined)
+            );
             currentGroup = {
                 key: message.id ?? message.tempId ?? `${message.channelId}:${message.chatNo}`,
                 ownerId: message.ownerId,

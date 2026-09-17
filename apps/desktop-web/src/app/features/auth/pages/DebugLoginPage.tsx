@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import { Eye, EyeOff } from 'lucide-react';
 
@@ -11,6 +11,7 @@ import { useDebugLogin } from '../hooks';
 export const DebugLoginPage = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
+    const location = useLocation();
     const { submit, isSubmitting, isError } = useDebugLogin();
     const [uid, setUid] = useState('');
     const [pwd, setPwd] = useState('');
@@ -102,10 +103,12 @@ export const DebugLoginPage = () => {
 
                 <button
                     type="button"
-                    onClick={() => navigate('/auth/login')}
+                    // Back to wherever this page was opened from (welcome or invite);
+                    // a fresh load with no history lands on the welcome screen.
+                    onClick={() => (location.key === 'default' ? navigate('/auth/welcome') : navigate(-1))}
                     className="text-xs font-medium text-muted-foreground hover:text-foreground"
                 >
-                    {t('auth.debug.backToInvite')}
+                    {t('auth.debug.back')}
                 </button>
             </form>
         </div>
