@@ -86,7 +86,7 @@ describe('useChats — 메시지 매핑/정렬/페이징', () => {
         expect(result.current.messages.map(m => m.id)).toEqual(['a', 'c']);
     });
 
-    // ADR-0045: reaction events used to render as empty SystemNotice pills and replies
+    // ADR-0093: reaction events used to render as empty SystemNotice pills and replies
     // leaked into the main feed. Both fold out of `messages` but stay on `rawChats`,
     // which reaction folding / thread derivation read.
     it('리액션 이벤트와 스레드 답글은 messages에서 숨기고 rawChats에는 남긴다', () => {

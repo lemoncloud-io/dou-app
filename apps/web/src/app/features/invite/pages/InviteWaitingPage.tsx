@@ -25,7 +25,7 @@ import { composeInviteSmsBody } from '../utils/inviteMessageCopy';
 import { sendInviteMessage } from '../utils/sendInviteMessage';
 
 /**
- * 초대 대기 화면 (ADR-0033 Track B, 취소·거절 실 API는 ADR-0043, 국제번호는 ADR-0044) — Figma
+ * 초대 대기 화면 (ADR-0089 Track B, 취소·거절 실 API는 ADR-0043, 국제번호는 ADR-0044) — Figma
  * 3263-30072 (대기) / 3398-25887 (수락되어 입장) / 3263-30117 (거절) / 3263-30162 (만료) /
  * 3263-30207 (취소 확인) / 3413-18662 (취소 토스트).
  *

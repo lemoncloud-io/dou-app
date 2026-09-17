@@ -67,7 +67,7 @@ stage: window.CHATIC_APP_STAGE,
 - The goal isn't softening the notification noise — it's **cutting the call count itself down to
   about once.**
 - The target is to ship today (2026-09-08).
-- The `apps/desktop-web` no-modification rule ([[no-touch-desktop-web]], ADR-0045) is **explicitly
+- The `apps/desktop-web` no-modification rule ([[no-touch-desktop-web]], ADR-0094) is **explicitly
   waived for this work only.**
 
 ### Storage facts

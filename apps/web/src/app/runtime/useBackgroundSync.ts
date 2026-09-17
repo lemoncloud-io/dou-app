@@ -82,7 +82,7 @@ export const useBackgroundSync = (): void => {
                 .refreshList()
                 .then(() => syncStreakReporter.succeed('place-refresh'))
                 // Still best-effort — the retry policy is unchanged and the next tick re-asks. What
-                // changes is that a run of failures now says so once instead of never (ADR-0075).
+                // changes is that a run of failures now says so once instead of never (ADR-0099).
                 .catch(error => syncStreakReporter.fail('place-refresh', error));
 
             await Promise.all([
@@ -106,7 +106,7 @@ export const useBackgroundSync = (): void => {
                     } catch (error) {
                         // best-effort: watermark not advanced → retried with the same since next tick.
                         // Which is exactly why a STREAK of these matters — the cursor stays put and the
-                        // channel list stops discovering anything (ADR-0075).
+                        // channel list stops discovering anything (ADR-0099).
                         syncStreakReporter.fail('channel-delta', error);
                     }
                 })(),

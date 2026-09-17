@@ -34,7 +34,7 @@ interface RelayInviteAcceptProps {
 }
 
 /**
- * Relay 1:1 invite acceptance (ADR-0033), rendered by InviteAcceptPage when the deeplink carries the
+ * Relay 1:1 invite acceptance (ADR-0089), rendered by InviteAcceptPage when the deeplink carries the
  * `relay` marker; the URL detection lives there.
  *
  * This is the view layer only — every decision belongs to useRelayInviteFlow, so what is left here is
@@ -133,7 +133,7 @@ export const RelayInviteAccept = ({ code }: RelayInviteAcceptProps): JSX.Element
         <InviteAcceptScreen
             inviterName={flow.invite?.inviter$?.name}
             inviterImage={flow.invite?.inviter$?.image}
-            // The invited place. Wired ahead of the data (ADR-0033 D1): `site$` is on the invite
+            // The invited place. Wired ahead of the data (ADR-0089 D1): `site$` is on the invite
             // contract (`SiteHead` = id + name, extended at runtime with intro/thumbnail) but relay
             // `invite.get` is not known to populate it yet, so the card stays hidden until it does
             // rather than needing a code change on the day it arrives.

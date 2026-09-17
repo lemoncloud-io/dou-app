@@ -45,7 +45,7 @@ request writes (`join.nick → profile.nick → label`) is the self chain as it 
 1. **My row in room friends exposes a value that is not a human name.** In
    `apps/web/src/app/features/channels/pages/ChannelSettingsPage.tsx:210` the value is
    `memberName = memberProfile?.nick || member.name || memberId`, so when profile.nick is missing you
-   get `member.name` (for phone users, `***<last 4 digits>`, ADR-0033 D10) or a raw UUID.
+   get `member.name` (for phone users, `***<last 4 digits>`, ADR-0089 D10) or a raw UUID.
    **ADR-0039 excluded `\***1234` from the display name chain on the grounds that it does not read as a
    name, and that value leaks through this path.\*\*
 2. **The home place name is printed raw.** `useActivePlaceName()` returns `place.name` unprocessed, so
@@ -69,7 +69,7 @@ This screen is that re-nudge UX, and both materials fit it as they are.
   `apps/web/src/app/features/home/components/PlaceItem.tsx:19-21` states that the legacy
   `place.id === 'default'` never matches a real relay place, so the cloud context is the reliable signal.
 - The request: `placeId === '0000'`. There is evidence that this value is a real sid
-  ([place-settings.md](../../apps/web/docs/feature/place/place-settings.md) shows
+  ([place-settings.md](../../apps/web/docs/feature/place/README.md) shows
   `localStorage['chatic-channel-sort'] === {"0000":"unread"}`).
 - The labels are split too: `placeList.defaultPlace` is `DoU Home` in both ko and en, while
   `cloudSessionSheet.douHome` is ko `두유 홈` / en `DoU Home`.
@@ -219,7 +219,7 @@ is settling.
 - [ADR-0026](0026-self-chat-channel-type.md) — the self channel type and writing `join.nick`
 - [ADR-0031](0031-place-settings-hub.md) · [ADR-0020](0020-place-profile-edit-dialog.md) — the existing
   paths for profile setup
-- [ADR-0033](0033-relay-dm-invite-and-auth-parallel-tracks.md) D10 — where the `***1234` display name for
+- [ADR-0089](0089-relay-dm-invite-and-auth-parallel-tracks.md) D10 — where the `***1234` display name for
   phone users comes from
 - Figma: `3185-13278` (profile setup needed) · `3026-11374` (profile creation) · `3451-21413` (after setup
   completes) · `3451-21323` (nickname setup)

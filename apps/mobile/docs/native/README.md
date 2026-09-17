@@ -10,11 +10,11 @@ one platform failing at runtime with no type error, since `NativeModules.<Name>`
 
 | Layer                        | Path                                                            |
 | ---------------------------- | --------------------------------------------------------------- |
-| TypeScript wrapper           | [`src/app/bridge/*Bridge.ts`](../../src/app/bridge/) — 7 files     |
+| TypeScript wrapper           | [`src/app/bridge/*Bridge.ts`](../../src/app/bridge/) — 7 files  |
 | Android package + module     | `android/app/src/main/java/io/chatic/dou/bridge`, `.../module`  |
 | Android push delivery        | `android/app/src/main/java/io/chatic/dou/push`                  |
 | Android background upload    | `android/app/src/main/java/io/chatic/dou/service`, `.../worker` |
-| iOS bridge                   | [`ios/Bridges`](../../ios/Bridges)                                 |
+| iOS bridge                   | [`ios/Bridges`](../../ios/Bridges)                              |
 | iOS app delegate integration | `ios/Chatic/AppDelegate.swift`                                  |
 
 ## Responsibilities
@@ -89,7 +89,7 @@ rather than as a `bridge/*Bridge.ts` command wrapper — there is nothing for JS
 - None of this is checked by `tsc` or `jest`. Kotlin and Swift only compile inside a real build
   (`yarn mobile:android:dev`, `yarn mobile:ios:dev`); a bridge that references a method neither native
   side implements passes every JS-side command and fails only on device.
-- `BadgeSyncBridge.getBase()` returning `null` versus `0` is deliberate (ADR-0075) — `0` is a valid
+- `BadgeSyncBridge.getBase()` returning `null` versus `0` is deliberate (ADR-0099) — `0` is a valid
   badge count, so treating "unknown" and "zero" as the same value would let a caller apply a base that
   was never actually read.
 

@@ -62,7 +62,7 @@ export class FirebaseCrashlyticsService implements IFirebaseCrashlyticsService {
             if (level === 'debug') return;
 
             // Occurrence time from the entry, so bridged web logs keep their
-            // original timeline in the Crashlytics breadcrumb (ADR-0047).
+            // original timeline in the Crashlytics breadcrumb (ADR-0097).
             const timestamp = new Date(entry.timestamp).toISOString();
             const dataString = data ? ` | Data: ${safeStringify(data) ?? ''}` : '';
             const logLine = `${timestamp} [${level.toUpperCase()}] [${tag}] ${message}${dataString}`;

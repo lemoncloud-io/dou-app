@@ -1,5 +1,5 @@
 /**
- * Contract tests for Track 0's relay-invite hooks (ADR-0033 인터페이스 계약).
+ * Contract tests for Track 0's relay-invite hooks (ADR-0089 인터페이스 계약).
  *
  * The seam under test is the gateway boundary: these hooks own the packet BODY they hand the
  * relay-pinned invite gateway, the `invite.list` envelope they unwrap, and which cache entries a

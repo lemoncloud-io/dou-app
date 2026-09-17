@@ -77,10 +77,10 @@ instead of a silent void. `useBaseBridge.ts` passes an `onAppReady` callback int
 routed message — `useAppStateHandler` answers it like any other handler — that fires when the web's
 own repaint animation after a resume has finished, and is what actually hides `ResumeOverlay`.
 
-| Message                       | What it does                                                                                              |
-| ----------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `WebAppReady`                 | Handshake, answered inside `@chatic/bridges`; buffers and flushes any push events queued before it        |
-| `DismissResumeOverlay`        | Routed handler (`useAppStateHandler`); clears the resume overlay after the web's repaint                  |
+| Message                       | What it does                                                                                                                |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `WebAppReady`                 | Handshake, answered inside `@chatic/bridges`; buffers and flushes any push events queued before it                          |
+| `DismissResumeOverlay`        | Routed handler (`useAppStateHandler`); clears the resume overlay after the web's repaint                                    |
 | `SavePreference` with `theme` | Routed handler (`usePreferenceCacheHandler`); updates the native theme store — see [../system/theme.md](../system/theme.md) |
 
 ## Injection
@@ -93,7 +93,7 @@ instead of surfacing as an opaque "Script error.":
 - device info: run id, platform, stage, app/OS version, build number, language, device model
 - `CHATIC_APP_CONSOLE_ENABLED` — whether relaying `debug` logs to native is worth it in this build.
   The legacy `__console__` relay script it replaced is gone; `SendLog` is now the only web→native log
-  channel (ADR-0047).
+  channel (ADR-0097).
 - device identity: `CHATIC_APP_UNIQUE_DEVICE_ID` (raw device id) and
   `CHATIC_APP_FIREBASE_INSTALLATION_ID` (empty until the async Firebase lookup resolves), plus two
   `@deprecated` globals kept for older web bundles — `CHATIC_APP_DEVICE_ID`

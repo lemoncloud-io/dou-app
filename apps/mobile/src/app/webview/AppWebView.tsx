@@ -61,7 +61,7 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
 
     useVersionCheckHandler(bridge);
 
-    // WebView 프로세스 크래시 감지 (ADR-0047): 웹은 통째로 죽어 스스로 리포트할 수
+    // WebView 프로세스 크래시 감지 (ADR-0097): 웹은 통째로 죽어 스스로 리포트할 수
     // 없으므로, 네이티브가 지연 리포트 큐에 사실만 담는다 — 재부팅된 웹이 세션
     // 준비 후 pull해 대리 전송한다. 버퍼 스냅샷은 싣지 않는다: 그 엔트리들은
     // 업로더가 통합 버퍼에서 낱건으로 이미 올리므로, 여기 복사하면 같은 로그가

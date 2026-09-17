@@ -73,7 +73,7 @@ export class SyncMetaLocalDataSource extends BaseLocalDataSource implements ISyn
      * `since = 0` and pulls the domain in full, which is a request burst on the server and a slow
      * first screen on the client. Silently returning 0 made that burst unattributable — and a
      * routing fingerprint that changes on every boot (a real failure mode, not a hypothesis) would
-     * charge it forever with nothing to point at (ADR-0075).
+     * charge it forever with nothing to point at (ADR-0099).
      *
      * A missing row is deliberately NOT reported: that is a first sync, the ordinary cold path.
      */

@@ -5,7 +5,7 @@ import 'fake-indexeddb/auto';
 import type { DataContextProvider } from '@chatic/data';
 
 /**
- * The web-storage fallback entry (ADR-0075).
+ * The web-storage fallback entry (ADR-0099).
  *
  * Kept in its own file rather than added to `localFactory.test.ts`: exercising it means letting the
  * real storage factory run (an injected one records no routing at all), and it needs `@chatic/bridges`

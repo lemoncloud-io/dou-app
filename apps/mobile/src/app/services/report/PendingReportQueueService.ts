@@ -8,7 +8,7 @@ const PENDING_REPORTS_STORAGE_KEY = '@chatic/report.pending';
 export const MAX_PENDING_REPORTS = 20;
 
 /**
- * MMKV-backed deferred report queue (ADR-0047). Persistence is synchronous so
+ * MMKV-backed deferred report queue (ADR-0097). Persistence is synchronous so
  * detection paths (global error handler, WebView crash callback) can enqueue
  * without an async boundary that might not survive the process.
  */

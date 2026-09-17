@@ -238,7 +238,7 @@ interface ChannelListProps {
     sortMethod?: ChannelSortMethod;
     /** Channel ids pinned in this place (client preference) — pinned rows float to the top. */
     pinnedChannelIds?: ReadonlySet<string>;
-    /** Relay: start a 1:1 chat — navigates to the contact-invite page (ADR-0033 Track B). */
+    /** Relay: start a 1:1 chat — navigates to the contact-invite page (ADR-0089 Track B). */
     onCreateOneOnOne?: () => void;
     /** Cloud: create a group room (host applies the PRO gate). */
     onCreateGroup?: () => void;
@@ -251,7 +251,7 @@ interface ChannelListProps {
     /** Invited empty state only: opens this place's settings hub ("플레이스 정보 바로가기"). */
     onOpenPlaceInfo?: () => void;
     /**
-     * Sent relay invites still worth a row — `pending`/`expired` only (ADR-0033 Track B). The
+     * Sent relay invites still worth a row — `pending`/`expired` only (ADR-0089 Track B). The
      * host is expected to pass `[]` outside the default cloud, where 1:1 invites don't apply.
      */
     sentInvites?: MyInviteView[];
@@ -286,7 +286,7 @@ export const ChannelList = ({
     const { userId: uid } = runtime.session.useSessionIdentity();
     // Unread is derived directly from the channel stream plus my join stream passed from HomePage.
     const { byChannel: unreadByChannel } = useChannelUnreads(channels, joinByChannel);
-    // Unread divergence (ADR-0075). A room the user read should draw no count here; when it still
+    // Unread divergence (ADR-0099). A room the user read should draw no count here; when it still
     // does, this separates the two causes — a read cursor that never landed in the cache, versus a
     // cursor that did land while the `chatNo - metaNo` conversion still nets a count (ADR-0048).
     //

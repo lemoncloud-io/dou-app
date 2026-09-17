@@ -454,4 +454,4 @@ accepts even the legacy injected value, so it's safe even with web deploying fir
   `webview-debugging.md`. As local-run becomes common, it will be hit more often.
 - Real-device local-run — how to handle the ATS exception and LAN IP resolution is decided separately.
 - Implementation and architecture documentation live in
-  [apps/mobile/docs/local-run.md](../../apps/mobile/docs/local-run.md).
+  [apps/mobile/docs/local-run.md](../../apps/mobile/docs/release/local-run.md).

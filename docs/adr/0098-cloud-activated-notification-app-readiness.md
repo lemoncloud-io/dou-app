@@ -186,5 +186,5 @@ push tap (decision 3).
 
 - Server spec — `chatic-backend-api/specs/cloud-ready-push` (high-levels, SPEC, PLAN)
 - Canonical spec — vault `dou-app/push-payload`
-- App push architecture — [apps/mobile/docs/push.md](../../apps/mobile/docs/push.md)
+- App push architecture — [apps/mobile/docs/push.md](../../apps/mobile/docs/push/README.md)
 - Cross-cloud push mark — [ADR-0056](0056-place-cloud-unread-dot-from-cache-and-push.md)

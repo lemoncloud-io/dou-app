@@ -26,7 +26,7 @@ const createDataRuntime = (
 };
 
 export interface DataRuntimeConfig {
-    /** Repository policies, e.g. apps/web's relay-only embedded-$site persistence (ADR-0045). */
+    /** Repository policies, e.g. apps/web's relay-only embedded-$site persistence (ADR-0094). */
     repositories?: DataRepositoriesOptions;
     /** Cache assembly policies, e.g. desktop-web's per-channel chat cap. */
     cache?: CacheAssemblyOptions;

@@ -4,7 +4,7 @@ import { runtime } from '@chatic/app-runtime';
 
 /**
  * Turn a reaction on or off. Ported from apps/desktop-web `features/chat/hooks/useReactions.ts`
- * (ADR-0045), minus react-query — this feature's mutation hooks are plain promises.
+ * (ADR-0093), minus react-query — this feature's mutation hooks are plain promises.
  *
  * The server does not toggle — it records the state it is told — so the caller has to
  * know whether it is currently reacting and send the opposite. `mine` on the folded

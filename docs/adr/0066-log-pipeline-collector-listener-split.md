@@ -2,14 +2,14 @@
 
 > Status: Accepted · Decided: 2026-08-24
 > Related: [ADR-0063](./0063-log-upload-source-port-and-native-charge-queue.md) (**partial revision** — the source
-> port, app queue, and Fetch/Ack are kept; batch charging is retired) · [ADR-0047](./0047-unified-logging-core-and-report-traceability.md)
+> port, app queue, and Fetch/Ack are kept; batch charging is retired) · [ADR-0097](./0097-unified-logging-core-and-report-traceability.md)
 > (unified logging core) · [ADR-0050](./0050-redact-report-breadcrumbs.md)
 > Implementation narrative doc: `libs/logger/docs/architecture.md` — once this ADR is accepted, that document is
 > due for another revision.
 
 ## Context
 
-The log pipeline has shrunk three times, through ADR-0047 (unified core) → ADR-0063 (source port, app queue, batch
+The log pipeline has shrunk three times, through ADR-0097 (unified core) → ADR-0063 (source port, app queue, batch
 charging) → ring buffer retirement. The code works, but measured against the target structure, **only the name
 "pub/sub" survives — in practice the procedure is one lump.**
 
@@ -53,7 +53,7 @@ the uploader, and when they drift apart there's no single place to look.
 
 > **Correction to a prior misdiagnosis in this spot.** This section used to say "the batched `charge` goes straight
 > to the queue, so the app's Crashlytics and console listeners never see web logs." **That's not true.**
-> [useLogBatchHandler.ts:48](../../apps/mobile/src/app/webview/hooks/useLogBatchHandler.ts:48) calls
+> useLogBatchHandler.ts:48 calls
 > `entries.forEach(ingestLogEntry)` **before** `charge`, so the batched path already publishes to the hub too, and
 > all three listeners already see web logs. The `source === 'web'` filter isn't "a device that excludes web" either
 > — it's **a guard against double-loading when the hub publish and the charge overlap.** For the same reason,

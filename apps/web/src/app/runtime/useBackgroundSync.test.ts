@@ -501,7 +501,7 @@ describe('useBackgroundSync — 백그라운드 동기화', () => {
     });
 });
 
-describe('useBackgroundSync — 실패 스트릭 통지 (ADR-0075)', () => {
+describe('useBackgroundSync — 실패 스트릭 통지 (ADR-0099)', () => {
     const fail = syncStreakReporter.fail as jest.Mock;
     const succeed = syncStreakReporter.succeed as jest.Mock;
 

@@ -44,7 +44,7 @@ describe('summarizeMembership — 5상태', () => {
     });
 
     // isSuper 는 무기한 부여의 옛 표현이고, 서버는 2026-08 에 판정에서 걷었다.
-    // 여기서 계속 읽으면 낡은 축이 앱에만 살아남는다 (ADR-0082).
+    // 여기서 계속 읽으면 낡은 축이 앱에만 살아남는다 (ADR-0101).
     it('isSuper 는 더 이상 자격을 주지 않는다', () => {
         const summary = summarizeMembership({ isSuper: true } as MembershipView, undefined, NOW);
 

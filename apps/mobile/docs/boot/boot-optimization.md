@@ -4,7 +4,7 @@
 exists until it starts loading. Boot is fully serial, so any native work ahead of WebView
 instantiation delays `load-start` directly. This document describes what stays on that critical
 path, what is deferred, and why. See [boot-metrics.md](./boot-metrics.md) for how the timeline is
-measured on-device (ADR-0027 is the decision record for this track).
+measured on-device (ADR-0086 is the decision record for this track).
 
 ## Critical path
 

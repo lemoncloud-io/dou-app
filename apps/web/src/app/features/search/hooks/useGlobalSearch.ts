@@ -60,7 +60,7 @@ const EMPTY_CACHE_RESULTS: CacheResults = { places: [], channels: [], messages: 
  * (contextStore.ts:45-47) — a cloud's rows are written under that cloud's uid, so from another
  * session (relay, or a different cloud) they are filtered out and the "every cloud" result set was
  * partial in a way the user could not predict. One cloud at a time is honest about what is
- * searchable. See ADR-0033.
+ * searchable. See ADR-0088.
  *
  * Cloud NAMES are still matched across all known clouds — they come from the catalog / invited /
  * cached-name sources, not from a cache scan, so they are unaffected by that partitioning and let
@@ -79,7 +79,7 @@ export const useGlobalSearch = (query: string) => {
     // catalog is a REST read gated on `isAuthenticated` (useCloudSessionCatalog.ts:15), so logging
     // out of a cloud session empties it and the cloud section — plus every row's cloud label — went
     // blank even though the names are sitting in the local cloud cache. Search is cache-based by
-    // premise (ADR-0033), so the cache participates here too.
+    // premise (ADR-0088), so the cache participates here too.
     const cachedCloudNames = useCachedCloudNames();
     const [cacheResults, setCacheResults] = useState<CacheResults>(EMPTY_CACHE_RESULTS);
     const [isSearching, setIsSearching] = useState(false);

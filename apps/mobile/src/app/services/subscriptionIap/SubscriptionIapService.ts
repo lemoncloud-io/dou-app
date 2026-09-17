@@ -25,7 +25,7 @@ export class SubscriptionIapService implements ISubscriptionIapService {
         } catch (error) {
             // A failed store connection kills every later purchase, and it used to be a bare
             // rethrow: the user saw "payment failed" while the reason — the connection never
-            // opened — existed nowhere (ADR-0075).
+            // opened — existed nowhere (ADR-0099).
             this.logService.error('IAP', 'Store connection failed', error as Error);
             throw error;
         }

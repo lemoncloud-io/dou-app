@@ -22,7 +22,7 @@ import { ROUTES } from '../../../routes/paths';
  *   needs none of it — but it does have to mount `useBackHandler` itself, since that normally comes
  *   with the layout.
  *
- * Beyond that this is only a router: the issuer's `relay` marker (ADR-0033) picks between the relay
+ * Beyond that this is only a router: the issuer's `relay` marker (ADR-0089) picks between the relay
  * 1:1 accept flow (invite.get / phone verification / invite.accept over the sockets) and the cloud
  * one (REST accept pipeline — ADR-0016). It deliberately calls no data hooks of its own, so a relay
  * link never fires the cloud invite lookup.

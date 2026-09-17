@@ -32,7 +32,7 @@ interface CreatePlaceDialogProps {
  * the site on the cloud server and switches into it, then closes. Built on @chatic/web-ui-kit;
  * mirrors CreateChannelDialog. Owner/limit gating lives in the caller (HomePage).
  *
- * No mandatory profile step follows (ADR-0045 decision 4 tried this and was reverted): the
+ * No mandatory profile step follows (ADR-0094 decision 4 tried this and was reverted): the
  * server-side profile row for a brand-new site is not created by `place.create`, and `profile.set`
  * (`updateSiteProfile`) is update-only — so the owner's very first profile write always 404s no
  * matter how long the client waits. The owner picks up their profile later via the existing
@@ -41,7 +41,7 @@ interface CreatePlaceDialogProps {
 /**
  * The screen shows the same "too large" message for a codec failure as for an oversized file, so
  * the two are indistinguishable to the user and were indistinguishable to us. Size and type are
- * what separate them; the file's contents are never recorded (ADR-0075).
+ * what separate them; the file's contents are never recorded (ADR-0099).
  */
 const logImageEncodeFailure = (error: unknown, file: File): void =>
     logger.warn('PLACE', 'place image encoding failed', {

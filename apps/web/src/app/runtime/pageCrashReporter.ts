@@ -3,7 +3,7 @@ import type { WebCrashSentinelResult } from './webCrashSentinel';
 
 /**
  * Records that the previous session in this tab died without a clean pagehide
- * (ADR-0047 S7), as an ordinary `error` entry in this run's log queue.
+ * (ADR-0097 S7), as an ordinary `error` entry in this run's log queue.
  *
  * The dead run's own entries reached the collector on their own, stamped with
  * their own `runId`, so this entry's job is only to mark that the run ended

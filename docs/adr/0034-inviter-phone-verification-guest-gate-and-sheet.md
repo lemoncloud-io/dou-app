@@ -1,10 +1,10 @@
 # ADR-0034: Inviter phone verification — a guest pre-gate, presented as a bottom sheet
 
-> Status: Accepted · Decided: 2026-07-30 · Follows: [ADR-0033](./0033-relay-dm-invite-and-auth-parallel-tracks.md)
+> Status: Accepted · Decided: 2026-07-30 · Follows: [ADR-0089](./0089-relay-dm-invite-and-auth-parallel-tracks.md)
 
 ## Context
 
-Track A of ADR-0033 built `PhoneVerifyScreen` and Track B built the invite issuing screen, but **the
+Track A of ADR-0089 built `PhoneVerifyScreen` and Track B built the invite issuing screen, but **the
 entry point that joins them was never wired.** What the post-integration review found:
 
 - `apps/web/src/app/features/invite/pages/ContactInvitePage.tsx:95` — on a 403 from issuing, it raises a
@@ -126,7 +126,7 @@ itself (already verified).
 
 **What is gained**
 
-- A guest is stopped before filling in the form, so no effort is wasted, and ADR-0033's last unwired seam
+- A guest is stopped before filling in the form, so no effort is wasted, and ADR-0089's last unwired seam
   is closed. `context: 'invite-create'` and its copy stop being dead code.
 - Extracting the body leaves the verification logic in one place, so more shells do not mean more
   branches. The verified error branches, timer and session switch are not duplicated.

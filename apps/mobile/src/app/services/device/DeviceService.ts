@@ -90,7 +90,7 @@ export class DeviceService implements IDeviceService {
      * "Some contacts show up with no name" is a successful read, not a failure — nothing throws, so
      * no failure trigger can see it. What separates the possible causes is the SHAPE: none named
      * points at permissions or the account the contacts live in, some named points at that device's
-     * contact data (ADR-0075).
+     * contact data (ADR-0099).
      *
      * Counts only. Names and numbers are content, and the diagnosis does not need them.
      */

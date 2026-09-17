@@ -40,7 +40,7 @@ const compute = (expiredAt: number): InviteCountdown => {
  * day/hour/minute/second breakdown plus expired / imminent flags, or `null` when no expiry is
  * provided (the validity card is then hidden).
  *
- * Invite links live **3 days** (server-side, ADR-0033 D8), so the day/hour fields are usually the
+ * Invite links live **3 days** (server-side, ADR-0089 D8), so the day/hour fields are usually the
  * meaningful ones and the caller decides which granularity to show — the accept screen switches to
  * `HH:mm:ss` only inside the last day (ADR-0037).
  *

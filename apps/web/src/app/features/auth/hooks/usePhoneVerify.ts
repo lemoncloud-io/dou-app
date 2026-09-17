@@ -21,7 +21,7 @@ import { useOtpExpiryCountdown, type OtpExpiryCountdown } from './useOtpExpiryCo
 /**
  * Resend/extend cap enforced client-side BEFORE the server is asked; a server 429 (60s cooldown,
  * daily caps) always wins over this counter (roadmap Track A). "Extend time" and "resend" are the
- * same server step — the backend has no extend concept (ADR-0033 D9) — so one counter covers both,
+ * same server step — the backend has no extend concept (ADR-0089 D9) — so one counter covers both,
  * even though the design gives each control its own over-limit dialog.
  */
 const RESEND_LIMIT = 5;

@@ -10,7 +10,7 @@ import { en, ko } from '../../utils/i18n/locales';
  * different consumer: the RN shell (`utils/i18n/locales`), the Android FCM service, the iOS app,
  * and the iOS Notification Service Extension. A key missing from one set breaks only that path —
  * an iOS background banner renders the literal key while every other surface looks fine — so a
- * hand-sync miss is invisible without this check (ADR-0075).
+ * hand-sync miss is invisible without this check (ADR-0098).
  *
  * Only flat `push_*` keys are compared. Nested `notification.*` keys predate the naming rule and
  * are consumed unevenly across the sets.

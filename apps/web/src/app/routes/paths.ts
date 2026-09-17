@@ -42,14 +42,14 @@ export const ROUTES = {
     channels: {
         root: '/channels',
         room: (channelId: string) => `/channels/${channelId}/room`,
-        // Full-screen thread for one root message; rootNo is the root's chatNo (ADR-0045).
+        // Full-screen thread for one root message; rootNo is the root's chatNo (ADR-0093).
         thread: (channelId: string, rootNo: string | number) => `/channels/${channelId}/thread/${rootNo}`,
         settings: (channelId: string) => `/channels/${channelId}/settings`,
         invite: (channelId: string) => `/channels/${channelId}/invite`,
         inviteLink: (channelId: string) => `/channels/${channelId}/invite/link`,
     },
 
-    // ── Invite (ADR-0033) ────────────────────────────────────────
+    // ── Invite (ADR-0089) ────────────────────────────────────────
     invite: {
         // Accepting an invite (Common — see CommonRoutes). Deliberately NOT private: an invite
         // deeplink routinely lands before the background guest login finishes, and the signed-out
@@ -79,7 +79,7 @@ export const ROUTES = {
     // ── Subscription (Private) ───────────────────────────────────
     subscription: {
         root: '/subscription',
-        /** Read-only "why subscribe" pitch — free vs paid. Precedes `plans` (ADR-0034 §4). */
+        /** Read-only "why subscribe" pitch — free vs paid. Precedes `plans` (ADR-0091 §4). */
         guide: '/subscription/guide',
         /** Which tier, at what price. Reachable directly, without the guide. */
         plans: '/subscription/plans',
@@ -121,7 +121,7 @@ export const ROUTES = {
             licenses: '/mypage/policy/licenses',
             privacy: '/mypage/policy/privacy',
         },
-        // Sole entry point for user feedback — the floating report widget it replaced is gone (ADR-0047).
+        // Sole entry point for user feedback — the floating report widget it replaced is gone (ADR-0096).
         feedback: '/mypage/feedback',
     },
 } as const;

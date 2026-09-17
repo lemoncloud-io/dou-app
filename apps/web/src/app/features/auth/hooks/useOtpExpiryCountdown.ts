@@ -17,7 +17,7 @@ const compute = (expiredAt: number): OtpExpiryCountdown => {
 
 /**
  * Live countdown for an OTP's `expiredAt` (epoch ms, from the verify-hash-alias send/resend
- * response — the server value is the only truth, no client-side duration constant; ADR-0033 D9).
+ * response — the server value is the only truth, no client-side duration constant; ADR-0089 D9).
  * Returns `null` when no expiry is known yet (before the first send). A resend hands in a new
  * `expiredAt`, which restarts the ticking from the fresh server deadline.
  */

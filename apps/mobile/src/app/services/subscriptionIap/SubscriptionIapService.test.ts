@@ -3,7 +3,7 @@ import { finishTransaction, initConnection, requestPurchase } from 'react-native
 import { SubscriptionIapService } from './SubscriptionIapService';
 
 // Mock every native import the service pulls in at module load so it can be instantiated under
-// jsdom. Only the store-failure paths are exercised here (ADR-0075).
+// jsdom. Only the store-failure paths are exercised here (ADR-0099).
 jest.mock('react-native', () => ({ Platform: { OS: 'ios' }, Linking: { openURL: jest.fn() } }));
 jest.mock('react-native-iap', () => ({
     initConnection: jest.fn(),

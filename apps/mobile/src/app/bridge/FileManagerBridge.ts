@@ -46,7 +46,7 @@ export const FileManagerBridge: IFileManagerBridge = {
     },
 
     /**
-     * The three terminal file operations log their failures (ADR-0075). `exists` and `readChunk`
+     * The three terminal file operations log their failures (ADR-0099). `exists` and `readChunk`
      * deliberately do not: the first is a probe whose negative answer is information rather than a
      * fault, and the second runs once per chunk of an upload — a hot path the catalog's volume rules
      * keep out of the log.

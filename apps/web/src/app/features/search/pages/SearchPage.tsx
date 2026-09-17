@@ -38,7 +38,7 @@ const PlaceRowAvatar = ({ thumbnail }: { thumbnail?: string }) =>
         <IconImageSolid size={AVATAR_SIZE} className="text-brand-ink dark:text-white/80" />
     );
 
-/** apps/web full-page search (see docs/specs/search/web-search-page.md, ADR-0033). */
+/** apps/web full-page search (see docs/specs/search/web-search-page.md, ADR-0088). */
 export const SearchPage = () => {
     const { t, i18n } = useTranslation();
     const navigate = useNavigateWithTransition();
@@ -108,7 +108,7 @@ export const SearchPage = () => {
     };
 
     // A place result switches to that place and lands on home — home renders the session's active
-    // place, so the switch IS the destination (ADR-0033).
+    // place, so the switch IS the destination (ADR-0088).
     const openPlace = (place: PlaceResultRow) => {
         submit(trimmed);
         void goTo(ROUTES.home, { cid: place.cid, sid: place.placeId });
@@ -149,7 +149,7 @@ export const SearchPage = () => {
                 />
             </div>
 
-            {/* The scan covers one cloud (ADR-0033 결정 2항), so say so up front rather than letting
+            {/* The scan covers one cloud (ADR-0088 결정 2항), so say so up front rather than letting
                 a missing result look like missing data. */}
             <p className="px-4 pb-2 text-[11px] leading-4 text-description">
                 {activeCloudName

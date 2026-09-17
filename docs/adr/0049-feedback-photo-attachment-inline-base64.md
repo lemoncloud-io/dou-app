@@ -1,13 +1,13 @@
 # ADR-0049: Attach feedback photos as inline base64, and save-without-alerting for reports that include an attachment
 
 > Status: Accepted · Decided: 2026-08-11
-> Related: [ADR-0047](./0047-feedback-page-replaces-issue-report-floating-widget.md) (this ADR lifts its
+> Related: [ADR-0096](./0096-feedback-page-replaces-issue-report-floating-widget.md) (this ADR lifts its
 > deferral of photo attachment) · [ADR-0017](./0017-issue-report-floating-widget.md) (superseded — split
 > screenshots off to Phase 2)
 
 ## Context
 
-[ADR-0047](./0047-feedback-page-replaces-issue-report-floating-widget.md) **excluded photo attachment
+[ADR-0096](./0096-feedback-page-replaces-issue-report-floating-widget.md) **excluded photo attachment
 entirely** from the send-feedback screen. There was one reason: "no image upload API exists." Figma even
 carries a dev note on that frame reading "wire up once the server spec is implemented."
 
@@ -85,7 +85,7 @@ would balloon to megabytes of text that only the browser lays out and nobody rea
   while storing photos apart, but measurement showed **the photo was lost** because the backend doesn't
   persist the client's `meta` (see decision 1 above). If the backend is ever changed to preserve `meta`,
   this path becomes best again.
-- **Wait for the upload API** — ADR-0047's original position. Rejected as too costly to leave the feature
+- **Wait for the upload API** — ADR-0096's original position. Rejected as too costly to leave the feature
   indefinitely blocked when the app already has a base64 convention.
 - **Use `SlackReportBody.image`** — its contract is a "thumbnail image **URL**," and Slack doesn't render
   data URIs. It also only fits one image. Rejected.
@@ -116,4 +116,4 @@ would balloon to megabytes of text that only the browser lays out and nobody rea
   the substance of it, and the remaining open question is the size cap.
 - Photos are screen captures the user chose to attach, so they **may contain personal information.** Since
   reports go to a shared Slack channel and the admin console, they're handled at the same level as the text
-  body (no separate scrubbing — the same position as ADR-0047's deferral of log scrubbing).
+  body (no separate scrubbing — the same position as ADR-0096's deferral of log scrubbing).

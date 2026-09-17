@@ -94,7 +94,7 @@ export const useFcmHandler = (bridge: IAppBridgeHost) => {
      * `FetchBadgeCount` is served by notifee whose badge API is iOS-only and answers a constant 0
      * there. A separate message rather than a changed meaning for the old one, because the web ships
      * ahead of the app: an older shell answers `NOT_FOUND` and the web learns "unknown" from that
-     * (ADR-0075).
+     * (ADR-0099).
      *
      * `base: null` means unknown, never zero — see BadgeSyncBridge.getBase.
      */
@@ -143,7 +143,7 @@ export const useFcmHandler = (bridge: IAppBridgeHost) => {
                         title: remoteMessage.notification?.title,
                         body: remoteMessage.notification?.body,
                         // `messageId` folded into the payload so the web can correlate this receipt
-                        // with the tap and the room it opens (ADR-0075). The Android native path
+                        // with the tap and the room it opens (ADR-0099). The Android native path
                         // already injects it; on iOS it arrives as a top-level field the web never
                         // saw, so without this merge the chain has no key on that platform.
                         data: { messageId: remoteMessage.messageId, ...remoteMessage.data },

@@ -13,7 +13,7 @@ import type { DataRuntimeConfig } from './data/runtime';
 export interface AppRuntimeConfig {
     /**
      * Repository and cache-assembly policies, applied before the data runtime is lazily built on
-     * first repository access — e.g. apps/web's relay-only embedded-`$site` persistence (ADR-0045),
+     * first repository access — e.g. apps/web's relay-only embedded-`$site` persistence (ADR-0094),
      * desktop-web's per-channel chat cap.
      */
     data?: DataRuntimeConfig;

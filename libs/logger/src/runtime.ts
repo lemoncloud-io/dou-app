@@ -45,6 +45,6 @@ export const setLogContextProvider = (provider: LogContextProvider | undefined):
 
 /**
  * Ingests an entry stamped in another runtime (bridge relay, native emitter)
- * without restamping its timestamp or context. (ADR-0047)
+ * without restamping its timestamp or context. (ADR-0097)
  */
 export const ingestLogEntry = (entry: LogEntry): void => core.ingest(entry);

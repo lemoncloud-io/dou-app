@@ -56,7 +56,7 @@ placeThumbnail`), and `RelayInviteAccept` passes `site$`. An invite goes **into 
 > **a validity period of one day**.
 >
 > It is still unconfirmed whether relay's `invite.get` fills `site$`. Until it does, the card collapses
-> quietly (the ADR-0033 D1 "build the interface ahead of the data" approach). The inviter's **place
+> quietly (the ADR-0089 D1 "build the interface ahead of the data" approach). The inviter's **place
 > profile** is not in the contract at all (`inviter$` is the account `UserHead` = id + name) — a backend
 > request is needed.
 
@@ -66,7 +66,7 @@ placeThumbnail`), and `RelayInviteAccept` passes `site$`. An invite goes **into 
   `stereo` is raised in this work.
 - The "Room friends N" chip is built out in the UI exactly as designed, but because there is no
   `memberCount` it **never actually appears.** The current `memberCount != null && > 0` conditional
-  render is already that state. This is exactly the ADR-0033 D1 "build the interface ahead" principle —
+  render is already that state. This is exactly the ADR-0089 D1 "build the interface ahead" principle —
   the day the value arrives, it appears without a line changing. The duotone group icon is prepared in
   advance for the same reason.
 
@@ -82,7 +82,7 @@ placeThumbnail`), and `RelayInviteAccept` passes `site$`. An invite goes **into 
   This follows the pairing `InviteWaitingPage` already uses.
 
 **The formatting is a hybrid.** The design drew only `HH:mm:ss`, but invite links live **three days on
-the backend** (ADR-0033 D8), so that formatting, which assumes under 24 hours, cannot express a freshly
+the backend** (ADR-0089 D8), so that formatting, which assumes under 24 hours, cannot express a freshly
 received link. So:
 
 - `days >= 1` → `2d 5h left`
@@ -90,7 +90,7 @@ received link. So:
 
 Both go through the one existing i18n key `inviteAccept.expiry.remaining` (whose ko value is the literal
 `{{time}} 남음`), so there are no new i18n keys. **The copy for ranges of 24 hours and more is something
-we chose, so it needs designer confirmation** — ADR-0033 D8's "request a copy change for the time
+we chose, so it needs designer confirmation** — ADR-0089 D8's "request a copy change for the time
 remaining" is still open.
 
 The existing comment on `InviteExpiryCard`, "Invite links live at most ~30min", is **not true** (it is
@@ -149,7 +149,7 @@ flattened result of rendering that blur.
 ### Out of scope
 
 - Raising new backend requests (denormalizing `stereo`, `memberCount`, or the channel image)
-- The state dialogs for expired/already joined/cancelled (ADR-0033 Track C item 2) — unchanged
+- The state dialogs for expired/already joined/cancelled (ADR-0089 Track C item 2) — unchanged
 - The accept pipeline and channel resolution (ADR-0035) — unchanged
 - The decline button: `RELAY_INVITE_DECLINE_ENABLED = true` already matches the design
 
@@ -205,7 +205,7 @@ and dark mode have to be written separately, and the asset is heavy. Dropped.
 ## References
 
 - ADR-0016 moving the invite accept popup into web-ui-kit
-- ADR-0033 relay DM invite · auth parallel tracks (D1 building the interface ahead, Track C the
+- ADR-0089 relay DM invite · auth parallel tracks (D1 building the interface ahead, Track C the
   recipient flow)
 - ADR-0035 channel resolution after a relay invite is accepted
 - Figma `3072-10943` (1:1) · `3076-11341` (group)

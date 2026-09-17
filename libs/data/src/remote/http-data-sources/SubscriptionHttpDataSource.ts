@@ -59,7 +59,7 @@ export interface AdminOverrideOptions extends AdminEndpointOptions {
  * `DomainMembership` / `DomainReceipt` mapping is future work, not this data source's job to
  * invent.
  *
- * The admin console's reads (ADR-0082) land here too, `fetchAdminClouds` included — even though
+ * The admin console's reads (ADR-0101) land here too, `fetchAdminClouds` included — even though
  * clouds have their own repository. That one maps views through `toDomainCloud(view, context)`
  * using the CURRENT session's context, and `resolveCloudType` then labels ownership relative to
  * the viewer. Every row an admin lists belongs to somebody else, so that classification would be

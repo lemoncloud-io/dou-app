@@ -8,7 +8,7 @@ import { useVerifyAlias } from './useVerifyAlias';
 /**
  * The two hooks are one-line wrappers around a mutation, so the only thing worth testing is what
  * they record on failure — and that they record neither the address, the code nor the password
- * (ADR-0075).
+ * (ADR-0099).
  *
  * `useCustomMutation` is stubbed to hand back the mutation function itself: driving these through a
  * real react-query client would test react-query, not the entries.

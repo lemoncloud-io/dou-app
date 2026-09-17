@@ -108,7 +108,7 @@ export const HomePage = () => {
     // fetch. A cached name short-circuits this, so the common (warm) case never flashes a skeleton.
     const isCloudHeaderLoading = !isDefaultCloud && isPendingClouds && !cloudName;
 
-    // Cloud-name divergence (ADR-0075). The two sources above are the reason a renamed cloud can show
+    // Cloud-name divergence (ADR-0099). The two sources above are the reason a renamed cloud can show
     // its new name here and its old one on MY: this header prefers the local cache, MY screens read
     // the relay catalog alone. Compared here because this is the only place that holds both, and only
     // once the catalog has actually answered — while it is pending there is nothing to disagree with.
@@ -176,7 +176,7 @@ export const HomePage = () => {
     // isLoading === false. Without folding the switch in, the Chat section would flash its empty
     // state ("채팅방이 없어요") on the way into every place. Skeletons cover the gap instead.
     const isChannelSectionLoading = isChannelsLoading || isSwitching;
-    // Sent relay invites (ADR-0033 Track B) — 1:1 DM invites only make sense on the default
+    // Sent relay invites (ADR-0089 Track B) — 1:1 DM invites only make sense on the default
     // (relay) cloud, since invite.create has no siteId/place concept (unlike a custom cloud's
     // group-channel invites). Gate rendering, not the fetch, to avoid a Track 0 contract change.
     const { invites: sentInvites } = useInviteListRows();
@@ -327,7 +327,7 @@ export const HomePage = () => {
             setIsSubscriptionRequiredOpen(true);
         }
     };
-    // Relay 1:1 chat creation (ADR-0033 Track B): contact entry → invite.create → SMS handoff.
+    // Relay 1:1 chat creation (ADR-0089 Track B): contact entry → invite.create → SMS handoff.
     const handleCreateOneOnOne = () => navigate(ROUTES.invite.contact);
 
     // Search is not implemented yet (ADR-0013): the button is a visible placeholder.

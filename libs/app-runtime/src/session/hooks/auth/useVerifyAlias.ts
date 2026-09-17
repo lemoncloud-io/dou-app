@@ -15,7 +15,7 @@ import type { AxiosError } from 'axios';
  * `mode` and `step` are the whole point. One endpoint serves send / resend / check / change /
  * confirm across two different journeys, so without them a failure says only "email verification
  * broke" and not which leg of which flow — and "코드가 안 와요" and "코드를 넣어도 안 돼요" are
- * different bugs. The address, the code and the password are never recorded (ADR-0075).
+ * different bugs. The address, the code and the password are never recorded (ADR-0099).
  */
 export const useVerifyAlias = () =>
     useCustomMutation<VerifyAliasView, AxiosError, VerifyAliasBody>(async body => {

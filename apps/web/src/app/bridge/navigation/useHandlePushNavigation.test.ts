@@ -427,7 +427,7 @@ describe('useHandlePushNavigation', () => {
         });
     });
 
-    // A reply raises a push of its own but is hidden from the main feed (ADR-0045), so a
+    // A reply raises a push of its own but is hidden from the main feed (ADR-0093), so a
     // channel-level tap would show everything except the message that was notified. The fix is
     // staged: land on the room, then hop to the thread only if the notified chat is a reply.
     describe('스레드 답글 푸시 — 채널방 → 스레드 2단 이동', () => {

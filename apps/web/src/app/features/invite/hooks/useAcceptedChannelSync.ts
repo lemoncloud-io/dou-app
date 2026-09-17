@@ -9,7 +9,7 @@ import { runtime } from '@chatic/app-runtime';
 const SYNC_TIMEOUT_MS = 8_000;
 
 export type AcceptedChannelSyncStatus =
-    /** No `channelId` to watch yet (backend timing not confirmed — ADR-0033 요청 5번). */
+    /** No `channelId` to watch yet (backend timing not confirmed — ADR-0089 요청 5번). */
     | 'unknown'
     /** Watching `channel.observeItem` for the record to sync locally. */
     | 'waiting'

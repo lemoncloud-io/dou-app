@@ -74,7 +74,7 @@ So **defects in the test environment have been distorting the source structure.*
 
 ### 1. Break shared components into presentational and domain pieces, and send each to its own place
 
-[directory-structure.md](../../apps/web/docs/architecture/directory-structure.md) already **forbids
+[directory-structure.md](../../apps/web/docs/README.md) already **forbids
 direct imports between features**, limits `ui/` to presentational, and forbids `shared/` too. So there
 was no permitted home for "a shared component with domain logic", and that is the cause of home becoming
 a warehouse. Rather than overturn the rule, **split the component** so each piece satisfies the existing

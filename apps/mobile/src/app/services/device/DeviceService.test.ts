@@ -3,7 +3,7 @@ import Contacts from 'react-native-contacts';
 import { DeviceService } from './DeviceService';
 
 // Mock every native import DeviceService pulls in at module load so the class can be instantiated
-// under jsdom. Only the contacts path is exercised here (ADR-0075).
+// under jsdom. Only the contacts path is exercised here (ADR-0099).
 jest.mock('react-native', () => ({
     Linking: { openURL: jest.fn() },
     PermissionsAndroid: {

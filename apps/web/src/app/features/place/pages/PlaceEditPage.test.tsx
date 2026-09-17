@@ -146,7 +146,7 @@ describe('PlaceEditPage — 소개 문구', () => {
     });
 });
 
-describe('PlaceEditPage — 저장 실패 기록 (ADR-0075)', () => {
+describe('PlaceEditPage — 저장 실패 기록 (ADR-0099)', () => {
     // 토스트가 문자 그대로 "알 수 없는 오류"인데, 지금까지 남는 것도 그만큼이었다.
     it('저장 실패를 어떤 필드가 실렸는지와 함께 error로 남긴다', async () => {
         updatePlace.mockRejectedValue(new Error('save boom'));

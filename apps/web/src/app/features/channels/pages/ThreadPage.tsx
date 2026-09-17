@@ -40,7 +40,7 @@ import { useChromeInsets } from '../../../ui/hooks/useChromeInsets';
 const MAX_INPUT_LENGTH = 5000;
 
 /**
- * Full-screen thread: one root message and its direct replies (ADR-0045 decision 4).
+ * Full-screen thread: one root message and its direct replies (ADR-0093 decision 4).
  *
  * Everything here is derived from the channel's loaded cache window (`rawChats` →
  * `buildThread`), so the reply list is best-effort (ADR-0008): an old thread may need
@@ -335,7 +335,7 @@ export const ThreadPage = () => {
                 {/* Titled for the screen, not the room, and with no avatar (Figma 4718:22183):
                     a thread is one conversation inside a channel, and the channel's face here
                     would read as having navigated to the channel. Back returns to it
-                    (ADR-0045's two-hop). */}
+                    (ADR-0093's two-hop). */}
                 <ChatRoomHeader
                     title={t('chat.thread.title')}
                     hideAvatar

@@ -32,7 +32,7 @@ interface MemberProfileDialogProps {
 
 /**
  * Member profile ("프로필"). Full-screen dialog with an inline action list whose
- * items depend on WHO is viewing WHOM (ADR-0022):
+ * items depend on WHO is viewing WHOM (ADR-0023):
  * - viewing myself → `프로필 설정` (opens the per-place profile editor).
  * - owner viewing another member → `친구 설정` (deferred), `내보내기` (real kick), `신고` (deferred).
  * - member viewing another member → `신고` only.

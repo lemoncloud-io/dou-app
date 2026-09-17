@@ -95,7 +95,7 @@ export interface IAuthSocketDataSource {
 /**
  * Auth source. It carries the account-proof packet (`link-account`) only, bound to the RELAY slot by
  * the composition root — the main user it resolves to lives in the central backend behind the relay.
- * See ADR-0033, ADR-0042.
+ * See ADR-0089, ADR-0042.
  *
  * It deliberately does NOT carry `auth.update`. That packet is the socket handshake and belongs to
  * the SDK's AuthController alone; the method that used to sit here reached zero callers and its only
@@ -114,7 +114,7 @@ export class AuthSocketDataSource implements IAuthSocketDataSource {
 
     public async sendPhoneCode(phone: string, options: PhoneCodeSendOptions): Promise<LinkSentView> {
         // `resend` selects the step rather than riding along as a switch; there is no "extend the
-        // timer" step, so extending IS resending (ADR-0033 D9) — a fresh code and a fresh
+        // timer" step, so extending IS resending (ADR-0089 D9) — a fresh code and a fresh
         // `expiredAt`, but the wrong-answer counter is NOT reset.
         const { mode, resend, ...rest } = options;
         return this.gateway.linkAccount<LinkSentView>({

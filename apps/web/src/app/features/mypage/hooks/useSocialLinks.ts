@@ -98,7 +98,7 @@ export const useSocialLinks = () => {
     );
 
     /**
-     * Stub: there is no unlink endpoint yet (ADR-0033 request #7, still open in ADR-0042). This never
+     * Stub: there is no unlink endpoint yet (ADR-0089 request #7, still open in ADR-0042). This never
      * mutates state or claims success — it only explains that the action isn't supported yet. The real
      * unlink call gets wired in here once `SOCIAL_UNLINK_ENABLED` flips (see ../flags.ts).
      */

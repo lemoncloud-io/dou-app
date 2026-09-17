@@ -13,7 +13,7 @@ import { customJoinNick } from './nick';
  * The peer's user-record name (`user.nick`/`user.name`) is deliberately NOT in the chain. It only
  * hydrates through a per-channel `syncChannelUsers` call, which the list surfaces cannot afford —
  * including it would make the room disagree with the list, which is the exact bug this replaces.
- * It is also frequently a `***1234` phone placeholder (ADR-0033 D10), which reads as noise.
+ * It is also frequently a `***1234` phone placeholder (ADR-0089 D10), which reads as noise.
  */
 export interface ResolveDmTitleInput {
     /** My nick in this channel (`join.nick`) — the name I gave this room. */

@@ -14,7 +14,7 @@ interface ThreadFooterProps {
     /**
      * How many replies the viewer has not seen (0 = none). Replies are `stereo:'user'` so
      * they count toward the channel's unread badge but never appear in the main feed —
-     * without this hint the badge clears on entry and the replies go unseen (ADR-0045).
+     * without this hint the badge clears on entry and the replies go unseen (ADR-0093).
      * Computed by the room, which owns the read baseline (see `countUnseenReplies`).
      */
     unseenCount: number;

@@ -75,7 +75,7 @@ export interface ChannelMessageRowProps {
     avatarOf?: (userId: string) => string | undefined;
     /** Loaded-reply aggregate for this root; the footer renders only when present. */
     threadMeta?: ThreadMeta;
-    /** How many replies are newer than my read cursor (ADR-0045 decision 5); 0 = none. */
+    /** How many replies are newer than my read cursor (ADR-0093 decision 5); 0 = none. */
     unseenReplyCount?: number;
     /** Formats the last reply's clock time for the footer — the room owns the 12/24h form. */
     formatThreadTime?: (date: Date) => string;

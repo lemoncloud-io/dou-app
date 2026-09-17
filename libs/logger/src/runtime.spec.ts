@@ -223,7 +223,7 @@ describe('엔트리 id와 발생 시점 컨텍스트', () => {
  * The third argument used to mean different things per level: `error` unwrapped `{ error, data }`,
  * the other three stored it whole. 42 call sites wrote the options shape at `warn`/`info`/`debug`
  * anyway, so every one of them buried its fields at `data.data` and left `entry.error` empty —
- * including the `observation` discriminator that ADR-0075 exists to make readable.
+ * including the `observation` discriminator that ADR-0099 exists to make readable.
  */
 describe('세 번째 인자는 레벨과 무관하게 같은 뜻이다', () => {
     it.each(['debug', 'info', 'warn', 'error'] as const)('%s가 { error, data }를 풀어 담는다', level => {

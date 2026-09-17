@@ -74,7 +74,7 @@ describe('PlaceSettingsHubPage — 설정 카드', () => {
         expect(navigate).toHaveBeenCalledWith('/place/p1/settings/edit');
     });
 
-    // 읽기 전용이라 오너 게이트가 없다 — 편집 행과 달리 비오너도 눌러야 한다(ADR-0047).
+    // 읽기 전용이라 오너 게이트가 없다 — 편집 행과 달리 비오너도 눌러야 한다(ADR-0095).
     it('비오너에게도 "플레이스 정보" 행은 활성이고, "플레이스 프로필" 행만 막힌다', () => {
         mockPlace = { id: 'p1', isOwner: false };
         render(<PlaceSettingsHubPage />);

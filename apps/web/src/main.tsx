@@ -89,7 +89,7 @@ setStorageAdapter(isNative() ? localStorage : sessionStorage);
 //
 // Repository policy rides along: the embedded `$site` of user.profile is persisted into the place
 // cache only on the relay scope, so a cloud partition never receives the default place row
-// (ADR-0045). It must land before the data runtime is lazily created on first repository access.
+// (ADR-0094). It must land before the data runtime is lazily created on first repository access.
 runtime.boot.initAppRuntime({
     data: {
         repositories: { user: { persistEmbeddedSite: context => (context.cid ?? 'default') === 'default' } },
@@ -97,7 +97,7 @@ runtime.boot.initAppRuntime({
 });
 
 // Read the previous session's fate — a session that died without a clean
-// pagehide is logged as page-crash (ADR-0047 S7). It carries no buffer: the dead
+// pagehide is logged as page-crash (ADR-0097 S7). It carries no buffer: the dead
 // run's entries reach the collector through the batch uploader on their own.
 // Must stay after `startLogUploader`, which owns the only log store.
 const webLogBoot = attachWebCrashSentinel();

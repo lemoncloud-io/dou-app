@@ -148,7 +148,7 @@ service (`isChatChannel` plus its background branch):
   never disguised as 0.
 - **The web now reads the badge back**: on foreground return, and just before the first push of a
   run, it reads the device value and compares it against the **last value it pushed** — a mismatch
-  is logged as a `warn` (ADR-0075, see `apps/web/src/app/runtime/logging/`). It compares against
+  is logged as a `warn` (ADR-0099, see `apps/web/src/app/runtime/logging/`). It compares against
   the last pushed value rather than the current total because the icon is expected to lag by
   design; comparing against the live total would flag every legitimate read as a divergence.
 - **iOS re-background window**: if the app re-backgrounds in the short window between

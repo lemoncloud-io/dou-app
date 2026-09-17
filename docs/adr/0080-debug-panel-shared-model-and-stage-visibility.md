@@ -95,7 +95,7 @@ read-only in PROD (Decision 4's local-lane premise would collapse).
 
 ### 1. Sharing the model was the intent, but it ended as a copy, and it has already drifted
 
-The first line of [web debugMenu.ts](../../apps/web/src/app/features/debug/overlay/debugMenu.ts) declares its own
+The first line of web debugMenu.ts declares its own
 intent.
 
 > `// Web counterpart of the mobile debug menu model (apps/mobile .../debug/debugMenu.ts).`
@@ -220,7 +220,7 @@ config registry's job.
 ### Decision 5 — Split `env.stage` and `env.buildStage` (amends ADR-0079)
 
 The moment exposure decisions move onto stage, stage becomes a security-relevant input. But the current
-[env.ts](../../libs/web-config/src/env.ts) reads:
+[env.ts](../../libs/config/src/registry/env.ts) reads:
 
 ```ts
 export const WEB_ENV = (window.ENV || import.meta.env.VITE_ENV || '').toLowerCase();
@@ -323,7 +323,7 @@ Bridge writes today fire and forget. That leaves a state where the screen says "
 actually turned it off. A remote that doesn't know whether it was pressed isn't a remote.
 
 This code has already hit this once. Theme is the one exception that gets an acknowledgment and retries once
-(`syncThemeToNative` in [usePreferenceStore](../../apps/web/src/app/stores/usePreferenceStore.ts)). Its comment
+(`syncThemeToNative` in usePreferenceStore). Its comment
 explains why — theme is the one setting that can't self-correct once the write is lost, and fire-and-forget can't
 tell you it was lost.
 
@@ -372,7 +372,7 @@ human tap.
 | Permission · payment sheets | the OS raises them            |
 | Auto-recovery               | runs on its own (Decision 11) |
 
-So [`FloatingMenu`](../../apps/mobile/src/app/features/core/components/FloatingMenu.tsx), `DebugHomeScreen`, and the
+So `FloatingMenu`, `DebugHomeScreen`, and the
 mount condition in `App.tsx` are deleted. **The app's debug UI drops to zero.**
 
 **This deletion only holds once Decision 11 is in place.** The "web calls it" row in the table above requires the

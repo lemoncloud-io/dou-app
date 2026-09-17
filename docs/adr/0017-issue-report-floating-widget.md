@@ -1,7 +1,7 @@
 # Build the issue report floating widget as a new standalone feature for all users, and split screenshots into Phase 2
 
 > Status: Superseded · Decided: 2026-07-16
-> Replaced by: [ADR-0047](./0047-feedback-page-replaces-issue-report-floating-widget.md) — the floating
+> Replaced by: [ADR-0096](./0096-feedback-page-replaces-issue-report-floating-widget.md) — the floating
 > widget is removed in favour of a "Send feedback" page reached from My Page (2026-08-07). The
 > automatic log and device attachment (`buildReportContext`) carries over unchanged.
 

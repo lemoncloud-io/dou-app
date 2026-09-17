@@ -110,7 +110,7 @@ describe('useAppUpdateStatus', () => {
     });
 });
 
-describe('useAppUpdateStatus — 기록 (ADR-0075)', () => {
+describe('useAppUpdateStatus — 기록 (ADR-0099)', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         useAppUpdateStore.setState({ updateAvailable: false, latestVersion: '' });

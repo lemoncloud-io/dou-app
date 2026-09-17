@@ -39,7 +39,7 @@ interface MessageActionSheetProps {
  * Long-press action sheet for one message: a one-tap reaction row (recents + fixed
  * quick reactions), then the thread and copy actions. Replaces the old Radix dropdown —
  * a narrow dropdown cannot hold the emoji row, and sheet options are the touch-target
- * size the dropdown items were not (ADR-0045).
+ * size the dropdown items were not (ADR-0093).
  *
  * The quick row's pressed state mirrors the chips: tapping an emoji you already
  * reacted with sends `off`, so the sheet is a toggle surface, not add-only.

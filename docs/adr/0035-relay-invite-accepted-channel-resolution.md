@@ -4,7 +4,7 @@
 
 ## Context
 
-For the relay-server 1:1 invite feature built and integrated by ADR-0033/0034, we checked whether "the
+For the relay-server 1:1 invite feature built and integrated by ADR-0089/0034, we checked whether "the
 process after an invite is accepted really does split between the relay server and the cloud server".
 
 **The split itself is fine.** `InviteDialog` routes on the deep link's `relay` marker
@@ -150,7 +150,7 @@ hand, do not wait; only when it is missing, step down to progressively broader m
 - When to reverse: if the backend starts putting `channelId` in the accept response **synchronously**
   (the revisit trigger in `01-spec.md:83`), drop stages 2 and 3 and keep only stage 1 — at which point
   it becomes exactly the cloud path.
-- Related: [ADR-0033](0033-relay-dm-invite-and-auth-parallel-tracks.md) D10 (step order),
+- Related: [ADR-0089](0089-relay-dm-invite-and-auth-parallel-tracks.md) D10 (step order),
   [ADR-0034](0034-inviter-phone-verification-guest-gate-and-sheet.md),
   [ADR-0032](0032-dm-chat-room-screen.md) (the DM room screen), and the roadmap
   docs/plans/relay-dm-invite-parallel-roadmap.md, which lived in the root docs tree, since removed.

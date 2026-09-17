@@ -98,7 +98,7 @@ export const createSyncPlans = (getBoundCid: () => string | null): DomainSyncPla
         const foreign = isForeignContext({ ...context, socketCid });
         // Counted here rather than at each call site: this predicate is already the single gate, and
         // these fire on the poll cadence — per-frame logging is what the aggregator's window exists
-        // to avoid (ADR-0075). `getBoundCid` stays the injected accessor; reaching for the socket
+        // to avoid (ADR-0099). `getBoundCid` stays the injected accessor; reaching for the socket
         // runtime here would close the cycle this signature exists to cut.
         if (foreign) {
             foreignDropAggregator.record({

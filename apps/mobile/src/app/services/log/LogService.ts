@@ -5,7 +5,7 @@ import type { ILogService } from './types';
 /**
  * Core-backed log service: thin delegation to the shared `@chatic/logger`
  * singleton so every native entry lands in the same hub the bridged web
- * entries use (ADR-0047). Kept as a class so provider wiring and
+ * entries use (ADR-0097). Kept as a class so provider wiring and
  * DI-typed consumers stay unchanged.
  */
 export class LogService implements ILogService {

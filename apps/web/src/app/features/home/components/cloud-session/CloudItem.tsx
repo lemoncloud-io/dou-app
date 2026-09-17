@@ -47,7 +47,7 @@ interface CloudItemProps {
 
 /**
  * One owned-cloud row of the switcher. Renaming is NOT offered here — the Figma switcher has no
- * pencil and `/mypage/cloud-profile` is the single rename path (ADR-0034).
+ * pencil and `/mypage/cloud-profile` is the single rename path (ADR-0091).
  */
 export const CloudItem = ({
     cloud,

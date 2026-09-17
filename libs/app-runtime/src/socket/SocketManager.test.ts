@@ -879,7 +879,7 @@ describe('SocketManager 소켓 에러 로깅', () => {
     });
 });
 
-describe('SocketManager 재연결 진단 (ADR-0075)', () => {
+describe('SocketManager 재연결 진단 (ADR-0099)', () => {
     beforeEach(() => {
         mockedCreate.mockReset();
         jest.clearAllMocks();

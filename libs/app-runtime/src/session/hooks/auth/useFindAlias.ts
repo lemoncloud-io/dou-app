@@ -9,7 +9,7 @@ import type { AxiosError } from 'axios';
  *
  * A failure here strands the user at the very start of the flow, and the screen turns it into a
  * generic toast. Neither the address nor the answer is recorded: the address is the user's, and
- * whether an account exists is precisely the fact an enumeration attempt is after (ADR-0075).
+ * whether an account exists is precisely the fact an enumeration attempt is after (ADR-0099).
  */
 export const useFindAlias = () =>
     useCustomMutation<FindAliasView, AxiosError, FindAliasBody>(async body => {

@@ -210,9 +210,9 @@ export interface SyncInjectionScriptParams {
 /**
  * Combines safe area, device info, debug mode, and theme scripts into a single script.
  * The legacy console-override relay (`__console__`) is gone — the structured
- * `SendLog` pipeline is the only web→native log channel (ADR-0047).
+ * `SendLog` pipeline is the only web→native log channel (ADR-0097).
  *
- * The whole body is guarded (ADR-0047 P2): a runtime failure inside any
+ * The whole body is guarded (ADR-0097 P2): a runtime failure inside any
  * injected snippet reports itself through the SendLog channel (tag INJECTION,
  * landing in the merged buffer / future breadcrumbs) instead of surfacing as
  * an opaque "Script error.". Syntax errors cannot be caught this way — those

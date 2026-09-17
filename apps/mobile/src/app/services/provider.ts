@@ -156,7 +156,7 @@ class DependencyProvider {
         if (__DEV__) logHub.subscribe(createConsoleListener({ timestamps: true }));
         this.logUploadQueueService.init();
         // Pure-native (Kotlin/Swift) logs join the same core buffer with
-        // source:'native'; ready() flushes the native cold-start queue (ADR-0047).
+        // source:'native'; ready() flushes the native cold-start queue (ADR-0097).
         attachNativeLoggerBridge();
 
         // Initialize Crashlytics immediately — boot-window crash reporting takes priority over the
@@ -164,7 +164,7 @@ class DependencyProvider {
         this.firebaseCrashlyticsService.init();
         void this.firebaseCrashlyticsService.setupUser();
 
-        // ADR-0047: native-side error detection. Uncaught JS exceptions and
+        // ADR-0097: native-side error detection. Uncaught JS exceptions and
         // unhandled rejections queue deferred reports the web relays; the
         // relaunch check reads the previous run's last-log timestamp, restored
         // from MMKV by logUploadQueueService.init() above.

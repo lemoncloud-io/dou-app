@@ -36,7 +36,7 @@ const CredentialRow = ({ label, icon, linkedLabel, isLinked, isBusy, onLink, onU
                     <span className="text-[14px] text-muted-foreground">
                         {linkedLabel ?? t('mypage.accountInfo.social.linked')}
                     </span>
-                    {/* Stub: no unlink endpoint yet (ADR-0033 request #7, still open in ADR-0042) —
+                    {/* Stub: no unlink endpoint yet (ADR-0089 request #7, still open in ADR-0042) —
                         disabled rather than faking a success. `title` gives a hover hint without
                         adding new layout. */}
                     {onUnlink && (

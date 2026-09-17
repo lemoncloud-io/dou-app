@@ -1,21 +1,21 @@
 # ADR-0063: Split the log upload source into a port, and make the app queue the single collection point in hybrid
 
 > Status: Accepted · Decided: 2026-08-21
-> Related: [ADR-0047](./0047-unified-logging-core-and-report-traceability.md) (unified logging core — §4 snapshot semantics, `LogSource`
+> Related: [ADR-0097](./0097-unified-logging-core-and-report-traceability.md) (unified logging core — §4 snapshot semantics, `LogSource`
 > principle; periodic upload was out of scope) · [ADR-0050](./0050-redact-report-breadcrumbs.md) (breadcrumb redact)
 
 ## Context
 
-ADR-0047 **explicitly excluded the periodic log upload pipeline from scope** ("a follow-up track. Needs backend
+ADR-0097 **explicitly excluded the periodic log upload pipeline from scope** ("a follow-up track. Needs backend
 alignment"). That follow-up track has since been implemented — the `POST /hello/report-bulk` route is live — and its
 design of record has lived in a vault lane outside this repo the whole time. This ADR brings the **client structure
 decision** from that track into the repo.
 
 The 2026-08-21 audit confirmed three defects in the webview-to-native log capture path.
 
-### ① The breadcrumb buffer is drained destructively — a violation of ADR-0047 §4
+### ① The breadcrumb buffer is drained destructively — a violation of ADR-0097 §4
 
-ADR-0047 §4 already settled this:
+ADR-0097 §4 already settled this:
 
 > **Snapshot semantics** — reading the breadcrumb is always `peek` (non-consuming). `poll` (consuming) is forbidden
 > because it erases the history for the next report or the debug UI and creates a consumption race between read
@@ -77,7 +77,7 @@ thing.
 
 - `createLogUploadQueue` · `createLogUploadScheduler` (`libs/logger` — [LogUploadQueue.ts](../../libs/logger/src/upload/LogUploadQueue.ts)) —
   currently used only by `apps/web`. Mobile has never used it in its entire history.
-- The `LogSource` port ([types.ts](../../libs/logger/src/core/types.ts)) plus the ADR-0047 §4 principle: **"the
+- The `LogSource` port ([types.ts](../../libs/logger/src/core/types.ts)) plus the ADR-0097 §4 principle: **"the
   merged buffer's owner is always the outermost shell."**
 - `PendingReportQueueService`'s Fetch/Ack two-step idiom and its MMKV persistence pattern.
 
@@ -88,7 +88,7 @@ thing.
 The app gets two stores.
 
 - **Ring buffer** (current, 500 entries, all levels) — breadcrumb only. **The upload path never touches it.** The
-  ADR-0047 §4 peek-only rule is restored here.
+  ADR-0097 §4 peek-only rule is restored here.
 - **Transmit queue** (new, non-debug, MMKV-persisted) — drain only. Reuses `createLogUploadQueue` from
   `libs/logger` as-is.
 
@@ -102,7 +102,7 @@ _charge_ below). What used to be one bridge message per log entry becomes one me
 
 The app receives the charge payload and **splits it by level.**
 
-- All levels → ring buffer (web logs keep joining the breadcrumb — the ADR-0047 §4 merged-buffer rule is preserved)
+- All levels → ring buffer (web logs keep joining the breadcrumb — the ADR-0097 §4 merged-buffer rule is preserved)
 - non-debug → transmit queue
 
 Why `debug` is included in the charge: it's batched so the cost is low, and the ring buffer is no longer drained
@@ -111,7 +111,7 @@ most often.
 
 ### 3. Specify the upload source as a port — `LogUploadSource`
 
-The uploader must not know where it fetches from. This **extends** the principle ADR-0047 §4 already established
+The uploader must not know where it fetches from. This **extends** the principle ADR-0097 §4 already established
 for the breadcrumb to uploading — it is not a new principle.
 
 ```ts
@@ -156,7 +156,7 @@ mode there is no charge target, so **the two rhythms naturally collapse into one
 
 - **Opt-out** (declining collection): stop charging and **delete the app queue**. Leaving existing accumulated
   entries to go out would contradict the intent to stop collecting.
-- **Logout**: **keep** the queue. Entries carry their own `uid`/`cid` from the moment they were dispatched (ADR-0047
+- **Logout**: **keep** the queue. Entries carry their own `uid`/`cid` from the moment they were dispatched (ADR-0097
   principle 9), and the server derives its query axes from the entry itself, so a subsequent login on the same
   device does not mix accounts. Switching accounts on one device is ordinary for this app, and deleting the queue
   would lose exactly the entries left behind by a session problem (carrying forward the reasoning of commit
@@ -179,7 +179,7 @@ too would be a regression from the current state, and that is not acceptable.
 - **Capacity numbers and period values** — the app queue's cap, the charge period, and the MMKV serialization
   budget are set at the spec stage.
 - **Server contract** — `POST /hello/report-bulk` is already deployed and unaffected by this decision.
-- **Native code compile verification** — this remains unverified from the ADR-0047 track and is not resolved here
+- **Native code compile verification** — this remains unverified from the ADR-0097 track and is not resolved here
   either.
 
 ## Alternatives
@@ -191,10 +191,10 @@ too would be a regression from the current state, and that is not acceptable.
   gives up web `debug` (= HTTP request flow) from the hybrid breadcrumb. **Adopted only as an emergency measure** —
   see "Interim measure" below.
 - **(c) Retire relaying and merge at report time** — cheapest, since bridge log traffic drops to zero. But it
-  removes the hybrid merged buffer, conflicting with the ADR-0047 §4 "outermost shell owns it" principle, and native
+  removes the hybrid merged buffer, conflicting with the ADR-0097 §4 "outermost shell owns it" principle, and native
   crash reports lose web context. Rejected.
 - **(d) The app sends straight to the server** — doesn't hold up, since the signed token is issued and held only by
-  the web session inside the WebView (the same constraint as ADR-0047 §8).
+  the web session inside the WebView (the same constraint as ADR-0097 §8).
 - **(e) Web sends directly, only native goes through the app queue** — leaves two queues, requiring dedup, ordering,
   and capacity to be managed in two places, and web logs never gain MMKV durability (lost during the debounce window
   if the WebView dies). Rejected.
@@ -210,7 +210,7 @@ bleeding from ② without waiting for an app deploy. **The gate lifts** once thi
 
 **What is gained**
 
-- The ADR-0047 §4 peek-only rule is restored — the breadcrumb is no longer destroyed by uploading.
+- The ADR-0097 §4 peek-only rule is restored — the breadcrumb is no longer destroyed by uploading.
 - Native-originated logs with no second copy are separated from the transmit queue, so ring buffer eviction no
   longer means permanent loss.
 - The transmission-loss window is closed — logs from the moment the app dies stay in MMKV and are recovered on the

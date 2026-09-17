@@ -433,7 +433,7 @@ describe('PhoneVerifyScreen — 인증번호 확인', () => {
         expect(onVerified).toHaveBeenCalled();
     });
 
-    it('"시간 연장"과 "재전송"은 둘 다 step=resend로 가고 카운터 유지 안내를 띄운다 (ADR-0033 D9)', async () => {
+    it('"시간 연장"과 "재전송"은 둘 다 step=resend로 가고 카운터 유지 안내를 띄운다 (ADR-0089 D9)', async () => {
         await requestCode();
         mockSend.mockResolvedValueOnce({ sent: true, expiredAt: FUTURE_EXPIRY() });
 

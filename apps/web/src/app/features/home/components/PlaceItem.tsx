@@ -28,7 +28,7 @@ interface PlaceItemProps {
 
 /**
  * One row of the cloud-mode Place section. There is no relay variant: relay hides the whole section
- * (ADR-0034), so the former "DoU Home" branding of the single relay place is gone.
+ * (ADR-0091), so the former "DoU Home" branding of the single relay place is gone.
  */
 export const PlaceItem = ({
     place,
@@ -45,7 +45,7 @@ export const PlaceItem = ({
     runtime.sync.usePlaceSync(place.id);
 
     // Shared with useActivePlaceName so the row and the profile dialog titles can't drift.
-    // Relay never renders this row any more (ADR-0034), so the default-cloud context is always
+    // Relay never renders this row any more (ADR-0091), so the default-cloud context is always
     // false; the resolver still recognises HOME_PLACE_ID on its own.
     const displayName = resolvePlaceDisplayName(place, { isDefaultCloud: false }, t);
     const hasUnread = !!unreadCount && unreadCount > 0;

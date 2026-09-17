@@ -17,7 +17,7 @@ const pad = (n: number): string => String(n).padStart(2, '0');
  * reddened once the link is spent (Figma 3072-10943 / 3076-11341).
  *
  * Two granularities, because the design's `HH:mm:ss` assumes under a day while the server issues
- * 3-day links (ADR-0033 D8 · ADR-0037): a day or more out reads "2일 5시간", and the last day counts
+ * 3-day links (ADR-0089 D8 · ADR-0037): a day or more out reads "2일 5시간", and the last day counts
  * down by the second exactly as designed.
  */
 export const InviteExpiryCard = ({ countdown }: InviteExpiryCardProps) => {

@@ -267,7 +267,7 @@ export const ChannelRoomPage = () => {
     } = useChats(memoizedChatParams);
 
     /**
-     * Push-tap entry chain (ADR-0075). Only rooms reached by tapping a push record anything: the
+     * Push-tap entry chain (ADR-0099). Only rooms reached by tapping a push record anything: the
      * registry hands over that push's id and how long the routing took, and the second effect closes
      * the chain when messages actually appear. Two entries, one correlation key — which is what makes
      * "tapped a push and the conversation never showed" answerable, by saying whether the room even
@@ -318,7 +318,7 @@ export const ChannelRoomPage = () => {
     const rememberEmoji = useRecentEmojiStore(s => s.remember);
 
     // Derived from the UNFILTERED window: reaction events and replies are hidden feed
-    // rows, so folding the visible `messages` would silently yield nothing (ADR-0045).
+    // rows, so folding the visible `messages` would silently yield nothing (ADR-0093).
     const reactions = useMemo(() => foldReactions(rawChats, userId ?? null), [rawChats, userId]);
     const threadIndex = useMemo(() => buildThreadIndex(rawChats), [rawChats]);
 

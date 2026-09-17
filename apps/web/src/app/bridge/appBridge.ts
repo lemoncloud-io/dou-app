@@ -208,7 +208,7 @@ export const appBridge = {
     },
 
     // ---------------------------------------------------------------
-    // SMS (ADR-0033 — relay invite deeplink delivery)
+    // SMS (ADR-0089 — relay invite deeplink delivery)
     // ---------------------------------------------------------------
 
     /**
@@ -323,7 +323,7 @@ export const appBridge = {
 
     /**
      * Read the native shared badge counter — Android's only true badge value, since the message
-     * above is served by notifee whose badge API is a no-op off iOS (ADR-0075).
+     * above is served by notifee whose badge API is a no-op off iOS (ADR-0099).
      *
      * Raw like its neighbours: unwrapping and the platform routing that decides WHICH of the two to
      * ask both live in `nativeBadgeReader`, so this stays a message facade. Rejects on a shell that
@@ -409,7 +409,7 @@ export const appBridge = {
     },
 
     // ---------------------------------------------------------------
-    // Deferred native reports (ADR-0047)
+    // Deferred native reports (ADR-0097)
     // ---------------------------------------------------------------
 
     /** Pull reports the native side detected but cannot send itself. */

@@ -55,7 +55,7 @@ export const useVerifyEmailCode = (): ((request: EmailVerifyRequest) => Promise<
             } catch (error) {
                 // The step is the whole point of this entry: all four legs share one hook and one
                 // endpoint, so without it a failure says only "email verification broke" and not
-                // which leg — send, resend, check or confirm. The address is not recorded (ADR-0075).
+                // which leg — send, resend, check or confirm. The address is not recorded (ADR-0099).
                 logger.error('ACCOUNT', `email verification failed at step=${request.step}`, {
                     error,
                     data: { step: request.step, hasCode: !!request.code, hasCloudId: !!request.cloudId },

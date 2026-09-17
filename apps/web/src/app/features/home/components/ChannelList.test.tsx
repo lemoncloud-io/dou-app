@@ -375,7 +375,7 @@ describe('ChannelList — 1:1(DM) 행', () => {
     });
 });
 
-describe('ChannelList — 초대 행 (ADR-0033 Track B)', () => {
+describe('ChannelList — 초대 행 (ADR-0089 Track B)', () => {
     it('sentInvites의 각 항목을 채널 위에 행으로 보여준다', () => {
         render(
             <ChannelList

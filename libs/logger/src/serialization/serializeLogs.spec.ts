@@ -138,7 +138,7 @@ describe('발생 시점 컨텍스트와 id는 저장을 건너 살아남는다',
     });
 });
 
-// 리포트는 공유 Slack 채널로 가고, ADR-0047 이후 같은 항목이 sessionStorage/MMKV에
+// 리포트는 공유 Slack 채널로 가고, ADR-0097 이후 같은 항목이 sessionStorage/MMKV에
 // 영속된다. serializeLogs의 소비자가 전부 그 두 경로(리포트·영속화)라, 마스킹은
 // 여기서 한 번만 걸면 전 구간에 적용된다.
 describe('민감정보 마스킹', () => {

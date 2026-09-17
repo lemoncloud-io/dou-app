@@ -5,7 +5,7 @@
 >
 > Where the implementation landed is described in two documents — Decision 1 in
 > chat-link-preview.md (lived in the root docs tree, which has since been removed), Decision 4 in
-> [apps/web/docs/feature/auth/login-return.md](../../apps/web/docs/feature/auth/login-return.md).
+> [apps/web/docs/feature/auth/login-return.md](../../apps/web/docs/feature/auth/README.md).
 >
 > **Decisions 2 and 3 (changing the home sort key, removing the `lastChat$` derivation) were reverted
 > on 2026-08-14 after a runtime error, then re-landed on 2026-08-18.** The cause of the rollback (a
@@ -82,7 +82,7 @@ follow-up:**
 
 It was also confirmed that the same row's **displayed time comes from an entirely different source.**
 `time` is the actual last message's `createdAt`, pulled from the chat cache by
-[`useLastChat`](../../apps/web/src/app/hooks/useLastChat.ts). In other words, **the timestamp printed
+`useLastChat`. In other words, **the timestamp printed
 on screen and the sort order look at two different values.**
 
 #### `lastChat$` is a dead field
@@ -372,5 +372,5 @@ would still carry a white-flash.
   left this ADR's sort item as a follow-up.
 - [ADR-0048: Unread Count Derivation Contract](0048-unread-count-derivation-contract.md) — flags
   using `lastChat$` as a head source as a rule violation.
-- [ADR-0045: Web Emoji Reaction and Thread](0045-web-emoji-reaction-and-thread.md) — the basis for the
+- [ADR-0093: Web Emoji Reaction and Thread](0093-web-emoji-reaction-and-thread.md) — the basis for the
   `pickPreviewChat` feed filter.

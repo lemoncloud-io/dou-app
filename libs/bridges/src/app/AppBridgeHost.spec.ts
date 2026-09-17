@@ -199,7 +199,7 @@ describe('AppBridgeHost Buffering & Event Flushing', () => {
         // The web logger (SendLog) relays from the earliest module-evaluation
         // phase — long before the web app can receive events — so it must not
         // trigger the buffered-event flush. (The legacy __console__ relay is
-        // gone; SendLog is the only log channel per ADR-0047.)
+        // gone; SendLog is the only log channel per ADR-0097.)
         host.registerHandler('SendLog' as any, async () => ({ type: 'OnSendLog', success: true, data: {} }) as any);
         host.registerHandler('Ping' as any, async () => ({ type: 'Ping', success: true, data: {} }) as any);
 

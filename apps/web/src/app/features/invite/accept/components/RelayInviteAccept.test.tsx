@@ -216,7 +216,7 @@ describe('RelayInviteAccept', () => {
         expect(screen.getByText('북클럽')).toBeInTheDocument();
     });
 
-    // relay invite.get이 site$를 채워주지 않는 현재 상태 — 카드가 조용히 접힌다(ADR-0033 D1 선반영).
+    // relay invite.get이 site$를 채워주지 않는 현재 상태 — 카드가 조용히 접힌다(ADR-0089 D1 선반영).
     it('플레이스 메타가 없으면 카드가 접힌다', () => {
         mockFlow = flow({ invite: { id: 'inv-1', state: 'pending', inviter$: { name: 'Sunny' } } });
         render(<RelayInviteAccept code={CODE} />);

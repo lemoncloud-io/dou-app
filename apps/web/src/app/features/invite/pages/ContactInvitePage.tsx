@@ -84,7 +84,7 @@ interface ReinviteEntry {
 }
 
 /**
- * 연락처로 초대 페이지 (ADR-0033 Track B) — the home ＋menu "1:1 대화" destination.
+ * 연락처로 초대 페이지 (ADR-0089 Track B) — the home ＋menu "1:1 대화" destination.
  * Figma 3266-35386 (입력됨) / 3268-35795 (검증 에러) / 3578-67319 (게스트 인증 유도).
  *
  * Only a main user can issue a relay invite, so a device user never reaches the form: the page
@@ -384,7 +384,7 @@ export const ContactInvitePage = () => {
                         </h2>
                         <div className="flex flex-col text-center text-[14px] font-medium leading-[20px]">
                             <p className="whitespace-pre-line text-placeholder">{t('contactInvite.headingNote')}</p>
-                            {/* Server-rendered validity — never a hardcoded duration (ADR-0033 D8). */}
+                            {/* Server-rendered validity — never a hardcoded duration (ADR-0089 D8). */}
                             <p className="text-description">{t('contactInvite.validityHint')}</p>
                         </div>
                     </div>

@@ -106,7 +106,7 @@ export class IndexedDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTy
             if (!isQuotaExceededError(error)) throw error;
             if (channelIds.length === 0) {
                 // Nothing cappable in this write, so there is no room to make. A client without a
-                // channel cap has no safety net at all — the write is simply lost (ADR-0075).
+                // channel cap has no safety net at all — the write is simply lost (ADR-0099).
                 logger.error('CACHE', 'web cache quota exceeded with nothing to evict', { error });
                 throw error;
             }
@@ -160,7 +160,7 @@ export class IndexedDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTy
         if (removed > 0) {
             // Named here rather than in `clearByRange`, which knows an index range and not which
             // channel it belongs to. "I scrolled up and the old messages are gone" has no other
-            // explanation available (ADR-0075).
+            // explanation available (ADR-0099).
             logger.info('CACHE', `evicted ${removed} chat row(s) over the channel cap`, {
                 data: { channelId, limit, removed },
             });
@@ -200,7 +200,7 @@ export class IndexedDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTy
             .filter((row): row is IndexedDbRow<TType> => row !== null);
 
         // Silent data loss otherwise: the caller is told the whole batch was saved and one of the
-        // items simply is not there. Counts only — the items are domain content (ADR-0075).
+        // items simply is not there. Counts only — the items are domain content (ADR-0099).
         if (rows.length !== items.length) {
             logger.warn('CACHE', `dropped ${items.length - rows.length} item(s) with no id from saveAll`, {
                 data: { type: this.type, dropped: items.length - rows.length, total: items.length },

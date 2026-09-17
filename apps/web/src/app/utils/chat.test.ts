@@ -63,7 +63,7 @@ describe('isFeedVisible — 본문 피드 가시성', () => {
     });
 
     // These are the input to foldReactions, shown as chips under the message they
-    // point at. As feed rows they would be empty pills — the exact bug ADR-0045 fixes.
+    // point at. As feed rows they would be empty pills — the exact bug ADR-0093 fixes.
     it('리액션 이벤트는 숨긴다', () => {
         expect(isFeedVisible(feedChat({ stereo: 'system', subType: 'reaction' }))).toBe(false);
     });

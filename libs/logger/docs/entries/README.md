@@ -119,7 +119,7 @@ A call site that fires on every request or every frame does not use `warn`. See
 type LogTag = KnownLogTag | (string & {});
 ```
 
-**The open half is load-bearing, not laziness.** ADR-0047 replaced a closed union with a plain
+**The open half is load-bearing, not laziness.** ADR-0097 replaced a closed union with a plain
 `string` for two reasons that still hold: a native shell older than the web bundle can send a tag
 this build has never heard of, and it must cross the bridge unrewritten; and the server does not
 validate the value either. Closing the union would reverse that.

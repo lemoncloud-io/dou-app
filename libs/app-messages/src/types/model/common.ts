@@ -4,7 +4,7 @@ export type Platform = 'ios' | 'android' | 'windows' | 'macos' | 'web';
 /** 앱 로그 레벨 */
 export type AppLogLevel = 'debug' | 'info' | 'warn' | 'error';
 
-/** 로그 발생 런타임 — 경계를 건널 때만 기록 (ADR-0047) */
+/** 로그 발생 런타임 — 경계를 건널 때만 기록 (ADR-0097) */
 export type AppLogOrigin = 'web' | 'native';
 
 /** 앱 로그 정보 구조 */
@@ -55,7 +55,7 @@ export type SendLogPayload = {
     message: string;
     data?: unknown;
     error?: unknown;
-    /** 발생 시각 (ms) — 부재 시(구버전 웹) 수신 측이 수신 시각으로 폴백 (ADR-0047) */
+    /** 발생 시각 (ms) — 부재 시(구버전 웹) 수신 측이 수신 시각으로 폴백 (ADR-0097) */
     timestamp?: number;
     /** 발생 런타임 — 웹 포워더가 'web'으로 스탬프 */
     source?: AppLogOrigin;
@@ -173,7 +173,7 @@ export type OnClearLogUploadQueuePayload = {
 };
 
 /**
- * 네이티브가 감지했지만 직접 전송할 수 없는 리포트 항목 (ADR-0047).
+ * 네이티브가 감지했지만 직접 전송할 수 없는 리포트 항목 (ADR-0097).
  * `/hello/report` 서명 토큰은 웹 세션만 보유하므로, 네이티브는 감지 시점
  * 스냅샷을 큐(MMKV)에 쌓고 웹이 부팅 후 pull해 대리 전송한다.
  */

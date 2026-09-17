@@ -7,7 +7,7 @@ import { InviteCard } from './InviteCard';
 interface InviteTargetCardProps {
     /** Member count of the target room; when present a group badge is shown. */
     memberCount?: number;
-    /** Which kind of room the invite leads to. Relay invites are always 1:1 (ADR-0033). */
+    /** Which kind of room the invite leads to. Relay invites are always 1:1 (ADR-0089). */
     kind?: 'group' | 'oneToOne';
 }
 

@@ -9,7 +9,7 @@ import com.facebook.react.bridge.WritableMap
 import com.facebook.react.modules.core.DeviceEventManagerModule
 
 /**
- * Relays pure-native (Kotlin) logs into the JS logging core (ADR-0047).
+ * Relays pure-native (Kotlin) logs into the JS logging core (ADR-0097).
  * Native code calls [NativeLogger.log]; entries queue until JS subscribes and
  * signals [ready], then flow as `ChaticNativeLog` device events — cold-start
  * logs survive instead of being dropped by an emitter with no listeners.

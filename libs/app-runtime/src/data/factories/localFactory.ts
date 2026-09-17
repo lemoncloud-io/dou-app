@@ -63,7 +63,7 @@ export const getCacheStorage = <TType extends CacheType>(
         : new NativeDBAdapter(webClient, type, contextProvider);
 
 // Cloud(cid) 불문 전역 캐시 검색 소스. 환경별 구현체는 다르지만(IndexedDB 범위 스캔 vs 네이티브
-// 브리지) 기대 동작은 동일해야 합니다(ADR-0033). 네이티브에서는 SQLite가 source of truth이므로
+// 브리지) 기대 동작은 동일해야 합니다(ADR-0088). 네이티브에서는 SQLite가 source of truth이므로
 // 검색도 그쪽을 향한다 — 웹 저장소는 핀/스큐 예외만 담는 파생 캐시라 검색 대상이 아니다.
 export const getGlobalCacheSearchSource = (): IGlobalCacheSearchSource =>
     isNativeApp() ? new NativeGlobalSearchSource(webClient) : new IndexedDbGlobalSearchSource(getSharedDatabase());
@@ -80,7 +80,7 @@ export const getCacheMetricsSource = (): ICacheMetricsSource => new NativeCacheM
  *
  * The consequence is a cold cache for those domains — reads miss until the data is re-fetched — and
  * it happens when the installed shell predates the domain's storage edition. Diagnosing "why is
- * this app re-downloading everything" from the client side is otherwise guesswork (ADR-0075).
+ * this app re-downloading everything" from the client side is otherwise guesswork (ADR-0099).
  *
  * One entry per boot with the domain list, not one per domain: routing is decided per storage as
  * they are built, and a dozen lines would bury the boot log. And nothing at all on a plain browser —

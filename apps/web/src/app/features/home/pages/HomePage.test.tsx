@@ -6,7 +6,7 @@ import { HomePage } from './HomePage';
 import { ROUTES } from '../../../routes/paths';
 import { MAX_PLACES } from '../../../utils';
 
-// This suite covers ONE thing: how HomePage branches on relay vs cloud (ADR-0034). Children are
+// This suite covers ONE thing: how HomePage branches on relay vs cloud (ADR-0091). Children are
 // stubbed to markers so the assertions are about which sections mount, not their internals.
 
 let selectedCloudId: string | null = 'default';

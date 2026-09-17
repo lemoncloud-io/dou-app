@@ -40,7 +40,7 @@ export class IndexedDBDatabase implements IIndexedDB {
 
                 // A schema move rebuilds indexes and can leave a domain briefly unreadable, so the
                 // version it came from is what explains a cold cache right after an update
-                // (ADR-0075). One line per upgrade, which happens at most once per version.
+                // (ADR-0099). One line per upgrade, which happens at most once per version.
                 logger.info('CACHE', `web cache schema upgrade v${event.oldVersion} → v${event.newVersion}`, {
                     data: { from: event.oldVersion, to: event.newVersion },
                 });
@@ -236,7 +236,7 @@ export class IndexedDBDatabase implements IIndexedDB {
      *
      * The count already existed here; it was thrown away. Callers that know WHAT they were evicting
      * (a channel, a scope) need it to say so — this function knows only an index range, so it
-     * reports the number and lets the caller name it (ADR-0075).
+     * reports the number and lets the caller name it (ADR-0099).
      */
     async clearByRange(indexName: string, range: IDBKeyRange): Promise<number> {
         const keysToDelete = await this.readOperation<IDBValidKey[]>(store => {

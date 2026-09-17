@@ -19,7 +19,7 @@ import { EmailVerifyDialog } from './EmailVerifyDialog';
  *
  * With a membership that still has room, adding a cloud is not a purchase: verify an address and
  * ask the server for it. Without one it IS a purchase, and that belongs on the 구독 안내 screen
- * rather than in a second plan picker — ADR-0034 asked home not to detour through a pitch, and the
+ * rather than in a second plan picker — ADR-0091 asked home not to detour through a pitch, and the
  * pitch now lives on the purchase screen itself, so going straight there satisfies both.
  */
 const AddCloudFlow = () => {

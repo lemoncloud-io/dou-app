@@ -1,7 +1,7 @@
 # ADR-0044: Introduce a country to phone input and actually send `countryCode`
 
 > Status: Accepted · Decided: 2026-08-04
-> Follows: [ADR-0033](./0033-relay-dm-invite-and-auth-parallel-tracks.md) · [ADR-0034](./0034-inviter-phone-verification-guest-gate-and-sheet.md) · [ADR-0042](./0042-account-linking-unified-path-migration.md) · [ADR-0043](./0043-relay-invite-cancel-reject-adoption.md)
+> Follows: [ADR-0089](./0089-relay-dm-invite-and-auth-parallel-tracks.md) · [ADR-0034](./0034-inviter-phone-verification-guest-gate-and-sheet.md) · [ADR-0042](./0042-account-linking-unified-path-migration.md) · [ADR-0043](./0043-relay-invite-cancel-reject-adoption.md)
 >
 > **Scope deviation (2026-08-04, adjusted on this branch):** the original proposal (work done on a
 > separate branch) limited scope to two screens — relay 1:1 invite creation and phone verification.

@@ -60,7 +60,7 @@ export const usePlanCatalog = (): PlanCatalog => {
     const summary = useMemo(() => summarizeMembership(membership, receiptPlan, Date.now()), [membership, receiptPlan]);
 
     // The quota follows the grade in force, which an active admin override can raise above the
-    // receipt's (ADR-0082). `summary.productId` already resolves that; the receipt's plan is the
+    // receipt's (ADR-0101). `summary.productId` already resolves that; the receipt's plan is the
     // fallback for a granted product the catalog does not list.
     const currentPlan = findPlanById(plans, summary.productId) ?? receiptPlan;
 

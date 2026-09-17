@@ -115,7 +115,7 @@ export const useDeepLinkNavigation = (bridge: IAppBridgeHost | undefined): UseDe
         // Notification tap → relative path (cid/sid merged). A null path just foregrounds the app.
         const dispatchPushTap = (data: PushNavigationData | undefined, isColdStart: boolean, messageId?: string) => {
             const path = deeplinkService.resolvePushTap(data);
-            // The tap is the middle link of the push chain (ADR-0075): a cold start puts the receipt
+            // The tap is the middle link of the push chain (ADR-0099): a cold start puts the receipt
             // and the room entry under different app runs, so `messageId` is what joins them. Logged
             // whether or not the path resolved — a tap that led nowhere is the interesting case.
             logger.info('PUSH_EVENT', 'push tapped', {

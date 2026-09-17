@@ -5,7 +5,7 @@ import type { MembershipView, ProductView } from '@lemoncloud/chatic-backend-api
 /**
  * The five states the plan defines. Nothing else is a state.
  *
- * `blocked` is an operator shutting the subscription off from the console (ADR-0082), and it is
+ * `blocked` is an operator shutting the subscription off from the console (ADR-0101), and it is
  * deliberately not folded into `expired`: the store keeps charging through a block, so telling
  * that user their subscription "expired" is wrong in the direction that produces support tickets.
  */

@@ -1,7 +1,7 @@
 # ADR-0079: Config is owned by one registry — the `@chatic/config` lane resolver
 
 > Status: **Accepted** · Written: 2026-09-08 · Implementation: **Steps 1–7 complete** (2026-09-09, progress in
-> [libs/config/docs/architecture.md §Implementation checklist](../../libs/config/docs/architecture.md) — path kept
+> [libs/config/docs/architecture.md §Implementation checklist](../../libs/config/README.md) — path kept
 > for reference; the file does not exist in this tree)
 > Scope: `libs/web-config` → `libs/config` (new — delete old — **the actual importer is only 8 files in
 > `libs/app-runtime`**; mentions of `apps/desktop-web` · `libs/shared` · `libs/http` are comments) ·
@@ -62,7 +62,7 @@ The same concept is split into two: web has `PREFERENCES` + `usePreferenceStore`
 
 ### 2. `web-config` is config in name only
 
-[env.ts](../../libs/web-config/src/env.ts) — 193 lines, entirely env parsing, exporting values as
+[env.ts](../../libs/config/src/registry/env.ts) — 193 lines, entirely env parsing, exporting values as
 `export const` — **freezes at import time, so runtime changes are structurally impossible.** So the two
 values that must change at runtime (`getDynamicRelayBackend` · `getDynamicRelayWss`) are patched as
 getter exceptions. It is not that there is no observer — **the place that needed an observer has been

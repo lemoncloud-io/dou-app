@@ -15,7 +15,7 @@ import { BaseRepository, type DisposableRepository } from './types';
 export interface UserRepositoryOptions {
     /**
      * Decides whether getMyProfile's embedded `$site` is persisted into the place cache for the
-     * given (request-time) context. Defaults to always persisting — the pre-ADR-0045 behavior —
+     * given (request-time) context. Defaults to always persisting — the pre-ADR-0094 behavior —
      * so apps that inject nothing (desktop-web) are unaffected. apps/web injects a relay-only
      * predicate so a cloud partition never receives the default place row.
      */

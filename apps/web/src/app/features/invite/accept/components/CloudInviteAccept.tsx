@@ -101,7 +101,7 @@ export const CloudInviteAccept = ({ params }: CloudInviteAcceptProps): JSX.Eleme
     // denormalizes into the invite response but has not shipped yet (inviter image, place
     // intro/thumbnail, member count — see ./types). Forward all of them: they are optional and
     // the screen degrades gracefully while they are absent, so this wiring is what lets each one light
-    // up with no further code change (ADR-0033 D1).
+    // up with no further code change (ADR-0089 D1).
     return (
         <InviteAcceptScreen
             inviterName={info?.inviter$?.name}

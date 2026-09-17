@@ -81,7 +81,7 @@ export const CloudPushMarkRunner = (): null => {
         const records = await appBridge.fetchPushMarks();
         // The only trace a background arrival ever leaves on the web, recorded here because the
         // drain is destructive — read and clear in one native call, so this is the one moment the
-        // records exist on this side (ADR-0075). On iOS the notification-service extension runs in
+        // records exist on this side (ADR-0099). On iOS the notification-service extension runs in
         // its own process and cannot reach the logger at all, which makes this the sole evidence
         // that those pushes arrived.
         //

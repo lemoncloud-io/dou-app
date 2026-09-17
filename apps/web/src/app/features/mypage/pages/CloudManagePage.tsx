@@ -113,7 +113,7 @@ export const CloudManagePage = () => {
                                                 <span className="truncate text-[17px] font-semibold leading-[1.19] tracking-[-0.025em] text-[#3A3C40] dark:text-foreground">
                                                     {cloud.name ?? cloud.email?.split('@')[0] ?? '-'}
                                                 </span>
-                                                {/* Rename has a single path (ADR-0034): CloudProfileEditPage
+                                                {/* Rename has a single path (ADR-0091): CloudProfileEditPage
                                                     edits only the active cloud, so the pencil only appears
                                                     on that row — other owned clouds are not renameable here. */}
                                                 {cloud.id === selectedCloudId && (

@@ -99,7 +99,7 @@ describe('UnreadBadgeRunner — 앱 뱃지 동기화', () => {
         expect(setBadge).not.toHaveBeenCalled();
     });
 
-    describe('뱃지 정합성 대조 (ADR-0075)', () => {
+    describe('뱃지 정합성 대조 (ADR-0099)', () => {
         beforeEach(() => fetchBadge.mockResolvedValue(null));
 
         // 콜드 스타트: 아이콘에는 백그라운드 푸시가 남긴 값이 있고, 웹이 계산한 총합이 진실이다.

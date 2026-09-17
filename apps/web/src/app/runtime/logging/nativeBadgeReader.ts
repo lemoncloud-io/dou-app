@@ -7,7 +7,7 @@ import { appBridge } from '../../bridge/appBridge';
  *
  * **`null` is a distinct answer from 0.** Zero is a valid badge, so a reader that returns 0 for
  * "unknown" makes every consumer compare against a value that means nothing — which on Android
- * would mark every device as diverged forever (ADR-0075).
+ * would mark every device as diverged forever (ADR-0099).
  *
  * Two platforms, two sources, and the split is not a style choice:
  * - **iOS** answers the live icon badge, which the app process can read directly.

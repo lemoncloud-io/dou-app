@@ -1,7 +1,7 @@
 /**
  * English translations for mobile native UI
  * This is the source of truth for the RN shell. The `push_*` keys here must stay in sync with
- * the three native locale sets under apps/mobile (ADR-0075); localeParity.test.ts checks it.
+ * the three native locale sets under apps/mobile (ADR-0098); localeParity.test.ts checks it.
  */
 export const en = {
     app: {

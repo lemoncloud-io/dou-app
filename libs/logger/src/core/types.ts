@@ -7,7 +7,7 @@ export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
  * Runtime a log entry originated from. Recorded when an entry crosses a
  * runtime boundary (web → native bridge relay, pure-native → JS emitter) so
  * merged buffers can tell origins apart without rewriting `tag`. Absent for
- * entries born in the local runtime. (ADR-0047)
+ * entries born in the local runtime. (ADR-0097)
  */
 export type LogOrigin = 'web' | 'native';
 
@@ -83,7 +83,7 @@ export type LogListener = (entry: LogEntry) => void;
  * took a bare `data?: unknown` — which accepts this shape too, silently, and then stores it whole.
  * So `logger.warn(tag, msg, { error, data: { path } })` put the fields at `data.data.path` and left
  * `entry.error` empty: the admin console showed no error, and `data.observation` — the one key
- * ADR-0075 exists to make readable — was a level deeper than every reader looks.
+ * ADR-0099 exists to make readable — was a level deeper than every reader looks.
  *
  * 42 call sites wrote it that way, which is the answer to whether the signature or the callers were
  * wrong. Normalizing here costs nothing a caller wanted: no site in the tree passes a payload whose

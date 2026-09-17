@@ -79,7 +79,7 @@ export {
 // that gap closes instead of making an app know the split.
 
 // verify-hash-alias `$token` → session/store commit + same-connection relay socket re-auth. Consumed
-// by the phone-verification flow (roadmap ADR-0033 Track A contract; Track C imports it via apps/web).
+// by the phone-verification flow (roadmap ADR-0089 Track A contract; Track C imports it via apps/web).
 export { applySessionToken } from '../socket/auth/applySessionToken';
 export type { ApplySessionTokenOptions } from '../socket/auth/applySessionToken';
 // The app-facing relay LOGOUT — the socket half. It notifies the server's socket (`auth.logout`)

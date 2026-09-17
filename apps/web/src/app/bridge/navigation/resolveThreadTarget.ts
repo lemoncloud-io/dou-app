@@ -7,7 +7,7 @@ import { ROUTES } from '../../routes/paths';
  *
  * Push notifications are channel-level: the link names a channel, so a tap lands on the
  * channel room. But a thread reply is an ordinary `stereo:'user'` chat, so it raises a push
- * of its own while being hidden from the main feed (`isFeedVisible`, ADR-0045) — landing in
+ * of its own while being hidden from the main feed (`isFeedVisible`, ADR-0093) — landing in
  * the room would show the reader everything except the message they were notified about.
  *
  * So the room is the first stop, not the destination: once there, the notified chat answers

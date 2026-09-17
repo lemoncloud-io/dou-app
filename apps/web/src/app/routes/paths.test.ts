@@ -25,7 +25,7 @@ describe('ROUTES — 상수 경로', () => {
         expect(ROUTES.channels.root).toBe('/channels');
     });
 
-    it('invite 연락처 초대 경로를 노출한다(ADR-0033 Track B)', () => {
+    it('invite 연락처 초대 경로를 노출한다(ADR-0089 Track B)', () => {
         expect(ROUTES.invite.contact).toBe('/invite/contact');
     });
 

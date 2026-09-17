@@ -150,7 +150,7 @@ describe('SyncMetaLocalDataSource — a cursor whose routing changed', () => {
     });
 });
 
-describe('SyncMetaLocalDataSource — recording a discarded cursor (ADR-0075)', () => {
+describe('SyncMetaLocalDataSource — recording a discarded cursor (ADR-0099)', () => {
     const ROUTING = 'chat:native,channel:native';
     const warn = logger.warn as jest.Mock;
 

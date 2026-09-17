@@ -120,7 +120,7 @@ export class PlaceRepository extends BaseRepository implements IPlaceRepository 
         await this.placeLocalDataSource.cacheWriteMany(domainList, requestContext);
 
         // The server snapshot is authoritative for this scope: prune cached rows it no longer
-        // lists (e.g. the embedded-$site default place written into a cloud partition, ADR-0045).
+        // lists (e.g. the embedded-$site default place written into a cloud partition, ADR-0094).
         // Only a full snapshot (no query) may prune — a filtered response proves nothing about
         // the rows it omits.
         if (query != null) return;

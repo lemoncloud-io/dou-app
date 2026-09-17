@@ -332,7 +332,7 @@ describe('IndexedDBAdapter — 세션이 없으면 건너뛴다', () => {
     });
 });
 
-describe('IndexedDBAdapter — 버린 것을 기록한다 (ADR-0075)', () => {
+describe('IndexedDBAdapter — 버린 것을 기록한다 (ADR-0099)', () => {
     const warn = logger.warn as jest.Mock;
     const error = logger.error as jest.Mock;
     const info = logger.info as jest.Mock;
