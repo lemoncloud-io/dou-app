@@ -237,39 +237,30 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
     }
 
     /**
-     * Delete a message.
+     * Delete a message. NOT optimistic: the row is hidden only once the server confirms.
      *
      * The server's delete is a soft delete — `chat.delete` maps to `PUT { hidden: true }`
-     * and the row survives — so the optimistic write marks the cached row `hidden`
-     * rather than removing it. Dropping it locally would disagree with the server twice
-     * over: the row reappears on the next sync, and a client that renders deleted
-     * messages as "This message was deleted." would show nothing until then and a
-     * tombstone afterwards, for the same message.
+     * and the row survives — so hiding it here would mean marking the cached row rather
+     * than removing it, and that mark could not be taken back. `cacheWrite` MERGES, so
+     * writing the previous record back cannot clear a key that record never had: the
+     * optimistic `hidden: true` survived its own rollback, and a failed delete left the
+     * message looking deleted while it was alive on the server. The rollback was not
+     * fixed, it was made unnecessary — nothing is written before the answer arrives, so
+     * a failure changes nothing and only has to be reported.
      *
-     * On failure the previous record is restored. A row that was not cached to begin
-     * with has nothing to mark and nothing to restore; the server's answer is written
-     * either way, so the cache ends up agreeing with it.
+     * Delete is the operation with the least to gain from optimism anyway: it already
+     * costs a confirmation step, it is rare, and it cannot be undone. Showing it as done
+     * before the server knows is not speed. Send and update keep their optimistic paths,
+     * where the immediacy is worth it and a rollback actually works.
      */
     public async deleteChat(payload: ChatDeleteInput): Promise<DomainChat> {
-        const chatId = this.assertRequiredString((payload as { id?: string }).id, 'id');
+        this.assertRequiredString((payload as { id?: string }).id, 'id');
         const requestContext = this.getRequestContext();
         const normalizedContext = this.getNormalizedContext(requestContext);
-        const existing = await this.chatLocalDataSource.cacheRead(chatId, requestContext);
 
-        if (existing) {
-            await this.chatLocalDataSource.cacheWrite({ ...existing, hidden: true }, requestContext);
-        }
-
-        try {
-            const domainChat = await this.chatSocketDataSource.deleteChat(payload, normalizedContext);
-            await this.chatLocalDataSource.cacheWrite(domainChat, requestContext);
-            return domainChat;
-        } catch (error) {
-            if (existing) {
-                await this.chatLocalDataSource.cacheWrite(existing, requestContext);
-            }
-            throw error;
-        }
+        const domainChat = await this.chatSocketDataSource.deleteChat(payload, normalizedContext);
+        await this.chatLocalDataSource.cacheWrite(domainChat, requestContext);
+        return domainChat;
     }
 
     // Optimistic chats are built as domain literals (no mapper); cacheWrite fills any remaining defaults.

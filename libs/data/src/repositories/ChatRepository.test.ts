@@ -1,3 +1,5 @@
+import { ChatLocalDataSource } from '../local/data-sources/ChatLocalDataSource';
+import { createMemoryCacheStorage } from '../local/data-sources/__mocks__/MemoryCacheStorage';
 import { ChatRepository } from './ChatRepository';
 
 describe('ChatRepository', () => {
@@ -141,41 +143,102 @@ describe('ChatRepository', () => {
         );
     });
 
-    // The server soft-deletes (`PUT { hidden: true }`), so the optimistic write has to
-    // mark the row rather than drop it — otherwise the row is missing until the next
-    // sync brings it back, and a client that renders deleted messages shows nothing and
-    // then a tombstone for the same message.
-    it('marks the chat hidden rather than removing it when deleteChat is issued', async () => {
+    // Not optimistic (see deleteChat's doc comment): nothing is written before the server answers,
+    // and what is written then is the server's own record, tombstone flag included.
+    it('writes only the server record when deleteChat succeeds, and never removes the row', async () => {
         const { repository, chatSocketDataSource, chatLocalDataSource } = createRepository();
-        chatLocalDataSource.cacheRead.mockResolvedValue({ id: 'm1', content: 'before' });
         chatSocketDataSource.deleteChat.mockResolvedValue({ id: 'm1', content: 'before', hidden: true });
 
         await repository.deleteChat({ id: 'm1' } as any);
 
         expect(chatLocalDataSource.cacheDelete).not.toHaveBeenCalledWith('m1', expect.anything());
+        expect(chatLocalDataSource.cacheWrite).toHaveBeenCalledTimes(1);
         expect(chatLocalDataSource.cacheWrite).toHaveBeenCalledWith(
             expect.objectContaining({ id: 'm1', hidden: true }),
             { cid: 'cloud-a', sid: 'site-1', uid: 'me' }
         );
     });
 
-    it('restores the deleted chat when deleteChat fails', async () => {
+    it('touches the cache not at all when deleteChat fails', async () => {
         const { repository, chatSocketDataSource, chatLocalDataSource } = createRepository();
-        chatLocalDataSource.cacheRead.mockResolvedValue({ id: 'm1', content: 'before' });
         chatSocketDataSource.deleteChat.mockRejectedValue(new Error('boom'));
 
         await expect(repository.deleteChat({ id: 'm1' } as any)).rejects.toThrow('boom');
 
-        // The record goes back exactly as it was — not merely un-hidden, which would
-        // leave a `hidden: false` the server never sent.
-        expect(chatLocalDataSource.cacheWrite).toHaveBeenLastCalledWith(
-            { id: 'm1', content: 'before' },
-            {
-                cid: 'cloud-a',
-                sid: 'site-1',
-                uid: 'me',
-            }
-        );
+        // There is no rollback to get right because there was no optimistic write to undo.
+        expect(chatLocalDataSource.cacheWrite).not.toHaveBeenCalled();
+        expect(chatLocalDataSource.cacheDelete).not.toHaveBeenCalled();
+    });
+
+    // Above this line the cache is a `jest.fn()`, which only answers "what was the write called
+    // with". The delete rollback is a claim about what the cache CONTAINS afterwards, so it is
+    // asserted here over a real ChatLocalDataSource on the in-memory storage fixture.
+    describe('deleteChat over a real cache', () => {
+        const createRealCacheRepository = () => {
+            const chatSocketDataSource = {
+                fetchChat: jest.fn(),
+                sendChat: jest.fn(),
+                getChat: jest.fn(),
+                updateChat: jest.fn(),
+                deleteChat: jest.fn(),
+                setReaction: jest.fn(),
+            };
+            const contextProvider = {
+                getContext: () => ({ cid: 'cloud-a', sid: 'site-1', uid: 'me' }),
+                setContext: () => undefined,
+            };
+            const chatLocalDataSource = new ChatLocalDataSource(
+                contextProvider as any,
+                createMemoryCacheStorage() as any
+            );
+
+            return {
+                repository: new ChatRepository(
+                    chatSocketDataSource as any,
+                    chatLocalDataSource as any,
+                    contextProvider as any
+                ),
+                chatSocketDataSource,
+                chatLocalDataSource,
+            };
+        };
+
+        const seed = async (chatLocalDataSource: ChatLocalDataSource) => {
+            await chatLocalDataSource.cacheWrite({ id: 'm1', channelId: 'ch-1', chatNo: 1, content: 'before' } as any);
+        };
+
+        // The one that matters. `cacheWrite` MERGES, so writing the previous record back cannot
+        // clear a key that record never had — an optimistic `hidden: true` survives its own
+        // rollback and the message stays deleted on screen while it is alive on the server.
+        it('leaves the message visible when the delete fails', async () => {
+            const { repository, chatSocketDataSource, chatLocalDataSource } = createRealCacheRepository();
+            await seed(chatLocalDataSource);
+            chatSocketDataSource.deleteChat.mockRejectedValue(new Error('boom'));
+
+            await expect(repository.deleteChat({ id: 'm1' } as any)).rejects.toThrow('boom');
+
+            const row = await chatLocalDataSource.cacheRead('m1');
+            expect(row).toMatchObject({ id: 'm1', content: 'before' });
+            expect(row?.hidden).toBeFalsy();
+        });
+
+        it('hides the message once the server confirms the delete', async () => {
+            const { repository, chatSocketDataSource, chatLocalDataSource } = createRealCacheRepository();
+            await seed(chatLocalDataSource);
+            chatSocketDataSource.deleteChat.mockResolvedValue({
+                id: 'm1',
+                channelId: 'ch-1',
+                chatNo: 1,
+                content: 'before',
+                hidden: true,
+            });
+
+            await repository.deleteChat({ id: 'm1' } as any);
+
+            // Soft delete: the row survives as a tombstone rather than disappearing.
+            const row = await chatLocalDataSource.cacheRead('m1');
+            expect(row).toMatchObject({ id: 'm1', hidden: true });
+        });
     });
 
     it('delegates cache helper methods to the local datasource', async () => {
