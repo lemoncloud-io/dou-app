@@ -1,4 +1,4 @@
-# ADR-0103: `apps/web` fills the device up to a phone-class bound, and notice dialogs opt out
+# ADR-0104: `apps/web` fills the device up to a phone-class bound, and notice dialogs opt out
 
 > Status: Accepted · Decided: 2026-09-17
 > Scope: `apps/web/src/styles.css` · `apps/web/tailwind.config.js` ·

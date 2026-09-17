@@ -29,7 +29,9 @@ export const MessageLinkPreview = ({ url }: MessageLinkPreviewProps) => {
                 event.preventDefault();
                 openExternalUrl(meta.url);
             }}
-            className="w-[260px]"
+            // Upper bound rather than a width: a bubble is 75% of the row, and on a 320px screen
+            // that is 240px — narrower than the card was allowed to admit it could be.
+            className="w-full max-w-[260px]"
         />
     );
 };

@@ -42,7 +42,7 @@ export const ConfirmDialog = ({
     return (
         <AlertDialog open={open} onOpenChange={handleOpenChange}>
             <AlertDialogContent
-                className="max-w-[288px] gap-0 overflow-hidden rounded-[12px] border-0 p-0 shadow-[0px_0px_8px_0px_rgba(0,0,0,0.08)]"
+                className="gap-0 overflow-hidden rounded-[12px] border-0 p-0 shadow-[0px_0px_8px_0px_rgba(0,0,0,0.08)]"
                 data-prevent-back-close={isPending ? '' : undefined}
             >
                 <div className="flex flex-col items-center gap-[22px] pt-[22px]">
@@ -54,7 +54,7 @@ export const ConfirmDialog = ({
                             quoting message text back to the user, the description can be a run with
                             no space in it — a URL, an id, a line of code. An unbroken run's
                             min-content width is the WHOLE run, and min-content beats the box's
-                            `max-w-[288px]`, so the panel and the button row below it stretch to fit
+                            the variant's own width, so the panel and the button row below it stretch to fit
                             it: measured 644px of text pushing the confirm button to x 388-732 on a
                             375px screen, entirely off-screen and unreachable. `break-words` does not
                             fix that (it wraps but leaves min-content intact); `anywhere` reduces
