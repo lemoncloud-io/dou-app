@@ -107,7 +107,9 @@ export const SearchDialog = ({ channels, onSelect, onJumpToMessage }: SearchDial
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogContent className="top-[15%] max-h-[70vh] translate-y-0 gap-2 overflow-hidden p-2 sm:max-w-lg">
                 <DialogTitle className="sr-only">{t('search.title')}</DialogTitle>
-                <DialogDescription className="sr-only">{t('search.title')}</DialogDescription>
+                {/* The scope, not the title again: a screen reader announced the same
+                    four words twice on open and learned nothing from the second. */}
+                <DialogDescription className="sr-only">{t('search.scope')}</DialogDescription>
                 <div className="flex items-center gap-2 border-b border-hairline px-2 pb-2">
                     <Search size={16} className="shrink-0 text-muted-foreground" aria-hidden />
                     <input
@@ -153,6 +155,12 @@ export const SearchDialog = ({ channels, onSelect, onJumpToMessage }: SearchDial
                                         role="option"
                                         tabIndex={-1}
                                         aria-selected={headerIndex === nav.activeIndex}
+                                        // It looks like a group heading but it is an option:
+                                        // picking it opens the channel. Say so, or a screen
+                                        // reader hears a heading that answers Enter.
+                                        aria-label={t('search.openChannel', {
+                                            name: result.channel.name ?? channelId,
+                                        })}
                                         onMouseEnter={() => nav.setActiveIndex(headerIndex)}
                                         onClick={() => pick(options[headerIndex])}
                                         className={cn(

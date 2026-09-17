@@ -77,7 +77,14 @@ export const RenameChannelDialog = ({ open, onOpenChange, channelId, currentName
                             placeholder={t('channels.rename.namePlaceholder')}
                             disabled={isMutating}
                         />
-                        <p className="text-xs text-muted-foreground">{t('channels.rename.lengthHint')}</p>
+                        <div className="flex items-baseline justify-between gap-2">
+                            <p className="text-xs text-muted-foreground">{t('channels.rename.lengthHint')}</p>
+                            {/* The input truncates silently at the maximum; a counter is
+                                what tells someone their last keystrokes went nowhere. */}
+                            <p className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                                {t('channels.nameCount', { count: name.trim().length, max: CHANNEL_NAME_MAX })}
+                            </p>
+                        </div>
                     </div>
 
                     {errorMsg && (

@@ -115,7 +115,7 @@ export const QuickSwitcher = ({ channels, onSelect, elsewhere = [], onSelectElse
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogContent className="top-[20%] translate-y-0 gap-2 p-2 sm:max-w-md">
                 <DialogTitle className="sr-only">{t('switcher.title')}</DialogTitle>
-                <DialogDescription className="sr-only">{t('switcher.title')}</DialogDescription>
+                <DialogDescription className="sr-only">{t('switcher.hint')}</DialogDescription>
                 <div className="flex items-center gap-2 border-b border-hairline px-2 pb-2">
                     <Search size={16} className="shrink-0 text-muted-foreground" aria-hidden />
                     <input

@@ -88,7 +88,11 @@ export const ProfileCardContent = ({
                     </span>
                 )}
 
-                {userId && (
+                {/* The numeric id is for support, not for a teammate glancing at a
+                    card, and it led the popover with a copy button. It stays in the
+                    full profile (this body with no `onExpand`), where someone looking
+                    for it has gone on purpose. */}
+                {userId && !onExpand && (
                     <button
                         type="button"
                         onClick={() => copy(userId)}
@@ -112,7 +116,7 @@ export const ProfileCardContent = ({
                     <button
                         type="button"
                         onClick={onExpand}
-                        className="mt-2 w-full rounded-lg border border-border px-3 py-2 text-center text-xs font-medium text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        className="mt-3 w-full rounded-lg border border-border bg-accent/40 px-3 py-2 text-center text-xs font-medium text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
                         {t('profile.card.viewFull')}
                     </button>

@@ -69,6 +69,19 @@ const message = (chatNo: number, ownerId: string, content: string): DomainChat =
  * So the assertions are deliberately shallow. The point is that these two paths
  * execute at all, which is exactly what was missing.
  */
+/**
+ * Open a row's overflow menu and click one of its items. Save, Copy, Edit and
+ * Delete live there now — eight icons in the hover strip was a target nobody
+ * could aim at. Radix opens a dropdown on pointerdown, not click.
+ */
+const clickRowMenuItem = (name: RegExp | string) => {
+    // Enter on the trigger, not a click: Radix opens a dropdown from pointerdown,
+    // and jsdom has no PointerEvent, so the keyboard path is the reliable one here
+    // (and it is the path a keyboard user takes anyway).
+    fireEvent.keyDown(screen.getByLabelText('More actions'), { key: 'Enter' });
+    fireEvent.click(screen.getByRole('menuitem', { name }));
+};
+
 describe('MessageList', () => {
     it('renders a thread footer without throwing', () => {
         const threadMeta = new Map<string, ThreadMeta>([
@@ -113,8 +126,7 @@ describe('MessageList', () => {
 
         expect(screen.getByText('This message was deleted.')).toBeDefined();
         expect(screen.queryByText('was here')).toBeNull();
-        expect(screen.queryByLabelText('Copy')).toBeNull();
-        expect(screen.queryByLabelText('Delete message')).toBeNull();
+        expect(screen.queryByLabelText('More actions')).toBeNull();
     });
 
     // The feed and the thread panel share one renderer, so a block message has to be
@@ -191,7 +203,7 @@ describe('MessageList', () => {
         render(<MessageList messages={[withBlocksField]} isLoading={false} viewer={VIEWER} names={new Map()} />, {
             wrapper,
         });
-        fireEvent.click(screen.getByLabelText('Delete message'));
+        clickRowMenuItem('Delete message');
 
         const dialog = within(screen.getByRole('alertdialog'));
         expect(dialog.getByText(/TypeError: Cannot read properties/)).toBeDefined();
@@ -211,7 +223,7 @@ describe('MessageList', () => {
             <MessageList messages={[message(1, 'me', payload)]} isLoading={false} viewer={VIEWER} names={new Map()} />,
             { wrapper }
         );
-        fireEvent.click(screen.getByLabelText('Delete message'));
+        clickRowMenuItem('Delete message');
 
         expect(screen.queryByText(payload)).toBeNull();
         expect(screen.getByText('403 denied')).toBeDefined();
@@ -289,6 +301,6 @@ describe('MessageList', () => {
         // Named, not matched on the glyph: the toolbar's quick-reaction buttons carry
         // the same emoji, so a bare text query finds two things and cannot say which
         // one is the tally.
-        expect(screen.getByLabelText('👍 — Me, Ada')).toBeDefined();
+        expect(screen.getByLabelText('👍 · Me, Ada')).toBeDefined();
     });
 });

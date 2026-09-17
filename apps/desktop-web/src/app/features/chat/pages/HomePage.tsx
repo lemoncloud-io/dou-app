@@ -410,7 +410,13 @@ export const HomePage = () => {
         if (!stillValid && channels.length > 0) {
             const scope = `${activeCloudId ?? 'default'}:${selectedPlaceId ?? ''}`;
             const remembered = useLastChannelStore.getState().byScope[scope];
-            const target = remembered && channels.some(c => c.id === remembered) ? remembered : channels[0]?.id;
+            // A place badged "1" used to open on whatever was first (or last read),
+            // which was routinely a channel with nothing new — the badge led
+            // nowhere. With no remembered channel, land on the first unread one and
+            // the badge resolves to the thing it was pointing at.
+            const firstUnread = channels.find(channel => (channel.unreadCount ?? 0) > 0)?.id;
+            const target =
+                remembered && channels.some(c => c.id === remembered) ? remembered : (firstUnread ?? channels[0]?.id);
             if (target) selectChannel(target);
         }
     }, [
@@ -659,7 +665,7 @@ export const HomePage = () => {
             <EditPlaceProfileDialog />
             {/* Ready means the Self Channel itself has arrived — not merely that some
                 channel has, which is what the card used to claim. */}
-            <OnboardingDialog enabled={isDefaultMode} isChannelReady={channels.some(isSelfChannel)} />
+            <OnboardingDialog enabled showChannelStatus={isDefaultMode} isChannelReady={channels.some(isSelfChannel)} />
         </>
     );
 };

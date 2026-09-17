@@ -1,12 +1,30 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Bookmark, Check, ChevronRight, Copy, MessageSquare, Pencil, Reply, SmilePlus, Trash2 } from 'lucide-react';
+import {
+    Bookmark,
+    Check,
+    ChevronRight,
+    Copy,
+    MessageSquare,
+    MoreHorizontal,
+    Pencil,
+    Reply,
+    SmilePlus,
+    Trash2,
+} from 'lucide-react';
 
 import type { DomainChat } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 import { Button } from '@chatic/ui-kit/components/ui/button';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@chatic/ui-kit/components/ui/dropdown-menu';
 import { Popover, PopoverContent, PopoverTrigger } from '@chatic/ui-kit/components/ui/popover';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
@@ -99,7 +117,7 @@ interface MessageRowProps {
  */
 /** Shared shape of every icon button in the message hover toolbar; each adds its own hover pair. */
 const TOOLBAR_BUTTON =
-    'focus-ring tactile flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile';
+    'focus-ring tactile flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile';
 
 interface ToolbarButtonProps {
     label: string;
@@ -237,6 +255,9 @@ export const MessageRow = memo(
         // left open, the grid covers the conversation and the click reads as if it did
         // not register — there is no visible chip while the request is in flight.
         const [pickerKey, setPickerKey] = useState<string | null>(null);
+        // The overflow menu portals out of the row, same as the emoji picker, so the
+        // toolbar has to stay up while it is open or it vanishes under the pointer.
+        const [menuKey, setMenuKey] = useState<string | null>(null);
         // Set when the picker closes because something was chosen, so the close handler
         // can tell a pick from an Escape. A ref, not state: it is read once during the
         // close and must not schedule a render of its own.
@@ -400,7 +421,8 @@ export const MessageRow = memo(
                             // still looking at — the emoji grid, the delete dialog, or the
                             // "Copied" tick that has not timed out yet. All three outlive the
                             // hover that opened them.
-                            const isToolbarPinned = isCopied || pickerKey === key || confirmingKey === key;
+                            const isToolbarPinned =
+                                isCopied || pickerKey === key || menuKey === key || confirmingKey === key;
                             // What Save is allowed to do. An edit to nothing is a delete
                             // everywhere else and would only blank the row here, and an edit
                             // to the same text is a no-op — so neither is offered. Disabling
@@ -729,91 +751,112 @@ export const MessageRow = memo(
                                                     <Reply size={16} />
                                                 </ToolbarButton>
                                             )}
-                                            {content && isSettled && (
-                                                <ToolbarButton
-                                                    label={isSavedKey(key) ? t('chat.unsave') : t('chat.save')}
-                                                    pressed={isSavedKey(key)}
-                                                    className="hover:bg-accent hover:text-foreground"
-                                                    onClick={() =>
-                                                        toggleSaved({
-                                                            id: key,
-                                                            channelId: message.channelId ?? '',
-                                                            chatNo: message.chatNo,
-                                                            content: plain,
-                                                            ownerName: group.ownerName,
-                                                            avatar: group.avatar,
-                                                            colorSeed: group.colorSeed,
-                                                            ownerId: group.ownerId,
-                                                            placeId: currentPlaceId(),
-                                                            parentId: message.parentId,
-                                                        })
-                                                    }
+                                            {/* Everything past Reply lives in one menu. Eight
+                                                same-sized icons made a strip nobody could aim at,
+                                                each one its own tab stop, and Delete sat a
+                                                mouse-width from Edit. The three frequent actions
+                                                stay out here; the rest are named in a list, where
+                                                a label is cheaper to read than an icon. */}
+                                            {(content || canModifyMessage(message, group.isMine)) && (
+                                                <DropdownMenu
+                                                    open={menuKey === key}
+                                                    onOpenChange={next => setMenuKey(next ? key : null)}
                                                 >
-                                                    <Bookmark
-                                                        size={16}
-                                                        className={
-                                                            isSavedKey(key)
-                                                                ? 'fill-current text-primary-ink'
-                                                                : undefined
-                                                        }
-                                                    />
-                                                </ToolbarButton>
-                                            )}
-                                            {content && (
-                                                <ToolbarButton
-                                                    label={isCopied ? t('chat.copied') : t('chat.copy')}
-                                                    onClick={() => copy(key, plain)}
-                                                    className="hover:bg-accent hover:text-foreground"
-                                                >
-                                                    {isCopied ? (
-                                                        <Check size={16} className="text-primary-ink" />
-                                                    ) : (
-                                                        <Copy size={16} />
-                                                    )}
-                                                </ToolbarButton>
-                                            )}
-                                            {canModifyMessage(message, group.isMine) && (
-                                                <>
-                                                    {/* No Edit on a Block Kit message, whichever way the
-                                                        blocks arrived. From `content` JSON, the editor is
-                                                        a plain textarea and would hand back the payload to
-                                                        edit by hand. From `blocks$`, `content` is only the
-                                                        server's summary — editing it would leave the card
-                                                        saying one thing and the summary another, and the
-                                                        server does not rebuild `blocks$` on update
-                                                        (knowledge#319 SPEC §4.3). Delete still applies —
-                                                        the message can still be wrong. */}
-                                                    {!blocks && (
-                                                        <>
-                                                            <ToolbarButton
-                                                                label={t('chat.edit')}
-                                                                onClick={() => {
-                                                                    setDraft(content);
-                                                                    setEditingKey(key);
-                                                                }}
-                                                                className="hover:bg-accent hover:text-foreground"
+                                                    <Hint label={t('chat.more')}>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <button
+                                                                type="button"
+                                                                aria-label={t('chat.more')}
+                                                                className={cn(
+                                                                    TOOLBAR_BUTTON,
+                                                                    'hover:bg-accent hover:text-foreground'
+                                                                )}
                                                             >
-                                                                <Pencil size={16} />
-                                                            </ToolbarButton>
-                                                            {/* Delete last, behind a rule. It was one
-                                                                of six identical icons, a mouse-width
-                                                                from Edit, and the only one you cannot
-                                                                undo — the strip gave the reader
-                                                                nothing to aim by. */}
-                                                            <span
-                                                                aria-hidden
-                                                                className="mx-0.5 h-5 w-px shrink-0 bg-hairline"
-                                                            />
-                                                        </>
-                                                    )}
-                                                    <ToolbarButton
-                                                        label={t('chat.delete')}
-                                                        onClick={() => setConfirmingKey(key)}
-                                                        className="hover:bg-destructive/10 hover:text-destructive"
-                                                    >
-                                                        <Trash2 size={16} />
-                                                    </ToolbarButton>
-                                                </>
+                                                                <MoreHorizontal size={16} />
+                                                            </button>
+                                                        </DropdownMenuTrigger>
+                                                    </Hint>
+                                                    <DropdownMenuContent align="end" side="bottom" className="w-48">
+                                                        {content && isSettled && (
+                                                            <DropdownMenuItem
+                                                                onSelect={() =>
+                                                                    toggleSaved({
+                                                                        id: key,
+                                                                        channelId: message.channelId ?? '',
+                                                                        chatNo: message.chatNo,
+                                                                        content: plain,
+                                                                        ownerName: group.ownerName,
+                                                                        avatar: group.avatar,
+                                                                        colorSeed: group.colorSeed,
+                                                                        ownerId: group.ownerId,
+                                                                        placeId: currentPlaceId(),
+                                                                        parentId: message.parentId,
+                                                                    })
+                                                                }
+                                                            >
+                                                                <Bookmark
+                                                                    size={14}
+                                                                    aria-hidden
+                                                                    className={
+                                                                        isSavedKey(key)
+                                                                            ? 'fill-current text-primary-ink'
+                                                                            : undefined
+                                                                    }
+                                                                />
+                                                                {isSavedKey(key) ? t('chat.unsave') : t('chat.save')}
+                                                            </DropdownMenuItem>
+                                                        )}
+                                                        {content && (
+                                                            <DropdownMenuItem onSelect={() => copy(key, plain)}>
+                                                                {isCopied ? (
+                                                                    <Check
+                                                                        size={14}
+                                                                        aria-hidden
+                                                                        className="text-primary-ink"
+                                                                    />
+                                                                ) : (
+                                                                    <Copy size={14} aria-hidden />
+                                                                )}
+                                                                {isCopied ? t('chat.copied') : t('chat.copy')}
+                                                            </DropdownMenuItem>
+                                                        )}
+                                                        {canModifyMessage(message, group.isMine) && (
+                                                            <>
+                                                                {/* No Edit on a Block Kit message, whichever way
+                                                                    the blocks arrived. From `content` JSON, the
+                                                                    editor is a plain textarea and would hand back
+                                                                    the payload to edit by hand. From `blocks$`,
+                                                                    `content` is only the server's summary —
+                                                                    editing it would leave the card saying one
+                                                                    thing and the summary another, and the server
+                                                                    does not rebuild `blocks$` on update
+                                                                    (knowledge#319 SPEC §4.3). Delete still
+                                                                    applies: the message can still be wrong. */}
+                                                                {!blocks && (
+                                                                    <DropdownMenuItem
+                                                                        onSelect={() => {
+                                                                            setDraft(content);
+                                                                            setEditingKey(key);
+                                                                        }}
+                                                                    >
+                                                                        <Pencil size={14} aria-hidden />
+                                                                        {t('chat.edit')}
+                                                                    </DropdownMenuItem>
+                                                                )}
+                                                                <DropdownMenuSeparator />
+                                                                {/* Last, behind a rule, and the only item that
+                                                                    cannot be undone. */}
+                                                                <DropdownMenuItem
+                                                                    onSelect={() => setConfirmingKey(key)}
+                                                                    className="text-destructive focus:text-destructive"
+                                                                >
+                                                                    <Trash2 size={14} aria-hidden />
+                                                                    {t('chat.delete')}
+                                                                </DropdownMenuItem>
+                                                            </>
+                                                        )}
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
                                             )}
                                         </div>
                                     )}
