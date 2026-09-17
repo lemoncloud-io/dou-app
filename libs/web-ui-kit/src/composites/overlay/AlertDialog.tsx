@@ -63,7 +63,7 @@ export const AlertDialog = ({
 
     return (
         <Root open={open} onOpenChange={onOpenChange}>
-            <AlertDialogContent className="flex w-[311px] max-w-[calc(100vw-3rem)] flex-col gap-0 overflow-hidden rounded-[12px] border-0 bg-surface p-0 pt-[22px] shadow-[0px_0px_8px_0px_rgba(0,0,0,0.08)] sm:rounded-[12px]">
+            <AlertDialogContent className="flex flex-col gap-0 overflow-hidden rounded-[12px] border-0 bg-surface p-0 pt-[22px] shadow-[0px_0px_8px_0px_rgba(0,0,0,0.08)] sm:rounded-[12px]">
                 <div className="flex w-full flex-col gap-[22px]">
                     <div className="flex flex-col gap-2 px-[22px] text-center">
                         <AlertDialogTitle className="text-[18px] font-semibold leading-[1.5] text-foreground">

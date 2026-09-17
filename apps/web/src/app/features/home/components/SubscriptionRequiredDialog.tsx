@@ -27,8 +27,13 @@ export const SubscriptionRequiredDialog = ({ open, onClose }: SubscriptionRequir
             className="fixed inset-0 z-[200] flex items-center justify-center bg-[rgba(34,35,37,0.38)]"
             onClick={onClose}
         >
+            {/* The one notice-dialog width, spelled out rather than inherited: this dialog is a
+                hand-rolled portal rather than a `DialogContent`, so it cannot pick up the variant
+                that declares `--dialog-width` for every other notice. The expression is that
+                variant's, and changing one without the other is the bug to watch for — the fix is
+                to move this onto the shared primitive, which is a larger change than a width. */}
             <div
-                className="mx-[43px] w-full max-w-[288px] rounded-[12px] bg-white shadow-[0px_0px_8px_0px_rgba(0,0,0,0.08)] dark:bg-card"
+                className="w-full max-w-[min(311px,calc(100%-48px))] rounded-[12px] bg-white shadow-[0px_0px_8px_0px_rgba(0,0,0,0.08)] dark:bg-card"
                 onClick={e => e.stopPropagation()}
             >
                 <div className="flex flex-col items-center gap-2 px-[22px] py-[22px]">
