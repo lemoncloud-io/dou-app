@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-09-17] - root@0.64.1, @chatic/desktop-web@0.13.1
+
+### Bug Fixes
+
+- (desktop-web) make closing the onboarding tips stick across reloads
+
 ## [2026-09-17] - root@0.64.0, @chatic/desktop-web@0.13.0
 
 ### Features
