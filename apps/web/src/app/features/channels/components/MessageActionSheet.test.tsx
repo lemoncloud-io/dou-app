@@ -103,7 +103,8 @@ describe('MessageActionSheet — 메시지 롱프레스 액션 시트', () => {
         expect(baseProps.onReply).toHaveBeenCalled();
     });
 
-    // 수정·삭제는 내 메시지일 때만 — 판정은 공유 `canModifyMessage`가 내리고 페이지가 넘겨준다.
+    // Edit and delete only on my own message. The verdict is the shared `canModifyMessage`'s to
+    // make; the page hands the answer down.
     it('canModify가 아니면 수정·삭제를 내지 않는다', () => {
         render(<MessageActionSheet {...baseProps} />);
 
@@ -117,7 +118,7 @@ describe('MessageActionSheet — 메시지 롱프레스 액션 시트', () => {
         const labels = screen
             .getAllByText(/^chat\.(room|thread)\.(replyAction|copyMessage|editMessage|deleteMessage)$/)
             .map(node => node.textContent);
-        // 순서가 계약이다 — 기존 두 항목이 엄지 밑에서 움직이지 않아야 한다.
+        // The order is the contract: the two existing rows must not move out from under a thumb.
         expect(labels).toEqual([
             'chat.thread.replyAction',
             'chat.room.copyMessage',
@@ -136,8 +137,8 @@ describe('MessageActionSheet — 메시지 롱프레스 액션 시트', () => {
         expect(baseProps.onDelete).toHaveBeenCalledTimes(1);
     });
 
-    // 미전송 행의 ✕가 쓰는 'chat.room.delete'와 낱말이 겹치면, 사용자가 "아까 지운 것도 상대에게
-    // 안 보였다"고 읽는다. 서버 삭제는 별도 키다.
+    // Sharing wording with 'chat.room.delete' — the ✕ on an unsent row — would read as "the one I
+    // removed earlier never reached them either". A server delete gets its own key.
     it('서버 삭제는 미전송 삭제와 다른 문구 키를 쓴다', () => {
         render(<MessageActionSheet {...baseProps} canModify />);
 

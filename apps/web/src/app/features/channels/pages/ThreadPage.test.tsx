@@ -89,8 +89,8 @@ jest.mock('../hooks', () => ({
     }),
     useDmPeer: () => null,
     useReactions: () => ({ toggleReaction: jest.fn(), failedId: null }),
-    // 이 화면의 테스트는 편집·삭제를 다루지 않는다. 그 동작의 계약은 useMessageEditing 자신의
-    // 테스트가 지킨다 — 여기서는 화면이 그것 없이도 그려지는지만 본다.
+    // This screen's tests do not cover edit and delete. That behaviour's contract is held by
+    // useMessageEditing's own tests; here we only check the screen renders without them.
     useMessageEditing: () => ({
         isEditing: false,
         hasUnsavedEdit: false,

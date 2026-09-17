@@ -39,8 +39,9 @@ beforeEach(() => {
 });
 
 describe('useMessageEditing — 편집', () => {
-    // 이 레인의 단일 최대 위험. 버블은 200자에서 잘라 그리는데, 편집기에 그 잘린 문자열이 들어가면
-    // 한 글자만 고쳐 저장해도 뒷부분이 영구히 사라진다. 계약은 "편집기는 메시지의 본문 값을 받는다".
+    // The single biggest hazard here. The bubble draws truncated at 200 characters, and seeding the
+    // editor with that cut string would drop everything past it the moment a one-character change was
+    // saved. The contract is that the editor receives the message's BODY value.
     it('200자를 넘는 메시지를 고쳐도 뒷부분이 남는다', async () => {
         const long = `${'가'.repeat(260)}END`;
         const { result } = renderHook(() => useMessageEditing());
@@ -48,7 +49,7 @@ describe('useMessageEditing — 편집', () => {
         act(() => result.current.startEdit(message({ content: long })));
 
         const state = result.current.editStateFor(message({ content: long }));
-        // 잘린 값이 아니라 전문이 실려 있다.
+        // Carries the full body, not the cut value.
         expect(state?.draft).toBe(long);
         expect(state?.draft).toHaveLength(263);
 
@@ -58,7 +59,7 @@ describe('useMessageEditing — 편집', () => {
         });
 
         await waitFor(() => expect(editMessage).toHaveBeenCalledWith('ch-1:4', `${long}!`));
-        // 저장된 값이 잘린 200자로 시작해 끝나는 것이 아니라, 원문 전체를 들고 있다.
+        // What was saved holds the whole original, rather than starting and ending at the 200-character cut.
         expect(editMessage.mock.calls[0][1]).toContain('END');
     });
 
@@ -74,7 +75,7 @@ describe('useMessageEditing — 편집', () => {
         await waitFor(() => expect(result.current.isEditing).toBe(false));
     });
 
-    // §4가 지키려는 것: 실패해도 사용자가 친 글이 남아 있고 다시 저장할 수 있다.
+    // What §4 protects: on failure what was typed is still there and can be saved again.
     it('저장에 실패하면 편집 상태와 친 내용이 남고 다시 저장할 수 있다', async () => {
         editMessage.mockRejectedValueOnce(new Error('offline'));
         const { result } = renderHook(() => useMessageEditing());
@@ -119,7 +120,7 @@ describe('useMessageEditing — 편집', () => {
         const { result } = renderHook(() => useMessageEditing());
         act(() => result.current.startEdit(message()));
 
-        // 손대지 않았으면 묻지 않고 닫는다.
+        // Untouched closes without asking.
         act(() => result.current.requestCloseEdit());
         expect(result.current.isEditing).toBe(false);
 
@@ -155,7 +156,7 @@ describe('useMessageEditing — 서버 삭제', () => {
         await waitFor(() => expect(result.current.deleteTarget).toBeNull());
     });
 
-    // 낙관적 처리가 없으므로 되돌릴 것이 없다 — 안내만 남는다.
+    // Nothing was optimistic, so there is nothing to undo — only something to say.
     it('삭제에 실패하면 안내만 띄운다', async () => {
         deleteServerMessage.mockRejectedValueOnce(new Error('offline'));
         const { result } = renderHook(() => useMessageEditing());
