@@ -358,7 +358,11 @@ export const ChannelMessageRow = ({
                         {/* The marker sits beside the bubble on the side the bubble grew from, so it never
                     pushes the text around. It is not drawn while editing — the row is mid-change,
                     and "edited" is a statement about a settled message. */}
-                        {wasEdited && mine && <span className={EDITED_MARK_CLASS}>{t('chat.room.edited')}</span>}
+                        {wasEdited && mine && (
+                            <span className={EDITED_MARK_CLASS} title={t('chat.room.editedDescription')}>
+                                {t('chat.room.edited')}
+                            </span>
+                        )}
                         <span
                             // `min-w-0`: as a flex item this span defaults to `min-width: auto`
                             // (= its min-content width), and min-width beats max-width — a long
@@ -432,7 +436,11 @@ export const ChannelMessageRow = ({
                                 </MessageBubble>
                             )}
                         </span>
-                        {wasEdited && !mine && <span className={EDITED_MARK_CLASS}>{t('chat.room.edited')}</span>}
+                        {wasEdited && !mine && (
+                            <span className={EDITED_MARK_CLASS} title={t('chat.room.editedDescription')}>
+                                {t('chat.room.edited')}
+                            </span>
+                        )}
                     </>
                 )}
             </div>
