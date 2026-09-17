@@ -20,6 +20,7 @@ import {
     Tray,
 } from 'electron';
 import { resolveAppLanguage } from './appLanguage';
+import { menuLabels } from './menuLabels';
 import {
     applyCustomUi,
     disableCustomUi,
@@ -186,7 +187,7 @@ let mainHost: AppBridgeHost | null = null;
  * bar had no Settings or Help entry, so on the desktop the only doors to either were
  * in-app — and the shortcut sheet's only door was a key nothing on screen named.
  */
-const openInWeb = (target: 'settings' | 'shortcuts'): void => {
+const openInWeb = (target: 'settings' | 'shortcuts' | 'switcher' | 'search'): void => {
     const win = trayWindow;
     if (win && !win.isDestroyed()) {
         win.show();
@@ -607,6 +608,7 @@ const customUiMenu = (): MenuItemConstructorOptions[] => {
 /** Native application menu with standard roles so copy/paste/zoom/window shortcuts work. */
 const buildAppMenu = (): Menu => {
     const isMac = process.platform === 'darwin';
+    const labels = menuLabels(app.getLocale());
     const viewSubmenu: MenuItemConstructorOptions[] = [
         { role: 'reload' },
         { type: 'separator' },
@@ -619,7 +621,7 @@ const buildAppMenu = (): Menu => {
         { role: 'toggleDevTools' },
     ];
     const settingsItem: MenuItemConstructorOptions = {
-        label: isMac ? 'Settings…' : 'Settings',
+        label: isMac ? `${labels.settings}…` : labels.settings,
         accelerator: 'CommandOrControl+,',
         click: () => openInWeb('settings'),
     };
@@ -647,18 +649,38 @@ const buildAppMenu = (): Menu => {
         // Cmd/Ctrl+W: `close` fires the window 'close' handler, so close-to-tray hides instead of destroying.
         // Off macOS, Settings lives under File — the platform convention there.
         {
-            label: 'File',
+            label: labels.file,
             submenu: isMac ? [{ role: 'close' }] : [settingsItem, { type: 'separator' }, { role: 'close' }],
         },
         { role: 'editMenu' },
-        { label: 'View', submenu: viewSubmenu },
+        { label: labels.view, submenu: viewSubmenu },
+        // The app's own navigation, so it can be discovered from the menu bar. Shown,
+        // not registered, for the same reason as the shortcuts item below: the web
+        // binds these keys itself.
+        {
+            label: labels.go,
+            submenu: [
+                {
+                    label: labels.switcher,
+                    accelerator: 'CommandOrControl+K',
+                    registerAccelerator: false,
+                    click: () => openInWeb('switcher'),
+                },
+                {
+                    label: labels.search,
+                    accelerator: 'CommandOrControl+Shift+F',
+                    registerAccelerator: false,
+                    click: () => openInWeb('search'),
+                },
+            ],
+        },
         ...customUiMenu(),
         { role: 'windowMenu' },
         {
             role: 'help',
             submenu: [
                 {
-                    label: 'Keyboard Shortcuts',
+                    label: labels.shortcuts,
                     // Shown, not registered: the web already binds Mod+/ as a toggle, and
                     // a registered accelerator would swallow the key before it got there.
                     accelerator: 'CommandOrControl+/',

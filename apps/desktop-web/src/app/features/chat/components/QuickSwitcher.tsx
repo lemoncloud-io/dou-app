@@ -8,6 +8,7 @@ import { cn } from '@chatic/lib/utils';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 
 import { useLastChannelStore, useListboxNav } from '../../../shared';
+import { useQuickSwitcherStore } from '../stores';
 
 const MAX_RESULTS = 8;
 /** Rows kept for other places when this place alone could fill the list. */
@@ -61,7 +62,9 @@ interface QuickSwitcherProps {
  */
 export const QuickSwitcher = ({ channels, onSelect, elsewhere = [], onSelectElsewhere }: QuickSwitcherProps) => {
     const { t } = useTranslation();
-    const [open, setOpen] = useState(false);
+    const open = useQuickSwitcherStore(s => s.isOpen);
+    const setOpen = useQuickSwitcherStore(s => s.setOpen);
+    const toggleOpen = useQuickSwitcherStore(s => s.toggle);
     const [query, setQuery] = useState('');
     const recent = useLastChannelStore(s => s.recent);
 
@@ -69,12 +72,12 @@ export const QuickSwitcher = ({ channels, onSelect, elsewhere = [], onSelectElse
         const onKeyDown = (e: KeyboardEvent) => {
             if (e.key.toLowerCase() === 'k' && (e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey) {
                 e.preventDefault();
-                setOpen(prev => !prev);
+                toggleOpen();
             }
         };
         window.addEventListener('keydown', onKeyDown);
         return () => window.removeEventListener('keydown', onKeyDown);
-    }, []);
+    }, [toggleOpen]);
 
     // Fresh query every time it opens.
     useEffect(() => {

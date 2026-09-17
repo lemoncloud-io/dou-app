@@ -5,7 +5,9 @@ import { isNative, webClient } from '@chatic/bridges';
 import { LoadingFallback } from '@chatic/shared';
 import { runtime } from '@chatic/app-runtime';
 
+import { useQuickSwitcherStore } from './features/chat/stores/useQuickSwitcherStore';
 import { useShortcutsDialogStore } from './features/chat/stores/useShortcutsDialogStore';
+import { useSearchDialogStore } from './features/search/stores/useSearchDialogStore';
 import { AppShellSkeleton, parsePushDeeplink, usePendingOpenStore } from './shared';
 
 /**
@@ -34,7 +36,7 @@ const NotificationOpenListener = () => {
         return webClient.onEvent('OnReceiveNotification', message => {
             const deeplink = (message?.data as { notification?: { data?: { deeplink?: string } } })?.notification?.data
                 ?.deeplink;
-            // The shell's menu bar (Settings, Help → Keyboard Shortcuts) rides the same
+            // The shell's menu bar (Settings, Go, Help → Keyboard Shortcuts) rides the same
             // event with a `chatic-ui:` link rather than an open target.
             if (deeplink === 'chatic-ui:settings') {
                 navigate('/settings');
@@ -42,6 +44,13 @@ const NotificationOpenListener = () => {
             }
             if (deeplink === 'chatic-ui:shortcuts') {
                 useShortcutsDialogStore.getState().setOpen(true);
+                return;
+            }
+            // The switcher and search are mounted by the home screen, so go there first.
+            if (deeplink === 'chatic-ui:switcher' || deeplink === 'chatic-ui:search') {
+                navigate('/');
+                if (deeplink === 'chatic-ui:switcher') useQuickSwitcherStore.getState().setOpen(true);
+                else useSearchDialogStore.getState().setOpen(true);
                 return;
             }
             const target = parsePushDeeplink(deeplink);
