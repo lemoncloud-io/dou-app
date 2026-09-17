@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
@@ -19,7 +19,7 @@ import { useChatMutations } from './useChatMutations';
  * The target's draft plus its in-flight/failed flags are the three states an editor can be in;
  * the fourth, read, is simply the absence of a target.
  */
-export const useMessageEditing = () => {
+export const useMessageEditing = (scopeKey?: string) => {
     const { t } = useTranslation();
     const { editMessage, deleteServerMessage, isPending } = useChatMutations();
 
@@ -55,8 +55,33 @@ export const useMessageEditing = () => {
         setDiscardOpen(false);
     }, []);
 
-    /** True when there is typed-but-unsaved work, so callers can gate the ways out of the screen. */
-    const hasUnsavedEdit = !!editTarget && draft !== (editTarget.content ?? '');
+    /**
+     * Drops the target when the surface moves to another conversation.
+     *
+     * The room is routed without a key, so going room → room re-derives this page in place instead
+     * of remounting it. A target left behind then matches no row on the new screen: no editor is
+     * drawn, yet `isEditing` still locks the composer, and there is no control left to clear it.
+     * The delete target has the same problem, and would quote the previous room's message.
+     */
+    const previousScope = useRef(scopeKey);
+    useEffect(() => {
+        if (previousScope.current === scopeKey) return;
+        previousScope.current = scopeKey;
+        setEditTarget(null);
+        setDraft('');
+        setEditFailed(false);
+        setDiscardOpen(false);
+        setDeleteTarget(null);
+    }, [scopeKey]);
+
+    /**
+     * True when there is typed-but-unsaved work, so callers can gate the ways out of the screen.
+     *
+     * Trimmed on both sides, the same as `saveEdit`'s no-op check: a trailing space is not work,
+     * and treating it as work raised a discard confirm over a change that saving would have
+     * thrown away anyway.
+     */
+    const hasUnsavedEdit = !!editTarget && draft.trim() !== (editTarget.content ?? '').trim();
 
     const requestCloseEdit = useCallback(() => {
         if (hasUnsavedEdit) {

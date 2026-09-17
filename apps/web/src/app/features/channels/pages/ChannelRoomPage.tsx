@@ -313,7 +313,7 @@ export const ChannelRoomPage = () => {
     const isRoomLoading = isChannelLoading || isChatLoading;
 
     const { sendMessage, readMessage, deleteMessage } = useChatMutations();
-    const editing = useMessageEditing();
+    const editing = useMessageEditing(stableChannelId);
     const { toggleReaction, failedId: reactionFailedId } = useReactions();
     const rememberEmoji = useRecentEmojiStore(s => s.remember);
 
@@ -1137,6 +1137,9 @@ export const ChannelRoomPage = () => {
                 confirmLabel={t('chat.room.deleteMessageConfirm')}
                 onConfirm={() => void editing.confirmDelete()}
                 isPending={editing.isDeleting}
+                // Nothing is removed until the server answers, so the dialog IS the only feedback
+                // there is. It stays up and spins; `confirmDelete` clears the target either way.
+                closeOnConfirm={false}
             />
             <ConfirmDialog
                 open={editing.discardOpen}

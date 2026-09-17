@@ -19,6 +19,17 @@ interface ConfirmDialogProps {
     onConfirm: () => void;
     isPending?: boolean;
     variant?: 'danger' | 'warning';
+    /**
+     * Whether the confirm press closes the dialog by itself. Default true, which is what a
+     * confirm that starts no round trip wants.
+     *
+     * Pass false when the caller drives `isPending`. `AlertDialogAction` is Radix's
+     * `DialogPrimitive.Close`, so the press closes the dialog before the work it started can
+     * report as in flight — `isPending` then flips true against an unmounted dialog and the
+     * spinner, the disabled buttons and the back-close guard below are all unreachable. A caller
+     * that passes false closes the dialog itself once the work settles.
+     */
+    closeOnConfirm?: boolean;
 }
 
 export const ConfirmDialog = ({
@@ -30,6 +41,7 @@ export const ConfirmDialog = ({
     onConfirm,
     isPending = false,
     variant = 'danger',
+    closeOnConfirm = true,
 }: ConfirmDialogProps) => {
     const { t } = useTranslation();
 
@@ -79,7 +91,13 @@ export const ConfirmDialog = ({
                             {t('common.cancel')}
                         </AlertDialogCancel>
                         <AlertDialogAction
-                            onClick={onConfirm}
+                            onClick={event => {
+                                // Radix composes its own close handler after this one and skips it
+                                // when the default is prevented, so this is what keeps the dialog
+                                // mounted for a caller that reports progress.
+                                if (!closeOnConfirm) event.preventDefault();
+                                onConfirm();
+                            }}
                             disabled={isPending}
                             className={cn(
                                 'flex h-[52px] flex-1 items-center justify-center rounded-none border-0 border-t border-border bg-transparent text-[16px] font-semibold transition-colors hover:bg-muted disabled:opacity-50',

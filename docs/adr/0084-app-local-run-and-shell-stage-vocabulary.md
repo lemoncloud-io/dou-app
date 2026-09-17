@@ -1,6 +1,6 @@
 # ADR-0084: introduce app local-run, and unify env-file meaning and shell stage vocabulary across the repo
 
-> Status: Accepted · Decided: 2026-09-14
+> Status: Accepted · Decided: 2026-09-14 · Updated: 2026-09-17 (CLI flag spelling; decision unchanged)
 > Scope: `apps/mobile` (env · deep links · injection · `project.pbxproj` · `*.xcscheme`) ·
 > `libs/device-utils` · root `package.json` scripts ·
 > `apps/mobile/android/app/src/main/res/xml/network_security_config.xml` ·

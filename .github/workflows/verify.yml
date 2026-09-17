@@ -82,7 +82,7 @@ jobs:
             #
             #   `web` left the TEST list on 2026-09-17, and nothing was traded away for it either:
             #   the 7 failures were three stale test files, not product bugs. Two had been left
-            #   behind by ADR-0085 (the profile write names its place instead of reading it off the
+            #   behind by a decision (the profile write names its place instead of reading it off the
             #   ambient data context) and one by `syncProfiles` gaining a required `siteId`. All
             #   2721 now pass; no case is skipped or isolated. The step takes longer for it, which
             #   is the trade: a test that does not run is not a test.

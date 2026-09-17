@@ -99,7 +99,7 @@ export const ThreadPage = () => {
     const chatParams = useMemo(() => ({ channelId: stableChannelId, limit: 100 }), [stableChannelId]);
     const { rawChats, isLoading, hasMore, isLoadingMore, loadMore } = useChats(chatParams);
     const { sendMessage, readMessage } = useChatMutations();
-    const editing = useMessageEditing();
+    const editing = useMessageEditing(`${stableChannelId}/${rootNo ?? ''}`);
     const { toggleReaction, failedId } = useReactions();
     const remember = useRecentEmojiStore(s => s.remember);
 
@@ -436,6 +436,8 @@ export const ThreadPage = () => {
                 confirmLabel={t('chat.room.deleteMessageConfirm')}
                 onConfirm={() => void editing.confirmDelete()}
                 isPending={editing.isDeleting}
+                // Same as the room: the delete is not optimistic, so the dialog is the feedback.
+                closeOnConfirm={false}
             />
             <ConfirmDialog
                 open={editing.discardOpen}
