@@ -118,11 +118,23 @@ const ShellUnreadSync = () => {
 };
 
 /**
- * Runtime layer — assembles the declarative `runtime.connection.RuntimeConnectionHost` (transport bootstrap,
+ * Runtime layer — assembles the declarative `runtime.connection.RuntimeAuthHost` (transport bootstrap,
  * socket lifecycle and re-auth from the session's own socket slots). Session readiness is owned by
- * `runtime.connection.RuntimeConnectionHost`, which is the single web-core init driver (`useRelaySessionInit`) and builds
+ * that host, which is the single web-core init driver (`useRelaySessionInit`) and builds
  * its own socket session delegate internally — apps no longer inject one. The desktop notification /
  * unread / connection runners self-gate on socket verification.
+ *
+ * The host is the variant WITHOUT background guest login, and that is the whole point on desktop.
+ * The sibling host keeps a session-less visitor alive as a guest, which on this shell meant a new
+ * guest account per window: the welcome screen painted for about a second before the background
+ * login claimed the route, so Google sign-in, invite login and the dev sign-in form were unreachable,
+ * and Log out dropped the user straight back into a fresh guest session. Desktop already has an
+ * explicit door — the welcome screen's "start as guest" button registers the device itself — so
+ * nothing needs a session before someone asks for one.
+ *
+ * Trade-off, deliberate: a session the server revokes mid-flight now ends at the welcome screen
+ * instead of silently re-entering as a guest. That is one tap from recovery and it no longer hides
+ * the revoke from the person it happened to.
  */
 export const DesktopRuntime = () => {
     // Ask the socket to re-mint stale relay HTTP signing credentials as soon as it verifies (and on
@@ -150,7 +162,7 @@ export const DesktopRuntime = () => {
     runtime.session.useCloudCredentialGuard();
 
     return (
-        <runtime.connection.RuntimeConnectionHost>
+        <runtime.connection.RuntimeAuthHost>
             {/* One provider for the whole app: Radix tooltip roots require an ancestor
                 provider, and a chat pane renders dozens of message toolbars at once.
                 `delayDuration` is short because these tooltips name icon-only controls —
@@ -175,6 +187,6 @@ export const DesktopRuntime = () => {
                 </div>
                 <Toaster />
             </TooltipProvider>
-        </runtime.connection.RuntimeConnectionHost>
+        </runtime.connection.RuntimeAuthHost>
     );
 };

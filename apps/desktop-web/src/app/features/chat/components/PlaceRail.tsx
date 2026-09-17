@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
@@ -9,6 +9,7 @@ import type { DomainPlace } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 import { runtime } from '@chatic/app-runtime';
 
+import { ConfirmDialog } from '../../channels';
 import { useJoinDialogStore } from '../../auth';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 import {
@@ -122,6 +123,12 @@ export const PlaceRail = ({
     const { userName, photo } = runtime.session.useRuntimeProfile();
     const logout = runtime.session.useSessionLogout();
     const { resetAccount } = useAccountResetOnLogout();
+    // A guest account lives on this device and nothing can sign back into it, so
+    // logging out of one is a delete. A main account can always come back.
+    const { isGuest } = runtime.session.useRuntimeProfile();
+    const [confirmingLogout, setConfirmingLogout] = useState(false);
+
+    const runLogout = () => void resetAccount().finally(() => logout());
 
     // Self Display Profile: show my Place nick/photo here when set for this place.
     const globalName = isPlaceholderName(userName) ? '' : userName;
@@ -213,11 +220,19 @@ export const PlaceRail = ({
                         <DropdownMenuItem onClick={() => openDebugPanel(true)}>{t('rail.menu.debug')}</DropdownMenuItem>
                     )}
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => void resetAccount().finally(() => logout())}>
+                    <DropdownMenuItem onClick={() => (isGuest ? setConfirmingLogout(true) : runLogout())}>
                         {t('rail.menu.logout')}
                     </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>
+            <ConfirmDialog
+                open={confirmingLogout}
+                onOpenChange={setConfirmingLogout}
+                title={t('rail.menu.logoutGuest.title')}
+                description={t('rail.menu.logoutGuest.description')}
+                confirmLabel={t('rail.menu.logout')}
+                onConfirm={runLogout}
+            />
         </div>
     );
 };

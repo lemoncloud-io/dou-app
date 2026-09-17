@@ -231,6 +231,9 @@ const resources = {
             'rail.menu.join': 'Join with invite',
             'rail.menu.debug': 'Debug state',
             'rail.menu.logout': 'Log out',
+            'rail.menu.logoutGuest.title': 'Log out of this guest account?',
+            'rail.menu.logoutGuest.description':
+                'A guest account belongs to this device and cannot be signed into again. Everything in it, including your messages, stays out of reach.',
             'debug.title': 'Debug state',
             'debug.cacheStream': 'Cache stream playground →',
             'debug.badge': 'OS badge →',
