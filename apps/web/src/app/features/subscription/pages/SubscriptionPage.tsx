@@ -364,8 +364,10 @@ export const SubscriptionPage = () => {
                     </div>
                 )}
 
-                {/* Notice Section */}
-                <div className="flex flex-col gap-2 pt-2">
+                {/* Notice Section — read-only prose, so it takes the reading measure rather than
+                    the column. These bullets wrap freely (no design line breaks to respect), and a
+                    690px column ran the longest one to ~580px. */}
+                <div className="flex w-full max-w-reading flex-col gap-2 pt-2">
                     <div className="flex items-center gap-2 px-1">
                         <AlertCircle size={20} className="flex-shrink-0 text-foreground" />
                         <span className="text-[16px] font-semibold">{t('mypage.subscription.notice.title')}</span>

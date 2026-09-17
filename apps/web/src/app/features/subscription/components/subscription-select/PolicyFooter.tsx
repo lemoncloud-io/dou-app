@@ -21,7 +21,9 @@ export const PolicyFooter = ({ onOpenPolicy }: PolicyFooterProps) => {
     const { restore, isRestoring, canRestore } = useRestorePurchases();
 
     return (
-        <div className="mt-4 rounded-[12px] bg-muted/50 px-4 py-3">
+        <div className="mt-4 w-full max-w-reading rounded-[12px] bg-muted/50 px-4 py-3">
+            {/* The auto-renewal disclosure wraps freely and is the longest paragraph on the plan
+                picker, so it takes the reading measure rather than the full column. */}
             <p className="text-[12px] leading-[1.6] text-muted-foreground">
                 {t('mypage.subscription.autoRenewNotice')}
             </p>
