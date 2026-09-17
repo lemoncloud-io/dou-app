@@ -151,9 +151,16 @@ export const SubscriptionPage = () => {
                                 )}
 
                                 {/* Details */}
+                                {/* Each row is a 100px label beside its value. The label keeps that
+                                    width wherever there is room for it — which is every phone — but
+                                    is allowed to give it up rather than hold the row open: 100 and
+                                    the 18px gap are px that SUM inside one row, and on a 320px
+                                    screen a long value had nothing left to wrap into. A single
+                                    fixed width that never sums with anything, an icon or an avatar,
+                                    is not this and stays as it is. */}
                                 <div className="flex flex-col gap-[6px] px-3.5 py-3">
                                     <div className="flex items-center gap-[18px]">
-                                        <span className="w-[100px] shrink-0 text-[16px] text-muted-foreground">
+                                        <span className="w-[100px] text-[16px] text-muted-foreground">
                                             {t('mypage.subscription.status')}
                                         </span>
                                         <span
@@ -170,7 +177,7 @@ export const SubscriptionPage = () => {
                                     </div>
                                     {currentPlan?.maxClouds != null && (
                                         <div className="flex items-center gap-[18px]">
-                                            <span className="w-[100px] shrink-0 text-[16px] text-muted-foreground">
+                                            <span className="w-[100px] text-[16px] text-muted-foreground">
                                                 {t('mypage.subscription.allowance')}
                                             </span>
                                             {/* An expired membership holds no allowance: `evaluateCloudQuota`
@@ -188,7 +195,7 @@ export const SubscriptionPage = () => {
                                     )}
                                     {priceOf(currentPlan) && (
                                         <div className="flex items-center gap-[18px]">
-                                            <span className="w-[100px] shrink-0 text-[16px] text-muted-foreground">
+                                            <span className="w-[100px] text-[16px] text-muted-foreground">
                                                 {t('mypage.subscription.price')}
                                             </span>
                                             <span className="text-[16px] font-medium">
@@ -200,7 +207,7 @@ export const SubscriptionPage = () => {
                                     )}
                                     {membership?.platform && (
                                         <div className="flex items-center gap-[18px]">
-                                            <span className="w-[100px] shrink-0 text-[16px] text-muted-foreground">
+                                            <span className="w-[100px] text-[16px] text-muted-foreground">
                                                 {t('mypage.subscription.platform')}
                                             </span>
                                             <span className="text-[16px] font-medium capitalize">
@@ -214,7 +221,7 @@ export const SubscriptionPage = () => {
                                     )}
                                     {(membership?.validFrom ?? 0) > 0 && (membership?.validUntil ?? 0) > 0 && (
                                         <div className="flex items-center gap-[18px]">
-                                            <span className="w-[100px] shrink-0 text-[16px] text-muted-foreground">
+                                            <span className="w-[100px] text-[16px] text-muted-foreground">
                                                 {t('mypage.subscription.period')}
                                             </span>
                                             <span className="text-[16px] font-medium">
@@ -225,7 +232,7 @@ export const SubscriptionPage = () => {
                                     )}
                                     {(membership?.renewedAt ?? 0) > 0 && (
                                         <div className="flex items-center gap-[18px]">
-                                            <span className="w-[100px] shrink-0 text-[16px] text-muted-foreground">
+                                            <span className="w-[100px] text-[16px] text-muted-foreground">
                                                 {t('mypage.subscription.currentPayment')}
                                             </span>
                                             <span className="text-[16px] font-medium">
@@ -238,7 +245,7 @@ export const SubscriptionPage = () => {
                                         lapsed one it is standing in for. */}
                                     {summary.isAdminOverridden && (
                                         <div className="flex items-center gap-[18px]">
-                                            <span className="w-[100px] shrink-0 text-[16px] text-muted-foreground">
+                                            <span className="w-[100px] text-[16px] text-muted-foreground">
                                                 {t('mypage.subscription.adminGrant')}
                                             </span>
                                             <span className="text-[16px] font-medium">
@@ -253,7 +260,7 @@ export const SubscriptionPage = () => {
                                         still has one. */}
                                     {summary.hasLiveReceipt && (membership?.validUntil ?? 0) > 0 && (
                                         <div className="flex items-center gap-[18px]">
-                                            <span className="w-[100px] shrink-0 text-[16px] text-muted-foreground">
+                                            <span className="w-[100px] text-[16px] text-muted-foreground">
                                                 {t('mypage.subscription.nextPayment')}
                                             </span>
                                             <span className="text-[16px] font-medium">
@@ -263,7 +270,7 @@ export const SubscriptionPage = () => {
                                     )}
                                     {(membership?.canceledAt ?? 0) > 0 && (
                                         <div className="flex items-center gap-[18px]">
-                                            <span className="w-[100px] shrink-0 text-[16px] text-muted-foreground">
+                                            <span className="w-[100px] text-[16px] text-muted-foreground">
                                                 {t('mypage.subscription.canceledAt')}
                                             </span>
                                             <span className="text-[16px] font-medium text-yellow-600 dark:text-yellow-400">

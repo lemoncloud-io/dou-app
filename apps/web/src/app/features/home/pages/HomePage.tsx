@@ -348,8 +348,10 @@ export const HomePage = () => {
                 </button>
             </DropdownMenuTrigger>
             {/* Menu metrics are the design's, not the ui-kit defaults: 281px wide, 16px corners, no
-                side gutter (every row carries its own 16px) and 8/10px top/bottom — Figma 3108:25868. */}
-            <DropdownMenuContent align="end" className="w-[281px] rounded-2xl p-0 pb-2.5 pt-2">
+                side gutter (every row carries its own 16px) and 8/10px top/bottom — Figma 3108:25868.
+                281 is an upper bound rather than the width, so a screen narrower than the menu gets
+                a narrower menu instead of one hanging off the edge. */}
+            <DropdownMenuContent align="end" className="w-full max-w-[281px] rounded-2xl p-0 pb-2.5 pt-2">
                 <div className="flex items-center gap-3 px-4 py-2">
                     <ProfileAvatar src={displayImageUrl} size={42} />
                     <span className="min-w-0 flex-1 truncate font-semibold text-foreground">{displayName}</span>
