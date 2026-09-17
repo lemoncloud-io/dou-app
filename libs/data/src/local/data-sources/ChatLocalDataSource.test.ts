@@ -1,59 +1,9 @@
-import type { CacheStorage } from '../ports';
 import { ChatLocalDataSource } from './ChatLocalDataSource';
+import { createMemoryCacheStorage } from './__mocks__/MemoryCacheStorage';
 
-// Emulate just enough query behavior to validate pagination and channel scoping.
-const createMemoryStorage = (): CacheStorage<'chat'> => {
-    const map = new Map<string, any>();
-    return {
-        async save(id, item) {
-            map.set(id, { ...item });
-            return item;
-        },
-        async saveAll(items) {
-            items.forEach(item => item?.id && map.set(item.id, { ...item }));
-            return items;
-        },
-        async load(id) {
-            return map.has(id) ? { ...map.get(id) } : null;
-        },
-        async loadMany(ids) {
-            // Per the contract this omits absent ids and guarantees no order (it returns them
-            // reversed) — this fixture exists so that any code pairing by position breaks here.
-            return ids
-                .filter(id => map.has(id))
-                .map(id => ({ ...map.get(id) }))
-                .reverse();
-        },
-        async loadAll(options?: any) {
-            let items = Array.from(map.values()).map(item => ({ ...item }));
-            if (options?.channelId) {
-                items = items.filter(item => item.channelId === options.channelId);
-            }
-            items.sort((a, b) => (a.chatNo ?? 0) - (b.chatNo ?? 0));
-            if (options?.cursorNo) {
-                items = items.filter(item => (item.chatNo ?? 0) < options.cursorNo);
-            }
-            if (options?.limit) {
-                items = items.slice(-options.limit);
-            }
-            return items;
-        },
-        async delete(id) {
-            map.delete(id);
-        },
-        async deleteAll(ids) {
-            ids.forEach(id => map.delete(id));
-        },
-        async clearAll() {
-            map.clear();
-        },
-        async clearByChannelId(channelId: string) {
-            Array.from(map.entries()).forEach(([id, item]) => {
-                if (item.channelId === channelId) map.delete(id);
-            });
-        },
-    };
-};
+// The in-memory storage moved to a shared fixture so the repository suite can assert what the
+// cache HOLDS after a write, not just how the write was called.
+const createMemoryStorage = createMemoryCacheStorage;
 
 describe('ChatLocalDataSource', () => {
     const contextProvider = {

@@ -21,3 +21,4 @@ export * from './useCreateChannel';
 export * from './useCreateInviteBatch';
 export * from './useUrlMetadata';
 export * from './useInviteCandidates';
+export * from './useMessageEditing';

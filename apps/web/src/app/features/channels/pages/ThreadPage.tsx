@@ -6,10 +6,12 @@ import { useLocation, useParams } from 'react-router-dom';
 import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { runtime } from '@chatic/app-runtime';
+import { canModifyMessage } from '@chatic/data';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 import { ChatRoomHeader, DefaultAvatar, ImageAvatar, MessageInput } from '@chatic/web-ui-kit';
 
 import { ChannelMessageRow } from '../components/ChannelMessageRow';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { ReactionChips } from '../components/ReactionChips';
 import { MessageText } from '../components/MessageText';
 import { MessageActionSheet } from '../components/MessageActionSheet';
@@ -22,6 +24,7 @@ import {
     useChannelMembers,
     useChannelProfiles,
     useChatMutations,
+    useMessageEditing,
     useChats,
     useReactions,
 } from '../hooks';
@@ -96,6 +99,7 @@ export const ThreadPage = () => {
     const chatParams = useMemo(() => ({ channelId: stableChannelId, limit: 100 }), [stableChannelId]);
     const { rawChats, isLoading, hasMore, isLoadingMore, loadMore } = useChats(chatParams);
     const { sendMessage, readMessage } = useChatMutations();
+    const editing = useMessageEditing();
     const { toggleReaction, failedId } = useReactions();
     const remember = useRecentEmojiStore(s => s.remember);
 
@@ -226,6 +230,30 @@ export const ThreadPage = () => {
     // reaction targeting it would 404 and orphan once the persisted swap lands.
     const canReact = !!actionMessage?.chatNo;
 
+    // The same shared verdict the room uses. A reply and a root are both just messages here, so a
+    // message I may edit in the feed is one I may edit in the thread — a surface must not hand out
+    // a different answer about the same message.
+    const canModify = !!actionMessage && canModifyMessage(actionMessage, actionMessage.isOwner);
+
+    const handleEditAction = () => {
+        const target = actionMessage;
+        setActionMessage(null);
+        if (target) editing.startEdit(target);
+    };
+
+    const handleDeleteAction = () => {
+        const target = actionMessage;
+        setActionMessage(null);
+        if (target) editing.requestDelete(target);
+    };
+
+    const deleteConfirmPreview = (() => {
+        const body = messagePlainText(editing.deleteTarget?.content ?? '').trim();
+        if (!body) return '';
+        const oneLine = body.replace(/\s+/g, ' ');
+        return oneLine.length > 60 ? `${oneLine.slice(0, 60)}\u2026` : oneLine;
+    })();
+
     // Chip-row add button — same one-step open as the room: set the target, show the picker.
     const handleAddReaction = (message: ClientChatView) => {
         setActionMessage(message);
@@ -297,6 +325,7 @@ export const ThreadPage = () => {
             nameOf={nameOfUser}
             onAddReaction={message.chatNo ? () => handleAddReaction(message) : undefined}
             onShowReactors={key => message.id && setReactorTarget({ messageId: message.id, key })}
+            edit={editing.editStateFor(message)}
         />
     );
 
@@ -377,6 +406,8 @@ export const ThreadPage = () => {
                     onKeyDown={handleKeyDown}
                     inputRef={inputRef}
                     placeholder={t('chat.thread.inputPlaceholder')}
+                    // One live field at a time — same rule as the room.
+                    disabled={editing.isEditing}
                 />
             </div>
 
@@ -388,11 +419,32 @@ export const ThreadPage = () => {
                 tallies={actionMessage?.id ? reactions.get(actionMessage.id) : undefined}
                 canReact={canReact}
                 canReply={false}
+                canModify={canModify}
                 isCopying={isCopying}
                 onPickEmoji={handlePickEmoji}
                 onMoreEmoji={() => setPickerOpen(true)}
                 onCopy={() => void handleCopy()}
                 onReply={() => undefined}
+                onEdit={handleEditAction}
+                onDelete={handleDeleteAction}
+            />
+            <ConfirmDialog
+                open={!!editing.deleteTarget}
+                onOpenChange={open => !open && editing.cancelDelete()}
+                title={t('chat.room.deleteMessageTitle')}
+                description={deleteConfirmPreview || t('chat.room.deleteMessageDescription')}
+                confirmLabel={t('chat.room.deleteMessageConfirm')}
+                onConfirm={() => void editing.confirmDelete()}
+                isPending={editing.isDeleting}
+            />
+            <ConfirmDialog
+                open={editing.discardOpen}
+                onOpenChange={open => !open && editing.setDiscardOpen(false)}
+                title={t('chat.room.editDiscardTitle')}
+                description={t('chat.room.editDiscardDescription')}
+                confirmLabel={t('chat.room.editDiscardConfirm')}
+                onConfirm={editing.closeEdit}
+                variant="warning"
             />
             <ReactionDetailSheet
                 open={!!reactorTarget}

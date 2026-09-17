@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { DefaultAvatar, ImageAvatar, MessageBubble, MessageRow, ReadReceipt } from '@chatic/web-ui-kit';
 import { BlockKitMessage, blocksToPlainText, hasDrawableBlocks, resolveChatBlocks } from '@chatic/block-kit';
 import { cn } from '@chatic/ui-kit';
+import { isMessageEdited } from '@chatic/data';
 
 import type { ClientChatView } from '../types';
 import type { ReactionTally } from '../utils/foldReactions';
@@ -14,6 +15,7 @@ import { openExternalUrl } from '../utils/openExternalUrl';
 import { MessageAttachment } from './MessageAttachment';
 import { MessageCodeBlock } from './MessageCodeBlock';
 import { MessageText } from './MessageText';
+import { MessageEditor } from './MessageEditor';
 import { MessageLinkPreview } from './MessageLinkPreview';
 import { ReactionChips } from './ReactionChips';
 import { ThreadFooter } from './ThreadFooter';
@@ -23,6 +25,8 @@ const MAX_MESSAGE_LENGTH = 200;
 const LONG_PRESS_DELAY_MS = 450;
 // How far the finger may drift and still count as a hold rather than a scroll — a fingertip's wobble.
 const MOVE_CANCEL_PX = 10;
+// `self-end` so the marker sits on the bubble's last line rather than its vertical middle.
+const EDITED_MARK_CLASS = 'shrink-0 self-end pb-0.5 text-[11px] leading-none text-muted-foreground';
 
 /** Per-message read state — computed by the container from join cursors. */
 export interface MessageReadInfo {
@@ -77,6 +81,22 @@ export interface ChannelMessageRowProps {
     formatThreadTime?: (date: Date) => string;
     /** Opens the full-screen thread. Absent on surfaces without one (the thread page itself). */
     onOpenThread?: () => void;
+    /** The in-place editor, when this message is the one being edited. Absent means read. */
+    edit?: MessageEditState;
+}
+
+/**
+ * Everything the row needs to draw the edit states. Absent means "read" — the row is not in an
+ * edit at all, which is why this is one optional object rather than four loose props that could
+ * disagree with each other.
+ */
+export interface MessageEditState {
+    draft: string;
+    onDraftChange: (value: string) => void;
+    isSaving: boolean;
+    hasFailed: boolean;
+    onSave: () => void;
+    onCancel: () => void;
 }
 
 /**
@@ -108,6 +128,7 @@ export const ChannelMessageRow = ({
     unseenReplyCount,
     formatThreadTime,
     onOpenThread,
+    edit,
 }: ChannelMessageRowProps) => {
     const { t } = useTranslation();
     const mine = message.isOwner;
@@ -117,6 +138,11 @@ export const ChannelMessageRow = ({
     // not the body, not the unfurl, not the chips, and not the action sheet, which would
     // otherwise hand the deleted text back through Copy (ADR-0047 decision 6).
     const isDeleted = !!message.hidden;
+    // Shared verdict, not a local rule — the same one desktop will move onto when the server grows
+    // a real edit flag. It already excludes tombstones, unsent rows and missing timestamps, so
+    // there is nothing to re-check here. An optimistic edit shows its new text at once and picks
+    // the marker up when the server's record lands; that lag is intended (see `isMessageEdited`).
+    const wasEdited = !edit && isMessageEdited(message);
     // A structured message — a webhook send, which arrives as an ordinary `stereo: 'user'`
     // chat carrying Block Kit either in `blocks$` or as JSON in `content`
     // (docs/specs/block-kit-messages.md §2). Null for everything else, which is nearly all
@@ -312,80 +338,103 @@ export const ChannelMessageRow = ({
                 block then scrolls inside the bubble, which is what `overflow-x-auto` was for.
                 `justify-end` because my bubble no longer sits in a row that hugs it: the column is
                 wider than the bubble whenever the chips or the thread footer are. */}
-            <div className={cn('flex w-full min-w-0 items-center gap-1.5', mine && 'justify-end')}>
-                {message.isFailed && mine && (
-                    <button onClick={onRetry} className="flex shrink-0 items-center">
-                        <AlertCircle size={20} className="text-destructive" />
-                    </button>
-                )}
-                <span
-                    // `min-w-0`: as a flex item this span defaults to `min-width: auto`
-                    // (= its min-content width), and min-width beats max-width — a long
-                    // unbroken message would push it past `max-w-full` and out of the row.
-                    // `select-none` (and the WebKit callout suppression) replaces what the old
-                    // `preventDefault()` on pointerdown did — without taking the scroll gesture
-                    // down with it. See `handlePointerDown`.
-                    className={cn(
-                        'inline-flex min-w-0 max-w-full select-none [-webkit-touch-callout:none]',
-                        drawnBlocks && 'w-full'
-                    )}
-                    onPointerDown={handlePointerDown}
-                    onPointerMove={handlePointerMove}
-                    onPointerUp={clearTimer}
-                    onPointerLeave={clearTimer}
-                    onPointerCancel={clearTimer}
-                    onContextMenu={handleContextMenu}
-                >
-                    {drawnBlocks ? (
-                        // A card, not a bubble. A webhook send is not someone speaking, and
-                        // giving it the same ground as a person's message blurs who said what.
-                        // Block Kit also brings its own headings, rules and field grid, none of
-                        // which read as speech inside a speech bubble.
-                        //
-                        // `bg-card`, not `bg-surface`: in dark `--surface` is the page ground
-                        // itself, so a surface-filled card has no fill at all. What the fill has
-                        // to separate is this from the bubble beside it, and `--card` does that
-                        // in both themes (light 100% against a 95% bubble, dark 10% against 15%).
-                        // Against the page it reads as a card only in dark; in light the border
-                        // carries it, which is how this app draws every other card.
-                        //
-                        // No `renderFallback`: `drawnBlocks` already means the renderer will draw,
-                        // so its raw-body path is unreachable from here. A message with nothing
-                        // drawable never enters this arm — it stays in the bubble as text.
-                        <div className="w-full rounded-2xl border border-hairline bg-card px-4 py-3">
-                            <BlockKitMessage blocks={drawnBlocks} raw={content} />
-                        </div>
-                    ) : (
-                        <MessageBubble
-                            variant={mine ? 'mine' : 'other'}
+            <div className={cn('flex w-full min-w-0 items-center gap-1.5', mine && !edit && 'justify-end')}>
+                {edit ? (
+                    <MessageEditor
+                        value={edit.draft}
+                        onChange={edit.onDraftChange}
+                        isSaving={edit.isSaving}
+                        hasFailed={edit.hasFailed}
+                        onSave={edit.onSave}
+                        onCancel={edit.onCancel}
+                    />
+                ) : (
+                    <>
+                        {message.isFailed && mine && (
+                            <button onClick={onRetry} className="flex shrink-0 items-center">
+                                <AlertCircle size={20} className="text-destructive" />
+                            </button>
+                        )}
+                        {/* The marker sits beside the bubble on the side the bubble grew from, so it never
+                    pushes the text around. It is not drawn while editing — the row is mid-change,
+                    and "edited" is a statement about a settled message. */}
+                        {wasEdited && mine && <span className={EDITED_MARK_CLASS}>{t('chat.room.edited')}</span>}
+                        <span
+                            // `min-w-0`: as a flex item this span defaults to `min-width: auto`
+                            // (= its min-content width), and min-width beats max-width — a long
+                            // unbroken message would push it past `max-w-full` and out of the row.
+                            // `select-none` (and the WebKit callout suppression) replaces what the old
+                            // `preventDefault()` on pointerdown did — without taking the scroll gesture
+                            // down with it. See `handlePointerDown`.
                             className={cn(
-                                message.isFailed && 'border border-destructive/30 bg-destructive/10 text-destructive'
+                                'inline-flex min-w-0 max-w-full select-none [-webkit-touch-callout:none]',
+                                drawnBlocks && 'w-full'
                             )}
-                            onExpand={isLong ? onExpand : undefined}
-                            expandLabel={t('chat.room.viewAll')}
+                            onPointerDown={handlePointerDown}
+                            onPointerMove={handlePointerMove}
+                            onPointerUp={clearTimer}
+                            onPointerLeave={clearTimer}
+                            onPointerCancel={clearTimer}
+                            onContextMenu={handleContextMenu}
                         >
-                            {isDeleted ? (
-                                // Italic muted, the same treatment desktop gives it: the row is
-                                // still a message-shaped hole in the conversation, not a message.
-                                <span className="italic text-muted-foreground">{t('chat.room.deletedMessage')}</span>
+                            {drawnBlocks ? (
+                                // A card, not a bubble. A webhook send is not someone speaking, and
+                                // giving it the same ground as a person's message blurs who said what.
+                                // Block Kit also brings its own headings, rules and field grid, none of
+                                // which read as speech inside a speech bubble.
+                                //
+                                // `bg-card`, not `bg-surface`: in dark `--surface` is the page ground
+                                // itself, so a surface-filled card has no fill at all. What the fill has
+                                // to separate is this from the bubble beside it, and `--card` does that
+                                // in both themes (light 100% against a 95% bubble, dark 10% against 15%).
+                                // Against the page it reads as a card only in dark; in light the border
+                                // carries it, which is how this app draws every other card.
+                                //
+                                // No `renderFallback`: `drawnBlocks` already means the renderer will draw,
+                                // so its raw-body path is unreachable from here. A message with nothing
+                                // drawable never enters this arm — it stays in the bubble as text.
+                                <div className="w-full rounded-2xl border border-hairline bg-card px-4 py-3">
+                                    <BlockKitMessage blocks={drawnBlocks} raw={content} />
+                                </div>
                             ) : (
-                                <>
-                                    {/* The ellipsis stays outside MessageText so it can't be swallowed
+                                <MessageBubble
+                                    variant={mine ? 'mine' : 'other'}
+                                    className={cn(
+                                        message.isFailed &&
+                                            'border border-destructive/30 bg-destructive/10 text-destructive'
+                                    )}
+                                    onExpand={isLong ? onExpand : undefined}
+                                    expandLabel={t('chat.room.viewAll')}
+                                >
+                                    {isDeleted ? (
+                                        // Italic muted, the same treatment desktop gives it: the row is
+                                        // still a message-shaped hole in the conversation, not a message.
+                                        <span className="italic text-muted-foreground">
+                                            {t('chat.room.deletedMessage')}
+                                        </span>
+                                    ) : (
+                                        <>
+                                            {/* The ellipsis stays outside MessageText so it can't be swallowed
                                     into a URL at the cut. `truncated` also stops a URL that runs
                                     to the cut from being linked at all — it may be a fragment, and
                                     makes a fence left open at the cut render as a block anyway. */}
-                                    <MessageText
-                                        text={isLong ? content.slice(0, MAX_MESSAGE_LENGTH) : content}
-                                        truncated={isLong}
-                                        onUrlClick={handleUrlClick}
-                                        renderCodeBlock={(code, lang) => <MessageCodeBlock code={code} lang={lang} />}
-                                    />
-                                    {isLong && '...'}
-                                </>
+                                            <MessageText
+                                                text={isLong ? content.slice(0, MAX_MESSAGE_LENGTH) : content}
+                                                truncated={isLong}
+                                                onUrlClick={handleUrlClick}
+                                                renderCodeBlock={(code, lang) => (
+                                                    <MessageCodeBlock code={code} lang={lang} />
+                                                )}
+                                            />
+                                            {isLong && '...'}
+                                        </>
+                                    )}
+                                </MessageBubble>
                             )}
-                        </MessageBubble>
-                    )}
-                </span>
+                        </span>
+                        {wasEdited && !mine && <span className={EDITED_MARK_CLASS}>{t('chat.room.edited')}</span>}
+                    </>
+                )}
             </div>
             {/* Ordered as the message, then metadata about it: the unfurl card belongs to the
                 content, reactions and the thread footer comment on it. All three sit outside the

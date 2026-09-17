@@ -152,7 +152,9 @@ describe('useBackgroundSync — 백그라운드 동기화', () => {
         expect(syncChannels).toHaveBeenCalledWith(50);
         expect(setSyncedAt).toHaveBeenCalledWith('channel-sync:default', 100);
         expect(getSyncedAt).toHaveBeenCalledWith('profile-sync:default:s1');
-        expect(syncProfiles).toHaveBeenCalledWith(50);
+        // syncProfiles is scoped to the active site — the watermark key is {cid, sid}, so the
+        // call must carry the same sid the key was built from.
+        expect(syncProfiles).toHaveBeenCalledWith(50, 's1');
         expect(setSyncedAt).toHaveBeenCalledWith('profile-sync:default:s1', 200);
     });
 

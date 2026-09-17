@@ -70,7 +70,7 @@ jobs:
             - name: Test
               run: >
                   npx nx run-many -t test
-                  --exclude=block-kit,web,@chatic/landing
+                  --exclude=block-kit,@chatic/landing
 
             # Left out of the gate, with the reason. Measured 2026-09-14.
             #
@@ -80,14 +80,19 @@ jobs:
             #               block-kit-builder            red
             #               chatic-deferred-link-cleanup red
             #
-            #   @chatic/web-ui-kit and web both left this list on 2026-09-14, and nothing was
+            #   `web` left the TEST list on 2026-09-17, and nothing was traded away for it either:
+            #   the 7 failures were three stale test files, not product bugs. Two had been left
+            #   behind by ADR-0085 (the profile write names its place instead of reading it off the
+            #   ambient data context) and one by `syncProfiles` gaining a required `siteId`. All
+            #   2721 now pass; no case is skipped or isolated. The step takes longer for it, which
+            #   is the trade: a test that does not run is not a test.
+            #
+            #   @chatic/web-ui-kit and web both left the TYPECHECK list on 2026-09-14, and nothing was
             #   traded away for it: the 3 story errors were fixed, so tsconfig.json references
             #   lib, spec AND storybook. Source, tests and stories are all type checked.
             #   (`web` was only ever excluded because its target pulls web-ui-kit.)
             #
-            #   test        web                           7 failing of 2720 — useSetMyPlaceProfile,
-            #                                             PlaceProfilePage, useBackgroundSync
-            #               block-kit                     6 spec files, but no jest config and no
+            #   test        block-kit                     6 spec files, but no jest config and no
             #                                             test script, so nothing runs them. Giving
             #                                             it one is a decision, not a fix.
             #               @chatic/landing               red

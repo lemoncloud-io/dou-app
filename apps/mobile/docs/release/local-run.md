@@ -7,14 +7,14 @@ rather than a manual env edit and a native rebuild.
 
 ## Layout
 
-| Path                                                                                                                      | Role                                     |
-| ------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
-| `apps/mobile/.env`, `.env.dev`, `.env.prod`                                                                               | local / dev-build / prod-build env files |
-| `apps/mobile/.env.example`                                                                                                | template for `.env`                      |
+| Path                                                                                                                         | Role                                     |
+| ---------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| `apps/mobile/.env`, `.env.dev`, `.env.prod`                                                                                  | local / dev-build / prod-build env files |
+| `apps/mobile/.env.example`                                                                                                   | template for `.env`                      |
 | [`src/app/utils/stage.ts`](../../src/app/utils/stage.ts)                                                                     | `Config.VITE_ENV` → `Env` conversion     |
 | [`src/app/services/deeplinks/deeplinkUtils.ts`](../../src/app/services/deeplinks/deeplinkUtils.ts)                           | `getAppScheme()`                         |
 | [`android/app/src/main/res/xml/network_security_config.xml`](../../android/app/src/main/res/xml/network_security_config.xml) | Android cleartext allowlist              |
-| root `package.json`                                                                                                       | every `mobile:*` script                  |
+| root `package.json`                                                                                                          | every `mobile:*` script                  |
 
 ## Responsibilities
 
@@ -41,10 +41,10 @@ vary between local and dev (IAP SKUs, `VITE_GOOGLE_WEB_CLIENT_ID`) can be copied
 override it, but the mapping itself has to live where a GUI build (Xcode, Android Studio) can also
 see it — a GUI build has no shell environment for a script to override.
 
-| Platform | Mapping lives in                                                                                                                                                                   | dev        | prod        | local override                 |
-| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | ----------- | ------------------------------ |
-| iOS      | per-configuration `ENVFILE` build setting, next to `APP_URL_SCHEME`, in [`project.pbxproj`](../../ios/Chatic.xcodeproj/project.pbxproj) (`Debug`/`Release`/`Debug Dev`/`Release Dev`) | `.env.dev` | `.env.prod` | `--extraParams "ENVFILE=.env"` |
-| Android  | `envConfigFiles` in [`build.gradle`](../../android/app/build.gradle)                                                                                                                  | `.env.dev` | `.env.prod` | `ENVFILE=.env`                 |
+| Platform | Mapping lives in                                                                                                                                                                      | dev        | prod        | local override                  |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | ----------- | ------------------------------- |
+| iOS      | per-configuration `ENVFILE` build setting, next to `APP_URL_SCHEME`, in [`project.pbxproj`](../../ios/Chatic.xcodeproj/project.pbxproj) (`Debug`/`Release`/`Debug Dev`/`Release Dev`) | `.env.dev` | `.env.prod` | `--extra-params "ENVFILE=.env"` |
+| Android  | `envConfigFiles` in [`build.gradle`](../../android/app/build.gradle)                                                                                                                  | `.env.dev` | `.env.prod` | `ENVFILE=.env`                  |
 
 `ENVFILE` sits beside `APP_URL_SCHEME` deliberately: scheme registration and env selection move
 together, and `getAppScheme()` below depends on that pairing staying in sync.
@@ -79,6 +79,14 @@ Both run `mobile:local:check` first, which fails with the `cp` command above if 
 is missing. Both use `concurrently` to run the web dev server (`yarn web:start`), Metro
 (`yarn mobile:start`), and the platform run script together, building with `ENVFILE=.env`
 overriding the build configuration's own mapping.
+
+**`run-ios` and `run-android` are declared non-continuous** (`nx.targets` in
+[`apps/mobile/package.json`](../../package.json)), and that declaration is what makes these two
+commands work at all. `@nx/react-native/plugin` infers them as continuous, but both build, install,
+launch and then exit — so nx reported a successful launch as `Task ... is continuous but exited with
+code 0`, which `concurrently --kill-others-on-fail` read as a failure and answered by killing Metro
+and the web dev server. The app came up with its packager already gone and showed
+`No script URL provided`. Only `start` (Metro) is genuinely continuous.
 
 A dev or prod build (`yarn mobile:ios:dev`, `yarn mobile:android:dev`, and the `:prod` equivalents)
 passes no `ENVFILE` — the build configuration alone decides, so the command looks the same as it did

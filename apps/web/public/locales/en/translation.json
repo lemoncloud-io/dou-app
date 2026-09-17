@@ -706,7 +706,21 @@
             "moreEmoji": "More emoji",
             "pickEmoji": "Pick an emoji",
             "copyCode": "Copy",
-            "codeCopied": "Copied"
+            "codeCopied": "Copied",
+            "editMessage": "Edit message",
+            "editSave": "Save",
+            "editSaving": "Saving",
+            "editFailed": "Couldn't save that change. Try saving again.",
+            "editDiscardTitle": "Discard your changes?",
+            "editDiscardDescription": "What you typed won't be saved.",
+            "editDiscardConfirm": "Discard",
+            "edited": "edited",
+            "editedDescription": "This message was changed after it was sent",
+            "deleteMessage": "Delete message",
+            "deleteMessageTitle": "Delete this message?",
+            "deleteMessageDescription": "This can't be undone, and the message is removed for everyone in the conversation.",
+            "deleteMessageConfirm": "Delete",
+            "deleteMessageFailed": "Couldn't delete that message. Please try again."
         },
         "settings": {
             "title": "Room Settings",

@@ -50,9 +50,19 @@ export const ConfirmDialog = ({
                         <AlertDialogTitle className="text-[18px] font-semibold leading-[1.5] text-foreground">
                             {title}
                         </AlertDialogTitle>
+                        {/* `overflow-wrap: anywhere`, not `break-words`. Since this dialog started
+                            quoting message text back to the user, the description can be a run with
+                            no space in it — a URL, an id, a line of code. An unbroken run's
+                            min-content width is the WHOLE run, and min-content beats the box's
+                            `max-w-[288px]`, so the panel and the button row below it stretch to fit
+                            it: measured 644px of text pushing the confirm button to x 388-732 on a
+                            375px screen, entirely off-screen and unreachable. `break-words` does not
+                            fix that (it wraps but leaves min-content intact); `anywhere` reduces
+                            min-content, which is what has to shrink. */}
                         <AlertDialogDescription
                             className={cn(
                                 'text-[16px] font-medium leading-[1.45] tracking-[-0.16px]',
+                                'min-w-0 [overflow-wrap:anywhere]',
                                 description ? '' : 'sr-only',
                                 variant === 'danger' ? 'text-destructive' : 'text-dialog-subtitle'
                             )}

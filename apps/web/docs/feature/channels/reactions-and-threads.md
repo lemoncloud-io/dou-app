@@ -101,6 +101,22 @@ pressed state mirrors the chips, so tapping an emoji already reacted with sends 
 reacted is not in this sheet** — this one answers "what can I do to this message", the reactor sheet
 answers "who is in this reaction", and faces need room this list has not.
 
+The sheet also carries **edit and delete**, but only for a message of mine the server has settled —
+`canModifyMessage` from `@chatic/data`, which the page computes so the room and the thread cannot
+reach different verdicts about the same message. Authorship stays this app's own `isOwner`, the
+value that already decides which side of the feed a bubble sits on.
+
+Those two break the sheet's constant row count, which existed so targets would not move under the
+thumb between long-presses. That was given up knowingly: the alternative was a second
+message-action surface on a phone. What the rule protected is kept — the new actions are appended
+**below** thread and copy, which never move, and anything added later goes below as well.
+
+Delete here is the **server** delete, and it has its own wording (`chat.room.deleteMessage`) because
+`chat.room.delete` already means clearing an unsent row from your own screen. The two never appear
+on the same message, but one person meets both, and one word for both teaches that the earlier one
+was hidden from the other side too. It goes through a confirmation that quotes the message, and it
+is not optimistic — nothing on screen changes until the server answers.
+
 `QUICK_REACTIONS` is two fixed emoji and is deliberately not reordered by recency: a button's value
 is that the hand learns where it is. Recents are a device-local LRU of 16 in `useRecentEmojiStore`,
 read by both the quick row and the picker's recents tab, and persisted under a key shared with

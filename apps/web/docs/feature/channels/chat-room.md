@@ -81,12 +81,52 @@ truncates because it has no bubble to cut. The cut also suppresses linking a URL
 bubble about what is literal text.
 
 **Status.** A pending row shows a clock, a failed row shows the failure line with retry and delete
-(mine only; delete is a cache delete, not a server one). Otherwise, if `read.show`, the row draws
+(mine only; that delete is a cache delete — it clears the row from this screen and the server never
+heard about the message. The server delete lives in the action sheet and is a different action with
+different wording). Otherwise, if `read.show`, the row draws
 `ReadReceipt` — or a spinner until `read.isReady`, meaning the join cursors have synced.
 
 The receipt's gates are set by the page: `show = !isSelfChat && activeMemberIds.length >= 2`, and
 `mode = isDmChat ? 'dm' : 'count'`. `count` prints `read N` plus `unread M` when M is non-zero;
 `dm` prints the single unread badge and nothing once it is read. A self chat never shows one.
+
+**Editing.** A message of mine can be edited in place from the action sheet: the bubble becomes a
+field where it sits, so the surrounding conversation stays put and the position says which message
+is changing. `useMessageEditing` owns the state for both this page and the thread page — one hook,
+because two copies would be two chances to answer the same question differently.
+
+Pressing save **locks the editor and waits**; only the server's acceptance closes it. A rejection
+comes back to an editor that still holds what was typed and can be saved again. Desktop closes
+immediately instead; mobile is the side that fails more often, and there closing on the press means
+a failure has nowhere to return to. While an editor is open the composer is disabled — two live
+fields and there is no telling which one you are typing into — and leaving with unsaved changes is
+confirmed.
+
+The editor is seeded from `message.content`, **never from what the bubble drew**. The bubble
+truncates at 200 characters, and seeding from the rendered string would destroy everything past the
+cut on the first save. A test pins this.
+
+**Edited marker.** `isMessageEdited` from `@chatic/data` decides it, and it is an inference: the
+server has no edit flag, so what it really detects is that the row was written again. It excludes
+tombstones, unsent rows and missing timestamps. Marking early is deliberately not done — it would
+mean un-marking on failure.
+
+**On the editor's own screen the marker is late, and later than "after the server responds."**
+Measured 2026-09-17 against the dev server: the server does advance `updatedAt` on an edit, but the
+`chat.update` RESPONSE carries the pre-update value (observed `updatedAt === createdAt` right after a
+successful edit, and `updatedAt > createdAt` for the same row once re-fetched). `updateChat` writes
+that response verbatim, so the person who just edited sees no marker until that room's rows are
+fetched again.
+
+**The other party's screen is worse, and this part IS measured.** Two accounts in a 1:1 room,
+2026-09-17: the edited TEXT reaches the peer over the socket within a second, but the marker never
+appears there — not on arrival, not after leaving and re-entering the room, and not after a cold app
+restart. The author, by contrast, does get it after a full reload. The likely reason is the one this
+lane already knew about: a chat edit does not advance `chatNo`, so watermark-based delta sync has no
+reason to re-pull that row, and the peer keeps the socket-pushed copy — which carries the same stale
+`updatedAt` the update response does. In practice, then, an edited message currently shows no
+"edited" marker to the person it exists for. Whether anything should be done here is undecided — do not "fix" it by
+writing a client-side timestamp, which would assert an edit time the server never gave.
 
 **Long press.** 450ms, or a right-click, opens the action sheet. `pointerdown`'s default is only
 prevented for a mouse: cancelling it on touch kills the browser's own panning for that gesture, and

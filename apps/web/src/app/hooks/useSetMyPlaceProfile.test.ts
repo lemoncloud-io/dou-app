@@ -9,40 +9,50 @@ jest.mock('@chatic/app-runtime', () => ({
         data: {
             useRuntimeRepositories: jest.fn(),
         },
+        session: {
+            useSessionSelection: jest.fn(),
+        },
     },
 }));
 
 const setMyProfileMock = jest.fn();
-const setProfileMock = jest.fn();
 
 beforeEach(() => {
     jest.clearAllMocks();
     (runtime.data.useRuntimeRepositories as jest.Mock).mockReturnValue({
-        profile: { setMyProfile: setMyProfileMock, setProfile: setProfileMock },
+        profile: { setMyProfile: setMyProfileMock },
     });
+    (runtime.session.useSessionSelection as jest.Mock).mockReturnValue({ selectedSiteId: 'active-site' });
 });
 
 describe('useSetMyPlaceProfile', () => {
-    it('sid 없이 부르면 활성 컨텍스트에 저장한다 (setMyProfile)', async () => {
+    // The two write paths were folded into one: the site is an argument, never read off the
+    // ambient data context. These cases pin that there is exactly one call shape.
+    it('sid 없이 부르면 선택된 플레이스를 실어 저장한다', async () => {
         const { result } = renderHook(() => useSetMyPlaceProfile());
 
         await result.current({ nick: '레인', thumbnail: 'data:image/png;base64,x' });
 
-        expect(setMyProfileMock).toHaveBeenCalledWith({ nick: '레인', thumbnail: 'data:image/png;base64,x' });
-        expect(setProfileMock).not.toHaveBeenCalled();
+        expect(setMyProfileMock).toHaveBeenCalledWith(
+            { nick: '레인', thumbnail: 'data:image/png;base64,x' },
+            'active-site'
+        );
     });
 
-    it('siteId를 주면 그 플레이스에 고정해서 저장한다 — 전환 중 이전 스코프로 새지 않도록', async () => {
+    it('siteId를 주면 그 값이 선택된 플레이스를 이긴다 — 전환 중 이전 스코프로 새지 않도록', async () => {
         const { result } = renderHook(() => useSetMyPlaceProfile());
 
         await result.current({ nick: '레인' }, 'site-1');
 
-        expect(setProfileMock).toHaveBeenCalledWith({
-            nick: '레인',
-            thumbnail: undefined,
-            siteId: 'site-1',
-            active: true,
-        });
-        expect(setMyProfileMock).not.toHaveBeenCalled();
+        expect(setMyProfileMock).toHaveBeenCalledWith({ nick: '레인', thumbnail: undefined }, 'site-1');
+    });
+
+    it('선택된 플레이스가 없으면 빈 문자열로 저장한다', async () => {
+        (runtime.session.useSessionSelection as jest.Mock).mockReturnValue({ selectedSiteId: null });
+        const { result } = renderHook(() => useSetMyPlaceProfile());
+
+        await result.current({ nick: '레인' });
+
+        expect(setMyProfileMock).toHaveBeenCalledWith({ nick: '레인', thumbnail: undefined }, '');
     });
 });
