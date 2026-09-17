@@ -180,7 +180,10 @@ export const EmailVerifyDialog = ({
 
     return (
         <Dialog open={open} onOpenChange={next => !next && handleClose()}>
-            <DialogContent className="h-full rounded-none p-0 sm:rounded-none" hideClose>
+            {/* `max-w-app` for the same reason PhoneVerifyScreen states it: this is a full-screen
+                surface on the notice variant, which otherwise sizes it to one card width. A
+                full-screen dialog follows the column. */}
+            <DialogContent className="h-full max-w-app rounded-none p-0 sm:rounded-none" hideClose>
                 <DialogTitle className="sr-only">{t('addAccount.emailTitle')}</DialogTitle>
                 <DialogDescription className="sr-only">{t('addAccount.emailSubtitle')}</DialogDescription>
 
