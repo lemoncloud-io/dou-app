@@ -8,6 +8,7 @@ import { cn } from '@chatic/lib/utils';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 
 import { useLastChannelStore, useListboxNav } from '../../../shared';
+import { useSearchDialogStore } from '../../search';
 import { useQuickSwitcherStore } from '../stores';
 
 const MAX_RESULTS = 8;
@@ -132,9 +133,22 @@ export const QuickSwitcher = ({ channels, onSelect, elsewhere = [], onSelectElse
                     />
                 </div>
                 {total === 0 ? (
-                    <p className="px-3 py-4 text-center text-caption text-muted-foreground">
-                        {t('switcher.noMatches')}
-                    </p>
+                    <div className="flex flex-col items-center gap-2 px-3 py-4 text-center">
+                        <p className="text-caption text-muted-foreground">{t('switcher.noMatches')}</p>
+                        {/* A name that matches no channel may be a word from a message. */}
+                        {query.trim() && (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setOpen(false);
+                                    useSearchDialogStore.getState().setOpen(true);
+                                }}
+                                className="focus-ring tactile rounded-md px-3 py-1.5 text-callout font-medium text-foreground transition-colors hover:bg-accent"
+                            >
+                                {t('switcher.searchMessages')}
+                            </button>
+                        )}
+                    </div>
                 ) : (
                     <ul id={nav.listboxId} role="listbox" className="flex flex-col">
                         {results.map((channel, i) => (

@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 
-import { Hash, PenLine, Settings, Star, StickyNote } from 'lucide-react';
+import { Hash, PenLine, Settings, Star, StickyNote, UserPlus } from 'lucide-react';
 
 import { cn } from '@chatic/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
@@ -21,6 +21,8 @@ interface ChannelIntroProps {
     onToggleFavorite: () => void;
     /** Channels only — a DM has no settings of its own. */
     onOpenSettings?: () => void;
+    /** Invite people — offered while the channel is still empty. */
+    onAddMembers?: () => void;
 }
 
 /** Shape shared by the actions under the intro. */
@@ -46,6 +48,7 @@ export const ChannelIntro = ({
     isEmpty = false,
     onToggleFavorite,
     onOpenSettings,
+    onAddMembers,
 }: ChannelIntroProps) => {
     const { t } = useTranslation();
     return (
@@ -97,6 +100,14 @@ export const ChannelIntro = ({
                     <Star size={15} aria-hidden className={cn(isFavorite && 'fill-favorite text-favorite')} />
                     {t(isFavorite ? 'chat.header.unfavorite' : 'chat.header.favorite')}
                 </button>
+                {/* A new channel holds only its creator; inviting people is the other
+                    thing its first screen is for. */}
+                {isEmpty && onAddMembers && (
+                    <button type="button" onClick={onAddMembers} className={INTRO_ACTION}>
+                        <UserPlus size={15} aria-hidden />
+                        {t('channels.addMembers.open')}
+                    </button>
+                )}
                 {onOpenSettings && (
                     <button type="button" onClick={onOpenSettings} className={INTRO_ACTION}>
                         <Settings size={15} aria-hidden />

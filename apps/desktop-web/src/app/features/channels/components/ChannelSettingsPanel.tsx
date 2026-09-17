@@ -146,8 +146,8 @@ export const ChannelSettingsPanel = ({
 
                 <section className="flex flex-col gap-2 border-t border-hairline pt-4">
                     <h3 className="text-overline text-muted-foreground">
-                        {t('channels.settings.membersSection')} ·{' '}
-                        {t('channels.settings.memberCount', { count: memberCount })}
+                        {/* The count alone: "Members · 3 members" said the noun twice. */}
+                        {t('channels.settings.membersSection')} · <span className="tabular-nums">{memberCount}</span>
                     </h3>
                     {showMemberSearch && (
                         <div className="relative">

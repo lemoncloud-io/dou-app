@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
 /** How many recently opened channels the quick switcher can offer. */
 const RECENT_LIMIT = 12;
@@ -16,7 +17,9 @@ interface LastChannelState {
 
 /**
  * Remembers where you were in each cloud and place, so switching away and back
- * restores it instead of snapping to the first entry. In-memory (per session).
+ * restores it instead of snapping to the first entry. Persisted: in memory only,
+ * a restart kept the one open channel and sent every other place back to its
+ * first channel. Account-scoped — cleared on logout via useAccountResetOnLogout.
  *
  * - `byScope` — the channel, keyed by `cid:placeId` because place ids (sid)
  *   collide across clouds.
@@ -26,23 +29,28 @@ interface LastChannelState {
  * - `recent` — the order you opened channels in. The quick switcher's empty state
  *   listed an arbitrary first eight; recents are what a person reaches for.
  */
-export const useLastChannelStore = create<LastChannelState>(set => ({
-    byScope: {},
-    placeByCloud: {},
-    recent: [],
-    remember: (scope, channelId) =>
-        set(state => {
-            const recent =
-                state.recent[0] === channelId
-                    ? state.recent
-                    : [channelId, ...state.recent.filter(id => id !== channelId)].slice(0, RECENT_LIMIT);
-            if (state.byScope[scope] === channelId && recent === state.recent) return state;
-            return { byScope: { ...state.byScope, [scope]: channelId }, recent };
+export const useLastChannelStore = create<LastChannelState>()(
+    persist(
+        set => ({
+            byScope: {},
+            placeByCloud: {},
+            recent: [],
+            remember: (scope, channelId) =>
+                set(state => {
+                    const recent =
+                        state.recent[0] === channelId
+                            ? state.recent
+                            : [channelId, ...state.recent.filter(id => id !== channelId)].slice(0, RECENT_LIMIT);
+                    if (state.byScope[scope] === channelId && recent === state.recent) return state;
+                    return { byScope: { ...state.byScope, [scope]: channelId }, recent };
+                }),
+            rememberPlace: (cloudId, placeId) =>
+                set(state =>
+                    state.placeByCloud[cloudId] === placeId
+                        ? state
+                        : { placeByCloud: { ...state.placeByCloud, [cloudId]: placeId } }
+                ),
         }),
-    rememberPlace: (cloudId, placeId) =>
-        set(state =>
-            state.placeByCloud[cloudId] === placeId
-                ? state
-                : { placeByCloud: { ...state.placeByCloud, [cloudId]: placeId } }
-        ),
-}));
+        { name: 'chatic-last-channel' }
+    )
+);

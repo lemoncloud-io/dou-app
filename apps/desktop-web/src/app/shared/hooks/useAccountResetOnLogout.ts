@@ -17,6 +17,7 @@ const ACCOUNT_SCOPED_STORAGE_KEYS = [
     'chatic-site-profile-cursor',
     'chatic-selected-channel',
     'chatic-known-channels',
+    'chatic-last-channel',
 ] as const;
 
 /**

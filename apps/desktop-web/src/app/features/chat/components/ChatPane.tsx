@@ -26,11 +26,12 @@ import {
     useOpenAtBottomStore,
     useReadCursorStore,
     useReadReceipts,
+    useSelectedChannelStore,
     PANE_HEADER,
     PANE_TITLE,
 } from '../../../shared';
 import type { ChannelMember } from '../../channels';
-import { useChannelSettingsStore } from '../../channels';
+import { useChannelActions, useChannelSettingsStore } from '../../channels';
 import { useSearchDialogStore } from '../../search';
 import { buildMemberNames, buildThreadIndex, foldReactions, isFeedVisible } from '../utils';
 import { useFileDrop, useImageAttachments, useMentionables, useMessageViewer, type ReadCountOf } from '../hooks';
@@ -91,6 +92,9 @@ export const ChatPane = ({
     const handleDiscard = useCallback((message: DomainChat) => void discardMessage(message), [discardMessage]);
     const handleLoadOlder = useCallback(() => void loadOlder(), [loadOlder]);
     const openSettings = useChannelSettingsStore(s => s.open);
+    const clearChannel = useSelectedChannelStore(s => s.clearChannel);
+    // One instance for the header menu and the intro, so both open the same dialogs.
+    const channelActions = useChannelActions(channelId, { onRemoved: clearChannel });
     const openSearch = useSearchDialogStore(s => s.setOpen);
     // Favorites live on the shared `ui.pinnedChannels` record (the same one apps/web writes),
     // scoped to the active place. A null scope (cloud/place not settled) leaves the star a no-op
@@ -235,6 +239,7 @@ export const ChatPane = ({
             isEmpty={messages.length === 0}
             onToggleFavorite={() => channelId && togglePinned(channelId)}
             onOpenSettings={introKind === 'channel' ? () => openSettings(channelId) : undefined}
+            onAddMembers={introKind === 'channel' ? () => channelActions.openDialog('add-members') : undefined}
         />
     );
 
@@ -315,7 +320,7 @@ export const ChatPane = ({
                             <Search size={18} aria-hidden />
                         </button>
                     </Hint>
-                    <ChannelHeaderMenu channel={channel} myUid={myUid} />
+                    <ChannelHeaderMenu channel={channel} myUid={myUid} actions={channelActions} />
                 </div>
             </header>
             {jumpReturn && (
