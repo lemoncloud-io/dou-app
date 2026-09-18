@@ -1,6 +1,6 @@
 import { createBrowserRouter } from 'react-router-dom';
 
-import { observeRouterRoutes } from './stackObserver';
+import { observeRouterRoutes, onTransientUiTransition, resetTransientUiListeners } from './stackObserver';
 import { getRouteTrail, resetRouteTrail } from '../utils/routeTrail';
 import { routeStackTracker } from './stackTracker';
 
@@ -76,6 +76,7 @@ describe('observeRouterRoutes — 실제 라우터 연동', () => {
         window.history.pushState(null, '', '/');
         routeStackTracker.reset();
         resetRouteTrail();
+        resetTransientUiListeners();
     });
 
     afterEach(() => {
@@ -140,5 +141,49 @@ describe('observeRouterRoutes — 실제 라우터 연동', () => {
 
         expect(paths()).toEqual(['/']);
         expect(getRouteTrail()).toEqual(['/']);
+    });
+
+    // Driven through the real router rather than the pure rule, because what has to hold is that
+    // the listener fires on transitions the ROUTER produces — the pure test cannot tell whether
+    // the observer is feeding it the right actions.
+    it('전이 때 transient UI 리스너를 부르고, 첫 기록에서는 부르지 않는다', async () => {
+        const dismissed = jest.fn();
+        onTransientUiTransition(dismissed);
+
+        const router = createBrowserRouter(routes);
+        unsubscribe = observeRouterRoutes(router);
+
+        // Subscribing records the current location; nothing can have been raised yet.
+        expect(dismissed).not.toHaveBeenCalled();
+
+        await router.navigate('/a');
+        expect(dismissed).toHaveBeenCalledTimes(1);
+
+        await goBack(router);
+        expect(dismissed).toHaveBeenCalledTimes(2);
+    });
+
+    it('같은 경로로의 replace는 리스너를 부르지 않는다', async () => {
+        const router = createBrowserRouter(routes);
+        unsubscribe = observeRouterRoutes(router);
+        await router.navigate('/a');
+
+        const dismissed = jest.fn();
+        onTransientUiTransition(dismissed);
+        await router.navigate('/a', { replace: true });
+
+        expect(dismissed).not.toHaveBeenCalled();
+    });
+
+    it('구독을 해지하면 더 이상 부르지 않는다', async () => {
+        const dismissed = jest.fn();
+        const stop = onTransientUiTransition(dismissed);
+
+        const router = createBrowserRouter(routes);
+        unsubscribe = observeRouterRoutes(router);
+        stop();
+        await router.navigate('/a');
+
+        expect(dismissed).not.toHaveBeenCalled();
     });
 });
