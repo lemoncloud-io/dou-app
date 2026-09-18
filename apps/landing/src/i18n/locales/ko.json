@@ -1,8 +1,4 @@
 {
-    "header": {
-        "terms": "이용약관",
-        "privacy": "개인정보처리방침"
-    },
     "deeplink": {
         "title": {
             "openApp": "DoU 앱으로 이동",
@@ -40,20 +36,18 @@
             "fallback": "링크를 찾을 수 없습니다. 모바일 앱을 이용해주세요.",
             "ios": "App Store에서 'DoU' 검색",
             "android": "Google Play에서 'DoU' 검색"
+        },
+        "illustration": {
+            "caption": "안전한 대화공간에서\n자유롭게 소통하기!"
         }
     },
     "hero": {
-        "badge": "퍼스널 메시징",
         "title": "프라이빗 커뮤니티",
-        "title1": "소중한 대화는",
-        "title2": "안전한 공간에서",
         "subtitle": "소중한 사람들과 자유롭게 대화하고 연결되는 안전한 공간",
         "appStore": "App Store",
         "googlePlay": "Google Play"
     },
     "features": {
-        "title": "DoU의 특별한 기능",
-        "subtitle": "나만의 공간에서 안전하게 소통하세요",
         "private": {
             "title": "프라이빗 커뮤니티",
             "description": "최대 5개의 대화공간과, 5개의 채팅방으로 필요한 사람들과 필요한 이야기를 나눠요"
@@ -101,24 +95,12 @@
         "appStore": "App Store에서 다운로드",
         "googlePlay": "Google Play에서 다운로드"
     },
-    "download": {
-        "title": "지금 바로 시작하세요",
-        "subtitle": "DoU와 함께 안전한 대화를 경험해보세요",
-        "appStore": "App Store에서 다운로드",
-        "googlePlay": "Google Play에서 다운로드"
-    },
-    "common": {
-        "comingSoon": "현재 준비중입니다"
-    },
     "policy": {
         "effectiveDate": "시행일",
         "versionNotFound": "버전을 찾을 수 없습니다.",
         "current": "현재"
     },
     "footer": {
-        "ceo": "대표자",
-        "ceoName": "김동혁",
-        "email": "이메일",
         "terms": "이용약관",
         "privacy": "개인정보처리방침",
         "child": "아동 보호 정책 및 운영표준",
