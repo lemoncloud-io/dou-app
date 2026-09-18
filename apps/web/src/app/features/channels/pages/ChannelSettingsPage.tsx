@@ -30,7 +30,7 @@ import {
     useDmPeer,
     useJoinMutations,
 } from '../hooks';
-import { resolveChannelAvatar } from '../lib';
+import { channelKindOf, removalActionFor, resolveChannelAvatar } from '../lib';
 import { divergenceReporter } from '../../../runtime/logging/divergenceReporter';
 import { getRoomDistance } from '../utils/roomDistance';
 import { canReinviteDm } from '../utils/dmInviteState';
@@ -247,6 +247,9 @@ export const ChannelSettingsPage = () => {
     const isOwner = !!channel?.isOwner;
     // 1:1 DM (stereo).
     const isDmChat = channel?.stereo === 'dm';
+    // What "remove this room" means here, from the one place that answers it for every surface —
+    // the place-level bulk remove reads the same function, so the two cannot drift again.
+    const removal = removalActionFor(channelKindOf(channel?.stereo), isOwner);
 
     // One shared rule with the room header and the home list (resolveChannelAvatar): self → MY
     // place-profile photo, DM → the peer's, else the channel photo. Both self and DM ignore
@@ -392,12 +395,14 @@ export const ChannelSettingsPage = () => {
                         {/* Destructive action — owner deletes the room, members leave it. A DM has no
                             delete at ALL, not even for the inviter: re-inviting needs the room to
                             still be there, and letting one side erase it takes that away (ADR-0068
-                            decision 7, reversing ADR-0032's reuse of the ownership branch here). */}
+                            decision 7, reversing ADR-0032's reuse of the ownership branch here).
+                            The branch itself lives in `removalActionFor` — this screen and the
+                            place's bulk remove read the same answer. */}
                         <Divider variant="block" className="my-2" />
                         <ListRow
                             destructive
-                            title={isOwner && !isDmChat ? t('chat.settings.deleteRoom') : t('chat.settings.leaveRoom')}
-                            onClick={() => openDialog(isOwner && !isDmChat ? 'delete' : 'leave')}
+                            title={removal === 'delete' ? t('chat.settings.deleteRoom') : t('chat.settings.leaveRoom')}
+                            onClick={() => openDialog(removal === 'delete' ? 'delete' : 'leave')}
                         />
                     </>
                 )}

@@ -9,8 +9,6 @@ import type { DomainChannel, DomainChat } from '@chatic/data';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { Badge, Button, DefaultAvatar, ImageAvatar, ManageChannelItem } from '@chatic/web-ui-kit';
 
-import type { MySiteView } from '@lemoncloud/chatic-backend-api';
-
 import { PageHeader } from '../../../ui';
 import { placeScopeKey, usePinnedChannels } from '@chatic/shared';
 import { DEFAULT_CHANNEL_SORT } from '../../../stores/preferenceKeys';
@@ -24,7 +22,7 @@ import {
     useLastChats,
     useMyProfile,
 } from '../../../hooks';
-import { resolveChannelAvatar, resolveChannelTitle } from '../../channels/lib';
+import { channelKindOf, removalActionFor, resolveChannelAvatar, resolveChannelTitle } from '../../channels/lib';
 import { sortChannels } from '../../../utils/sortChannels';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { ROUTES } from '../../../routes/paths';
@@ -35,9 +33,12 @@ import { useInviteListRows } from '../../invite/hooks/useInviteListRows';
  * Chat-room management (Figma 3408-28373) — reached from the place settings hub. Rooms are
  * multi-selected and then removed in bulk, or marked read; each row can also be pinned.
  *
- * Removal is owner-vs-participant: a place OWNER deletes the rooms (they are the only role that
- * can create them, so they own every room in the place), a participant leaves them. The mode
- * follows the server's `place.isOwner` (ADR-0031 — the server is the authority).
+ * Removal is decided PER ROW by `removalActionFor`, the same function the room's own settings
+ * screen reads: a 1:1 always leaves, and a group is deleted only by its own owner
+ * (`channel.ownerId === uid`) and left by everyone else. A place owner normally does own every
+ * group room in their place — they are the only role that can create one — so in the ordinary case
+ * this reads the same as `place.isOwner` did, while no longer sending `channel.delete` at a 1:1 or
+ * at a group the place owner had merely joined.
  *
  * Pinning is CLIENT-ONLY: neither ChannelModel nor JoinModel carries a pin field, so pins live in
  * the local `pinnedChannels` preference — keyed by cloud+place (placeScopeKey) — and only affect
@@ -46,19 +47,11 @@ import { useInviteListRows } from '../../invite/hooks/useInviteListRows';
 export const PlaceChannelManagePage = () => {
     const { t } = useTranslation();
     const { placeId } = useParams<{ placeId: string }>();
-    const { place: placeRepo } = runtime.data.useRuntimeRepositories();
     const { toast } = useToast();
 
-    const [place, setPlace] = useState<MySiteView | null>(null);
-    useEffect(() => {
-        if (!placeId) {
-            setPlace(null);
-            return;
-        }
-        return placeRepo.observeItem(placeId, setPlace);
-    }, [placeRepo, placeId]);
-
-    const isOwner = !!place?.isOwner;
+    // The place row itself is no longer read here. It existed only to answer `place.isOwner`, and
+    // removal is now decided per channel (`removalActionFor`), so observing the place would be a
+    // subscription nothing renders.
 
     const { channels, isLoading } = useHomeChannels(placeId ?? null);
     // Same source as home (see ActiveCloudData): the cloud-wide aggregation already holds this
@@ -178,9 +171,15 @@ export const PlaceChannelManagePage = () => {
     };
 
     /**
-     * Remove the selected rooms one by one — there is no bulk endpoint. Owner → channel.delete,
-     * participant → channel.leave. Both repository calls evict the room from the local cache
-     * optimistically (rolling back on failure), so the observed list updates itself.
+     * Remove the selected rooms one by one — there is no bulk endpoint. Both repository calls evict
+     * the room from the local cache optimistically (rolling back on failure), so the observed list
+     * updates itself.
+     *
+     * **Per row, not per place.** What removal means is answered by `removalActionFor` — the same
+     * function the room's own settings screen reads — so a 1:1 always leaves and never deletes, and
+     * a group is judged by ITS owner (`channel.ownerId === uid`) rather than by who owns the place.
+     * This branched on `place.isOwner` alone before, which sent `channel.delete` at whatever was
+     * checked: a DM included, and a group the place owner had merely joined.
      */
     const handleRemoveSelected = async () => {
         const targets = sortedChannels.filter(channel => selectedIds.has(channel.id));
@@ -188,9 +187,15 @@ export const PlaceChannelManagePage = () => {
 
         setIsRemoving(true);
         const results = await Promise.allSettled(
-            targets.map(channel =>
-                isOwner ? deleteChannel({ channelId: channel.id }) : leaveChannel({ channelId: channel.id })
-            )
+            targets.map(channel => {
+                const action = removalActionFor(channelKindOf(channel.stereo), !!uid && channel.ownerId === uid);
+                // `none` is unreachable — a self chat is not selectable (see isSelectable) — but a
+                // resolved promise keeps the success/failure tally honest if that ever changes.
+                if (action === 'none') return Promise.resolve(undefined);
+                return action === 'delete'
+                    ? deleteChannel({ channelId: channel.id })
+                    : leaveChannel({ channelId: channel.id });
+            })
         );
         setIsRemoving(false);
         setIsConfirmOpen(false);
@@ -204,20 +209,20 @@ export const PlaceChannelManagePage = () => {
                 | undefined;
             logger.error('CHAT', 'Failed to remove rooms', {
                 error: firstError?.reason,
-                data: { failed, total: targets.length, mode: isOwner ? 'delete' : 'leave' },
+                data: { failed, total: targets.length, mode: removesByDeleting ? 'delete' : 'leave' },
             });
         }
 
         if (succeeded > 0) {
             toast({
-                title: isOwner
+                title: removesByDeleting
                     ? t('channelManage.deleteDone', { count: succeeded })
                     : t('channelManage.leaveDone', { count: succeeded }),
             });
         }
         if (failed > 0) {
             toast({
-                title: isOwner
+                title: removesByDeleting
                     ? t('channelManage.deleteFailed', { count: failed })
                     : t('channelManage.leaveFailed', { count: failed }),
                 variant: 'destructive',
@@ -226,6 +231,24 @@ export const PlaceChannelManagePage = () => {
     };
 
     const selectedCount = selectedIds.size;
+
+    /**
+     * Whether the copy speaks of deleting or of leaving.
+     *
+     * Derived from what the SELECTION will actually do, not from who owns the place. Now that the
+     * action is decided per row (`removalActionFor`), a place owner who checks only 1:1 rooms will
+     * leave them — a button reading "삭제" would be describing something that is not about to
+     * happen. "Delete" is claimed only when every selected row really is a delete; a mixed
+     * selection speaks of leaving, which is the milder and always-true half.
+     */
+    const removesByDeleting =
+        selectedIds.size > 0 &&
+        sortedChannels
+            .filter(channel => selectedIds.has(channel.id))
+            .every(
+                channel =>
+                    removalActionFor(channelKindOf(channel.stereo), !!uid && channel.ownerId === uid) === 'delete'
+            );
     const hasSelection = selectedCount > 0;
 
     return (
@@ -320,7 +343,7 @@ export const PlaceChannelManagePage = () => {
                     onClick={() => setIsConfirmOpen(true)}
                     className="text-destructive disabled:text-placeholder"
                 >
-                    {isOwner ? t('channelManage.deleteRooms') : t('channelManage.leaveRooms')}
+                    {removesByDeleting ? t('channelManage.deleteRooms') : t('channelManage.leaveRooms')}
                 </Button>
             </div>
 
@@ -328,15 +351,17 @@ export const PlaceChannelManagePage = () => {
                 open={isConfirmOpen}
                 onOpenChange={setIsConfirmOpen}
                 title={
-                    isOwner
+                    removesByDeleting
                         ? t('channelManage.deleteDialog.title', { count: selectedCount })
                         : t('channelManage.leaveDialog.title', { count: selectedCount })
                 }
                 description={
-                    isOwner ? t('channelManage.deleteDialog.description') : t('channelManage.leaveDialog.description')
+                    removesByDeleting
+                        ? t('channelManage.deleteDialog.description')
+                        : t('channelManage.leaveDialog.description')
                 }
                 confirmLabel={
-                    isOwner ? t('channelManage.deleteDialog.confirm') : t('channelManage.leaveDialog.confirm')
+                    removesByDeleting ? t('channelManage.deleteDialog.confirm') : t('channelManage.leaveDialog.confirm')
                 }
                 onConfirm={handleRemoveSelected}
                 isPending={isRemoving}
