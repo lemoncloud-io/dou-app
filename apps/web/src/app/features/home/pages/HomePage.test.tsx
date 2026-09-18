@@ -446,4 +446,49 @@ describe('HomePage — 그룹 방 만들기', () => {
 
         expect(screen.getByTestId('subscription-required')).toBeInTheDocument();
     });
+
+    // A room is created under the ACTIVE place. With none, `createChannel` falls back to an empty
+    // sid and writes the room into a scope no list reads — so the attempt is refused, not silently
+    // succeeded.
+    describe('no active place', () => {
+        it('refuses the attempt with a message instead of opening the dialog', () => {
+            selectedCloudId = 'cloud-1';
+            membership = { isValid: true };
+            selectedSiteId = null;
+
+            render(<HomePage />);
+            fireEvent.click(screen.getByTestId('create-group'));
+
+            expect(screen.queryByTestId('create-channel-dialog')).not.toBeInTheDocument();
+            expect(toastMock).toHaveBeenCalledWith({ title: 'homePage.selectPlaceFirst' });
+        });
+
+        it('does not fall through to the subscription upsell — the block is about the place', () => {
+            selectedCloudId = 'cloud-1';
+            membership = { isValid: true };
+            selectedSiteId = null;
+
+            render(<HomePage />);
+            fireEvent.click(screen.getByTestId('create-group'));
+
+            expect(screen.queryByTestId('subscription-required')).not.toBeInTheDocument();
+        });
+
+        it('closes an already-open dialog when the place goes away mid-flow', () => {
+            // The dialog is mounted outside the Chat section, so a cloud switch or a revoked place
+            // would otherwise leave a form that submits with no sid.
+            selectedCloudId = 'cloud-1';
+            membership = { isValid: true };
+
+            const { rerender } = render(<HomePage />);
+            fireEvent.click(screen.getByTestId('create-group'));
+            expect(screen.getByTestId('create-channel-dialog')).toBeInTheDocument();
+
+            selectedSiteId = null;
+            rerender(<HomePage />);
+
+            expect(screen.queryByTestId('create-channel-dialog')).not.toBeInTheDocument();
+            expect(toastMock).toHaveBeenCalledWith({ title: 'homePage.selectPlaceFirst' });
+        });
+    });
 });

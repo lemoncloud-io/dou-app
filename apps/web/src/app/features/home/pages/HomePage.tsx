@@ -291,6 +291,15 @@ export const HomePage = () => {
         navigate(ROUTES.channels.room(pendingInviteChannelId), { replace: true });
     }, [pendingInviteChannelId, clearPendingInviteChannel, navigate]);
 
+    // The dialog outlives the section that opened it — it is mounted unconditionally — so a place
+    // that goes away mid-flow (cloud switch, deleted place, revoked access) would leave a form that
+    // submits with no sid. Close it and say why, rather than let it write the room nowhere.
+    useEffect(() => {
+        if (!isDialogOpen || hasActivePlace) return;
+        setIsDialogOpen(false);
+        toast({ title: t('homePage.selectPlaceFirst', '플레이스를 먼저 선택해주세요') });
+    }, [isDialogOpen, hasActivePlace, toast, t]);
+
     const handleCreatePlace = () => {
         if (!canAddPlace) {
             toast({ title: t('homePage.cannotCreatePlace'), variant: 'destructive' });
@@ -315,6 +324,14 @@ export const HomePage = () => {
         // turn that upsell into a cap toast.
         if (isDefaultCloud) {
             setIsSubscriptionRequiredOpen(true);
+            return;
+        }
+        // A room belongs to the ACTIVE place, and `createChannel` falls back to an empty sid when
+        // there is none — which writes a room into a scope no list reads. The Chat section does not
+        // render without a selected place, so this is not reachable from the UI today; it is here
+        // because the fallback makes "no place" silently succeed instead of failing loudly.
+        if (!hasActivePlace) {
+            toast({ title: t('homePage.selectPlaceFirst', '플레이스를 먼저 선택해주세요') });
             return;
         }
         if (!isDevBuild() && channels.length >= MAX_CHANNELS_PER_PLACE) {

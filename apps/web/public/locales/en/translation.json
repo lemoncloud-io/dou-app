@@ -472,7 +472,8 @@
         "setupProfile": "Set up your profile",
         "noPlaceTitle": "No place connected",
         "noPlaceDescription": "Connect to a place to start chatting",
-        "loadingCloud": "Loading cloud"
+        "loadingCloud": "Loading cloud",
+        "selectPlaceFirst": "Select a place first"
     },
     "cloudSessionSheet": {
         "title": "Switch Cloud",
