@@ -1,5 +1,5 @@
 import { recordRoute } from '../utils/routeTrail';
-import { asHistoryAction, readHistoryIndex, resolveTransitionIndex, routeStackTracker } from '../utils/routeStack';
+import { asHistoryAction, readHistoryIndex, resolveTransitionIndex, routeStackTracker } from './stackTracker';
 
 /**
  * Structural shape of the data router, kept local so this module needs no react-router import.

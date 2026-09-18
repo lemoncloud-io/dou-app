@@ -1,8 +1,8 @@
 import { createBrowserRouter } from 'react-router-dom';
 
-import { observeRouterRoutes } from './routeObserver';
+import { observeRouterRoutes } from './stackObserver';
 import { getRouteTrail, resetRouteTrail } from '../utils/routeTrail';
-import { routeStackTracker } from '../utils/routeStack';
+import { routeStackTracker } from './stackTracker';
 
 /**
  * Drives a REAL `createBrowserRouter` in jsdom, because what the stack depends on is a router
