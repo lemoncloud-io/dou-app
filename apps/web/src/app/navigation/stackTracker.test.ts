@@ -1,4 +1,4 @@
-import { readHistoryIndex, routeStackTracker, type RouteStackTransition } from './routeStack';
+import { readHistoryIndex, routeStackTracker, type RouteStackTransition } from './stackTracker';
 
 /** Shorthand: the tracker only ever sees these three fields. */
 const push = (pathname: string, index: number): RouteStackTransition => ({ pathname, action: 'PUSH', index });

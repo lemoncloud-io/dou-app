@@ -80,7 +80,7 @@ export const readHistoryIndex = (): number | null => {
  * the index it overwrites. A POP is different again: the browser moves the cursor before the router
  * hears `popstate`, so the readable index is already the destination.
  *
- * That ordering is a router internal, which is why `routeObserver.integration.test` drives a real
+ * That ordering is a router internal, which is why `stackObserver.integration.test` drives a real
  * router instead of trusting this comment. That suite is what fails if an upgrade reorders the two.
  */
 export const resolveTransitionIndex = (action: RouteHistoryAction, readableIndex: number | null): number | null => {

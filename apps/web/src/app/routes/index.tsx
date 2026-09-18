@@ -11,7 +11,7 @@ import { commonRoutes } from './CommonRoutes';
 import { privateRoutes } from './PrivateRoutes';
 import { publicRoutes } from './PublicRoutes';
 import { ROUTES } from './paths';
-import { observeRouterRoutes } from './routeObserver';
+import { observeRouterRoutes } from '../navigation/stackObserver';
 
 export const Router = () => {
     const { isAuthenticated, isInitialized } = runtime.session.useSessionAuth();
@@ -45,7 +45,7 @@ export const Router = () => {
     // Route observers for issue diagnostics: the trail (where the user has been — the feedback
     // screen is reached from MyPage, so its own pathname says nothing about where the bug was hit)
     // and the reconstructed history stack (what the back button will do). Both are fed from one
-    // subscription here; see `routeObserver` for why this is the only place that can do it.
+    // subscription here; see `stackObserver` for why this is the only place that can do it.
     useEffect(() => observeRouterRoutes(router), [router]);
 
     if (!isInitialized) {
