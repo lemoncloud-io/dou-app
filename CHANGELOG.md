@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-09-18] - root@0.64.3, @chatic/web@0.50.4
+
+### Bug Fixes
+
+- (web) never delete a 1:1, and name it the same way on every surface
+
 ## [2026-09-18] - No version updates
 
 ### Bug Fixes
