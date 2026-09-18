@@ -52,7 +52,7 @@ describe('resolveEntryAction — push', () => {
 
 describe('resolveEntryAction — deeplink', () => {
     // The redirect chain that carries an invite inwards must not leave entries behind.
-    it.each(['/s', ACCEPT])('replaces on the way into %s', to => {
+    it.each(['/s', '/i', ACCEPT])('replaces on the way into %s', to => {
         expect(act('deeplink', at('/', to))).toBe('replace');
     });
 

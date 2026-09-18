@@ -56,11 +56,14 @@ const isChannelRoomPath = (pathname: string): boolean => /^\/channels\/[^/]+\/ro
 /**
  * A screen that exists only to carry an invite inwards.
  *
- * `/s` is the share-link redirect and `/invite/accept` is the acceptance screen. Both are places
- * the reader passes THROUGH rather than chooses, which is why leaving one rewinds rather than
- * stacking.
+ * `/s` and `/i` are the two share-link formats' redirects, and `/invite/accept` is the acceptance
+ * screen. All three are places the reader passes THROUGH rather than chooses, which is why leaving
+ * one rewinds rather than stacking. Each already redirects with `replace`; naming them here is what
+ * keeps that answer the same once an entry point asks this table instead of deciding for itself.
  */
-const isInviteEntryPath = (pathname: string): boolean => pathname === '/s' || pathname === '/invite/accept';
+const INVITE_ENTRY_PATHS = ['/s', '/i', '/invite/accept'];
+
+const isInviteEntryPath = (pathname: string): boolean => INVITE_ENTRY_PATHS.includes(pathname);
 
 /** Drops the fragment, which never distinguishes one screen from another. */
 const withoutHash = (location: string): string => location.split('#')[0];
