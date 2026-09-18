@@ -58,6 +58,16 @@ export const netModule: ConfigRegistryModule = {
         writableBy: [],
         persist: 'none',
     },
+    'net.uploads.endpoint': {
+        title: '업로드 엔드포인트',
+        description: '채팅 첨부 파일의 업로드 슬롯을 발급받는 주소.',
+        type: 'string',
+        defaultValue: '',
+        envDefaultKey: 'VITE_UPLOADS_ENDPOINT',
+        surface: 'internal',
+        writableBy: [],
+        persist: 'none',
+    },
     'net.admin.backend': {
         title: '관리자 백엔드 주소',
         description: 'admin-v2가 호출하는 백엔드 주소.',

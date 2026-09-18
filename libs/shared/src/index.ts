@@ -3,4 +3,5 @@ export * from './consts';
 export * from './hooks';
 export * from './preferences';
 export * from './types';
+export * from './upload';
 export * from './utils';
