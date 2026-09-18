@@ -1,11 +1,20 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { runtime } from '@chatic/app-runtime';
 import { isInJoinWindow } from '@chatic/data';
-import type { GlobalCacheContext, GlobalCacheRef } from '@chatic/data';
+import type { DomainChannel, GlobalCacheContext, GlobalCacheRef } from '@chatic/data';
 import { logger } from '@chatic/bridges';
 
 import { countUnread, readCursorOf } from '../../../utils/countUnread';
+import {
+    channelKindOf,
+    resolveChannelAvatar,
+    resolveChannelTitle,
+    showsMemberCount,
+    type ChannelAvatarGlyph,
+} from '../../channels/lib';
+import { pickDmPeerId } from '../../channels/utils/dmPeer';
 import { messagePlainText } from '../../channels/utils/messagePlainText';
 import type { CloudSearchResult, GlobalSearchResults } from './useGlobalSearch';
 import { useSenderProfiles, type SenderProfileRef } from './useSenderProfiles';
@@ -31,6 +40,18 @@ export interface ChannelResultRow {
     channelId: string;
     name: string;
     thumbnail?: string;
+    /**
+     * Placeholder glyph for a row with no photo, from the same `resolveChannelAvatar` call that
+     * answered `thumbnail`. It travels WITH the photo because both key off the stereo: a group room
+     * gets the two-person glyph, a 1:1 and a self chat the one-person one. Deciding it here rather
+     * than at the row is what keeps search agreeing with the home list and the manage list.
+     */
+    glyph: ChannelAvatarGlyph;
+    /**
+     * Group member count. **Undefined for a self chat and a DM** — always 1 and always 2, so the
+     * number carries no information (`showsMemberCount`). The home list hides it for the same
+     * reason; a search row that showed `2` beside a 1:1 was the two surfaces disagreeing.
+     */
     memberNo?: number;
     /** Cached `(chatNo - metaNo) - readNo`; 0 when this cloud has no join row cached. */
     unread: number;
@@ -80,6 +101,8 @@ export interface SearchResultRows {
  * resolve leaves those fields empty instead of discarding results the user is already reading.
  */
 export const useSearchContext = (results: GlobalSearchResults): SearchResultRows => {
+    const { t } = useTranslation();
+    const { userId: uid } = runtime.session.useSessionIdentity();
     const { resolveContext } = runtime.data.useGlobalCacheSearch();
     const [context, setContext] = useState<GlobalCacheContext>(EMPTY_CONTEXT);
 
@@ -148,11 +171,71 @@ export const useSearchContext = (results: GlobalSearchResults): SearchResultRows
             }),
         [results.messages, context.channelsByRef, context.joinsByRef]
     );
-    const senderProfiles = useSenderProfiles(senderRefs);
+
+    /**
+     * The 1:1 peer of every DM in the results, addressed the same way a sender is.
+     *
+     * A DM row is named after the person on the other side, so without their profile the title
+     * chain falls through to the server-generated `channel.name` — which is what made search show a
+     * raw name where every other surface showed the peer (ADR-0039).
+     *
+     * `useDmPeers` cannot serve this: it takes ONE `sid`, and results span the places of the
+     * searched cloud. `useSenderProfiles` is already the per-(place, user) reader on this screen, so
+     * peers ride along with the message authors and the whole page keeps one subscription.
+     */
+    const peerRefs = useMemo<SenderProfileRef[]>(
+        () =>
+            results.channels.flatMap(channel => {
+                if (channelKindOf(channel.stereo) !== 'dm') return [];
+                const peerId = pickDmPeerId(channel.memberIds ?? [], uid);
+                return channel.sid && peerId ? [{ sid: channel.sid, userId: peerId }] : [];
+            }),
+        [results.channels, uid]
+    );
+
+    const profileRefs = useMemo(() => [...senderRefs, ...peerRefs], [senderRefs, peerRefs]);
+    const senderProfiles = useSenderProfiles(profileRefs);
 
     return useMemo(() => {
         const placeName = (cid: string, sid?: string) =>
             sid ? context.sitesByRef[runtime.data.globalCacheRefKey(cid, sid)]?.name : undefined;
+
+        /**
+         * The name and photo a channel row shows — the SAME two resolvers the room header, the room
+         * settings, the home list and the place's chat-room management call.
+         *
+         * Search was the fifth surface drawing a channel and the only one not going through them:
+         * it rendered `channel.name` and `channel.thumbnail` raw, so a 1:1 showed the server's
+         * generated name instead of the peer, a self chat showed that name instead of its label,
+         * and both showed a `channel.thumbnail` the other surfaces deliberately ignore.
+         *
+         * `myNick` is deliberately not supplied. It is the self-chat chain's second tier (my own
+         * place-profile nick), and reading my profile once per place in the results would cost more
+         * than it is worth here — the chain simply falls to the "나와의 채팅" label, which is what
+         * that row should read anyway.
+         */
+        const display = (channel: DomainChannel, joinNick?: string) => {
+            const kind = channelKindOf(channel.stereo);
+            const peerId = kind === 'dm' ? pickDmPeerId(channel.memberIds ?? [], uid) : undefined;
+            const peer = channel.sid && peerId ? senderProfiles.get(`${channel.sid}@${peerId}`) : undefined;
+
+            const avatar = resolveChannelAvatar({ channel, peerThumbnail: peer?.thumbnail });
+
+            return {
+                kind,
+                name: resolveChannelTitle({
+                    channel,
+                    uid: uid ?? undefined,
+                    joinNick,
+                    peerNick: peer?.nick,
+                    selfLabel: t('channelList.selfChannel'),
+                    unnamedLabel: t('channelList.unnamedChannel'),
+                    dmUnnamedLabel: t('chat.dm.unnamedPeer'),
+                }),
+                thumbnail: avatar.src,
+                glyph: avatar.glyph,
+            };
+        };
 
         return {
             clouds: results.clouds,
@@ -169,13 +252,16 @@ export const useSearchContext = (results: GlobalSearchResults): SearchResultRows
                 // membership must not survive into search either (ADR-0067).
                 const lastChat =
                     cached && isInJoinWindow(cached, context.joinsByRef[ref]?.joinedNo) ? cached : undefined;
+                const { kind, name, thumbnail, glyph } = display(channel, context.joinsByRef[ref]?.nick);
+
                 return {
                     cid: channel.cid,
                     sid: channel.sid,
                     channelId: channel.id,
-                    name: channel.name ?? '',
-                    thumbnail: channel.thumbnail,
-                    memberNo: channel.memberNo,
+                    name,
+                    thumbnail,
+                    glyph,
+                    memberNo: showsMemberCount(kind) ? channel.memberNo : undefined,
                     unread: countUnread({
                         headChatNo: channel.chatNo,
                         headMetaNo: channel.metaNo,
@@ -203,7 +289,8 @@ export const useSearchContext = (results: GlobalSearchResults): SearchResultRows
                 .map(chat => {
                     // A chat row has no sid of its own — its place comes via the owning channel, and the
                     // author's display profile is scoped to that place.
-                    const owner = context.channelsByRef[runtime.data.globalCacheRefKey(chat.cid, chat.channelId)];
+                    const ownerRef = runtime.data.globalCacheRefKey(chat.cid, chat.channelId);
+                    const owner = context.channelsByRef[ownerRef];
                     const profile =
                         owner?.sid && chat.ownerId ? senderProfiles.get(`${owner.sid}@${chat.ownerId}`) : undefined;
                     return {
@@ -217,12 +304,14 @@ export const useSearchContext = (results: GlobalSearchResults): SearchResultRows
                         // still a match the reader should be able to see.
                         content: messagePlainText(chat.content),
                         createdAt: chat.createdAtMs,
-                        channelName: owner?.name,
+                        // The owning room, named by the same chain as a channel row — a message
+                        // found in a 1:1 must not caption itself with the generated channel name.
+                        channelName: owner ? display(owner, context.joinsByRef[ownerRef]?.nick).name : undefined,
                         placeName: placeName(chat.cid, owner?.sid),
                         senderName: profile?.nick,
                         senderThumbnail: profile?.thumbnail,
                     };
                 }),
         };
-    }, [results, context, senderProfiles]);
+    }, [results, context, senderProfiles, t, uid]);
 };

@@ -13,8 +13,14 @@ jest.mock('@chatic/app-runtime', () => ({
             useGlobalCacheSearch: jest.fn(),
             globalCacheRefKey: (cid: string, id: string) => `${cid}:${id}`,
         },
+        // The hook reads my uid to pick the 1:1 peer out of a roster and to run the title chain's
+        // owner branch. Left undefined by default — the rows these tests assert on are groups.
+        session: { useSessionIdentity: jest.fn(() => ({ userId: undefined })) },
     },
 }));
+// The title chain takes its fallback labels from i18n. Echoing the key keeps the assertions
+// readable and makes an unexpected fallback obvious in the diff.
+jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 // Sender profiles come from ProfileRepository via this hook; it has its own test file.
 jest.mock('./useSenderProfiles', () => ({ useSenderProfiles: jest.fn(() => new Map()) }));
 jest.mock('@chatic/bridges', () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } }));
@@ -105,6 +111,25 @@ describe('useSearchContext', () => {
         });
         // join.metaNo is missing → falls back to head's metaNo (ADR-0048 fallback). (20-2) - (8-2) = 12.
         expect(row.unread).toBe(12);
+    });
+
+    // The placeholder glyph has to ride along with the photo. Search dropped it once and rendered
+    // every photo-less room with the one-person default, so a group read as a person here while the
+    // home list and the manage list drew the two-person glyph for the same room.
+    it.each([
+        ['private', 'group'],
+        ['public', 'group'],
+        ['dm', 'user'],
+        ['self', 'user'],
+    ])('carries the %s room its own placeholder glyph (%s)', async (stereo, glyph) => {
+        const input = results({
+            channels: [{ id: 'ch-1', cid: 'cloud-a', sid: 'site-1', name: 'Lounge', stereo }] as any,
+        });
+
+        const { result } = renderHook(() => useSearchContext(input));
+
+        await waitFor(() => expect(result.current.channels).toHaveLength(1));
+        expect(result.current.channels[0].glyph).toBe(glyph);
     });
 
     it('shows no unread badge for a cloud with no cached join row', async () => {
