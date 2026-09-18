@@ -63,8 +63,18 @@ is dropped.
 
 1. On the relay → the subscription upsell, immediately. **The cap is not checked first**, or the
    relay place's own channel count would turn an upsell into a cap toast.
-2. At `MAX_CHANNELS_PER_PLACE` → `homePage.channelLimitReached` toast.
-3. Free tier → `SubscriptionRequiredDialog`. Otherwise → `CreateChannelDialog`.
+2. No active place → `homePage.selectPlaceFirst` toast. A room belongs to the active place, and
+   `useChannelMutations` falls back to an empty `sid` when there is none — so the write would
+   succeed into a scope no list reads, rather than failing where anyone could see it. The Chat
+   section does not render without a selected place, so nothing reaches this from the UI today; it
+   is the fallback, not a reachable path, that makes the check worth having.
+3. At `MAX_CHANNELS_PER_PLACE` → `homePage.channelLimitReached` toast.
+4. Free tier → `SubscriptionRequiredDialog`. Otherwise → `CreateChannelDialog`.
+
+**`CreateChannelDialog` outlives the section that opened it.** It is mounted unconditionally, so a
+place disappearing mid-flow — a cloud switch, a deleted place, revoked access — would leave a filled
+form pointed at the same empty `sid`. Home closes the dialog and raises the same toast when the
+active place goes away while it is open.
 
 `PlaceLimitDialog` is a dialog rather than a toast because there are two ways out of the cap and
 both are actions: free a slot (open the active place's settings hub) or get another cloud (raise the

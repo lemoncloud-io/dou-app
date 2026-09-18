@@ -58,6 +58,41 @@ The home list hooks (`useHomePlaces`, and its siblings for channels) still pass 
 observers deliberately keep out of their key. See `PlaceLocalDataSource.test.ts` for the re-emit
 routing this pins down.
 
+**An empty cache is not an empty answer.** `observeList` answers from local storage, so for a cloud
+this device has never opened it fires immediately with `[]` — before the first fetch behind it has
+even been sent. "The cache emitted" is therefore not the same signal as "the server answered", and a
+screen that reads it as one asserts "this cloud has no places / no rooms" over a cloud whose data is
+still on its way. That is what a cold cloud switch used to look like: an empty home, instantly.
+
+So an empty list keeps reading as _loading_ until something explains it. Three things can, and which
+ones apply differs per list:
+
+| Surface                        | What ends the wait                                                                            |
+| ------------------------------ | --------------------------------------------------------------------------------------------- |
+| `useHomePlaces`                | rows, or the window — `PlaceRepository` discards an empty snapshot, so no answer says "none"  |
+| `useAccessiblePlaceIds`        | the same two; until then it answers `null`, so no channel is filtered off a list or the badge |
+| `useActiveCloudChannelsSource` | rows, the first delta answering, or the window — an empty PLACE is common, so it gets a mark  |
+
+The window is `app/hooks/useColdListWindow.ts` — a 15s bound, restarted whenever `{cid, uid}` moves,
+that exists so the wait always ends. Nothing marks a list as answered before the socket verifies, so
+without it a device that never reaches the server would hold a skeleton forever; a wrong-but-terminal
+screen beats one that never resolves. It is a backstop, not the normal path — rows land in well under
+a second on a warm cloud, and re-entering a cloud visited before is unchanged.
+
+The mark is `app/stores/useChannelSyncMarkStore.ts`, written by `useBackgroundSync` (§5) — the only
+owner of list discovery, and so the only place that knows a delta was asked for. A failed delta marks
+too: it says something about reachability, not about the cloud, and waiting for success would hold a
+skeleton up through every outage.
+
+**Only channels get a mark, and the asymmetry is the data layer's.** `ChannelRepository.syncChannels`
+returning means the server answered, so a place with genuinely no rooms — every place, at the start —
+can say so within a round trip. `PlaceRepository.refreshList` carries no such meaning: it discards an
+empty snapshot without writing it, because a session that is not ready yet answers empty right after a
+switch and pruning against that would wipe the real rows. A completed refresh therefore cannot
+testify that a cloud has no places, and marking on it would put the original bug back — this time
+with the gate's own blessing. A cloud with zero places waits out the window instead, which is the
+degenerate case, not the common one.
+
 **Sync registration.** A mounted screen also registers a sync target so polling, push, and
 reconnect catch-up run for as long as it is on screen:
 

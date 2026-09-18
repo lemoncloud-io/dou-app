@@ -385,7 +385,7 @@ export const ChannelList = ({
         // While the list is still loading, the count is not "0" — it is unknown. Showing 0 next to
         // a skeleton claims an answer we don't have yet, so the number is withheld until it lands.
         <CollapsibleSection
-            title={t('homePage.channels', '채널')}
+            title={t('homePage.channels', '채팅방')}
             count={isLoading ? undefined : channels.length}
             actions={createMenu}
         >

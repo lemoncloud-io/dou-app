@@ -1,8 +1,9 @@
-import { renderHook } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 
 import { runtime } from '@chatic/app-runtime';
 import type { DomainPlace } from '@chatic/data';
 
+import { COLD_LIST_WINDOW_MS } from '../../../hooks/useColdListWindow';
 import { useHomePlaces } from './useHomePlaces';
 
 jest.mock('@chatic/app-runtime', () => ({
@@ -111,5 +112,65 @@ describe('useHomePlaces — 플레이스 목록 구독', () => {
         expect(disposeOldUid).toHaveBeenCalledTimes(1);
         expect(result.current.places.map(p => p.id)).toEqual(['fresh']);
         expect(disposeNewUid).not.toHaveBeenCalled();
+    });
+
+    describe('cold cloud — an empty cache is not an empty cloud', () => {
+        beforeEach(() => jest.useFakeTimers());
+        afterEach(() => jest.useRealTimers());
+
+        it('stays loading while the cache answers empty and the window is still open', () => {
+            // What a cloud this device has never opened looks like: the cache answers instantly,
+            // with nothing, before `place.refreshList` has even been sent.
+            emit([]);
+            setActiveServer('cloud', 'cloud-cold', 'u1');
+
+            const { result } = renderHook(() => useHomePlaces());
+
+            expect(result.current.places).toEqual([]);
+            expect(result.current.isLoading).toBe(true);
+        });
+
+        it('stops loading as soon as rows arrive — rows are the only real answer here', () => {
+            // The cold emit first, then the snapshot landing in the cache re-emits through the same
+            // observer — no re-subscribe, which is exactly how the real refresh reaches this hook.
+            emit([]);
+            setActiveServer('cloud', 'cloud-cold', 'u1');
+
+            const { result } = renderHook(() => useHomePlaces());
+            expect(result.current.isLoading).toBe(true);
+
+            const onEmit = observeListMock.mock.calls.at(-1)?.[1] as (r: { list: DomainPlace[] }) => void;
+            act(() => onEmit({ list: [place('p1')] }));
+
+            expect(result.current.places.map(p => p.id)).toEqual(['p1']);
+            expect(result.current.isLoading).toBe(false);
+        });
+
+        it('gives up waiting once the window elapses, so the screen is never stuck', () => {
+            // A cloud that really has no places, or a device that never reached the server. Either
+            // way the wait has to end — `PlaceRepository` never writes an empty snapshot, so no
+            // answer is coming that says "none".
+            emit([]);
+            setActiveServer('cloud', 'cloud-cold', 'u1');
+
+            const { result } = renderHook(() => useHomePlaces());
+            expect(result.current.isLoading).toBe(true);
+
+            act(() => {
+                jest.advanceTimersByTime(COLD_LIST_WINDOW_MS);
+            });
+
+            expect(result.current.isLoading).toBe(false);
+        });
+
+        it('does not wait at all when the cache already holds rows', () => {
+            // The warm path — re-entering a cloud visited before must not regress into a skeleton.
+            emit([place('p1')]);
+            setActiveServer('cloud', 'cloud-warm', 'u1');
+
+            const { result } = renderHook(() => useHomePlaces());
+
+            expect(result.current.isLoading).toBe(false);
+        });
     });
 });
