@@ -1,4 +1,4 @@
-import { hasLeftChannel, isChannelMember, isSomeoneElsesSelfChat } from './membership';
+import { hasLeftChannel, isChannelMember, isDmPeerMissing, isSomeoneElsesSelfChat } from './membership';
 
 // The server defines `joined` as `0: inactive (not yet joined or left), 1: active` — one value
 // points to two opposite states. So looking only at `joined === 0` made someone who left look
@@ -92,5 +92,40 @@ describe('isSomeoneElsesSelfChat — 남의 셀프챗인가', () => {
         expect(isSomeoneElsesSelfChat({ stereo: 'self', ownerId: 'u1' }, undefined)).toBe(false);
         expect(isSomeoneElsesSelfChat({ stereo: 'self' }, 'me')).toBe(false);
         expect(isSomeoneElsesSelfChat(null, 'me')).toBe(false);
+    });
+});
+
+describe('isDmPeerMissing', () => {
+    const dm = (memberIds?: string[]) => ({ stereo: 'dm' as const, memberIds });
+
+    // The measured shape of a real departure (2026-09-18): the server drops the peer from the
+    // roster and stops sending their join row, so there is nothing for `hasLeftChannel` to read.
+    it('reports a peer who is gone from the roster', () => {
+        expect(isDmPeerMissing(dm(['me']), 'me')).toBe(true);
+    });
+
+    it('says nothing while the peer is still there', () => {
+        expect(isDmPeerMissing(dm(['me', 'peer']), 'me')).toBe(false);
+    });
+
+    // An unhydrated roster must not read as departure — that would lock the composer for a beat
+    // every time a healthy room opens cold.
+    it.each([undefined, []])('treats an unhydrated roster (%p) as unknown, not departed', roster => {
+        expect(isDmPeerMissing(dm(roster), 'me')).toBe(false);
+    });
+
+    it('says nothing without my own id', () => {
+        expect(isDmPeerMissing(dm(['me']), undefined)).toBe(false);
+        expect(isDmPeerMissing(dm(['me']), null)).toBe(false);
+    });
+
+    // Only a 1:1 is two-people-by-definition; a one-member group is an ordinary state.
+    it.each(['self', 'private', 'public', '', undefined] as const)('ignores stereo %p', stereo => {
+        expect(isDmPeerMissing({ stereo, memberIds: ['me'] }, 'me')).toBe(false);
+    });
+
+    it('ignores a null channel', () => {
+        expect(isDmPeerMissing(null, 'me')).toBe(false);
+        expect(isDmPeerMissing(undefined, 'me')).toBe(false);
     });
 });
