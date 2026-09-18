@@ -5,7 +5,8 @@ import { HintRow } from '../../components/HintRow';
 import { Row } from '../../components/Row';
 import { Section } from '../../components/Section';
 import { getRouteTrail } from '../../../../utils/routeTrail';
-import { routeStackTracker, type RouteStackSnapshot } from '../../../../utils/routeStack';
+import { canGoBackInApp } from '../../../../navigation/stackDepth';
+import { routeStackTracker, type RouteStackSnapshot } from '../../../../navigation/stackTracker';
 
 /**
  * Navigation inspector: the history stack and the visited trail side by side.
@@ -25,6 +26,11 @@ export const RouteScreen = () => {
     const [stack, setStack] = useState<RouteStackSnapshot>(() => routeStackTracker.getSnapshot());
     const [trail, setTrail] = useState<string[]>(() => getRouteTrail());
     const [historyLength, setHistoryLength] = useState(() => window.history.length);
+    // Asked of the same function the back button asks, rather than derived from the snapshot
+    // above. The two agree in the ordinary cases, but a pushState that bypassed the router kills
+    // the live index while the tracker still shows its last observed one — and this row saying
+    // "yes" while back does nothing is the exact confusion this screen exists to prevent.
+    const [canGoBack, setCanGoBack] = useState(() => canGoBackInApp());
 
     // Polled, like the Perf screen: the stores are plain module state with no subscription, and the
     // panel is only open while someone is watching it.
@@ -33,6 +39,7 @@ export const RouteScreen = () => {
             setStack(routeStackTracker.getSnapshot());
             setTrail(getRouteTrail());
             setHistoryLength(window.history.length);
+            setCanGoBack(canGoBackInApp());
         };
         poll();
         const id = setInterval(poll, 1000);
@@ -44,8 +51,8 @@ export const RouteScreen = () => {
     const forwardCount = currentIndex === null ? 0 : Math.max(0, depth - currentIndex - 1);
 
     const snapshot = useCallback(
-        () => JSON.stringify({ depth, currentIndex, forwardCount, historyLength, stack, trail }, null, 2),
-        [depth, currentIndex, forwardCount, historyLength, stack, trail]
+        () => JSON.stringify({ depth, currentIndex, canGoBack, forwardCount, historyLength, stack, trail }, null, 2),
+        [depth, currentIndex, canGoBack, forwardCount, historyLength, stack, trail]
     );
 
     return (
@@ -67,8 +74,8 @@ export const RouteScreen = () => {
                 />
                 <HintRow
                     label="뒤로 갈 수 있음"
-                    value={currentIndex !== null && currentIndex > 0 ? '예' : '아니오'}
-                    hint="현재 위치가 #0보다 위인지입니다. '아니오'면 앱 안에서 뒤로 갈 곳이 없어, 뒤로가기는 앱을 벗어납니다."
+                    value={canGoBack ? '예' : '아니오'}
+                    hint="뒤로가기가 실제로 묻는 값입니다. 라우터 인덱스가 #0보다 위여야 '예'이고, 인덱스를 읽을 수 없으면 '아니오'입니다. '아니오'면 앱은 뒤로가기를 처리하지 않고, 그다음은 셸이 정합니다."
                 />
                 <HintRow
                     label="앞으로 남은 항목"
@@ -78,7 +85,7 @@ export const RouteScreen = () => {
                 <HintRow
                     label="history.length"
                     value={String(historyLength)}
-                    hint="브라우저 전역 값이라 앱에 들어오기 전 항목까지 셉니다. 앱 깊이가 아닙니다 — useBackHandler가 이 값으로 뒤로가기를 판정하는데, 그래서 위의 '뒤로 갈 수 있음'과 어긋날 수 있습니다."
+                    hint="브라우저 전역 값이라 앱에 들어오기 전 항목까지 셉니다. 앱 깊이가 아닙니다 — 뒤로가기는 위의 '뒤로 갈 수 있음'으로 판정하므로 이 값과 달라도 정상입니다."
                 />
                 {historyLength !== depth && depth > 0 && (
                     <HintRow

@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event';
 
 import { RouteScreen } from './RouteScreen';
 import { recordRoute, resetRouteTrail } from '../../../../utils/routeTrail';
-import { routeStackTracker } from '../../../../utils/routeStack';
+import { routeStackTracker } from '../../../../navigation/stackTracker';
 
 const copyTextWithResult = jest.fn().mockResolvedValue(true);
 jest.mock('../../lib/copyText', () => ({
@@ -22,6 +22,9 @@ describe('RouteScreen — 라우트 스택 인스펙터', () => {
     beforeEach(() => {
         routeStackTracker.reset();
         resetRouteTrail();
+        // jsdom keeps history state across cases in a file. The screen reads the LIVE router index
+        // now, not just the tracker snapshot, so without this a leftover entry decides a later case.
+        window.history.pushState({ idx: 0 }, '');
     });
 
     it('프로바이더 없이 렌더되고, 기록이 없으면 없다고 말한다', () => {
@@ -81,8 +84,34 @@ describe('RouteScreen — 라우트 스택 인스펙터', () => {
         expect(screen.getByText(/스택을 신뢰할 수 없습니다/)).toBeInTheDocument();
     });
 
-    // useBackHandler decides whether to go back based on history.length. The screen has to say
-    // when that value differs from the app's own depth, or that bug can't be tracked down.
+    // The row the back button actually consults. It asks `canGoBackInApp()` rather than deriving an
+    // answer from the snapshot beside it, because the two can disagree: the tracker holds the last
+    // index it OBSERVED, while the judgement reads the live one. A pushState that bypassed the
+    // router is exactly that case — and a panel claiming back works while it does nothing is worse
+    // than no panel.
+    it('뒤로 갈 수 있음은 스냅샷이 아니라 실제 판정을 따른다', () => {
+        routeStackTracker.record({ pathname: '/a', action: 'PUSH', index: 0 });
+        routeStackTracker.record({ pathname: '/b', action: 'PUSH', index: 1 });
+        // The tracker still shows depth 2 at index 1, but the live entry has no router index.
+        window.history.pushState({ bypassedTheRouter: true }, '');
+
+        render(<RouteScreen />);
+
+        expect(screen.getByRole('button', { name: '뒤로 갈 수 있음' }).parentElement).toHaveTextContent('아니오');
+    });
+
+    it('앱 첫 화면 위에 있으면 뒤로 갈 수 있음이 예다', () => {
+        routeStackTracker.record({ pathname: '/a', action: 'PUSH', index: 0 });
+        window.history.pushState({ idx: 1 }, '');
+
+        render(<RouteScreen />);
+
+        expect(screen.getByRole('button', { name: '뒤로 갈 수 있음' }).parentElement).toHaveTextContent('예');
+    });
+
+    // The two values routinely disagree, and only this screen says so. Reading history.length as
+    // the app's depth is the mistake this row exists to prevent — it is what the back judgement
+    // used to be built on.
     it('history.length와 앱 스택 깊이가 다르면 불일치를 알린다', () => {
         routeStackTracker.record({ pathname: '/', action: 'PUSH', index: 0 });
         window.history.pushState({ idx: 0 }, '');
@@ -130,6 +159,7 @@ describe('RouteScreen — 라우트 스택 인스펙터', () => {
         routeStackTracker.record({ pathname: '/b', action: 'PUSH', index: 1 });
         recordRoute('/a');
         recordRoute('/b');
+        window.history.pushState({ idx: 1 }, '');
 
         render(<RouteScreen />);
         await userEvent.click(screen.getByRole('button', { name: /라우트 복사/ }));
@@ -137,6 +167,7 @@ describe('RouteScreen — 라우트 스택 인스펙터', () => {
         const copied = JSON.parse(copyTextWithResult.mock.calls[0][0] as string);
         expect(copied.depth).toBe(2);
         expect(copied.currentIndex).toBe(1);
+        expect(copied.canGoBack).toBe(true);
         expect(copied.stack.entries.map((e: { pathname: string }) => e.pathname)).toEqual(['/a', '/b']);
         expect(copied.trail).toEqual(['/a', '/b']);
     });

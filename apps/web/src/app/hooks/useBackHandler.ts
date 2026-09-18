@@ -2,8 +2,8 @@ import { useCallback, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 
 import { isNative } from '@chatic/bridges';
-import { useNavigateWithTransition } from '@chatic/shared';
 import { appBridge, useOnBackPressed } from '../bridge';
+import { useStackBack } from '../navigation/useStackBack';
 
 /** Selector for Radix UI overlay components that can be closed with back button */
 const OPEN_DIALOG_SELECTOR =
@@ -17,8 +17,8 @@ const OPEN_DIALOG_SELECTOR =
  */
 export const useBackHandler = () => {
     const location = useLocation();
-    const navigate = useNavigateWithTransition();
     const isOnMobileApp = isNative();
+    const consumeBack = useStackBack();
 
     // Notify native app about navigation state changes
     // Also watch for dialog state changes using MutationObserver
@@ -51,49 +51,54 @@ export const useBackHandler = () => {
     }, [location, isOnMobileApp]);
 
     /**
-     * Handle back request from native app.
+     * Closes the topmost open overlay.
      *
-     * Dialog detection relies on Radix UI's data-state="open" attribute.
-     * Ensure all dialogs/modals use Radix primitives for consistent behavior.
+     * Dialog detection relies on Radix UI's `data-state="open"` attribute, so every dialog and
+     * modal has to be a Radix primitive for back to reach it. This stays here rather than moving
+     * into the navigation module on purpose: which library draws an overlay, and how it is asked
+     * to close, is this layer's business and not the history module's.
      *
-     * To prevent back button from closing a dialog, add `data-prevent-back-close` attribute:
-     * <DialogContent data-prevent-back-close>
+     * To keep a dialog open against back, give it `data-prevent-back-close`:
+     * `<DialogContent data-prevent-back-close>`. That returns false — the press is still spent on
+     * the overlay, it just declines to act on it.
      */
-    const handleNativeBack = useCallback(() => {
+    const closeTopOverlay = useCallback((): boolean => {
         const openDialogs = document.querySelectorAll(OPEN_DIALOG_SELECTOR);
+        const topmostDialog = openDialogs[openDialogs.length - 1];
+        if (!topmostDialog) return false;
 
-        if (openDialogs.length > 0) {
-            // Get the topmost dialog (last in DOM order, highest z-index)
-            const topmostDialog = openDialogs[openDialogs.length - 1];
+        if (topmostDialog.hasAttribute('data-prevent-back-close')) return false;
 
-            // Check if this dialog prevents back close
-            if (topmostDialog.hasAttribute('data-prevent-back-close')) {
-                // Dialog wants to prevent back close, do nothing
-                return;
-            }
-
-            // AlertDialog does NOT close on Escape by design (requires explicit user action)
-            // So we need to click a button inside the dialog to close it
-            if (topmostDialog.getAttribute('role') === 'alertdialog') {
-                // Find and click the first button (usually OK/Cancel)
-                const button = topmostDialog.querySelector('button');
-                if (button instanceof HTMLElement) {
-                    button.click();
-                }
-                return;
-            }
-
-            // For regular dialogs, dispatch Escape key on document (Radix listens on document level)
-            document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-            return;
+        // AlertDialog does not close on Escape by design — it wants an explicit choice — so the
+        // press is delivered to its first button instead.
+        if (topmostDialog.getAttribute('role') === 'alertdialog') {
+            const button = topmostDialog.querySelector('button');
+            if (!(button instanceof HTMLElement)) return false;
+            button.click();
+            return true;
         }
 
-        // Only navigate back if there's history to go back to
-        const canGoBack = location.key !== 'default' && window.history.length > 1;
-        if (canGoBack) {
-            navigate(-1);
-        }
-    }, [navigate, location.key]);
+        // Radix listens for Escape at the document level.
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        return true;
+    }, []);
+
+    /**
+     * Handles a back request from the native shell.
+     *
+     * The judgement belongs to `useStackBack`; this supplies the overlay half it deliberately does
+     * not know about. The outcome is returned rather than dropped because the third case — nothing
+     * open, nothing behind — is what the shell needs in order to decide about exiting, and it had
+     * no name at all until now.
+     */
+    const handleNativeBack = useCallback(
+        () =>
+            consumeBack({
+                hasBlockingOverlay: document.querySelector(OPEN_DIALOG_SELECTOR) !== null,
+                closeTopOverlay,
+            }),
+        [consumeBack, closeTopOverlay]
+    );
 
     // Listen for native back button message
     useOnBackPressed(handleNativeBack);

@@ -93,6 +93,30 @@ export const ROUTE_PARAMS = {
 where a key name is needed as a value; a simple `useParams<{ channelId: string }>()` reads better
 for the common case.
 
+## The history stack is not here — `app/navigation/`
+
+The route table decides which page a path renders. What the **back button** does is a different
+question, and it belongs to `apps/web/src/app/navigation/`:
+
+| File               | Owns                                                                                    |
+| ------------------ | --------------------------------------------------------------------------------------- |
+| `stackDepth.ts`    | How deep the app is, and `canGoBackInApp()` — the only answer to "can back go anywhere" |
+| `stackTracker.ts`  | The reconstructed stack the debug overlay reads                                         |
+| `stackObserver.ts` | One router subscription feeding the tracker and `utils/routeTrail`                      |
+
+Depth comes from the index react-router writes into each history entry, **never** from
+`window.history.length`. That value is global to the WebView and only grows — it counts entries a
+redirect replaced, pages from before the app loaded, and earlier sessions — so on a long-lived
+WebView it claims there is somewhere to go back to while the app sits on its first screen. Index 0
+is the app's first entry and nothing else, because the router back-fills `idx: 0` when it starts.
+
+`routes/index.tsx` mounts the observer, which is why the subscription is named here: `AppRuntime`
+and the debug overlay both sit above `RouterProvider`, so the component that creates the router is
+the only place that can subscribe to it.
+
+Not to be confused with `app/bridge/navigation/`, which is the push-tap seam
+([bridge/push-navigation.md](../bridge/push-navigation.md)).
+
 ## Verify
 
 ```bash

@@ -18,7 +18,7 @@ Two collaborators live outside the feature and are the reason a reader gets lost
 
 - **[`app/utils/routeTrail.ts`](../../../src/app/utils/routeTrail.ts)** — the ring buffer of visited
   paths. App-level because everything records into it.
-- **[`app/routes/routeObserver.ts`](../../../src/app/routes/routeObserver.ts)** — the only caller of
+- **[`app/navigation/stackObserver.ts`](../../../src/app/navigation/stackObserver.ts)** — the only caller of
   `recordRoute`, subscribed to the data router.
 
 ## Responsibilities
@@ -31,7 +31,7 @@ Two collaborators live outside the feature and are the reason a reader gets lost
 - **Sending.** `runtime.report.reportIssue` assembles the wire body, decides `silent`, and goes
   through the report repository like any other data call. It also attaches `user`, `cloud`, `env`
   and `url` — `buildReportContext` must not duplicate those.
-- **Route recording.** `routeObserver` does it; this feature only reads the buffer at submit time.
+- **Route recording.** `stackObserver` does it; this feature only reads the buffer at submit time.
 - **The entry row.** `SettingsPage` under [mypage](../mypage/README.md) owns it.
 - **Reading reports back.** admin-v2's report-logs console does.
 

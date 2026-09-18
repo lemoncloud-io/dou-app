@@ -1,4 +1,4 @@
-import { readHistoryIndex, routeStackTracker, type RouteStackTransition } from './routeStack';
+import { routeStackTracker, type RouteStackTransition } from './stackTracker';
 
 /** Shorthand: the tracker only ever sees these three fields. */
 const push = (pathname: string, index: number): RouteStackTransition => ({ pathname, action: 'PUSH', index });
@@ -122,26 +122,5 @@ describe('routeStackTracker', () => {
         routeStackTracker.getSnapshot().entries.push({ index: 9, pathname: '/injected', isCurrent: false });
 
         expect(paths()).toEqual(['/a']);
-    });
-});
-
-describe('readHistoryIndex', () => {
-    it('라우터가 심은 idx를 읽는다', () => {
-        window.history.pushState({ usr: null, key: 'abc', idx: 2 }, '');
-
-        expect(readHistoryIndex()).toBe(2);
-    });
-
-    // A pushState that bypassed the router. The caller needs to know the stack is unrecoverable here.
-    it('idx가 없으면 null을 준다', () => {
-        window.history.pushState({ someoneElse: true }, '');
-
-        expect(readHistoryIndex()).toBeNull();
-    });
-
-    it('history state 자체가 없어도 던지지 않는다', () => {
-        window.history.pushState(null, '');
-
-        expect(readHistoryIndex()).toBeNull();
     });
 });
