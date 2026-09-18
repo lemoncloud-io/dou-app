@@ -2,11 +2,25 @@
 // by the rest of this file regardless. The getAppScheme block below mutates and restores it.
 import Config from 'react-native-config';
 
-import { convertShortUrlWithEnvsSync, getAppScheme, resolveDeepLink, resolvePushTapPath } from './deeplinkUtils';
+import {
+    convertShortUrlWithEnvsSync,
+    getAppScheme,
+    isNewPatternInviteUrl,
+    isShortUrl,
+    resolveDeepLink,
+    resolvePushTapPath,
+} from './deeplinkUtils';
 
 jest.mock('react-native-config', () => ({
     default: { VITE_ENV: 'DEV' },
 }));
+
+// `@chatic/shared` is imported for its invite-link decoder, but its barrel also re-exports web-only
+// components that reach `@chatic/assets`, whose `import.meta.url` the CommonJS test transform cannot
+// parse. Point the specifier at the decoder module itself: the REAL decoder still runs here, which
+// is the point — the production bundler has no such limitation and takes the barrel as written.
+// Same workaround as useAppVersionCheck.test.ts / VersionService.test.ts, which stub it outright.
+jest.mock('@chatic/shared', () => jest.requireActual('../../../../../../libs/shared/src/utils/inviteLink'));
 
 // The converter emits a host-less relative URL; parse against a throwaway base to inspect it.
 const PARSE_BASE = 'https://base.local';
@@ -123,6 +137,96 @@ describe('convertShortUrlWithEnvsSync (릴레이 서버 초대 링크)', () => {
         const parsed = new URL(url, PARSE_BASE);
         expect(parsed.searchParams.get('_backend')).toBe('https://myapi.execute-api.ap-northeast-2.amazonaws.com/prod');
         expect(parsed.searchParams.has('relay')).toBe(false);
+    });
+});
+
+describe('convertShortUrlWithEnvsSync (인코딩 초대 링크 /i)', () => {
+    // Encoded the way the server does, with Node's own base64url — never with the decoder under test.
+    const token = (payload: Record<string, unknown>): string =>
+        Buffer.from(JSON.stringify(payload)).toString('base64url');
+
+    const CODE = 'invt:1000072-2:e3faf0d0';
+
+    it('{c,a,s}는 좌표를 _backend로 펼쳐 루트(/)로 변환한다', () => {
+        const { url } = convertShortUrlWithEnvsSync(
+            `https://app-dev.chatic.io/i?t=${token({ c: CODE, a: 'myapi', s: 'prod' })}`
+        );
+
+        // Asserted as an exact string, not through URLSearchParams: React Native's URL builds
+        // `.search` from the raw text, so only the assembled string proves the query survived.
+        expect(url).toBe(
+            '/?code=invt%3A1000072-2%3Ae3faf0d0&provider=invite&version=2' +
+                '&_backend=https%3A%2F%2Fmyapi.execute-api.ap-northeast-2.amazonaws.com%2Fprod'
+        );
+    });
+
+    it('{c,r:1}은 relay=1을 달고 _backend를 갖지 않는다', () => {
+        const { url } = convertShortUrlWithEnvsSync(`https://app-dev.chatic.io/i?t=${token({ c: CODE, r: 1 })}`);
+
+        expect(url).toBe('/?code=invt%3A1000072-2%3Ae3faf0d0&provider=invite&version=2&relay=1');
+    });
+
+    it('좌표 없는 {c}는 relay로 읽지 않는다 — 표식 없이 넘긴다', () => {
+        const { url } = convertShortUrlWithEnvsSync(`https://app-dev.chatic.io/i?t=${token({ c: CODE })}`);
+
+        const parsed = new URL(url, PARSE_BASE);
+        expect(parsed.searchParams.get('code')).toBe(CODE);
+        expect(parsed.searchParams.has('relay')).toBe(false);
+        expect(parsed.searchParams.has('_backend')).toBe(false);
+    });
+
+    it('r이 truthy면 좌표가 함께 와도 relay다', () => {
+        const { url } = convertShortUrlWithEnvsSync(
+            `https://app-dev.chatic.io/i?t=${token({ c: CODE, r: 1, a: 'myapi', s: 'prod' })}`
+        );
+
+        const parsed = new URL(url, PARSE_BASE);
+        expect(parsed.searchParams.get('relay')).toBe('1');
+        expect(parsed.searchParams.has('_backend')).toBe(false);
+    });
+
+    it('커스텀 스킴으로 들어온 /i도 같은 결과를 낸다', () => {
+        const { url } = convertShortUrlWithEnvsSync(`chatic-dev://i?t=${token({ c: CODE, r: 1 })}`);
+
+        expect(url).toBe('/?code=invt%3A1000072-2%3Ae3faf0d0&provider=invite&version=2&relay=1');
+    });
+
+    it('t 밖의 파라미터는 그대로 전달한다', () => {
+        const { url } = convertShortUrlWithEnvsSync(
+            `https://app-dev.chatic.io/i?t=${token({ c: CODE, r: 1 })}&utm_source=kakao`
+        );
+
+        const parsed = new URL(url, PARSE_BASE);
+        expect(parsed.searchParams.get('utm_source')).toBe('kakao');
+        expect(parsed.searchParams.has('t')).toBe(false);
+    });
+
+    it.each([
+        ['t가 없는 /i', 'https://app-dev.chatic.io/i'],
+        ['풀 수 없는 t', 'https://app-dev.chatic.io/i?t=!!!not-base64!!!'],
+        ['code 없는 payload', `https://app-dev.chatic.io/i?t=${token({ a: 'myapi', s: 'prod' })}`],
+    ])('%s는 던진다 — /s가 code 없을 때 던지는 자리와 같다', (_label, input) => {
+        jest.spyOn(console, 'error').mockImplementation(() => undefined);
+
+        expect(() => convertShortUrlWithEnvsSync(input)).toThrow('Unreadable encoded invite link');
+    });
+
+    // Neither `/s` predicate was changed to make this true; this pins that it already was, so a
+    // later edit to them cannot quietly start claiming `/i`.
+    it('기존 /s 판정기들은 /i를 자기 것으로 보지 않는다', () => {
+        const link = `https://app-dev.chatic.io/i?t=${token({ c: CODE, r: 1 })}`;
+
+        expect(isShortUrl(link)).toBe(false);
+        expect(isNewPatternInviteUrl(link)).toBe(false);
+    });
+
+    it('resolveDeepLink가 /i를 web 경로로 해석한다', () => {
+        const result = resolveDeepLink(`/i?t=${token({ c: CODE, r: 1 })}`);
+
+        expect(result).toEqual({
+            kind: 'web',
+            path: '/?code=invt%3A1000072-2%3Ae3faf0d0&provider=invite&version=2&relay=1',
+        });
     });
 });
 
