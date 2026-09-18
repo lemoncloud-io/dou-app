@@ -21,6 +21,13 @@ jest.mock('react-native', () => ({
     },
 }));
 
+// `@chatic/shared` is imported for its invite-link decoder, but its barrel also re-exports web-only
+// components that reach `@chatic/assets`, whose `import.meta.url` the CommonJS test transform cannot
+// parse. Point the specifier at the decoder module itself: the REAL decoder still runs here, which
+// is the point — the production bundler has no such limitation and takes the barrel as written.
+// Same workaround as useAppVersionCheck.test.ts / VersionService.test.ts, which stub it outright.
+jest.mock('@chatic/shared', () => jest.requireActual('../../../../../../libs/shared/src/utils/inviteLink'));
+
 // Mock react-native-config
 jest.mock('react-native-config', () => ({
     default: {

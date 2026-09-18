@@ -1,5 +1,7 @@
 import Config from 'react-native-config';
 
+import { decodeInviteLink, isEncodedInviteUrl } from '@chatic/shared';
+
 import type { ILogService } from '../log';
 
 /**
@@ -71,15 +73,24 @@ export const isDeepLinkDomain = (domain: string): domain is (typeof DEEP_LINK_DO
  * Safely parses any URL, including custom schemes, by normalizing them to standard HTTPS URLs first.
  * This ensures the pathname and query parameters are parsed correctly regardless of the scheme.
  */
-export const parseUrlSafe = (url: string): URL => {
-    let normalized = url;
+/**
+ * Rewrites a custom-scheme link to its https equivalent, leaving anything else untouched.
+ *
+ * `new URL('chatic://s?code=x')` puts `s` in the HOST and leaves the path empty, so every path test
+ * downstream would miss. Kept as a string transform (not a URL method) because the shared invite
+ * decoder takes the link as text and has no business knowing this app's private schemes.
+ */
+const normalizeSchemeForParsing = (url: string): string => {
     if (url.startsWith('chatic://')) {
-        normalized = url.replace('chatic://', 'https://app.chatic.io/');
-    } else if (url.startsWith('chatic-dev://')) {
-        normalized = url.replace('chatic-dev://', 'https://app-dev.chatic.io/');
+        return url.replace('chatic://', 'https://app.chatic.io/');
     }
-    return new URL(normalized);
+    if (url.startsWith('chatic-dev://')) {
+        return url.replace('chatic-dev://', 'https://app-dev.chatic.io/');
+    }
+    return url;
 };
+
+export const parseUrlSafe = (url: string): URL => new URL(normalizeSchemeForParsing(url));
 
 /**
  * Validates if a URL is a valid deep link
@@ -209,6 +220,50 @@ export const extractShortCode = (url: string): string | null => {
  * - Everything else passes through unchanged; resolveWebPath reduces it to pathname+search+hash.
  */
 export const convertShortUrlWithEnvsSync = (url: string): ConvertedUrlResult => {
+    // `/i` is checked first and shares nothing with the `/s` branch below. The two formats are read
+    // by different rules on purpose: `/s` treats a missing address as the relay signal, while `/i`
+    // states relay outright, so a cloud invite whose payload carries no coordinates must not be
+    // re-read as relay on the way through here.
+    const normalized = normalizeSchemeForParsing(url);
+    if (isEncodedInviteUrl(normalized)) {
+        try {
+            const target = decodeInviteLink(normalized);
+            if (!target) {
+                // Thrown, not returned: this is the same spot the `/s` branch throws on a missing
+                // code, and resolveDeepLink turns it into the `invalid` resolution that surfaces an
+                // error screen rather than dropping the user somewhere arbitrary.
+                throw new Error('Unreadable encoded invite link');
+            }
+
+            // Assembled as a string for the same reason the `/s` branch documents below: React
+            // Native's URL ignores URLSearchParams mutations when producing `.search`.
+            const query = [`code=${encodeURIComponent(target.code)}`, 'provider=invite', 'version=2'];
+            if (target.relay) {
+                query.push('relay=1');
+            } else if (target.backend) {
+                query.push(`_backend=${encodeURIComponent(target.backend)}`);
+            }
+            // Neither marker means a cloud invite that arrived without coordinates. It is forwarded
+            // unmarked rather than guessed at — the web decides where an address-less invite lands.
+
+            // Forward anything the token did not carry (utm_*, ref, …) so attribution survives.
+            parseUrlSafe(url).searchParams.forEach((value, key) => {
+                if (key !== 't') {
+                    query.push(`${encodeURIComponent(key)}=${encodeURIComponent(value)}`);
+                }
+            });
+
+            const relativeUrl = `/?${query.join('&')}`;
+            console.log('[UrlConverter] Encoded invite link parsed:', url, '→', relativeUrl);
+
+            return { url: relativeUrl };
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Unknown error';
+            console.error('[UrlConverter] Error parsing encoded invite link:', message);
+            throw error;
+        }
+    }
+
     if (isNewPatternInviteUrl(url)) {
         try {
             const parsed = parseUrlSafe(url);
