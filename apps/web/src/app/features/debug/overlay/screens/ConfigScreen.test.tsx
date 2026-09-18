@@ -57,7 +57,7 @@ describe('ConfigScreen', () => {
         clear.mockReturnValue({ ok: true });
     });
 
-    // 점 찍힌 키는 구현 세부다 — 레지스트리가 이미 사람이 읽는 이름과 한 문장 설명을 갖고 있다.
+    // The dotted key is an implementation detail — the registry already has a human-readable name and a one-sentence description.
     it('키 대신 이름과 설명, 값과 이긴 행을 보여준다', () => {
         render(<ConfigScreen />);
 
@@ -79,7 +79,7 @@ describe('ConfigScreen', () => {
         expect(screen.getByText('나머지 (1)')).toBeInTheDocument();
     });
 
-    // 잠금 화면이 잠금 스위치를 담는 순환을 막는다 (ADR-0080 결정 6).
+    // Prevents the circularity of the lock screen containing the lock switch itself (ADR-0080 decision 6).
     it('meta 키는 렌더하지 않는다', () => {
         snapshotAll.mockReturnValue([
             snap({ key: 'system.overridesUnlocked', entry: { ...snap().entry, meta: true } }),
@@ -89,7 +89,7 @@ describe('ConfigScreen', () => {
         expect(screen.queryByText('로그 업로드 보류')).not.toBeInTheDocument();
     });
 
-    // 자격증명이고 이 화면은 복사 가능하다 (ADR-0079 결정 16).
+    // It's a credential, and this screen is copyable (ADR-0079 decision 16).
     it('debug.entryCode 는 제외한다', () => {
         snapshotAll.mockReturnValue([snap({ key: 'debug.entryCode', value: '1234' })]);
         render(<ConfigScreen />);
@@ -104,14 +104,14 @@ describe('ConfigScreen', () => {
         ]);
         render(<ConfigScreen />);
 
-        // 키는 화면에 없지만 검색어로는 여전히 통한다.
+        // The key isn't shown on screen, but it still works as a search term.
         await userEvent.type(screen.getByPlaceholderText(/찾기/), 'relay');
         expect(screen.getByText('릴레이 주소')).toBeInTheDocument();
 
         expect(screen.queryByText('로그 업로드 보류')).not.toBeInTheDocument();
     });
 
-    // 레지스트리가 없을 때 빈 목록을 그냥 보여주면 "설정이 없다"로 읽힌다.
+    // Just showing an empty list when the registry is missing would read as "there is no configuration".
     it('레지스트리가 배선 전이면 그 사실을 말한다', () => {
         snapshotAll.mockReturnValue([]);
         render(<ConfigScreen />);
@@ -127,7 +127,7 @@ describe('ConfigScreen', () => {
         expect(copyTextWithResult).toHaveBeenCalledWith(expect.stringContaining('"origin": "local"'));
     });
 
-    // 재시도 횟수·타임아웃처럼 숫자로 조정하는 키가 이 화면에 오는 이유다.
+    // This is why a key tuned by a number, like retry count or timeout, belongs on this screen.
     it('숫자 키는 값을 입력해 로컬 레인에 쓴다', async () => {
         snapshotAll.mockReturnValue([numberSnap()]);
         render(<ConfigScreen />);
@@ -173,7 +173,7 @@ describe('ConfigScreen', () => {
         expect(clear).toHaveBeenCalledWith('log.upload.hold', { lane: 'local' });
     });
 
-    // 거부는 예외가 아니라 이유로 온다 — 아무 일도 안 한 컨트롤이 왜 그랬는지 말해야 한다.
+    // A rejection arrives as a reason, not an exception — a control that did nothing must say why.
     it('거부되면 이유를 그대로 보여준다', async () => {
         set.mockReturnValue({ ok: false, reason: 'locked' });
         render(<ConfigScreen />);
@@ -184,7 +184,7 @@ describe('ConfigScreen', () => {
         expect(screen.getByText('오버라이드 잠금이 걸려 있습니다')).toBeInTheDocument();
     });
 
-    // 쓸 수 없는 키에 컨트롤을 그리면 누른 사람이 바뀐 줄 안다.
+    // Rendering a control for a key that can't be written would make the person pressing it think it changed.
     it('이 기기가 못 쓰는 키는 컨트롤 대신 이유를 보여준다', async () => {
         snapshotAll.mockReturnValue([snap({ canWrite: ['shell'] })]);
         render(<ConfigScreen />);
@@ -214,7 +214,7 @@ describe('ConfigScreen', () => {
     });
 });
 
-// 목을 실제로 썼는지 확인 — config를 직접 참조해 임포트가 죽지 않게 한다.
+// Confirms the mock is actually used — references config directly so the import doesn't get dropped as dead.
 it('config 파사드를 통해 읽는다', () => {
     expect(typeof config.snapshotAll).toBe('function');
 });

@@ -119,8 +119,8 @@ describe('filterLogs — 질의 문법', () => {
     });
 
     it('data 본문까지 찾는다 — 식별 정보는 message가 아니라 payload에 있다', () => {
-        // message는 대개 일반적인 쪽("request failed")이고, 실제로 아는 단서는
-        // status·id·url처럼 payload에 있다. 그걸 못 찾으면 검색이 반쪽이다.
+        // The message is usually the generic side ("request failed"), and the actual identifying
+        // clues — status, id, url — live in the payload. Missing those would make search half-useless.
         const logs = [
             log({ message: 'request failed', data: { status: 503, url: '/hello/profile' } }),
             log({ message: 'request failed', data: { status: 200 } }),
@@ -154,9 +154,10 @@ describe('filterLogs — 질의 문법', () => {
     });
 
     it('망가진 질의도 그냥 텍스트로 다룬다 — 검색창이 거부하거나 터지면 안 된다', () => {
-        // 문법으로 안 읽히는 것은 리터럴로 떨어진다. `-` 하나는 "제외"가 아니라
-        // 하이픈 검색이고, `tag:` 하나는 태그 지정이 아니라 그 문자열 검색이다.
-        // 타이핑 도중의 중간 상태에서도 결과가 나오는 쪽이, 빈 화면이나 에러보다 낫다.
+        // Anything that doesn't parse as syntax falls back to a literal. A lone `-` isn't
+        // "exclude" but a hyphen search, and a lone `tag:` isn't a tag filter but a search for
+        // that literal string. Producing a result even from a mid-typing intermediate state is
+        // better than an empty screen or an error.
         const logs = [log({ message: 'a-b' }), log({ message: 'zzz' })];
 
         expect(filterLogs(logs, { levels: new Set(), query: '-' }).map(l => l.message)).toEqual(['a-b']);

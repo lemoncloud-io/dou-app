@@ -29,7 +29,7 @@ describe('useDebugOperation', () => {
         expect(result.current.result).toBe('비우기 → ok');
     });
 
-    // 구버전 앱이 명령을 모르면 reject된다. 실패를 성공으로 뭉개지 않는 것이 이 훅의 요점.
+    // An older app version rejects when it doesn't know the command. Not smoothing a failure over as a success is the whole point of this hook.
     it('reject는 실패로 적는다', async () => {
         const { result } = renderHook(() => useDebugOperation());
 
@@ -46,7 +46,7 @@ describe('useDebugOperation', () => {
         expect(result.current.result?.length).toBeLessThan(430);
     });
 
-    // post 기반 명령은 답이 없다 — 받은 척하면 결정 10을 어긴다.
+    // A post-based command gets no reply — pretending it was acknowledged would violate decision 10.
     it('fire는 확인이 없다는 사실을 밝힌다', () => {
         const operation = jest.fn();
         const { result } = renderHook(() => useDebugOperation());
@@ -57,8 +57,9 @@ describe('useDebugOperation', () => {
         expect(result.current.result).toBe('설정 열기 → 보냈습니다 (확인 없음)');
     });
 
-    // 웹이 앱보다 먼저 배포되므로 구버전 앱에서 핸들러가 없는 구간이 반드시 생긴다. 호스트의
-    // 원문("등록된 핸들러를 찾을 수 없습니다")을 그대로 보여주면 버전 차이를 버그로 쫓게 된다.
+    // Since the web ships before the app, there's inevitably a window where an older app has no
+    // handler. Showing the host's raw message ("등록된 핸들러를 찾을 수 없습니다") as-is would send
+    // someone chasing a version gap as if it were a bug.
     it('NOT_FOUND는 실패가 아니라 버전 차이로 말한다', async () => {
         const { result } = renderHook(() => useDebugOperation());
 
@@ -78,7 +79,7 @@ describe('useDebugOperation', () => {
         );
 
         expect(result.current.isUnsupported('FetchBootRecords')).toBe(true);
-        // 다른 명령까지 잠기면 안 된다 — 앱이 모르는 것은 그 하나다.
+        // Other commands must not be locked too — the app only doesn't know that one.
         expect(result.current.isUnsupported('DeleteFcmToken')).toBe(false);
     });
 

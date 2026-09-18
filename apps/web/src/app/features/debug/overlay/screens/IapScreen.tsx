@@ -8,15 +8,16 @@ import { CopyButton } from '../../components/CopyButton';
 import { appBridge } from '../../../../bridge';
 
 /**
- * In-app purchase plumbing — the app's IAP Test screen, moved here (ADR-0080 결정 11).
+ * In-app purchase plumbing — the app's IAP Test screen, moved here (ADR-0080 decision 11).
  *
  * All six commands already existed and the web's own `useSubscriptionIap` maps 1:1 onto them
- * (단계 1). What this screen adds over the product UI is the raw view: the store's answer verbatim,
- * so a mismatch between what Apple/Google returns and what the plan catalog expects is visible.
+ * (stage 1). What this screen adds over the product UI is the raw view: the store's answer
+ * verbatim, so a mismatch between what Apple/Google returns and what the plan catalog expects is
+ * visible.
  *
  * **Buying is `post`, not `request`** — the result arrives later as `OnPurchaseSuccess` or
- * `OnPurchaseError`, which is why this subscribes rather than awaiting. Saying "구매됨" off the
- * `purchase` call alone would be a claim the bridge never made (결정 10).
+ * `OnPurchaseError`, which is why this subscribes rather than awaiting. Saying "purchased" off the
+ * `purchase` call alone would be a claim the bridge never made (decision 10).
  */
 export const IapScreen = () => {
     const { result, run, fire } = useDebugOperation();

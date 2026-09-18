@@ -25,18 +25,18 @@ describe('DebugPanel — 하나의 패널', () => {
 
         expect(screen.getByRole('tab', { name: '상태' })).toBeInTheDocument();
         expect(screen.getByRole('tab', { name: 'DB 브라우저' })).toBeInTheDocument();
-        // 예전에는 메뉴에만 있던 화면 — 이제 칩에도 있다.
+        // A screen that used to be menu-only — now it's on the chip too.
         expect(screen.getByRole('tab', { name: '분할 업로드 테스트' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: '분할 업로드 테스트' })).toBeInTheDocument();
     });
 
-    // 브라우저에서 열면 눌러도 실패하는 버튼만 보이던 화면들이다.
+    // These are screens where, opened in a browser, you'd only see buttons that fail when pressed.
     it('셸이 없으면 앱 전용 화면에 배지를 단다', () => {
         render(<DebugPanel />);
 
         const row = screen.getByRole('button', { name: /푸시 \(토큰·수신\)/ });
         expect(row).toHaveTextContent('앱 전용');
-        // 셸이 필요 없는 화면은 그대로다.
+        // A screen that doesn't need the shell stays unchanged.
         expect(screen.getByRole('button', { name: '브릿지' })).not.toHaveTextContent('앱 전용');
     });
 
@@ -47,7 +47,7 @@ describe('DebugPanel — 하나의 패널', () => {
         expect(screen.getByRole('button', { name: /푸시 \(토큰·수신\)/ })).not.toHaveTextContent('앱 전용');
     });
 
-    // 화면을 렌더하고 실패하게 두는 대신, 셸이 없다는 사실을 셸(패널)이 한 곳에서 말한다.
+    // Instead of rendering the screen and letting it fail, the shell (the panel) states the fact that it's missing, in one place.
     it('셸이 없으면 앱 전용 화면 대신 이유를 보여준다', () => {
         debugOverlayActions.selectScreen('Sms');
         render(<DebugPanel />);
@@ -56,7 +56,7 @@ describe('DebugPanel — 하나의 패널', () => {
         expect(screen.queryByText(/작성 창 열기/)).not.toBeInTheDocument();
     });
 
-    // 앱 아이콘은 마이페이지에 제품 UI가 있고, 프로필 편집은 쓰이지 않았다.
+    // The app icon screen has real product UI on the my-page, and profile editing went unused.
     it('메뉴에서 뺀 화면은 어디에도 없다', () => {
         render(<DebugPanel />);
 
@@ -95,15 +95,15 @@ describe('DebugPanel — 하나의 패널', () => {
         expect(screen.getByRole('button', { name: '분할 업로드 테스트' })).toBeInTheDocument();
     });
 
-    // mini · dock · full 세 단계를 한 축으로 오르내린다.
+    // mini, dock, and full are three steps on one axis, moved one at a time.
     it('축소·확대는 세 크기를 한 단계씩 오간다', async () => {
         render(<DebugPanel />);
 
         await userEvent.click(screen.getByRole('button', { name: 'minimize' }));
         expect(getDebugOverlayState().size).toBe('mini');
-        // 제일 작은 단계에서는 더 줄일 수 없으므로 축소 버튼이 없다.
+        // At the smallest step, there's nowhere further to shrink, so no minimize button is shown.
         expect(screen.queryByRole('button', { name: 'minimize' })).not.toBeInTheDocument();
-        // 라벨은 접히지만 탭 자체는 남는다 — 접근 이름은 화면 제목으로 유지한다.
+        // The label collapses but the tab itself stays — its accessible name keeps the screen title.
         expect(screen.getByRole('tab', { name: '상태' })).toBeInTheDocument();
 
         await userEvent.click(screen.getByRole('button', { name: 'expand' }));

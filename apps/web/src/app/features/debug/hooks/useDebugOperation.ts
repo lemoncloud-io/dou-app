@@ -4,10 +4,10 @@ import { logger } from '@chatic/bridges';
 
 /**
  * The "press a button, the app does it, show what came back" loop every migrated screen needs
- * (ADR-0080 결정 11). Extracted after the third copy of it.
+ * (ADR-0080 decision 11). Extracted after the third copy of it.
  *
  * Two callers, because the bridge has two answer shapes and conflating them would let a screen
- * claim a confirmation it never got (결정 10):
+ * claim a confirmation it never got (decision 10):
  *
  * - `run` — for `webClient.request` commands. The app answers, so the line reports the response, and
  *   a rejection (including an older app that does not know the command) reports the failure.
