@@ -197,6 +197,8 @@ export const ChannelSettingsPage = () => {
         isDm: channel?.stereo === 'dm',
         peerId: dmPeer?.id,
         joins,
+        channel,
+        userId,
     });
 
     const openDialog = (type: DialogType) => setActiveDialog(type);

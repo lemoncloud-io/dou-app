@@ -179,3 +179,47 @@ describe('useDmInviteState — 재초대 프리필', () => {
         expect(result.current.resolveReinvitePrefill()).toEqual({});
     });
 });
+
+/**
+ * The shape a real departure takes (measured 2026-09-18): the server removes the peer from
+ * `channel.memberIds` and stops returning their join row, so `peerId` is undefined and `joins` is
+ * empty. Reading the join row alone left the room `present` with a live composer — the reported bug.
+ */
+describe('useDmInviteState — 로스터에서 상대가 사라진 경우', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockInvites = [];
+        mockSentLog = {};
+        mockIsExpired = false;
+    });
+
+    const roster = (memberIds?: string[]) => ({ stereo: 'dm' as const, memberIds });
+
+    it('join 행도 peerId도 없지만 로스터에 나만 남았으면 부재로 본다', () => {
+        const { result } = render({ peerId: undefined, joins: [], channel: roster(['me']), userId: 'me' });
+        expect(result.current.state.kind).not.toBe('present');
+    });
+
+    it('로스터에 상대가 있으면 present다', () => {
+        const { result } = render({ peerId: undefined, joins: [], channel: roster(['me', PEER]), userId: 'me' });
+        expect(result.current.state.kind).toBe('present');
+    });
+
+    // Reading an unhydrated roster as a departure would lock the composer for a beat every
+    // time a healthy room opens cold.
+    it('로스터가 비어 있으면(미로딩) present를 유지한다', () => {
+        const { result } = render({ peerId: undefined, joins: [], channel: roster([]), userId: 'me' });
+        expect(result.current.state.kind).toBe('present');
+    });
+
+    it('DM이 아니면 로스터를 보지 않는다', () => {
+        const { result } = render({
+            isDm: false,
+            peerId: undefined,
+            joins: [],
+            channel: { stereo: 'private', memberIds: ['me'] },
+            userId: 'me',
+        });
+        expect(result.current.state.kind).toBe('present');
+    });
+});
