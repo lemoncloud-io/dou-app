@@ -62,11 +62,11 @@ export const withRetry = async <T>(
         } catch (error) {
             lastError = error;
             const classification = classifyError(error);
-            // 인증 에러
+            // Authentication error
             if (classification.shouldLogout) {
                 hooks.onAuthFailure?.(error, `${context} - ${classification.message}`);
             }
-            // 재시도 불가능한 에러는 즉시 실패
+            // A non-retryable error fails immediately
             if (!classification.shouldRetry) {
                 hooks.onFatal?.({ error, message: classification.message });
                 throw error;

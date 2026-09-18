@@ -21,7 +21,7 @@ interface MemberListItemProps {
     needsProfileSetup?: boolean;
     /**
      * This member has left the room. Only 1:1 rooms list departed members at all, so this is the DM
-     * "대화방 나감" row (ADR-0068 결정 6). Distinct from `isPendingInvite`: one never arrived, the
+     * "left the chat" row (ADR-0068 decision 6). Distinct from `isPendingInvite`: one never arrived, the
      * other arrived and left — the join counter alone cannot tell them apart (see utils/membership),
      * which is why the caller decides and not this component.
      */
@@ -44,7 +44,7 @@ export const MemberListItem = ({
     const { t } = useTranslation();
 
     // Badge precedence: a pending invite wins (it carries its own greyed treatment),
-    // then the owner role (방장 — shown even on my own row when I own the room), then MY.
+    // then the owner role (room owner — shown even on my own row when I own the room), then MY.
     const badge = isPendingInvite
         ? { variant: 'pending' as const, label: t('chat.settings.badge.pending') }
         : isOwner

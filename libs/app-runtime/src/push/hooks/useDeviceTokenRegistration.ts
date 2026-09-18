@@ -105,7 +105,7 @@ export const useDeviceTokenRegistration = (delegate: DeviceTokenDelegate | null)
     const mutateRef = useRef(mutateAsync);
     mutateRef.current = mutateAsync;
 
-    // In-flight share + a burst floor, as the two extracted primitives (ADR-0076 결정 4).
+    // In-flight share + a burst floor, as the two extracted primitives (ADR-0076 Decision 4).
     // The floor is no longer the re-register interval — the record is (ADR-0077). What is left for it
     // is absorbing one physical foreground transition arriving twice (`focus` AND `visibilitychange`)
     // and keeping a failing first registration from retrying on every such event.

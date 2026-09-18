@@ -6,38 +6,40 @@ import { BaseDbAdapter } from '../base/BaseDbAdapter';
 import { CHAT_PAGINATION_INDEX, TYPE_CID_UID_INDEX, UNSENT_CHAT_NO } from './IndexedDBDatabase';
 
 /**
- * 브라우저가 저장 용량 때문에 쓰기를 거부했는가.
+ * Did the browser refuse the write because storage quota was exceeded?
  *
- * 한 군데에 둡니다 — 이 술어는 시간이 지나며 자라기 마련이고(Safari 레거시 `QUOTA_EXCEEDED_ERR`,
- * `code === 22`, 래핑된 에러), 복사본이 있으면 한쪽만 자라고 다른 쪽은 조용히 좁은 채로 남습니다.
- * 소비자가 `IndexedDBAdapter` 하나뿐이라 (ADR-0070 결정 5 이관) 여기 동거한다 — web-only 술어를
- * `@chatic/data`에 남기면 그 lib이 DOM 타입(`DOMException`)에 종속된다.
+ * Kept in one place — this predicate is bound to grow over time (Safari's legacy
+ * `QUOTA_EXCEEDED_ERR`, `code === 22`, wrapped errors), and a duplicated copy would only get
+ * updated on one side, leaving the other silently narrow. Since `IndexedDBAdapter` is the only
+ * consumer (moved here per ADR-0070 decision 5), it lives alongside it — leaving a web-only
+ * predicate in `@chatic/data` would tie that lib to a DOM type (`DOMException`).
  */
 export const isQuotaExceededError = (error: unknown): boolean =>
     error instanceof DOMException && error.name === 'QuotaExceededError';
 
 /**
- * eviction 대상의 하한. 미전송 행(`UNSENT_CHAT_NO` — 전송 중이거나 실패)은 서버 번호가 아직 없을 뿐
- * 오래된 것이 아니고, `useChats`가 "가장 최신"으로 정렬해 보여 주므로 항상 범위 밖에 둡니다.
+ * The lower bound of what's eligible for eviction. An unsent row (`UNSENT_CHAT_NO` — sending or
+ * failed) merely lacks a server number yet, it isn't old, and `useChats` always displays it
+ * sorted as "most recent", so it's always kept out of range.
  */
 const EVICTABLE_CHAT_NO_FLOOR = UNSENT_CHAT_NO + 1;
 
 export interface IndexedDBAdapterOptions<TType extends CacheType> {
-    /** 도메인별 쿼리 대리자 */
+    /** Per-domain query delegate */
     executor?: IndexedDbQueryExecutor<TType>;
     /**
-     * 'chat' 캐시의 채널당 보관 상한. 미지정이면 무제한(기존 동작)입니다.
-     * 상한을 넘으면 가장 오래된(chat_no가 낮은) 메시지부터 제거됩니다.
+     * The retention cap per channel for the 'chat' cache. Unlimited (existing behavior) if
+     * unspecified. When exceeded, the oldest messages (lowest chat_no) are removed first.
      */
     maxChatsPerChannel?: number;
 }
 
 /**
- * IndexedDB를 저장소로 사용하는 개별 캐시 스토리지 어댑터 클래스입니다.
- * BaseDbAdapter를 상속하여 스코프 계산 등의 기능을 상속하고,
- * 도메인별 쿼리 대리자(IndexedDbQueryExecutor)를 활용하여 역할을 분담합니다.
+ * An individual cache storage adapter class that uses IndexedDB as its store.
+ * Inherits scope-calculation and other capabilities from BaseDbAdapter, and splits
+ * responsibilities by delegating to a per-domain query delegate (IndexedDbQueryExecutor).
  *
- * @template TType 캐시 도메인 타입
+ * @template TType the cache domain type
  */
 export class IndexedDBAdapter<TType extends CacheType> extends BaseDbAdapter<TType> {
     constructor(
@@ -78,12 +80,14 @@ export class IndexedDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTy
     }
 
     /**
-     * 상한을 적용할 대상 채널들. 상한 미설정이거나 chat이 아니면 빈 배열입니다.
+     * The channels the cap should be applied to. Empty array if no cap is set or the type
+     * isn't chat.
      *
-     * 미전송 행(`chat_no === UNSENT_CHAT_NO`)만 쓴 경우는 제외합니다 — eviction 경계는
-     * `EVICTABLE_CHAT_NO_FLOOR` 이상만 보고 계산되므로, 그런 쓰기는 **답을 바꿀 수 없습니다.**
-     * 낙관적 전송·실패 재마킹·outbox 재전송이 전부 여기 해당해서, 보내는 쪽 경로의 프로브가
-     * 절반 가까이 사라집니다.
+     * Excludes a write that touched only unsent rows (`chat_no === UNSENT_CHAT_NO`) — the
+     * eviction boundary is computed by looking only at `EVICTABLE_CHAT_NO_FLOOR` and above, so
+     * such a write **can't change the answer.** Optimistic sends, failure re-marking, and
+     * outbox retransmission all fall into this case, which cuts out nearly half the probes on
+     * the sending path.
      */
     private cappedChannelIds(rows: IndexedDbRow<TType>[]): string[] {
         if (this.options.maxChatsPerChannel === undefined || this.type !== 'chat') return [];
@@ -92,8 +96,8 @@ export class IndexedDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTy
     }
 
     /**
-     * 상한이 설정된 경우에 한해 QuotaExceededError를 1회 복구 시도합니다.
-     * 상한이 없으면(기본값) 예외를 그대로 던져 기존 동작을 유지합니다.
+     * Attempts a single recovery from QuotaExceededError, but only when a cap is set.
+     * With no cap (the default), the exception is rethrown as-is to keep existing behavior.
      */
     private async writeWithQuotaRecovery(
         write: () => Promise<void>,
@@ -137,13 +141,16 @@ export class IndexedDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTy
     }
 
     /**
-     * 최신 limit개를 건너뛴 첫 인덱스 키 = 남길 수 없는 가장 새로운 행(제거 경계)입니다.
-     * 없으면 상한 이하이므로 아무것도 하지 않습니다.
+     * The first index key past the newest `limit` entries = the newest row that can't be kept
+     * (the removal boundary). If there is none, the count is already within the cap, so nothing
+     * happens.
      *
-     * 경계를 **절대 키**로 잡는 것이 핵심입니다. "몇 개 초과인지 세어 그만큼 오래된 쪽에서 읽는"
-     * 방식은 두 조회 사이에 다른 save가 오래된 쪽을 지우면 경계가 위로 밀려 아직 보이는 메시지까지
-     * 지웁니다. 절대 키는 그 사이 무슨 일이 있어도 "이 키 이하"라는 의미가 변하지 않습니다
-     * (동시 제거는 부분집합이 되고, 새 메시지 유입은 경계보다 위라 영향이 없습니다).
+     * The key is that the boundary is captured as an **absolute key**. An approach of "count how
+     * many are over, then read that many from the old end" would let a concurrent save that
+     * removes older rows between the two lookups push the boundary upward, deleting messages
+     * that are still visible. An absolute key keeps the meaning "at or below this key" fixed no
+     * matter what happens in between (a concurrent removal only becomes a subset, and new
+     * messages arriving land above the boundary and are unaffected).
      */
     private async evictChannelOverflow(scope: AdapterScope, channelId: string, limit: number): Promise<void> {
         const prefix = [this.type, scope.cid, scope.uid, channelId];
@@ -168,9 +175,10 @@ export class IndexedDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTy
     }
 
     /**
-     * 쓰기 + 상한 유지를 한 곳에 묶습니다. 상한 프로토콜은 세 단계(대상 채널 계산 → quota 복구를
-     * 낀 쓰기 → 상한 적용)가 순서대로 맞물려야 하는데, 호출부마다 그걸 다시 적으면 한 줄만 빠져도
-     * 상한이 조용히 꺼집니다. 새 쓰기 경로는 이 함수만 지나면 됩니다.
+     * Bundles the write together with cap enforcement in one place. The cap protocol needs
+     * three steps to interlock in order (compute target channels → write with quota recovery →
+     * apply the cap); rewriting that at every call site means missing just one line silently
+     * turns the cap off. A new write path only needs to go through this function.
      */
     private async persist(scope: AdapterScope, rows: IndexedDbRow<TType>[], write: () => Promise<void>): Promise<void> {
         const channelIds = this.cappedChannelIds(rows);

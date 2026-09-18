@@ -65,13 +65,14 @@ export class CacheCrudService implements ICacheCrudService {
     }
 
     /**
-     * 타입 → 데이터 소스. `fetchMany`만 이걸 씁니다.
+     * Type → data source. Only `fetchMany` uses this.
      *
-     * 다른 연산이 switch를 펼쳐 쓰는 건 도메인마다 인자 순서와 형태가 다르기 때문인데(`fetchAll`은
-     * (cid, query, uid), `save`는 (id, item, cid, uid)), `fetchMany`는 모든 도메인이 (ids, cid, uid)로
-     * 같아서 분기가 데이터 소스 선택 하나뿐입니다. 여기서 unsupported를 `null`로 답하는 규칙도
-     * 기존 `default` arm과 같습니다 — 웹이 앱보다 먼저 배포되므로 모르는 타입이 도착할 수 있고,
-     * 그때 던지면 브릿지 에러가 되어 웹의 폴백 판단을 어렵게 만듭니다.
+     * The other operations spell out their own switch because each domain's argument order/shape
+     * differs (`fetchAll` takes (cid, query, uid), `save` takes (id, item, cid, uid)), whereas every
+     * domain's `fetchMany` takes the same (ids, cid, uid), so the only branching needed is picking
+     * the data source. The rule of answering unsupported types with `null` here matches the existing
+     * `default` arm elsewhere — since the web ships ahead of the app, an unknown type can arrive,
+     * and throwing on it would turn into a bridge error that makes the web's fallback decision harder.
      */
     private getDataSource<K extends CacheType>(type: K): ICacheDataSource<CacheModelMap[K], CacheQueryMap[K]> | null {
         switch (type) {
@@ -111,9 +112,10 @@ export class CacheCrudService implements ICacheCrudService {
             const dataSource = this.getDataSource(type);
             if (!dataSource) return [];
 
-            // `fetchMany`는 선택 구현입니다. 없으면 `fetch`를 반복합니다 — 이래도 브릿지 왕복은
-            // 여전히 1회이므로 목적(왕복 접기)은 달성됩니다. 느려지는 건 인프로세스 SQLite 쿼리
-            // 횟수뿐이고, 그건 왕복 앞에서 무시할 수준입니다.
+            // `fetchMany` is optional to implement. If it's absent, we fall back to repeated
+            // `fetch` calls — the bridge round trip is still just 1, so the goal (folding round
+            // trips) is still met. All that slows down is the number of in-process SQLite queries,
+            // which is negligible next to a round trip.
             if (dataSource.fetchMany) {
                 return await dataSource.fetchMany(ids, cid, uid);
             }
@@ -239,11 +241,12 @@ export class CacheCrudService implements ICacheCrudService {
     }
 
     /**
-     * [조회] 채널별 최신 프리뷰 1건 + 최대 chat_no (chat 전용, ADR-0057).
+     * [Fetch] One latest preview per channel plus the max chat_no (chat only, ADR-0057).
      *
-     * `null`은 "답할 수 없음"입니다 — 웹은 그 읽기 1회만 채널별 윈도우 조회로 폴백합니다.
-     * 던지지 않고 null로 답하는 것은 다른 연산들의 오류 규칙과 같은 근거입니다: 웹이 앱보다
-     * 먼저 배포되므로 브릿지 에러는 폴백 판단만 어렵게 만듭니다.
+     * `null` means "cannot answer" — the web falls back to a per-channel windowed query for just
+     * that one read. Answering with null instead of throwing follows the same rationale as the
+     * other operations' error rules: since the web ships ahead of the app, a bridge error would
+     * only make the fallback decision harder.
      */
     public async fetchLastChats(payload: {
         type: 'chat';
@@ -355,7 +358,7 @@ export class CacheCrudService implements ICacheCrudService {
             }
 
             const ids = items.map((i: any) => i.id);
-            // 메타테이블 저장 로직 제거 완료
+            // Meta table save logic has been removed
             return ids;
         } catch (error) {
             this.logService.error('CACHE', `SaveAll error for type: ${type}`, error as Error);
@@ -488,14 +491,15 @@ export class CacheCrudService implements ICacheCrudService {
     }
 
     /**
-     * 한 채널의 행만 지웁니다 (ADR-0067). 방을 나가면 그 방의 메시지도 함께 사라져야 하는데,
-     * 스코프 전체를 지우는 `clear`로는 그걸 표현할 수 없다.
+     * Removes only the rows for one channel (ADR-0067). Leaving a room should also make that
+     * room's messages disappear, which `clear` (which wipes the whole scope) can't express.
      *
-     * chat만 받는다. `channel_id` 추출 컬럼은 join에도 있지만 웹이 join으로 이 메시지를 보내는
-     * 경로가 없어서, 생기면 그때 arm을 하나 더 연다.
+     * Only accepts chat. The `channel_id` extracted column also exists on join, but there's no
+     * path for the web to send this message for join, so we'll add another arm if that ever happens.
      *
-     * `clear`와 달리 오류를 삼키지 않는다 — 호출자(핸들러)가 응답의 `success`로 실패를 알려야
-     * 웹이 "지워졌다"고 잘못 믿지 않는다. 같은 이유로 빈 channelId도 조용히 넘기지 않는다.
+     * Unlike `clear`, this does not swallow errors — the caller (the handler) has to signal the
+     * failure through the response's `success` field so the web doesn't wrongly believe it was
+     * deleted. For the same reason, an empty channelId isn't silently allowed through either.
      */
     public async clearByChannel<K extends CacheType>(payload: {
         type: K;

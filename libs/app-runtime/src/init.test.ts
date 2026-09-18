@@ -93,7 +93,7 @@ describe('initAppRuntime', () => {
     });
 
     // The state log is the only way anyone learns what a device was actually configured with
-    // (ADR-0079 결정 16), and nothing else in the app asks for it — if this call goes missing the
+    // (ADR-0079 Decision 16), and nothing else in the app asks for it — if this call goes missing the
     // feature is simply absent, with no failing screen to notice. The registry is unwired here,
     // which is the point: the anchor line still goes out.
     it('records the config boot state', async () => {

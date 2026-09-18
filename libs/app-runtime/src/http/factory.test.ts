@@ -37,10 +37,12 @@ describe('getHttpManager — 인스턴스', () => {
     });
 });
 
-// 이 바인딩이 `http/`가 app-runtime 안에서 leaf일 수 있는 이유다. 세션을 아는 파일은 여기 하나뿐.
+// This binding is why `http/` can be a leaf inside app-runtime. This is the one file that knows about
+// the session.
 describe('자격증명 신선도 포트 — 어떤 route를 물어도 relay로 답한다', () => {
-    // relay가 유일한 서명 route이고, oauth·iap은 자기 자격증명이 없어 relay 것으로 서명한다.
-    // 이 매핑이 어댑터가 존재하는 이유다 — 포트는 route로 묻고 측정기는 소유자로 답한다.
+    // relay is the only signing route, and oauth/iap have no credential of their own so they sign
+    // with relay's. This mapping is why the adapter exists — the port asks by route and the gauge
+    // answers by owner.
     it.each(['relay', 'oauth', 'iap'] as const)('%s를 물어도 relay 자격증명을 본다', route => {
         portPassedIn().isStale(route);
 

@@ -84,7 +84,7 @@ export const onAuthFailure = (error: unknown, message: string): void => {
 
 /**
  * Assembles `HttpRuntimePorts` and hands back the `@chatic/http` client — the `SocketManager`
- * counterpart for HTTP (ADR-0070 결정 4). The staleness port is injected so this module imports
+ * counterpart for HTTP (ADR-0070 Decision 4). The staleness port is injected so this module imports
  * nothing from elsewhere in `app-runtime`; `http/factory.ts` is the one place that binds it to the
  * session stores.
  */

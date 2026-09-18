@@ -5,7 +5,7 @@ import type { HttpGatewayExecutor } from './types';
 
 /** `/users/*` · `/hello/user/*` relay resource wire vocabulary. */
 export interface UserHttpGateway {
-    /** GET {relay}/hello/user/list — admin user listing (실측: 소비처는 apps/admin뿐). */
+    /** GET {relay}/hello/user/list — admin user listing (observed: apps/admin is the only consumer). */
     list(params?: Record<string, unknown>): Promise<ListResult<UserView>>;
     /** GET {oauth}/users/0/profile, no-retry probe. Errors bubble — the "swallow and return null"
      * behavior of the pre-lib `tryFetchProfile` is a caller concern, not wire vocabulary. */

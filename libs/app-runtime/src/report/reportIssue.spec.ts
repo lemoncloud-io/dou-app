@@ -53,7 +53,7 @@ describe('reportIssue', () => {
         expect(submitIssue.mock.calls[0][0].silent).toBe(false);
     });
 
-    // 첨부 한 장이 Slack 텍스트 상한을 넘긴다 — 알림을 잃고 사진을 남긴다. @see ADR-0049
+    // A single attachment exceeds Slack's text cap — lose the notification, keep the photo. @see ADR-0049
     it('첨부가 있으면 저장만 한다 (silent: true)', async () => {
         await reportIssue('제목', '본문', { images: ['data:image/jpeg;base64,AAAA'] });
 

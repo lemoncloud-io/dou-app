@@ -1,23 +1,28 @@
 import type { ISqliteDatabase } from '../../database';
 
 /**
- * SQLite `?` 바인딩 상한(SQLITE_MAX_VARIABLE_NUMBER)에 걸리지 않도록 나눠 보낼 청크 크기입니다.
+ * The chunk size used to split queries so we don't hit SQLite's `?` binding limit
+ * (SQLITE_MAX_VARIABLE_NUMBER).
  *
- * op-sqlite가 쓰는 상한은 빌드에 따라 999 또는 32766인데, 낮은 쪽을 기준으로 잡아야 안전합니다.
- * id 청크당 cid/uid 바인딩 2개가 더 붙으므로 900으로 여유를 둡니다. 청크가 여러 개여도 브릿지
- * 왕복은 여전히 1회입니다 — 나뉘는 건 프로세스 안의 SQLite 쿼리뿐입니다.
+ * The limit op-sqlite uses is either 999 or 32766 depending on the build, so we have to stay under
+ * the lower one to be safe. Each id chunk also carries 2 more bindings for cid/uid, so we leave
+ * headroom at 900. Even with multiple chunks, the bridge round trip is still just 1 — only the
+ * in-process SQLite query gets split.
  */
 const MAX_IDS_PER_QUERY = 900;
 
 /**
- * id 목록으로 행을 한 번에 읽습니다. 모든 캐시 테이블이 `(cid, uid, id)` 복합 키와 `data` JSON
- * 컬럼이라는 같은 모양이라 도메인마다 복사할 이유가 없습니다.
+ * Reads rows in one pass from a list of ids. Every cache table shares the same shape — a
+ * `(cid, uid, id)` composite key plus a `data` JSON column — so there's no reason to duplicate
+ * this per domain.
  *
- * `WHERE` 조합은 각 데이터 소스의 `fetch`와 정확히 같은 규칙을 따릅니다 — `cid`/`uid`가 주어지면
- * 조건에 넣고, 없으면 넣지 않습니다(invitecloud는 전역 스코프라 둘 다 넘기지 않습니다). 규칙이
- * 어긋나면 배치 경로와 단건 경로가 다른 답을 내므로, 이 대응은 지켜져야 합니다.
+ * The `WHERE` composition follows exactly the same rule as each data source's `fetch` — `cid`/`uid`
+ * are added to the condition when given, and omitted when not (invitecloud is global scope, so it
+ * passes neither). If this rule ever diverges, the batch path and the single-fetch path would give
+ * different answers, so this correspondence must be maintained.
  *
- * 없는 id는 결과에서 그냥 빠집니다. 요청 순서도 보존하지 않습니다 — 호출자가 id로 다시 색인합니다.
+ * Missing ids are simply dropped from the result. Request order is not preserved either — the
+ * caller re-indexes by id.
  */
 export const fetchManyByIds = async <T>(
     database: ISqliteDatabase,
@@ -28,8 +33,8 @@ export const fetchManyByIds = async <T>(
 ): Promise<T[]> => {
     if (ids.length === 0) return [];
 
-    // 중복 id는 SQL 이전에 접습니다. 상위(cacheWriteMany)가 중복을 보낼 수 있고, 중복이 그대로
-    // 내려가면 같은 행이 여러 번 파싱되어 돌아옵니다.
+    // Duplicate ids are deduped before hitting SQL. The caller (cacheWriteMany) can send
+    // duplicates, and if they pass through as-is, the same row would be parsed and returned multiple times.
     const uniqueIds = Array.from(new Set(ids));
     const rows: T[] = [];
 

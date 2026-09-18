@@ -37,9 +37,9 @@ export interface DisplayNameSources {
     memberById: Map<string, MemberLike>;
     /** The signed-in user, so an unresolved self reads as "me" rather than as a stranger. */
     userId?: string | null;
-    /** Localized "알 수 없는 사용자". */
+    /** Localized "Unknown user". */
     unknownLabel: string;
-    /** Localized "나" — used only when the chain fails for the signed-in user themselves. */
+    /** Localized "Me" — used only when the chain fails for the signed-in user themselves. */
     meLabel: string;
 }
 

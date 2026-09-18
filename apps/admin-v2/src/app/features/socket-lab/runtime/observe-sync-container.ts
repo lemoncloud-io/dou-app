@@ -1,7 +1,7 @@
 /**
  * `runtime/observe-sync-container.ts`
- * - Observe 탭 전용 읽기 전용 WS 컨테이너 (스테이지당 1개, Probe 컨테이너와 분리)
- * - DeviceSyncPlan pull로 관측 디바이스 상태를 주기 동기화. auth.update 없이 device.save 등록만 수행.
+ * - A read-only WS container dedicated to the Observe tab (one per stage, separate from the Probe container)
+ * - Periodically syncs observed device state via a DeviceSyncPlan pull. Only registers via device.save, without auth.update.
  */
 import {
     createClientSocketV2,

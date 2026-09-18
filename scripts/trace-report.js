@@ -4,7 +4,7 @@
  * `path:line:col` frames — which an IDE terminal turns into clickable links, so
  * a report goes from the admin list to the editor in one command.
  *
- *   yarn trace                      # reads the clipboard (admin-v2 "IDE로 추적")
+ *   yarn trace                      # reads the clipboard (admin-v2 "Trace via IDE")
  *   pbpaste | yarn trace            # or stdin
  *   yarn trace --map <file.js.map>  # a map already on disk; skips the lookup
  *   yarn trace --project admin-v2   # override the app→project guess

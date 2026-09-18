@@ -1,6 +1,6 @@
 /**
  * `api/userApi.ts`
- * - 관측 유저 목록(실데이터).
+ * - List of observed users (real data).
  */
 import { runtime } from '@chatic/app-runtime';
 

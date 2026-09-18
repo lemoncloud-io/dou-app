@@ -3,7 +3,7 @@ import type { ICacheDataSource } from './types';
 import type { ISqliteDatabase } from '../../database';
 import { fetchManyByIds } from './fetchManyByIds';
 /**
- * 사이트(플레이스) 표시 프로필(Profile) 도메인 전용 데이터 소스
+ * Data source specific to the Profile domain used for site (place) display profiles
  *
  * Profile rows are keyed by the web layer as `${sid}@${uid}`, but native treats
  * that value as an opaque `id` and partitions solely by (cid, uid) like every
@@ -38,7 +38,7 @@ export class ProfileDataSource implements ICacheDataSource<CacheProfileView, Pro
     }
 
     /**
-     * 특정 클라우드/사용자 스코프의 전체 프로필 목록을 조회합니다.
+     * Fetches the full profile list for a specific cloud/user scope.
      * `sid` scoping is delegated to the web layer, so the query arg is unused.
      */
     public async fetchAll(cid?: string, _query?: ProfileQueryOptions, uid?: string): Promise<CacheProfileView[]> {

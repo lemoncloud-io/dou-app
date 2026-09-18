@@ -56,7 +56,7 @@ describe('DeviceInfoScreen — 조작 (ADR-0080 결정 11)', () => {
         expect(await screen.findByText(/홍길동/)).toBeInTheDocument();
     });
 
-    // MICROPHONE은 계약 union이 사본으로 갈라져 웹에서 못 부르던 권한이다 — 그게 이번 확장의 요점.
+    // MICROPHONE is a permission the web couldn't call because the contract union forked into a copy — that's the point of this expansion.
     it('권한 버튼 네 개가 계약의 토큰으로 요청한다 (MICROPHONE 포함)', async () => {
         requestPermission.mockResolvedValue({ data: { permission: 'CAMERA', status: 'GRANTED' } });
         render(<DeviceInfoScreen />);
@@ -76,7 +76,7 @@ describe('DeviceInfoScreen — 조작 (ADR-0080 결정 11)', () => {
         expect(await screen.findByText(/실패: CANCELLED/)).toBeInTheDocument();
     });
 
-    // post 기반이라 응답이 없다 — 받은 척하지 않는다.
+    // It's post-based, so there's no response — we don't pretend one was received.
     it('확인 응답이 없는 조작은 "확인 없음"이라고 밝힌다', async () => {
         render(<DeviceInfoScreen />);
 

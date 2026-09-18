@@ -40,7 +40,7 @@ describe('resolve-stack', () => {
                 { generatedColumn: 0, sourceIndex: 0, sourceLine: 0, sourceColumn: 0, nameIndex: undefined },
                 { generatedColumn: 9, sourceIndex: 0, sourceLine: 0, sourceColumn: 9, nameIndex: 0 },
             ]);
-            // 2행의 첫 세그먼트: 생성 열은 0으로 리셋, sourceColumn 은 9에서 이어진다.
+            // Row 2's first segment: the generated column resets to 0, sourceColumn continues from 9.
             expect(index[1][0]).toMatchObject({ generatedColumn: 0, sourceColumn: 9 });
         });
     });

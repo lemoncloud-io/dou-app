@@ -3,7 +3,7 @@
  * - Keeps the relay HTTP signing credentials fresh while the console stays open.
  *
  * The probe/refresh body lives in `@chatic/app-runtime`'s `runtime.session.useSessionStalenessGuard`
- * (ADR-0070 3단계 체크리스트 7). What is left here is admin-v2's POLICY — and that policy is now
+ * (ADR-0070, step 3, checklist item 7). What is left here is admin-v2's POLICY — and that policy is now
  * REFRESH ONLY: this guard no longer ends sessions.
  *
  * **Why the teardown is gone.** It was a second logout engine, and the speculative one. A relay

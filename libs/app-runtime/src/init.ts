@@ -30,7 +30,7 @@ let booted = false;
  * `configureSessionStore()`, and loading `connection` registered the credential recovery. That made
  * boot a consequence of which module someone happened to import first — invisible in the entry
  * point, impossible to order against the app's own setup, and silently skippable by a tree-shake or
- * an import reshuffle. ADR-0070 5단계 named the replacement and left it as follow-up work; this is it.
+ * an import reshuffle. ADR-0070 Step 5 named the replacement and left it as follow-up work; this is it.
  *
  * ## The ordering contract
  *
@@ -69,8 +69,8 @@ export const initAppRuntime = (config: AppRuntimeConfig = {}): void => {
     //
     // **Every route recovers the same way, because relay is the only credential that signs.** A relay
     // token has no parent to mint a new one from, so its only recovery is `auth.refresh` through the
-    // socket that owns it (ADR-0070 불변조건 1); `oauth`/`iap` sign with that same credential — their
-    // hosts have none of their own — so they take the same path (ADR-0076 결정 3). The `cloud` branch
+    // socket that owns it (ADR-0070 invariant 1); `oauth`/`iap` sign with that same credential — their
+    // hosts have none of their own — so they take the same path (ADR-0076 Decision 3). The `cloud` branch
     // that used to be here is gone with the route: nothing signs with the cloud credential any more,
     // so no failed request can blame it. Cloud re-issue is still real — it belongs to the guard that
     // watches the cloud SOCKET (`useCloudCredentialGuard` → `renewCloudSession`), not to HTTP.
@@ -87,7 +87,7 @@ export const initAppRuntime = (config: AppRuntimeConfig = {}): void => {
         configureDataRuntime(config.data);
     }
 
-    // Records this device's effective settings in the logs (ADR-0079 결정 16). Last, because the
+    // Records this device's effective settings in the logs (ADR-0079 Decision 16). Last, because the
     // boot line should describe the registry as the app will actually run with it, and unconditional
     // because every app that boots the runtime also boots the config registry. With the registry
     // unwired it degrades to a single "nothing is overridden" line rather than failing — the

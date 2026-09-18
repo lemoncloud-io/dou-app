@@ -47,7 +47,7 @@ describe('uploadLogBatch — 전송 경로', () => {
         const body = execute.mock.calls.at(-1)?.[0] as { list: { id: string; data?: string }[] };
         expect(Object.keys(body)).toEqual(['list']);
         expect(body.list.map(e => e.id)).toEqual(['a', 'b']);
-        // data는 서버 계약대로 문자열이어야 한다.
+        // data must be a string, per the server contract.
         expect(typeof body.list[1].data).toBe('string');
     });
 
@@ -107,9 +107,9 @@ describe('uploadLogBatch — 응답 분류', () => {
         await expect(uploadLogBatch([entry()])).resolves.toBe('discard');
     });
 
-    // 계정 전환은 흔한 경로고 큐는 로그아웃을 넘겨 살아남는다. 무세션 구간의
-    // 401/403에 배치를 버리면, 다음 세션이 부칠 수 있었던 엔트리를 그 직전에
-    // 잃는다 — 그것도 세션 문제의 정황이 담긴 바로 그 엔트리들을.
+    // Account switching is a common path, and the queue survives past logout. Discarding the batch on
+    // a 401/403 during the sessionless window would lose entries the next session could have mailed —
+    // and those are exactly the entries carrying the context of the session problem.
     it.each([401, 403])('%s는 폐기하지 않고 재시도한다 (지나가는 무세션 상태)', async status => {
         execute.mockRejectedValue(httpError(status));
 

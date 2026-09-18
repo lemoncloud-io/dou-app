@@ -13,7 +13,7 @@ import type { ReportLogRow } from './parseReportLog';
  */
 export const formatAbsolute = (ms?: number): string => (ms === undefined ? '-' : new Date(ms).toLocaleString());
 
-/** Compact relative time like "5분 전" / "2시간 전"; falls back to "-" for a missing instant. */
+/** Compact relative time like "5 minutes ago" / "2 hours ago" (rendered in Korean); falls back to "-" for a missing instant. */
 export const formatRelative = (ms?: number, now: number = Date.now()): string => {
     if (ms === undefined) return '-';
     const diff = Math.max(0, now - ms);

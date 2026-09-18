@@ -35,7 +35,7 @@ describe('trace-report', () => {
                 'c (libs/nope/also-missing.ts:2:0)',
             ].join('\n');
 
-            // scripts/ 는 apps|libs 접두어가 아니라 애초에 대상이 아니다.
+            // scripts/ isn't even a candidate — it doesn't have the apps|libs prefix.
             expect(missingLocally(resolved)).toEqual([
                 'apps/web/src/does-not-exist-here.ts',
                 'libs/nope/also-missing.ts',

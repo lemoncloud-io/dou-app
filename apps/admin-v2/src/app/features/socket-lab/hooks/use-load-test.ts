@@ -1,6 +1,6 @@
 /**
  * `hooks/use-load-test.ts`
- * - Probe/Load test 시뮬레이션
+ * - Probe/Load test simulation
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 

@@ -1,101 +1,102 @@
 import type { LastChatItem } from '@chatic/app-messages';
 
 /**
- * 모든 로컬 캐시 데이터 소스에 대한 인터페이스입니다.
- * 각 도메인(Chat, User 등)의 데이터 엑세스 로직을 규격화합니다.
+ * Interface for every local cache data source.
+ * Standardizes the data access logic for each domain (Chat, User, etc.).
  *
- * @template T - 캐시할 실제 데이터 모델의 타입 (예: CacheChatView)
- * @template Q - `fetchAll` 조회 시 사용할 도메인 특화 필터/페이징 조건 (기본값: void)
+ * @template T - the type of the actual data model to cache (e.g. CacheChatView)
+ * @template Q - domain-specific filter/paging conditions used for `fetchAll` (default: void)
  */
 export interface ICacheDataSource<T, Q = void> {
     /**
-     * 단일 캐시 데이터를 조회합니다.
+     * Fetches a single cached data item.
      *
-     * @param id - 조회할 데이터의 고유 ID (예: 메시지 ID, 유저 ID)
-     * @param cid - (선택) 데이터 격리를 위한 Cloud ID
-     * @param uid - (선택) 데이터 격리를 위한 User ID
-     * @returns 조회된 데이터 객체 또는 존재하지 않을 경우 `null`
+     * @param id - the unique ID of the data to fetch (e.g. message ID, user ID)
+     * @param cid - (optional) Cloud ID for data isolation
+     * @param uid - (optional) User ID for data isolation
+     * @returns the fetched data object, or `null` if it doesn't exist
      */
     fetch: (id: string, cid?: string, uid?: string) => Promise<T | null>;
 
     /**
-     * 다수의 데이터를 id 목록으로 한 번에 조회합니다. (`fetch`를 id마다 부르는 것과 결과 동일)
+     * Fetches multiple items in one pass from a list of ids. (Equivalent to calling `fetch` per id.)
      *
-     * 없는 id는 결과에서 빠지므로 반환 길이와 순서는 `ids`와 일치하지 않습니다. 호출자가 id로 다시
-     * 색인합니다.
+     * Missing ids are dropped from the result, so the returned length and order don't match `ids`.
+     * The caller re-indexes by id.
      *
-     * 선택 구현입니다 — 없으면 `CacheCrudService`가 `fetch`를 반복해서 채웁니다. 브릿지 왕복은
-     * 어느 쪽이든 1회이므로, 미구현이 성능 목표를 깨지는 않습니다.
+     * Optional to implement — if absent, `CacheCrudService` fills in by calling `fetch` repeatedly.
+     * Either way the bridge round trip is 1, so not implementing this doesn't break the performance goal.
      *
-     * @param ids - 조회할 데이터의 고유 ID 배열
-     * @param cid - (선택) 데이터 격리를 위한 Cloud ID
-     * @param uid - (선택) 데이터 격리를 위한 User ID
+     * @param ids - array of unique IDs of the data to fetch
+     * @param cid - (optional) Cloud ID for data isolation
+     * @param uid - (optional) User ID for data isolation
      */
     fetchMany?: (ids: string[], cid?: string, uid?: string) => Promise<T[]>;
 
     /**
-     * 다수(목록)의 캐시 데이터를 조건에 맞게 조회합니다.
+     * Fetches multiple (a list of) cached data items matching the given conditions.
      *
-     * @param cid - (선택) 데이터 격리를 위한 Cloud ID
-     * @param query - (선택) 도메인 특화 필터링, 정렬, 페이징 조건 (예: 채널 ID, limit 등)
-     * @param uid - (선택) 데이터 격리를 위한 User ID
-     * @returns 조회된 데이터 배열
+     * @param cid - (optional) Cloud ID for data isolation
+     * @param query - (optional) domain-specific filtering, sorting, and paging conditions (e.g. channel ID, limit, etc.)
+     * @param uid - (optional) User ID for data isolation
+     * @returns the array of fetched data
      */
     fetchAll: (cid?: string, query?: Q, uid?: string) => Promise<T[]>;
 
     /**
-     * 단일 데이터를 캐시에 저장합니다. (이미 존재하면 업데이트/Upsert)
+     * Saves a single data item to the cache. (Updates/upserts if it already exists.)
      *
-     * @param id - 저장할 데이터의 고유 ID
-     * @param item - 저장할 데이터 모델 객체
-     * @param cid - 데이터가 속한 Cloud ID (필수)
-     * @param uid - 데이터가 속한 User ID (필수)
+     * @param id - the unique ID of the data to save
+     * @param item - the data model object to save
+     * @param cid - the Cloud ID the data belongs to (required)
+     * @param uid - the User ID the data belongs to (required)
      */
     save: (id: string, item: T, cid: string, uid: string) => Promise<void>;
 
     /**
-     * 다수의 데이터를 성능 최적화를 위해 일괄(Batch)로 캐시에 저장합니다. (Upsert)
+     * Saves multiple data items to the cache in a batch for performance. (Upsert)
      *
-     * @param items - 저장할 데이터 식별자(`id`)와 실제 모델(`data`)을 포함하는 객체 배열
-     * @param cid - 데이터들이 속한 Cloud ID (필수)
-     * @param uid - 데이터들이 속한 User ID (필수)
+     * @param items - array of objects containing the data identifier (`id`) and the actual model (`data`) to save
+     * @param cid - the Cloud ID the data belongs to (required)
+     * @param uid - the User ID the data belongs to (required)
      */
     saveAll: (items: { id: string; data: T }[], cid: string, uid: string) => Promise<void>;
 
     /**
-     * 단일 데이터를 캐시에서 삭제합니다.
+     * Removes a single data item from the cache.
      *
-     * @param id - 삭제할 데이터의 고유 ID
-     * @param cid - 데이터가 속한 Cloud ID (필수)
-     * @param uid - 데이터가 속한 User ID (필수)
+     * @param id - the unique ID of the data to remove
+     * @param cid - the Cloud ID the data belongs to (required)
+     * @param uid - the User ID the data belongs to (required)
      */
     remove: (id: string, cid: string, uid: string) => Promise<void>;
 
     /**
-     * 다수의 데이터를 일괄(Batch)로 캐시에서 삭제합니다.
+     * Removes multiple data items from the cache in a batch.
      *
-     * @param ids - 삭제할 데이터들의 고유 ID 배열
-     * @param cid - 데이터들이 속한 Cloud ID (필수)
-     * @param uid - 데이터들이 속한 User ID (필수)
+     * @param ids - array of unique IDs of the data to remove
+     * @param cid - the Cloud ID the data belongs to (required)
+     * @param uid - the User ID the data belongs to (required)
      */
     removeAll: (ids: string[], cid: string, uid: string) => Promise<void>;
 
     /**
-     * 해당 데이터 소스(테이블)의 모든 캐시 데이터를 완전히 초기화(삭제)합니다.
-     * 주의: cid 구분 없이 해당 도메인의 전체 데이터가 날아갑니다.
+     * Completely resets (deletes) all cached data for this data source (table).
+     * Caution: this wipes all data for the domain regardless of cid.
      */
     clear: (cid?: string, uid?: string) => Promise<void>;
 }
 
 /**
- * chat 전용 확장.
+ * Extension specific to chat.
  *
- * - `fetchLastPerChannel` — 채널별 최신 프리뷰 1건 + 최대 chat_no 일괄 조회 (ADR-0057). 홈 채널
- *   목록의 `FetchLastChatsData`가 이 메서드 하나로 답합니다.
- * - `clearByChannel` — 한 채널의 행만 삭제 (ADR-0067). 방을 나가면 그 방의 메시지도 함께 사라져야
- *   하는데, 스코프 전체를 지우는 `clear`로는 그걸 표현할 수 없습니다.
+ * - `fetchLastPerChannel` — batch-fetches, per channel, one latest preview row plus the max
+ *   chat_no (ADR-0057). The home channel list's `FetchLastChatsData` is answered by this one method.
+ * - `clearByChannel` — removes only the rows for one channel (ADR-0067). Leaving a room should also
+ *   make that room's messages disappear, which `clear` (which wipes the whole scope) can't express.
  *
- * 둘 다 chat 외 도메인에는 성립하지 않거나 부르는 곳이 없으므로 공통 인터페이스가 아니라 확장입니다.
+ * Both are an extension rather than part of the common interface because neither applies to, or is
+ * called from, domains other than chat.
  */
 export interface IChatCacheDataSource<T, Q = void> extends ICacheDataSource<T, Q> {
     fetchLastPerChannel: (channelIds: string[], cid?: string, uid?: string) => Promise<LastChatItem[]>;

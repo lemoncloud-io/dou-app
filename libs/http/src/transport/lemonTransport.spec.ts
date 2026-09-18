@@ -8,7 +8,7 @@ const createFake = () => {
     const shouldRefreshToken = jest.fn().mockResolvedValue(false);
     const buildCredentialsByStorage = jest.fn().mockResolvedValue(undefined);
     // Present on the real SDK object but absent from `SealedWebTransport` — spied so the tests can
-    // assert the boot never reaches for them (ADR-0070 결정 2 불변조건 3).
+    // assert the boot never reaches for them (ADR-0070 decision 2, invariant 3).
     const init = jest.fn();
     const isAuthenticated = jest.fn();
 

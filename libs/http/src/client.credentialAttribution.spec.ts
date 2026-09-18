@@ -145,14 +145,15 @@ describe('signed request failure — credential attribution', () => {
         expect(classifyError(error)).toMatchObject({
             type: ErrorType.AUTHENTICATION,
             shouldRetry: false,
-            // 만료는 세션이 죽었다는 뜻이 아니다 — 재발급이 답이지 로그아웃이 아니다.
+            // Expiry doesn't mean the session is dead — reissuing credentials is the answer, not logging out.
             shouldLogout: false,
             refreshRoute: 'relay',
         });
     });
 
-    // 음성 대조군. 뒤집는 것은 에러의 모양이 아니라 표시라는 것 — 원래 `reportCategory.spec.ts`가
-    // 짝으로 들고 있던 검사인데, 자동 에러 리포트 폐지(ADR-0073)로 그 파일이 사라지면서 여기로 옮겼다.
+    // Negative control. What flips the classification is the marker, not the error's shape — this
+    // check used to live paired in `reportCategory.spec.ts`, and moved here when that file was
+    // removed by the automatic error report's retirement (ADR-0073).
     it('표시가 없는 같은 모양의 에러는 그대로 NETWORK다', async () => {
         execute.mockRejectedValue(networkError());
         const client = createHttpClient(
@@ -165,7 +166,7 @@ describe('signed request failure — credential attribution', () => {
             .catch(e => e);
 
         expect(classifyError(error)).toMatchObject({ type: ErrorType.NETWORK, shouldRetry: true });
-        // 재발급 대상이 지목되지 않아야 한다 — 회선 장애에 refresh를 쏘게 만들지 않는다.
+        // No reissue target should be named — a connectivity failure shouldn't trigger a refresh.
         expect(classifyError(error).refreshRoute).toBeUndefined();
     });
 

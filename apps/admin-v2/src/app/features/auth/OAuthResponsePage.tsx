@@ -30,7 +30,7 @@ export const OAuthResponsePage = () => {
                 // `runtime.session.createCredentialsByProvider` applies the relay session (setSessionAuthenticated +
                 // notify) so `isAuthenticated` is true before we navigate — otherwise ProtectedRoute
                 // bounces back to /auth/login. It used to build transport credentials only, which is
-                // why this page followed it with a refresh call (ADR-0070 불변조건 1·2).
+                // why this page followed it with a refresh call (ADR-0070, invariants 1 and 2).
                 await runtime.session.createCredentialsByProvider(provider, code);
 
                 let redirectTo = '/socket-lab';

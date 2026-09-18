@@ -70,8 +70,8 @@ describe('createLogUploadScheduler — 주기 트리거', () => {
     });
 
     it('엔트리가 아무리 쌓여도 주기 전에는 보내지 않는다 — 크기 트리거는 없다', async () => {
-        // notify가 사라진 결과다. 업로더는 엔트리를 관찰하지 않으므로(원칙 16)
-        // 큐가 얼마나 찼는지 알 방법이 없고, 알 필요도 없다.
+        // A consequence of notify being gone. Since the uploader doesn't observe entries
+        // (principle 16), it has no way to know how full the queue is, and no need to.
         const h = createHarness();
         const queue = createLogUploadQueue();
         const send = jest.fn(async (): Promise<UploadOutcome> => 'ok');
@@ -254,7 +254,7 @@ describe('createLogUploadScheduler — 시도 상한 (무한 재전송 차단)',
 
         await scheduler.flushNow(); // attempt 1
         await h.fire(); // attempt 2
-        await h.fire(); // attempt 3 → 상한 소진
+        await h.fire(); // attempt 3 → cap exhausted
 
         expect(send).toHaveBeenCalledTimes(3);
         expect(queue.size()).toBe(0);
@@ -394,10 +394,10 @@ describe('createLogUploadScheduler — onSettled (영속화 훅)', () => {
 
 describe('createLogUploadScheduler — 백오프 무단 통과 방지 (회귀)', () => {
     it('백오프 중에 엔트리가 아무리 쌓여도 사다리를 뛰어넘지 않는다', async () => {
-        // 원래 이 회귀는 notify의 크기 트리거가 백오프를 무시하고 재발사해
-        // 시도 예산을 한순간에 태우는 것이었다. notify가 사라져 그 경로 자체가
-        // 없어졌지만, 성질은 그대로 고정해 둔다 — 주기 외에 보내는 길이 다시
-        // 생기면 여기서 걸린다.
+        // This regression originally happened because notify's size trigger ignored the
+        // backoff and fired again, burning the attempt budget all at once. That path is gone
+        // now that notify is gone, but the property is pinned down here anyway — if a way to
+        // send outside the cycle ever reappears, it gets caught here.
         const h = createHarness();
         const queue = createLogUploadQueue();
         const send = jest.fn<Promise<UploadOutcome>, [LogEntry[]]>().mockResolvedValue('retry');
@@ -487,9 +487,10 @@ describe('createLogUploadScheduler — 저장소 포트', () => {
     });
 
     it('전송 성공 후 ack이 실패해도 파이프라인이 멈추지 않는다', async () => {
-        // ack 실패는 삼킨다. 저장소가 엔트리를 계속 들고 있으므로 다음 주기에 다시
-        // 나가고, 서버의 id 업서트가 중복을 흡수한다. 던지면 타이머를 못 걸어
-        // 파이프라인이 영구히 조용해진다 — 중복 요청보다 나쁜 결과다.
+        // An ack failure is swallowed. The store keeps holding the entry, so it goes out again
+        // next cycle, and the server's id upsert absorbs the duplicate. If it were thrown
+        // instead, the timer would never get scheduled and the pipeline would go silent
+        // forever — a worse outcome than a duplicate request.
         const h = createHarness();
         const held = [entry()];
         const send = jest.fn<Promise<UploadOutcome>, [LogEntry[]]>().mockResolvedValue('ok');
@@ -516,8 +517,9 @@ describe('createLogUploadScheduler — 저장소 포트', () => {
     });
 
     it('겹친 flush가 같은 배치를 두 번 보내지 않는다 — 비파괴 peek의 함정', async () => {
-        // peek이 비파괴라 진행 중 flush를 막지 않으면 두 사이클이 같은 배치를
-        // 집어 두 번 전송한다. 서버는 id 업서트로 버티지만 대역폭과 시도 횟수는 우리 몫이다.
+        // Since peek is non-destructive, without something blocking a flush already in
+        // progress, two cycles would grab the same batch and send it twice. The server
+        // survives it via id upsert, but the bandwidth and attempt count are on us.
         const h = createHarness();
         const held = [entry()];
         let resolveSend: ((outcome: UploadOutcome) => void) | undefined;
@@ -543,7 +545,7 @@ describe('createLogUploadScheduler — 저장소 포트', () => {
         const first = scheduler.flushNow();
         await Promise.resolve();
         await Promise.resolve();
-        // 첫 사이클이 send에서 대기 중인 상태로 두 번째 flush를 시도한다.
+        // Attempt a second flush while the first cycle is still waiting inside send.
         await scheduler.flushNow();
 
         expect(send).toHaveBeenCalledTimes(1);

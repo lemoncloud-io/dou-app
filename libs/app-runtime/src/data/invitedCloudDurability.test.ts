@@ -4,7 +4,8 @@ jest.mock('./cacheStorageRouting', () => ({ isNativeApp: () => true }));
 
 const mockIssue = jest.fn();
 
-// `delegateCloud`는 `auth` repository에서 온다 — data가 세션 폴더를 되짚을 이유가 없어졌다.
+// `delegateCloud` comes from the `auth` repository — data no longer has any reason to reach back into
+// the session folder.
 jest.mock('./runtime', () => ({
     getRepositories: () => ({ auth: { delegateCloud: (...args: unknown[]) => mockIssue(...args) } }),
 }));

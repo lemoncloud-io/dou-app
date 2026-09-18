@@ -11,7 +11,7 @@ import { resolveDmInviteState, type DmInviteState } from '../utils/dmInviteState
  * How often to re-ask `invite.list` while the 1:1 peer is gone.
  *
  * Matches the waiting screen's cadence, because it is the same wait: the recipient accepts or
- * declines on THEIR device and there is no notification packet for it (백엔드 요청 #4), so the only
+ * declines on THEIR device and there is no notification packet for it (backend request #4), so the only
  * way to learn is to ask. Paused automatically while the window is in the background.
  */
 const PEER_ABSENT_POLL_MS = 30_000;
@@ -29,7 +29,7 @@ interface UseDmInviteStateInput {
 /**
  * What the re-invite form can be opened with. Both fields are best-effort: the server never returns
  * a full phone number (only a masked `last4`), so the only source is this device's own issue log.
- * An empty prefill is a normal outcome — the form then asks for the number (ADR-0068 결정 3).
+ * An empty prefill is a normal outcome — the form then asks for the number (ADR-0068 decision 3).
  */
 export interface DmReinvitePrefill {
     name?: string;

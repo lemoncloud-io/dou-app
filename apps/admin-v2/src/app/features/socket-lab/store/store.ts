@@ -6,9 +6,9 @@ export interface Store<T> {
     upsert(key: string, value: T): void;
     read(key: string): T | undefined;
     readAll(): ReadonlyMap<string, T>;
-    /** 변경 통지(키 무관). 반환값으로 구독 해제 */
+    /** Change notification (key-agnostic). Returns a function that unsubscribes. */
     subscribe(listener: () => void): () => void;
-    /** useSyncExternalStore getSnapshot 식별용 — 변경 시 증가 */
+    /** For `useSyncExternalStore`'s `getSnapshot` identity check — increments on change */
     version(): number;
     remove(key: string): void;
     clear(): void;
@@ -33,7 +33,7 @@ export const createMemoryStore = <T>(backing?: StoreBacking<T>): Store<T> => {
         upsert(key, value) {
             map.set(key, value);
             bump();
-            // 캐시 DB write-through — fire-and-forget(UI 읽기는 mirror가 정본이라 await 불요)
+            // Write-through to the cache DB — fire-and-forget (no need to await, since UI reads treat the mirror as the source of truth)
             backing?.write(key, value).catch(() => void 0);
         },
         read(key) {

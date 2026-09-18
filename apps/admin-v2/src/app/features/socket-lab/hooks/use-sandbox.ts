@@ -42,7 +42,7 @@ export function useSandbox(endpoint: string): Sandbox {
     const addClient = useCallback(() => {
         const map = ctrlRef.current;
         if (!map || map.size >= MAX) return;
-        // 빈 슬롯(A→D 순)에 배정 — 항상 A,B부터 채우고 중간 제거 후 추가해도 문자 중복 없음.
+        // Assign the empty slot (in A→D order) — always fills A, B first, so even removing one in the middle and adding again never duplicates a letter.
         const used = new Set([...map.values()].map(c => c.letter));
         const slot = LETTERS.findIndex(l => !used.has(l));
         if (slot < 0) return;

@@ -21,8 +21,8 @@ export const ModalScreen = () => {
     const panY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
 
     /**
-     * - 시트 높이 비율; 기본 값 0.9
-     * - full 시트는 높이 비율 관계없이 최대 높이로 고정
+     * - Sheet height ratio; defaults to 0.9
+     * - A full sheet is fixed to the maximum height regardless of the height ratio
      */
     const targetRatio: number = isSheet ? (heightRatio ?? 0.9) : 1;
     const sheetHeight: number = SCREEN_HEIGHT * targetRatio;

@@ -103,7 +103,7 @@ export const useWatchlist = (): Watchlist => {
     const [syncStates, setSyncStates] = useState<Record<UsersStage, ClientSocketState>>({ d1: 'idle', v1: 'idle' });
     const [lastSyncAts, setLastSyncAts] = useState<Record<UsersStage, number | null>>({ d1: null, v1: null });
     const containers = useRef<Partial<Record<UsersStage, ObserveSyncContainer>>>({});
-    // 구독 콜백에서 최신 값 참조용
+    // For referencing the latest value inside subscription callbacks
     const stageRef = useRef(stage);
     stageRef.current = stage;
     const observedRef = useRef(observed);

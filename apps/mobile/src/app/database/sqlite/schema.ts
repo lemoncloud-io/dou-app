@@ -20,7 +20,7 @@ export const MIGRATIONS: Record<number, string[]> = {
         `CREATE INDEX IF NOT EXISTS idx_channel_cid_uid_sid ON ${TABLES.CHANNELS} (cid, uid, sid);`,
 
         /**
-         * Chat (검색 및 정렬 최적화를 위해 channel_id, created_at 별도 컬럼 추출)
+         * Chat (channel_id and created_at are extracted into separate columns to optimize search and sorting)
          * - key
          *  - id : chat id
          *  - cid : cloud id
@@ -85,7 +85,7 @@ export const MIGRATIONS: Record<number, string[]> = {
 
         /**
          * InviteCloud
-         * - cid 없이 초대된 cloud 정보 저장
+         * - Stores invited cloud info without a cid
          * - key
          * - id: site id
          */
@@ -96,9 +96,9 @@ export const MIGRATIONS: Record<number, string[]> = {
 
         /**
          * Meta Table
-         * - key: 쿼리 옵션(query)을 직렬화한 고유 식별자
-         * - uid: 사용자 스코프 분리를 위한 식별자
-         * - data: { ids: string[], uid?: string } 형태의 JSON
+         * - key: a unique identifier that serializes the query options
+         * - uid: identifier used to separate user scopes
+         * - data: JSON in the shape { ids: string[], uid?: string }
          */
         `CREATE TABLE IF NOT EXISTS ${TABLES.METAS} (
         type TEXT NOT NULL,

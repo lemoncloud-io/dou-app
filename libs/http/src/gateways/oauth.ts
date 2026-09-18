@@ -37,7 +37,7 @@ export const isAwsAccountNo = (value: string): boolean => /^\d{12}$/.test(value)
  * (`delegate-cloud`, `invite-code`) that hand out session material. Full surface lives here; the
  * data-layer `HttpGatewayBundle` (`libs/data/src/remote/gateways/http.ts`) deliberately
  * `Pick<>`s only the non-session actions out of it — `login`/`exchangeToken`/`delegateCloud`/
- * `registerDevice` stay reachable only through this gateway directly (3단계 `session/auth`).
+ * `registerDevice` stay reachable only through this gateway directly (stage 3 `session/auth`).
  */
 export interface OAuthHttpGateway {
     registerDevice(deviceId: string): Promise<UserTokenView>;
@@ -56,9 +56,10 @@ export interface OAuthHttpGateway {
      * token. Session-material-producing (returns a `Token`), so it is deliberately absent from
      * `data`'s `AuthHttpDomainGateway` Pick and reachable only from `session/auth`. */
     verifyNativeToken(body: VerifyNativeTokenBody): Promise<UserTokenView>;
-    /** `POST {oauth}/oauth/{provider}/token` — OAuth 인가 코드를 relay 자격증명으로 교환한다.
-     * 세션 재료를 만드는 유일한 경로(refresh는 갱신이라 없는 토큰을 만들지 못한다)라
-     * `data`의 Pick에서 제외돼 있고 `session/auth`에서만 닿는다. relay가 아니라 oauth 호스트다. */
+    /** `POST {oauth}/oauth/{provider}/token` — exchanges an OAuth authorization code for relay
+     * credentials. It's the only path that produces session material (refresh only renews, so
+     * it can't mint a token that doesn't exist yet), so it's deliberately excluded from `data`'s
+     * Pick and reachable only from `session/auth`. It's the oauth host, not relay. */
     exchangeCode(input: { provider: string; code: string }): Promise<UserTokenView>;
     inviteInfo(input: { code: string; backend: string }): Promise<MyInviteView>;
 }

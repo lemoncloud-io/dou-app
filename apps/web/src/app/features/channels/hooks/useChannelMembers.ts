@@ -25,10 +25,10 @@ interface UseChannelMembersParams {
     /**
      * Keep members who have left in the list instead of dropping them (default `false`).
      *
-     * For 1:1 rooms only (ADR-0068 결정 6). A DM is one other person, so losing them from the roster
+     * For 1:1 rooms only (ADR-0068 decision 6). A DM is one other person, so losing them from the roster
      * loses the room's identity: the header would stop naming them and `useDmPeer` would return
      * `null`, taking the departure notice and the re-invite CTA with it. Settings also owes the user
-     * a "대화방 나감" row rather than an empty 방 친구 section.
+     * a "left the chat" row rather than an empty "room friend" section.
      *
      * A group stays filtered. Departed members piling up in an active group's member list is the
      * problem the filter was added for — and the old bug where a `joined: 0` row read as a pending

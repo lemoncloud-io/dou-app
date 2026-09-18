@@ -8,8 +8,9 @@ interface ResumeOverlayProps {
 }
 
 /**
- * iOS 백그라운드 복귀 화면 깜빡임 방지 및 초기 로딩 시 웹뷰 영역을 가려주기 위한 오버레이 화면입니다.
- * 테마 색상(Light/Dark)에 맞게 백그라운드를 단색으로 칠하고 로고 이미지를 중앙에 배치합니다.
+ * An overlay screen that prevents a flash when iOS resumes from the background and covers the
+ * WebView area during initial load.
+ * Fills the background with a solid color matching the theme (Light/Dark) and centers the logo image.
  */
 export const ResumeOverlay = ({ isDark }: ResumeOverlayProps) => (
     <View style={[styles.resumeOverlay, { backgroundColor: getThemeBackgroundColor(isDark) }]}>

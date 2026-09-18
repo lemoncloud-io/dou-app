@@ -6,7 +6,7 @@ import type { DataContext, DataRepositories } from '@chatic/data';
 
 /**
  * `ensure(context)` and `destroy()` are gone. They had already become no-ops when the scope moved to
- * read-time derivation (ADR-0070 결정 7) — there is nothing to commit and nothing local to reset —
+ * read-time derivation (ADR-0070 Decision 7) — there is nothing to commit and nothing local to reset —
  * and a method that accepts a context while ignoring it invites a caller to believe pushing one
  * works. Clearing the SESSION is the logout path's job; the scope follows it.
  */

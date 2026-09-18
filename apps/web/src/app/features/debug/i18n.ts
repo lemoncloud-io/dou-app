@@ -8,7 +8,7 @@ import type { DebugScreenKey, DebugSectionKey } from './overlay/screenManifest';
  * Every word the debug panel shows, one table per language.
  *
  * Two problems this fixes at once. Labels used to be written next to whatever registered the
- * screen, so the same panel said `Email Login` and `앱 아이콘` in one list (ADR-0080 §맥락 1 saw the
+ * screen, so the same panel said `Email Login` and `App Icon` in one list (ADR-0080 §Context 1 saw the
  * same drift between web and app). And the tables are typed by `DebugScreenKey`, so a new screen
  * cannot be added without naming it in BOTH languages — the compiler asks.
  *
@@ -116,7 +116,7 @@ const TABLES: Record<'ko' | 'en', DebugStrings> = { ko, en };
 /** Exported for the manifest test: every screen must be named in every language. */
 export const DEBUG_LOCALE_TABLES = TABLES;
 
-/** Korean is the fallback: the QA docs this panel is used against are Korean (ADR-0080 결정 3). */
+/** Korean is the fallback: the QA docs this panel is used against are Korean (ADR-0080 decision 3). */
 const tableFor = (language: string | undefined): DebugStrings =>
     language?.toLowerCase().startsWith('en') ? TABLES.en : TABLES.ko;
 

@@ -7,7 +7,7 @@
  * message" to ask it for (`logFacets.ts` explains the same constraint). The header above
  * this table states the scope.
  *
- * `최근` is occurrence time, matching the list, so a group's latest is the latest thing
+ * "Last occurred" is occurrence time, matching the list, so a group's latest is the latest thing
  * that actually happened rather than the last upload to land.
  */
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@chatic/ui-kit/components/ui/table';
