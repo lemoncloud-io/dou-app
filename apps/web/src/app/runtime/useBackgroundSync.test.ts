@@ -95,7 +95,7 @@ describe('useBackgroundSync — 백그라운드 동기화', () => {
     it('verified 상승 엣지(false→true)에서 1회 동기화한다', async () => {
         setVerified(false);
         const { rerender } = renderHook(() => useBackgroundSync());
-        expect(refreshList).not.toHaveBeenCalled(); // false 유지 중에는 미실행
+        expect(refreshList).not.toHaveBeenCalled(); // not executed while it stays false
 
         setVerified(true);
         await act(async () => {
@@ -111,7 +111,7 @@ describe('useBackgroundSync — 백그라운드 동기화', () => {
         setVerified(true);
         renderHook(() => useBackgroundSync());
 
-        await act(async () => undefined); // 마운트 상승 엣지 flush
+        await act(async () => undefined); // mount rising-edge flush
         expect(syncChannels).toHaveBeenCalledTimes(1);
 
         await act(async () => {
@@ -134,7 +134,7 @@ describe('useBackgroundSync — 백그라운드 동기화', () => {
         await act(async () => {
             jest.advanceTimersByTime(60_000);
         });
-        expect(syncChannels).toHaveBeenCalledTimes(afterMount); // 타이머가 호출을 추가하지 않음
+        expect(syncChannels).toHaveBeenCalledTimes(afterMount); // timer adds no call
 
         jest.useRealTimers();
     });
@@ -363,7 +363,7 @@ describe('useBackgroundSync — 백그라운드 동기화', () => {
     it('포그라운드 복귀에서도 초대 목록을 갱신한다', async () => {
         setVerified(true);
         renderHook(() => useBackgroundSync());
-        await act(async () => undefined); // 마운트 상승 엣지 flush
+        await act(async () => undefined); // mount rising-edge flush
         inviteList.mockClear();
 
         await fireForeground();
@@ -376,15 +376,15 @@ describe('useBackgroundSync — 백그라운드 동기화', () => {
         setVerified(true);
         renderHook(() => useBackgroundSync());
         await act(async () => undefined);
-        expect(inviteList).toHaveBeenCalledTimes(1); // 엣지 1회
+        expect(inviteList).toHaveBeenCalledTimes(1); // fires once, on the edge
 
         await act(async () => {
             jest.advanceTimersByTime(60_000);
         });
 
-        expect(inviteCacheReadList).toHaveBeenCalled(); // 캐시로 판단하고
-        expect(inviteList).toHaveBeenCalledTimes(1); // 패킷은 추가하지 않는다
-        expect(syncChannels).toHaveBeenCalledTimes(2); // 다른 도메인은 평소대로 돈다
+        expect(inviteCacheReadList).toHaveBeenCalled(); // decided from cache
+        expect(inviteList).toHaveBeenCalledTimes(1); // adds no fetch
+        expect(syncChannels).toHaveBeenCalledTimes(2); // other domains still run as usual
 
         jest.useRealTimers();
     });
@@ -448,7 +448,7 @@ describe('useBackgroundSync — 백그라운드 동기화', () => {
         });
 
         expect(inviteList).not.toHaveBeenCalled();
-        expect(syncChannels).toHaveBeenCalledTimes(1); // 나머지 레인은 그대로 돈다
+        expect(syncChannels).toHaveBeenCalledTimes(1); // the rest of the lane still runs
     });
 
     it('클라우드 세션에서는 초대 목록을 갱신하지 않는다 — relay-pinned이고 default 클라우드에서만 렌더된다', async () => {
@@ -462,7 +462,7 @@ describe('useBackgroundSync — 백그라운드 동기화', () => {
         });
 
         expect(inviteList).not.toHaveBeenCalled();
-        expect(syncChannels).toHaveBeenCalledTimes(1); // 나머지 레인은 그대로 돈다
+        expect(syncChannels).toHaveBeenCalledTimes(1); // the rest of the lane still runs
     });
 
     it('초대 목록 조회 실패가 다른 동기화를 막지 않는다', async () => {

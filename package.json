@@ -11,6 +11,7 @@
     "check:undefined-names": "node scripts/check-undefined-names.js",
     "check:doc-links": "node scripts/check-doc-links.js",
     "check:doc-korean": "node scripts/check-doc-korean.js",
+    "check:code-korean": "node scripts/check-code-korean.js",
     "block-kit:test": "cd libs/block-kit && ../../node_modules/.bin/vitest run",
     "trace": "node scripts/trace-report.js",
     "prettier": "prettier --config ./.prettierrc --write \"**/*.{js,jsx,ts,json,tsx,scss,css,html}\"",

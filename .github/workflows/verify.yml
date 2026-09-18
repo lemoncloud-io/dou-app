@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
     verify:
-        name: doc links · doc language · lint · typecheck · test
+        name: doc links · doc language · code comment language · lint · typecheck · test
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
@@ -54,10 +54,14 @@ jobs:
             - name: Doc links
               run: yarn check:doc-links
 
-            # AGENTS.md's English policy, for the one surface nothing else in this file can see. Code
-            # comments carry the same rule but are a separate, much larger backlog — not gated yet.
+            # AGENTS.md's English policy, for the one surface nothing else in this file can see.
             - name: Doc language
               run: yarn check:doc-korean
+
+            # Same policy, for code comments — the repo-wide translation sweep that unblocked this
+            # gate is done, so it now runs alongside the doc-language check above.
+            - name: Code comment language
+              run: yarn check:code-korean
 
             # Green across all 26 projects, so no exclusions here.
             - name: Lint

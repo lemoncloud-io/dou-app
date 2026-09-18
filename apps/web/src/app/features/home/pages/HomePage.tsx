@@ -165,7 +165,7 @@ export const HomePage = () => {
     const hasOwnedCloud = clouds.some(cloud => !invitedCloudIds.has(cloud.id ?? ''));
 
     // NOTE: entering a place no longer force-opens a per-place profile setup dialog. The profile is
-    // optional at entry; users set it up on their own terms from the place settings hub ('내 프로필').
+    // optional at entry; users set it up on their own terms from the place settings hub ("내 프로필").
     // The header still nudges them via resolveHeaderProfile's `setup` state below.
     // Real (creatable) places exclude relay subscription rows (stereo === 'place'); drives the cap.
     const ownedPlaceCount = places.filter(place => place.stereo !== 'place').length;
@@ -477,9 +477,9 @@ export const HomePage = () => {
                 open={isSubscriptionRequiredOpen}
                 onClose={() => setIsSubscriptionRequiredOpen(false)}
             />
-            {/* '플레이스 관리' goes to the ACTIVE place's settings hub (where a place can be deleted to
+            {/* "플레이스 관리" goes to the ACTIVE place's settings hub (where a place can be deleted to
                 free a slot), so it is only offered when a site is active — same reason the header's
-                '플레이스 설정' entry is gated on `hasActivePlace`. '클라우드 추가' reuses the one
+                "플레이스 설정" entry is gated on `hasActivePlace`. "클라우드 추가" reuses the one
                 add-cloud entry point, which owns the cloud quota check. */}
             <PlaceLimitDialog
                 open={isPlaceLimitOpen}

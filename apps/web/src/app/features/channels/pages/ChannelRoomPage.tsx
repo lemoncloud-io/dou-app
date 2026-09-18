@@ -376,7 +376,7 @@ export const ChannelRoomPage = () => {
     });
 
     // Auto-scroll to bottom is paused while a jump to this channel is pending — if both are alive
-    // at once, the bottom pin overwrites the jump (docs/specs/search/message-jump.md '하단 고정과의 충돌').
+    // at once, the bottom pin overwrites the jump (docs/specs/search/message-jump.md, "conflict with the bottom pin").
     const isJumpPending = useMessageJumpStore(s => s.target?.channelId === stableChannelId);
 
     // Scrolling (auto-scroll to bottom, position preservation for loadMore, resize/focus

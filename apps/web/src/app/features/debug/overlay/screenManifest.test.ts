@@ -28,7 +28,7 @@ describe('screenManifest — 화면 카탈로그 단일화', () => {
         DEBUG_SCREENS.forEach(entry => expect(DEBUG_SCREEN_ICONS[entry.icon]).toBeDefined());
     });
 
-    // With labels scattered next to each screen, one panel used to say 'Email Login' and '앱 아이콘' side by side.
+    // With labels scattered next to each screen, one panel used to say 'Email Login' and "앱 아이콘" side by side.
     it('모든 화면이 두 언어 모두에 이름을 갖는다', () => {
         Object.values(DEBUG_LOCALE_TABLES).forEach(table => {
             DEBUG_SCREENS.forEach(entry => expect(table.screens[entry.key].title).toBeTruthy());

@@ -20,9 +20,9 @@ the surface this rule keeps in one language, and unlike a translation resource n
 it is in English. Names written before this was settled are left alone; new ones are English.
 
 - `yarn check:doc-korean` gates this for every tracked markdown file, `CHANGELOG.md` excepted (its
-  entries are a record of what a release said at the time). It does not flag a Korean UI string
-  quoted as data — `` `나와의 채팅` `` or `"두유 홈"` — only Korean prose. Code comments carry the same
-  rule but aren't gated yet; that backlog is tracked separately from this check.
+  entries are a record of what a release said at the time). `yarn check:code-korean` gates the same
+  rule for `//` and `/* */` source comments (TS/TSX/JS/JSX/Kotlin/Swift/Objective-C). Neither flags
+  a Korean UI string quoted as data — `` `나와의 채팅` `` or `"두유 홈"` — only Korean prose.
 
 ## Before you start
 

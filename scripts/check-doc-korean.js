@@ -32,7 +32,7 @@ const { execFileSync } = require('child_process');
 const ROOT = path.resolve(__dirname, '..');
 const EXEMPT_FILES = new Set(['CHANGELOG.md']);
 
-// Hangul syllables (가–힣) plus the compatibility jamo block (ㄱ–ㆎ) used for bare consonants/vowels.
+// Hangul syllables (`가`–`힣`) plus the compatibility jamo block (`ㄱ`–`ㆎ`) used for bare consonants/vowels.
 const HANGUL_CHAR = '\\uac00-\\ud7a3\\u3131-\\u318e';
 const HANGUL_LINE = new RegExp(`[${HANGUL_CHAR}]`);
 
