@@ -205,7 +205,8 @@ describe('useDmInviteState — 로스터에서 상대가 사라진 경우', () =
         expect(result.current.state.kind).toBe('present');
     });
 
-    // 아직 안 불러온 로스터를 부재로 읽으면 멀쩡한 방이 열릴 때마다 입력창이 잠긴다.
+    // Reading an unhydrated roster as a departure would lock the composer for a beat every
+    // time a healthy room opens cold.
     it('로스터가 비어 있으면(미로딩) present를 유지한다', () => {
         const { result } = render({ peerId: undefined, joins: [], channel: roster([]), userId: 'me' });
         expect(result.current.state.kind).toBe('present');
