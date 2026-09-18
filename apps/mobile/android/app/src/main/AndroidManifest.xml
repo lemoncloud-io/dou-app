@@ -57,6 +57,28 @@
                     android:host="${appHost}"
                     android:pathPattern="/auth/.*" />
             </intent-filter>
+            <!--
+                Encoded invite links. `android:path` is an EXACT match, and that is the point twice
+                over: the link is `/i?t=...`, whose path is exactly `/i` with nothing appended (a
+                query string is not part of the path), and a prefix match on `/i` would also claim
+                `/invite/accept` and every `/images/...` URL on the same host, pulling pages into
+                the app that were never meant to open here.
+
+                The sibling filters above show the other half of the lesson: `/s/.*` was written for
+                a link shape that no longer exists, so today's `/s?code=...` does not match it and
+                reaches the app only by way of the landing page.
+
+                iOS needs no counterpart — its association file already claims every path.
+            -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="https"
+                    android:host="${appHost}"
+                    android:path="/i" />
+            </intent-filter>
         </activity>
         <activity-alias
             android:name=".DefaultIcon"
