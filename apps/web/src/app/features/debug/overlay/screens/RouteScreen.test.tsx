@@ -81,8 +81,9 @@ describe('RouteScreen — 라우트 스택 인스펙터', () => {
         expect(screen.getByText(/스택을 신뢰할 수 없습니다/)).toBeInTheDocument();
     });
 
-    // useBackHandler decides whether to go back based on history.length. The screen has to say
-    // when that value differs from the app's own depth, or that bug can't be tracked down.
+    // The two values routinely disagree, and only this screen says so. Reading history.length as
+    // the app's depth is the mistake this row exists to prevent — it is what the back judgement
+    // used to be built on.
     it('history.length와 앱 스택 깊이가 다르면 불일치를 알린다', () => {
         routeStackTracker.record({ pathname: '/', action: 'PUSH', index: 0 });
         window.history.pushState({ idx: 0 }, '');

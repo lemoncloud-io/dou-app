@@ -4,6 +4,7 @@ import { useLocation } from 'react-router-dom';
 import { isNative } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { appBridge, useOnBackPressed } from '../bridge';
+import { canGoBackInApp } from '../navigation/stackDepth';
 
 /** Selector for Radix UI overlay components that can be closed with back button */
 const OPEN_DIALOG_SELECTOR =
@@ -88,12 +89,13 @@ export const useBackHandler = () => {
             return;
         }
 
-        // Only navigate back if there's history to go back to
-        const canGoBack = location.key !== 'default' && window.history.length > 1;
-        if (canGoBack) {
+        // Only navigate back if there's an entry inside the app to go back to. `canGoBackInApp`
+        // owns that judgement — see stackDepth for why neither `history.length` nor the location
+        // key can answer it.
+        if (canGoBackInApp()) {
             navigate(-1);
         }
-    }, [navigate, location.key]);
+    }, [navigate]);
 
     // Listen for native back button message
     useOnBackPressed(handleNativeBack);

@@ -24,7 +24,7 @@ export type RouteHistoryAction = 'PUSH' | 'POP' | 'REPLACE';
 export interface RouteStackTransition {
     pathname: string;
     action: RouteHistoryAction;
-    /** `window.history.state.idx`; null when it cannot be read (see `readHistoryIndex`). */
+    /** `window.history.state.idx`; null when it cannot be read (see `stackDepth`). */
     index: number | null;
 }
 
@@ -57,18 +57,6 @@ export interface IRouteStackTracker {
     /** Test-only reset — the tracker is module state shared across a test file. */
     reset(): void;
 }
-
-/**
- * Reads the router's index for the current history entry.
- *
- * Kept separate from `record` so the tracker stays a pure function of its input and the jsdom
- * plumbing is tested on its own.
- */
-export const readHistoryIndex = (): number | null => {
-    if (typeof window === 'undefined') return null;
-    const state = window.history.state as { idx?: unknown } | null;
-    return typeof state?.idx === 'number' ? state.idx : null;
-};
 
 /**
  * Resolves the history index a transition lands on, given the index readable at the moment the
