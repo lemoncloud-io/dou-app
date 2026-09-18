@@ -129,7 +129,10 @@ Source comments in this app are English. So are these documents.
 
 1. **Bootstrap, platform connection, or routing?** (session/socket lifecycle, the native bridge,
    route tables, web-vitals instrumentation) → `app/runtime/`, `app/bridge/`, `app/routes/`,
-   `app/utils/webVitals*`.
+   `app/utils/webVitals*`. The history stack itself — how deep the app is, whether a back press has
+   anywhere to go — is `app/navigation/`, not `app/routes/` or `app/utils/`. Note the two similar
+   names: `app/navigation/` is the app's own history stack, while `app/bridge/navigation/` is the
+   push-tap seam to the shell (see [bridge/](./bridge/push-navigation.md)).
 2. **Used by exactly one feature?** → `app/features/<feature>/`, in the matching subfolder (below).
 3. **Used by two or more features already?** → cross-cutting: `app/ui/{components,layouts}`,
    `app/hooks/`, `app/stores/`, `app/utils/`.

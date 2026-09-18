@@ -60,6 +60,7 @@ jest.mock('../../auth/components/PhoneVerifySheet', () => ({
 
 beforeEach(() => {
     jest.clearAllMocks();
+    withStackDepth(0);
     currentLocation = { state: null };
     deliverOAuthResult = null;
     loginRelaySocial.mockResolvedValue(undefined);
@@ -83,11 +84,14 @@ const signInWithGoogle = async () => {
 };
 
 /**
- * jsdom always reports `history.length === 1`, but the real stack has at least the entry point and
- * the login screen. The guard exists for a shell that recreates its webview and loses the stack
- * while the router state survives, so the two cases are set explicitly here.
+ * Sets the router index the screen reads to decide whether there is anywhere to go back to.
+ *
+ * `idx` is what react-router writes into every history entry, so 0 means the login screen is the
+ * app's first entry — a fresh WebView load, a deep link, a reload — and anything above it means the
+ * screen the user came from is still behind. Set explicitly per test because jsdom starts every
+ * file at the same entry.
  */
-const withHistoryLength = (length: number) => jest.spyOn(window.history, 'length', 'get').mockReturnValue(length);
+const withStackDepth = (depth: number) => window.history.pushState({ idx: depth }, '');
 
 describe('LoginPage — 네이티브 OAuth 결과 수신', () => {
     // This is the regression anchor for this screen. While the request and result were tied to a
@@ -96,7 +100,7 @@ describe('LoginPage — 네이티브 OAuth 결과 수신', () => {
     // was waiting for" and got discarded — the symptom where Google shows you logged in but the app
     // stays on the login screen.
     it('버튼 탭은 요청만 쏘고 결과를 기다리지 않는다', async () => {
-        withHistoryLength(3);
+        withStackDepth(3);
         currentLocation = { state: { returnTo: '/mypage' } };
         render(<LoginPage />);
 
@@ -147,7 +151,7 @@ describe('LoginPage — 로그인 후 복귀', () => {
     // to. Overwriting with replace would leave two consecutive entries for the same route, making the
     // first back tap look like it did nothing.
     it('returnTo가 있으면 히스토리를 한 칸 뒤로 간다', async () => {
-        withHistoryLength(3);
+        withStackDepth(3);
         currentLocation = { state: { returnTo: '/subscription/plans' } };
         render(<LoginPage />);
 
@@ -160,7 +164,7 @@ describe('LoginPage — 로그인 후 복귀', () => {
     // There is no path at all for the returnTo string to reach the router as a destination — removes
     // the open-redirect surface.
     it('returnTo 문자열을 목적지로 넘기지 않는다', async () => {
-        withHistoryLength(3);
+        withStackDepth(3);
         currentLocation = { state: { returnTo: '//evil.example.com' } };
         render(<LoginPage />);
 
@@ -171,10 +175,10 @@ describe('LoginPage — 로그인 후 복귀', () => {
         expect(navigate).toHaveBeenCalledWith(-1);
     });
     // This is the branch a "logged in but landed on home instead of the original screen" report would
-    // point to. There are two possible causes (no returnTo / a single history entry) that can't be
-    // told apart from the outside, so both inputs are logged alongside the branch taken.
+    // point to. There are two possible causes (no returnTo / no app entry behind this screen) that
+    // can't be told apart from the outside, so both inputs are logged alongside the branch taken.
     it('복귀 분기와 그 입력 두 개를 info로 남긴다', async () => {
-        withHistoryLength(3);
+        withStackDepth(3);
         currentLocation = { state: { returnTo: '/subscription/plans' } };
         render(<LoginPage />);
 
@@ -184,11 +188,11 @@ describe('LoginPage — 로그인 후 복귀', () => {
         const info = (logger.info as jest.Mock).mock.calls.find(call => String(call[1]).includes('leaving login'));
         expect(info?.[0]).toBe('AUTH');
         expect(info?.[1]).toContain('back to origin');
-        expect(info?.[2]).toEqual({ hadReturnTo: true, historyLength: 3, wentBack: true });
+        expect(info?.[2]).toEqual({ hadReturnTo: true, depth: 3, wentBack: true });
     });
 
-    it('히스토리가 한 칸이면 returnTo가 있어도 폴백으로 기록된다', async () => {
-        withHistoryLength(1);
+    it('logs the fallback branch when returnTo is set but nothing is behind this screen', async () => {
+        withStackDepth(0);
         currentLocation = { state: { returnTo: '/subscription/plans' } };
         render(<LoginPage />);
 
@@ -197,7 +201,7 @@ describe('LoginPage — 로그인 후 복귀', () => {
         await waitFor(() => expect(navigate).toHaveBeenCalled());
         const info = (logger.info as jest.Mock).mock.calls.find(call => String(call[1]).includes('leaving login'));
         expect(info?.[1]).toContain('fallback to home');
-        expect(info?.[2]).toEqual({ hadReturnTo: true, historyLength: 1, wentBack: false });
+        expect(info?.[2]).toEqual({ hadReturnTo: true, depth: 0, wentBack: false });
     });
 
     // The case of landing on the login screen directly via a deep link or a refresh. The default must
@@ -222,12 +226,12 @@ describe('LoginPage — 로그인 후 복귀', () => {
         expect(navigate).toHaveBeenCalledWith('/', { replace: true, transition: true, direction: 'back' });
     });
 
-    // ADR-0055 regression anchor — the old leaveForHome used to rewind history all the way to the
-    // start and do a full reload. Both had to go for the user's navigation context and the
-    // white-screen problem to be solved together. The case where the shell recreates the webview and
-    // the stack is gone but the router state survives — there's nowhere to go back to.
-    it('돌아갈 히스토리가 없으면 홈으로 간다', async () => {
-        withHistoryLength(1);
+    // Regression anchor — the old leaveForHome used to rewind history all the way to the start and
+    // do a full reload. Both had to go for the user's navigation context and the white-screen
+    // problem to be solved together. The case where the shell recreates the webview and the stack is
+    // gone but the router state survives — there's nowhere to go back to.
+    it('goes home when there is no app entry to go back to', async () => {
+        withStackDepth(0);
         currentLocation = { state: { returnTo: '/mypage' } };
         render(<LoginPage />);
 
@@ -238,7 +242,7 @@ describe('LoginPage — 로그인 후 복귀', () => {
     });
 
     it('히스토리를 되감거나 풀 리로드하지 않는다', async () => {
-        withHistoryLength(3);
+        withStackDepth(3);
         // jsdom's window.location is non-configurable, so the reload is caught via the listener the
         // old implementation registered to fire it — no popstate handler means no pending reload.
         const go = jest.spyOn(window.history, 'go').mockImplementation(() => undefined);
@@ -259,7 +263,7 @@ describe('LoginPage — 로그인 후 복귀', () => {
     });
 
     it('폰 인증 완료도 같은 복귀 경로를 탄다', () => {
-        withHistoryLength(3);
+        withStackDepth(3);
         currentLocation = { state: { returnTo: '/mypage' } };
         render(<LoginPage />);
 

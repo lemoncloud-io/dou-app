@@ -54,9 +54,9 @@ directly, and it should stay that way — the command above says whether it has.
    session state, and setting one is a multi-step operation — re-auth, socket rebind, cache
    repartition. Call `app/runtime/useSiteSwitch.ts` or the cloud switch under `features/home`, never
    a raw setter.
-3. **`shared` imports no feature.** `ui/`, `hooks/`, `stores/`, `utils/`, `bridge/` and `config/`
-   contain zero imports from `features/`. That is what makes them safe to import from anywhere; the
-   rule and the command that checks it are in [docs/README.md](./docs/README.md).
+3. **`shared` imports no feature.** `ui/`, `hooks/`, `stores/`, `utils/`, `navigation/`, `bridge/`
+   and `config/` contain zero imports from `features/`. That is what makes them safe to import from
+   anywhere; the rule and the command that checks it are in [docs/README.md](./docs/README.md).
 4. **Features do not import each other.** Two features that need the same thing promote it to
    `app/hooks/`, `app/ui/components/` or `app/utils/`. A `features/a → features/b` import is a
    refactor that was skipped.
@@ -180,12 +180,13 @@ apps/web/src/
 ├── types/              ambient declarations
 └── app/
     ├── app.tsx         provider assembly only — no session logic
-    ├── routes/         14 files: three route tables, the ROUTES builder, entry gates
+    ├── routes/         12 files: three route tables, the ROUTES builder, entry gates
     ├── runtime/        53 files: RuntimeConnectionHost wiring, background runners, log wiring
     ├── features/       589 files across 13 feature groups
     ├── hooks/          71 files: hooks shared by more than one feature
     ├── ui/             39 files: components/, layouts/, hooks/
-    ├── utils/          32 files: pure helpers
+    ├── utils/          30 files: pure helpers
+    ├── navigation/     6 files: the reconstructed history stack and the back judgement
     ├── bridge/         21 files: the single native ↔ web seam
     ├── stores/         8 files: global client state and preference keys
     └── config/         7 files: the @chatic/config port adapters for this build
@@ -204,6 +205,9 @@ Files you cannot guess from the name:
 - `app/config/adapters.ts` — `webConfigPorts`, the object `config.init()` is called with in
   `main.tsx`.
 - `app/bridge/appBridge.ts` — the outbound half of the seam; `GlobalBridgeListener.tsx` the inbound.
+- `app/navigation/stackDepth.ts` — the only answer to "can the back button go anywhere". Reads the
+  router's own history index, never `window.history.length`. Note `app/navigation/` is the app's own
+  history stack; the push-tap seam is `app/bridge/navigation/`, a different thing with a similar name.
 - `app/utils/index.ts` deliberately **excludes** the modules that read `import.meta.env`. Import
   those by concrete path (`app/utils/webVitals`) or the barrel becomes unloadable under the test
   transform.
@@ -347,13 +351,13 @@ debug overlay (`DebugOverlayHost`), documented under [docs/observability/](./doc
 The detail lives under [`docs/`](./docs/README.md). `docs/README.md` is the layering contract — where
 a new file goes, and which direction an import may point — and the index of everything below it.
 
-| Folder | What it covers |
-| --- | --- |
-| [docs/feature/](./docs/feature/) | One folder per feature in `app/features/`, names matching exactly — a README each, plus a topic file per screen or flow that reads on its own |
-| [docs/shell/](./docs/shell/README.md) | The frame every screen is drawn into — layout chrome, the route tables, and theme |
-| [docs/state/](./docs/state/README.md) | How data reaches a screen — the zustand stores, preference plumbing, observe/refresh/sync |
-| [docs/bridge/](./docs/bridge/README.md) | The single seam to the native shell — `appBridge`, push-tap routing, device token registration |
-| [docs/observability/](./docs/observability/README.md) | The logger hub and the upload queue, and the debug panel's side of the bridge |
+| Folder                                                | What it covers                                                                                                                                |
+| ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| [docs/feature/](./docs/feature/)                      | One folder per feature in `app/features/`, names matching exactly — a README each, plus a topic file per screen or flow that reads on its own |
+| [docs/shell/](./docs/shell/README.md)                 | The frame every screen is drawn into — layout chrome, the route tables, and theme                                                             |
+| [docs/state/](./docs/state/README.md)                 | How data reaches a screen — the zustand stores, preference plumbing, observe/refresh/sync                                                     |
+| [docs/bridge/](./docs/bridge/README.md)               | The single seam to the native shell — `appBridge`, push-tap routing, device token registration                                                |
+| [docs/observability/](./docs/observability/README.md) | The logger hub and the upload queue, and the debug panel's side of the bridge                                                                 |
 
 ## How to verify
 
