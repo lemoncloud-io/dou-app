@@ -1,5 +1,33 @@
 # Changelog
 
+## [2026-09-18] - root@0.64.2, @chatic/web@0.50.3, @chatic/desktop-web@0.13.2
+
+### Features
+
+- (ci) gate Korean prose in source code comments
+
+### Documentation
+
+- (admin-v2,testbed) restructure both doc trees to the repo shape, in english
+- (adr) repoint every citation the renumber left aimed at another decision
+
+### Chores
+
+- (desktop-web) quote glossary terms in ko.ts's docblock
+- (web) translate last Korean code comment in i18n cache config
+- (web) translate remaining Korean comments in debug feature
+- (web,shared,bridges,app-runtime) translate more Korean comments
+- (web,mobile,app-runtime,config,bridges) translate more Korean comments
+- (app-runtime,web,mobile,db,config) translate more Korean comments
+- (testbed,scripts,landing,mobile,app-runtime) translate more Korean comments
+- (web,app-runtime,web-ui-kit,admin-v2,mobile) translate more Korean comments
+- (web,app-runtime,app-messages,bridges,mobile) translate Korean comments to English
+
+### Other
+
+- ci: (docs) read the language in verify, not just the links
+- ci: (docs) read the doc links in verify, and fix an ADR number for good
+
 ## [2026-09-17] - root@0.64.1, @chatic/desktop-web@0.13.1
 
 ### Bug Fixes
