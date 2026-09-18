@@ -53,9 +53,10 @@ export const useCrudCacheHandler = () => {
         [logger]
     );
 
-    // 오류를 success:true + items:null로 답하는 것은 형제 핸들러들과 같은 규칙입니다 — 웹은
-    // null을 "이번 읽기만 윈도우 조회로 폴백"으로 해석하고, 미지원 학습은 핸들러 부재의
-    // NOT_FOUND(구버전 앱)에서만 일어납니다 (ADR-0057).
+    // Answering an error with success:true + items:null follows the same rule as the sibling
+    // handlers — the web interprets null as "fall back to a windowed query for this read only",
+    // and it only learns the feature is unsupported from a missing-handler NOT_FOUND (older app
+    // builds) (ADR-0057).
     const handleFetchLastChats = useCallback(
         async (message: WebMessageData<'FetchLastChatsData'>) => {
             const data = message.data;

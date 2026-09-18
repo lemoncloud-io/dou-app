@@ -6,7 +6,7 @@ const { spawnSync } = require('child_process');
 const CONFIG = {
     changelogPath: 'CHANGELOG.md',
     targetBranch: 'develop',
-    rootPackagePath: 'package.json', // 루트 package.json 경로
+    rootPackagePath: 'package.json', // Path to the root package.json
     projectPaths: {
         web: 'apps/web/package.json',
         'admin-v2': 'apps/admin-v2/package.json',
@@ -22,7 +22,7 @@ const CONFIG = {
     },
 };
 
-// 버전 변경 타입의 우선순위를 정의
+// Defines the priority order of version bump types
 const VERSION_PRIORITY = {
     major: 3,
     minor: 2,
@@ -49,7 +49,7 @@ function getProjectsToProcess() {
     return targetProjects;
 }
 
-// conventional commit 한 줄("type(scope): message") 파싱 → { type, scope, message } | null
+// Parses a single conventional commit line ("type(scope): message") → { type, scope, message } | null
 const CONVENTIONAL_RE = /^([a-z]+)(?:\(([^)]+)\))?:\s*(.+)/i;
 
 function parseConventionalSubject(subject) {
@@ -68,12 +68,12 @@ function parseSquashMergeCommit(commitMessage) {
     const commits = [];
     const lines = commitMessage.trim().split('\n');
 
-    // PR 제목 처리
+    // Process the PR title
     const firstLine = lines[0].replace(/\s*\(#\d+\)$/, '').trim();
     const title = parseConventionalSubject(firstLine);
     if (title) commits.push(title);
 
-    // 세부 커밋 처리 (* 불릿)
+    // Process individual commits (* bullets)
     lines.forEach(line => {
         line = line.trim();
         if (!line.startsWith('*')) return;
@@ -81,7 +81,7 @@ function parseSquashMergeCommit(commitMessage) {
         if (bullet) commits.push(bullet);
     });
 
-    // Feature/ 형식 처리 - 다른 커밋이 없을 때만 처리
+    // Handle the Feature/ format - only when there are no other commits
     if (commits.length === 0 && firstLine.toLowerCase().startsWith('feature/')) {
         commits.push({ type: 'feat', scope: '', message: firstLine.substring(8).trim() });
     }
@@ -90,17 +90,17 @@ function parseSquashMergeCommit(commitMessage) {
 }
 
 function shouldUpdateProject(projectName, commits) {
-    // scope가 없는 커밋이 하나라도 있으면 모든 프로젝트 업데이트
+    // If even one commit has no scope, update every project
     const hasGlobalCommit = commits.some(commit => !commit.scope);
 
-    // 프로젝트에 관련된 scope를 가진 커밋이 있으면 업데이트
+    // Update if there's a commit whose scope matches this project
     const hasProjectScopedCommit = commits.some(commit => commit.scope === CONFIG.scopeMap[projectName]);
 
     return hasGlobalCommit || hasProjectScopedCommit;
 }
 
 function determineReleaseType(commits, projectName) {
-    // scope가 없거나 해당 프로젝트의 scope를 가진 커밋 모두 포함
+    // Include every commit that either has no scope or matches this project's scope
     const relevantCommits = commits.filter(commit => !commit.scope || commit.scope === CONFIG.scopeMap[projectName]);
 
     let releaseType = 'patch';
@@ -129,7 +129,7 @@ function categorizeCommits(commits) {
         Other: [],
     };
 
-    // scope 필터링 없이 모든 커밋 처리
+    // Process every commit, with no scope filtering
     commits.forEach(commit => {
         const { type, scope, message } = commit;
         const scopePrefix = scope ? `(${scope}) ` : '';
@@ -159,7 +159,7 @@ function categorizeCommits(commits) {
         }
     });
 
-    // 빈 카테고리 제거
+    // Drop empty categories
     Object.keys(categories).forEach(key => {
         if (categories[key].length === 0) {
             delete categories[key];
@@ -173,7 +173,7 @@ function generateChangelog(versionInfo, categories) {
     const date = new Date().toISOString().split('T')[0];
     let changelog = '';
 
-    // 버전 정보와 날짜를 포함한 헤더
+    // Header including the version info and date
     changelog += `## [${date}] - ${versionInfo}\n\n`;
 
     Object.entries(categories).forEach(([category, messages]) => {
@@ -241,10 +241,11 @@ function getMergedCommitSubjects(firstParent) {
         .filter(Boolean);
 }
 
-// 머지 방식과 무관하게 conventional 커밋 목록을 수집한다.
-// - 일반 merge commit(부모 2개 이상): 마지막 커밋이 "Merge pull request ..." 라 매칭이 안 되므로
-//   머지에 포함된 실제 커밋들의 subject(first-parent..HEAD)를 각각 파싱한다.
-// - squash merge / 단일 커밋: 마지막 커밋 메시지(제목 + * 불릿)를 파싱한다.
+// Collects the list of conventional commits regardless of how the merge was done.
+// - Regular merge commit (2+ parents): the last commit is "Merge pull request ..." and won't
+//   match, so each real commit's subject that the merge brought in (first-parent..HEAD) is
+//   parsed individually.
+// - Squash merge / single commit: parses the last commit message (title + * bullets).
 function collectCommits() {
     const parents = getCommitParents();
 
@@ -294,7 +295,7 @@ function main() {
 
         const projectsToProcess = getProjectsToProcess();
 
-        // 1. 선택된 프로젝트의 버전 업데이트 처리
+        // 1. Update the version of the selected projects
         projectsToProcess.forEach(projectName => {
             const projectPath = CONFIG.projectPaths[projectName];
             const packageJson = JSON.parse(fs.readFileSync(projectPath, 'utf8'));
@@ -303,7 +304,7 @@ function main() {
                 updatedAnyProject = true;
                 const releaseType = determineReleaseType(commits, projectName);
 
-                // 가장 높은 버전 변경 타입 추적
+                // Track the highest version bump type seen
                 if (VERSION_PRIORITY[releaseType] > VERSION_PRIORITY[highestReleaseType]) {
                     highestReleaseType = releaseType;
                 }
@@ -318,7 +319,7 @@ function main() {
             }
         });
 
-        // 2. 루트 package.json 업데이트
+        // 2. Update the root package.json
         if (highestReleaseType !== 'none') {
             const rootPackage = JSON.parse(fs.readFileSync(CONFIG.rootPackagePath, 'utf8'));
             const newRootVersion = incrementVersion(rootPackage.version, highestReleaseType);
@@ -328,7 +329,7 @@ function main() {
             console.log(`Updated root package from ${oldVersion} to ${newRootVersion}`);
         }
 
-        // 3. CHANGELOG 생성
+        // 3. Generate the CHANGELOG
         if (commits.length > 0) {
             const categories = categorizeCommits(commits);
 

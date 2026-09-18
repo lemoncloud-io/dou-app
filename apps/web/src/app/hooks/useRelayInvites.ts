@@ -29,12 +29,12 @@ export interface RelayInviteCreateInput {
     /**
      * The channel this code lets the recipient into. Omitted for a brand-new 1:1 — the server makes
      * the room on accept. Supplied when re-inviting somebody back into a room that already exists,
-     * which is what keeps a 1:1 one room instead of a new one per invite (ADR-0068 결정 2).
+     * which is what keeps a 1:1 one room instead of a new one per invite (ADR-0068 decision 2).
      */
     channelId?: string;
     /**
      * Link lifetime in days from issue. Omitting it takes the server default of 3; the app sends 1,
-     * so every link this client issues lives 24 hours (ADR-0068 결정 4). The number never reaches
+     * so every link this client issues lives 24 hours (ADR-0068 decision 4). The number never reaches
      * the copy — screens read the returned `expiredAt` instead.
      */
     expiresDays?: number;
@@ -52,10 +52,10 @@ export interface RelayInviteCreateInput {
 export const INVITE_LIST_LIMIT = 100;
 
 /**
- * Lifetime, in days, of every relay invite this client issues — 24 hours (ADR-0068 결정 4).
+ * Lifetime, in days, of every relay invite this client issues — 24 hours (ADR-0068 decision 4).
  *
  * Applied centrally rather than per call site so a new invite and a re-invite cannot drift apart,
- * and so there is exactly one place to move it. The server's own default is 3 days (ADR-0033 D8);
+ * and so there is exactly one place to move it. The server's own default is 3 days (ADR-0089 D8);
  * sending this narrows the window a phone-bound link is exposed for. Callers may still override.
  */
 const INVITE_EXPIRES_DAYS = 1;
@@ -126,11 +126,11 @@ export const relayInviteKeys = {
  * SERVER-owned field (it carries `code`, the cache never does) and keeps the server's own order,
  * while any cache-only row — fallen out of the `limit: 100` window, or simply not confirmed yet
  * because the response hasn't landed — is appended after, in the cache's own newest-first order
- * (ADR-0052 결정 4).
+ * (ADR-0052 decision 4).
  *
  * `dismissedAt` rides along separately: it is a LOCAL-only field the server response never
  * carries, so a naive "remote wins outright" would silently erase a dismiss the moment the row's
- * server state refreshes — exactly the "dismiss survives" guarantee (ADR-0052 결정 5, S4) this
+ * server state refreshes — exactly the "dismiss survives" guarantee (ADR-0052 decision 5, S4) this
  * merge exists to keep. A matched cache row's `dismissedAt` is carried onto the remote-sourced
  * row instead of being dropped.
  *
@@ -202,7 +202,7 @@ export const useRelayInvites = (state?: InviteState, options: RelayInvitesOption
         // `staleTime: Infinity` (app.tsx) — under it a focus refetch never fires, because react-query
         // only refetches queries it considers stale, so relying on the focus default alone would be a
         // no-op here. An invite changes on someone ELSE's device (the recipient accepts) and there is
-        // no notification packet for it (백엔드 요청 #4), so coming back to the screen has to re-ask.
+        // no notification packet for it (backend request #4), so coming back to the screen has to re-ask.
         staleTime: 0,
         refetchOnWindowFocus: true,
         // Off unless a caller asks (see RelayInvitesOptions) — react-query skips it while disabled.

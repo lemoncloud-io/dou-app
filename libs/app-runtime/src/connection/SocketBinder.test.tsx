@@ -75,8 +75,9 @@ describe('SocketBinder (dual slots)', () => {
     });
 
     describe('같은-wss 클라우드 전환 가드', () => {
-        // 불변조건: 클라우드끼리 wss 호스트를 공유하지 않으므로 전환은 항상 URL을 바꾼다. 위반은
-        // 조용하다 — 소켓이 살아 있는 채 나가는 클라우드의 신원을 계속 쓴다 — 그래서 이름을 붙인다.
+        // Invariant: clouds never share a wss host, so a switch always changes the URL. A violation
+        // is silent — the socket stays alive and keeps using the outgoing cloud's identity — which is
+        // why this case gets a name.
         const sameWssOtherCloud = {
             config: { url: 'wss://cloud', deviceId: 'd', wssType: 'cloud' as const, cid: 'other-cloud' },
         };

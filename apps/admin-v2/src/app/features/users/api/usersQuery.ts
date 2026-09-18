@@ -10,7 +10,7 @@ import type { Params } from '@lemoncloud/lemon-web-core';
  *
  * This console is the only consumer the listing has ever had (`IUserRepository.listRelayUsers`
  * says as much), so both the hook and its cache key belong here rather than on the shared runtime
- * surface (ADR-0070 결정 5, ②안 방향).
+ * surface (ADR-0070, decision 5, following option ②).
  */
 export const usersKeys = createQueryKeys('users');
 

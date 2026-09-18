@@ -43,10 +43,10 @@ describe('설정 위자드 문구', () => {
 
     it.each(LOCALES)('%s가 치환 변수를 유지한다', locale => {
         const bundle = load(locale);
-        // 빠지면 문장은 그대로 나오고 숫자만 조용히 사라진다.
+        // If it's dropped, the sentence still renders but the number silently disappears.
         expect(read(bundle, 'setupWizard.nameHint')).toContain('{{max}}');
         expect(read(bundle, 'setupWizard.nameTooLong')).toContain('{{max}}');
-        // 3단계 제목은 방금 만든 플레이스 이름을 부른다.
+        // Step 3's title calls out the name of the place just created.
         expect(read(bundle, 'setupWizard.profile.title')).toContain('{{place}}');
     });
 

@@ -1,7 +1,7 @@
 import type { DomainChat } from '@chatic/data';
 
 /**
- * Ported from apps/desktop-web `features/chat/utils/foldReactions.ts` (ADR-0045). The fold
+ * Ported from apps/desktop-web `features/chat/utils/foldReactions.ts` (ADR-0093). The fold
  * key and the last-action-wins rule are server contract — the two copies must not drift,
  * or a reaction turned on from one client cannot be turned off from another.
  */

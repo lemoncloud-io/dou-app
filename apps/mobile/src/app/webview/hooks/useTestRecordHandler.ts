@@ -87,7 +87,8 @@ export const useTestRecordHandler = () => {
                 `SaveAll received raw message keys: ${Object.keys(message ?? {})}, stringified: ${JSON.stringify(message)}`
             );
 
-            // message.data가 없으면 message 자체 혹은 message.payload 등에서 items를 추출할 수 있도록 방어적으로 처리
+            // Defensively handle the case where message.data is missing, so items can still be
+            // extracted from message itself or message.payload, etc.
             const data = message?.data ?? (message as any);
             const items = data?.items;
 

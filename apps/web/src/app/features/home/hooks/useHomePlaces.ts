@@ -10,7 +10,7 @@ export interface HomePlacesResult {
 
 /**
  * Observes the place (site) list for the active cloud. List discovery (fetch) is owned globally
- * by useBackgroundSync, and per-place realtime sync is registered by the rendered PlaceItem — which means RELAY has no place sync target at all, since relay does not render the Place section (ADR-0034); only place metadata rides on that plan, so the relay channel list is unaffected
+ * by useBackgroundSync, and per-place realtime sync is registered by the rendered PlaceItem — which means RELAY has no place sync target at all, since relay does not render the Place section (ADR-0091); only place metadata rides on that plan, so the relay channel list is unaffected
  * (usePlaceSync), so this hook only subscribes to the cache.
  *
  * The subscription is re-created whenever the active cloud (cid) OR the derived uid changes so
@@ -25,7 +25,7 @@ export interface HomePlacesResult {
  *
  * SCOPE PINNING — the observer's scope key must be derived from THESE {cid, uid} values, not the
  * live DataContextProvider (`ActiveScope`). `ActiveScope` derives its `intent` straight from
- * `session/store` on every read (ADR-0070 결정 7) rather than being pushed by an ancestor effect, so
+ * `session/store` on every read (ADR-0070 decision 7) rather than being pushed by an ancestor effect, so
  * the commit-lag this override originally guarded against — `RuntimeDataBinder` used to push
  * `binding.context` into the provider in an effect that ran AFTER this descendant hook had already
  * subscribed — can no longer happen through that path: that binder has been deleted, so there is no

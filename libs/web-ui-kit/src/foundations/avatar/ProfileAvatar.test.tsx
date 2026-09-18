@@ -33,7 +33,7 @@ describe('ProfileAvatar', () => {
         expect(screen.queryByRole('button')).not.toBeInTheDocument();
     });
 
-    // The empty state is Figma's "1명 Profile" (3177-13120): the hand-authored solid silhouette on a
+    // The empty state is Figma's "1-person Profile" (3177-13120): the hand-authored solid silhouette on a
     // brand-ink circle, rendered at the avatar's full size so its 42×42 viewBox lands
     // circle-relative. It is NOT the grey lucide outline this component used to draw.
     it('renders the solid single-person silhouette on a brand-ink circle by default', () => {

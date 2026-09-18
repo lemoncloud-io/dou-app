@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 /**
- * Ported from apps/desktop-web `features/chat/stores/useRecentEmojiStore.ts` (ADR-0045).
+ * Ported from apps/desktop-web `features/chat/stores/useRecentEmojiStore.ts` (ADR-0093).
  * The storage key is shared on purpose — desktop and mobile web are different devices,
  * so the lists never actually collide, but a person switching builds on one device
  * keeps their habits.

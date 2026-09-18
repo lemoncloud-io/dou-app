@@ -58,17 +58,18 @@ export const ChatRoomPage = () => {
 
     useRenderCount('CreateChannel');
 
-    // 채팅 메시지(실시간 append + 초기 prime)와 채널 메타를 sync 타깃으로 등록.
-    // 초기 로딩 fetch는 sync 등록 계층이 소유하므로 페이지는 refreshList를 호출하지 않는다.
+    // Register the chat messages (real-time append + initial prime) and channel meta as sync targets.
+    // The initial load fetch is owned by the sync-registration layer, so the page never calls
+    // refreshList itself.
     runtime.sync.useChatSync(channelId);
     runtime.sync.useChannelSync(channelId);
 
-    // 채널 메타 구독 — register가 channel.get을 채워 넣고 polling으로 갱신한다.
+    // Subscribe to channel meta — register populates it via channel.get and keeps it fresh by polling.
     useEffect(() => {
         return repos.channel.observeItem(channelId, setChannel);
     }, [repos.channel, channelId]);
 
-    // 방이 바뀌면 스크롤/읽음 가드 + 페이징 상태를 초기화한다(새 진입으로 취급).
+    // When the room changes, reset the scroll/read guards and paging state (treat it as a fresh entry).
     useEffect(() => {
         hasInitialScrolledRef.current = false;
         lastReadSentRef.current = 0;
@@ -80,9 +81,10 @@ export const ChatRoomPage = () => {
         setPageLimit(PAGE_SIZE);
     }, [channelId]);
 
-    // 채팅 목록 구독 — observeList는 최신 `limit`개만 반환하므로(ChatQueryExecutor가 chat_no
-    // 역순 cursor 페이징), 과거를 더 보려면 윈도우(limit)를 키워야 한다. pageLimit이 커지면
-    // 재구독되어 캐시에 이미 적재된 과거 메시지까지 포함해 다시 읽는다.
+    // Subscribe to the chat list — observeList only returns the newest `limit` rows (ChatQueryExecutor
+    // paginates by chat_no cursor in reverse order), so seeing further into the past means widening
+    // the window (limit). When pageLimit grows, it re-subscribes and re-reads, this time including
+    // the older messages already cached.
     useEffect(() => {
         return repos.chat.observeList({ channelId, limit: pageLimit }, result => {
             const list = result?.list ?? [];
@@ -91,18 +93,21 @@ export const ChatRoomPage = () => {
         });
     }, [repos.chat, channelId, pageLimit]);
 
-    // 멤버 user 캐시 구독(이름/프사 fallback) + join 캐시 구독(멤버별 readNo로 안읽음 계산).
+    // Subscribe to the member user cache (name/avatar fallback) and the join cache (per-member
+    // readNo for unread calculation).
     useEffect(() => {
         return repos.user.observeList({ channelId }, r => setUsers(r?.list ?? []));
     }, [repos.user, channelId]);
 
-    // 채널 유저 목록 네트워크 로드(channel.sync-users → user + join 캐시). since 커서를 관리해
-    // 증분 동기화하며, 응답에 내장된 $join도 함께 캐시에 적재되어 멤버별 읽음 상태가 채워진다.
-    // 네트워크 콜은 현재 세션에 종속되므로 isVerified 후에 실행한다(재인증/재진입 시 자동 재시도).
+    // Network load of the channel user list (channel.sync-users → user + join cache). Manages a since
+    // cursor for incremental sync; the $join embedded in the response is also cached, filling in the
+    // per-member read state. The network call depends on the current session, so it only runs after
+    // isVerified (auto-retries on re-authentication/re-entry).
     useEffect(() => {
         if (!isVerified) return;
-        // app-runtime/data의 dist 타입이 stale해 syncChannelUsers가 아직 안 보이므로(파일 상단
-        // repos 캐스팅과 동일 사유) user repo를 좁혀 캐스팅한다. 반환값은 다음 since(syncedAt)다.
+        // The app-runtime/data dist types are stale so syncChannelUsers isn't visible yet (same
+        // reason as the repos cast at the top of the file) — narrow-cast the user repo. The return
+        // value is the next since (syncedAt).
         const userRepo = repos.user as unknown as {
             syncChannelUsers(payload: { channelId: string; since?: number }): Promise<number>;
         };
@@ -112,7 +117,7 @@ export const ChatRoomPage = () => {
                 usersSinceRef.current = syncedAt;
             })
             .catch(() => {
-                // best-effort; 캐시 스트림은 실패해도 유지된다
+                // best-effort; the cache stream keeps working even if this fails
             });
     }, [repos.user, channelId, isVerified]);
 
@@ -120,7 +125,8 @@ export const ChatRoomPage = () => {
         return repos.join.observeList({ channelId }, r => setJoins(r?.list ?? []));
     }, [repos.join, channelId]);
 
-    // site profile 구독(닉/프사, 프로필 우선). 프로필은 sid 스코프라 채널 sid가 정해진 뒤 구독한다.
+    // Subscribe to the site profile (nick/avatar, profile takes precedence). Profiles are sid-scoped,
+    // so we only subscribe once the channel's sid is known.
     const sid = channel?.sid ?? selectedSiteId;
     useEffect(() => {
         if (!sid) {
@@ -130,19 +136,21 @@ export const ChatRoomPage = () => {
         return repos.profile.observeList({ sid }, r => setProfiles(r?.list ?? []));
     }, [repos.profile, sid]);
 
-    // ownerId(uid) → user / profile 조회 맵.
+    // ownerId (uid) → user / profile lookup maps.
     const userMap = useMemo(() => new Map(users.map(u => [u.id, u])), [users]);
     const profileMap = useMemo(() => new Map(profiles.map(p => [p.userId ?? p.uid, p])), [profiles]);
 
-    // 채팅방 전체 멤버(참여자) — source of truth는 channel.memberIds. 내 uid는 항상 포함한다.
+    // All chat room members (participants) — the source of truth is channel.memberIds. My own uid
+    // is always included.
     const memberIds = useMemo(() => {
         const set = new Set<string>(channel?.memberIds ?? []);
         if (myUid) set.add(myUid);
         return [...set];
     }, [channel?.memberIds, myUid]);
 
-    // 멤버별 읽음 커서. API는 읽음 위치를 join.chatNo("last read chat number")에 담고(내 join만
-    // readChat이 readNo를 추가로 채움), join이 없는 멤버는 "들어왔지만 아무 행위 없음"이라 커서 0이다.
+    // Per-member read cursor. The API stores the read position in join.chatNo ("last read chat
+    // number") — only my own join additionally gets readNo filled in by readChat — and a member
+    // with no join row is "joined but hasn't done anything yet", so their cursor is 0.
     const cursorByUser = useMemo(() => {
         const map = new Map<string, number>();
         for (const j of joins) {
@@ -152,34 +160,36 @@ export const ChatRoomPage = () => {
         return map;
     }, [joins]);
 
-    // 메시지별 "안읽은 인원수": 전체 멤버 기준(join 없는 사람 = 커서 0 포함)으로 커서가 해당
-    // chatNo 미만인 사람 수(보낸이 제외). 시스템 메시지(입퇴장)는 안읽은 수에 넣지 않으므로
-    // 헬퍼가 0을 반환한다.
+    // Per-message "unread member count": across all members (including cursor-0 members with no
+    // join row), the count of people whose cursor is below that chatNo (excluding the sender).
+    // System messages (join/leave) don't count toward unread, so the helper returns 0 for them.
     const countUnread = (chat: DomainChat): number => countUnreadMembers(chat, memberIds, cursorByUser);
 
-    // 채널 제목 규칙(홈/설정과 동일): self → 내 join nick(없으면 내 프로필 nick); dm → 미고려;
-    // 그 외 → 소유자면 channel.name, 멤버면 내 join.nick(없으면 channel.name).
+    // Channel title rule (same as Home/Settings): self → my join nick (falls back to my profile
+    // nick); dm → not yet handled; otherwise → channel.name if I'm the owner, else my join.nick
+    // (falls back to channel.name) if I'm a member.
     const myJoinNick = useMemo(() => joins.find(j => j.userId === myUid)?.nick, [joins, myUid]);
     const channelTitle = useMemo(() => {
         if (!channel) return channelId;
         const fallback = channel.name || channelId;
         if (channel.stereo === 'self') return myJoinNick || profileMap.get(myUid)?.nick || fallback;
-        if (channel.stereo === 'dm') return fallback; // dm 미고려 (이후 추가 예정)
+        if (channel.stereo === 'dm') return fallback; // dm not yet handled (planned for later)
         const isOwner = channel.ownerId === myUid;
         return (isOwner ? channel.name : myJoinNick || channel.name) || channelId;
     }, [channel, channelId, myUid, myJoinNick, profileMap]);
 
-    // join(read-state) 플랜 등록 — 전체 멤버(channel.memberIds) 기준으로 `channelId@userId`마다 등록해
-    // 모든 멤버의 읽음 커서가 갱신되게 한다. profile 등록과 달리 sid에 의존하지 않으므로 별도 effect로
-    // 분리한다(예전엔 sid 게이트에 묶여 sid가 없으면 join이 통째로 등록되지 않았다). registerJoin은
-    // 키로 refcount하므로 useJoinSync의 내 join 등록과 dedup된다.
+    // Register the join (read-state) sync plan — registers one target per `channelId@userId` across
+    // all members (channel.memberIds) so every member's read cursor stays fresh. Unlike the profile
+    // registration, this doesn't depend on sid, so it's split into its own effect (it used to be
+    // gated on sid, so join registration silently never happened without one). registerJoin refcounts
+    // by key, so this dedupes against useJoinSync's registration of my own join.
     const memberKey = memberIds.join(',');
     useEffect(() => {
         if (!isVerified) return;
         const sync = runtime.sync.getSyncManager();
         const disposers = memberIds.map(userId => sync.registerJoin(`${channelId}@${userId}`));
         return () => disposers.forEach(dispose => dispose());
-        // memberKey가 멤버 집합을 대표한다(memberIds는 키당 1회 읽음).
+        // memberKey stands in for the member set (memberIds is only read once per key).
     }, [channelId, isVerified, memberKey]);
 
     useEffect(() => {
@@ -188,8 +198,9 @@ export const ChatRoomPage = () => {
         let disposers: Array<() => void> = [];
 
         void (async () => {
-            // 채널 유저/join 적재는 위의 syncChannelUsers 전용 effect가 소유한다.
-            // 여기서는 캐시에 이미 들어온 값만 읽어 profile 등록 대상을 추린다(best-effort).
+            // Loading channel users/joins is owned by the dedicated syncChannelUsers effect above.
+            // Here we only read what's already in the cache to narrow down the profile registration
+            // targets (best-effort).
             const [userResult, joinResult] = await Promise.all([
                 repos.user.cacheReadList({ channelId }),
                 repos.join.cacheReadList({ channelId, activeOnly: false }),
@@ -226,8 +237,8 @@ export const ChatRoomPage = () => {
 
             const sync = runtime.sync.getSyncManager();
 
-            // join(read-state) 등록은 위의 전용 effect(memberIds 기준, sid 무관)가 소유한다.
-            // 여기서는 profile sync만 등록한다.
+            // join (read-state) registration is owned by the dedicated effect above (keyed on
+            // memberIds, independent of sid). Here we only register profile sync.
             disposers = profileTargetIds.map(profileId =>
                 sync.register({ type: 'profile', id: profileId, intervalMs: 5000 })
             );
@@ -239,28 +250,32 @@ export const ChatRoomPage = () => {
         };
     }, [repos.user, repos.join, repos.profile, channelId, sid, isVerified, channel, chats, myUid]);
 
-    // 읽음 커서 전진 — chats는 내림차순(최신이 head)이라 chats[0]이 최신.
-    // 새 high-water chatNo일 때만 1회(과거 페이지 로드로는 latest 불변 → 미호출). DOM과 무관.
+    // Advance the read cursor — chats is descending (newest first), so chats[0] is the latest.
+    // Fires once only when there's a new high-water chatNo (loading an older page never changes
+    // latest, so it never fires here). Independent of the DOM.
     useEffect(() => {
         if (chats.length === 0) return;
         const latestNo = chats[0]?.chatNo ?? 0;
         if (latestNo > lastReadSentRef.current) {
             lastReadSentRef.current = latestNo;
             void repos.join.readChat({ channelId, chatNo: latestNo }).catch(() => {
-                // best-effort; 다음 메시지에서 다시 전진한다
+                // best-effort; it advances again on the next message
             });
         }
     }, [chats, channelId, repos.join]);
 
-    // 스크롤 보정은 새 chats가 DOM에 커밋된 뒤 동기적으로(useLayoutEffect, paint 전) 수행한다.
-    // 캐시 re-emit이 디바운스라 await 직후엔 DOM이 아직 안 커져 있으므로, chats 변화에 반응해야 한다.
+    // Scroll correction runs synchronously after the new chats commit to the DOM (useLayoutEffect,
+    // before paint). The cache re-emit is debounced, so the DOM hasn't grown yet right after an
+    // await — we have to react to the chats change instead.
     useLayoutEffect(() => {
         const el = listRef.current;
         if (!el || chats.length === 0) return;
 
-        // 1. 페이징: 과거 페이지가 위에 prepend되어도 보던 메시지 위치를 유지(맨위 점프 방지).
-        //    재구독 도중 윈도우가 아직 안 커진(높이 동일) 중간 emit에서는 앵커를 소비하지 않고,
-        //    실제로 DOM이 커진 emit에서만 복원한다(디바운스 re-emit 경쟁 대응).
+        // 1. Paging: when an older page is prepended above, keep the message the user was viewing
+        //    in place (avoid a jump to the top). During re-subscription, an intermediate emit where
+        //    the window hasn't actually grown yet (same height) doesn't consume the anchor — only an
+        //    emit where the DOM has actually grown restores it (guards against the debounced
+        //    re-emit race).
         if (pagingAnchorRef.current != null) {
             if (el.scrollHeight > pagingAnchorRef.current) {
                 el.scrollTop = el.scrollHeight - pagingAnchorRef.current;
@@ -268,14 +283,15 @@ export const ChatRoomPage = () => {
             }
             return;
         }
-        // 2. 최초 진입 또는 내가 보낸 직후 → 무조건 최하단.
+        // 2. First entry, or right after I send → always jump to the bottom.
         if (!hasInitialScrolledRef.current || forceBottomRef.current) {
             hasInitialScrolledRef.current = true;
             forceBottomRef.current = false;
             el.scrollTop = el.scrollHeight;
             return;
         }
-        // 3. 하단 근처에서 새 메시지 도착 → 하단 추종(과거 읽는 중이면 끌어내리지 않음).
+        // 3. A new message arrives while near the bottom → follow it down (don't pull the view
+        //    down while reading history).
         if (wasNearBottomRef.current) {
             el.scrollTop = el.scrollHeight;
         }
@@ -327,7 +343,7 @@ export const ChatRoomPage = () => {
         const text = message.trim();
         setMessage('');
         setIsSending(true);
-        // 내가 보낸 메시지는 항상 따라가도록, 다음 chats 갱신에서 최하단으로 강제한다.
+        // So my own sent message is always followed, force the next chats update to the bottom.
         forceBottomRef.current = true;
         try {
             await repos.chat.sendChat({ channelId, content: text });
@@ -347,7 +363,7 @@ export const ChatRoomPage = () => {
 
     return (
         <div className="flex flex-col h-full">
-            {/* 헤더 */}
+            {/* Header */}
             <div className="flex items-center gap-3 px-4 py-3 border-b border-border bg-card shrink-0">
                 <button onClick={() => navigate(-1)} className="text-muted-foreground hover:text-foreground">
                     ←
@@ -373,7 +389,7 @@ export const ChatRoomPage = () => {
             {isInviteOpen && <InviteCreateDialog channelId={channelId} onClose={() => setIsInviteOpen(false)} />}
             {isSystemSendOpen && <SystemSendPanel channelId={channelId} onClose={() => setIsSystemSendOpen(false)} />}
 
-            {/* 메시지 목록 */}
+            {/* Message list */}
             <div
                 ref={listRef}
                 onScroll={handleScroll}
@@ -409,7 +425,7 @@ export const ChatRoomPage = () => {
                 )}
             </div>
 
-            {/* 입력 영역 */}
+            {/* Input area */}
             <div className="flex gap-2 px-3 py-3 border-t border-border bg-card shrink-0">
                 <textarea
                     value={message}
@@ -487,7 +503,7 @@ const ChatBubble = ({ chat, isMine, user, profile, unreadCount }: ChatBubbleProp
             <div
                 className={`flex min-w-0 flex-col gap-0.5 max-w-[min(75%,32rem)] ${isMine ? 'items-end' : 'items-start'}`}
             >
-                {/* 디버깅용: 유저 이름 + 멤버 프로필 닉을 항상 함께 노출(프로필 없으면 표기). */}
+                {/* Debug: always show the user name alongside the member profile nick (shows "none" when there's no profile). */}
                 <p className="text-[10px] text-muted-foreground break-all">
                     <span className="font-medium">user:</span> {userName}
                     {' · '}
@@ -504,7 +520,7 @@ const ChatBubble = ({ chat, isMine, user, profile, unreadCount }: ChatBubbleProp
                 >
                     <p className="whitespace-pre-wrap break-words">{chat.content}</p>
                 </div>
-                {/* 유저id · 메시지no · 시각 · 안읽음 수 */}
+                {/* User id · message # · time · unread count */}
                 <div className="flex gap-1.5 text-[10px] text-muted-foreground font-mono">
                     <span className="truncate max-w-[10rem]">{chat.ownerId ?? '—'}</span>
                     <span>#{chat.chatNo}</span>

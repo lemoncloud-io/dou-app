@@ -151,7 +151,7 @@ describe('ContactInvitePage', () => {
         const { rerender } = render(<ContactInvitePage />);
         fireEvent.click(screen.getByText('contactInvite.verifyPrompt.cta'));
 
-        // applySessionToken이 세션을 승격시키면 useRuntimeProfile이 반응형으로 isGuest를 내린다.
+        // Once applySessionToken promotes the session, useRuntimeProfile reactively flips isGuest to false.
         mockIsGuest = false;
         fireEvent.click(screen.getByText('sheet-verified'));
         rerender(<ContactInvitePage />);
@@ -284,7 +284,7 @@ describe('ContactInvitePage', () => {
         await waitFor(() => expect(screen.getByText(/^verify-sheet:/)).toBeInTheDocument());
         expect(navigate).not.toHaveBeenCalled();
 
-        // 인증 후에는 시트만 닫는다 — 폼 입력이 남아 있어 사용자가 다시 제출한다(자동 재발급 없음).
+        // After verifying, only the sheet closes — the form input is still there, so the user resubmits (no auto-reissue).
         fireEvent.click(screen.getByText('sheet-verified'));
         expect(screen.queryByText(/^verify-sheet:/)).not.toBeInTheDocument();
         expect(createInvite).toHaveBeenCalledTimes(1);
@@ -300,7 +300,7 @@ describe('ContactInvitePage', () => {
         await waitFor(() => expect(screen.getByText(/^verify-sheet:/)).toBeInTheDocument());
         fireEvent.click(screen.getByText('sheet-verified'));
 
-        // 두 번째 403 — 같은 유저로 되돌아오므로 시트를 다시 여는 건 무한 루프다.
+        // A second 403 — since it comes back as the same user, reopening the sheet would be an infinite loop.
         fireEvent.click(screen.getByText('contactInvite.submit'));
         await waitFor(() =>
             expect(toast).toHaveBeenCalledWith({ title: 'contactInvite.issueForbidden', variant: 'destructive' })
@@ -309,7 +309,7 @@ describe('ContactInvitePage', () => {
     });
 
     it('403 폴백은 게이트 모드와 무관하게 항상 login이다 (ADR-0042 §3)', async () => {
-        // 번호까지 연결된 메인 유저 — 게이트가 열었다면 link 모드였을 상황이다.
+        // A main user with a number already linked — if the gate had opened, this would have been link mode.
         mockLinkedPhone = 'linked';
         createInvite.mockRejectedValue(new Error('403 FORBIDDEN - not a main user'));
 
@@ -317,7 +317,7 @@ describe('ContactInvitePage', () => {
         fillForm('홍길동', '01012345678');
         fireEvent.click(screen.getByText('contactInvite.submit'));
 
-        // 서버가 메인 유저로 못 본 세션이니 새로 열어야 한다 — link를 보내면 같은 403이 되돌아온다.
+        // The server doesn't see this session as a main user, so it has to be opened again — sending link would just come back with the same 403.
         await waitFor(() => expect(screen.getByText('verify-sheet:login')).toBeInTheDocument());
         expect(screen.queryByText('verify-sheet:link')).not.toBeInTheDocument();
     });
@@ -330,7 +330,7 @@ describe('ContactInvitePage', () => {
         fireEvent.click(screen.getByText('contactInvite.submit'));
         await waitFor(() => expect(screen.getByText('verify-sheet:login')).toBeInTheDocument());
 
-        // X로 닫는다 — 인증은 하지 않았다.
+        // Closed with X — verification was never done.
         fireEvent.click(screen.getByText('sheet-close'));
         expect(screen.queryByText(/^verify-sheet:/)).not.toBeInTheDocument();
 
@@ -454,7 +454,7 @@ describe('ContactInvitePage — 번호 연결 전제조건 게이트 (ADR-0042)'
         const { rerender } = render(<ContactInvitePage />);
         fireEvent.click(screen.getByText('contactInvite.verifyPrompt.cta'));
 
-        // 서버가 link$.phone을 채우면 useLinkedAccounts가 반응형으로 게이트를 내린다.
+        // Once the server fills in link$.phone, useLinkedAccounts reactively lowers the gate.
         mockLinkedPhone = 'linked';
         fireEvent.click(screen.getByText('sheet-verified'));
         rerender(<ContactInvitePage />);
@@ -558,7 +558,7 @@ describe('ContactInvitePage — 프로필 전제조건 게이트 (ADR-0041)', ()
         rerender(<ContactInvitePage />);
 
         expect(markPresent).toHaveBeenCalledTimes(1);
-        // 게이트가 실제로 닫혀 폼으로 넘어간다 — 제목의 뒷절반까지 고정한다.
+        // The gate actually closes and moves on to the form — pin down even the back half of the title.
         expect(screen.queryByText(/^profile-dialog:/)).not.toBeInTheDocument();
         expect(screen.getByPlaceholderText('contactInvite.namePlaceholder')).toBeInTheDocument();
     });
@@ -572,8 +572,9 @@ describe('ContactInvitePage — 프로필 전제조건 게이트 (ADR-0041)', ()
 });
 
 /**
- * 방에서 온 재초대 (ADR-0068 결정 2·3). 같은 폼을 재사용하되 채널을 지정하고, 확인 화면 없이
- * 번호 입력에서 바로 끝내고, 대기 화면이 아니라 방으로 돌아간다.
+ * Re-invite from the room (ADR-0068 decision 2·3). Reuses the same form but with a channel
+ * specified, ends right at the number input with no confirmation screen, and returns to the room
+ * instead of the waiting screen.
  */
 describe('ContactInvitePage — 재초대 모드 (ADR-0068)', () => {
     beforeEach(() => {
@@ -598,7 +599,7 @@ describe('ContactInvitePage — 재초대 모드 (ADR-0068)', () => {
         expect(screen.getByPlaceholderText('contactInvite.phonePlaceholder')).toHaveValue('01012345678');
     });
 
-    // 이 기기가 그 초대를 보낸 적이 없으면 번호를 모른다 — 막지 않고 빈 칸으로 물어본다.
+    // If this device never sent that invite, it doesn't know the number — instead of blocking, it just asks with a blank field.
     it('번호를 모르면 이름만 채운 빈 폼으로 시작한다', () => {
         mockRouteState = { reinvite: { channelId: 'ch-1', name: '레몬' } };
 
@@ -623,12 +624,12 @@ describe('ContactInvitePage — 재초대 모드 (ADR-0068)', () => {
                 channelId: 'ch-1',
             })
         );
-        // 대기 화면이 아니다 — 방의 푸터가 이미 같은 상태를 말한다.
+        // Not the waiting screen — the room's footer already tells the same state.
         await waitFor(() => expect(navigate).toHaveBeenCalledWith('/channels/ch-1/room', { replace: true }));
     });
 
-    // "다시 초대하기"를 누른 것 자체가 다시 보내겠다는 뜻이고, 방 푸터가 지난 초대의 상태를 이미
-    // 보여줬다. 대신 retire는 건너뛰지 않는다 — 같은 사람에게 살아 있는 코드가 둘이면 안 된다.
+    // Tapping "다시 초대하기" itself already means send again, and the room footer already showed the
+    // prior invite's state. The retire is not skipped though — two live codes for the same person must never happen.
     it('같은 번호 다이얼로그를 띄우지 않고, 이 방의 이전 초대를 거둔 뒤 발급한다', async () => {
         mockRouteState = { reinvite: { channelId: 'ch-1', name: '레몬', phone: '+821012345678' } };
         mockInvites = [{ id: 'invite-old', state: 'rejected', channelId: 'ch-1' } as never];
@@ -656,13 +657,13 @@ describe('ContactInvitePage — 재초대 모드 (ADR-0068)', () => {
         expect(retire).not.toHaveBeenCalled();
     });
 
-    // retire 왕복 동안 제출 버튼이 화면에 남아 있다 — 잠그지 않으면 두 번 탭에 코드가 둘 발급된다
-    // (retire가 막으려던 바로 그 상태).
+    // The submit button stays on screen during the retire round trip — without locking it, two taps
+    // would issue two codes (exactly the state retire was meant to prevent).
     it('retire가 도는 동안 두 번 탭해도 한 번만 발급한다', async () => {
         mockRouteState = { reinvite: { channelId: 'ch-1', name: '레몬', phone: '+821012345678' } };
         mockInvites = [{ id: 'invite-old', state: 'pending', channelId: 'ch-1' } as never];
         createInvite.mockResolvedValue({ id: 'invite-new', deeplink: 'https://dou.chatic.io/s?code=abc' });
-        // 취소가 즉시 끝나지 않도록 붙잡아 둔다 — 실제 왕복과 같은 창을 만든다.
+        // Holds the cancel open instead of letting it finish immediately — creates the same window as a real round trip.
         let releaseRetire: (value: string) => void = () => undefined;
         retire.mockReturnValue(
             new Promise<string>(resolve => {
@@ -683,7 +684,7 @@ describe('ContactInvitePage — 재초대 모드 (ADR-0068)', () => {
         expect(retire).toHaveBeenCalledTimes(1);
     });
 
-    // 409 = 화면에 머무는 동안 상대가 수락했다. 필요 없는 코드를 뿌리지 않고 방을 보여준다.
+    // 409 = the other side accepted while this screen was still open. Show the room instead of handing out an unnecessary code.
     it('retire가 409면 발급하지 않고 방으로 보낸다', async () => {
         mockRouteState = { reinvite: { channelId: 'ch-1', name: '레몬', phone: '+821012345678' } };
         mockInvites = [{ id: 'invite-old', state: 'pending', channelId: 'ch-1' } as never];

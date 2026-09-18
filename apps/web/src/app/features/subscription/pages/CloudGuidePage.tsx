@@ -23,7 +23,7 @@ import cloudGuidePreview from '../../../../assets/cloud-guide-preview.png';
  * relay experience with a subscribed cloud. It is the first of two screens: this one argues WHY, the
  * plan picker then asks WHICH tier. The only side effect here is the CTA's navigate.
  *
- * Entry points (ADR-0034 §4 and its 2026-08-04 revision): the MyPage subscription card and the home
+ * Entry points (ADR-0091 §4 and its 2026-08-04 revision): the MyPage subscription card and the home
  * promo banner both land here, because someone reading a banner does not yet know what a cloud is.
  * The cloud switcher sheet deliberately bypasses it and goes straight to the picker — that user is
  * already deep in cloud management, so the pitch would be a step backwards.

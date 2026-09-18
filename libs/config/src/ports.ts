@@ -20,7 +20,7 @@ export interface ConfigRuntimePorts {
      * Called when two registry modules declare the same key. The first declaration is kept and the
      * later one dropped; this only reports it.
      *
-     * A callback rather than a logger import: this lib depends on nothing (ADR-0079 결정 1), so the
+     * A callback rather than a logger import: this lib depends on nothing (ADR-0079 decision 1), so the
      * app hands it `logger.error`.
      */
     onDuplicateKey?: (key: string) => void;
@@ -34,7 +34,7 @@ export interface ConfigRuntimePorts {
  * `stage` keeps today's behaviour — an injected value wins over the baked one, which is what
  * `WEB_ENV` does. `buildStage` reads only the value the bundler baked in, so it cannot be spoofed
  * by anything a page can set. Security-relevant `byStage` rules are judged against `buildStage`
- * (ADR-0080 결정 5).
+ * (ADR-0080 decision 5).
  *
  * Each app implements this: the web reads `import.meta.env` plus `window.*`, React Native reads
  * `react-native-config`. That inversion is what keeps `import.meta` out of this lib and lets
@@ -69,11 +69,11 @@ export interface ConfigStoragePorts {
  * The shell as an opaque key-value store.
  *
  * The shell keeps `key -> string` and knows nothing about what any key means, which is why adding
- * a toggle costs no app release (ADR-0079 결정 9).
+ * a toggle costs no app release (ADR-0079 decision 9).
  *
  * `write` resolves only when the shell confirmed it. A dropped write would leave a panel claiming
  * it saved something it did not — the remote control has to know the button worked
- * (ADR-0080 결정 10). One retry happens above this port; a rejection after that reaches
+ * (ADR-0080 decision 10). One retry happens above this port; a rejection after that reaches
  * `onShellWriteFailed`.
  */
 export interface IShellKvAdapter {

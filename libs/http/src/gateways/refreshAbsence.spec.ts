@@ -2,7 +2,7 @@ import { readFileSync, readdirSync } from 'fs';
 import { join } from 'path';
 
 /**
- * ADR-0070 결정 2 불변조건 1·2 — refresh 실행은 `ClientSocketAuth`만. Gateways enforce this by
+ * ADR-0070 decision 2, invariants 1-2 — only `ClientSocketAuth` executes refresh. Gateways enforce this by
  * absence, not by a runtime check: no `/refresh` (or `/oauth/{authId}/refresh`) path string may
  * exist anywhere in this directory. CI-gate counterpart to
  * libs/data/docs/remote/http.md#gateway-pick.

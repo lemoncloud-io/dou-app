@@ -1,43 +1,43 @@
 import type { Platform } from './common';
 
-/** OAuth 로그인 제공자 타입 */
+/** OAuth login provider type */
 export type OAuthLoginProvider = 'google' | 'apple';
 
-/** 인증 결과의 공통 기반 타입 */
+/** Common base type for auth results */
 type BaseTokenResult = {
-    /** 인증이 수행된 플랫폼 정보 (ios | android 등) */
+    /** Info on the platform where auth was performed (ios | android, etc.) */
     platform: Platform;
-    /** 사용된 로그인 제공자 */
+    /** Login provider that was used */
     provider: OAuthLoginProvider;
 };
 
-/** Google OAuth 인증 결과 상세 */
+/** Details of a Google OAuth auth result */
 export type GoogleOAuthTokenResult = BaseTokenResult & {
     provider: 'google';
-    /** 서버 검증용 ID 토큰 */
+    /** ID token for server-side verification */
     idToken: string;
-    /** API 접근용 액세스 토큰 */
+    /** Access token for API access */
     accessToken?: string;
-    /** 액세스 토큰 만료 일시 */
+    /** Access token expiration date/time */
     accessTokenExpiredAt?: string;
-    /** 서버 사이드 인증을 위한 일회성 코드 */
+    /** One-time code for server-side auth */
     serverAuthCode?: string;
-    /** 갱신용 리프레시 토큰 */
+    /** Refresh token used to renew the access token */
     refreshToken?: string;
 };
 
-/** Apple OAuth 인증 결과 상세 */
+/** Details of an Apple OAuth auth result */
 export type AppleOAuthTokenResult = BaseTokenResult & {
     provider: 'apple';
-    /** 서버 검증용 Identity 토큰 (JWT) */
+    /** Identity token (JWT) for server-side verification */
     identityToken: string;
-    /** Replay Attack 방지를 위해 전달했던 임의값 */
+    /** Random value passed to prevent replay attacks */
     nonce?: string;
-    /** Apple에서 발급한 고유 사용자 식별자 */
+    /** Unique user identifier issued by Apple */
     user: string;
-    /** 사용자 이메일 (최초 로그인 시에만 제공될 수 있음) */
+    /** User email (may only be provided on first login) */
     email?: string;
-    /** 사용자 이름 정보 (최초 로그인 시에만 제공) */
+    /** User name info (only provided on first login) */
     fullName?: {
         givenName?: string | null;
         familyName?: string | null;
@@ -46,35 +46,35 @@ export type AppleOAuthTokenResult = BaseTokenResult & {
         nickname?: string | null;
         middleName?: string | null;
     };
-    /** 서버 사이드 인증을 위한 권한 부여 코드 */
+    /** Authorization code for server-side auth */
     authorizationCode?: string;
 };
 
-/** 통합 OAuth 인증 결과 타입 */
+/** Unified OAuth auth result type */
 export type OAuthTokenResult = GoogleOAuthTokenResult | AppleOAuthTokenResult;
 
-/** [요청] OAuth 로그인 실행 페이로드 */
+/** [Request] Payload to execute an OAuth login */
 export type OAuthLoginPayload = {
-    /** 실행할 로그인 제공자 */
+    /** Login provider to execute */
     provider: OAuthLoginProvider;
 };
 
-/** [요청] OAuth 로그아웃 실행 페이로드 */
+/** [Request] Payload to execute an OAuth logout */
 export type OAuthLogoutPayload = {
-    /** 로그아웃할 제공자 */
+    /** Provider to log out of */
     provider: OAuthLoginProvider;
 };
 
-/** [응답] OAuth 로그인 처리 결과 페이로드 */
+/** [Response] Payload for the OAuth login result */
 export type OnOAuthLoginPayload = {
-    /** * 성공 시 인증 결과 객체 반환,
-     * 사용자가 취소하거나 에러 발생 시 null 반환
+    /** * Returns the auth result object on success,
+     * returns null if the user cancels or an error occurs
      */
     result: OAuthTokenResult | null;
 };
 
-/** [응답] OAuth 로그아웃 처리 결과 페이로드 */
+/** [Response] Payload for the OAuth logout result */
 export type OnOAuthLogoutPayload = {
-    /** 로그아웃 처리 성공 여부 */
+    /** Whether the logout succeeded */
     success: boolean;
 };

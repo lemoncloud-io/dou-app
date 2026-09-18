@@ -80,7 +80,7 @@ describe('resolveContactDisplayPhone', () => {
         expect(resolveContactDisplayPhone(contact({}))).toBe('');
     });
 
-    // 저장된 형태가 제각각이어도 화면에는 한 가지 모양으로 나와야 한다.
+    // No matter how varied the stored format, the screen must always show one consistent shape.
     it.each([
         ['010-1234-5678', '010-1234-5678'],
         ['01012345678', '010-1234-5678'],
@@ -89,9 +89,9 @@ describe('resolveContactDisplayPhone', () => {
         ['010.1234.5678', '010-1234-5678'],
         ['+82 10-1234-5678', '010-1234-5678'],
         ['+821012345678', '010-1234-5678'],
-        // 국가번호 뒤에 로컬 0을 남겨 저장한 흔한 형태.
+        // Common form where the local leading 0 is kept after the country code.
         ['+82 010-1234-5678', '010-1234-5678'],
-        // 국번이 짧은 옛 번호는 3-3-4다. 입력용 3-4-4를 그대로 쓰면 011-2345-678이 된다.
+        // Old numbers with a short exchange code use 3-3-4. Applying the input-side 3-4-4 as-is would give 011-2345-678.
         ['011-234-5678', '011-234-5678'],
         ['+82 11-234-5678', '011-234-5678'],
     ])('shows %s as %s', (stored, shown) => {
@@ -129,7 +129,7 @@ describe('resolveContactPhone', () => {
         expect(resolveContactPhone(contact({}))).toBeNull();
     });
 
-    // 초대는 저장 형태와 무관하게 언제나 같은 E.164로 나가야 한다.
+    // An invite must always go out as the same E.164 regardless of the stored format.
     it.each([
         '010-1234-5678',
         '01012345678',

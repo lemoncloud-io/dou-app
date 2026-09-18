@@ -18,7 +18,7 @@ import { ThemeApplier } from './runtime/ThemeApplier';
 import { DebugOverlayHost } from './features/debug/overlay/DebugOverlayHost';
 import { markBoot } from './features/debug/metrics/bootMarks';
 
-/** Resource-bearing elements whose load failures are worth logging (ADR-0047). */
+/** Resource-bearing elements whose load failures are worth logging (ADR-0097). */
 const RESOURCE_TAGS = new Set(['img', 'script', 'link', 'audio', 'video', 'source']);
 
 if (typeof window !== 'undefined') {
@@ -47,7 +47,7 @@ if (typeof window !== 'undefined') {
     });
     // Resource load failures (img/script/link/...) fire on the element and do
     // NOT bubble — only a capture-phase window listener sees them. There is no
-    // JS Error object; synthesize one carrying the element/URL (ADR-0047).
+    // JS Error object; synthesize one carrying the element/URL (ADR-0097).
     window.addEventListener(
         'error',
         event => {
@@ -62,7 +62,7 @@ if (typeof window !== 'undefined') {
         true
     );
     // CSP violations never reach window.onerror; a blocked script inside the
-    // WebView is a prime "Script error." root-cause correlate (ADR-0047).
+    // WebView is a prime "Script error." root-cause correlate (ADR-0097).
     window.addEventListener('securitypolicyviolation', event => {
         const detail = `${event.violatedDirective} blocked ${event.blockedURI || '(inline)'}`;
         logger.error('GLOBAL', `[csp-violation] ${detail}`, {

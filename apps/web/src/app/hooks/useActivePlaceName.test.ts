@@ -59,8 +59,8 @@ describe('useActivePlaceName — 활성 플레이스명 관측', () => {
         expect(unsubscribe).toHaveBeenCalledTimes(1);
     });
 
-    // ADR-0040: relay의 개인 플레이스는 백엔드 이름이 'default'/'#default'다. 그 원문이 프로필
-    // 다이얼로그 제목으로 새지 않아야 한다.
+    // ADR-0040: on the relay, the personal place's backend name is 'default'/'#default'. That raw
+    // name must not leak into the profile dialog title.
     describe('홈 플레이스 브랜딩', () => {
         it('기본 클라우드에서는 백엔드 원문 대신 브랜드 라벨을 낸다', () => {
             useSessionSelectionMock.mockReturnValue({ selectedSiteId: '0000', selectedCloudId: 'default' });
@@ -88,8 +88,8 @@ describe('useActivePlaceName — 활성 플레이스명 관측', () => {
         });
     });
 
-    // 브랜딩 이후 stale 행은 단순히 낡은 것이 아니라 '틀린' 답을 낸다 — 보관된 relay 행의
-    // id가 '0000'이라 다른 클라우드에서도 계속 '두유 홈'이라고 답한다.
+    // Once branding applies, a stale row isn't merely outdated — it gives a "wrong" answer. Because
+    // the retained relay row's id is '0000', it keeps answering "두유 홈" ("Doyou Home") even in another cloud.
     it('사이트가 바뀌면 이전 행을 즉시 버린다', () => {
         useSessionSelectionMock.mockReturnValue({ selectedSiteId: '0000', selectedCloudId: 'default' });
         const { result, rerender } = renderHook(() => useActivePlaceName());
@@ -97,7 +97,7 @@ describe('useActivePlaceName — 활성 플레이스명 관측', () => {
         act(() => observeItem.mock.calls[0][1]({ id: '0000', name: '#default' }));
         expect(result.current).toBe('placeList.defaultPlace');
 
-        // 다른 클라우드의 플레이스로 전환 — 새 구독이 emit하기 전 상태.
+        // Switch to a place in another cloud — the state before the new subscription emits.
         useSessionSelectionMock.mockReturnValue({ selectedSiteId: 's2', selectedCloudId: 'cloud-1' });
         rerender();
 
@@ -118,9 +118,10 @@ describe('useActivePlaceName — 활성 플레이스명 관측', () => {
         const after = renders;
         expect(result.current).toBe('우리 팀');
 
-        // place-sync는 매 tick마다 새 객체를 준다. 상한을 +1로 두는 것은 React가 같은 값을 반환한
-        // updater에 대해 bail-out 직전 한 번 더 렌더할 수 있다고 문서화돼 있기 때문 — 동일 emit
-        // 3회가 3회 렌더로 이어지지 않는다는 것이 이 테스트가 지키는 것이다.
+        // place-sync hands back a new object on every tick. The ceiling is set to +1 because React is
+        // documented to potentially render once more right before bailing out for an updater that
+        // returns the same value — what this test guards is that 3 identical emits don't turn into 3
+        // renders.
         emit();
         emit();
         emit();

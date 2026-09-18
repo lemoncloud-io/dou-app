@@ -187,7 +187,7 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
         const rawContext = this.getRepositoryContext();
         if (isForeignContext(rawContext)) {
             // Intended drop, but a silent one leaves the stale list it produces unexplained — the
-            // aggregator batches these so a switch costs one entry, not one per skip (ADR-0075).
+            // aggregator batches these so a switch costs one entry, not one per skip (ADR-0099).
             foreignDropAggregator.record({
                 source: 'channel-refresh',
                 cid: rawContext.cid ?? 'default',

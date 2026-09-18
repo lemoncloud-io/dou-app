@@ -199,7 +199,7 @@ describe('ReportLogsPage — 수집', () => {
     });
 
     it('drops the other cached corpora too, so hopping back re-walks', async () => {
-        // The complaint this answers: press 다시 수집, then unpin — and the previous axes are
+        // The complaint this answers: press "Recollect", then unpin — and the previous axes are
         // served from a corpus collected BEFORE the refresh, quietly older than the server.
         // Refreshing has to mean "throw away what is held", not just "re-ask for these axes".
         servePage([entry()]);
@@ -296,7 +296,7 @@ describe('ReportLogsPage — 서버 축 vs 수집분 축', () => {
     /**
      * The dropdown is hidden below two values, which a server-narrowed axis always reaches — it
      * collects only its own value. Hiding it then would take the control away the moment it was
-     * used and leave no route back to `전체`.
+     * used and leave no route back to `All`.
      */
     it('keeps a selected facet visible even when it is the only value left', async () => {
         servePage([entry({ tag: 'chat', message: '하나뿐' })]);

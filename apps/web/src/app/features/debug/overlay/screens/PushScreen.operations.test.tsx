@@ -27,11 +27,11 @@ jest.mock('@chatic/bridges', () => ({ isNative: () => true, logger: { warn: jest
 jest.mock('../../hooks', () => ({
     usePushRegistration: () => ({ state: 'idle', token: null, summary: null, error: null, check: jest.fn() }),
     useReceivedPushLog: () => ({ entries: [], clear: jest.fn() }),
-    // 실제 구현을 쓴다 — 목으로 갈면 "확인 없음" 같은 이 훅의 계약이 검증되지 않는다.
+    // Uses the real implementation — mocking it would leave this hook's contract, like "no confirmation", unverified.
     useDebugOperation: jest.requireActual('../../hooks/useDebugOperation').useDebugOperation,
     resetUnsupportedCommands: jest.requireActual('../../hooks/useDebugOperation').resetUnsupportedCommands,
 }));
-// DEV 스킴을 돌려주는 페이크 — 화면이 스킴을 해석해 쓰는지, 아니면 어딘가에 박아 뒀는지가 갈린다.
+// A fake that returns the DEV scheme — this distinguishes whether the screen resolves the scheme, versus having it hardcoded somewhere.
 jest.mock('../../lib', () => ({
     copyText: jest.fn(),
     formatRegisteredAt: () => '—',
@@ -72,11 +72,11 @@ describe('PushScreen — 조작 (ADR-0080 결정 11)', () => {
 
         await click('로컬 알림 띄우기');
 
-        // 이 빌드의 스킴이어야 한다. 'chatic://…'이 나오면 dev 기기에서 prod 앱을 여는 그 버그다.
+        // It has to be this build's scheme. Getting 'chatic://…' would be that bug where a dev device opens the prod app.
         expect(showNotification).toHaveBeenCalledWith(expect.objectContaining({ deeplink: 'chatic-dev://chats' }));
     });
 
-    // 구버전 앱은 명령을 몰라 reject한다. 실패를 성공으로 뭉개지 않는 것이 이 화면의 요점이다.
+    // An older app doesn't know the command and rejects. Not smoothing a failure over as a success is the whole point of this screen.
     it('앱이 거부하면 실패를 그대로 적는다', async () => {
         deleteFcmToken.mockRejectedValue(new Error('NOT_FOUND'));
         render(<PushScreen />);
@@ -86,7 +86,7 @@ describe('PushScreen — 조작 (ADR-0080 결정 11)', () => {
         expect(await screen.findByText(/실패: NOT_FOUND/)).toBeInTheDocument();
     });
 
-    // post 기반이라 확인 응답이 없다 — 받은 척하면 결정 10을 어긴다.
+    // Post-based, so there's no confirmation reply — pretending it was acknowledged would violate decision 10.
     it('확인 응답이 없는 조작은 "확인 없음"이라고 밝힌다', async () => {
         render(<PushScreen />);
 
@@ -104,8 +104,9 @@ describe('PushScreen — 조작 (ADR-0080 결정 11)', () => {
         expect(openURL).toHaveBeenCalledWith('chatic-dev://chats');
     });
 
-    // DeleteFcmToken은 이번 라운드의 새 명령이라 앱 릴리스 전까지 구버전에서 NOT_FOUND가 난다.
-    // 명령 이름을 넘기지 않으면 학습이 안 되고, 같은 버튼을 계속 눌러 실패만 반복한다 (7단계 감사).
+    // DeleteFcmToken is this round's new command, so it gets NOT_FOUND on older versions until
+    // the app is released. Without passing the command name, nothing gets learned, and pressing
+    // the same button just repeats the failure (audited at stage 7).
     it('구버전 앱이 토큰 삭제를 모르면 버전 차이로 배운다', async () => {
         deleteFcmToken.mockRejectedValue({ code: 'NOT_FOUND' });
         render(<PushScreen />);

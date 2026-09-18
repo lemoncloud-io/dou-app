@@ -152,7 +152,7 @@ export const PlaceEditPage = () => {
         } catch (error) {
             // The toast says "unknown error" literally, and until now that was also true of what
             // was left behind. Which fields were in play matters: a name-only save and one carrying
-            // a fresh thumbnail fail for different reasons (ADR-0075).
+            // a fresh thumbnail fail for different reasons (ADR-0099).
             logger.error('PLACE', 'place save failed', {
                 error,
                 data: { placeId, descChanged: isDescDirty, imageChanged: isImageDirty },

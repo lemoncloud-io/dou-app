@@ -19,7 +19,7 @@ export interface PhotoAttachFieldProps {
     onRemove: (index: number) => void;
     /** Two-line hint inside the dropzone. */
     hint?: React.ReactNode;
-    /** Caption under the field, e.g. "최대 5장 · jpg, png". */
+    /** Caption under the field, e.g. "Up to 5 photos · jpg, png". */
     description?: string;
     /** `accept` for the underlying file input. */
     accept?: string;
@@ -32,7 +32,7 @@ export interface PhotoAttachFieldProps {
 }
 
 /**
- * Attach-photos field — the feedback screen's 사진 첨부 area: a dashed dropzone
+ * Attach-photos field — the feedback screen's photo attachment area: a dashed dropzone
  * over a horizontal strip of removable thumbnails.
  *
  * Presentational on purpose. It hands raw `File`s straight back and renders

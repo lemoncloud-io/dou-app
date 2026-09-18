@@ -1,7 +1,7 @@
 # ADR-0073: Retire automatic error reporting (`reportError`) and leave a single log entry for each error
 
 > Status: Accepted · Decided: 2026-09-02
-> Related: [ADR-0029](./0029-error-report-categorization-and-enrichment.md) (Superseded by this decision — its categorization, tagging, and context enrichment as a whole) · [ADR-0047](./0047-unified-logging-core-and-report-traceability.md) (its report-traceability enhancements are voided by this decision) · [ADR-0063](./0063-log-upload-source-port-and-native-charge-queue.md) (unsent queue, batch upload — the path that remains) · [ADR-0066](./0066-log-pipeline-collector-listener-split.md) (the place that foreshadowed "remove automatic error reporting" as a separate track)
+> Related: [ADR-0029](./0029-error-report-categorization-and-enrichment.md) (Superseded by this decision — its categorization, tagging, and context enrichment as a whole) · [ADR-0097](./0097-unified-logging-core-and-report-traceability.md) (its report-traceability enhancements are voided by this decision) · [ADR-0063](./0063-log-upload-source-port-and-native-charge-queue.md) (unsent queue, batch upload — the path that remains) · [ADR-0066](./0066-log-pipeline-collector-listener-split.md) (the place that foreshadowed "remove automatic error reporting" as a separate track)
 
 ## Context
 
@@ -19,7 +19,7 @@ shape.
 
 More decisively, **call sites were already calling both.** Of 36 non-test call sites, 19 called
 `logger.error` and then immediately called `reportError` right below it. The same event was being
-stored twice, and the reason that pattern was written that way (ADR-0047 S1's "the entry survives
+stored twice, and the reason that pattern was written that way (ADR-0097 S1's "the entry survives
 even if the report gets throttled") had already vanished once throttling was retired. And since
 `silent: true`, there is no longer even a Slack-notification difference to set the two apart.
 

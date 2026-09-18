@@ -26,7 +26,7 @@ export type SocialProvider = 'google' | 'apple';
  *
  * Linking runs `verify` before `confirm`: verify is the only step that reports `linkable: false` with a
  * reason, while confirm answers the same situation with a 409/403. Neither ever changes the session —
- * this is a link, not a login (guide §알아 둘 제약).
+ * this is a link, not a login (guide §constraints to know).
  */
 export const useSocialLinks = () => {
     const { t } = useTranslation();
@@ -49,7 +49,7 @@ export const useSocialLinks = () => {
             if (!isNative()) {
                 // No native bridge means no way to obtain the provider's raw token (the existing
                 // browser OAuth relay only yields our own session token, not a native id/identity
-                // token — see social-links.md "비네이티브 OAuth relay 재사용 조사").
+                // token — see social-links.md "non-native OAuth relay reuse investigation").
                 toast({ title: t('mypage.accountInfo.social.mobileOnly') });
                 return;
             }
@@ -98,7 +98,7 @@ export const useSocialLinks = () => {
     );
 
     /**
-     * Stub: there is no unlink endpoint yet (ADR-0033 request #7, still open in ADR-0042). This never
+     * Stub: there is no unlink endpoint yet (ADR-0089 request #7, still open in ADR-0042). This never
      * mutates state or claims success — it only explains that the action isn't supported yet. The real
      * unlink call gets wired in here once `SOCIAL_UNLINK_ENABLED` flips (see ../flags.ts).
      */

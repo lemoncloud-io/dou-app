@@ -14,7 +14,7 @@ const LEGACY_LOG_QUEUE_KEY = '@chatic/web.log.queue';
 export interface WebCrashSentinelResult {
     /**
      * True when the previous session in this tab ended WITHOUT a clean
-     * pagehide — the page crashed, hung, or was killed (ADR-0047 S7).
+     * pagehide — the page crashed, hung, or was killed (ADR-0097 S7).
      */
     crashedLastSession: boolean;
     /** Detaches the sentinel lifecycle (tests). */

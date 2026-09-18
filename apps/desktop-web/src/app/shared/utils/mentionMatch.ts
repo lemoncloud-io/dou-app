@@ -3,7 +3,7 @@ export const GROUP_MENTIONS = ['@channel', '@here', '@everyone'];
 
 /**
  * Character-class source for one mention-token character — \p{L}\p{N} (not \w)
- * so non-ASCII names (한글 etc.) match. Single source for the composer
+ * so non-ASCII names (Hangul, etc.) match. Single source for the composer
  * typeahead and the message renderer; build regexes from it with the u flag.
  */
 export const MENTION_TOKEN_SOURCE = '[\\p{L}\\p{N}_.-]';

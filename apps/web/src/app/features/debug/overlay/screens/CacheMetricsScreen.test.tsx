@@ -35,14 +35,15 @@ describe('CacheMetricsScreen', () => {
         expect(screen.getByText('아직 기록된 호출이 없습니다.')).toBeInTheDocument();
     });
 
-    // 정렬 기준이 평균이 아니라 누적(count × avg)인 것이 이 화면의 요점 — 빠르지만 자주 불리는
-    // 호출이 느리지만 드문 호출보다 위에 와야 옵저버 재조회 패턴이 눈에 띈다.
+    // The whole point of this screen is that sort order is by cumulative time (count × avg), not
+    // average — a fast but frequently-called call must rank above a slow but rare one for the
+    // observer re-fetch pattern to stand out.
     it('평균이 아니라 누적 시간 순으로 정렬한다', () => {
         metrics.mockReturnValue({
             totalOps: 201,
             operations: {
-                'loadAll:chat': { count: 1, avgMs: 300, maxMs: 300 }, // 느리지만 드묾 → 누적 300
-                'load:channel': { count: 200, avgMs: 5, maxMs: 40 }, // 빠르지만 잦음 → 누적 1000
+                'loadAll:chat': { count: 1, avgMs: 300, maxMs: 300 }, // slow but rare → cumulative 300
+                'load:channel': { count: 200, avgMs: 5, maxMs: 40 }, // fast but frequent → cumulative 1000
             },
         });
 

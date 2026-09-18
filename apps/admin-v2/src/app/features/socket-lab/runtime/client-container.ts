@@ -1,6 +1,6 @@
 /**
  * `runtime/client-container.ts`
- * - 클라 1개의 React 밖 상태 컨테이너: client + runtime + gateways + store 3종 + collector
+ * - A single client's state container outside React: client + runtime + gateways + 3 stores + collector
  */
 import {
     ChannelSyncPlan,
@@ -62,8 +62,8 @@ export interface ClientContainerOptions {
 /**
  * The lab's slice of the SDK `AuthGateway` — deliberately NOT the whole thing.
  *
- * `refresh` is excluded: refresh execution belongs to `ClientSocketAuth` alone (ADR-0070 결정 2
- * 불변조건 1), and the raw gateway packet bypasses everything that makes it safe — the epoch
+ * `refresh` is excluded: refresh execution belongs to `ClientSocketAuth` alone (ADR-0070, decision 2,
+ * invariant 1), and the raw gateway packet bypasses everything that makes it safe — the epoch
  * serialization, the controller's own `_token`, the refresh timer rearm, and the `onTokenRefresh`
  * writeback that re-mints the AWS credentials. Same Pick policy as `AuthSocketDomainGateway`
  * (libs/data/src/remote/gateways/socket.ts): leaving an action out of the Pick is what keeps a
@@ -112,9 +112,11 @@ export interface ClientContainer {
 }
 
 /**
- * recv E2E 마커 — 서버가 custom field(_demoSentAt)를 echo하지 않으므로(검증 완료), 항상 전달되는
- * content 끝에 송신 시각+송신자+seq를 임베드해 수신측이 파싱. 같은 브라우저(timeOrigin 동일)에서만 시계 비교 유효.
- * 포맷: `⟦E2E <sentAt> <origin> <from> <seq>⟧`. from/seq는 cross-client 매트릭스·유실 검출용.
+ * recv E2E marker — since the server does not echo the custom field (`_demoSentAt`, confirmed by
+ * testing), the sent-at time + sender + seq are embedded at the end of the content that always
+ * gets delivered, and the receiver parses it out. The clock comparison is only valid within the
+ * same browser (same `timeOrigin`).
+ * Format: `⟦E2E <sentAt> <origin> <from> <seq>⟧`. `from`/`seq` are for the cross-client matrix and loss detection.
  */
 const E2E_RE = /⟦E2E ([\d.]+) ([\d.]+) (\S+) (\d+)⟧/;
 export const encodeE2eMarker = (sentAt: number, origin: number, from = '-', seq = 0): string =>
@@ -183,7 +185,7 @@ export const createClientContainer = (opts: ClientContainerOptions): ClientConta
         emit({ type: 'sync-targets', targets: runtime ? runtime.listSyncTargets() : [] });
     };
 
-    // 수신 메시지 content 마커 파싱 → recv 이벤트(중복 chatNo 방지)
+    // Parse the marker in incoming message content → recv event (dedupes by chatNo)
     const recvSeen = new Set<string>();
     const emitRecvForMessages = (channelId: string, msgs: Array<Record<string, unknown>>) => {
         for (const m of msgs) {
@@ -208,8 +210,8 @@ export const createClientContainer = (opts: ClientContainerOptions): ClientConta
         }
     };
 
-    // 채널 sync가 chatNo 증가를 감지하면 chat.feed로 당겨오는 브릿지 —
-    // 서버가 chat.sync를 push하지 않는 환경에서도 수신되도록(지연 ≈ 채널 폴링 주기).
+    // A bridge that pulls from chat.feed whenever channel sync detects chatNo has increased —
+    // so messages still get through even where the server doesn't push chat.sync (with a delay ≈ the channel's polling interval).
     const pulledChatNo = new Map<string, number>();
     const pullChatIfNew = (channelId: string, chatNo?: number) => {
         if (!runtime || !channelId || !chatNo) return;
@@ -505,7 +507,7 @@ export const createClientContainer = (opts: ClientContainerOptions): ClientConta
                     content,
                     ...embed,
                 } as never)) as DemoChatView;
-                collector.markSendAck(token); // t1 = 응답 resolve, rAF로 t2
+                collector.markSendAck(token); // t1 = response resolve, t2 via rAF
                 applyChatMessages(chatStore, channelId, [view], view.chatNo ?? 0);
                 log('info', 'chat.send.ok', `${channelId} chatNo=${view.chatNo ?? '-'}`);
                 return view;

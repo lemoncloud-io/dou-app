@@ -5,18 +5,23 @@ import { isInJoinWindow } from '@chatic/data';
 import type { DomainChannel, DomainChat, DomainJoin } from '@chatic/data';
 
 /**
- * 홈 채널 목록 전체의 "마지막 메시지 프리뷰" — 행별 `useLastChat`의 리스트 레벨 대체 (ADR-0057).
+ * The "last message preview" for the whole home channel list — a list-level replacement for the
+ * per-row `useLastChat` (ADR-0057).
  *
- * 순수 캐시 관측이다: 채널마다 30행 윈도우를 구독하는 대신 `chat.observeLastList` 하나로
- * 읽는다(신버전 앱은 목록 전체가 브릿지 왕복 1회, 구버전 앱·브라우저는 데이터소스가 채널별
- * 윈도우로 폴백). **네트워크는 여기서 만들지 않는다** — 최근 메시지를 캐시에 적재하는 일은
- * 이 화면 밖에서 따로 관리되고(네이티브의 백그라운드 메시지 적재), 그 쓰기가 `chats-last`
- * 리이밋으로 이 관측을 다시 깨운다. 목록은 캐시가 말하는 마지막 메시지를 그대로 비출 뿐이다.
+ * This is a pure cache observation: instead of subscribing to a 30-row window per channel, it reads
+ * through a single `chat.observeLastList` (on newer app versions the whole list is one bridge
+ * round-trip; older apps and the browser fall back to the data source doing per-channel windows).
+ * **No network call is made here** — loading recent messages into the cache is managed separately,
+ * outside this screen (native's background message loading), and that write re-wakes this
+ * observation via the `chats-last` relimit. The list simply mirrors whatever last message the cache
+ * reports.
  *
- * 단 하나 걸러내는 것이 있다: `joinByChannel`을 주면 **내 현재 참여 이전의 행**을 프리뷰로 쓰지
- * 않는다(ADR-0067). 퇴장해도 그 채널의 chat 캐시는 남기 때문에, 재입장한 채널이 서버가 더 이상
- * 주지 않는 옛 메시지를 프리뷰로 달고 있는 일을 막는다. 걸러지면 프리뷰 없는 채널이 되고
- * `sortChannels`는 활동 시각이 없는 채널로 정렬한다 — 재입장 직후의 올바른 상태다.
+ * There's exactly one thing it filters out: when `joinByChannel` is given, it does not use a row
+ * that predates **my current join** as the preview (ADR-0067). Because a channel's chat cache
+ * survives even after leaving it, this stops a re-joined channel from carrying an old message as its
+ * preview that the server no longer sends. A filtered-out channel ends up with no preview, and
+ * `sortChannels` then places it among channels with no activity time — the correct state right after
+ * rejoining.
  */
 export const useLastChats = (
     channels: DomainChannel[],
@@ -26,7 +31,8 @@ export const useLastChats = (
 
     const [lastByChannel, setLastByChannel] = useState<Map<string, DomainChat>>(new Map());
 
-    // 정렬해 합친 키: 정렬(핀/최근) 변화로 순서만 바뀐 동일 집합이 재구독을 만들지 않게 한다.
+    // Sorted-and-joined key: keeps a sort change (pin/recency) that only reorders the same set from
+    // triggering a re-subscribe.
     const channelKey = useMemo(
         () =>
             channels

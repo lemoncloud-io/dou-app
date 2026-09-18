@@ -178,7 +178,7 @@ export const getThemeScript = (theme: ThemeMode): string => `
  * `IShellKvAdapter.readBag()` can hydrate the shell lane synchronously at `config.init()` — before
  * the web's own first paint, the same way `CHATIC_APP_THEME` seeds the pre-migration theme read.
  *
- * The bag is opaque here by design (ADR-0079 결정 9): this function does not know what any key
+ * The bag is opaque here by design (ADR-0079 Decision 9): this function does not know what any key
  * means, only that `ConfigKvService.getAll()` already returns `{ [registryKey]: jsonEncodedValue }`.
  * An app build that predates `ConfigKvService` simply never sets the global, and `readBag()` treats
  * a missing global exactly like an empty bag — no shell overrides, not a crash.
@@ -210,9 +210,9 @@ export interface SyncInjectionScriptParams {
 /**
  * Combines safe area, device info, debug mode, and theme scripts into a single script.
  * The legacy console-override relay (`__console__`) is gone — the structured
- * `SendLog` pipeline is the only web→native log channel (ADR-0047).
+ * `SendLog` pipeline is the only web→native log channel (ADR-0097).
  *
- * The whole body is guarded (ADR-0047 P2): a runtime failure inside any
+ * The whole body is guarded (ADR-0097 P2): a runtime failure inside any
  * injected snippet reports itself through the SendLog channel (tag INJECTION,
  * landing in the merged buffer / future breadcrumbs) instead of surfacing as
  * an opaque "Script error.". Syntax errors cannot be caught this way — those

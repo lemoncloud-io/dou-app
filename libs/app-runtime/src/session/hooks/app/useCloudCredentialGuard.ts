@@ -12,9 +12,9 @@ import { credentialRenewers } from '../../../socket/auth/renewers';
  *
  * | | relay | cloud |
  * | --- | --- | --- |
- * | 갱신 수단 | refresh (`ClientSocketAuth` 단독) | **재발급** (`delegate-cloud` + `exchange-token`) |
- * | 소켓 없으면 | 갱신 불가 — 기다리는 것 말고 없다 | relay만 살아 있으면 가능 |
- * | 만료 시 정책 | 세션 자체가 위험 → teardown 후보 | 클라우드만 버리면 됨 (`onAuthExpired`) |
+ * | Renewal means | refresh (`ClientSocketAuth` alone) | **re-issue** (`delegate-cloud` + `exchange-token`) |
+ * | Without a socket | Can't renew — nothing to do but wait | Possible as long as relay is alive |
+ * | On expiry, policy | The session itself is at risk → teardown candidate | Just drop the cloud (`onAuthExpired`) |
  *
  * Folding cloud into the relay guard would mean one hook with two unrelated recovery strategies and a
  * `kind` parameter that changes everything it does — so the guards are split the same way the tokens

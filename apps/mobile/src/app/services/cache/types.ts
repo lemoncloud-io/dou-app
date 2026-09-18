@@ -2,7 +2,7 @@ import type { CacheModelMap, CacheQueryMap, CacheType, LastChatItem, PagingMeta 
 
 export interface ICacheCrudService {
     /**
-     * [조회] 단건 캐시 데이터 조회
+     * [Fetch] Fetch a single cache item
      */
     fetch<K extends CacheType>(payload: {
         type: K;
@@ -12,9 +12,9 @@ export interface ICacheCrudService {
     }): Promise<CacheModelMap[K] | null>;
 
     /**
-     * [조회] ID 목록 기반 다건 조회
+     * [Fetch] Fetch multiple items by an ID list
      *
-     * 없는 id는 결과에서 빠지므로 반환 길이/순서는 `ids`와 일치하지 않습니다.
+     * Missing ids are dropped from the result, so the returned length/order don't match `ids`.
      */
     fetchMany<K extends CacheType>(payload: {
         type: K;
@@ -24,7 +24,7 @@ export interface ICacheCrudService {
     }): Promise<CacheModelMap[K][]>;
 
     /**
-     * [조회] 다수/페이징 캐시 조회
+     * [Fetch] Fetch multiple/paginated cache items
      */
     fetchAll<K extends CacheType>(payload: {
         type: K;
@@ -34,8 +34,8 @@ export interface ICacheCrudService {
     }): Promise<CacheModelMap[K][]>;
 
     /**
-     * [조회] 채널별 최신 프리뷰 1건 + 최대 chat_no (chat 전용, ADR-0057).
-     * `null` = 답할 수 없음 — 웹은 이번 읽기만 윈도우 조회로 폴백한다.
+     * [Fetch] One latest preview per channel plus the max chat_no (chat only, ADR-0057).
+     * `null` = cannot answer — the web falls back to a windowed query for just this read.
      */
     fetchLastChats(payload: {
         type: 'chat';
@@ -45,7 +45,7 @@ export interface ICacheCrudService {
     }): Promise<LastChatItem[] | null>;
 
     /**
-     * [저장] 단일 아이템 저장
+     * [Save] Save a single item
      */
     save<K extends CacheType>(payload: {
         type: K;
@@ -56,7 +56,7 @@ export interface ICacheCrudService {
     }): Promise<string>;
 
     /**
-     * [저장] 다수 아이템 일괄 저장
+     * [Save] Save multiple items in a batch
      */
     saveAll<K extends CacheType>(payload: {
         type: K;
@@ -67,24 +67,24 @@ export interface ICacheCrudService {
     }): Promise<string[]>;
 
     /**
-     * [삭제] 단일 아이템 삭제
+     * [Delete] Delete a single item
      */
     delete<K extends CacheType>(payload: { type: K; id: string; cid: string; uid: string }): Promise<string>;
 
     /**
-     * [삭제] 다수 아이템 일괄 삭제
+     * [Delete] Delete multiple items in a batch
      */
     deleteAll<K extends CacheType>(payload: { type: K; ids: string[]; cid: string; uid: string }): Promise<string[]>;
 
     /**
-     * [초기화] 특정 도메인 전체 삭제
+     * [Reset] Delete all data for a specific domain
      */
     clear<K extends CacheType>(payload: { type: K; cid?: string; uid?: string }): Promise<void>;
 
     /**
-     * [초기화] 한 채널의 행만 삭제 (ADR-0067)
+     * [Reset] Delete only the rows for one channel (ADR-0067)
      *
-     * 지금은 chat만 받는다 — 그 외 타입과 빈 channelId는 거부한다.
+     * Currently only accepts chat — other types and an empty channelId are rejected.
      */
     clearByChannel<K extends CacheType>(payload: {
         type: K;
@@ -96,7 +96,7 @@ export interface ICacheCrudService {
 
 export interface ICacheSearchService {
     /**
-     * [검색] 캐시 데이터 검색
+     * [Search] Search cache data
      */
     search(keyword: string, cid?: string, uid?: string): Promise<any[]>;
 }

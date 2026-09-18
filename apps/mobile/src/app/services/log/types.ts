@@ -13,7 +13,7 @@ export type { KnownLogTag, LogTag, ObservationKind } from '@chatic/logger';
 /**
  * Mobile logging facade: the core Logger API plus hub subscription. Backed by
  * the shared `@chatic/logger` singleton, so native and (bridged) web entries
- * flow through one hub and one merged buffer (ADR-0047). Listeners receive a
+ * flow through one hub and one merged buffer (ADR-0097). Listeners receive a
  * `LogEntry` object — the positional-argument signature is gone.
  */
 export interface ILogService extends Logger {

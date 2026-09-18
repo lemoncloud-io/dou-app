@@ -54,7 +54,7 @@ describe('ThreadFooter — 스레드 루트의 답글 푸터', () => {
         expect(onOpen).toHaveBeenCalledTimes(1);
     });
 
-    // 점이 아니라 개수다 — 끼어들 만한 줄이면 "몇 개가 새로 왔는지"가 볼 값이다.
+    // A count, not a dot — for a line worth interrupting the user with, "how many arrived" is the value worth seeing.
     it('안 본 답글이 있을 때만 새 댓글 수를 적는다', () => {
         const { rerender } = render(<ThreadFooter {...baseProps} unseenCount={0} />);
         expect(screen.queryByTestId('new-reply-label')).toBeNull();
@@ -63,7 +63,7 @@ describe('ThreadFooter — 스레드 루트의 답글 푸터', () => {
         expect(screen.getByTestId('new-reply-label')).toHaveTextContent('chat.thread.newReplyCount');
     });
 
-    // 마지막 답글 시각은 루트의 시각이 아니다 — 접힌 스레드가 달리 보여줄 수 없는 유일한 값이다.
+    // The last-reply timestamp is not the root's timestamp — it's the one value a collapsed thread can't show any other way.
     it('마지막 답글 시각을 방이 준 포맷터로 적는다', () => {
         const formatTime = jest.fn(() => '오후 12:06');
         render(<ThreadFooter {...baseProps} meta={meta({ lastReplyAt: 1_700_000_000_000 })} formatTime={formatTime} />);
@@ -95,8 +95,8 @@ describe('ThreadFooter — 스레드 루트의 답글 푸터', () => {
         expect(screen.getByRole('button')).toHaveAttribute('data-align', 'end');
     });
 
-    // ADR-0047 결정 5 — 파생(buildThreadIndex)은 프로필 캐시를 모른 채 두고,
-    // 우선순위 적용은 표시하는 이 컴포넌트가 한다.
+    // ADR-0047 decision 5 — the derivation (buildThreadIndex) is kept unaware of the profile
+    // cache; applying the priority order is this displaying component's job.
     describe('아바타 해석 우선순위', () => {
         it('avatarOf가 임베드 owner$ 썸네일을 이긴다', () => {
             render(<ThreadFooter {...baseProps} avatarOf={() => 'https://profile/ada.png'} />);
@@ -110,7 +110,7 @@ describe('ThreadFooter — 스레드 루트의 답글 푸터', () => {
             expect(screen.getByTestId('image-avatar')).toHaveAttribute('src', 'https://embed/ada.png');
         });
 
-        // 낙관 답글은 owner$가 없다 — 프로필이 아바타를 채우는 유일한 재료다.
+        // An optimistic reply has no owner$ — the profile is the only material left to fill in the avatar.
         it('임베드가 없는 낙관 답글도 프로필로 아바타가 뜬다', () => {
             render(
                 <ThreadFooter

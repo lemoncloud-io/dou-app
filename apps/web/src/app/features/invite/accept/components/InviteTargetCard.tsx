@@ -7,7 +7,7 @@ import { InviteCard } from './InviteCard';
 interface InviteTargetCardProps {
     /** Member count of the target room; when present a group badge is shown. */
     memberCount?: number;
-    /** Which kind of room the invite leads to. Relay invites are always 1:1 (ADR-0033). */
+    /** Which kind of room the invite leads to. Relay invites are always 1:1 (ADR-0089). */
     kind?: 'group' | 'oneToOne';
 }
 
@@ -16,7 +16,7 @@ interface InviteTargetCardProps {
  * caption (Figma 3072-10943 · 3076-11341). Cloud invites are group chats, so that stays the default;
  * the relay 1:1 invite passes `oneToOne`.
  *
- * The avatar is the `self` variant on purpose: the design uses the Figma "1명 Profile" solid glyph for
+ * The avatar is the `self` variant on purpose: the design uses the Figma "1-Person Profile" solid glyph for
  * **both** kinds rather than the three-person group glyph (ADR-0037 decision 5 — flagged for designer
  * review, so switching to `variant="group"` later is a one-word change).
  *

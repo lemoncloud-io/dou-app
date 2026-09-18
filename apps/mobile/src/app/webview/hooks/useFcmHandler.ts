@@ -94,7 +94,7 @@ export const useFcmHandler = (bridge: IAppBridgeHost) => {
      * `FetchBadgeCount` is served by notifee whose badge API is iOS-only and answers a constant 0
      * there. A separate message rather than a changed meaning for the old one, because the web ships
      * ahead of the app: an older shell answers `NOT_FOUND` and the web learns "unknown" from that
-     * (ADR-0075).
+     * (ADR-0099).
      *
      * `base: null` means unknown, never zero — see BadgeSyncBridge.getBase.
      */
@@ -143,7 +143,7 @@ export const useFcmHandler = (bridge: IAppBridgeHost) => {
                         title: remoteMessage.notification?.title,
                         body: remoteMessage.notification?.body,
                         // `messageId` folded into the payload so the web can correlate this receipt
-                        // with the tap and the room it opens (ADR-0075). The Android native path
+                        // with the tap and the room it opens (ADR-0099). The Android native path
                         // already injects it; on iOS it arrives as a top-level field the web never
                         // saw, so without this merge the chain has no key on that platform.
                         data: { messageId: remoteMessage.messageId, ...remoteMessage.data },
@@ -222,7 +222,7 @@ export const useFcmHandler = (bridge: IAppBridgeHost) => {
     /**
      * Drops the FCM token so the next `FetchFcmToken` mints a fresh one.
      *
-     * Exists for the web debug panel's push screen (ADR-0080 결정 11): testing the re-registration
+     * Exists for the web debug panel's push screen (ADR-0080 Decision 11): testing the re-registration
      * path needs the token gone, and `FetchFcmToken` only reads. `deleteToken` logs and swallows its
      * own failures, so a caller cannot distinguish "deleted" from "was already absent" — both are
      * the state the caller asked for, so this reports success either way.

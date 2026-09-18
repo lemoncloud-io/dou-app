@@ -38,7 +38,7 @@ import { PageState } from '../types';
  *
  * It merges what used to be two: the cloud guide's pitch (why subscribe) and the plan picker (which
  * tier). Splitting them meant the benefits argument sat on a screen the home entry points
- * deliberately skipped (ADR-0034), so half the users never saw it.
+ * deliberately skipped (ADR-0091), so half the users never saw it.
  */
 export const SubscriptionPlansPage = () => {
     const navigate = useNavigateWithTransition();

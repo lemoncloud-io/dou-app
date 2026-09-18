@@ -1,6 +1,6 @@
 /**
  * `api/deviceApi.ts`
- * - 실제 서버 디바이스 목록(signed).
+ * - The actual server device list (signed).
  */
 import { runtime } from '@chatic/app-runtime';
 

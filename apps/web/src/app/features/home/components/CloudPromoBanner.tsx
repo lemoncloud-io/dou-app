@@ -13,7 +13,7 @@ interface CloudPromoBannerProps {
      */
     hasOwnedCloud: boolean;
     /**
-     * Supplies the inline "클라우드 추가" link. Omit it in the cloud-switcher sheet, which already
+     * Supplies the inline "Add cloud" link. Omit it in the cloud-switcher sheet, which already
      * has an add button in its section footer.
      */
     onAddCloud?: () => void;
@@ -22,7 +22,7 @@ interface CloudPromoBannerProps {
 }
 
 /**
- * "Add a cloud" promo banner — shown on the relay home and in the switcher's empty "내 클라우드"
+ * "Add a cloud" promo banner — shown on the relay home and in the switcher's empty "My Cloud"
  * section. Renders nothing once the account owns a cloud or while a dismissal is still within its
  * 24h window; both surfaces share that decision via useCloudPromo (ADR-0034).
  *

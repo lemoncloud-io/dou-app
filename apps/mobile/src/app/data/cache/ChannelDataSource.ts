@@ -10,14 +10,14 @@ export class ChannelDataSource implements ICacheDataSource<CacheChannelView, Cha
     ) {}
 
     /**
-     * 채널 객체에서(sid)를 안전하게 추출합니다.
+     * Safely extracts the sid from a channel object.
      */
     private extractSid(item: any): string {
         return item?.sid ? String(item.sid) : 'default';
     }
 
     /**
-     * 채널 객체에서 채널명(name)을 안전하게 추출합니다.
+     * Safely extracts the channel name (name) from a channel object.
      */
     private extractName(item: any): string {
         return item?.name ? String(item.name) : '';

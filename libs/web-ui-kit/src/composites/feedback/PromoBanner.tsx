@@ -20,7 +20,7 @@ export interface PromoBannerProps {
 }
 
 /**
- * Promotional banner — the Figma "클라우드 추가_Banner" (3506:27156): a tinted rounded card with a
+ * Promotional banner — the Figma "Add Cloud_Banner" (3506:27156): a tinted rounded card with a
  * leading illustration, two lines of copy, an optional inline action link, and an optional dismiss.
  *
  * Both the link and the dismiss are opt-in so one component covers the two placements in the app:

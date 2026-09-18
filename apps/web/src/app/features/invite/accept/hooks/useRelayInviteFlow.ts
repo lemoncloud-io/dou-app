@@ -61,7 +61,7 @@ export type RelayInviteNotice =
 
 /**
  * Which notice a failed packet becomes. `stage` matters because the same status means different
- * things on either side of the flow (05-client-guide §에러 코드).
+ * things on either side of the flow (05-client-guide §Error Codes).
  *
  * `404` is purely "no such invite" — a canceled one arrives as `state === 'canceled'` (ADR-0043),
  * not as an error, so the old merged copy is gone.
@@ -150,7 +150,7 @@ export interface RelayInviteFlow {
 }
 
 /**
- * The relay 1:1 invite accept state machine (ADR-0033 D10, restored by ADR-0041 after ADR-0039):
+ * The relay 1:1 invite accept state machine (ADR-0089 D10, restored by ADR-0041 after ADR-0039):
  * `invite.get` → phone verification if needed → place profile if missing → `invite.accept` → wait for
  * the DM room → enter it.
  *
@@ -329,7 +329,7 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
         if (view.state === 'canceled') return failTerminalState('canceled', 'inviteCanceled', 'advance');
         if (view.state === 'rejected') return failTerminalState('rejected', 'rejected', 'advance');
 
-        // Verify, then name yourself, then accept (ADR-0033 D10, restored by ADR-0041 over
+        // Verify, then name yourself, then accept (ADR-0089 D10, restored by ADR-0041 over
         // ADR-0039 decision 5). Verification comes first because the profile belongs to the promoted
         // main user's site — while still a device user there is no site to write it to.
         //

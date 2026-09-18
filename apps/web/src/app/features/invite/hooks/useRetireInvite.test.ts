@@ -34,7 +34,7 @@ describe('useRetireInvite — retire 규칙 표 1:1', () => {
         expect(cancelInviteMock).toHaveBeenCalledWith('invt:910001-3:3f9a8b');
         expect(outcome).toBe('canceled');
         expect(markCanceledMock).not.toHaveBeenCalled();
-        expect(refetchMock).not.toHaveBeenCalled(); // 목록에 코드가 이미 있으므로 재조회가 필요 없다
+        expect(refetchMock).not.toHaveBeenCalled(); // No refetch needed since the list already has the code
     });
 
     it('취소가 409(이미 수락)로 지면 conflict — 호출부가 재발급을 중단하고 목록을 재조회한다', async () => {
@@ -58,7 +58,7 @@ describe('useRetireInvite — retire 규칙 표 1:1', () => {
     });
 
     it('캐시 전용 행(코드 없음)이면 목록에서 재조회를 한 번 시도한 뒤에도 없으면 failed다', async () => {
-        // 목록에 해당 id가 있지만 코드가 없다(캐시 히트 — ADR-0052). 재조회도 코드를 못 주면 failed.
+        // The list has this id but no code (cache hit — ADR-0052). If the refetch also can't supply a code, it's failed.
         mockInvites = [{ id: '910001-3', state: 'pending' }];
         refetchMock.mockResolvedValue({ data: [{ id: '910001-3', state: 'pending' }] });
         const retire = renderRetire();

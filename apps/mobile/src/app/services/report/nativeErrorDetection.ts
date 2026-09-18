@@ -26,7 +26,7 @@ const toMessage = (value: unknown): string => {
 };
 
 /**
- * Installs RN-level JS error detection (ADR-0047): uncaught exceptions via
+ * Installs RN-level JS error detection (ADR-0097): uncaught exceptions via
  * `ErrorUtils.setGlobalHandler` and unhandled promise rejections via the
  * Hermes rejection tracker (with the `promise` polyfill as the JSC fallback).
  * Each detection logs first (buffer/Crashlytics breadcrumb), then queues a
@@ -77,7 +77,7 @@ export const installNativeErrorDetection = (deps: NativeErrorDetectionDeps): voi
 };
 
 /**
- * Pure-native crash detection (ADR-0047): JVM/signal crashes kill the process
+ * Pure-native crash detection (ADR-0097): JVM/signal crashes kill the process
  * before anything can report, so Crashlytics captures the stack and the NEXT
  * launch queues a `native-crash` report. The stack itself exists only in the
  * Crashlytics console (dual-track by design); the report timestamp approximates

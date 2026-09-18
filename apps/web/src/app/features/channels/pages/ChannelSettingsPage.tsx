@@ -80,7 +80,7 @@ export const ChannelSettingsPage = () => {
         keepLeftMembers: channel?.stereo === 'dm',
     });
 
-    // Member divergence (ADR-0075). The roster (`channel.memberIds`) and the join rows should name
+    // Member divergence (ADR-0099). The roster (`channel.memberIds`) and the join rows should name
     // the same people. `useChannelMembers` unions the two and only drops a row whose join says the
     // person LEFT — so a roster id with NO join row at all is still rendered, which is the
     // "removed member is still listed" report this check exists to evidence.
@@ -274,7 +274,7 @@ export const ChannelSettingsPage = () => {
             // Site profile (nick/avatar) takes precedence over the user-cache name.
             const memberProfile = memberId ? profileMap.get(memberId) : undefined;
             // My own row with no place profile: prompt instead of naming me. The user-cache `name` is
-            // NOT a usable fallback here — it is `***<last 4>` for a phone signup (ADR-0033 D10) or a
+            // NOT a usable fallback here — it is `***<last 4>` for a phone signup (ADR-0089 D10) or a
             // raw UUID, the very values ADR-0039 kept out of the title chain. Every stereo shares this
             // list, so the nudge is not gated on self-chat (ADR-0040).
             //
@@ -392,7 +392,7 @@ export const ChannelSettingsPage = () => {
                         {/* Destructive action — owner deletes the room, members leave it. A DM has no
                             delete at ALL, not even for the inviter: re-inviting needs the room to
                             still be there, and letting one side erase it takes that away (ADR-0068
-                            결정 7, reversing ADR-0032's reuse of the ownership branch here). */}
+                            decision 7, reversing ADR-0032's reuse of the ownership branch here). */}
                         <Divider variant="block" className="my-2" />
                         <ListRow
                             destructive

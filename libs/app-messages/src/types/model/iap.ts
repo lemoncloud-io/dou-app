@@ -1,34 +1,34 @@
 import type { ProductSubscription, Purchase, PurchaseError } from 'react-native-iap';
 
 export type AndroidOfferTokens = {
-    freeTrial: string | null; // 무료 체험용 토큰
-    base: string | null; // 일반 과금용 토큰
+    freeTrial: string | null; // Token for the free-trial offer
+    base: string | null; // Token for the regular-billing offer
 };
 
 /**
- * iOS/Android 통합 구독 상품 타입
+ * Unified iOS/Android subscription product type
  */
 export type IapProductSubscription = ProductSubscription & {
     /**
-     * 실제 결제에 사용될 구독 상품 아이디
+     * The subscription product id actually used for the purchase
      */
     id: string;
     /**
-     * Android 전용 플랜 아이디
-     * 구독 상품 하위 플랜값
+     * Android-only plan id
+     * The sub-plan value under the subscription product
      */
     basePlanId?: string;
 
     /**
-     * 상품명 (product.title 등)
+     * Product name (e.g. product.title)
      */
     displayName?: string | null;
     /**
-     * 포맷팅된 가격 (예: ₩10,000)
+     * Formatted price (e.g. ₩10,000)
      */
     displayPrice: string;
     /**
-     * 화폐 단위 (예: KRW)
+     * Currency unit (e.g. KRW)
      */
     currency: string;
 
@@ -49,105 +49,105 @@ export type IapProductSubscription = ProductSubscription & {
     periodNumber?: number;
 
     /**
-     * (Android 전용)
-     * 구독 토큰 목록
-     * 무료 체험 여부에 따라 골라 써야 하므로 필수적입니다.
+     * (Android only)
+     * List of subscription offer tokens.
+     * Must be selected based on free-trial eligibility, so this is required.
      */
     androidOfferToken?: AndroidOfferTokens;
 };
 
 /**
- * 구매 요청 페이로드
+ * Purchase request payload
  */
 export type PurchasePayload = {
-    /** * 상품 ID (SKU)
-     * iOS: 고유 상품 식별자
-     * Android: 최상위 부모 상품 ID (productId)
+    /** * Product ID (SKU)
+     * iOS: unique product identifier
+     * Android: top-level parent product ID (productId)
      **/
     id: string;
 
     /**
-     * (Android 필수) 결제할 구체적인 오퍼 토큰
-     * 무료 체험 여부나 플랜 정보가 이 안에 포함됨
+     * (Android required) The specific offer token to purchase
+     * Carries the free-trial eligibility and plan info within it
      **/
     offerToken?: string;
 
     /**
-     * (Android 전용) 현재 구독 중인 요금제 ID (basePlanId)
-     * 업그레이드/다운그레이드 판별을 위한 기존 플랜의 ID
+     * (Android only) The plan ID (basePlanId) of the currently subscribed plan
+     * The existing plan's ID, used to determine upgrade/downgrade
      **/
     oldPlanId?: string;
 
     /**
-     * (Android 전용) 새로 결제하려는 요금제 ID (basePlanId)
-     * 등급 비교를 위해 사용됨
+     * (Android only) The plan ID (basePlanId) of the plan being newly purchased
+     * Used for tier comparison
      **/
     newPlanId?: string;
 };
 
-/** [요청] 구독 상품 목록 조회 페이로드 */
+/** [Request] Fetch subscription product list payload */
 export type FetchProductsPayload = {
-    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+    // Empty object type, reserved for future extension (optional fields, etc.).
 };
 
-/** [요청] 인앱 결제 구매 내역 조회 페이로드 */
+/** [Request] Fetch in-app purchase history payload */
 export type FetchCurrentPurchasesPayload = {
-    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+    // Empty object type, reserved for future extension (optional fields, etc.).
 };
 
-/** [요청] 구독 관리 화면 열기 페이로드 */
+/** [Request] Open subscription management screen payload */
 export type OpenSubscriptionManagementPayload = {
-    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+    // Empty object type, reserved for future extension (optional fields, etc.).
 };
 
-/** [응답] 인앱 결제 구매 요청 이벤트 페이로드 */
+/** [Response] In-app purchase request event payload */
 export type OnPurchasePayload = {
-    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+    // Empty object type, reserved for future extension (optional fields, etc.).
 };
 
-/** [응답] 구독 관리 화면 열기 결과 페이로드 */
+/** [Response] Open subscription management screen result payload */
 export type OnOpenSubscriptionManagementPayload = {
-    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+    // Empty object type, reserved for future extension (optional fields, etc.).
 };
 
 /**
- * 구매 트랜잭션 처리 완료 요청 페이로드
- * 주의: 구매 처리후 해당 메서드를 수행하지 않을 경우 환불처리됨
+ * Request payload to finish processing a purchase transaction
+ * Caution: skipping this call after processing a purchase results in a refund
  */
 export type FinishPurchaseTransactionPayload = {
     purchase: Purchase;
 };
 
 /**
- * 인앱 결제 구독 상품 정보 반환 페이로드
+ * Payload returning in-app purchase subscription product info
  */
 export type OnFetchProductsPayload = {
     products: IapProductSubscription[];
 };
 
 /**
- * 인앱 결제 구매 내역 정보 반환 페이로드
+ * Payload returning in-app purchase history info
  */
 export type OnFetchCurrentPurchasesPayload = {
     purchases: Purchase[];
 };
 
 /**
- * 인앱 결제 구매 성공 페이로드
+ * In-app purchase success payload
  */
 export type OnPurchaseSuccessPayload = {
     purchase: Purchase;
 };
 
 /**
- * 인앱 결제 구매 에러 페이로드
+ * In-app purchase error payload
  */
 export type OnPurchaseErrorPayload = {
     error: PurchaseError;
 };
 
 /**
- * 인앱 결제 구매 완료 처리 결과 페이로드
+ * Payload for the result of finishing a purchase transaction
  */
 export type OnFinishPurchaseTransactionPayload = {
     purchase: Purchase;

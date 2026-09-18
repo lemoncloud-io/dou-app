@@ -9,7 +9,7 @@ export { useRuntimeRepositories } from './hooks/useRuntimeRepositories';
 export { useGlobalCacheSearch, globalCacheRefKey } from './hooks/useGlobalCacheSearch';
 
 // Native cache instrumentation read/reset — the debug overlay's only view into `@chatic/db`'s
-// metrics module (ADR-0070 결정 5); it never imports the engine lib directly.
+// metrics module (ADR-0070 Decision 5); it never imports the engine lib directly.
 export { getCacheMetricsSource } from './factories/localFactory';
 
 // Invited-cloud durability: the name sync hook plus the two non-React halves an app runs on a
@@ -18,7 +18,7 @@ export { useInvitedCloudNameSync } from './hooks/useInvitedCloudNameSync';
 export { recoverInvitedCloudIfMissing, syncInvitedCloudName } from './invitedCloudDurability';
 
 // The clouds query key — apps invalidate it right after login. The rest of the REST hooks went down
-// to the app layer (ADR-0070 결정 5); this key stays because the runtime is what invalidates it.
+// to the app layer (ADR-0070 Decision 5); this key stays because the runtime is what invalidates it.
 export { cloudsKeys } from './hooks/queryKeys';
 
 // The offline outbox MACHINE only; activation is the app's opt-in. apps/web never constructs one —

@@ -22,7 +22,7 @@ describe('demo/createMemoryStore', () => {
 
         unsub();
         store.upsert('c', 3);
-        expect(listener).toHaveBeenCalledTimes(2); // 구독 해제 후 통지 없음
+        expect(listener).toHaveBeenCalledTimes(2); // No notification after unsubscribing
     });
 
     it('remove/clear 도 version 증가 + 통지(변화 있을 때만)', () => {
@@ -35,7 +35,7 @@ describe('demo/createMemoryStore', () => {
         expect(store.read('x')).toBeUndefined();
         expect(listener).toHaveBeenCalledTimes(2);
 
-        store.remove('nope'); // 없는 키 → 변화 없음 → 통지 없음
+        store.remove('nope'); // A key that doesn't exist → no change → no notification
         expect(listener).toHaveBeenCalledTimes(2);
 
         store.upsert('y', 'world');
@@ -49,7 +49,7 @@ describe('demo/createMemoryStore', () => {
         const store = createMemoryStore<number>({ write });
         store.upsert('k', 42);
         expect(write).toHaveBeenCalledWith('k', 42);
-        expect(store.read('k')).toBe(42); // mirror 가 정본
+        expect(store.read('k')).toBe(42); // The mirror is the source of truth
     });
 
     it('backing.write 실패해도 mirror/통지에 영향 없음', () => {

@@ -16,7 +16,7 @@ import type {
  * `update` authenticates whichever slot is active. `linkAccount` is the unified account-proof packet
  * (phone/email/social × link/login × send/resend/verify/confirm) and is a relay DM-invite identity
  * packet: the main user it resolves to lives in the central backend behind the relay, so the
- * composition root binds it to the relay slot. See ADR-0033, ADR-0042.
+ * composition root binds it to the relay slot. See ADR-0089, ADR-0042.
  *
  * The two packets it replaced (`verifyHashAlias`, `attachSocial`) are deliberately NOT listed. They
  * still exist on the wire and on `AuthGateway` as `@deprecated`, but leaving them out of this Pick is
@@ -57,7 +57,7 @@ export type UserSocketDomainGateway = Pick<ChannelGateway, 'listUser' | 'syncUse
 /**
  * Relay 1:1 (DM) invite codes — distinct from `UserSocketDomainGateway.invite`, which is the cloud
  * bulk-invite action (ADR-0016). Issued and redeemed on the relay server, so the composition root
- * pins this bundle entry to the relay slot rather than the active one. See ADR-0033.
+ * pins this bundle entry to the relay slot rather than the active one. See ADR-0089.
  */
 export type InviteSocketDomainGateway = Pick<InviteGateway, 'create' | 'get' | 'list' | 'accept' | 'cancel' | 'reject'>;
 

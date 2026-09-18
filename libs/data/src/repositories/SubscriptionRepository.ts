@@ -30,7 +30,7 @@ export interface ISubscriptionRepository extends DisposableRepository {
     validateMembership(body: CreateMembershipBody, params?: Record<string, unknown>): Promise<MembershipView>;
 
     /**
-     * Admin console surface (ADR-0082). Remote-only like the rest of this repository, which is the
+     * Admin console surface (ADR-0101). Remote-only like the rest of this repository, which is the
      * point: these reads are other users' records and must never reach a local cache.
      */
     fetchAdminMemberships(

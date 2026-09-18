@@ -22,8 +22,9 @@ jest.mock('@chatic/bridges', () => ({
 }));
 jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
-// 실제 `useRuntimeRepositories`는 DataManager의 같은 객체를 돌려준다. 목이 매 렌더 새 객체를
-// 만들면 유저 캐시 effect의 의존성이 계속 바뀌어 무한 렌더가 된다 — 안정적인 참조로 고정한다.
+// The real `useRuntimeRepositories` returns DataManager's same object every time. If the mock
+// returned a new object on every render, the user-cache effect's dependency would keep changing
+// and cause an infinite render loop — pin it to a stable reference.
 const repositories = { user: { cacheRead } };
 jest.mock('@chatic/app-runtime', () => ({
     runtime: {
@@ -81,8 +82,8 @@ describe('PlaceInviteTab — 표시', () => {
         expect(screen.getByTestId('cand-아리')).toBeInTheDocument();
     });
 
-    // 설정 화면 멤버 행과 같은 체인: 프로필 닉 → 유저 레코드 name → userId.
-    // 유저 레코드는 후보별 cacheRead 원샷이라 한 틱 뒤에 붙는다.
+    // Same chain as the settings screen's member row: profile nick → user record name → userId.
+    // The user record is a one-shot cacheRead per candidate, so it lands a tick later.
     it('프로필이 없으면 유저 레코드 name으로 떨어진다', async () => {
         setup();
 
@@ -105,7 +106,7 @@ describe('PlaceInviteTab — 표시', () => {
         expect(screen.getByTestId('cand-아리')).toHaveAttribute('data-avatar', 'data:image/png;base64,AAA');
     });
 
-    // 공백만 든 닉은 빈 이름이나 마찬가지라 다음 단계로 내려가야 한다.
+    // A nick that's only whitespace is as good as an empty name, so it must fall through to the next step.
     it('닉이 공백뿐이면 다음 폴백으로 내려간다', async () => {
         mockProfiles = [['u2', { nick: '   ' }]];
         setup();
@@ -144,7 +145,7 @@ describe('PlaceInviteTab — 선택과 검색', () => {
         expect(screen.queryByTestId('cand-***5678')).not.toBeInTheDocument();
     });
 
-    // 닉을 모르는 상대에게 닿는 경로 — 데스크톱이 수동 id 입력 대신 남겨둔 것과 같다.
+    // The path for reaching someone whose nick you don't know — same as what desktop leaves in place of manual id entry.
     it('검색은 userId로도 필터한다', async () => {
         setup();
         await screen.findByTestId('cand-***5678');
@@ -193,7 +194,7 @@ describe('PlaceInviteTab — 확정', () => {
         expect(toast).toHaveBeenCalledWith({ title: 'inviteFriends.placeSuccess:1' });
     });
 
-    // 서버가 owner-only로 막을 수 있다(ADR-0075 미결) — 그 거부가 사용자에게 보여야 한다.
+    // The server can block this as owner-only (ADR-0075, unresolved) — that rejection must be shown to the user.
     it('실패하면 화면을 떠나지 않고 에러 토스트를 띄운다', async () => {
         inviteChannel.mockRejectedValue(new Error('denied'));
         setup();
@@ -215,7 +216,7 @@ describe('PlaceInviteTab — 후보 없음', () => {
         expect(screen.queryByTestId('cta')).not.toBeInTheDocument();
     });
 
-    // 아직 읽는 중인 것과 진짜 비어 있는 것은 다르다 — 로딩 중에 "없어요"를 띄우면 거짓말이다.
+    // Still loading and genuinely empty are different things — showing "none" while loading would be a lie.
     it('로딩 중에는 후보 없음 안내를 띄우지 않는다', () => {
         mockCandidateIds = [];
         mockIsLoading = true;
@@ -226,8 +227,8 @@ describe('PlaceInviteTab — 후보 없음', () => {
 });
 
 describe('PlaceInviteTab — 로딩 중', () => {
-    // 후보를 아직 읽는 중이면 목록이 비어 있는데, 그때 "검색 결과가 없어요"를 그리면
-    // 검색하지도 않은 사용자에게 거짓말이 된다.
+    // While candidates are still being read, the list is empty — rendering "no search results" at
+    // that point would be a lie to a user who hasn't even searched yet.
     it('로딩 중 빈 목록에 검색 결과 없음 문구를 그리지 않는다', () => {
         mockCandidateIds = [];
         mockIsLoading = true;

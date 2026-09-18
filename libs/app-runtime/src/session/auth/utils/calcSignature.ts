@@ -8,7 +8,7 @@ import { LemonHmacSigner } from '@chatic/auth-sign';
  * `sessionAuthAdapter.ts` next to its only consumer, which is also where
  * [`tokenMerge`](./tokenMerge.ts) used to be — that file's own comment cites `calcSignature` as the
  * precedent for "pure helpers are functions in `utils/`", so the two belong in the same place
- * (문서 §파일 배치 규칙).
+ * (design doc §file placement rules).
  */
 const authSigner = new LemonHmacSigner();
 

@@ -92,7 +92,7 @@ const formatDay = (epoch: number): string => new Date(epoch).toLocaleDateString(
 export const validateOverrideForm = (form: OverrideFormState, now: number): string[] => {
     const errors: string[] = [];
 
-    // The API treats the reason as optional; this console does not (ADR-0082 결정 6). Who changed
+    // The API treats the reason as optional; this console does not (ADR-0101, decision 6). Who changed
     // what and why is the whole audit trail — the relay only keeps the most recent one.
     if (!form.reason.trim()) {
         errors.push('사유를 입력해 주세요.');

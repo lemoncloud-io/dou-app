@@ -39,15 +39,15 @@ interface ImageViewerProps {
 const NAV_BUTTON =
     'focus-ring absolute top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-background/90 text-foreground shadow-raised transition-opacity duration-150 ease-tactile disabled:hidden';
 
-/** Controls that surface on hover or focus ("메뉴나 닫기 버튼 호버 시 노출"). */
+/** Controls that surface on hover or focus ("shown on hover over the menu or close button"). */
 const REVEAL = 'opacity-0 group-hover/viewer:opacity-100 focus-visible:opacity-100 focus-within:opacity-100';
 
 /**
- * Full-view image viewer (Figma "#이미지 전체보기").
+ * Full-view image viewer (Figma "#full image view").
  *
- * One image: the picture alone with its name, save and "더보기" along the bottom. Several:
+ * One image: the picture alone with its name, save and "More" along the bottom. Several:
  * the picture with previous/next, and a thread column beside it that repeats the message
- * — author, "n개 파일 · 전체 다운로드" and every image as a thumbnail — so the viewer can
+ * — author, "n files · Download all" and every image as a thumbnail — so the viewer can
  * jump anywhere in the set and carry on into the thread.
  */
 export const ImageViewer = ({
@@ -277,7 +277,7 @@ interface ImageSetMetaProps {
     onDownloadAll: () => void;
 }
 
-/** "n개 파일 · 전체 다운로드" — the line above a multi-image grid, in the feed and in the viewer. */
+/** "n files · Download all" — the line above a multi-image grid, in the feed and in the viewer. */
 export const ImageSetMeta = ({ count, onDownloadAll }: ImageSetMetaProps) => {
     const { t } = useTranslation();
     return (

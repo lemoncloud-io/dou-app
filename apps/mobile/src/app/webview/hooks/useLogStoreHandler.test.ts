@@ -118,9 +118,9 @@ describe('useLogStoreHandler — 배출', () => {
         } as WebMessageData<'ClearLogUploadQueue'>);
 
         expect(queue.clear).toHaveBeenCalledTimes(1);
-        // 남은 불변식은 clear가 hub 쪽에 손대지 않는다는 것 — 무엇도 발행하지 않고,
-        // 이미 배달된 엔트리를 되돌리지도 않는다. 저장소를 비우는 것과 다른
-        // 리스너들이 이미 본 것은 별개다.
+        // The remaining invariant is that clear never touches the hub side — it publishes nothing
+        // and doesn't undo entries already delivered. Emptying the queue is separate from what
+        // other listeners have already seen.
         expect(hubEntries).toHaveLength(0);
         expect(res).toMatchObject({ type: 'OnClearLogUploadQueue', success: true, data: { size: 0 } });
     });

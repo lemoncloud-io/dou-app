@@ -568,8 +568,8 @@ export const MessageRow = memo(
                                             )}
                                         </p>
                                     )}
-                                    {/* Images sit under the text (Figma: "본문 + 이미지 동시에 업로드
-                                        시 문구 상단 노출"). A tombstone or an open editor has none. */}
+                                    {/* Images sit under the text (Figma: "when text and image upload
+                                        together, the text shows above"). A tombstone or an open editor has none. */}
                                     {message.id && !message.hidden && !isEditing && (
                                         <MessageImages
                                             messageId={message.id}

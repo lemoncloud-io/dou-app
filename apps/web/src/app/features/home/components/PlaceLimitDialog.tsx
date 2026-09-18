@@ -13,7 +13,7 @@ interface PlaceLimitDialogProps {
      * Opens the ACTIVE place's settings hub, where a place can be deleted to free a slot. Omitted
      * when no place is active: the route is keyed by a site id, so there would be nothing to open —
      * the action then renders disabled rather than navigating nowhere (same idiom as HomePage's
-     * '플레이스 설정' menu entry).
+     * 'Place settings' menu entry).
      */
     onManagePlaces?: () => void;
     /** Raises the subscribe-a-cloud flow. The 1-cloud quota check lives in that flow, not here. */

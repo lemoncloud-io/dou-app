@@ -104,11 +104,11 @@ describe('observeRouterRoutes — 실제 라우터 연동', () => {
         await goBack(router);
         await router.navigate('/c');
 
-        // 스택: /b는 사라지고 그 자리에 /c가 온다.
+        // Stack: /b disappears and /c takes its place.
         expect(paths()).toEqual(['/', '/a', '/c']);
         expect(routeStackTracker.getSnapshot().currentIndex).toBe(2);
 
-        // trail: 방문 순서는 그대로 남는다. 두 스토어가 다른 답을 준다는 것이 요점이다.
+        // Trail: the visit order is preserved as-is. The point is that the two stores give different answers.
         expect(getRouteTrail()).toEqual(['/', '/a', '/b', '/a', '/c']);
     });
 

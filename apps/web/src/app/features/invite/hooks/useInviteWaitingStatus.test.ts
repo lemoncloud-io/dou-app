@@ -37,17 +37,18 @@ describe('useInviteWaitingStatus', () => {
         expect(result.current.invite).toBeUndefined();
     });
 
-    // resolveInviteCode(invites, refetch, id)가 필요로 하는 원본 목록 — 단일 invite만으로는
-    // 캐시 전용 행(코드 없음)일 때 재조회 후 재시도할 근거가 없다.
+    // The raw list that resolveInviteCode(invites, refetch, id) needs — a single invite alone gives
+    // no basis to re-fetch and retry when the row is cache-only (no code).
     it('전체 목록과 refetch를 그대로 전달한다 (resolveInviteCode가 쓴다)', () => {
         const { result } = renderHook(() => useInviteWaitingStatus('invite-1'));
         expect(result.current.invites).toBe(mockInvites);
         expect(result.current.refetch).toBe(refetchMock);
     });
 
-    // 30초 재조회는 쿼리 옵션으로 위임한다. 직접 setInterval + refetch()를 돌리면 relay가
-    // 미인증인 동안에도 enabled 게이트를 뚫고 나가 `401 UNAUTHORIZED - not authenticated`를 받는다
-    // (refetch()는 disabled 쿼리에서도 발사된다). 마운트 범위 한정은 훅 옵션이 그대로 보장한다.
+    // The 30-second re-fetch is delegated to the query options. Running setInterval + refetch()
+    // directly would punch through the enabled gate even while relay is unauthenticated and get a
+    // `401 UNAUTHORIZED - not authenticated` (refetch() fires even on a disabled query). Scoping it to
+    // the mount lifetime is guaranteed as-is by the hook's own options.
     it('30초 폴링을 쿼리 옵션으로 위임한다 — 게이트를 우회하는 수동 refetch 타이머가 아니라', () => {
         renderHook(() => useInviteWaitingStatus('invite-1'));
 

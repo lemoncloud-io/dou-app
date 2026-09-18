@@ -119,7 +119,7 @@ describe('PlaceProfileCreateDialog', () => {
         expect(onExit).toHaveBeenCalledTimes(1);
     });
 
-    it('dismissible=false면 닫기(X) 버튼이 없다 — 생성 플로우의 필수 스텝 (ADR-0045)', () => {
+    it('dismissible=false면 닫기(X) 버튼이 없다 — 생성 플로우의 필수 스텝 (ADR-0094)', () => {
         render(
             <PlaceProfileCreateDialog
                 open

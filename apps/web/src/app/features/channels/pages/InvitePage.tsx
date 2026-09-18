@@ -37,8 +37,10 @@ const MAX_INVITE_SELECTION = 100;
 type InviteTab = 'place' | 'contact';
 
 /**
- * 채널 친구 초대 페이지 — 기존 InviteFriendsDialog를 라우팅 페이지로 전환한 것.
- * 네이티브: 디바이스 연락처를 다중 선택해 일괄 초대. 웹: 연락처 접근 불가 → 초대 링크 흐름으로 유도.
+ * The channel friend-invite page — converted from the previous InviteFriendsDialog into a
+ * routed page.
+ * Native: multi-select device contacts for a batch invite. Web: no contacts access → funneled
+ * into the invite-link flow.
  */
 export const InvitePage = () => {
     const { t } = useTranslation();
@@ -71,17 +73,18 @@ export const InvitePage = () => {
     );
 
     /**
-     * 네이티브에서만 연락처를 불러온다. 웹은 연락처 접근 불가 → 초대 링크 유도.
+     * Loads contacts only on native. Web has no contacts access → funneled into the invite link.
      *
-     * 연락처 탭에 실제로 들어왔을 때만 부른다. `getContacts()`는 OS 권한 팝업을 띄우므로, 기본
-     * 탭이 플레이스가 된 뒤로는 마운트 시 호출하면 **연락처를 쓸 생각도 없는 사용자에게 권한을
-     * 묻게 된다.**
+     * Only called once the contact tab is actually entered. `getContacts()` raises the OS
+     * permission popup, and now that the default tab is place, calling it on mount would
+     * **prompt for permission even from a user with no intention of using contacts.**
      *
-     * 트리거는 `activeTab`이 아니라 **한 번이라도 열렸는가**(`contactsRequested`)다. 탭 값에
-     * 직접 의존시키면 탭을 되돌릴 때 cleanup이 돌아 진행 중인 요청이 취소되는데, 그 사이
-     * 응답이 오면 아무 상태도 세팅되지 않은 채 재요청 가드만 남아 연락처 탭이 영영 빈 화면이
-     * 된다. 이 플래그는 false→true로 한 번만 바뀌므로 effect도 한 번만 돌고, cleanup은
-     * 언마운트에서만 실행된다.
+     * The trigger is **has it ever been opened** (`contactsRequested`), not `activeTab` directly.
+     * Depending directly on the tab value would run cleanup when the tab is flipped back, which
+     * cancels the in-flight request — and if the response arrives in that window, no state ever
+     * gets set and only the re-request guard remains, leaving the contacts tab permanently blank.
+     * This flag only ever flips false→true once, so the effect runs once too, and cleanup only
+     * runs on unmount.
      */
     const [contactsRequested, setContactsRequested] = useState(false);
     useEffect(() => {
@@ -116,19 +119,21 @@ export const InvitePage = () => {
     }, [isOnMobileApp, contactsRequested]);
 
     /**
-     * 번호가 하나도 저장돼 있지 않은 연락처는 목록에서 빼둔다.
+     * A contact with no stored number at all is kept out of the list.
      *
-     * 초대는 번호로 나가므로 그런 행은 초대할 수도, 심지어 이름 대신 번호로 알아볼 수도 없다 —
-     * 눌리지 않는 행을 남겨두는 것보다 아예 보이지 않는 게 낫다. 판정은 라벨을 만드는 함수와
-     * **같은 것**을 쓴다(`resolveContactDisplayPhone`): 보여줄 번호가 없다는 것과 목록에서 뺀다는
-     * 것이 어긋나지 않게.
+     * Since an invite goes out by number, such a row can't be invited and can't even be
+     * identified by a number instead of a name — better to leave it out entirely than to leave a
+     * row in the list that can't be tapped. The check uses **the same function** that builds the
+     * label (`resolveContactDisplayPhone`), so "no number to show" and "excluded from the list"
+     * never disagree.
      *
-     * 유효한 한국 휴대폰이 아닌 번호(집전화·해외번호)는 여기서 걸러내지 **않는다**. 그 행은 번호로
-     * 식별되고, 초대만 비활성이다 — "저장돼 있는데 안 보인다"와 "초대할 수 없다"는 다른 이야기다.
+     * A number that isn't a valid Korean mobile (landline, overseas) is **not** filtered out
+     * here. That row is still identified by its number — only the invite is disabled. "It's
+     * stored but not shown" and "it can't be invited" are different stories.
      */
     const listedContacts = useMemo(() => contacts.filter(c => resolveContactDisplayPhone(c) !== ''), [contacts]);
 
-    // 선택된 연락처는 필터 무관하게 상단, 나머지는 검색 필터 적용.
+    // Selected contacts stay at the top regardless of the filter; the rest get the search filter applied.
     const filteredContacts = useMemo(() => {
         const selected: ContactInfo[] = [];
         const unselected: ContactInfo[] = [];

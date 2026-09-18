@@ -44,9 +44,9 @@ describe('setupBridgeLogger', () => {
     });
 
     it('웹 환경에서는 아무것도 구독하지 않는다 — 콘솔은 apps/web 소관이다', () => {
-        // 예전에는 여기서 콘솔을 붙였다. 브릿지에 관한 함수가 콘솔 출력까지
-        // 결정하던 것이고, 웹 싱크가 브릿지 패키지에 살던 것이다. 지금은
-        // apps/web의 attachConsoleListener가 그 결정을 갖는다.
+        // This used to attach the console here. The bridge-related function was deciding
+        // console output too, and the web sink lived inside the bridge package. Now
+        // apps/web's attachConsoleListener owns that decision.
         handle = setupBridgeLogger();
 
         logger.info('TEST', 'hello', { ok: true });
@@ -134,9 +134,9 @@ describe('setupBridgeLogger', () => {
     });
 
     it('teardown 이후에는 배선이 해제되고 아무 데도 찍히지 않는다', () => {
-        // 예전에는 여기서 코어의 콘솔 폴백이 되살아났다. 구독자 수에 따라 켜지는
-        // 싱크는 pub/sub이 아니므로 폐지했고(원칙 16), teardown은 이제 정말로
-        // 아무 구독자도 남기지 않는다.
+        // This used to be where the core's console fallback came back to life. A sink
+        // that turns on based on subscriber count isn't pub/sub, so it was retired
+        // (principle 16), and teardown now truly leaves no subscriber behind.
         handle = setupBridgeLogger();
         handle.teardown();
         handle = undefined;
@@ -252,8 +252,8 @@ describe('createNativeForwarder — 하이브리드의 유일한 웹→앱 경�
     });
 
     it('엔트리 하나가 메시지 하나다 — 묶지 않는다', () => {
-        // 배치로 묶으려면 이 리스너가 버퍼와 타이머와 트리거 규칙을 품어야 하고,
-        // 그러면 나머지 두 리스너와 성질이 달라진다(원칙 17).
+        // Batching entries would require this listener to hold a buffer, a timer, and
+        // trigger rules, which would make it behave differently from the other two listeners (principle 17).
         logger.info('TEST', 'one');
         logger.warn('TEST', 'two');
         logger.error('TEST', 'three');
@@ -262,8 +262,8 @@ describe('createNativeForwarder — 하이브리드의 유일한 웹→앱 경�
     });
 
     it('상태를 갖지 않는다 — 멈추거나 인수되는 경로가 없다', () => {
-        // 예전에는 배치 충전이 인수하면 조용해지는 게이트가 있었다. 경로가
-        // 둘이었기 때문이고, 지금은 하나라 전환할 대상이 없다.
+        // This used to have a gate that went quiet once batch charging took over. That
+        // was because there were two paths; now there's only one, so there's nothing to switch to.
         logger.info('TEST', 'a');
         logger.info('TEST', 'b');
 
@@ -286,7 +286,7 @@ describe('createNativeForwarder — 폭주 제어', () => {
     let handle: BridgeLoggerHandle | undefined;
     let postMessage: jest.Mock;
 
-    /** 브리지로 실제로 나간 메시지들. */
+    /** The messages actually sent out over the bridge. */
     const sent = () => postMessage.mock.calls.map(call => JSON.parse(call[0]).data.message as string);
 
     beforeEach(() => {
@@ -303,9 +303,9 @@ describe('createNativeForwarder — 폭주 제어', () => {
     });
 
     it('같은 줄이 창 안에서 반복되면 임계 이후를 접는다', () => {
-        // 네트워크가 멎으면 타임아웃마다 같은 error가 난다. n번째 사본은 첫 번째가
-        // 말하지 않은 것을 말하지 않는데, 하필 브리지가 경합 자원이 된 순간에
-        // postMessage 하나를 쓴다.
+        // When the network stalls, the same error fires on every timeout. The nth copy
+        // says nothing the first one didn't already say, yet it spends a postMessage call
+        // at exactly the moment the bridge has become a contended resource.
         for (let i = 0; i < 50; i += 1) logger.error('NET', 'GET /messages failed');
 
         expect(postMessage).toHaveBeenCalledTimes(5);
@@ -324,7 +324,7 @@ describe('createNativeForwarder — 폭주 제어', () => {
         jest.spyOn(Date, 'now').mockReturnValue(1_000);
         for (let i = 0; i < 20; i += 1) logger.error('NET', 'GET /messages failed');
 
-        // 창이 지난 뒤의 첫 발생
+        // The first occurrence after the window has passed
         (Date.now as jest.Mock).mockReturnValue(1_000 + 1_500);
         logger.error('NET', 'GET /messages failed');
 

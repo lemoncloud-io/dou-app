@@ -91,7 +91,7 @@ synchronously at module load time** to use as the initial state. Saving happens 
 `setTheme`.
 
 - The restore-wait window disappears, so the correct background and status bar apply from the first
-  frame. **Boot delay is zero** (this does not conflict with ADR-0027's early-mount optimization).
+  frame. **Boot delay is zero** (this does not conflict with ADR-0086's early-mount optimization).
 - To stay compatible with existing user data, the read accepts both formats: plain text (`"dark"`) and
   the zustand persist envelope (`{"state":{"theme":"dark"},"version":0}`). **Writes are unified to
   plain text.**
@@ -121,7 +121,7 @@ changed — **because the essence of flaw 3 is "nothing happens when the value d
     > the session is ready. Injection runs before document parsing, so the pre-paint script can use the
     > value. As a result, no new contract was added to `libs/app-messages`/`libs/bridges` — the
     > contract-extension item above turned out to be unnecessary. Details:
-    > [apps/mobile/docs/theme.md](../../apps/mobile/docs/theme.md)
+    > [apps/mobile/docs/theme.md](../../apps/mobile/docs/system/theme.md)
 
 - **Switch `SavePreference('theme')` to `request` and retry on failure.** The web UI reflects the
   change optimistically and immediately, while the bridge confirmation runs in the background, so a

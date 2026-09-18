@@ -11,7 +11,7 @@
 Production mobile (WKWebView) error reports are piling up in a state nobody can triage. Three real
 collected examples all show the same problems.
 
-- **Every title is `[mobile] error`** ([`common.ts:103`](../../libs/web-core/src/api/common.ts)). In a
+- **Every title is `[mobile] error`** (`common.ts:103`). In a
   Slack alert or the admin report list, a script error and a network error look identical, so nothing is
   known until the report is opened.
 - **`"Script error."` appears in a form nothing can be inferred from.** The global handler
@@ -22,11 +22,11 @@ collected examples all show the same problems.
   still erased as opaque → an exception thrown from a native injection script or a third-party context is
   possible, but the root cause is unconfirmed.)
 - **The throttle key is `error.message` alone**
-  ([`common.ts:16`](../../libs/web-core/src/api/common.ts)). Different causes collapsed into
+  (`common.ts:16`). Different causes collapsed into
   `"Script error."` share one bucket, so one per 60 seconds gets through and the rest are dropped
   silently — lost signal.
 - **There is no breadcrumb of what came just before.** The ring buffer in
-  [`libs/logger`](../../libs/logger/src/core/RingBuffer.ts) already exists and `reportIssue` attaches
+  [`libs/logger`](../../libs/logger/README.md) already exists and `reportIssue` attaches
   recent logs as `extras`, but `reportError` does not.
 - **`ErrorEvent`'s `filename` / `lineno` / `colno` are thrown away.** The browser fills those three in
   separately even when the message is opaque, and the current handler discards them.
@@ -34,7 +34,7 @@ collected examples all show the same problems.
 Constraints:
 
 - Report assembly is concentrated in one place, `libs/web-core`
-  ([`reportError()` / `reportIssue()`](../../libs/web-core/src/api/common.ts)). On the consuming side
+  (`reportError()` / `reportIssue()`). On the consuming side
   (admin-v2), `parseReportLog.ts`
   (`apps/admin-v2/src/app/features/report-logs/lib/parseReportLog.ts`) parses the bracketed title
   `[app] error`, and the payload is `[key: string]: unknown`, so new fields are consumed as they are.
@@ -50,14 +50,14 @@ improve capture for opaque errors, and enrich the context.
 
 1. **Six categories, by origin and kind** — separate from the HTTP-centric `classifyError`:
 
-    | category                         | How it is decided                                                     |
-    | -------------------------------- | --------------------------------------------------------------------- |
-    | `script-error`                   | `event.error == null` in `window.onerror` (opaque, no stack)           |
-    | `unhandled-rejection`            | The `unhandledrejection` path                                         |
-    | `react-render`                   | An ErrorBoundary (a `componentStack` is present)                      |
-    | `network`                        | ERR_NETWORK / offline / timeout (reusing `isNetworkError`)             |
-    | `http-4xx` / `http-5xx` / `auth` | An HTTP status is present (reusing `classifyError`)                    |
-    | `unknown`                        | Everything else                                                       |
+    | category                         | How it is decided                                            |
+    | -------------------------------- | ------------------------------------------------------------ |
+    | `script-error`                   | `event.error == null` in `window.onerror` (opaque, no stack) |
+    | `unhandled-rejection`            | The `unhandledrejection` path                                |
+    | `react-render`                   | An ErrorBoundary (a `componentStack` is present)             |
+    | `network`                        | ERR_NETWORK / offline / timeout (reusing `isNetworkError`)   |
+    | `http-4xx` / `http-5xx` / `auth` | An HTTP status is present (reusing `classifyError`)          |
+    | `unknown`                        | Everything else                                              |
 
 2. **Expose the category in both the title and a payload field**
     - Title: `[mobile] error` becomes `[mobile] script-error`, so Slack and the list separate them at a

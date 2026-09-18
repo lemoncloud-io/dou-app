@@ -68,7 +68,7 @@ export type KnownLogTag = (typeof KNOWN_LOG_TAGS)[number];
 /**
  * An entry's tag: any catalog tag, or any other string.
  *
- * **The open half is load-bearing, not laziness.** ADR-0047 deliberately replaced a closed union
+ * **The open half is load-bearing, not laziness.** ADR-0097 deliberately replaced a closed union
  * with a plain `string`, for two reasons that still hold: a native shell older than the web bundle
  * can send a tag this build has never heard of and it must survive the bridge unrewritten, and the
  * server does not validate the value either. Closing the union would reverse that decision.

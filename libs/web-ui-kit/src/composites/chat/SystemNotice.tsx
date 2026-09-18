@@ -5,7 +5,7 @@ import { cn } from '@chatic/lib/utils';
 export interface SystemNoticeProps {
     /**
      * Notice content — the host composes it, e.g. a bold `<b>name</b>` prefix
-     * followed by a localized clause ("…님이 채팅방에 입장했습니다.").
+     * followed by a localized clause ("...has entered the chat room.").
      */
     children: React.ReactNode;
     /**

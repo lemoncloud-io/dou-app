@@ -3,7 +3,7 @@ import { useServices } from '../../hooks';
 import type { WebMessageData } from '@chatic/app-messages';
 
 /**
- * Bridge handlers for the deferred report queue (ADR-0047): the web pulls
+ * Bridge handlers for the deferred report queue (ADR-0097): the web pulls
  * queued native detections (`FetchPendingReports`), relays them through the
  * signed web reporter, then acknowledges (`AckPendingReports`) so a report is
  * never relayed twice.

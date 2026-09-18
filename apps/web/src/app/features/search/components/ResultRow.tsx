@@ -5,7 +5,7 @@ interface ResultRowProps {
     leading: ReactNode;
     title: ReactNode;
     subtitle?: ReactNode;
-    /** Where the row lives, e.g. "클라우드 › 플레이스 › 채널". Rendered as its own muted line. */
+    /** Where the row lives, e.g. "Cloud › Place › Channel". Rendered as its own muted line. */
     context?: ReactNode;
     badge?: ReactNode;
     trailing?: ReactNode;

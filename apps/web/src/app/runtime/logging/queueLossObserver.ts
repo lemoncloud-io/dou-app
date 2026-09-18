@@ -10,7 +10,7 @@ import { getLogQueueView } from './logQueueView';
  * wrong with. So the entries most worth having are the ones most likely to be discarded, and
  * without this every "there are no warnings for this user" reading is ambiguous: it could mean
  * healthy, or it could mean the evidence was thrown away. That ambiguity would undermine every
- * other trigger this track added (ADR-0075).
+ * other trigger this track added (ADR-0099).
  *
  * **Why a third party reads it.** Neither the queue nor the uploader may log — `logger → send →
  * fail → logger` is a recursion the design already had to break, and it is pinned by a test. So the

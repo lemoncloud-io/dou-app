@@ -48,8 +48,9 @@ describe('UnreadBadgeRunner — 앱 뱃지 동기화', () => {
         expect(setBadge).toHaveBeenCalledWith(5);
     });
 
-    // 유령 뱃지의 정체: 비활성 클라우드 몫이 박제된 숫자였던 시절에는 전부 읽어도 그 값이 남았다.
-    // 이제는 캐시에서 재계산되므로, 그쪽이 0이면 활성 값만 남는다.
+    // What the phantom badge was: back when the inactive-clouds share was a frozen number, reading
+    // everything still left that value behind. Now it's recomputed from the cache, so when that's
+    // 0, only the active value remains.
     it('비활성 클라우드에 안읽음이 없으면 활성 클라우드 값만 남는다', () => {
         otherMock.mockReturnValue({ byCloud: {}, total: 0, refresh: refreshOther });
 
@@ -67,8 +68,9 @@ describe('UnreadBadgeRunner — 앱 뱃지 동기화', () => {
         expect(setBadge).toHaveBeenCalledWith(0);
     });
 
-    // 활성 클라우드 수치가 움직였다는 것은 캐시가 바뀌었다는 앱의 유일한 힌트다. 그 박자에
-    // 비활성 쪽도 다시 읽지 않으면, 백그라운드에서 동기화된 클라우드는 전환할 때까지 안 보인다.
+    // The active cloud's count moving is the app's only hint that the cache changed. If the
+    // inactive side isn't re-read on that same beat, a cloud that synced in the background stays
+    // invisible until the user switches to it.
     it('활성 클라우드 수치가 바뀌면 비활성 클라우드를 다시 읽는다', () => {
         const { rerender } = render(<UnreadBadgeRunner />);
         refreshOther.mockClear();
@@ -99,10 +101,10 @@ describe('UnreadBadgeRunner — 앱 뱃지 동기화', () => {
         expect(setBadge).not.toHaveBeenCalled();
     });
 
-    describe('뱃지 정합성 대조 (ADR-0075)', () => {
+    describe('뱃지 정합성 대조 (ADR-0099)', () => {
         beforeEach(() => fetchBadge.mockResolvedValue(null));
 
-        // 콜드 스타트: 아이콘에는 백그라운드 푸시가 남긴 값이 있고, 웹이 계산한 총합이 진실이다.
+        // Cold start: the icon holds whatever value a background push left, and the web's computed total is the truth.
         it('첫 push 전에 아이콘 값을 읽어 곧 쓸 총합과 대조한다', async () => {
             fetchBadge.mockResolvedValue(2);
             unreadsMock.mockReturnValue({ total: 0 });
@@ -115,8 +117,8 @@ describe('UnreadBadgeRunner — 앱 뱃지 동기화', () => {
             expect(badgeDivergence).toHaveBeenCalledWith({ web: 0, native: 2, active: 0, others: 0 });
         });
 
-        // 대조 기준은 "마지막으로 밀어넣은 값"이다 — 현재 총합과 비교하면 정상적인 읽음이 전부
-        // 불일치로 잡힌다(아이콘은 설계상 뒤처진다).
+        // The comparison baseline is "the value last pushed" — comparing against the current total
+        // would flag every normal read as a divergence (the icon lags behind by design).
         it('포그라운드 복귀 시 마지막으로 push한 값과 대조한다', async () => {
             await act(async () => {
                 render(<UnreadBadgeRunner />);

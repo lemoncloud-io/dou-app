@@ -46,13 +46,13 @@ beforeEach(() => {
 
 describe('useRelayCredentialRefresh — desktop-web 정책', () => {
     it('주기 폴링을 쓰지 않고 relay 검증 상승 엣지로 검사한다', () => {
-        // 폴링은 소켓이 뜨기 전에는 refresh 소유자에 닿지 못해 실패만 쌓는다
+        // Polling can't reach the refresh owner before the socket comes up — it would just pile up failures
         expect(render()).toMatchObject({ intervalMs: null, checkOnRelayVerified: true });
     });
 
     it('가시성 복귀에서도 검사한다 — 서스펜션을 견딘 소켓은 상승 엣지가 없다', () => {
-        // apps/web의 WebView 포그라운드 트리거에 해당하는, 이 셸이 가진 같은 엣지.
-        // 허브 내장 리스너가 아니라 아래 게이트를 거치므로 옵션 자체는 꺼져 있다.
+        // The same edge this shell has, corresponding to apps/web's WebView foreground trigger.
+        // It goes through the gate below rather than the hub's built-in listener, so the option itself is off.
         render();
         expect(mockGuard.mock.calls[0][0]).toMatchObject({ checkOnVisible: false });
 
@@ -61,7 +61,7 @@ describe('useRelayCredentialRefresh — desktop-web 정책', () => {
         expect(mockCheck).toHaveBeenCalledTimes(1);
     });
 
-    // 소켓이 없으면 check는 refresh 소유자에 닿지 못하고 warn만 남긴다 — 절전 복귀는 바로 그 상태다.
+    // Without a socket, check can't reach the refresh owner and just leaves a warning — waking from sleep is exactly that state.
     it('소켓이 검증되지 않았으면 가시성 복귀에 검사하지 않는다', () => {
         mockKindVerified.mockReturnValue(false);
         render();
@@ -79,8 +79,8 @@ describe('useRelayCredentialRefresh — desktop-web 정책', () => {
         expect(mockCheck).not.toHaveBeenCalled();
     });
 
-    // 부팅의 `auth.update`는 토큰을 싣지 않으므로, 이게 없으면 첫 writeback은 SDK refresh 한 주기
-    // (5분) 뒤다 — 그때까지 relay 서명 HTTP는 잠들기 전 자격증명으로 서명되어 403이 난다.
+    // Boot's `auth.update` doesn't carry a token, so without this the first writeback would be one
+    // SDK refresh cycle (5 min) away — until then relay-signed HTTP is signed with pre-sleep credentials and gets a 403.
     it('만료 여부와 무관하게 선제 refresh를 요청한다', () => {
         expect(render().forceRefresh).toBe(true);
     });

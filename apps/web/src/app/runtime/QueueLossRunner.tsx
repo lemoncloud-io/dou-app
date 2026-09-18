@@ -7,7 +7,7 @@ import { queueLossObserver } from './logging/queueLossObserver';
 const OBSERVE_INTERVAL_MS = 5 * 60_000;
 
 /**
- * Reports how many log entries the unsent queue has evicted (ADR-0075).
+ * Reports how many log entries the unsent queue has evicted (ADR-0099).
  *
  * Two occasions, for two different sessions. Foreground return is when loss that happened while the
  * app was suspended becomes visible; the low-frequency timer covers a session someone leaves open

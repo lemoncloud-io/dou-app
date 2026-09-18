@@ -14,7 +14,7 @@ import { runtime } from '@chatic/app-runtime';
  * Deliberately NOT wired through a repository. Repositories cache, and the cache is physically
  * partitioned by `${cid}:${uid}` with a read path that ignores context overrides — so a relay row
  * written while a cloud is active is unreachable, which is exactly why the earlier data-layer
- * attempt at this was reverted (ADR-0045 decision 5; apps/web/docs/feature/place/
+ * attempt at this was reverted (ADR-0094 decision 5; apps/web/docs/feature/place/
  * relay-default-place-scoping.md §6). Reading the relay token instead of a cache is what makes the
  * app-level version work, so this gateway only ever moves data in and out of that token.
  *

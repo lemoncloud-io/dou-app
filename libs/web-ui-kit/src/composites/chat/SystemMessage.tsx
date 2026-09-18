@@ -1,9 +1,9 @@
 import { cn } from '@chatic/lib/utils';
 
 export interface SystemMessageProps {
-    /** Bold notice line (e.g. "<친구>님이 채팅방에 입장했습니다."). */
+    /** Bold notice line (e.g. "<Friend> has entered the chat room."). */
     title: string;
-    /** Optional supporting line (e.g. "1:1 대화를 시작해 보세요."). */
+    /** Optional supporting line (e.g. "Start a 1:1 conversation."). */
     description?: string;
     className?: string;
 }

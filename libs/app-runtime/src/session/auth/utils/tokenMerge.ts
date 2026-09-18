@@ -1,7 +1,7 @@
 import type { UserTokenView } from '@lemoncloud/chatic-backend-api';
 
 /**
- * How an Auth-SDK-refreshed token view is merged into the stored one, per server (ADR-0076 결정 5).
+ * How an Auth-SDK-refreshed token view is merged into the stored one, per server (ADR-0076 Decision 5).
  *
  * These were 45 lines of justification inside `commitServerRefreshedToken`, and that comment was the
  * ONLY thing holding the three relay preservation rules in place — no test named any of them. They
@@ -58,7 +58,7 @@ type WithAuth = { $auth?: { id?: string } };
  *    lemon's own store via `buildCredentialsByToken`, which calls `saveOAuthToken` internally and
  *    overwrites the field with `''`). Without this line the pool id is lost from every copy after the
  *    first socket refresh, and the relay HTTP refresh's `identityPoolId` inheritance silently becomes
- *    a no-op. Pre-existing defect, surfaced by ADR-0070 3단계 체크리스트 5.
+ *    a no-op. Pre-existing defect, surfaced by ADR-0070 Step 3 checklist 5.
  *  - `credential` — this copy is the only record of WHICH credential is currently signing. When the
  *    view carries none the caller leaves lemon's cache on the PREVIOUS credential, so dropping the
  *    field here would make the store disagree with the signer, and the credential clock (which reads

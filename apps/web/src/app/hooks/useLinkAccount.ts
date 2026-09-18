@@ -30,7 +30,7 @@ export type LinkAccountSendOptions = Omit<PhoneCodeSendOptions, 'mode'> & { mode
  * blocked (`linkable: false` + `reason`) instead of finding out from a 409/403. `login` gains nothing
  * from it — a valid code is all it reports — so the login flow confirms directly (ADR-0042 §4).
  *
- * There is no "extend the timer" step — the UI's extend action resends (ADR-0033 D9), which issues a
+ * There is no "extend the timer" step — the UI's extend action resends (ADR-0089 D9), which issues a
  * fresh code and a fresh `expiredAt` but does NOT reset the wrong-answer counter.
  *
  * Rate limits (60s cooldown, 10/day per number, 20/day per device, 5 wrong answers) all reject with

@@ -3,7 +3,7 @@ import type { ICacheDataSource } from './types';
 import type { ISqliteDatabase } from '../../database';
 import { fetchManyByIds } from './fetchManyByIds';
 /**
- * 동기화 커서 등 메타(Meta) 도메인 전용 데이터 소스
+ * Data source specific to the Meta domain, such as sync cursors
  *
  * The web layer only reads/writes single rows (`getSyncedAt`/`setSyncedAt` →
  * load/save), where `id` is the cursor kind (e.g. 'channel-sync') scoped by
@@ -38,7 +38,7 @@ export class MetaDataSource implements ICacheDataSource<CacheMetaView, MetaQuery
     }
 
     /**
-     * 특정 클라우드/사용자 스코프의 전체 메타 목록을 조회합니다.
+     * Fetches the full meta list for a specific cloud/user scope.
      * Meta has no extra filter beyond cid/uid, so the query arg is unused.
      */
     public async fetchAll(cid?: string, _query?: MetaQueryOptions, uid?: string): Promise<CacheMetaView[]> {

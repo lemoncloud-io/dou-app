@@ -113,7 +113,7 @@ class ChaticFirebaseMessagingService : FirebaseMessagingService() {
                 }
                 // `info`, not `debug`: this is the moment the badge moves without the web's knowledge, and
                 // `debug` is dropped entirely on release builds — which left the badge-vs-unread
-                // reports with no evidence at all on the path that causes them (ADR-0075).
+                // reports with no evidence at all on the path that causes them (ADR-0099).
                 NativeLogger.log(
                     "info",
                     TAG,

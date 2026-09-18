@@ -22,7 +22,7 @@ type UserRepository = ReturnType<typeof runtime.data.useRuntimeRepositories>['us
  * either)"), because null-vs-throw is a screen policy: this gate renders its retry state on null
  * and must never get an alert or a redirect out of the call. It used to be `tryFetchProfile` in
  * `@chatic/app-runtime`, which made one app's gate policy part of the shared runtime surface
- * (ADR-0070 결정 5, ②안 방향).
+ * (ADR-0070, decision 5, following option ②).
  */
 const tryFetchProfile = async (user: UserRepository) => {
     try {
@@ -37,7 +37,7 @@ interface ProtectedRouteProps {
     children: React.ReactNode;
 }
 
-/** Full-screen centered card for the pre-entry gate states (권한 확인/거부). */
+/** Full-screen centered card for the pre-entry gate states (checking permission / denied). */
 const GateScreen = ({ children }: { children: React.ReactNode }) => (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
         <div className="w-full max-w-md space-y-4 rounded-lg border border-border bg-card p-8 text-center">

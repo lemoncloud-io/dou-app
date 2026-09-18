@@ -16,7 +16,7 @@ export type FilterValues = Partial<Record<FilterKey, string>>;
 
 export interface FilterChip {
     key: FilterKey;
-    /** What the operator sees, e.g. `상태 · expired`. */
+    /** What the operator sees, e.g. `status · expired`. */
     label: string;
 }
 

@@ -46,7 +46,7 @@ export const PlaceList = ({
             ? t('placeList.subtitleInvited', '초대받은 플레이스')
             : t('placeList.subtitleOwned', '내 플레이스');
 
-    // No count while the list is still arriving: "플레이스 0" next to a skeleton asserts an answer
+    // No count while the list is still arriving: "0 places" next to a skeleton asserts an answer
     // we don't have. The pulse is offset per row so the placeholder reads as a wave, not a blink.
     if (isLoading) {
         return (

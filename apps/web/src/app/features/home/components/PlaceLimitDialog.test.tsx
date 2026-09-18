@@ -74,7 +74,7 @@ describe('PlaceLimitDialog', () => {
 
     it('접속한 플레이스가 없으면 플레이스 관리는 비활성된다', () => {
         // The settings route is keyed by a site id — with none active there is nowhere to go, so the
-        // action is disabled instead of navigating nowhere. 클라우드 추가 stays available.
+        // action is disabled instead of navigating nowhere. "Add cloud" stays available.
         const { onOpenChange } = renderDialog({ onManagePlaces: undefined });
 
         expect(manage()).toBeDisabled();

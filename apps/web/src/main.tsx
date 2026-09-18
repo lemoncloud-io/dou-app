@@ -58,7 +58,7 @@ startLogUploader({
 reportRunIdJoin();
 
 // One-time carry-over of usePreferenceStore's pre-@chatic/config localStorage keys (ADR-0079
-// "레거시 저장값 승계") — must run before `config.init()` below, whose `hydrateStorage()` is what
+// "migrating legacy stored values") — must run before `config.init()` below, whose `hydrateStorage()` is what
 // actually reads the keys these write. `syncThemeFromSharedKey` is not one-time: `vite-ui-theme` stays
 // the durable, cross-app key (five apps' pre-paint scripts and `@chatic/theme`'s `ThemeProvider` all
 // read/write it directly), re-synced into `ui.theme`'s own storage on every boot.
@@ -66,7 +66,7 @@ migrateLegacyPreferences();
 syncThemeFromSharedKey();
 
 // Wires `@chatic/config` to this build's `import.meta.env`/injected globals — an explicit call
-// instead of `@chatic/web-config`'s former import-time side effect (ADR-0079 결정 1·11). Everything
+// instead of `@chatic/web-config`'s former import-time side effect (ADR-0079 decisions 1·11). Everything
 // downstream that reads a setting (`app-runtime`'s HTTP/session code, later this file's own runtime
 // boot) resolves it lazily, well after this line, so placement here — before `initAppRuntime` and
 // well before anything renders — is early enough with room to spare.
@@ -85,11 +85,11 @@ setStorageAdapter(isNative() ? localStorage : sessionStorage);
 //     the relay store throws rather than guessing when its resolvers are missing, so a future line
 //     that moves above this one fails loudly instead of signing requests against an empty host.
 // This replaces the import side effects that used to boot the session store and credential recovery
-// (ADR-0070 5단계 follow-up); it touches no network.
+// (ADR-0070 step-5 follow-up); it touches no network.
 //
 // Repository policy rides along: the embedded `$site` of user.profile is persisted into the place
 // cache only on the relay scope, so a cloud partition never receives the default place row
-// (ADR-0045). It must land before the data runtime is lazily created on first repository access.
+// (ADR-0094). It must land before the data runtime is lazily created on first repository access.
 runtime.boot.initAppRuntime({
     data: {
         repositories: { user: { persistEmbeddedSite: context => (context.cid ?? 'default') === 'default' } },
@@ -97,7 +97,7 @@ runtime.boot.initAppRuntime({
 });
 
 // Read the previous session's fate — a session that died without a clean
-// pagehide is logged as page-crash (ADR-0047 S7). It carries no buffer: the dead
+// pagehide is logged as page-crash (ADR-0097 S7). It carries no buffer: the dead
 // run's entries reach the collector through the batch uploader on their own.
 // Must stay after `startLogUploader`, which owns the only log store.
 const webLogBoot = attachWebCrashSentinel();
@@ -153,7 +153,7 @@ void appBridge.notifyWebAppReady().then(report => {
 // debug menu is a per-session action afterwards (MyPage 10-tap → SetDebugMode(true)).
 // NOTE: there is no stage that escapes this. The old note here claimed non-PROD builds showed the
 // FAB through a compile-time flag the web could not change; that was never true (`__DEV__` gated the
-// console and log sinks, never the panel), and ADR-0080 결정 12 has since deleted the native FAB and
+// console and log sinks, never the panel), and ADR-0080 decision 12 has since deleted the native FAB and
 // every other debug UI from the app. This call is now belt-and-braces: it clears a flag that older
 // installed builds still read.
 appBridge.setDebugMode(false);

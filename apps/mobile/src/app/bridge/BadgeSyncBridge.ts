@@ -33,7 +33,7 @@ export const BadgeSyncBridge: IBadgeSyncBridge = {
      * `null` rather than 0 is the whole point: 0 is a valid badge count, so answering it for
      * "unknown" would let a consumer compare against a value that means nothing. iOS has no shared
      * counter reachable from JS (its base is captured natively from the live icon badge) and an
-     * older shell has no module at all — both are unknown, not zero (ADR-0075).
+     * older shell has no module at all — both are unknown, not zero (ADR-0099).
      */
     getBase: async (): Promise<number | null> => {
         if (Platform.OS !== 'android' || !BadgeSync?.getBase) return null;

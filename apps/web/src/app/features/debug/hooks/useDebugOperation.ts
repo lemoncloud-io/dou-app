@@ -4,10 +4,10 @@ import { logger } from '@chatic/bridges';
 
 /**
  * The "press a button, the app does it, show what came back" loop every migrated screen needs
- * (ADR-0080 결정 11). Extracted after the third copy of it.
+ * (ADR-0080 decision 11). Extracted after the third copy of it.
  *
  * Two callers, because the bridge has two answer shapes and conflating them would let a screen
- * claim a confirmation it never got (결정 10):
+ * claim a confirmation it never got (decision 10):
  *
  * - `run` — for `webClient.request` commands. The app answers, so the line reports the response, and
  *   a rejection (including an older app that does not know the command) reports the failure.
@@ -18,8 +18,8 @@ import { logger } from '@chatic/bridges';
  *
  * The web ships ahead of the app, so a panel built against a new command runs for a while on builds
  * that have no handler for it. The host answers `NOT_FOUND` in that case, which is NOT a failure of
- * the operation — it means nobody was listening. Reporting the host's raw message ("등록된 핸들러를
- * 찾을 수 없습니다: …") would send a tester chasing a bug that is really a version gap.
+ * the operation — it means nobody was listening. Reporting the host's raw message (`등록된 핸들러를
+ * 찾을 수 없습니다: …`) would send a tester chasing a bug that is really a version gap.
  *
  * So `run` takes the command name, says so plainly, and REMEMBERS: `isUnsupported(command)` lets a
  * screen disable the control instead of offering a button that cannot work. Module scope and

@@ -1,8 +1,8 @@
 export * from './storeUrls';
 
 /**
- * 에러 타입별 UI 메시지 및 설정
- * ErrorFallback, RouterErrorFallback 컴포넌트에서 사용
+ * UI messages and settings per error type.
+ * Used by the ErrorFallback and RouterErrorFallback components.
  */
 export const ERROR_MESSAGES = {
     network: {

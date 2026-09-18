@@ -45,7 +45,7 @@ describe('computeUnreads', () => {
     });
 
     it('시스템 메시지(metaNo)는 안읽음 창에서 차감한다', () => {
-        // latest=10, read=3 → raw 7. metaNo 1→3 (시스템 2건) → 사용자 메시지 5건.
+        // latest=10, read=3 → raw 7. metaNo 1→3 (2 system messages) → 5 user messages.
         const { byChannel } = computeUnreads([
             channel({
                 id: 'a',

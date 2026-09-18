@@ -18,7 +18,7 @@ describe('VerificationCodeInput', () => {
 });
 
 describe('VerificationCodeInput — allowNonDigits', () => {
-    // 운영 필드가 조용히 넓어지지 않도록, 기본값은 숫자 전용이다.
+    // Digits-only is the default, so a production field never quietly widens what it accepts.
     it('기본값은 숫자만 통과시킨다', () => {
         const onChange = jest.fn();
         render(<VerificationCodeInput value="" onChange={onChange} length={6} ariaLabel="인증번호" />);
@@ -46,7 +46,7 @@ describe('VerificationCodeInput — allowNonDigits', () => {
         expect(onChange).toHaveBeenCalledWith('#ab');
     });
 
-    // 숫자 키패드에는 '#'이 없다 — 필터만 풀고 키패드를 그대로 두면 폰에서 입력 자체가 불가능하다.
+    // The numeric keypad has no '#' — lifting only the filter and leaving the keypad as-is would make entry impossible on a phone.
     it('켜면 숫자 키패드를 쓰지 않는다', () => {
         const { rerender } = render(<VerificationCodeInput value="" onChange={jest.fn()} ariaLabel="인증번호" />);
         expect(screen.getByLabelText('인증번호')).toHaveAttribute('inputmode', 'numeric');

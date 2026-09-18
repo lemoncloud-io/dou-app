@@ -90,15 +90,18 @@ export const resolveContactName = (contact: ContactInfo, fallback: string): stri
     fallback;
 
 /**
- * 연락처에서 초대에 쓸 **E.164**(`+8210…`) 번호를 고릅니다. 유효한 한국 휴대폰이 없으면 null.
+ * Picks the **E.164** (`+8210…`) number to use for an invite from a contact. Returns null if
+ * there's no valid Korean mobile number.
  *
- * 저장된 번호 **전부**를 훑습니다. 첫 칸만 보던 이전 구현은 집·회사 번호가 앞에 있는 연락처를
- * "번호 없음"으로 취급해 초대 자체를 막았다 — 연락처 앱은 번호 순서를 보장하지 않는다.
+ * Scans **all** of the stored numbers. The previous implementation only checked the first entry,
+ * so a contact with a home or work number listed first was treated as having "no number" and the
+ * invite itself was blocked — the contacts app doesn't guarantee number ordering.
  *
- * wire 값은 로컬형(`010…`)이 아니라 E.164다: 백엔드 해셔(`asE164Phone`)는 로컬형일 때만
- * `countryCode`를 읽는데, `user.invite-batch` 페이로드에는 국가를 실을 자리가 아예 없다
- * (`to`/`channelId`/`cloudId`/`cloudName`). 즉 국가가 번호 안에 들어 있어야 한다 (ADR-0044 §5).
- * 이 화면은 연락처가 국가를 알려주지 않으므로 한국 번호 검증을 그대로 유지하고 KR로 변환한다.
+ * The wire value is E.164, not the local form (`010…`): the backend hasher (`asE164Phone`) only
+ * reads `countryCode` for the local form, but the `user.invite-batch` payload has no field to
+ * carry the country at all (`to`/`channelId`/`cloudId`/`cloudName`). So the country has to be
+ * embedded in the number itself (ADR-0044 §5). Since this screen has no way to know a contact's
+ * country, it keeps Korean number validation as-is and converts to KR.
  */
 export const resolveContactPhone = (contact: ContactInfo): string | null => {
     for (const entry of contact.phoneNumbers ?? []) {

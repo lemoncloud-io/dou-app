@@ -8,7 +8,7 @@ export interface PendingPushEntry {
 
 /**
  * Carries a tapped push from the tap to the room it opens, so the room's entry can be logged under
- * the same correlation key as its receipt (ADR-0075).
+ * the same correlation key as its receipt (ADR-0099).
  *
  * **Why this exists at all.** "Tapped a push, the conversation was slow or never appeared" is
  * unanswerable from either side alone — the tap knows which push it was, the room knows when it

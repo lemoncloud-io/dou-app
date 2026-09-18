@@ -52,7 +52,7 @@ export interface ChannelMessageRowProps {
     ownerDisplayName: string;
     /** Avatar thumbnail URL for `other` rows. */
     ownerAvatar?: string;
-    /** Preformatted send time (e.g. "오후 12:10"). */
+    /** Preformatted send time (e.g. "PM 12:10"). */
     time: string;
     read: MessageReadInfo;
     /** Long-press / right-click — opens the message action sheet (owned by the page). */
@@ -75,7 +75,7 @@ export interface ChannelMessageRowProps {
     avatarOf?: (userId: string) => string | undefined;
     /** Loaded-reply aggregate for this root; the footer renders only when present. */
     threadMeta?: ThreadMeta;
-    /** How many replies are newer than my read cursor (ADR-0045 decision 5); 0 = none. */
+    /** How many replies are newer than my read cursor (ADR-0093 decision 5); 0 = none. */
     unseenReplyCount?: number;
     /** Formats the last reply's clock time for the footer — the room owns the 12/24h form. */
     formatThreadTime?: (date: Date) => string;
@@ -103,7 +103,7 @@ export interface MessageEditState {
  * One chat message row, composed from the web-ui-kit MessageRow + MessageBubble.
  * Owns the presentational concerns the design system stays out of: long-press to
  * open the action sheet, pending/failed status with retry/delete, the read receipt,
- * long-message truncation → "전체보기", reaction chips and the thread footer.
+ * long-message truncation → "View All", reaction chips and the thread footer.
  */
 export const ChannelMessageRow = ({
     message,

@@ -41,7 +41,7 @@ export type OnSaveAllTestRecordsPayload = {
 };
 
 export type ClearTestRecordsPayload = {
-    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+    // Empty object type, reserved for future extension (optional fields, etc.).
 };
 
 export type OnClearTestRecordsPayload = {

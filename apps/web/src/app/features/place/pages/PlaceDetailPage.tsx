@@ -22,7 +22,7 @@ const OWNER_AVATAR_SIZE = 36;
  * The relay only ever has the one place — its default place, DoU Home — so it is not "someone else's
  * place I was invited into" the way a cloud place can be, and product decided its screen is the owner
  * variant (Figma 3769-34207) with the created-date and owner rows removed entirely: relay's `isOwner`
- * is always absent and there is no owner to name (see the doc's 실측 table), so those rows would be
+ * is always absent and there is no owner to name (see the doc's observed-fields table), so those rows would be
  * either wrong or empty. A cloud place keeps the general rule: `isOwner` picks the name label (a
  * missing field counts as non-owner, matching the hub), and every fact row is conditional on the
  * server having actually sent it.

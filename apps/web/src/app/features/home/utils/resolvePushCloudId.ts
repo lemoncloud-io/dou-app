@@ -17,7 +17,7 @@ export interface ResolvePushCloudIdDeps {
 const cidOf = (ref: string): string => ref.slice(0, ref.indexOf(':'));
 
 /**
- * Resolves which cloud a cross-cloud push came from, for marking that cloud's dot (ADR-0056 결정 2).
+ * Resolves which cloud a cross-cloud push came from, for marking that cloud's dot (ADR-0056 decision 2).
  * The single place in the app that interprets a push's raw cloud hint — native storage and the
  * foreground bridge both hand off the hint fields as-is, unparsed.
  *

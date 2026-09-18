@@ -47,7 +47,7 @@ export const UnreadBadgeRunner = (): null => {
     }, [total, otherTotal]);
 
     /**
-     * Badge divergence (ADR-0075): read the icon BEFORE overwriting it, and compare with what it
+     * Badge divergence (ADR-0099): read the icon BEFORE overwriting it, and compare with what it
      * should already be showing. On the first push there is no previous value, so the total about to
      * be written stands in — on a cold start that total is the truth and the icon carries whatever
      * the background push handler left there, which is the mismatch users report as "the badge did

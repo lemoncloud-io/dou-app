@@ -4,11 +4,12 @@ import type { ISqliteDatabase } from '../../database';
 import { fetchManyByIds } from './fetchManyByIds';
 
 /**
- * 발신자의 relay 1:1 초대 카드(ADR-0052) 도메인 전용 데이터 소스.
+ * Data source specific to the sender's relay 1:1 invite card (ADR-0052) domain.
  *
- * 다른 도메인과 같은 표준 (cid, uid, id, data) blob 스키마다. 자격증명 필드(code, deeplink)를
- * 걸러내는 책임은 이 클래스가 아니라 웹 레이어의 허용 목록 매퍼(`toCacheInviteView`)에 있다 —
- * 여기 도착하는 시점에는 이미 그 필드들이 없다.
+ * Uses the same standard (cid, uid, id, data) blob schema as other domains. Filtering out
+ * credential fields (code, deeplink) is not this class's responsibility — it belongs to the web
+ * layer's allowlist mapper (`toCacheInviteView`); by the time data arrives here, those fields are
+ * already gone.
  */
 export class InviteDataSource implements ICacheDataSource<CacheInviteView, InviteQueryOptions> {
     constructor(
@@ -38,7 +39,7 @@ export class InviteDataSource implements ICacheDataSource<CacheInviteView, Invit
     }
 
     /**
-     * 특정 클라우드/사용자 스코프의 전체 초대 목록을 조회합니다.
+     * Fetches the full invite list for a specific cloud/user scope.
      * Invite has no extra filter beyond cid/uid, so the query arg is unused.
      */
     public async fetchAll(cid?: string, _query?: InviteQueryOptions, uid?: string): Promise<CacheInviteView[]> {

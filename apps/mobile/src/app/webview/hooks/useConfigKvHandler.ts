@@ -3,10 +3,10 @@ import type { WebMessageData } from '@chatic/app-messages';
 import { useServices } from '../../hooks';
 
 /**
- * Backs `@chatic/config`'s shell lane (ADR-0079 결정 9). Unlike `usePreferenceCacheHandler`, this
+ * Backs `@chatic/config`'s shell lane (ADR-0079 Decision 9). Unlike `usePreferenceCacheHandler`, this
  * handler validates nothing about `key`/`value` — the registry that gives them meaning lives in the
  * web bundle, not here. What keeps an unvalidated write safe is `ConfigKvService`'s `config:` key
- * namespace, which no write can escape: see its docblock, including why "ADR-0080 결정 13 removed
+ * namespace, which no write can escape: see its docblock, including why "ADR-0080 Decision 13 removed
  * the dangerous capability" is NOT the reason (that decision is still unimplemented).
  */
 export const useConfigKvHandler = () => {

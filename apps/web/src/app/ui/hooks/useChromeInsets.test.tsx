@@ -51,14 +51,14 @@ describe('useChromeInsets', () => {
         const commits: number[][] = [];
         render(<Harness withFooter={false} onRender={insets => commits.push(insets)} />);
 
-        // 마지막 값이 아니라 "0으로 페인트된 적이 없다"가 요점이다. 레이아웃 이펙트에서
-        // setState하면 React가 페인트 전에 다시 렌더하므로, 사용자가 보는 첫 프레임은 60이다.
+        // The point isn't the last value — it's "never painted at 0". Calling setState inside a layout
+        // effect makes React re-render before paint, so the first frame the user sees is 60.
         expect(commits[commits.length - 1][0]).toBe(60);
         expect(observed).toContain(document.querySelector('[data-testid="header"]'));
     });
 
-    // 조건부로 붙는 footer(KeyboardAwareLayout)도 같은 대접을 받아야 한다 — 헤더만 동기 측정하고
-    // footer는 옵저버에 맡기면 나중에 뜨는 하단 CTA에서 같은 점프가 재현된다.
+    // A conditionally mounted footer (KeyboardAwareLayout) needs the same treatment — measuring the
+    // header synchronously while leaving the footer to the observer would reproduce the same jump for a CTA that appears later.
     it('나중에 붙는 footer도 붙는 커밋에서 잰다', () => {
         const commits: number[][] = [];
         const { rerender } = render(<Harness withFooter={false} onRender={insets => commits.push(insets)} />);
@@ -69,8 +69,8 @@ describe('useChromeInsets', () => {
         expect(commits[commits.length - 1][1]).toBe(80);
     });
 
-    // 동기 측정은 강제 레이아웃 읽기다. 메시지 100개짜리 목록이 리렌더될 때마다 반복되면
-    // 고치려던 것보다 비싼 문제가 된다 — 요소당 한 번으로 묶여 있어야 한다.
+    // A synchronous measurement is a forced layout read. Repeating it on every re-render of a
+    // 100-message list would be more expensive than the problem it was meant to fix — it has to be capped at once per element.
     it('요소당 한 번만 동기 측정한다 — 리렌더마다 다시 재지 않는다', () => {
         const commits: number[][] = [];
         const { rerender } = render(<Harness withFooter={false} onRender={insets => commits.push(insets)} />);

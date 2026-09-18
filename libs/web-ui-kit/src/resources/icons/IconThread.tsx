@@ -8,7 +8,7 @@ export interface IconThreadProps extends Omit<React.SVGProps<SVGSVGElement>, 'wi
 /**
  * Thread glyph — two overlapping speech bubbles with an ellipsis (Figma "Outline /
  * Messages, Conversation / Dialog 2", 4712:16496). Used by the message action sheet's
- * 스레드 row.
+ * thread row.
  *
  * Deliberately not lucide's `MessageSquare`, which the sheet used before: a single
  * bubble is the icon for "a message", and the row opens the conversation hanging off

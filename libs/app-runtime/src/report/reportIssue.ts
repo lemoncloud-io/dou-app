@@ -9,25 +9,27 @@ import type { IssueReportWireBody } from '@chatic/http';
 import type { AppType, IssueReportExtras } from './types';
 
 /**
- * `stereo` 는 저장되는 리포트 레코드의 종류이고, admin 조회의 서버측 필터 기준(`MockListParam.type`)이다.
+ * `stereo` is the kind of the stored report record, and the server-side filter admin queries on
+ * (`MockListParam.type`).
  *
- * 자동 에러 리포트가 폐지되면서(`reportError` 삭제) 이 엔드포인트를 쓰는 것은 사용자 제보 하나뿐이지만,
- * 값은 유지한다 — 저장소에는 폐지 이전에 쌓인 `stereo: 'log'` 에러 리포트와 배치 업로더가 지금도 올리는
- * 로그 엔트리가 함께 있고, admin은 이 값으로 제보를 그것들과 가른다.
+ * Now that automatic error reporting is retired (`reportError` deleted), this endpoint has only one
+ * caller left — user-submitted reports — but the value stays: the store still holds `stereo: 'log'`
+ * error reports accumulated before the retirement, alongside the log entries the batch uploader keeps
+ * shipping, and admin uses this value to separate user reports from those.
  *
- * 와이어 형태(`stereo` 교차 타입 포함)는 `@chatic/http`의 `ReportHttpGateway` 소관이다 —
- * `IssueReportWireBody`가 그것이고, 이 파일은 그 body를 조립만 한다.
+ * The wire shape (including the `stereo` union type) belongs to `@chatic/http`'s `ReportHttpGateway` —
+ * that's where `IssueReportWireBody` lives; this file only assembles the body.
  */
 const REPORT_STEREO_ISSUE = 'issue';
 
 /**
- * 리포트를 보낸 앱. 타이틀 `[app] issue: ...`의 그 app이고, admin 목록의 App 필터
- * 기준이다.
+ * The app that sent the report. It's the app in the title `[app] issue: ...`, and the App filter
+ * criterion in the admin list.
  *
- * 별도 설정을 두지 않고 `env.project`(= `VITE_PROJECT`)에서 유도한다 — admin은
- * 이미 `CHATIC_ADMIN`으로 배포되고 있어서, 호출부가 자기 정체를 따로 선언하지
- * 않아도 갈린다. `env.project`는 이미 소문자다(`createWebEnvAdapter`가 `web-config`와
- * 같은 방식으로 낮춘다) — `WEB_PROJECT.toLowerCase()`를 그대로 잇는다.
+ * Derived from `env.project` (= `VITE_PROJECT`) rather than a separate setting — admin is already
+ * deployed as `CHATIC_ADMIN`, so it's distinguishable without the caller declaring its own identity.
+ * `env.project` is already lowercase (`createWebEnvAdapter` lowercases it the same way `web-config`
+ * did) — this just carries `WEB_PROJECT.toLowerCase()` forward unchanged.
  */
 const resolveAppType = (): AppType => {
     if (isNative()) return 'mobile';
@@ -35,17 +37,18 @@ const resolveAppType = (): AppType => {
 };
 
 /**
- * 사용자가 직접 이슈를 보고하는 함수
+ * The function through which a user directly reports an issue.
  *
- * `extras`는 사용자 대면 이슈 리포트 화면이 붙이는 선택 컨텍스트(최근 로그,
- * 디바이스/버전 스냅샷 등)다. 없으면 기존 2-인자 호출과 동일하게 동작한다.
+ * `extras` is optional context a user-facing issue report screen attaches (recent logs, a
+ * device/version snapshot, etc.). Without it, this behaves exactly like the old 2-argument call.
  *
- * **첨부(`extras.images`)가 있으면 `silent: true`로 보낸다.** payload는 `body.message`에
- * JSON 문자열로 실려 그대로 Slack 메시지 텍스트가 되는데, base64 이미지 한 장이면 Slack
- * 텍스트 상한(약 40k자)을 훌쩍 넘는다. `SlackReportBody.meta`로 분리해 보내봤으나 백엔드가
- * 클라이언트 `meta`를 저장하지 않는 것이 실측으로 확인돼(2026-08-11), 저장되는 자리는
- * `message` 하나뿐이다. 그래서 첨부가 있는 제보만 Slack 전송을 끄고 저장만 한다 —
- * 알림을 잃는 대신 사진이 남는다. @see ADR-0049
+ * **When there's an attachment (`extras.images`), it's sent with `silent: true`.** The payload rides
+ * as a JSON string inside `body.message`, which becomes the Slack message text verbatim — a single
+ * base64 image alone blows well past Slack's text cap (~40k characters). Sending it separately via
+ * `SlackReportBody.meta` was tried, but measurement confirmed (2026-08-11) that the backend doesn't
+ * persist the client's `meta` — `message` is the only field that gets stored. So only reports with
+ * attachments turn off the Slack send and save-only — trading the notification for the photo.
+ * @see ADR-0049
  */
 export const reportIssue = async (title: string, message: string, extras?: IssueReportExtras): Promise<void> => {
     try {
@@ -70,13 +73,14 @@ export const reportIssue = async (title: string, message: string, extras?: Issue
             message,
             app,
             // `.toLowerCase()` preserves the exact wire value `WEB_ENV` always sent ('local' ·
-            // 'dev' · 'prod') — `env.stage` itself is uppercase now (ADR-0079 결정 14), but this
+            // 'dev' · 'prod') — `env.stage` itself is uppercase now (ADR-0079 Decision 14), but this
             // payload is stored and may already be filtered on by the admin console, so the
             // OUTGOING contract stays byte-identical rather than following the internal casing.
             env: (config.get<string>('env.stage') ?? '').toLowerCase(),
-            // 쿼리 값은 가려서 싣는다 — OAuth 콜백·검증 링크의 토큰이 실리는
-            // 자리이고, 이 payload는 저장되며 첨부 없는 이슈 리포트는 Slack
-            // 채널로도 나간다. 초대 `code`만 추적을 위해 예외. @see ./reportUrl
+            // Query values are redacted before being carried here — this is exactly where OAuth
+            // callback / verification link tokens can end up, and this payload is both stored and,
+            // for an issue report with no attachment, also sent out to Slack. Only the invite `code`
+            // is exempted, for tracking purposes. @see ./reportUrl
             url: sanitizeReportUrl(window.location.href),
             timestamp: new Date().toISOString(),
             user: {

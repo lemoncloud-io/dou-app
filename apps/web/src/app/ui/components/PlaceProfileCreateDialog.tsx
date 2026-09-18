@@ -19,7 +19,7 @@ interface PlaceProfileCreateDialogProps {
     exit?: PlaceProfileExitCopy;
     /**
      * When false, the X button and esc/overlay dismissal are removed — the mandatory final step of
-     * the place-create flow (ADR-0045). Defaults to true; the nudge (ADR-0040) and invite
+     * the place-create flow (ADR-0094). Defaults to true; the nudge (ADR-0040) and invite
      * (ADR-0041) entry points stay skippable by omitting it.
      */
     dismissible?: boolean;

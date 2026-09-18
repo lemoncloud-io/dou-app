@@ -55,7 +55,7 @@ export interface HttpClient {
     /**
      * Default host for a route, for callers that build their own `baseURL` string (gateways —
      * see libs/data/docs/remote/README.md). A passthrough to `HttpRuntimePorts.resolveEndpoint`;
-     * added in 2단계 to close a gap 1단계 left open (`resolveEndpoint` existed on the port but
+     * added in stage 2 to close a gap stage 1 left open (`resolveEndpoint` existed on the port but
      * nothing in `client.ts` called it yet).
      */
     resolveEndpoint(route: HttpRoute): string;
@@ -65,7 +65,7 @@ export interface HttpClient {
  * The request executors, wired to the injected lemon surface and `HttpRuntimePorts` (endpoints,
  * logging, credential staleness/recovery, auth-failure reaction). Constructed only by
  * `createHttpClient` below — consumers hold the `HttpClient` interface, never this class
- * (ADR-0070 결정 0).
+ * (ADR-0070 decision 0).
  *
  * Two executors, not three: the SigV4 one served the cloud HTTP refresh alone and went with it.
  * A request bound for a cloud host is signed the relay way and carries its own `baseURL`.

@@ -137,7 +137,7 @@ export const ReportLogsPage = () => {
      * What the operator will actually see appear.
      *
      * The probe only knows the server axes, so a strict count of its finds can promise
-     * rows the client-side narrowing then hides — click 받기, nothing changes, and the
+     * rows the client-side narrowing then hides — click it, nothing changes, and the
      * merge looks broken. Counting through the same predicate keeps the promise true;
      * every fetched row is still merged, so nothing is dropped from the corpus.
      */

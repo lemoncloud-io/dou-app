@@ -26,8 +26,8 @@ jest.mock('../../../../bridge', () => ({
         clearLogUploadQueue: () => Promise.resolve({ data: { success: true } }),
     },
 }));
-// `../../lib`은 목하지 않는다 — 순수 함수 모음이고, 표면을 추측해 목하면 이번처럼
-// 실제 이름(`filterLogs`)과 어긋난다.
+// `../../lib` is not mocked — it's a collection of pure functions, and mocking it by guessing its
+// surface drifts from the real name (`filterLogs`), as it did this time.
 
 describe('LogBufferScreen — 지금 보내기 (ADR-0080 결정 14)', () => {
     beforeEach(() => {
@@ -45,7 +45,7 @@ describe('LogBufferScreen — 지금 보내기 (ADR-0080 결정 14)', () => {
         expect(await screen.findByText(/보냈습니다/)).toBeInTheDocument();
     });
 
-    // 업로더가 없을 때 조용히 넘어가면 누른 사람에게는 "보냈다"로 읽힌다.
+    // Silently passing through when there's no uploader would read as "sent" to whoever clicked it.
     it('업로더가 돌지 않으면 그 사실을 말한다 — 보낸 척하지 않는다', async () => {
         current = undefined;
         render(<LogBufferScreen />);

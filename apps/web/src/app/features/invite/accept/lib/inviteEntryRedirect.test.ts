@@ -30,11 +30,11 @@ describe('resolveInviteAcceptRedirect', () => {
     });
 
     it('초대로 인정되지 않는 반쪽 링크도 null이다', () => {
-        // provider 마커만 있고 code가 없다.
+        // Only the provider marker is present, no code.
         expect(resolveInviteAcceptRedirect('?provider=invite')).toBeNull();
-        // code는 있지만 목적지(_backend / relay)가 없어 어디로 수락할지 알 수 없다.
+        // A code is present, but there's no destination (_backend / relay), so where to accept it is unknown.
         expect(resolveInviteAcceptRedirect('?provider=invite&code=abc')).toBeNull();
-        // 초대 마커가 없는 code는 OAuth 콜백 등 남의 파라미터일 수 있다.
+        // A code with no invite marker could belong to someone else's parameters, e.g. an OAuth callback.
         expect(resolveInviteAcceptRedirect('?code=abc&relay=1')).toBeNull();
     });
 });

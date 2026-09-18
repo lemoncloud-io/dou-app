@@ -100,7 +100,7 @@ Some domains have no `local` and some have no `socket`. Which domain receives wh
 `list` · `create` · `get` · `accept` · `cancel` · `reject` · `dismiss` · `undismiss` ·
 `observeList` · `cacheReadList` · `cache*`
 
-- The 1:1 DM invite-code domain. The composition root **pins** the gateway to the relay slot — it must not follow the active cloud (ADR-0033).
+- The 1:1 DM invite-code domain. The composition root **pins** the gateway to the relay slot — it must not follow the active cloud (ADR-0089).
 - Reading one's own list is local-first (ADR-0052 introduced the `invite` cache slot), but the remaining commands (`create`/`accept`/`cancel`/`reject`/`get`) have no cache slot.
 - `dismiss` / `undismiss` are local display state, not server state.
 
@@ -138,7 +138,7 @@ Some domains have no `local` and some have no `socket`. Which domain receives wh
 
 - **Remote-only and HTTP-only.** The same shape as `Report`.
 - Tiers and quotas are decided by the server (ADR-0060). The cache semantics belong to a react-query adapter on the consumer side.
-- The last three are the admin console surface (ADR-0082). Being remote-only is the point for them: these reads are other users' records and must never reach a local cache. `fetchAdminClouds` rides this repository rather than `Cloud` on purpose → [http.md's admin console surface](../remote/http.md#the-admin-console-surface).
+- The last three are the admin console surface (ADR-0101). Being remote-only is the point for them: these reads are other users' records and must never reach a local cache. `fetchAdminClouds` rides this repository rather than `Cloud` on purpose → [http.md's admin console surface](../remote/http.md#the-admin-console-surface).
 
 ### SyncMeta
 

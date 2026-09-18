@@ -86,7 +86,7 @@ describe('useMyJoins — 구독 join 목록', () => {
 
         const { result } = renderHook(() => useMyJoins([channel('c1')], { sync: false }));
 
-        // 등록은 건너뛰되 관측 맵은 그대로 채워진다.
+        // Registration is skipped, but the observed map is still populated.
         expect(registerJoinMock).not.toHaveBeenCalled();
         expect(result.current.get('c1')?.chatNo).toBe(7);
     });

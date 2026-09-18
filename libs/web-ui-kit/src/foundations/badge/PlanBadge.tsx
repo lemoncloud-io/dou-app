@@ -16,7 +16,7 @@ export interface PlanBadgeProps {
 }
 
 /**
- * Subscription tier badge preset — the Figma "구독 상태 뱃지": an outline Badge with
+ * Subscription tier badge preset — the Figma "subscription status badge": an outline Badge with
  * a leading glyph and the tier label. `accent` switches the outline to brand green.
  */
 export const PlanBadge = ({ label, icon, accent = false, className }: PlanBadgeProps) => {

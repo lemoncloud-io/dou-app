@@ -9,7 +9,7 @@ import { toAppLogInfo } from './appLogInfoCodec';
  * the `SendLog` bridge message — `debug` is deliberately not relayed (see the
  * gate below). The original occurrence `timestamp` and
  * `source: 'web'` ride along so the native merged buffer keeps the web
- * entry's identity instead of restamping/retagging it (ADR-0047). Older app
+ * entry's identity instead of restamping/retagging it (ADR-0097). Older app
  * builds simply ignore the extra fields.
  *
  * The entry `id` and its occurrence-time context travel too. In a hybrid run a

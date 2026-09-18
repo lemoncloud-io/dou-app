@@ -3,9 +3,9 @@ import type { ICacheDataSource } from './types';
 import type { ISqliteDatabase } from '../../database';
 import { fetchManyByIds } from './fetchManyByIds';
 /**
- * 참여(Join) 도메인 전용 데이터 소스 구현체
- * 유저가 어떤 채널에 참여하고 있는지, 혹은 채널에 어떤 유저들이 있는지
- * 양방향으로 빠르게 검색할 수 있도록 channel_id와 user_id를 추출하여 저장합니다.
+ * Data source implementation specific to the Join domain.
+ * Extracts and stores channel_id and user_id so both directions can be searched quickly —
+ * which channels a user has joined, and which users are in a channel.
  */
 export class JoinDataSource implements ICacheDataSource<CacheJoinView, JoinQueryOptions> {
     constructor(
@@ -38,7 +38,7 @@ export class JoinDataSource implements ICacheDataSource<CacheJoinView, JoinQuery
         const params: (string | number)[] = [];
         const conditions: string[] = [];
 
-        // 데이터 격리 및 다중 필터링
+        // Data isolation and multi-condition filtering
         if (cid) {
             conditions.push(`cid = ?`);
             params.push(cid);

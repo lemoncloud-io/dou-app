@@ -137,11 +137,12 @@ describe('useChatScroll', () => {
     });
 });
 
-// 방을 나가면 이 페이지는 언마운트되고, 역방향 목록은 다시 scrollTop 0(=바닥)에서 시작한다.
-// 히스토리를 읽던 사람이 스레드를 열었든 홈으로 나갔든 최신 메시지에 떨궈지지 않아야 한다.
+// Leaving the room unmounts this page, and the reversed list starts back at scrollTop 0 (=
+// bottom) on remount. Whether someone reading history opened a thread or went back home, they
+// must not be dropped onto the latest message.
 describe('useChatScroll — 방 재진입 스크롤 복원', () => {
-    // 컨테이너를 마운트 시점부터 붙여야 복원 레이아웃 이펙트가 관측할 수 있다(위 setup은
-    // renderHook 뒤에 붙이므로 여기서는 자체 설치를 쓴다).
+    // The container must be attached from mount time so the restore layout effect can observe
+    // it (the `setup` above attaches it after renderHook, so a self-contained install is used here).
     const mount = (channelId?: string) => {
         const inputRef = createRef<HTMLTextAreaElement>();
         const container = document.createElement('div');
@@ -167,8 +168,9 @@ describe('useChatScroll — 방 재진입 스크롤 복원', () => {
         return { view, container, land };
     };
 
-    // 채널 id를 테스트마다 다르게 쓴다: 맡아둔 위치는 모듈 수준 맵이고 언마운트가 그것을 다시
-    // 채우므로(RTL의 자동 cleanup 포함), 같은 id를 재사용하면 앞 테스트가 뒤 테스트에 샌다.
+    // Each test uses a different channel id: the stashed position lives in a module-level map
+    // that unmount repopulates (RTL's auto cleanup included), so reusing the same id would leak
+    // an earlier test into a later one.
     it('맡긴 위치로 되돌리고, 바닥 고정이 그것을 덮어쓰지 않는다', () => {
         stashScroll('ch-restore', -640);
         const { container, land } = mount('ch-restore');
@@ -187,7 +189,7 @@ describe('useChatScroll — 방 재진입 스크롤 복원', () => {
         expect(container.scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'auto' });
     });
 
-    // 한 번만 복원한다 — 복원 뒤 도착하는 새 메시지는 다시 바닥으로 따라가야 한다.
+    // Restores only once — a new message arriving after the restore must follow back down to the bottom.
     it('복원은 한 번뿐이고 이후 새 메시지는 다시 바닥으로 따라간다', () => {
         stashScroll('ch-once', -640);
         const { container, land } = mount('ch-once');
@@ -209,13 +211,13 @@ describe('useChatScroll — 방 재진입 스크롤 복원', () => {
         expect(container.scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'auto' });
     });
 
-    // 나가는 경로가 무엇이든(홈으로 뒤로가기 포함) 언마운트가 위치를 맡아둔다 — 그래서 어떤
-    // 호출자도 직접 저장할 필요가 없다.
+    // Whatever the exit path is (including navigating back home), unmount stashes the position —
+    // so no caller ever needs to save it directly.
     it('언마운트가 위치를 맡아두어 다음 진입이 그 자리로 돌아온다', () => {
         const first = mount('ch-unmount');
         first.land([message('m1')]);
-        // 실제 목록이 하는 그대로: 스크롤 이벤트가 위치를 기록한다. 언마운트 시점에는 React가
-        // host ref를 이미 떼어낸 뒤라 컨테이너에서 직접 읽을 수 없다.
+        // Just as the real list does: a scroll event records the position. By unmount time,
+        // React has already detached the host ref, so it can't be read directly from the container.
         first.container.scrollTop = -820;
         act(() => first.view.result.current.handleScroll());
 
@@ -228,8 +230,9 @@ describe('useChatScroll — 방 재진입 스크롤 복원', () => {
         expect(second.container.scrollTo).not.toHaveBeenCalled();
     });
 
-    // 목록은 마운트 직후엔 아직 비어 있다. 그 사이에 언마운트되면(StrictMode의 마운트/언마운트/
-    // 마운트가 정확히 여기서 끊는다) 아직 쓰지 못한 맡긴 위치를 바닥(0)으로 덮어써서는 안 된다.
+    // The list is still empty right after mount. If unmount happens in that window (StrictMode's
+    // mount/unmount/mount cuts in exactly here), the stashed position that hasn't been written
+    // yet must not be overwritten with the bottom (0).
     it('복원 전에 언마운트돼도 맡긴 위치를 잃지 않는다', () => {
         stashScroll('ch-strict', -300);
 
@@ -242,7 +245,7 @@ describe('useChatScroll — 방 재진입 스크롤 복원', () => {
         expect(second.container.scrollTop).toBe(-300);
     });
 
-    // 바닥에서 나갔으면 바닥으로 — 스크롤한 적 없는 방이 갑자기 다르게 열리지 않아야 한다.
+    // Left from the bottom, so open at the bottom — a room that was never scrolled must not suddenly open differently.
     it('바닥에서 나가면 다음 진입도 바닥이다', () => {
         const first = mount('ch-bottom');
         first.land([message('m1')]);
@@ -251,8 +254,8 @@ describe('useChatScroll — 방 재진입 스크롤 복원', () => {
         const second = mount('ch-bottom');
         second.land([message('m1')]);
 
-        // 바닥 고정(scrollTo)이 아니라 복원이 0을 그대로 적어서 도달한다 — 역방향 목록에서 0은
-        // 곧 바닥이므로 결과 위치는 같다.
+        // Reached not via the bottom-pin (scrollTo) but via the restore writing 0 as-is — in a
+        // reversed list, 0 is the bottom, so the resulting position is the same either way.
         expect(second.container.scrollTop).toBe(0);
     });
 });

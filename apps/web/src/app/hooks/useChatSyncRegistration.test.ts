@@ -30,7 +30,7 @@ const refreshList = jest.fn();
 const channel = (id: string, chatNo = 0): DomainChannel => ({ id, chatNo }) as unknown as DomainChannel;
 const row = (channelId: string, lastNo: number): DomainLastChat => ({ channelId, lastNo, chat: null });
 
-/** 마지막 구독의 콜백 — emit()으로 결합 관측 결과 도착을 재현한다. */
+/** The last subscription's callback — emit() replays a combined observation result arriving. */
 let emitRows: (rows: DomainLastChat[]) => void = () => undefined;
 
 beforeEach(() => {
@@ -103,7 +103,7 @@ describe('useChatSyncRegistration — 활성 사이트 채널들의 chat sync', 
         renderHook(() => useChatSyncRegistration([channel('c1', 7)]));
 
         emitRows([row('c1', 4)]);
-        // 응답이 프리뷰 불가 행뿐이라 lastNo가 그대로여도 재발사하지 않는다.
+        // The response is only non-previewable rows, so it doesn't refire even though lastNo is unchanged.
         emitRows([row('c1', 4)]);
 
         expect(refreshList).toHaveBeenCalledTimes(1);

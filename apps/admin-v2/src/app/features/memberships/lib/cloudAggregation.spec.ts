@@ -17,7 +17,7 @@ describe('readAggrBuckets', () => {
         ]);
     });
 
-    // ListResult.aggr 은 `R | R[]` 이라 서버가 어느 쪽으로 보내도 받아야 한다.
+    // ListResult.aggr is `R | R[]`, so it has to accept the server sending either shape.
     it('배열로 와도 합쳐서 편다', () => {
         expect(readAggrBuckets([{ status: { active: 2 } }, { status: { active: 1, hold: 4 } }])).toEqual([
             ['active', 3],

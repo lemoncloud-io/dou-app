@@ -7,7 +7,7 @@ export interface IconChatAddProps extends Omit<React.SVGProps<SVGSVGElement>, 'w
 
 /**
  * Add-channel glyph — chat bubble outline with a plus. Extracted from the Figma
- * "채널 추가" asset (node 3209:13811) rather than reusing the generic lucide `Plus`.
+ * "add channel" asset (node 3209:13811) rather than reusing the generic lucide `Plus`.
  * Fills with `currentColor`, so callers set the color via `className`/`color`.
  */
 export const IconChatAdd = ({ size = 18, className, ...props }: IconChatAddProps) => (

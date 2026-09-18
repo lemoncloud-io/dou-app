@@ -176,8 +176,8 @@ describe('useFcmHandler — DeleteFcmToken (ADR-0080 결정 11)', () => {
         expect(response).toEqual({ type: 'OnDeleteFcmToken', success: true, data: { success: true } });
     });
 
-    // deleteToken은 스스로 로깅하고 삼키므로 호출자는 "지웠다"와 "원래 없었다"를 구분할 수 없다.
-    // 둘 다 호출자가 요청한 상태이므로 어느 쪽이든 성공으로 답한다.
+    // deleteToken logs and swallows its own errors, so the caller can't tell "deleted" apart from
+    // "there was nothing to delete." Both are the state the caller asked for, so either way we answer success.
     it('토큰이 원래 없었어도 성공으로 답한다', async () => {
         (notificationService.deleteToken as jest.Mock).mockResolvedValue(undefined);
         const bridge = { pushEvent: jest.fn() };

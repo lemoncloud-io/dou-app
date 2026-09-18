@@ -1,8 +1,8 @@
 /**
  * `metrics/e2e-collector.ts`
- * - React 밖 plain collector. 클라 1개당 1개 보유함.
+ * - A plain collector outside React. One instance is held per client.
  */
-/** 정렬 후 ratio 분위수(올림). 빈 배열은 0. */
+/** The ratio-th percentile after sorting (rounded up). 0 for an empty array. */
 const percentile = (values: number[], ratio: number): number => {
     if (!values.length) return 0;
     const sorted = [...values].sort((a, b) => a - b);

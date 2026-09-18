@@ -4,7 +4,7 @@ import { defaultDebugSettings, useDebugSettingsStore } from '../stores/debugSett
 import { restoreCustomZip } from './customZipService';
 import { useCustomZipBootGate } from './useCustomZipBootGate';
 
-// Mock react-native-config (debugSettingsStore가 기본 URL 계산에 사용)
+// Mock react-native-config (used by debugSettingsStore to compute the default URL)
 jest.mock('react-native-config', () => ({
     default: {
         VITE_ENV: 'DEV',
@@ -12,7 +12,7 @@ jest.mock('react-native-config', () => ({
     },
 }));
 
-// storageAdapter는 native preferenceService를 끌어오므로 noop storage로 대체
+// storageAdapter pulls in the native preferenceService, so replace it with a noop storage
 jest.mock('../stores/storageAdapter', () => ({
     storageAdapter: {
         getItem: () => null,
@@ -58,7 +58,7 @@ describe('useCustomZipBootGate', () => {
 
         const { result } = renderHook(() => useCustomZipBootGate());
 
-        // pending 동안: 게이트 열림 + serverUrl 미설정
+        // while pending: gate stays open + serverUrl stays unset
         expect(result.current.isRestoringCustomZip).toBe(true);
         expect(useDebugSettingsStore.getState().customZipServerUrl).toBeNull();
         expect(mockRestore).toHaveBeenCalledWith(LOCAL_ROOT);

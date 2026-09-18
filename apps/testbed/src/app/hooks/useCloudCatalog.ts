@@ -7,7 +7,7 @@ import { runtime } from '@chatic/app-runtime';
  *
  * Moved down from `@chatic/app-runtime`'s `data/hooks/cloud.ts` along with the copies in apps/web and
  * apps/desktop-web — react-query IS the cache for this read (`ICloudRepository.fetchCloudCatalog`
- * never writes the local cache), so the policy is the app's (ADR-0070 결정 5, ②안 방향). `runtime.data.cloudsKeys`
+ * never writes the local cache), so the policy is the app's (ADR-0070 decision 5, following option 2). `runtime.data.cloudsKeys`
  * stays shared because the runtime's `useLogin` invalidates it after a relay login.
  */
 export const useCloudSessionCatalog = () => {

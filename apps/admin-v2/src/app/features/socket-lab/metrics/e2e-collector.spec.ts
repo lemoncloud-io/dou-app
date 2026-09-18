@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { E2ECollector } from './e2e-collector';
 
-/** 제어 가능한 시계 + 수동 프레임 큐로 t0/t1/t2 산술을 결정적으로 검증한다. */
+/** Verifies the t0/t1/t2 arithmetic deterministically, using a controllable clock and a manual frame queue. */
 describe('demo/E2ECollector', () => {
     let clock: number;
     let frames: Array<() => void>;
@@ -11,7 +11,7 @@ describe('demo/E2ECollector', () => {
     const scheduleFrame = (cb: () => void) => {
         frames.push(cb);
     };
-    /** 현재 쌓인 프레임을 비울 때까지 실행(프레임이 새 프레임을 예약하면 이어서 실행) */
+    /** Runs until the currently queued frames are drained (if a frame schedules a new one, it keeps going) */
     const drain = () => {
         let guard = 0;
         while (frames.length && guard++ < 100) {
@@ -79,8 +79,8 @@ describe('demo/E2ECollector', () => {
             calls += 1;
         });
         collector.markRtt(5);
-        collector.markRtt(7); // 같은 프레임 → 통지 1회로 합쳐짐
-        expect(calls).toBe(0); // 아직 프레임 전
+        collector.markRtt(7); // Same frame → coalesced into a single notification
+        expect(calls).toBe(0); // Still before the frame
         drain();
         expect(calls).toBe(1);
     });

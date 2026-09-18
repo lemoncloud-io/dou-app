@@ -41,7 +41,7 @@ jest.mock('./stores', () => ({
 }));
 
 // `mockNotify` now stands for `sessionSignal.emit` — the store announces a KIND instead of
-// broadcasting (ADR-0076 결정 2), so "was the session announced" is "was emit called". `batch` runs
+// broadcasting (ADR-0076 Decision 2), so "was the session announced" is "was emit called". `batch` runs
 // its callback straight through: the collapsing itself is covered by signal.test.ts.
 jest.mock('./signal', () => ({
     sessionSignal: {
@@ -105,8 +105,9 @@ describe('rebuildSessionIdentity — notify 게이팅 (#8)', () => {
         });
     });
 
-    // 게이트는 이제 IDENTITY만 본다 (ADR-0076 결정 2). 토큰 교체 자체는 스토어가 `cloud:token`으로
-    // 알리므로, uid가 그대로인 자격증명 refresh에서 이 함수는 조용해야 한다 — 그게 목적이다.
+    // The gate now looks at IDENTITY only (ADR-0076 Decision 2). The token swap itself is announced
+    // by the store as `cloud:token`, so this function must stay quiet on a credential refresh where
+    // uid is unchanged — that's the whole point.
     it('cloud 토큰만 교체되고 uid가 그대로면 identity를 알리지 않는다', () => {
         jest.isolateModules(() => {
             // Activate a cloud session so the cloud token is part of the observable context.
@@ -272,9 +273,10 @@ describe('getCloudSessionSnapshot — 같은 tick 안의 일관성 (ADR-0076 배
         });
     });
 
-    // 이것이 A12가 고친 것이다. 예전 구현은 `buildCloudContext()`를 직접 불러서, 캐시가 살아 있는
-    // 동안 스토리지가 바뀌면 이 접근자만 새 값을 보고 다른 독자는 캐시된 옛 값을 봤다 — 한 세션을
-    // 두 호출부가 다르게 답하는 상태다. 이제 둘 다 캐시를 지나므로 같은 tick 안에서는 반드시 일치한다.
+    // This is what A12 fixed. The old implementation called `buildCloudContext()` directly, so if
+    // storage changed while the cache was still alive, only this accessor would see the new value
+    // while other readers saw the stale cached one — the same session answered differently depending
+    // on who asked. Now both go through the cache, so they're guaranteed to agree within the same tick.
     it('캐시가 프라임된 뒤 스토리지가 바뀌어도 다른 독자와 같은 답을 낸다 (notify 없이는 안 움직인다)', () => {
         seedCloudActive();
         jest.isolateModules(() => {

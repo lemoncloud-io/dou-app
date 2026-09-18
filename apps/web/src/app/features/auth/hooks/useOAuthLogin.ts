@@ -17,7 +17,7 @@ import { ROUTES } from '../../../routes/paths';
  * The exchange commits the session by itself now. It used to build transport credentials only, so
  * this hook followed it with `refreshRelaySession({ syncProfile: true })` to recover the identity
  * fields the exchange had discarded — a refresh call made for its RESPONSE, not to renew anything
- * (ADR-0070 불변조건 1·2).
+ * (ADR-0070 invariants 1-2).
  */
 export const useOAuthLogin = (): void => {
     const { t } = useTranslation();

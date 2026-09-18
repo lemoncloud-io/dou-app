@@ -104,7 +104,7 @@ describe('CloudManagePage — 복원용 이메일', () => {
 });
 
 describe('CloudManagePage — 설정에 실패한 클라우드', () => {
-    // 이 화면이 실패한 클라우드를 지우는 유일한 경로다(스위처가 여기로 보낸다).
+    // This screen is the only path to delete a failed cloud (the switcher sends users here).
     const failed = {
         id: 'CL9',
         name: '#cloud/1001494/3',

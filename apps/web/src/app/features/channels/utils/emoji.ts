@@ -1,4 +1,4 @@
-// Ported from apps/desktop-web features/chat/utils/emoji.ts (ADR-0045) — keep the two curations identical.
+// Ported from apps/desktop-web features/chat/utils/emoji.ts (ADR-0093) — keep the two curations identical.
 
 /** Curated emoji categories for the composer picker (no external emoji DB). */
 export interface EmojiCategory {

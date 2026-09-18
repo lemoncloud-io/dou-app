@@ -12,7 +12,7 @@ import {
  * registry's own namespaced storage (`storageKeyFor`), so an existing user's theme, blur setting,
  * onboarding state, channel sort, pins, recent searches, dismissed-update stamp and cloud-promo
  * dismissal all survive the migration instead of silently resetting to `defaultValue` (ADR-0079
- * "레거시 저장값 승계" — flagged as the largest risk in this step).
+ * "legacy stored-value carry-over" — flagged as the largest risk in this step).
  *
  * Runs on every boot, not behind a flag: the check IS "does the old key still have something to
  * give" — once a key migrates, its old name is deleted, so the next boot finds nothing there and

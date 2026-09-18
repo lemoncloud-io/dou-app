@@ -34,19 +34,19 @@ describe('Throttle — 지수 백오프', () => {
         now = 30_000;
         expect(t.tryAcquire()).toBe(true); // hold 60s
         now = 60_000;
-        expect(t.tryAcquire()).toBe(false); // 30s 지났지만 이제 60s 홀드다
+        expect(t.tryAcquire()).toBe(false); // 30s has passed, but the hold is now 60s
         now = 90_000;
         expect(t.tryAcquire()).toBe(true); // hold 120s
 
-        // 상한까지 밀어 올린다
+        // push it up to the ceiling
         now = 210_000;
         expect(t.tryAcquire()).toBe(true); // hold 240s
         now = 450_000;
-        expect(t.tryAcquire()).toBe(true); // hold 300s (상한)
+        expect(t.tryAcquire()).toBe(true); // hold 300s (ceiling)
         now = 750_000;
         expect(t.tryAcquire()).toBe(true);
         now = 1_050_000;
-        expect(t.tryAcquire()).toBe(true); // 300s 를 넘지 않는다
+        expect(t.tryAcquire()).toBe(true); // doesn't exceed 300s
     });
 
     it('reset 은 홀드를 풀고 첫 간격을 복구한다 — 성공 뒤 예산 복구', () => {
@@ -54,11 +54,11 @@ describe('Throttle — 지수 백오프', () => {
         const t = new Throttle({ intervalMs: 30_000, maxIntervalMs: 300_000, now: () => now });
         t.tryAcquire();
         now = 30_000;
-        t.tryAcquire(); // interval 이 60s 로 자랐다
+        t.tryAcquire(); // interval grew to 60s
 
         t.reset();
-        expect(t.tryAcquire()).toBe(true); // 홀드 해제
+        expect(t.tryAcquire()).toBe(true); // hold released
         now = 60_000;
-        expect(t.tryAcquire()).toBe(true); // 간격이 30s 로 돌아왔다
+        expect(t.tryAcquire()).toBe(true); // interval back to 30s
     });
 });

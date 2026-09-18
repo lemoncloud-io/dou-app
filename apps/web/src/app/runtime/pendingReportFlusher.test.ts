@@ -82,8 +82,8 @@ describe('schedulePendingReportFlush', () => {
             timestamp: 42,
         });
         expect(entry.error.stack).toBe('Error: boom\n  at native');
-        // 구버전 셸은 계속 스냅샷을 실어 보내지만 대리 전송은 그걸 옮기지 않는다 —
-        // 같은 엔트리를 업로더가 이미 낱건으로 올린다.
+        // Old shells still ship the snapshot, but the delegated send doesn't carry it over —
+        // the uploader already sent the same entry individually.
         expect(entry).not.toHaveProperty('logs');
         expect(mockAckPendingReports).toHaveBeenCalledWith(['a']);
     });

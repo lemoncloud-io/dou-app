@@ -12,7 +12,7 @@ export interface MessageDetailDialogProps {
 }
 
 /**
- * Full body of a message the bubble had to truncate — the "전체보기" destination. Shared by the room
+ * Full body of a message the bubble had to truncate — the "view full" destination. Shared by the room
  * and the thread: a long reply is truncated by the same rule the room truncates by, so it needs the
  * same way out (the thread used to render the affordance with nothing behind it).
  */

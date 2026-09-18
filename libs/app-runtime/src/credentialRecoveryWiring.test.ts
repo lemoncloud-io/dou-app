@@ -27,17 +27,18 @@ beforeEach(() => {
 });
 
 /**
- * 두 describe의 **순서가 계약이다** — 부팅 전 상태를 먼저 재고 나서 부팅한다. jest는 한 파일 안의
- * describe/it을 선언 순서대로 돌리고 아래 `beforeAll`은 그 describe 진입 시점에 실행되므로, 첫
- * 블록은 아직 등록되지 않은 레지스트리를 본다. 부팅은 모듈 상태를 바꾸는 일회성 동작이라 되돌릴
- * 수 없고, 그래서 "부팅이 배선의 원천"이라는 주장을 이 파일에서 한 번만 관측할 수 있다.
+ * **The order of the two describes is the contract** — measure the pre-boot state first, then boot.
+ * Jest runs describe/it within one file in declaration order, and the `beforeAll` below runs when
+ * that describe block is entered, so the first block sees a registry that hasn't been registered
+ * yet. Booting is a one-time action that mutates module state and can't be undone, so the claim
+ * "booting is the source of the wiring" can only be observed once in this file.
  */
 describe('부팅 전', () => {
     it('복구는 false다 — 미등록이 깨진 상태가 아니라 안전한 상태다', async () => {
         await expect(credentialRecovery.recover('relay')).resolves.toBe(false);
 
-        // 레지스트리가 비어 있으면 renewer까지 가지 않는다. 전송은 이전과 똑같이 실패를 보고하고,
-        // 잃는 것은 재시도 한 번뿐이다.
+        // If the registry is empty, it never reaches the renewer. The transport reports failure just
+        // like before, and all that's lost is a single retry.
         expect(mockRequestSessionRefresh).not.toHaveBeenCalled();
     });
 });
@@ -47,7 +48,7 @@ describe('initAppRuntime 이후 — 자격증명 복구 배선', () => {
         initAppRuntime();
     });
 
-    // 자기 자격증명이 없는 호스트들도 relay 것으로 서명하므로 복구 경로가 같다.
+    // Hosts with no credential of their own also sign with relay's, so the recovery path is the same.
     it.each(['relay', 'oauth', 'iap'] as const)('%s는 소켓 refresh로 간다', async route => {
         await expect(credentialRecovery.recover(route)).resolves.toBe(true);
 

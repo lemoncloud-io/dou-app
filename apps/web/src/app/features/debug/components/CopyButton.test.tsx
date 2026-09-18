@@ -9,9 +9,9 @@ const copyTextWithResult = jest.fn();
 jest.mock('../lib/copyText', () => ({ copyTextWithResult: (value: string) => copyTextWithResult(value) }));
 
 /**
- * What this pins is that the indicator cannot lie: 복사됨 appears only when the copy actually
- * resolved true. A silent button is indistinguishable from a broken one on a device, and a button
- * that always claims success is worse than silent.
+ * What this pins is that the indicator cannot lie: the "Copied" label appears only when the copy
+ * actually resolved true. A silent button is indistinguishable from a broken one on a device, and
+ * a button that always claims success is worse than silent.
  */
 describe('CopyButton — 복사와 피드백', () => {
     beforeEach(() => {
@@ -38,7 +38,7 @@ describe('CopyButton — 복사와 피드백', () => {
     });
 
     it('누르는 시점의 값을 복사한다', async () => {
-        // 화면들이 1초마다 폴링한다 — 마지막 렌더가 아니라 누른 순간의 스냅샷이어야 한다.
+        // Screens poll every second — this must capture the value at the moment of the click, not the last render.
         let current = 'first';
         render(<CopyButton value={() => current} />);
 
@@ -59,14 +59,14 @@ describe('CopyButton — 복사와 피드백', () => {
     });
 
     it('실패하면 실패라고 말한다', async () => {
-        // navigator.clipboard가 없는 WebView, 또는 셸이 거절한 경우.
+        // A WebView with no navigator.clipboard, or a shell that rejects the copy.
         copyTextWithResult.mockResolvedValue(false);
         render(<CopyButton value={() => 'x'} />);
 
         await clickIt();
 
         await waitFor(() => expect(screen.getByRole('button')).toHaveTextContent('복사 실패'));
-        // 성공보다 오래 남는다 — 읽어야 하는 쪽이다.
+        // This stays longer than success does — it's the one that needs to be read.
         act(() => jest.advanceTimersByTime(1500));
         expect(screen.getByRole('button')).toHaveTextContent('복사 실패');
         act(() => jest.advanceTimersByTime(1500));

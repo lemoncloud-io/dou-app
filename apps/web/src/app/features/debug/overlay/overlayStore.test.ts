@@ -20,7 +20,7 @@ describe('debugOverlayStore — 오버레이 내비 상태머신', () => {
         expect(getDebugOverlayState().size).toBe('full');
     });
 
-    // 크기는 크기만 바꾼다 — 스크린 선택이 크기 때문에 뒤집히지 않는다.
+    // Size only changes size — screen selection never flips size along with it.
     it('selectScreen은 현재 크기를 유지한 채 스크린만 연다', () => {
         debugOverlayActions.open();
         debugOverlayActions.selectScreen('LogBuffer');
@@ -31,7 +31,7 @@ describe('debugOverlayStore — 오버레이 내비 상태머신', () => {
         expect(getDebugOverlayState()).toEqual({ isOpen: true, size: 'full', screen: 'DBBrowser' });
     });
 
-    // 독 폭에서 읽을 수 없는 화면만 매니페스트가 크기를 강제한다.
+    // The manifest only forces a size for screens that can't be read at dock width.
     it('매니페스트가 크기를 정한 스크린은 그 크기로 열린다', () => {
         debugOverlayActions.open();
         debugOverlayActions.selectScreen('CacheTest');

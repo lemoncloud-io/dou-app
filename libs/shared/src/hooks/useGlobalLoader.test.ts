@@ -44,23 +44,23 @@ describe('useGlobalLoader', () => {
         useLoaderStore.getState().setIsLoading(false);
 
         jest.advanceTimersByTime(30_000);
-        // 이미 false이므로 변화 없음
+        // Already false, so no change
         expect(useLoaderStore.getState().isLoading).toBe(false);
     });
 
     it('setIsLoading(true) 재호출 시 타임아웃이 리셋된다', () => {
         useLoaderStore.getState().setIsLoading(true);
 
-        jest.advanceTimersByTime(20_000); // 20초 경과
+        jest.advanceTimersByTime(20_000); // 20 seconds elapsed
         expect(useLoaderStore.getState().isLoading).toBe(true);
 
-        // 다시 true 설정 → 타임아웃 리셋
+        // Set to true again → timeout resets
         useLoaderStore.getState().setIsLoading(true, 'renewed');
 
-        jest.advanceTimersByTime(20_000); // 기존 30초 시점 → 리셋으로 아직 유효
+        jest.advanceTimersByTime(20_000); // at the original 30s mark → still valid due to the reset
         expect(useLoaderStore.getState().isLoading).toBe(true);
 
-        jest.advanceTimersByTime(10_000); // 새 타임아웃 30초 경과
+        jest.advanceTimersByTime(10_000); // the new timeout's 30 seconds have elapsed
         expect(useLoaderStore.getState().isLoading).toBe(false);
     });
 });

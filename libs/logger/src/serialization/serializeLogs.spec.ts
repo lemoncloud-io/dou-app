@@ -84,10 +84,11 @@ describe('serializeLogs — 평탄화 + 트렁케이션', () => {
 });
 
 /**
- * 이 스위트가 없어서 놓쳤다. 저장된 엔트리는 부팅 때 다시 읽혀 그대로 업로더로 가므로, 여기서
- * 빠지는 것은 서버에서도 빠진다. 예전에는 level·tag·message·timestamp 넷만 남겨서
- * **프로세스보다 오래 산 엔트리 전부가** 사용자·실행·버전·화면 없이 도착했다 — 죽은 런의
- * 엔트리, 즉 가장 추적할 값이 있는 것들이다.
+ * This got missed for lack of a suite like this one. A stored entry is read back at boot and
+ * goes straight to the uploader, so whatever drops out here drops out on the server too. It used
+ * to keep only level/tag/message/timestamp, so **every entry that outlived its process** arrived
+ * without a user, run, version, or screen — the entries from a dead run, exactly the ones most
+ * worth tracing.
  */
 describe('발생 시점 컨텍스트와 id는 저장을 건너 살아남는다', () => {
     const full = entry({
@@ -122,8 +123,9 @@ describe('발생 시점 컨텍스트와 id는 저장을 건너 살아남는다',
         });
     });
 
-    // id는 서버의 dedup 키이면서 호스트가 ack하는 키다. 없으면 업로드는 되지만 큐에서 지워지지
-    // 않아 매 주기마다 다시 올라가고, 서버는 dedup할 키가 없어 매번 새 문서로 저장한다.
+    // id is both the server's dedup key and the key the host acks. Without it the upload still
+    // happens but nothing removes the entry from the queue, so it goes up again every cycle, and
+    // the server has no key to dedup on, so it stores a new document every time.
     it('id와 source를 보존한다', () => {
         const [out] = serializeLogs([full]);
 
@@ -138,9 +140,9 @@ describe('발생 시점 컨텍스트와 id는 저장을 건너 살아남는다',
     });
 });
 
-// 리포트는 공유 Slack 채널로 가고, ADR-0047 이후 같은 항목이 sessionStorage/MMKV에
-// 영속된다. serializeLogs의 소비자가 전부 그 두 경로(리포트·영속화)라, 마스킹은
-// 여기서 한 번만 걸면 전 구간에 적용된다.
+// Reports go to a shared Slack channel, and since ADR-0097 the same entries are persisted to
+// sessionStorage/MMKV. Every consumer of serializeLogs is one of those two paths (report,
+// persistence), so masking applied here once covers the whole pipeline.
 describe('민감정보 마스킹', () => {
     it('secret으로 보이는 키의 값을 가린다', () => {
         const out = safeStringify({ accessToken: 'a.b.c', password: 'pw', authorization: 'Bearer x' });
@@ -163,7 +165,7 @@ describe('민감정보 마스킹', () => {
 
         expect(out).not.toContain('secret-1');
         expect(out).not.toContain('s2');
-        // 민감하지 않은 값은 그대로 남아 디버깅 가치를 잃지 않는다.
+        // Non-sensitive values are left intact so debugging value isn't lost.
         expect(out).toContain('kim');
     });
 

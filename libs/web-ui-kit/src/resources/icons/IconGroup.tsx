@@ -10,7 +10,7 @@ export interface IconGroupProps extends Omit<React.SVGProps<SVGSVGElement>, 'wid
 
 /**
  * Group avatar glyph — three overlapping people. Extracted from the Figma
- * "그룹방 Profile" asset (node 3158:26239) rather than reusing the generic lucide
+ * "Group room Profile" asset (node 3158:26239) rather than reusing the generic lucide
  * `Users`, so the group default avatar matches the design exactly. Fills with
  * `currentColor`, so callers set the color via `className`/`color`.
  */

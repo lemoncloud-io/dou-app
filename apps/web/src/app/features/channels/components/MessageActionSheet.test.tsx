@@ -65,9 +65,10 @@ describe('MessageActionSheet — 메시지 롱프레스 액션 시트', () => {
         expect(screen.getByText('chat.room.copyMessage')).toBeInTheDocument();
     });
 
-    // 내용 높이로 열린다(Figma 4712:16421). 예전엔 화면 절반으로 고정해서 롱프레스마다 복사·
-    // 스레드가 같은 자리에 오게 했는데, 디자인은 그 자리를 줄 수로 지킨다 — 퀵 줄은 항상
-    // 6개 + 추가 버튼이고 아래 두 항목도 매번 같은 둘이다. 움직이는 건 시트의 윗변뿐이다.
+    // Opens to its content height (Figma 4712:16421). It used to be pinned to half the screen so
+    // copy/thread landed in the same spot on every long press, but the design keeps that spot
+    // fixed by row count instead — the quick row is always 6 items + the add button, and the two
+    // items below it are always the same two. Only the sheet's top edge moves.
     it('절반 높이 고정을 버리고 내용 높이로 열린다', () => {
         render(<MessageActionSheet {...baseProps} />);
 
@@ -76,8 +77,8 @@ describe('MessageActionSheet — 메시지 롱프레스 액션 시트', () => {
         expect(dialog).toHaveClass('rounded-t-[32px]');
     });
 
-    // 제목 바도 닫기 버튼도 없다 — 그래버가 유일한 크롬이다. 제목은 그려지지 않을 뿐
-    // 스크린리더에는 남는다.
+    // There's no title bar and no close button — the grabber is the only chrome. The title just
+    // isn't rendered visually; it still remains for the screen reader.
     it('제목 바를 그리지 않지만 접근성 이름은 남긴다', () => {
         render(<MessageActionSheet {...baseProps} />);
 
@@ -85,8 +86,8 @@ describe('MessageActionSheet — 메시지 롱프레스 액션 시트', () => {
         expect(screen.queryByRole('button', { name: 'Close' })).not.toBeInTheDocument();
     });
 
-    // 스레드가 위, 복사가 아래(디자인 순서) — 이 시트를 롱프레스로 여는 이유가 스레드고
-    // 복사는 차선이다.
+    // Thread on top, copy below (the design order) — the reason to open this sheet with a long
+    // press is the thread; copy is second choice.
     it('스레드 항목이 메시지 복사보다 위에 온다', () => {
         render(<MessageActionSheet {...baseProps} />);
 

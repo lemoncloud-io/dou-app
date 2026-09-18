@@ -57,7 +57,7 @@ describe('isInviteEntry', () => {
 describe('isRelayInvite', () => {
     it('초대 진입이면서 relay 마커가 있으면 true', () => {
         expect(isRelayInvite(parseInviteDeeplink('?provider=invite&code=abc&relay=1'))).toBe(true);
-        // 릴레이 링크는 _backend를 싣지 않지만, 함께 와도 릴레이로 본다.
+        // A relay link doesn't carry _backend, but treats it as relay even when it tags along.
         expect(isRelayInvite(parseInviteDeeplink('?provider=invite&code=abc&_backend=https://api&relay'))).toBe(true);
     });
 

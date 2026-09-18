@@ -34,7 +34,7 @@ export interface ManageChannelItemProps {
 }
 
 /**
- * Chat-room management row — the Figma "채팅방 관리" list item (3408-28373): a selection
+ * Chat-room management row — the Figma "chat room management" list item (3408-28373): a selection
  * checkbox, the room avatar, its name/preview, the last-activity time with the unread count,
  * and a trailing pin toggle. The selection area and the pin are separate controls so tapping
  * the pin never changes the selection.

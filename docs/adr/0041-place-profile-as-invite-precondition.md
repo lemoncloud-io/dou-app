@@ -139,7 +139,7 @@ there is no path that can produce either an SMS whose sender name is `친구` or
 
 ### 3. Invitee: restore the `profiling` phase **before** `invite.accept` — ADR-0039 decision 5 is withdrawn
 
-The accept order goes back to **verify → profile → accept.** That is the original order of ADR-0033 D10.
+The accept order goes back to **verify → profile → accept.** That is the original order of ADR-0089 D10.
 
 - Restore `'profiling'` in `RelayInvitePhase` and `RelayInviteFlow.onProfileSaved`.
 - Put the check into `advance()` right before `mutations.acceptInvite` — the same spot `5a61669a5` deleted.
@@ -345,7 +345,7 @@ implementation.
   are left in place rather than deleted.
 - **`ContactInvitePage` gains two gates in sequence** (guest verification → profile). One screen now has three
   conditional branches, raising the complexity of the single `return` structure.
-- [apps/web/docs/feature/home/place-profile-prompt.md](../../apps/web/docs/feature/home/place-profile-prompt.md)
+- [apps/web/docs/feature/home/place-profile-prompt.md](../../apps/web/docs/feature/home/place-profile.md)
   is marked `Status: Live` while describing the gate that `98a4685ff` deleted. Part of it becomes true again with
   this work, but the placement differs, so the document cannot simply be revived — it has to be rewritten.
 - ⚠️ **The order of work is entangled with ADR-0040.** This ADR depends on their `PlaceProfileCreateDialog` and
@@ -359,7 +359,7 @@ implementation.
   `PlaceProfileCreateDialog` and `resolvePlaceDisplayName` this ADR consumes. Run in parallel on the same day
 - [ADR-0039](0039-dm-display-name-chain-and-invite-profile-release.md) decision 5 — withdrawn by this ADR. The
   display name chain (decisions 1–4) remains valid
-- [ADR-0033](0033-relay-dm-invite-and-auth-parallel-tracks.md) D10 — the order returns to the original
+- [ADR-0089](0089-relay-dm-invite-and-auth-parallel-tracks.md) D10 — the order returns to the original
   (verify → profile → accept)
 - [ADR-0012](0012-place-profile-creation.md) — the original design of the creation screen. Its appearance rule
   (home detection) is not adopted; only the screen and input rules are inherited

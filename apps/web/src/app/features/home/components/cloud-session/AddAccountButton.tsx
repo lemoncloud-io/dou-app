@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { IconPlus, SubscriptionBadge } from '@chatic/web-ui-kit';
 
 /**
- * "＋ 클라우드 추가" pill. Lives in the switcher's "내 클라우드" section FOOTER, so it stays visible
+ * "+ Add cloud" pill. Lives in the switcher's "My Cloud" section FOOTER, so it stays visible
  * while that section is collapsed, and it is shown regardless of how many clouds are owned — the
  * 1-cloud cap is enforced by the handler with a toast, not by hiding the button (ADR-0034).
  *

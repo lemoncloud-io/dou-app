@@ -8,7 +8,7 @@ import { useVerifyAlias } from './useVerifyAlias';
 /**
  * The two hooks are one-line wrappers around a mutation, so the only thing worth testing is what
  * they record on failure — and that they record neither the address, the code nor the password
- * (ADR-0075).
+ * (ADR-0099).
  *
  * `useCustomMutation` is stubbed to hand back the mutation function itself: driving these through a
  * real react-query client would test react-query, not the entries.
@@ -41,7 +41,8 @@ describe('useVerifyAlias — 계정 이메일 검증 실패 기록', () => {
         code: '123456',
     };
 
-    // 한 엔드포인트가 두 여정 × 다섯 단계를 겸한다 — mode·step 없이는 어느 다리가 끊겼는지 모른다.
+    // One endpoint doubles for two journeys × five steps — without mode/step, there's no telling
+    // which leg broke.
     it('mode와 step을 message와 data에 함께 남긴다', async () => {
         verifyMock.mockRejectedValue(new Error('boom'));
         const run = useVerifyAlias() as unknown as (b: VerifyAliasBody) => Promise<unknown>;
@@ -94,7 +95,7 @@ describe('useFindAlias — 계정 조회 실패 기록', () => {
         expect(error.mock.calls[0][2].data).toEqual({ type: 'email' });
     });
 
-    // 계정 존재 여부는 열거 공격이 노리는 바로 그 사실이다.
+    // Whether the account exists is exactly the fact an enumeration attack is after.
     it('주소도 조회 결과도 싣지 않는다', async () => {
         findMock.mockRejectedValue(new Error('boom'));
         const run = useFindAlias() as unknown as (b: typeof body) => Promise<unknown>;

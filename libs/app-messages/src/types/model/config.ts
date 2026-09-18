@@ -1,23 +1,23 @@
 // src/types/model/config.ts
 
-/** [요청] 셸의 범용 KV 저장소에 키 하나를 opaque 문자열로 저장한다. 셸은 의미를 모른다(ADR-0079 결정 9). */
+/** [Request] Save a single key in the shell's general-purpose KV store as an opaque string. The shell doesn't know its meaning (ADR-0079, decision 9). */
 export type SaveConfigValuePayload = {
     key: string;
     value: string;
 };
 
-/** [요청] 셸의 범용 KV 저장소에서 키 하나를 지운다 — 오버라이드 해제. */
+/** [Request] Remove a single key from the shell's general-purpose KV store — clears the override. */
 export type ClearConfigValuePayload = {
     key: string;
 };
 
-/** [응답] 저장 결과. */
+/** [Response] Save result. */
 export type OnSaveConfigValuePayload = {
     key: string;
     success: boolean;
 };
 
-/** [응답] 삭제 결과. */
+/** [Response] Delete result. */
 export type OnClearConfigValuePayload = {
     key: string;
     success: boolean;

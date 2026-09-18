@@ -16,18 +16,19 @@ interface Row {
 }
 
 /**
- * 네이티브 캐시 호출 계측 뷰어(`nativeCacheMetrics`).
+ * A viewer for native cache call instrumentation (`nativeCacheMetrics`).
  *
- * 정렬 기준이 평균이 아니라 **누적 시간(count × avg)** 인 것이 핵심입니다. 한 번이 느린 호출과
- * 빠르지만 자주 불리는 호출은 처방이 다른데(저장소 vs 옵저버 재조회), 어느 쪽이 실제로 시간을
- * 쓰는지는 누적으로만 보입니다.
+ * The key point is that the sort key is **cumulative time (count × avg)**, not the average. A
+ * call that's slow once and a call that's fast but called often call for different fixes
+ * (storage vs. observer re-fetching), and only the cumulative view shows which one is actually
+ * eating the time.
  */
 export const CacheMetricsScreen = () => {
     const [rows, setRows] = useState<Row[]>([]);
     const [totalOps, setTotalOps] = useState(0);
 
-    // 화면은 @chatic/db를 직접 import하지 않는다 — app-runtime이 결합한 포트 인스턴스만 본다
-    // (ADR-0070 결정 5).
+    // The screen doesn't import @chatic/db directly — it only sees the port instance wired up by
+    // app-runtime (ADR-0070 decision 5).
     const metricsSource = useMemo(() => runtime.data.getCacheMetricsSource(), []);
 
     const read = useCallback(() => {
@@ -40,7 +41,7 @@ export const CacheMetricsScreen = () => {
         );
     }, [metricsSource]);
 
-    // 계측은 모듈 상태라 이벤트를 쏘지 않는다 — 열어둔 동안만 폴링한다.
+    // Instrumentation is module state, so it doesn't fire events — poll only while this is open.
     useEffect(() => {
         read();
         const id = setInterval(read, REFRESH_MS);

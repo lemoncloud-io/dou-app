@@ -5,7 +5,7 @@ import { FileCode2, FileText, Image } from 'lucide-react';
 import { MAX_ATTACHMENTS } from '../../utils';
 
 /**
- * The three fills of Figma's stacked-files mark ("#이미지 드래그 오버"). They are
+ * The three fills of Figma's stacked-files mark ("#image drag over"). They are
  * illustration, not interface: the only place in the desktop client that carries a
  * hue other than the lime, and they stay fixed in both themes because the mark is
  * one drawing. The hues are the `illustration-*` tokens, kept apart from the
@@ -20,7 +20,7 @@ const FILE_MARK = {
 } as const;
 
 /**
- * Shown over the conversation while files are dragged in (Figma "#이미지 드래그 오버"): a
+ * Shown over the conversation while files are dragged in (Figma "#image drag over"): a
  * dashed drop zone, the stacked-files mark, and the limit. Pointer-transparent, so the
  * drag events keep landing on the pane underneath.
  */

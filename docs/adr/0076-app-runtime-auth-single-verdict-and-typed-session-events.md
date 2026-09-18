@@ -50,7 +50,7 @@ can reuse this verdict, so reproducing an incident means a human has to line up 
 > **Originally counted as four places, and phase 3's execution corrected that to two.** The other
 > two were not copies of the same verdict —
 >
-> - [`useConnectivity`](../../libs/app-runtime/src/connection/useConnectivity.ts) is a **display
+> - [`useConnectivity`](../../libs/app-runtime/src/connection/hooks/useConnectivity.ts) is a **display
 >   verdict** (the three grounds under §Decision 1).
 > - [`useSessionStalenessGuard`](../../libs/app-runtime/src/session/hooks/app/useSessionStalenessGuard.ts)
 >   uses two clocks under **different policies**: it always refreshes the stored session's
@@ -149,7 +149,7 @@ injection (storage is a module global), and every read is a `JSON.parse` (a sing
 
 ### 6. The boundary lives only in documentation — 31 of 111 public surfaces go unused by any app
 
-[public-surface.md](../../libs/app-runtime/docs/public-surface.md) admits that store writers are in
+[public-surface.md](../../libs/app-runtime/README.md) admits that store writers are in
 the barrel, then writes _"this is not an invitation for apps to manipulate the session directly."_
 But `public-surface.test.ts` **locks those symbols in as a public contract**. So the discipline is
 prose, and the test enforces the opposite direction.
@@ -489,7 +489,7 @@ change.
 - **No second barrel (`internal.ts`) and no subpath export.** No lib in the repo exposes any subpath
   other than `.` and `./package.json`, so that would be a new pattern, and it's unnecessary — internal
   consumers already have a convention of importing concrete module paths
-  ([`useSocketSessionDelegate.ts`](../../libs/app-runtime/src/connection/useSocketSessionDelegate.ts)
+  ([`useSocketSessionDelegate.ts`](../../libs/app-runtime/src/connection/hooks/useSocketSessionDelegate.ts)
   bypassing the barrel to reach `../socket/auth/sessionDelegate` directly is the precedent). The
   definition of "internal" is simply **not in `index.ts`**, and `public-surface.test.ts`'s single
   `EXPECTED` list locks that in place.

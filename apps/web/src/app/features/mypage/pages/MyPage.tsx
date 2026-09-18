@@ -29,7 +29,7 @@ export const MyPage = () => {
     const isGuest = useIsAccountGuest();
     const { data: membership } = useMembershipInfo();
     // Owned clouds only (the relay catalog); invited clouds are deliberately absent — you cannot
-    // release someone else's cloud, so they must not summon the 클라우드 정보 row.
+    // release someone else's cloud, so they must not summon the cloud info row.
     const { clouds } = useCloudSessionCatalog();
     const myUser = useMyUser();
 
@@ -46,18 +46,18 @@ export const MyPage = () => {
         </span>
     );
 
-    // A membership decides the destination, not the label: the row is "구독 정보" either way, but
+    // A membership decides the destination, not the label: the row is "Subscription info" either way, but
     // someone who has never subscribed wants to know what a cloud even is, so they get the guide
     // rather than the plan picker or an empty membership screen.
     const hasSubscription = membership?.isValid === true;
     // Gate on OWNERSHIP, not on `isCloudActive`. The latter means "currently switched into a
-    // non-default cloud", which hid the only release path whenever the user sat on 두유 홈 — including
+    // non-default cloud", which hid the only release path whenever the user sat on DoU Home — including
     // the exact case ExcessCloudBanner deep-links here for (over the allowance after a downgrade),
     // and a lapsed subscriber whose leftover clouds still need deleting.
     const hasOwnedCloud = clouds.length > 0;
 
     // The header shows the RELAY account's data (name/email/photo) — the same record whichever cloud
-    // is connected. It opens 내 정보, the account hub: profile editing, social links and withdrawal
+    // is connected. It opens My Info, the account hub: profile editing, social links and withdrawal
     // all hang off it, and this row is now their only way in.
     const handleProfileClick = () => {
         navigate(ROUTES.mypage.account.info);

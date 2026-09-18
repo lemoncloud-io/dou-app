@@ -5,12 +5,12 @@ import { JsonSlot, type StorageLike } from './jsonSlot';
 import { sessionSignal, type ISessionSignal } from './signal';
 
 /**
- * Endpoint resolution is INJECTED, not imported (ADR-0070 결정 1 규칙 2). The pre-move `relayStore`
+ * Endpoint resolution is INJECTED, not imported (ADR-0070 Decision 1 rule 2). The pre-move `relayStore`
  * imported `getDynamicRelayBackend`/`getDynamicRelayWss` directly — the single measured violation of
  * store passivity — which also meant the store transitively knew about env and the transport.
  *
  * Wiring lives in `session/store/configure.ts`, which `initAppRuntime()` runs from the app entry
- * (ADR-0070 5단계) — NOT a barrel import side effect any more. The observable behavior is unchanged:
+ * (ADR-0070 Step 5) — NOT a barrel import side effect any more. The observable behavior is unchanged:
  * deeplink overrides are honored because the resolvers are functions, read lazily per call.
  * Throwing rather than returning '' on an unconfigured read keeps a wiring mistake loud instead of
  * silently producing requests against an empty host.
@@ -28,7 +28,7 @@ const RELAY_TOKEN_KEY = 'chatic-relay-token';
 
 /**
  * The relay slot of the session store. Renamed off `RelayCore` — that name came from web-core's
- * `session/core` folder and sat outside this repo's `I*` contract convention (ADR-0076 결정 0).
+ * `session/core` folder and sat outside this repo's `I*` contract convention (ADR-0076 Decision 0).
  */
 export interface IRelayStore {
     getBackend(): string;

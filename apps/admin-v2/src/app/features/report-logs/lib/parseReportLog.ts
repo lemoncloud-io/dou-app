@@ -27,8 +27,8 @@ export interface ReportPayload {
     message?: string;
     stack?: string;
     /**
-     * `error.cause` 체인 (바깥→안). 감싼 에러의 stack은 감싼 자리를 가리키므로,
-     * 실제 원인의 stack은 여기에만 있다 — 소스맵 해석 대상도 이쪽이다.
+     * The `error.cause` chain (outer → inner). A wrapping error's stack points at the wrap site,
+     * so the real cause's stack lives only here — this is also what source-map resolution targets.
      */
     causes?: { message: string; stack?: string }[];
     componentStack?: string;
@@ -40,11 +40,11 @@ export interface ReportPayload {
     user?: Record<string, unknown>;
     cloud?: Record<string, unknown>;
     /**
-     * 실패한 요청의 전모. body류는 저장 시점에 이미 redact + truncate 된 값이라
-     * 화면에서 다시 가릴 필요는 없다.
+     * The full picture of the failed request. Body-type values are already redacted and truncated
+     * by the time they're stored, so there's no need to mask them again on screen.
      *
-     * 이 필드를 채우던 것은 폐지된 `reportError`(`describeHttp`)뿐이므로, 2026-09
-     * 이후 레코드에는 없다. 그 이전 레코드를 읽기 위해 남긴다.
+     * The only thing that ever populated this field was the retired `reportError` (`describeHttp`),
+     * so records from 2026-09 onward don't have it. It's kept here to read older records.
      */
     http?: {
         url?: string;
@@ -54,13 +54,13 @@ export interface ReportPayload {
         status?: number | string;
         statusText?: string;
         code?: string;
-        /** 서버가 말한 실패 사유 (응답 본문에서 추출) — message에도 붙어 있다. */
+        /** The failure reason as stated by the server (extracted from the response body) — also appended to `message`. */
         reason?: string;
         responseData?: unknown;
     };
     device?: Record<string, unknown>;
     network?: Record<string, unknown>;
-    /** opaque script-error의 유일한 위치 단서 (filename/lineno/colno). */
+    /** The only location clue an opaque script-error has (filename/lineno/colno). */
     location?: Record<string, unknown>;
     version?: Record<string, unknown>;
     viewport?: Record<string, unknown>;

@@ -13,7 +13,7 @@ export interface ChatRoomHeaderProps {
      * Selects the fallback avatar glyph when no `avatar` node is supplied:
      * `direct` = single-person lucide glyph (a peer), `group` = three-person glyph
      * (a channel), `self` = solid single-person silhouette with a ring (the
-     * "나와의 채팅" design). All kinds render identically otherwise — a leading
+     * "chat with myself" design). All kinds render identically otherwise — a leading
      * avatar + left-aligned name next to the back button.
      */
     kind?: 'direct' | 'group' | 'self';
@@ -27,7 +27,7 @@ export interface ChatRoomHeaderProps {
     /**
      * Drops the leading avatar altogether — no node, no fallback glyph — so the title hugs the
      * back button (Figma thread top bar, 4718:22183). For a depth that is a VIEW of a room
-     * rather than a room: a thread's header names the screen ("스레드"), and pairing that with
+     * rather than a room: a thread's header names the screen ("Thread"), and pairing that with
      * the channel's face would claim the screen is the channel.
      */
     hideAvatar?: boolean;

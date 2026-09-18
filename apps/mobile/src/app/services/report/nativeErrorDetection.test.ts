@@ -71,7 +71,7 @@ describe('installNativeErrorDetection', () => {
             message: 'boom',
             extra: { isFatal: true },
         });
-        // 로그 스냅샷은 싣지 않는다 — 같은 엔트리를 업로더가 낱건으로 올린다.
+        // Doesn't carry a log snapshot — the uploader already sends the same entry individually.
         expect(enqueued[0].logs).toBeUndefined();
         expect(typeof enqueued[0].stack).toBe('string');
         expect(previous).toHaveBeenCalledWith(boom, true);
@@ -100,8 +100,8 @@ describe('checkCrashOnPreviousExecution', () => {
         didCrashOnPreviousExecution.mockReset();
     });
 
-    // 재실행 감지에는 자체 타임스탬프가 없다. 직전 실행이 마지막으로 남긴
-    // 로그 시각이 가장 가까운 근사치다.
+    // Rerun detection has no timestamp of its own. The last log time left by the previous run is
+    // the closest approximation we have.
     it('직전 실행이 크래시였으면 그 실행의 마지막 로그 시각으로 native-crash를 큐잉한다', async () => {
         didCrashOnPreviousExecution.mockResolvedValue(true);
         const { deps, enqueued } = createDeps(20);
@@ -113,8 +113,8 @@ describe('checkCrashOnPreviousExecution', () => {
         expect(enqueued[0].logs).toBeUndefined();
     });
 
-    // 큐를 읽지 않는 이유가 여기 있다 — 정상적으로 업로드하던 기기는 ack 때문에
-    // 큐가 비어 있고, 그 마지막 엔트리로는 크래시 시각을 알 수 없다.
+    // This is why we don't read the queue — a device that was uploading normally has an empty
+    // queue because of acks, and its last entry can't tell us the crash time.
     it('큐가 비어 있어도 기록된 시각을 쓴다', async () => {
         didCrashOnPreviousExecution.mockResolvedValue(true);
         const { deps, enqueued } = createDeps(1234);

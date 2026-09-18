@@ -14,8 +14,8 @@ interface ComposerAttachmentsProps {
 }
 
 /**
- * The tray of picked images inside the composer (Figma "이미지"): 92px tiles, a spinner
- * while one is still loading, and the remove "×" on hover or focus ("호버 시 삭제 버튼").
+ * The tray of picked images inside the composer (Figma "Image"): 92px tiles, a spinner
+ * while one is still loading, and the remove "×" on hover or focus ("delete button on hover").
  */
 export const ComposerAttachments = ({ attachments, onRemove }: ComposerAttachmentsProps) => {
     const { t } = useTranslation();

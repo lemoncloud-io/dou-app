@@ -4,17 +4,20 @@ import type { ISqliteDatabase } from '../../database';
 import { fetchManyByIds } from './fetchManyByIds';
 
 /**
- * 프리뷰 가능 행 판정 — 웹 `isPreviewableChat`(@chatic/data)의 SQL 미러 (ADR-0057).
+ * Determines whether a row is previewable — a SQL mirror of the web's `isPreviewableChat`
+ * (@chatic/data) (ADR-0057).
  *
- * 스레드 답글(parentId)·시스템 행(리액션 이벤트 포함)·실패 전송을 제외하고, 톰스톤(hidden)은
- * 남깁니다("삭제된 메시지입니다"로 렌더되는 채널의 마지막 메시지). 판정 필드들은 추출 컬럼이
- * 없어 `json_extract`로 blob을 읽는데, 각 프로브가 `idx_chats_cid_uid_channel_chatno`를
- * 최신순으로 걷다가 첫 매치에서 멈추므로 평가 행수는 프리뷰 불가한 꼬리 길이에 비례합니다
- * (채널 이력 전체가 아니라).
+ * Excludes thread replies (parentId), system rows (including reaction events), and failed sends,
+ * but keeps tombstones (hidden) — the channel's last message that renders as "Deleted message."
+ * The fields used for this check have no extracted column, so we read the blob via
+ * `json_extract`; each probe walks `idx_chats_cid_uid_channel_chatno` in newest-first order and
+ * stops at the first match, so the number of rows evaluated is proportional to the length of the
+ * non-previewable tail (not the whole channel history).
  *
- * 이 판정은 최적화일 뿐 의미론의 소유자는 웹입니다 — 웹은 응답 행을 자기 규칙으로 재검증하고
- * 어긋나면 그 채널만 윈도우 조회로 폴백합니다. 규칙이 진화해도 구버전 앱이 오답을 강요하지
- * 못하는 이유가 이것입니다.
+ * This check is only an optimization — the web owns the semantics. The web re-validates the
+ * returned rows against its own rules and, if they don't match, falls back to a windowed query
+ * for just that channel. That's why an older app version can't force a wrong answer even as the
+ * rules evolve.
  */
 const PREVIEWABLE_SQL = [
     `json_extract(data, '$.parentId') IS NULL`,
@@ -24,7 +27,7 @@ const PREVIEWABLE_SQL = [
 ].join(' AND ');
 
 /**
- * 채팅(Chat) 도메인 전용 데이터 소스 구현체
+ * Data source implementation specific to the Chat domain
  */
 export class ChatDataSource implements ICacheDataSource<CacheChatView, ChatQueryOptions> {
     constructor(
@@ -78,7 +81,7 @@ export class ChatDataSource implements ICacheDataSource<CacheChatView, ChatQuery
             params.push(`%${query.keyword}%`);
         }
 
-        // 페이징 커서 조건 추가 (cursorNo 미만)
+        // Add the pagination cursor condition (less than cursorNo)
         if (query?.cursorNo !== undefined && query.cursorNo !== null) {
             conditions.push(`chat_no < ?`);
             params.push(query.cursorNo);
@@ -86,11 +89,11 @@ export class ChatDataSource implements ICacheDataSource<CacheChatView, ChatQuery
 
         if (conditions.length > 0) sql += ` WHERE ` + conditions.join(' AND ');
 
-        // 정렬 기준 설정 (채팅의 경우 기본적으로 DESC가 적합하므로 없을 경우 폴백 처리)
+        // Set the sort order (defaults to DESC when unspecified, since that fits chat listings best)
         const sortOrder = query?.sort ? query.sort.toUpperCase() : 'DESC';
         sql += ` ORDER BY chat_no ${sortOrder}`;
 
-        // 페이징 Limit 조건 추가
+        // Add the pagination LIMIT condition
         if (query?.limit !== undefined && query.limit !== null) {
             sql += ` LIMIT ?`;
             params.push(query.limit);
@@ -102,15 +105,17 @@ export class ChatDataSource implements ICacheDataSource<CacheChatView, ChatQuery
     }
 
     /**
-     * 채널별 최신 프리뷰 1건 + 그 채널의 최대 chat_no (ADR-0057, `FetchLastChatsData`).
+     * Fetches, per channel, one latest preview row plus that channel's max chat_no
+     * (ADR-0057, `FetchLastChatsData`).
      *
-     * 채널당 3개의 인덱스 프로브를 씁니다 — 커밋 top-1(프리뷰 판정, DESC LIMIT 1), 미전송
-     * 후보(`chat_no = 0`, 실패 제외 — createdAt 최신을 JS에서 택1), `MAX(chat_no)`. 미전송이
-     * 있으면 그것이 답입니다(웹 `compareByChatNo`가 0을 최신으로 취급하는 것과 같은 의미론 —
-     * 방금 보낸 메시지는 ack 전에도 프리뷰여야 합니다). 쿼리 수는 3N이지만 전부 인프로세스
-     * 인덱스 워크라, 비용의 단위는 왕복이지 쿼리 수가 아닙니다(`fetchManyByIds`와 같은 근거).
+     * Uses 3 index probes per channel — the committed top-1 (previewable rows, DESC LIMIT 1), the
+     * unsent candidate (`chat_no = 0`, excluding failures — picking the most recent createdAt in
+     * JS), and `MAX(chat_no)`. If an unsent message exists, it wins (the same semantics as the
+     * web's `compareByChatNo`, which treats 0 as the newest — a message you just sent must be
+     * previewable even before it's acked). The query count is 3N, but they're all in-process index
+     * walks, so the cost unit is round trips, not query count (same rationale as `fetchManyByIds`).
      *
-     * 반환 배열은 요청 순서를 따르지만 호출자(웹)는 channelId로 다시 색인합니다.
+     * The returned array follows the request order, but the caller (the web) re-indexes it by channelId.
      */
     public async fetchLastPerChannel(channelIds: string[], cid?: string, uid?: string): Promise<LastChatItem[]> {
         const uniqueIds = Array.from(new Set(channelIds.filter(Boolean)));
@@ -148,8 +153,8 @@ export class ChatDataSource implements ICacheDataSource<CacheChatView, ChatQuery
             const committed = (committedResult.rows || []).map(
                 (row: any) => JSON.parse(row.data as string) as CacheChatView
             )[0];
-            // 미전송끼리는 chat_no가 전부 0이라 createdAt이 유일한 순서축입니다. 채널당 0~2행이
-            // 보통이라 정렬 대신 최댓값 한 번으로 충분합니다.
+            // Among unsent messages, chat_no is always 0, so createdAt is the only ordering axis.
+            // A channel typically has 0-2 such rows, so taking the max once is enough instead of sorting.
             const pending = (pendingResult.rows || [])
                 .map((row: any) => JSON.parse(row.data as string) as CacheChatView)
                 .reduce<
@@ -227,10 +232,12 @@ export class ChatDataSource implements ICacheDataSource<CacheChatView, ChatQuery
     }
 
     /**
-     * 한 채널의 행만 지웁니다 (ADR-0067). `channel_id`는 조회에 쓰는 추출 컬럼이라 조건이 그대로 선다.
+     * Deletes only the rows for one channel (ADR-0067). `channel_id` is an extracted column used
+     * for lookups, so the condition works as-is.
      *
-     * 스코프(cid/uid)는 조건에 함께 걸린다 — 같은 기기의 다른 클라우드·다른 계정에 같은 채널 id가
-     * 있을 수 있고, 방 하나를 나간 것이 그쪽 이력까지 지울 이유는 없다.
+     * The scope (cid/uid) is included in the condition too — the same device's other cloud accounts
+     * or other users could share the same channel id, and leaving one room shouldn't wipe their
+     * history too.
      */
     public async clearByChannel(channelId: string, cid?: string, uid?: string): Promise<void> {
         const conditions: string[] = ['channel_id = ?'];

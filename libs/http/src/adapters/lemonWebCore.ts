@@ -2,7 +2,7 @@
  * The minimal `lemon-web-core` request-builder surface this lib drives. Declared here (not
  * imported from `@lemoncloud/lemon-web-core`'s `WebTransport` shape) as a consumer-owned `Pick` —
  * `init`/`isAuthenticated`/`getTokenStorage` are deliberately absent, which is the type-level half
- * of ADR-0070 결정 2 불변조건 3 (this lib never calls an API that can trigger lemon's own refresh).
+ * of ADR-0070 decision 2, invariant 3 (this lib never calls an API that can trigger lemon's own refresh).
  */
 export interface LemonRequestBuilder {
     setBody: (body: unknown) => LemonRequestBuilder;

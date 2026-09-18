@@ -57,21 +57,21 @@ describe('useInviteCandidates', () => {
         expect(run().candidateIds).toEqual(['u1']);
     });
 
-    // 타깃 채널을 순회에서 빼는 것과 memberIds를 차집합하는 것, 두 방어가 겹친다.
+    // Two defenses overlap here: excluding the target channel from iteration, and set-subtracting its memberIds.
     it('타깃 채널 행 자체는 후보 출처로 쓰지 않는다', () => {
         mockChannels = [{ id: 'target', memberIds: ['u1', 'u2'] }];
 
         expect(run().candidateIds).toEqual([]);
     });
 
-    // memberIds는 옵셔널이다 — detail:true 경로로 오지 않은 행이 섞일 수 있다.
+    // memberIds is optional — a row that didn't come through the detail:true path may be mixed in.
     it('memberIds가 없는 채널 행은 건너뛴다', () => {
         mockChannels = [{ id: 'target', memberIds: ['me'] }, { id: 'a' }, { id: 'b', memberIds: ['u1'] }];
 
         expect(run().candidateIds).toEqual(['u1']);
     });
 
-    // 타깃 행이 memberIds 없이 와도, 순회 제외 덕분에 그 방 사람이 후보로 새지 않는다.
+    // Even if the target row arrives without memberIds, excluding it from iteration keeps that room's people from leaking into the candidates.
     it('타깃 행에 memberIds가 없어도 다른 채널에서만 후보를 만든다', () => {
         mockChannels = [{ id: 'target' }, { id: 'a', memberIds: ['u1'] }];
 
@@ -104,7 +104,7 @@ describe('useInviteCandidates', () => {
         expect(run('target', null).candidateIds).toEqual([]);
     });
 
-    // 세션이 아직 userId를 못 준 순간에도 목록은 그려져야 한다.
+    // The list must still render even at the moment the session hasn't yet supplied a userId.
     it('userId가 아직 없어도 후보를 만든다', () => {
         mockUserId = undefined;
         mockChannels = [

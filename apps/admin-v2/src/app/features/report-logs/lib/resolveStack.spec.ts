@@ -68,7 +68,7 @@ describe('readBundleNames', () => {
     });
 });
 
-// 빌드가 다르면 열 좌표가 어긋나 조용히 엉뚱한 줄로 풀린다. 이름 대조가 그 유일한 방어다.
+// A different build means the column coordinates drift and silently resolve to the wrong line. Comparing names is the only defense against that.
 describe('mapMatchesStack', () => {
     const stack = 'a@https://x/assets/index-abc.js:1:1';
 

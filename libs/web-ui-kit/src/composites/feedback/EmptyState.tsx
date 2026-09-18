@@ -15,7 +15,7 @@ export interface EmptyStateProps {
 }
 
 /**
- * Empty / waiting state — the Figma "친구의 응답을 기다리고 있어요" block: a title, a
+ * Empty / waiting state — the Figma "Waiting for a friend's response" block: a title, a
  * description, and an optional outline pill action with a trailing chevron.
  */
 export const EmptyState = ({ title, description, actionLabel, onAction, className }: EmptyStateProps) => {

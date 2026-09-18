@@ -2,7 +2,7 @@ import { createWebEnvAdapter, type ConfigRuntimePorts } from '@chatic/config';
 
 /**
  * Wires `@chatic/config` to this app's own `import.meta.env` and injected `window.CHATIC_APP_*`
- * globals — the one file per Vite app that `import.meta` is allowed to touch (ADR-0079 결정 1·8).
+ * globals — the one file per Vite app that `import.meta` is allowed to touch (ADR-0079 decisions 1·8).
  *
  * `read` is the only platform-specific piece; `createWebEnvAdapter` owns the shared interpretation
  * (stage validation, the shell-injected stage vocabulary, the legacy lowercasing) so web ·

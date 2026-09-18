@@ -179,7 +179,7 @@ describe('UserRepository', () => {
         await repository.getMyProfile();
 
         // The cloud context is vetoed, so the default place never lands in the cloud partition —
-        // while the user write itself stays untouched (ADR-0045).
+        // while the user write itself stays untouched (ADR-0094).
         expect(userLocalDataSource.cacheWrite).toHaveBeenCalled();
         expect(placeLocalDataSource.cacheWrite).not.toHaveBeenCalled();
     });

@@ -231,7 +231,7 @@ export default function LoadReport({ load }: LoadReportProps) {
                 ) : null}
             </div>
 
-            {/* 분포 + 공정성 */}
+            {/* Distribution + fairness */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                 <div
                     style={{

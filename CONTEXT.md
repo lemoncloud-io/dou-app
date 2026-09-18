@@ -14,7 +14,7 @@ _Avoid_: IPC layer, native module
 
 **Shell**:
 A native host that wraps web content and supplies platform capabilities through the Bridge. Each platform has one: the Mobile Shell (React Native) and the Desktop Shell (Electron). A Shell owns windows, OS integration, and native capabilities — never product UI.
-_Avoid_: wrapper, 껍데기, container app
+_Avoid_: wrapper, husk, container app
 
 **Desktop Web**:
 The web application built specifically for desktop layout (multi-panel, wide). It is deployed and loaded remotely by the Desktop Shell — a sibling of the mobile/web clients, not a variant of them.

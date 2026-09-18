@@ -1,7 +1,9 @@
-// 동명 훅 3쌍(useSessionLogout · useLogoutCloudSession · useSiteSwitch)의 web-core 판은
-// 삭제됐다 — 소켓에 auth.logout/auth.switch를 통지하는 app-runtime 판이 승자다
-// (ADR-0070 결정 1, 설계문서 §동명 훅 병합표). 승자는 다른 세션 액션과 같은 자리에 있다:
-// 전송이 소켓이냐 HTTP냐는 액션의 구현 세부이지 분류 기준이 아니다.
+// The web-core versions of the three same-named hook pairs (useSessionLogout ·
+// useLogoutCloudSession · useSiteSwitch) are deleted — the app-runtime versions, which notify
+// auth.logout/auth.switch over the socket, are the winners
+// (ADR-0070 Decision 1, design doc §same-name hook merge table). The winner sits in the same place as
+// every other session action: whether the transport is a socket or HTTP is an implementation detail
+// of the action, not a classification criterion.
 export * from './actions/useInviteFlow';
 export * from './actions/useLogoutCloudSession';
 export * from './actions/useSessionLogout';

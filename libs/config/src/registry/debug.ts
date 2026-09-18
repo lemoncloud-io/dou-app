@@ -5,19 +5,19 @@ import type { ConfigRegistryModule } from '../types';
  *
  * `overlayEnabled` and `entryCode` are `meta: true` for the same reason `system.*` is — they gate
  * entry to the panel itself, so the generic panel does not render them and the unlock check does
- * not apply to them (ADR-0080 결정 6). `overlayEnabled`'s `byStage` is what removes the 10-tap
+ * not apply to them (ADR-0080 decision 6). `overlayEnabled`'s `byStage` is what removes the 10-tap
  * friction in LOCAL/DEV while PROD stays exactly as strict as today.
  *
  * `entryCode` is sourced from `VITE_DEBUG_CODE` and from nothing else — `writableBy: []` means no
  * lane can supply it, so the build is the only answer. An unset secret leaves it at `defaultValue`
- * (`''`), which is the fail-closed the gate already relies on: no code, no dialog (ADR-0034 결정 2).
+ * (`''`), which is the fail-closed the gate already relies on: no code, no dialog (ADR-0092 decision 2).
  *
  * The web-address switcher the draft put here (`webviewBaseUrl`/`environmentSettings`) is NOT a key
  * — it was dropped rather than allow-listed, because a list still cannot close PROD, so it would
  * have meant building a list, validation and a fallback for a feature that stays closed anyway
- * (ADR-0080 결정 13). `env.webviewBaseUrl` (read-only) is what is left of it here.
+ * (ADR-0080 decision 13). `env.webviewBaseUrl` (read-only) is what is left of it here.
  *
- * The app half of 결정 13 has since landed too (`4b80a76b7`, 2026-09-10): the shell's
+ * The app half of decision 13 has since landed too (`4b80a76b7`, 2026-09-10): the shell's
  * `EnvironmentSettingsScreen` is gone and the custom-zip loader moved to the web. The registry never
  * gave the switcher a writable key either — see `ConfigKvService`'s docblock for what keeps the
  * shell lane from reaching it.

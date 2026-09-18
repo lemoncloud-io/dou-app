@@ -258,28 +258,31 @@ describe('resolvePushTapPath (푸시 탭 경로)', () => {
         expect(resolvePushTapPath(undefined)).toBeNull();
     });
 
-    // 클라우드 활성 푸시는 계약상 link가 없다. 규격 정본이 "link가 비면 루트"라고 정했고,
-    // 탭이 앱만 포그라운드로 올리면 사용자는 알림을 눌러도 아무 데도 가지 않는다.
+    // A cloud-activation push has no link, by contract. The spec's source of truth says "if link
+    // is empty, go to root", and if a tap only brings the app to the foreground, the user taps the
+    // notification and goes nowhere.
     it('클라우드 활성 푸시는 link가 없어도 루트로 보낸다', () => {
         expect(resolvePushTapPath({ type: 'cloud', cid: 'cloud_1', uid: 'u1' })).toBe('/');
         expect(resolvePushTapPath({ type: 'cloud', payload: JSON.stringify({ cid: 'cloud_1' }) })).toBe('/');
     });
 
-    // 무링크 루트 이동은 계약상 link가 없는 유형에만 준다. 채팅 푸시에 link가 빠진 것은
-    // 잘못 만들어진 페이로드이지 홈으로 가라는 요청이 아니다 — 보던 화면을 뺏지 않는다.
+    // The no-link-goes-to-root fallback is only granted to types that have no link by contract.
+    // A chat push missing its link is a malformed payload, not a request to go home — it shouldn't
+    // steal the screen the user was looking at.
     it('클라우드가 아닌 유형은 link가 없으면 그대로 null이다', () => {
         expect(resolvePushTapPath({ type: 'chat', payload: JSON.stringify({ cid: 'cloud_1' }) })).toBeNull();
         expect(resolvePushTapPath({ type: 'notice' })).toBeNull();
     });
 
-    // link가 있으면 유형과 무관하게 그 링크가 이긴다 — 루트 폴백은 무링크일 때만 도는 가지다.
+    // If a link exists, it wins regardless of type — the root fallback branch only runs when there's no link.
     it('클라우드 푸시라도 link가 있으면 link를 따른다', () => {
         expect(resolvePushTapPath({ type: 'cloud', link: '/mypage/clouds' })).toBe('/mypage/clouds');
     });
 
-    // Android 백그라운드 탭은 이 함수를 타지 않는다 — 네이티브가 인텐트 data URI로 스킴 루트를 실어
-    // 보내고 RN Linking → resolveDeepLink가 받는다. 그 URI가 실제로 루트로 풀리는지가 계약이다
-    // (ChaticFirebaseMessagingService.rootTapLinkFor 참고).
+    // An Android background tap never goes through this function — native carries the scheme root
+    // in the intent's data URI, and RN Linking → resolveDeepLink receives it. Whether that URI
+    // actually resolves to root is the contract being tested here
+    // (see ChaticFirebaseMessagingService.rootTapLinkFor).
     it('네이티브가 싣는 스킴 루트 URI는 웹 루트로 풀린다', () => {
         expect(resolveDeepLink('chatic://')).toEqual({ kind: 'web', path: '/' });
         expect(resolveDeepLink('chatic-dev://')).toEqual({ kind: 'web', path: '/' });

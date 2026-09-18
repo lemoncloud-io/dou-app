@@ -12,7 +12,7 @@ import { type PlaceNameSource, resolvePlaceDisplayName } from '../utils/resolveP
  *
  * The raw `place.name` is NOT what callers want: on the relay the personal place is
  * named "default"/"#default", which would land verbatim in a dialog title. The shared
- * `resolvePlaceDisplayName` brands it, so the home place reads "두유 홈" here exactly
+ * `resolvePlaceDisplayName` brands it, so the home place reads "두유 홈" ("Doyou Home") here exactly
  * as it does in the place list. Returns the branded label on the relay even before the
  * place row is cached, and an empty string only for a nameless non-home place.
  */
@@ -29,7 +29,7 @@ export const useActivePlaceName = (): string => {
     useEffect(() => {
         // Drop the previous site's row on every sid change, not just when sid goes away. Keeping it
         // would name the OLD place until the new subscription emits — and after branding that is not
-        // merely stale but wrong: leaving the relay for a cloud would keep answering "두유 홈",
+        // merely stale but wrong: leaving the relay for a cloud would keep answering "두유 홈" ("Doyou Home"),
         // because the retained row still has id '0000'.
         setPlace(null);
         if (!sid) return;

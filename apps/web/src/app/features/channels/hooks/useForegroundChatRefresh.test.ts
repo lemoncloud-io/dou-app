@@ -108,7 +108,7 @@ describe('useForegroundChatRefresh — 포그라운드/진입 시 채팅 갭 보
         await act(async () => {
             renderHook(() => useForegroundChatRefresh('ch-1'));
         });
-        expect(refreshList).not.toHaveBeenCalled(); // entry는 게이트로 미실행
+        expect(refreshList).not.toHaveBeenCalled(); // entry is gated, so it doesn't run here
 
         await fireForeground();
 

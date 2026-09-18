@@ -86,7 +86,7 @@ describe('sortChannels', () => {
 
     describe('마지막 메시지 시각 기준 (lastChatByChannel)', () => {
         it('채널의 updatedAt이 아니라 마지막 메시지 시각으로 정렬한다', () => {
-            // 채널 시각은 c3 > c2 > c1이지만, 마지막 메시지 시각은 그 반대다.
+            // Channel time is c3 > c2 > c1, but the last message time is the reverse.
             const result = sortChannels({
                 channels,
                 lastChatByChannel: new Map([
@@ -101,7 +101,7 @@ describe('sortChannels', () => {
         });
 
         it('내 읽음 커서(join.updatedAt)는 정렬에 전혀 영향을 주지 않는다', () => {
-            // 내가 c3을 방금 읽어 join이 갱신돼도, 순서는 메시지 시각과 channel.updatedAt만 본다.
+            // Even if I just read c3 and its join got updated, order only looks at message time and channel.updatedAt.
             const result = sortChannels({
                 channels: [c1, c2, { ...c3, $join: join('c3', 9000) } as unknown as DomainChannel],
                 lastChatByChannel: new Map([['c1', lastChat('c1', 3000)]]),
@@ -112,7 +112,7 @@ describe('sortChannels', () => {
         });
 
         it('캐시된 메시지가 없는 방은 기존 시각 체인으로 폴백한다', () => {
-            // c2만 메시지가 있고, c1/c3은 채널 시각(100/300)으로 비교된다.
+            // Only c2 has a message; c1/c3 are compared by channel time (100/300).
             const result = sortChannels({
                 channels,
                 lastChatByChannel: new Map([['c2', lastChat('c2', 500)]]),

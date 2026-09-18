@@ -1,7 +1,7 @@
 import { cn } from '@chatic/lib/utils';
 
 export interface FloatingDateChipProps {
-    /** Preformatted short date label (e.g. "7. 01 월"). */
+    /** Preformatted short date label (e.g. "7. 01 Mon"). */
     label: string;
     /**
      * Whether the chip is shown. Toggling fades it in/out; when hidden it also

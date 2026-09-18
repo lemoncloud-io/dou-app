@@ -1,7 +1,7 @@
 # ADR-0071: Set a performance budget for the main scenarios, and carry metrics as `info` events over the existing log pipe
 
 > Status: Accepted · Decided: 2026-08-27
-> Related: [ADR-0065](./0065-hybrid-performance-trace-profiler.md) (in-app trace profiler — leaves remote collection blank. **A parallel lane to this ADR**) · [ADR-0063](./0063-log-upload-source-port-and-native-charge-queue.md) (log upload pipe, native queue) · [ADR-0047](./0047-unified-logging-core-and-report-traceability.md) (logging core, `LogContext`) · [ADR-0050](./0050-redact-report-breadcrumbs.md) (redaction) · [ADR-0027](./0027-native-webview-early-mount-boot-optimization.md) (measurement discipline, boot baseline) · [ADR-0057](./0057-home-last-chat-preview-single-query.md) / [ADR-0058](./0058-navigation-churn-grace-and-seeding.md) (home-screen storm caught by manual measurement)
+> Related: ADR-0065 (in-app trace profiler — leaves remote collection blank. **A parallel lane to this ADR**) · [ADR-0063](./0063-log-upload-source-port-and-native-charge-queue.md) (log upload pipe, native queue) · [ADR-0097](./0097-unified-logging-core-and-report-traceability.md) (logging core, `LogContext`) · [ADR-0050](./0050-redact-report-breadcrumbs.md) (redaction) · [ADR-0086](./0086-native-webview-early-mount-boot-optimization.md) (measurement discipline, boot baseline) · [ADR-0057](./0057-home-last-chat-preview-single-query.md) / [ADR-0058](./0058-navigation-churn-grace-and-seeding.md) (home-screen storm caught by manual measurement)
 
 ## Context
 
@@ -37,7 +37,7 @@ automatically alerting on missed targets or gating releases.
 3. **Standard metrics never leave the device.**
 4. **There is no sampling concept.** Every session's logs are uploaded in full today.
 5. **The endpoints of the targets have never been pinned down.** As
-   [boot-metrics.md](../../apps/mobile/docs/boot-metrics.md) itself warns, `totalMs` (v0.19.2
+   [boot-metrics.md](../../apps/mobile/docs/boot/boot-metrics.md) itself warns, `totalMs` (v0.19.2
    average 1099ms · max 1643ms) and perceived boot (average 1255ms · max 2115ms) are **different
    numbers**. Depending on which one you measure, the 1.5s target either passes comfortably or
    barely clears the bar.

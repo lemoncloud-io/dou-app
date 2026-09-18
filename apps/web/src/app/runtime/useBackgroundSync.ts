@@ -82,7 +82,7 @@ export const useBackgroundSync = (): void => {
                 .refreshList()
                 .then(() => syncStreakReporter.succeed('place-refresh'))
                 // Still best-effort — the retry policy is unchanged and the next tick re-asks. What
-                // changes is that a run of failures now says so once instead of never (ADR-0075).
+                // changes is that a run of failures now says so once instead of never (ADR-0099).
                 .catch(error => syncStreakReporter.fail('place-refresh', error));
 
             await Promise.all([
@@ -106,7 +106,7 @@ export const useBackgroundSync = (): void => {
                     } catch (error) {
                         // best-effort: watermark not advanced → retried with the same since next tick.
                         // Which is exactly why a STREAK of these matters — the cursor stays put and the
-                        // channel list stops discovering anything (ADR-0075).
+                        // channel list stops discovering anything (ADR-0099).
                         syncStreakReporter.fail('channel-delta', error);
                     }
                 })(),
@@ -130,7 +130,7 @@ export const useBackgroundSync = (): void => {
                     // new token, which re-authenticates and fires the edge again.
                     if (isGuest) return;
                     // An invite only changes on the RECIPIENT's device and no packet announces it
-                    // (백엔드 요청 #4), so freshness has to be asked for — but only while a card can
+                    // (backend request #4), so freshness has to be asked for — but only while a card can
                     // still change. `pending` is that set: `accepted`/`canceled`/`rejected` are final,
                     // and an `expired` card cannot be accepted any more. A user with no pending card
                     // (which is most users, most of the time) therefore sends nothing on the tick.

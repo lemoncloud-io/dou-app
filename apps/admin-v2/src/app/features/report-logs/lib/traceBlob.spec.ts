@@ -25,7 +25,7 @@ describe('composeStackText', () => {
         expect(composeStackText({ stack: STACK })).toBe(STACK);
     });
 
-    // 감싼 에러의 stack은 감싼 자리를 가리키므로, 읽을 값이 있는 프레임은 cause 쪽이다.
+    // A wrapping error's stack points at the wrap site, so the frames worth reading are on the cause side.
     it('cause 체인을 `Caused by:`로 이어붙여 한 덩어리로 만든다', () => {
         const text = composeStackText({
             stack: STACK,
@@ -39,7 +39,7 @@ describe('composeStackText', () => {
         ]);
     });
 
-    // stack 없는 opaque script-error라도 cause가 있으면 그것만으로 블록이 선다.
+    // Even a stack-less opaque script-error still produces a block if it has a cause.
     it('stack이 없어도 cause만으로 만든다', () => {
         expect(composeStackText({ causes: [{ message: 'only cause' }] })).toBe('Caused by: only cause');
     });

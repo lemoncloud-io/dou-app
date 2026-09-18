@@ -6,7 +6,7 @@ export const useOAuthHandler = () => {
     const { oauthService: oAuthService, logService: logger } = useServices();
 
     /**
-     * OAuth 로그인
+     * OAuth login
      */
     const handleOAuthLogin = useCallback(
         async (message: WebMessageData<'OAuthLogin'>) => {
@@ -31,7 +31,7 @@ export const useOAuthHandler = () => {
     );
 
     /**
-     * OAuth 로그아웃
+     * OAuth logout
      */
     const handleOAuthLogout = useCallback(
         async (message: WebMessageData<'OAuthLogout'>) => {

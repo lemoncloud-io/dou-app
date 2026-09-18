@@ -54,8 +54,8 @@ describe('buildReportContext — 컨텍스트 조합', () => {
         expect(ctx.version).toBeUndefined();
     });
 
-    // 로그는 배치 업로더가 낱건으로 서버에 올린다. 제보에 사본을 붙이면 같은 로그가
-    // 두 번 저장되고, 그 사본만 공유 Slack 채널로도 나간다.
+    // Logs are uploaded to the server one-by-one by the batch uploader. Attaching a copy to the
+    // report would store the same log twice, and that copy alone would also go out to the shared Slack channel.
     it('로그는 첨부하지 않는다', () => {
         const ctx = buildReportContext({ deviceInfo: device, versionInfo: version });
         expect(ctx).not.toHaveProperty('logs');

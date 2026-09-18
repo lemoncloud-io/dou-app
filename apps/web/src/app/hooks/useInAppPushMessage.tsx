@@ -64,7 +64,7 @@ export const useInAppPushMessage = (): void => {
 
             /**
              * One entry per foreground receipt, carrying the verdict rather than a second entry for
-             * it (ADR-0075). This is the app's only always-mounted `OnReceiveNotification`
+             * it (ADR-0099). This is the app's only always-mounted `OnReceiveNotification`
              * subscriber, so the receipt was previously recorded only while the debug screen
              * happened to be open — and under the wrong tag, with the push's title in it.
              *
@@ -123,7 +123,7 @@ export const useInAppPushMessage = (): void => {
                                       toast.dismiss(toastId);
                                       // Hand the push's id to the room this opens, so its entry is
                                       // logged under the same correlation key as the receipt above
-                                      // (ADR-0075). Bounded and self-clearing — see the registry.
+                                      // (ADR-0099). Bounded and self-clearing — see the registry.
                                       if (channelId) pushEntryRegistry.begin(channelId, messageId);
                                       logger.info('PUSH_EVENT', 'in-app banner tapped', {
                                           messageId,

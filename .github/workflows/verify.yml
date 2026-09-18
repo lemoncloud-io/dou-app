@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
     verify:
-        name: lint · typecheck · test
+        name: doc links · doc language · code comment language · lint · typecheck · test
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
@@ -48,6 +48,20 @@ jobs:
             - name: Install dependencies
               if: ${{ steps.cache-dependencies.outputs.cache-hit != 'true' }}
               run: yarn install --frozen-lockfile
+
+            # Documents are the one artifact no other step reads. Cheap, needs no build, and green
+            # across every tracked markdown file, so it runs first and fails fast.
+            - name: Doc links
+              run: yarn check:doc-links
+
+            # AGENTS.md's English policy, for the one surface nothing else in this file can see.
+            - name: Doc language
+              run: yarn check:doc-korean
+
+            # Same policy, for code comments — the repo-wide translation sweep that unblocked this
+            # gate is done, so it now runs alongside the doc-language check above.
+            - name: Code comment language
+              run: yarn check:code-korean
 
             # Green across all 26 projects, so no exclusions here.
             - name: Lint

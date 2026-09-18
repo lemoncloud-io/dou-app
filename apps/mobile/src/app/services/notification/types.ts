@@ -3,90 +3,94 @@ import type { FirebaseMessagingTypes } from '@react-native-firebase/messaging';
 /**
  * INotificationService
  *
- * 최하위 레벨에서 OS(FCM/APNs)와 밀접하게 연동하여 푸시 수신, 권한 관리, 뱃지 제어를 수행하는 네이티브 알림 서비스입니다.
+ * A native notification service that integrates closely with the OS (FCM/APNs) at the lowest
+ * level to handle push reception, permission management, and badge control.
  */
 export interface INotificationService {
     /**
-     * 알림 수신 권한 상태를 조회합니다.
-     * @returns 권한 부여 여부에 대한 Firebase messaging AuthorizationStatus
+     * Fetches the notification permission status.
+     * @returns the Firebase messaging AuthorizationStatus for whether permission was granted
      */
     hasPermission(): Promise<FirebaseMessagingTypes.AuthorizationStatus>;
 
     /**
-     * 안드로이드 알림 채널(Channel)을 동적으로 생성 및 다국어 이름으로 갱신합니다.
-     * 기기 OS 설정 창에 다국어가 즉시 반영되도록 구현되어 있습니다.
+     * Dynamically creates the Android notification channels and refreshes their translated names.
+     * Implemented so the device's OS settings screen reflects the translated names immediately.
      */
     createNotificationChannel(): Promise<void>;
 
     /**
-     * 시스템 알림 권한을 요청합니다.
-     * @returns 권한 획득 성공 여부
+     * Requests system notification permission.
+     * @returns whether permission was granted
      */
     requestPermission(): Promise<boolean>;
 
     /**
-     * iOS 전용 APNs 토큰을 가져옵니다.
-     * @returns APNs 토큰 문자열 또는 null
+     * Fetches the iOS-only APNs token.
+     * @returns the APNs token string, or null
      */
     getAPNSToken(): Promise<string | null>;
 
     /**
-     * 기기의 FCM 등록 토큰을 획득합니다.
-     * @returns FCM 디바이스 토큰 문자열 또는 null
+     * Fetches the device's FCM registration token.
+     * @returns the FCM device token string, or null
      */
     getToken(): Promise<string | null>;
 
     /**
-     * 현재 기기의 FCM 등록 토큰을 강제로 만료 및 삭제합니다.
+     * Forcibly expires and deletes the current device's FCM registration token.
      */
     deleteToken(): Promise<void>;
 
     /**
-     * iOS 환경에서 백그라운드 메시지 수신을 위해 APNs 등록 절차를 수행합니다.
+     * Performs the APNs registration procedure for receiving background messages on iOS.
      */
     registerAPNs(): Promise<void>;
 
     /**
-     * 앱이 알림 클릭을 통해 처음 실행되었을 때(Cold Start) 유입된 초기 알림 페이로드를 가져옵니다.
-     * @returns 초기 실행 원인이 된 RemoteMessage 페이로드 또는 null
+     * Fetches the initial notification payload that arrived when the app was first launched (cold
+     * start) via a notification tap.
+     * @returns the RemoteMessage payload that caused the initial launch, or null
      */
     getInitialNotification(): Promise<FirebaseMessagingTypes.RemoteMessage | null>;
 
     /**
-     * 앱이 포그라운드(실행 중) 상태일 때 실시간으로 들어오는 알림 이벤트를 감지하기 위한 리스너를 등록합니다.
-     * @param callback 알림 수신 시 호출될 핸들러
-     * @returns 리스너 해제를 위한 언서브스크라이브 함수
+     * Registers a listener to detect notification events arriving in real time while the app is in
+     * the foreground (running).
+     * @param callback the handler to call when a notification is received
+     * @returns an unsubscribe function to remove the listener
      */
     onMessage(callback: (message: FirebaseMessagingTypes.RemoteMessage) => void): () => void;
 
     /**
-     * 백그라운드 상태에서 유저가 시스템 알림 배너를 클릭하여 앱이 활성화되었을 때의 리스너를 등록합니다.
-     * @param callback 알림 클릭 시 호출될 핸들러
-     * @returns 리스너 해제를 위한 언서브스크라이브 함수
+     * Registers a listener for when the user activates the app by tapping a system notification
+     * banner while it's in the background.
+     * @param callback the handler to call on the notification tap
+     * @returns an unsubscribe function to remove the listener
      */
     onNotificationOpenedApp(callback: (message: FirebaseMessagingTypes.RemoteMessage) => void): () => void;
 
     /**
-     * FCM 토큰이 백그라운드에서 자동 갱신되었을 때 호출될 이벤트를 감지합니다.
-     * @param callback 갱신된 토큰 문자열을 받는 핸들러
-     * @returns 리스너 해제를 위한 언서브스크라이브 함수
+     * Detects the event fired when the FCM token is automatically refreshed in the background.
+     * @param callback the handler that receives the refreshed token string
+     * @returns an unsubscribe function to remove the listener
      */
     onTokenRefresh(callback: (token: string) => void): () => void;
 
     /**
-     * 앱 아이콘의 네이티브 뱃지 카운트 값을 설정합니다.
-     * @param count 뱃지에 지정할 숫자
+     * Sets the app icon's native badge count value.
+     * @param count the number to set on the badge
      */
     setBadgeCount(count: number): Promise<void>;
 
     /**
-     * 앱 아이콘의 네이티브 뱃지 카운트 값을 0으로 즉시 초기화합니다.
+     * Immediately resets the app icon's native badge count value to 0.
      */
     clearBadge(): Promise<void>;
 
     /**
-     * 현재 앱 아이콘에 적용되어 있는 네이티브 뱃지 카운트를 조회합니다.
-     * @returns 현재 뱃지 카운트 숫자
+     * Fetches the native badge count currently applied to the app icon.
+     * @returns the current badge count number
      */
     getBadgeCount(): Promise<number>;
 }
@@ -94,20 +98,21 @@ export interface INotificationService {
 /**
  * IPushEventManager
  *
- * 최하단 네이티브 알림 채널과 하이브리드 웹뷰 브릿지(`useFcmHandler`) 간의 결합도를 낮추고
- * 포그라운드 푸시 이벤트를 다중 옵저버로 안전하게 전파하기 위한 이벤트 브로커입니다.
+ * An event broker that lowers the coupling between the lowest-level native notification channel
+ * and the hybrid WebView bridge (`useFcmHandler`), and safely propagates foreground push events
+ * to multiple observers.
  */
 export interface IPushEventManager {
     /**
-     * 포그라운드에서 실시간 푸시 수신 시 전파받을 리스너를 추가합니다.
-     * @param callback 알림 메시지를 처리할 콜백
-     * @returns 리스너 해제(Unsubscribe) 함수
+     * Adds a listener to be notified of real-time push messages received in the foreground.
+     * @param callback the callback that handles the notification message
+     * @returns an unsubscribe function to remove the listener
      */
     onReceiveNotification(callback: (message: FirebaseMessagingTypes.RemoteMessage) => void): () => void;
 
     /**
-     * 감지된 포그라운드 푸시 메시지를 등록된 모든 브릿지 리스너에게 멀티캐스팅 전파합니다.
-     * @param message 전파할 원본 RemoteMessage
+     * Multicasts a detected foreground push message to every registered bridge listener.
+     * @param message the original RemoteMessage to propagate
      */
     emitReceiveNotification(message: FirebaseMessagingTypes.RemoteMessage): void;
 }

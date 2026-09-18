@@ -3,7 +3,7 @@
 > Status: Accepted · Decided: 2026-08-11
 > Related: [ADR-0017](./0017-issue-report-floating-widget.md) (the v1 "attach without scrubbing" decision —
 > already Superseded) ·
-> [ADR-0047 unified logging](./0047-unified-logging-core-and-report-traceability.md) (scoped this item out as
+> [ADR-0097 unified logging](./0097-unified-logging-core-and-report-traceability.md) (scoped this item out as
 > "a policy change is a separate decision") · [ADR-0029](./0029-error-report-categorization-and-enrichment.md)
 
 ## Context
@@ -16,9 +16,9 @@ That premise has since widened three times.
 
 - **ADR-0029** attached the same log tail to automatic error reports (`reportError`) too. Now it goes out
   every time an error occurs, regardless of user intent.
-- **ADR-0047** switched the breadcrumb source, on hybrid, to the native merged buffer. Native logs now mix
+- **ADR-0097** switched the breadcrumb source, on hybrid, to the native merged buffer. Native logs now mix
   into a slot that used to hold only web logs.
-- The same ADR-0047 **persisted the buffer** — sessionStorage on web, MMKV on mobile. Data that used to exist
+- The same ADR-0097 **persisted the buffer** — sessionStorage on web, MMKV on mobile. Data that used to exist
   only for the instant of transmission now stays on the device.
 
 On top of that, reports land in a shared Slack channel. v1's premise of "only the team sees it" no longer

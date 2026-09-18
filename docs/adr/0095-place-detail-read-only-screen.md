@@ -3,7 +3,7 @@
 > Status: Accepted (partially amended) · Decided: 2026-08-07
 > · **Amendment**: [ADR-0074](./0074-place-introduction-text.md) reversed the exclusion of the intro text
 > (`desc`) discussed in §Scope below. The rest of this decision remains in effect.
-> Related: [ADR-0045](./0045-relay-default-place-scoping-profile-step-and-avatar-unification.md)
+> Related: [ADR-0094](./0094-relay-default-place-scoping-profile-step-and-avatar-unification.md)
 > (default-place relay scoping · avatar unification) ·
 > [ADR-0031](./0031-place-settings-hub.md) (place settings hub · `isOwner` authority) ·
 > [ADR-0013](./0013-home-screen-web-ui-kit-migration.md) (web-ui-kit first)
@@ -29,7 +29,7 @@ Observed constraints and facts:
 
 2. **The relay/cloud branching lever already exists.** `HOME_PLACE_ID = '0000'` / `isDefaultCloud`
    (`apps/web/src/app/utils/resolvePlaceDisplayName.ts`) already handles identifying the default place (DoU
-   Home) and its display-name branding (the ADR-0045 line of work).
+   Home) and its display-name branding (the ADR-0094 line of work).
 
 3. **Most of the needed UI parts already exist.** `ProfileAvatar glyph="place"` (the default avatar = Figma
    3408-27536 = the `defaultPlaceAvatar` asset), `StatusBadge variant="owner"` (owner badge), `MenuCard` /

@@ -29,7 +29,7 @@ describe('routeStackTracker', () => {
         expect(routeStackTracker.getSnapshot().currentIndex).toBe(1);
     });
 
-    // 이게 trail과 스택이 갈라지는 지점이다. trail은 a,b,c를 남기지만 스택은 a,c다.
+    // This is where trail and stack diverge. trail keeps a,b,c but the stack has a,c.
     it('뒤로 간 뒤 push하면 앞쪽 가지를 버린다', () => {
         routeStackTracker.record(push('/a', 0));
         routeStackTracker.record(push('/b', 1));
@@ -45,7 +45,7 @@ describe('routeStackTracker', () => {
         routeStackTracker.record(push('/b', 1));
         routeStackTracker.record(pop('/a', 0));
 
-        // 브라우저에서 /b는 여전히 앞으로가기로 닿는다.
+        // /b is still reachable in the browser via forward navigation.
         expect(paths()).toEqual(['/a', '/b']);
         expect(routeStackTracker.getSnapshot().currentIndex).toBe(0);
     });
@@ -67,8 +67,8 @@ describe('routeStackTracker', () => {
         expect(paths()).toEqual(['/a2', '/b']);
     });
 
-    // 스택 중간에서 리로드하면 아래 항목들은 관측된 적이 없다. 0부터 시작한 것처럼
-    // 보이게 하면 깊이가 거짓이 된다.
+    // Reloading in the middle of the stack means the entries below it were never observed. Making it
+    // look like it started at 0 would falsify the depth.
     it('리로드로 중간에 착지하면 아래 항목을 알 수 없음으로 채운다', () => {
         routeStackTracker.record(push('/channels/abc', 3));
 
@@ -89,7 +89,7 @@ describe('routeStackTracker', () => {
 
         const snapshot = routeStackTracker.getSnapshot();
         expect(snapshot.isIndexed).toBe(false);
-        // 자리를 모르는 항목을 끼워 넣어 스택을 망가뜨리지는 않는다.
+        // It doesn't corrupt the stack by inserting an entry whose position is unknown.
         expect(snapshot.entries.map(entry => entry.pathname)).toEqual(['/a']);
     });
 
@@ -107,7 +107,7 @@ describe('routeStackTracker', () => {
         expect(routeStackTracker.getSnapshot().entries.map(entry => entry.isCurrent)).toEqual([true, false]);
     });
 
-    // trail과 같은 이유다 — 쿼리스트링에는 capability 토큰이 실린다.
+    // Same reason as trail — the query string carries capability tokens.
     it('기록된 경로에 쿼리스트링이 섞여 있지 않다', () => {
         const location = { pathname: '/invite/accept', search: '?token=super-secret' };
         routeStackTracker.record(push(location.pathname, 0));
@@ -132,7 +132,7 @@ describe('readHistoryIndex', () => {
         expect(readHistoryIndex()).toBe(2);
     });
 
-    // 라우터를 우회한 pushState. 이때 스택은 복원 불가라는 사실을 호출부가 알아야 한다.
+    // A pushState that bypassed the router. The caller needs to know the stack is unrecoverable here.
     it('idx가 없으면 null을 준다', () => {
         window.history.pushState({ someoneElse: true }, '');
 

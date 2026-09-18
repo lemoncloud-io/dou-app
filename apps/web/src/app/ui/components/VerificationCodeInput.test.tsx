@@ -34,14 +34,14 @@ describe('VerificationCodeInput — 운영 빌드', () => {
         expect(onChange).toHaveBeenCalledWith('1234');
     });
 
-    // 숫자 키패드를 띄우는 것이 운영에서의 정상 동작이다.
+    // Bringing up the numeric keypad is the normal behavior in production.
     it('숫자 키패드를 쓴다', () => {
         render(<VerificationCodeInput value="" onChange={jest.fn()} />);
         expect(cells()[0]).toHaveAttribute('inputmode', 'numeric');
     });
 });
 
-// 개발 서버는 비숫자 bypass 코드를 인정한다. 숫자 전용 필터가 그걸 아예 입력 못 하게 막고 있었다.
+// The dev server accepts a non-numeric bypass code. A digits-only filter was blocking it from ever being entered.
 describe('VerificationCodeInput — 개발 빌드', () => {
     beforeEach(() => {
         isDevBuildValue = true;
@@ -74,7 +74,7 @@ describe('VerificationCodeInput — 개발 빌드', () => {
         expect(onChange).toHaveBeenCalledWith('12');
     });
 
-    // 숫자 키패드에는 '#'이 없다 — 필터만 풀면 정작 폰에서 못 친다.
+    // A numeric keypad has no '#' — unblocking only the filter still leaves it untypeable on a phone.
     it('숫자 키패드를 쓰지 않는다', () => {
         render(<VerificationCodeInput value="" onChange={jest.fn()} />);
         expect(cells()[0]).toHaveAttribute('inputmode', 'text');

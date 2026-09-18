@@ -1,7 +1,7 @@
 import Foundation
 import React
 
-/// Relays pure-native (Swift) logs into the JS logging core (ADR-0047).
+/// Relays pure-native (Swift) logs into the JS logging core (ADR-0097).
 /// Native code calls `ChaticNativeLogger.log`; entries queue until JS
 /// subscribes and calls `ready()`, then flow as `ChaticNativeLog` events —
 /// cold-start logs survive instead of being dropped by an emitter with no

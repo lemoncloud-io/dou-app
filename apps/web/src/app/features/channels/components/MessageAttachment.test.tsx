@@ -26,7 +26,7 @@ describe('MessageAttachment', () => {
         expect(container).toBeEmptyDOMElement();
     });
 
-    // 서버는 meta를 해석하지 않고 보존만 하므로 `{}`가 그대로 올 수 있다.
+    // The server only preserves meta without interpreting it, so `{}` can arrive as-is.
     it('빈 첨부는 빈 카드를 그리지 않는다', () => {
         const { container } = render(<MessageAttachment attach={{}} />);
 
@@ -59,7 +59,7 @@ describe('MessageAttachment', () => {
         expect(screen.getByText(/chatic-sockets-api#0\.26\.810/)).toBeInTheDocument();
     });
 
-    // 웹뷰에 그대로 띄우면 세션 쿠키를 단 채 돌아올 길 없는 페이지에 갇힌다.
+    // Opening it directly in the webview would trap the session cookie on a page with no way back.
     it('원문 링크는 앵커 기본 동작이 아니라 외부 열기로 나간다', () => {
         render(<MessageAttachment attach={{ title: '오류', sourceUrl: 'https://example.com/report/1' }} />);
 
@@ -68,8 +68,8 @@ describe('MessageAttachment', () => {
         expect(openExternalUrl).toHaveBeenCalledWith('https://example.com/report/1');
     });
 
-    // href를 지우면 스크린리더가 링크로 읽지 않고 OS 컨텍스트 메뉴의 "링크 복사"도 사라진다 —
-    // 본문 링크(MessageText)가 앵커를 유지하는 것과 같은 이유다.
+    // Dropping href would stop the screen reader from reading it as a link, and the OS context
+    // menu's "copy link" would disappear too — the same reason body links (MessageText) keep an anchor.
     it('앵커와 href를 유지한다 — 접근성과 컨텍스트 메뉴가 거기 달려 있다', () => {
         render(<MessageAttachment attach={{ title: '오류', sourceUrl: 'https://example.com/report/1' }} />);
 
@@ -92,7 +92,7 @@ describe('MessageAttachment', () => {
         expect(container.firstElementChild).toHaveStyle({ borderLeftColor: 'hsl(var(--destructive))' });
     });
 
-    // ts는 이 앱에서 유일하게 '초' 단위다.
+    // ts is the one field in this app that's in seconds.
     it('ts를 초 단위로 읽는다', () => {
         render(<MessageAttachment attach={{ title: '오류', ts: 1_700_000_000 }} />);
 

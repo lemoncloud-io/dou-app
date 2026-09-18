@@ -89,7 +89,7 @@ export const extractPushBannerFields = (data: InAppPushData): PushBannerFields =
 
 /**
  * The sender's id for this push, used as the correlation key that ties a receipt to the tap, the
- * routing and the room it opens (ADR-0075). One push crosses app runs when the app was killed —
+ * routing and the room it opens (ADR-0099). One push crosses app runs when the app was killed —
  * receipt and entry then land under different `runId`s — so joining on this id is the only way the
  * chain stays readable.
  *

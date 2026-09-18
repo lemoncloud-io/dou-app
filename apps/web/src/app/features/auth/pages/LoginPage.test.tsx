@@ -16,8 +16,8 @@ const forwardedTo = () => screen.getByText(/^navigated:/).textContent?.replace('
 
 describe('LoginPage — 배포된 딥링크 호환 심', () => {
     it('초대 딥링크는 쿼리를 온전히 달고 루트로 넘긴다 (수락 페이지 판단은 게이트가 한다)', () => {
-        // 여기서 /invite/accept 로 질러가면 첫 실행 온보딩 우선순위를 건너뛴다 — 그 판단은
-        // InviteEntryGate 한 곳에만 있다.
+        // Shortcutting straight to /invite/accept here would skip the first-run onboarding priority —
+        // that decision lives in exactly one place, InviteEntryGate.
         mockSearch = '?code=abc&provider=invite&version=2&relay=1';
         render(<LoginPage />);
 

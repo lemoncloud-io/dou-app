@@ -38,7 +38,7 @@ interface DebugScreenEntry {
     size?: DebugPanelSize;
     /**
      * The screen's whole point is a native-shell command, so in a plain browser it can only render
-     * buttons that fail. The panel says so instead of rendering it (ADR-0080 결정 2 · 델타 ②).
+     * buttons that fail. The panel says so instead of rendering it (ADR-0080 decision 2 · delta ②).
      *
      * Not for screens that merely have a native-only corner — those keep their own `isNative`
      * check and stay usable in a browser (log buffer, cache metrics, the bridge screen itself,
@@ -90,14 +90,14 @@ export const DEBUG_SCREENS = [
         load: () => import('./screens/DeviceInfoScreen').then(m => ({ default: m.DeviceInfoScreen })),
     },
     {
-        // ADR-0079 결정 16의 화면 절반 — 로깅 절반은 configStateLog가 이미 낸다.
+        // Half of ADR-0079 decision 16's screen — the logging half is already emitted by configStateLog.
         key: 'Config',
         icon: 'SlidersHorizontal',
         section: 'info',
         load: () => import('./screens/ConfigScreen').then(m => ({ default: m.ConfigScreen })),
     },
     {
-        // 앱의 환경설정 화면에서 옮겨온 절반 (ADR-0080 결정 13 · 미결 4). PROD는 앱이 거부한다.
+        // The half moved over from the app's settings screen (ADR-0080 decision 13 · unresolved 4). PROD is rejected by the app.
         key: 'CustomZip',
         requiresShell: true,
         icon: 'FileArchive',
@@ -106,7 +106,7 @@ export const DEBUG_SCREENS = [
     },
     {
         // Distinct from the Boot screen: that one measures the current web session live, this is the
-        // native side's persisted per-boot history (ADR-0080 결정 11).
+        // native side's persisted per-boot history (ADR-0080 decision 11).
         key: 'BootRecords',
         requiresShell: true,
         icon: 'History',
@@ -161,7 +161,7 @@ export const DEBUG_SCREENS = [
         section: 'tools',
         load: () => import('./screens/PushScreen').then(m => ({ default: m.PushScreen })),
     },
-    // Moved off the app's 기능 테스트 section (ADR-0080 결정 11).
+    // Moved off the app's "feature test" section (ADR-0080 decision 11).
     {
         key: 'Sms',
         requiresShell: true,
@@ -191,7 +191,7 @@ export const DEBUG_SCREENS = [
     },
     {
         // Distinct from the converter above: that one navigates the WEB, this hands the APP an
-        // inbound deeplink (ADR-0080 결정 11).
+        // inbound deeplink (ADR-0080 decision 11).
         key: 'Deeplink',
         requiresShell: true,
         icon: 'ExternalLink',

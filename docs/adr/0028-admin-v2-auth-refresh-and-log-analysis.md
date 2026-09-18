@@ -4,7 +4,7 @@
 
 ## Context
 
-Using admin-v2 (which gained the report log screen in [ADR-0027](0027-admin-v2-report-log-list.md))
+Using admin-v2 (which gained the report log screen in [ADR-0087](0087-admin-v2-report-log-list.md))
 surfaced two auth and session problems, plus a request to widen the log analysis.
 
 **1) The redirect after sign-in fails.** `apps/admin-v2/src/app/features/auth/OAuthResponsePage.tsx`
@@ -23,7 +23,7 @@ the SDK `AuthController`'s automatic refresh nor any manual refresh call. Apart 
 `useTokenRefresh` hook that polled every 60 seconds was deleted from web-core — do not recreate it; see
 the memory note.)
 
-**3) A request to widen log analysis.** ADR-0027's list, aggregation and filters cover **only the loaded
+**3) A request to widen log analysis.** ADR-0087's list, aggregation and filters cover **only the loaded
 page (≤1,000 records)**, so a particular uid or message cannot be found across the whole set (prod
 measures about 7,760 records), and there are requests for more analysis and links to other features.
 
@@ -104,4 +104,4 @@ owns the automatic refresh, and a renewed token is written back into web-core th
 
 This ADR feeds Phase A of [[dev-2_implement]]. What the spec settles first: the minimal
 `RuntimeConnectionHost` binding, verifying relay-only refresh, and where the socket-lab jump attaches.
-ADR-0027's report-logs document is revised to reflect this extension (C).
+ADR-0087's report-logs document is revised to reflect this extension (C).

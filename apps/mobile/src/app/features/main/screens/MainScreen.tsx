@@ -31,8 +31,9 @@ export const MainScreen = ({ route }: MainScreenProps) => {
     const webViewBaseUrl = useDebugSettingsStore(state => state.getResolvedWebviewBaseUrl());
     const webViewReloadToken = useDebugRuntimeStore(state => state.webViewReloadToken);
 
-    // 커스텀 zip 복원 게이트: persist된 localRoot가 있으면 로컬 서버가 뜰 때까지 WebView 마운트 보류
-    // (서버 기동 전에 localhost를 로딩하면 흰 화면 — customZipServerUrl은 서버 start 후에만 set됨)
+    // Custom zip restore gate: if a persisted localRoot exists, hold off mounting the WebView until
+    // the local server comes up (loading localhost before the server starts means a blank screen —
+    // customZipServerUrl is only set after the server has started).
     const { isRestoringCustomZip } = useCustomZipBootGate();
 
     const { setNavCanGoBack } = useWebViewNavigation(bridge);
@@ -40,12 +41,13 @@ export const MainScreen = ({ route }: MainScreenProps) => {
     const { deepLinkError, deepLinkErrorReason, handleDismissError, isRedirecting, handleWebViewLoad } =
         useDeepLinkNavigation(bridge);
 
-    // source는 mount 시점에 freeze하지 않고 resolved base URL로부터 파생한다 —
-    // 커스텀 zip on/off로 origin이 바뀌면 반영돼야 하고, 재로딩은 reloadToken key remount로 일어난다.
+    // source is not frozen at mount time — it's derived from the resolved base URL, so that
+    // toggling the custom zip on/off is reflected when the origin changes; reloading happens via a
+    // reloadToken key remount.
     const webViewSource = useMemo(() => ({ uri: webViewBaseUrl }), [webViewBaseUrl]);
 
     const handleWebViewLoadStart = useCallback(() => {
-        // 이미 웹앱 준비 완료 상태인 경우(SPA 네비게이션 등), 상태를 다시 준비중(false)으로 되돌리지 않습니다.
+        // If the web app is already ready (e.g. from SPA navigation), don't flip the state back to not-ready (false).
         if (isWebAppReady) return;
 
         if (webAppReadyTimeoutRef.current) clearTimeout(webAppReadyTimeoutRef.current);
@@ -56,7 +58,7 @@ export const MainScreen = ({ route }: MainScreenProps) => {
     }, [isWebAppReady]);
 
     useEffect(() => {
-        // 웹뷰 전체 새로고침(Reload Token 변경) 발생 시에만 준비 상태를 초기화합니다.
+        // Reset the ready state only when a full WebView reload occurs (Reload Token change).
         setIsWebAppReady(false);
     }, [webViewReloadToken]);
 

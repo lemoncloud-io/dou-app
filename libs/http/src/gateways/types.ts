@@ -2,10 +2,10 @@ import type { HttpClient } from '../client';
 
 /**
  * The executor gateways are built against. Rather than the doc-sketch `exec.request({route, ...})`,
- * this is simply `HttpClient` (1단계's output) — gateways already know whether their action is
+ * this is simply `HttpClient` (stage 1's output) — gateways already know whether their action is
  * signed/unsigned/cloud (that choice is baked into the wire vocabulary, same as the pre-lib
  * `executeRelayRequest`/`executeSignedRelayRequest` split), so a route-dispatching `request()` would
- * just be a second, redundant way to say the same thing. `resolveEndpoint` (2단계 addition to
+ * just be a second, redundant way to say the same thing. `resolveEndpoint` (a stage-2 addition to
  * `HttpClient`) is what lets a gateway build its own `baseURL` without knowing the host itself.
  * See libs/data/docs/remote/http.md for the executor/port structure this resolves to.
  */

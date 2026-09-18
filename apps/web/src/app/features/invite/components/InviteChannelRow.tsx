@@ -13,8 +13,8 @@ interface InviteChannelRowProps {
 }
 
 /**
- * One sent-invite row, shared by the home `ChannelList` and `PlaceChannelManagePage` (ADR-0033
- * Track B — 리스트 통합). Callers are expected to have already filtered to `pending`/`expired`
+ * One sent-invite row, shared by the home `ChannelList` and `PlaceChannelManagePage` (ADR-0089
+ * Track B — list consolidation). Callers are expected to have already filtered to `pending`/`expired`
  * invites (see `useInviteListRows`) — this component only decides how ONE row looks, not which
  * invites qualify.
  *
@@ -31,7 +31,7 @@ export const InviteChannelRow = ({ invite, onClick }: InviteChannelRowProps) => 
     // A spent invite explains itself on the second line (Figma 3408-28373); a live one has no status
     // to report, so it keeps the masked number — the only thing telling two same-named invites apart.
     // Declined says why it is spent instead of blaming the clock (only reachable once the backend
-    // reports that state — 요청 2번).
+    // reports that state — request item 2).
     const subtitle = isSpent
         ? t(badge?.kind === 'declined' ? 'contactInvite.rowStatus.declined' : 'contactInvite.rowStatus.expired')
         : invite.last4
@@ -41,7 +41,7 @@ export const InviteChannelRow = ({ invite, onClick }: InviteChannelRowProps) => 
     return (
         <ListRow
             leading={
-                // Figma draws this row's avatar as `1명 Profile` (3209:14450) — the solid silhouette
+                // Figma draws this row's avatar as `1-person Profile` (3209:14450) — the solid silhouette
                 // on a ringed brand-ink circle, which is now the only single-person avatar image.
                 <DefaultAvatar size={42} className={isSpent ? 'opacity-50' : undefined} />
             }

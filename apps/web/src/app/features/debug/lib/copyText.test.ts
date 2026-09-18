@@ -51,7 +51,7 @@ describe('copyText', () => {
 /**
  * `copyTextWithResult` is the path `CopyButton` renders an outcome from, so what matters here is
  * that the boolean is EARNED. Both sides can answer — `CopyToClipboard` is a `webClient.request`,
- * and `writeText` returns a promise — so "복사됨" must never be a guess.
+ * and `writeText` returns a promise — so "Copied" must never be a guess.
  */
 describe('copyTextWithResult', () => {
     let writeTextMock: jest.Mock;
@@ -78,7 +78,7 @@ describe('copyTextWithResult', () => {
         expect(writeTextMock).toHaveBeenCalledWith('hello');
     });
 
-    // 비보안 컨텍스트나 낡은 WebView. 옛 구현은 조용히 넘어가 성공처럼 보였다.
+    // An insecure context or an old WebView. The old implementation silently passed through and looked like success.
     it('Clipboard API가 아예 없으면 실패로 답한다', async () => {
         Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true });
 
@@ -100,7 +100,7 @@ describe('copyTextWithResult', () => {
         expect(writeTextMock).not.toHaveBeenCalled();
     });
 
-    // 구버전 앱의 NOT_FOUND도 여기로 온다 — 복사되지 않았으니 실패가 맞다.
+    // An older app's NOT_FOUND lands here too — nothing was copied, so failure is correct.
     it('브릿지가 거절하면 실패로 답한다', async () => {
         isNativeMock.mockReturnValue(true);
         copyClipBoardMock.mockRejectedValue(new Error('NOT_FOUND'));

@@ -48,8 +48,8 @@ describe('resolveChannelTitle', () => {
         });
     });
 
-    // ADR-0039: DM은 owner/member 분기에 도달하지 않는다. 초대자가 owner이므로 그 분기에
-    // 걸리면 서버가 만든 channel.name이 이기고 상대 프로필이 무시된다 — 방 화면과 어긋나는 원인.
+    // ADR-0039: a DM never reaches the owner/member branch. The inviter is the owner, so hitting
+    // that branch would let the server-made channel.name win and ignore the peer's profile — the cause of the mismatch with the room screen.
     describe('DM 채널', () => {
         it('내 join nick을 최우선한다', () => {
             const title = resolveChannelTitle({

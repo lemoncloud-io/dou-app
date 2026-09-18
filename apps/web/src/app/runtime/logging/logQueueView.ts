@@ -20,7 +20,7 @@ import type { LogEntry } from '@chatic/bridges';
  * It discards; that is the point, and the label says so.
  *
  * `flush` is the opposite end of the same workflow and the reason it was added
- * (ADR-0080 결정 14): the uploader only sends on its own schedule or on a
+ * (ADR-0080 decision 14): the uploader only sends on its own schedule or on a
  * lifecycle cue, so someone who has just reproduced a bug had no way to send
  * what they produced without closing the app. `main.tsx` drops the uploader
  * handle that owns `flush`, so registration is the only way to reach it — the
@@ -46,7 +46,7 @@ export interface LogQueueView {
      * Exposed through the view for the same reason `snapshot` is: the queue must stay the
      * uploader's to mutate, and the observer that reports this loss has to be a third party — the
      * queue and the uploader cannot log their own failures without re-entering the pipeline
-     * (ADR-0075). Reading it here also lets a reader tell "no uploader running" from "nothing
+     * (ADR-0099). Reading it here also lets a reader tell "no uploader running" from "nothing
      * dropped", which a bare number could not.
      */
     droppedCount(): number;

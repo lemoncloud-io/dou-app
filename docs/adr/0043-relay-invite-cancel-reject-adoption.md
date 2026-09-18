@@ -2,11 +2,11 @@
 
 > Status: Accepted · Decided: 2026-08-04
 >
-> Related: [ADR-0033](0033-relay-dm-invite-and-auth-parallel-tracks.md) (track structure and the
+> Related: [ADR-0089](0089-relay-dm-invite-and-auth-parallel-tracks.md) (track structure and the
 > stub-ahead-of-the-backend principle) · [ADR-0016](0016-invite-accept-popup-web-ui-kit.md) (accept
 > popup case dialogs) · [ADR-0037](0037-invite-accept-popup-group-and-dm-variants.md) (accept popup
 > variants).
-> This ADR does not overturn ADR-0033 — it fills the slot that document deferred as "backend
+> This ADR does not overturn ADR-0089 — it fills the slot that document deferred as "backend
 > requests 1 and 2".
 
 > **Naming note (2026-09-01):** the `*RemoteDataSource` · `RemoteGatewayBundle` · `*DomainGateway` ·

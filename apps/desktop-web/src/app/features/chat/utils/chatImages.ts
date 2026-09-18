@@ -16,7 +16,7 @@ export interface ChatImage {
     isUploading?: boolean;
 }
 
-/** The most images one message can carry (Figma "#이미지 최대 10개"). */
+/** The most images one message can carry (Figma "#max 10 images"). */
 export const MAX_ATTACHMENTS = 10;
 
 /** Tiles a message draws before the last one turns into a "+n" counter. */
@@ -91,7 +91,7 @@ export interface ImageGridLayout {
 
 /**
  * The feed's grid: every image when four or fewer, otherwise the first four with the
- * last one counting the rest ("4장 노출 후 +n").
+ * last one counting the rest ("show 4, then +n").
  */
 export const layoutImageGrid = (images: readonly ChatImage[]): ImageGridLayout => {
     if (images.length <= MAX_VISIBLE_TILES) return { tiles: [...images], overflow: 0 };

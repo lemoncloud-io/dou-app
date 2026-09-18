@@ -3,7 +3,7 @@ import * as React from 'react';
 import { cn } from '@chatic/lib/utils';
 
 export interface SectionHeaderProps {
-    /** Section title (e.g. "Place", "Chat", "친구 선택"). */
+    /** Section title (e.g. "Place", "Chat", "Select friends"). */
     title: string;
     /**
      * Optional count shown next to the title, in the same colour as the title.

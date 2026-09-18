@@ -19,8 +19,9 @@ interface InviteLinkState {
 }
 
 /**
- * 초대 링크 페이지 — AddFriendSheet에서 requestInvite로 획득한 Location 링크를 노출하고
- * 복사/공유한다. 링크는 route state로 전달되며, 새로고침 등으로 유실되면 채널 룸으로 복귀한다.
+ * Invite link page — exposes the Location link obtained from AddFriendSheet's requestInvite, for
+ * copying/sharing. The link is passed via route state; if it's lost (e.g. a reload), this returns
+ * to the channel room.
  */
 export const InviteLinkPage = () => {
     const { t } = useTranslation();
@@ -56,7 +57,7 @@ export const InviteLinkPage = () => {
     };
 
     const handleShare = async () => {
-        // Once shared, the CTA turns into "공유 완료" (Figma node 3153-25568) — a second tap
+        // Once shared, the CTA turns into "Share complete" (Figma node 3153-25568) — a second tap
         // means done, not re-share, so it pops the whole invite flow back to the room.
         if (shared) {
             navigate(-roomDistance);

@@ -104,7 +104,7 @@ import type { BaseMessage } from './types';
 // ======================================================================
 // Message Data Map Definition
 // ======================================================================
-/** 메시지 타입과 해당 Data(Payload) 타입을 매핑하는 구조입니다. */
+/** Structure that maps each message type to its corresponding Data (Payload) type. */
 export type AppMessageDataMap = {
     // 1. Device & System
     OnUpdateDeviceInfo: OnUpdateDeviceInfoPayload;
@@ -181,11 +181,11 @@ export type AppMessageDataMap = {
     OnOAuthLogin: OnOAuthLoginPayload;
     OnOAuthLogout: OnOAuthLogoutPayload;
 
-    // 6.5 Config (ADR-0079 셸 레인 — 범용 KV 브릿지)
+    // 6.5 Config (ADR-0079 shell lane — general-purpose KV bridge)
     OnSaveConfigValue: OnSaveConfigValuePayload;
     OnClearConfigValue: OnClearConfigValuePayload;
 
-    // 6.6 Debug panel (ADR-0080 결정 11)
+    // 6.6 Debug panel (ADR-0080 decision 11)
     OnDeleteFcmToken: OnDeleteFcmTokenPayload;
     OnFetchBootRecords: OnFetchBootRecordsPayload;
     OnClearBootRecords: OnClearBootRecordsPayload;
@@ -242,8 +242,8 @@ export type AppMessageError = {
 };
 
 /**
- * request()가 resolve할 때 사용하는 성공 응답 타입입니다.
- * strict handler/request 타입에서 성공 payload를 정확히 좁히기 위해 success: true로 고정합니다.
+ * Success response type used when request() resolves.
+ * success is fixed to true so strict handler/request types can narrow the success payload precisely.
  */
 export type AppSuccessMessage<T extends AppMessageType> = BaseMessage & {
     type: T;
@@ -252,7 +252,7 @@ export type AppSuccessMessage<T extends AppMessageType> = BaseMessage & {
     error?: never;
 };
 
-/** handler 또는 wire 응답이 실패 상태를 표현할 때 사용하는 AppMessage 계열 에러 응답입니다. */
+/** AppMessage-family error response used when a handler or wire response represents a failure state. */
 export type AppFailureMessage<T extends AppMessageType = AppMessageType> = BaseMessage & {
     type: T;
     success: false;

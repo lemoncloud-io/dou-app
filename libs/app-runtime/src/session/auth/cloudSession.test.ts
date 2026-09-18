@@ -35,13 +35,13 @@ const mockRebuildSessionIdentity = jest.fn();
 
 const mockGetCloudSessionSnapshot = jest.fn();
 const mockNotifySessionStateChanged = jest.fn();
-/** Counts `sessionSignal.batch` — one logical use-case must be one batch (ADR-0076 결정 2). */
+/** Counts `sessionSignal.batch` — one logical use-case must be one batch (ADR-0076 decision 2). */
 const mockBatch = jest.fn();
 const mockIsNative = jest.fn();
 
-// `data`가 이 클래스의 유일한 HTTP 경로다 — 세션 재료 호출 전부의 목 이음새가 여기다.
-// 인자 모양은 repository 계약 그대로 검증한다(객체). 이름을 바꿔주던 `auth/api.ts` 어댑터가
-// 사라졌으므로, 지금 이 목이 실제 경계다.
+// `data` is this class's only HTTP path — this is the mock seam for every session-material call.
+// The argument shape is validated exactly as the repository contract has it (an object). The
+// `auth/api.ts` adapter that used to rename it is gone, so this mock is now the real boundary.
 jest.mock('../../data/runtime', () => ({
     getRepositories: () => ({
         auth: {
@@ -55,8 +55,9 @@ jest.mock('../../data/runtime', () => ({
     }),
 }));
 
-// 이관 전 web-core에서 `./contexts` · `./core` · `./contextStore` · `./utils` 네 모듈로 나뉘어
-// 있던 목을 하나로 합친 것 — 이제 전부 `session/store` 배럴 뒤에 있다.
+// Before the migration, this mock was split across four web-core modules — `./contexts`,
+// `./core`, `./contextStore`, `./utils` — and has now been merged into one; they all sit behind
+// the `session/store` barrel now.
 
 jest.mock('../store/stores', () => ({
     CLOUD_INVITED_BUNDLES_KEY: 'invited-cloud-bundles',
@@ -99,7 +100,7 @@ jest.mock('../store', () => ({
     getSelectedSiteId: (...args: unknown[]) => mockGetSelectedSiteId(...args),
     clearRelaySession: (...args: unknown[]) => mockClearRelaySession(...args),
     rebuildSessionIdentity: (...args: unknown[]) => mockRebuildSessionIdentity(...args),
-    // The store announces KINDS now (ADR-0076 결정 2). `mockNotifySessionStateChanged` stands for
+    // The store announces KINDS now (ADR-0076 decision 2). `mockNotifySessionStateChanged` stands for
     // `emit`, so the existing "was the session announced" assertions keep their meaning; `batch`
     // runs straight through because the collapsing is covered by signal.test.ts.
     sessionSignal: {
@@ -197,7 +198,7 @@ describe('session/auth/cloudSession', () => {
         // A4); that wrapper is gone, so the type system now keeps this to two.
         expect(mockSaveSelectedCloudId).toHaveBeenCalledTimes(2);
         expect(mockSaveSelectedCloudId).toHaveBeenCalledWith('cloud-new');
-        // The commit is ONE batch — this is the measurement ADR-0076 결정 2 exists for. Before it the
+        // The commit is ONE batch — this is the measurement ADR-0076 decision 2 exists for. Before it the
         // success path fired the session signal eight times and seven inconsistent intermediate
         // states were observable.
         expect(mockBatch).toHaveBeenCalledTimes(1);
@@ -271,7 +272,7 @@ describe('session/auth/cloudSession', () => {
 
     describe('applySelectedSite (optimistic sid primitive for the app-runtime socket switch)', () => {
         // It no longer announces anything itself: `setSelectedSiteId` routes to the relay or cloud
-        // store by active cloud and BOTH emit `selection` (ADR-0076 결정 2). A broadcast here was a
+        // store by active cloud and BOTH emit `selection` (ADR-0076 decision 2). A broadcast here was a
         // second fan-out for one write.
         it('applies the selected site through the store, without a second announcement', () => {
             cloudSession.applySelectedSite('site-new');

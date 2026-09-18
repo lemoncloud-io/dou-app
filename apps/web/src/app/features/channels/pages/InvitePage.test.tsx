@@ -30,7 +30,7 @@ jest.mock('../hooks', () => ({
     useCreateInviteBatch: () => ({ createSingleInvite, createBatchInvite }),
     useChannel: () => ({ channel: { id: 'ch1', sid: 'site-1' } }),
 }));
-// 플레이스 탭은 자기 테스트가 따로 있다 — 여기서는 "탭이 그것을 건다"까지만 본다.
+// The place tab has its own separate tests — here only "the tab wires it up" is checked.
 jest.mock('../components/PlaceInviteTab', () => ({
     PlaceInviteTab: (p: any) => <div data-testid="place-tab" data-sid={String(p.sid)} />,
 }));
@@ -83,8 +83,9 @@ jest.mock('@chatic/web-ui-kit', () => ({
 import { InvitePage } from './InvitePage';
 
 /**
- * 기본 탭은 플레이스다(ADR-0075). 연락처 흐름을 보는 테스트는 탭을 먼저 넘긴다 — 연락처
- * 페치도 그 시점에 시작되므로, 이 전환이 곧 `getContacts()`의 트리거이기도 하다.
+ * The default tab is place (ADR-0075). Tests exercising the contacts flow switch the tab first —
+ * since the contacts fetch also starts at that point, this switch is itself the trigger for
+ * `getContacts()`.
  */
 const renderOnContactTab = () => {
     const result = render(<InvitePage />);
@@ -150,8 +151,8 @@ describe('InvitePage (native)', () => {
         expect(await screen.findByTestId('permission-banner')).toBeInTheDocument();
     });
 
-    // 목록이 채워진 상태에서는 OS 설정 경로를 두지 않는다. 부분 연락처 접근으로 목록이
-    // 잘렸을 때의 탈출구는 링크 초대다(아래 share-link availability 참고).
+    // When the list is populated, there's no OS settings path. The escape hatch for when partial
+    // contacts access truncates the list is the link invite (see share-link availability below).
     it('opens the invite sheet from the populated list instead of the OS settings', async () => {
         renderOnContactTab();
         await screen.findByTestId('user-N1');
@@ -177,8 +178,8 @@ describe('InvitePage (native)', () => {
 });
 
 describe('share-link availability', () => {
-    // 링크 초대는 한때 DEV/LOCAL 빌드에서만 열려 있었다(임시 기획). 그 제한이 풀렸으므로
-    // 운영 앱에서도 세 진입점이 모두 살아 있어야 한다.
+    // The link invite used to be open only on DEV/LOCAL builds (a temporary plan). Now that
+    // restriction is lifted, all three entry points must be live on the production app too.
     it('exposes every share-link entry on a release app build', async () => {
         renderOnContactTab();
         await screen.findByTestId('user-N1');
@@ -187,9 +188,10 @@ describe('share-link availability', () => {
         expect(screen.getByTestId('add-friend-sheet')).toBeInTheDocument();
     });
 
-    // 검색줄에는 링크 버튼 하나만 둔다. 부분 연락처 접근이 잘린 목록을 돌려줘도, 이름+번호를
-    // 직접 넣는 링크 초대가 목록에 없는 사람에게 닿는 경로가 된다 — 이 경로가 운영 앱에서
-    // 열려 있다는 것이 위 테스트가 지키는 전제다.
+    // The search row keeps just the one link button. Even when partial contacts access returns a
+    // truncated list, the link invite where you type a name + number directly becomes the path
+    // that reaches someone missing from the list — the test above protects the premise that this
+    // path stays open on the production app.
     it('leaves the link button alone in the search row', async () => {
         renderOnContactTab();
         await screen.findByTestId('user-N1');
@@ -360,8 +362,9 @@ describe('InvitePage — 탭 셸', () => {
     });
 
     /**
-     * `getContacts()`는 OS 권한 팝업을 띄운다. 기본 탭이 플레이스가 된 뒤로 마운트 시 호출하면
-     * 연락처를 쓸 생각도 없는 사용자에게 권한을 묻게 되므로, 탭에 들어올 때까지 미룬다.
+     * `getContacts()` raises the OS permission popup. Now that the default tab is place, calling
+     * it on mount would prompt for permission even a user with no intention of using contacts, so
+     * it's deferred until the tab is actually opened.
      */
     it('플레이스 탭에 머무는 동안에는 연락처를 요청하지 않는다', () => {
         render(<InvitePage />);
@@ -377,8 +380,9 @@ describe('InvitePage — 탭 셸', () => {
     });
 
     /**
-     * 회귀 방어: 트리거를 `activeTab`에 직접 걸면 탭을 되돌릴 때 cleanup이 진행 중인 요청을
-     * 취소하고, 재요청 가드만 남아 연락처 탭이 영영 빈 화면이 된다.
+     * Regression guard: if the trigger were hooked directly to `activeTab`, flipping the tab back
+     * would run cleanup that cancels the in-flight request, leaving only the re-request guard
+     * behind — so the contacts tab would stay empty forever.
      */
     it('응답 전에 탭을 되돌려도 연락처가 결국 도착한다', async () => {
         let resolveContacts: (v: unknown) => void = () => undefined;
@@ -403,7 +407,7 @@ describe('InvitePage — 탭 셸', () => {
         expect(getContacts).toHaveBeenCalledTimes(1);
     });
 
-    // 웹에는 디바이스 연락처가 없다 — 그래도 플레이스 탭은 고를 것이 있는 화면으로 열린다.
+    // The web has no device contacts — even so, the place tab opens to a screen with something to pick from.
     it('웹에서도 기본 탭은 플레이스다', () => {
         isNativeValue = false;
         render(<InvitePage />);

@@ -47,10 +47,12 @@ beforeEach(() => {
     mockHasStored.mockResolvedValue(true);
     mockIsExpired.mockResolvedValue(false);
     mockRequestRefresh.mockResolvedValue(true);
-    // 측정 불가가 기본값 — 자격증명이 없는 테스트 세션의 실제 상태이고, 그 경우 선제 갱신은
-    // 예전처럼 무조건 나간다(아래 describe가 그 계약을 따로 고정한다).
+    // "Can't measure" is the default — the actual state of a test session with no credential, and in
+    // that case the preemptive refresh fires unconditionally as before (the describe below pins that
+    // contract separately).
     mockTimeToExpiry.mockReturnValue(null);
-    // 기본값은 "소켓이 refresh를 나를 수 있었다" — 그래야 실패가 세션의 책임이 된다.
+    // The default is "the socket could have carried the refresh" — that's what makes a failure the
+    // session's fault.
     mockAuthStatus.mockReturnValue('stale');
     Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
 });
@@ -333,7 +335,7 @@ describe('useSessionStalenessGuard — 트리거', () => {
         });
         expect(mockRequestRefresh).toHaveBeenCalledTimes(1);
 
-        // 이미 verified인 상태의 재렌더는 에지가 아니다
+        // A re-render while already verified is not an edge
         await act(async () => {
             rerender();
         });
@@ -342,9 +344,11 @@ describe('useSessionStalenessGuard — 트리거', () => {
 });
 
 /**
- * 선제 갱신이 **눈을 감지 않는다**. 예전에는 엣지마다 무조건 쏘았고, 그래서 방금 민팅된 자격증명도
- * 포그라운드 복귀마다 갱신됐다(그리고 로그인 순간의 재인증과 겹쳐 `superseded`를 냈다).
- * 이제 relay 자격증명의 실제 `Expiration`을 재고, 한 refresh 주기보다 여유가 많으면 가만히 있는다.
+ * The preemptive refresh **doesn't close its eyes**. It used to fire unconditionally on every edge,
+ * so even a credential minted a moment ago got refreshed on every foreground return (and produced a
+ * `superseded` by overlapping with the reauthentication that happens right at login).
+ * Now it measures the relay credential's actual `Expiration`, and stays quiet if there's more slack
+ * than one refresh cycle.
  */
 describe('useSessionStalenessGuard — forceRefresh는 자격증명을 재고 나서 쏜다', () => {
     it('여유가 한 주기보다 많으면 쏘지 않는다 — 소유자가 알아서 갱신한다', async () => {

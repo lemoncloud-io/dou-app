@@ -120,7 +120,7 @@ export const useChats = ({ channelId, limit, joinedNo }: UseChatsParams) => {
     // Read-marking is unaffected: stage 1 of useReadMarker sends channel.chatNo, which already
     // covers a hidden newest row.
     // isFeedVisible additionally drops reaction events (they fold into chips — as rows they were
-    // the empty-pill bug ADR-0045 fixes) and thread replies (they live on the thread page).
+    // the empty-pill bug ADR-0093 fixes) and thread replies (they live on the thread page).
     // Rows predating my current membership are already gone — `chats` is windowed above (ADR-0067).
     const messages = useMemo<ClientChatView[]>(() => {
         const sortKey = (chat: DomainChat): number =>
@@ -205,7 +205,7 @@ export const useChats = ({ channelId, limit, joinedNo }: UseChatsParams) => {
         /**
          * The cache window before the FEED filter. Reaction folding and thread derivation MUST read
          * this list — `messages` has the reaction events and replies filtered out, so
-         * deriving from it would silently yield nothing (ADR-0045).
+         * deriving from it would silently yield nothing (ADR-0093).
          *
          * "Raw" is about the feed filter only: the join window (ADR-0067) is already applied, so
          * nothing here predates my current membership.

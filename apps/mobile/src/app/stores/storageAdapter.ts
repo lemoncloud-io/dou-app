@@ -9,8 +9,8 @@ const isPreferenceKey = (key: string): key is PreferenceKey => {
 };
 
 /**
- * `Zustand`가 `preferenceService`를 사용할 수 있도록 연결하는 커스텀 어댑터
- * `preferenceService`는 `PreferenceKey` 타입만 허용하기 때문에 형변환을 수행함
+ * A custom adapter that connects `Zustand` so it can use `preferenceService`.
+ * Performs type casting since `preferenceService` only accepts the `PreferenceKey` type.
  */
 export const storageAdapter = createJSONStorage<StateStorage>(() => ({
     getItem: async (name: string): Promise<string | null> => {

@@ -69,7 +69,7 @@ export const useSentInviteLogStore = create<SentInviteLogState>((set, get) => ({
  * Local memory of relay invites this device has issued, keyed by the recipient's E.164 number.
  *
  * Exists because the server view never carries the phone number in full — `MyInviteView` only
- * exposes a masked `last4` (ADR-0033) — so detecting "you already invited this number" and
+ * exposes a masked `last4` (ADR-0089) — so detecting "you already invited this number" and
  * labeling the waiting screen both need a client-side record of what was actually typed.
  * Persisted to localStorage rather than repositories: this is a small phone->invite lookup
  * with no offline/sync requirement, not a synced domain collection.

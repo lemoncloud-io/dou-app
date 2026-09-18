@@ -48,7 +48,7 @@ const accountFieldsOf = (view: UserView | undefined): Record<string, unknown> =>
  * cloud session mints a DIFFERENT uid on a different backend, and the local cache is physically keyed
  * `${type}:${cid}:${uid}:${id}` with a read path that ignores context overrides — so while a cloud is
  * active the relay `user` row simply cannot be read back. The earlier attempt to fix this inside the
- * data layer was reverted for exactly that reason (ADR-0045 decision 5, reverted 2026-08-06; see
+ * data layer was reverted for exactly that reason (ADR-0094 decision 5, reverted 2026-08-06; see
  * apps/web/docs/feature/place/relay-default-place-scoping.md §6). The relay token has neither problem:
  * it is always present, always the relay account's, and it carries name/photo/email/link$.
  *
@@ -113,7 +113,7 @@ export const useMyUser = (): MyUser | null => {
  *
  * Reading the relay token is what makes it right, and it is the only thing that can: the local cache
  * is keyed `${type}:${cid}:${uid}:${id}` with a read path that ignores context overrides, so while a
- * cloud is active the relay `user` row is physically unreachable (ADR-0045 결정 5, reverted; see
+ * cloud is active the relay `user` row is physically unreachable (ADR-0094 decision 5, reverted; see
  * apps/web/docs/feature/mypage/README.md).
  *
  * No relay account at all counts as a guest. That is the safe direction rather than a third state:

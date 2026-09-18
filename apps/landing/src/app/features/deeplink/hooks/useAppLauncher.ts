@@ -22,7 +22,7 @@ interface UseAppLauncherReturn {
  * Hook to manage app launching flow with dialog confirmations.
  *
  * Flow:
- * 1. User clicks "앱 열기" → showAppConfirmDialog() → app-confirm dialog
+ * 1. User clicks "Open app" → showAppConfirmDialog() → app-confirm dialog
  * 2. User confirms → confirmLaunchApp() → launching state → try to open app
  * 3. After timeout → store-confirm dialog (user can dismiss if app opened)
  * 4. User confirms → confirmGoToStore() → navigate to store

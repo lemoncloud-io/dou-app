@@ -17,11 +17,11 @@ jest.mock('@lemoncloud/chatic-sockets-lib', () => {
     return { ...actual, createDeviceRuntime: jest.fn() };
 });
 
-// SyncManager → ./plans → data/runtime.ts → DataManager.ts → httpFactory.ts가 `@chatic/http`의
-// transport를 값으로 import한다(webTransport). 그 경로가 예전엔 `@chatic/web-config`(import.meta
-// 홀더, ts-jest CJS 파싱 불가)로 이어졌지만 이제는 `@chatic/config`(import.meta 0)로 이어져
-// 파싱은 더 이상 문제가 아니다 — 그래도 이 테스트가 실제로 쓰지 않는 세션 의존을 끊어 격리하는
-// 목은 그대로 둔다.
+// SyncManager → ./plans → data/runtime.ts → DataManager.ts → httpFactory.ts imports `@chatic/http`'s
+// transport as a value (webTransport). That chain used to lead to `@chatic/web-config` (an
+// import.meta holder that ts-jest's CJS parser can't handle), but now leads to `@chatic/config`
+// (import.meta count 0), so parsing is no longer the problem — this mock is kept anyway, to cut and
+// isolate the session dependency this test doesn't actually use.
 jest.mock('../../session', () => new Proxy({}, { get: () => jest.fn() }));
 const mockedCreateDeviceRuntime = createDeviceRuntime as jest.MockedFunction<typeof createDeviceRuntime>;
 
@@ -64,7 +64,7 @@ describe('SyncManager', () => {
     let runtimeFactory: jest.Mock;
 
     beforeEach(() => {
-        // unregister는 유예 타이머(UNREGISTER_GRACE_MS) 뒤에야 stop한다 — 시간을 손에 쥔다.
+        // unregister only stops after the grace timer (UNREGISTER_GRACE_MS) — take control of time.
         jest.useFakeTimers();
         mockUid = 'user-a';
         sessionListeners = [];
@@ -133,7 +133,7 @@ describe('SyncManager', () => {
 
         dispose();
 
-        // dispose는 즉시 stop하지 않는다 — 화면 전환의 재등록 창을 위한 유예(ADR-0058).
+        // dispose doesn't stop immediately — a grace period for a screen transition's re-register window (ADR-0058).
         expect(runtimes[0].stopSync).not.toHaveBeenCalled();
         jest.advanceTimersByTime(UNREGISTER_GRACE_MS);
         expect(runtimes[0].stopSync).toHaveBeenCalledWith({ type: 'channel', id: 'ch-1' });
@@ -151,12 +151,12 @@ describe('SyncManager', () => {
         dispose();
         jest.advanceTimersByTime(UNREGISTER_GRACE_MS / 2);
 
-        // 방↔홈 왕복: 다음 화면이 같은 타깃을 다시 등록한다.
+        // Room↔home round trip: the next screen re-registers the same target.
         syncManager.register({ type: 'channel', id: 'ch-1' });
         jest.advanceTimersByTime(UNREGISTER_GRACE_MS * 2);
 
         expect(runtimes[0].stopSync).not.toHaveBeenCalled();
-        // 재등록은 merge 경로라 startSync는 최초 1회뿐 — 즉시 재폴링이 없다는 뜻이다.
+        // Re-registration takes the merge path, so startSync only ever fires once — meaning no immediate re-poll.
         expect(runtimes[0].startSync).toHaveBeenCalledTimes(1);
     });
 
@@ -169,18 +169,19 @@ describe('SyncManager', () => {
         bindActiveSlot('relay', makeClient('relay'));
 
         const dispose = syncManager.register({ type: 'channel', id: 'ch-1' });
-        dispose(); // 유예 진입
+        dispose(); // enters the grace period
 
-        // 유예 중 클라우드로 전환: refs 0 엔트리는 replay되지 않아야 한다.
+        // Switching to cloud while in the grace period: the refs-0 entry must not be replayed.
         bindActiveSlot('cloud', makeClient('cloud'));
         const cloudRuntime = runtimes[1];
         expect(cloudRuntime.startSync).not.toHaveBeenCalled();
 
-        // purge되지 않았다면 이 재등록은 merge 경로로 빠져 startSync가 영영 없다 — 그 회귀를 잡는다.
+        // If it weren't purged, this re-registration would fall into the merge path and startSync
+        // would never fire — this catches that regression.
         syncManager.register({ type: 'channel', id: 'ch-1' });
         expect(cloudRuntime.startSync).toHaveBeenCalledWith({ type: 'channel', id: 'ch-1' });
 
-        // 버려진 유예 타이머가 뒤늦게 새 클라이언트의 타깃을 내리지 않는다.
+        // A discarded grace timer must not belatedly stop the new client's target.
         jest.advanceTimersByTime(UNREGISTER_GRACE_MS);
         expect(cloudRuntime.stopSync).not.toHaveBeenCalled();
     });
@@ -332,12 +333,12 @@ describe('SyncManager', () => {
     });
 
     /**
-     * 계정 축(uid) 가드 — 프로덕션 리포트가 이 테스트의 출처다.
+     * The account-axis (uid) guard — a production report is where this test comes from.
      *
-     * `403 FORBIDDEN - not allowed to read join @getJoinDetail(U:1000003@1000003)`,
-     * 호출자 세션 uid는 1000891, `cid`는 `#`(릴레이). 릴레이는 계정이 바뀌어도 boundCid가
-     * 'default'로 그대로라, cid만 보는 가드는 계정 교체를 볼 수 없었다. 1000003 세션이 등록한
-     * 자기 셀프챗 조인 타깃이 1000891 세션에서 계속 폴링됐다.
+     * `403 FORBIDDEN - not allowed to read join @getJoinDetail(U:1000003@1000003)`, with the calling
+     * session's uid at 1000891 and `cid` at `#` (relay). Relay keeps boundCid at 'default' even
+     * across an account change, so a guard that only looks at cid couldn't see the account swap. The
+     * self-chat join target registered by the 1000003 session kept being polled under the 1000891 session.
      */
     describe('계정이 바뀌면 이전 세션의 타깃은 따라가지 않는다', () => {
         it('uid가 바뀌면 replay에서 제외된다 — cid가 같아도', () => {
@@ -346,7 +347,8 @@ describe('SyncManager', () => {
                 buildSyncPlans: () => [{ domain: 'join' } as DomainSyncPlan],
                 createRuntime: runtimeFactory,
             });
-            // 릴레이는 계정이 바뀌어도 같은 cid에 머문다 — 사고가 숨어 있던 조건 그 자체.
+            // Relay stays on the same cid even across an account change — that's the very condition
+            // where the bug was hiding.
             (manager.getBoundCid as jest.Mock).mockReturnValue('default');
             bindActiveSlot('relay', makeClient('relay-a'));
 
@@ -354,7 +356,7 @@ describe('SyncManager', () => {
             syncManager.registerJoin('U:1000003@1000003');
             expect(runtimes[0].startSync).toHaveBeenCalledWith({ type: 'join', id: 'U:1000003@1000003' });
 
-            // 같은 소켓 위에서 계정만 교체(게스트→소셜 승격, 로그아웃→로그인).
+            // Swap only the account on the same socket (guest→social promotion, logout→login).
             mockUid = '1000891';
             bindActiveSlot('relay', makeClient('relay-b'));
 
@@ -378,9 +380,9 @@ describe('SyncManager', () => {
         });
 
         /**
-         * 키에 uid가 없는 도메인(channel/chat/device)이 진짜 함정이다. `channel:1000001`은 누가
-         * 로그인해 있든 같은 문자열이라, 재등록이 이전 계정의 엔트리에 합류해버리면 태그가
-         * 낡은 채로 남는다.
+         * The real trap is a domain whose key has no uid in it (channel/chat/device). `channel:1000001`
+         * is the same string no matter who's logged in, so if a re-registration joins the previous
+         * account's entry, the tag stays stale.
          */
         it('같은 키를 새 계정이 재등록하면 이전 태그에 합류하지 않는다', () => {
             const syncManager = new SyncManager(manager, {
@@ -398,14 +400,15 @@ describe('SyncManager', () => {
             mockUid = '1000891';
             syncManager.registerChannel('1000001');
 
-            // 합류했다면 refs만 오르고 startSync는 한 번뿐이다. 새 계정으로 다시 시작해야 맞다.
+            // If it had joined, only refs would rise and startSync would fire just once. Starting fresh
+            // under the new account is the correct behavior.
             expect(runtimes[0].startSync).toHaveBeenCalledTimes(2);
-            // 그리고 이전 계정 태그는 남아 있으면 안 된다 — 다음 replay에서 되살아난다.
+            // And the previous account's tag must not survive — it would come back on the next replay.
             bindActiveSlot('relay', makeClient('relay-b'));
             expect(runtimes[1].startSync).toHaveBeenCalledWith({ type: 'channel', id: '1000001' });
         });
 
-        // 세션이 없을 때 등록된 타깃은 와일드카드가 아니다 — cid의 null 규칙과 다른 점.
+        // A target registered with no session is not a wildcard — unlike cid's null rule.
         it('세션 없이 등록된 타깃은 세션이 붙어도 replay되지 않는다', () => {
             const syncManager = new SyncManager(manager, {
                 getUid: () => mockUid,
@@ -426,12 +429,12 @@ describe('SyncManager', () => {
     });
 
     /**
-     * 사용자가 재현해준 시나리오: 게스트 → 소셜 로그인 → 홈 이동.
+     * The scenario a user reproduced for us: guest → social login → navigate to home.
      *
-     * 승격은 같은 소켓을 그대로 두고 신원만 바꾼다(`reauthenticateActiveSocket`). 클라이언트
-     * 교체가 없으니 `handleActiveClientChanged`도, replay도 일어나지 않는다 — 이미 돌던 게스트의
-     * 타깃이 계속 폴링하며 `join.get {id:"U:<게스트>@<게스트>"}`를 던지고, 서버가 전부 403으로
-     * 답한다. 시작을 막는 가드만으로는 이 경로를 못 잡는다.
+     * Promotion keeps the same socket and only swaps the identity (`reauthenticateActiveSocket`). With
+     * no client swap, neither `handleActiveClientChanged` nor a replay happens — the guest's
+     * already-running target just keeps polling, throwing `join.get {id:"U:<guest>@<guest>"}`, and the
+     * server answers every one with 403. A guard that only blocks starts can't catch this path.
      */
     it('같은 소켓 위 계정 승격은 이전 계정의 타깃을 즉시 멈춘다', () => {
         const syncManager = new SyncManager(manager, {
@@ -447,11 +450,11 @@ describe('SyncManager', () => {
         syncManager.registerJoin('U:1000003@1000003');
         expect(runtimes[0].startSync).toHaveBeenCalledWith({ type: 'join', id: 'U:1000003@1000003' });
 
-        // 소셜 로그인 — 소켓은 그대로, 신원만 갈린다.
+        // Social login — the socket stays, only the identity changes.
         promoteTo('1000891');
 
-        // 유예를 기다리지 않고 즉시 멈춰야 한다. 조인 플랜 주기가 10초라 30초 유예는
-        // 승격 1회당 403 세 번을 더 만든다.
+        // Must stop immediately without waiting for the grace period. The join plan's cadence is
+        // 10s, so a 30s grace would produce three more 403s per promotion.
         expect(runtimes[0].stopSync).toHaveBeenCalledWith({ type: 'join', id: 'U:1000003@1000003' });
         expect(syncManager.listTargets()).toHaveLength(0);
     });

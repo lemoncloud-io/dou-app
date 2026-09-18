@@ -3,7 +3,7 @@
 > Status: Accepted · Decided: 2026-09-14 · Related:
 > [ADR-0051](./0051-cache-storage-routing-simplification.md) (owner of storage scope policy),
 > [ADR-0070](./0070-app-runtime-session-hub.md) (derives the selected context),
-> [ADR-0081](./0081-libs-data-doc-canon-and-layer-flattening.md) (prior cleanup of the same lib)
+> [ADR-0100](./0100-libs-data-doc-canon-and-layer-flattening.md) (prior cleanup of the same lib)
 
 ## Context
 
@@ -253,7 +253,7 @@ boundary this ADR is drawing would collapse.
 - **sid in query arguments is unchanged.** Things like `channel.observeList({ sid })` and
   `profile.cacheReadList({ sid })`. That's where sid lives as a value. `apps/desktop-web`'s uses of sid are
   entirely this kind, so they are unaffected by this decision.
-- Not mixed with removing the `V2` suffix (ADR-0081 Decision 4).
+- Not mixed with removing the `V2` suffix (ADR-0100 Decision 4).
 - Partitioning storage by sid was not evaluated as a direction.
 - sid **on a row** — like `DomainChannel.sid` and `DomainProfile.sid` — is unchanged. What disappears is
   the producer that automatically attached sid onto the context.
@@ -315,5 +315,5 @@ boundary this ADR is drawing would collapse.
   site other than the active one shows up on the home screen alongside it.
 - **File paths in this document assume the state after the `V2` suffix removal.** As of writing, the
   worktree has an uncommitted rename, `repositories-v2` → `repositories` and `data-sources-v2` →
-  `data-sources` (the work ADR-0081 Decision 4 deferred). If that change is reverted, read this
+  `data-sources` (the work ADR-0100 Decision 4 deferred). If that change is reverted, read this
   document's paths with `-v2` added back.

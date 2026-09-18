@@ -23,7 +23,7 @@ const RESULT_MEMO_MS = 3_000;
  *
  * The bespoke `RelayRefreshCoalescer` this replaces was the only one of the runtime's seven
  * hand-rolled concurrency guards that had grown into a real class; `Coalescer` is that class with
- * the domain prefix removed (ADR-0076 결정 4). Half of what it once did is the SDK's now:
+ * the domain prefix removed (ADR-0076 Decision 4). Half of what it once did is the SDK's now:
  * `auth.refresh()` joins an in-flight refresh instead of starting a second one (sockets-lib 0.5.1),
  * so the epoch pile-up it was built to prevent cannot happen through the controller any more. What
  * stays ours is what never reaches the controller — a "no authenticated socket" verdict.
@@ -47,7 +47,7 @@ class RelayRefreshAttempt {
     async run(): Promise<boolean> {
         const manager = this.deps.manager ?? getSocketManager();
 
-        // ONE judgement, from the single truth table (ADR-0076 결정 1). This used to be two separate
+        // ONE judgement, from the single truth table (ADR-0076 Decision 1). This used to be two separate
         // condition blocks here — "is there an authenticated socket" and "did the handshake complete
         // on THIS connection" — and the second existed because `auth.state` cannot answer it: a
         // transport drop leaves the SDK controller's state untouched (`stop()` clears `active` and the
@@ -111,7 +111,7 @@ class RelayRefreshAttempt {
  *
  * **No HTTP fallback.** This used to fall back to the service-level refresh when no live socket was
  * available. That fallback was a second way to reach the refresh endpoint, which is precisely what
- * ADR-0070 불변조건 1·2 forbids — refresh is `ClientSocketAuth`'s alone. Without a socket the honest
+ * ADR-0070 invariants 1·2 forbids — refresh is `ClientSocketAuth`'s alone. Without a socket the honest
  * answer is "not refreshed": the caller should get the socket back (`useSocketWakeRecovery`) rather
  * than route around it, because a refresh that bypasses the socket updates the stores while leaving
  * the socket's own signing material untouched — the divergence this ADR exists to remove.

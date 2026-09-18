@@ -38,7 +38,7 @@ export type DmInviteState =
     | { kind: 'expired'; expiredAt?: number };
 
 /**
- * Resolve what the 1:1 room shows below the stream (ADR-0068 결정 1).
+ * Resolve what the 1:1 room shows below the stream (ADR-0068 decision 1).
  *
  * Two inputs, deliberately from different sources: presence comes from the join rows (socket sync)
  * and the invite state from `invite.list` (focus refetch / polling). Neither waits on the other, so
@@ -71,10 +71,10 @@ export const resolveDmInviteState = ({ peerLeft, invite, isExpired }: ResolveDmI
 };
 
 /**
- * Whether the footer offers "다시 초대하기".
+ * Whether the footer offers "Re-invite".
  *
  * Withheld while an invite is live: a second code for the same person would leave two working links
- * out there, which is the rule the sender flow already keeps (ADR-0043 결정 5 retires before it
+ * out there, which is the rule the sender flow already keeps (ADR-0043 decision 5 retires before it
  * reissues). Figma agrees — the pending frame (4062-14154) has no button.
  */
 export const canReinviteDm = (state: DmInviteState): boolean => state.kind !== 'present' && state.kind !== 'pending';

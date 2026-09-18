@@ -45,7 +45,7 @@ export interface IInviteSocketDataSource {
 
 /**
  * Relay 1:1 (DM) invite source. The gateway handed in is already pinned to the RELAY slot by the
- * composition root (ADR-0033): the invite domain lives in the central backend behind the relay, so
+ * composition root (ADR-0089): the invite domain lives in the central backend behind the relay, so
  * it must not follow the active slot into a cloud. No route parameter is exposed here for the same
  * reason `device.update-remote` exposes none — a route no caller may vary is only a leak waiting to
  * happen.

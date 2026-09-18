@@ -19,7 +19,7 @@ export interface UserPermissions {
      * Whether the cloud-entity name editor is available. Currently has NO caller: the MY tree is
      * relay-only (ADR-0062), so the row that used to gate on this is gone from AccountInfoPage. Kept
      * because `/mypage/cloud-profile` still exists and still needs this gate once a cloud-shaped
-     * entry point (switcher / 계정 관리) is given to it.
+     * entry point (switcher / account management) is given to it.
      */
     useCloudProfile: boolean;
     canSelectCloud: boolean;

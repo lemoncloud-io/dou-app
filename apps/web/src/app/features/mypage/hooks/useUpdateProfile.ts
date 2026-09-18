@@ -18,7 +18,7 @@ interface UpdateProfileData {
  * Relay-pinned rather than active-pinned because this screen edits the account, not the connected
  * cloud's delegated record: on the active facade the same call lands on whichever cloud is selected,
  * a different uid on a different backend. Read and write therefore share one scope — the relay token
- * — which is the invariant the previous data-layer attempt could not hold (ADR-0045 decision 5,
+ * — which is the invariant the previous data-layer attempt could not hold (ADR-0094 decision 5,
  * reverted; apps/web/docs/feature/place/relay-default-place-scoping.md §6).
  *
  * The token patch is not an optimistic guess: it applies the SERVER's response, and it is the only

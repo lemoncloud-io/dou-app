@@ -1,41 +1,27 @@
-# [기술 스펙 명세서] 로그인 페이지
+# login
 
-## 1. 목적
+**The one screen that performs an explicit sign-in.** Everywhere else, session state changes on its
+own — guest keepalive on boot, cloud switch from chat home, logout from
+[settings](./README.md). This is the exception: a user typing an email and password to replace or
+promote the current session. Screen code: `apps/testbed/src/app/pages/LoginPage.tsx`, route
+`/auth/login`, outside the app shell (no bottom nav).
 
-로그인 페이지는 명시적인 이메일 로그인을 수행하는 화면이다.
+## Behavior
 
-앱의 기본 진입은 guest login 유지 흐름을 따르지만, 사용자가 원할 때는 이
-페이지에서 이메일 로그인으로 세션을 교체하거나 승격할 수 있어야 한다.
+- A standalone route, not reachable from guest boot itself — the app never routes here on its own.
+- On success, navigates to chat home (or back to wherever the user came from).
+- Rejects a second submit while one is in flight; on failure, keeps the entered values and shows the
+  error inline rather than clearing the form.
 
-## 2. 필수 기능
+Built entirely on `app-runtime`'s email-login hook and session-state hooks — no page-local session
+logic.
 
-- 이메일 입력
-- 비밀번호 입력
-- 로그인 제출
-- 로딩 및 에러 상태 표시
+## Verifying
 
-## 3. 화면 규칙
+- After a successful login, the session summary on [settings](./README.md) and the session panel in
+  [overlay/](../overlay/README.md) should agree on the new state.
 
-- guest 기본 진입과 별개의 독립 라우트로 둔다
-- 로그인 성공 시 채팅 홈 또는 직전 복귀 대상 페이지로 이동한다
-- 로그인 중에는 중복 제출을 막는다
-- 로그인 실패 시 입력값을 유지한 채 에러 메시지를 보여준다
+## Related
 
-## 4. 구현 참고
-
-로그인 페이지는 `libs/web-core`의 세션 hook만 사용하여 testbed에서 직접 구현한다.
-
-사용 라이브러리:
-
-- `libs/web-core` — 이메일 로그인 API, 세션 상태 hook
-
-## 5. 검증 포인트
-
-- 이메일 로그인 성공 후 세션 상태가 갱신되어야 한다
-- 로그인 실패 시 명시적인 에러 상태가 보여야 한다
-- 로그인 후 설정 페이지와 오버레이에서 동일한 로그인 상태를 확인할 수 있어야 한다
-
-## 관련 문서
-
-- [README.md](README.md) — 설정/세션 제어 페이지
-- [invite.md](invite.md) — 초대 수락 시 게스트 입장 필요
+- [README.md](./README.md) — settings and session actions
+- [invite.md](./invite.md) — accepting an invite requires a guest session first

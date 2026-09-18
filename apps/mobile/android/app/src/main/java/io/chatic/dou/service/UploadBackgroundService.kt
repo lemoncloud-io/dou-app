@@ -25,15 +25,15 @@ import java.util.concurrent.Future
 import java.util.concurrent.TimeUnit
 
 /**
- * UploadBackgroundService — Android Foreground Service 기반 청크 업로드 엔진
+ * UploadBackgroundService — chunked upload engine built on an Android Foreground Service.
  *
- * 구조:
- * - Foreground Service로 실행되어 OS가 프로세스를 종료하지 않도록 방지
- * - WorkManager(UploadWorker)에 의해 생명주기 관리됨
- * - 최대 3개의 업로드를 동시에 처리하는 스레드풀 사용
- * - 청크 포맷: multipart/form-data binary (base64 오버헤드 없음)
+ * Structure:
+ * - Runs as a Foreground Service so the OS doesn't kill the process
+ * - Its lifecycle is managed by WorkManager (UploadWorker)
+ * - Uses a thread pool that processes up to 3 uploads concurrently
+ * - Chunk format: multipart/form-data binary (no base64 overhead)
  *
- * 이벤트 흐름:
+ * Event flow:
  * Service → BroadcastIntent(ACTION_UPLOAD_EVENT) → UploadManagerModule → JS(RN Event)
  */
 class UploadBackgroundService : Service() {
@@ -41,20 +41,20 @@ class UploadBackgroundService : Service() {
     private val CHANNEL_ID = "upload_channel"
     private val NOTIFICATION_ID = 1001
 
-    // 현재 활성 업로드 목록: uploadId -> Pair(fileName, progress)
+    // Currently active uploads: uploadId -> Pair(fileName, progress)
     private val activeUploads = HashMap<String, Pair<String, Double>>()
 
     companion object {
         const val ACTION_START_OR_UPDATE = "io.chatic.dou.action.START_OR_UPDATE"
         const val ACTION_STOP = "io.chatic.dou.action.STOP"
 
-        // JS → Service 명령 액션
+        // JS → Service command actions
         const val ACTION_ENQUEUE_UPLOAD = "io.chatic.dou.action.UPLOAD.ENQUEUE"
         const val ACTION_PAUSE_UPLOAD = "io.chatic.dou.action.UPLOAD.PAUSE"
         const val ACTION_RESUME_UPLOAD = "io.chatic.dou.action.UPLOAD.RESUME"
         const val ACTION_CANCEL_UPLOAD = "io.chatic.dou.action.UPLOAD.CANCEL"
 
-        // Service → JS 이벤트 브로드캐스트 액션
+        // Service → JS event broadcast action
         const val ACTION_UPLOAD_EVENT = "io.chatic.dou.action.UPLOAD.EVENT"
     }
 
@@ -106,12 +106,12 @@ class UploadBackgroundService : Service() {
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
-        // 시스템이 태스크를 제거하는 경우 best-effort 처리.
-        // JS의 SQLite 기반 복구로 이어받기 가능.
+        // Best-effort handling for when the system removes the task.
+        // JS's SQLite-based recovery can pick it back up.
         super.onTaskRemoved(rootIntent)
     }
 
-    // 최대 3개 업로드 동시 처리
+    // Process up to 3 uploads concurrently
     private val executor = Executors.newFixedThreadPool(3)
     private val tasks = ConcurrentHashMap<String, UploadTaskState>()
     private val futures = ConcurrentHashMap<String, Future<*>>()
@@ -229,15 +229,15 @@ class UploadBackgroundService : Service() {
     }
 
     /**
-     * WakeLock 획득 — Foreground Service가 살아있는 동안 CPU를 유지.
-     * 타임아웃 없이 획득하며, onDestroy 시 반드시 해제됨.
+     * Acquires a WakeLock — keeps the CPU awake while the Foreground Service is alive.
+     * Acquired with no timeout, and must always be released in onDestroy.
      */
     @Suppress("WakelockTimeout")
     private fun acquireWakeLock() {
         if (wakeLock == null) {
             val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
             wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Chatic:UploadWakeLock").apply {
-                // 타임아웃 없이 획득 — Foreground Service 종료 시 반드시 releaseWakeLock() 호출됨
+                // Acquired with no timeout — releaseWakeLock() must always be called when the Foreground Service stops
                 acquire()
             }
         }
@@ -345,10 +345,10 @@ class UploadBackgroundService : Service() {
                 val offset = i.toLong() * chunkSize
                 val length = minOf(chunkSize, totalBytes - offset).toInt()
 
-                // 청크 바이너리 읽기 (base64 변환 없음)
+                // Read the chunk binary (no base64 conversion)
                 val chunkBytes = readChunkBytes(uri, offset, length)
 
-                // multipart/form-data binary 전송
+                // Send as multipart/form-data binary
                 postChunkMultipartWithRetry(state, i, totalChunks, offset, length, totalBytes, chunkBytes)
 
                 state.lastChunkIndex = i + 1
@@ -377,8 +377,8 @@ class UploadBackgroundService : Service() {
     }
 
     /**
-     * 파일에서 청크 바이너리를 읽어 ByteArray로 반환.
-     * content:// URI는 FileDescriptor 채널 seek, file:// URI는 RandomAccessFile 사용.
+     * Reads a chunk's binary data from the file and returns it as a ByteArray.
+     * A content:// URI seeks via a FileDescriptor channel; a file:// URI uses RandomAccessFile.
      */
     private fun readChunkBytes(uri: Uri, offset: Long, length: Int): ByteArray {
         if (length <= 0) return ByteArray(0)
@@ -441,12 +441,12 @@ class UploadBackgroundService : Service() {
     }
 
     /**
-     * 청크 multipart/form-data 전송 (재시도 포함).
+     * Sends a chunk as multipart/form-data (with retries).
      *
-     * 재시도 정책:
-     * - 네트워크 오류 및 HTTP 5xx에서만 재시도
-     * - 지수 백오프 (base 500ms, 최대 5초)
-     * - 최대 3회 시도 (최초 1회 + 재시도 2회)
+     * Retry policy:
+     * - Only retries on network errors and HTTP 5xx
+     * - Exponential backoff (base 500ms, max 5 seconds)
+     * - At most 3 attempts (1 initial + 2 retries)
      */
     private fun postChunkMultipartWithRetry(
         state: UploadTaskState,
@@ -505,12 +505,12 @@ class UploadBackgroundService : Service() {
     }
 
     /**
-     * 청크 하나를 multipart/form-data binary로 POST.
+     * POSTs a single chunk as multipart/form-data binary.
      *
-     * 요청 형식:
+     * Request format:
      * - Content-Type: multipart/form-data; boundary=<UUID>
-     * - 메타데이터: HTTP 헤더 (X-Upload-ID, X-Chunk-Index, 등)
-     * - 청크 데이터: multipart body의 "file" 파트 (binary, base64 아님)
+     * - Metadata: HTTP headers (X-Upload-ID, X-Chunk-Index, etc.)
+     * - Chunk data: the "file" part of the multipart body (binary, not base64)
      */
     private fun postChunkMultipart(
         payload: UploadPayload,
@@ -543,14 +543,14 @@ class UploadBackgroundService : Service() {
 
         conn.outputStream.use { os ->
             BufferedOutputStream(os).use { bos ->
-                // multipart 파트 시작
+                // Start of the multipart part
                 val partHeader = "--$boundary$CRLF" +
                     "Content-Disposition: form-data; name=\"file\"; filename=\"chunk_$chunkIndex\"$CRLF" +
                     "Content-Type: application/octet-stream$CRLF" +
                     "$CRLF"
                 bos.write(partHeader.toByteArray(Charsets.UTF_8))
                 bos.write(chunkBytes)
-                // multipart 파트 종료
+                // end the multipart part
                 val partFooter = "$CRLF--$boundary--$CRLF"
                 bos.write(partFooter.toByteArray(Charsets.UTF_8))
                 bos.flush()

@@ -1,9 +1,9 @@
 import React from 'react';
 
-// Concrete path, not the session barrel: the boot gate is a runtime internal (결정 6) —
+// Concrete path, not the session barrel: the boot gate is a runtime internal (Decision 6) —
 // the same convention `useRelaySessionKeepAlive` already follows below.
 import { useRelaySessionInit } from '../session/hooks/app/useRelaySessionInit';
-// Guest keep-alive is a runtime behavior, not an app surface (ADR-0076 결정 6).
+// Guest keep-alive is a runtime behavior, not an app surface (ADR-0076 Decision 6).
 import { useRelaySessionKeepAlive } from '../session/hooks/app/useRelaySessionKeepAlive';
 import { SocketBinder } from './SocketBinder';
 import { SocketReauthBinder } from './SocketReauthBinder';

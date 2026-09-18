@@ -9,7 +9,7 @@ import { appBridge } from '../../../../bridge';
 
 /**
  * What the NATIVE side recorded about past boots — moved here from the app's own Boot Performance
- * screen (ADR-0080 결정 11).
+ * screen (ADR-0080 decision 11).
  *
  * Not the same thing as the Boot tab. That one measures the CURRENT web session live (navigation
  * timing, paint vitals, asset cache hits) and is web-only; this one is the persisted history of
@@ -42,7 +42,7 @@ export const BootRecordsScreen = () => {
     const [loaded, setLoaded] = useState<Loaded | null>(null);
     const [busy, setBusy] = useState(false);
     // Shared so the NOT_FOUND wording and the learning are the same here as on every other screen
-    // (ADR-0080 결정 11 단계 4) — this screen used to hand-roll both.
+    // (ADR-0080 decision 11 step 4) — this screen used to hand-roll both.
     const { result, run, isUnsupported } = useDebugOperation();
     const unsupported = isUnsupported('FetchBootRecords');
 

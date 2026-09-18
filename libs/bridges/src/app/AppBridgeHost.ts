@@ -78,7 +78,7 @@ export class AppBridgeHost implements IAppBridgeHost {
         this.version = config.version ?? BRIDGE_PROTOCOL_VERSION;
         this.eventBuffer = config.eventBuffer ?? new MessageQueue();
 
-        // WebAppReady는 단순 ready 신호가 아니라 웹/모바일 protocol capability를 교환하는 handshake입니다.
+        // WebAppReady isn't a plain ready signal — it's a handshake that exchanges web/mobile protocol capability.
         this.registerHandler('WebAppReady', async message => {
             config.onAppReady?.();
             // Measured, so it can fail or be slow; a failure must not cost the rest of the
@@ -176,7 +176,7 @@ export class AppBridgeHost implements IAppBridgeHost {
     private async processRequest(message: RequestMessage): Promise<void> {
         const handler = this.handlers.get(message.type);
 
-        // 핸들러가 등록되지 않은 경우 즉시 에러 전송
+        // No handler registered — send an error response immediately
         if (!handler) {
             this.sendToWeb(
                 this.protocol.encode(
@@ -195,22 +195,23 @@ export class AppBridgeHost implements IAppBridgeHost {
         }
 
         try {
-            // 핸들러 실행
+            // Run the handler
             const result = await handler(message);
 
-            // 아무것도 반환하지 않은 핸들러는 "응답 없음"을 뜻합니다 — 여기서 끝냅니다.
+            // A handler that returns nothing means "no response" — stop here.
             //
-            // 응답 한 건은 공짜가 아닙니다. `sendToWeb`은 Android에서 `evaluateJavascript`,
-            // iOS에서 `evaluateJavaScript`로 내려가 UI 스레드를 쓰는데, 그건 캐시 요청/응답이
-            // 경합하는 바로 그 자원입니다. 그런데 `SendLog`처럼 refId 없이 올라온 fire-and-forget
-            // 메시지의 응답은 웹에서 매칭될 pending이 없어 이벤트로 흘러가 리스너 없이 폐기됩니다 —
-            // 100% 낭비인 왕복이 로그 건수만큼 UI 스레드를 점유했습니다.
+            // A response is not free. `sendToWeb` goes down to `evaluateJavascript` on Android
+            // and `evaluateJavaScript` on iOS, both of which use the UI thread — the exact
+            // resource cache requests/responses are contending for. But a fire-and-forget
+            // message like `SendLog`, sent up without a refId, has no pending entry to match on
+            // the web side, so its response flows through as an event and is discarded with no
+            // listener — a 100% wasted round trip that was occupying the UI thread once per log.
             //
-            // 반환값이 있는 핸들러는 이전과 완전히 동일하게 동작하므로, 응답을 기대하는 웹의
-            // `request()` 경로는 이 분기에 영향을 받지 않습니다.
+            // A handler that returns a value behaves exactly as before, so the web's
+            // `request()` path, which expects a response, is unaffected by this branch.
             if (!result) return;
 
-            // handler는 도메인 응답만 반환하고, host가 request metadata를 응답에 다시 연결합니다.
+            // The handler returns only the domain response; the host reattaches request metadata to it.
             const response = {
                 ...result,
                 refId: message.refId,
@@ -219,7 +220,7 @@ export class AppBridgeHost implements IAppBridgeHost {
 
             this.sendToWeb(this.protocol.encode(response) as string);
         } catch (error: any) {
-            // 핸들러 내부에서 예상치 못한 치명적 예외(Uncaught Exception)가 발생했을 때를 위한 안전망(Fallback)
+            // Fallback safety net for when an unexpected fatal exception (uncaught exception) occurs inside a handler
             this.sendToWeb(
                 this.protocol.encode(
                     this.createErrorResponse(
@@ -243,7 +244,7 @@ export class AppBridgeHost implements IAppBridgeHost {
         errorMessage: string,
         options: Partial<BridgeErrorResponse['error']> = {}
     ): BridgeErrorResponse {
-        // payload 전체를 details에 싣지 않고 type/version 중심의 추적 정보만 남깁니다.
+        // Don't put the whole payload in details — keep only type/version-centric trace info.
         return {
             type: 'ERROR',
             refId: message.refId,

@@ -15,7 +15,7 @@ import { redactText } from '../redaction/valuePatterns';
  * `config.data` reaches here as one opaque string and key-based masking alone
  * would see only the key `data` and let its contents through. ADR-0017
  * shipped v1 without this on the grounds that a report is read by the team;
- * ADR-0047 widened where these entries end up — a shared Slack channel, and now
+ * ADR-0097 widened where these entries end up — a shared Slack channel, and now
  * sessionStorage/MMKV on the device — so the exemption no longer holds. Masking
  * happens inside the replacer so it reaches nested objects and array elements.
  *

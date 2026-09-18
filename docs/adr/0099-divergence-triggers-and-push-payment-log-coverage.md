@@ -2,14 +2,14 @@
 
 > Status: Accepted · Decided: 2026-09-07
 >
-> Related: [ADR-0047](./0047-unified-logging-core-and-report-traceability.md) (unified logging core) · [ADR-0066](./0066-log-pipeline-collector-listener-split.md) (collector/listener split — canonical pipeline structure) · [ADR-0063](./0063-log-upload-source-port-and-native-charge-queue.md) (upload source port) · [ADR-0071](./0071-performance-budget-and-metric-events-over-the-log-pipeline.md) (performance metrics — **the lane this ADR chose not to use**) · [ADR-0048](./0048-unread-count-derivation-contract.md) (unread derivation contract — the reference value for comparison) · [ADR-0056](./0056-place-cloud-unread-dot-from-cache-and-push.md) (badge and push marks)
+> Related: [ADR-0097](./0097-unified-logging-core-and-report-traceability.md) (unified logging core) · [ADR-0066](./0066-log-pipeline-collector-listener-split.md) (collector/listener split — canonical pipeline structure) · [ADR-0063](./0063-log-upload-source-port-and-native-charge-queue.md) (upload source port) · [ADR-0071](./0071-performance-budget-and-metric-events-over-the-log-pipeline.md) (performance metrics — **the lane this ADR chose not to use**) · [ADR-0048](./0048-unread-count-derivation-contract.md) (unread derivation contract — the reference value for comparison) · [ADR-0056](./0056-place-cloud-unread-dot-from-cache-and-push.md) (badge and push marks)
 >
 > **This document is not the canonical trigger catalog.** Where and at what level/tag things get
 > logged is owned by the knowledge vault's
 > `projects/@lemoncloud-io/dou-app/log-collection/triggers.md`; this ADR records **the decision to
 > add a new section (divergence checks) to that table** and the reasoning for it. The
 > implementation narrative lives in
-> [`libs/logger/docs/architecture.md`](../../libs/logger/docs/architecture.md) (Live). (Note: this
+> [`libs/logger/docs/architecture.md`](../../libs/logger/README.md) (Live). (Note: this
 > path has since moved — see [libs/logger's documents table](../../libs/logger/README.md).)
 
 ## Context
@@ -101,7 +101,7 @@ since a single chatty room could produce dozens of entries and push out the unse
 > is checked once per list mount; members are checked once when leaving the screen (a snapshot
 > mid-hydration produces a false positive). The principle — not continuous, not per-render — holds.
 > The reasoning for each timing lives in
-> [divergence checks](../../libs/logger/docs/divergence-checks.md) §Implementation detail. (Note:
+> [divergence checks](../../libs/logger/docs/observations/README.md) §Implementation detail. (Note:
 > this path has since moved — see [libs/logger's documents table](../../libs/logger/README.md).)
 
 ### 2. Judge only, do not correct

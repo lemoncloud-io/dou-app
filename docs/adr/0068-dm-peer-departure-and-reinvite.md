@@ -51,7 +51,7 @@ and others).
    "invite pending" badge to show on someone who had left; that was fixed by discriminating on
    `joinedNo`/`reason` (`utils/membership.ts`).
 7. **The Figma copy "valid for 24 hours" contradicts an existing principle.** The relay-send doc's design principle
-   is _"render only the server's expiry value — never hardcode a duration in copy (ADR-0033 D8 — 3 days)."_
+   is _"render only the server's expiry value — never hardcode a duration in copy (ADR-0089 D8 — 3 days)."_
 8. **There are two channel-scoped invite APIs.** `user.invite` (`{channelId?, name, phone}`, used by group add-friend)
    and `invite.create` (`{phone, name, channelId?, countryCode?, expiresDays?}`, used by relay 1:1). Only the latter
    has adjustable expiry, country code, and the `invite.list`/`cancel`/`reject` state lifecycle.
@@ -108,7 +108,7 @@ gate guarantees "whoever returns sees an empty room."
 
 - Every `invite.create` call carries `expiresDays: 1`. New 1:1 invites and reinvites use the same rule.
 - Screen copy is computed from the response's `expiredAt`. **"24 hours" is never a hardcoded string** — this keeps
-  ADR-0033 D8's principle while matching the fact to 24 hours. If the server default ever changes, the screen
+  ADR-0089 D8's principle while matching the fact to 24 hours. If the server default ever changes, the screen
   doesn't lie.
 
 ### 5. Lock the composer when the peer is gone
@@ -268,7 +268,7 @@ is not self-chat, and the sent message's read badge `1` would permanently claim 
   window, the footer offers only "reinvite" without knowing the state — not a bad failure, but not accurate either.
 - **"Friend name" can differ room by room.** Since the data is the channel nickname (decision 8), if there are two
   or more DM rooms with the same peer, each room stores its own value. A duplicate DM can genuinely happen — "you
-  already have a 1:1 with them" pre-detection doesn't exist yet (ADR-0033 D2, v1 unimplemented), so a room I created
+  already have a 1:1 with them" pre-detection doesn't exist yet (ADR-0089 D2, v1 unimplemented), so a room I created
   by inviting them and a room they created by inviting me can exist side by side. Moving to a per-person alias would
   need a migration at that point.
 - **The departed-member display rule diverges between DM and group.** The same list component behaves differently

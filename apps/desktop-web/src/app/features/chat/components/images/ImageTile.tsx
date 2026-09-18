@@ -22,8 +22,8 @@ interface ImageTileProps {
 }
 
 /**
- * One image in a message (Figma "이미지"): rounded, hairline-bordered, opens the viewer
- * on click. The save + "더보기" bar only shows on hover or keyboard focus, and stays up
+ * One image in a message (Figma "Image"): rounded, hairline-bordered, opens the viewer
+ * on click. The save + "More" bar only shows on hover or keyboard focus, and stays up
  * while its menu is open — the menu portals out of the tile, so hover alone would drop
  * the bar from under the pointer.
  */

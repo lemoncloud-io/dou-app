@@ -9,19 +9,20 @@ export const TYPE_CID_UID_INDEX = 'type_cid_uid';
 export const CHAT_PAGINATION_INDEX = 'chat_pagination_index';
 
 /**
- * `chat_no`가 이 값이면 서버 번호가 아직 없는 행입니다 — 전송 중이거나 실패한 메시지.
- * `ChatLocalDataSource`가 낙관적 전송에 이 값을 쓰고, `mappers.ts`가 서버 `chatNo` 없는 응답을
- * 여기로 강등합니다.
+ * When `chat_no` is this value, the row has no server number yet — a message that's sending or
+ * failed. `ChatLocalDataSource` writes this value for optimistic sends, and `mappers.ts`
+ * demotes any server response without a `chatNo` down to it.
  *
- * `CHAT_PAGINATION_INDEX`의 마지막 키 요소라서 **정렬상 최하위**이고, 그 사실이 두 곳의 동작을
- * 지배합니다: 최신순 페이지 읽기는 이 행들을 놓치고(`ChatQueryExecutor.includeUnsent`),
- * eviction은 이 행들을 건드리면 안 됩니다(`IndexedDBAdapter`). 상수가 한 곳에 있어야
- * 그 둘이 같은 사실을 말하고 있다는 게 보입니다.
+ * As the last key element of `CHAT_PAGINATION_INDEX`, it sorts **lowest**, and that fact
+ * governs behavior in two places: a newest-first page read misses these rows
+ * (`ChatQueryExecutor.includeUnsent`), and eviction must never touch these rows
+ * (`IndexedDBAdapter`). Keeping the constant in one place is what makes it visible that both
+ * are relying on the same fact.
  */
 export const UNSENT_CHAT_NO = 0;
 
 /**
- * IndexedDB 데이터베이스와 물리적으로 상호작용하는 구체적인 구현체입니다.
+ * The concrete implementation that physically interacts with the IndexedDB database.
  */
 export class IndexedDBDatabase implements IIndexedDB {
     private dbPromise: Promise<IDBDatabase>;
@@ -40,7 +41,7 @@ export class IndexedDBDatabase implements IIndexedDB {
 
                 // A schema move rebuilds indexes and can leave a domain briefly unreadable, so the
                 // version it came from is what explains a cold cache right after an update
-                // (ADR-0075). One line per upgrade, which happens at most once per version.
+                // (ADR-0099). One line per upgrade, which happens at most once per version.
                 logger.info('CACHE', `web cache schema upgrade v${event.oldVersion} → v${event.newVersion}`, {
                     data: { from: event.oldVersion, to: event.newVersion },
                 });
@@ -236,7 +237,7 @@ export class IndexedDBDatabase implements IIndexedDB {
      *
      * The count already existed here; it was thrown away. Callers that know WHAT they were evicting
      * (a channel, a scope) need it to say so — this function knows only an index range, so it
-     * reports the number and lets the caller name it (ADR-0075).
+     * reports the number and lets the caller name it (ADR-0099).
      */
     async clearByRange(indexName: string, range: IDBKeyRange): Promise<number> {
         const keysToDelete = await this.readOperation<IDBValidKey[]>(store => {

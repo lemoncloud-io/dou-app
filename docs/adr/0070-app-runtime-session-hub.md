@@ -7,7 +7,7 @@
 > `session/auth` passes through `data`. What remains is the server contract and on-device QA — see
 > §Implementation results below.
 > Related: [ADR-0036](./0036-data-surface-unification-app-runtime-cleanup.md) (resolves decision 4,
-> "every data call goes through a repository") · [ADR-0047](./0047-unified-logging-core-and-report-traceability.md)
+> "every data call goes through a repository") · [ADR-0097](./0097-unified-logging-core-and-report-traceability.md)
 > (`logger`'s platform neutrality is preserved)
 
 > **Terminology, fixed for this document:** **Auth SDK** means `ClientSocketAuth` (`AuthController`)
@@ -334,7 +334,7 @@ state" would break issuance mid-switch.
   from `logBatch` graduates from a comment to a contract — once the rule has an owner, there is a
   place to declare "this request is exempt."
 - `logger/upload/uploadPolicy.ts` is **not moved** — batching, interval, and backoff are platform
-  neutral, and mobile RN shares the same policy (ADR-0047).
+  neutral, and mobile RN shares the same policy (ADR-0097).
 
 ### 4. `app-runtime`'s `HttpManager` does the assembly — symmetric with `SocketManager`
 
@@ -668,7 +668,7 @@ that logging and bridge initialization still happen before session boot.
 **Baseline measurement is not a gate blocking the start (re-decided 2026-08-31).** It's true that this
 rework's claimed effect ("the class of signature-403 disappears") can't be verified without
 measurement, but "instrument first" was written on the premise that nothing existed yet, and that
-premise turned out to be false — the unified-logging track (ADR-0047, 0063, 0066) had already laid down
+premise turned out to be false — the unified-logging track (ADR-0097, 0063, 0066) had already laid down
 the collection groundwork. **The 403 rate is already fully collected** (every HTTP failure is already
 logged at error level along with its status — it's just a matter of querying). The only thing that was
 silent was **the socket-path refresh firing**, and that was closed with one `logger.info` line.
@@ -821,7 +821,7 @@ first commit, and apps/web never actually had that route either (only a trace in
   leaves two entry points coexisting. **Dropped** (decision 8).
 - **Move `logger/upload/uploadPolicy.ts` into `@chatic/http`** — batching and backoff are platform
   neutral and shared with mobile RN. Mixing it with web signing and web logging breaks that
-  neutrality. **Dropped** (ADR-0047).
+  neutrality. **Dropped** (ADR-0097).
 
 ## Consequences
 

@@ -1,6 +1,6 @@
 // Korean mobile phone helpers shared by the cloud invite flow (InvitePage/AddFriendSheet) and the
 // relay 1:1 invite sender flow (features/invite). Extracted from what used to be two near-identical
-// private copies so both flows validate/normalize/format the same way (ADR-0033 Track B).
+// private copies so both flows validate/normalize/format the same way (ADR-0089 Track B).
 
 /** Valid Korean mobile prefixes: 010, 011, 016, 017, 018, 019 */
 export const KOREAN_MOBILE_PREFIXES = ['010', '011', '016', '017', '018', '019'] as const;

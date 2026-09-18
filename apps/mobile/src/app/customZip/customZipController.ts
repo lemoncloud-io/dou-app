@@ -11,7 +11,7 @@ import {
 /**
  * Apply/disable a custom web zip, without React.
  *
- * Was `useCustomZipLoader`, a hook the app's 환경설정 screen owned. ADR-0080 결정 11 moved the
+ * Was `useCustomZipLoader`, a hook the app's settings screen owned. ADR-0080 decision 11 moved the
  * controls to the web, so the caller is now a bridge handler — and a handler cannot hold a hook.
  * The status a screen used to keep in `useState` belongs to whoever is drawing buttons, which is
  * the web now; this returns the outcome instead.

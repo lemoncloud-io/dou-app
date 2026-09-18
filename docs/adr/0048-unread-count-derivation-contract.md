@@ -1,7 +1,7 @@
 # ADR-0048: Derive unread count on the `chatNo − metaNo` scale — a shared contract across three clients
 
 > Status: Accepted · Decided: 2026-08-10
-> Related: [ADR-0045](./0045-web-emoji-reaction-and-thread.md) (introducing emoji reactions · threads) ·
+> Related: [ADR-0093](./0093-web-emoji-reaction-and-thread.md) (introducing emoji reactions · threads) ·
 > [ADR-0047](./0047-web-reaction-and-thread-refinements.md) (reaction/thread follow-up)
 
 ## Context

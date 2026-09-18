@@ -3,7 +3,7 @@ import Contacts from 'react-native-contacts';
 import { DeviceService } from './DeviceService';
 
 // Mock every native import DeviceService pulls in at module load so the class can be instantiated
-// under jsdom. Only the contacts path is exercised here (ADR-0075).
+// under jsdom. Only the contacts path is exercised here (ADR-0099).
 jest.mock('react-native', () => ({
     Linking: { openURL: jest.fn() },
     PermissionsAndroid: {
@@ -48,7 +48,7 @@ describe('DeviceService.getContacts — 부분 결과 기록', () => {
         expect(logger.warn).not.toHaveBeenCalled();
     });
 
-    // #15의 모양: 조회는 성공했고 일부만 이름이 없다 — 예외가 없어 실패 트리거로는 안 잡힌다.
+    // Shape of #15: the fetch succeeds but some entries have no name — there's no exception, so it's not caught by the failure trigger.
     it('이름 없는 항목이 있으면 warn으로 올린다', async () => {
         getAll.mockResolvedValue([contact({ displayName: '가' }), contact({}), contact({})]);
 

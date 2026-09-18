@@ -19,7 +19,7 @@ export interface NetworkRequestMeta {
 /**
  * Structured payload handed to the log sink. Fields are RAW here — `@chatic/http` has zero
  * `@chatic/*` runtime dependencies, and redact/truncate live in `@chatic/logger`, so applying them
- * is the sink's job, not this lib's (ADR-0070 결정 3; see the README's design principle 6).
+ * is the sink's job, not this lib's (ADR-0070 decision 3; see the README's design principle 6).
  */
 export interface NetworkLogFields {
     outcome: 'success' | 'error';
@@ -123,7 +123,7 @@ export const withNetworkLog = async <T extends { data?: unknown }>(
 
         // Status/code ride in the message, not just in `fields`: a breadcrumb line (report tail,
         // console) is read without expanding objects, and "failed" alone forces a drill-down to
-        // learn whether the server rejected it or the request never left. @see ADR-0047
+        // learn whether the server rejected it or the request never left. @see ADR-0097
         // `readErrorCode` already prefers the status, so the two collapse to the same string on an
         // HTTP failure — take the status when a response came back, and the transport code
         // (ERR_NETWORK, …) when none did.

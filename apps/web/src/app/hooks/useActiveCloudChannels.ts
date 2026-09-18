@@ -35,7 +35,7 @@ import { useActiveCloudData } from './activeCloudDataContext';
  *
  * SCOPE PINNING — the {cid, uid} override keys the observer off the React session directly instead of
  * the live DataContextProvider (`ActiveScope`). `ActiveScope` now derives its `intent` straight from
- * `session/store` on every read (ADR-0070 결정 7), not from an ancestor effect, so the commit-lag this
+ * `session/store` on every read (ADR-0070 decision 7), not from an ancestor effect, so the commit-lag this
  * override originally guarded against — `RuntimeDataBinder` used to push `binding.context` into the
  * provider in an effect that ran AFTER this descendant hook subscribed — can no longer happen through
  * that path: that binder has been deleted. The override still matters

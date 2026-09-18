@@ -2,8 +2,8 @@ import type { ISqliteDatabase } from '../../database';
 import { fetchManyByIds } from './fetchManyByIds';
 
 /**
- * `id IN (...)` 조회의 최소 흉내: 파라미터 중 알려진 id인 것만 행으로 돌려줍니다. cid/uid는 id 뒤에
- * 붙는 스칼라라 이 규칙에 걸리지 않으므로 별도 분리가 필요 없습니다.
+ * A minimal stand-in for an `id IN (...)` query: only returns rows for params that are known ids.
+ * cid/uid are scalars appended after the ids, so they never match this rule and need no separate handling.
  */
 const createDatabase = (rowsById: Record<string, unknown>) => {
     const calls: Array<{ sql: string; params: unknown[] }> = [];

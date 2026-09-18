@@ -18,14 +18,14 @@ describe('InAppNotificationCard', () => {
         expect(screen.getByText(NOW_KEY)).toBeTruthy();
     });
 
-    // 포그라운드 푸시는 정의상 방금 도착한 것이므로, 본문이 없는 푸시(제목만)에서도
-    // 시각 라벨은 사라지지 않는다 — 상대 시간 계산이 아니라 고정 문구이기 때문이다.
+    // A foreground push has, by definition, just arrived, so even a push with no body
+    // (title only) keeps the time label — it's a fixed phrase, not a relative-time calculation.
     it('본문이 없으면 본문 줄만 빠지고 "지금" 라벨은 남는다', () => {
         render(<InAppNotificationCard title="#general" />);
 
         expect(screen.getByText('#general')).toBeTruthy();
         expect(screen.getByText(NOW_KEY)).toBeTruthy();
-        // 제목 + 시각 라벨, 두 조각 외에 본문 노드는 없다.
+        // Only two nodes — title + time label — no body node besides them.
         expect(screen.queryByText('안녕하세요')).toBeNull();
     });
 
@@ -49,8 +49,8 @@ describe('InAppNotificationCard', () => {
         expect(screen.queryByRole('button')).toBeNull();
     });
 
-    // 사진이 있으면 그 얼굴을, 없으면 기본 글리프를 쓴다. 사진은 alt=""로 장식 처리하므로
-    // 접근성 트리에서 이름 없는 이미지로만 확인한다.
+    // If a photo is given, it renders that face; otherwise, the default glyph. The photo is
+    // marked decorative with alt="", so it's checked in the accessibility tree only as a nameless image.
     it('아바타 사진이 오면 이미지로, 없으면 이미지 없이 기본 글리프로 그린다', () => {
         const { container, unmount } = render(
             <InAppNotificationCard title="#general" avatarUrl="https://example.com/a.png" />

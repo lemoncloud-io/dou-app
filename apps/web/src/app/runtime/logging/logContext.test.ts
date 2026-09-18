@@ -103,14 +103,15 @@ describe('attachLogContext', () => {
 });
 
 /**
- * `runId`는 하나의 실행을 묶는 유일한 축이고, 네이티브 엔트리를 웹 엔트리에 잇는 유일한 끈이다 —
- * 네이티브 쪽은 `uid`·`sid`·`cid`·`route`를 모른다. 그래서 주입이 없으면 공유 id만 잃는 게 아니라
- * **그 실행의 네이티브 엔트리 전부가 사용자로 되돌아갈 길을 잃는다.**
+ * `runId` is the single axis that ties one run together, and the only thread linking a native entry
+ * to a web entry — the native side knows nothing of `uid`, `sid`, `cid`, or `route`. So without
+ * injection, it's not just the shared id that's lost — **every native entry for that run loses its
+ * way back to the user.**
  */
 describe('reportRunIdJoin — 조인이 깨진 실행을 말한다', () => {
     const warn = jest.spyOn(logger, 'warn').mockImplementation();
 
-    /** isNative()는 window 전역을 읽는다 — 목 없이 그대로 구동한다. */
+    /** isNative() reads a window global — this runs it as-is, without mocking. */
     const insideTheApp = () => {
         (window as Record<string, unknown>).ReactNativeWebView = { postMessage: jest.fn() };
     };
@@ -137,7 +138,7 @@ describe('reportRunIdJoin — 조인이 깨진 실행을 말한다', () => {
         expect(warn).not.toHaveBeenCalled();
     });
 
-    // 브라우저 단독 접속에는 이을 네이티브 절반이 자체가 없다 — 직접 발급한 id가 정답이다.
+    // A browser-only visit has no native half to link to in the first place — a self-issued id is the right answer.
     it('앱 밖에서는 주입이 없어도 남기지 않는다', () => {
         reportRunIdJoin();
 

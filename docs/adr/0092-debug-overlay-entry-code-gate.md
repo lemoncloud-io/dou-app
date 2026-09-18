@@ -119,7 +119,7 @@ moves behind the new gate.
   `Generate env file` blocks) is done, but **registering the secret is a human step, and an environment
   where it is not registered is left with the gate off** — so that the omission does not look like a
   silent failure, the secret's name is written down under "CI injection" in
-  [entry-gate.md](../../apps/web/docs/feature/debug/entry-gate.md).
+  [entry-gate.md](../../apps/web/docs/feature/debug/README.md).
 - desktop-web's seven-tap back door remains. With an easier gate and permanent storage it is genuinely
   more exposed, and it has to be handled as follow-up work.
 

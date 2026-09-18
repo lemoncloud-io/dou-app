@@ -73,7 +73,7 @@ describe('resolvePushCloudId — 크로스 클라우드 푸시의 출처 클라�
     it('sid가 후보를 전부 걸러내면(스테일 sid) sid 필터를 무시하고 이전 후보를 유지한다', async () => {
         resolveContext.mockResolvedValue(context({ 'cloud_1:ch5': { id: 'ch5', sid: 'site-a' } }));
 
-        // sid가 실제 후보와 안 맞아도(스테일) 유일 채널 후보이므로 그대로 채택.
+        // Even if sid doesn't match the actual candidate (stale), it's the only channel candidate, so it's adopted as-is.
         await expect(resolvePushCloudId({ channelId: 'ch5', sid: 'site-does-not-exist' }, deps())).resolves.toBe(
             'cloud_1'
         );

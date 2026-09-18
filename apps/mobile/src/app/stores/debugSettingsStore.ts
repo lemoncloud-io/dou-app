@@ -16,16 +16,17 @@ interface DebugSettingsState {
     /** Runtime debug unlock propagated from the web 10-tap gesture (works in PROD builds). */
     debugModeEnabled: boolean;
     /**
-     * 로그 업로드 보류 — 큐를 비우지 말고 쌓아두게 만들어 MonitoringScreen이 읽을 수 있게 한다.
-     * 기기 opt-out(수집 거부)과는 다른 레버다: 보류는 큐를 유지하고, opt-out은 버린다.
+     * Holds log uploads — keeps the queue accumulating instead of draining it, so MonitoringScreen
+     * can read it.
+     * A separate lever from device opt-out (declining collection): hold keeps the queue, opt-out discards it.
      */
     logUploadHold: boolean;
-    /** 커스텀 web zip이 압축해제된 로컬 루트 (persist — 재시작 시 서버 복원의 유일한 진실원) */
+    /** The local root the custom web zip was extracted to (persisted — the sole source of truth for restoring the server on restart) */
     customZipLocalRoot: string | null;
     /**
-     * 기동 중인 로컬 서버의 URL (runtime 전용, persist 제외).
-     * persist하면 재시작 시 서버가 뜨기 전에 WebView가 localhost를 로딩해 흰 화면이 된다 —
-     * 반드시 서버 start 성공 후에만 set.
+     * The URL of the currently running local server (runtime only, excluded from persist).
+     * If persisted, the WebView would load localhost before the server comes up on restart,
+     * producing a blank screen — must only be set after the server start succeeds.
      */
     customZipServerUrl: string | null;
     setWebviewBaseUrlOverride: (url: string | null) => void;
@@ -84,9 +85,12 @@ export const useDebugSettingsStore = create<DebugSettingsState>()(
         {
             name: 'debugSettings' as PreferenceKey,
             storage: storageAdapter,
-            // customZipServerUrl은 runtime 전용 — persist에서 제외 (재시작 시 서버 기동 전 localhost 로딩 방지).
-            // rest-destructure라 필드명 변경 시 컴파일 에러로 드러남 (문자열 키 필터는 조용히 새어나감).
-            // 제외 대상 키를 omit하려면 이름으로 destructure 필요 — 바인딩은 `_` 접두로 unused 허용.
+            // customZipServerUrl is runtime-only — excluded from persist (prevents loading localhost
+            // before the server starts on restart).
+            // Because this is a rest-destructure, a field rename surfaces as a compile error
+            // (a string-key filter would silently leak through instead).
+            // Omitting the excluded key requires destructuring it by name — the binding uses a `_`
+            // prefix to allow it to be unused.
             partialize: ({ customZipServerUrl: _customZipServerUrl, ...rest }) => rest,
         }
     )

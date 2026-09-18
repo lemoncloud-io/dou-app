@@ -89,8 +89,9 @@ describe('서버가 거절한 세션 — onAuthFailure 보고', () => {
         expect(onAuthFailure).not.toHaveBeenCalled();
     });
 
-    // 자격증명 만료는 애초에 `shouldLogout: false`로 분류된다 — 한 시간 열어둔 탭은 죽은 세션이
-    // 아니다. 재발급에 실패해도 마찬가지다: 그건 소켓 이야기지 서버의 거절이 아니다.
+    // Credential expiry is classified as `shouldLogout: false` from the start — a tab left open
+    // for an hour isn't a dead session. Same even if reissue fails: that's a socket concern, not
+    // a rejection from the server.
     it('자격증명 만료는 재발급이 실패해도 보고하지 않는다', async () => {
         execute.mockRejectedValue(Object.assign(new Error('Network Error'), { code: 'ERR_NETWORK' }));
         const onAuthFailure = jest.fn();
@@ -108,9 +109,10 @@ describe('서버가 거절한 세션 — onAuthFailure 보고', () => {
         expect(onAuthFailure).not.toHaveBeenCalled();
     });
 
-    // 재발급이 성공했으니 두 번째 시도의 자격증명은 더 이상 stale이 아니다 — 그래서 같은 403이
-    // 이번에는 "만료된 서명"이 아니라 서버의 거절로 분류된다. 스토어가 stale이라고 말하는 동안에는
-    // 403도 만료로 읽히므로(분류가 marker를 먼저 본다) 순서가 계약의 일부다.
+    // Since the reissue succeeded, the credential on the second attempt is no longer stale —
+    // so this time the same 403 is classified as a server rejection, not an "expired
+    // signature." While the store still says stale, a 403 also reads as expiry (classification
+    // checks the marker first), so the ordering is part of the contract.
     it('재발급 후 다시 보낸 요청이 403이면 그때 한 번 보고한다', async () => {
         execute
             .mockRejectedValueOnce(Object.assign(new Error('Network Error'), { code: 'ERR_NETWORK' }))

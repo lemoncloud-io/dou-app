@@ -31,9 +31,9 @@ describe('redactText — 모양으로 마스킹한다', () => {
     });
 
     /**
-     * 이 앱은 쿼리스트링에 capability 재료를 싣는다 — `routeTrail`의 보안 주석이 그 규칙을 이미
-     * 적어 뒀다(`/invite/accept?…`, `/s?…`). 그런데 URL을 통째로 message에 싣는 엔트리가
-     * 네이티브에 여섯 곳 있었다.
+     * This app puts capability material in the query string — `routeTrail`'s security comment
+     * already spells out that rule (`/invite/accept?…`, `/s?…`). But there were six places in
+     * native where an entry put the whole URL into message.
      */
     describe('URL 쿼리는 이름만 남기고 값을 가린다', () => {
         it('절대 URL의 쿼리 값을 가리고 파라미터 이름은 남긴다', () => {
@@ -52,7 +52,7 @@ describe('redactText — 모양으로 마스킹한다', () => {
             expect(redactText('navigate to /s?k=shortcode')).toBe('navigate to /s?k=[REDACTED]');
         });
 
-        // 프래그먼트는 key=value 형태가 보장되지 않는다 — 인증 플로우가 맨 토큰을 거기 둔다.
+        // A fragment isn't guaranteed to be key=value shaped — auth flows put bare tokens there.
         it('프래그먼트는 통째로 가린다', () => {
             expect(redactText('chatic://open/chat?cid=c1#access_token=secret')).toBe(
                 'chatic://open/chat?cid=[REDACTED]#[REDACTED]'
@@ -77,8 +77,9 @@ describe('redactText — 모양으로 마스킹한다', () => {
     });
 
     /**
-     * 과잉 마스킹 방지. 여기 있는 값들은 전부 추적의 조인 축이거나 진단 필드다 — 무작위해
-     * 보인다고 지우면 로그를 모으는 이유 자체가 없어진다.
+     * Guards against over-masking. Every value here is either a tracing join axis or a
+     * diagnostic field — redacting it just because it looks random defeats the whole point of
+     * collecting logs.
      */
     describe('지우면 안 되는 것은 그대로 둔다', () => {
         it('uuid·복합 id·runId는 건드리지 않는다', () => {

@@ -14,15 +14,15 @@ export interface PaginationType<T> {
 export interface TokenGenerateRequest {
     /** Cloud ID (AWS AccountNo) */
     cid: string;
-    /** Site ID (플레이스; 기본 0000) */
+    /** Site ID (place; defaults to 0000) */
     sid: string;
-    /** Auth ID (인증관련; uuid) */
+    /** Auth ID (auth-related; uuid) */
     aid: string;
-    /** User ID (유저정보) */
+    /** User ID (user info) */
     uid: string;
-    /** Member ID (멤버정보=유저정보) - optional */
+    /** Member ID (member info = user info) - optional */
     mid?: string;
-    /** Group ID (그룹정보) - optional */
+    /** Group ID (group info) - optional */
     gid?: string;
 }
 

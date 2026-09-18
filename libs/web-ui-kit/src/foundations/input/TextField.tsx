@@ -36,12 +36,12 @@ export interface TextFieldProps extends Omit<React.InputHTMLAttributes<HTMLInput
     leading?: React.ReactNode;
     /**
      * Action rendered inside the field, after the counter — the design guide's in-field text link
-     * (e.g. 인증 요청 / 재전송). Sits inside the border, so it stays put while the value scrolls.
+     * (e.g. Request verification / Resend). Sits inside the border, so it stays put while the value scrolls.
      */
     trailing?: React.ReactNode;
     /**
      * Content pinned to the right of the helper line, opposite `description`/`error` (e.g. the OTP
-     * countdown + 시간 연장). Renders the helper row even when there is no helper text.
+     * countdown + extend-time link). Renders the helper row even when there is no helper text.
      */
     helperTrailing?: React.ReactNode;
 }

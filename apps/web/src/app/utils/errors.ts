@@ -39,7 +39,7 @@ const describeEvent = (event: Event): string => {
  * recover the status from that prefix.
  *
  * This exists so callers branch on the code and never on the wording: server messages are not a
- * contract and are localized/reworded freely. See relay-server-invite/05-client-guide.md §에러 코드.
+ * contract and are localized/reworded freely. See relay-server-invite/05-client-guide.md §error codes.
  */
 export const getSocketErrorCode = (error: unknown): number | undefined => {
     const carried = (error as { errorCode?: unknown } | null)?.errorCode;

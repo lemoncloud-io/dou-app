@@ -146,7 +146,7 @@ export const SettingsPage = () => {
                 {/* Support & info */}
                 <MenuCard title={t('mypage.settings.sections.support')}>
                     {/* Sole entry point for feedback — reachable by guests too, since `reportIssue`
-                        accepts an unauthenticated session (ADR-0047). */}
+                        accepts an unauthenticated session (ADR-0096). */}
                     <ListRow
                         title={t('mypage.feedback')}
                         trailing={<Chevron />}

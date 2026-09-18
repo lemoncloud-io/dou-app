@@ -199,7 +199,7 @@ describe('AppBridgeHost Buffering & Event Flushing', () => {
         // The web logger (SendLog) relays from the earliest module-evaluation
         // phase — long before the web app can receive events — so it must not
         // trigger the buffered-event flush. (The legacy __console__ relay is
-        // gone; SendLog is the only log channel per ADR-0047.)
+        // gone; SendLog is the only log channel per ADR-0097.)
         host.registerHandler('SendLog' as any, async () => ({ type: 'OnSendLog', success: true, data: {} }) as any);
         host.registerHandler('Ping' as any, async () => ({ type: 'Ping', success: true, data: {} }) as any);
 
@@ -300,9 +300,10 @@ describe('AppBridgeHost Buffering & Event Flushing', () => {
     });
     it('아무것도 반환하지 않는 핸들러는 응답을 보내지 않는다 (fire-and-forget)', async () => {
         const host = new AppBridgeHost({ sendToWeb: mockSendToWeb });
-        // `SendLog`가 이 경로입니다. 웹의 로그 전달자는 refId 없이 올려보내므로 응답이 내려가도
-        // 매칭될 pending이 없어 폐기되는데, 그 폐기되는 응답 한 건마다 UI 스레드의
-        // evaluateJavascript가 한 번 돕니다 — 로그 건수만큼 브릿지 대역을 태우는 순수 낭비였습니다.
+        // `SendLog` is this path. The web's log forwarder sends it up without a refId, so even
+        // when a response comes back down there's no pending entry to match it, and it gets
+        // discarded — but each discarded response still costs one UI-thread evaluateJavascript
+        // call. That was pure waste scaling with log volume.
         const handler = jest.fn().mockResolvedValue(undefined);
         host.registerHandler('SendLog', handler as any);
 

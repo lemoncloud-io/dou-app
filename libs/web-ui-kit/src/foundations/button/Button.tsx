@@ -18,11 +18,11 @@ const OUTLINE_TONE = {
 } as const;
 
 const SIZE = {
-    // 28px-tall in-menu pill (Figma 구독 상태 뱃지 `4135:24750`) — the tier badge that sits inside a
+    // 28px-tall in-menu pill (Figma subscription status badge `4135:24750`) — the tier badge that sits inside a
     // dropdown row, where the `sm` control would tower over 14px menu text.
     xs: 'gap-1 py-1.5 pl-2 pr-[9px] text-[13px] leading-3 tracking-[-0.13px]',
     // 32px-tall pill — the design system's badge size, and the one the subscription tier pill uses
-    // (Figma 구독 상태 뱃지 `3486:25567` / `3769:34789`: gap 4, pl 10, pr 12, py 8, 16px glyph).
+    // (Figma subscription status badge `3486:25567` / `3769:34789`: gap 4, pl 10, pr 12, py 8, 16px glyph).
     sm: 'gap-1 py-2 pl-2.5 pr-3 text-[13px]',
     md: 'h-[50px] gap-1.5 px-5 text-[14px]',
     lg: 'h-[50px] gap-1.5 px-6 text-[16px]',

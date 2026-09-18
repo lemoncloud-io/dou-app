@@ -1,96 +1,100 @@
 /**
- * 알림 정보
- * TODO: notification 스펙에 맞게 확장 필요
+ * Notification info
+ * TODO: needs to be extended to match the notification spec
  * @author dev@example.com
  */
 export type NotificationInfo = {
     title?: string;
     body?: string;
-    data?: Record<string, any>; // 커스텀 페이로드
+    data?: Record<string, any>; // Custom payload
 };
 
-/** [요청] FCM 토큰 조회 페이로드 */
+/** [Request] Fetch FCM token payload */
 export type FetchFcmTokenPayload = {
-    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+    // Empty object type, reserved for future extension (optional fields, etc.).
 };
 
 /**
- * [요청] FCM 토큰 삭제 페이로드
+ * [Request] Delete FCM token payload
  *
- * 재등록 경로를 시험하려면 토큰을 지워야 한다 — `FetchFcmToken`은 읽기뿐이라 이 동작을 대신하지
- * 못한다 (ADR-0080 디버그 패널 이관 단계 1).
+ * To exercise the re-registration path the token has to be deleted — `FetchFcmToken` is
+ * read-only and can't stand in for this (ADR-0080, debug-panel migration step 1).
  */
 export type DeleteFcmTokenPayload = {
-    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+    // Empty object type, reserved for future extension (optional fields, etc.).
 };
 
-/** [요청] 뱃지 카운트 조회 페이로드 */
+/** [Request] Fetch badge count payload */
 export type FetchBadgeCountPayload = {
-    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+    // Empty object type, reserved for future extension (optional fields, etc.).
 };
 
-/** [응답] FCM 토큰 결과 페이로드 */
+/** [Response] FCM token result payload */
 export type OnFetchFcmTokenPayload = {
     token: string;
 };
 
-/** [응답] FCM 토큰 삭제 결과 페이로드 */
+/** [Response] FCM token deletion result payload */
 export type OnDeleteFcmTokenPayload = {
     success: boolean;
 };
 
-/** [응답] 알림 수신/오픈 이벤트 페이로드 */
+/** [Response] Notification received/opened event payload */
 export type OnNotificationPayload = {
     notification: NotificationInfo;
 };
 
-/** [요청] 뱃지 카운트 설정 페이로드 */
+/** [Request] Set badge count payload */
 export type SetBadgeCountPayload = {
     count: number;
     /**
-     * 선택. Windows 전용 — 태스크바 overlay 아이콘으로 쓸 PNG data URL.
-     * Windows에는 dock 뱃지가 없어 overlay 아이콘이 필요하고, Electron nativeImage는
-     * SVG를 못 그리므로 렌더러(canvas)에서 PNG로 그려 전달합니다. macOS/Linux는 무시.
+     * Optional. Windows only — a PNG data URL to use as the taskbar overlay icon.
+     * Windows has no dock badge, so it needs an overlay icon instead, and Electron's
+     * nativeImage can't draw SVG, so it's drawn to PNG on the renderer (canvas) and
+     * passed in. Ignored on macOS/Linux.
      */
     overlayIconDataUrl?: string;
 };
 
-/** [응답] 뱃지 카운트 조회 결과 페이로드 */
+/** [Response] Fetch badge count result payload */
 export type OnFetchBadgeCountPayload = {
     count: number;
 };
 
 /**
- * [요청] 뱃지 base(네이티브 공유 카운터) 조회 페이로드.
+ * [Request] Fetch the badge base (the native shared counter) payload.
  *
- * `FetchBadgeCount`와 별개의 메시지입니다. 그쪽은 notifee가 답하는데 notifee의 badge API는
- * iOS 전용(그 외 플랫폼에서 항상 0)이라, 안드로이드에서 실제 카운트를 들고 있는 공유 저장소를
- * 읽으려면 다른 창구가 필요합니다. 새 타입으로 낸 이유는 웹이 앱보다 먼저 배포되기 때문입니다 —
- * 구버전 셸은 이 메시지를 모르므로 `NOT_FOUND`로 답하고, 웹은 그 답으로 "이 셸에서는 알 수 없음"을
- * 학습합니다. 기존 메시지의 의미를 바꾸면 그 구분이 불가능합니다. (ADR-0075)
+ * A separate message from `FetchBadgeCount`. That one is answered by notifee, whose badge
+ * API is iOS-only (always 0 elsewhere), so reading the shared store that actually holds
+ * the count on Android needs a different channel. It's issued as a new type because web
+ * ships ahead of the app — an older shell doesn't know this message, so it answers
+ * `NOT_FOUND`, and the web learns "unknown on this shell" from that answer. Changing the
+ * meaning of the existing message instead would make that distinction impossible. (ADR-0099)
  */
 export type FetchBadgeBasePayload = {
-    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+    // Empty object type, reserved for future extension (optional fields, etc.).
 };
 
 /**
- * [응답] 뱃지 base 조회 결과 페이로드.
+ * [Response] Fetch badge base result payload.
  *
- * `base`가 `null`이면 "이 플랫폼에서는 알 수 없음"입니다 — 0으로 답하지 않는 것이 계약의 핵심입니다.
- * 0은 유효한 카운트라서, 모르는 것을 0으로 답하면 소비자가 그것을 진짜 값으로 비교합니다.
+ * `base` being `null` means "unknown on this platform" — not answering with 0 is the
+ * whole point of the contract. 0 is a valid count, so answering "unknown" with 0 would
+ * let a consumer compare it as though it were a real value.
  */
 export type OnFetchBadgeBasePayload = {
     base: number | null;
 };
 
-/** [응답] 뱃지 카운트 설정 결과 페이로드 */
+/** [Response] Set badge count result payload */
 export type OnSetBadgeCountPayload = {
     success: boolean;
 };
 
 /**
- * [요청] OS 알림 표시 페이로드 (web -> app).
- * 데스크탑은 FCM이 없어 살아있는 WS가 새 메시지를 감지하면 셸에 OS 알림을 요청합니다.
+ * [Request] Show an OS notification payload (web -> app).
+ * Desktop has no FCM, so when a live WS detects a new message it asks the shell to show
+ * an OS notification instead.
  */
 export type ShowNotificationPayload = {
     title: string;
@@ -99,16 +103,16 @@ export type ShowNotificationPayload = {
     deeplink?: string;
 };
 
-/** [응답] OS 알림 표시 결과 페이로드 */
+/** [Response] Show OS notification result payload */
 export type OnShowNotificationPayload = {
     success: boolean;
 };
 
 /**
- * 백그라운드/종료 중 도착한 크로스 클라우드 푸시 한 건의 원시 판별 힌트 (ADR-0056).
- * 네이티브는 이 필드들을 해석하지 않고 그대로 저장만 한다 — `cid`의 relay 센티널(`'#'`)과
- * 배포 백엔드의 빈 문자열도 원시 그대로 남는다. 판별(resolvePushCloudId)은 웹의 단일
- * 지점에서만 수행한다.
+ * Raw discriminating hint for a single cross-cloud push that arrived while backgrounded or
+ * terminated (ADR-0056). Native does not interpret these fields, it only stores them as-is
+ * — the `cid` relay sentinel (`'#'`) and the deployment backend's empty string are also kept
+ * raw. Discrimination (resolvePushCloudId) happens only at the single point on the web side.
  */
 export type PushCloudMarkRecord = {
     cid?: string;
@@ -118,12 +122,12 @@ export type PushCloudMarkRecord = {
     channelName?: string;
 };
 
-/** [요청] 크로스 클라우드 푸시 마크 조회 페이로드 (ADR-0056). 응답과 동시에 네이티브 저장소를 비운다(drain). */
+/** [Request] Fetch cross-cloud push marks payload (ADR-0056). Draining the native store happens at the same time as the response. */
 export type FetchPushMarksPayload = {
-    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+    // Empty object type, reserved for future extension (optional fields, etc.).
 };
 
-/** [응답] 크로스 클라우드 푸시 마크 drain 결과 페이로드 */
+/** [Response] Cross-cloud push mark drain result payload */
 export type OnFetchPushMarksPayload = {
     marks: PushCloudMarkRecord[];
 };

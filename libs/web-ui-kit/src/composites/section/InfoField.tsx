@@ -5,7 +5,7 @@ import { cn } from '@chatic/lib/utils';
 import { Text } from '../../foundations/text';
 
 export interface InfoFieldProps {
-    /** Muted caption above the value (e.g. "플레이스 만든 날짜"). */
+    /** Muted caption above the value (e.g. "date the place was created"). */
     label: string;
     /**
      * The value. A string renders at the body scale; a node (a member row, a badge) is placed as-is,

@@ -1,8 +1,11 @@
 /**
  * `runtime/sandbox-controller.ts`
- * - Gateway Sandbox 클라 1개의 상태 컨트롤러(React 밖). 실 ClientContainer를 래핑해 sim→real.
- * - 상태머신 idle→connecting→connected→verified/error, 게이트웨이 호출, 클라별 로그/지표(collector), recv E2E.
- * - 로그는 액션마다 자체 기록(디자인 logFrame 패턴), 지표는 container.collector.summary()(실측).
+ * - State controller for a single Gateway Sandbox client (outside React). Wraps the real
+ *   ClientContainer to go from sim to real.
+ * - State machine idle→connecting→connected→verified/error, gateway calls, per-client log/metrics
+ *   (collector), recv E2E.
+ * - Logs are recorded by each action itself (the logFrame design pattern); metrics come from
+ *   `container.collector.summary()` (measured).
  */
 import type { DemoConnectionDraft, DeviceDraft } from '../demo-model';
 import { createClientContainer, encodeE2eMarker, type ClientContainer } from './client-container';
@@ -114,9 +117,9 @@ export class SandboxController {
         this.container.collector.subscribe(() => this.notify());
     }
 
-    /** SDK 내부 프레임(실제 요청/응답/sync)을 이벤트 로그에 그대로 노출 — 실동작 가시성. */
+    /** Surfaces the SDK's internal frames (actual request/response/sync) directly in the event log — visibility into real behavior. */
     private onContainerLog(level: LogRow['level'], label: string, detail?: string) {
-        // 응답/수신 계열은 rx(▼), 그 외는 tx(▲)로 표기.
+        // Response/receive-family labels are marked rx (▼), everything else tx (▲).
         const rx = /\.ok$|\.apply$|\.update$|\.sync|socket\.state|request\.ok/.test(label);
         this.logRow(rx ? 'rx' : 'tx', label, level, null, detail ?? '');
         this.notify();
@@ -146,7 +149,7 @@ export class SandboxController {
     }
 
     private onRecvFrame(from: string, seq: number, latencyMs: number) {
-        if (from === this.letter) return; // 자기 송신이 chat.feed poll로 돌아온 것 — 수신 아님
+        if (from === this.letter) return; // Our own send coming back via the chat.feed poll — not a receive
         this.rx += 1;
         const last = this.lastSeqFrom[from] ?? 0;
         if (last !== 0 && seq > last + 1) this.lossCount += seq - last - 1;
@@ -182,7 +185,7 @@ export class SandboxController {
         this.notify();
     }
 
-    /** WS 연결만(device.save 포함). 인증은 별도(authenticate) — 토큰 불필요. */
+    /** WS connect only (includes device.save). Auth is separate (authenticate) — no token needed. */
     async connectWs() {
         if (this.status === 'connecting' || this.status === 'connected' || this.status === 'verified') return;
         const t0 = performance.now();
@@ -202,7 +205,7 @@ export class SandboxController {
         this.notify();
     }
 
-    /** 선택적 인증 — 연결 후 토큰으로 auth.update. 실패해도 연결은 유지(재시도 가능). */
+    /** Optional auth — auth.update with a token after connecting. The connection stays up even on failure (retryable). */
     async authenticate() {
         if (this.status !== 'connected' && this.status !== 'verified') return;
         if (!this.token.trim()) return;
@@ -214,7 +217,7 @@ export class SandboxController {
             this.userId = `${res.memberId ?? res.member$?.id ?? ''}` || null;
             this.deviceId = res.deviceId ?? this.deviceId;
         } else {
-            // 인증 실패 시 연결은 유지(토큰 고쳐 재시도) — status는 connected 유지, 에러만 표시.
+            // On auth failure the connection stays up (fix the token and retry) — status stays connected, only the error is shown.
             this.status = 'connected';
             this.err = res?.error || `auth ${res?.state ?? 'failed'}`;
         }
@@ -245,7 +248,7 @@ export class SandboxController {
             return undefined;
         }
     }
-    /** 활성 채널 viewing 선언 — 서버가 viewing 중인 디바이스에만 chat.sync를 푸시하므로 수신에 필수. */
+    /** Declares viewing for the active channel — required to receive anything, since the server only pushes chat.sync to devices that are viewing. */
     private applyViewing() {
         if (this.status !== 'verified') return;
         const ch = this.syncOn ? this.activeChannel : null;

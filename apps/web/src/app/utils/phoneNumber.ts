@@ -38,7 +38,7 @@ const digitsOf = (value: string): string => value.replace(/\D/g, '');
  *
  * `Intl.DisplayNames` exists in every modern browser and WebView, but the fallback is real rather
  * than defensive noise: the picker rows also carry the flag and dial code, so ISO codes alone still
- * identify a country (ADR-0044 결과).
+ * identify a country (ADR-0044 outcome).
  */
 const createRegionNamer = (lang: string): ((code: string) => string) => {
     let names: Intl.DisplayNames;

@@ -24,9 +24,9 @@ export const itemSkus: string[] =
     }) ?? [];
 
 /**
- * 안드로이드 상품의 등급(Tier)을 계산합니다.
- * @param sku - 등급을 조회할 안드로이드 상품 SKU 코드
- * @returns 1부터 시작하는 등급 점수 (목록에 존재하지 않을 경우 0 반환)
+ * Computes the tier of an Android product.
+ * @param sku - the Android product SKU code to look up the tier for
+ * @returns a rank score starting from 1 (returns 0 if not found in the list)
  */
 export const getSkuRank = (sku: string): number => {
     if (Platform.OS !== 'android') return 0;
@@ -35,16 +35,16 @@ export const getSkuRank = (sku: string): number => {
 };
 
 /**
- * 업그레이드 및 다운그레이드 모드 계산
+ * Computes the upgrade/downgrade mode
  */
 export const getReplacementMode = (oldSku: string, newSku: string): SubscriptionReplacementModeAndroid => {
     const oldRank = getSkuRank(oldSku);
     const newRank = getSkuRank(newSku);
 
     if (newRank > oldRank) {
-        return 'with-time-proration'; // 업그레이드
+        return 'with-time-proration'; // upgrade
     } else if (newRank < oldRank) {
-        return 'deferred'; // 다운그레이드
+        return 'deferred'; // downgrade
     }
     return 'with-time-proration';
 };

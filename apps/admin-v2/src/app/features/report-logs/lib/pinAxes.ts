@@ -3,8 +3,8 @@
  * - The pinnable axes and their labels, in one place.
  *
  * `PinButton` and `TrackingPins` both name these axes for the operator, and the label had
- * already been written out twice. They must agree: the button says "유저 u1 로 추적" and
- * the chip that appears says "유저 u1", and a mismatch between them reads as two different
+ * already been written out twice. They must agree: the button says "Track by user u1" and
+ * the chip that appears says "user u1", and a mismatch between them reads as two different
  * filters.
  */
 

@@ -47,7 +47,7 @@ export const SubmitPlugin = ({ onSubmit }: { onSubmit: () => void }) => {
                 event => {
                     if (!event || event.shiftKey) return false;
                     event.preventDefault();
-                    // Mid-IME Enter (한글 조합) commits the composition only —
+                    // Mid-IME Enter (Hangul composition) commits the composition only —
                     // consume it without sending, like Slack.
                     if (!event.isComposing) onSubmitRef.current();
                     return true;

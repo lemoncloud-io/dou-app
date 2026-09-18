@@ -10,7 +10,7 @@ export interface SheetActionProps extends Omit<React.ComponentPropsWithoutRef<'b
 }
 
 /**
- * An action row in a bottom sheet: a leading glyph and a label (Figma "채팅 리스트" as the
+ * An action row in a bottom sheet: a leading glyph and a label (Figma "chat list" as the
  * action sheet uses it, 4712:16445).
  *
  * The sibling of `SheetOption`, not a variant of it — that one is a single-select radio row

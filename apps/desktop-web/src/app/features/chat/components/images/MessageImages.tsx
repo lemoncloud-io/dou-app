@@ -14,7 +14,7 @@ import { ImageSetMeta, ImageViewer, type ImageAuthor } from './ImageViewer';
 interface MessageImagesProps {
     /** Server id of the message the images belong to. */
     messageId: string;
-    /** "파일 삭제" is offered on your own messages only. */
+    /** "Delete file" is offered on your own messages only. */
     canDelete: boolean;
     author: ImageAuthor;
     /** Open this message's thread (the viewer's "Reply"). Absent inside the thread panel. */
@@ -22,9 +22,9 @@ interface MessageImagesProps {
 }
 
 /**
- * A message's images (Figma "#이미지 업로드 케이스").
+ * A message's images (Figma "#image upload case").
  *
- * One image: its file name, then the image. Several: "n개 파일 · 전체 다운로드", then a
+ * One image: its file name, then the image. Several: "n files · Download all", then a
  * two-column grid of up to four with the fourth counting the rest ("+n"). Any tile opens
  * the viewer on that image; the "+n" tile opens it on the first hidden one.
  */

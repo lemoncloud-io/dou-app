@@ -25,9 +25,10 @@ import { composeInviteSmsBody } from '../utils/inviteMessageCopy';
 import { sendInviteMessage } from '../utils/sendInviteMessage';
 
 /**
- * 초대 대기 화면 (ADR-0033 Track B, 취소·거절 실 API는 ADR-0043, 국제번호는 ADR-0044) — Figma
- * 3263-30072 (대기) / 3398-25887 (수락되어 입장) / 3263-30117 (거절) / 3263-30162 (만료) /
- * 3263-30207 (취소 확인) / 3413-18662 (취소 토스트).
+ * The invite waiting screen (ADR-0089 Track B; the actual cancel/decline API is ADR-0043;
+ * international numbers are ADR-0044) — Figma 3263-30072 (waiting) / 3398-25887 (accepted and
+ * entering) / 3263-30117 (declined) / 3263-30162 (expired) / 3263-30207 (cancel confirm) /
+ * 3413-18662 (cancel toast).
  *
  * A pseudo-channel-room screen: same header language as a chat room (`ChatRoomHeader`), but shows
  * invite status instead of messages. Reached from `ContactInvitePage` after issuing, or from a
@@ -100,7 +101,7 @@ export const InviteWaitingPage = () => {
         setIsReissuing(true);
         let replaced = false;
         try {
-            // Retire the prior invite FIRST (ADR-0043 결정 5). A pending prior must actually cancel —
+            // Retire the prior invite FIRST (ADR-0043 decision 5). A pending prior must actually cancel —
             // issuing before that leaves two live codes for the same phone, and issuing after a failed
             // cancel is how the pre-API reissue used to misbehave. Expired priors are best-effort
             // tidying and never block; rejected priors are dismissed locally (see useRetireInvite).
@@ -233,7 +234,7 @@ export const InviteWaitingPage = () => {
     };
 
     /**
-     * 초대 다시 하기 / 초대 취소 — the two actions the design puts under the validity card.
+     * "Reissue invite" / "Cancel invite" — the two actions the design puts under the validity card.
      * A rejected invite keeps only the reissue: it is already final, so there is nothing to cancel
      * (the server would not overwrite the mark either — ADR-0043).
      */
@@ -290,7 +291,7 @@ export const InviteWaitingPage = () => {
                     </div>
                 );
             }
-            // 'timeout' or 'unknown' (no channelId yet — 요청 5번 미확정): best-effort hand-off.
+            // 'timeout' or 'unknown' (no channelId yet — request item 5 undecided): best-effort hand-off.
             return (
                 <EmptyState
                     title={t('inviteWaiting.accepted.title')}

@@ -15,7 +15,7 @@ const readInjectedFlag = () =>
 /**
  * The registry row is the POLICY (`byStage: { LOCAL: true, DEV: true }`, PROD fail-closed), read
  * through `env.buildStage` so a repackaged shell reporting 'DEV' cannot open a PROD bundle
- * (ADR-0080 결정 4·5). It is what removes the 10-tap friction where that friction buys nothing.
+ * (ADR-0080 decisions 4 and 5). It is what removes the 10-tap friction where that friction buys nothing.
  *
  * sessionStorage stays as the UNLOCK RECORD: it is what the 10-tap + entry code writes, it works
  * before `config.init()`, and it is the only entry on PROD. Either one being true opens the panel.
@@ -53,7 +53,7 @@ export const setDebugModeEnabled = (enabled: boolean) => {
     // again" (DebugOverlayHost's docblock) would stop being true.
     if (enabled) config.set(OVERLAY_KEY, true, { lane: 'local' });
     else config.set(OVERLAY_KEY, false, { lane: 'local' });
-    // The registry's local lane is what the panel's setting controls write, and ADR-0079 결정 4 says
+    // The registry's local lane is what the panel's setting controls write, and ADR-0079 decision 4 says
     // the 10-tap + entry code is what opens it. Without this the unlock stopped at the panel door:
     // every `surface: 'dev'` key resolved `canWrite` WITHOUT 'local' on a stage where the lane is
     // shut (PROD), so the controls would render disabled on exactly the build they are needed on.

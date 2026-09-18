@@ -3,21 +3,21 @@ import type { Platform } from './common';
 export type PageLanguage = 'ko' | 'en' | 'cn' | 'jp' | 'vn' | 'id' | 'th';
 export type Env = 'local' | 'stage' | 'prod';
 
-/** 앱 및 웹 버전 정보 */
+/** App and web version info */
 export type VersionInfo = {
-    currentVersion: string; // 현재 통합 버전
-    latestVersion: string; // 서버 최신 버전
-    shouldUpdate: boolean; // 업데이트 강제 여부
-    appVersion: string; // 네이티브 빌드 버전
-    webVersion: string; // 번들링된 웹 버전
+    currentVersion: string; // Current combined version
+    latestVersion: string; // Latest version on the server
+    shouldUpdate: boolean; // Whether an update is forced
+    appVersion: string; // Native build version
+    webVersion: string; // Bundled web version
 };
 
-/** 디바이스 고유 정보 */
+/** Device-unique info */
 export type DeviceInfo = {
     stage: Env;
     platform: Platform;
-    application: string; // 앱 패키지명/번들ID
-    deviceToken?: string; // 푸시용 토큰 (FCM/APNS)
+    application: string; // App package name / bundle ID
+    deviceToken?: string; // Push token (FCM/APNS)
     /** @deprecated Composite `deviceId:firebaseInstallId`; use `uniqueDeviceId` + `firebaseInstallationId`. */
     deviceId?: string | null;
     deviceModel?: string | null;
@@ -30,7 +30,7 @@ export type DeviceInfo = {
     lang?: PageLanguage;
 };
 
-/** 디스플레이 안전 영역 (노치, 홈바 대응) */
+/** Display safe area (accounts for notch, home bar) */
 export type SafeAreaInfo = {
     top: number;
     bottom: number;
@@ -38,77 +38,77 @@ export type SafeAreaInfo = {
     right: number;
 };
 
-/** [응답] 디바이스/버전 정보 업데이트 페이로드 */
+/** [Response] Device/version info update payload */
 export type OnUpdateDeviceInfoPayload = DeviceInfo & VersionInfo;
 
-/** [응답] 세이프 에어리어 정보 반환 페이로드 */
+/** [Response] Safe area info return payload */
 export type OnFetchSafeAreaPayload = SafeAreaInfo;
 
 // --- File Upload Types ---
 
-/** [요청] 파일 업로드 요청 페이로드 */
+/** [Request] File upload request payload */
 export type RequestFileUploadPayload = {
-    uploadId: string; // 업로드 고유 식별자 (Web에서 UUID 생성하여 네이티브에 제어권 전달)
-    fileUri: string; // 기기 내부 임시 파일 URI (DocumentPicker/ImagePicker 획득 주소)
-    fileName: string; // 파일 이름
-    fileSize: number; // 파일 전체 크기 (bytes)
-    mimeType: string; // 파일 MIME 타입
-    uploadUrl: string; // 업로드 대상 API 엔드포인트 URL
-    chunkSize?: number; // 분할 전송 청크 크기 (기본값: 1MB = 1,048,576 bytes)
-    headers?: Record<string, string>; // 인증 토큰 등 커스텀 헤더
+    uploadId: string; // Unique upload identifier (generated as a UUID on the web side, then control is handed to native)
+    fileUri: string; // On-device temporary file URI (obtained from DocumentPicker/ImagePicker)
+    fileName: string; // File name
+    fileSize: number; // Total file size (bytes)
+    mimeType: string; // File MIME type
+    uploadUrl: string; // Target API endpoint URL for the upload
+    chunkSize?: number; // Chunk size for split transfer (default: 1MB = 1,048,576 bytes)
+    headers?: Record<string, string>; // Custom headers such as auth tokens
 };
 
 export default RequestFileUploadPayload;
 
-/** [요청] 파일 업로드 일시정지 페이로드 */
+/** [Request] Pause file upload payload */
 export type PauseFileUploadPayload = {
     uploadId: string;
 };
 
-/** [요청] 파일 업로드 재개 페이로드 */
+/** [Request] Resume file upload payload */
 export type ResumeFileUploadPayload = {
     uploadId: string;
 };
 
-/** [요청] 파일 업로드 취소 페이로드 */
+/** [Request] Cancel file upload payload */
 export type CancelFileUploadPayload = {
     uploadId: string;
 };
 
 /**
- * [요청] 수동 복구 가능한 업로드 작업 목록 조회 페이로드
+ * [Request] Fetch the list of manually recoverable upload tasks
  */
 export type ListRecoverableUploadsPayload = {
-    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+    // Empty object type, reserved for future extension (optional fields, etc.).
 };
 
-/** [요청] 업로드 작업 수동 복구(재개) 트리거 */
+/** [Request] Trigger manual recovery (resume) of an upload task */
 export type RecoverUploadPayload = {
     uploadId: string;
 };
 
-/** [요청] 업로드 작업 재시도 트리거 */
+/** [Request] Trigger retry of an upload task */
 export type RetryUploadPayload = {
     uploadId: string;
 };
 
-/** [요청] 테스트용 dummy sparse 파일 생성 */
+/** [Request] Create a dummy sparse file for testing */
 export type CreateDummyFilePayload = {
     sizeInBytes: number;
     fileName: string;
 };
 
-/** [응답] 테스트용 dummy sparse 파일 생성 결과 */
+/** [Response] Result of creating a dummy sparse file for testing */
 export type OnCreateDummyFilePayload = {
-    uri: string; // 생성된 파일의 file:// URI
-    name: string; // 파일명
-    size: number; // 요청한 파일 크기 (bytes)
+    uri: string; // file:// URI of the created file
+    name: string; // File name
+    size: number; // Requested file size (bytes)
 };
 
 export type RecoverableUploadTaskStatus = 'uploading' | 'paused' | 'failed' | 'cancelled' | 'completed';
 
 /**
- * [응답] 수동 복구 가능한 업로드 작업 정보
+ * [Response] Info for a manually recoverable upload task
  */
 export type RecoverableUploadTaskInfo = {
     uploadId: string;
@@ -123,52 +123,52 @@ export type RecoverableUploadTaskInfo = {
     updatedAt: number;
 };
 
-/** [응답] 수동 복구 가능한 업로드 작업 목록 반환 */
+/** [Response] Returns the list of manually recoverable upload tasks */
 export type OnListRecoverableUploadsPayload = {
     tasks: RecoverableUploadTaskInfo[];
 };
 
-/** [응답 - 이벤트] 파일 업로드 진행 상황 페이로드 */
+/** [Response - Event] File upload progress payload */
 export type OnUploadProgressPayload = {
     uploadId: string;
-    progress: number; // 0 ~ 1 사이의 소수 (진행 비율)
-    uploadedBytes: number; // 업로드 완료된 누적 바이트
-    totalBytes: number; // 전체 파일 바이트 크기
+    progress: number; // Fraction between 0 and 1 (progress ratio)
+    uploadedBytes: number; // Cumulative bytes uploaded so far
+    totalBytes: number; // Total file size in bytes
     status: 'uploading' | 'paused' | 'cancelled' | 'completed' | 'failed';
 };
 
-/** [응답 - 이벤트] 파일 업로드 완료 페이로드 */
+/** [Response - Event] File upload completion payload */
 export type OnUploadCompletePayload = {
     uploadId: string;
     success: boolean;
-    response?: string; // 업로드 성공 시 서버 응답 텍스트
+    response?: string; // Server response text on successful upload
     error?: {
         code: string;
         message: string;
     };
 };
 
-/** [요청] 주소록 조회 요청 페이로드 */
+/** [Request] Contacts lookup request payload */
 export type GetContactsPayload = {
-    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+    // Empty object type, reserved for future extension (optional fields, etc.).
 };
 
-/** [요청] 안전 영역 조회 요청 페이로드 */
+/** [Request] Safe area lookup request payload */
 export type FetchSafeAreaPayload = {
-    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+    // Empty object type, reserved for future extension (optional fields, etc.).
 };
 
-/** [요청] 백그라운드 상태 조회 요청 페이로드 */
+/** [Request] Background status lookup request payload */
 export type FetchBackgroundStatusPayload = {
-    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+    // Empty object type, reserved for future extension (optional fields, etc.).
 };
 
-/** [요청] 앱 아이콘 정보 조회 요청 페이로드 */
+/** [Request] App icon info lookup request payload */
 export type FetchAppIconPayload = {
-    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+    // Empty object type, reserved for future extension (optional fields, etc.).
 };
 
-/** [요청] 앱 아이콘 목록 조회 요청 페이로드 */
+/** [Request] App icon list lookup request payload */
 export type FetchAppIconListPayload = {
-    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+    // Empty object type, reserved for future extension (optional fields, etc.).
 };

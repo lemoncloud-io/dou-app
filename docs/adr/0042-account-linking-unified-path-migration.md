@@ -1,7 +1,7 @@
 # ADR-0042: Migrate wholesale to the unified account linking path (`auth.link-account`)
 
 > Status: Accepted · Decided: 2026-08-03
-> Follows: [ADR-0033](./0033-relay-dm-invite-and-auth-parallel-tracks.md) · [ADR-0034](./0034-inviter-phone-verification-guest-gate-and-sheet.md) · [ADR-0036](./0036-data-surface-unification-app-runtime-cleanup.md)
+> Follows: [ADR-0089](./0089-relay-dm-invite-and-auth-parallel-tracks.md) · [ADR-0034](./0034-inviter-phone-verification-guest-gate-and-sheet.md) · [ADR-0036](./0036-data-surface-unification-app-runtime-cleanup.md)
 
 > **Naming note (2026-09-01):** the `*RemoteDataSource` · `RemoteGatewayBundle` · `*DomainGateway` ·
 > `remoteFactory` · `remote/data-sources/` names this document uses are **the names of the time**. The

@@ -10,13 +10,13 @@ import type { AxiosRequestConfig } from 'axios';
  * home for everything lemon; the instance detoured through `@chatic/web-config` because it needs the
  * four env-derived constructor inputs and web-config was the only leaf both sides could bite. That
  * detour welded a live SDK instance, a token store and a module-load boot onto the repo's env leaf.
- * The `@chatic/*` 의존 0 contract never forbade *constructing* the instance here — only *reading* env
+ * The `@chatic/*` zero-dependency contract never forbade *constructing* the instance here — only *reading* env
  * here — so the split is: this lib owns the construction and the boot policy, the assembly point
  * (`app-runtime/http/transport.ts`) owns the values and the singleton.
  *
  * **The sealed surface is now a type gate.** `SealedWebTransport` deliberately omits `init()`,
  * `isAuthenticated()` and `getTokenStorage()` — the three APIs that fire lemon-web-core's own HTTP
- * refresh or hand a caller the means to. That was ADR-0070 결정 2 불변조건 3, previously held up by
+ * refresh or hand a caller the means to. That was ADR-0070 decision 2, invariant 3, previously held up by
  * comments alone (web-config's exported interface still declared `init`/`isAuthenticated`). The token
  * storage stays captured in the closure below, reachable only by the sealed boot.
  */

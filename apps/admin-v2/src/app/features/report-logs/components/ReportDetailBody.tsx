@@ -236,9 +236,9 @@ const TextSection = ({ title, text }: { title: string; text?: string }) => {
 /**
  * Stack view with two ways out of a minified trace.
  *
- * "IDE로 추적" copies the stack with the header `yarn trace` needs to fetch the
+ * "Trace to IDE" copies the stack with the header `yarn trace` needs to fetch the
  * build's map itself and print repo-relative frames — the whole trace lands in
- * the editor, which is where it gets read anyway. "소스맵 선택" stays for a look
+ * the editor, which is where it gets read anyway. "Choose source map" stays for a look
  * without leaving the browser: maps are not deployed (serving them would
  * publish the sources), so the operator supplies one from the build's
  * `sourcemaps-*` CI artifact and it is read locally, never uploaded.

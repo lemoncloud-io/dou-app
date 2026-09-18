@@ -5,12 +5,12 @@ export interface ReadReceiptProps {
     readCount: number;
     /** Members who have not read this message yet. */
     unreadCount: number;
-    /** Localized "read" label (e.g. "읽음"). Host supplies the string. */
+    /** Localized "read" label (e.g. "Read"). Host supplies the string. */
     readLabel: string;
-    /** Localized "unread" label (e.g. "안읽음"). Host supplies the string. */
+    /** Localized "unread" label (e.g. "Unread"). Host supplies the string. */
     unreadLabel: string;
     /**
-     * Presentation mode. `count` (default) is the group indicator `읽음 N · 안읽음 M`.
+     * Presentation mode. `count` (default) is the group indicator `Read N · Unread M`.
      * `dm` is the 1:1 KakaoTalk-style badge: just the unread count (0 or 1) while the
      * peer has not read, and nothing once read — labels are unused in this mode.
      */
@@ -20,10 +20,10 @@ export interface ReadReceiptProps {
 
 /**
  * Per-message read receipt — the Figma group-chat indicator next to a message
- * time (node 3209:27289): `읽음 N · 안읽음 M`. The read count (point color) is
+ * time (node 3209:27289): `Read N · Unread M`. The read count (point color) is
  * always shown; the unread segment (muted, with a bullet separator) appears only
  * while some members are still unread, so a fully-read message reads just
- * `읽음 N`. In `dm` mode it collapses to a single point-color unread count that
+ * `Read N`. In `dm` mode it collapses to a single point-color unread count that
  * disappears once the peer reads. Purely presentational; counts and labels come
  * in as props.
  */

@@ -47,9 +47,9 @@ describe('deriveAuthStatus — 진리표 (ADR-0076 결정 1)', () => {
 
     it('자격증명이 마진 이하면 stale, 경계값 포함', () => {
         expect(deriveAuthStatus(healthy({ credentialMs: MARGIN - 1 }))).toBe('stale');
-        expect(deriveAuthStatus(healthy({ credentialMs: MARGIN }))).toBe('stale'); // 경계는 stale 쪽
+        expect(deriveAuthStatus(healthy({ credentialMs: MARGIN }))).toBe('stale'); // the boundary itself is stale
         expect(deriveAuthStatus(healthy({ credentialMs: MARGIN + 1 }))).toBe('verified');
-        expect(deriveAuthStatus(healthy({ credentialMs: -1 }))).toBe('stale'); // 이미 지났다
+        expect(deriveAuthStatus(healthy({ credentialMs: -1 }))).toBe('stale'); // already past expiry
     });
 
     it('측정 불가(credentialMs null)는 fresh가 아니라 stale이다', () => {
@@ -78,21 +78,21 @@ describe('deriveAuthStatus — 진리표 (ADR-0076 결정 1)', () => {
 });
 
 describe('deriveAuthStatus — 기존 판정 사본과의 동등성 (이관 전 잠금)', () => {
-    // requestRelaySessionRefresh 의 사전 조건: client && auth && connected && authenticated &&
-    // isKindVerified. 그 조합이 통과시키던 상태가 정확히 verified/stale 둘이다.
+    // requestRelaySessionRefresh's precondition: client && auth && connected && authenticated &&
+    // isKindVerified. The states that combination let through are exactly verified and stale.
     it('canRefreshThroughSocket 은 verified·stale 에서만 true', () => {
         const all: AuthStatus[] = ['absent', 'handshaking', 'verified', 'stale', 'expired'];
         expect(all.filter(canRefreshThroughSocket)).toEqual(['verified', 'stale']);
     });
 
-    // recoverUnverifiedSockets 의 조건: 슬롯이 바인딩됐고 !isKindVerified 면 킥. 바인딩됐다는 것은
-    // 토큰이 있다는 뜻(바인딩이 identityToken 에 걸려 있다)이므로 absent 는 애초에 오지 않는다.
+    // recoverUnverifiedSockets's condition: kick when the slot is bound and !isKindVerified. Being
+    // bound means there is a token (binding hinges on identityToken), so absent never arrives here.
     it('needsSocketKick 은 handshaking·expired 에서만 true', () => {
         const all: AuthStatus[] = ['absent', 'handshaking', 'verified', 'stale', 'expired'];
         expect(all.filter(needsSocketKick)).toEqual(['handshaking', 'expired']);
     });
 
-    // useSessionStalenessGuard 의 두 트리거(저장 세션 만료 · 자격증명 마진 이하)가 한 상태로 모인다.
+    // useSessionStalenessGuard's two triggers (stored session expired, credential under margin) both converge on one state.
     it('가드의 두 트리거가 모두 stale 하나로 모인다', () => {
         expect(deriveAuthStatus(healthy({ storedSessionExpired: true }))).toBe('stale');
         expect(deriveAuthStatus(healthy({ credentialMs: MARGIN - 1 }))).toBe('stale');

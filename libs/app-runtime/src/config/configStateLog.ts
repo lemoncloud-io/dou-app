@@ -4,7 +4,7 @@ import { config } from '@chatic/config';
 import type { ConfigSnapshot } from '@chatic/config';
 
 /**
- * Leaves this device's effective settings in the logs (ADR-0079 결정 16).
+ * Leaves this device's effective settings in the logs (ADR-0079 Decision 16).
  *
  * ## Why events, not state
  *
@@ -18,7 +18,7 @@ import type { ConfigSnapshot } from '@chatic/config';
  * 2. **One line per key afterwards**, whenever the resolved value moves, naming the row that won.
  *
  * Together they are a complete history, and the log pipeline already carries events — no new store
- * and no new format (ADR-0063). The screen half of 결정 16 is separate and reads `snapshotAll()`;
+ * and no new format (ADR-0063). The screen half of Decision 16 is separate and reads `snapshotAll()`;
  * it belongs to the debug panel (ADR-0080), not here.
  *
  * ## Why `isOverridden` and not "differs from defaultValue"
@@ -31,14 +31,14 @@ import type { ConfigSnapshot } from '@chatic/config';
  *
  * ## Why it lives here
  *
- * `@chatic/config` imports nothing (ADR-0079 결정 1), so it cannot reach a logger, and every app
+ * `@chatic/config` imports nothing (ADR-0079 Decision 1), so it cannot reach a logger, and every app
  * that boots the config registry also calls `initAppRuntime` — this lib is the one place that
  * depends on both. Doing it per app would be four copies of the same twelve lines.
  *
  * ## Why the values are not redacted
  *
  * The registry holds settings, not identity: device ids, tokens and personal data were deliberately
- * kept out of it (ADR-0079 §카브아웃), so there is nothing here to leak. `debug.entryCode` is the
+ * kept out of it (ADR-0079 §carve-out), so there is nothing here to leak. `debug.entryCode` is the
  * single exception and the single exclusion below — it is a credential, and an endpoint pointing at
  * a QA server is exactly the kind of fact worth carrying.
  */

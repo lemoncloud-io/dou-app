@@ -22,7 +22,8 @@ describe('resolveDmInviteState — 1:1 상대 부재 상태 파생', () => {
         });
     });
 
-    // 서버 state는 다음 조회까지 pending으로 남는다 — 링크가 죽는 순간은 카운트다운이 판정한다.
+    // The server state stays pending until the next fetch — it's the countdown that decides the
+    // moment the link dies.
     it('서버가 아직 pending이라도 카운트다운이 끝났으면 expired로 내린다', () => {
         expect(
             resolveDmInviteState({ peerLeft: true, invite: { state: 'pending', expiredAt: EXPIRY }, isExpired: true })
@@ -40,8 +41,9 @@ describe('resolveDmInviteState — 1:1 상대 부재 상태 파생', () => {
         });
     });
 
-    // 이 방이 존재한다는 것 자체가 누군가 초대를 수락했다는 뜻이라, accepted 행은 이 채널을 계속
-    // 가리키며 목록에 남는다. 그것을 "진행 중인 초대"로 읽으면 상대가 나간 뒤 CTA가 영구히 사라진다.
+    // This room's very existence means someone already accepted an invite, so the accepted row
+    // stays in the list, still pointing at this channel. Reading that as an "invite in progress"
+    // would make the CTA disappear permanently once the peer leaves.
     it('이미 소진된 초대(accepted·canceled)는 초대가 없는 것과 같다', () => {
         expect(resolveDmInviteState({ peerLeft: true, invite: { state: 'accepted' } })).toEqual({ kind: 'absent' });
         expect(resolveDmInviteState({ peerLeft: true, invite: { state: 'canceled' } })).toEqual({ kind: 'absent' });
@@ -59,7 +61,7 @@ describe('canReinviteDm — 다시 초대하기 노출', () => {
         expect(canReinviteDm(state('present'))).toBe(false);
     });
 
-    // 살아 있는 코드가 하나 있는 동안 두 번째를 만들지 않는다 (Figma 4062-14154에 버튼이 없다).
+    // Don't create a second code while one is still alive (Figma 4062-14154 has no button for it).
     it('초대가 살아 있는 동안에는 감춘다', () => {
         expect(canReinviteDm(state('pending'))).toBe(false);
     });

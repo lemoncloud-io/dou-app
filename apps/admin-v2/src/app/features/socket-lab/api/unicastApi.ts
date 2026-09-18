@@ -1,6 +1,6 @@
 /**
  * `api/unicastApi.ts`
- * - Observe 탭 unicast 전송 — 디바이스 상태별 푸시 전달 검증용.
+ * - Unicast sends from the Observe tab — for verifying push delivery per device state.
  */
 import { runtime } from '@chatic/app-runtime';
 

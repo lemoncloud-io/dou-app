@@ -45,7 +45,7 @@ jest.mock('../store/stores', () => ({
 
 jest.mock('../store', () => ({
     rebuildSessionIdentity: (...args: unknown[]) => mockRebuildSessionIdentity(...args),
-    // The store announces KINDS now (ADR-0076 결정 2). `mockNotifySessionStateChanged` stands for
+    // The store announces KINDS now (ADR-0076 decision 2). `mockNotifySessionStateChanged` stands for
     // `emit`, so the existing "was the session announced" assertions keep their meaning; `batch`
     // runs straight through because the collapsing is covered by signal.test.ts.
     sessionSignal: {
@@ -170,7 +170,8 @@ describe('reissueCommittedCloudTokens', () => {
 
         expect(mockSaveDelegationToken).toHaveBeenCalledWith(delegation());
         expect(mockRebuildSessionIdentity).toHaveBeenCalled();
-        // 재발급은 클라우드 CHANGE가 아니므로 위임 토큰만 움직인 창을 관측자가 보면 안 된다.
+        // A re-issue is not a cloud CHANGE, so observers must never see a window where only the
+        // delegation token has moved.
         expect(mockBatch).toHaveBeenCalledTimes(1);
     });
 

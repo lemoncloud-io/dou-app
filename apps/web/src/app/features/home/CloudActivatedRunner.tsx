@@ -10,7 +10,7 @@ import { InAppNotificationCard } from '../../ui/components/InAppNotificationCard
 
 /**
  * Server-owned envelope type for the cloud-activation unicast. Not enforced by any shared type:
- * the backend picks this string, so a rename there goes silent here (ADR-0075 리스크 R3).
+ * the backend picks this string, so a rename there goes silent here (ADR-0098 Risk R3).
  */
 const CLOUD_ACTIVATED_EVENT = 'cloud.activated';
 
@@ -29,7 +29,7 @@ interface CloudActivatedEvent {
 }
 
 /**
- * Cloud activation over the socket (ADR-0075). Mounted once under AppRuntime, alongside
+ * Cloud activation over the socket (ADR-0098). Mounted once under AppRuntime, alongside
  * `CloudPushMarkRunner`.
  *
  * The server sends ONE notification when a cloud first goes active, and the delivery layer picks the

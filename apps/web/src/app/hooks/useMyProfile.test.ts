@@ -63,8 +63,8 @@ describe('useMyProfile — 활성 사이트 내 프로필 관측', () => {
         expect(result.current.profile).toEqual(profile);
     });
 
-    // 소켓이 붙기 전에 쏘면 SDK가 `503 SOCKET NOT CONNECTED`로 즉시 거절한다.
-    // 삼켜지긴 하지만 로그 버퍼와 리포트에는 남아 콜드스타트마다 노이즈가 됐다.
+    // Firing before the socket attaches gets an immediate `503 SOCKET NOT CONNECTED` rejection from the SDK.
+    // It's swallowed, but it still lands in the log buffer and reports, adding noise on every cold start.
     it('소켓이 verified 전이면 구독만 하고 fetch는 미룬다', () => {
         useRuntimeSocketStateMock.mockReturnValue({ isVerified: false });
         useSessionSelectionMock.mockReturnValue({ selectedSiteId: 's1' });
@@ -72,7 +72,7 @@ describe('useMyProfile — 활성 사이트 내 프로필 관측', () => {
 
         renderHook(() => useMyProfile());
 
-        // 캐시 값은 그대로 흘러야 하므로 구독은 건너뛰지 않는다.
+        // The subscription is not skipped, since cached values still need to flow through.
         expect(observeItem).toHaveBeenCalledWith('s1@u1', expect.any(Function));
         expect(getMyProfile).not.toHaveBeenCalled();
     });

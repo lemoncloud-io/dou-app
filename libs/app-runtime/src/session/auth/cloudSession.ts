@@ -6,7 +6,7 @@ import type { CloudSessionSnapshot } from '../store';
 import { issueCloudTokens } from './cloudTokens';
 
 /**
- * The CLOUD half of the session hub's use-cases (ADR-0076 결정 5) — entering a cloud, leaving it, and
+ * The CLOUD half of the session hub's use-cases (ADR-0076 decision 5) — entering a cloud, leaving it, and
  * moving the selected site.
  *
  * Split out of the 550-line `services.ts` because the two halves share nothing but the stores: relay
@@ -71,7 +71,7 @@ class CloudSession implements ICloudSession {
                 allowCache: true,
             });
 
-            // The commit is ONE observable change (ADR-0076 결정 2). Before this batch the success path
+            // The commit is ONE observable change (ADR-0076 decision 2). Before this batch the success path
             // fired the session signal eight times, so seven inconsistent intermediate states were
             // visible to every observer — selected cloud moved but tokens had not, tokens landed but the
             // identity had not re-derived, and so on. The optimistic pre-apply above stays OUTSIDE the
@@ -111,7 +111,7 @@ class CloudSession implements ICloudSession {
     /**
      * Clears the cloud stores while keeping relay authentication intact. **Not the app-facing cloud
      * logout** — that is `socket/auth/logoutCloudSession`, which notifies the cloud socket first.
-     * Renamed off `logoutCloudSession` by ADR-0076 결정 7 (see `clearSessionAndRedirect`).
+     * Renamed off `logoutCloudSession` by ADR-0076 decision 7 (see `clearSessionAndRedirect`).
      */
     clearStores(): void {
         // Fully leave the cloud: clear the delegation + cloud token AND the selected cloud/site so

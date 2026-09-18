@@ -1,7 +1,7 @@
 module.exports = {
     testEnvironment: 'jsdom',
     setupFiles: ['<rootDir>/jest.setup.ts'],
-    // `uuid` ships ESM-only; the session hooks that moved into `@chatic/app-runtime` (ADR-0070 3단계)
+    // `uuid` ships ESM-only; the session hooks that moved into `@chatic/app-runtime` (ADR-0070 step 3)
     // pull it in via `useDynamicDeviceId`, so it must be transformed rather than required as CJS.
     transformIgnorePatterns: ['node_modules/(?!(@chatic|@lemoncloud|uuid)/)'],
     moduleNameMapper: {

@@ -54,7 +54,7 @@ export const useAppUpdateStatus = (): AppUpdateStatus => {
             // Only on the transition, not on every check: this runs on mount and on every
             // foreground return, so reporting the standing state would file the same line all day.
             // The edge is what answers both shapes of the report — "the update prompt never
-            // appeared" and "it keeps appearing after I updated" (ADR-0075).
+            // appeared" and "it keeps appearing after I updated" (ADR-0099).
             const previous = useAppUpdateStore.getState().updateAvailable;
             if (next.updateAvailable !== previous) {
                 logger.info('VERSION', `app update ${next.updateAvailable ? 'available' : 'no longer offered'}`, {

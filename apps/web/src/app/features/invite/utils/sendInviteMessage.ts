@@ -9,7 +9,7 @@ export type InviteMessageChannel = 'sms' | 'clipboard';
 /**
  * Deliver an invite message to `phone`: opens the native SMS composer prefilled with `body` when
  * running in the app, falling back to a clipboard copy otherwise — including when the composer
- * bridge rejects (no native bridge) or reports it could not open (ADR-0033 D4).
+ * bridge rejects (no native bridge) or reports it could not open (ADR-0089 D4).
  *
  * Never rejects: a clipboard failure (e.g. no Clipboard API) surfaces as `false`, which callers
  * treat as the invite still being issued, just without an automatic hand-off.

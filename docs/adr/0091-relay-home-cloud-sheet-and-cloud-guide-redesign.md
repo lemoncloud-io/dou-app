@@ -212,7 +212,7 @@ consolidation stay with the plan picker, and the guide screen holds its own `clo
 
 **Why**: `PlanCompareCard` and `PlanBulletList` in `web-ui-kit` were built for this screen only, so
 after the deletion they remained as orphans with zero app consumers, and the "Read-only pitch …
-(ADR-0034)" comment in `MyPage` plus the `openCloudGuide()` function name in `HomePage` kept pointing
+(ADR-0091)" comment in `MyPage` plus the `openCloudGuide()` function name in `HomePage` kept pointing
 at a screen that no longer existed. The implementation was out of step with the ADR.
 
 **What is accepted**: the three subscription benefits are stated on two screens. The judgement that

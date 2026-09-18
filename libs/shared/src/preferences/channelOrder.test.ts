@@ -28,7 +28,7 @@ beforeEach(() => jest.clearAllMocks());
 
 describe('applyChannelOrder', () => {
     it('저장된 순서를 먼저 유지하고, 모르는 id는 들어온(이름) 순서대로 뒤에 붙는다', () => {
-        // 저장: [c] — 현재 목록: a, b, c (이름 순). c가 앞에 머물고 나머지는 이름 순 유지.
+        // Stored: [c] — current list: a, b, c (name order). c stays in front, the rest keep name order.
         expect(applyChannelOrder(['a', 'b', 'c'], ['c'])).toEqual(['c', 'a', 'b']);
     });
 
@@ -43,7 +43,7 @@ describe('applyChannelOrder', () => {
 
 describe('moveChannel', () => {
     it('현재 목록에 없는 id를 order에서 가지런히 잘라낸다', () => {
-        // 'gone'은 더 이상 존재하지 않는 채널 — 이동 한 번에 함께 정리된다.
+        // 'gone' is a channel that no longer exists — it gets cleaned up as part of the same move.
         expect(moveChannel(['a', 'b', 'gone', 'c'], 'c', 0, ['a', 'b', 'c'])).toEqual(['c', 'a', 'b']);
     });
 
@@ -62,10 +62,10 @@ describe('normalizeChannelOrder', () => {
         expect(
             normalizeChannelOrder({
                 'cloud-1:place-1': ['ch-2', 'ch-1'],
-                'place-1': ['ch-9'], // bare placeId — 어느 클라우드의 것인지 몰라 버린다
-                'cloud-2:place-2': ['ch-3', 42, null, ''], // non-string/빈 문자열 제거
-                'cloud-3:place-3': [], // 빈 배열 스코프는 저장하지 않는다
-                'cloud-4:place-4': 'nope', // 배열 아님
+                'place-1': ['ch-9'], // bare placeId — dropped because we don't know which cloud it belongs to
+                'cloud-2:place-2': ['ch-3', 42, null, ''], // strip non-string/empty-string entries
+                'cloud-3:place-3': [], // an empty-array scope is not stored
+                'cloud-4:place-4': 'nope', // not an array
             })
         ).toEqual({ 'cloud-1:place-1': ['ch-2', 'ch-1'], 'cloud-2:place-2': ['ch-3'] });
     });

@@ -216,7 +216,8 @@ describe('RelayInviteAccept', () => {
         expect(screen.getByText('북클럽')).toBeInTheDocument();
     });
 
-    // relay invite.get이 site$를 채워주지 않는 현재 상태 — 카드가 조용히 접힌다(ADR-0033 D1 선반영).
+    // The current state where relay invite.get doesn't populate site$ — the card just folds away
+    // quietly (ADR-0089 D1, applied ahead of time).
     it('플레이스 메타가 없으면 카드가 접힌다', () => {
         mockFlow = flow({ invite: { id: 'inv-1', state: 'pending', inviter$: { name: 'Sunny' } } });
         render(<RelayInviteAccept code={CODE} />);
@@ -255,8 +256,8 @@ describe('RelayInviteAccept — 거절 확인 다이얼로그 (ADR-0043, Figma 3
     });
 
     // Regression: confirmDecline used to flip the flow's phase to 'submitting', which has no
-    // branch of its own here and fell through to the accept screen with its "수락" spinner — the
-    // confirm dialog disappeared right when the user had just clicked "거절하기". Staying in
+    // branch of its own here and fell through to the accept screen with its "Accept" spinner — the
+    // confirm dialog disappeared right when the user had just clicked "Decline". Staying in
     // `declining` and driving the dialog's own `isPending` (checked via the disabled confirm
     // button, same as InviteWaitingPage's cancel dialog) is what fixes that.
     it('isRejecting이 켜지면 다이얼로그에 남아 양쪽 버튼이 비활성화된다 — 수락 화면으로 떨어지지 않는다', () => {

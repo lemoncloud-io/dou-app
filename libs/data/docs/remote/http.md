@@ -27,7 +27,7 @@ remote/
 | `AuthHttpDomainGateway`         | `OAuthHttpGateway` — 12: `registerUser` · `registerUserV2` · `findAlias` · `verifyAlias` · `loginInvite` · `inviteInfo` · `registerDevice` · `login` · `verifyNativeToken` · `exchangeCode` · `delegateCloud` · `exchangeToken`                   | `AuthHttpDataSource`         |
 | `UserHttpDomainGateway`         | `UserHttpGateway` — `list` · `tryProfile` · `updateProfile` · `registerDevice`                                                                                                                                                                    | `UserHttpDataSource`         |
 | `CloudHttpDomainGateway`        | `CloudHttpGateway` — `list` · `update` · `make` · `release` · `verifyEmail`                                                                                                                                                                       | `CloudHttpDataSource`        |
-| `SubscriptionHttpDomainGateway` | `SubscriptionHttpGateway` — `plans` · `validateGoogle` · `validateApple` · `receipts` · `receiptDetail` · `membership` · `validateMembership`, plus the admin console's `adminMemberships` · `updateMembershipByAdmin` · `adminClouds` (ADR-0082) | `SubscriptionHttpDataSource` |
+| `SubscriptionHttpDomainGateway` | `SubscriptionHttpGateway` — `plans` · `validateGoogle` · `validateApple` · `receipts` · `receiptDetail` · `membership` · `validateMembership`, plus the admin console's `adminMemberships` · `updateMembershipByAdmin` · `adminClouds` (ADR-0101) | `SubscriptionHttpDataSource` |
 | `ReportHttpDomainGateway`       | `ReportHttpGateway` — `reportIssue` · `uploadLogBatch` (all of it)                                                                                                                                                                                | `ReportHttpDataSource`       |
 
 The point of `Pick<>` is that the consumer owns the contract. The socket bundle goes further and uses
@@ -99,7 +99,7 @@ device repository takes the narrow one, the user repository the wide one.
 
 ## The admin console surface
 
-`apps/admin-v2`'s reads hang off `SubscriptionHttpDataSource` (ADR-0082). Two things differ from the
+`apps/admin-v2`'s reads hang off `SubscriptionHttpDataSource` (ADR-0101). Two things differ from the
 normal path.
 
 **① `fetchAdminClouds` rides the subscription bundle rather than the cloud one** — even though clouds

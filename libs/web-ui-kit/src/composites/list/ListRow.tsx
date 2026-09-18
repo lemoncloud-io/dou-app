@@ -11,7 +11,7 @@ export interface ListRowProps extends Omit<React.HTMLAttributes<HTMLElement>, 't
     subtitle?: React.ReactNode;
     /** Trailing slot (chevron / toggle / badge). */
     trailing?: React.ReactNode;
-    /** Renders the title in the destructive color (e.g. 방 삭제). */
+    /** Renders the title in the destructive color (e.g. Delete room). */
     destructive?: boolean;
     /** Makes the whole row a button. */
     onClick?: () => void;

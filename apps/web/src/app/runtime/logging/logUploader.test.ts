@@ -126,8 +126,8 @@ describe('startLogUploader — 하이브리드', () => {
     });
 
     it('앱이 답하면 부팅 창 사본을 버린다 — 저장의 주인은 앱이다', async () => {
-        // 낱건 릴레이가 dispatch 시점에 엔트리를 앱으로 넘겼으므로, 앱이 저장소를
-        // 서빙한다고 확인된 순간 웹의 사본은 중복이다. 그전까지만 들고 있는다.
+        // The per-entry relay already handed the entry to the app at dispatch time, so once the app
+        // is confirmed to be serving storage, the web's copy is a duplicate. It's only held until then.
         handle = startLogUploader();
         logger.info('TEST', 'hybrid');
 
@@ -170,9 +170,9 @@ describe('startLogUploader — 앱이 저장소를 못 줄 때 (구버전 앱)',
     });
 
     it('웹이 대신 쌓고 직접 보낸다 — 앱보다 먼저 배포되는 쪽이 웹이다', async () => {
-        // 이 경로의 메시지(FetchLogUploadQueue 등)는 앱과 함께 배포되는데 웹이
-        // 먼저 나간다. 폴백이 없으면 앱이 따라잡을 때까지 모든 하이브리드
-        // 사용자의 로그가 서버에 닿지 않는다 — 엣지 케이스가 아니라 기본 상태다.
+        // The messages on this path (FetchLogUploadQueue, etc.) ship together with the app, but the
+        // web goes out first. Without a fallback, every hybrid user's logs would fail to reach the
+        // server until the app catches up — this isn't an edge case, it's the default state.
         handle = startLogUploader();
         logger.info('TEST', 'kept by web');
 
@@ -182,8 +182,9 @@ describe('startLogUploader — 앱이 저장소를 못 줄 때 (구버전 앱)',
     });
 
     it('부팅 창의 엔트리도 살아남는다 — NOT_FOUND는 첫 사이클에야 배운다', async () => {
-        // 하이브리드라고 처음부터 적재를 끄면, 앱이 답하기 전에 나온 엔트리는
-        // 어디에도 없다. 하필 그 구간이 세션의 나머지를 설명하는 부분이다.
+        // Turning off buffering from the start just because it's hybrid would leave entries emitted
+        // before the app responds nowhere at all — and that window is exactly the part that explains
+        // the rest of the session.
         handle = startLogUploader();
         logger.info('TEST', 'boot window');
 
@@ -225,9 +226,10 @@ describe('startLogUploader — 기기 opt-out', () => {
         expect(stored).toEqual([]);
     });
 
-    // 이 자리에는 "링버퍼는 건드리지 않는다"가 있었다. 저장소가 둘일 때는 opt-out이
-    // 전송용만 비우고 진단용은 남기는 것이 맞았지만, 이제 저장소가 하나라 그 구분이
-    // 없다 — opt-out은 남는 사본이 없어야 한다는 더 센 성질로 대체된다.
+    // This spot used to say "the ring buffer is left alone". When there were two stores, it was
+    // correct for opt-out to clear only the upload copy and keep the diagnostic one, but now there's
+    // a single store and that distinction no longer exists — opt-out is replaced by the stronger
+    // property that no copy may remain.
     it('적재분이 어디에도 남지 않는다 — 저장소가 하나이므로 예외가 없다', async () => {
         handle = startLogUploader();
         logger.info('TEST', 'collected');
@@ -337,8 +339,8 @@ describe('startLogUploader — 전송 보류', () => {
     });
 
     it('하이브리드에서 보류를 켜면 앱 저장소가 유지된다 — 모니터링이 읽는 곳이 거기다', async () => {
-        // 보류는 "쌓아두되 보내지 마라"이므로 ack이 일어나지 않아야 한다.
-        // 적재 자체는 릴레이가 계속 하므로 이 레버와 무관하다(원칙 14).
+        // A hold means "buffer it, but don't send it", so no ack should happen.
+        // Buffering itself keeps happening via the relay regardless of this lever (principle 14).
         mockIsNative = true;
         uploadHeld = true;
         appQueue.push({ id: 'held', level: 'info', tag: 'APP', message: 'still here', timestamp: 1 });

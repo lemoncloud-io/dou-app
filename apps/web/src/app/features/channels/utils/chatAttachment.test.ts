@@ -6,8 +6,9 @@ describe('safeAttachmentUrl — 원문 링크 스킴 검증', () => {
         expect(safeAttachmentUrl('http://example.com')).toBe('http://example.com');
     });
 
-    // 첨부 본문은 서버가 해석하지 않고 보존하는 webhook 입력이고, 이 값은 네이티브 셸에서 OS
-    // 브라우저로 그대로 넘어간다 — 스킴을 거르지 않으면 href가 실행 경로가 된다.
+    // The attachment body is webhook input that the server preserves without interpreting, and
+    // this value is passed straight to the OS browser from the native shell — without a scheme
+    // filter, href becomes an execution path.
     it('실행 가능한 스킴은 버린다', () => {
         expect(safeAttachmentUrl('javascript:alert(1)')).toBeUndefined();
         expect(safeAttachmentUrl('data:text/html,<script>')).toBeUndefined();
@@ -36,7 +37,8 @@ describe('hasAttachmentContent — 그릴 것이 있는가', () => {
         expect(hasAttachmentContent({ sourceUrl: 'https://example.com' })).toBe(true);
     });
 
-    // 서버가 보존만 하므로 `{}`나 공백만 든 첨부가 올 수 있다 — 빈 카드보다 안 그리는 게 낫다.
+    // Since the server only preserves the value, an attachment can arrive as `{}` or with only
+    // whitespace — not rendering is better than rendering an empty card.
     it('비었거나 공백뿐이면 그리지 않는다', () => {
         expect(hasAttachmentContent(undefined)).toBe(false);
         expect(hasAttachmentContent(null)).toBe(false);
@@ -45,7 +47,7 @@ describe('hasAttachmentContent — 그릴 것이 있는가', () => {
         expect(hasAttachmentContent({ fields: [] })).toBe(false);
     });
 
-    // 링크만 든 첨부라도, 그 링크를 못 쓰면 카드에 남는 게 없다.
+    // Even an attachment that holds only a link leaves nothing on the card if that link can't be used.
     it('쓸 수 없는 링크만 있으면 그리지 않는다', () => {
         expect(hasAttachmentContent({ sourceUrl: 'javascript:alert(1)' })).toBe(false);
     });
@@ -67,7 +69,8 @@ describe('resolveAttachmentAccent — 심각도 색', () => {
         expect(resolveAttachmentAccent('#F00')).toBe('#f00');
     });
 
-    // 모르는 값에 색을 지어내면 심각도를 잘못 말하게 되고, 빈 값을 두면 레일이 사라진다.
+    // Inventing a color for an unknown value would misstate the severity, and leaving an empty
+    // value with no color would make the rail disappear.
     it('모르는 값과 빈 값은 중립 테두리로 떨어진다', () => {
         expect(resolveAttachmentAccent('chartreuse')).toBe('hsl(var(--input-border))');
         expect(resolveAttachmentAccent('#12345')).toBe('hsl(var(--input-border))');

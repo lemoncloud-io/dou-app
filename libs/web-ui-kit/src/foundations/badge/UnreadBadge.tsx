@@ -10,7 +10,7 @@ export interface UnreadBadgeProps {
      */
     variant?: 'accent' | 'pill';
     /**
-     * Accessible label (e.g. a localized "3개 안 읽음"). Supplied by the host so
+     * Accessible label (e.g. a localized "3 unread"). Supplied by the host so
      * a screen reader announces context, not a bare number. Kept i18n-agnostic.
      */
     label?: string;

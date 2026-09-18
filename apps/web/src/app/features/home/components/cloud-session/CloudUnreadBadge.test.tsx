@@ -14,7 +14,7 @@ describe('CloudUnreadBadge — 스위처 읽지 않음 뱃지 (Figma 4147:24964)
     it('"N"은 장식 글리프이므로 접근성 이름은 i18n 라벨에서 온다', () => {
         render(<CloudUnreadBadge />);
 
-        // The screen reader must get "읽지 않음"/"Unread", never the bare letter.
+        // The screen reader must get the "Unread" label, never the bare letter.
         const badge = screen.getByRole('status', { name: 'cloudSessionSheet.unreadBadge' });
         expect(badge).toHaveTextContent('N');
         expect(badge.querySelector('[aria-hidden="true"]')).not.toBeNull();

@@ -47,8 +47,8 @@ describe('useReceivedPushLog — 푸시 수신 기록', () => {
         expect(result.current.entries[0].id).not.toBe(result.current.entries[1].id);
     });
 
-    // 수신 엔트리는 앱 전역 구독자(useInAppPushMessage)가 남긴다. 여기서도 남기면 디버그 화면이
-    // 떠 있는 동안 모든 수신이 두 줄이 된다.
+    // The received entry is left by the app-wide subscriber (useInAppPushMessage). If this also
+    // logged it, every receipt would become two lines while the debug screen is open.
     it('로그는 남기지 않는다 — 전역 구독자와 중복되기 때문', () => {
         const { result } = renderHook(() => useReceivedPushLog());
 

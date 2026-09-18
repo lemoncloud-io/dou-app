@@ -20,7 +20,7 @@ interface ReinviteDialogProps {
  * (`useSentInviteLog`). Three copy variants (Figma 3411-18193 / 3412-18331 / 3412-18478):
  * - `pending` — a code is already outstanding; the only path forward is the waiting screen
  *   (issuing here would leave two valid codes for the same recipient).
- * - `expired` — the prior code is dead; reissuing cancels it server-side first (ADR-0043 결정 5),
+ * - `expired` — the prior code is dead; reissuing cancels it server-side first (ADR-0043 decision 5),
  *   so the copy may truthfully say the old link is unusable.
  * - `declined` — the recipient rejected the prior invite (`state === 'rejected'`); reissuing
  *   dismisses that row locally and proceeds like a first-time invite.

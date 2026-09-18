@@ -9,7 +9,7 @@ export interface IConfigKvService {
 
     /**
      * Stores one value, opaquely. This service does not know what the key means — the registry
-     * that does lives in the web bundle, not here (ADR-0079 결정 9). It stores whatever string it
+     * that does lives in the web bundle, not here (ADR-0079 decision 9). It stores whatever string it
      * is given under whatever key it is given.
      */
     set(key: string, value: string): Promise<void>;

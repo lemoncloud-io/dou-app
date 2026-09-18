@@ -54,13 +54,13 @@ platform-filtered list cannot — an iOS purchase read on an Android session wou
 
 `summarizeMembership(membership, plan, now)` collapses a membership into exactly five states:
 
-| State | Means | `isEntitled` | New cloud |
-| --- | --- | --- | --- |
-| `none` | Never subscribed, or `status === 'none'` | ✗ | ✗ |
-| `active` | Paid period running (payment retry too) | ✓ | ✓ |
-| `cancelScheduled` | Cancelled, paid period still running | ✓ | ✗ |
-| `expired` | `validUntil` has passed | ✗ | ✗ |
-| `blocked` | An operator shut it off from the console | ✗ | ✗ |
+| State             | Means                                    | `isEntitled` | New cloud |
+| ----------------- | ---------------------------------------- | ------------ | --------- |
+| `none`            | Never subscribed, or `status === 'none'` | ✗            | ✗         |
+| `active`          | Paid period running (payment retry too)  | ✓            | ✓         |
+| `cancelScheduled` | Cancelled, paid period still running     | ✓            | ✗         |
+| `expired`         | `validUntil` has passed                  | ✗            | ✗         |
+| `blocked`         | An operator shut it off from the console | ✗            | ✗         |
 
 Two rules hold this together, and both were bought with production bugs:
 
@@ -115,13 +115,13 @@ presenting it as settled. The banner has no delete button.
 
 Adjacency is **app policy**, not a store or backend rule. A tier change may move one step:
 
-| Current | Target | Kind |
-| --- | --- | --- |
-| none | `sort === 1` | `new` |
-| none | any other | `blocked` (`entryTier`) |
-| a running tier | the same tier | `current` |
+| Current        | Target              | Kind                    |
+| -------------- | ------------------- | ----------------------- |
+| none           | `sort === 1`        | `new`                   |
+| none           | any other           | `blocked` (`entryTier`) |
+| a running tier | the same tier       | `current`               |
 | a running tier | one step up or down | `upgrade` / `downgrade` |
-| a running tier | two or more steps | `blocked` (`tierJump`) |
+| a running tier | two or more steps   | `blocked` (`tierJump`)  |
 
 The reason is that each cloud carries its own email verification: a tier 1 → 3 jump would collect
 two verifications before either cloud is usable, and a multi-step drop would strand clouds that no
@@ -159,10 +159,10 @@ store has taken the money — failing there would leave a paid subscription with
 
 ## Boundaries
 
-**`guide` and `plans` are two screens on purpose.** The first argues *why* a cloud, the second asks
-*which tier*. The MyPage card and the home promo banner land on `guide`, because someone reading a
+**`guide` and `plans` are two screens on purpose.** The first argues _why_ a cloud, the second asks
+_which tier_. The MyPage card and the home promo banner land on `guide`, because someone reading a
 banner does not yet know what a cloud is. The cloud switcher sheet goes straight to `plans` — that
-user is already managing clouds, so the pitch would be a step backwards (ADR-0034 §4).
+user is already managing clouds, so the pitch would be a step backwards (ADR-0091 §4).
 
 **A purchase provisions exactly one cloud.** Every cloud past the first on a multi-cloud tier is
 created by `useAddCloud`. The affordances for that live on other screens and features do not import
@@ -217,12 +217,12 @@ Fifteen suites cover the pure modules by value comparison — the five states an
 the `limit=null` rule, the `#` join and the Apple/Google key confusion, the parent-SKU regression,
 the Android replacement payload, and the i18n interpolations. What they cannot catch:
 
-| Trap | What happens |
-| --- | --- |
-| `IS_DEV` dry run | `useAddCloud` passes `dryRun` in dev, mirroring the membership route, so no real infrastructure is provisioned. Cloud creation on tiers 2–5 is therefore not exercised in dev. |
-| Android plan order | `ANDROID_PLAN_LIST` in `apps/mobile/src/app/services/subscriptionIap/config.ts` derives an upgrade/downgrade rank from the env list's `indexOf`. If that order diverges from tier order, the direction flips — passing an exact `oldPlanId` is what keeps the judgement sound. |
-| `make` returns early | `POST /clouds/0/make` returns once the model exists (`status=init`); workspace assignment and deploy follow asynchronously with no SLA. The success toast means accepted, not ready — the switcher shows the provisioning state. |
-| One email per cloud, today | Reaching tier 5 needs five addresses. Until the backend supports one account across several clouds, that is the practical ceiling on tier 2+ conversion. |
+| Trap                       | What happens                                                                                                                                                                                                                                                                   |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `IS_DEV` dry run           | `useAddCloud` passes `dryRun` in dev, mirroring the membership route, so no real infrastructure is provisioned. Cloud creation on tiers 2–5 is therefore not exercised in dev.                                                                                                 |
+| Android plan order         | `ANDROID_PLAN_LIST` in `apps/mobile/src/app/services/subscriptionIap/config.ts` derives an upgrade/downgrade rank from the env list's `indexOf`. If that order diverges from tier order, the direction flips — passing an exact `oldPlanId` is what keeps the judgement sound. |
+| `make` returns early       | `POST /clouds/0/make` returns once the model exists (`status=init`); workspace assignment and deploy follow asynchronously with no SLA. The success toast means accepted, not ready — the switcher shows the provisioning state.                                               |
+| One email per cloud, today | Reaching tier 5 needs five addresses. Until the backend supports one account across several clouds, that is the practical ceiling on tier 2+ conversion.                                                                                                                       |
 
 The debug overlay's IAP screen maps 1:1 onto the bridge commands this feature uses, which is the
 fastest way to exercise a purchase path without a real charge → [debug/](../debug/README.md).

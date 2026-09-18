@@ -13,7 +13,7 @@ export interface ResolveChannelTitleInput {
     myNick?: string;
     /** The DM peer's place-profile nick (from `useDmPeers`) — ignored for non-DM channels. */
     peerNick?: string;
-    /** Localized "나와의 채팅" label. */
+    /** Localized "self-chat" label. */
     selfLabel: string;
     /** Localized fallback for a channel with no name. */
     unnamedLabel: string;

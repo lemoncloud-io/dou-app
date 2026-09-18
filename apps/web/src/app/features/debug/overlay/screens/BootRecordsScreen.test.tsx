@@ -36,7 +36,7 @@ const ok = (over: Record<string, unknown> = {}) =>
 describe('BootRecordsScreen', () => {
     beforeEach(() => {
         jest.clearAllMocks();
-        // 학습은 모듈 스코프라 한 케이스가 배운 것이 다음으로 새면 안 된다.
+        // Learning is module-scoped, so what one case learns must not leak into the next.
         resetUnsupportedCommands();
     });
 
@@ -44,14 +44,14 @@ describe('BootRecordsScreen', () => {
         fetchBootRecords.mockImplementation(() => ok());
         render(<BootRecordsScreen />);
 
-        expect(await screen.findByText('980 ms')).toBeInTheDocument(); // 총 부팅
+        expect(await screen.findByText('980 ms')).toBeInTheDocument(); // total boot
         expect(screen.getByText('975 ms')).toBeInTheDocument(); // web-app-ready
         expect(screen.getByText('provider ready')).toBeInTheDocument();
         expect(screen.getByText('12 ms')).toBeInTheDocument();
         expect(screen.getByText('1건')).toBeInTheDocument();
     });
 
-    // 이 둘은 어느 기록의 값이 아니라 지금 돌고 있는 앱의 상태다 — 그래서 같은 요청으로 함께 온다.
+    // These two are not the value of any one record but the state of the app currently running — that's why they arrive together in the same request.
     it('현재 앱 실행의 카운터 두 개를 별 절에 보여준다', async () => {
         fetchBootRecords.mockImplementation(() => ok());
         render(<BootRecordsScreen />);
@@ -75,8 +75,9 @@ describe('BootRecordsScreen', () => {
         expect(await screen.findByText(/기록이 없습니다/)).toBeInTheDocument();
     });
 
-    // 구버전 앱은 이 명령을 몰라 NOT_FOUND로 답한다. 그때 "기록이 없다"고 말하면 거짓이다 —
-    // 못 물어본 것과 물어봤는데 없는 것은 다르다.
+    // An older app doesn't know this command and answers NOT_FOUND. Saying "there are no
+    // records" at that point would be a lie — not being able to ask is different from asking and
+    // finding nothing.
     it('앱이 명령을 모르면 버전 차이로 말하고, 기록 없음이라고 하지 않는다', async () => {
         fetchBootRecords.mockImplementation(() => Promise.reject({ code: 'NOT_FOUND' }));
         render(<BootRecordsScreen />);
@@ -85,7 +86,7 @@ describe('BootRecordsScreen', () => {
         expect(screen.queryByText(/기록이 없습니다/)).not.toBeInTheDocument();
     });
 
-    // 눌러도 안 되는 버튼을 계속 내주는 것보다 잠그는 게 정직하다.
+    // Locking the button is more honest than continuing to offer one that does nothing when pressed.
     it('명령을 모른다고 배우면 버튼을 잠근다', async () => {
         fetchBootRecords.mockImplementation(() => Promise.reject({ code: 'NOT_FOUND' }));
         render(<BootRecordsScreen />);

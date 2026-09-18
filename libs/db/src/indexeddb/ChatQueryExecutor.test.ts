@@ -14,13 +14,13 @@ const scopeOf = (cid: string, uid: string) => ({ getContext: () => ({ cid, uid }
 const chat = (id: string, chatNo: number, channelId = 'channel-main') =>
     ({ id, cid: 'model-cid', channelId, chatNo, content: `msg-${id}`, createdAt: chatNo, updatedAt: chatNo }) as any;
 
-/** chat_no 1..count — 서버가 번호를 매긴 커밋된 메시지들. */
+/** chat_no 1..count — committed messages the server has numbered. */
 const committed = (count: number, channelId = 'channel-main') =>
     Array.from({ length: count }, (_, index) => chat(`c-${String(index + 1).padStart(3, '0')}`, index + 1, channelId));
 
 /**
- * chat_no 0 = 미전송 행(낙관적 전송 중이거나 실패). `ChatLocalDataSource`가 이 값을 쓰고
- * `mappers.ts`가 서버 chatNo 없는 응답을 여기로 강등한다.
+ * chat_no 0 = an unsent row (optimistically sending, or failed). `ChatLocalDataSource` writes
+ * this value, and `mappers.ts` demotes any server response without a chatNo down to it.
  */
 const unsent = (id: string, createdAt: number, channelId = 'channel-main') => ({
     ...chat(id, 0, channelId),
@@ -31,13 +31,15 @@ const hasUnsent = (rows: Array<{ chatNo?: number }>) => rows.some(row => (row.ch
 const idsOf = (rows: Array<{ id: string }>) => rows.map(row => row.id);
 
 /**
- * `chat_no: 0`은 `CHAT_PAGINATION_INDEX`에서 **최하위로 정렬**되는데 읽기는 `direction: 'prev'` +
- * limit(최신 N개)이다. 그래서 서버 메시지가 limit개 이상 쌓인 채널에서는 미전송 행이 페이지 밖으로
- * 밀려나 한 번도 렌더되지 않는다 — 실패 메시지에 "전송 실패"도 재전송 버튼도 안 붙는다.
+ * `chat_no: 0` sorts **lowest** in `CHAT_PAGINATION_INDEX`, but a read is `direction: 'prev'` +
+ * limit (the newest N). So in a channel with `limit` or more server messages, an unsent row
+ * gets pushed out of the page and is never rendered — a failed message gets no "send failed"
+ * indicator and no retry button.
  *
- * `includeUnsent`는 그 행들을 별도 인덱스 레인지(`[..,0] → [..,1)` 상한 exclusive)로 한 번 더 읽어
- * 합친다. **기본값은 false이고, 그때의 동작은 이 옵션이 없던 때와 완전히 같아야 한다** —
- * `apps/web`(모바일)이 같은 실행기를 지나기 때문이다. 그 불변을 아래 첫 describe가 잠근다.
+ * `includeUnsent` reads those rows a second time from a separate index range (`[..,0] →
+ * [..,1)`, upper bound exclusive) and merges them in. **The default is false, and behavior in
+ * that case must be exactly the same as before this option existed** — `apps/web` (mobile)
+ * goes through the same executor. The first describe below locks in that invariant.
  */
 describe('ChatQueryExecutor', () => {
     let db: IndexedDBDatabase;
@@ -79,7 +81,7 @@ describe('ChatQueryExecutor', () => {
             const page = await storage.loadAll({ channelId: 'channel-main', limit: 50, includeUnsent: true });
 
             expect(idsOf(page)).toContain('pending-1');
-            // 커밋된 최신 50개는 그대로 오고, 미전송분이 더해진다.
+            // The newest 50 committed messages come back as-is, plus the unsent one added in.
             expect(page).toHaveLength(51);
         });
 
@@ -109,8 +111,8 @@ describe('ChatQueryExecutor', () => {
         });
 
         it('cursorNo 페이지에서는 아무것도 더하지 않는다 — 그 범위는 이미 0까지 내려간다', async () => {
-            // cursorNo 페이지의 범위는 [0, cursorNo)라 미전송 행을 원래도 포함한다.
-            // 여기서 한 번 더 읽으면 같은 메시지가 목록에 두 번 뜬다. 플래그는 무해해야 한다.
+            // A cursorNo page's range is [0, cursorNo), so it already includes unsent rows.
+            // Reading them again here would make the same message show up twice in the list. The flag must be harmless here.
             const storage = adapterFor('older-optin');
             const seed = [...committed(60), unsent('pending-1', 9_999)];
             await storage.saveAll(seed);

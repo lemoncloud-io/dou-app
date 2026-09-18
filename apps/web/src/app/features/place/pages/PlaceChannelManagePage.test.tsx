@@ -94,7 +94,8 @@ jest.mock('../../channels/components', () => ({
 jest.mock('../../../hooks', () => ({
     useMyProfile: () => ({ profile: { nick: '내프로필' } }),
     useHomeChannels: () => ({ channels: channelsValue, isLoading: false }),
-    // 이 화면은 join/안읽음을 앱 전체가 공유하는 관측에서 읽고, 커서 동기화만 스스로 등록한다.
+    // This screen reads join/unread from the observation the whole app shares, and registers only its
+    // own cursor sync.
     useActiveCloudData: () => ({
         channels: channelsValue,
         isLoaded: true,
@@ -260,7 +261,7 @@ describe('PlaceChannelManagePage', () => {
     });
 });
 
-describe('PlaceChannelManagePage — 초대 행 (ADR-0033 Track B)', () => {
+describe('PlaceChannelManagePage — 초대 행 (ADR-0089 Track B)', () => {
     it('커스텀 클라우드에서는 sentInvites가 있어도 초대 행을 보여주지 않는다', () => {
         selectedCloudId = 'cloud-1';
         sentInvitesValue = [{ id: 'invite-1', state: 'pending', name: '홍길동' }];

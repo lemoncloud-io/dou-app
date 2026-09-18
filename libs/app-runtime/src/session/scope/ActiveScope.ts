@@ -6,7 +6,7 @@ export interface BoundCidSource {
 }
 
 /**
- * The single owner of "which cloud/site/user are we operating as" (ADR-0070 결정 7).
+ * The single owner of "which cloud/site/user are we operating as" (ADR-0070 Decision 7).
  *
  * Before this, the answer was assembled from four pieces: `useRuntimeBinding` derived the selection,
  * `DataContextHolder` stored it, an anonymous `socketAwareProvider` inside `DataManager` spliced in
@@ -18,7 +18,7 @@ export interface BoundCidSource {
  *
  *  - `selected`  — the SELECTED cloud. Flips first, before any token exchange, so cid-scoped cache
  *                  observers re-subscribe to the target immediately. (ADR-0070 named this view
- *                  `intent`; ADR-0076 결정 8 renamed it to the word the repo already uses.)
+ *                  `intent`; ADR-0076 Decision 8 renamed it to the word the repo already uses.)
  *  - `bound`     — what the live socket is actually attached to. An OBSERVED value from the SDK;
  *                  this class never sets it.
  *  - `committed` — the cloud whose tokens are really in the store. Frozen through the optimistic

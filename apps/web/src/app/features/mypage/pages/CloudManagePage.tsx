@@ -36,7 +36,7 @@ export const CloudManagePage = () => {
     const { logoutCloudSession } = useLogoutCloudSession();
     const { selectedCloudId } = runtime.session.useSessionSelection();
     // Raises the request the private router's `EmailBindRequestHost` answers — one dialog instance,
-    // shared with the cloud switcher and 구독 관리. This screen owns no verification flow of its own.
+    // shared with the cloud switcher and subscription management. This screen owns no verification flow of its own.
     const requestEmailBind = useEmailBindRequest(s => s.requestEmailBind);
 
     const [confirmCloud, setConfirmCloud] = useState<DomainCloud | null>(null);
@@ -102,18 +102,18 @@ export const CloudManagePage = () => {
                             <div key={cloud.id}>
                                 <div className="flex flex-col gap-[10px] px-0 py-3">
                                     <div className="flex items-center gap-3">
-                                        {/* 프로필 이미지 */}
+                                        {/* Profile image */}
                                         <div className="flex h-[62px] w-[62px] flex-shrink-0 items-center justify-center rounded-full border border-[#F4F5F5] bg-[rgba(0,43,126,0.04)]">
                                             <User size={22} className="text-muted-foreground" />
                                         </div>
 
-                                        {/* 이름 + 이메일 (없으면 등록 버튼) */}
+                                        {/* Name + email (registration button if missing) */}
                                         <div className="flex min-w-0 flex-1 flex-col gap-[2px]">
                                             <div className="flex min-w-0 items-center gap-1">
                                                 <span className="truncate text-[17px] font-semibold leading-[1.19] tracking-[-0.025em] text-[#3A3C40] dark:text-foreground">
                                                     {cloud.name ?? cloud.email?.split('@')[0] ?? '-'}
                                                 </span>
-                                                {/* Rename has a single path (ADR-0034): CloudProfileEditPage
+                                                {/* Rename has a single path (ADR-0091): CloudProfileEditPage
                                                     edits only the active cloud, so the pencil only appears
                                                     on that row — other owned clouds are not renameable here. */}
                                                 {cloud.id === selectedCloudId && (
@@ -136,7 +136,7 @@ export const CloudManagePage = () => {
                                                     <span className="text-[14px] leading-[1.19] tracking-[-0.01em] text-[#9FA2A7]">
                                                         {t('mypage.cloudManage.emailMissing')}
                                                     </span>
-                                                    {/* Deliberately here and not next to 삭제: the two
+                                                    {/* Deliberately here and not next to Delete: the two
                                                         actions must not sit side by side. */}
                                                     <button
                                                         type="button"
@@ -153,7 +153,7 @@ export const CloudManagePage = () => {
                                             )}
                                         </div>
 
-                                        {/* 계정 삭제 */}
+                                        {/* Account deletion */}
                                         <button
                                             onClick={() => setConfirmCloud(cloud)}
                                             disabled={cloud.id === deletingId}
@@ -177,7 +177,7 @@ export const CloudManagePage = () => {
                 )}
             </div>
 
-            {/* 삭제 확인 다이얼로그 */}
+            {/* Delete confirmation dialog */}
             {confirmCloud && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
                     {/* The one notice-dialog width, spelled out rather than inherited: like

@@ -18,7 +18,7 @@ const DEVICE_ID_KEY = 'chatic-device-id';
  * is not keyed that way and would hand the next account the previous one's token.
  *
  * Renamed off `IdentityCore` — web-core's `session/core` residue, outside the `I*` convention
- * (ADR-0076 결정 0).
+ * (ADR-0076 Decision 0).
  */
 export interface IIdentityStore {
     getDelegatorId(): string | null;

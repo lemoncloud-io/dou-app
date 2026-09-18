@@ -5,13 +5,13 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { ChannelList } from './ChannelList';
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k, i18n: { language: 'ko' } }) }));
-// 부분 목: 나머지는 실물을 남긴다. `@chatic/app-runtime` 배럴이 import 시점에
-// `createQueryKeys`까지 닿으므로, 모듈을 통째로 갈아끼우면 그게 사라진다.
+// Partial mock: the rest is left real. The `@chatic/app-runtime` barrel reaches all the way to
+// `createQueryKeys` at import time, so swapping out the whole module would make that disappear.
 jest.mock('@chatic/shared', () => ({
     ...jest.requireActual('@chatic/shared'),
     useNavigateWithTransition: () => jest.fn(),
 }));
-// `channel.get`은 남의 셀프챗에 대해 403으로 거절된다 — 어떤 id로 등록하는지 봐야 한다.
+// `channel.get` is rejected with 403 for someone else's self-chat — we need to see which id it registers under.
 const mockUseChannelSync = jest.fn();
 jest.mock('@chatic/app-runtime', () => ({
     runtime: {
@@ -29,7 +29,7 @@ jest.mock('@chatic/app-runtime', () => ({
 // under test have no messages); the preview cases below seed it for EVERY row. Preview picking
 // itself is covered by chatPreview.test.ts (libs/data) and useLastChats.test.ts.
 let mockLastChat: any = null;
-// Per-channel override, for the ordering cases — the list sorts by these same times (ADR-0055 결정 2).
+// Per-channel override, for the ordering cases — the list sorts by these same times (ADR-0055 decision 2).
 let mockLastChatByChannel: Map<string, any> | null = null;
 jest.mock('../../../hooks/useLastChats', () => ({
     useLastChats: () => ({
@@ -89,12 +89,13 @@ jest.mock('@chatic/web-ui-kit', () => ({
 const makeChannel = (over: any) => ({ id: 'c1', name: '', stereo: 'group', memberNo: 3, ...over });
 
 /**
- * 프로덕션 알람에서 나온 경로:
+ * Path seen in a production alert:
  *   403 NOT ALLOWED - denied by policy (channel.get)  body: {"type":"channel.get","data":{"id":"U:1000030"}}
  *
- * `U:1000030`은 게스트 1000030의 셀프챗이다. 게스트→소셜 로그인 승격은 uid만 갈아끼우므로,
- * 이 목록이 한 렌더 동안 이전 계정의 행을 그대로 들고 있다가 그 행이 자기 채널 타깃을 다시
- * 등록한다. 태그는 새 계정 것이라 SyncManager의 스코프 가드로는 못 잡는다 — 낡은 건 id 쪽이다.
+ * `U:1000030` is guest 1000030's self-chat. Since a guest→social-login promotion only swaps the uid,
+ * this list can go on holding a stale account's row for one render, and that row re-registers its
+ * own channel target. The tag belongs to the new account, so SyncManager's scope guard can't catch
+ * it — it's the id side that's stale.
  */
 describe('ChannelList — 남의 셀프챗 행은 channel.get을 등록하지 않는다', () => {
     it('ownerId가 내가 아닌 self 행은 동기화 대상에서 빠진다', () => {
@@ -120,7 +121,7 @@ describe('ChannelList — 남의 셀프챗 행은 channel.get을 등록하지 �
         expect(mockUseChannelSync).toHaveBeenCalledWith('U:me');
     });
 
-    // ownerId를 서버가 안 실어준 행까지 막으면 멀쩡한 방이 조용히 안 갱신된다.
+    // Blocking even rows the server didn't attach an ownerId to would leave a perfectly fine room silently un-synced.
     it('ownerId를 모르면 막지 않는다', () => {
         render(
             <ChannelList channels={[makeChannel({ id: 'U:1000030', stereo: 'self', memberNo: 1 })]} isLoading={false} />
@@ -203,7 +204,7 @@ describe('ChannelList self-chat row', () => {
     });
 
     it('채널 목록을 마지막 메시지 시각 최신순으로 정렬한다', () => {
-        // 내 읽음 커서(join.updatedAt)는 a가 더 최신이지만, 순서는 메시지 시각만 본다.
+        // My read cursor (join.updatedAt) is more recent for a, but ordering looks only at message time.
         mockLastChatByChannel = new Map([
             ['a', { content: 'a의 마지막', createdAtMs: 100 }],
             ['b', { content: 'b의 마지막', createdAtMs: 200 }],
@@ -225,7 +226,7 @@ describe('ChannelList self-chat row', () => {
         );
 
         const titles = screen.getAllByTestId('row-title').map(el => el.textContent);
-        expect(titles).toEqual(['B방', 'A방']); // b(마지막 메시지 200) before a(100)
+        expect(titles).toEqual(['B방', 'A방']); // b(last message 200) before a(100)
         mockLastChatByChannel = null;
     });
 
@@ -298,7 +299,7 @@ describe('ChannelList self-chat row', () => {
     });
 });
 
-// ADR-0039: DM 행은 채널이 아니라 사람을 보여준다. 이름·아바타·인원수 셋 다 그 결과다.
+// ADR-0039: a DM row shows the person, not the channel. Name, avatar, and member count all follow from that.
 describe('ChannelList — 1:1(DM) 행', () => {
     const dmChannel = (over: any = {}) =>
         makeChannel({ id: 'dm1', stereo: 'dm', memberNo: 2, name: '', ownerId: 'me', ...over });
@@ -375,7 +376,7 @@ describe('ChannelList — 1:1(DM) 행', () => {
     });
 });
 
-describe('ChannelList — 초대 행 (ADR-0033 Track B)', () => {
+describe('ChannelList — 초대 행 (ADR-0089 Track B)', () => {
     it('sentInvites의 각 항목을 채널 위에 행으로 보여준다', () => {
         render(
             <ChannelList
@@ -540,8 +541,8 @@ describe('ChannelList 고정 · 알림꺼짐 표기', () => {
     });
 });
 
-// ADR-0047 결정 6 — 다른 클라이언트(데스크톱)가 지운 메시지는 hidden 행으로 들어온다.
-// 방과 홈이 같은 문구를 쓰지 않으면 한쪽만 원문을 계속 보여주게 된다.
+// ADR-0047 decision 6 — a message deleted by another client (desktop) arrives as a hidden row.
+// If the room and home don't use the same wording, one of them will keep showing the original text.
 describe('ChannelList — 마지막 메시지 미리보기', () => {
     const renderRow = () =>
         render(<ChannelList channels={[makeChannel({ name: '개발방', ownerId: 'me' })]} sid="s1" isLoading={false} />);
@@ -557,14 +558,14 @@ describe('ChannelList — 마지막 메시지 미리보기', () => {
         expect(screen.getByText('안녕하세요')).toBeInTheDocument();
     });
 
-    // ADR-0055 — 한 줄 행에는 코드블럭을 그릴 자리가 없다. 렌더가 아니라 평문화다.
+    // ADR-0055 — a single-line row has no room to render a code block. It's flattened to plain text, not rendered.
     it('인라인 백틱은 벗겨서 보여준다', () => {
         mockLastChat = { content: '배포는 `yarn deploy` 로', createdAt: 1 };
         renderRow();
         expect(screen.getByText('배포는 yarn deploy 로')).toBeInTheDocument();
     });
 
-    // 웹훅 메시지는 본문이 Block Kit 페이로드다. 접지 않으면 홈 행에 `{"blocks":[…` 가 뜬다.
+    // A webhook message's body is a Block Kit payload. Without collapsing it, the home row would show `{"blocks":[…`.
     it('Block Kit 본문은 한 줄 요약으로 접는다', () => {
         mockLastChat = {
             content: JSON.stringify({
@@ -593,18 +594,19 @@ describe('ChannelList — 마지막 메시지 미리보기', () => {
         expect(screen.queryByText('지워진 원문')).not.toBeInTheDocument();
     });
 
-    // preview와 time이 둘 다 같은 lastChat에서 나오므로 "옛 본문 + 새 시각"이 생길 수 없다.
+    // Since both preview and time come from the same lastChat, an "old body + new time" combination can't happen.
     it('tombstone이어도 그 행의 시각은 그대로 살아 있다', () => {
         mockLastChat = { content: '지워진 원문', createdAt: 1750000000000, hidden: true };
         renderRow();
 
-        // 시각은 로케일 포맷이라 문자열을 고정하지 않고 숫자가 찍혔는지로 본다.
+        // The time is locale-formatted, so instead of pinning the exact string, we just check that a digit appears.
         expect(screen.getByTestId('row-trailing').textContent).toMatch(/\d/);
     });
 });
 
-// 생성 팝오버(Chat 섹션 ＋) — 중계에서는 "1:1 대화"가 실제 동작이고 "그룹 방 만들기"는 미구독자에게만
-// 업셀로 얹힌다(Figma 2870:20387). 탭이 무엇을 하는지는 호스트(HomePage) 몫이라 여기선 위임만 본다.
+// The create popover (Chat section ＋) — on relay, "1:1 대화" is the real action and "그룹 방 만들기" is
+// layered on only as an upsell for non-subscribers (Figma 2870:20387). What each tap does belongs to
+// the host (HomePage), so this only covers the delegation.
 describe('ChannelList 생성 메뉴', () => {
     const renderMenu = (props: any) =>
         render(<ChannelList channels={[]} sid="site-1" isLoading={false} canCreate {...props} />);

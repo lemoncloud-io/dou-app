@@ -9,7 +9,7 @@ import { calcSignature } from './utils/calcSignature';
 import { mergeRefreshedCloudToken, mergeRefreshedRelayToken } from './utils/tokenMerge';
 
 /**
- * The session half of the Auth SDK bridge (ADR-0076 결정 5).
+ * The session half of the Auth SDK bridge (ADR-0076 Decision 5).
  *
  * Three things the SDK cannot do for itself, all keyed by the socket's own server so relay and cloud
  * — which bootstrap independently — never seed, sign or write back against the wrong one
@@ -184,7 +184,7 @@ class SessionAuthAdapter implements ISessionAuthAdapter {
                 cloudStore.setCachedCloudTokens(delegationToken.cloudId, { delegationToken, cloudToken: merged });
             }
         } else if (view.Token) {
-            // Merge rules + their justification live in `utils/tokenMerge` (ADR-0076 결정 5): the three
+            // Merge rules + their justification live in `utils/tokenMerge` (ADR-0076 Decision 5): the three
             // preserved `Token` fields each have their own reason and now each has its own test.
             const stored = relayStore.getRelayToken();
             const merged = mergeRefreshedRelayToken(stored, view as Parameters<typeof mergeRefreshedRelayToken>[1]);

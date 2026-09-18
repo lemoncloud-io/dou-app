@@ -74,7 +74,7 @@ describe('ReportDetailBody — 스택 심볼리케이션', () => {
         expect(screen.getByText(STACK)).toBeTruthy();
     });
 
-    // 다른 빌드의 맵은 실패하지 않고 '그럴듯하지만 틀린' 줄로 풀린다 — 조용히 넘어가면 안 된다.
+    // A map from a different build doesn't fail — it resolves to a "plausible but wrong" line, so this can't pass silently.
     it('번들명이 다른 맵은 경고한다', async () => {
         render(<ReportDetailBody row={row(STACK)} />);
 
@@ -100,8 +100,8 @@ describe('ReportDetailBody — 스택 심볼리케이션', () => {
         await waitFor(() => expect(screen.getByText(/소스맵을 읽지 못했습니다/)).toBeTruthy());
     });
 
-    // 한 스택이 여러 번들을 걸치면, 한 맵으로 전부 풀어버리는 쪽이 더 위험하다:
-    // 줄/열 조회는 어떤 맵으로도 성공하므로 남의 번들 프레임이 엉뚱한 파일로 간다.
+    // When one stack spans several bundles, resolving all of it with a single map is more dangerous:
+    // a line/column lookup succeeds against any map, so another bundle's frame lands in the wrong file.
     it('여러 번들을 걸친 스택에서는 고른 맵의 번들 프레임만 바꾼다', async () => {
         const stack = [STACK, 'y@https://dou-dev.chatic.io/assets/chunk-zzz.js:1:9'].join('\n');
         render(<ReportDetailBody row={row(stack)} />);
@@ -118,8 +118,8 @@ describe('ReportDetailBody — 스택 심볼리케이션', () => {
         expect(screen.queryByText('소스맵 선택')).toBeNull();
     });
 
-    // 감싼 에러의 stack은 감싼 자리를 가리킨다 — 진짜 원인의 프레임은 cause 쪽이라,
-    // 그쪽이 안 풀리면 소스맵을 붙여도 정작 알고 싶은 줄을 못 본다.
+    // A wrapping error's stack points at the wrap site — the real cause's frames live in `cause`,
+    // and if that side isn't resolved, attaching a source map still won't show the line you actually want.
     it('cause 체인의 프레임도 같이 해석한다', async () => {
         const withCause = {
             ...row(STACK),
@@ -136,8 +136,8 @@ describe('ReportDetailBody — 스택 심볼리케이션', () => {
         expect(screen.getByText(/getMyProfile \(apps\/web/)).toBeTruthy();
     });
 
-    // "무엇을 보냈나"와 "무엇이 돌아왔나"가 섞여 있으면 클라 버그인지 서버 버그인지
-    // 가리는 데 시간이 든다.
+    // When "what was sent" and "what came back" are mixed together, it takes time to tell
+    // whether the bug is on the client or the server.
     it('요청과 응답을 갈라서 보여준다', () => {
         const withHttp = {
             ...row(),

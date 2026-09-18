@@ -4,7 +4,7 @@ import type { ConfigRegistryModule } from '../types';
  * Read-only build facts. `writableBy: []` on every entry — nothing writes these, the env adapter
  * supplies them.
  *
- * `env.stage` and `env.buildStage` are deliberately two different keys (ADR-0080 결정 5).
+ * `env.stage` and `env.buildStage` are deliberately two different keys (ADR-0080 decision 5).
  * `env.stage` mirrors today's behaviour (an injected value wins over the baked one); `env.buildStage`
  * reads only what the bundler baked in and cannot be spoofed, so security-relevant `byStage` rules
  * elsewhere in the registry are judged against it, not this one.

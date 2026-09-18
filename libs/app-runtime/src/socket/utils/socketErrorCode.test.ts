@@ -7,7 +7,7 @@ describe('getSocketErrorCode — 선행 status를 읽는다', () => {
     });
 
     it('message 앞머리에서 status를 복원한다', () => {
-        // PendingRequestStore.settle이 만드는 모양: `${message.error} - ${message.type}`.
+        // The shape PendingRequestStore.settle produces: `${message.error} - ${message.type}`.
         expect(getSocketErrorCode(new Error('403 FORBIDDEN - auth.verify:error'))).toBe(403);
         expect(getSocketErrorCode(new Error('408 REQUEST TIMEOUT - invite.create[mid-1]'))).toBe(408);
         expect(getSocketErrorCode(new Error('503 SOCKET NOT CONNECTED - WebSocketTransport.send()'))).toBe(503);
@@ -15,7 +15,7 @@ describe('getSocketErrorCode — 선행 status를 읽는다', () => {
     });
 
     /**
-     * annotateSocketError가 **덧붙이기만** 하는 이유가 이것이다 — status가 맨 앞에 남아야 한다.
+     * This is why annotateSocketError only ever **appends** — the status has to stay at the front.
      */
     it('호출자 이름이 덧붙어도 그대로 읽는다', () => {
         expect(getSocketErrorCode(new Error('404 NOT FOUND - join.get:error - relay.request(join.get)'))).toBe(404);
@@ -25,7 +25,7 @@ describe('getSocketErrorCode — 선행 status를 읽는다', () => {
         expect(getSocketErrorCode(new Error('socket request failed - invite.get:error'))).toBeUndefined();
         expect(getSocketErrorCode(undefined)).toBeUndefined();
         expect(getSocketErrorCode(null)).toBeUndefined();
-        // 1xx–5xx가 맨 앞일 때만 status다.
+        // It's only a status when 1xx–5xx is at the very front.
         expect(getSocketErrorCode(new Error('2026 is not a status'))).toBeUndefined();
         expect(getSocketErrorCode(new Error('code 403 appears mid-sentence'))).toBeUndefined();
     });

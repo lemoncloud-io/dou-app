@@ -49,7 +49,7 @@ const UnreadReport = ({
     const otherTotal = otherCloud?.total ?? 0;
     const nameById = new Map(channels.map(ch => [ch.id, ch.name ?? ch.id]));
 
-    // "안읽음 목록" — only entries with unread > 0.
+    // "Unread list" — only entries with unread > 0.
     const unreadPlaces = Object.entries(byPlace).filter(([, count]) => count > 0);
     const unreadChannels = Object.entries(byChannel).filter(([, count]) => count > 0);
     const otherClouds = Object.entries(otherByCloud).filter(([, count]) => count > 0);

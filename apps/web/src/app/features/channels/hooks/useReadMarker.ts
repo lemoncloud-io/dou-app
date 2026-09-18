@@ -45,7 +45,7 @@ export const useReadMarker = ({
         readMessage({ channelId, chatNo: channelChatNo })
             // Record only what the server accepted: the divergence check asks whether the cache
             // followed a read the room actually completed, so an optimistic value would make a
-            // failed read look like a cache that fell behind (ADR-0075).
+            // failed read look like a cache that fell behind (ADR-0099).
             .then(() => readMarkRegistry.record(channelId, channelChatNo))
             .catch(error => {
                 lastReadChatNoRef.current = null;

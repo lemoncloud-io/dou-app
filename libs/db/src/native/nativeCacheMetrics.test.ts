@@ -26,7 +26,7 @@ describe('recordNativeCacheOperation', () => {
         expect(operations['load:channel']).toEqual({ count: 1, avgMs: 4, maxMs: 4 });
     });
 
-    // 전수 로깅은 링버퍼(500)를 금방 밀어내므로 느린 호출만 남긴다.
+    // Logging every call would quickly push the ring buffer (500) out, so only slow calls are kept.
     it('임계치 미만은 로그를 남기지 않는다', () => {
         recordNativeCacheOperation('load', 'chat', 49);
 
@@ -42,14 +42,15 @@ describe('recordNativeCacheOperation', () => {
         expect(meta.data).toMatchObject({ operation: 'loadAll', type: 'chat', elapsedMs: 120 });
     });
 
-    // 계측이 자기가 재려던 정체를 키우지 않게 하는 장치. 네이티브에서 로그 한 건은 브릿지 왕복 한
-    // 건인데, 정체가 시작되면 모든 호출이 임계치를 넘으므로 임계치만으로는 캐시 요청마다 로그
-    // 왕복이 하나씩 붙는다.
+    // A guard so instrumentation doesn't inflate the very congestion it's trying to measure. On
+    // native, one log entry is one bridge round trip, and once congestion starts, every call
+    // crosses the threshold — so a threshold alone would attach one extra log round trip to
+    // every cache request.
     it('같은 연산·타입의 느린 호출이 이어져도 스로틀 간격 안에서는 한 줄만 남긴다', () => {
         for (let i = 0; i < 50; i += 1) recordNativeCacheOperation('loadAll', 'chat', 200);
 
         expect(warn).toHaveBeenCalledTimes(1);
-        // 로그는 접혔어도 누적 통계는 전수로 남는다 — 분포는 여기서 본다.
+        // Even though the log is collapsed, the cumulative stats keep every one — the distribution is read from here.
         expect(getNativeCacheMetrics().operations['loadAll:chat'].count).toBe(50);
     });
 
@@ -75,8 +76,9 @@ describe('recordNativeCacheOperation', () => {
         nowSpy.mockRestore();
     });
 
-    // 느린 호출이 하나도 없어도 "얼마나 자주 부르는가"는 보여야 한다 — 지연이 낮아도 횟수가 많으면
-    // 처방이 달라지기 때문(옵저버 재조회 패턴).
+    // Even with zero slow calls, "how often is this called" still needs to be visible — a high
+    // call count calls for a different remedy even when latency is low (the observer
+    // re-fetching pattern).
     it('100회마다 누적 요약을 남긴다', () => {
         for (let i = 0; i < 99; i += 1) recordNativeCacheOperation('load', 'chat', 1);
         expect(info).not.toHaveBeenCalled();

@@ -10,7 +10,7 @@ describe('formatReactionCount — 리액션 수 표기', () => {
         expect(formatReactionCount(99)).toBe('99');
     });
 
-    // 칩은 말풍선 밑 26px 줄이다. 세 자리가 들어오면 줄이 늘어나므로 디자인은 +99로 접는다.
+    // The chip is a 26px row under the bubble. A three-digit count would widen the row, so the design folds it to +99.
     it('100 이상은 +99로 접는다', () => {
         expect(formatReactionCount(100)).toBe('+99');
         expect(formatReactionCount(12345)).toBe('+99');
@@ -26,8 +26,8 @@ describe('ReactionChip — 리액션 칩', () => {
         expect(chip).toHaveTextContent('3');
     });
 
-    // 내 리액션은 테두리와 숫자 색으로만 말한다 — 이모지를 물들이면 13px에서 다른 이모지로
-    // 읽힌다.
+    // My own reaction speaks only through the border and the number color — tinting the emoji
+    // would read as a different emoji at 13px.
     it('내 리액션은 강조 테두리와 강조 숫자로 표시한다', () => {
         const { rerender } = render(<ReactionChip emoji="👍" count={3} mine />);
 
@@ -47,8 +47,8 @@ describe('ReactionChip — 리액션 칩', () => {
         expect(screen.getByRole('button')).toHaveAttribute('aria-pressed', 'false');
     });
 
-    // 반응자 시트는 이 칩을 탭으로 쓴다 — 그때 aria-pressed는 역할이 맞지 않으므로
-    // 호스트가 role/aria-selected로 갈아탈 수 있어야 한다.
+    // The reactors sheet uses this chip as a tab — aria-pressed is the wrong role there, so
+    // the host needs to be able to swap in role/aria-selected instead.
     it('호스트가 탭 역할로 갈아탈 수 있다', () => {
         render(<ReactionChip emoji="👍" count={1} mine role="tab" aria-selected aria-pressed={undefined} />);
 
@@ -57,8 +57,8 @@ describe('ReactionChip — 리액션 칩', () => {
         expect(tab).not.toHaveAttribute('aria-pressed');
     });
 
-    // "내 것"과 "열린 탭"은 서로 다른 사실이다 — 칩 하나가 둘 다, 하나만, 혹은 아무것도
-    // 아닐 수 있다.
+    // "mine" and "the open tab" are separate facts — a single chip can be both, either one, or
+    // neither.
     it('선택 밑줄은 내 것 여부와 독립이다', () => {
         const { container, rerender } = render(<ReactionChip emoji="👍" count={1} selected />);
         expect(container.querySelector('.bg-main-accent')).not.toBeNull();
@@ -86,7 +86,7 @@ describe('ReactionChip — 리액션 칩', () => {
 });
 
 describe('ReactionAddButton — 리액션 추가 버튼', () => {
-    // 칩을 누르는 것과 이걸 누르는 것은 다른 행위다 — 이건 토글이 아니라 피커를 연다.
+    // Pressing this is a different action from pressing a chip — this isn't a toggle, it opens the picker.
     it('토글이 아니므로 pressed 상태를 갖지 않는다', () => {
         render(<ReactionAddButton aria-label="리액션 추가" />);
 

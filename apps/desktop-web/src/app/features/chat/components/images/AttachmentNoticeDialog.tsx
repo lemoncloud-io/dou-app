@@ -17,8 +17,8 @@ interface AttachmentNoticeDialogProps {
 }
 
 /**
- * The one-button notice a refused attachment raises (Figma "#이미지 업로드 초과 / 중복 /
- * 업로드 에러"): a compact centred card, the message, and 확인. An unsupported type is
+ * The one-button notice a refused attachment raises (Figma "#image upload exceeded / duplicate /
+ * upload error"): a compact centred card, the message, and Confirm. An unsupported type is
  * the only error-coloured one — the other two are limits, not failures.
  */
 export const AttachmentNoticeDialog = ({ notice, onDismiss }: AttachmentNoticeDialogProps) => {

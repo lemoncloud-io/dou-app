@@ -68,8 +68,8 @@ time. These are domains that must not follow the active cloud.
 
 | Pinned                    | Slot    | Why                                                                                                              |
 | ------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------- |
-| `auth.linkAccount`        | `relay` | The main user the identity packet resolves to lives in the central backend behind the relay (ADR-0033, ADR-0042) |
-| the whole `invite` bundle | `relay` | 1:1 DM invite codes are issued and redeemed on the relay (ADR-0033)                                              |
+| `auth.linkAccount`        | `relay` | The main user the identity packet resolves to lives in the central backend behind the relay (ADR-0089, ADR-0042) |
+| the whole `invite` bundle | `relay` | 1:1 DM invite codes are issued and redeemed on the relay (ADR-0089)                                              |
 
 **② `RoutedGateway` lets the destination be chosen at call time.** Only `device` uses this. The same
 gateway is bound once per slot, and the data source picks the destination.

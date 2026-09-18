@@ -98,7 +98,7 @@ name falls back to the peer's profile unless the user names it themselves.
 `resolveChannelTitle` is shared with `PlaceChannelManagePage`, so the change lands on both screens
 together.
 
-### 5. Delete the `profiling` step from invite accept entirely — revising ADR-0033 D10
+### 5. Delete the `profiling` step from invite accept entirely — revising ADR-0089 D10
 
 > **Withdrawn (2026-08-03, [ADR-0041](0041-place-profile-as-invite-precondition.md))** — this decision was
 > reversed. The order is **auth → profile → accept** again, and the `profiling` step is restored in front
@@ -143,7 +143,7 @@ cannot be guaranteed.
 
 **Fall back to `user.name` when `profile.nick` is missing** (= the same chain as the header) — this has
 the advantage that the header and the sentence always agree on the name, but a phone-number user's display
-name looks like `***1234` (ADR-0033 D10), and `"***1234님이 채팅방에 입장했습니다."` does not read. The
+name looks like `***1234` (ADR-0089 D10), and `"***1234님이 채팅방에 입장했습니다."` does not read. The
 name-free generic string was chosen instead.
 
 **Call `useDmPeer` per row in the home list** — the logic would become exactly the same as the room
@@ -193,11 +193,11 @@ that `join.nick` come first. Dropped.
 ## References
 
 - [ADR-0032](0032-dm-chat-room-screen.md) — superseded by this ADR (decisions 3 and 5 withdrawn)
-- [ADR-0033](0033-relay-dm-invite-and-auth-parallel-tracks.md) D10 — revising the accept step order
+- [ADR-0089](0089-relay-dm-invite-and-auth-parallel-tracks.md) D10 — revising the accept step order
 - [ADR-0020](0020-place-profile-edit-dialog.md) · [ADR-0031](0031-place-settings-hub.md) — the remaining
   paths for setting a profile
 - [ADR-0035](0035-relay-invite-accepted-channel-resolution.md) · [ADR-0037](0037-invite-accept-popup-group-and-dm-variants.md)
-- [apps/web/docs/feature/channels/dm-chat.md](../../apps/web/docs/feature/channels/dm-chat.md) — the
+- [apps/web/docs/feature/channels/dm-chat.md](../../apps/web/docs/feature/channels/dm-and-self-chat.md) — the
   feature doc for the DM display rules (decisions 1 through 4)
 - docs/invite-accept-entry.md, which lived in the root docs tree, since removed ·
   [apps/web/docs/feature/invite/relay-invite-accept.md](../../apps/web/docs/feature/invite/relay-invite-accept.md)

@@ -8,7 +8,7 @@ import type { RegisterDeviceResult } from '@lemoncloud/chatic-pushes-api';
 /**
  * Push-token registration. The one REST hook that stayed in the runtime.
  *
- * The rest of `data/hooks` went down to the apps (ADR-0070 결정 5, ②안 방향) because their only
+ * The rest of `data/hooks` went down to the apps (ADR-0070 Decision 5, direction of option ②) because their only
  * consumers were app screens and react-query was their whole cache policy. This one is different:
  * the runtime itself calls it — `push/hooks/useDeviceTokenRegistration.ts` registers the device as part of
  * session/push boot, so it is runtime behavior, not a screen's data read.

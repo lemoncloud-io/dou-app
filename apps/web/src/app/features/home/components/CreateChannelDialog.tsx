@@ -36,7 +36,7 @@ interface CreateChannelDialogProps {
 /**
  * The screen shows the same "too large" message for a codec failure as for an oversized file, so
  * the two are indistinguishable to the user and were indistinguishable to us. Size and type are
- * what separate them; the file's contents are never recorded (ADR-0075).
+ * what separate them; the file's contents are never recorded (ADR-0099).
  */
 const logImageEncodeFailure = (error: unknown, file: File): void =>
     logger.warn('CHANNEL', 'channel image encoding failed', {

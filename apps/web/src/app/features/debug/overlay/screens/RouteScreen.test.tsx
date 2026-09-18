@@ -41,10 +41,10 @@ describe('RouteScreen — 라우트 스택 인스펙터', () => {
 
         expect(screen.getByText('#1 ← 현재')).toBeInTheDocument();
         expect(screen.getByText('2칸')).toBeInTheDocument();
-        expect(screen.getAllByText('/channels/abc')).toHaveLength(2); // 스택 + trail
+        expect(screen.getAllByText('/channels/abc')).toHaveLength(2); // stack + trail
     });
 
-    // 스택과 trail이 갈라지는 바로 그 경우. 두 목록이 다른 답을 보여야 한다.
+    // Exactly the case where the stack and the trail diverge. The two lists must show different answers.
     it('뒤로 간 뒤 push하면 스택은 버린 항목을 감추고 trail은 남긴다', () => {
         (['/a', '/b'] as const).forEach((pathname, index) =>
             routeStackTracker.record({ pathname, action: 'PUSH', index })
@@ -55,12 +55,12 @@ describe('RouteScreen — 라우트 스택 인스펙터', () => {
 
         render(<RouteScreen />);
 
-        // 스택에는 /b가 없다.
+        // /b is not in the stack.
         const stackSection = screen.getByText('스택 (뒤 → 앞)').parentElement as HTMLElement;
         expect(stackSection.textContent).not.toContain('/b');
         expect(stackSection.textContent).toContain('/c');
 
-        // trail에는 남아 있다.
+        // It remains in the trail.
         const trailSection = screen.getByText('Trail (방문 순서)').parentElement as HTMLElement;
         expect(trailSection.textContent).toContain('/b');
     });
@@ -81,8 +81,8 @@ describe('RouteScreen — 라우트 스택 인스펙터', () => {
         expect(screen.getByText(/스택을 신뢰할 수 없습니다/)).toBeInTheDocument();
     });
 
-    // useBackHandler가 history.length로 뒤로가기를 판정한다. 그 값이 앱 깊이와 다르다는 것을
-    // 화면이 말해줘야 그 버그를 쫓을 수 있다.
+    // useBackHandler decides whether to go back based on history.length. The screen has to say
+    // when that value differs from the app's own depth, or that bug can't be tracked down.
     it('history.length와 앱 스택 깊이가 다르면 불일치를 알린다', () => {
         routeStackTracker.record({ pathname: '/', action: 'PUSH', index: 0 });
         window.history.pushState({ idx: 0 }, '');
@@ -94,23 +94,23 @@ describe('RouteScreen — 라우트 스택 인스펙터', () => {
         ).toBeInTheDocument();
     });
 
-    // 숫자만 있으면 어느 쪽이 앱 깊이고 어느 쪽이 브라우저 값인지 알 수 없다.
+    // With only the numbers, there's no way to tell which is the app's depth and which is the browser's value.
     it('모든 지표에 설명이 붙어 있고, 호버로 읽을 수 있다', () => {
         routeStackTracker.record({ pathname: '/', action: 'PUSH', index: 0 });
 
         render(<RouteScreen />);
 
-        // 호버 경로: 네이티브 title 속성.
+        // Hover path: the native title attribute.
         expect(screen.getByRole('button', { name: '깊이' }).getAttribute('title')).toContain(
             '앱에 들어오기 전 항목은 세지 않습니다'
         );
-        // history.length가 앱 깊이가 아니라는 것이 이 화면의 핵심 정보다.
+        // That history.length is not the app's depth is this screen's key piece of information.
         expect(screen.getByRole('button', { name: 'history.length' }).getAttribute('title')).toContain(
             '앱 깊이가 아닙니다'
         );
     });
 
-    // 실기기에는 호버가 없다. 탭으로 같은 설명에 닿아야 한다.
+    // A real device has no hover. Tapping must reach the same explanation.
     it('터치에서는 라벨을 눌러 설명을 펼친다', async () => {
         routeStackTracker.record({ pathname: '/', action: 'PUSH', index: 0 });
 
@@ -124,7 +124,7 @@ describe('RouteScreen — 라우트 스택 인스펙터', () => {
         expect(screen.getByText(/#0이 앱의 첫 화면입니다/)).toBeInTheDocument();
     });
 
-    // 화면에 보이는 것과 클립보드에 담기는 것이 어긋나면 붙여넣은 리포트가 거짓이 된다.
+    // If what's on screen disagrees with what's copied to the clipboard, the pasted report becomes a lie.
     it('복사하면 화면에 보이는 스택과 trail이 그대로 담긴다', async () => {
         routeStackTracker.record({ pathname: '/a', action: 'PUSH', index: 0 });
         routeStackTracker.record({ pathname: '/b', action: 'PUSH', index: 1 });
@@ -141,7 +141,7 @@ describe('RouteScreen — 라우트 스택 인스펙터', () => {
         expect(copied.trail).toEqual(['/a', '/b']);
     });
 
-    // 스택과 trail의 구분은 이 화면을 읽기 전에 알아야 한다 — 펼쳐야 보이면 늦다.
+    // The distinction between stack and trail has to be known before reading this screen — if it only shows when expanded, that's too late.
     it('두 목록의 뜻은 접지 않고 항상 보여준다', () => {
         render(<RouteScreen />);
 

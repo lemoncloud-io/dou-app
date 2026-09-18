@@ -76,8 +76,8 @@ describe('로그 컨텍스트용 필드', () => {
 
 describe('consoleEnabled — 웹의 debug 릴레이 게이트', () => {
     it('넘겨받은 값을 그대로 옮긴다 — 여기서 __DEV__를 읽지 않는다', () => {
-        // 이 함수가 순수한 것이 존재 이유다. 빌드 전역을 안에서 읽으면 WebView
-        // 없이 테스트할 수 없어진다.
+        // This is the reason this function is pure. Reading a build global internally would make
+        // it untestable without a WebView.
         const on = buildDeviceInfoParams(cached, { ...dynamic, consoleEnabled: true });
         const off = buildDeviceInfoParams(cached, { ...dynamic, consoleEnabled: false });
 

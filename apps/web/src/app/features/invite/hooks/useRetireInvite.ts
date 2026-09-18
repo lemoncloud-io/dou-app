@@ -9,7 +9,7 @@ import { resolveInviteCode } from '../utils/inviteCode';
 import { getSocketErrorCode } from '../../../utils/errors';
 
 /**
- * What happened to the prior invite (feature doc "재발급·정리(retire) 규칙"):
+ * What happened to the prior invite (feature doc "Reissue & Cleanup (retire) Rules"):
  * - `canceled`  — server cancel went through (or was already final; the call is idempotent).
  * - `dismissed` — a `rejected` invite was hidden locally. The server keeps rejected forever and
  *   cancel does not overwrite a final mark, so a local dismiss is the only way to clear the row.
@@ -20,7 +20,7 @@ import { getSocketErrorCode } from '../../../utils/errors';
 export type RetireOutcome = 'canceled' | 'dismissed' | 'conflict' | 'failed' | 'skipped';
 
 /**
- * Retire the previous invite before issuing a replacement (ADR-0043 결정 5).
+ * Retire the previous invite before issuing a replacement (ADR-0043 decision 5).
  *
  * Callers own the abort policy: a `pending` prior must retire as `canceled` before a new code is
  * issued (otherwise two live codes exist for the same phone), while an `expired` prior is

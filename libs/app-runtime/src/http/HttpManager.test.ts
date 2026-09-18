@@ -40,7 +40,8 @@ beforeEach(() => {
 });
 
 describe('createHttpManager — endpoint 해석', () => {
-    // cloud 엔트리가 없다는 것이 계약이다: 목적지가 클라우드인 요청은 baseURL로 가고 relay 서명을 탄다.
+    // Having no cloud entry is the contract: a request destined for the cloud goes to baseURL and
+    // rides the relay signature.
     it.each([
         ['relay', 'https://relay.test'],
         ['oauth', 'https://oauth.test'],

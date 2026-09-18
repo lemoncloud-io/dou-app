@@ -7,8 +7,8 @@ export interface DefaultAvatarProps {
     size?: number;
     /**
      * Which of the two avatar images to draw:
-     * `user` (default) = the solid single-person silhouette (Figma "1명 Profile", node 3185:13127).
-     * `group` = the three-person glyph (Figma "그룹방 Profile", node 3158:26238).
+     * `user` (default) = the solid single-person silhouette (Figma "1-person Profile", node 3185:13127).
+     * `group` = the three-person glyph (Figma "Group room Profile", node 3158:26238).
      *
      * There is no outline variant — the room avatar has exactly these two images.
      */

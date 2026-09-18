@@ -268,8 +268,8 @@ export const LogBufferScreen = () => {
     // raw oldest-first index. Paging (Load more) fetches a larger recent window,
     // which PREPENDS older entries to `logs` and would shift every raw index —
     // changing all keys, forcing React to tear down and rebuild the whole list,
-    // which clamps the scroll and drops the expanded row (the "보던 위치가 튄다"
-    // jump). Ranking from the newest end keeps already-shown rows' keys stable
+    // which clamps the scroll and drops the expanded row (the "the view you were
+    // looking at jumps" problem). Ranking from the newest end keeps already-shown rows' keys stable
     // across paging, so only the new (older) rows mount, appended at the bottom.
     const keyByLog = useMemo(() => new Map(logs.map((log, index) => [log, logs.length - 1 - index])), [logs]);
 
@@ -350,7 +350,7 @@ export const LogBufferScreen = () => {
      * Destructive, and there is no undo: these entries were waiting to be sent,
      * so discarding them means the server never sees them. That is the point
      * during a reproduction — you want a clean slate for the next attempt — which
-     * is why the label says 버리기 rather than the old neutral "Clear".
+     * is why the label says "Discard" rather than the old neutral "Clear".
      */
     const discardQueued = useCallback(async () => {
         setExpandedKey(null);
@@ -421,7 +421,7 @@ export const LogBufferScreen = () => {
     }, [uploadHeld]);
 
     /**
-     * Sends the pending queue off-schedule (ADR-0080 결정 14).
+     * Sends the pending queue off-schedule (ADR-0080 decision 14).
      *
      * `getLogQueueView()` is undefined when no uploader is running (boot, teardown), and that is
      * reported rather than swallowed — a silent no-op here would read as "sent" to the person who

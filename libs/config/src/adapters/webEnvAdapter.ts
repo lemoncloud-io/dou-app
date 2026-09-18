@@ -27,7 +27,7 @@ const LOWERED_RAW_NAMES = new Set([
  * Every Vite app (web · desktop-web · admin-v2 · testbed) reads `import.meta.env`/`window.*` the
  * same way, so this centralizes the interpretation — stage validation, the shell-injected stage
  * mapping, the legacy lowercasing — in one tested place instead of four copies. Each app supplies
- * only `read`, the one piece this lib cannot hold (`import.meta`, ADR-0079 결정 1): a function from
+ * only `read`, the one piece this lib cannot hold (`import.meta`, ADR-0079 decision 1): a function from
  * a raw name to its value, wherever that app's build keeps it.
  */
 export const createWebEnvAdapter = (read: (name: string) => string | undefined): IConfigEnvAdapter => {
@@ -41,7 +41,7 @@ export const createWebEnvAdapter = (read: (name: string) => string | undefined):
         // The injected value wins over the baked one — matching `WEB_ENV`'s
         // `window.ENV || import.meta.env.VITE_ENV` today. `CHATIC_APP_STAGE`'s vocabulary
         // (`'local'|'stage'|'prod'`, `app-messages`'s `Env`) differs from `Stage`'s
-        // (`'LOCAL'|'DEV'|'PROD'`) and is normalized here (ADR-0079 결정 14).
+        // (`'LOCAL'|'DEV'|'PROD'`) and is normalized here (ADR-0079 decision 14).
         stage: () => {
             const injected = read('CHATIC_APP_STAGE');
             if (injected === 'prod') return 'PROD';

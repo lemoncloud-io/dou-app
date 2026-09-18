@@ -12,7 +12,7 @@ import { useUsers } from '../api/usersQuery';
 import type { JSX } from 'react';
 
 /**
- * Relay user list + registration, carried over from the retired `apps/admin` (ADR-0070 5단계).
+ * Relay user list + registration, carried over from the retired `apps/admin` (ADR-0070, step 5).
  *
  * **The token-issuance column did not come with it.** In admin that action logged in AS the listed
  * user with a password hash hardcoded in the source, and handed back their identityToken to copy.

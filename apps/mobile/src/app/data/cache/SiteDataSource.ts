@@ -4,7 +4,7 @@ import type { ISqliteDatabase } from '../../database';
 import { fetchManyByIds } from './fetchManyByIds';
 
 /**
- * 사이트(Site/Place) 도메인 전용 데이터 소스
+ * Data source specific to the Site/Place domain
  */
 export class SiteDataSource implements ICacheDataSource<CacheSiteView, SiteQueryOptions> {
     constructor(

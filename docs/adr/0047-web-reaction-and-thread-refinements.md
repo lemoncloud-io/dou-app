@@ -1,13 +1,13 @@
 # ADR-0047: Reaction/thread follow-up polish — an add button beside the chips · reaction info moves to a chip-long-press-only sheet · the home preview shows only the last real message · threads share the channel's context (header, notifications, scroll) · mark deleted messages
 
 > Status: Accepted · Decided: 2026-08-07
-> Follows: [ADR-0045](./0045-web-emoji-reaction-and-thread.md) (introducing emoji reactions · threads) ·
+> Follows: [ADR-0093](./0093-web-emoji-reaction-and-thread.md) (introducing emoji reactions · threads) ·
 > [ADR-0008](./0008-threads-client-derived-from-parentid.md) (threads client-derived from `parentId`)
 > Related: [ADR-0046](./0046-web-feature-ownership-and-barrel-hygiene.md) (feature ownership · barrel hygiene)
 
 ## Context
 
-After ADR-0045 landed reactions and threads in `apps/web`, real usage surfaced a set of loose ends. Most of
+After ADR-0093 landed reactions and threads in `apps/web`, real usage surfaced a set of loose ends. Most of
 these aren't new features — they're **finishing touches on a surface already built** — but three are
 genuine defects.
 
@@ -22,12 +22,12 @@ last item in that row makes "only shown once there's at least one" hold automati
 ### 2. Only a screen reader knows who tapped what
 
 `foldReactions` already holds `userIds`, but that information only reaches the chip's `aria-label`
-(`chat.room.reactionWho`) — a sighted user sees only a count. ADR-0045 left "a detail sheet listing who
+(`chat.room.reactionWho`) — a sighted user sees only a count. ADR-0093 left "a detail sheet listing who
 reacted" as a follow-up item, and **all the material for it already exists locally.**
 
 ### 3. When the observation window fills up with reactions, a home row looks like an empty channel
 
-ADR-0045 stripped reactions out of the preview entirely (`pickPreviewChat`). Since preview and time **both**
+ADR-0093 stripped reactions out of the preview entirely (`pickPreviewChat`). Since preview and time **both**
 come from `lastChat`
 (`apps/web/src/app/features/home/components/ChannelList.tsx:113`), there's no mismatch like "stale text with
 a fresh timestamp." The problem is window size — `PREVIEW_LOOKBACK = 10`, so if the most recent 10 rows are
@@ -77,7 +77,7 @@ The header (§4) was just the visible symptom — two more defects with the same
 - **Scroll position.** Room → thread is a route change, and the room page unmounts. Coming back, the
   `flex-col-reverse` list starts again at `scrollTop 0`, i.e. the bottom. Someone reading through history who
   taps the reply footer gets dropped to the latest message for no other reason. This is a cost that came
-  along when ADR-0045 made threads a full-screen route, unnoticed at the time.
+  along when ADR-0093 made threads a full-screen route, unnoticed at the time.
 
 ## Decision
 
@@ -87,7 +87,7 @@ Skip the action sheet. By the time this button is tapped, intent is already fixe
 there's no reason to show one more sheet that mixes in copy/reply. Reuse `EmojiPickerSheet` as-is.
 
 When there are no chips, this button doesn't appear either — because the row itself doesn't render, and
-that is intentional (keeps ADR-0045's judgment that reserving an empty strip under every single message
+that is intentional (keeps ADR-0093's judgment that reserving an empty strip under every single message
 costs more than the feature is worth).
 
 ### 2. Put reaction info in a dedicated sheet opened by long-pressing a chip, showing reactors' faces
@@ -114,7 +114,7 @@ need vertical space the action sheet doesn't have. The same information doesn't 
 
 ### 3. The home preview shows only the last real message — reactions don't participate
 
-Keep ADR-0045's position. Attaching a reaction badge to the home row was considered and dropped (see
+Keep ADR-0093's position. Attaching a reaction badge to the home row was considered and dropped (see
 Alternatives): it only covers the case where the target is the latest message, which is a half-coverage
 signal that can't be trusted, doesn't lead to action, and clashes with the mental model that "reactions are
 chips under a message, not a row."
@@ -259,7 +259,7 @@ reply counts · desktop changes · promoting derivation utilities to `libs`.
   user cache in order, so a member whose profile hasn't synced yet may show a default avatar and an id. The
   headcount comes from the fold, so it still matches the chip in that case.
 - **The thread header now matching the room header weakens the "I'm in a thread" signal.** The root message
-  and its divider take over that role, and back-navigation returning to the channel (ADR-0045's two-step
+  and its divider take over that role, and back-navigation returning to the channel (ADR-0093's two-step
   move) helps too.
 - **Avatar resolution now converges in the UI layer.** The derivation utility stays pure, but every place
   that shows an avatar has to reapply the same priority order. Today that's three places: room, thread,

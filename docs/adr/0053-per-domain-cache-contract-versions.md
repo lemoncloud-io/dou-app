@@ -368,7 +368,7 @@ the ADR-0036 data layer refactor.
   is itself a loss).
 - **Whether to back the migration-bridge removal with measurement.** The only basis right now is
   elapsed time (three weeks). One option is to log "found a row to migrate" once before removal and
-  confirm it stays at zero — cheap with ADR-0047's unified logging. Whether to wait for confirmation or
+  confirm it stays at zero — cheap with ADR-0097's unified logging. Whether to wait for confirmation or
   remove immediately is still open.
 - **Whether a server list API could exist for `invitecloud`.** If it does, the whole local-authority
   classification dissolves and Decisions 3 and 4 become unnecessary. Needs backend confirmation.

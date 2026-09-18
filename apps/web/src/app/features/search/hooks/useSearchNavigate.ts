@@ -16,7 +16,7 @@ const HANDSHAKE_WAIT_TIMEOUT_MS = 10_000;
  * The place (sid) switch is required, not optional: a place result lands on the home screen, and
  * home renders the session's `selectedSiteId` rather than anything from the URL
  * (HomePage.tsx:65,184). A channel result switches too, so backing out of the room lands on the
- * home of the place that channel belongs to. See ADR-0033 and
+ * home of the place that channel belongs to. See ADR-0088 and
  * docs/specs/search/web-search-page.md.
  *
  * The switch runs cloud-first, and the handshake is awaited AGAIN after it: `switchSite` is a

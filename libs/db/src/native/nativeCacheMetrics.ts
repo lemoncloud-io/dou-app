@@ -3,15 +3,16 @@ import type { CacheType } from '@chatic/app-messages';
 import type { CacheMetricsSnapshot, ICacheMetricsSource } from '@chatic/data';
 
 /**
- * 네이티브 캐시 읽기/쓰기 계측.
+ * Native cache read/write instrumentation.
  *
- * 네이티브 저장소는 호출마다 브릿지 왕복(직렬화 → postMessage → SQLite → 역방향)을 태우는데, 그
- * 비용이 실사용에서 얼마인지 재본 적이 없습니다. "느릴 것"이라는 가정만으로 캐시 계층을 다시
- * 설계하지 않기 위해, 먼저 숫자를 남깁니다.
+ * Native storage burns a bridge round trip per call (serialize → postMessage → SQLite → back
+ * again), and we've never measured what that costs in actual use. Rather than redesigning the
+ * cache layer on the assumption alone that "it must be slow", this leaves numbers behind first.
  *
- * 두 가지를 따로 봅니다 — **한 번이 느린 것**과 **횟수가 많은 것**은 처방이 다릅니다. 전자는
- * 저장소 문제라 캐시 계층에서 풀어야 하고, 후자는 옵저버가 emit마다 저장소를 다시 읽는
- * 구조(`BaseLocalDataSource`의 `callback(await query())`) 문제라 그쪽을 고쳐야 합니다.
+ * Two things are tracked separately — **a single slow call** and **a high call count** call for
+ * different remedies. The former is a storage problem to be solved in the cache layer; the
+ * latter is a structural problem where an observer re-reads storage on every emit
+ * (`BaseLocalDataSource`'s `callback(await query())`), which needs to be fixed on that side.
  */
 export type NativeCacheOperation =
     | 'save'
@@ -25,20 +26,22 @@ export type NativeCacheOperation =
     | 'clearAll'
     | 'clearByChannel';
 
-/** 이 시간을 넘긴 단일 호출만 로그로 남깁니다. 전수 로깅은 링버퍼(500)를 금방 밀어냅니다. */
+/** Only a single call over this duration gets logged. Logging every call would quickly push the ring buffer (500) out. */
 const SLOW_OPERATION_MS = 50;
 
 /**
- * 같은 (연산, 타입)의 느린 호출 경고를 이 간격으로만 남깁니다.
+ * Leaves a slow-call warning for the same (operation, type) only this often.
  *
- * 임계값만으로는 부족합니다 — 네이티브 로그는 브릿지로 전달되므로 경고 한 건이 곧 왕복 한 건인데,
- * 정체가 시작되면 **모든** 호출이 임계값을 넘습니다. 그러면 캐시 요청마다 로그 왕복이 하나씩 붙어
- * 계측이 자기가 재려던 정체를 키웁니다. 문제를 알아차리는 데는 몇 초에 한 줄로 충분하고, 정확한
- * 분포는 어차피 누적 통계(`getNativeCacheMetrics`)에 전수로 남습니다.
+ * A threshold alone isn't enough — since native logs are delivered over the bridge, one warning
+ * is one round trip, and once congestion starts, **every** call crosses the threshold. Then every
+ * cache request would carry an extra log round trip, and the instrumentation would inflate the
+ * very congestion it was meant to measure. One line every few seconds is enough to notice the
+ * problem, and the exact distribution is recorded in full anyway in the cumulative stats
+ * (`getNativeCacheMetrics`).
  */
 const SLOW_LOG_THROTTLE_MS = 3000;
 
-/** 이 횟수마다 누적 요약을 한 줄 남깁니다 — 느린 호출이 하나도 없어도 빈도는 보이게. */
+/** Leaves a cumulative summary line every this many calls — so frequency stays visible even with zero slow calls. */
 const SUMMARY_EVERY_OPS = 100;
 
 export interface NativeCacheOperationStat {
@@ -48,15 +51,15 @@ export interface NativeCacheOperationStat {
 }
 
 const stats = new Map<string, NativeCacheOperationStat>();
-/** (연산:타입)별 마지막 느린-호출 경고 시각. 스로틀 판단에만 씁니다. */
+/** The time of the last slow-call warning per (operation:type). Used only for throttle decisions. */
 const lastSlowLogAt = new Map<string, number>();
 let totalOps = 0;
 
 const keyOf = (operation: NativeCacheOperation, type: CacheType): string => `${operation}:${type}`;
 
 /**
- * 한 번의 네이티브 캐시 호출을 기록합니다. 실패한 호출도 기록합니다 — 타임아웃이야말로 가장 느린
- * 호출이고, 그걸 빼면 분포가 실제보다 좋아 보입니다.
+ * Records a single native cache call. Failed calls are recorded too — a timeout is the slowest
+ * call of all, and excluding it would make the distribution look better than it actually is.
  */
 export const recordNativeCacheOperation = (
     operation: NativeCacheOperation,
@@ -73,8 +76,9 @@ export const recordNativeCacheOperation = (
 
     if (elapsedMs >= SLOW_OPERATION_MS) {
         const now = Date.now();
-        // 아직 한 번도 안 남긴 키는 무조건 남깁니다. `?? 0`으로 두면 "0에 남겼다"는 뜻이 되어,
-        // 시계가 스로틀 간격보다 작은 환경(테스트의 고정 시각)에서 첫 경고가 삼켜집니다.
+        // A key that has never been logged is logged unconditionally. Defaulting to `?? 0` would
+        // mean "already logged at time 0", which would swallow the first warning in an
+        // environment whose clock is smaller than the throttle interval (a fixed test time).
         const lastLoggedAt = lastSlowLogAt.get(key);
         if (lastLoggedAt === undefined || now - lastLoggedAt >= SLOW_LOG_THROTTLE_MS) {
             lastSlowLogAt.set(key, now);
@@ -97,21 +101,22 @@ const snapshot = (): Record<string, { count: number; avgMs: number; maxMs: numbe
     return out;
 };
 
-/** 부팅 이후 누적 통계. 디버그 화면·테스트에서 읽습니다. */
+/** Cumulative stats since boot. Read by the debug screen and tests. */
 export const getNativeCacheMetrics = (): {
     totalOps: number;
     operations: Record<string, { count: number; avgMs: number; maxMs: number }>;
 } => ({ totalOps, operations: snapshot() });
 
-/** 테스트 seam. */
+/** Test seam. */
 export const resetNativeCacheMetrics = (): void => {
     stats.clear();
     lastSlowLogAt.clear();
     totalOps = 0;
 };
 
-/** `ICacheMetricsSource`(`@chatic/data`)의 구현 — 모듈 상태 위의 얇은 facade다. 인스턴스를 몇 개
- * 만들어도 같은 누적 통계를 본다; `reset()`의 전역 효과도 `resetNativeCacheMetrics`와 동일하다. */
+/** The `ICacheMetricsSource` (`@chatic/data`) implementation — a thin facade over module state.
+ * Creating several instances still sees the same cumulative stats; `reset()`'s global effect is
+ * also identical to `resetNativeCacheMetrics`. */
 export class NativeCacheMetricsSource implements ICacheMetricsSource {
     read(): CacheMetricsSnapshot {
         return getNativeCacheMetrics();

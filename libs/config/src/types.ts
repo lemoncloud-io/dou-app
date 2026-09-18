@@ -5,7 +5,7 @@
  * purpose. Importing that lib would chain this one to the whole bridge contract — hundreds of
  * message types that mobile and every test would then carry — to gain two unions. The cost of the
  * copy is a single normalization point in each app's env adapter, and a test on the app side
- * (which may import both) asserts the two sets stay equal. See ADR-0079 결정 14.
+ * (which may import both) asserts the two sets stay equal. See ADR-0079 decision 14.
  *
  * `Stage` has three members because this repo has three. `VITE_ENV` is only ever compared against
  * 'LOCAL', 'DEV' and 'PROD', and the deploy workflows carry only `_DEV_ENV` and `_PROD_ENV`.
@@ -55,13 +55,13 @@ export type AppliesAt = 'live' | 'reconnect' | 'restart';
 /**
  * What a key MEANS. Authored in the registry, frozen at runtime.
  *
- * Everything here except the value itself is policy, and no lane may change it (ADR-0079 결정 6).
+ * Everything here except the value itself is policy, and no lane may change it (ADR-0079 decision 6).
  * The current value is deliberately absent — putting it here would make the registry mutable and
  * remove the structure that keeps policy fixed. `ConfigSnapshot` is the read-only pairing of a
  * declaration with its resolved value.
  */
 export interface ConfigEntry<T = unknown> {
-    /** Human name the panel shows instead of the dotted key. Korean (ADR-0080 결정 3). */
+    /** Human name the panel shows instead of the dotted key. Korean (ADR-0080 decision 3). */
     title: string;
     /** One sentence: what this changes, and why it exists when that is not obvious. */
     description: string;

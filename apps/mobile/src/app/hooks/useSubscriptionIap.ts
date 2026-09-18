@@ -160,13 +160,14 @@ export const useSubscriptionIap = ({ onPurchaseSuccess, onPurchaseError }: UseIa
     }, [handleCompleteTransaction, subscriptionIapService, logService, clearPurchaseTimeout]);
 
     /**
-     * 구매 신청
-     * @param id 상품 코드 (sku)
-     * @param offerToken (Android 필수) 결제할 오퍼 토큰
-     * @param oldPlanId (Android) 현재 구독 중인 요금제 ID (basePlanId)
-     * @param newPlanId (Android) 새로 결제하려는 요금제 ID (basePlanId) - 업/다운 판별용
+     * Requests a purchase
+     * @param id product code (sku)
+     * @param offerToken (Android, required) the offer token to purchase
+     * @param oldPlanId (Android) the currently subscribed plan ID (basePlanId)
+     * @param newPlanId (Android) the plan ID being purchased (basePlanId) - used to determine upgrade/downgrade
      *
-     * 주의사항: oldPlanId, newPlanId가 존재하지 않을 경우, Android에서는 업그레이드/다운그레이드 모드가 기본 설정값을 따름 (WITH_TIME_PRORATION)
+     * Note: if oldPlanId/newPlanId are not provided, Android falls back to its default
+     * upgrade/downgrade proration mode (WITH_TIME_PRORATION).
      */
     const handlePurchase = async (id: string, offerToken?: string, oldPlanId?: string, newPlanId?: string) => {
         if (loading) return;

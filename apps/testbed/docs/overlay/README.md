@@ -1,197 +1,83 @@
-# [기술 스펙 명세서] 전역 오버레이
+# overlay
 
-## 1. 목적
+**The one runtime inspector, reachable from every screen, without leaving it.** Session, socket, DB
+and unread state all live behind one entry point instead of five ad hoc debug panels — open it from
+chat home, the chat room, or settings, close it, and the current route and selection are exactly as
+they were. It performs no sign-in itself; that only happens on
+[the login screen](../session/login.md). Component: `apps/testbed/src/app/overlays/RuntimeOverlay.tsx`.
 
-오버레이는 어느 화면에서든 열 수 있는 전역 진단 패널이다.
+## Tabs
 
-이 패널의 역할은 다음에 한정한다.
+| Tab     | Shows                                                                                                          |
+| ------- | -------------------------------------------------------------------------------------------------------------- |
+| Status  | Session identity, the resolved `activeServer`, the raw relay and cloud contexts side by side, and socket state |
+| DB      | [DB Browser](#db-browser) — read, write, delete and clear cached rows by type                                  |
+| Perf    | Live sync targets, chat throughput/latency, cache-observation and render counts, socket connection quality     |
+| Profile | The active cloud's name, the account-wide user profile (scoped to the active server), and the site profile     |
+| Unread  | Unread totals — overall, by place, and by channel                                                              |
 
-- 현재 세션 상태 조회
-- 현재 웹 런타임 상태 조회
-- 현재 DB 상태 조회
-- 현재 소켓 상태 조회
-- 현재 페이지를 벗어나지 않고 상태를 빠르게 확인
+**Status is the one to check after any session action.** It shows the relay and cloud contexts
+_independently_ (not just the resolved `activeServer`), which is the fastest way to tell "cloud
+session actually cleared" from "cloud session is still there but `activeServer` already moved on" —
+a distinction [session/README.md](../session/README.md)'s two logout actions can otherwise hide.
 
-로그인 수행 자체는 오버레이가 아니라 별도 로그인 페이지에서 처리한다.
+**Perf and Unread are read-only snapshots computed elsewhere** — `MetricsCollector` for Perf (see
+[the app README](../../README.md#structure), which reports socket state changes into it
+independent of whether the overlay is even open), and the same unread-aggregation hooks `apps/web`'s
+home screen uses for Unread. Neither tab owns logic of its own; they exist to make numbers that are
+otherwise invisible checkable in one place.
 
-## 2. 오버레이 열기/닫기 규칙
+## DB Browser
 
-- 채팅 홈, 채널 상세, 설정 페이지 어디서든 동일한 진입점으로 연다
-- 오버레이를 닫아도 현재 라우트와 선택 상태는 유지한다
-- 모바일 기준에서는 바텀 시트 또는 풀스크린 다이얼로그 형태를 우선 고려한다
-- 데스크톱에서는 우측 패널 또는 모달 형태를 허용한다
+A direct read/write panel over the cache layer — no separate debug-only storage, the same rows the
+app itself reads.
 
-## 3. 표시 영역
+### Types
 
-### 3.1 Session Status
+Eight `CacheType`s, each mapped to the repository that actually serves it — note that `site` is
+served by the **place** repository, not a `site` repository:
 
-표시 항목:
+| Type          | Repository | Extra query filters                         |
+| ------------- | ---------- | ------------------------------------------- |
+| `channel`     | `.channel` | `sid`                                       |
+| `chat`        | `.chat`    | `channelId` (required), `cursorNo`, `limit` |
+| `user`        | `.user`    | `channelId` (required)                      |
+| `join`        | `.join`    | `channelId`                                 |
+| `site`        | `.place`   | none                                        |
+| `invitecloud` | `.cloud`   | none                                        |
+| `profile`     | `.profile` | `sid`                                       |
+| `invite`      | `.invite`  | none                                        |
 
-- relay 로그인 여부
-- 현재 활성 cloud id
-- 현재 활성 place id
-- 현재 활성 channel id
-- relay session 존재 여부
-- cloud session 존재 여부
-- invited cloud 보유 현황
+The row-count shown per type is a one-shot `cacheReadList` call, not a live subscription — it can
+lag a change made elsewhere in the app by a moment. The query panel inside a type, once opened, _is_
+live: it opens with an empty-query `observeList` subscription and re-subscribes whenever a filter
+changes, so its results track the cache in real time.
 
-의도:
+### Actions per row/table
 
-- 현재 사용자가 relay 상태인지 cloud 상태인지 즉시 식별할 수 있어야 한다
-- 클라우드 전환 직후 상태 정합성을 빠르게 확인할 수 있어야 한다
+- **Delete** a row by id (`cacheDelete`) — reflected immediately, since the result view is the live
+  subscription.
+- **Write** a row from a JSON edit area (`cacheWrite`) — the same id overwrites, so this doubles as
+  create and update.
+- **Clear all** rows of a type, scoped to the current context (`cacheClear`) — destructive, gated by
+  a confirmation dialog.
+- One-click starter templates exist per type for quickly seeding a usable row without hand-typing
+  JSON.
 
-### 3.2 Web Runtime Status
+All of the above goes through `useRuntimeRepositories()` — there is no direct IndexedDB access
+anywhere in this panel.
 
-표시 항목:
+## Verifying
 
-- 현재 backend 주소
-- 현재 wss 주소
-- 현재 active server 요약
-- 인증 상태
-- 최근 세션 전이 시각
+- A cloud switch on [chat home](../chat/README.md) should move the Status tab's `activeServer`,
+  `Relay` and `Cloud` sections together and consistently.
+- After a relay logout, the Cloud section should read `isActive: false` and cloud-scoped identifiers
+  should clear.
+- Deleting a DB row should remove it from the query panel without a manual refresh; Clear All should
+  bring that type's row count to zero.
+- DB writes/deletes here should never bleed into a screen's own state — they exercise the same
+  cache the app reads, not a shadow copy of it.
 
-의도:
+## Related
 
-- 어떤 서버 대상으로 동작 중인지 즉시 파악할 수 있어야 한다
-- guest login, cloud switch, logout 이후 런타임 기준점이 바뀌었는지 확인할 수 있어야 한다
-
-### 3.3 DB Browser
-
-DB Browser는 `ChaticWebCacheDB`(IndexedDB)의 `cache_store` 테이블을
-오버레이에서 직접 조회·삭제할 수 있는 진단 패널이다.
-
-#### 3.3.1 테이블 목록 패널
-
-표시 항목:
-
-- `CacheType` 7종 각각의 이름과 전체 row count
-    - `channel`, `chat`, `user`, `join`, `site`, `invitecloud`, `profile`
-- 각 타입의 현재 partition 기준 (`cid` / `uid`)
-- 선택 시 해당 타입의 쿼리 패널로 진입
-
-의도:
-
-- 캐싱 스트림이 실제 저장소에 반영되고 있는지 확인한다
-- 다른 cloud/place 데이터가 혼입되는지 빠르게 파악한다
-
-#### 3.3.2 쿼리 패널 및 실시간 감시
-
-테이블 선택 후 아래 흐름으로 동작한다.
-
-초기 로드:
-
-- 테이블(하위 섹션) 진입 시 바로 전체 데이터를 로드하기 위해 빈 쿼리(`{}`)로 초기 조회 및 감시(`observeList`)를 시작한다.
-- 그 이후 필터 값을 설정하면 입력한 필터 설정에 맞추어 `observeList` 쿼리를 갱신하여 재감시한다.
-
-쿼리 입력:
-
-- 타입별 추가 필터 (각 repository의 `observeList(query)` query 파라미터 기준):
-    - `channel`: `sid` (사이트 필터), `keyword`
-    - `chat`: `channelId`, `sort` (asc/desc), `limit`, `cursorNo`, `keyword`
-    - `site`: `keyword`
-    - `join`: `channelId`, `userId`
-    - `profile`: `sid`
-    - `user`, `inviteCloud`: 추가 필터 없음
-
-실시간 데이터 로드 및 감시:
-
-- `repositories.<type>.observeList(query, callback)`를 호출하여 데이터 변경 사항을 실시간으로 UI에 동기화한다.
-- `useRuntimeRepositories()` hook으로 repositories 접근
-- 실행 중 로딩 표시, 오류 시 오류 메시지 표시
-
-현재 코드 근거:
-
-- `libs/app-runtime/src/runtime/useRuntimeRepositories.ts` — repositories hook
-- `libs/data/src/repositories/index.ts` — `DataRepositories` 인터페이스
-- `libs/app-messages/src/types/model/cache.ts` — `CacheQueryMap` 쿼리 옵션 정의
-
-#### 3.3.3 쿼리 결과 패널
-
-표시 형태:
-
-- row count (조회된 건수)
-- 각 row를 JSON 형태로 collapse/expand 가능한 아이템으로 표시
-- 주요 식별자 (`id`, `cid`, `uid`, `channelId` 등)는 상단에 고정 노출
-
-행 단위 액션:
-
-- **Delete**: 해당 row의 `id`로 `repositories.<type>.cacheDelete(id)` 호출
-    - UI는 `observeList`를 통해 감시 중이므로 삭제 완료 시 화면에 즉시 반영된다.
-
-#### 3.3.4 테이블 및 데이터 조작 액션
-
-- **Write (추가/수정)**: JSON 편집 영역을 제공하여 객체를 입력하고 `repositories.<type>.cacheWrite(item)`을 호출하여 캐시 데이터를 직접 조작할 수 있다.
-- **Clear All**: `repositories.<type>.cacheClear()` 호출 — 현재 context(cid/uid) 기준 해당 타입 전체 삭제
-    - 파괴적 동작이므로 확인 다이얼로그를 반드시 거친다
-- **Refresh**: `observeList` 구독을 다시 설정하거나 필요한 경우 캐시 갱신을 트리거한다.
-
-#### 3.3.5 구현 접근 방식
-
-- DB 데이터 접근 및 실시간 감시는 반드시 `useRuntimeRepositories()` hook을 통해 얻은 `DataRepositories`의 `observeList`를 사용한다.
-- 직접 IndexedDB API 호출 및 `CacheStorage<T>` 직접 접근을 금지한다
-- 쿼리 결과는 오버레이 내 로컬 상태로 관리하되 `observeList`를 통한 실시간 동기화 바인딩을 적용한다.
-
-repositories 타입-키 대응:
-
-| CacheType     | repositories 키 |
-| ------------- | --------------- |
-| `channel`     | `.channel`      |
-| `chat`        | `.chat`         |
-| `site`        | `.site`         |
-| `user`        | `.user`         |
-| `join`        | `.join`         |
-| `invitecloud` | `.inviteCloud`  |
-| `profile`     | `.profile`      |
-
-### 3.4 Socket Status
-
-표시 항목:
-
-- 소켓 연결 상태
-- 현재 연결 대상 cloud id
-- verified 여부
-- 최근 reconnect 시각
-- 최근 에러 요약
-
-의도:
-
-- cloud 전환과 로그아웃 이후 소켓이 기대 상태로 복구되었는지 확인한다
-
-## 4. 허용 액션
-
-오버레이는 기본적으로 조회 중심이지만, 아래의 비파괴 액션은 허용한다.
-
-- reconnect
-- runtime re-init
-- cache refresh
-- DB 쿼리 실행 (loadAll with options)
-- DB 행 단위 삭제 (delete by id)
-- DB 테이블 단위 전체 삭제 (clearAll — 확인 다이얼로그 필수)
-
-아래 액션은 설정 페이지를 통해 제공한다.
-
-- 로그인 페이지 이동
-- cloud 로그아웃
-- relay 로그아웃
-
-## 5. 상태 갱신 규칙
-
-- 오버레이에 표시되는 정보는 가능한 한 읽기 전용 스냅샷이 아니라 실시간 상태를 반영해야 한다
-- 소켓 상태와 세션 상태는 동일한 기준 store 또는 hook 계층에서 읽어야 한다
-- DB 상태는 고비용 조회를 반복하지 않도록 요약값을 우선 노출한다
-
-## 6. 검증 포인트
-
-- 채팅 홈에서 cloud 전환 후 오버레이의 session/web/socket 상태가 함께 바뀌어야 한다
-- relay 로그아웃 후 cloud 관련 상태가 모두 비워져야 한다
-- reconnect 이후 소켓 상태와 backend/wss 정보가 일관되게 유지되어야 한다
-- DB Browser에서 7개 CacheType 각각의 row count가 표시되어야 한다
-- 쿼리 필터(cid/uid 및 타입별 옵션)를 변경하면 결과가 갱신되어야 한다
-- 행 단위 Delete 이후 해당 row가 결과 목록에서 즉시 사라져야 한다
-- Clear All 실행 후 해당 타입의 row count가 0이 되어야 한다
-- DB 조작 결과가 전역 스토어나 채팅 화면 상태에 영향을 주지 않아야 한다
-
-## 관련 문서
-
-- [../architecture.SPEC.md](../architecture.SPEC.md) — 전체 아키텍처·전역 UX 규칙
-- [../session/README.md](../session/README.md) — 로그인 이동·로그아웃 액션(오버레이는 조회 중심)
+- [../session/README.md](../session/README.md) — the actions this overlay only observes the results of

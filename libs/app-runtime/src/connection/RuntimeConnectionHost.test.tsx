@@ -81,11 +81,13 @@ const cloudSlots = {
 };
 
 /**
- * 두 호스트는 한 컴포넌트에 스위치 하나가 다른 것이다. 그 스위치가 이 두 케이스다 — 게스트
- * keep-alive를 켜고 끄는 것 말고는 init 게이트·소켓 인증 루프·재인증까지 전부 같다.
+ * The two hosts are one component with a single switch flipped. That switch is these two cases —
+ * apart from turning guest keep-alive on or off, the init gate, the socket auth loop, and
+ * reauthentication are all identical.
  *
- * 이름으로 갈라 둔 이유가 여기 걸린다: 기본값 있는 prop이었다면 콘솔이 prop을 빼먹는 순간 조용히
- * 게스트 세션을 얻는다. 그 회귀는 화면에 아무 증상이 없으므로 테스트가 유일한 방어선이다.
+ * This is why they're split by name: if it were a prop with a default, the moment a caller forgot
+ * to pass the prop it would silently get a guest session. That regression has no symptom on
+ * screen, so the test is the only line of defense.
  */
 describe('두 호스트의 유일한 차이 — 게스트 keep-alive', () => {
     beforeEach(() => {
@@ -123,9 +125,10 @@ describe('RuntimeConnectionHost', () => {
             </RuntimeConnectionHost>
         );
 
-        // 데이터 스코프는 더 이상 여기서 밀어 넣지 않는다 — ActiveScope가 session/store에서 읽는다
-        // (ADR-0070 결정 7). push가 effect에서 돌던 탓에 하위 훅이 낡은 cid로 구독하던 문제를 없앤 변경.
-        // 밀어 넣을 API 자체가 사라져서(IDataManager에 ensure 없음) 이제 타입이 그 사실을 지킨다.
+        // The data scope is no longer pushed in here — ActiveScope reads it from session/store
+        // (ADR-0070 Decision 7). This is the change that removed the bug where a downstream hook
+        // subscribed with a stale cid because the push ran in an effect. The push API itself is
+        // gone now (no `ensure` on IDataManager), so the type system enforces that fact.
         await waitFor(() => {
             // The delegate is created internally and passed through to bootstrap.
             expect(mockedBootstrap).toHaveBeenCalledWith(

@@ -64,7 +64,7 @@ that `AppLogInfo` mirrors on the wire ([`@chatic/logger`](../logger/README.md)).
    requires, and only the shape is common.
 6. **Optional fields are the compatibility mechanism.** A field an older peer may not send is
    optional, and the receiver decides the fallback. `SendLogPayload.timestamp` is optional because a
-   pre-ADR-0047 web build does not stamp one, and the receiver substitutes its arrival time rather
+   pre-ADR-0097 web build does not stamp one, and the receiver substitutes its arrival time rather
    than dropping the entry.
 7. **Every import is a type import.** Four externals appear — `react-native`, `react-native-iap`,
    `@lemoncloud/chatic-socials-api`, `@lemoncloud/chatic-backend-api` — and all four are

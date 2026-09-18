@@ -7,7 +7,7 @@
 //
 // The binders (`SocketBinder` · `SocketReauthBinder`), `useSocketSessionDelegate`,
 // `useRuntimeSocketSlots` and `deriveConnectivity` are NOT here. They are the host's own parts: it
-// reaches them by concrete path, and no app has ever mounted one (ADR-0076 결정 6). This barrel used
+// reaches them by concrete path, and no app has ever mounted one (ADR-0076 Decision 6). This barrel used
 // to `export *` the two binders, which put them on the package's public API by accident.
 
 // Both hosts live in one module: they are the same component with guest keep-alive on/off.
@@ -29,7 +29,7 @@ export { useKindVerified } from './hooks/useKindVerified';
 export { recoverUnverifiedSockets } from '../socket/auth/recoverUnverifiedSockets';
 export type { RecoverUnverifiedSocketsDeps } from '../socket/auth/recoverUnverifiedSockets';
 // Injection seam for the relay-refresh primitive. The primitive itself stays internal: apps ask for
-// freshness through `session.useSessionStalenessGuard`, never by calling it (ADR-0070 불변조건 1·2).
+// freshness through `session.useSessionStalenessGuard`, never by calling it (ADR-0070 invariants 1·2).
 export type { RequestRelaySessionRefreshDeps } from '../socket/auth/requestRelaySessionRefresh';
 
 // The manager handle — for a debug/lab surface that drives the socket directly.

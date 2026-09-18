@@ -172,13 +172,13 @@ describe('CacheCrudService — fetchMany', () => {
 
     it('fetchMany 미구현이면 fetch 반복으로 채운다 — 브릿지 왕복은 여전히 1회다', async () => {
         const { service, profile } = setup();
-        // 선택 구현이므로 없는 상태를 만든다.
+        // Simulate the case where it's not implemented, since it's optional.
         (profile as any).fetchMany = undefined;
         profile.fetch.mockResolvedValueOnce({ id: 's1@u1' } as CacheModelMap['profile']).mockResolvedValueOnce(null);
 
         const result = await service.fetchMany({ type: 'profile', ids: ['s1@u1', 'missing'], cid: 'c1', uid: 'u1' });
 
-        // 없는 id는 자리를 비워두지 않고 빠진다.
+        // A missing id is dropped rather than leaving a hole in its place.
         expect(result).toEqual([{ id: 's1@u1' }]);
         expect(profile.fetch).toHaveBeenCalledTimes(2);
     });
@@ -217,7 +217,7 @@ describe('CacheCrudService.clearByChannel (ADR-0067)', () => {
     it('chat 외의 타입은 거부한다', async () => {
         const { service } = setup();
 
-        // clear와 달리 오류를 삼키지 않는다 — 웹이 "지워졌다"고 잘못 믿으면 안 된다.
+        // Unlike clear, this doesn't swallow the error — the web must not be misled into believing it was cleared.
         await expect(service.clearByChannel({ type: 'user', channelId: 'ch-1' })).rejects.toThrow(
             'clearByChannel is not supported for type: user'
         );

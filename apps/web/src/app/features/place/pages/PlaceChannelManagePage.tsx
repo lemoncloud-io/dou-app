@@ -81,7 +81,7 @@ export const PlaceChannelManagePage = () => {
     const { selectedCloudId } = runtime.session.useSessionSelection();
     const placeScope = placeScopeKey(selectedCloudId, placeId);
 
-    // Sent relay invites (ADR-0033 Track B) only apply to the default (relay) cloud's place — a
+    // Sent relay invites (ADR-0089 Track B) only apply to the default (relay) cloud's place — a
     // custom cloud's channels are invited via the cloud invite flow (ADR-0016) instead. Gate the
     // rendering, not the fetch (useInviteListRows runs the same react-query hook regardless).
     const isDefaultCloud = selectedCloudId === 'default';

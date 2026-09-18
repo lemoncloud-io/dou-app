@@ -10,7 +10,7 @@
  * three copies of this arithmetic — this function (unreferenced), `CredentialFreshness`'s private
  * `remainingFrom`, and an inline expression in `cloudStore.getCachedCloudTokens`. Collapsing them to
  * one needs a module BOTH `session/store` and `session/auth` may import, and the store's passivity
- * rule (ADR-0070 결정 1 규칙 1, enforced by eslint `no-restricted-imports`) forbids `store/**` from
+ * rule (ADR-0070 Decision 1 rule 1, enforced by eslint `no-restricted-imports`) forbids `store/**` from
  * importing `../auth`. The dependency only runs the other way, so the shared leaf belongs here.
  */
 export const msUntilExpiration = (expiration: unknown, now: number): number | null => {

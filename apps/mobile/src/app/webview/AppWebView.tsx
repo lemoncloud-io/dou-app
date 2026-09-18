@@ -19,7 +19,7 @@ import { useDebugSettingsStore, useThemeStore } from '../stores';
 import type { IAppBridgeHost } from '@chatic/bridges';
 
 interface AppWebViewProps extends WebViewProps {
-    /** 모바일 브릿지 호스트 인스턴스 (네이티브 기능 라우팅 및 이벤트 발송 담당) */
+    /** Mobile bridge host instance (handles native feature routing and event dispatch) */
     bridge: IAppBridgeHost;
 }
 
@@ -61,11 +61,11 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
 
     useVersionCheckHandler(bridge);
 
-    // WebView 프로세스 크래시 감지 (ADR-0047): 웹은 통째로 죽어 스스로 리포트할 수
-    // 없으므로, 네이티브가 지연 리포트 큐에 사실만 담는다 — 재부팅된 웹이 세션
-    // 준비 후 pull해 대리 전송한다. 버퍼 스냅샷은 싣지 않는다: 그 엔트리들은
-    // 업로더가 통합 버퍼에서 낱건으로 이미 올리므로, 여기 복사하면 같은 로그가
-    // 리포트로 한 번 더 저장될 뿐이다.
+    // WebView process crash detection (ADR-0097): the web side dies outright and can't report on
+    // itself, so native only records the fact into the pending-report queue — the reloaded web app
+    // pulls it once its session is ready and relays it on the web's behalf. It doesn't attach a
+    // buffer snapshot: the uploader already ships those entries individually from the unified
+    // buffer, so copying them here would just get the same log saved into the report a second time.
     const captureWebViewCrash = useCallback((reason: string) => {
         logger.error('WEBVIEW', `[webview-crash] ${reason}`);
         pendingReportQueueService.enqueue({
@@ -75,7 +75,7 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
         });
     }, []);
 
-    // iOS: content process가 OS에 의해 종료된 경우 리로드
+    // iOS: reload when the content process is terminated by the OS
     const handleContentProcessDidTerminate = useCallback(() => {
         captureWebViewCrash('iOS WebView content process terminated');
         // The forced reload is effectively a full re-boot of the web app —
@@ -84,7 +84,7 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
         webViewRef.current?.reload();
     }, [captureWebViewCrash]);
 
-    // Android: render process가 크래시/킬된 경우 — iOS 경로와 동일하게 캡처 후 리로드
+    // Android: render process crashed/killed — capture and reload the same way as the iOS path
     const handleRenderProcessGone = useCallback(
         (event: { nativeEvent: { didCrash?: boolean } }) => {
             captureWebViewCrash(

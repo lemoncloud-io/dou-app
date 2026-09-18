@@ -74,7 +74,7 @@ export const isInviteEntry = (params: InviteParams): boolean =>
 /**
  * True when the entry is a relay 1:1 invite rather than a cloud invite, which decides whether the
  * popup runs the relay accept flow (`invite.get` / phone verification / `invite.accept`) or the
- * existing cloud one. See ADR-0033.
+ * existing cloud one. See ADR-0089.
  *
  * Both kinds share the `invt:<id>:<code>` code shape, so the issuer's `relay` marker is the only
  * discriminator available up front. A link that loses the marker on its way through the landing

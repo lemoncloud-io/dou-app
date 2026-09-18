@@ -6,11 +6,11 @@ import { useDebugOperation } from '../../hooks';
 import { appBridge } from '../../../../bridge';
 
 /**
- * Point the app's WebView at a custom web build — the app's 환경설정 screen, moved here
- * (ADR-0080 결정 11 · 미결 4).
+ * Point the app's WebView at a custom web build — the app's Settings screen, moved here
+ * (ADR-0080 decision 11 · open question 4).
  *
  * **PROD builds refuse, and the app decides that.** A zip URL chooses the code the WebView runs, so
- * it is the same production security surface 결정 13 removed the web-address switcher for. The guard
+ * it is the same production security surface decision 13 removed the web-address switcher for. The guard
  * lives natively on the baked `VITE_ENV` (`useCustomZipHandler`) precisely so a compromised web
  * bundle cannot unlock it — this screen only reports what the app says.
  *

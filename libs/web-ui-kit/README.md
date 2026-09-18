@@ -254,7 +254,7 @@ Seven components draw a circle and they are not interchangeable.
 Two inconsistencies are real and worth knowing before you match a design: `DefaultAvatar` rings
 itself with `border-border` while `AvatarShell` and `ProfileAvatar` use `border-avatar-ring`, and
 `ChatAvatar`'s `sm/md/lg` is 36/46/56 where `PlaceAvatar` and `CloudAvatar` read 36/40/46. Folding
-all seven into one variant-driven `Avatar` is an open decision (ADR-0045, decision 6) that has not
+all seven into one variant-driven `Avatar` is an open decision (ADR-0094, decision 6) that has not
 been taken; until it is, the divergence is the state of the code and not a bug to fix in passing.
 
 The one avatar rule that is easy to get wrong: `ProfileAvatar glyph="home"` is the only placeholder

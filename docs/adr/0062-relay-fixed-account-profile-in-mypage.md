@@ -2,8 +2,8 @@
 
 - Status: Accepted
 - Date: 2026-08-19
-- Supersedes: [ADR-0045](0045-relay-default-place-scoping-profile-step-and-avatar-unification.md) decision 5 (reverted 2026-08-06)
-- Related: [ADR-0034](0034-relay-home-cloud-sheet-and-cloud-guide-redesign.md), [ADR-0042](0042-account-linking-server-slots.md), [ADR-0052](0052-invite-local-cache.md), `libs/app-runtime/docs/socket/kind-scoped-routing.md`
+- Supersedes: [ADR-0094](0094-relay-default-place-scoping-profile-step-and-avatar-unification.md) decision 5 (reverted 2026-08-06)
+- Related: [ADR-0091](0091-relay-home-cloud-sheet-and-cloud-guide-redesign.md), [ADR-0042](0042-account-linking-unified-path-migration.md), [ADR-0052](0052-invite-local-cache-and-native-table.md), `libs/app-runtime/docs/socket/kind-scoped-routing.md`
 
 > **Naming note (2026-09-01):** `*RemoteDataSource` · `RemoteGatewayBundle` · `*DomainGateway` ·
 > `remoteFactory` · `remote/data-sources/`, as used in this document, are **names from that time**. Once
@@ -19,7 +19,7 @@ connected to a cloud, the same screens showed and edited a **cloud delegation re
 delegation issues a **different uid** from a separate backend (`POST {cloudBackend}/oauth/exchange-token`),
 so to the user it looked like switching clouds changed their own account.
 
-ADR-0045 decision 5 already flagged this and tried to pin `useMyUser` to relay scope, but it was
+ADR-0094 decision 5 already flagged this and tried to pin `useMyUser` to relay scope, but it was
 **reverted**. The cause was the cache: the local cache's physical key is `${type}:${cid}:${uid}:${id}`, and
 `UserLocalDataSource`'s **read path ignores `contextOverride`**, so there was no way to read back the
 relay `user` row while a cloud was active. Redirecting only the write destination to relay meant the
@@ -79,7 +79,7 @@ header goes blank mid-session." Put `...previous` first, matching the cloud bran
 
 ## Alternatives
 
-- **Route `user.profile`/`user.update` to relay in the data layer** — the path ADR-0045 decision 5 tried
+- **Route `user.profile`/`user.update` to relay in the data layer** — the path ADR-0094 decision 5 tried
   and reverted. The cache partition problem remains, and the uid `useRuntimeProfile` observes stays out of
   step with the uid in the response. Going through `libs` also reaches desktop-web.
 - **Write to cache only when `cid === 'default'`, like `InviteRepository`** — avoids partition

@@ -1,19 +1,19 @@
 import type { EnTranslation } from './en';
 
 /**
- * Korean UI strings. 해요체 for anything that reads as a sentence, bare noun
+ * Korean UI strings. `해요체` for anything that reads as a sentence, bare noun
  * phrases for labels, buttons and menu items, so the UI stays as short in
- * Korean as it is in English; no 합니다체, and no exclamation marks the English
+ * Korean as it is in English; no `합니다체`, and no exclamation marks the English
  * does not have.
  *
  * One Korean term per English term, held across the whole file:
- * cloud 클라우드 · place 플레이스 · channel 채널 · workspace 워크스페이스 ·
- * thread 스레드 · reply 답글 · saved items 저장한 항목 · mentions 멘션 ·
- * unread 안 읽음 · mention 멘션 · reaction 반응 · invite 초대 · guest 게스트 ·
- * member 멤버 · favorites 즐겨찾기 · quiet hours 방해 금지 시간 · rail 레일.
+ * cloud `클라우드` · place `플레이스` · channel `채널` · workspace `워크스페이스` ·
+ * thread `스레드` · reply `답글` · saved items `저장한 항목` · mentions `멘션` ·
+ * unread `안 읽음` · mention `멘션` · reaction `반응` · invite `초대` · guest `게스트` ·
+ * member `멤버` · favorites `즐겨찾기` · quiet hours `방해 금지 시간` · rail `레일`.
  * Product nouns, keys and tokens stay verbatim: DoU, Google, DM, Enter,
  * Esc, invt:, OS, ⌘/⇧. 'Travel & places' is the emoji category, not the product
- * noun, so it is 여행과 장소 rather than 플레이스.
+ * noun, so it is `여행과 장소` rather than `플레이스`.
  */
 export const ko: EnTranslation = {
     'auth.invite.title': 'DoU에 오신 것을 환영해요',

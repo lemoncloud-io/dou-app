@@ -33,13 +33,13 @@ unread count.
   → `OnReceiveNotification` (the full `data` payload). What is missing is only a consumer that turns this
   into a dot.
 - **Background/terminated push never reaches the web** — native handles only the banner and the badge
-  ([push.md](../../apps/mobile/docs/push.md)).
+  ([push.md](../../apps/mobile/docs/push/README.md)).
 - `apps/desktop-web` already ships this feature: `useCrossCloudPushBadge` (marks the cid on arrival, clears
   it once the cloud switch is confirmed) + `useCloudPushBadgeStore` (persisted) + `resolvePushCloudId`
   (reverse lookup for an empty `cid`, **only when the match is unique** — "no dot beats a wrong dot").
   desktop-web is off-limits to modify, but referencing and porting it is fine.
 - Native shared storage already exists: iOS App Group `group.io.chatic.dou` (registered in both the app's
-  and the NSE's entitlements, [badge.md](../../apps/mobile/docs/badge.md)) · Android
+  and the NSE's entitlements, [badge.md](../../apps/mobile/docs/push/badge.md)) · Android
   [`BadgeStore.kt`](../../apps/mobile/android/app/src/main/java/io/chatic/dou/push/BadgeStore.kt)
   (SharedPreferences). Wherever the badge is incremented by +1 is exactly where a mark can be recorded too.
 - Push payload: `cid` is in the spec but has variants — the relay sentinel `'#'` (ADR-0045) and an empty

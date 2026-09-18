@@ -40,7 +40,7 @@ import { useChromeInsets } from '../../../ui/hooks/useChromeInsets';
 const MAX_INPUT_LENGTH = 5000;
 
 /**
- * Full-screen thread: one root message and its direct replies (ADR-0045 decision 4).
+ * Full-screen thread: one root message and its direct replies (ADR-0093 decision 4).
  *
  * Everything here is derived from the channel's loaded cache window (`rawChats` →
  * `buildThread`), so the reply list is best-effort (ADR-0008): an old thread may need
@@ -64,7 +64,7 @@ export const ThreadPage = () => {
 
     const [content, setContent] = useState('');
     const [actionMessage, setActionMessage] = useState<ClientChatView | null>(null);
-    // A truncated reply's "전체보기" target (null = closed) — the room's dialog, same rule.
+    // A truncated reply's "view full" target (null = closed) — the room's dialog, same rule.
     const [expandedMessage, setExpandedMessage] = useState<{ content: string } | null>(null);
     const [pickerOpen, setPickerOpen] = useState(false);
     // The chip whose reactors are being inspected (message id + long-pressed fold key).
@@ -90,7 +90,7 @@ export const ThreadPage = () => {
     });
     const { profileMap } = useChannelProfiles(channel?.sid ?? null, activeMemberIds);
 
-    // The header names the SCREEN ("스레드"), not the room (Figma 4718:22183) — a thread is a
+    // The header names the SCREEN ("Thread"), not the room (Figma 4718:22183) — a thread is a
     // view of a channel, and wearing the channel's name and face would claim otherwise. So no
     // channel title, no channel avatar, and with them go the peer/title chains this screen used
     // to run purely to feed the header. `members` / `profileMap` above stay: they are what give
@@ -335,7 +335,7 @@ export const ThreadPage = () => {
                 {/* Titled for the screen, not the room, and with no avatar (Figma 4718:22183):
                     a thread is one conversation inside a channel, and the channel's face here
                     would read as having navigated to the channel. Back returns to it
-                    (ADR-0045's two-hop). */}
+                    (ADR-0093's two-hop). */}
                 <ChatRoomHeader
                     title={t('chat.thread.title')}
                     hideAvatar

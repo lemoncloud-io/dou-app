@@ -20,7 +20,7 @@ const pad = (n: number): string => String(n).padStart(2, '0');
  * Remaining time as `HH:mm:ss`.
  *
  * Days are folded into the hours rather than switching format the way the accept screen does
- * (`InviteExpiryCard`): links this client issues live 24 hours (ADR-0068 결정 4), so the day field is
+ * (`InviteExpiryCard`): links this client issues live 24 hours (ADR-0068 decision 4), so the day field is
  * always zero and one format is enough — and if a link ever comes back longer, `72:00:00` still
  * reads correctly instead of silently showing `00:00:00`.
  */
@@ -55,7 +55,7 @@ export const DmInviteFooter = ({ state, countdown, onReinvite }: DmInviteFooterP
                     {t('chat.dm.footer.leftHint')}
                 </p>
 
-                {/* "초대가 완료되었습니다" = the link went out, NOT that it was accepted. Acceptance
+                {/* "Invite sent" = the link went out, NOT that it was accepted. Acceptance
                     arrives as the join system message, after which this block is gone. */}
                 {(state.kind === 'pending' || state.kind === 'expired') && (
                     <p className="text-center text-[14px] font-medium leading-[1.45] tracking-[-0.07px] text-foreground">
@@ -85,7 +85,7 @@ export const DmInviteFooter = ({ state, countdown, onReinvite }: DmInviteFooterP
                     </>
                 )}
 
-                {/* The label and the "{{time}} 남음" frame are the accept screen's own strings — the
+                {/* The label and the "{{time}} remaining" frame are the accept screen's own strings — the
                     copy is identical, so it is shared rather than duplicated. */}
                 {countdown && (
                     <p

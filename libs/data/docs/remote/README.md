@@ -151,7 +151,7 @@ made the two symmetric. The HTTP axis did not change by a single character.
 V1 had been gone for a long time while the whole data layer still carried `V2`, in directory names and
 identifiers alike — and `libs/app-runtime` already used the V2-free names, so the boundary between the
 two forced an import alias. Removing the suffix closed that split
-(ADR-0081 decisions 4 and 5).
+(ADR-0100 decisions 4 and 5).
 
 | Before                                             | Now                                            |
 | -------------------------------------------------- | ---------------------------------------------- |
@@ -173,6 +173,6 @@ Two things moved in `libs/app-runtime` alongside it. `factories/repositoryFactor
 a 30-line shell whose only job was renaming `contextProvider` to `context`, and once both sides said
 `createRepositories` it would have collided with the thing it wrapped; `DataManager` now calls
 `@chatic/data`'s `createRepositories` directly. `factories/localFactory.ts` stays, and **so does its
-import alias** (`createLocalDataSources as createDataLocalDataSources`): ADR-0081 expected the alias to
+import alias** (`createLocalDataSources as createDataLocalDataSources`): ADR-0100 expected the alias to
 disappear with the suffix, but app-runtime's own `createLocalDataSources` — the one that does storage
 routing — now has exactly the same name, so the collision is real regardless of `V2`.

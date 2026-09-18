@@ -2,7 +2,7 @@ import { useDebugOperation } from '../../hooks';
 import { appBridge } from '../../../../bridge';
 
 /**
- * Native OAuth — the app's OAuth Test screen, moved here (ADR-0080 결정 11).
+ * Native OAuth — the app's OAuth Test screen, moved here (ADR-0080 decision 11).
  *
  * This exercises the NATIVE sign-in sheet (`OAuthLogin`/`OAuthLogout`), which is a different path
  * from the web's own relay hand-off (`apps/desktop-web`'s `oauth.ts`): the app talks to the

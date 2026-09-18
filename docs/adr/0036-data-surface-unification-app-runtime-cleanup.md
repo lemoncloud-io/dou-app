@@ -1,6 +1,6 @@
 # ADR-0036: Unify the data access surface — retire the gateway exception and clean up app-runtime
 
-> Status: Accepted · Decided: 2026-07-30 · Related: [ADR-0033](./0033-relay-dm-invite-and-auth-parallel-tracks.md) (replaces one alternative)
+> Status: Accepted · Decided: 2026-07-30 · Related: [ADR-0089](./0089-relay-dm-invite-and-auth-parallel-tracks.md) (replaces one alternative)
 
 > **Naming note (2026-09-01):** the names this document uses — `*RemoteDataSource`, `RemoteGatewayBundle`,
 > `*DomainGateway`, `remoteFactory`, `remote/data-sources/` — are **the names of the time**. The mapping
@@ -18,7 +18,7 @@ tangled logic in `libs/data` and `libs/app-runtime/src/runtime` was wanted. What
 places. The encapsulation of libs/data itself holds. The real bypasses are:
 
 1. `useRuntimeGateways` exposes two gateways, invite and auth, directly to the UI — the exception
-   ADR-0033 deliberately left (consumed by `useRelayInvites`, `useVerifyHashAlias`, and
+   ADR-0089 deliberately left (consumed by `useRelayInvites`, `useVerifyHashAlias`, and
    `useAttachSocial` in `apps/web`).
 2. The parallel axios REST layer in `libs/web-core` — 150+ consumer files. Auth and session bootstrap
    are a legitimately separate concern, but reads that overlap the repository domains are mixed in, such
@@ -51,13 +51,13 @@ blanket V2 suffix with no V1 present, plus old-name alias debt ⑧ dependence on
 
 ### 1. Retire direct gateway exposure — promote to repositories
 
-This **replaces** ADR-0033's alternative "promote the invite list to repositories — dropped". Having
+This **replaces** ADR-0089's alternative "promote the invite list to repositories — dropped". Having
 two access surfaces coexist, `useRuntimeRepositories` (through the cache) and `useRuntimeGateways`
 (bypassing it), is itself the confusion, so the singleness of the principle wins.
 
 - relay invite → add an `InviteRepository`. Where the auth commands (`verifyHashAlias`, `attachSocial`)
   belong (a new repository vs extending an existing one) is settled at the spec stage.
-- **The point of promotion is a single access surface, not an obligation to persist.** ADR-0033's
+- **The point of promotion is a single access surface, not an obligation to persist.** ADR-0089's
   factual finding that there is "no offline requirement" still holds, and remote-only or in-memory cache
   implementations are allowed. A repository is redefined as "the single data access surface", not "the
   cache" (the libs/data README needs updating).
@@ -102,7 +102,7 @@ through a repository) consistently to push routing too.
 
 ### 5. When to start
 
-**Start after every track in the relay DM roadmap (the ADR-0033 family) is finished.** This refactoring
+**Start after every track in the relay DM roadmap (the ADR-0089 family) is finished.** This refactoring
 touches the core of app-runtime and would collide head-on with the tracks in flight.
 
 ## Alternatives

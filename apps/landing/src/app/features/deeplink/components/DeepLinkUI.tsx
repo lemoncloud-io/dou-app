@@ -65,7 +65,7 @@ export const DeepLinkUI = ({ state, onLaunchApp, onContinueBrowser }: DeepLinkUI
 
             {/* Bottom button area - with safe area padding */}
             <div className="w-full max-w-[375px] pb-[max(52px,calc(env(safe-area-inset-bottom)+26px))] px-4 flex flex-col gap-5 items-center">
-                {/* D.U 앱 열기 button */}
+                {/* "Open D.U app" button */}
                 <button
                     onClick={onLaunchApp}
                     className="w-full h-[50px] bg-accent rounded-[100px] flex items-end justify-center gap-1.5 pb-[14px]
@@ -100,7 +100,7 @@ export const DeepLinkUI = ({ state, onLaunchApp, onContinueBrowser }: DeepLinkUI
                     </span>
                 </button>
 
-                {/* 웹으로 보기 link */}
+                {/* "View in web" link */}
                 <button
                     onClick={onContinueBrowser}
                     className="text-muted-foreground text-lg font-medium tracking-[0.09px] hover:text-foreground transition-colors"

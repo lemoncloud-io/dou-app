@@ -47,7 +47,7 @@ interface CloudSessionSheetProps {
 
 /**
  * Cloud switcher — a fixed-height bottom sheet holding three collapsible sections: `Home` (relay),
- * `내 클라우드` (owned) and `초대된 클라우드` (invited). Replaced the earlier two-tab layout so all
+ * `My Cloud` (owned) and `Invited Cloud` (invited). Replaced the earlier two-tab layout so all
  * three groups can be scanned at once (Figma 3477-23611 / 3486-25407 / 3486-25889).
  *
  * The "add cloud" button lives in the owned section's FOOTER, outside the collapsible body, so it
@@ -90,7 +90,7 @@ export const CloudSessionSheet = ({
         if (open) refreshCloudUnread();
     }, [open, refreshCloudUnread]);
 
-    // Cross-cloud push marks (ADR-0056 결정 2) — the other half of the dot, for pushes that arrived
+    // Cross-cloud push marks (ADR-0056 decision 2) — the other half of the dot, for pushes that arrived
     // while away. Filtered to clouds actually in this account's catalog (owned + invited + relay)
     // and never the active one, so a stale/foreign mark can't paint a dot nothing else corroborates.
     const badged = useCloudPushMarkStore(s => s.badged);
@@ -160,7 +160,7 @@ export const CloudSessionSheet = ({
     };
 
     // Tapping a failed row explains the state and points at the one thing that fixes it (release it
-    // in 클라우드 관리, then add it again). The record's raw `error` is a server trace — it goes to the
+    // in Cloud management, then add it again). The record's raw `error` is a server trace — it goes to the
     // log, where support can read it, and never into the toast.
     const handleErrorClick = (cloud: CloudView) => {
         logger.warn('CLOUD', 'cloud row is in error state', { cloudId: cloud.id, error: cloud.error });

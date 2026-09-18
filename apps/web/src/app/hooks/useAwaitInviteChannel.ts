@@ -23,7 +23,7 @@ export interface AwaitInviteChannelOptions {
  * Waits for the DM room an accepted invite creates.
  *
  * `invite.accept` answers without a `channelId` — the room is built asynchronously and only shows up
- * once the client sees it (05-client-guide §미구현, backend request 5). Two things follow:
+ * once the client sees it (05-client-guide §not-yet-implemented, backend request 5). Two things follow:
  *
  * - Socket push cannot deliver it. `ChannelSyncPlan` only fires for targets already registered by a
  *   rendered row, and a room nobody has seen has no row.

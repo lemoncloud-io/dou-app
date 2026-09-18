@@ -8,10 +8,10 @@ import { useDeviceDetect, useDeepLinkInfo, useAppLauncher, useWebRedirect } from
  *
  * Flow:
  * - Desktop: Show desktop UI (dark theme with mobile access instructions)
- * - Mobile: Show landing page with "앱 열기" and "웹으로 보기" buttons
- *   - "앱 열기" → confirm dialog → launch app
+ * - Mobile: Show landing page with "Open app" and "View in web" buttons
+ *   - "Open app" → confirm dialog → launch app
  *   - App not installed → store confirm dialog → go to store
- *   - "웹으로 보기" → redirect to web app
+ *   - "View in web" → redirect to web app
  */
 export const DeepLinkPage = (): JSX.Element => {
     const { t } = useTranslation();

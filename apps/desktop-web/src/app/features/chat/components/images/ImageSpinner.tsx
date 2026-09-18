@@ -4,7 +4,7 @@ interface ImageSpinnerProps {
     className?: string;
 }
 
-/** The white ring Figma draws over an uploading image ("이미지 로딩"). */
+/** The white ring Figma draws over an uploading image ("image loading"). */
 export const ImageSpinner = ({ className }: ImageSpinnerProps) => (
     <span
         aria-hidden

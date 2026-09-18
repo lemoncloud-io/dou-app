@@ -3,7 +3,7 @@
 > Status: Accepted · Decided: 2026-08-13
 > Related: [ADR-0042](./0042-account-linking-unified-path-migration.md) (social-linking eligibility) ·
 > [ADR-0046](./0046-web-feature-ownership-and-barrel-hygiene.md) (feature ownership · barrel hygiene) ·
-> [ADR-0034](./0034-relay-home-cloud-sheet-and-cloud-guide-redesign.md) (cloud sheet · cloud guide screens)
+> [ADR-0091](./0091-relay-home-cloud-sheet-and-cloud-guide-redesign.md) (cloud sheet · cloud guide screens)
 >
 > Product canon: `plan/features/subscription/` (README · product-pricing · purchase-flow ·
 > subscription-lifecycle) · `plan/features/cloud.md` · Backend canon:
@@ -235,7 +235,7 @@ For now we only make sure `oldPlanId` is passed correctly so the check holds, an
 
 The implementation track found three of this ADR's premises did not match the code. The decisions
 themselves stand; only the mechanism changes. Detail is canonical in
-[tier-and-quota.md](../../apps/web/docs/feature/subscription/tier-and-quota.md).
+[tier-and-quota.md](../../apps/web/docs/feature/subscription/README.md).
 
 1. **Quota source.** Decision 1's table listed the cloud quota as `membership.product$.maxClouds`, but the
    backend only attaches the product as a head (`proxy.ts:1060` `asHead`). `ProductHead` has no
@@ -271,5 +271,5 @@ later cloud remains unverified.
 
 ## Next steps
 
-Implementation is complete ([tier-and-quota.md](../../apps/web/docs/feature/subscription/tier-and-quota.md)).
+Implementation is complete ([tier-and-quota.md](../../apps/web/docs/feature/subscription/README.md)).
 Screen work is a separate track that will consume the hooks and pure functions this track exports.

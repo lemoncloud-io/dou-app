@@ -1,6 +1,6 @@
 /**
  * `api/memberships/membershipsQuery.ts`
- * - react-query surface over the relay's admin membership endpoints (ADR-0082).
+ * - react-query surface over the relay's admin membership endpoints (ADR-0101).
  *
  * The wire itself lives in the shared layers (`libs/http` gateway → `libs/data` data source →
  * `SubscriptionRepository`), following the `users` feature rather than the app-local

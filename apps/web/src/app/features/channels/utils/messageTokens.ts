@@ -36,7 +36,7 @@ const INLINE_CODE_PATTERN = /`([^`\n]+)`/g;
 
 /**
  * Drops characters that the greedy match swallowed but that aren't part of the address:
- * `자세히는 https://example.com/a.` must link to `/a`, not `/a.`.
+ * `For details, see https://example.com/a.` must link to `/a`, not `/a.`.
  *
  * Closing brackets are counted rather than stripped, so `(see https://example.com/a)` loses its
  * `)` while `https://en.wikipedia.org/wiki/Foo_(bar)` keeps it. Repeated until stable because

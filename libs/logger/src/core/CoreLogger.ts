@@ -66,7 +66,7 @@ export class CoreLogger implements Logger {
      * Ingests an entry that was already stamped in another runtime (bridge
      * relay, native emitter): published as-is, WITHOUT restamping `timestamp`
      * or its context, so entries that crossed a boundary keep their original
-     * occurrence times and labels. (ADR-0047)
+     * occurrence times and labels. (ADR-0097)
      *
      * The one field that may be filled in is `id`, and only when absent: an
      * older app relaying entries without one would otherwise be undedupable,

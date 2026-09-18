@@ -49,14 +49,14 @@ describe('buildInviteEntryParams', () => {
 
         expect(params.get('utm_source')).toBe('kakao');
         expect(params.get('ref')).toBe('friend');
-        // utm 파라미터가 있어도 주소 파라미터는 아니므로 여전히 릴레이다.
+        // A utm parameter isn't an address parameter, so this is still relay.
         expect(params.get('relay')).toBe('1');
     });
 
     it('code가 없거나 클라우드 주소가 반쪽이면 에러를 던진다', () => {
         expect(() => buildInviteEntryParams('?api=x&stage=dev')).toThrow('code');
         expect(() => buildInviteEntryParams('?relay')).toThrow('code');
-        // 반쪽 주소는 깨진 클라우드 링크지, 릴레이 링크가 아니다 — 조용히 릴레이로 넘기지 않는다.
+        // A half address is a broken cloud link, not a relay link — it must not silently fall through to relay.
         expect(() => buildInviteEntryParams('?code=c&stage=dev')).toThrow('api 또는 backend');
         expect(() => buildInviteEntryParams('?code=c&api=x')).toThrow('stage');
     });

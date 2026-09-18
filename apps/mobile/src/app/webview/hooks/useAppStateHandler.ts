@@ -5,8 +5,8 @@ import type { AppBackgroundStatus, WebMessageData } from '@chatic/app-messages';
 import { logger } from '../../services';
 
 /**
- * 앱의 상태(Foreground/Background)를 감지하고 웹뷰(Web)와 동기화하는 역할을 담당하는 훅입니다.
- * 또한, 백그라운드 복귀 화면 오버레이 해제(DismissResumeOverlay) 처리도 수행합니다.
+ * Hook responsible for detecting the app's state (Foreground/Background) and syncing it with the
+ * WebView. It also handles dismissing the background-resume screen overlay (DismissResumeOverlay).
  */
 export const useAppStateHandler = (bridge: IAppBridgeHost | null, onDismissOverlay?: () => void) => {
     const { appState, isForeground, isBackground } = useAppState();

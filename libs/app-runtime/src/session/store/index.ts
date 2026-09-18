@@ -1,4 +1,4 @@
-// session/store — the session SSoT (ADR-0070 결정 1). Passive by rule: these modules store and
+// session/store — the session SSoT (ADR-0070 Decision 1). Passive by rule: these modules store and
 // notify, and know nothing of sockets, data, HTTP, use-cases or hooks. `configure.ts` is the single
 // env seam (see its header), and `initAppRuntime` is what runs it — importing this barrel no longer
 // boots anything.

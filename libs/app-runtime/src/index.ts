@@ -33,5 +33,5 @@
 
 // There is no second, un-grouped lane. The 67 names were flat until 275 consumer files were moved
 // onto the groups in one pass, and keeping a flat alias afterwards would mean shipping every symbol
-// under two names forever — the exact category ADR-0076 결정 6 spent eight steps deleting.
+// under two names forever — the exact category ADR-0076 Decision 6 spent eight steps deleting.
 export * as runtime from './facade';

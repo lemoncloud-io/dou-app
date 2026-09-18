@@ -5,7 +5,7 @@
  * **Why a module-level record and not state.** The room and the list are different screens: by the
  * time the list draws a count, the room that marked the read is unmounted and its refs are gone.
  * Lifting the value into shared state would put a render-triggering store on a path that nothing
- * renders from — the only reader is a diagnostic comparison (ADR-0075).
+ * renders from — the only reader is a diagnostic comparison (ADR-0099).
  *
  * Session-scoped and deliberately not cleared when a room closes: the divergence being looked for
  * appears AFTER leaving the room. Bounded instead, so a long session that visits many rooms cannot

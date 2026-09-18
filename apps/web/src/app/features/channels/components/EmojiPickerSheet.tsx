@@ -17,7 +17,7 @@ interface EmojiPickerSheetProps {
  * Category-tabbed emoji grid as a bottom sheet — the mobile port of desktop's
  * EmojiPicker popover. Picks are remembered in the device-local LRU ("recently used"
  * tab). No external emoji DB — categories are the curated sets in utils/emoji.ts,
- * kept identical to desktop so the two apps offer the same reaction set (ADR-0045).
+ * kept identical to desktop so the two apps offer the same reaction set (ADR-0093).
  */
 export const EmojiPickerSheet = ({ open, onOpenChange, onPick }: EmojiPickerSheetProps) => {
     const { t } = useTranslation();

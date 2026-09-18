@@ -4,13 +4,13 @@ import { useDebugSettingsStore } from '../stores/debugSettingsStore';
 import { restoreCustomZip } from './customZipService';
 
 /**
- * 앱 부팅 시 persist된 customZipLocalRoot로 로컬 서버를 복원하는 게이트.
+ * A gate that restores the local server from the persisted customZipLocalRoot on app boot.
  *
- * RACE CONTRACT: customZipServerUrl은 서버 start Promise가 resolve되기 전에는
- * 절대 set되지 않는다. isRestoringCustomZip은 복원이 settle될 때까지 true를 유지한다.
+ * RACE CONTRACT: customZipServerUrl is never set before the server's start Promise resolves.
+ * isRestoringCustomZip stays true until the restore has settled.
  */
 export const useCustomZipBootGate = (): { isRestoringCustomZip: boolean } => {
-    // 초기값을 lazy 계산해 localRoot가 있을 때 false → true 플래시를 방지
+    // Lazily compute the initial value to avoid a false → true flash when localRoot is present
     const [isRestoringCustomZip, setIsRestoringCustomZip] = useState<boolean>(
         () => !!useDebugSettingsStore.getState().customZipLocalRoot
     );
@@ -26,7 +26,7 @@ export const useCustomZipBootGate = (): { isRestoringCustomZip: boolean } => {
             return;
         }
 
-        // restoreCustomZip은 절대 throw하지 않음 (실패 = null)
+        // restoreCustomZip never throws (failure = null)
         restoreCustomZip(localRoot)
             .then(origin => {
                 const { setCustomZipLocalRoot, setCustomZipServerUrl } = useDebugSettingsStore.getState();
@@ -34,7 +34,7 @@ export const useCustomZipBootGate = (): { isRestoringCustomZip: boolean } => {
                     setCustomZipServerUrl(origin);
                     return;
                 }
-                // stale root — persist된 루트를 비워 다음 부팅부터 기본 웹으로
+                // stale root — clear the persisted root so future boots fall back to the default web
                 setCustomZipLocalRoot(null);
             })
             .finally(() => setIsRestoringCustomZip(false));

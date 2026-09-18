@@ -3,14 +3,14 @@ import { useMutation } from '@tanstack/react-query';
 import type { UseMutationOptions } from '@tanstack/react-query';
 
 /**
- * useMutation을 래핑한 커스텀 훅으로, 타입 안전성과 일관된 에러 처리를 제공합니다.
+ * A custom hook that wraps useMutation, providing type safety and consistent error handling.
  *
- * @template TData - API 응답 데이터 타입
- * @template TError - API 에러 타입
- * @template TVariables - mutation 함수에 전달될 변수 타입
+ * @template TData - The API response data type
+ * @template TError - The API error type
+ * @template TVariables - The type of the variables passed to the mutation function
  *
- * @param mutationFn - API 호출 함수
- * @param config - mutation 설정 (onSuccess, onError 등)
+ * @param mutationFn - The API call function
+ * @param config - The mutation configuration (onSuccess, onError, etc.)
  */
 export interface MutationConfig<TData, TError, TVariables>
     extends Omit<UseMutationOptions<TData, TError, TVariables>, 'mutationFn'> {}

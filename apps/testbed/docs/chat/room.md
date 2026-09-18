@@ -1,70 +1,34 @@
-# [기술 스펙 명세서] 채널 상세 페이지
+# room
 
-## 1. 목적
+The message list and composer for one selected channel — the screen this app exists to exercise:
+pagination, ordering and send against the real cache/socket stack. Screen code:
+`apps/testbed/src/app/pages/ChatRoomPage.tsx`, route `/chat/channels/:channelId`.
 
-채널 상세 페이지는 선택된 channel의 채팅 메시지를 조회하고, 이전 메시지
-페이징과 메시지 전송을 검증하는 화면이다.
+## Scroll and paging
 
-## 2. 필수 기능
+Standard chat ordering — oldest at the top, newest at the bottom — and the screen opens scrolled to
+the bottom. Reaching the top loads older messages, and the scroll position is anchored across that
+load rather than jumping: `pagingAnchorRef` records `scrollHeight` right before the older page is
+fetched, and once it lands the code restores position as `scrollHeight - anchor` so the message the
+user was looking at stays under their eye instead of the view resetting. A failed page fetch drops
+the anchor rather than leaving it pointing at a height that never grew.
 
-- channel에 대한 채팅 메시지 목록 조회
-- 위로 최대 스크롤 시 이전 채팅 목록 추가 로드
-- 메시지 입력 및 전송
+New messages append at the bottom; whether the view auto-follows them depends on whether the reader
+was already within a small distance of the bottom before they arrived — being scrolled up to read
+history isn't interrupted by an incoming message.
 
-## 3. 화면 구성
+## Data scope
 
-### 3.1 헤더
+The message list is strictly scoped to the currently selected channel. Switching channels discards
+whatever the previous channel's messages held rather than reconciling — there is no cross-channel
+merge state to get wrong.
 
-표시 항목:
+## Failure handling
 
-- channel 이름
-- 현재 소속 place 이름 또는 id
-- 뒤로 가기 버튼
+A missing or inaccessible channel shows an error state with a way back to chat home, kept separate
+from a send failure — a fetch problem and a send problem are different failures and read as such
+here. Paging stops once the server reports no more older messages, rather than retrying.
 
-### 3.2 메시지 리스트
+## Related
 
-동작:
-
-- 최초 진입 시 최신 메시지 묶음을 불러온다
-- 메시지는 오래된 것이 위, 최신 것이 아래에 쌓이는 표준 채팅 UX를 따른다
-- 최초 진입 시 스크롤은 최하단(최신 메시지)에 위치해야 한다
-- 스크롤이 최상단에 도달하면 이전 메시지를 추가로 불러온다
-- 이전 메시지 로드 시 현재 읽던 위치가 튀지 않도록 스크롤 앵커를 유지한다
-- 새 메시지가 도착하면 리스트 하단에 추가되며, 사용자가 최하단에 있을 때는 자동 스크롤된다
-- 구현 참고: `flex-direction: column-reverse` 또는 초기화 시 `scrollTop = scrollHeight` 방식 중 선택
-
-표시 항목:
-
-- 발신자
-- 메시지 본문
-- 전송 시각
-- 전송 상태(가능하면 pending / sent / failed)
-
-### 3.3 입력 영역
-
-동작:
-
-- 텍스트 입력 가능
-- 전송 버튼 또는 엔터로 메시지 전송
-- 전송 중에는 중복 제출을 막는다
-
-## 4. 데이터 처리 규칙
-
-- 채팅 목록은 현재 선택 channel 범위에서만 조회한다
-- 상위 페이지에서 channel이 바뀌면 이전 channel 메시지 상태를 즉시 폐기한다
-- 메시지 정렬은 시간 오름차순(오래된 것 위, 최신 것 아래)으로 렌더링한다
-- 새 메시지는 캐시 및 스트림 결과에 따라 리스트 최하단에 반영한다
-
-## 5. 예외 처리
-
-- channel 정보가 없거나 접근 불가면 채팅 홈으로 복귀 가능한 오류 상태를 보여준다
-- 메시지 조회 실패와 메시지 전송 실패는 분리하여 표시한다
-- 더 불러올 이전 메시지가 없으면 추가 로드 시도를 중단한다
-
-## 6. 검증 포인트
-
-- channel 진입 시 스크롤이 최하단(최신 메시지)에 위치해야 한다
-- 메시지 목록은 오래된 것이 위, 최신 것이 아래에 표시되어야 한다
-- 최상단 스크롤 시 이전 메시지가 이어붙여지고, 현재 위치가 유지되어야 한다
-- 메시지 전송 후 리스트 하단에 반영되어야 한다
-- channel 전환 시 이전 channel 메시지가 섞이면 안 된다
+- [README.md](./README.md) — the channel list this screen is entered from

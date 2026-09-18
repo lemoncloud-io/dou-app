@@ -41,9 +41,10 @@ describe('credentialFreshness.timeToExpiry', () => {
         expect(mockGetRelayToken).not.toHaveBeenCalled();
     });
 
-    // 예전엔 `oauth`·`iap`도 물어보고 relay와 같은 답이 나오는지 봤다. 키가 `HttpRoute`에서
-    // `CredentialOwner`(relay·cloud)로 바뀌면서 그 둘은 물어볼 수 없는 값이 됐다 — 자기 자격증명이
-    // 없는 라우트라서다. 남는 계약은 "이미 지난 자격증명은 음수로 돌려준다" 쪽이다.
+    // This used to also ask `oauth`/`iap` and check they gave the same answer as relay. Once the key
+    // changed from `HttpRoute` to `CredentialOwner` (relay/cloud), those two became values you can no
+    // longer ask about — they are routes with no credential of their own. The remaining contract is
+    // "an already-past credential is returned as a negative number."
     it('이미 지난 자격증명은 음수로 남은 시간을 돌려준다 — 0으로 깎지 않는다', () => {
         mockGetRelayToken.mockReturnValue(relayTokenWith(atOffset(-1_000)));
 
@@ -80,8 +81,8 @@ describe('credentialFreshness.isStale', () => {
         expect(credentialFreshness.isStale('relay', NOW)).toBe(false);
     });
 
-    // 측정 불가를 stale로 부르면, 무서명으로 나간 요청(다른 원인·다른 처방)에 자신 있게
-    // 틀린 설명을 붙이게 된다.
+    // Calling "cannot tell" stale would confidently attach the wrong explanation to a request that
+    // went out unsigned for a different reason and needs a different fix.
     it('측정할 수 없으면 false', () => {
         expect(credentialFreshness.isStale('relay', NOW)).toBe(false);
         expect(credentialFreshness.isStale('cloud', NOW)).toBe(false);

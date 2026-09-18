@@ -68,7 +68,8 @@ describe('useChannelProfiles — 사이트 프로필 구독/동기화', () => {
         renderHook(() => useChannelProfiles('s1', ['u1', 'u2']));
 
         expect(registerProfile).toHaveBeenCalledTimes(2);
-        // 기본 주기는 20초 — 멤버 수 / 주기가 그대로 요청률이라, 20인 방의 5초는 초당 4회였다.
+        // Default interval is 20s — member count / interval is directly the request rate, so a
+        // 5s interval in a 20-person room would have meant 4 requests per second.
         expect(registerProfile).toHaveBeenCalledWith('s1@u1', 20_000);
         expect(registerProfile).toHaveBeenCalledWith('s1@u2', 20_000);
     });

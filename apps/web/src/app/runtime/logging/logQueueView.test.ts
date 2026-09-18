@@ -63,8 +63,8 @@ describe('logQueueView', () => {
         ).toEqual(['new']);
     });
 
-    // ADR-0080 결정 14. main.tsx가 업로더 handle을 보관하지 않으므로 이 등록이 flush에 닿는
-    // 유일한 길이다 — snapshot이 여기 있는 것과 같은 이유다.
+    // ADR-0080 decision 14. main.tsx doesn't hold on to the uploader handle, so this registration is
+    // the only path that reaches flush — the same reason snapshot lives here.
     it('flush를 등록해 디버그 화면이 예정 밖 전송을 할 수 있게 한다', async () => {
         const view = viewOf([entry('a')]);
         registerLogQueueView(view);

@@ -22,17 +22,18 @@ const slim = (token: Record<string, unknown> = {}) => ({ Token: { accountId: 'ac
 
 describe('mergeRefreshedRelayToken — 보존 불변식 3개', () => {
     it('identityToken: 뷰가 안 실어 보내면 저장된 것을 유지한다', () => {
-        // relay 서명 HTTP 가 x-lemon-identity 로 보내고 다음 register 가 다시 읽는다.
+        // relay-signed HTTP sends it as x-lemon-identity, and the next register reads it back.
         expect(mergeRefreshedRelayToken(stored(), slim()).Token?.identityToken).toBe('idt-old');
-        // 실어 보내면 새 값이 이긴다.
+        // When it IS carried, the new value wins.
         expect(mergeRefreshedRelayToken(stored(), slim({ identityToken: 'idt-new' })).Token?.identityToken).toBe(
             'idt-new'
         );
     });
 
     it('identityPoolId: 뷰가 안 실어 보내면 저장된 것을 유지한다', () => {
-        // 이 병합이 두 스토어를 먹인다 — lemon 쪽은 saveOAuthToken 이 이 필드를 ''로 덮으므로,
-        // 여기서 떨어지면 첫 소켓 refresh 이후 모든 사본에서 pool id 가 사라진다.
+        // This merge feeds both stores — on the lemon side, saveOAuthToken overwrites this field with
+        // '', so if it dropped here, the pool id would vanish from every copy after the first socket
+        // refresh.
         expect(mergeRefreshedRelayToken(stored(), slim()).Token?.identityPoolId).toBe('pool-1');
         expect(mergeRefreshedRelayToken(stored(), slim({ identityPoolId: 'pool-2' })).Token?.identityPoolId).toBe(
             'pool-2'
@@ -40,8 +41,9 @@ describe('mergeRefreshedRelayToken — 보존 불변식 3개', () => {
     });
 
     it('credential: 뷰가 안 실어 보내면 저장된 것을 유지한다 — 스토어가 서명자와 어긋나지 않게', () => {
-        // 뷰에 자격증명이 없으면 호출부는 lemon 캐시를 이전 것으로 남긴다. 이 필드가 떨어지면
-        // 스토어가 "무엇이 서명 중인지"를 잃고 자격증명 시계가 "측정 불가"를 답한다.
+        // If the view has no credential, the caller leaves the lemon cache as the previous one. If
+        // this field dropped, the store would lose track of "what's currently signing", and the
+        // credential clock would answer "can't measure".
         expect(mergeRefreshedRelayToken(stored(), slim()).Token?.credential).toEqual({
             AccessKeyId: 'AKIA-old',
             SecretKey: 's-old',
@@ -51,7 +53,7 @@ describe('mergeRefreshedRelayToken — 보존 불변식 3개', () => {
     });
 
     it('프로필 필드: 슬림한 refresh 가 name/photo/email 을 지우지 않는다', () => {
-        // relay 토큰은 계정 프로필 표시 원천이기도 하다 (getRelaySessionUser).
+        // The relay token also doubles as the source for account profile display (getRelaySessionUser).
         const merged = mergeRefreshedRelayToken(stored(), slim()) as unknown as Record<string, unknown>;
         expect(merged.name).toBe('Neo');
         expect(merged.photo).toBe('me.png');
@@ -70,8 +72,9 @@ describe('mergeRefreshedRelayToken — $auth 는 보존하고 채택하지 않�
     const withAuth = (merged: UserTokenView) => (merged as UserTokenView & { $auth?: { id?: string } }).$auth;
 
     it('사이트 전환이 돌려준 하위 auth 를 채택하지 않는다', () => {
-        // 서버는 target 이 실린 refresh 에 identityId 없는 하위 auth 를 $auth 로 실어 보낸다.
-        // 그 id 로 서명하면 서버가 identityId='' 로 계산해 영구 403 invalid sign 이 된다.
+        // On a refresh carrying a target, the server sends a sub-auth with no identityId as $auth.
+        // Signing with that id makes the server compute identityId='' and produce a permanent
+        // 403 invalid sign.
         const merged = mergeRefreshedRelayToken(
             authed('parent-auth'),
             slim({ identityToken: 'idt-new' }) as Relay & { $auth: { id: string } }
@@ -94,7 +97,7 @@ describe('mergeRefreshedRelayToken — $auth 는 보존하고 채택하지 않�
     });
 
     it('저장된 $auth 에 id 가 없으면 붙들지 않고 뷰의 것을 받는다', () => {
-        // id 없는 $auth 로는 register 도 서명도 못 한다 — 보존할 가치가 없다.
+        // An $auth without an id can't sign or register anything — there's nothing worth preserving.
         const merged = mergeRefreshedRelayToken(stored({ $auth: {} }), {
             ...slim(),
             $auth: { id: 'usable-auth' },
@@ -122,8 +125,8 @@ describe('mergeRefreshedCloudToken — 얕은 병합만', () => {
             Token: { identityToken: 'cloud-new' },
         } as unknown as UserTokenView) as unknown as Record<string, unknown>;
         expect(merged.name).toBe('Neo');
-        // 필드별 보존은 없다 — Token 은 통째로 교체된다. 클라우드 자격증명으로 서명하는 것이
-        // 아무것도 없으므로(signing.md §3) 유지할 것이 없다.
+        // There's no per-field preservation — Token is replaced wholesale. Nothing signs with the
+        // cloud credential (signing.md §3), so there's nothing to keep.
         expect((merged.Token as Record<string, unknown>).identityPoolId).toBeUndefined();
     });
 

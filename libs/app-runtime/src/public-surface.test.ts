@@ -1,7 +1,7 @@
-// The session hub is part of THIS package's surface now (ADR-0070 3단계), so nothing here may be
+// The session hub is part of THIS package's surface now (ADR-0070 Step 3), so nothing here may be
 // stubbed — stubbing it is exactly what this gate exists to catch. `@chatic/config` (ADR-0079,
 // replacing `@chatic/web-config`) has zero `import.meta` and needs no such stub — this is the win
-// ADR-0079 §맥락 3-2 predicted.
+// ADR-0079 §context 3-2 predicted.
 import * as api from './index';
 
 /**
@@ -19,13 +19,13 @@ import * as api from './index';
  * `useRuntimeSocketSlots`) can therefore never leak back into the barrel unnoticed.
  */
 const GROUPS: Record<string, readonly string[]> = {
-    // 앱 엔트리가 한 번 만지는 것 — 부팅 호출, 환경 상수, 플랫폼 프로브, transport.
+    // What an app entry point touches once — the boot call, env constants, platform probe, transport.
     // `ENV`/`LANGUAGE_KEY`/`PROJECT`/`SOCIAL_OAUTH_ENDPOINT` retired with `@chatic/web-config`
     // (ADR-0079) — their two consumers read `import.meta.env` directly now, and neither value was a
     // setting.
     boot: ['initAppRuntime', 'isNativeApp', 'setNativeCacheSupport', 'startWebTransportInit', 'webTransport'],
-    // 세션 상태·인증. `applySessionToken`/`logoutSession`은 socket/auth에 산다 —
-    // 소비자에게는 셋 다 세션이다.
+    // Session state · auth. `applySessionToken`/`logoutSession` live in socket/auth —
+    // to a consumer, all three are "session".
     session: [
         'SWITCH_CLOUD_MUTATION_KEY',
         'SWITCH_SITE_MUTATION_KEY',
@@ -63,7 +63,7 @@ const GROUPS: Record<string, readonly string[]> = {
         'useSwitchCloudSession',
         'useVerifyAlias',
     ],
-    // 호스트 + 소켓 상태 읽기 + 깨어남 복구.
+    // Hosts + socket state reads + wake recovery.
     connection: [
         'RuntimeAuthHost',
         'RuntimeConnectionHost',
@@ -73,7 +73,7 @@ const GROUPS: Record<string, readonly string[]> = {
         'useKindVerified',
         'useRuntimeSocketState',
     ],
-    // repository·캐시 티어·아웃박스.
+    // Repository · cache tier · outbox.
     data: [
         'cloudsKeys',
         'createChatOutbox',
@@ -102,8 +102,9 @@ describe('@chatic/app-runtime public surface', () => {
     });
 
     it('최상위는 runtime 하나뿐이다 — 평탄 별칭은 없다', () => {
-        // 같은 심볼을 두 이름으로 파는 순간 소비자마다 다른 관례가 생기고, 둘 중 하나는 반드시
-        // 낡는다. 마이그레이션이 끝났으므로 평탄 레인은 없고, 이 검사가 그것이 돌아오는 것을 막는다.
+        // The moment the same symbol is sold under two names, each consumer picks up a different
+        // convention and one of the two is bound to go stale. The migration is done, so there's no
+        // flat lane, and this check keeps one from coming back.
         expect(Object.keys(api)).toEqual(['runtime']);
     });
 });

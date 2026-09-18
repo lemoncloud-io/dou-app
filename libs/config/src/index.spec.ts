@@ -4,9 +4,9 @@ import { UNLOCK_KEY } from './resolve/ConfigResolver';
 import { storageKeyFor } from './utils/serialize';
 
 /**
- * 원격 두 행은 어댑터가 꽂혀 있을 때만 값을 내놓는다(`wired().server`) — 셸 레인과 같은 규칙이다.
- * `applyRemotePayload`를 시험하려면 payload를 받아 줄 어댑터가 필요하고, 이 테스트들은 payload를
- * 직접 넣으므로 `fetch`는 불려선 안 된다.
+ * The two remote rows only supply a value when an adapter is wired (`wired().server`) — the same
+ * rule as the shell lane. Testing `applyRemotePayload` needs an adapter to receive the payload,
+ * and since these tests inject the payload directly, `fetch` must never be called.
  */
 const remoteAdapter = { fetch: () => Promise.reject(new Error('직접 넣는 테스트에서는 안 불린다')) };
 
@@ -129,8 +129,9 @@ describe('config.subscribe — resolve 결과가 바뀐 키만 알린다', () =>
         expect(listener).toHaveBeenCalledWith(['log.hold']);
     });
 
-    // `modules()`의 키에는 `server`가 없다 — 엔드포인트가 원격으로 갈리면 안 된다는 ADR-0079 결정
-    // 10 때문이다. 원격 두 행을 시험하려면 서버가 쓸 수 있다고 선언된 키가 필요하다.
+    // `modules()` has no key with `server` — because of ADR-0079 decision 10, which says an
+    // endpoint must not be split by remote config. Testing the two remote rows needs a key
+    // declared as writable by the server.
     const serverWritableModules = () => [
         moduleOf({
             [UNLOCK_KEY]: UNLOCK_ENTRY,
@@ -141,7 +142,7 @@ describe('config.subscribe — resolve 결과가 바뀐 키만 알린다', () =>
     it('원격 payload도 resolve 결과가 움직인 키만 알린다 — 이미 지고 있는 행이면 조용하다', () => {
         const config = createConfig(serverWritableModules());
         config.init(ports({ remote: remoteAdapter }));
-        // local이 이기고 있는 상태에서 서버 기본값(비-enforced)이 내려온다 — 화면 값은 그대로다.
+        // local is winning, and a server default (non-enforced) comes down — the displayed value stays the same.
         config.set('feature.x', true, { lane: 'local' });
         const listener = jest.fn();
         config.subscribe(['feature.x'], listener);

@@ -3,7 +3,7 @@ import type { ICacheDataSource } from './types';
 import type { ISqliteDatabase } from '../../database';
 import { fetchManyByIds } from './fetchManyByIds';
 /**
- * 유저(User) 프로필 도메인 전용 데이터 소스
+ * Data source specific to the User profile domain
  */
 export class UserDataSource implements ICacheDataSource<CacheUserView, UserQueryOptions> {
     constructor(
@@ -33,7 +33,7 @@ export class UserDataSource implements ICacheDataSource<CacheUserView, UserQuery
     }
 
     /**
-     * 특정 클라우드 내의 전체 유저 목록을 조회합니다.
+     * Fetches the full user list within a specific cloud.
      */
     public async fetchAll(cid?: string, _query?: UserQueryOptions, uid?: string): Promise<CacheUserView[]> {
         const conditions: string[] = [];

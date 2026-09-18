@@ -104,7 +104,7 @@ describe('useCloudCredentialGuard — 판정', () => {
 
 describe('useCloudCredentialGuard — 트리거', () => {
     it('만료 마진까지 잠들었다가 스스로 깨어난다 (폴링이 아니다)', async () => {
-        // 6분 남음, 마진 5분 → 1분 뒤에 다시 본다.
+        // 6 minutes left, 5-minute margin → check again in 1 minute.
         mockTimeToExpiry.mockReturnValue(6 * 60_000);
         await mount();
 
