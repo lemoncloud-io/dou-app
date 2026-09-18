@@ -172,32 +172,32 @@ export class WebBridgeClient implements IWebBridgeClient {
     }
 
     /**
-     * [Internal] 브릿지 활성화 대기가 최종 만료되었을 때, 큐와 펜딩 상태의 모든 요청을 에러 처리합니다.
+     * [Internal] When the wait for bridge activation finally expires, error out every request in the queue and pending map.
      */
     private failBufferedRequests(): void {
         this.availabilityFailed = true;
         this.pendingBuffer.clear();
 
-        // 펜딩 상태 중 아직 실제로 네이티브로 보내지지 못한(타임아웃 감시가 켜지지 않은) 것들을 거절 처리
+        // Reject the pending requests that haven't actually been sent to native yet (whose timeout watch never started)
         this.pendingRequests.forEach(pending => {
             if (pending.timeoutId) return;
             pending.reject(this.createNativeNotSupportedError(pending.requestType));
         });
 
-        // 거절 처리된 요청을 펜딩 맵에서 확실하게 정리
+        // Make sure the rejected requests are removed from the pending map
         [...this.pendingRequests.entries()].forEach(([refId, pending]) => {
             if (!pending.timeoutId) this.pendingRequests.delete(refId);
         });
     }
 
     /**
-     * [Internal] 어댑터로부터 전달받은 로우 메시지의 유효성 및 타깃을 선별하여 라우팅합니다.
+     * [Internal] Validates the raw message delivered from the adapter and routes it by determining its target.
      */
     private handleMessage = (message: ResponseMessage | EventMessage): void => {
-        // 드롭 시뮬레이션 설정 시 이벤트 조기 드롭
+        // Drop the event early if drop simulation is configured
         if (this.shouldDrop()) return;
 
-        // RTT 딜레이 시뮬레이션 설정 시 디코딩 딜레이 적용
+        // Apply a decoding delay if RTT delay simulation is configured
         const delay = (this.environment?.rttDelayMs ?? 0) / 2;
         if (delay > 0) {
             setTimeout(() => this.processReceivedMessage(message), delay);
@@ -207,14 +207,14 @@ export class WebBridgeClient implements IWebBridgeClient {
     };
 
     /**
-     * [Internal] 실제로 수신된 메시지의 응답(Response)과 이벤트(Event) 분기를 최종 수행합니다.
+     * [Internal] Makes the final call on whether an actually received message is a Response or an Event.
      */
     private processReceivedMessage(message: ResponseMessage | EventMessage): void {
         const refId = message.refId;
 
-        // success 속성이 들어있고 펜딩 맵에 refId가 대기 중이면 request에 대한 응답(Response)
+        // If it has a `success` property and refId is pending in the map, it's a Response to a request
         if ('success' in message && refId && this.pendingRequests.has(refId)) {
-            // 시뮬레이션: 깨진 데이터 주입 유도
+            // Simulation: force injection of malformed data
             if (this.environment?.malformedResponse) {
                 this.handleResponse({
                     refId,
@@ -282,7 +282,7 @@ export class WebBridgeClient implements IWebBridgeClient {
     }
 
     /**
-     * [Internal] 등록되어 있는 이벤트 리스너들에게 데이터 객체를 배포합니다.
+     * [Internal] Dispatches the data object to the registered event listeners.
      */
     private handleEvent(message: EventMessage): void {
         const listeners = this.eventListeners.get(message.type);
@@ -290,29 +290,31 @@ export class WebBridgeClient implements IWebBridgeClient {
     }
 
     /**
-     * [Internal] 펜딩 맵 관리를 위해 고유 식별자 키(refId)를 발급합니다.
+     * [Internal] Issues a unique identifier key (refId) for managing the pending map.
      */
     private generateRefId(): string {
         return Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
     }
 
     /**
-     * [Web -> App] 응답이 필요 없는 네이티브 명령을 단방향 발송합니다.
+     * [Web -> App] Sends a one-way native command that doesn't need a response.
      */
     public post<K extends WebMessageType>(message: WebMessageData<K>): void {
         const type = message.type;
         if (this.availabilityFailed) {
-            // `createNativeForwarder`는 `NativeBridgeAdapter`를 직접 쓰므로 이 클래스는
-            // 로그 전달 경로 밖이다 — logger를 써도 재귀하지 않는다.
+            // `createNativeForwarder` uses `NativeBridgeAdapter` directly, so this class is
+            // outside the log delivery path — calling logger here doesn't recurse.
             //
-            // warn이 아니라 debug인 이유: 네이티브 셸 밖(브라우저·데스크톱)에서는 인터페이스가
-            // 없는 게 정상이고, 그런 환경에서 post 한 번마다 warn이 나가면 상시 업로드에서
-            // 이 한 줄이 배치 대부분을 차지한다(SetBadgeCount 하나에 수십 건).
+            // Why debug instead of warn: outside the native shell (browser, desktop), the
+            // interface being absent is normal, and if a warn fired on every single post in that
+            // environment, this one line would dominate most of a batch in continuous uploads
+            // (dozens of hits from just SetBadgeCount alone).
             //
-            // debug는 두 영속 sink(업로드 큐·Crashlytics) 모두가 버리므로 릴리스에서는
-            // 아무 데도 남지 않는다. 그걸 감수하는 이유는 이 조건이 둘 중 하나라서다 —
-            // 브라우저에서는 정상이라 기록할 게 없고, 네이티브 셸에서 났다면 브릿지가
-            // 통째로 죽은 것이라 이 한 줄 없이도 자명하다.
+            // debug is dropped by both persistent sinks (the upload queue and Crashlytics), so
+            // in a release build it lands nowhere at all. The reason that's acceptable is that
+            // this condition only ever means one of two things: it's normal in the browser and
+            // there's nothing worth recording, or it happened in the native shell, in which case
+            // the bridge is dead entirely and this line adds nothing that isn't already obvious.
             logger.debug('BRIDGE', `[WebBridgeClient] post [${String(type)}] ignored — no native bridge interface`);
             return;
         }
@@ -338,7 +340,7 @@ export class WebBridgeClient implements IWebBridgeClient {
     }
 
     /**
-     * [Web -> App] 네이티브 앱에 명령을 발송하고 결과 응답 프로미스를 리턴합니다.
+     * [Web -> App] Sends a command to the native app and returns a promise for the resulting response.
      */
     public request<K extends WebMessageType>(
         message: WebMessageData<K>,
@@ -350,7 +352,7 @@ export class WebBridgeClient implements IWebBridgeClient {
             return Promise.reject(this.createNativeNotSupportedError(requestType));
         }
 
-        // 시뮬레이션: 강제 즉시 에러 발생 설정 시 즉각 거절
+        // Simulation: reject immediately when forced-instant-error is configured
         if (this.environment?.forceFailure) {
             const failure = typeof this.environment.forceFailure === 'object' ? this.environment.forceFailure : {};
             const delay = this.environment?.rttDelayMs ?? 0;
@@ -370,7 +372,7 @@ export class WebBridgeClient implements IWebBridgeClient {
             });
         }
 
-        // 시뮬레이션: 무한 응답 지연 타임아웃 발생 유도 시
+        // Simulation: forcing an indefinite response-delay timeout
         if (this.environment?.timeoutMode) {
             const timeoutMs = options?.timeoutMs ?? this.timeoutMs;
             return new Promise((resolve, reject) => {
@@ -437,7 +439,7 @@ export class WebBridgeClient implements IWebBridgeClient {
     }
 
     /**
-     * [App -> Web] 네이티브 단방향 이벤트를 감시할 핸들러 함수를 바인딩합니다.
+     * [App -> Web] Binds the handler function that watches for one-way native events.
      */
     public onEvent<K extends AppMessageType>(type: K, handler: (message: AppMessageData<K>) => void): () => void {
         const typeStr = type as string;
@@ -455,7 +457,7 @@ export class WebBridgeClient implements IWebBridgeClient {
     }
 
     /**
-     * [Internal] 드롭률 시뮬레이션 설정값에 기인한 메시지 유실 여부를 판단합니다.
+     * [Internal] Determines whether a message should be lost, based on the configured drop-rate simulation value.
      */
     private shouldDrop(): boolean {
         const rate = this.environment?.dropRate ?? 0;
@@ -466,29 +468,29 @@ export class WebBridgeClient implements IWebBridgeClient {
     }
 
     /**
-     * 테스트 및 디버깅을 위해 브릿지 런타임 통신 거동을 유도하는 시뮬레이션 변수들을 덮어씁니다.
+     * Overwrites the simulation variables that drive the bridge's runtime communication behavior, for testing and debugging.
      */
     public configureEnvironment(config?: EnvironmentConfig): void {
         this.environment = config;
     }
 
     /**
-     * 브릿지 클라이언트 가동 상태를 해제하고, 생성되었던 타이머 및 어댑터 리스너 결합을 제거합니다.
+     * Tears down the bridge client's active state and removes the timers and adapter listener bindings that were created.
      */
     public destroy(): void {
-        // 1. 감지 폴러 및 타이머 제거
+        // 1. Remove the detection poller and timers
         this.clearDetectionTimers();
 
-        // 2. 어댑터 이벤트 결합 해제
+        // 2. Unbind the adapter event subscription
         if (this.unsubscribeAdapter) {
             this.unsubscribeAdapter();
             this.unsubscribeAdapter = undefined;
         }
 
-        // 3. 대기 버퍼 큐 비우기
+        // 3. Empty the pending buffer queue
         this.pendingBuffer.clear();
 
-        // 4. 대기(펜딩) 중이었던 프로미스 모두 거절 처리 후 맵 정리
+        // 4. Reject every still-pending promise, then clear the map
         this.pendingRequests.forEach(pending => {
             if (pending.timeoutId) {
                 clearTimeout(pending.timeoutId);
@@ -507,7 +509,7 @@ export class WebBridgeClient implements IWebBridgeClient {
     }
 
     /**
-     * 실행 중에 브릿지의 물리 전송 어댑터를 동적으로 교체합니다.
+     * Dynamically swaps the bridge's physical transport adapter at runtime.
      */
     public setAdapter(adapter: BridgeAdapter): void {
         if (this.unsubscribeAdapter) {
@@ -518,7 +520,7 @@ export class WebBridgeClient implements IWebBridgeClient {
     }
 
     /**
-     * [Internal] 웹 호출 규격 데이터를 브릿지 프레임워크 전송 메시지 객체로 포장합니다.
+     * [Internal] Wraps the web call-spec data into a bridge-framework transport message object.
      */
     private createRequestMessage<K extends WebMessageType>(message: WebMessageData<K>): RequestMessage {
         return {
@@ -529,7 +531,7 @@ export class WebBridgeClient implements IWebBridgeClient {
     }
 
     /**
-     * [Internal] 기대했던 응답 타입과 다를 때 반환할 오류 규격을 생성합니다.
+     * [Internal] Builds the error spec to return when the response type differs from what was expected.
      */
     private createResponseTypeMismatchError(pending: PendingRequest, actualResponseType?: string): BridgeError {
         return {
@@ -546,7 +548,7 @@ export class WebBridgeClient implements IWebBridgeClient {
     }
 
     /**
-     * [Internal] 네이티브 브릿지가 가용하지 않은 일반 브라우저에서 요청이 시도되었을 때 반환할 오류 규격을 생성합니다.
+     * [Internal] Builds the error spec to return when a request is attempted from a plain browser where the native bridge isn't available.
      */
     private createNativeNotSupportedError(requestType: WebMessageType): BridgeError {
         return {

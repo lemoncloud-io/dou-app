@@ -22,7 +22,7 @@ describe('useNavigateToLogin', () => {
         expect(navigate).toHaveBeenCalledWith('/mypage/login', { state: { returnTo: '/mypage' } });
     });
 
-    // 쿼리로 상태를 나르는 화면(구독 플랜 등)은 경로만 복원하면 절반만 돌아온다.
+    // A screen that carries state in its query (like the subscription plan screen) only comes back halfway if just the path is restored.
     it('쿼리스트링까지 보존한다', () => {
         currentLocation = { pathname: '/subscription/plans', search: '?plan=pro&from=banner', hash: '' };
         const { result } = renderHook(() => useNavigateToLogin());
@@ -33,8 +33,9 @@ describe('useNavigateToLogin', () => {
         });
     });
 
-    // 로그인 화면이 스택에 쌓여야 복귀 시 replace가 그 항목을 덮어쓸 수 있다. 여기서 replace를
-    // 쓰면 로그인을 부른 화면이 사라져 뒤로가기가 한 칸 더 멀리 간다.
+    // The login screen has to actually push onto the stack so that a later replace on return can
+    // overwrite that entry. Using replace here would make the screen that invoked login disappear,
+    // pushing the back button one step further away.
     it('진입은 replace가 아니다', () => {
         const { result } = renderHook(() => useNavigateToLogin());
         result.current();
@@ -44,8 +45,8 @@ describe('useNavigateToLogin', () => {
 });
 
 describe('useNavigateToLogin — returnTo를 남기지 않는 경우', () => {
-    // 로그인 화면 위에서 진입점이 렌더되는 날, returnTo가 로그인 자신을 가리키면 로그인 후 다시
-    // 로그인 화면으로 돌아온다.
+    // On the day an entry point ends up rendering on top of the login screen, if returnTo points at
+    // the login screen itself, logging in would just bounce back to the login screen.
     it('이미 로그인 화면이면 returnTo를 싣지 않는다', () => {
         currentLocation = { pathname: '/mypage/login', search: '', hash: '' };
         const { result } = renderHook(() => useNavigateToLogin());

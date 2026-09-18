@@ -75,7 +75,7 @@ describe('useKeyboardOpen', () => {
         const { latest } = renderHook();
 
         expect(latest()).toBe(false);
-        // 이벤트가 없는 WebView에서 변수 변화를 들을 수 있는 유일한 수단이라, 프로브는 항상 붙어야 한다.
+        // It's the only way to hear a variable change in a WebView with no events, so the probe must always be attached.
         expect(probe()).not.toBeNull();
     });
 
@@ -104,7 +104,7 @@ describe('useKeyboardOpen', () => {
         expect(latest()).toBe(false);
     });
 
-    // 변수를 주입해 주는 네이티브 셸 없이 브라우저에서 열어도 같은 판정이 나와야 한다.
+    // Opening in a plain browser, with no native shell to inject the variable, must reach the same verdict.
     it('변수가 없는 브라우저에서는 줄어든 visual viewport로 판단한다', () => {
         setViewportHeight(470);
         const { latest } = renderHook();

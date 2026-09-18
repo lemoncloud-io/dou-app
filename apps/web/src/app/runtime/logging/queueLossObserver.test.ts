@@ -34,7 +34,7 @@ describe('queueLossObserver — 미전송 큐 유실 관측', () => {
         expect(warn.mock.calls[0][2]).toEqual({ observation: 'queue-loss', dropped: 7, droppedTotal: 7 });
     });
 
-    // 누적값이라 그대로 다시 남기면 같은 유실을 매 관측마다 반복한다.
+    // It's a cumulative value, so reporting it as-is again would repeat the same loss on every observation.
     it('두 번째 관측은 증가분만 남긴다', () => {
         getView.mockReturnValue(viewWith(7));
         queueLossObserver.observe();
@@ -65,7 +65,7 @@ describe('queueLossObserver — 미전송 큐 유실 관측', () => {
         expect(warn).not.toHaveBeenCalled();
     });
 
-    // 부팅·teardown 중에는 업로더가 없다 — 큐가 없으니 잃은 것도 없다.
+    // There's no uploader during boot or teardown — no queue, so nothing lost either.
     it('업로더가 없으면 무해하게 지나간다', () => {
         getView.mockReturnValue(undefined);
 
@@ -73,7 +73,7 @@ describe('queueLossObserver — 미전송 큐 유실 관측', () => {
         expect(warn).not.toHaveBeenCalled();
     });
 
-    // 새 업로더의 큐는 0에서 시작한다 — 음수 증가분을 남기면 안 된다.
+    // A new uploader's queue starts at 0 — a negative delta must never be reported.
     it('카운터가 줄어들면 새 기준선으로 삼고 남기지 않는다', () => {
         getView.mockReturnValue(viewWith(10));
         queueLossObserver.observe();

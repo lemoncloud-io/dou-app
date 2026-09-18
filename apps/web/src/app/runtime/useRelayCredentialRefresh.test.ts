@@ -2,7 +2,7 @@ import { renderHook } from '@testing-library/react';
 
 /**
  * The probe/refresh BODY moved to `@chatic/app-runtime`'s `useSessionStalenessGuard`
- * (ADR-0070 3단계 체크리스트 7), and its own tests cover the offline skip, the "fresh → do nothing"
+ * (ADR-0070 3-step checklist 7), and its own tests cover the offline skip, the "fresh → do nothing"
  * path, the missing-session path, and the failure counting.
  *
  * What is apps/web's — and therefore what a regression here would break — is the POLICY: edge-driven
@@ -51,12 +51,12 @@ describe('useRelayCredentialRefresh — apps/web 정책', () => {
     it('주기 폴링을 쓰지 않고 relay 검증 상승 엣지로만 검사한다', () => {
         const policy = render();
 
-        // 폴링은 소켓이 뜨기 전에는 refresh 소유자에 닿지 못해 실패만 쌓는다
+        // Before the socket comes up, polling can't reach the refresh owner and just piles up failures
         expect(policy).toMatchObject({ intervalMs: null, checkOnRelayVerified: true });
     });
 
     // Boot's `auth.update` emits no token, so without this the first writeback is one SDK refresh
-    // cycle (5분) away and relay-signed HTTP runs on the pre-sleep credential until then.
+    // cycle (5 minutes) away and relay-signed HTTP runs on the pre-sleep credential until then.
     it('만료 여부와 무관하게 선제 refresh를 요청한다 (부팅/포그라운드 갱신)', () => {
         const policy = render();
 

@@ -71,7 +71,7 @@ describe('useSocialLinks — 연동 상태 (link$가 원본)', () => {
         const { result } = renderHook(() => useSocialLinks());
 
         expect(result.current.isLinked('google')).toBe(true);
-        // 다른 provider는 연동 안 된 것으로 읽힌다 — 서버도 `type-linked`로 막는다.
+        // A different provider reads as not linked — the server enforces the same with `type-linked`.
         expect(result.current.isLinked('apple')).toBe(false);
     });
 

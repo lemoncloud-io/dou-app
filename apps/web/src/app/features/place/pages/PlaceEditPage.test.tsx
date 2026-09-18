@@ -136,8 +136,8 @@ describe('PlaceEditPage — 소개 문구', () => {
         expect(updatePlace.mock.calls[0][0]).toMatchObject({ desc: '' });
     });
 
-    // 시드는 placeId로 한 번만 걸린다. 배경 동기화가 같은 place를 다시 방출해도 편집 중 입력을
-    // 되돌리면 안 된다.
+    // Seeding fires once, keyed by placeId. Even if the background sync re-emits the same place, it
+    // must not revert input that's mid-edit.
     it('배경 재방출이 편집 중인 소개를 덮지 않는다', () => {
         mockPlace = { ...OWNED, desc: '기존 소개' };
         const { rerender } = render(<PlaceEditPage />);
@@ -150,7 +150,7 @@ describe('PlaceEditPage — 소개 문구', () => {
 });
 
 describe('PlaceEditPage — 저장 실패 기록 (ADR-0099)', () => {
-    // 토스트가 문자 그대로 "알 수 없는 오류"인데, 지금까지 남는 것도 그만큼이었다.
+    // The toast literally says "Unknown error", and until now that was exactly as much as got logged.
     it('저장 실패를 어떤 필드가 실렸는지와 함께 error로 남긴다', async () => {
         updatePlace.mockRejectedValue(new Error('save boom'));
         render(<PlaceEditPage />);

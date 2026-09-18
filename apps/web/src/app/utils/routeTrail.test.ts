@@ -38,9 +38,9 @@ describe('routeTrail', () => {
         expect(getRouteTrail()).toEqual([]);
     });
 
-    // 트레일은 공용 Slack 채널로 전송된다. 경로 세그먼트는 리소스 id지만 쿼리스트링은
-    // capability 토큰이라(/invite/accept?..., /s?...) 절대 실려서는 안 된다.
-    // 이 테스트는 호출부가 pathname만 넘긴다는 계약을 못박는다.
+    // The trail is sent to a shared Slack channel. Path segments are resource ids, but the query
+    // string carries capability tokens (/invite/accept?..., /s?...) and must never be included.
+    // This test nails down the contract that the caller only ever passes the pathname.
     it('기록된 경로에 쿼리스트링이 섞여 있지 않다', () => {
         const router = { state: { location: { pathname: '/invite/accept', search: '?token=super-secret' } } };
         recordRoute(router.state.location.pathname);

@@ -29,7 +29,7 @@ describe('syncStreakReporter — 배경 동기화 실패 스트릭', () => {
         expect(error).not.toHaveBeenCalled();
     });
 
-    // 2연속은 아직 흔한 일시 실패 구간이다 — 임계에서만 승격한다.
+    // Two in a row is still within the common transient-failure range — it only escalates at the threshold.
     it('임계(3연속)에 닿을 때 error 한 건을 남긴다', () => {
         syncStreakReporter.fail('channel-delta', boom);
         syncStreakReporter.fail('channel-delta', boom);
@@ -43,7 +43,7 @@ describe('syncStreakReporter — 배경 동기화 실패 스트릭', () => {
         });
     });
 
-    // 같은 사실을 매 주기 반복하면 하루 수천 건이 되고 정작 그 사실이 묻힌다.
+    // Repeating the same fact every cycle would produce thousands of entries a day and bury the fact itself.
     it('임계를 넘긴 뒤로는 침묵한다', () => {
         for (let i = 0; i < 10; i += 1) syncStreakReporter.fail('channel-delta', boom);
 
@@ -85,7 +85,7 @@ describe('syncStreakReporter — 배경 동기화 실패 스트릭', () => {
         expect(warn.mock.calls[0][2]).toMatchObject({ data: { streak: 1 } });
     });
 
-    // 한 경로가 죽고 나머지가 사는 상태가 실제로 있다 — 합쳐 세면 그 구분이 사라진다.
+    // There really are states where one path dies while the rest stay alive — counting them together would erase that distinction.
     it('경로별로 따로 센다', () => {
         syncStreakReporter.fail('channel-delta', boom);
         syncStreakReporter.fail('channel-delta', boom);

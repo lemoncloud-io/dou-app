@@ -296,7 +296,7 @@ export const startLogUploader = (options: LogUploaderOptions = {}): LogUploaderH
         },
         // The same `flush` this function returns. Exposed through the view because
         // `main.tsx` does not keep the handle, and the debug monitor is the only
-        // caller that needs it (ADR-0080 결정 14).
+        // caller that needs it (ADR-0080 decision 14).
         flush: () => flush(),
     });
 

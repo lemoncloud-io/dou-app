@@ -245,7 +245,7 @@ describe('useChatScroll — 방 재진입 스크롤 복원', () => {
         expect(second.container.scrollTop).toBe(-300);
     });
 
-    // 바닥에서 나갔으면 바닥으로 — 스크롤한 적 없는 방이 갑자기 다르게 열리지 않아야 한다.
+    // Left from the bottom, so open at the bottom — a room that was never scrolled must not suddenly open differently.
     it('바닥에서 나가면 다음 진입도 바닥이다', () => {
         const first = mount('ch-bottom');
         first.land([message('m1')]);
@@ -254,8 +254,8 @@ describe('useChatScroll — 방 재진입 스크롤 복원', () => {
         const second = mount('ch-bottom');
         second.land([message('m1')]);
 
-        // 바닥 고정(scrollTo)이 아니라 복원이 0을 그대로 적어서 도달한다 — 역방향 목록에서 0은
-        // 곧 바닥이므로 결과 위치는 같다.
+        // Reached not via the bottom-pin (scrollTo) but via the restore writing 0 as-is — in a
+        // reversed list, 0 is the bottom, so the resulting position is the same either way.
         expect(second.container.scrollTop).toBe(0);
     });
 });

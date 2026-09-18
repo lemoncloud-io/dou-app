@@ -41,8 +41,8 @@ describe('attachWebCrashSentinel', () => {
         expect(result.crashedLastSession).toBe(true);
     });
 
-    // 리포트가 로그를 첨부하지 않게 된 뒤로 이 키를 쓰는 곳이 없다. 남겨두면
-    // 구버전에서 리로드한 탭에 옛 로그가 그대로 앉아 있게 된다.
+    // Nothing uses this key anymore now that reports stopped attaching logs. Leaving it behind would
+    // let a tab reloaded on an old version sit there with stale logs still in place.
     it('구버전이 남긴 로그 큐 키를 부팅 때 지운다', () => {
         sessionStorage.setItem(LEGACY_QUEUE_KEY, JSON.stringify([{ message: 'stale' }]));
 

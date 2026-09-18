@@ -392,7 +392,7 @@ export const ChannelSettingsPage = () => {
                         {/* Destructive action — owner deletes the room, members leave it. A DM has no
                             delete at ALL, not even for the inviter: re-inviting needs the room to
                             still be there, and letting one side erase it takes that away (ADR-0068
-                            결정 7, reversing ADR-0032's reuse of the ownership branch here). */}
+                            decision 7, reversing ADR-0032's reuse of the ownership branch here). */}
                         <Divider variant="block" className="my-2" />
                         <ListRow
                             destructive

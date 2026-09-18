@@ -20,7 +20,7 @@ export const resizeImageToBase64 = (file: File, size = 150): Promise<string> =>
                 return;
             }
 
-            // 비율 유지하며 center crop
+            // Center crop while preserving aspect ratio
             const scale = Math.max(size / img.width, size / img.height);
             const scaledW = img.width * scale;
             const scaledH = img.height * scale;

@@ -130,7 +130,7 @@ export const useBackgroundSync = (): void => {
                     // new token, which re-authenticates and fires the edge again.
                     if (isGuest) return;
                     // An invite only changes on the RECIPIENT's device and no packet announces it
-                    // (백엔드 요청 #4), so freshness has to be asked for — but only while a card can
+                    // (backend request #4), so freshness has to be asked for — but only while a card can
                     // still change. `pending` is that set: `accepted`/`canceled`/`rejected` are final,
                     // and an `expired` card cannot be accepted any more. A user with no pending card
                     // (which is most users, most of the time) therefore sends nothing on the tick.

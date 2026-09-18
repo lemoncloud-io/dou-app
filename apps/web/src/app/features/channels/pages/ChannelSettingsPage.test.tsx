@@ -208,7 +208,7 @@ jest.mock('../hooks', () => ({
     useDmPeer: () => dmPeerValue,
     useDmInviteState: () => dmInviteStateValue,
     useJoinMutations: () => ({ updateJoin, isPending: { update: false } }),
-    // 방의 단일 join 관측: 내 행(닉/알림)과 로스터용 행 목록이 한 출처에서 나온다.
+    // The room's single join observation: my row (nick/notification) and the roster row list come from one source.
     useChannelJoins: () => ({
         joins: myJoinValue ? [myJoinValue] : [],
         myJoin: myJoinValue,
@@ -264,8 +264,8 @@ describe('ChannelSettingsPage', () => {
         expect(screen.getByTestId('self-name')).toHaveAttribute('data-open', 'true');
     });
 
-    // ADR-0039: DM 방 이름 변경을 되살렸다. join.nick이 제목 체인의 최상단인데 쓸 경로가
-    // 없으면 그 단계가 영구히 죽은 분기가 된다.
+    // ADR-0039: brought back DM room renaming. join.nick sits at the top of the title chain, and
+    // without a way to write it, that step would be a permanently dead branch.
     describe('1:1(DM) 방', () => {
         it('제목이 상대 프로필 닉이고 channel.name이 아니다', () => {
             channelValue = DM_CHANNEL;
@@ -293,7 +293,7 @@ describe('ChannelSettingsPage', () => {
             expect(screen.getByTestId('dm-name')).toHaveAttribute('data-open', 'false');
             fireEvent.click(screen.getByText('토끼'));
             expect(screen.getByTestId('dm-name')).toHaveAttribute('data-open', 'true');
-            // channel.name을 쓰는 그룹 다이얼로그가 아니다.
+            // Not the group dialog, which uses channel.name.
             expect(screen.getByTestId('update')).toHaveAttribute('data-open', 'false');
         });
 
@@ -305,8 +305,9 @@ describe('ChannelSettingsPage', () => {
             expect(screen.getByTestId('dm-name')).toHaveAttribute('data-fallback', '토끼');
         });
 
-        // 상대가 방에 있는데 "다시 초대하기"를 내밀면, 눌렀을 때 이미 있는 사람에게 살아 있는
-        // 코드를 하나 더 발급한다. 방 푸터와 같은 규칙(canReinviteDm)으로 잠근다.
+        // Offering "reinvite" while the peer is already in the room would, once tapped, issue
+        // another live code to someone who's already there. Locked by the same rule the room
+        // footer uses (canReinviteDm).
         it('상대가 참여 중이면 친구 정보 시트에 재초대를 내밀지 않는다', () => {
             channelValue = DM_CHANNEL;
             dmPeerValue = { id: 'peer', profileNick: '토끼' };
@@ -330,7 +331,7 @@ describe('ChannelSettingsPage', () => {
             expect(screen.getByTestId('dm-name')).toHaveAttribute('data-reinvite', 'on');
         });
 
-        // 살아 있는 초대가 하나 있는 동안에는 나갔더라도 두 번째를 만들지 않는다.
+        // While one live invite exists, don't create a second even if the peer left.
         it('초대가 진행 중이면 나갔어도 재초대를 내밀지 않는다', () => {
             channelValue = DM_CHANNEL;
             dmPeerValue = { id: 'peer', profileNick: '토끼' };
@@ -384,8 +385,9 @@ describe('ChannelSettingsPage', () => {
         expect(screen.getByTestId('update')).toHaveAttribute('data-open', 'true');
     });
 
-    // 목표 그 자체: 어떤 멤버에게도 초대 대기 배지가 뜨지 않는다. join 카운터가 "미참여"와
-    // "탈퇴"를 같은 0으로 표현해서 둘을 가릴 수 없으므로, 추측해서 다는 대신 아예 달지 않는다.
+    // The goal itself: no member gets a pending-invite badge. Since the join counter represents
+    // both "not yet joined" and "left" as the same 0 and can't tell them apart, rather than
+    // guessing, the badge isn't drawn at all.
     it('어떤 멤버에게도 초대 대기 배지를 달지 않는다', () => {
         channelValue = OWNER_CHANNEL;
         membersValue = {
@@ -414,7 +416,7 @@ describe('ChannelSettingsPage', () => {
 
     it('알림 토글 초기값: 내 join의 notify가 없으면 on, "none"이면 off로 파생된다', () => {
         channelValue = OWNER_CHANNEL;
-        myJoinValue = { userId: 'me' }; // notify 없음 → on
+        myJoinValue = { userId: 'me' }; // no notify → on
         const { unmount } = render(<ChannelSettingsPage />);
         expect(screen.getByRole('switch')).toHaveAttribute('aria-checked', 'true');
         unmount();
@@ -485,8 +487,9 @@ describe('ChannelSettingsPage', () => {
         expect(placeSettingsProps.placeName).toBe('MyPlace');
     });
 
-    // ADR-0040: profile.nick이 없으면 내 행이 사람 이름 자리에 유도 문구를 놓는다. user 레코드의
-    // name(전화번호 가입자는 ***1234, 그 외 raw UUID)으로 폴백하지 않는다.
+    // ADR-0040: when profile.nick is missing, my row puts a nudge message where a person's name
+    // would go. It does not fall back to the user record's name (***1234 for a phone signup, or
+    // a raw UUID otherwise).
     describe('프로필 미설정 유도 (내 행)', () => {
         // Settled reading that genuinely holds no profile for me.
         const noProfile = () => {
@@ -501,7 +504,7 @@ describe('ChannelSettingsPage', () => {
             const me = screen.getByTestId('member-me');
             expect(me).toHaveTextContent('chat.settings.profileSetupRequired');
             expect(me).toHaveAttribute('data-needs-profile', 'true');
-            // '나'는 user 캐시 이름 — 이 자리에 오면 안 된다.
+            // '나' (me) is the user-cache name — it must not show up here.
             expect(me).not.toHaveTextContent('나');
         });
 
@@ -532,16 +535,17 @@ describe('ChannelSettingsPage', () => {
             expect(other).toHaveTextContent('유저2');
         });
 
-        // 회귀 가드: isMembersLoading은 user 캐시 첫 emit에 false가 되고 프로필과 무관하다.
-        // useChannelProfiles는 channel.sid에 하위 의존이라 '멤버는 도착, 프로필은 미도착' 구간이
-        // 마운트마다 열린다. 이 구간을 '프로필 없음'으로 읽으면 프로필이 있는 사용자에게 유도가
-        // 뜨고, 그 행을 탭하면 빈 폼 저장이 실제 nick을 덮어쓴다.
+        // Regression guard: isMembersLoading turns false on the user cache's first emit and knows
+        // nothing about profiles. useChannelProfiles depends downstream on channel.sid, so the
+        // window where "members have arrived, profile hasn't" opens on every mount. Reading that
+        // window as "no profile" would nudge a user who does have one, and tapping that row would
+        // let an empty-form save overwrite the real nick.
         it('프로필 읽기가 끝나기 전에는 멤버가 도착해 있어도 유도하지 않는다', () => {
             channelValue = OWNER_CHANNEL;
             profilesValue = { profileMap: new Map(), hasSnapshot: false };
             render(<ChannelSettingsPage />);
 
-            // 멤버 행은 렌더된다 — 로딩 스피너로 가려진 상태가 아니다.
+            // The member row does render — it's not hidden behind a loading spinner.
             const me = screen.getByTestId('member-me');
             expect(me).toHaveAttribute('data-needs-profile', 'false');
             expect(screen.queryByText('chat.settings.profileSetupRequired')).not.toBeInTheDocument();
@@ -576,7 +580,7 @@ describe('ChannelSettingsPage', () => {
 
             expect(screen.getByTestId('profile-create')).toHaveAttribute('data-open', 'true');
             expect(screen.getByTestId('profile')).toHaveAttribute('data-open', 'false');
-            // 해석된 플레이스 이름과 이탈 가드 카피를 넘긴다.
+            // Passes the resolved place name and the exit-guard copy.
             expect(placeCreateProps.placeName).toBe('MyPlace');
             expect(placeCreateProps.exit.description).toBe('placeProfileCreate.exitDescription');
         });
@@ -590,7 +594,7 @@ describe('ChannelSettingsPage', () => {
             expect(screen.getByTestId('profile-create')).toHaveAttribute('data-open', 'false');
         });
 
-        // 멤버 리스트는 공용 코드다 — stereo로 게이팅하지 않는다.
+        // The member list is shared code — it isn't gated by stereo.
         it.each([
             ['self', () => SELF_CHANNEL, null],
             ['dm', () => DM_CHANNEL, { id: 'peer', profileNick: '토끼' }],
@@ -604,7 +608,7 @@ describe('ChannelSettingsPage', () => {
             expect(screen.getByTestId('member-me')).toHaveAttribute('data-needs-profile', 'true');
         });
 
-        // 채널 이름 행은 유도 지점이 아니다 — self는 프로필이 없어도 유효한 라벨을 갖는다.
+        // The channel name row is not a nudge point — self has a valid label even with no profile.
         it('self 방의 이름 행은 프로필이 없어도 유도가 아니라 라벨을 쓴다', () => {
             channelValue = SELF_CHANNEL;
             noProfile();
@@ -612,7 +616,7 @@ describe('ChannelSettingsPage', () => {
             render(<ChannelSettingsPage />);
 
             expect(screen.getByText('channelList.selfChannel')).toBeInTheDocument();
-            // 유도는 멤버 행에만 있다.
+            // The nudge only lives on the member row.
             expect(screen.getByTestId('member-me')).toHaveTextContent('chat.settings.profileSetupRequired');
         });
     });

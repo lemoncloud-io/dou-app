@@ -149,7 +149,7 @@ export const SearchPage = () => {
                 />
             </div>
 
-            {/* The scan covers one cloud (ADR-0088 결정 2항), so say so up front rather than letting
+            {/* The scan covers one cloud (ADR-0088 decision 2), so say so up front rather than letting
                 a missing result look like missing data. */}
             <p className="px-4 pb-2 text-[11px] leading-4 text-description">
                 {activeCloudName

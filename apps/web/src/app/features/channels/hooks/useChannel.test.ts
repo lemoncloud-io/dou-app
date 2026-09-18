@@ -55,8 +55,10 @@ describe('useChannel', () => {
     });
 
     it('캐시 miss(첫 null)를 부재로 단정하지 않고 계속 기다린다', async () => {
-        // 회귀: observeItem은 첫 응답을 캐시만 보고 주므로, 처음 보는 방은 fetch가 도는 중에도
-        // null이 즉시 온다. 이걸 답으로 받으면 호출부가 화면을 떠나고 그 fetch까지 끊긴다.
+        // Regression: observeItem's first response only looks at the cache, so a room seen for
+        // the first time gets an immediate null even while the fetch is still in flight. Taking
+        // that as the final answer would send the caller away from the screen and cut off that
+        // fetch too.
         const { result } = renderHook(() => useChannel('ch-1'));
 
         act(() => emit(null));
@@ -89,7 +91,7 @@ describe('useChannel', () => {
 
         expect(result.current.isLoading).toBe(false);
         expect(result.current.channel).toBeNull();
-        // 제거는 에러가 아니다 — 호출부가 화면을 떠나야 하는 정상 상황이다.
+        // Removal is not an error — it's a normal situation where the caller should leave the screen.
         expect(result.current.isError).toBe(false);
     });
 
@@ -126,7 +128,7 @@ describe('useChannel', () => {
         it('시드가 있으면 관측 해소 전에도 즉시 렌더 가능한 채널을 준다', () => {
             const { result } = renderHook(() => useChannel('ch-1', { seed: channelRow({ name: '시드' }) }));
 
-            // 옵저버가 아직 아무것도 안 줬다 — 시드로 즉시 표시.
+            // The observer hasn't given anything yet — shown immediately via the seed.
             expect(result.current.isLoading).toBe(false);
             expect(result.current.channel?.id).toBe('ch-1');
             expect(result.current.isError).toBe(false);
@@ -148,8 +150,9 @@ describe('useChannel', () => {
         });
 
         it('시드가 있으면 해소 타임아웃이 에러 화면으로 넘어가지 않는다', () => {
-            // 화면에 내용이 있는데 10초 뒤 에러 페이지로 바꿔치우는 것이 이 타이머의 원래
-            // 목적(무한 로딩 차단)보다 나쁘다 — 시드가 곧 내용이다.
+            // Swapping in an error page after 10 seconds while the screen already has content
+            // would be worse than this timer's original purpose (blocking infinite loading) —
+            // the seed is already content.
             jest.useFakeTimers();
             const { result } = renderHook(() => useChannel('ch-1', { seed: channelRow() }));
 
@@ -193,11 +196,12 @@ describe('useChannel', () => {
 
         rerender({ id: 'ch-2' });
 
-        // 새 방은 아직 아무것도 모른다 — 이전 행이 남아 있으면 남의 방을 보여준다.
+        // The new room knows nothing yet — leaving the old row in place would show someone
+        // else's room.
         expect(result.current.isLoading).toBe(true);
         expect(result.current.channel).toBeNull();
 
-        // 그리고 새 방의 첫 null도 부재로 단정하지 않는다.
+        // And the new room's first null is not taken to mean absence either.
         act(() => emit(null));
         expect(result.current.isLoading).toBe(true);
         expect(result.current.isError).toBe(false);
@@ -210,7 +214,7 @@ describe('useChannel', () => {
         unmount();
 
         expect(unsubscribe).toHaveBeenCalled();
-        // 언마운트 뒤 타이머가 살아 있으면 사라진 컴포넌트에 setState한다.
+        // If the timer were still alive after unmount, it would call setState on a component that's gone.
         expect(jest.getTimerCount()).toBe(0);
     });
 

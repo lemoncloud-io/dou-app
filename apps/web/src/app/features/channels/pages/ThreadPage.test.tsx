@@ -74,7 +74,7 @@ jest.mock('../../../ui/hooks/useChromeInsets', () => ({
 }));
 jest.mock('../hooks', () => ({
     useChannel: () => ({ channel: mockChannel }),
-    // 방과 스레드는 같은 채널의 두 화면이라 같은 단일 join 관측을 쓴다.
+    // The room and the thread are two screens of the same channel, so they share the same single join observation.
     useChannelJoins: () => ({ joins: [], myJoin: null, activeMemberIds: [], cursorByUser: new Map() }),
     useChannelMembers: () => ({ members: [] }),
     useChannelProfiles: () => ({ profileMap: new Map() }),
@@ -113,8 +113,8 @@ import { ThreadPage } from './ThreadPage';
 const chat = (over: Partial<DomainChat> = {}): DomainChat =>
     ({ id: 'ch1:7', chatNo: 7, content: '루트 메시지', ownerId: 'u1', createdAtMs: 1, ...over }) as DomainChat;
 
-// jsdom은 Element.scrollTo를 구현하지 않는다. 스레드는 새 답글이 오면 바닥으로 붙으므로
-// 이 스텁이 없으면 모든 렌더가 그 이펙트에서 던진다.
+// jsdom doesn't implement Element.scrollTo. The thread pins to the bottom when a new reply
+// arrives, so without this stub every render would throw inside that effect.
 beforeAll(() => {
     Element.prototype.scrollTo = jest.fn();
 });
@@ -127,8 +127,9 @@ beforeEach(() => {
 });
 
 describe('ThreadPage — 진입 시 첫 화면', () => {
-    // 캐시의 첫 방출은 캐시가 더워도 비동기라, 방이 건네준 루트가 없으면 스레드는 한 박자
-    // 빈 스피너로 열린다. 그 사이 유리 헤더 뒤에는 흐릴 것이 없다.
+    // The cache's first emission is asynchronous even when warm, so without a root handed off by
+    // the room, the thread opens with an empty spinner for one beat. There's nothing behind the
+    // glass header to blur in that gap.
     it('방이 건네준 루트를 스피너 없이 즉시 그린다', () => {
         mockIsLoading = true;
         mockLocationState = { rootChat: chat() };
@@ -148,8 +149,8 @@ describe('ThreadPage — 진입 시 첫 화면', () => {
         expect(screen.queryByTestId('thread-root')).not.toBeInTheDocument();
     });
 
-    // 씨앗은 이동 시점의 스냅샷이라 이후 편집·tombstone을 모른다. 캐시가 그 행을 갖게 되면
-    // 캐시가 이긴다.
+    // The seed is a snapshot taken at navigation time, so it knows nothing about a later edit or
+    // tombstone. Once the cache has that row, the cache wins.
     it('캐시가 루트를 갖게 되면 씨앗 대신 캐시를 쓴다', () => {
         mockLocationState = { rootChat: chat({ content: '옛 스냅샷' }) };
         mockChats = [chat({ content: '캐시 최신본' })];
@@ -168,8 +169,9 @@ describe('ThreadPage — 진입 시 첫 화면', () => {
     });
 });
 
-// Figma 4718:22183 — 헤더는 방이 아니라 화면을 가리킨다. 스레드는 채널 안의 한 대화이고,
-// 채널 이름과 얼굴을 달면 채널로 이동한 것처럼 읽힌다.
+// Figma 4718:22183 — the header names the screen, not the room. A thread is one conversation
+// inside a channel, and labeling it with the channel's name and avatar would read as if it
+// navigated to the channel.
 describe('ThreadPage — 헤더는 방이 아니라 화면을 가리킨다', () => {
     it.each([
         ['group', { id: 'ch1', stereo: 'group' }],
@@ -195,8 +197,8 @@ describe('ThreadPage — 헤더는 방이 아니라 화면을 가리킨다', () 
 });
 
 describe('ThreadPage — 루트는 메시지가 아니라 스레드의 주제다', () => {
-    // 말풍선이면 루트가 아래 답글들과 같은 시각적 계급이 되고, 내 메시지일 때는 오른쪽으로
-    // 밀려 스레드의 주제가 화면 한쪽에 붙는다.
+    // As a bubble, the root would sit at the same visual rank as the replies below, and when it's
+    // my message it'd get pushed to the right, pinning the thread's subject to one side of the screen.
     it('루트를 말풍선 행이 아닌 평문 블록으로 그린다', () => {
         mockLocationState = { rootChat: chat() };
 
@@ -225,8 +227,8 @@ describe('ThreadPage — 루트는 메시지가 아니라 스레드의 주제다
 });
 
 describe('ThreadPage — 긴 메시지 전체보기', () => {
-    // 스레드도 방과 같은 규칙으로 긴 본문을 자른다. 예전에는 자른 자리에 버튼만 있고
-    // 뒤에 아무것도 없어서 눌러도 반응이 없었다.
+    // A thread truncates a long body by the same rule as the room. It used to have only a button
+    // at the cut with nothing behind it, so pressing it did nothing.
     it('답글의 전체보기를 누르면 전문 다이얼로그가 열린다', () => {
         mockChats = [chat(), chat({ id: 'ch1:8', chatNo: 8, content: '아주 긴 답글 본문', parentId: '7' })];
 
@@ -237,7 +239,7 @@ describe('ThreadPage — 긴 메시지 전체보기', () => {
         expect(screen.getAllByText('아주 긴 답글 본문').length).toBeGreaterThan(1);
     });
 
-    // 전문 다이얼로그는 평문만 그린다. 페이로드를 그대로 넘기면 JSON 이 열린다.
+    // The full-text dialog renders plain text only. Passing the payload through as-is would open raw JSON.
     it('Block Kit 답글의 전체보기는 평문을 넘긴다', () => {
         mockChats = [
             chat(),

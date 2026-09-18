@@ -166,7 +166,7 @@ describe('useRelayInviteFlow — relay 핸드셰이크 게이트', () => {
     it('active 슬롯이 아니라 relay 슬롯을 기다린다', async () => {
         mount();
 
-        // cloud 세션이 떠 있으면 active는 cloud다 — waitUntilVerified로 걸면 relay를 안 기다린다.
+        // If a cloud session is up, active is cloud — gating on waitUntilVerified would not wait for relay.
         await waitFor(() => expect(waitUntilKindVerified).toHaveBeenCalled());
         expect(waitUntilKindVerified.mock.calls[0][0]).toBe('relay');
     });
@@ -181,7 +181,7 @@ describe('useRelayInviteFlow — relay 핸드셰이크 게이트', () => {
     });
 
     it('분류되지 않는 실패는 generic으로 떨어뜨리되 원인을 남긴다', async () => {
-        // "no relay slot bound" 류: status를 못 뽑으므로 generic이다. 로그가 없으면 진단이 불가능하다.
+        // The "no relay slot bound" kind: since no status can be extracted, it falls to generic. Without a log, diagnosing it would be impossible.
         getInvite.mockRejectedValue(new Error('[SocketManager] no relay slot bound for request(invite.get)'));
         const { result } = mount();
 
@@ -190,7 +190,7 @@ describe('useRelayInviteFlow — relay 핸드셰이크 게이트', () => {
     });
 });
 
-// ADR-0039가 ADR-0033 D10을 개정해 프로필 스텝을 없앴다: 인증만 남는다.
+// ADR-0039 amended ADR-0033 D10 to remove the profile step: only verification remains.
 // Opening a deeplink does NOT imply a device session: a social-linked main user who simply has no
 // phone yet also gets `needVerify`, and `login` from that session is a 400 ("@mode[login] is for
 // device session"). ADR-0042 §3.
@@ -388,9 +388,10 @@ describe('useRelayInviteFlow — 스텝 순서', () => {
         expect(result.current.phase).toBe('review');
     });
 
-    // setMyProfile은 sid를 요구하는데 이 라우트에는 sid를 세우는 코드가 없다(브라우저에서는
-    // sessionStorage라 새 탭이면 기존 사용자도 비어 있다). 게이트를 세우면 다이얼로그 안에서 저장이
-    // 던지고 초대를 영구히 수락할 수 없게 되므로, sid가 없으면 스텝을 건너뛴다.
+    // setMyProfile requires a sid, but this route has no code that establishes one (in the browser
+    // it's sessionStorage, so a fresh tab leaves even an existing user empty). Gating on it would make
+    // the save inside the dialog throw and leave the invite permanently unacceptable, so the step is
+    // skipped when there's no sid.
     it('활성 사이트가 없으면 프로필을 묻지 않고 수락한다 (수락 불가 방지)', async () => {
         mockSid = null;
         isPlaceProfileAbsent.mockResolvedValue(true);
@@ -413,31 +414,31 @@ describe('useRelayInviteFlow — 스텝 순서', () => {
         act(() => result.current.cancelStep());
         act(() => result.current.accept());
 
-        // 저장한 적이 없으므로 profileSavedRef가 서지 않는다 — 두 번째 시도도 프로필을 요구한다.
+        // It was never saved, so profileSavedRef never gets set — the second attempt also requires a profile.
         await waitFor(() => expect(result.current.phase).toBe('profiling'));
         expect(isPlaceProfileAbsent).toHaveBeenCalledTimes(2);
         expect(acceptInvite).not.toHaveBeenCalled();
     });
 
-    // 승격은 신원을 바꾼다: 디바이스 유저로 저장한 프로필은 메인유저 사이트에 대해 아무것도 말해주지
-    // 않으므로, 인증을 지나면 판정이 다시 서야 한다. 안 그러면 이름 없는 채로 수락된다.
+    // Promotion changes identity: a profile saved as the device user says nothing about the main
+    // user's site, so the judgment has to be re-made after verification — otherwise it gets accepted with no name.
     it('인증을 지나면 저장 기록을 버리고 프로필을 다시 판정한다', async () => {
         isPlaceProfileAbsent.mockResolvedValue(true);
         const { result } = mount();
         await waitFor(() => expect(result.current.phase).toBe('review'));
 
-        // needVerify=false로 들어와 프로필을 먼저 저장한다.
+        // Enters with needVerify=false and saves the profile first.
         act(() => result.current.accept());
         await waitFor(() => expect(result.current.phase).toBe('profiling'));
         act(() => result.current.onProfileSaved());
 
-        // 수락이 403 — 아직 디바이스 유저였다 → 인증으로 보낸다.
+        // Accept comes back 403 — still a device user → route to verification.
         acceptInvite.mockRejectedValueOnce(socketError(403));
         await waitFor(() => expect(result.current.phase).toBe('verifying'));
 
         act(() => result.current.onVerified());
 
-        // 승격된 신원에는 프로필이 없으므로 수락 전에 다시 프로필을 요구해야 한다.
+        // The promoted identity has no profile, so it must be required again before accepting.
         await waitFor(() => expect(result.current.phase).toBe('profiling'));
         expect(acceptInvite).toHaveBeenCalledTimes(1);
     });
@@ -614,14 +615,14 @@ describe('useRelayInviteFlow — 다시 시도', () => {
 
         act(() => result.current.retry());
 
-        // 재개가 아니라 재검증: generic은 무엇이 틀어졌는지 모른다는 뜻이라 상태부터 다시 읽는다.
+        // Re-validation, not resumption: generic means we don't know what went wrong, so it re-reads the state from scratch.
         await waitFor(() => expect(result.current.phase).toBe('review'));
         expect(acceptInvite).toHaveBeenCalledTimes(1);
     });
 
     it('다시 시도 직후의 닫기 신호는 홈으로 보내지 않는다', async () => {
-        // AlertDialog는 confirm 콜백 바로 뒤에 onOpenChange(false)를 쏜다. 그게 dismiss로 읽히면
-        // 재조회 중에 홈으로 튕긴다.
+        // AlertDialog fires onOpenChange(false) right after the confirm callback. If that gets read as
+        // a dismiss, it bounces to home while the re-fetch is still in flight.
         getInvite.mockRejectedValueOnce(new Error('503 SOCKET NOT CONNECTED'));
         const { result } = mount();
         await waitFor(() => expect(result.current.notice).toBe('generic'));
@@ -711,10 +712,12 @@ describe('useRelayInviteFlow — 거절 (실 invite.reject, ADR-0043)', () => {
         expect(result.current.isRejecting).toBe(false);
     });
 
-    // `taken`("다른 사용자가 먼저 초대를 수락했습니다")이 아니라 `alreadyJoined`("이미 참여한
-    // 초대입니다")다. reject의 409는 `reject-invite.ts`가 이미 수락된 초대에만 던지고, 1:1 초대는
-    // 번호 해시에 묶여 있어 수락할 수 있었던 사람은 이 사용자 자신(다른 기기)뿐이다 — 남이
-    // 가로챘다는 안내는 사실이 아니고, 정작 필요한 안내("채팅방에서 이어가세요")를 가린다.
+    // It's `alreadyJoined` ("이미 참여한 초대입니다" — you've already joined this invite), not `taken`
+    // ("다른 사용자가 먼저 초대를 수락했습니다" — someone else already accepted the invite). Reject's 409
+    // is thrown by `reject-invite.ts` only for an already-accepted invite, and a 1:1 invite is bound to
+    // a phone hash, so the only person who could have accepted it is this same user (on another
+    // device) — a notice implying someone else got there first would not be true, and it would hide
+    // the notice that's actually needed ("채팅방에서 이어가세요" — continue in the chat room).
     it('409(이미 수락)는 alreadyJoined 안내다 — 가로챈 남이 아니라 본인이 수락한 것이다', async () => {
         rejectInvite.mockRejectedValue(socketError(409));
         const { result } = mount();

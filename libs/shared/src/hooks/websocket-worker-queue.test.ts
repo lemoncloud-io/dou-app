@@ -1,6 +1,6 @@
 /**
- * WebSocket Worker 메시지 큐 로직 테스트
- * Worker 내부 로직을 시뮬레이션하여 큐 동작 검증
+ * Tests for the WebSocket Worker message queue logic.
+ * Simulates the Worker's internal logic to verify queue behavior.
  */
 describe('WebSocket Worker Message Queue', () => {
     const MAX_QUEUE_SIZE = 100;
@@ -40,11 +40,11 @@ describe('WebSocket Worker Message Queue', () => {
 
         expect(messageQueue).toHaveLength(100);
 
-        // 첫 번째 메시지는 id: 5 (0~4는 드롭됨)
+        // The first message is id: 5 (0-4 were dropped)
         const first = JSON.parse(messageQueue[0]);
         expect(first.id).toBe(5);
 
-        // 마지막 메시지는 id: 104
+        // The last message is id: 104
         const last = JSON.parse(messageQueue[99]);
         expect(last.id).toBe(104);
     });
@@ -63,7 +63,7 @@ describe('WebSocket Worker Message Queue', () => {
         expect(JSON.parse(sent[1]).text).toBe('second');
         expect(JSON.parse(sent[2]).text).toBe('third');
 
-        // flush 후 큐는 비어있음
+        // The queue is empty after flush
         expect(messageQueue).toHaveLength(0);
     });
 

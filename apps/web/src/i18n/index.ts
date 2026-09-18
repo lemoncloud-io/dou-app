@@ -14,7 +14,7 @@ import { logger } from '@chatic/bridges';
 // (`app.tsx` imports this before `main.tsx` reaches its first line). Routing PROJECT/ENV through
 // `@chatic/config` would read it uninitialized. Neither value is a setting anyway — this is a
 // localStorage key namespace, a technical detail — so it reads `import.meta.env` directly, the same
-// way `apps/web/src/app/utils/buildEnv.ts` already does (ADR-0079 결정 11 retired the single
+// way `apps/web/src/app/utils/buildEnv.ts` already does (ADR-0079 decision 11 retired the single
 // `import.meta` holder these used to come through, `@chatic/web-config`).
 const PROJECT = (import.meta.env.VITE_PROJECT || '').toLowerCase();
 const ENV = (import.meta.env.VITE_ENV || '').toLowerCase();

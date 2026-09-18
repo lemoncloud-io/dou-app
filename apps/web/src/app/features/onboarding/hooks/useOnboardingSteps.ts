@@ -18,7 +18,7 @@ export const useOnboardingSteps = (): OnboardingStep[] => {
                 title: isKorean ? '프라이빗 커뮤니티' : 'Private Community',
                 // Both numbers come from the creation limits themselves (consts.ts), not from copy:
                 // this slide is a promise about what the app allows, and it said 5 and 5 long after
-                // the limits moved — the pair ADR-0018 discarded as 죽은 코드.
+                // the limits moved — the pair ADR-0018 discarded as dead code.
                 description: isKorean
                     ? `최대 ${MAX_PLACES}개의 대화공간과, ${MAX_CHANNELS_PER_PLACE}개의 채팅방으로\n필요한 사람들과 필요한 이야기를 나눠요`
                     : `Create up to ${MAX_PLACES} spaces and ${MAX_CHANNELS_PER_PLACE} chat rooms\nto talk with the people you need`,

@@ -142,8 +142,9 @@ describe('useCanceledInviteReconcile — S9 분기 전부', () => {
         await waitFor(() => expect(cancelInviteMock).toHaveBeenCalledTimes(1));
     });
 
-    // 캐시엔 code가 없으므로(자격증명 — ADR-0052) 드레인은 서버에 딱 한 번 되묻고 그 응답에서 모든
-    // code를 뽑는다. 홈이 목록을 미리 조회하지 않게 된 뒤로 이 재조회가 유일한 code 출처다.
+    // Since the cache has no code (a credential — ADR-0052), the drain asks the server exactly once
+    // and pulls every code from that one response. Now that home no longer pre-fetches the list, this
+    // re-fetch is the only source of the code.
     it('code가 필요한 행이 있을 때만 서버에 한 번 되묻는다 — 행이 여러 개여도 한 번', async () => {
         mockInvites = [
             { id: 'invt-1', state: 'pending', dismissedAt: 1 },
@@ -171,8 +172,9 @@ describe('useCanceledInviteReconcile — S9 분기 전부', () => {
         expect(refetchMock).not.toHaveBeenCalled();
     });
 
-    // 회귀 지점: 응답을 못 받았는데 dismiss를 해제하면 레거시 취소가 서버에 닿지 않은 채 조용히
-    // 사라진다. relay가 refetch의 대기창 안에 인증되지 않으면 아무것도 건드리지 않고 물러난다.
+    // Regression point: clearing the dismiss without getting a response would let a legacy cancel
+    // silently disappear without ever reaching the server. If relay isn't authenticated within
+    // refetch's wait window, it backs off without touching anything.
     it('재조회가 응답을 못 주면 아무 기록도 건드리지 않는다 — 다음 마운트에 재시도', async () => {
         mockInvites = [{ id: 'invt-1', state: 'pending', dismissedAt: 1 }];
         mockRemote = undefined;

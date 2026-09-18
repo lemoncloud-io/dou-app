@@ -65,7 +65,7 @@ import { useChromeInsets } from '../../../ui/hooks/useChromeInsets';
 import { useRecentEmojiStore } from '../stores/useRecentEmojiStore';
 import { ROUTES } from '../../../routes/paths';
 
-// 입력 가능한 최대 글자 수
+// Maximum number of characters allowed in the input
 const MAX_INPUT_LENGTH = 5000;
 
 export const ChannelRoomPage = () => {
@@ -76,7 +76,7 @@ export const ChannelRoomPage = () => {
     const [searchParams, setSearchParams] = useSearchParams();
     const location = useLocation();
 
-    // UI 상태 관리
+    // UI state management
     const [content, setContent] = useState('');
     const [expandedMessage, setExpandedMessage] = useState<{ content: string; ownerName: string } | null>(null);
     // The long-pressed message the action sheet targets (null = sheet closed).
@@ -87,12 +87,12 @@ export const ChannelRoomPage = () => {
     const [reactorTarget, setReactorTarget] = useState<{ messageId: string; key: string } | null>(null);
     const [isCopyingMessage, setIsCopyingMessage] = useState(false);
 
-    // 스크롤 중 상단에 걸친 날짜 그룹을 표시하는 플로팅 pill 상태
+    // State for the floating pill that shows the date group crossing the top edge while scrolling
     const [floatingDate, setFloatingDate] = useState('');
     const [showFloatingDate, setShowFloatingDate] = useState(false);
     const floatingHideTimerRef = useRef<number | null>(null);
 
-    // DOM 접근을 위한 Ref (스크롤 컨테이너 ref는 useChatScroll이 소유)
+    // Ref for DOM access (the scroll container ref is owned by useChatScroll)
     const inputRef = useRef<HTMLTextAreaElement>(null);
 
     // Header/composer float as z-index overlays above the full-bleed message list (the translucent
@@ -104,7 +104,7 @@ export const ChannelRoomPage = () => {
     const { isGuest, isCloudActive } = runtime.session.useRuntimeProfile();
     const { isVerified } = runtime.connection.useRuntimeSocketState();
 
-    // --- 데이터 패칭 Hooks ---
+    // --- Data-fetching hooks ---
     const stableChannelId = useMemo(() => channelId || 'default', [channelId]);
     const stableChannelIdForChannelHook = useMemo(() => channelId || null, [channelId]);
 
@@ -350,7 +350,7 @@ export const ChannelRoomPage = () => {
      * bounced while the identity is still resolving.
      *
      * An unresolvable channel (`isChannelError`) is NOT redirected: the error screen below explains
-     * itself and its 돌아가기 keeps the history entry the user came from.
+     * itself and its "go back" action keeps the history entry the user came from.
      */
     const isForeignSelfChat = isSomeoneElsesSelfChat(channel, userId);
     useEffect(() => {
@@ -360,8 +360,9 @@ export const ChannelRoomPage = () => {
         }
     }, [channel, isForeignSelfChat, isChannelLoading, isChannelError, navigate]);
 
-    // 읽음 처리 (1단계: 진입 즉시 channel.chatNo, 2단계: 메시지 로딩 후 보정/포그라운드 복귀)는
-    // useReadMarker가 소유한다. 전송 직후 읽음은 markSent로 처리한다.
+    // Read handling (stage 1: channel.chatNo right on entry, stage 2: correction after messages
+    // load / on foreground return) is owned by useReadMarker. Marking read right after sending
+    // is handled by markSent.
     const channelChatNo = channel?.chatNo;
     const lastMessage = useMemo(() => (messages.length > 0 ? messages[messages.length - 1] : null), [messages]);
     const lastChatNo = lastMessage?.isPending || lastMessage?.isFailed ? undefined : lastMessage?.chatNo;
@@ -374,11 +375,12 @@ export const ChannelRoomPage = () => {
         readMessage,
     });
 
-    // 이 채널로의 점프가 대기 중인 동안에는 하단 자동 스크롤을 멈춘다 — 둘이 동시에 살아 있으면
-    // 하단 고정이 점프를 덮어쓴다 (docs/specs/search/message-jump.md '하단 고정과의 충돌').
+    // Auto-scroll to bottom is paused while a jump to this channel is pending — if both are alive
+    // at once, the bottom pin overwrites the jump (docs/specs/search/message-jump.md '하단 고정과의 충돌').
     const isJumpPending = useMessageJumpStore(s => s.target?.channelId === stableChannelId);
 
-    // 스크롤(하단 자동 이동, loadMore 위치 보존, 리사이즈/포커스 보정, 무한 로딩)은 useChatScroll이 소유한다.
+    // Scrolling (auto-scroll to bottom, position preservation for loadMore, resize/focus
+    // correction, infinite loading) is owned by useChatScroll.
     const { containerRef: messagesEndRef, handleScroll: handleChatScroll } = useChatScroll({
         messages,
         hasMore,
@@ -393,9 +395,9 @@ export const ChannelRoomPage = () => {
         composerHeight,
     });
 
-    // 검색 결과의 메시지 클릭(?chatNo=)으로 진입한 경우, 점프 스토어에 요청을 등록하고 쿼리를
-    // 제거한다(새로고침 시 재점프 방지). 실제 스크롤/하이라이트/과거 페이지 로드는 useMessageJump가
-    // 소유한다 (docs/specs/search/message-jump.md).
+    // When entering via a message click from search results (?chatNo=), a request is registered
+    // in the jump store and the query is removed (to prevent re-jumping on refresh). The actual
+    // scroll/highlight/older-page loading is owned by useMessageJump (docs/specs/search/message-jump.md).
     useEffect(() => {
         const raw = searchParams.get('chatNo');
         if (!raw || !channelId) return;
@@ -422,8 +424,9 @@ export const ChannelRoomPage = () => {
         loadUntil,
     });
 
-    // 플로팅 날짜 pill: 스크롤 중 컨테이너 상단 경계에 걸친 날짜 그룹의 라벨을 찾아 표시하고,
-    // 스크롤이 멎으면 잠시 뒤 감춘다. useChatScroll의 스크롤 로직과는 독립적인 경량 관측이다.
+    // Floating date pill: while scrolling, finds and shows the label of the date group crossing
+    // the container's top edge, then hides it a moment after scrolling stops. A lightweight
+    // observation independent of useChatScroll's own scroll logic.
     const handleFloatingDateScroll = useCallback(() => {
         const container = messagesEndRef.current;
         if (!container) return;
@@ -653,7 +656,7 @@ export const ChannelRoomPage = () => {
     };
 
     // Compact label for the scroll-time floating pill, e.g. "7. 01 월".
-    // The weekday is the first character of the localized weekday name (한글 단일자).
+    // The weekday is the first character of the localized weekday name (a single Korean character).
     const formatFloatingDate = (date: Date) => {
         const month = date.getMonth() + 1;
         const day = String(date.getDate()).padStart(2, '0');
@@ -1097,7 +1100,7 @@ export const ChannelRoomPage = () => {
                     inputRef={inputRef}
                     placeholder={t('chat.room.inputPlaceholder')}
                     // Nobody left to receive it: a message sent into an empty 1:1 would carry an
-                    // unread badge of `1` forever. Lifts the moment the peer is back (ADR-0068 결정 5).
+                    // unread badge of `1` forever. Lifts the moment the peer is back (ADR-0068 decision 5).
                     //
                     // Also locked while a message is being edited: two live fields on one screen
                     // and there is no telling which one you are typing into.

@@ -130,8 +130,8 @@ describe('nativeUploadSource — 배출', () => {
     });
 
     it('size는 마지막 왕복이 보고한 값을 돌려준다 — 읽을 때마다 묻지 않는다', async () => {
-        // 모니터 표시용이라 한 주기 늦어도 된다. 매번 브리지를 두드리면 값 하나에
-        // 왕복 하나를 쓰게 되고, 그걸 읽고 결정하는 주체는 아무도 없다.
+        // This is for monitor display, so being one cycle stale is fine. Hitting the bridge on every
+        // read would spend a round trip per value, and there's no one reading it to act on it anyway.
         const source = createNativeUploadSource();
         expect(source.size()).toBe(0);
 

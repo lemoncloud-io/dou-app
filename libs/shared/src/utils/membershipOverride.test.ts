@@ -2,7 +2,7 @@ import { isAdminOverrideActive, resolveEffectiveProductId } from './membershipOv
 
 import type { MembershipView } from '@lemoncloud/chatic-backend-api';
 
-const NOW = 1_757_000_000_000; // 2026-09 어름
+const NOW = 1_757_000_000_000; // around 2026-09
 const HOUR = 60 * 60 * 1000;
 
 const membership = (fields: Partial<MembershipView>): MembershipView => fields as MembershipView;
@@ -16,7 +16,7 @@ describe('isAdminOverrideActive', () => {
         expect(isAdminOverrideActive(membership({ adminUntil: NOW + HOUR }), NOW)).toBe(false);
     });
 
-    // 빈 문자열은 해제의 인코딩이다 — 오버라이드가 없다는 뜻이지 상태가 있다는 뜻이 아니다.
+    // An empty string is the encoding for "cleared" — it means there's no override, not that a status is set.
     it('adminStatus가 빈 문자열이면(해제) 활성이 아니다', () => {
         expect(isAdminOverrideActive(membership({ adminStatus: '' }), NOW)).toBe(false);
     });
@@ -25,7 +25,7 @@ describe('isAdminOverrideActive', () => {
         expect(isAdminOverrideActive(membership({ adminStatus: 'active' }), NOW)).toBe(true);
     });
 
-    // 무기한에 특수값을 두지 않기로 한 설계라, 0도 "안 정해짐"이다.
+    // The design deliberately has no special value for "indefinite", so 0 also means "unset".
     it('만료 시각이 0이면 무기한이라 활성이다', () => {
         expect(isAdminOverrideActive(membership({ adminStatus: 'active', adminUntil: 0 }), NOW)).toBe(true);
     });
@@ -59,7 +59,7 @@ describe('resolveEffectiveProductId', () => {
         expect(resolveEffectiveProductId($m, NOW)).toBe('pro_tier_01');
     });
 
-    // 부여 기간이 끝나면 등급도 같이 풀린다 — 값이 남아 있어도 읽지 않는다.
+    // Once the grant period ends, the tier is released along with it — even if the value is still there, it isn't read.
     it('오버라이드가 만료됐으면 등급이 남아 있어도 영수증 상품을 쓴다', () => {
         const $m = membership({
             adminStatus: 'active',

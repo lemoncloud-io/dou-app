@@ -205,7 +205,8 @@ describe('PlaceDetailPage — DoU홈(relay 기본플레이스)', () => {
         expect(screen.queryByText('chat.settings.badge.owner')).not.toBeInTheDocument();
     });
 
-    // ownerId가 실려 와도(가정) 소유자 섹션은 뜨지 않는다 — 필드 부재의 결과가 아니라 명시적 예외다.
+    // Even if ownerId were sent along (hypothetically), the owner section still wouldn't show — an
+    // explicit exception, not a side effect of the missing field.
     it('ownerId가 있어도 소유자 섹션을 그리지 않는다', () => {
         mockPlace = { ...RELAY_PLACE, ownerId: 'u1' };
         mockOwner = { nick: '두유' };
@@ -230,8 +231,8 @@ describe('PlaceDetailPage — DoU홈(relay 기본플레이스)', () => {
         expect(container.querySelector('.bg-brand-ink')).not.toBeInTheDocument();
     });
 
-    // 회귀 방지: createdAt이 실제로 존재해도(RELAY_PLACE에 세팅됨) 렌더하지 않는다 — 데이터 부재가
-    // 아니라 기획 결정이다.
+    // Regression guard: even though createdAt actually exists (it's set on RELAY_PLACE), it isn't
+    // rendered — that's a product decision, not a missing-data effect.
     it('만든 날짜가 서버에 있어도 렌더하지 않는다', () => {
         mockPlace = RELAY_PLACE;
         render(<PlaceDetailPage />);
@@ -239,8 +240,9 @@ describe('PlaceDetailPage — DoU홈(relay 기본플레이스)', () => {
         expect(screen.queryByText('placeDetail.createdAtLabel')).not.toBeInTheDocument();
     });
 
-    // 회귀 방지: 소개 문구는 만든 날짜·소유자와 달리 relay 제외 대상이 아니다(ADR-0074). 위 두 행을
-    // 숨기는 isHomePlace 분기를 소개 행에도 실수로 걸면 이 테스트가 깨진다.
+    // Regression guard: unlike the created-date and owner rows, the introduction text is not excluded
+    // for the relay (ADR-0074). If the isHomePlace branch that hides those two rows is mistakenly
+    // applied to the introduction row too, this test breaks.
     it('소개 문구는 DoU홈에서도 렌더한다', () => {
         mockPlace = { ...RELAY_PLACE, desc: '두유 홈입니다' };
         render(<PlaceDetailPage />);

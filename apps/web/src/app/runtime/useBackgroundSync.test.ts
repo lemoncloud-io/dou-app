@@ -10,7 +10,7 @@ jest.mock('@tanstack/react-query', () => ({ useIsMutating: jest.fn() }));
 jest.mock('@chatic/app-runtime', () => ({
     runtime: {
         session: {
-            // 훅이 쓰는 키 상수 — 모듈을 목하면 실물 export가 사라진다.
+            // The key constant the hook uses — mocking the module makes the real export disappear.
             SWITCH_SITE_MUTATION_KEY: ['session', 'switch-site'],
             useRuntimeProfile: jest.fn(),
             useGlobalSession: jest.fn(),
@@ -244,15 +244,15 @@ describe('useBackgroundSync — 백그라운드 동기화', () => {
     it('미인증이면 포그라운드 복귀에서 쏘지 않고, 재인증 상승 엣지(Trigger 1)가 대신 동기화한다', async () => {
         setVerified(false);
         const { rerender } = renderHook(() => useBackgroundSync());
-        await act(async () => undefined); // 미인증이라 상승 엣지(Trigger 1) 미발생
+        await act(async () => undefined); // unauthenticated, so no rising edge (Trigger 1) fires
         expect(syncChannels).not.toHaveBeenCalled();
 
         await fireForeground();
-        // 미인증 소켓에는 쏘지 않는다 — 헛된 왕복을 피하고 재인증까지 지연
+        // Doesn't fire on an unauthenticated socket — avoids a wasted round trip and defers until re-auth
         expect(syncChannels).not.toHaveBeenCalled();
         expect(getSelfChannel).not.toHaveBeenCalled();
 
-        // SDK 재인증 → isVerified false→true 상승 엣지가 뒤이어 sync
+        // SDK re-authenticates -> isVerified false->true rising edge, followed by sync
         setVerified(true);
         await act(async () => {
             rerender();
@@ -265,13 +265,13 @@ describe('useBackgroundSync — 백그라운드 동기화', () => {
         setVerified(true);
         setSwitching(true);
         renderHook(() => useBackgroundSync());
-        // verified+switching로 마운트하면 Trigger 1(상승 엣지)이 1회 발생하므로 baseline으로 잡는다.
+        // Mounting with verified+switching fires Trigger 1 (rising edge) once, so that's taken as the baseline.
         await act(async () => undefined);
         const baseline = syncChannels.mock.calls.length;
 
         await fireForeground();
 
-        expect(syncChannels).toHaveBeenCalledTimes(baseline); // 포그라운드가 추가 호출을 만들지 않음
+        expect(syncChannels).toHaveBeenCalledTimes(baseline); // foreground doesn't produce an extra call
     });
 
     it('sync 실패 시 해당 워터마크를 전진시키지 않는다', async () => {
@@ -284,18 +284,18 @@ describe('useBackgroundSync — 백그라운드 동기화', () => {
         });
 
         expect(setSyncedAt).not.toHaveBeenCalledWith('channel-sync:default', expect.anything());
-        // 채널 실패가 프로필 동기화를 막지는 않는다
+        // A channel failure does not block profile sync
         expect(syncProfiles).toHaveBeenCalledTimes(1);
     });
 
     it('사이트(sid) 변경 시 새 사이트 채널을 갱신한다 (auth.switch는 상승 엣지를 만들지 않으므로 Trigger 4)', async () => {
         setVerified(true);
         const { rerender } = renderHook(() => useBackgroundSync());
-        await act(async () => undefined); // 마운트 상승 엣지(s1) flush
+        await act(async () => undefined); // flush the mount rising edge (s1)
         syncChannels.mockClear();
         getSelfChannel.mockClear();
 
-        // 사이트 전환: s1 → s2. verified는 그대로 true(auth.switch가 authenticated 유지 → 상승 엣지 없음).
+        // Site switch: s1 -> s2. verified stays true (auth.switch keeps authenticated -> no rising edge).
         setSession('default', 's2');
         await act(async () => {
             rerender();
@@ -339,9 +339,10 @@ describe('useBackgroundSync — 백그라운드 동기화', () => {
     });
 
     /**
-     * 보낸 초대 레인. 홈은 초대 캐시만 그리고(useRelayInvites의 `remote` 기본 off) 그 캐시를 채우는
-     * 유일한 정기 경로가 여기다 — 옮긴 이유는 홈이 전 유저에게 마운트·포커스마다 relay-pinned
-     * `invite.list`를 쏘던 것이고, 그게 연결 인증 desync를 401로 드러내던 패킷이었다.
+     * The sent-invite lane. Home only ever draws from the invite cache (`useRelayInvites`'s `remote`
+     * defaults off), and this is the only regular path that fills that cache — the reason it moved
+     * here is that home used to fire a relay-pinned `invite.list` on every mount and focus for every
+     * user, and that was the packet that surfaced connection-auth desync as a 401.
      */
     it('상승 엣지에서 보낸 초대 목록도 함께 갱신한다', async () => {
         setVerified(false);
@@ -354,8 +355,8 @@ describe('useBackgroundSync — 백그라운드 동기화', () => {
 
         expect(inviteList).toHaveBeenCalledWith({ limit: 100 });
         expect(inviteList).toHaveBeenCalledTimes(1);
-        // 엣지는 캐시를 묻지 않는다 — 이 기기가 본 적 없는 카드(다른 기기 발급·캐시 초기화)를
-        // 발견하는 유일한 지점이라 조건 없이 쏜다.
+        // The edge doesn't consult the cache — it's the only place that can discover a card this
+        // device has never seen (issued on another device, or after a cache reset), so it fires unconditionally.
         expect(inviteCacheReadList).not.toHaveBeenCalled();
     });
 
@@ -485,14 +486,14 @@ describe('useBackgroundSync — 백그라운드 동기화', () => {
         await act(async () => undefined);
         getSelfChannel.mockClear();
 
-        // sid는 낙관적으로 먼저 s2가 되지만 아직 전환 중이므로 fetch하지 않는다.
+        // sid optimistically becomes s2 first, but no fetch happens while still switching.
         setSession('default', 's2');
         await act(async () => {
             rerender();
         });
         expect(getSelfChannel).not.toHaveBeenCalled();
 
-        // 전환 정착 → 발화.
+        // Switch settles -> fires.
         setSwitching(false);
         await act(async () => {
             rerender();
@@ -505,7 +506,7 @@ describe('useBackgroundSync — 실패 스트릭 통지 (ADR-0099)', () => {
     const fail = syncStreakReporter.fail as jest.Mock;
     const succeed = syncStreakReporter.succeed as jest.Mock;
 
-    /** verified 상승 엣지 한 번으로 전 경로를 한 바퀴 돌린다. */
+    /** Runs every path through once via a single verified rising edge. */
     const runOnce = async () => {
         setVerified(false);
         const { rerender } = renderHook(() => useBackgroundSync());
@@ -532,7 +533,7 @@ describe('useBackgroundSync — 실패 스트릭 통지 (ADR-0099)', () => {
         expect(fail).not.toHaveBeenCalled();
     });
 
-    // 워터마크가 전진하지 않는 바로 그 경로 — 스트릭이 쌓이는 것이 정체의 신호다.
+    // The exact path where the watermark doesn't advance — a growing streak is the signal of stagnation.
     it('채널 델타 동기화가 실패하면 그 경로로 실패를 통지한다', async () => {
         syncChannels.mockRejectedValue(new Error('boom'));
 

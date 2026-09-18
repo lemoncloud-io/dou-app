@@ -7,7 +7,7 @@ import { useAppForeground } from '../bridge';
  * relay socket is up.
  *
  * The probe/refresh body now lives in `@chatic/app-runtime`'s `runtime.session.useSessionStalenessGuard`
- * (ADR-0070 3단계 체크리스트 7) — admin-v2 had invented the same thing independently. What stays
+ * (ADR-0070 3-step checklist 7) — admin-v2 had invented the same thing independently. What stays
  * here is apps/web's POLICY, and the two triggers are the whole point:
  *
  * **Rising edge of relay verification, not an interval.** `requestRelaySessionRefresh` only reaches the

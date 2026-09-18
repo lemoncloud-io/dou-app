@@ -181,7 +181,7 @@ describe('PhoneVerifyScreen — 인증 요청', () => {
         expect(mockSend).not.toHaveBeenCalled();
         expect(screen.getByPlaceholderText('phoneVerify.codePlaceholder')).toBeDisabled();
 
-        // 끝 4자리가 맞으면 그대로 통과한다 — 4자리는 판정이 아니라 선차단일 뿐이다.
+        // If the last 4 digits match, it passes straight through — the 4 digits are only a pre-filter, not the verdict.
         mockSend.mockResolvedValueOnce({ sent: true, expiredAt: FUTURE_EXPIRY() });
         typePhone('01012349999');
         await submitSend();
@@ -245,7 +245,7 @@ describe('PhoneVerifyScreen — 인증 요청', () => {
 
     // Deliberately mode-independent. `link` mode can still hit `occupied` (the number belongs to a
     // separate phone-created user), and this banner is the guide's only documented defense for a
-    // split account (§제약) — hiding it there would remove the one signpost out.
+    // split account (§Constraints) — hiding it there would remove the one signpost out.
     it('link 모드에서도 배너는 그대로 뜬다 — 분리 계정 안내는 모드와 무관하다', () => {
         renderScreen({ mode: 'link' });
 
@@ -270,8 +270,8 @@ describe('PhoneVerifyScreen — 인증 요청', () => {
         });
     });
 
-    // 서버가 개발 환경에서 '#'을 인정한다. 클라이언트가 건너뛰는 게 아니라 평소와 같은
-    // confirm 호출을 '#'으로 하는 것 — 운영 백엔드는 그냥 틀린 코드로 거절한다.
+    // The server accepts '#' in the dev environment. The client isn't skipping anything — it's making
+    // the same confirm call as usual, just with '#' — the production backend simply rejects it as a wrong code.
     describe('dev bypass — 인증번호 없이 통과', () => {
         it('운영 빌드에는 버튼이 없다', async () => {
             (isDevBuild as jest.Mock).mockReturnValue(false);
@@ -303,7 +303,7 @@ describe('PhoneVerifyScreen — 인증 요청', () => {
             expect(mockVerify).not.toHaveBeenCalled();
         });
 
-        // link 모드는 confirm 전에 verify로 linkable을 물어야 한다 — 실코드와 같은 2단계.
+        // The link mode has to ask verify whether it's linkable before confirm — the same two steps as a real code.
         it('link 모드는 verify를 거친 뒤 confirm한다', async () => {
             (isDevBuild as jest.Mock).mockReturnValue(true);
             mockSend.mockResolvedValueOnce({ sent: true, expiredAt: FUTURE_EXPIRY() });
@@ -323,7 +323,7 @@ describe('PhoneVerifyScreen — 인증 요청', () => {
             );
         });
 
-        // 서버가 거절하면 평소 실패 경로를 그대로 탄다 — 우회는 클라이언트 판단이 아니다.
+        // If the server rejects it, it takes the usual failure path — the bypass is not a client-side judgment call.
         it('서버가 거절하면 일반 코드와 같은 오류를 보여준다', async () => {
             (isDevBuild as jest.Mock).mockReturnValue(true);
             mockSend.mockResolvedValueOnce({ sent: true, expiredAt: FUTURE_EXPIRY() });
@@ -526,7 +526,7 @@ describe('PhoneVerifyScreen — link 모드 (번호 연결)', () => {
         expect(mockConfirm).not.toHaveBeenCalled();
         expect(onVerified).not.toHaveBeenCalled();
 
-        // 연결은 세션을 건드리지 않으므로 $token도, 전환도 없다.
+        // Linking doesn't touch the session, so there's no $token and no switch.
         mockConfirm.mockResolvedValueOnce({ linked: true });
         await submitCta();
 
