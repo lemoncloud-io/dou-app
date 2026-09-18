@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { matchPath } from 'react-router-dom';
 import { toast } from 'sonner';
 
@@ -10,15 +10,13 @@ import { useOnReceiveNotification, usePushNavigate } from '../bridge';
 import { pushEntryRegistry } from '../runtime/logging/pushEntryRegistry';
 import { ROUTES } from '../routes/paths';
 import { InAppNotificationCard } from '../ui/components/InAppNotificationCard';
+import { IN_APP_PUSH_TOAST_ID, installTransientUiDismissal } from '../ui/transientUi';
 import {
     extractPushBannerFields,
     extractPushMessageId,
     resolveInAppPushRoute,
     type InAppPushData,
 } from '../utils/resolveInAppPushRoute';
-
-/** Fixed toast id so consecutive pushes replace the banner instead of stacking. */
-const IN_APP_PUSH_TOAST_ID = 'in-app-push-message';
 
 /**
  * Routes that count as "already reading this channel". The thread is one of them: it is the
@@ -142,4 +140,9 @@ export const useInAppPushMessage = (): void => {
     );
 
     useOnReceiveNotification(handleReceiveNotification);
+
+    // A banner raised for the screen the reader has just left is about something they are no longer
+    // looking at, and tapping it would act on a target chosen five seconds ago. The route observer
+    // owns the moment; this connects it to the banner, for as long as the banner can be raised.
+    useEffect(installTransientUiDismissal, []);
 };
