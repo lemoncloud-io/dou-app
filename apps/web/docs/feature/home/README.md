@@ -110,6 +110,10 @@ it within the last 24 hours. The Chat section still fills normally, because plac
 invisibly — and until that resolves, the section holds the loading state described under
 [Switching](#switching), which on relay is the only thing in the body.
 
+The two section titles are the **product** nouns, not the domain's: `플레이스` / `Places` and
+`채팅방` / `Chat Rooms`. `채널` is what `DomainChannel` and `ChannelRepository` are called in code and
+it stays there; the screen says the word a user would.
+
 **Cloud** (anything else). The header is `kind="cloud"`: a `CloudAvatar` built from the cloud's
 initials, since `CloudView` carries no image field, beside the cloud name — read from the local cache
 first and the relay catalog second, so a rename shows immediately. On a cold start with neither, the
