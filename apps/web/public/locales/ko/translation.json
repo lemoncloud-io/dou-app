@@ -451,7 +451,7 @@
     },
     "homePage": {
         "places": "플레이스",
-        "channels": "채널",
+        "channels": "채팅방",
         "setupProfile": "프로필을 설정해주세요",
         "noCloudsError": "설정할 수 있는 클라우드가 없어요",
         "selectCloud": "클라우드 선택하기",
@@ -472,7 +472,8 @@
         "directComingSoon": "1:1 대화는 준비 중이에요",
         "noPlaceTitle": "접속한 플레이스가 없어요",
         "noPlaceDescription": "플레이스에 접속해 대화를 시작해보세요",
-        "loadingCloud": "클라우드를 불러오는 중이에요"
+        "loadingCloud": "클라우드를 불러오는 중이에요",
+        "selectPlaceFirst": "플레이스를 먼저 선택해주세요"
     },
     "cloudSessionSheet": {
         "title": "클라우드 전환",
@@ -558,8 +559,8 @@
         "noDescription": "채널 설명 없음",
         "errorLoading": "채널을 불러올 수 없습니다",
         "retry": "다시 시도",
-        "empty": "채널이 없습니다. 새 채팅방을 만들어보세요!",
-        "unnamedChannel": "이름 없는 채널",
+        "empty": "채팅방이 없습니다. 새로 만들어보세요!",
+        "unnamedChannel": "이름 없는 채팅방",
         "selfChannel": "나와의 채팅",
         "createChat": "채팅 만들기",
         "createDirect": "1:1 대화",

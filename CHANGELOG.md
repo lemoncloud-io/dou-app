@@ -1,5 +1,22 @@
 # Changelog
 
+## [2026-09-18] - root@0.64.3, @chatic/web@0.50.4
+
+### Bug Fixes
+
+- (web) never delete a 1:1, and name it the same way on every surface
+
+## [2026-09-18] - No version updates
+
+### Bug Fixes
+
+- (web/home) refuse room creation with no active place, instead of writing it nowhere
+- (web/home) read an empty list cache as unknown, not as an empty cloud
+
+### Chores
+
+- (web/home) name the chat section by its product noun, not the domain's
+
 ## [2026-09-18] - root@0.64.2, @chatic/web@0.50.3, @chatic/desktop-web@0.13.2
 
 ### Features

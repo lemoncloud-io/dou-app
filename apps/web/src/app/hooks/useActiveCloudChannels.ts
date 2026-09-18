@@ -3,6 +3,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { runtime } from '@chatic/app-runtime';
 import type { DomainChannel } from '@chatic/data';
 
+import { useHasChannelSync } from '../stores/useChannelSyncMarkStore';
+import { useColdListWindowElapsed } from './useColdListWindow';
 import { useAccessiblePlaceIds } from './useAccessiblePlaceIds';
 import { useActiveCloudData } from './activeCloudDataContext';
 
@@ -51,11 +53,15 @@ export const useActiveCloudChannelsSource = (): { channels: DomainChannel[]; isL
 
     const [channels, setChannels] = useState<DomainChannel[]>([]);
     /**
-     * Whether the observer has answered once for the CURRENT scope. Callers that render a per-site
-     * slice off this list need it as their loading signal, and an empty array cannot serve: a cloud
-     * with no channels yet and a cloud whose first read has not landed look identical.
+     * Whether the CACHE has answered once for the current scope. Not the same as `isLoaded` below:
+     * an empty array cannot serve as a loading signal on its own, because a cloud with no channels
+     * yet and a cloud whose first read has not landed look identical.
      */
-    const [isLoaded, setIsLoaded] = useState(false);
+    const [hasCacheAnswered, setHasCacheAnswered] = useState(false);
+    // Whether this cloud's channel delta has come back from the server at least once this session.
+    const hasChannelSync = useHasChannelSync(cid, uid);
+    // ...and the bound on waiting for it, for the case where it never arrives at all.
+    const hasColdWindowElapsed = useColdListWindowElapsed(`channel:${cid}:${uid ?? ''}`);
 
     // Clear only when the cloud/uid actually changes — the cloud-wide list is the same set across a
     // site switch, so clearing there would flash an empty list for no reason.
@@ -67,17 +73,30 @@ export const useActiveCloudChannelsSource = (): { channels: DomainChannel[]; isL
         if (scopeRef.current !== scope) {
             scopeRef.current = scope;
             setChannels([]);
-            setIsLoaded(false);
+            setHasCacheAnswered(false);
         }
         return channel.observeList(
             { sid: '' },
             result => {
                 setChannels(result?.list ?? []);
-                setIsLoaded(true);
+                setHasCacheAnswered(true);
             },
             { cid, uid }
         );
     }, [channel, cid, uid]);
+
+    /**
+     * COLD CLOUD — the cache answers `[]` instantly for a cloud this device has never opened, before
+     * the first `channel.syncChannels` has been sent, so "the cache answered" is not yet an answer
+     * about the cloud. An empty list therefore stays unloaded until something explains it, which is
+     * what keeps the chat section on skeletons instead of flashing "no rooms" through a cold switch.
+     *
+     * Three things can explain it, cheapest first: rows in the cache (a cloud visited before is
+     * loaded the moment it emits), the first delta answering (which is how a place that really has
+     * no rooms — every place, at the start — says so within a round trip rather than a whole
+     * window), and the window elapsing (the bound for when neither ever happens).
+     */
+    const isLoaded = hasCacheAnswered && (channels.length > 0 || hasChannelSync || hasColdWindowElapsed);
 
     const accessible = useMemo(() => {
         if (!accessiblePlaceIds) return channels;

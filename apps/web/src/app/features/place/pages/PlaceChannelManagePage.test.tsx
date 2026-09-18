@@ -181,8 +181,10 @@ describe('PlaceChannelManagePage', () => {
         await waitFor(() => expect(toast).toHaveBeenCalledWith({ title: 'channelManage.deleteDone:1' }));
     });
 
-    it('참여자면 선택한 방에서 나간다', async () => {
-        placeValue = { id: 'place-1', isOwner: false };
+    // "Member" is now decided per channel rather than per place — a group I did not create is
+    // one I leave, whoever owns the place around it.
+    it('leaves a group room I do not own', async () => {
+        channelsValue = [channel('ch-1', { ownerId: 'someone-else' }), channel('ch-2', { ownerId: 'someone-else' })];
         render(<PlaceChannelManagePage />);
 
         fireEvent.click(screen.getByRole('checkbox', { name: 'ch-1' }));
@@ -208,9 +210,24 @@ describe('PlaceChannelManagePage', () => {
         expect(toast).toHaveBeenCalledWith({ title: 'channelManage.deleteFailed:1', variant: 'destructive' });
     });
 
-    it('선택이 없으면 삭제 버튼이 비활성화된다', () => {
+    // The label splits into delete/leave with the selection (removalActionFor), so accept either.
+    it('disables the remove button when nothing is selected', () => {
         render(<PlaceChannelManagePage />);
-        expect(screen.getByText('channelManage.deleteRooms').closest('button')).toBeDisabled();
+        expect(screen.getByRole('button', { name: /channelManage\.(delete|leave)Rooms/ })).toBeDisabled();
+    });
+
+    // A 1:1 is left, never deleted, on every screen. That holds even when ownerId is me because
+    // I sent the invite — that id is a by-product of creating the room, not a permission over it.
+    it('leaves a 1:1 instead of deleting it, even when I am the owner', async () => {
+        channelsValue = [channel('dm-1', { stereo: 'dm', ownerId: 'me', memberIds: ['me', 'peer'] })];
+        render(<PlaceChannelManagePage />);
+
+        fireEvent.click(screen.getByRole('checkbox', { name: 'dm-1' }));
+        fireEvent.click(screen.getByText('channelManage.leaveRooms'));
+        fireEvent.click(screen.getByText('channelManage.leaveDialog.confirm'));
+
+        await waitFor(() => expect(leaveChannel).toHaveBeenCalledWith({ channelId: 'dm-1' }));
+        expect(deleteChannel).not.toHaveBeenCalled();
     });
 
     it('선택이 없으면 모두 읽음, 선택이 있으면 선택한 개수만 읽는다', async () => {

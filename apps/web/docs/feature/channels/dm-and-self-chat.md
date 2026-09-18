@@ -9,21 +9,59 @@ This document owns those per-stereo rules: how a room is identified, how a self 
 named, and what a 1:1 does when the other person leaves. The screens they appear on are
 [chat-room.md](./chat-room.md) and [channel-settings.md](./channel-settings.md).
 
-## The four surfaces
+## The five surfaces
 
-The room header, the settings screen, the home list and place channel management all name and draw
-the same channel. Two shared resolvers keep them from disagreeing:
+The room header, the settings screen, the home list, place channel management **and search results**
+all name and draw the same channel. Two shared resolvers keep them from disagreeing:
 
 Two shared resolvers answer "what is it called?" and "what does it look like?" — `lib/resolveChannelTitle.ts`
-and `lib/resolveChannelAvatar.ts`, the only two things in `lib/` and the only two other features may
-borrow.
+and `lib/resolveChannelAvatar.ts`, the only things in `lib/` other features may borrow, alongside
+`lib/channelStereoPolicy.ts` (below).
 
 Single-channel screens call them through `useChannelTitle`; list rows call the pure functions
-directly, because the hook pulls in `useMyProfile` and would fetch once per row.
+directly, because the hook pulls in `useMyProfile` and would fetch once per row. **Search calls them
+from `useSearchContext`**, which builds display-ready rows so the row components stay data-free.
+
+> Search was missing from this list, and from the resolvers, until 2026-09. It rendered
+> `channel.name` and `channel.thumbnail` raw, so a 1:1 result showed the server's generated name
+> where every other surface showed the peer, and a self chat showed that name instead of its label.
+> It also printed a DM's `memberNo` — always `2` — which the home list deliberately hides. Adding a
+> surface means adding it here too.
+>
+> Taking _half_ a resolver counts as not taking it. `resolveChannelAvatar` answers a photo **and** a
+> placeholder glyph, and search first kept only the photo — so every photo-less room fell to the
+> one-person default and a group read as a person here while the home list drew the two-person
+> glyph for that same room. The row carries `glyph` for this reason; do not re-derive it.
 
 **Stereo, never member count.** `isSelfChat` is `stereo === 'self'` and a DM is `stereo === 'dm'`,
 everywhere. A `memberNo === 1` test looks equivalent and is not: an empty group reads as a self
 chat under it.
+
+### `channelStereoPolicy` — one switch, not a pile of booleans
+
+`channelKindOf(stereo)` folds the server's five `ChannelStereo` values into the three kinds this
+client has rules for, and the per-kind rules hang off it:
+
+| Function                                 | Answers                               |
+| ---------------------------------------- | ------------------------------------- |
+| `channelKindOf(stereo)`                  | `'self' \| 'dm' \| 'group'`           |
+| `showsMemberCount(kind)`                 | whether a row prints the member count |
+| `removalActionFor(kind, isChannelOwner)` | `'leave' \| 'delete' \| 'none'`       |
+
+**Why a switch rather than `isDmChat`-style booleans.** Three separate defects came out of the
+boolean form, and they are the same defect:
+
+- The place's bulk "remove selected rooms" branched on `isOwner` alone and never asked whether the
+  row was a DM, so it sent `channel.delete` at a 1:1 — the one thing a 1:1 must never do. **Omitting
+  a condition compiles.** Leaving a `switch` arm empty does not go unnoticed the same way.
+- `isGroupChat = !isSelfChat && !isDmChat` silently swallows `public` and `''`. The `default` arm
+  now carries a `never` assignment, so a new stereo breaks the build instead of becoming a group.
+- The home list hid the self chat's member count only because `memberNo > 1` happened to be false.
+
+`removalActionFor` also moved the ownership question from the PLACE to the CHANNEL. A place owner
+who has merely joined a room inside their place does not get to delete it, and the room's own
+settings screen had always read it that way — the two screens disagreeing is what let the bug
+through.
 
 ## Naming
 
@@ -195,11 +233,18 @@ because losing the peer from the roster loses the room's identity — the header
 them and `useDmPeer` would return `null`, taking the footer and the CTA with it. Groups keep
 filtering departed members out.
 
-A DM also has **no delete**, for either side. See [channel-settings.md](./channel-settings.md).
+A DM also has **no delete**, for either side — on the room's settings screen and on the place's bulk
+remove alike. Both read `removalActionFor`, so they cannot answer it differently again. Being the
+inviter is not an exception: `channel.ownerId` names whoever sent the invite, but a 1:1 has no
+owner/member split, so that id is a by-product of how the room was created rather than a permission
+over it. Re-inviting needs the room to still be there, and letting one side erase it takes that
+away. See [channel-settings.md](./channel-settings.md).
 
 ## What not to do
 
 - **Do not identify a stereo by member count.**
+- **Do not re-derive a per-kind rule at a call site.** Add it to `channelStereoPolicy` and read it.
+- **Do not add a surface that draws a channel without adding it to the five above.**
 - **Do not add the peer's user-record name to the title chain.** It is the one input a list cannot
   afford.
 - **Do not read `channel.$join.nick` on a screen that must reflect a rename.** Use
@@ -219,8 +264,12 @@ A DM also has **no delete**, for either side. See [channel-settings.md](./channe
   and feeding it back in is a render loop. `peerLeft` settles independently from the join rows.
 - The pure pieces carry the tests — `dmTitle.test.ts`, `selfChatTitle.test.ts`,
   `dmInviteState.test.ts` (the whole state machine), `membership.test.ts`, `resolveChannelTitle.test.ts`,
-  `useDmPeer(s).test.ts`, `useDmInviteState.test.ts` — plus `ChannelSettingsPage.test.tsx` and
+  `channelStereoPolicy.test.ts`, `useDmPeer(s).test.ts`, `useDmInviteState.test.ts` — plus
+  `ChannelSettingsPage.test.tsx`, `PlaceChannelManagePage.test.tsx` (the DM-never-deletes case) and
   `JoinNickDialog.test.tsx` for the screens.
+- Search resolves a DM peer's profile through `useSenderProfiles`, not `useDmPeers`: the latter takes
+  a single `sid` and results span the places of the searched cloud. Peers ride along with the message
+  authors so the page keeps one subscription.
 
 ```bash
 npx jest --config apps/web/jest.config.js --runInBand --watchman=false apps/web/src/app/features/channels

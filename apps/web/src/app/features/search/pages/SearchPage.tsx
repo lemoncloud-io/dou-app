@@ -23,9 +23,20 @@ import { useSearchNavigate } from '../hooks/useSearchNavigate';
 
 const AVATAR_SIZE = 42;
 
-/** Circular avatar for channel rows and message senders, matching the home list. */
-const RowAvatar = ({ thumbnail }: { thumbnail?: string }) =>
-    thumbnail ? <ImageAvatar src={thumbnail} alt="" size={AVATAR_SIZE} /> : <DefaultAvatar size={AVATAR_SIZE} />;
+/**
+ * Circular avatar for channel rows and message senders, matching the home list.
+ *
+ * `variant` is the placeholder glyph a channel row carries from `resolveChannelAvatar` — a group
+ * room's two-person glyph is not recoverable here, so dropping it is what made the same room read
+ * as one person in search and as a group everywhere else. It defaults to the person glyph for the
+ * message-sender rows, where the subject really is one person.
+ */
+const RowAvatar = ({ thumbnail, variant = 'user' }: { thumbnail?: string; variant?: 'user' | 'group' }) =>
+    thumbnail ? (
+        <ImageAvatar src={thumbnail} alt="" size={AVATAR_SIZE} />
+    ) : (
+        <DefaultAvatar size={AVATAR_SIZE} variant={variant} />
+    );
 
 /**
  * A place shows its photo, and without one the picture-placeholder disc — NOT the person glyph
@@ -227,7 +238,7 @@ export const SearchPage = () => {
                                 {rows.channels.map(channel => (
                                     <ResultRow
                                         key={`${channel.cid}:${channel.channelId}`}
-                                        leading={<RowAvatar thumbnail={channel.thumbnail} />}
+                                        leading={<RowAvatar thumbnail={channel.thumbnail} variant={channel.glyph} />}
                                         title={<HighlightText text={channel.name} query={trimmed} />}
                                         badge={
                                             (channel.memberNo ?? 0) > 1 ? (

@@ -36,7 +36,7 @@ import { useBlurLastMessage, useChannelUnreads, useMyProfile } from '../../../ho
 import { divergenceReporter } from '../../../runtime/logging/divergenceReporter';
 import { readMarkRegistry } from '../../../runtime/logging/readMarkRegistry';
 import { readCursorOf } from '../../../utils/countUnread';
-import { resolveChannelAvatar, resolveChannelTitle } from '../../channels/lib';
+import { channelKindOf, resolveChannelAvatar, resolveChannelTitle, showsMemberCount } from '../../channels/lib';
 import { messagePlainText } from '../../channels/utils/messagePlainText';
 import { toPlainPreview } from '../../channels/utils/messageTokens';
 import { sortChannels } from '../../../utils/sortChannels';
@@ -95,9 +95,6 @@ const ChannelItem = ({
     // Self-chat is identified by stereo (ADR-0026), not member count.
     const isSelf = channel.stereo === 'self';
     const isForeignSelfChat = isSomeoneElsesSelfChat(channel, uid);
-    // 1:1 DM (stereo): the row shows the peer, not the channel — its own name/photo/member count
-    // are all either absent or meaningless (ADR-0039).
-    const isDm = channel.stereo === 'dm';
 
     // Keep the channel metadata synced while rendered (unregisters on unmount). The read
     // boundary that drives the unread badge rides along on the channel as `$join.chatNo`, and
@@ -167,8 +164,10 @@ const ChannelItem = ({
                     )}
                     <span className="truncate">{name}</span>
                     {/* Group member count — an inline gray pill after the name (Figma 2931-8611).
-                        Hidden for a DM: it is always 2, so the number carries no information. */}
-                    {!isDm && (channel.memberNo ?? 0) > 1 && (
+                        Hidden for a DM (always 2) and a self chat (always 1): neither number carries
+                        information. The test is on the stereo, not on the count — hiding the self
+                        chat's pill used to depend on `memberNo > 1` happening to be false. */}
+                    {showsMemberCount(channelKindOf(channel.stereo)) && (channel.memberNo ?? 0) > 1 && (
                         <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[11px] font-medium leading-none text-muted-foreground">
                             {channel.memberNo}
                         </span>
@@ -385,7 +384,7 @@ export const ChannelList = ({
         // While the list is still loading, the count is not "0" — it is unknown. Showing 0 next to
         // a skeleton claims an answer we don't have yet, so the number is withheld until it lands.
         <CollapsibleSection
-            title={t('homePage.channels', '채널')}
+            title={t('homePage.channels', '채팅방')}
             count={isLoading ? undefined : channels.length}
             actions={createMenu}
         >

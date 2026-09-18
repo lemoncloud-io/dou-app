@@ -143,8 +143,13 @@ jest.mock('../components/cloud-session', () => ({ getCloudDisplayName: () => 'Cl
 // The two hooks the ADR calls out as load-bearing on relay. Spies so we can assert they still run.
 // `places` is mutable so a test can seed the cloud up to (and past) the place cap.
 let places: { id: string; stereo: string }[] = [{ id: 'site-1', stereo: 'group' }];
-const useHomePlaces = jest.fn(() => ({ places, isLoading: false }));
-const useSwitchPlace = jest.fn(() => ({ selectedPlaceId: 'site-1', switchPlace: jest.fn(), isSwitching: false }));
+// The three inputs that decide what fills the Chat slot: the channel list, the "no place" empty
+// state, or — while none of it is known yet — the loading state.
+let isPlacesLoading = false;
+let selectedPlaceId: string | null = 'site-1';
+let isSwitchingPlace = false;
+const useHomePlaces = jest.fn(() => ({ places, isLoading: isPlacesLoading }));
+const useSwitchPlace = jest.fn(() => ({ selectedPlaceId, switchPlace: jest.fn(), isSwitching: isSwitchingPlace }));
 const requestAddCloudMock = jest.fn();
 
 jest.mock('../hooks', () => ({
@@ -173,6 +178,9 @@ jest.mock('../../invite/hooks/useInviteDismissMigration', () => ({
 beforeEach(() => {
     jest.clearAllMocks();
     places = [{ id: 'site-1', stereo: 'group' }];
+    isPlacesLoading = false;
+    selectedPlaceId = 'site-1';
+    isSwitchingPlace = false;
     selectedSiteId = 'site-1';
     membership = { isValid: false };
     isMembershipLoading = false;
@@ -245,6 +253,65 @@ describe('HomePage — cloud mode', () => {
         render(<HomePage />);
 
         expect(screen.getByTestId('header')).toHaveAttribute('data-kind', 'cloud');
+    });
+});
+
+// Switching into a cloud this device has never opened leaves the Chat slot with nothing to show:
+// no place is selected yet, so there is no channel list, and the answer that would produce one has
+// not arrived. That slot used to render blank, which reads as an empty cloud.
+describe('HomePage — no place selected yet', () => {
+    beforeEach(() => {
+        selectedCloudId = 'cloud-1';
+        selectedPlaceId = null;
+        places = [];
+    });
+
+    it('shows the loading state while the place list is still unknown', () => {
+        isPlacesLoading = true;
+
+        render(<HomePage />);
+
+        expect(screen.getByRole('status')).toBeInTheDocument();
+        // The empty state is an ANSWER; claiming it here is the bug.
+        expect(screen.queryByTestId('empty-state')).not.toBeInTheDocument();
+    });
+
+    it('shows the loading state while a place switch is in flight', () => {
+        isSwitchingPlace = true;
+
+        render(<HomePage />);
+
+        expect(screen.getByRole('status')).toBeInTheDocument();
+        expect(screen.queryByTestId('empty-state')).not.toBeInTheDocument();
+    });
+
+    it('shows the empty state once the list is known and holds no place', () => {
+        render(<HomePage />);
+
+        expect(screen.getByTestId('empty-state')).toBeInTheDocument();
+        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    });
+
+    it('shows neither once a place is selected — the channel list owns the slot', () => {
+        selectedPlaceId = 'site-1';
+
+        render(<HomePage />);
+
+        expect(screen.getByTestId('channel-list')).toBeInTheDocument();
+        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('empty-state')).not.toBeInTheDocument();
+    });
+
+    it('covers relay too, where it is the only thing in the body', () => {
+        // Relay renders the promo banner instead of a Place rail, so there is no skeleton beside
+        // this slot — a cold first launch would otherwise show a header over nothing at all.
+        selectedCloudId = 'default';
+        isPlacesLoading = true;
+
+        render(<HomePage />);
+
+        expect(screen.queryByTestId('place-list')).not.toBeInTheDocument();
+        expect(screen.getByRole('status')).toBeInTheDocument();
     });
 });
 
@@ -378,5 +445,50 @@ describe('HomePage — 그룹 방 만들기', () => {
         fireEvent.click(screen.getByTestId('create-group'));
 
         expect(screen.getByTestId('subscription-required')).toBeInTheDocument();
+    });
+
+    // A room is created under the ACTIVE place. With none, `createChannel` falls back to an empty
+    // sid and writes the room into a scope no list reads — so the attempt is refused, not silently
+    // succeeded.
+    describe('no active place', () => {
+        it('refuses the attempt with a message instead of opening the dialog', () => {
+            selectedCloudId = 'cloud-1';
+            membership = { isValid: true };
+            selectedSiteId = null;
+
+            render(<HomePage />);
+            fireEvent.click(screen.getByTestId('create-group'));
+
+            expect(screen.queryByTestId('create-channel-dialog')).not.toBeInTheDocument();
+            expect(toastMock).toHaveBeenCalledWith({ title: 'homePage.selectPlaceFirst' });
+        });
+
+        it('does not fall through to the subscription upsell — the block is about the place', () => {
+            selectedCloudId = 'cloud-1';
+            membership = { isValid: true };
+            selectedSiteId = null;
+
+            render(<HomePage />);
+            fireEvent.click(screen.getByTestId('create-group'));
+
+            expect(screen.queryByTestId('subscription-required')).not.toBeInTheDocument();
+        });
+
+        it('closes an already-open dialog when the place goes away mid-flow', () => {
+            // The dialog is mounted outside the Chat section, so a cloud switch or a revoked place
+            // would otherwise leave a form that submits with no sid.
+            selectedCloudId = 'cloud-1';
+            membership = { isValid: true };
+
+            const { rerender } = render(<HomePage />);
+            fireEvent.click(screen.getByTestId('create-group'));
+            expect(screen.getByTestId('create-channel-dialog')).toBeInTheDocument();
+
+            selectedSiteId = null;
+            rerender(<HomePage />);
+
+            expect(screen.queryByTestId('create-channel-dialog')).not.toBeInTheDocument();
+            expect(toastMock).toHaveBeenCalledWith({ title: 'homePage.selectPlaceFirst' });
+        });
     });
 });
