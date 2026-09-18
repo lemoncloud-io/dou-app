@@ -113,7 +113,7 @@ export const useMyUser = (): MyUser | null => {
  *
  * Reading the relay token is what makes it right, and it is the only thing that can: the local cache
  * is keyed `${type}:${cid}:${uid}:${id}` with a read path that ignores context overrides, so while a
- * cloud is active the relay `user` row is physically unreachable (ADR-0094 결정 5, reverted; see
+ * cloud is active the relay `user` row is physically unreachable (ADR-0094 decision 5, reverted; see
  * apps/web/docs/feature/mypage/README.md).
  *
  * No relay account at all counts as a guest. That is the safe direction rather than a third state:

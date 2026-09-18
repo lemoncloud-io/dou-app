@@ -70,8 +70,8 @@ describe('ReactionDetailSheet — 이모지별 반응자 목록', () => {
         expect(tabs[1]).toHaveTextContent('🎉');
     });
 
-    // 롱프레스한 칩의 이모지가 열렸을 때 선택돼 있어야 한다 — 아니면 사용자가 방금 누른
-    // 이모지를 시트에서 다시 찾아야 한다.
+    // The emoji of the long-pressed chip must already be selected when it opens — otherwise the
+    // user has to go find the emoji they just tapped again inside the sheet.
     it('길게 누른 칩의 탭이 선택된 채로 열린다', () => {
         render(<ReactionDetailSheet {...baseProps} initialKey="🎉" />);
 
@@ -81,9 +81,10 @@ describe('ReactionDetailSheet — 이모지별 반응자 목록', () => {
         expect(screen.queryByText('에이다')).not.toBeInTheDocument();
     });
 
-    // 심문에서 드러난 구멍: 초기 state를 없애고 effect에만 맡겨도 위 테스트는 통과한다 —
-    // RTL이 effect를 flush한 뒤를 보기 때문이다. 그러면 실제로는 첫 탭이 한 프레임 보였다가
-    // 바뀌는 깜빡임이 생긴다. 커밋 수로 그 차이를 잡는다.
+    // A hole exposed during review: dropping the initial state and leaving it to the effect
+    // alone would still pass the test above — because RTL only looks after the effect has
+    // flushed. In reality that produces a flash where the first tab is shown for one frame before
+    // switching. This catches that gap via the commit count.
     it('첫 커밋에 이미 맞는 탭이다 — 첫 탭을 보여줬다가 고치지 않는다', () => {
         render(<ReactionDetailSheet {...baseProps} initialKey="🎉" />);
 
@@ -110,13 +111,13 @@ describe('ReactionDetailSheet — 이모지별 반응자 목록', () => {
     it('반응자마다 프로필 사진을 보여주고, 없으면 기본 아바타로 떨어진다', () => {
         render(<ReactionDetailSheet {...baseProps} />);
 
-        // ada는 프로필 사진이 있고 bob은 없다.
+        // ada has a profile photo, bob doesn't.
         expect(screen.getByTestId('image-avatar')).toHaveAttribute('src', 'https://p/ada.png');
         expect(screen.getByTestId('default-avatar')).toBeInTheDocument();
     });
 
-    // 시트가 열려 있는 동안 누군가 리액션을 내리면 탭이 사라진다 — 사라진 탭을 붙들고
-    // 빈 목록을 보여주는 대신 남아 있는 첫 탭으로 떨어진다.
+    // If someone removes a reaction while the sheet is open, its tab disappears — instead of
+    // holding onto the vanished tab and showing an empty list, fall back to the first remaining tab.
     it('선택 중이던 이모지가 사라지면 첫 탭으로 떨어진다', () => {
         const { rerender } = render(<ReactionDetailSheet {...baseProps} initialKey="🎉" />);
         expect(screen.getByText('초')).toBeInTheDocument();
@@ -127,16 +128,17 @@ describe('ReactionDetailSheet — 이모지별 반응자 목록', () => {
         expect(screen.getAllByRole('tab')).toHaveLength(1);
     });
 
-    // 반응자 목록은 시트가 열려 있는 동안에도 늘고 준다. 높이가 내용을 따라가면 읽고 있던
-    // 줄이 손가락 밑에서 움직이므로, 화면 절반으로 고정하고 목록만 스크롤시킨다.
+    // The list of reactors can grow and shrink even while the sheet is open. If the height
+    // tracked the content, the line the user is reading would move under their finger, so the
+    // sheet is pinned to half the screen and only the list scrolls.
     it('내용과 무관하게 화면 절반 높이로 열린다', () => {
         const { rerender } = render(<ReactionDetailSheet {...baseProps} />);
         expect(screen.getByTestId('sheet')).toHaveClass('h-[50vh]');
 
-        // 반응자가 한 명뿐인 탭으로 바꿔도 시트는 같은 높이를 유지한다.
+        // Even switching to a tab with only one reactor, the sheet keeps the same height.
         rerender(<ReactionDetailSheet {...baseProps} tallies={[tallies[1]]} />);
         expect(screen.getByTestId('sheet')).toHaveClass('h-[50vh]');
-        // 남는 높이는 시트가 아니라 목록이 흡수한다.
+        // The leftover space is absorbed by the list, not the sheet.
         expect(screen.getByRole('list')).toHaveClass('flex-1', 'overflow-y-auto');
     });
 

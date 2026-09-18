@@ -1,27 +1,27 @@
 import type { EventMessage, RequestMessage, ResponseMessage } from '../../common';
 
 /**
- * 웹(Web)과 앱(App) 환경 간의 물리적 통신 채널을 추상화한 어댑터 인터페이스입니다.
- * 실제 네이티브 WebView 채널(NativeBridgeAdapter)이나 테스트용 인메모리 루프백 채널(InMemoryAdapter)로 다형성있게 구현됩니다.
+ * An adapter interface that abstracts the physical communication channel between the Web and App environments.
+ * Implemented polymorphically as either the real native WebView channel (NativeBridgeAdapter) or the in-memory loopback channel for testing (InMemoryAdapter).
  */
 export interface BridgeAdapter {
     /**
-     * [Web -> App] 웹에서 앱으로 메시지를 물리적으로 전송합니다.
-     * @param message 전송할 Request 규격의 메시지 객체
+     * [Web -> App] Physically sends a message from the web to the app.
+     * @param message The Request-spec message object to send
      */
     postMessage(message: RequestMessage): void;
 
     /**
-     * [App -> Web] 앱에서 웹으로 들어오는 메시지를 수신하기 위해 이벤트 리스너(핸들러)를 등록합니다.
-     * @param handler App에서 전달된 Response 또는 Event 메시지를 처리할 콜백 함수
-     * @returns 등록된 핸들러를 해제(Unsubscribe)할 수 있는 정리(Cleanup) 함수
+     * [App -> Web] Registers an event listener (handler) to receive messages coming in from the app to the web.
+     * @param handler The callback function that processes a Response or Event message delivered from the App
+     * @returns A cleanup function that unsubscribes the registered handler
      */
     onMessage(handler: (message: ResponseMessage | EventMessage) => void): () => void;
 }
 
 declare global {
     interface Window {
-        /** iOS/macOS WebKit 기반 메시지 핸들러 인터페이스 명세 */
+        /** The message handler interface spec based on iOS/macOS WebKit */
         webkit?: {
             messageHandlers?: {
                 ChaticMessageHandler?: {
@@ -29,11 +29,11 @@ declare global {
                 };
             };
         };
-        /** Android Chatic 커스텀 자바스크립트 인터페이스 명세 */
+        /** The Android Chatic custom JavaScript interface spec */
         ChaticMessageHandler?: {
             postMessage?: (message: string) => void;
         };
-        /** React Native WebView 기본 제공 postMessage 인터페이스 명세 */
+        /** The React Native WebView built-in postMessage interface spec */
         ReactNativeWebView?: {
             postMessage(message: string): void;
         };

@@ -25,8 +25,8 @@ describe('evaluateCloudQuota', () => {
         });
     });
 
-    // 상태를 하나 늘리면 기본 갈래(canAdd: true)로 조용히 떨어질 수 있다.
-    // 관리자 차단은 서버에서 isValid 가 false 라 어차피 거부된다.
+    // Adding one more state can silently fall through to the default branch (canAdd: true).
+    // An admin block is rejected on the server anyway, since isValid is false there.
     it('관리자 차단도 거절한다 — 기본 갈래로 새지 않는다', () => {
         expect(evaluateCloudQuota({ used: 0, limit: 3, state: 'blocked' })).toEqual({
             canAdd: false,
@@ -53,7 +53,7 @@ describe('evaluateCloudQuota', () => {
     });
 
     it('한도를 모르면(null) 막지 않는다 — 0으로 읽어 유료 사용자를 세우면 안 된다', () => {
-        // 슈퍼 멤버십이거나 상품 목록이 아직 안 왔을 때.
+        // For a super membership, or when the product list hasn't arrived yet.
         expect(evaluateCloudQuota({ used: 9, limit: null, state: 'active' })).toEqual({ canAdd: true });
     });
 });

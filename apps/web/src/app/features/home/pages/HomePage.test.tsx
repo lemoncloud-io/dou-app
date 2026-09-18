@@ -313,7 +313,7 @@ describe('HomePage — place cap', () => {
     });
 });
 
-// 프로필 드롭다운의 구독 뱃지(Figma 3108:25868) — 두유홈은 FREE 고정, 클라우드는 내 등급을 읽는다.
+// The subscription badge in the profile dropdown (Figma 3108:25868) — DoU Home is always FREE; a cloud reads my actual tier.
 describe('HomePage — 프로필 메뉴 구독 뱃지', () => {
     it('두유홈(중계)에선 FREE 뱃지를 보인다', () => {
         selectedCloudId = 'default';
@@ -339,7 +339,7 @@ describe('HomePage — 프로필 메뉴 구독 뱃지', () => {
     });
 
     it('등급이 아직 정해지지 않았으면(멤버십 조회 중) 뱃지를 아예 안 보인다', () => {
-        // FREE를 깜빡였다가 PRO로 뒤집히는 것보다 아무것도 안 보이는 편이 낫다 — 헤더 필과 같은 규칙.
+        // Showing nothing is better than flashing FREE and then flipping to PRO — same rule as the header pill.
         selectedCloudId = 'cloud-1';
         membership = undefined;
         isMembershipLoading = true;
@@ -349,7 +349,7 @@ describe('HomePage — 프로필 메뉴 구독 뱃지', () => {
     });
 });
 
-// 중계의 "그룹 방 만들기"는 업셀 전용 입구다 — 채널 수와 무관하게 구독 유도로만 간다.
+// On relay, "그룹 방 만들기" is an upsell-only entry point — it always leads to a subscription prompt, regardless of channel count.
 describe('HomePage — 그룹 방 만들기', () => {
     it('중계에선 구독 유도 다이얼로그를 띄우고 생성 다이얼로그로 가지 않는다', () => {
         selectedCloudId = 'default';
@@ -358,7 +358,7 @@ describe('HomePage — 그룹 방 만들기', () => {
 
         expect(screen.getByTestId('subscription-required')).toBeInTheDocument();
         expect(screen.queryByTestId('create-channel-dialog')).not.toBeInTheDocument();
-        // 상한 토스트는 중계 업셀 경로를 가로막지 않는다.
+        // The limit-reached toast doesn't block the relay upsell path.
         expect(toastMock).not.toHaveBeenCalled();
     });
 

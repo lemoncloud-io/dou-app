@@ -32,7 +32,7 @@ export class ConfigLanePolicy {
      * **A `meta` key ignores the unlock gate.** These keys ARE the lock, so applying the gate to
      * them would make resolving the unlock ask for the unlock. The dedicated flow (tap counter plus
      * entry code) is what guards them instead, and this exemption is the invariant that keeps the
-     * resolver from recursing (ADR-0079 결정 4).
+     * resolver from recursing (ADR-0079 decision 4).
      *
      * **A non-`dev` key also ignores the gate.** The lock exists to keep a QA override of a
      * developer-facing default from taking effect in a stranger's PROD build — it was never meant to

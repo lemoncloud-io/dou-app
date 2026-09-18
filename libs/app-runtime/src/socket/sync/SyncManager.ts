@@ -36,7 +36,7 @@ export class SyncManager implements ISyncManager {
     private readonly buildTargetKey: (target: SyncTargetDescriptor) => string;
     private readonly getUid: () => string | null;
     private readonly watchEntries = new Map<string, SyncWatchEntry>();
-    /** 유예 중(refs 0) 엔트리의 지연 stop 타이머. 재등록·클라이언트 교체·destroy가 취소한다. */
+    /** Delayed-stop timers for grace-period (refs 0) entries. Cancelled by re-registration, client swap, or destroy. */
     private readonly graceTimers = new Map<string, ReturnType<typeof setTimeout>>();
     private readonly unsubscribeSlots: () => void;
     private readonly unsubscribeClient: () => void;
@@ -45,7 +45,7 @@ export class SyncManager implements ISyncManager {
     private lastUid: string | null;
     private readonly slotRuntimes = new Map<SocketKind, SlotRuntimeEntry>();
     private activeClient: ClientSocketV2 | null = null;
-    /** uid 불일치 경고는 인스턴스당 1회 — 원인을 아는 데 그거면 충분하고, 폴링마다 찍으면 폭주한다. */
+    /** Uid-mismatch warning fires once per instance — that's enough to know the cause, and logging it every poll would flood. */
     private warnedUidMismatch = false;
 
     constructor(
@@ -119,8 +119,9 @@ export class SyncManager implements ISyncManager {
 
     public register(target: SyncTargetDescriptor): () => void {
         const key = this.buildTargetKey(target);
-        // 유예 중이던 키의 재등록: 지연 stop을 취소하고 살아 있는 타깃에 합류한다 — 타깃도
-        // 스냅샷도 그대로이므로 즉시 폴링도, 스냅샷 소실로 인한 무조건 쓰기도 없다.
+        // Re-registering a key that was in its grace period: cancel the delayed stop and join the
+        // still-live target — both the target and its snapshot are untouched, so there's neither an
+        // immediate poll nor an unconditional write caused by a lost snapshot.
         this.cancelGraceStop(key);
         const cid = this.manager.getBoundCid();
         const uid = this.getUid();
@@ -233,7 +234,8 @@ export class SyncManager implements ISyncManager {
         entry.refs -= 1;
         if (entry.refs > 0) return;
 
-        // 즉시 stop하지 않고 유예를 건다(UNREGISTER_GRACE_MS) — 화면 전환의 재등록이 취소한다.
+        // Don't stop immediately — hold a grace period (UNREGISTER_GRACE_MS) that a screen
+        // transition's re-registration can cancel.
         this.scheduleGraceStop(key);
     }
 
@@ -242,8 +244,8 @@ export class SyncManager implements ISyncManager {
         const timer = setTimeout(() => {
             this.graceTimers.delete(key);
             const entry = this.watchEntries.get(key);
-            // 그 사이 재등록됐으면(refs 회복) 아무것도 하지 않는다 — 취소가 정상 경로지만,
-            // 타이머와 재등록의 레이스까지 이 가드가 닫는다.
+            // If it was re-registered in the meantime (refs recovered), do nothing — cancellation is
+            // the normal path, but this guard also closes the race between the timer and a re-register.
             if (!entry || entry.refs > 0) return;
             this.watchEntries.delete(key);
             this.stopTarget(entry.target);
@@ -260,13 +262,13 @@ export class SyncManager implements ISyncManager {
     }
 
     /**
-     * 유예 중(refs 0) 엔트리를 정리한다 — 활성 클라이언트 교체 시 호출.
+     * Clears grace-period (refs 0) entries — called on an active client swap.
      *
-     * 이월하면 두 가지가 깨진다: 유예 엔트리가 남아 있으면 새 클라이언트에서의 재등록이
-     * `register`의 merge 경로로 빠져 `startSync`를 건너뛰므로 그 타깃이 **영영 시작되지 않고**,
-     * 반대로 replay가 refs 0 엔트리를 시작하면 떠난 화면의 타깃이 새 소켓에서 폴링을 다시
-     * 시작한다. 이전 runtime의 타깃은 호출부의 `stopAllSync`가 이미 내렸으므로 여기서는
-     * 엔트리와 타이머만 지운다.
+     * Carrying them over breaks two things: if a grace entry is left in place, a re-register on the
+     * new client falls into `register`'s merge path and skips `startSync`, so that target **never
+     * starts**; conversely, if replay starts a refs-0 entry, the departed screen's target starts
+     * polling again on the new socket. The previous runtime's targets were already torn down by the
+     * caller's `stopAllSync`, so this only needs to clear the entries and their timers.
      */
     private purgeGraceEntries(): void {
         for (const [key, entry] of [...this.watchEntries.entries()]) {
@@ -311,7 +313,7 @@ export class SyncManager implements ISyncManager {
             }
         }
 
-        // 유예 중 엔트리는 새 활성 클라이언트로 넘기지 않는다 — purgeGraceEntries 참조.
+        // Grace-period entries are not carried over to the new active client — see purgeGraceEntries.
         this.purgeGraceEntries();
         this.activeClient = client;
         this.replayTargets();

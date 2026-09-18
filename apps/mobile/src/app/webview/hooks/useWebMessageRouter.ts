@@ -299,7 +299,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
     });
 
     useEffect(() => {
-        // 타입 추론을 완벽하게 지원하는 라우팅 맵을 구성합니다.
+        // Builds a routing map that fully supports type inference.
         const handlerMap: {
             [K in WebMessageType]?: (message: WebMessageData<K>) => any;
         } = {
@@ -383,7 +383,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             FetchUrlMetadata: message => handlersRef.current.handleFetchUrlMetadata(message),
         };
 
-        // Bridge에 핸들러 등록
+        // Register handlers with the bridge
         (Object.keys(handlerMap) as WebMessageType[]).forEach(type => {
             const handler = handlerMap[type];
             if (handler) {

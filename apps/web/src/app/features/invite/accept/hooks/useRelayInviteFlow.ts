@@ -61,7 +61,7 @@ export type RelayInviteNotice =
 
 /**
  * Which notice a failed packet becomes. `stage` matters because the same status means different
- * things on either side of the flow (05-client-guide §에러 코드).
+ * things on either side of the flow (05-client-guide §Error Codes).
  *
  * `404` is purely "no such invite" — a canceled one arrives as `state === 'canceled'` (ADR-0043),
  * not as an error, so the old merged copy is gone.

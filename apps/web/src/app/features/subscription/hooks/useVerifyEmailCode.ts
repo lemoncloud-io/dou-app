@@ -31,7 +31,7 @@ export interface EmailVerifyRequest {
  */
 /**
  * Cloud email-ownership check. Moved down from `@chatic/app-runtime`'s `data/hooks/cloud.ts` to sit
- * with its only caller (ADR-0070 결정 5, ②안 방향) — the `dryRun` policy below is this feature's,
+ * with its only caller (ADR-0070 decision 5, direction ②) — the `dryRun` policy below is this feature's,
  * not the runtime's.
  *
  * `dryRun` on the confirm step in dev/local keeps QA from consuming real verification state.

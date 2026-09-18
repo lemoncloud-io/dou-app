@@ -39,8 +39,8 @@ describe('matchNativeProduct', () => {
     });
 
     it('회귀 방지: planId(부모 SKU)로는 절대 매칭되지 않는다', () => {
-        // 홈 시트가 `p.basePlanId === selectedProduct.planId`로 찾아 Android 결제가 조용히 죽었던
-        // 자리다. 부모 SKU를 basePlanId로 가진 네이티브 상품은 존재하지 않는다.
+        // The spot where the home sheet used to look up `p.basePlanId === selectedProduct.planId`
+        // and silently killed Android purchases. No native product has the parent SKU as its basePlanId.
         const natives = [googleNative(1), googleNative(2)];
         const planIdMatch = natives.find(p => p.basePlanId === googlePlan(2).planId);
 

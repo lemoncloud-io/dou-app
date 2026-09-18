@@ -6,10 +6,12 @@ import { UNLOCK_ENTRY, entry, moduleOf } from '../testing/fixtures';
 import { ConfigResolver, UNLOCK_KEY } from './ConfigResolver';
 
 /**
- * 원격 레인은 이번 라운드에 구현하지 않는다. 이 파일이 그 자리가 살아 있다는 유일한 증거다.
+ * The remote lane isn't implemented this round. This file is the only proof that its place is
+ * still alive.
  *
- * 한 번도 실행되지 않는 코드 경로는 처음 쓰는 날 반드시 깨져 있다. 그래서 가짜 어댑터로 지금 돌려본다 —
- * 킬이 웹 오버라이드를 이기는지, 서버 기본값은 웹에 지는지, 시간이 지나면 킬만 사라지는지.
+ * A code path that never runs is guaranteed to be broken the first day it's used. So we exercise
+ * it now with a fake adapter — does the kill beat a web override, does a server default lose to
+ * the web, does only the kill vanish once time passes.
  */
 const fakeAdapter = (payload: RemotePayload): IRemoteConfigAdapter => ({ fetch: async () => payload });
 

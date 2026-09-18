@@ -20,7 +20,7 @@ jest.mock('@chatic/app-runtime', () => ({
 
 const registerJoin = jest.fn(() => () => undefined);
 
-/** 커서 맵은 이제 useChannelJoins가 만든다 — 이 훅은 그 결과를 받아 등록과 카운트만 한다. */
+/** The cursor map is now built by useChannelJoins — this hook just takes that result and handles registration and counting. */
 const cursors = (entries: Record<string, number>) => new Map(Object.entries(entries));
 
 beforeEach(() => {
@@ -31,7 +31,7 @@ beforeEach(() => {
 
 describe('useJoinPositions — 읽음 커서/안읽음 계산', () => {
     it('전체 멤버(memberIds)에 대해 join sync를 등록한다 — join 캐시는 관측하지 않는다', () => {
-        // active(분모)는 u1/u2지만, 등록은 전체 로스터(u1/u2/u3) 기준으로 이뤄진다.
+        // active (the denominator) is u1/u2, but registration happens against the full roster (u1/u2/u3).
         renderHook(() => useJoinPositions('c1', ['u1', 'u2'], ['u1', 'u2', 'u3'], cursors({}), true));
 
         expect(registerJoin).toHaveBeenCalledTimes(3);
@@ -40,15 +40,17 @@ describe('useJoinPositions — 읽음 커서/안읽음 계산', () => {
         expect(registerJoin).toHaveBeenCalledWith('c1@u3');
     });
 
-    // 서버는 남의 join을 그 채널 멤버에게만 준다. 멤버가 아닌 방(남의 셀프챗에 푸시로 들어온 경우 등)에서
-    // 로스터를 폴링하면 멤버 수만큼 403과 서버 알람이 난다 — 실제 발생한 알람.
+    // The server only returns someone else's join to a member of that channel. Polling the
+    // roster from a room you're not a member of (e.g. landing in someone else's self-chat via a
+    // push) fires a 403 and a server alarm for every member — an alarm that actually happened.
     it('멤버가 아니면(isMember=false) 로스터 폴링을 등록하지 않는다', () => {
         renderHook(() => useJoinPositions('c1', ['u1', 'u2'], ['u1', 'u2', 'me'], cursors({}), false));
 
         expect(registerJoin).not.toHaveBeenCalled();
     });
 
-    // 멤버 판정은 채널 행·내 join 행이 도착해야 내려진다. 그 전엔 등록을 미루고, 판정이 서면 그때 등록한다.
+    // Membership can only be determined once the channel row and my join row have arrived.
+    // Registration is deferred until then, and happens as soon as the determination is made.
     it('멤버 판정이 false→true로 바뀌면 그때 등록한다', () => {
         const { rerender } = renderHook(
             ({ isMember }) => useJoinPositions('c1', ['u1'], ['u1', 'me'], cursors({}), isMember),
@@ -77,21 +79,21 @@ describe('useJoinPositions — 읽음 커서/안읽음 계산', () => {
         });
         expect(registerJoin).toHaveBeenCalledTimes(1);
 
-        // 새 Map 신원이지만 로스터는 동일 — 등록 효과는 memberKey로만 다시 돈다.
+        // A new Map identity but the same roster — the registration effect only re-runs on memberKey.
         rerender({ byUser: cursors({ u1: 7 }) });
 
         expect(registerJoin).toHaveBeenCalledTimes(1);
     });
 
     it('커서는 넘겨받은 max(readNo, chatNo) 맵을 그대로 쓴다', () => {
-        // u1은 5까지, u2는 4까지 읽은 상태.
+        // u1 has read up to 5, u2 up to 4.
         const { result } = renderHook(() =>
             useJoinPositions('c1', ['u1', 'u2'], ['u1', 'u2'], cursors({ u1: 5, u2: 4 }), true)
         );
 
-        // chatNo 5까지 읽은 사람: u1(5) → 1명, u2(4)는 미달
+        // People who read up to chatNo 5: u1(5) → 1 person, u2(4) falls short
         expect(result.current.getReadCount(5)).toEqual({ readCount: 1, unreadCount: 1 });
-        // chatNo 4까지: u1(5), u2(4) → 2명
+        // up to chatNo 4: u1(5), u2(4) → 2 people
         expect(result.current.getReadCount(4)).toEqual({ readCount: 2, unreadCount: 0 });
     });
 
@@ -100,7 +102,7 @@ describe('useJoinPositions — 읽음 커서/안읽음 계산', () => {
             useJoinPositions('c1', ['u1', 'u2', 'u3'], ['u1', 'u2', 'u3'], cursors({ u1: 10 }), true)
         );
 
-        // u1만 읽음, 분모 3 → 안읽음 2
+        // Only u1 has read, denominator 3 → unread 2
         expect(result.current.getReadCount(10)).toEqual({ readCount: 1, unreadCount: 2 });
     });
 
@@ -115,7 +117,7 @@ describe('useJoinPositions — 읽음 커서/안읽음 계산', () => {
         expect(result.current.getReadCount(9).readCount).toBe(0);
     });
 
-    // 커서가 하나도 없으면(아직 join이 안 온 상태) 읽음 표시를 그릴 수 없다.
+    // With no cursors at all (joins haven't arrived yet), the read marker can't be rendered.
     it('isReady는 active 멤버와 커서가 모두 있을 때만 참이다', () => {
         const { result: empty } = renderHook(() => useJoinPositions('c1', ['u1'], ['u1'], cursors({}), true));
         expect(empty.current.isReady).toBe(false);

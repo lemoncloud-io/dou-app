@@ -57,7 +57,8 @@ describe('PlaceSettingsHubPage — 설정 카드', () => {
         expect(screen.getByText('개발자들이 모이는 곳')).toBeInTheDocument();
     });
 
-    // 빈 문자열은 부제를 렌더하지 않는다 — `subtitle=""`이면 행 높이만 늘고 보이는 것은 없다.
+    // An empty string doesn't render a subtitle — `subtitle=""` just adds row height with nothing
+    // visible.
     it('소개 문구가 비어 있으면 부제를 그리지 않는다', () => {
         mockPlace = { id: 'p1', desc: '' };
         render(<PlaceSettingsHubPage />);
@@ -74,7 +75,8 @@ describe('PlaceSettingsHubPage — 설정 카드', () => {
         expect(navigate).toHaveBeenCalledWith('/place/p1/settings/edit');
     });
 
-    // 읽기 전용이라 오너 게이트가 없다 — 편집 행과 달리 비오너도 눌러야 한다(ADR-0095).
+    // Read-only, so there's no owner gate — unlike the edit row, a non-owner must be able to tap it
+    // too (ADR-0095).
     it('비오너에게도 "플레이스 정보" 행은 활성이고, "플레이스 프로필" 행만 막힌다', () => {
         mockPlace = { id: 'p1', isOwner: false };
         render(<PlaceSettingsHubPage />);

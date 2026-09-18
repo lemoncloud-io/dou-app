@@ -51,7 +51,7 @@ describe('nativeBadgeReader — 기기가 실제로 보여주는 뱃지', () => 
     describe('Android', () => {
         beforeEach(() => setPlatform('android'));
 
-        // notifee의 badge API는 iOS 전용이라 안드로이드에서는 진짜 값이 공유 카운터에만 있다.
+        // notifee's badge API is iOS-only, so on Android the real value lives only in the shared counter.
         it('공유 카운터를 읽는다 — notifee 쪽은 쓰지 않는다', async () => {
             fetchBase.mockResolvedValue({ success: true, data: { base: 6 } });
 
@@ -65,8 +65,8 @@ describe('nativeBadgeReader — 기기가 실제로 보여주는 뱃지', () => 
             await expect(nativeBadgeReader.read()).resolves.toBeNull();
         });
 
-        // 웹이 앱보다 먼저 배포되므로 이 메시지를 모르는 셸이 존재한다.
-        // facade가 원시 응답을 돌려주므로 거절이 예외가 아니라 success:false로 올 수 있다.
+        // Since the web ships ahead of the app, there are shells out there that don't know this message.
+        // The facade returns the raw response as-is, so a rejection can arrive as success:false instead of an exception.
         it('셸이 success:false로 답하면 null이다', async () => {
             fetchBase.mockResolvedValue({ success: false, error: { code: 'BADGE_ERROR' } });
 
@@ -82,7 +82,7 @@ describe('nativeBadgeReader — 기기가 실제로 보여주는 뱃지', () => 
             expect(fetchBase).toHaveBeenCalledTimes(1);
         });
 
-        // 타임아웃을 능력 판정으로 학습하면 느린 왕복 한 번이 세션 전체를 침묵시킨다.
+        // Learning a timeout as a capability verdict would let one slow round trip silence the whole session.
         it('일시적 실패는 학습하지 않고 다음에 다시 묻는다', async () => {
             fetchBase
                 .mockRejectedValueOnce(new Error('timeout'))

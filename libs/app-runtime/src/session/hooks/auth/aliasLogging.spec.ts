@@ -95,7 +95,7 @@ describe('useFindAlias — 계정 조회 실패 기록', () => {
         expect(error.mock.calls[0][2].data).toEqual({ type: 'email' });
     });
 
-    // 계정 존재 여부는 열거 공격이 노리는 바로 그 사실이다.
+    // Whether the account exists is exactly the fact an enumeration attack is after.
     it('주소도 조회 결과도 싣지 않는다', async () => {
         findMock.mockRejectedValue(new Error('boom'));
         const run = useFindAlias() as unknown as (b: typeof body) => Promise<unknown>;

@@ -24,7 +24,7 @@ export interface PhoneVerifyScreenProps extends PhoneVerifyShellProps {
  *
  * Layout follows Figma 3421-59180 and siblings. The account-split banner sits here rather than in
  * the fields because the backend guide mandates it on the accept screen specifically, and the
- * sheet presentation deliberately omits it (ADR-0034 결정 4).
+ * sheet presentation deliberately omits it (ADR-0034 decision 4).
  *
  * See apps/web/docs/feature/auth/phone-verification.md.
  */

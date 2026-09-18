@@ -49,7 +49,7 @@ describe('nativeUploadSource — NOT_FOUND learn-once (구버전 앱)', () => {
         await source.peek(50);
         await source.peek(50);
 
-        // 첫 거절만 실제 왕복이다 — 나머지는 학습된 폴백이 막는다.
+        // Only the first rejection is a real round trip — the learned fallback blocks the rest.
         expect(mockFetchLogUploadQueue).toHaveBeenCalledTimes(1);
         expect(isNativeUploadQueueUnsupported()).toBe(true);
     });

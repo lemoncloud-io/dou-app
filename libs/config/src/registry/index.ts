@@ -8,7 +8,7 @@ import type { ConfigEntry, ConfigRegistryModule } from '../types';
  * four in five keys are developer-only, and one mistake among those must not keep every user's app
  * from starting. So the check moved: a test walks the merged modules and fails, and at runtime the
  * FIRST declaration wins, the later one is dropped, and `onDuplicateKey` reports it. The order is
- * fixed, so two devices never disagree about which one survived (ADR-0079 결정 2).
+ * fixed, so two devices never disagree about which one survived (ADR-0079 decision 2).
  */
 export class ConfigRegistry {
     private readonly entries: Map<string, ConfigEntry>;

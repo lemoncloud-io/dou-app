@@ -6,7 +6,7 @@ import { applyCustomZip, disableCustomZip, isCustomZipAllowed, readCustomZipStat
 import { logger } from '../../services';
 
 /**
- * Custom web zip, driven from the web panel (ADR-0080 결정 11).
+ * Custom web zip, driven from the web panel (ADR-0080 Decision 11).
  *
  * **PROD builds refuse** — see `isCustomZipAllowed`, which carries why and reads the baked stage.
  */

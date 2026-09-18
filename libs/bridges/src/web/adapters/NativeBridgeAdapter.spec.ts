@@ -59,8 +59,8 @@ describe('NativeBridgeAdapter — 로깅 경로 제약', () => {
             expect(entries).toHaveLength(0);
         });
 
-        // 이 테스트가 곧 재귀 방지 계약이다: forwarder 를 구독시킨 상태에서 전송이
-        // 실패해도 새 로그가 생기지 않아야, 로그 → 전송 → 실패 → 로그 루프가 없다.
+        // This test IS the recursion-prevention contract: with the forwarder subscribed, a
+        // failed send must not create a new log entry, or else there's a log → send → failure → log loop.
         it('nativeForwarder 가 붙어 있어도 전송 실패가 새 로그를 만들지 않는다', () => {
             const entries = collect();
             cleanups.push(logHub.subscribe(createNativeForwarder()));
@@ -70,8 +70,8 @@ describe('NativeBridgeAdapter — 로깅 경로 제약', () => {
 
             logger.info('TEST', 'second entry');
 
-            // 정확히 1건씩만 늘어난다 — forwarder 의 전송 실패가 로그를 되먹이면
-            // 이 값이 폭주하거나 스택 오버플로로 죽는다.
+            // It grows by exactly one entry each time — if the forwarder's send failure fed
+            // back into the log, this value would explode or die with a stack overflow.
             expect(afterFirst).toBe(1);
             expect(entries).toHaveLength(afterFirst + 1);
         });

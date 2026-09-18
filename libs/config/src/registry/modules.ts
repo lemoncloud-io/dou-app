@@ -20,7 +20,7 @@ import type { ConfigRegistryModule } from '../types';
  * does not fail (see `ConfigRegistry`).
  *
  * 85 keys across 12 domains. `allModules.spec.ts` asserts the count, so that test is the number
- * that cannot drift — this line is a reader's convenience (ADR-0079 결정 2 · 레지스트리 키 제안).
+ * that cannot drift — this line is a reader's convenience (ADR-0079 decision 2 · registry key proposal).
  */
 export const ALL_MODULES: readonly ConfigRegistryModule[] = [
     systemModule,

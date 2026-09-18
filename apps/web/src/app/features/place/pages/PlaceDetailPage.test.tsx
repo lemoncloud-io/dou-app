@@ -72,7 +72,8 @@ describe('PlaceDetailPage — 클라우드 플레이스', () => {
         expect(screen.queryByText('placeDetail.nameLabel')).not.toBeInTheDocument();
     });
 
-    // isOwner 부재는 falsy(=비오너)로 읽는다 — 설정 허브(`!!place.isOwner`)와 같은 판정이다.
+    // A missing isOwner reads as falsy (= non-owner) — the same verdict the settings hub makes
+    // (`!!place.isOwner`).
     it('isOwner가 없으면 비오너로 읽는다', () => {
         mockPlace = { id: '10014', name: '우리 플레이스', ownerId: 'u1' };
         render(<PlaceDetailPage />);
@@ -90,7 +91,8 @@ describe('PlaceDetailPage — 클라우드 플레이스', () => {
         expect(screen.getByText('두유')).toBeInTheDocument();
     });
 
-    // 소유자 프로필은 이름·날짜보다 늦게 도착할 수 있다. 그 사이에도 섹션은 자리를 지킨다.
+    // The owner profile can arrive later than the name and date. The section still holds its place in
+    // the meantime.
     it('소유자 프로필이 아직 없어도 소유자 섹션은 남는다', () => {
         mockPlace = { id: '10014', name: '우리 플레이스', ownerId: 'u1' };
         mockOwner = null;
@@ -137,8 +139,9 @@ describe('PlaceDetailPage — 클라우드 플레이스', () => {
         expect(screen.queryByText('placeDetail.descLabel')).not.toBeInTheDocument();
     });
 
-    // 소개를 지우면 서버는 ''를 돌려준다. 빈 문자열은 "값 없음"과 같게 취급해 행을 없앤다 —
-    // 라벨만 남은 빈 행을 그리면 만든 날짜·소유자 행의 규칙과 어긋난다.
+    // Clearing the introduction makes the server return ''. An empty string is treated the same as
+    // "no value" and the row is dropped — rendering an empty row with just a label would break the
+    // rule the created-date and owner rows already follow.
     it('desc가 빈 문자열이면 소개 행을 그리지 않는다', () => {
         mockPlace = { id: '10014', name: '우리 플레이스', ownerId: 'u1', desc: '' };
         render(<PlaceDetailPage />);
@@ -153,9 +156,10 @@ describe('PlaceDetailPage — 클라우드 플레이스', () => {
         expect(container.querySelector('.whitespace-pre-wrap')).toHaveTextContent('첫 줄');
     });
 
-    // 회귀 방지: 표시 이름의 근거는 URL의 플레이스지 활성 세션이 아니다. resolvePlaceDisplayName이
-    // isDefaultCloud와 id를 OR하므로, 세션의 `selectedCloudId === 'default'`를 넘기면 relay 활성 중에
-    // 직접 URL로 열린 클라우드 플레이스까지 "두유 홈"으로 브랜딩된다.
+    // Regression guard: the display name's source of truth is the place in the URL, not the active
+    // session. Since resolvePlaceDisplayName ORs isDefaultCloud with the id, passing the session's
+    // `selectedCloudId === 'default'` would brand even a cloud place opened directly by URL as "DoU
+    // Home" while the relay is active.
     it('relay가 활성이어도 클라우드 플레이스는 자기 이름을 유지한다', () => {
         mockCloudId = 'default';
         mockPlace = { id: '10014', name: '우리 플레이스', ownerId: 'u1' };
@@ -176,13 +180,15 @@ describe('PlaceDetailPage — 클라우드 플레이스', () => {
 });
 
 describe('PlaceDetailPage — DoU홈(relay 기본플레이스)', () => {
-    // 실측: relay 기본플레이스는 stereo:'domain' 시스템 사이트로 ownerId·owner$·isOwner·thumbnail이
-    // 전부 없고 name은 브랜딩 대상인 "default"다. createdAt은 실제로 오지만, 기획 결정(Figma
-    // 3769-34207 변형)에 따라 이 화면은 만든 날짜·소유자 정보를 아예 렌더하지 않는다.
+    // Observed: the relay's default place is a stereo:'domain' system site, so ownerId, owner$,
+    // isOwner and thumbnail are all absent and name is "default", which gets branded. createdAt does
+    // arrive, but per a product decision (Figma 3769-34207 variant) this screen doesn't render the
+    // created-date or owner info at all.
     const RELAY_PLACE: Partial<MySiteView> = { id: '0000', name: 'default', createdAt: CREATED_AT };
 
-    // 중계서버는 이 기본플레이스 하나뿐이라 "초대돼 들어온 곳"이 아니다 — isOwner가 항상 없어도
-    // 오너 라벨("플레이스 이름")을 쓴다. 이는 필드 부재의 결과가 아니라 명시적 예외다.
+    // The relay server only ever has this one default place, so it's not "a place I was invited
+    // into" — it uses the owner label ("Place name") even though isOwner is always absent. This is an
+    // explicit exception, not a side effect of the missing field.
     it('isOwner가 없어도 "플레이스 이름" 라벨을 쓴다', () => {
         mockPlace = RELAY_PLACE;
         render(<PlaceDetailPage />);

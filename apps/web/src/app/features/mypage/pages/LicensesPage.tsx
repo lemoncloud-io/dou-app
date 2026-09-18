@@ -91,7 +91,7 @@ export const LicensesPage = () => {
                 const data: LicenseEntry[] = await res.json();
                 setLicenses(data);
             } catch {
-                // dev 환경에서 빌드 산출물이 없을 수 있음
+                // Build artifacts may not exist in the dev environment
             } finally {
                 setIsLoading(false);
             }

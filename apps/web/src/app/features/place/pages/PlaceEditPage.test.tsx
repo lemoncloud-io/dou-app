@@ -74,8 +74,9 @@ describe('PlaceEditPage — 소개 문구', () => {
         expect(descBox()).toHaveValue('');
     });
 
-    // `Textarea`는 카운터도 하드 캡도 없다(의도된 설계). 100자 상한은 호출부의 onChange 클램프뿐이라
-    // 그 클램프가 사라지면 조용히 초과 입력이 저장된다.
+    // `Textarea` has neither a counter nor a hard cap (by design). The 100-char ceiling exists only as
+    // the caller's onChange clamp, so if that clamp ever disappears, over-length input would be saved
+    // silently.
     it('100자를 넘겨 입력할 수 없다', () => {
         render(<PlaceEditPage />);
 
@@ -109,7 +110,8 @@ describe('PlaceEditPage — 소개 문구', () => {
         });
     });
 
-    // 이름만 고친 저장이 소개를 덮어쓰면 안 된다 — 서버가 부분 페이로드를 병합한다는 전제가 깨진다.
+    // A save that only changed the name must not overwrite the introduction — that would break the
+    // assumption that the server merges partial payloads.
     it('이름만 고치면 desc를 보내지 않는다', async () => {
         mockPlace = { ...OWNED, desc: '기존 소개' };
         render(<PlaceEditPage />);
@@ -121,7 +123,8 @@ describe('PlaceEditPage — 소개 문구', () => {
         expect(updatePlace.mock.calls[0][0]).not.toHaveProperty('desc');
     });
 
-    // 소개를 비우는 것은 "안 바꿈"이 아니라 "지움"이다. 빈 문자열이 실제로 전송돼야 서버가 지운다.
+    // Clearing the introduction is "delete", not "no change". The empty string must actually be sent
+    // for the server to clear it.
     it('소개를 비우면 빈 문자열을 보낸다', async () => {
         mockPlace = { ...OWNED, desc: '기존 소개' };
         render(<PlaceEditPage />);

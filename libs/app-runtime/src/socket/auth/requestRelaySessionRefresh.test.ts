@@ -86,8 +86,9 @@ describe('requestRelaySessionRefresh', () => {
         await expect(pending).resolves.toBe(false);
     });
 
-    // 거부는 이 시도의 답일 뿐, 세션 판정이 아니다 — 컨트롤러의 백오프가 뒤에서 계속 돌고 터미널
-    // 전환 여부는 컨트롤러가 정한다. 사유는 메시지에만 실리므로 분기하지 않는다.
+    // A rejection is only the answer to this attempt, not a session verdict — the controller's
+    // backoff keeps running behind it, and whether it goes terminal is the controller's call. The
+    // reason only rides along in the message, so this doesn't branch on it.
     it('거부 사유가 무엇이든 false 하나로 답한다 — 분기하지 않는다', async () => {
         const auth = makeAuth();
         const manager = makeManager({ auth, state: 'connected' });
@@ -98,10 +99,11 @@ describe('requestRelaySessionRefresh', () => {
         await expect(pending).resolves.toBe(false);
     });
 
-    // 완료 상한은 이제 우리 것이 아니다. 예전에는 private `runRefresh`를 캐스팅으로 부르고 완료를
-    // 구독으로 추측했으므로 10초 천장이 필요했다. `refresh()`는 소켓 `request`를 타므로 자체 전송
-    // 타임아웃(`408`)으로 거부되고, 그 거부가 곧 답이다 — 여기서 타이머를 들고 있으면 SDK의 상한과
-    // 경쟁하는 두 번째 상한이 된다.
+    // A completion ceiling is no longer ours to hold. It used to be needed as a 10s ceiling because
+    // the old code called the private `runRefresh` via a cast and guessed completion from a
+    // subscription. `refresh()` now rides the socket's `request`, so it gets rejected by its own
+    // transport timeout (`408`), and that rejection IS the answer — holding a timer here would just
+    // be a second ceiling racing the SDK's own.
     it('자체 타임아웃을 걸지 않는다 — 미해결 refresh는 미해결로 남는다', async () => {
         jest.useFakeTimers();
         try {
@@ -122,9 +124,10 @@ describe('requestRelaySessionRefresh', () => {
         }
     });
 
-    // ADR-0070 invariants 1·2 — refresh는 ClientSocketAuth 단독. 소켓이 없으면 우회하지 않고 거절한다.
-    // 예전에는 여기서 서비스 레벨 HTTP refresh로 폴백했는데, 그게 refresh 엔드포인트로 가는 두 번째
-    // 경로였고, 스토어만 갱신하고 소켓 자신의 서명 재료는 그대로 두는 divergence의 원인이었다.
+    // ADR-0070 invariants 1·2 — refresh belongs to ClientSocketAuth alone. With no socket, it rejects
+    // instead of finding a way around it. This used to fall back to a service-level HTTP refresh here,
+    // which was a second path to the refresh endpoint — one that updated only the store and left the
+    // socket's own signing material stale, which is exactly the source of the divergence.
     it('바인드된 슬롯이 없으면 refresh하지 않고 false를 돌려준다', async () => {
         await expect(requestRelaySessionRefresh({ manager: makeManager(null) })).resolves.toBe(false);
     });
@@ -145,10 +148,12 @@ describe('requestRelaySessionRefresh', () => {
         expect(auth.refresh).not.toHaveBeenCalled();
     });
 
-    // 재연결 직후 SDK `auth.state`는 죽은 연결의 'authenticated'를 그대로 들고 있다(`stop()`은
-    // active·타이머만 끄고 상태값은 안 건드린다). 그 창에 쏘면 새 연결에는 아직 device가 안 붙어 있어
-    // 서버가 `400 BAD REQUEST - no device linked @auth.refresh(...)`로 거절한다 — 세션 문제가 아니라
-    // 경합인데 시도 한 번을 태운다. 그래서 현재 연결을 추적하는 슬롯 검증 플래그를 함께 본다.
+    // Right after a reconnect, the SDK's `auth.state` still carries the 'authenticated' of the dead
+    // connection (`stop()` only turns off the active flag and timers, it doesn't touch the state
+    // value). Firing in that window hits a new connection with no device attached yet, so the server
+    // rejects with `400 BAD REQUEST - no device linked @auth.refresh(...)` — not a session problem but
+    // a race, and it still burns one attempt. So this also checks the slot-verified flag that tracks
+    // the current connection.
     it('연결은 됐지만 이번 연결의 핸드셰이크가 안 끝났으면 refresh하지 않는다', async () => {
         const auth = makeAuth();
         const manager = makeManager({ auth, state: 'connected' }, { verified: false });
@@ -168,8 +173,9 @@ describe('requestRelaySessionRefresh', () => {
         expect(manager.isKindVerified).toHaveBeenCalledWith('relay');
     });
 
-    // 이 트리거는 relay 전용이다. cloud 토큰은 relay 신원에서 **재발급**되므로(renewCloudSession)
-    // refresh로 고칠 대상이 아니고, 그래서 kind 인자 자체가 없다.
+    // This trigger is relay-only. A cloud token is **reissued** from the relay identity
+    // (renewCloudSession), so it isn't something refresh fixes — which is why there's no kind
+    // argument at all.
     it('relay 슬롯만 본다 — cloud 슬롯이 살아 있어도 그쪽으로 가지 않는다', async () => {
         const relayAuth = makeAuth({ state: 'expired' });
         const cloudAuth = makeAuth();
@@ -181,7 +187,7 @@ describe('requestRelaySessionRefresh', () => {
             isKindVerified: jest.fn(() => true),
         } as unknown as ISocketManager;
 
-        // relay가 인증되지 않았으므로 false. 살아 있는 cloud로 우회하지 않는다.
+        // False because relay isn't authenticated. It doesn't fall back to a live cloud.
         await expect(requestRelaySessionRefresh({ manager })).resolves.toBe(false);
 
         expect(manager.getClient).toHaveBeenCalledWith('relay');
@@ -190,12 +196,13 @@ describe('requestRelaySessionRefresh', () => {
 });
 
 /**
- * 동시·연속 요청 흡수.
+ * Absorbing simultaneous and back-to-back requests.
  *
- * epoch 파일업(앞선 시도가 무효화되고 타임아웃 후 실패로 집계돼 maxFailures를 우리 손으로 채우는
- * 경로)은 이제 SDK가 막는다 — `refresh()`가 진행 중인 갱신에 합류한다(0.5.1). 여기 남은 몫은 SDK에
- * **닿지도 못하는** 시도다: "인증된 소켓 없음" 판정은 `refresh()` 호출 전에 끝나므로 SDK의 합류가
- * 흡수할 수 없고, 방금 끝난 답을 재사용하는 메모는 SDK가 답하지 않는 질문이다.
+ * Epoch pile-up (the path where an earlier attempt is invalidated and counted as a timeout failure,
+ * filling up maxFailures by our own hand) is now blocked by the SDK — `refresh()` joins an in-flight
+ * renewal (0.5.1). What's left here is the share of attempts that **never even reach** the SDK: the
+ * "no authenticated socket" verdict is decided before `refresh()` is called, so the SDK's join-in-
+ * flight can't absorb it, and memoizing a just-finished answer is a question the SDK never gets asked.
  */
 describe('requestRelaySessionRefresh — 중복 억제', () => {
     beforeEach(() => {

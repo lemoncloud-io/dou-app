@@ -2,7 +2,7 @@ import type { ConfigRegistryModule } from '../types';
 
 /**
  * Endpoints and HTTP retry. No endpoint key includes `'server'` in `writableBy`
- * (ADR-0079 결정 10) — a remote config must not be able to move where the app talks to.
+ * (ADR-0079 decision 10) — a remote config must not be able to move where the app talks to.
  *
  * `relay.backend`/`relay.wss` are session-scoped QA overrides, matching what `env.ts`
  * already did: an override is a convenience, not something a stray link should pin forever.

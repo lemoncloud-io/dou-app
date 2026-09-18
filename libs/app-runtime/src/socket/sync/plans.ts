@@ -25,14 +25,16 @@ import { foreignDropAggregator } from '@chatic/logger';
 const getContext = () => getDataManager().getContext();
 
 /**
- * 폴링 plan 공통 옵션: 재연결 시 스냅샷을 리셋하지 않는다 (ADR-0059).
+ * Common option for polling plans: don't reset the snapshot on reconnect (ADR-0059).
  *
- * 라이브러리 기본값은 리셋이다 — 재연결 직후 첫 폴이 무조건 "변경됨"으로 판정되어 onUpdate가
- * 최소 한 번 보장된다. 우리 소비자는 그 보장이 필요 없다: onUpdate는 캐시 쓰기뿐이고 캐시에는
- * 같은 행이 이미 있으므로, 리셋은 재연결(포그라운드 복귀마다 일어난다)마다 등록된 모든 타깃
- * 수만큼의 동일-데이터 쓰기 → 리이밋 → 재조회 연쇄만 만들었다. 스냅샷을 유지하면 오프라인 동안
- * 실제로 바뀐 행(updatedAt 전진)만 쓴다. 세션 경계(클라우드 전환·로그아웃)는 scheduler의
- * `stopAll`이 스냅샷을 함께 비우므로 낡은 기준선이 세션을 넘어 살아남지 못한다.
+ * The library's default is to reset — the first poll right after reconnect is then unconditionally
+ * judged "changed", guaranteeing onUpdate fires at least once. Our consumers don't need that
+ * guarantee: onUpdate only writes to the cache, and the cache already has the same row, so resetting
+ * only produced, for every reconnect (which happens on every foreground return), one identical-data
+ * write per registered target → rate limit → refetch chain. Keeping the snapshot writes only the
+ * rows that actually changed while offline (updatedAt advanced). Session boundaries (cloud switch,
+ * logout) are covered because the scheduler's `stopAll` clears the snapshot along with everything
+ * else, so a stale baseline can't survive across a session.
  */
 const KEEP_SNAPSHOT_ON_RECONNECT = { resetSnapshotOnConnected: false } as const;
 
@@ -159,12 +161,14 @@ export const createSyncPlans = (getBoundCid: () => string | null): DomainSyncPla
                 },
             })
         ),
-        // chat plan은 도착(onApply)과 변경(onUpdate)을 나눠 넘긴다. 아직 모르는 chatNo는 새 메시지,
-        // 이미 해소된 chatNo에 다시 온 payload는 그 메시지의 변경이다(sockets-lib 0.5.1).
-        // onRemove는 두지 않는다 — chat plan은 자동 stop되지 않고, 메시지 이력은 lazy-load/오프라인을 위해 유지한다.
+        // The chat plan hands off arrival (onApply) and change (onUpdate) separately. A chatNo we
+        // don't know yet is a new message; a payload that arrives again for an already-resolved
+        // chatNo is a change to that message (sockets-lib 0.5.1).
+        // No onRemove is set — the chat plan is never auto-stopped, and message history is kept for
+        // lazy-load/offline use.
         reportStop(
             new ChatSyncPlan({
-                // 적용된 메시지 델타(오름차순). chatNo 기준 idempotent 머지를 위해 일괄 반영한다.
+                // Applied message delta (ascending). Written in one batch for an idempotent merge keyed on chatNo.
                 onApply: (_target, applied) => {
                     if (dropForeignFrame()) return;
                     if (!applied.length) return;
@@ -173,17 +177,20 @@ export const createSyncPlans = (getBoundCid: () => string | null): DomainSyncPla
                     void chat.cacheWriteMany(applied.map(view => toDomainChat(view, scope)));
                 },
                 /**
-                 * 남이 한 편집·삭제. 이게 없으면 sync로 들어온 변경은 어디에도 반영되지 않고 다음
-                 * `chat.feed` 재조회에서야 수렴한다 — 0.5.1 전에는 그 경로 자체가 없었다.
+                 * An edit or delete made by someone else. Without this, a change that arrives through
+                 * sync isn't reflected anywhere until the next `chat.feed` refetch — before 0.5.1 that
+                 * path didn't even exist.
                  *
-                 * **삭제도 쓰기다.** `hidden: true`가 삭제인데, 행을 지우지 않고 그대로 쓴다 —
-                 * `ChatRepository.deleteChat`이 내가 한 삭제에 대해 이미 그렇게 하고 그 주석이 이유를
-                 * 적어뒀다: 지우면 다음 sync에 행이 되살아나므로, 삭제 메시지를 tombstone으로 그리는
-                 * 화면이 같은 메시지를 잠깐 없음 → 이후 tombstone으로 두 번 보여준다. 즉 들어온 삭제와
-                 * 내가 한 삭제가 같은 상태로 수렴한다.
+                 * **A delete is a write too.** `hidden: true` is what a delete is — the row isn't
+                 * removed, it's written as-is. `ChatRepository.deleteChat` already does the same for a
+                 * delete I make myself, and its comment records why: deleting it would let the row come
+                 * back on the next sync, so a screen that renders a deleted message as a tombstone would
+                 * show the same message as briefly-gone and then as a tombstone a second time. In other
+                 * words, an incoming delete and a delete I make myself converge on the same state.
                  *
-                 * 창에서 밀려난 메시지에 대해서도 발사되고 같은 변경이 반복될 수 있으므로 id 기준으로
-                 * 쓴다 — `cacheWrite`가 그렇게 동작하니 반복은 무해하다.
+                 * This can also fire for a message that's been pushed out of the window, and the same
+                 * change can repeat, so it writes keyed on id — `cacheWrite` behaves that way, so
+                 * repeats are harmless.
                  */
                 onUpdate: (_target, changed) => {
                     if (dropForeignFrame()) return;
@@ -192,8 +199,9 @@ export const createSyncPlans = (getBoundCid: () => string | null): DomainSyncPla
                 },
             })
         ),
-        // join은 single-join polling plan. join.get 응답의 updatedAt 변화 시 onUpdate가 호출되며,
-        // read-state sync 소유권은 이 plan이 갖고 local cache 반영은 JoinRepositoryV2가 맡는다.
+        // join is a single-join polling plan. onUpdate is called when the join.get response's
+        // updatedAt changes; this plan owns read-state sync, and JoinRepositoryV2 handles reflecting
+        // it into the local cache.
         reportStop(
             new JoinSyncPlan({
                 ...KEEP_SNAPSHOT_ON_RECONNECT,

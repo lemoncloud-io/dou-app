@@ -17,11 +17,11 @@ jest.mock('@lemoncloud/chatic-sockets-lib', () => {
     return { ...actual, createDeviceRuntime: jest.fn() };
 });
 
-// SyncManager → ./plans → data/runtime.ts → DataManager.ts → httpFactory.ts가 `@chatic/http`의
-// transport를 값으로 import한다(webTransport). 그 경로가 예전엔 `@chatic/web-config`(import.meta
-// 홀더, ts-jest CJS 파싱 불가)로 이어졌지만 이제는 `@chatic/config`(import.meta 0)로 이어져
-// 파싱은 더 이상 문제가 아니다 — 그래도 이 테스트가 실제로 쓰지 않는 세션 의존을 끊어 격리하는
-// 목은 그대로 둔다.
+// SyncManager → ./plans → data/runtime.ts → DataManager.ts → httpFactory.ts imports `@chatic/http`'s
+// transport as a value (webTransport). That chain used to lead to `@chatic/web-config` (an
+// import.meta holder that ts-jest's CJS parser can't handle), but now leads to `@chatic/config`
+// (import.meta count 0), so parsing is no longer the problem — this mock is kept anyway, to cut and
+// isolate the session dependency this test doesn't actually use.
 jest.mock('../../session', () => new Proxy({}, { get: () => jest.fn() }));
 const mockedCreateDeviceRuntime = createDeviceRuntime as jest.MockedFunction<typeof createDeviceRuntime>;
 
@@ -151,12 +151,12 @@ describe('SyncManager', () => {
         dispose();
         jest.advanceTimersByTime(UNREGISTER_GRACE_MS / 2);
 
-        // 방↔홈 왕복: 다음 화면이 같은 타깃을 다시 등록한다.
+        // Room↔home round trip: the next screen re-registers the same target.
         syncManager.register({ type: 'channel', id: 'ch-1' });
         jest.advanceTimersByTime(UNREGISTER_GRACE_MS * 2);
 
         expect(runtimes[0].stopSync).not.toHaveBeenCalled();
-        // 재등록은 merge 경로라 startSync는 최초 1회뿐 — 즉시 재폴링이 없다는 뜻이다.
+        // Re-registration takes the merge path, so startSync only ever fires once — meaning no immediate re-poll.
         expect(runtimes[0].startSync).toHaveBeenCalledTimes(1);
     });
 
@@ -169,18 +169,19 @@ describe('SyncManager', () => {
         bindActiveSlot('relay', makeClient('relay'));
 
         const dispose = syncManager.register({ type: 'channel', id: 'ch-1' });
-        dispose(); // 유예 진입
+        dispose(); // enters the grace period
 
-        // 유예 중 클라우드로 전환: refs 0 엔트리는 replay되지 않아야 한다.
+        // Switching to cloud while in the grace period: the refs-0 entry must not be replayed.
         bindActiveSlot('cloud', makeClient('cloud'));
         const cloudRuntime = runtimes[1];
         expect(cloudRuntime.startSync).not.toHaveBeenCalled();
 
-        // purge되지 않았다면 이 재등록은 merge 경로로 빠져 startSync가 영영 없다 — 그 회귀를 잡는다.
+        // If it weren't purged, this re-registration would fall into the merge path and startSync
+        // would never fire — this catches that regression.
         syncManager.register({ type: 'channel', id: 'ch-1' });
         expect(cloudRuntime.startSync).toHaveBeenCalledWith({ type: 'channel', id: 'ch-1' });
 
-        // 버려진 유예 타이머가 뒤늦게 새 클라이언트의 타깃을 내리지 않는다.
+        // A discarded grace timer must not belatedly stop the new client's target.
         jest.advanceTimersByTime(UNREGISTER_GRACE_MS);
         expect(cloudRuntime.stopSync).not.toHaveBeenCalled();
     });

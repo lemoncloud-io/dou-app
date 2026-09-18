@@ -3,8 +3,8 @@ import { logger } from '@chatic/bridges';
 import { socketFailureReporter } from './socketFailureReporter';
 
 /**
- * 실물 logger에 spy를 건다 — 부분 목은 같은 모듈을 간접 소비하는 쪽의 export를 잃게 만들어
- * 이 트랙에서 세 번 다른 스위트를 깨뜨렸다.
+ * Spies on the real logger — a partial mock loses the exports of anything that indirectly consumes
+ * the same module, and that broke three other suites in this track.
  */
 const warn = jest.spyOn(logger, 'warn').mockImplementation();
 const error = jest.spyOn(logger, 'error').mockImplementation();
@@ -76,9 +76,9 @@ describe('타임아웃은 거절과 다른 사건이다', () => {
 });
 
 /**
- * 소켓이 없는 동안에는 등록된 sync 타깃 수만큼 매 폴 주기마다 실패한다. 503은 send 시도마다,
- * 499는 소켓이 닫힐 때 in-flight·큐 전체에 한꺼번에 터진다 — 건별 로깅은 카탈로그가 프레임 단위
- * 로깅을 금지하는 바로 그 이유에 걸린다.
+ * While the socket is gone, it fails once per poll cycle for every registered sync target. 503
+ * happens on each send attempt; 499 fires all at once across the whole in-flight/queued set when the
+ * socket closes — logging each one hits exactly the reason the catalog bans per-frame logging.
  */
 describe('연결이 없어서 실패한 것은 스트릭으로 묶는다', () => {
     const lost = (code: 503 | 499) =>
@@ -153,8 +153,8 @@ describe('연결이 없어서 실패한 것은 스트릭으로 묶는다', () =>
         expect(error).not.toHaveBeenCalled();
     });
 
-    // 403이 돌아왔다는 건 소켓이 살아 있다는 증거다 — 이걸 "아직 죽어 있다"로 세면 스트릭이
-    // 영원히 살아남아 복구 엔트리도, 다음 첫 실패 warn도 나오지 않는다.
+    // A 403 coming back is proof the socket is alive — counting it as "still dead" would let the
+    // streak survive forever, so neither a recovery entry nor the next first-failure warn would ever fire.
     it('서버가 답한 실패는 스트릭을 끊는다', () => {
         lost(503);
         socketFailureReporter.recordFailure('relay', 'request', 'join.get', serverError('403 FORBIDDEN'));

@@ -181,12 +181,12 @@ export const HomePage = () => {
     // group-channel invites). Gate rendering, not the fetch, to avoid a Track 0 contract change.
     const { invites: sentInvites } = useInviteListRows();
     // One-time: folds the stub era's `canceledInviteIds` (localStorage) into cache dismiss stamps
-    // (ADR-0052 결정 5) — a no-op once every install has run it.
+    // (ADR-0052 decision 5) — a no-op once every install has run it.
     useInviteDismissMigration();
     // Replays the stub era's local-only cancels as real invite.cancel calls, once per mount
-    // (ADR-0043 결정 8) — a no-op once the legacy records are drained.
+    // (ADR-0043 decision 8) — a no-op once the legacy records are drained.
     useCanceledInviteReconcile();
-    // ONE unread source now (see docs/feature/home/unread-dot.md 상세 구현 §2, ADR-0056): the
+    // ONE unread source now (see docs/feature/home/unread-dot.md §Detailed Implementation 2, ADR-0056): the
     // app-wide observation already aggregates the whole cloud, so the per-row counts, the join rows
     // the rows read (nick/mute) and the place dots all come off it — home used to compute the
     // active-site half a second time, from its own observer per channel, purely as a side effect of
@@ -202,7 +202,7 @@ export const HomePage = () => {
     // without waiting for the room to be opened. See useChatSyncRegistration for the two mechanisms.
     useChatSyncRegistration(channels);
 
-    // Cross-cloud dot (ADR-0056 결정 2/4) — one subscription shared by the switcher-button dot
+    // Cross-cloud dot (ADR-0056 decision 2/4) — one subscription shared by the switcher-button dot
     // (below, on AppHeader) and CloudSessionSheet's row dots, so the two surfaces never disagree.
     const {
         byCloud: otherCloudUnread,
@@ -212,7 +212,7 @@ export const HomePage = () => {
     const badgedClouds = useCloudPushMarkStore(s => s.badged);
     // Catalog filter: only a mark for a cloud actually in THIS account's reach (owned + invited +
     // relay) and not the one being viewed counts toward the dot — a stale/foreign mark otherwise
-    // never clears (see docs/feature/home/unread-dot.md 설계 원칙 5).
+    // never clears (see docs/feature/home/unread-dot.md, Design Principle 5).
     const hasOtherCloudMark = useMemo(() => {
         const catalogIds = new Set<string>([RELAY_CLOUD_ID]);
         for (const cloud of clouds) if (cloud.id) catalogIds.add(cloud.id);
@@ -240,7 +240,7 @@ export const HomePage = () => {
 
     const displayName = headerProfile.kind === 'setup' ? t('homePage.setupProfile') : headerProfile.name || '-';
     // Top-right avatar shows the PLACE (site) profile photo only — no account-photo fallback. When
-    // the active place has no photo, ProfileAvatar renders its default glyph (기본 아바타).
+    // the active place has no photo, ProfileAvatar renders its default glyph (default avatar).
     const displayImageUrl = myProfile?.thumbnail ?? undefined;
 
     // The place-settings menu entry needs an active site (its route is keyed by the site id). Works on

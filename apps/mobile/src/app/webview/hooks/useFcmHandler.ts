@@ -222,7 +222,7 @@ export const useFcmHandler = (bridge: IAppBridgeHost) => {
     /**
      * Drops the FCM token so the next `FetchFcmToken` mints a fresh one.
      *
-     * Exists for the web debug panel's push screen (ADR-0080 결정 11): testing the re-registration
+     * Exists for the web debug panel's push screen (ADR-0080 Decision 11): testing the re-registration
      * path needs the token gone, and `FetchFcmToken` only reads. `deleteToken` logs and swallows its
      * own failures, so a caller cannot distinguish "deleted" from "was already absent" — both are
      * the state the caller asked for, so this reports success either way.

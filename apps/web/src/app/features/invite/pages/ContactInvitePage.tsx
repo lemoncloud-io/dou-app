@@ -69,7 +69,7 @@ interface PendingReinvite {
 }
 
 /**
- * Route state that turns this page into "invite this person back into that room" (ADR-0068 결정 3).
+ * Route state that turns this page into "invite this person back into that room" (ADR-0068 decision 3).
  *
  * Arrives from the 1:1 room's own footer CTA. `name`/`phone` are best-effort prefill — the server
  * never returns a full number, so a device that did not issue the original invite has nothing to
@@ -84,8 +84,8 @@ interface ReinviteEntry {
 }
 
 /**
- * 연락처로 초대 페이지 (ADR-0089 Track B) — the home ＋menu "1:1 대화" destination.
- * Figma 3266-35386 (입력됨) / 3268-35795 (검증 에러) / 3578-67319 (게스트 인증 유도).
+ * The invite-by-contact page (ADR-0089 Track B) — the home ＋menu "1:1 대화" destination.
+ * Figma 3266-35386 (filled in) / 3268-35795 (validation error) / 3578-67319 (guest verification prompt).
  *
  * Only a main user can issue a relay invite, so a device user never reaches the form: the page
  * intercepts with `InviterVerifyPrompt` and verifies in a sheet first (ADR-0034). `isGuest` is
@@ -194,7 +194,7 @@ export const ContactInvitePage = () => {
                 name: recipientName,
                 countryCode: target.country,
                 // Naming the channel is what keeps a 1:1 ONE room across a leave and a return, instead
-                // of a fresh room per invite (ADR-0068 결정 2). Omitted for a first-time invite — the
+                // of a fresh room per invite (ADR-0068 decision 2). Omitted for a first-time invite — the
                 // server makes the room on accept.
                 channelId: reinviteEntry?.channelId,
             });
@@ -223,7 +223,7 @@ export const ContactInvitePage = () => {
             });
         } catch (error) {
             logger.error('INVITE', '[ContactInvitePage] send failed', { error });
-            // 403 covers more than "still a guest" — §에러 코드 also lists withdrawn/suspended
+            // 403 covers more than "still a guest" — §Error Codes also lists withdrawn/suspended
             // accounts, for which verifying resolves to the SAME user and would 403 again. So offer
             // verification once (the gate below normally catches a plain guest first, so reaching
             // here means the client role lagged), then explain instead of looping.
@@ -253,7 +253,7 @@ export const ContactInvitePage = () => {
      * "check on" an invite from silently issuing a second one — but arriving from the room's own
      * "다시 초대하기" IS the intent to send again, and the room's footer has already told them where
      * the last invite stands. What must not be skipped is the retire: two live codes for one person
-     * is the state the sender flow has always avoided (ADR-0043 결정 5).
+     * is the state the sender flow has always avoided (ADR-0043 decision 5).
      */
     const reissueIntoChannel = async (channelId: string, target: IssueTarget, recipientName: string) => {
         const prior = invites.find(
@@ -327,7 +327,7 @@ export const ContactInvitePage = () => {
         if (!pendingReinvite) return;
         const { target, inviteId } = pendingReinvite;
         setPendingReinvite(null);
-        // Retire the prior invite before issuing a fresh code (ADR-0043 결정 5). Only the
+        // Retire the prior invite before issuing a fresh code (ADR-0043 decision 5). Only the
         // expired/declined variants reach this handler (pending only navigates to the waiting
         // screen), so retiring never blocks the reissue: an expired link is already dead
         // (best-effort server cancel tidies the list) and a rejected one is dismissed locally.

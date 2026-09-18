@@ -8,14 +8,14 @@ import { ROUTES } from '../../../routes/paths';
 import { AccountLinkSection } from '../components';
 
 /**
- * 계정 정보 — the account-level screen. Everything here is scoped to the RELAY account, never the
+ * Account info — the account-level screen. Everything here is scoped to the RELAY account, never the
  * connected cloud: profile edit writes the relay record (`useUpdateProfile`) and the linked
  * credentials come from the relay token's `link$`.
  *
  * The cloud-entity name editor (`/mypage/cloud-profile`) used to hang off this screen behind an
  * owner gate. It is gone from here because the MY tree is relay-only now — a cloud's own name is not
  * an account attribute. The page and route still exist and still work; they just need a cloud-shaped
- * entry point (the switcher, or 계정 관리) instead of an account-shaped one.
+ * entry point (the switcher, or account management) instead of an account-shaped one.
  */
 export const AccountInfoPage = () => {
     const navigate = useNavigateWithTransition();

@@ -67,7 +67,7 @@ const CredentialRow = ({ label, icon, linkedLabel, isLinked, isBusy, onLink, onU
  * Account-linking section for AccountInfoPage — which credentials (phone, social) prove this account.
  *
  * Reuses AccountInfoPage's own card/row classes (no Figma node for this area — see
- * apps/web/docs/feature/account/social-links.md "설계 원칙").
+ * apps/web/docs/feature/account/social-links.md "design principles").
  *
  * **The section stays silent until the server has spoken.** `link$` is what makes this screen honest
  * (ADR-0042 §7), and while it reads `'unknown'` — the profile has not landed, or the server never built
@@ -96,7 +96,7 @@ export const AccountLinkSection = () => {
 
     return (
         <div className="flex flex-col gap-2">
-            {/* Account-split defense (client-guide.md §알아 둘 제약): nudge toward a second credential
+            {/* Account-split defense (client-guide.md §constraints to know): nudge toward a second credential
                 before a future device creates a separate, unmergeable account. */}
             {hasNoCredential && (
                 <p className="px-1 text-[13px] text-muted-foreground">{t('mypage.accountInfo.social.bannerTitle')}</p>

@@ -7,7 +7,7 @@ import { config } from '..';
  *
  * A separate entry so the core stays framework-blind — that is what lets `boot`, the transport and
  * the log pipeline read the same values without pulling React in, and what lets React Native share
- * the core (ADR-0079 결정 7).
+ * the core (ADR-0079 decision 7).
  *
  * `getSnapshot` is memoized per key because `useSyncExternalStore` re-subscribes when the function
  * identity changes. The value it returns is safe to compare by identity: a primitive is itself, and

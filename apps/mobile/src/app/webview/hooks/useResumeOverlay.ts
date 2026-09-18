@@ -4,9 +4,9 @@ import { AppState, Platform } from 'react-native';
 import { bootMetricsService } from '../../services';
 
 /**
- * iOS WKWebView 백그라운드 복귀 시 흰 화면을 방지하기 위한
- * 테마 색상 오버레이(ResumeOverlay)의 표시 및 해제 라이프사이클을 관리하는 훅입니다.
- * (Android의 경우 해당 현상이 없으므로 동작하지 않습니다.)
+ * Hook that manages the show/dismiss lifecycle of the theme-colored overlay (ResumeOverlay) used
+ * to prevent a white flash when an iOS WKWebView resumes from the background.
+ * (No-op on Android, since that issue doesn't occur there.)
  */
 export const useResumeOverlay = () => {
     const [showResumeOverlay, setShowResumeOverlay] = useState(false);
@@ -39,7 +39,8 @@ export const useResumeOverlay = () => {
                 setShowResumeOverlay(true);
             } else if (nextState === 'active') {
                 resumeStartedAtRef.current = Date.now();
-                // Fallback: 웹앱이 DismissResumeOverlay 신호를 안 보낼 경우(예: 웹 프로세스 중지 등) 최대 1.5초 후 강제 해제
+                // Fallback: force-dismiss after at most 1.5s if the web app never sends a
+                // DismissResumeOverlay signal (e.g. the web process stalls, etc.)
                 if (resumeTimeoutRef.current) {
                     clearTimeout(resumeTimeoutRef.current);
                 }

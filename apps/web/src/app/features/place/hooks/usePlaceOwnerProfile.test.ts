@@ -29,7 +29,7 @@ beforeEach(() => {
 
 describe('usePlaceOwnerProfile — 플레이스 소유자 프로필 관측', () => {
     it('ownerId가 없으면 null을 반환하고 구독·조회하지 않는다', () => {
-        // 기본플레이스(relay)는 stereo:'domain' 시스템 사이트로 소유자 필드가 없다.
+        // The default place (relay) is a stereo:'domain' system site, so it has no owner field.
         const { result } = renderHook(() => usePlaceOwnerProfile('0000', undefined));
 
         expect(result.current).toBeNull();

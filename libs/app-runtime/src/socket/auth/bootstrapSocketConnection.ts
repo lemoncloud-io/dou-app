@@ -154,10 +154,11 @@ export const bootstrapSocketConnection = async ({
     // Routed by THIS socket's kind so a refresh during a switch/teardown lands in the right store (§6-6).
     unsubscribes.push(
         auth.onTokenRefresh(view => {
-            // ADR-0070 기준선 계측 ②: refresh 발화 횟수. 이제 refresh는 이 경로 하나뿐이라 이 줄이
-            // 유일한 계수원이다 — 예전에는 HTTP refresh가 NETWORK 로그에 따로 찍히고 서명 거부는
-            // `... failed (403)`으로 남는 반면 소켓 쪽 발화는 아무데도 보이지 않았다. Step 3 전후
-            // 비교는 이 한 줄로 센다.
+            // ADR-0070 baseline instrumentation ②: refresh emission count. Now that refresh has only
+            // this one path, this line is the sole counter — previously HTTP refresh was logged
+            // separately under NETWORK and signing rejections showed up as `... failed (403)`, while
+            // the socket-side emission was invisible anywhere. The before/after comparison for Step 3
+            // is counted by this one line.
             logger.info('SOCKET', '[bootstrapSocketConnection] token refreshed', { data: { kind } });
             // The writeback is what actually re-mints the HTTP/AWS signing material, and it is the
             // only step that can fail AFTER `requestRelaySessionRefresh` has already reported success

@@ -5,7 +5,7 @@ import type { WebMessageData } from '@chatic/app-messages';
 import { toErrorMessage } from '../../utils';
 
 export const useAppIconHandler = () => {
-    // 현재 적용된 아이콘 이름만 조회
+    // Fetches only the name of the currently applied icon
     const handleFetchAppIcon = useCallback(async (_message: WebMessageData<'FetchAppIcon'>) => {
         try {
             const currentIcon = await provider.dynamicAppIconService.fetchCurrentIcon();
@@ -23,7 +23,7 @@ export const useAppIconHandler = () => {
         }
     }, []);
 
-    // 사용 가능한 아이콘 목록 전체 조회
+    // Fetches the full list of available icons
     const handleFetchAppIconList = useCallback(async (_message: WebMessageData<'FetchAppIconList'>) => {
         const availableIcons = provider.dynamicAppIconService.getAvailableIcons();
         return {
@@ -33,9 +33,9 @@ export const useAppIconHandler = () => {
         };
     }, []);
 
-    // 앱 아이콘 변경 실행
+    // Executes the app icon change
     const handleChangeAppIcon = useCallback(async (message: WebMessageData<'ChangeAppIcon'>) => {
-        // 새 규격에 따라 요청 데이터는 data가 아닌 payload 안에 존재합니다.
+        // The request data lives in `data` here, not `payload`.
         const { iconName } = message.data;
 
         try {

@@ -5,25 +5,25 @@ export type EventMessage = AppMessage;
 export type ResponseMessage = BridgeResponseMessage;
 
 /**
- * 브릿지 통신을 통해 오갈 수 있는 모든 메시지 규격의 유니온 타입입니다.
+ * The union type of every message spec that can travel over bridge communication.
  */
 export type AnyBridgeMessage = RequestMessage | ResponseMessage | EventMessage;
 
 /**
- * Web과 App 간 메시지를 주고받을 때 데이터의 직렬화(인코딩)와 역직렬화(디코딩)를 담당하는 프로토콜 인터페이스입니다.
+ * The protocol interface responsible for serializing (encoding) and deserializing (decoding) data when exchanging messages between Web and App.
  */
 export interface MessageProtocol {
     /**
-     * [Serialize] 객체를 브릿지 전송 포맷(문자열 또는 바이너리)으로 인코딩합니다.
-     * @param message 전송할 메시지 객체 (Request, Response, Event 중 하나)
-     * @returns 직렬화된 문자열 또는 바이트 배열
+     * [Serialize] Encodes an object into the bridge transport format (string or binary).
+     * @param message The message object to send (one of Request, Response, Event)
+     * @returns The serialized string or byte array
      */
     encode(message: AnyBridgeMessage | BaseMessage): string | Uint8Array;
 
     /**
-     * [Deserialize] 브릿지 수신 데이터(문자열 또는 바이너리)를 파싱하여 메시지 객체로 디코딩합니다.
-     * @param data 수신된 직렬화 데이터
-     * @returns 파싱 완료된 메시지 객체 (파싱 실패 시 null)
+     * [Deserialize] Parses bridge-received data (string or binary) and decodes it into a message object.
+     * @param data The received serialized data
+     * @returns The parsed message object (null on parse failure)
      */
     decode(data: string | Uint8Array): AnyBridgeMessage | null;
 }
@@ -44,17 +44,17 @@ export interface BridgeFailureConfig {
 }
 
 export interface EnvironmentConfig {
-    /** Web -> App -> Web 왕복 지연 시간입니다. */
+    /** The Web -> App -> Web round-trip delay. */
     rttDelayMs?: number;
-    /** true면 App host를 거치지 않고 모든 request에 bridge-level 실패 응답을 반환합니다. */
+    /** If true, returns a bridge-level failure response for every request without going through the App host. */
     forceFailure?: boolean | BridgeFailureConfig;
-    /** true면 request를 App host로 보내지 않아 WebBridgeClient timeout을 검증할 수 있습니다. */
+    /** If true, the request is never sent to the App host, so WebBridgeClient's timeout can be verified. */
     timeoutMode?: boolean;
-    /** 0~1 사이 값. 해당 확률로 메시지를 드롭합니다. */
+    /** A value between 0 and 1. Drops messages at that probability. */
     dropRate?: number;
-    /** true면 response type mismatch를 강제로 발생시킵니다. */
+    /** If true, forces a response type mismatch to occur. */
     responseTypeMismatch?: boolean | string;
-    /** true면 malformed bridge response를 강제로 발생시킵니다. */
+    /** If true, forces a malformed bridge response to occur. */
     malformedResponse?: boolean;
     random?: () => number;
 }

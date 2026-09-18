@@ -38,8 +38,8 @@ const landOn = async (initialPath: string) => {
     };
 };
 
-// 목적지는 언제나 '/' 다. 수락 페이지로 넘기는 판단은 InviteEntryGate 한 곳이 소유하며, 여기서
-// 질러가면 첫 실행 온보딩 우선순위를 조용히 건너뛴다.
+// The destination is always '/'. Deciding whether to hand off to the accept page belongs solely to
+// InviteEntryGate — shortcutting that here would silently skip first-run onboarding priority.
 describe('ShareLinkRedirect — /s 공유 링크 리다이렉트', () => {
     it('주소 파라미터가 없는 code-only 릴레이 링크를 relay=1 초대 진입으로 바꿔 보낸다', async () => {
         // This is the link an un-updated mobile WebView hands over verbatim; without this route it

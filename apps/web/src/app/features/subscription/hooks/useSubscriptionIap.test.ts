@@ -100,8 +100,8 @@ describe('useSubscriptionIap — 클라우드 소유를 위한 소셜 연동 가
             'mypage.subscription.socialLinkRequired'
         );
 
-        // 결제가 시작조차 되지 않아야 한다 — validateMembership은 구매 뒤에 돌기 때문에,
-        // 여기서 막지 않으면 돈은 나가고 구독은 붙을 곳이 없다.
+        // The purchase must not even start — validateMembership runs after the purchase, so if it
+        // isn't blocked here, money leaves and there's nothing for the subscription to attach to.
         expect(appBridge.purchase).not.toHaveBeenCalled();
         expect(membershipMutate).not.toHaveBeenCalled();
     });
@@ -110,8 +110,8 @@ describe('useSubscriptionIap — 클라우드 소유를 위한 소셜 연동 가
         setSocial('unknown');
         const { result } = renderHook(() => useSubscriptionIap());
 
-        // 푸시 이벤트가 오지 않으므로 resolve되지 않는다. 중요한 것은 거절되지 않고
-        // 스토어 호출까지 갔다는 사실이다.
+        // No push event arrives, so this never resolves. What matters is that it wasn't rejected
+        // and got as far as the store call.
         void result.current.purchaseAndValidate(product);
 
         expect(appBridge.purchase).toHaveBeenCalledWith(expect.objectContaining({ id: 'plan-1' }));
@@ -132,7 +132,7 @@ describe('useSubscriptionIap — 클라우드 소유를 위한 소셜 연동 가
 
         const restored = await result.current.restorePurchases();
 
-        // 가드에 걸려 throw하지 않고, 서버 판정에 맡긴 뒤 0건으로 끝난다.
+        // Doesn't throw from the guard — it defers to the server's verdict and ends up with 0 restored.
         expect(restored).toBe(0);
         expect(appBridge.fetchCurrentPurchases).toHaveBeenCalled();
     });
@@ -157,7 +157,7 @@ describe('useSubscriptionIap — 등급 교체 페이로드', () => {
     afterEach(() => delete window.CHATIC_APP_PLATFORM);
 
     it('Android 등급 변경은 oldPlanId를 스토어까지 실어 보낸다', () => {
-        // 이 값이 없으면 네이티브가 교체가 아닌 신규 구매로 판정한다.
+        // Without this value, native treats it as a new purchase instead of a plan change.
         const { result } = renderHook(() => useSubscriptionIap());
 
         void result.current.purchaseAndValidate({ ...tierChange, oldPlanId: 'pro-tier-01' });
@@ -226,7 +226,8 @@ describe('useSubscriptionIap — 결제 기록', () => {
     it('사용자 취소는 info, 그 밖의 스토어 실패는 error로 가른다', () => {
         renderHook(() => useSubscriptionIap());
 
-        // 취소를 error로 적으면 퍼널을 오독하고, error가 앞당기는 업로드 flush까지 공짜로 따라온다.
+        // Logging a cancellation as error misreads the funnel, and would also drag in the upload
+        // flush that error logging triggers early, for free.
         mockPushHandlers.error?.({ data: { error: { code: 'user-cancelled' } } });
         expect(logger.info).toHaveBeenCalledWith('IAP', 'native purchase cancelled by user');
         expect(logger.error).not.toHaveBeenCalled();

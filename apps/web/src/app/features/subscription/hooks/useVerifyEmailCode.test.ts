@@ -25,7 +25,7 @@ const error = logger.error as jest.Mock;
 beforeEach(() => jest.clearAllMocks());
 
 describe('useVerifyEmailCode — 단계별 실패 기록 (ADR-0099)', () => {
-    // 네 다리가 한 훅·한 엔드포인트를 공유한다 — 단계가 없으면 어디가 끊겼는지 알 수 없다.
+    // All four legs share one hook and one endpoint — without a step, there's no telling where it broke.
     it('실패한 단계를 message와 data에 함께 남긴다', async () => {
         mutateAsync.mockRejectedValue(new Error('boom'));
         const { result } = renderHook(() => useVerifyEmailCode());

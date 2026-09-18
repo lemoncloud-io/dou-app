@@ -7,8 +7,8 @@ describe('formatPlanPrice', () => {
     });
 
     it('스토어 가격이 없으면 아무것도 내지 않는다 — 서버 USD로 지어내지 않는다', () => {
-        // 서버 price는 USD 참조값이라 원화로 바꿀 방법이 없고, 달러로 보여주면
-        // 원화로 청구되는 사용자에게 틀린 금액을 말하게 된다.
+        // The server's price is a USD reference value with no way to convert it to KRW, and showing
+        // dollars would tell a user billed in KRW the wrong amount.
         expect(formatPlanPrice(undefined)).toBeUndefined();
         expect(formatPlanPrice('')).toBeUndefined();
     });

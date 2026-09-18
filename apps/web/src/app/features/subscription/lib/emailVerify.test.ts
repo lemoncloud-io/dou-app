@@ -6,7 +6,8 @@ describe('isEmailVerifyRefusal', () => {
     });
 
     it('요청 실패는 매칭하지 않는다 — 그 메시지는 백엔드 문구다', () => {
-        // throwIfApiError는 서버 문자열을, axios는 자기 문구를 그대로 던진다. 둘 다 toast에 올리면 안 된다.
+        // throwIfApiError throws the server's string as-is, and axios throws its own message as-is.
+        // Neither should end up on a toast.
         expect(isEmailVerifyRefusal(new Error('403 FORBIDDEN - membership is not valid'))).toBe(false);
         expect(isEmailVerifyRefusal(new Error('Request failed with status code 500'))).toBe(false);
     });

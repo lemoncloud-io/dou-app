@@ -11,7 +11,7 @@ import { useDebugSettingsStore } from '../../stores';
  * - SetDebugMode: persist the unlock flag so the native debug overlay opens in
  *   PROD builds too (single 10-tap unlock covers both layers).
  * - FetchBootRecords / ClearBootRecords: read back and drop what the native side recorded. Added
- *   for ADR-0080 결정 11 — the Boot Performance screen moves to the web, and `SendBootMetrics`
+ *   for ADR-0080 Decision 11 — the Boot Performance screen moves to the web, and `SendBootMetrics`
  *   only goes web → app, so there was no way to read the merged records.
  */
 export const usePerfHandler = () => {

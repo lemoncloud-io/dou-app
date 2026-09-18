@@ -94,7 +94,8 @@ jest.mock('../../channels/components', () => ({
 jest.mock('../../../hooks', () => ({
     useMyProfile: () => ({ profile: { nick: '내프로필' } }),
     useHomeChannels: () => ({ channels: channelsValue, isLoading: false }),
-    // 이 화면은 join/안읽음을 앱 전체가 공유하는 관측에서 읽고, 커서 동기화만 스스로 등록한다.
+    // This screen reads join/unread from the observation the whole app shares, and registers only its
+    // own cursor sync.
     useActiveCloudData: () => ({
         channels: channelsValue,
         isLoaded: true,

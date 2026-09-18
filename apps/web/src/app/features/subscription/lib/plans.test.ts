@@ -91,7 +91,7 @@ describe('resolveMaxClouds', () => {
     });
 
     it('다른 플랫폼에서 결제한 멤버십도 해석된다 — 목록을 platform 필터 없이 받는 이유다', () => {
-        // 안드로이드 기기에서 로그인한 애플 구독자.
+        // An Apple subscriber signed in on an Android device.
         expect(resolveMaxClouds(catalog, '#pro_tier_05')).toBe(5);
     });
 
@@ -101,7 +101,7 @@ describe('resolveMaxClouds', () => {
     });
 
     it('멤버십의 product$(head)에는 maxClouds가 없으므로 그쪽을 보지 않는다', () => {
-        // 백엔드 asHead가 남기는 필드 전부. maxClouds가 없다.
+        // Every field the backend's asHead leaves behind. No maxClouds.
         const head = { id: '#pro-tier-02', name: 'DoU Pro 2', nameEn: 'DoU Pro 2', platform: 'google' };
 
         expect((head as ProductView).maxClouds).toBeUndefined();

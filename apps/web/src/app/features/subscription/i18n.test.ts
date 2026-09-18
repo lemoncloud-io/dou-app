@@ -94,7 +94,7 @@ const ADD_ACCOUNT_KEYS = [
     'addFailed',
     'success',
     'emailSkip',
-    // 개편된 인증 화면이 읽는 키
+    // Keys read by the redesigned verification screen
     'emailTitle',
     'emailSubtitle',
     'emailLabel',

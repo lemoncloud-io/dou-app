@@ -44,7 +44,8 @@ describe('ReactionChips — 메시지 하단 리액션 칩', () => {
         expect(onToggle).toHaveBeenCalledWith('👍', true);
     });
 
-    // ADR-0047 결정 1 — 두 번째 리액션이 첫 번째와 같은 비용(롱프레스 450ms + 시트)이 아니게 한다.
+    // ADR-0047 decision 1 — keeps a second reaction from costing the same as the first (long
+    // press 450ms + sheet).
     describe('추가 버튼 (+)', () => {
         it('칩이 없으면 줄 자체가 없으므로 + 도 나오지 않는다', () => {
             const { container } = render(
@@ -77,15 +78,17 @@ describe('ReactionChips — 메시지 하단 리액션 칩', () => {
             expect(onToggle).not.toHaveBeenCalled();
         });
 
-        // 눌림 상태를 갖지 않는다 — 칩 탭과 + 탭은 다른 행위이고 줄이 둘을 흐리면 안 된다.
+        // Has no pressed state — tapping a chip and tapping + are different actions, and the row
+        // must not blur the two together.
         it('+ 는 aria-pressed를 갖지 않는다', () => {
             render(<ReactionChips tallies={[tally()]} nameOf={nameOf} onToggle={jest.fn()} onAdd={jest.fn()} />);
             expect(screen.getByLabelText('chat.room.addReaction')).not.toHaveAttribute('aria-pressed');
         });
     });
 
-    // ADR-0047 개정 — 칩은 제스처 둘을 나눠 갖는다: 탭은 흔한 쪽(토글), 꾹 누르기는
-    // 반응자 상세. 하나의 제스처가 두 동작을 동시에 일으키면 안 된다.
+    // ADR-0047 revision — the chip splits into two gestures: a tap does the common thing
+    // (toggle), a long press shows reactor detail. One gesture must never trigger both actions
+    // at once.
     describe('칩 롱프레스 — 반응자 상세', () => {
         beforeEach(() => jest.useFakeTimers());
         afterEach(() => jest.useRealTimers());
@@ -110,7 +113,7 @@ describe('ReactionChips — 메시지 하단 리액션 칩', () => {
 
             press(screen.getByRole('button'));
 
-            // 표시 문자열(❤️)이 아니라 정규화된 fold key(❤) — 시트가 fold와 같은 기준으로 찾는다.
+            // The normalized fold key (❤), not the display string (❤️) — the sheet looks it up by the same fold criterion.
             expect(onShowReactors).toHaveBeenCalledWith('❤');
         });
 
@@ -122,7 +125,7 @@ describe('ReactionChips — 메시지 하단 리액션 칩', () => {
 
             const chip = screen.getByRole('button');
             press(chip);
-            fireEvent.click(chip); // 롱프레스 뒤에 따라오는 click
+            fireEvent.click(chip); // the click that follows a long press
             expect(onToggle).not.toHaveBeenCalled();
         });
 

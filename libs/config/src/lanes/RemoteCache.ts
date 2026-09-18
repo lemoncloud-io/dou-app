@@ -5,7 +5,7 @@
  * one with nothing behind them. A lane added later would change what every key resolves to, and
  * that change would happen quietly on devices already in people's hands — so the rows exist now
  * and simply supply nothing until an adapter arrives. When one does, neither the policy nor the
- * resolver changes by a line (ADR-0079 결정 10).
+ * resolver changes by a line (ADR-0079 decision 10).
  */
 export interface RemotePayload {
     /** Outside the range this client understands, the whole payload is ignored. */

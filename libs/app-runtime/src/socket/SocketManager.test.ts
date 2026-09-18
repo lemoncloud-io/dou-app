@@ -74,11 +74,13 @@ describe('SocketManager request facade', () => {
     });
 
     /**
-     * 서버의 `*:error` 프레임은 SDK가 프라미스만 reject하고 `onError`를 부르지 않는다. 그래서 이
-     * 파사드가 남기지 않으면 실패는 어디에도 남지 않는다 — 호출자가 react-query를 지날 때만
-     * 쿼리 캐시가 `GLOBAL`로 주웠고, sync 폴이나 명령형 호출은 흔적이 없었다.
+     * For a server `*:error` frame, the SDK only rejects the promise and never calls `onError`. So if
+     * this facade doesn't log it, the failure is left nowhere — only when the caller went through
+     * react-query did the query cache pick it up under `GLOBAL`; a sync poll or an imperative call
+     * left no trace at all.
      *
-     * 자세한 분류·볼륨 규칙은 socketFailureReporter.test.ts에 있다. 여기서 고정하는 건 배선이다.
+     * The detailed classification/volume rules live in socketFailureReporter.test.ts. What's pinned
+     * down here is the wiring.
      */
     it('records the failure on the way out — the facade is the only choke point', async () => {
         const client = makeClient();
@@ -87,8 +89,8 @@ describe('SocketManager request facade', () => {
 
         const manager = new SocketManager();
         manager.ensure(CONFIG, 'relay');
-        // 이 스위트의 beforeEach는 createClientSocketV2만 리셋한다 — 앞 케이스들도 이제 엔트리를
-        // 남기므로 여기서 직접 비운다.
+        // This suite's beforeEach only resets createClientSocketV2 — earlier cases now leave
+        // entries behind too, so clear it directly here.
         (logger.error as jest.Mock).mockClear();
 
         await expect(manager.request('join.get')).rejects.toThrow('404');
@@ -211,10 +213,11 @@ describe('SocketManager isVerified derivation', () => {
         expect(manager.getSnapshot().isVerified).toBe(false);
     });
 
-    // 서버는 디바이스가 아니라 "연결"을 인증한다: 재연결 직후의 소켓은 자기 auth.update가
-    // 도달하기 전까지 미인증이다. SDK AuthController는 전송 끊김에 상태를 방출하지 않으므로,
-    // 이 플래그를 직접 내리지 않으면 죽은 연결의 authenticated가 남아 재연결 순간
-    // isKindVerified가 true로 튀고, 거기에 물린 요청이 `401 UNAUTHORIZED - not authenticated`를 받는다.
+    // The server authenticates the "connection", not the device: a socket right after reconnect is
+    // unauthenticated until its own auth.update lands. The SDK's AuthController doesn't emit a state
+    // on a transport drop, so unless this flag is cleared directly, the dead connection's
+    // authenticated flag survives, isKindVerified spikes to true the instant it reconnects, and any
+    // request riding on it gets `401 UNAUTHORIZED - not authenticated`.
     it('재연결해도 새 핸드셰이크 전까지는 verified가 되지 않는다', () => {
         let stateCb: ((event: { next: string }) => void) | undefined;
         const client = makeClient({
@@ -230,14 +233,14 @@ describe('SocketManager isVerified derivation', () => {
         manager.setAuthenticated('relay', true);
         expect(manager.isKindVerified('relay')).toBe(true);
 
-        // 드롭 → 재연결: 인증은 아직 새 연결에서 이뤄지지 않았다.
+        // Drop → reconnect: authentication hasn't happened on the new connection yet.
         stateCb?.({ next: 'closed' });
         stateCb?.({ next: 'connecting' });
         stateCb?.({ next: 'connected' });
         expect(manager.isKindVerified('relay')).toBe(false);
         expect(manager.getSnapshot().isVerified).toBe(false);
 
-        // 새 연결의 auth.update가 성공하면(AuthController → setAuthenticated) 다시 verified.
+        // Once the new connection's auth.update succeeds (AuthController → setAuthenticated), it's verified again.
         manager.setAuthenticated('relay', true);
         expect(manager.isKindVerified('relay')).toBe(true);
     });
@@ -263,7 +266,7 @@ describe('SocketManager isVerified derivation', () => {
         stateCb?.({ next: 'closed' });
         stateCb?.({ next: 'connected' });
 
-        // useQuery({ enabled })류 소비자가 false→true 엣지를 재연결에서 잘못 얻으면 안 된다.
+        // A consumer like useQuery({ enabled }) must not get a false→true edge from a reconnect.
         expect(listener.mock.calls.map(([verified]) => verified)).toEqual([false, false]);
     });
 });
@@ -744,8 +747,9 @@ describe('SocketManager getScopedClient (kind-scoped routing)', () => {
         expect(() => scoped.request('device.update-remote', { muted: true })).toThrow(/no cloud slot/);
     });
 
-    // 서버가 relay 배포로만 보내는 unicast(cloud.activated)는 클라우드 세션 중에도 relay로 온다.
-    // active 구독이었다면 여기서 놓친다 — 그게 "클라우드 안에서 다음 클라우드 알림을 못 받는다"다.
+    // A unicast the server only ever sends over the relay deployment (cloud.activated) still arrives
+    // over relay even during a cloud session. An active-only subscription would miss it here — that's
+    // "can't hear about the next cloud while already inside a cloud".
     it('onSlotType은 active 슬롯이 cloud여도 relay 클라이언트에 붙는다', () => {
         const relay = makeClient();
         const cloud = makeClient();
@@ -779,8 +783,8 @@ describe('SocketManager getScopedClient (kind-scoped routing)', () => {
         expect(second.onType).toHaveBeenCalledWith('cloud.activated', listener);
     });
 
-    // request와 반대다. 구독은 "이 슬롯이 생기면 붙여라"는 선언이고, relay 슬롯은 부팅 중 잠깐 비어
-    // 있다 — 그때 throw하면 소비자가 마운트 순서에 묶인다.
+    // The opposite of request. A subscription declares "attach once this slot exists", and the relay
+    // slot is briefly empty during boot — throwing there would tie consumers to mount order.
     it('슬롯 미바인드 시 throw하지 않고 대기했다가 바인드 시 붙는다', () => {
         const relay = makeClient();
         mockedCreate.mockReturnValueOnce(relay);
@@ -906,7 +910,7 @@ describe('SocketManager 재연결 진단 (ADR-0099)', () => {
         );
     });
 
-    // 포기는 종단이다 — 이 줄이 없으면 "그냥 조용한 슬롯"과 "영구히 죽은 슬롯"이 구분되지 않는다.
+    // Giving up is terminal — without this line, "just a quiet slot" and "permanently dead slot" can't be told apart.
     it('재연결 포기를 error로 남긴다', () => {
         const onGiveUp = jest.fn().mockReturnValue(jest.fn());
         bindWithReconnect({ onGiveUp });
@@ -920,8 +924,8 @@ describe('SocketManager 재연결 진단 (ADR-0099)', () => {
         );
     });
 
-    // 이 콜백들은 SDK가 공개한 ReconnectController 인터페이스에 없다(start/stop/restart뿐).
-    // 컨트롤러가 교체되면 조용히 사라지므로, 없을 때 죽지 않아야 한다.
+    // These callbacks aren't in the SDK's public ReconnectController interface (only start/stop/restart).
+    // They quietly disappear whenever the controller is swapped out, so this must not throw when they're absent.
     it('컨트롤러가 없거나 콜백을 노출하지 않으면 조용히 건너뛴다', () => {
         expect(() => bindWithReconnect({})).not.toThrow();
 

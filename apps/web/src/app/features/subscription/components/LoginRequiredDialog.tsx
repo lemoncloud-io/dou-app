@@ -11,7 +11,7 @@ interface LoginRequiredDialogProps {
 /**
  * Asks before sending a guest to login (Figma 2870-33015).
  *
- * The flow used to navigate the moment a guest tapped 구독하기, which reads as the app losing their
+ * The flow used to navigate the moment a guest tapped Subscribe, which reads as the app losing their
  * place mid-decision. Confirming first keeps the choice theirs.
  */
 export const LoginRequiredDialog = ({ open, onOpenChange, onConfirm }: LoginRequiredDialogProps) => {

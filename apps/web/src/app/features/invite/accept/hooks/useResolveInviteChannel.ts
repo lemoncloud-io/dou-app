@@ -5,9 +5,9 @@ import { useAwaitInviteChannel, useRelayInviteMutations } from '../../../../hook
 /**
  * Delays before each tier-2 `invite.get` probe, applied before the probe it precedes.
  *
- * The first is 0: `InviteModel.channelId` is documented as "수락으로 생긴 dm 방", and a re-invite
- * reuses an existing room (05-client-guide §제약), so the field can already be filled by the time we
- * ask. The second covers a room that lands a moment later.
+ * The first is 0: `InviteModel.channelId` is documented as "the dm room created by acceptance", and a
+ * re-invite reuses an existing room (05-client-guide §Constraints), so the field can already be filled
+ * by the time we ask. The second covers a room that lands a moment later.
  *
  * Kept to two on purpose. Tier 3 watches actual channel rows and is the more robust mechanism, but it
  * only starts once probing gives up — so every extra probe both delays the answer and postpones the
@@ -35,11 +35,11 @@ const sleep = (ms: number): Promise<void> =>
 /**
  * Resolves the DM room an accepted relay invite creates, in three tiers (ADR-0035).
  *
- * The room is created asynchronously — "초대는 코드만 만든다. 방은 수락 순간 생긴다" — so whether
- * `invite.accept` answers with the id depends on how far the backend has got (05-client-guide §미구현).
- * Rather than assume, this reads the value if it is already there and only then falls back to the
- * slower, broader mechanisms. The guide names both fallbacks: "채널 목록이 갱신되기를 기다리거나
- * 다시 조회한다".
+ * The room is created asynchronously — "an invite creates only the code; the room is created the
+ * moment it's accepted" — so whether `invite.accept` answers with the id depends on how far the
+ * backend has got (05-client-guide §Not Implemented). Rather than assume, this reads the value if it
+ * is already there and only then falls back to the slower, broader mechanisms. The guide names both
+ * fallbacks: "wait for the channel list to refresh, or query it again".
  *
  * 1. the accept response's `channelId` (no wait at all)
  * 2. `invite.get` probes on {@link CHANNEL_PROBE_DELAYS_MS}

@@ -111,7 +111,7 @@ describe('useChats — 메시지 매핑/정렬/페이징', () => {
 
         const { result } = renderHook(() => useChats({ channelId: 'c1', limit: 100 }));
 
-        // chatNo 0(pending)이 맨 앞으로 밀리지 않고, 커밋된 1,2 뒤에 온다.
+        // chatNo 0 (pending) doesn't get pushed to the front — it comes after the committed 1, 2.
         expect(result.current.messages.map(m => m.id)).toEqual(['a', 'b', 'p']);
     });
 
@@ -197,8 +197,8 @@ describe('useChats — loadUntil (점프용 캐시 윈도우 확장)', () => {
     const lastObserveLimit = () => chatObserveList.mock.calls[chatObserveList.mock.calls.length - 1][0].limit;
 
     it('캐시된 과거 메시지를 창 안으로 들이고, 서버를 부르지 않는다', async () => {
-        // 창(100)보다 훨씬 뒤에 있는 chatNo 로 점프. 서버 페이징은 한 번에 50행씩이라
-        // 예산(8페이지) 안에 닿지 못했던 거리다.
+        // Jumping to a chatNo far past the window (100). Server paging fetches 50 rows at a
+        // time, so this distance couldn't be reached within the budget (8 pages).
         seedChats([chat({ id: 'newest', chatNo: 1000, ownerId: 'u1', createdAtMs: 1000 })]);
 
         const { result } = renderHook(() => useChats({ channelId: 'c1', limit: 100 }));
@@ -240,8 +240,9 @@ describe('useChats — loadUntil (점프용 캐시 윈도우 확장)', () => {
     });
 
     it('확장된 창이 "대화 시작 도달" 판정을 흔들지 않는다', async () => {
-        // 캐시에 1행뿐이라 창을 크게 넓히면 chats.length < pageLimit 가 참이 되어버린다 —
-        // 점프용 확장은 pageLimit 이 아닌 별도 축이어야 한다.
+        // With only 1 row in the cache, widening the window a lot would make
+        // chats.length < pageLimit true — the jump-driven expansion has to be a separate axis
+        // from pageLimit.
         seedChats([chat({ id: 'newest', chatNo: 1000, ownerId: 'u1', createdAtMs: 1000 })]);
 
         const { result } = renderHook(() => useChats({ channelId: 'c1', limit: 1 }));
@@ -282,9 +283,11 @@ describe('useChats — 재입장 이력 숨기기 (ADR-0067)', () => {
     });
 
     it('rawChats에서도 빠진다 — 재입장 유저에게 "대화의 시작"이 잘못 뜨지 않는다', () => {
-        // ChannelRoomPage는 `rawChats.some(chat => chat.chatNo === 1)`로 RoomIntro를 켠다. 캐시에
-        // 남은 퇴장 전 1번 행이 여기 보이면, 중간에 재입장한 사람에게만 대화 시작 블록이 뜬다 —
-        // 처음 초대받은 사람은 못 보는 것을. 리액션 폴딩·스레드 구성도 같은 목록을 읽는다.
+        // ChannelRoomPage turns on RoomIntro via `rawChats.some(chat => chat.chatNo === 1)`. If
+        // the pre-departure row #1 left over in the cache showed up here, the "start of
+        // conversation" block would appear only for someone who rejoined partway through — not
+        // for the person who was originally invited. Reaction folding and thread construction
+        // read the same list too.
         seedChats([
             chat({ id: 'first', chatNo: 1, ownerId: 'u1', createdAtMs: 100 }),
             chat({ id: 'new', chatNo: 8, ownerId: 'u1', createdAtMs: 800 }),

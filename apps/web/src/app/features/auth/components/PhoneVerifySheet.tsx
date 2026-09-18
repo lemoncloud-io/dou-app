@@ -14,7 +14,7 @@ import { PhoneVerifyFields } from './PhoneVerifyFields';
  * `IconClose`), so no new ui-kit component or icon asset is needed.
  *
  * Unlike `PhoneVerifyScreen` this omits the account-split banner — the backend guide mandates that
- * warning on the ACCEPT screen, and the issue-side design leaves it out (ADR-0034 결정 4).
+ * warning on the ACCEPT screen, and the issue-side design leaves it out (ADR-0034 decision 4).
  */
 export const PhoneVerifySheet = (props: PhoneVerifyShellProps) => {
     const { t } = useTranslation();

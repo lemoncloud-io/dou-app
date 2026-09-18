@@ -38,7 +38,7 @@ export const ProfileEditPage = () => {
     const [imageUrl, setImageUrl] = useState(profile?.photo || '');
     const [imageSizeError, setImageSizeError] = useState(false);
 
-    // profile 로드 시 초기값 고정 및 state 동기화
+    // Fix the initial values and sync state once the profile loads
     useEffect(() => {
         if (profile && !initialRef.current.initialized) {
             const initName = profile.name || '';

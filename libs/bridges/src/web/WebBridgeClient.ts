@@ -16,8 +16,8 @@ import {
 import { BRIDGE_PROTOCOL_VERSION } from '../version';
 
 /**
- * 웹(Web) 런타임 환경에서 동작하는 브릿지 클라이언트 핵심 구현 클래스입니다.
- * 네이티브 채널의 준비 여부를 감지하고, 비동기 요청(Request-Response) 및 이벤트 리스너 구독을 총괄합니다.
+ * The core implementation class of the bridge client that runs in the Web runtime environment.
+ * Detects whether the native channel is ready and oversees both async requests (Request-Response) and event listener subscriptions.
  */
 export class WebBridgeClient implements IWebBridgeClient {
     private adapter: BridgeAdapter;
@@ -27,23 +27,23 @@ export class WebBridgeClient implements IWebBridgeClient {
     private isBridgeAvailable: () => boolean;
     private environment?: EnvironmentConfig;
 
-    /** 수신된 네이티브 이벤트를 라우팅할 리스너 맵 */
+    /** The listener map that routes incoming native events */
     private eventListeners = new Map<string, Set<(message: any) => void>>();
-    /** 현재 응답을 대기 중인 펜딩 요청 맵 (key: refId) */
+    /** The map of pending requests currently awaiting a response (key: refId) */
     private pendingRequests = new Map<string, PendingRequest>();
 
-    /** 브릿지 채널 준비 완료 상태 플래그 */
+    /** The bridge channel readiness state flag */
     private isReady = false;
-    /** 브릿지 준비 대기 타임아웃 만료로 준비 실패했는지의 여부 */
+    /** Whether readiness failed because the bridge-ready timeout expired */
     private availabilityFailed = false;
-    /** 브릿지가 준비되기 전까지 요청들을 임시 보관하는 인메모리 버퍼 */
+    /** The in-memory buffer that temporarily holds requests until the bridge is ready */
     private pendingBuffer: IMessageQueue<RequestMessage>;
 
-    /** 어댑터 메시지 수신 해제 콜백 */
+    /** The callback that unsubscribes from adapter messages */
     private unsubscribeAdapter?: () => void;
-    /** 네이티브 브릿지 유무 감지용 폴링 타이머 ID */
+    /** The polling timer ID used to detect the native bridge's presence */
     private detectionIntervalId?: ReturnType<typeof setInterval>;
-    /** 네이티브 브릿지 준비 대기 한계 시간 타임아웃 ID */
+    /** The timeout ID for the native-bridge-readiness wait deadline */
     private detectionTimeoutId?: ReturnType<typeof setTimeout>;
 
     constructor(config: WebBridgeClientConfig) {
@@ -55,15 +55,15 @@ export class WebBridgeClient implements IWebBridgeClient {
         this.pendingBuffer = config.pendingBuffer ?? new MessageQueue();
         this.environment = config.environment;
 
-        // 어댑터로부터 들어오는 메시지 수신 리스너를 바인딩하고 해제 함수를 저장합니다.
+        // Binds the listener that receives incoming messages from the adapter and stores the unsubscribe function.
         this.unsubscribeAdapter = this.adapter.onMessage(this.handleMessage);
 
-        // 네이티브 브릿지 감지 감시 가동
+        // Starts watching for the native bridge.
         this.initBridgeDetection();
     }
 
     /**
-     * [Internal] 브라우저 전역 객체(window)의 각 플랫폼별 브릿지 주입 여부를 실시간 확인합니다.
+     * [Internal] Checks in real time whether the bridge is injected for each platform on the browser global object (window).
      */
     private checkNativeBridgeAvailable = (): boolean => {
         if (typeof window === 'undefined') return false;
@@ -75,24 +75,24 @@ export class WebBridgeClient implements IWebBridgeClient {
     };
 
     /**
-     * [Internal] 브릿지가 아직 감지되지 않았다면 감지될 때까지 폴링 루프를 실행합니다.
-     * SSR(Server-Side) 환경에서는 즉시 준비 실패(NATIVE_NOT_SUPPORTED)로 상태를 마감합니다.
+     * [Internal] Runs a polling loop until the bridge is detected, if it hasn't been detected yet.
+     * In an SSR (server-side) environment, immediately closes out the state as a readiness failure (NATIVE_NOT_SUPPORTED).
      */
     private initBridgeDetection(): void {
-        // 1. SSR 환경 대응: window가 존재하지 않으면 대기 없이 즉시 실패 처리하여 타이머 리소스 방지
+        // 1. Handle SSR: if window doesn't exist, fail immediately without waiting, to avoid wasting timer resources
         if (typeof window === 'undefined') {
             this.failBufferedRequests();
             return;
         }
 
-        // 2. 이미 브릿지가 사용 가능하면 즉시 ready 처리
+        // 2. If the bridge is already available, become ready immediately
         if (this.isBridgeAvailable()) {
             this.isReady = true;
             this.flushBuffer();
             return;
         }
 
-        // 3. 브릿지가 생길 때까지 50ms 간격으로 감지 폴링 가동
+        // 3. Start detection polling every 50ms until the bridge appears
         this.detectionIntervalId = setInterval(() => {
             if (this.isBridgeAvailable()) {
                 this.clearDetectionTimers();
@@ -101,7 +101,7 @@ export class WebBridgeClient implements IWebBridgeClient {
             }
         }, 50);
 
-        // 4. 감지 대기 타임아웃(기본 10초) 가동
+        // 4. Start the detection wait timeout (10s by default)
         this.detectionTimeoutId = setTimeout(() => {
             this.clearDetectionTimers();
             if (!this.isReady) {
@@ -111,7 +111,7 @@ export class WebBridgeClient implements IWebBridgeClient {
     }
 
     /**
-     * [Internal] 감시용 타이머 리소스를 안전하게 초기화합니다.
+     * [Internal] Safely clears the watch timer resources.
      */
     private clearDetectionTimers(): void {
         if (this.detectionIntervalId) {
@@ -125,14 +125,14 @@ export class WebBridgeClient implements IWebBridgeClient {
     }
 
     /**
-     * [Internal] 브릿지가 활성화되었을 때 대기 큐(Buffer)에 누적되어 있던 메시지들을 네이티브로 방출합니다.
+     * [Internal] Emits the messages accumulated in the pending queue (buffer) out to native once the bridge becomes active.
      */
     private flushBuffer(): void {
         while (!this.pendingBuffer.isEmpty()) {
             const message = this.pendingBuffer.dequeue();
             if (message) {
                 const refId = message.refId;
-                // request 타입의 요청은 타이머를 가동해야 하므로 dispatchRequest로 위임
+                // A request-type message needs its timer started, so delegate to dispatchRequest
                 if (refId && this.pendingRequests.has(refId)) {
                     this.dispatchRequest(message);
                 } else {
@@ -143,7 +143,7 @@ export class WebBridgeClient implements IWebBridgeClient {
     }
 
     /**
-     * [Internal] 요청 메시지를 실제로 어댑터로 발송하고, 해당 요청의 타임아웃 카운트를 개시합니다.
+     * [Internal] Actually sends the request message to the adapter and starts that request's timeout countdown.
      */
     private dispatchRequest(message: RequestMessage): void {
         const refId = message.refId;
@@ -151,7 +151,7 @@ export class WebBridgeClient implements IWebBridgeClient {
         if (refId) {
             const pending = this.pendingRequests.get(refId);
             if (pending) {
-                // 버퍼에 쌓여있던 요청은 실제로 디스패치된 직후부터 타임아웃 대기를 시작합니다.
+                // A request that had been sitting in the buffer starts its timeout wait only once it's actually dispatched.
                 pending.timeoutId = setTimeout(() => {
                     this.pendingRequests.delete(refId);
                     pending.reject({
@@ -225,7 +225,7 @@ export class WebBridgeClient implements IWebBridgeClient {
                 return;
             }
 
-            // 시뮬레이션: 응답 타입 불일치 가짜 주입 유도
+            // Simulation: force injection of a fake response-type mismatch
             if (this.environment?.responseTypeMismatch && message.success) {
                 const mismatchType =
                     typeof this.environment.responseTypeMismatch === 'string'
@@ -240,13 +240,13 @@ export class WebBridgeClient implements IWebBridgeClient {
 
             this.handleResponse(message as ResponseMessage);
         } else {
-            // 펜딩에 존재하지 않거나 단방향 데이터인 경우 이벤트로 처리
+            // Treated as an event when it isn't in the pending map, or when it's one-way data
             this.handleEvent(message as EventMessage);
         }
     }
 
     /**
-     * [Internal] 매칭된 펜딩 요청의 수명을 종료하고 약속(Promise)을 이행(resolve/reject)시킵니다.
+     * [Internal] Ends the lifetime of the matched pending request and settles (resolve/reject) its promise.
      */
     private handleResponse(message: ResponseMessage): void {
         const refId = message.refId;
@@ -255,19 +255,19 @@ export class WebBridgeClient implements IWebBridgeClient {
         const pending = this.pendingRequests.get(refId);
         if (!pending) return;
 
-        // 타임아웃 감시 정지
+        // Stop the timeout watch
         if (pending.timeoutId) {
             clearTimeout(pending.timeoutId);
         }
         this.pendingRequests.delete(refId);
 
-        // 앱/네이티브 비즈니스 로직 에러 수신 시 거절 처리
+        // Reject on receiving an app/native business-logic error
         if (!message.success) {
             pending.reject(message.error);
             return;
         }
 
-        // 런타임 프로토콜 가드: 약속된 응답 유형과 다른 결과물이 온 경우 차단
+        // Runtime protocol guard: block if the result differs from the promised response type
         if (message.type !== pending.expectedResponseType) {
             pending.reject(
                 this.createResponseTypeMismatchError(
