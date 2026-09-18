@@ -234,6 +234,8 @@ export const ChannelRoomPage = () => {
         isDm: isDmChat,
         peerId: dmPeer?.id,
         joins,
+        channel,
+        userId,
     });
     // One flag behind both the footer and the composer lock, so they cannot disagree about whether
     // there is anyone to talk to.

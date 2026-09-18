@@ -1,5 +1,7 @@
 import type { DomainChannel, DomainJoin } from '@chatic/data';
 
+import { pickDmPeerId } from './dmPeer';
+
 /**
  * Whether a join row belongs to somebody who is no longer in the channel.
  *
@@ -26,6 +28,36 @@ type MembershipJoin = Pick<DomainJoin, 'joined' | 'joinedNo' | 'reason'>;
 
 export const hasLeftChannel = (join?: MembershipJoin | null): boolean =>
     !!join && join.joined === 0 && (!!join.joinedNo || !!join.reason);
+
+/**
+ * Whether a 1:1's peer is gone from the roster entirely.
+ *
+ * `hasLeftChannel` answers "did this join row end?" and needs a join row to read. It cannot answer
+ * the case measured on 2026-09-18: when the peer leaves a DM, the server drops them from
+ * `channel.memberIds` AND stops returning their join row. There is no row left to judge, so the
+ * peer simply disappears — `useDmPeer` returns `null`, nothing computes "the peer left", and the
+ * room stays open with a live composer for a conversation nobody is on the other end of.
+ *
+ * `keepLeftMembers` does not help here. It un-filters departed members from the join list; it
+ * cannot restore a row the server never sent.
+ *
+ * **This is not a member-count heuristic.** A DM is two people by definition, so "the roster holds
+ * only me" is the server's own statement that the other one is gone, not an inference from a
+ * number. The count is never compared — the peer is looked for by id, exactly as `useDmPeer` does.
+ *
+ * Requires a HYDRATED roster, and that distinction is the whole reason this is not just
+ * `!peerId`: an empty or absent `memberIds` means "not loaded yet", and treating that as departure
+ * would lock the composer for a beat every time a healthy room opens cold.
+ */
+export const isDmPeerMissing = (
+    channel: Pick<DomainChannel, 'stereo' | 'memberIds'> | null | undefined,
+    userId: string | null | undefined
+): boolean => {
+    if (channel?.stereo !== 'dm' || !userId) return false;
+    const roster = channel.memberIds;
+    if (!roster?.length) return false;
+    return !pickDmPeerId(roster, userId);
+};
 
 type RosterChannel = Pick<DomainChannel, 'memberIds'>;
 type SelfChatChannel = Pick<DomainChannel, 'stereo' | 'ownerId'>;
