@@ -7,6 +7,8 @@
 
 import { useEffect, useState, useCallback } from 'react';
 
+import { decodeInviteLink, isEncodedInviteUrl } from '@chatic/shared';
+
 import { WEB_CONFIG } from '../constants';
 
 import type { DeepLinkInfo } from '../types';
@@ -57,6 +59,38 @@ export const useWebRedirect = (deepLinkInfo: DeepLinkInfo, autoRedirect: boolean
     const shortCode = extractShortCode(deepLinkInfo.fullPath);
 
     const redirect = useCallback(async () => {
+        // Ahead of the `/s` branch and never meeting it: the two link formats are parsed by
+        // different rules on purpose. `/s` reads a missing address as relay; `/i` carries an
+        // explicit `r` flag and must not inherit that inference.
+        if (isEncodedInviteUrl(deepLinkInfo.deepLinkUrl)) {
+            setLoading(true);
+            const target = decodeInviteLink(deepLinkInfo.deepLinkUrl);
+            if (!target) {
+                // Ours, but unreadable — same dead end as an unparsed `/s`, and deliberately not an
+                // exception: the catch below would only clear the spinner and say nothing.
+                console.error('[WebRedirect] Unreadable encoded invite link');
+                setLoading(false);
+                return;
+            }
+
+            const query = [`code=${encodeURIComponent(target.code)}`, 'provider=invite', 'version=2'];
+            if (target.relay) {
+                query.push('relay=1');
+            } else if (target.backend) {
+                query.push(`_backend=${encodeURIComponent(target.backend)}`);
+            }
+            // Neither marker means a cloud invite whose payload carried no coordinates. It is handed
+            // on as-is rather than guessed at: reading it as relay would send the invitee to the
+            // wrong server, and the web owns the decision about where an address-less invite lands.
+
+            const webBase = `${WEB_CONFIG.protocol}://${WEB_CONFIG.domain}`;
+            const redirectUrl = `${webBase}/auth/login?${query.join('&')}`;
+
+            console.log('[WebRedirect] Direct redirect for encoded invite link:', redirectUrl);
+            window.location.href = redirectUrl;
+            return;
+        }
+
         if (isNewPattern(deepLinkInfo.deepLinkUrl)) {
             setLoading(true);
             try {
@@ -101,7 +135,8 @@ export const useWebRedirect = (deepLinkInfo: DeepLinkInfo, autoRedirect: boolean
     // Auto-redirect when enabled
     useEffect(() => {
         const isNew = isNewPattern(deepLinkInfo.deepLinkUrl);
-        if (autoRedirect && (shortCode || isNew)) {
+        const isEncoded = isEncodedInviteUrl(deepLinkInfo.deepLinkUrl);
+        if (autoRedirect && (shortCode || isNew || isEncoded)) {
             void redirect();
         }
     }, [autoRedirect, shortCode, redirect, deepLinkInfo]);
