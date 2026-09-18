@@ -84,7 +84,7 @@ describe('useInviteCountdown', () => {
         const { result } = renderHook(() => useInviteCountdown(NOW + 3 * DAY + 5 * MINUTE));
         expect(result.current).toMatchObject({ days: 3, hours: 0, minutes: 5 });
 
-        // A second passing changes nothing: above a day the card shows "n일 n시간", so re-evaluating
+        // A second passing changes nothing: above a day the card shows "n days n hours", so re-evaluating
         // every second would be 60 renders a minute for a string that turns over once an hour.
         act(() => {
             jest.advanceTimersByTime(SECOND);

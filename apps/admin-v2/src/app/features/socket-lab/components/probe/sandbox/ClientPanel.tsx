@@ -197,7 +197,7 @@ export default function ClientPanel({ c, ctrl, onRemove }: ClientPanelProps) {
                     gap: 9,
                 }}
             >
-                {/* WS 연결/해제 전용 버튼 (토큰 무관) */}
+                {/* Button dedicated to WS connect/disconnect (independent of the token) */}
                 {connecting ? (
                     <button
                         disabled
@@ -239,7 +239,7 @@ export default function ClientPanel({ c, ctrl, onRemove }: ClientPanelProps) {
                     </button>
                 )}
 
-                {/* 토큰 — 연결 후에만 입력, 옆에 적용(Enter) 버튼 = 선택적 인증 */}
+                {/* Token — entered only after connecting; the Apply (Enter) button next to it is optional auth */}
                 <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.06em', color: 'var(--sm-text-5)' }}>
                     USER TOKEN {verified ? <span style={{ color: '#3fb950' }}>· verified</span> : null}
                 </span>

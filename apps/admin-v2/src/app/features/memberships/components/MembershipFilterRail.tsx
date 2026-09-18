@@ -9,7 +9,7 @@
  *
  * They are still sent, so the screen starts narrowing server-side the moment that is fixed, and
  * they are applied here in the meantime. The rail says which is happening rather than letting an
- * operator read "3건" and believe it came from the whole table.
+ * operator read "3 items" and believe it came from the whole table.
  *
  * The text fields hold their own state and settle into the URL on a delay: without it every
  * keystroke writes a URL and re-runs the query.

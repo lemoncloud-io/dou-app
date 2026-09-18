@@ -13,7 +13,7 @@ export interface BenefitItemProps {
 }
 
 /**
- * Subscription benefit row — the Figma "구독 혜택" item: a leading icon with a
+ * Subscription benefit row — the Figma "subscription benefit" item: a leading icon with a
  * title, and a description line beneath.
  */
 export const BenefitItem = ({ icon, title, description, className }: BenefitItemProps) => {

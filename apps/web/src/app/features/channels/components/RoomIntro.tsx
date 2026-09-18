@@ -49,7 +49,7 @@ export const RoomIntro = ({ variant, peerNick, isGroupOwner = false, onInvite }:
         );
     }
 
-    // "그룹방을 만들었습니다" is the creator's own line, so a member who merely joined sees nothing.
+    // "You created the group chat" is the creator's own line, so a member who merely joined sees nothing.
     if (!isGroupOwner) return null;
 
     return (

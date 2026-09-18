@@ -91,7 +91,7 @@ export type OnSetDebugModePayload = {
  * [Request] Read back what the native side recorded.
  *
  * `SendBootMetrics` only goes web → app, so until now nothing could read the merged records; the
- * app's own Boot Performance screen was the only viewer (ADR-0080 결정 11 moves that to the web).
+ * app's own Boot Performance screen was the only viewer (ADR-0080 decision 11 moves that to the web).
  */
 export type FetchBootRecordsPayload = {
     // Empty object type, reserved for future extension.

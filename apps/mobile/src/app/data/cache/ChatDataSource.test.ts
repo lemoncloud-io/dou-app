@@ -43,14 +43,14 @@ describe('ChatDataSource.fetchLastPerChannel (ADR-0057)', () => {
 
         const calls = (sqlite.execute as jest.Mock).mock.calls;
         expect(calls).toHaveLength(3);
-        // 커밋 프로브: 프리뷰 판정(SQL)과 최신순 1건이 전부 쿼리 안에 있어야 한다.
+        // Committed probe: the previewable check (SQL) and "1 latest row" must all be in the query.
         expect(String(calls[0][0])).toContain('chat_no > 0');
         expect(String(calls[0][0])).toContain(`json_extract(data, '$.parentId') IS NULL`);
         expect(String(calls[0][0])).toContain(`<> 'system'`);
         expect(String(calls[0][0])).toContain(`<> 'reaction'`);
         expect(String(calls[0][0])).toContain('ORDER BY chat_no DESC LIMIT 1');
         expect(calls[0][1]).toEqual(['c1', 'u1', 'ch-1']);
-        // 미전송 프로브와 MAX 프로브도 같은 스코프로 나간다.
+        // The unsent probe and the MAX probe also go out with the same scope.
         expect(String(calls[1][0])).toContain('chat_no = 0');
         expect(String(calls[2][0])).toContain('MAX(chat_no)');
         expect(calls[2][1]).toEqual(['c1', 'u1', 'ch-1']);
@@ -72,7 +72,7 @@ describe('ChatDataSource.fetchLastPerChannel (ADR-0057)', () => {
 
         const result = await dataSource.fetchLastPerChannel(['ch-1'], 'c1', 'u1');
 
-        // 미전송끼리는 createdAt 최신이 이긴다.
+        // Among unsent messages, the most recent createdAt wins.
         expect(result[0]?.item).toEqual(expect.objectContaining({ id: 'pending-new' }));
         expect(result[0]?.lastNo).toBe(9);
     });
@@ -84,7 +84,7 @@ describe('ChatDataSource.fetchLastPerChannel (ADR-0057)', () => {
         (sqlite.execute as jest.Mock)
             .mockResolvedValueOnce({ rows: [] })
             .mockResolvedValueOnce({ rows: [] })
-            // SQLite의 MAX()는 행이 없으면 NULL 한 행을 돌려준다.
+            // SQLite's MAX() returns a single row with NULL when there are no rows.
             .mockResolvedValueOnce({ rows: [{ last_no: null }] });
 
         const result = await dataSource.fetchLastPerChannel(['ch-1'], 'c1', 'u1');
@@ -101,7 +101,7 @@ describe('ChatDataSource.fetchLastPerChannel (ADR-0057)', () => {
 
         (sqlite.execute as jest.Mock).mockResolvedValue({ rows: [] });
         await dataSource.fetchLastPerChannel(['ch-1', 'ch-1', ''], 'c1', 'u1');
-        // 유일 채널 1개 × 3프로브.
+        // 1 unique channel × 3 probes.
         expect(sqlite.execute).toHaveBeenCalledTimes(3);
     });
 });
@@ -116,8 +116,8 @@ describe('ChatDataSource.clearByChannel (ADR-0067)', () => {
 
         const [sql, params] = (sqlite.execute as jest.Mock).mock.calls[0];
         expect(sql).toBe(`DELETE FROM ${TABLE} WHERE channel_id = ? AND cid = ? AND uid = ?`);
-        // 같은 기기의 다른 클라우드·다른 계정에 같은 채널 id가 있을 수 있다 — 방 하나를 나간 것이
-        // 그쪽 이력까지 지울 이유는 없다.
+        // The same device's other cloud accounts or other users could share the same channel id —
+        // leaving one room shouldn't wipe their history too.
         expect(params).toEqual(['ch-1', 'c1', 'u1']);
     });
 

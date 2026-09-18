@@ -17,7 +17,7 @@ export interface SelectableUserItemProps {
 }
 
 /**
- * Selectable user row — the Figma "친구초대 리스트" item: an avatar + name + round
+ * Selectable user row — the Figma "friend invite list" item: an avatar + name + round
  * checkbox. Composed from ProfileAvatar + Checkbox. The whole row is the control
  * (single accessible checkbox); the inner Checkbox is a visual indicator.
  */

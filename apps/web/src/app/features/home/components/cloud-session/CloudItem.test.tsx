@@ -79,7 +79,7 @@ describe('CloudItem — 실패한 클라우드', () => {
     });
 
     it('error 필드가 비어 있어도 실패 문장은 그대로 보인다', () => {
-        // 서버는 정리된 행에 `error: null`을 실어 보낸다 — CloudView 타입은 string|undefined다.
+        // The server sends `error: null` on a cleaned-up row — the CloudView type is string|undefined.
         renderItem({ ...failed, error: undefined });
 
         expect(screen.getByText('cloudSessionSheet.statusErrorDescription')).toBeInTheDocument();

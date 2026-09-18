@@ -7,7 +7,7 @@ import { appBridge } from '../bridge';
  * Registry keys absorbed from the legacy `PREFERENCES` bridge (see `libs/config/src/registry/ui.ts`)
  * that still have an old-shell equivalent — an app build that predates `SaveConfigValue`/
  * `ClearConfigValue` can still persist these four through the bridge it already understands.
- * `debugSettings`, the 5th legacy key, has no config-key equivalent: ADR-0080 결정 13 deleted the
+ * `debugSettings`, the 5th legacy key, has no config-key equivalent: ADR-0080 decision 13 deleted the
  * one capability it carried (`webviewBaseUrlOverride`) outright rather than migrating it.
  */
 const LEGACY_PREFERENCE_KEY: Readonly<Partial<Record<string, PreferenceKey>>> = {
@@ -46,7 +46,7 @@ export const resetConfigKvSupport = (): void => {
  * answer — the same reasoning that has `CHATIC_APP_THEME` seed the pre-paint theme read.
  *
  * `write`/`clear` degrade to the legacy `SavePreference`/`DeletePreference` bridge on a `NOT_FOUND`
- * from an app build that predates this one (web ships before the app — see ADR-0079 §맥락), but only
+ * from an app build that predates this one (web ships before the app — see ADR-0079 §context), but only
  * for the four registry keys with a legacy equivalent (`LEGACY_PREFERENCE_KEY`). A key with no legacy
  * equivalent has nothing to fall back to, so `ConfigFacade`'s own confirmed-write retry — and,
  * failing that, `onShellWriteFailed` — is the correct outcome for those.

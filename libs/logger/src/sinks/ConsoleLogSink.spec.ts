@@ -75,8 +75,8 @@ describe('ConsoleLogSink — timestamps 옵션', () => {
     });
 
     it('켜면 발생 시각을 앞에 붙인다 — 도착 시각이 아니다', () => {
-        // 앱 터미널은 릴레이된 웹 엔트리를 나중에 받는다. 도착 순서로 읽으면
-        // 병합 타임라인이 뒤틀리고, 그걸 보려고 통합한 것이므로 의미가 없어진다.
+        // The app terminal receives relayed web entries late. Reading them in arrival order
+        // would distort the merged timeline, defeating the whole point of merging them.
         const at = new Date(2026, 0, 2, 3, 4, 5).getTime();
 
         new ConsoleLogSink({ timestamps: true }).handle({

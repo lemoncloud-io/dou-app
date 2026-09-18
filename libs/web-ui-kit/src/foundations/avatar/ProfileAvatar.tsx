@@ -31,7 +31,7 @@ export interface ProfileAvatarProps {
  * glyph) ringed by a hairline border, with a plus badge pinned bottom-right as the change-photo
  * affordance.
  *
- * The empty state depends on what the avatar stands for. A person is Figma's "1명 Profile"
+ * The empty state depends on what the avatar stands for. A person is Figma's "1-person Profile"
  * (3177-13120): a brand-ink circle with the white solid silhouette — the same placeholder
  * {@link DefaultAvatar} draws, so a member with no photo looks identical whether they appear in a
  * list row or on this 86px profile. A place is the illustrated landscape instead (3408-27419): a

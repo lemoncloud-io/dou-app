@@ -65,10 +65,11 @@ export const createSocketDataSources = () => {
         channel: channelGateway,
         chat: chatGateway,
         join: {
-            // 1급 join 도메인: 단건 조회/수정은 JoinGateway(join.get/join.update)
+            // First-class join domain: single get/update goes through JoinGateway (join.get/join.update)
             get: joinGateway.get,
             update: joinGateway.update,
-            // 보조 command: 읽음(chat.read)·참여(channel.join). channel.update-join은 deprecated → join.update.
+            // Secondary commands: read (chat.read) · join (channel.join). channel.update-join is
+            // deprecated → join.update.
             read: chatGateway.read,
             join: channelGateway.join,
         },

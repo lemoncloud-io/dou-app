@@ -133,9 +133,9 @@ describe('toWireLogEntry — 자격증명 마스킹', () => {
     });
 
     /**
-     * `message`는 `safeStringify`를 타지 않는다 — 이미 문자열이라 그대로 필드로 들어간다. 그래서
-     * 여기가 유일한 마스킹 지점이고, 이 테스트가 없으면 §2·§3이 요구하는 "서버 문구를 message에
-     * 넣는다"는 트리거가 그대로 평문 유출 경로가 된다.
+     * `message` doesn't go through `safeStringify` — it's already a string, so it lands in the
+     * field as-is. That makes this the only masking point, and without this test, the trigger
+     * that §2/§3 require ("put the server's wording in message") becomes a plaintext leak path.
      */
     it('message 안에 박힌 값도 마스킹한다', () => {
         const wire = toWireLogEntry({
@@ -153,7 +153,7 @@ describe('toWireLogEntry — 자격증명 마스킹', () => {
     });
 
     it('data가 벌거벗은 문자열로 와도 마스킹한다', () => {
-        // 키가 없으면 이름 기반 판정이 성립하지 않는다 — 모양 축만 남는다.
+        // Without a key, name-based judgment doesn't apply — only the shape axis is left.
         const wire = toWireLogEntry({ ...base, data: 'reply-to: someone@user.test' });
 
         expect(wire.data).not.toContain('someone@user.test');

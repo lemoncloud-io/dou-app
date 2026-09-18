@@ -15,7 +15,7 @@ interface PlaceItemProps {
     isDisabled: boolean;
     onSelectPlace: (placeId: string) => void;
     unreadCount?: number;
-    /** Place-type caption below the name (내/초대받은 플레이스). */
+    /** Place-type caption below the name (mine / invited place). */
     subtitle: string;
     /**
      * This row is the target of a switch that is still in flight. The switch pre-applies the sid

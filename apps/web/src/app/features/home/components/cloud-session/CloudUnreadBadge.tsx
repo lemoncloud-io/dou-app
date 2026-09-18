@@ -11,7 +11,7 @@ import { useTranslation } from 'react-i18next';
  *
  * The "N" is a decorative glyph, not a count and not a translated word, so it is hidden from
  * assistive tech and the real meaning is carried by `cloudSessionSheet.unreadBadge`
- * ("읽지 않음" / "Unread"). `role="status"` matches the web-ui-kit UnreadBadge precedent.
+ * ("Unread"). `role="status"` matches the web-ui-kit UnreadBadge precedent.
  *
  * `shrink-0` is load-bearing: in the long-name row (Figma 3486:25664) the NAME is the element
  * that truncates while this badge stays fully visible.

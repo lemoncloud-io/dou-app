@@ -3,397 +3,401 @@ import type { ShareAction } from 'react-native';
 import type { CacheDomainVersions } from './cache';
 
 /**
- * 디바이스 미디어 자산 (사진, 동영상) 상세 정보
+ * Detailed info for a device media asset (photo, video)
  */
 export type MediaAsset = {
-    /** 로컬 파일 시스템 URI */
+    /** Local filesystem URI */
     uri?: string;
-    /** 원본 파일명 */
+    /** Original file name */
     fileName?: string;
-    /** 파일 MIME 타입 (예: image/jpeg) */
+    /** File MIME type (e.g. image/jpeg) */
     type?: string;
-    /** 미디어 가로 픽셀 크기 */
+    /** Media width in pixels */
     width?: number;
-    /** 미디어 세로 픽셀 크기 */
+    /** Media height in pixels */
     height?: number;
-    /** 파일 크기 (bytes) */
+    /** File size (bytes) */
     fileSize?: number;
-    /** Base64 인코딩된 파일 데이터 (옵션에 따라 포함됨) */
+    /** Base64-encoded file data (included depending on options) */
     base64?: string;
 };
 
-/** * 디바이스 문서 파일 정보
+/** * Detailed info for a device document file
  */
 export type DocumentInfo = {
-    /** 로컬 파일 시스템 URI */
+    /** Local filesystem URI */
     uri: string;
-    /** 문서 파일명 */
+    /** Document file name */
     name?: string | null;
-    /** 파일 MIME 타입 */
+    /** File MIME type */
     type?: string | null;
-    /** 파일 크기 (bytes) */
+    /** File size (bytes) */
     size?: number | null;
-    /** Base64 인코딩된 파일 데이터 */
+    /** Base64-encoded file data */
     base64?: string;
 };
 
-/** * 기기 주소록 연락처 상세 정보
+/** * Detailed info for a device contacts entry
  */
 export type ContactInfo = {
-    /** 디바이스 내 연락처 고유 식별자 */
+    /** Unique identifier of the contact on the device */
     recordID: string;
     backTitle: string;
-    /** 직장명 / 회사명 */
+    /** Workplace / company name */
     company: string | null;
-    /** 등록된 이메일 주소 목록 */
+    /** List of registered email addresses */
     emailAddresses: EmailAddress[];
-    /** 전체 표시 이름 */
+    /** Full display name */
     displayName: string;
-    /** 성 (Last name) */
+    /** Family name (last name) */
     familyName: string;
-    /** 이름 (First name) */
+    /** Given name (first name) */
     givenName: string;
-    /** 중간 이름 (Middle name) */
+    /** Middle name */
     middleName: string;
-    /** 직함 / 직위 */
+    /** Job title / position */
     jobTitle: string;
-    /** 등록된 전화번호 목록 */
+    /** List of registered phone numbers */
     phoneNumbers: PhoneNumber[];
-    /** 연락처 프로필 사진 존재 여부 */
+    /** Whether the contact has a profile thumbnail */
     hasThumbnail: boolean;
-    /** 연락처 프로필 사진 로컬 경로 */
+    /** Local path of the contact's profile thumbnail */
     thumbnailPath: string;
-    /** 즐겨찾기 등록 여부 */
+    /** Whether the contact is starred/favorited */
     isStarred: boolean;
-    /** 등록된 물리적 주소 목록 */
+    /** List of registered postal addresses */
     postalAddresses: PostalAddress[];
-    /** 이름 접두사 (예: Mr., Dr.) */
+    /** Name prefix (e.g. Mr., Dr.) */
     prefix: string;
-    /** 이름 접미사 (예: Jr., Sr.) */
+    /** Name suffix (e.g. Jr., Sr.) */
     suffix: string;
-    /** 소속 부서 */
+    /** Department the contact belongs to */
     department: string;
-    /** 생년월일 정보 */
+    /** Birthday info */
     birthday?: Birthday;
-    /** 메신저 계정 주소 목록 */
+    /** List of instant-messenger account addresses */
     imAddresses: InstantMessageAddress[];
-    /** 웹사이트 URL 목록 */
+    /** List of website URLs */
     urlAddresses: UrlAddress[];
-    /** 연락처 메모 */
+    /** Contact note */
     note: string;
 };
 
-/** 이메일 주소 정보 (예: label: 'work', email: 'dev@example.com') */
+/** Email address info (e.g. label: 'work', email: 'dev@example.com') */
 export type EmailAddress = {
     label: string;
     email: string;
 };
 
-/** 전화번호 정보 (예: label: 'mobile', number: '010-0000-0000') */
+/** Phone number info (e.g. label: 'mobile', number: '010-0000-0000') */
 export type PhoneNumber = {
     label: string;
     number: string;
 };
 
-/** 물리적 주소(우편 주소) 정보 */
+/** Postal address info */
 export type PostalAddress = {
-    /** 주소 라벨 (예: 'home', 'work') */
+    /** Address label (e.g. 'home', 'work') */
     label: string;
-    /** 전체 주소 문자열 */
+    /** Full formatted address string */
     formattedAddress: string;
-    /** 거리명 / 도로명 */
+    /** Street name / road name */
     street: string;
-    /** 사서함 번호 */
+    /** PO box number */
     pobox: string;
-    /** 동 / 이웃 지역명 */
+    /** Neighborhood / local area name */
     neighborhood: string;
-    /** 시 / 군 / 구 */
+    /** City / county / district */
     city: string;
-    /** 광역 지자체 / 도 */
+    /** Metropolitan region / province */
     region: string;
-    /** 주 (State) */
+    /** State */
     state: string;
-    /** 우편번호 */
+    /** Postal code */
     postCode: string;
-    /** 국가명 */
+    /** Country name */
     country: string;
 };
 
-/** 생년월일 정보 */
+/** Birthday info */
 export type Birthday = {
     day: number;
     month: number;
-    /** 연도 없이 월·일만 저장한 연락처가 있어 선택 필드다 — iOS는 그 경우 `year`를 아예 빼고 내려보낸다. */
+    /** Optional because some contacts store only month/day without a year — iOS omits `year` entirely in that case. */
     year?: number;
 };
 
-/** 인스턴트 메신저 계정 정보 */
+/** Instant-messenger account info */
 export type InstantMessageAddress = {
     username: string;
     service: string;
 };
 
-/** URL 주소 정보 */
+/** URL address info */
 export type UrlAddress = {
     label: string;
     url: string;
 };
 
-/** 네이티브 앱 권한 유형 */
+/** Native app permission type */
 /**
- * 웹이 앱에 요청할 수 있는 OS 권한.
+ * OS permissions the web can request from the app.
  *
- * `MICROPHONE`은 2026-09-10에 추가됐다 — **타입만 늘렸고 앱 릴리스는 들지 않는다.**
- * `usePermissionHandler`가 payload를 그대로 `permissionService.request`에 넘기고 앱의
- * `PERMISSION_MAP`에 `MICROPHONE`(iOS `MICROPHONE`·Android `RECORD_AUDIO`)이 이미 있으므로,
- * 기존 빌드도 런타임에는 처리한다. 이 union이 사본으로 갈라져 그 능력을 막고 있었을 뿐이다
- * (앱 쪽 `services/permission/types.ts`가 이제 이 선언을 재export한다).
+ * `MICROPHONE` was added on 2026-09-10 — **only the type was extended, no app release was
+ * needed.** `usePermissionHandler` passes the payload straight through to
+ * `permissionService.request`, and the app's `PERMISSION_MAP` already has `MICROPHONE`
+ * (iOS `MICROPHONE` / Android `RECORD_AUDIO`), so existing builds already handle it at
+ * runtime. This union, split into its own copy, was the only thing blocking that
+ * capability (the app-side `services/permission/types.ts` now re-exports this
+ * declaration).
  */
 export type AppPermissionType = 'CONTACTS' | 'NOTIFICATIONS' | 'CAMERA' | 'PHOTO_LIBRARY' | 'MICROPHONE';
 
-/** * 네이티브 앱 권한 승인 상태 */
+/** * Native app permission grant status */
 export type PermissionStatus = 'GRANTED' | 'DENIED' | 'BLOCKED' | 'UNAVAILABLE';
 
 /**
- * 앱 백그라운드/포그라운드 상태
+ * App background/foreground state
  */
 export type AppBackgroundStatus = 'active' | 'background' | 'inactive';
 
 /**
- * 앱 아이콘 선택지 정보 (Native -> Web)
+ * App icon choice info (Native -> Web)
  */
 export type AppIconOption = {
     id: string | null;
     label: string;
 };
 
-/** [요청] OS 기본 공유 시트 열기 */
+/** [Request] Open the OS's default share sheet */
 export type OpenShareSheetPayload = {
-    /** 공유할 콘텐츠의 제목 */
+    /** Title of the content to share */
     title?: string;
-    /** 공유할 메시지 본문 텍스트 */
+    /** Message body text to share */
     message?: string;
-    /** 공유할 웹사이트 또는 파일 URL */
+    /** Website or file URL to share */
     url?: string;
-    /** 공유 대상의 MIME 타입 */
+    /** MIME type of the share target */
     type?: string;
-    /** 이메일 공유 시 사용될 제목 */
+    /** Subject used when sharing via email */
     subject?: string;
 };
 
-/** [요청] 문서(파일) 선택기 열기 */
+/** [Request] Open the document (file) picker */
 export type OpenDocumentPayload = {
-    /** 다중 파일 선택 허용 여부 */
+    /** Whether to allow multiple file selection */
     allowMultiSelection?: boolean;
-    /** 선택을 허용할 MIME 타입 배열 (예: ['application/pdf']) */
+    /** Array of MIME types allowed for selection (e.g. ['application/pdf']) */
     type?: string[];
-    /** 파일 데이터를 Base64로 인코딩하여 반환할지 여부 */
+    /** Whether to return file data as Base64 */
     includeBase64?: boolean;
 };
 
-/** [요청] 네이티브 카메라 실행 */
+/** [Request] Launch the native camera */
 export type OpenCameraPayload = {
-    /** 촬영할 미디어 유형 */
+    /** Type of media to capture */
     mediaType?: 'photo' | 'video' | 'mixed';
-    /** 이미지 압축 품질 (0.0 최하 ~ 1.0 원본) */
+    /** Image compression quality (0.0 lowest ~ 1.0 original) */
     quality?: 0 | 0.1 | 0.2 | 0.3 | 0.4 | 0.5 | 0.6 | 0.7 | 0.8 | 0.9 | 1;
-    /** 리사이징할 최대 가로 픽셀 */
+    /** Max width in pixels to resize to */
     maxWidth?: number;
-    /** 리사이징할 최대 세로 픽셀 */
+    /** Max height in pixels to resize to */
     maxHeight?: number;
-    /** Base64 데이터 포함 여부 */
+    /** Whether to include Base64 data */
     includeBase64?: boolean;
-    /** 초기 실행할 카메라 렌즈 방향 (전면/후면) */
+    /** Which camera lens to launch initially (front/back) */
     cameraType?: 'back' | 'front';
 };
 
-/** [요청] 네이티브 사진/동영상 갤러리 열기 */
+/** [Request] Open the native photo/video gallery */
 export type OpenPhotoLibraryPayload = {
-    /** 최대 선택 가능한 미디어 개수 (0은 무제한) */
+    /** Max number of media items selectable (0 means unlimited) */
     selectionLimit?: number;
-    /** 선택 가능한 미디어 유형 */
+    /** Type of media selectable */
     mediaType?: 'photo' | 'video' | 'mixed';
-    /** 선택된 미디어의 리사이징 최대 가로 픽셀 */
+    /** Max width in pixels to resize selected media to */
     maxWidth?: number;
-    /** 선택된 미디어의 리사이징 최대 세로 픽셀 */
+    /** Max height in pixels to resize selected media to */
     maxHeight?: number;
-    /** 이미지 압축 품질 (0.0 최하 ~ 1.0 원본) */
+    /** Image compression quality (0.0 lowest ~ 1.0 original) */
     quality?: 0 | 0.1 | 0.2 | 0.3 | 0.4 | 0.5 | 0.6 | 0.7 | 0.8 | 0.9 | 1;
-    /** Base64 데이터 포함 여부 */
+    /** Whether to include Base64 data */
     includeBase64?: boolean;
 };
 
 /**
- * [요청] 디바이스의 기본 브라우저나 외부 앱으로 URL 열기
+ * [Request] Open a URL in the device's default browser or an external app
  *
- * 앱 자신의 스킴(`chatic://…`)을 넘기면 OS를 거쳐 인바운드 딥링크로 되돌아온다 — 그래서 딥링크
- * 라우팅 시험에도 이 명령을 쓴다. ADR-0080 단계 1에서 별도 `SimulateInboundDeeplink`를 만들려다
- * 철회했다: 앱의 `deeplinkService.handleUrl`도 결국 같은 `Linking.openURL`로 끝나고, 그것이 더하는
- * 상대경로 정규화는 웹이 `net.deeplink.scheme` 키로 직접 할 수 있다.
+ * Passing the app's own scheme (`chatic://…`) round-trips through the OS and comes back
+ * as an inbound deep link — that's why this command is also used to test deep-link
+ * routing. A separate `SimulateInboundDeeplink` was drafted in ADR-0080 step 1 and then
+ * withdrawn: the app's `deeplinkService.handleUrl` ends up calling the same
+ * `Linking.openURL` anyway, and the relative-path normalization it adds is something the
+ * web can already do directly via the `net.deeplink.scheme` key.
  */
 export type OpenURLPayload = {
-    /** 실행할 외부 URL (http, mailto, tel 등). 앱 스킴을 넘기면 인바운드 딥링크가 된다 */
+    /** External URL to open (http, mailto, tel, etc). Passing the app scheme makes it an inbound deep link */
     url: string;
 };
 
-/** [요청] OS 시스템 권한 요청 다이얼로그 띄우기 */
+/** [Request] Show the OS system permission request dialog */
 export type RequestPermissionPayload = {
-    /** 요청할 대상 권한 */
+    /** Target permission to request */
     permission: AppPermissionType;
 };
 
-/** [요청] 네이티브의 뒤로가기(스와이프/물리버튼) 가능 여부 설정 */
+/** [Request] Set whether native back (swipe/hardware button) navigation is available */
 export type SetCanGoBackPayload = {
-    /** true 설정 시 웹뷰 내부 라우팅을 우선 처리 */
+    /** When true, in-webview routing is handled first */
     canGoBack: boolean;
 };
 
-/** [요청] 웹뷰 내 스크롤 이벤트 발생 시 네이티브에 알림 */
+/** [Request] Notify native when a scroll event occurs inside the webview */
 export type ScrollDataPayload = {
-    /** 현재 스크롤이 발생한 웹 페이지 URL */
+    /** URL of the web page where the scroll is currently happening */
     url: string;
-    /** 스크롤 진행도를 나타내는 백분율 (0 ~ 100) */
+    /** Percentage representing scroll progress (0 ~ 100) */
     scrollPercentage: number;
 };
 
-/** [요청] 네이티브 바텀시트/모달로 특정 URL의 웹뷰 열기 */
+/** [Request] Open a webview for a specific URL in a native bottom sheet/modal */
 export type OpenModalPayload = {
-    /** 모달로 띄울 웹 페이지 주소 */
+    /** Web page URL to show as a modal */
     url: string;
-    /** * 화면을 덮는 비율 및 형태
-     * - full: 전체 화면을 덮는 모달
-     * - sheet: 화면 하단에서 올라오는 바텀 시트
+    /** * The proportion and shape of screen coverage
+     * - full: a modal covering the full screen
+     * - sheet: a bottom sheet rising from the bottom of the screen
      */
     type?: 'full' | 'sheet';
-    /** 바텀 시트가 펼쳐지는 높이 비율 (기본값 0.9, type이 full이면 1로 무시됨) */
+    /** Height ratio the bottom sheet expands to (default 0.9; ignored and treated as 1 when type is full) */
     heightRatio?: number;
-    /** 바텀 시트 상단에 드래그하여 닫을 수 있는 핸들 바 표시 여부 */
+    /** Whether to show a drag handle bar at the top of the bottom sheet for closing */
     dragHandle?: boolean;
 };
 
-/** [요청] 앱 아이콘 변경 */
+/** [Request] Change the app icon */
 export type ChangeAppIconPayload = {
     /**
-     * 변경할 alternate app icon key.
-     * null, undefined, 'default'는 기본 앱 아이콘으로 복원합니다.
+     * The alternate app icon key to switch to.
+     * null, undefined, or 'default' restores the default app icon.
      */
     iconName?: string | null;
 };
 
-/** [요청] 네이티브 바텀시트/모달 닫기 */
+/** [Request] Close the native bottom sheet/modal */
 export type CloseModalPayload = {
-    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+    // Empty object type, reserved for future extension (optional fields, etc.).
 };
 
-/** [요청] 네이티브 설정 화면 열기 */
+/** [Request] Open the native settings screen */
 export type OpenSettingsPayload = {
-    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+    // Empty object type, reserved for future extension (optional fields, etc.).
 };
 
-/** [요청] 웹 앱 준비 완료 알림 */
+/** [Request] Notify that the web app is ready */
 export type WebAppReadyPayload = {
-    /** Web bundle/app version. 배포 싱크 추적용입니다. */
+    /** Web bundle/app version. Used for tracking deployment sync. */
     webVersion?: string;
-    /** Web이 기대하는 bridge protocol version. */
+    /** Bridge protocol version the web expects. */
     protocolVersion?: string;
-    /** Web이 호출할 수 있는 WebMessage 목록. capability 협상용입니다. */
+    /** List of WebMessages the web can call. Used for capability negotiation. */
     supportedWebMessages?: string[];
 };
 
-/** [요청] 로더(인디케이터) 표시 요청 */
+/** [Request] Show loader (indicator) request */
 export type ShowLoaderPayload = {
-    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+    // Empty object type, reserved for future extension (optional fields, etc.).
 };
 
-/** [요청] 로더(인디케이터) 숨김 요청 */
+/** [Request] Hide loader (indicator) request */
 export type HideLoaderPayload = {
-    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+    // Empty object type, reserved for future extension (optional fields, etc.).
 };
 
-/** [요청] 크레덴셜 동기화 요청 */
+/** [Request] Credential sync request */
 export type SyncCredentialPayload = {
-    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+    // Empty object type, reserved for future extension (optional fields, etc.).
 };
 
-/** [요청] 웹뷰 스택에서 웹뷰 팝(닫기) 요청 */
+/** [Request] Pop (close) a webview from the webview stack */
 export type PopWebViewPayload = {
-    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+    // Empty object type, reserved for future extension (optional fields, etc.).
 };
 
 /**
  * ----------------------------------------------------------------------
- * 3. 통신 페이로드 (App -> Web 응답)
+ * 3. Communication payloads (App -> Web responses)
  * ----------------------------------------------------------------------
  */
 
-/** [응답] 공유 액션 완료 결과 */
+/** [Response] Share action completion result */
 export type OnOpenShareSheetPayload = ShareAction;
 
-/** [응답] 문서 선택기에서 선택된 파일 목록 */
+/** [Response] List of files selected from the document picker */
 export type OnOpenDocumentPayload = {
     documents: DocumentInfo[];
 };
 
-/** [응답] 주소록 권한 획득 후 디바이스 전체 연락처 목록 반환 */
+/** [Response] Returns the device's full contact list after obtaining contacts permission */
 export type OnGetContactsPayload = {
     contacts: ContactInfo[];
 };
 
-/** [응답] 카메라 촬영 결과물 반환 */
+/** [Response] Returns the result of a camera capture */
 export type OnOpenCameraPayload = {
     assets: MediaAsset[];
 };
 
-/** [응답] 사진 갤러리에서 선택된 결과물 반환 */
+/** [Response] Returns the item(s) selected from the photo gallery */
 export type OnOpenPhotoLibraryPayload = {
     assets: MediaAsset[];
 };
 
-/** [응답] 시스템 권한 요청 결과 반환 */
+/** [Response] Returns the result of a system permission request */
 export type OnRequestPermissionPayload = {
-    /** 요청했던 대상 권한 */
+    /** The permission that was requested */
     permission: AppPermissionType;
-    /** 최종 승인/거부 상태 */
+    /** Final grant/deny status */
     status: PermissionStatus;
 };
 
-/** [응답] 앱이 백그라운드로 가거나 포그라운드로 복귀했을 때 상태 알림 */
+/** [Response] Notifies status when the app goes to background or returns to foreground */
 export type OnBackgroundStatusChangedPayload = {
-    /** 현재 앱 상태 (active, background, inactive) */
+    /** Current app state (active, background, inactive) */
     status: AppBackgroundStatus;
-    /** 앱이 백그라운드에 숨겨져 있는지 여부 */
+    /** Whether the app is hidden in the background */
     isBackground: boolean;
-    /** 앱이 현재 사용자와 포그라운드에서 상호작용 중인지 여부 */
+    /** Whether the app is currently interacting with the user in the foreground */
     isForeground: boolean;
 };
 
-/** [응답] 현재 앱 아이콘 상태 */
+/** [Response] Current app icon state */
 export type OnFetchAppIconPayload = {
-    /** 현재 적용된 앱 아이콘 key. 기본 아이콘이면 'default' */
+    /** Currently applied app icon key. 'default' if using the default icon */
     iconName: string;
-    /** 현재 플랫폼에서 동적 앱 아이콘 변경을 지원하는지 여부 */
+    /** Whether dynamic app icon changes are supported on the current platform */
     supported: boolean;
-    /** 조회 실패 사유 */
+    /** Reason the lookup failed */
     error?: string;
 };
 
-/** [응답] 사용 가능한 앱 아이콘 목록 */
+/** [Response] List of available app icons */
 export type OnFetchAppIconListPayload = {
-    /** 사용 가능한 전체 아이콘 목록 */
+    /** Full list of available icons */
     availableIcons: AppIconOption[];
 };
 
-/** [응답] 앱 아이콘 변경 결과 */
+/** [Response] Result of changing the app icon */
 export type OnChangeAppIconPayload = {
-    /** 변경 성공 여부 */
+    /** Whether the change succeeded */
     success: boolean;
-    /** 요청한 앱 아이콘 key. 기본 아이콘 요청이면 null */
+    /** The requested app icon key. null if the default icon was requested */
     requestedIconName?: string | null;
-    /** 변경 후 최종 적용된 앱 아이콘 key */
+    /** The app icon key actually applied after the change */
     iconName?: string;
-    /** 현재 플랫폼에서 동적 앱 아이콘 변경을 지원하는지 여부 */
+    /** Whether dynamic app icon changes are supported on the current platform */
     supported?: boolean;
-    /** 변경 실패 사유 */
+    /** Reason the change failed */
     error?: string;
 };
 
@@ -404,158 +408,164 @@ export type PongPayload = {
     payload: string;
 };
 
-/** [요청] SMS 전송 */
+/** [Request] Send SMS */
 export type SendSmsPayload = {
-    /** 수신자 전화번호 또는 전화번호 배열 */
+    /** Recipient phone number, or array of phone numbers */
     phoneNumbers: string | string[];
-    /** 전송할 SMS 메시지 본문 */
+    /** SMS message body to send */
     message: string;
 };
 
-/** [응답] SMS 전송 결과 */
+/** [Response] SMS send result */
 export type OnSendSmsPayload = {
-    /** 전송(앱 열기) 성공 여부 */
+    /** Whether sending (opening the app) succeeded */
     success: boolean;
 };
 
-/** [응답] 네이티브의 뒤로가기(스와이프/물리버튼) 가능 여부 설정 결과 */
+/** [Response] Result of setting native back (swipe/hardware button) navigation availability */
 export type OnSetCanGoBackPayload = {
-    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+    // Empty object type, reserved for future extension (optional fields, etc.).
 };
 
-/** [응답] 네이티브 바텀시트/모달로 특정 URL의 웹뷰 열기 결과 */
+/** [Response] Result of opening a webview for a specific URL in a native bottom sheet/modal */
 export type OnOpenModalPayload = {
-    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+    // Empty object type, reserved for future extension (optional fields, etc.).
 };
 
-/** [응답] 네이티브 바텀시트/모달 닫기 완료 결과 */
+/** [Response] Result of closing the native bottom sheet/modal */
 export type OnCloseModalPayload = {
-    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+    // Empty object type, reserved for future extension (optional fields, etc.).
 };
 
-/** [응답] 네이티브 설정 화면 열기 완료 결과 */
+/** [Response] Result of opening the native settings screen */
 export type OnOpenSettingsPayload = {
-    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+    // Empty object type, reserved for future extension (optional fields, etc.).
 };
 
 /**
- * [응답] WebAppReady handshake 결과
- * Web/App 배포 싱크가 맞지 않아도 지원 메시지와 capability를 확인할 수 있게 합니다.
+ * [Response] WebAppReady handshake result
+ * Lets the two sides confirm supported messages and capabilities even when the Web/App
+ * deployment isn't in sync.
  */
 export type OnWebAppReadyPayload = {
     /** App bridge/runtime version */
     appVersion?: string;
-    /** 현재 대화에서 사용할 bridge protocol version */
+    /** Bridge protocol version to use for the current conversation */
     protocolVersion: string;
-    /** App이 처리할 수 있는 WebMessage 목록 */
+    /** List of WebMessages the App can handle */
     supportedWebMessages: string[];
-    /** App이 Web으로 보낼 수 있는 AppMessage 목록 */
+    /** List of AppMessages the App can send to Web */
     supportedAppMessages: string[];
     /**
-     * App 로컬 캐시 DB의 스키마 버전(네이티브 SQLite `PRAGMA user_version` 목표치).
+     * The schema version of the App's local cache DB (target for native SQLite's `PRAGMA
+     * user_version`).
      *
-     * ADR-0053 이후 **라우팅 판정에서는 읽지 않습니다** — 논리 계약(`cacheDomainVersions`)과 물리 DB
-     * 버전을 분리했기 때문입니다. 디버깅·로깅 용도로 계속 실어 보내고, 이 필드만 읽는 구버전 웹
-     * 번들과의 하위 호환을 위해서도 유지합니다.
+     * Since ADR-0053, this is **no longer read for routing decisions** — the logical
+     * contract (`cacheDomainVersions`) and the physical DB version were split apart. It's
+     * still sent for debugging/logging purposes, and kept for backward compatibility with
+     * older web bundles that read only this field.
      */
     cacheSchemaVersion?: number;
     /**
-     * App이 로컬 캐시로 저장·조회할 수 있는 CacheType 목록. 미보고 시 legacy로 취급합니다.
+     * List of CacheTypes the App can store/query as local cache. Treated as legacy if not
+     * reported.
      *
-     * ADR-0053 이후 웹은 이 목록을 "해당 도메인 1판"으로 환산합니다 — 판번호를 보내지 않는 구버전
-     * 앱의 라우팅을 그대로 유지하기 위한 하위 호환 축입니다.
+     * Since ADR-0053, the web converts this list to "revision 1 for that domain" — a
+     * backward-compatibility axis that preserves the routing behavior of older apps that
+     * don't send a revision number.
      */
     supportedCacheTypes?: string[];
     /**
-     * App이 **구현한** 도메인별 캐시 계약 판번호 (ADR-0053).
+     * Per-domain cache contract revision numbers the App has **implemented** (ADR-0053).
      *
-     * 웹은 자신이 요구하는 판번호와 도메인마다 비교해 저장소를 정합니다. 이 필드를 보내지 않는
-     * 구버전 앱은 위 `supportedCacheTypes`로 1판 환산되므로 판정 결과가 달라지지 않습니다. 로컬 캐시
-     * DB가 없는 호스트(desktop main process)는 앞으로도 보내지 않습니다.
+     * The web compares these against the revision it requires, domain by domain, to
+     * reconcile storage. An older app that doesn't send this field is treated as revision 1
+     * via `supportedCacheTypes` above, so the outcome doesn't change. Hosts without a local
+     * cache DB (the desktop main process) will continue to omit it.
      */
     cacheDomainVersions?: CacheDomainVersions;
-    /** 기능 플래그. 새 기능은 여기서 협상한 뒤 사용합니다. */
+    /** Feature flags. New features are negotiated here before use. */
     capabilities?: Record<string, boolean | string | number>;
 };
 
-/** [응답] 로더 표시 요청 처리 결과 */
+/** [Response] Result of handling the show-loader request */
 export type OnShowLoaderPayload = {
-    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+    // Empty object type, reserved for future extension (optional fields, etc.).
 };
 
-/** [응답] 로더 숨김 요청 처리 결과 */
+/** [Response] Result of handling the hide-loader request */
 export type OnHideLoaderPayload = {
-    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+    // Empty object type, reserved for future extension (optional fields, etc.).
 };
 
-/** [응답] 크레덴셜 동기화 요청 처리 결과 */
+/** [Response] Result of handling the credential sync request */
 export type OnSyncCredentialPayload = {
-    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+    // Empty object type, reserved for future extension (optional fields, etc.).
 };
 
-/** [응답] 웹뷰 pop 요청 처리 결과 */
+/** [Response] Result of handling the webview pop request */
 export type OnPopWebViewPayload = {
-    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+    // Empty object type, reserved for future extension (optional fields, etc.).
 };
 
-/** [응답] 파일 업로드 시작 요청 처리 결과 */
+/** [Response] Result of handling the file upload start request */
 export type OnRequestFileUploadPayload = {
     uploadId: string;
     success: boolean;
 };
 
-/** [응답] 파일 업로드 일시정지 요청 처리 결과 */
+/** [Response] Result of handling the file upload pause request */
 export type OnPauseFileUploadPayload = {
     uploadId: string;
     success: boolean;
 };
 
-/** [응답] 파일 업로드 재개 요청 처리 결과 */
+/** [Response] Result of handling the file upload resume request */
 export type OnResumeFileUploadPayload = {
     uploadId: string;
     success: boolean;
 };
 
-/** [응답] 파일 업로드 취소 요청 처리 결과 */
+/** [Response] Result of handling the file upload cancel request */
 export type OnCancelFileUploadPayload = {
     uploadId: string;
     success: boolean;
 };
 
-/** [응답] 업로드 작업 수동 복구(재개) 결과 */
+/** [Response] Result of manually recovering (resuming) an upload task */
 export type OnRecoverUploadPayload = {
-    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+    // Empty object type, reserved for future extension (optional fields, etc.).
 };
 
-/** [응답] 업로드 작업 재시도 결과 */
+/** [Response] Result of retrying an upload task */
 export type OnRetryUploadPayload = {
-    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+    // Empty object type, reserved for future extension (optional fields, etc.).
 };
 
-/** [응답] 네이티브 뒤로가기 클릭 이벤트 페이로드 */
+/** [Response] Native back-button pressed event payload */
 export type OnBackPressedPayload = {
-    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+    // Empty object type, reserved for future extension (optional fields, etc.).
 };
 
-/** [응답] 디바이스의 기본 브라우저나 외부 앱으로 URL 열기 결과 */
+/** [Response] Result of opening a URL in the device's default browser or an external app */
 export type OnOpenURLPayload = {
-    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+    // Empty object type, reserved for future extension (optional fields, etc.).
 };
 
-/** [응답] 네이티브 앱에서 웹 앱으로의 동적 네비게이션 요청 페이로드 */
+/** [Response] Payload for a dynamic navigation request from the native app to the web app */
 export type OnNavigatePayload = {
-    /** 이동할 상대 경로 및 쿼리 파라미터 (예: '/chats/ch_123' 또는 '/auth/login?code=...') */
+    /** Relative path and query parameters to navigate to (e.g. '/chats/ch_123' or '/auth/login?code=...') */
     path: string;
-    /** React Router navigation 시 replace 여부 (기본값: false) */
+    /** Whether to use replace for the React Router navigation (default: false) */
     replace?: boolean;
 };
 
-/** [요청] 웹뷰 백그라운드 복귀 후 오버레이 해제 요청 페이로드 */
+/** [Request] Payload to dismiss the overlay after the webview returns from background */
 export type DismissResumeOverlayPayload = {
-    // 빈 객체 타입
+    // Empty object type
 };
 
-/** [응답] 웹뷰 백그라운드 복귀 후 오버레이 해제 처리 결과 페이로드 */
+/** [Response] Payload for the result of dismissing the overlay after the webview returns from background */
 export type OnDismissResumeOverlayPayload = {
-    // 빈 객체 타입
+    // Empty object type
 };

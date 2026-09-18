@@ -40,7 +40,7 @@ describe('useReadMarker — 읽음 처리', () => {
     });
 
     it('이미 읽은 chatNo 이하면 중복 전송하지 않는다', () => {
-        // 진입 시 10을 읽은 뒤, 더 낮은 lastChatNo(5)는 무시된다.
+        // After reading up to 10 on entry, a lower lastChatNo (5) is ignored.
         setup({ channelChatNo: 10, lastChatNo: 5 });
         expect(readMessage).toHaveBeenCalledTimes(1);
         expect(readMessage).toHaveBeenCalledWith({ channelId: 'c1', chatNo: 10 });

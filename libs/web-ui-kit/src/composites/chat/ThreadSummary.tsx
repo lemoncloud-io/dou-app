@@ -11,11 +11,11 @@ export interface ThreadSummaryProps extends Omit<React.ComponentPropsWithoutRef<
     avatars?: React.ReactNode[];
     /** Repliers beyond the shown faces; rendered as a `+N` pill closing the stack. */
     overflowCount?: number;
-    /** "댓글 20개" — the localized reply count. Always shown. */
+    /** "20 comments" — the localized reply count. Always shown. */
     replyLabel: string;
-    /** "새 댓글 3개" — localized; omit when nothing is unseen. Carries the point-blue accent. */
+    /** "3 new comments" — localized; omit when nothing is unseen. Carries the point-blue accent. */
     newReplyLabel?: string;
-    /** Last reply time, e.g. "오후 12:06". Omit to drop the segment. */
+    /** Last reply time, e.g. "12:06 PM". Omit to drop the segment. */
     time?: string;
     /** Mirrors the row for my own (right-aligned) messages: text first, faces last. */
     align?: 'start' | 'end';
@@ -30,7 +30,7 @@ const Dot = () => (
 
 /**
  * The reply summary under a thread root: replier faces, then how many replies, how many are
- * new, and when the last one landed (Figma "댓글 케이스", 4703:43718). Tapping it opens the
+ * new, and when the last one landed (Figma "comment case", 4703:43718). Tapping it opens the
  * thread.
  *
  * Its own timestamp is the LAST REPLY's, not the root's — that is the whole point of the
@@ -38,7 +38,7 @@ const Dot = () => (
  * would say nothing, while "the conversation under this moved at 12:06" is the one fact the
  * collapsed thread cannot otherwise show.
  *
- * The unseen state is a colored label ("새 댓글 3개") rather than a dot: a dot says only that
+ * The unseen state is a colored label ("3 new comments") rather than a dot: a dot says only that
  * something is new, and by the time a row is worth interrupting for, how much is new is the
  * thing worth reading. Presentational only — what counts as unseen is the host's cursor
  * arithmetic, not this component's.
@@ -67,7 +67,7 @@ export const ThreadSummary = React.forwardRef<HTMLButtonElement, ThreadSummaryPr
 
         const labels = (
             // Reversed on my own side too, not just the faces: the design reads
-            // "오후 12:06 · 새 댓글 1개 · 댓글 3개" there, i.e. the whole row mirrors, with the
+            // "12:06 PM · 1 new comment · 3 comments" there, i.e. the whole row mirrors, with the
             // reply count landing nearest the bubble's trailing edge. The separator dots are
             // siblings of the labels, so reversing the row carries them along correctly.
             <span className={cn('flex min-w-0 items-center gap-px', align === 'end' && 'flex-row-reverse')}>

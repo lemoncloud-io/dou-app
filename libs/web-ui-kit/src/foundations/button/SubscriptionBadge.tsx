@@ -36,7 +36,7 @@ export interface SubscriptionBadgeProps extends React.HTMLAttributes<HTMLSpanEle
  * The non-interactive twin of {@link SubscriptionButton} — same pill, rendered as a `<span>`.
  *
  * Exists because the tier pill sometimes appears INSIDE another button (the cloud switcher's
- * "＋ 클라우드 추가" pill, Figma 3769:34789): a `<button>` nested in a `<button>` is invalid HTML and
+ * "+ Add Cloud" pill, Figma 3769:34789): a `<button>` nested in a `<button>` is invalid HTML and
  * carves a dead zone out of the parent's tap target. Its surface classes and its glyph/label both
  * come from the same source as the button's, so the two cannot drift apart.
  *

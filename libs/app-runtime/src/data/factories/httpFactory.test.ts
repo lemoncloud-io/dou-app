@@ -53,8 +53,9 @@ describe('createHttpDataSources', () => {
         expect(result).not.toHaveProperty('gateways');
     });
 
-    // 예전에는 이 파일이 자기 번들을 새로 만들고 data/hooks·session/auth가 각자 또 캐시해서
-    // cloud·user 게이트웨이가 동시에 두세 벌 있었다. 이제 공유 인스턴스 하나다.
+    // This file used to build its own bundle while data/hooks and session/auth each cached their own
+    // too, so two or three copies of the cloud/user gateways existed at once. Now there's one shared
+    // instance.
     it('공유 인스턴스를 쓴다 — 호출마다 새로 만들지 않는다', () => {
         createHttpDataSources();
         createHttpDataSources();

@@ -11,7 +11,7 @@ import { SystemBars } from './features/core/components';
 
 export const App = () => {
     const { hasUpdate, showUpdateAlert } = useAppVersionCheck(true);
-    // No debug UI here any more — the FAB and the overlay are gone (ADR-0080 결정 12). Every debug
+    // No debug UI here any more — the FAB and the overlay are gone (ADR-0080 decision 12). Every debug
     // control lives in the web panel, and the app only executes what it is asked to. The unlock flag
     // itself is still meaningful: `AppWebView` injects `debugModeEnabled` so the web knows the 10-tap
     // unlock survived a reload (see `injectionScripts`).

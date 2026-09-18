@@ -2,7 +2,7 @@ import { logger } from '@chatic/bridges';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 /**
- * What the registry does when a port reports trouble (ADR-0080 결정 10).
+ * What the registry does when a port reports trouble (ADR-0080 decision 10).
  *
  * Split out of `adapters.ts` so it can be unit-tested: that file reads `import.meta.env`, which
  * makes it — and anything importing it — unloadable under the CommonJS test transform. The repo
@@ -24,9 +24,9 @@ export const onDuplicateKey = (key: string): void => {
  * The shell refused a write, after the retry. **Log AND tell the person.**
  *
  * Different from the duplicate above: this write is something they just did, and a refusal means
- * the setting silently did not stick. Staying quiet is exactly the "화면은 껐다고 하는데 실제로는
- * 안 꺼진" state 결정 10 exists to prevent — ADR-0079 4단계 wired the log and left the visible half
- * as "다음 라운드", which is this.
+ * the setting silently did not stick. Staying quiet is exactly the "the screen says it's off but
+ * it's actually not" state decision 10 exists to prevent — ADR-0079 step 4 wired up the log and left
+ * the visible half as "next round," which is this.
  *
  * The imperative `toast`, not the hook: this runs from `config.set`, which has no React context.
  * The toaster is mounted app-wide and this is the shadcn escape hatch for reaching it.

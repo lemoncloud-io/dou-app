@@ -8,7 +8,7 @@ export const AppShell = () => {
 
     return (
         <div className="flex flex-col h-dvh bg-background text-foreground">
-            {/* 상단 디버그 버튼 */}
+            {/* Top debug button */}
             <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-card shrink-0">
                 <span className="text-xs font-mono text-muted-foreground">testbed</span>
                 <button
@@ -19,7 +19,7 @@ export const AppShell = () => {
                 </button>
             </div>
 
-            {/* 페이지 콘텐츠 */}
+            {/* Page content */}
             <div className="flex-1 overflow-y-auto pb-16">
                 <Outlet />
             </div>

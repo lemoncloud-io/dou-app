@@ -9,9 +9,9 @@ const copyTextWithResult = jest.fn();
 jest.mock('../lib/copyText', () => ({ copyTextWithResult: (value: string) => copyTextWithResult(value) }));
 
 /**
- * What this pins is that the indicator cannot lie: 복사됨 appears only when the copy actually
- * resolved true. A silent button is indistinguishable from a broken one on a device, and a button
- * that always claims success is worse than silent.
+ * What this pins is that the indicator cannot lie: the "Copied" label appears only when the copy
+ * actually resolved true. A silent button is indistinguishable from a broken one on a device, and
+ * a button that always claims success is worse than silent.
  */
 describe('CopyButton — 복사와 피드백', () => {
     beforeEach(() => {

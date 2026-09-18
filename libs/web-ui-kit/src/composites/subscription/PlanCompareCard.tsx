@@ -6,7 +6,7 @@ import { IconBolt } from '../../resources/icons';
 import { PlanBadge } from '../../foundations/badge/PlanBadge';
 
 export interface PlanCompareCardProps {
-    /** Header label ("DoU Home" / "내 클라우드"). */
+    /** Header label ("DoU Home" / "My Cloud"). */
     name: string;
     /** `paid` gets the lime header, the lime hairline border and a lime glow. */
     tier: 'free' | 'paid';

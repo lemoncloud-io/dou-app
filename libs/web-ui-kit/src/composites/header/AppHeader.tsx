@@ -79,7 +79,7 @@ export interface AppHeaderProps {
 }
 
 /**
- * Home top header — the Figma "헤더", in two kinds:
+ * Home top header — the Figma "header", in two kinds:
  *  - `no-cloud` (Type 1): DoU brand mark + chevron.
  *  - `cloud`    (Type 2): cloud avatar + cloud name (+ place nickname) + chevron.
  * Both share the right cluster: plan badge + search button + profile avatar.

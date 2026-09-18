@@ -15,7 +15,7 @@ export interface FloatingTabBarItem {
     /** Unread count for a corner badge. `<= 0` hides it; above `badgeMax` → "+max". */
     badge?: number;
     /**
-     * Accessible announcement for the badge (e.g. a localized "5개 안 읽음").
+     * Accessible announcement for the badge (e.g. a localized "5 unread").
      * Folded into the tab's accessible name so a screen reader announces the
      * count with context. Defaults to "{label}, {count}". i18n-agnostic.
      */
@@ -35,7 +35,7 @@ export interface FloatingTabBarProps {
 }
 
 /**
- * Floating bottom navigation — the Figma "떠 있는" tab bar (node 1937:26572). A
+ * Floating bottom navigation — the Figma "floating" tab bar (node 1937:26572). A
  * full-width overlay area pinned to the bottom with a soft gradient behind, and a
  * centered glass pill holding the tabs. The active tab is a dark filled pill; a
  * corner badge shows unread counts.

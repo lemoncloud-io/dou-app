@@ -8,7 +8,7 @@ import { getSocketErrorCode } from '../../../utils/errors';
 
 /**
  * Drain the stub era's local-only cancels by replaying them as real `invite.cancel` calls
- * (ADR-0043 결정 8, sender doc S9). Reads dismissed rows off the cache (`dismissedAt`, ADR-0052)
+ * (ADR-0043 decision 8, sender doc S9). Reads dismissed rows off the cache (`dismissedAt`, ADR-0052)
  * instead of the retired `canceledInviteIds` localStorage list — the one-time migration
  * (`useInviteDismissMigration`) seeds a dismiss stub for every legacy record before this ever runs.
  *

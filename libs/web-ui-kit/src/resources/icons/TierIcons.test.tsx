@@ -4,7 +4,7 @@ import { IconBoltSolid } from './IconBoltSolid';
 import { IconStarsSolid } from './IconStarsSolid';
 
 /**
- * The two subscription-tier glyphs exported from the Figma 구독 상태 뱃지 component. Grouped because
+ * The two subscription-tier glyphs exported from the Figma subscription status badge component. Grouped because
  * the contract is identical: square, 16px frame, `currentColor`, `size`-driven.
  */
 describe.each([

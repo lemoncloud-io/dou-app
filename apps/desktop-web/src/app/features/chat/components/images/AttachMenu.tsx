@@ -15,8 +15,8 @@ interface AttachMenuProps {
 }
 
 /**
- * The composer's "+" (Figma): a small menu with one entry, "사진 및 파일 추가 · 컴퓨터에서
- * 업로드 하세요", which opens the OS picker. Unsupported picks still go through the
+ * The composer's "+" (Figma): a small menu with one entry, "Add photos and files ·
+ * upload from your computer", which opens the OS picker. Unsupported picks still go through the
  * tray's validation so they get the same notice a drop would.
  */
 export const AttachMenu = ({ onFiles }: AttachMenuProps) => {

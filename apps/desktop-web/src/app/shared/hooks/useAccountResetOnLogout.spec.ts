@@ -4,7 +4,7 @@ import { renderHook, waitFor } from '@testing-library/react';
 
 import { useAccountResetOnLogout } from './useAccountResetOnLogout';
 
-// 7개 repo의 cacheClear만 관찰하면 된다 — 런타임 data 계층은 스텁.
+// Only need to observe cacheClear on the 7 repos — the runtime data layer is stubbed.
 const repos = Object.fromEntries(
     ['channel', 'chat', 'cloud', 'join', 'profile', 'place', 'user'].map(name => [
         name,
@@ -15,8 +15,8 @@ vi.mock('@chatic/app-runtime', () => ({
     runtime: { data: { useRuntimeRepositories: () => repos } },
 }));
 
-// 레지스트리가 아니라 Facade의 clear 로 확인한다: lane 엔트리(인메모리)와
-// persist된 `@chatic/config.ui.*` 키를 한 번에 걷어내는 게 바로 이 메서드다.
+// Verify via the Facade's clear, not the registry: this is the one method that sweeps both the
+// lane entry (in-memory) and the persisted `@chatic/config.ui.*` key in one go.
 const clearConfigKey = vi.fn().mockReturnValue({ ok: true });
 vi.mock('@chatic/config', () => ({ config: { clear: (...args: unknown[]) => clearConfigKey(...args) } }));
 

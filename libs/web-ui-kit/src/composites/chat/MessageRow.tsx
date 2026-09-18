@@ -11,7 +11,7 @@ export interface MessageRowProps {
     avatar?: React.ReactNode;
     /** One or more MessageBubble nodes from the same sender. */
     children: React.ReactNode;
-    /** Formatted timestamp (e.g. "오전 11:58"). */
+    /** Formatted timestamp (e.g. "11:58 AM"). */
     time?: string;
     /** Unread count shown next to the time. */
     unread?: number;

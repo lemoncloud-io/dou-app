@@ -8,7 +8,7 @@ import { cloudGateway, oauthGateway, reportGateway, subscriptionGateway, userGat
 
 /**
  * Assembles the HTTP gateway bundle and hands back the `data-source` bundle built on it —
- * `socketFactory`'s counterpart for HTTP (ADR-0070 결정 4·5, 2단계 후반). Gateways are not
+ * `socketFactory`'s counterpart for HTTP (ADR-0070 Decision 4·5, late Step 2). Gateways are not
  * returned: every caller goes through a repository (ADR-0036), so the bundle exists only long
  * enough to build the data sources — same rule `socketFactory.createSocketDataSources` follows.
  *

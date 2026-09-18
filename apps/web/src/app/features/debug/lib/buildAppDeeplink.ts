@@ -4,7 +4,7 @@ import { config } from '@chatic/config';
  * Turns what a tester typed into a deeplink this build's app will actually answer.
  *
  * Mirrors what the app's own `deeplinkService.handleUrl` did before the panel moved to the web
- * (ADR-0080 결정 11): a relative path gets the app's scheme prefixed, an absolute URL is left alone.
+ * (ADR-0080 decision 11): a relative path gets the app's scheme prefixed, an absolute URL is left alone.
  *
  * **The scheme comes from `net.deeplink.scheme`, never a literal.** It is `chatic` on PROD and
  * `chatic-dev` on DEV (`byStage`), and a device can have both channels installed — a hardcoded

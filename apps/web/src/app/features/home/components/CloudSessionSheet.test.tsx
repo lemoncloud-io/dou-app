@@ -136,7 +136,7 @@ describe('CloudSessionSheet — add cloud affordance', () => {
         renderSheet();
         const rowBefore = screen.getByText('c1@example.com');
 
-        // Collapse "내 클라우드" and let the height transition finish so its body unmounts.
+        // Collapse "My Cloud" and let the height transition finish so its body unmounts.
         const toggles = screen.getAllByRole('button', { name: 'cloudSessionSheet.toggleSection' });
         const grid = rowBefore.closest('.grid') as HTMLElement;
         fireEvent.click(toggles[1]);

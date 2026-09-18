@@ -26,7 +26,7 @@ describe('SegmentedTabs', () => {
         expect(onChange).toHaveBeenCalledWith('contact');
     });
 
-    // 활성 탭만 탭 스톱이라, Tab으로 한 번 들어온 뒤 화살표로 이동한다.
+    // Only the active tab is a tab stop — Tab moves focus in once, then the arrow keys take over.
     it('활성 탭만 tabIndex 0을 갖는다', () => {
         render(<SegmentedTabs items={ITEMS} value="contact" onChange={jest.fn()} />);
 
@@ -43,7 +43,7 @@ describe('SegmentedTabs', () => {
         expect(onChange).toHaveBeenCalledWith('contact');
     });
 
-    // 양 끝에서 감긴다 — tablist가 기대받는 동작이다.
+    // Wraps at both ends — this is the expected tablist behavior.
     it('마지막 탭에서 오른쪽 화살표는 처음으로 감긴다', () => {
         const onChange = jest.fn();
         render(<SegmentedTabs items={ITEMS} value="contact" onChange={onChange} />);
@@ -82,7 +82,7 @@ describe('SegmentedTabs', () => {
         expect(onChange).not.toHaveBeenCalled();
     });
 
-    // value가 목록에 없을 때(잘못된 초기값)도 화살표가 죽지 않아야 한다.
+    // The arrow keys must not break even when value isn't in the list (an invalid initial value).
     it('value가 목록에 없으면 화살표는 첫 탭 기준으로 움직인다', () => {
         const onChange = jest.fn();
         render(<SegmentedTabs items={ITEMS} value="없는탭" onChange={onChange} />);
@@ -94,8 +94,8 @@ describe('SegmentedTabs', () => {
 });
 
 describe('SegmentedTabs — 포커스', () => {
-    // roving tabindex가 탭 스톱을 옮기므로 DOM 포커스도 따라가야 한다. 안 따라가면 포커스가
-    // tabIndex=-1 인 버튼에 남아 Tab으로 다시 닿을 수 없는 자리에 갇힌다.
+    // Roving tabindex moves the tab stop, so DOM focus has to follow it. If it doesn't, focus stays
+    // stuck on a button with tabIndex=-1, in a spot Tab can no longer reach.
     it('화살표로 옮기면 새 탭에 포커스가 간다', () => {
         const Harness = () => {
             const [value, setValue] = require('react').useState('place');

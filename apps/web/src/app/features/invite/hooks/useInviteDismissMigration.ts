@@ -51,7 +51,7 @@ const clearLegacyCanceledIds = (): void => {
 
 /**
  * One-time migration of `canceledInviteIds` (localStorage, ADR-0043 stub era) into the invite
- * cache's `dismissedAt` field (ADR-0052 결정 5). For each legacy id, seeds a stub cache row
+ * cache's `dismissedAt` field (ADR-0052 decision 5). For each legacy id, seeds a stub cache row
  * (`{ id, dismissedAt: now }`, no `state`) so `useCanceledInviteReconcile` — reading dismissed rows
  * off the cache — can drain it exactly as before.
  *

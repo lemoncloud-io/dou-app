@@ -14,9 +14,9 @@ export interface IAppIconBridge {
 
 export const AppIconBridge: IAppIconBridge = {
     /**
-     * 네이티브 브릿지를 통해 실제 앱 아이콘 변경 명령을 전달합니다.
-     * @param targetName 적용할 새 아이콘 앨리어스 이름
-     * @param activeIconName 현재 켜져 있는 아이콘 앨리어스 이름 (Android용)
+     * Passes the actual app icon change command through the native bridge.
+     * @param targetName the new icon alias name to apply
+     * @param activeIconName the currently active icon alias name (for Android)
      */
     changeIcon: async (targetName: string, activeIconName: string): Promise<void> => {
         if (!AppIconManager) {
@@ -25,7 +25,7 @@ export const AppIconBridge: IAppIconBridge = {
         }
 
         if (Platform.OS === 'android') {
-            // 바꿀 아이콘과 현재 아이콘이 같으면 아무 작업도 하지 않음
+            // Do nothing if the target icon is the same as the currently active icon
             if (targetName === activeIconName) return;
 
             await AppIconManager.changeIcon(targetName, activeIconName);

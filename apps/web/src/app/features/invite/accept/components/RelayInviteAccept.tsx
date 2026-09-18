@@ -46,7 +46,7 @@ export const RelayInviteAccept = ({ code }: RelayInviteAcceptProps): JSX.Element
     const { t } = useTranslation();
     const setMyPlaceProfile = useSetMyPlaceProfile();
     const flow = useRelayInviteFlow(code);
-    // Branded, so the relay's personal place reads "두유 홈" in the profile title rather than the raw
+    // Branded, so the relay's personal place reads "DoU Home" in the profile title rather than the raw
     // backend name "default" (ADR-0040 decision 7).
     const placeName = useActivePlaceName();
 

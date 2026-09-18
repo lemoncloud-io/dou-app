@@ -24,7 +24,7 @@ interface ImageMoreMenuProps {
 }
 
 /**
- * "더보기" on one image (Figma): copy that image, delete that file. Both act on the one
+ * "More" on one image (Figma): copy that image, delete that file. Both act on the one
  * image the menu hangs off, never the whole message.
  */
 export const ImageMoreMenu = ({ trigger, onCopy, onDelete, onOpenChange, side = 'bottom' }: ImageMoreMenuProps) => {

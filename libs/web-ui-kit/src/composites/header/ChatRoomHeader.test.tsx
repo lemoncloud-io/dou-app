@@ -23,8 +23,8 @@ describe('ChatRoomHeader', () => {
         expect(screen.queryByRole('button')).not.toBeInTheDocument();
     });
 
-    // 채널을 아직 못 읽었을 때 호스트가 지어낸 이름("이름 없는 채널")이 잠깐 뜨면 다른 방이
-    // 열린 것처럼 읽힌다 — 자리만 잡아두고 이름은 확정된 뒤에 보여준다.
+    // If the host's placeholder name ("Unnamed channel") flashes before the channel has loaded,
+    // it reads as if a different room opened — so we just hold the spot and show the name once it's settled.
     describe('loading', () => {
         it('holds back the invented title and the meta row', () => {
             render(<ChatRoomHeader loading title="이름 없는 채널" meta={<span>MEMBERS</span>} onBack={jest.fn()} />);
@@ -33,7 +33,7 @@ describe('ChatRoomHeader', () => {
             expect(screen.queryByText('MEMBERS')).not.toBeInTheDocument();
         });
 
-        // 나가는 길은 로딩 중에도 열려 있어야 한다.
+        // The way out has to stay open even while loading.
         it('keeps the back button reachable', () => {
             const onBack = jest.fn();
             render(<ChatRoomHeader loading onBack={onBack} />);

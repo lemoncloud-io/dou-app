@@ -27,7 +27,7 @@ export interface UseInviteCandidatesResult {
  * cannot leak its members back in as candidates.
  *
  * Returns ids only. Names and avatars are the caller's job — they come from the place profile
- * cache, not from the channel rows (ADR-0075 결정 3).
+ * cache, not from the channel rows (ADR-0075 decision 3).
  */
 export const useInviteCandidates = (channelId: string | null, sid: string | null): UseInviteCandidatesResult => {
     const { userId } = runtime.session.useSessionIdentity();

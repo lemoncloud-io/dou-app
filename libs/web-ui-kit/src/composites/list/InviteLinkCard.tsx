@@ -17,7 +17,7 @@ export interface InviteLinkCardProps {
 }
 
 /**
- * Invite-link card — the Figma "초대 링크" screen card (3266-32893): a rounded filled row
+ * Invite-link card — the Figma "invite link" screen card (3266-32893): a rounded filled row
  * with the room avatar, its name + full invite URL, and a trailing underlined text link
  * that copies the URL.
  */

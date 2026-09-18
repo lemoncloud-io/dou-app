@@ -45,7 +45,8 @@ describe('createLocalDataSources — 네이티브 셸이 담을 수 없는 도�
         delete (window as any).ReactNativeWebView;
     });
 
-    // 셸이 담을 수 없는 도메인은 웹 저장소로 가고, 그 결과는 콜드 캐시다 — "왜 다 다시 받아오나"의 답.
+    // A domain the shell can't hold goes to web storage, and the result is a cold cache — the answer
+    // to "why is it re-downloading everything".
     it('네이티브에서 폴백이 있으면 도메인 목록을 한 줄로 남긴다', async () => {
         const { createLocalDataSources, setNativeCacheSupport, info } = await load(true);
         // A shell reporting no storable types at all: every gateable domain falls back.
@@ -58,7 +59,8 @@ describe('createLocalDataSources — 네이티브 셸이 담을 수 없는 도�
         expect(fallbackCalls[0][2].data.domains.length).toBeGreaterThan(0);
     });
 
-    // 브라우저에서는 전부 웹 저장소가 정상이다 — 폴백이 아니므로 남길 것이 없다.
+    // On a plain browser, everything using web storage is normal — it isn't a fallback, so there's
+    // nothing to log.
     it('브라우저 단독 접속에서는 남기지 않는다', async () => {
         const { createLocalDataSources, info } = await load(false);
 
@@ -67,7 +69,7 @@ describe('createLocalDataSources — 네이티브 셸이 담을 수 없는 도�
         expect(info.mock.calls.filter(call => String(call[1]).includes('fell back to web storage'))).toHaveLength(0);
     });
 
-    // 주입된 팩터리는 라우팅을 기록하지 않으므로 판정할 재료가 없다.
+    // An injected factory doesn't record routing, so there's nothing to judge from.
     it('팩터리가 주입되면(테스트 경로) 남기지 않는다', async () => {
         const { createLocalDataSources, setNativeCacheSupport, info } = await load(true);
         setNativeCacheSupport({ supportedCacheTypes: [], cacheDomainVersions: {} });

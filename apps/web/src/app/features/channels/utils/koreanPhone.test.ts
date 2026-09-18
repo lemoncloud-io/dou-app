@@ -13,7 +13,7 @@ describe('normalizeKoreanPhone', () => {
         expect(normalizeKoreanPhone('8212')).toBe('8212');
     });
 
-    // 연락처 앱은 둘 다 받아주고, 사람들은 둘 다 저장한다.
+    // Contact apps accept both forms, and people save numbers in both.
     it('국가번호 뒤에 로컬 0이 남아 있어도 같은 번호로 본다 (+82 010-…)', () => {
         expect(normalizeKoreanPhone('8201012345678')).toBe('01012345678');
     });

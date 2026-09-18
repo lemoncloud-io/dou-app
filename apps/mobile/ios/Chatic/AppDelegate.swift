@@ -25,7 +25,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate,
 
         FirebaseApp.configure()
 
-        // UNUserNotificationCenter 델리게이트 지정
+        // Assign the UNUserNotificationCenter delegate
         UNUserNotificationCenter.current().delegate = self
 
         let delegate = ReactNativeDelegate()
@@ -46,9 +46,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate,
         return true
     }
 
-    // MARK: - Background URLSession (업로드)
-    /// iOS가 백그라운드 URLSession 완료 후 앱을 깨울 때 호출.
-    /// UploadManager에 completionHandler를 전달하여 iOS가 다시 앱을 suspend할 수 있도록 처리.
+    // MARK: - Background URLSession (upload)
+    /// Called when iOS wakes the app after a background URLSession completes.
+    /// Passes the completionHandler to UploadManager so iOS can suspend the app again.
     func application(
         _ application: UIApplication,
         handleEventsForBackgroundURLSession identifier: String,
@@ -127,7 +127,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate,
 
     // MARK: - Push Notifications (APNs)
 
-    // APNs 디바이스 토큰 등록 성공 시
+    // When APNs device token registration succeeds
     func application(
         _ application: UIApplication,
         didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
@@ -137,7 +137,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate,
         )
     }
 
-    // APNs 디바이스 토큰 등록 실패 시
+    // When APNs device token registration fails
     func application(
         _ application: UIApplication,
         didFailToRegisterForRemoteNotificationsWithError error: Error
@@ -147,7 +147,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate,
         )
     }
 
-    // 백그라운드 및 사일런트 알림 수신 시
+    // When a background or silent notification is received
     func application(
         _ application: UIApplication,
         didReceiveRemoteNotification userInfo: [AnyHashable: Any],
@@ -160,7 +160,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate,
         )
     }
 
-    // 사용자가 알림을 탭하여 앱에 진입했을 때
+    // When the user taps a notification to enter the app
     func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse,
@@ -170,17 +170,17 @@ class AppDelegate: UIResponder, UIApplicationDelegate,
         completionHandler()
     }
 
-    // 앱이 포그라운드 상태일 때 알림 수신 시
+    // When a notification is received while the app is in the foreground
     func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification,
         withCompletionHandler completionHandler:
             @escaping (UNNotificationPresentationOptions) -> Void
     ) {
-        // RNCPushNotificationIOS에 알림을 전달하여 JS 측이 포그라운드 이벤트를 수신하도록 함
+        // Forward the notification to RNCPushNotificationIOS so the JS side receives the foreground event
         RNCPushNotificationIOS.didReceiveRemoteNotification(notification.request.content.userInfo)
-        
-        // 포그라운드이므로 시스템 배너(배너, 사운드, 진동)를 화면에 노출하지 않음
+
+        // Since we're in the foreground, don't show the system banner (banner, sound, vibration)
         completionHandler([])
     }
 }

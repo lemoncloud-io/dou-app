@@ -6,7 +6,7 @@ interface ChatImagesState {
     /** Images per message, keyed by the server message id (settled rows only). */
     byMessage: Record<string, ChatImage[]>;
     setImages: (messageId: string, images: ChatImage[]) => void;
-    /** "파일 삭제" on one image; the message loses its entry once none are left. */
+    /** "Delete file" on one image; the message loses its entry once none are left. */
     removeImage: (messageId: string, imageId: string) => void;
     clear: () => void;
 }

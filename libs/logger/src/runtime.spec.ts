@@ -51,17 +51,18 @@ describe('logger facade', () => {
     });
 
     it('구독자가 없으면 아무 데도 찍히지 않는다 — 콘솔 폴백은 없다', () => {
-        // 예전에는 구독자 0일 때만 콘솔이 켜졌다. 구독자 수에 따라 출력이
-        // 나타났다 사라지는 싱크는 pub/sub이 아니고, "리스너를 하나 뗀다"가
-        // 콘솔 출력에 대한 결정까지 되어버린다(원칙 16). 콘솔도 구독한다.
+        // Previously the console only turned on when there were 0 subscribers. A sink whose
+        // output appears and disappears based on subscriber count isn't pub/sub — it would make
+        // "detach one listener" also decide whether the console prints (principle 16). The
+        // console subscribes too.
         logger.info('TEST', 'nowhere');
 
         expect(consoleLogSpy).not.toHaveBeenCalled();
     });
 
-    // 링버퍼가 있던 시절에는 "구독 여부와 무관하게 쌓인다"가 구성상 보장이었다.
-    // 이제는 구독보다 먼저 나온 엔트리가 어디에도 남지 않는다 — 그것이 원칙 15가
-    // 배선 순서를 불변식으로 못 박은 이유다.
+    // Back when there was a ring buffer, "it accumulates regardless of subscription" was a
+    // structural guarantee. Now an entry that fires before anything subscribes survives nowhere
+    // — that's why principle 15 pins the wiring order down as an invariant.
     it('구독 전에 나온 엔트리는 이후 구독자에게 배달되지 않는다', () => {
         logger.info('TEST', 'before subscribe');
 
@@ -248,7 +249,7 @@ describe('세 번째 인자는 레벨과 무관하게 같은 뜻이다', () => {
         expect(entries[0].error).toBeUndefined();
     });
 
-    // error만 시그니처가 다른 채로 남는다 — 예외를 그대로 넘기는 축약형이 오래 쓰였다.
+    // Only error keeps a different signature — the shorthand of passing an exception straight through has been used for a long time.
     it('error에 예외를 바로 넘기면 error 필드로 간다', () => {
         const { entries, unsubscribe } = collect();
         const boom = new Error('boom');

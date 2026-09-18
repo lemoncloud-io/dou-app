@@ -14,20 +14,20 @@ import io.chatic.dou.R
 import io.chatic.dou.service.UploadBackgroundService
 
 /**
- * UploadWorker — WorkManager 기반 업로드 작업 래퍼
+ * UploadWorker — a WorkManager-based wrapper around the upload job.
  *
- * 역할:
- * - WorkManager가 이 Worker를 스케줄링/관리함
- * - Foreground Worker로 실행하여 OS 프로세스 유지 (setForeground 호출)
- * - 실제 업로드 실행은 UploadBackgroundService에 위임 (Intent 전달)
+ * Responsibilities:
+ * - WorkManager schedules and manages this Worker.
+ * - Runs as a foreground Worker to keep the OS process alive (calls setForeground).
+ * - Delegates the actual upload execution to UploadBackgroundService (via Intent).
  *
- * WorkManager를 쓰는 이유:
- * - 네트워크 조건 제약 설정 가능 (networkRequired)
- * - 앱 재시작 후 JS가 SQLite 기반으로 enqueueUpload() 재호출하는 방식과 조합
- * - Foreground Service 생명주기를 WorkManager가 관리
+ * Why WorkManager:
+ * - Lets us set network constraints (networkRequired).
+ * - Combines with the pattern where JS re-invokes enqueueUpload() from SQLite after an app restart.
+ * - WorkManager manages the foreground service lifecycle.
  *
- * 입력 파라미터 (WorkManager inputData):
- * - uploadId: String — 업로드 식별자
+ * Input parameters (WorkManager inputData):
+ * - uploadId: String — the upload identifier.
  */
 class UploadWorker(
     private val appContext: Context,
@@ -43,13 +43,13 @@ class UploadWorker(
     override suspend fun doWork(): Result {
         val uploadId = inputData.getString(KEY_UPLOAD_ID) ?: return Result.failure()
 
-        // WorkManager Foreground Worker 선언 — OS가 이 작업을 장기 실행으로 인식
+        // Declare this a WorkManager foreground Worker — the OS treats it as a long-running task.
         setForeground(createForegroundInfo(uploadId))
 
-        // 실제 업로드는 이미 UploadBackgroundService에서 실행 중임.
-        // 이 Worker는 WorkManager 생명주기 내에서 Foreground를 유지하는 역할.
-        // Service가 완료 이벤트를 broadcast할 때까지 대기.
-        // (Service가 완료되면 자동으로 stopSelf() 호출 → Worker도 완료 처리)
+        // The actual upload is already running in UploadBackgroundService.
+        // This Worker's only job is to keep the foreground state alive within WorkManager's lifecycle.
+        // Wait until the Service broadcasts its completion event.
+        // (Once the Service finishes, it calls stopSelf() automatically, which also completes this Worker.)
         return Result.success()
     }
 

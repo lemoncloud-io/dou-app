@@ -10,7 +10,7 @@ import { buildDeviceInfoRows } from '../../lib';
 import { appBridge } from '../../../../bridge';
 
 /**
- * OS pickers and permission prompts, moved off the app's Device Test screen (ADR-0080 결정 11).
+ * OS pickers and permission prompts, moved off the app's Device Test screen (ADR-0080 decision 11).
  *
  * Every one of these is an existing bridge command — the web client simply had not exposed the
  * picker four. `MICROPHONE` needed the contract's `AppPermissionType` widened, which was a

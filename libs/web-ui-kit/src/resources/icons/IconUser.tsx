@@ -7,7 +7,7 @@ export interface IconUserProps extends Omit<React.SVGProps<SVGSVGElement>, 'widt
 
 /**
  * The single-person glyph — a filled head + shoulders silhouette, extracted from the Figma
- * `1명 Profile` avatar (node 3185:13127). This is THE user glyph for avatars: the room avatar has
+ * `1-person Profile` avatar (node 3185:13127). This is THE user glyph for avatars: the room avatar has
  * exactly two images, this and {@link IconGroup}, so there is no outline variant to choose between
  * (the lucide outline lives on as `IconUserOutline` for grey placeholder slots, which are a
  * different job).

@@ -231,7 +231,7 @@ export const LogFilterRail = ({
                     // Unless it is the one currently selected. A server-backed axis narrows the
                     // corpus to its own value, which leaves exactly one value in the counts — so
                     // hiding on `< 2` would take the control away the moment it was used and
-                    // strand the operator inside a filter with no way back to `전체`.
+                    // strand the operator inside a filter with no way back to `All`.
                     if (values.length < 2 && !picked) return null;
                     return (
                         <Field

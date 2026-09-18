@@ -34,7 +34,7 @@ describe('ThreadSummary — 스레드 요약 줄', () => {
         expect(screen.queryByText(/^\+/)).toBeNull();
     });
 
-    // 새 댓글은 점이 아니라 개수로 말한다. 끼어들 만한 줄이면 몇 개가 새로 왔는지가 볼 값이다.
+    // New comments speak through a count, not a dot. If the row is worth interrupting for, how many arrived is the value worth reading.
     it('새 댓글 라벨은 있을 때만 나오고 point-blue를 쓴다', () => {
         const { rerender } = render(<ThreadSummary replyLabel="댓글 3개" />);
         expect(screen.queryByText('새 댓글 1개')).toBeNull();
@@ -51,7 +51,7 @@ describe('ThreadSummary — 스레드 요약 줄', () => {
         expect(screen.getByText('오후 12:06')).toBeInTheDocument();
     });
 
-    // 세 칸 사이에만 점이 붙는다 — 답글 수만 있으면 점은 하나도 없어야 한다.
+    // A dot appears only between the three segments — with only the reply count present, there should be no dots at all.
     it('칸 사이에만 구분점을 넣는다', () => {
         const { container, rerender } = render(<ThreadSummary replyLabel="댓글 3개" />);
         expect(container.textContent).not.toContain('•');
@@ -68,8 +68,8 @@ describe('ThreadSummary — 스레드 요약 줄', () => {
         expect(screen.getByRole('button')).toHaveClass('flex-row-reverse');
     });
 
-    // 얼굴만 옮기는 게 아니라 라벨 순서까지 거울처럼 뒤집힌다 — 디자인은 그쪽에서
-    // "오후 12:06 · 새 댓글 1개 · 댓글 3개"로 읽힌다.
+    // Not just the faces move — the label order mirrors too, since the design reads
+    // "12:06 PM · 1 new comment · 3 comments" on that side.
     it('뒤집을 때 라벨 묶음도 함께 뒤집는다', () => {
         const { rerender } = render(
             <ThreadSummary replyLabel="댓글 3개" newReplyLabel="새 댓글 1개" time="오후 12:06" />
@@ -80,7 +80,7 @@ describe('ThreadSummary — 스레드 요약 줄', () => {
         expect(screen.getByText('댓글 3개').parentElement).toHaveClass('flex-row-reverse');
     });
 
-    // 뒤집는 건 CSS라서 DOM 순서는 그대로다 — 스크린리더는 여전히 "누가"를 먼저 듣는다.
+    // The flip is CSS-only, so DOM order stays put — a screen reader still hears "who" first.
     it('뒤집어도 DOM 순서는 얼굴 먼저다', () => {
         const { container } = render(<ThreadSummary avatars={faces(1)} replyLabel="댓글 3개" align="end" />);
 

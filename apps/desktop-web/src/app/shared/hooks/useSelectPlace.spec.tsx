@@ -8,7 +8,7 @@ import { act, renderHook } from '@testing-library/react';
  * switch show the previous place's channels, filtered out by sid, hence an empty sidebar until a
  * reload (.claude/20260804/DEBUG-14-20-13.md).
  *
- * ADR-0070 3단계 merged the pair — the socket-notifying version won and the other is gone, so the
+ * ADR-0070 step 3 merged the pair — the socket-notifying version won and the other is gone, so the
  * "which one is wired" hazard no longer exists. What still needs pinning is the behavior that made
  * it matter: the switch must reach `switchSite`, and a click on the current place must not.
  */

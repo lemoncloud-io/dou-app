@@ -58,7 +58,7 @@ export const IconLink: LucideIcon = Link2;
 export const IconUserOutline: LucideIcon = User;
 export const IconUsers: LucideIcon = Users;
 export const IconClock: LucideIcon = Clock;
-/** Two stacked sheets — the message action sheet's 메시지 복사 row (Figma Code Connect: `IconCopy`). */
+/** Two stacked sheets — the message action sheet's copy message row (Figma Code Connect: `IconCopy`). */
 export const IconCopy: LucideIcon = Copy;
 
 // Figma-exported custom glyphs (not lucide icons). See IconGroup.tsx / IconUser.tsx.
@@ -67,7 +67,7 @@ export { IconUser, type IconUserProps } from './IconUser';
 export { IconChatAdd, type IconChatAddProps } from './IconChatAdd';
 export { IconPin, type IconPinProps } from './IconPin';
 // Reaction / thread glyphs (Figma 4701:43432, 4712:16496) — the emoji-add affordance at the end
-// of every chip row, and the doubled speech bubble the action sheet's 스레드 row carries.
+// of every chip row, and the doubled speech bubble the action sheet's thread row carries.
 export { IconEmojiAdd, type IconEmojiAddProps } from './IconEmojiAdd';
 export { IconThread, type IconThreadProps } from './IconThread';
 // Duotone glyphs — filled shapes with a half/40%-opacity companion layer. Their lucide
@@ -80,7 +80,7 @@ export { IconImageSolid, type IconImageSolidProps } from './IconImageSolid';
 export { IconGalleryAdd, type IconGalleryAddProps } from './IconGalleryAdd';
 export { IconCheckCircleSolid, type IconCheckCircleSolidProps } from './IconCheckCircleSolid';
 export { IconDangerCircle, type IconDangerCircleProps } from './IconDangerCircle';
-// Subscription tier glyphs (Solar "Bold" set, exported from the 구독 상태 뱃지 component). The lucide
+// Subscription tier glyphs (Solar "Bold" set, exported from the subscription status badge component). The lucide
 // `IconBolt`/`IconPlan` aliases above are the older stand-ins and stay exported for callers that
 // want the outline look; the tier pills use these.
 export { IconBoltSolid, type IconBoltSolidProps } from './IconBoltSolid';

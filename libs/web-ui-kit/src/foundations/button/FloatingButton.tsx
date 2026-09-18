@@ -6,7 +6,7 @@ import { Button, type ButtonProps } from './Button';
 import { FLOATING_PANEL } from './floatingPanel';
 
 export interface FloatingButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-    /** Button label (e.g. "완료"). */
+    /** Button label (e.g. "Done"). */
     label: string;
     /** Solid tone — green (default) or black. */
     tone?: Extract<ButtonProps['tone'], 'green' | 'black'>;

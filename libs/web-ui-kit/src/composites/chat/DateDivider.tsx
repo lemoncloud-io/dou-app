@@ -1,7 +1,7 @@
 import { cn } from '@chatic/lib/utils';
 
 export interface DateDividerProps {
-    /** Preformatted date label (e.g. "2025년 00월 00일 월요일"). */
+    /** Preformatted date label (e.g. "Monday, January 1, 2025"). */
     label: string;
     className?: string;
 }

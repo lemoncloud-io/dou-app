@@ -22,7 +22,7 @@ export interface CopyFeedback {
  * shapes; anything else can hold the state itself instead of copying silently.
  *
  * The outcome is the REAL one (`copyTextWithResult` awaits both the bridge reply and the Clipboard
- * API), so 복사 실패 appears when it actually failed — a WebView with no `navigator.clipboard`, or
+ * API), so the "Copy failed" label appears when it actually failed — a WebView with no `navigator.clipboard`, or
  * a shell that rejected the command. On a device there is no way to check the clipboard without
  * leaving the app, which is what makes a silent copy button indistinguishable from a broken one.
  */

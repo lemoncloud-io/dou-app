@@ -4,7 +4,7 @@ import { useDebugOperation } from '../../hooks';
 import { appBridge } from '../../../../bridge';
 
 /**
- * SMS compose — the app's SMS Test screen, moved here (ADR-0080 결정 11).
+ * SMS compose — the app's SMS Test screen, moved here (ADR-0080 decision 11).
  *
  * `SendSms` hands the OS a prefilled compose sheet; the person still presses send, so nothing is
  * sent without a human. `GetContacts` is here for the same reason the app's screen had it: picking

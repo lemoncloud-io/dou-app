@@ -117,7 +117,7 @@ describe('useAppUpdateStatus — 기록 (ADR-0099)', () => {
         mockIsNative.mockReturnValue(true);
     });
 
-    // 실패해도 마지막 상태가 그대로 보이므로, 화면상 "업데이트 없음"과 구분되지 않는다.
+    // Even on failure the last state stays visible, so on screen it's indistinguishable from "no update".
     it('체크 실패를 warn으로 남긴다', async () => {
         mockCheckAppUpdate.mockRejectedValue(new Error('bridge boom'));
         renderHook(() => useAppUpdateStatus());
@@ -139,7 +139,7 @@ describe('useAppUpdateStatus — 기록 (ADR-0099)', () => {
         });
     });
 
-    // 마운트와 포그라운드 복귀마다 도는 훅이라, 상태를 매번 남기면 하루 종일 같은 줄이 쌓인다.
+    // This hook runs on every mount and foreground return, so logging the state every time would pile up the same line all day.
     it('상태가 그대로면 다시 남기지 않는다', async () => {
         mockCheckAppUpdate.mockResolvedValue(updateResponse('1.4.0'));
         renderHook(() => useAppUpdateStatus());

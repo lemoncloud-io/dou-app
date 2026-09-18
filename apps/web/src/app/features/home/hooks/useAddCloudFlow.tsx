@@ -3,7 +3,7 @@ import { useAddCloudRequest } from '../../../stores/useAddCloudRequest';
 export interface AddCloudFlowResult {
     /**
      * Entry point for every "add a cloud" affordance. The button stays visible whatever the quota
-     * says — matching how "＋ 플레이스 추가" behaves — and the reason for a refusal is surfaced by
+     * says — matching how "+ Add place" behaves — and the reason for a refusal is surfaced by
      * the flow itself.
      */
     requestAddCloud: () => void;

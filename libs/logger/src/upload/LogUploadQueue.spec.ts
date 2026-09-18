@@ -148,9 +148,10 @@ describe('createLogUploadQueue — remove와 복원', () => {
     });
 
     /**
-     * id는 서버의 dedup 키이면서 호스트가 ack하는 키다. 없으면 업로드는 되지만 큐에서 지워지지
-     * 않아 매 주기마다 다시 올라간다 — 영속화가 이 필드를 버리던 빌드의 레코드가 이미 기기에
-     * 있으므로, 들어오는 길에 고친다.
+     * id is both the server's dedup key and the key the host acks. Without it the upload still
+     * happens but nothing removes the entry from the queue, so it goes up again every cycle —
+     * records from a build whose persistence layer used to drop this field are already sitting
+     * on the device, so this fixes them on the way in.
      */
     it('id 없는 레코드에 id를 발급한다 — 없으면 영원히 ack되지 않는다', () => {
         const queue = createLogUploadQueue();
@@ -160,7 +161,7 @@ describe('createLogUploadQueue — remove와 복원', () => {
 
         const [restored] = queue.snapshot();
         expect(restored.id).toBeTruthy();
-        // ack 경로가 실제로 지울 수 있어야 한다 — 그게 이 발급의 목적이다.
+        // The ack path has to actually be able to remove it — that's the point of issuing one.
         queue.remove(queue.snapshot().filter(e => e.id && e.id === restored.id));
         expect(queue.size()).toBe(0);
     });
@@ -197,7 +198,7 @@ describe('createLogUploadQueue — pushAll 중복 제거', () => {
 });
 
 describe('LogUploadQueue — 바이트 상한', () => {
-    /** 대략 `bytes` 크기가 되도록 data를 채운 엔트리. */
+    /** An entry whose data is padded to roughly `bytes` in size. */
     const fat = (id: string, bytes: number): LogEntry => ({
         id,
         level: 'info',
@@ -208,9 +209,9 @@ describe('LogUploadQueue — 바이트 상한', () => {
     });
 
     it('건수가 남아도 바이트를 넘으면 버린다 — 큰 data 몇 개가 예산을 삼키는 것을 막는다', () => {
-        // 건수 상한만 있으면 이 큐는 3건이라 전혀 걸리지 않는다. 그런데 웹에서는
-        // 이 예산을 오리진 전체가 공유하므로, 로그가 다 먹으면 로그와 무관한
-        // 기능이 먼저 깨진다.
+        // With only a count cap, this queue has 3 entries and would never trip it. But on the
+        // web this budget is shared across the whole origin, so if logs eat all of it, a
+        // feature that has nothing to do with logging breaks first.
         const dropped: LogEntry[][] = [];
         const queue = createLogUploadQueue({
             capacity: 100,
@@ -280,8 +281,9 @@ describe('LogUploadQueue — acceptDebug', () => {
     });
 
     it('상한에 닿으면 debug가 가장 먼저 버려진다 — 이 순서가 보관을 가능하게 한다', () => {
-        // 이게 없으면 요청 로그 한 번의 폭주가 창의 존재 이유인 warn/error를
-        // 밀어낸다. debug를 아예 안 받던 정책이 피하던 실패가 바로 그것이다.
+        // Without this, a single burst of request logs would push out the warn/error entries
+        // that are the whole reason this window exists. That's exactly the failure the
+        // old policy of never accepting debug at all was avoiding.
         const queue = createLogUploadQueue({ acceptDebug: true, capacity: 3 });
 
         queue.push(entry('error'));

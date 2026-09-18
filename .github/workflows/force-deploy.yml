@@ -345,26 +345,26 @@ jobs:
               run: |
                   set -e
 
-                  # 개발 환경 체크
+                  # Check dev environment inputs
                   DEV_WEB="${{ github.event.inputs.deploy_web_dev }}"
                   DEV_ADMIN="${{ github.event.inputs.deploy_admin_dev }}"
                   DEV_LANDING="${{ github.event.inputs.deploy_landing_dev }}"
 
-                  # PROD 환경 체크
+                  # Check PROD environment inputs
                   PROD_WEB="${{ github.event.inputs.deploy_web_prod }}"
                   PROD_ADMIN="${{ github.event.inputs.deploy_admin_prod }}"
                   PROD_LANDING="${{ github.event.inputs.deploy_landing_prod }}"
 
-                  # 버전 정보
+                  # Version info
                   WEB_VER="${{ needs.get-versions.outputs.web-version }}"
                   ADMIN_VER="${{ needs.get-versions.outputs.admin-version }}"
                   LANDING_VER="${{ needs.get-versions.outputs.landing-version }}"
 
-                  # 메타 정보
+                  # Meta info
                   TIMESTAMP=$(TZ=Asia/Seoul date '+%Y-%m-%d %H:%M:%S')
                   COMMIT_SHA="${GITHUB_SHA:0:7}"
 
-                  # 개발/PROD 환경 카운트
+                  # Dev/PROD environment counts
                   DEV_COUNT=0
                   PROD_COUNT=0
 
@@ -375,7 +375,7 @@ jobs:
                   [[ "$PROD_ADMIN" == "true" ]] && ((PROD_COUNT++)) || true
                   [[ "$PROD_LANDING" == "true" ]] && ((PROD_COUNT++)) || true
 
-                  # Outputs 저장
+                  # Save outputs
                   {
                     echo "dev_web=${DEV_WEB}"
                     echo "dev_admin=${DEV_ADMIN}"
@@ -397,7 +397,7 @@ jobs:
               run: |
                   set -e
 
-                  # 기본 블록들
+                  # Base blocks
                   BLOCKS='[
                       {
                           "type": "header",
@@ -418,7 +418,7 @@ jobs:
                           "type": "divider"
                       }'
 
-                  # 개발 환경 섹션
+                  # Dev environment section
                   if [[ "${{ steps.deploy-info.outputs.dev_count }}" != "0" ]]; then
                       BLOCKS+=',
                       {
@@ -464,7 +464,7 @@ jobs:
                       }'
                   fi
 
-                  # PROD 환경 섹션
+                  # PROD environment section
                   if [[ "${{ steps.deploy-info.outputs.prod_count }}" != "0" ]]; then
                       BLOCKS+=',
                       {
@@ -510,7 +510,7 @@ jobs:
                       }'
                   fi
 
-                  # 메타 정보 블록
+                  # Meta info block
                   BLOCKS+=',
                   {
                       "type": "divider"
@@ -538,7 +538,7 @@ jobs:
                       ]
                   }]'
 
-                  # JSON 유효성 검증 (optional)
+                  # JSON validity check (optional)
                   echo "$BLOCKS" | jq empty 2>/dev/null || {
                       echo "Error: Invalid JSON blocks"
                       exit 1
@@ -574,7 +574,7 @@ jobs:
               run: |
                   set -e
 
-                  # 실패한 배포 체크
+                  # Check failed deployments
                   DEV_WEB="${{ github.event.inputs.deploy_web_dev }}"
                   DEV_ADMIN="${{ github.event.inputs.deploy_admin_dev }}"
                   DEV_LANDING="${{ github.event.inputs.deploy_landing_dev }}"
@@ -585,7 +585,7 @@ jobs:
                   TIMESTAMP=$(TZ=Asia/Seoul date '+%Y-%m-%d %H:%M:%S')
                   COMMIT_SHA="${GITHUB_SHA:0:7}"
 
-                  # 실패 카운트
+                  # Failure counts
                   DEV_COUNT=0
                   PROD_COUNT=0
 
@@ -634,7 +634,7 @@ jobs:
                           "type": "divider"
                       }'
 
-                  # 개발 환경 실패
+                  # Dev environment failures
                   if [[ "${{ steps.failure-info.outputs.dev_count }}" != "0" ]]; then
                       BLOCKS+=',
                       {
@@ -676,7 +676,7 @@ jobs:
                       }'
                   fi
 
-                  # PROD 환경 실패
+                  # PROD environment failures
                   if [[ "${{ steps.failure-info.outputs.prod_count }}" != "0" ]]; then
                       BLOCKS+=',
                       {
@@ -718,7 +718,7 @@ jobs:
                       }'
                   fi
 
-                  # 메타 정보
+                  # Meta info
                   BLOCKS+=',
                   {
                       "type": "divider"

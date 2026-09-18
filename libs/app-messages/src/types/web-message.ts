@@ -92,7 +92,7 @@ import type {
 } from './model';
 import type { BaseMessage } from './types';
 
-/** 메시지 타입과 해당 Payload 타입을 매핑하는 구조입니다. */
+/** Structure mapping each message type to its corresponding payload type. */
 export type WebMessagePayloadMap = {
     // 1. Device & System
     SetCanGoBack: SetCanGoBackPayload;
@@ -160,11 +160,11 @@ export type WebMessagePayloadMap = {
     OAuthLogin: OAuthLoginPayload;
     OAuthLogout: OAuthLogoutPayload;
 
-    // 6.5 Config (ADR-0079 셸 레인 — 범용 KV 브릿지)
+    // 6.5 Config (ADR-0079 shell lane — general-purpose KV bridge)
     SaveConfigValue: SaveConfigValuePayload;
     ClearConfigValue: ClearConfigValuePayload;
 
-    // 6.6 Debug panel (ADR-0080 결정 11 — 조작은 웹, 실행은 앱)
+    // 6.6 Debug panel (ADR-0080 decision 11 — control on web, execution on app)
     DeleteFcmToken: DeleteFcmTokenPayload;
     FetchBootRecords: FetchBootRecordsPayload;
     ClearBootRecords: ClearBootRecordsPayload;
@@ -210,7 +210,7 @@ export type WebMessagePayloadMap = {
     OpenStore: OpenStorePayload;
 };
 
-/** WebMessagePayloadMap의 Key들을 조합하여 가능한 모든 웹 메시지 타입(String Union)을 자동 생성합니다. */
+/** Auto-generates the string union of every possible web message type from the keys of WebMessagePayloadMap. */
 export type WebMessageType = keyof WebMessagePayloadMap;
 
 export type WebDefaultMessage<T extends WebMessageType> = BaseMessage & {

@@ -94,7 +94,7 @@ export const ChatHomePage = () => {
 
     useRenderCount('ChatHome');
 
-    // invite cloud 목록 구독 — 캐시에 저장된 초대 클라우드를 그대로 표시한다.
+    // Subscribe to the invite cloud list — renders the invited clouds straight from the cache.
     useEffect(() => {
         return repos.cloud.observeList(result => {
             setInvitedClouds(result?.list ?? []);
@@ -102,7 +102,8 @@ export const ChatHomePage = () => {
         });
     }, [repos.cloud]);
 
-    // place 목록 구독 — activeServer(cid)가 바뀌면 재구독 + 기존 결과 폐기.
+    // Subscribe to the place list — re-subscribes and discards the previous results whenever
+    // activeServer (cid) changes.
     useEffect(() => {
         setSites([]);
         return repos.place.observeList(undefined, result => {
@@ -111,43 +112,50 @@ export const ChatHomePage = () => {
         });
     }, [repos.place, cid]);
 
-    // 사이트(place)/프로필/채널 목록 네트워크 리프레시 묶음 — 캐시를 채우는 fetch들.
-    // place.refreshList는 전체 스냅샷(mySite + stale 정리)이라 워터마크가 없다.
-    // channel.syncChannels / profile.syncProfiles는 델타(since 이후 변경분) API라, sync 메타에 저장된
-    // syncedAt을 since로 넘기고 결과 syncedAt을 다시 저장해야 증분 스냅샷이 어긋나지 않는다.
+    // Bundle of site (place)/profile/channel list network refreshes — the fetches that populate
+    // the cache. place.refreshList is a full snapshot (mySite + stale cleanup), so it has no
+    // watermark. channel.syncChannels / profile.syncProfiles are delta APIs (changes since a given
+    // point), so we must pass the syncedAt stored in sync meta as since and save the resulting
+    // syncedAt back, or the incremental snapshot drifts out of sync.
     const refreshActiveLists = useCallback(async () => {
         void repos.place.refreshList().catch(() => {
             /* empty */
         });
 
-        // 채널 델타 동기화 — channel.sync는 장소 횡단(클라우드 전체)이라 커서는 cid 단위다.
-        // 각 채널은 자기 sid로 태깅되어 저장되므로 활성 사이트 전환과 무관하게 정확하다.
+        // Channel delta sync — channel.sync crosses sites (cloud-wide), so the cursor is keyed
+        // per cid. Each channel is stored tagged with its own sid, so this stays correct regardless
+        // of active-site switches.
         try {
             const channelSyncKind = `channel-sync:${cid}`;
             const since = await repos.syncMeta.getSyncedAt(channelSyncKind);
             const { syncedAt } = await repos.channel.syncChannels(since);
             await repos.syncMeta.setSyncedAt(channelSyncKind, syncedAt);
         } catch {
-            // best-effort: 실패 시 워터마크 미전진 → 다음 틱에 같은 since로 재시도
+            // best-effort: on failure the watermark doesn't advance → retried with the same
+            // since on the next tick
         }
 
         if (!activeSiteId) return;
 
-        // 프로필 델타 동기화 — 커서를 {cid, sid}로 키잉한다(desktop-web useSiteProfileSync와 동일).
-        // since=0을 매번 주면 전량 재pull이라 removal 증분이 추적되지 않으므로 워터마크를 전진시킨다.
+        // Profile delta sync — keys the cursor by {cid, sid} (same as desktop-web's
+        // useSiteProfileSync). Passing since=0 every time would re-pull everything and lose track
+        // of removal deltas, so we advance the watermark instead.
         try {
             const profileSyncKind = `profile-sync:${cid}:${activeSiteId}`;
             const since = await repos.syncMeta.getSyncedAt(profileSyncKind);
             const { syncedAt } = await repos.profile.syncProfiles(since, activeSiteId);
             await repos.syncMeta.setSyncedAt(profileSyncKind, syncedAt);
         } catch {
-            // best-effort: 실패 시 워터마크를 전진시키지 않아 다음 틱에 같은 since로 재시도된다
+            // best-effort: on failure the watermark doesn't advance, so it's retried with the
+            // same since on the next tick
         }
     }, [repos.place, repos.channel, repos.profile, repos.syncMeta, cid, activeSiteId]);
 
-    // 타이밍 1·2 — 앱 진입 + 사이트/클라우드 전환 "확정 완료"(= 새 세션 재인증 → verified false→true).
-    // 상승 엣지에서만 부르므로 전환 낙관 구간(아직 옛 세션이 verified=true)엔 fetch하지 않는다 —
-    // 그래야 이전 사이트/클라우드 데이터가 새 sid/cid 스코프로 mis-tag/오염되지 않는다.
+    // Timing 1·2 — app entry + site/cloud switch "fully committed" (= new session
+    // re-authenticated → verified false→true). Only fires on the rising edge, so it never fetches
+    // during the switch's optimistic window (while the old session is still verified=true) — that's
+    // what keeps the previous site/cloud's data from being mis-tagged/contaminating the new sid/cid
+    // scope.
     const prevVerifiedRef = useRef(false);
     useEffect(() => {
         const becameVerified = !prevVerifiedRef.current && isVerified;
@@ -155,16 +163,18 @@ export const ChatHomePage = () => {
         if (becameVerified) void refreshActiveLists();
     }, [isVerified, refreshActiveLists]);
 
-    // 타이밍 3 — 주기 폴링. verified 동안 일정 간격으로 갱신하되, 전환 진행 중
-    // (isSiteSwitching/isSwitching)에는 옛 세션이 잠시 verified=true인 낙관 구간과 겹쳐 stale
-    // fetch가 될 수 있으므로 건너뛴다(전환 확정은 위 상승 엣지가 처리).
+    // Timing 3 — periodic polling. Refreshes at a fixed interval while verified, but skips while a
+    // switch is in progress (isSiteSwitching/isSwitching), since that overlaps the old session's
+    // brief verified=true optimistic window and could produce a stale fetch (the switch's rising
+    // edge above handles the commit).
     useEffect(() => {
         if (!isVerified || isSiteSwitching || isSwitching) return;
         const timer = setInterval(() => void refreshActiveLists(), LIST_REFRESH_POLL_MS);
         return () => clearInterval(timer);
     }, [isVerified, isSiteSwitching, isSwitching, refreshActiveLists]);
 
-    // channel 목록 구독 — 낙관적 activeSiteId 기준. 클릭 즉시 캐시된 목록을 보여준다(반응성).
+    // Subscribe to the channel list — keyed on the optimistic activeSiteId. Shows the cached list
+    // immediately on click (responsiveness).
     useEffect(() => {
         if (!activeSiteId) {
             setChannels([]);
@@ -182,9 +192,10 @@ export const ChatHomePage = () => {
         });
     }, [repos.channel, activeSiteId]);
 
-    // 보이는 채널 각각을 sync 타깃으로 등록 — lastChat$ 등을 실시간 갱신 (per-channel register).
-    // 반드시 activeSiteId에 속한 채널만 등록한다(activeChannelIds) — 전환 직후 남아있는 이전 사이트
-    // 채널을 등록하면 sync push가 그 채널을 새 sid로 mis-tag한다(위 주석 참조).
+    // Register each visible channel as a sync target — keeps lastChat$ etc. updated in real time
+    // (per-channel register). Only channels that belong to activeSiteId may be registered
+    // (activeChannelIds) — registering a previous site's leftover channel right after a switch
+    // would let a sync push mis-tag it with the new sid (see the comment above).
     useEffect(() => {
         if (!activeSiteId || activeChannelIds.length === 0) return;
         const sync = runtime.sync.getSyncManager();
@@ -192,8 +203,9 @@ export const ChatHomePage = () => {
         return () => disposers.forEach(dispose => dispose());
     }, [activeSiteId, activeChannelIdsKey]);
 
-    // 보이는 place 각각을 sync 타깃으로 등록 — place 메타 실시간 갱신 (per-place register).
-    // place엔 list-delta 게이트웨이가 없어 목록 발견은 place.refreshList(위)가, 실시간은 이 register가 담당.
+    // Register each visible place as a sync target — keeps place meta updated in real time
+    // (per-place register). Place has no list-delta gateway, so list discovery is owned by
+    // place.refreshList (above) while this register owns the real-time side.
     useEffect(() => {
         if (siteIds.length === 0) return;
         const sync = runtime.sync.getSyncManager();
@@ -246,7 +258,7 @@ export const ChatHomePage = () => {
     const ownedClouds = clouds.filter(c => !invitedCloudIds.has(c.id ?? ''));
     const isRelayMode = session.activeServer.kind === 'relay';
 
-    // Currently selected place (for the "현재 플레이스" summary) and a per-place channel count.
+    // Currently selected place (for the "current place" summary) and a per-place channel count.
     const activeSite = sites.find(s => s.id === activeSiteId) ?? null;
 
     // Cloud dot: the active cloud uses its live total; other clouds fall back to the last-visited
@@ -255,7 +267,7 @@ export const ChatHomePage = () => {
 
     return (
         <div className="p-4 space-y-5">
-            {/* Cloud 영역 */}
+            {/* Cloud area */}
             <section>
                 <p className="text-xs font-semibold text-muted-foreground mb-2">내 클라우드</p>
                 <div className="space-y-1">
@@ -301,7 +313,7 @@ export const ChatHomePage = () => {
                 )}
             </section>
 
-            {/* Place 목록 */}
+            {/* Place list */}
             <section>
                 <div className="flex items-center justify-between mb-2">
                     <p className="text-xs font-semibold text-muted-foreground">사이트 (Place)</p>
@@ -349,7 +361,7 @@ export const ChatHomePage = () => {
                 )}
             </section>
 
-            {/* Channel 목록 */}
+            {/* Channel list */}
             <section>
                 <div className="flex items-center justify-between mb-2">
                     <p className="text-xs font-semibold text-muted-foreground">채널</p>
@@ -363,7 +375,7 @@ export const ChatHomePage = () => {
                     </button>
                 </div>
 
-                {/* 현재 플레이스 정보 요약 */}
+                {/* Current place info summary */}
                 {activeSite && (
                     <div className="mb-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2">
                         <div className="flex items-center justify-between gap-2">
@@ -400,7 +412,7 @@ export const ChatHomePage = () => {
                 )}
             </section>
 
-            {/* 생성/이름수정 다이얼로그 — 한 번에 하나만 연다 */}
+            {/* Create/rename dialog — only one open at a time */}
             {manageDialog?.kind === 'createPlace' && (
                 <NameFormDialog
                     title="새 플레이스"

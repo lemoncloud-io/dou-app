@@ -226,7 +226,7 @@ export const PlaceRail = ({
                     aria-label={selfName || t('rail.menu.profile')}
                     className="group relative transition-transform duration-150 ease-tactile tactile focus-ring rounded-full"
                 >
-                    {/* Figma "1명 Profile": the navy disc and green presence dot are
+                    {/* Figma "1-person Profile": the navy disc and green presence dot are
                         fixed in both themes — see --profile-disc / --presence-online. */}
                     <Avatar className="h-12 w-12 rounded-full">
                         {userPhoto && <AvatarImage src={userPhoto} alt={selfName} className="rounded-full" />}

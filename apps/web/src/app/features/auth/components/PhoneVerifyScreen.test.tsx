@@ -29,7 +29,7 @@ jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ 
 // Radix overlays are stubbed as pass-through markup (house convention — see AddFriendSheet.test).
 // `DialogContent` keeps `className` and `role` rather than dropping them: the real one merges the
 // variant classes with the caller's, and the layout constraints this shell depends on (see the
-// 좁은 화면·키보드 suite) live in exactly that string — a stub that swallowed it would let them be
+// narrow-screen/keyboard suite) live in exactly that string — a stub that swallowed it would let them be
 // deleted with every test still green.
 jest.mock('@chatic/ui-kit/components/ui/dialog', () => ({
     Dialog: ({ open, children }: any) => (open ? <div>{children}</div> : null),
@@ -132,7 +132,7 @@ const pasteOtp = async (code = '123456') => {
     });
 };
 
-/** Taps the pinned CTA (완료 / 다시 시도). */
+/** Taps the pinned CTA (Complete / Retry). */
 const submitCta = async () => {
     await act(async () => {
         fireEvent.click(screen.getByText('phoneVerify.complete'));

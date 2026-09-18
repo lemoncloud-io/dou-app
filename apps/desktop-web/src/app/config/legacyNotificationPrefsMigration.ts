@@ -3,7 +3,7 @@ import { encodeValue, storageKeyFor } from '@chatic/config';
 /**
  * One-time carry-over of this app's `pushMuted` preference into `@chatic/config`'s own namespaced
  * storage, so a user who had muted push does not silently come back as un-muted after the switch
- * to `ui.pushMuted` (ADR-0079 "레거시 저장값 승계", the same risk `apps/web` closes in
+ * to `ui.pushMuted` (ADR-0079 "legacy stored-value carryover", the same risk `apps/web` closes in
  * `legacyPreferenceMigration.ts`).
  *
  * It matters more here than a display glitch suggests: `useDevicePushMute` has no read endpoint to

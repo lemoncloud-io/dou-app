@@ -32,7 +32,7 @@ describe('OAuthScreen', () => {
         expect(oAuthLogout).toHaveBeenCalledWith('apple');
     });
 
-    // Apple은 iOS 전용이라 안드로이드에서 실패가 정상 결과다 — 그래서 실패를 그대로 보여준다.
+    // Apple is iOS-only, so failing on Android is the expected outcome — hence we show the failure as-is.
     it('실패를 그대로 적는다', async () => {
         oAuthLogin.mockRejectedValue(new Error('UNSUPPORTED'));
         render(<OAuthScreen />);

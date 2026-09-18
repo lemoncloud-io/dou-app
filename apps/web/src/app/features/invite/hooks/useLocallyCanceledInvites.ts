@@ -3,7 +3,7 @@ import { runtime } from '@chatic/app-runtime';
 import { useRelayInvites } from '../../../hooks';
 
 /**
- * Locally hidden sent-invite rows — a cache row's `dismissedAt` field (ADR-0052 결정 5), not a
+ * Locally hidden sent-invite rows — a cache row's `dismissedAt` field (ADR-0052 decision 5), not a
  * separate localStorage list. Since ADR-0043 the record serves two narrow purposes:
  *
  * - **Rejected-row dismiss.** The server keeps a `rejected` invite forever (it never decays to

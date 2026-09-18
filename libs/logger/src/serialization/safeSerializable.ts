@@ -52,7 +52,7 @@ const extractAxiosDetail = (error: Error & AxiosLikeError) => {
 };
 
 /**
- * JSON.stringify 실패 방어를 위한 safe serialization.
+ * Safe serialization that guards against JSON.stringify failures.
  *
  * Sibling of `safeStringify`, and the difference is the output shape — pick by
  * what the consumer needs, not by which one is nearer:
@@ -75,10 +75,10 @@ const extractAxiosDetail = (error: Error & AxiosLikeError) => {
  * than spread.
  *
  * - undefined / null -> undefined
- * - Axios Error -> { name, message, stack, code, request, response } (민감정보 마스킹)
+ * - Axios Error -> { name, message, stack, code, request, response } (sensitive info masked)
  * - Error -> { name, message, stack }
- * - JSON 직렬화 가능 값 -> 원본 값
- * - circular reference 등 직렬화 불가 값 -> String(value)
+ * - JSON-serializable value -> the original value
+ * - non-serializable value (circular reference, etc.) -> String(value)
  */
 export const safeSerializable = (value: unknown): unknown => {
     if (value === undefined || value === null) {

@@ -15,7 +15,7 @@ export const downloadImage = (image: Pick<ChatImage, 'url' | 'name'>): void => {
 };
 
 /**
- * "전체 다운로드": one save per image. Spaced out because Chromium drops back-to-back
+ * "Download all": one save per image. Spaced out because Chromium drops back-to-back
  * programmatic downloads after the first as a multiple-download guard.
  */
 export const downloadImages = (images: readonly Pick<ChatImage, 'url' | 'name'>[]): void => {
@@ -41,7 +41,7 @@ const toPngBlob = async (source: Blob): Promise<Blob> => {
     );
 };
 
-/** "이미지 복사": the pixels of this one image onto the clipboard. Rejects when the platform refuses. */
+/** "Copy image": the pixels of this one image onto the clipboard. Rejects when the platform refuses. */
 export const copyImageToClipboard = async (url: string): Promise<void> => {
     const response = await fetch(url);
     const png = await toPngBlob(await response.blob());

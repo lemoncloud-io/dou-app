@@ -31,7 +31,7 @@ export interface ClientChannelView extends DomainChannel {
  * paths with different guarantees. The roster (`channel.memberIds`) and the join cache both have
  * runtime sync plans; the USER cache has none — `syncChannelUsers` is its only writer. Requiring a
  * cached user row would therefore drop real members, which is exactly how a self-chat ended up with
- * an empty "방 친구": one participant, no user row, nothing rendered.
+ * an empty "room friend": one participant, no user row, nothing rendered.
  */
 export type ChannelMember = Partial<DomainUser> & {
     id: string;

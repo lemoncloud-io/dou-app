@@ -1,21 +1,22 @@
-/** 지원 플랫폼 타입 */
+/** Supported platform types */
 export type Platform = 'ios' | 'android' | 'windows' | 'macos' | 'web';
 
-/** 앱 로그 레벨 */
+/** App log level */
 export type AppLogLevel = 'debug' | 'info' | 'warn' | 'error';
 
-/** 로그 발생 런타임 — 경계를 건널 때만 기록 (ADR-0097) */
+/** Runtime where the log originated — recorded only when crossing the boundary (ADR-0097) */
 export type AppLogOrigin = 'web' | 'native';
 
-/** 앱 로그 정보 구조 */
+/** App log entry structure */
 export type AppLogInfo = {
     /**
-     * 엔트리 고유 id — 서버 dedup 키. 하이브리드에서 웹 로그는 자기 큐와 네이티브 버퍼
-     * 양쪽에 들어가고 업로더가 그 버퍼를 다시 끌어오므로, 이 값이 없으면 같은 로그가
-     * 문서 두 건으로 저장된다. 있으면 문서 id 업서트라 한 건으로 합쳐진다.
+     * Entry-unique id — the server dedup key. In the hybrid app, a web log lands in both
+     * its own queue and the native buffer, and the uploader pulls from that buffer again,
+     * so without this value the same log gets stored as two separate documents. With it,
+     * the document id upsert merges them into one.
      */
     id?: string;
-    /** 발생 시점 컨텍스트 — 배치 업로드의 조회 축. 저장 시점 값과 다를 수 있어 발생 순간에 캡처한다 */
+    /** Context captured at occurrence — the lookup axis for batch upload. May differ from the value at save time, so it's captured at the moment the log happens */
     runId?: string;
     sid?: string;
     uid?: string;
@@ -26,20 +27,20 @@ export type AppLogInfo = {
     os?: string;
     osVersion?: string;
     model?: string;
-    tag: string; // 로그 식별 태그
-    message?: string; // 로그 메시지
-    data?: unknown; // 첨부 데이터
-    timestamp?: number; // 발생 시각 (ms)
-    level?: AppLogLevel; // 로그 레벨
-    error?: unknown; // 에러 객체
-    source?: AppLogOrigin; // 발생 런타임 (경계 통과 시)
+    tag: string; // Log identifying tag
+    message?: string; // Log message
+    data?: unknown; // Attached data
+    timestamp?: number; // Time of occurrence (ms)
+    level?: AppLogLevel; // Log level
+    error?: unknown; // Error object
+    source?: AppLogOrigin; // Runtime of origin (when it crosses a boundary)
 };
 
-/** [요청] Web -> App 로그 전달 페이로드 */
+/** [Request] Web -> App log delivery payload */
 export type SendLogPayload = {
-    /** 엔트리 고유 id — 서버 dedup 키 (부재 시 수신 측이 채운다) */
+    /** Entry-unique id — server dedup key (filled in by the receiver if absent) */
     id?: string;
-    /** 발생 시점 컨텍스트 — 배치 업로드의 조회 축. 저장 시점 값과 다를 수 있어 발생 순간에 캡처한다 */
+    /** Context captured at occurrence — the lookup axis for batch upload. May differ from the value at save time, so it's captured at the moment the log happens */
     runId?: string;
     sid?: string;
     uid?: string;
@@ -55,166 +56,170 @@ export type SendLogPayload = {
     message: string;
     data?: unknown;
     error?: unknown;
-    /** 발생 시각 (ms) — 부재 시(구버전 웹) 수신 측이 수신 시각으로 폴백 (ADR-0097) */
+    /** Time of occurrence (ms) — if absent (older web build), the receiver falls back to the receipt time (ADR-0097) */
     timestamp?: number;
-    /** 발생 런타임 — 웹 포워더가 'web'으로 스탬프 */
+    /** Runtime of origin — the web forwarder stamps this as 'web' */
     source?: AppLogOrigin;
 };
 
-/** [응답] Web -> App 로그 전달 완료 페이로드 */
+/** [Response] Web -> App log delivery completion payload */
 export type OnSendLogPayload = {
-    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+    // Empty object type, reserved for future extension (optional fields, etc.).
 };
 
 /**
- * 로그 버퍼 4쌍 — **폐지됨, 호환을 위해서만 남아 있다.**
+ * The 4 log-buffer message pairs — **deprecated, kept only for compatibility.**
  *
- * 이 메시지들이 읽던 링버퍼는 없어졌고, 미전송 큐(`FetchLogUploadQueue`)가
- * 유일한 로그 저장소다. 타입과 앱 핸들러를 남기는 이유는 **웹이 앱보다 먼저
- * 배포되기 때문**이다 — 이 변경 이전의 웹 빌드가 최신 앱에 설치된 채로 여전히
- * 이 메시지를 보낸다. 핸들러를 지우면 `NOT_FOUND`가 되어 그쪽 디버그 화면이
- * 실패로 표시되므로, 앱은 빈 결과를 돌려준다.
+ * The ring buffer these messages used to read from is gone; the pending-upload queue
+ * (`FetchLogUploadQueue`) is now the sole log store. The types and app handlers remain
+ * because **web ships ahead of the app** — a web build predating this change, still
+ * installed alongside the latest app, keeps sending these messages. Removing the handler
+ * would turn it into `NOT_FOUND`, which shows that side's debug screen as failing, so the
+ * app returns an empty result instead.
  *
- * 배포된 웹 빌드가 더 이상 부르지 않게 되면 4쌍 전부 삭제한다.
+ * Once no deployed web build calls these anymore, delete all 4 pairs.
  */
-/** [요청] 로그 버퍼 조회 페이로드 (폐지 — 빈 결과) */
+/** [Request] Fetch log buffer payload (deprecated — returns empty result) */
 export type FetchAppLogBufferPayload = {
     count?: number;
 };
 
-/** [요청] 로그 버퍼 poll 페이로드 (폐지 — 빈 결과, 아무것도 제거하지 않는다) */
+/** [Request] Poll log buffer payload (deprecated — returns empty result, removes nothing) */
 export type PollAppLogBufferPayload = {
     count?: number;
 };
 
-/** [요청] 로그 버퍼 비우기 페이로드 (폐지 — no-op) */
+/** [Request] Clear log buffer payload (deprecated — no-op) */
 export type ClearAppLogBufferPayload = {
-    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+    // Empty object type, reserved for future extension (optional fields, etc.).
 };
 
-/** [요청] 로그 버퍼 크기 조회 페이로드 (폐지 — 항상 0) */
+/** [Request] Fetch log buffer size payload (deprecated — always 0) */
 export type FetchAppLogBufferSizePayload = {
-    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+    // Empty object type, reserved for future extension (optional fields, etc.).
 };
 
-/** [응답] 로그 버퍼 조회 페이로드 (폐지 — 빈 목록) */
+/** [Response] Fetch log buffer payload (deprecated — empty list) */
 export type OnFetchAppLogBufferPayload = {
     logs: AppLogInfo[];
     size: number;
 };
 
-/** [응답] 로그 버퍼 poll 페이로드 (폐지 — 빈 목록) */
+/** [Response] Poll log buffer payload (deprecated — empty list) */
 export type OnPollAppLogBufferPayload = {
     logs: AppLogInfo[];
     size: number;
 };
 
-/** [응답] 로그 버퍼 전체 비우기 페이로드 (폐지) */
+/** [Response] Clear entire log buffer payload (deprecated) */
 export type OnClearAppLogBufferPayload = {
     success: boolean;
     size: number;
 };
 
-/** [응답] 로그 버퍼 크기 조회 페이로드 (폐지 — 항상 0) */
+/** [Response] Fetch log buffer size payload (deprecated — always 0) */
 export type OnFetchAppLogBufferSizePayload = {
     size: number;
 };
 
 /**
- * [요청] 앱 전송 큐에서 배치 조회 페이로드 (ADR-0063).
+ * [Request] Fetch a batch from the app upload queue (ADR-0063).
  *
- * **비파괴다.** 같은 엔트리를 다시 돌려주는 것이 정상이며, 놓아주는 것은
- * `AckLogUploadQueue`뿐이다. 조회가 곧 제거이면 전송 성공 전에 유일한 사본이
- * 사라져, 그 사이 프로세스가 죽으면 엔트리가 어디에도 남지 않는다 — 하필 앱이
- * 죽는 순간의 로그가 가장 필요한데 그것이 유실된다.
+ * **Non-destructive.** Returning the same entries again on a repeat call is expected
+ * behavior; only `AckLogUploadQueue` releases them. If fetching also removed entries,
+ * the only copy would disappear before the upload succeeds — if the process dies in
+ * that window, the entry survives nowhere, losing exactly the log that matters most:
+ * the one from the moment the app died.
  *
- * 이 큐가 유일한 로그 저장소이므로 디버그 뷰도 이 메시지로 읽는다. 파괴적
- * 소비자는 이제 없다.
+ * Since this queue is the sole log store, the debug view also reads it through this
+ * message. There is no longer a destructive consumer.
  */
 export type FetchLogUploadQueuePayload = {
     limit?: number;
 };
 
-/** [응답] 앱 전송 큐 배치 조회 페이로드 (ADR-0063) */
+/** [Response] Fetch a batch from the app upload queue (ADR-0063) */
 export type OnFetchLogUploadQueuePayload = {
     logs: AppLogInfo[];
-    /** 조회 시점의 전송 큐 전체 크기 (돌려준 배치 크기가 아니다) */
+    /** Total size of the upload queue at fetch time (not the size of the returned batch) */
     size: number;
 };
 
-/** [요청] 전송 완료한 로그를 앱 전송 큐에서 정리 (ADR-0063) */
+/** [Request] Remove successfully uploaded logs from the app upload queue (ADR-0063) */
 export type AckLogUploadQueuePayload = {
     ids: string[];
 };
 
-/** [응답] 앱 전송 큐 정리 완료 페이로드 (ADR-0063) */
+/** [Response] App upload queue cleanup completion payload (ADR-0063) */
 export type OnAckLogUploadQueuePayload = {
-    /** 정리 후 남은 큐 크기 */
+    /** Remaining queue size after cleanup */
     size: number;
 };
 
 /**
- * [요청] 앱 전송 큐 전량 폐기 페이로드 (ADR-0063).
+ * [Request] Discard the entire app upload queue (ADR-0063).
  *
- * 기기 opt-out 전용이다. opt-out은 "이 기기에서 수집하지 마라"는 의사이므로
- * 이미 적재된 것이 남아 나가면 그 자체로 어긋난다 — 전송만 멈추는 빌드 플래그와
- * 성격이 다르다. 로그아웃에는 쓰지 않는다: 엔트리가 발생 시점 uid/cid를 들고
- * 있어 계정이 섞이지 않으므로 남겨도 되고, 지우면 세션 문제가 남긴 바로 그
- * 엔트리를 잃는다.
+ * Reserved for device opt-out only. Opt-out expresses "stop collecting on this device",
+ * so letting already-queued entries still go out afterward would contradict that intent
+ * — a different concern from a build flag that only stops future sending. Do not use
+ * this for logout: entries carry the uid/cid captured at occurrence, so accounts never
+ * mix and they're safe to keep; clearing them would lose the very entries that record
+ * whatever session problem prompted the logout.
  */
 export type ClearLogUploadQueuePayload = {
-    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+    // Empty object type, reserved for future extension (optional fields, etc.).
 };
 
-/** [응답] 앱 전송 큐 폐기 완료 페이로드 (ADR-0063) */
+/** [Response] App upload queue discard completion payload (ADR-0063) */
 export type OnClearLogUploadQueuePayload = {
-    /** 폐기 후 크기 — 정상이면 0 */
+    /** Size after discarding — should be 0 in the normal case */
     size: number;
 };
 
 /**
- * 네이티브가 감지했지만 직접 전송할 수 없는 리포트 항목 (ADR-0097).
- * `/hello/report` 서명 토큰은 웹 세션만 보유하므로, 네이티브는 감지 시점
- * 스냅샷을 큐(MMKV)에 쌓고 웹이 부팅 후 pull해 대리 전송한다.
+ * A report item native detected but cannot send directly (ADR-0097).
+ * The `/hello/report` signing token is only held by the web session, so native queues
+ * a snapshot taken at detection time (in MMKV) and web pulls it after boot to send it
+ * on native's behalf.
  */
 export type PendingReportInfo = {
-    /** ack 기반 중복 전송 방지용 고유 id */
+    /** Unique id used for ack-based dedup, to prevent double-sending */
     id: string;
-    /** 리포트 카테고리 (webview-crash | native-error | native-crash) */
+    /** Report category (webview-crash | native-error | native-crash) */
     category: string;
-    /** 요약 메시지 (예: 예외 message) */
+    /** Summary message (e.g. the exception message) */
     message?: string;
-    /** JS 스택 (native-error에서 가용할 때) */
+    /** JS stack (available for native-error, when present) */
     stack?: string;
-    /** 감지 시각 (ms) — 대리 전송 시각이 아닌 이 값을 payload timestamp로 쓴다 */
+    /** Detection time (ms) — used as the payload timestamp, not the time of the proxied send */
     detectedAt: number;
     /**
-     * @deprecated 리포트는 더 이상 로그를 첨부하지 않는다 — 엔트리는 배치
-     * 업로더가 낱건으로 올린다. 필드는 구버전 셸이 계속 채워 보내기 때문에
-     * 남겨둔다(웹은 읽지 않는다).
+     * @deprecated Reports no longer attach logs — entries are uploaded individually by
+     * the batch uploader. The field is kept because older shell builds still populate
+     * and send it (web does not read it).
      */
     logs?: AppLogInfo[];
-    /** 플랫폼 부가 정보 (isFatal, exit reason 등) */
+    /** Platform-specific extra info (isFatal, exit reason, etc.) */
     extra?: unknown;
 };
 
-/** [요청] 지연 리포트 큐 조회 페이로드 */
+/** [Request] Fetch the pending report queue */
 export type FetchPendingReportsPayload = {
-    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+    // Empty object type, reserved for future extension (optional fields, etc.).
 };
 
-/** [응답] 지연 리포트 큐 조회 페이로드 */
+/** [Response] Fetch the pending report queue */
 export type OnFetchPendingReportsPayload = {
     reports: PendingReportInfo[];
 };
 
-/** [요청] 전송 완료한 지연 리포트 정리 페이로드 */
+/** [Request] Remove successfully sent pending reports */
 export type AckPendingReportsPayload = {
     ids: string[];
 };
 
-/** [응답] 지연 리포트 정리 완료 페이로드 */
+/** [Response] Pending report cleanup completion payload */
 export type OnAckPendingReportsPayload = {
-    /** 정리 후 남은 큐 크기 */
+    /** Remaining queue size after cleanup */
     size: number;
 };

@@ -127,7 +127,7 @@ export const MessageActionSheet = ({
                 </div>
             )}
 
-            {/* 스레드 above 메시지 복사 (design order): opening the conversation is the reason
+            {/* Thread above message copy (design order): opening the conversation is the reason
                 this sheet gets long-pressed open, and copy is the fallback. */}
             {canReply && (
                 <SheetAction icon={<IconThread size={26} />} label={t('chat.thread.replyAction')} onClick={onReply} />

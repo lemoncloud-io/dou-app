@@ -22,7 +22,7 @@ import { isNativeCacheTypeUsable } from '../nativeCacheSupport';
 
 import type { CacheAssemblyOptions } from '../types';
 
-// ─── 공유 IndexedDB 인스턴스 ─────────────────────────────────────────
+// ─── Shared IndexedDB instance ─────────────────────────────────────────
 // The ONLY module state in this factory: one physical IndexedDB connection shared by every
 // web-backed adapter. Everything else here is assembled per call from its inputs.
 
@@ -49,7 +49,7 @@ const createIndexedDBAdapter = <TType extends CacheType>(
     return new IndexedDBAdapter(db, type, contextProvider);
 };
 
-// DataContext 스냅샷 대신 DataContextProvider를 주입받습니다.
+// Takes a DataContextProvider as a dependency instead of a DataContext snapshot.
 export const getCacheStorage = <TType extends CacheType>(
     type: TType,
     contextProvider: DataContextProvider,
@@ -62,18 +62,19 @@ export const getCacheStorage = <TType extends CacheType>(
         ? createIndexedDBAdapter(type, contextProvider, cache?.maxChatsPerChannel)
         : new NativeDBAdapter(webClient, type, contextProvider);
 
-// Cloud(cid) 불문 전역 캐시 검색 소스. 환경별 구현체는 다르지만(IndexedDB 범위 스캔 vs 네이티브
-// 브리지) 기대 동작은 동일해야 합니다(ADR-0088). 네이티브에서는 SQLite가 source of truth이므로
-// 검색도 그쪽을 향한다 — 웹 저장소는 핀/스큐 예외만 담는 파생 캐시라 검색 대상이 아니다.
+// Global cache search source, regardless of cloud (cid). The implementation differs per
+// environment (IndexedDB range scan vs. native bridge), but the expected behavior must be the same
+// (ADR-0088). On native, SQLite is the source of truth, so search targets it too — web storage is
+// only a derived cache holding pin/skew exceptions, so it isn't a search target.
 export const getGlobalCacheSearchSource = (): IGlobalCacheSearchSource =>
     isNativeApp() ? new NativeGlobalSearchSource(webClient) : new IndexedDbGlobalSearchSource(getSharedDatabase());
 
-/** 네이티브 캐시 계측의 읽기·리셋 표면 (ADR-0070 결정 5). 디버그 화면은 `@chatic/db`를 직접
- * import하지 않고 이 포트 인스턴스만 받는다 — apps/web CacheMetricsScreen.tsx 참고. */
+/** The read/reset surface for native cache metrics (ADR-0070 Decision 5). The debug screen doesn't
+ * import `@chatic/db` directly — it only takes this port instance. See apps/web CacheMetricsScreen.tsx. */
 export const getCacheMetricsSource = (): ICacheMetricsSource => new NativeCacheMetricsSource();
 
 /**
- * 환경에 맞는 스토리지를 판별하고 LocalDataSource 묶음을 조립하여 반환하는 훅입니다.
+ * A hook that resolves the right storage for the environment and assembles the LocalDataSource bundle.
  */
 /**
  * Records the cache domains a native shell could not hold, so they went to web storage instead.
@@ -102,7 +103,7 @@ const reportNativeCacheFallback = (routed: string[]): void => {
 };
 
 export const createLocalDataSources = ({
-    contextProvider, // 주입 파라미터 변경
+    contextProvider, // injected-parameter change
     cacheStorageFactory,
     cache,
 }: {

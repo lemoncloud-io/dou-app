@@ -13,7 +13,7 @@ export interface ToastProps {
     description?: React.ReactNode;
     /** Leading icon. `positive` supplies a green check when this is omitted. */
     icon?: React.ReactNode;
-    /** Trailing action(s) (e.g. 구독하기 / 닫기 buttons). */
+    /** Trailing action(s) (e.g. Subscribe / Close buttons). */
     action?: React.ReactNode;
     /** `default` plain · `positive` green check · `warning`/`error` red alert. */
     variant?: 'default' | 'positive' | 'warning' | 'error';

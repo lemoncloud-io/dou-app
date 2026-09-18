@@ -8,7 +8,7 @@
 // itself (optimistically, then again from the server response, rolling back on failure), and
 // `useRuntimeProfile` renders name/photo from that cache — it observes `user.observeItem(uid)`
 // precisely so a profile edit fans out. Re-issuing a token changed nothing the UI reads, and it was
-// the last caller keeping the whole cloud HTTP refresh chain alive (ADR-0070 불변조건 1·2).
+// the last caller keeping the whole cloud HTTP refresh chain alive (ADR-0070 invariants 1 and 2).
 
 export interface UpdateUserProfilePayload {
     name?: string;

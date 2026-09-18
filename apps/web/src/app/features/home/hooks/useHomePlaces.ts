@@ -25,7 +25,7 @@ export interface HomePlacesResult {
  *
  * SCOPE PINNING — the observer's scope key must be derived from THESE {cid, uid} values, not the
  * live DataContextProvider (`ActiveScope`). `ActiveScope` derives its `intent` straight from
- * `session/store` on every read (ADR-0070 결정 7) rather than being pushed by an ancestor effect, so
+ * `session/store` on every read (ADR-0070 decision 7) rather than being pushed by an ancestor effect, so
  * the commit-lag this override originally guarded against — `RuntimeDataBinder` used to push
  * `binding.context` into the provider in an effect that ran AFTER this descendant hook had already
  * subscribed — can no longer happen through that path: that binder has been deleted, so there is no

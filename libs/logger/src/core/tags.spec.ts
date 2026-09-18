@@ -5,7 +5,7 @@ describe('KNOWN_LOG_TAGS — 카탈로그 태그 상수', () => {
         expect(new Set(KNOWN_LOG_TAGS).size).toBe(KNOWN_LOG_TAGS.length);
     });
 
-    // 카탈로그가 명시적으로 금지한 이름들 — 각각 대체 태그가 있다.
+    // Names the catalog explicitly forbids — each has a replacement tag.
     it('카탈로그가 금지한 태그를 담지 않는다', () => {
         for (const forbidden of ['NETWORK', 'PUSH_QUEUE', 'PUSH', 'NAV']) {
             expect(KNOWN_LOG_TAGS).not.toContain(forbidden);
@@ -34,9 +34,10 @@ describe('isKnownLogTag', () => {
 
 describe('LogTag — 열린 계약', () => {
     /**
-     * 이 테스트의 값은 런타임이 아니라 **컴파일**에 있다. 닫힌 union이면 아래 두 번째 줄이 타입
-     * 에러가 나고, 그건 ADR-0097이 일부러 걷어낸 상태로 되돌아간 것이다 — 웹보다 오래된 네이티브
-     * 셸이 이 빌드가 모르는 태그를 보낼 수 있어야 한다.
+     * This test's value is in **compilation**, not runtime. If the union were closed, the
+     * second line below would be a type error — and that would be reverting the exact state
+     * ADR-0097 deliberately removed: a native shell older than the web must be able to send a
+     * tag this build doesn't know about.
      */
     it('카탈로그 밖의 태그도 여전히 유효한 LogTag다', () => {
         const known: LogTag = 'CACHE';

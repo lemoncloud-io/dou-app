@@ -22,14 +22,14 @@ const form = (over: Partial<OverrideFormState> = {}): OverrideFormState => ({
     ...over,
 });
 
-const NOW = new Date(2026, 8, 10, 12, 0, 0).getTime(); // 2026-09-10 12:00 로컬
+const NOW = new Date(2026, 8, 10, 12, 0, 0).getTime(); // 2026-09-10 12:00 local time
 
 describe('toEpochEndOfDay', () => {
     it('빈 값이면 undefined다 — 무기한의 인코딩이다', () => {
         expect(toEpochEndOfDay('')).toBeUndefined();
     });
 
-    // "12-31까지 유효"가 그 날 하루를 포함해야 말이 맞는다.
+    // "Valid through 12-31" only makes sense if that whole day is included.
     it('고른 날의 마지막 밀리초를 준다', () => {
         expect(toEpochEndOfDay('2026-12-31')).toBe(new Date(2026, 11, 31, 23, 59, 59, 999).getTime());
     });
@@ -39,7 +39,7 @@ describe('toEpochEndOfDay', () => {
         expect(toEpochEndOfDay('nope')).toBeUndefined();
     });
 
-    // Date 생성자는 범위를 넘긴 값을 다음 달·다음 해로 조용히 굴린다.
+    // The Date constructor silently rolls an out-of-range value into the next month or year.
     it('달력에 없는 날짜를 굴리지 않고 거절한다', () => {
         expect(toEpochEndOfDay('2026-13-40')).toBeUndefined();
         expect(toEpochEndOfDay('2026-02-30')).toBeUndefined();
@@ -63,7 +63,7 @@ describe('validateOverrideForm', () => {
         expect(validateOverrideForm(form({ until: '2026-09-09' }), NOW)).toContain('만료일은 오늘 이후여야 합니다.');
     });
 
-    // 하루의 끝으로 환산하므로 오늘을 골라도 미래다 — 서버의 "과거 거부" 규칙에 안 걸린다.
+    // Converted to end-of-day, so picking today still counts as the future — it doesn't trip the server's "reject the past" rule.
     it('오늘을 고르면 통과한다', () => {
         expect(validateOverrideForm(form({ until: '2026-09-10' }), NOW)).toEqual([]);
     });
@@ -99,7 +99,7 @@ describe('buildOverrideBody', () => {
         expect(buildOverrideBody(form({ mode: 'block', blockStatus: 'canceled' })).adminStatus).toBe('canceled');
     });
 
-    // 차단은 자격을 뺏는 조작이라 등급이 의미가 없다.
+    // Blocking revokes eligibility entirely, so a tier is meaningless here.
     it('차단에는 등급을 싣지 않는다', () => {
         const body = buildOverrideBody(form({ mode: 'block', productId: 'pro_tier_03' }));
         expect('adminProductId' in body).toBe(false);

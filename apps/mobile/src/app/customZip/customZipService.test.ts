@@ -35,7 +35,7 @@ jest.mock('../bridge/FileManagerBridge', () => ({
 }));
 
 const StaticServerMock = StaticServer as unknown as jest.Mock;
-// factory가 매 호출 동일한 { start, stop } 객체를 반환하므로 한 번 생성해 핸들 확보
+// The factory returns the same { start, stop } object on every call, so create it once to grab the handle
 const serverHandle = StaticServerMock() as { start: jest.Mock; stop: jest.Mock };
 
 const mockUnzip = unzip as jest.Mock;
@@ -51,7 +51,7 @@ const ORIGIN = `http://${CUSTOM_ZIP_HOST}:${CUSTOM_ZIP_PORT}`;
 describe('customZipService', () => {
     beforeEach(async () => {
         serverHandle.stop.mockResolvedValue(undefined);
-        // 이전 테스트가 남긴 서버 싱글턴 초기화
+        // Reset the server singleton left over from the previous test
         await stopCustomZipServer();
         jest.clearAllMocks();
         serverHandle.start.mockResolvedValue(ORIGIN);

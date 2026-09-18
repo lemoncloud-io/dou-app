@@ -3,7 +3,7 @@ import { logger, webClient } from '@chatic/bridges';
 import type { AppMessageData, AppMessageType } from '@chatic/app-messages';
 
 /**
- * 특정 메시지를 구독하기 위한 React Hook
+ * A React hook for subscribing to a specific message.
  */
 export const useHandleAppMessage = <T extends AppMessageType>(
     type: T,
@@ -26,7 +26,7 @@ export const useHandleAppMessage = <T extends AppMessageType>(
 };
 
 // -------------------------------------------------------------
-// 웹앱 컴포넌트 편의를 위한 강력한 타입의 개별 이벤트 전용 React 훅들
+// Strongly-typed, per-event React hooks for the convenience of web app components
 // -------------------------------------------------------------
 
 export const useOnBackPressed = (handler: (message: AppMessageData<'OnBackPressed'>) => void) =>

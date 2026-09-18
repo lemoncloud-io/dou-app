@@ -13,7 +13,7 @@ const REPO_KEY: Record<CacheType, keyof DataRepositories> = {
     chat: 'chat',
     user: 'user',
     join: 'join',
-    // The 'site' cache slot is served by the place repository (Site→Place 통합).
+    // The 'site' cache slot is served by the place repository (Site→Place consolidation).
     site: 'place',
     invitecloud: 'cloud',
     profile: 'profile',

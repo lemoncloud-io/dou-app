@@ -6,7 +6,7 @@ import { getCommittedCloudId, getSocketSlotContext, sessionSignal } from '../../
 jest.mock('../../session/hooks/app/useDynamicDeviceId', () => ({
     useDynamicDeviceId: jest.fn(),
 }));
-// Both are runtime-internal and off the session barrel (ADR-0076 결정 6), so the mock is at the
+// Both are runtime-internal and off the session barrel (ADR-0076 Decision 6), so the mock is at the
 // concrete module. `getSocketSlotContext` is the NARROW snapshot this hook reads — it carries relay
 // and cloud only, matching the three signals it subscribes to (ADR-0076 E5). The committed cloud id
 // is distinct from the SELECTED `cloud.cloudId` in that snapshot.
@@ -67,9 +67,10 @@ describe('useRuntimeSocketSlots', () => {
         });
     });
 
-    // 전환 낙관 창: 선택 cid는 target으로 이미 뒤집혔지만 delegation/cloud 토큰은 아직 옛 클라우드다.
-    // 예전에는 슬롯 config가 target cid + 옛 wss/identityToken을 함께 실어 서로 다른 두 클라우드를
-    // 가리켰다 (ADR-0070 결정 7의 selected vs committed).
+    // Optimistic switch window: the selected cid has already flipped to the target, but the
+    // delegation/cloud token is still the old cloud's. It used to be that the slot config carried the
+    // target cid together with the old wss/identityToken, pointing at two different clouds at once
+    // (ADR-0070 Decision 7's selected vs. committed).
     it('전환 낙관 창에서 cloud 슬롯 cid는 선택값이 아니라 커밋된 클라우드를 따른다', () => {
         (getCommittedCloudId as jest.Mock).mockReturnValue('outgoing-cloud');
         (getSocketSlotContext as jest.Mock).mockReturnValue({
@@ -81,9 +82,9 @@ describe('useRuntimeSocketSlots', () => {
             },
             relay: RELAY,
             cloud: {
-                // 선택값은 이미 target
+                // The selected value has already flipped to target
                 cloudId: 'target-cloud',
-                // 그러나 wss/identityToken은 아직 나가는 클라우드의 것 (delegation 토큰이 안 바뀜)
+                // But wss/identityToken still belong to the outgoing cloud (delegation token hasn't changed)
                 wss: 'wss://outgoing.chatic.com',
                 identityToken: 'outgoing-token',
                 isActive: true,
@@ -93,13 +94,14 @@ describe('useRuntimeSocketSlots', () => {
 
         const { result } = renderHook(() => useRuntimeSocketSlots());
 
-        // 슬롯은 나가는 클라우드로 일관된다 — url과 cid가 같은 클라우드를 가리킨다
+        // The slot stays consistent with the outgoing cloud — url and cid point at the same cloud
         expect(result.current.cloud?.config).toMatchObject({
             url: 'wss://outgoing.chatic.com',
             cid: 'outgoing-cloud',
         });
-        // 갈라지는 반대쪽(캐시 스코프 = selected = 'target-cloud')은 `deriveSelectedContext` 소유이고
-        // `selectedContext.test.ts` 가 고정한다. 여기서는 슬롯이 커밋값을 따르는 것만 본다.
+        // The other side of the split (cache scope = selected = 'target-cloud') belongs to
+        // `deriveSelectedContext` and is pinned by `selectedContext.test.ts`. Here we only check that
+        // the slot follows the committed value.
     });
 
     it('relay only (no cloud active): relay slot present, cloud slot absent', () => {

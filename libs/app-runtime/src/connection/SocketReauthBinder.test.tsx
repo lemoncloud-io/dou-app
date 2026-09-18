@@ -69,13 +69,15 @@ describe('SocketReauthBinder', () => {
     });
 
     it('cloud 슬롯은 어떤 경우에도 재인증하지 않는다 — 전환은 항상 wss를 바꿔 리부트된다', () => {
-        // 이 테스트의 이전 판은 같은-wss cloud 전환이 재인증되기를 기대했다. 성립한 이유는 픽스처가
-        // cloud 슬롯에 identityToken을 실었기 때문인데, 실제 binding은 그러지 않는다(a535055a) —
-        // 즉 프로덕션에서 도달 불가능한 경로를 "지원됨"으로 보이게 하고 있었다.
+        // An earlier version of this test expected a same-wss cloud switch to reauthenticate. It only
+        // passed because the fixture attached an identityToken to the cloud slot, which real binding
+        // never does (a535055a) — it was making a path that's unreachable in production look
+        // "supported".
         //
-        // 불변조건은 이쪽이다: 두 클라우드가 wss 호스트를 공유하지 않으므로(2026-09-02 확인) 전환은
-        // 항상 URL을 바꾸고, 그러면 reboot 키가 움직여 SocketBinder가 슬롯을 다시 세운다 — 재인증할
-        // 살아 있는 커넥션이 없다. 불변조건이 깨지는 경우는 SocketBinder의 같은-wss 가드가 보고한다.
+        // The actual invariant is this: two clouds never share a wss host (confirmed 2026-09-02), so
+        // a switch always changes the URL, which moves the reboot key and makes SocketBinder rebuild
+        // the slot — there's no live connection left to reauthenticate. A broken invariant here is
+        // reported by SocketBinder's same-wss guard.
         const { rerender } = render(
             <SocketReauthBinder slots={withCloud('cloud-a-token', 'cloud-a')} delegate={delegate} />
         );

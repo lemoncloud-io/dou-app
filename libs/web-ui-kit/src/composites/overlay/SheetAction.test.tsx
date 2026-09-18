@@ -18,7 +18,7 @@ describe('SheetAction — 바텀시트 액션 줄', () => {
         expect(screen.getByRole('button')).toHaveTextContent('메시지 복사');
     });
 
-    // SheetOption의 형제이지 변종이 아니다 — 그건 값을 고르는 radio, 이건 실행하고 닫힌다.
+    // A sibling of SheetOption, not a variant of it — that one is a radio that picks a value, this one runs an action and closes.
     it('radio가 아니라 평범한 버튼이다', () => {
         render(<SheetAction label="메시지 복사" />);
 

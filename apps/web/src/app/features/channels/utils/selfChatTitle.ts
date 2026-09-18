@@ -1,7 +1,7 @@
 import { customJoinNick } from './nick';
 
 /**
- * Resolve the display title for a self-chat ("나와의 채팅") channel.
+ * Resolve the display title for a self-chat ("Chat with Me") channel.
  *
  * The name is stored per-user on the join's `nick` field (see ADR-0026), not on
  * `channel.name`. Precedence: the custom join nick, then my active site-profile

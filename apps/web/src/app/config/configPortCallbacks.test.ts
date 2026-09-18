@@ -10,8 +10,8 @@ jest.mock('@chatic/bridges', () => ({
 describe('config 포트 콜백 — 실패 표시 (ADR-0080 결정 10)', () => {
     beforeEach(() => jest.clearAllMocks());
 
-    // 쓰기는 방금 사람이 한 행동이고, 셸이 거부하면 설정이 조용히 안 붙는다. 그 상태가
-    // "화면은 껐다는데 실제로는 안 꺼진" 것이고 결정 10이 막으려는 것이다.
+    // A write is something the person just did, and if the shell rejects it the setting silently
+    // fails to stick. That's the "the screen says it's off but it's actually not" state decision 10 exists to prevent.
     it('셸 쓰기 실패는 로그와 토스트를 둘 다 낸다', () => {
         onShellWriteFailed('ui.theme', new Error('bridge down'));
 
@@ -21,7 +21,7 @@ describe('config 포트 콜백 — 실패 표시 (ADR-0080 결정 10)', () => {
         );
     });
 
-    // 중복 키는 레지스트리 작성 오류다 — 폰을 든 사람이 할 수 있는 일이 없다.
+    // A duplicate key is a registry-authoring mistake — there's nothing the person holding the phone can do about it.
     it('중복 키는 로그만 낸다 — 사용자에게 띄우지 않는다', () => {
         onDuplicateKey('ui.theme');
 

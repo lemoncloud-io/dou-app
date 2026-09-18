@@ -23,7 +23,7 @@ vi.mock('@chatic/app-runtime', async () => {
                 useRuntimeSocketState: socketStore,
                 getSocketManager: () => ({ getSnapshot: () => socketStore.getState() }),
             },
-            // `useSessionAuth` moved from @chatic/web-core to the session hub (ADR-0070 3단계). Still
+            // `useSessionAuth` moved from @chatic/web-core to the session hub (ADR-0070 step 3). Still
             // a zustand store because the test drives it with setState.
             session: { useSessionAuth: create(() => ({ isAuthenticated: false })) },
         },

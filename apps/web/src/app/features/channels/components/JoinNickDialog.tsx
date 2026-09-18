@@ -29,7 +29,7 @@ interface JoinNickDialogProps {
     fallbackName?: string;
     /** DM only: the peer's avatar for the friend-info header. */
     peerThumbnail?: string | null;
-    /** DM only: renders the "대화방 나감" line under the avatar. */
+    /** DM only: renders the "left the chat" line under the avatar. */
     peerHasLeft?: boolean;
     /** DM only: opens the re-invite form. Omitted when re-inviting is not available (e.g. a guest). */
     onReinvite?: () => void;
@@ -45,7 +45,7 @@ const MAX_NAME_LENGTH = 20;
  * thumbnail via `channel.update`, i.e. the room name everyone sees), this is name-only and private.
  *
  * Two variants share it because they need exactly the same write with different copy:
- *  - `self` — naming "나와의 채팅"; the fallback is my own place-profile nick
+ *  - `self` — naming "Chat with Me"; the fallback is my own place-profile nick
  *  - `dm` — naming a 1:1 room; the fallback is the peer (see resolveDmTitle / ADR-0039)
  */
 export const JoinNickDialog = ({
@@ -137,7 +137,7 @@ export const JoinNickDialog = ({
                     <div className="flex flex-col gap-6 pt-6">
                         {/* DM only — the friend-info header (Figma 4052-12782). The note says out loud
                             what the data already is: this name is written to MY join row, so nobody
-                            else ever sees it (ADR-0068 결정 8). */}
+                            else ever sees it (ADR-0068 decision 8). */}
                         {isDm && (
                             <div className="flex flex-col gap-5">
                                 <p className="px-4 text-[14px] leading-[1.45] tracking-[-0.07px] text-description">

@@ -13,12 +13,12 @@ import { migrateLegacyPushMuted } from './app/config/legacyNotificationPrefsMigr
 import App from './app/app';
 
 // One-time carry-over of `pushMuted` out of `useNotificationPrefsStore`'s persisted blob and into
-// `ui.pushMuted` (ADR-0079 "레거시 저장값 승계") — must run before `config.init()` below, whose
+// `ui.pushMuted` (ADR-0079 "legacy stored-value carryover") — must run before `config.init()` below, whose
 // `hydrateStorage()` is what actually reads the key it writes.
 migrateLegacyPushMuted();
 
 // Wires `@chatic/config` to this build's `import.meta.env`/injected globals — replaces
-// `@chatic/web-config`'s import-time self-init with an explicit call (ADR-0079 결정 1·11).
+// `@chatic/web-config`'s import-time self-init with an explicit call (ADR-0079 decisions 1·11).
 config.init(webConfigPorts);
 
 // Session/relay/cloud/identity storage backing, and the lemon transport's own storage
@@ -27,7 +27,7 @@ config.init(webConfigPorts);
 setStorageAdapter(isNative() ? localStorage : sessionStorage);
 
 // Boot the runtime before render. This is the app's only boot call — the session store and
-// credential recovery used to wire themselves as import side effects (ADR-0070 5단계 follow-up).
+// credential recovery used to wire themselves as import side effects (ADR-0070 step-5 follow-up).
 // Nothing above may read the session; nothing here touches the network.
 //
 // The cache cap rides along. Desktop stays open for days, so an unbounded chat cache grows without

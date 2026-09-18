@@ -32,7 +32,7 @@ describe('UnreadScreen — 오버레이 안읽음 인스펙터', () => {
         publishDebugObservation({ activeCloud: ACTIVE_CLOUD, otherCloud: OTHER_CLOUD });
         render(<UnreadScreen />);
 
-        // 활성 3 + 비활성 2 = 앱 뱃지 5.
+        // active 3 + inactive 2 = app badge 5.
         expect(screen.getByText('5')).toBeInTheDocument();
         expect(screen.getByText('머리 10/10 · 커서 7/7 = 3')).toBeInTheDocument();
         expect(screen.getByText('cloud-b')).toBeInTheDocument();

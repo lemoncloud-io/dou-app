@@ -13,7 +13,7 @@ interface PhoneVerifyBannerProps {
 
 /**
  * Account-split defense banner, shown ABOVE the phone verification form (05-client-guide.md
- * §계정 갈라짐): a user who ever signed up socially and now verifies a number on a fresh device
+ * §account split): a user who ever signed up socially and now verifies a number on a fresh device
  * would mint a SEPARATE user that can never be merged. This notice — routing to the existing
  * social-login bridge page — is the only defense, so it leads the screen.
  *

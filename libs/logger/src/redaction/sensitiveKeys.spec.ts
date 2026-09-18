@@ -8,8 +8,9 @@ describe('isSensitiveKey — 이름으로 판정한다', () => {
     });
 
     /**
-     * 부분일치가 기본값인 건 맞다 — 새로 생긴 `sessionToken2`가 목록을 안 고쳐도 걸린다. 문제는
-     * `code`다: 목록에 있어야 하는 이름이면서(1회용 인증코드) 진단의 핵심 필드 이름들과 겹친다.
+     * Partial matching is the default for good reason — a newly added `sessionToken2` gets
+     * caught without touching the list. The problem is `code`: it needs to be on the list (a
+     * one-time auth code) while also overlapping with core diagnostic field names.
      */
     it('code로 끝나는 진단 필드는 잡지 않는다', () => {
         for (const key of ['errorCode', 'statusCode', 'httpStatusCode', 'countryCode', 'langCode', 'closeCode']) {
@@ -25,8 +26,9 @@ describe('isSensitiveKey — 이름으로 판정한다', () => {
 
 describe('isSensitiveField — 값을 같이 보고 판정한다', () => {
     /**
-     * 이 플래그들은 **값을 안 싣기 위해** 일부러 만든 필드다. 지우면 비밀을 안 실은 대가로 얻은
-     * 것까지 함께 사라지고, 남은 `[REDACTED]`는 비밀이 실렸던 것처럼 보인다.
+     * These flags are deliberately made **to avoid carrying the value**. Redacting them would
+     * also erase the very thing gained by not carrying the secret, and the leftover
+     * `[REDACTED]` would look as though a secret had been carried after all.
      */
     it('boolean 존재 플래그는 통과시킨다', () => {
         for (const key of ['hasToken', 'hasCode', 'hasPassword', 'hasOfferToken', 'hasCachedToken', 'isCredentialed']) {

@@ -46,7 +46,7 @@ interface ThreadFooterProps {
  * `buildThreadIndex` to keep that derivation pure — it must not know about caches
  * (ADR-0047 decision 5).
  *
- * The unseen state reads "새 댓글 N개" rather than the bare dot it used to be: by the
+ * The unseen state reads "N new replies" rather than the bare dot it used to be: by the
  * time a row is worth interrupting for, how much is new is the fact worth showing. The
  * count is the loaded window's, like every other number here.
  */

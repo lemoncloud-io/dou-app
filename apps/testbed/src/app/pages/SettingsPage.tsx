@@ -18,11 +18,11 @@ export const SettingsPage = () => {
     const isRelayMode = session.activeServer.kind === 'relay';
     const hasCloudSession = session.cloud.isActive;
 
-    // 본인 사이트 프로필 id는 `${sid}@${uid}`. 활성 사이트가 있을 때만 동기화한다.
+    // The user's own site profile id is `${sid}@${uid}`. Only syncs when there's an active site.
     const profileId = selectedSiteId && identity.userId ? `${selectedSiteId}@${identity.userId}` : undefined;
     const [profile, setProfile] = useState<DomainProfile | null>(null);
 
-    // 캐시 스트림 구독 — register가 채운 프로필을 관측해 표시한다.
+    // Subscribe to the cache stream — observes and displays the profile that register populated.
     useEffect(() => {
         if (!profileId) {
             setProfile(null);
@@ -41,7 +41,7 @@ export const SettingsPage = () => {
 
     return (
         <div className="p-4 space-y-6">
-            {/* 페이지 이동 */}
+            {/* Page navigation */}
             <section className="space-y-2">
                 <button
                     onClick={() => navigate('/auth/login')}
@@ -57,7 +57,7 @@ export const SettingsPage = () => {
                 </button>
             </section>
 
-            {/* 로그인 상태 요약 */}
+            {/* Login status summary */}
             <section className="space-y-2">
                 <p className="text-xs font-semibold text-muted-foreground">현재 세션 상태</p>
                 <div className="rounded-lg border border-border bg-card p-3 space-y-2">
@@ -87,7 +87,7 @@ export const SettingsPage = () => {
                 </div>
             </section>
 
-            {/* 로그아웃 액션 */}
+            {/* Logout actions */}
             <section className="space-y-3">
                 <p className="text-xs font-semibold text-muted-foreground">세션 액션</p>
 

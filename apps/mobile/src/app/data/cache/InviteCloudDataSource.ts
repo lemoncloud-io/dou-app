@@ -4,9 +4,10 @@ import type { ISqliteDatabase } from '../../database';
 import { fetchManyByIds } from './fetchManyByIds';
 
 /**
- * 초대 클라우드(Invite Cloud) 도메인 전용 데이터 소스입니다.
- * 이 테이블은 시스템 전역(Global) 데이터를 보관하므로, 다른 도메인과 달리 cid(클라우드 ID)를 통한 데이터 격리 쿼리를 수행하지 않습니다.
- * (파라미터로 넘어온 _cid는 인터페이스 규격을 맞추기 위한 것이며 무시됩니다)
+ * Data source specific to the Invite Cloud domain.
+ * Since this table holds system-wide (global) data, unlike other domains it does not run data
+ * isolation queries scoped by cid (cloud ID).
+ * (The _cid parameter is accepted only to satisfy the interface contract, and is ignored.)
  */
 export class InviteCloudDataSource implements ICacheDataSource<CacheCloudView, InviteCloudQueryOptions> {
     constructor(
@@ -21,7 +22,7 @@ export class InviteCloudDataSource implements ICacheDataSource<CacheCloudView, I
     }
 
     public async fetchMany(ids: string[], _cid?: string, _uid?: string): Promise<CacheCloudView[]> {
-        // 전역 테이블이므로 cid/uid를 조건에 넣지 않습니다 — `fetch`와 같은 규칙입니다.
+        // Since this is a global table, cid/uid are not added as conditions — same rule as `fetch`.
         return fetchManyByIds<CacheCloudView>(this.database, this.tableName, ids);
     }
 
