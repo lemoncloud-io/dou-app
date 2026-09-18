@@ -41,7 +41,8 @@ describe('useVerifyAlias — 계정 이메일 검증 실패 기록', () => {
         code: '123456',
     };
 
-    // 한 엔드포인트가 두 여정 × 다섯 단계를 겸한다 — mode·step 없이는 어느 다리가 끊겼는지 모른다.
+    // One endpoint doubles for two journeys × five steps — without mode/step, there's no telling
+    // which leg broke.
     it('mode와 step을 message와 data에 함께 남긴다', async () => {
         verifyMock.mockRejectedValue(new Error('boom'));
         const run = useVerifyAlias() as unknown as (b: VerifyAliasBody) => Promise<unknown>;

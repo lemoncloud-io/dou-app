@@ -5,7 +5,7 @@ jest.mock('@chatic/bridges', () => ({
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
 }));
 
-// `getAuthStatus` (ADR-0076 결정 1) reads the store's token and the credential clock on top of the
+// `getAuthStatus` (ADR-0076 Decision 1) reads the store's token and the credential clock on top of the
 // socket, so both have to be seeded here. That is a real input the pre-refactor condition did NOT
 // have — see the commit message; a bound socket with no stored token now reads `absent`, which is
 // the safe direction.
@@ -47,7 +47,7 @@ type FakeAuth = ReturnType<typeof makeAuth>;
 // `authenticated && connState === 'connected'` and clears it on every non-connected transition, so a
 // fake that reports `verified` for a closed socket describes a state the manager cannot produce.
 // That mattered once `deriveAuthStatus` started trusting this flag instead of re-reading the
-// transport (ADR-0076 결정 1): the stale fake was the only thing claiming a closed socket could
+// transport (ADR-0076 Decision 1): the stale fake was the only thing claiming a closed socket could
 // carry a refresh. `verified` can still be forced to false to model a mid-handshake connection.
 const makeManager = (client: { auth?: FakeAuth; state?: string } | null, { verified = true } = {}): ISocketManager =>
     ({
@@ -122,7 +122,7 @@ describe('requestRelaySessionRefresh', () => {
         }
     });
 
-    // ADR-0070 불변조건 1·2 — refresh는 ClientSocketAuth 단독. 소켓이 없으면 우회하지 않고 거절한다.
+    // ADR-0070 invariants 1·2 — refresh는 ClientSocketAuth 단독. 소켓이 없으면 우회하지 않고 거절한다.
     // 예전에는 여기서 서비스 레벨 HTTP refresh로 폴백했는데, 그게 refresh 엔드포인트로 가는 두 번째
     // 경로였고, 스토어만 갱신하고 소켓 자신의 서명 재료는 그대로 두는 divergence의 원인이었다.
     it('바인드된 슬롯이 없으면 refresh하지 않고 false를 돌려준다', async () => {

@@ -12,7 +12,7 @@ import { requestRelaySessionRefresh } from './requestRelaySessionRefresh';
 
 /**
  * "How do I keep THIS server's credential alive, and what do I do when it is beyond saving?"
- * (ADR-0076 결정 3).
+ * (ADR-0076 Decision 3).
  *
  * relay and cloud answer both questions differently, and that asymmetry was previously expressed
  * only in prose — the same 20~30 line justification repeated at eight branch points
@@ -23,9 +23,9 @@ import { requestRelaySessionRefresh } from './requestRelaySessionRefresh';
  *
  * | | relay | cloud |
  * | --- | --- | --- |
- * | 갱신 수단 | refresh (`ClientSocketAuth` 단독) | **재발급** (`delegate-cloud` + `exchange-token`) |
- * | 소켓 없으면 | 갱신 불가 — 기다리는 것 말고 없다 | relay만 살아 있으면 가능 |
- * | 종단 만료 시 | 세션 자체가 위험 → **확인 창 후** 로그아웃 | 클라우드만 버린다 |
+ * | Renewal means | refresh (`ClientSocketAuth` alone) | **re-issue** (`delegate-cloud` + `exchange-token`) |
+ * | Without a socket | Can't renew — nothing to do but wait | Possible as long as relay is alive |
+ * | On terminal expiry | The session itself is at risk → logout **after a confirmation window** | Just drop the cloud |
  *
  * **`Renewer` is a new word in this repo** (0 occurrences); the FORM is not — `-er` agent nouns are
  * `ICredentialRecoverer` · `IAuthSigner` · `IFailureAttributor`, and `renew` is already this
@@ -108,7 +108,7 @@ export class RelayCredentialRenewer implements ICredentialRenewer {
     /**
      * One pending decision at a time. The SDK can report `expired` again while the window is open
      * (a reconnect that re-burns the budget), and those repeats are the SAME event as far as this
-     * decision goes — they join the run instead of stacking timers (ADR-0076 결정 4).
+     * decision goes — they join the run instead of stacking timers (ADR-0076 Decision 4).
      */
     private readonly confirmation = new Coalescer<void>();
 
@@ -120,7 +120,7 @@ export class RelayCredentialRenewer implements ICredentialRenewer {
 
     /**
      * Refresh, and only refresh: a relay token has no parent to be minted from, so `auth.refresh()`
-     * through the socket that owns it is the only route (ADR-0070 불변조건 1). Without a live socket
+     * through the socket that owns it is the only route (ADR-0070 invariant 1). Without a live socket
      * the honest answer is `false` — the caller should get the socket back rather than route around it.
      */
     renew(): Promise<boolean> {

@@ -8,7 +8,7 @@ import { Section } from '../../components/Section';
 
 /**
  * Every setting this device is actually running with, and — for the keys this device may write —
- * the control that changes it. The screen half of ADR-0079 결정 16, which shipped its logging half
+ * the control that changes it. The screen half of ADR-0079 decision 16, which shipped its logging half
  * without a viewer (see `libs/app-runtime/src/config/configStateLog.ts`).
  *
  * `snapshotAll()` already carries what a row needs: title, description, current value, default,
@@ -20,10 +20,10 @@ import { Section } from '../../components/Section';
  * Two exclusions, both from the ADRs rather than taste:
  *
  * - **`meta: true` keys** — `system.*`, `debug.overlayEnabled`, `debug.entryCode`. A generic panel
- *   rendering the lock switch inside the screen the lock guards is the recursion ADR-0080 결정 6
+ *   rendering the lock switch inside the screen the lock guards is the recursion ADR-0080 decision 6
  *   removed by marking them.
  * - **`debug.entryCode`** would be excluded by `meta` anyway; it is named here because ADR-0079
- *   결정 16 excludes it for a second, independent reason — it is a credential, and this view is
+ *   decision 16 excludes it for a second, independent reason — it is a credential, and this view is
  *   copyable.
  *
  * Overridden keys are listed first because they are the answer to "why is this device behaving

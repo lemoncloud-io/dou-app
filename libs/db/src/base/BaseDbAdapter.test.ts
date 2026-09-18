@@ -7,7 +7,7 @@ const contextProvider = {
     setContext: () => undefined,
 } as never;
 
-/** 읽기/삭제만 기록하는 최소 구현 — 기본 `clearByChannelId`가 무엇을 요청하는지 보기 위한 것. */
+/** A minimal implementation that only records reads/deletes — for observing what the default `clearByChannelId` requests. */
 class RecordingAdapter<TType extends CacheType> extends BaseDbAdapter<TType> {
     public readonly loadAllCalls: Array<CacheQueryOf<TType> | undefined> = [];
     public readonly deleted: string[][] = [];
@@ -55,7 +55,7 @@ describe('BaseDbAdapter.clearByChannelId — 채널 한정 폴백 (ADR-0067)', (
 
         await adapter.clearByChannelId('ch-1');
 
-        // 좁혀 읽지 않으면 방 하나를 비우는 데 스코프 전체 채팅이 브릿지를 건너온다.
+        // Without a scoped read, clearing out one room would send the whole scope's chats across the bridge.
         expect(adapter.loadAllCalls).toEqual([{ channelId: 'ch-1' }]);
         expect(adapter.deleted).toEqual([['m-1', 'm-2']]);
     });
@@ -78,7 +78,7 @@ describe('BaseDbAdapter.clearByChannelId — 채널 한정 폴백 (ADR-0067)', (
     });
 
     it('좁혀 읽은 결과도 channelId로 한 번 더 거른다', async () => {
-        // 저장소가 필터를 무시할 수도 있다(구현마다 다름) — 삭제 대상은 항상 이 판정을 통과한 행뿐이다.
+        // A store may ignore the filter (it varies by implementation) — deletion always targets only rows that pass this check.
         const adapter = new RecordingAdapter('chat', [
             { id: 'm-1', channelId: 'ch-1' },
             { id: 'm-2', channelId: 'ch-other' },

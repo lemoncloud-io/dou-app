@@ -9,7 +9,7 @@ import { runtime } from '@chatic/app-runtime';
 const SYNC_TIMEOUT_MS = 8_000;
 
 export type AcceptedChannelSyncStatus =
-    /** No `channelId` to watch yet (backend timing not confirmed — ADR-0089 요청 5번). */
+    /** No `channelId` to watch yet (backend timing not confirmed — ADR-0089 request #5). */
     | 'unknown'
     /** Watching `channel.observeItem` for the record to sync locally. */
     | 'waiting'
@@ -23,7 +23,7 @@ export type AcceptedChannelSyncStatus =
  *
  * `invite.accept`'s response never carries a `channelId` (the room is created asynchronously),
  * and whether/when `invite.list` later denormalizes one back onto the invite view is an open
- * backend question (roadmap 백엔드 요청 #5). So this only ever has something to watch when the
+ * backend question (roadmap backend request #5). So this only ever has something to watch when the
  * view already happens to carry a `channelId`; otherwise it reports `unknown` immediately so the
  * caller can show a "check back from home" fallback instead of spinning forever.
  */

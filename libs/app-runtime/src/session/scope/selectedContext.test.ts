@@ -20,14 +20,14 @@ beforeEach(() => {
 
 describe('deriveSelectedContext — 파생 규칙 (useRuntimeBinding에서 옮겨온 식)', () => {
     it('선택된 클라우드와 사용자로 스코프를 만든다 — 사이트는 넣지 않는다', () => {
-        // 스코프는 저장 파티션과 같은 모양(`{cid, uid}`)이다. 사이트는 호출자가 인자로 지목하는
-        // 값이지 데이터 레이어가 세션에서 주워 오는 값이 아니다 (ADR-0085).
+        // The scope has the same shape as a storage partition (`{cid, uid}`). Site is a value the
+        // caller names as an argument, not one the data layer picks up from the session (ADR-0085).
         expect(deriveSelectedContext()).toEqual({ cid: 'c1', uid: 'u1' });
     });
 
     it('활성 사이트가 있어도 sid 키 자체를 만들지 않는다', () => {
-        // `toEqual`은 `sid: undefined`와 키 부재를 구분하지 못하므로 키로 직접 확인한다.
-        // 여기서 sid가 다시 생기면 사이트 전환 경합이 그대로 돌아온다.
+        // `toEqual` can't tell `sid: undefined` apart from the key being absent, so check the key
+        // directly. If sid reappears here, the site-switch race is right back.
         expect('sid' in deriveSelectedContext()).toBe(false);
     });
 
@@ -47,8 +47,8 @@ describe('deriveSelectedContext — 파생 규칙 (useRuntimeBinding에서 옮�
         expect(deriveSelectedContext()).toEqual({ cid: 'c1', uid: undefined });
     });
 
-    // 커밋된 값이 아니라 선택값을 따르는 것이 낙관적 전환의 핵심이다. 커밋 뷰는
-    // ActiveScope.committed가 따로 들고 있다.
+    // Following the selected value rather than the committed one is the whole point of an optimistic
+    // switch. The committed view is held separately, by ActiveScope.committed.
     it('커밋 여부와 무관하게 선택된 클라우드를 따른다 (낙관적 전환)', () => {
         mockGetGlobalSessionContext.mockReturnValue(
             session({ cloud: { cloudId: 'target' }, activeServer: { siteId: 'site-1', cloudId: 'outgoing' } })
@@ -59,8 +59,9 @@ describe('deriveSelectedContext — 파생 규칙 (useRuntimeBinding에서 옮�
 });
 
 describe('deriveSelectedContext — 읽기 시점', () => {
-    // 이 계약이 변경의 핵심이다: 예전에는 홀더에 밀어 넣은 값이라 effect가 돌기 전까지 낡은 채였고,
-    // 그래서 하위 훅들이 contextOverride로 우회했다.
+    // This contract is the whole point of the change: it used to be a value pushed into a holder, so
+    // it stayed stale until an effect ran, and downstream hooks worked around that with
+    // contextOverride.
     it('호출할 때마다 스토어를 다시 읽는다 — 값을 캐시하지 않는다', () => {
         expect(deriveSelectedContext().cid).toBe('c1');
 

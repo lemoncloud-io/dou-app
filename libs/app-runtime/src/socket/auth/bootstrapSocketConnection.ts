@@ -88,7 +88,7 @@ export const bootstrapSocketConnection = async ({
 
     // Expired-resume throttle (see the cooldown constants above). Per bootstrap instance: a reboot
     // is a fresh identity attempt, so it deliberately starts with a clean budget. The growing gate
-    // is `Throttle` now (ADR-0076 결정 4) — the numbers are unchanged.
+    // is `Throttle` now (ADR-0076 Decision 4) — the numbers are unchanged.
     const resumeThrottle = new Throttle({
         intervalMs: EXPIRED_RESUME_INITIAL_COOLDOWN_MS,
         maxIntervalMs: EXPIRED_RESUME_MAX_COOLDOWN_MS,
@@ -156,7 +156,7 @@ export const bootstrapSocketConnection = async ({
         auth.onTokenRefresh(view => {
             // ADR-0070 기준선 계측 ②: refresh 발화 횟수. 이제 refresh는 이 경로 하나뿐이라 이 줄이
             // 유일한 계수원이다 — 예전에는 HTTP refresh가 NETWORK 로그에 따로 찍히고 서명 거부는
-            // `... failed (403)`으로 남는 반면 소켓 쪽 발화는 아무데도 보이지 않았다. 3단계 전후
+            // `... failed (403)`으로 남는 반면 소켓 쪽 발화는 아무데도 보이지 않았다. Step 3 전후
             // 비교는 이 한 줄로 센다.
             logger.info('SOCKET', '[bootstrapSocketConnection] token refreshed', { data: { kind } });
             // The writeback is what actually re-mints the HTTP/AWS signing material, and it is the

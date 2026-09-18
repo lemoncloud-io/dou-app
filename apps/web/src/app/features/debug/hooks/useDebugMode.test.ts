@@ -37,14 +37,14 @@ describe('useDebugMode — 숨겨진 디버그 모드 게이트', () => {
         delete (window as unknown as { CHATIC_APP_DEBUG_MODE?: boolean }).CHATIC_APP_DEBUG_MODE;
     });
 
-    // LOCAL/DEV는 행이 true라 10탭 마찰이 사라진다. PROD는 행이 false라 지금과 똑같다.
+    // On LOCAL/DEV the row is true, so the 10-tap friction disappears. On PROD the row is false, same as now.
     it('스테이지 행이 열려 있으면 언락 없이 활성이다', () => {
         configGet.mockImplementation((key: string) => (key === 'debug.overlayEnabled' ? true : undefined));
         const { result } = renderHook(() => useDebugMode());
         expect(result.current.isEnabled).toBe(true);
     });
 
-    // 언락 기록만 지우면 스테이지 규칙이 다시 켜므로 "웹이 다시 끌 수 있다"가 거짓이 된다.
+    // Clearing only the unlock record would let the stage rule turn it back on, making "the web can turn it off again" false.
     it('disable은 스테이지 행도 false로 쓴다', () => {
         sessionStorage.setItem(DEBUG_STORAGE_KEY, 'true');
         const { result } = renderHook(() => useDebugMode());
@@ -54,7 +54,7 @@ describe('useDebugMode — 숨겨진 디버그 모드 게이트', () => {
         expect(configSet).toHaveBeenCalledWith('debug.overlayEnabled', false, { lane: 'local' });
     });
 
-    // 이 배선이 없으면 PROD에서 surface:'dev' 키가 전부 읽기 전용으로 뜬다.
+    // Without this wiring, every surface:'dev' key would render read-only on PROD.
     it('언락은 오버라이드 잠금도 연다', () => {
         act(() => setDebugModeEnabled(true));
 

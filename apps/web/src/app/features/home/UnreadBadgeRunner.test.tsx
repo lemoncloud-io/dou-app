@@ -104,7 +104,7 @@ describe('UnreadBadgeRunner — 앱 뱃지 동기화', () => {
     describe('뱃지 정합성 대조 (ADR-0099)', () => {
         beforeEach(() => fetchBadge.mockResolvedValue(null));
 
-        // 콜드 스타트: 아이콘에는 백그라운드 푸시가 남긴 값이 있고, 웹이 계산한 총합이 진실이다.
+        // Cold start: the icon holds whatever value a background push left, and the web's computed total is the truth.
         it('첫 push 전에 아이콘 값을 읽어 곧 쓸 총합과 대조한다', async () => {
             fetchBadge.mockResolvedValue(2);
             unreadsMock.mockReturnValue({ total: 0 });
@@ -117,8 +117,8 @@ describe('UnreadBadgeRunner — 앱 뱃지 동기화', () => {
             expect(badgeDivergence).toHaveBeenCalledWith({ web: 0, native: 2, active: 0, others: 0 });
         });
 
-        // 대조 기준은 "마지막으로 밀어넣은 값"이다 — 현재 총합과 비교하면 정상적인 읽음이 전부
-        // 불일치로 잡힌다(아이콘은 설계상 뒤처진다).
+        // The comparison baseline is "the value last pushed" — comparing against the current total
+        // would flag every normal read as a divergence (the icon lags behind by design).
         it('포그라운드 복귀 시 마지막으로 push한 값과 대조한다', async () => {
             await act(async () => {
                 render(<UnreadBadgeRunner />);

@@ -310,7 +310,7 @@ class DependencyProvider {
         return this._preferenceService;
     }
 
-    /** Backs `@chatic/config`'s shell lane — the generic, meaning-blind KV store (ADR-0079 결정 9). */
+    /** Backs `@chatic/config`'s shell lane — the generic, meaning-blind KV store (ADR-0079 decision 9). */
     public get configKvService(): IConfigKvService {
         if (!this._configKvService) {
             this._configKvService = new ConfigKvService(this.logService, this.keyValueStorage);

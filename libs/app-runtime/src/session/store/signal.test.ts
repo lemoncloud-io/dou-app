@@ -42,7 +42,7 @@ describe('SessionSignal — batch', () => {
 
         sessionSignal.batch(() => {
             sessionSignal.batch(() => sessionSignal.emit('selection'));
-            expect(listener).not.toHaveBeenCalled(); // 안쪽에서는 아직
+            expect(listener).not.toHaveBeenCalled(); // not yet, while still inside
             sessionSignal.emit('selection');
         });
 
@@ -73,7 +73,8 @@ describe('SessionSignal — batch', () => {
 
         sessionSignal.batch(() => {
             sessionSignal.emit('selection');
-            // A12(getCloudSessionSnapshot)가 캐시를 지나므로 여기서 이미 캐시가 떨어져 있어야 한다.
+            // A12 (getCloudSessionSnapshot) goes through the cache, so the cache must already be
+            // invalidated by this point.
             expect(invalidate).toHaveBeenCalled();
             expect(listener).not.toHaveBeenCalled();
         });

@@ -218,7 +218,7 @@ export const CacheTestScreen = () => {
             return next.slice(-100); // Caps logs count to keep it smooth on devices
         });
 
-        // 사용자가 과거 로그 분석을 진행하는 것을 방해하지 않기 위해 강제 스크롤링 코드는 완전히 제거되었습니다.
+        // Forced auto-scroll has been removed entirely so it doesn't interrupt the user while they're analyzing past logs.
     }, []);
 
     const clearLogs = useCallback(() => setLogs([]), []);
@@ -734,7 +734,7 @@ export const CacheTestScreen = () => {
         <div className="flex h-full min-w-0 max-w-full flex-col overflow-x-hidden bg-background">
             <div className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-none">
                 <div className="flex min-w-0 max-w-full flex-col gap-3 p-4 pb-10">
-                    {/* 1. 상단 상시 노출: 상태 정보 (Status Summary) */}
+                    {/* 1. Always visible at top: status info (Status Summary) */}
                     <Section title="실시간 DB 상태 정보">
                         <div className="grid grid-cols-2 gap-x-4 gap-y-3">
                             <Metric
@@ -836,7 +836,7 @@ export const CacheTestScreen = () => {
                         )}
                     </Section>
 
-                    {/* 2. 대시보드 3단 탭 셀렉터 */}
+                    {/* 2. Dashboard 3-way tab selector */}
                     <Section title="모니터링 탭 선택">
                         <div className="flex w-full gap-1.5 rounded-xl bg-background p-1 border border-border">
                             {(['scenarios', 'explorer', 'logs'] as const).map(tab => (

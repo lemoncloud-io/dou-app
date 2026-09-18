@@ -56,7 +56,7 @@ export class SubscriptionIapService implements ISubscriptionIapService {
                 const offers = product.subscriptionOffers ?? [];
                 const uniqueBasePlans = new Map();
 
-                //모든 플랜의 루프를 돌면서 플랜에 대한 요금제 채우기
+                // Loop over all offers, filling in pricing per plan
                 offers.forEach(offer => {
                     const basePlanId = offer.basePlanIdAndroid;
                     const phases = offer.pricingPhasesAndroid?.pricingPhaseList ?? [];
@@ -150,14 +150,14 @@ export class SubscriptionIapService implements ISubscriptionIapService {
                   }
                 : undefined;
 
-        // Android 환경이면서, 업그레이드/다운그레이드에 필요한 데이터가 전부 존재할때
+        // On Android, and only when all the data needed for an upgrade/downgrade is present
         if (Platform.OS === 'android' && oldPlanId && newPlanId && googleRequest) {
-            // sku를 활용하여 이전 구매내역 찾기
+            // Find the previous purchase using the sku
             this.logService.debug('IAP', 'Looking up existing purchase for plan change');
             const availablePurchases = await this.getAvailablePurchases();
             const oldPurchase = availablePurchases.find(p => p.productId === id);
 
-            // 이전 구매내역이 존재할 경우 업그레이드/다운그레이드 관련 파라미터 추가
+            // If a previous purchase exists, add the upgrade/downgrade-related parameters
             if (oldPurchase) {
                 googleRequest.subscriptionProductReplacementParams = {
                     oldPurchaseToken: oldPurchase.purchaseToken,

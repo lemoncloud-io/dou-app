@@ -1,5 +1,5 @@
 /**
- * The session change signal (ADR-0076 결정 2).
+ * The session change signal (ADR-0076 Decision 2).
  *
  * It used to be one payload-less broadcast — a `notifySessionStateChanged()` from 24 call sites, and
  * every subscriber re-deriving everything because "something changed" is all they were told. One
@@ -58,7 +58,7 @@ type Entry = { kinds: ReadonlySet<SessionSignalKind>; listener: () => void };
  * treat them differently:
  *
  * - An invalidator drops the derived-context cache. Code INSIDE the batch reads that cache —
- *   `getCloudSessionSnapshot` does, since ADR-0076 배치 A12 routed it through the cache for same-tick
+ *   `getCloudSessionSnapshot` does, since ADR-0076 batch A12 routed it through the cache for same-tick
  *   consistency — so deferring invalidation would make `switchCloudSession` return a snapshot of the
  *   cloud it just left. Internal consistency cannot wait for the flush.
  * - A listener is external fan-out (a React re-render, a binding rebuild). That is exactly what the

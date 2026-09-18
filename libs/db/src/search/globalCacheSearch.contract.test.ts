@@ -7,7 +7,7 @@ import { IndexedDbGlobalSearchSource } from './IndexedDbGlobalSearchSource';
 import { NativeGlobalSearchSource } from './NativeGlobalSearchSource';
 
 /**
- * Shared contract test (ADR-0088 "어댑터 동작 동일성"): the same fixtures and the same
+ * Shared contract test (ADR-0088 "adapter behavior parity"): the same fixtures and the same
  * expectation table run against both the IndexedDB (web) and native (bridge) search
  * sources. A semantic change to one that isn't mirrored in the other fails here.
  */

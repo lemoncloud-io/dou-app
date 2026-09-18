@@ -21,7 +21,7 @@ describe('BridgeScreen — 채널 점검과 임의 명령', () => {
         request.mockResolvedValue({ data: { payload: 'pong' } });
     });
 
-    // 브라우저에는 셸이 없다 — 이 화면의 첫 질문이 "채널이 있느냐"인 이유다.
+    // A browser has no shell — that's why this screen's first question is "is there a channel".
     it('셸 채널이 없으면 없다고 말한다', () => {
         render(<BridgeScreen />);
 
@@ -39,7 +39,7 @@ describe('BridgeScreen — 채널 점검과 임의 명령', () => {
         expect(screen.getByText('주고받은 기록 (1)')).toBeInTheDocument();
     });
 
-    // 실패도 결과다: 코드와 메시지를 그대로 보여줘야 버전 문제인지 채널 문제인지 갈린다.
+    // Failure is a result too: showing the code and message as-is is what distinguishes a version issue from a channel issue.
     it('거절당하면 코드와 메시지를 남긴다', async () => {
         request.mockRejectedValue({ code: 'NATIVE_NOT_SUPPORTED', message: '브릿지 없음' });
         render(<BridgeScreen />);
@@ -49,7 +49,7 @@ describe('BridgeScreen — 채널 점검과 임의 명령', () => {
         expect(await screen.findByText(/NATIVE_NOT_SUPPORTED: 브릿지 없음/)).toBeInTheDocument();
     });
 
-    // post는 답이 없다 — 성공했다고 적으면 하지도 않은 확인을 주장하는 셈이다.
+    // post gets no answer — writing "succeeded" would claim a confirmation that was never made.
     it('post는 확인 없음을 명시한다', async () => {
         render(<BridgeScreen />);
 

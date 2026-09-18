@@ -6,7 +6,7 @@ import Config from 'react-native-config';
 import { getLocales } from 'react-native-localize';
 
 /**
- * 플랫폼별 User Agent 식별자 접두사
+ * Platform-specific User Agent identifier prefix
  * - iOS: DOU_IOS
  * - Android: DOU_ANDROID
  */
@@ -16,9 +16,9 @@ export const APP_USER_AGENT_PREFIX = Platform.select({
 });
 
 /**
- * UserAgent 불러오기
- * - 시스템 `UserAgent`에 앱 전용 `UserAgent`를 이어붙여 구성
- * - `APP_USER_AGENT_PREFIX` 포함여부를 바탕으로 플랫폼 환경 판단 가능
+ * Fetches the UserAgent
+ * - Builds it by appending the app-specific `UserAgent` to the system `UserAgent`
+ * - Whether `APP_USER_AGENT_PREFIX` is present can be used to determine the platform environment
  */
 export const getUserAgent = async (): Promise<string> => {
     const systemUserAgent = await DeviceInfo.getUserAgent();
@@ -32,9 +32,9 @@ export const getUserAgent = async (): Promise<string> => {
 };
 
 /**
- * App Language 불러오기
- * - 디바이스에 설정된 언어 불러오기
- * - 기본값 'en'
+ * Fetches the app language
+ * - Fetches the language configured on the device
+ * - Defaults to 'en'
  */
 export const getAppLanguage = (): string => {
     const locales = getLocales();

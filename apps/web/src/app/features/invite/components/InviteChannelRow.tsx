@@ -14,7 +14,7 @@ interface InviteChannelRowProps {
 
 /**
  * One sent-invite row, shared by the home `ChannelList` and `PlaceChannelManagePage` (ADR-0089
- * Track B — 리스트 통합). Callers are expected to have already filtered to `pending`/`expired`
+ * Track B — list consolidation). Callers are expected to have already filtered to `pending`/`expired`
  * invites (see `useInviteListRows`) — this component only decides how ONE row looks, not which
  * invites qualify.
  *

@@ -30,12 +30,13 @@ export { getRelaySessionUser, patchRelaySessionUser };
 /**
  * The COMMITTED cloud id — the cloud whose tokens are actually in the store, as opposed to
  * `getGlobalSessionContext().cloud.cloudId`, which is the SELECTED id and flips optimistically at the
- * start of a switch (ADR-0070 결정 7의 세 뷰 중 `committed`).
+ * start of a switch (`committed`, one of the three views in ADR-0070 Decision 7).
  *
  * Read off the delegation token rather than recorded separately: `switchCloudSession` writes the
  * delegation token only when the exchange SUCCEEDS, and leaves it untouched on failure/rollback, so
  * its `cloudId` already is "the cloud we are committed to". That also means no backfill — every
- * existing session already has this field (설계문서 §리스크 4가 우려한 소급 마이그레이션 불필요).
+ * existing session already has this field (no retroactive migration needed, unlike the risk
+ * design doc §Risk 4 was concerned about).
  *
  * `null` means no cloud is committed (relay/default).
  */

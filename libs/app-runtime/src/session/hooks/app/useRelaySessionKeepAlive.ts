@@ -37,7 +37,7 @@ export const useRelaySessionKeepAlive = (enabled: boolean): void => {
     const { isAuthenticated } = useSessionAuth();
     const { deviceId } = useDynamicDeviceId();
     // One background login at a time — the effect can re-run before the previous attempt settles
-    // (ADR-0076 결정 4; this was a bespoke `runningRef`). A failed attempt frees the slot, so the
+    // (ADR-0076 Decision 4; this was a bespoke `runningRef`). A failed attempt frees the slot, so the
     // next trigger retries.
     const login = useRef<Coalescer<void>>(new Coalescer<void>()).current;
     const retryFloor = useRef<Throttle>(new Throttle({ intervalMs: RETRY_FLOOR_MS })).current;

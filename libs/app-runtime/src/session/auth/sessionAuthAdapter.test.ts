@@ -40,8 +40,9 @@ jest.mock('../../http/transport', () => ({
     },
 }));
 
-// 이관 전 web-core에서 `./contexts` · `./core` · `./contextStore` · `./utils` 네 모듈로 나뉘어
-// 있던 목을 하나로 합친 것 — 이제 전부 `session/store` 배럴 뒤에 있다.
+// Before the migration this mock was split across four web-core modules — `./contexts` · `./core` ·
+// `./contextStore` · `./utils`. It's merged into one now that everything sits behind the
+// `session/store` barrel.
 // `signServerAuth` now calls `@chatic/auth-sign` directly instead of web-core's `calcSignature`
 // shim. The mock keeps the old assertion shape — (payload, current, userAgent) — so the kind-specific
 // authId contract stays pinned by the same two cases.
@@ -97,7 +98,7 @@ jest.mock('../store', () => ({
     getSelectedSiteId: (...args: unknown[]) => mockGetSelectedSiteId(...args),
     clearRelaySession: jest.fn(),
     rebuildSessionIdentity: jest.fn(),
-    // The store announces KINDS now (ADR-0076 결정 2). `mockNotifySessionStateChanged` stands for
+    // The store announces KINDS now (ADR-0076 Decision 2). `mockNotifySessionStateChanged` stands for
     // `emit`, so the existing "was the session announced" assertions keep their meaning; `batch`
     // runs straight through because the collapsing is covered by signal.test.ts.
     sessionSignal: {
@@ -200,8 +201,9 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
         expect(mockGetTokenSignature).not.toHaveBeenCalled();
     });
 
-    // 서버(`_sign`/`validateSignature`)는 서명 재료를 전부 auth 모델에서 꺼낸다. 뷰가 노출하는 칸은
-    // 그 출처를 그대로 따른다 — 값이 같아서 오늘은 무해하지만, 고정하는 건 값이 아니라 출처다.
+    // The server (`_sign`/`validateSignature`) pulls all signing material from the auth model. The
+    // field the view exposes just follows that same source — the values happen to match today so
+    // it's harmless, but what's being pinned down is the source, not the value.
     it('sessionAuthAdapter.signAuth(relay)는 accountId 를 $auth 에서 읽는다', async () => {
         mockRelayGetRelayToken.mockReturnValue({
             $auth: { id: 'relay-auth-id', accountId: 'from-auth' },
@@ -219,7 +221,7 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
     });
 
     it('sessionAuthAdapter.signAuth(relay)는 $auth 에 accountId 가 없으면 Token 으로 폴백한다', async () => {
-        // 뷰가 그 칸을 안 실어 보낸 경우까지 서명을 못 하게 만들 이유는 없다.
+        // There's no reason to make signing impossible just because the view doesn't carry that field.
         mockRelayGetRelayToken.mockReturnValue({
             $auth: { id: 'relay-auth-id' },
             Token: { accountId: 'from-token', identityId: 'r-ident' },
@@ -235,7 +237,8 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
         );
     });
 
-    // identityId 가 조용히 어긋나서 이 트랙의 사고가 났다. 볼 수 있는 칸은 어긋나면 소리가 나야 한다.
+    // This track's incident happened because identityId silently diverged. A field you can see
+    // must make noise when it diverges.
     it('sessionAuthAdapter.signAuth(relay)는 $auth 와 Token 의 accountId 가 다르면 경고하고 $auth 를 쓴다', async () => {
         mockRelayGetRelayToken.mockReturnValue({
             $auth: { id: 'relay-auth-id', accountId: 'from-auth' },
@@ -374,9 +377,10 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
         );
     });
 
-    // 위 케이스의 나머지 반쪽. 재빌드를 건너뛰면 lemon은 이전 자격증명으로 계속 서명하는데, merge가
-    // credential을 흘리면 store 사본만 그것을 잃는다 — 그러면 `credentialFreshness`가 "측정 불가"를
-    // 답하고, 만료 서명 실패를 회선 장애와 구분하지 못하게 된다. 두 사본은 같은 것을 가리켜야 한다.
+    // The other half of the case above. If the rebuild is skipped, lemon keeps signing with the
+    // previous credential, but if the merge drops the credential, only the store's copy loses it —
+    // then `credentialFreshness` answers "can't measure", and an expired-signature failure can't be
+    // told apart from a network failure. The two copies must point at the same thing.
     it('commitServerRefreshedToken(relay)는 view에 credential이 없으면 저장된 credential을 보존한다', async () => {
         const previous = { AccessKeyId: 'k', SecretKey: 's', Expiration: '2026-09-02T01:00:00.000Z' };
         mockRelayGetRelayToken.mockReturnValue({
@@ -392,8 +396,9 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
         );
     });
 
-    // 사이트 전환 응답의 하위 auth 를 버리는 건 서버 답을 거스르는 조용한 결정이다. 소리내어 말하고,
-    // 서명 재료까지 같이 남긴다 — 다음 질문은 언제나 "세 키 중 뭐가 서버와 다른가"이기 때문이다.
+    // Dropping the sub-auth from a site-switch response is a silent decision that goes against the
+    // server's answer. Say it out loud, and log the signing material alongside it — because the next
+    // question is always "which of the three keys differs from the server's".
     it('commitServerRefreshedToken(relay)는 저장된 $auth 를 지키고 버린 사실을 재료와 함께 경고한다', async () => {
         mockRelayGetRelayToken.mockReturnValue({
             $auth: { id: 'parent-auth' },
@@ -423,7 +428,8 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
     });
 
     it('commitServerRefreshedToken(relay)는 $auth 가 그대로면 경고하지 않는다', async () => {
-        // 평범한 refresh 는 같은 $auth 를 돌려준다 — 보존이 no-op 인 경우까지 시끄러우면 안 된다.
+        // An ordinary refresh returns the same $auth — preservation must not be noisy even in the
+        // no-op case.
         mockRelayGetRelayToken.mockReturnValue({
             $auth: { id: 'same-auth' },
             Token: { identityToken: 'kept' },

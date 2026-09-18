@@ -1,8 +1,8 @@
-// The session half of the bridge — seed · sign · writeback (ADR-0076 결정 5). Runtime-internal and
-// off the session barrel (결정 6).
+// The session half of the bridge — seed · sign · writeback (ADR-0076 Decision 5). Runtime-internal and
+// off the session barrel (Decision 6).
 import { sessionAuthAdapter } from '../../session/auth/sessionAuthAdapter';
 import { createReauthDelegate } from './reauthDelegate';
-// Terminal-expiry policy belongs to the per-server renewer (ADR-0076 결정 3), which takes the
+// Terminal-expiry policy belongs to the per-server renewer (ADR-0076 Decision 3), which takes the
 // store-only teardown path on purpose: `onAuthExpired` runs on the socket that just died, so
 // notifying it again (what the app-facing `logoutSession`/`logoutCloudSession` do) is pointless.
 import { credentialRenewers } from './renewers';

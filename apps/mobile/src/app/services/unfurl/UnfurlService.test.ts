@@ -103,7 +103,7 @@ describe('parseUrl', () => {
     });
 
     it('userinfo 뒤의 실제 호스트를 고른다', () => {
-        // `trusted.example`처럼 보이지만 실제로는 127.0.0.1로 붙는 URL.
+        // A URL that looks like `trusted.example` but actually connects to 127.0.0.1.
         expect(parseUrl('http://trusted.example@127.0.0.1/')?.hostname).toBe('127.0.0.1');
         expect(parseUrl('http://a@b@127.0.0.1/')?.hostname).toBe('127.0.0.1');
     });
@@ -149,7 +149,7 @@ describe('isPrivateHost', () => {
     );
 
     it('점4옥텟이 아닌 IP 표기도 차단한다', () => {
-        // 2130706433 == 0x7f000001 == 127.0.0.1. 디코딩하지 않고 거절한다.
+        // 2130706433 == 0x7f000001 == 127.0.0.1. Rejected without decoding.
         expect(isPrivateHost('2130706433')).toBe(true);
         expect(isPrivateHost('0x7f000001')).toBe(true);
         expect(isPrivateHost('017700000001')).toBe(true);
@@ -213,7 +213,7 @@ describe('parseOgMetadata', () => {
     it('HTML 엔티티를 디코드하고 &amp;를 마지막에 처리한다', () => {
         const html = `<meta property="og:title" content="A &amp; B &lt;c&gt; &quot;d&quot; &#39;e&#39;">`;
         expect(parseOgMetadata(html, url, url).title).toBe(`A & B <c> "d" 'e'`);
-        // &amp;lt; 는 리터럴 &lt; 로 남아야 한다 (이중 디코딩 금지).
+        // &amp;lt; must remain as the literal &lt; (no double decoding).
         const doubled = `<meta property="og:title" content="&amp;lt;script&amp;gt;">`;
         expect(parseOgMetadata(doubled, url, url).title).toBe('&lt;script&gt;');
     });
@@ -322,7 +322,7 @@ describe('fetchHtml', () => {
         const xhr = firstXhr();
         xhr.receiveHeaders();
         xhr.receiveChunk('<head><title>Big</title>', 1024);
-        // 캡 도달: abort()가 responseText를 비우므로 스냅샷이 살아남아야 한다.
+        // Cap reached: abort() clears responseText, so the snapshot must survive.
         xhr.receiveChunk('x'.repeat(16), UNFURL_MAX_BYTES);
 
         const page = await promise;

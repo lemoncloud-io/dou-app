@@ -22,7 +22,7 @@ import { Throttle } from '../../../utils/throttle';
  * (`useRelayCredentialRefresh` · `useRelaySessionGuard`); desktop-web now has one too
  * (`app/runtime/useRelayCredentialRefresh`, added when a cloud switch surfaced as a bare
  * `Network Error`), and testbed still has none. The probe body was identical in every case; only the
- * policy differed, so policy is what this takes as options (ADR-0070 3단계 체크리스트 7).
+ * policy differed, so policy is what this takes as options (ADR-0070 Step 3 checklist 7).
  *
  * **RELAY ONLY, by design — do not add a cloud branch here.** The name says "session", but every
  * probe below reads relay storage and the refresh goes to the relay socket, because relay and cloud
@@ -39,7 +39,7 @@ import { Throttle } from '../../../utils/throttle';
  *    refresh engine that updates only the lemon store and leaves the socket's signing material
  *    stale, which is the signature-error divergence this whole ADR is unwinding.
  *  - **Refresh goes through `requestRelaySessionRefresh`.** That is the single entry point that prefers
- *    the socket AuthController (the owner, ADR-0070 불변조건 1) over any direct HTTP call.
+ *    the socket AuthController (the owner, ADR-0070 invariant 1) over any direct HTTP call.
  */
 export interface SessionStalenessPolicy {
     /** Off by default is wrong for a guard — callers opt out explicitly (e.g. before login). */
@@ -140,7 +140,7 @@ export const useSessionStalenessGuard = (policy: SessionStalenessPolicy = {}): {
     } = policy;
 
     // Concurrent triggers (interval + visibility + the verified edge) share one probe, and the
-    // preemptive path keeps its own growing-free floor — the two primitives ADR-0076 결정 4 extracted.
+    // preemptive path keeps its own growing-free floor — the two primitives ADR-0076 Decision 4 extracted.
     // Numbers unchanged: FORCE_REFRESH_COOLDOWN_MS stays the floor and the first trigger always runs.
     const probe = useRef<Coalescer<void>>(new Coalescer<void>()).current;
     const forceRefreshFloor = useRef<Throttle>(new Throttle({ intervalMs: FORCE_REFRESH_COOLDOWN_MS })).current;

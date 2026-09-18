@@ -3,17 +3,17 @@ import type { ChatQueryOptions } from '@chatic/app-messages';
 import { CHAT_PAGINATION_INDEX, TYPE_CID_UID_INDEX, UNSENT_CHAT_NO } from './IndexedDBDatabase';
 
 /**
- * 채팅 도메인('chat') 전용 쿼리 실행기 구현체입니다.
- * 인덱스 필터링 및 커서 기반 역순 페이징 조회를 지원합니다.
+ * The query executor implementation dedicated to the chat domain ('chat').
+ * Supports index filtering and cursor-based reverse-order paginated queries.
  */
 export class ChatQueryExecutor implements IndexedDbQueryExecutor<'chat'> {
     /**
-     * 미전송 행만 담긴 레인지(`[0, 1)`, 상한 exclusive)를 한 번 더 읽습니다.
+     * Reads a second range containing only unsent rows (`[0, 1)`, upper bound exclusive).
      *
-     * 필요한 이유: `chat_no: 0`은 `CHAT_PAGINATION_INDEX`에서 **최하위**로 정렬되는데 페이지 읽기는
-     * `direction: 'prev'` + limit(최신 N개)입니다. 그래서 커밋된 메시지가 limit개 이상 쌓인 채널에서는
-     * 미전송 행이 페이지 밖으로 밀려나 **한 번도 렌더되지 않습니다** — 실패한 메시지에 "전송 실패"
-     * 표시도, 재전송 버튼도 붙지 않습니다.
+     * Why it's needed: `chat_no: 0` sorts **lowest** in `CHAT_PAGINATION_INDEX`, but a page read
+     * is `direction: 'prev'` + limit (the newest N). So in a channel with `limit` or more
+     * committed messages, an unsent row gets pushed out of the page and is **never rendered** —
+     * a failed message gets no "send failed" indicator and no retry button.
      */
     private async loadUnsent(
         db: IIndexedDB,
@@ -35,7 +35,7 @@ export class ChatQueryExecutor implements IndexedDbQueryExecutor<'chat'> {
         options?: ChatQueryOptions
     ): Promise<IndexedDbRow<'chat'>[]> {
         if (!options || !options.channelId) {
-            // 채널 ID가 없는 경우 전체 조회를 허용합니다.
+            // Allows a full query when there's no channel ID.
             return db.loadAll<'chat'>(TYPE_CID_UID_INDEX, [scope.type, scope.cid, scope.uid]);
         }
 
@@ -56,18 +56,23 @@ export class ChatQueryExecutor implements IndexedDbQueryExecutor<'chat'> {
                 filter: () => true,
             });
 
-        // 옵트인하지 않았으면 한 번만 읽습니다 — 기본 경로는 이 옵션이 없던 때와 동작이 같습니다.
-        // cursorNo 페이지도 마찬가지: 그 범위는 이미 0까지 내려가므로 더 읽으면 같은 행을 두 번 줍니다.
+        // If not opted in, read only once — the default path behaves the same as before this
+        // option existed. Same for a cursorNo page: that range already reaches down to 0, so
+        // reading further would give back the same rows twice.
         if (!options.includeUnsent || isExclusive) return readPage();
 
-        // 두 읽기를 **동시에** 보냅니다. "미전송 행이 잘렸는가"는 페이지를 받아 보기 전엔 알 수 없고,
-        // 받아 본 뒤 순차로 두 번째를 쏘면 그 왕복이 목록 지연에 그대로 더해집니다. 게다가 판정에 쓸
-        // 조건("페이지에 미전송 행이 없다")은 *잘린 경우*와 *애초에 없는 경우*를 구분하지 못해서,
-        // 미전송 행이 없는 평범한 바쁜 채널 — 즉 대부분의 읽기 — 에서도 어차피 두 번째 읽기가 나갑니다.
-        // 동시에 쏘면 그 지연이 첫 읽기 뒤에 숨습니다. 빈 `[0,1)` 레인지는 커서가 즉시 끝납니다.
+        // Send both reads **concurrently**. Whether "an unsent row got cut off" can't be known
+        // before the page comes back, and firing the second read sequentially after that would
+        // add its round trip straight onto the list's latency. What's more, the condition
+        // available for that check ("the page has no unsent rows") can't tell *cut off* apart
+        // from *never had any* — so the second read goes out anyway even for an ordinary busy
+        // channel with no unsent rows, which is most reads. Firing them concurrently hides that
+        // latency behind the first read. An empty `[0,1)` range makes the cursor finish
+        // immediately.
         const [page, unsent] = await Promise.all([readPage(), this.loadUnsent(db, prefix, limit)]);
 
-        // 짧은 페이지는 범위를 끝까지 훑어 미전송 행을 이미 담고 있으므로 키로 중복을 제거합니다.
+        // A short page already scanned the range to its end and may already contain the unsent
+        // rows, so dedupe by key.
         const seen = new Set(page.map(row => row.key));
         return [...page, ...unsent.filter(row => !seen.has(row.key))];
     }

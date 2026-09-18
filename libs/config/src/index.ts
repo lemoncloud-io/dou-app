@@ -49,7 +49,7 @@ export interface SetOptions {
  *
  * Shaped like `runtime.<group>.*` in `@chatic/app-runtime`: a facade over classes, not a bag of
  * loose exported functions. The internals stay off the barrel on purpose — a consumer holding
- * `ConfigResolver` directly could sidestep the lane policy (ADR-0079 결정 12).
+ * `ConfigResolver` directly could sidestep the lane policy (ADR-0079 decision 12).
  */
 export class ConfigFacade {
     private ports: ConfigRuntimePorts | null = null;
@@ -66,7 +66,7 @@ export class ConfigFacade {
      * Plugs in the adapters. Called once by the app's composition root.
      *
      * Everything the old `web-config` did as an import side effect happens here instead, by an
-     * explicit call the app controls (ADR-0079 결정 11).
+     * explicit call the app controls (ADR-0079 decision 11).
      */
     init(ports: ConfigRuntimePorts): void {
         this.ports = ports;
@@ -184,7 +184,7 @@ export class ConfigFacade {
     /**
      * Hands the cache a remote payload.
      *
-     * No fetcher lives here — this lib knows nothing about the network (ADR-0079 결정 1). The app
+     * No fetcher lives here — this lib knows nothing about the network (ADR-0079 decision 1). The app
      * builds one from `@chatic/http` and calls this. Until then a fake adapter in the tests is the
      * only caller, which is exactly what keeps the two server rows from rotting.
      */
@@ -281,7 +281,7 @@ export class ConfigFacade {
      *
      * Fire-and-forget would let a panel claim it saved something that never landed. The realistic
      * failure is a transient drop or a shell router that was not listening yet, not a rejected
-     * value — hence exactly one retry, then an honest report (ADR-0080 결정 10).
+     * value — hence exactly one retry, then an honest report (ADR-0080 decision 10).
      */
     private async writeShellConfirmed(key: string, raw: string): Promise<void> {
         const shell = this.ports?.shell;

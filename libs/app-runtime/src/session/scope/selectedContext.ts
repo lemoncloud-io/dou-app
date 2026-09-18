@@ -4,11 +4,11 @@ import { getGlobalSessionContext } from '../store';
 
 /**
  * The cache scope the SELECTED session implies — `{cid, sid, uid}`. The first of `ActiveScope`'s three
- * views (ADR-0070 결정 7, renamed from `intent` by ADR-0076 결정 8 — the repo already calls this
+ * views (ADR-0070 Decision 7, renamed from `intent` by ADR-0076 Decision 8 — the repo already calls this
  * concept `selected`: `getSelectedCloudId` · `applySelectedSite` · `useSessionSelection`).
  *
  * Moved here from `useRuntimeBinding`, which used to derive it on every session render and push it
- * into a holder through `DataManager.ensure` (ADR-0070 결정 7의 "선택 계산" 조각). The formula is
+ * into a holder through `DataManager.ensure` (ADR-0070 Decision 7's "selected-value computation" piece). The formula is
  * unchanged; what changes is WHEN consumers see it.
  *
  * **Why reading beats pushing.** The push landed in a React effect, so on a cloud switch the provider

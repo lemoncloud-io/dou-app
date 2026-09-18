@@ -11,8 +11,8 @@ import { useLocallyCanceledInvites } from './useLocallyCanceledInvites';
  *
  * Which states pass (ADR-0043):
  * - `pending` / `expired` — live cards the sender can still act on (wait, reissue, cancel).
- * - `rejected` — shown with a "초대 거절" badge so the sender learns about it (there is no
- *   notification packet — 백엔드 요청 #4); reissuing dismisses it locally.
+ * - `rejected` — shown with an "Invite declined" badge so the sender learns about it (there is no
+ *   notification packet — backend request #4); reissuing dismisses it locally.
  * - `accepted` is excluded: the real channel takes over as the visible row
  *   (see `useAcceptedChannelSync`), so showing both would duplicate the entry.
  * - `canceled` is excluded: the sender retired it.

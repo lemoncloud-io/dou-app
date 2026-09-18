@@ -63,10 +63,10 @@ describe('LogUploadQueueService — 수집', () => {
     });
 
     it('같은 엔트리를 두 번 발행하면 두 번 쌓인다 — 한 번만 발행되는 것이 불변식이다', () => {
-        // `charge`는 배치 단위 id 디둡을 했다. 응답이 유실된 충전이 재시도될 수
-        // 있었기 때문이고, 그 경로가 사라진 지금은 도착이 한 번뿐이라 막을 것이
-        // 없다. 로그 한 줄마다 큐 전체를 훑어 id를 대조하는 비용을 상시로 내는
-        // 대신, 서버의 id 업서트를 마지막 방어선으로 둔다.
+        // `charge` used to dedup ids at the batch level, because a charge whose response was lost
+        // could be retried. Now that path is gone, an entry only ever arrives once, so there's
+        // nothing to guard against. Rather than paying the ongoing cost of scanning the whole queue
+        // to compare ids on every log line, we rely on the server's id upsert as the last line of defense.
         const p = createPersistence();
         const service = new LogUploadQueueService(p.port);
         service.init();
@@ -92,9 +92,9 @@ describe('LogUploadQueueService — 수집', () => {
     });
 
     it('수집은 즉시 영속화하지 않는다 — 로그 한 줄마다 큐 전체를 다시 쓰지 않는다', () => {
-        // `save`가 큐 전체를 다시 직렬화하므로, 발행마다 동기로 쓰면 `logger.*`
-        // 한 줄마다 O(큐) MMKV 쓰기가 된다. 대신 디바운스하고, 창을 닫아야 하는
-        // 순간(teardown·ack)에 즉시 쓴다.
+        // Since `save` re-serializes the whole queue, writing synchronously on every publish would
+        // turn every `logger.*` line into an O(queue) MMKV write. Instead we debounce, and write
+        // immediately only at moments that must flush before closing (teardown, ack).
         const p = createPersistence();
         const service = new LogUploadQueueService(p.port);
         service.init();
@@ -241,9 +241,9 @@ describe('LogUploadQueueService — 네이티브 dispatch 수집', () => {
     });
 
     it("source:'web' 엔트리도 똑같이 적재한다 — 릴레이된 웹 로그가 네이티브와 한 저장소에 섞인다", () => {
-        // 예전에는 건너뛰었다. 웹 엔트리가 두 번 도착했기 때문이고(hub 발행 + charge),
-        // 필터가 어느 쪽을 셀지 골랐다. 배치 경로가 사라져 도착이 하나뿐이므로
-        // `source`는 라우팅 근거가 아니라 다시 출처 라벨일 뿐이다.
+        // This used to be skipped. Web entries used to arrive twice (hub publish + charge), and a
+        // filter picked which one to count. Now that the batch path is gone, an entry arrives only
+        // once, so `source` is once again just an origin label, not a routing basis.
         const p = createPersistence();
         service = new LogUploadQueueService(p.port);
         service.init();
@@ -336,7 +336,7 @@ describe('LogUploadQueueService — lastLogAt', () => {
         service.init();
 
         publish(entry({ timestamp: 10 }), entry({ timestamp: 30 }));
-        // 수집 경로는 영속화를 디바운스하므로, 디스크 값을 보기 전에 flush한다.
+        // The ingestion path debounces persistence, so flush before checking the on-disk value.
         service.teardown();
 
         expect(p.lastLogAt).toBe(30);

@@ -2,33 +2,33 @@ import type { PreferenceKey } from '@chatic/app-messages';
 
 export interface IPreferenceService {
     /**
-     * 설정값 조회
+     * Fetches a preference value
      */
     get<T = any>(key: PreferenceKey): Promise<T | null>;
 
     /**
-     * 설정값 저장
+     * Saves a preference value
      */
     set<T = any>(key: PreferenceKey, value: T): Promise<void>;
 
     /**
-     * 설정값 동기 조회 — 첫 페인트 전에 필요한 값(테마)만 사용한다.
-     * 비동기 복원은 첫 프레임 뒤에 도착해 화면 번쩍임으로 노출된다.
+     * Synchronously fetches a preference value — used only for values needed before first paint (theme).
+     * An async restore arrives after the first frame and shows up as a screen flash.
      */
     getSync<T = any>(key: PreferenceKey): T | null;
 
     /**
-     * 설정값 동기 저장 (`getSync`와 쌍)
+     * Synchronously saves a preference value (pairs with `getSync`)
      */
     setSync<T = any>(key: PreferenceKey, value: T): void;
 
     /**
-     * 설정값 삭제
+     * Removes a preference value
      */
     remove(key: PreferenceKey): Promise<void>;
 
     /**
-     * 모든 설정값 초기화
+     * Resets all preference values
      */
     clearAll(): void;
 }

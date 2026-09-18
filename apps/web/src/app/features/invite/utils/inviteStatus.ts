@@ -17,7 +17,7 @@ export interface InviteRowBadge {
 
 /**
  * Row badge for a sent invite. `rejected` is a first-class `MyInviteStatus` since ADR-0043
- * (백엔드 요청 #2) and reads as a distinct "초대 거절" badge.
+ * (backend request #2) and reads as a distinct "Invite declined" badge.
  */
 export const resolveInviteRowBadge = (state: MyInviteStatus | undefined): InviteRowBadge | null => {
     if (state === 'pending') return { kind: 'pending', variant: 'pending', labelKey: 'contactInvite.badge.pending' };
@@ -35,7 +35,7 @@ export type ReinviteVariant = 'pending' | 'expired' | 'declined';
 
 /**
  * Resolve the re-invite dialog variant from the matched invite's current state (or `undefined`
- * when it fell out of the `invite.list` page window — see the sender doc's "알려진 갭").
+ * when it fell out of the `invite.list` page window — see the sender doc's "known gap").
  * A `canceled` prior invite lands on `expired` too: either way the old link is dead and the only
  * path forward is a fresh issue.
  */

@@ -9,7 +9,7 @@ import { debugOverlayActions } from '../overlayStore';
 import { appBridge } from '../../../../bridge';
 
 /**
- * The operations the app's own Notification Test screen used to own (ADR-0080 결정 11). Each is one
+ * The operations the app's own Notification Test screen used to own (ADR-0080 decision 11). Each is one
  * bridge command; the app executes and answers, the result lands in the line below the buttons.
  *
  * A push tap is reproduced with `openURL` on the app's own scheme rather than a dedicated command:
@@ -28,7 +28,7 @@ export const PushScreen = () => {
     const { state, token, summary, error, check } = usePushRegistration();
     const { entries, clear } = useReceivedPushLog();
     // `fire` is for the two `post`-based commands here (`openURL`, `setBadgeCount`): they get no
-    // answer, so the shared hook labels them "확인 없음" instead of implying one (결정 10).
+    // answer, so the shared hook labels them "No confirmation" instead of implying one (decision 10).
     const { result, run, fire } = useDebugOperation();
 
     return (

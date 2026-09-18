@@ -9,7 +9,7 @@ const openURL = jest.fn();
 
 jest.mock('../../../../bridge', () => ({ appBridge: { openURL: (u: string) => openURL(u) } }));
 jest.mock('@chatic/bridges', () => ({ isNative: () => true }));
-// DEV 빌드를 가정한다 — 하드코딩된 'chatic'이었다면 여기서 드러난다.
+// Assumes a DEV build — a hardcoded 'chatic' would show up here.
 jest.mock('@chatic/config', () => ({ config: { get: () => 'chatic-dev' } }));
 
 describe('DeeplinkScreen', () => {
@@ -40,7 +40,7 @@ describe('DeeplinkScreen', () => {
         expect(openURL).toHaveBeenCalledWith('chatic-dev://s?code=invt');
     });
 
-    // 다른 채널이 이 빌드를 잡지 않는지 확인하는 프리셋이라, 스킴을 다시 쓰면 시험 자체가 무의미해진다.
+    // This preset checks that another channel doesn't catch this build, so rewriting the scheme would make the test pointless.
     it('교차 확인 프리셋은 적힌 스킴을 유지한다', async () => {
         render(<DeeplinkScreen />);
 
@@ -49,7 +49,7 @@ describe('DeeplinkScreen', () => {
         expect(openURL).toHaveBeenCalledWith('chatic://s');
     });
 
-    // openURL은 post 기반이라 앱이 라우팅했는지 알 수 없다 — "보냄"까지만 말한다.
+    // openURL is post-based, so whether the app routed it is unknown — it only says "sent".
     it('보낸 기록은 라우팅 성공이 아니라 보냈다는 사실만 적는다', async () => {
         render(<DeeplinkScreen />);
 

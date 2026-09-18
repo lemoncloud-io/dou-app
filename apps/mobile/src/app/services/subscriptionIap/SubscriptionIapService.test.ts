@@ -27,7 +27,7 @@ describe('SubscriptionIapService — 스토어 실패 기록', () => {
         service = new SubscriptionIapService(logger);
     });
 
-    // 연결 실패는 이후 모든 구매를 죽이는데, 그동안 맨몸 rethrow라 원인이 어디에도 없었다.
+    // A connection failure kills every purchase after it, but until now it was a bare rethrow, so the cause was logged nowhere.
     it('스토어 연결 실패를 error로 남기고 다시 던진다', async () => {
         initMock.mockRejectedValue(new Error('no store'));
 
@@ -46,7 +46,7 @@ describe('SubscriptionIapService — 스토어 실패 기록', () => {
         expect((logger as unknown as { error: jest.Mock }).error).not.toHaveBeenCalled();
     });
 
-    // 스토어가 왜 거절했는지는 이 층만 본다 — 카탈로그가 핸들러가 아니라 서비스에 이 항목을 둔 이유.
+    // Only this layer sees why the store declined — that's why this entry lives in the service, not the catalog/handler.
     it('스토어가 구매를 거절하면 상품 id와 함께 error로 남긴다', async () => {
         purchaseMock.mockRejectedValue(new Error('declined'));
 
@@ -58,7 +58,7 @@ describe('SubscriptionIapService — 스토어 실패 기록', () => {
         );
     });
 
-    // finish 실패는 스토어가 트랜잭션을 다시 제시해 재청구로 이어진다.
+    // A finish failure leads the store to re-present the transaction, causing a re-charge.
     it('finish 실패를 error로 남기고 다시 던진다', async () => {
         finishMock.mockRejectedValue(new Error('finish boom'));
 

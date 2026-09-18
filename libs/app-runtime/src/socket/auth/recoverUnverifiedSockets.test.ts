@@ -12,7 +12,7 @@ jest.mock('@chatic/bridges', () => ({
 // `@chatic/config` (import.meta 0) and would parse fine, but this suite injects its own
 // manager/delegate anyway, so the isolation stays — same as public-surface.test.ts.
 jest.mock('../../session', () => new Proxy({}, { get: () => jest.fn() }));
-// `getAuthStatus` (ADR-0076 결정 1) reads the store's token and the credential clock on top of the
+// `getAuthStatus` (ADR-0076 Decision 1) reads the store's token and the credential clock on top of the
 // socket, so both have to be seeded here. That is a real input the pre-refactor condition did NOT
 // have — see the commit message; a bound socket with no stored token now reads `absent`, which is
 // the safe direction.

@@ -32,9 +32,10 @@ describe('useLogHandler', () => {
         );
 
         unsubscribe();
-        // 응답을 반환하지 않습니다 — host가 이걸 "응답 없음"으로 읽어서 하강 메시지를 생략합니다.
-        // 웹은 refId 없이 올려보내므로 그 응답은 어차피 폐기되는데, 폐기되는 응답마다 UI 스레드가
-        // 한 번씩 돌아 로그 건수만큼 브릿지를 태웠습니다.
+        // Returns no response — the host reads this as "no response" and skips sending a downstream
+        // message. The web sends this up without a refId, so that response would be discarded
+        // anyway, but every discarded response used to spin the UI thread once, burning a bridge
+        // round trip for every single log.
         expect(res).toBeUndefined();
         const [entry] = entries;
         expect(entry).toMatchObject({
@@ -78,8 +79,9 @@ describe('useLogHandler', () => {
     });
 
     it('웹이 실어 보낸 id와 발생 시점 컨텍스트를 보존한다', async () => {
-        // 하이브리드에서 이 엔트리는 웹 업로드 큐에도 들어가 있고, 앱 큐도 같은 엔트리를 받는다.
-        // id가 살아 있어야 서버가 같은 문서로 덮어써 한 건으로 남는다.
+        // In the hybrid setup, this entry is also sitting in the web's upload queue, and the app
+        // queue receives the same entry. The id must survive so the server overwrites the same
+        // document instead of leaving a duplicate.
         const { result } = renderHook(() => useLogHandler());
         const { entries, unsubscribe } = collect();
 

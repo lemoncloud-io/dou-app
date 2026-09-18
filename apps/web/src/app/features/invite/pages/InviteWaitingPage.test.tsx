@@ -139,7 +139,7 @@ describe('InviteWaitingPage', () => {
             await waitFor(() => expect(cancelInvite).toHaveBeenCalledWith('invt:invite-1:c0de'));
             await waitFor(() => expect(toast).toHaveBeenCalledWith({ title: 'inviteWaiting.canceledToast' }));
             expect(navigate).toHaveBeenCalledWith('/', { replace: true });
-            expect(markCanceled).not.toHaveBeenCalled(); // 서버가 기억한다 — 로컬 스탬프는 더 이상 없다
+            expect(markCanceled).not.toHaveBeenCalled(); // The server remembers — there is no local stamp anymore
         });
 
         it('409(이미 수락)면 홈으로 가지 않고 목록을 재조회해 화면이 사실을 따르게 한다', async () => {
@@ -232,7 +232,7 @@ describe('InviteWaitingPage', () => {
         it('rejected에서 재발급하면 retire(dismiss)가 로컬 기록을 남겨도 홈으로 튕기지 않는다', async () => {
             mockInvite = { id: 'invite-1', code: 'c0de', state: 'rejected', name: '홍길동' };
             retire.mockImplementation(async () => {
-                markCanceled('invite-1'); // dismiss가 남긴 기록이 isGone을 뒤집는 상황을 재현
+                markCanceled('invite-1'); // Reproduces the mark a dismiss leaves behind flipping isGone
                 return 'dismissed';
             });
 

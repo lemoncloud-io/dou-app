@@ -8,7 +8,7 @@ import { handleRevokedRelaySession } from './revokedSession';
 import type { Logger } from '@chatic/bridges';
 
 // Mocked at the CONCRETE modules, not the session barrel: these three are runtime-internal and off
-// that barrel now (ADR-0076 결정 6).
+// that barrel now (ADR-0076 Decision 6).
 jest.mock('../../session/auth/cloudSession', () => ({ cloudSession: { applySelectedSite: jest.fn() } }));
 jest.mock('../../session/store', () => ({
     getGlobalSessionContext: jest.fn(),

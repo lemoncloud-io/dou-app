@@ -149,7 +149,7 @@ const resolveActiveServerContext = (relay: RelayContext, cloud: CloudContext): A
  * that during import made the store's correctness depend on import order — a consumer that pulled the
  * session barrel before the storage adapter was installed got a hard failure at import time rather
  * than a null session. Lazy init keeps the module import side-effect-free, which is what "passive
- * store" is supposed to mean (ADR-0070 결정 1 규칙 1).
+ * store" is supposed to mean (ADR-0070 Decision 1 rule 1).
  */
 let identityStateOrNull: IdentityContext | null = null;
 
@@ -285,7 +285,7 @@ export const setSessionAuthenticated = (isAuthenticated: boolean): void => {
 // The relay and cloud comparators that used to sit here are gone with the gate that needed them:
 // when the notify was one payload-less broadcast, `rebuildSessionIdentity` had to prove that NOTHING
 // observable moved before staying quiet. Now the stores announce their own kinds, so the only thing
-// this file still gates is the derived identity (ADR-0076 결정 2).
+// this file still gates is the derived identity (ADR-0076 Decision 2).
 const sameIdentityContext = (a: IdentityContext, b: IdentityContext): boolean =>
     a.userId === b.userId &&
     a.delegatorId === b.delegatorId &&
@@ -306,7 +306,7 @@ const sameIdentityContext = (a: IdentityContext, b: IdentityContext): boolean =>
 // The gate now compares IDENTITY ONLY. It used to also compare the relay and cloud contexts, and it
 // had to: the notify was a single payload-less broadcast, so this function was indistinguishable
 // from "some token moved" and had to check everything before staying quiet. With kinds
-// (ADR-0076 결정 2) the token moves announce themselves — every caller of this function has already
+// (ADR-0076 Decision 2) the token moves announce themselves — every caller of this function has already
 // written through a store, which emitted `relay:token`/`cloud:token` on the way in. All that is left
 // for this function to announce is whether the DERIVED identity moved.
 export const rebuildSessionIdentity = (): void => {

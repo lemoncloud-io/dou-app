@@ -44,7 +44,7 @@ describe('DmInviteFooter', () => {
         expect(onReinvite).toHaveBeenCalled();
     });
 
-    // 살아 있는 코드가 하나 있는 동안 두 번째를 만들지 않는다 (Figma 4062-14154에 버튼이 없다).
+    // Doesn't create a second code while one is still alive (Figma 4062-14154 has no button for it).
     it('초대가 살아 있으면 발송 완료 문구와 카운트다운을 보여주고 CTA는 감춘다', () => {
         render(
             <DmInviteFooter state={{ kind: 'pending', expiredAt: 1 }} countdown={countdown()} onReinvite={jest.fn()} />
@@ -98,8 +98,8 @@ describe('DmInviteFooter', () => {
         );
     });
 
-    // 24시간 링크에서는 days가 항상 0이지만, 서버가 더 긴 링크를 주더라도 00:00:00으로
-    // 뭉개지지 않아야 한다.
+    // days is always 0 for a 24-hour link, but even if the server hands out a longer link, it must
+    // not get squashed down to 00:00:00.
     it('하루가 넘는 링크는 시간으로 접어서 표시한다', () => {
         render(<DmInviteFooter state={{ kind: 'pending', expiredAt: 1 }} countdown={countdown({ days: 3 })} />);
 

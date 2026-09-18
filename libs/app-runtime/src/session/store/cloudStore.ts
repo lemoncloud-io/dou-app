@@ -27,7 +27,7 @@ export interface CachedCloudTokens {
 
 /**
  * The cloud slot of the session store. Renamed off `CloudCore` — that name came from web-core's
- * `session/core` folder and sat outside this repo's `I*` contract convention (ADR-0076 결정 0).
+ * `session/core` folder and sat outside this repo's `I*` contract convention (ADR-0076 Decision 0).
  */
 export interface ICloudStore {
     saveDelegationToken(token: CloudDelegationTokenView): void;
@@ -98,7 +98,7 @@ class CloudStore implements ICloudStore {
 
     setCachedCloudTokens(cloudId: string, tokens: CachedCloudTokens): void {
         // No signal: this is a pure cache write, not session state. The kinds regulation
-        // (ADR-0076 결정 2) names this the one legitimate exception, and the name says so.
+        // (ADR-0076 Decision 2) names this the one legitimate exception, and the name says so.
         const map = this.cache.read() ?? {};
         map[cloudId] = tokens;
         this.cache.write(map);

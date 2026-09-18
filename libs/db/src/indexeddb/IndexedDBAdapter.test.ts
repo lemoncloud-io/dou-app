@@ -26,10 +26,10 @@ const chat = (id: string, overrides: Record<string, unknown> = {}) =>
         ...overrides,
     }) as any;
 
-/** cid/uid는 테스트마다 달라야 한다 — IndexedDBDatabase 인스턴스는 같은 DB를 공유한다. */
+/** cid/uid must differ per test — IndexedDBDatabase instances share the same DB. */
 const scopeOf = (cid: string, uid: string) => ({ getContext: () => ({ cid, uid }), setContext: () => undefined });
 
-/** chat_no가 1..count인 커밋된 메시지들 (0은 미커밋 행의 값이다) */
+/** Committed messages with chat_no 1..count (0 is the value for an uncommitted row) */
 const committedChats = (count: number, channelId = 'channel-main', idPrefix = 'c') =>
     Array.from({ length: count }, (_, index) =>
         chat(`${idPrefix}-${String(index + 1).padStart(2, '0')}`, { channelId, chatNo: index + 1 })
@@ -37,7 +37,7 @@ const committedChats = (count: number, channelId = 'channel-main', idPrefix = 'c
 
 const idsOf = (items: Array<{ id: string }>) => items.map(item => item.id).sort();
 
-/** 호출 횟수·인자를 검사하기 위한 IIndexedDB 스텁. 지정한 메서드만 덮어씁니다. */
+/** An IIndexedDB stub for inspecting call counts/arguments. Overrides only the specified methods. */
 const createStubDb = (overrides: Partial<Record<keyof IIndexedDB, jest.Mock>> = {}): IIndexedDB =>
     ({
         save: jest.fn().mockResolvedValue(undefined),
@@ -174,8 +174,9 @@ describe('IndexedDBAdapter', () => {
             expect(evictedPage).toEqual([]);
         });
 
-        // 상한에 도달한 채널은 매 메시지가 지나는 hot path다 — 초과 판정에 값을 읽으면
-        // (구버전: limit+1건 역직렬화) 상한이 가장 도움 돼야 할 지점에서 가장 비싸진다.
+        // A channel at its cap is a hot path every message passes through — reading values for
+        // the over-cap check (the old version: deserializing limit+1 rows) makes the cap most
+        // expensive at exactly the point where it should be helping most.
         it('probes the boundary with a key cursor, never reading row values', async () => {
             const findNewestKeyBeyond = jest.fn().mockResolvedValue(null);
             const loadWithCursor = jest.fn().mockResolvedValue([]);
@@ -195,8 +196,9 @@ describe('IndexedDBAdapter', () => {
             expect(clearByRange).not.toHaveBeenCalled();
         });
 
-        // 경계는 절대 키여야 한다. 개수에서 파생하면 두 조회 사이의 동시 제거로 경계가 위로 밀려
-        // 아직 보이는 메시지를 지운다.
+        // The boundary must be an absolute key. Deriving it from a count would let a concurrent
+        // removal between the two lookups push the boundary upward and delete messages that
+        // are still visible.
         it('deletes up to the probed boundary key itself, not a count-derived position', async () => {
             const boundaryKey = ['chat', 'probe-over', 'u1', 'channel-main', 42];
             const findNewestKeyBeyond = jest.fn().mockResolvedValue(boundaryKey);
@@ -265,11 +267,12 @@ describe('IndexedDBAdapter', () => {
 });
 
 /**
- * 세션 없는 스코프(uid 부재)에서는 어떤 캐시 연산도 저장소에 닿지 않아야 한다.
+ * With no session in scope (uid absent), no cache operation should ever touch storage.
  *
- * 예전에는 빈 uid가 `'default'`로 채워져 `chat:default:default:*`라는 유령 파티션에 읽고 썼다.
- * 릴레이 로그아웃 → 로그인 사이의 그 창에서 쓴 행과 sync 커서는 로그인 후 아무도 다시 읽지
- * 않아, 채널 목록이 빈 채로 굳고 `channel.sync`가 델타만 받아오는 증상이 됐다.
+ * Previously, an empty uid was filled in as `'default'`, reading and writing to a phantom
+ * partition, `chat:default:default:*`. Rows and sync cursors written in that window between
+ * relay logout and login were never read again after login, freezing the channel list empty
+ * while `channel.sync` kept fetching only deltas.
  */
 describe('IndexedDBAdapter — 세션이 없으면 건너뛴다', () => {
     const noSession = { getContext: () => ({ cid: 'cloud-a' }), setContext: () => undefined } as never;
@@ -297,8 +300,8 @@ describe('IndexedDBAdapter — 세션이 없으면 건너뛴다', () => {
         expect(stub.loadAll).not.toHaveBeenCalled();
     });
 
-    // 삭제가 가장 위험하다 — 유령 파티션을 지우는 건 무해하지만, 스코프를 잘못 고르면
-    // 남의 파티션을 지운다. 세션이 없을 때의 정답은 아무것도 하지 않는 것이다.
+    // Delete is the riskiest case — deleting a phantom partition is harmless, but picking the
+    // wrong scope deletes someone else's partition. The correct answer with no session is to do nothing at all.
     it('삭제는 아무것도 지우지 않는다', async () => {
         const stub = createStubDb();
         const adapter = new IndexedDBAdapter(stub, 'chat', noSession);
@@ -340,7 +343,7 @@ describe('IndexedDBAdapter — 버린 것을 기록한다 (ADR-0099)', () => {
 
     beforeEach(() => jest.clearAllMocks());
 
-    // 축출이 성공하면 사용자는 아무것도 못 느끼지만 옛 대화가 사라졌다 — 재시도 결과가 절반의 정보다.
+    // When eviction succeeds the user notices nothing, but old messages are gone — the retry result is half the information.
     it('쿼터 초과를 축출로 복구하면 재시도 결과까지 한 줄로 남긴다', async () => {
         const save = jest.fn().mockRejectedValueOnce(quota()).mockResolvedValueOnce(undefined);
         const storage = new IndexedDBAdapter(
@@ -371,7 +374,7 @@ describe('IndexedDBAdapter — 버린 것을 기록한다 (ADR-0099)', () => {
         expect(error.mock.calls[0][1]).toContain('retry after eviction failed');
     });
 
-    // 상한이 없는 클라이언트는 안전망이 아예 없다 — 쓰기가 그냥 유실된다.
+    // A client with no cap has no safety net at all — the write is simply lost.
     it('비울 대상이 없으면 error로 남기고 던진다', async () => {
         const save = jest.fn().mockRejectedValue(quota());
         const storage = new IndexedDBAdapter(createStubDb({ save }), 'user', scopeOf('quota-none', 'u1'));
@@ -412,7 +415,7 @@ describe('IndexedDBAdapter — 버린 것을 기록한다 (ADR-0099)', () => {
         expect(info).not.toHaveBeenCalled();
     });
 
-    // 호출부는 전체가 저장됐다고 듣고, 그중 하나가 그냥 없다.
+    // The caller is told the whole batch was saved, and one of them is simply not there.
     it('id 없는 항목이 saveAll에서 탈락하면 건수를 남긴다', async () => {
         const storage = new IndexedDBAdapter(createStubDb(), 'chat', scopeOf('drop-id', 'u1'));
 

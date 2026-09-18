@@ -56,8 +56,9 @@ describe('useChannelMembers — 멤버 적재 + active 파생', () => {
         expect(syncChannelUsers).not.toHaveBeenCalled();
     });
 
-    // 멤버십은 로스터/join(둘 다 sync plan 있음)이 정하고 user 캐시는 신원만 장식한다.
-    // 이전 파생(`users.map`)은 user 행이 없는 멤버를 통째로 잃었다 — self 방에서는 그게 전부다.
+    // Membership is decided by the roster/join (both have a sync plan); the user cache only
+    // decorates identity. The old derivation (`users.map`) lost a member outright when it had no
+    // user row — in a self-chat, that's the entire membership.
     describe('멤버십 축', () => {
         it('user 캐시가 비어도 로스터만으로 멤버를 만든다 (self 방: 나 혼자)', () => {
             seedUsers([]);
@@ -99,7 +100,7 @@ describe('useChannelMembers — 멤버 적재 + active 파생', () => {
         });
 
         it('join 스트림만 emit해도 로딩이 풀린다 (user 캐시는 sync plan이 없다)', () => {
-            userObserveList.mockImplementation(() => () => undefined); // 한 번도 emit하지 않음
+            userObserveList.mockImplementation(() => () => undefined); // Never emits
 
             const { result } = renderHook(() => useChannelMembers({ channelId: 'c1', joins: [join('me', 1)] }));
 

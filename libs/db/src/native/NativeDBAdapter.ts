@@ -27,7 +27,7 @@ import { stableHash, withCacheMeta } from '@chatic/data';
 import { BaseDbAdapter } from '../base/BaseDbAdapter';
 import { type NativeCacheOperation, recordNativeCacheOperation } from './nativeCacheMetrics';
 
-/** 브릿지 메시지 → 계측 연산명. 이 어댑터가 보내는 10종이 전부입니다. */
+/** Bridge message → instrumentation operation name. These are all 10 kinds this adapter sends. */
 const OPERATION_BY_MESSAGE: Record<string, NativeCacheOperation> = {
     SaveCacheData: 'save',
     SaveAllCacheData: 'saveAll',
@@ -42,70 +42,76 @@ const OPERATION_BY_MESSAGE: Record<string, NativeCacheOperation> = {
 };
 
 /**
- * `FetchManyCacheData`를 모르는 앱 빌드가 설치되어 있는가.
+ * Is an app build installed that doesn't know `FetchManyCacheData`?
  *
- * 웹은 앱보다 먼저 배포되므로 이 메시지를 처리할 핸들러가 없는 빌드 안에서 실행될 수 있습니다. 그
- * 경우 host가 `NOT_FOUND`로 거절하고, 여기서 그 사실을 기억해 이후로는 시도조차 하지 않습니다.
- * 핸드셰이크 능력 보고에 의존하지 않는 이유는 그게 비동기로 도착해서 어댑터 생성 시점에는 아직
- * 없을 수 있기 때문입니다 — 실패 한 번으로 배우는 쪽이 레이스가 없습니다.
+ * Since web ships ahead of the app, this can run inside a build with no handler for this
+ * message. In that case the host rejects with `NOT_FOUND`, and this remembers that fact so it
+ * doesn't even try again afterward. This doesn't rely on a handshake capability report because
+ * that arrives asynchronously and may not be there yet at adapter-construction time — learning
+ * from a single failure has no race.
  *
- * 모듈 스코프인 것은 의도입니다. 설치된 앱은 하나이므로 도메인마다 따로 배울 이유가 없고, 어댑터는
- * 타입별로 만들어지므로 인스턴스 스코프면 9번 학습하게 됩니다.
+ * Module scope is intentional. There's only one installed app, so there's no reason to learn
+ * this separately per domain, and since an adapter is created per type, instance scope would
+ * mean learning it 9 times.
  */
 let batchReadUnsupported = false;
 
-/** 테스트 seam — 배운 폴백 상태를 되돌립니다. */
+/** Test seam — resets the learned fallback state. */
 export const resetNativeBatchReadSupport = (): void => {
     batchReadUnsupported = false;
 };
 
 /**
- * `FetchLastChatsData`(ADR-0057)를 모르는 앱 빌드가 설치되어 있는가.
+ * Is an app build installed that doesn't know `FetchLastChatsData` (ADR-0057)?
  *
- * `batchReadUnsupported`와 같은 근거의 모듈 스코프 학습 플래그입니다 — 웹이 앱보다 먼저
- * 배포되므로 이 메시지를 모르는 host의 `NOT_FOUND`를 한 번 받으면 이후로는 시도조차 하지
- * 않고, 호출자는 채널별 윈도우 읽기로 폴백합니다.
+ * A module-scope learning flag on the same basis as `batchReadUnsupported` — since web ships
+ * ahead of the app, once a `NOT_FOUND` is received from a host that doesn't know this message,
+ * it isn't tried again afterward, and the caller falls back to a per-channel window read.
  */
 let lastChatsUnsupported = false;
 
-/** 테스트 seam — 배운 폴백 상태를 되돌립니다. */
+/** Test seam — resets the learned fallback state. */
 export const resetNativeLastChatsSupport = (): void => {
     lastChatsUnsupported = false;
 };
 
 /**
- * `ClearCacheDataByChannel`(ADR-0067)을 모르는 앱 빌드가 설치되어 있는가.
+ * Is an app build installed that doesn't know `ClearCacheDataByChannel` (ADR-0067)?
  *
- * 위 둘과 같은 근거의 모듈 스코프 학습 플래그입니다. 다만 폴백의 성격이 다릅니다 — 읽기는 못 하면
- * 빈손으로 돌아가면 되지만 삭제는 반드시 일어나야 하므로, 여기서는 `super`의 읽고-지우는 경로로
- * 실제로 내려가 같은 일을 마칩니다.
+ * A module-scope learning flag on the same basis as the two above. The fallback's nature
+ * differs, though — a failed read can just come back empty-handed, but a delete has to actually
+ * happen, so this one really does fall through to `super`'s read-then-delete path to finish
+ * the job the same way.
  */
 let clearByChannelUnsupported = false;
 
-/** 테스트 seam — 배운 폴백 상태를 되돌립니다. */
+/** Test seam — resets the learned fallback state. */
 export const resetNativeClearByChannelSupport = (): void => {
     clearByChannelUnsupported = false;
 };
 
 /**
- * 네이티브 앱 환경(SQLite 등)의 로컬 DB와 WebBridge를 통해 통신하는 캐시 스토리지 어댑터 클래스입니다.
+ * A cache storage adapter class that communicates over WebBridge with the local DB in the
+ * native app environment (SQLite, etc).
  *
- * @template TType 캐시 도메인 타입
+ * @template TType the cache domain type
  */
 export class NativeDBAdapter<TType extends CacheType> extends BaseDbAdapter<TType> {
     /**
-     * 지금 응답을 기다리고 있는 읽기 요청들 (key: 실제로 브릿지에 나가는 페이로드).
+     * Read requests currently awaiting a response (key: the payload actually sent over the bridge).
      *
-     * 같은 페이로드가 동시에 두 번 요청되면 두 번째는 첫 번째의 Promise를 그대로 받습니다. 논리
-     * 계층에서 중복을 접는 것과 별개로 필요한 이유는, **논리 키가 달라도 물리 쿼리는 같은 경우**가
-     * 흔하기 때문입니다 — user/channel/profile/place의 `cacheReadList`는 인자 없는 `loadAll()`로
-     * 테이블 전체를 받아 JS에서 필터링하므로, 옵저버 키가 서로 다른 두 구독자가 바이트 단위로
-     * 동일한 `FetchAllCacheData`를 동시에 내보냅니다. 옵저버 그룹핑은 "같은 키"만 합치므로 이건
-     * 잡지 못합니다.
+     * If the same payload is requested twice at the same time, the second call gets back the
+     * first call's Promise as-is. This is needed separate from deduping at the logical layer
+     * because **different logical keys often resolve to the same physical query** — `user`,
+     * `channel`, `profile`, and `place`'s `cacheReadList` fetch the whole table with an argless
+     * `loadAll()` and filter in JS, so two subscribers with different observer keys can send out
+     * byte-for-byte identical `FetchAllCacheData` calls at the same time. Observer grouping only
+     * merges "the same key", so it can't catch this.
      *
-     * 읽기 전용입니다. 쓰기를 합치면 두 번째 호출자가 자기 쓰기가 반영됐다고 믿게 되므로 절대
-     * 넣지 않습니다. 읽기는 같은 시점의 같은 쿼리가 같은 답이어야 하므로 안전하며, 정착(settle)
-     * 즉시 맵에서 빠지므로 창은 "실제로 비행 중인 동안"으로 한정됩니다 — 캐시가 아닙니다.
+     * Read-only. Never merge writes here — doing so would make the second caller believe its own
+     * write took effect. A read is safe to share because the same query at the same moment must
+     * have the same answer, and it's removed from the map the instant it settles, so the window
+     * is limited to "while actually in flight" — this is not a cache.
      */
     private readonly inflightReads = new Map<string, Promise<unknown>>();
 
@@ -118,11 +124,13 @@ export class NativeDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTyp
     }
 
     /**
-     * 브릿지 왕복을 태우는 유일한 지점. 여기서 소요 시간을 재므로 새 연산을 추가해도 계측이 저절로
-     * 따라옵니다(`bridge.request`를 직접 부르면 빠집니다).
+     * The single point where a bridge round trip is made. Since duration is measured here,
+     * instrumentation automatically covers any new operation added (calling `bridge.request`
+     * directly would skip it).
      *
-     * 실패해도 기록하려고 `finally`를 씁니다 — 타임아웃이 가장 느린 호출인데 그걸 빼면 분포가
-     * 실제보다 좋아 보입니다. 계측 비용은 호출당 `Date.now()` 두 번이라 왕복 앞에서 무시할 수준입니다.
+     * Uses `finally` so failures get recorded too — a timeout is the slowest call of all, and
+     * excluding it would make the distribution look better than it actually is. The
+     * instrumentation cost is two `Date.now()` calls per call, negligible next to the round trip.
      */
     private async send<K extends WebMessageType>(message: WebMessageData<K>): Promise<WebMessageResponse<K>> {
         const startedAt = Date.now();
@@ -134,10 +142,11 @@ export class NativeDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTyp
     }
 
     /**
-     * 읽기 전용 `send`. 이미 같은 페이로드가 비행 중이면 그 Promise를 공유합니다.
+     * A read-only `send`. If the same payload is already in flight, shares that Promise.
      *
-     * 실패도 공유합니다 — 같은 순간의 같은 쿼리는 같은 결과여야 하고, 그건 실패에도 적용됩니다.
-     * `finally`로 지우므로 다음 호출은 새로 나갑니다(실패가 캐시되지 않습니다).
+     * Failures are shared too — the same query at the same moment must have the same result,
+     * and that applies to failures as well. It's removed via `finally`, so the next call goes
+     * out fresh (a failure is never cached).
      */
     private sendRead<K extends WebMessageType>(message: WebMessageData<K>): Promise<WebMessageResponse<K>> {
         const key = stableHash(message);
@@ -206,15 +215,17 @@ export class NativeDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTyp
     }
 
     /**
-     * id 목록을 한 번의 왕복으로 읽습니다.
+     * Reads a list of ids in a single round trip.
      *
-     * 기본 구현(`BaseDbAdapter.loadMany`)은 `load`를 N번 부르는데, 네이티브에서는 그게 왕복 N회가
-     * 됩니다 — 채팅 50건을 병합 저장하려고 기존 행을 읽는 것만으로 50 왕복이었습니다. 여기서
-     * `FetchManyCacheData` 하나로 접습니다.
+     * The default implementation (`BaseDbAdapter.loadMany`) calls `load` N times, which on
+     * native means N round trips — merge-saving 50 chat messages meant 50 round trips just to
+     * read the existing rows. This folds it into one `FetchManyCacheData` call.
      *
-     * 이 메시지를 모르는 앱 빌드에서는 host가 `NOT_FOUND`로 거절하므로, 그걸 감지해 id별 조회로
-     * 폴백하고 그 사실을 기억합니다(`batchReadUnsupported`). 그 외 실패는 삼키지 않고 그대로
-     * 던집니다 — 타임아웃이나 저장소 오류를 폴백으로 감추면 왕복이 2배가 되면서 원인도 숨습니다.
+     * On an app build that doesn't know this message, the host rejects with `NOT_FOUND`, which
+     * is detected here to fall back to per-id lookups and remember that fact
+     * (`batchReadUnsupported`). Any other failure is not swallowed and is rethrown as-is —
+     * hiding a timeout or storage error behind the fallback would double the round trips while
+     * also hiding the cause.
      */
     override async loadMany(ids: string[]): Promise<CacheModelOf<TType>[]> {
         if (ids.length === 0) return [];
@@ -271,13 +282,15 @@ export class NativeDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTyp
     }
 
     /**
-     * 채널별 최신 프리뷰 1건 + 최대 chatNo를 왕복 1회로 읽습니다 (chat 전용, ADR-0057).
+     * Reads the latest preview per channel plus the max chatNo in a single round trip
+     * (chat-only, ADR-0057).
      *
-     * `null`은 전부 "폴백하라"는 답입니다 — chat이 아닌 타입, 이 메시지를 모르는 구버전 앱
-     * (`NOT_FOUND` 1회로 학습), 네이티브 처리 오류(`items: null` — 학습하지 않고 이번 읽기만),
-     * 그 외 브릿지 실패(타임아웃 등 — 역시 학습하지 않음). 오류를 던지지 않는 이유:
-     * 이 조회의 실패 시 정답은 언제나 "오늘의 동작"(채널별 윈도우 읽기)이고, 그 판단은
-     * 호출자(`ChatLocalDataSource`)가 폴백 한 곳에서 내리는 편이 단순합니다.
+     * `null` always means "fall back" — a non-chat type, an older app that doesn't know this
+     * message (learned via a single `NOT_FOUND`), a native processing error (`items: null` —
+     * not learned, applies only to this read), or any other bridge failure (timeout, etc —
+     * also not learned). Why no error is thrown: whenever this lookup fails, the correct answer
+     * is always "today's behavior" (a per-channel window read), and it's simpler for the caller
+     * (`ChatLocalDataSource`) to make that call in one fallback spot.
      */
     async loadLastPerChannel(channelIds: string[]): Promise<LastChatItem[] | null> {
         if (this.type !== 'chat') return null;
@@ -285,8 +298,9 @@ export class NativeDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTyp
         if (lastChatsUnsupported) return null;
 
         const scope = this.getScope();
-        // `null`이 아니라 `[]`입니다 — `null`은 "채널별 윈도우 읽기로 폴백하라"는 뜻인데, 그
-        // 경로도 같은 이유로 건너뛰므로 왕복만 한 번 더 늘 뿐입니다. 세션이 없으면 답은 빈 목록입니다.
+        // `[]`, not `null` — `null` means "fall back to a per-channel window read", and that path
+        // is skipped for the same reason, so it would only add one more round trip. With no
+        // session, the answer is an empty list.
         if (!scope) return [];
         try {
             const response = await this.sendRead({
@@ -354,20 +368,22 @@ export class NativeDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTyp
     }
 
     /**
-     * 한 채널의 행을 네이티브에서 바로 지웁니다 (ADR-0067) — `channel_id` 조건 하나짜리 DELETE라
-     * 왕복 1회, 페이로드 0입니다.
+     * Deletes one channel's rows directly on native (ADR-0067) — a single-condition
+     * `channel_id` DELETE, so it's one round trip with zero payload.
      *
-     * 이 메시지를 모르는 구버전 앱은 `NOT_FOUND`로 거절하므로, 그걸 1회 학습하고 `super`의
-     * 읽고-지우는 경로로 내려갑니다. 그쪽도 `channelId`로 좁혀 읽으므로(base 참조) 폴백이
-     * 테이블 전체를 끌어오지는 않습니다.
+     * An older app that doesn't know this message rejects with `NOT_FOUND`, which is learned
+     * once, falling through to `super`'s read-then-delete path. That path also scopes its read
+     * to `channelId` (see base), so the fallback doesn't pull in the whole table.
      *
-     * 그 외 실패(타임아웃 등)는 학습하지 않고 던집니다 — 삭제는 읽기와 달리 "이번엔 못 했다"를
-     * 조용히 삼키면 안 되고, 호출자가 그 실패를 어떻게 다룰지 정합니다.
+     * Any other failure (timeout, etc) is not learned and is thrown — unlike a read, a delete
+     * must not silently swallow "it didn't happen this time"; the caller decides how to handle
+     * that failure.
      *
-     * 다만 네이티브가 **거절 대신 `success: false`로 답하는 경우**(SQL 오류)는 여기서 구분하지
-     * 않습니다 — 이 어댑터의 다른 쓰기 경로도 그렇습니다. 남은 행은 `isInJoinWindow`가 화면에서
-     * 가리므로 사용자에게 보이는 결과는 같고, 같은 DB에 폴백을 한 번 더 태워봐야 같은 이유로
-     * 실패할 뿐입니다.
+     * One thing not distinguished here, though, is native answering with **`success: false`
+     * instead of a rejection** (a SQL error) — the same is true of this adapter's other write
+     * paths. The leftover row is hidden from the screen by `isInJoinWindow`, so the user-visible
+     * result is the same, and firing a fallback at the same DB again would only fail for the
+     * same reason.
      */
     override async clearByChannelId(channelId: string): Promise<void> {
         if (clearByChannelUnsupported) return super.clearByChannelId(channelId);

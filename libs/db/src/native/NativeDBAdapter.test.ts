@@ -7,7 +7,7 @@ import {
 import type { IWebBridgeClient } from '@chatic/bridges';
 import type { DataContextProvider } from '@chatic/data';
 
-// 캐시 메타 주입 유틸리티 모킹 (페이로드 검증을 단순화하기 위함)
+// Mock the cache-meta injection utility (to simplify payload validation)
 jest.mock('@chatic/data', () => {
     const actual = jest.requireActual('@chatic/data');
     return {
@@ -24,7 +24,7 @@ describe('NativeDBAdapter', () => {
     const mockScope = { cid: 'test-cid', uid: 'test-uid' };
 
     beforeEach(() => {
-        // Bridge와 ContextProvider를 깔끔하게 모킹
+        // Cleanly mock the Bridge and ContextProvider
         mockBridge = {
             request: jest.fn(),
         } as unknown as jest.Mocked<IWebBridgeClient>;
@@ -33,7 +33,7 @@ describe('NativeDBAdapter', () => {
             getContext: jest.fn().mockReturnValue(mockScope),
         } as unknown as jest.Mocked<DataContextProvider>;
 
-        // 구현체 인스턴스 직접 생성 (팩토리 함수 의존 탈피)
+        // Construct the implementation instance directly (avoiding dependence on a factory function)
         adapter = new NativeDBAdapter<'chat'>(mockBridge, 'chat', mockContextProvider);
     });
 
@@ -183,7 +183,7 @@ describe('NativeDBAdapter', () => {
         });
 
         it('핸들러가 없는 구버전 앱(NOT_FOUND)은 읽고-지우는 폴백으로 실제로 삭제를 끝낸다', async () => {
-            // 읽기와 달리 삭제는 "못 했다"로 끝낼 수 없다 — 폴백이 같은 일을 마쳐야 한다.
+            // Unlike a read, a delete can't just end with "couldn't do it" — the fallback has to actually finish the job.
             mockBridge.request.mockImplementation((message: any) => {
                 if (message.type === 'ClearCacheDataByChannel') return Promise.reject({ code: 'NOT_FOUND' });
                 if (message.type === 'FetchAllCacheData') {
@@ -196,7 +196,7 @@ describe('NativeDBAdapter', () => {
 
             const types = mockBridge.request.mock.calls.map(([message]: any) => message.type);
             expect(types).toEqual(['ClearCacheDataByChannel', 'FetchAllCacheData', 'DeleteAllCacheData']);
-            // 폴백 읽기도 채널로 좁힌다 — 방 하나 비우는 데 테이블 전체가 건너오지 않는다.
+            // The fallback read is also scoped to the channel — clearing out one room doesn't bring the whole table across.
             expect(mockBridge.request).toHaveBeenCalledWith({
                 type: 'FetchAllCacheData',
                 data: {
@@ -258,7 +258,7 @@ describe('NativeDBAdapter', () => {
                     ids: ['chat-1', 'chat-2', 'chat-3'],
                 },
             });
-            // 네이티브가 준 순서를 그대로 돌려줍니다 — 요청 순서로 재정렬하지 않습니다.
+            // Returns the order native gave, as-is — it is not reordered to match the request order.
             expect(result).toEqual([{ id: 'chat-2' }, { id: 'chat-1' }]);
         });
 
@@ -298,7 +298,7 @@ describe('NativeDBAdapter', () => {
         });
 
         it('NOT_FOUND가 아닌 실패는 폴백으로 감추지 않고 그대로 던진다', async () => {
-            // 타임아웃을 폴백으로 감추면 왕복이 2배가 되면서 원인도 숨습니다.
+            // Hiding a timeout behind the fallback would double the round trips while also hiding the cause.
             mockBridge.request.mockRejectedValue({ code: 'TIMEOUT' });
 
             await expect(adapter.loadMany(['chat-1'])).rejects.toEqual({ code: 'TIMEOUT' });
@@ -341,7 +341,7 @@ describe('NativeDBAdapter', () => {
             await expect(adapter.loadLastPerChannel(['ch-1'])).resolves.toBeNull();
             await adapter.loadLastPerChannel(['ch-1']);
 
-            // 학습하지 않았으므로 두 번째 읽기도 다시 시도한다.
+            // Since nothing was learned, the second read tries again too.
             expect(mockBridge.request).toHaveBeenCalledTimes(2);
         });
 
@@ -356,8 +356,10 @@ describe('NativeDBAdapter', () => {
         });
 
         it('타임아웃 등 다른 실패는 던지지 않고 null로 답하되 학습하지 않는다', async () => {
-            // 이 조회의 실패 시 정답은 언제나 윈도우 폴백이므로 throw 대신 null — 단 일시
-            // 오류를 미지원으로 새기면 앱 배포 후에도 fast path가 영영 죽으므로 학습은 금지.
+            // Whenever this lookup fails, the correct answer is always the window fallback, so
+            // it resolves null instead of throwing — but marking a transient error as
+            // unsupported would kill the fast path forever, even after the app updates, so
+            // learning is forbidden here.
             mockBridge.request.mockRejectedValue({ code: 'TIMEOUT' });
 
             await expect(adapter.loadLastPerChannel(['ch-1'])).resolves.toBeNull();
@@ -369,7 +371,7 @@ describe('NativeDBAdapter', () => {
 
     describe('in-flight 읽기 중복 제거', () => {
         it('같은 loadAll이 동시에 두 번 요청되면 왕복은 한 번만 난다', async () => {
-            // 논리 키가 다른 두 옵저버가 같은 물리 쿼리(인자 없는 loadAll)를 내보내는 실제 상황.
+            // A real situation: two observers with different logical keys sending out the same physical query (an argless loadAll).
             let resolveRequest: (value: unknown) => void = () => undefined;
             mockBridge.request.mockReturnValue(
                 new Promise(resolve => {

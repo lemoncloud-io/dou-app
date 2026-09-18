@@ -14,7 +14,7 @@ import type { ILogService } from '../log';
 
 export class OAuthService implements IOAuthService {
     constructor(private readonly logger: ILogService) {
-        // Google 로그인 설정 초기화
+        // Initialize Google sign-in configuration
         GoogleSignin.configure({
             webClientId: Config.VITE_GOOGLE_WEB_CLIENT_ID,
             offlineAccess: true,
