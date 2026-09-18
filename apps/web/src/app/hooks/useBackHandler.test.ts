@@ -3,9 +3,13 @@ import { renderHook } from '@testing-library/react';
 import { appBridge } from '../bridge';
 import { useBackHandler } from './useBackHandler';
 
-jest.mock('react-router-dom', () => ({ useLocation: () => ({ pathname: '/', key: 'default' }) }));
+// `useNavigate` is reached through `useStackBack`, which this hook now delegates its judgement to;
+// the real router is not stood up here because the judgement has its own suite.
+jest.mock('react-router-dom', () => ({
+    useLocation: () => ({ pathname: '/', key: 'default' }),
+    useNavigate: () => navigate,
+}));
 jest.mock('@chatic/bridges', () => ({ isNative: () => isNativeValue }));
-jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
 jest.mock('../bridge', () => ({
     appBridge: { setCanGoBack: jest.fn() },
     useOnBackPressed: jest.fn(),
@@ -20,9 +24,9 @@ let isNativeValue = false;
  */
 const withStackDepth = (depth: number) => window.history.pushState({ idx: depth }, '');
 
-const openDialog = () => {
+const openDialog = (role: 'dialog' | 'alertdialog' = 'dialog') => {
     const dialog = document.createElement('div');
-    dialog.setAttribute('role', 'dialog');
+    dialog.setAttribute('role', role);
     dialog.setAttribute('data-state', 'open');
     document.body.appendChild(dialog);
     return dialog;
@@ -111,5 +115,47 @@ describe('useBackHandler — the back press judgement', () => {
         renderHook(() => useBackHandler());
 
         expect(appBridge.setCanGoBack).toHaveBeenCalledWith(true);
+    });
+
+    // The outcome is the point of this refactor: the third branch used to be an unnamed early
+    // return, and the shell had to guess what it meant.
+    it('names which branch it took', () => {
+        withStackDepth(2);
+        openDialog();
+        expect(pressBack()).toBe('overlay-closed');
+
+        document.body.innerHTML = '';
+        expect(pressBack()).toBe('navigated');
+
+        withStackDepth(0);
+        expect(pressBack()).toBe('not-consumed');
+    });
+
+    // A regular dialog is closed by Escape, which Radix listens for at the document level.
+    it('closes a regular dialog with Escape', () => {
+        withStackDepth(2);
+        openDialog();
+        const keydown = jest.fn();
+        document.addEventListener('keydown', keydown);
+
+        pressBack();
+
+        expect(keydown).toHaveBeenCalledWith(expect.objectContaining({ key: 'Escape' }));
+        document.removeEventListener('keydown', keydown);
+    });
+
+    // An alertdialog deliberately ignores Escape — it wants an explicit choice — so the press is
+    // delivered to its first button instead.
+    it('clicks the first button of an alertdialog instead', () => {
+        withStackDepth(2);
+        const dialog = openDialog('alertdialog');
+        const button = document.createElement('button');
+        const onClick = jest.fn();
+        button.addEventListener('click', onClick);
+        dialog.appendChild(button);
+
+        expect(pressBack()).toBe('overlay-closed');
+        expect(onClick).toHaveBeenCalled();
+        expect(navigate).not.toHaveBeenCalled();
     });
 });
