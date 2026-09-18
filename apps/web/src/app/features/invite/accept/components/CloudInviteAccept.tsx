@@ -2,7 +2,6 @@ import type { JSX } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { logger } from '@chatic/bridges';
-import { useNavigateWithTransition } from '@chatic/shared';
 import { runtime } from '@chatic/app-runtime';
 import { AlertDialog } from '@chatic/web-ui-kit';
 
@@ -11,6 +10,7 @@ import { useSessionLogout } from '../../../../runtime/useSessionLogout';
 import { useInviteAccept } from '../hooks';
 import { useInviteCountdown } from '../../hooks/useInviteCountdown';
 import type { InviteInfo, InviteParams } from '../types';
+import { useStackNavigate } from '../../../../navigation/useStackNavigate';
 import { ROUTES } from '../../../../routes/paths';
 
 /** Which notice/error dialog to show over the accept screen (single-action AlertDialog). */
@@ -44,7 +44,7 @@ interface CloudInviteAcceptProps {
  */
 export const CloudInviteAccept = ({ params }: CloudInviteAcceptProps): JSX.Element | null => {
     const { t } = useTranslation();
-    const navigate = useNavigateWithTransition();
+    const enterStack = useStackNavigate();
     const logout = useSessionLogout();
 
     // Invite metadata (inviter / place / expiry) to populate the screen. Widened to `InviteInfo`, which
@@ -55,7 +55,9 @@ export const CloudInviteAccept = ({ params }: CloudInviteAcceptProps): JSX.Eleme
     const { accept, isAccepting, missingDelegator, errorKey } = useInviteAccept({ params, info });
     const countdown = useInviteCountdown(info?.expiredAt);
 
-    const goHome = () => navigate(ROUTES.home, { replace: true });
+    // Home is the fallback, not the destination — see `useEnterInvitedChannel`. A warm entry
+    // rewinds onto whatever the reader was looking at when the link arrived.
+    const goHome = () => enterStack('deeplink', ROUTES.home);
     const doLogout = () => {
         // A logout that never passes through LogoutPage — worth its own entry so the session end is
         // attributable to the missing-delegator dialog rather than looking like an unexplained drop.
