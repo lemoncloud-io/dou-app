@@ -6,7 +6,7 @@ listing and the app's own My Page both cite, and the `/s/*` bounce page that sen
 into the installed app or into the web app. It has no session, no data layer and no backend call of
 its own.
 
-53 TypeScript files under `src/`, three features, five shared components, zero tests.
+55 TypeScript files under `src/`, three features, five shared components, two test files.
 
 ## Purpose
 
@@ -55,7 +55,18 @@ grep -rho "@chatic/[a-z-]*" apps/landing/src | sort | uniq -c
 4. **The routes are public URLs with external references.** `/policy/terms`, `/policy/privacy`,
    `/policy/child` and `/s/...` are cited by store listings, `public/sitemap.xml` and links already
    sent to people. Renaming one breaks something this repo cannot see.
-5. **Nothing depends on this app.** It is a leaf: no lib and no other app imports it, so its only
+5. **The English copy names the product's objects the way the app does.** Cloud, place, chat room
+   and Self Chat are the nouns the app's own English interface uses, and the four feature cards
+   render app screenshots (`assets/src/images/landing_en_*.png`) carrying those same words — a
+   friendlier synonym reads fine in isolation and then contradicts the screenshot beside it.
+   `place` is therefore reserved for the container between a cloud and a chat room; where a line
+   means an ordinary safe space it says space. Two limits on this principle: the pricing card has
+   no screenshot to check against, and its two plan names are not the app's — the app badges the
+   tiers `FREE` and `PRO` but names them after clouds (`DoU Home`, `My Cloud`), which does not read
+   as a tier on a pricing card, so the site says Free Plan and Pro Plan after the badges. The
+   principle covers nouns, not the numbers beside them (see [Traps](#traps)). The Korean copy
+   predates all of this and still uses looser wording (`공간` / `대화공간`).
+6. **Nothing depends on this app.** It is a leaf: no lib and no other app imports it, so its only
    blast radius is the site itself.
 
 ## Scope
@@ -113,7 +124,7 @@ distribution has to rewrite unknown paths to it or `/policy/terms` 404s on a har
 
 ```text
 apps/landing/
-├── index.html                  ko-only metadata, canonical https://app.chatic.io/
+├── index.html                  English-only metadata, canonical https://app.chatic.io/
 ├── vite.config.mts             build, dev server on :5004, window-injected VITE_* vars
 ├── public/.well-known/         apple-app-site-association, assetlinks.json
 ├── public/                     sitemap.xml, robots.txt, two OG images
@@ -252,11 +263,14 @@ not trigger.
     npx tsc -b apps/landing/tsconfig.app.json
     ```
 
-- **There are no tests.** Not failing tests — zero spec files, while the inferred `test` target runs
-  bare `vitest` with no `--passWithNoTests`, so it has nothing to run and cannot pass.
+- **Two test files, and they are all there is.** Both sit in `src/i18n/`; every component and every
+  deep-link hook has none. The inferred `test` target runs bare `vitest` with no
+  `--passWithNoTests`, so deleting them takes the target back to having nothing to run and failing
+  on that. They are also invisible to `tsc -b`: `tsconfig.app.json` excludes `*.test.ts` and there
+  is no spec tsconfig to pick them up.
 
     ```bash
-    find apps/landing/src -name '*.spec.*' -o -name '*.test.*'   # empty
+    npx nx test @chatic/landing   # 7 tests, and verify.yml does not run them
     ```
 
 - **`src/app/features/deeplink/utils/fingerprint.ts` is dead.** `generateFingerprint` calls out to
@@ -266,9 +280,28 @@ not trigger.
 - **Both deploy workflows filter on `apps/landing/project.json`, which does not exist.** The path
   simply never matches; every other pattern in the filter does, so this is harmless until someone
   adds a `project.json` and expects it to trigger a deploy.
-- **`index.html` is Korean-only** — `lang="ko"`, Korean title, description and OG tags — while the app
-  itself falls back to English (`fallbackLng: 'en'`). Crawlers and link previews see Korean whatever
-  the reader's browser says.
+- **`index.html` is English-only, deliberately** — `lang="en"`, an English title and description,
+  English OG/Twitter tags, `og:locale` `en_US` with `ko_KR` as the alternate. A link-preview crawler
+  never runs JS, so one static language is all a single-page app at one URL can offer a crawler, and
+  this is the one it offers; per-language previews would need language-specific URLs each serving
+  their own HTML. Readers are a separate path, and one the attribute no longer influences: the
+  `htmlTag` detector is out of `detection.order` (see below), and `src/i18n/index.ts` rewrites
+  `<html lang>` on every language change, so the document stops claiming English the moment the page
+  switches to Korean.
+- **`htmlTag` is deliberately absent from `detection.order`, and putting it back hands the
+  reader's language to a crawler-facing attribute.** It is a detector like any other and it reads
+  the same `lang` this app rewrites, while i18next takes the first exactly-supported code out of
+  the whole detected list before it tries stripping a region from any of them. So `lang="ko"`, which
+  this file carried until the metadata went English, outranked `navigator` for every browser that
+  reports only a regional code — en-US and ja-JP visitors were served Korean. Without it, `ko-KR`
+  strips to `ko` and Korean browsers still get Korean. `src/i18n/languageDetection.test.ts` measures
+  all four cases and fails if the detector returns.
+- **The copy's counts are not the app's.** `features.private` and `pricing.subscription.detail2` say
+  5 places with 5 chat rooms each, in both locales and since before this was documented, while
+  `apps/web/src/app/utils/consts.ts` — which calls itself the single source of truth — has
+  `MAX_PLACES = 10` and `MAX_CHANNELS_PER_PLACE = 100`, and the app's own English copy says 10
+  places. Design principle 5 covers the nouns and stops at the numbers for exactly this reason:
+  which figure the marketing page should carry is a product question, not a copy fix.
 - **The `.well-known` files are load-bearing and untestable from here.** A wrong `appID` or `paths`
   entry does not break the build, does not break the site, and silently stops every Universal Link
   from opening the app. Anything that changes the domain, the bundle id, or the AASA content needs a
@@ -279,6 +312,7 @@ not trigger.
 ```bash
 npx tsc -b apps/landing/tsconfig.app.json     # red today, see Traps
 npx nx lint @chatic/landing                   # passes (one warning), and it is in CI
+npx nx test @chatic/landing                   # 7 tests pass, and CI does not run them
 npx nx build @chatic/landing                  # passes — the build the deploy wraps
 yarn landing:start                            # http://localhost:5004
 ```
