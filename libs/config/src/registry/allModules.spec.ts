@@ -1,11 +1,11 @@
 import { ConfigRegistry, findPolicyViolations } from '.';
 import { ALL_MODULES } from './modules';
 
-describe('ALL_MODULES — 85키 전체', () => {
-    it('85키다', () => {
+describe('ALL_MODULES — 86키 전체', () => {
+    it('86키다', () => {
         const registry = ConfigRegistry.merge(ALL_MODULES);
 
-        expect(registry.keys()).toHaveLength(85);
+        expect(registry.keys()).toHaveLength(86);
     });
 
     it('도메인 사이에 중복 키가 없다', () => {
@@ -33,7 +33,7 @@ describe('ALL_MODULES — 85키 전체', () => {
         expect(blank).toEqual([]);
     });
 
-    it('노출면 분포가 ADR-0079 §노출면 분포와 일치한다 — user 4 · labs 0 · dev 67 · internal 14', () => {
+    it('노출면 분포가 ADR-0079 §노출면 분포와 일치한다 — user 4 · labs 0 · dev 67 · internal 15', () => {
         const registry = ConfigRegistry.merge(ALL_MODULES);
         const counts: Record<string, number> = { user: 0, labs: 0, dev: 0, internal: 0 };
         for (const key of registry.keys()) {
@@ -41,6 +41,6 @@ describe('ALL_MODULES — 85키 전체', () => {
             if (surface) counts[surface] = (counts[surface] ?? 0) + 1;
         }
 
-        expect(counts).toEqual({ user: 4, labs: 0, dev: 67, internal: 14 });
+        expect(counts).toEqual({ user: 4, labs: 0, dev: 67, internal: 15 });
     });
 });
