@@ -1,5 +1,23 @@
 # Changelog
 
+## [2026-09-18] - root@0.65.0, @chatic/web@0.51.0, @chatic/landing@0.5.0
+
+### Features
+
+- (mobile) let Android open encoded invite links
+- (web) answer /i on the web origin
+- (mobile) convert encoded invite links to the webview route
+- (landing) send encoded invite links on to the web
+- (shared) decode the encoded invite link in one place
+
+### Chores
+
+- (landing) drop the incidental reference reordering
+
+### Other
+
+- test: (web) pin that /s and /i resolve to the same invite
+
 ## [2026-09-18] - root@0.64.3, @chatic/web@0.50.4
 
 ### Bug Fixes
