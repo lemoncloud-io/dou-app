@@ -1,10 +1,10 @@
 # stores — global client state, and the preference-store migration
 
-Covers `apps/web/src/app/stores` (8 files) and the handful of `app/hooks`/feature hooks that read
+Covers `apps/web/src/app/stores` (10 files) and the handful of `app/hooks`/feature hooks that read
 and write settings through it. Two different things live under this one folder name, and the
 folder itself only fully explains the first:
 
-1. **Transient client-only state** — four zustand stores, none of them persisted.
+1. **Transient client-only state** — five zustand stores, none of them persisted.
 2. **Preference plumbing** — types, constants and defensive parsers for the settings that used to
    live in a single `usePreferenceStore` and now live in [`@chatic/config`](../../../../libs/config/README.md)'s
    `ui.*` registry keys (ADR-0079/0080). The lane/persistence policy is that library's canon; this
@@ -12,8 +12,9 @@ folder itself only fully explains the first:
 
 ## Transient zustand stores
 
-None of these persist anything — each is scoped to one interaction and reset (or simply
-unmounted) when it ends.
+None of these persist anything. Most are scoped to one interaction and reset (or simply unmounted)
+when it ends; `useChannelSyncMarkStore` is the exception — it only ever accumulates, for the life of
+the app session, and a relaunch re-earns every mark from an empty store.
 
 | Store                     | File                         | Holds                                                                                                                                                                |
 | ------------------------- | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -21,6 +22,7 @@ unmounted) when it ends.
 | `useAddCloudRequest`      | `useAddCloudRequest.ts`      | Whether the "add a cloud" flow should open, raised from `home` and consumed by `AddCloudFlowHost`.                                                                   |
 | `useEmailBindRequest`     | `useEmailBindRequest.ts`     | The cloud id awaiting an email bind, raised from wherever a screen notices an unbound cloud and consumed by `EmailBindRequestHost`.                                  |
 | `usePendingInviteChannel` | `usePendingInviteChannel.ts` | The channel id to open once an invite acceptance lands the user on `home`.                                                                                           |
+| `useChannelSyncMarkStore` | `useChannelSyncMarkStore.ts` | Which clouds have had their channel delta answered this session, so an empty cache is not read as an empty cloud — [data-flow.md](./data-flow.md).                   |
 
 `useAddCloudRequest` and `useEmailBindRequest` exist because features do not import each other
 (design principle 4 in the [app README](../../README.md)): the subscription flow and the screens
@@ -51,18 +53,18 @@ this folder — because desktop-web needs to read the exact same record apps/web
 
 ### Registry keys and their hooks
 
-| Registry key                | Retired `PreferenceState` field       | Consuming hook                                        |
-| --------------------------- | ------------------------------------- | ----------------------------------------------------- |
+| Registry key                | Retired `PreferenceState` field       | Consuming hook                                               |
+| --------------------------- | ------------------------------------- | ------------------------------------------------------------ |
 | `ui.theme`                  | `theme`                               | `useTheme` (`app/hooks`) — see [theme.md](../shell/theme.md) |
-| `ui.blurLastMessage`        | `blurLastMessage`                     | `useBlurLastMessage` (`app/hooks`)                    |
-| `ui.onboardingCompleted`    | `isFirstRun` (opposite polarity)      | `useOnboarding` (`app/hooks`)                         |
-| `ui.pushMuted`              | `pushMuted`                           | `useDevicePushMute` (`features/mypage/hooks`)         |
-| `ui.channelSort`            | `channelSort`                         | `useChannelSort` (`app/hooks`)                        |
-| `ui.pinnedChannels`         | `pinnedChannels`                      | `usePinnedChannels` (`@chatic/shared`)                |
-| `ui.channelOrder`           | — (new registry key, no legacy field) | `useChannelOrder` (`@chatic/shared`)                  |
-| `ui.recentSearches`         | `recentSearches`                      | `useRecentSearches` (`features/search/hooks`)         |
-| `ui.dismissedUpdateVersion` | `dismissedUpdateVersion`              | `useAppUpdatePrompt` (`features/appUpdate/hooks`)     |
-| `ui.cloudPromoDismissedAt`  | `cloudPromoDismissedAt`               | `useCloudPromo` (`features/home/hooks`)               |
+| `ui.blurLastMessage`        | `blurLastMessage`                     | `useBlurLastMessage` (`app/hooks`)                           |
+| `ui.onboardingCompleted`    | `isFirstRun` (opposite polarity)      | `useOnboarding` (`app/hooks`)                                |
+| `ui.pushMuted`              | `pushMuted`                           | `useDevicePushMute` (`features/mypage/hooks`)                |
+| `ui.channelSort`            | `channelSort`                         | `useChannelSort` (`app/hooks`)                               |
+| `ui.pinnedChannels`         | `pinnedChannels`                      | `usePinnedChannels` (`@chatic/shared`)                       |
+| `ui.channelOrder`           | — (new registry key, no legacy field) | `useChannelOrder` (`@chatic/shared`)                         |
+| `ui.recentSearches`         | `recentSearches`                      | `useRecentSearches` (`features/search/hooks`)                |
+| `ui.dismissedUpdateVersion` | `dismissedUpdateVersion`              | `useAppUpdatePrompt` (`features/appUpdate/hooks`)            |
+| `ui.cloudPromoDismissedAt`  | `cloudPromoDismissedAt`               | `useCloudPromo` (`features/home/hooks`)                      |
 
 Every hook reads with `useConfigValue('ui.x')` (`@chatic/config/react`) and writes with
 `config.set('ui.x', value, { lane })` — **the lane is fixed per key, not a caller's choice.** The

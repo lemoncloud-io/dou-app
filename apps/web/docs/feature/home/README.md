@@ -107,7 +107,8 @@ grep -rn "features/home'\|'\.\./\.\./home'" --include='*.ts' --include='*.tsx' a
 rendered** — the relay has one place and it is auto-selected, so the list would add nothing; the slot
 goes to `CloudPromoBanner`, which appears only while the account owns no cloud and has not dismissed
 it within the last 24 hours. The Chat section still fills normally, because place selection happens
-invisibly.
+invisibly — and until that resolves, the section holds the loading state described under
+[Switching](#switching), which on relay is the only thing in the body.
 
 **Cloud** (anything else). The header is `kind="cloud"`: a `CloudAvatar` built from the cloud's
 initials, since `CloudView` carries no image field, beside the cloud name — read from the local cache
@@ -119,7 +120,17 @@ places, the selected one carrying a badge and the others a dot when they have un
 
 Tapping a place row calls `switchPlace(placeId)` → `switchSite`, which owns the optimistic apply, the
 commit and the rollback. With no place active — right after a cloud switch — `useSwitchPlace`
-auto-selects the first; with no place at all, the Chat section is replaced by an empty state.
+auto-selects the first; with no place at all — once the list is actually known, see below — the
+Chat section is replaced by an empty state.
+
+**A cold cloud.** Switching into a cloud this device has never opened has nothing cached to show,
+and the first fetch does not go out until the new session verifies — so for that whole window the
+cache truthfully answers "nothing", and home used to draw that as an answer: an empty rail and a
+"no place connected" screen over a cloud that was still arriving. Home now holds the loading state
+across it. The Place rail keeps its skeleton, and the Chat slot — which has no place to list channels
+for yet — shows a spinner rather than the "no place connected" empty state, which is reserved for a
+cloud whose emptiness something actually established. What may establish it, and the 15s bound that
+stops any of this waiting forever, is [state/data-flow.md](../../state/data-flow.md)'s.
 
 `CloudSessionSheet` has three collapsible sections: the synthetic relay row (selecting it calls
 `logoutCloudSession`), owned clouds with the active one pinned to the top, and invited clouds. Add-a-

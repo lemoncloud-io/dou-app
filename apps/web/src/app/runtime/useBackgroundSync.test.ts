@@ -3,6 +3,7 @@ import { useIsMutating } from '@tanstack/react-query';
 
 import { runtime } from '@chatic/app-runtime';
 
+import { useChannelSyncMarkStore } from '../stores/useChannelSyncMarkStore';
 import { syncStreakReporter } from './logging/syncStreakReporter';
 import { useBackgroundSync } from './useBackgroundSync';
 
@@ -60,15 +61,18 @@ const fireForeground = async () => {
     });
 };
 const setSwitching = (switching: boolean) => (useIsMutating as jest.Mock).mockReturnValue(switching ? 1 : 0);
-const setSession = (cid: string, selectedSiteId: string | null) => {
+const setSession = (cid: string, selectedSiteId: string | null, userId: string | null = 'u1') => {
     (runtime.session.useGlobalSession as jest.Mock).mockReturnValue({
         activeServer: cid === 'default' ? { kind: 'relay' } : { kind: 'cloud', cloudId: cid },
+        // The uid half of the first-answer scope the sync marks (see useFirstSyncStore).
+        identity: { userId },
     });
     (runtime.session.useSessionSelection as jest.Mock).mockReturnValue({ selectedSiteId });
 };
 
 beforeEach(() => {
     jest.clearAllMocks();
+    useChannelSyncMarkStore.setState({ synced: {} });
     refreshList.mockResolvedValue(undefined);
     getSelfChannel.mockResolvedValue(undefined);
     syncChannels.mockResolvedValue({ syncedAt: 100 });
@@ -567,5 +571,66 @@ describe('useBackgroundSync — 실패 스트릭 통지 (ADR-0099)', () => {
         await expect(runOnce()).resolves.toBeUndefined();
         expect(fail).toHaveBeenCalledWith('place-refresh', expect.any(Error));
         expect(fail).toHaveBeenCalledWith('profile-delta', expect.any(Error));
+    });
+});
+
+// The chat section renders off a cache that answers an unvisited cloud with nothing. This sync is
+// the only place that knows the delta behind it was asked for, so it is where "answered" is recorded.
+describe('useBackgroundSync — first channel delta per cloud (useChannelSyncMarkStore)', () => {
+    /** Runs every path through once via a single verified rising edge. */
+    const runOnce = async () => {
+        setVerified(false);
+        const { rerender } = renderHook(() => useBackgroundSync());
+        setVerified(true);
+        await act(async () => {
+            rerender();
+        });
+    };
+
+    it('marks the channel delta for the active {cid, uid}', async () => {
+        setSession('cloud-A', 's1', 'u9');
+
+        await runOnce();
+
+        expect(useChannelSyncMarkStore.getState().synced).toEqual({ 'cloud-A:u9': true });
+    });
+
+    it('marks the relay under its own cid', async () => {
+        setSession('default', 's1', 'u9');
+
+        await runOnce();
+
+        expect(useChannelSyncMarkStore.getState().synced['default:u9']).toBe(true);
+    });
+
+    it('marks a failed delta too — a device that cannot reach the server must not spin forever', async () => {
+        syncChannels.mockRejectedValue(new Error('boom'));
+        setSession('cloud-A', 's1', 'u9');
+
+        await runOnce();
+
+        expect(useChannelSyncMarkStore.getState().synced).toEqual({ 'cloud-A:u9': true });
+    });
+
+    it('does not mark before the session is verified — nothing was asked yet', async () => {
+        setVerified(false);
+        setSession('cloud-A', 's1', 'u9');
+
+        renderHook(() => useBackgroundSync());
+        await act(async () => undefined);
+
+        expect(useChannelSyncMarkStore.getState().synced).toEqual({});
+    });
+
+    it('never marks the place list — a completed refresh cannot testify that a cloud has none', async () => {
+        // `PlaceRepository` drops an empty snapshot without writing it (a session answering empty
+        // right after a switch would otherwise wipe the real rows), so "the call finished" says
+        // nothing there. Only rows arriving, or the cold window, may open that gate.
+        setSession('cloud-A', 's1', 'u9');
+
+        await runOnce();
+
+        expect(refreshList).toHaveBeenCalled();
+        expect(Object.keys(useChannelSyncMarkStore.getState().synced)).toEqual(['cloud-A:u9']);
     });
 });

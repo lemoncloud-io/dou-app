@@ -5,6 +5,7 @@ import { runtime } from '@chatic/app-runtime';
 
 import { useAppForeground } from '../bridge';
 import { INVITE_LIST_LIMIT } from '../hooks/useRelayInvites';
+import { useChannelSyncMarkStore } from '../stores/useChannelSyncMarkStore';
 import { syncStreakReporter } from './logging/syncStreakReporter';
 
 // Periodic background-sync interval. The user-facing requirement is "about a minute"; lists
@@ -42,6 +43,12 @@ export const useBackgroundSync = (): void => {
 
     const cid = session.activeServer.kind === 'cloud' ? session.activeServer.cloudId : 'default';
     const activeSiteId = selectedSiteId;
+    // Scope half of the channel mark below. The observer that reads it keys on {cid, uid} too, so a
+    // mark earned by one account cannot open another account's gate.
+    const uid = session.identity.userId ?? undefined;
+    // Reports that this cloud's channel delta has been answered; the chat section renders off a
+    // cache that cannot say so itself (see useChannelSyncMarkStore for what that fixes).
+    const markChannelSynced = useChannelSyncMarkStore(state => state.markSynced);
     // channel.get-self is a relay/default-server capability; cloud servers have no notes-to-self
     // channel, so the self-channel fetch is gated to the relay server only.
     const isRelayServer = session.activeServer.kind !== 'cloud';
@@ -108,6 +115,12 @@ export const useBackgroundSync = (): void => {
                         // Which is exactly why a STREAK of these matters — the cursor stays put and the
                         // channel list stops discovering anything (ADR-0099).
                         syncStreakReporter.fail('channel-delta', error);
+                    } finally {
+                        // Answered, either way — and that is what lets the chat section stop reading
+                        // an empty cache as "no rooms". A failure counts: it says something about
+                        // reachability, not about the cloud, and a gate that waited for success
+                        // would hold a skeleton up through every outage.
+                        markChannelSynced(cid, uid);
                     }
                 })(),
 
@@ -173,7 +186,9 @@ export const useBackgroundSync = (): void => {
             hasPendingSentInvite,
             isGuest,
             cid,
+            uid,
             activeSiteId,
+            markChannelSynced,
         ]
     );
 

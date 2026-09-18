@@ -26,7 +26,11 @@ import type { ChannelUnreads } from './useChannelUnreads';
 export interface ActiveCloudData {
     /** Cloud-wide channel rows, minus the ones whose place the user can no longer reach. */
     channels: DomainChannel[];
-    /** Whether the channel observer has answered once — `false` reads as "don't know yet". */
+    /**
+     * Whether the channel list is known — `false` reads as "don't know yet". NOT simply "the
+     * observer fired once": the cache answers an unvisited cloud instantly with nothing, so an
+     * empty emit only counts once something explains it (see `useActiveCloudChannelsSource`).
+     */
     isLoaded: boolean;
     /** channelId → MY join row, for the channels above. Absent = no read boundary synced yet. */
     myJoins: Map<string, DomainJoin>;

@@ -26,8 +26,10 @@ export interface HomeChannelsResult {
  * The filter stays because the cloud-wide read is not sid-isolated (see above), so rows from other
  * sites must not reach a per-site list.
  *
- * `isLoading` follows the shared observation's first answer rather than an emptiness test: a site
- * with no channels and a site whose read has not landed are indistinguishable from the array alone.
+ * `isLoading` follows the shared observation's `isLoaded` rather than an emptiness test: a site with
+ * no channels and a site whose read has not landed are indistinguishable from the array alone. That
+ * flag is deliberately not just "the observer fired" — an unvisited cloud's cache fires immediately
+ * with nothing — so this stays loading until the empty list is actually explained.
  */
 export const useHomeChannels = (sid: string | null): HomeChannelsResult => {
     const { channels, isLoaded } = useActiveCloudData();

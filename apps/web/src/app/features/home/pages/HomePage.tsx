@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { X } from 'lucide-react';
+import { Loader2, X } from 'lucide-react';
 
 import { useNavigateWithTransition } from '@chatic/shared';
 import { runtime } from '@chatic/app-runtime';
@@ -459,7 +459,20 @@ export const HomePage = () => {
                         title={t('homePage.noPlaceTitle', '접속한 플레이스가 없어요')}
                         description={t('homePage.noPlaceDescription', '플레이스에 접속해 대화를 시작해보세요')}
                     />
-                ) : null}
+                ) : (
+                    // Which place to show is still unresolved, so there is no channel list for this
+                    // slot yet. It used to render nothing at all, and on a cold cloud that is the
+                    // long half of a switch — on relay, where no place rail is drawn, it is the only
+                    // thing in the body. A blank screen there reads as "this cloud is empty" exactly
+                    // when it is not; the empty state above is what an actual answer looks like.
+                    <div
+                        role="status"
+                        className="flex flex-col items-center justify-center gap-3 px-4 py-16 text-description"
+                    >
+                        <Loader2 aria-hidden className="size-7 animate-spin" />
+                        <p className="text-sm">{t('homePage.loadingCloud', '클라우드를 불러오는 중이에요')}</p>
+                    </div>
+                )}
 
                 <BottomNavSpacer />
             </div>

@@ -1,10 +1,12 @@
 import { createElement, type ReactNode } from 'react';
 
-import { renderHook } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 
 import { runtime } from '@chatic/app-runtime';
 import type { DomainChannel } from '@chatic/data';
 
+import { useChannelSyncMarkStore } from '../stores/useChannelSyncMarkStore';
+import { COLD_LIST_WINDOW_MS } from './useColdListWindow';
 import { ActiveCloudDataContext } from './activeCloudDataContext';
 import { useActiveCloudChannels, useActiveCloudChannelsSource } from './useActiveCloudChannels';
 
@@ -42,6 +44,8 @@ const setUid = (userId: string | null = 'u1') =>
 
 beforeEach(() => {
     jest.clearAllMocks();
+    // No cloud has been answered by the server yet — the cold state every test starts from.
+    useChannelSyncMarkStore.setState({ synced: {} });
     (runtime.data.useRuntimeRepositories as jest.Mock).mockReturnValue({ channel: { observeList: observeListMock } });
     setSelection('cloud-A');
     setUid('u1');
@@ -166,6 +170,65 @@ describe('useActiveCloudChannelsSource — 닿을 수 없는 place 제외', () =
         const { result } = renderHook(() => useActiveCloudChannelsSource());
 
         expect(result.current.channels.map(c => c.id)).toEqual(['c1', 'c2']);
+    });
+});
+
+// A cloud this device has never opened answers from the cache instantly, with nothing — which is not
+// an answer about the cloud. Reading it as loaded flashed "no rooms" over a cloud still being fetched.
+describe('useActiveCloudChannelsSource — cold cloud loading gate', () => {
+    it('is not loaded while the cache answers empty and no delta has landed', () => {
+        emit([]);
+
+        const { result } = renderHook(() => useActiveCloudChannelsSource());
+
+        expect(result.current.channels).toEqual([]);
+        expect(result.current.isLoaded).toBe(false);
+    });
+
+    it('becomes loaded once that cloud channel delta has been answered', () => {
+        emit([]);
+
+        const { result } = renderHook(() => useActiveCloudChannelsSource());
+        expect(result.current.isLoaded).toBe(false);
+
+        // A place that really has no rooms settles here, within one round trip — that is the common
+        // case (every place starts empty), which is why this does not wait out the window.
+        act(() => useChannelSyncMarkStore.getState().markSynced('cloud-A', 'u1'));
+
+        expect(result.current.isLoaded).toBe(true);
+    });
+
+    it('ignores a delta answered for another cloud', () => {
+        emit([]);
+        useChannelSyncMarkStore.getState().markSynced('cloud-other', 'u1');
+
+        const { result } = renderHook(() => useActiveCloudChannelsSource());
+
+        expect(result.current.isLoaded).toBe(false);
+    });
+
+    it('gives up waiting once the window elapses, so the section is never stuck', () => {
+        // No delta will ever answer on a device that cannot reach the server; the wait still ends.
+        jest.useFakeTimers();
+        emit([]);
+
+        const { result } = renderHook(() => useActiveCloudChannelsSource());
+        expect(result.current.isLoaded).toBe(false);
+
+        act(() => {
+            jest.advanceTimersByTime(COLD_LIST_WINDOW_MS);
+        });
+
+        expect(result.current.isLoaded).toBe(true);
+        jest.useRealTimers();
+    });
+
+    it('is loaded straight off a cache that holds rows (warm cloud, no delta needed)', () => {
+        emit([channel('c1', 's1')]);
+
+        const { result } = renderHook(() => useActiveCloudChannelsSource());
+
+        expect(result.current.isLoaded).toBe(true);
     });
 });
 

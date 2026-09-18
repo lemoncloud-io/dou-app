@@ -3,8 +3,15 @@ import { useEffect, useState } from 'react';
 import { runtime } from '@chatic/app-runtime';
 import type { DomainPlace } from '@chatic/data';
 
+import { useColdListWindowElapsed } from '../../../hooks/useColdListWindow';
+
 export interface HomePlacesResult {
     places: DomainPlace[];
+    /**
+     * True while the list is still unknown — which is NOT the same as "the cache has not emitted".
+     * An empty answer only becomes "this cloud has no places" once the first snapshot behind it has
+     * been asked for and answered; see the cold-cloud note on the hook below.
+     */
     isLoading: boolean;
 }
 
@@ -45,22 +52,37 @@ export const useHomePlaces = (): HomePlacesResult => {
     const uid = session.identity.userId ?? undefined;
 
     const [places, setPlaces] = useState<DomainPlace[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const [hasCacheAnswered, setHasCacheAnswered] = useState(false);
+    // Bounds how long an empty list may keep reading as "still arriving" for this {cid, uid}.
+    const hasColdWindowElapsed = useColdListWindowElapsed(`place:${cid}:${uid ?? ''}`);
 
     // Re-subscribe on cloud/uid change and discard the prior cloud's rows. The explicit {cid, uid}
     // override pins the observer scope to the target cloud, independent of the provider's commit lag.
     useEffect(() => {
         setPlaces([]);
-        setIsLoading(true);
+        setHasCacheAnswered(false);
         return place.observeList(
             undefined,
             result => {
                 setPlaces(result?.list ?? []);
-                setIsLoading(false);
+                setHasCacheAnswered(true);
             },
             { cid, uid }
         );
     }, [place, cid, uid]);
+
+    // COLD CLOUD — an empty cache is not an empty cloud. `observeList` answers from local storage,
+    // and on a cloud this device has never opened it answers `[]` instantly, long before the first
+    // `place.refreshList` has even been sent (that fetch waits on the post-switch socket handshake).
+    // Reporting that as loaded made a cold cloud switch land on "no place connected" over a cloud
+    // whose places were still on their way.
+    //
+    // ROWS ARE THE ANSWER, and there is no other one to wait for: `PlaceRepository` discards an
+    // empty server snapshot without writing it (right after a switch the session can answer empty
+    // before it is ready, and pruning against that would wipe the real rows), so a completed refresh
+    // cannot testify that a cloud has no places. The window is what ends the wait when rows never
+    // come — a cloud genuinely without places, or a device that never reached the server.
+    const isLoading = !hasCacheAnswered || (places.length === 0 && !hasColdWindowElapsed);
 
     return { places, isLoading };
 };
