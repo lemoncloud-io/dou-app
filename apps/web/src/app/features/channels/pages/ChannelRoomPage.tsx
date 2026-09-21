@@ -121,6 +121,7 @@ export const ChannelRoomPage = () => {
         channel,
         isLoading: isChannelLoading,
         isError: isChannelError,
+        isForbidden: isChannelForbidden,
     } = useChannel(stableChannelIdForChannelHook, { seed: seedChannel });
 
     // ONE join-cache subscription for this screen. My row (nick / notify / the read baseline), every
@@ -360,15 +361,19 @@ export const ChannelRoomPage = () => {
      * bounced while the identity is still resolving.
      *
      * An unresolvable channel (`isChannelError`) is NOT redirected: the error screen below explains
-     * itself and its "go back" action keeps the history entry the user came from.
+     * itself and its "go back" action keeps the history entry the user came from. A REFUSED one is,
+     * because there the cause is known — the server said I am not a member — and a load-failure
+     * screen would blame the network for a membership fact.
      */
     const isForeignSelfChat = isSomeoneElsesSelfChat(channel, userId);
     // One notice per room, even if the effect re-runs before the redirect unmounts this screen.
     // Toasts stack, so a repeat would put the same sentence on screen two and three times.
     const noticedNotAMemberRef = useRef<string | null>(null);
     useEffect(() => {
-        if (isChannelLoading || isChannelError) return;
-        if (!channel || isForeignSelfChat) {
+        // A refusal is an answer, so it does not wait for the loading window to close — that window
+        // exists for a fetch that might still arrive, and this one already came back.
+        if (!isChannelForbidden && (isChannelLoading || isChannelError)) return;
+        if (!channel || isForeignSelfChat || isChannelForbidden) {
             const alreadyNoticed = noticedNotAMemberRef.current === stableChannelId;
             noticedNotAMemberRef.current = stableChannelId;
             // Say something on the way out. A notification outlives the membership it was sent
@@ -384,7 +389,16 @@ export const ChannelRoomPage = () => {
             if (!alreadyNoticed) toast({ title: t('chat.notAMember') });
             void navigate(ROUTES.root, { replace: true });
         }
-    }, [channel, isForeignSelfChat, isChannelLoading, isChannelError, navigate, t, stableChannelId]);
+    }, [
+        channel,
+        isForeignSelfChat,
+        isChannelForbidden,
+        isChannelLoading,
+        isChannelError,
+        navigate,
+        t,
+        stableChannelId,
+    ]);
 
     // Read handling (stage 1: channel.chatNo right on entry, stage 2: correction after messages
     // load / on foreground return) is owned by useReadMarker. Marking read right after sending

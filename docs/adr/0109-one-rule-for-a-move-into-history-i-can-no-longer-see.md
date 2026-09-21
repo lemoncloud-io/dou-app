@@ -1,7 +1,7 @@
 # ADR-0109: One rule for a move into history I can no longer see, and what "the peer is gone" is read from
 
 > Status: Accepted · Decided: 2026-09-21 · Implemented: `feat/dm-leave-rejoin-fix`
-> · Scope: `apps/web/src/app/features/channels/**` · `apps/web/src/app/features/invite/pages/ContactInvitePage.tsx` · `apps/web/src/app/hooks/useRelayInvites.ts` · `apps/web/public/locales/**`
+> · Scope: `apps/web/src/app/features/channels/**` · `apps/web/src/app/features/invite/pages/ContactInvitePage.tsx` · `apps/web/src/app/hooks/useRelayInvites.ts` · `apps/web/public/locales/**` · `libs/app-runtime/src/socket/sync/**`
 > · Builds on [ADR-0067](./0067-rejoin-hides-prior-messages.md) (the re-join display gate) ·
 > [ADR-0068](./0068-dm-peer-departure-and-reinvite.md) (departure and re-invite) ·
 > [ADR-0039](./0039-dm-display-name-chain-and-invite-profile-release.md) (the name chain)
@@ -88,6 +88,36 @@ the tap. It now leaves one line, once per room.
 **No re-entry button.** Returning to a 1:1 takes the other side's invite, so a button there would be
 one that cannot work. **No invite entry point either** — the person who left inviting the person who
 stayed fails at acceptance, because the accepter is already a member.
+
+#### The refusal has to reach the screen, and it did not
+
+The line above only reaches a room whose row this device once had. A room it has never cached — a
+stale notification tapped after a leave, which is the common case — went somewhere else entirely:
+`useChannel` cannot tell a refusal from a fetch still in flight, so it waited out a ten-second
+window and then reported a load error. Ten seconds of nothing, then a red failure, for something
+that was never a failure. The server, meanwhile, had answered on the first poll.
+
+**The answer was already being computed and then dropped.** The sync scheduler classifies a failure
+the server answered 403/404 as `gone`, as against `transient` for everything else, and that
+classification reached a log line and stopped. Nothing downstream could read it, which is why this
+looked like a question the client could not settle.
+
+So the channel plan's failure policy now records a `gone` verdict against that channel id, and
+`useChannel` reads it. Four things are deliberate about it:
+
+- **Recorded on the FIRST refusal**, in `decide`, not in `onStopped`. A stop needs two consecutive
+  refusals and arrives a poll interval later — after the screen has already given up.
+- **It observes without changing anything.** Supplying `decide` replaces the library's default, so
+  the default is reproduced exactly and `stopAfter` pinned beside it. When a target stops is
+  unchanged; the only new thing is that the first refusal is seen.
+- **A refusal is remembered, not derived, and expires against reality.** A successful view of the
+  same channel clears it — accepting a re-invite makes the room readable again — and an account
+  change clears all of them, because they are facts about what one account was told.
+- **It stays separate from `isError`.** "You are not in this conversation" is something we know;
+  "could not load" is what we say when we do not. Folding them together would put a membership
+  sentence in front of somebody who is merely offline, which is the reason this gap was left open
+  rather than papered over. It is also why a refusal speaks only when there is no row to show: a
+  room already rendering belongs to the removal path.
 
 ### 5. "The peer is gone" is read from the roster **as well as** the join row
 
@@ -203,14 +233,13 @@ behind a deploy it does not control; the guard is cheap and the two can coexist.
 
 **What is accepted**
 
-- **The "not a member" sentence does not reach the cold path.** A channel this device has never
-  cached resolves through a 10-second wait into `isChannelError` — the error screen, not the
-  redirect — even though the server refused it immediately and precisely
-  (`403 FORBIDDEN - not a member of channel`). `useChannelSync` returns `void`, so that refusal
-  never reaches `useChannel`, and "not a member" cannot be told apart from "could not load".
-  Claiming membership on a guess would lie to somebody who is merely offline, so the sentence stays
-  where it can be true. A stale push tap is mostly this path, so the common case is still ten
-  seconds of skeleton and a red failure message for something that is not a failure.
+- **A refusal costs one poll, not zero.** The verdict lands when the first `channel.get` comes back
+  refused, so a cold open still shows its skeleton until then — far short of the old ten seconds,
+  but not instant. An offline device gets `transient`, records nothing, and keeps the load-error
+  screen, which is the correct answer for it.
+- **The scheduler's default stop rule is now written down in two places** — the library's and this
+  repo's copy in `reportRefusal`. Pinned together with `stopAfter` so they cannot drift apart
+  silently, but a library change to that rule is something this file has to follow.
 - **Somebody who names a room `User_1234` loses that name** (decision 6).
 - **A jump that is abandoned looks like a jump that failed**, from the outside. The copy is the only
   thing distinguishing them, which puts real weight on decision 2.
@@ -220,8 +249,4 @@ behind a deploy it does not control; the guard is cheap and the two can coexist.
 
 **Follow-ups**
 
-- **Carry the membership refusal to the screen.** The server's 403 is precise and arrives fast; the
-  client discards it. Surfacing it would let the room say "you are not in this conversation"
-  immediately, replace the ten-second wait, and keep the error screen for actual errors. It touches
-  `libs/app-runtime`'s sync layer, not the channel feature.
 - The `userId`-based re-invite API ADR-0068 asked for, unchanged.

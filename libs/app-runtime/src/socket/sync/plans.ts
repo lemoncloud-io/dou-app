@@ -1,4 +1,4 @@
-import type { DomainSyncPlan, SyncFailureInfo } from '@lemoncloud/chatic-sockets-lib';
+import type { DomainSyncPlan, SyncFailureDecision, SyncFailureInfo } from '@lemoncloud/chatic-sockets-lib';
 import {
     ChannelSyncPlan,
     ChatSyncPlan,
@@ -13,6 +13,8 @@ import type { MySiteView } from '@lemoncloud/chatic-backend-api';
 import { isForeignContext } from '@chatic/data';
 import { logger } from '@chatic/bridges';
 import { foreignDropAggregator } from '@chatic/logger';
+
+import { clearRefusedChannel, recordRefusedChannel } from './refusedChannels';
 
 /**
  * Sync plans resolve runtime-heavy dependencies lazily so tests can inject
@@ -58,6 +60,47 @@ const KEEP_SNAPSHOT_ON_RECONNECT = { resetSnapshotOnConnected: false } as const;
  * `kind` and `goneStreak` are the point of the entry: `gone` means the server answered 403/404,
  * `transient` means the scheduler gave up for some other reason, and those are different bugs.
  */
+/**
+ * The scheduler's own stop rule, restated so we can observe failures without changing them.
+ *
+ * Supplying a `decide` replaces the library's default, so the default is reproduced here exactly —
+ * stop once the server has said `gone` twice in a row, retry otherwise — and `stopAfter` is pinned
+ * beside it so the threshold and the formula that reads it cannot drift apart. Nothing about when a
+ * target stops changes; the only new thing is that somebody sees the first refusal.
+ */
+const GONE_STOP_AFTER = 2;
+
+/**
+ * Remembers a channel the server refused, on the FIRST refusal.
+ *
+ * `onStopped` is too late to answer a screen: the scheduler reaches it only after the second
+ * consecutive `gone`, a poll interval later, by which time the room has already spent its wait and
+ * shown a load failure for something that was never a failure. `decide` sees every one, including
+ * the first, so the verdict is recorded there and the decision handed back unchanged.
+ *
+ * Only `channel` targets are recorded, and only to answer "can this room be opened at all". The
+ * `gone` classification is the library's, made from the socket's status code — this adds no reading
+ * of its own.
+ */
+const reportRefusal = <TPlan extends DomainSyncPlan<any>>(plan: TPlan): TPlan => {
+    const policy = plan.failurePolicy;
+    Object.assign(plan, {
+        failurePolicy: {
+            ...policy,
+            stopAfter: policy?.stopAfter ?? GONE_STOP_AFTER,
+            decide: (info: SyncFailureInfo): SyncFailureDecision => {
+                if (info.kind === 'gone' && info.target.type === 'channel' && info.target.id) {
+                    recordRefusedChannel(info.target.id);
+                }
+                if (policy?.decide) return policy.decide(info);
+                const stopAfter = policy?.stopAfter ?? GONE_STOP_AFTER;
+                return info.kind === 'gone' && info.goneStreak >= stopAfter ? 'stop' : 'retry';
+            },
+        },
+    });
+    return plan;
+};
+
 const reportStop = <TPlan extends DomainSyncPlan<any>>(plan: TPlan): TPlan => {
     const original = plan.onStopped?.bind(plan);
 
@@ -113,20 +156,26 @@ export const createSyncPlans = (getBoundCid: () => string | null): DomainSyncPla
     };
 
     return [
-        reportStop(
-            new ChannelSyncPlan<ChannelView>({
-                ...KEEP_SNAPSHOT_ON_RECONNECT,
-                onUpdate: (_target, view) => {
-                    if (dropForeignFrame()) return;
-                    const { channel } = getRepositories();
-                    void channel.cacheWrite(toDomainChannel(view, getContext()));
-                },
-                onRemove: target => {
-                    if (!target.id) return;
-                    const { channel } = getRepositories();
-                    void channel.cacheDelete(target.id);
-                },
-            })
+        reportRefusal(
+            reportStop(
+                new ChannelSyncPlan<ChannelView>({
+                    ...KEEP_SNAPSHOT_ON_RECONNECT,
+                    onUpdate: (target, view) => {
+                        // A view proves the channel is readable, which is the one thing that can
+                        // retire a refusal: the membership behind it can come back (a re-invite
+                        // restores the join), and a remembered "no" must not outlive it.
+                        if (target.id) clearRefusedChannel(target.id);
+                        if (dropForeignFrame()) return;
+                        const { channel } = getRepositories();
+                        void channel.cacheWrite(toDomainChannel(view, getContext()));
+                    },
+                    onRemove: target => {
+                        if (!target.id) return;
+                        const { channel } = getRepositories();
+                        void channel.cacheDelete(target.id);
+                    },
+                })
+            )
         ),
         // Place sync targets emit MySiteView payloads; parameterize the plan so
         // onUpdate's view matches toDomainPlace's input instead of the default

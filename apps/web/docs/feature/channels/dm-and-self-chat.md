@@ -318,12 +318,18 @@ disappeared, and that redirect used to be silent, which looked exactly like the 
 tap. It now leaves one line behind, once per room. No way back in is offered: returning to a 1:1
 takes the other side's invite, so a button there would be one that cannot work.
 
-The sentence does **not** reach the cold path, and that is a known gap rather than an oversight.
-A channel this device has never cached resolves through a 10-second wait into `isChannelError` — the
-error screen, not the redirect — even though the server refused it immediately and precisely
-(`403 FORBIDDEN - not a member of channel`). `useChannelSync` returns `void`, so that refusal never
-reaches `useChannel`, and "not a member" cannot be told apart from "could not load". Claiming
-membership on a guess would lie to somebody who is merely offline.
+It reaches the cold path too, through `useChannel`'s `isForbidden`. A room this device has never
+cached used to sit on a skeleton for ten seconds and then show a load error, because the hook could
+not tell a refusal from a fetch still coming. The sync scheduler can: it classifies a failure the
+server answered 403/404 as `gone`, and the channel plan now records that against the channel id
+(`runtime.sync.isChannelRefused`). The room reads it and leaves immediately, with the same sentence.
+
+Three properties to keep in mind before touching it. The record is made on the **first** refusal,
+from the failure policy rather than `onStopped`, which needs two and arrives a poll later. A
+successful view of the same channel **clears** it, so a re-invite that restores the join is not
+fought by a stale "no", and an account change clears all of them. And it is **not** `isError`: a
+device that is merely offline gets `transient`, records nothing, and keeps the load-error screen —
+telling that person they are not in the conversation would be a lie.
 
 ## What not to do
 
