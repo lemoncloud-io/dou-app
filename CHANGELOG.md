@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-09-21] - root@0.65.1, @chatic/landing@0.5.1
+
+### Bug Fixes
+
+- (landing) stop index.html deciding the reader's language, and align the English copy
+
 ## [2026-09-18] - root@0.65.0, @chatic/web@0.51.0, @chatic/landing@0.5.0
 
 ### Features
