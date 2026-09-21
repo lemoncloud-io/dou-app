@@ -1,8 +1,4 @@
 {
-    "header": {
-        "terms": "Terms of Service",
-        "privacy": "Privacy Policy"
-    },
     "deeplink": {
         "title": {
             "openApp": "Open in DoU App",
@@ -40,75 +36,64 @@
             "fallback": "Link not found. Please use the mobile app.",
             "ios": "Search 'DoU' on App Store",
             "android": "Search 'DoU' on Google Play"
+        },
+        "illustration": {
+            "caption": "In a safe space,\nchat freely!"
         }
     },
     "hero": {
-        "badge": "Personal Messaging",
         "title": "Private Community",
-        "title1": "Private Community",
-        "title2": "deserve safe spaces.",
-        "subtitle": "A safe space to chat and connect freely",
+        "subtitle": "A safe space to talk and connect freely with the people who matter",
         "appStore": "App Store",
         "googlePlay": "Google Play"
     },
     "features": {
-        "title": "What Makes DoU Special",
-        "subtitle": "Communicate safely in your own personal space",
         "private": {
             "title": "Private Community",
-            "description": "Create up to 5 spaces and 5 chat rooms to talk with the people you need"
+            "description": "Create up to 5 places with 5 chat rooms each, and keep every conversation with the people it is for"
         },
         "safe": {
-            "title": "Safe Chat Space",
-            "description": "Chat safely with friends who received the invite link."
+            "title": "A Safe Space to Chat",
+            "description": "Chat safely with friends who received your invite link"
         },
         "group": {
             "title": "Group Communication",
-            "description": "With up to 100 members, enjoy more focused conversations and active participation."
+            "description": "With up to 100 members, enjoy more focused conversations and active participation"
         },
         "memo": {
-            "title": "Personal Memo Space",
-            "description": "Organize tasks and quick notes in your private memo space."
+            "title": "Self Chat",
+            "description": "Organize tasks and quick notes in a chat room only you can see"
         }
     },
     "pricing": {
-        "title": "DoU's exclusive benefits",
+        "title": "DoU's Exclusive Benefits",
         "basic": {
-            "title": "Basic Service",
+            "title": "Free Plan",
             "description": "Start chatting for free with essential features.",
-            "feature1": "Chat with me",
-            "feature2": "Chat in your invited friend's space"
+            "feature1": "Self Chat",
+            "feature2": "Chat in a place you were invited to"
         },
         "subscription": {
-            "title": "Subscription Service",
+            "title": "Pro Plan",
             "highlight": "7 days free for new users",
             "price": "$0",
-            "detail1": "Create your own space and invite friends",
-            "detail2": "Up to 5 spaces with 5 chat rooms each",
+            "detail1": "Create your own cloud and invite friends",
+            "detail2": "Up to 5 places with 5 chat rooms each",
             "detail3": "Group chats with up to 100 members",
-            "detail4": "Personal memo space included",
-            "feature1": "My space",
+            "detail4": "Self Chat included",
+            "feature1": "My Cloud",
             "feature2": "Invite friends",
             "feature3": "Group chat",
-            "feature4": "Memo space",
+            "feature4": "Self Chat",
             "feature5": "Priority support"
         }
     },
     "cta": {
         "title1": "Free for new users.",
-        "title2": "Try it now",
+        "title2": "Get started now",
         "subtitle": "Experience safe conversations with DoU",
         "appStore": "Get it on the App Store",
         "googlePlay": "Get it on Google Play"
-    },
-    "download": {
-        "title": "Get Started Now",
-        "subtitle": "Experience secure messaging with DoU",
-        "appStore": "Download on App Store",
-        "googlePlay": "Get it on Google Play"
-    },
-    "common": {
-        "comingSoon": "Coming soon"
     },
     "policy": {
         "effectiveDate": "Effective Date",
@@ -116,9 +101,6 @@
         "current": "Current"
     },
     "footer": {
-        "ceo": "CEO",
-        "ceoName": "Donghyuk Kim",
-        "email": "Email",
         "terms": "Terms of Service",
         "privacy": "Privacy Policy",
         "child": "Child Safety & Operating Standards",

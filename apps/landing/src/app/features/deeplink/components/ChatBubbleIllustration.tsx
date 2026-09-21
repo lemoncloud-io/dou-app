@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next';
+
 import { Images } from '@chatic/assets';
 
 /**
@@ -5,6 +7,8 @@ import { Images } from '@chatic/assets';
  * Displays three chat bubble rows with character avatars.
  */
 export const ChatBubbleIllustration = (): JSX.Element => {
+    const { t } = useTranslation();
+
     return (
         <div className="flex flex-col gap-8 items-center w-full max-w-[375px] px-8">
             {/* Row 1: Hello bubble with green avatar (left aligned) */}
@@ -43,8 +47,7 @@ export const ChatBubbleIllustration = (): JSX.Element => {
 
             {/* Main text */}
             <div className="text-center text-[28px] font-semibold text-foreground leading-[1.35] tracking-[-0.56px]">
-                <p className="mb-0">안전한 대화공간에서</p>
-                <p>자유롭게 소통하기!</p>
+                <p className="whitespace-pre-line">{t('deeplink.illustration.caption')}</p>
             </div>
 
             {/* Row 3: Emoji bubble with cactus avatar (center) */}
