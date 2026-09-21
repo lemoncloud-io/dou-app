@@ -336,9 +336,10 @@ about membership.
 is dropped from `memberIds` — so `isNotMyChannel` reads it off the room itself, with no round trip
 and nothing to arrive. Note how it differs from `isChannelMember`: that one answers "may I poll
 other members' joins" and reads an unknown as no, because guessing wrong costs a server alarm. This
-one decides whether to CLOSE a room somebody asked for, so an unknown reads as yes — the roster must
-be hydrated, under the server's 100 cap (past it my absence proves nothing), and not contradicted by
-my own live join row.
+one decides whether to CLOSE a room somebody asked for, so an unknown reads as yes — **1:1 only**
+(a DM roster is two people and never the truncated one; the server caps `memberIds` at 100, so a
+group member can be legitimately missing from it and a group room is left alone), the roster must be
+hydrated, and my own live join row still outranks it.
 
 **What is still the server's to fix:** it serves the channel row and the messages to a non-member at
 all. The client no longer shows them, but the data is being handed out, and a room the reader left

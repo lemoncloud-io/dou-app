@@ -84,8 +84,12 @@ would otherwise be swallowed on send.
 
 The verdict is taken from the row, not from an error: `isNotMyChannel`. It is the opposite reading
 of `isChannelMember` on purpose — that one refuses on unknown because a wrong yes costs a server
-alarm, this one allows on unknown because a wrong yes throws a member out of their own room. Roster
-hydrated, under the server's 100 cap, and not contradicted by my own live join row.
+alarm, this one allows on unknown because a wrong yes throws a member out of their own room. So it
+answers for a **1:1 only**: a DM roster is two people and never the one the server truncates, while
+`memberIds` is capped at 100 and a member of a larger group can be legitimately missing from it.
+Rather than reason about when a group roster is complete, it declines to answer for one, and a group
+room somebody was removed from opens exactly as it did before. The roster must also be hydrated, and
+my own live join row outranks it.
 
 The redirect out of a vanished room was silent, which was indistinguishable from the app dropping
 the tap. It now leaves one line, once per room.

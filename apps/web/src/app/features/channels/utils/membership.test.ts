@@ -133,37 +133,40 @@ describe('isDmPeerMissing', () => {
     // statement it is. Wrong in the closing direction throws a member out of their own room, so
     // every unknown here reads as "keep it open".
     describe('isNotMyChannel', () => {
+        const dm = (memberIds?: string[]) => ({ stereo: 'dm' as const, memberIds });
+
         it('명단이 있고 내가 없으면 내 방이 아니다', () => {
-            expect(isNotMyChannel({ memberIds: ['other'] }, null, 'me')).toBe(true);
+            expect(isNotMyChannel(dm(['other']), null, 'me')).toBe(true);
         });
 
         it('명단에 내가 있으면 묻지 않는다', () => {
-            expect(isNotMyChannel({ memberIds: ['me', 'other'] }, null, 'me')).toBe(false);
+            expect(isNotMyChannel(dm(['me', 'other']), null, 'me')).toBe(false);
         });
 
         it('명단이 안 왔으면 답하지 않는다', () => {
-            expect(isNotMyChannel({ memberIds: [] }, null, 'me')).toBe(false);
-            expect(isNotMyChannel({ memberIds: undefined }, null, 'me')).toBe(false);
+            expect(isNotMyChannel(dm([]), null, 'me')).toBe(false);
+            expect(isNotMyChannel(dm(undefined), null, 'me')).toBe(false);
         });
 
-        // Past the cap the server truncates, so my absence from the list is not evidence.
-        it('명단이 100을 채우면 빠져 있어도 근거가 못 된다', () => {
-            const roster = Array.from({ length: 100 }, (_, index) => `u${index}`);
-            expect(isNotMyChannel({ memberIds: roster }, null, 'me')).toBe(false);
+        // A group roster is the one the server truncates at 100, so absence from it is not
+        // evidence. Rather than reason about when it is complete, this declines to answer.
+        it('그룹은 답하지 않는다 — 명단이 잘릴 수 있는 쪽이다', () => {
+            expect(isNotMyChannel({ stereo: 'private', memberIds: ['other'] }, null, 'me')).toBe(false);
+            expect(isNotMyChannel({ stereo: '', memberIds: ['other'] }, null, 'me')).toBe(false);
+            expect(isNotMyChannel({ stereo: 'self', memberIds: ['other'] }, null, 'me')).toBe(false);
         });
 
-        // The case the cap exists for: a big room's member is missing from the roster and known
-        // only by their own join row, which arrives later than the channel does.
+        // The reading that arrives late, so it is checked rather than waited on.
         it('살아 있는 내 join 행이 명단을 이긴다', () => {
-            expect(isNotMyChannel({ memberIds: ['other'] }, { joined: 1 }, 'me')).toBe(false);
+            expect(isNotMyChannel(dm(['other']), { joined: 1 }, 'me')).toBe(false);
         });
 
         it('끝난 join 행은 명단을 뒤집지 않는다', () => {
-            expect(isNotMyChannel({ memberIds: ['other'] }, { joined: 0 }, 'me')).toBe(true);
+            expect(isNotMyChannel(dm(['other']), { joined: 0 }, 'me')).toBe(true);
         });
 
         it('신원을 모르면 답하지 않는다', () => {
-            expect(isNotMyChannel({ memberIds: ['other'] }, null, null)).toBe(false);
+            expect(isNotMyChannel(dm(['other']), null, null)).toBe(false);
             expect(isNotMyChannel(null, null, 'me')).toBe(false);
         });
     });

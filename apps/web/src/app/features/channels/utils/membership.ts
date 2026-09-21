@@ -89,11 +89,6 @@ export const isChannelMember = (
 };
 
 /**
- * The roster cap the server applies to `memberIds`. Past it, absence from the roster proves nothing.
- */
-const ROSTER_CAP = 100;
-
-/**
  * Whether this room can be stated, from its own row, to be one I am not in.
  *
  * Distinct from `isChannelMember`, and the difference is the whole point. That one answers "may I
@@ -109,21 +104,22 @@ const ROSTER_CAP = 100;
  *
  * Three conditions, each closing a way of being wrong:
  *
+ * - **A 1:1 only.** A DM roster is two people, so it is never the truncated one — the server caps
+ *   `memberIds` at 100, and a member of a larger group can be legitimately missing from it. Rather
+ *   than reason about when a group roster is complete, this declines to answer for one at all.
+ *   A group room somebody was removed from therefore still opens, exactly as before.
  * - **The roster is hydrated.** An empty or absent `memberIds` is "not loaded yet".
- * - **It is under the cap.** The server truncates at 100, so a member of a larger room can be
- *   legitimately missing from it; past the cap this declines to answer at all.
- * - **My own join row does not say otherwise.** An active join outranks the roster — that is the
- *   case the cap exists for, and it is also the one that arrives late, so it is checked rather than
- *   waited on.
+ * - **My own join row does not say otherwise.** An active join outranks the roster, and it is the
+ *   reading that arrives late, so it is checked rather than waited on.
  */
 export const isNotMyChannel = (
-    channel: Pick<DomainChannel, 'memberIds'> | null | undefined,
+    channel: Pick<DomainChannel, 'stereo' | 'memberIds'> | null | undefined,
     myJoin: Pick<DomainJoin, 'joined'> | null | undefined,
     userId: string | null | undefined
 ): boolean => {
-    if (!channel || !userId) return false;
+    if (channel?.stereo !== 'dm' || !userId) return false;
     const roster = channel.memberIds;
-    if (!roster?.length || roster.length >= ROSTER_CAP) return false;
+    if (!roster?.length) return false;
     if (roster.includes(userId)) return false;
     return !myJoin || myJoin.joined === 0;
 };
