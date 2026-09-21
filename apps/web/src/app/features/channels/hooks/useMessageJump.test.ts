@@ -6,7 +6,9 @@ import type { ClientChatView } from '../types';
 
 const toast = jest.fn();
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast: (...args: unknown[]) => toast(...args) }));
-jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (_key: string, fallback: string) => fallback }) }));
+jest.mock('react-i18next', () => ({
+    useTranslation: () => ({ t: (key: string, fallback?: string) => fallback ?? key }),
+}));
 
 const messages: ClientChatView[] = [];
 
@@ -217,7 +219,6 @@ describe('useMessageJump', () => {
                     isLoadingMore: false,
                     loadMore,
                     loadUntil,
-                    loadUntil,
                 }),
             { initialProps: {} }
         );
@@ -228,5 +229,76 @@ describe('useMessageJump', () => {
         });
         rerender({});
         expect(node.scrollIntoView).toHaveBeenCalledTimes(2);
+    });
+
+    describe('a target from before my current membership', () => {
+        it('gives up without paging, and says why rather than claiming a deletion', () => {
+            // The row is not rendered, so without the window check this would page for it.
+            const containerRef = setup();
+            useMessageJumpStore.getState().request('ch-1', 5);
+
+            renderHook(() =>
+                useMessageJump({
+                    channelId: 'ch-1',
+                    containerRef,
+                    messages,
+                    hasMore: true,
+                    isLoadingMore: false,
+                    loadMore,
+                    loadUntil,
+                    joinedNo: 9,
+                })
+            );
+
+            expect(loadMore).not.toHaveBeenCalled();
+            expect(loadUntil).not.toHaveBeenCalled();
+            expect(toast).toHaveBeenCalledTimes(1);
+            // The copy this names says the message is from before the rejoin, NOT that it was
+            // deleted — see the locale entry and the reasoning in the hook.
+            const [{ title }] = toast.mock.calls[0] as [{ title: string }];
+            expect(title).toBe('chat.jumpOutsideJoinWindow');
+            expect(useMessageJumpStore.getState().target).toBeNull();
+        });
+
+        it('still jumps to a target above the cursor', () => {
+            const containerRef = setup(12);
+            useMessageJumpStore.getState().request('ch-1', 12);
+
+            renderHook(() =>
+                useMessageJump({
+                    channelId: 'ch-1',
+                    containerRef,
+                    messages,
+                    hasMore: true,
+                    isLoadingMore: false,
+                    loadMore,
+                    loadUntil,
+                    joinedNo: 9,
+                })
+            );
+
+            expect(containerRef.current.firstElementChild?.scrollIntoView).toHaveBeenCalled();
+            expect(toast).not.toHaveBeenCalled();
+        });
+
+        it('leaves a room with no cursor alone — an absent field never hides history', () => {
+            const containerRef = setup();
+            useMessageJumpStore.getState().request('ch-1', 5);
+
+            renderHook(() =>
+                useMessageJump({
+                    channelId: 'ch-1',
+                    containerRef,
+                    messages,
+                    hasMore: true,
+                    isLoadingMore: false,
+                    loadMore,
+                    loadUntil,
+                })
+            );
+
+            expect(loadMore).toHaveBeenCalled();
+            expect(toast).not.toHaveBeenCalled();
+        });
     });
 });

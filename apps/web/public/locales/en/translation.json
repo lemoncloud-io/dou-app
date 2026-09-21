@@ -823,7 +823,9 @@
             "newReplyCount_other": "{{count}} new comments"
         },
         "unknownUser": "Unknown user",
-        "me": "You"
+        "me": "You",
+        "notAMember": "You're not in this conversation.",
+        "jumpOutsideJoinWindow": "That message is from before you rejoined, so it isn't shown here."
     },
     "search": {
         "placeholder": "Search by room name or place",
@@ -1492,7 +1494,6 @@
         "phonePlaceholder": "Enter a phone number",
         "phoneHint": "Digits only, no hyphens.",
         "phoneInvalidFormat": "Invalid phone number format",
-        "validityHint": "The invite link stays valid for 3 days.",
         "submit": "Done",
         "unnamedRecipient": "Recipient",
         "maskedPhone": "****-{{last4}}",
@@ -1535,7 +1536,9 @@
             "cta": "Verify phone number"
         },
         "issueForbidden": "You can't send invites right now. If this persists after verifying, please contact support",
-        "reinviteAlreadyAccepted": "They have already accepted the invite"
+        "reinviteAlreadyAccepted": "They have already accepted the invite",
+        "validityHintDays_one": "The invite link stays valid for {{count}} day after it is issued.",
+        "validityHintDays_other": "The invite link stays valid for {{count}} days after it is issued."
     },
     "inviteWaiting": {
         "moreOptions": "More options",

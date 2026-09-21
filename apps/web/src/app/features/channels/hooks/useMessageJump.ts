@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import type { RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { isInJoinWindow } from '@chatic/data';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { useMessageJumpStore } from '../../../stores/useMessageJumpStore';
@@ -21,6 +22,11 @@ interface UseMessageJumpParams {
     loadMore: () => void;
     /** Widens the cache window to reach a target without a server round trip (see useChats). */
     loadUntil: (targetNo: number) => boolean;
+    /**
+     * My join cursor. A target at or below it predates my current membership and can never be
+     * reached from this screen (see the effect).
+     */
+    joinedNo?: number;
 }
 
 /**
@@ -42,6 +48,7 @@ export const useMessageJump = ({
     isLoadingMore,
     loadMore,
     loadUntil,
+    joinedNo,
 }: UseMessageJumpParams) => {
     const target = useMessageJumpStore(s => s.target);
     const clear = useMessageJumpStore(s => s.clear);
@@ -61,6 +68,27 @@ export const useMessageJump = ({
         // Already handled (landed or abandoned) — don't re-scroll on unrelated re-renders
         // that fire before the store clears the target.
         if (progressRef.current.done) return;
+
+        // Outside my join window → abandon before looking for the node. Every entry point that
+        // names an older message — a push tap, a notification-centre row, a reply that points at
+        // its root, a search result — funnels through this one request, so the rule that decides
+        // them is applied here once instead of at each door. The room still opens; only the jump
+        // is given up.
+        //
+        // Giving up is not a courtesy, it is the truth: `useChats` windows the cache by this same
+        // cursor and the server stops serving anything at or below it after a re-join, so paging
+        // would spend the whole budget on requests that cannot come back with the target.
+        //
+        // The copy says WHY, and deliberately does not say the message was deleted: it still
+        // exists and is still on the other participant's screen, and it is invisible here only
+        // because I left and came back. Copy that blurs those two teaches the reader that the
+        // other side erased their history.
+        if (!isInJoinWindow({ chatNo: target.chatNo }, joinedNo)) {
+            progressRef.current.done = true;
+            toast({ title: t('chat.jumpOutsideJoinWindow') });
+            clear();
+            return;
+        }
 
         const node = container.querySelector<HTMLElement>(`[data-chat-no="${target.chatNo}"]`);
         if (node) {
@@ -92,7 +120,7 @@ export const useMessageJump = ({
             toast({ title: t('search.messageJumpFailed', '메시지를 찾을 수 없어요.') });
             clear();
         }
-    }, [target, channelId, messages, hasMore, isLoadingMore, loadMore, loadUntil, containerRef, clear, t]);
+    }, [target, channelId, messages, hasMore, isLoadingMore, loadMore, loadUntil, containerRef, clear, t, joinedNo]);
 
     useEffect(
         () => () => {

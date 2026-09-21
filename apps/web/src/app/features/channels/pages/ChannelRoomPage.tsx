@@ -31,7 +31,7 @@ import { MessageActionSheet } from '../components/MessageActionSheet';
 import { ReactionDetailSheet } from '../components/ReactionDetailSheet';
 import { RoomIntro } from '../components/RoomIntro';
 import { RoomSkeleton } from '../components/RoomSkeleton';
-import { resolveChannelAvatar } from '../lib';
+import { channelKindOf, resolveChannelAvatar } from '../lib';
 import { orderMemberIdsOwnerFirst } from '../utils/orderMemberIds';
 import { pickDmPeerId } from '../utils/dmPeer';
 import { isChannelMember, isSomeoneElsesSelfChat } from '../utils/membership';
@@ -207,12 +207,16 @@ export const ChannelRoomPage = () => {
         isMember
     );
 
+    // One reading of the room's kind for the whole screen, off `stereo` alone — never off the head
+    // count, and never as `!self && !dm` (that negative form is what swallowed `public` elsewhere).
+    // The booleans below are presentation flags derived FROM the kind, which is the shape this
+    // screen is supposed to have; what is banned is deciding the kind at each use.
+    const channelKind = channel ? channelKindOf(channel.stereo) : undefined;
     const isSelfChat = channel?.isSelfChat ?? false;
-    // 1:1 DM (stereo). Header shows the peer's profile; no rename, no participant stack (ADR-0032).
-    const isDmChat = channel?.stereo === 'dm';
-    // Group = anything that is neither the self chat nor a 1:1 DM (stereo). The header
-    // participant stack is group-only; self / 1:1 DM headers stay single-line.
-    const isGroupChat = !!channel && !isSelfChat && !isDmChat;
+    // 1:1 DM. Header shows the peer's profile; no rename, no participant stack (ADR-0032).
+    const isDmChat = channelKind === 'dm';
+    // The header participant stack is group-only; self / 1:1 DM headers stay single-line.
+    const isGroupChat = channelKind === 'group';
     // DM peer (the other participant) for the header title/avatar — resolved from the roster, nick
     // from the site profile only. Null for non-DM channels.
     const dmPeer = useDmPeer(channel, members, profileMap, userId);
@@ -240,10 +244,14 @@ export const ChannelRoomPage = () => {
     // One flag behind both the footer and the composer lock, so they cannot disagree about whether
     // there is anyone to talk to.
     const isPeerGone = dmInviteState.kind !== 'present';
-    // Read receipts show for real groups only; the mode follows the active roster size
-    // (the getReadCount denominator): 2 members read as a 1:1 (binary), 3+ as counts.
+    // Read receipts need somebody who can do the reading. Two conditions, and they are different
+    // questions: a self chat never has a reader (kind), and a 1:1 whose peer is gone no longer has
+    // one (state). The head count is not consulted for either — it used to carry both by accident,
+    // reading 1 for a self chat and 1 again for an emptied 1:1, which is the same number standing
+    // for two unrelated facts. `activeCount` survives as what it actually is: the denominator the
+    // count-vs-tick mode is chosen by.
     const activeCount = activeMemberIds.length;
-    const showReadReceipt = !isSelfChat && activeCount >= 2;
+    const showReadReceipt = channelKind !== 'self' && !isPeerGone && activeCount >= 2;
 
     // `joinedNo` windows the feed to my CURRENT membership (ADR-0067) — cached rows from before a
     // leave stay in the chat cache, and the server stops serving them after a re-join.
@@ -355,12 +363,28 @@ export const ChannelRoomPage = () => {
      * itself and its "go back" action keeps the history entry the user came from.
      */
     const isForeignSelfChat = isSomeoneElsesSelfChat(channel, userId);
+    // One notice per room, even if the effect re-runs before the redirect unmounts this screen.
+    // Toasts stack, so a repeat would put the same sentence on screen two and three times.
+    const noticedNotAMemberRef = useRef<string | null>(null);
     useEffect(() => {
         if (isChannelLoading || isChannelError) return;
         if (!channel || isForeignSelfChat) {
+            const alreadyNoticed = noticedNotAMemberRef.current === stableChannelId;
+            noticedNotAMemberRef.current = stableChannelId;
+            // Say something on the way out. A notification outlives the membership it was sent
+            // for: leaving a room drops it from this device's list and cache, while the push that
+            // announced it stays in the OS tray and in the in-app notification list — both of
+            // which are deliberately NOT withdrawn on leave, because withdrawing them is
+            // unreliable per platform and a tap can be answered safely instead. This is where it
+            // is answered. A silent redirect looked identical to the app losing the tap.
+            //
+            // One line, not a dialog: nothing is being confirmed or prevented, and no way back in
+            // is offered — returning to a 1:1 takes the other side's invite, so a button here
+            // would be one that cannot work.
+            if (!alreadyNoticed) toast({ title: t('chat.notAMember') });
             void navigate(ROUTES.root, { replace: true });
         }
-    }, [channel, isForeignSelfChat, isChannelLoading, isChannelError, navigate]);
+    }, [channel, isForeignSelfChat, isChannelLoading, isChannelError, navigate, t, stableChannelId]);
 
     // Read handling (stage 1: channel.chatNo right on entry, stage 2: correction after messages
     // load / on foreground return) is owned by useReadMarker. Marking read right after sending
@@ -424,6 +448,9 @@ export const ChannelRoomPage = () => {
         isLoadingMore,
         loadMore,
         loadUntil,
+        // The same cursor the feed is windowed by, so a jump cannot aim at a row this screen is
+        // never going to render.
+        joinedNo: myJoin?.joinedNo,
     });
 
     // Floating date pill: while scrolling, finds and shows the label of the date group crossing

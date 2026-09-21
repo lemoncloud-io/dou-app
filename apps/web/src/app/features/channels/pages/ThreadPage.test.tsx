@@ -8,6 +8,8 @@ let mockLocationState: unknown = null;
 let mockChats: DomainChat[] = [];
 let mockIsLoading = false;
 let mockChannel: Record<string, unknown> | null = { id: 'ch1', stereo: 'group' };
+let mockMyJoin: { joinedNo?: number } | null = null;
+let mockChatParams: unknown = null;
 
 jest.mock('react-router-dom', () => ({
     useParams: () => ({ channelId: 'ch1', rootNo: '7' }),
@@ -75,18 +77,21 @@ jest.mock('../../../ui/hooks/useChromeInsets', () => ({
 jest.mock('../hooks', () => ({
     useChannel: () => ({ channel: mockChannel }),
     // The room and the thread are two screens of the same channel, so they share the same single join observation.
-    useChannelJoins: () => ({ joins: [], myJoin: null, activeMemberIds: [], cursorByUser: new Map() }),
+    useChannelJoins: () => ({ joins: [], myJoin: mockMyJoin, activeMemberIds: [], cursorByUser: new Map() }),
     useChannelMembers: () => ({ members: [] }),
     useChannelProfiles: () => ({ profileMap: new Map() }),
     useChannelTitle: () => '개발 모임방',
     useChatMutations: () => ({ sendMessage: jest.fn(), readMessage: jest.fn() }),
-    useChats: () => ({
-        rawChats: mockChats,
-        isLoading: mockIsLoading,
-        hasMore: false,
-        isLoadingMore: false,
-        loadMore: jest.fn(),
-    }),
+    useChats: (params: unknown) => {
+        mockChatParams = params;
+        return {
+            rawChats: mockChats,
+            isLoading: mockIsLoading,
+            hasMore: false,
+            isLoadingMore: false,
+            loadMore: jest.fn(),
+        };
+    },
     useDmPeer: () => null,
     useReactions: () => ({ toggleReaction: jest.fn(), failedId: null }),
     // This screen's tests do not cover edit and delete. That behaviour's contract is held by
@@ -124,6 +129,8 @@ beforeEach(() => {
     mockChats = [];
     mockIsLoading = false;
     mockChannel = { id: 'ch1', stereo: 'group' };
+    mockMyJoin = null;
+    mockChatParams = null;
 });
 
 describe('ThreadPage — 진입 시 첫 화면', () => {
@@ -237,6 +244,17 @@ describe('ThreadPage — 긴 메시지 전체보기', () => {
 
         expect(screen.getByText('chat.room.messageDetail')).toBeInTheDocument();
         expect(screen.getAllByText('아주 긴 답글 본문').length).toBeGreaterThan(1);
+    });
+
+    // A thread reads the same channel the room does, so it has to ask for the same slice of it.
+    // It did not: the room passed `joinedNo` and this screen did not, so history the room had
+    // already hidden after a re-join was still reachable by opening a thread on it.
+    it('내 참여 구간 커서를 대화 조회에 그대로 넘긴다', () => {
+        mockMyJoin = { joinedNo: 42 };
+
+        render(<ThreadPage />);
+
+        expect(mockChatParams).toMatchObject({ channelId: 'ch1', joinedNo: 42 });
     });
 
     // The full-text dialog renders plain text only. Passing the payload through as-is would open raw JSON.

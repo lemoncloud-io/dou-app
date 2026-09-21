@@ -79,9 +79,9 @@ export const ThreadPage = () => {
     const { channel } = useChannel(channelId || null);
     // One join subscription for the screen — the roster rows and the active-member set are two
     // readings of it (see useChannelJoins). A thread and its room are two views of one channel, so
-    // they compose the same way. `myJoin` is no longer read here: it fed the channel title, and the
-    // header stopped naming the channel (see below).
-    const { joins, activeMemberIds } = useChannelJoins(channelId || null);
+    // they compose the same way. `myJoin` is read for its `joinedNo` only — the title it used to
+    // feed is gone with the channel name from the header (see below).
+    const { joins, myJoin, activeMemberIds } = useChannelJoins(channelId || null);
     const { members } = useChannelMembers({
         channelId: stableChannelId,
         detail: true,
@@ -96,7 +96,16 @@ export const ThreadPage = () => {
     // to run purely to feed the header. `members` / `profileMap` above stay: they are what give
     // the root and its replies their names and faces.
 
-    const chatParams = useMemo(() => ({ channelId: stableChannelId, limit: 100 }), [stableChannelId]);
+    // `joinedNo` windows the cache to my CURRENT membership, exactly as the room does. A thread is
+    // another view of the same channel, so it has to ask the same question — and it was not: rows
+    // from before a leave survive in the local cache (the sync plan keeps them on purpose), so an
+    // unwindowed read here showed, inside a thread, the very history the room had just hidden.
+    // ADR-0067's rule is one rule for every surface; a second surface does not get a second
+    // reading of it.
+    const chatParams = useMemo(
+        () => ({ channelId: stableChannelId, limit: 100, joinedNo: myJoin?.joinedNo }),
+        [stableChannelId, myJoin?.joinedNo]
+    );
     const { rawChats, isLoading, hasMore, isLoadingMore, loadMore } = useChats(chatParams);
     const { sendMessage, readMessage } = useChatMutations();
     const editing = useMessageEditing(`${stableChannelId}/${rootNo ?? ''}`);
