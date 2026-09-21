@@ -306,6 +306,13 @@ it looks for the node.
 `joinedNo` to `useChats` and the thread did not, so history the room had just hidden was still
 reachable by opening a thread on it. One rule, every surface.
 
+**A thread whose root is out of window says so and stops there.** A reply written after my re-join
+to a root from before it is inside my window and shows a thread footer, so this is one tap away.
+`rootNo` is the chat number, so the screen decides it without the row — the row is what never
+arrives. The generic "not loaded yet" copy and its "load older" button are both wrong here, and the
+composer closes with them: a reply needs the root's id, so `handleSend` would drop what was typed
+without a word.
+
 **A room I am not in says so.** The room redirects home when the channel row was there and
 disappeared, and that redirect used to be silent, which looked exactly like the app dropping the
 tap. It now leaves one line behind, once per room. No way back in is offered: returning to a 1:1

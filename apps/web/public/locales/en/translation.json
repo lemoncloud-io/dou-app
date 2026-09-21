@@ -820,7 +820,8 @@
             "loadOlder": "Load older messages",
             "title": "Thread",
             "newReplyCount_one": "{{count}} new comment",
-            "newReplyCount_other": "{{count}} new comments"
+            "newReplyCount_other": "{{count}} new comments",
+            "rootOutsideJoinWindow": "That message is from before you rejoined, so it isn't shown here. It is still on the other participant's screen."
         },
         "unknownUser": "Unknown user",
         "me": "You",

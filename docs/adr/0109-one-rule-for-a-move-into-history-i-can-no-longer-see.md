@@ -71,6 +71,15 @@ just hidden was reachable by opening a thread on it. A thread is a view of a cha
 place to decide what a channel shows. One rule, every surface — the same sentence ADR-0067 wrote,
 applied to the surface that arrived after it.
 
+**Closing that hole opens a screen, and the screen has to be right.** A reply written after my
+re-join to a root from before it is inside my window and carries a thread footer, so the thread is
+one tap away and its root is one I will never be served. The generic "not loaded yet" branch was
+wrong for it twice over: it promised the message appears once older history loads, and offered a
+button to load it. The root's chat number is in the URL, so this is decidable without the row —
+which is the point, because the row is exactly what never arrives. That case says the same thing
+decision 2 says, drops the button, and closes the composer, since a reply needs the root's id and
+would otherwise be swallowed on send.
+
 ### 4. A room I am not in says one line, and offers no way back
 
 The redirect out of a vanished room was silent, which was indistinguishable from the app dropping
