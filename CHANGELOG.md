@@ -1,5 +1,32 @@
 # Changelog
 
+## [2026-09-21] - root@0.66.0, @chatic/web@0.52.0
+
+### Features
+
+- (web) route push and invite entry through the stack policy
+- (web) let a route transition retire the in-app push banner
+- (web) give "the app did nothing with that back press" a name
+- (web) put the entry transition rules in one pure table
+
+### Bug Fixes
+
+- (web) count the encoded /i link as an invite entry path
+- (web) judge "can we go back" on the router's index, not history.length
+
+### Documentation
+
+- (adr) record the navigation stack module and the router-index depth (ADR-0108)
+
+### Refactor
+
+- (web) give the navigation module one entry point
+- (web) move the route stack and its observer into a navigation module
+
+### Other
+
+- test: (web) pin the overlay's back row against the judgement, not the snapshot
+
 ## [2026-09-21] - root@0.65.1, @chatic/landing@0.5.1
 
 ### Bug Fixes
