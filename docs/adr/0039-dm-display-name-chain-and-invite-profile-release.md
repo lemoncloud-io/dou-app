@@ -25,7 +25,20 @@ Facts confirmed during the investigation drove the decision.
 1. **`join.nick` is "the name I gave this room"** — not a person's name
    (`apps/web/src/app/features/channels/types/index.ts:26`, `apps/web/src/app/utils/channel.ts:13`). The
    things that write it are `UpdateChannelDialog` and `SelfChatNameDialog`, and ADR-0032 decision 3
-   closed that entry for DMs. In other words, **nothing writes a DM's `join.nick` today.**
+   closed that entry for DMs. ~~In other words, **nothing writes a DM's `join.nick` today.**~~
+
+    > **Correction after measurement (2026-09-18, shipped in dou-app#475)** — the client writes nothing, but
+    > **the server does**. On an accepted invite it seeds the **recipient's** `join.nick` with the inviter's
+    > auto-generated account name (`User_0101`, built from the last digits of a phone number). Since `join.nick` is
+    > the chain's first and most trusted step, that value walked in through the one door the chain never questions:
+    > the invited person's room header read `User_0101` while the body and the member list read the peer's place
+    > profile. The guard that kept raw ids out of the chain is widened from "a raw id" to "a value the server put
+    > there" (`isServerSeededNick`, covering `User_0101` and the masked `***0101`), and the chain consults
+    > `join.nick` only through it. `isRawIdNick` is unchanged, so `displayName` keeps its narrower reading — a
+    > different axis. The **sender's** `join.nick` is untouched: it holds the friend name they typed on the invite
+    > form, and that must survive. Accepted trade-off: someone who genuinely names a room `User_1234` loses that
+    > name.
+
 2. **The first line of the Figma intro is a string that already exists.** `chat.room.system.join` =
    `"님이 채팅방에 입장했습니다."`, identical down to the characters. Today it is rendered inside the
    stream as a centred pill (`SystemNotice`), and because of the `isOwnSystemChat` filter, **only the
