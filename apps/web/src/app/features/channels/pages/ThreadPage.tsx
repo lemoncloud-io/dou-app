@@ -6,7 +6,7 @@ import { useLocation, useParams } from 'react-router-dom';
 import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { runtime } from '@chatic/app-runtime';
-import { canModifyMessage } from '@chatic/data';
+import { canModifyMessage, isInJoinWindow } from '@chatic/data';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 import { ChatRoomHeader, DefaultAvatar, ImageAvatar, MessageInput } from '@chatic/web-ui-kit';
 
@@ -79,9 +79,9 @@ export const ThreadPage = () => {
     const { channel } = useChannel(channelId || null);
     // One join subscription for the screen — the roster rows and the active-member set are two
     // readings of it (see useChannelJoins). A thread and its room are two views of one channel, so
-    // they compose the same way. `myJoin` is no longer read here: it fed the channel title, and the
-    // header stopped naming the channel (see below).
-    const { joins, activeMemberIds } = useChannelJoins(channelId || null);
+    // they compose the same way. `myJoin` is read for its `joinedNo` only — the title it used to
+    // feed is gone with the channel name from the header (see below).
+    const { joins, myJoin, activeMemberIds } = useChannelJoins(channelId || null);
     const { members } = useChannelMembers({
         channelId: stableChannelId,
         detail: true,
@@ -96,8 +96,36 @@ export const ThreadPage = () => {
     // to run purely to feed the header. `members` / `profileMap` above stay: they are what give
     // the root and its replies their names and faces.
 
-    const chatParams = useMemo(() => ({ channelId: stableChannelId, limit: 100 }), [stableChannelId]);
+    // `joinedNo` windows the cache to my CURRENT membership, exactly as the room does. A thread is
+    // another view of the same channel, so it has to ask the same question — and it was not: rows
+    // from before a leave survive in the local cache (the sync plan keeps them on purpose), so an
+    // unwindowed read here showed, inside a thread, the very history the room had just hidden.
+    // ADR-0067's rule is one rule for every surface; a second surface does not get a second
+    // reading of it.
+    const chatParams = useMemo(
+        () => ({ channelId: stableChannelId, limit: 100, joinedNo: myJoin?.joinedNo }),
+        [stableChannelId, myJoin?.joinedNo]
+    );
     const { rawChats, isLoading, hasMore, isLoadingMore, loadMore } = useChats(chatParams);
+
+    /**
+     * Is the root this URL names from before my current membership?
+     *
+     * `rootNo` IS the chat number, so this is decidable without the row — which matters, because
+     * the row is exactly what will never arrive. Reachable in one tap: somebody replies, after my
+     * re-join, to a message from before it. Their reply is inside my window and carries a thread
+     * footer, and the thread it opens has a root I am not entitled to see.
+     *
+     * Without this the screen falls into its generic "not loaded yet" branch, which says the
+     * message will appear once older history is fetched and offers a button to fetch it. Both are
+     * untrue here: the cache is windowed by the same cursor and the server stops serving below it,
+     * so the button can only ever spin.
+     */
+    const rootOutsideJoinWindow = useMemo(() => {
+        const parsed = Number(rootNo);
+        if (!Number.isInteger(parsed) || parsed <= 0) return false;
+        return !isInJoinWindow({ chatNo: parsed }, myJoin?.joinedNo);
+    }, [rootNo, myJoin?.joinedNo]);
     const { sendMessage, readMessage } = useChatMutations();
     const editing = useMessageEditing(`${stableChannelId}/${rootNo ?? ''}`);
     const { toggleReaction, failedId } = useReactions();
@@ -359,8 +387,12 @@ export const ThreadPage = () => {
                             renderRoot(root)
                         ) : (
                             <div className="flex flex-col items-center gap-2 px-6 py-8 text-center text-sm text-muted-foreground">
-                                <span>{t('chat.thread.unavailable')}</span>
-                                {hasMore && (
+                                <span>
+                                    {rootOutsideJoinWindow
+                                        ? t('chat.thread.rootOutsideJoinWindow')
+                                        : t('chat.thread.unavailable')}
+                                </span>
+                                {hasMore && !rootOutsideJoinWindow && (
                                     <button
                                         type="button"
                                         onClick={() => void loadMore()}
@@ -406,8 +438,10 @@ export const ThreadPage = () => {
                     onKeyDown={handleKeyDown}
                     inputRef={inputRef}
                     placeholder={t('chat.thread.inputPlaceholder')}
-                    // One live field at a time — same rule as the room.
-                    disabled={editing.isEditing}
+                    // One live field at a time — same rule as the room. Also closed when the root
+                    // is outside my window: a reply needs the root's full id, so `handleSend`
+                    // would drop what was typed without saying anything.
+                    disabled={editing.isEditing || rootOutsideJoinWindow}
                 />
             </div>
 

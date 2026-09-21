@@ -1,10 +1,10 @@
 import { useMemo } from 'react';
 
-import type { DomainJoin } from '@chatic/data';
+import type { DomainChannel, DomainJoin } from '@chatic/data';
 
 import { useRelayInvites, useSentInviteLog } from '../../../hooks';
 import { useInviteCountdown, type InviteCountdown } from '../../invite/hooks/useInviteCountdown';
-import { hasLeftChannel } from '../utils/membership';
+import { hasLeftChannel, isDmPeerMissing } from '../utils/membership';
 import { resolveDmInviteState, type DmInviteState } from '../utils/dmInviteState';
 
 /**
@@ -20,10 +20,17 @@ interface UseDmInviteStateInput {
     channelId?: string | null;
     /** `channel.stereo === 'dm'`. Anything else short-circuits to `present` and asks nothing. */
     isDm: boolean;
-    /** The 1:1 peer's user id (`useDmPeer`). */
+    /** The 1:1 peer's user id (`useDmPeer`). Absent once the server drops them from the roster. */
     peerId?: string | null;
     /** This channel's join rows, from `useChannelJoins` — the screen's single join observer. */
     joins: DomainJoin[];
+    /**
+     * The channel itself, for the roster reading. Needed because a departed peer leaves NO join row
+     * and no `peerId` — see `isDmPeerMissing`.
+     */
+    channel?: Pick<DomainChannel, 'stereo' | 'memberIds'> | null;
+    /** My user id, to tell my own roster entry from the peer's. */
+    userId?: string | null;
 }
 
 /**
@@ -59,11 +66,31 @@ export interface DmInviteStateResult {
  * free to live on `ChannelRoomPage`, which every channel stereo shares — a group room, a self chat,
  * or a healthy 1:1 costs nothing here.
  */
-export const useDmInviteState = ({ channelId, isDm, peerId, joins }: UseDmInviteStateInput): DmInviteStateResult => {
+export const useDmInviteState = ({
+    channelId,
+    isDm,
+    peerId,
+    joins,
+    channel,
+    userId,
+}: UseDmInviteStateInput): DmInviteStateResult => {
+    /**
+     * Two readings, because the server ends a 1:1 membership in two different shapes.
+     *
+     * `hasLeftChannel` reads a join row that says it ended. `isDmPeerMissing` covers the case where
+     * there is no row to read at all — the peer is gone from `channel.memberIds` too, which is what
+     * a real departure looked like when measured (2026-09-18). Relying on the join row alone left
+     * the room `present` with a live composer, which is the reported bug.
+     *
+     * Either one is enough. Neither can produce a false positive on a healthy room: a present peer
+     * has a live join row AND sits in the roster.
+     */
     const peerLeft = useMemo(() => {
-        if (!isDm || !peerId) return false;
+        if (!isDm) return false;
+        if (isDmPeerMissing(channel, userId)) return true;
+        if (!peerId) return false;
         return hasLeftChannel(joins.find(join => join.userId === peerId));
-    }, [isDm, peerId, joins]);
+    }, [isDm, peerId, joins, channel, userId]);
 
     // Polling is keyed on `peerLeft` rather than on "an invite is pending", even though only the
     // pending case has news coming. Deriving the flag from the invite would mean feeding this hook's

@@ -6,6 +6,7 @@
 import { logger } from '@chatic/bridges';
 
 import { createSyncPlans } from './plans';
+import { clearRefusedChannels, isChannelRefused } from './refusedChannels';
 
 jest.mock('../../session', () => new Proxy({}, { get: () => jest.fn() }));
 // Only the data-runtime accessors are cut — `toDomainChat` has to be the real thing, because that's
@@ -251,5 +252,58 @@ describe('plan onStopped — 정지를 삭제 전에 남긴다', () => {
         );
 
         expect(order).toEqual(['log', 'delete']);
+    });
+});
+
+// The channel plan carries a `decide` so the FIRST refusal can be seen. Supplying one replaces the
+// library's default, so what these pin down is that nothing about *when* a target stops moved.
+describe('createSyncPlans — 채널 거절 관찰이 중단 시점을 바꾸지 않는다', () => {
+    const channelPolicy = () => {
+        const plan = createSyncPlans(() => mockBoundCid.current).find(candidate => candidate.domain === 'channel');
+        expect(plan?.failurePolicy?.decide).toBeDefined();
+        return plan!.failurePolicy!;
+    };
+
+    const failure = (kind: 'gone' | 'transient', goneStreak: number, id = 'ch-1') => ({
+        target: { type: 'channel' as const, id },
+        error: new Error('403 FORBIDDEN - not a member of channel'),
+        kind,
+        failures: goneStreak,
+        goneStreak,
+    });
+
+    afterEach(() => clearRefusedChannels());
+
+    it('첫 거절은 retry로 두고, 둘째에 stop한다 — 라이브러리 기본값 그대로', () => {
+        const policy = channelPolicy();
+
+        expect(policy.decide!(failure('gone', 1))).toBe('retry');
+        expect(policy.decide!(failure('gone', 2))).toBe('stop');
+        expect(policy.stopAfter).toBe(2);
+    });
+
+    it('연결 문제(transient)는 몇 번이든 retry다', () => {
+        const policy = channelPolicy();
+
+        expect(policy.decide!(failure('transient', 0))).toBe('retry');
+        expect(policy.decide!(failure('transient', 0))).toBe('retry');
+    });
+
+    // The point of the whole hook: the room can answer on the first refusal, not the second.
+    it('첫 거절에서 이미 기억한다 — 중단을 기다리지 않는다', () => {
+        const policy = channelPolicy();
+
+        policy.decide!(failure('gone', 1));
+
+        expect(isChannelRefused('ch-1')).toBe(true);
+    });
+
+    // A dead socket is not a membership fact, and saying so would lie to somebody who is offline.
+    it('transient은 기억하지 않는다', () => {
+        const policy = channelPolicy();
+
+        policy.decide!(failure('transient', 0, 'ch-2'));
+
+        expect(isChannelRefused('ch-2')).toBe(false);
     });
 });

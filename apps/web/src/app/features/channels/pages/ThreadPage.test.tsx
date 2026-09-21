@@ -8,6 +8,9 @@ let mockLocationState: unknown = null;
 let mockChats: DomainChat[] = [];
 let mockIsLoading = false;
 let mockChannel: Record<string, unknown> | null = { id: 'ch1', stereo: 'group' };
+let mockMyJoin: { joinedNo?: number } | null = null;
+let mockChatParams: unknown = null;
+let mockHasMore = false;
 
 jest.mock('react-router-dom', () => ({
     useParams: () => ({ channelId: 'ch1', rootNo: '7' }),
@@ -38,7 +41,11 @@ jest.mock('@chatic/web-ui-kit', () => ({
             {title}
         </div>
     ),
-    MessageInput: ({ placeholder }: any) => <div data-testid="composer">{placeholder}</div>,
+    MessageInput: ({ placeholder, disabled }: any) => (
+        <div data-testid="composer" data-disabled={String(!!disabled)}>
+            {placeholder}
+        </div>
+    ),
     ImageAvatar: ({ src }: any) => <img data-testid="root-avatar" src={src} alt="" />,
     DefaultAvatar: () => <div data-testid="root-default-avatar" />,
 }));
@@ -75,18 +82,21 @@ jest.mock('../../../ui/hooks/useChromeInsets', () => ({
 jest.mock('../hooks', () => ({
     useChannel: () => ({ channel: mockChannel }),
     // The room and the thread are two screens of the same channel, so they share the same single join observation.
-    useChannelJoins: () => ({ joins: [], myJoin: null, activeMemberIds: [], cursorByUser: new Map() }),
+    useChannelJoins: () => ({ joins: [], myJoin: mockMyJoin, activeMemberIds: [], cursorByUser: new Map() }),
     useChannelMembers: () => ({ members: [] }),
     useChannelProfiles: () => ({ profileMap: new Map() }),
     useChannelTitle: () => '개발 모임방',
     useChatMutations: () => ({ sendMessage: jest.fn(), readMessage: jest.fn() }),
-    useChats: () => ({
-        rawChats: mockChats,
-        isLoading: mockIsLoading,
-        hasMore: false,
-        isLoadingMore: false,
-        loadMore: jest.fn(),
-    }),
+    useChats: (params: unknown) => {
+        mockChatParams = params;
+        return {
+            rawChats: mockChats,
+            isLoading: mockIsLoading,
+            hasMore: mockHasMore,
+            isLoadingMore: false,
+            loadMore: jest.fn(),
+        };
+    },
     useDmPeer: () => null,
     useReactions: () => ({ toggleReaction: jest.fn(), failedId: null }),
     // This screen's tests do not cover edit and delete. That behaviour's contract is held by
@@ -124,6 +134,9 @@ beforeEach(() => {
     mockChats = [];
     mockIsLoading = false;
     mockChannel = { id: 'ch1', stereo: 'group' };
+    mockMyJoin = null;
+    mockChatParams = null;
+    mockHasMore = false;
 });
 
 describe('ThreadPage — 진입 시 첫 화면', () => {
@@ -237,6 +250,58 @@ describe('ThreadPage — 긴 메시지 전체보기', () => {
 
         expect(screen.getByText('chat.room.messageDetail')).toBeInTheDocument();
         expect(screen.getAllByText('아주 긴 답글 본문').length).toBeGreaterThan(1);
+    });
+
+    // A thread reads the same channel the room does, so it has to ask for the same slice of it.
+    // It did not: the room passed `joinedNo` and this screen did not, so history the room had
+    // already hidden after a re-join was still reachable by opening a thread on it.
+    it('내 참여 구간 커서를 대화 조회에 그대로 넘긴다', () => {
+        mockMyJoin = { joinedNo: 42 };
+
+        render(<ThreadPage />);
+
+        expect(mockChatParams).toMatchObject({ channelId: 'ch1', joinedNo: 42 });
+    });
+
+    // One tap away: somebody replies, after my re-join, to a message from before it. Their reply
+    // is inside my window and carries a thread footer, so the thread opens on a root I will never
+    // be served. The generic branch would promise it appears once older history loads, and hand
+    // over a button to load it.
+    describe('참여 구간 밖의 원본으로 스레드가 열릴 때', () => {
+        beforeEach(() => {
+            // rootNo is 7 (see the router mock); a cursor above it puts the root out of range.
+            mockMyJoin = { joinedNo: 20 };
+            mockHasMore = true;
+            mockChats = [];
+        });
+
+        it('왜 안 보이는지 말하고, 불러올 수 없는 것을 불러오라고 하지 않는다', () => {
+            render(<ThreadPage />);
+
+            expect(screen.getByText('chat.thread.rootOutsideJoinWindow')).toBeInTheDocument();
+            expect(screen.queryByText('chat.thread.unavailable')).not.toBeInTheDocument();
+            expect(screen.queryByText('chat.thread.loadOlder')).not.toBeInTheDocument();
+        });
+
+        it('입력창을 닫는다 — 답글은 원본 id가 있어야 보내지므로 조용히 버려질 자리다', () => {
+            render(<ThreadPage />);
+
+            expect(screen.getByTestId('composer')).toHaveAttribute('data-disabled', 'true');
+        });
+    });
+
+    // The cursor is not what is missing here, so the old promise still holds: the row really can
+    // arrive, and the button really can fetch it.
+    it('원본이 아직 안 온 것뿐이면 기존 안내와 불러오기 버튼을 그대로 둔다', () => {
+        mockMyJoin = { joinedNo: 0 };
+        mockHasMore = true;
+        mockChats = [];
+
+        render(<ThreadPage />);
+
+        expect(screen.getByText('chat.thread.unavailable')).toBeInTheDocument();
+        expect(screen.getByText('chat.thread.loadOlder')).toBeInTheDocument();
+        expect(screen.getByTestId('composer')).toHaveAttribute('data-disabled', 'false');
     });
 
     // The full-text dialog renders plain text only. Passing the payload through as-is would open raw JSON.

@@ -9,6 +9,7 @@ import { FloatingButton, TextField } from '@chatic/web-ui-kit';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import {
+    INVITE_EXPIRES_DAYS,
     useActivePlaceName,
     useLinkedAccounts,
     useMyProfile,
@@ -384,8 +385,20 @@ export const ContactInvitePage = () => {
                         </h2>
                         <div className="flex flex-col text-center text-[14px] font-medium leading-[20px]">
                             <p className="whitespace-pre-line text-placeholder">{t('contactInvite.headingNote')}</p>
-                            {/* Server-rendered validity — never a hardcoded duration (ADR-0089 D8). */}
-                            <p className="text-description">{t('contactInvite.validityHint')}</p>
+                            {/*
+                             * Derived validity — never a duration written into the sentence
+                             * (ADR-0089 D8). The other two screens in this flow already derive
+                             * theirs from the server's `expiredAt`; this one cannot, because the
+                             * link does not exist yet, so it derives from the value this client
+                             * is about to ASK for. Same single source, one step earlier.
+                             *
+                             * It matters because the fixed copy here said three days while the
+                             * two screens after it counted down from one, so the same flow
+                             * contradicted itself and the first screen was the one that lied.
+                             */}
+                            <p className="text-description">
+                                {t('contactInvite.validityHintDays', { count: INVITE_EXPIRES_DAYS })}
+                            </p>
                         </div>
                     </div>
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 
 import { runtime } from '@chatic/app-runtime';
 import type { DomainChannel } from '@chatic/data';
@@ -111,10 +111,34 @@ export const useChannel = (channelId: string | null, options?: { seed?: DomainCh
         };
     }, [channelRepository, channelId]);
 
+    /**
+     * Did the server refuse this channel outright?
+     *
+     * The timeout above cannot tell a refusal from a slow fetch, so it waits out the full window
+     * and then calls both an error. The sync layer knows the difference on the first poll — the
+     * scheduler classifies a 403/404 as `gone` — and records it (see `runtime.sync`). Reading it
+     * here turns the most common case of that timeout, a stale notification into a room this
+     * device is not in, into an immediate and accurate answer.
+     *
+     * Deliberately NOT folded into `isError`. It is a different fact with a different sentence:
+     * "you are not in this conversation" is something we know, and "could not load" is what we say
+     * when we do not. A caller that does not care can keep reading `isError` alone.
+     */
+    const isRefused = useSyncExternalStore(
+        runtime.sync.subscribeRefusedChannels,
+        () => (channelId ? runtime.sync.isChannelRefused(channelId) : false),
+        () => false
+    );
+
     // The observer's answer always wins; the seed only fills the gap until it lands. A resolved
     // REMOVAL must still win over the seed, so the fallback applies only while unresolved.
     const effective = channel ?? (!hasResolvedRef.current ? seed : null);
     const clientChannel = useMemo(() => (effective ? toClientChannel(effective, myUid) : null), [effective, myUid]);
 
-    return { channel: clientChannel, isLoading: isLoading && !seed, isError };
+    // A refusal only speaks while there is nothing to show. A cached row that the server has since
+    // stopped serving is a different situation — the screen has content, and the removal path owns
+    // what happens to it.
+    const isForbidden = isRefused && !effective;
+
+    return { channel: clientChannel, isLoading: isLoading && !seed && !isForbidden, isError, isForbidden };
 };

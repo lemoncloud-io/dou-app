@@ -12,6 +12,7 @@ import { unrefTimer } from '../../utils/unrefTimer';
 import type { ISocketManager, SocketKind } from '../types';
 import { UNREGISTER_GRACE_MS } from './constants';
 import { createSyncPlans } from './plans';
+import { clearRefusedChannels } from './refusedChannels';
 import type { ISyncManager, SyncManagerDeps, SyncRuntimeOptions, SyncWatchEntry } from './types';
 import { isCidActive as isCidActiveGuard } from '@chatic/data';
 
@@ -102,6 +103,12 @@ export class SyncManager implements ISyncManager {
         const uid = this.getUid();
         if (uid === this.lastUid) return;
         this.lastUid = uid;
+
+        // A refusal is a fact about what the server told ONE account, so it means nothing to the
+        // next one. Cleared here rather than per target: the entries below are only the targets
+        // still registered, and a refusal outlives its registration on purpose (the screen that
+        // asked for it has usually left by the time it is read).
+        clearRefusedChannels();
 
         for (const [key, entry] of [...this.watchEntries.entries()]) {
             if (entry.uid === uid) continue;
@@ -214,6 +221,7 @@ export class SyncManager implements ISyncManager {
     }
 
     public destroy(): void {
+        clearRefusedChannels();
         this.unsubscribeSlots();
         this.unsubscribeClient();
         this.unsubscribeSession();

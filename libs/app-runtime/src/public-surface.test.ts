@@ -85,7 +85,14 @@ const GROUPS: Record<string, readonly string[]> = {
         'useInvitedCloudNameSync',
         'useRuntimeRepositories',
     ],
-    sync: ['getSyncManager', 'useChannelSync', 'useChatSync', 'usePlaceSync'],
+    sync: [
+        'getSyncManager',
+        'isChannelRefused',
+        'subscribeRefusedChannels',
+        'useChannelSync',
+        'useChatSync',
+        'usePlaceSync',
+    ],
     push: ['useDeviceTokenRegistration', 'useRegisterDeviceTokenMutation'],
     report: ['reportIssue', 'uploadLogBatch'],
 };

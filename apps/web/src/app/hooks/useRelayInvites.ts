@@ -58,7 +58,7 @@ export const INVITE_LIST_LIMIT = 100;
  * and so there is exactly one place to move it. The server's own default is 3 days (ADR-0089 D8);
  * sending this narrows the window a phone-bound link is exposed for. Callers may still override.
  */
-const INVITE_EXPIRES_DAYS = 1;
+export const INVITE_EXPIRES_DAYS = 1;
 
 /**
  * How long a caller-driven `refetch` waits for the relay handshake before giving up (ms).

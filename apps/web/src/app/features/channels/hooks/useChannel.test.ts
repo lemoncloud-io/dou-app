@@ -12,6 +12,8 @@ jest.mock('@chatic/app-runtime', () => ({
         },
         sync: {
             useChannelSync: jest.fn(),
+            isChannelRefused: jest.fn(),
+            subscribeRefusedChannels: jest.fn(),
         },
         session: {
             useSessionIdentity: jest.fn(),
@@ -33,6 +35,9 @@ beforeEach(() => {
     (runtime.data.useRuntimeRepositories as jest.Mock).mockReturnValue({ channel: { observeItem } });
     (runtime.session.useSessionIdentity as jest.Mock).mockReturnValue({ userId: 'me' });
     (runtime.sync.useChannelSync as jest.Mock).mockReturnValue(undefined);
+    (runtime.sync.isChannelRefused as jest.Mock).mockReturnValue(false);
+    // The store's real subscribe; tests drive the verdict through `isChannelRefused` and re-render.
+    (runtime.sync.subscribeRefusedChannels as jest.Mock).mockImplementation(() => () => undefined);
     observeItem.mockImplementation((_id, cb) => {
         emit = cb;
         return unsubscribe;
@@ -226,5 +231,40 @@ describe('useChannel', () => {
         await waitFor(() => expect(result.current.channel).not.toBeNull());
         expect(result.current.channel?.isOwner).toBe(true);
         expect(result.current.channel?.memberCount).toBe(3);
+    });
+
+    // A refusal is an answer the server already gave, so the resolve timeout — which exists for a
+    // fetch that might still land — must not stand between it and the screen.
+    describe('서버가 거절한 채널', () => {
+        it('기다리지 않고 거절로 답한다', () => {
+            (runtime.sync.isChannelRefused as jest.Mock).mockReturnValue(true);
+
+            const { result } = renderHook(() => useChannel('ch-1'));
+
+            expect(result.current.isForbidden).toBe(true);
+            expect(result.current.isLoading).toBe(false);
+            expect(result.current.isError).toBe(false);
+        });
+
+        // Two different facts, two different sentences: one is something we know, the other is what
+        // we say when we do not. Folding them together would put "you are not in this" on a dropped
+        // connection.
+        it('불러오기 실패와 섞이지 않는다', () => {
+            const { result } = renderHook(() => useChannel('ch-1'));
+
+            expect(result.current.isForbidden).toBe(false);
+        });
+
+        // A cached row means the screen has something to show, and what happens to it belongs to the
+        // removal path — a refusal arriving late must not blank a room that is rendering.
+        it('보여 줄 행이 이미 있으면 말하지 않는다', async () => {
+            (runtime.sync.isChannelRefused as jest.Mock).mockReturnValue(true);
+
+            const { result } = renderHook(() => useChannel('ch-1'));
+            act(() => emit(channelRow()));
+
+            await waitFor(() => expect(result.current.channel?.id).toBe('ch-1'));
+            expect(result.current.isForbidden).toBe(false);
+        });
     });
 });

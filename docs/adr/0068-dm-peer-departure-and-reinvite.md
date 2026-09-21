@@ -3,6 +3,7 @@
 > Status: Accepted · Decided: 2026-08-25
 > · Follows [ADR-0032](0032-dm-chat-room-screen.md) (DM screen) · [ADR-0039](0039-dm-display-name-chain-and-invite-profile-release.md) (name chain)
 > · [ADR-0067](0067-rejoin-hides-prior-messages.md) (rejoin display gate) lays the groundwork this scenario assumes
+> · **Corrected after measurement by [ADR-0109](./0109-one-rule-for-a-move-into-history-i-can-no-longer-see.md)** (2026-09-21) — see the dated notes at decisions 2, 4, 5 and in Consequences
 > · The relay invite send flow is [relay-invite-sender.md](../../apps/web/docs/feature/invite/relay-invite-sender.md),
 > accept is [relay-invite-accept.md](../../apps/web/docs/feature/invite/relay-invite-accept.md)
 
@@ -87,6 +88,12 @@ gate guarantees "whoever returns sees an empty room."
 - The target is treated as **the same person.** "Change contact" is for correcting the same person's changed number
   — no path is created for adding a third party into this room.
 
+> **Confirmed by measurement (2026-09-18)** — a DM channel id is **derived from the pair** (`{ownerId}@{peerId}`),
+> so this decision was already the server's behaviour rather than something the client had to arrange. Leaving and
+> re-accepting returned the same id, the room list still held exactly one DM with that peer, and the returning
+> side's `joinedNo` advanced while the stayer's stayed at its original value — ADR-0067's gate reading exactly as
+> designed.
+
 ### 3. "Reinvite" goes **straight to the phone-entry screen** — no confirmation step
 
 `Reinvite` → name/phone entry form → `Done` → SMS sent → return to room.
@@ -111,11 +118,29 @@ gate guarantees "whoever returns sees an empty room."
   ADR-0089 D8's principle while matching the fact to 24 hours. If the server default ever changes, the screen
   doesn't lie.
 
+> **Status (2026-09-18)** — 24 hours is confirmed as the policy. One screen still disagrees: the invite form's
+> validity line reads "3 days", because that sentence is a **remote i18n resource**, not a string in this repo. It
+> is not fixed by a code change here and is tracked separately.
+
 ### 5. Lock the composer when the peer is gone
 
-When `hasLeftChannel(peerJoin)` is true, disable the composer (4041-33606). It reactivates once the peer rejoins
+~~When `hasLeftChannel(peerJoin)` is true, disable the composer~~ (4041-33606). It reactivates once the peer rejoins
 (4055-13019). This avoids sending a message nobody will receive and leaving the read receipt permanently stuck at
 `1`.
+
+> **Correction after measurement (2026-09-18, shipped in dou-app#475; recorded as [ADR-0109](./0109-one-rule-for-a-move-into-history-i-can-no-longer-see.md) decision 5)** — the departure signal named here does not
+> exist. Measured on dev with two accounts: when the peer leaves, the server drops them from `channel.memberIds`
+> **and stops returning their join row at all**. With no row to read and no peer id to look one up by,
+> `hasLeftChannel(peerJoin)` never evaluates and the room stays `present` — the composer kept accepting messages and
+> the footer never appeared. `keepLeftMembers` cannot help either: it un-filters departed members out of the join
+> list, and there is no row to un-filter.
+>
+> The condition is now the **OR of two readings** (`useDmInviteState`): `isDmPeerMissing(channel, userId)` — the
+> roster no longer holds anyone but me — or the join row saying it ended, where a row still exists. This is not a
+> member-count heuristic: a 1:1 is two people by definition, so the peer is looked up **by id** exactly as
+> `useDmPeer` does, and the count is never compared. An empty or absent `memberIds` means "not hydrated yet" and
+> deliberately does not count, or every healthy room would lock its composer for a beat on a cold open.
+> Decision 6's settings row inherits the same condition.
 
 ### 6. Show a departed member as "left the chat" in room settings (DM) — DM only
 
@@ -266,11 +291,14 @@ is not self-chat, and the sent message's read badge `1` would permanently claim 
   doesn't, the feature doesn't break — it just falls back to "correct once A opens the room."
 - **Invite-state determination depends on `invite.list`'s 100-row window.** If an old invite gets pushed out of the
   window, the footer offers only "reinvite" without knowing the state — not a bad failure, but not accurate either.
-- **"Friend name" can differ room by room.** Since the data is the channel nickname (decision 8), if there are two
-  or more DM rooms with the same peer, each room stores its own value. A duplicate DM can genuinely happen — "you
-  already have a 1:1 with them" pre-detection doesn't exist yet (ADR-0089 D2, v1 unimplemented), so a room I created
-  by inviting them and a room they created by inviting me can exist side by side. Moving to a per-person alias would
-  need a migration at that point.
+- **~~"Friend name" can differ room by room.~~** Since the data is the channel nickname (decision 8), if there were
+  two or more DM rooms with the same peer, each room would store its own value. ~~A duplicate DM can genuinely
+  happen — "you already have a 1:1 with them" pre-detection doesn't exist yet (ADR-0089 D2, v1 unimplemented), so a
+  room I created by inviting them and a room they created by inviting me can exist side by side.~~
+  **Withdrawn (2026-09-18) — a duplicate DM cannot exist.** The id is pair-derived (decision 2's correction), so
+  both directions of invite resolve to the same channel and the server has nowhere to put a second one. Simultaneous
+  invites converge on one room rather than racing to create two. The per-person-alias migration this bullet
+  anticipated therefore has no trigger; decision 8's mapping still holds on its own terms.
 - **The departed-member display rule diverges between DM and group.** The same list component behaves differently
   by stereo, so one branch appears at the `hasLeftChannel` call site.
 - **A DM room can't be deleted.** A room both sides have left stays on the server, opened by no one.
