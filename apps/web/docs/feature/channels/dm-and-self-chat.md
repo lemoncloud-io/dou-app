@@ -318,11 +318,18 @@ disappeared, and that redirect used to be silent, which looked exactly like the 
 tap. It now leaves one line behind, once per room. No way back in is offered: returning to a 1:1
 takes the other side's invite, so a button there would be one that cannot work.
 
-It reaches the cold path too, through `useChannel`'s `isForbidden`. A room this device has never
-cached used to sit on a skeleton for ten seconds and then show a load error, because the hook could
-not tell a refusal from a fetch still coming. The sync scheduler can: it classifies a failure the
-server answered 403/404 as `gone`, and the channel plan now records that against the channel id
-(`runtime.sync.isChannelRefused`). The room reads it and leaves immediately, with the same sentence.
+There is a path to the cold case too, through `useChannel`'s `isForbidden`. A room this device has
+never cached sits on a skeleton until its resolve window closes and then shows a load error, because
+the hook cannot tell a refusal from a fetch still coming. The sync scheduler can: it classifies a
+failure the server answered 403/404 as `gone`, and the channel plan records that against the channel
+id (`runtime.sync.isChannelRefused`). The room reads it and leaves with the same sentence.
+
+**It only fires if the channel target is actually refused, and on dev today it is not.** Measured
+2026-09-21 from a guest session (uid `1001712`) against a 1:1 it is not a member of
+(`memberIds: ["1001708","1001709"]`): the channel row and five chat rows came back and were cached.
+`channel.sync-users` is refused — `403 FORBIDDEN - not a member of channel` — but the channel read
+and the message read are not. So this client-side path is correct and currently inert for a DM; the
+access rule it depends on is the server's to make.
 
 Three properties to keep in mind before touching it. The record is made on the **first** refusal,
 from the failure policy rather than `onStopped`, which needs two and arrives a poll later. A

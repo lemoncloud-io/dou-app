@@ -233,6 +233,14 @@ behind a deploy it does not control; the guard is cheap and the two can coexist.
 
 **What is accepted**
 
+- **The mechanism is inert until the server refuses the channel itself, and today it does not.**
+  Measured 2026-09-21: a guest session (uid `1001712`) opened a 1:1 whose roster is
+  `["1001708","1001709"]` by URL and was served the channel row and five chat rows, which the client
+  then cached. Only `channel.sync-users` came back `403 FORBIDDEN - not a member of channel`. So the
+  scheduler never classifies that target `gone`, `isForbidden` never becomes true for a DM, and the
+  screen falls back to the resolve-window behaviour described above. The path is built and tested
+  and will answer the moment the server refuses; **the access rule itself is a server question, and
+  a non-member reading a 1:1's history is a larger one than the screen this decision is about.**
 - **A refusal costs one poll, not zero.** The verdict lands when the first `channel.get` comes back
   refused, so a cold open still shows its skeleton until then — far short of the old ten seconds,
   but not instant. An offline device gets `transient`, records nothing, and keeps the load-error
