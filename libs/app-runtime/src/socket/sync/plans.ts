@@ -60,13 +60,41 @@ const KEEP_SNAPSHOT_ON_RECONNECT = { resetSnapshotOnConnected: false } as const;
  * `kind` and `goneStreak` are the point of the entry: `gone` means the server answered 403/404,
  * `transient` means the scheduler gave up for some other reason, and those are different bugs.
  */
+const reportStop = <TPlan extends DomainSyncPlan<any>>(plan: TPlan): TPlan => {
+    const original = plan.onStopped?.bind(plan);
+
+    plan.onStopped = (target, info: SyncFailureInfo, ctx) => {
+        logger.error('SYNC', `sync target stopped — ${plan.domain}, local rows dropped`, {
+            error: info.error,
+            data: {
+                domain: plan.domain,
+                targetType: target.type,
+                targetId: target.id,
+                kind: info.kind,
+                failures: info.failures,
+                goneStreak: info.goneStreak,
+            },
+        });
+
+        original?.(target, info, ctx);
+    };
+
+    return plan;
+};
+
 /**
- * The scheduler's own stop rule, restated so we can observe failures without changing them.
+ * The scheduler's stop rule, restated so a refusal can be observed without changing when it stops.
  *
- * Supplying a `decide` replaces the library's default, so the default is reproduced here exactly —
- * stop once the server has said `gone` twice in a row, retry otherwise — and `stopAfter` is pinned
- * beside it so the threshold and the formula that reads it cannot drift apart. Nothing about when a
- * target stops changes; the only new thing is that somebody sees the first refusal.
+ * Supplying `decide` REPLACES the library's default, so the default is reproduced here exactly —
+ * stop once the server has said `gone` twice in a row, retry otherwise — with `stopAfter` pinned
+ * beside it so the threshold and the formula that reads it cannot drift apart.
+ *
+ * **What a plan-level policy costs.** The scheduler resolves each field as
+ * `plan.failurePolicy ?? scheduler.failurePolicy ?? built-in`, so pinning here wins over a
+ * scheduler-level one. There is none to lose today and none can be configured:
+ * `SyncRuntimeOptions` exposes keep-alive, reconnect, rotation, device-plan and the auth gate, and
+ * nothing else reaches `createDeviceRuntime`. **If a scheduler-level failure policy is ever added,
+ * this is the line that would silently ignore it for the channel plan.**
  */
 const GONE_STOP_AFTER = 2;
 
@@ -92,34 +120,13 @@ const reportRefusal = <TPlan extends DomainSyncPlan<any>>(plan: TPlan): TPlan =>
                 if (info.kind === 'gone' && info.target.type === 'channel' && info.target.id) {
                     recordRefusedChannel(info.target.id);
                 }
+                // A policy the plan already carried keeps its say; today no library plan sets one.
                 if (policy?.decide) return policy.decide(info);
                 const stopAfter = policy?.stopAfter ?? GONE_STOP_AFTER;
                 return info.kind === 'gone' && info.goneStreak >= stopAfter ? 'stop' : 'retry';
             },
         },
     });
-    return plan;
-};
-
-const reportStop = <TPlan extends DomainSyncPlan<any>>(plan: TPlan): TPlan => {
-    const original = plan.onStopped?.bind(plan);
-
-    plan.onStopped = (target, info: SyncFailureInfo, ctx) => {
-        logger.error('SYNC', `sync target stopped — ${plan.domain}, local rows dropped`, {
-            error: info.error,
-            data: {
-                domain: plan.domain,
-                targetType: target.type,
-                targetId: target.id,
-                kind: info.kind,
-                failures: info.failures,
-                goneStreak: info.goneStreak,
-            },
-        });
-
-        original?.(target, info, ctx);
-    };
-
     return plan;
 };
 
