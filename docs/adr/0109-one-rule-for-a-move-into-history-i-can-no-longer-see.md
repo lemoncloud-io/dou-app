@@ -90,9 +90,22 @@ hydrated, under the server's 100 cap, and not contradicted by my own live join r
 The redirect out of a vanished room was silent, which was indistinguishable from the app dropping
 the tap. It now leaves one line, once per room.
 
-**No re-entry button.** Returning to a 1:1 takes the other side's invite, so a button there would be
-one that cannot work. **No invite entry point either** — the person who left inviting the person who
-stayed fails at acceptance, because the accepter is already a member.
+**No re-entry button.** Nothing on this screen puts the reader back in the room: they are not a
+member, and there is no act available to them here that changes that.
+
+~~**No invite entry point either** — the person who left inviting the person who stayed fails at
+acceptance, because the accepter is already a member.~~ **Measured 2026-09-21, and it does not
+fail.** B left, invited A from the ordinary invite form, A accepted: one room still
+(`1001714@1001716`, no mirrored id), both ids back in `memberIds`, A's `joinedNo` untouched at `0`
+and B's reset to `3` — the same shape as a forward re-invite. **Reverse re-entry works today, on the
+server, with no client change.**
+
+The decision stands and its reason does not. What holds it up now is weaker and worth stating
+plainly: **the person who left usually cannot address the invite.** A 1:1 invite is bound to a phone
+number, the server only ever returns a masked `last4`, and the local issue log belongs to whoever
+sent the original invite — so for the one who was invited, the number is simply not available. An
+entry point here would open a form most of its users cannot fill. That is a copy-and-flow question
+rather than an impossibility, and it is now open rather than closed.
 
 #### The refusal has to reach the screen, and it did not
 
@@ -184,9 +197,9 @@ DM and a group room — is untouched.
 ### Out of scope
 
 - **`apps/desktop-web`**, `apps/testbed`.
-- **Reverse re-entry** — the person who left inviting the person who stayed. It fails at acceptance
-  ("already joined"), and fixing it means the server re-activating a member's join on accept. Not
-  something the client can build.
+- **An entry point for reverse re-entry.** The path itself works (decision 4); what is out of scope
+  here is putting a door to it on this screen, which needs an answer to "whose number, and how do
+  they get it".
 - **Mentions and attachments.** Neither feature exists. The rules are written down in the lane's
   spec so they are not re-argued on the day they arrive: mention candidates are current members
   only, and the attachment list shows post-rejoin items only (the alternative leaks, through the
