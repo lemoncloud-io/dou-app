@@ -1,5 +1,31 @@
 # Changelog
 
+## [2026-09-21] - root@0.66.1, @chatic/web@0.52.1, @chatic/landing@0.5.2, @chatic/desktop-web@0.13.3
+
+### Features
+
+- (runtime) surface a refused channel so the room can say why, not wait
+
+### Bug Fixes
+
+- (web) only a 1:1 closes itself on the roster, never a group
+- (web) close a room the reader is not in, because the server does not
+- (web) a thread whose root is out of window stops, instead of offering to fetch it
+- (web) answer a move into history I can no longer see, in one place
+- (web) write the rejoin-window test comment in English
+- (web) stop a 1:1 when the peer leaves, and keep a seeded name out of its title
+
+### Documentation
+
+- (adr) reverse re-entry is not blocked — measured, and ADR-0109 said otherwise
+- record that the refusal path is inert while the server serves a 1:1 to a non-member
+- (adr) record the one rule for a move into hidden history (ADR-0109)
+- (adr) correct ADR-0068 and ADR-0039 against what the departure fix measured
+
+### Refactor
+
+- (runtime) restore reportStop's doc comment and pin the stop rule with tests
+
 ## [2026-09-21] - root@0.66.0, @chatic/web@0.52.0
 
 ### Features
