@@ -24,7 +24,7 @@ export type RouteHistoryAction = 'PUSH' | 'POP' | 'REPLACE';
 export interface RouteStackTransition {
     pathname: string;
     action: RouteHistoryAction;
-    /** `window.history.state.idx`; null when it cannot be read (see `readHistoryIndex`). */
+    /** `window.history.state.idx`; null when it cannot be read (see `stackDepth`). */
     index: number | null;
 }
 
@@ -59,18 +59,6 @@ export interface IRouteStackTracker {
 }
 
 /**
- * Reads the router's index for the current history entry.
- *
- * Kept separate from `record` so the tracker stays a pure function of its input and the jsdom
- * plumbing is tested on its own.
- */
-export const readHistoryIndex = (): number | null => {
-    if (typeof window === 'undefined') return null;
-    const state = window.history.state as { idx?: unknown } | null;
-    return typeof state?.idx === 'number' ? state.idx : null;
-};
-
-/**
  * Resolves the history index a transition lands on, given the index readable at the moment the
  * router notifies its subscribers.
  *
@@ -80,7 +68,7 @@ export const readHistoryIndex = (): number | null => {
  * the index it overwrites. A POP is different again: the browser moves the cursor before the router
  * hears `popstate`, so the readable index is already the destination.
  *
- * That ordering is a router internal, which is why `routeObserver.integration.test` drives a real
+ * That ordering is a router internal, which is why `stackObserver.integration.test` drives a real
  * router instead of trusting this comment. That suite is what fails if an upgrade reorders the two.
  */
 export const resolveTransitionIndex = (action: RouteHistoryAction, readableIndex: number | null): number | null => {

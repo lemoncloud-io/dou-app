@@ -6,6 +6,7 @@ import { logger } from '@chatic/bridges';
 
 import { useLogoutCloudSession } from '../../runtime/useLogoutCloudSession';
 import { useSiteSwitch } from '../../runtime/useSiteSwitch';
+import { useStackNavigate } from '../../navigation';
 import { resolvePushNavigation } from './resolvePushNavigation';
 import { resolveThreadTarget } from './resolveThreadTarget';
 
@@ -76,6 +77,7 @@ const isChannelRoomPath = (pathname: string): boolean => /^\/channels\/[^/]+\/ro
  */
 export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
     const navigate = useNavigate();
+    const enterStack = useStackNavigate();
     const { selectedCloudId, selectedSiteId } = runtime.session.useSessionSelection();
     // Committed session truth for the relay-return decision: `kind` is 'cloud' only while the
     // cloud session is fully active (tokens present), unlike the selection-derived cloud id.
@@ -92,40 +94,15 @@ export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
     /**
      * Navigates to a push target while keeping "back" meaningful.
      *
-     * - Already on the exact target (pathname + query): skip entirely — re-navigating would
-     *   remount the page (scroll/input reset) and stack a duplicate history entry for the
-     *   same screen. A matching pathname with a *different* query is NOT "already there":
-     *   invite deeplinks land on `/` with their payload in query params, and skipping them
-     *   used to silently swallow the invite popup when the user was already at home.
-     * - Leaving a channel ROOM: REPLACE it. Rooms are peers a push hops between, so repeated
-     *   taps would otherwise stack `[home, roomA, roomB, …]` and make "back" walk through stale
-     *   rooms instead of leaving the chat.
-     * - Anywhere else: PUSH, so the screen the user was on stays underneath and back returns to it.
+     * The three rules that used to live here — skip the exact target, replace a channel room,
+     * push everywhere else — are now rows in `navigation/stackPolicy`, which is also where the
+     * reasoning for each of them is written down. They moved without changing: this is the entry
+     * kind `'push'`, and `useHandlePushNavigation.test.ts` passing untouched is what says so.
      *
-     * The second rule used to read "anywhere but home", which is what made back unusable: a push
-     * tapped from `/mypage` REPLACED mypage, so back skipped it — and when mypage was the only
-     * entry there was nothing left to go back to at all. Only a room is disposable; every other
-     * screen is one the user chose.
-     *
-     * The current location is read from `window.location` (not `useLocation`) because this
-     * runs after async cloud/site switches and must see the location at call time, not the
-     * one captured when the handler was created. Safe under `createBrowserRouter`.
+     * The hash is stripped before handing the target over, because a push payload may carry the
+     * relay sentinel and the policy compares targets for equality.
      */
-    const navigateNormalized = useCallback(
-        (target: string) => {
-            const { pathname, search } = window.location;
-            if (`${pathname}${search}` === toLocationKey(target)) {
-                logger.info('ROUTER', `Already at push target; skipping navigation: ${target}`);
-                return;
-            }
-            if (isChannelRoomPath(pathname)) {
-                navigate(target, { replace: true });
-            } else {
-                navigate(target);
-            }
-        },
-        [navigate]
-    );
+    const navigateNormalized = useCallback((target: string) => enterStack('push', toLocationKey(target)), [enterStack]);
 
     /**
      * Second leg of a push into a thread reply: having landed on the channel room, ask whether
@@ -220,8 +197,9 @@ export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
                     // re-cache it first (idempotent: a no-op when already cached), mirroring the
                     // foreground-push recovery in InvitedCloudDurabilityRunner so both push entry
                     // points behave identically. Relay-backed, so it runs after the handshake gate.
-                    if (cid && !isRelayPush && runtime.boot.isNativeApp())
-                        {await runtime.data.recoverInvitedCloudIfMissing(cloud, cid);}
+                    if (cid && !isRelayPush && runtime.boot.isNativeApp()) {
+                        await runtime.data.recoverInvitedCloudIfMissing(cloud, cid);
+                    }
                     // Cloud transition first (it clears the selected site), then site, then route.
                     if (needsRelayReturn) await logoutCloudSession();
                     if (cid && needsCloudSwitch) await switchCloud(cid);

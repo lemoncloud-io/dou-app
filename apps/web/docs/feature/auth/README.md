@@ -149,10 +149,13 @@ login entry and keeps everything before it. It also means `returnTo` is read pur
 "did we arrive from inside the app" — and no string ever reaches the router, so there is no redirect
 surface to reason about.
 
-The fallback is home with `replace`, used when there is no `returnTo` (a deeplink, a refresh) or no
-history to go back to (a fresh WebView with router state but no stack). It passes `transition` and
-`direction: 'back'` explicitly, because the transition helper disables animation by default when
-`replace` is set.
+The fallback is home with `replace`, used when there is no `returnTo` (a deeplink, a refresh) or
+nothing behind this screen in the app's own stack — the router's index is 0, or cannot be read at
+all. That judgement belongs to `app/navigation/stackDepth`, and it deliberately does not ask
+`history.length`: that counts every entry the WebView ever held, including pages from before this
+app was loaded, so on a long-lived WebView it claims there is somewhere to go back to while the app
+sits on its first screen. It passes `transition` and `direction: 'back'` explicitly, because the
+transition helper disables animation by default when `replace` is set.
 
 Three entry points use the hook today — the MY page header, `PhoneVerifyBanner`, and the subscription
 plans screen. The subscription **status** screen deliberately is not one: it routes to the plans

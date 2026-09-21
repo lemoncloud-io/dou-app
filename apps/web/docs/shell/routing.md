@@ -93,6 +93,39 @@ export const ROUTE_PARAMS = {
 where a key name is needed as a value; a simple `useParams<{ channelId: string }>()` reads better
 for the common case.
 
+## The history stack is not here — `app/navigation/`
+
+The route table decides which page a path renders. What the **back button** does is a different
+question, and it belongs to `apps/web/src/app/navigation/`:
+
+Import it through `app/navigation` — `index.ts` is the module's public surface and its header
+carries the rest of this story. Inside:
+
+| File                  | Owns                                                                                      | Touches the router |
+| --------------------- | ----------------------------------------------------------------------------------------- | ------------------ |
+| `stackPolicy.ts`      | The entry rule table — how an arrival is placed on the stack                              | no                 |
+| `stackDepth.ts`       | How deep the app is, and `canGoBackInApp()` — the only answer to "can back go anywhere"   | no                 |
+| `stackTracker.ts`     | The reconstructed stack the debug overlay reads                                           | no                 |
+| `stackObserver.ts`    | One router subscription feeding the tracker, `utils/routeTrail`, and transition listeners | no                 |
+| `useStackNavigate.ts` | Executes the rule table                                                                   | **yes**            |
+| `useStackBack.ts`     | Consumes a back press and reports which branch it took                                    | **yes**            |
+
+The last column is why this is six files and not one: exactly two may reach for the router, and
+that line is checkable by grep only while they are separate files.
+
+Depth comes from the index react-router writes into each history entry, **never** from
+`window.history.length`. That value is global to the WebView and only grows — it counts entries a
+redirect replaced, pages from before the app loaded, and earlier sessions — so on a long-lived
+WebView it claims there is somewhere to go back to while the app sits on its first screen. Index 0
+is the app's first entry and nothing else, because the router back-fills `idx: 0` when it starts.
+
+`routes/index.tsx` mounts the observer, which is why the subscription is named here: `AppRuntime`
+and the debug overlay both sit above `RouterProvider`, so the component that creates the router is
+the only place that can subscribe to it.
+
+Not to be confused with `app/bridge/navigation/`, which is the push-tap seam
+([bridge/push-navigation.md](../bridge/push-navigation.md)).
+
 ## Verify
 
 ```bash

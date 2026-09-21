@@ -20,13 +20,13 @@ in each library's own README, linked from the [app README](./README.md).
 
 ## Categories
 
-| Category | Answers |
-| --- | --- |
-| [feature/](./feature) | One folder per feature in `src/app/features/` — what each screen contracts, and what it does not own |
-| [shell/](./shell/README.md) | The frame screens are rendered into — layout chrome, routing, and theme |
-| [state/](./state/README.md) | How data reaches a screen — global stores, and observe / refresh / sync |
-| [bridge/](./bridge/README.md) | The single seam to the native shell — messages, device tokens, and push navigation |
-| [observability/](./observability/README.md) | Looking into a running app — the logger hub and the in-app debug overlay |
+| Category                                    | Answers                                                                                              |
+| ------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| [feature/](./feature)                       | One folder per feature in `src/app/features/` — what each screen contracts, and what it does not own |
+| [shell/](./shell/README.md)                 | The frame screens are rendered into — layout chrome, routing, and theme                              |
+| [state/](./state/README.md)                 | How data reaches a screen — global stores, and observe / refresh / sync                              |
+| [bridge/](./bridge/README.md)               | The single seam to the native shell — messages, device tokens, and push navigation                   |
+| [observability/](./observability/README.md) | Looking into a running app — the logger hub and the in-app debug overlay                             |
 
 `feature/<name>/` exists only where `src/app/features/<name>/` exists, and the names match exactly:
 
@@ -47,7 +47,7 @@ flowchart TD
 
     Root["composition root<br/>app.tsx · runtime/ · routes/"]:::root
     Feat["features/ × 13<br/><i>pages · components · hooks</i>"]:::feat
-    Shared["shared<br/>ui/ · hooks/ · stores/ · utils/ · bridge/ · config/"]:::shared
+    Shared["shared<br/>ui/ · hooks/ · stores/ · utils/ · navigation/ · bridge/ · config/"]:::shared
     Libs["@chatic/app-runtime · bridges · data · config<br/>web-ui-kit · shared · app-messages"]:::ext
 
     Root --> Feat
@@ -60,11 +60,11 @@ flowchart TD
 
 The arrow the diagram cannot draw is the one that is missing: **`shared` imports no feature.** The
 composition root may mount a feature — that is what a composition root is for — but `ui/`, `hooks/`,
-`stores/`, `utils/`, `bridge/` and `config/` contain zero imports from `features/`, and that is what
-makes them safe to import from anywhere.
+`stores/`, `utils/`, `navigation/`, `bridge/` and `config/` contain zero imports from `features/`, and
+that is what makes them safe to import from anywhere.
 
 ```bash
-grep -rn "from '.*features/" apps/web/src/app/{ui,hooks,stores,utils,bridge,config} \
+grep -rn "from '.*features/" apps/web/src/app/{ui,hooks,stores,utils,navigation,bridge,config} \
   --include='*.ts' --include='*.tsx'
 ```
 
@@ -129,7 +129,10 @@ Source comments in this app are English. So are these documents.
 
 1. **Bootstrap, platform connection, or routing?** (session/socket lifecycle, the native bridge,
    route tables, web-vitals instrumentation) → `app/runtime/`, `app/bridge/`, `app/routes/`,
-   `app/utils/webVitals*`.
+   `app/utils/webVitals*`. The history stack itself — how deep the app is, whether a back press has
+   anywhere to go — is `app/navigation/`, not `app/routes/` or `app/utils/`. Note the two similar
+   names: `app/navigation/` is the app's own history stack, while `app/bridge/navigation/` is the
+   push-tap seam to the shell (see [bridge/](./bridge/push-navigation.md)).
 2. **Used by exactly one feature?** → `app/features/<feature>/`, in the matching subfolder (below).
 3. **Used by two or more features already?** → cross-cutting: `app/ui/{components,layouts}`,
    `app/hooks/`, `app/stores/`, `app/utils/`.

@@ -15,6 +15,7 @@ import { appBridge, useOnOAuthLogin } from '../../../bridge';
 import { PhoneVerifySheet } from '../../auth/components/PhoneVerifySheet';
 import type { LoginLocationState } from '../../auth/hooks/useNavigateToLogin';
 import { isDevBuild } from '../../../utils/buildEnv';
+import { canGoBackInApp, readHistoryIndex } from '../../../navigation';
 import { ROUTES } from '../../../routes/paths';
 import { AppleIcon, GoogleIcon } from '../components';
 
@@ -54,19 +55,21 @@ export const LoginPage = () => {
      * The old implementation rewound the whole history stack and did a full-page
      * `location.replace('/')`. Neither is needed: both sign-in paths install the new identity before
      * this runs (phone via `applySessionToken`, social via `loginRelaySocial`), so a reload fixes
-     * nothing and only costs a white flash (ADR-0055).
+     * nothing and only costs a white flash.
      */
     const leaveForReturnTo = () => {
         const { returnTo } = (location.state ?? {}) as LoginLocationState;
-        const cameFromInsideTheApp = !!returnTo && window.history.length > 1;
+        const cameFromInsideTheApp = !!returnTo && canGoBackInApp();
         // "I signed in and it took me to home instead of where I was" is a report about THIS branch,
         // and its two causes are indistinguishable from the outside: no `returnTo` (an entry point
-        // bypassed useNavigateToLogin) or a history stack of one (a fresh WebView load, a deep link,
-        // a reload). Recording both inputs beside the branch turns that report into an answer —
-        // this is the login-completion milestone the catalog asks for (ADR-0099).
+        // bypassed useNavigateToLogin) or nothing behind this screen in the app's own stack (a fresh
+        // WebView load, a deep link, a reload). Recording both inputs beside the branch turns that
+        // report into an answer, and marks login completion for whoever is reading the log.
         logger.info('AUTH', `leaving login — ${cameFromInsideTheApp ? 'back to origin' : 'fallback to home'}`, {
             hadReturnTo: !!returnTo,
-            historyLength: window.history.length,
+            // The depth this branch actually read. Logged instead of `history.length`, which is a
+            // WebView-global count and so could not explain the branch it used to sit beside.
+            depth: readHistoryIndex(),
             wentBack: cameFromInsideTheApp,
         });
         const leaving = cameFromInsideTheApp

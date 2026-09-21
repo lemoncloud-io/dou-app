@@ -1,8 +1,8 @@
 import { useCallback } from 'react';
 
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
-import { useNavigateWithTransition } from '@chatic/shared';
 
+import { useStackNavigate } from '../../../../navigation';
 import { usePendingInviteChannel } from '../../../../stores/usePendingInviteChannel';
 import { ROUTES } from '../../../../routes/paths';
 
@@ -13,15 +13,18 @@ import { ROUTES } from '../../../../routes/paths';
  * flow is: accept → connect place → channel.
  */
 export const useEnterInvitedChannel = () => {
-    const navigate = useNavigateWithTransition();
+    const enterStack = useStackNavigate();
     const setPendingChannel = usePendingInviteChannel(state => state.setPendingChannel);
 
     const enterChannel = useCallback(
         (info?: MyInviteView): void => {
             if (info?.channelId) setPendingChannel(info.channelId);
-            navigate(ROUTES.home, { replace: true });
+            // Home is the fallback, not the destination. A link that arrived while the app was
+            // already open has the reader's previous screen underneath, and rewinding onto it is
+            // what stops the acceptance screen from staying in the backward path.
+            enterStack('deeplink', ROUTES.home);
         },
-        [navigate, setPendingChannel]
+        [enterStack, setPendingChannel]
     );
 
     return { enterChannel };
