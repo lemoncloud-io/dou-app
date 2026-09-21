@@ -87,6 +87,15 @@ const asUpload = (value: unknown): ChatUpload | null => {
 };
 
 /**
+ * How many entries the parser will look at before it stops.
+ *
+ * `MAX_RENDERED_UPLOADS` bounds what is drawn; this bounds what is inspected, because rejecting an
+ * entry is not free (each one parses a url). A sender that claims thousands gets its first hundred
+ * read and the rest ignored.
+ */
+const MAX_SCANNED_UPLOADS = 100;
+
+/**
  * Reads a manifest out of `content`, or null when there is not one.
  *
  * The judgement is on the CONTENT, never on `contentType`. A marker cannot be trusted here: the
@@ -94,8 +103,11 @@ const asUpload = (value: unknown): ChatUpload | null => {
  * `'text'`, so a marker-based reader passes every test and then reports "no attachments" for every
  * message in production. Block Kit found that the expensive way.
  *
- * A message whose `uploads` array is present but empty is not an attachment message — the text
- * stands on its own, and an empty gallery is worse than none.
+ * **A recognized manifest is still a manifest when nothing in it can be drawn.** An empty list, or
+ * one whose every entry was refused, returns its text with no uploads rather than null — null means
+ * "this is not a manifest", and the surfaces that receive it print `content` verbatim. Answering
+ * null here would put the raw JSON on screen, which is how refusing an unsafe url ends up
+ * displaying that url. The text the sender typed stands on its own instead.
  */
 export const parseChatUploadsContent = (content?: string): ChatUploadsContent | null => {
     const raw = content?.trim();
@@ -108,17 +120,29 @@ export const parseChatUploadsContent = (content?: string): ChatUploadsContent | 
         return null;
     }
     if (!isRecord(parsed) || !Array.isArray(parsed.uploads)) return null;
-    const uploads = parsed.uploads
-        .slice(0, MAX_RENDERED_UPLOADS)
-        .map(asUpload)
-        .filter((upload): upload is ChatUpload => upload !== null);
-    if (!uploads.length) return null;
+
+    // Collect up to the render cap, skipping what cannot be shown — the cap counts what is KEPT, so
+    // a run of refused entries does not consume it and hide the good ones behind them.
+    const uploads: ChatUpload[] = [];
+    for (const entry of parsed.uploads.slice(0, MAX_SCANNED_UPLOADS)) {
+        if (uploads.length >= MAX_RENDERED_UPLOADS) break;
+        const upload = asUpload(entry);
+        if (upload) uploads.push(upload);
+    }
+
     return { text: typeof parsed.text === 'string' ? parsed.text : '', uploads };
 };
 
-/** The attachments alone — the reading a message row needs. */
-export const parseChatUploads = (content?: string): ChatUpload[] | null =>
-    parseChatUploadsContent(content)?.uploads ?? null;
+/**
+ * The attachments alone — the reading a message row needs.
+ *
+ * Null for an ordinary message AND for a manifest with nothing drawable: a row asks this to decide
+ * whether to render a gallery, and an empty gallery is worse than none.
+ */
+export const parseChatUploads = (content?: string): ChatUpload[] | null => {
+    const uploads = parseChatUploadsContent(content)?.uploads;
+    return uploads?.length ? uploads : null;
+};
 
 /** The text alone, so a row renders the message body without the manifest around it. */
 export const chatContentText = (content?: string): string => parseChatUploadsContent(content)?.text ?? content ?? '';

@@ -143,3 +143,29 @@ describe('xhrRawPut — it always settles', () => {
         });
     });
 });
+
+describe('xhrRawPut — a request that cannot even be built', () => {
+    // The instruction's headers come from the server, and a user agent reserves names this filter
+    // cannot enumerate. Throwing out of the executor would reject, which the engine reads as a
+    // different kind of failure than the transport one it is.
+    it('settles instead of rejecting when a header is refused', async () => {
+        install(instance => instance.onload?.());
+        xhr.setRequestHeader.mockImplementation((name: string) => {
+            if (name === 'connection') throw new Error('Refused to set unsafe header');
+        });
+
+        await expect(
+            xhrRawPut('https://s3.test/key', { 'content-type': 'image/png', connection: 'close' }, new Uint8Array([1]))
+        ).resolves.toEqual({ status: 0 });
+        expect(xhr.send).not.toHaveBeenCalled();
+    });
+
+    it('settles instead of rejecting when the url cannot be opened', async () => {
+        install(instance => instance.onload?.());
+        xhr.open.mockImplementation(() => {
+            throw new Error('Invalid URL');
+        });
+
+        await expect(xhrRawPut('not a url', {}, new Uint8Array([1]))).resolves.toEqual({ status: 0 });
+    });
+});

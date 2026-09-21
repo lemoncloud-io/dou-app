@@ -103,8 +103,10 @@ each render site, refuses what cannot be drawn safely:
   sender can claim any number, and a list screen would dutifully build every tile.
 - **Sizes that cannot be laid out are dropped** rather than passed through as zero or negative
   dimensions.
-- **An empty `uploads` array is not an attachment message.** The text stands on its own; an empty
-  gallery is worse than none.
+- **A manifest with nothing drawable still reads as a manifest.** An empty `uploads` array, or one
+  whose every entry was refused, yields its text and no uploads — an empty gallery is worse than
+  none, but answering "not a manifest" would make the surfaces print `content` verbatim, and that
+  is how refusing an unsafe url ends up displaying that url. The text stands on its own instead.
 
 `apps/web` already guards webhook attachment links with the same scheme rule one layer up. Putting
 it in the parser is what makes every surface inherit it instead of each one remembering.

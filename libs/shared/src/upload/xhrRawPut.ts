@@ -77,23 +77,32 @@ export const createXhrRawPut =
                 settle({ status: 0 });
             };
 
-            xhr.open('PUT', url);
-            setHeaders(xhr, headers);
-            if (timeoutMs > 0) xhr.timeout = timeoutMs;
-            if (onProgress) {
-                xhr.upload.onprogress = event => {
-                    if (event.lengthComputable) onProgress(event.loaded, event.total);
+            // Setting the request up can throw before anything is in flight: `open` on a malformed
+            // url, `setRequestHeader` on a name the user agent reserves — and the instruction's
+            // headers come from the server, so the filter above cannot know every name a browser
+            // refuses. A throw here escapes the executor and REJECTS, which is the one thing this
+            // primitive promises not to do, so the setup is settled like any other failure.
+            try {
+                xhr.open('PUT', url);
+                setHeaders(xhr, headers);
+                if (timeoutMs > 0) xhr.timeout = timeoutMs;
+                if (onProgress) {
+                    xhr.upload.onprogress = event => {
+                        if (event.lengthComputable) onProgress(event.loaded, event.total);
+                    };
+                }
+                xhr.onload = () => {
+                    const match = xhr.status >= 300 ? S3_ERROR_CODE.exec(xhr.responseText || '') : null;
+                    settle({ status: xhr.status, code: match ? match[1] : undefined });
                 };
+                xhr.onerror = () => settle({ status: 0 });
+                xhr.ontimeout = () => settle({ status: 0 });
+                xhr.onabort = () => settle({ status: 0 });
+                signal?.addEventListener('abort', onAbort);
+                xhr.send(body as unknown as XMLHttpRequestBodyInit);
+            } catch {
+                settle({ status: 0 });
             }
-            xhr.onload = () => {
-                const match = xhr.status >= 300 ? S3_ERROR_CODE.exec(xhr.responseText || '') : null;
-                settle({ status: xhr.status, code: match ? match[1] : undefined });
-            };
-            xhr.onerror = () => settle({ status: 0 });
-            xhr.ontimeout = () => settle({ status: 0 });
-            xhr.onabort = () => settle({ status: 0 });
-            signal?.addEventListener('abort', onAbort);
-            xhr.send(body as unknown as XMLHttpRequestBodyInit);
         });
 
 /** The default instance: a silence ceiling, no cancellation. */

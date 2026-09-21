@@ -41,10 +41,10 @@ describe('parseChatUploadsContent', () => {
         expect(parseChatUploadsContent('{"blocks":[{"type":"divider"}]}')).toBeNull();
     });
 
-    // The server promises to omit an empty list rather than send one, but an empty gallery renders
-    // as a blank bubble, so the reader falls through to plain text instead of trusting that.
-    it('an empty uploads array is not a manifest', () => {
-        expect(parseChatUploadsContent('{"text":"hi","uploads":[]}')).toBeNull();
+    // Recognized, but with nothing to draw. It must NOT read as "not a manifest": the surfaces that
+    // get null print `content` verbatim, which would put this JSON on screen.
+    it('an empty uploads array is still a manifest, and keeps its text', () => {
+        expect(parseChatUploadsContent('{"text":"hi","uploads":[]}')).toEqual({ text: 'hi', uploads: [] });
     });
 
     it('drops entries without an id or url, keeps the rest', () => {
@@ -61,6 +61,12 @@ describe('parseChatUploadsContent', () => {
 });
 
 describe('chatContentText', () => {
+    // The whole reason a recognized-but-empty manifest is not null.
+    it('never hands back the manifest JSON', () => {
+        expect(chatContentText('{"text":"hi","uploads":[]}')).toBe('hi');
+        expect(chatContentText('{"uploads":[]}')).toBe('');
+    });
+
     it('is the typed text for a manifest, the content itself otherwise', () => {
         expect(chatContentText(buildChatUploadsContent('caption', [upload()]))).toBe('caption');
         expect(chatContentText('plain')).toBe('plain');
@@ -114,6 +120,16 @@ describe('parseChatUploads — what a message from someone else may not do', () 
         expect(parseChatUploads(content)?.map(u => u.id)).toEqual(['4']);
     });
 
+    // The cap counts what is kept, so refused entries must not consume it and hide the good ones.
+    it('a run of refused entries does not eat the render cap', () => {
+        const uploads = [
+            ...Array.from({ length: 12 }, (_, i) => ({ id: `bad${i}`, url: 'javascript:alert(1)' })),
+            { id: 'good', name: 'a.png', url: 'https://file.test/uploads/good' },
+        ];
+
+        expect(parseChatUploads(JSON.stringify({ uploads }))?.map(u => u.id)).toEqual(['good']);
+    });
+
     // A list screen would build every tile it is handed.
     it('renders at most ten, however many are claimed', () => {
         const uploads = Array.from({ length: 50 }, (_, i) => ({
@@ -133,10 +149,14 @@ describe('parseChatUploads — what a message from someone else may not do', () 
         expect(parseChatUploads(content)).toEqual([{ id: '1', name: 'x', url: 'https://file.test/1' }]);
     });
 
-    it('a manifest whose every entry is unsafe is not an attachment message', () => {
+    // Refusing the url must not put the url on screen: the text survives, the gallery does not.
+    it('a manifest whose every entry is refused keeps its text and draws nothing', () => {
         const content = JSON.stringify({ text: 'hi', uploads: [{ id: '1', url: 'javascript:alert(1)' }] });
 
-        expect(parseChatUploadsContent(content)).toBeNull();
+        expect(parseChatUploadsContent(content)).toEqual({ text: 'hi', uploads: [] });
+        expect(parseChatUploads(content)).toBeNull();
+        expect(chatContentText(content)).toBe('hi');
+        expect(summarizeChatContent(content)).toEqual({ text: 'hi', uploadCount: 0 });
     });
 });
 
