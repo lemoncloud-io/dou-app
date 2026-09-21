@@ -27,7 +27,7 @@ Facts confirmed during the investigation drove the decision.
    things that write it are `UpdateChannelDialog` and `SelfChatNameDialog`, and ADR-0032 decision 3
    closed that entry for DMs. ~~In other words, **nothing writes a DM's `join.nick` today.**~~
 
-    > **Correction after measurement (2026-09-18, shipped in dou-app#475)** — the client writes nothing, but
+    > **Correction after measurement (2026-09-18, shipped in dou-app#475; recorded as [ADR-0109](./0109-one-rule-for-a-move-into-history-i-can-no-longer-see.md) decision 6)** — the client writes nothing, but
     > **the server does**. On an accepted invite it seeds the **recipient's** `join.nick` with the inviter's
     > auto-generated account name (`User_0101`, built from the last digits of a phone number). Since `join.nick` is
     > the chain's first and most trusted step, that value walked in through the one door the chain never questions:

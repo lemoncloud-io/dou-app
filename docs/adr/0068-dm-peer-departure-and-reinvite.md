@@ -3,6 +3,7 @@
 > Status: Accepted · Decided: 2026-08-25
 > · Follows [ADR-0032](0032-dm-chat-room-screen.md) (DM screen) · [ADR-0039](0039-dm-display-name-chain-and-invite-profile-release.md) (name chain)
 > · [ADR-0067](0067-rejoin-hides-prior-messages.md) (rejoin display gate) lays the groundwork this scenario assumes
+> · **Corrected after measurement by [ADR-0109](./0109-one-rule-for-a-move-into-history-i-can-no-longer-see.md)** (2026-09-21) — see the dated notes at decisions 2, 4, 5 and in Consequences
 > · The relay invite send flow is [relay-invite-sender.md](../../apps/web/docs/feature/invite/relay-invite-sender.md),
 > accept is [relay-invite-accept.md](../../apps/web/docs/feature/invite/relay-invite-accept.md)
 
@@ -127,7 +128,7 @@ gate guarantees "whoever returns sees an empty room."
 (4055-13019). This avoids sending a message nobody will receive and leaving the read receipt permanently stuck at
 `1`.
 
-> **Correction after measurement (2026-09-18, shipped in dou-app#475)** — the departure signal named here does not
+> **Correction after measurement (2026-09-18, shipped in dou-app#475; recorded as [ADR-0109](./0109-one-rule-for-a-move-into-history-i-can-no-longer-see.md) decision 5)** — the departure signal named here does not
 > exist. Measured on dev with two accounts: when the peer leaves, the server drops them from `channel.memberIds`
 > **and stops returning their join row at all**. With no row to read and no peer id to look one up by,
 > `hasLeftChannel(peerJoin)` never evaluates and the room stays `present` — the composer kept accepting messages and
