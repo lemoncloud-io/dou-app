@@ -98,11 +98,20 @@ for the common case.
 The route table decides which page a path renders. What the **back button** does is a different
 question, and it belongs to `apps/web/src/app/navigation/`:
 
-| File               | Owns                                                                                    |
-| ------------------ | --------------------------------------------------------------------------------------- |
-| `stackDepth.ts`    | How deep the app is, and `canGoBackInApp()` — the only answer to "can back go anywhere" |
-| `stackTracker.ts`  | The reconstructed stack the debug overlay reads                                         |
-| `stackObserver.ts` | One router subscription feeding the tracker and `utils/routeTrail`                      |
+Import it through `app/navigation` — `index.ts` is the module's public surface and its header
+carries the rest of this story. Inside:
+
+| File                  | Owns                                                                                      | Touches the router |
+| --------------------- | ----------------------------------------------------------------------------------------- | ------------------ |
+| `stackPolicy.ts`      | The entry rule table — how an arrival is placed on the stack                              | no                 |
+| `stackDepth.ts`       | How deep the app is, and `canGoBackInApp()` — the only answer to "can back go anywhere"   | no                 |
+| `stackTracker.ts`     | The reconstructed stack the debug overlay reads                                           | no                 |
+| `stackObserver.ts`    | One router subscription feeding the tracker, `utils/routeTrail`, and transition listeners | no                 |
+| `useStackNavigate.ts` | Executes the rule table                                                                   | **yes**            |
+| `useStackBack.ts`     | Consumes a back press and reports which branch it took                                    | **yes**            |
+
+The last column is why this is six files and not one: exactly two may reach for the router, and
+that line is checkable by grep only while they are separate files.
 
 Depth comes from the index react-router writes into each history entry, **never** from
 `window.history.length`. That value is global to the WebView and only grows — it counts entries a

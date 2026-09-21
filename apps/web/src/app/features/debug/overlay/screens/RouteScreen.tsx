@@ -5,8 +5,7 @@ import { HintRow } from '../../components/HintRow';
 import { Row } from '../../components/Row';
 import { Section } from '../../components/Section';
 import { getRouteTrail } from '../../../../utils/routeTrail';
-import { canGoBackInApp } from '../../../../navigation/stackDepth';
-import { routeStackTracker, type RouteStackSnapshot } from '../../../../navigation/stackTracker';
+import { canGoBackInApp, routeStackTracker, type RouteStackSnapshot } from '../../../../navigation';
 
 /**
  * Navigation inspector: the history stack and the visited trail side by side.

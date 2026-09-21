@@ -11,7 +11,7 @@ import { commonRoutes } from './CommonRoutes';
 import { privateRoutes } from './PrivateRoutes';
 import { publicRoutes } from './PublicRoutes';
 import { ROUTES } from './paths';
-import { observeRouterRoutes } from '../navigation/stackObserver';
+import { observeRouterRoutes } from '../navigation';
 
 export const Router = () => {
     const { isAuthenticated, isInitialized } = runtime.session.useSessionAuth();

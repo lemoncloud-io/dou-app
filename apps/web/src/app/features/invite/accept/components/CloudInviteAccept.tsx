@@ -10,7 +10,7 @@ import { useSessionLogout } from '../../../../runtime/useSessionLogout';
 import { useInviteAccept } from '../hooks';
 import { useInviteCountdown } from '../../hooks/useInviteCountdown';
 import type { InviteInfo, InviteParams } from '../types';
-import { useStackNavigate } from '../../../../navigation/useStackNavigate';
+import { useStackNavigate } from '../../../../navigation';
 import { ROUTES } from '../../../../routes/paths';
 
 /** Which notice/error dialog to show over the accept screen (single-action AlertDialog). */

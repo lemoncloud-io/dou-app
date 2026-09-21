@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 
 import { isNative } from '@chatic/bridges';
 import { appBridge, useOnBackPressed } from '../bridge';
-import { useStackBack } from '../navigation/useStackBack';
+import { useStackBack } from '../navigation';
 
 /** Selector for Radix UI overlay components that can be closed with back button */
 const OPEN_DIALOG_SELECTOR =

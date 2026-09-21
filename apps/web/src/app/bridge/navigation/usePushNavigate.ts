@@ -6,7 +6,7 @@ import { logger } from '@chatic/bridges';
 
 import { useLogoutCloudSession } from '../../runtime/useLogoutCloudSession';
 import { useSiteSwitch } from '../../runtime/useSiteSwitch';
-import { useStackNavigate } from '../../navigation/useStackNavigate';
+import { useStackNavigate } from '../../navigation';
 import { resolvePushNavigation } from './resolvePushNavigation';
 import { resolveThreadTarget } from './resolveThreadTarget';
 

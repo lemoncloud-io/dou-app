@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event';
 
 import { RouteScreen } from './RouteScreen';
 import { recordRoute, resetRouteTrail } from '../../../../utils/routeTrail';
-import { routeStackTracker } from '../../../../navigation/stackTracker';
+import { routeStackTracker } from '../../../../navigation';
 
 const copyTextWithResult = jest.fn().mockResolvedValue(true);
 jest.mock('../../lib/copyText', () => ({

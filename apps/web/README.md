@@ -186,7 +186,7 @@ apps/web/src/
     ├── hooks/          71 files: hooks shared by more than one feature
     ├── ui/             39 files: components/, layouts/, hooks/
     ├── utils/          30 files: pure helpers
-    ├── navigation/     6 files: the reconstructed history stack and the back judgement
+    ├── navigation/     14 files: the history stack — entry rules, depth, and the back judgement
     ├── bridge/         21 files: the single native ↔ web seam
     ├── stores/         8 files: global client state and preference keys
     └── config/         7 files: the @chatic/config port adapters for this build
@@ -205,9 +205,11 @@ Files you cannot guess from the name:
 - `app/config/adapters.ts` — `webConfigPorts`, the object `config.init()` is called with in
   `main.tsx`.
 - `app/bridge/appBridge.ts` — the outbound half of the seam; `GlobalBridgeListener.tsx` the inbound.
-- `app/navigation/stackDepth.ts` — the only answer to "can the back button go anywhere". Reads the
-  router's own history index, never `window.history.length`. Note `app/navigation/` is the app's own
-  history stack; the push-tap seam is `app/bridge/navigation/`, a different thing with a similar name.
+- `app/navigation/index.ts` — the whole of what the rest of the app may use from the history-stack
+  module. Its header says what the module answers and what deliberately stays outside it; import
+  from there rather than from a file inside. The files are split because only two of them may touch
+  the router and a grep is what holds that line. Note `app/navigation/` is the app's own history
+  stack; the push-tap seam is `app/bridge/navigation/`, a different thing with a similar name.
 - `app/utils/index.ts` deliberately **excludes** the modules that read `import.meta.env`. Import
   those by concrete path (`app/utils/webVitals`) or the barrel becomes unloadable under the test
   transform.

@@ -15,7 +15,7 @@ import { appBridge, useOnOAuthLogin } from '../../../bridge';
 import { PhoneVerifySheet } from '../../auth/components/PhoneVerifySheet';
 import type { LoginLocationState } from '../../auth/hooks/useNavigateToLogin';
 import { isDevBuild } from '../../../utils/buildEnv';
-import { canGoBackInApp, readHistoryIndex } from '../../../navigation/stackDepth';
+import { canGoBackInApp, readHistoryIndex } from '../../../navigation';
 import { ROUTES } from '../../../routes/paths';
 import { AppleIcon, GoogleIcon } from '../components';
 

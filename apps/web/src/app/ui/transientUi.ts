@@ -1,6 +1,6 @@
 import { toast } from 'sonner';
 
-import { onTransientUiTransition } from '../navigation/stackObserver';
+import { onTransientUiTransition } from '../navigation';
 
 /**
  * Transient UI that a route transition retires — today, the in-app push banner.
