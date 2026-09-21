@@ -82,6 +82,11 @@ would otherwise be swallowed on send.
 
 ### 4. A room I am not in says one line, and offers no way back
 
+The verdict is taken from the row, not from an error: `isNotMyChannel`. It is the opposite reading
+of `isChannelMember` on purpose — that one refuses on unknown because a wrong yes costs a server
+alarm, this one allows on unknown because a wrong yes throws a member out of their own room. Roster
+hydrated, under the server's 100 cap, and not contradicted by my own live join row.
+
 The redirect out of a vanished room was silent, which was indistinguishable from the app dropping
 the tap. It now leaves one line, once per room.
 
@@ -233,14 +238,16 @@ behind a deploy it does not control; the guard is cheap and the two can coexist.
 
 **What is accepted**
 
-- **The mechanism is inert until the server refuses the channel itself, and today it does not.**
-  Measured 2026-09-21: a guest session (uid `1001712`) opened a 1:1 whose roster is
-  `["1001708","1001709"]` by URL and was served the channel row and five chat rows, which the client
-  then cached. Only `channel.sync-users` came back `403 FORBIDDEN - not a member of channel`. So the
-  scheduler never classifies that target `gone`, `isForbidden` never becomes true for a DM, and the
-  screen falls back to the resolve-window behaviour described above. The path is built and tested
-  and will answer the moment the server refuses; **the access rule itself is a server question, and
-  a non-member reading a 1:1's history is a larger one than the screen this decision is about.**
+- **The server does not close the room, so the client does.** Measured 2026-09-21 with two accounts,
+  from the one that had just left: `channel.get` and the message read both succeed, and the room
+  rendered the conversation. The scheduler therefore never calls that target `gone`. Two things
+  followed. The refusal is taken from `channel.sync-users`, which does answer
+  `403 FORBIDDEN - not a member of channel`, wrapped at the gateway so no caller has to remember it.
+  And the room stops waiting for any of it: `isNotMyChannel` reads the roster off the row it already
+  has, since a departed member is dropped from `memberIds`. **That a non-member is served a 1:1's
+  metadata and messages at all is a server question, and a larger one than the screen this decision
+  is about.** A room the reader left also reappears in their list, because the read succeeding is
+  what caches it.
 - **A refusal costs one poll, not zero.** The verdict lands when the first `channel.get` comes back
   refused, so a cold open still shows its skeleton until then — far short of the old ten seconds,
   but not instant. An offline device gets `transient`, records nothing, and keeps the load-error

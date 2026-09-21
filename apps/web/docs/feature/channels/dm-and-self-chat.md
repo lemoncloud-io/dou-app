@@ -324,12 +324,25 @@ the hook cannot tell a refusal from a fetch still coming. The sync scheduler can
 failure the server answered 403/404 as `gone`, and the channel plan records that against the channel
 id (`runtime.sync.isChannelRefused`). The room reads it and leaves with the same sentence.
 
-**It only fires if the channel target is actually refused, and on dev today it is not.** Measured
-2026-09-21 from a guest session (uid `1001712`) against a 1:1 it is not a member of
-(`memberIds: ["1001708","1001709"]`): the channel row and five chat rows came back and were cached.
-`channel.sync-users` is refused — `403 FORBIDDEN - not a member of channel` — but the channel read
-and the message read are not. So this client-side path is correct and currently inert for a DM; the
-access rule it depends on is the server's to make.
+**The refusal does not come from the channel read, because that one succeeds.** Measured 2026-09-21
+with two accounts, from the one that had just left the 1:1: `channel.get` and the message read both
+come back, so the scheduler never calls that target `gone` and the room renders history its reader
+is no longer party to. The call that answers is `channel.sync-users` —
+`403 FORBIDDEN - not a member of channel @verifyJoin(...)`, the server saying it in as many words —
+and the gateway wrapper in `socketFactory` records it. 403 only: a 404 or a dead socket says nothing
+about membership.
+
+**And the room does not wait for it.** The row it already has carries the answer — a departed member
+is dropped from `memberIds` — so `isNotMyChannel` reads it off the room itself, with no round trip
+and nothing to arrive. Note how it differs from `isChannelMember`: that one answers "may I poll
+other members' joins" and reads an unknown as no, because guessing wrong costs a server alarm. This
+one decides whether to CLOSE a room somebody asked for, so an unknown reads as yes — the roster must
+be hydrated, under the server's 100 cap (past it my absence proves nothing), and not contradicted by
+my own live join row.
+
+**What is still the server's to fix:** it serves the channel row and the messages to a non-member at
+all. The client no longer shows them, but the data is being handed out, and a room the reader left
+comes back into their list simply because the read succeeded.
 
 Three properties to keep in mind before touching it. The record is made on the **first** refusal,
 from the failure policy rather than `onStopped`, which needs two and arrives a poll later. A

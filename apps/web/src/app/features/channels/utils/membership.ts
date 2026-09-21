@@ -89,6 +89,46 @@ export const isChannelMember = (
 };
 
 /**
+ * The roster cap the server applies to `memberIds`. Past it, absence from the roster proves nothing.
+ */
+const ROSTER_CAP = 100;
+
+/**
+ * Whether this room can be stated, from its own row, to be one I am not in.
+ *
+ * Distinct from `isChannelMember`, and the difference is the whole point. That one answers "may I
+ * poll other members' joins", where an unknown reads as no because guessing wrong costs a server
+ * alarm. This one decides whether to CLOSE a room a reader asked for, where guessing wrong throws
+ * somebody out of their own conversation — so an unknown has to read as yes, keep it open.
+ *
+ * Needed because the server does not close it for us. Measured on dev (2026-09-21) from the account
+ * that had just left a 1:1: `channel.get` and the message read both still succeed, and the room
+ * renders history the reader is no longer party to. What the row DOES carry is the truth — the
+ * departed member is dropped from `memberIds` — so the client can read it off the room itself,
+ * without another round trip and without depending on an error arriving.
+ *
+ * Three conditions, each closing a way of being wrong:
+ *
+ * - **The roster is hydrated.** An empty or absent `memberIds` is "not loaded yet".
+ * - **It is under the cap.** The server truncates at 100, so a member of a larger room can be
+ *   legitimately missing from it; past the cap this declines to answer at all.
+ * - **My own join row does not say otherwise.** An active join outranks the roster — that is the
+ *   case the cap exists for, and it is also the one that arrives late, so it is checked rather than
+ *   waited on.
+ */
+export const isNotMyChannel = (
+    channel: Pick<DomainChannel, 'memberIds'> | null | undefined,
+    myJoin: Pick<DomainJoin, 'joined'> | null | undefined,
+    userId: string | null | undefined
+): boolean => {
+    if (!channel || !userId) return false;
+    const roster = channel.memberIds;
+    if (!roster?.length || roster.length >= ROSTER_CAP) return false;
+    if (roster.includes(userId)) return false;
+    return !myJoin || myJoin.joined === 0;
+};
+
+/**
  * Whether this is a self-chat that belongs to somebody else — a room I can never be a member of.
  *
  * A self-chat (`stereo === 'self'`, id `U:{ownerId}`) has exactly one legitimate reader, its owner.

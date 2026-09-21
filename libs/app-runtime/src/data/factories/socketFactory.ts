@@ -19,6 +19,41 @@ import {
 } from '@chatic/data';
 
 import { getSocketManager } from '../../socket/runtime';
+import { clearRefusedChannel, recordRefusedChannel } from '../../socket/sync/refusedChannels';
+import { getSocketErrorCode } from '../../socket/utils/socketErrorCode';
+
+/**
+ * Wraps `channel.sync-users` so its verdict on my membership is not thrown away.
+ *
+ * **This call is the only one that answers the question.** Measured on dev (2026-09-21) from the
+ * account that had just left a 1:1: `channel.get` still succeeds and the message read still
+ * succeeds, so the sync scheduler never classifies that target `gone` and the room has nothing to
+ * go on but a timeout. `channel.sync-users` answers
+ * `403 FORBIDDEN - not a member of channel @verifyJoin(...)` — the server stating the membership
+ * fact in as many words.
+ *
+ * Only 403 counts. A 404, a timeout, a dropped socket say nothing about membership, and telling
+ * somebody with no connection that they are not in a conversation is the lie this whole path exists
+ * to avoid. A success clears the entry, because a re-invite makes the same room readable again.
+ *
+ * Wrapped at the gateway rather than at the call site: `useChannelMembers` swallows this rejection
+ * on purpose (a failed member hydration must not break a room that renders fine without it), and a
+ * second caller would have to remember to do this again.
+ */
+const observeMembershipRefusal = <TFn extends (payload: any, ...rest: any[]) => Promise<any>>(syncUsers: TFn): TFn =>
+    (async (payload: any, ...rest: any[]) => {
+        const channelId: unknown = payload?.channelId;
+        try {
+            const result = await syncUsers(payload, ...rest);
+            if (typeof channelId === 'string') clearRefusedChannel(channelId);
+            return result;
+        } catch (error) {
+            if (typeof channelId === 'string' && getSocketErrorCode(error) === 403) {
+                recordRefusedChannel(channelId);
+            }
+            throw error;
+        }
+    }) as TFn;
 
 export const createSocketDataSources = () => {
     // Gateways bind to the SocketManager stable facade (request/send/onType); socket
@@ -87,7 +122,7 @@ export const createSocketDataSources = () => {
             listUser: channelGateway.listUser,
             invite: userGateway.invite,
             inviteBatch: userGateway.inviteBatch,
-            syncUsers: channelGateway.syncUsers,
+            syncUsers: observeMembershipRefusal(channelGateway.syncUsers),
         },
         invite: inviteGateway,
         device: deviceGateway,

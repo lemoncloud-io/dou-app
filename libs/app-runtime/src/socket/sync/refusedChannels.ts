@@ -18,6 +18,8 @@
  * this socket was told, not a stored permission.
  */
 
+import { logger } from '@chatic/bridges';
+
 /** Channel ids the server refused, newest write wins. */
 const refused = new Set<string>();
 
@@ -36,6 +38,11 @@ const notify = (): void => listeners.forEach(listener => listener());
 export const recordRefusedChannel = (channelId: string): void => {
     if (refused.has(channelId)) return;
     refused.add(channelId);
+    // One line per channel, not per poll: the early return above makes this the transition, and the
+    // transition is what a reader wants to see next to the screen that acted on it.
+    logger.info('SYNC', '[refusedChannels] the server refused this channel — the room can say so', {
+        data: { channelId },
+    });
     notify();
 };
 

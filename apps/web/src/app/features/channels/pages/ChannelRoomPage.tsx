@@ -34,7 +34,7 @@ import { RoomSkeleton } from '../components/RoomSkeleton';
 import { channelKindOf, resolveChannelAvatar } from '../lib';
 import { orderMemberIdsOwnerFirst } from '../utils/orderMemberIds';
 import { pickDmPeerId } from '../utils/dmPeer';
-import { isChannelMember, isSomeoneElsesSelfChat } from '../utils/membership';
+import { isChannelMember, isNotMyChannel, isSomeoneElsesSelfChat } from '../utils/membership';
 import {
     useChannel,
     useChannelJoins,
@@ -366,6 +366,11 @@ export const ChannelRoomPage = () => {
      * screen would blame the network for a membership fact.
      */
     const isForeignSelfChat = isSomeoneElsesSelfChat(channel, userId);
+    // The row itself can say I am not in this room, and it has to — the server keeps serving the
+    // room and its messages to somebody who left (measured 2026-09-21), so nothing else closes it.
+    // Read off `memberIds`, which drops a departed member, with the cap and my own join row as the
+    // two guards against closing a room on somebody who belongs in it. See `isNotMyChannel`.
+    const isNotMine = isNotMyChannel(channel, myJoin, userId);
     // One notice per room, even if the effect re-runs before the redirect unmounts this screen.
     // Toasts stack, so a repeat would put the same sentence on screen two and three times.
     const noticedNotAMemberRef = useRef<string | null>(null);
@@ -373,7 +378,7 @@ export const ChannelRoomPage = () => {
         // A refusal is an answer, so it does not wait for the loading window to close — that window
         // exists for a fetch that might still arrive, and this one already came back.
         if (!isChannelForbidden && (isChannelLoading || isChannelError)) return;
-        if (!channel || isForeignSelfChat || isChannelForbidden) {
+        if (!channel || isForeignSelfChat || isNotMine || isChannelForbidden) {
             const alreadyNoticed = noticedNotAMemberRef.current === stableChannelId;
             noticedNotAMemberRef.current = stableChannelId;
             // Say something on the way out. A notification outlives the membership it was sent
@@ -392,6 +397,7 @@ export const ChannelRoomPage = () => {
     }, [
         channel,
         isForeignSelfChat,
+        isNotMine,
         isChannelForbidden,
         isChannelLoading,
         isChannelError,

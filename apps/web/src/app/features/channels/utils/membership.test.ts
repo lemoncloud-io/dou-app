@@ -1,4 +1,4 @@
-import { hasLeftChannel, isChannelMember, isDmPeerMissing, isSomeoneElsesSelfChat } from './membership';
+import { hasLeftChannel, isChannelMember, isDmPeerMissing, isNotMyChannel, isSomeoneElsesSelfChat } from './membership';
 
 // The server defines `joined` as `0: inactive (not yet joined or left), 1: active` — one value
 // points to two opposite states. So looking only at `joined === 0` made someone who left look
@@ -127,5 +127,44 @@ describe('isDmPeerMissing', () => {
     it('ignores a null channel', () => {
         expect(isDmPeerMissing(null, 'me')).toBe(false);
         expect(isDmPeerMissing(undefined, 'me')).toBe(false);
+    });
+
+    // The server keeps serving a room to somebody who left it, so the row has to be read as the
+    // statement it is. Wrong in the closing direction throws a member out of their own room, so
+    // every unknown here reads as "keep it open".
+    describe('isNotMyChannel', () => {
+        it('명단이 있고 내가 없으면 내 방이 아니다', () => {
+            expect(isNotMyChannel({ memberIds: ['other'] }, null, 'me')).toBe(true);
+        });
+
+        it('명단에 내가 있으면 묻지 않는다', () => {
+            expect(isNotMyChannel({ memberIds: ['me', 'other'] }, null, 'me')).toBe(false);
+        });
+
+        it('명단이 안 왔으면 답하지 않는다', () => {
+            expect(isNotMyChannel({ memberIds: [] }, null, 'me')).toBe(false);
+            expect(isNotMyChannel({ memberIds: undefined }, null, 'me')).toBe(false);
+        });
+
+        // Past the cap the server truncates, so my absence from the list is not evidence.
+        it('명단이 100을 채우면 빠져 있어도 근거가 못 된다', () => {
+            const roster = Array.from({ length: 100 }, (_, index) => `u${index}`);
+            expect(isNotMyChannel({ memberIds: roster }, null, 'me')).toBe(false);
+        });
+
+        // The case the cap exists for: a big room's member is missing from the roster and known
+        // only by their own join row, which arrives later than the channel does.
+        it('살아 있는 내 join 행이 명단을 이긴다', () => {
+            expect(isNotMyChannel({ memberIds: ['other'] }, { joined: 1 }, 'me')).toBe(false);
+        });
+
+        it('끝난 join 행은 명단을 뒤집지 않는다', () => {
+            expect(isNotMyChannel({ memberIds: ['other'] }, { joined: 0 }, 'me')).toBe(true);
+        });
+
+        it('신원을 모르면 답하지 않는다', () => {
+            expect(isNotMyChannel({ memberIds: ['other'] }, null, null)).toBe(false);
+            expect(isNotMyChannel(null, null, 'me')).toBe(false);
+        });
     });
 });
