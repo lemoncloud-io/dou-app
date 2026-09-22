@@ -1,5 +1,18 @@
 # Changelog
 
+## [2026-09-22] - root@0.66.2, @chatic/web@0.52.2
+
+### Features
+
+- (web/navigation) put a whole channel away when entering another one (ADR-0110)
+- (web-ui-kit) swipe a bottom sheet down to dismiss it
+
+### Bug Fixes
+
+- (web) let a dropdown finish leaving before the page transition snapshots it
+- (web-ui-kit) back the glass header while the frost has not composited yet
+- (ui-kit) keep the slide-up dialog's durations, which animate-in/out was resetting
+
 ## [2026-09-21] - root@0.66.1, @chatic/web@0.52.1, @chatic/landing@0.5.2, @chatic/desktop-web@0.13.3
 
 ### Features
