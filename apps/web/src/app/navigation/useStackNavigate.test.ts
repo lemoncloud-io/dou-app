@@ -1,5 +1,6 @@
-import { renderHook } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 
+import { routeStackTracker } from './stackTracker';
 import { useStackNavigate } from './useStackNavigate';
 
 jest.mock('react-router-dom', () => ({ useNavigate: () => navigate }));
@@ -77,5 +78,90 @@ describe('useStackNavigate', () => {
         enter('auth-transition', '/');
 
         expect(navigate).toHaveBeenCalledWith('/', { replace: true });
+    });
+});
+
+describe('useStackNavigate — collapsing a feature graph', () => {
+    /** Rebuilds the tracker's view of the stack, the way the router observer would have. */
+    const observed = (pathnames: string[]) => {
+        routeStackTracker.reset();
+        pathnames.forEach((pathname, index) => routeStackTracker.record({ pathname, action: 'PUSH', index }));
+    };
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        jest.useFakeTimers();
+        // jsdom's rAF does not run under fake timers; route it through the timer queue so the
+        // frame the executor waits for after the pop is one this test can advance.
+        jest.spyOn(window, 'requestAnimationFrame').mockImplementation(
+            cb => setTimeout(() => cb(0), 0) as unknown as number
+        );
+    });
+
+    afterEach(() => {
+        jest.useRealTimers();
+        jest.restoreAllMocks();
+        routeStackTracker.reset();
+    });
+
+    // The reported case, end to end through the executor.
+    it('rewinds the graph first and pushes the target only once the pop has landed', () => {
+        observed(['/', '/channels/A/room', '/channels/A/settings']);
+        standingAt('/channels/A/settings', 2);
+
+        enter('push', '/channels/B/room');
+
+        // Rewind only. Pushing in the same tick would land the target on top of the graph, which
+        // is the arrangement the rule exists to avoid.
+        expect(navigate).toHaveBeenCalledTimes(1);
+        expect(navigate).toHaveBeenCalledWith(-2);
+
+        act(() => {
+            window.dispatchEvent(new PopStateEvent('popstate'));
+            jest.advanceTimersByTime(0);
+        });
+
+        expect(navigate).toHaveBeenCalledTimes(2);
+        expect(navigate).toHaveBeenLastCalledWith('/channels/B/room');
+    });
+
+    // `history.go` reports completion only through `popstate`, which never fires when there was
+    // nothing to rewind. Without the ceiling the tap would silently do nothing.
+    it('pushes anyway when the pop never arrives', () => {
+        observed(['/', '/channels/A/room', '/channels/A/settings']);
+        standingAt('/channels/A/settings', 2);
+
+        enter('push', '/channels/B/room');
+        expect(navigate).toHaveBeenCalledTimes(1);
+
+        act(() => void jest.advanceTimersByTime(300));
+
+        expect(navigate).toHaveBeenCalledTimes(2);
+        expect(navigate).toHaveBeenLastCalledWith('/channels/B/room');
+    });
+
+    it('pushes the target exactly once when the pop and the ceiling both fire', () => {
+        observed(['/', '/channels/A/room', '/channels/A/settings']);
+        standingAt('/channels/A/settings', 2);
+
+        enter('push', '/channels/B/room');
+
+        act(() => {
+            window.dispatchEvent(new PopStateEvent('popstate'));
+            jest.advanceTimersByTime(600);
+        });
+
+        expect(navigate).toHaveBeenCalledTimes(2);
+    });
+
+    // A hole in the reconstruction means the step count cannot be trusted, so the old rules stand.
+    it('falls back to replace when the tracker lost its index', () => {
+        observed(['/', '/channels/A/room']);
+        routeStackTracker.record({ pathname: '/channels/A/settings', action: 'PUSH', index: null });
+        standingAt('/channels/A/room', 1);
+
+        enter('push', '/channels/B/room');
+
+        expect(navigate).toHaveBeenCalledWith('/channels/B/room', { replace: true });
     });
 });
