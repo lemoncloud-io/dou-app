@@ -61,6 +61,7 @@ import { useMessageJumpStore } from '../../../stores/useMessageJumpStore';
 import { buildThreadIndex, countUnseenReplies } from '../utils/buildThread';
 import { foldReactions, hasMyReaction } from '../utils/foldReactions';
 import { systemMessageSuffixKey } from '../utils/systemMessage';
+import { useMenuNavigate } from '../../../hooks/useMenuNavigate';
 import { useChromeInsets } from '../../../ui/hooks/useChromeInsets';
 import { useRecentEmojiStore } from '../stores/useRecentEmojiStore';
 import { ROUTES } from '../../../routes/paths';
@@ -70,6 +71,10 @@ const MAX_INPUT_LENGTH = 5000;
 
 export const ChannelRoomPage = () => {
     const navigate = useNavigateWithTransition();
+    // The overflow (⋯) menu's own navigate: it lets the menu finish leaving before the page
+    // transition snapshots the screen, so the open menu is not carried off inside the outgoing
+    // page. See `hooks/menuDismissal`.
+    const navigateFromMenu = useMenuNavigate();
     const { t } = useTranslation();
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     const { channelId } = useParams<{ channelId: string }>();
@@ -864,7 +869,9 @@ export const ChannelRoomPage = () => {
                     moreMenu={
                         <DropdownMenuItem
                             onClick={() =>
-                                navigate(ROUTES.channels.settings(stableChannelId), { state: { roomDistance: 1 } })
+                                navigateFromMenu(ROUTES.channels.settings(stableChannelId), {
+                                    state: { roomDistance: 1 },
+                                })
                             }
                             className="cursor-pointer gap-2"
                         >

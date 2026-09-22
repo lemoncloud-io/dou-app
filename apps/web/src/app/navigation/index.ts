@@ -14,6 +14,11 @@
  *   2. Is there anywhere to go back to?             `canGoBackInApp`
  *   3. Did the app consume this back press?         `useStackBack`
  *
+ * Question 1 has one input that is not about the arrival itself: some features are a GRAPH of
+ * screens about one thing (a channel's room, settings, invite and threads), and entering a second
+ * channel has to put the first channel's whole graph away rather than stack on top of it.
+ * `featureGraph` names those graphs and `stackPolicy` acts on them; ADR-0110 is the decision.
+ *
  * Four things deliberately stay OUTSIDE. Overlay detection belongs to whoever draws overlays, so
  * `useStackBack` is told whether one is open rather than looking. Toast dismissal belongs to the
  * presentation layer, which registers through `onTransientUiTransition`. Cloud and site switching
@@ -25,6 +30,11 @@
 // 1 — going forward.
 export { useStackNavigate } from './useStackNavigate';
 export type { EntryAction, EntryContext, EntryKind } from './stackPolicy';
+
+// What a screen is PART OF, which question 1 needs before it can put a whole feature away at once.
+// Exported for the debug overlay and for tests; nothing else in the app should need to ask.
+export { countGraphRun, isSiblingGraphEntry, readFeatureGraph } from './featureGraph';
+export type { FeatureGraphNode } from './featureGraph';
 
 // 2 — how deep we are.
 export { canGoBackInApp, readHistoryIndex } from './stackDepth';

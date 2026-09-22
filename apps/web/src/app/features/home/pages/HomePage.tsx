@@ -21,6 +21,7 @@ import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import {
     useActiveCloudData,
     useChannelSort,
+    useMenuNavigate,
     useMyProfile,
     useOnboarding,
     useScrollRestoration,
@@ -65,6 +66,10 @@ import { useInviteListRows } from '../../invite/hooks/useInviteListRows';
 export const HomePage = () => {
     const { t } = useTranslation();
     const navigate = useNavigateWithTransition();
+    // The same navigate, for the entries that live inside a dropdown: it lets the menu finish
+    // leaving before the page transition snapshots the screen, so the menu is not carried off
+    // inside the outgoing page. See `hooks/menuDismissal`.
+    const navigateFromMenu = useMenuNavigate();
 
     // Profile facts track the cached profile (seeded synchronously from the active session payload,
     // then reactive on cache emits), so a profile edit fans out here without a session refresh.
@@ -345,7 +350,7 @@ export const HomePage = () => {
         }
     };
     // Relay 1:1 chat creation (ADR-0089 Track B): contact entry → invite.create → SMS handoff.
-    const handleCreateOneOnOne = () => navigate(ROUTES.invite.contact);
+    const handleCreateOneOnOne = () => navigateFromMenu(ROUTES.invite.contact);
 
     // Search is not implemented yet (ADR-0013): the button is a visible placeholder.
     const handleSearch = () => navigate(ROUTES.search.root);
@@ -383,7 +388,7 @@ export const HomePage = () => {
                 </div>
                 <DropdownMenuItem
                     disabled={!hasActivePlace}
-                    onClick={() => selectedSiteId && navigate(ROUTES.place.settings(selectedSiteId))}
+                    onClick={() => selectedSiteId && navigateFromMenu(ROUTES.place.settings(selectedSiteId))}
                     className="cursor-pointer px-4 py-2 text-base font-semibold"
                 >
                     {t('homePage.menuPlaceSettings', '플레이스 설정')}

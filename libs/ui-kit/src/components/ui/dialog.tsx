@@ -55,7 +55,25 @@ const dialogVariants = {
     fullscreen: `inset-0 ${APP_WIDTH_CAP} pt-safe-top pb-safe-bottom pl-safe-left pr-safe-right w-full border-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]`,
     /** No placement or entrance of its own — the caller's `className` positions the panel. */
     bare: '',
-    'slide-up': `inset-0 ${APP_WIDTH_CAP} pt-safe-top pb-safe-bottom pl-safe-left pr-safe-right w-full border-0 data-[state=closed]:slide-out-to-bottom-full data-[state=open]:slide-in-from-bottom-full duration-500 [transition-timing-function:cubic-bezier(0.32,0.72,0,1)] [--tw-enter-duration:5000ms] [--tw-exit-duration:5000ms]`,
+    /**
+     * Full-bleed panel that rises from the bottom edge and leaves the same way.
+     *
+     * Both durations are written as `data-[state=…]:` variants rather than a plain `duration-*`,
+     * and that is the whole reason the exit used to read as a fade. `animate-in` / `animate-out`
+     * each declare an `animation-duration` of their own, and here they are variant-scoped, so
+     * Tailwind emits them AFTER every unprefixed utility — a plain `duration-500` loses the
+     * cascade and the panel ran at the plugin's 150ms default. At 150ms a translate across the
+     * whole viewport is over before the eye resolves it, and the simultaneous fade is all that
+     * registers. Matching the variant puts the duration back after the reset. `sheet.tsx` has
+     * always been written this way, which is why bottom sheets never had the bug.
+     *
+     * Opacity is held at 1 in both directions (`fade-in-100` / `fade-out-100` set the enter/exit
+     * opacity to full rather than adding a fade). The base `DialogContent` class fades every
+     * variant, which is right for a centred card appearing in place and wrong for a panel that
+     * announces itself by moving: a sheet that dissolves while it slides looks like two effects
+     * competing. The travel is the transition.
+     */
+    'slide-up': `inset-0 ${APP_WIDTH_CAP} pt-safe-top pb-safe-bottom pl-safe-left pr-safe-right w-full border-0 data-[state=closed]:slide-out-to-bottom-full data-[state=open]:slide-in-from-bottom-full data-[state=open]:fade-in-100 data-[state=closed]:fade-out-100 data-[state=open]:duration-500 data-[state=closed]:duration-300 [animation-timing-function:cubic-bezier(0.32,0.72,0,1)]`,
 };
 
 const DialogContent = React.forwardRef<

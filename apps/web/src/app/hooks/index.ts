@@ -25,6 +25,8 @@ export * from './useLinkedAccounts';
 export * from './useMyJoins';
 export * from './useMyProfile';
 export * from './useMembership';
+export * from './useMenuNavigate';
+export * from './menuDismissal';
 export * from './useMyUser';
 export * from './useOnboarding';
 export * from './useOtherCloudUnread';

@@ -88,6 +88,10 @@ jest.mock('../../../hooks', () => ({
     useScrollRestoration: () => ({ containerRef: { current: null }, onScroll: jest.fn() }),
     useOnboarding: () => ({ isFirstRun: false, completeOnboarding: jest.fn() }),
     useChannelSort: () => ({ channelSort: {}, setChannelSort: jest.fn() }),
+    // The dropdown entries navigate through this rather than through `navigate` directly, so that
+    // an open menu finishes leaving before the page transition snapshots the screen. Here it is
+    // just the navigate spy: the waiting is `menuDismissal`'s to test, not home's.
+    useMenuNavigate: () => navigateMock,
 }));
 jest.mock('../stores/useCloudPushMarkStore', () => ({
     useCloudPushMarkStore: (selector: (state: { badged: Record<string, true> }) => unknown) => selector({ badged: {} }),

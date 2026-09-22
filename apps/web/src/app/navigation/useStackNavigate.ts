@@ -5,13 +5,23 @@ import { logger } from '@chatic/bridges';
 
 import { readHistoryIndex } from './stackDepth';
 import { resolveEntryAction, type EntryKind } from './stackPolicy';
+import { routeStackTracker } from './stackTracker';
+
+/**
+ * How long a rewind is given to land before the push goes ahead regardless.
+ *
+ * `history.go` is asynchronous and reports completion only through `popstate`, which does not fire
+ * at all if there was nothing to rewind. The ceiling is what keeps a tap from doing nothing in that
+ * case. Generous next to a same-document pop, which lands in a frame or two.
+ */
+const REWIND_TIMEOUT_MS = 300;
 
 /**
  * Performs an ENTRY transition the way `stackPolicy` says it should be performed.
  *
  * One of exactly two files in this module that may import the router — the policy, the depth
- * primitive and the tracker are all pure, and stay that way so the rules can be read without a
- * router standing up.
+ * primitive, the graph reader and the tracker are all pure, and stay that way so the rules can be
+ * read without a router standing up.
  *
  * `'in-app'` is not expected here. Ordinary movement inside the app calls `navigate` directly; the
  * kind exists so "no policy applies" has a name. Passing it works (it pushes) but says nothing.
@@ -28,7 +38,16 @@ export const useStackNavigate = (): ((entry: EntryKind, to: string) => void) => 
         (entry: EntryKind, to: string) => {
             const { pathname, search } = window.location;
             const from = `${pathname}${search}`;
-            const action = resolveEntryAction(entry, { from, to, depth: readHistoryIndex() });
+            const snapshot = routeStackTracker.getSnapshot();
+            const action = resolveEntryAction(entry, {
+                from,
+                to,
+                depth: readHistoryIndex(),
+                // Only trustworthy while every transition carried a readable index; once one did
+                // not, the reconstruction has a hole in it of unknown size and the graph rule must
+                // fall back rather than rewind by a number derived from it.
+                stack: snapshot.isIndexed ? snapshot.entries.map(item => item.pathname) : undefined,
+            });
 
             switch (action.kind) {
                 case 'skip':
@@ -45,6 +64,34 @@ export const useStackNavigate = (): ((entry: EntryKind, to: string) => void) => 
                 case 'push':
                     navigate(to);
                     return;
+                case 'rewind-then-push': {
+                    logger.info('ROUTER', `[useStackNavigate] collapsing feature graph before ${entry} entry`, {
+                        to,
+                        steps: action.steps,
+                    });
+
+                    // The two halves cannot be issued together. `history.go` is asynchronous, and
+                    // pushing in the same tick would push onto the entry we are still standing on
+                    // — leaving the graph in the stack and putting the target above it, which is
+                    // the arrangement this whole rule exists to avoid.
+                    let done = false;
+                    const push = () => {
+                        if (done) return;
+                        done = true;
+                        window.removeEventListener('popstate', onPop);
+                        window.clearTimeout(timer);
+                        navigate(to);
+                    };
+                    // One frame after the pop, so the router has finished its own handling of it
+                    // before another navigation is started on top.
+                    const onPop = () => requestAnimationFrame(push);
+
+                    window.addEventListener('popstate', onPop);
+                    const timer = window.setTimeout(push, REWIND_TIMEOUT_MS);
+
+                    navigate(-action.steps);
+                    return;
+                }
             }
         },
         [navigate]

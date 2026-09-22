@@ -10,6 +10,8 @@
  * "we deliberately do not decide this one" has a name rather than being an omission.
  */
 
+import { countGraphRun, isSiblingGraphEntry, readFeatureGraph } from './featureGraph';
+
 /** Which kind of entry is being made. These four are exhaustive. */
 export type EntryKind =
     /** An invite or share link; the link arrived from outside the app. */
@@ -33,6 +35,16 @@ export interface EntryContext {
      * could not be read, which is treated as "do not rewind" rather than as 0-with-confidence.
      */
     depth: number | null;
+    /**
+     * The reconstructed stack, indexed by history index, for the one rule that needs to see more
+     * than the top of it — collapsing a whole feature graph (`featureGraph`).
+     *
+     * Optional, and its absence is not an error: the browser exposes no way to enumerate history,
+     * so this is `stackTracker`'s reconstruction and it is only as good as what the tracker
+     * observed. Every rule that does not name it behaves identically without it, and the one that
+     * does falls back to the single-entry behaviour it had before.
+     */
+    stack?: readonly (string | null)[];
 }
 
 export type EntryAction =
@@ -41,7 +53,17 @@ export type EntryAction =
     | { kind: 'push' }
     | { kind: 'replace' }
     /** `history.back()` — rewind, which removes the entry instead of stacking another. */
-    | { kind: 'back' };
+    | { kind: 'back' }
+    /**
+     * Put a whole feature graph away, then enter. `steps` entries are rewound — every screen of
+     * the graph the reader is standing in — and the target is pushed onto whatever was underneath
+     * it.
+     *
+     * Rewind and PUSH, not rewind and replace: after the rewind the cursor is on the screen the
+     * reader entered the graph from, and that screen is one they chose. Replacing it would leave
+     * the app one entry deep with the reader's own starting point gone.
+     */
+    | { kind: 'rewind-then-push'; steps: number };
 
 /**
  * Is this pathname a channel room?
@@ -93,19 +115,52 @@ export const resolveEntryAction = (entry: EntryKind, ctx: EntryContext): EntryAc
 
     const canRewind = ctx.depth !== null && ctx.depth > 0;
 
+    /**
+     * Moving to another instance of the graph we are standing in — channel A to channel B.
+     *
+     * Returns the collapse when it applies and null otherwise, so each entry kind can ask the
+     * question without repeating the arithmetic. The answer is a number of entries to rewind, and
+     * three things bound it:
+     *
+     *  - the run itself, from `countGraphRun`: every entry of A's graph at the top of the stack;
+     *  - `ctx.depth`, because rewinding past the app's first entry leaves the app;
+     *  - one, below which there is nothing to collapse and the caller's own rule is already right.
+     */
+    const collapseSiblingGraph = (): EntryAction | null => {
+        if (!isSiblingGraphEntry(ctx.from, ctx.to)) return null;
+        if (ctx.depth === null || ctx.depth <= 0) return null;
+
+        const run = countGraphRun(ctx.stack ?? [], ctx.depth, readFeatureGraph(ctx.from));
+        const steps = Math.min(run, ctx.depth);
+
+        return steps > 0 ? { kind: 'rewind-then-push', steps } : null;
+    };
+
     switch (entry) {
         case 'push':
-            // Leaving a room: replace it, so repeated taps cannot stack `[home, roomA, roomB, …]`.
-            // Anywhere else: push, so the screen the reader chose stays underneath.
-            return isChannelRoomPath(fromPath) ? { kind: 'replace' } : { kind: 'push' };
+            // Arriving in another channel while standing in one: put the whole of the first
+            // channel's graph away, so back leaves for wherever the reader entered it from rather
+            // than walking them through settings for a channel they have left.
+            return (
+                collapseSiblingGraph() ??
+                // Leaving a room: replace it, so repeated taps cannot stack `[home, roomA, roomB, …]`.
+                // Anywhere else: push, so the screen the reader chose stays underneath.
+                (isChannelRoomPath(fromPath) ? { kind: 'replace' } : { kind: 'push' })
+            );
 
-        case 'deeplink':
+        case 'deeplink': {
             // Heading INTO the invite path: a redirect hop, which must not leave an entry behind.
             if (isInviteEntryPath(toPath)) return { kind: 'replace' };
+            // A link that lands in another channel collapses the one being stood in, for the same
+            // reason a push does. Checked before the rewind rule below, which only knows how to
+            // step back one entry.
+            const collapsed = collapseSiblingGraph();
+            if (collapsed) return collapsed;
             // Leaving it once the invite is done. Warm entry means the screen the reader was on
             // before the link arrived is still underneath, so rewind onto it. Cold entry has
             // nothing underneath, so overwrite the acceptance screen with the destination.
             return canRewind ? { kind: 'back' } : { kind: 'replace' };
+        }
 
         case 'auth-transition':
             // LEAVING login, always. Entering it is not routed through here and must not be: the
