@@ -1,16 +1,10 @@
-import type {
-    ChannelGetSelfInput,
-    ChannelUnreadsInput,
-    ChatInviteInput,
-    ChatLeaveInput,
-} from '@lemoncloud/chatic-sockets-api';
+import type { ChannelGetSelfInput, ChatInviteInput, ChatLeaveInput } from '@lemoncloud/chatic-sockets-api';
 import type {
     ChannelCreateInput,
     ChannelDeleteInput,
     ChannelStartDmInput,
     ChannelUpdateInput,
 } from '@lemoncloud/chatic-sockets-api/dist/lib/channel/types';
-import type { UnreadsSummaryView } from '@lemoncloud/chatic-socials-api';
 import { logger } from '@chatic/bridges';
 import type { DomainChannel, DomainChannelListPayload, DomainListResult } from '../domain';
 import type {
@@ -64,12 +58,9 @@ export interface IChannelRepository extends DisposableRepository {
 
     /** `channel.get-self` — `siteId` tags the returned row; the response carries no site (ADR-0085). */
     getSelfChannel(payload: ChannelGetSelfInput | undefined, siteId: string): Promise<DomainChannel>;
-    getUnreads(payload?: ChannelUnreadsInput): Promise<UnreadsSummaryView>;
 
-    cacheRead(id: string): Promise<DomainChannel | null>;
     cacheReadList(query: DomainChannelListPayload): Promise<DomainListResult<DomainChannel> | null>;
     cacheWrite(item: Partial<DomainChannel>): Promise<void>;
-    cacheWriteMany(items: Array<Partial<DomainChannel>>): Promise<void>;
     cacheDelete(id: string): Promise<void>;
     cacheClear(): Promise<void>;
 }
@@ -149,20 +140,12 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
         return this.channelLocalDataSource.observeItem(id, callback, this.getRepositoryContext());
     }
 
-    public cacheRead(id: string): Promise<DomainChannel | null> {
-        return this.channelLocalDataSource.cacheRead(id, this.getRepositoryContext());
-    }
-
     public cacheReadList(query: DomainChannelListPayload): Promise<DomainListResult<DomainChannel> | null> {
         return this.channelLocalDataSource.cacheReadList(query, this.getRepositoryContext());
     }
 
     public cacheWrite(item: Partial<DomainChannel>): Promise<void> {
         return this.channelLocalDataSource.cacheWrite(item, this.getRepositoryContext());
-    }
-
-    public cacheWriteMany(items: Array<Partial<DomainChannel>>): Promise<void> {
-        return this.channelLocalDataSource.cacheWriteMany(items, this.getRepositoryContext());
     }
 
     public cacheDelete(id: string): Promise<void> {
@@ -454,9 +437,5 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
             await this.channelLocalDataSource.cacheWrite(domain, requestContext);
         }
         return domain;
-    }
-
-    public getUnreads(payload?: ChannelUnreadsInput): Promise<UnreadsSummaryView> {
-        return this.channelSocketDataSource.getUnreads(payload ?? {});
     }
 }

@@ -32,14 +32,4 @@ describe('CloudSocketDataSource', () => {
         expect(mockGateways.cloud.update).toHaveBeenCalledWith(payload);
         expect(result).toMatchObject({ id: 'cloud-a', cid: 'cloud-a' });
     });
-
-    it('deleteCloud sends the request as the cloud.delete action and maps it to a domain model', async () => {
-        const payload = { cloudId: 'cloud-a' } as any;
-        mockGateways.cloud.delete.mockResolvedValue({ id: 'cloud-a' });
-
-        const result = await dataSource.deleteCloud(payload, context);
-
-        expect(mockGateways.cloud.delete).toHaveBeenCalledWith(payload);
-        expect(result).toMatchObject({ id: 'cloud-a', cid: 'cloud-a' });
-    });
 });

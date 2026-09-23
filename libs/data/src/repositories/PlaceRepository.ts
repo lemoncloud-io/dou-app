@@ -1,13 +1,7 @@
 import type { UserMySiteInput } from '@lemoncloud/chatic-sockets-api';
 import type { DomainListResult, DomainPlace } from '../domain';
 import type { IPlaceLocalDataSource, LocalDataSourceContextOverride } from '../local/data-sources';
-import type {
-    IPlaceSocketDataSource,
-    PlaceCreateInput,
-    PlaceDeleteInput,
-    PlaceGetInput,
-    PlaceUpdateInput,
-} from '../remote/socket-data-sources';
+import type { IPlaceSocketDataSource, PlaceCreateInput, PlaceUpdateInput } from '../remote/socket-data-sources';
 import type { DataContextProvider } from './types';
 import { BaseRepository, type DisposableRepository } from './types';
 
@@ -21,14 +15,10 @@ export interface IPlaceRepository extends DisposableRepository {
 
     refreshList(query?: UserMySiteInput): Promise<void>;
     createPlace(payload: PlaceCreateInput): Promise<DomainPlace>;
-    getPlace(payload: PlaceGetInput): Promise<DomainPlace>;
     updatePlace(payload: PlaceUpdateInput): Promise<DomainPlace>;
-    deletePlace(payload: PlaceDeleteInput): Promise<DomainPlace>;
 
-    cacheRead(id: string): Promise<DomainPlace | null>;
     cacheReadList(query?: UserMySiteInput): Promise<DomainListResult<DomainPlace> | null>;
     cacheWrite(item: Partial<DomainPlace>): Promise<void>;
-    cacheWriteMany(items: Array<Partial<DomainPlace>>): Promise<void>;
     cacheDelete(id: string): Promise<void>;
     cacheClear(): Promise<void>;
 }
@@ -57,20 +47,12 @@ export class PlaceRepository extends BaseRepository implements IPlaceRepository 
         return this.placeLocalDataSource.observeItem(id, callback, this.getRepositoryContext());
     }
 
-    public cacheRead(id: string): Promise<DomainPlace | null> {
-        return this.placeLocalDataSource.cacheRead(id, this.getRepositoryContext());
-    }
-
     public cacheReadList(query?: UserMySiteInput): Promise<DomainListResult<DomainPlace> | null> {
         return this.placeLocalDataSource.cacheReadList(query, this.getRepositoryContext());
     }
 
     public cacheWrite(item: Partial<DomainPlace>): Promise<void> {
         return this.placeLocalDataSource.cacheWrite(item, this.getRepositoryContext());
-    }
-
-    public cacheWriteMany(items: Array<Partial<DomainPlace>>): Promise<void> {
-        return this.placeLocalDataSource.cacheWriteMany(items, this.getRepositoryContext());
     }
 
     public cacheDelete(id: string): Promise<void> {
@@ -141,14 +123,6 @@ export class PlaceRepository extends BaseRepository implements IPlaceRepository 
         return domain;
     }
 
-    public async getPlace(payload: PlaceGetInput): Promise<DomainPlace> {
-        const requestContext = this.getRequestContext();
-        const normalizedContext = this.getNormalizedContext(requestContext);
-        const domain = await this.placeSocketDataSource.getPlace(payload, normalizedContext);
-        await this.placeLocalDataSource.cacheWrite(domain, requestContext);
-        return domain;
-    }
-
     public async updatePlace(payload: PlaceUpdateInput): Promise<DomainPlace> {
         // place.update requires `@id`, and a place's id IS its sid — normalize sid-only payloads
         // so the remote call succeeds and the optimistic write/rollback below stays engaged.
@@ -165,24 +139,6 @@ export class PlaceRepository extends BaseRepository implements IPlaceRepository 
             const domain = await this.placeSocketDataSource.updatePlace(normalized, normalizedContext);
             await this.placeLocalDataSource.cacheWrite(domain, requestContext);
             return domain;
-        } catch (error) {
-            if (existing) {
-                await this.placeLocalDataSource.cacheWrite(existing, requestContext);
-            }
-            throw error;
-        }
-    }
-
-    public async deletePlace(payload: PlaceDeleteInput): Promise<DomainPlace> {
-        const id = (payload as { id?: string }).id || '';
-        const requestContext = this.getRequestContext();
-        const normalizedContext = this.getNormalizedContext(requestContext);
-        const existing = id ? await this.placeLocalDataSource.cacheRead(id, requestContext) : null;
-        if (id) {
-            await this.placeLocalDataSource.cacheDelete(id, requestContext);
-        }
-        try {
-            return await this.placeSocketDataSource.deletePlace(payload, normalizedContext);
         } catch (error) {
             if (existing) {
                 await this.placeLocalDataSource.cacheWrite(existing, requestContext);

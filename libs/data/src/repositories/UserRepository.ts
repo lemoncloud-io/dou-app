@@ -46,7 +46,6 @@ export interface IUserRepository extends DisposableRepository {
      */
     listRelayUsers(params?: Record<string, unknown>): Promise<DomainListResult<DomainUser>>;
     tryFetchProfile(): Promise<UserProfile$>;
-    updateProfileHttp(uid: string, body: Record<string, unknown>): Promise<UserProfile$>;
 }
 
 /** Handles user cache hydration and optimistic profile edits inside the active cid/sid/uid context. */
@@ -76,10 +75,6 @@ export class UserRepository extends BaseRepository implements IUserRepository {
 
     public async tryFetchProfile(): Promise<UserProfile$> {
         return this.requireHttp().tryFetchProfile();
-    }
-
-    public async updateProfileHttp(uid: string, body: Record<string, unknown>): Promise<UserProfile$> {
-        return this.requireHttp().updateProfileHttp(uid, body);
     }
 
     public observeList(

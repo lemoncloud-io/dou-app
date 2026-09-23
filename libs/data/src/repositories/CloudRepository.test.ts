@@ -14,7 +14,6 @@ const createLocalDataSource = () => ({
 const createSocketDataSource = () => ({
     getCloud: jest.fn(),
     updateCloud: jest.fn(),
-    deleteCloud: jest.fn(),
 });
 
 const contextProvider = {
@@ -164,19 +163,6 @@ describe('CloudRepository', () => {
             expect.objectContaining({ id: 'cloud-1', name: 'New', cloudType: 'owner' }),
             expect.anything()
         );
-    });
-
-    it('optimistically removes a cloud and restores it when the remote delete fails', async () => {
-        const local = createLocalDataSource();
-        local.cacheRead.mockResolvedValue({ id: 'cloud-1', name: 'Keep' });
-        const remote = createSocketDataSource();
-        remote.deleteCloud.mockRejectedValue(new Error('nope'));
-        const repository = new CloudRepository(remote as any, local as any, contextProvider);
-
-        await expect(repository.deleteCloud({ id: 'cloud-1' } as any)).rejects.toThrow('nope');
-
-        expect(local.cacheDelete).toHaveBeenCalledWith('cloud-1', expect.anything());
-        expect(local.cacheWrite).toHaveBeenLastCalledWith({ id: 'cloud-1', name: 'Keep' }, expect.anything());
     });
 });
 

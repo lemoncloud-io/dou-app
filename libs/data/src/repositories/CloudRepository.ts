@@ -3,7 +3,7 @@ import type { CloudBody, CloudVerifyEmailBody, CloudVerifyEmailView } from '@lem
 import type { DomainCloud, DomainListResult } from '../domain';
 import { createDomainListResult } from '../domain';
 import type { ICloudLocalDataSource } from '../local/data-sources';
-import type { CloudDeleteInput, CloudGetInput, ICloudSocketDataSource } from '../remote/socket-data-sources';
+import type { CloudGetInput, ICloudSocketDataSource } from '../remote/socket-data-sources';
 import type { CloudMakeOptions, CloudReleaseOptions, ICloudHttpDataSource } from '../remote/http-data-sources';
 import type { DataContext, DataContextProvider } from './types';
 import { BaseRepository, type DisposableRepository } from './types';
@@ -14,12 +14,10 @@ export interface ICloudRepository extends DisposableRepository {
 
     getCloud(payload: CloudGetInput): Promise<DomainCloud>;
     updateCloud(payload: CloudUpdateInput): Promise<DomainCloud>;
-    deleteCloud(payload: CloudDeleteInput): Promise<DomainCloud>;
 
     cacheRead(id: string): Promise<DomainCloud | null>;
     cacheReadList(): Promise<DomainListResult<DomainCloud> | null>;
     cacheWrite(item: Partial<DomainCloud>): Promise<void>;
-    cacheWriteMany(items: Array<Partial<DomainCloud>>): Promise<void>;
     cacheDelete(id: string): Promise<void>;
     cacheClear(): Promise<void>;
 
@@ -142,24 +140,6 @@ export class CloudRepository extends BaseRepository implements ICloudRepository 
         }
     }
 
-    public async deleteCloud(payload: CloudDeleteInput): Promise<DomainCloud> {
-        const id = resolveCloudId(payload) || '';
-        const requestContext = this.getRequestContext();
-        const normalizedContext = this.getNormalizedContext(requestContext);
-        const existing = id ? await this.cloudLocalDataSource.cacheRead(id, requestContext) : null;
-        if (id) {
-            await this.cloudLocalDataSource.cacheDelete(id, requestContext);
-        }
-        try {
-            return await this.cloudSocketDataSource.deleteCloud(payload, normalizedContext);
-        } catch (error) {
-            if (existing) {
-                await this.cloudLocalDataSource.cacheWrite(existing, requestContext);
-            }
-            throw error;
-        }
-    }
-
     public cacheRead(id: string): Promise<DomainCloud | null> {
         return this.cloudLocalDataSource.cacheRead(id, this.getRepositoryContext()) as Promise<DomainCloud | null>;
     }
@@ -175,10 +155,6 @@ export class CloudRepository extends BaseRepository implements ICloudRepository 
 
     public cacheWrite(item: Partial<DomainCloud>): Promise<void> {
         return this.cloudLocalDataSource.cacheWrite(item, this.getRepositoryContext());
-    }
-
-    public cacheWriteMany(items: Array<Partial<DomainCloud>>): Promise<void> {
-        return this.cloudLocalDataSource.cacheWriteMany(items, this.getRepositoryContext());
     }
 
     public cacheDelete(id: string): Promise<void> {

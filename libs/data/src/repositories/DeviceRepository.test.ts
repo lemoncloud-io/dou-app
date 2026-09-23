@@ -82,23 +82,3 @@ describe('DeviceRepository', () => {
         expect(result).toBe(true); // falls back to the requested value
     });
 });
-
-describe('DeviceRepository — HTTP push registration surface (ADR-0070 late stage 2)', () => {
-    const contextProvider = { getContext: () => ({ cid: 'cloud-a', uid: 'me' }), setContext: () => undefined };
-
-    it('throws a clear error when IDeviceRegistrationHttpSource is not injected', async () => {
-        const repository = new DeviceRepository({} as any, contextProvider as any);
-
-        await expect(repository.registerPushDevice({ token: 't' })).rejects.toThrow('not injected');
-    });
-
-    it('delegates to the injected http source', async () => {
-        const registerPushDevice = jest.fn().mockResolvedValue({ registered: true });
-        const repository = new DeviceRepository({} as any, contextProvider as any, { registerPushDevice } as any);
-
-        const result = await repository.registerPushDevice({ token: 't' }, { force: true });
-
-        expect(registerPushDevice).toHaveBeenCalledWith({ token: 't' }, { force: true });
-        expect(result).toEqual({ registered: true });
-    });
-});

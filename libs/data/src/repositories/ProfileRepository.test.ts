@@ -67,7 +67,7 @@ describe('ProfileRepository', () => {
         expect(result).toEqual({ syncedAt: 123, updatedCount: 1, removedCount: 1 });
     });
 
-    it('rolls back the optimistic cache write when setProfile fails', async () => {
+    it('rolls back the optimistic cache write when setMyProfile fails', async () => {
         const { repository, profileSocketDataSource, profileLocalDataSource } = createRepository();
         profileLocalDataSource.cacheRead.mockResolvedValue({
             id: 'site-1@me',
@@ -78,9 +78,7 @@ describe('ProfileRepository', () => {
         });
         profileSocketDataSource.set.mockRejectedValue(new Error('boom'));
 
-        await expect(repository.setProfile({ siteId: 'site-1', nick: 'After', active: true } as any)).rejects.toThrow(
-            'boom'
-        );
+        await expect(repository.setMyProfile({ nick: 'After' } as any, 'site-1')).rejects.toThrow('boom');
 
         // The rollback should restore the previous local snapshot after the remote failure.
         expect(profileLocalDataSource.cacheWrite).toHaveBeenLastCalledWith(
@@ -203,10 +201,10 @@ describe('ProfileRepository', () => {
         expect(result).toEqual(expect.objectContaining({ id: 'site-1@me' }));
     });
 
-    it('throws when setProfile cannot resolve a uid from payload or context', async () => {
+    it('throws when setMyProfile cannot resolve a uid from the context', async () => {
         const { repository } = createRepository({ cid: 'cloud-a', sid: 'site-1' });
 
-        await expect(repository.setProfile({ siteId: 'site-1', nick: 'After' } as any)).rejects.toThrow(
+        await expect(repository.setMyProfile({ nick: 'After' } as any, 'site-1')).rejects.toThrow(
             '[Repository] uid is required.'
         );
     });

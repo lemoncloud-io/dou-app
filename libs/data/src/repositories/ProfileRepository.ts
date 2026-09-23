@@ -23,8 +23,6 @@ export interface IProfileRepository extends DisposableRepository {
     refreshItem(id: string): Promise<DomainProfile | null>;
     /** profile.get-mine — reads my profile for the current session and writes it to local. */
     getMyProfile(): Promise<DomainProfile | null>;
-    /** profile.set — saves a profile (optimistically). `payload.siteId` says which site. */
-    setProfile(payload: ProfileSetInput): Promise<DomainProfile>;
     /** profile.set — saves my profile on `siteId`. The caller names the site; see ADR-0085. */
     setMyProfile(body: ProfileBody, siteId: string): Promise<DomainProfile>;
     /** profile.sync — upserts/removes the multi-profile delta sync result for `siteId` into local. */
@@ -99,7 +97,8 @@ export class ProfileRepository extends BaseRepository implements IProfileReposit
         return domain;
     }
 
-    public async setProfile(payload: ProfileSetInput): Promise<DomainProfile> {
+    /** profile.set, optimistic — the body behind `setMyProfile`, its only caller. */
+    private async setProfile(payload: ProfileSetInput): Promise<DomainProfile> {
         const requestContext = this.getRequestContext();
         const normalizedContext = this.getNormalizedContext(requestContext);
         const input = payload as { siteId?: string; userId?: string; active?: boolean };

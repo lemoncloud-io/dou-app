@@ -26,7 +26,6 @@ describe('ChannelRepository', () => {
             deleteChannel: jest.fn(),
             getSelfChannel: jest.fn(),
             startDm: jest.fn(),
-            getUnreads: jest.fn(),
         };
         const channelLocalDataSource = {
             observeList: jest.fn(() => () => undefined),
@@ -65,18 +64,19 @@ describe('ChannelRepository', () => {
     it('delegates read and cache helper methods to the local datasource with the runtime context', async () => {
         const { repository, channelLocalDataSource } = createRepository();
 
-        await repository.cacheRead('ch-1');
         await repository.cacheReadList({ sid: 'site-1' } as any);
         await repository.cacheWrite({ id: 'ch-1' } as any);
-        await repository.cacheWriteMany([{ id: 'ch-1' }] as any);
         await repository.cacheDelete('ch-1');
         await repository.cacheClear();
 
         // Helper methods should stay thin wrappers so hooks can rely on a consistent context-bound API.
-        expect(channelLocalDataSource.cacheRead).toHaveBeenCalledWith('ch-1', {
-            cid: 'cloud-a',
-            uid: 'me',
-        });
+        expect(channelLocalDataSource.cacheReadList).toHaveBeenCalledWith(
+            { sid: 'site-1' },
+            {
+                cid: 'cloud-a',
+                uid: 'me',
+            }
+        );
         expect(channelLocalDataSource.cacheClear).toHaveBeenCalledWith({
             cid: 'cloud-a',
             uid: 'me',
@@ -407,14 +407,6 @@ describe('ChannelRepository', () => {
             { id: 'self-channel', sid: 'site-1' },
             expect.anything()
         );
-    });
-
-    it('getUnreads: a pass-through that does not touch the local cache', async () => {
-        const { repository, channelSocketDataSource, channelLocalDataSource } = createRepository();
-        channelSocketDataSource.getUnreads.mockResolvedValue({ total: 3 });
-
-        await expect(repository.getUnreads({} as any)).resolves.toEqual({ total: 3 });
-        expect(channelLocalDataSource.cacheWrite).not.toHaveBeenCalled();
     });
 });
 

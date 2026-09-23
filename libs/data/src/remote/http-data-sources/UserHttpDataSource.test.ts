@@ -11,8 +11,6 @@ describe('UserHttpDataSource', () => {
         gateway = {
             list: jest.fn(),
             tryProfile: jest.fn(),
-            updateProfile: jest.fn(),
-            registerDevice: jest.fn(),
         };
         dataSource = new UserHttpDataSource(gateway);
     });
@@ -30,23 +28,5 @@ describe('UserHttpDataSource', () => {
         gateway.tryProfile.mockRejectedValue(new Error('down'));
 
         await expect(dataSource.tryFetchProfile()).rejects.toThrow('down');
-    });
-
-    it('updateProfileHttp — delegates uid + body', async () => {
-        gateway.updateProfile.mockResolvedValue({ id: 'u1', name: 'New' } as any);
-
-        const result = await dataSource.updateProfileHttp('u1', { name: 'New' });
-
-        expect(gateway.updateProfile).toHaveBeenCalledWith('u1', { name: 'New' });
-        expect(result).toEqual({ id: 'u1', name: 'New' });
-    });
-
-    it('registerPushDevice — delegates body + opts (IDeviceRegistrationHttpSource surface)', async () => {
-        gateway.registerDevice.mockResolvedValue({ registered: true } as any);
-
-        const result = await dataSource.registerPushDevice({ token: 't' }, { force: true });
-
-        expect(gateway.registerDevice).toHaveBeenCalledWith({ token: 't' }, { force: true });
-        expect(result).toEqual({ registered: true });
     });
 });

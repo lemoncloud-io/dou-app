@@ -10,9 +10,7 @@ describe('PlaceRepository', () => {
         const placeSocketDataSource = {
             fetchPlace: jest.fn(),
             createPlace: jest.fn(),
-            getPlace: jest.fn(),
             updatePlace: jest.fn(),
-            deletePlace: jest.fn(),
         };
         const placeLocalDataSource = {
             observeList: jest.fn(() => () => undefined),
@@ -213,9 +211,7 @@ describe('PlaceRepository', () => {
         const placeSocketDataSource = {
             fetchPlace: jest.fn().mockReturnValue(pendingRemote),
             createPlace: jest.fn(),
-            getPlace: jest.fn(),
             updatePlace: jest.fn(),
-            deletePlace: jest.fn(),
         };
         const placeLocalDataSource = {
             observeList: jest.fn(() => () => undefined),
@@ -249,9 +245,7 @@ describe('PlaceRepository', () => {
         const placeSocketDataSource = {
             fetchPlace: jest.fn().mockResolvedValue({ list: [{ id: 'place-1', name: 'A' }] }),
             createPlace: jest.fn(),
-            getPlace: jest.fn(),
             updatePlace: jest.fn(),
-            deletePlace: jest.fn(),
         };
         const placeLocalDataSource = {
             observeList: jest.fn(() => () => undefined),

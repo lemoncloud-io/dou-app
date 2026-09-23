@@ -20,7 +20,6 @@ export interface ChatRefreshResult {
 
 export interface IChatRepository extends DisposableRepository {
     observeList(query: ChatFeedInput, callback: (result: DomainListResult<DomainChat> | null) => void): () => void;
-    observeItem(id: string, callback: (item: DomainChat | null) => void): () => void;
     observeLastList(channelIds: string[], callback: (result: DomainLastChat[]) => void): () => void;
 
     refreshList(query: ChatFeedInput): Promise<ChatRefreshResult>;
@@ -32,7 +31,6 @@ export interface IChatRepository extends DisposableRepository {
 
     cacheRead(id: string): Promise<DomainChat | null>;
     cacheReadList(query: ChatFeedInput): Promise<DomainListResult<DomainChat> | null>;
-    cacheReadLastList(channelIds: string[]): Promise<DomainLastChat[]>;
     cacheWrite(item: Partial<DomainChat>): Promise<void>;
     cacheWriteMany(items: Array<Partial<DomainChat>>): Promise<void>;
     cacheDelete(id: string): Promise<void>;
@@ -57,16 +55,8 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
         return this.chatLocalDataSource.observeList(query, callback, this.getRepositoryContext());
     }
 
-    public observeItem(id: string, callback: (item: DomainChat | null) => void): () => void {
-        return this.chatLocalDataSource.observeItem(id, callback, this.getRepositoryContext());
-    }
-
     public observeLastList(channelIds: string[], callback: (result: DomainLastChat[]) => void): () => void {
         return this.chatLocalDataSource.observeLastList(channelIds, callback, this.getRepositoryContext());
-    }
-
-    public cacheReadLastList(channelIds: string[]): Promise<DomainLastChat[]> {
-        return this.chatLocalDataSource.cacheReadLastList(channelIds, this.getRepositoryContext());
     }
 
     public cacheRead(id: string): Promise<DomainChat | null> {

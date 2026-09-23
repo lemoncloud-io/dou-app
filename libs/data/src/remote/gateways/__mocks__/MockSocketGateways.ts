@@ -37,7 +37,6 @@ export const createMockSocketGateways = (): MockSocketGatewayBundle => ({
         getSelf: jest.fn(),
         mine: jest.fn(),
         invite: jest.fn(),
-        unreads: jest.fn(),
         sync: jest.fn(),
         startDm: jest.fn(),
     },
@@ -50,16 +49,12 @@ export const createMockSocketGateways = (): MockSocketGatewayBundle => ({
         reaction: jest.fn(),
     },
     join: {
-        get: jest.fn(),
         update: jest.fn(),
         read: jest.fn(),
-        join: jest.fn(),
     },
     place: {
         create: jest.fn(),
-        get: jest.fn(),
         update: jest.fn(),
-        delete: jest.fn(),
         mySite: jest.fn(),
     },
     user: {
@@ -90,7 +85,6 @@ export const createMockSocketGateways = (): MockSocketGatewayBundle => ({
     cloud: {
         get: jest.fn(),
         update: jest.fn(),
-        delete: jest.fn(),
     },
     profile: {
         get: jest.fn(),

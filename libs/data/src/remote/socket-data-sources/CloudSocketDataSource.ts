@@ -6,12 +6,10 @@ import type { DataContext } from '../../repositories/types';
 import type { CloudSocketDomainGateway } from '../gateways';
 
 export type CloudGetInput = Parameters<CloudSocketDomainGateway['get']>[0];
-export type CloudDeleteInput = Parameters<CloudSocketDomainGateway['delete']>[0];
 
 export interface ICloudSocketDataSource {
     getCloud(payload: CloudGetInput, context: DataContext): Promise<DomainCloud>;
     updateCloud(payload: CloudUpdateInput, context: DataContext): Promise<DomainCloud>;
-    deleteCloud(payload: CloudDeleteInput, context: DataContext): Promise<DomainCloud>;
 }
 
 /**
@@ -29,11 +27,6 @@ export class CloudSocketDataSource implements ICloudSocketDataSource {
 
     public async updateCloud(payload: CloudUpdateInput, context: DataContext): Promise<DomainCloud> {
         const remote = await this.gateway.update<CloudView>(payload);
-        return toDomainCloud((remote || {}) as CloudView, context);
-    }
-
-    public async deleteCloud(payload: CloudDeleteInput, context: DataContext): Promise<DomainCloud> {
-        const remote = await this.gateway.delete<CloudView>(payload);
         return toDomainCloud((remote || {}) as CloudView, context);
     }
 }

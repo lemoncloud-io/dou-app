@@ -100,20 +100,16 @@ export const createSocketDataSources = () => {
         channel: channelGateway,
         chat: chatGateway,
         join: {
-            // First-class join domain: single get/update goes through JoinGateway (join.get/join.update)
-            get: joinGateway.get,
+            // First-class join domain: the update goes through JoinGateway (join.update);
+            // channel.update-join is deprecated → join.update. Marking read is chat.read.
             update: joinGateway.update,
-            // Secondary commands: read (chat.read) · join (channel.join). channel.update-join is
-            // deprecated → join.update.
             read: chatGateway.read,
-            join: channelGateway.join,
         },
         place: {
-            // Place owns CRUD; the list still comes from UserGateway.mySite (same entity as site).
+            // Create/update through PlaceGateway; the list still comes from UserGateway.mySite (same
+            // entity as site).
             create: placeGateway.create,
-            get: placeGateway.get,
             update: placeGateway.update,
-            delete: placeGateway.delete,
             mySite: userGateway.mySite,
         },
         user: {
@@ -130,7 +126,6 @@ export const createSocketDataSources = () => {
         cloud: {
             get: cloudGateway.get,
             update: cloudGateway.update,
-            delete: cloudGateway.delete,
         },
         profile: profileGateway,
     };

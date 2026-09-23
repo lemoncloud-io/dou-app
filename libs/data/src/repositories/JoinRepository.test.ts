@@ -4,11 +4,9 @@ describe('JoinRepository', () => {
     const createRepository = () => {
         // Keep join transport mocked separately from local cache so rollback behavior is explicit.
         const joinSocketDataSource = {
-            getJoin: jest.fn(),
             readChat: jest.fn(),
             updateJoin: jest.fn(),
             updateChannelJoin: jest.fn(),
-            joinChannel: jest.fn(),
         };
         const joinLocalDataSource = {
             observeList: jest.fn(() => () => undefined),
@@ -52,39 +50,5 @@ describe('JoinRepository', () => {
         const { repository } = createRepository();
 
         await expect(repository.readChat({ chatNo: 9 } as any)).rejects.toThrow('[Repository] channelId is required.');
-    });
-
-    it('returns the current local join snapshot from refreshList without touching remote transport', async () => {
-        const { repository, joinSocketDataSource, joinLocalDataSource } = createRepository();
-        joinLocalDataSource.cacheReadList.mockResolvedValue({
-            list: [{ id: 'join-1', channelId: 'ch-1', userId: 'me' }],
-            meta: { total: 1, source: 'local' },
-        });
-
-        const result = await repository.refreshList({ channelId: 'ch-1', activeOnly: true });
-
-        // refreshList is local-first in V2 and should not trigger remote I/O on its own.
-        expect(joinSocketDataSource.readChat).not.toHaveBeenCalled();
-        expect(result.list.map((item: any) => item.id)).toEqual(['join-1']);
-    });
-
-    it('creates and then clears an optimistic join placeholder around joinChannel', async () => {
-        const { repository, joinSocketDataSource, joinLocalDataSource } = createRepository();
-        joinSocketDataSource.joinChannel.mockResolvedValue({
-            id: 'join-2',
-            channelId: 'ch-1',
-            userId: 'me',
-            joined: 1,
-        });
-
-        const result = await repository.joinChannel({ channelId: 'ch-1' } as any);
-
-        // The optimistic placeholder should be cleaned up once the canonical join arrives.
-        expect(joinLocalDataSource.cacheDelete).toHaveBeenCalledWith(expect.stringContaining('optimistic-join-ch-1'), {
-            cid: 'cloud-a',
-            sid: 'site-1',
-            uid: 'me',
-        });
-        expect(result).toEqual(expect.objectContaining({ id: 'join-2', channelId: 'ch-1' }));
     });
 });

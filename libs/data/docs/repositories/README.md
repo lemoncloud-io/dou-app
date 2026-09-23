@@ -92,7 +92,7 @@ classDiagram
     class IChatRepository {
         <<interface>>
         +observeList(query, cb) Unsubscribe
-        +observeItem(id, cb) Unsubscribe
+        +observeLastList(channelIds, cb) Unsubscribe
         +refreshList(query) Promise
         +sendChat(payload) Promise
         +cacheClearByChannelId(channelId) Promise
@@ -172,7 +172,7 @@ have no local source and some have no socket source.
 | `channel`      | ✓      | `channel` + `chat`        | —              |
 | `chat`         | ✓      | `chat`                    | —              |
 | `cloud`        | ✓      | `cloud`                   | `cloud`        |
-| `device`       | ✓      | —                         | `user`         |
+| `device`       | ✓      | —                         | —              |
 | `invite`       | ✓      | `invite`                  | —              |
 | `join`         | ✓      | `join`                    | —              |
 | `place`        | ✓      | `place`                   | —              |
