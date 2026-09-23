@@ -6,6 +6,9 @@
 > Related: [ADR-0049](./0049-feedback-photo-attachment-inline-base64.md) (introduced
 > `scaleImageToDataUrl`, retired here; its inline-base64 decision stands) ·
 > [ADR-0012](./0012-place-profile-creation.md) (introduced `resizeImageToBase64`, retired here)
+> · Not the cloud 1:1 decision, which also merged as ADR-0111 and is now
+> [ADR-0113](./0113-a-cloud-1-1-has-no-invite-and-no-place.md); the `(ADR-0111)` in the
+> `feat/cloud-dm` commit and in `CHANGELOG.md` means that record
 
 ## Context
 

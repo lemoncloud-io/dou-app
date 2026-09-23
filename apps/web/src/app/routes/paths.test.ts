@@ -26,7 +26,7 @@ describe('ROUTES — 상수 경로', () => {
     });
 
     // No channel id: the room does not exist when this screen opens, and the server decides which
-    // room a pair resolves to (ADR-0113).
+    // room a pair resolves to.
     it('exposes the cloud 1:1 picker route, which takes no channel id', () => {
         expect(ROUTES.channels.startDm).toBe('/channels/start-dm');
     });

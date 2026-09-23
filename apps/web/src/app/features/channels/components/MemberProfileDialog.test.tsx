@@ -73,7 +73,7 @@ describe('MemberProfileDialog — 뷰어/대상 분기', () => {
     });
 });
 
-// Opening a 1:1 from here is possible only where the host says so (ADR-0113), which is what keeps
+// Opening a 1:1 from here is possible only where the host says so, which is what keeps
 // this component's single row-composition rule from growing a second axis.
 describe('MemberProfileDialog — the 1:1 row', () => {
     it('is absent unless the host offers it', () => {
