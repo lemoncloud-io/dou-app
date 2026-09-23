@@ -16,7 +16,7 @@ const toast = jest.fn();
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
 jest.mock('@chatic/shared', () => ({
     useNavigateWithTransition: () => navigate,
-    resizeImageToBase64: jest.fn(),
+    prepareImage: jest.fn(),
 }));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
 jest.mock('@chatic/app-runtime', () => ({

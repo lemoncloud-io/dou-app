@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { logger } from '@chatic/bridges';
 import { useDeviceInfo } from '@chatic/device-utils';
-import { scaleImageToDataUrl, useNavigateWithTransition } from '@chatic/shared';
+import { prepareImage, REPORT_PHOTO, useNavigateWithTransition } from '@chatic/shared';
 import { runtime } from '@chatic/app-runtime';
 import { FloatingButton, IconBack, ModalTopBar, PhotoAttachField, TextField, Textarea } from '@chatic/web-ui-kit';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
@@ -24,13 +24,6 @@ const MAX_INPUT_LENGTH = 5000;
 
 /** Attachment budget from the design ("최대 5장"). */
 const MAX_PHOTOS = 5;
-/**
- * Encoding budget. Images travel inline as base64, which costs ~4 bytes per 3, so
- * these two numbers are what bound the request: 1024px at q0.6 lands around
- * 60–100 KB each, i.e. well under a megabyte for a full set of five.
- */
-const PHOTO_MAX_EDGE = 1024;
-const PHOTO_QUALITY = 0.6;
 
 /**
  * "의견 보내기" — the single entry point for user feedback, reached from the
@@ -62,7 +55,12 @@ export const FeedbackPage = () => {
 
         try {
             const encoded = await Promise.all(
-                accepted.map(file => scaleImageToDataUrl(file, { maxEdge: PHOTO_MAX_EDGE, quality: PHOTO_QUALITY }))
+                accepted.map(async file => {
+                    const { photo } = await prepareImage(file, REPORT_PHOTO);
+                    // The report carries these inline, so there is nothing to attach without one.
+                    if (!photo) throw new Error('Failed to prepare report photo');
+                    return photo;
+                })
             );
             setPhotos(prev => [...prev, ...encoded].slice(0, MAX_PHOTOS));
         } catch (error) {

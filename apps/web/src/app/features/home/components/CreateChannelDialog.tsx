@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { logger } from '@chatic/bridges';
 import { cn } from '@chatic/lib/utils';
-import { resizeImageToBase64, useNavigateWithTransition } from '@chatic/shared';
+import { AVATAR_IMAGE, prepareImage, useNavigateWithTransition } from '@chatic/shared';
 
 import { AlertDialog, FloatingButton, ModalTopBar, ProfileAvatar, Text, TextField, Toast } from '@chatic/web-ui-kit';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
@@ -87,7 +87,10 @@ export const CreateChannelDialog = ({ open, onOpenChange }: CreateChannelDialogP
             return;
         }
         try {
-            const base64 = await resizeImageToBase64(file, 150);
+            const { avatar: base64 } = await prepareImage(file, AVATAR_IMAGE);
+            // A record field has nothing to fall back to, so a preview that could not be made is
+            // an error here, not a degraded result.
+            if (!base64) throw new Error('Failed to prepare avatar image');
             setThumbnail(base64);
             setNotice(null);
         } catch (error) {

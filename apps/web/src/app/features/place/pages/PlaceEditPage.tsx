@@ -4,7 +4,7 @@ import { useParams } from 'react-router-dom';
 
 import { logger } from '@chatic/bridges';
 import { cn } from '@chatic/lib/utils';
-import { resizeImageToBase64, useNavigateWithTransition } from '@chatic/shared';
+import { AVATAR_IMAGE, prepareImage, useNavigateWithTransition } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { AlertDialog, FloatingButton, ProfileAvatar, Text, TextField, Textarea } from '@chatic/web-ui-kit';
@@ -115,7 +115,10 @@ export const PlaceEditPage = () => {
         setImageSizeError(false);
 
         try {
-            const base64 = await resizeImageToBase64(file, 150);
+            const { avatar: base64 } = await prepareImage(file, AVATAR_IMAGE);
+            // A record field has nothing to fall back to, so a preview that could not be made is
+            // an error here, not a degraded result.
+            if (!base64) throw new Error('Failed to prepare avatar image');
             setImageUrl(base64);
         } catch (error) {
             // The screen shows the same "too large" message it shows for an oversized file, so a

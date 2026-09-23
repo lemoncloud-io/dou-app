@@ -43,12 +43,12 @@ An unbounded field does not fail loudly — it fails the whole submission at the
 the person has typed. So every input has a ceiling, and each one is enforced where the user can be
 told about it.
 
-| Field       | Bound                                 | Enforced in                               |
-| ----------- | ------------------------------------- | ----------------------------------------- |
-| Title, body | 5000 characters (`MAX_INPUT_LENGTH`)  | `onChange`, clamped with `slice`          |
-| Photos      | 5 (`MAX_PHOTOS`)                      | `handleSelectPhotos`, with a toast        |
-| Each photo  | 1024px longest edge, JPEG quality 0.6 | `scaleImageToDataUrl` before it is stored |
-| Route trail | 10 paths (`ROUTE_TRAIL_SIZE`)         | `recordRoute`                             |
+| Field       | Bound                                 | Enforced in                                            |
+| ----------- | ------------------------------------- | ------------------------------------------------------ |
+| Title, body | 5000 characters (`MAX_INPUT_LENGTH`)  | `onChange`, clamped with `slice`                       |
+| Photos      | 5 (`MAX_PHOTOS`)                      | `handleSelectPhotos`, with a toast                     |
+| Each photo  | 1024px longest edge, JPEG quality 0.6 | `prepareImage(file, REPORT_PHOTO)` before it is stored |
+| Route trail | 10 paths (`ROUTE_TRAIL_SIZE`)         | `recordRoute`                                          |
 
 The character clamp is written by hand rather than passed to `TextField`'s `maxLength`, because
 that prop also renders an `N/5000` counter. The design shows no counter — a visible limit reads as
@@ -124,8 +124,8 @@ puts `user.isAuthenticated: false` in the payload rather than refusing.
   `import.meta`, which the CommonJS test transform cannot parse, and the spec dies at load. The same
   applies to `ui/layouts`: the page imports `KeyboardAwareLayout` directly.
 - **Do not pass a full URL to `recordRoute`.** See the security rule above.
-- **Do not use `resizeImageToBase64` for screenshots.** It is a 150px square center-crop for
-  avatars; on a screen capture it throws away the part that mattered. `scaleImageToDataUrl` keeps
+- **Do not pass `fit: 'cover'` for screenshots.** That is the 150px square center-crop avatars
+  want; on a screen capture it throws away the part that mattered. The default `'contain'` keeps
   the aspect ratio and never upscales.
 - **Do not add a second feedback entry point.** One row in settings, no floating widget. A control
   parked permanently over the content hides it and invites mistaps.

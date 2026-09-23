@@ -6,7 +6,7 @@ import { UpdateChannelDialog } from './UpdateChannelDialog';
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
 jest.mock('@chatic/bridges', () => ({ logger: { error: jest.fn() } }));
-jest.mock('@chatic/shared', () => ({ resizeImageToBase64: jest.fn() }));
+jest.mock('@chatic/shared', () => ({ prepareImage: jest.fn() }));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: jest.fn() }) }));
 
 const updateChannel = jest.fn().mockResolvedValue({});

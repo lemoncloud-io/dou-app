@@ -86,7 +86,7 @@ rather than navigating nowhere.
 Both live in `features/home/components/` and hold their own submit state. Shared behaviour: a
 slide-up full-screen `Dialog` with `ModalTopBar`, a name `TextField` with `maxLength={20}` and
 `enforceMaxLength={false}` so going over shows `21/20` and an error instead of silently truncating,
-`resizeImageToBase64(file, 150)` behind a 10MB webp/png/jpeg check, an inline toast for success and
+`prepareImage(file, AVATAR_IMAGE)` behind a 10MB webp/png/jpeg check, an inline toast for success and
 failure, and an `AlertDialog` on exit **only when something has been typed or picked**.
 
 A failure leaves the overlay open with an error notice and the submit re-enabled. Nothing is closed

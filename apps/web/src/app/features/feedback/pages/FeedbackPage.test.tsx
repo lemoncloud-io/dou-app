@@ -5,7 +5,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 const mockReportIssue = jest.fn();
 const mockNavigate = jest.fn();
 const mockToast = jest.fn();
-const mockEncode = jest.fn((file: File) => Promise.resolve(`data:image/jpeg;base64,${file.name}`));
+const mockEncode = jest.fn((file: File) => Promise.resolve({ photo: `data:image/jpeg;base64,${file.name}` }));
 
 jest.mock('react-i18next', () => ({
     useTranslation: () => ({ t: (k: string) => k, i18n: { language: 'ko' } }),
@@ -20,7 +20,7 @@ jest.mock('@chatic/shared', () => ({
     useNavigateWithTransition: () => mockNavigate,
     // jsdom has no canvas, so the real encoder cannot run here; it is covered by its own
     // contract (aspect-preserving downscale) and exercised in the browser.
-    scaleImageToDataUrl: (file: File) => mockEncode(file),
+    prepareImage: (file: File) => mockEncode(file),
 }));
 jest.mock('@chatic/app-runtime', () => ({
     runtime: {
@@ -146,7 +146,9 @@ describe('FeedbackPage — 사진 첨부', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         mockReportIssue.mockResolvedValue(undefined);
-        mockEncode.mockImplementation((file: File) => Promise.resolve(`data:image/jpeg;base64,${file.name}`));
+        mockEncode.mockImplementation((file: File) =>
+            Promise.resolve({ photo: `data:image/jpeg;base64,${file.name}` })
+        );
     });
 
     it('고른 사진을 인코딩해 썸네일로 보여준다', async () => {

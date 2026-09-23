@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
-import { resizeImageToBase64 } from '@chatic/shared';
+import { AVATAR_IMAGE, prepareImage } from '@chatic/shared';
 
 import { FloatingButton, ProfileAvatar, Text, TextField } from '@chatic/web-ui-kit';
 
@@ -84,7 +84,10 @@ export const ProfileEditPage = () => {
         setImageSizeError(false);
 
         try {
-            const base64 = await resizeImageToBase64(file, 150);
+            const { avatar: base64 } = await prepareImage(file, AVATAR_IMAGE);
+            // A record field has nothing to fall back to, so a preview that could not be made is
+            // an error here, not a degraded result.
+            if (!base64) throw new Error('Failed to prepare avatar image');
             setImageUrl(base64);
         } catch (error) {
             logImageEncodeFailure(error, file);
