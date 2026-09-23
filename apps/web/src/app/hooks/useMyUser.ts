@@ -46,9 +46,9 @@ const accountFieldsOf = (view: UserView | undefined): Record<string, unknown> =>
  *
  * Sourced from the stored relay token rather than the user cache, and that is the whole design. A
  * cloud session mints a DIFFERENT uid on a different backend, and the local cache is physically keyed
- * `${type}:${cid}:${uid}:${id}` with a read path that ignores context overrides — so while a cloud is
- * active the relay `user` row simply cannot be read back. The earlier attempt to fix this inside the
- * data layer was reverted for exactly that reason (ADR-0094 decision 5, reverted 2026-08-06; see
+ * `${type}:${cid}:${uid}:${id}` and read by the repositories under the live scope — so while a cloud
+ * is active the relay `user` row is out of their reach. The earlier attempt to fix this inside the
+ * data layer was reverted on 2026-08-06, when the read path could not reach that row at all (see
  * apps/web/docs/feature/place/relay-default-place-scoping.md §6). The relay token has neither problem:
  * it is always present, always the relay account's, and it carries name/photo/email/link$.
  *
@@ -111,10 +111,9 @@ export const useMyUser = (): MyUser | null => {
  * the moment they switched into a cloud, right beside their own name, which comes from the relay
  * token via `useMyUser` and was correct all along.
  *
- * Reading the relay token is what makes it right, and it is the only thing that can: the local cache
- * is keyed `${type}:${cid}:${uid}:${id}` with a read path that ignores context overrides, so while a
- * cloud is active the relay `user` row is physically unreachable (ADR-0094 decision 5, reverted; see
- * apps/web/docs/feature/mypage/README.md).
+ * Reading the relay token is what makes it right: the local cache is keyed
+ * `${type}:${cid}:${uid}:${id}` and read by the repositories under the live scope, so while a cloud is
+ * active the relay `user` row is out of their reach (see apps/web/docs/feature/mypage/README.md).
  *
  * No relay account at all counts as a guest. That is the safe direction rather than a third state:
  * the guest card invites a sign-in and recovers, while the signed-in card would render a profile row

@@ -122,8 +122,9 @@ answer or `confirm`'s status code.
 
 **Where it comes from is not the data layer.** `useMyUser` reads the account fields off the stored
 relay token and refreshes them once from `user.profile`, writing the response back into the token.
-It is not read out of the local cache, and it cannot be: the cache is keyed by `cid` and `uid`, so
-while a cloud is active the relay user's row is unreachable. `link$` does not appear on the boundary
+It is not read out of the local cache, and it should not be: the cache is keyed by `cid` and `uid`
+and the repositories read under the live scope, so while a cloud is active the relay user's row is
+out of their reach. `link$` does not appear on the boundary
 type either — `MyUser` widens `DomainUser` with `photo`, `email`, `link$` and `userRole`, because
 every hop is a spread rather than a field allowlist. The cost of that is real: a server-side shape
 change will not fail the build.

@@ -22,8 +22,8 @@ interface UpdateProfileData {
  * reverted; apps/web/docs/feature/place/relay-default-place-scoping.md §6).
  *
  * The token patch is not an optimistic guess: it applies the SERVER's response, and it is the only
- * fan-out step there is. Deliberately no repository/cache write — the cache is partitioned by the
- * ACTIVE cloud, so a relay row written while a cloud is active could never be read back.
+ * fan-out step there is. Deliberately no repository/cache write — the repositories read the cache
+ * under the ACTIVE cloud, so a relay row written while a cloud is active would not be read back.
  *
  * `photo` is omitted by the caller when unchanged, so an absent field here means "leave it alone".
  */

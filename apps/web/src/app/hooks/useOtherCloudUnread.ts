@@ -35,10 +35,10 @@ export interface OtherCloudUnread {
 /**
  * Unread for the clouds the user is NOT currently in, read from the local cache.
  *
- * Repositories cannot answer this: their reads are scoped to the active cloud, and the context
- * override is a sid override rather than a cid one. `resolveContext` is the codebase's only
- * cross-cloud reader (see GlobalCacheContextQuery's note) and it takes exactly what an unread
- * count needs — every cached channel per cloud, plus MY join row for each.
+ * Repositories do not answer this: their reads are scoped to one cloud per call, and this needs
+ * every cloud at once. `resolveContext` is the codebase's only cross-cloud reader (see
+ * GlobalCacheContextQuery's note) and it takes exactly what an unread count needs — every cached
+ * channel per cloud, plus MY join row for each.
  *
  * WHAT THIS REPLACES, and why it is better: the badge used to sum a localStorage snapshot of each
  * cloud's last-visited total. Nothing ever cleared an inactive cloud's entry, so a count frozen at

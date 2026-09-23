@@ -21,10 +21,10 @@ export {
     getGlobalSessionContext,
     getIdentityContext,
     getRelaySessionUser,
-    // The account-profile read/write pair. Kept public because the local cache cannot answer this
-    // question — its physical key is `${type}:${cid}:${uid}:${id}` and the read path ignores context
-    // overrides, so while a cloud is active the relay `user` row is unreachable (ADR-0062). apps/web
-    // uses both.
+    // The account-profile read/write pair. Kept public because the local cache does not answer this
+    // question — its physical key is `${type}:${cid}:${uid}:${id}` and the repositories read it under
+    // the live scope, so while a cloud is active the relay `user` row is out of their reach
+    // (apps/web/docs/feature/mypage/README.md). apps/web uses both.
     patchRelaySessionUser,
 } from './store';
 export type {
