@@ -10,8 +10,6 @@ import type {
 } from '../remote/socket-data-sources';
 import type { DataContextProvider } from './types';
 import { BaseRepository, type DisposableRepository } from './types';
-import { foreignDropAggregator } from '@chatic/logger';
-import { isForeignContext } from './scopeGuards';
 
 export interface IPlaceRepository extends DisposableRepository {
     observeList(
@@ -96,17 +94,9 @@ export class PlaceRepository extends BaseRepository implements IPlaceRepository 
     private async syncListSnapshot(query?: UserMySiteInput, protectedId?: string): Promise<void> {
         const requestContext = this.getRequestContext();
         // The socket that answers `user.mysite` may still serve the OUTGOING cloud during a
-        // switch (cache cid already flipped). Writing or pruning under the new cid would poison
-        // the target partition, so skip when the socket's bound cloud differs from the active cid.
-        const rawContext = this.getRepositoryContext();
-        if (isForeignContext(rawContext)) {
-            foreignDropAggregator.record({
-                source: 'place-refresh',
-                cid: rawContext.cid ?? 'default',
-                socketCid: rawContext.socketCid ?? 'none',
-            });
-            return;
-        }
+        // switch (cache cid already flipped). Writing or pruning its list would poison the target
+        // partition, and nothing is owed to the caller, so don't even ask.
+        if (!this.acceptsAnswer(requestContext, 'place-refresh')) return;
         const normalizedContext = this.getNormalizedContext(requestContext);
         const remote = await this.placeSocketDataSource.fetchPlace(query, normalizedContext);
         // Preserve the server-provided ordering by stamping the list index as `order`.

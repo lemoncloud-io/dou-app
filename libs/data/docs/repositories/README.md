@@ -1,6 +1,6 @@
 # repositories — the data facade
 
-> Status: Live · Last updated: 2026-09-14 · Overview in the [lib README](../../README.md) · Canonical code: [repositories/index.ts](../../src/repositories/index.ts) · [repositories/types.ts](../../src/repositories/types.ts)
+> Status: Live · Last updated: 2026-09-23 · Overview in the [lib README](../../README.md) · Canonical code: [repositories/index.ts](../../src/repositories/index.ts) · [repositories/types.ts](../../src/repositories/types.ts)
 
 A repository bundles a remote data source and a local data source and exposes them to the app as a
 **data facade**. It is also the layer that interprets server-side changes into a local read-model.
@@ -39,6 +39,7 @@ user-event path.
 - `getRequestContext()` — captures a snapshot of the context at call time. **Because the request-time and response-time contexts can differ, the context has to be captured before a remote response is written.**
 - `getNormalizedContext()` — normalizes a missing `cid` to `'default'`.
 - `assertRequiredString` — validates a required identifier.
+- `acceptsAnswer(requestContext, source)` — whether an answer may be cached, judged on the **captured** context (below). A skip is recorded under `source` in `foreignDropAggregator`.
 - `dispose()` — the factory routes every repository's cleanup here. There is nothing to release at the base level today; it is the seat for a subclass that holds a resource.
 
 ## Context and scope
@@ -47,6 +48,21 @@ user-event path.
 repository does not hold the context; it reads the current value through a `DataContextProvider` on
 every call (`DataContextHolder`). So a cloud switch requires no rebuild, and `withContext(snapshot)`
 can produce a copy pinned to a specific context.
+
+**The context a repository captures is the partition its answer is written to.** It hands the
+snapshot to local as `contextOverride`, and local resolves its storage from that scope — see
+[which partition an operation touches](../local/README.md#which-partition-an-operation-touches). A
+response that lands after a cloud or account switch therefore goes to the account and cloud that
+asked, and a stale prune runs against that partition only.
+
+**Which cloud answered is a separate question, and it too is judged on the captured context.** While
+a switch is under way `cid` has flipped but the old socket still answers, so its answer belongs to
+the outgoing cloud; `isForeignContext` recognises that from `socketCid`. `acceptsAnswer` asks it of
+the snapshot, never of the live context after the await — once answers go to the captured partition,
+the live question is backwards both ways (ADR-0112). A site asks it before the request when nothing
+is owed to the caller (`refreshList`, `syncChannels`, the place snapshot: skip the round trip), and
+after it when the caller is owed the value (`startDm`, `getSelfChannel`: return it, don't cache it).
+Chat, profile, join and user reads and every optimistic mutation are not guarded yet.
 
 `sid` is **not** ambient (ADR-0085). The field exists on `DataContext`, but nothing seeds it: a
 repository that needs a place takes it as an argument (`setMyProfile(body, siteId)`,
@@ -100,6 +116,8 @@ classDiagram
 
     class BaseLocalDataSource {
         <<abstract>>
+        #storage(override) CacheStorage
+        #resolveContext(override) DataContext
         #getScopeKey(override) string
         #createListObserverKey(parts, override) string
         #scheduleItemReemit(ids) void
@@ -110,6 +128,13 @@ classDiagram
 
     BaseLocalDataSource <|-- ChatLocalDataSource
     ILocalDataSource <|.. ChatLocalDataSource
+
+    class ScopedCacheStorage {
+        <<interface>>
+        +forScope(context) CacheStorage
+    }
+    BaseLocalDataSource --> ScopedCacheStorage
+    ScopedCacheStorage --> CacheStorage : one per partition
 
     class CacheStorage {
         <<interface>>
@@ -132,8 +157,9 @@ classDiagram
     BaseDbAdapter <|-- NativeDBAdapter
 ```
 
-Only `CacheStorage` belongs to this lib — it is an interface `ports/` declares. The three adapters below
-it are owned by `@chatic/db`, and which domain gets which adapter is decided by `libs/app-runtime`.
+`CacheStorage` and `ScopedCacheStorage` belong to this lib — interfaces `ports/` declares, plus the
+slot that builds one adapter per partition (`createScopedCacheStorage`). The three adapters below it
+are owned by `@chatic/db`, and which domain gets which adapter is decided by `libs/app-runtime`.
 
 ## Repository wiring
 
@@ -235,7 +261,7 @@ whatever rows remain.
 
 ## Notes for implementers and tests
 
-- Capture the request-time context before writing a remote response (`getRequestContext`). A response arriving late during a cloud switch must not poison the current scope.
+- Capture the request-time context before the await (`getRequestContext`) and pass that snapshot to every local call the answer makes — the write, the prune read, the prune delete. It decides the partition; a call given no context falls back to the live one.
 - Never fall back to the context for a `sid` a caller did not give. That fallback is what tagged writes for the wrong place during a site switch (ADR-0085); ask the caller instead.
 - For `chat.feed`, merging matters more than overwriting.
 - If a path remains where a hook renders a remote return list directly, it breaks this lib's goal.

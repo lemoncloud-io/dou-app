@@ -1,6 +1,10 @@
 import { logger } from '@chatic/bridges';
 
+import { ChannelLocalDataSource } from '../local/data-sources/ChannelLocalDataSource';
+import { ChatLocalDataSource } from '../local/data-sources/ChatLocalDataSource';
+import { createPartitionedMemoryStorage } from '../local/data-sources/__mocks__/MemoryCacheStorage';
 import { ChannelRepository } from './ChannelRepository';
+import { DataContextHolder } from './types';
 
 // The swallowed purge failure is only observable through the logger, and the real one routes to a
 // sink that is not installed under jest — asserting on `console.warn` would pass or fail depending
@@ -411,5 +415,131 @@ describe('ChannelRepository', () => {
 
         await expect(repository.getUnreads({} as any)).resolves.toEqual({ total: 3 });
         expect(channelLocalDataSource.cacheWrite).not.toHaveBeenCalled();
+    });
+});
+
+/**
+ * The repository against real local data sources on partitioned storage, so an assertion is about
+ * where a row ended up rather than what a mock was called with. Every case turns on an answer that
+ * arrives after the context moved.
+ */
+describe('ChannelRepository — the scope an answer is written under', () => {
+    const deferred = <T>() => {
+        let resolve!: (value: T) => void;
+        const promise = new Promise<T>(settle => (resolve = settle));
+        return { promise, resolve };
+    };
+
+    const createScopedRepository = (initial: Record<string, string>) => {
+        const context = new DataContextHolder(initial);
+        const channels = createPartitionedMemoryStorage('channel');
+        const socket = {
+            fetchChannel: jest.fn(),
+            syncChannel: jest.fn(),
+            startDm: jest.fn(),
+            getSelfChannel: jest.fn(),
+        };
+        const repository = new ChannelRepository(
+            socket as any,
+            new ChannelLocalDataSource(context, channels),
+            new ChatLocalDataSource(context, createPartitionedMemoryStorage('chat')),
+            context
+        );
+        const idsIn = async (cid: string, uid = 'me') =>
+            (await channels.forScope({ cid, uid }).loadAll()).map(row => row.id).sort();
+        return { context, repository, socket, idsIn, channels };
+    };
+
+    it('a sync answered after a switch lands in the cloud it was asked for and prunes nothing elsewhere', async () => {
+        const { context, repository, socket, idsIn, channels } = createScopedRepository({
+            cid: 'cloud-b',
+            uid: 'me',
+            socketCid: 'cloud-b',
+        });
+        await channels.forScope({ cid: 'cloud-b', uid: 'me' }).saveAll([
+            { id: 'b-1', cid: 'cloud-b', sid: 's-b' },
+            { id: 'b-2', cid: 'cloud-b', sid: 's-b' },
+        ] as any);
+        const remote = deferred<any>();
+        socket.syncChannel.mockReturnValue(remote.promise);
+
+        context.setContext({ cid: 'cloud-a', uid: 'me', socketCid: 'cloud-a' });
+        const pending = repository.syncChannels(0);
+        context.setContext({ cid: 'cloud-b', uid: 'me', socketCid: 'cloud-b' });
+        remote.resolve({ list: [{ id: 'a-1', sid: 's-a', $: { sid: 's-a' } }], ids: ['a-1'], syncedAt: 123 });
+        await pending;
+
+        expect(await idsIn('cloud-a')).toEqual(['a-1']);
+        // The stale prune reads the partition the answer describes; cloud B's own rows survive it.
+        expect(await idsIn('cloud-b')).toEqual(['b-1', 'b-2']);
+    });
+
+    it('a refresh answered after an account switch stays with the account that asked', async () => {
+        const { context, repository, socket, idsIn } = createScopedRepository({ cid: 'cloud-a', uid: 'me' });
+        const remote = deferred<any>();
+        socket.fetchChannel.mockReturnValue(remote.promise);
+
+        const pending = repository.refreshList({ sid: 's-a' });
+        context.setContext({ cid: 'cloud-a', uid: 'someone-else' });
+        remote.resolve({ list: [{ id: 'a-1', sid: 's-a' }] });
+        await pending;
+
+        expect(await idsIn('cloud-a', 'me')).toEqual(['a-1']);
+        expect(await idsIn('cloud-a', 'someone-else')).toEqual([]);
+    });
+
+    it('startDm caches an answer to a request sent before the switch window opened', async () => {
+        const { context, repository, socket, idsIn } = createScopedRepository({
+            cid: 'cloud-a',
+            uid: 'me',
+            socketCid: 'cloud-a',
+        });
+        const remote = deferred<any>();
+        socket.startDm.mockReturnValue(remote.promise);
+
+        const pending = repository.startDm({ peerId: 'u2' } as any);
+        // The switch starts while the request is in flight: cid flips, the socket has not rebound.
+        context.setContext({ cid: 'cloud-b', uid: 'me', socketCid: 'cloud-a' });
+        remote.resolve({ id: 'dm-1', sid: 's-a' });
+        await pending;
+
+        expect(await idsIn('cloud-a')).toEqual(['dm-1']);
+        expect(await idsIn('cloud-b')).toEqual([]);
+    });
+
+    it('startDm returns but does not cache an answer from a socket that served another cloud when asked', async () => {
+        const { context, repository, socket, idsIn } = createScopedRepository({
+            cid: 'cloud-b',
+            uid: 'me',
+            socketCid: 'cloud-a',
+        });
+        const remote = deferred<any>();
+        socket.startDm.mockReturnValue(remote.promise);
+
+        const pending = repository.startDm({ peerId: 'u2' } as any);
+        // The socket rebinds before the answer arrives; the answer still came from cloud A.
+        context.setContext({ cid: 'cloud-b', uid: 'me', socketCid: 'cloud-b' });
+        remote.resolve({ id: 'dm-from-a', sid: 's-a' });
+
+        await expect(pending).resolves.toMatchObject({ id: 'dm-from-a' });
+        expect(await idsIn('cloud-b')).toEqual([]);
+        expect(await idsIn('cloud-a')).toEqual([]);
+    });
+
+    it('getSelfChannel does not cache an answer from a socket that served another cloud when asked', async () => {
+        const { context, repository, socket, idsIn } = createScopedRepository({
+            cid: 'cloud-b',
+            uid: 'me',
+            socketCid: 'cloud-a',
+        });
+        const remote = deferred<any>();
+        socket.getSelfChannel.mockReturnValue(remote.promise);
+
+        const pending = repository.getSelfChannel({} as any, 's-b');
+        context.setContext({ cid: 'cloud-b', uid: 'me', socketCid: 'cloud-b' });
+        remote.resolve({ id: 'self-from-a' });
+
+        await expect(pending).resolves.toMatchObject({ id: 'self-from-a' });
+        expect(await idsIn('cloud-b')).toEqual([]);
     });
 });

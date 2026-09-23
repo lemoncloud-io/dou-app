@@ -34,7 +34,7 @@ export interface DataRuntimeConfig {
 
 /**
  * Registers app-level policies for the lazily created runtime singleton. Must run before the first
- * getDataRuntime() access — repositories and cache storages are built once in the DataManager
+ * getDataRuntime() access — repositories and the cache slots are built once in the DataManager
  * constructor, so a late call cannot apply and is ignored with a warning instead of silently
  * rebuilding shared state.
  *

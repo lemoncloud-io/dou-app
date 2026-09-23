@@ -1,9 +1,5 @@
 import { ChatLocalDataSource } from './ChatLocalDataSource';
-import { createMemoryCacheStorage } from './__mocks__/MemoryCacheStorage';
-
-// The in-memory storage moved to a shared fixture so the repository suite can assert what the
-// cache HOLDS after a write, not just how the write was called.
-const createMemoryStorage = createMemoryCacheStorage;
+import { createPartitionedMemoryStorage } from './__mocks__/MemoryCacheStorage';
 
 describe('ChatLocalDataSource', () => {
     const contextProvider = {
@@ -17,8 +13,8 @@ describe('ChatLocalDataSource', () => {
     };
 
     it('returns only the requested channel page and clears one channel without touching others', async () => {
-        const storage = createMemoryStorage();
-        const dataSource = new ChatLocalDataSource(contextProvider as any, storage);
+        const chats = createPartitionedMemoryStorage('chat');
+        const dataSource = new ChatLocalDataSource(contextProvider as any, chats);
 
         await dataSource.cacheWriteMany([
             { id: 'm1', channelId: 'ch-1', chatNo: 1, content: 'a' } as any,
@@ -40,9 +36,27 @@ describe('ChatLocalDataSource', () => {
         expect(otherChannel?.list.map(item => item.id)).toEqual(['m3']);
     });
 
+    it('a channel purge under a captured scope empties that scope only, even when the session has moved on', async () => {
+        const chats = createPartitionedMemoryStorage('chat');
+        const provider = { getContext: () => ({ cid: 'cloud-b', uid: 'me' }), setContext: () => undefined };
+        const dataSource = new ChatLocalDataSource(provider, chats);
+        // Channel ids are per cloud, so the same id can name a room in each.
+        await dataSource.cacheWrite({ id: 'a-1', channelId: 'ch-1', chatNo: 1 } as any, { cid: 'cloud-a', uid: 'me' });
+        await dataSource.cacheWrite({ id: 'b-1', channelId: 'ch-1', chatNo: 1 } as any);
+
+        // A leave confirmed for cloud A, arriving after the switch to cloud B.
+        await dataSource.cacheClearByChannelId('ch-1', { cid: 'cloud-a', uid: 'me' });
+
+        // Chat history cannot be fetched back once gone, so the wrong partition here is permanent.
+        const idsIn = async (cid: string) =>
+            (await chats.forScope({ cid, uid: 'me' }).loadAll({ channelId: 'ch-1' } as any)).map(row => row.id);
+        expect(await idsIn('cloud-a')).toEqual([]);
+        expect(await idsIn('cloud-b')).toEqual(['b-1']);
+    });
+
     it('throws when chat list input is missing channelId instead of returning an empty fallback', async () => {
-        const storage = createMemoryStorage();
-        const dataSource = new ChatLocalDataSource(contextProvider as any, storage);
+        const chats = createPartitionedMemoryStorage('chat');
+        const dataSource = new ChatLocalDataSource(contextProvider as any, chats);
 
         await expect(dataSource.cacheReadList({ limit: 50 } as any)).rejects.toThrow(
             '[LocalDataSource] channelId is required.'
@@ -51,13 +65,14 @@ describe('ChatLocalDataSource', () => {
 
     describe('cacheReadLastList (ADR-0057)', () => {
         it('uses the storage fast path and preserves the requested channel order', async () => {
-            const storage = createMemoryStorage();
+            const chats = createPartitionedMemoryStorage('chat');
+            const storage = chats.forScope(contextProvider.getContext());
             storage.loadLastPerChannel = jest.fn(async () => [
                 // The response order can differ from the requested order — returned reversed, per the contract.
                 { channelId: 'ch-2', lastNo: 7, item: { id: 'm7', channelId: 'ch-2', chatNo: 7 } as any },
                 { channelId: 'ch-1', lastNo: 3, item: { id: 'm3', channelId: 'ch-1', chatNo: 3 } as any },
             ]);
-            const dataSource = new ChatLocalDataSource(contextProvider as any, storage);
+            const dataSource = new ChatLocalDataSource(contextProvider as any, chats);
 
             const result = await dataSource.cacheReadLastList(['ch-1', 'ch-2']);
 
@@ -68,9 +83,10 @@ describe('ChatLocalDataSource', () => {
         });
 
         it('falls back to the window scan when the storage cannot answer (old app / plain browser)', async () => {
-            const storage = createMemoryStorage();
+            const chats = createPartitionedMemoryStorage('chat');
+            const storage = chats.forScope(contextProvider.getContext());
             storage.loadLastPerChannel = jest.fn(async () => null);
-            const dataSource = new ChatLocalDataSource(contextProvider as any, storage);
+            const dataSource = new ChatLocalDataSource(contextProvider as any, chats);
 
             await dataSource.cacheWriteMany([
                 { id: 'm1', channelId: 'ch-1', chatNo: 1, content: 'a' } as any,
@@ -87,7 +103,8 @@ describe('ChatLocalDataSource', () => {
         });
 
         it('re-derives only the channels whose fast-path row fails the CURRENT preview rule', async () => {
-            const storage = createMemoryStorage();
+            const chats = createPartitionedMemoryStorage('chat');
+            const storage = chats.forScope(contextProvider.getContext());
             storage.loadLastPerChannel = jest.fn(async () => [
                 // The app (older semantics) answered with a reaction event as the preview — only this channel should fall back.
                 {
@@ -97,7 +114,7 @@ describe('ChatLocalDataSource', () => {
                 },
                 { channelId: 'ch-2', lastNo: 9, item: { id: 'ok', channelId: 'ch-2', chatNo: 9 } as any },
             ]);
-            const dataSource = new ChatLocalDataSource(contextProvider as any, storage);
+            const dataSource = new ChatLocalDataSource(contextProvider as any, chats);
 
             await dataSource.cacheWriteMany([
                 { id: 'm4', channelId: 'ch-1', chatNo: 4, content: 'real' } as any,
@@ -113,9 +130,10 @@ describe('ChatLocalDataSource', () => {
         });
 
         it('a re-run in fallback mode re-reads every requested channel', async () => {
-            const storage = createMemoryStorage(); // no loadLastPerChannel = fallback mode
+            const chats = createPartitionedMemoryStorage('chat');
+            const storage = chats.forScope(contextProvider.getContext()); // no loadLastPerChannel = fallback mode
             const loadAllSpy = jest.spyOn(storage, 'loadAll');
-            const dataSource = new ChatLocalDataSource(contextProvider as any, storage);
+            const dataSource = new ChatLocalDataSource(contextProvider as any, chats);
             await dataSource.cacheWriteMany([
                 { id: 'a1', channelId: 'ch-1', chatNo: 1, content: 'a' } as any,
                 { id: 'b1', channelId: 'ch-2', chatNo: 1, content: 'b' } as any,
@@ -136,9 +154,10 @@ describe('ChatLocalDataSource', () => {
         });
 
         it('a re-run after cacheClear discards the memo and re-reads everything', async () => {
-            const storage = createMemoryStorage();
+            const chats = createPartitionedMemoryStorage('chat');
+            const storage = chats.forScope(contextProvider.getContext());
             const loadAllSpy = jest.spyOn(storage, 'loadAll');
-            const dataSource = new ChatLocalDataSource(contextProvider as any, storage);
+            const dataSource = new ChatLocalDataSource(contextProvider as any, chats);
             await dataSource.cacheWriteMany([{ id: 'a1', channelId: 'ch-1', chatNo: 1, content: 'a' } as any]);
 
             await dataSource.cacheReadLastList(['ch-1']);
@@ -152,10 +171,11 @@ describe('ChatLocalDataSource', () => {
         });
 
         it('keeps an empty channel as a valid "nothing to preview" answer without falling back', async () => {
-            const storage = createMemoryStorage();
+            const chats = createPartitionedMemoryStorage('chat');
+            const storage = chats.forScope(contextProvider.getContext());
             storage.loadLastPerChannel = jest.fn(async () => [{ channelId: 'ch-1', lastNo: 0, item: null }]);
             const fallbackSpy = jest.spyOn(storage, 'loadAll');
-            const dataSource = new ChatLocalDataSource(contextProvider as any, storage);
+            const dataSource = new ChatLocalDataSource(contextProvider as any, chats);
 
             const result = await dataSource.cacheReadLastList(['ch-1']);
 
@@ -166,8 +186,8 @@ describe('ChatLocalDataSource', () => {
 
     describe('observeLastList (ADR-0057)', () => {
         it('re-emits the combined observer on any chat write and delivers the fresh preview', async () => {
-            const storage = createMemoryStorage();
-            const dataSource = new ChatLocalDataSource(contextProvider as any, storage);
+            const chats = createPartitionedMemoryStorage('chat');
+            const dataSource = new ChatLocalDataSource(contextProvider as any, chats);
 
             await dataSource.cacheWrite({ id: 'm1', channelId: 'ch-1', chatNo: 1, content: 'old' } as any);
             await new Promise(resolve => setTimeout(resolve, 80)); // past the flush timer (50ms)
@@ -190,8 +210,8 @@ describe('ChatLocalDataSource', () => {
     });
 
     it('supports cursor-based paging for older messages instead of returning the latest page again', async () => {
-        const storage = createMemoryStorage();
-        const dataSource = new ChatLocalDataSource(contextProvider as any, storage);
+        const chats = createPartitionedMemoryStorage('chat');
+        const dataSource = new ChatLocalDataSource(contextProvider as any, chats);
 
         await dataSource.cacheWriteMany([
             { id: 'm1', channelId: 'ch-1', chatNo: 1, content: 'a' } as any,

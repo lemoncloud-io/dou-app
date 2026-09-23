@@ -17,7 +17,7 @@ describe('isForeignContext', () => {
         expect(isForeignContext({ cid, socketCid })).toBe(expected);
     });
 
-    it('matches the negation flip in ChannelRepository.getSelfChannel — the write condition is !isForeignContext', () => {
+    it('is the negation of the write condition BaseRepository.acceptsAnswer applies', () => {
         // Original: cache-write when `socketCid == null || (cid || 'default') === socketCid`
         const shouldWrite = (cid?: string, socketCid?: string) => !isForeignContext({ cid, socketCid });
 

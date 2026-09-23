@@ -1,55 +1,10 @@
-import type { CacheStorage } from '../ports';
 import { ProfileLocalDataSource } from './ProfileLocalDataSource';
+import { createPartitionedMemoryStorage } from './__mocks__/MemoryCacheStorage';
 
 // Flush pending microtasks after timer-driven observer re-emits.
 const flushPromises = async () => {
     await Promise.resolve();
     await Promise.resolve();
-};
-
-// Minimal in-memory storage so the test only exercises datasource behavior.
-const createMemoryStorage = (): CacheStorage<'profile'> => {
-    const map = new Map<string, any>();
-    return {
-        async save(id, item) {
-            map.set(id, { ...item });
-            return item;
-        },
-        async saveAll(items) {
-            items.forEach(item => {
-                if (item?.id) map.set(item.id, { ...item });
-            });
-            return items;
-        },
-        async load(id) {
-            return map.has(id) ? { ...map.get(id) } : null;
-        },
-        async loadMany(ids) {
-            // Per the contract this omits absent ids and guarantees no order (it returns them
-            // reversed) — this fixture exists so that any code pairing by position breaks here.
-            return ids
-                .filter(id => map.has(id))
-                .map(id => ({ ...map.get(id) }))
-                .reverse();
-        },
-        async loadAll(options) {
-            const list = Array.from(map.values()).map(item => ({ ...item }));
-            if (!options?.sid) return list;
-            return list.filter(item => item.sid === options.sid);
-        },
-        async delete(id) {
-            map.delete(id);
-        },
-        async deleteAll(ids) {
-            ids.forEach(id => map.delete(id));
-        },
-        async clearAll() {
-            map.clear();
-        },
-        async clearByChannelId() {
-            return undefined;
-        },
-    };
 };
 
 describe('ProfileLocalDataSource', () => {
@@ -72,7 +27,7 @@ describe('ProfileLocalDataSource', () => {
     });
 
     it('stores profiles with a deterministic site-user key', async () => {
-        const storage = createMemoryStorage();
+        const storage = createPartitionedMemoryStorage('profile');
         const dataSource = new ProfileLocalDataSource(contextProvider as any, storage);
 
         // Write without a precomputed id so the datasource has to derive the cache key.
@@ -92,7 +47,7 @@ describe('ProfileLocalDataSource', () => {
     });
 
     it('re-emits the current place profile list when a profile changes', async () => {
-        const storage = createMemoryStorage();
+        const storage = createPartitionedMemoryStorage('profile');
         const dataSource = new ProfileLocalDataSource(contextProvider as any, storage);
         const emissions: string[][] = [];
 
@@ -121,7 +76,7 @@ describe('ProfileLocalDataSource', () => {
     });
 
     it('filters profile lists by site and user so display lookups stay scoped to the active target', async () => {
-        const storage = createMemoryStorage();
+        const storage = createPartitionedMemoryStorage('profile');
         const dataSource = new ProfileLocalDataSource(contextProvider as any, storage);
 
         await dataSource.cacheWriteMany([
@@ -137,7 +92,7 @@ describe('ProfileLocalDataSource', () => {
     });
 
     it('accepts sid and uid aliases when filtering the cached profile list', async () => {
-        const storage = createMemoryStorage();
+        const storage = createPartitionedMemoryStorage('profile');
         const dataSource = new ProfileLocalDataSource(contextProvider as any, storage);
 
         await dataSource.cacheWriteMany([
@@ -151,7 +106,7 @@ describe('ProfileLocalDataSource', () => {
     });
 
     it('keeps every member profile distinct instead of collapsing them onto the scope user', async () => {
-        const storage = createMemoryStorage();
+        const storage = createPartitionedMemoryStorage('profile');
         const dataSource = new ProfileLocalDataSource(contextProvider as any, storage);
 
         // Members of the active place, cached under the logged-in user ('me') scope.
@@ -171,7 +126,7 @@ describe('ProfileLocalDataSource', () => {
     });
 
     it('merges cacheWrite payloads with the cached row so an omitted thumbnail is not wiped', async () => {
-        const storage = createMemoryStorage();
+        const storage = createPartitionedMemoryStorage('profile');
         const dataSource = new ProfileLocalDataSource(contextProvider as any, storage);
 
         await dataSource.cacheWrite({
@@ -192,7 +147,7 @@ describe('ProfileLocalDataSource', () => {
     });
 
     it('throws when cacheWrite cannot resolve sid and uid', async () => {
-        const storage = createMemoryStorage();
+        const storage = createPartitionedMemoryStorage('profile');
         const dataSource = new ProfileLocalDataSource(
             {
                 getContext: () => ({ cid: 'cloud-a' }),

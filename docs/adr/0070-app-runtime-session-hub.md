@@ -1,6 +1,8 @@
 # ADR-0070: One hub, `app-runtime`, owns the session — ClientSocketAuth refresh, HTTP symmetry for `data`, and separated transport rules
 
 > Status: Live · Decided: 2026-08-26 · Updated: 2026-09-01 · Baseline tree: develop
+> · Decision 7's note that `contextOverride` cannot change the physical partition is lifted by
+> [ADR-0112](./0112-the-cache-partition-is-the-one-an-operation-was-captured-for.md)
 > Progress: **Phases 1-5 complete, plus review follow-through.** `@chatic/web-core`, `apps/admin`, and
 > the three legacy libs are deleted.
 > **Zero call sites hit the refresh endpoint directly.** Every HTTP request is a gateway action, and

@@ -1,7 +1,7 @@
 import type { DomainInvite, DomainListResult } from '../../domain';
 import { createDomainListResult } from '../../domain';
 import type { DataContextProvider } from '../../repositories/types';
-import type { CacheStorage } from '../ports';
+import type { ScopedCacheStorage } from '../ports';
 import {
     BaseLocalDataSource,
     type ILocalDataSource,
@@ -29,27 +29,21 @@ export interface IInviteLocalDataSource
  * `cacheDeleteMany` call on the list-sync path. Only the reconcile/migration cleanup (draining a
  * legacy dismiss stub) calls `cacheDelete` explicitly.
  */
-export class InviteLocalDataSource extends BaseLocalDataSource implements IInviteLocalDataSource {
-    constructor(
-        contextProvider: DataContextProvider,
-        private readonly cacheStorage: CacheStorage<'invite'>
-    ) {
-        super(contextProvider);
+export class InviteLocalDataSource extends BaseLocalDataSource<'invite'> implements IInviteLocalDataSource {
+    constructor(contextProvider: DataContextProvider, storages: ScopedCacheStorage<'invite'>) {
+        super(contextProvider, storages);
     }
 
-    public async cacheRead(
-        id: string,
-        _contextOverride?: LocalDataSourceContextOverride
-    ): Promise<DomainInvite | null> {
+    public async cacheRead(id: string, contextOverride?: LocalDataSourceContextOverride): Promise<DomainInvite | null> {
         const requiredId = this.assertRequiredString(id, 'id');
-        return this.cacheStorage.load(requiredId);
+        return this.storage(contextOverride).load(requiredId);
     }
 
     public async cacheReadList(
         _query: undefined,
-        _contextOverride?: LocalDataSourceContextOverride
+        contextOverride?: LocalDataSourceContextOverride
     ): Promise<DomainListResult<DomainInvite> | null> {
-        const items = await this.cacheStorage.loadAll();
+        const items = await this.storage(contextOverride).loadAll();
         // Newest first, matching the server's `invite.list` order. Ties (equal/missing
         // createdAt) break on `id` descending so ordering stays deterministic across reads.
         const list = [...items].sort((left, right) => {
@@ -85,32 +79,34 @@ export class InviteLocalDataSource extends BaseLocalDataSource implements IInvit
         item: Partial<DomainInvite>,
         contextOverride?: LocalDataSourceContextOverride
     ): Promise<void> {
+        const scope = this.resolveContext(contextOverride);
         const id = this.assertRequiredString(item.id, 'id');
-        const existing = await this.cacheStorage.load(id);
-        const context = this.getContext(contextOverride);
+        const storage = this.storage(scope);
+        const existing = await storage.load(id);
         const merged: DomainInvite = {
             ...(existing ?? ({} as DomainInvite)),
             ...item,
             id,
-            cid: context.cid || 'default',
-            uid: context.uid || 'default',
+            cid: scope.cid || 'default',
+            uid: scope.uid || 'default',
         };
-        await this.cacheStorage.save(id, merged);
-        this.scheduleItemReemit([id], contextOverride);
-        this.scheduleListReemit([`${this.getScopeKey(contextOverride)}|invites`]);
+        await storage.save(id, merged);
+        this.scheduleItemReemit([id], scope);
+        this.scheduleListReemit([`${this.getScopeKey(scope)}|invites`]);
     }
 
     public async cacheWriteMany(
         items: Array<Partial<DomainInvite>>,
         contextOverride?: LocalDataSourceContextOverride
     ): Promise<void> {
+        const scope = this.resolveContext(contextOverride);
         const validItems = items.filter(item => !!item.id);
         if (validItems.length === 0) return;
 
-        const context = this.getContext(contextOverride);
-        const cid = context.cid || 'default';
-        const uid = context.uid || 'default';
-        const existingById = this.indexById(await this.cacheStorage.loadMany(validItems.map(item => item.id!)));
+        const cid = scope.cid || 'default';
+        const uid = scope.uid || 'default';
+        const storage = this.storage(scope);
+        const existingById = this.indexById(await storage.loadMany(validItems.map(item => item.id!)));
         const mergedList = validItems.map(item => {
             const existing = existingById.get(item.id!);
             return {
@@ -122,28 +118,30 @@ export class InviteLocalDataSource extends BaseLocalDataSource implements IInvit
             } as DomainInvite;
         });
 
-        await this.cacheStorage.saveAll(mergedList);
-        this.scheduleItemReemit(validItems.map(item => item.id!).filter(Boolean), contextOverride);
-        this.scheduleListReemit([`${this.getScopeKey(contextOverride)}|invites`]);
+        await storage.saveAll(mergedList);
+        this.scheduleItemReemit(validItems.map(item => item.id!).filter(Boolean), scope);
+        this.scheduleListReemit([`${this.getScopeKey(scope)}|invites`]);
     }
 
     public async cacheDelete(id: string, contextOverride?: LocalDataSourceContextOverride): Promise<void> {
+        const scope = this.resolveContext(contextOverride);
         const requiredId = this.assertRequiredString(id, 'id');
-        await this.cacheStorage.delete(requiredId);
-        this.scheduleItemReemit([requiredId], contextOverride);
-        this.scheduleListReemit([`${this.getScopeKey(contextOverride)}|invites`]);
+        await this.storage(scope).delete(requiredId);
+        this.scheduleItemReemit([requiredId], scope);
+        this.scheduleListReemit([`${this.getScopeKey(scope)}|invites`]);
     }
 
     public async cacheDeleteMany(ids: string[], contextOverride?: LocalDataSourceContextOverride): Promise<void> {
+        const scope = this.resolveContext(contextOverride);
         const validIds = ids.filter(Boolean);
         if (validIds.length === 0) return;
-        await this.cacheStorage.deleteAll(validIds);
-        this.scheduleItemReemit(validIds, contextOverride);
-        this.scheduleListReemit([`${this.getScopeKey(contextOverride)}|invites`]);
+        await this.storage(scope).deleteAll(validIds);
+        this.scheduleItemReemit(validIds, scope);
+        this.scheduleListReemit([`${this.getScopeKey(scope)}|invites`]);
     }
 
-    public async cacheClear(_contextOverride?: LocalDataSourceContextOverride): Promise<void> {
-        await this.cacheStorage.clearAll();
+    public async cacheClear(contextOverride?: LocalDataSourceContextOverride): Promise<void> {
+        await this.storage(contextOverride).clearAll();
         this.scheduleFullReemit();
     }
 }

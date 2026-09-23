@@ -1,5 +1,6 @@
-import type { CacheStorage } from '../ports';
+import type { CacheStorage, ScopedCacheStorage } from '../ports';
 import { UserLocalDataSource } from './UserLocalDataSource';
+import { createPartitionedMemoryStorage } from './__mocks__/MemoryCacheStorage';
 
 /**
  * The contract for how many times an observer reads storage.
@@ -9,10 +10,13 @@ import { UserLocalDataSource } from './UserLocalDataSource';
  * where several hooks watch the same data one entry produced that many round trips. Three paths are
  * pinned here: when a value already exists, when a read is in flight, and when there is neither.
  */
+/**
+ * Lets pending reads settle. Generous on purpose: a read here passes through the counting wrapper
+ * and the partitioned store, and pinning an exact number of microtask turns would test the fixture
+ * rather than the data source. Nothing below asserts on a state that a few extra turns could skip.
+ */
 const flushPromises = async () => {
-    await Promise.resolve();
-    await Promise.resolve();
-    await Promise.resolve();
+    for (let turn = 0; turn < 10; turn += 1) await Promise.resolve();
 };
 
 interface Counters {
@@ -20,41 +24,32 @@ interface Counters {
     load: number;
 }
 
-const createMemoryStorage = (counters: Counters, gate?: { block: Promise<void> }): CacheStorage<'user'> => {
-    const map = new Map<string, any>();
+/**
+ * The shared partitioned fixture with every partition's reads counted, and optionally held behind
+ * `gate`. Counted across partitions because several cases observe under two scopes and pin the total.
+ */
+const createCountingStorage = (counters: Counters, gate?: { block: Promise<void> }): ScopedCacheStorage<'user'> => {
+    const slot = createPartitionedMemoryStorage('user');
+    const instrumented = new Set<CacheStorage<'user'>>();
     return {
-        async save(id, item) {
-            map.set(id, { ...item });
-            return item;
-        },
-        async saveAll(items) {
-            items.forEach(item => item?.id && map.set(item.id, { ...item }));
-            return items;
-        },
-        async load(id) {
-            counters.load += 1;
-            if (gate) await gate.block;
-            return map.has(id) ? { ...map.get(id) } : null;
-        },
-        async loadMany(ids) {
-            return ids.filter(id => map.has(id)).map(id => ({ ...map.get(id) }));
-        },
-        async loadAll() {
-            counters.loadAll += 1;
-            if (gate) await gate.block;
-            return Array.from(map.values()).map(item => ({ ...item }));
-        },
-        async delete(id) {
-            map.delete(id);
-        },
-        async deleteAll(ids) {
-            ids.forEach(id => map.delete(id));
-        },
-        async clearAll() {
-            map.clear();
-        },
-        async clearByChannelId() {
-            return undefined;
+        forScope(context) {
+            const storage = slot.forScope(context);
+            if (!instrumented.has(storage)) {
+                instrumented.add(storage);
+                const load = storage.load.bind(storage);
+                const loadAll = storage.loadAll.bind(storage);
+                storage.load = async id => {
+                    counters.load += 1;
+                    if (gate) await gate.block;
+                    return load(id);
+                };
+                storage.loadAll = async options => {
+                    counters.loadAll += 1;
+                    if (gate) await gate.block;
+                    return loadAll(options);
+                };
+            }
+            return storage;
         },
     };
 };
@@ -74,7 +69,7 @@ describe('observer group sharing', () => {
         const counters: Counters = { loadAll: 0, load: 0 };
         const dataSource = new UserLocalDataSource(
             createContextProvider({ cid: 'c', sid: 's', uid: 'u' }) as any,
-            createMemoryStorage(counters)
+            createCountingStorage(counters)
         );
         await dataSource.cacheWrite({ id: 'u1', channelIds: ['ch-1'] } as any);
         counters.loadAll = 0;
@@ -104,7 +99,7 @@ describe('observer group sharing', () => {
         };
         const dataSource = new UserLocalDataSource(
             createContextProvider({ cid: 'c', sid: 's', uid: 'u' }) as any,
-            createMemoryStorage(counters, gate)
+            createCountingStorage(counters, gate)
         );
 
         const first = jest.fn();
@@ -127,7 +122,7 @@ describe('observer group sharing', () => {
         const counters: Counters = { loadAll: 0, load: 0 };
         const dataSource = new UserLocalDataSource(
             createContextProvider({ cid: 'c', sid: 's', uid: 'u' }) as any,
-            createMemoryStorage(counters)
+            createCountingStorage(counters)
         );
 
         const first = jest.fn();
@@ -153,7 +148,7 @@ describe('observer group sharing', () => {
         const counters: Counters = { loadAll: 0, load: 0 };
         const dataSource = new UserLocalDataSource(
             createContextProvider({ cid: 'c', sid: 's', uid: 'u' }) as any,
-            createMemoryStorage(counters)
+            createCountingStorage(counters)
         );
         await dataSource.cacheWrite({ id: 'u1', channelIds: ['ch-1'] } as any);
         await new Promise(resolve => setTimeout(resolve, 80)); // past the write re-emit flush
@@ -175,7 +170,7 @@ describe('observer group sharing', () => {
         const counters: Counters = { loadAll: 0, load: 0 };
         const dataSource = new UserLocalDataSource(
             createContextProvider({ cid: 'c', sid: 's', uid: 'u' }) as any,
-            createMemoryStorage(counters)
+            createCountingStorage(counters)
         );
 
         const unsubscribe = dataSource.observeList({ channelId: 'ch-1' } as any, jest.fn());
@@ -201,7 +196,7 @@ describe('observer group sharing', () => {
         const counters: Counters = { loadAll: 0, load: 0 };
         const dataSource = new UserLocalDataSource(
             createContextProvider({ cid: 'c', sid: 's', uid: 'u' }) as any,
-            createMemoryStorage(counters)
+            createCountingStorage(counters)
         );
 
         const unsubscribe = dataSource.observeList({ channelId: 'ch-1' } as any, jest.fn());
@@ -218,8 +213,8 @@ describe('observer group sharing', () => {
     it('a failed first query is read again once, shortly after, and delivered to subscribers (ADR-0059)', async () => {
         jest.useFakeTimers();
         try {
-            const counters: Counters = { loadAll: 0, load: 0 };
-            const storage = createMemoryStorage(counters);
+            const users = createPartitionedMemoryStorage('user');
+            const storage = users.forScope({ cid: 'c', uid: 'u' });
             // Storage that fails only on the first call — reproducing momentary congestion (a bridge timeout).
             const originalLoadAll = storage.loadAll.bind(storage);
             let attempts = 0;
@@ -230,7 +225,7 @@ describe('observer group sharing', () => {
             };
             const dataSource = new UserLocalDataSource(
                 createContextProvider({ cid: 'c', sid: 's', uid: 'u' }) as any,
-                storage
+                users
             );
 
             const observer = jest.fn();
@@ -256,7 +251,7 @@ describe('observer group sharing', () => {
             const counters: Counters = { loadAll: 0, load: 0 };
             const dataSource = new UserLocalDataSource(
                 createContextProvider({ cid: 'c', sid: 's', uid: 'u' }) as any,
-                createMemoryStorage(counters)
+                createCountingStorage(counters)
             );
 
             const unsubscribe = dataSource.observeList({ channelId: 'ch-1' } as any, jest.fn());
@@ -280,7 +275,7 @@ describe('item observer scope isolation', () => {
     it('observing the same id under a different scope is a different group — it does not receive data from another cloud', async () => {
         const counters: Counters = { loadAll: 0, load: 0 };
         const provider = createContextProvider({ cid: 'cloud-a', sid: 's', uid: 'u' });
-        const dataSource = new UserLocalDataSource(provider as any, createMemoryStorage(counters));
+        const dataSource = new UserLocalDataSource(provider as any, createCountingStorage(counters));
 
         const fromCloudA = jest.fn();
         const fromCloudB = jest.fn();
@@ -297,7 +292,7 @@ describe('item observer scope isolation', () => {
     it('the write and the observation produce the same scope key, so the re-emit arrives', async () => {
         const counters: Counters = { loadAll: 0, load: 0 };
         const provider = createContextProvider({ cid: 'cloud-a', sid: 's', uid: 'u' });
-        const dataSource = new UserLocalDataSource(provider as any, createMemoryStorage(counters));
+        const dataSource = new UserLocalDataSource(provider as any, createCountingStorage(counters));
 
         const observer = jest.fn();
         dataSource.observeItem('u1', observer);
@@ -314,7 +309,7 @@ describe('item observer scope isolation', () => {
     it('a change written under a different scope does not wake the item observers of this scope', async () => {
         const counters: Counters = { loadAll: 0, load: 0 };
         const provider = createContextProvider({ cid: 'cloud-a', sid: 's', uid: 'u' });
-        const dataSource = new UserLocalDataSource(provider as any, createMemoryStorage(counters));
+        const dataSource = new UserLocalDataSource(provider as any, createCountingStorage(counters));
 
         const observer = jest.fn();
         dataSource.observeItem('u1', observer, { cid: 'cloud-a' });
@@ -332,7 +327,7 @@ describe('sid is not part of the observer scope (ADR-0085)', () => {
     it('two observers on the same id under different sids are ONE group — they read storage once', async () => {
         const counters: Counters = { loadAll: 0, load: 0 };
         const provider = createContextProvider({ cid: 'cloud-a', sid: 'site-1', uid: 'u' });
-        const dataSource = new UserLocalDataSource(provider as any, createMemoryStorage(counters));
+        const dataSource = new UserLocalDataSource(provider as any, createCountingStorage(counters));
 
         const fromSite1 = jest.fn();
         const fromSite2 = jest.fn();
@@ -348,7 +343,7 @@ describe('sid is not part of the observer scope (ADR-0085)', () => {
     it('a write under one sid wakes the observer that subscribed under another', async () => {
         const counters: Counters = { loadAll: 0, load: 0 };
         const provider = createContextProvider({ cid: 'cloud-a', sid: 'site-1', uid: 'u' });
-        const dataSource = new UserLocalDataSource(provider as any, createMemoryStorage(counters));
+        const dataSource = new UserLocalDataSource(provider as any, createCountingStorage(counters));
 
         const observer = jest.fn();
         dataSource.observeItem('u1', observer, { sid: 'site-1' });
@@ -368,7 +363,7 @@ describe('sid is not part of the observer scope (ADR-0085)', () => {
     it('cid still splits the scope — dropping sid did not widen it to other clouds', async () => {
         const counters: Counters = { loadAll: 0, load: 0 };
         const provider = createContextProvider({ cid: 'cloud-a', sid: 'site-1', uid: 'u' });
-        const dataSource = new UserLocalDataSource(provider as any, createMemoryStorage(counters));
+        const dataSource = new UserLocalDataSource(provider as any, createCountingStorage(counters));
 
         const observer = jest.fn();
         dataSource.observeItem('u1', observer, { cid: 'cloud-a' });

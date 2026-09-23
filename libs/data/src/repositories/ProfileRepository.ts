@@ -168,7 +168,7 @@ export class ProfileRepository extends BaseRepository implements IProfileReposit
             await this.profileLocalDataSource.cacheWriteMany(upserts, requestContext);
         }
 
-        // Null deltas are resets: drop the corresponding cache entries under the live context.
+        // Null deltas are resets: drop the corresponding cache entries in the partition this sync was for.
         if (removals.length > 0) {
             await this.profileLocalDataSource.cacheDeleteMany(removals, requestContext);
         }

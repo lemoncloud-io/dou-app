@@ -16,7 +16,7 @@ import {
     NativeGlobalSearchSource,
 } from '@chatic/db';
 import { logger, webClient } from '@chatic/bridges';
-import { resolveCacheBackend } from '../cacheStorageRouting';
+import { type CacheBackend, resolveCacheBackend } from '../cacheStorageRouting';
 import { isNativeApp } from '../../utils/isNativeApp';
 import { isNativeCacheTypeUsable } from '../nativeCacheSupport';
 
@@ -53,12 +53,13 @@ const createIndexedDBAdapter = <TType extends CacheType>(
 export const getCacheStorage = <TType extends CacheType>(
     type: TType,
     contextProvider: DataContextProvider,
-    cache?: CacheAssemblyOptions
+    cache?: CacheAssemblyOptions,
+    backend: CacheBackend = resolveCacheBackend(type)
 ): CacheStorage<TType> =>
     // Where the type lands is decided in ONE place (see resolveCacheBackend); this factory only
     // materializes that decision as an adapter. The chat cap rides along unconditionally because
     // it only ever matters on the web backend — the adapter ignores it for non-chat types.
-    resolveCacheBackend(type) === 'web'
+    backend === 'web'
         ? createIndexedDBAdapter(type, contextProvider, cache?.maxChatsPerChannel)
         : new NativeDBAdapter(webClient, type, contextProvider);
 
@@ -116,12 +117,27 @@ export const createLocalDataSources = ({
     // (ADR-0053). Recording each decision as the storages are actually built keeps the fingerprint
     // honest and drift-proof — a cache type added later shows up here without anyone remembering to
     // list it. An injected factory (tests) leaves it empty, which disables the check.
+    //
+    // One decision per type, made the first time the type is built and reused for the rest of the
+    // session. `@chatic/data` builds a storage per (cid, uid) partition on first use, so this factory
+    // runs again after assembly whenever the session reaches a new account or cloud — and by then the
+    // shell's capability handshake may have landed, which changes `resolveCacheBackend`'s answer for
+    // `invite`. Deciding again there would split one domain across two stores inside one session: a
+    // partition first reached after the handshake writes its local-only rows (invite dismissals) to
+    // SQLite, and the next boot, assembling before the handshake, reads IndexedDB. It would also let
+    // the rows drift away from the fingerprint below, which describes the assembly-time decision.
+    const backends = new Map<CacheType, CacheBackend>();
     const routed: string[] = [];
     const factory: CacheStorageFactory =
         cacheStorageFactory ??
         ((type, provider) => {
-            routed.push(`${type}:${resolveCacheBackend(type)}`);
-            return getCacheStorage(type, provider, cache);
+            let backend = backends.get(type);
+            if (!backend) {
+                backend = resolveCacheBackend(type);
+                backends.set(type, backend);
+                routed.push(`${type}:${backend}`);
+            }
+            return getCacheStorage(type, provider, cache, backend);
         });
     const storages = createCacheStorages(contextProvider, factory);
     const routingFingerprint = routed.length > 0 ? routed.sort().join(',') : undefined;

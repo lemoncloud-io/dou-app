@@ -3,7 +3,7 @@ import type { CacheChatView, ChatQueryOptions, LastChatItem } from '@chatic/app-
 import type { DomainChat, DomainLastChat, DomainListResult } from '../../domain';
 import { createDomainListResult, isPreviewableChat, pickPreviewChat } from '../../domain';
 import type { DataContextProvider } from '../../repositories/types';
-import type { CacheStorage } from '../ports';
+import type { ScopedCacheStorage } from '../ports';
 import {
     BaseLocalDataSource,
     type ILocalDataSource,
@@ -39,27 +39,24 @@ export interface IChatLocalDataSource
 const LAST_CHAT_FALLBACK_LOOKBACK = 30;
 
 /** Stores chat pages locally and re-emits only the channel timelines touched by each write. */
-export class ChatLocalDataSource extends BaseLocalDataSource implements IChatLocalDataSource {
-    constructor(
-        contextProvider: DataContextProvider,
-        private readonly cacheStorage: CacheStorage<'chat'>
-    ) {
-        super(contextProvider);
+export class ChatLocalDataSource extends BaseLocalDataSource<'chat'> implements IChatLocalDataSource {
+    constructor(contextProvider: DataContextProvider, storages: ScopedCacheStorage<'chat'>) {
+        super(contextProvider, storages);
     }
 
-    public async cacheRead(id: string, _contextOverride?: LocalDataSourceContextOverride): Promise<DomainChat | null> {
+    public async cacheRead(id: string, contextOverride?: LocalDataSourceContextOverride): Promise<DomainChat | null> {
         const requiredId = this.assertRequiredString(id, 'id');
-        return this.cacheStorage.load(requiredId);
+        return this.storage(contextOverride).load(requiredId);
     }
 
     public async cacheReadList(
         query: ChatFeedInput,
-        _contextOverride?: LocalDataSourceContextOverride
+        contextOverride?: LocalDataSourceContextOverride
     ): Promise<DomainListResult<DomainChat> | null> {
         const channelId = this.assertRequiredString(query?.channelId, 'channelId');
         const { limit = 50 } = query;
 
-        const pageList = await this.cacheStorage.loadAll({
+        const pageList = await this.storage(contextOverride).loadAll({
             ...query,
             channelId,
             limit,
@@ -120,13 +117,15 @@ export class ChatLocalDataSource extends BaseLocalDataSource implements IChatLoc
         channelIds: string[],
         contextOverride?: LocalDataSourceContextOverride
     ): Promise<DomainLastChat[]> {
+        const scope = this.resolveContext(contextOverride);
         const validIds = Array.from(new Set(channelIds.filter(Boolean)));
         if (validIds.length === 0) return [];
 
         const byChannel = new Map<string, DomainLastChat>();
         const fallbackIds: string[] = [];
 
-        const fast = this.cacheStorage.loadLastPerChannel ? await this.cacheStorage.loadLastPerChannel(validIds) : null;
+        const storage = this.storage(scope);
+        const fast = storage.loadLastPerChannel ? await storage.loadLastPerChannel(validIds) : null;
         if (fast) {
             const fastByChannel = this.indexLastItemsByChannel(fast);
             for (const channelId of validIds) {
@@ -143,10 +142,7 @@ export class ChatLocalDataSource extends BaseLocalDataSource implements IChatLoc
 
         await Promise.all(
             fallbackIds.map(async channelId => {
-                const page = await this.cacheReadList(
-                    { channelId, limit: LAST_CHAT_FALLBACK_LOOKBACK },
-                    contextOverride
-                );
+                const page = await this.cacheReadList({ channelId, limit: LAST_CHAT_FALLBACK_LOOKBACK }, scope);
                 const list = page?.list ?? [];
                 const lastNo = list.reduce((max, chat) => Math.max(max, chat.chatNo ?? 0), 0);
                 const row: DomainLastChat = { channelId, lastNo, chat: pickPreviewChat(list) ?? null };
@@ -183,11 +179,12 @@ export class ChatLocalDataSource extends BaseLocalDataSource implements IChatLoc
         item: Partial<DomainChat>,
         contextOverride?: LocalDataSourceContextOverride
     ): Promise<void> {
+        const scope = this.resolveContext(contextOverride);
         const id = this.assertRequiredString(item.id, 'id');
 
-        const context = this.getContext(contextOverride);
-        const existing = await this.cacheStorage.load(id);
-        const cid = context.cid || 'default';
+        const storage = this.storage(scope);
+        const existing = await storage.load(id);
+        const cid = scope.cid || 'default';
         const merged: DomainChat = {
             ...(existing ?? ({} as DomainChat)),
             ...item,
@@ -201,21 +198,22 @@ export class ChatLocalDataSource extends BaseLocalDataSource implements IChatLoc
             updatedAtMs: item.updatedAtMs ?? existing?.updatedAtMs ?? Date.now(),
         };
 
-        await this.cacheStorage.save(id, merged);
-        this.scheduleItemReemit([id], contextOverride);
-        this.scheduleListReemit(this.getAffectedListPrefixes([existing?.channelId, merged.channelId], contextOverride));
+        await storage.save(id, merged);
+        this.scheduleItemReemit([id], scope);
+        this.scheduleListReemit(this.getAffectedListPrefixes([existing?.channelId, merged.channelId], scope));
     }
 
     public async cacheWriteMany(
         items: Array<Partial<DomainChat>>,
         contextOverride?: LocalDataSourceContextOverride
     ): Promise<void> {
+        const scope = this.resolveContext(contextOverride);
         const validItems = items.filter(item => !!item.id);
         if (validItems.length === 0) return;
 
-        const context = this.getContext(contextOverride);
-        const cid = context.cid || 'default';
-        const existingById = this.indexById(await this.cacheStorage.loadMany(validItems.map(item => item.id!)));
+        const cid = scope.cid || 'default';
+        const storage = this.storage(scope);
+        const existingById = this.indexById(await storage.loadMany(validItems.map(item => item.id!)));
 
         const mergedList = validItems.map(item => {
             const existing = existingById.get(item.id!);
@@ -233,42 +231,46 @@ export class ChatLocalDataSource extends BaseLocalDataSource implements IChatLoc
             } as DomainChat;
         });
 
-        await this.cacheStorage.saveAll(mergedList);
-        this.scheduleItemReemit(validItems.map(item => item.id!).filter(Boolean), contextOverride);
+        await storage.saveAll(mergedList);
+        this.scheduleItemReemit(validItems.map(item => item.id!).filter(Boolean), scope);
         this.scheduleListReemit(
             this.getAffectedListPrefixes(
                 mergedList.map(item => item.channelId),
-                contextOverride
+                scope
             )
         );
     }
 
     public async cacheDelete(id: string, contextOverride?: LocalDataSourceContextOverride): Promise<void> {
+        const scope = this.resolveContext(contextOverride);
         const requiredId = this.assertRequiredString(id, 'id');
-        const existing = await this.cacheStorage.load(requiredId);
-        await this.cacheStorage.delete(requiredId);
-        this.scheduleItemReemit([requiredId], contextOverride);
-        this.scheduleListReemit(this.getAffectedListPrefixes([existing?.channelId], contextOverride));
+        const storage = this.storage(scope);
+        const existing = await storage.load(requiredId);
+        await storage.delete(requiredId);
+        this.scheduleItemReemit([requiredId], scope);
+        this.scheduleListReemit(this.getAffectedListPrefixes([existing?.channelId], scope));
     }
 
     public async cacheDeleteMany(ids: string[], contextOverride?: LocalDataSourceContextOverride): Promise<void> {
+        const scope = this.resolveContext(contextOverride);
         const validIds = ids.filter(Boolean);
         if (validIds.length === 0) return;
         // All that is needed is which channels' lists to re-read, so ids omitted because they are
         // absent do not matter (`loadMany` guarantees neither result length nor order).
-        const existingItems = await this.cacheStorage.loadMany(validIds);
-        await this.cacheStorage.deleteAll(validIds);
-        this.scheduleItemReemit(validIds, contextOverride);
+        const storage = this.storage(scope);
+        const existingItems = await storage.loadMany(validIds);
+        await storage.deleteAll(validIds);
+        this.scheduleItemReemit(validIds, scope);
         this.scheduleListReemit(
             this.getAffectedListPrefixes(
                 existingItems.map(item => item.channelId),
-                contextOverride
+                scope
             )
         );
     }
 
-    public async cacheClear(_contextOverride?: LocalDataSourceContextOverride): Promise<void> {
-        await this.cacheStorage.clearAll();
+    public async cacheClear(contextOverride?: LocalDataSourceContextOverride): Promise<void> {
+        await this.storage(contextOverride).clearAll();
         this.scheduleFullReemit();
     }
 
@@ -276,9 +278,10 @@ export class ChatLocalDataSource extends BaseLocalDataSource implements IChatLoc
         channelId: string,
         contextOverride?: LocalDataSourceContextOverride
     ): Promise<void> {
+        const scope = this.resolveContext(contextOverride);
         const requiredChannelId = this.assertRequiredString(channelId, 'channelId');
-        await this.cacheStorage.clearByChannelId(requiredChannelId);
-        this.scheduleListReemit(this.getAffectedListPrefixes([requiredChannelId], contextOverride));
+        await this.storage(scope).clearByChannelId(requiredChannelId);
+        this.scheduleListReemit(this.getAffectedListPrefixes([requiredChannelId], scope));
     }
 
     /** Indexes the fast-path response by channelId — the response guarantees neither requested order nor length. */

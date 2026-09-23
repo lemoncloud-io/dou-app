@@ -1,6 +1,6 @@
 # local — storing, reading, emitting streams
 
-> Status: Live · Last updated: 2026-09-14 · Overview in the [lib README](../../README.md) · Canonical code: [local/data-sources/types.ts](../../src/local/data-sources/types.ts) · [local/ports/cacheStorage.ts](../../src/local/ports/cacheStorage.ts)
+> Status: Live · Last updated: 2026-09-23 · Overview in the [lib README](../../README.md) · Canonical code: [local/data-sources/types.ts](../../src/local/data-sources/types.ts) · [local/ports/cacheStorage.ts](../../src/local/ports/cacheStorage.ts)
 
 The local layer handles **storing, reading and emitting streams** for the local data an app reads.
 
@@ -67,7 +67,10 @@ interface ILocalDataSource<TItem, TListQuery, TListResult> {
 ```
 
 Every method takes a `contextOverride` — so that the request-time scope a repository captured can be
-applied per call.
+applied per call. The override decides three things together: the **partition** the operation reads
+and writes, the observer key it notifies, and the `cid` stamped on a merged row. Without one, all
+three follow the provider's current context. How the partition half works is in
+[which partition an operation touches](#which-partition-an-operation-touches).
 
 ## Domains
 
@@ -108,7 +111,36 @@ that reaches storage belongs in the observer key**, never in the scope alone. Pu
 read's answer depends on a value, that value has to be in the key, because observers sharing a key
 share one query execution.
 
-Physical storage is per `CacheStorage<TType>` slot. There are nine slot keys: `channel`, `chat`, `user`,
+### Which partition an operation touches
+
+A data source does not hold a storage; it holds a **slot** (`ScopedCacheStorage<TType>`,
+`ports/cacheStorage.ts`) and asks it for the storage of one scope: `storage(contextOverride)` in
+`BaseLocalDataSource` → `slot.forScope(context)`. A write resolves its context **once, when it starts**
+(`resolveContext`), and uses that one value for the storage, the `cid` it stamps and the keys it
+re-emits — so a read-merge-write cannot read one partition, write another and wake a third scope's
+observers, even when no override was given and the session moves mid-operation.
+
+The slot builds one adapter per partition on first use and reuses it after. Each adapter is handed a
+snapshot provider holding only that scope's `cid` and `uid` — the adapter still reads its provider at
+call time, as it always has, but what it reads can no longer move. The memo is keyed by the resolved
+partition (`resolveScopedContext`), so contexts that land in the same partition share an instance:
+every context for `invitecloud`, whose partition is fixed, and every uid-less context, whose adapter
+has no scope and skips every operation. The memo is not evicted — one small object per account and
+cloud the session has touched.
+
+`createCacheStorages` builds each slot's storage for the assembly-time scope immediately. Nothing
+depends on that storage being special; it exists so the factory is called once per slot while the
+assembler is watching, which is what its routing fingerprint (ADR-0053) and native-fallback report
+count.
+
+This is what makes the rule in [notes for implementers](#notes-for-implementers-and-tests) true. For a
+long time it was not: every adapter got the live provider, so the captured scope reached the observer
+key and the stamped `cid` but never the partition. An answer that landed after a switch was written
+into the partition switched to, a stale prune read and deleted rows there, and an observer pinned by
+an override read the live partition (ADR-0112).
+
+Physical storage is per slot — a `ScopedCacheStorage<TType>` holding one `CacheStorage<TType>` adapter
+per partition. There are nine slot keys: `channel`, `chat`, `user`,
 `join`, `site`, `invitecloud`, `profile`, `meta`, `invite`.
 
 Three domain→slot mappings need care (the slot is reused because the entity is the same).
@@ -197,4 +229,6 @@ it is finished when the shell that stores it has shipped.
 
 - The context must be read at **call time**, not at construction time (a repository injects the scope it captured via `contextOverride`).
 - The request-time context and the response-time context can differ → capture the scope in the repository.
+- Reach storage only through `this.storage(...)`. An operation that awaits starts with `const scope = this.resolveContext(contextOverride)` and passes `scope` to everything after it — storage, stamps, re-emits. A second read of the provider inside the same operation, made without an override, can answer a different partition than the first.
+- Local suites build on one fixture, `createPartitionedMemoryStorage(type)` (`__mocks__/MemoryCacheStorage.ts`) — the production `createScopedCacheStorage` over in-memory maps, so every test runs on real partitions and the routing under test is the real one. `slot.forScope({ cid, uid })` returns the very storage the data source uses for that scope: seed it, read it back, or spy on it. A suite does not write its own in-memory storage.
 - Scope poisoning and the `chat.feed` merge policy are the repository's responsibility → [notes for implementers and tests](../repositories/README.md#notes-for-implementers-and-tests).

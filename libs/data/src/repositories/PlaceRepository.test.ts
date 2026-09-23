@@ -1,5 +1,8 @@
+import { PlaceLocalDataSource } from '../local/data-sources/PlaceLocalDataSource';
+import { createPartitionedMemoryStorage } from '../local/data-sources/__mocks__/MemoryCacheStorage';
 import { PlaceRepository } from './PlaceRepository';
 import { createRepositories } from './index';
+import { DataContextHolder } from './types';
 
 describe('PlaceRepository', () => {
     const createRepository = () => {
@@ -288,5 +291,35 @@ describe('PlaceRepository', () => {
                 uid: 'debugger',
             }
         );
+    });
+});
+
+/**
+ * The same late-answer race, with a real local data source on partitioned storage — the argument
+ * assertion above shows what the repository asked for, this shows where the rows actually went.
+ */
+describe('PlaceRepository — the scope an answer is written under', () => {
+    it('a list answered after a cloud and account switch lands in the partition that asked, and prunes only there', async () => {
+        const context = new DataContextHolder({ cid: 'cloud-a', uid: 'me' });
+        const places = createPartitionedMemoryStorage('site');
+        await places
+            .forScope({ cid: 'cloud-b', uid: 'other' })
+            .save('b-place', { id: 'b-place', cid: 'cloud-b' } as any);
+        let resolveRemote!: (value: unknown) => void;
+        const socket = {
+            fetchPlace: jest.fn(() => new Promise(resolve => (resolveRemote = resolve))),
+        };
+        const repository = new PlaceRepository(socket as any, new PlaceLocalDataSource(context, places), context);
+
+        const pending = repository.refreshList();
+        context.setContext({ cid: 'cloud-b', uid: 'other' });
+        resolveRemote({ list: [{ id: 'a-place', name: 'A' }] });
+        await pending;
+
+        const idsIn = async (cid: string, uid: string) =>
+            (await places.forScope({ cid, uid }).loadAll()).map(row => row.id);
+        expect(await idsIn('cloud-a', 'me')).toEqual(['a-place']);
+        // Neither written into, nor pruned against, the partition the session moved to.
+        expect(await idsIn('cloud-b', 'other')).toEqual(['b-place']);
     });
 });
