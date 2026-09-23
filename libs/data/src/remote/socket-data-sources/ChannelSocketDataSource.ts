@@ -9,6 +9,7 @@ import type {
     ChannelCreateInput,
     ChannelDeleteInput,
     ChannelMineInput,
+    ChannelStartDmInput,
     ChannelUpdateInput,
 } from '@lemoncloud/chatic-sockets-api/dist/lib/channel/types';
 import type { ChannelSyncView, ChannelView, UnreadsSummaryView } from '@lemoncloud/chatic-socials-api';
@@ -34,6 +35,8 @@ export interface IChannelSocketDataSource {
     deleteChannel(payload: ChannelDeleteInput, context: DataContext): Promise<DomainChannel>;
     /** Starts a new room, or requests its initial state. */
     createChannel(payload: ChannelCreateInput, context: DataContext): Promise<DomainChannel>;
+    /** Opens the 1:1 with one peer, or returns the existing one. The row comes back with no place. */
+    startDm(payload: ChannelStartDmInput, context: DataContext): Promise<DomainChannel>;
     /** Invites a specific user to the channel. */
     inviteChannel(payload: ChatInviteInput, context: DataContext): Promise<DomainChannel>;
     /** Leaves the channel. */
@@ -89,6 +92,20 @@ export class ChannelSocketDataSource implements IChannelSocketDataSource {
 
     public async createChannel(payload: ChannelCreateInput, context: DataContext): Promise<DomainChannel> {
         const remote = await this.gateway.create<ChannelView>(payload);
+        return toDomainChannel((remote || {}) as ChannelView, context);
+    }
+
+    /**
+     * A 1:1 opened by peer id, which belongs to the CLOUD rather than to any place.
+     *
+     * Mapped like any other channel. This response carries no site of its own, so the mapper falls
+     * back to the ambient place — and the server's own answer arrives on the next read and replaces
+     * it. An earlier version blanked the field here to mean "this room has no place", which the
+     * server contradicts on every subsequent read; where a 1:1 may be listed is decided when
+     * reading instead (`isInPlaceList`).
+     */
+    public async startDm(payload: ChannelStartDmInput, context: DataContext): Promise<DomainChannel> {
+        const remote = await this.gateway.startDm<ChannelView>(payload);
         return toDomainChannel((remote || {}) as ChannelView, context);
     }
 

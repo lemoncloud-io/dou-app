@@ -21,6 +21,7 @@ describe('ChannelRepository', () => {
             leaveChannel: jest.fn(),
             deleteChannel: jest.fn(),
             getSelfChannel: jest.fn(),
+            startDm: jest.fn(),
             getUnreads: jest.fn(),
         };
         const channelLocalDataSource = {
@@ -344,6 +345,37 @@ describe('ChannelRepository', () => {
             expect.objectContaining({ sid: 'site-2' }),
             expect.anything()
         );
+    });
+
+    // The room is stored like any other. It briefly had a write path of its own that blanked the
+    // place field; the server assigns one and returns it on every read, so where a 1:1 may be
+    // listed is decided when reading instead (`isInPlaceList`).
+    it('startDm stores the room through the ordinary write', async () => {
+        const { repository, channelSocketDataSource, channelLocalDataSource } = createRepository();
+        channelSocketDataSource.startDm.mockResolvedValue({ id: 'dm-1', sid: 'site-1', stereo: 'dm' });
+
+        const result = await repository.startDm({ peerId: 'u2' } as any);
+
+        expect(channelSocketDataSource.startDm).toHaveBeenCalledWith(
+            { peerId: 'u2' },
+            expect.objectContaining({ cid: 'cloud-a' })
+        );
+        expect(channelLocalDataSource.cacheWrite).toHaveBeenCalledWith(
+            expect.objectContaining({ id: 'dm-1' }),
+            expect.anything()
+        );
+        expect(result.id).toBe('dm-1');
+    });
+
+    it('startDm takes no site — unlike createChannel it cannot be told one', async () => {
+        const { repository, channelSocketDataSource } = createRepository();
+        channelSocketDataSource.startDm.mockResolvedValue({ id: 'dm-1', sid: '' });
+
+        await repository.startDm({ peerId: 'u2' } as any);
+
+        // The contract carries one peer and nothing else; a site would have to come from the ambient
+        // context, which is the failure this whole path exists to avoid.
+        expect(channelSocketDataSource.startDm.mock.calls[0][0]).toEqual({ peerId: 'u2' });
     });
 
     it('createChannel refuses to write an optimistic row it cannot attribute to a site', async () => {

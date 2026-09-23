@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 
-import type { DomainChannel } from '@chatic/data';
+import { isInPlaceList, type DomainChannel } from '@chatic/data';
 
 import { useActiveCloudData } from './activeCloudDataContext';
 
@@ -24,7 +24,9 @@ export interface HomeChannelsResult {
  * exactly what it does now, minus the second observer.
  *
  * The filter stays because the cloud-wide read is not sid-isolated (see above), so rows from other
- * sites must not reach a per-site list.
+ * sites must not reach a per-site list. It also drops the rooms that are not place-scoped at all —
+ * cloud 1:1s, which carry a `sid` that describes where their creator stood rather than where the
+ * conversation lives, and are read from their own cloud-wide section instead.
  *
  * `isLoading` follows the shared observation's `isLoaded` rather than an emptiness test: a site with
  * no channels and a site whose read has not landed are indistinguishable from the array alone. That
@@ -34,7 +36,9 @@ export interface HomeChannelsResult {
 export const useHomeChannels = (sid: string | null): HomeChannelsResult => {
     const { channels, isLoaded } = useActiveCloudData();
 
-    const scoped = useMemo(() => (sid ? channels.filter(channel => channel.sid === sid) : []), [channels, sid]);
+    // `isInPlaceList`, not a bare `sid` comparison: a 1:1 is read cloud-wide and belongs to no
+    // place's list, however its `sid` reads — see that rule for why the field cannot scope one.
+    const scoped = useMemo(() => (sid ? channels.filter(channel => isInPlaceList(channel, sid)) : []), [channels, sid]);
 
     return { channels: scoped, isLoading: !!sid && !isLoaded };
 };

@@ -72,3 +72,43 @@ describe('MemberProfileDialog — 뷰어/대상 분기', () => {
         expect(screen.getByTestId('owner-check')).toBeInTheDocument();
     });
 });
+
+// Opening a 1:1 from here is possible only where the host says so (ADR-0111), which is what keeps
+// this component's single row-composition rule from growing a second axis.
+describe('MemberProfileDialog — the 1:1 row', () => {
+    it('is absent unless the host offers it', () => {
+        render(<MemberProfileDialog open onOpenChange={() => undefined} member={member} canKick={false} />);
+
+        expect(screen.queryByText('cloudDm.startFromProfile')).not.toBeInTheDocument();
+    });
+
+    it('sits above the role rows and calls back', () => {
+        const onStartDm = jest.fn();
+        render(<MemberProfileDialog open onOpenChange={() => undefined} member={member} onStartDm={onStartDm} />);
+
+        const labels = screen.getAllByRole('button').map(button => button.textContent);
+        expect(labels[0]).toBe('cloudDm.startFromProfile');
+
+        fireEvent.click(screen.getByText('cloudDm.startFromProfile'));
+        expect(onStartDm).toHaveBeenCalledTimes(1);
+    });
+
+    // Both ends check `isSelf`, so a host that passes the handler on my own profile still cannot
+    // open a room with me.
+    it('never appears on my own profile, even when the host passes it', () => {
+        render(
+            <MemberProfileDialog open onOpenChange={() => undefined} member={member} isSelf onStartDm={jest.fn()} />
+        );
+
+        expect(screen.queryByText('cloudDm.startFromProfile')).not.toBeInTheDocument();
+    });
+
+    it('leaves the role rows alone', () => {
+        render(
+            <MemberProfileDialog open onOpenChange={() => undefined} member={member} canKick onStartDm={jest.fn()} />
+        );
+
+        expect(screen.getByText('chat.settings.removeMember')).toBeInTheDocument();
+        expect(screen.getByText('chat.settings.report')).toBeInTheDocument();
+    });
+});

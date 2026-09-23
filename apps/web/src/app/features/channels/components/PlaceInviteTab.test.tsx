@@ -38,6 +38,9 @@ jest.mock('../hooks', () => ({
     useChannelMutations: () => ({ inviteChannel }),
     useInviteCandidates: () => ({ candidateIds: mockCandidateIds, isLoading: mockIsLoading }),
     useChannelProfiles: () => ({ profileMap: new Map(mockProfiles) }),
+    // The real one: it is the user-cache fallback these tests exercise, and it reads through
+    // the mocked repositories above. Stubbing it would test the stub instead of the chain.
+    useUserRecords: jest.requireActual('../hooks/useUserRecords').useUserRecords,
 }));
 jest.mock('@chatic/web-ui-kit', () => ({
     SearchInput: ({ value, onChange }: any) => (
@@ -82,7 +85,7 @@ describe('PlaceInviteTab — 표시', () => {
         expect(screen.getByTestId('cand-아리')).toBeInTheDocument();
     });
 
-    // Same chain as the settings screen's member row: profile nick → user record name → userId.
+    // Same chain as the settings screen's member row: profile nick → user record name → label.
     // The user record is a one-shot cacheRead per candidate, so it lands a tick later.
     it('프로필이 없으면 유저 레코드 name으로 떨어진다', async () => {
         setup();
@@ -90,13 +93,28 @@ describe('PlaceInviteTab — 표시', () => {
         expect(await screen.findByTestId('cand-***5678')).toBeInTheDocument();
     });
 
-    it('둘 다 없으면 userId를 그대로 쓴다', () => {
+    // The id is NOT a rung. This chain used to end in `|| userId`, so a candidate with neither a
+    // place profile nor a cached name rendered as a raw account UUID — the exact value the shared
+    // chain rejects, and the one the member list right next to this picker already refuses.
+    it('둘 다 없으면 id가 아니라 라벨로 떨어진다', () => {
         mockProfiles = [];
         mockUsers = [];
         setup();
 
-        expect(screen.getByTestId('cand-u1')).toBeInTheDocument();
-        expect(screen.getByTestId('cand-u2')).toBeInTheDocument();
+        expect(screen.getAllByTestId('cand-chat.unknownUser')).toHaveLength(2);
+        expect(screen.queryByTestId('cand-u1')).not.toBeInTheDocument();
+    });
+
+    // The empty case above is the easy half. The server seeds an unnamed user's `name` with their
+    // own account id, so the cached name can BE the id — it has to fall through as well.
+    it('유저 레코드 name이 자기 id면 라벨로 떨어진다', async () => {
+        mockProfiles = [];
+        mockUsers = [{ id: 'u2', name: 'u2' }];
+        setup();
+
+        await waitFor(() => expect(cacheRead).toHaveBeenCalledWith('u2'));
+        expect(screen.queryByTestId('cand-u2')).not.toBeInTheDocument();
+        expect(screen.getAllByTestId('cand-chat.unknownUser')).toHaveLength(2);
     });
 
     it('프로필 사진을 아바타로 넘긴다', () => {

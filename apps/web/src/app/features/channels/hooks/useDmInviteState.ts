@@ -18,8 +18,15 @@ const PEER_ABSENT_POLL_MS = 30_000;
 
 interface UseDmInviteStateInput {
     channelId?: string | null;
-    /** `channel.stereo === 'dm'`. Anything else short-circuits to `present` and asks nothing. */
-    isDm: boolean;
+    /**
+     * Whether this room has an invite flow behind it — `hasDmInviteFlow`, which is a 1:1 AND a relay
+     * one. Anything else short-circuits to `present` and asks nothing.
+     *
+     * This is deliberately not "is a 1:1". A cloud 1:1 is opened by naming a member, so it has no
+     * invite to read and no number to send a new one to; asking `invite.list` about it could only
+     * ever answer with an unrelated invite or nothing at all.
+     */
+    hasInviteFlow: boolean;
     /** The 1:1 peer's user id (`useDmPeer`). Absent once the server drops them from the roster. */
     peerId?: string | null;
     /** This channel's join rows, from `useChannelJoins` — the screen's single join observer. */
@@ -64,11 +71,11 @@ export interface DmInviteStateResult {
  *
  * The invite read is stood down unless the peer has actually left. That is what keeps this hook
  * free to live on `ChannelRoomPage`, which every channel stereo shares — a group room, a self chat,
- * or a healthy 1:1 costs nothing here.
+ * a cloud 1:1, or a healthy relay 1:1 costs nothing here.
  */
 export const useDmInviteState = ({
     channelId,
-    isDm,
+    hasInviteFlow,
     peerId,
     joins,
     channel,
@@ -86,11 +93,11 @@ export const useDmInviteState = ({
      * has a live join row AND sits in the roster.
      */
     const peerLeft = useMemo(() => {
-        if (!isDm) return false;
+        if (!hasInviteFlow) return false;
         if (isDmPeerMissing(channel, userId)) return true;
         if (!peerId) return false;
         return hasLeftChannel(joins.find(join => join.userId === peerId));
-    }, [isDm, peerId, joins, channel, userId]);
+    }, [hasInviteFlow, peerId, joins, channel, userId]);
 
     // Polling is keyed on `peerLeft` rather than on "an invite is pending", even though only the
     // pending case has news coming. Deriving the flag from the invite would mean feeding this hook's

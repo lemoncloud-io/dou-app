@@ -28,6 +28,12 @@ interface MemberProfileDialogProps {
     isKicking?: boolean;
     /** Open my per-place profile editor (only meaningful when `isSelf`). */
     onOpenProfileSettings?: () => void;
+    /**
+     * Open a 1:1 with this member. Present only where that is possible at all — the host decides
+     * that, the same way it decides `canKick`, so this component keeps one row-composition rule
+     * instead of growing a second axis to branch on (ADR-0111).
+     */
+    onStartDm?: () => void;
 }
 
 /**
@@ -48,6 +54,7 @@ export const MemberProfileDialog = ({
     onKick,
     isKicking = false,
     onOpenProfileSettings,
+    onStartDm,
 }: MemberProfileDialogProps) => {
     const { t } = useTranslation();
     const { toast } = useToast();
@@ -64,7 +71,7 @@ export const MemberProfileDialog = ({
 
     // Row set by viewer role / target: self → profile settings; owner-over-member → manage + kick +
     // report; otherwise report only.
-    const rows: Array<{ key: string; label: string; onClick: () => void }> = isSelf
+    const roleRows: Array<{ key: string; label: string; onClick: () => void }> = isSelf
         ? [{ key: 'profile', label: t('chat.settings.profileSettings'), onClick: () => onOpenProfileSettings?.() }]
         : canKick
           ? [
@@ -73,6 +80,21 @@ export const MemberProfileDialog = ({
                 { key: 'report', label: t('chat.settings.report'), onClick: handleReport },
             ]
           : [{ key: 'report', label: t('chat.settings.report'), onClick: handleReport }];
+
+    /**
+     * "Talk to them" goes first, above the role rows.
+     *
+     * It is the only row here that starts something rather than managing or reporting, and it is
+     * never offered on my own profile — the host does not pass it there, and `isSelf` is checked
+     * again so a host that forgets cannot open a room with me.
+     *
+     * Provisional placement: no comp exists for this row, so it takes the top of the existing list
+     * rather than a new region of the screen.
+     */
+    const rows =
+        onStartDm && !isSelf
+            ? [{ key: 'startDm', label: t('cloudDm.startFromProfile'), onClick: onStartDm }, ...roleRows]
+            : roleRows;
 
     return (
         <>

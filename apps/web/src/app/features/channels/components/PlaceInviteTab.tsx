@@ -1,17 +1,22 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { logger } from '@chatic/bridges';
-import { runtime } from '@chatic/app-runtime';
 import { useNavigateWithTransition } from '@chatic/shared';
-import type { DomainUser } from '@chatic/data';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { FloatingButton, SearchInput, SelectableUserItem, SelectedAvatarRow } from '@chatic/web-ui-kit';
 
 import { KeyboardSafeAreaSpacer } from '../../../ui/layouts/KeyboardSafeAreaSpacer';
 
-import { LIST_PROFILE_SYNC_INTERVAL_MS, useChannelMutations, useChannelProfiles, useInviteCandidates } from '../hooks';
+import {
+    LIST_PROFILE_SYNC_INTERVAL_MS,
+    useChannelMutations,
+    useChannelProfiles,
+    useInviteCandidates,
+    useUserRecords,
+} from '../hooks';
+import { type DisplayNameSources, resolveUserName } from '../utils/displayName';
 
 interface PlaceInviteTabProps {
     channelId: string;
@@ -52,49 +57,30 @@ export const PlaceInviteTab = ({ channelId, sid, maxSelection }: PlaceInviteTabP
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [isInviting, setIsInviting] = useState(false);
 
-    /**
-     * Middle rung of the name chain below.
-     *
-     * Read one id at a time rather than observed as a list: `observeList` is keyed by `channelId`
-     * (`ChannelListUserRequestData` requires it) and these candidates come from many channels, so
-     * there is no single scoped query that covers them. A per-id `cacheRead` is a supported call
-     * and runs once per candidate set — no observers, no network.
-     *
-     * This is only a fallback. The place profile above is the primary source and
-     * `useChannelProfiles` actively bootstraps the ones the cache is missing, so most rows never
-     * reach here.
-     */
-    const { user: userRepository } = runtime.data.useRuntimeRepositories();
-    const [userNames, setUserNames] = useState<Map<string, string>>(new Map());
-    const candidateKey = candidateIds.join(',');
-    useEffect(() => {
-        let cancelled = false;
-        void Promise.all(candidateIds.map(id => userRepository.cacheRead(id).catch(() => null))).then(
-            (users: Array<DomainUser | null>) => {
-                if (cancelled) return;
-                const next = new Map<string, string>();
-                users.forEach(user => {
-                    if (user?.id && user.name) next.set(user.id, user.name);
-                });
-                setUserNames(next);
-            }
-        );
-        return () => {
-            cancelled = true;
-        };
-        // `candidateKey` stands in for the id array so a re-derived array of the same ids does not
-        // re-read the cache on every render.
-    }, [userRepository, candidateKey]);
+    // Middle rung of the name chain below — see `useUserRecords`, which the 1:1 picker shares.
+    const userRecords = useUserRecords(candidateIds);
 
     /**
-     * Display name for a candidate, falling down the same chain the settings member row uses
-     * (place nick → user record name → raw id). Keeping the chains identical is what stops the
-     * same person reading one way in the picker and another way in the member list.
+     * Display name for a candidate — `resolveUserName`, the same call every other surface makes.
+     *
+     * It used to be a hand-copied chain ending in `|| userId`, which is how a candidate with no
+     * place profile and no cached name rendered as a raw UUID. That is the exact value the shared
+     * chain exists to reject (it is what the server seeds an unnamed user's `name` with), so the
+     * picker was showing what the member list right next to it refuses to.
+     *
+     * `userId` is left out on purpose: candidates are people NOT yet in this channel, and I am in
+     * it, so the "me" rung is unreachable here.
      */
-    const nameOf = useCallback(
-        (userId: string) => profileMap.get(userId)?.nick?.trim() || userNames.get(userId) || userId,
-        [profileMap, userNames]
+    const nameSources: DisplayNameSources = useMemo(
+        () => ({
+            profileMap,
+            memberById: userRecords,
+            unknownLabel: t('chat.unknownUser'),
+            meLabel: t('chat.me'),
+        }),
+        [profileMap, userRecords, t]
     );
+    const nameOf = useCallback((id: string) => resolveUserName(id, nameSources), [nameSources]);
 
     const candidates = useMemo(
         () =>

@@ -33,7 +33,9 @@ const PEER = 'peer-1';
 const peerJoin = (over: Record<string, unknown> = {}) => ({ userId: PEER, joined: 0, joinedNo: 42, ...over }) as never;
 
 const render = (over: Partial<Parameters<typeof useDmInviteState>[0]> = {}) =>
-    renderHook(() => useDmInviteState({ channelId: CHANNEL, isDm: true, peerId: PEER, joins: [peerJoin()], ...over }));
+    renderHook(() =>
+        useDmInviteState({ channelId: CHANNEL, hasInviteFlow: true, peerId: PEER, joins: [peerJoin()], ...over })
+    );
 
 describe('useDmInviteState', () => {
     beforeEach(() => {
@@ -52,7 +54,7 @@ describe('useDmInviteState', () => {
 
     // This hook lives in ChannelRoomPage, which every stereo shares — opening a group room must not trigger an invite.list call.
     it('dm이 아니면 present이고 초대를 조회하지 않는다', () => {
-        const { result } = render({ isDm: false });
+        const { result } = render({ hasInviteFlow: false });
 
         expect(result.current.state).toEqual({ kind: 'present' });
         expect(useRelayInvitesMock).toHaveBeenCalledWith(undefined, { enabled: false, pollIntervalMs: undefined });
@@ -214,12 +216,36 @@ describe('useDmInviteState — 로스터에서 상대가 사라진 경우', () =
 
     it('DM이 아니면 로스터를 보지 않는다', () => {
         const { result } = render({
-            isDm: false,
+            hasInviteFlow: false,
             peerId: undefined,
             joins: [],
             channel: { stereo: 'private', memberIds: ['me'] },
             userId: 'me',
         });
+        expect(result.current.state.kind).toBe('present');
+    });
+});
+
+// A cloud 1:1 is a `dm` with no invite behind it. The caller resolves that (`hasDmInviteFlow`) and
+// hands the answer down, so what is fixed here is that a false answer stands the whole read down —
+// including the roster reading, which would otherwise report a departure the room cannot act on.
+describe('useDmInviteState — a room with no invite flow', () => {
+    it('stays present even when the peer left, and asks for no invites', () => {
+        const { result } = render({ hasInviteFlow: false, joins: [peerJoin()] });
+
+        expect(result.current.state).toEqual({ kind: 'present' });
+        expect(useRelayInvitesMock).toHaveBeenCalledWith(undefined, { enabled: false, pollIntervalMs: undefined });
+    });
+
+    it('ignores a roster that holds nobody but me', () => {
+        const { result } = render({
+            hasInviteFlow: false,
+            peerId: undefined,
+            joins: [],
+            channel: { stereo: 'dm' as const, memberIds: ['me'] },
+            userId: 'me',
+        });
+
         expect(result.current.state.kind).toBe('present');
     });
 });

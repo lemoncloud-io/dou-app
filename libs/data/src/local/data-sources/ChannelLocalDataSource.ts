@@ -10,8 +10,11 @@ import {
     type LocalDataSourceUnsubscribe,
 } from './types';
 
-export interface IChannelLocalDataSource
-    extends ILocalDataSource<DomainChannel, DomainChannelListPayload, DomainListResult<DomainChannel>> {}
+export type IChannelLocalDataSource = ILocalDataSource<
+    DomainChannel,
+    DomainChannelListPayload,
+    DomainListResult<DomainChannel>
+>;
 
 /** Persists channels locally and fans out observer updates by scoped channel list keys. */
 export class ChannelLocalDataSource extends BaseLocalDataSource implements IChannelLocalDataSource {
@@ -88,6 +91,19 @@ export class ChannelLocalDataSource extends BaseLocalDataSource implements IChan
         );
     }
 
+    /**
+     * Writes one channel, resolving its place from the row, the cached row, then the context.
+     *
+     * That fallback chain is load-bearing: it keeps a place-scoped row from silently losing the
+     * list it belongs to, and the throw catches a caller that forgot to name a site.
+     *
+     * **A 1:1 does not need an exception here, and briefly had one.** The idea was that a cloud 1:1
+     * belongs to no place, so it should be written with the field blank. The server assigns the
+     * room a place regardless and returns it on every read, so the blank was refilled by the next
+     * sync — and meanwhile an empty sid meant both "no place" and "place unknown", which is exactly
+     * what this chain exists to resolve. The field is now stored as the server sent it, and which
+     * rooms a place list may show is decided when reading instead (`isInPlaceList`).
+     */
     public async cacheWrite(
         item: Partial<DomainChannel>,
         contextOverride?: LocalDataSourceContextOverride
@@ -96,7 +112,7 @@ export class ChannelLocalDataSource extends BaseLocalDataSource implements IChan
 
         const context = this.getContext(contextOverride);
         const existing = await this.cacheStorage.load(id);
-        const sid = item.sid || existing?.sid || context.sid;
+        const sid = (item.sid || existing?.sid || context.sid) ?? '';
         const cid = context.cid || 'default';
 
         if (!sid) {

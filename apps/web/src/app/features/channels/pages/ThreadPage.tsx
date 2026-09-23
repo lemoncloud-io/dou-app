@@ -28,6 +28,7 @@ import {
     useChats,
     useReactions,
 } from '../hooks';
+import { profilePlaceOf } from '../lib';
 import type { ClientChatView, DomainChat } from '../types';
 import { copyMessageToClipboard } from '../utils/copyMessageToClipboard';
 import { messagePlainText } from '../utils/messagePlainText';
@@ -76,6 +77,8 @@ export const ThreadPage = () => {
     const { headerRef, footerRef: composerRef, headerHeight, footerHeight: composerHeight } = useChromeInsets();
 
     const { userId } = runtime.session.useSessionIdentity();
+    // A thread is a view of a channel, so it names people the way the room does — see `profilePlaceOf`.
+    const { selectedSiteId } = runtime.session.useSessionSelection();
     const { channel } = useChannel(channelId || null);
     // One join subscription for the screen — the roster rows and the active-member set are two
     // readings of it (see useChannelJoins). A thread and its room are two views of one channel, so
@@ -88,7 +91,7 @@ export const ThreadPage = () => {
         memberIds: channel?.memberIds,
         joins,
     });
-    const { profileMap } = useChannelProfiles(channel?.sid ?? null, activeMemberIds);
+    const { profileMap } = useChannelProfiles(profilePlaceOf(channel, selectedSiteId), activeMemberIds);
 
     // The header names the SCREEN ("Thread"), not the room (Figma 4718:22183) — a thread is a
     // view of a channel, and wearing the channel's name and face would claim otherwise. So no

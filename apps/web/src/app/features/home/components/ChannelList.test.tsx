@@ -301,8 +301,19 @@ describe('ChannelList self-chat row', () => {
 
 // ADR-0039: a DM row shows the person, not the channel. Name, avatar, and member count all follow from that.
 describe('ChannelList — 1:1(DM) 행', () => {
+    // `cid` carries the lineage — the relay cloud vs a subscription one (ADR-0111). Not `sid`:
+    // the server overwrites that, and it says where a room's creator stood, not which cloud it is in.
     const dmChannel = (over: any = {}) =>
-        makeChannel({ id: 'dm1', stereo: 'dm', memberNo: 2, name: '', ownerId: 'me', ...over });
+        makeChannel({
+            id: 'dm1',
+            stereo: 'dm',
+            memberNo: 2,
+            name: '',
+            ownerId: 'me',
+            cid: 'default',
+            sid: 'S:relay',
+            ...over,
+        });
 
     beforeEach(() => mockDmPeers.clear());
 
@@ -612,7 +623,7 @@ describe('ChannelList 생성 메뉴', () => {
         render(<ChannelList channels={[]} sid="site-1" isLoading={false} canCreate {...props} />);
 
     it('중계 + 미구독이면 1:1 대화와 그룹 방 만들기를 함께 보이고 그룹 쪽에 PRO 뱃지를 붙인다', () => {
-        renderMenu({ isDefaultCloud: true, isPro: false });
+        renderMenu({ isDefaultCloud: true, isPro: false, showOneOnOneCreate: true });
 
         expect(screen.getByText('channelList.createDirect')).toBeInTheDocument();
         expect(screen.getByText('channelList.createGroup')).toBeInTheDocument();
@@ -620,7 +631,7 @@ describe('ChannelList 생성 메뉴', () => {
     });
 
     it('중계 + 구독이면 그룹 방 만들기를 감춘다 — 그룹 방은 내 클라우드에서 만든다', () => {
-        renderMenu({ isDefaultCloud: true, isPro: true });
+        renderMenu({ isDefaultCloud: true, isPro: true, showOneOnOneCreate: true });
 
         expect(screen.getByText('channelList.createDirect')).toBeInTheDocument();
         expect(screen.queryByText('channelList.createGroup')).not.toBeInTheDocument();
@@ -634,12 +645,28 @@ describe('ChannelList 생성 메뉴', () => {
         expect(onCreateGroup).toHaveBeenCalledTimes(1);
     });
 
-    it('클라우드에선 1:1 대화 없이 그룹 방 만들기만 보이고, 미구독이면 뱃지가 붙는다', () => {
-        renderMenu({ isDefaultCloud: false, isPro: false });
+    it('클라우드에서도 요청받으면 1:1 대화를 보이고, 미구독이면 그룹 쪽에 뱃지가 붙는다', () => {
+        renderMenu({ isDefaultCloud: false, isPro: false, showOneOnOneCreate: true });
 
-        expect(screen.queryByText('channelList.createDirect')).not.toBeInTheDocument();
+        expect(screen.getByText('channelList.createDirect')).toBeInTheDocument();
         expect(screen.getByText('channelList.createGroup')).toBeInTheDocument();
         expect(screen.getByTestId('tier-badge')).toBeInTheDocument();
+    });
+
+    // The two used to be one flag. Splitting them is only worth anything if neither moves the
+    // other, so both directions are pinned here (ADR-0111).
+    it('1:1 표시 조건은 그룹 업셀 규칙을 건드리지 않는다', () => {
+        renderMenu({ isDefaultCloud: true, isPro: true, showOneOnOneCreate: false });
+
+        // Relay + subscribed still hides the group entry, with the 1:1 entry withheld.
+        expect(screen.queryByText('channelList.createDirect')).not.toBeInTheDocument();
+        expect(screen.queryByText('channelList.createGroup')).not.toBeInTheDocument();
+    });
+
+    it('1:1 표시를 켜도 그룹 업셀 뱃지 규칙은 그대로다', () => {
+        renderMenu({ isDefaultCloud: true, isPro: false, showOneOnOneCreate: true });
+
+        expect(screen.getByTestId('tier-badge')).toHaveTextContent('pro');
     });
 
     it('구독한 클라우드에선 뱃지 없이 그룹 방 만들기만 보인다', () => {
@@ -649,11 +676,29 @@ describe('ChannelList 생성 메뉴', () => {
         expect(screen.queryByTestId('tier-badge')).not.toBeInTheDocument();
     });
 
-    it('canCreate가 아니면 생성 메뉴 자체가 없다', () => {
-        renderMenu({ canCreate: false, isDefaultCloud: true, isPro: false });
+    it('둘 다 아니면 생성 메뉴 자체가 없다', () => {
+        renderMenu({ canCreate: false, isDefaultCloud: true, isPro: false, showOneOnOneCreate: false });
 
         expect(screen.queryByText('channelList.createDirect')).not.toBeInTheDocument();
         expect(screen.queryByText('channelList.createGroup')).not.toBeInTheDocument();
+    });
+
+    // An invited member cannot make a room here and CAN talk to the people already beside them.
+    // `canCreate` used to close the popover outright, which took the second one with the first.
+    it('방을 못 만드는 멤버에게도 1:1만 남겨 메뉴를 연다', () => {
+        renderMenu({ canCreate: false, isDefaultCloud: false, isPro: true, showOneOnOneCreate: true });
+
+        expect(screen.getByText('channelList.createDirect')).toBeInTheDocument();
+        expect(screen.queryByText('channelList.createGroup')).not.toBeInTheDocument();
+    });
+
+    // The negative form (`!isDefaultCloud || !isPro`) reads true for every non-relay cloud, so
+    // without `canCreate` guarding it the invited member would be offered exactly what they cannot do.
+    it('초대받은 클라우드에서 그룹 생성이 새어 나오지 않는다', () => {
+        renderMenu({ canCreate: false, isDefaultCloud: false, isPro: false, showOneOnOneCreate: true });
+
+        expect(screen.queryByText('channelList.createGroup')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('tier-badge')).not.toBeInTheDocument();
     });
 });
 

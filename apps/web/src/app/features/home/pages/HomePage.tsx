@@ -27,6 +27,7 @@ import {
     useScrollRestoration,
     useUserPermissions,
 } from '../../../hooks';
+import { useCloudDmChannels } from '../../channels/hooks';
 import { placeScopeKey, usePinnedChannels } from '@chatic/shared';
 import { DEFAULT_CHANNEL_SORT } from '../../../stores/preferenceKeys';
 import { usePendingInviteChannel } from '../../../stores/usePendingInviteChannel';
@@ -80,6 +81,9 @@ export const HomePage = () => {
     const { invitedClouds } = useInvitedClouds();
     const { selectedCloudId, selectedSiteId } = runtime.session.useSessionSelection();
     const isDefaultCloud = selectedCloudId === 'default';
+    // Cloud 1:1 rooms belong to the cloud, not a place, so no place list holds them — they get
+    // a section of their own below the place's rooms (ADR-0111).
+    const { channels: cloudDmChannels, isLoading: isCloudDmLoading } = useCloudDmChannels();
     // Connected to an invited cloud → drives the place-type caption.
     const isInvitedCloud = !isDefaultCloud && invitedClouds.some(cloud => cloud.id === selectedCloudId);
     // Place/group-room creation is owner-only and cloud-server-only. A cloud I own is one that is
@@ -349,8 +353,21 @@ export const HomePage = () => {
             setIsSubscriptionRequiredOpen(true);
         }
     };
-    // Relay 1:1 chat creation (ADR-0089 Track B): contact entry → invite.create → SMS handoff.
-    const handleCreateOneOnOne = () => navigateFromMenu(ROUTES.invite.contact);
+    /**
+     * Starting a 1:1 is two different acts wearing one menu entry (ADR-0111).
+     *
+     * On relay the only way to reach a person is their phone number, so it goes to the contact
+     * form and on to the SMS handoff, exactly as it did (ADR-0089 Track B) — that flow is a
+     * non-goal here and is not touched.
+     *
+     * Inside a cloud there is nothing to invite: the other person is already a member, and the room
+     * is opened by naming them. So it goes to the picker instead.
+     *
+     * `navigateFromMenu`, because this is a dropdown item: the menu is given time to leave before
+     * the page transition starts (ADR-0110).
+     */
+    const handleCreateOneOnOne = () =>
+        navigateFromMenu(isDefaultCloud ? ROUTES.invite.contact : ROUTES.channels.startDm);
 
     // Search is not implemented yet (ADR-0013): the button is a visible placeholder.
     const handleSearch = () => navigate(ROUTES.search.root);
@@ -459,6 +476,17 @@ export const HomePage = () => {
                         isLoading={isChannelSectionLoading}
                         canCreate={!isChannelSectionLoading && (isDefaultCloud || isCloudOwner)}
                         isDefaultCloud={isDefaultCloud}
+                        /**
+                         * Every environment can start a 1:1, and they do not all do it the same way
+                         * (ADR-0111). Relay reaches a person by phone number; a cloud reaches them
+                         * by name, because they are already a member.
+                         *
+                         * **Including an invited cloud**, which `canCreate` excludes — that flag is
+                         * about making rooms, and a member who cannot make one can still talk to
+                         * the people already beside them. The two were one flag until now, which is
+                         * why they could not differ.
+                         */
+                        showOneOnOneCreate={!isChannelSectionLoading}
                         isPro={planTier !== 'free'}
                         sortMethod={channelSortMethod}
                         pinnedChannelIds={pinnedChannelIds}
@@ -494,6 +522,27 @@ export const HomePage = () => {
                         <Loader2 aria-hidden className="size-7 animate-spin" />
                         <p className="text-sm">{t('homePage.loadingCloud', '클라우드를 불러오는 중이에요')}</p>
                     </div>
+                )}
+
+                {/* Cloud 1:1 rooms, which belong to the cloud rather than to any place and so appear
+                    in none of the lists above (ADR-0111). Relay is excluded: its 1:1s DO live in its
+                    one place and are already in the list, so a second section would double them.
+
+                    The same `ChannelList` as the place's rooms, deliberately — every row rule (the
+                    title chain, the avatar, unread, the last-message preview) is decided there, and
+                    a second row component would be a second place for them to drift. `sid` is the
+                    reader's active place: a 1:1 carries one, but it is where its creator stood. */}
+                {!isDefaultCloud && (
+                    <ChannelList
+                        channels={cloudDmChannels}
+                        joinByChannel={myJoins}
+                        sid={selectedSiteId ?? ''}
+                        isLoading={isCloudDmLoading}
+                        title={t('cloudDm.section.title')}
+                        emptyLabel={t('cloudDm.section.empty')}
+                        sortMethod={channelSortMethod}
+                        sentInvites={[]}
+                    />
                 )}
 
                 <BottomNavSpacer />

@@ -30,6 +30,8 @@ jest.mock('@chatic/app-runtime', () => ({
     runtime: {
         session: {
             useSessionIdentity: () => ({ userId: 'me' }),
+            // Only a cloud-wide room reads this (`profilePlaceOf`); these channels are read in a place.
+            useSessionSelection: () => ({ selectedSiteId: 'S:active' }),
         },
     },
 }));
@@ -69,7 +71,12 @@ jest.mock('../components/ReactionChips', () => ({
 jest.mock('../components/MessageActionSheet', () => ({ MessageActionSheet: () => null }));
 jest.mock('../components/ReactionDetailSheet', () => ({ ReactionDetailSheet: () => null }));
 jest.mock('../components/EmojiPickerSheet', () => ({ EmojiPickerSheet: () => null }));
-jest.mock('../lib', () => ({ resolveChannelAvatar: () => ({ src: undefined }) }));
+// The barrel is mocked to keep `@chatic/assets` out of jest; `profilePlaceOf` is a pure rule, so
+// the real one is used rather than a stub that could disagree with it.
+jest.mock('../lib', () => ({
+    resolveChannelAvatar: () => ({ src: undefined }),
+    profilePlaceOf: jest.requireActual('../lib/channelStereoPolicy').profilePlaceOf,
+}));
 jest.mock('../stores/useRecentEmojiStore', () => ({ useRecentEmojiStore: () => jest.fn() }));
 jest.mock('../../../ui/hooks/useChromeInsets', () => ({
     useChromeInsets: () => ({
