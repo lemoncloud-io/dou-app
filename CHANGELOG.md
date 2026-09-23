@@ -4,6 +4,12 @@
 
 ### Features
 
+- (web,data) open a 1:1 inside a cloud by naming a member (ADR-0111)
+
+## [2026-09-23] - No version updates
+
+### Features
+
 - (shared,web,desktop-web) prepare a picked image for where it is going
 
 ## [2026-09-22] - root@0.66.2, @chatic/web@0.52.2
