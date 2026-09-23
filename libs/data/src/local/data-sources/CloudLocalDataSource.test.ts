@@ -1,50 +1,10 @@
-import type { CacheStorage } from '../ports';
 import { CloudLocalDataSource } from './CloudLocalDataSource';
+import { createPartitionedMemoryStorage } from './__mocks__/MemoryCacheStorage';
 
 // Observer notifications are debounced, so flush the microtask queue after timers run.
 const flushPromises = async () => {
     await Promise.resolve();
     await Promise.resolve();
-};
-
-const createMemoryStorage = (): CacheStorage<'invitecloud'> => {
-    const map = new Map<string, any>();
-    return {
-        async save(id, item) {
-            map.set(id, { ...item });
-            return item;
-        },
-        async saveAll(items) {
-            items.forEach(item => item?.id && map.set(item.id, { ...item }));
-            return items;
-        },
-        async load(id) {
-            return map.has(id) ? { ...map.get(id) } : null;
-        },
-        async loadMany(ids) {
-            // Per the contract this omits absent ids and guarantees no order (it returns them
-            // reversed) — this fixture exists so that any code pairing by position breaks here.
-            return ids
-                .filter(id => map.has(id))
-                .map(id => ({ ...map.get(id) }))
-                .reverse();
-        },
-        async loadAll() {
-            return Array.from(map.values()).map(item => ({ ...item }));
-        },
-        async delete(id) {
-            map.delete(id);
-        },
-        async deleteAll(ids) {
-            ids.forEach(id => map.delete(id));
-        },
-        async clearAll() {
-            map.clear();
-        },
-        async clearByChannelId() {
-            return undefined;
-        },
-    };
 };
 
 describe('CloudLocalDataSource', () => {
@@ -67,7 +27,7 @@ describe('CloudLocalDataSource', () => {
     });
 
     it('re-emits the cloud list after a mutation so the local-first repository stays reactive', async () => {
-        const storage = createMemoryStorage();
+        const storage = createPartitionedMemoryStorage('invitecloud');
         const dataSource = new CloudLocalDataSource(contextProvider as any, storage);
         const totals: number[] = [];
 
@@ -91,7 +51,7 @@ describe('CloudLocalDataSource', () => {
     });
 
     it('clears all clouds so local state can be reset between sessions', async () => {
-        const storage = createMemoryStorage();
+        const storage = createPartitionedMemoryStorage('invitecloud');
         const dataSource = new CloudLocalDataSource(contextProvider as any, storage);
 
         await dataSource.cacheWriteMany([
@@ -107,7 +67,7 @@ describe('CloudLocalDataSource', () => {
     });
 
     it('defaults an unclassified write to the invited cloudType and preserves an explicit one', async () => {
-        const storage = createMemoryStorage();
+        const storage = createPartitionedMemoryStorage('invitecloud');
         const dataSource = new CloudLocalDataSource(contextProvider as any, storage);
 
         await dataSource.cacheWrite({ id: 'cloud-1', cid: 'cloud-1', name: 'One' } as any);

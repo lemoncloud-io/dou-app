@@ -2,7 +2,7 @@ import type { UserMySiteInput } from '@lemoncloud/chatic-sockets-api';
 import type { DomainListResult, DomainPlace } from '../../domain';
 import { createDomainListResult } from '../../domain';
 import type { DataContextProvider } from '../../repositories/types';
-import type { CacheStorage } from '../ports';
+import type { ScopedCacheStorage } from '../ports';
 import {
     BaseLocalDataSource,
     type ILocalDataSource,
@@ -35,25 +35,22 @@ const isMistaggedHomePlace = (item: Pick<DomainPlace, 'id' | 'cid'>): boolean =>
     item.id === RELAY_HOME_PLACE_ID && item.cid !== 'default';
 
 /** Stores place records in local cache and keeps list observers aligned with sorted place output. */
-export class PlaceLocalDataSource extends BaseLocalDataSource implements IPlaceLocalDataSource {
-    constructor(
-        contextProvider: DataContextProvider,
-        private readonly cacheStorage: CacheStorage<'site'>
-    ) {
-        super(contextProvider);
+export class PlaceLocalDataSource extends BaseLocalDataSource<'site'> implements IPlaceLocalDataSource {
+    constructor(contextProvider: DataContextProvider, storages: ScopedCacheStorage<'site'>) {
+        super(contextProvider, storages);
     }
 
-    public async cacheRead(id: string, _contextOverride?: LocalDataSourceContextOverride): Promise<DomainPlace | null> {
+    public async cacheRead(id: string, contextOverride?: LocalDataSourceContextOverride): Promise<DomainPlace | null> {
         const requiredId = this.assertRequiredString(id, 'id');
-        const item = await this.cacheStorage.load(requiredId);
+        const item = await this.storage(contextOverride).load(requiredId);
         return item && isMistaggedHomePlace(item) ? null : item;
     }
 
     public async cacheReadList(
         _query: UserMySiteInput | undefined,
-        _contextOverride?: LocalDataSourceContextOverride
+        contextOverride?: LocalDataSourceContextOverride
     ): Promise<DomainListResult<DomainPlace> | null> {
-        const items = (await this.cacheStorage.loadAll()).filter(item => !isMistaggedHomePlace(item));
+        const items = (await this.storage(contextOverride).loadAll()).filter(item => !isMistaggedHomePlace(item));
         // Default ordering is by id (ascending, numeric-aware) so the place rail stays stable
         // and predictable regardless of server-provided order/name.
         const list = [...items].sort((left, right) =>
@@ -90,10 +87,11 @@ export class PlaceLocalDataSource extends BaseLocalDataSource implements IPlaceL
         item: Partial<DomainPlace>,
         contextOverride?: LocalDataSourceContextOverride
     ): Promise<void> {
+        const scope = this.resolveContext(contextOverride);
         const id = this.assertRequiredString(item.id, 'id');
-        const existing = await this.cacheStorage.load(id);
-        const context = this.getContext(contextOverride);
-        const cid = context.cid || 'default';
+        const storage = this.storage(scope);
+        const existing = await storage.load(id);
+        const cid = scope.cid || 'default';
         const merged: DomainPlace = {
             ...(existing ?? ({} as DomainPlace)),
             ...item,
@@ -101,21 +99,22 @@ export class PlaceLocalDataSource extends BaseLocalDataSource implements IPlaceL
             cid,
             order: item.order ?? existing?.order ?? Number.MAX_SAFE_INTEGER,
         };
-        await this.cacheStorage.save(id, merged);
-        this.scheduleItemReemit([id], contextOverride);
-        this.scheduleListReemit([`${this.getScopeKey(contextOverride)}|places`]);
+        await storage.save(id, merged);
+        this.scheduleItemReemit([id], scope);
+        this.scheduleListReemit([`${this.getScopeKey(scope)}|places`]);
     }
 
     public async cacheWriteMany(
         items: Array<Partial<DomainPlace>>,
         contextOverride?: LocalDataSourceContextOverride
     ): Promise<void> {
+        const scope = this.resolveContext(contextOverride);
         const validItems = items.filter(item => !!item.id);
         if (validItems.length === 0) return;
 
-        const context = this.getContext(contextOverride);
-        const cid = context.cid || 'default';
-        const existingById = this.indexById(await this.cacheStorage.loadMany(validItems.map(item => item.id!)));
+        const cid = scope.cid || 'default';
+        const storage = this.storage(scope);
+        const existingById = this.indexById(await storage.loadMany(validItems.map(item => item.id!)));
         const mergedList = validItems.map(item => {
             const existing = existingById.get(item.id!);
             return {
@@ -127,28 +126,30 @@ export class PlaceLocalDataSource extends BaseLocalDataSource implements IPlaceL
             } as DomainPlace;
         });
 
-        await this.cacheStorage.saveAll(mergedList);
-        this.scheduleItemReemit(validItems.map(item => item.id!).filter(Boolean), contextOverride);
-        this.scheduleListReemit([`${this.getScopeKey(contextOverride)}|places`]);
+        await storage.saveAll(mergedList);
+        this.scheduleItemReemit(validItems.map(item => item.id!).filter(Boolean), scope);
+        this.scheduleListReemit([`${this.getScopeKey(scope)}|places`]);
     }
 
     public async cacheDelete(id: string, contextOverride?: LocalDataSourceContextOverride): Promise<void> {
+        const scope = this.resolveContext(contextOverride);
         const requiredId = this.assertRequiredString(id, 'id');
-        await this.cacheStorage.delete(requiredId);
-        this.scheduleItemReemit([requiredId], contextOverride);
-        this.scheduleListReemit([`${this.getScopeKey(contextOverride)}|places`]);
+        await this.storage(scope).delete(requiredId);
+        this.scheduleItemReemit([requiredId], scope);
+        this.scheduleListReemit([`${this.getScopeKey(scope)}|places`]);
     }
 
     public async cacheDeleteMany(ids: string[], contextOverride?: LocalDataSourceContextOverride): Promise<void> {
+        const scope = this.resolveContext(contextOverride);
         const validIds = ids.filter(Boolean);
         if (validIds.length === 0) return;
-        await this.cacheStorage.deleteAll(validIds);
-        this.scheduleItemReemit(validIds, contextOverride);
-        this.scheduleListReemit([`${this.getScopeKey(contextOverride)}|places`]);
+        await this.storage(scope).deleteAll(validIds);
+        this.scheduleItemReemit(validIds, scope);
+        this.scheduleListReemit([`${this.getScopeKey(scope)}|places`]);
     }
 
-    public async cacheClear(_contextOverride?: LocalDataSourceContextOverride): Promise<void> {
-        await this.cacheStorage.clearAll();
+    public async cacheClear(contextOverride?: LocalDataSourceContextOverride): Promise<void> {
+        await this.storage(contextOverride).clearAll();
         this.scheduleFullReemit();
     }
 }

@@ -269,6 +269,16 @@ decision 7's original intent — "dev does not provision real infrastructure" �
 result, dev now really verifies the subscription itself and the first cloud, while creating a second or
 later cloud remains unverified.
 
+## Decision reversal: no client-side receipt validation (2026-09-23)
+
+Decision 7's double call — `POST /validate/{platform}` then `POST /memberships/0` — is gone from the
+client. The server validates the store receipt inside `POST /memberships/0`, and the platform validation
+route was never meant to take a client credential, so the app already sent only the second call. With
+this, `libs/data` stops carrying the first as well: `validateGoogle` / `validateApple` and the receipt
+reads (`receipts`, `receiptDetail`) had no caller and are removed from `SubscriptionRepository`, its data
+source and its gateway pick. `libs/http` still defines them; adding one back to `data` is the ordinary
+"adding a server call" path.
+
 ## Next steps
 
 Implementation is complete ([tier-and-quota.md](../../apps/web/docs/feature/subscription/README.md)).

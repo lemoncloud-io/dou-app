@@ -1,7 +1,6 @@
 import type {
     ChannelGetSelfInput,
     ChannelSyncInput,
-    ChannelUnreadsInput,
     ChatInviteInput,
     ChatLeaveInput,
 } from '@lemoncloud/chatic-sockets-api';
@@ -12,7 +11,7 @@ import type {
     ChannelStartDmInput,
     ChannelUpdateInput,
 } from '@lemoncloud/chatic-sockets-api/dist/lib/channel/types';
-import type { ChannelSyncView, ChannelView, UnreadsSummaryView } from '@lemoncloud/chatic-socials-api';
+import type { ChannelSyncView, ChannelView } from '@lemoncloud/chatic-socials-api';
 import type { ListResult } from '@lemoncloud/chatic-socials-api/dist/cores/types';
 import type { DomainChannel, DomainListResult } from '../../domain';
 import { createDomainListResult, toDomainChannel } from '../../domain';
@@ -46,8 +45,6 @@ export interface IChannelSocketDataSource {
 
     /** Requests one's own personal (self-chat) channel and returns it as a domain model. */
     getSelfChannel(payload: ChannelGetSelfInput, context: DataContext): Promise<DomainChannel>;
-    /** Requests unread-message statistics. (An aggregate view, not a domain entity.) */
-    getUnreads(payload: ChannelUnreadsInput): Promise<UnreadsSummaryView>;
 }
 
 /**
@@ -122,9 +119,5 @@ export class ChannelSocketDataSource implements IChannelSocketDataSource {
     public async getSelfChannel(payload: ChannelGetSelfInput, context: DataContext): Promise<DomainChannel> {
         const remote = await this.gateway.getSelf<ChannelView>(payload);
         return toDomainChannel((remote || {}) as ChannelView, context);
-    }
-
-    public async getUnreads(payload: ChannelUnreadsInput): Promise<UnreadsSummaryView> {
-        return this.gateway.unreads(payload);
     }
 }

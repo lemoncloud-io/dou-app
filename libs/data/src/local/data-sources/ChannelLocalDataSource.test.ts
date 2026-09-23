@@ -1,46 +1,5 @@
-import type { CacheStorage } from '../ports';
 import { ChannelLocalDataSource } from './ChannelLocalDataSource';
-
-// Keep storage behavior intentionally minimal so list filtering/sorting is tested in the datasource itself.
-const createMemoryStorage = (): CacheStorage<'channel'> => {
-    const map = new Map<string, any>();
-    return {
-        async save(id, item) {
-            map.set(id, { ...item });
-            return item;
-        },
-        async saveAll(items) {
-            items.forEach(item => item?.id && map.set(item.id, { ...item }));
-            return items;
-        },
-        async load(id) {
-            return map.has(id) ? { ...map.get(id) } : null;
-        },
-        async loadMany(ids) {
-            // Per the contract this omits absent ids and guarantees no order (it returns them
-            // reversed) — this fixture exists so that any code pairing by position breaks here.
-            return ids
-                .filter(id => map.has(id))
-                .map(id => ({ ...map.get(id) }))
-                .reverse();
-        },
-        async loadAll() {
-            return Array.from(map.values()).map(item => ({ ...item }));
-        },
-        async delete(id) {
-            map.delete(id);
-        },
-        async deleteAll(ids) {
-            ids.forEach(id => map.delete(id));
-        },
-        async clearAll() {
-            map.clear();
-        },
-        async clearByChannelId() {
-            return undefined;
-        },
-    };
-};
+import { createPartitionedMemoryStorage } from './__mocks__/MemoryCacheStorage';
 
 describe('ChannelLocalDataSource', () => {
     const contextProvider = {
@@ -54,7 +13,7 @@ describe('ChannelLocalDataSource', () => {
     };
 
     it('filters channels by the active place and sorts by id ascending', async () => {
-        const storage = createMemoryStorage();
+        const storage = createPartitionedMemoryStorage('channel');
         const dataSource = new ChannelLocalDataSource(contextProvider as any, storage);
 
         // Seed two channels for the active place and one for another place.
@@ -72,7 +31,7 @@ describe('ChannelLocalDataSource', () => {
     });
 
     it('sorts channel ids numerically (10 after 2, not lexicographically)', async () => {
-        const storage = createMemoryStorage();
+        const storage = createPartitionedMemoryStorage('channel');
         const dataSource = new ChannelLocalDataSource(contextProvider as any, storage);
 
         await dataSource.cacheWriteMany([
@@ -87,7 +46,7 @@ describe('ChannelLocalDataSource', () => {
     });
 
     it('removes deleted channels from later reads so bulk list consumers do not see stale entries', async () => {
-        const storage = createMemoryStorage();
+        const storage = createPartitionedMemoryStorage('channel');
         const dataSource = new ChannelLocalDataSource(contextProvider as any, storage);
 
         await dataSource.cacheWriteMany([
@@ -113,7 +72,7 @@ describe('ChannelLocalDataSource', () => {
         afterEach(() => jest.useRealTimers());
 
         it('reemits a cloud-wide observer even when the active sid differs from subscribe time', async () => {
-            const storage = createMemoryStorage();
+            const storage = createPartitionedMemoryStorage('channel');
             const provider = {
                 current: { cid: 'cloud-a', sid: 'site-1', uid: 'me' },
                 getContext() {
@@ -144,7 +103,7 @@ describe('ChannelLocalDataSource', () => {
 
     describe('following the parent DataContext (it does not act independently)', () => {
         it('a given contextOverride takes precedence over the provider for cid/sid', async () => {
-            const storage = createMemoryStorage();
+            const storage = createPartitionedMemoryStorage('channel');
             const dataSource = new ChannelLocalDataSource(contextProvider as any, storage);
 
             await dataSource.cacheWrite({ id: 'ch-1', name: 'Override' } as any, {
@@ -153,12 +112,15 @@ describe('ChannelLocalDataSource', () => {
                 uid: 'me',
             });
 
-            const item = await dataSource.cacheRead('ch-1');
+            // The override decides the partition too, so the row is read back under it — the
+            // provider's own cloud never saw it.
+            const item = await dataSource.cacheRead('ch-1', { cid: 'cloud-b', uid: 'me' });
             expect(item).toMatchObject({ id: 'ch-1', cid: 'cloud-b', sid: 'site-2' });
+            await expect(dataSource.cacheRead('ch-1')).resolves.toBeNull();
         });
 
         it('without an override it follows cid/sid from the provider context', async () => {
-            const storage = createMemoryStorage();
+            const storage = createPartitionedMemoryStorage('channel');
             const dataSource = new ChannelLocalDataSource(contextProvider as any, storage);
 
             await dataSource.cacheWrite({ id: 'ch-1', name: 'Provider' } as any);
@@ -168,7 +130,7 @@ describe('ChannelLocalDataSource', () => {
         });
 
         it('throws a clear error when sid is in neither the context nor the item', async () => {
-            const storage = createMemoryStorage();
+            const storage = createPartitionedMemoryStorage('channel');
             const noSidProvider = {
                 getContext: () => ({ cid: 'cloud-a', uid: 'me' }),
                 setContext: () => undefined,
@@ -186,7 +148,7 @@ describe('ChannelLocalDataSource', () => {
     // sent it now, and which rooms a place list may show is decided when reading (`isInPlaceList`).
     describe('a 1:1 is written like any other channel', () => {
         it('keeps the place the row arrived with', async () => {
-            const storage = createMemoryStorage();
+            const storage = createPartitionedMemoryStorage('channel');
             const dataSource = new ChannelLocalDataSource(contextProvider as any, storage);
 
             await dataSource.cacheWrite({ id: 'dm-1', stereo: 'dm', sid: 'site-9' } as any);
@@ -195,7 +157,7 @@ describe('ChannelLocalDataSource', () => {
         });
 
         it('still falls back to the cached place, then the active one', async () => {
-            const storage = createMemoryStorage();
+            const storage = createPartitionedMemoryStorage('channel');
             const dataSource = new ChannelLocalDataSource(contextProvider as any, storage);
             await dataSource.cacheWrite({ id: 'dm-1', stereo: 'dm', sid: 'site-9' } as any);
 
@@ -205,7 +167,7 @@ describe('ChannelLocalDataSource', () => {
         });
 
         it('leaves the guard in place for a row with no place anywhere', async () => {
-            const storage = createMemoryStorage();
+            const storage = createPartitionedMemoryStorage('channel');
             const noSidProvider = {
                 getContext: () => ({ cid: 'cloud-a', uid: 'me' }),
                 setContext: () => undefined,

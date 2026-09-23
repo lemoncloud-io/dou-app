@@ -43,9 +43,11 @@ imports them as runtime functions.
 3. **The dependency runs one way.** `db → data` and `db → bridges`. `@chatic/data` does not know this
    package exists, so there is no cycle. The arrow into `data` is types **plus pure policy
    functions**, not type-only — the engine calls domain policy rather than reimplementing it.
-4. **Scope is read at call time, never captured.** Every operation asks `DataContextProvider` for the
-   current `(cid, uid)`. The same adapter instance therefore answers a different partition the
-   instant a cloud switch commits, and nothing has to be rebuilt.
+4. **Scope is read at call time, from the provider the adapter was handed.** Every operation asks
+   its `DataContextProvider` for `(cid, uid)`; the adapter never caches the answer. Which scope
+   that provider reports is the assembler's choice, not the adapter's: `@chatic/data` hands each
+   adapter a provider fixed to one partition and keeps one adapter per partition, so an operation
+   captured for cloud A reaches A's adapter even after the session has switched (ADR-0112).
 5. **No session means no scope, and no scope means no operation.** `getScope()` returns `null` when
    there is no `uid`; reads answer empty and writes do nothing. It never substitutes a placeholder —
    a `'default'` uid once sent every read and write to a ghost partition that nobody read back. The
@@ -248,7 +250,8 @@ after the first cache miss onto a stranger's row.
 | `ClearCacheDataByChannel` | `clearByChannelUnsupported` | `super.clearByChannelId` — read the channel's rows, delete them |
 
 Module scope is deliberate: one app is installed, so there is nothing to learn per domain, and
-adapters are built per type — an instance-scoped flag would learn the same fact nine times. Only
+adapters are built per type and per partition — an instance-scoped flag would learn the same fact
+once for every adapter. Only
 `NOT_FOUND` triggers a fallback; a timeout or a storage error is rethrown, because hiding those behind
 a fallback doubles the round trips and buries the cause.
 
@@ -309,8 +312,10 @@ export const getCacheStorage = <TType extends CacheType>(
         : new NativeDBAdapter(webClient, type, contextProvider);
 ```
 
-The `contextProvider` is required, not optional: it is what makes principle 4 work. Handing an adapter
-a `DataContext` snapshot instead would freeze it to the cloud that was active when it was built.
+The `contextProvider` is required, not optional: it is what makes principle 4 work. In production the
+provider an adapter receives is a snapshot of one scope — `createCacheStorages` in `@chatic/data`
+builds one adapter per partition on first use — so "frozen to one cloud" is the intent, not a hazard:
+the partition an operation touches is the one it was captured for, not whichever is current.
 
 ### Wiring
 
@@ -368,9 +373,11 @@ holds only the pinned exceptions. The contract test is what keeps the two answer
 
 ### 6. Switching clouds, or logging out
 
-Nothing is rebuilt. The next call reads the new `(cid, uid)` from the provider and lands in a different
-partition. On logout `uid` goes empty, `getScope()` returns `null`, and every operation is skipped with
-one warning per adapter — reads answer empty, writes do nothing, and no ghost partition is created.
+Nothing here is rebuilt. `@chatic/data` asks its slot for the new scope's adapter, which is built on
+first use with a provider fixed to that scope; an operation captured for the old scope keeps the old
+adapter, so its late answer still lands where it was asked from. On logout `uid` goes empty, that
+scope's adapter has no scope, `getScope()` returns `null`, and every operation is skipped with one
+warning per adapter — reads answer empty, writes do nothing, and no ghost partition is created.
 `invitecloud` is the exception: it is pinned to a fixed `global`/`global` scope, because an invite link
 can be opened before there is a session at all.
 

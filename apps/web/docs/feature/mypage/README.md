@@ -70,8 +70,8 @@ it is always the relay account's — the same record whichever cloud is connecte
 
 Its source is the stored relay token, not the user cache, and that is deliberate. A cloud session
 mints a different uid on a different backend, and the cache is physically keyed
-`${type}:${cid}:${uid}:${id}` with a read path that ignores context overrides — so while a cloud is
-active, the relay `user` row cannot be read back at all. `useMyUser()` reads the token;
+`${type}:${cid}:${uid}:${id}` and read by the repositories under the live scope — so while a cloud is
+active, the relay `user` row is out of their reach. `useMyUser()` reads the token;
 `useUpdateProfile()` writes through `user.update` pinned to the relay slot and patches the server's
 response back into that token. **Read and write share one scope**, which is the invariant an earlier
 attempt inside the data layer could not hold — see [place](../place/README.md) for that history.
@@ -150,7 +150,7 @@ session, and `useDevicePushMute` for the mute toggle.
   pending.
 - **Do not write the account profile through the active cloud's facade.** `useUpdateProfile` is
   relay-pinned, and it does not write the repository cache either — a relay row written while a
-  cloud is active could never be read back.
+  cloud is active is one the repositories would not read back.
 - **Do not put a hardcoded colour or a local card component on these screens.** Add it to
   web-ui-kit.
 

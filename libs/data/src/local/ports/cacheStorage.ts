@@ -1,5 +1,7 @@
 import type { CacheModelOf, CacheQueryOf, CacheType, LastChatItem } from '@chatic/app-messages';
-import type { DataContextProvider } from '../../repositories/types';
+import type { DataContext, DataContextProvider } from '../../repositories/types';
+import { stableHash } from '../stableHash';
+import { resolveScopedContext } from './policy';
 
 /**
  * The interface an actual storage implementation (IndexedDB, native, …) has to satisfy.
@@ -65,29 +67,104 @@ export type CacheStorageFactory = <TType extends CacheType>(
     contextProvider: DataContextProvider
 ) => CacheStorage<TType>;
 
-export interface LocalCacheStorages {
-    channel: CacheStorage<'channel'>;
-    chat: CacheStorage<'chat'>;
-    inviteCloud: CacheStorage<'invitecloud'>;
-    join: CacheStorage<'join'>;
-    profile: CacheStorage<'profile'>;
-    site: CacheStorage<'site'>;
-    user: CacheStorage<'user'>;
-    meta: CacheStorage<'meta'>;
-    invite: CacheStorage<'invite'>;
+/**
+ * One cache slot, handing out the storage for a given scope.
+ *
+ * **Why the scope is an argument.** An adapter picks its partition by asking its context provider at
+ * call time. Handed the live provider, that means "whatever scope is current when the call lands" —
+ * so a repository could capture its scope before a remote call and still have the answer written
+ * wherever the session had moved on to. A cloud switch mid-refresh wrote cloud A's rows into cloud
+ * B's partition (stamped `cid: A`), and a mid-sync switch let the stale prune read cloud B and delete
+ * its channels. Asking the slot for a scope's storage is what makes the captured scope the one the
+ * adapter sees.
+ *
+ * Only `cid` and `uid` are read — together they ARE the partition (`AdapterScope`). A context with no
+ * `uid` gets a storage whose adapter has no scope and skips every operation, which is the
+ * no-session rule `resolveBaseScope` states, unchanged.
+ */
+export interface ScopedCacheStorage<TType extends CacheType> {
+    forScope(context: DataContext): CacheStorage<TType>;
 }
 
+/**
+ * Builds a slot that creates one storage per partition, on first use, and reuses it afterwards.
+ *
+ * The memo is keyed by the RESOLVED partition (`resolveScopedContext`), not by the raw context, so
+ * contexts that land in the same partition share one instance — every context for `invitecloud`,
+ * whose partition is fixed, and every uid-less context, which has none. Reuse is not only thrift: a
+ * native adapter coalesces identical reads that are in flight at once, and it can only do that
+ * across callers that share the instance.
+ *
+ * The map is not evicted. It holds one small object per partition the session has touched — one per
+ * account and cloud visited — which stays small for the lifetime of a session.
+ *
+ * @param initialContext When given, the storage for this scope is built immediately (see
+ *   {@link createCacheStorages} for why).
+ */
+export const createScopedCacheStorage = <TType extends CacheType>(
+    type: TType,
+    storageFactory: CacheStorageFactory,
+    initialContext?: DataContext
+): ScopedCacheStorage<TType> => {
+    const byPartition = new Map<string, CacheStorage<TType>>();
+
+    const forScope = (context: DataContext): CacheStorage<TType> => {
+        // A fixed provider, so the adapter's call-time read answers with THIS scope for the storage's
+        // whole life. Nothing but cid/uid is carried: they are all an adapter reads. Built here rather
+        // than with the repository layer's snapshot helper so this port depends on types alone.
+        const scope: DataContext = { cid: context.cid, uid: context.uid };
+        const provider: DataContextProvider = { getContext: () => scope, setContext: () => undefined };
+        const partitionKey = stableHash(resolveScopedContext(type, provider));
+        let storage = byPartition.get(partitionKey);
+        if (!storage) {
+            storage = storageFactory(type, provider);
+            byPartition.set(partitionKey, storage);
+        }
+        return storage;
+    };
+
+    if (initialContext) forScope(initialContext);
+    return { forScope };
+};
+
+export interface LocalCacheStorages {
+    channel: ScopedCacheStorage<'channel'>;
+    chat: ScopedCacheStorage<'chat'>;
+    inviteCloud: ScopedCacheStorage<'invitecloud'>;
+    join: ScopedCacheStorage<'join'>;
+    profile: ScopedCacheStorage<'profile'>;
+    site: ScopedCacheStorage<'site'>;
+    user: ScopedCacheStorage<'user'>;
+    meta: ScopedCacheStorage<'meta'>;
+    invite: ScopedCacheStorage<'invite'>;
+}
+
+/**
+ * Assembles every cache slot.
+ *
+ * Each slot builds the storage for the scope current at assembly straight away. Nothing treats that
+ * storage specially — it is simply the first entry of the slot's memo — but building it here keeps
+ * the factory being called once per slot, in slot order, while the assembler is watching: that is
+ * what the assembler's routing fingerprint (the stamp that retires sync cursors when a domain's
+ * store moves) and its native-fallback report count. Left lazy, both would see nothing and the
+ * fingerprint check would switch itself off.
+ */
 export const createCacheStorages = (
     contextProvider: DataContextProvider,
     storageFactory: CacheStorageFactory
-): LocalCacheStorages => ({
-    channel: storageFactory('channel', contextProvider),
-    chat: storageFactory('chat', contextProvider),
-    inviteCloud: storageFactory('invitecloud', contextProvider),
-    join: storageFactory('join', contextProvider),
-    profile: storageFactory('profile', contextProvider),
-    site: storageFactory('site', contextProvider),
-    user: storageFactory('user', contextProvider),
-    meta: storageFactory('meta', contextProvider),
-    invite: storageFactory('invite', contextProvider),
-});
+): LocalCacheStorages => {
+    const initialContext = contextProvider.getContext();
+    const slot = <TType extends CacheType>(type: TType): ScopedCacheStorage<TType> =>
+        createScopedCacheStorage(type, storageFactory, initialContext);
+    return {
+        channel: slot('channel'),
+        chat: slot('chat'),
+        inviteCloud: slot('invitecloud'),
+        join: slot('join'),
+        profile: slot('profile'),
+        site: slot('site'),
+        user: slot('user'),
+        meta: slot('meta'),
+        invite: slot('invite'),
+    };
+};

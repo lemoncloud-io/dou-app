@@ -13,7 +13,6 @@ jest.mock('../session', () => ({ useSessionSelection: jest.fn() }));
 
 const createCloud = () => ({
     cacheReadList: jest.fn().mockResolvedValue({ list: [] }),
-    cacheWriteMany: jest.fn().mockResolvedValue(undefined),
     cacheWrite: jest.fn().mockResolvedValue(undefined),
     cacheRead: jest.fn().mockResolvedValue(null),
     getCloud: jest.fn().mockResolvedValue(null),

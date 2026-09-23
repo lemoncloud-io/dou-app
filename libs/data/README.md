@@ -29,7 +29,7 @@ makes no difference.
 2. **Remote is a side-effect command.** Writes and refreshes are explicit method calls. There is no automatic dispatcher and no event bus.
 3. **The UI never calls the network directly.** Every data call goes through a repository (ADR-0036).
 4. **Remote is the axis; what sits under it is the transport.** `remote/` is the opposite side of local, and inside it the split is `socket-` and `http-`.
-5. **Capture the context at request time.** A late response must not poison a scope that has since switched. Capturing the scope is the repository's job, and local receives it through `contextOverride`.
+5. **Capture the context at request time.** A late response must not poison a scope that has since switched. Capturing the scope is the repository's job, and local receives it through `contextOverride` — which decides the storage partition the answer is written to, not only which observers hear about it (ADR-0112).
 6. **Server payload, server view and local domain model are not assumed to share a shape.** Where the responsibility boundary differs, the type is separate.
 7. **This lib does not choose a cache adapter.** Which domain uses IndexedDB and which uses native SQLite is decided by `resolveCacheBackend` in `libs/app-runtime`.
 
@@ -205,6 +205,12 @@ value through `DataContextProvider` on every call, so nothing has to be rebuilt.
 by the `stableHash` of the `cid`/`uid` pair, so a changed scope activates a different set of
 observers. A place switch does NOT change that scope — see
 [docs/local/README.md](./docs/local/README.md#scope-and-cache-slots).
+
+A request still in flight when the switch happens keeps its own scope: its answer is written into the
+cloud and account that asked, and wakes that scope's observers, not the new one's. An answer from a
+socket that was still bound to the outgoing cloud when the request left is not cached at all where a
+repository guards for it — see
+[docs/repositories/README.md](./docs/repositories/README.md#context-and-scope).
 
 ### 5. Leaving a room and coming back
 

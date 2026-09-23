@@ -1,6 +1,6 @@
 # remote/http — the HTTP axis
 
-> Status: Live · Last updated: 2026-09-14 · Shared contract in the [remote README](./README.md) · Canonical code: [gateways/http.ts](../../src/remote/gateways/http.ts) · [http-data-sources/](../../src/remote/http-data-sources/)
+> Status: Live · Last updated: 2026-09-23 · Shared contract in the [remote README](./README.md) · Canonical code: [gateways/http.ts](../../src/remote/gateways/http.ts) · [http-data-sources/](../../src/remote/http-data-sources/)
 
 The remote axis that uses HTTP transport. It has 5 domains. For the socket axis see
 [socket.md](./socket.md).
@@ -22,13 +22,13 @@ remote/
 
 `HttpGatewayBundle` in `gateways/http.ts` has 5 domains.
 
-| Domain gateway                  | Picked from                                                                                                                                                                                                                                       | Consumed by                  |
-| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- |
-| `AuthHttpDomainGateway`         | `OAuthHttpGateway` — 12: `registerUser` · `registerUserV2` · `findAlias` · `verifyAlias` · `loginInvite` · `inviteInfo` · `registerDevice` · `login` · `verifyNativeToken` · `exchangeCode` · `delegateCloud` · `exchangeToken`                   | `AuthHttpDataSource`         |
-| `UserHttpDomainGateway`         | `UserHttpGateway` — `list` · `tryProfile` · `updateProfile` · `registerDevice`                                                                                                                                                                    | `UserHttpDataSource`         |
-| `CloudHttpDomainGateway`        | `CloudHttpGateway` — `list` · `update` · `make` · `release` · `verifyEmail`                                                                                                                                                                       | `CloudHttpDataSource`        |
-| `SubscriptionHttpDomainGateway` | `SubscriptionHttpGateway` — `plans` · `validateGoogle` · `validateApple` · `receipts` · `receiptDetail` · `membership` · `validateMembership`, plus the admin console's `adminMemberships` · `updateMembershipByAdmin` · `adminClouds` (ADR-0101) | `SubscriptionHttpDataSource` |
-| `ReportHttpDomainGateway`       | `ReportHttpGateway` — `reportIssue` · `uploadLogBatch` (all of it)                                                                                                                                                                                | `ReportHttpDataSource`       |
+| Domain gateway                  | Picked from                                                                                                                                                                                                                     | Consumed by                  |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- |
+| `AuthHttpDomainGateway`         | `OAuthHttpGateway` — 12: `registerUser` · `registerUserV2` · `findAlias` · `verifyAlias` · `loginInvite` · `inviteInfo` · `registerDevice` · `login` · `verifyNativeToken` · `exchangeCode` · `delegateCloud` · `exchangeToken` | `AuthHttpDataSource`         |
+| `UserHttpDomainGateway`         | `UserHttpGateway` — `list` · `tryProfile`                                                                                                                                                                                       | `UserHttpDataSource`         |
+| `CloudHttpDomainGateway`        | `CloudHttpGateway` — `list` · `update` · `make` · `release` · `verifyEmail`                                                                                                                                                     | `CloudHttpDataSource`        |
+| `SubscriptionHttpDomainGateway` | `SubscriptionHttpGateway` — `plans` · `membership` · `validateMembership`, plus the admin console's `adminMemberships` · `updateMembershipByAdmin` · `adminClouds` (ADR-0101)                                                   | `SubscriptionHttpDataSource` |
+| `ReportHttpDomainGateway`       | `ReportHttpGateway` — `reportIssue` · `uploadLogBatch` (all of it)                                                                                                                                                              | `ReportHttpDataSource`       |
 
 The point of `Pick<>` is that the consumer owns the contract. The socket bundle goes further and uses
 **absence as a seal** — it leaves `@deprecated` packets out so callers cannot reach the old vocabulary
@@ -57,9 +57,9 @@ comment: `gateways/refreshAbsence.spec.ts` in `@chatic/http`.
 | HttpDataSource               | Public methods → gateway call                                                                                                                                                                                                                                                                                      |
 | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `AuthHttpDataSource`         | `registerUser()` · `registerUserV2()` (the only two that map to `DomainUser`) · `findAlias()` · `verifyAlias()` · `loginWithInviteCode()` (`loginInvite`) · `fetchInviteInfo()` (`inviteInfo`) · `registerDevice()` · `login()` · `verifyNativeToken()` · `exchangeCode()` · `delegateCloud()` · `exchangeToken()` |
-| `UserHttpDataSource`         | `listRelayUsers()` (`list`) · `tryFetchProfile()` (`tryProfile`) · `updateProfileHttp()` (`updateProfile`) · `registerPushDevice()` (`registerDevice`)                                                                                                                                                             |
+| `UserHttpDataSource`         | `listRelayUsers()` (`list`) · `tryFetchProfile()` (`tryProfile`)                                                                                                                                                                                                                                                   |
 | `CloudHttpDataSource`        | `listClouds()` · `updateCloud()` · `makeCloud()` (`make`) · `releaseCloud()` (`release`) · `verifyEmail()`                                                                                                                                                                                                         |
-| `SubscriptionHttpDataSource` | `fetchPlans()` (`plans`) · `validateGoogle()` · `validateApple()` · `fetchActiveSubscriptions()` (`receipts`) · `fetchReceiptDetail()` · `fetchMembershipInfo()` (`membership`) · `validateMembership()` · `fetchAdminMemberships()` · `updateMembershipByAdmin()` · `fetchAdminClouds()`                          |
+| `SubscriptionHttpDataSource` | `fetchPlans()` (`plans`) · `fetchMembershipInfo()` (`membership`) · `validateMembership()` · `fetchAdminMemberships()` · `updateMembershipByAdmin()` · `fetchAdminClouds()`                                                                                                                                        |
 | `ReportHttpDataSource`       | `submitIssue()` (`reportIssue`) · `uploadLogBatch()`                                                                                                                                                                                                                                                               |
 
 In `AuthHttpDataSource`, only `registerUser` and `registerUserV2` map to `DomainUser`. The rest **pass
@@ -89,13 +89,12 @@ no cache, that is mapping metadata today; but keeping the signature symmetric me
 not change when cache semantics arrive.
 
 `SubscriptionHttpDataSource` has no domain model yet. Views pass through unchanged (alias-level). A real
-`DomainProduct` / `DomainMembership` / `DomainReceipt` mapping is future work, not something this data
+`DomainProduct` / `DomainMembership` mapping is future work, not something this data
 source should invent.
 
-`UserHttpDataSource` carries one more interface split. The consumer of device registration is the device
-repository, so `IDeviceRegistrationHttpSource` (a single `registerPushDevice`) is declared separately and
-`IUserHttpDataSource` extends it. A repository constructor always takes only the interface it uses — the
-device repository takes the narrow one, the user repository the wide one.
+Push-device registration does not go through `data`: `libs/app-runtime` calls the user gateway's
+`registerDevice` directly (`data/hooks/device.ts`). `UserHttpDomainGateway` picks only `list` /
+`tryProfile`; `updateProfile` had no repository caller either.
 
 ## The admin console surface
 
@@ -139,9 +138,13 @@ the existing mapper as a bridge rather than creating a new one. The day somethin
 ## The report lane
 
 `ReportHttpDataSource` is this layer's exception. **It has no domain to map to and no cache slot.**
-Diagnostics are not domain data, but they are a data call, so removing the last exception to ADR-0036's
-"every data call goes through a repository" was the choice made (2026-09-02). It is a pass-through layer
-— no mapping, no cache, no logging.
+Diagnostics are not domain data, but they are a data call, so routing them through a repository was the
+choice made (2026-09-02). It is a pass-through layer — no mapping, no cache, no logging.
+
+One data call still does not go through a repository: push-device registration. `libs/app-runtime`'s
+`data/hooks/device.ts` calls the user gateway's `registerDevice` directly, and the once-per-install gate
+lives there too. A retry, a log line or any other policy for that call belongs in that hook — there is no
+repository method it passes through.
 
 Four things changed character in the migration:
 

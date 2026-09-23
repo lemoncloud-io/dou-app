@@ -239,6 +239,38 @@ describe('createLocalDataSources routing fingerprint', () => {
     });
 });
 
+// `@chatic/data` builds a storage per (cid, uid) partition on first use, so the factory also runs
+// after assembly. The backend decided at assembly must hold for those later partitions: the shell's
+// capability handshake can land in between and change `invite`'s answer.
+describe('createLocalDataSources backend per type', () => {
+    const contextProvider: DataContextProvider = {
+        getContext: () => ({ cid: 'default', uid: 'guest' }),
+        setContext: () => undefined,
+    };
+
+    afterEach(() => {
+        delete (window as any).ReactNativeWebView;
+    });
+
+    it('a partition first reached after the capability handshake keeps the backend decided at assembly', async () => {
+        jest.resetModules();
+        (window as any).ReactNativeWebView = { postMessage: jest.fn() };
+        const { createLocalDataSources } = await import('./localFactory');
+        const { setNativeCacheSupport } = await import('../nativeCacheSupport');
+
+        // Assembled before the reply: `invite` is outside the frozen native set, so it goes to web.
+        const sources = createLocalDataSources({ contextProvider });
+        // The reply lands, and now reports `invite` — a fresh decision would route it to native.
+        setNativeCacheSupport({ supportedCacheTypes: ['invite'], cacheDomainVersions: {} });
+
+        // A guest promoted to an account reaches its partition for the first time.
+        const promoted = (sources.invite as any).storages.forScope({ cid: 'default', uid: 'account' });
+
+        expect((promoted as object).constructor.name).toBe('IndexedDBAdapter');
+        expect((sources.syncMeta as any).routingFingerprint).toContain('invite:web');
+    });
+});
+
 describe('getCacheStorage chat cap injection', () => {
     const contextProvider: DataContextProvider = {
         getContext: () => ({ cid: 'c1', uid: 'u1' }),

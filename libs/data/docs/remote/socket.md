@@ -1,6 +1,6 @@
 # remote/socket — the socket axis
 
-> Status: Live · Last updated: 2026-09-14 · Shared contract in the [remote README](./README.md) · Canonical code: [gateways/socket.ts](../../src/remote/gateways/socket.ts) · [socket-data-sources/](../../src/remote/socket-data-sources/)
+> Status: Live · Last updated: 2026-09-23 · Shared contract in the [remote README](./README.md) · Canonical code: [gateways/socket.ts](../../src/remote/gateways/socket.ts) · [socket-data-sources/](../../src/remote/socket-data-sources/)
 
 The remote axis that uses socket transport. It has 11 domains. For the HTTP axis see [http.md](./http.md).
 
@@ -12,8 +12,8 @@ remote/
   socket-data-sources/     11 SocketDataSources + createSocketDataSources
 ```
 
-Bundle keys are **app-side domain names**, not wire module names. Just as `join` merges `chat.read` and
-`channel.join`, and `place` pulls in `user.mySite`, `connection` binds to the wire module `sockets`
+Bundle keys are **app-side domain names**, not wire module names. Just as `join` folds in `chat.read`, and
+`place` pulls in `user.mySite`, `connection` binds to the wire module `sockets`
 (action `sockets/find-connection`). The wire name survives in exactly one line — `socketFactory`'s
 `createDomainGateway('sockets', …)`.
 
@@ -25,22 +25,22 @@ type from them. Some domains bundle several source gateways (`join`, `place`, `u
 | Domain gateway                  | Type definition                                                                                                               | Consumed by                  |
 | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ---------------------------- |
 | `AuthSocketDomainGateway`       | `Pick<AuthGateway, 'linkAccount'>`                                                                                            | `AuthSocketDataSource`       |
-| `ChannelSocketDomainGateway`    | `Pick<ChannelGateway, 'mine' \| 'sync' \| 'update' \| 'delete' \| 'create' \| 'invite' \| 'leave' \| 'getSelf' \| 'unreads'>` | `ChannelSocketDataSource`    |
+| `ChannelSocketDomainGateway`    | `Pick<ChannelGateway, 'mine' \| 'sync' \| 'update' \| 'delete' \| 'create' \| 'invite' \| 'leave' \| 'getSelf' \| 'startDm'>` | `ChannelSocketDataSource`    |
 | `ChatSocketDomainGateway`       | `Pick<ChatGateway, 'send' \| 'feed' \| 'get' \| 'update' \| 'delete' \| 'reaction'>`                                          | `ChatSocketDataSource`       |
-| `JoinSocketDomainGateway`       | `JoinGateway & Pick<ChatGateway, 'read'> & Pick<ChannelGateway, 'join'>`                                                      | `JoinSocketDataSource`       |
-| `PlaceSocketDomainGateway`      | `Pick<PlaceGateway, 'create' \| 'get' \| 'update' \| 'delete'> & Pick<UserGateway, 'mySite'>`                                 | `PlaceSocketDataSource`      |
+| `JoinSocketDomainGateway`       | `Pick<JoinGateway, 'update'> & Pick<ChatGateway, 'read'>`                                                                     | `JoinSocketDataSource`       |
+| `PlaceSocketDomainGateway`      | `Pick<PlaceGateway, 'create' \| 'update'> & Pick<UserGateway, 'mySite'>`                                                      | `PlaceSocketDataSource`      |
 | `UserSocketDomainGateway`       | `Pick<ChannelGateway, 'listUser' \| 'syncUsers'> & Pick<UserGateway, 'update' \| 'profile' \| 'invite' \| 'inviteBatch'>`     | `UserSocketDataSource`       |
 | `InviteSocketDomainGateway`     | `Pick<InviteGateway, 'create' \| 'get' \| 'list' \| 'accept' \| 'cancel' \| 'reject'>`                                        | `InviteSocketDataSource`     |
 | `DeviceSocketDomainGateway`     | `Pick<DeviceGateway, 'save' \| 'read' \| 'sync' \| 'updateRemote'>` — enters the bundle as a `RoutedGateway<>`                | `DeviceSocketDataSource`     |
-| `CloudSocketDomainGateway`      | `Pick<CloudGateway, 'update' \| 'get' \| 'delete'>`                                                                           | `CloudSocketDataSource`      |
+| `CloudSocketDomainGateway`      | `Pick<CloudGateway, 'update' \| 'get'>`                                                                                       | `CloudSocketDataSource`      |
 | `ProfileSocketDomainGateway`    | `Pick<ProfileGateway, 'get' \| 'getMine' \| 'set' \| 'sync'>`                                                                 | `ProfileSocketDataSource`    |
 | `ConnectionSocketDomainGateway` | `Pick<DomainGateway, 'request'>`                                                                                              | `ConnectionSocketDataSource` |
 
 Design points:
 
-- **Join** takes the first-class `JoinGateway` (single-item `join.get` / `join.update`) and folds in two helper commands (`chat.read`, `channel.join`).
-- **Place** adds `UserGateway.mySite` for listing on top of `PlaceGateway`'s CRUD. The Site domain was unified into Place, and the physical cache slot reuses the existing `site` ([scope and cache slots](../local/README.md#scope-and-cache-slots)).
-- **Cloud** exposes `get` / `update` / `delete` only. `cloud.create` is not in the bundle.
+- **Join** takes `join.update` from the first-class `JoinGateway` and folds in `chat.read`. Nothing in the app reads a single join or joins a channel through this layer, so `join.get` and `channel.join` are left out.
+- **Place** adds `UserGateway.mySite` for listing on top of `PlaceGateway`'s `create` / `update` — single-place `get` and `delete` have no caller and are left out. The Site domain was unified into Place, and the physical cache slot reuses the existing `site` ([scope and cache slots](../local/README.md#scope-and-cache-slots)).
+- **Cloud** exposes `get` / `update` only. `cloud.create` and `cloud.delete` are not in the bundle — a cloud is made and released over HTTP.
 - **User** includes the account profile (`user.profile`). The site (place) profile is a separate domain, owned entirely by `ProfileSocketDomainGateway`.
 - **Auth**'s `linkAccount` is the unified account-proof packet: phone/email/social × link/login × send/resend/verify/confirm in one. Three things are left out of it, all deliberately → [where absence is the contract](#where-absence-is-the-contract).
 - **Connection**'s bundle key is `connection` while its wire module is `sockets` (action `sockets/find-connection`).
@@ -96,14 +96,14 @@ The wiring itself belongs to
 | SocketDataSource             | Public methods → gateway call                                                                                                                                                                             |
 | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `AuthSocketDataSource`       | `sendPhoneCode()` · `verifyPhoneCode()` · `confirmPhoneCode()` · `verifySocialAccount()` · `confirmSocialAccount()` (all `auth.linkAccount`; assembling `type`/`mode`/`step` is this layer's monopoly)    |
-| `ChannelSocketDataSource`    | `fetchChannel()`, `syncChannel()`, `createChannel()`, `updateChannel()`, `deleteChannel()`, `inviteChannel()`, `leaveChannel()`, `getSelfChannel()`, `getUnreads()`                                       |
+| `ChannelSocketDataSource`    | `fetchChannel()`, `syncChannel()`, `createChannel()`, `startDm()`, `updateChannel()`, `deleteChannel()`, `inviteChannel()`, `leaveChannel()`, `getSelfChannel()`                                          |
 | `ChatSocketDataSource`       | `sendChat()`, `fetchChat()`, `getChat()`, `updateChat()`, `deleteChat()`, `setReaction()` (`chat.reaction`)                                                                                               |
-| `JoinSocketDataSource`       | `getJoin()` (`join.get`), `updateJoin()` (`join.update`), `readChat()` (`chat.read`), `joinChannel()` (`channel.join`)                                                                                    |
-| `PlaceSocketDataSource`      | `fetchPlace()` (`user.mySite`, the list), `createPlace()`, `getPlace()`, `updatePlace()`, `deletePlace()`                                                                                                 |
+| `JoinSocketDataSource`       | `updateJoin()` (`join.update`), `readChat()` (`chat.read`)                                                                                                                                                |
+| `PlaceSocketDataSource`      | `fetchPlace()` (`user.mySite`, the list), `createPlace()`, `updatePlace()`                                                                                                                                |
 | `UserSocketDataSource`       | `fetchUsers()` (`channel.listUser`), `syncChannelUsers()` (`channel.syncUsers`), `getMyProfile()` (`user.profile`), `updateProfile()` (`user.update`), `requestInvite()` (`user.invite`), `inviteBatch()` |
 | `InviteSocketDataSource`     | `listInvites()`, `createInvite()`, `getInvite()`, `acceptInvite()`, `cancelInvite()`, `rejectInvite()`                                                                                                    |
 | `DeviceSocketDataSource`     | `saveDevice()` · `readDevice()` · `syncDevice()` (`active` slot), `updateRemoteDevice()` (pinned to `relay`)                                                                                              |
-| `CloudSocketDataSource`      | `getCloud()`, `updateCloud()`, `deleteCloud()`                                                                                                                                                            |
+| `CloudSocketDataSource`      | `getCloud()`, `updateCloud()`                                                                                                                                                                             |
 | `ProfileSocketDataSource`    | `get()`, `getMine()`, `set()`, `sync()`                                                                                                                                                                   |
 | `ConnectionSocketDataSource` | `findConnection()` → `request('find-connection', payload)`                                                                                                                                                |
 

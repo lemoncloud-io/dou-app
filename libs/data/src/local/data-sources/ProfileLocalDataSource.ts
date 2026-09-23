@@ -1,7 +1,7 @@
 import type { DomainListResult, DomainProfile, DomainProfileListPayload } from '../../domain';
 import { createDomainListResult } from '../../domain';
 import type { DataContextProvider } from '../../repositories/types';
-import type { CacheStorage } from '../ports';
+import type { ScopedCacheStorage } from '../ports';
 import {
     BaseLocalDataSource,
     type ILocalDataSource,
@@ -14,32 +14,29 @@ export interface IProfileLocalDataSource
     extends ILocalDataSource<DomainProfile, DomainProfileListPayload | undefined, DomainListResult<DomainProfile>> {}
 
 /** Stores site profiles by normalized `sid@uid` keys and re-emits affected scoped observers. */
-export class ProfileLocalDataSource extends BaseLocalDataSource implements IProfileLocalDataSource {
-    constructor(
-        contextProvider: DataContextProvider,
-        private readonly cacheStorage: CacheStorage<'profile'>
-    ) {
-        super(contextProvider);
+export class ProfileLocalDataSource extends BaseLocalDataSource<'profile'> implements IProfileLocalDataSource {
+    constructor(contextProvider: DataContextProvider, storages: ScopedCacheStorage<'profile'>) {
+        super(contextProvider, storages);
     }
 
     public async cacheRead(
         id: string,
-        _contextOverride?: LocalDataSourceContextOverride
+        contextOverride?: LocalDataSourceContextOverride
     ): Promise<DomainProfile | null> {
         const requiredId = this.assertRequiredString(id, 'id');
-        return this.cacheStorage.load(requiredId);
+        return this.storage(contextOverride).load(requiredId);
     }
 
     public async cacheReadList(
         query?: DomainProfileListPayload,
-        _contextOverride?: LocalDataSourceContextOverride
+        contextOverride?: LocalDataSourceContextOverride
     ): Promise<DomainListResult<DomainProfile> | null> {
         // Only the query decides the site filter — an ambient fallback would make the same query
         // answer differently per selected site, invisibly to the observer key (ADR-0085).
         const sid = query?.sid || query?.siteId || '';
         const uid = query?.uid || query?.userId;
         // Storage partitions only by cid/uid; sid is a logical filter applied here in memory.
-        const allItems = await this.cacheStorage.loadAll();
+        const allItems = await this.storage(contextOverride).loadAll();
 
         const deduped = new Map<string, DomainProfile>();
         for (const item of allItems) {
@@ -95,44 +92,46 @@ export class ProfileLocalDataSource extends BaseLocalDataSource implements IProf
         item: Partial<DomainProfile>,
         contextOverride?: LocalDataSourceContextOverride
     ): Promise<void> {
+        const scope = this.resolveContext(contextOverride);
         // Load the cached row BEFORE normalizing so partial payloads merge instead of
         // overwriting (mirrors cacheWriteMany): a profile.get/profile.set response that
         // omits `thumbnail` must not wipe the photo already cached for that profile.
-        const existingId = this.makeProfileId(item, contextOverride);
-        const existing = existingId ? await this.cacheStorage.load(existingId) : null;
+        const storage = this.storage(scope);
+        const existingId = this.makeProfileId(item, scope);
+        const existing = existingId ? await storage.load(existingId) : null;
 
-        const normalized = this.normalizeProfile(item, existing ?? undefined, contextOverride);
+        const normalized = this.normalizeProfile(item, existing ?? undefined, scope);
         if (!normalized) return;
 
-        await this.cacheStorage.save(normalized.id, normalized);
+        await storage.save(normalized.id, normalized);
         const legacyId = this.buildLegacyProfileId(normalized.sid, normalized.uid);
         if (legacyId && legacyId !== normalized.id) {
-            await this.cacheStorage.delete(legacyId);
+            await storage.delete(legacyId);
         }
-        this.scheduleItemReemit([normalized.id], contextOverride);
-        this.scheduleListReemit(this.getAffectedListPrefixes([existing?.sid, normalized.sid], contextOverride));
+        this.scheduleItemReemit([normalized.id], scope);
+        this.scheduleListReemit(this.getAffectedListPrefixes([existing?.sid, normalized.sid], scope));
     }
 
     public async cacheWriteMany(
         items: Array<Partial<DomainProfile>>,
         contextOverride?: LocalDataSourceContextOverride
     ): Promise<void> {
+        const scope = this.resolveContext(contextOverride);
         // Read the existing rows in one call. This used to issue a `load` per item, so syncing 50
         // profiles began with 50 bridge round trips.
-        const existingIds = items
-            .map(item => this.makeProfileId(item, contextOverride))
-            .filter((id): id is string => !!id);
-        const existingById = this.indexById(await this.cacheStorage.loadMany(existingIds));
+        const existingIds = items.map(item => this.makeProfileId(item, scope)).filter((id): id is string => !!id);
+        const storage = this.storage(scope);
+        const existingById = this.indexById(await storage.loadMany(existingIds));
 
         const normalized = items.map(item => {
-            const existingId = this.makeProfileId(item, contextOverride);
+            const existingId = this.makeProfileId(item, scope);
             const existing = existingId ? existingById.get(existingId) : undefined;
-            return this.normalizeProfile(item, existing, contextOverride);
+            return this.normalizeProfile(item, existing, scope);
         });
         const valid = normalized.filter((item): item is DomainProfile => !!item?.id);
         if (valid.length === 0) return;
 
-        await this.cacheStorage.saveAll(valid);
+        await storage.saveAll(valid);
 
         // Batch the legacy-key cleanup too. Individual `delete` calls pushed the round trips back to N
         // and were the other half of what made one write cost 2N+1 in total.
@@ -141,45 +140,49 @@ export class ProfileLocalDataSource extends BaseLocalDataSource implements IProf
             .filter(({ item, legacyId }) => !!legacyId && legacyId !== item.id)
             .map(({ legacyId }) => legacyId);
         if (legacyIds.length > 0) {
-            await this.cacheStorage.deleteAll(Array.from(new Set(legacyIds)));
+            await storage.deleteAll(Array.from(new Set(legacyIds)));
         }
         this.scheduleItemReemit(
             valid.map(item => item.id),
-            contextOverride
+            scope
         );
         this.scheduleListReemit(
             this.getAffectedListPrefixes(
                 valid.map(item => item.sid),
-                contextOverride
+                scope
             )
         );
     }
 
     public async cacheDelete(id: string, contextOverride?: LocalDataSourceContextOverride): Promise<void> {
+        const scope = this.resolveContext(contextOverride);
         const requiredId = this.assertRequiredString(id, 'id');
-        const existing = await this.cacheStorage.load(requiredId);
-        await this.cacheStorage.delete(requiredId);
-        this.scheduleItemReemit([requiredId], contextOverride);
-        this.scheduleListReemit(this.getAffectedListPrefixes([existing?.sid], contextOverride));
+        const storage = this.storage(scope);
+        const existing = await storage.load(requiredId);
+        await storage.delete(requiredId);
+        this.scheduleItemReemit([requiredId], scope);
+        this.scheduleListReemit(this.getAffectedListPrefixes([existing?.sid], scope));
     }
 
     public async cacheDeleteMany(ids: string[], contextOverride?: LocalDataSourceContextOverride): Promise<void> {
+        const scope = this.resolveContext(contextOverride);
         const validIds = ids.filter(Boolean);
         if (validIds.length === 0) return;
         // Only the affected sid set is needed, so ids omitted because they are absent do not matter.
-        const existingItems = await this.cacheStorage.loadMany(validIds);
-        await this.cacheStorage.deleteAll(validIds);
-        this.scheduleItemReemit(validIds, contextOverride);
+        const storage = this.storage(scope);
+        const existingItems = await storage.loadMany(validIds);
+        await storage.deleteAll(validIds);
+        this.scheduleItemReemit(validIds, scope);
         this.scheduleListReemit(
             this.getAffectedListPrefixes(
                 existingItems.map(item => item.sid),
-                contextOverride
+                scope
             )
         );
     }
 
-    public async cacheClear(_contextOverride?: LocalDataSourceContextOverride): Promise<void> {
-        await this.cacheStorage.clearAll();
+    public async cacheClear(contextOverride?: LocalDataSourceContextOverride): Promise<void> {
+        await this.storage(contextOverride).clearAll();
         this.scheduleFullReemit();
     }
 

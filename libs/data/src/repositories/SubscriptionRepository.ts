@@ -7,12 +7,6 @@ import type {
     ProductView,
 } from '@lemoncloud/chatic-backend-api';
 import type {
-    ListValidateParam,
-    ValidateAPIBody,
-    ValidateAPIResponse,
-} from '@lemoncloud/chatic-iap-api/dist/modules/in-app-pay/views';
-import type { ReceiptModel } from '@lemoncloud/chatic-iap-api/dist/modules/in-app-pay/model';
-import type {
     AdminEndpointOptions,
     AdminOverrideOptions,
     ISubscriptionHttpDataSource,
@@ -22,10 +16,6 @@ import { BaseRepository, type DisposableRepository } from './types';
 
 export interface ISubscriptionRepository extends DisposableRepository {
     fetchPlans(params?: Record<string, unknown>): Promise<ListResult<ProductView>>;
-    validateGoogle(body: ValidateAPIBody, params?: Record<string, unknown>): Promise<ValidateAPIResponse>;
-    validateApple(body: ValidateAPIBody, params?: Record<string, unknown>): Promise<ValidateAPIResponse>;
-    fetchActiveSubscriptions(params: ListValidateParam): Promise<ListResult<ReceiptModel>>;
-    fetchReceiptDetail(receiptId: string, params?: Record<string, unknown>): Promise<ValidateAPIResponse>;
     fetchMembershipInfo(): Promise<MembershipView>;
     validateMembership(body: CreateMembershipBody, params?: Record<string, unknown>): Promise<MembershipView>;
 
@@ -72,22 +62,6 @@ export class SubscriptionRepository extends BaseRepository implements ISubscript
 
     public async fetchPlans(params?: Record<string, unknown>): Promise<ListResult<ProductView>> {
         return this.requireHttp().fetchPlans(params);
-    }
-
-    public async validateGoogle(body: ValidateAPIBody, params?: Record<string, unknown>): Promise<ValidateAPIResponse> {
-        return this.requireHttp().validateGoogle(body, params);
-    }
-
-    public async validateApple(body: ValidateAPIBody, params?: Record<string, unknown>): Promise<ValidateAPIResponse> {
-        return this.requireHttp().validateApple(body, params);
-    }
-
-    public async fetchActiveSubscriptions(params: ListValidateParam): Promise<ListResult<ReceiptModel>> {
-        return this.requireHttp().fetchActiveSubscriptions(params);
-    }
-
-    public async fetchReceiptDetail(receiptId: string, params?: Record<string, unknown>): Promise<ValidateAPIResponse> {
-        return this.requireHttp().fetchReceiptDetail(receiptId, params);
     }
 
     public async fetchMembershipInfo(): Promise<MembershipView> {

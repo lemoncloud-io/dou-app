@@ -1,5 +1,5 @@
-import type { CacheStorage } from '../ports';
 import { JoinLocalDataSource } from './JoinLocalDataSource';
+import { createPartitionedMemoryStorage } from './__mocks__/MemoryCacheStorage';
 
 /**
  * Re-emit fan-out contract.
@@ -18,60 +18,13 @@ const flushPromises = async () => {
     await Promise.resolve();
 };
 
-let loadAllCalls = 0;
+const context = { cid: 'cloud-a', uid: 'me', sid: 'site-1' };
 
-const createMemoryStorage = (): CacheStorage<'join'> => {
-    const map = new Map<string, any>();
-    return {
-        async save(id, item) {
-            map.set(id, { ...item });
-            return item;
-        },
-        async saveAll(items) {
-            items.forEach(item => {
-                if (item?.id) map.set(item.id, { ...item });
-            });
-            return items;
-        },
-        async load(id) {
-            return map.has(id) ? { ...map.get(id) } : null;
-        },
-        async loadMany(ids) {
-            // Per the contract this omits absent ids and guarantees no order (it returns them
-            // reversed) — this fixture exists so that any code pairing by position breaks here.
-            return ids
-                .filter(id => map.has(id))
-                .map(id => ({ ...map.get(id) }))
-                .reverse();
-        },
-        async loadAll(options) {
-            loadAllCalls += 1;
-            const list = Array.from(map.values()).map(item => ({ ...item }));
-            if (!options?.channelId) return list;
-            return list.filter(item => item.channelId === options.channelId);
-        },
-        async delete(id) {
-            map.delete(id);
-        },
-        async deleteAll(ids) {
-            ids.forEach(id => map.delete(id));
-        },
-        async clearAll() {
-            map.clear();
-        },
-        async clearByChannelId() {
-            // not used here
-        },
-    };
-};
-
+/** The source, plus the partition storage it reads — the same instance, so a spy on it counts the reads. */
 const createSource = () => {
-    const storage = createMemoryStorage();
-    const contextProvider = {
-        getContext: () => ({ cid: 'cloud-a', uid: 'me', sid: 'site-1' }),
-        setContext: () => undefined,
-    };
-    return new JoinLocalDataSource(contextProvider as any, storage);
+    const joins = createPartitionedMemoryStorage('join');
+    const source = new JoinLocalDataSource({ getContext: () => context, setContext: () => undefined }, joins);
+    return { source, storage: joins.forScope(context) };
 };
 
 describe('JoinLocalDataSource re-emit scope', () => {
@@ -88,7 +41,7 @@ describe('JoinLocalDataSource re-emit scope', () => {
     };
 
     it('a write to one channel does not wake the observers of another channel', async () => {
-        const source = createSource();
+        const { source } = createSource();
         const a = jest.fn();
         const b = jest.fn();
 
@@ -108,7 +61,7 @@ describe('JoinLocalDataSource re-emit scope', () => {
     // Without a separator in the prefix, `channel:ch-1` would also catch `channel:ch-10` — ids that share
     // a prefix are common (ch-1 / ch-10), so the segment boundary is checked too.
     it('another channel sharing an id prefix is not woken', async () => {
-        const source = createSource();
+        const { source } = createSource();
         const one = jest.fn();
         const ten = jest.fn();
 
@@ -130,7 +83,8 @@ describe('JoinLocalDataSource re-emit scope', () => {
     // UnreadBadgeRunner, and HomePage's useMyJoins), so one write used to produce three identical reads.
     // On a serial bridge the last observer waits three times as long.
     it('storage is read once even with several observers on the same key', async () => {
-        const source = createSource();
+        const { source, storage } = createSource();
+        const loadAll = jest.spyOn(storage, 'loadAll');
         const a = jest.fn();
         const b = jest.fn();
         const c = jest.fn();
@@ -140,19 +94,19 @@ describe('JoinLocalDataSource re-emit scope', () => {
         source.observeList({ channelId: 'ch-a' }, c);
         await settle();
 
-        loadAllCalls = 0;
+        loadAll.mockClear();
         await source.cacheWrite({ id: 'ch-a@me', channelId: 'ch-a', userId: 'me', readNo: 7 } as any);
         await settle();
 
-        // All three receive a value, but storage is queried once (the write path's own query is counted only after the loadAllCalls reset).
+        // All three receive a value, but storage is queried once (the write path's own query is counted only after the reset above).
         expect(a).toHaveBeenCalled();
         expect(b).toHaveBeenCalled();
         expect(c).toHaveBeenCalled();
-        expect(loadAllCalls).toBe(1);
+        expect(loadAll).toHaveBeenCalledTimes(1);
     });
 
     it('every query variant on the same channel is woken', async () => {
-        const source = createSource();
+        const { source } = createSource();
         const plain = jest.fn();
         const activeOnly = jest.fn();
 

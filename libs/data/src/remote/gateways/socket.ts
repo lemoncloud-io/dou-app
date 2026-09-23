@@ -32,11 +32,10 @@ export type AuthSocketDomainGateway = Pick<AuthGateway, 'linkAccount'>;
 export type ChatSocketDomainGateway = Pick<ChatGateway, 'send' | 'feed' | 'get' | 'update' | 'delete' | 'reaction'>;
 export type ChannelSocketDomainGateway = Pick<
     ChannelGateway,
-    'mine' | 'sync' | 'update' | 'delete' | 'create' | 'invite' | 'leave' | 'getSelf' | 'unreads' | 'startDm'
+    'mine' | 'sync' | 'update' | 'delete' | 'create' | 'invite' | 'leave' | 'getSelf' | 'startDm'
 >;
-export type JoinSocketDomainGateway = JoinGateway & Pick<ChatGateway, 'read'> & Pick<ChannelGateway, 'join'>;
-export type PlaceSocketDomainGateway = Pick<PlaceGateway, 'create' | 'get' | 'update' | 'delete'> &
-    Pick<UserGateway, 'mySite'>;
+export type JoinSocketDomainGateway = Pick<JoinGateway, 'update'> & Pick<ChatGateway, 'read'>;
+export type PlaceSocketDomainGateway = Pick<PlaceGateway, 'create' | 'update'> & Pick<UserGateway, 'mySite'>;
 export type DeviceSocketDomainGateway = Pick<DeviceGateway, 'save' | 'read' | 'sync' | 'updateRemote'>;
 
 /**
@@ -50,7 +49,7 @@ export type SocketRoute = 'active' | 'relay' | 'cloud';
 /** The same gateway bound once per route, so a data source can pick a destination at call time. */
 export type RoutedGateway<G> = Record<SocketRoute, G>;
 export type ConnectionSocketDomainGateway = Pick<DomainGateway, 'request'>;
-export type CloudSocketDomainGateway = Pick<CloudGateway, 'update' | 'get' | 'delete'>;
+export type CloudSocketDomainGateway = Pick<CloudGateway, 'update' | 'get'>;
 export type ProfileSocketDomainGateway = Pick<ProfileGateway, 'get' | 'getMine' | 'set' | 'sync'>;
 export type UserSocketDomainGateway = Pick<ChannelGateway, 'listUser' | 'syncUsers'> &
     Pick<UserGateway, 'update' | 'profile' | 'invite' | 'inviteBatch'>;

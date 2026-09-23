@@ -1,16 +1,10 @@
-import type {
-    ChannelGetSelfInput,
-    ChannelUnreadsInput,
-    ChatInviteInput,
-    ChatLeaveInput,
-} from '@lemoncloud/chatic-sockets-api';
+import type { ChannelGetSelfInput, ChatInviteInput, ChatLeaveInput } from '@lemoncloud/chatic-sockets-api';
 import type {
     ChannelCreateInput,
     ChannelDeleteInput,
     ChannelStartDmInput,
     ChannelUpdateInput,
 } from '@lemoncloud/chatic-sockets-api/dist/lib/channel/types';
-import type { UnreadsSummaryView } from '@lemoncloud/chatic-socials-api';
 import { logger } from '@chatic/bridges';
 import type { DomainChannel, DomainChannelListPayload, DomainListResult } from '../domain';
 import type {
@@ -21,8 +15,6 @@ import type {
 import type { IChannelSocketDataSource } from '../remote/socket-data-sources';
 import type { DataContext, DataContextProvider } from './types';
 import { BaseRepository, type DisposableRepository } from './types';
-import { foreignDropAggregator } from '@chatic/logger';
-import { isForeignContext } from './scopeGuards';
 
 /** Merge id lists without duplicates, preserving the existing order. */
 const unionIds = (base: string[] | undefined, added: string[]): string[] =>
@@ -66,12 +58,9 @@ export interface IChannelRepository extends DisposableRepository {
 
     /** `channel.get-self` — `siteId` tags the returned row; the response carries no site (ADR-0085). */
     getSelfChannel(payload: ChannelGetSelfInput | undefined, siteId: string): Promise<DomainChannel>;
-    getUnreads(payload?: ChannelUnreadsInput): Promise<UnreadsSummaryView>;
 
-    cacheRead(id: string): Promise<DomainChannel | null>;
     cacheReadList(query: DomainChannelListPayload): Promise<DomainListResult<DomainChannel> | null>;
     cacheWrite(item: Partial<DomainChannel>): Promise<void>;
-    cacheWriteMany(items: Array<Partial<DomainChannel>>): Promise<void>;
     cacheDelete(id: string): Promise<void>;
     cacheClear(): Promise<void>;
 }
@@ -151,20 +140,12 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
         return this.channelLocalDataSource.observeItem(id, callback, this.getRepositoryContext());
     }
 
-    public cacheRead(id: string): Promise<DomainChannel | null> {
-        return this.channelLocalDataSource.cacheRead(id, this.getRepositoryContext());
-    }
-
     public cacheReadList(query: DomainChannelListPayload): Promise<DomainListResult<DomainChannel> | null> {
         return this.channelLocalDataSource.cacheReadList(query, this.getRepositoryContext());
     }
 
     public cacheWrite(item: Partial<DomainChannel>): Promise<void> {
         return this.channelLocalDataSource.cacheWrite(item, this.getRepositoryContext());
-    }
-
-    public cacheWriteMany(items: Array<Partial<DomainChannel>>): Promise<void> {
-        return this.channelLocalDataSource.cacheWriteMany(items, this.getRepositoryContext());
     }
 
     public cacheDelete(id: string): Promise<void> {
@@ -180,24 +161,14 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
         // the current session's site. Two distinct concerns must NOT be conflated:
         //   1. each channel's `sid` field (used by the local sid filter) must be the
         //      viewed site → tag it via the mapping context.
-        //   2. the cache write/read/delete must run under the LIVE context so the list
-        //      re-emit lands on the same scope key observers subscribed with; tagging the
-        //      write context with query.sid instead would silently miss those observers.
+        //   2. the cache write/read/delete must run under the captured request context (its
+        //      cid/uid), so the rows land in the partition this request was for and the list
+        //      re-emit reaches the observers subscribed there; tagging the write context with
+        //      query.sid instead would silently miss those observers.
         const requestContext = this.getRequestContext();
         // The socket that answers `channel.mine` may still serve the OUTGOING cloud during a
-        // switch (cache cid already flipped). Writing its list under the new cid poisons the
-        // target partition, so skip when the socket's bound cloud differs from the active cid.
-        const rawContext = this.getRepositoryContext();
-        if (isForeignContext(rawContext)) {
-            // Intended drop, but a silent one leaves the stale list it produces unexplained — the
-            // aggregator batches these so a switch costs one entry, not one per skip (ADR-0099).
-            foreignDropAggregator.record({
-                source: 'channel-refresh',
-                cid: rawContext.cid ?? 'default',
-                socketCid: rawContext.socketCid ?? 'none',
-            });
-            return;
-        }
+        // switch (cache cid already flipped). Nothing is owed to the caller, so don't even ask.
+        if (!this.acceptsAnswer(requestContext, 'channel-refresh')) return;
         // Named by the caller, never read off the ambient context: `targetSid` does not only tag the
         // mapped rows, it opens the prune gate below. An absent one makes `answersForTarget` true
         // unconditionally, which lets a response about another site delete this site's channels.
@@ -249,15 +220,8 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
 
     public async syncChannels(since: number): Promise<SyncChannelsResult> {
         const requestContext = this.getRequestContext();
-        const rawContext = this.getRepositoryContext();
-        if (isForeignContext(rawContext)) {
-            foreignDropAggregator.record({
-                source: 'channel-sync',
-                cid: rawContext.cid ?? 'default',
-                socketCid: rawContext.socketCid ?? 'none',
-            });
-            return { syncedAt: since, removedCount: 0 };
-        }
+        // The cursor comes back unchanged, so the caller re-asks from the same point next time.
+        if (!this.acceptsAnswer(requestContext, 'channel-sync')) return { syncedAt: since, removedCount: 0 };
         const normalizedContext = this.getNormalizedContext(requestContext);
         // Sync ingests channels across all places, so map without binding to the active sid.
         const remote = await this.channelSocketDataSource.syncChannel({ since }, { ...normalizedContext, sid: '' });
@@ -339,16 +303,9 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
         const requestContext = this.getRequestContext();
         const normalizedContext = this.getNormalizedContext(requestContext);
         const domain = await this.channelSocketDataSource.startDm(payload, normalizedContext);
-        // Same guard as getSelfChannel: a socket still bound to the cloud we just switched away from
-        // must not write into the one we switched to.
-        const rawContext = this.getRepositoryContext();
-        if (isForeignContext(rawContext)) {
-            foreignDropAggregator.record({
-                source: 'channel-start-dm',
-                cid: rawContext.cid ?? 'default',
-                socketCid: rawContext.socketCid ?? 'none',
-            });
-        } else {
+        // The caller is owed the room either way; only the cache write depends on which cloud
+        // answered.
+        if (this.acceptsAnswer(requestContext, 'channel-start-dm')) {
             await this.channelLocalDataSource.cacheWrite(domain, requestContext);
         }
         return domain;
@@ -466,7 +423,8 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
 
     // Fetch the "notes-to-self" (notes-to-self) channel for the active site and cache it so it shows in
     // the channel list. Mirrors createChannel's context handling: map under the normalized context
-    // (tags the active sid) and write under the live request context so list observers re-emit.
+    // (tags the caller's sid) and write under the captured request context — the partition this
+    // request was for, whose list observers are the ones that re-emit.
     public async getSelfChannel(payload: ChannelGetSelfInput | undefined, siteId: string): Promise<DomainChannel> {
         const requestContext = this.getRequestContext();
         // `channel.get-self` answers with no site on the row (measured), and this is the FIRST write
@@ -475,22 +433,9 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
         const sid = this.assertRequiredString(siteId, 'siteId');
         const normalizedContext = { ...this.getNormalizedContext(requestContext), sid };
         const domain = await this.channelSocketDataSource.getSelfChannel(payload ?? {}, normalizedContext);
-        // Skip the cache write when the answering socket is still bound to a different cloud (the
-        // switch optimistic window) so we don't poison the target partition. Mirrors refreshList.
-        const rawContext = this.getRepositoryContext();
-        if (isForeignContext(rawContext)) {
-            foreignDropAggregator.record({
-                source: 'channel-self',
-                cid: rawContext.cid ?? 'default',
-                socketCid: rawContext.socketCid ?? 'none',
-            });
-        } else {
+        if (this.acceptsAnswer(requestContext, 'channel-self')) {
             await this.channelLocalDataSource.cacheWrite(domain, requestContext);
         }
         return domain;
-    }
-
-    public getUnreads(payload?: ChannelUnreadsInput): Promise<UnreadsSummaryView> {
-        return this.channelSocketDataSource.getUnreads(payload ?? {});
     }
 }

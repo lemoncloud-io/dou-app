@@ -214,8 +214,9 @@ fall back on it: render nothing, skip the nudge, let the server decide.
   response cannot wipe a field — only an explicit `null` clears one. Harmless while nothing can be
   unlinked; it has to be re-judged when an unlink endpoint arrives.
 - **There is no local cache row to read.** The account profile comes off the stored relay token, not
-  out of IndexedDB: the cache is keyed by `cid` and `uid`, so while a cloud is active the relay
-  user's row is physically unreachable. Do not reach for the user repository to answer this question.
+  out of IndexedDB: the cache is keyed by `cid` and `uid` and the repositories read under the live
+  scope, so while a cloud is active the relay user's row is out of their reach. Do not reach for the
+  user repository to answer this question.
 - **Re-confirming a provider the user already has is not specified.** `verify` answers `type-linked`
   first, so the case does not reach a user — but do not build on an assumption about `confirm` there.
 - **Cancelling the native sheet is not an error.** `appBridge.oauthLogin` resolves with a `null`

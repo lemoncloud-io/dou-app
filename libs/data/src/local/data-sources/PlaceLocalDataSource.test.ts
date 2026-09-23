@@ -1,46 +1,5 @@
-import type { CacheStorage } from '../ports';
 import { PlaceLocalDataSource } from './PlaceLocalDataSource';
-
-// Keep storage unsorted so ordering guarantees are proven by the datasource, not the fixture.
-const createMemoryStorage = (): CacheStorage<'site'> => {
-    const map = new Map<string, any>();
-    return {
-        async save(id, item) {
-            map.set(id, { ...item });
-            return item;
-        },
-        async saveAll(items) {
-            items.forEach(item => item?.id && map.set(item.id, { ...item }));
-            return items;
-        },
-        async load(id) {
-            return map.has(id) ? { ...map.get(id) } : null;
-        },
-        async loadMany(ids) {
-            // Per the contract this omits absent ids and guarantees no order (it returns them
-            // reversed) — this fixture exists so that any code pairing by position breaks here.
-            return ids
-                .filter(id => map.has(id))
-                .map(id => ({ ...map.get(id) }))
-                .reverse();
-        },
-        async loadAll() {
-            return Array.from(map.values()).map(item => ({ ...item }));
-        },
-        async delete(id) {
-            map.delete(id);
-        },
-        async deleteAll(ids) {
-            ids.forEach(id => map.delete(id));
-        },
-        async clearAll() {
-            map.clear();
-        },
-        async clearByChannelId() {
-            return undefined;
-        },
-    };
-};
+import { createPartitionedMemoryStorage } from './__mocks__/MemoryCacheStorage';
 
 describe('PlaceLocalDataSource', () => {
     const contextProvider = {
@@ -54,7 +13,7 @@ describe('PlaceLocalDataSource', () => {
     };
 
     it('sorts places by id ascending (numeric-aware), ignoring server order/name', async () => {
-        const storage = createMemoryStorage();
+        const storage = createPartitionedMemoryStorage('site');
         const dataSource = new PlaceLocalDataSource(contextProvider as any, storage);
 
         // order/name are intentionally out of id order to prove id drives the sort.
@@ -87,7 +46,7 @@ describe('PlaceLocalDataSource', () => {
         afterEach(() => jest.useRealTimers());
 
         it('REPRO: an observer subscribed under a stale provider cid MISSES the post-commit write', async () => {
-            const storage = createMemoryStorage();
+            const storage = createPartitionedMemoryStorage('site');
             const provider = {
                 current: { cid: 'cloud-a', sid: '', uid: 'me' },
                 getContext() {
@@ -114,7 +73,7 @@ describe('PlaceLocalDataSource', () => {
         });
 
         it('FIX: an observer keyed by explicit contextOverride receives the post-commit write', async () => {
-            const storage = createMemoryStorage();
+            const storage = createPartitionedMemoryStorage('site');
             const provider = {
                 current: { cid: 'cloud-a', sid: '', uid: 'me' },
                 getContext() {
@@ -140,6 +99,60 @@ describe('PlaceLocalDataSource', () => {
             const lastArg = cb.mock.calls.at(-1)?.[0];
             expect(lastArg?.list.map((p: any) => p.id)).toEqual(['p1']);
         });
+
+        it('a write with no override keeps the scope it started under when the provider moves during it', async () => {
+            const places = createPartitionedMemoryStorage('site');
+            let live: Record<string, string | undefined> = { cid: 'cloud-a', uid: 'me' };
+            const provider = { getContext: () => live, setContext: () => undefined };
+            const ds = new PlaceLocalDataSource(provider, places);
+
+            const pending = ds.cacheWrite({ id: 'p1', name: 'Place 1' } as any);
+            // The switch lands while the write is waiting on its read of the existing row.
+            live = { cid: 'cloud-b', uid: 'me' };
+            await pending;
+
+            // Stored, stamped and filed under one scope — the one current when the write began.
+            expect(await places.forScope({ cid: 'cloud-a', uid: 'me' }).load('p1')).toMatchObject({ cid: 'cloud-a' });
+            expect(await places.forScope({ cid: 'cloud-b', uid: 'me' }).load('p1')).toBeNull();
+        });
+
+        it('a write that started with no session does not wake the account that signs in during it', async () => {
+            const places = createPartitionedMemoryStorage('site');
+            // No `uid` key at all: the provider has no session yet.
+            let live: Record<string, string | undefined> = { cid: 'default' };
+            const provider = { getContext: () => live, setContext: () => undefined };
+            const ds = new PlaceLocalDataSource(provider, places);
+            const accountObserver = jest.fn();
+            ds.observeList(undefined, accountObserver, { cid: 'default', uid: 'account' });
+            await flush();
+            accountObserver.mockClear();
+
+            const pending = ds.cacheWrite({ id: 'p1', name: 'Place 1' } as any);
+            live = { cid: 'default', uid: 'account' };
+            await pending;
+            await flush();
+
+            // Nothing was stored (there was no partition to store it in), so the account that
+            // arrived mid-write has nothing to hear about.
+            expect(accountObserver).not.toHaveBeenCalled();
+            expect(await places.forScope({ cid: 'default', uid: 'account' }).load('p1')).toBeNull();
+        });
+
+        it('a pinned observer reads the partition it is pinned to while the provider still points elsewhere', async () => {
+            const places = createPartitionedMemoryStorage('site');
+            await places.forScope({ cid: 'cloud-b', uid: 'me' }).save('p-b', { id: 'p-b', cid: 'cloud-b' } as any);
+            await places.forScope({ cid: 'cloud-a', uid: 'me' }).save('p-a', { id: 'p-a', cid: 'cloud-a' } as any);
+            const provider = { getContext: () => ({ cid: 'cloud-a', uid: 'me' }), setContext: () => undefined };
+            const ds = new PlaceLocalDataSource(provider, places);
+
+            const cb = jest.fn();
+            // Pinned to the target cloud before the provider has caught up. Keying the observer by the
+            // pin is half of it — its read has to come from the pinned partition too.
+            ds.observeList(undefined, cb, { cid: 'cloud-b', uid: 'me' });
+            await flush();
+
+            expect(cb.mock.calls.at(-1)?.[0]?.list.map((p: any) => p.id)).toEqual(['p-b']);
+        });
     });
 
     // Embedded-$site pollution (relay-default-place-scoping.md): a fetch that lands while a cloud
@@ -148,7 +161,7 @@ describe('PlaceLocalDataSource', () => {
     // written before the guard existed) from resurfacing.
     describe("mistagged relay home place ('0000' under a non-default cid)", () => {
         it('cacheReadList filters it out', async () => {
-            const storage = createMemoryStorage();
+            const storage = createPartitionedMemoryStorage('site');
             const dataSource = new PlaceLocalDataSource(contextProvider as any, storage);
 
             // contextProvider is fixed on cid 'cloud-a' — the write stamps that cid onto id '0000'.
@@ -163,7 +176,7 @@ describe('PlaceLocalDataSource', () => {
         });
 
         it('cacheRead returns null for it', async () => {
-            const storage = createMemoryStorage();
+            const storage = createPartitionedMemoryStorage('site');
             const dataSource = new PlaceLocalDataSource(contextProvider as any, storage);
             await dataSource.cacheWrite({ id: '0000', name: 'default' } as any);
 
@@ -171,7 +184,7 @@ describe('PlaceLocalDataSource', () => {
         });
 
         it('a legitimate id-0000 row under cid "default" is unaffected', async () => {
-            const storage = createMemoryStorage();
+            const storage = createPartitionedMemoryStorage('site');
             const provider = {
                 current: { cid: 'default', sid: '', uid: 'me' },
                 getContext() {
@@ -191,7 +204,7 @@ describe('PlaceLocalDataSource', () => {
     });
 
     it('clears all cached places for the scope when a logout-style reset happens', async () => {
-        const storage = createMemoryStorage();
+        const storage = createPartitionedMemoryStorage('site');
         const dataSource = new PlaceLocalDataSource(contextProvider as any, storage);
 
         await dataSource.cacheWriteMany([{ id: 's1', name: 'Alpha' } as any, { id: 's2', name: 'Bravo' } as any]);

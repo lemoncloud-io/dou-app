@@ -1,7 +1,5 @@
 import type { DeviceStatus, ViewingType } from '@lemoncloud/chatic-sockets-lib';
-import type { RegisterDeviceResult } from '@lemoncloud/chatic-pushes-api';
 import type { IDeviceSocketDataSource } from '../remote/socket-data-sources';
-import type { IDeviceRegistrationHttpSource } from '../remote/http-data-sources';
 import type { DataContextProvider } from './types';
 import { BaseRepository, type DisposableRepository } from './types';
 
@@ -28,14 +26,6 @@ export interface IDeviceRepository extends DisposableRepository {
      * chosen by callers (see DeviceSocketDataSource.updateRemoteDevice).
      */
     updateRemotePushMute(muted: boolean): Promise<boolean>;
-
-    /**
-     * `POST /users/0/reg-dev` — HTTP push-token registration (ADR-0070 decision 5, late stage 2). Distinct
-     * from `updateRemotePushMute` (the socket `device.update-remote`, the GLOBAL mute setting) — this
-     * registers the token itself. `IDeviceRegistrationHttpSource` injection is optional through
-     * stage 2.
-     */
-    registerPushDevice(body: Record<string, unknown>, opts?: { force?: boolean }): Promise<RegisterDeviceResult>;
 }
 
 /**
@@ -46,22 +36,9 @@ export interface IDeviceRepository extends DisposableRepository {
 export class DeviceRepository extends BaseRepository implements IDeviceRepository {
     constructor(
         private readonly deviceSocketDataSource: IDeviceSocketDataSource,
-        contextProvider: DataContextProvider,
-        private readonly deviceRegistrationHttpSource?: IDeviceRegistrationHttpSource
+        contextProvider: DataContextProvider
     ) {
         super(contextProvider);
-    }
-
-    public async registerPushDevice(
-        body: Record<string, unknown>,
-        opts?: { force?: boolean }
-    ): Promise<RegisterDeviceResult> {
-        if (!this.deviceRegistrationHttpSource) {
-            throw new Error(
-                '[DeviceRepository] IDeviceRegistrationHttpSource is not injected — httpFactory not wired yet.'
-            );
-        }
-        return this.deviceRegistrationHttpSource.registerPushDevice(body, opts);
     }
 
     public syncDevice(viewingType: ViewingType, viewingId: string): void {

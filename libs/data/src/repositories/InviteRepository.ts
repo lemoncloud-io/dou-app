@@ -5,7 +5,7 @@ import { createDomainListResult } from '../domain';
 import { toCacheInviteView } from '../local/data-sources/inviteCacheView';
 import type { IInviteLocalDataSource } from '../local/data-sources';
 import type { IInviteSocketDataSource, RelayInviteView } from '../remote/socket-data-sources';
-import type { DataContextProvider } from './types';
+import type { DataContext, DataContextProvider } from './types';
 import { BaseRepository, type DisposableRepository } from './types';
 
 export interface IInviteRepository extends DisposableRepository {
@@ -105,14 +105,16 @@ export class InviteRepository extends BaseRepository implements IInviteRepositor
     }
 
     public async list(filter: InviteListInput | null = null): Promise<MyInviteView[]> {
+        const requestContext = this.getRequestContext();
         const views = await this.inviteSocketDataSource.listInvites(filter);
-        await this.mirrorToCache(views);
+        await this.mirrorToCache(views, requestContext);
         return views;
     }
 
     public async create(input: InviteCreateInput): Promise<MyInviteView> {
+        const requestContext = this.getRequestContext();
         const view = await this.inviteSocketDataSource.createInvite(input);
-        await this.mirrorToCache([view]);
+        await this.mirrorToCache([view], requestContext);
         return view;
     }
 
@@ -125,8 +127,9 @@ export class InviteRepository extends BaseRepository implements IInviteRepositor
     }
 
     public async cancel(code: string): Promise<MyInviteView> {
+        const requestContext = this.getRequestContext();
         const view = await this.inviteSocketDataSource.cancelInvite(code);
-        await this.mirrorToCache([view]);
+        await this.mirrorToCache([view], requestContext);
         return view;
     }
 
@@ -179,16 +182,16 @@ export class InviteRepository extends BaseRepository implements IInviteRepositor
      * Writes are gated to the default (relay) cloud even though `list` itself is not — a cloud
      * session's socket also answers `invite.list` (unauthenticated for that domain, but the call
      * still resolves), and caching under an active cloud's partition would seed orphan rows nothing
-     * ever reads back (invite rows only render `isDefaultCloud`). `contextOverride` cannot fix this
-     * the way it does for other domains: the read path (`resolveScopedContext`) ignores it for
-     * every type except `invitecloud`, so the only lever left is skipping the write entirely.
+     * ever reads back (invite rows only render `isDefaultCloud`). Writing under the relay partition
+     * instead is not an option either: the answer came from a cloud session, and the relay's own
+     * `list` is the one authority on relay invites.
      *
      * Applied to every local write this repository exposes, not just the `list` mirror — a
      * dismiss/undismiss/stub-cleanup fired while some other cloud happens to be active (a stale
      * deep link to the waiting screen, say) would otherwise seed the exact same kind of orphan row.
      */
-    private isDefaultCloud(): boolean {
-        return (this.getNormalizedContext().cid || 'default') === 'default';
+    private isDefaultCloud(context: DataContext = this.getRepositoryContext()): boolean {
+        return (this.getNormalizedContext(context).cid || 'default') === 'default';
     }
 
     /**
@@ -198,10 +201,12 @@ export class InviteRepository extends BaseRepository implements IInviteRepositor
      * empty-string id, and one such row would collide with the next one on the same key — a
      * malformed response must not become a poison row every later read has to step over.
      */
-    private async mirrorToCache(views: MyInviteView[]): Promise<void> {
-        const context = this.getNormalizedContext();
-        if (!this.isDefaultCloud()) return;
+    private async mirrorToCache(views: MyInviteView[], requestContext: DataContext): Promise<void> {
+        // Judged and written under the scope the request was sent from: an answer that lands after
+        // a switch belongs to the account and cloud that asked, not to whichever is active now.
+        if (!this.isDefaultCloud(requestContext)) return;
 
+        const context = this.getNormalizedContext(requestContext);
         const cid = context.cid || 'default';
         const uid = context.uid || 'default';
         const mapped = views.filter(view => !!view?.id).map(view => toCacheInviteView(view, { cid, uid }));

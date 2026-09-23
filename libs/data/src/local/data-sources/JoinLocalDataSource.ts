@@ -1,7 +1,7 @@
 import type { DomainJoin, DomainJoinListPayload, DomainListResult } from '../../domain';
 import { createDomainListResult } from '../../domain';
 import type { DataContextProvider } from '../../repositories/types';
-import type { CacheStorage } from '../ports';
+import type { ScopedCacheStorage } from '../ports';
 import {
     BaseLocalDataSource,
     type ILocalDataSource,
@@ -14,26 +14,23 @@ export interface IJoinLocalDataSource
     extends ILocalDataSource<DomainJoin, DomainJoinListPayload, DomainListResult<DomainJoin>> {}
 
 /** Persists channel membership records and scopes observer invalidation by channel id. */
-export class JoinLocalDataSource extends BaseLocalDataSource implements IJoinLocalDataSource {
-    constructor(
-        contextProvider: DataContextProvider,
-        private readonly cacheStorage: CacheStorage<'join'>
-    ) {
-        super(contextProvider);
+export class JoinLocalDataSource extends BaseLocalDataSource<'join'> implements IJoinLocalDataSource {
+    constructor(contextProvider: DataContextProvider, storages: ScopedCacheStorage<'join'>) {
+        super(contextProvider, storages);
     }
 
-    public async cacheRead(id: string, _contextOverride?: LocalDataSourceContextOverride): Promise<DomainJoin | null> {
+    public async cacheRead(id: string, contextOverride?: LocalDataSourceContextOverride): Promise<DomainJoin | null> {
         const requiredId = this.assertRequiredString(id, 'id');
-        return this.cacheStorage.load(requiredId);
+        return this.storage(contextOverride).load(requiredId);
     }
 
     public async cacheReadList(
         query: DomainJoinListPayload,
-        _contextOverride?: LocalDataSourceContextOverride
+        contextOverride?: LocalDataSourceContextOverride
     ): Promise<DomainListResult<DomainJoin> | null> {
         const channelId = this.assertRequiredString(query?.channelId, 'channelId');
 
-        const allItems = await this.cacheStorage.loadAll();
+        const allItems = await this.storage(contextOverride).loadAll();
         let list = allItems.filter(item => item.channelId === channelId);
 
         if (query?.activeOnly) {
@@ -70,11 +67,12 @@ export class JoinLocalDataSource extends BaseLocalDataSource implements IJoinLoc
         item: Partial<DomainJoin>,
         contextOverride?: LocalDataSourceContextOverride
     ): Promise<void> {
-        const context = this.getContext(contextOverride);
+        const scope = this.resolveContext(contextOverride);
         const id = this.assertRequiredString(this.normalizeJoinId(item.id, item.channelId, item.userId), 'id');
 
-        const existing = await this.cacheStorage.load(id);
-        const cid = context.cid || 'default';
+        const storage = this.storage(scope);
+        const existing = await storage.load(id);
+        const cid = scope.cid || 'default';
         const merged: DomainJoin = {
             ...(existing ?? ({} as DomainJoin)),
             ...item,
@@ -86,15 +84,16 @@ export class JoinLocalDataSource extends BaseLocalDataSource implements IJoinLoc
             readNo: item.readNo ?? existing?.readNo ?? 0,
         };
 
-        await this.cacheStorage.save(id, merged);
-        this.scheduleItemReemit([id], contextOverride);
-        this.scheduleListReemit(this.getAffectedListPrefixes([existing?.channelId, merged.channelId], contextOverride));
+        await storage.save(id, merged);
+        this.scheduleItemReemit([id], scope);
+        this.scheduleListReemit(this.getAffectedListPrefixes([existing?.channelId, merged.channelId], scope));
     }
 
     public async cacheWriteMany(
         items: Array<Partial<DomainJoin>>,
         contextOverride?: LocalDataSourceContextOverride
     ): Promise<void> {
+        const scope = this.resolveContext(contextOverride);
         const validItems = items
             .map(item => ({
                 ...item,
@@ -103,9 +102,9 @@ export class JoinLocalDataSource extends BaseLocalDataSource implements IJoinLoc
             .filter(item => !!item.id);
         if (validItems.length === 0) return;
 
-        const context = this.getContext(contextOverride);
-        const cid = context.cid || 'default';
-        const existingById = this.indexById(await this.cacheStorage.loadMany(validItems.map(item => item.id!)));
+        const cid = scope.cid || 'default';
+        const storage = this.storage(scope);
+        const existingById = this.indexById(await storage.loadMany(validItems.map(item => item.id!)));
 
         const mergedList = validItems.map(item => {
             const existing = existingById.get(item.id!);
@@ -121,41 +120,45 @@ export class JoinLocalDataSource extends BaseLocalDataSource implements IJoinLoc
             } as DomainJoin;
         });
 
-        await this.cacheStorage.saveAll(mergedList);
-        this.scheduleItemReemit(validItems.map(item => item.id!).filter(Boolean), contextOverride);
+        await storage.saveAll(mergedList);
+        this.scheduleItemReemit(validItems.map(item => item.id!).filter(Boolean), scope);
         this.scheduleListReemit(
             this.getAffectedListPrefixes(
                 mergedList.flatMap(item => [existingById.get(item.id)?.channelId, item.channelId]),
-                contextOverride
+                scope
             )
         );
     }
 
     public async cacheDelete(id: string, contextOverride?: LocalDataSourceContextOverride): Promise<void> {
+        const scope = this.resolveContext(contextOverride);
         const requiredId = this.assertRequiredString(id, 'id');
-        const existing = await this.cacheStorage.load(requiredId);
-        await this.cacheStorage.delete(requiredId);
-        this.scheduleItemReemit([requiredId], contextOverride);
-        this.scheduleListReemit(this.getAffectedListPrefixes([existing?.channelId], contextOverride));
+        const storage = this.storage(scope);
+        const existing = await storage.load(requiredId);
+        await storage.delete(requiredId);
+        this.scheduleItemReemit([requiredId], scope);
+        this.scheduleListReemit(this.getAffectedListPrefixes([existing?.channelId], scope));
     }
 
     public async cacheDeleteMany(ids: string[], contextOverride?: LocalDataSourceContextOverride): Promise<void> {
+        const scope = this.resolveContext(contextOverride);
         const validIds = ids.filter(Boolean);
         if (validIds.length === 0) return;
         // Only the affected channel set is needed, so ids omitted because they are absent do not matter.
-        const existingItems = await this.cacheStorage.loadMany(validIds);
-        await this.cacheStorage.deleteAll(validIds);
-        this.scheduleItemReemit(validIds, contextOverride);
+        const storage = this.storage(scope);
+        const existingItems = await storage.loadMany(validIds);
+        await storage.deleteAll(validIds);
+        this.scheduleItemReemit(validIds, scope);
         this.scheduleListReemit(
             this.getAffectedListPrefixes(
                 existingItems.map(item => item.channelId),
-                contextOverride
+                scope
             )
         );
     }
 
-    public async cacheClear(_contextOverride?: LocalDataSourceContextOverride): Promise<void> {
-        await this.cacheStorage.clearAll();
+    public async cacheClear(contextOverride?: LocalDataSourceContextOverride): Promise<void> {
+        await this.storage(contextOverride).clearAll();
         this.scheduleFullReemit();
     }
 

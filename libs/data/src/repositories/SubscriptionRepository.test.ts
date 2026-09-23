@@ -4,10 +4,6 @@ describe('SubscriptionRepository', () => {
     const contextProvider = { getContext: () => ({ cid: 'cloud-a', uid: 'me' }), setContext: () => undefined };
     const createHttpDataSource = () => ({
         fetchPlans: jest.fn(),
-        validateGoogle: jest.fn(),
-        validateApple: jest.fn(),
-        fetchActiveSubscriptions: jest.fn(),
-        fetchReceiptDetail: jest.fn(),
         fetchMembershipInfo: jest.fn(),
         validateMembership: jest.fn(),
         fetchAdminMemberships: jest.fn(),
@@ -36,9 +32,6 @@ describe('SubscriptionRepository', () => {
         expect(http.fetchPlans).toHaveBeenCalledWith({ limit: 5 });
 
         await expect(repository.fetchMembershipInfo()).resolves.toEqual({ tier: 'pro' });
-
-        await repository.validateGoogle({ receipt: 'r' } as never);
-        expect(http.validateGoogle).toHaveBeenCalledWith({ receipt: 'r' }, undefined);
     });
 
     it('dispose() is a no-op inherited from BaseRepository (nothing acquired to release)', () => {

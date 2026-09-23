@@ -1,6 +1,8 @@
+import type { CacheType } from '@chatic/app-messages';
 import { logger } from '@chatic/bridges';
 
 import type { DataContext, DataContextProvider } from '../../repositories/types';
+import type { CacheStorage, ScopedCacheStorage } from '../ports';
 import { stableHash } from '../stableHash';
 
 export type LocalDataSourceContextOverride = Partial<DataContext>;
@@ -106,7 +108,7 @@ const unrefTimer = (timer: ReturnType<typeof setTimeout>): void => {
  */
 const INITIAL_QUERY_RETRY_DELAY_MS = 1_000;
 
-export abstract class BaseLocalDataSource {
+export abstract class BaseLocalDataSource<TType extends CacheType = CacheType> {
     private nextObserverId = 0;
     private readonly itemObservers = new Map<string, ObserverGroup>();
     private readonly listObservers = new Map<string, ObserverGroup>();
@@ -125,7 +127,42 @@ export abstract class BaseLocalDataSource {
     private emitAllLists = false;
     private emitTimer: NodeJS.Timeout | null = null;
 
-    protected constructor(protected readonly contextProvider: DataContextProvider) {}
+    protected constructor(
+        protected readonly contextProvider: DataContextProvider,
+        private readonly storages: ScopedCacheStorage<TType>
+    ) {}
+
+    /**
+     * The storage for the partition this operation runs under: the caller's override when it
+     * captured one, the provider's current context otherwise.
+     *
+     * This is the point where a captured scope reaches storage. A repository captures its context
+     * before a remote call and hands it down as `contextOverride`; for a long time that override
+     * reached only the observer key and the `cid` stamped on a row, while the adapter picked its
+     * partition from the live context — so an answer that arrived after a switch landed in the
+     * partition switched to. Reads obey the same rule, so an observer pinned by an override reads the
+     * partition it is keyed by.
+     *
+     * An operation that awaits resolves its context once with {@link resolveContext} and passes that
+     * to everything it does — this, the `cid` it stamps, the keys it re-emits. Without an override
+     * the provider is read at call time, and a read-merge-write whose halves straddle a switch would
+     * otherwise read one partition, write another, and wake a third scope's observers.
+     */
+    protected storage(contextOverride?: LocalDataSourceContextOverride): CacheStorage<TType> {
+        return this.storages.forScope(this.getContext(contextOverride));
+    }
+
+    /**
+     * The context an operation runs under, fixed at the moment it starts.
+     *
+     * `cid` and `uid` are carried as own properties even when absent, so re-merging the result over a
+     * later provider read (`getContext` spreads the override over the provider) cannot let a value the
+     * provider gained in the meantime back in — a sessionless operation stays sessionless to the end.
+     */
+    protected resolveContext(contextOverride?: LocalDataSourceContextOverride): DataContext {
+        const context = this.getContext(contextOverride);
+        return { ...context, cid: context.cid, uid: context.uid };
+    }
 
     protected getContext(contextOverride?: LocalDataSourceContextOverride): DataContext {
         return {

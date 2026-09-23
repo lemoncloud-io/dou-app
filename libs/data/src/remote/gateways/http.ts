@@ -36,15 +36,11 @@ export type AuthHttpDomainGateway = Pick<
     | 'delegateCloud'
     | 'exchangeToken'
 >;
-export type UserHttpDomainGateway = Pick<UserHttpGateway, 'list' | 'tryProfile' | 'updateProfile' | 'registerDevice'>;
+export type UserHttpDomainGateway = Pick<UserHttpGateway, 'list' | 'tryProfile'>;
 export type CloudHttpDomainGateway = Pick<CloudHttpGateway, 'list' | 'update' | 'make' | 'release' | 'verifyEmail'>;
 export type SubscriptionHttpDomainGateway = Pick<
     SubscriptionHttpGateway,
     | 'plans'
-    | 'validateGoogle'
-    | 'validateApple'
-    | 'receipts'
-    | 'receiptDetail'
     | 'membership'
     | 'validateMembership'
     // admin console surface (ADR-0101). `adminClouds` rides this bundle rather than the cloud one

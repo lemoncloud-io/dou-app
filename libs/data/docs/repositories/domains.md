@@ -1,6 +1,6 @@
 # The 13 domains
 
-> Status: Live · Last updated: 2026-09-14 · Shared rules in the [repositories README](./README.md) · Canonical code: [repositories/](../../src/repositories/)
+> Status: Live · Last updated: 2026-09-23 · Shared rules in the [repositories README](./README.md) · Canonical code: [repositories/](../../src/repositories/)
 
 The per-domain facade catalogue for `repositories/`. A table for looking up which method reads local
 and which hits remote, and what rule differs per domain — **a document you look things up in**, not one
@@ -16,8 +16,8 @@ Some domains have no `local` and some have no `socket`. Which domain receives wh
 ### Channel
 
 `observeList` · `observeItem` · `refreshList(query)` · `fetchList(query)` · `syncChannels(since)` ·
-`createChannel` · `updateChannel` · `inviteChannel` · `leaveChannel` · `deleteChannel` ·
-`getSelfChannel` · `getUnreads` · `cache*`
+`createChannel` · `startDm` · `updateChannel` · `inviteChannel` · `leaveChannel` · `deleteChannel` ·
+`getSelfChannel` · `cache*`
 
 - `syncChannels(since)` — interprets the result of `channel.sync({ since })`. `since: 0` is a full sync, `since > 0` is a delta. The response's `list` is the snapshot of changed channels, `ids` is every channel id I currently belong to, and `syncedAt` is the value to store as the next `since`. The repository writes `list` to local and **stale-removes** any channel missing from `ids`.
 - `refreshList(query)` — the secondary initial-load path, based on `channel.mine`. In a sync-centred structure the canonical source is `syncChannels`.
@@ -29,71 +29,67 @@ Some domains have no `local` and some have no `socket`. Which domain receives wh
 
 ### Chat
 
-`observeList` · `observeItem` · `observeLastList` · `refreshList(query)` · `getChat` · `sendChat` ·
-`updateChat` · `deleteChat` · `setReaction` · `cache*` · `cacheReadLastList` ·
-`cacheClearByChannelId(channelId)`
+`observeList` · `observeLastList` · `refreshList(query)` · `getChat` · `sendChat` · `updateChat` ·
+`deleteChat` · `setReaction` · `cache*` · `cacheClearByChannelId(channelId)`
 
 - `sendChat` — creates an optimistic pending message, marked `isFailed` on failure.
 - `updateChat` — optimistic: the new body is written to the cache before the request and rolled back if it fails. Callers must not write the cache themselves; two writers race over one row.
 - `deleteChat` — **not optimistic.** The server soft-deletes (`PUT { hidden: true }`), and the row is hidden only once that answer arrives. It used to hide first and restore on failure, but the restore could not work: `cacheWrite` merges, so writing the previous record back cannot clear a key that record never had — and `hidden` was a key the optimistic write added. A failed delete left the message looking deleted while it was alive on the server. There is no rollback now because there is no optimistic write to undo (ADR-0103).
 - `refreshList` — merges the `chat.feed` response into local. It can return cursor metadata (`cursorNo`, `readNo`, …) as a `ChatRefreshResult`, but **the render source for messages is always the local stream.** The returned metadata is input for pagination only.
 - The list query key is built from **every field that reaches storage** — seven parts: `chats`, `channel`, `cursor`, `limit`, `unsent`, `sort`, `keyword` (`local/data-sources/ChatLocalDataSource.ts`). Drop even one and two different reads collapse onto one key and share a wrong answer. That is why an earlier page and the latest page are different queries.
-- `setReaction` is a UI write command (`chat.reaction`). `observeLastList` / `cacheReadLastList` are the per-channel last-message path the home preview uses (ADR-0057).
+- `setReaction` is a UI write command (`chat.reaction`). `observeLastList` is the per-channel last-message path the home preview uses (ADR-0057).
 - `canModifyMessage(chat, isMine)` / `isMessageEdited(chat)` (`src/domain/messageEdit.ts`) — whether a message may be edited or deleted, and whether it has been. They live here, not in an app, because both clients ask them and one of the answers is a stopgap: the server has no edit flag, so `isMessageEdited` infers an edit from `updatedAt` moving past `createdAt`. **`apps/desktop-web` still carries its own copy of both rules** — this one is canonical, and the copies are merged the day a real server flag arrives (ADR-0103).
 - On the split of cursor responsibilities → [chat cursors](./README.md#chat-cursors).
 - `cacheClearByChannelId(channelId)` — empties one channel's messages. There are only two callers: `ChannelRepository` (a self-leave) and the join sync plan (being kicked, leaving from another device) → [leaving and rejoining](./README.md#leaving-and-rejoining).
 
 ### Cloud
 
-`observeList` · `observeItem` · `getCloud` · `updateCloud` · `deleteCloud` ·
-`fetchCloudCatalog` · `verifyCloudEmail` · `makeCloud` · `releaseCloud` · `cache*`
+`observeList` · `observeItem` · `getCloud` · `updateCloud` · `fetchCloudCatalog` ·
+`verifyCloudEmail` · `makeCloud` · `releaseCloud` · `cache*`
 
-- The socket axis is based on `CloudGateway`'s `get` / `update` / `delete`. **`cloud.create` is not in the socket bundle.**
+- The socket axis is based on `CloudGateway`'s `get` / `update`. **Neither `cloud.create` nor `cloud.delete` is in the socket bundle** — a cloud is made and removed over HTTP (`makeCloud` / `releaseCloud`).
 - The HTTP axis handles the catalogue (`list`) plus `make` / `release` / `verifyEmail`. **HTTP results are not written to local** — the catalogue's cache owner is a react-query adapter.
 - Cloud is the top-level organizational unit (`cid`); unlike place/site it acts as the scope root.
 
 ### Join
 
-`observeList` · `observeItem` · `refreshList(query)` · `getJoin` · `readChat` · `updateJoin` ·
-`joinChannel` · `cache*`
+`observeList` · `readChat` · `updateJoin` · `cache*`
 
-- Single-item read and write go through the first-class `JoinGateway` (`getJoin` = `join.get`, `updateJoin` = `join.update`); marking read (`readChat` = `chat.read`) and joining (`joinChannel` = `channel.join`) are helper commands.
+- `updateJoin` goes through the first-class `JoinGateway` (`join.update`); marking read (`readChat`) is `chat.read`.
 - `readChat` — advances the read cursor optimistically, restored if remote fails. The unread count is not settled by the single `chat.read` result; it is settled as the join snapshot and the channel snapshot meet again.
 - `updateJoin` — edits the nick / notify / role metadata.
-- Read-state sync is handled by the external orchestrator pushing `getJoin` results in through `cacheWrite` / `cacheDelete`, and `JoinRepository` owns the local cache of that result.
+- Read-state sync is handled by the external orchestrator: the join sync plan fetches `join.get` itself and pushes the result in through `cacheWrite` / `cacheDelete`, and `JoinRepository` owns the local cache of that result.
 
 ### Place
 
-`observeList` · `observeItem` · `refreshList(query?)` · `createPlace` · `getPlace` ·
-`updatePlace` · `deletePlace` · `cache*`
+`observeList` · `observeItem` · `refreshList(query?)` · `createPlace` · `updatePlace` · `cache*`
 
-- Based on `PlaceGateway` (`place.create/get/update/delete`) plus `UserGateway.mySite` for listing.
+- Based on `PlaceGateway` (`place.create/update`) plus `UserGateway.mySite` for listing.
 - A Place is the workspace unit a user belongs to or created. Rather than a periodic delta sync, it re-reads the current cloud's place list with `refreshList` on a scope (cid) switch.
 - Local-first: remote results are written to `PlaceLocalDataSource` and then read through `observe*`.
 
 ### Profile
 
-`observeList` · `observeItem` · `refreshItem(id)` · `getMyProfile()` · `setProfile` ·
-`setMyProfile` · `syncProfiles(since)` · `cache*`
+`observeList` · `observeItem` · `refreshItem(id)` · `getMyProfile()` · `setMyProfile` ·
+`syncProfiles(since)` · `cache*`
 
 - The per-site user profile domain, **fully separated from the User domain**. It depends only on the dedicated `ProfileGateway` (`get`/`getMine`/`set`/`sync`).
 - `refreshItem(id)` — writes the result of `profile.get` (id = `${sid}:${uid}`) to local.
 - `getMyProfile()` — writes the result of `profile.get-mine` (the current session) to local.
-- `setProfile` / `setMyProfile` — optimistic write with rollback on failure.
+- `setMyProfile` — optimistic write with rollback on failure.
 - `syncProfiles(since)` — upserts/removes the `profile.sync` delta into the local cache. A `null` for a given uid in the response deletes that profile.
 - Cache keys take the form `${sid}:${uid}`.
 
 ### User
 
 `observeList` · `observeItem` · `getMyProfile` · `updateProfile` · `requestInvite` ·
-`requestInviteBatch` · `syncChannelUsers` · `listRelayUsers` · `tryFetchProfile` ·
-`updateProfileHttp` · `cache*`
+`requestInviteBatch` · `syncChannelUsers` · `listRelayUsers` · `tryFetchProfile` · `cache*`
 
 - `syncChannelUsers` — writes the result of `channel.sync-users` to local.
 - `updateProfile` (`user.update`) edits the user's own **account** profile, which is separate from the site profile (→ the Profile domain).
-- The HTTP axis (`listRelayUsers`, `tryFetchProfile`, `updateProfileHttp`) is the relay console and profile probe path.
+- The HTTP axis (`listRelayUsers`, `tryFetchProfile`) is the relay console and profile probe path.
 - It reads the `join` and `place` local sources too, in order to assemble invite candidates.
-- `refreshList` is **not on the interface** — it exists only as a public class method. Channel, Join and Place declare it on their interfaces, so User is the one exception.
+- `refreshList` is **not on the interface** — it exists only as a public class method. Channel, Chat and Place declare it on their interfaces (Join has none), so User is the one exception.
 
 ### Invite
 
@@ -117,11 +113,11 @@ Some domains have no `local` and some have no `socket`. Which domain receives wh
 
 ### Device
 
-`syncDevice` · `syncStatus` · `updateRemotePushMute` · `registerPushDevice`
+`syncDevice` · `syncStatus` · `updateRemotePushMute`
 
 - **Remote-only.** Lookup signals and push settings, so there is nothing to cache.
 - Only the socket gateway is routed — `save`/`read`/`sync` go to the `active` slot, while `updateRemote`, the relay-owned push setting, goes to relay (ADR-0027).
-- `registerPushDevice` is on the HTTP axis and is injected with `IDeviceRegistrationHttpSource` (a single method) only. **This repository imposes no limit of its own** — it passes `body` and `opts?.force` straight through. The once-per-install gate lives in `useDeviceTokenRegistration` in `libs/app-runtime` (ADR-0077).
+- Push-token registration is **not** here: `libs/app-runtime` registers through the HTTP user gateway directly (`data/hooks/device.ts`), and `useDeviceTokenRegistration` owns the once-per-install gate (ADR-0077).
 
 ### Report
 
@@ -132,9 +128,8 @@ Some domains have no `local` and some have no `socket`. Which domain receives wh
 
 ### Subscription
 
-`fetchPlans` · `validateGoogle` · `validateApple` · `fetchActiveSubscriptions` ·
-`fetchReceiptDetail` · `fetchMembershipInfo` · `validateMembership` ·
-`fetchAdminMemberships` · `updateMembershipByAdmin` · `fetchAdminClouds`
+`fetchPlans` · `fetchMembershipInfo` · `validateMembership` · `fetchAdminMemberships` ·
+`updateMembershipByAdmin` · `fetchAdminClouds`
 
 - **Remote-only and HTTP-only.** The same shape as `Report`.
 - Tiers and quotas are decided by the server (ADR-0060). The cache semantics belong to a react-query adapter on the consumer side.

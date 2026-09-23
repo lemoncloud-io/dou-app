@@ -169,6 +169,7 @@ belongs to [`libs/data`](../../../data/README.md).
 - `createLocalDataSources` accepts an injected `cacheStorageFactory`. Injecting one leaves the routing fingerprint empty, which **disables** the cursor check — fine in a test, but it means a fingerprint test has to use the real factory.
 - `nativeCacheSupport` exports `LOCAL_AUTHORITY_CACHE_TYPES` and `REQUIRED_DOMAIN_VERSION` for its own tests only; neither is on the package barrel, and `REQUIRED_DOMAIN_VERSION` is empty in production.
 - `setNativeCacheSupport` must run before the data runtime is built — `apps/web` calls it from `main.tsx`. A report arriving later cannot move a routing decision that has already been made, and `resetNativeCacheSupport()` is the test seam.
+- `@chatic/data` builds one storage per `(cid, uid)` partition, on first use, so the factory also runs after assembly. `createLocalDataSources` therefore records each type's backend the first time it builds that type and reuses it for every later partition — without that, a partition first reached after a late handshake would put `invite` on SQLite while the rest of the session, and the next boot, read IndexedDB (ADR-0112).
 - `localFactory.test.ts` asserts a full type × environment matrix rather than individual cases, so a routing change cannot slip in as a side effect of something else.
 
 ## Further reading

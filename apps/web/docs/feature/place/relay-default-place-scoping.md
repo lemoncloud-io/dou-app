@@ -32,17 +32,19 @@ no change at all.
 ### The partition, and the one thing it cannot do
 
 A cached row's physical key is `${type}:${cid}:${uid}:${id}`, computed by the storage adapter from
-the shared context provider. `contextOverride` reaches the observer's scope key and the row's `cid`
-stamp — **it does not reach the read path**, which takes the ambient context and nothing else. The
-full model is canon in
+the provider it was handed — one fixed to a single partition. A local data source picks that adapter
+from the operation's context: the `contextOverride` a repository captured, or the live context when
+there is none. (Until ADR-0112 the override reached only the observer key and the `cid` stamp; the
+read path followed the live context.) The full model is canon in
 [`@chatic/data`](../../../../../libs/data/docs/local/README.md#scope-and-cache-slots).
 
 Two consequences run through everything below:
 
 1. A row written under the wrong `cid` is not mislabelled — it is in a different place entirely, and
    only a read under that same `cid` will ever see it again.
-2. While a cloud is active, a relay-partition row **cannot be read back at all**. No override opens
-   it. That is why §6 ends where it does.
+2. While a cloud is active, a relay-partition row is **out of the repositories' reach**: they read
+   under the live scope, and the user repository takes no override. That is why §6 ends where it
+   does.
 
 ### 1. The write gate — `persistEmbeddedSite`
 
@@ -65,7 +67,7 @@ gate existed — that is §2 and §3.
 `ChannelRepository` established:
 
 1. **Foreign-context guard.** `isForeignContext` is true when the socket is still bound to a
-   different cloud than the active `cid` — mid-switch, in other words. The call returns without
+   different cloud than the `cid` the request was captured under — mid-switch, in other words. The call returns without
    touching the cache and records the drop with the aggregator, because writing the outgoing
    cloud's answer under the incoming cloud's key is the exact poisoning this document is about.
 2. **Empty-response protection.** A list that comes back empty is not evidence of an empty account;
@@ -129,9 +131,10 @@ Account-level screens — MY page and everything it opens — must show the **re
 which cloud is connected. A cloud session mints a different uid on a different backend, so the
 cloud-delegated `user` record is a different record with different values.
 
-The cache cannot answer this. Per the rule above, while a cloud is active the relay `user` row lives
-in a partition the read path will not visit, and no context override opens it. An earlier attempt to
-solve this inside the data layer was abandoned for exactly that reason.
+The cache does not answer this. Per the rule above, while a cloud is active the relay `user` row
+lives in a partition the repositories do not read, and even a read pinned there would only see
+whatever a relay-scoped write last left. An earlier attempt to solve this inside the data layer was
+abandoned when the override could not reach the read path at all.
 
 What works instead is app-level and touches no cache:
 
@@ -177,8 +180,9 @@ steps:
 - **Do not route the account profile through a repository.** Repositories cache, the cache is
   partitioned, and the partition is the whole problem. This is the one place in the app that reads a
   server record out of a token on purpose.
-- **Do not reach for `contextOverride` to read another scope.** It does not reach the read path.
-  Opening that would be a change to `@chatic/data`'s read model, not a call-site fix.
+- **Do not reach for `contextOverride` to read the relay account from a cloud.** It does reach
+  storage now (ADR-0112), but it reads only the relay partition's cached row — possibly stale,
+  possibly never written. The token is always present and always the relay account's.
 
 ## Notes for implementers and tests
 

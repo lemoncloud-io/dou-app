@@ -1,5 +1,5 @@
 import type { DataContextProvider } from '../../repositories/types';
-import type { CacheStorage } from '../ports';
+import type { LocalCacheStorages } from '../ports';
 import { ChannelLocalDataSource, type IChannelLocalDataSource } from './ChannelLocalDataSource';
 import { ChatLocalDataSource, type IChatLocalDataSource } from './ChatLocalDataSource';
 import { CloudLocalDataSource, type ICloudLocalDataSource } from './CloudLocalDataSource';
@@ -35,17 +35,7 @@ export interface LocalDataSources {
 
 export const createLocalDataSources = (
     contextProvider: DataContextProvider,
-    storages: {
-        channel: CacheStorage<'channel'>;
-        chat: CacheStorage<'chat'>;
-        inviteCloud: CacheStorage<'invitecloud'>;
-        invite: CacheStorage<'invite'>;
-        join: CacheStorage<'join'>;
-        profile: CacheStorage<'profile'>;
-        site: CacheStorage<'site'>;
-        user: CacheStorage<'user'>;
-        meta: CacheStorage<'meta'>;
-    },
+    storages: LocalCacheStorages,
     options?: {
         /**
          * Identifies the storage routing `storages` were built under, stamped onto sync cursors so

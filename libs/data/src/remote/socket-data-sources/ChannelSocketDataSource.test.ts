@@ -10,7 +10,6 @@ import type {
     ChatInviteInput,
     ChatLeaveInput,
     ChannelGetSelfInput,
-    ChannelUnreadsInput,
 } from '@lemoncloud/chatic-sockets-api';
 
 describe('ChannelSocketDataSource', () => {
@@ -70,12 +69,6 @@ describe('ChannelSocketDataSource', () => {
             const payload: ChannelGetSelfInput = {};
             await dataSource.getSelfChannel(payload, context);
             expect(mockGateways.channel.getSelf).toHaveBeenCalledWith(payload);
-        });
-
-        it('getUnreads sends the request as the channel.unreads action', async () => {
-            const payload: ChannelUnreadsInput = {};
-            await dataSource.getUnreads(payload);
-            expect(mockGateways.channel.unreads).toHaveBeenCalledWith(payload);
         });
     });
 

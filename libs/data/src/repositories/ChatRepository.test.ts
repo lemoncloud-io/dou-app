@@ -1,5 +1,5 @@
 import { ChatLocalDataSource } from '../local/data-sources/ChatLocalDataSource';
-import { createMemoryCacheStorage } from '../local/data-sources/__mocks__/MemoryCacheStorage';
+import { createPartitionedMemoryStorage } from '../local/data-sources/__mocks__/MemoryCacheStorage';
 import { ChatRepository } from './ChatRepository';
 
 describe('ChatRepository', () => {
@@ -189,7 +189,7 @@ describe('ChatRepository', () => {
             };
             const chatLocalDataSource = new ChatLocalDataSource(
                 contextProvider as any,
-                createMemoryCacheStorage() as any
+                createPartitionedMemoryStorage('chat')
             );
 
             return {

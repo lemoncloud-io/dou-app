@@ -277,7 +277,7 @@ describe('UserRepository — HTTP relay-user/profile surface (ADR-0070 late stag
     });
 
     it('delegates to the injected http data source', async () => {
-        const http = { listRelayUsers: jest.fn(), tryFetchProfile: jest.fn(), updateProfileHttp: jest.fn() };
+        const http = { listRelayUsers: jest.fn(), tryFetchProfile: jest.fn() };
         http.tryFetchProfile.mockResolvedValue({ id: 'u1' });
         const repository = new UserRepository(
             {} as any,

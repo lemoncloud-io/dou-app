@@ -1,4 +1,7 @@
+import { InviteLocalDataSource } from '../local/data-sources/InviteLocalDataSource';
+import { createPartitionedMemoryStorage } from '../local/data-sources/__mocks__/MemoryCacheStorage';
 import { InviteRepository } from './InviteRepository';
+import { DataContextHolder } from './types';
 
 describe('InviteRepository', () => {
     const makeLocalDataSourceMock = () => ({
@@ -396,5 +399,43 @@ describe('InviteRepository', () => {
 
             expect(inviteLocalDataSource.cacheClear).not.toHaveBeenCalled();
         });
+    });
+});
+
+/** Where a late `invite.list` answer actually lands — a real local data source on partitioned storage. */
+describe('InviteRepository — the scope an answer is written under', () => {
+    const createScopedRepository = (initial: Record<string, string>) => {
+        const context = new DataContextHolder(initial);
+        const invites = createPartitionedMemoryStorage('invite');
+        let resolveList!: (views: unknown) => void;
+        const socket = { listInvites: jest.fn(() => new Promise(resolve => (resolveList = resolve))) };
+        const repository = new InviteRepository(socket as any, new InviteLocalDataSource(context, invites), context);
+        const idsIn = async (cid: string, uid: string) =>
+            (await invites.forScope({ cid, uid }).loadAll()).map(row => row.id);
+        return { context, repository, answer: (views: unknown) => resolveList(views), idsIn };
+    };
+
+    it('an answer that lands after switching to a cloud is cached for the relay account that asked', async () => {
+        const { context, repository, answer, idsIn } = createScopedRepository({ cid: 'default', uid: 'me' });
+
+        const pending = repository.list();
+        context.setContext({ cid: 'cloud-a', uid: 'cloud-user' });
+        answer([{ id: 'invt-1', state: 'pending' }]);
+        await pending;
+
+        expect(await idsIn('default', 'me')).toEqual(['invt-1']);
+        expect(await idsIn('cloud-a', 'cloud-user')).toEqual([]);
+    });
+
+    it('an answer from a cloud session is not cached, even if the relay is active by the time it lands', async () => {
+        const { context, repository, answer, idsIn } = createScopedRepository({ cid: 'cloud-a', uid: 'cloud-user' });
+
+        const pending = repository.list();
+        context.setContext({ cid: 'default', uid: 'me' });
+        answer([{ id: 'invt-from-cloud', state: 'pending' }]);
+        await pending;
+
+        expect(await idsIn('default', 'me')).toEqual([]);
+        expect(await idsIn('cloud-a', 'cloud-user')).toEqual([]);
     });
 });

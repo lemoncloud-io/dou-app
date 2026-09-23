@@ -1,46 +1,5 @@
-import type { CacheStorage } from '../ports';
 import { JoinLocalDataSource } from './JoinLocalDataSource';
-
-// Use a plain in-memory store so the test focuses on join-specific filtering and deletion rules.
-const createMemoryStorage = (): CacheStorage<'join'> => {
-    const map = new Map<string, any>();
-    return {
-        async save(id, item) {
-            map.set(id, { ...item });
-            return item;
-        },
-        async saveAll(items) {
-            items.forEach(item => item?.id && map.set(item.id, { ...item }));
-            return items;
-        },
-        async load(id) {
-            return map.has(id) ? { ...map.get(id) } : null;
-        },
-        async loadMany(ids) {
-            // Per the contract this omits absent ids and guarantees no order (it returns them
-            // reversed) — this fixture exists so that any code pairing by position breaks here.
-            return ids
-                .filter(id => map.has(id))
-                .map(id => ({ ...map.get(id) }))
-                .reverse();
-        },
-        async loadAll() {
-            return Array.from(map.values()).map(item => ({ ...item }));
-        },
-        async delete(id) {
-            map.delete(id);
-        },
-        async deleteAll(ids) {
-            ids.forEach(id => map.delete(id));
-        },
-        async clearAll() {
-            map.clear();
-        },
-        async clearByChannelId() {
-            return undefined;
-        },
-    };
-};
+import { createPartitionedMemoryStorage } from './__mocks__/MemoryCacheStorage';
 
 describe('JoinLocalDataSource', () => {
     const contextProvider = {
@@ -54,7 +13,7 @@ describe('JoinLocalDataSource', () => {
     };
 
     it('filters by channel and activeOnly so archived joins do not leak into active views', async () => {
-        const storage = createMemoryStorage();
+        const storage = createPartitionedMemoryStorage('join');
         const dataSource = new JoinLocalDataSource(contextProvider as any, storage);
 
         await dataSource.cacheWriteMany([
@@ -70,7 +29,7 @@ describe('JoinLocalDataSource', () => {
     });
 
     it('throws when join list input is missing channelId instead of masking the caller bug', async () => {
-        const storage = createMemoryStorage();
+        const storage = createPartitionedMemoryStorage('join');
         const dataSource = new JoinLocalDataSource(contextProvider as any, storage);
 
         await expect(dataSource.cacheReadList({ activeOnly: true } as any)).rejects.toThrow(
@@ -79,7 +38,7 @@ describe('JoinLocalDataSource', () => {
     });
 
     it('deletes multiple joins in one call so channel membership snapshots can be reconciled in bulk', async () => {
-        const storage = createMemoryStorage();
+        const storage = createPartitionedMemoryStorage('join');
         const dataSource = new JoinLocalDataSource(contextProvider as any, storage);
 
         await dataSource.cacheWriteMany([

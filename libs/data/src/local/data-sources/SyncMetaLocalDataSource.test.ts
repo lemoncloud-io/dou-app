@@ -1,7 +1,7 @@
 import type { CacheTtlMeta } from '@chatic/app-messages';
 import { logger } from '@chatic/bridges';
-import type { CacheStorage } from '../ports';
 import { SyncMetaLocalDataSource } from './SyncMetaLocalDataSource';
+import { createPartitionedMemoryStorage } from './__mocks__/MemoryCacheStorage';
 
 jest.mock('@chatic/bridges', () => ({
     logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
@@ -13,26 +13,22 @@ const MINUTE_MS = 60 * 1000;
 // Temporarily 5 minutes while data is migrating — restore to 30 with storages/utils.
 const TTL_MS = 5 * MINUTE_MS;
 
-describe('SyncMetaLocalDataSource', () => {
-    const createSource = (
-        loaded?: { syncedAt?: number; routing?: string; __cacheMeta?: CacheTtlMeta } | null,
-        routingFingerprint?: string
-    ) => {
-        const save = jest.fn().mockResolvedValue(undefined);
-        const storage = {
-            load: jest.fn().mockResolvedValue(loaded ?? null),
-            save,
-        } as unknown as CacheStorage<'meta'>;
-        const contextProvider = {
-            getContext: () => ({ cid: 'cloud-a', uid: 'me' }),
-            setContext: () => undefined,
-        };
-        return {
-            source: new SyncMetaLocalDataSource(contextProvider, storage, routingFingerprint),
-            save,
-        };
-    };
+const CONTEXT = { cid: 'cloud-a', uid: 'me' };
 
+/** A source whose partition answers `loaded` for the cursor row; `save` spies on that partition's writes. */
+const createSource = (
+    loaded?: { syncedAt?: number; routing?: string; __cacheMeta?: CacheTtlMeta } | null,
+    routingFingerprint?: string
+) => {
+    const metas = createPartitionedMemoryStorage('meta');
+    const storage = metas.forScope(CONTEXT);
+    jest.spyOn(storage, 'load').mockResolvedValue((loaded ?? null) as never);
+    const save = jest.spyOn(storage, 'save');
+    const provider = { getContext: () => CONTEXT, setContext: () => undefined };
+    return { source: new SyncMetaLocalDataSource(provider, metas, routingFingerprint), save };
+};
+
+describe('SyncMetaLocalDataSource', () => {
     // Adapters stamp __cacheMeta on save; tests reproduce it relative to now.
     const metaSavedAgo = (elapsedMs: number): CacheTtlMeta => {
         const lastSyncedAt = Date.now() - elapsedMs;
@@ -89,25 +85,6 @@ describe('SyncMetaLocalDataSource — a cursor whose routing changed', () => {
     const ROUTING = 'chat:native,channel:native';
     const MOVED = 'chat:web,channel:native';
 
-    const createSource = (
-        loaded: { syncedAt?: number; routing?: string; __cacheMeta?: CacheTtlMeta } | null,
-        routingFingerprint?: string
-    ) => {
-        const save = jest.fn().mockResolvedValue(undefined);
-        const storage = {
-            load: jest.fn().mockResolvedValue(loaded),
-            save,
-        } as unknown as CacheStorage<'meta'>;
-        const contextProvider = {
-            getContext: () => ({ cid: 'cloud-a', uid: 'me' }),
-            setContext: () => undefined,
-        };
-        return {
-            source: new SyncMetaLocalDataSource(contextProvider, storage, routingFingerprint),
-            save,
-        };
-    };
-
     const fresh = (routing?: string) => ({
         syncedAt: 1234,
         routing,
@@ -154,26 +131,11 @@ describe('SyncMetaLocalDataSource — recording a discarded cursor (ADR-0099)', 
     const ROUTING = 'chat:native,channel:native';
     const warn = logger.warn as jest.Mock;
 
-    const createSource = (
-        loaded?: { syncedAt?: number; routing?: string; __cacheMeta?: CacheTtlMeta } | null,
-        routingFingerprint?: string
-    ) => {
-        const storage = {
-            load: jest.fn().mockResolvedValue(loaded ?? null),
-            save: jest.fn().mockResolvedValue(undefined),
-        } as unknown as CacheStorage<'meta'>;
-        const contextProvider = {
-            getContext: () => ({ cid: 'cloud-a', uid: 'me' }),
-            setContext: () => undefined,
-        };
-        return new SyncMetaLocalDataSource(contextProvider, storage, routingFingerprint);
-    };
-
     beforeEach(() => jest.clearAllMocks());
 
     // Discarding a cursor makes the next sync refetch everything with since=0 — where that surge came from has to be on the record.
     it('discarding on a changed routing fingerprint is recorded with the reason', async () => {
-        const source = createSource({ syncedAt: 1234, routing: 'old-routing' }, ROUTING);
+        const { source } = createSource({ syncedAt: 1234, routing: 'old-routing' }, ROUTING);
 
         await expect(source.getSyncedAt('channel-sync:cloud-a')).resolves.toBe(0);
         expect(warn).toHaveBeenCalledTimes(1);
@@ -187,7 +149,7 @@ describe('SyncMetaLocalDataSource — recording a discarded cursor (ADR-0099)', 
 
     it('discarding on TTL expiry is recorded under a different reason', async () => {
         const stale = { lastSyncedAt: Date.now() - 60 * 60 * 1000 } as CacheTtlMeta;
-        const source = createSource({ syncedAt: 1234, routing: ROUTING, __cacheMeta: stale }, ROUTING);
+        const { source } = createSource({ syncedAt: 1234, routing: ROUTING, __cacheMeta: stale }, ROUTING);
 
         await expect(source.getSyncedAt('profile-sync:cloud-a:s1')).resolves.toBe(0);
         expect(warn.mock.calls[0][2]).toEqual({
@@ -199,7 +161,7 @@ describe('SyncMetaLocalDataSource — recording a discarded cursor (ADR-0099)', 
 
     // No row at all is a first sync — counting an ordinary cold start as a discard makes noise on every boot.
     it('nothing is recorded when there is no row (a first sync)', async () => {
-        const source = createSource(null, ROUTING);
+        const { source } = createSource(null, ROUTING);
 
         await expect(source.getSyncedAt('channel-sync:cloud-a')).resolves.toBe(0);
         expect(warn).not.toHaveBeenCalled();
@@ -207,7 +169,7 @@ describe('SyncMetaLocalDataSource — recording a discarded cursor (ADR-0099)', 
 
     it('nothing is recorded when a valid cursor is read', async () => {
         const meta = { lastSyncedAt: Date.now() } as CacheTtlMeta;
-        const source = createSource({ syncedAt: 1234, routing: ROUTING, __cacheMeta: meta }, ROUTING);
+        const { source } = createSource({ syncedAt: 1234, routing: ROUTING, __cacheMeta: meta }, ROUTING);
 
         await expect(source.getSyncedAt('channel-sync:cloud-a')).resolves.toBe(1234);
         expect(warn).not.toHaveBeenCalled();

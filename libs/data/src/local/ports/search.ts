@@ -29,10 +29,10 @@ export interface GlobalCacheRef {
  * What a search result row needs beyond the matched row itself: the owning place/channel names,
  * my read cursor (for the unread count) and the newest cached message.
  *
- * Repositories cannot answer this — `cacheRead` ignores the context override and `cacheReadList`
- * applies it to sid filtering only, so the existing override is a sid override, not a cid one
- * (ChannelLocalDataSource.ts:39,53). Hence it lives on the search source, next to the only
- * other cross-cloud reader in the codebase.
+ * It lives on the search source, next to the only other cross-cloud reader in the codebase, rather
+ * than on the repositories: a repository reads one partition per call, while this answers for every
+ * cloud in the results at once — on native, one bridge round trip instead of one per cloud per
+ * domain.
  */
 export interface GlobalCacheContextQuery {
     uid: string;

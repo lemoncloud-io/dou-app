@@ -1,3 +1,6 @@
+import { foreignDropAggregator, type ForeignDropSource } from '@chatic/logger';
+import { isForeignContext } from './scopeGuards';
+
 export const createSnapshotDataContextProvider = (context: DataContext): DataContextProvider => {
     const snapshot = { ...context };
     return {
@@ -86,6 +89,32 @@ export abstract class BaseRepository {
             return value;
         }
         throw new Error(`[Repository] ${fieldName} is required.`);
+    }
+
+    /**
+     * Whether the answer to a request captured as `requestContext` may be written to the cache.
+     * False while the socket serving it is bound to a different cloud than the scope — the optimistic
+     * window of a cloud switch, where `cid` has flipped but the old socket still answers — and the
+     * skip is then recorded under `source` so the stale list it leaves behind is explained.
+     *
+     * **It judges the captured context, never the live one.** An answer is written into the
+     * partition its request was captured for, so the only question is which cloud answered, and that
+     * was settled when the request left. Asking the live context after the await gets both cases
+     * backwards: it drops a good answer to a request sent just before a switch, and accepts one sent
+     * during the window as soon as the socket has rebound.
+     *
+     * A call site may ask before the request (skip the round trip entirely, when nothing is owed to
+     * the caller) or after it (return the answer, just don't cache it) — the verdict is the same
+     * either way, because it depends on the captured context alone.
+     */
+    protected acceptsAnswer(requestContext: DataContext, source: ForeignDropSource): boolean {
+        if (!isForeignContext(requestContext)) return true;
+        foreignDropAggregator.record({
+            source,
+            cid: requestContext.cid ?? 'default',
+            socketCid: requestContext.socketCid ?? 'none',
+        });
+        return false;
     }
 
     /**

@@ -7,21 +7,15 @@ import { createDomainListResult, toDomainPlace } from '../../domain';
 import type { DataContext } from '../../repositories/types';
 
 export type PlaceCreateInput = Parameters<PlaceSocketDomainGateway['create']>[0];
-export type PlaceGetInput = Parameters<PlaceSocketDomainGateway['get']>[0];
 export type PlaceUpdateInput = Parameters<PlaceSocketDomainGateway['update']>[0];
-export type PlaceDeleteInput = Parameters<PlaceSocketDomainGateway['delete']>[0];
 
 export interface IPlaceSocketDataSource {
     /** Requests the places (= sites) a user can reach and returns them as domain models. */
     fetchPlace(payload: UserMySiteInput | undefined, context: DataContext): Promise<DomainListResult<DomainPlace>>;
     /** Requests creation of a new place. */
     createPlace(payload: PlaceCreateInput, context: DataContext): Promise<DomainPlace>;
-    /** Requests a single place. */
-    getPlace(payload: PlaceGetInput, context: DataContext): Promise<DomainPlace>;
     /** Requests an edit to a place. */
     updatePlace(payload: PlaceUpdateInput, context: DataContext): Promise<DomainPlace>;
-    /** Requests deletion of a place. */
-    deletePlace(payload: PlaceDeleteInput, context: DataContext): Promise<DomainPlace>;
 }
 
 /**
@@ -56,18 +50,8 @@ export class PlaceSocketDataSource implements IPlaceSocketDataSource {
         return toDomainPlace({ ...profile, ...site$ } as MySiteView, context);
     }
 
-    public async getPlace(payload: PlaceGetInput, context: DataContext): Promise<DomainPlace> {
-        const remote = await this.gateway.get<MySiteView>(payload);
-        return toDomainPlace((remote || {}) as MySiteView, context);
-    }
-
     public async updatePlace(payload: PlaceUpdateInput, context: DataContext): Promise<DomainPlace> {
         const remote = await this.gateway.update<MySiteView>(payload);
-        return toDomainPlace((remote || {}) as MySiteView, context);
-    }
-
-    public async deletePlace(payload: PlaceDeleteInput, context: DataContext): Promise<DomainPlace> {
-        const remote = await this.gateway.delete<MySiteView>(payload);
         return toDomainPlace((remote || {}) as MySiteView, context);
     }
 }

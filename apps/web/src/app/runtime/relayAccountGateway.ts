@@ -12,10 +12,9 @@ import { runtime } from '@chatic/app-runtime';
  * regardless of the active slot, so they talk to the relay slot directly.
  *
  * Deliberately NOT wired through a repository. Repositories cache, and the cache is physically
- * partitioned by `${cid}:${uid}` with a read path that ignores context overrides — so a relay row
- * written while a cloud is active is unreachable, which is exactly why the earlier data-layer
- * attempt at this was reverted (ADR-0094 decision 5; apps/web/docs/feature/place/
- * relay-default-place-scoping.md §6). Reading the relay token instead of a cache is what makes the
+ * partitioned by `${cid}:${uid}` and read under the live scope — so a relay row written while a cloud
+ * is active is one the repositories will not read back, which is why the earlier data-layer attempt
+ * at this was reverted (apps/web/docs/feature/place/relay-default-place-scoping.md §6). Reading the relay token instead of a cache is what makes the
  * app-level version work, so this gateway only ever moves data in and out of that token.
  *
  * Built once and reused: `getScopedClient` resolves its slot lazily on every call, so the instance

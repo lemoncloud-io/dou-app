@@ -1,7 +1,7 @@
 import type { CacheMetaView } from '@chatic/app-messages';
 import type { DataContextProvider } from '../../repositories/types';
 import { logger, type ObservationData } from '@chatic/bridges';
-import type { CacheStorage } from '../ports';
+import type { ScopedCacheStorage } from '../ports';
 import { resolveTtlMs } from '../ports/policy';
 import { BaseLocalDataSource } from './types';
 
@@ -25,7 +25,7 @@ export interface ISyncMetaLocalDataSource {
  *    would claim "already synced up to T" over an empty store and only deltas after T would arrive.
  *    Stamping the cursor with the routing in force when it was written turns that into a mismatch.
  */
-export class SyncMetaLocalDataSource extends BaseLocalDataSource implements ISyncMetaLocalDataSource {
+export class SyncMetaLocalDataSource extends BaseLocalDataSource<'meta'> implements ISyncMetaLocalDataSource {
     /**
      * @param routingFingerprint Identifies the storage routing these cursors were written under.
      *   Deliberately covers EVERY cache type rather than just the domains that have cursors: the
@@ -37,14 +37,14 @@ export class SyncMetaLocalDataSource extends BaseLocalDataSource implements ISyn
      */
     constructor(
         contextProvider: DataContextProvider,
-        private readonly cacheStorage: CacheStorage<'meta'>,
+        storages: ScopedCacheStorage<'meta'>,
         private readonly routingFingerprint?: string
     ) {
-        super(contextProvider);
+        super(contextProvider, storages);
     }
 
     public async getSyncedAt(kind: string): Promise<number> {
-        const row = await this.cacheStorage.load(kind);
+        const row = await this.storage().load(kind);
         // No row at all is a first sync, not a retirement — the common cold-start path stays silent.
         if (!row) return 0;
         // A cursor written before this stamp existed has no `routing` and cannot be shown to
@@ -96,6 +96,6 @@ export class SyncMetaLocalDataSource extends BaseLocalDataSource implements ISyn
             syncedAt,
             ...(this.routingFingerprint ? { routing: this.routingFingerprint } : {}),
         };
-        await this.cacheStorage.save(kind, view);
+        await this.storage().save(kind, view);
     }
 }

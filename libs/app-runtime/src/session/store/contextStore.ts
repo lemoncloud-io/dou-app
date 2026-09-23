@@ -65,8 +65,9 @@ export const getActiveSessionUser = (): Record<string, unknown> | null => {
  *
  * This is the read half of the account-level profile source: account screens (MY page and what it
  * opens) must show the relay account no matter which cloud the user is connected to, and the local
- * cache cannot answer that question — its physical key is `${type}:${cid}:${uid}:${id}` and the read
- * path ignores context overrides, so while a cloud is active the relay `user` row is unreachable
+ * cache does not answer that question — its physical key is `${type}:${cid}:${uid}:${id}` and the
+ * repositories read it under the live scope, so while a cloud is active the relay `user` row is out
+ * of their reach
  * (see apps/web/docs/feature/place/relay-default-place-scoping.md §6). The relay token, by contrast,
  * is always present and always the relay account's: it carries `name`/`photo`/`email`/`link$`
  * because `UserTokenView extends UserView extends Partial<UserModel>`.

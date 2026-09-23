@@ -2,7 +2,7 @@ import type { ChatUsersInput } from '@lemoncloud/chatic-sockets-api';
 import type { DomainListResult, DomainUser } from '../../domain';
 import { createDomainListResult } from '../../domain';
 import type { DataContextProvider } from '../../repositories/types';
-import type { CacheStorage } from '../ports';
+import type { ScopedCacheStorage } from '../ports';
 import {
     BaseLocalDataSource,
     type ILocalDataSource,
@@ -17,35 +17,29 @@ export interface IUserLocalDataSource
 }
 
 /** Caches channel user snapshots locally and reuses scoped keys for list observation. */
-export class UserLocalDataSource extends BaseLocalDataSource implements IUserLocalDataSource {
-    constructor(
-        contextProvider: DataContextProvider,
-        private readonly cacheStorage: CacheStorage<'user'>
-    ) {
-        super(contextProvider);
+export class UserLocalDataSource extends BaseLocalDataSource<'user'> implements IUserLocalDataSource {
+    constructor(contextProvider: DataContextProvider, storages: ScopedCacheStorage<'user'>) {
+        super(contextProvider, storages);
     }
 
-    public async cacheRead(id: string, _contextOverride?: LocalDataSourceContextOverride): Promise<DomainUser | null> {
+    public async cacheRead(id: string, contextOverride?: LocalDataSourceContextOverride): Promise<DomainUser | null> {
         const requiredId = this.assertRequiredString(id, 'id');
-        return this.cacheStorage.load(requiredId);
+        return this.storage(contextOverride).load(requiredId);
     }
 
-    public async cacheReadMany(
-        ids: string[],
-        _contextOverride?: LocalDataSourceContextOverride
-    ): Promise<DomainUser[]> {
+    public async cacheReadMany(ids: string[], contextOverride?: LocalDataSourceContextOverride): Promise<DomainUser[]> {
         if (ids.length === 0) return [];
         // `loadMany` already drops absent ids, so no extra filter is needed. The returned order is
         // unrelated to `ids` — callers (looking up chat authors in useChats, for instance) find by id
         // and do not use the order.
-        return this.cacheStorage.loadMany(ids);
+        return this.storage(contextOverride).loadMany(ids);
     }
 
     public async cacheReadList(
         query: ChatUsersInput,
-        _contextOverride?: LocalDataSourceContextOverride
+        contextOverride?: LocalDataSourceContextOverride
     ): Promise<DomainListResult<DomainUser> | null> {
-        const allUsers = await this.cacheStorage.loadAll();
+        const allUsers = await this.storage(contextOverride).loadAll();
         let users = allUsers;
 
         if (query.channelId) {
@@ -85,9 +79,10 @@ export class UserLocalDataSource extends BaseLocalDataSource implements IUserLoc
         item: Partial<DomainUser>,
         contextOverride?: LocalDataSourceContextOverride
     ): Promise<void> {
+        const scope = this.resolveContext(contextOverride);
         const id = this.assertRequiredString(item.id, 'id');
-        const existing = await this.cacheStorage.load(id);
-        const context = this.getContext(contextOverride);
+        const storage = this.storage(scope);
+        const existing = await storage.load(id);
 
         // Channel membership is preserved by unioning the mapped `channelIds`.
         const channelIds = Array.from(new Set([...(existing?.channelIds || []), ...(item.channelIds || [])]));
@@ -96,24 +91,25 @@ export class UserLocalDataSource extends BaseLocalDataSource implements IUserLoc
             ...(existing ?? ({} as DomainUser)),
             ...item,
             id,
-            cid: item.cid || existing?.cid || context.cid || 'default',
+            cid: item.cid || existing?.cid || scope.cid || 'default',
             channelIds,
         };
 
-        await this.cacheStorage.save(id, merged);
-        this.scheduleItemReemit([id], contextOverride);
-        this.scheduleListReemit(this.getAffectedListPrefixes([existing, merged], contextOverride));
+        await storage.save(id, merged);
+        this.scheduleItemReemit([id], scope);
+        this.scheduleListReemit(this.getAffectedListPrefixes([existing, merged], scope));
     }
 
     public async cacheWriteMany(
         items: Array<Partial<DomainUser>>,
         contextOverride?: LocalDataSourceContextOverride
     ): Promise<void> {
+        const scope = this.resolveContext(contextOverride);
         const validItems = items.filter(item => !!item.id);
         if (validItems.length === 0) return;
 
-        const context = this.getContext(contextOverride);
-        const existingItems = await this.cacheStorage.loadMany(validItems.map(item => item.id!));
+        const storage = this.storage(scope);
+        const existingItems = await storage.loadMany(validItems.map(item => item.id!));
         const existingById = this.indexById(existingItems);
 
         const mergedList = validItems.map(item => {
@@ -124,36 +120,40 @@ export class UserLocalDataSource extends BaseLocalDataSource implements IUserLoc
                 ...(existing ?? ({} as DomainUser)),
                 ...item,
                 id: item.id!,
-                cid: item.cid || existing?.cid || context.cid || 'default',
+                cid: item.cid || existing?.cid || scope.cid || 'default',
                 channelIds,
             } as DomainUser;
         });
 
-        await this.cacheStorage.saveAll(mergedList);
-        this.scheduleItemReemit(validItems.map(item => item.id!).filter(Boolean), contextOverride);
-        this.scheduleListReemit(this.getAffectedListPrefixes([...existingItems, ...mergedList], contextOverride));
+        await storage.saveAll(mergedList);
+        this.scheduleItemReemit(validItems.map(item => item.id!).filter(Boolean), scope);
+        this.scheduleListReemit(this.getAffectedListPrefixes([...existingItems, ...mergedList], scope));
     }
 
     public async cacheDelete(id: string, contextOverride?: LocalDataSourceContextOverride): Promise<void> {
+        const scope = this.resolveContext(contextOverride);
         const requiredId = this.assertRequiredString(id, 'id');
-        const existing = await this.cacheStorage.load(requiredId);
-        await this.cacheStorage.delete(requiredId);
-        this.scheduleItemReemit([requiredId], contextOverride);
-        this.scheduleListReemit(this.getAffectedListPrefixes(existing ? [existing] : [], contextOverride));
+        const storage = this.storage(scope);
+        const existing = await storage.load(requiredId);
+        await storage.delete(requiredId);
+        this.scheduleItemReemit([requiredId], scope);
+        this.scheduleListReemit(this.getAffectedListPrefixes(existing ? [existing] : [], scope));
     }
 
     public async cacheDeleteMany(ids: string[], contextOverride?: LocalDataSourceContextOverride): Promise<void> {
+        const scope = this.resolveContext(contextOverride);
         const validIds = ids.filter(Boolean);
         if (validIds.length === 0) return;
         // Only the affected channel set is needed, so ids omitted because they are absent do not matter.
-        const existingItems = await this.cacheStorage.loadMany(validIds);
-        await this.cacheStorage.deleteAll(validIds);
-        this.scheduleItemReemit(validIds, contextOverride);
-        this.scheduleListReemit(this.getAffectedListPrefixes(existingItems, contextOverride));
+        const storage = this.storage(scope);
+        const existingItems = await storage.loadMany(validIds);
+        await storage.deleteAll(validIds);
+        this.scheduleItemReemit(validIds, scope);
+        this.scheduleListReemit(this.getAffectedListPrefixes(existingItems, scope));
     }
 
-    public async cacheClear(_contextOverride?: LocalDataSourceContextOverride): Promise<void> {
-        await this.cacheStorage.clearAll();
+    public async cacheClear(contextOverride?: LocalDataSourceContextOverride): Promise<void> {
+        await this.storage(contextOverride).clearAll();
         this.scheduleFullReemit();
     }
 

@@ -1,45 +1,5 @@
-import type { CacheStorage } from '../ports';
 import { InviteLocalDataSource } from './InviteLocalDataSource';
-
-const createMemoryStorage = (): CacheStorage<'invite'> => {
-    const map = new Map<string, any>();
-    return {
-        async save(id, item) {
-            map.set(id, { ...item });
-            return item;
-        },
-        async saveAll(items) {
-            items.forEach(item => item?.id && map.set(item.id, { ...item }));
-            return items;
-        },
-        async load(id) {
-            return map.has(id) ? { ...map.get(id) } : null;
-        },
-        async loadMany(ids) {
-            // Per the contract this omits absent ids and guarantees no order (it returns them
-            // reversed) — this fixture exists so that any code pairing by position breaks here.
-            return ids
-                .filter(id => map.has(id))
-                .map(id => ({ ...map.get(id) }))
-                .reverse();
-        },
-        async loadAll() {
-            return Array.from(map.values()).map(item => ({ ...item }));
-        },
-        async delete(id) {
-            map.delete(id);
-        },
-        async deleteAll(ids) {
-            ids.forEach(id => map.delete(id));
-        },
-        async clearAll() {
-            map.clear();
-        },
-        async clearByChannelId() {
-            return undefined;
-        },
-    };
-};
+import { createPartitionedMemoryStorage } from './__mocks__/MemoryCacheStorage';
 
 const contextProvider = {
     current: { cid: 'default', uid: 'u1' },
@@ -53,7 +13,7 @@ const contextProvider = {
 
 describe('InviteLocalDataSource', () => {
     it('sorts by createdAt descending (newest first), matching invite.list order', async () => {
-        const storage = createMemoryStorage();
+        const storage = createPartitionedMemoryStorage('invite');
         const dataSource = new InviteLocalDataSource(contextProvider as any, storage);
 
         await dataSource.cacheWriteMany([
@@ -68,7 +28,7 @@ describe('InviteLocalDataSource', () => {
     });
 
     it('tie-breaks equal/missing createdAt by id descending, deterministically', async () => {
-        const storage = createMemoryStorage();
+        const storage = createPartitionedMemoryStorage('invite');
         const dataSource = new InviteLocalDataSource(contextProvider as any, storage);
 
         await dataSource.cacheWriteMany([{ id: 'a' } as any, { id: 'b' } as any, { id: 'c' } as any]);
@@ -82,7 +42,7 @@ describe('InviteLocalDataSource', () => {
     // list-sync write never mentions `dismissedAt`, so the merge in cacheWriteMany leaves it alone.
     describe('list-sync overwrite preserves dismissedAt', () => {
         it('cacheWriteMany overwrites server-owned fields but keeps a local dismissedAt stamp', async () => {
-            const storage = createMemoryStorage();
+            const storage = createPartitionedMemoryStorage('invite');
             const dataSource = new InviteLocalDataSource(contextProvider as any, storage);
 
             await dataSource.cacheWrite({ id: 'i1', state: 'rejected' } as any);
@@ -98,7 +58,7 @@ describe('InviteLocalDataSource', () => {
         });
 
         it('cacheWrite (single) also preserves fields the patch omits', async () => {
-            const storage = createMemoryStorage();
+            const storage = createPartitionedMemoryStorage('invite');
             const dataSource = new InviteLocalDataSource(contextProvider as any, storage);
 
             await dataSource.cacheWrite({ id: 'i1', state: 'pending', name: 'Alice' } as any);
@@ -112,7 +72,7 @@ describe('InviteLocalDataSource', () => {
     });
 
     it('never deletes rows outside a list-sync batch — cacheWriteMany only upserts', async () => {
-        const storage = createMemoryStorage();
+        const storage = createPartitionedMemoryStorage('invite');
         const dataSource = new InviteLocalDataSource(contextProvider as any, storage);
 
         await dataSource.cacheWriteMany([{ id: 'windowed-out', createdAt: 1 } as any]);
@@ -124,7 +84,7 @@ describe('InviteLocalDataSource', () => {
     });
 
     it('cacheDelete removes a single row (used to drain a reconciled dismiss stub)', async () => {
-        const storage = createMemoryStorage();
+        const storage = createPartitionedMemoryStorage('invite');
         const dataSource = new InviteLocalDataSource(contextProvider as any, storage);
 
         await dataSource.cacheWrite({ id: 'stub-1', dismissedAt: 1 } as any);
@@ -134,7 +94,7 @@ describe('InviteLocalDataSource', () => {
     });
 
     it('cacheWrite/cacheWriteMany stamp the current cid/uid scope', async () => {
-        const storage = createMemoryStorage();
+        const storage = createPartitionedMemoryStorage('invite');
         const dataSource = new InviteLocalDataSource(contextProvider as any, storage);
 
         await dataSource.cacheWrite({ id: 'i1' } as any);
@@ -145,7 +105,7 @@ describe('InviteLocalDataSource', () => {
     });
 
     it('cacheClear empties the scope', async () => {
-        const storage = createMemoryStorage();
+        const storage = createPartitionedMemoryStorage('invite');
         const dataSource = new InviteLocalDataSource(contextProvider as any, storage);
 
         await dataSource.cacheWriteMany([{ id: 'i1' } as any, { id: 'i2' } as any]);
@@ -163,7 +123,7 @@ describe('InviteLocalDataSource', () => {
         afterEach(() => jest.useRealTimers());
 
         it('notifies subscribers after a cacheWriteMany', async () => {
-            const storage = createMemoryStorage();
+            const storage = createPartitionedMemoryStorage('invite');
             const dataSource = new InviteLocalDataSource(contextProvider as any, storage);
 
             const cb = jest.fn();
