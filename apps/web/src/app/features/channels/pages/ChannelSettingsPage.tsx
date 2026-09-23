@@ -390,7 +390,7 @@ export const ChannelSettingsPage = () => {
                     join nick, because the server seeds that field and nothing in the value says
                     whether a person wrote it. So the row stays, and stops being a button — an
                     editor that saves a name no screen will ever show is worse than no editor. It
-                    opens again when the field can be trusted (ADR-0111). */}
+                    opens again when the field can be trusted (ADR-0113). */}
                 <ListRow
                     leading={roomAvatar}
                     title={roomTitle}
@@ -540,7 +540,7 @@ export const ChannelSettingsPage = () => {
                 isKicking={isPending.leave}
                 onOpenProfileSettings={() => openDialog('profileSettings')}
                 /**
-                 * Opening a 1:1 from here is a cloud act (ADR-0111). Three conditions, each
+                 * Opening a 1:1 from here is a cloud act (ADR-0113). Three conditions, each
                  * closing a way of offering a room that cannot be opened:
                  *
                  * - **Not on relay.** There a 1:1 is reached by phone number, and this path has no

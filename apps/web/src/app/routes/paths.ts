@@ -48,7 +48,7 @@ export const ROUTES = {
         invite: (channelId: string) => `/channels/${channelId}/invite`,
         inviteLink: (channelId: string) => `/channels/${channelId}/invite/link`,
         // Pick who to open a cloud 1:1 with. No channel id — the room does not exist yet, and
-        // the server decides which one it is from the pair (ADR-0111).
+        // the server decides which one it is from the pair (ADR-0113).
         startDm: '/channels/start-dm',
     },
 

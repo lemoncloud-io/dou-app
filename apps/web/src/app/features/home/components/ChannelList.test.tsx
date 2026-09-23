@@ -301,7 +301,7 @@ describe('ChannelList self-chat row', () => {
 
 // ADR-0039: a DM row shows the person, not the channel. Name, avatar, and member count all follow from that.
 describe('ChannelList — 1:1(DM) 행', () => {
-    // `cid` carries the lineage — the relay cloud vs a subscription one (ADR-0111). Not `sid`:
+    // `cid` carries the lineage — the relay cloud vs a subscription one (ADR-0113). Not `sid`:
     // the server overwrites that, and it says where a room's creator stood, not which cloud it is in.
     const dmChannel = (over: any = {}) =>
         makeChannel({
@@ -654,7 +654,7 @@ describe('ChannelList 생성 메뉴', () => {
     });
 
     // The two used to be one flag. Splitting them is only worth anything if neither moves the
-    // other, so both directions are pinned here (ADR-0111).
+    // other, so both directions are pinned here (ADR-0113).
     it('1:1 표시 조건은 그룹 업셀 규칙을 건드리지 않는다', () => {
         renderMenu({ isDefaultCloud: true, isPro: true, showOneOnOneCreate: false });
 

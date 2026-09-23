@@ -50,7 +50,7 @@ describe('resolveChannelTitle', () => {
 
     // ADR-0039: a DM never reaches the owner/member branch. The inviter is the owner, so hitting
     // that branch would let the server-made channel.name win and ignore the peer's profile — the cause of the mismatch with the room screen.
-    // The lineage reads `cid` — the relay cloud vs a subscription one (ADR-0111). These cases are
+    // The lineage reads `cid` — the relay cloud vs a subscription one (ADR-0113). These cases are
     // the relay lineage unless they say otherwise.
     describe('DM 채널', () => {
         it('내 join nick을 최우선한다', () => {
@@ -111,7 +111,7 @@ describe('resolveChannelTitle', () => {
 
     // The server seeds `join.nick` on a room nobody has named, and a seeded value that looks like a
     // person cannot be told from one a person typed. A cloud 1:1 has no step where a name IS typed,
-    // so it drops that rung rather than trust it (ADR-0111).
+    // so it drops that rung rather than trust it (ADR-0113).
     describe('DM 채널 — 클라우드 계보', () => {
         it('사람 이름처럼 생긴 join nick이어도 무시하고 프로필 닉을 쓴다', () => {
             const title = resolveChannelTitle({

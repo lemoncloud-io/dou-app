@@ -31,7 +31,7 @@ interface MemberProfileDialogProps {
     /**
      * Open a 1:1 with this member. Present only where that is possible at all — the host decides
      * that, the same way it decides `canKick`, so this component keeps one row-composition rule
-     * instead of growing a second axis to branch on (ADR-0111).
+     * instead of growing a second axis to branch on (ADR-0113).
      */
     onStartDm?: () => void;
 }

@@ -177,7 +177,7 @@ const DM_CHANNEL = {
         stereo: 'dm',
         ownerId: 'me',
         name: '서버 이름',
-        // The relay cloud — `cid` is what the lineage reads (ADR-0111).
+        // The relay cloud — `cid` is what the lineage reads (ADR-0113).
         cid: 'default',
         sid: 's1',
     },
@@ -305,7 +305,7 @@ describe('ChannelSettingsPage', () => {
         });
 
         // A cloud 1:1's title skips `join.nick`, so an editor for it would save a name no screen
-        // ever shows. The row stays (it is the title) and stops being a button (ADR-0111).
+        // ever shows. The row stays (it is the title) and stops being a button (ADR-0113).
         it('클라우드 1:1은 이름 행이 버튼이 아니다 — 저장해도 보이지 않을 값이라', () => {
             channelValue = { ...DM_CHANNEL, channel: { ...DM_CHANNEL.channel, cid: '1000001' } };
             dmPeerValue = { id: 'peer', profileNick: '치이카와' };

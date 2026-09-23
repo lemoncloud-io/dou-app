@@ -228,7 +228,7 @@ interface ChannelListProps {
     /**
      * The place whose profiles name the people in these rows. Usually the place being listed; for
      * the cloud 1:1 section it is the place the READER is standing in, because a cloud 1:1 has none
-     * of its own (`profilePlaceOf`, ADR-0111).
+     * of its own (`profilePlaceOf`, ADR-0113).
      */
     sid: string;
     isLoading: boolean;
@@ -251,7 +251,7 @@ interface ChannelListProps {
     /**
      * Show the "1:1 대화" entry in the create popover. A 1:1 is reachable two ways that look the
      * same here and are not: by inviting a phone number on relay, and by picking a member inside a
-     * cloud. This component draws the entry; where the tap goes is the host's call (ADR-0111).
+     * cloud. This component draws the entry; where the tap goes is the host's call (ADR-0113).
      */
     showOneOnOneCreate?: boolean;
     /** Drives the PRO badge on "그룹 방 만들기" — and, on relay, whether that entry shows at all. */
@@ -260,7 +260,7 @@ interface ChannelListProps {
     sortMethod?: ChannelSortMethod;
     /** Channel ids pinned in this place (client preference) — pinned rows float to the top. */
     pinnedChannelIds?: ReadonlySet<string>;
-    /** Start a 1:1 — the host picks the destination by cloud kind (ADR-0111). */
+    /** Start a 1:1 — the host picks the destination by cloud kind (ADR-0113). */
     onCreateOneOnOne?: () => void;
     /** Cloud: create a group room (host applies the PRO gate). */
     onCreateGroup?: () => void;
@@ -368,7 +368,7 @@ export const ChannelList = ({
 
     // The popover opens for either entry, not for group-create alone. An invited member may open a
     // 1:1 — they share rooms with these people, which is the whole premise — while creating rooms
-    // stays shut to them, so the two conditions have to be able to disagree (ADR-0111).
+    // stays shut to them, so the two conditions have to be able to disagree (ADR-0113).
     const createMenu =
         showGroupCreate || showOneOnOneCreate ? (
             <DropdownMenu>
