@@ -555,6 +555,21 @@
             "confirm": "나가기"
         }
     },
+    "cloudDm": {
+        "picker": {
+            "title": "1:1 대화 상대",
+            "searchPlaceholder": "이름으로 검색",
+            "empty": "아직 대화할 수 있는 사람이 없어요",
+            "emptyHint": "같은 방에 있는 사람과 1:1 대화를 시작할 수 있어요.",
+            "noMatch": "검색 결과가 없어요",
+            "failed": "1:1 대화를 열지 못했어요"
+        },
+        "section": {
+            "title": "1:1 대화",
+            "empty": "아직 1:1 대화가 없어요"
+        },
+        "startFromProfile": "1:1 대화하기"
+    },
     "channelList": {
         "noDescription": "채널 설명 없음",
         "errorLoading": "채널을 불러올 수 없습니다",

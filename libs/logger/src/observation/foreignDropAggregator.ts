@@ -5,7 +5,13 @@ import { logger } from '../runtime';
  * Where a drop happened. A plain label, not a domain concept — it exists so the aggregate says which
  * of the ten skip sites produced the count rather than reporting an anonymous number.
  */
-export type ForeignDropSource = 'channel-refresh' | 'channel-sync' | 'channel-self' | 'place-refresh' | 'sync-frame';
+export type ForeignDropSource =
+    | 'channel-refresh'
+    | 'channel-sync'
+    | 'channel-self'
+    | 'channel-start-dm'
+    | 'place-refresh'
+    | 'sync-frame';
 
 export interface ForeignDropInput {
     source: ForeignDropSource;

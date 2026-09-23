@@ -178,4 +178,41 @@ describe('ChannelLocalDataSource', () => {
             await expect(dataSource.cacheWrite({ id: 'ch-1' } as any)).rejects.toThrow(/sid is required/);
         });
     });
+
+    // A 1:1 briefly had a write path of its own that blanked the place field, on the premise that a
+    // cloud 1:1 belongs to no place. The server assigns one and returns it on every read, so the
+    // blank was refilled by the next sync — and an empty sid meant both "no place" and "place
+    // unknown", which is what the chain below exists to resolve. The field is stored as the server
+    // sent it now, and which rooms a place list may show is decided when reading (`isInPlaceList`).
+    describe('a 1:1 is written like any other channel', () => {
+        it('keeps the place the row arrived with', async () => {
+            const storage = createMemoryStorage();
+            const dataSource = new ChannelLocalDataSource(contextProvider as any, storage);
+
+            await dataSource.cacheWrite({ id: 'dm-1', stereo: 'dm', sid: 'site-9' } as any);
+
+            expect((await dataSource.cacheRead('dm-1'))?.sid).toBe('site-9');
+        });
+
+        it('still falls back to the cached place, then the active one', async () => {
+            const storage = createMemoryStorage();
+            const dataSource = new ChannelLocalDataSource(contextProvider as any, storage);
+            await dataSource.cacheWrite({ id: 'dm-1', stereo: 'dm', sid: 'site-9' } as any);
+
+            await dataSource.cacheWrite({ id: 'dm-1', stereo: 'dm' } as any);
+
+            expect((await dataSource.cacheRead('dm-1'))?.sid).toBe('site-9');
+        });
+
+        it('leaves the guard in place for a row with no place anywhere', async () => {
+            const storage = createMemoryStorage();
+            const noSidProvider = {
+                getContext: () => ({ cid: 'cloud-a', uid: 'me' }),
+                setContext: () => undefined,
+            };
+            const dataSource = new ChannelLocalDataSource(noSidProvider as any, storage);
+
+            await expect(dataSource.cacheWrite({ id: 'dm-1', stereo: 'dm' } as any)).rejects.toThrow(/sid is required/);
+        });
+    });
 });

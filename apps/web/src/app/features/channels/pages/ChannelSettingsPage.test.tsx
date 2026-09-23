@@ -7,6 +7,7 @@ import { ChannelSettingsPage } from './ChannelSettingsPage';
 const leaveChannel = jest.fn().mockResolvedValue({});
 const deleteChannel = jest.fn().mockResolvedValue({});
 const updateJoin = jest.fn().mockResolvedValue({});
+const startDmMock = jest.fn().mockResolvedValue({ id: 'dm-1' });
 const navigate = jest.fn();
 const toast = jest.fn();
 
@@ -48,6 +49,8 @@ jest.mock('@chatic/app-runtime', () => ({
         session: {
             useSessionIdentity: () => ({ userId: 'me' }),
             useRuntimeProfile: () => ({ isGuest: mockIsGuest }),
+            // Only a cloud-wide room reads this (`profilePlaceOf`); these channels are read in a place.
+            useSessionSelection: () => ({ selectedSiteId: 'S:active' }),
         },
     },
 }));
@@ -174,6 +177,8 @@ const DM_CHANNEL = {
         stereo: 'dm',
         ownerId: 'me',
         name: '서버 이름',
+        // The relay cloud — `cid` is what the lineage reads (ADR-0111).
+        cid: 'default',
         sid: 's1',
     },
     isError: false,
@@ -207,6 +212,8 @@ jest.mock('../hooks', () => ({
     useChannelProfiles: () => profilesValue,
     useDmPeer: () => dmPeerValue,
     useDmInviteState: () => dmInviteStateValue,
+    // Opening a 1:1 from a member's profile — its own contract is held by useStartDm's tests.
+    useStartDm: () => ({ startDm: startDmMock, isStarting: false, isError: false }),
     useJoinMutations: () => ({ updateJoin, isPending: { update: false } }),
     // The room's single join observation: my row (nick/notification) and the roster row list come from one source.
     useChannelJoins: () => ({
@@ -295,6 +302,20 @@ describe('ChannelSettingsPage', () => {
             expect(screen.getByTestId('dm-name')).toHaveAttribute('data-open', 'true');
             // Not the group dialog, which uses channel.name.
             expect(screen.getByTestId('update')).toHaveAttribute('data-open', 'false');
+        });
+
+        // A cloud 1:1's title skips `join.nick`, so an editor for it would save a name no screen
+        // ever shows. The row stays (it is the title) and stops being a button (ADR-0111).
+        it('클라우드 1:1은 이름 행이 버튼이 아니다 — 저장해도 보이지 않을 값이라', () => {
+            channelValue = { ...DM_CHANNEL, channel: { ...DM_CHANNEL.channel, cid: '1000001' } };
+            dmPeerValue = { id: 'peer', profileNick: '치이카와' };
+            render(<ChannelSettingsPage />);
+
+            const title = screen.getByText('치이카와');
+            expect(title.closest('button')).toBeNull();
+
+            fireEvent.click(title);
+            expect(screen.getByTestId('dm-name')).toHaveAttribute('data-open', 'false');
         });
 
         it('폴백 이름을 다이얼로그 플레이스홀더로 넘긴다', () => {
@@ -506,6 +527,26 @@ describe('ChannelSettingsPage', () => {
             expect(me).toHaveAttribute('data-needs-profile', 'true');
             // '나' (me) is the user-cache name — it must not show up here.
             expect(me).not.toHaveTextContent('나');
+        });
+
+        // The chain this row draws is now `resolveUserName`, not a copy of it. The copy re-read
+        // `member.name` with no raw-id guard, so a member whose cached name IS their account id
+        // (what the server seeds an unnamed user with) rendered as that id.
+        it('유저 레코드 name이 자기 id면 id가 아니라 라벨로 떨어진다', () => {
+            channelValue = OWNER_CHANNEL;
+            membersValue = {
+                members: [
+                    { id: 'owner1', name: '오너', $join: { joined: 1 } },
+                    { id: 'me', name: '나', $join: { joined: 1 } },
+                    { id: 'u2', name: 'u2', $join: { joined: 1 } },
+                ],
+                isLoading: false,
+            };
+            render(<ChannelSettingsPage />);
+
+            const other = screen.getByTestId('member-u2');
+            expect(other).toHaveTextContent('chat.unknownUser');
+            expect(other).not.toHaveTextContent('u2');
         });
 
         it('공백만 있는 nick도 미설정으로 본다', () => {

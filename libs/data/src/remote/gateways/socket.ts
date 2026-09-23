@@ -32,7 +32,7 @@ export type AuthSocketDomainGateway = Pick<AuthGateway, 'linkAccount'>;
 export type ChatSocketDomainGateway = Pick<ChatGateway, 'send' | 'feed' | 'get' | 'update' | 'delete' | 'reaction'>;
 export type ChannelSocketDomainGateway = Pick<
     ChannelGateway,
-    'mine' | 'sync' | 'update' | 'delete' | 'create' | 'invite' | 'leave' | 'getSelf' | 'unreads'
+    'mine' | 'sync' | 'update' | 'delete' | 'create' | 'invite' | 'leave' | 'getSelf' | 'unreads' | 'startDm'
 >;
 export type JoinSocketDomainGateway = JoinGateway & Pick<ChatGateway, 'read'> & Pick<ChannelGateway, 'join'>;
 export type PlaceSocketDomainGateway = Pick<PlaceGateway, 'create' | 'get' | 'update' | 'delete'> &

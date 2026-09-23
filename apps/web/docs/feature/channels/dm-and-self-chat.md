@@ -42,11 +42,14 @@ chat under it.
 `channelKindOf(stereo)` folds the server's five `ChannelStereo` values into the three kinds this
 client has rules for, and the per-kind rules hang off it:
 
-| Function                                 | Answers                               |
-| ---------------------------------------- | ------------------------------------- |
-| `channelKindOf(stereo)`                  | `'self' \| 'dm' \| 'group'`           |
-| `showsMemberCount(kind)`                 | whether a row prints the member count |
-| `removalActionFor(kind, isChannelOwner)` | `'leave' \| 'delete' \| 'none'`       |
+| Function                                 | Answers                                  |
+| ---------------------------------------- | ---------------------------------------- |
+| `channelKindOf(stereo)`                  | `'self' \| 'dm' \| 'group'`              |
+| `showsMemberCount(kind)`                 | whether a row prints the member count    |
+| `removalActionFor(kind, isChannelOwner)` | `'leave' \| 'delete' \| 'none'`          |
+| `dmLineageOf(channel)`                   | `'relay' \| 'cloud'`, for a 1:1          |
+| `hasDmInviteFlow(channel)`               | whether invite UI belongs in this room   |
+| `profilePlaceOf(channel, activeSid)`     | which place's profiles name these people |
 
 **Why a switch rather than `isDmChat`-style booleans.** Three separate defects came out of the
 boolean form, and they are the same defect:
@@ -62,6 +65,135 @@ boolean form, and they are the same defect:
 who has merely joined a room inside their place does not get to delete it, and the room's own
 settings screen had always read it that way — the two screens disagreeing is what let the bug
 through.
+
+### A second axis inside `dm` — where the 1:1 came from
+
+`stereo` says a room is a 1:1. It does not say **which kind**, and there are two.
+
+A **relay** 1:1 is reached by inviting a phone number. It lives in the relay's one default place, so
+it carries that place's `sid`, and it has an invite behind it — which is what the departure footer
+reads and what its re-invite CTA sends another of.
+
+A **cloud** 1:1 is opened by naming a member directly (`channel.startDm`). It belongs to the cloud
+rather than to a place, because the two participants need not share one, so it is stored with `sid`
+deliberately blank. There is no invite in its history and no number to send one to.
+
+**`cid` is the mark — the cloud the room is in.** It is the server's own answer, it arrives on every
+read, and nothing on the client derives or overwrites it. An unknown cloud reads as a subscription
+one, which is the safe direction: the relay is a single known id, so only a genuine relay room can be
+mistaken for a cloud one and never the reverse.
+
+> **This used to read `sid`, and that failed.** The idea was that a cloud 1:1 belongs to no place, so
+> a blank place field would mark it. Measured 2026-09-23: **the server assigns the room a place
+> anyway** — whichever one its creator was standing in — and returns it on every read, so a client
+> that blanks the field has it filled back in by the next sync. The room then changed lineage
+> silently, taking the footer suppression and the naming rule with it. A blank field also meant two
+> things at once ("no place" and "place not known yet"), and the write paths are built to resolve the
+> second by guessing.
+
+**Only the invite-attached parts split.** `hasDmInviteFlow` gates the departure footer, its CTA and
+the `invite.list` poll that feeds them — nothing else. Read receipts, keeping a departed member on
+the settings list, and the join/leave system messages are about a 1:1 as such and behave the same
+for both lineages.
+
+What a cloud 1:1 should show once its peer leaves the cloud is an open product question. Until it is
+answered the room says nothing rather than borrowing a sentence written for a flow it does not have.
+
+### `profilePlaceOf` — which place names the people in this room
+
+A profile is per-place: the same person has a different nick and photo in each one, so naming anyone
+means choosing a place first. Almost every room has already made that choice — it lives in a place,
+and `channel.sid` is it.
+
+A cloud 1:1 carries a place, but it is the one its creator happened to be standing in — no answer for
+the other person, who may not be in it. So the reader's own is used instead. `profilePlaceOf` returns
+`activeSid` for those rooms and `channel.sid` for everything else, and the three screens that draw a
+name in a room — `ChannelRoomPage`, `ThreadPage`, `ChannelSettingsPage` — all read it, or the header
+and the settings list would disagree about who the room is with.
+
+Two consequences follow, and both are intended. **The same room names its peer differently when
+opened from a different place.** And **two participants who share no place see each other by
+different names** — which is exactly why the room could not have picked one place for both of them.
+
+`null` means "nothing to look under yet", which the profile hooks read as "do not subscribe". An
+unresolved session must not collapse into an empty-string lookup that answers with nobody.
+
+### Opening a cloud 1:1, and finding it afterwards
+
+Three surfaces, and the third is not optional.
+
+| Surface                                          | What it does                                            |
+| ------------------------------------------------ | ------------------------------------------------------- |
+| Home create menu → `CloudDmPickerPage`           | Pick one person; the tap IS the action, no confirm step |
+| A participant's profile → the "1:1 대화하기" row | Same `useStartDm`, with the peer already chosen         |
+| Home's cloud 1:1 section                         | Where the room lives afterwards                         |
+
+**`sid` is not a scope key for a 1:1**, and the section is what follows from that. A group is read
+within its place; a 1:1 is read across the cloud, because the place it carries describes where one
+person stood rather than where the conversation lives — the other participant need not be in it, so a
+place-scoped read would show the room to one of them and hide it from the other. `isInPlaceList`
+(in `libs/data`) holds both halves: a place list takes rooms whose `sid` matches **and** that are not
+read cloud-wide, or a cloud 1:1 appears twice.
+
+`useCloudDmChannels` reads the cloud-wide observation for the rooms `dmLineageOf` calls `cloud`, and
+the section is `ChannelList` itself — same rows, a different title and source — so the title chain,
+the avatar, unread and the preview cannot drift into a second copy.
+
+**The create menu entry is one label over two acts.** On relay a 1:1 is reached by phone number, so
+it goes to the contact form — which carries its own ordered gates: phone verification for a guest or
+an unlinked account, then the place-profile nudge, then the form. Inside a cloud the other person is
+already a member, so it goes to the picker and nothing is sent.
+
+| Environment              | Entry shows | Tap goes to         |
+| ------------------------ | ----------- | ------------------- |
+| Relay                    | yes         | `ContactInvitePage` |
+| A cloud I own            | yes         | `CloudDmPickerPage` |
+| A cloud I was invited to | yes         | `CloudDmPickerPage` |
+
+`isDefaultCloud` used to decide both **whether** the entry showed and **what** it did;
+`showOneOnOneCreate` now carries the first and the page the second.
+
+**The invited cloud is the row that was missing.** `canCreate` opened the whole popover and means
+"may make a room here" — which an invited member may not — so they had no 1:1 entry at all, though
+they are exactly the colleague this feature exists to reach. The popover now opens for either entry
+and `canCreate` guards only the group row.
+
+**That guard is load-bearing.** `showGroupCreate` is a negative (`!isDefaultCloud || !isPro`) and so
+reads true for every cloud that is not the relay. Opening the popover for an invited member without
+it would offer them the one action they are refused. Both directions are pinned by tests.
+
+**Candidates are not a directory.** `useCloudDmCandidates` unions the members of every room I am in
+across the cloud, minus me. There is no user-directory action to ask — every listing is channel
+scoped — so somebody in this cloud who shares no room with me cannot be reached here at all. The
+empty state says that rather than implying the cloud is empty. People I already have a 1:1 with stay
+in the list: the server resolves a pair to one room, so picking them re-opens that conversation.
+
+> **The three screens have no design.** They are assembled from `web-ui-kit` primitives, following
+> the nearest precedent (`PlaceInviteTab` for the picker, `ChannelList` for the section), and the
+> arrangement is provisional in a way the behaviour is not. Do not read the layout as decided.
+
+### A cloud 1:1 skips step 1 of the title chain
+
+The chain opens with `join.nick`, and the precedence is right — my own name for a room should beat
+the name its occupant chose for themselves. **What fails is the premise that the field holds my
+choice.** The server seeds it on rooms nobody has named, and `customJoinNick` can only reject the
+seeded values that LOOK machine-made; a seeded value shaped like a person's name is
+indistinguishable from a typed one.
+
+Measured on dev: a cloud 1:1 opened from the picker came back with a plausible human name in
+`join.nick`. The header showed it; the picker, the entry system message and every other surface
+showed the place profile. Same person, two names.
+
+So `resolveChannelTitle` drops that rung **for the cloud lineage only**. A relay 1:1 begins at an
+invite form where the sender types the friend's name into their own `join.nick` — a real choice, and
+the relay behaviour this must not disturb.
+
+**The settings name row follows.** It edits `join.nick`, so for a cloud 1:1 it stays as the title and
+stops being a button: an editor that saves a value no screen will show is worse than none.
+
+This is a stopgap over a server behaviour. The client is inferring provenance from a string, which is
+exactly what failed. It ends when the server stops seeding the field or marks whether a value was
+user-set — then the rung and the editor come back together.
 
 ## Naming
 

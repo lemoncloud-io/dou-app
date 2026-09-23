@@ -31,7 +31,7 @@ import { MessageActionSheet } from '../components/MessageActionSheet';
 import { ReactionDetailSheet } from '../components/ReactionDetailSheet';
 import { RoomIntro } from '../components/RoomIntro';
 import { RoomSkeleton } from '../components/RoomSkeleton';
-import { channelKindOf, resolveChannelAvatar } from '../lib';
+import { channelKindOf, hasDmInviteFlow, profilePlaceOf, resolveChannelAvatar } from '../lib';
 import { orderMemberIdsOwnerFirst } from '../utils/orderMemberIds';
 import { pickDmPeerId } from '../utils/dmPeer';
 import { isChannelMember, isNotMyChannel, isSomeoneElsesSelfChat } from '../utils/membership';
@@ -107,6 +107,8 @@ export const ChannelRoomPage = () => {
 
     const { userId } = runtime.session.useSessionIdentity();
     const { isGuest, isCloudActive } = runtime.session.useRuntimeProfile();
+    // The place this reader is standing in. Only a cloud-wide room needs it — see `profilePlaceOf`.
+    const { selectedSiteId } = runtime.session.useSessionSelection();
     const { isVerified } = runtime.connection.useRuntimeSocketState();
 
     // --- Data-fetching hooks ---
@@ -161,7 +163,10 @@ export const ChannelRoomPage = () => {
         return peerId && !activeMemberIds.includes(peerId) ? [...activeMemberIds, peerId] : activeMemberIds;
     }, [channel?.stereo, channel?.memberIds, activeMemberIds, userId]);
 
-    const { profileMap } = useChannelProfiles(channel?.sid ?? null, profileTargetIds);
+    // Not `channel.sid`: a cloud 1:1 has no place of its own, so its peer is named by the place
+    // this reader is standing in. Every surface that draws a name in this room reads the same
+    // answer, or the header and the list disagree about who the room is with.
+    const { profileMap } = useChannelProfiles(profilePlaceOf(channel, selectedSiteId), profileTargetIds);
 
     const memberById = useMemo(() => {
         const map = new Map<string, (typeof members)[number]>();
@@ -221,6 +226,9 @@ export const ChannelRoomPage = () => {
     const isSelfChat = channel?.isSelfChat ?? false;
     // 1:1 DM. Header shows the peer's profile; no rename, no participant stack (ADR-0032).
     const isDmChat = channelKind === 'dm';
+    // Within a 1:1 there is a second axis `stereo` cannot see: a relay room was reached by inviting
+    // a phone number, a cloud one by naming a member. Only what hangs off the invite reads this.
+    const dmHasInviteFlow = hasDmInviteFlow(channel);
     // The header participant stack is group-only; self / 1:1 DM headers stay single-line.
     const isGroupChat = channelKind === 'group';
     // DM peer (the other participant) for the header title/avatar — resolved from the roster, nick
@@ -233,15 +241,15 @@ export const ChannelRoomPage = () => {
     // the home list row reads, so neither the branch nor the fallback label lives here.
     const roomTitle = useChannelTitle(channel, { joinNick: myJoin?.nick, peerNick: dmPeer?.profileNick });
     // Whether there is still somebody on the other side, and where their invite stands (ADR-0068).
-    // `present` for every non-DM room, and the invite read stands itself down there, so this costs a
-    // group or self room nothing.
+    // `present` for every room with no invite behind it — a group, a self chat, and a cloud 1:1 —
+    // and the invite read stands itself down there, so none of them costs anything here.
     const {
         state: dmInviteState,
         countdown: dmInviteCountdown,
         resolveReinvitePrefill,
     } = useDmInviteState({
         channelId: stableChannelId,
-        isDm: isDmChat,
+        hasInviteFlow: dmHasInviteFlow,
         peerId: dmPeer?.id,
         joins,
         channel,

@@ -225,19 +225,42 @@ interface ChannelListProps {
      * optional: forgetting it fails silently (every DM row quietly falls back to `channel.name` or
      * the unnamed label), which is the drift this list exists to avoid.
      */
+    /**
+     * The place whose profiles name the people in these rows. Usually the place being listed; for
+     * the cloud 1:1 section it is the place the READER is standing in, because a cloud 1:1 has none
+     * of its own (`profilePlaceOf`, ADR-0111).
+     */
     sid: string;
     isLoading: boolean;
+    /** Section heading. Defaults to the chat-room heading; the cloud 1:1 section passes its own. */
+    title?: string;
+    /**
+     * Empty body for a section that is not a place's room list. The place list's own empty state
+     * nudges towards creating or explains an invited place, and neither sentence is true of a
+     * section that simply has no 1:1 in it yet.
+     */
+    emptyLabel?: string;
     /** Show the create (＋) popover in the section header. */
     canCreate?: boolean;
-    /** Relay adds "1:1 대화" above "그룹 방 만들기"; a cloud offers only the latter. */
+    /**
+     * Drives relay-only presentation — the sent-invite rows' section and the group-create upsell
+     * rule below. It used to gate the "1:1 대화" entry too, which conflated WHETHER that entry
+     * shows with WHAT it does; `showOneOnOneCreate` now carries the first and the host the second.
+     */
     isDefaultCloud?: boolean;
+    /**
+     * Show the "1:1 대화" entry in the create popover. A 1:1 is reachable two ways that look the
+     * same here and are not: by inviting a phone number on relay, and by picking a member inside a
+     * cloud. This component draws the entry; where the tap goes is the host's call (ADR-0111).
+     */
+    showOneOnOneCreate?: boolean;
     /** Drives the PRO badge on "그룹 방 만들기" — and, on relay, whether that entry shows at all. */
     isPro?: boolean;
     /** Sort method for this place's channel list (client preference). Defaults to 'recent'. */
     sortMethod?: ChannelSortMethod;
     /** Channel ids pinned in this place (client preference) — pinned rows float to the top. */
     pinnedChannelIds?: ReadonlySet<string>;
-    /** Relay: start a 1:1 chat — navigates to the contact-invite page (ADR-0089 Track B). */
+    /** Start a 1:1 — the host picks the destination by cloud kind (ADR-0111). */
     onCreateOneOnOne?: () => void;
     /** Cloud: create a group room (host applies the PRO gate). */
     onCreateGroup?: () => void;
@@ -263,8 +286,11 @@ export const ChannelList = ({
     joinByChannel,
     sid,
     isLoading,
+    title,
+    emptyLabel,
     canCreate,
     isDefaultCloud,
+    showOneOnOneCreate,
     isPro,
     sortMethod = 'recent',
     pinnedChannelIds,
@@ -333,58 +359,67 @@ export const ChannelList = ({
     // an unpaid account (Figma 2870:20387) — a group room lives in a cloud of one's own, so for a
     // subscriber the relay entry would lead nowhere and is dropped. What the tap does is the host's
     // call (see HomePage.handleCreateGroup).
-    const showGroupCreate = !isDefaultCloud || !isPro;
+    //
+    // `canCreate` is the outer condition, not just this row's tier rule: an invited member cannot
+    // make a room here at all, and without that guard the negative form above reads `true` for
+    // them — every cloud that is not the relay — and would offer the one thing they are not
+    // allowed to do.
+    const showGroupCreate = canCreate && (!isDefaultCloud || !isPro);
 
-    const createMenu = canCreate ? (
-        <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-                <button
-                    type="button"
-                    aria-label={t('channelList.createChat', '채팅 만들기')}
-                    className="flex size-6 items-center justify-center text-foreground"
-                >
-                    <IconChatAdd className="size-[18px]" />
-                </button>
-            </DropdownMenuTrigger>
-            {/* Popover metrics are the design's, not the ui-kit menu defaults (Figma 2931:8181):
+    // The popover opens for either entry, not for group-create alone. An invited member may open a
+    // 1:1 — they share rooms with these people, which is the whole premise — while creating rooms
+    // stays shut to them, so the two conditions have to be able to disagree (ADR-0111).
+    const createMenu =
+        showGroupCreate || showOneOnOneCreate ? (
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <button
+                        type="button"
+                        aria-label={t('channelList.createChat', '채팅 만들기')}
+                        className="flex size-6 items-center justify-center text-foreground"
+                    >
+                        <IconChatAdd className="size-[18px]" />
+                    </button>
+                </DropdownMenuTrigger>
+                {/* Popover metrics are the design's, not the ui-kit menu defaults (Figma 2931:8181):
                 the sheet HUGS its rows instead of sitting at a fixed 184px — with one entry that
                 left a wide empty gutter — over a translucent, blurred surface with a soft 32px
                 shadow, 16px corners, a 6px inner gutter and 12/10px rows. `min-w-0` is what
                 releases the kit's 8rem floor; the transform origin makes it scale out of the ＋
                 button it belongs to rather than out of its own centre. */}
-            <DropdownMenuContent
-                align="end"
-                sideOffset={6}
-                className="min-w-0 origin-[var(--radix-dropdown-menu-content-transform-origin)] rounded-2xl border-[0.5px] border-input-border/70 bg-popover/90 p-1.5 shadow-[0_3px_32px_0_rgba(0,0,0,0.08)] backdrop-blur-[4px] duration-150 ease-out"
-            >
-                {isDefaultCloud && (
-                    <DropdownMenuItem
-                        onClick={onCreateOneOnOne}
-                        className="cursor-pointer whitespace-nowrap rounded-[10px] px-3 py-2.5 text-[14px] font-medium leading-4 tracking-[-0.14px]"
-                    >
-                        {t('channelList.createDirect', '1:1 대화')}
-                    </DropdownMenuItem>
-                )}
-                {showGroupCreate && (
-                    <DropdownMenuItem
-                        onClick={onCreateGroup}
-                        className="flex cursor-pointer items-center justify-between gap-2 rounded-[10px] px-3 py-2.5 text-[14px] font-medium leading-4 tracking-[-0.14px]"
-                    >
-                        {/* The design leaves no slack in this row (label + badge fill it exactly), so the
+                <DropdownMenuContent
+                    align="end"
+                    sideOffset={6}
+                    className="min-w-0 origin-[var(--radix-dropdown-menu-content-transform-origin)] rounded-2xl border-[0.5px] border-input-border/70 bg-popover/90 p-1.5 shadow-[0_3px_32px_0_rgba(0,0,0,0.08)] backdrop-blur-[4px] duration-150 ease-out"
+                >
+                    {showOneOnOneCreate && (
+                        <DropdownMenuItem
+                            onClick={onCreateOneOnOne}
+                            className="cursor-pointer whitespace-nowrap rounded-[10px] px-3 py-2.5 text-[14px] font-medium leading-4 tracking-[-0.14px]"
+                        >
+                            {t('channelList.createDirect', '1:1 대화')}
+                        </DropdownMenuItem>
+                    )}
+                    {showGroupCreate && (
+                        <DropdownMenuItem
+                            onClick={onCreateGroup}
+                            className="flex cursor-pointer items-center justify-between gap-2 rounded-[10px] px-3 py-2.5 text-[14px] font-medium leading-4 tracking-[-0.14px]"
+                        >
+                            {/* The design leaves no slack in this row (label + badge fill it exactly), so the
                             label must not wrap. */}
-                        <span className="whitespace-nowrap">{t('channelList.createGroup', '그룹 방 만들기')}</span>
-                        {!isPro && <SubscriptionBadge tier="pro" size="xs" />}
-                    </DropdownMenuItem>
-                )}
-            </DropdownMenuContent>
-        </DropdownMenu>
-    ) : undefined;
+                            <span className="whitespace-nowrap">{t('channelList.createGroup', '그룹 방 만들기')}</span>
+                            {!isPro && <SubscriptionBadge tier="pro" size="xs" />}
+                        </DropdownMenuItem>
+                    )}
+                </DropdownMenuContent>
+            </DropdownMenu>
+        ) : undefined;
 
     return (
         // While the list is still loading, the count is not "0" — it is unknown. Showing 0 next to
         // a skeleton claims an answer we don't have yet, so the number is withheld until it lands.
         <CollapsibleSection
-            title={t('homePage.channels', '채팅방')}
+            title={title ?? t('homePage.channels', '채팅방')}
             count={isLoading ? undefined : channels.length}
             actions={createMenu}
         >
@@ -403,12 +438,15 @@ export const ChannelList = ({
                     <ChannelSkeleton delayMs={300} />
                 </div>
             ) : channels.length === 0 ? (
-                sentInvites.length === 0 && (
+                sentInvites.length === 0 &&
+                (emptyLabel ? (
+                    <div className="px-4 py-10 text-center text-sm text-muted-foreground">{emptyLabel}</div>
+                ) : (
                     <ChannelEmptyState
                         variant={isInvitedPlace ? 'invited' : 'owner'}
                         onOpenPlaceInfo={onOpenPlaceInfo}
                     />
-                )
+                ))
             ) : (
                 sortedChannels.map(channel => (
                     <ChannelItem

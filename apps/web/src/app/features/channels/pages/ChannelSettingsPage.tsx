@@ -29,8 +29,17 @@ import {
     useDmInviteState,
     useDmPeer,
     useJoinMutations,
+    useStartDm,
 } from '../hooks';
-import { channelKindOf, removalActionFor, resolveChannelAvatar } from '../lib';
+import {
+    channelKindOf,
+    dmLineageOf,
+    hasDmInviteFlow,
+    profilePlaceOf,
+    removalActionFor,
+    resolveChannelAvatar,
+} from '../lib';
+import { type DisplayNameSources, resolveUserName } from '../utils/displayName';
 import { divergenceReporter } from '../../../runtime/logging/divergenceReporter';
 import { getRoomDistance } from '../utils/roomDistance';
 import { canReinviteDm } from '../utils/dmInviteState';
@@ -60,6 +69,12 @@ export const ChannelSettingsPage = () => {
     const { userId } = runtime.session.useSessionIdentity();
     // Issuing a relay invite takes a main user, so a device user never gets the re-invite CTA.
     const { isGuest } = runtime.session.useRuntimeProfile();
+    // Settings names the same people the room does, from the same place — see `profilePlaceOf`.
+    // `selectedCloudId` tells relay from a subscription cloud, which decides whether a 1:1 can be
+    // opened by naming somebody at all.
+    const { selectedSiteId, selectedCloudId } = runtime.session.useSessionSelection();
+    const isDefaultCloud = selectedCloudId === 'default';
+    const { startDm } = useStartDm();
 
     const { channel, isError } = useChannel(channelId ?? null);
     const activePlaceName = useActivePlaceName();
@@ -182,7 +197,10 @@ export const ChannelSettingsPage = () => {
 
     // Site profiles (nick/avatar) for the member list; same source as the room.
     const memberUserIds = useMemo(() => members.map(m => m.id).filter((id): id is string => !!id), [members]);
-    const { profileMap, hasSnapshot: hasProfileSnapshot } = useChannelProfiles(channel?.sid ?? null, memberUserIds);
+    const { profileMap, hasSnapshot: hasProfileSnapshot } = useChannelProfiles(
+        profilePlaceOf(channel, selectedSiteId),
+        memberUserIds
+    );
 
     // Hooks must run before the `isError` early return below. DM peer (header/name display) and the
     // room title are resolved here; the plain type flags derived from them stay past the return.
@@ -190,11 +208,12 @@ export const ChannelSettingsPage = () => {
     // The same chain the room header and the home list use — settings must not invent a third one.
     const roomTitle = useChannelTitle(channel, { joinNick: myJoin?.nick, peerNick: dmPeer?.profileNick });
     // The same derivation the room's footer runs, so the friend sheet's "대화방 나감" line and its
-    // re-invite prefill cannot disagree with what the room just said. Stands itself down for every
-    // non-DM channel, so a group's settings screen reads no invites.
+    // re-invite prefill cannot disagree with what the room just said. It reads the same lineage the
+    // room does, for the same reason: a cloud 1:1 has no invite to prefill and no number to send one
+    // to, so offering the CTA here would open a form its user cannot complete.
     const { state: dmInviteState, resolveReinvitePrefill } = useDmInviteState({
         channelId: channelId ?? null,
-        isDm: channel?.stereo === 'dm',
+        hasInviteFlow: hasDmInviteFlow(channel),
         peerId: dmPeer?.id,
         joins,
         channel,
@@ -249,6 +268,9 @@ export const ChannelSettingsPage = () => {
     const isOwner = !!channel?.isOwner;
     // 1:1 DM (stereo).
     const isDmChat = channel?.stereo === 'dm';
+    // A cloud 1:1 does not read `join.nick` for its title (see resolveChannelTitle), so the
+    // editor below is closed for it — see the row's own note.
+    const isCloudDm = dmLineageOf(channel) === 'cloud';
     // What "remove this room" means here, from the one place that answers it for every surface —
     // the place-level bulk remove reads the same function, so the two cannot drift again.
     const removal = removalActionFor(channelKindOf(channel?.stereo), isOwner);
@@ -267,6 +289,25 @@ export const ChannelSettingsPage = () => {
         <ImageAvatar src={roomAvatarSrc} alt={roomTitle} size={40} />
     ) : (
         <DefaultAvatar size={40} variant={glyph} />
+    );
+
+    const memberById = useMemo(() => {
+        const map = new Map<string, (typeof members)[number]>();
+        for (const member of members) if (member.id) map.set(member.id, member);
+        return map;
+    }, [members]);
+
+    // The one naming chain (see resolveUserName) — this list and the room it belongs to have to
+    // reach the same name for the same person.
+    const nameSources: DisplayNameSources = useMemo(
+        () => ({
+            profileMap,
+            memberById,
+            userId,
+            unknownLabel: t('chat.unknownUser'),
+            meLabel: t('chat.me'),
+        }),
+        [profileMap, memberById, userId, t]
     );
 
     // Member rows — shared by the group section and the self-chat "방 친구" section
@@ -292,13 +333,13 @@ export const ChannelSettingsPage = () => {
             const needsProfileSetup =
                 !!memberId && memberId === userId && hasProfileSnapshot && !memberProfile?.nick?.trim();
             // The id is NOT a rung in this chain — it used to sit before the label, so an
-            // unresolved member showed a raw UUID and the label was unreachable. Same chain and
-            // same labels as every other surface now (see resolveUserName).
+            // unresolved member showed a raw UUID and the label was unreachable. This now CALLS the
+            // shared chain rather than restating it: the copy that lived here re-read `member.name`
+            // without the raw-id guard, so a member whose cached `name` is their account UUID (what
+            // the server seeds an unnamed user with) still rendered as one.
             const memberName = needsProfileSetup
                 ? t('chat.settings.profileSetupRequired')
-                : memberProfile?.nick?.trim() ||
-                  member.name?.trim() ||
-                  (memberId && memberId === userId ? t('chat.me') : t('chat.unknownUser'));
+                : resolveUserName(memberId, nameSources);
 
             const memberView = {
                 id: memberId,
@@ -343,12 +384,18 @@ export const ChannelSettingsPage = () => {
                     (JoinNickDialog, private to me); groups edit channel.name (UpdateChannelDialog,
                     read-only for non-owner members). DM naming is open again — the join nick is the
                     top of its title chain, so with no way to write it that tier would be dead
-                    (ADR-0039, reversing ADR-0032). */}
+                    (ADR-0039, reversing ADR-0032).
+
+                    A CLOUD 1:1 is the one case where that tier really is dead: its title skips the
+                    join nick, because the server seeds that field and nothing in the value says
+                    whether a person wrote it. So the row stays, and stops being a button — an
+                    editor that saves a name no screen will ever show is worse than no editor. It
+                    opens again when the field can be trusted (ADR-0111). */}
                 <ListRow
                     leading={roomAvatar}
                     title={roomTitle}
-                    trailing={<ChevronRight className="size-5 text-muted-foreground" />}
-                    onClick={() => openDialog(isSelfChat || isDmChat ? 'joinNick' : 'update')}
+                    trailing={isCloudDm ? undefined : <ChevronRight className="size-5 text-muted-foreground" />}
+                    onClick={isCloudDm ? undefined : () => openDialog(isSelfChat || isDmChat ? 'joinNick' : 'update')}
                 />
 
                 {isSelfChat ? (
@@ -492,6 +539,25 @@ export const ChannelSettingsPage = () => {
                 onKick={handleKickMember}
                 isKicking={isPending.leave}
                 onOpenProfileSettings={() => openDialog('profileSettings')}
+                /**
+                 * Opening a 1:1 from here is a cloud act (ADR-0111). Three conditions, each
+                 * closing a way of offering a room that cannot be opened:
+                 *
+                 * - **Not on relay.** There a 1:1 is reached by phone number, and this path has no
+                 *   number to send — relay is a non-goal and keeps its own flow untouched.
+                 * - **Not from inside a 1:1.** The peer is already the conversation; a row that
+                 *   re-opens the room you are standing in says nothing.
+                 * - **Not myself** — the dialog checks that again, so both ends agree.
+                 */
+                onStartDm={
+                    !isDefaultCloud && !isDmChat && selectedMember && selectedMember.id !== userId
+                        ? () => {
+                              const peerId = selectedMember.id;
+                              closeDialog();
+                              void startDm(peerId);
+                          }
+                        : undefined
+                }
             />
             <PlaceProfileEditDialog
                 open={activeDialog === 'profileSettings'}

@@ -1,4 +1,4 @@
-import type { DomainChannel } from '@chatic/data';
+import { RELAY_CLOUD_ID, isCloudWideChannel, type DomainChannel } from '@chatic/data';
 
 /** The server's `ChannelStereo`, plus the absent case a cached row can carry. */
 type ChannelStereo = DomainChannel['stereo'];
@@ -98,3 +98,78 @@ export const removalActionFor = (kind: ChannelKind, isChannelOwner: boolean): Ch
             return isChannelOwner ? 'delete' : 'leave';
     }
 };
+
+/**
+ * Which lineage a 1:1 room came from. Only meaningful once the kind is already `dm`.
+ *
+ * `stereo` cannot tell these apart — both are `'dm'` — and they are not the same room. A relay 1:1
+ * is reached by inviting a phone number, so it has an invite behind it and can be re-opened by
+ * sending another one. A cloud 1:1 is opened by naming a member directly (`channel.startDm`), so
+ * there is no invite in its history and no number to send one to.
+ */
+export type DmLineage = 'relay' | 'cloud';
+
+/**
+ * The lineage of a 1:1 room, or `undefined` when the room is not a 1:1 (or is not loaded yet).
+ *
+ * **The cloud is what separates them, and `cid` is the field that says so.** It is the server's
+ * own answer to "which cloud is this room in", it arrives on every read, and nothing on the client
+ * derives or overwrites it.
+ *
+ * **This used to read `sid`, and that was wrong.** The reasoning was that a cloud 1:1 belongs to no
+ * place, so a blank `sid` would mark it. Measured on dev (2026-09-23): the server assigns the room
+ * a place anyway — whichever one the creator happened to be standing in — and returns it on every
+ * subsequent read, so a client that blanks the field simply has it filled back in. Worse, `sid`
+ * then meant two things at once ("no place" and "place not known yet"), and a room silently
+ * changed lineage the moment a sync landed. `cid` cannot drift that way.
+ */
+export const dmLineageOf = (
+    channel: Pick<DomainChannel, 'stereo' | 'cid'> | null | undefined
+): DmLineage | undefined => {
+    if (!channel || channelKindOf(channel.stereo) !== 'dm') return undefined;
+    return channel.cid === RELAY_CLOUD_ID ? 'relay' : 'cloud';
+};
+
+/**
+ * Whether this room's UI may talk about invites — the departure footer, its re-invite CTA, and the
+ * `invite.list` poll that feeds them.
+ *
+ * Only the invite-attached parts split on lineage. Read receipts, the member list's handling of
+ * somebody who left, and the join/leave system messages are about a 1:1 as such and stay as they
+ * are for both lineages.
+ *
+ * What a cloud 1:1 should show once its peer leaves the cloud is an open product question. Until it
+ * is answered this reports `false`, which leaves the room saying nothing rather than borrowing a
+ * sentence written for a flow it does not have.
+ */
+export const hasDmInviteFlow = (channel: Pick<DomainChannel, 'stereo' | 'cid'> | null | undefined): boolean =>
+    dmLineageOf(channel) === 'relay';
+
+/**
+ * Re-exported from the data layer, where the rule lives: **`sid` is not a scope key for a 1:1**.
+ * A group is read within its place; a 1:1 is read across the cloud, because the place it carries
+ * describes where its creator stood rather than where the conversation lives. Screens import it
+ * from here so every channel rule in this module reads from one place.
+ */
+export { isCloudWideChannel };
+
+/**
+ * Which place's profiles name the people in this room.
+ *
+ * A profile is per-place — the same person has a different nick and photo in each one — so naming
+ * anybody requires choosing a place first. For a room that is read within a place, that choice is
+ * already made: `channel.sid` is it.
+ *
+ * **A cloud 1:1 is not read within a place** (see {@link isCloudWideChannel}), and the place it
+ * carries is an accident of where its creator stood, so the reader's own is the only defensible
+ * answer. Two consequences follow, and both are intended rather than tolerated. The same room names
+ * its peer differently when opened from a different place. And two participants who share no place
+ * see each other by different names — which is why no single place could have been right for both.
+ *
+ * Returns `null` when there is nothing to look under, which is what the profile hooks read as "do
+ * not subscribe yet" — an unresolved session or an unloaded row, not an answer.
+ */
+export const profilePlaceOf = (
+    channel: Pick<DomainChannel, 'stereo' | 'cid' | 'sid'> | null | undefined,
+    activeSid: string | null | undefined
+): string | null => (isCloudWideChannel(channel) ? (activeSid ?? null) : (channel?.sid ?? null));

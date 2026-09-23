@@ -103,9 +103,13 @@ jest.mock('../../onboarding', () => ({ OnboardingModal: () => null }));
 jest.mock('../components', () => ({
     // Mirrors the create-group entry back out: the popover is the list's, but what the tap does
     // (upsell vs create dialog) is decided here, in the page.
-    ChannelList: ({ isPro, onCreateGroup }: { isPro?: boolean; onCreateGroup: () => void }) => (
-        <div data-testid="channel-list" data-is-pro={String(isPro)}>
-            <button data-testid="create-group" onClick={onCreateGroup} />
+    //
+    // The page renders this twice on a cloud — the place's rooms, and the cloud 1:1 section, which
+    // is a list and not a create surface. The button follows `onCreateGroup` so the stub says the
+    // same thing the real popover does: no handler, no entry. `title` tells the two apart.
+    ChannelList: ({ isPro, onCreateGroup, title }: { isPro?: boolean; onCreateGroup?: () => void; title?: string }) => (
+        <div data-testid={title ? 'cloud-dm-list' : 'channel-list'} data-is-pro={String(isPro)}>
+            {onCreateGroup && <button data-testid="create-group" onClick={onCreateGroup} />}
         </div>
     ),
     CloudPromoBanner: ({ onAddCloud }: { onAddCloud?: () => void }) => (

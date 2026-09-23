@@ -7,6 +7,7 @@ import type {
 import type {
     ChannelCreateInput,
     ChannelDeleteInput,
+    ChannelStartDmInput,
     ChannelUpdateInput,
 } from '@lemoncloud/chatic-sockets-api/dist/lib/channel/types';
 import type { UnreadsSummaryView } from '@lemoncloud/chatic-socials-api';
@@ -56,6 +57,8 @@ export interface IChannelRepository extends DisposableRepository {
     syncChannels(since: number): Promise<SyncChannelsResult>;
     /** `channel.create` — `siteId` is the site the optimistic row is tagged with (ADR-0085). */
     createChannel(payload: ChannelCreateInput, siteId: string): Promise<DomainChannel>;
+    /** Opens the 1:1 with one peer. Takes NO site: the room belongs to the cloud, not to a place. */
+    startDm(payload: ChannelStartDmInput): Promise<DomainChannel>;
     updateChannel(payload: ChannelUpdateInput): Promise<DomainChannel>;
     inviteChannel(payload: ChatInviteInput): Promise<DomainChannel>;
     leaveChannel(payload: ChatLeaveInput): Promise<DomainChannel>;
@@ -317,6 +320,38 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
             await this.channelLocalDataSource.cacheDelete(tempId, requestContext);
             throw error;
         }
+    }
+
+    /**
+     * Opens (or re-opens) the 1:1 with one peer.
+     *
+     * No optimistic row and no `siteId`, and the two go together. `createChannel` needs both
+     * because the caller already knows where the room will live and can draw it before the server
+     * answers; here the server decides which room this is — the same pair always resolves to one —
+     * so there is nothing to draw until it does, and nowhere to draw it.
+     *
+     * The row is written like any other. An earlier version wrote it through a placeless path that
+     * blanked the place field, on the premise that a cloud 1:1 has none — but the server assigns
+     * one and returns it on every read, so the blank was refilled by the next sync. Which rooms a
+     * place list may show is decided when reading instead (`isInPlaceList`).
+     */
+    public async startDm(payload: ChannelStartDmInput): Promise<DomainChannel> {
+        const requestContext = this.getRequestContext();
+        const normalizedContext = this.getNormalizedContext(requestContext);
+        const domain = await this.channelSocketDataSource.startDm(payload, normalizedContext);
+        // Same guard as getSelfChannel: a socket still bound to the cloud we just switched away from
+        // must not write into the one we switched to.
+        const rawContext = this.getRepositoryContext();
+        if (isForeignContext(rawContext)) {
+            foreignDropAggregator.record({
+                source: 'channel-start-dm',
+                cid: rawContext.cid ?? 'default',
+                socketCid: rawContext.socketCid ?? 'none',
+            });
+        } else {
+            await this.channelLocalDataSource.cacheWrite(domain, requestContext);
+        }
+        return domain;
     }
 
     public async updateChannel(payload: ChannelUpdateInput): Promise<DomainChannel> {
