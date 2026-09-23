@@ -1,9 +1,11 @@
-# ADR-0104: keep agent procedures in `docs/`, and make the language rule general
+# ADR-0114: keep agent procedures in `docs/`, and make the language rule general
 
 > Status: Accepted · Decided: 2026-09-17
 > Scope: `docs/config/skills/**` · `AGENTS.md` · `package.json` (one hint string)
 > Related: [ADR-0100](./0100-libs-data-doc-canon-and-layer-flattening.md) (the doc-canon rules these
 > procedures defer to)
+> · Merged as ADR-0104, a number the `apps/web` form-factor decision had already taken; the
+> `ADR-0104` in #466 means this record
 
 ## Context
 
