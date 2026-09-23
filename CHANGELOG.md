@@ -2,6 +2,20 @@
 
 ## [2026-09-23] - No version updates
 
+### Bug Fixes
+
+- (data,app-runtime,db) write a late answer into the partition that asked for it (ADR-0112)
+
+### Documentation
+
+- (web,app-runtime) stop saying a context override cannot reach the read path
+
+### Refactor
+
+- (data,app-runtime) remove the 24 repository methods nothing calls
+
+## [2026-09-23] - No version updates
+
 ### Documentation
 
 - (adr) give the agent-procedures decision ADR-0114, not a second 0104
