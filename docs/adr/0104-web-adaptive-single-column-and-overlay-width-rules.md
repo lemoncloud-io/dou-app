@@ -9,6 +9,9 @@
 > `libs/ui-kit/README.md`
 > Related: [ADR-0011](./0011-web-layout-shell-and-floating-bottom-nav.md) (the mobile shell whose one-column rule this
 > re-scopes)
+> · Not the agent-procedures decision, which also merged as ADR-0104 and is now
+> [ADR-0114](./0114-agent-procedures-in-docs-and-a-general-language-rule.md); the `ADR-0104` in #466
+> means that record
 
 ## Context
 

@@ -1,4 +1,4 @@
-# ADR-0111: A 1:1 opened inside a cloud — no invite, no place, and a second axis under `stereo`
+# ADR-0113: A 1:1 opened inside a cloud — no invite, no place, and a second axis under `stereo`
 
 > Status: Accepted · Decided: 2026-09-22 · Implemented: `feat/cloud-dm` (partly — § Consequences lists what is not built yet)
 > · Scope: `apps/web/src/app/features/channels/**` · `apps/web/src/app/features/invite/accept/**` ·
@@ -8,6 +8,8 @@
 > [ADR-0068](./0068-dm-peer-departure-and-reinvite.md) (departure and re-invite) ·
 > [ADR-0109](./0109-one-rule-for-a-move-into-history-i-can-no-longer-see.md) (what "the peer is gone" is read from)
 > · The module doc is [dm-and-self-chat.md](../../apps/web/docs/feature/channels/dm-and-self-chat.md)
+> · Merged as ADR-0111, a number the picked-image decision had already taken; the `(ADR-0111)` in
+> the `feat/cloud-dm` commit and in `CHANGELOG.md` means this record
 
 ## Context
 

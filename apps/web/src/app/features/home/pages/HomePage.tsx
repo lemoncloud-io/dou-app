@@ -82,7 +82,7 @@ export const HomePage = () => {
     const { selectedCloudId, selectedSiteId } = runtime.session.useSessionSelection();
     const isDefaultCloud = selectedCloudId === 'default';
     // Cloud 1:1 rooms belong to the cloud, not a place, so no place list holds them — they get
-    // a section of their own below the place's rooms (ADR-0111).
+    // a section of their own below the place's rooms.
     const { channels: cloudDmChannels, isLoading: isCloudDmLoading } = useCloudDmChannels();
     // Connected to an invited cloud → drives the place-type caption.
     const isInvitedCloud = !isDefaultCloud && invitedClouds.some(cloud => cloud.id === selectedCloudId);
@@ -354,7 +354,7 @@ export const HomePage = () => {
         }
     };
     /**
-     * Starting a 1:1 is two different acts wearing one menu entry (ADR-0111).
+     * Starting a 1:1 is two different acts wearing one menu entry.
      *
      * On relay the only way to reach a person is their phone number, so it goes to the contact
      * form and on to the SMS handoff, exactly as it did (ADR-0089 Track B) — that flow is a
@@ -477,9 +477,9 @@ export const HomePage = () => {
                         canCreate={!isChannelSectionLoading && (isDefaultCloud || isCloudOwner)}
                         isDefaultCloud={isDefaultCloud}
                         /**
-                         * Every environment can start a 1:1, and they do not all do it the same way
-                         * (ADR-0111). Relay reaches a person by phone number; a cloud reaches them
-                         * by name, because they are already a member.
+                         * Every environment can start a 1:1, and they do not all do it the same way.
+                         * Relay reaches a person by phone number; a cloud reaches them by name,
+                         * because they are already a member.
                          *
                          * **Including an invited cloud**, which `canCreate` excludes — that flag is
                          * about making rooms, and a member who cannot make one can still talk to
@@ -525,8 +525,8 @@ export const HomePage = () => {
                 )}
 
                 {/* Cloud 1:1 rooms, which belong to the cloud rather than to any place and so appear
-                    in none of the lists above (ADR-0111). Relay is excluded: its 1:1s DO live in its
-                    one place and are already in the list, so a second section would double them.
+                    in none of the lists above. Relay is excluded: its 1:1s DO live in its one place
+                    and are already in the list, so a second section would double them.
 
                     The same `ChannelList` as the place's rooms, deliberately — every row rule (the
                     title chain, the avatar, unread, the last-message preview) is decided there, and
