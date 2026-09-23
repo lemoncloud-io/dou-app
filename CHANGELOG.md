@@ -2,6 +2,14 @@
 
 ## [2026-09-23] - No version updates
 
+### Documentation
+
+- (adr) give the agent-procedures decision ADR-0114, not a second 0104
+- (adr,web) take the ADR number out of source comments, not repoint it
+- (adr) renumber the cloud 1:1 ADR to 0113, not a second 0111
+
+## [2026-09-23] - No version updates
+
 ### Features
 
 - (web,data) open a 1:1 inside a cloud by naming a member (ADR-0111)
