@@ -1,12 +1,9 @@
 import { useCallback, useRef } from 'react';
 
-import { resizeImageToBase64 } from '@chatic/shared';
+import { AVATAR_IMAGE, prepareImage } from '@chatic/shared';
 
 /** Anything larger is rejected before decoding — a 10MB photo is a mistake, not a choice. */
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
-
-/** Longest edge of the stored thumbnail, in px. */
-const THUMBNAIL_EDGE = 150;
 
 export interface PickImageOptions {
     /** Receives the resized base64 thumbnail. */
@@ -38,7 +35,9 @@ export const usePickImage = ({ onPicked, onError }: PickImageOptions) => {
                 return;
             }
             try {
-                onPicked(await resizeImageToBase64(file, THUMBNAIL_EDGE));
+                const { avatar } = await prepareImage(file, AVATAR_IMAGE);
+                if (!avatar) throw new Error('Failed to prepare avatar image');
+                onPicked(avatar);
             } catch {
                 onError();
             }

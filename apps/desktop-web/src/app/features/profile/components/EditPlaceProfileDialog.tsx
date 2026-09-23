@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { resizeImageToBase64 } from '@chatic/shared';
+import { AVATAR_IMAGE, prepareImage } from '@chatic/shared';
 import { runtime } from '@chatic/app-runtime';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 import { Button } from '@chatic/ui-kit/components/ui/button';
@@ -19,8 +19,6 @@ import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 import { avatarStyle, isPlaceholderName, useCurrentPlace, useMyProfile, useSiteProfilesStore } from '../../../shared';
 import { PlaceChip } from './PlaceChip';
 import { useEditPlaceProfileDialogStore } from '../stores';
-
-const THUMBNAIL_SIZE = 150;
 
 /**
  * Edit my Place Profile (nick / thumbnail / active) for the current place. The
@@ -77,7 +75,10 @@ export const EditPlaceProfileDialog = () => {
         const file = e.target.files?.[0];
         if (!file) return;
         try {
-            setThumbnail(await resizeImageToBase64(file, THUMBNAIL_SIZE));
+            const { avatar } = await prepareImage(file, AVATAR_IMAGE);
+            // A record field has nothing to fall back to, so a failure is an error, not a gap.
+            if (!avatar) throw new Error('Failed to prepare avatar image');
+            setThumbnail(avatar);
         } catch {
             toast({ variant: 'destructive', description: t('profile.place.imageFailed') });
         }

@@ -9,7 +9,7 @@ const navigateMock = jest.fn();
 
 jest.mock('../../channels/hooks', () => ({ useCreateChannel: () => ({ createChannel: createChannelMock }) }));
 jest.mock('@chatic/shared', () => ({
-    resizeImageToBase64: jest.fn(),
+    prepareImage: jest.fn(),
     useNavigateWithTransition: () => navigateMock,
 }));
 jest.mock('@chatic/bridges', () => ({ logger: { error: jest.fn() } }));

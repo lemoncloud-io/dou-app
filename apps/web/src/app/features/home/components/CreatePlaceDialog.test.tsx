@@ -9,7 +9,7 @@ const switchSiteMock = jest.fn();
 
 jest.mock('../../../hooks', () => ({ useCreatePlace: () => ({ createPlace: createPlaceMock }) }));
 jest.mock('../../../runtime/useSiteSwitch', () => ({ useSiteSwitch: () => ({ switchSite: switchSiteMock }) }));
-jest.mock('@chatic/shared', () => ({ resizeImageToBase64: jest.fn() }));
+jest.mock('@chatic/shared', () => ({ prepareImage: jest.fn() }));
 jest.mock('@chatic/bridges', () => ({ logger: { error: jest.fn() } }));
 jest.mock('react-i18next', () => ({
     // Echo the key so assertions can target keys directly.

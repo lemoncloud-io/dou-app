@@ -225,7 +225,7 @@ Four things the filenames do not tell you.
 Import from the barrel. Nothing here needs construction or registration.
 
 ```ts
-import { formatDate, placeScopeKey, resizeImageToBase64, storage, usePinnedChannels } from '@chatic/shared';
+import { AVATAR_IMAGE, formatDate, placeScopeKey, prepareImage, storage } from '@chatic/shared';
 
 // Per-place preferences: derive the scope first, and let a null scope stay null.
 const scope = placeScopeKey(cloudId, placeId);
@@ -302,12 +302,37 @@ call `onError` — only real failures are reported upward.
 
 ### 5. Uploading a picture
 
-Two functions, and picking the wrong one loses data. `resizeImageToBase64` center-crops to a square
-JPEG for avatars and thumbnails, where the square is the point. `scaleImageToDataUrl` keeps the whole
-frame and never upscales, for images that are read rather than recognised — a screenshot attached to a
-feedback report. Its `maxEdge: 1024` / `quality: 0.6` defaults are a payload budget: the report carries
-its images inline as base64, at roughly four bytes per three, so the encoded size is what caps how many
-fit.
+One function, `prepareImage`, and the **destination** picks the policy — because the two upload paths
+have opposite constraints, and leaving that to each caller is how one of them ends up sending an
+uncompressed base64 blob.
+
+```ts
+await prepareImage(file, AVATAR_IMAGE); // avatar — square crop, base64
+await prepareImage(file, REPORT_PHOTO); // feedback screenshot — whole frame, tighter budget
+await prepareImage(file, CHAT_ATTACHMENT); // chat photo — original plus a thumbnail
+```
+
+The destinations are **named policies** rather than options spelled out per call site, because the
+avatar one used to be written at seven of them. Each carries its own budget and the reason for it;
+a one-off variation spreads and overrides (`{ ...AVATAR_IMAGE, maxEdge: 64 }`). The parts
+underneath — `decodeImage`, `compressToBlob`, `toUploadFile` — are exported too, but composing them
+by hand means taking on the pairing `prepareImage` enforces.
+
+`'inline'` is a base64 data URL for a record field or an inline payload, and it is **always
+compressed**: base64 costs about four bytes per three, so the encoded size is the budget. It rejects
+on failure, because its caller has nothing to store instead. The feedback reporter's `1024` / `0.6`
+is that budget, not a taste call.
+
+`'storage'` is bytes PUT to object storage, and **the original goes up at full size** — the transport
+carries it, and re-encoding would spend the quality the sender chose. It returns the original, its
+dimensions, and a small thumbnail for lists. "The original" means _not resized_, not _not touched_:
+HEIC is still converted to JPEG and renamed, because the endpoint answers anything outside
+png/jpeg/gif/webp with a 415. An animated GIF is never redrawn — but it still gets a thumbnail, since
+a first frame is what a list row wants.
+
+Picking the wrong `fit` loses data: `'cover'` center-crops to a square, for avatars where the square
+is the point, and `'contain'` keeps the whole frame and never upscales, for images that are read
+rather than recognised.
 
 ### 6. React Native reaching into the barrel
 

@@ -2,14 +2,14 @@ import '@testing-library/jest-dom';
 
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 
-import { resizeImageToBase64 } from '@chatic/shared';
+import { prepareImage } from '@chatic/shared';
 
 import { PlaceProfileFormDialog, type PlaceProfileFormDialogProps } from './PlaceProfileFormDialog';
 
 jest.mock('@chatic/bridges', () => ({ logger: { error: jest.fn() } }));
-jest.mock('@chatic/shared', () => ({ resizeImageToBase64: jest.fn() }));
+jest.mock('@chatic/shared', () => ({ prepareImage: jest.fn() }));
 
-const resizeMock = resizeImageToBase64 as jest.Mock;
+const resizeMock = prepareImage as jest.Mock;
 
 const noop = () => undefined;
 
@@ -197,7 +197,7 @@ describe('PlaceProfileFormDialog', () => {
     });
 
     it('허용 이미지는 리사이즈 후 미리보기로 반영된다', async () => {
-        resizeMock.mockResolvedValue('data:image/png;base64,abc');
+        resizeMock.mockResolvedValue({ avatar: 'data:image/png;base64,abc' });
         render(<PlaceProfileFormDialog {...baseProps()} />);
 
         await act(async () => {

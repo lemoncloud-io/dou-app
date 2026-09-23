@@ -8,7 +8,7 @@ import { PlaceProfileCreateDialog } from './PlaceProfileCreateDialog';
 const onSubmitMock = jest.fn();
 
 jest.mock('@chatic/bridges', () => ({ logger: { error: jest.fn() } }));
-jest.mock('@chatic/shared', () => ({ resizeImageToBase64: jest.fn() }));
+jest.mock('@chatic/shared', () => ({ prepareImage: jest.fn() }));
 jest.mock('react-i18next', () => ({
     // Echo the key (with the interpolated place appended) so assertions can target keys.
     useTranslation: () => ({ t: (k: string, o?: { place?: string }) => (o?.place ? `${k}|${o.place}` : k) }),
