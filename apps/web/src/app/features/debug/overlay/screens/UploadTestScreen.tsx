@@ -105,8 +105,22 @@ const summarize = (t: OnFileTransferStatePayload) => {
     return t.state;
 };
 
+/**
+ * The test server runs beside the web dev server, so the host this page was loaded from reaches
+ * it: `localhost` on a simulator or an emulator (through `adb reverse`), the machine's LAN address
+ * on a real device.
+ */
+const defaultTestServer = () => `http://${window.location.hostname || 'localhost'}:8080`;
+
+/**
+ * Not `crypto.randomUUID`: it exists only in a secure context, and a real device loads the dev
+ * server over plain http from a LAN address. `getRandomValues` has no such limit.
+ */
+const newTransferId = () =>
+    Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, '0')).join('');
+
 export const UploadTestScreen = () => {
-    const [baseUrl, setBaseUrl] = useState('http://localhost:8080');
+    const [baseUrl, setBaseUrl] = useState(defaultTestServer);
     const [scenario, setScenario] = useState<Scenario>('ok');
     const [slowBps, setSlowBps] = useState(64 * 1024);
     const [dropAfter, setDropAfter] = useState(256 * 1024);
@@ -231,7 +245,7 @@ export const UploadTestScreen = () => {
 
     const startAll = useCallback(async () => {
         for (const file of staged) {
-            const transferId = crypto.randomUUID();
+            const transferId = newTransferId();
             try {
                 await webClient.request({
                     type: 'StartFileTransfer',
