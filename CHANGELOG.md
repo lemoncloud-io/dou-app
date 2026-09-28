@@ -4,6 +4,13 @@
 
 ### Features
 
+- (app-runtime) sign off a cloud slot pushed past the cap before tearing it down
+- (app-runtime,web,desktop-web) keep a socket session open for every joined cloud (ADR-0119)
+
+## [2026-09-28] - No version updates
+
+### Features
+
 - (web/channels) sort the contact picker, add a number line and a count, and fix iOS name search
 - (app-messages,mobile) say whether a contacts read was denied, not only what it returned
 - (web-ui-kit) give SelectableUserItem an optional second line under the name
