@@ -338,9 +338,23 @@ export type OnOpenDocumentPayload = {
     documents: DocumentInfo[];
 };
 
+/**
+ * Whether the contacts read was allowed. iOS partial access arrives as `granted`: the list is real
+ * but holds only the contacts the user picked. The app cannot tell the two apart because the
+ * contacts library's status call never settles on iOS 18+ for partial access (see the device
+ * service in `apps/mobile`); a `limited` value can be added once that call can be trusted.
+ */
+export type ContactsPermission = 'granted' | 'denied';
+
 /** [Response] Returns the device's full contact list after obtaining contacts permission */
 export type OnGetContactsPayload = {
     contacts: ContactInfo[];
+    /**
+     * Optional because a shell built before this field existed never sends it. Without it an empty
+     * list is ambiguous — a denial and an empty address book look the same on the wire — so a web
+     * reading an older shell has to fall back to guessing from the list.
+     */
+    permission?: ContactsPermission;
 };
 
 /** [Response] Returns the result of a camera capture */
