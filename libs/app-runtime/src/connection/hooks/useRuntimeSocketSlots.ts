@@ -51,11 +51,10 @@ export const useRuntimeSocketSlots = (): RuntimeSocketSlots => {
         // `config`, so a token refresh leaves the config stable and does not reboot the socket, while
         // SocketReauthBinder watches this per-slot `identityToken` to re-authenticate in place on a
         // same-connection identity swap (guest→social). The CLOUD slot carries no identityToken
-        // (a535055a) and that is an invariant, not an assumption: no two clouds share a wss host
-        // (confirmed 2026-09-02), so every cloud switch changes the URL and reboots the slot through
-        // SocketBinder, leaving no live connection to re-authenticate. A violation would be silent,
-        // so SocketBinder's same-wss guard reports it. Login (null→token) turns a slot on, logout
-        // off. (§6-3, §6-7)
+        // (a535055a): every cloud switch commits a different cid, and the cid is the slot's key, so
+        // SocketBinder boots the incoming cloud as a new slot and tears the outgoing one down —
+        // there is no live connection left to re-authenticate. Login (null→token) turns a slot on,
+        // logout off. (§6-3, §6-7)
         const relaySlot =
             deviceId && relay.wss && relay.identityToken
                 ? {

@@ -47,9 +47,8 @@ describe('app-runtime — 훅 배치', () => {
      * start with `use*`, so it sailed right through the check above. When the guard is narrower than
      * the rule, the rule doesn't hold.
      *
-     * Only looks at **exported** hooks. A local hook used only by its own component, like
-     * `SocketBinder.tsx`'s `useSameWssSwitchGuard`/`useSocketSlot`, can't leave the file, so it isn't
-     * a placement problem — it's normal React composition, splitting a component up.
+     * Only looks at **exported** hooks. A local hook used only by its own component can't leave the
+     * file, so it isn't a placement problem — it's normal React composition, splitting a component up.
      */
     it('export된 훅은 선언 위치까지 hooks/ 안이다', () => {
         const declaredOutside = sourceFiles(SRC)

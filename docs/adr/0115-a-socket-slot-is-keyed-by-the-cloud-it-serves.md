@@ -1,6 +1,7 @@
 # ADR-0115: A socket slot is keyed by the cloud it serves, not by the role it plays
 
-> Status: Accepted · Decided: 2026-09-28 · Implemented: `refactor/socket-slots-by-cid`
+> Status: Accepted; decision 5 superseded by [ADR-0116](./0116-the-active-socket-slot-is-a-pointer-the-binder-sets.md)
+> · Decided: 2026-09-28 · Implemented: `refactor/socket-slots-by-cid`
 > · Scope: `libs/app-runtime/src/socket/**` · `libs/app-runtime/src/connection/**` ·
 > `libs/data/src/remote/gateways/socket.ts` (the unused `cloud` route) · the app call sites that pinned
 > the relay slot
@@ -42,7 +43,7 @@ could not name a cloud. Three things followed:
    type-checked in CI, so the compiler is not the whole net; the throw is the rest of it.
 4. **A slot cannot change its cloud.** `boundCid` and `rebindCid` are gone; `getBoundCid()` reports the
    active slot's key. A switch that flips the cache cid first cannot relabel the outgoing socket.
-5. **This change keeps at most one cloud slot.** `ensure` tears down another cloud's slot before it
+5. **This change keeps at most one cloud slot.** _(Superseded by ADR-0116: the active slot is a pointer and `ensure` no longer removes other clouds.)_ `ensure` tears down another cloud's slot before it
    binds a new one, in the same call, so the active client goes from one cloud straight to the next.
    Lifting that limit is a separate decision; this one only makes it expressible.
 6. **A cloud config can no longer land on the relay's slot.** The cloud slot used to fall back to cid

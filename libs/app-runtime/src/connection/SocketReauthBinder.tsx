@@ -19,17 +19,17 @@ export interface SocketReauthBinderProps {
  * That happens on relay (guest→social/email promotion swaps the relay token while url/deviceId/
  * wssType hold), and it must fire even while a cloud slot is the ACTIVE socket (§6-7).
  *
- * It cannot happen on cloud: **every cloud switch changes the wss URL**, because no two clouds share
- * a wss host (confirmed 2026-09-02). A URL change moves the reboot key, so SocketBinder tears the
- * slot down and `bootstrapSocketConnection` registers the new identity from scratch — there is no
- * surviving connection to re-authenticate. The cloud entry that used to sit in this list was
- * therefore inert: the cloud slot deliberately carries no `identityToken` (a535055a),
- * so the token comparison below could never move for it.
+ * It cannot happen on cloud: **every cloud switch changes the slot**. Slots are keyed by the cloud
+ * they serve, so SocketBinder boots the incoming cloud as a new slot — `bootstrapSocketConnection`
+ * registers its identity from scratch — and tears the outgoing one down. There is no surviving
+ * connection to re-authenticate, whether or not the two clouds share a wss host. The cloud entry that
+ * used to sit in this list was therefore inert: the cloud slot deliberately carries no
+ * `identityToken` (a535055a), so the token comparison below could never move for it.
  *
- * If that invariant ever breaks, the failure is silent here (a live cloud socket keeping the OLD
- * cloud's identity), so the detection lives where it is observable instead — see the same-wss guard
- * in `SocketBinder`. `reauthenticateActiveSocket` already re-registers any slot it is pointed at; what
- * is missing for cloud is only the trigger, which is an `identityToken` on the cloud slot.
+ * A cloud token re-issued WITHOUT a switch keeps the same slot and is invisible here for the same
+ * reason; `renewCloudSession` re-registers it explicitly. `reauthenticateActiveSocket` already
+ * re-registers any slot it is pointed at; what is missing for cloud is only the trigger, which is an
+ * `identityToken` on the cloud slot.
  */
 const SLOT_KINDS: readonly SocketKind[] = ['relay'] as const;
 

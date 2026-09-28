@@ -137,9 +137,10 @@ sequenceDiagram
     Host->>Host: useRelaySessionInit — gate the subtree
     Host->>Host: useRuntimeSocketSlots — derive relay/cloud slots
     Host->>B: slots + per-kind delegate
-    B->>M: bootstrapSocketConnection({ manager, kind, config, delegate })
+    B->>M: bootstrapSocketConnection({ manager, config, delegate })
     M->>A: ensure(config) — slot keyed by config.cid, attaches AUTH_OPTIONS
     B->>A: subscribe onAuthState · onTokenRefresh
+    B->>M: setActiveSlot(cloud key or null) — after every bind, before any teardown
     B->>A: register({ token, authId, sign }) then stop() — gate closed
     B->>M: connect(slot)
     M-->>B: device.save:ok (from the slot's sync runtime)
@@ -239,7 +240,7 @@ apps/*/src/main.tsx
             ├─ useSocketSessionDelegate() per-kind seed · sign · writeback
             ├─ useRuntimeSocketSlots()    session → { relay?, cloud? } slot configs
             ├─ useRelaySessionKeepAlive() guest login when no session exists (host-dependent)
-            ├─ <SocketBinder>             boots/tears down each slot; calls getSyncManager() first
+            ├─ <SocketBinder>             reconciles every slot + the active pointer; calls getSyncManager() first
             └─ <SocketReauthBinder>       re-auths a slot whose identity token changed
 ```
 
@@ -284,8 +285,10 @@ cid-scoped cache observers re-subscribe to the target at once. The token exchang
 (`delegate-cloud` then `exchange-token`) runs, and the commits happen inside one
 `sessionSignal.batch()` — subscribers see one notification, not eight, and a failed switch rolls
 back inside the batch so it is never observed at all. `committed` moves only on success; `bound`
-says where the socket actually is. Every cloud switch changes the wss URL, so the binder rebuilds
-the slot rather than re-authenticating it.
+says where the socket actually is. The committed cid is the cloud slot's key, so the commit hands
+`SocketBinder` a different slot, not a changed one. Its one reconcile pass binds the target's slot,
+points the active facade at it, and only then tears the outgoing cloud's slot down — the log reads
+`slot bound` → `active moved` → `slot torn down`, and the relay slot is untouched throughout.
 
 ### 4. A guest signs in
 

@@ -84,7 +84,7 @@ const coalescer = new Coalescer<boolean>();
  *
  * The socket half is not optional bookkeeping. The cloud slot's binding deliberately carries no
  * identityToken, so neither `SocketBinder` (reboot key is url|deviceId|wssType) nor
- * `SocketReauthBinder` reacts to a same-wss token change (multi-socket-design.md §6-7) — without the
+ * `SocketReauthBinder` reacts to a token change within the same cloud — without the
  * explicit re-register the SDK would keep replaying the LAPSED token until it burned `maxFailures`
  * and `onAuthExpired` dropped the user out of the cloud, i.e. the renewal would fix HTTP and then
  * lose the place anyway.

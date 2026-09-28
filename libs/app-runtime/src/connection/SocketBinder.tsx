@@ -5,8 +5,8 @@ import { logger } from '@chatic/bridges';
 import { getSocketManager } from '../socket/runtime';
 import { getSyncManager } from '../socket/sync/runtime';
 import { bootstrapSocketConnection } from '../socket';
-import type { ISocketManager, SlotKey, SocketBindingConfig, SocketKind, SocketSessionDelegate } from '../socket';
-import { slotKeyOf } from '../socket/utils/slotKey';
+import type { ISocketManager, SlotKey, SocketBindingConfig, SocketSessionDelegate } from '../socket';
+import { kindOf, slotKeyOf } from '../socket/utils/slotKey';
 import type { RuntimeSocketSlots } from './types';
 import { socketRebootKey } from './utils/socketRebootKey';
 
@@ -15,131 +15,127 @@ export interface SocketBinderProps {
     delegate: SocketSessionDelegate;
 }
 
-/**
- * Detects the one cloud switch this design does not support: a switch to a cloud that shares the
- * PREVIOUS cloud's wss host.
- *
- * The whole reboot path rests on the invariant that a cloud switch changes the wss URL, because no
- * two clouds share a wss host (confirmed 2026-09-02). That is what makes `SocketBinder` alone
- * sufficient: a URL change moves the reboot key, the slot is rebuilt, and `bootstrapSocketConnection`
- * registers the new cloud's identity. `SocketReauthBinder` deliberately does not watch cloud for the
- * same reason (see its `SLOT_KINDS`).
- *
- * Break the invariant and nothing errors — the reboot key holds, the socket stays up, and it keeps
- * serving the OUTGOING cloud's identity while the app believes it switched. That silence is the
- * problem, so this names it. The signature is exact: the slot's `cid` is the COMMITTED cloud, which
- * only moves on a successful token exchange, while the reboot key is url/deviceId/wssType — so
- * "committed cloud moved, socket did not" has no benign reading.
- *
- * Not a throw: the session is usable and a hard failure here would take down a working app over a
- * backend topology change. Now that slots are keyed by the cloud they serve, supporting the case is
- * a matter of putting the cid in the reboot key: the incoming cloud then gets its own slot and the
- * outgoing one is torn down, with nothing to re-point.
- */
-const useSameWssSwitchGuard = (kind: SocketKind, rebootKey: string, cid: string | undefined): void => {
-    const prevRef = useRef({ rebootKey, cid });
+/** One slot this binder has booted, and how to detach that boot's SDK subscriptions. */
+interface BootedSlot {
+    rebootKey: string;
+    delegate: SocketSessionDelegate;
+    /** Set once detached; a bootstrap that resolves afterwards detaches itself instead. */
+    detached: boolean;
+    cleanup: (() => void) | null;
+}
 
-    useEffect(() => {
-        const prev = prevRef.current;
-        prevRef.current = { rebootKey, cid };
+/** The slots the session asks for, keyed by the cloud each serves, and the one to make active. */
+interface DesiredSlots {
+    configs: Map<SlotKey, SocketBindingConfig>;
+    active: SlotKey | null;
+}
 
-        if (kind !== 'cloud') return;
-        // Both sides must name a real cloud, so this is a switch between two live clouds rather than
-        // a slot turning on or off. `'default'` is the no-committed-cloud sentinel; it cannot appear
-        // while the slot is bound (the slot gates on `cloud.wss`, which comes off the delegation
-        // token that also supplies the committed cid), but treating it as absent keeps the guard
-        // honest if that ever changes.
-        const isCloud = (value: string | undefined): boolean => !!value && value !== 'default';
-        if (!isCloud(prev.cid) || !isCloud(cid)) return;
-        if (prev.rebootKey !== rebootKey || prev.cid === cid) return;
-
-        logger.error('SOCKET', '[SocketBinder] same-wss cloud switch is unsupported', {
-            data: { from: prev.cid, to: cid, rebootKey },
-        });
-    }, [kind, rebootKey, cid]);
+const desiredSlotsOf = (slots: RuntimeSocketSlots): DesiredSlots => {
+    const configs = new Map<SlotKey, SocketBindingConfig>();
+    for (const slot of [slots.relay, slots.cloud]) {
+        if (slot) configs.set(slotKeyOf(slot.config.cid), slot.config);
+    }
+    return { configs, active: slots.cloud ? slotKeyOf(slots.cloud.config.cid) : null };
 };
 
 /**
- * Manages ONE socket slot (relay or cloud) independently: (re)boots it via the pure
- * `bootstrapSocketConnection` on a socket-identity change, and tears just that slot down when it is
- * gated off. relay and cloud slots coexist (dual sockets) — a change to one never disturbs the other.
- *
- * Keyed on the reboot key `url|deviceId|wssType` — deliberately NOT the slot's full config (which
- * includes `cid`):
- *   1. The slots object is fresh on every session mutation; keying on the stable string avoids
- *      re-running (and detaching an in-flight bootstrap's SDK auth subscriptions) on benign re-renders.
- *   2. A cid-only flip is an OPTIMISTIC cloud switch — rebooting then would re-freeze boundCid to the
- *      target cloud while still attached to the outgoing one, poisoning the cache (§6-9/§8-4).
- * The live config (incl. cid) is read from a ref, so a genuine reboot still passes the current cid.
+ * What the reconcile effect is keyed on: each desired slot's key and reboot key. The slots object is
+ * fresh on every session mutation, so keying on this string keeps benign re-renders from re-running
+ * the effect. The live configs are read from a ref.
  */
-const useSocketSlot = (
+const slotsSignature = (slots: RuntimeSocketSlots): string =>
+    [...desiredSlotsOf(slots).configs]
+        .map(([key, config]) => `${key}=${socketRebootKey(config)}`)
+        .sort()
+        .join(';');
+
+const detach = (booted: BootedSlot): void => {
+    booted.detached = true;
+    booted.cleanup?.();
+    booted.cleanup = null;
+};
+
+/**
+ * Brings the manager's slots in line with `desired`, in an order that keeps the active facade on a
+ * real socket throughout:
+ *
+ *   1. bind every slot that is new or whose reboot key moved;
+ *   2. point the active facade at the desired slot;
+ *   3. tear down every bound slot the session no longer asks for.
+ *
+ * On a cloud switch that reads `bound B → active moved B → torn down A`, so the active client goes
+ * from A straight to B. Step 1 can finish before step 3 because `bootstrapSocketConnection` calls
+ * `ensure` before its first `await`: B's slot exists by the time the pointer moves, and B does not
+ * connect until after A has been torn down, so the two clouds never hold a connection at once.
+ *
+ * Step 3 reads the MANAGER's slots, not only the ones this binder remembers booting. The remembered
+ * set is cleared on unmount (see below), so a remount that asks for fewer slots would otherwise leave
+ * the missing ones bound with nothing left to tear them down.
+ */
+const reconcileSlots = (
     manager: ISocketManager,
-    kind: SocketKind,
-    config: SocketBindingConfig | undefined,
+    booted: Map<SlotKey, BootedSlot>,
+    desired: DesiredSlots,
     delegate: SocketSessionDelegate
 ): void => {
-    const cleanupRef = useRef<(() => void) | null>(null);
-    // The slot this hook last booted. `kind` names a role (relay / the committed cloud); the slot it
-    // fills is keyed by the cloud it serves, which the role alone cannot tell once it has changed.
-    const bootedSlotRef = useRef<SlotKey | null>(null);
-    const rebootKey = socketRebootKey(config);
-    const configRef = useRef(config);
-    configRef.current = config;
+    for (const [key, config] of desired.configs) {
+        const rebootKey = socketRebootKey(config);
+        const current = booted.get(key);
+        if (current && current.rebootKey === rebootKey && current.delegate === delegate) continue;
 
-    useSameWssSwitchGuard(kind, rebootKey, config?.cid);
-
-    useEffect(() => {
-        // Detach the previous connection's SDK auth subscriptions before (re)booting / tearing down.
-        cleanupRef.current?.();
-        cleanupRef.current = null;
-
-        const current = configRef.current;
-        if (!current) {
-            // Slot gated off (logged out / cloud left) → tear down just this role's slot; the sibling stays.
-            if (bootedSlotRef.current) manager.destroy(bootedSlotRef.current);
-            bootedSlotRef.current = null;
-            return;
-        }
-
-        // Genuine reboot: `ensure` inside bootstrap tears down this role's stale client — the same
-        // slot with a different config, or the previous cloud's slot — and builds a fresh one. No
-        // destroy-all, so the sibling slot is untouched.
-        bootedSlotRef.current = slotKeyOf(current.cid);
-        let active = true;
-        void bootstrapSocketConnection({ manager, config: current, delegate })
+        // A reboot: detach the previous boot's subscriptions first. `ensure` inside bootstrap then
+        // rebuilds the client, because the config it is handed differs from the bound one.
+        if (current) detach(current);
+        const next: BootedSlot = { rebootKey, delegate, detached: false, cleanup: null };
+        booted.set(key, next);
+        void bootstrapSocketConnection({ manager, config, delegate })
             .then(cleanup => {
-                if (!active) {
+                if (next.detached) {
                     cleanup();
                     return;
                 }
-                cleanupRef.current = cleanup;
+                next.cleanup = cleanup;
             })
             .catch(error => {
-                logger.error('SOCKET', '[SocketBinder] bootstrap failed', { error, data: { kind } });
+                // Forget the failed boot so the next reconcile retries it; remembering it would skip
+                // the slot for as long as its reboot key holds. `active` says whether the pointer is
+                // now naming a slot that is not bound, i.e. the facade has quietly stayed on relay.
+                if (!next.detached && booted.get(key) === next) booted.delete(key);
+                logger.error('SOCKET', '[SocketBinder] bootstrap failed', {
+                    error,
+                    data: { cid: key, kind: kindOf(key), active: desired.active === key },
+                });
             });
+    }
 
-        return () => {
-            active = false;
-        };
-        // Keyed on rebootKey (not the config object) so benign re-renders and cid-only flips do not
-        // re-run this effect. `config` is read via configRef (a ref, so it needs no dependency entry).
-    }, [rebootKey, manager, kind, delegate]);
+    manager.setActiveSlot(desired.active);
 
-    // Detach on unmount so the slot's subscriptions do not leak.
-    useEffect(
-        () => () => {
-            cleanupRef.current?.();
-            cleanupRef.current = null;
-        },
-        []
-    );
+    for (const [key, current] of [...booted]) {
+        if (desired.configs.has(key)) continue;
+        detach(current);
+        booted.delete(key);
+    }
+    for (const key of manager.getSlotKeys()) {
+        if (!desired.configs.has(key)) manager.destroy(key);
+    }
 };
 
 /**
- * Boots the dual sockets from `slots`: a relay slot (always-on once a relay token exists)
- * and a cloud slot (present only while a cloud session is active). Each is managed independently by
- * `useSocketSlot`, so relay stays connected (keeping its token alive for relay HTTP) while cloud
- * comes and goes. (multi-socket-design.md §5-1/§5-3)
+ * Boots the sockets the session asks for — a relay slot (always-on once a relay token exists) and a
+ * cloud slot (present only while a cloud session is committed) — and keeps the active facade pointed
+ * at the cloud slot when there is one. One reconcile effect owns every slot, so the order across
+ * slots is decided in one place (see `reconcileSlots`) instead of falling out of which of two
+ * independent effects React happened to run first.
+ *
+ * A slot is identified by its key — the cloud it serves — plus its reboot key `url|deviceId|wssType`.
+ * A different cloud is therefore always a different slot, whatever its URL: the incoming cloud is
+ * booted fresh and the outgoing one torn down, with nothing re-pointed. The identity token is not
+ * part of either, because a refresh must not reboot a healthy socket.
+ *
+ * Unmount detaches every boot's SDK subscriptions and forgets them, but does not destroy the sockets
+ * — the same as before. That is what StrictMode's mount → unmount → mount relies on: the second
+ * mount re-bootstraps each slot, `ensure` finds the config unchanged and reuses the client, and the
+ * first boot's late resolution detaches itself.
  */
 export const SocketBinder = ({ slots, delegate }: SocketBinderProps) => {
     const socketManager = getSocketManager();
@@ -149,7 +145,26 @@ export const SocketBinder = ({ slots, delegate }: SocketBinderProps) => {
     // guarantee. It used to be luck — the first repository read built the DataManager, which built
     // the socket runtime, which built the sync manager (see socket/sync/runtime.ts).
     getSyncManager();
-    useSocketSlot(socketManager, 'relay', slots.relay?.config, delegate);
-    useSocketSlot(socketManager, 'cloud', slots.cloud?.config, delegate);
+
+    const bootedRef = useRef(new Map<SlotKey, BootedSlot>());
+    const slotsRef = useRef(slots);
+    slotsRef.current = slots;
+    const signature = slotsSignature(slots);
+
+    useEffect(() => {
+        reconcileSlots(socketManager, bootedRef.current, desiredSlotsOf(slotsRef.current), delegate);
+        // Keyed on the signature (not the slots object) so benign re-renders do not re-run this.
+        // `slots` is read via slotsRef (a ref, so it needs no dependency entry).
+    }, [signature, socketManager, delegate]);
+
+    // Unmount only — a dependency change must not detach slots the reconcile is about to keep.
+    useEffect(() => {
+        const booted = bootedRef.current;
+        return () => {
+            for (const current of booted.values()) detach(current);
+            booted.clear();
+        };
+    }, []);
+
     return null;
 };

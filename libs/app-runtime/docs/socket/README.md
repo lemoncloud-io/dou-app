@@ -1,10 +1,12 @@
-# socket — two slots behind one facade
+# socket — slots behind one facade
 
-`SocketManager` holds up to two `ClientSocketV2` clients at once: **relay**, on whenever a relay token
-exists, and **cloud**, on only while a cloud session is active. Almost everything that talks to a
+`SocketManager` holds one `ClientSocketV2` client per slot: **relay**, on whenever a relay token
+exists, and **cloud**, on only while a cloud session is active. The manager sets no limit on cloud
+slots; the binder asks for one, and holds two only for the length of a switch. Almost everything that talks to a
 socket does not care which — gateways, sync and the UI address an **active facade** that resolves to
-cloud when a cloud slot is bound and relay otherwise. Only slot lifecycle, and the handful of things
-that must reach one specific server, address a slot — by its `SlotKey`, the cloud id it serves.
+the slot its owner points it at (`setActiveSlot`) — the committed cloud's, when there is one — and to
+relay otherwise. Only slot lifecycle, and the handful of things that must reach one specific server,
+address a slot — by its `SlotKey`, the cloud id it serves.
 
 The React layer that turns session state into slots and drives them lives in `connection/`; it is
 covered here because the two halves only make sense together.
@@ -13,7 +15,7 @@ covered here because the two halves only make sense together.
 
 ```text
 socket/                              34 source files, 23 tests
-├── SocketManager.ts   809 lines   the class. Nothing else is exported from this file
+├── SocketManager.ts   838 lines   the class. Nothing else is exported from this file
 ├── types.ts                       SlotKey · SocketKind · SocketBindingConfig · SocketState · ISocketManager
 ├── constants.ts                   AUTH_OPTIONS · SDK_REFRESH_CYCLE_MS · DEFAULT_VERIFY_TIMEOUT_MS · INITIAL_SOCKET_STATE
 ├── runtime.ts                     getSocketManager — the one creation point
@@ -24,7 +26,7 @@ socket/                              34 source files, 23 tests
 
 connection/                          11 source files
 ├── RuntimeConnectionHost.tsx      both hosts — one component, one switch
-├── SocketBinder.tsx               boots and tears down each slot
+├── SocketBinder.tsx               reconciles the slots and the active pointer
 ├── SocketReauthBinder.tsx         re-authenticates a slot whose identity changed
 ├── types.ts                       RuntimeSocketSlot · RuntimeSocketSlots
 ├── utils/socketRebootKey.ts       the identity key both binders must agree on
@@ -58,7 +60,7 @@ immediately with `503 SOCKET NOT CONNECTED`. Gating is the caller's job, through
 
 ### One interface, four concerns
 
-`ISocketManager` is a single interface with 24 members, grouped by comment banners rather than split
+`ISocketManager` is a single interface with 25 members, grouped by comment banners rather than split
 into four types. The split was tried and withdrawn: four interfaces were exported and recomposed on
 the next line, and not one gateway ever declared the narrow slice it used — which made it a new
 public surface with zero consumers, exactly the category the barrel cleanup exists to remove. When a
@@ -67,7 +69,7 @@ narrow type is genuinely needed, the repo's habit is a `Pick` at the point of us
 
 | Concern                                    | Members                                                                                                                                                                                                 |
 | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Slot lifecycle** — addressed per slot    | `ensure` · `connect` · `destroy` · `setAuthenticated` · `getSlotKeys`                                                                                                                                   |
+| **Slot lifecycle** — addressed per slot    | `ensure` · `connect` · `destroy` · `setActiveSlot` · `setAuthenticated` · `getSlotKeys`                                                                                                                 |
 | **Request and push** — active facade       | `request` · `send` · `onType` · `onSlotType` · `onMessage` · `onState` · `onError` · `disconnect`                                                                                                       |
 | **Observation** — no lifecycle, no sending | `getClient` · `getScopedClient` · `getSnapshot` · `subscribe` · `subscribeClient` · `subscribeSlotClients` · `waitUntilVerified` · `waitUntilSlotVerified` · `isSlotVerified` · `subscribeSlotVerified` |
 | **Cache attribution**                      | `getBoundCid`                                                                                                                                                                                           |
@@ -102,14 +104,34 @@ that cast past the brand. `'#'` is not the relay's key either: it is the relay m
 `ensure(config)` reuses the slot keyed by `config.cid` when the config is unchanged, and otherwise
 destroys it and builds a new client. Two rules hold there:
 
-- **At most one cloud slot.** Ensuring a cloud's slot while another cloud's slot is bound tears the
-  old one down first, in the same call — which is what replacing the single `'cloud'` entry used to
-  do. Both teardowns happen before the new client is created and before the active facade resyncs, so
-  the active client goes from the outgoing cloud straight to the incoming one, never through relay.
+- **It touches no other slot.** Binding cloud B leaves cloud A's slot bound and, if A is active,
+  active. The manager does not limit how many cloud slots exist; the binder asks for the ones the
+  session needs, which today is one.
 - **A config cannot claim the other server.** A config whose `wssType` disagrees with `kindOf(cid)`
   throws. The case it exists for is a cloud config that fell back to the relay's cid, which would
   otherwise replace the relay socket with a cloud one. `useRuntimeSocketSlots` no longer produces
   that fallback: with no committed cloud there is no cloud slot, and it warns.
+
+### The active slot is a pointer
+
+`setActiveSlot(key | null)` names the slot the facade should follow; `null` means relay. The
+effective active slot is that key **while it is bound**, and relay otherwise — so the pointer can be
+set before its slot exists and is honoured the moment `ensure` binds it, and destroying the pointed-at
+slot falls the facade back to relay without moving the pointer. `destroy()` with no key clears it.
+Every call resyncs, and so does every `ensure` and `destroy`: rebuilding the active slot in place
+still re-emits the replacement client to `subscribeClient`.
+
+The active slot used to be inferred — "the cloud slot if one is bound, else relay". That only named
+something while there could be at most one cloud slot, which `ensure` enforced by tearing the other
+cloud down inside the same call. Making it a pointer lets a switch hold both clouds for the length of
+one reconcile pass: the binder binds B, points the facade at B, and only then tears A down. The active
+client goes from A straight to B, never through relay, and A's sync targets are moved off a runtime
+that is still alive rather than dying with it.
+
+Three log lines trace it, all `info` under `SOCKET`, each with `{ cid, kind }`: `slot bound`,
+`active moved` (with `from` and the new slot's `connectCount`) and `slot torn down` (with the
+`connectCount` it reached). A switch reads `slot bound B → active moved B → slot torn down A`; a
+reconnect storm or a relay socket rebuilt by accident shows up as a line that should not be there.
 
 `getBoundCid()` reports the **active** slot's key. Because it is the key, it is fixed for the slot's
 whole life: a switch flips the cache cid optimistically while the outgoing cloud's socket is still
@@ -237,19 +259,47 @@ Four rules produce the result:
 
 - **Each slot is gated on its own server having a token.** The relay wss is a static env value that exists before login, so gating on the URL alone would boot a socket with nothing to authenticate with. Login turns a slot on; logout turns it off.
 - **`identityToken` rides beside `config`, not inside it.** `SocketBinder`'s reboot key reads only `config`, so a token refresh leaves the config stable and the socket alive, while `SocketReauthBinder` watches this field per slot.
-- **The cloud slot carries no `identityToken` at all.** No two clouds share a wss host, so every cloud switch changes the URL and rebuilds the slot — there is no live connection to re-authenticate. That is an invariant, and a violation would be silent, so `SocketBinder` raises an error if a switch ever arrives on the same wss. A cloud token re-issued _without_ a switch is therefore invisible to both binders, and `renewCloudSession` re-registers explicitly.
+- **The cloud slot carries no `identityToken` at all.** Every cloud switch commits a different cid, and the cid is the slot's key, so the incoming cloud gets a new slot and the outgoing one is torn down — there is no live connection to re-authenticate, whether or not the two clouds share a wss host. A cloud token re-issued _without_ a switch is therefore invisible to both binders, and `renewCloudSession` re-registers explicitly.
 - **The cloud slot's cid is the committed cloud**, read from the delegation token — not the selected one, which flips at the start of a switch. Using the selected value made the config describe two clouds at once during the optimistic window: the target's cid next to the outgoing cloud's URL and token.
 
 ### The two binders
 
-`SocketBinder` manages each slot independently. A slot's config appearing calls
-`bootstrapSocketConnection`; disappearing calls `manager.destroy(key)` on the slot it last booted. The **reboot key** is
-`url|deviceId|wssType` and nothing else ([`socketRebootKey.ts`](../../src/connection/utils/socketRebootKey.ts)),
-and both binders read it from that one file so they cannot drift apart. `cid` is excluded because a
-cid-only change is an optimistic cloud switch — rebooting there would re-freeze `boundCid` to the
-target while still attached to the outgoing socket, which is precisely the cache poisoning
-`boundCid` exists to prevent. The identity token is excluded because a refresh must not reboot a
-healthy socket. On a real reboot the binder reads the current config, cid included, from a ref.
+`SocketBinder` owns every slot through **one reconcile effect**. Each render turns the slots into a
+desired set — slot key → config — and a desired active slot (the cloud's key, or `null` for relay).
+The effect is keyed on each desired slot's key plus its **reboot key** `url|deviceId|wssType`
+([`socketRebootKey.ts`](../../src/connection/utils/socketRebootKey.ts), shared with the other binder
+so the two cannot drift), and runs three steps in a fixed order:
+
+1. **Bind** every slot that is new, or whose reboot key moved, through `bootstrapSocketConnection`.
+   A reboot detaches the previous boot's SDK subscriptions first; `ensure` then rebuilds the client
+   because its config differs.
+2. **Point** the facade: `setActiveSlot(desired active)`.
+3. **Tear down** every slot the manager holds that is not desired — read from `getSlotKeys()`, not
+   only from what this binder remembers booting, because a remount starts with an empty memory.
+
+Step 1 is finished by the time step 2 runs because `bootstrapSocketConnection` calls `ensure` before
+its first `await`, and B cannot connect before A is torn down for the same reason: `connect` comes
+after that `await`. So a switch never has two clouds holding a connection, even for a frame. That holds
+on the auth path, which is every real client; the defensive branch for a client without an auth
+controller connects without awaiting first.
+
+A bootstrap that fails is forgotten, so the next reconcile tries that slot again. Until it binds, the
+pointer names an unbound slot and the facade stays on relay; the binder logs that alongside the
+failure.
+
+This replaced two independent `useSocketSlot` effects, one per role, whose relative order across a
+switch was whatever React ran first — and a guard that reported a cloud switch arriving on the same
+wss host as an unsupported case. With slots keyed by the cloud, a different cloud is a different
+slot whatever its URL, so the guard had nothing left to detect and is gone.
+
+`cid` is not in the reboot key because it is already the slot's key. The identity token is not in it
+because a refresh must not reboot a healthy socket.
+
+Unmount detaches every boot's subscriptions and forgets them, but destroys no socket. That is what
+StrictMode (desktop-web runs under it) relies on: the second mount re-bootstraps each slot, `ensure`
+finds the config unchanged and reuses the client, and a boot from the first mount that resolves late
+detaches itself. The unmount half is a separate `[]` effect, so a dependency change never detaches a
+slot the reconcile is about to keep.
 
 It also calls `getSyncManager()` in its render body. That looks stray and is not: a slot's sync
 runtime must exist _before_ the slot binds, because the runtime owns that connection's
@@ -283,7 +333,7 @@ the fault is ours, and telling the user to check their wifi sends them after the
 - **Do not add a silent fallback to a slot-pinned request.** Throwing is the contract; the alternative is a relay-only write landing on a cloud server with no trace.
 - **Do not make a slot-pinned subscription throw when the slot is unbound.** It is a declaration, not a call, and the relay slot is legitimately absent for part of boot.
 - **Do not gate a `getScopedClient` call on `waitUntilVerified`.** That waits on cloud whenever cloud is up. Use `waitUntilSlotVerified(key)`.
-- **Do not put `cid` or the identity token into the reboot key.** Each exclusion has a specific failure attached, and both binders share the key.
+- **Do not put the identity token into the reboot key.** A refresh would reboot a healthy socket. `cid` needs no place in it either — it is already the slot's key — and both binders share the key.
 - **Do not put a value in `types.ts`.** `socket/index.ts` re-exports it wholesale.
 - **Do not branch on `connectionId`.** It is always `null`.
 

@@ -45,7 +45,7 @@ jest.mock('../socket', () => ({
 }));
 
 jest.mock('../socket/runtime', () => {
-    const mockManager = { destroy: jest.fn() };
+    const mockManager = { destroy: jest.fn(), setActiveSlot: jest.fn(), getSlotKeys: jest.fn(() => []) };
     return { getSocketManager: jest.fn().mockReturnValue(mockManager) };
 });
 // Sync has its own creation point now (socket/sync/runtime.ts); SocketBinder reaches it directly.
@@ -150,6 +150,9 @@ describe('RuntimeConnectionHost', () => {
         await waitFor(() => {
             expect(mockedBootstrap).toHaveBeenCalledTimes(1);
         });
+        // The binder tears down what the MANAGER holds, so the stub has to report the booted slot.
+        const socketManager = getSocketManager();
+        (socketManager.getSlotKeys as jest.Mock).mockReturnValue(['my-cloud']);
 
         rerender(
             <RuntimeConnectionHost slots={{}}>
@@ -157,9 +160,8 @@ describe('RuntimeConnectionHost', () => {
             </RuntimeConnectionHost>
         );
 
-        const socketManager = getSocketManager();
         await waitFor(() => {
-            expect(socketManager.destroy).toHaveBeenCalled();
+            expect(socketManager.destroy).toHaveBeenCalledWith('my-cloud');
         });
     });
 

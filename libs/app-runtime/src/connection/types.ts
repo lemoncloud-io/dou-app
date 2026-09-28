@@ -20,7 +20,7 @@ export interface RuntimeSocketSlot {
 
 /**
  * Dual sockets: relay is always-on (once a relay token exists), cloud is present only while a cloud
- * session is active. SocketBinder boots each slot independently. (multi-socket-design.md §5-2)
+ * session is active. SocketBinder reconciles every slot and the active pointer in one pass.
  *
  * This used to be `RuntimeBinding` and carried a second field, `context: DataContext` — the cache
  * scope. No production code read it: `deriveSelectedContext` derives that formula and consumers read
