@@ -303,7 +303,9 @@ and re-registers, which is how the SDK re-sends `auth.update` on a live connecti
 
 `useChatSync(channelId)` registers a sync target by ref-count and primes the room in one call:
 the cache's highest `chatNo` becomes the plan's baseline through `updateLocalSnapshot`, and only a
-cold cache fetches a first page. Live messages then arrive as `chat.sync` pushes and land in the
+cold cache fetches a first page. The target belongs to the cloud selected when it registers and runs
+on that cloud's slot; a switch re-registers it under the next cloud, and the previous one leaves
+through the grace window. Live messages then arrive as `chat.sync` pushes and land in the
 same cache by idempotent `chatNo` merge. Unmounting disposes the ref; the last dispose stops the
 target after a 30-second grace, so a route change and back does not restart it.
 

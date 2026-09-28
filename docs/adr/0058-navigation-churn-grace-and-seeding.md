@@ -1,6 +1,6 @@
 # ADR-0058: Remove screen-transition churn — sync grace period, observer grace preservation, channel seeding
 
-> Status: Accepted · Decided: 2026-08-15
+> Status: Accepted (decision 1's purge-on-active-swap rule is amended → [ADR-0118](0118-a-sync-target-belongs-to-its-cloud-s-slot.md)) · Decided: 2026-08-15
 
 ## Context
 

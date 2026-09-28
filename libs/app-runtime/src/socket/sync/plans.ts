@@ -7,24 +7,13 @@ import {
     ProfileSyncPlan,
 } from '@lemoncloud/chatic-sockets-lib';
 import { toDomainChannel, toDomainChat, toDomainJoin, toDomainPlace, toDomainProfile } from '@chatic/data';
-import { getDataManager, getRepositories } from '../../data/runtime';
+import { getDataManager } from '../../data/runtime';
 import type { ChannelView, ProfileView } from '@lemoncloud/chatic-socials-api';
 import type { MySiteView } from '@lemoncloud/chatic-backend-api';
-import { isForeignContext } from '@chatic/data';
 import { logger } from '@chatic/bridges';
-import { foreignDropAggregator } from '@chatic/logger';
 
+import type { SlotKey } from '../types';
 import { clearRefusedChannel, recordRefusedChannel } from './refusedChannels';
-
-/**
- * Sync plans resolve runtime-heavy dependencies lazily so tests can inject
- * lightweight factories without loading the socket library at module scope.
- *
- * Domain mappers consume the shared DataContext directly (cid/sid/uid live on
- * it), so we read it straight from the manager instead of projecting a separate
- * scope object.
- */
-const getContext = () => getDataManager().getContext();
 
 /**
  * Common option for polling plans: don't reset the snapshot on reconnect (ADR-0059).
@@ -34,9 +23,9 @@ const getContext = () => getDataManager().getContext();
  * guarantee: onUpdate only writes to the cache, and the cache already has the same row, so resetting
  * only produced, for every reconnect (which happens on every foreground return), one identical-data
  * write per registered target → rate limit → refetch chain. Keeping the snapshot writes only the
- * rows that actually changed while offline (updatedAt advanced). Session boundaries (cloud switch,
- * logout) are covered because the scheduler's `stopAll` clears the snapshot along with everything
- * else, so a stale baseline can't survive across a session.
+ * rows that actually changed while offline (updatedAt advanced). Session boundaries (a slot torn
+ * down, logout) are covered because the runtime's `stopAllSync` clears the snapshot along with
+ * everything else, so a stale baseline can't survive across a session.
  */
 const KEEP_SNAPSHOT_ON_RECONNECT = { resetSnapshotOnConnected: false } as const;
 
@@ -133,34 +122,18 @@ const reportRefusal = <TPlan extends DomainSyncPlan<any>>(plan: TPlan): TPlan =>
 // DeviceSyncPlan is no longer created here: createDeviceRuntime injects its own
 // DeviceSyncPlan and owns device save, so these plans are passed as `extraSyncPlans`.
 //
-// `getBoundCid` is injected rather than read from `socket/runtime`: importing the runtime here
-// closed a cycle (`socket/runtime` → `SyncManager` → `plans` → `socket/runtime`). The owner already
-// holds the manager — `SyncManager` passes its own accessor — so nothing needs the singleton.
-export const createSyncPlans = (getBoundCid: () => string | null): DomainSyncPlan[] => {
-    // A cloud switch flips the cache cid to the target optimistically, but the outgoing cloud's
-    // socket stays attached (same url) until the target's wss commits — and keeps delivering frames.
-    // getBoundCid() is the cloud that socket was actually bound to; when it differs from the live
-    // cache cid the frame belongs to a socket that outlived its cloud, so drop it rather than write
-    // the old cloud's channels under the new cloud's partition (the cross-cloud flicker).
-    //
-    // Read per frame, never captured: the bound cloud changes under a live plan.
-    const dropForeignFrame = (): boolean => {
-        const context = getContext();
-        const socketCid = getBoundCid() ?? undefined;
-        const foreign = isForeignContext({ ...context, socketCid });
-        // Counted here rather than at each call site: this predicate is already the single gate, and
-        // these fire on the poll cadence — per-frame logging is what the aggregator's window exists
-        // to avoid (ADR-0099). `getBoundCid` stays the injected accessor; reaching for the socket
-        // runtime here would close the cycle this signature exists to cut.
-        if (foreign) {
-            foreignDropAggregator.record({
-                source: 'sync-frame',
-                cid: context.cid ?? 'default',
-                socketCid: socketCid ?? 'none',
-            });
-        }
-        return foreign;
-    };
+// `slot` is the cloud the runtime these plans run on serves, and it decides where every frame is
+// written: that cloud's scoped repository graph, under the uid this account has there. It is not the
+// selected cloud and not the active slot. A frame from a slot is data OF that slot's cloud, whatever
+// the screen is showing, so there is no frame to drop: before this, plans wrote into the selected
+// partition and dropped any frame whose socket disagreed with it, which lost a frame that arrived
+// during a switch and could only work while targets ran on the active slot alone.
+export const createSyncPlans = (slot: SlotKey): DomainSyncPlan[] => {
+    const cid: string = slot;
+    // Resolved per frame, not captured: the uid in the context is read live (it can land after the
+    // slot binds), and the data runtime is assembled lazily.
+    const getRepositories = () => getDataManager().getScopedRepositories(cid);
+    const getContext = () => getDataManager().getScopedContext(cid);
 
     return [
         reportRefusal(
@@ -172,7 +145,6 @@ export const createSyncPlans = (getBoundCid: () => string | null): DomainSyncPla
                         // retire a refusal: the membership behind it can come back (a re-invite
                         // restores the join), and a remembered "no" must not outlive it.
                         if (target.id) clearRefusedChannel(target.id);
-                        if (dropForeignFrame()) return;
                         const { channel } = getRepositories();
                         void channel.cacheWrite(toDomainChannel(view, getContext()));
                     },
@@ -191,7 +163,6 @@ export const createSyncPlans = (getBoundCid: () => string | null): DomainSyncPla
             new PlaceSyncPlan<MySiteView>({
                 ...KEEP_SNAPSHOT_ON_RECONNECT,
                 onUpdate: (_target, view) => {
-                    if (dropForeignFrame()) return;
                     const { place } = getRepositories();
                     void place.cacheWrite(toDomainPlace(view, getContext()));
                 },
@@ -206,7 +177,6 @@ export const createSyncPlans = (getBoundCid: () => string | null): DomainSyncPla
             new ProfileSyncPlan<ProfileView>({
                 ...KEEP_SNAPSHOT_ON_RECONNECT,
                 onUpdate: (_target, view) => {
-                    if (dropForeignFrame()) return;
                     const { profile } = getRepositories();
                     void profile.cacheWrite(toDomainProfile(view, getContext()));
                 },
@@ -226,7 +196,6 @@ export const createSyncPlans = (getBoundCid: () => string | null): DomainSyncPla
             new ChatSyncPlan({
                 // Applied message delta (ascending). Written in one batch for an idempotent merge keyed on chatNo.
                 onApply: (_target, applied) => {
-                    if (dropForeignFrame()) return;
                     if (!applied.length) return;
                     const { chat } = getRepositories();
                     const scope = getContext();
@@ -249,7 +218,6 @@ export const createSyncPlans = (getBoundCid: () => string | null): DomainSyncPla
                  * repeats are harmless.
                  */
                 onUpdate: (_target, changed) => {
-                    if (dropForeignFrame()) return;
                     const { chat } = getRepositories();
                     void chat.cacheWrite(toDomainChat(changed, getContext()));
                 },
@@ -262,7 +230,6 @@ export const createSyncPlans = (getBoundCid: () => string | null): DomainSyncPla
             new JoinSyncPlan({
                 ...KEEP_SNAPSHOT_ON_RECONNECT,
                 onUpdate: (_target, view) => {
-                    if (dropForeignFrame()) return;
                     const { join } = getRepositories();
                     void join.cacheWrite(toDomainJoin(view, getContext()));
                 },
@@ -276,10 +243,8 @@ export const createSyncPlans = (getBoundCid: () => string | null): DomainSyncPla
                     // When the dropped row is MINE, I am out of that room and its cached messages must
                     // go with it (ADR-0067). `leaveChannel` covers only the leave I initiate here; a
                     // kick or a leave from another device arrives as this removal and nothing else.
-                    // Checked after the tombstone above, and only for the purge: clearing messages is
-                    // not undoable, so a frame from a socket that outlived its cloud must not aim it at
-                    // the live cloud's partition.
-                    if (dropForeignFrame()) return;
+                    // "Mine" is judged by the uid this account has in the slot's cloud — the uid of the
+                    // partition this clears.
                     const separator = target.id.lastIndexOf('@');
                     if (separator <= 0) return;
                     const channelId = target.id.slice(0, separator);

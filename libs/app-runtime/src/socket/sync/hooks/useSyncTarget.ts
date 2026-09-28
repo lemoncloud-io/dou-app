@@ -1,38 +1,58 @@
-import { useEffect } from 'react';
+import { useEffect, useSyncExternalStore } from 'react';
 
 import type { SyncTargetDescriptor } from '@lemoncloud/chatic-sockets-lib';
 
+import { RELAY_CLOUD_ID } from '@chatic/data';
 import { logger } from '@chatic/bridges';
 
 import { getSyncManager } from '../runtime';
-import { useRuntimeSocketState } from '../../../connection/hooks/useRuntimeSocketState';
-import { useSessionIdentity } from '../../../session/hooks/session/readers/useSessionIdentity';
-import { getRepositories } from '../../../data/runtime';
+import { useSlotVerified } from '../../../connection/hooks/useSlotVerified';
+import { useSessionSelection } from '../../../session/hooks/session/readers/useSessionSelection';
+import { getUidInCloud, subscribeSessionSignal } from '../../../session/store';
+import { getDataManager } from '../../../data/runtime';
+import { slotKeyOf } from '../../utils/slotKey';
 
 const buildKey = (target: SyncTargetDescriptor | null): string | null =>
     target ? `${target.type}:${target.id ?? ''}:${target.intervalMs ?? ''}` : null;
 
 /**
+ * The selected cloud, named the way a slot key and the cache scope name it. An unset or empty
+ * selection is the relay — the same normalisation `deriveSelectedContext` applies.
+ */
+const useSelectedCid = (): string => useSessionSelection().selectedCloudId || RELAY_CLOUD_ID;
+
+/** The uid this account has in `cid`, re-read on every session change. */
+const useUidInCloud = (cid: string): string | null =>
+    useSyncExternalStore(subscribeSessionSignal, () => getUidInCloud(cid));
+
+/**
  * Registers a sync target for the component lifetime and unregisters on cleanup.
  * `register` returns its own dispose fn, so the effect cleanup maps onto it directly.
- * Re-runs when the target key changes (type/id/interval) — or when the ACCOUNT changes.
+ *
+ * The target belongs to `cid` — the selected cloud unless the caller names one — and it re-registers
+ * when that changes: a component that stays mounted across a cloud switch renders the next cloud's
+ * rows, so its target has to become the next cloud's too. The new registration waits for that cloud's
+ * slot; the old one leaves through the grace window like any other.
  *
  * **Why uid is a dependency even though it is not in the key.** A target is tagged with the uid it
  * was registered under and only syncs while that still matches (SyncManager.isUidActive), so an
  * account change silently retires this registration. Re-running re-registers it under the new
  * account; without the dependency the target would stay blocked for the rest of the mount, which
- * turns a 403 storm into an equally silent dead sync.
+ * turns a 403 storm into an equally silent dead sync. It is the uid in THIS cloud, because that is
+ * the one the manager compares.
  */
-export const useSyncTarget = (target: SyncTargetDescriptor | null): void => {
+export const useSyncTarget = (target: SyncTargetDescriptor | null, cid?: string): void => {
     const key = buildKey(target);
-    const uid = useSessionIdentity().userId;
+    const selectedCid = useSelectedCid();
+    const targetCid = cid ?? selectedCid;
+    const uid = useUidInCloud(targetCid);
 
     useEffect(() => {
         if (!target) return;
-        return getSyncManager().register(target);
+        return getSyncManager().register(target, { cid: targetCid });
         // key captures every field we re-register on; target is read once per key.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [key, uid]);
+    }, [key, targetCid, uid]);
 };
 
 /**
@@ -41,18 +61,19 @@ export const useSyncTarget = (target: SyncTargetDescriptor | null): void => {
  * updateLocalSnapshot, then fetch a first page only when the cache is cold. The plan never
  * backfills past history, so a cold room needs this explicit first page to render anything.
  *
- * Gated on isVerified so it (re)runs after auth/reconnect — this replaces the SyncManager replay
- * path that used to re-prime on a client swap.
+ * Everything here is about `cid`, the cloud the target was registered for: its slot's verification
+ * gates it (so it re-runs after that slot's auth or reconnect, whichever slot is active), its runtime
+ * takes the baseline, and its partition is the cache read and the page written.
  */
-const usePrimeChat = (channelId?: string): void => {
-    const { isVerified } = useRuntimeSocketState();
+const usePrimeChat = (channelId: string | undefined, cid: string): void => {
+    const isVerified = useSlotVerified(slotKeyOf(cid));
 
     useEffect(() => {
         if (!isVerified || !channelId) return;
         let cancelled = false;
 
         void (async () => {
-            const repos = getRepositories();
+            const repos = getDataManager().getScopedRepositories(cid);
             const cached = await repos.chat.cacheReadList({ channelId });
             if (cancelled) return;
             const lastNo = (cached?.list ?? []).reduce((max, chat) => (chat.chatNo > max ? chat.chatNo : max), 0);
@@ -60,7 +81,8 @@ const usePrimeChat = (channelId?: string): void => {
             // Tell the plan our newest chatNo so the next onConnected/push doesn't catch up from 0.
             getSyncManager().updateLocalSnapshot(
                 { type: 'chat', id: channelId },
-                { id: channelId, lastNo, minNo: 0, messages: [] }
+                { id: channelId, lastNo, minNo: 0, messages: [] },
+                { cid }
             );
 
             // Cold cache: only here do we fetch — a warm room reads from cache and streams via push.
@@ -70,21 +92,22 @@ const usePrimeChat = (channelId?: string): void => {
         })().catch(error => {
             logger.warn('SOCKET', '[useChatSync] Failed to prime chat target', {
                 error,
-                data: { channelId },
+                data: { channelId, cid },
             });
         });
 
         return () => {
             cancelled = true;
         };
-    }, [isVerified, channelId]);
+    }, [isVerified, channelId, cid]);
 };
 
 // Register the chat target (live push + reconnect catch-up) and prime it (baseline + cold fetch).
 // useSyncTarget's effect runs first, so startSync precedes the prime's updateLocalSnapshot.
 export const useChatSync = (channelId?: string, intervalMs?: number): void => {
-    useSyncTarget(channelId ? { type: 'chat', id: channelId, ...(intervalMs ? { intervalMs } : {}) } : null);
-    usePrimeChat(channelId);
+    const cid = useSelectedCid();
+    useSyncTarget(channelId ? { type: 'chat', id: channelId, ...(intervalMs ? { intervalMs } : {}) } : null, cid);
+    usePrimeChat(channelId, cid);
 };
 
 export const useChannelSync = (channelId?: string, intervalMs?: number): void =>

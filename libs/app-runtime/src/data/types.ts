@@ -13,6 +13,19 @@ import type { DataContext, DataRepositories } from '@chatic/data';
 export interface IDataManager {
     getRepositories(): DataRepositories;
     getContext(): DataContext;
+    /**
+     * A repository graph pinned to one cloud: it reads and writes that cloud's partition under the uid
+     * this account has there, and sends through that cloud's socket slot — whichever cloud is selected
+     * or active. Built on first use and kept for the session, one per cloud.
+     *
+     * It shares the app graph's local data sources, so a write made through it wakes the observers a
+     * screen registered through `getRepositories()`. Repository-instance state is its own: the only
+     * such state today is the channel leave guard, which nothing that writes through a scoped graph
+     * reads.
+     */
+    getScopedRepositories(cid: string): DataRepositories;
+    /** The context `getScopedRepositories(cid)` runs under, read at call time. */
+    getScopedContext(cid: string): DataContext;
 }
 
 /**
