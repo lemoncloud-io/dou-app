@@ -1,5 +1,6 @@
 import { ChatLocalDataSource } from '../local/data-sources/ChatLocalDataSource';
 import { createPartitionedMemoryStorage } from '../local/data-sources/__mocks__/MemoryCacheStorage';
+import type { DomainChat } from '../domain';
 import { ChatRepository } from './ChatRepository';
 
 describe('ChatRepository', () => {
@@ -28,11 +29,21 @@ describe('ChatRepository', () => {
             getContext: () => ({ cid: 'cloud-a', sid: 'site-1', uid: 'me' }),
             setContext: () => undefined,
         };
+        const uploadSocketDataSource = {
+            start: jest.fn(),
+            complete: jest.fn(),
+        };
 
         return {
-            repository: new ChatRepository(chatSocketDataSource as any, chatLocalDataSource as any, contextProvider),
+            repository: new ChatRepository(
+                chatSocketDataSource as any,
+                chatLocalDataSource as any,
+                contextProvider,
+                uploadSocketDataSource
+            ),
             chatSocketDataSource,
             chatLocalDataSource,
+            uploadSocketDataSource,
         };
     };
 
@@ -196,7 +207,8 @@ describe('ChatRepository', () => {
                 repository: new ChatRepository(
                     chatSocketDataSource as any,
                     chatLocalDataSource as any,
-                    contextProvider as any
+                    contextProvider as any,
+                    { start: jest.fn(), complete: jest.fn() }
                 ),
                 chatSocketDataSource,
                 chatLocalDataSource,
@@ -257,6 +269,279 @@ describe('ChatRepository', () => {
             cid: 'cloud-a',
             sid: 'site-1',
             uid: 'me',
+        });
+    });
+
+    describe('uploads', () => {
+        it('passes upload.start through and caches nothing', async () => {
+            const { repository, uploadSocketDataSource, chatLocalDataSource } = createRepository();
+            const ticket = { list: [{ upload: { id: 'up-1', status: 'pending' } }] };
+            uploadSocketDataSource.start.mockResolvedValue(ticket);
+            const payload = { list: [{ name: 'a.jpg', contentType: 'image/jpeg', contentSize: 10 }] };
+
+            await expect(repository.startUploads(payload)).resolves.toBe(ticket);
+
+            expect(uploadSocketDataSource.start).toHaveBeenCalledWith(payload);
+            expect(chatLocalDataSource.cacheWrite).not.toHaveBeenCalled();
+        });
+
+        it('passes upload.complete through and caches nothing', async () => {
+            const { repository, uploadSocketDataSource, chatLocalDataSource } = createRepository();
+            const settled = { list: [{ id: 'up-1', status: 'stored' }] };
+            uploadSocketDataSource.complete.mockResolvedValue(settled);
+
+            await expect(repository.completeUploads({ list: [{ id: 'up-1' }] })).resolves.toBe(settled);
+
+            expect(uploadSocketDataSource.complete).toHaveBeenCalledWith({ list: [{ id: 'up-1' }] });
+            expect(chatLocalDataSource.cacheWrite).not.toHaveBeenCalled();
+        });
+
+        it('lets a rejected upload operation reach the caller', async () => {
+            const { repository, uploadSocketDataSource } = createRepository();
+            uploadSocketDataSource.start.mockRejectedValue(new Error('socket down'));
+
+            await expect(repository.startUploads({ list: [] })).rejects.toThrow('socket down');
+        });
+    });
+
+    describe('pending image rows', () => {
+        const createPendingRepository = () => {
+            const chatSocketDataSource = {
+                fetchChat: jest.fn(),
+                sendChat: jest.fn(),
+                getChat: jest.fn(),
+                updateChat: jest.fn(),
+                deleteChat: jest.fn(),
+                setReaction: jest.fn(),
+            };
+            const contextProvider = {
+                getContext: () => ({ cid: 'cloud-a', sid: 'site-1', uid: 'me' }),
+                setContext: () => undefined,
+            };
+            const chatLocalDataSource = new ChatLocalDataSource(
+                contextProvider as any,
+                createPartitionedMemoryStorage('chat')
+            );
+            const repository = new ChatRepository(
+                chatSocketDataSource as any,
+                chatLocalDataSource,
+                contextProvider as any,
+                { start: jest.fn(), complete: jest.fn() }
+            );
+            return { repository, chatSocketDataSource, chatLocalDataSource };
+        };
+
+        const SERVER_FIELDS = ['status', 'error', 'url', 'thumbnail'];
+
+        it('writes a sending row with one local slot per image and no server field names', async () => {
+            const { repository, chatLocalDataSource } = createPendingRepository();
+
+            const id = await repository.createPendingImageChat({
+                channelId: 'ch-1',
+                parentId: 'root-1',
+                localThumbUrls: ['blob:a', 'blob:b'],
+            });
+
+            const row = await chatLocalDataSource.cacheRead(id);
+            expect(row).toMatchObject({
+                channelId: 'ch-1',
+                parentId: 'root-1',
+                content: '',
+                chatNo: 0,
+                isPending: true,
+                isFailed: false,
+                upload$$: [
+                    { localStatus: 'sending', localThumbUrl: 'blob:a' },
+                    { localStatus: 'sending', localThumbUrl: 'blob:b' },
+                ],
+            });
+            for (const slot of row?.upload$$ ?? []) {
+                expect(Object.keys(slot).sort()).toEqual(['localStatus', 'localThumbUrl']);
+                for (const field of SERVER_FIELDS) expect(slot).not.toHaveProperty(field);
+            }
+        });
+
+        it('sends with the stored upload ids and swaps the pending row for the server row', async () => {
+            const { repository, chatSocketDataSource, chatLocalDataSource } = createPendingRepository();
+            const id = await repository.createPendingImageChat({ channelId: 'ch-1', localThumbUrls: ['blob:a'] });
+            chatSocketDataSource.sendChat.mockResolvedValue({
+                id: 'ch-1:7',
+                channelId: 'ch-1',
+                chatNo: 7,
+                content: '',
+                upload$$: [{ id: 'up-1', status: 'stored' }],
+            });
+
+            const sent = await repository.sendPendingImageChat(id, { uploadIds: ['up-1'] });
+
+            expect(chatSocketDataSource.sendChat).toHaveBeenCalledWith(
+                { channelId: 'ch-1', content: '', uploadIds: ['up-1'] },
+                expect.anything()
+            );
+            expect(sent).toMatchObject({ id: 'ch-1:7', tempId: id, isPending: false, isFailed: false });
+            expect(await chatLocalDataSource.cacheRead(id)).toBeNull();
+            expect(await chatLocalDataSource.cacheRead('ch-1:7')).toMatchObject({ chatNo: 7 });
+        });
+
+        it('keeps a thread reply in its thread when sending', async () => {
+            const { repository, chatSocketDataSource } = createPendingRepository();
+            const id = await repository.createPendingImageChat({
+                channelId: 'ch-1',
+                parentId: 'root-1',
+                localThumbUrls: ['blob:a'],
+            });
+            chatSocketDataSource.sendChat.mockResolvedValue({ id: 'ch-1:8', channelId: 'ch-1', chatNo: 8 });
+
+            await repository.sendPendingImageChat(id, { uploadIds: ['up-1'] });
+
+            expect(chatSocketDataSource.sendChat.mock.calls[0][0]).toMatchObject({ parentId: 'root-1' });
+        });
+
+        it('leaves the pending row in place and throws when the send fails', async () => {
+            const { repository, chatSocketDataSource, chatLocalDataSource } = createPendingRepository();
+            const id = await repository.createPendingImageChat({ channelId: 'ch-1', localThumbUrls: ['blob:a'] });
+            chatSocketDataSource.sendChat.mockRejectedValue(new Error('socket down'));
+
+            await expect(repository.sendPendingImageChat(id, { uploadIds: ['up-1'] })).rejects.toThrow('socket down');
+            expect(await chatLocalDataSource.cacheRead(id)).toMatchObject({ isPending: true });
+        });
+
+        it('refuses to send a pending row that no longer exists', async () => {
+            const { repository, chatSocketDataSource } = createPendingRepository();
+
+            await expect(repository.sendPendingImageChat('gone', { uploadIds: ['up-1'] })).rejects.toThrow('gone');
+            expect(chatSocketDataSource.sendChat).not.toHaveBeenCalled();
+        });
+
+        it('fails the row and every slot, then re-arms the same row for a retry that is confirmed', async () => {
+            const { repository, chatSocketDataSource, chatLocalDataSource } = createPendingRepository();
+            const id = await repository.createPendingImageChat({
+                channelId: 'ch-1',
+                localThumbUrls: ['blob:a', 'blob:b'],
+            });
+
+            await repository.failPendingImageChat(id);
+            expect(await chatLocalDataSource.cacheRead(id)).toMatchObject({
+                isPending: false,
+                isFailed: true,
+                upload$$: [
+                    { localStatus: 'failed', localThumbUrl: 'blob:a' },
+                    { localStatus: 'failed', localThumbUrl: 'blob:b' },
+                ],
+            });
+
+            const again = await repository.createPendingImageChat({
+                channelId: 'ch-1',
+                localThumbUrls: ['blob:a', 'blob:b'],
+                pendingId: id,
+            });
+            expect(again).toBe(id);
+            expect(await chatLocalDataSource.cacheRead(id)).toMatchObject({
+                isPending: true,
+                isFailed: false,
+                upload$$: [{ localStatus: 'sending' }, { localStatus: 'sending' }],
+            });
+
+            chatSocketDataSource.sendChat.mockResolvedValue({ id: 'ch-1:9', channelId: 'ch-1', chatNo: 9 });
+            await repository.sendPendingImageChat(id, { uploadIds: ['up-1', 'up-2'] });
+            expect(await chatLocalDataSource.cacheRead(id)).toBeNull();
+        });
+
+        it('does not bring back a failed row that was deleted in the meantime', async () => {
+            const { repository, chatLocalDataSource } = createPendingRepository();
+            const id = await repository.createPendingImageChat({ channelId: 'ch-1', localThumbUrls: ['blob:a'] });
+            await chatLocalDataSource.cacheDelete(id);
+
+            await repository.failPendingImageChat(id);
+
+            expect(await chatLocalDataSource.cacheRead(id)).toBeNull();
+        });
+
+        it('refuses to re-arm a row that was deleted, instead of recreating it without a channel', async () => {
+            const { repository, chatLocalDataSource } = createPendingRepository();
+            const id = await repository.createPendingImageChat({ channelId: 'ch-1', localThumbUrls: ['blob:a'] });
+            await chatLocalDataSource.cacheDelete(id);
+
+            await expect(
+                repository.createPendingImageChat({ channelId: 'ch-1', localThumbUrls: ['blob:a'], pendingId: id })
+            ).rejects.toThrow('gone');
+            expect(await chatLocalDataSource.cacheRead(id)).toBeNull();
+        });
+
+        describe('when the cloud switches during the send', () => {
+            const createSwitchingRepository = () => {
+                let context = { cid: 'cloud-a', sid: 'site-1', uid: 'me' };
+                const contextProvider = { getContext: () => context, setContext: () => undefined };
+                const chatSocketDataSource = { sendChat: jest.fn() };
+                const chatLocalDataSource = new ChatLocalDataSource(
+                    contextProvider as any,
+                    createPartitionedMemoryStorage('chat')
+                );
+                const repository = new ChatRepository(
+                    chatSocketDataSource as any,
+                    chatLocalDataSource,
+                    contextProvider as any,
+                    { start: jest.fn(), complete: jest.fn() }
+                );
+                const switchTo = (cid: string) => {
+                    context = { ...context, cid };
+                };
+                const readIn = (cid: string, id: string) =>
+                    chatLocalDataSource.cacheRead(id, { cid, uid: 'me' } as any);
+                return { repository, chatSocketDataSource, switchTo, readIn };
+            };
+
+            it('fails the row in the cloud it was written in', async () => {
+                const { repository, switchTo, readIn } = createSwitchingRepository();
+                const id = await repository.createPendingImageChat({ channelId: 'ch-1', localThumbUrls: ['blob:a'] });
+
+                switchTo('cloud-b');
+                await repository.failPendingImageChat(id);
+
+                expect(await readIn('cloud-a', id)).toMatchObject({ isFailed: true });
+                expect(await readIn('cloud-b', id)).toBeNull();
+            });
+
+            it('does not post the uploads to the other cloud', async () => {
+                const { repository, chatSocketDataSource, switchTo } = createSwitchingRepository();
+                const id = await repository.createPendingImageChat({ channelId: 'ch-1', localThumbUrls: ['blob:a'] });
+
+                switchTo('cloud-b');
+
+                await expect(repository.sendPendingImageChat(id, { uploadIds: ['up-1'] })).rejects.toThrow(
+                    'another cloud'
+                );
+                expect(chatSocketDataSource.sendChat).not.toHaveBeenCalled();
+            });
+        });
+
+        it('lists only the unsent image rows of the channel', async () => {
+            const { repository, chatLocalDataSource } = createPendingRepository();
+            const mine = await repository.createPendingImageChat({ channelId: 'ch-1', localThumbUrls: ['blob:a'] });
+            await repository.createPendingImageChat({ channelId: 'ch-2', localThumbUrls: ['blob:b'] });
+            await chatLocalDataSource.cacheWriteMany([
+                { id: 'optimistic-text', channelId: 'ch-1', chatNo: 0, content: 'hi', isPending: true },
+                { id: 'ch-1:3', channelId: 'ch-1', chatNo: 3, upload$$: [{ id: 'up-9', status: 'stored' }] },
+            ]);
+
+            const rows = await repository.listPendingImageChats('ch-1');
+
+            expect(rows.map(row => row.id)).toEqual([mine]);
+        });
+
+        // Compile-time half: a mixed list goes through both cache writes without a cast.
+        it('stores server uploads and pending slots side by side', async () => {
+            const { chatLocalDataSource } = createPendingRepository();
+            const mixed: DomainChat['upload$$'] = [
+                { id: 'up-1', status: 'stored' },
+                { localStatus: 'sending', localThumbUrl: 'blob:a' },
+            ];
+
+            await chatLocalDataSource.cacheWrite({ id: 'm1', channelId: 'ch-1', upload$$: mixed });
+            await chatLocalDataSource.cacheWriteMany([{ id: 'm2', channelId: 'ch-1', upload$$: mixed }]);
+
+            expect((await chatLocalDataSource.cacheRead('m1'))?.upload$$).toEqual(mixed);
+            expect((await chatLocalDataSource.cacheRead('m2'))?.upload$$).toEqual(mixed);
         });
     });
 });

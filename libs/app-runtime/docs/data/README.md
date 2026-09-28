@@ -96,7 +96,7 @@ calls it.
 
 Each returns only the interfaces a repository consumes; no gateway instance escapes.
 
-- **`socketFactory`** builds the socket gateway bundle over a socket client — the active facade by default, one slot's `getScopedClient(key)` for a scoped graph. The auth and invite gateways are pinned to relay with `getScopedClient(RELAY_SLOT)` whichever client is passed, and `device` is a routed pair (`{ active, relay }`) so the one relay-only device write can name its destination without every caller learning about routing. The auth bundle has **no `update` slot** — building an `auth.update` packet is the SDK's job alone.
+- **`socketFactory`** builds the socket gateway bundle over a socket client — the active facade by default, one slot's `getScopedClient(key)` for a scoped graph. The auth and invite gateways are pinned to relay with `getScopedClient(RELAY_SLOT)` whichever client is passed, and `device` is a routed pair (`{ active, relay }`) so the one relay-only device write can name its destination without every caller learning about routing. `upload` rides the passed client like the other cloud domains — an image message's uploads go to the cloud it is sent in. The auth bundle has **no `update` slot** — building an `auth.update` packet is the SDK's job alone.
 - **`httpFactory`** builds five HTTP data sources over the gateways in [docs/http/](../http/README.md): auth, user, cloud, subscription, report.
 - **`localFactory`** materializes `resolveCacheBackend`'s verdict as an adapter and wires nine storages — `channel`, `chat`, `inviteCloud`, `invite`, `join`, `profile`, `site`, `user`, `meta`. It holds the package's only module-level mutable state, a shared `IndexedDBDatabase`, because a database connection is a physical shared resource.
 
