@@ -8,7 +8,8 @@ import { useIsAccountGuest, useMyUser } from './useMyUser';
 jest.mock('@chatic/app-runtime', () => ({
     runtime: {
         connection: {
-            useKindVerified: jest.fn(),
+            RELAY_SLOT: 'default',
+            useSlotVerified: jest.fn(),
         },
         session: {
             useGlobalSession: jest.fn(),
@@ -24,7 +25,7 @@ const profileMock = jest.fn();
 
 beforeEach(() => {
     jest.clearAllMocks();
-    (runtime.connection.useKindVerified as jest.Mock).mockReturnValue(true);
+    (runtime.connection.useSlotVerified as jest.Mock).mockReturnValue(true);
     // The real store hands back a NEW context object per session signal; a stable object here is the
     // "nothing changed" case, which is what makes the re-read memo observable.
     (runtime.session.useGlobalSession as jest.Mock).mockReturnValue({ session: 1 });
@@ -52,7 +53,7 @@ describe('useMyUser', () => {
     // The scoped relay client THROWS when its slot is unbound, and firing before the relay handshake
     // is what produced `503 SOCKET NOT CONNECTED` elsewhere — so the fetch waits, the token does not.
     it('holds the refresh until the RELAY slot is verified, but still renders the token value', () => {
-        (runtime.connection.useKindVerified as jest.Mock).mockReturnValue(false);
+        (runtime.connection.useSlotVerified as jest.Mock).mockReturnValue(false);
 
         const { result } = renderHook(() => useMyUser());
 
@@ -63,7 +64,7 @@ describe('useMyUser', () => {
     it('gates on the relay slot specifically, not the active one', () => {
         renderHook(() => useMyUser());
 
-        expect(runtime.connection.useKindVerified).toHaveBeenCalledWith('relay');
+        expect(runtime.connection.useSlotVerified).toHaveBeenCalledWith('default');
     });
 
     it('writes the relay profile response back into the token — the token IS the fan-out', async () => {

@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react';
 import { getSocketManager } from '../socket/runtime';
 import { reauthenticateActiveSocket } from '../socket';
 import type { SocketKind, SocketSessionDelegate } from '../socket';
+import { slotKeyOf } from '../socket/utils/slotKey';
 import type { RuntimeSocketSlots, RuntimeSocketSlot } from './types';
 import { socketRebootKey } from './utils/socketRebootKey';
 
@@ -27,9 +28,8 @@ export interface SocketReauthBinderProps {
  *
  * If that invariant ever breaks, the failure is silent here (a live cloud socket keeping the OLD
  * cloud's identity), so the detection lives where it is observable instead — see the same-wss guard
- * in `SocketBinder`. The machinery to support it already exists (`reauthenticateActiveSocket` takes
- * a `cid` and calls `rebindCid` before the handshake, §8-4); what is missing is only the trigger,
- * which is an `identityToken` on the cloud slot.
+ * in `SocketBinder`. `reauthenticateActiveSocket` already re-registers any slot it is pointed at; what
+ * is missing for cloud is only the trigger, which is an `identityToken` on the cloud slot.
  */
 const SLOT_KINDS: readonly SocketKind[] = ['relay'] as const;
 
@@ -95,11 +95,11 @@ export const SocketReauthBinder = ({ slots: allSlots, delegate }: SocketReauthBi
                 continue;
             }
 
+            if (!slot) continue;
             void reauthenticateActiveSocket({
                 manager: socketManager,
                 delegate,
-                kind,
-                cid: slot?.config.cid ?? null,
+                slot: slotKeyOf(slot.config.cid),
             });
         }
         // Deps are the slots (the configs + tokens actually read) plus the stable manager and

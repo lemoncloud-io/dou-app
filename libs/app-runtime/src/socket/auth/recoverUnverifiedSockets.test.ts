@@ -1,7 +1,11 @@
 import { recoverUnverifiedSockets } from './recoverUnverifiedSockets';
 import type { AuthIdReseedTarget } from './authIdRegistry';
 import type { ISocketManager } from '../types';
+import { RELAY_SLOT, slotKeyOf } from '../utils/slotKey';
 import type { SocketSessionDelegate } from './types';
+
+const RELAY = RELAY_SLOT;
+const CLOUD = slotKeyOf('cloud-1');
 
 jest.mock('@chatic/bridges', () => ({
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
@@ -55,10 +59,17 @@ const makeClient = (kind: string, order: string[], { authState = '', state = 'co
 
 type FakeClient = ReturnType<typeof makeClient>;
 
+/** Maps the test's logical 'relay' | 'cloud' slots onto real SlotKeys, mirroring `getSlotKeys()`. */
 const makeManager = (slots: Partial<Record<'relay' | 'cloud', FakeClient>>, verified: Record<string, boolean> = {}) =>
     ({
-        getClient: jest.fn((kind: 'relay' | 'cloud') => slots[kind] ?? null),
-        isKindVerified: jest.fn((kind: 'relay' | 'cloud') => verified[kind] ?? false),
+        getSlotKeys: jest.fn(() => {
+            const keys: string[] = [];
+            if (slots.relay) keys.push(RELAY);
+            if (slots.cloud) keys.push(CLOUD);
+            return keys;
+        }),
+        getClient: jest.fn((key: string) => (key === RELAY ? (slots.relay ?? null) : (slots.cloud ?? null))),
+        isSlotVerified: jest.fn((key: string) => verified[key === RELAY ? 'relay' : 'cloud'] ?? false),
     }) as unknown as ISocketManager;
 
 const makeDelegate = (registration: { token: string; authId: string } | null): jest.Mocked<SocketSessionDelegate> =>

@@ -74,10 +74,9 @@ export const createMockSocketGateways = (): MockSocketGatewayBundle => ({
         reject: jest.fn(),
     },
     device: {
-        // Routed gateway: one gateway instance per SocketRoute (active/relay/cloud).
+        // Routed gateway: one gateway instance per SocketRoute (active/relay).
         active: { save: jest.fn(), read: jest.fn(), sync: jest.fn(), updateRemote: jest.fn() },
         relay: { save: jest.fn(), read: jest.fn(), sync: jest.fn(), updateRemote: jest.fn() },
-        cloud: { save: jest.fn(), read: jest.fn(), sync: jest.fn(), updateRemote: jest.fn() },
     },
     connection: {
         request: jest.fn(),

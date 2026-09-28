@@ -6,6 +6,8 @@ import type {
     SyncTargetDescriptor,
 } from '@lemoncloud/chatic-sockets-lib';
 
+import type { SlotKey } from '../types';
+
 export interface SyncWatchEntry {
     target: SyncTargetDescriptor;
     refs: number;
@@ -41,7 +43,8 @@ export type SyncRuntimeOptions = Pick<
 >;
 
 export interface SyncManagerDeps {
-    buildSyncPlans?: () => DomainSyncPlan[];
+    /** Builds one slot's plans; `slot` is the cloud that slot serves. */
+    buildSyncPlans?: (slot: SlotKey) => DomainSyncPlan[];
     /** The session uid targets are scoped to. Injected for tests; defaults to the session store. */
     getUid?: () => string | null;
     /** The selected cloud targets are scoped to. Injected for tests; defaults to the session store. */

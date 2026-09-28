@@ -167,11 +167,11 @@ const mergeCachedAndRemoteInvites = (cached: RelayInviteRow[], remote: MyInviteV
  */
 export const useRelayInvites = (state?: InviteState, options: RelayInvitesOptions = {}) => {
     const { invite } = runtime.data.useRuntimeRepositories();
-    // invite.list is relay-pinned (kind-scoped routing), so gate on the RELAY slot specifically —
+    // invite.list is relay-pinned (slot-pinned routing), so gate on the RELAY slot specifically —
     // the active-facade isVerified would track cloud instead whenever a cloud session is up, and
     // firing before relay's own handshake completes is exactly what threw `503 SOCKET NOT
     // CONNECTED - relay.request(invite.list)` on cold boot / window-focus refetch.
-    const isRelayVerified = runtime.connection.useKindVerified('relay');
+    const isRelayVerified = runtime.connection.useSlotVerified(runtime.connection.RELAY_SLOT);
     // Whether this consumer wants the server at all. Asking for a poll is asking for the server, so
     // the waiting screen needs no second flag (see RelayInvitesOptions.remote).
     const wantsRemote = options.remote ?? options.pollIntervalMs !== undefined;
@@ -241,7 +241,7 @@ export const useRelayInvites = (state?: InviteState, options: RelayInvitesOption
         if (!isRelayVerified) {
             const verified = await runtime.connection
                 .getSocketManager()
-                .waitUntilKindVerified('relay', REFETCH_VERIFY_TIMEOUT_MS);
+                .waitUntilSlotVerified(runtime.connection.RELAY_SLOT, REFETCH_VERIFY_TIMEOUT_MS);
             if (!verified) return { data: query.data };
         }
         return query.refetch();

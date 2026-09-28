@@ -1,11 +1,13 @@
 import { logger } from '@chatic/bridges';
 
 import { reissueCommittedCloudTokens } from '../../session/auth/cloudTokens';
+import { getCommittedCloudId } from '../../session/store';
 import { Coalescer } from '../../utils/coalescer';
 
 import { getSocketManager } from '../runtime';
 import { reauthenticateActiveSocket } from './reauthenticateActiveSocket';
 import { createReauthDelegate } from './reauthDelegate';
+import { slotKeyOf } from '../utils/slotKey';
 
 /**
  * Renews the ACTIVE cloud session end to end: re-issue the cloud tokens, then hand the new identity
@@ -36,11 +38,23 @@ const run = async (): Promise<boolean> => {
         return false;
     }
 
+    const committed = getCommittedCloudId();
+    if (!committed) {
+        // The re-issue committed a cloud a moment ago, so this is a switch or logout landing in
+        // between. The store is renewed either way; the socket it would have re-registered is on its
+        // way out, so there is nothing to point the handshake at — but say so, rather than skip it
+        // silently.
+        logger.warn(
+            'SESSION',
+            '[renewCloudSession] no committed cloud after re-issue — socket re-registration skipped'
+        );
+        return true;
+    }
     try {
         await reauthenticateActiveSocket({
             manager: getSocketManager(),
             delegate: createReauthDelegate(),
-            kind: 'cloud',
+            slot: slotKeyOf(committed),
         });
     } catch (error) {
         // HTTP is already fixed by the store commit above — that is the point of the renewal — and the

@@ -9,7 +9,7 @@ import { createDeviceRuntime } from '@lemoncloud/chatic-sockets-lib';
 import { logger } from '@chatic/bridges';
 import { getGlobalSessionContext, subscribeSessionSignal } from '../../session/store';
 import { unrefTimer } from '../../utils/unrefTimer';
-import type { ISocketManager, SocketKind } from '../types';
+import type { ISocketManager, SlotKey } from '../types';
 import { UNREGISTER_GRACE_MS } from './constants';
 import { createSyncPlans } from './plans';
 import { clearRefusedChannels } from './refusedChannels';
@@ -31,7 +31,7 @@ interface SlotRuntimeEntry {
 }
 
 export class SyncManager implements ISyncManager {
-    private readonly buildPlans: () => DomainSyncPlan[];
+    private readonly buildPlans: (slot: SlotKey) => DomainSyncPlan[];
     private readonly runtimeOptions: SyncRuntimeOptions;
     private readonly createRuntime: (client: ClientSocketV2, plans: DomainSyncPlan[]) => ClientSocketRuntime;
     private readonly buildTargetKey: (target: SyncTargetDescriptor) => string;
@@ -45,7 +45,7 @@ export class SyncManager implements ISyncManager {
     private readonly unsubscribeSession: () => void;
     /** The account the live targets belong to — compared on every session change. */
     private lastUid: string | null;
-    private readonly slotRuntimes = new Map<SocketKind, SlotRuntimeEntry>();
+    private readonly slotRuntimes = new Map<SlotKey, SlotRuntimeEntry>();
     private activeClient: ClientSocketV2 | null = null;
     /** Uid-mismatch warning fires once per instance — that's enough to know the cause, and logging it every poll would flood. */
     private warnedUidMismatch = false;
@@ -54,9 +54,11 @@ export class SyncManager implements ISyncManager {
         private readonly manager: ISocketManager,
         deps: SyncManagerDeps = {}
     ) {
-        // Plans read the bound cloud through the manager THIS instance owns, so `plans` never
-        // imports `socket/runtime` (that import closed a cycle back through this file).
-        this.buildPlans = deps.buildSyncPlans ?? (() => createSyncPlans(() => this.manager.getBoundCid()));
+        // A slot's plans judge frames against THAT slot's cloud — its key — rather than asking which
+        // slot is active. Today the two are the same answer, because targets only ever run on the
+        // active runtime; asking the slot is what keeps it true once a runtime can hold targets
+        // without being active.
+        this.buildPlans = deps.buildSyncPlans ?? (slot => createSyncPlans(() => slot));
         this.runtimeOptions = deps.runtimeOptions ?? {};
         // createDeviceRuntime injects a DeviceSyncPlan and owns connect-driven device
         // save; app domain plans are passed as `extraSyncPlans` and tuning options
@@ -86,8 +88,8 @@ export class SyncManager implements ISyncManager {
         // in bootstrapSocketConnection). The active-only runtime this replaces left the relay
         // connection device-less, breaking relay-pinned writes (device.update-remote → 400 no
         // device linked).
-        this.unsubscribeSlots = this.manager.subscribeSlotClients((kind, client) => {
-            this.handleSlotClientChanged(kind, client);
+        this.unsubscribeSlots = this.manager.subscribeSlotClients((slot, client) => {
+            this.handleSlotClientChanged(slot, client);
         });
         // Sync TARGETS still follow the ACTIVE slot only. The manager notifies slot changes before
         // active changes, so the runtime a replay lands on always exists.
@@ -243,8 +245,8 @@ export class SyncManager implements ISyncManager {
         this.unsubscribeSession();
         for (const timer of this.graceTimers.values()) clearTimeout(timer);
         this.graceTimers.clear();
-        for (const [kind, entry] of this.slotRuntimes) {
-            this.slotRuntimes.delete(kind);
+        for (const [slot, entry] of this.slotRuntimes) {
+            this.slotRuntimes.delete(slot);
             this.detachRuntime(entry.runtime);
         }
         this.activeClient = null;
@@ -302,18 +304,18 @@ export class SyncManager implements ISyncManager {
         }
     }
 
-    private handleSlotClientChanged(kind: SocketKind, client: ClientSocketV2 | null): void {
-        const existing = this.slotRuntimes.get(kind);
+    private handleSlotClientChanged(slot: SlotKey, client: ClientSocketV2 | null): void {
+        const existing = this.slotRuntimes.get(slot);
         if (existing?.client === client) return;
         if (existing) {
-            this.slotRuntimes.delete(kind);
+            this.slotRuntimes.delete(slot);
             this.detachRuntime(existing.runtime);
         }
         if (!client) return;
 
-        const plans = this.buildPlans();
+        const plans = this.buildPlans(slot);
         const runtime = this.createRuntime(client, plans);
-        this.slotRuntimes.set(kind, { client, runtime, plans });
+        this.slotRuntimes.set(slot, { client, runtime, plans });
         // start() activates the runtime's connect-driven device save (the device runtime gates it
         // behind an `active` flag) and this slot's controllers. The onState listener is registered
         // in the runtime constructor, so the `connected` event is caught even though connect()

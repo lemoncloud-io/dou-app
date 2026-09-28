@@ -8,7 +8,12 @@ import { createDeviceRuntime } from '@lemoncloud/chatic-sockets-lib';
 
 import { UNREGISTER_GRACE_MS } from './constants';
 import { SyncManager } from './SyncManager';
-import type { ISocketManager, SocketClientListener, SocketKind, SocketSlotClientListener } from '../types';
+import type { ISocketManager, SlotKey, SocketClientListener, SocketSlotClientListener } from '../types';
+import { RELAY_SLOT, slotKeyOf } from '../utils/slotKey';
+
+/** Slots are keyed by the cloud they serve; these are the relay's and one fixture cloud's. */
+const RELAY = RELAY_SLOT;
+const CLOUD = slotKeyOf('cloud-1');
 
 // Keep the real lib (plan classes, types) but stub createDeviceRuntime so the
 // default createRuntime path can be asserted without spinning a real engine.
@@ -115,8 +120,8 @@ describe('SyncManager', () => {
     });
 
     // Mirrors the SocketManager notification order for one slot mutation: slot first, active second.
-    const bindActiveSlot = (kind: SocketKind, client: ClientSocketV2) => {
-        slotListener?.(kind, client);
+    const bindActiveSlot = (key: SlotKey, client: ClientSocketV2) => {
+        slotListener?.(key, client);
         activeListener?.(client);
     };
 
@@ -131,7 +136,7 @@ describe('SyncManager', () => {
         const dispose = syncManager.register({ type: 'channel', id: 'ch-1' });
         expect(runtimes).toHaveLength(0);
 
-        bindActiveSlot('relay', makeClient('relay'));
+        bindActiveSlot(RELAY, makeClient('relay'));
 
         expect(runtimeFactory).toHaveBeenCalledTimes(1);
         // start() activates the device runtime's connect-driven save + slot controllers.
@@ -153,7 +158,7 @@ describe('SyncManager', () => {
             buildSyncPlans: () => [{ domain: 'channel' } as DomainSyncPlan],
             createRuntime: runtimeFactory,
         });
-        bindActiveSlot('relay', makeClient('relay'));
+        bindActiveSlot(RELAY, makeClient('relay'));
 
         const dispose = syncManager.register({ type: 'channel', id: 'ch-1' });
         dispose();
@@ -175,13 +180,13 @@ describe('SyncManager', () => {
             buildSyncPlans: () => [{ domain: 'channel' } as DomainSyncPlan],
             createRuntime: runtimeFactory,
         });
-        bindActiveSlot('relay', makeClient('relay'));
+        bindActiveSlot(RELAY, makeClient('relay'));
 
         const dispose = syncManager.register({ type: 'channel', id: 'ch-1' });
         dispose(); // enters the grace period
 
         // Switching to cloud while in the grace period: the refs-0 entry must not be replayed.
-        bindActiveSlot('cloud', makeClient('cloud'));
+        bindActiveSlot(CLOUD, makeClient('cloud'));
         const cloudRuntime = runtimes[1];
         expect(cloudRuntime.startSync).not.toHaveBeenCalled();
 
@@ -202,7 +207,7 @@ describe('SyncManager', () => {
             buildSyncPlans: () => [{ domain: 'channel' } as DomainSyncPlan],
             createRuntime: runtimeFactory,
         });
-        bindActiveSlot('relay', makeClient('relay'));
+        bindActiveSlot(RELAY, makeClient('relay'));
 
         const dispose = syncManager.register({ type: 'channel', id: 'ch-1' });
         dispose();
@@ -222,7 +227,7 @@ describe('SyncManager', () => {
         const relayClient = makeClient('relay');
         const cloudClient = makeClient('cloud');
 
-        bindActiveSlot('relay', relayClient);
+        bindActiveSlot(RELAY, relayClient);
         syncManager.register({ type: 'channel', id: 'ch-1' });
         const relayRuntime = runtimes[0];
         expect(relayRuntime.startSync).toHaveBeenCalledWith({ type: 'channel', id: 'ch-1' });
@@ -230,7 +235,7 @@ describe('SyncManager', () => {
         // A cloud slot binds and becomes active. The relay runtime must survive — stopping it would
         // kill the relay's connect-driven device.save + keepAlive, leaving a later relay reconnect
         // device-less (the "400 no device linked" push-mute bug). Only its TARGETS move off.
-        bindActiveSlot('cloud', cloudClient);
+        bindActiveSlot(CLOUD, cloudClient);
 
         expect(runtimes).toHaveLength(2);
         const cloudRuntime = runtimes[1];
@@ -250,12 +255,12 @@ describe('SyncManager', () => {
         });
         const relayClient = makeClient('relay');
         const cloudClient = makeClient('cloud');
-        bindActiveSlot('relay', relayClient);
-        bindActiveSlot('cloud', cloudClient);
+        bindActiveSlot(RELAY, relayClient);
+        bindActiveSlot(CLOUD, cloudClient);
         const [relayRuntime, cloudRuntime] = runtimes;
 
         // Cloud logout: the slot notification (null) precedes the active fallback to relay.
-        slotListener?.('cloud', null);
+        slotListener?.(CLOUD, null);
         activeListener?.(relayClient);
 
         expect(cloudRuntime.stopAllSync).toHaveBeenCalled();
@@ -270,14 +275,14 @@ describe('SyncManager', () => {
             buildSyncPlans: () => [{ domain: 'channel' } as DomainSyncPlan],
             createRuntime: runtimeFactory,
         });
-        bindActiveSlot('relay', makeClient('relay'));
-        bindActiveSlot('cloud', makeClient('cloud'));
+        bindActiveSlot(RELAY, makeClient('relay'));
+        bindActiveSlot(CLOUD, makeClient('cloud'));
         const [relayRuntime, cloudRuntime] = runtimes;
 
         // Relay slot rebuilds (e.g. token identity change) while cloud stays active: the manager
         // notifies (relay, null) then (relay, newClient) — no active change follows.
-        slotListener?.('relay', null);
-        slotListener?.('relay', makeClient('relay-2'));
+        slotListener?.(RELAY, null);
+        slotListener?.(RELAY, makeClient('relay-2'));
 
         expect(relayRuntime.stop).toHaveBeenCalledTimes(1);
         expect(runtimes).toHaveLength(3);
@@ -297,8 +302,8 @@ describe('SyncManager', () => {
             createRuntime: runtimeFactory,
         });
 
-        bindActiveSlot('relay', makeClient('relay'));
-        bindActiveSlot('cloud', makeClient('cloud'));
+        bindActiveSlot(RELAY, makeClient('relay'));
+        bindActiveSlot(CLOUD, makeClient('cloud'));
 
         expect(buildSyncPlans).toHaveBeenCalledTimes(2);
         expect(runtimeFactory.mock.calls[0][1]).not.toBe(runtimeFactory.mock.calls[1][1]);
@@ -316,19 +321,19 @@ describe('SyncManager', () => {
 
         // Registered while cloud-A is active → tagged cloud-A; starts once cloud-A's client attaches.
         syncManager.register({ type: 'channel', id: 'ch-1' });
-        bindActiveSlot('cloud', makeClient('cloud-A'));
+        bindActiveSlot(CLOUD, makeClient('cloud-A'));
         expect(runtimes[0].startSync).toHaveBeenCalledWith({ type: 'channel', id: 'ch-1' });
 
         // Cloud logout → relay becomes the active client (boundCid 'default'). The cloud-A channel
         // target must NOT be replayed onto the relay socket.
         (manager.getBoundCid as jest.Mock).mockReturnValue('default');
-        slotListener?.('cloud', null);
-        bindActiveSlot('relay', makeClient('relay'));
+        slotListener?.(CLOUD, null);
+        bindActiveSlot(RELAY, makeClient('relay'));
         expect(runtimes[1].startSync).not.toHaveBeenCalled();
 
         // Switching back to cloud-A re-activates it.
         (manager.getBoundCid as jest.Mock).mockReturnValue('cloud-A');
-        bindActiveSlot('cloud', makeClient('cloud-A-again'));
+        bindActiveSlot(CLOUD, makeClient('cloud-A-again'));
         expect(runtimes[2].startSync).toHaveBeenCalledWith({ type: 'channel', id: 'ch-1' });
     });
 
@@ -347,7 +352,7 @@ describe('SyncManager', () => {
                 createRuntime: runtimeFactory,
             });
             (manager.getBoundCid as jest.Mock).mockReturnValue('default');
-            bindActiveSlot('relay', makeClient('relay'));
+            bindActiveSlot(RELAY, makeClient('relay'));
 
             mockCid = 'cloud-A';
             syncManager.register({ type: 'place', id: '10014' });
@@ -363,12 +368,12 @@ describe('SyncManager', () => {
                 createRuntime: runtimeFactory,
             });
             (manager.getBoundCid as jest.Mock).mockReturnValue('default');
-            bindActiveSlot('relay', makeClient('relay'));
+            bindActiveSlot(RELAY, makeClient('relay'));
             mockCid = 'cloud-A';
             syncManager.register({ type: 'place', id: '10014' });
 
             (manager.getBoundCid as jest.Mock).mockReturnValue('cloud-A');
-            bindActiveSlot('cloud', makeClient('cloud-A'));
+            bindActiveSlot(slotKeyOf('cloud-A'), makeClient('cloud-A'));
 
             expect(runtimes[1].startSync).toHaveBeenCalledWith({ type: 'place', id: '10014' });
         });
@@ -381,14 +386,14 @@ describe('SyncManager', () => {
                 createRuntime: runtimeFactory,
             });
             (manager.getBoundCid as jest.Mock).mockReturnValue('cloud-A');
-            bindActiveSlot('cloud', makeClient('cloud-A'));
+            bindActiveSlot(slotKeyOf('cloud-A'), makeClient('cloud-A'));
 
             mockCid = 'default';
             syncManager.register({ type: 'channel', id: 'relay-ch' });
             expect(runtimes[0].startSync).not.toHaveBeenCalled();
 
             (manager.getBoundCid as jest.Mock).mockReturnValue('default');
-            bindActiveSlot('relay', makeClient('relay'));
+            bindActiveSlot(RELAY, makeClient('relay'));
             expect(runtimes[1].startSync).toHaveBeenCalledWith({ type: 'channel', id: 'relay-ch' });
         });
     });
@@ -400,7 +405,7 @@ describe('SyncManager', () => {
             buildSyncPlans: () => [{ domain: 'chat' } as DomainSyncPlan],
             createRuntime: runtimeFactory,
         });
-        bindActiveSlot('relay', makeClient('relay'));
+        bindActiveSlot(RELAY, makeClient('relay'));
 
         const dispose = syncManager.registerChat('ch-1');
         expect(runtimes[0].startSync).toHaveBeenCalledWith({ type: 'chat', id: 'ch-1' });
@@ -429,7 +434,7 @@ describe('SyncManager', () => {
             // Relay stays on the same cid even across an account change — that's the very condition
             // where the bug was hiding.
             (manager.getBoundCid as jest.Mock).mockReturnValue('default');
-            bindActiveSlot('relay', makeClient('relay-a'));
+            bindActiveSlot(RELAY, makeClient('relay-a'));
 
             mockUid = '1000003';
             syncManager.registerJoin('U:1000003@1000003');
@@ -437,7 +442,7 @@ describe('SyncManager', () => {
 
             // Swap only the account on the same socket (guest→social promotion, logout→login).
             mockUid = '1000891';
-            bindActiveSlot('relay', makeClient('relay-b'));
+            bindActiveSlot(RELAY, makeClient('relay-b'));
 
             expect(runtimes[1].startSync).not.toHaveBeenCalled();
         });
@@ -450,11 +455,11 @@ describe('SyncManager', () => {
                 createRuntime: runtimeFactory,
             });
             (manager.getBoundCid as jest.Mock).mockReturnValue('default');
-            bindActiveSlot('relay', makeClient('relay-a'));
+            bindActiveSlot(RELAY, makeClient('relay-a'));
 
             mockUid = '1000003';
             syncManager.registerJoin('U:1000003@1000003');
-            bindActiveSlot('relay', makeClient('relay-b'));
+            bindActiveSlot(RELAY, makeClient('relay-b'));
 
             expect(runtimes[1].startSync).toHaveBeenCalledWith({ type: 'join', id: 'U:1000003@1000003' });
         });
@@ -472,7 +477,7 @@ describe('SyncManager', () => {
                 createRuntime: runtimeFactory,
             });
             (manager.getBoundCid as jest.Mock).mockReturnValue('default');
-            bindActiveSlot('relay', makeClient('relay-a'));
+            bindActiveSlot(RELAY, makeClient('relay-a'));
 
             mockUid = '1000003';
             syncManager.registerChannel('1000001');
@@ -485,7 +490,7 @@ describe('SyncManager', () => {
             // under the new account is the correct behavior.
             expect(runtimes[0].startSync).toHaveBeenCalledTimes(2);
             // And the previous account's tag must not survive — it would come back on the next replay.
-            bindActiveSlot('relay', makeClient('relay-b'));
+            bindActiveSlot(RELAY, makeClient('relay-b'));
             expect(runtimes[1].startSync).toHaveBeenCalledWith({ type: 'channel', id: '1000001' });
         });
 
@@ -498,14 +503,14 @@ describe('SyncManager', () => {
                 createRuntime: runtimeFactory,
             });
             (manager.getBoundCid as jest.Mock).mockReturnValue('default');
-            bindActiveSlot('relay', makeClient('relay-a'));
+            bindActiveSlot(RELAY, makeClient('relay-a'));
 
             mockUid = null;
             syncManager.registerChannel('1000001');
             expect(runtimes[0].startSync).not.toHaveBeenCalled();
 
             mockUid = '1000891';
-            bindActiveSlot('relay', makeClient('relay-b'));
+            bindActiveSlot(RELAY, makeClient('relay-b'));
             expect(runtimes[1].startSync).not.toHaveBeenCalled();
         });
     });
@@ -527,7 +532,7 @@ describe('SyncManager', () => {
             createRuntime: runtimeFactory,
         });
         (manager.getBoundCid as jest.Mock).mockReturnValue('default');
-        bindActiveSlot('relay', makeClient('relay'));
+        bindActiveSlot(RELAY, makeClient('relay'));
 
         mockUid = '1000003';
         syncManager.registerJoin('U:1000003@1000003');
@@ -551,7 +556,7 @@ describe('SyncManager', () => {
             createRuntime: runtimeFactory,
         });
         (manager.getBoundCid as jest.Mock).mockReturnValue('default');
-        bindActiveSlot('relay', makeClient('relay'));
+        bindActiveSlot(RELAY, makeClient('relay'));
 
         mockUid = '1000003';
         syncManager.registerJoin('U:1000003@1000003');
@@ -569,7 +574,7 @@ describe('SyncManager', () => {
             buildSyncPlans: () => [{ domain: 'chat' } as DomainSyncPlan],
             createRuntime: runtimeFactory,
         });
-        bindActiveSlot('relay', makeClient('relay'));
+        bindActiveSlot(RELAY, makeClient('relay'));
 
         syncManager.updateLocalSnapshot(
             { type: 'chat', id: 'ch-1' },
@@ -606,7 +611,7 @@ describe('SyncManager', () => {
             buildSyncPlans: () => [{ domain: 'place' } as DomainSyncPlan],
             createRuntime: runtimeFactory,
         });
-        bindActiveSlot('relay', makeClient('relay'));
+        bindActiveSlot(RELAY, makeClient('relay'));
 
         const target: SyncTargetDescriptor = { type: 'place', id: 'site-1' };
         const disposeA = syncManager.register(target);
@@ -631,8 +636,8 @@ describe('SyncManager', () => {
             buildSyncPlans: () => [{ domain: 'channel' } as DomainSyncPlan],
             createRuntime: runtimeFactory,
         });
-        bindActiveSlot('relay', makeClient('relay'));
-        bindActiveSlot('cloud', makeClient('cloud'));
+        bindActiveSlot(RELAY, makeClient('relay'));
+        bindActiveSlot(CLOUD, makeClient('cloud'));
 
         syncManager.destroy();
 
@@ -659,7 +664,7 @@ describe('SyncManager', () => {
         });
 
         const client = makeClient('relay');
-        bindActiveSlot('relay', client);
+        bindActiveSlot(RELAY, client);
 
         expect(mockedCreateDeviceRuntime).toHaveBeenCalledWith({
             client,

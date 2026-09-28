@@ -103,7 +103,7 @@ const HANDSHAKE_WAIT_TIMEOUT_MS = 10_000;
 const awaitRelaySocket = async (): Promise<void> => {
     const verified = await runtime.connection
         .getSocketManager()
-        .waitUntilKindVerified('relay', HANDSHAKE_WAIT_TIMEOUT_MS);
+        .waitUntilSlotVerified(runtime.connection.RELAY_SLOT, HANDSHAKE_WAIT_TIMEOUT_MS);
     if (verified) return;
     logger.warn('INVITE', '[useRelayInviteFlow] relay handshake not verified; proceeding best-effort');
 };

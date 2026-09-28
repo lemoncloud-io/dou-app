@@ -21,7 +21,7 @@ grep -rn "@chatic/app-runtime/" --include='*.ts' --include='*.tsx' apps libs | g
 
 Four apps consume it and nothing else does — `apps/web`, `apps/desktop-web`, `apps/admin-v2`,
 `apps/testbed`. The surface itself is locked symbol by symbol by
-[`src/public-surface.test.ts`](./src/public-surface.test.ts): 64 value exports across the seven
+[`src/public-surface.test.ts`](./src/public-surface.test.ts): 66 value exports across the seven
 groups, and a test that fails if an eighth group appears or a symbol moves between them.
 
 This lib is the **composition root, not an engine**. It builds and wires; the engines it assembles
@@ -138,10 +138,10 @@ sequenceDiagram
     Host->>Host: useRuntimeSocketSlots — derive relay/cloud slots
     Host->>B: slots + per-kind delegate
     B->>M: bootstrapSocketConnection({ manager, kind, config, delegate })
-    M->>A: ensure(config, kind) — attaches AUTH_OPTIONS
+    M->>A: ensure(config) — slot keyed by config.cid, attaches AUTH_OPTIONS
     B->>A: subscribe onAuthState · onTokenRefresh
     B->>A: register({ token, authId, sign }) then stop() — gate closed
-    B->>M: connect(kind)
+    B->>M: connect(slot)
     M-->>B: device.save:ok (from the slot's sync runtime)
     B->>A: start() — the gate opens, auth.update fires
     A-->>B: onTokenRefresh(view)
@@ -162,7 +162,7 @@ libs/app-runtime/src/
 ├── boot.ts           the `boot` group's barrel; it has no module of its own
 ├── connection/       11 files — the host, SocketBinder, SocketReauthBinder, 5 hooks
 ├── session/          53 files — store (12) · auth (9) · scope (3) · hooks (28)
-├── socket/           32 files — SocketManager (6) + utils (2) + auth wiring (17) + sync (7)
+├── socket/           34 files — SocketManager (6) + utils (3) + auth wiring (17) + sync (8)
 ├── http/             6 files — HttpManager, transport, gateways, 2 late-bound registries
 ├── data/             17 files — DataManager, 3 factories, cache routing, outbox, 4 hooks
 ├── push/             3 files — device-token registration and its record
@@ -171,9 +171,9 @@ libs/app-runtime/src/
 └── utils/            4 files — Coalescer · Throttle · unrefTimer · isNativeApp
 ```
 
-136 source files, 77 test files, 10,466 lines of non-test code.
+138 source files, 79 test files, 10,834 lines of non-test code.
 
-Names that are not where a filename suggests. `ISocketManager`, `SocketKind`, `SocketState` and
+Names that are not where a filename suggests. `ISocketManager`, `SlotKey`, `SocketKind`, `SocketState` and
 `ScopedSocketClient` all live in [`socket/types.ts`](./src/socket/types.ts) — there is no
 `ISocketManager.ts`. `SocketSessionDelegate` and `ReauthDelegate` live in
 [`socket/auth/types.ts`](./src/socket/auth/types.ts); `IDataManager` and `CacheAssemblyOptions` in
@@ -322,7 +322,7 @@ un-revoke it, so it is detected by its error message and ends the session immedi
 | [docs/session/](./docs/session/README.md)                                  | The session hub. Three stores and their keys, the typed signal and batching, the scope's three views, the use cases, the hooks     |
 | [docs/auth/](./docs/auth/README.md)                                        | Staying authenticated. Who owns what, the five-state truth table, boot and re-auth wiring, the two renewers, the two guards        |
 | [docs/auth/signing.md](./docs/auth/signing.md)                             | The per-kind `authId` / signature / writeback contract, and the registry that catches an `authId` drifting out from under the SDK  |
-| [docs/socket/](./docs/socket/README.md)                                    | `SocketManager`. Dual slots and the active facade, kind-pinned requests and subscriptions, the binders, state, failure reporting   |
+| [docs/socket/](./docs/socket/README.md)                                    | `SocketManager`. Dual slots and the active facade, slot-pinned requests and subscriptions, the binders, state, failure reporting   |
 | [docs/sync/](./docs/sync/README.md)                                        | `SyncManager`. Per-slot runtimes, the ref-counted target registry, the five plans, chat prime, `updateLocalSnapshot`               |
 | [docs/sync/plans.md](./docs/sync/plans.md)                                 | What the SDK scheduler does under the plans — the two plan families, the triggers, and the behaviours only the source shows        |
 | [docs/data/](./docs/data/README.md)                                        | `DataManager` and the three factories, the offline outbox, invited-cloud durability                                                |
@@ -334,7 +334,7 @@ un-revoke it, so it is detected by its error message and ends the session immedi
 
 ```bash
 npx tsc -b libs/app-runtime/tsconfig.json         # every project tsconfig.json references
-npx jest --config libs/app-runtime/jest.config.js # 77 test files
+npx jest --config libs/app-runtime/jest.config.js # 79 test files
 cd libs/app-runtime && npx eslint src             # flat config — run it from this directory
 ```
 

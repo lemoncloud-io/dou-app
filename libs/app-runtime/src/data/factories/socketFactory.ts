@@ -21,6 +21,7 @@ import {
 import { getSocketManager } from '../../socket/runtime';
 import { clearRefusedChannel, recordRefusedChannel } from '../../socket/sync/refusedChannels';
 import { getSocketErrorCode } from '../../socket/utils/socketErrorCode';
+import { RELAY_SLOT } from '../../socket/utils/slotKey';
 
 /**
  * Wraps `channel.sync-users` so its verdict on my membership is not thrown away.
@@ -61,20 +62,18 @@ export const createSocketDataSources = () => {
     const socketClient = getSocketManager();
 
     // Build a gateway once per route so a data source can pick a destination at call time. `active`
-    // is the manager facade (active slot); `relay`/`cloud` are kind-pinned scoped clients that
-    // resolve their slot lazily — so a relay-only write lands on relay even while a cloud is active.
-    // See app-runtime socket/kind-scoped-routing.md.
+    // is the manager facade (active slot); `relay` is a slot-pinned scoped client that resolves its
+    // slot lazily — so a relay-only write lands on relay even while a cloud is active.
     const routed = <G>(create: (client: any) => G): RoutedGateway<G> => ({
         active: create(socketClient),
-        relay: create(socketClient.getScopedClient('relay')),
-        cloud: create(socketClient.getScopedClient('cloud')),
+        relay: create(socketClient.getScopedClient(RELAY_SLOT)),
     });
 
     // Relay-pinned gateways. The 1:1 invite domain and the phone/social identity packets are owned
     // by the central backend behind the RELAY server, so they must not follow the active slot into
     // a cloud. Same policy shape as device.update-remote: the destination is fixed at composition
-    // time instead of exposed as a route, so no caller can leak it. See socket/kind-scoped-routing.md.
-    const relayClient = socketClient.getScopedClient('relay');
+    // time instead of exposed as a route, so no caller can leak it.
+    const relayClient = socketClient.getScopedClient(RELAY_SLOT);
     const relayAuthGateway = createAuthGateway(relayClient as any);
     const inviteGateway = createInviteGateway(relayClient as any);
 

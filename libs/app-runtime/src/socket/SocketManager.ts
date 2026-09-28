@@ -13,8 +13,8 @@ import type {
     ISocketManager,
     ScopedSocketClient,
     SocketBindingConfig,
+    SlotKey,
     SocketClientListener,
-    SocketKind,
     SocketSlotClientListener,
     SocketState,
     SocketStateListener,
@@ -22,6 +22,7 @@ import type {
 import { AUTH_OPTIONS, DEFAULT_VERIFY_TIMEOUT_MS, INITIAL_SOCKET_STATE } from './constants';
 import { socketFailureReporter } from './socketFailureReporter';
 import { annotateSocketError } from './utils/annotateSocketError';
+import { kindOf, slotKeyOf } from './utils/slotKey';
 
 /** A push subscription that must be re-bound whenever the active client is replaced. */
 type TypeListenerEntry = {
@@ -31,7 +32,7 @@ type TypeListenerEntry = {
 };
 
 /** The same, pinned to ONE slot: re-bound on that slot's rebuild rather than on active change. */
-type SlotTypeListenerEntry = TypeListenerEntry & { kind: SocketKind };
+type SlotTypeListenerEntry = TypeListenerEntry & { key: SlotKey };
 
 /** One managed socket slot (relay or cloud). Each slot owns its own SDK client + connection state. */
 interface ClientEntry {
@@ -44,23 +45,25 @@ interface ClientEntry {
     authenticated: boolean;
     /** Latest transport state for this slot (from its onState). */
     connState: ClientSocketState;
-    /** Cloud id this slot was bound to (frozen at bind) — cache attribution. */
-    boundCid: string | null;
     /** `connected` transitions since bind — reconnect-churn telemetry (2026-08 session audit §7 Phase 0). */
     connectCount: number;
     unsubscribes: Array<() => void>;
 }
 
 /**
- * SocketManager owns up to two ClientSocketV2 slots — `relay` (always-on) and `cloud` (active-only)
- * — keyed by kind, and exposes an ACTIVE-FACADE: the observable state, request/send/onType, and
- * subscribeClient all track the ACTIVE slot (cloud when present, else relay). Slot lifecycle
- * (ensure/connect/setAuthenticated/destroy) is per-kind. Each SDK client is fully independent
- * (multi-socket-design.md §6-14); do NOT share a timerScheduler between them (§6-13) — the factory
- * gives each its own.
+ * SocketManager owns up to two ClientSocketV2 slots — the relay's (always-on) and one cloud's
+ * (active-only) — keyed by the cloud each serves, and exposes an ACTIVE-FACADE: the observable state,
+ * request/send/onType, and subscribeClient all track the ACTIVE slot (the cloud slot when present,
+ * else relay). Slot lifecycle (ensure/connect/setAuthenticated/destroy) is per slot. Each SDK client
+ * is fully independent; do NOT share a timerScheduler between them — the factory gives each its own.
+ *
+ * **At most one cloud slot**, and that is enforced here rather than trusted: ensuring a slot for a
+ * cloud while another cloud's slot is bound tears the old one down first, in the same call — exactly
+ * what replacing the single `'cloud'` entry used to do when slots were keyed by kind. Holding more
+ * than one cloud at a time is a separate change.
  */
 export class SocketManager implements ISocketManager {
-    private readonly entries = new Map<SocketKind, ClientEntry>();
+    private readonly entries = new Map<SlotKey, ClientEntry>();
     private state: SocketState = INITIAL_SOCKET_STATE;
 
     // State is an observable store: each consumer (e.g. a useSyncExternalStore hook) registers its
@@ -72,9 +75,9 @@ export class SocketManager implements ISocketManager {
     // rebuild / teardown regardless of which slot is active — see subscribeSlotClients.
     private readonly slotClientListeners = new Set<SocketSlotClientListener>();
     // Per-slot verification listeners, fired whenever a slot's authenticated/connected inputs move —
-    // for ANY slot, not just the active one. Backs waitUntilKindVerified; the active-slot
+    // for ANY slot, not just the active one. Backs waitUntilSlotVerified; the active-slot
     // stateListeners above cannot express "relay is up" while a cloud slot is active.
-    private readonly kindVerifiedListeners = new Set<(kind: SocketKind) => void>();
+    private readonly slotVerifiedListeners = new Set<(key: SlotKey) => void>();
     // Push subscriptions registered via onType. Owned here so they survive active-client changes —
     // re-bound to the active client whenever the active slot changes.
     private readonly typeListeners = new Set<TypeListenerEntry>();
@@ -84,18 +87,34 @@ export class SocketManager implements ISocketManager {
     private readonly slotTypeListeners = new Set<SlotTypeListenerEntry>();
 
     /**
-     * Ensures the slot for `kind` is bound to `config`. Reuses the slot when its config is unchanged;
-     * otherwise tears the slot down and builds a fresh client. Returns that slot's client.
+     * Ensures the slot keyed by `config.cid` is bound to `config`. Reuses the slot when its config is
+     * unchanged; otherwise tears it down and builds a fresh client. Returns that slot's client.
+     *
+     * A cloud slot also replaces any OTHER cloud's slot (see the class note). Both teardowns happen
+     * before the new client is created and before the active facade is resynced, so observers see the
+     * active client go from the outgoing cloud straight to the incoming one — never through relay.
      */
-    public ensure(config: SocketBindingConfig, kind: SocketKind): ClientSocketV2 {
-        const existing = this.entries.get(kind);
+    public ensure(config: SocketBindingConfig): ClientSocketV2 {
+        const key = slotKeyOf(config.cid);
+        // The key decides which server a slot serves, so a config claiming the other one is a bug
+        // upstream — most likely a cloud config that fell back to the relay's cid. Building it would
+        // tear down the relay slot and install a cloud socket in its place.
+        if (config.wssType && config.wssType !== kindOf(key)) {
+            throw new Error(`[SocketManager] a ${config.wssType} config cannot bind the ${kindOf(key)} slot "${key}"`);
+        }
+        const existing = this.entries.get(key);
         if (existing && this.isSameConfig(existing.config, config)) {
             return existing.client;
         }
 
         const prevActiveClient = this.getActiveClient();
         if (existing) {
-            this.teardownEntry(kind);
+            this.teardownEntry(key);
+        }
+        if (kindOf(key) === 'cloud') {
+            for (const other of [...this.entries.keys()]) {
+                if (other !== key && kindOf(other) === 'cloud') this.teardownEntry(other);
+            }
         }
 
         const client = this.createClient(config);
@@ -104,50 +123,57 @@ export class SocketManager implements ISocketManager {
             config,
             authenticated: false,
             connState: client.state,
-            // Freeze this slot's cloud (set only on an actual rebind), so a mid-switch cid flip that
-            // doesn't change the url leaves it pinned to the socket's real cloud.
-            boundCid: config.cid ?? null,
             connectCount: 0,
             unsubscribes: [],
         };
-        this.entries.set(kind, entry);
-        this.bindEntry(kind, entry);
+        this.entries.set(key, entry);
+        this.bindEntry(key, entry);
 
         // Slot notification BEFORE the active-facade sync: per-slot attachments (slot runtimes)
         // must exist by the time active-client listeners replay work onto them.
-        this.notifySlotClient(kind, client);
+        this.notifySlotClient(key, client);
         this.syncActive(prevActiveClient);
         return client;
     }
 
     /**
-     * A specific slot's client when `kind` is given (null if unbound), else the ACTIVE slot's client
-     * (cloud when present, else relay). Logout uses the per-kind form to notify each server's socket.
+     * A specific slot's client when `key` is given (null if unbound), else the ACTIVE slot's client
+     * (cloud when present, else relay). Logout uses the per-slot form to notify each server's socket.
      */
-    public getClient(kind?: SocketKind): ClientSocketV2 | null {
-        if (kind) {
-            return this.entries.get(kind)?.client ?? null;
+    public getClient(key?: SlotKey): ClientSocketV2 | null {
+        if (key) {
+            return this.entries.get(key)?.client ?? null;
         }
         return this.getActiveClient();
     }
 
-    /** The cloud id the ACTIVE slot was bound to (frozen at bind), or null before the first bind. */
-    public getBoundCid(): string | null {
-        return this.getActiveEntry()?.boundCid ?? null;
+    public getSlotKeys(): SlotKey[] {
+        return [...this.entries.keys()];
     }
 
     /**
-     * A stable request facade pinned to ONE slot `kind` (relay/cloud), independent of the active
-     * slot. Every call re-resolves the slot's client (lazy), so it survives slot teardown/rebuild
-     * via ensure() — capturing the client eagerly would leave callers on a stale socket. Used for
-     * requests that must target a specific server regardless of which slot is active (e.g. a
-     * relay-only write while a cloud slot is active). `send` is supported symmetrically, and `onType`
-     * delegates to the manager-owned onSlotType so a pinned subscription survives slot rebuilds.
-     * See socket/kind-scoped-routing.md.
+     * The cloud the ACTIVE slot serves, or null before the first bind. It is the slot's key, so it is
+     * fixed for the slot's whole life: a switch that flips the cache cid first cannot relabel the
+     * outgoing socket, whose frames keep being attributed to the cloud it actually serves.
      */
-    public getScopedClient(kind: SocketKind): ScopedSocketClient {
+    public getBoundCid(): string | null {
+        return this.getActiveKey();
+    }
+
+    /**
+     * A stable request facade pinned to ONE slot, independent of the active slot. Every call
+     * re-resolves the slot's client (lazy), so it survives slot teardown/rebuild via ensure() —
+     * capturing the client eagerly would leave callers on a stale socket. Used for requests that must
+     * target a specific server regardless of which slot is active (e.g. a relay-only write while a
+     * cloud slot is active). `send` is supported symmetrically, and `onType` delegates to the
+     * manager-owned onSlotType so a pinned subscription survives slot rebuilds.
+     */
+    public getScopedClient(key: SlotKey): ScopedSocketClient {
+        // Labels stay `relay`/`cloud`: failure messages are read by people, and the slot's cloud id
+        // is carried in the reporter's data instead.
+        const kind = kindOf(key);
         const requireSlot = (action: string): ClientSocketV2 => {
-            const client = this.entries.get(kind)?.client;
+            const client = this.entries.get(key)?.client;
             if (!client) {
                 throw new Error(`[SocketManager] no ${kind} slot bound for ${action}`);
             }
@@ -161,7 +187,7 @@ export class SocketManager implements ISocketManager {
                 const client = requireSlot(`request(${type})`);
                 return (client.request(type as any, data as any, options) as Promise<T>).then(
                     value => {
-                        socketFailureReporter.recordSuccess(kind);
+                        socketFailureReporter.recordSuccess(key);
                         return value;
                     },
                     error => {
@@ -169,7 +195,7 @@ export class SocketManager implements ISocketManager {
                         // caller's name too. The annotator only appends, so the leading status the
                         // reporter classifies on is untouched.
                         const annotated = annotateSocketError(error, kind, 'request', type);
-                        socketFailureReporter.recordFailure(kind, 'request', type, annotated);
+                        socketFailureReporter.recordFailure(key, 'request', type, annotated);
                         throw annotated;
                     }
                 );
@@ -180,35 +206,23 @@ export class SocketManager implements ISocketManager {
                 try {
                     if (typeof type === 'string') {
                         client.send(type as any, data as any);
-                        socketFailureReporter.recordSuccess(kind);
+                        socketFailureReporter.recordSuccess(key);
                         return;
                     }
                     client.send(type);
                     // A send the transport accepted proves the slot is connected, which is the only
                     // thing the streak tracks — so it clears one, same as a successful request.
-                    socketFailureReporter.recordSuccess(kind);
+                    socketFailureReporter.recordSuccess(key);
                 } catch (error) {
                     const annotated = annotateSocketError(error, kind, 'send', name);
-                    socketFailureReporter.recordFailure(kind, 'send', name, annotated);
+                    socketFailureReporter.recordFailure(key, 'send', name, annotated);
                     throw annotated;
                 }
             },
             // No requireSlot: a subscription waits for its slot instead of throwing (see onSlotType).
             onType: <T = unknown>(type: string, listener: (message: SocketMessage<T>) => void): (() => void) =>
-                this.onSlotType<T>(kind, type, listener),
+                this.onSlotType<T>(key, type, listener),
         };
-    }
-
-    /**
-     * Re-points a slot's bound cloud id WITHOUT rebooting the socket. A same-wss cloud switch (§8-4)
-     * keeps the url unchanged, so the slot is never rebuilt through ensure() and boundCid — otherwise
-     * frozen at bind — would stay on the previous cloud. Without this, getBoundCid() reports the old
-     * cloud and every new-cloud frame is dropped as foreign / mis-attributed by the sync layer.
-     */
-    public rebindCid(kind: SocketKind, cid: string | null): void {
-        const entry = this.entries.get(kind);
-        if (!entry) return;
-        entry.boundCid = cid;
     }
 
     /** Observable state snapshot of the ACTIVE slot. */
@@ -218,11 +232,11 @@ export class SocketManager implements ISocketManager {
 
     /**
      * Whether a SPECIFIC slot is auth-verified (authenticated AND connected). getSnapshot() only
-     * reflects the ACTIVE slot; a per-kind guard (e.g. a relay re-auth while a cloud slot is active)
+     * reflects the ACTIVE slot; a per-slot guard (e.g. a relay re-auth while a cloud slot is active)
      * must read the target slot, not the active one.
      */
-    public isKindVerified(kind: SocketKind): boolean {
-        const entry = this.entries.get(kind);
+    public isSlotVerified(key: SlotKey): boolean {
+        const entry = this.entries.get(key);
         if (!entry) return false;
         return entry.authenticated && entry.connState === 'connected';
     }
@@ -263,7 +277,7 @@ export class SocketManager implements ISocketManager {
     }
 
     /**
-     * The per-kind counterpart of waitUntilVerified: resolves once THAT slot is auth-verified, or
+     * The per-slot counterpart of waitUntilVerified: resolves once THAT slot is auth-verified, or
      * `false` after `timeoutMs`. Never rejects, so a caller gating a request can still proceed
      * best-effort and let the real server error surface.
      *
@@ -271,8 +285,8 @@ export class SocketManager implements ISocketManager {
      * ACTIVE slot, so gating a relay-pinned request with it would wait on cloud whenever a cloud
      * session is up and fire at relay while its handshake is still in flight.
      */
-    public waitUntilKindVerified(kind: SocketKind, timeoutMs: number = DEFAULT_VERIFY_TIMEOUT_MS): Promise<boolean> {
-        if (this.isKindVerified(kind)) {
+    public waitUntilSlotVerified(key: SlotKey, timeoutMs: number = DEFAULT_VERIFY_TIMEOUT_MS): Promise<boolean> {
+        if (this.isSlotVerified(key)) {
             return Promise.resolve(true);
         }
         return new Promise<boolean>(resolve => {
@@ -281,34 +295,34 @@ export class SocketManager implements ISocketManager {
                 if (settled) return;
                 settled = true;
                 clearTimeout(timer);
-                this.kindVerifiedListeners.delete(onChange);
+                this.slotVerifiedListeners.delete(onChange);
                 resolve(verified);
             };
             const timer = setTimeout(() => finish(false), timeoutMs);
-            const onChange = (changed: SocketKind) => {
-                if (changed === kind && this.isKindVerified(kind)) finish(true);
+            const onChange = (changed: SlotKey) => {
+                if (changed === key && this.isSlotVerified(key)) finish(true);
             };
-            this.kindVerifiedListeners.add(onChange);
+            this.slotVerifiedListeners.add(onChange);
         });
     }
 
     /**
-     * Continuous per-kind counterpart of waitUntilKindVerified: fires immediately with THAT slot's
+     * Continuous per-slot counterpart of waitUntilSlotVerified: fires immediately with THAT slot's
      * current verified value, then again on every change to it, until unsubscribed.
      *
-     * waitUntilKindVerified only resolves once — fine for a one-shot gate before a single request,
+     * waitUntilSlotVerified only resolves once — fine for a one-shot gate before a single request,
      * but useless for a reactive consumer (e.g. `useQuery({ enabled })`) that must re-fire on the
      * false→true edge every time the slot drops and reconnects, not just the first time. Backs any
      * such consumer of a getScopedClient-pinned request/send.
      */
-    public subscribeKindVerified(kind: SocketKind, listener: (verified: boolean) => void): () => void {
-        listener(this.isKindVerified(kind));
-        const onChange = (changed: SocketKind) => {
-            if (changed === kind) listener(this.isKindVerified(kind));
+    public subscribeSlotVerified(key: SlotKey, listener: (verified: boolean) => void): () => void {
+        listener(this.isSlotVerified(key));
+        const onChange = (changed: SlotKey) => {
+            if (changed === key) listener(this.isSlotVerified(key));
         };
-        this.kindVerifiedListeners.add(onChange);
+        this.slotVerifiedListeners.add(onChange);
         return () => {
-            this.kindVerifiedListeners.delete(onChange);
+            this.slotVerifiedListeners.delete(onChange);
         };
     }
 
@@ -331,8 +345,8 @@ export class SocketManager implements ISocketManager {
      */
     public subscribeSlotClients(listener: SocketSlotClientListener): () => void {
         this.slotClientListeners.add(listener);
-        for (const [kind, entry] of this.entries) {
-            listener(kind, entry.client);
+        for (const [key, entry] of this.entries) {
+            listener(key, entry.client);
         }
         return () => {
             this.slotClientListeners.delete(listener);
@@ -340,23 +354,23 @@ export class SocketManager implements ISocketManager {
     }
 
     /**
-     * Mirrors the SDK AuthController's authenticated state for `kind` (wired via onAuthState in
-     * bootstrapSocketConnection). When `kind` is the active slot, `isVerified` is recomputed from
+     * Mirrors the SDK AuthController's authenticated state for slot `key` (wired via onAuthState in
+     * bootstrapSocketConnection). When `key` is the active slot, `isVerified` is recomputed from
      * this AND that slot being connected.
      */
-    public setAuthenticated(kind: SocketKind, value: boolean): void {
-        const entry = this.entries.get(kind);
+    public setAuthenticated(key: SlotKey, value: boolean): void {
+        const entry = this.entries.get(key);
         if (!entry) return;
         entry.authenticated = value;
-        this.notifyKindVerified(kind);
-        if (this.getActiveKind() === kind) {
+        this.notifySlotVerified(key);
+        if (this.getActiveKey() === key) {
             this.setState(this.computeState(entry));
         }
     }
 
-    /** Connects the slot for `kind` if it is idle or closed. */
-    public async connect(kind: SocketKind): Promise<void> {
-        const entry = this.entries.get(kind);
+    /** Connects slot `key` if it is idle or closed. */
+    public async connect(key: SlotKey): Promise<void> {
+        const entry = this.entries.get(key);
         if (!entry) return;
         if (entry.client.state === 'idle' || entry.client.state === 'closed') {
             await entry.client.connect();
@@ -376,32 +390,34 @@ export class SocketManager implements ISocketManager {
      */
     public async request<T = unknown>(type: string, data?: unknown, options?: { timeoutMs?: number }): Promise<T> {
         const client = this.requireActiveClient(`request(${type})`);
-        const kind = this.getActiveKind();
+        // requireActiveClient has just proven an active slot exists.
+        const key = this.getActiveKey()!;
         try {
             const value = (await client.request(type as any, data as any, options)) as T;
-            socketFailureReporter.recordSuccess(kind);
+            socketFailureReporter.recordSuccess(key);
             return value;
         } catch (error) {
-            const annotated = annotateSocketError(error, kind, 'request', type);
-            socketFailureReporter.recordFailure(kind, 'request', type, annotated);
+            const annotated = annotateSocketError(error, kindOf(key), 'request', type);
+            socketFailureReporter.recordFailure(key, 'request', type, annotated);
             throw annotated;
         }
     }
 
     public send<T = unknown>(type: string | SocketMessage<T>, data?: T): void {
         const client = this.requireActiveClient('send()');
+        const key = this.getActiveKey()!;
         const name = typeof type === 'string' ? type : type.type;
         try {
             if (typeof type === 'string') {
                 client.send(type as any, data as any);
-                socketFailureReporter.recordSuccess(this.getActiveKind());
+                socketFailureReporter.recordSuccess(key);
                 return;
             }
             client.send(type);
-            socketFailureReporter.recordSuccess(this.getActiveKind());
+            socketFailureReporter.recordSuccess(key);
         } catch (error) {
-            const annotated = annotateSocketError(error, this.getActiveKind(), 'send', name);
-            socketFailureReporter.recordFailure(this.getActiveKind(), 'send', name, annotated);
+            const annotated = annotateSocketError(error, kindOf(key), 'send', name);
+            socketFailureReporter.recordFailure(key, 'send', name, annotated);
             throw annotated;
         }
     }
@@ -425,7 +441,7 @@ export class SocketManager implements ISocketManager {
     }
 
     /**
-     * Registers a push subscription pinned to ONE slot kind, for events a specific server delivers
+     * Registers a push subscription pinned to ONE slot, for events a specific server delivers
      * regardless of which slot is active. The entry is owned by the manager and re-bound whenever
      * that slot is rebuilt — capturing the client here would leave the listener on a dead socket
      * after the first reconnect.
@@ -434,17 +450,17 @@ export class SocketManager implements ISocketManager {
      * the entry waits and binds when the slot appears. It never falls back to another slot.
      */
     public onSlotType<T = unknown>(
-        kind: SocketKind,
+        key: SlotKey,
         type: string,
         listener: (message: SocketMessage<T>) => void
     ): () => void {
         const entry: SlotTypeListenerEntry = {
-            kind,
+            key,
             type,
             listener: listener as (message: SocketMessage<any>) => void,
         };
         this.slotTypeListeners.add(entry);
-        this.bindSlotTypeListener(entry, this.entries.get(kind)?.client ?? null);
+        this.bindSlotTypeListener(entry, this.entries.get(key)?.client ?? null);
 
         return () => {
             entry.unsubscribe?.();
@@ -468,11 +484,11 @@ export class SocketManager implements ISocketManager {
         return this.requireActiveClient('disconnect()').disconnect(code, reason);
     }
 
-    /** Destroys one slot (`kind`) or, when omitted, all slots, and resets state. */
-    public destroy(kind?: SocketKind): void {
+    /** Destroys one slot (`key`) or, when omitted, all slots, and resets state. */
+    public destroy(key?: SlotKey): void {
         const prevActiveClient = this.getActiveClient();
-        if (kind) {
-            this.teardownEntry(kind);
+        if (key) {
+            this.teardownEntry(key);
         } else {
             for (const key of [...this.entries.keys()]) {
                 this.teardownEntry(key);
@@ -483,13 +499,22 @@ export class SocketManager implements ISocketManager {
 
     // --- active-slot derivation -------------------------------------------------------------
 
-    /** cloud when a cloud slot exists (it is the sync/active socket), else relay. */
-    private getActiveKind(): SocketKind {
-        return this.entries.has('cloud') ? 'cloud' : 'relay';
+    /**
+     * The cloud slot when one exists (it is the sync/active socket), else relay's, else none. There is
+     * at most one cloud slot (`ensure` guarantees it), so "the" cloud slot is unambiguous.
+     */
+    private getActiveKey(): SlotKey | null {
+        let relay: SlotKey | null = null;
+        for (const key of this.entries.keys()) {
+            if (kindOf(key) === 'cloud') return key;
+            relay = key;
+        }
+        return relay;
     }
 
     private getActiveEntry(): ClientEntry | null {
-        return this.entries.get(this.getActiveKind()) ?? null;
+        const key = this.getActiveKey();
+        return key ? (this.entries.get(key) ?? null) : null;
     }
 
     private getActiveClient(): ClientSocketV2 | null {
@@ -529,7 +554,8 @@ export class SocketManager implements ISocketManager {
     // --- slot binding / teardown ------------------------------------------------------------
 
     /** Binds connection + error listeners for a slot, routing them into the active-slot state. */
-    private bindEntry(kind: SocketKind, entry: ClientEntry): void {
+    private bindEntry(key: SlotKey, entry: ClientEntry): void {
+        const kind = kindOf(key);
         entry.unsubscribes.push(
             entry.client.onState((event: ClientSocketStateEvent) => {
                 entry.connState = event.next;
@@ -537,7 +563,7 @@ export class SocketManager implements ISocketManager {
                 // CONNECTION, not a device: the next socket starts unauthenticated until its own
                 // `auth.update` lands. The SDK AuthController emits no state change on a transport
                 // drop (it only clears timers), so without this the flag stays `authenticated` from
-                // the dead connection and `isKindVerified` goes true the instant the transport
+                // the dead connection and `isSlotVerified` goes true the instant the transport
                 // reconnects — before device.save:ok → auth.update. Anything gated on it then fires
                 // into that window and the server answers `401 UNAUTHORIZED - not authenticated`
                 // (observed on relay-pinned `invite.list`). The flag is restored by the controller's
@@ -551,14 +577,14 @@ export class SocketManager implements ISocketManager {
                     // sockets, wake flapping) shows up as a fast-growing count for one slot.
                     if (entry.connectCount > 1) {
                         logger.info('SOCKET', '[SocketManager] reconnected', {
-                            data: { kind, connectCount: entry.connectCount },
+                            data: { kind, cid: key, connectCount: entry.connectCount },
                         });
                     }
                 }
-                this.notifyKindVerified(kind);
+                this.notifySlotVerified(key);
                 // Only the active slot drives the observable state; background (relay-while-cloud)
                 // transport changes are tracked on the entry but not surfaced.
-                if (this.getActiveKind() === kind) {
+                if (this.getActiveKey() === key) {
                     this.setState(this.computeState(entry));
                 }
             })
@@ -579,7 +605,7 @@ export class SocketManager implements ISocketManager {
                 // Kept at warn rather than dropped, because a caller is free to
                 // swallow its rejection and this would be the only trace left.
                 // Other phases have no such second path and stay at error.
-                const fields = { error: event.error, data: { kind, phase: event.phase } };
+                const fields = { error: event.error, data: { kind, cid: key, phase: event.phase } };
 
                 if (event.phase === 'request') {
                     logger.warn('SOCKET', '[SocketManager] Socket error', fields);
@@ -589,7 +615,7 @@ export class SocketManager implements ISocketManager {
             })
         );
 
-        this.bindReconnectDiagnostics(kind, entry);
+        this.bindReconnectDiagnostics(key, entry);
     }
 
     /**
@@ -605,7 +631,8 @@ export class SocketManager implements ISocketManager {
      * than crashing the bind. The proper fix is for the SDK to widen the interface; until then this
      * degrades to the coverage we already had.
      */
-    private bindReconnectDiagnostics(kind: SocketKind, entry: ClientEntry): void {
+    private bindReconnectDiagnostics(key: SlotKey, entry: ClientEntry): void {
+        const kind = kindOf(key);
         const controller = entry.client.reconnect as
             | {
                   onConnectFailed?: (listener: (event: { attempt: number; error: unknown }) => void) => () => void;
@@ -619,7 +646,7 @@ export class SocketManager implements ISocketManager {
                 controller.onConnectFailed(event => {
                     logger.warn('SOCKET', '[SocketManager] reconnect attempt failed', {
                         error: event.error,
-                        data: { kind, attempt: event.attempt },
+                        data: { kind, cid: key, attempt: event.attempt },
                     });
                 })
             );
@@ -631,27 +658,28 @@ export class SocketManager implements ISocketManager {
                 // that has permanently stopped reconnecting look identical without this line.
                 controller.onGiveUp(event => {
                     logger.error('SOCKET', '[SocketManager] reconnect gave up', {
-                        data: { kind, attempts: event.attempts },
+                        data: { kind, cid: key, attempts: event.attempts },
                     });
                 })
             );
         }
     }
 
-    /** Announces that `kind`'s verification inputs moved; waiters re-read isKindVerified themselves. */
-    private notifyKindVerified(kind: SocketKind): void {
-        for (const listener of this.kindVerifiedListeners) {
-            listener(kind);
+    /** Announces that slot `key`'s verification inputs moved; waiters re-read isSlotVerified themselves. */
+    private notifySlotVerified(key: SlotKey): void {
+        for (const listener of this.slotVerifiedListeners) {
+            listener(key);
         }
     }
 
-    private teardownEntry(kind: SocketKind): void {
-        const entry = this.entries.get(kind);
+    private teardownEntry(key: SlotKey): void {
+        const entry = this.entries.get(key);
         if (!entry) return;
+        const kind = kindOf(key);
 
         // Notify while the client is still alive so listeners can detach cleanly (e.g. a slot
         // runtime stopping its controllers) before destroy() tears the transport down.
-        this.notifySlotClient(kind, null);
+        this.notifySlotClient(key, null);
 
         for (const unsubscribe of entry.unsubscribes) {
             try {
@@ -659,16 +687,22 @@ export class SocketManager implements ISocketManager {
             } catch (error) {
                 logger.warn('SOCKET', '[SocketManager] Failed to unsubscribe socket listener', {
                     error,
-                    data: { kind },
+                    data: { kind, cid: key },
                 });
             }
         }
         try {
             entry.client.destroy();
         } catch (error) {
-            logger.warn('SOCKET', '[SocketManager] Failed to destroy socket client', { error, data: { kind } });
+            logger.warn('SOCKET', '[SocketManager] Failed to destroy socket client', {
+                error,
+                data: { kind, cid: key },
+            });
         }
-        this.entries.delete(kind);
+        this.entries.delete(key);
+        // A streak describes one connection's absence; with the slot gone there is nothing left for it
+        // to describe, and keeping it would let a later slot for the same cloud inherit the count.
+        socketFailureReporter.forget(key);
     }
 
     /**
@@ -698,16 +732,16 @@ export class SocketManager implements ISocketManager {
         return client;
     }
 
-    private notifySlotClient(kind: SocketKind, client: ClientSocketV2 | null): void {
+    private notifySlotClient(key: SlotKey, client: ClientSocketV2 | null): void {
         // Re-bind owned slot subscriptions FIRST: teardownEntry notifies while the old client is
         // still alive, so this is the one moment the previous subscription can be released cleanly.
         for (const entry of this.slotTypeListeners) {
-            if (entry.kind === kind) {
+            if (entry.key === key) {
                 this.bindSlotTypeListener(entry, client);
             }
         }
         for (const listener of this.slotClientListeners) {
-            listener(kind, client);
+            listener(key, client);
         }
     }
 

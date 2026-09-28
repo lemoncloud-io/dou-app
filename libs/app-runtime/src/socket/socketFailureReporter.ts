@@ -2,7 +2,8 @@ import { logger, type ObservationData } from '@chatic/bridges';
 
 import { getSocketErrorCode } from './utils/socketErrorCode';
 
-import type { SocketKind } from './types';
+import type { SlotKey } from './types';
+import { kindOf } from './utils/slotKey';
 
 /**
  * What kind of failure a rejected socket request was.
@@ -51,9 +52,11 @@ export interface ISocketFailureReporter {
      * Records one failed request. Logs individually for a server-answered failure, and folds
      * connection-absence failures into a streak.
      */
-    recordFailure(kind: SocketKind, action: string, type: string, error: unknown): void;
+    recordFailure(key: SlotKey, action: string, type: string, error: unknown): void;
     /** Records a request that succeeded — logs only when it ends a streak. */
-    recordSuccess(kind: SocketKind): void;
+    recordSuccess(key: SlotKey): void;
+    /** Drops one slot's streak — the slot is gone, and a later slot for the same cloud starts clean. */
+    forget(key: SlotKey): void;
     /** Drops every streak. Tests only. */
     reset(): void;
 }
@@ -71,21 +74,25 @@ class SocketFailureReporter implements ISocketFailureReporter {
      */
     private static readonly STUCK_THRESHOLD = 5;
 
-    /** Consecutive unavailable-class failures per slot. */
-    private readonly streaks = new Map<SocketKind, number>();
+    /**
+     * Consecutive unavailable-class failures per slot. Keyed by the slot, not its kind: two clouds
+     * each have their own connection, and one being down says nothing about the other.
+     */
+    private readonly streaks = new Map<SlotKey, number>();
 
-    recordFailure(kind: SocketKind, action: string, type: string, error: unknown): void {
+    recordFailure(key: SlotKey, action: string, type: string, error: unknown): void {
         const code = getSocketErrorCode(error);
         const failure = classify(code);
+        const kind = kindOf(key);
 
         if (failure === 'unavailable') {
-            this.recordUnavailable(kind, type, code, error);
+            this.recordUnavailable(key, type, code, error);
             return;
         }
 
         // A request that reached the server resets the streak whatever its verdict: a 403 proves the
         // socket is up, so counting it as "still down" would keep the streak alive forever.
-        this.streaks.set(kind, 0);
+        this.streaks.set(key, 0);
 
         if (failure === 'timeout') {
             // Distinct from a refusal: the request was accepted and never answered. `warn` because
@@ -93,42 +100,49 @@ class SocketFailureReporter implements ISocketFailureReporter {
             // these in numbers a second `error` source would not survive.
             logger.warn('SOCKET', `socket request timed out — ${kind}.${action}(${type})`, {
                 error,
-                data: { kind, action, type, code },
+                data: { kind, cid: key, action, type, code },
             });
             return;
         }
 
         logger.error('SOCKET', `${code ?? 'unclassified'} socket request failed — ${kind}.${action}(${type})`, {
             error,
-            data: { kind, action, type, code },
+            data: { kind, cid: key, action, type, code },
         });
     }
 
-    recordSuccess(kind: SocketKind): void {
-        const streak = this.streaks.get(kind) ?? 0;
+    recordSuccess(key: SlotKey): void {
+        const streak = this.streaks.get(key) ?? 0;
         if (streak === 0) return;
 
-        this.streaks.set(kind, 0);
-        logger.info('SOCKET', `socket requests recovered — ${kind}`, {
+        this.streaks.set(key, 0);
+        logger.info('SOCKET', `socket requests recovered — ${kindOf(key)}`, {
             data: {
                 observation: 'socket-unavailable-streak',
-                kind,
+                kind: kindOf(key),
+                cid: key,
                 afterFailures: streak,
             } satisfies ObservationData,
         });
+    }
+
+    forget(key: SlotKey): void {
+        this.streaks.delete(key);
     }
 
     reset(): void {
         this.streaks.clear();
     }
 
-    private recordUnavailable(kind: SocketKind, type: string, code: number | undefined, error: unknown): void {
-        const next = (this.streaks.get(kind) ?? 0) + 1;
-        this.streaks.set(kind, next);
+    private recordUnavailable(key: SlotKey, type: string, code: number | undefined, error: unknown): void {
+        const next = (this.streaks.get(key) ?? 0) + 1;
+        this.streaks.set(key, next);
+        const kind = kindOf(key);
 
         const data = {
             observation: 'socket-unavailable-streak',
             kind,
+            cid: key,
             // The first request to fail is the one worth naming; past that the type is whichever
             // poll happened to land, so the streak count is the fact and the type is noise.
             type,

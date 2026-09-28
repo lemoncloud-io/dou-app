@@ -3,14 +3,17 @@ import { logger } from '@chatic/bridges';
 import { Throttle } from '../../utils/throttle';
 import { authIdRegistry } from './authIdRegistry';
 
-import type { ISocketManager, SocketBindingConfig, SocketKind } from '../types';
+import type { ISocketManager, SocketBindingConfig } from '../types';
+import { kindOf, slotKeyOf } from '../utils/slotKey';
 import type { SocketSessionDelegate } from './types';
 
 export interface BootstrapSocketConnectionArgs {
     manager: ISocketManager;
-    /** The slot this boot addresses. Passed explicitly by the binder — never derived from the
-     * config, so a config missing `wssType` can no longer silently overwrite the relay slot. */
-    kind: SocketKind;
+    /**
+     * The slot this boot addresses is `config.cid` — the key IS the cloud. `ensure` refuses a config
+     * whose `wssType` disagrees with that key, which is what stops a cloud config from landing on the
+     * relay's slot.
+     */
     config: SocketBindingConfig;
     delegate: SocketSessionDelegate;
 }
@@ -67,12 +70,14 @@ const EXPIRED_RESUME_MAX_COOLDOWN_MS = 5 * 60_000;
  */
 export const bootstrapSocketConnection = async ({
     manager,
-    kind,
     config,
     delegate,
 }: BootstrapSocketConnectionArgs): Promise<() => void> => {
-    // Each slot is bootstrapped independently; ensure/connect/setAuthenticated all address `kind`.
-    const client = manager.ensure(config, kind);
+    // Each slot is bootstrapped independently: ensure/connect/setAuthenticated address the slot's key,
+    // while the delegate — which still keeps one credential per server kind — is addressed by kind.
+    const key = slotKeyOf(config.cid);
+    const kind = kindOf(key);
+    const client = manager.ensure(config);
     const auth = client.auth;
     const unsubscribes: Array<() => void> = [];
 
@@ -80,7 +85,7 @@ export const bootstrapSocketConnection = async ({
         // Defensive: SocketManager always attaches the AuthController (auth option is set), so this
         // only happens if that wiring regresses. Connect anyway so transport-only flows still work.
         logger.error('SOCKET', '[bootstrapSocketConnection] client has no AuthController — auth disabled');
-        await manager.connect(kind);
+        await manager.connect(key);
         return () => undefined;
     }
 
@@ -97,7 +102,7 @@ export const bootstrapSocketConnection = async ({
     // Mirror the SDK auth state into the manager's isVerified (per slot), run teardown on terminal expiry.
     unsubscribes.push(
         auth.onAuthState(state => {
-            manager.setAuthenticated(kind, state === 'authenticated');
+            manager.setAuthenticated(key, state === 'authenticated');
             if (state === 'authenticated') {
                 // Healthy again — the next terminal expiry gets a fresh resume budget.
                 resumeThrottle.reset();
@@ -139,7 +144,7 @@ export const bootstrapSocketConnection = async ({
 
         try {
             const next = await delegate.getAuthRegistration(kind);
-            if (next && authIdRegistry.resync(kind, auth, next, sign) && client.state !== 'connected') {
+            if (next && authIdRegistry.resync(key, auth, next, sign) && client.state !== 'connected') {
                 // Same ordering rule as every other register(): a re-activated controller must not
                 // auto-send auth.update ahead of the next connection's device.save:ok.
                 gate.stop();
@@ -179,7 +184,7 @@ export const bootstrapSocketConnection = async ({
     if (registration) {
         auth.register({ token: registration.token, authId: registration.authId, sign });
         // Mirror the seeded authId so the writeback above can tell a rotation from a match.
-        authIdRegistry.record(kind, registration.authId);
+        authIdRegistry.record(key, registration.authId);
         gate.stop();
 
         // Open the gate once the device is registered for this connection: re-activating a connected
@@ -222,7 +227,7 @@ export const bootstrapSocketConnection = async ({
         logger.warn('SOCKET', '[bootstrapSocketConnection] no auth registration available — skipping register');
     }
 
-    await manager.connect(kind);
+    await manager.connect(key);
 
     return () => {
         for (const unsubscribe of unsubscribes) {

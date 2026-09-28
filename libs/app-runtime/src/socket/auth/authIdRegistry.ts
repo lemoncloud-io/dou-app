@@ -1,6 +1,7 @@
 import { logger } from '@chatic/bridges';
 
-import type { SocketKind } from '../types';
+import type { SlotKey } from '../types';
+import { kindOf } from '../utils/slotKey';
 import type { AuthRegistration } from '../../session/auth/sessionAuthAdapter';
 
 /** The sign callback shape `auth.register()` takes (the SDK's `AuthSignCallback`). */
@@ -42,20 +43,20 @@ export interface AuthIdReseedTarget {
  * on the SDK's own writeback path the controller has already adopted the new token before the app
  * hears about it — the guard always reads "same token, nothing to do".
  *
- * One entry per kind: relay and cloud register independently and must never resync off each other
- * (multi-socket-design.md §6-6).
+ * One entry per slot: relay and each cloud register independently and must never resync off each
+ * other.
  */
 class AuthIdRegistry {
-    private readonly ids = new Map<SocketKind, string>();
+    private readonly ids = new Map<SlotKey, string>();
 
     /** Call right after every `auth.register()` — the mirror is only as good as its writers. */
-    record(kind: SocketKind, authId: string): void {
-        this.ids.set(kind, authId);
+    record(key: SlotKey, authId: string): void {
+        this.ids.set(key, authId);
     }
 
     /** What the controller is signing packets with, or null when this slot never registered here. */
-    get(kind: SocketKind): string | null {
-        return this.ids.get(kind) ?? null;
+    get(key: SlotKey): string | null {
+        return this.ids.get(key) ?? null;
     }
 
     /**
@@ -72,8 +73,8 @@ class AuthIdRegistry {
      * An unrecorded slot is NOT treated as drift: we cannot prove a divergence we never observed, and
      * guessing would fire a needless register on every boot.
      */
-    resync(kind: SocketKind, auth: AuthIdReseedTarget, registration: AuthRegistration, sign: SignCallback): boolean {
-        const recorded = this.ids.get(kind);
+    resync(key: SlotKey, auth: AuthIdReseedTarget, registration: AuthRegistration, sign: SignCallback): boolean {
+        const recorded = this.ids.get(key);
         if (recorded === undefined || recorded === registration.authId) {
             return false;
         }
@@ -85,7 +86,8 @@ class AuthIdRegistry {
         // `AuthRegistration`.
         logger.warn('SOCKET', '[authIdRegistry] registered authId drifted from the store — re-seeding', {
             data: {
-                kind,
+                kind: kindOf(key),
+                cid: key,
                 registered: recorded,
                 current: registration.authId,
                 accountId: registration.signing?.accountId,
@@ -94,7 +96,7 @@ class AuthIdRegistry {
         });
 
         auth.register({ token: registration.token, authId: registration.authId, sign });
-        this.record(kind, registration.authId);
+        this.record(key, registration.authId);
         return true;
     }
 
@@ -105,7 +107,7 @@ class AuthIdRegistry {
 }
 
 /**
- * Stateless from the callers' side — one mirror per process, keyed by kind, exactly like the socket
+ * Stateless from the callers' side — one mirror per process, keyed by slot, exactly like the socket
  * slots it tracks.
  */
 export const authIdRegistry = new AuthIdRegistry();

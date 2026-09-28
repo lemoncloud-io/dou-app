@@ -7,6 +7,7 @@ import { cloudSession } from '../../session/auth/cloudSession';
 import { relaySession } from '../../session/auth/relaySession';
 import type { SocketKind } from '../types';
 import { getAuthStatus } from './authStatus';
+import { RELAY_SLOT } from '../utils/slotKey';
 import { renewCloudSession } from './renewCloudSession';
 import { requestRelaySessionRefresh } from './requestRelaySessionRefresh';
 
@@ -170,7 +171,7 @@ export class RelayCredentialRenewer implements ICredentialRenewer {
     private async confirmTerminalExpiry(): Promise<void> {
         const isOnline = this.deps.isOnline ?? defaultIsOnline;
         const wait = this.deps.wait ?? defaultWait;
-        const readStatus = this.deps.readStatus ?? (() => getAuthStatus('relay'));
+        const readStatus = this.deps.readStatus ?? (() => getAuthStatus(RELAY_SLOT));
         const logout = this.deps.logout ?? (() => relaySession.clearAndRedirect());
 
         if (!isOnline()) {

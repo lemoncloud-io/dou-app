@@ -4,21 +4,25 @@
  * The 1:1 invite domain and the account-proof packet live in the central backend behind the relay
  * server, so they must reach the relay slot even while a cloud slot is active. The policy is fixed
  * here, at composition time — callers get no route argument to forget. Same guarantee the
- * device.update-remote wiring makes; see socket/kind-scoped-routing.md.
+ * device.update-remote wiring makes; see docs/socket.
  *
  * Driven through the data sources rather than the gateway bundle: the factory deliberately does not
  * hand the bundle back out (ADR-0036), so the only observable contract is which socket a repository
  * call ends up on — which is also what actually matters.
  */
 import { createSocketDataSources } from './socketFactory';
+import { RELAY_SLOT } from '../../socket/utils/slotKey';
 
 const activeRequest = jest.fn().mockResolvedValue({});
 const relayRequest = jest.fn().mockResolvedValue({});
 const cloudRequest = jest.fn().mockResolvedValue({});
 
+// Slots are keyed by the cloud they serve; the relay-pinned gateways under test only ever resolve
+// RELAY_SLOT. `cloudRequest` stays as a negative witness — nothing in this suite has a route to it
+// any more (socketFactory no longer builds a `cloud` route at all), so it can only be called by a
+// regression that resurrects one.
 const scopedClients: Record<string, { request: jest.Mock; send: jest.Mock }> = {
-    relay: { request: relayRequest, send: jest.fn() },
-    cloud: { request: cloudRequest, send: jest.fn() },
+    [RELAY_SLOT]: { request: relayRequest, send: jest.fn() },
 };
 
 const socketManager = {

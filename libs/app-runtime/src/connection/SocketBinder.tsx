@@ -5,7 +5,8 @@ import { logger } from '@chatic/bridges';
 import { getSocketManager } from '../socket/runtime';
 import { getSyncManager } from '../socket/sync/runtime';
 import { bootstrapSocketConnection } from '../socket';
-import type { ISocketManager, SocketBindingConfig, SocketKind, SocketSessionDelegate } from '../socket';
+import type { ISocketManager, SlotKey, SocketBindingConfig, SocketKind, SocketSessionDelegate } from '../socket';
+import { slotKeyOf } from '../socket/utils/slotKey';
 import type { RuntimeSocketSlots } from './types';
 import { socketRebootKey } from './utils/socketRebootKey';
 
@@ -31,10 +32,9 @@ export interface SocketBinderProps {
  * "committed cloud moved, socket did not" has no benign reading.
  *
  * Not a throw: the session is usable and a hard failure here would take down a working app over a
- * backend topology change. Supporting the case is a small, known step if it ever arrives — put an
- * `identityToken` on the cloud slot and add cloud back to `SocketReauthBinder`, whose
- * `reauthenticateActiveSocket` already takes the `cid` and calls `rebindCid` before the handshake
- * (§8-4).
+ * backend topology change. Now that slots are keyed by the cloud they serve, supporting the case is
+ * a matter of putting the cid in the reboot key: the incoming cloud then gets its own slot and the
+ * outgoing one is torn down, with nothing to re-point.
  */
 const useSameWssSwitchGuard = (kind: SocketKind, rebootKey: string, cid: string | undefined): void => {
     const prevRef = useRef({ rebootKey, cid });
@@ -79,6 +79,9 @@ const useSocketSlot = (
     delegate: SocketSessionDelegate
 ): void => {
     const cleanupRef = useRef<(() => void) | null>(null);
+    // The slot this hook last booted. `kind` names a role (relay / the committed cloud); the slot it
+    // fills is keyed by the cloud it serves, which the role alone cannot tell once it has changed.
+    const bootedSlotRef = useRef<SlotKey | null>(null);
     const rebootKey = socketRebootKey(config);
     const configRef = useRef(config);
     configRef.current = config;
@@ -92,15 +95,18 @@ const useSocketSlot = (
 
         const current = configRef.current;
         if (!current) {
-            // Slot gated off (logged out / cloud left) → tear down just this kind; the sibling stays.
-            manager.destroy(kind);
+            // Slot gated off (logged out / cloud left) → tear down just this role's slot; the sibling stays.
+            if (bootedSlotRef.current) manager.destroy(bootedSlotRef.current);
+            bootedSlotRef.current = null;
             return;
         }
 
-        // Genuine reboot: `ensure` inside bootstrap tears down this kind's stale client (its config
-        // differs) and builds a fresh one — no destroy-all, so the sibling slot is untouched.
+        // Genuine reboot: `ensure` inside bootstrap tears down this role's stale client — the same
+        // slot with a different config, or the previous cloud's slot — and builds a fresh one. No
+        // destroy-all, so the sibling slot is untouched.
+        bootedSlotRef.current = slotKeyOf(current.cid);
         let active = true;
-        void bootstrapSocketConnection({ manager, kind, config: current, delegate })
+        void bootstrapSocketConnection({ manager, config: current, delegate })
             .then(cleanup => {
                 if (!active) {
                     cleanup();

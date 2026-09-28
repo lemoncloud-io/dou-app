@@ -6,11 +6,9 @@ import { getAuthStatus, needsSocketKick } from './authStatus';
 import { getSocketManager } from '../runtime';
 import { createSocketSessionDelegate } from './sessionDelegate';
 import type { AuthActivationGate } from './bootstrapSocketConnection';
-import type { ISocketManager, SocketKind } from '../types';
+import type { ISocketManager } from '../types';
+import { kindOf } from '../utils/slotKey';
 import type { SocketSessionDelegate } from './types';
-
-/** Both slots are checked independently; relay can be wedged while cloud is the active one. */
-const SLOT_KINDS: readonly SocketKind[] = ['relay', 'cloud'] as const;
 
 export interface RecoverUnverifiedSocketsDeps {
     manager?: ISocketManager;
@@ -47,17 +45,19 @@ const doRecover = async ({ manager, delegate }: RecoverUnverifiedSocketsDeps): P
     const socketManager = manager ?? getSocketManager();
     const sessionDelegate = delegate ?? createSocketSessionDelegate();
 
-    for (const kind of SLOT_KINDS) {
-        const client = socketManager.getClient(kind);
+    // Every bound slot, checked independently: relay can be wedged while a cloud is the active one.
+    for (const key of socketManager.getSlotKeys()) {
+        const kind = kindOf(key);
+        const client = socketManager.getClient(key);
         if (!client) {
             continue;
         }
 
         // One judgement instead of two reads (ADR-0076 Decision 1): `needsSocketKick` is true for
         // `handshaking` and `expired` — exactly the "bound but not verified on this connection"
-        // set this used to express as `!isKindVerified(kind)`. A healthy-looking slot is skipped
+        // set this used to express as `!isSlotVerified(key)`. A healthy-looking slot is skipped
         // deliberately; kicking it on every foreground would churn warm reconnects.
-        const status = getAuthStatus(kind, { manager: socketManager });
+        const status = getAuthStatus(key, { manager: socketManager });
         if (!needsSocketKick(status)) {
             continue;
         }
@@ -65,7 +65,7 @@ const doRecover = async ({ manager, delegate }: RecoverUnverifiedSocketsDeps): P
         const auth = client.auth;
         const wasExpired = status === 'expired';
         logger.info('SOCKET', '[recoverUnverifiedSockets] kicking unverified socket', {
-            data: { kind, state: client.state, status, wasExpired },
+            data: { kind, cid: key, state: client.state, status, wasExpired },
         });
 
         // Close first so the re-seed below happens on a disconnected controller (register on a
@@ -81,7 +81,7 @@ const doRecover = async ({ manager, delegate }: RecoverUnverifiedSocketsDeps): P
                     sign: (token, ctx) => sessionDelegate.signAuth(kind, token, ctx?.target),
                 });
                 // Mirror the seeded authId — every register() site must, or the drift check goes blind.
-                authIdRegistry.record(kind, registration.authId);
+                authIdRegistry.record(key, registration.authId);
                 // register() re-activated the controller; close the gate so the reconnect keeps
                 // the device.save:ok → auth.update order (same rationale as reauthenticateActiveSocket).
                 (auth as unknown as AuthActivationGate).stop();
@@ -91,7 +91,10 @@ const doRecover = async ({ manager, delegate }: RecoverUnverifiedSocketsDeps): P
         await client.connect().catch(error => {
             // connect() arms the SDK reconnect controller even on failure, so recovery continues
             // in the background; this kick just loses its head start.
-            logger.warn('SOCKET', '[recoverUnverifiedSockets] reconnect kick failed', { error, data: { kind } });
+            logger.warn('SOCKET', '[recoverUnverifiedSockets] reconnect kick failed', {
+                error,
+                data: { kind, cid: key },
+            });
         });
     }
 };

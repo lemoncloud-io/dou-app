@@ -123,6 +123,28 @@ describe('useRuntimeSocketSlots', () => {
         expect(result.current.cloud).toBeUndefined();
     });
 
+    it('an active cloud session with no committed cloud yields no cloud slot and leaves relay alone', () => {
+        // Slots are keyed by the cloud they serve. Falling back to 'default' here — as this used to —
+        // would hand a cloud config the relay's key, and the relay socket would be replaced.
+        (getCommittedCloudId as jest.Mock).mockReturnValue(null);
+        (getSocketSlotContext as jest.Mock).mockReturnValue({
+            relay: RELAY,
+            cloud: {
+                cloudId: 'my-cloud-id',
+                wss: 'wss://cloud.chatic.com',
+                identityToken: 'cloud-token',
+                isActive: true,
+            },
+        });
+
+        const { result } = renderHook(() => useRuntimeSocketSlots());
+
+        expect(result.current).toEqual({
+            relay: { config: relayConfig, identityToken: 'relay-token' },
+            cloud: undefined,
+        });
+    });
+
     it('no relay token yet (pre-login): no slots at all (§6-3 identityToken gate)', () => {
         (getSocketSlotContext as jest.Mock).mockReturnValue({
             activeServer: { kind: 'relay', siteId: null, wss: 'wss://relay.chatic.com', identityToken: null },

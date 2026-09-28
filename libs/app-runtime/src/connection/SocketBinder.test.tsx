@@ -4,6 +4,7 @@ import { SocketBinder } from './SocketBinder';
 import { bootstrapSocketConnection } from '../socket';
 import { getSocketManager } from '../socket/runtime';
 import type { SocketSessionDelegate } from '../socket';
+import { RELAY_SLOT, slotKeyOf } from '../socket/utils/slotKey';
 
 import { logger } from '@chatic/bridges';
 
@@ -43,12 +44,18 @@ describe('SocketBinder (dual slots)', () => {
 
     const configsBooted = () => mockedBootstrap.mock.calls.map(call => call[0].config);
 
-    it('relay-only: boots relay and tears down the absent cloud slot', async () => {
+    // Slots are now keyed by the cloud they serve, and the binder only destroys a slot it has
+    // actually booted (bootedSlotRef) — not "whichever kind is absent" as before. On a fresh mount
+    // with no cloud slot in props, the cloud role never booted anything, so there is nothing to tear
+    // down; the manager never held that slot in the first place, and the previous unconditional
+    // `destroy('cloud')` on mount was a no-op against it anyway. Assertion changed accordingly:
+    // "destroy called with 'cloud' / not called with 'relay'" no longer holds (destroy isn't called
+    // at all here) — replaced with the current, meaningful claim.
+    it('relay-only: boots relay; no cloud slot ever existed, so nothing is torn down', async () => {
         render(<SocketBinder slots={{ relay: relaySlot }} delegate={delegate} />);
 
         expect(configsBooted()).toEqual([relaySlot.config]);
-        expect(destroy).toHaveBeenCalledWith('cloud');
-        expect(destroy).not.toHaveBeenCalledWith('relay');
+        expect(destroy).not.toHaveBeenCalled();
     });
 
     it('cloud active: boots BOTH relay and cloud independently', async () => {
@@ -68,10 +75,11 @@ describe('SocketBinder (dual slots)', () => {
         mockedBootstrap.mockClear();
         rerender(<SocketBinder slots={{ relay: relaySlot }} delegate={delegate} />);
 
-        // relay's reboot key is unchanged → no re-bootstrap; only cloud is destroyed.
+        // relay's reboot key is unchanged → no re-bootstrap; only cloud is destroyed. Cloud DID boot
+        // above, so its slot key ('my-cloud') is the one torn down — relay's (RELAY_SLOT) never is.
         expect(mockedBootstrap).not.toHaveBeenCalled();
-        expect(destroy).toHaveBeenCalledWith('cloud');
-        expect(destroy).not.toHaveBeenCalledWith('relay');
+        expect(destroy).toHaveBeenCalledWith(slotKeyOf('my-cloud'));
+        expect(destroy).not.toHaveBeenCalledWith(RELAY_SLOT);
     });
 
     describe('같은-wss 클라우드 전환 가드', () => {

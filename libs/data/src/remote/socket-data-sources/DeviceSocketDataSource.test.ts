@@ -46,7 +46,6 @@ describe('DeviceSocketDataSource', () => {
 
         expect(mockGateways.device.relay.updateRemote).toHaveBeenCalledWith({ muted: true });
         expect(mockGateways.device.active.updateRemote).not.toHaveBeenCalled();
-        expect(mockGateways.device.cloud.updateRemote).not.toHaveBeenCalled();
         expect(result).toEqual({ muted: true });
     });
 });

@@ -33,7 +33,7 @@ describe('deriveAuthStatus — 진리표 (ADR-0076 결정 1)', () => {
     it('이 연결에서 미검증이면 handshaking', () => {
         expect(deriveAuthStatus(healthy({ verifiedOnThisConnection: false }))).toBe('handshaking');
         // Controller state alone does not rescue it: after a transport drop the SDK still reports
-        // `authenticated` from the connection that died, which is why isKindVerified is the input.
+        // `authenticated` from the connection that died, which is why isSlotVerified is the input.
         expect(deriveAuthStatus(healthy({ verifiedOnThisConnection: false, controller: 'authenticated' }))).toBe(
             'handshaking'
         );
@@ -79,13 +79,13 @@ describe('deriveAuthStatus — 진리표 (ADR-0076 결정 1)', () => {
 
 describe('deriveAuthStatus — 기존 판정 사본과의 동등성 (이관 전 잠금)', () => {
     // requestRelaySessionRefresh's precondition: client && auth && connected && authenticated &&
-    // isKindVerified. The states that combination let through are exactly verified and stale.
+    // isSlotVerified. The states that combination let through are exactly verified and stale.
     it('canRefreshThroughSocket 은 verified·stale 에서만 true', () => {
         const all: AuthStatus[] = ['absent', 'handshaking', 'verified', 'stale', 'expired'];
         expect(all.filter(canRefreshThroughSocket)).toEqual(['verified', 'stale']);
     });
 
-    // recoverUnverifiedSockets's condition: kick when the slot is bound and !isKindVerified. Being
+    // recoverUnverifiedSockets's condition: kick when the slot is bound and !isSlotVerified. Being
     // bound means there is a token (binding hinges on identityToken), so absent never arrives here.
     it('needsSocketKick 은 handshaking·expired 에서만 true', () => {
         const all: AuthStatus[] = ['absent', 'handshaking', 'verified', 'stale', 'expired'];

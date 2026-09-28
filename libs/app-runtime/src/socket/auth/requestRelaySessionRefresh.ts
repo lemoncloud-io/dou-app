@@ -3,6 +3,7 @@ import { logger } from '@chatic/bridges';
 import { Coalescer } from '../../utils/coalescer';
 import { canRefreshThroughSocket, getAuthSnapshot } from './authStatus';
 import { getSocketManager } from '../runtime';
+import { RELAY_SLOT } from '../utils/slotKey';
 import type { ISocketManager } from '../types';
 
 /**
@@ -57,7 +58,7 @@ class RelayRefreshAttempt {
         // (`400 BAD REQUEST - no device linked @auth.refresh(...)`), burning an attempt for a race.
         // `deriveAuthStatus` folds that reasoning in: only `verified`/`stale` imply
         // verified-on-this-connection.
-        const snapshot = getAuthSnapshot('relay', { manager });
+        const snapshot = getAuthSnapshot(RELAY_SLOT, { manager });
         if (!canRefreshThroughSocket(snapshot.status)) {
             logger.warn('SOCKET', '[requestRelaySessionRefresh] relay cannot carry a refresh right now', {
                 data: {
@@ -69,7 +70,7 @@ class RelayRefreshAttempt {
             return false;
         }
 
-        const auth = manager.getClient('relay')?.auth;
+        const auth = manager.getClient(RELAY_SLOT)?.auth;
         if (!auth) return false;
 
         try {

@@ -1,12 +1,17 @@
 import { renewCloudSession } from './renewCloudSession';
+import { slotKeyOf } from '../utils/slotKey';
 
 const mockReissue = jest.fn();
 const mockReauthenticate = jest.fn();
 const mockGetSocketManager = jest.fn();
+const mockGetCommittedCloudId = jest.fn();
 const mockLoggerWarn = jest.fn();
 
 jest.mock('../../session/auth/cloudTokens', () => ({
     reissueCommittedCloudTokens: (...args: unknown[]) => mockReissue(...args),
+}));
+jest.mock('../../session/store', () => ({
+    getCommittedCloudId: (...args: unknown[]) => mockGetCommittedCloudId(...args),
 }));
 jest.mock('./reauthenticateActiveSocket', () => ({
     reauthenticateActiveSocket: (...args: unknown[]) => mockReauthenticate(...args),
@@ -29,21 +34,32 @@ jest.mock('@chatic/bridges', () => ({
 beforeEach(() => {
     jest.resetAllMocks();
     mockGetSocketManager.mockReturnValue({ manager: true });
+    mockGetCommittedCloudId.mockReturnValue('cloud-1');
     mockReissue.mockResolvedValue(true);
     mockReauthenticate.mockResolvedValue(undefined);
 });
 
 describe('renewCloudSession', () => {
-    it('스토어를 먼저 커밋하고 소켓이 따라간다 — cloud 슬롯을 명시해서', async () => {
+    it('스토어를 먼저 커밋하고 소켓이 따라간다 — 커밋된 cloud의 슬롯을 명시해서', async () => {
         await expect(renewCloudSession()).resolves.toBe(true);
 
         expect(mockReissue).toHaveBeenCalled();
         expect(mockReauthenticate).toHaveBeenCalledWith({
             manager: { manager: true },
             delegate: { delegate: true },
-            kind: 'cloud',
+            slot: slotKeyOf('cloud-1'),
         });
         expect(mockReissue.mock.invocationCallOrder[0]).toBeLessThan(mockReauthenticate.mock.invocationCallOrder[0]);
+    });
+
+    it('leaves the socket alone when the re-issue succeeded but no cloud is committed', async () => {
+        mockGetCommittedCloudId.mockReturnValue(null);
+
+        await expect(renewCloudSession()).resolves.toBe(true);
+
+        expect(mockReauthenticate).not.toHaveBeenCalled();
+        // Skipped, but not silently: the store was renewed and the socket half was not attempted.
+        expect(mockLoggerWarn).toHaveBeenCalledWith('SESSION', expect.stringContaining('re-registration skipped'));
     });
 
     it('커밋된 클라우드가 없으면 소켓을 건드리지 않는다', async () => {

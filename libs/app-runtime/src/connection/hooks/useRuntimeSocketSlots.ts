@@ -1,5 +1,8 @@
 import { useMemo, useSyncExternalStore } from 'react';
 
+import { logger } from '@chatic/bridges';
+import { RELAY_CLOUD_ID } from '@chatic/data';
+
 import { useDynamicDeviceId } from '../../session/hooks/app/useDynamicDeviceId';
 // Off the session barrel (ADR-0076 Decision 6): the committed cloud id and the narrowed slot snapshot
 // are runtime-internal.
@@ -56,7 +59,7 @@ export const useRuntimeSocketSlots = (): RuntimeSocketSlots => {
         const relaySlot =
             deviceId && relay.wss && relay.identityToken
                 ? {
-                      config: { url: relay.wss, deviceId, wssType: 'relay' as const, cid: 'default' },
+                      config: { url: relay.wss, deviceId, wssType: 'relay' as const, cid: RELAY_CLOUD_ID },
                       identityToken: relay.identityToken,
                   }
                 : undefined;
@@ -66,15 +69,28 @@ export const useRuntimeSocketSlots = (): RuntimeSocketSlots => {
         // during the optimistic window the slot carried the TARGET cid next to the OUTGOING cloud's
         // `wss`/`identityToken` — a config describing two different clouds (the three views of
         // ADR-0070 Decision 7).
+        //
+        // No committed cloud means no cloud slot. This used to fall back to `'default'`, which is the
+        // RELAY's cid — harmless while slots were keyed by role, but with slots keyed by the cloud they
+        // serve it would name the relay's slot and replace the relay socket with a cloud one. The state
+        // is only reachable with a malformed persisted delegation token (`cloudId` is required), so it
+        // is reported rather than papered over.
         const committedCloudId = getCommittedCloudId();
+        const cloudActive = !!(deviceId && cloud.isActive && cloud.wss && cloud.identityToken);
+        if (cloudActive && !committedCloudId) {
+            logger.warn(
+                'SOCKET',
+                '[useRuntimeSocketSlots] cloud session is active but no cloud is committed — no cloud slot'
+            );
+        }
         const cloudSlot =
-            deviceId && cloud.isActive && cloud.wss && cloud.identityToken
+            cloudActive && committedCloudId && cloud.wss
                 ? {
                       config: {
                           url: cloud.wss,
                           deviceId,
                           wssType: 'cloud' as const,
-                          cid: committedCloudId ?? 'default',
+                          cid: committedCloudId,
                       },
                   }
                 : undefined;

@@ -4,7 +4,7 @@
 exists, and **cloud**, on only while a cloud session is active. Almost everything that talks to a
 socket does not care which — gateways, sync and the UI address an **active facade** that resolves to
 cloud when a cloud slot is bound and relay otherwise. Only slot lifecycle, and the handful of things
-that must reach one specific server, address a `kind`.
+that must reach one specific server, address a slot — by its `SlotKey`, the cloud id it serves.
 
 The React layer that turns session state into slots and drives them lives in `connection/`; it is
 covered here because the two halves only make sense together.
@@ -12,13 +12,13 @@ covered here because the two halves only make sense together.
 ## Layout
 
 ```text
-socket/                              32 source files, 21 tests
-├── SocketManager.ts   775 lines   the class. Nothing else is exported from this file
-├── types.ts                       SocketKind · SocketBindingConfig · SocketState · ISocketManager
+socket/                              34 source files, 23 tests
+├── SocketManager.ts   809 lines   the class. Nothing else is exported from this file
+├── types.ts                       SlotKey · SocketKind · SocketBindingConfig · SocketState · ISocketManager
 ├── constants.ts                   AUTH_OPTIONS · SDK_REFRESH_CYCLE_MS · DEFAULT_VERIFY_TIMEOUT_MS · INITIAL_SOCKET_STATE
 ├── runtime.ts                     getSocketManager — the one creation point
 ├── socketFailureReporter.ts       classifies and reports rejected requests
-├── utils/                         annotateSocketError · getSocketErrorCode
+├── utils/                         slotKey (slotKeyOf · RELAY_SLOT · kindOf) · annotateSocketError · getSocketErrorCode
 ├── auth/          17 files        → docs/auth/
 └── sync/           8 files        → docs/sync/
 
@@ -29,7 +29,7 @@ connection/                          11 source files
 ├── types.ts                       RuntimeSocketSlot · RuntimeSocketSlots
 ├── utils/socketRebootKey.ts       the identity key both binders must agree on
 └── hooks/                         useRuntimeSocketSlots · useSocketSessionDelegate ·
-                                   useRuntimeSocketState · useKindVerified · useConnectivity
+                                   useRuntimeSocketState · useSlotVerified · useConnectivity
 ```
 
 `socket/types.ts` has **zero value exports**, which is not an accident: `socket/index.ts` does
@@ -40,10 +40,10 @@ is what lets `session/hooks/app/**` read `SDK_REFRESH_CYCLE_MS` without dragging
 
 ## Responsibilities
 
-`SocketManager` owns: creating, rebuilding and destroying a client per kind; mirroring each slot's
+`SocketManager` owns: creating, rebuilding and destroying a client per slot; mirroring each slot's
 SDK authentication flag and composing it with transport state into a broadcast `SocketState`; the
-active facade; re-binding listeners across a client swap; freezing and reporting each slot's bound
-cloud id; and naming the call that produced a failed request.
+active facade; re-binding listeners across a client swap; reporting the active slot's cloud; and
+naming the call that produced a failed request.
 
 It does **not** own: token acquisition or renewal, expiry refresh, reconnect re-authentication or the
 `auth.update` handshake — all the SDK's ([docs/auth/](../auth/README.md)); 401 detection and retry,
@@ -52,7 +52,7 @@ which no longer exist anywhere; waiting for a connection before a request; or cr
 
 **`request` does not wait for the socket to open.** Called before connect, the SDK rejects
 immediately with `503 SOCKET NOT CONNECTED`. Gating is the caller's job, through `isVerified`,
-`waitUntilVerified` or `waitUntilKindVerified`.
+`waitUntilVerified` or `waitUntilSlotVerified`.
 
 ## The shared contract
 
@@ -65,50 +65,75 @@ public surface with zero consumers, exactly the category the barrel cleanup exis
 narrow type is genuinely needed, the repo's habit is a `Pick` at the point of use, the way
 `ScopedSocketClient` and `ActiveScope`'s `BoundCidSource` do it.
 
-| Concern                                        | Members                                                                                                                                                                                                 |
-| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Slot lifecycle** — the only per-`kind` group | `ensure` · `connect` · `destroy` · `setAuthenticated` · `rebindCid`                                                                                                                                     |
-| **Request and push** — active facade           | `request` · `send` · `onType` · `onSlotType` · `onMessage` · `onState` · `onError` · `disconnect`                                                                                                       |
-| **Observation** — no lifecycle, no sending     | `getClient` · `getScopedClient` · `getSnapshot` · `subscribe` · `subscribeClient` · `subscribeSlotClients` · `waitUntilVerified` · `waitUntilKindVerified` · `isKindVerified` · `subscribeKindVerified` |
-| **Cache attribution**                          | `getBoundCid`                                                                                                                                                                                           |
+| Concern                                    | Members                                                                                                                                                                                                 |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Slot lifecycle** — addressed per slot    | `ensure` · `connect` · `destroy` · `setAuthenticated` · `getSlotKeys`                                                                                                                                   |
+| **Request and push** — active facade       | `request` · `send` · `onType` · `onSlotType` · `onMessage` · `onState` · `onError` · `disconnect`                                                                                                       |
+| **Observation** — no lifecycle, no sending | `getClient` · `getScopedClient` · `getSnapshot` · `subscribe` · `subscribeClient` · `subscribeSlotClients` · `waitUntilVerified` · `waitUntilSlotVerified` · `isSlotVerified` · `subscribeSlotVerified` |
+| **Cache attribution**                      | `getBoundCid`                                                                                                                                                                                           |
 
-### A slot, and its bound cloud
+### A slot is keyed by the cloud it serves
 
 ```ts
+type SlotKey = string & { readonly __slotKey: never }; // a cid — slotKeyOf(cid), RELAY_SLOT
+
 interface SocketBindingConfig {
     url: string;
     deviceId: string;
     wssType?: 'relay' | 'cloud';
-    cid?: string;
+    cid: string; // the slot's key
 }
 ```
 
-`ensure(config, kind)` reuses the slot when the config is unchanged, and otherwise destroys the
-client and builds a new one — freezing `cid` as that slot's `boundCid`. That frozen value is the
-whole reason the field exists: a cloud switch flips the cache cid optimistically while the outgoing
-cloud's socket is still attached and still delivering frames, and those frames must not be written
-under the incoming cloud's cid. `getBoundCid()` reports the **active** slot's, and `ActiveScope`
-splices it into every repository read as `socketCid`.
+A slot's key is the id of the cloud it serves; the relay's is `RELAY_CLOUD_ID` (`'default'`), exported
+as `RELAY_SLOT` — the same value the cache partitions under, so one server has one name. Relay versus
+cloud is an **attribute** of a slot, `kindOf(key)`, derived from the key and nothing else (not from a
+token: a relay token can carry a `cloudId`). It still matters, because the two kinds authenticate,
+renew and expire differently; it just no longer addresses anything.
 
-`rebindCid(kind, cid)` re-points a slot without rebooting it — needed only for a same-wss cloud
-switch, where the URL does not change so `ensure` never re-runs.
+Slots used to be keyed `'relay' | 'cloud'`. "The cloud slot" named a role — whichever cloud was
+committed — so nothing could say "cloud A's slot", and a write that belonged to cloud A had no address
+once the user moved on. `SlotKey` is branded because the old literals still type-check as `string`: a
+missed call site would name a slot that never exists, and a subscription on it would wait forever
+without an error. `slotKeyOf` also throws on `'relay'`, `'cloud'` and the empty string, for callers
+that cast past the brand. `'#'` is not the relay's key either: it is the relay marker in the backend's
+**push payload** only, translated where a push is read.
+
+`ensure(config)` reuses the slot keyed by `config.cid` when the config is unchanged, and otherwise
+destroys it and builds a new client. Two rules hold there:
+
+- **At most one cloud slot.** Ensuring a cloud's slot while another cloud's slot is bound tears the
+  old one down first, in the same call — which is what replacing the single `'cloud'` entry used to
+  do. Both teardowns happen before the new client is created and before the active facade resyncs, so
+  the active client goes from the outgoing cloud straight to the incoming one, never through relay.
+- **A config cannot claim the other server.** A config whose `wssType` disagrees with `kindOf(cid)`
+  throws. The case it exists for is a cloud config that fell back to the relay's cid, which would
+  otherwise replace the relay socket with a cloud one. `useRuntimeSocketSlots` no longer produces
+  that fallback: with no committed cloud there is no cloud slot, and it warns.
+
+`getBoundCid()` reports the **active** slot's key. Because it is the key, it is fixed for the slot's
+whole life: a switch flips the cache cid optimistically while the outgoing cloud's socket is still
+attached and still delivering frames, and those frames keep being attributed to the cloud that socket
+serves. `ActiveScope` splices it into every repository read as `socketCid`. The old `boundCid` field
+and `rebindCid(kind, cid)`, which re-pointed a slot for a same-wss switch, are gone — a slot cannot
+change which cloud it serves.
 
 ### Active facade, and the two escapes from it
 
-`request` / `send` / `onType` / `onMessage` / `onState` / `onError` take no `kind`. A gateway does not
+`request` / `send` / `onType` / `onMessage` / `onState` / `onError` take no slot. A gateway does not
 know which slot is active, and that is the point.
 
 Some traffic must reach one specific server anyway — a setting whose owner sits behind relay, or a
 unicast the server only delivers on the relay connection even while a cloud is up. Two escapes exist,
 and they behave differently on purpose.
 
-**`getScopedClient(kind)` returns a stable `Pick<ISocketManager, 'request' | 'send' | 'onType'>`
-pinned to one slot.** It captures no client: `request` and `send` resolve `entries.get(kind)` on
+**`getScopedClient(key)` returns a stable `Pick<ISocketManager, 'request' | 'send' | 'onType'>`
+pinned to one slot.** It captures no client: `request` and `send` resolve `entries.get(key)` on
 every call, so a slot rebuilt underneath it is picked up rather than held stale. With the slot
 unbound they **throw**. That is deliberate — a pin exists to guarantee a destination, and quietly
 falling back to the active slot would send a relay-only write to a cloud.
 
-**`onSlotType(kind, type, listener)` is the subscription counterpart, and it does not throw.** A
+**`onSlotType(key, type, listener)` is the subscription counterpart, and it does not throw.** A
 request finishes the moment it is made; a subscription has to outlive the slot it was registered on,
 so the manager owns the entry and re-attaches it every time that slot rebinds — the same
 owned-subscription machinery as active `onType`, triggered by the slot's own rebind instead of an
@@ -118,9 +143,9 @@ the other slot. Re-binding happens in one place, `notifySlotClient`, because tha
 both `ensure` and `teardownEntry` pass through — and teardown notifies while the client is still
 alive, so the old subscription is cleanly detached.
 
-Verification has per-kind counterparts for the same reason: `isKindVerified(kind)` (a snapshot),
-`waitUntilKindVerified(kind, timeoutMs?)` (one-shot, resolves `false` on timeout, never rejects) and
-`subscribeKindVerified(kind, listener)` (fires immediately, then on every change). Anything pinned
+Verification has per-slot counterparts for the same reason: `isSlotVerified(key)` (a snapshot),
+`waitUntilSlotVerified(key, timeoutMs?)` (one-shot, resolves `false` on timeout, never rejects) and
+`subscribeSlotVerified(key, listener)` (fires immediately, then on every change). Anything pinned
 with `getScopedClient` must gate on these — `waitUntilVerified` would wait on cloud the moment a
 cloud session came up.
 
@@ -142,7 +167,7 @@ This is the **active** slot's state, broadcast through `subscribe` and surfaced 
 
 Two subscriptions to clients, and they are not interchangeable. `subscribeClient` fires with the
 **active** slot's client and again whenever the active slot changes. `subscribeSlotClients` fires per
-slot — `(kind, client)` on bind or rebuild, `(kind, null)` just before a teardown — replaying the
+slot — `(key, client)` on bind or rebuild, `(key, null)` just before a teardown — replaying the
 currently bound slots on subscribe. For any one mutation **the slot notification comes first**, so a
 per-slot attachment exists before active-facade consumers react. `SyncManager` depends on that
 ordering.
@@ -165,7 +190,7 @@ for interest:
 
 | Class         | Codes         | Treatment                                                                                |
 | ------------- | ------------- | ---------------------------------------------------------------------------------------- |
-| `unavailable` | 503 · 499     | Folded into a per-kind streak: the 1st warns, the 5th errors, the rest are silent        |
+| `unavailable` | 503 · 499     | Folded into a per-slot streak: the 1st warns, the 5th errors, the rest are silent        |
 | `timeout`     | 408           | One `warn` each — the request was accepted and never answered, and a retry may well work |
 | `server`      | anything else | One `error` each: a decision the server made about one request                           |
 
@@ -218,7 +243,7 @@ Four rules produce the result:
 ### The two binders
 
 `SocketBinder` manages each slot independently. A slot's config appearing calls
-`bootstrapSocketConnection`; disappearing calls `manager.destroy(kind)`. The **reboot key** is
+`bootstrapSocketConnection`; disappearing calls `manager.destroy(key)` on the slot it last booted. The **reboot key** is
 `url|deviceId|wssType` and nothing else ([`socketRebootKey.ts`](../../src/connection/utils/socketRebootKey.ts)),
 and both binders read it from that one file so they cannot drift apart. `cid` is excluded because a
 cid-only change is an optimistic cloud switch — rebooting there would re-freeze `boundCid` to the
@@ -240,7 +265,7 @@ it moves **and a reboot is not already happening**, since a reboot re-registers 
 | Hook                      | Answers                                                                     |
 | ------------------------- | --------------------------------------------------------------------------- |
 | `useRuntimeSocketState()` | The **active** slot's `{ state, isConnected, isVerified, connectionId }`    |
-| `useKindVerified(kind)`   | Is _this_ kind verified, whatever is active — for gating a kind-pinned call |
+| `useSlotVerified(key)`    | Is _this_ slot verified, whatever is active — for gating a slot-pinned call |
 | `useConnectivity()`       | What to tell the **user**: `online` · `reconnecting` · `offline`            |
 
 `useConnectivity` is a display verdict, not an auth verdict, which is why it was never folded into
@@ -254,17 +279,17 @@ the fault is ours, and telling the user to check their wifi sends them after the
 
 ### What not to do
 
-- **Do not take a raw `ClientSocketV2` and hold it.** Clients are rebuilt on every config change. Use the facade, or `getScopedClient(kind)`, which re-resolves per call.
-- **Do not add a silent fallback to a kind-pinned request.** Throwing is the contract; the alternative is a relay-only write landing on a cloud server with no trace.
-- **Do not make a kind-pinned subscription throw when the slot is unbound.** It is a declaration, not a call, and the relay slot is legitimately absent for part of boot.
-- **Do not gate a `getScopedClient` call on `waitUntilVerified`.** That waits on cloud whenever cloud is up. Use `waitUntilKindVerified(kind)`.
+- **Do not take a raw `ClientSocketV2` and hold it.** Clients are rebuilt on every config change. Use the facade, or `getScopedClient(key)`, which re-resolves per call.
+- **Do not add a silent fallback to a slot-pinned request.** Throwing is the contract; the alternative is a relay-only write landing on a cloud server with no trace.
+- **Do not make a slot-pinned subscription throw when the slot is unbound.** It is a declaration, not a call, and the relay slot is legitimately absent for part of boot.
+- **Do not gate a `getScopedClient` call on `waitUntilVerified`.** That waits on cloud whenever cloud is up. Use `waitUntilSlotVerified(key)`.
 - **Do not put `cid` or the identity token into the reboot key.** Each exclusion has a specific failure attached, and both binders share the key.
 - **Do not put a value in `types.ts`.** `socket/index.ts` re-exports it wholesale.
 - **Do not branch on `connectionId`.** It is always `null`.
 
 ## Notes for implementers and tests
 
-- `SocketManager.test.ts` mocks `createClientSocketV2` and drives a fake client. It is the biggest test in the package, and the kind-scoped cases are the ones that encode intent: a pinned request must survive a slot rebuild (lazy resolution), a pinned subscription must re-attach after a rebuild with the old one detached, registering on an unbound slot must not throw and must attach on the next `ensure`, and `destroy(kind)` must not leak a subscription onto the other slot.
+- `SocketManager.test.ts` mocks `createClientSocketV2` and drives a fake client. It is the biggest test in the package, and the slot-pinned cases are the ones that encode intent: a pinned request must survive a slot rebuild (lazy resolution), a pinned subscription must re-attach after a rebuild with the old one detached, registering on an unbound slot must not throw and must attach on the next `ensure`, and `destroy(key)` must not leak a subscription onto the other slot.
 - Six listener sets live on the manager. When adding one, decide first whether it is active-scoped or slot-scoped — and remember that a slot notification must precede the active one for the same mutation.
 - `getSocketManager()` is a lazy process singleton with no reset seam. A test that needs a fresh manager constructs `new SocketManager()` directly.
 - `utils/annotateSocketError.ts` has no test of its own; its behaviour is asserted through the facade in `SocketManager.test.ts`.

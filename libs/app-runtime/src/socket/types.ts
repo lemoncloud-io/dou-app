@@ -7,8 +7,22 @@ import type {
     SocketMessage,
 } from '@lemoncloud/chatic-sockets-lib';
 
-/** Which server a socket slot serves. Dual sockets: relay is always-on, cloud is active-only. */
+/**
+ * Which server a socket slot serves — relay (always-on) or a cloud (active-only). An ATTRIBUTE of a
+ * slot, derived from its key (`kindOf`), never the key itself: relay and cloud authenticate, renew and
+ * expire differently, but a slot is addressed by the cloud it serves.
+ */
 export type SocketKind = 'relay' | 'cloud';
+
+/**
+ * A socket slot's key: the id of the cloud it serves. The relay's is `RELAY_CLOUD_ID` (`'default'`),
+ * the same value the cache partitions under (`RELAY_SLOT`).
+ *
+ * Branded so a bare string cannot pass for one. Slots used to be keyed `'relay' | 'cloud'`, and those
+ * literals still type-check as `string` — a missed call site would then name a slot that never exists
+ * and a subscription on it would wait forever, silently. Build one with `slotKeyOf(cid)`.
+ */
+export type SlotKey = string & { readonly __slotKey: never };
 
 /**
  * Configuration options required to initialize and bind a socket connection.
@@ -27,12 +41,12 @@ export interface SocketBindingConfig {
      */
     wssType?: 'relay' | 'cloud';
     /**
-     * The cloud id (cache cid space) this socket is bound to. Frozen at bind time and read back
-     * via getBoundCid so cache writes can be attributed to the socket's ACTUAL cloud — a switch
-     * flips the cache cid optimistically while the old cloud's socket (same url) stays attached,
-     * and its frames must not be written under the new cloud's cid.
+     * The cloud id this socket serves — and therefore the slot's key (`slotKeyOf(cid)`); the relay's is
+     * `RELAY_CLOUD_ID`. Being the key is what freezes it: a slot is created for one cloud and reports
+     * that cloud through getBoundCid for as long as it lives, so a switch that flips the cache cid
+     * optimistically while the old socket is still attached cannot relabel that socket's frames.
      */
-    cid?: string;
+    cid: string;
 }
 
 /**
@@ -57,56 +71,53 @@ export type SocketStateListener = (state: SocketState) => void;
 export type SocketClientListener = (client: ClientSocketV2 | null) => void;
 
 /** Fired per SLOT lifecycle: `client` on bind/rebuild, `null` when the slot is torn down. */
-export type SocketSlotClientListener = (kind: SocketKind, client: ClientSocketV2 | null) => void;
+export type SocketSlotClientListener = (key: SlotKey, client: ClientSocketV2 | null) => void;
 
 /**
- * A stable surface pinned to ONE slot kind (see getScopedClient). Mirrors the subset of
+ * A stable surface pinned to ONE slot (see getScopedClient). Mirrors the subset of
  * ISocketManager that gateways bind to, but nothing captures a client: request/send resolve the
  * slot on every call, and `onType` registers a manager-owned subscription that follows the slot
- * across teardown/rebuild. See socket/kind-scoped-routing.md.
+ * across teardown/rebuild.
  */
 export type ScopedSocketClient = Pick<ISocketManager, 'request' | 'send' | 'onType'>;
 
 /**
- * Dual-socket manager with an ACTIVE-FACADE interface (multi-socket-design.md §5-1): it holds a
- * relay slot (always) and a cloud slot (when cloud is active), but most methods operate on the
- * ACTIVE slot (cloud when present, else relay) so consumers (SyncManager/useRuntimeSocketState/gateways/
- * the switch·logout·reauth helpers) stay socket-count-agnostic. Only slot lifecycle — ensure /
- * connect / setAuthenticated / destroy — is addressed per `kind`.
+ * Socket manager with an ACTIVE-FACADE interface: it holds a relay slot (always) and a cloud slot
+ * (when a cloud is active), keyed by the cloud each one serves, but most methods operate on the
+ * ACTIVE slot (the cloud slot when present, else relay) so consumers (SyncManager /
+ * useRuntimeSocketState / gateways / the switch·logout·reauth helpers) stay socket-count-agnostic.
+ * Slot lifecycle and the few things that must reach one specific server are addressed per `SlotKey`.
  */
 export interface ISocketManager {
-    // ── Slot lifecycle — the only per-`kind` addressed group.
-    /** Creates/reuses the slot for `kind` bound to `config`; returns that slot's client. */
-    ensure(config: SocketBindingConfig, kind: SocketKind): ClientSocketV2;
-    /** Connects the slot for `kind` if idle/closed. */
-    connect(kind: SocketKind): Promise<void>;
-    /** Destroys one slot (`kind`) or, when omitted, all slots. */
-    destroy(kind?: SocketKind): void;
+    // ── Slot lifecycle — addressed per slot.
+    /** Creates/reuses the slot keyed by `config.cid` and bound to `config`; returns that slot's client. */
+    ensure(config: SocketBindingConfig): ClientSocketV2;
+    /** Connects the slot `key` if idle/closed. */
+    connect(key: SlotKey): Promise<void>;
+    /** Destroys one slot (`key`) or, when omitted, all slots. */
+    destroy(key?: SlotKey): void;
     /**
      * Mirrors the SDK AuthController's `authenticated` state for a specific slot. The ACTIVE slot's
      * `isVerified` is derived from this AND that slot being connected.
      */
-    setAuthenticated(kind: SocketKind, value: boolean): void;
-    /**
-     * Re-points a slot's bound cloud id without rebooting the socket — required for a same-wss cloud
-     * switch (§8-4), where the url is unchanged so ensure() never re-runs to refresh boundCid.
-     */
-    rebindCid(kind: SocketKind, cid: string | null): void;
+    setAuthenticated(key: SlotKey, value: boolean): void;
+    /** The keys of every bound slot — for work that must reach each server, e.g. logout or wake recovery. */
+    getSlotKeys(): SlotKey[];
 
     // ── Request/push surface gateways bind to. Active-facade: cloud when present, else relay.
     request<T = unknown>(type: string, data?: unknown, options?: { timeoutMs?: number }): Promise<T>;
     send<T = unknown>(type: string | SocketMessage<T>, data?: T): void;
     onType<T = unknown>(type: string, listener: (message: SocketMessage<T>) => void): () => void;
     /**
-     * Push subscription pinned to ONE slot kind, for events a specific server delivers regardless of
-     * which slot is active (e.g. a relay-only unicast while a cloud slot is up). The manager owns the
-     * entry and re-binds it whenever that slot is rebuilt.
+     * Push subscription pinned to ONE slot, for events a specific server delivers regardless of which
+     * slot is active (e.g. a relay-only unicast while a cloud slot is up). The manager owns the entry
+     * and re-binds it whenever that slot is rebuilt.
      *
-     * Unlike the kind-scoped request/send, registering against an unbound slot does NOT throw: a
+     * Unlike the slot-pinned request/send, registering against an unbound slot does NOT throw: a
      * subscription is a standing declaration ("attach when this slot exists"), and the relay slot is
      * briefly absent during boot. It waits, and never leaks onto another slot.
      */
-    onSlotType<T = unknown>(kind: SocketKind, type: string, listener: (message: SocketMessage<T>) => void): () => void;
+    onSlotType<T = unknown>(key: SlotKey, type: string, listener: (message: SocketMessage<T>) => void): () => void;
     onMessage(listener: (event: ClientSocketMessageEvent) => void): () => void;
     onState(listener: (event: ClientSocketStateEvent) => void): () => void;
     onError(listener: (event: ClientSocketErrorEvent) => void): () => void;
@@ -114,25 +125,25 @@ export interface ISocketManager {
 
     // ── Everything an observer reads or subscribes to — no lifecycle, no sending.
     /**
-     * A specific slot's client when `kind` is given (null if that slot is not bound), else the ACTIVE
-     * slot's client (cloud when present, else relay). The per-kind form backs logout, which must
-     * notify each server's own socket (§8-5/§8-6).
+     * A specific slot's client when `key` is given (null if that slot is not bound), else the ACTIVE
+     * slot's client (cloud when present, else relay). The per-slot form backs logout, which must
+     * notify each server's own socket.
      */
-    getClient(kind?: SocketKind): ClientSocketV2 | null;
+    getClient(key?: SlotKey): ClientSocketV2 | null;
     /**
-     * A stable request facade pinned to ONE slot `kind`, regardless of which slot is active. Unlike
-     * the active-facade methods (request/send = active slot), this always targets `kind` — e.g. a
+     * A stable request facade pinned to ONE slot, regardless of which slot is active. Unlike the
+     * active-facade methods (request/send = active slot), this always targets `key` — e.g. a
      * relay-only write while a cloud slot is active. Resolves the slot lazily on each call so it
-     * survives slot rebuild. See socket/kind-scoped-routing.md.
+     * survives slot rebuild.
      */
-    getScopedClient(kind: SocketKind): ScopedSocketClient;
+    getScopedClient(key: SlotKey): ScopedSocketClient;
     /** Observable state of the ACTIVE slot. */
     getSnapshot(): SocketState;
     subscribe(listener: SocketStateListener): () => void;
     /** Fires with the ACTIVE slot's client, and again whenever the active slot changes. */
     subscribeClient(listener: SocketClientListener): () => void;
     /**
-     * Fires per SLOT client lifecycle — (kind, client) on bind/rebuild, (kind, null) just before a
+     * Fires per SLOT client lifecycle — (key, client) on bind/rebuild, (key, null) just before a
      * teardown — independent of which slot is active, replaying currently bound slots on subscribe.
      * For any one mutation the slot notification precedes the active-client notification, so a
      * per-slot attachment (e.g. the SyncManager's slot runtime) exists by the time active-facade
@@ -143,25 +154,25 @@ export interface ISocketManager {
     subscribeSlotClients(listener: SocketSlotClientListener): () => void;
     waitUntilVerified(timeoutMs?: number): Promise<boolean>;
     /**
-     * Per-kind counterpart of waitUntilVerified: resolves when THAT slot completes its handshake,
+     * Per-slot counterpart of waitUntilVerified: resolves when THAT slot completes its handshake,
      * `false` on timeout, never rejects. Anything pinned to a slot via getScopedClient must gate on
      * this — waitUntilVerified would wait on cloud whenever a cloud session is up.
      */
-    waitUntilKindVerified(kind: SocketKind, timeoutMs?: number): Promise<boolean>;
+    waitUntilSlotVerified(key: SlotKey, timeoutMs?: number): Promise<boolean>;
     /**
-     * Per-kind verification (authenticated AND connected) for the given slot, independent of which
-     * slot is active — backs re-auth guards that target a non-active slot (relay while cloud is up).
+     * Per-slot verification (authenticated AND connected), independent of which slot is active —
+     * backs re-auth guards that target a non-active slot (relay while cloud is up).
      */
-    isKindVerified(kind: SocketKind): boolean;
+    isSlotVerified(key: SlotKey): boolean;
     /**
-     * Continuous per-kind counterpart of waitUntilKindVerified: fires immediately with the current
+     * Continuous per-slot counterpart of waitUntilSlotVerified: fires immediately with the current
      * value, then again on every change, until unsubscribed. Backs reactive consumers (e.g.
      * `useQuery({ enabled })`) of a getScopedClient-pinned request/send, which must re-gate on every
      * connect/disconnect — not just the first time, like the one-shot wait does.
      */
-    subscribeKindVerified(kind: SocketKind, listener: (verified: boolean) => void): () => void;
+    subscribeSlotVerified(key: SlotKey, listener: (verified: boolean) => void): () => void;
 
     // ── The cache-attribution observation `ActiveScope` needs.
-    /** The cloud id the ACTIVE slot was bound to (frozen at bind), or null before the first bind. */
+    /** The cloud id the ACTIVE slot serves — its key — or null before the first bind. */
     getBoundCid(): string | null;
 }

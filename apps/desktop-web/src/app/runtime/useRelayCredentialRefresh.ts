@@ -48,7 +48,7 @@ export const useRelayCredentialRefresh = (): void => {
         consecutiveFailureLimit: null,
     });
 
-    const isRelayVerified = runtime.connection.useKindVerified('relay');
+    const isRelayVerified = runtime.connection.useSlotVerified(runtime.connection.RELAY_SLOT);
     useEffect(() => {
         const onVisibilityChange = (): void => {
             if (document.visibilityState !== 'visible' || !isRelayVerified) return;

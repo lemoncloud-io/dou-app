@@ -1,5 +1,6 @@
 import { requestRelaySessionRefresh, resetRelayRefreshCoalescing } from './requestRelaySessionRefresh';
 import type { ISocketManager } from '../types';
+import { RELAY_SLOT } from '../utils/slotKey';
 
 jest.mock('@chatic/bridges', () => ({
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
@@ -43,7 +44,7 @@ const makeAuth = ({ state = 'authenticated' } = {}) => {
 
 type FakeAuth = ReturnType<typeof makeAuth>;
 
-// `isKindVerified` is DERIVED here, not a free knob. The real SocketManager computes it as
+// `isSlotVerified` is DERIVED here, not a free knob. The real SocketManager computes it as
 // `authenticated && connState === 'connected'` and clears it on every non-connected transition, so a
 // fake that reports `verified` for a closed socket describes a state the manager cannot produce.
 // That mattered once `deriveAuthStatus` started trusting this flag instead of re-reading the
@@ -52,7 +53,7 @@ type FakeAuth = ReturnType<typeof makeAuth>;
 const makeManager = (client: { auth?: FakeAuth; state?: string } | null, { verified = true } = {}): ISocketManager =>
     ({
         getClient: jest.fn(() => client),
-        isKindVerified: jest.fn(
+        isSlotVerified: jest.fn(
             () => verified && client?.state === 'connected' && client?.auth?.state === 'authenticated'
         ),
     }) as unknown as ISocketManager;
@@ -170,27 +171,27 @@ describe('requestRelaySessionRefresh', () => {
         auth.finishRefresh();
         await expect(pending).resolves.toBe(true);
 
-        expect(manager.isKindVerified).toHaveBeenCalledWith('relay');
+        expect(manager.isSlotVerified).toHaveBeenCalledWith(RELAY_SLOT);
     });
 
     // This trigger is relay-only. A cloud token is **reissued** from the relay identity
-    // (renewCloudSession), so it isn't something refresh fixes — which is why there's no kind
+    // (renewCloudSession), so it isn't something refresh fixes — which is why there's no slot
     // argument at all.
     it('relay 슬롯만 본다 — cloud 슬롯이 살아 있어도 그쪽으로 가지 않는다', async () => {
         const relayAuth = makeAuth({ state: 'expired' });
         const cloudAuth = makeAuth();
         const manager = {
-            getClient: jest.fn((kind: string) => ({
-                auth: kind === 'relay' ? relayAuth : cloudAuth,
+            getClient: jest.fn((key: string) => ({
+                auth: key === RELAY_SLOT ? relayAuth : cloudAuth,
                 state: 'connected',
             })),
-            isKindVerified: jest.fn(() => true),
+            isSlotVerified: jest.fn(() => true),
         } as unknown as ISocketManager;
 
         // False because relay isn't authenticated. It doesn't fall back to a live cloud.
         await expect(requestRelaySessionRefresh({ manager })).resolves.toBe(false);
 
-        expect(manager.getClient).toHaveBeenCalledWith('relay');
+        expect(manager.getClient).toHaveBeenCalledWith(RELAY_SLOT);
         expect(cloudAuth.refresh).not.toHaveBeenCalled();
     });
 });

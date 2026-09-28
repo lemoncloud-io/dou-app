@@ -4,6 +4,7 @@ import { SocketReauthBinder } from './SocketReauthBinder';
 import { reauthenticateActiveSocket } from '../socket';
 import type { RuntimeSocketSlots } from './types';
 import type { SocketSessionDelegate } from '../socket';
+import { RELAY_SLOT } from '../socket/utils/slotKey';
 
 jest.mock('../socket/runtime', () => ({
     getSocketManager: jest.fn().mockReturnValue({ id: 'manager' }),
@@ -49,7 +50,7 @@ describe('SocketReauthBinder', () => {
         const { rerender } = render(<SocketReauthBinder slots={relayOnly('guest-token')} delegate={delegate} />);
         rerender(<SocketReauthBinder slots={relayOnly('social-token')} delegate={delegate} />);
         expect(mockedReauth).toHaveBeenCalledTimes(1);
-        expect(mockedReauth).toHaveBeenCalledWith(expect.objectContaining({ delegate, kind: 'relay' }));
+        expect(mockedReauth).toHaveBeenCalledWith(expect.objectContaining({ delegate, slot: RELAY_SLOT }));
     });
 
     it('does NOT re-authenticate when the socket also changed (reboot handles register)', () => {
@@ -101,7 +102,7 @@ describe('SocketReauthBinder', () => {
             />
         );
         expect(mockedReauth).toHaveBeenCalledTimes(1);
-        expect(mockedReauth).toHaveBeenCalledWith(expect.objectContaining({ delegate, kind: 'relay' }));
+        expect(mockedReauth).toHaveBeenCalledWith(expect.objectContaining({ delegate, slot: RELAY_SLOT }));
     });
 
     it('does NOT re-authenticate a different-wss cloud switch (SocketBinder reboots that slot)', () => {
