@@ -89,6 +89,8 @@ export const WEB_MESSAGE_RESPONSE_TYPE = {
     AckPendingReports: 'OnAckPendingReports',
     SendBootMetrics: 'OnSendBootMetrics',
     SetDebugMode: 'OnSetDebugMode',
+    StartPerfTrace: 'OnStartPerfTrace',
+    StopPerfTrace: 'OnStopPerfTrace',
     Ping: 'Pong',
     FetchTestRecord: 'OnFetchTestRecord',
     FetchAllTestRecords: 'OnFetchAllTestRecords',

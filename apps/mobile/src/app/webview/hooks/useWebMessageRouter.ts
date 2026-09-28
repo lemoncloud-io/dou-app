@@ -118,8 +118,14 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
     const { handleCheckAppUpdate, handleOpenStore } = useAppUpdateHandler();
     const { handleFetchAppIcon, handleFetchAppIconList, handleChangeAppIcon } = useAppIconHandler();
     const { handleCopyToClipboard } = useClipboardHandler();
-    const { handleSendBootMetrics, handleSetDebugMode, handleFetchBootRecords, handleClearBootRecords } =
-        usePerfHandler();
+    const {
+        handleSendBootMetrics,
+        handleSetDebugMode,
+        handleFetchBootRecords,
+        handleClearBootRecords,
+        handleStartPerfTrace,
+        handleStopPerfTrace,
+    } = usePerfHandler();
     const { handleApplyCustomZip, handleDisableCustomZip, handleFetchCustomZipStatus } = useCustomZipHandler();
     const { handleFetchUrlMetadata } = useUnfurlHandler();
 
@@ -195,6 +201,8 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
         handleSetDebugMode,
         handleFetchBootRecords,
         handleClearBootRecords,
+        handleStartPerfTrace,
+        handleStopPerfTrace,
         handleApplyCustomZip,
         handleDisableCustomZip,
         handleFetchCustomZipStatus,
@@ -275,6 +283,8 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             handleSetDebugMode,
             handleFetchBootRecords,
             handleClearBootRecords,
+            handleStartPerfTrace,
+            handleStopPerfTrace,
             handleApplyCustomZip,
             handleDisableCustomZip,
             handleFetchCustomZipStatus,
@@ -368,6 +378,8 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             SendBootMetrics: message => handlersRef.current.handleSendBootMetrics(message),
             FetchBootRecords: message => handlersRef.current.handleFetchBootRecords(message),
             ClearBootRecords: message => handlersRef.current.handleClearBootRecords(message),
+            StartPerfTrace: message => handlersRef.current.handleStartPerfTrace(message),
+            StopPerfTrace: message => handlersRef.current.handleStopPerfTrace(message),
             ApplyCustomZip: message => handlersRef.current.handleApplyCustomZip(message),
             DisableCustomZip: message => handlersRef.current.handleDisableCustomZip(message),
             FetchCustomZipStatus: message => handlersRef.current.handleFetchCustomZipStatus(message),

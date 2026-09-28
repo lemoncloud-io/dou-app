@@ -2,9 +2,9 @@ import { createElement } from 'react';
 import { renderHook } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-import { configurePerfMetrics, resetPerfMetrics } from '@chatic/bridges';
+import { configurePerfTraces, resetPerfTraces } from '@chatic/perf';
 
-import type { Logger } from '@chatic/bridges';
+import type { PerfTraceBackend } from '@chatic/perf';
 
 const mockSwitchCloudSession = jest.fn();
 
@@ -30,18 +30,18 @@ const createWrapper = () => {
     return ({ children }: { children: React.ReactNode }) => createElement(QueryClientProvider, { client }, children);
 };
 
-const perfLogger = { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() };
+const backend = { start: jest.fn(), stop: jest.fn() } satisfies PerfTraceBackend;
 
 describe('useSwitchCloudSession', () => {
     beforeEach(() => {
         jest.clearAllMocks();
-        resetPerfMetrics();
+        resetPerfTraces();
         mockSwitchCloudSession.mockResolvedValue({ cloudId: 'cloud-1' });
         mockSlotKeys.mockReturnValue([]);
         mockTimeToExpiry.mockReturnValue(60 * 60_000);
     });
 
-    afterEach(() => resetPerfMetrics());
+    afterEach(() => resetPerfTraces());
 
     it('클라우드 전환을 서비스에 위임하고 스냅샷을 돌려준다', async () => {
         const { result } = renderHook(() => useSwitchCloudSession(), { wrapper: createWrapper() });
@@ -79,41 +79,37 @@ describe('useSwitchCloudSession', () => {
         expect(mockRenew).not.toHaveBeenCalled();
     });
 
-    it('성공한 전환을 cloud-switch 지표 한 건으로 보고한다', async () => {
-        configurePerfMetrics({ logger: perfLogger as Logger, runId: 'run-1', samplePercent: 100 });
+    it('records a successful switch as one cloud_switch trace with outcome ok', async () => {
+        configurePerfTraces(backend);
 
         const { result } = renderHook(() => useSwitchCloudSession(), { wrapper: createWrapper() });
         await result.current.switchCloud('cloud-1');
 
-        expect(perfLogger.info).toHaveBeenCalledTimes(1);
-        expect(perfLogger.info).toHaveBeenCalledWith(
-            'PERF',
-            expect.stringMatching(/^cloud-switch \d+ms$/),
-            expect.objectContaining({ metric: 'cloud-switch', budgetMs: 1000, ok: true })
+        expect(backend.start).toHaveBeenCalledWith(expect.objectContaining({ name: 'cloud_switch' }));
+        expect(backend.stop).toHaveBeenCalledTimes(1);
+        expect(backend.stop).toHaveBeenCalledWith(
+            expect.objectContaining({ name: 'cloud_switch', attributes: { outcome: 'ok' } })
         );
     });
 
-    it('실패한 전환도 ok:false로 보고하고 에러는 그대로 던진다', async () => {
-        configurePerfMetrics({ logger: perfLogger as Logger, runId: 'run-1', samplePercent: 100 });
+    it('records a failed switch with outcome error and still rethrows', async () => {
+        configurePerfTraces(backend);
         mockSwitchCloudSession.mockRejectedValue(new Error('exchange failed'));
 
         const { result } = renderHook(() => useSwitchCloudSession(), { wrapper: createWrapper() });
 
         await expect(result.current.switchCloud('cloud-1')).rejects.toThrow('exchange failed');
-        expect(perfLogger.info).toHaveBeenCalledTimes(1);
-        expect(perfLogger.info).toHaveBeenCalledWith(
-            'PERF',
-            expect.any(String),
-            expect.objectContaining({ metric: 'cloud-switch', ok: false })
-        );
+        expect(backend.stop).toHaveBeenCalledTimes(1);
+        expect(backend.stop).toHaveBeenCalledWith(expect.objectContaining({ attributes: { outcome: 'error' } }));
     });
 
-    it('지표 수집이 꺼진 호스트에서는 0건이다 (desktop-web · 브라우저)', async () => {
+    it('records nothing on a host that never configured tracing (desktop-web, browser)', async () => {
         const { result } = renderHook(() => useSwitchCloudSession(), { wrapper: createWrapper() });
 
         await result.current.switchCloud('cloud-1');
 
-        expect(perfLogger.info).not.toHaveBeenCalled();
+        expect(backend.start).not.toHaveBeenCalled();
+        expect(backend.stop).not.toHaveBeenCalled();
     });
 
     it('switchCloud 콜백은 리렌더를 건너도 같은 참조를 유지한다', () => {

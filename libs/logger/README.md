@@ -3,8 +3,9 @@
 **The platform-neutral logging core.** Every log line in every runtime — web JS, React Native TS,
 Kotlin and Swift — becomes one `LogEntry`, is published to one hub, and is read by whoever
 subscribed. The package owns the entry contract, the engine that stamps and broadcasts it, the
-masking applied on the way out, the queue of entries the server has not accepted yet, the schedule
-that empties it, and the performance budget that rides the same pipe.
+masking applied on the way out, the queue of entries the server has not accepted yet, and the schedule
+that empties it. Performance measurement lives in [`@chatic/perf`](../perf/README.md); when a trace
+falls back to the log pipeline it arrives here as an ordinary `info`/`PERF` entry.
 
 This document covers the **overview and structure** only. The per-layer detail is canonical under
 [`docs/`](#documents).
@@ -45,7 +46,7 @@ so a call site can be checked against it — see [docs/entries/](./docs/entries/
 8. **The store is capped on two axes, and drops the cheapest level first.** A count alone says nothing about size; bytes alone cost a serialization per push. `debug` leads the drop order, which is what lets it be stored at all.
 9. **The logging path never logs itself.** A listener runs inside `publish`, so calling `logger` there re-enters immediately; the upload path calling `logger` closes a failure loop. Both use `console`.
 10. **Stateful collaborators are classes, ports are interfaces, stateless policy is a function.** Every class takes its dependencies as constructor arguments, so any of them can be built standalone in a test.
-11. **Dependencies point inward, to `core/`.** Nothing outside `runtime.ts` and `perf/runtime.ts` reaches for a process-wide instance, which is what keeps the module graph acyclic.
+11. **Dependencies point inward, to `core/`.** Nothing outside `runtime.ts` reaches for a process-wide instance, which is what keeps the module graph acyclic.
 12. **`debug` lives exactly where someone is watching.** One host flag decides whether the console runs, whether the bridge carries `debug`, and whether the store keeps it — so the three cannot disagree about what "this build is being watched" means.
 
 ## Scope
@@ -53,14 +54,13 @@ so a call site can be checked against it — see [docs/entries/](./docs/entries/
 **In** — the `LogEntry` / `LogContext` / `Logger` contract, the tag catalogue mirror, the hub and the
 logging engine, the console sink, masking by field name and by value shape, the serialization
 surfaces (report string, bridge structure, server wire), the unsent queue with its ports and
-scheduler, the structured-observation discriminator and the foreign-drop aggregator, and the
-performance budget with its reporter, sampling and slot.
+scheduler, and the structured-observation discriminator and the foreign-drop aggregator.
 
 **Out** — the HTTP call that uploads a batch (`libs/data`'s report repository), queue persistence
 and host wiring (`apps/web`, `apps/mobile`), the web→native relay and the `AppLogInfo` codec
 (`libs/bridges`), the bridge message types (`libs/app-messages`), Crashlytics and the native logger
-modules (`apps/mobile`), the admin console that reads the stored logs (`apps/admin-v2`), and the
-trigger catalogue itself (knowledge vault).
+modules (`apps/mobile`), the admin console that reads the stored logs (`apps/admin-v2`), performance
+traces (`libs/perf`), and the trigger catalogue itself (knowledge vault).
 
 ## Structure
 
@@ -80,7 +80,6 @@ flowchart TD
     Sinks["sinks/<br/><i>ConsoleLogSink</i>"]:::out
     Upload["upload/<br/><i>queue · store ports · scheduler</i>"]:::out
     Obs["observation/<br/><i>foreign-drop aggregator</i>"]:::out
-    Perf["perf/<br/><i>budgets · sampling · reporter · slot</i>"]:::out
 
     Ser["serialization/<br/><i>wire · report · bridge shapes</i>"]:::pol
     Red["redaction/<br/><i>by name · by shape</i>"]:::pol
@@ -90,7 +89,6 @@ flowchart TD
     RT --> Sinks
     Sinks --> Core
     Upload --> Core
-    Perf --> Core
     Obs --> Core
     Obs --> RT
     Ser --> Core
@@ -100,8 +98,8 @@ flowchart TD
 
 Every arrow points inward, to `core/`. `observation/` is the one module that reaches back to
 `runtime.ts`, because an aggregator's whole job is to emit a log line of its own; nothing else in the
-package touches a singleton. There is no arrow from `perf/` to `upload/` and none from `upload/` to
-`sinks/` — a metric is an ordinary entry once it is published, and the uploader never subscribes.
+package touches a singleton. There is no arrow from `upload/` to `sinks/` — the uploader never
+subscribes.
 
 ### One entry, end to end
 
@@ -138,17 +136,14 @@ libs/logger/src/
 ├── redaction/        4 files — what counts as a secret, by name and by value shape
 ├── serialization/    6 files — the three output shapes and the shared truncation rule
 ├── upload/           6 files — the queue, the LogStore ports, the scheduler and its policy
-├── observation/      2 files — the foreign-drop aggregator
-└── perf/             9 files — budgets, run sampling, reporter, sink and process slot
+└── observation/      2 files — the foreign-drop aggregator
 ```
 
-39 source files, 21 spec files, 2,594 lines of non-test code.
+30 source files, 16 spec files, 2,168 lines of non-test code.
 
-Four names are not where their filename suggests. `LogSink` lives in `sinks/ConsoleLogSink.ts` —
+Three names are not where their filename suggests. `LogSink` lives in `sinks/ConsoleLogSink.ts` —
 there is no `LogSink.ts` to open. `LogStoreReader`, `LogStoreWriter` and `toLogListener` all live in
-`upload/LogStore.ts`. `PerfMetricReporter` (the interface) and `NOOP_PERF_METRIC_REPORTER` live in
-`perf/PerfMetricReporter.ts` beside the implementation class, which is called
-`BudgetedPerfMetricReporter`. `ObservationKind` and `ObservationData` live in `core/observation.ts`,
+`upload/LogStore.ts`. `ObservationKind` and `ObservationData` live in `core/observation.ts`,
 which holds no code at all — it is a type file.
 
 ## Usage
@@ -261,19 +256,18 @@ See [docs/observations/](./docs/observations/README.md).
 | [docs/upload/](./docs/upload/README.md)             | The queue and the schedule. The two ceilings and the drop order, the store ports, backoff and give-up, **naming history** |
 | [docs/redaction/](./docs/redaction/README.md)       | Masking and serialization. The two masking axes, the three output shapes, where an unmasked value can still escape        |
 | [docs/observations/](./docs/observations/README.md) | Structured entries. The `data.observation` discriminator, the ten families, and the rules a producer follows              |
-| [docs/perf/](./docs/perf/README.md)                 | The performance budget. Five scenarios and their targets, run sampling, the reporter and its seams                        |
 
 ## How to verify
 
 ```bash
 npx tsc -b libs/logger/tsconfig.lib.json     # the lib
-npx tsc -b libs/logger/tsconfig.spec.json    # the 21 spec files
+npx tsc -b libs/logger/tsconfig.spec.json    # the 16 spec files
 npx jest --config libs/logger/jest.config.js
 ```
 
 - Type checking must be `tsc -b`. Inside `libs/logger`, `tsc --noEmit` checks zero files and succeeds.
 - **The two type checks are separate on purpose.** `tsconfig.lib.json` excludes `*.spec.ts`, and jest does not type check at all — the base sets `isolatedModules`, so ts-jest transpiles and a fixture that has drifted from the type it imitates surfaces as `… is not a function` at runtime. `npx tsc -b libs/logger/tsconfig.json` runs both, because `tsconfig.json` references both projects.
 - `tsconfig.spec.json` must not set `module: "commonjs"`. The base sets `moduleResolution: bundler`, which rejects it with TS5095 — the config then cannot compile at all, which is how these tests went years without a check.
-- Every directory has specs except the barrels: 3 in `core`, 5 in `perf`, 4 in `redaction`, 3 in `serialization`, 3 in `upload`, 1 each in `sinks` and `observation`, plus `runtime.spec.ts`. The commands above are what answers whether they pass, not this sentence.
+- Every directory has specs except the barrels: 3 in `core`, 4 in `redaction`, 3 in `serialization`, 3 in `upload`, 1 each in `sinks` and `observation`, plus `runtime.spec.ts`. The commands above are what answers whether they pass, not this sentence.
 - Downstream: a changed barrel identifier reaches `libs/bridges`, `libs/data`, `libs/http` and `libs/app-runtime` directly, and through `libs/bridges`' re-export it reaches `apps/web`, `apps/desktop-web` and `apps/mobile` as well (`apps/desktop` aliases the package in its electron-vite config). `.github/workflows/verify.yml` type checks every one of those except `desktop-web` and `@chatic/mobile`, so those two are the ones to run by hand.
 - A stale `dist`/`out-tsc` produces phantom errors after a directory moves. `rm -rf` and look again. The lib and spec projects emit to different directories (`dist/out-tsc` and `dist/out-tsc/logger-spec`) so they cannot overwrite each other's declarations.

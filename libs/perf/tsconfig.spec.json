@@ -1,0 +1,15 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        // Its own subdirectory, for the reason libs/logger/tsconfig.spec.json gives: two composite
+        // programs writing the same .d.ts paths overwrite each other's output.
+        "outDir": "../../dist/out-tsc/perf-spec",
+        "types": ["jest", "node"]
+    },
+    "include": ["src/**/*.ts", "src/**/*.d.ts"],
+    "references": [
+        {
+            "path": "../logger/tsconfig.lib.json"
+        }
+    ]
+}

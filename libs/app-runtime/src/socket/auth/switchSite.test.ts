@@ -1,11 +1,11 @@
-import { configurePerfMetrics, resetPerfMetrics } from '@chatic/bridges';
+import { configurePerfTraces, resetPerfTraces } from '@chatic/perf';
 import { switchSite } from './switchSite';
 import { cloudSession } from '../../session/auth/cloudSession';
 import { getGlobalSessionContext, getSelectedSiteId } from '../../session/store';
 import { getSocketManager } from '../runtime';
 import { handleRevokedRelaySession } from './revokedSession';
 
-import type { Logger } from '@chatic/bridges';
+import type { PerfTraceBackend } from '@chatic/perf';
 
 // Mocked at the CONCRETE modules, not the session barrel: these three are runtime-internal and off
 // that barrel now (ADR-0076 Decision 6).
@@ -115,70 +115,54 @@ describe('switchSiteViaSocket', () => {
     });
 });
 
-describe('switchSiteViaSocket — site-switch budget (ADR-0071)', () => {
-    const perfLogger = { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() };
+describe('switchSiteViaSocket — site_switch trace', () => {
+    const backend = { start: jest.fn(), stop: jest.fn() } satisfies PerfTraceBackend;
 
     beforeEach(() => {
         jest.clearAllMocks();
-        configurePerfMetrics({ logger: perfLogger as Logger, runId: 'run-1', samplePercent: 100 });
+        configurePerfTraces(backend);
     });
 
-    afterEach(() => resetPerfMetrics());
+    afterEach(() => resetPerfTraces());
 
-    it('reports nothing for the same-site no-op — those would be ~0ms samples deflating the p95', async () => {
+    it('records nothing for the same-site no-op — those would be ~0ms samples deflating the p95', async () => {
         mockedGetSelected.mockReturnValue('site-1');
 
         await switchSite('site-1');
 
-        expect(perfLogger.info).not.toHaveBeenCalled();
+        expect(backend.start).not.toHaveBeenCalled();
     });
 
-    it('reports nothing when there is no active user — nothing was measured', async () => {
+    it('records nothing when there is no active user — nothing was measured', async () => {
         mockedGetSelected.mockReturnValue('site-old');
         withUser(null);
 
         await expect(switchSite('site-new')).rejects.toThrow('no active user id');
-        expect(perfLogger.info).not.toHaveBeenCalled();
+        expect(backend.start).not.toHaveBeenCalled();
     });
 
-    it('reports one ok sample on success', async () => {
+    it('records one trace with outcome ok on success', async () => {
         mockedGetSelected.mockReturnValue('site-old');
         withUser('user-1');
         mockedGetManager.mockReturnValue(makeManager(jest.fn().mockResolvedValue(undefined)));
 
         await switchSite('site-new');
 
-        expect(perfLogger.info).toHaveBeenCalledTimes(1);
-        expect(perfLogger.info).toHaveBeenCalledWith(
-            'PERF',
-            expect.stringMatching(/^site-switch \d+ms$/),
-            expect.objectContaining({ metric: 'site-switch', budgetMs: 1000, ok: true })
+        expect(backend.start).toHaveBeenCalledWith(expect.objectContaining({ name: 'site_switch' }));
+        expect(backend.stop).toHaveBeenCalledTimes(1);
+        expect(backend.stop).toHaveBeenCalledWith(
+            expect.objectContaining({ name: 'site_switch', attributes: { outcome: 'ok' } })
         );
     });
 
-    it('reports a failed switch too, flagged ok:false', async () => {
+    it('records a failed switch too, with outcome error', async () => {
         mockedGetSelected.mockReturnValue('site-old');
         withUser('user-1');
         mockedGetManager.mockReturnValue(makeManager(jest.fn().mockRejectedValue(new Error('server rejected'))));
 
         await expect(switchSite('site-new')).rejects.toThrow('server rejected');
 
-        expect(perfLogger.info).toHaveBeenCalledTimes(1);
-        expect(perfLogger.info).toHaveBeenCalledWith(
-            'PERF',
-            expect.any(String),
-            expect.objectContaining({ metric: 'site-switch', ok: false })
-        );
-    });
-
-    it('reports nothing on an unconfigured host (desktop-web, plain browser)', async () => {
-        resetPerfMetrics();
-        mockedGetSelected.mockReturnValue('site-old');
-        withUser('user-1');
-        mockedGetManager.mockReturnValue(makeManager(jest.fn().mockResolvedValue(undefined)));
-
-        await switchSite('site-new');
-
-        expect(perfLogger.info).not.toHaveBeenCalled();
+        expect(backend.stop).toHaveBeenCalledTimes(1);
+        expect(backend.stop).toHaveBeenCalledWith(expect.objectContaining({ attributes: { outcome: 'error' } }));
     });
 });

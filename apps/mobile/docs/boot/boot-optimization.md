@@ -10,7 +10,7 @@ measured on-device (ADR-0086 is the decision record for this track).
 
 ```mermaid
 flowchart TD
-    JS[JS entry] --> P["DependencyProvider construction<br/>eager: log, MMKV, boot metrics,<br/>deeplink, notification, Crashlytics"]
+    JS[JS entry] --> P["DependencyProvider construction<br/>eager: log, MMKV, perf traces, boot metrics,<br/>deeplink, notification, Crashlytics"]
     P --> APP["App mounts<br/>SafeAreaProvider(initialWindowMetrics)"]
     APP --> NC[NavigationContainer]
     NC --> RS["RootNavigator (single native stack)"]
@@ -65,7 +65,9 @@ repeated on every re-render before the WebView even exists.
 The provider is a singleton, assembled once in its constructor, split into two groups:
 
 - **Eager** — constructed synchronously because boot-time code depends on them directly: logging,
-  `keyValueStorage` (MMKV), `bootMetricsService`, cold-start capture (`deeplinkManager`,
+  `keyValueStorage` (MMKV), `perfTraceBackend` (Firebase Performance — before `bootMetricsService`,
+  whose constructor opens the `boot` trace; constructing it only creates an empty map, and the SDK
+  itself is initialized natively before JS runs), `bootMetricsService`, cold-start capture (`deeplinkManager`,
   `deeplinkService`, `pushEventManager`, `notificationService`), and `firebaseCrashlyticsService`.
 - **Lazy** — exposed as getters that construct and memoize on first access: `sqliteDatabase` and
   everything built on it (the ten cache-domain data sources plus `upload`), and

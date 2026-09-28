@@ -107,7 +107,7 @@ gains a `route: undefined` it never had.
 what each listener does with it, not whether it is published.
 
 - **`debug` lives exactly where someone is watching.** In a release build nothing can read it — the console is not running and Crashlytics discards it — so the store does not accept it either. In every other build it is a first-class citizen: printed, relayed, stored, and visible in the debug monitor. The decision comes from one host flag (`import.meta.env.DEV` on the web, `__DEV__` in the app), so console, relay and storage cannot disagree about what "this build is being watched" means.
-- **`info` is for things worth seeing on the server even when nothing failed.** Performance metrics are `info` (see [docs/perf/](../perf/README.md)), and so are the shape observations.
+- **`info` is for things worth seeing on the server even when nothing failed.** Performance traces that fall back to the log pipeline are `info` (see [`@chatic/perf`](../../../perf/README.md)), and so are the shape observations.
 - **`warn` and `error` are what the admin console filters on.** The server hoists `level`, `runId`, `uid`, `sid` and `cid` out of the entry to make them queryable, and those plus a date range are the whole set of axes. Not tag, not message, not a value inside the payload — which is why a verdict the client took has to land on the level it wants to be findable under.
 
 A call site that fires on every request or every frame does not use `warn`. See

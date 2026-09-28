@@ -3,7 +3,9 @@ import { useCallback, useEffect } from 'react';
 import { logger } from '@chatic/bridges';
 import type { AppMessageData } from '@chatic/app-messages';
 
+import { channelIdOfRoomPath, roomOpenTrace } from '../../runtime/perf';
 import { pendingNavigationStore } from './pendingNavigationStore';
+import { resolvePushNavigation } from './resolvePushNavigation';
 import { usePushNavigate } from './usePushNavigate';
 
 /**
@@ -26,10 +28,17 @@ export const useHandlePushNavigation = (): void => {
 
     const handleNavigate = useCallback(
         async (message: AppMessageData<'OnNavigate'>) => {
-            const { path, replace } = message.data;
+            const { path, replace, perfTrace } = message.data;
             // `replace` is still logged for diagnostics but no longer drives the route change:
             // history normalization (rebase-to-home) supersedes the native flag either way.
             logger.info('ROUTER', `Received OnNavigate event from native: ${path}`, { replace });
+            // A navigation into a room carries on the trace the native tap started, so it includes
+            // the cold boot and handshake this handler waited behind; `handler` marks where that
+            // wait ended. An older app build sends no trace, and the web starts its own here.
+            const roomChannelId = channelIdOfRoomPath(resolvePushNavigation(path).target);
+            if (roomChannelId) {
+                roomOpenTrace.begin(roomChannelId, perfTrace?.entry ?? 'navigate', perfTrace).mark('handler');
+            }
             await navigateToPush(path);
         },
         [navigateToPush]

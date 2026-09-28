@@ -74,6 +74,9 @@
         },
         {
             "path": "./libs/config"
+        },
+        {
+            "path": "./libs/perf"
         }
     ]
 }

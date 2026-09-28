@@ -26,7 +26,7 @@ in each library's own README, linked from the [app README](./README.md).
 | [shell/](./shell/README.md)                 | The frame screens are rendered into — layout chrome, routing, and theme                              |
 | [state/](./state/README.md)                 | How data reaches a screen — global stores, and observe / refresh / sync                              |
 | [bridge/](./bridge/README.md)               | The single seam to the native shell — messages, device tokens, and push navigation                   |
-| [observability/](./observability/README.md) | Looking into a running app — the logger hub and the in-app debug overlay                             |
+| [observability/](./observability/README.md) | Looking into a running app — the logger hub, performance traces and the in-app debug overlay         |
 
 `feature/<name>/` exists only where `src/app/features/<name>/` exists, and the names match exactly:
 

@@ -156,27 +156,27 @@ libs/app-messages/src/
 └── types/
     ├── index.ts                  re-exports model/ and the four files below, flat
     ├── types.ts                  BaseMessage — refId · version · nonce, on every message
-    ├── web-message.ts            WebMessagePayloadMap (90) + the WebMessage envelopes
-    ├── app-message.ts            AppMessageDataMap (99) + the AppMessage envelopes
+    ├── web-message.ts            WebMessagePayloadMap (92) + the WebMessage envelopes
+    ├── app-message.ts            AppMessageDataMap (101) + the AppMessage envelopes
     ├── web-message-response.ts   WEB_MESSAGE_RESPONSE_TYPE, handler types, error types
     └── model/                    17 files — the payloads, grouped by domain
 ```
 
-24 files, 2,882 lines, **no specs and no jest config**. There is nothing to run here; `tsc -b` is the
+24 files, 2,958 lines, **no specs and no jest config**. There is nothing to run here; `tsc -b` is the
 whole gate.
 
 The payload files, with what is in each:
 
 | File               | Lines | What it declares                                                                       |
 | ------------------ | ----- | -------------------------------------------------------------------------------------- |
-| `system.ts`        | 537   | Device & System payloads, app icons, permissions, contacts, media — plus `Ping`/`Pong` |
+| `system.ts`        | 545   | Device & System payloads, app icons, permissions, contacts, media — plus `Ping`/`Pong` |
 | `cache.ts`         | 435   | `CacheType`, `CacheDomainVersions`, nine `Cache*View` models, the 11 cache messages    |
 | `common.ts`        | 220   | `AppLogInfo`, the upload queue, the four retired buffer pairs, `PendingReportInfo`     |
 | `file-transfer.ts` | 133   | The native file-transfer contract — start, cancel, list, ack, temp file, state event   |
 | `device.ts`        | 85    | `DeviceInfo`, `VersionInfo`, `SafeAreaInfo`, the debug panel's dummy test file         |
 | `iap.ts`           | 154   | Products, purchases, receipts, `AndroidOfferTokens`                                    |
 | `notification.ts`  | 129   | FCM token, badge count and base, push marks, OS notification                           |
-| `perf.ts`          | 118   | Boot timeline (`BootRecord`, `BootWebMarks`), `SetDebugMode`                           |
+| `perf.ts`          | 176   | Boot timeline, `SetDebugMode`, `StartPerfTrace`/`StopPerfTrace`, `HandedOverPerfTrace` |
 | `auth.ts`          | 80    | `OAuthLoginProvider` and the Google/Apple token results                                |
 | `test-record.ts`   | 49    | The native DB scenario harness — five messages, used by the debug panel only           |
 | `custom-zip.ts`    | 48    | Apply/disable/status for the custom web-bundle override                                |

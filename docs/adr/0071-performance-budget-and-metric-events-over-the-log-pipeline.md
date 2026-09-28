@@ -1,6 +1,6 @@
 # ADR-0071: Set a performance budget for the main scenarios, and carry metrics as `info` events over the existing log pipe
 
-> Status: Accepted · Decided: 2026-08-27
+> Status: Superseded in part by [ADR-0120](./0120-performance-traces-move-to-firebase-performance.md) — decisions 2 (sampling) and 3 (transport) and decision 1's runtime budget table; decision 4 (drop bias) now applies to the log fallback only; the endpoints and targets stand · Decided: 2026-08-27
 > Related: ADR-0065 (in-app trace profiler — leaves remote collection blank. **A parallel lane to this ADR**) · [ADR-0063](./0063-log-upload-source-port-and-native-charge-queue.md) (log upload pipe, native queue) · [ADR-0097](./0097-unified-logging-core-and-report-traceability.md) (logging core, `LogContext`) · [ADR-0050](./0050-redact-report-breadcrumbs.md) (redaction) · [ADR-0086](./0086-native-webview-early-mount-boot-optimization.md) (measurement discipline, boot baseline) · [ADR-0057](./0057-home-last-chat-preview-single-query.md) / [ADR-0058](./0058-navigation-churn-grace-and-seeding.md) (home-screen storm caught by manual measurement)
 
 ## Context

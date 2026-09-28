@@ -3,6 +3,7 @@ import { renderHook, act } from '@testing-library/react';
 import { useDeepLinkNavigation } from './useDeepLinkNavigation';
 import { deeplinkService } from '../../services';
 import { navigationRef } from '../../features/core/navigation/navigationRef';
+import { configurePerfTraces, resetPerfTraces } from '@chatic/perf';
 
 // Captured across the mocked services so tests can drive OS taps and deep link events.
 let mockCapturedOnOpened: ((msg: any) => void) | undefined;
@@ -60,7 +61,11 @@ describe('useDeepLinkNavigation', () => {
             expect(bridge.pushEvent).toHaveBeenCalledWith({
                 type: 'OnNavigate',
                 success: true,
-                data: { path: '/channel?channelId=room_123&cid=cloud_1', replace: false },
+                data: {
+                    path: '/channel?channelId=room_123&cid=cloud_1',
+                    replace: false,
+                    perfTrace: expect.objectContaining({ entry: 'push_tap', coldStart: false }),
+                },
             });
         });
 
@@ -89,25 +94,86 @@ describe('useDeepLinkNavigation', () => {
             expect(bridge.pushEvent).toHaveBeenCalledWith({
                 type: 'OnNavigate',
                 success: true,
-                data: { path: '/channels/1000001/room?cid=cloud_1', replace: false },
+                data: {
+                    path: '/channels/1000001/room?cid=cloud_1',
+                    replace: false,
+                    perfTrace: expect.objectContaining({ entry: 'push_tap', coldStart: true }),
+                },
             });
+        });
+    });
+
+    describe('room-open trace hand-over', () => {
+        afterEach(() => resetPerfTraces());
+
+        it('starts chat_room_open at the tap and hands its id and start time to the web', () => {
+            const backend = { start: jest.fn(), stop: jest.fn() };
+            configurePerfTraces(backend);
+            (deeplinkService.resolvePushTap as jest.Mock).mockReturnValue('/channels/1/room');
+            renderHook(() => useDeepLinkNavigation(bridge as any));
+
+            const before = Date.now();
+            act(() => {
+                mockCapturedOnOpened?.({ data: { link: '/channels/1/room' } });
+            });
+
+            expect(backend.start).toHaveBeenCalledWith(expect.objectContaining({ name: 'chat_room_open' }));
+            const { perfTrace } = bridge.pushEvent.mock.calls[0][0].data;
+            expect(perfTrace.id).toBe(backend.start.mock.calls[0][0].id);
+            expect(perfTrace.startedAt).toBeGreaterThanOrEqual(before);
+            // The web stops it, not the tap.
+            expect(backend.stop).not.toHaveBeenCalled();
+        });
+
+        it('starts no trace for a navigation that does not open a room', () => {
+            const backend = { start: jest.fn(), stop: jest.fn() };
+            configurePerfTraces(backend);
+            (deeplinkService.resolveInbound as jest.Mock).mockReturnValue({
+                kind: 'web',
+                path: '/?provider=invite&code=x',
+            });
+            renderHook(() => useDeepLinkNavigation(bridge as any));
+
+            act(() => {
+                mockCapturedSubscribe?.('chatic://invite');
+            });
+
+            expect(backend.start).not.toHaveBeenCalled();
+            expect(bridge.pushEvent.mock.calls[0][0].data).not.toHaveProperty('perfTrace');
+        });
+
+        it('starts no trace for a tap that resolves to nowhere', () => {
+            const backend = { start: jest.fn(), stop: jest.fn() };
+            configurePerfTraces(backend);
+            (deeplinkService.resolvePushTap as jest.Mock).mockReturnValue(null);
+            renderHook(() => useDeepLinkNavigation(bridge as any));
+
+            act(() => {
+                mockCapturedOnOpened?.({ data: {} });
+            });
+
+            expect(backend.start).not.toHaveBeenCalled();
         });
     });
 
     describe('딥링크 → OnNavigate / navigationRef', () => {
         it('웜 딥링크(web)를 resolveInbound 후 OnNavigate로 발행한다', () => {
-            (deeplinkService.resolveInbound as jest.Mock).mockReturnValue({ kind: 'web', path: '/channels/1' });
+            (deeplinkService.resolveInbound as jest.Mock).mockReturnValue({ kind: 'web', path: '/channels/1/room/' });
             renderHook(() => useDeepLinkNavigation(bridge as any));
 
             act(() => {
-                mockCapturedSubscribe?.('chatic://channels/1');
+                mockCapturedSubscribe?.('chatic://channels/1/room');
             });
 
-            expect(deeplinkService.resolveInbound).toHaveBeenCalledWith('chatic://channels/1');
+            expect(deeplinkService.resolveInbound).toHaveBeenCalledWith('chatic://channels/1/room');
             expect(bridge.pushEvent).toHaveBeenCalledWith({
                 type: 'OnNavigate',
                 success: true,
-                data: { path: '/channels/1', replace: false },
+                data: {
+                    path: '/channels/1/room/',
+                    replace: false,
+                    perfTrace: expect.objectContaining({ entry: 'deeplink', coldStart: false }),
+                },
             });
         });
 
