@@ -2,6 +2,14 @@
 
 ## [2026-09-28] - No version updates
 
+### Features
+
+- (web/channels) sort the contact picker, add a number line and a count, and fix iOS name search
+- (app-messages,mobile) say whether a contacts read was denied, not only what it returned
+- (web-ui-kit) give SelectableUserItem an optional second line under the name
+
+## [2026-09-28] - No version updates
+
 ### Refactor
 
 - (app-runtime,data,web,testbed) run each sync target on its own cloud's slot (ADR-0118)
