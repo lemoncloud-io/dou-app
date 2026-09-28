@@ -4,6 +4,12 @@
 
 ### Features
 
+- (perf,mobile,web) record traces in Firebase Performance and time room opens (ADR-0120)
+
+## [2026-09-28] - No version updates
+
+### Features
+
 - (app-runtime) sign off a cloud slot pushed past the cap before tearing it down
 - (app-runtime,web,desktop-web) keep a socket session open for every joined cloud (ADR-0119)
 
