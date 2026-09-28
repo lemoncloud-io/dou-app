@@ -8,6 +8,11 @@ import { webClient } from '@chatic/bridges';
  * (`node scripts/upload-test-server.js`). The scenario is part of the URL, so each run only changes
  * where the transfer points: success, an expired signature, an existing key, a slow link, or a
  * dropped connection.
+ *
+ * `signed` is the one run against a real signature check: the test server hands out a SigV4
+ * presigned PUT for a local MinIO (its `/s3/_presign`), signed over `content-length`,
+ * `content-type` and `host`. A 200 there is the evidence that the header filtering keeps a real
+ * signature valid; a short expiry turns it into the store's own expired-signature 403.
  */
 
 type LogLevel = 'info' | 'success' | 'warning' | 'error';
@@ -27,9 +32,22 @@ interface StagedFile {
     size: number;
 }
 
-type Scenario = 'ok' | 'expired' | 'exists' | 'slow' | 'drop';
+type Scenario = 'ok' | 'expired' | 'exists' | 'slow' | 'drop' | 'signed';
 
-const SCENARIOS: Scenario[] = ['ok', 'expired', 'exists', 'slow', 'drop'];
+const SCENARIOS: Scenario[] = ['ok', 'expired', 'exists', 'slow', 'drop', 'signed'];
+
+/** A presigned PUT from the test server's `/s3/_presign`, for one file's exact length and type. */
+const fetchPresigned = async (root: string, file: StagedFile, expires: number) => {
+    const query = new URLSearchParams({
+        length: String(file.size),
+        contentType: file.type,
+        key: `debug/${Date.now()}-${file.name}`,
+        expires: String(expires),
+    });
+    const response = await fetch(`${root}/s3/_presign?${query}`);
+    if (!response.ok) throw new Error(`presign answered ${response.status}`);
+    return (await response.json()) as { url: string; headers: Record<string, string> };
+};
 
 const TERMINAL = new Set<OnFileTransferStatePayload['state']>(['responded', 'failed', 'cancelled']);
 
@@ -124,6 +142,7 @@ export const UploadTestScreen = () => {
     const [scenario, setScenario] = useState<Scenario>('ok');
     const [slowBps, setSlowBps] = useState(64 * 1024);
     const [dropAfter, setDropAfter] = useState(256 * 1024);
+    const [signedExpires, setSignedExpires] = useState(900);
 
     const [staged, setStaged] = useState<StagedFile[]>([]);
     const [transfers, setTransfers] = useState<Record<string, OnFileTransferStatePayload>>({});
@@ -173,8 +192,9 @@ export const UploadTestScreen = () => {
         const root = baseUrl.replace(/\/+$/, '');
         if (scenario === 'slow') return `${root}/s3/slow?bps=${slowBps}`;
         if (scenario === 'drop') return `${root}/s3/drop?after=${dropAfter}`;
+        if (scenario === 'signed') return `${root}/s3/_presign → MinIO, expires in ${signedExpires}s`;
         return `${root}/s3/${scenario}`;
-    }, [baseUrl, scenario, slowBps, dropAfter]);
+    }, [baseUrl, scenario, slowBps, dropAfter, signedExpires]);
 
     const pickFiles = useCallback(async () => {
         try {
@@ -247,16 +267,20 @@ export const UploadTestScreen = () => {
         for (const file of staged) {
             const transferId = newTransferId();
             try {
+                const signed =
+                    scenario === 'signed'
+                        ? await fetchPresigned(baseUrl.replace(/\/+$/, ''), file, signedExpires)
+                        : null;
                 await webClient.request({
                     type: 'StartFileTransfer',
                     data: {
                         transferId,
                         direction: 'upload',
-                        url: targetUrl,
+                        url: signed?.url ?? targetUrl,
                         method: 'PUT',
                         // content-length is included on purpose: a presigned PUT lists it among the signed
                         // headers, and the shell has to drop it rather than set it twice.
-                        headers: { 'content-type': file.type, 'content-length': String(file.size) },
+                        headers: signed?.headers ?? { 'content-type': file.type, 'content-length': String(file.size) },
                         file: { uri: file.uri, contentType: file.type, contentLength: file.size },
                         title: file.name,
                     },
@@ -267,7 +291,7 @@ export const UploadTestScreen = () => {
             }
         }
         setStaged([]);
-    }, [staged, targetUrl, scenario, addLog]);
+    }, [staged, targetUrl, scenario, baseUrl, signedExpires, addLog]);
 
     const cancel = useCallback(
         async (transferId: string) => {
@@ -354,6 +378,15 @@ export const UploadTestScreen = () => {
                             value={dropAfter}
                             onChange={event => setDropAfter(Number(event.target.value) || 0)}
                             aria-label="Drop after bytes"
+                        />
+                    )}
+                    {scenario === 'signed' && (
+                        <input
+                            type="number"
+                            className="h-10 rounded-[12px] border border-border bg-background px-3 text-[13px]"
+                            value={signedExpires}
+                            onChange={event => setSignedExpires(Number(event.target.value) || 1)}
+                            aria-label="Signature expires in seconds"
                         />
                     )}
                     <p className="break-all text-[12px] text-muted-foreground">{targetUrl}</p>

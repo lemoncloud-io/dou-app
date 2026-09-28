@@ -159,8 +159,23 @@ may still be reading the file after the WebView is gone.
   `VITE_WEBVIEW_BASE_URL` set to the machine's LAN address in the local `.env`, serve the web with
   `--host 0.0.0.0`, and allow the app's local-network prompt on the phone. The iOS 26
   continued-processing task only runs on a device; the simulator refuses it.
-- The test server does not check signatures. A real presigned URL (MinIO or a dev bucket) is the only
-  way to confirm the header filter keeps the signature valid.
+- The scenario paths do not check signatures, so a real signature is checked once against a local
+  MinIO. The `signed` scenario asks the test server for a SigV4 presigned PUT that signs
+  `content-length`, `content-type` and `host` — the same set the upload API signs — and a 200 is the
+  evidence that the header filter kept the signature valid. A mismatched header or length gets
+  403 `SignatureDoesNotMatch` from MinIO; a lapsed expiry gets 403 `AccessDenied`.
+
+    ```bash
+    brew install minio
+    MINIO_ROOT_USER=transfertest MINIO_ROOT_PASSWORD=transfertest-secret minio server /tmp/minio --address :9000
+    AWS_ACCESS_KEY_ID=transfertest AWS_SECRET_ACCESS_KEY=transfertest-secret AWS_DEFAULT_REGION=us-east-1 \
+      aws --endpoint-url http://localhost:9000 s3 mb s3://transfer-test
+    PRESIGN_ACCESS_KEY=transfertest PRESIGN_SECRET_KEY=transfertest-secret PRESIGN_BUCKET=transfer-test \
+      node scripts/upload-test-server.js
+    ```
+
+    On Android also forward MinIO's port (`adb reverse tcp:9000 tcp:9000`); the signed URL points at
+    the host the app used to reach the test server.
 
 ## Checklist
 

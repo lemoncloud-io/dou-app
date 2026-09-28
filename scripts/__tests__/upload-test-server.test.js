@@ -1,5 +1,5 @@
 const http = require('http');
-const { createUploadTestServer } = require('../upload-test-server');
+const { createUploadTestServer, presignConfig, presignPut } = require('../upload-test-server');
 
 let server;
 let log;
@@ -96,5 +96,89 @@ describe('upload-test-server', () => {
     it('rejects methods other than PUT on scenario paths', async () => {
         const res = await send('POST', '/s3/ok', bytes(5));
         expect(res.status).toBe(405);
+    });
+});
+
+describe('upload-test-server presign', () => {
+    const signed = {
+        endpoint: 'http://localhost:9000',
+        bucket: 'transfer-test',
+        key: 'debug/a b.bin',
+        region: 'us-east-1',
+        accessKey: 'AKID',
+        secretKey: 'SECRET',
+        contentType: 'image/jpeg',
+        contentLength: 1048576,
+        expires: 900,
+        now: new Date('2026-09-28T02:00:00Z'),
+    };
+
+    // Pinned after the same code's URLs were accepted by a live MinIO — including a key with a space
+    // and parentheses, and a mismatched Content-Type or length rejected with SignatureDoesNotMatch.
+    it('produces the SigV4 query signature MinIO accepted', () => {
+        const { url, headers } = presignPut(signed);
+        expect(url).toBe(
+            'http://localhost:9000/transfer-test/debug/a%20b.bin?X-Amz-Algorithm=AWS4-HMAC-SHA256' +
+                '&X-Amz-Credential=AKID%2F20260928%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20260928T020000Z' +
+                '&X-Amz-Expires=900&X-Amz-SignedHeaders=content-length%3Bcontent-type%3Bhost' +
+                '&X-Amz-Signature=3ffc9c4658491d827b3737c6f2410868f8eb05a973e6edb6e7ff4705401893b0'
+        );
+        expect(headers).toEqual({ 'content-type': 'image/jpeg', 'content-length': '1048576' });
+    });
+
+    it('signs every value it is given, so changing one changes the signature', () => {
+        const base = presignPut(signed).url;
+        expect(presignPut({ ...signed, contentType: 'application/octet-stream' }).url).not.toBe(base);
+        expect(presignPut({ ...signed, contentLength: 1048575 }).url).not.toBe(base);
+        expect(presignPut({ ...signed, endpoint: 'http://192.168.1.2:9000' }).url).not.toBe(base);
+    });
+
+    it('is off unless the three required variables are set', () => {
+        expect(presignConfig({})).toBeNull();
+        expect(presignConfig({ PRESIGN_ACCESS_KEY: 'a', PRESIGN_SECRET_KEY: 'b' })).toBeNull();
+        expect(presignConfig({ PRESIGN_ACCESS_KEY: 'a', PRESIGN_SECRET_KEY: 'b', PRESIGN_BUCKET: 'c' })).toEqual({
+            accessKey: 'a',
+            secretKey: 'b',
+            bucket: 'c',
+            region: 'us-east-1',
+            port: 9000,
+        });
+    });
+
+    it('answers 501 on /s3/_presign when no signer is configured', async () => {
+        const res = await send('GET', '/s3/_presign?length=10');
+        expect(res.status).toBe(501);
+    });
+
+    it('signs for the host the request came in on, with CORS open for the WebView', async () => {
+        await new Promise(resolve => server.close(resolve));
+        ({ server } = createUploadTestServer({
+            presign: { accessKey: 'AKID', secretKey: 'SECRET', bucket: 'b', region: 'us-east-1', port: 9000 },
+        }));
+        await new Promise(resolve => server.listen(0, resolve));
+        port = server.address().port;
+
+        const res = await new Promise((resolve, reject) => {
+            http.get(
+                {
+                    host: '127.0.0.1',
+                    port,
+                    path: '/s3/_presign?length=5&contentType=text/plain&key=k',
+                    headers: { host: '10.0.0.7:8080' },
+                },
+                response => {
+                    let body = '';
+                    response.on('data', chunk => (body += chunk));
+                    response.on('end', () => resolve({ status: response.statusCode, headers: response.headers, body }));
+                }
+            ).on('error', reject);
+        });
+        expect(res.status).toBe(200);
+        expect(res.headers['access-control-allow-origin']).toBe('*');
+        const { url, headers } = JSON.parse(res.body);
+        expect(url.startsWith('http://10.0.0.7:9000/b/k?')).toBe(true);
+        expect(headers).toEqual({ 'content-type': 'text/plain', 'content-length': '5' });
+
+        expect((await send('GET', '/s3/_presign')).status).toBe(400);
     });
 });
