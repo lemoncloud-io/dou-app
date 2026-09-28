@@ -1,5 +1,7 @@
 import type { UserTokenView } from '@lemoncloud/chatic-backend-api';
 
+import { RELAY_CLOUD_ID } from '@chatic/data';
+
 import { cloudStore, identityStore, relayStore } from './stores';
 import type {
     ActiveServerContext,
@@ -102,15 +104,33 @@ export const patchRelaySessionUser = (patch: Record<string, unknown>): void => {
     relayStore.saveRelayToken(merged as unknown as UserTokenView);
 };
 
+const uidOfToken = (token: UserTokenView | null): string | null => {
+    const view = token as { uid?: string; id?: string } | null;
+    return view?.uid ?? view?.id ?? null;
+};
+
+/**
+ * The uid this account has in `cloudId` — the uid half of that cloud's cache partition — whether or
+ * not the cloud is the committed one.
+ *
+ * The session identity (`IdentityContext.userId`) answers only for the ACTIVE token, and every cloud
+ * gives the account a different uid, so it cannot name another cloud's partition. The token is read
+ * first because it is what the socket serving that cloud authenticates with; the recorded identity
+ * is the fallback that outlives an expired or dropped token. The relay has no entry in either — its
+ * uid is the relay token's.
+ */
+export const getUidInCloud = (cloudId: string): string | null => {
+    if (cloudId === RELAY_CLOUD_ID) return uidOfToken(relayStore.getRelayToken());
+    return uidOfToken(cloudStore.getCloudTokenOf(cloudId)) ?? cloudStore.getCloudIdentity(cloudId)?.uid ?? null;
+};
+
 const buildIdentityContext = (state: SessionIdentityState): IdentityContext => {
     // Pure state store: the uid (for cache observing) + session flags. Profile facts
     // (userRole/isGuest/userType/permissions/name) are tracked from the cached profile via
     // useProfileFacts (@chatic/app-runtime); the profile payload is not stored here.
-    const token = getActiveSessionToken() as { uid?: string; id?: string } | null;
-
     return {
         ...state,
-        userId: token?.uid ?? token?.id ?? null,
+        userId: uidOfToken(getActiveSessionToken()),
         delegatorId: identityStore.getDelegatorId(),
     };
 };

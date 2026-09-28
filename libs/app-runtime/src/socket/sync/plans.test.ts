@@ -5,13 +5,14 @@
 // dependency this test doesn't actually use.
 import { logger } from '@chatic/bridges';
 
+import { slotKeyOf } from '../utils/slotKey';
 import { createSyncPlans } from './plans';
 import { clearRefusedChannels, isChannelRefused } from './refusedChannels';
 
 jest.mock('../../session', () => new Proxy({}, { get: () => jest.fn() }));
 // Only the data-runtime accessors are cut — `toDomainChat` has to be the real thing, because that's
 // the only way to see whether `hidden` survives the mapping. The socket runtime needs no mock: the
-// bound cloud comes in as `createSyncPlans`'s argument. `jest.mock` only hoists from the top of the
+// slot's cloud comes in as `createSyncPlans`'s argument. `jest.mock` only hoists from the top of the
 // file, so this lives here rather than inside a describe. The snapshot contract test above never
 // calls these accessors, so it's unaffected.
 //
@@ -19,15 +20,24 @@ jest.mock('../../session', () => new Proxy({}, { get: () => jest.fn() }));
 // silently, so any value that a suite needs to swap answers for lives in a holder the factory reads —
 // that's how this one file holds two suites together.
 const mockCacheWrite = jest.fn();
-const mockBoundCid: { current: string | null } = { current: 'cloud-1' };
-const mockDataContext: { current: { cid: string; uid?: string } } = { current: { cid: 'cloud-1', uid: 'user-1' } };
+/** What the data manager answers `getScopedContext(cid)` with; a test that needs another uid swaps it. */
+const mockScopedContext: { current: (cid: string) => { cid: string; uid?: string; socketCid?: string } } = {
+    current: cid => ({ cid, uid: 'user-1', socketCid: cid }),
+};
 /** `null` means the chat-change suite's default repositories are used. */
 const mockRepositories: { current: Record<string, unknown> | null } = { current: null };
+/** Every cloud a plan asked for a scoped graph of, in order. */
+const mockGraphRequests: string[] = [];
 jest.mock('../../data/runtime', () => ({
-    getDataManager: () => ({ getContext: () => mockDataContext.current }),
-    getRepositories: () =>
-        mockRepositories.current ?? { chat: { cacheWrite: mockCacheWrite, cacheWriteMany: jest.fn() } },
+    getDataManager: () => ({
+        getScopedContext: (cid: string) => mockScopedContext.current(cid),
+        getScopedRepositories: (cid: string) => {
+            mockGraphRequests.push(cid);
+            return mockRepositories.current ?? { chat: { cacheWrite: mockCacheWrite, cacheWriteMany: jest.fn() } };
+        },
+    }),
 }));
+const CLOUD_1 = slotKeyOf('cloud-1');
 // createSyncPlans reads its runtime dependencies lazily inside callbacks (see the file-top comment),
 // so just creating plans and calling the onConnected hook needs no socket/data runtime at all — the
 // reason this contract test can exist.
@@ -35,7 +45,7 @@ describe('createSyncPlans — 재연결 스냅샷 유지 (ADR-0059)', () => {
     it.each(['channel', 'place', 'profile', 'join'] as const)(
         '%s plan은 onConnected에서 스냅샷을 리셋하지 않는다',
         domain => {
-            const plan = createSyncPlans(() => mockBoundCid.current).find(candidate => candidate.domain === domain);
+            const plan = createSyncPlans(CLOUD_1).find(candidate => candidate.domain === domain);
             expect(plan).toBeDefined();
 
             const writeSnapshot = jest.fn();
@@ -65,9 +75,7 @@ describe('createSyncPlans — chat 변경 반영 (sockets-lib 0.5.1 onUpdate)', 
      * missing wire-up (the option not being there at all) gets caught here too.
      */
     const chatOnUpdate = () => {
-        const plan = createSyncPlans(() => mockBoundCid.current).find(
-            candidate => candidate.domain === 'chat'
-        ) as unknown as {
+        const plan = createSyncPlans(CLOUD_1).find(candidate => candidate.domain === 'chat') as unknown as {
             options?: { onUpdate?: (target: unknown, changed: unknown, snapshot: unknown) => void };
         };
         return plan?.options?.onUpdate;
@@ -75,8 +83,8 @@ describe('createSyncPlans — chat 변경 반영 (sockets-lib 0.5.1 onUpdate)', 
 
     beforeEach(() => {
         mockCacheWrite.mockClear();
-        mockBoundCid.current = 'cloud-1';
-        mockDataContext.current = { cid: 'cloud-1', uid: 'user-1' };
+        mockGraphRequests.length = 0;
+        mockScopedContext.current = cid => ({ cid, uid: 'user-1', socketCid: cid });
         mockRepositories.current = null;
     });
 
@@ -107,17 +115,11 @@ describe('createSyncPlans — chat 변경 반영 (sockets-lib 0.5.1 onUpdate)', 
         expect(mockCacheWrite).toHaveBeenCalledWith(expect.objectContaining({ id: 'ch-1:7', hidden: true }));
     });
 
-    it('나가는 클라우드의 프레임은 버린다 — onApply와 같은 가드', () => {
-        // Switch's optimistic window: the cache cid has already flipped while the socket is still attached to the old cloud.
-        mockBoundCid.current = 'cloud-0';
+    it("writes through the graph of the slot's own cloud", () => {
+        chatOnUpdate()?.({ type: 'chat', id: 'ch-1' }, { id: 'ch-1:7', channelId: 'ch-1', chatNo: 7 }, {});
 
-        chatOnUpdate()?.(
-            { type: 'chat', id: 'ch-1' },
-            { id: 'ch-1:7', channelId: 'ch-1', chatNo: 7, hidden: true },
-            {}
-        );
-
-        expect(mockCacheWrite).not.toHaveBeenCalled();
+        expect(mockGraphRequests).toEqual(['cloud-1']);
+        expect(mockCacheWrite).toHaveBeenCalledWith(expect.objectContaining({ cid: 'cloud-1' }));
     });
 });
 
@@ -125,21 +127,20 @@ describe('join plan onRemove — 퇴장한 방의 메시지 캐시 정리 (ADR-0
     // onRemove only goes in as a plan constructor option and the lib never exposes it publicly. What
     // this wants to verify is not the lib's dispatch but the judgment of the callback we passed, so it
     // pulls that callback out and calls it directly.
-    const onRemoveOf = (uid: string | undefined, boundCid: string | null) => {
+    const onRemoveOf = (uid: string | undefined) => {
         const cacheDelete = jest.fn();
         const cacheClearByChannelId = jest.fn();
         mockRepositories.current = { join: { cacheDelete }, chat: { cacheClearByChannelId } };
-        mockDataContext.current = { cid: 'cloud-a', uid };
-        mockBoundCid.current = boundCid;
+        mockScopedContext.current = cid => ({ cid, uid, socketCid: cid });
 
-        const plan = createSyncPlans(() => mockBoundCid.current).find(candidate => candidate.domain === 'join');
+        const plan = createSyncPlans(slotKeyOf('cloud-a')).find(candidate => candidate.domain === 'join');
         const onRemove = (plan as unknown as { options: { onRemove: (target: { id: string }) => void } }).options
             .onRemove;
         return { onRemove, cacheDelete, cacheClearByChannelId };
     };
 
     it('내 join이 사라지면 그 채널의 chat 캐시를 비운다', () => {
-        const { onRemove, cacheDelete, cacheClearByChannelId } = onRemoveOf('me', 'cloud-a');
+        const { onRemove, cacheDelete, cacheClearByChannelId } = onRemoveOf('me');
 
         onRemove({ id: 'ch-1@me' });
 
@@ -148,7 +149,7 @@ describe('join plan onRemove — 퇴장한 방의 메시지 캐시 정리 (ADR-0
     });
 
     it('다른 멤버의 join이 사라지면 내 chat 캐시는 건드리지 않는다', () => {
-        const { onRemove, cacheDelete, cacheClearByChannelId } = onRemoveOf('me', 'cloud-a');
+        const { onRemove, cacheDelete, cacheClearByChannelId } = onRemoveOf('me');
 
         onRemove({ id: 'ch-1@someone-else' });
 
@@ -156,19 +157,18 @@ describe('join plan onRemove — 퇴장한 방의 메시지 캐시 정리 (ADR-0
         expect(cacheClearByChannelId).not.toHaveBeenCalled();
     });
 
-    it('소켓이 다른 클라우드에 묶여 있으면 비우지 않는다', () => {
-        // Deleting messages is not undoable — a frame from a socket that outlived its own cloud must
-        // not be allowed to aim at the current cloud's partition. The tombstone is left as existing behavior.
-        const { onRemove, cacheDelete, cacheClearByChannelId } = onRemoveOf('me', 'cloud-b');
+    // "Mine" is judged by the uid this account has in the slot's cloud, which is the uid of the
+    // partition being cleared.
+    it("judges the join as mine by this account's uid in the slot's cloud", () => {
+        const { onRemove, cacheClearByChannelId } = onRemoveOf('uid-in-a');
 
-        onRemove({ id: 'ch-1@me' });
+        onRemove({ id: 'ch-1@uid-in-a' });
 
-        expect(cacheDelete).toHaveBeenCalledWith('ch-1@me');
-        expect(cacheClearByChannelId).not.toHaveBeenCalled();
+        expect(cacheClearByChannelId).toHaveBeenCalledWith('ch-1');
     });
 
     it('합성 id가 아니면 아무것도 비우지 않는다', () => {
-        const { onRemove, cacheClearByChannelId } = onRemoveOf('me', 'cloud-a');
+        const { onRemove, cacheClearByChannelId } = onRemoveOf('me');
 
         onRemove({ id: 'not-a-composite-id' });
 
@@ -197,14 +197,12 @@ describe('plan onStopped — 정지를 삭제 전에 남긴다', () => {
             join: { cacheDelete: jest.fn() },
             chat: { cacheClearByChannelId: jest.fn() },
         };
-        mockDataContext.current = { cid: 'cloud-a', uid: 'me' };
-        mockBoundCid.current = 'cloud-a';
+        mockScopedContext.current = cid => ({ cid, uid: 'me', socketCid: cid });
     });
 
     afterAll(() => errorSpy.mockRestore());
 
-    const planOf = (domain: string) =>
-        createSyncPlans(() => mockBoundCid.current).find(candidate => candidate.domain === domain);
+    const planOf = (domain: string) => createSyncPlans(CLOUD_1).find(candidate => candidate.domain === domain);
 
     /** The lib's onStopped reads the snapshot and passes it to onRemove — this is the bare minimum needed. */
     const CTX = { readSnapshot: () => undefined } as never;
@@ -259,7 +257,7 @@ describe('plan onStopped — 정지를 삭제 전에 남긴다', () => {
 // library's default, so what these pin down is that nothing about *when* a target stops moved.
 describe('createSyncPlans — 채널 거절 관찰이 중단 시점을 바꾸지 않는다', () => {
     const channelPolicy = () => {
-        const plan = createSyncPlans(() => mockBoundCid.current).find(candidate => candidate.domain === 'channel');
+        const plan = createSyncPlans(CLOUD_1).find(candidate => candidate.domain === 'channel');
         expect(plan?.failurePolicy?.decide).toBeDefined();
         return plan!.failurePolicy!;
     };

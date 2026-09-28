@@ -195,7 +195,7 @@ describe('reauthenticateActiveSocket', () => {
         const registerCall = auth.register.mock.calls[0] as any;
         const registeredSign = registerCall[0].sign as (token: string, ctx?: { target?: string }) => Promise<unknown>;
         await registeredSign('sdk-token', { target: 'uid@sid' });
-        expect(delegate.signAuth).toHaveBeenCalledWith('relay', 'sdk-token', 'uid@sid');
+        expect(delegate.signAuth).toHaveBeenCalledWith(RELAY, 'sdk-token', 'uid@sid');
     });
 
     it('검증된 슬롯이면 register 전에 setAuthenticated(kind,false)로 동기적 verified 딥을 만든다 (#4 rising edge)', async () => {

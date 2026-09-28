@@ -523,7 +523,7 @@ const UnreadTab = () => {
 // the snapshot plus a 1s poll of the live sync target registry.
 const PerfTab = ({ socketStateLabel }: { socketStateLabel: string }) => {
     const metrics = useRuntimeMetrics();
-    const [targets, setTargets] = useState<SyncTargetDescriptor[]>([]);
+    const [targets, setTargets] = useState<Array<SyncTargetDescriptor & { cid: string }>>([]);
 
     useEffect(() => {
         const poll = () => setTargets(runtime.sync.getSyncManager().listTargets());
@@ -541,7 +541,9 @@ const PerfTab = ({ socketStateLabel }: { socketStateLabel: string }) => {
                 {targets.length === 0 ? (
                     <p className="text-xs text-muted-foreground">등록된 sync 타깃이 없습니다</p>
                 ) : (
-                    targets.map(t => <Row key={`${t.type}:${t.id ?? ''}`} label={t.type} value={t.id ?? '(current)'} />)
+                    targets.map(t => (
+                        <Row key={`${t.cid}|${t.type}:${t.id ?? ''}`} label={t.type} value={t.id ?? '(current)'} />
+                    ))
                 )}
             </Section>
 

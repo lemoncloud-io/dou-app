@@ -38,7 +38,6 @@ import type {
     OnFetchTestRecordPayload,
     OnFinishPurchaseTransactionPayload,
     OnGetContactsPayload,
-    OnListRecoverableUploadsPayload,
     OnNotificationPayload,
     OnOAuthLoginPayload,
     OnOAuthLogoutPayload,
@@ -62,13 +61,7 @@ import type {
     OnPurchaseErrorPayload,
     OnPurchasePayload,
     OnPurchaseSuccessPayload,
-    OnRecoverUploadPayload,
-    OnRequestFileUploadPayload,
-    OnPauseFileUploadPayload,
-    OnResumeFileUploadPayload,
-    OnCancelFileUploadPayload,
     OnRequestPermissionPayload,
-    OnRetryUploadPayload,
     OnSaveAllCacheDataPayload,
     OnSaveAllTestRecordsPayload,
     OnSaveCacheDataPayload,
@@ -89,9 +82,13 @@ import type {
     OnFetchUrlMetadataPayload,
     OnSetCanGoBackPayload,
     OnUpdateDeviceInfoPayload,
-    OnUploadCompletePayload,
-    OnUploadProgressPayload,
     PongPayload,
+    OnStartFileTransferPayload,
+    OnCancelFileTransferPayload,
+    OnListFileTransfersPayload,
+    OnAckFileTransfersPayload,
+    OnWriteTempFilePayload,
+    OnFileTransferStatePayload,
     OnCopyToClipboardPayload,
     OnUpdateStatusPayload,
     OnStartUpdateDownloadPayload,
@@ -115,16 +112,13 @@ export type AppMessageDataMap = {
     OnCloseModal: OnCloseModalPayload;
     OnOpenSettings: OnOpenSettingsPayload;
     OnOpenShareSheet: OnOpenShareSheetPayload;
-    OnUploadProgress: OnUploadProgressPayload;
-    OnUploadComplete: OnUploadCompletePayload;
-    OnListRecoverableUploads: OnListRecoverableUploadsPayload;
-    OnRecoverUpload: OnRecoverUploadPayload;
-    OnRetryUpload: OnRetryUploadPayload;
+    OnFileTransferState: OnFileTransferStatePayload;
     OnCreateDummyFile: OnCreateDummyFilePayload;
-    OnRequestFileUpload: OnRequestFileUploadPayload;
-    OnPauseFileUpload: OnPauseFileUploadPayload;
-    OnResumeFileUpload: OnResumeFileUploadPayload;
-    OnCancelFileUpload: OnCancelFileUploadPayload;
+    OnStartFileTransfer: OnStartFileTransferPayload;
+    OnCancelFileTransfer: OnCancelFileTransferPayload;
+    OnListFileTransfers: OnListFileTransfersPayload;
+    OnAckFileTransfers: OnAckFileTransfersPayload;
+    OnWriteTempFile: OnWriteTempFilePayload;
     OnBackPressed: OnBackPressedPayload;
     OnOpenDocument: OnOpenDocumentPayload;
     OnGetContacts: OnGetContactsPayload;

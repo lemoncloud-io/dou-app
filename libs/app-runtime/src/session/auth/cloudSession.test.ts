@@ -68,6 +68,7 @@ jest.mock('../store/stores', () => ({
         getCloudToken: jest.fn(),
         getCachedCloudTokens: (...args: unknown[]) => mockGetCachedCloudTokens(...args),
         setCachedCloudTokens: (...args: unknown[]) => mockSetCachedCloudTokens(...args),
+        setCloudIdentity: jest.fn(),
         saveSelectedCloudId: (...args: unknown[]) => mockSaveSelectedCloudId(...args),
         getSelectedCloudId: (...args: unknown[]) => mockGetSelectedCloudId(...args),
         saveSelectedSiteId: (...args: unknown[]) => mockSaveSelectedSiteId(...args),

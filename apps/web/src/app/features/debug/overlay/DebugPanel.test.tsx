@@ -26,8 +26,8 @@ describe('DebugPanel — 하나의 패널', () => {
         expect(screen.getByRole('tab', { name: '상태' })).toBeInTheDocument();
         expect(screen.getByRole('tab', { name: 'DB 브라우저' })).toBeInTheDocument();
         // A screen that used to be menu-only — now it's on the chip too.
-        expect(screen.getByRole('tab', { name: '분할 업로드 테스트' })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: '분할 업로드 테스트' })).toBeInTheDocument();
+        expect(screen.getByRole('tab', { name: '업로드 테스트' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: '업로드 테스트' })).toBeInTheDocument();
     });
 
     // These are screens where, opened in a browser, you'd only see buttons that fail when pressed.
@@ -82,7 +82,7 @@ describe('DebugPanel — 하나의 패널', () => {
         await userEvent.click(screen.getByRole('button', { name: 'back' }));
 
         expect(getDebugOverlayState().screen).toBeNull();
-        expect(screen.getByRole('button', { name: '분할 업로드 테스트' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: '업로드 테스트' })).toBeInTheDocument();
     });
 
     it('크기를 바꿔도 같은 카탈로그가 그대로 있다', async () => {
@@ -92,7 +92,7 @@ describe('DebugPanel — 하나의 패널', () => {
 
         expect(getDebugOverlayState().size).toBe('full');
         expect(screen.getByRole('tab', { name: '상태' })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: '분할 업로드 테스트' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: '업로드 테스트' })).toBeInTheDocument();
     });
 
     // mini, dock, and full are three steps on one axis, moved one at a time.

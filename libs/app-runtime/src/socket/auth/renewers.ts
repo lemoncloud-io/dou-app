@@ -1,13 +1,16 @@
 import { logger } from '@chatic/bridges';
 
+import { RELAY_CLOUD_ID } from '@chatic/data';
+
 import { Coalescer } from '../../utils/coalescer';
 import { credentialFreshness } from '../../session/auth/credentialFreshness';
-import type { CredentialOwner } from '../../session/auth/credentialFreshness';
 import { cloudSession } from '../../session/auth/cloudSession';
 import { relaySession } from '../../session/auth/relaySession';
-import type { SocketKind } from '../types';
+import { cloudStore } from '../../session/store/stores';
+import { getCommittedCloudId } from '../../session/store';
+import type { SlotKey } from '../types';
 import { getAuthStatus } from './authStatus';
-import { RELAY_SLOT } from '../utils/slotKey';
+import { kindOf, RELAY_SLOT } from '../utils/slotKey';
 import { renewCloudSession } from './renewCloudSession';
 import { requestRelaySessionRefresh } from './requestRelaySessionRefresh';
 
@@ -39,7 +42,8 @@ import { requestRelaySessionRefresh } from './requestRelaySessionRefresh';
  * that and close a cycle. Same reasoning as `authStatus.ts` next door.
  */
 export interface ICredentialRenewer {
-    readonly owner: CredentialOwner;
+    /** The cloud whose credential this renews — the relay's is `RELAY_CLOUD_ID`. */
+    readonly cid: string;
     /** Milliseconds left on this server's credential; null when there is nothing to measure. */
     timeToExpiry(now?: number): number | null;
     /** True when the credential was re-minted. Never throws — a failure is `false`. */
@@ -104,7 +108,7 @@ const defaultIsOnline = (): boolean => (typeof navigator === 'undefined' ? true 
 const defaultWait = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
 
 export class RelayCredentialRenewer implements ICredentialRenewer {
-    readonly owner: CredentialOwner = 'relay';
+    readonly cid = RELAY_CLOUD_ID;
 
     /**
      * One pending decision at a time. The SDK can report `expired` again while the window is open
@@ -116,7 +120,7 @@ export class RelayCredentialRenewer implements ICredentialRenewer {
     constructor(private readonly deps: RelayExpiryDeps = {}) {}
 
     timeToExpiry(now?: number): number | null {
-        return credentialFreshness.timeToExpiry('relay', now);
+        return credentialFreshness.timeToExpiry(RELAY_CLOUD_ID, now);
     }
 
     /**
@@ -214,11 +218,16 @@ export class RelayCredentialRenewer implements ICredentialRenewer {
     }
 }
 
-class CloudCredentialRenewer implements ICredentialRenewer {
-    readonly owner: CredentialOwner = 'cloud';
+/**
+ * One per cloud, because each cloud's token has its own life and its own socket to re-register.
+ * Whether the cloud is the committed one is asked at the moment it matters (terminal expiry), not
+ * captured here: a renewer outlives switches, and the answer changes under it.
+ */
+export class CloudCredentialRenewer implements ICredentialRenewer {
+    constructor(readonly cid: string) {}
 
     timeToExpiry(now?: number): number | null {
-        return credentialFreshness.timeToExpiry('cloud', now);
+        return credentialFreshness.timeToExpiry(this.cid, now);
     }
 
     /**
@@ -227,20 +236,48 @@ class CloudCredentialRenewer implements ICredentialRenewer {
      * asking the cloud socket to refresh is exactly what is unavailable when that socket is down.
      */
     renew(): Promise<boolean> {
-        return renewCloudSession();
+        return renewCloudSession(this.cid);
     }
 
-    /** Cloud expiry costs only the cloud: relay stays the baseline and re-entry re-issues. */
+    /**
+     * A cloud's expiry never costs the relay: it stays the baseline and re-entry re-issues. For the
+     * committed cloud the cost is the session store (the user is dropped back to relay) — and,
+     * today, the whole per-cloud token cache with it, because `clearSession` does not yet know which
+     * other clouds have a live slot; keeping those entries is the change that binds such slots. For
+     * any other cloud only its own cached tokens go — the store belongs to the committed cloud and
+     * must not be cleared for a cloud the user is not even in. The identity map keeps every cloud's
+     * uid either way, so their cache partitions stay readable.
+     */
     onTerminalExpiry(): void {
-        cloudSession.clearStores();
+        if (getCommittedCloudId() === this.cid) {
+            cloudSession.clearStores();
+            return;
+        }
+        cloudStore.dropCachedCloudTokens(this.cid);
+        logger.warn('SOCKET', '[cloudRenewer] non-committed cloud auth expired — its cached tokens are dropped', {
+            data: { cid: this.cid },
+        });
     }
 }
 
+const relayRenewer: ICredentialRenewer = new RelayCredentialRenewer();
+/** Memoized per cloud so that each cloud's renewal keeps its own single-flight (in `renewCloudSession`). */
+const cloudRenewers = new Map<string, CloudCredentialRenewer>();
+
 /**
- * The two renewers, keyed by socket kind. Stateless, so one instance each serves the whole app —
- * the same reasoning as `credentialFreshness`.
+ * The renewers, addressed by slot. Stateless apart from the memo, so one instance per server serves
+ * the whole app — the same reasoning as `credentialFreshness`.
  */
-export const credentialRenewers: Record<SocketKind, ICredentialRenewer> = {
-    relay: new RelayCredentialRenewer(),
-    cloud: new CloudCredentialRenewer(),
+export const credentialRenewers = {
+    relay: relayRenewer,
+    /** The renewer for the server `key` serves: the relay's, or that cloud's own. */
+    forSlot(key: SlotKey): ICredentialRenewer {
+        if (kindOf(key) === 'relay') return relayRenewer;
+        let renewer = cloudRenewers.get(key);
+        if (!renewer) {
+            renewer = new CloudCredentialRenewer(key);
+            cloudRenewers.set(key, renewer);
+        }
+        return renewer;
+    },
 };

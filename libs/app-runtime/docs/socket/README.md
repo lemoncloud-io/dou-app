@@ -125,8 +125,8 @@ The active slot used to be inferred — "the cloud slot if one is bound, else re
 something while there could be at most one cloud slot, which `ensure` enforced by tearing the other
 cloud down inside the same call. Making it a pointer lets a switch hold both clouds for the length of
 one reconcile pass: the binder binds B, points the facade at B, and only then tears A down. The active
-client goes from A straight to B, never through relay, and A's sync targets are moved off a runtime
-that is still alive rather than dying with it.
+client goes from A straight to B, never through relay, and A's slot — with its sync runtime and the
+targets on it — stays alive until the binder tears it down.
 
 Three log lines trace it, all `info` under `SOCKET`, each with `{ cid, kind }`: `slot bound`,
 `active moved` (with `from` and the new slot's `connectCount`) and `slot torn down` (with the
@@ -191,8 +191,8 @@ Two subscriptions to clients, and they are not interchangeable. `subscribeClient
 **active** slot's client and again whenever the active slot changes. `subscribeSlotClients` fires per
 slot — `(key, client)` on bind or rebuild, `(key, null)` just before a teardown — replaying the
 currently bound slots on subscribe. For any one mutation **the slot notification comes first**, so a
-per-slot attachment exists before active-facade consumers react. `SyncManager` depends on that
-ordering.
+per-slot attachment exists before active-facade consumers react. `SyncManager` subscribes to the
+slot notification alone: its runtimes, and the targets on them, follow slots, not the active pointer.
 
 ### Failed requests get a name, and a volume policy
 
@@ -238,7 +238,7 @@ itself. It remains as an override for tests and for a host that must inject them
 
 The host is the single init driver: `useRelaySessionInit()` runs session initialization once and the
 host renders `null` until it resolves, so no binder mounts against an unprepared session. It also
-owns the per-kind auth delegate (`useSocketSessionDelegate`), so an app injects nothing, and it calls
+owns the per-slot auth delegate (`useSocketSessionDelegate`), so an app injects nothing, and it calls
 `useRelaySessionKeepAlive` above the gate.
 
 `RuntimeAuthHost` is the same component with background guest login switched off, for a console that

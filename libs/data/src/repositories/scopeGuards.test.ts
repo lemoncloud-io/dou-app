@@ -1,4 +1,4 @@
-import { isCidActive, isForeignContext } from './scopeGuards';
+import { isForeignContext } from './scopeGuards';
 
 // This replaces six inlined sites with a function, so the table that preserves each site's skip/pass
 // cases one-to-one is pinned first (the design doc's §how to verify — the negation flip at
@@ -24,18 +24,5 @@ describe('isForeignContext', () => {
         expect(shouldWrite('c1', 'c1')).toBe(true);
         expect(shouldWrite('c1', undefined)).toBe(true);
         expect(shouldWrite('c2', 'c1')).toBe(false);
-    });
-});
-
-describe('isCidActive', () => {
-    it.each`
-        targetCid | boundCid | expected | why
-        ${null}   | ${'c1'}  | ${true}  | ${'work outside a cloud scope is always valid'}
-        ${null}   | ${null}  | ${true}  | ${'the same with no binding'}
-        ${'c1'}   | ${'c1'}  | ${true}  | ${'target and binding match'}
-        ${'c1'}   | ${'c2'}  | ${false} | ${'bound to a different cloud'}
-        ${'c1'}   | ${null}  | ${false} | ${'with no binding, cloud-targeted work is not valid'}
-    `('target=$targetCid bound=$boundCid → $expected ($why)', ({ targetCid, boundCid, expected }) => {
-        expect(isCidActive(targetCid, boundCid)).toBe(expected);
     });
 });

@@ -4,13 +4,12 @@ import { authIdRegistry } from './authIdRegistry';
 
 import type { AuthActivationGate } from './bootstrapSocketConnection';
 import type { ISocketManager, SlotKey } from '../types';
-import { kindOf } from '../utils/slotKey';
 import type { ReauthDelegate } from './types';
 
 export interface ReauthenticateActiveSocketArgs {
     manager: ISocketManager;
     delegate: ReauthDelegate;
-    /** The slot whose identity changed — it is re-registered, and its kind seeds and signs the handshake. */
+    /** The slot whose identity changed — it is re-registered, and it is what seeds and signs the handshake. */
     slot: SlotKey;
 }
 
@@ -40,21 +39,20 @@ export const reauthenticateActiveSocket = async ({
     delegate,
     slot,
 }: ReauthenticateActiveSocketArgs): Promise<void> => {
-    const kind = kindOf(slot);
-    // Target the slot for THIS kind, not the global active slot: a relay identity change must re-auth
-    // the relay client even while a cloud slot is the active one (getClient() would return cloud).
+    // Target THIS slot, not the global active slot: a relay identity change must re-auth the relay
+    // client even while a cloud slot is the active one (getClient() would return cloud).
     const client = manager.getClient(slot);
     const auth = client?.auth;
     if (!auth) {
         return;
     }
 
-    const registration = await delegate.getAuthRegistration(kind);
+    const registration = await delegate.getAuthRegistration(slot);
     if (!registration) {
         return;
     }
 
-    const sign = (token: string, ctx?: { target?: string }) => delegate.signAuth(kind, token, ctx?.target);
+    const sign = (token: string, ctx?: { target?: string }) => delegate.signAuth(slot, token, ctx?.target);
 
     // register() re-activates an inactive controller, which auto-sends `auth.update` on the next
     // `connected` — BEFORE that connection's device.save:ok, the ordering failure the bootstrap gate
@@ -80,9 +78,9 @@ export const reauthenticateActiveSocket = async ({
         return;
     }
 
-    logger.info('SOCKET', '[reauthenticateActiveSocket] identity changed, re-authenticating');
+    logger.info('SOCKET', '[reauthenticateActiveSocket] identity changed, re-authenticating', { data: { cid: slot } });
 
-    // Revoke the PREVIOUS session only on a LIVE (verified) socket, checked PER-KIND (the active
+    // Revoke the PREVIOUS session only on a LIVE (verified) socket, checked PER-SLOT (the active
     // snapshot reflects a different slot when this is a background relay re-auth). auth.logout on a
     // disconnected socket 503s and is pointless; register() below runs UNCONDITIONALLY, so even when
     // we skip the revoke the new identity is stored and applied on the next handshake — the
@@ -99,7 +97,7 @@ export const reauthenticateActiveSocket = async ({
     // rising edge fires once the SDK re-verifies the new identity. Without this an already-connected
     // controller can swap identity without an auth-state dip, so a same-socket promotion would never
     // re-anchor the promoted user's lists (restores the old markUnverified() behaviour). setAuthenticated
-    // only surfaces when `kind` is the active slot, so a background relay re-auth is unaffected.
+    // only surfaces when `slot` is the active slot, so a background relay re-auth is unaffected.
     if (wasVerified) {
         manager.setAuthenticated(slot, false);
     }

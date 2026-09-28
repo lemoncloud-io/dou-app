@@ -226,7 +226,12 @@ export const MIGRATIONS: Record<number, string[]> = {
         );`,
     ],
     7: [
-        `CREATE TABLE IF NOT EXISTS ${TABLES.UPLOAD_TASKS} (
+        /**
+         * Upload tasks of the retired chunked-upload module, dropped again in migration 11. The name is
+         * a literal because it is no longer in TABLES: a migration is history and has to replay as it
+         * was written on a fresh install, so it must not depend on the current table list.
+         */
+        `CREATE TABLE IF NOT EXISTS upload_tasks (
             upload_id TEXT PRIMARY KEY,
             status TEXT NOT NULL,
             payload TEXT NOT NULL,
@@ -243,7 +248,7 @@ export const MIGRATIONS: Record<number, string[]> = {
             created_at INTEGER NOT NULL,
             updated_at INTEGER NOT NULL
         );`,
-        `CREATE INDEX IF NOT EXISTS idx_upload_tasks_status_updated ON ${TABLES.UPLOAD_TASKS} (status, updated_at DESC);`,
+        `CREATE INDEX IF NOT EXISTS idx_upload_tasks_status_updated ON upload_tasks (status, updated_at DESC);`,
     ],
     8: [
         /**
@@ -288,6 +293,16 @@ export const MIGRATIONS: Record<number, string[]> = {
         data TEXT NOT NULL,
         PRIMARY KEY (cid, uid, id)
     );`,
+    ],
+    11: [
+        /**
+         * Retire the chunked-upload module's task table. Its rows held each upload's full request —
+         * endpoint URL and headers — which the file-transfer module must never persist, and none of
+         * them can be resumed by the new module anyway (a presigned PUT has no resume). Nothing reads
+         * the table any more, so the drop loses nothing.
+         */
+        `DROP INDEX IF EXISTS idx_upload_tasks_status_updated;`,
+        `DROP TABLE IF EXISTS upload_tasks;`,
     ],
 };
 export const TARGET_VERSION = Math.max(0, ...Object.keys(MIGRATIONS).map(Number)) + 1;

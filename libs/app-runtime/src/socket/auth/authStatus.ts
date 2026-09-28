@@ -159,16 +159,17 @@ export interface AuthSignalDeps {
 const readAuthSignals = (key: SlotKey, deps: AuthSignalDeps = {}): AuthSignals => {
     const manager = deps.manager ?? getSocketManager();
     const freshness = deps.freshness ?? credentialFreshness;
-    // The credential inputs are still one per server kind — there is one cloud session at a time —
-    // while the connection inputs are read off the slot itself.
-    const kind = kindOf(key);
-    const identityToken = kind === 'cloud' ? cloudStore.getIdentityToken() : relayStore.getIdentityToken();
+    // Every input is read off the slot itself: the token and the credential from the server the slot
+    // serves (a cloud's from the store while it is committed, from the per-cloud cache otherwise),
+    // the connection inputs from the manager.
+    const identityToken =
+        kindOf(key) === 'relay' ? relayStore.getIdentityToken() : cloudStore.getCloudTokenOf(key)?.Token?.identityToken;
 
     return {
         hasToken: !!identityToken,
         verifiedOnThisConnection: manager.isSlotVerified(key),
         controller: manager.getClient(key)?.auth?.state ?? null,
-        credentialMs: freshness.timeToExpiry(kind),
+        credentialMs: freshness.timeToExpiry(key),
         marginMs: deps.marginMs ?? DEFAULT_MARGIN_MS,
         storedSessionExpired: deps.storedSessionExpired ?? null,
     };

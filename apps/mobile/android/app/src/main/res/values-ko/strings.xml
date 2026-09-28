@@ -2,13 +2,22 @@
     <string name="push_chat_message_title">%1$s</string>
     <string name="push_chat_message_body">%1$s</string>
 
-    <!-- Upload background service notification -->
-    <string name="upload_notification_channel_name">파일 업로드</string>
-    <string name="upload_notification_channel_desc">백그라운드 파일 업로드 상태를 표시합니다.</string>
-    <string name="upload_notification_title">파일 업로드 중</string>
-    <string name="upload_notification_preparing">준비 중…</string>
-    <string name="upload_notification_single">%1$s (%2$d%%)</string>
-    <string name="upload_notification_multiple">%1$d개 파일 업로드 중… (평균 %2$d%%)</string>
-    <string name="upload_default_file_name">파일</string>
+    <!-- File transfer service notification. Shows a transfer's title or a default, never a URL or path. -->
+    <string name="transfer_notification_channel_name">파일 전송</string>
+    <string name="transfer_notification_channel_desc">파일 업로드와 다운로드 진행 상황을 표시합니다.</string>
+    <string name="transfer_notification_cancel">취소</string>
+    <string name="transfer_upload_default_title">파일 업로드 중</string>
+    <string name="transfer_download_default_title">파일 다운로드 중</string>
+    <string name="transfer_upload_progress">업로드 중… %1$d%%</string>
+    <string name="transfer_download_progress">다운로드 중… %1$d%%</string>
+    <string name="transfer_upload_pending">업로드 중…</string>
+    <string name="transfer_download_pending">다운로드 중…</string>
+    <string name="transfer_upload_multiple">파일 %1$d개 업로드 중</string>
+    <string name="transfer_download_multiple">파일 %1$d개 다운로드 중</string>
+    <string name="transfer_mixed_multiple">파일 %1$d개 전송 중</string>
+    <string name="transfer_percent">%1$d%%</string>
+    <string name="transfer_upload_failed_summary">업로드 %2$d건 중 %1$d건 실패</string>
+    <string name="transfer_download_failed_summary">다운로드 %2$d건 중 %1$d건 실패</string>
+    <string name="transfer_mixed_failed_summary">전송 %2$d건 중 %1$d건 실패</string>
     <string name="exit_back_toast">한 번 더 누르면 앱이 종료됩니다.</string>
 </resources>

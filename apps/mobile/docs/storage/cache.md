@@ -14,7 +14,7 @@ SQLite, and the WebView-facing cache service that answers the web client's cache
 grep -c "TABLES\." apps/mobile/src/app/database/sqlite/tables.ts
 ```
 
-Eleven tables: ten cache domains plus `upload_tasks`. MMKV is not used for structured lists or
+Ten tables, one per cache domain. MMKV is not used for structured lists or
 queries — that scope stays with SQLite, and expanding an MMKV key into a query surface belongs in a
 data source instead.
 
@@ -110,8 +110,8 @@ nothing. A new fire-and-forget message should return nothing from its handler fo
 - SQL schema and table names belong to `database/sqlite`.
 - Domain row mapping belongs to `data/cache`.
 - The WebView contract belongs to `services/cache` and its handler hooks.
-- Upload recovery state belongs to the upload repository (`services/upload/repository`), not the
-  cache service — see [upload.md](./upload.md).
+- The retired chunked-upload module's `upload_tasks` table is dropped by migration 11; file
+  transfer persists nothing — see [../native/file-transfer.md](../native/file-transfer.md).
 - MMKV holds small values and queues; it does not grow into structured list or query storage.
 
 ## Checklist

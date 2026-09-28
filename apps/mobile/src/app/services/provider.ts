@@ -36,8 +36,6 @@ import type { ICacheCrudService, ICacheSearchService } from './cache';
 import { CacheCrudService, CacheSearchService } from './cache';
 import type { ISmsService } from './sms';
 import { SmsService } from './sms';
-import type { IUploadService } from './upload';
-import { SqliteUploadTaskDataSource, UploadService } from './upload';
 import type { IBootMetricsService } from './perf';
 import { BootMetricsService } from './perf';
 import type { IVersionService } from './version';
@@ -94,12 +92,10 @@ class DependencyProvider {
     private _configKvService?: IConfigKvService;
     private _versionService?: IVersionService;
     private _unfurlService?: IUnfurlService;
-    private _uploadService?: IUploadService;
     private _cacheCrudService?: ICacheCrudService;
     private _cacheSearchService?: ICacheSearchService;
     private _testRecordService?: TestRecordService;
     private _dataSources?: {
-        upload: SqliteUploadTaskDataSource;
         channel: ChannelDataSource;
         chat: ChatDataSource;
         join: JoinDataSource;
@@ -177,8 +173,8 @@ class DependencyProvider {
         installNativeErrorDetection(detectionDeps);
         void checkCrashOnPreviousExecution(detectionDeps);
 
-        // Boot timeline: eager provider initialization done. Non-essential services (SQLite/cache/
-        // upload, IAP, app icon, SMS, OAuth, clipboard, permission, preference, device, firebase
+        // Boot timeline: eager provider initialization done. Non-essential services (SQLite/cache,
+        // IAP, app icon, SMS, OAuth, clipboard, permission, preference, device, firebase
         // installation) are created lazily on first access — see boot-optimization.md 4.4.
         this.bootMetricsService.mark('provider-ready');
     }
@@ -195,12 +191,11 @@ class DependencyProvider {
         return this._sqliteDatabase;
     }
 
-    /** Memoized SQLite-backed data sources shared by the cache/upload/test-record services. */
+    /** Memoized SQLite-backed data sources shared by the cache and test-record services. */
     private get dataSources() {
         if (!this._dataSources) {
             const db = this.sqliteDatabase;
             this._dataSources = {
-                upload: new SqliteUploadTaskDataSource(db, this.logService),
                 channel: new ChannelDataSource(db, TABLES.CHANNELS),
                 chat: new ChatDataSource(db, TABLES.CHATS),
                 join: new JoinDataSource(db, TABLES.JOINS),
@@ -241,13 +236,6 @@ class DependencyProvider {
             this._cacheSearchService = new CacheSearchService(this.logService, ds.channel, ds.chat, ds.site);
         }
         return this._cacheSearchService;
-    }
-
-    public get uploadService(): IUploadService {
-        if (!this._uploadService) {
-            this._uploadService = new UploadService(this.logService, this.dataSources.upload);
-        }
-        return this._uploadService;
     }
 
     public get testRecordService(): TestRecordService {

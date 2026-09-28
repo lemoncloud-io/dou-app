@@ -4,11 +4,13 @@ import { logger } from '@chatic/bridges';
 
 import { SDK_REFRESH_CYCLE_MS } from '../../../socket/constants';
 import { credentialRenewers } from '../../../socket/auth/renewers';
+import { getSocketManager } from '../../../socket/runtime';
+import { kindOf, slotKeyOf } from '../../../socket/utils/slotKey';
+import { getCommittedCloudId } from '../../store';
 
 /**
- * Keeps the ACTIVE cloud's SOCKET session alive — the cloud counterpart of
- * `useSessionStalenessGuard`, and deliberately a separate hook because the two servers recover
- * differently:
+ * Keeps every cloud SOCKET session alive — the cloud counterpart of `useSessionStalenessGuard`, and
+ * deliberately a separate hook because the two servers recover differently:
  *
  * | | relay | cloud |
  * | --- | --- | --- |
@@ -30,12 +32,17 @@ import { credentialRenewers } from '../../../socket/auth/renewers';
  *
  * The credential's `Expiration` is still the right clock — not because it signs anything, but because
  * it is minted with the cloud token and expires alongside it, which makes it a measurable proxy for
- * the token's age (`CredentialOwner` in `credentialFreshness` says the same).
+ * the token's age (`credentialFreshness` says the same of a cloud).
  *
  * Trigger is a self-arming deadline, not a poll: that `Expiration` says exactly when to act, so the
  * hook sleeps until `Expiration - margin` (bounded, see below) instead of asking every N seconds.
  * `check` is returned for hosts with a trigger this hook cannot know about — apps/web fires it on
  * WebView foreground, where a suspended tab's timer fires late or not at all.
+ *
+ * **Which clouds.** The committed cloud, and every cloud that has a socket slot bound — one timer,
+ * armed on the earliest deadline among them. Today those name the same single cloud; the set is
+ * what lets a cloud the user is not looking at keep its socket session once such slots exist. Each
+ * cloud renews through its own renewer, so one cloud's failed exchange never delays another's.
  */
 export interface CloudCredentialPolicy {
     /** Off by default is wrong for a guard — callers opt out explicitly. */
@@ -69,35 +76,79 @@ const RETRY_SLEEP_MS = 60_000;
 
 const clampSleep = (ms: number): number => Math.min(MAX_SLEEP_MS, Math.max(MIN_SLEEP_MS, ms));
 
+/**
+ * The clouds whose socket session this guard keeps alive: the committed one (its slot may not be
+ * bound yet — the device id can arrive after the tokens) plus every cloud that has a slot bound.
+ * Re-derived on every tick, so a cloud entered or left while the host stayed mounted is picked up
+ * within one sleep.
+ */
+const guardedClouds = (): string[] => {
+    const cids = new Set<string>();
+    const committed = getCommittedCloudId();
+    if (committed) cids.add(committed);
+    for (const key of getSocketManager().getSlotKeys()) {
+        if (kindOf(key) === 'cloud') cids.add(key);
+    }
+    return [...cids];
+};
+
 export const useCloudCredentialGuard = (policy: CloudCredentialPolicy = {}): { check: () => Promise<void> } => {
     const { enabled = true, marginMs = DEFAULT_MARGIN_MS, checkOnVisible = true } = policy;
 
-    /** Evaluates the deadline, renews if it has arrived, and reports how long to sleep next. */
+    /** Evaluates one cloud's deadline, renews if it has arrived, and reports how long to sleep next. */
+    const evaluateCloud = useCallback(
+        async (cid: string): Promise<number> => {
+            const renewer = credentialRenewers.forSlot(slotKeyOf(cid));
+            const remaining = renewer.timeToExpiry();
+            if (remaining == null) {
+                // No token for this cloud, or a token view with no credential to measure — nothing to renew.
+                return MAX_SLEEP_MS;
+            }
+            if (remaining > marginMs) {
+                return clampSleep(remaining - marginMs);
+            }
+            if (!navigator.onLine) {
+                // The exchange would only fail; the credential is no more expired for having waited.
+                return RETRY_SLEEP_MS;
+            }
+
+            if (!(await renewer.renew())) {
+                // Not a teardown signal: cloud loss is recoverable by re-entry, and `onAuthExpired`
+                // already owns the "give up on this cloud" decision.
+                logger.warn('SESSION', '[cloudCredentialGuard] cloud credential renewal did not run', {
+                    data: { cid },
+                });
+                return RETRY_SLEEP_MS;
+            }
+
+            // Re-derive from the token we just wrote rather than assuming a full lifetime.
+            const renewed = renewer.timeToExpiry();
+            return renewed != null && renewed > marginMs ? clampSleep(renewed - marginMs) : RETRY_SLEEP_MS;
+        },
+        [marginMs]
+    );
+
+    /**
+     * Every guarded cloud at once; the next sleep is the earliest of their deadlines. Side by side,
+     * not in turn: each cloud's renewal is its own single flight, and one cloud's slow exchange must
+     * not hold up measuring the others. A throw — corrupt storage under a token read, say — costs
+     * that cloud one retry sleep and nothing else. It must never escape: the timer below re-arms only
+     * when this resolves, so a rejection here would silently end the guard for every cloud.
+     */
     const evaluate = useCallback(async (): Promise<number> => {
-        const remaining = credentialRenewers.cloud.timeToExpiry();
-        if (remaining == null) {
-            // No cloud session, or a token view with no credential to measure — nothing to renew.
-            return MAX_SLEEP_MS;
-        }
-        if (remaining > marginMs) {
-            return clampSleep(remaining - marginMs);
-        }
-        if (!navigator.onLine) {
-            // The exchange would only fail; the credential is no more expired for having waited.
-            return RETRY_SLEEP_MS;
-        }
-
-        if (!(await credentialRenewers.cloud.renew())) {
-            // Not a teardown signal: cloud loss is recoverable by re-entry, and `onAuthExpired`
-            // already owns the "give up on this cloud" decision.
-            logger.warn('SESSION', '[cloudCredentialGuard] cloud credential renewal did not run');
-            return RETRY_SLEEP_MS;
-        }
-
-        // Re-derive from the token we just wrote rather than assuming a full lifetime.
-        const renewed = credentialRenewers.cloud.timeToExpiry();
-        return renewed != null && renewed > marginMs ? clampSleep(renewed - marginMs) : RETRY_SLEEP_MS;
-    }, [marginMs]);
+        const sleeps = await Promise.all(
+            guardedClouds().map(cid =>
+                evaluateCloud(cid).catch(error => {
+                    logger.warn('SESSION', '[cloudCredentialGuard] evaluation failed — retrying later', {
+                        error,
+                        data: { cid },
+                    });
+                    return RETRY_SLEEP_MS;
+                })
+            )
+        );
+        return Math.min(MAX_SLEEP_MS, ...sleeps);
+    }, [evaluateCloud]);
 
     const check = useCallback(async (): Promise<void> => {
         await evaluate();

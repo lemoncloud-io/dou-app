@@ -168,6 +168,8 @@ dependencies {
     implementation("com.facebook.react:react-android")
     implementation("com.facebook.react:hermes-android")
     implementation("androidx.core:core-splashscreen:1.0.1")
+    // The app's own code no longer uses WorkManager; notifee still does and would resolve 2.8.0 on its
+    // own. Pinning it here keeps the version it has been running against.
     implementation("androidx.work:work-runtime-ktx:2.9.0")
 
     // Firebase dependencies needed for custom native Java/Kotlin FirebaseMessagingService
@@ -177,4 +179,7 @@ dependencies {
     // crashes in .so code — the Hermes runtime, the New Architecture C++ layer,
     // third-party native modules — need this artifact to be caught at all.
     implementation 'com.google.firebase:firebase-crashlytics-ndk'
+
+    // JVM unit tests for the pure-Kotlin transfer core (io.chatic.dou.transfer.core).
+    testImplementation "junit:junit:4.13.2"
 }

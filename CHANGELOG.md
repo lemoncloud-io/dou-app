@@ -4,6 +4,24 @@
 
 ### Refactor
 
+- (app-runtime,data,web,testbed) run each sync target on its own cloud's slot (ADR-0118)
+
+## [2026-09-28] - No version updates
+
+### Bug Fixes
+
+- (web/home) fall back from a stored place once the list prunes it, not while it is uncached
+
+## [2026-09-28] - No version updates
+
+### Features
+
+- (app-runtime) key socket auth by the slot's cloud, not the server kind (ADR-0117)
+
+## [2026-09-28] - No version updates
+
+### Refactor
+
 - (app-runtime) point the active socket slot explicitly, not by what is bound (ADR-0116)
 
 ## [2026-09-28] - No version updates

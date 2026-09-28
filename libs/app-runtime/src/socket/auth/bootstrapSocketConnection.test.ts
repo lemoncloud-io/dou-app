@@ -214,7 +214,7 @@ describe('bootstrapSocketConnection', () => {
         auth.emitAuthState('expired');
         expect(manager.setAuthenticated).toHaveBeenCalledWith(RELAY, false);
         expect(delegate.onAuthExpired).toHaveBeenCalledTimes(1);
-        expect(delegate.onAuthExpired).toHaveBeenCalledWith('relay');
+        expect(delegate.onAuthExpired).toHaveBeenCalledWith(RELAY);
     });
 
     it('writes refreshed tokens back through the delegate', async () => {
@@ -227,7 +227,7 @@ describe('bootstrapSocketConnection', () => {
 
         const view = { Token: { identityToken: 'fresh' } };
         auth.emitTokenRefresh(view);
-        expect(delegate.commitRefreshedToken).toHaveBeenCalledWith('relay', view);
+        expect(delegate.commitRefreshedToken).toHaveBeenCalledWith(RELAY, view);
     });
 
     // The writeback is the step that re-mints the signing material, and it runs AFTER
@@ -251,7 +251,7 @@ describe('bootstrapSocketConnection', () => {
         expect(logger.error).toHaveBeenCalledWith(
             'SOCKET',
             '[bootstrapSocketConnection] token writeback failed',
-            expect.objectContaining({ error: failure, data: { kind: 'relay' } })
+            expect.objectContaining({ error: failure, data: { kind: 'relay', cid: RELAY } })
         );
     });
 
@@ -356,7 +356,7 @@ describe('bootstrapSocketConnection', () => {
 
         const registeredSign = auth.register.mock.calls[0][0].sign;
         await registeredSign('sdk-token', { target: 'uid@sid' });
-        expect(delegate.signAuth).toHaveBeenCalledWith('relay', 'sdk-token', 'uid@sid');
+        expect(delegate.signAuth).toHaveBeenCalledWith(RELAY, 'sdk-token', 'uid@sid');
     });
 
     it('returns a cleanup that detaches every subscription', async () => {

@@ -1,10 +1,15 @@
 import { act, renderHook } from '@testing-library/react';
 
+import { RELAY_CLOUD_ID } from '@chatic/data';
+
 import { useCloudCredentialGuard } from './useCloudCredentialGuard';
 
 const mockTimeToExpiry = jest.fn();
 const mockRenew = jest.fn();
 const mockLoggerWarn = jest.fn();
+/** The committed cloud, and the slots the manager has bound — what `guardedClouds` reads. */
+const mockGetCommittedCloudId = jest.fn();
+const mockGetSlotKeys = jest.fn();
 
 jest.mock('../../auth/credentialFreshness', () => ({
     credentialFreshness: { timeToExpiry: (...args: unknown[]) => mockTimeToExpiry(...args) },
@@ -12,6 +17,16 @@ jest.mock('../../auth/credentialFreshness', () => ({
 jest.mock('../../../socket/auth/renewCloudSession', () => ({
     renewCloudSession: (...args: unknown[]) => mockRenew(...args),
 }));
+jest.mock('../../../socket/runtime', () => ({
+    getSocketManager: () => ({ getSlotKeys: (...args: unknown[]) => mockGetSlotKeys(...args) }),
+}));
+jest.mock('../../store', () => ({
+    getCommittedCloudId: (...args: unknown[]) => mockGetCommittedCloudId(...args),
+}));
+// The renewers reach these at module load; nothing here exercises them.
+jest.mock('../../auth/cloudSession', () => ({ cloudSession: { clearStores: jest.fn() } }));
+jest.mock('../../auth/relaySession', () => ({ relaySession: { clearAndRedirect: jest.fn() } }));
+jest.mock('../../store/stores', () => ({ cloudStore: { dropCachedCloudTokens: jest.fn() } }));
 jest.mock('@chatic/bridges', () => ({
     logger: {
         debug: jest.fn(),
@@ -37,6 +52,9 @@ beforeEach(() => {
     jest.useFakeTimers();
     mockTimeToExpiry.mockReturnValue(60 * 60_000);
     mockRenew.mockResolvedValue(true);
+    // One committed cloud, whose slot is bound — today's shape.
+    mockGetCommittedCloudId.mockReturnValue('cloud-1');
+    mockGetSlotKeys.mockReturnValue([RELAY_CLOUD_ID, 'cloud-1']);
     Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
 });
 
@@ -56,7 +74,17 @@ describe('useCloudCredentialGuard — 판정', () => {
 
         await mount();
 
-        expect(mockRenew).toHaveBeenCalled();
+        expect(mockRenew).toHaveBeenCalledWith('cloud-1');
+    });
+
+    it('measures nothing and renews nothing when no cloud session exists', async () => {
+        mockGetCommittedCloudId.mockReturnValue(null);
+        mockGetSlotKeys.mockReturnValue([RELAY_CLOUD_ID]);
+
+        await mount();
+
+        expect(mockTimeToExpiry).not.toHaveBeenCalled();
+        expect(mockRenew).not.toHaveBeenCalled();
     });
 
     it('이미 만료됐어도 부른다 — 늦은 것이 안 하는 것보다 낫다', async () => {
@@ -99,6 +127,84 @@ describe('useCloudCredentialGuard — 판정', () => {
         await mount({ marginMs: 10_000 });
 
         expect(mockRenew).not.toHaveBeenCalled();
+    });
+});
+
+describe('useCloudCredentialGuard — every cloud slot', () => {
+    /** The clouds measured so far, in order (the renewer passes `now` as a second argument). */
+    const measured = (): string[] => mockTimeToExpiry.mock.calls.map(call => call[0] as string);
+
+    it('measures each cloud on its own and renews only the one whose deadline arrived', async () => {
+        mockGetCommittedCloudId.mockReturnValue('cloud-1');
+        mockGetSlotKeys.mockReturnValue([RELAY_CLOUD_ID, 'cloud-1', 'cloud-2']);
+        mockTimeToExpiry.mockImplementation((cid: string) => (cid === 'cloud-2' ? MARGIN_MS - 1 : 60 * 60_000));
+
+        await mount();
+
+        // cloud-2 is measured twice: once to decide, once after its renewal to re-arm the timer.
+        expect(measured()).toEqual(['cloud-1', 'cloud-2', 'cloud-2']);
+        expect(mockRenew).toHaveBeenCalledTimes(1);
+        expect(mockRenew).toHaveBeenCalledWith('cloud-2');
+    });
+
+    it('counts the committed cloud once even when its slot is bound, and never the relay slot', async () => {
+        mockGetCommittedCloudId.mockReturnValue('cloud-1');
+        mockGetSlotKeys.mockReturnValue([RELAY_CLOUD_ID, 'cloud-1']);
+
+        await mount();
+
+        expect(measured()).toEqual(['cloud-1']);
+    });
+
+    it('arms the timer on the EARLIEST deadline among the clouds', async () => {
+        mockGetSlotKeys.mockReturnValue([RELAY_CLOUD_ID, 'cloud-1', 'cloud-2']);
+        // cloud-1 has an hour, cloud-2 has six minutes → the next look is in one minute, for cloud-2.
+        mockTimeToExpiry.mockImplementation((cid: string) => (cid === 'cloud-2' ? 6 * 60_000 : 60 * 60_000));
+        await mount();
+
+        mockTimeToExpiry.mockImplementation((cid: string) => (cid === 'cloud-2' ? MARGIN_MS - 1 : 60 * 60_000));
+        await act(async () => {
+            jest.advanceTimersByTime(60_000);
+            await Promise.resolve();
+        });
+
+        expect(mockRenew).toHaveBeenCalledWith('cloud-2');
+    });
+
+    it('a cloud whose evaluation THROWS costs only itself a retry — the others renew and the timer re-arms', async () => {
+        mockGetSlotKeys.mockReturnValue([RELAY_CLOUD_ID, 'cloud-1', 'cloud-2']);
+        mockTimeToExpiry.mockImplementation((cid: string) => {
+            if (cid === 'cloud-1') throw new Error('corrupt storage');
+            return 0;
+        });
+
+        await mount();
+
+        expect(mockRenew).toHaveBeenCalledWith('cloud-2');
+        expect(mockRenew).not.toHaveBeenCalledWith('cloud-1');
+        expect(mockLoggerWarn).toHaveBeenCalledWith('SESSION', expect.stringContaining('evaluation failed'), {
+            error: expect.any(Error),
+            data: { cid: 'cloud-1' },
+        });
+
+        // The failed cloud bought a retry sleep (60s), and the guard is still alive to take it.
+        mockTimeToExpiry.mockImplementation(() => 60 * 60_000);
+        await act(async () => {
+            jest.advanceTimersByTime(60_000);
+            await Promise.resolve();
+        });
+        expect(mockTimeToExpiry.mock.calls.length).toBeGreaterThan(4);
+    });
+
+    it('one cloud’s failed renewal does not stop the next cloud from being renewed', async () => {
+        mockGetSlotKeys.mockReturnValue([RELAY_CLOUD_ID, 'cloud-1', 'cloud-2']);
+        mockTimeToExpiry.mockReturnValue(0);
+        mockRenew.mockImplementation(async (cid: string) => cid !== 'cloud-1');
+
+        await mount();
+
+        expect(mockRenew).toHaveBeenCalledWith('cloud-1');
+        expect(mockRenew).toHaveBeenCalledWith('cloud-2');
     });
 });
 

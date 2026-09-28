@@ -148,14 +148,25 @@ commit and the rollback. With no place active — right after a cloud switch —
 auto-selects the first; with no place at all — once the list is actually known, see below — the
 Chat section is replaced by an empty state.
 
-**A cold cloud.** Switching into a cloud this device has never opened has nothing cached to show,
-and the first fetch does not go out until the new session verifies — so for that whole window the
-cache truthfully answers "nothing", and home used to draw that as an answer: an empty rail and a
-"no place connected" screen over a cloud that was still arriving. Home now holds the loading state
-across it. The Place rail keeps its skeleton, and the Chat slot — which has no place to list channels
-for yet — shows a spinner rather than the "no place connected" empty state, which is reserved for a
-cloud whose emptiness something actually established. What may establish it, and the 15s bound that
-stops any of this waiting forever, is [state/data-flow.md](../../state/data-flow.md)'s.
+**A stored selection whose place has been pruned falls back to the first place.** The selected
+site id persists across launches (the native shell hands the session stores `localStorage`), so it
+can outlive its place: one deleted or left while the app was closed keeps its cached row until the
+next full list refresh prunes it, but nothing prunes the stored id. Left alone it kept the
+auto-select off, and home rendered a place nobody is in — no selected row, an empty Chat section —
+until the user tapped another.
+
+`useSwitchPlace` treats "gone" as something it **observes**, not infers: the fallback fires only
+once the selected id has been seen in the list and then dropped out of it while the selection stayed
+put — what the prune looks like from the cache observer. Mere absence is deliberately not enough. A
+flow that switches into a place this device has not cached yet (a push tap, an invite acceptance)
+lands on home with a selection the list will not carry until the refresh brings the row, and reading
+that as stale would switch the user straight back out. Three more guards: the fallback waits out any
+site or cloud switch in flight anywhere (the global `useIsMutating` count, since the hook's own
+`isSwitching` sees only its own mutation), it never runs on the relay (one place, auto-selected), and
+it attempts once per stale id, because a rejected switch rolls the selection back to that id and
+would otherwise retry on every settle. What it does not cover is a row that was never cached to
+begin with — a cache wipe _and_ a deletion while the app was closed — which is left to the user's
+tap, as before.
 
 `CloudSessionSheet` has three collapsible sections: the synthetic relay row (selecting it calls
 `logoutCloudSession`), owned clouds with the active one pinned to the top, and invited clouds. Add-a-
@@ -189,9 +200,9 @@ npx nx test web
 
 Traps that apply here:
 
-- `web`'s **test** target is excluded from `.github/workflows/verify.yml`. It sits at a known
-  handful of failures out of ~2720, so a green CI run is not evidence that a home test passes —
-  run it yourself and compare against the baseline the workflow's comment records.
+- `web`'s **test** target is in the `.github/workflows/verify.yml` gate (since 2026-09-17) and is
+  expected fully green — no failure baseline is tolerated any more. Read the workflow's exclusion
+  list rather than this note if in doubt; it shrinks as projects are fixed off it.
 - `typecheck` is in the gate and is expected clean. It pulls `@chatic/web-ui-kit`, so a kit change
   can turn this red without a line of `apps/web` changing.
 - A single suite is faster than the whole target:

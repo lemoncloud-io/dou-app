@@ -4,14 +4,10 @@ import { slotKeyOf } from '../utils/slotKey';
 const mockReissue = jest.fn();
 const mockReauthenticate = jest.fn();
 const mockGetSocketManager = jest.fn();
-const mockGetCommittedCloudId = jest.fn();
 const mockLoggerWarn = jest.fn();
 
 jest.mock('../../session/auth/cloudTokens', () => ({
-    reissueCommittedCloudTokens: (...args: unknown[]) => mockReissue(...args),
-}));
-jest.mock('../../session/store', () => ({
-    getCommittedCloudId: (...args: unknown[]) => mockGetCommittedCloudId(...args),
+    reissueCloudTokens: (...args: unknown[]) => mockReissue(...args),
 }));
 jest.mock('./reauthenticateActiveSocket', () => ({
     reauthenticateActiveSocket: (...args: unknown[]) => mockReauthenticate(...args),
@@ -31,19 +27,20 @@ jest.mock('@chatic/bridges', () => ({
     },
 }));
 
+const issued = { delegationToken: { cloudId: 'cloud-1' }, cloudToken: { Token: { identityToken: 'fresh' } } };
+
 beforeEach(() => {
     jest.resetAllMocks();
     mockGetSocketManager.mockReturnValue({ manager: true });
-    mockGetCommittedCloudId.mockReturnValue('cloud-1');
-    mockReissue.mockResolvedValue(true);
+    mockReissue.mockResolvedValue(issued);
     mockReauthenticate.mockResolvedValue(undefined);
 });
 
 describe('renewCloudSession', () => {
-    it('스토어를 먼저 커밋하고 소켓이 따라간다 — 커밋된 cloud의 슬롯을 명시해서', async () => {
-        await expect(renewCloudSession()).resolves.toBe(true);
+    it('re-issues the cloud it is given first, then re-registers THAT cloud’s slot', async () => {
+        await expect(renewCloudSession('cloud-1')).resolves.toBe(true);
 
-        expect(mockReissue).toHaveBeenCalled();
+        expect(mockReissue).toHaveBeenCalledWith('cloud-1');
         expect(mockReauthenticate).toHaveBeenCalledWith({
             manager: { manager: true },
             delegate: { delegate: true },
@@ -52,28 +49,10 @@ describe('renewCloudSession', () => {
         expect(mockReissue.mock.invocationCallOrder[0]).toBeLessThan(mockReauthenticate.mock.invocationCallOrder[0]);
     });
 
-    it('leaves the socket alone when the re-issue succeeded but no cloud is committed', async () => {
-        mockGetCommittedCloudId.mockReturnValue(null);
-
-        await expect(renewCloudSession()).resolves.toBe(true);
-
-        expect(mockReauthenticate).not.toHaveBeenCalled();
-        // Skipped, but not silently: the store was renewed and the socket half was not attempted.
-        expect(mockLoggerWarn).toHaveBeenCalledWith('SESSION', expect.stringContaining('re-registration skipped'));
-    });
-
-    it('커밋된 클라우드가 없으면 소켓을 건드리지 않는다', async () => {
-        mockReissue.mockResolvedValue(false);
-
-        await expect(renewCloudSession()).resolves.toBe(false);
-
-        expect(mockReauthenticate).not.toHaveBeenCalled();
-    });
-
     it('재발급 실패는 false로 보고하고 던지지 않는다 (relay 자격증명이 함께 상했을 때)', async () => {
         mockReissue.mockRejectedValue(new Error('403'));
 
-        await expect(renewCloudSession()).resolves.toBe(false);
+        await expect(renewCloudSession('cloud-1')).resolves.toBe(false);
 
         expect(mockReauthenticate).not.toHaveBeenCalled();
         expect(mockLoggerWarn).toHaveBeenCalled();
@@ -82,31 +61,50 @@ describe('renewCloudSession', () => {
     it('소켓 재등록 실패는 갱신을 실패시키지 않는다 — HTTP는 이미 고쳐졌다', async () => {
         mockReauthenticate.mockRejectedValue(new Error('socket down'));
 
-        await expect(renewCloudSession()).resolves.toBe(true);
+        await expect(renewCloudSession('cloud-1')).resolves.toBe(true);
 
         expect(mockLoggerWarn).toHaveBeenCalled();
     });
 
     it('동시 호출은 한 번의 교환으로 합쳐진다 (타이머 + 포그라운드 동시 발화)', async () => {
-        let release: (value: boolean) => void = () => undefined;
+        let release: (value: typeof issued) => void = () => undefined;
         mockReissue.mockReturnValue(
-            new Promise<boolean>(resolve => {
+            new Promise<typeof issued>(resolve => {
                 release = resolve;
             })
         );
 
-        const first = renewCloudSession();
-        const second = renewCloudSession();
-        release(true);
+        const first = renewCloudSession('cloud-1');
+        const second = renewCloudSession('cloud-1');
+        release(issued);
 
         await expect(Promise.all([first, second])).resolves.toEqual([true, true]);
         expect(mockReissue).toHaveBeenCalledTimes(1);
         expect(mockReauthenticate).toHaveBeenCalledTimes(1);
     });
 
+    it('two different clouds renew side by side — the single flight is per cloud', async () => {
+        let release: (value: typeof issued) => void = () => undefined;
+        mockReissue.mockImplementation((cid: string) =>
+            cid === 'cloud-1'
+                ? new Promise<typeof issued>(resolve => {
+                      release = resolve;
+                  })
+                : Promise.resolve(issued)
+        );
+
+        const first = renewCloudSession('cloud-1');
+        await expect(renewCloudSession('cloud-2')).resolves.toBe(true);
+        release(issued);
+        await expect(first).resolves.toBe(true);
+
+        expect(mockReissue).toHaveBeenCalledTimes(2);
+        expect(mockReauthenticate).toHaveBeenCalledWith(expect.objectContaining({ slot: slotKeyOf('cloud-2') }));
+    });
+
     it('직전 호출이 끝난 뒤에는 다시 교환한다 — 단일 비행이 영구 잠금이 되면 안 된다', async () => {
-        await renewCloudSession();
-        await renewCloudSession();
+        await renewCloudSession('cloud-1');
+        await renewCloudSession('cloud-1');
 
         expect(mockReissue).toHaveBeenCalledTimes(2);
     });

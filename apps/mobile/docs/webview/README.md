@@ -32,12 +32,12 @@ flowchart TD
     WebApp["Web App"] --> RNWebView["AppWebView"]
     RNWebView --> Router["useWebMessageRouter"]
     Router --> FCM["useFcmHandler"]
-    Router --> Upload["useUploadHandler"]
+    Router --> Transfer["useFileTransferHandler"]
     Router --> Cache["useCrudCacheHandler / useSearchCacheHandler"]
     Router --> Device["useDeviceHandler / usePermissionHandler"]
     Router --> Other["OAuth / IAP / Log / AppIcon / SMS handlers"]
     FCM --> Services["services/*"]
-    Upload --> Services
+    Transfer --> Native["TransferManagerBridge (native)"]
     Cache --> Services
     Device --> Services
     Other --> Services

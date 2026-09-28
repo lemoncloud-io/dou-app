@@ -73,12 +73,12 @@ const doRecover = async ({ manager, delegate }: RecoverUnverifiedSocketsDeps): P
         await client.disconnect(1000, 'wake-recovery').catch(() => undefined);
 
         if (wasExpired && auth) {
-            const registration = await sessionDelegate.getAuthRegistration(kind);
+            const registration = await sessionDelegate.getAuthRegistration(key);
             if (registration) {
                 auth.register({
                     token: registration.token,
                     authId: registration.authId,
-                    sign: (token, ctx) => sessionDelegate.signAuth(kind, token, ctx?.target),
+                    sign: (token, ctx) => sessionDelegate.signAuth(key, token, ctx?.target),
                 });
                 // Mirror the seeded authId — every register() site must, or the drift check goes blind.
                 authIdRegistry.record(key, registration.authId);

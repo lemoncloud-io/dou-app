@@ -522,40 +522,6 @@ export type OnPopWebViewPayload = {
     // Empty object type, reserved for future extension (optional fields, etc.).
 };
 
-/** [Response] Result of handling the file upload start request */
-export type OnRequestFileUploadPayload = {
-    uploadId: string;
-    success: boolean;
-};
-
-/** [Response] Result of handling the file upload pause request */
-export type OnPauseFileUploadPayload = {
-    uploadId: string;
-    success: boolean;
-};
-
-/** [Response] Result of handling the file upload resume request */
-export type OnResumeFileUploadPayload = {
-    uploadId: string;
-    success: boolean;
-};
-
-/** [Response] Result of handling the file upload cancel request */
-export type OnCancelFileUploadPayload = {
-    uploadId: string;
-    success: boolean;
-};
-
-/** [Response] Result of manually recovering (resuming) an upload task */
-export type OnRecoverUploadPayload = {
-    // Empty object type, reserved for future extension (optional fields, etc.).
-};
-
-/** [Response] Result of retrying an upload task */
-export type OnRetryUploadPayload = {
-    // Empty object type, reserved for future extension (optional fields, etc.).
-};
-
 /** [Response] Native back-button pressed event payload */
 export type OnBackPressedPayload = {
     // Empty object type, reserved for future extension (optional fields, etc.).

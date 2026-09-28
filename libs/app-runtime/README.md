@@ -41,7 +41,7 @@ the HMAC signer (`libs/auth-sign`) and the logging core ([`libs/logger`](../logg
 5. **The three scope views are never collapsed.** `selected` flips optimistically, `bound` is observed from the live socket, `committed` follows the token. Their disagreement _is_ optimistic cloud switching; merging them brings back cross-cloud cache poisoning.
 6. **One truth table answers "is this slot authenticated".** `deriveAuthStatus` is a pure function of six signals, and any file that recombines the sources itself is a regression (ADR-0076).
 7. **A store write emits a typed signal, and one use case is one fan-out.** Every writer emits its `SessionSignalKind`; a use case wraps itself in `sessionSignal.batch()` so subscribers never observe a half-applied switch.
-8. **relay refreshes, cloud re-issues — and that asymmetry is two classes, not a comment.** A relay token has no parent, so its only renewal is the socket's own refresh; a cloud token is minted from the relay identity, so it is re-issued. `ICredentialRenewer` has one implementation each.
+8. **relay refreshes, a cloud re-issues — and that asymmetry is two classes, not a comment.** A relay token has no parent, so its only renewal is the socket's own refresh; a cloud token is minted from the relay identity, so it is re-issued. `ICredentialRenewer` has one implementation for relay and one instance per cloud, addressed by slot (`credentialRenewers.forSlot`).
 9. **Boot is an explicit call.** `initAppRuntime()` runs the wiring that used to happen as an import side effect, where it was invisible in the entry point and a tree-shake could move or drop it.
 10. **Only interfaces and domain types cross a boundary.** Contracts are `I*` interfaces, implementations are classes taking their dependencies as constructor arguments, and an implementation class never leaves its assembly point.
 11. **File kind decides file placement, and two tests check it.** Hooks live in their module's `hooks/` ([`hookPlacement.test.ts`](./src/hookPlacement.test.ts), which checks exported `use*` declarations, not just filenames); types live in `types.ts` with **zero value exports** — all seven of them — because `socket/index.ts` re-exports its `types.ts` wholesale and a value put there leaks onto a barrel. Value constants go in `constants.ts`, pure helpers in `utils/`.
@@ -136,7 +136,7 @@ sequenceDiagram
     App->>Host: mount
     Host->>Host: useRelaySessionInit — gate the subtree
     Host->>Host: useRuntimeSocketSlots — derive relay/cloud slots
-    Host->>B: slots + per-kind delegate
+    Host->>B: slots + per-slot delegate
     B->>M: bootstrapSocketConnection({ manager, config, delegate })
     M->>A: ensure(config) — slot keyed by config.cid, attaches AUTH_OPTIONS
     B->>A: subscribe onAuthState · onTokenRefresh
@@ -146,7 +146,7 @@ sequenceDiagram
     M-->>B: device.save:ok (from the slot's sync runtime)
     B->>A: start() — the gate opens, auth.update fires
     A-->>B: onTokenRefresh(view)
-    B->>S: commitRefreshedToken(kind, view)
+    B->>S: commitRefreshedToken(slot, view)
 ```
 
 The gate is the part that is easy to get wrong: the backend cannot process `auth.update` until a
@@ -237,7 +237,7 @@ apps/*/src/main.tsx
   └─ render
        └─ <RuntimeConnectionHost>
             ├─ useRelaySessionInit()      gate: renders null until the session is ready
-            ├─ useSocketSessionDelegate() per-kind seed · sign · writeback
+            ├─ useSocketSessionDelegate() per-slot seed · sign · writeback
             ├─ useRuntimeSocketSlots()    session → { relay?, cloud? } slot configs
             ├─ useRelaySessionKeepAlive() guest login when no session exists (host-dependent)
             ├─ <SocketBinder>             reconciles every slot + the active pointer; calls getSyncManager() first
@@ -303,7 +303,9 @@ and re-registers, which is how the SDK re-sends `auth.update` on a live connecti
 
 `useChatSync(channelId)` registers a sync target by ref-count and primes the room in one call:
 the cache's highest `chatNo` becomes the plan's baseline through `updateLocalSnapshot`, and only a
-cold cache fetches a first page. Live messages then arrive as `chat.sync` pushes and land in the
+cold cache fetches a first page. The target belongs to the cloud selected when it registers and runs
+on that cloud's slot; a switch re-registers it under the next cloud, and the previous one leaves
+through the grace window. Live messages then arrive as `chat.sync` pushes and land in the
 same cache by idempotent `chatNo` merge. Unmounting disposes the ref; the last dispose stops the
 target after a 30-second grace, so a route change and back does not restart it.
 
@@ -320,18 +322,18 @@ un-revoke it, so it is detected by its error message and ends the session immedi
 
 ## Documents
 
-| Folder                                                                     | What it covers                                                                                                                     |
-| -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| [docs/session/](./docs/session/README.md)                                  | The session hub. Three stores and their keys, the typed signal and batching, the scope's three views, the use cases, the hooks     |
-| [docs/auth/](./docs/auth/README.md)                                        | Staying authenticated. Who owns what, the five-state truth table, boot and re-auth wiring, the two renewers, the two guards        |
-| [docs/auth/signing.md](./docs/auth/signing.md)                             | The per-kind `authId` / signature / writeback contract, and the registry that catches an `authId` drifting out from under the SDK  |
-| [docs/socket/](./docs/socket/README.md)                                    | `SocketManager`. Dual slots and the active facade, slot-pinned requests and subscriptions, the binders, state, failure reporting   |
-| [docs/sync/](./docs/sync/README.md)                                        | `SyncManager`. Per-slot runtimes, the ref-counted target registry, the five plans, chat prime, `updateLocalSnapshot`               |
-| [docs/sync/plans.md](./docs/sync/plans.md)                                 | What the SDK scheduler does under the plans — the two plan families, the triggers, and the behaviours only the source shows        |
-| [docs/data/](./docs/data/README.md)                                        | `DataManager` and the three factories, the offline outbox, invited-cloud durability                                                |
-| [docs/data/cache-storage-routing.md](./docs/data/cache-storage-routing.md) | Which storage a cache type lands in, and the contract-version negotiation that keeps a web deploy ahead of the app from voiding it |
-| [docs/http/](./docs/http/README.md)                                        | `HttpManager`. The three routes, the sealed transport, the staleness port, and the two late-bound registries                       |
-| [docs/push/](./docs/push/README.md)                                        | Device-token registration — the delegate contract, the once-per-install record, the triggers                                       |
+| Folder                                                                     | What it covers                                                                                                                      |
+| -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| [docs/session/](./docs/session/README.md)                                  | The session hub. Three stores and their keys, the typed signal and batching, the scope's three views, the use cases, the hooks      |
+| [docs/auth/](./docs/auth/README.md)                                        | Staying authenticated. Who owns what, the five-state truth table, boot and re-auth wiring, the renewers per server, the two guards  |
+| [docs/auth/signing.md](./docs/auth/signing.md)                             | The per-server `authId` / signature / writeback contract, and the registry that catches an `authId` drifting out from under the SDK |
+| [docs/socket/](./docs/socket/README.md)                                    | `SocketManager`. Dual slots and the active facade, slot-pinned requests and subscriptions, the binders, state, failure reporting    |
+| [docs/sync/](./docs/sync/README.md)                                        | `SyncManager`. Per-slot runtimes, the ref-counted target registry, the five plans, chat prime, `updateLocalSnapshot`                |
+| [docs/sync/plans.md](./docs/sync/plans.md)                                 | What the SDK scheduler does under the plans — the two plan families, the triggers, and the behaviours only the source shows         |
+| [docs/data/](./docs/data/README.md)                                        | `DataManager` and the three factories, the offline outbox, invited-cloud durability                                                 |
+| [docs/data/cache-storage-routing.md](./docs/data/cache-storage-routing.md) | Which storage a cache type lands in, and the contract-version negotiation that keeps a web deploy ahead of the app from voiding it  |
+| [docs/http/](./docs/http/README.md)                                        | `HttpManager`. The three routes, the sealed transport, the staleness port, and the two late-bound registries                        |
+| [docs/push/](./docs/push/README.md)                                        | Device-token registration — the delegate contract, the once-per-install record, the triggers                                        |
 
 ## How to verify
 

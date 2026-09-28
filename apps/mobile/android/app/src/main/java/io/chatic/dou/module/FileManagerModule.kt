@@ -1,19 +1,18 @@
 package io.chatic.dou.module
 
-import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import android.util.Base64
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
-import io.chatic.dou.service.UploadBackgroundService
+import io.chatic.dou.file.TempFileName
 import java.io.File
 import java.io.FileOutputStream
 import java.io.RandomAccessFile
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.UUID
 import kotlin.concurrent.thread
 
 class FileManagerModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
@@ -190,37 +189,29 @@ class FileManagerModule(reactContext: ReactApplicationContext) : ReactContextBas
         }
     }
 
+    /**
+     * Writes base64 bytes to a new cache file and resolves its `file://` URI.
+     *
+     * The web prepares some files in memory (a resized image, for example) but the transfer module
+     * reads from a URI, so the bytes need a home first. Each call gets its own file — the UUID
+     * prefix keeps two files with the same name apart — under `cacheDir/transfer-temp/`, where the
+     * system may reclaim it; the caller removes it with `unlink` once the transfer is done.
+     */
     @ReactMethod
-    fun startBackgroundTask(uploadId: String, fileName: String, progress: Double, promise: Promise) {
-        try {
-            val intent = Intent(reactApplicationContext, UploadBackgroundService::class.java).apply {
-                action = UploadBackgroundService.ACTION_START_OR_UPDATE
-                putExtra("uploadId", uploadId)
-                putExtra("fileName", fileName)
-                putExtra("progress", progress)
+    fun writeTempFile(base64: String, fileName: String?, promise: Promise) {
+        thread {
+            try {
+                val bytes = Base64.decode(base64, Base64.DEFAULT)
+                val dir = File(reactApplicationContext.cacheDir, "transfer-temp")
+                if (!dir.isDirectory && !dir.mkdirs()) throw IllegalStateException("cannot create the temp directory")
+                val file = File(dir, "${UUID.randomUUID()}-${TempFileName.safe(fileName)}")
+                FileOutputStream(file).use { it.write(bytes) }
+                promise.resolve(Uri.fromFile(file).toString())
+            } catch (e: IllegalArgumentException) {
+                promise.reject("WRITE_TEMP_FILE_FAILED", "the data is not valid base64", e)
+            } catch (e: Exception) {
+                promise.reject("WRITE_TEMP_FILE_FAILED", e.message, e)
             }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                reactApplicationContext.startForegroundService(intent)
-            } else {
-                reactApplicationContext.startService(intent)
-            }
-            promise.resolve(null)
-        } catch (e: Exception) {
-            promise.reject("START_BG_TASK_FAILED", e.message, e)
-        }
-    }
-
-    @ReactMethod
-    fun endBackgroundTask(uploadId: String, promise: Promise) {
-        try {
-            val intent = Intent(reactApplicationContext, UploadBackgroundService::class.java).apply {
-                action = UploadBackgroundService.ACTION_STOP
-                putExtra("uploadId", uploadId)
-            }
-            reactApplicationContext.startService(intent)
-            promise.resolve(null)
-        } catch (e: Exception) {
-            promise.reject("END_BG_TASK_FAILED", e.message, e)
         }
     }
 
