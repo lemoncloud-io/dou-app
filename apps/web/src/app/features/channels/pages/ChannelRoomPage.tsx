@@ -51,6 +51,7 @@ import {
     useMessageJump,
     useReactions,
     useReadMarker,
+    useRoomOpenTrace,
 } from '../hooks';
 import type { ClientChatView } from '../types';
 import { copyMessageToClipboard } from '../utils/copyMessageToClipboard';
@@ -335,6 +336,15 @@ export const ChannelRoomPage = () => {
     // Hold the room behind a skeleton until it can show its own name and its first messages. Either
     // half arriving alone is what produced the "unnamed channel" flash and the empty list under it.
     const isRoomLoading = isChannelLoading || isChatLoading;
+
+    // Closes the `chat_room_open` trace the tap into this room began (list, banner or push).
+    useRoomOpenTrace({
+        channelId,
+        isRoomLoading,
+        isChatLoading,
+        messageCount: messages.length,
+        atThreadStart: hasThreadStart,
+    });
 
     const { sendMessage, readMessage, deleteMessage } = useChatMutations();
     const editing = useMessageEditing(stableChannelId);

@@ -1,6 +1,7 @@
 import type { ShareAction } from 'react-native';
 
 import type { CacheDomainVersions } from './cache';
+import type { HandedOverPerfTrace } from './perf';
 
 /**
  * Detailed info for a device media asset (photo, video)
@@ -538,6 +539,13 @@ export type OnNavigatePayload = {
     path: string;
     /** Whether to use replace for the React Router navigation (default: false) */
     replace?: boolean;
+    /**
+     * A performance trace the native shell started for this navigation — set on a notification
+     * tap, so the room-open trace covers cold start and routing too. The web stops it when the
+     * room shows its messages. Absent from older app builds, which the web treats as "start my
+     * own".
+     */
+    perfTrace?: HandedOverPerfTrace;
 };
 
 /** [Request] Payload to dismiss the overlay after the webview returns from background */

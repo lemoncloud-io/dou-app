@@ -116,3 +116,61 @@ export type ClearBootRecordsPayload = {
 export type OnClearBootRecordsPayload = {
     success: boolean;
 };
+
+/**
+ * [Request] Start a Firebase Performance trace in the native shell.
+ *
+ * Firebase times a trace itself, from its start call to its stop call, and only the native SDK
+ * can record one — so the WebView sends the start the moment its measurement begins rather than a
+ * finished duration afterwards. `name` is one of `@chatic/perf`'s `PerfTraceName`s, typed as a
+ * string here so this contracts package does not depend on the one that produces it.
+ */
+export type StartPerfTracePayload = {
+    /** Pairs this start with its `StopPerfTrace`. */
+    id: string;
+    name: string;
+};
+
+/** [Response] StartPerfTrace ack. */
+export type OnStartPerfTracePayload = {
+    // Empty object type, reserved for future extension.
+};
+
+/**
+ * [Request] Stop a trace started by `StartPerfTrace`, or one the native shell started itself and
+ * handed over through `OnNavigate.perfTrace`. An id the native side does not hold is ignored.
+ */
+export type StopPerfTracePayload = {
+    id: string;
+    name: string;
+    /** Already within Firebase's attribute limits — `@chatic/perf` enforces them at the source. */
+    attributes: Record<string, string>;
+    /** Integer values, already within Firebase's metric limits. */
+    metrics: Record<string, number>;
+};
+
+/** [Response] StopPerfTrace ack. */
+export type OnStopPerfTracePayload = {
+    // Empty object type, reserved for future extension.
+};
+
+/**
+ * A trace the native shell started and the WebView is expected to stop — the room-open trace a
+ * notification tap begins. Rides on the navigation it caused.
+ */
+export type HandedOverPerfTrace = {
+    id: string;
+    /** Epoch ms of the native start. Wall clock, because the two runtimes share no other clock. */
+    startedAt: number;
+    /**
+     * What opened it. `push_tap` is a tap the notification library reported as one; `deeplink` is
+     * an OS link, which on Android includes a tap on a notification the app drew itself — that
+     * tap reaches JS as a plain URL and cannot be told apart here.
+     */
+    entry: 'push_tap' | 'deeplink';
+    /**
+     * Whether the tap launched the app. The trace starts once the tap reaches JS, after the launch,
+     * so this separates opens that followed a cold boot rather than including the boot itself.
+     */
+    coldStart: boolean;
+};

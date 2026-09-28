@@ -8,6 +8,7 @@ import type { AppMessageData } from '@chatic/app-messages';
 
 import { useOnReceiveNotification, usePushNavigate } from '../bridge';
 import { pushEntryRegistry } from '../runtime/logging/pushEntryRegistry';
+import { roomOpenTrace } from '../runtime/perf';
 import { ROUTES } from '../routes/paths';
 import { InAppNotificationCard } from '../ui/components/InAppNotificationCard';
 import { IN_APP_PUSH_TOAST_ID, installTransientUiDismissal } from '../ui/transientUi';
@@ -122,7 +123,10 @@ export const useInAppPushMessage = (): void => {
                                       // Hand the push's id to the room this opens, so its entry is
                                       // logged under the same correlation key as the receipt above
                                       // (ADR-0099). Bounded and self-clearing — see the registry.
-                                      if (channelId) pushEntryRegistry.begin(channelId, messageId);
+                                      if (channelId) {
+                                          pushEntryRegistry.begin(channelId, messageId);
+                                          roomOpenTrace.begin(channelId, 'push_banner');
+                                      }
                                       logger.info('PUSH_EVENT', 'in-app banner tapped', {
                                           messageId,
                                           channelId,

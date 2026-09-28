@@ -87,6 +87,8 @@ import type {
     RestartToUpdatePayload,
     SendBootMetricsPayload,
     SetDebugModePayload,
+    StartPerfTracePayload,
+    StopPerfTracePayload,
 } from './model';
 import type { BaseMessage } from './types';
 
@@ -189,6 +191,8 @@ export type WebMessagePayloadMap = {
     DismissResumeOverlay: DismissResumeOverlayPayload;
     SendBootMetrics: SendBootMetricsPayload;
     SetDebugMode: SetDebugModePayload;
+    StartPerfTrace: StartPerfTracePayload;
+    StopPerfTrace: StopPerfTracePayload;
 
     // 8. Test DB Scenario Validation
     FetchTestRecord: FetchTestRecordPayload;

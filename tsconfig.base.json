@@ -37,6 +37,7 @@
             "@chatic/http": ["libs/http/src/index.ts"],
             "@chatic/lib/utils": ["libs/ui-kit/src/utils/index.ts"],
             "@chatic/logger": ["libs/logger/src/index.ts"],
+            "@chatic/perf": ["libs/perf/src/index.ts"],
             "@chatic/policy-content": ["libs/policy-content/src/index.ts"],
             "@chatic/shared": ["libs/shared/src/index.ts"],
             "@chatic/data": ["libs/data/src/index.ts"],

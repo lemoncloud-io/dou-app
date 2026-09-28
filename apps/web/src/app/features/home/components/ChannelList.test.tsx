@@ -3,6 +3,7 @@ import '@testing-library/jest-dom';
 import { fireEvent, render, screen } from '@testing-library/react';
 
 import { ChannelList } from './ChannelList';
+import { roomOpenTrace } from '../../../runtime/perf';
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k, i18n: { language: 'ko' } }) }));
 // Partial mock: the rest is left real. The `@chatic/app-runtime` barrel reaches all the way to
@@ -762,5 +763,18 @@ describe('ChannelList expanded state', () => {
         const { container } = render(<ChannelList channels={[makeChannel({ id: 'c1' })]} isLoading={false} />);
 
         expect(container.querySelector('section')).toHaveAttribute('data-open', '');
+    });
+});
+
+describe('ChannelList — room-open trace', () => {
+    it('begins a list room-open trace for the tapped row, before navigating', () => {
+        roomOpenTrace.reset();
+        render(
+            <ChannelList channels={[makeChannel({ id: 'g1', name: 'general', ownerId: 'other' })]} isLoading={false} />
+        );
+
+        fireEvent.click(screen.getByText('general'));
+
+        expect(roomOpenTrace.claim('g1')?.name).toBe('chat_room_open');
     });
 });

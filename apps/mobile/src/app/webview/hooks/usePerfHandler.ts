@@ -1,8 +1,9 @@
 import { useCallback } from 'react';
 
 import type { WebMessageData } from '@chatic/app-messages';
+import { isPerfTraceName } from '@chatic/perf';
 
-import { bootMetricsService, logger } from '../../services';
+import { bootMetricsService, logger, perfTraceBackend } from '../../services';
 import { useDebugSettingsStore } from '../../stores';
 
 /**
@@ -13,6 +14,9 @@ import { useDebugSettingsStore } from '../../stores';
  * - FetchBootRecords / ClearBootRecords: read back and drop what the native side recorded. Added
  *   for ADR-0080 Decision 11 — the Boot Performance screen moves to the web, and `SendBootMetrics`
  *   only goes web → app, so there was no way to read the merged records.
+ * - StartPerfTrace / StopPerfTrace: open and close a Firebase Performance trace for the web. The
+ *   SDK exists only on this side, and it times a trace itself, so the web forwards the two ends of
+ *   a measurement as they happen instead of a finished number.
  */
 export const usePerfHandler = () => {
     const setDebugModeEnabled = useDebugSettingsStore(state => state.setDebugModeEnabled);
@@ -80,5 +84,27 @@ export const usePerfHandler = () => {
         }
     }, []);
 
-    return { handleSendBootMetrics, handleSetDebugMode, handleFetchBootRecords, handleClearBootRecords };
+    const handleStartPerfTrace = useCallback(async (message: WebMessageData<'StartPerfTrace'>) => {
+        const { id, name } = message.data;
+        // The name is a plain string on the wire so the contracts package does not depend on
+        // `@chatic/perf`. Checked here, so no sender can open a trace row nobody configured.
+        if (isPerfTraceName(name)) perfTraceBackend.start({ id, name });
+        return { type: 'OnStartPerfTrace' as const, success: true, data: {} };
+    }, []);
+
+    const handleStopPerfTrace = useCallback(async (message: WebMessageData<'StopPerfTrace'>) => {
+        const { id, name, attributes, metrics } = message.data;
+        // `durationMs` is the web's own measurement; Firebase timed this trace itself.
+        if (isPerfTraceName(name)) perfTraceBackend.stop({ id, name, durationMs: 0, attributes, metrics });
+        return { type: 'OnStopPerfTrace' as const, success: true, data: {} };
+    }, []);
+
+    return {
+        handleSendBootMetrics,
+        handleSetDebugMode,
+        handleFetchBootRecords,
+        handleClearBootRecords,
+        handleStartPerfTrace,
+        handleStopPerfTrace,
+    };
 };

@@ -181,7 +181,7 @@ apps/web/src/
 └── app/
     ├── app.tsx         provider assembly only — no session logic
     ├── routes/         12 files: three route tables, the ROUTES builder, entry gates
-    ├── runtime/        53 files: RuntimeConnectionHost wiring, background runners, log wiring
+    ├── runtime/        58 files: RuntimeConnectionHost wiring, background runners, log and perf-trace wiring
     ├── features/       589 files across 13 feature groups
     ├── hooks/          71 files: hooks shared by more than one feature
     ├── ui/             39 files: components/, layouts/, hooks/

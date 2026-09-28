@@ -95,6 +95,8 @@ import type {
     OnRestartToUpdatePayload,
     OnSendBootMetricsPayload,
     OnSetDebugModePayload,
+    OnStartPerfTracePayload,
+    OnStopPerfTracePayload,
 } from './model';
 import type { BaseMessage } from './types';
 
@@ -206,6 +208,8 @@ export type AppMessageDataMap = {
     OnCopyToClipboard: OnCopyToClipboardPayload;
     OnSendBootMetrics: OnSendBootMetricsPayload;
     OnSetDebugMode: OnSetDebugModePayload;
+    OnStartPerfTrace: OnStartPerfTracePayload;
+    OnStopPerfTrace: OnStopPerfTracePayload;
 
     // 8. Test DB Scenario Validation
     OnFetchTestRecord: OnFetchTestRecordPayload;

@@ -35,6 +35,7 @@ import { useLastChats } from '../../../hooks/useLastChats';
 import { useBlurLastMessage, useChannelUnreads, useMyProfile } from '../../../hooks';
 import { divergenceReporter } from '../../../runtime/logging/divergenceReporter';
 import { readMarkRegistry } from '../../../runtime/logging/readMarkRegistry';
+import { roomOpenTrace } from '../../../runtime/perf';
 import { readCursorOf } from '../../../utils/countUnread';
 import { channelKindOf, resolveChannelAvatar, resolveChannelTitle, showsMemberCount } from '../../channels/lib';
 import { messagePlainText } from '../../channels/utils/messagePlainText';
@@ -211,7 +212,11 @@ const ChannelItem = ({
             }
             // Hand the row's channel across so the room renders its header instantly instead of
             // re-resolving a row that was just on screen (ADR-0058; same pattern as openThread).
-            onClick={() => navigate(ROUTES.channels.room(channel.id), { state: { channel } })}
+            // The room-open trace starts before the page transition, which is part of the wait.
+            onClick={() => {
+                roomOpenTrace.begin(channel.id, 'list');
+                navigate(ROUTES.channels.room(channel.id), { state: { channel } });
+            }}
         />
     );
 };

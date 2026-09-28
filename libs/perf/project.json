@@ -1,0 +1,9 @@
+{
+    "name": "@chatic/perf",
+    "$schema": "../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "libs/perf/src",
+    "projectType": "library",
+    "tags": [],
+    "// targets": "to see all targets run: nx show project perf --web",
+    "targets": {}
+}

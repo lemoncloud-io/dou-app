@@ -47,6 +47,9 @@
         },
         {
             "path": "../bridges/tsconfig.lib.json"
+        },
+        {
+            "path": "../perf/tsconfig.lib.json"
         }
     ]
 }

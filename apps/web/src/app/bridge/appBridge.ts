@@ -77,6 +77,20 @@ export const appBridge = {
         webClient.post({ type: 'SendBootMetrics', data });
     },
 
+    /**
+     * Open a Firebase Performance trace in the native shell. Fire-and-forget: the SDK times the
+     * trace from this call to `stopPerfTrace`, and nothing the caller does may wait on it. Only sent
+     * once the WebAppReady report says the installed app handles it (see `runtime/perf`).
+     */
+    startPerfTrace(data: Payload<'StartPerfTrace'>): void {
+        webClient.post({ type: 'StartPerfTrace', data });
+    },
+
+    /** Close a trace opened by `startPerfTrace`, or one the native shell handed over. */
+    stopPerfTrace(data: Payload<'StopPerfTrace'>): void {
+        webClient.post({ type: 'StopPerfTrace', data });
+    },
+
     /** Propagate the debug-mode unlock/lock to the native shell. */
     setDebugMode(enabled: boolean): void {
         webClient.post({ type: 'SetDebugMode', data: { enabled } });

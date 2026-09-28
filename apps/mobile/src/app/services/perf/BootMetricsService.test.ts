@@ -1,6 +1,6 @@
-import { configurePerfMetrics, resetPerfMetrics } from '@chatic/logger';
+import { configurePerfTraces, resetPerfTraces } from '@chatic/perf';
 
-import type { Logger } from '@chatic/logger';
+import type { PerfTraceBackend } from '@chatic/perf';
 import type { IKeyValueStorage } from '../../database';
 import type { ILogService } from '../log';
 import { BootMetricsService, type BootRecord } from './BootMetricsService';
@@ -143,15 +143,10 @@ describe('BootMetricsService — 부팅 기록', () => {
     });
 });
 
-describe('BootMetricsService — 성능 지표 이벤트 (ADR-0071)', () => {
-    const perfLogger = { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() };
+describe('BootMetricsService — Firebase boot trace', () => {
+    const createBackend = () => ({ start: jest.fn(), stop: jest.fn() }) satisfies PerfTraceBackend;
 
-    beforeEach(() => {
-        jest.clearAllMocks();
-        resetPerfMetrics();
-    });
-
-    afterEach(() => resetPerfMetrics());
+    afterEach(() => resetPerfTraces());
 
     const createService = () => {
         const storage = createStorage();
@@ -160,69 +155,50 @@ describe('BootMetricsService — 성능 지표 이벤트 (ADR-0071)', () => {
         return { service, storage, advance: (ms: number) => (currentMs += ms) };
     };
 
-    /** Drives a session to a finalized record with `totalMs` set. */
-    const bootTo = async (service: BootMetricsService, advance: (ms: number) => void) => {
+    it('opens the boot trace with the baseline and stops it at WebAppReady with the reached marks', () => {
+        const backend = createBackend();
+        configurePerfTraces(backend);
+        const { service, advance } = createService();
+        expect(backend.start).toHaveBeenCalledWith(expect.objectContaining({ name: 'boot' }));
+
         advance(100);
         service.mark('provider-ready');
         advance(999);
-        service.attachWebMetrics({ marks: {} });
         service.mark('web-app-ready');
-        await flush();
-    };
 
-    const metricCalls = () =>
-        perfLogger.info.mock.calls.filter(([, message]) => !String(message).startsWith('Boot record'));
-
-    it('샘플에 뽑힌 런은 진단 라인은 그대로 두고 구조화 지표를 한 건 더 낸다', async () => {
-        configurePerfMetrics({ logger: perfLogger as Logger, runId: 'run-1', samplePercent: 100 });
-        const { service, advance } = createService();
-
-        await bootTo(service, advance);
-
-        // The human line is untouched — it goes through the injected logService.
-        expect(logService.info).toHaveBeenCalledWith('PERF', 'Boot record persisted (cold, total 1099ms)');
-        expect(metricCalls()).toHaveLength(1);
-        expect(metricCalls()[0]).toEqual([
-            'PERF',
-            'boot 1099ms',
-            expect.objectContaining({
-                metric: 'boot',
-                ms: 1099,
-                budgetMs: 1500,
-                overBudget: false,
-                marks: { 'provider-ready': 100, 'web-app-ready': 1099 },
-                bootType: 'cold',
-            }),
-        ]);
+        // Stopped at the mark, not after the web snapshot's grace window — that wait is not boot.
+        expect(backend.stop).toHaveBeenCalledTimes(1);
+        expect(backend.stop.mock.calls[0][0]).toMatchObject({
+            name: 'boot',
+            attributes: { boot_type: 'cold' },
+            metrics: { provider_ready: 100, web_app_ready: 1099 },
+        });
     });
 
-    it('리로드 세션은 bootType으로 구분된다 — 콜드 부팅과 다른 베이스라인이라 섞이면 안 된다', async () => {
-        configurePerfMetrics({ logger: perfLogger as Logger, runId: 'run-1', samplePercent: 100 });
+    it('opens a fresh trace for a reload session and tells the two apart by boot_type', () => {
+        const backend = createBackend();
+        configurePerfTraces(backend);
         const { service, advance } = createService();
 
-        // A WebView content-process crash re-baselines the session as a reload.
         service.startReloadSession();
         advance(700);
-        service.attachWebMetrics({ marks: {} });
         service.mark('web-app-ready');
-        await flush();
 
-        expect(metricCalls()).toHaveLength(1);
-        expect(metricCalls()[0][2]).toEqual(expect.objectContaining({ ms: 700, bootType: 'reload' }));
+        expect(backend.start).toHaveBeenCalledTimes(2);
+        const [{ id: coldId }] = backend.start.mock.calls[0];
+        const [{ id: reloadId }] = backend.start.mock.calls[1];
+        expect(backend.stop).toHaveBeenCalledTimes(1);
+        expect(backend.stop.mock.calls[0][0]).toMatchObject({
+            id: reloadId,
+            attributes: { boot_type: 'reload' },
+            metrics: { web_app_ready: 700 },
+        });
+        expect(reloadId).not.toBe(coldId);
     });
 
-    it('샘플에서 빠진 런은 진단 라인만 남고 지표는 0건이다', async () => {
-        configurePerfMetrics({ logger: perfLogger as Logger, runId: 'run-1', samplePercent: 0 });
-        const { service, advance } = createService();
-
-        await bootTo(service, advance);
-
-        expect(logService.info).toHaveBeenCalledWith('PERF', 'Boot record persisted (cold, total 1099ms)');
-        expect(metricCalls()).toHaveLength(0);
-    });
-
-    it('WebAppReady에 닿지 못한 세션은 저장은 되지만 표본이 되지 않는다', async () => {
-        configurePerfMetrics({ logger: perfLogger as Logger, runId: 'run-1', samplePercent: 100 });
+    it('leaves the trace of a session that never reached WebAppReady unstopped', async () => {
+        const backend = createBackend();
+        configurePerfTraces(backend);
         const { service, storage, advance } = createService();
 
         advance(100);
@@ -234,18 +210,6 @@ describe('BootMetricsService — 성능 지표 이벤트 (ADR-0071)', () => {
         const records = (await storage.get('bootMetrics.records')) as BootRecord[];
         expect(records).toHaveLength(1);
         expect(records[0].totalMs).toBeNull();
-        expect(metricCalls()).toHaveLength(0);
-    });
-
-    it('예산을 넘긴 부팅은 overBudget으로 표시된다', async () => {
-        configurePerfMetrics({ logger: perfLogger as Logger, runId: 'run-1', samplePercent: 100 });
-        const { service, advance } = createService();
-
-        advance(2_400);
-        service.attachWebMetrics({ marks: {} });
-        service.mark('web-app-ready');
-        await flush();
-
-        expect(metricCalls()[0][2]).toEqual(expect.objectContaining({ ms: 2400, overBudget: true }));
+        expect(backend.stop).not.toHaveBeenCalled();
     });
 });

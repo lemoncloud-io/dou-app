@@ -1,10 +1,11 @@
 import type { ILogService } from './log';
 import { LogService, LogUploadQueueService } from './log';
-import { configurePerfMetrics, createConsoleListener, logHub, logger as coreLogger } from '@chatic/logger';
+import { createConsoleListener, logHub } from '@chatic/logger';
+import { configurePerfTraces } from '@chatic/perf';
 // Deep path, per the barrel policy: this module imports react-native-mmkv.
 import { MmkvLogUploadQueuePersistence } from './log/uploadQueue/persistence';
 import { attachNativeLoggerBridge } from './log/native/nativeLoggerBridge';
-import { NATIVE_RUN_ID, attachNativeLogContext } from './log/native/nativeLogContext';
+import { attachNativeLogContext } from './log/native/nativeLogContext';
 import type { IPendingReportQueueService } from './report';
 import { PendingReportQueueService } from './report/PendingReportQueueService';
 import { checkCrashOnPreviousExecution, installNativeErrorDetection } from './report/nativeErrorDetection';
@@ -25,7 +26,7 @@ import { OAuthService } from './oauth';
 import type { IDynamicAppIconService } from './dynamicAppIcon';
 import { DynamicAppIconService } from './dynamicAppIcon';
 import type { IFirebaseCrashlyticsService, IFirebaseInstallationService } from './firebase';
-import { FirebaseCrashlyticsService, FirebaseInstallationService } from './firebase';
+import { FirebaseCrashlyticsService, FirebaseInstallationService, FirebasePerfTraceBackend } from './firebase';
 import type { ISubscriptionIapService } from './subscriptionIap';
 import { SubscriptionIapService } from './subscriptionIap';
 import type { IConfigKvService } from './config';
@@ -70,6 +71,8 @@ class DependencyProvider {
     public readonly logUploadQueueService: ILogUploadQueueService;
     public readonly keyValueStorage: IKeyValueStorage;
     public readonly bootMetricsService: IBootMetricsService;
+    /** Records Firebase Performance traces; the WebView reaches it through `StartPerfTrace`/`StopPerfTrace`. */
+    public readonly perfTraceBackend: FirebasePerfTraceBackend;
     public readonly notificationService: INotificationService;
     public readonly pushEventManager: IPushEventManager;
     public readonly deeplinkManager: DeepLinkManager;
@@ -111,7 +114,13 @@ class DependencyProvider {
     private constructor() {
         this.logService = new LogService();
         this.keyValueStorage = new MmkvStorage(this.logService);
-        // Constructed first so its baseline sits as close to JS entry as possible.
+        // Before the boot metrics service, which opens the `boot` trace in its constructor: a trace
+        // is recorded on the backend configured when it starts, and until this line that is none.
+        // No sampling, unlike the log-pipeline metrics this replaces — Firebase traces do not
+        // compete with diagnostic logs for the upload queue, which was the reason to sample.
+        this.perfTraceBackend = new FirebasePerfTraceBackend();
+        configurePerfTraces(this.perfTraceBackend);
+        // Constructed first after that, so its baseline sits as close to JS entry as possible.
         this.bootMetricsService = new BootMetricsService(
             this.logService,
             this.keyValueStorage,
@@ -138,11 +147,6 @@ class DependencyProvider {
         // Context first: it is stamped at dispatch, so anything logged before
         // this would carry no runId and be unattributable to this app run.
         attachNativeLogContext();
-        // Performance metrics ride the same pipe (ADR-0071) and are decided from
-        // the same runId, so they are turned on right here — before anything can
-        // report — and the WebView reaches the identical sample verdict from the
-        // injected copy of this id, with no bridge message in between.
-        configurePerfMetrics({ logger: coreLogger, runId: NATIVE_RUN_ID });
         // The hub's listeners, wired before anything logs (principle 15). The app
         // keeps three: the console, the store, and Crashlytics (below).
         //

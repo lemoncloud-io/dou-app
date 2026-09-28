@@ -4,7 +4,7 @@ import * as ReactDOM from 'react-dom/client';
 
 import '@lemoncloud/page-transition-core/styles.css';
 
-import { configurePerfMetrics, isNative, logger, setupBridgeLogger } from '@chatic/bridges';
+import { isNative, logger, setupBridgeLogger } from '@chatic/bridges';
 import { config } from '@chatic/config';
 import { setStorageAdapter } from '@chatic/shared';
 import { runtime } from '@chatic/app-runtime';
@@ -22,6 +22,7 @@ import { startLogUploader } from './app/runtime/logging/logUploader';
 import { createLogUploadSwitch } from './app/runtime/logging/logUploadSwitch';
 import { schedulePageCrashReport } from './app/runtime/pageCrashReporter';
 import { schedulePendingReportFlush } from './app/runtime/pendingReportFlusher';
+import { configureWebPerfTraces } from './app/runtime/perf';
 import { attachWebCrashSentinel } from './app/runtime/webCrashSentinel';
 // Concrete path, not the `app/utils` barrel: this module reads `import.meta.env`,
 // which the barrel deliberately keeps out (see its comment).
@@ -112,17 +113,16 @@ schedulePendingReportFlush();
 markBoot('main-start');
 initLongTasks();
 
-// Server-bound performance metrics (ADR-0071), on only inside the app WebView:
-// the native shell injects the run id and the sample verdict is a pure function
-// of it, so both runtimes decide alike without a bridge message. No injection —
-// this bundle opened in a plain browser tab — means no run id, which means off.
-// (The other shells never reach here at all: they have their own entry points
-// and none of them calls this.)
+// Performance traces. Where they go is only known once the WebAppReady reply
+// says whether the installed app records Firebase traces, so until then they
+// are held and replayed (see runtime/perf). An app build without the handlers
+// gets the log pipeline instead, sampled by the injected run id; a plain browser
+// tab has no run id and records nothing. (The other shells never reach here:
+// they have their own entry points and none of them calls this.)
 //
 // Only ordering that matters: this precedes `initWebVitals` below, whose
-// FCP/LCP report through it. Where the uploader is wired is irrelevant — perf
-// writes a log entry and stops there.
-configurePerfMetrics({ logger, runId: readInjectedRunId() });
+// FCP/LCP are recorded through it.
+const webPerfTraces = configureWebPerfTraces({ logger, runId: readInjectedRunId() });
 
 // Initialize Web Vitals monitoring
 initWebVitals();
@@ -143,6 +143,8 @@ pendingNavigationStore.start();
 // (an unrecorded answer is treated as a legacy shell, which is the safe reading — see
 // nativeCacheSupport). Never rejects, so this cannot break boot in a plain browser.
 void appBridge.notifyWebAppReady().then(report => {
+    // First, so nothing that follows can leave every trace of this session held unresolved.
+    webPerfTraces.resolveWith(report);
     if (report) runtime.boot.setNativeCacheSupport(report);
 });
 

@@ -1,7 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 import { useCallback } from 'react';
 
-import { perfNow, reportPerfMetric } from '@chatic/bridges';
+import { startPerfTrace } from '@chatic/perf';
 
 import { SDK_REFRESH_CYCLE_MS } from '../../../../socket/constants';
 import { credentialRenewers } from '../../../../socket/auth/renewers';
@@ -25,8 +25,7 @@ const renewIfLapsing = (cloudId: string): void => {
 /**
  * Switches the active cloud session through session services.
  *
- * The `cloud-switch` budget is measured here rather than inside `CloudSession.switchTo`
- * (ADR-0071). The service function has a second caller — cloud-refresh recovery re-exchanges a
+ * The `cloud_switch` trace is taken here rather than inside `CloudSession.switchTo`. The service function has a second caller — cloud-refresh recovery re-exchanges a
  * token through it after re-minting the relay session — and that path is rare and slow, so
  * measuring the service would let recovery masquerade as a user-initiated switch and drag the
  * tail. Every caller of this hook is a real selection: the cloud sheet, search navigation, an
@@ -55,15 +54,17 @@ export const useSwitchCloudSession = () => {
     return {
         switchCloud: useCallback(
             async (cloudId: string) => {
-                const startedAt = perfNow();
+                const trace = startPerfTrace('cloud_switch');
                 try {
                     const snapshot = await mutateAsync(cloudId);
-                    reportPerfMetric('cloud-switch', perfNow() - startedAt, { ok: true });
+                    trace.putAttribute('outcome', 'ok');
+                    trace.stop();
                     return snapshot;
                 } catch (error) {
-                    // Reported rather than skipped: a switch slow enough to fail belongs in the
+                    // Recorded rather than skipped: a switch slow enough to fail belongs in the
                     // distribution, and dropping failures biases it optimistic.
-                    reportPerfMetric('cloud-switch', perfNow() - startedAt, { ok: false });
+                    trace.putAttribute('outcome', 'error');
+                    trace.stop();
                     throw error;
                 }
             },

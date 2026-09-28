@@ -59,6 +59,13 @@ make two taps on the same room look like two different destinations.
 
 `replace` is logged and then ignored. History normalization supersedes it either way.
 
+A newer shell also sends `perfTrace { id, startedAt, entry, coldStart }` when the navigation came
+from a notification tap or an OS link. It is the `chat_room_open` trace the native side started at
+the tap (only for a room target), and the handler adopts it, so the trace covers the handshake and
+router gate the web waited behind — not the launch itself, which is the `boot` trace's. It has no
+effect on routing. See
+[observability/performance.md](../observability/performance.md#chat_room_open).
+
 Two shapes are accepted beyond the canonical one. `channel?channelId={id}` is normalized to
 `/channels/{id}/room` — the context params are read _before_ that branch, because it rebuilds the
 target from `channelId` alone and would otherwise drop them. Anything unparseable passes through
