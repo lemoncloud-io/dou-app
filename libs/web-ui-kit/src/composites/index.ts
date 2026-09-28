@@ -7,3 +7,4 @@ export * from './list';
 export * from './chat';
 export * from './feedback';
 export * from './subscription';
+export * from './media';
