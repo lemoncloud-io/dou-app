@@ -3,6 +3,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { runtime } from '@chatic/app-runtime';
 import type { DomainChannel, DomainJoin } from '@chatic/data';
 
+import { useSelectedCloudId } from './useCloudScope';
+
 interface UseMyJoinsOptions {
     /**
      * Register a per-channel join (read-state) sync while mounted (default true). Set false for
@@ -18,6 +20,14 @@ interface UseMyJoinsOptions {
  * the calling surface is mounted. `registerJoin` refcounts by `${channelId}@${uid}`, so overlapping
  * registrations (the room registering every member, home registering me) dedup into one poll.
  *
+ * The targets are the selected cloud's, named explicitly, and `uid` is the one this account has in
+ * THAT cloud. Every cloud gives the account a different uid, and the session's uid is only the
+ * committed cloud's — during a switch the selection has already moved and the session has not, so a
+ * join id built from it would name somebody else's row in the new cloud. The effect re-runs on that
+ * per-cloud uid for the same reason `useSyncTarget` does: a target only runs while the uid it was
+ * tagged with is still the account's uid there, so an account change retires it. It waits for that
+ * cloud's own slot rather than the active one, because that is where the target runs.
+ *
  * Split out of {@link useMyJoins} because the two halves have different owners: the join MAP is
  * observed once for the whole app (`ActiveCloudDataProvider`), while REGISTRATION must stay scoped
  * to the screen that wants it so it tears down on navigation. A surface that needs both now takes
@@ -28,19 +38,20 @@ export const useJoinSyncRegistration = (
     channels: DomainChannel[],
     { enabled = true }: { enabled?: boolean } = {}
 ): void => {
-    const { isVerified } = runtime.connection.useRuntimeSocketState();
-    const uid = runtime.session.useGlobalSession().identity.userId ?? undefined;
+    const cid = useSelectedCloudId();
+    const uid = runtime.session.useUidInCloud(cid);
+    const verified = runtime.connection.useCloudVerified(cid);
 
     const channelIds = channels.map(ch => ch.id);
     const channelKey = channelIds.join(',');
 
     useEffect(() => {
-        if (!enabled || !uid || !isVerified) return;
+        if (!enabled || !uid || !verified) return;
         const sync = runtime.sync.getSyncManager();
-        const disposers = channelIds.map(id => sync.registerJoin(`${id}@${uid}`));
+        const disposers = channelIds.map(id => sync.registerJoin(`${id}@${uid}`, undefined, { cid }));
         return () => disposers.forEach(dispose => dispose());
         // channelKey captures the set; channelIds is read once per key.
-    }, [channelKey, uid, isVerified, enabled]);
+    }, [channelKey, cid, uid, verified, enabled]);
 };
 
 /**
@@ -61,8 +72,10 @@ export const useJoinSyncRegistration = (
 export const useMyJoins = (channels: DomainChannel[], options: UseMyJoinsOptions = {}): Map<string, DomainJoin> => {
     const { sync: shouldSync = true } = options;
     const { join: joinRepository } = runtime.data.useRuntimeRepositories();
-    const uid = runtime.session.useGlobalSession().identity.userId ?? undefined;
-    const { selectedCloudId } = runtime.session.useSessionSelection();
+    // The observation is scoped to the selected cloud, so "my row" is the row with my uid IN that
+    // cloud — see useJoinSyncRegistration for why the session uid is the wrong one mid-switch.
+    const cid = useSelectedCloudId();
+    const uid = runtime.session.useUidInCloud(cid) ?? undefined;
 
     const [joinByChannel, setJoinByChannel] = useState<Map<string, DomainJoin>>(new Map());
 
@@ -98,11 +111,11 @@ export const useMyJoins = (channels: DomainChannel[], options: UseMyJoinsOptions
                     else current.delete(id);
                     setJoinByChannel(new Map(current));
                 },
-                { cid: selectedCloudId ?? 'default', sid: channelById.get(id)?.sid, uid }
+                { cid, sid: channelById.get(id)?.sid, uid }
             )
         );
         return () => disposers.forEach(dispose => dispose());
-    }, [joinRepository, channelKey, uid, selectedCloudId, channelById]);
+    }, [joinRepository, channelKey, uid, cid, channelById]);
 
     return joinByChannel;
 };

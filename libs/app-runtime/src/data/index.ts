@@ -6,6 +6,10 @@
 // that mismatch explicit: the hooks now sit in the module whose group publishes them.
 
 export { useRuntimeRepositories } from './hooks/useRuntimeRepositories';
+// Writes addressed to a named cloud rather than the selected one: the chat send and any longer write
+// (both keep that cloud's socket for as long as they are in flight), and the graph a resend queue
+// reads its cloud through.
+export { getCloudRepositories, runInCloud, sendChatInCloud } from './cloudChat';
 export { useGlobalCacheSearch, globalCacheRefKey } from './hooks/useGlobalCacheSearch';
 
 // Native cache instrumentation read/reset — the debug overlay's only view into `@chatic/db`'s

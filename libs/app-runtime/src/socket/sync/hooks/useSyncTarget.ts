@@ -1,4 +1,4 @@
-import { useEffect, useSyncExternalStore } from 'react';
+import { useEffect } from 'react';
 
 import type { SyncTargetDescriptor } from '@lemoncloud/chatic-sockets-lib';
 
@@ -8,7 +8,7 @@ import { logger } from '@chatic/bridges';
 import { getSyncManager } from '../runtime';
 import { useSlotVerified } from '../../../connection/hooks/useSlotVerified';
 import { useSessionSelection } from '../../../session/hooks/session/readers/useSessionSelection';
-import { getUidInCloud, subscribeSessionSignal } from '../../../session/store';
+import { useUidInCloud } from '../../../session/hooks/session/readers/useUidInCloud';
 import { getDataManager } from '../../../data/runtime';
 import { slotKeyOf } from '../../utils/slotKey';
 
@@ -20,10 +20,6 @@ const buildKey = (target: SyncTargetDescriptor | null): string | null =>
  * selection is the relay — the same normalisation `deriveSelectedContext` applies.
  */
 const useSelectedCid = (): string => useSessionSelection().selectedCloudId || RELAY_CLOUD_ID;
-
-/** The uid this account has in `cid`, re-read on every session change. */
-const useUidInCloud = (cid: string): string | null =>
-    useSyncExternalStore(subscribeSessionSignal, () => getUidInCloud(cid));
 
 /**
  * Registers a sync target for the component lifetime and unregisters on cleanup.

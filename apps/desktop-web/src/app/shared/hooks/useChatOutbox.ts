@@ -2,12 +2,25 @@ import { useEffect, useRef } from 'react';
 
 import type { ChatSendInput } from '@lemoncloud/chatic-sockets-api';
 
-import type { DomainChat } from '@chatic/data';
+import { RELAY_CLOUD_ID } from '@chatic/data';
+import type { DataRepositories, DomainChat } from '@chatic/data';
 import { runtime } from '@chatic/app-runtime';
 
 /**
  * Desktop opt-in for the engine outbox: messages that failed to send go out on their own once
- * the socket is verified again. `apps/web` never calls this, so it keeps its manual-only UX.
+ * the socket of the cloud they were written in is verified again. `apps/web` never calls this, so
+ * it keeps its manual-only UX.
+ *
+ * **Every joined cloud, not the selected one.** A failed message belongs to the cloud it was
+ * written in — its row sits in that cloud's partition and its channel id means nothing anywhere
+ * else — so each entry carries its cloud, and its probe, delete and resend all go through that
+ * cloud's own repository graph and socket slot. A message that failed in cloud A is resent to A
+ * while the user is looking at B, and one instance lives for the whole relay account, so a cloud
+ * switch neither drops the queue nor points it at another partition.
+ *
+ * **The outbox never opens a socket.** It sends only to a cloud whose slot is bound and verified
+ * right now (`useVerifiedClouds`). A cloud without one keeps its failed rows — with their manual
+ * retry button — until something else gives it a slot, and its sweep runs the moment it does.
  *
  * **Entries come from a cache SWEEP, not from the send path.** `ChatRepository.sendChat`
  * rejects with the raw error and never exposes the optimistic row's id, so a rejection hook
@@ -33,7 +46,7 @@ const LANDING_PAGE_LIMIT = 50;
  */
 const LANDING_SKEW_MS = 5 * 60_000;
 
-// One machine per app instance. It must outlive any single component because useChatMutations
+// One machine per relay account. It must outlive any single component because useChatMutations
 // reaches it to drop a queued entry when the user hits manual retry.
 let outboxSingleton: runtime.data.ChatOutbox | null = null;
 
@@ -103,9 +116,11 @@ export const matchLandedRow = (rows: DomainChat[], query: LandingQuery, consumed
 };
 
 /**
- * Bookkeeping for the landing probe, scoped to the OUTBOX INSTANCE — i.e. rebuilt only when the
- * cloud/identity changes, never per sweep. A claim has to outlive its sweep: a drain after the
- * ~100-minute connection rotation must not re-match a row an earlier drain already consumed.
+ * Bookkeeping for the landing probe of ONE cloud partition, owned by the outbox instance — i.e.
+ * dropped only when the account changes, never per sweep. A claim has to outlive its sweep: a drain
+ * after the ~100-minute connection rotation must not re-match a row an earlier drain already consumed.
+ * One per partition because a row id is only unique inside one: two clouds can both hold `ch-1:7`,
+ * and a claim on one cloud's row must not make the other cloud's twin unmatchable.
  *
  * A row is claimed at **commit**, not at match — only once the stale local row is really gone. Two
  * consequences, both load-bearing:
@@ -167,105 +182,170 @@ export const createLandingBatch = (): LandingBatch => {
     };
 };
 
-export const useChatOutbox = (): void => {
-    const { chat: chatRepository, channel: channelRepository } = runtime.data.useRuntimeRepositories();
-    const { userId: myUid } = runtime.session.useSessionIdentity();
-    const { isConnected, isVerified } = runtime.connection.useRuntimeSocketState();
+/**
+ * What the outbox reaches in the runtime, per cloud. Injected so the machine can be exercised
+ * against fake clouds; the hook hands it the runtime's own entry points.
+ */
+export interface CloudOutboxDeps {
+    /** The repository graph bound to `cid` — its partition, whichever cloud is selected. */
+    repositoriesOf(cid: string): Pick<DataRepositories, 'chat' | 'channel'>;
+    /** Sends to `cid` over that cloud's socket slot. */
+    sendInCloud(cid: string, payload: ChatSendInput): Promise<unknown>;
+    /** The uid this account has in `cid` — every cloud gives it a different one. */
+    uidOf(cid: string): string | null;
+}
 
-    const batchRef = useRef<LandingBatch | null>(null);
+export interface CloudOutbox {
+    outbox: runtime.data.ChatOutbox;
+    /** Reads `cid`'s failed rows back into the queue. Call when that cloud's socket became verified. */
+    sweep(cid: string): Promise<void>;
+}
+
+export const createCloudOutbox = ({ repositoriesOf, sendInCloud, uidOf }: CloudOutboxDeps): CloudOutbox => {
+    // Keyed by partition (cloud + the uid in it), not by cloud alone: an account change inside one
+    // cloud is a different partition, whose row ids the old claims say nothing about.
+    const batches = new Map<string, LandingBatch>();
+    const batchOf = (cid: string): LandingBatch => {
+        const key = `${cid}|${uidOf(cid) ?? ''}`;
+        let batch = batches.get(key);
+        if (!batch) {
+            batch = createLandingBatch();
+            batches.set(key, batch);
+        }
+        return batch;
+    };
+
+    const readNewestPage = async (cid: string, channelId: string): Promise<DomainChat[]> => {
+        const page = await repositoriesOf(cid).chat.cacheReadList({ channelId, limit: LANDING_PAGE_LIMIT });
+        return page?.list ?? [];
+    };
+
+    const outbox = runtime.data.createChatOutbox({
+        hasLanded: async entry =>
+            !!batchOf(entry.cid).match(await readNewestPage(entry.cid, entry.channelId), entry, uidOf(entry.cid) ?? ''),
+        // The message is already in the timeline; drop the stale "Not delivered" row, and only
+        // then claim the row it matched (see LandingBatch — a failed delete must stay retryable).
+        discard: async entry => {
+            await repositoriesOf(entry.cid).chat.cacheDelete(entry.id);
+            batchOf(entry.cid).commit(entry.id);
+        },
+        // Delete before sending, exactly as the manual retry button does, so the retry
+        // replaces the failed bubble instead of sitting next to it. Both halves are the entry's
+        // cloud: the row is in its partition and the message has to reach its server.
+        send: async entry => {
+            await repositoriesOf(entry.cid).chat.cacheDelete(entry.id);
+            await sendInCloud(entry.cid, entry.payload);
+        },
+    });
+
+    const sweep = async (cid: string): Promise<void> => {
+        // A batch still draining already represents the work; re-sweeping mid-drain would
+        // queue a second entry for a message that is being sent right now. Per cloud: another
+        // cloud's drain says nothing about this one's rows.
+        if (outbox.pending(cid).length) return;
+        // No uid in this cloud means no row there can be mine.
+        const myUid = uidOf(cid);
+        if (!myUid) return;
+        const { chat: chatRepository, channel: channelRepository } = repositoriesOf(cid);
+        const batch = batchOf(cid);
+
+        // An empty sid deliberately means "every place in this cloud" — the channel cache is
+        // partitioned by (cid, uid) and ChannelLocalDataSource skips the place filter when
+        // no sid resolves. A failed message in a place the user has since left must still go.
+        const channels = await channelRepository.cacheReadList({ sid: '' });
+        const channelIds = (channels?.list ?? []).map(channel => channel.id).filter((id): id is string => !!id);
+
+        // Concurrent, following useMessageSearch: the reads are independent, and per-channel
+        // send order is preserved by the outbox's per-channel queue, not by read order. Issued
+        // sequentially these N round trips each queue behind the reconnect catch-up's writes on
+        // the same store — N stalls instead of one.
+        // cursorNo:1 bounds each read to chat_no 0 — exactly the unsent rows. A plain limited
+        // page is chat_no-DESCENDING and would miss them in any channel holding 50+ server rows.
+        const perChannel = await Promise.all(
+            channelIds.map(channelId =>
+                chatRepository
+                    .cacheReadList({ channelId, cursorNo: 1, limit: SWEEP_LIMIT })
+                    .then(result => ({ channelId, rows: result?.list ?? [] }))
+                    .catch(() => ({ channelId, rows: [] as DomainChat[] }))
+            )
+        );
+
+        const swept = new Set<string>();
+        for (const { channelId, rows } of perChannel) {
+            for (const row of selectResendableRows(rows, myUid)) {
+                // The row's own createdAt is what the landing probe compares against — the
+                // enqueue time is a reconnect, potentially hours after the user pressed send.
+                batch.record(row.id, rowTime(row));
+                swept.add(row.id);
+                // The cloud is the partition the row was read from, which is also the row's own
+                // `cid`: its delete and its resend both have to land there.
+                outbox.enqueue({ id: row.id, cid, channelId, payload: toSendPayload(row) });
+            }
+        }
+        // Every send mints a NEW optimistic row id, so a message that keeps failing leaves a
+        // dead key behind on every sweep — unbounded in a desktop app that runs for days.
+        // Safe here: the guard above proved nothing of this cloud's is in flight.
+        batch.forget(swept);
+    };
+
+    return { outbox, sweep };
+};
+
+export const useChatOutbox = (): void => {
+    // The relay uid names the ACCOUNT, and it does not move on a cloud switch — unlike the session
+    // uid, which flips to each cloud's own uid at every switch commit and used to rebuild the
+    // machine (and throw its queue away) every time the user changed clouds.
+    const relayUid = runtime.session.useUidInCloud(RELAY_CLOUD_ID);
+    const verifiedClouds = runtime.connection.useVerifiedClouds();
+
+    const machineRef = useRef<CloudOutbox | null>(null);
+    // The clouds this instance has been told are ready, to turn the verified SET into edges.
+    const readyRef = useRef<ReadonlySet<string>>(new Set());
 
     useEffect(() => {
-        // Rebuilt whenever the cloud/identity changes: the machine's closures must never write
-        // into the previous cloud's cache partition after a switch. `myUid` flips at cloud-switch
-        // commit (runtime.session.useSessionIdentity is a live session-signal store), so this effect re-runs.
-        const uid = myUid ?? '';
-        // The batch is per outbox INSTANCE — claims survive every sweep and every rotation, and
-        // are dropped only here, when the cloud changes and the old claims stop meaning anything.
-        const batch = createLandingBatch();
-        batchRef.current = batch;
-
-        const readNewestPage = async (channelId: string): Promise<DomainChat[]> => {
-            const page = await chatRepository.cacheReadList({ channelId, limit: LANDING_PAGE_LIMIT });
-            return page?.list ?? [];
-        };
-
-        const outbox = runtime.data.createChatOutbox({
-            hasLanded: async entry => !!batch.match(await readNewestPage(entry.channelId), entry, uid),
-            // The message is already in the timeline; drop the stale "Not delivered" row, and only
-            // then claim the row it matched (see LandingBatch — a failed delete must stay retryable).
-            discard: async entry => {
-                await chatRepository.cacheDelete(entry.id);
-                batch.commit(entry.id);
-            },
-            // Delete before sending, exactly as the manual retry button does, so the retry
-            // replaces the failed bubble instead of sitting next to it.
-            send: async entry => {
-                await chatRepository.cacheDelete(entry.id);
-                await chatRepository.sendChat(entry.payload);
-            },
+        // Rebuilt only when the account changes: the previous account's entries and claims name
+        // partitions the new one cannot address. Per-cloud uids are read per use (`getUidInCloud`),
+        // so they need no rebuild here.
+        const machine = createCloudOutbox({
+            repositoriesOf: runtime.data.getCloudRepositories,
+            sendInCloud: runtime.data.sendChatInCloud,
+            uidOf: runtime.session.getUidInCloud,
         });
-        outboxSingleton = outbox;
-        outbox.start();
+        machineRef.current = machine;
+        // A fresh machine has no cloud ready, so every verified cloud has to be announced again.
+        readyRef.current = new Set();
+        outboxSingleton = machine.outbox;
+        machine.outbox.start();
 
         return () => {
-            outbox.stop();
-            if (outboxSingleton === outbox) outboxSingleton = null;
+            machine.outbox.stop();
+            if (machineRef.current === machine) machineRef.current = null;
+            if (outboxSingleton === machine.outbox) outboxSingleton = null;
         };
-    }, [chatRepository, myUid]);
+    }, [relayUid]);
 
     useEffect(() => {
-        const outbox = outboxSingleton;
-        const batch = batchRef.current;
-        if (!outbox || !batch) return;
+        const machine = machineRef.current;
+        if (!machine) return;
 
-        // `isConnected && isVerified` — NOT the connectivity banner's signal. Verification is
-        // downstream of the reconnect handshake, so it is the closest proxy for "the ChatSyncPlan
-        // catch-up is live", and a verified socket is stronger proof of reachability than
-        // navigator.onLine ever is.
-        const ready = isConnected && isVerified;
-        outbox.setReady(ready);
-        if (!ready) return;
+        // A cloud's slot being verified — NOT the connectivity banner's signal. Verification is
+        // downstream of the reconnect handshake, so it is the closest proxy for "that cloud's
+        // ChatSyncPlan catch-up is live", and a verified socket is stronger proof of reachability
+        // than navigator.onLine ever is. Relay included: it is one of the slots.
+        const previous = readyRef.current;
+        const current = new Set(verifiedClouds);
+        readyRef.current = current;
 
-        void (async () => {
-            // A batch still draining already represents the work; re-sweeping mid-drain would
-            // queue a second entry for a message that is being sent right now.
-            if (outbox.pending().length) return;
-
-            // An empty sid deliberately means "every place in this cloud" — the channel cache is
-            // partitioned by (cid, uid) and ChannelLocalDataSource skips the place filter when
-            // no sid resolves. A failed message in a place the user has since left must still go.
-            const channels = await channelRepository.cacheReadList({ sid: '' });
-            const channelIds = (channels?.list ?? []).map(channel => channel.id).filter((id): id is string => !!id);
-
-            // Concurrent, following useMessageSearch: the reads are independent, and per-channel
-            // send order is preserved by the outbox's per-channel queue, not by read order. Issued
-            // sequentially these N round trips each queue behind the reconnect catch-up's writes on
-            // the same store — N stalls instead of one.
-            // cursorNo:1 bounds each read to chat_no 0 — exactly the unsent rows. A plain limited
-            // page is chat_no-DESCENDING and would miss them in any channel holding 50+ server rows.
-            const perChannel = await Promise.all(
-                channelIds.map(channelId =>
-                    chatRepository
-                        .cacheReadList({ channelId, cursorNo: 1, limit: SWEEP_LIMIT })
-                        .then(result => ({ channelId, rows: result?.list ?? [] }))
-                        .catch(() => ({ channelId, rows: [] as DomainChat[] }))
-                )
-            );
-
-            const swept = new Set<string>();
-            for (const { channelId, rows } of perChannel) {
-                for (const row of selectResendableRows(rows, myUid ?? '')) {
-                    // The row's own createdAt is what the landing probe compares against — the
-                    // enqueue time is a reconnect, potentially hours after the user pressed send.
-                    batch.record(row.id, rowTime(row));
-                    swept.add(row.id);
-                    outbox.enqueue({ id: row.id, channelId, payload: toSendPayload(row) });
-                }
-            }
-            // Every send mints a NEW optimistic row id, so a message that keeps failing leaves a
-            // dead key behind on every sweep — unbounded in a desktop app that runs for days.
-            // Safe here: the guard above proved nothing is in flight.
-            batch.forget(swept);
-        })().catch(() => undefined);
-    }, [chatRepository, channelRepository, myUid, isConnected, isVerified]);
+        for (const cid of previous) {
+            if (!current.has(cid)) machine.outbox.setReady(cid, false);
+        }
+        for (const cid of current) {
+            if (previous.has(cid)) continue;
+            // Only on the rising edge: one attempt per ready transition is what keeps at most one
+            // failed row per undelivered message (see outbox.ts).
+            machine.outbox.setReady(cid, true);
+            void machine.sweep(cid).catch(() => undefined);
+        }
+        // relayUid: a rebuilt machine starts with nothing ready and has to hear every cloud again.
+    }, [verifiedClouds, relayUid]);
 };

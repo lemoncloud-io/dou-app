@@ -153,7 +153,10 @@ state is seeded on first read rather than at module load, so importing the store
 in a given cloud, committed or not. The relay's is the relay token's; a cloud's is the uid of the
 token its socket signs with (`getCloudTokenOf`), falling back to the recorded cloud identity once
 that token is gone. `IdentityContext.userId` answers for the active token only, and every cloud gives
-the account a different uid. The sync registry and the scoped repository graphs read it.
+the account a different uid. The sync registry and the scoped repository graphs read it, and apps
+read it as `session.getUidInCloud` / `session.useUidInCloud(cid)` wherever they build an id or match
+"is this me" for a named cloud — a join id `<channel>@<uid>` built from the session uid is wrong for
+every cloud but the committed one.
 
 ### The scope: three views that are supposed to disagree
 

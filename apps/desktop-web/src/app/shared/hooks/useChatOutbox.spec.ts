@@ -1,9 +1,47 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { DomainChat } from '@chatic/data';
+import { act, renderHook, waitFor } from '@testing-library/react';
+
+import type { DataRepositories, DomainChat } from '@chatic/data';
+import type * as AppRuntimeModule from '@chatic/app-runtime';
 import { runtime } from '@chatic/app-runtime';
 
-import { createLandingBatch, matchLandedRow, selectResendableRows, toSendPayload } from './useChatOutbox';
+// The engine outbox stays real — it is the contract these tests wire against. Only what the hook
+// reads per cloud is faked: each cloud's repository graph, its send, the uid in it, and which
+// clouds have a verified slot.
+const clouds = vi.hoisted(() => ({
+    uids: {} as Record<string, string | null>,
+    verified: [] as readonly string[],
+    graphs: {} as Record<string, unknown>,
+    sendInCloud: vi.fn(),
+}));
+
+vi.mock('@chatic/app-runtime', async () => {
+    const actual = await vi.importActual<typeof AppRuntimeModule>('@chatic/app-runtime');
+    const uidOf = (cid: string) => clouds.uids[cid] ?? null;
+    return {
+        runtime: {
+            ...actual.runtime,
+            data: {
+                ...actual.runtime.data,
+                getCloudRepositories: (cid: string) => clouds.graphs[cid],
+                sendChatInCloud: (cid: string, payload: unknown) => clouds.sendInCloud(cid, payload),
+            },
+            session: { ...actual.runtime.session, useUidInCloud: uidOf, getUidInCloud: uidOf },
+            connection: { ...actual.runtime.connection, useVerifiedClouds: () => clouds.verified },
+        },
+    };
+});
+
+import {
+    createCloudOutbox,
+    createLandingBatch,
+    getChatOutbox,
+    matchLandedRow,
+    selectResendableRows,
+    toSendPayload,
+    useChatOutbox,
+} from './useChatOutbox';
 
 const MY_UID = 'u1';
 // Real wall clock: the outbox stamps `enqueuedAt` with Date.now(), and the landing probe's skew
@@ -99,6 +137,7 @@ describe('matchLandedRow', () => {
 describe('createLandingBatch', () => {
     const entry = (over: Partial<runtime.data.OutboxEntry> = {}): runtime.data.OutboxEntry => ({
         id: 'row-1',
+        cid: 'cloud-a',
         channelId: 'ch-1',
         payload: { channelId: 'ch-1', content: 'hello' },
         enqueuedAt: NOW,
@@ -174,8 +213,8 @@ describe('outbox + landing probe (the desktop wiring contract)', () => {
     };
 
     const enqueueTwoIdentical = (outbox: ReturnType<typeof harness>['outbox']) => {
-        outbox.enqueue({ id: 'a', channelId: 'ch-1', payload: { channelId: 'ch-1', content: 'ok' } });
-        outbox.enqueue({ id: 'b', channelId: 'ch-1', payload: { channelId: 'ch-1', content: 'ok' } });
+        outbox.enqueue({ id: 'a', cid: 'cloud-a', channelId: 'ch-1', payload: { channelId: 'ch-1', content: 'ok' } });
+        outbox.enqueue({ id: 'b', cid: 'cloud-a', channelId: 'ch-1', payload: { channelId: 'ch-1', content: 'ok' } });
     };
 
     it('sends the second of two identical messages when only ONE of them landed', async () => {
@@ -185,7 +224,7 @@ describe('outbox + landing probe (the desktop wiring contract)', () => {
 
         outbox.start();
         enqueueTwoIdentical(outbox);
-        outbox.setReady(true);
+        outbox.setReady('cloud-a', true);
         await outbox.flush();
 
         expect(discard).toHaveBeenCalledTimes(1);
@@ -203,7 +242,7 @@ describe('outbox + landing probe (the desktop wiring contract)', () => {
 
         outbox.start();
         enqueueTwoIdentical(outbox);
-        outbox.setReady(true);
+        outbox.setReady('cloud-a', true);
         await outbox.flush();
 
         expect(send).not.toHaveBeenCalled();
@@ -217,16 +256,26 @@ describe('outbox + landing probe (the desktop wiring contract)', () => {
 
         const first = harness(rows);
         first.outbox.start();
-        first.outbox.enqueue({ id: 'a', channelId: 'ch-1', payload: { channelId: 'ch-1', content: 'ok' } });
-        first.outbox.setReady(true);
+        first.outbox.enqueue({
+            id: 'a',
+            cid: 'cloud-a',
+            channelId: 'ch-1',
+            payload: { channelId: 'ch-1', content: 'ok' },
+        });
+        first.outbox.setReady('cloud-a', true);
         await first.outbox.flush();
         expect(first.discard).toHaveBeenCalledTimes(1);
 
         // Second sweep after a rotation: same cache, same content, SAME batch (same outbox).
         const second = harness(rows, first.batch);
         second.outbox.start();
-        second.outbox.enqueue({ id: 'a2', channelId: 'ch-1', payload: { channelId: 'ch-1', content: 'ok' } });
-        second.outbox.setReady(true);
+        second.outbox.enqueue({
+            id: 'a2',
+            cid: 'cloud-a',
+            channelId: 'ch-1',
+            payload: { channelId: 'ch-1', content: 'ok' },
+        });
+        second.outbox.setReady('cloud-a', true);
         await second.outbox.flush();
 
         expect(second.discard).not.toHaveBeenCalled();
@@ -245,17 +294,243 @@ describe('outbox + landing probe (the desktop wiring contract)', () => {
         });
 
         outbox.start();
-        outbox.enqueue({ id: 'a', channelId: 'ch-1', payload: { channelId: 'ch-1', content: 'ok' } });
-        outbox.setReady(true);
+        outbox.enqueue({ id: 'a', cid: 'cloud-a', channelId: 'ch-1', payload: { channelId: 'ch-1', content: 'ok' } });
+        outbox.setReady('cloud-a', true);
         await outbox.flush();
 
         const retry = harness(rows, batch);
         retry.outbox.start();
-        retry.outbox.enqueue({ id: 'a', channelId: 'ch-1', payload: { channelId: 'ch-1', content: 'ok' } });
-        retry.outbox.setReady(true);
+        retry.outbox.enqueue({
+            id: 'a',
+            cid: 'cloud-a',
+            channelId: 'ch-1',
+            payload: { channelId: 'ch-1', content: 'ok' },
+        });
+        retry.outbox.setReady('cloud-a', true);
         await retry.outbox.flush();
 
         expect(retry.discard).toHaveBeenCalledTimes(1);
         expect(retry.send).not.toHaveBeenCalled();
+    });
+});
+
+/**
+ * One cloud's partition as the sweep and the probe read it: its channels, its unsent rows (what a
+ * `cursorNo: 1` read returns) and its server-persisted rows (the newest page).
+ */
+const fakeCloud = ({ unsent = [] as DomainChat[], landed = [] as DomainChat[] } = {}) => {
+    const cacheDelete = vi.fn().mockResolvedValue(undefined);
+    const channelIds = [...new Set([...unsent, ...landed].map(row => row.channelId))];
+    const graph = {
+        channel: { cacheReadList: vi.fn(async () => ({ list: channelIds.map(id => ({ id })) })) },
+        chat: {
+            cacheReadList: vi.fn(async (query: { channelId: string; cursorNo?: number }) => ({
+                list: (query.cursorNo === 1 ? unsent : landed).filter(row => row.channelId === query.channelId),
+            })),
+            cacheDelete,
+        },
+    } as unknown as Pick<DataRepositories, 'chat' | 'channel'>;
+    return { graph, cacheDelete };
+};
+
+describe('createCloudOutbox', () => {
+    const setup = (
+        graphs: Record<string, Pick<DataRepositories, 'chat' | 'channel'>>,
+        uids: Record<string, string>
+    ) => {
+        const sendInCloud = vi.fn().mockResolvedValue(undefined);
+        const machine = createCloudOutbox({
+            repositoriesOf: cid => graphs[cid],
+            sendInCloud,
+            uidOf: cid => uids[cid] ?? null,
+        });
+        machine.outbox.start();
+        return { ...machine, sendInCloud };
+    };
+
+    it('queues a swept row under the cloud it was read from', async () => {
+        const b = fakeCloud({ unsent: [chat({ id: 'row-b', cid: 'cloud-b', ownerId: 'uid-b', isFailed: true })] });
+        const { outbox, sweep } = setup({ 'cloud-b': b.graph }, { 'cloud-b': 'uid-b' });
+
+        await sweep('cloud-b');
+
+        expect(outbox.pending('cloud-b').map(entry => [entry.id, entry.cid])).toEqual([['row-b', 'cloud-b']]);
+        expect(outbox.pending('cloud-a')).toEqual([]);
+    });
+
+    it('judges "mine" by the uid in that cloud, not by another cloud\'s', async () => {
+        // The session uid belongs to the committed cloud; a row written in cloud-b is owned by uid-b.
+        const b = fakeCloud({
+            unsent: [
+                chat({ id: 'mine', ownerId: 'uid-b', isFailed: true }),
+                chat({ id: 'other-cloud-uid', ownerId: 'uid-a', isFailed: true }),
+            ],
+        });
+        const { outbox, sweep } = setup({ 'cloud-b': b.graph }, { 'cloud-a': 'uid-a', 'cloud-b': 'uid-b' });
+
+        await sweep('cloud-b');
+
+        expect(outbox.pending().map(entry => entry.id)).toEqual(['mine']);
+    });
+
+    it('does not sweep a cloud the account has no uid in', async () => {
+        const b = fakeCloud({ unsent: [chat({ id: 'row-b', ownerId: 'uid-b', isFailed: true })] });
+        const { outbox, sweep } = setup({ 'cloud-b': b.graph }, {});
+
+        await sweep('cloud-b');
+
+        expect(outbox.pending()).toEqual([]);
+    });
+
+    it('re-sweeping a cloud mid-drain adds nothing, while another cloud still sweeps', async () => {
+        const a = fakeCloud({ unsent: [chat({ id: 'row-a', ownerId: 'uid-a', isFailed: true })] });
+        const b = fakeCloud({ unsent: [chat({ id: 'row-b', ownerId: 'uid-b', isFailed: true })] });
+        const { outbox, sweep } = setup(
+            { 'cloud-a': a.graph, 'cloud-b': b.graph },
+            { 'cloud-a': 'uid-a', 'cloud-b': 'uid-b' }
+        );
+
+        await sweep('cloud-a');
+        vi.mocked(a.graph.chat.cacheReadList).mockClear();
+        await sweep('cloud-a');
+        await sweep('cloud-b');
+
+        expect(a.graph.chat.cacheReadList).not.toHaveBeenCalled();
+        expect(outbox.pending().map(entry => entry.id)).toEqual(['row-a', 'row-b']);
+    });
+
+    it('deletes the failed row in its own cloud, then sends to that cloud', async () => {
+        const b = fakeCloud({ unsent: [chat({ id: 'row-b', ownerId: 'uid-b', isFailed: true, content: 'hi' })] });
+        const { outbox, sweep, sendInCloud } = setup({ 'cloud-b': b.graph }, { 'cloud-b': 'uid-b' });
+
+        await sweep('cloud-b');
+        outbox.setReady('cloud-b', true);
+        await outbox.flush();
+
+        expect(b.cacheDelete).toHaveBeenCalledWith('row-b');
+        expect(sendInCloud).toHaveBeenCalledWith(
+            'cloud-b',
+            expect.objectContaining({ channelId: 'ch-1', content: 'hi' })
+        );
+        expect(b.cacheDelete.mock.invocationCallOrder[0]).toBeLessThan(sendInCloud.mock.invocationCallOrder[0]);
+    });
+
+    it('keeps landing claims per cloud, so equal row ids in two clouds do not collide', async () => {
+        // Both clouds hold a landed `ch-1:7` — ids are only unique inside a cloud. One shared claim
+        // set would let cloud-a's claim hide cloud-b's twin, and cloud-b's already-delivered message
+        // would be sent a second time.
+        const landedIn = (ownerId: string) => chat({ id: 'ch-1:7', chatNo: 7, ownerId, content: 'ok' });
+        const failedIn = (ownerId: string) => chat({ id: 'row-1', ownerId, content: 'ok', isFailed: true });
+        const a = fakeCloud({ unsent: [failedIn('uid-a')], landed: [landedIn('uid-a')] });
+        const b = fakeCloud({ unsent: [failedIn('uid-b')], landed: [landedIn('uid-b')] });
+        const { outbox, sweep, sendInCloud } = setup(
+            { 'cloud-a': a.graph, 'cloud-b': b.graph },
+            { 'cloud-a': 'uid-a', 'cloud-b': 'uid-b' }
+        );
+
+        await sweep('cloud-a');
+        await sweep('cloud-b');
+        outbox.setReady('cloud-a', true);
+        await outbox.flush();
+        outbox.setReady('cloud-b', true);
+        await outbox.flush();
+
+        expect(sendInCloud).not.toHaveBeenCalled();
+        expect(a.cacheDelete).toHaveBeenCalledWith('row-1');
+        expect(b.cacheDelete).toHaveBeenCalledWith('row-1');
+    });
+});
+
+describe('useChatOutbox', () => {
+    beforeEach(() => {
+        clouds.uids = { default: 'relay-uid', 'cloud-a': 'uid-a', 'cloud-b': 'uid-b' };
+        clouds.verified = [];
+        clouds.graphs = { default: fakeCloud().graph, 'cloud-a': fakeCloud().graph, 'cloud-b': fakeCloud().graph };
+        clouds.sendInCloud.mockReset().mockResolvedValue(undefined);
+    });
+
+    const verify = (cids: string[]) => {
+        // A new array per change, as useVerifiedClouds hands out one only when the set changed.
+        clouds.verified = [...cids];
+    };
+
+    it('sweeps a background cloud once its slot is verified and sends to that cloud', async () => {
+        const b = fakeCloud({ unsent: [chat({ id: 'row-b', ownerId: 'uid-b', isFailed: true, content: 'hi' })] });
+        clouds.graphs['cloud-b'] = b.graph;
+        verify(['default', 'cloud-a']);
+        const { rerender } = renderHook(() => useChatOutbox());
+        await act(async () => getChatOutbox()?.flush());
+
+        // cloud-b has no verified slot: its failed row waits, and the outbox opens nothing for it.
+        expect(clouds.sendInCloud).not.toHaveBeenCalled();
+
+        verify(['default', 'cloud-a', 'cloud-b']);
+        rerender();
+
+        await waitFor(() =>
+            expect(clouds.sendInCloud).toHaveBeenCalledWith('cloud-b', expect.objectContaining({ content: 'hi' }))
+        );
+        expect(b.cacheDelete).toHaveBeenCalledWith('row-b');
+    });
+
+    it('keeps one instance, and its queue, across a cloud switch', () => {
+        verify(['default', 'cloud-a']);
+        const { rerender } = renderHook(() => useChatOutbox());
+        const outbox = getChatOutbox();
+        // Queued for a cloud with no slot, so it stays queued.
+        outbox?.enqueue({
+            id: 'row-c',
+            cid: 'cloud-c',
+            channelId: 'ch-1',
+            payload: { channelId: 'ch-1', content: 'x' },
+        });
+
+        // A switch to cloud-b: its slot comes up, the session commits to it (its uid is the session's
+        // now), and the relay account is unchanged.
+        verify(['default', 'cloud-a', 'cloud-b']);
+        rerender();
+
+        expect(getChatOutbox()).toBe(outbox);
+        expect(
+            getChatOutbox()
+                ?.pending('cloud-c')
+                .map(entry => entry.id)
+        ).toEqual(['row-c']);
+    });
+
+    it('builds a new instance when the relay account changes', () => {
+        const { rerender } = renderHook(() => useChatOutbox());
+        const outbox = getChatOutbox();
+
+        clouds.uids = { ...clouds.uids, default: 'promoted-relay-uid' };
+        rerender();
+
+        expect(getChatOutbox()).not.toBe(outbox);
+        expect(getChatOutbox()).not.toBeNull();
+    });
+
+    it('stops sending to a cloud whose slot dropped', async () => {
+        verify(['default', 'cloud-b']);
+        const { rerender } = renderHook(() => useChatOutbox());
+        verify(['default']);
+        rerender();
+
+        getChatOutbox()?.enqueue({
+            id: 'row-b',
+            cid: 'cloud-b',
+            channelId: 'ch-1',
+            payload: { channelId: 'ch-1', content: 'x' },
+        });
+        await act(async () => getChatOutbox()?.flush());
+
+        expect(clouds.sendInCloud).not.toHaveBeenCalled();
+        expect(getChatOutbox()?.pending('cloud-b')).toHaveLength(1);
+    });
+
+    it('drops the singleton on unmount', () => {
+        const { unmount } = renderHook(() => useChatOutbox());
+        unmount();
+
+        expect(getChatOutbox()).toBeNull();
     });
 });

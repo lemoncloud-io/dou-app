@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { runtime } from '@chatic/app-runtime';
+import { RELAY_CLOUD_ID } from '@chatic/data';
 import type { DomainChannel, DomainJoin } from '@chatic/data';
 
 import { isSelfChannel, useReadCursorStore } from '../../../shared';
@@ -31,16 +32,24 @@ export type ReadCountOf = (chatNo: number, senderId?: string) => ReadCount | nul
  * The returned callback answers null — no receipt at all — when the counts would be
  * meaningless or wrong: a self-channel, a channel with fewer than two active members, or
  * before any join row has synced (every row would claim "Read 0" and be lying).
+ *
+ * The targets belong to the channel's own cloud, named explicitly, and every id in them is
+ * that cloud's: a join id is `<channel>@<uid>`, and each cloud gives the account a different
+ * uid, so the session uid is only right while that cloud is the committed one.
  */
 export const useReadCounts = (channel: DomainChannel | undefined, viewer: MessageViewer): ReadCountOf => {
     const { join: joinRepository } = runtime.data.useRuntimeRepositories();
-    const { isVerified } = runtime.connection.useRuntimeSocketState();
     const channelId = channel?.id ?? null;
+    const cid = channel?.cid || RELAY_CLOUD_ID;
+    // The channel cloud's slot, not the active one: the targets run on that slot, so its
+    // handshake is the one they wait on.
+    const isVerified = runtime.connection.useCloudVerified(cid);
+    const uidInCloud = runtime.session.useUidInCloud(cid);
     const [joins, setJoins] = useState<DomainJoin[]>([]);
 
     // My id inside THIS channel: the cloud id the server rewrites my messages to, falling
-    // back to the account id before the channel's join has landed.
-    const myId = viewer.cloudUid || viewer.uid || '';
+    // back to my uid in the channel's cloud before the channel's join has landed.
+    const myId = viewer.cloudUid || uidInCloud || '';
     // The full roster, which is what the read-state sync covers — including members who
     // have left, so their cursor is still known if an old message is scrolled to. The
     // denominator is narrower (active members only) and comes off the join rows below.
@@ -53,13 +62,18 @@ export const useReadCounts = (channel: DomainChannel | undefined, viewer: Messag
     // Network-bound, so gated on isVerified (auto-retries on the false→true edge after
     // re-auth/reconnect). memberKey stands in for the member set so the effect re-runs only
     // when the roster actually changes.
+    //
+    // uidInCloud is a dependency even when the roster does not change: a target registered for a
+    // cloud only runs while the account's uid there is the one it was registered under, so an
+    // account change retires it. The guest→social promotion re-authenticates the SAME socket —
+    // no verified edge — and without this the targets would stay retired for the whole mount.
     const memberKey = memberIds.join(',');
     useEffect(() => {
         if (!channelId || !isVerified || memberIds.length === 0) return;
         const sync = runtime.sync.getSyncManager();
-        const disposers = memberIds.map(userId => sync.registerJoin(`${channelId}@${userId}`));
+        const disposers = memberIds.map(userId => sync.registerJoin(`${channelId}@${userId}`, undefined, { cid }));
         return () => disposers.forEach(dispose => dispose());
-    }, [channelId, isVerified, memberKey]);
+    }, [channelId, cid, uidInCloud, isVerified, memberKey]);
 
     useEffect(() => {
         if (!channelId) {

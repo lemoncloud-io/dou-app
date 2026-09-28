@@ -5,10 +5,18 @@
 > sequence it runs is `@chatic/data`'s, documented in
 > [libs/data docs/uploads](../../../../../libs/data/docs/uploads/README.md).
 
-`useSendImages({ channelId, parentId? })` sends picked images as one message and returns
+`useSendImages({ cid, channelId, parentId? })` sends picked images as one message and returns
 `{ sendImages, retry, canRetry, discard }`. It holds no rules about uploads itself. It binds the
-data layer's `sendImageMessage` to this page's repository and to this shell's PUT sender, and it
-keeps the picked files for as long as a retry could still need them.
+data layer's `sendImageMessage` to the room's cloud and to this shell's PUT sender, and it keeps the
+picked files for as long as a retry could still need them.
+
+**Everything is addressed to `cid`, the room's own cloud** — the channel row's `cid`, never the
+selection. Each pending entry remembers it, every repository call goes through
+`runtime.data.getCloudRepositories(cid)`, and the upload and the send run inside
+`runtime.data.runInCloud(cid, …)`, which holds that cloud's socket until the send settles. An upload
+takes seconds, and a cloud switch in that time used to put the finished message on the next cloud's
+socket while its row stayed in the first; now the row, the upload and the send stay together
+whichever cloud is on screen by the time it ends.
 
 ## What happens on send
 

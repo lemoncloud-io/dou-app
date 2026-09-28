@@ -101,14 +101,20 @@ reconnect catch-up run for as long as it is on screen:
 - Dynamic list: `runtime.sync.getSyncManager().registerChannel(id)` / `registerPlace(id)` /
   `registerProfile(id)` / `registerJoin(id)`, called per id and disposed on cleanup —
   `useChannelProfiles.ts` and `useMyJoins.ts` (`useJoinSyncRegistration`) are the app's examples.
+  Pass the cloud as the third argument (`registerJoin(id, undefined, { cid })`) whenever the caller
+  knows it, and build any `<id>@<uid>` from `runtime.session.useUidInCloud(cid)`: without a cloud
+  the target lands on whichever cloud is selected when the effect runs, and the session uid is only
+  the committed cloud's. Gate the effect on that cloud's own slot,
+  `runtime.connection.useCloudVerified(cid)`; `app/hooks/useCloudScope.ts` holds the normalised
+  selection these hooks share.
 
 ```tsx
 useEffect(() => {
     if (siteIds.length === 0) return;
     const sync = runtime.sync.getSyncManager();
-    const disposers = siteIds.map(id => sync.registerPlace(id));
+    const disposers = siteIds.map(id => sync.registerPlace(id, undefined, { cid }));
     return () => disposers.forEach(d => d());
-}, [siteIdsKey]);
+}, [siteIdsKey, cid]);
 ```
 
 A chat room's history loads through the sync registration layer (`useChatSync`'s internal prime),
@@ -120,12 +126,13 @@ The registration mechanics (ref-counting, per-slot runtimes, plan cadence) are
 
 ## 4. Writing data — through a repository, always
 
-Direct socket `send` / `emit` is not a path the app has. Every write goes through
-`runtime.data.useRuntimeRepositories()`:
+Direct socket `send` / `emit` is not a path the app has. Every write goes through a repository —
+`runtime.data.useRuntimeRepositories()`, except a chat send, which names its cloud
+(`runtime.data.sendChatInCloud`; see [feature/channels/data-layer.md](../feature/channels/data-layer.md)):
 
 | Action                                            | Repository method                                                                                    |
 | ------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| Send a message                                    | `repos.chat.sendChat({ channelId, content })`                                                        |
+| Send a message                                    | `runtime.data.sendChatInCloud(cid, { channelId, content })`                                          |
 | Mark read                                         | `repos.join.readChat({ channelId, chatNo })`                                                         |
 | Create / edit / invite / leave / delete a channel | `repos.channel.createChannel` / `updateChannel` / `inviteChannel` / `leaveChannel` / `deleteChannel` |
 | Create / edit a place                             | `repos.place.createPlace` / `updatePlace`                                                            |
@@ -178,7 +185,10 @@ does not self-heal. `app/features/channels/hooks/useForegroundChatRefresh.ts` co
 `usePrimeChat` (which fetches only a _cold_ room): it re-aligns the plan baseline and refetches the
 latest page, but only for a _warm_ room, on entry (gated on `isVerified`, to protect a cold start)
 and again on every foreground return (not gated — a socket that resumed in a stuck "verified but
-dead" state would otherwise never get a retry). Keep the two conditions mirrored if either changes.
+dead" state would otherwise never get a retry). Keep the two conditions mirrored if either changes. The
+cache read, the baseline and the fetch are one cloud's: the cloud is read once before the cache read,
+the baseline goes to it by name, and if the selection moved while the read was pending the hook stops
+there rather than hand that cache's baseline to another cloud.
 
 ## 6. Logout
 

@@ -23,8 +23,9 @@ vi.mock('@chatic/app-runtime', () => ({
 
 let messages: DomainChat[] = [];
 vi.mock('../../../shared/hooks/useChats', () => ({ useChats: () => ({ messages }) }));
+const sendMessage = vi.fn();
 vi.mock('../../../shared/hooks/useChatMutations', () => ({
-    useChatMutations: () => ({ sendMessage: vi.fn(), retryMessage: vi.fn(), discardMessage: vi.fn() }),
+    useChatMutations: () => ({ sendMessage, retryMessage: vi.fn(), discardMessage: vi.fn() }),
 }));
 vi.mock('../../../shared/hooks/useAuthorNames', () => ({ useAuthorNames: () => new Map() }));
 vi.mock('../../../shared/hooks/usePanelWidth', () => ({
@@ -46,8 +47,14 @@ vi.mock('../hooks', () => ({
     useChatImages: () => [],
 }));
 // The composer is a rich-text editor with its own runtime needs; this file is about
-// what the panel renders above it.
-vi.mock('./Composer', () => ({ Composer: () => null }));
+// what the panel renders above it — and what it does with a reply the composer hands up.
+let composerOnSend: ((content: string) => void) | undefined;
+vi.mock('./Composer', () => ({
+    Composer: ({ onSend }: { onSend: (content: string) => void }) => {
+        composerOnSend = onSend;
+        return null;
+    },
+}));
 
 import '../../../../i18n';
 
@@ -156,6 +163,20 @@ describe('ThreadPanel', () => {
         );
 
         expect(screen.getAllByText('Read 2').length).toBeGreaterThan(0);
+    });
+
+    // Addressed to the channel's own cloud, captured at the press, so a cloud switch while the
+    // reply is in flight cannot send it through the next cloud's socket.
+    it("sends a reply to the channel's own cloud", () => {
+        sendMessage.mockReset().mockResolvedValue(undefined);
+        messages = [chat(1, { content: 'root' })];
+
+        render(<ThreadPanel channel={{ ...CHANNEL, cid: 'cloud-a' } as DomainChannel} rootId="C1:1" members={[]} />, {
+            wrapper,
+        });
+        composerOnSend?.('reply');
+
+        expect(sendMessage).toHaveBeenCalledWith('cloud-a', { channelId: 'C1', content: 'reply', parentId: 'C1:1' });
     });
 
     it('counts only real replies, not the reaction events', () => {

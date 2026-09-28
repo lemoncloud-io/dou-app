@@ -4,6 +4,7 @@ import { runtime } from '@chatic/app-runtime';
 import { logger } from '@chatic/bridges';
 
 import { useAppForeground } from '../../../bridge';
+import { readSelectedCloudId } from '../../../hooks/useCloudScope';
 
 /**
  * Fills the missed-push gap for a chat room. The chat plan has no polling — it relies on live
@@ -18,6 +19,12 @@ import { useAppForeground } from '../../../bridge';
  * every foreground return while mounted. Before fetching, the plan baseline is re-aligned to the
  * cached max chatNo (same pattern as prime) so the next reconnect catch-up starts from the right
  * cursor instead of re-pulling what the fetch already merged.
+ *
+ * The cache read, the baseline and the fetch all have to be about one cloud, and the app graph picks
+ * its cloud from the selection each time a call starts. So the cloud is taken once, before the read;
+ * the baseline goes to that cloud by name; and if the selection has moved by the time the read comes
+ * back, nothing else happens — the baseline would describe the wrong cloud's cache, and the fetch
+ * would ask the next cloud for a channel that is not its own.
  */
 export const useForegroundChatRefresh = (channelId: string): void => {
     const { chat: chatRepository } = runtime.data.useRuntimeRepositories();
@@ -25,14 +32,21 @@ export const useForegroundChatRefresh = (channelId: string): void => {
 
     const refreshIfWarm = useCallback(async () => {
         if (!channelId) return;
+        // Read at call time, not from render: this is the cloud the read below is about to resolve to.
+        const cid = readSelectedCloudId();
         const cached = await chatRepository.cacheReadList({ channelId });
+        if (readSelectedCloudId() !== cid) return;
         const lastNo = (cached?.list ?? []).reduce((max, chat) => (chat.chatNo > max ? chat.chatNo : max), 0);
         // Cold room: usePrimeChat owns the first fetch — fetching here too would double it.
         if (lastNo === 0) return;
 
         runtime.sync
             .getSyncManager()
-            .updateLocalSnapshot({ type: 'chat', id: channelId }, { id: channelId, lastNo, minNo: 0, messages: [] });
+            .updateLocalSnapshot(
+                { type: 'chat', id: channelId },
+                { id: channelId, lastNo, minNo: 0, messages: [] },
+                { cid }
+            );
         await chatRepository.refreshList({ channelId });
     }, [chatRepository, channelId]);
 
