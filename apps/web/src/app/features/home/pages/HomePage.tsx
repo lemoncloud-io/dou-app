@@ -157,7 +157,7 @@ export const HomePage = () => {
     // still run in every mode: ChannelList keys off `selectedPlaceId`, and on relay that value only
     // ever comes from useSwitchPlace's auto-select. Dropping them would empty the relay home.
     const { places, isLoading: isPlacesLoading } = useHomePlaces();
-    const { selectedPlaceId, switchPlace, isSwitching } = useSwitchPlace(places);
+    const { selectedPlaceId, switchPlace, isSwitching } = useSwitchPlace(places, isPlacesLoading);
 
     // Subscribe-a-cloud flow. The switcher sheet's footer button opens the plan picker directly
     // (the user is already deep in cloud management there); the home banner instead sends first-time
