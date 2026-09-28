@@ -2,6 +2,12 @@
 
 ## [2026-09-28] - No version updates
 
+### Refactor
+
+- (app-runtime,data,web,testbed) run each sync target on its own cloud's slot (ADR-0118)
+
+## [2026-09-28] - No version updates
+
 ### Bug Fixes
 
 - (web/home) fall back from a stored place once the list prunes it, not while it is uncached
