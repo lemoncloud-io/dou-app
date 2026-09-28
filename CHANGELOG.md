@@ -2,6 +2,12 @@
 
 ## [2026-09-28] - No version updates
 
+### Features
+
+- (web,config) remember which home sections are folded, not reset them on every mount
+
+## [2026-09-28] - No version updates
+
 ### Bug Fixes
 
 - (app-runtime) scope a sync target to the selected cloud, not the active socket
