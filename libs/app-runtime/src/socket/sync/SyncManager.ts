@@ -36,6 +36,7 @@ export class SyncManager implements ISyncManager {
     private readonly createRuntime: (client: ClientSocketV2, plans: DomainSyncPlan[]) => ClientSocketRuntime;
     private readonly buildTargetKey: (target: SyncTargetDescriptor) => string;
     private readonly getUid: () => string | null;
+    private readonly getCid: () => string | null;
     private readonly watchEntries = new Map<string, SyncWatchEntry>();
     /** Delayed-stop timers for grace-period (refs 0) entries. Cancelled by re-registration, client swap, or destroy. */
     private readonly graceTimers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -71,6 +72,14 @@ export class SyncManager implements ISyncManager {
         this.buildTargetKey = deps.buildTargetKey ?? defaultBuildTargetKey;
         // The uid is read per call, never captured: the whole point is to notice when it CHANGES.
         this.getUid = deps.getUid ?? (() => getGlobalSessionContext().identity.userId ?? null);
+        // Same normalisation as the cache scope (`deriveSelectedContext`): the cloud a target is
+        // tagged with is the partition its plan writes into, so the two must name it identically.
+        this.getCid =
+            deps.getCid ??
+            (() => {
+                const cloudId = getGlobalSessionContext().cloud?.cloudId;
+                return cloudId && cloudId !== 'default' ? cloudId : 'default';
+            });
         // Runtimes attach per SLOT (relay and cloud coexist): a backgrounded slot keeps its
         // device.save-on-connect + keepAlive/reconnect/rotation alive, so a relay reconnect while a
         // cloud is active still re-registers the device (device.save:ok also re-opens the auth gate
@@ -130,7 +139,14 @@ export class SyncManager implements ISyncManager {
         // still-live target — both the target and its snapshot are untouched, so there's neither an
         // immediate poll nor an unconditional write caused by a lost snapshot.
         this.cancelGraceStop(key);
-        const cid = this.manager.getBoundCid();
+        // The cloud the SESSION is on, not the one the active socket is bound to. A cloud switch
+        // pre-applies the selection before the new slot becomes active, so a screen can render the
+        // incoming cloud's rows — and register their targets — while the previous socket is still
+        // the active one. Tagging with that socket's cid made it the target's home: a cloud place
+        // polled `place.get` on the relay, which answers `404 not found @doGet(sites/…)`, and the
+        // target never ran on the cloud it belongs to. Tagged with the selection, it waits for the
+        // slot that matches and starts on the replay.
+        const cid = this.getCid();
         const uid = this.getUid();
         const entry = this.watchEntries.get(key);
         // Merging is only correct when the SCOPE matches. A key can outlive an account change —
@@ -334,8 +350,9 @@ export class SyncManager implements ISyncManager {
     }
 
     /**
-     * A target syncs only on the client whose `boundCid` it was registered under. `cid == null`
-     * (registered before any socket bound) is cid-agnostic and always eligible. This keeps a cloud's
+     * A target syncs only on the client whose `boundCid` is the cloud it was registered for (see
+     * `register`). `cid == null` is cid-agnostic and always eligible; the session reader never
+     * produces it, so only an injected `getCid` can. This keeps a cloud's
      * channel/chat targets off the relay socket after a cloud logout, and off a different cloud's
      * socket after a switch — the frame-level `dropForeignFrame` guard (plans.ts) only covers the
      * mid-switch same-url window, not a target replayed onto a genuinely different active client.
