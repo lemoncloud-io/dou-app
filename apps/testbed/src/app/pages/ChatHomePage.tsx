@@ -37,7 +37,7 @@ const formatChatTime = (createdAt?: number): string => {
     if (!createdAt) return '';
     const date = new Date(createdAt);
     if (Number.isNaN(date.getTime())) return '';
-    return date.toLocaleTimeString('ko', { hour: '2-digit', minute: '2-digit' });
+    return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 };
 
 export const ChatHomePage = () => {
@@ -269,11 +269,11 @@ export const ChatHomePage = () => {
         <div className="p-4 space-y-5">
             {/* Cloud area */}
             <section>
-                <p className="text-xs font-semibold text-muted-foreground mb-2">내 클라우드</p>
+                <p className="text-xs font-semibold text-muted-foreground mb-2">My Clouds</p>
                 <div className="space-y-1">
                     <CloudItem
                         id={DEFAULT_CLOUD_ID}
-                        name="기본 (relay)"
+                        name="Default (relay)"
                         isActive={isRelayMode}
                         isPending={isSwitching}
                         hasUnread={cloudHasUnread(DEFAULT_CLOUD_ID)}
@@ -294,7 +294,7 @@ export const ChatHomePage = () => {
 
                 {invitedClouds.length > 0 && (
                     <>
-                        <p className="text-xs font-semibold text-muted-foreground mt-4 mb-2">초대 클라우드</p>
+                        <p className="text-xs font-semibold text-muted-foreground mt-4 mb-2">Invited Clouds</p>
                         <div className="space-y-1">
                             {invitedClouds.map(c => (
                                 <CloudItem
@@ -316,16 +316,16 @@ export const ChatHomePage = () => {
             {/* Place list */}
             <section>
                 <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs font-semibold text-muted-foreground">사이트 (Place)</p>
+                    <p className="text-xs font-semibold text-muted-foreground">Sites (Place)</p>
                     <button
                         onClick={() => setManageDialog({ kind: 'createPlace' })}
                         className="text-xs px-2 py-1 rounded border border-primary text-primary hover:bg-primary/10"
                     >
-                        + 새 플레이스
+                        + New Place
                     </button>
                 </div>
                 {sites.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">현재 클라우드에 연결 가능한 사이트가 없습니다</p>
+                    <p className="text-xs text-muted-foreground">No sites available for the current cloud</p>
                 ) : (
                     <div className="space-y-1">
                         {sites.map(s => (
@@ -351,7 +351,7 @@ export const ChatHomePage = () => {
                                 <button
                                     onClick={() => setManageDialog({ kind: 'editPlace', id: s.id, name: s.name ?? '' })}
                                     className="shrink-0 px-2 py-2 text-sm text-muted-foreground hover:text-foreground"
-                                    title="이름 수정"
+                                    title="Edit name"
                                 >
                                     ✎
                                 </button>
@@ -364,14 +364,14 @@ export const ChatHomePage = () => {
             {/* Channel list */}
             <section>
                 <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs font-semibold text-muted-foreground">채널</p>
+                    <p className="text-xs font-semibold text-muted-foreground">Channels</p>
                     <button
                         onClick={() => setManageDialog({ kind: 'createChannel' })}
                         disabled={!activeSiteId}
                         className="text-xs px-2 py-1 rounded border border-primary text-primary hover:bg-primary/10 disabled:opacity-50"
-                        title={activeSiteId ? '새 채널' : '사이트를 먼저 선택하세요'}
+                        title={activeSiteId ? 'New channel' : 'Select a site first'}
                     >
-                        + 새 채널
+                        + New Channel
                     </button>
                 </div>
 
@@ -382,17 +382,17 @@ export const ChatHomePage = () => {
                             <p className="text-sm font-medium text-primary truncate">
                                 {activeSite.name ?? activeSite.id}
                             </p>
-                            <span className="text-xs text-muted-foreground shrink-0">채널 {channels.length}개</span>
+                            <span className="text-xs text-muted-foreground shrink-0">{channels.length} channels</span>
                         </div>
                         <p className="text-[10px] text-muted-foreground font-mono truncate">{activeSite.id}</p>
                     </div>
                 )}
 
                 {!activeSiteId ? (
-                    <p className="text-xs text-muted-foreground">상단에서 클라우드와 사이트를 먼저 선택해 주세요</p>
+                    <p className="text-xs text-muted-foreground">Select a cloud and site above first</p>
                 ) : channels.length === 0 ? (
                     <p className="text-xs text-muted-foreground">
-                        아직 사이트 세션에 연결되지 않아 채널을 불러오지 못했습니다
+                        Couldn't load channels — not yet connected to a site session
                     </p>
                 ) : (
                     <div className="space-y-1">
@@ -415,17 +415,17 @@ export const ChatHomePage = () => {
             {/* Create/rename dialog — only one open at a time */}
             {manageDialog?.kind === 'createPlace' && (
                 <NameFormDialog
-                    title="새 플레이스"
-                    label="플레이스 이름"
-                    submitLabel="생성"
+                    title="New Place"
+                    label="Place name"
+                    submitLabel="Create"
                     onSubmit={handleCreatePlace}
                     onClose={() => setManageDialog(null)}
                 />
             )}
             {manageDialog?.kind === 'editPlace' && (
                 <NameFormDialog
-                    title="플레이스 이름 수정"
-                    label="플레이스 이름"
+                    title="Edit place name"
+                    label="Place name"
                     initialValue={manageDialog.name}
                     onSubmit={handleEditPlace(manageDialog.id)}
                     onClose={() => setManageDialog(null)}
@@ -433,17 +433,17 @@ export const ChatHomePage = () => {
             )}
             {manageDialog?.kind === 'createChannel' && (
                 <NameFormDialog
-                    title="새 채널"
-                    label="채널 이름"
-                    submitLabel="생성"
+                    title="New Channel"
+                    label="Channel name"
+                    submitLabel="Create"
                     onSubmit={handleCreateChannel}
                     onClose={() => setManageDialog(null)}
                 />
             )}
             {manageDialog?.kind === 'editChannel' && (
                 <NameFormDialog
-                    title="채널 이름 수정"
-                    label="채널 이름"
+                    title="Edit channel name"
+                    label="Channel name"
                     initialValue={manageDialog.name}
                     onSubmit={handleEditChannel(manageDialog.id)}
                     onClose={() => setManageDialog(null)}
@@ -475,8 +475,10 @@ const CloudItem = ({ id, name, isActive, isPending, isInvited, hasUnread, onClic
             <p className="font-medium flex-1">{name}</p>
             {/* presence dot: any unread across this cloud's places */}
             {hasUnread && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />}
-            {isInvited && <span className="text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded">초대</span>}
-            {isActive && <span className="text-xs bg-primary text-primary-foreground px-1.5 py-0.5 rounded">활성</span>}
+            {isInvited && <span className="text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded">Invited</span>}
+            {isActive && (
+                <span className="text-xs bg-primary text-primary-foreground px-1.5 py-0.5 rounded">Active</span>
+            )}
         </div>
         <p className="text-xs text-muted-foreground font-mono">{id}</p>
     </button>
@@ -523,14 +525,14 @@ const ChannelRow = ({ channel, unread, onOpen, onEdit }: ChannelRowProps) => {
                 )}
                 <div className="flex gap-2 mt-1 text-[10px] text-muted-foreground font-mono">
                     <span>#{channel.chatNo ?? 0}</span>
-                    {channel.memberNo != null && <span>멤버 {channel.memberNo}</span>}
+                    {channel.memberNo != null && <span>Members {channel.memberNo}</span>}
                     <span className="truncate">{channel.id}</span>
                 </div>
             </button>
             <button
                 onClick={onEdit}
                 className="shrink-0 px-2 py-2 text-sm text-muted-foreground hover:text-foreground"
-                title="이름 수정"
+                title="Edit name"
             >
                 ✎
             </button>

@@ -204,14 +204,16 @@ export const DebugChatPage = () => {
         <div className="p-6">
             <div className="mb-4 flex items-start justify-between gap-3">
                 <div>
-                    <h1 className="text-base font-semibold text-foreground">캐시 쓰기 실험 (채널 + 메시지)</h1>
+                    <h1 className="text-base font-semibold text-foreground">
+                        Cache write playground (channels + messages)
+                    </h1>
                     <p className="text-xs text-muted-foreground">
-                        레코드를 직접 만들고 지워서 낙관적 캐시 쓰기와 스트림 갱신을 눈으로 확인합니다. (실제 캐시에
-                        debug 레코드를 씁니다)
+                        Create and delete records directly to watch optimistic cache writes and stream updates in real
+                        time. (Writes real debug records into the cache.)
                     </p>
                 </div>
                 <Button variant="outline" size="sm" onClick={() => void clearAllDebug()}>
-                    전체 삭제
+                    Clear all
                 </Button>
             </div>
             <section className="grid w-full grid-cols-1 gap-6">

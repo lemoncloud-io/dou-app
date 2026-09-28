@@ -32,7 +32,7 @@ export const RuntimeOverlay = ({ onClose }: Props) => {
     const session = runtime.session.useGlobalSession();
     const { isAuthenticated, isInitialized } = runtime.session.useSessionAuth();
     const socketState = runtime.connection.useRuntimeSocketState();
-    const [tab, setTab] = useState<'상태' | 'DB' | '성능' | '프로필' | '안읽음'>('상태');
+    const [tab, setTab] = useState<'Status' | 'DB' | 'Perf' | 'Profile' | 'Unread'>('Status');
 
     // Floating draggable panel: start near the top-right so it doesn't cover the header.
     const panelRef = useRef<HTMLDivElement>(null);
@@ -85,7 +85,7 @@ export const RuntimeOverlay = ({ onClose }: Props) => {
                 onPointerUp={onHandlePointerUp}
                 className="flex items-center justify-between px-4 py-3 border-b border-border cursor-move select-none touch-none"
             >
-                <span className="font-semibold text-sm">Runtime 상태</span>
+                <span className="font-semibold text-sm">Runtime Status</span>
                 <button onClick={onClose} className="text-muted-foreground hover:text-foreground text-lg leading-none">
                     ✕
                 </button>
@@ -93,7 +93,7 @@ export const RuntimeOverlay = ({ onClose }: Props) => {
 
             <div className="overflow-y-auto p-4 space-y-3">
                 <div className="flex gap-1 mb-3">
-                    {(['상태', 'DB', '성능', '프로필', '안읽음'] as const).map(t => (
+                    {(['Status', 'DB', 'Perf', 'Profile', 'Unread'] as const).map(t => (
                         <button
                             key={t}
                             onClick={() => setTab(t)}
@@ -107,10 +107,10 @@ export const RuntimeOverlay = ({ onClose }: Props) => {
                 </div>
 
                 {tab === 'DB' && <DBBrowser />}
-                {tab === '프로필' && <ProfileTab />}
-                {tab === '안읽음' && <UnreadTab />}
-                {tab === '성능' && <PerfTab socketStateLabel={socketState.state} />}
-                {tab === '상태' && (
+                {tab === 'Profile' && <ProfileTab />}
+                {tab === 'Unread' && <UnreadTab />}
+                {tab === 'Perf' && <PerfTab socketStateLabel={socketState.state} />}
+                {tab === 'Status' && (
                     <>
                         <Section title="Session">
                             <Row label="initialized" value={String(isInitialized)} />
@@ -206,7 +206,7 @@ const CloudNameSection = () => {
     const handleSave = async () => {
         const normalized = normalizeName(name, 2);
         if (!normalized) {
-            setError('클라우드 이름은 2자 이상이어야 합니다.');
+            setError('Cloud name must be at least 2 characters.');
             return;
         }
         setError(null);
@@ -224,24 +224,26 @@ const CloudNameSection = () => {
 
     if (!cloudId) {
         return (
-            <Section title="클라우드 이름">
-                <p className="text-xs text-muted-foreground">클라우드 서버가 활성일 때만 이름을 변경할 수 있습니다.</p>
+            <Section title="Cloud name">
+                <p className="text-xs text-muted-foreground">
+                    You can only rename a cloud while a cloud server is active.
+                </p>
             </Section>
         );
     }
 
     return (
         <div className="space-y-2">
-            <Section title="클라우드 이름">
+            <Section title="Cloud name">
                 <Row label="cloudId" value={cloudId} />
-                <Row label="현재 이름" value={current?.name ?? '—'} />
+                <Row label="current name" value={current?.name ?? '—'} />
             </Section>
             <div className="flex flex-col gap-0.5">
                 <label className="text-[10px] text-muted-foreground">name</label>
                 <input
                     value={name}
                     onChange={e => setName(e.target.value)}
-                    placeholder="클라우드 이름"
+                    placeholder="Cloud name"
                     className="border border-border bg-background rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
                 />
             </div>
@@ -252,9 +254,9 @@ const CloudNameSection = () => {
                     disabled={saving}
                     className="px-3 py-1 text-xs rounded bg-primary text-primary-foreground disabled:opacity-50 hover:opacity-80"
                 >
-                    {saving ? '저장 중...' : '저장'}
+                    {saving ? 'Saving...' : 'Save'}
                 </button>
-                {saved && <span className="text-xs text-muted-foreground">저장됨 ✓</span>}
+                {saved && <span className="text-xs text-muted-foreground">Saved ✓</span>}
             </div>
         </div>
     );
@@ -302,7 +304,7 @@ const UserProfileSection = () => {
     const handleSave = async () => {
         const normalized = normalizeName(name);
         if (!normalized) {
-            setError('이름을 입력해 주세요.');
+            setError('Please enter a name.');
             return;
         }
         setError(null);
@@ -322,30 +324,30 @@ const UserProfileSection = () => {
     };
 
     if (!identity.userId) {
-        return <p className="text-xs text-muted-foreground">로그인 후 유저 프로필을 변경할 수 있습니다.</p>;
+        return <p className="text-xs text-muted-foreground">Log in to change the user profile.</p>;
     }
 
     return (
         <div className="space-y-2">
-            <Section title="유저 프로필 (활성 서버)">
+            <Section title="User profile (active server)">
                 <Row label="userId" value={identity.userId} />
-                <Row label="현재 name" value={current?.name ?? '—'} />
+                <Row label="current name" value={current?.name ?? '—'} />
             </Section>
             <div className="flex flex-col gap-0.5">
                 <label className="text-[10px] text-muted-foreground">name</label>
                 <input
                     value={name}
                     onChange={e => setName(e.target.value)}
-                    placeholder="유저 이름"
+                    placeholder="User name"
                     className="border border-border bg-background rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
                 />
             </div>
             <div className="flex flex-col gap-0.5">
-                <label className="text-[10px] text-muted-foreground">photo (URL 또는 base64)</label>
+                <label className="text-[10px] text-muted-foreground">photo (URL or base64)</label>
                 <input
                     value={photo}
                     onChange={e => setPhoto(e.target.value)}
-                    placeholder="https://... 또는 data:image/..."
+                    placeholder="https://... or data:image/..."
                     className="border border-border bg-background rounded px-2 py-1 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-primary"
                 />
             </div>
@@ -356,9 +358,9 @@ const UserProfileSection = () => {
                     disabled={saving}
                     className="px-3 py-1 text-xs rounded bg-primary text-primary-foreground disabled:opacity-50 hover:opacity-80"
                 >
-                    {saving ? '저장 중...' : '저장'}
+                    {saving ? 'Saving...' : 'Save'}
                 </button>
-                {saved && <span className="text-xs text-muted-foreground">저장됨 ✓</span>}
+                {saved && <span className="text-xs text-muted-foreground">Saved ✓</span>}
             </div>
         </div>
     );
@@ -426,17 +428,15 @@ const SiteProfileSection = () => {
 
     if (!sid || !uid) {
         return (
-            <p className="text-xs text-muted-foreground">
-                사이트(플레이스)를 먼저 선택해야 내 프로필을 설정할 수 있습니다.
-            </p>
+            <p className="text-xs text-muted-foreground">Select a site (place) first before setting your profile.</p>
         );
     }
 
     return (
         <div className="space-y-3">
-            <Section title="내 프로필">
+            <Section title="My profile">
                 <Row label="profileId" value={profileId} />
-                <Row label="현재 nick" value={current?.nick ?? '—'} />
+                <Row label="current nick" value={current?.nick ?? '—'} />
             </Section>
 
             <div className="space-y-2">
@@ -445,16 +445,16 @@ const SiteProfileSection = () => {
                     <input
                         value={nick}
                         onChange={e => setNick(e.target.value)}
-                        placeholder="표시 이름"
+                        placeholder="Display name"
                         className="border border-border bg-background rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
                     />
                 </div>
                 <div className="flex flex-col gap-0.5">
-                    <label className="text-[10px] text-muted-foreground">thumbnail (URL 또는 base64)</label>
+                    <label className="text-[10px] text-muted-foreground">thumbnail (URL or base64)</label>
                     <input
                         value={thumbnail}
                         onChange={e => setThumbnail(e.target.value)}
-                        placeholder="https://... 또는 data:image/..."
+                        placeholder="https://... or data:image/..."
                         className="border border-border bg-background rounded px-2 py-1 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-primary"
                     />
                 </div>
@@ -472,9 +472,9 @@ const SiteProfileSection = () => {
                         disabled={saving}
                         className="px-3 py-1 text-xs rounded bg-primary text-primary-foreground disabled:opacity-50 hover:opacity-80"
                     >
-                        {saving ? '저장 중...' : '저장'}
+                        {saving ? 'Saving...' : 'Save'}
                     </button>
-                    {saved && <span className="text-xs text-muted-foreground">저장됨 ✓</span>}
+                    {saved && <span className="text-xs text-muted-foreground">Saved ✓</span>}
                 </div>
             </div>
         </div>
@@ -493,22 +493,22 @@ const UnreadTab = () => {
 
     return (
         <div className="space-y-3">
-            <Section title="전체">
-                <Row label="cloud 안읽음 합계" value={total} />
-                <Row label="구독 채널 수" value={channels.length} />
+            <Section title="Total">
+                <Row label="cloud unread total" value={total} />
+                <Row label="subscribed channels" value={channels.length} />
             </Section>
 
-            <Section title="사이트별">
+            <Section title="By site">
                 {Object.keys(byPlace).length === 0 ? (
-                    <p className="text-xs text-muted-foreground">안읽음이 있는 사이트가 없습니다</p>
+                    <p className="text-xs text-muted-foreground">No site has any unread</p>
                 ) : (
                     Object.entries(byPlace).map(([sid, count]) => <Row key={sid} label={sid} value={count} />)
                 )}
             </Section>
 
-            <Section title="채널별">
+            <Section title="By channel">
                 {channels.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">구독된 채널이 없습니다</p>
+                    <p className="text-xs text-muted-foreground">No subscribed channels</p>
                 ) : (
                     Object.entries(byChannel).map(([id, count]) => (
                         <Row key={id} label={channelById.get(id)?.name || id} value={count} />
@@ -539,7 +539,7 @@ const PerfTab = ({ socketStateLabel }: { socketStateLabel: string }) => {
         <>
             <Section title={`Sync Targets (${targets.length})`}>
                 {targets.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">등록된 sync 타깃이 없습니다</p>
+                    <p className="text-xs text-muted-foreground">No sync targets registered</p>
                 ) : (
                     targets.map(t => (
                         <Row key={`${t.cid}|${t.type}:${t.id ?? ''}`} label={t.type} value={t.id ?? '(current)'} />
@@ -562,7 +562,7 @@ const PerfTab = ({ socketStateLabel }: { socketStateLabel: string }) => {
 
             <Section title="Cache observations">
                 {Object.keys(metrics.cacheObservations).length === 0 ? (
-                    <p className="text-xs text-muted-foreground">관측된 변화가 없습니다</p>
+                    <p className="text-xs text-muted-foreground">No observed changes</p>
                 ) : (
                     Object.entries(metrics.cacheObservations).map(([domain, count]) => (
                         <Row key={domain} label={domain} value={count} />
@@ -572,7 +572,7 @@ const PerfTab = ({ socketStateLabel }: { socketStateLabel: string }) => {
 
             <Section title="Renders">
                 {Object.keys(metrics.renders).length === 0 ? (
-                    <p className="text-xs text-muted-foreground">렌더 보고가 없습니다</p>
+                    <p className="text-xs text-muted-foreground">No render reports</p>
                 ) : (
                     Object.entries(metrics.renders).map(([label, count]) => (
                         <Row key={label} label={label} value={count} />

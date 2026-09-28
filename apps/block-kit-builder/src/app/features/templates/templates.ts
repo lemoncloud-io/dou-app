@@ -57,16 +57,16 @@ const ERROR_BLOCKS = [
  * grid carries the whole message and the context line says who sent it.
  */
 const ATTENDANCE_BLOCKS = [
-    { type: 'header', text: { type: 'plain_text', text: '🟢 오늘 근태 · 2026.08.28' } },
-    { type: 'section', text: { type: 'mrkdwn', text: '자리를 비우는 사람은 *1명*입니다.' } },
+    { type: 'header', text: { type: 'plain_text', text: "🟢 Today's Attendance · 2026.08.28" } },
+    { type: 'section', text: { type: 'mrkdwn', text: '*1 person* is out today.' } },
     {
         type: 'section',
         fields: [
-            { type: 'mrkdwn', text: '*Raine 공상택*\n연차 · 하루 종일' },
-            { type: 'mrkdwn', text: '*대신 볼 사람*\nLouis 김태호' },
+            { type: 'mrkdwn', text: '*Alex Park*\nAnnual leave · All day' },
+            { type: 'mrkdwn', text: '*Covering*\nSam Lee' },
         ],
     },
-    { type: 'context', elements: [{ type: 'mrkdwn', text: '스케줄앱' }] },
+    { type: 'context', elements: [{ type: 'mrkdwn', text: 'ScheduleApp' }] },
 ];
 
 /**
@@ -74,24 +74,27 @@ const ATTENDANCE_BLOCKS = [
  * where it came from is another, and the reader usually wants only the first.
  */
 const DEPLOYMENT_BLOCKS = [
-    { type: 'header', text: { type: 'plain_text', text: '🟢 Flows v0.73.0 배포 완료' } },
-    { type: 'section', text: { type: 'mrkdwn', text: '*개발 서버*에 올라갔습니다. 2분 41초 걸렸습니다.' } },
+    { type: 'header', text: { type: 'plain_text', text: '🟢 Flows v0.73.0 deployment complete' } },
+    {
+        type: 'section',
+        text: { type: 'mrkdwn', text: 'Deployed to the *development server*. Took 2 minutes 41 seconds.' },
+    },
     { type: 'divider' },
     {
         type: 'section',
         fields: [
-            { type: 'mrkdwn', text: '*배포 시각*\n2026.08.25 16:11:51' },
+            { type: 'mrkdwn', text: '*Deployed at*\n2026.08.25 16:11:51' },
             {
                 type: 'mrkdwn',
-                text: '*커밋*\n<https://github.com/lemoncloud-io/eureka-flows/commit/7b186ab|7b186ab> by louis-lemon',
+                text: '*Commit*\n<https://github.com/example-org/example-app/commit/7b186ab|7b186ab> by octocat',
             },
         ],
     },
     {
         type: 'context',
         elements: [
-            { type: 'mrkdwn', text: '릴리즈봇' },
-            { type: 'mrkdwn', text: '<https://github.com/lemoncloud-io/eureka-flows/actions|Actions run>' },
+            { type: 'mrkdwn', text: 'ReleaseBot' },
+            { type: 'mrkdwn', text: '<https://github.com/example-org/example-app/actions|Actions run>' },
         ],
     },
 ];
@@ -115,7 +118,7 @@ const DEPLOYMENT_BLOCKS = [
  * template is the primary action", neither of which is true.
  */
 export const TEMPLATES: readonly BuilderTemplate[] = [
-    { id: 'error', label: 'Error(오류)', dotClass: 'bg-red-500', blocks: toBlocks(ERROR_BLOCKS) },
-    { id: 'attendance', label: 'Attendance(근태)', dotClass: 'bg-emerald-600', blocks: toBlocks(ATTENDANCE_BLOCKS) },
-    { id: 'deployment', label: 'Deployment(배포)', dotClass: 'bg-indigo-500', blocks: toBlocks(DEPLOYMENT_BLOCKS) },
+    { id: 'error', label: 'Error', dotClass: 'bg-red-500', blocks: toBlocks(ERROR_BLOCKS) },
+    { id: 'attendance', label: 'Attendance', dotClass: 'bg-emerald-600', blocks: toBlocks(ATTENDANCE_BLOCKS) },
+    { id: 'deployment', label: 'Deployment', dotClass: 'bg-indigo-500', blocks: toBlocks(DEPLOYMENT_BLOCKS) },
 ] as const;

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ko">
+<html lang="en">
     <head>
         <meta charset="utf-8" />
         <title>Testbed</title>
@@ -49,11 +49,11 @@
                     color: #888;
                 "
             >
-                초기화 중...
+                Initializing...
             </div>
         </div>
         <script>
-            // React가 마운트되면 splash는 #root 교체로 자동 제거됩니다
+            // Once React mounts, the splash is removed automatically by the #root replacement
             document.addEventListener('DOMContentLoaded', function () {
                 var observer = new MutationObserver(function () {
                     var splash = document.getElementById('splash');

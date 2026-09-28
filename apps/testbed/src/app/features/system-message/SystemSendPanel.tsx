@@ -39,7 +39,7 @@ export const SystemSendPanel = ({ channelId, onClose }: Props) => {
                 onClick={e => e.stopPropagation()}
             >
                 <div className="flex items-center justify-between">
-                    <span className="font-semibold text-sm">시스템 메시지 보내기</span>
+                    <span className="font-semibold text-sm">Send system message</span>
                     <button
                         onClick={onClose}
                         className="text-muted-foreground hover:text-foreground text-lg leading-none"
@@ -48,8 +48,10 @@ export const SystemSendPanel = ({ channelId, onClose }: Props) => {
                     </button>
                 </div>
 
-                <p className="text-xs text-muted-foreground font-mono truncate">채널: {channelId}</p>
-                <p className="text-xs text-muted-foreground">owner는 현재 로그인 사용자입니다 (소켓 세션).</p>
+                <p className="text-xs text-muted-foreground font-mono truncate">Channel: {channelId}</p>
+                <p className="text-xs text-muted-foreground">
+                    The owner is the current logged-in user (socket session).
+                </p>
 
                 <div className="flex gap-2">
                     {(['join', 'leave'] as const).map(option => (
@@ -62,20 +64,20 @@ export const SystemSendPanel = ({ channelId, onClose }: Props) => {
                                     : 'border-border text-muted-foreground hover:text-foreground'
                             }`}
                         >
-                            {option === 'join' ? '입장 (join)' : '퇴장 (leave)'}
+                            {option === 'join' ? 'Join' : 'Leave'}
                         </button>
                     ))}
                 </div>
 
                 {error && <p className="text-xs text-destructive break-words">{error}</p>}
-                {sentAt && !error && <p className="text-xs text-primary">전송됨 ✓ (스트림으로 곧 반영)</p>}
+                {sentAt && !error && <p className="text-xs text-primary">Sent ✓ (reflected shortly via the stream)</p>}
 
                 <button
                     onClick={() => void handleSend()}
                     disabled={sending}
                     className="px-3 py-1.5 text-sm rounded bg-primary text-primary-foreground disabled:opacity-50 hover:opacity-80"
                 >
-                    {sending ? '전송 중...' : '전송'}
+                    {sending ? 'Sending...' : 'Send'}
                 </button>
             </div>
         </div>
