@@ -12,23 +12,30 @@ export interface SyncWatchEntry {
     target: SyncTargetDescriptor;
     refs: number;
     /**
-     * The cloud the session had selected when this target was registered — the partition its plan
-     * writes into — or null (cid-agnostic) when an injected reader returns none. It is deliberately
-     * NOT the active slot's boundCid: mid-switch the two differ, and the target belongs to the data
-     * the screen shows, not to whichever socket happened to be active. A target only (re)syncs on the
-     * client whose boundCid matches — so a cloud channel is never run on the relay socket, whether
-     * after a cloud logout (multi-socket-design.md §8-a trap #2) or while a switch into it is still
-     * bringing its slot up.
+     * The cloud this target belongs to — the partition its plan writes into, and the slot whose runtime
+     * runs it. Fixed at registration: a target never moves to another slot. Callers name it; the
+     * default is the cloud the session has selected when the target is registered, because that is
+     * the cloud whose rows the registering screen renders.
      */
-    cid: string | null;
+    cid: string;
     /**
-     * The user id this target was registered under, or null when there was no session. It is the
-     * SECOND scope axis, and it exists because `cid` alone cannot see an account change: a relay
-     * session stays on cid `'default'` across a guest→social promotion or a logout→login, so a
-     * target registered by the previous account passed every guard and kept polling ids built from
-     * the old uid. The server answers those with `403 not allowed to read join`.
+     * The uid the target was registered under, or null when there was none: the uid this account has
+     * in `cid` when the caller named the cloud, the session's uid when it did not (such a caller built
+     * the target's ids from the session). The SECOND scope axis: `cid` alone cannot see an account change — a relay session stays on cid
+     * `'default'` across a guest→social promotion or a logout→login, so a target registered by the
+     * previous account passed every guard and kept polling ids built from the old uid. The server
+     * answers those with `403 not allowed to read join`.
      */
     uid: string | null;
+}
+
+/** A registered target as `listTargets` reports it: the descriptor, and the cloud it belongs to. */
+export type SyncTargetListing = SyncTargetDescriptor & { cid: string };
+
+/** How a target is registered. */
+export interface SyncRegisterOptions {
+    /** The cloud the target belongs to. Defaults to the cloud the session has selected right now. */
+    cid?: string;
 }
 
 /**
@@ -45,10 +52,16 @@ export type SyncRuntimeOptions = Pick<
 export interface SyncManagerDeps {
     /** Builds one slot's plans; `slot` is the cloud that slot serves. */
     buildSyncPlans?: (slot: SlotKey) => DomainSyncPlan[];
-    /** The session uid targets are scoped to. Injected for tests; defaults to the session store. */
-    getUid?: () => string | null;
-    /** The selected cloud targets are scoped to. Injected for tests; defaults to the session store. */
-    getCid?: () => string | null;
+    /** The uid this account has in `cid`, which targets of that cloud are scoped to. Defaults to the session store. */
+    getUid?: (cid: string) => string | null;
+    /**
+     * The session's own uid — the active token's. A target registered without a cloud is tagged with
+     * it, and a change to it clears remembered channel refusals, which are keyed by channel id alone.
+     * Defaults to the session store.
+     */
+    getSessionUid?: () => string | null;
+    /** The selected cloud a target defaults to. Injected for tests; defaults to the session store. */
+    getCid?: () => string;
     /** Session-change subscription, so an account change can retire the previous account's targets. */
     subscribeSession?: (listener: () => void) => () => void;
     createRuntime?: (client: ClientSocketV2, plans: DomainSyncPlan[]) => ClientSocketRuntime;
@@ -57,16 +70,17 @@ export interface SyncManagerDeps {
 }
 
 export interface ISyncManager {
-    register(target: SyncTargetDescriptor): () => void;
+    register(target: SyncTargetDescriptor, options?: SyncRegisterOptions): () => void;
     registerDevice(id?: string, intervalMs?: number): () => void;
     registerChannel(id: string, intervalMs?: number): () => void;
     registerChat(id: string, intervalMs?: number): () => void;
     registerPlace(id: string, intervalMs?: number): () => void;
     registerProfile(id: string, intervalMs?: number): () => void;
     registerJoin(id: string, intervalMs?: number): () => void;
-    // Generic baseline bridge — delegates to the active runtime (no-op when none). Domain-shaped
-    // snapshots (chat `{ lastNo }`, others `{ updatedAt }`/`{ tick }`) are built by the caller.
-    updateLocalSnapshot(...args: Parameters<ClientSocketRuntime['updateLocalSnapshot']>): void;
-    listTargets(): SyncTargetDescriptor[];
+    // Generic baseline bridge — delegates to the runtime of the target's cloud slot (no-op when that
+    // slot is not bound). Domain-shaped snapshots (chat `{ lastNo }`, others `{ updatedAt }`/`{ tick }`)
+    // are built by the caller.
+    updateLocalSnapshot(target: SyncTargetDescriptor, snapshot: unknown, options?: SyncRegisterOptions): void;
+    listTargets(): SyncTargetListing[];
     destroy(): void;
 }

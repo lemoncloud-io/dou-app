@@ -21,6 +21,7 @@ import {
 import { getSocketManager } from '../../socket/runtime';
 import { clearRefusedChannel, recordRefusedChannel } from '../../socket/sync/refusedChannels';
 import { getSocketErrorCode } from '../../socket/utils/socketErrorCode';
+import type { ScopedSocketClient } from '../../socket/types';
 import { RELAY_SLOT } from '../../socket/utils/slotKey';
 
 /**
@@ -56,24 +57,30 @@ const observeMembershipRefusal = <TFn extends (payload: any, ...rest: any[]) => 
         }
     }) as TFn;
 
-export const createSocketDataSources = () => {
-    // Gateways bind to the SocketManager stable facade (request/send/onType); socket
-    // replacement stays invisible to them. (Formerly the ManagedSocketClientProxy.)
-    const socketClient = getSocketManager();
+/**
+ * @param socketClient What the cloud-domain gateways send through. The default is the manager's
+ *   active facade (whichever slot is active), which is what the app's own repository graph uses. A
+ *   scoped graph passes one slot's `getScopedClient(key)` instead, so everything it sends reaches the
+ *   cloud it was built for however the active slot moves. The relay-pinned gateways ignore it either
+ *   way — they belong to the relay whoever asks.
+ */
+export const createSocketDataSources = (socketClient: ScopedSocketClient = getSocketManager()) => {
+    // Gateways bind to a stable facade (request/send/onType); socket replacement stays invisible to
+    // them. (Formerly the ManagedSocketClientProxy.)
+    const relayClient = getSocketManager().getScopedClient(RELAY_SLOT);
 
     // Build a gateway once per route so a data source can pick a destination at call time. `active`
-    // is the manager facade (active slot); `relay` is a slot-pinned scoped client that resolves its
-    // slot lazily — so a relay-only write lands on relay even while a cloud is active.
+    // is the client above; `relay` is a slot-pinned scoped client that resolves its slot lazily — so
+    // a relay-only write lands on relay even while a cloud is active.
     const routed = <G>(create: (client: any) => G): RoutedGateway<G> => ({
         active: create(socketClient),
-        relay: create(socketClient.getScopedClient(RELAY_SLOT)),
+        relay: create(relayClient),
     });
 
     // Relay-pinned gateways. The 1:1 invite domain and the phone/social identity packets are owned
     // by the central backend behind the RELAY server, so they must not follow the active slot into
     // a cloud. Same policy shape as device.update-remote: the destination is fixed at composition
     // time instead of exposed as a route, so no caller can leak it.
-    const relayClient = socketClient.getScopedClient(RELAY_SLOT);
     const relayAuthGateway = createAuthGateway(relayClient as any);
     const inviteGateway = createInviteGateway(relayClient as any);
 

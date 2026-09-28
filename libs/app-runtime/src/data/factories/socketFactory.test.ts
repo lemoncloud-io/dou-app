@@ -96,3 +96,37 @@ describe('createSocketDataSources — relay-pinned gateways', () => {
         expect('updateSocketAuth' in socketDataSources.auth).toBe(false);
     });
 });
+
+describe('createSocketDataSources — bound to one slot', () => {
+    const slotRequest = jest.fn().mockResolvedValue({ list: [] });
+    const slotClient = { request: slotRequest, send: jest.fn(), onType: jest.fn().mockReturnValue(() => undefined) };
+
+    beforeEach(() => {
+        activeRequest.mockClear();
+        relayRequest.mockClear();
+        slotRequest.mockClear();
+    });
+
+    const expectRelayOnlyFor = (type: string) => {
+        expect(relayRequest).toHaveBeenCalledWith(type, expect.anything(), undefined);
+        expect(activeRequest).not.toHaveBeenCalled();
+    };
+
+    it('sends the cloud domains through the client it was given, not the active facade', async () => {
+        const { socketDataSources } = createSocketDataSources(slotClient);
+
+        await socketDataSources.channel.fetchChannel({ sid: 'site-1' } as any, { cid: 'cloud-a' });
+
+        expect(slotRequest).toHaveBeenCalledWith('channel.mine', expect.anything(), undefined);
+        expect(activeRequest).not.toHaveBeenCalled();
+    });
+
+    it('still pins the relay-owned domains to the relay slot', async () => {
+        const { socketDataSources } = createSocketDataSources(slotClient);
+
+        await socketDataSources.invite.listInvites({ state: 'pending' });
+
+        expectRelayOnlyFor('invite.list');
+        expect(slotRequest).not.toHaveBeenCalled();
+    });
+});

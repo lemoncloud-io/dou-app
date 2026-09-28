@@ -14,6 +14,8 @@ const mockCloudGetIdentityToken = jest.fn();
 const mockCloudGetSelectedSiteId = jest.fn();
 const mockCloudGetDelegationToken = jest.fn();
 const mockCloudGetCloudToken = jest.fn();
+const mockCloudGetCloudTokenOf = jest.fn();
+const mockCloudGetCloudIdentity = jest.fn();
 
 const mockIdentityGetDelegatorId = jest.fn();
 
@@ -34,6 +36,8 @@ jest.mock('./stores', () => ({
         getSelectedSiteId: (...a: unknown[]) => mockCloudGetSelectedSiteId(...a),
         getDelegationToken: (...a: unknown[]) => mockCloudGetDelegationToken(...a),
         getCloudToken: (...a: unknown[]) => mockCloudGetCloudToken(...a),
+        getCloudTokenOf: (...a: unknown[]) => mockCloudGetCloudTokenOf(...a),
+        getCloudIdentity: (...a: unknown[]) => mockCloudGetCloudIdentity(...a),
     },
     identityStore: {
         getDelegatorId: (...a: unknown[]) => mockIdentityGetDelegatorId(...a),
@@ -134,6 +138,62 @@ describe('rebuildSessionIdentity — notify 게이팅 (#8)', () => {
             store.rebuildSessionIdentity();
 
             expect(mockNotify).toHaveBeenCalledWith('identity');
+        });
+    });
+});
+
+describe('getUidInCloud — the uid this account has in one cloud, committed or not', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockCloudGetCloudTokenOf.mockReturnValue(null);
+        mockCloudGetCloudIdentity.mockReturnValue(null);
+    });
+
+    it('answers the relay with the relay token uid, even while a cloud token is active', () => {
+        jest.isolateModules(() => {
+            seedRelayOnly({ uid: 'relay-uid', Token: 't' });
+            mockCloudGetCloudToken.mockReturnValue({ uid: 'cloud-uid' });
+
+            expect(require('./contextStore').getUidInCloud('default')).toBe('relay-uid');
+            expect(mockCloudGetCloudTokenOf).not.toHaveBeenCalled();
+        });
+    });
+
+    it('answers a cloud with the uid of the token its socket signs with', () => {
+        jest.isolateModules(() => {
+            seedRelayOnly();
+            mockCloudGetCloudTokenOf.mockImplementation((cid: string) => (cid === 'cloud-a' ? { uid: 'uid-a' } : null));
+            mockCloudGetCloudIdentity.mockReturnValue({ uid: 'stale-uid' });
+
+            expect(require('./contextStore').getUidInCloud('cloud-a')).toBe('uid-a');
+        });
+    });
+
+    it('falls back to the recorded identity once the token is gone', () => {
+        jest.isolateModules(() => {
+            seedRelayOnly();
+            mockCloudGetCloudIdentity.mockImplementation((cid: string) =>
+                cid === 'cloud-b' ? { uid: 'uid-b' } : null
+            );
+
+            expect(require('./contextStore').getUidInCloud('cloud-b')).toBe('uid-b');
+        });
+    });
+
+    it('takes a token id when it carries no uid, as the session identity does', () => {
+        jest.isolateModules(() => {
+            seedRelayOnly();
+            mockCloudGetCloudTokenOf.mockReturnValue({ id: 'id-only' });
+
+            expect(require('./contextStore').getUidInCloud('cloud-a')).toBe('id-only');
+        });
+    });
+
+    it('is null for a cloud this account has no uid in', () => {
+        jest.isolateModules(() => {
+            seedRelayOnly();
+
+            expect(require('./contextStore').getUidInCloud('cloud-z')).toBeNull();
         });
     });
 });

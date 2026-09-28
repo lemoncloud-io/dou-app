@@ -11,8 +11,8 @@ is [docs/sync/](../sync/README.md)'s.
 ## Layout
 
 ```text
-data/                              17 source files, 8 tests
-├── DataManager.ts                two public methods. Everything is built in the constructor
+data/                              17 source files, 9 tests
+├── DataManager.ts                the app graph, plus one scoped graph per cloud on demand
 ├── runtime.ts                    configureDataRuntime · getDataRuntime · getDataManager · getRepositories
 ├── types.ts                      IDataManager · CacheAssemblyOptions
 ├── cacheStorageRouting.ts        resolveCacheBackend — the one routing decision
@@ -30,12 +30,14 @@ log inside `localFactory.ts` and lives apart because it needs the bridge mocked.
 
 ## Responsibilities
 
-### `DataManager` — two methods, one constructor
+### `DataManager` — the app graph, and a graph per cloud
 
 ```ts
 interface IDataManager {
-    getRepositories(): DataRepositories;
+    getRepositories(): DataRepositories; // the app graph — follows the selection
     getContext(): DataContext;
+    getScopedRepositories(cid: string): DataRepositories; // pinned to one cloud
+    getScopedContext(cid: string): DataContext;
 }
 ```
 
@@ -57,11 +59,44 @@ cache partition key (`${type}:${cid}:${uid}:${id}`); deciding whether a write be
 socket is actually attached to is the repository layer's, and that is what `ActiveScope.getContext()`
 splices `socketCid` in for.
 
+### Scoped repository graphs
+
+`getScopedRepositories(cid)` is a second repository graph pinned to one cloud, built on first use and
+kept for the session. It exists for work that belongs to a cloud other than — or independently of —
+the selected one: today the sync plans, each writing its slot's frames, and chat prime's cache read
+and first page.
+
+| Part          | App graph (`getRepositories`)               | Scoped graph (`getScopedRepositories(cid)`)                       |
+| ------------- | ------------------------------------------- | ----------------------------------------------------------------- |
+| Context       | `ActiveScope`: selected cloud + session uid | `{ cid, uid: getUidInCloud(cid), socketCid: cid }`, read per call |
+| Socket        | the active facade                           | `getScopedClient(slotKeyOf(cid))` — that cloud's slot only        |
+| Local sources | built once in the constructor               | **the same instances**                                            |
+| HTTP sources  | built once in the constructor               | the same instances                                                |
+
+**The local sources are shared, not copied**, because an observer is registered on a data-source
+instance: a write through a scoped graph has to reach the instance a screen subscribed through, or
+the screen never wakes. The partition is not the instance's to decide either way — every operation
+picks its storage from the context it runs under, so one shared instance serves every cloud's
+partition.
+
+**`socketCid` is the cloud itself**, because every socket call the graph makes goes through that
+cloud's slot; `acceptsAnswer` therefore never refuses an answer on a scoped graph. The uid is the one
+this account has in that cloud, read live — it can land after the graph exists, and a context with no
+uid names no partition, so the graph's cache operations are no-ops until it does.
+
+Two things it deliberately is not:
+
+- **Not the app graph when `cid` is the active cloud.** Handing the app graph back would make the active slot's frames follow the selection again during a switch, which is what the scoped graph exists to stop.
+- **Not evicted when the cloud's slot goes.** It is one small object per cloud visited, like the storage-per-partition memo underneath, and nothing in it is tied to one socket: its socket client resolves the slot on each call. Repository-instance state is its own — the only such state is the channel leave guard, which nothing that writes through a scoped graph reads.
+
+HTTP still follows the committed session on both graphs; nothing that writes through a scoped graph
+calls it.
+
 ### The three factories
 
 Each returns only the interfaces a repository consumes; no gateway instance escapes.
 
-- **`socketFactory`** builds the socket gateway bundle over `SocketManager`. Most entries bind to the active facade; the auth and invite gateways are pinned to relay with `getScopedClient('relay')`, and `device` is a routed trio (`{ active, relay, cloud }`) so the one relay-only device write can name its destination without every caller learning about routing. The auth bundle has **no `update` slot** — building an `auth.update` packet is the SDK's job alone.
+- **`socketFactory`** builds the socket gateway bundle over a socket client — the active facade by default, one slot's `getScopedClient(key)` for a scoped graph. The auth and invite gateways are pinned to relay with `getScopedClient(RELAY_SLOT)` whichever client is passed, and `device` is a routed pair (`{ active, relay }`) so the one relay-only device write can name its destination without every caller learning about routing. The auth bundle has **no `update` slot** — building an `auth.update` packet is the SDK's job alone.
 - **`httpFactory`** builds five HTTP data sources over the gateways in [docs/http/](../http/README.md): auth, user, cloud, subscription, report.
 - **`localFactory`** materializes `resolveCacheBackend`'s verdict as an adapter and wires nine storages — `channel`, `chat`, `inviteCloud`, `invite`, `join`, `profile`, `site`, `user`, `meta`. It holds the package's only module-level mutable state, a shared `IndexedDBDatabase`, because a database connection is a physical shared resource.
 
@@ -149,6 +184,9 @@ const { channel, chat } = runtime.data.useRuntimeRepositories();
 
 // Outside React — the same graph, resolved synchronously
 const repos = getRepositories();
+
+// One cloud's graph, whichever cloud is selected (runtime-internal today)
+const cloudA = getDataManager().getScopedRepositories('cloud-a');
 ```
 
 Everything else about using a repository — subscribing with `observe*`, refreshing, writing —

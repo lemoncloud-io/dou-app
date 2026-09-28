@@ -25,13 +25,3 @@ import type { DataContext } from './types';
  */
 export const isForeignContext = (context: DataContext): boolean =>
     context.socketCid != null && (context.cid || 'default') !== context.socketCid;
-
-/**
- * True when work targeted at `targetCid` is still relevant to the currently bound socket.
- *
- * `targetCid == null` means "not cloud-scoped" — it applies to whatever is bound, so it is always
- * active. This is the sync-side counterpart to {@link isForeignContext}: same question, but asked
- * about an explicit target rather than about the ambient context.
- */
-export const isCidActive = (targetCid: string | null, boundCid: string | null): boolean =>
-    targetCid == null || targetCid === boundCid;

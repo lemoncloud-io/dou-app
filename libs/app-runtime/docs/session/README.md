@@ -45,9 +45,9 @@ gateway. It is not React, so it uses the synchronous `getRepositories()` accesso
 `useRuntimeRepositories` hook.
 
 **`scope/` owns the answer to "which cloud/site/user are we operating as"** and implements
-`@chatic/data`'s `DataContextProvider`. It never judges — the judgements (`isForeignContext`,
-`isCidActive`) are pure functions owned by [`libs/data`](../../../data/README.md), because most of
-their call sites are inside `data`, which is a leaf and cannot import this package.
+`@chatic/data`'s `DataContextProvider`. It never judges — the judgement (`isForeignContext`) is a
+pure function owned by [`libs/data`](../../../data/README.md), because most of its call sites are
+inside `data`, which is a leaf and cannot import this package.
 
 ## The shared contract
 
@@ -137,6 +137,12 @@ state is seeded on first read rather than at module load, so importing the store
 `getIdentityContext`, `getActiveServerContext`, `getCloudSessionSnapshot`, `getSocketSlotContext`,
 `getGlobalSessionContext`, and `getCommittedCloudId()` — which is nothing but
 `cloudStore.getDelegationToken()?.cloudId ?? null`, the source of the `committed` scope view.
+
+`getUidInCloud(cloudId)` answers a question the identity context cannot: which uid this account has
+in a given cloud, committed or not. The relay's is the relay token's; a cloud's is the uid of the
+token its socket signs with (`getCloudTokenOf`), falling back to the recorded cloud identity once
+that token is gone. `IdentityContext.userId` answers for the active token only, and every cloud gives
+the account a different uid. The sync registry and the scoped repository graphs read it.
 
 ### The scope: three views that are supposed to disagree
 
