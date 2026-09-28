@@ -32,10 +32,33 @@ export interface IssuedCloudTokens {
     cloudToken: UserTokenView;
 }
 
+/** One exchange per cloud at a time — see `issueCloudTokens`. */
+const exchangesInFlight = new Map<string, Promise<IssuedCloudTokens>>();
+
+const exchange = async (cloudId: string): Promise<IssuedCloudTokens> => {
+    const delegationToken = await authRepository().delegateCloud(cloudId);
+    const cloudToken = await authRepository().exchangeToken({
+        baseURL: delegationToken.backend as string,
+        body: { delegationToken: delegationToken.delegationToken },
+    });
+
+    cloudStore.setCachedCloudTokens(cloudId, { delegationToken, cloudToken });
+    recordCloudIdentity(cloudId, cloudToken);
+    return { delegationToken, cloudToken };
+};
+
 /**
  * Runs (or replays from the per-cloud cache) the two-call cloud token exchange for `cloudId` and
  * records the result in that cache. Commits nothing to the active cloud slot — what a successful
  * issue MEANS for the session is the caller's decision.
+ *
+ * **One exchange per cloud at a time.** A call that finds an exchange for the same cloud in flight
+ * joins it instead of starting a second one. Three callers can ask for the same cloud at once — a
+ * switch, the background-slot preparer, a renewal — and two exchanges would each write the cache,
+ * last one winning, while the caller that lost may already have committed its own tokens to the
+ * store or registered a socket with them. The cache and what that cloud's socket signs with would
+ * then disagree. Joining is safe for every caller: an exchange in flight is as fresh as one started
+ * now.
  */
 export const issueCloudTokens = async (
     cloudId: string,
@@ -49,15 +72,16 @@ export const issueCloudTokens = async (
         }
     }
 
-    const delegationToken = await authRepository().delegateCloud(cloudId);
-    const cloudToken = await authRepository().exchangeToken({
-        baseURL: delegationToken.backend as string,
-        body: { delegationToken: delegationToken.delegationToken },
-    });
+    const running = exchangesInFlight.get(cloudId);
+    if (running) return running;
 
-    cloudStore.setCachedCloudTokens(cloudId, { delegationToken, cloudToken });
-    recordCloudIdentity(cloudId, cloudToken);
-    return { delegationToken, cloudToken };
+    const started = exchange(cloudId);
+    exchangesInFlight.set(cloudId, started);
+    try {
+        return await started;
+    } finally {
+        exchangesInFlight.delete(cloudId);
+    }
 };
 
 /**

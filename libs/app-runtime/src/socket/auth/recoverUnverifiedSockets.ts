@@ -46,7 +46,12 @@ const doRecover = async ({ manager, delegate }: RecoverUnverifiedSocketsDeps): P
     const sessionDelegate = delegate ?? createSocketSessionDelegate();
 
     // Every bound slot, checked independently: relay can be wedged while a cloud is the active one.
-    for (const key of socketManager.getSlotKeys()) {
+    // The active slot goes first. Each kick awaits a disconnect and a connect, and with a background
+    // session per cloud there can be several slots behind it — the one the user is looking at should
+    // not wait for all of them.
+    const active = socketManager.getBoundCid();
+    const keys = [...socketManager.getSlotKeys()].sort((a, b) => Number(b === active) - Number(a === active));
+    for (const key of keys) {
         const kind = kindOf(key);
         const client = socketManager.getClient(key);
         if (!client) {

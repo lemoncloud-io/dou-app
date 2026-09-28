@@ -1,6 +1,6 @@
 # ADR-0116: The active socket slot is a pointer the binder sets, not inferred from what is bound
 
-> Status: Accepted · Decided: 2026-09-28 · Implemented: `refactor/socket-active-pointer`
+> Status: Accepted (decision 3's switch order and reconcile key are amended → [ADR-0119](0119-every-joined-cloud-keeps-a-socket-session.md)) · Decided: 2026-09-28 · Implemented: `refactor/socket-active-pointer`
 > · Scope: `libs/app-runtime/src/socket/SocketManager.ts` · `libs/app-runtime/src/connection/SocketBinder.tsx`
 > · Supersedes: decision 5 of [ADR-0115](./0115-a-socket-slot-is-keyed-by-the-cloud-it-serves.md) (at most
 > one cloud slot, enforced by `ensure`)

@@ -2,7 +2,7 @@ import { logger } from '@chatic/bridges';
 import { relaySession, type LogoutOptions } from '../../session/auth/relaySession';
 
 import { getSocketManager } from '../runtime';
-import type { SlotKey } from '../types';
+import type { ISocketManager, SlotKey } from '../types';
 import { kindOf } from '../utils/slotKey';
 
 /**
@@ -11,8 +11,8 @@ import { kindOf } from '../utils/slotKey';
  * controller, but the server ack is NOT awaited: on a wedged/half-open socket that ack can hang to
  * the 30s request timeout, and it must never block the local teardown + redirect.
  */
-export const notifySocketLogout = (slot: SlotKey): void => {
-    const auth = getSocketManager().getClient(slot)?.auth;
+export const notifySocketLogout = (slot: SlotKey, manager: ISocketManager = getSocketManager()): void => {
+    const auth = manager.getClient(slot)?.auth;
     if (!auth) return;
     // logout() is best-effort and does not reject, but the promise is guarded regardless.
     void Promise.resolve(auth.logout()).catch(error =>

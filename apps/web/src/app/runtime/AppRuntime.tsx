@@ -15,6 +15,7 @@ import { ActiveCloudDataProvider, OtherCloudUnreadProvider } from '../hooks';
 import { useAutoScrollOnFocus } from '../ui/hooks';
 import { DebugObservationReporter } from '../features/debug';
 import { CloudActivatedRunner, CloudPushMarkRunner, UnreadBadgeRunner } from '../features/home';
+import { BackgroundCloudsRunner } from './BackgroundCloudsRunner';
 import { BackgroundSyncRunner } from './BackgroundSyncRunner';
 import { InvitedCloudDurabilityRunner } from './InvitedCloudDurabilityRunner';
 import { MyUserSeedRunner } from './MyUserSeedRunner';
@@ -67,6 +68,7 @@ export const AppRuntime = () => {
                 <OtherCloudUnreadProvider>
                     <PreferenceLoader />
                     <BackgroundSyncRunner />
+                    <BackgroundCloudsRunner />
                     <UnreadBadgeRunner />
                     <CloudPushMarkRunner />
                     <CloudActivatedRunner />

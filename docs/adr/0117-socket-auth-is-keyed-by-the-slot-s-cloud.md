@@ -1,6 +1,6 @@
 # ADR-0117: Socket authentication is keyed by the slot's cloud, not by the server kind
 
-> Status: Accepted · Decided: 2026-09-28 · Implemented: `feat/per-cloud-socket-auth`
+> Status: Accepted (decision 4's terminal-expiry cache rule is amended → [ADR-0119](0119-every-joined-cloud-keeps-a-socket-session.md)) · Decided: 2026-09-28 · Implemented: `feat/per-cloud-socket-auth`
 > · Scope: `libs/app-runtime/src/session/auth/**` · `libs/app-runtime/src/session/store/cloudStore.ts` ·
 > `libs/app-runtime/src/socket/auth/**` · `libs/app-runtime/src/session/hooks/app/useCloudCredentialGuard.ts`
 > · Builds on: [ADR-0115](./0115-a-socket-slot-is-keyed-by-the-cloud-it-serves.md) (slots keyed by cid) ·

@@ -39,10 +39,10 @@ import { getCommittedCloudId } from '../../store';
  * `check` is returned for hosts with a trigger this hook cannot know about — apps/web fires it on
  * WebView foreground, where a suspended tab's timer fires late or not at all.
  *
- * **Which clouds.** The committed cloud, and every cloud that has a socket slot bound — one timer,
- * armed on the earliest deadline among them. Today those name the same single cloud; the set is
- * what lets a cloud the user is not looking at keep its socket session once such slots exist. Each
- * cloud renews through its own renewer, so one cloud's failed exchange never delays another's.
+ * **Which clouds.** The committed cloud, and every cloud that has a socket slot bound — each
+ * background cloud included — with one timer armed on the earliest deadline among them. That set is
+ * what lets a cloud the user is not looking at keep its socket session. Each cloud renews through
+ * its own renewer, so one cloud's failed exchange never delays another's.
  */
 export interface CloudCredentialPolicy {
     /** Off by default is wrong for a guard — callers opt out explicitly. */

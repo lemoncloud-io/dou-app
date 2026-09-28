@@ -198,7 +198,7 @@ Files you cannot guess from the name:
   here, grouped by page type rather than by feature.
 - `app/routes/index.tsx` — the `Router` itself: it picks `privateRoutes` or `publicRoutes` from
   `runtime.session.useSessionAuth()` and blocks render until the session is initialized.
-- `app/runtime/AppRuntime.tsx` — mounts `runtime.connection.RuntimeConnectionHost` and seven
+- `app/runtime/AppRuntime.tsx` — mounts `runtime.connection.RuntimeConnectionHost` and eight
   background runners inside it.
 - `app/runtime/useSiteSwitch.ts` — the place (site) switch. The cloud switch lives under
   `features/home`.
@@ -298,7 +298,7 @@ main.tsx
         ├── AppUpdatePromptHost
         ├── app/runtime/AppRuntime.tsx
         │   └── runtime.connection.RuntimeConnectionHost   (gates until the session is ready)
-        │       ├── background runners × 7
+        │       ├── background runners × 8
         │       └── app/routes                             (Router → public | private + common)
         └── DebugOverlayHost
 ```

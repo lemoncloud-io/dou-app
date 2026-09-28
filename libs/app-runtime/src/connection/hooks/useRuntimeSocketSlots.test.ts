@@ -1,4 +1,6 @@
-import { renderHook } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
+
+import { backgroundClouds } from '../../socket/backgroundClouds';
 import { useRuntimeSocketSlots } from './useRuntimeSocketSlots';
 import { useDynamicDeviceId } from '../../session/hooks/app/useDynamicDeviceId';
 import { getCommittedCloudId, getSocketSlotContext, sessionSignal } from '../../session/store';
@@ -10,6 +12,13 @@ jest.mock('../../session/hooks/app/useDynamicDeviceId', () => ({
 // concrete module. `getSocketSlotContext` is the NARROW snapshot this hook reads — it carries relay
 // and cloud only, matching the three signals it subscribes to (ADR-0076 E5). The committed cloud id
 // is distinct from the SELECTED `cloud.cloudId` in that snapshot.
+// The background half reads the app's cloud list, the token cache and the manager — all covered by
+// `backgroundSlots.test.ts`. Here it is a seam: which configs it hands back, and whether it is asked.
+const mockReadyBackgroundConfigs = jest.fn((_deviceId: string): unknown[] => []);
+jest.mock('../utils/backgroundSlots', () => ({
+    readyBackgroundConfigs: (deviceId: string) => mockReadyBackgroundConfigs(deviceId),
+}));
+
 jest.mock('../../session/store', () => ({
     getCommittedCloudId: jest.fn(),
     getSocketSlotContext: jest.fn(),
@@ -64,6 +73,7 @@ describe('useRuntimeSocketSlots', () => {
                     cid: 'my-cloud-id',
                 },
             },
+            background: [],
         });
     });
 
@@ -119,7 +129,10 @@ describe('useRuntimeSocketSlots', () => {
 
         const { result } = renderHook(() => useRuntimeSocketSlots());
 
-        expect(result.current).toEqual({ relay: { config: relayConfig, identityToken: 'relay-token' } });
+        expect(result.current).toEqual({
+            relay: { config: relayConfig, identityToken: 'relay-token' },
+            background: [],
+        });
         expect(result.current.cloud).toBeUndefined();
     });
 
@@ -142,6 +155,7 @@ describe('useRuntimeSocketSlots', () => {
         expect(result.current).toEqual({
             relay: { config: relayConfig, identityToken: 'relay-token' },
             cloud: undefined,
+            background: [],
         });
     });
 
@@ -170,7 +184,7 @@ describe('useRuntimeSocketSlots', () => {
 
         const { result } = renderHook(() => useRuntimeSocketSlots());
 
-        expect(result.current).toEqual({});
+        expect(result.current).toEqual({ background: [] });
     });
 
     it('optimistic cloud switch: the cloud SLOT waits for isActive even though the cid pre-applied', () => {
@@ -213,5 +227,50 @@ describe('useRuntimeSocketSlots', () => {
             ['relay:token', 'cloud:token', 'selection'],
             expect.any(Function)
         );
+    });
+
+    describe('background slots', () => {
+        const relayOnly = () =>
+            (getSocketSlotContext as jest.Mock).mockReturnValue({
+                relay: RELAY,
+                cloud: { cloudId: 'default', wss: null, identityToken: null, isActive: false },
+            });
+
+        it('carries a slot per ready background cloud, with no identityToken', () => {
+            relayOnly();
+            const config = { url: 'wss://a', deviceId: 'test-device-id', wssType: 'cloud', cid: 'cloud-a' };
+            mockReadyBackgroundConfigs.mockReturnValue([config]);
+
+            const { result } = renderHook(() => useRuntimeSocketSlots());
+
+            expect(mockReadyBackgroundConfigs).toHaveBeenCalledWith('test-device-id');
+            expect(result.current.background).toEqual([{ config }]);
+        });
+
+        it('has none without a relay session — every cloud token is minted from it', () => {
+            (getSocketSlotContext as jest.Mock).mockReturnValue({
+                relay: { ...RELAY, identityToken: null },
+                cloud: { cloudId: 'default', wss: null, identityToken: null, isActive: false },
+            });
+            mockReadyBackgroundConfigs.mockReturnValue([{ config: {} }]);
+
+            const { result } = renderHook(() => useRuntimeSocketSlots());
+
+            expect(result.current.background).toEqual([]);
+            expect(mockReadyBackgroundConfigs).not.toHaveBeenCalled();
+        });
+
+        it('re-derives when the background store announces — the app list or the token cache moved', () => {
+            relayOnly();
+            mockReadyBackgroundConfigs.mockReturnValue([]);
+            const { result } = renderHook(() => useRuntimeSocketSlots());
+            expect(result.current.background).toEqual([]);
+
+            const config = { url: 'wss://a', deviceId: 'test-device-id', wssType: 'cloud', cid: 'cloud-a' };
+            mockReadyBackgroundConfigs.mockReturnValue([config]);
+            act(() => backgroundClouds.invalidate());
+
+            expect(result.current.background).toEqual([{ config }]);
+        });
     });
 });

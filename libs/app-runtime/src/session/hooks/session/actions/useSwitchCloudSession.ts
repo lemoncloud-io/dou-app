@@ -3,8 +3,24 @@ import { useCallback } from 'react';
 
 import { perfNow, reportPerfMetric } from '@chatic/bridges';
 
+import { SDK_REFRESH_CYCLE_MS } from '../../../../socket/constants';
+import { credentialRenewers } from '../../../../socket/auth/renewers';
+import { getSocketManager } from '../../../../socket/runtime';
+import { slotKeyOf } from '../../../../socket/utils/slotKey';
 import { cloudSession } from '../../../auth/cloudSession';
 import { SWITCH_CLOUD_MUTATION_KEY } from '../../mutationKeys';
+
+/**
+ * A switch onto a live background slot commits that slot's tokens as they are, without re-issuing —
+ * including ones that ran low while nothing was looking (a laptop asleep, say). The credential guard
+ * would renew them on its next tick, which can be minutes away; the user just walked into this
+ * cloud, so renew now. Renewal re-issues and re-registers the socket in one step.
+ */
+const renewIfLapsing = (cloudId: string): void => {
+    const renewer = credentialRenewers.forSlot(slotKeyOf(cloudId));
+    const left = renewer.timeToExpiry();
+    if (left != null && left <= SDK_REFRESH_CYCLE_MS) void renewer.renew();
+};
 
 /**
  * Switches the active cloud session through session services.
@@ -19,7 +35,16 @@ import { SWITCH_CLOUD_MUTATION_KEY } from '../../mutationKeys';
 export const useSwitchCloudSession = () => {
     const mutation = useMutation({
         mutationKey: SWITCH_CLOUD_MUTATION_KEY,
-        mutationFn: (cloudId: string) => cloudSession.switchTo(cloudId),
+        mutationFn: async (cloudId: string) => {
+            // Asked at the moment of the switch: a background slot for the target may have bound or
+            // gone since render, and whether one is up decides which tokens the switch may commit.
+            const hasLiveSlot = getSocketManager()
+                .getSlotKeys()
+                .some(key => key === cloudId);
+            const snapshot = await cloudSession.switchTo(cloudId, { hasLiveSlot });
+            if (hasLiveSlot) renewIfLapsing(cloudId);
+            return snapshot;
+        },
     });
 
     // Keyed on the stable `mutateAsync` (react-query memoizes it) rather than the mutation object,

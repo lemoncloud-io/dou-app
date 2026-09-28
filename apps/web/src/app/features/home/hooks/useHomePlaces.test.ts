@@ -22,11 +22,13 @@ const refreshListMock = jest.fn();
 
 const place = (id: string): DomainPlace => ({ id }) as unknown as DomainPlace;
 
-// Wire observeList to immediately emit the given rows and return a disposer spy.
+// Wire observeList to immediately emit the given rows and return a disposer spy. Each row is stamped
+// with the cid of the scope it was observed under, as a cache row of that partition carries, unless
+// the case gives it one of its own.
 const emit = (rows: DomainPlace[]) => {
     const dispose = jest.fn();
-    observeListMock.mockImplementation((_query, cb) => {
-        cb({ list: rows });
+    observeListMock.mockImplementation((_query, cb, scope?: { cid?: string }) => {
+        cb({ list: rows.map(row => ({ cid: scope?.cid, ...row })) });
         return dispose;
     });
     return dispose;
@@ -50,6 +52,32 @@ beforeEach(() => {
 });
 
 describe('useHomePlaces — 플레이스 목록 구독', () => {
+    it("never hands out the previous cloud's rows, not even in the render where the selection moves", () => {
+        // With a background session per cloud, the incoming cloud's socket is already up: a row
+        // rendered in that render registers its place under the new cloud, and the auto-select
+        // switches to it. The observer reset runs in an effect, one render too late for both.
+        setActiveServer('cloud', 'cloud-A', 'u1');
+        emit([place('a1')]);
+        const seen: Array<{ ids: string[]; isLoading: boolean }> = [];
+        const { rerender } = renderHook(() => {
+            const result = useHomePlaces();
+            seen.push({ ids: result.places.map(p => p.id), isLoading: result.isLoading });
+            return result;
+        });
+        expect(seen.at(-1)?.ids).toEqual(['a1']);
+        const before = seen.length;
+
+        setActiveServer('cloud', 'cloud-B', 'u1');
+        emit([]);
+        rerender();
+
+        const afterSwitch = seen.slice(before);
+        expect(afterSwitch.length).toBeGreaterThan(0);
+        expect(afterSwitch.every(render => !render.ids.includes('a1'))).toBe(true);
+        // …and the empty list in between reads as loading, not as a cloud without places.
+        expect(afterSwitch.every(render => render.isLoading)).toBe(true);
+    });
+
     it('캐시를 구독해 목록을 노출하고 로딩을 해제한다', () => {
         emit([place('p1'), place('p2')]);
 
@@ -140,7 +168,7 @@ describe('useHomePlaces — 플레이스 목록 구독', () => {
             expect(result.current.isLoading).toBe(true);
 
             const onEmit = observeListMock.mock.calls.at(-1)?.[1] as (r: { list: DomainPlace[] }) => void;
-            act(() => onEmit({ list: [place('p1')] }));
+            act(() => onEmit({ list: [{ ...place('p1'), cid: 'cloud-cold' }] }));
 
             expect(result.current.places.map(p => p.id)).toEqual(['p1']);
             expect(result.current.isLoading).toBe(false);

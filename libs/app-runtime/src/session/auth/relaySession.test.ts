@@ -21,6 +21,8 @@ const mockGetBackend = jest.fn();
 const mockGetWss = jest.fn();
 
 const mockRelaySaveRelayToken = jest.fn();
+/** Every cloud-store clear, by name — the account teardown is judged by which of them ran. */
+const mockCloudClear = jest.fn();
 
 // Per-server bridge helper deps. mockGetActiveServerContext backs the "routing ignores active
 // context" assertions in the per-server suite.
@@ -92,7 +94,10 @@ jest.mock('../store/stores', () => ({
         getSelectedSiteId: (...args: unknown[]) => mockGetSelectedSiteId(...args),
         clearSelectedSite: jest.fn(),
         clearDelegationToken: jest.fn(),
-        clearSession: jest.fn(),
+        clearSession: (...args: unknown[]) => mockCloudClear('clearSession', ...args),
+        clearCachedCloudTokens: (...args: unknown[]) => mockCloudClear('clearCachedCloudTokens', ...args),
+        clearCloudIdentities: (...args: unknown[]) => mockCloudClear('clearCloudIdentities', ...args),
+        clearRecentClouds: (...args: unknown[]) => mockCloudClear('clearRecentClouds', ...args),
         getIdentityToken: (...args: unknown[]) => mockGetIdentityToken(...args),
         getBackend: (...args: unknown[]) => mockGetBackend(...args),
         getWss: (...args: unknown[]) => mockGetWss(...args),
@@ -323,6 +328,24 @@ describe('session/auth/relaySession', () => {
     });
 
     // ⑪ device registration: deviceId persisted through identityStore ONLY
+    it('the full teardown ends the account in every cloud — tokens, uids and recent order all go', async () => {
+        // jsdom does not navigate; the redirect is not what this case is about.
+        const consoleError = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+
+        await relaySession.clearAndRedirect();
+
+        const cleared = mockCloudClear.mock.calls.map(([name]) => name);
+        expect(cleared).toEqual(
+            expect.arrayContaining([
+                'clearSession',
+                'clearCachedCloudTokens',
+                'clearCloudIdentities',
+                'clearRecentClouds',
+            ])
+        );
+        consoleError.mockRestore();
+    });
+
     it('persists deviceId through identityStore and writes no raw localStorage copy', () => {
         relaySession.persistDeviceId('device-42');
 

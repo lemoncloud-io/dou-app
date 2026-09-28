@@ -25,6 +25,7 @@ import {
     useUnreadStore,
     startSocketFrameLog,
 } from '../shared';
+import { BackgroundCloudsRunner } from './BackgroundCloudsRunner';
 import { BackgroundSyncRunner } from './BackgroundSyncRunner';
 import { useRealtimeProfileSync } from './useRealtimeProfileSync';
 import { useRelayCredentialRefresh } from './useRelayCredentialRefresh';
@@ -169,6 +170,7 @@ export const DesktopRuntime = () => {
                 the label is the only way to learn what a button does. */}
             <TooltipProvider delayDuration={300}>
                 <BackgroundSyncRunner />
+                <BackgroundCloudsRunner />
                 <AuthedNotifications />
                 <ShellUnreadSync />
                 {/* The banners are a row in the layout, not fixed overlays. Fixed, they

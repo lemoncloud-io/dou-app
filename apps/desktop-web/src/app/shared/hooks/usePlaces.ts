@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import type { DomainPlace } from '@chatic/data';
 import { runtime } from '@chatic/app-runtime';
@@ -40,5 +40,11 @@ export const usePlaces = () => {
         };
     }, [placeRepository, cid, uid]);
 
-    return { places, isLoading };
+    // The reset above runs in an effect, so the render in which the cloud moves still holds the
+    // previous cloud's rows; filtering at render keeps even that one render to this cloud's places.
+    // With a background session per cloud the new cloud's socket is already up, so a place picked
+    // from the stale list would reach it at once.
+    const cloudPlaces = useMemo(() => places.filter(row => row.cid === cid), [places, cid]);
+
+    return { places: cloudPlaces, isLoading };
 };

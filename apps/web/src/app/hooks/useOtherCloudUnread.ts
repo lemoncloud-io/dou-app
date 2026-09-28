@@ -6,6 +6,7 @@ import { useCloudSessionCatalog } from './useCloudCatalog';
 import { countUnread, readCursorOf } from '../utils/countUnread';
 import { useOtherCloudUnreadContext } from './otherCloudUnreadContext';
 import { useInvitedClouds } from './useInvitedClouds';
+import { useJoinedCloudIds } from './useJoinedCloudIds';
 
 /** Relay mode reads as this cloud id (see useSessionSelection). */
 const RELAY_CLOUD_ID = 'default';
@@ -78,13 +79,11 @@ export const useOtherCloudUnreadSource = (activeCloudId: string): OtherCloudUnre
 
     // Owned + invited + relay, minus wherever the user is now — that one is observed live by the
     // caller and would otherwise be counted from a staler source.
-    const cids = useMemo(() => {
-        const ids = new Set<string>([RELAY_CLOUD_ID]);
-        for (const cloud of ownedClouds) if (cloud.id) ids.add(cloud.id);
-        for (const cloud of invitedClouds) if (cloud.id) ids.add(cloud.id);
-        ids.delete(activeCloudId);
-        return [...ids].sort();
-    }, [ownedClouds, invitedClouds, activeCloudId]);
+    const joinedCloudIds = useJoinedCloudIds(ownedClouds, invitedClouds);
+    const cids = useMemo(
+        () => [RELAY_CLOUD_ID, ...joinedCloudIds].filter(id => id !== activeCloudId).sort(),
+        [joinedCloudIds, activeCloudId]
+    );
 
     // Joined so the effect re-runs on membership changes, not on every new array identity.
     const cidsKey = cids.join(',');

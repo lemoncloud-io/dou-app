@@ -60,8 +60,13 @@ const makeClient = (kind: string, order: string[], { authState = '', state = 'co
 type FakeClient = ReturnType<typeof makeClient>;
 
 /** Maps the test's logical 'relay' | 'cloud' slots onto real SlotKeys, mirroring `getSlotKeys()`. */
-const makeManager = (slots: Partial<Record<'relay' | 'cloud', FakeClient>>, verified: Record<string, boolean> = {}) =>
+const makeManager = (
+    slots: Partial<Record<'relay' | 'cloud', FakeClient>>,
+    verified: Record<string, boolean> = {},
+    active: string | null = null
+) =>
     ({
+        getBoundCid: jest.fn(() => active),
         getSlotKeys: jest.fn(() => {
             const keys: string[] = [];
             if (slots.relay) keys.push(RELAY);
@@ -158,6 +163,19 @@ describe('recoverUnverifiedSockets', () => {
         const registeredSign = relay.auth.register.mock.calls[0][0].sign;
         await registeredSign('sdk-token', { target: 'uid@sid' });
         expect(delegate.signAuth).toHaveBeenCalledWith(RELAY, 'sdk-token', 'uid@sid');
+    });
+
+    it('kicks the active slot first, whatever order the slots were bound in', async () => {
+        const order: string[] = [];
+        const relay = makeClient('relay', order, { authState: 'failed' });
+        const cloud = makeClient('cloud', order, { authState: 'failed' });
+
+        await recoverUnverifiedSockets({
+            manager: makeManager({ relay, cloud }, { relay: false, cloud: false }, CLOUD),
+            delegate: makeDelegate(null),
+        });
+
+        expect(order).toEqual(['cloud:disconnect', 'cloud:connect', 'relay:disconnect', 'relay:connect']);
     });
 
     it('coalesces concurrent calls onto the in-flight run', async () => {

@@ -85,6 +85,12 @@ export const useActiveCloudChannelsSource = (): { channels: DomainChannel[]; isL
         );
     }, [channel, cid, uid]);
 
+    // Only this cloud's rows, decided at render: the reset above runs in an effect, so the render in
+    // which the selection moves still holds the previous cloud's list, and each rendered row would
+    // register its channel's sync target under the new cloud — whose socket, with a background
+    // session per cloud, is already up to receive the previous cloud's channel ids.
+    const inCloud = useMemo(() => channels.filter(row => row.cid === cid), [channels, cid]);
+
     /**
      * COLD CLOUD — the cache answers `[]` instantly for a cloud this device has never opened, before
      * the first `channel.syncChannels` has been sent, so "the cache answered" is not yet an answer
@@ -94,14 +100,15 @@ export const useActiveCloudChannelsSource = (): { channels: DomainChannel[]; isL
      * Three things can explain it, cheapest first: rows in the cache (a cloud visited before is
      * loaded the moment it emits), the first delta answering (which is how a place that really has
      * no rooms — every place, at the start — says so within a round trip rather than a whole
-     * window), and the window elapsing (the bound for when neither ever happens).
+     * window), and the window elapsing (the bound for when neither ever happens). The rows counted
+     * are this cloud's: the previous cloud's must not read as "loaded".
      */
-    const isLoaded = hasCacheAnswered && (channels.length > 0 || hasChannelSync || hasColdWindowElapsed);
+    const isLoaded = hasCacheAnswered && (inCloud.length > 0 || hasChannelSync || hasColdWindowElapsed);
 
     const accessible = useMemo(() => {
-        if (!accessiblePlaceIds) return channels;
-        return channels.filter(row => !row.sid || accessiblePlaceIds.has(row.sid));
-    }, [channels, accessiblePlaceIds]);
+        if (!accessiblePlaceIds) return inCloud;
+        return inCloud.filter(row => !row.sid || accessiblePlaceIds.has(row.sid));
+    }, [inCloud, accessiblePlaceIds]);
 
     return useMemo(() => ({ channels: accessible, isLoaded }), [accessible, isLoaded]);
 };

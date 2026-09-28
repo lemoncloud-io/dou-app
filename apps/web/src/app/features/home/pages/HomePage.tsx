@@ -6,6 +6,7 @@ import { Loader2, X } from 'lucide-react';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { runtime } from '@chatic/app-runtime';
 import { useCloudSessionCatalog } from '../../../hooks/useCloudCatalog';
+import { useJoinedCloudIds } from '../../../hooks/useJoinedCloudIds';
 import { useMembershipInfo } from '../../../hooks/useMembership';
 
 import { AppHeader, EmptyState, ProfileAvatar, SubscriptionBadge } from '@chatic/web-ui-kit';
@@ -222,12 +223,11 @@ export const HomePage = () => {
     // Catalog filter: only a mark for a cloud actually in THIS account's reach (owned + invited +
     // relay) and not the one being viewed counts toward the dot — a stale/foreign mark otherwise
     // never clears (see docs/feature/home/unread-dot.md, Design Principle 5).
+    const joinedCloudIds = useJoinedCloudIds(clouds, invitedClouds);
     const hasOtherCloudMark = useMemo(() => {
-        const catalogIds = new Set<string>([RELAY_CLOUD_ID]);
-        for (const cloud of clouds) if (cloud.id) catalogIds.add(cloud.id);
-        for (const cloud of invitedClouds) if (cloud.id) catalogIds.add(cloud.id);
+        const catalogIds = new Set<string>([RELAY_CLOUD_ID, ...joinedCloudIds]);
         return Object.keys(badgedClouds).some(id => id !== selectedCloudId && catalogIds.has(id));
-    }, [badgedClouds, clouds, invitedClouds, selectedCloudId]);
+    }, [badgedClouds, joinedCloudIds, selectedCloudId]);
     const switcherDot = otherCloudUnreadTotal > 0 || hasOtherCloudMark;
 
     // Restore the list scroll position when returning from a chat room (the page unmounts on

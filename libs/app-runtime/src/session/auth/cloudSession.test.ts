@@ -14,6 +14,8 @@ const mockStartWebCoreInit = jest.fn();
 const mockSaveDelegationToken = jest.fn();
 const mockSaveCloudToken = jest.fn();
 const mockGetCachedCloudTokens = jest.fn();
+const mockPeekCachedCloudTokens = jest.fn();
+const mockRecordCloudUse = jest.fn();
 const mockSetCachedCloudTokens = jest.fn();
 const mockSaveSelectedCloudId = jest.fn();
 const mockGetSelectedCloudId = jest.fn();
@@ -67,6 +69,8 @@ jest.mock('../store/stores', () => ({
         saveCloudToken: (...args: unknown[]) => mockSaveCloudToken(...args),
         getCloudToken: jest.fn(),
         getCachedCloudTokens: (...args: unknown[]) => mockGetCachedCloudTokens(...args),
+        peekCachedCloudTokens: (...args: unknown[]) => mockPeekCachedCloudTokens(...args),
+        recordCloudUse: (...args: unknown[]) => mockRecordCloudUse(...args),
         setCachedCloudTokens: (...args: unknown[]) => mockSetCachedCloudTokens(...args),
         setCloudIdentity: jest.fn(),
         saveSelectedCloudId: (...args: unknown[]) => mockSaveSelectedCloudId(...args),
@@ -233,6 +237,70 @@ describe('session/auth/cloudSession', () => {
         expect(mockSaveDelegationToken).toHaveBeenCalledWith(cachedDelegation);
         expect(mockSaveCloudToken).toHaveBeenCalledWith(cachedCloudToken);
         expect(mockRebuildSessionIdentity).toHaveBeenCalled();
+    });
+
+    it('records the entered cloud as the most recently used, inside the commit', async () => {
+        mockGetSelectedCloudId.mockReturnValue('cloud-old');
+        mockGetCachedCloudTokens.mockReturnValue({
+            delegationToken: { wss: 'wss://cloud.example.com' },
+            cloudToken: { id: 'cloud-user' },
+        });
+
+        await cloudSession.switchTo('cloud-new');
+
+        expect(mockRecordCloudUse).toHaveBeenCalledWith('cloud-new');
+        // Between the batch opening and the identity rebuild that closes the commit.
+        const [recorded] = mockRecordCloudUse.mock.invocationCallOrder;
+        expect(recorded).toBeGreaterThan(mockBatch.mock.invocationCallOrder[0]);
+        expect(recorded).toBeLessThan(mockRebuildSessionIdentity.mock.invocationCallOrder[0]);
+    });
+
+    it('does not record a cloud whose exchange failed', async () => {
+        mockGetSelectedCloudId.mockReturnValue('cloud-old');
+        mockIssueCloudDelegationToken.mockRejectedValue(new Error('delegate failed'));
+
+        await expect(cloudSession.switchTo('cloud-new')).rejects.toThrow('delegate failed');
+
+        expect(mockRecordCloudUse).not.toHaveBeenCalled();
+    });
+
+    it('with a live slot, commits the cached tokens that socket registered with — even inside the margin', async () => {
+        // A background slot for the target is up and signing with this entry. The margin-checked read
+        // would refuse it (and re-issue); the switch must commit it as it is instead.
+        mockGetSelectedCloudId.mockReturnValue('cloud-old');
+        const live = {
+            delegationToken: { wss: 'wss://cloud.example.com', delegationToken: 'live-delegation' },
+            cloudToken: { id: 'cloud-user', Token: { identityToken: 'live-token' } },
+        };
+        mockPeekCachedCloudTokens.mockReturnValue(live);
+        mockGetCachedCloudTokens.mockReturnValue(null);
+
+        await cloudSession.switchTo('cloud-new', { hasLiveSlot: true });
+
+        expect(mockPeekCachedCloudTokens).toHaveBeenCalledWith('cloud-new');
+        expect(mockIssueCloudDelegationToken).not.toHaveBeenCalled();
+        expect(mockSaveDelegationToken).toHaveBeenCalledWith(live.delegationToken);
+        expect(mockSaveCloudToken).toHaveBeenCalledWith(live.cloudToken);
+    });
+
+    it('with a live slot but nothing cached, falls back to the ordinary exchange', async () => {
+        mockGetSelectedCloudId.mockReturnValue('cloud-old');
+        mockPeekCachedCloudTokens.mockReturnValue(null);
+        mockIssueCloudDelegationToken.mockResolvedValue({ backend: 'https://b', delegationToken: 'd' });
+        mockIssueCloudToken.mockResolvedValue({ id: 'cloud-user' });
+
+        await cloudSession.switchTo('cloud-new', { hasLiveSlot: true });
+
+        expect(mockIssueCloudDelegationToken).toHaveBeenCalledWith('cloud-new');
+    });
+
+    it('without a live slot, never reads the margin-blind copy', async () => {
+        mockGetSelectedCloudId.mockReturnValue('cloud-old');
+        mockGetCachedCloudTokens.mockReturnValue({ delegationToken: {}, cloudToken: { id: 'u' } });
+
+        await cloudSession.switchTo('cloud-new');
+
+        expect(mockPeekCachedCloudTokens).not.toHaveBeenCalled();
     });
 
     it('pre-applies the target cid before the token exchange (optimistic)', async () => {

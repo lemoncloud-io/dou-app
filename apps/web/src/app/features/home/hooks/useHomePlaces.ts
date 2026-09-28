@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { runtime } from '@chatic/app-runtime';
 import type { DomainPlace } from '@chatic/data';
@@ -82,7 +82,15 @@ export const useHomePlaces = (): HomePlacesResult => {
     // before it is ready, and pruning against that would wipe the real rows), so a completed refresh
     // cannot testify that a cloud has no places. The window is what ends the wait when rows never
     // come — a cloud genuinely without places, or a device that never reached the server.
-    const isLoading = !hasCacheAnswered || (places.length === 0 && !hasColdWindowElapsed);
+    // Only this cloud's rows, decided at render. The reset above runs in an effect, so the render in
+    // which the selection moves still holds the previous cloud's list — and in that render a row
+    // registers its place's sync target, and the auto-select switches to its first place, both
+    // under the NEW cloud. That used to be harmless because the new cloud's socket was not up yet;
+    // with a background session per cloud it is up already, and the previous cloud's place ids went
+    // straight to it (`place.get` 404, `auth.switch` "siteId is invalid").
+    const cloudPlaces = useMemo(() => places.filter(row => row.cid === cid), [places, cid]);
+    // Judged on this cloud's rows too: the previous cloud's must not read as "loaded".
+    const isLoading = !hasCacheAnswered || (cloudPlaces.length === 0 && !hasColdWindowElapsed);
 
-    return { places, isLoading };
+    return { places: cloudPlaces, isLoading };
 };
