@@ -22,8 +22,8 @@ with a channel id. What is described here is only the group case.
 
 Two pages (the tab shell with its contact tab, and the link page), three components (the place tab,
 the add-friend sheet, the permission banner), and two pure modules — `deviceContact.ts` for the name
-and phone chains, `koreanPhone.ts` for the sheet's validation. The pickers, the search input and the
-link card are `@chatic/web-ui-kit`.
+and phone chains, the second line, the sort order and the search text, `koreanPhone.ts` for the
+sheet's validation. The pickers, the search input and the link card are `@chatic/web-ui-kit`.
 
 ## The tab shell
 
@@ -39,6 +39,11 @@ raises the OS permission prompt, so calling it on mount would ask people who nev
 it. The trigger is a latch — "has this tab ever been opened" — not the tab's current value: keying
 the effect on the value means switching back runs the cleanup, which cancels an in-flight request
 while the re-request guard stays set, and the contact tab is then blank forever.
+
+The request waits **60 seconds**, not the bridge's 15-second default. On first use the OS prompt is
+raised inside this same request, so the clock also runs while somebody reads it — and the bridge
+drops an answer that arrives after its timeout. At 15 seconds, a person who took a while to tap
+"Allow" was shown the permission-denied banner for a list that had in fact been granted.
 
 ## The place tab
 
@@ -76,12 +81,18 @@ the contact tab.
 
 ## The contact tab
 
-Native only, in substance. `getContacts()` returns the device's contacts; anything without a valid
-Korean mobile number is `disabled` rather than hidden, because "saved but not shown" and "cannot be
-invited" are different statements to a reader.
+Native only, in substance. `getContacts()` returns the device's contacts together with whether the
+read was allowed (`granted` or `denied`); anything without a valid Korean mobile number is
+`disabled` rather than hidden, because "saved but not shown" and "cannot be invited" are different
+statements to a reader.
 
-Four rules govern how a contact becomes a row, all in
-[`deviceContact.ts`](../../../src/app/features/channels/utils/deviceContact.ts):
+The app reads **without photos**. With them, iOS writes a PNG into its cache for every contact that
+has one, and the web has nothing to show them with: the row reads names, company, job title and
+numbers, and no other field.
+
+Seven rules govern how a contact becomes a row. The functions behind them live in
+[`deviceContact.ts`](../../../src/app/features/channels/utils/deviceContact.ts); the page applies
+them — the filter of rule 4, the sort of rule 5 and the pinning of selected rows.
 
 1. **The app normalises, the web names.** Nothing in a contact record is mandatory and the two
    platforms express emptiness differently — Android fills `displayName` from the organisation,
@@ -99,19 +110,49 @@ Four rules govern how a contact becomes a row, all in
    builds the displayed number — "nothing to show" and "not listed" must not disagree. An invite
    goes out by number, so such a row could neither be invited nor recognised. If that empties the
    list, the screen says why rather than rendering a blank panel; search and the link invite stay.
+   The final unnamed label of rule 2 is therefore unreachable in practice — this rule removes
+   exactly the contacts that would reach it. It stays so that an empty row, the bug the chain
+   exists to remove, would read as a deliberate label rather than a failure.
+5. **Rows are sorted by the label they show**, in phone-book blocks: Hangul, then Latin, then other
+   scripts, then labels that start with a digit or a symbol. Latin means the script, accents
+   included, and labels are compared after NFC normalisation. Neither platform sorts — iOS fetches
+   with no sort order, Android reads rows in storage order — so without this the same address book
+   listed in two orders. A plain `localeCompare('ko')` is not enough: it puts digits first, and a
+   contact labelled by its number would lead the list. Selected rows stay pinned on top.
+6. **A row's second line is the shown number, then company and job title**, leaving out whichever
+   of them is already the row's label — a number is compared by its digits, because Android labels
+   a number-only contact with the number exactly as stored. A name alone could not tell two people
+   with the same name apart, and the row never said which number an invite would reach. It uses
+   only fields both platforms send — iOS has no department, nickname or starred flag, and notes
+   need an Apple entitlement the app does not hold.
+7. **Search matches what is on screen**: the label (including the name composed from parts, which
+   is all iOS has), the second line's company and job title, and the number with and without
+   dashes. Before the composed name was added, typing `김민수` on iPhone found nothing, because the
+   parts alone join to `민수 김`.
 
-The final unnamed label is therefore unreachable in practice — rule 4 removes exactly the contacts
-that would reach it. It stays so that an empty row, the bug this chain exists to remove, would read
-as a deliberate label rather than a failure.
+Above the list sits a count of the rows it holds — `연락처 N명`, or `검색 결과 N명` while
+searching. It counts listed contacts, so the ones rule 4 drops are not in it, and while searching it
+counts matches only: a selected row pinned on top without matching is not a result.
 
 Selection caps at 100 with a toast. Confirming sends **one** recipient as a single invite (a text to
 that number, or the clipboard on web — the toast says which actually happened) and **several** as a
 batch the server fans out over SMS itself.
 
 When permission is refused, `PermissionDeniedBanner` explains and offers `appBridge.openSettings()`.
-The settings button stays visible even with a populated list, because **partial contact access**
-returns a truncated list without saying so — the user cannot tell, and that button is the only way
-out.
+The page believes the permission the app reports, so a granted but empty address book shows the
+empty-list message rather than the banner. An app built before that field existed reports nothing,
+and then the page falls back to what such an app does on a refusal: Android answers with an empty
+list, iOS with a failed request. Both still land on the banner — and so does a request that times
+out, which a current app only produces when something is actually broken.
+
+**Partial contact access** arrives as `granted` and lists what the OS returned; neither the list nor
+the permission says it is partial. The app cannot tell: the contacts library's status call never
+settles on iOS 18 while access is partial or not yet decided, so the iOS app never makes it and
+reads a refusal from the failed read instead (the reasoning is in
+[`apps/mobile/docs/webview`](../../../../mobile/docs/webview/README.md)). A person who grants partial
+access and picks nobody therefore sees the empty-list message, not the banner. The way out of a
+short list is the search bar's link icon: a name and a number typed there reach somebody the picker
+never showed. The OS settings route stays on the banner.
 
 ## The invite link
 
@@ -153,8 +194,11 @@ at once instead of leaving the settings and invite entries stacked underneath.
 - `InvitePage.test.tsx` covers the tab shell — place is the default, contacts are not requested
   while it stays there, they are requested once on entering the contact tab and not again, and a
   response that arrives after switching back still lands.
-- `deviceContact.test.ts` holds the name chain and the phone matrix; `contactInfo.test.ts` in
-  `apps/mobile` holds the normalisation on the other side of the bridge.
+- `InvitePage.test.tsx` also covers the reported permission (granted-and-empty, denied, and an
+  older app that reports none), the sort order, the second line and the count.
+- `deviceContact.test.ts` holds the name chain, the phone matrix, the second line, the sort
+  comparator and the search text; `contactInfo.test.ts` in `apps/mobile` holds the normalisation on
+  the other side of the bridge, and `DeviceService.test.ts` the permission each platform reports.
 
 ```bash
 npx jest --config apps/web/jest.config.js --runInBand --watchman=false apps/web/src/app/features/channels

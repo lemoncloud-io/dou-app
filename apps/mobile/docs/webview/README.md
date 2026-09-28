@@ -110,6 +110,30 @@ or backslash from native data (a localized app name, an odd Android device-model
 otherwise break out of the literal and throw inside a script with no `<script src>` to attribute the
 error to.
 
+## Device contacts
+
+`GetContacts` is answered by `useDeviceHandler` through `DeviceService.getContacts`, which returns
+the list together with `permission` (`granted` or `denied`) so the web can tell a refusal from an
+empty address book. The list is read **without photos**: with them iOS writes a PNG into Caches for
+every contact that has one, and the web shows none of them.
+
+The two platforms settle the permission at different moments:
+
+- **Android** checks, then requests, `READ_CONTACTS` before reading; a refusal returns an empty
+  `denied` result without touching the provider.
+- **iOS** reads first and lets the read raise the system prompt. It never calls
+  `Contacts.checkPermission()`: in react-native-contacts 8.0.10 the new-architecture implementation
+  never settles on iOS 18+ while the status is not yet determined or limited — its iOS 18 branch
+  tests `Restricted` where it means `Limited`. Called before the read it hung the request before any
+  prompt appeared; called after a read that followed partial access it never returned. A refusal is
+  read from the read's own rejection instead — the library rejects with the message `denied`
+  exactly when the status is denied or restricted — and any other rejection is a real failure.
+
+The cost is that partial access is reported as `granted`: the list is real, only shorter.
+Reporting it separately needs a status call that settles — a patched or upgraded library — and a
+new `permission` value the web can adopt without breaking older builds, since the field is optional
+on the wire.
+
 ## Change checklist
 
 - Is a new WebView message type reflected in `@chatic/app-messages` and in both a handler and the

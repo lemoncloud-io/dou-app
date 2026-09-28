@@ -1,4 +1,5 @@
 import Contacts from 'react-native-contacts';
+import { PermissionsAndroid, Platform } from 'react-native';
 
 import { DeviceService } from './DeviceService';
 
@@ -17,9 +18,13 @@ jest.mock('react-native', () => ({
 }));
 jest.mock('react-native-image-picker', () => ({ launchCamera: jest.fn(), launchImageLibrary: jest.fn() }));
 jest.mock('@react-native-documents/picker', () => ({ pick: jest.fn(), types: {} }));
-jest.mock('react-native-contacts', () => ({ __esModule: true, default: { getAll: jest.fn() } }));
+jest.mock('react-native-contacts', () => ({
+    __esModule: true,
+    default: { getAllWithoutPhotos: jest.fn(), checkPermission: jest.fn() },
+}));
 
-const getAll = Contacts.getAll as jest.Mock;
+const getAll = Contacts.getAllWithoutPhotos as jest.Mock;
+const checkPermission = Contacts.checkPermission as jest.Mock;
 
 /** A contact with only the name fields this check reads. */
 const contact = (name: Partial<{ displayName: string; givenName: string; familyName: string }>) =>
@@ -98,5 +103,74 @@ describe('DeviceService.getContacts — 부분 결과 기록', () => {
         expect(logger.error).toHaveBeenCalledWith('DEVICE', 'Failed to get contacts', expect.any(Error));
         expect(logger.info).not.toHaveBeenCalled();
         expect(logger.warn).not.toHaveBeenCalled();
+    });
+});
+
+describe('DeviceService.getContacts — permission travels with the list (iOS)', () => {
+    const logger = { error: jest.fn(), info: jest.fn(), warn: jest.fn(), debug: jest.fn() };
+    let service: DeviceService;
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        service = new DeviceService(logger as never);
+    });
+
+    // The library's status call never settles on iOS 18+ for undetermined or partial access, so no
+    // path may await it — the fetch's own outcome is the answer.
+    it('reports a successful read as granted without querying the status', async () => {
+        getAll.mockResolvedValue([contact({ displayName: '가' })]);
+
+        await expect(service.getContacts()).resolves.toEqual({ contacts: [expect.anything()], permission: 'granted' });
+        expect(checkPermission).not.toHaveBeenCalled();
+    });
+
+    it('reads a denied rejection as a refusal without querying the status', async () => {
+        getAll.mockRejectedValue(new Error('denied'));
+
+        await expect(service.getContacts()).resolves.toEqual({ contacts: [], permission: 'denied' });
+        expect(checkPermission).not.toHaveBeenCalled();
+        expect(logger.warn).toHaveBeenCalledWith('DEVICE', 'Read contacts permission denied');
+        expect(logger.error).not.toHaveBeenCalled();
+    });
+
+    it('still throws any other rejection', async () => {
+        getAll.mockRejectedValue(new Error('undefined'));
+
+        await expect(service.getContacts()).rejects.toThrow('undefined');
+        expect(checkPermission).not.toHaveBeenCalled();
+        expect(logger.error).toHaveBeenCalledWith('DEVICE', 'Failed to get contacts', expect.any(Error));
+    });
+});
+
+describe('DeviceService.getContacts — permission travels with the list (Android)', () => {
+    const logger = { error: jest.fn(), info: jest.fn(), warn: jest.fn(), debug: jest.fn() };
+    const check = PermissionsAndroid.check as jest.Mock;
+    const request = PermissionsAndroid.request as jest.Mock;
+    let service: DeviceService;
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        (Platform as { OS: string }).OS = 'android';
+        getAll.mockResolvedValue([]);
+        service = new DeviceService(logger as never);
+    });
+
+    afterEach(() => {
+        (Platform as { OS: string }).OS = 'ios';
+    });
+
+    it('reports an empty address book as granted, not as a denial', async () => {
+        check.mockResolvedValue(true);
+
+        await expect(service.getContacts()).resolves.toEqual({ contacts: [], permission: 'granted' });
+        expect(checkPermission).not.toHaveBeenCalled();
+    });
+
+    it('reports a refused prompt as denied without reading', async () => {
+        check.mockResolvedValue(false);
+        request.mockResolvedValue('denied');
+
+        await expect(service.getContacts()).resolves.toEqual({ contacts: [], permission: 'denied' });
+        expect(getAll).not.toHaveBeenCalled();
     });
 });

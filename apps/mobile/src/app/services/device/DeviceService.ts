@@ -10,7 +10,7 @@ import { type DocumentPickerResponse, pick, types } from '@react-native-document
 import Contacts, { type Contact } from 'react-native-contacts';
 import type { ObservationData } from '@chatic/logger';
 import type { ILogService } from '../log';
-import type { IDeviceService } from './types';
+import type { ContactsReadResult, IDeviceService } from './types';
 
 export class DeviceService implements IDeviceService {
     constructor(private readonly logger: ILogService) {}
@@ -59,29 +59,56 @@ export class DeviceService implements IDeviceService {
         }
     }
 
-    async getContacts(): Promise<Contact[]> {
-        if (Platform.OS === 'android') {
-            const hasPermission = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.READ_CONTACTS);
-
-            if (!hasPermission) {
-                const granted = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.READ_CONTACTS);
-                if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
-                    // The user's choice, not a fault — the catalog puts permission denial at `warn`
-                    // so `error` stays a signal that something broke.
-                    this.logger.warn('DEVICE', 'Read contacts permission denied');
-                    return [];
-                }
-            }
+    /**
+     * Reads the address book and says whether it was denied, so the web can tell a denial from an
+     * empty address book — on the wire the two used to look the same.
+     *
+     * On iOS the fetch itself raises the system prompt, and `Contacts.checkPermission()` is never
+     * called. In react-native-contacts 8.0.10 its new-architecture implementation never settles on
+     * iOS 18+ while the status is not-yet-determined or limited: the iOS 18 branch compares against
+     * `Restricted` (already handled above it) instead of `Limited`, so neither case resolves. Called
+     * before the fetch it hung the request before any prompt appeared; called after a fetch that
+     * followed partial access it never returned. A refusal is read from the fetch's own rejection
+     * instead — the library rejects with the message `denied` exactly when the status is denied or
+     * restricted.
+     *
+     * Partial access is therefore reported as `granted`: the list is real, only shorter, and telling
+     * the two apart would need that same broken call.
+     */
+    async getContacts(): Promise<ContactsReadResult> {
+        const isAndroid = Platform.OS === 'android';
+        if (isAndroid && !(await this.grantAndroidContacts())) {
+            return this.deniedContacts();
         }
 
+        let contacts: Contact[];
         try {
-            const contacts = await Contacts.getAll();
-            this.reportContactShape(contacts);
-            return contacts;
+            // Without photos: `getAll` makes iOS write a PNG into Caches for every contact that has
+            // one, and the web cannot show those paths anyway — it only reads names, company, job
+            // title and numbers.
+            contacts = await Contacts.getAllWithoutPhotos();
         } catch (error: any) {
+            // A refusal at the prompt the fetch raised arrives as a rejection, not as a status.
+            if (!isAndroid && error?.message === 'denied') return this.deniedContacts();
             this.logger.error('DEVICE', 'Failed to get contacts', error);
             throw error;
         }
+
+        this.reportContactShape(contacts);
+        return { contacts, permission: 'granted' };
+    }
+
+    private async grantAndroidContacts(): Promise<boolean> {
+        if (await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.READ_CONTACTS)) return true;
+        const result = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.READ_CONTACTS);
+        return result === PermissionsAndroid.RESULTS.GRANTED;
+    }
+
+    private deniedContacts(): ContactsReadResult {
+        // The user's choice, not a fault — the catalog puts permission denial at `warn` so `error`
+        // stays a signal that something broke.
+        this.logger.warn('DEVICE', 'Read contacts permission denied');
+        return { contacts: [], permission: 'denied' };
     }
 
     /**

@@ -202,9 +202,16 @@ export const appBridge = {
     // Contacts
     // ---------------------------------------------------------------
 
-    /** Request the device contact list from native. */
-    getContacts(): Promise<WebMessageResponse<'GetContacts'>> {
-        return webClient.request({ type: 'GetContacts', data: {} });
+    /**
+     * Request the device contact list from native.
+     *
+     * Not the 15s default: on first use native raises the OS permission prompt inside this same
+     * request, so the clock also covers a person reading that prompt. A timeout drops the answer
+     * that arrives after it, which surfaced as "permission denied" for someone who had just allowed
+     * access.
+     */
+    getContacts(timeoutMs = 60_000): Promise<WebMessageResponse<'GetContacts'>> {
+        return webClient.request({ type: 'GetContacts', data: {} }, { timeoutMs });
     },
 
     // ---------------------------------------------------------------
