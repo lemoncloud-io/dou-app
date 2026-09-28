@@ -1,6 +1,7 @@
 import {
     normalizeChannelSort,
     normalizeCloudPromoDismissedAt,
+    normalizeHomeSectionsCollapsed,
     normalizeInviteIds,
     normalizeRecentSearches,
     parseChannelSort,
@@ -37,6 +38,26 @@ describe('normalizeChannelSort / parseChannelSort', () => {
 
     it('손상된 JSON 문자열은 빈 맵으로 폴백한다', () => {
         expect(parseChannelSort('{broken')).toEqual({});
+    });
+});
+
+describe('normalizeHomeSectionsCollapsed', () => {
+    it('keeps the known sections that are marked collapsed', () => {
+        expect(normalizeHomeSectionsCollapsed({ places: true, cloudDm: true })).toEqual({
+            places: true,
+            cloudDm: true,
+        });
+    });
+
+    it('drops unknown section ids and values other than true', () => {
+        // `false` is not a stored state — an open section has no entry — so it is noise, not intent.
+        expect(normalizeHomeSectionsCollapsed({ channels: false, favorites: true, places: 'yes' })).toEqual({});
+    });
+
+    it('degrades a non-object value to every section open', () => {
+        expect(normalizeHomeSectionsCollapsed(undefined)).toEqual({});
+        expect(normalizeHomeSectionsCollapsed(['places'])).toEqual({});
+        expect(normalizeHomeSectionsCollapsed('places')).toEqual({});
     });
 });
 

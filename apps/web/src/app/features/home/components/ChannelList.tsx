@@ -279,6 +279,9 @@ interface ChannelListProps {
     sentInvites?: MyInviteView[];
     /** Tapping an invite row — the host navigates to that invite's waiting screen. */
     onSelectInvite?: (inviteId: string) => void;
+    /** Controlled expanded state — the host remembers it. Omit to let the section hold its own. */
+    open?: boolean;
+    onOpenChange?: (open: boolean) => void;
 }
 
 export const ChannelList = ({
@@ -300,6 +303,8 @@ export const ChannelList = ({
     onOpenPlaceInfo,
     sentInvites = [],
     onSelectInvite,
+    open,
+    onOpenChange,
 }: ChannelListProps) => {
     const { t } = useTranslation();
     // My active-site profile — the self-chat title fallback AND the self-chat row's avatar. Resolved
@@ -422,6 +427,8 @@ export const ChannelList = ({
             title={title ?? t('homePage.channels', '채팅방')}
             count={isLoading ? undefined : channels.length}
             actions={createMenu}
+            open={open}
+            onOpenChange={onOpenChange}
         >
             {/* Sent-invite rows float above real channels — they are the newest, most actionable
                 entries, same spirit as a pinned channel. See useInviteListRows for what qualifies. */}

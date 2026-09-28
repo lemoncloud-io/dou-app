@@ -13,6 +13,12 @@ export type ChannelSortMethod = 'recent' | 'unread';
 /** Default channel sort when a place has no stored preference. */
 export const DEFAULT_CHANNEL_SORT: ChannelSortMethod = 'recent';
 
+/**
+ * The collapsible sections on home. `cloudDm` is the cloud 1:1 section, which reuses the channel
+ * list component but folds independently of the place's rooms.
+ */
+export type HomeSectionId = 'places' | 'channels' | 'cloudDm';
+
 /** How long a dismissed cloud-promo banner stays hidden before it is shown again (24h, ADR-0034). */
 export const CLOUD_PROMO_DISMISS_TTL_MS = 24 * 60 * 60 * 1000;
 

@@ -1,7 +1,7 @@
 # @chatic/config
 
 **One answer per setting, and one place that decides it.** This lib declares every runtime setting
-the apps have — 85 keys across 12 domain modules — folds four override lanes and three registry rows
+the apps have — 86 keys across 12 domain modules — folds four override lanes and three registry rows
 into a single value, and exports that as one `config` facade. It stores nothing itself and reaches
 nothing itself: storage, the native shell and the network all arrive as adapters the app plugs in.
 
@@ -35,7 +35,7 @@ keys, and a `user` key gets a hand-built row in Settings or no row at all.
 1. **This lib imports nothing.** Zero `@chatic` dependencies, zero `import.meta`, zero network, and React only inside `src/react/`. `tsconfig.lib.json` lists no project references at all, and `package.json` declares no dependencies — those two empty lists are the check. Breaking this is what would stop React Native from sharing the core and start import cycles in consumer libs.
 2. **Only the value is mutable at runtime.** Type, writers, persistence and surface are authored in the registry and frozen. No lane can change them, or an override could grant itself permission.
 3. **The kill switch is read alone and first.** `serverEnforced` looks at the cached payload, the key's own `writableBy` and the TTL — never at the store, the shell or a stage rule. A kill is used when everything else is broken, so it must not travel the road it is closing.
-4. **A developer's mistake must not stop a user's boot.** 67 of 85 keys are developer-facing. A duplicate key or an impossible combination fails a test and, at runtime, drops that one key. `ConfigRegistry.merge` never throws.
+4. **A developer's mistake must not stop a user's boot.** 67 of 86 keys are developer-facing. A duplicate key or an impossible combination fails a test and, at runtime, drops that one key. `ConfigRegistry.merge` never throws.
 5. **A refusal is a return value.** `set`/`clear` answer `{ ok: false, reason }`. A debug panel should say why a control did nothing, not crash.
 6. **Observers hear only when the resolved value moved.** `set`, `clear` and `applyRemotePayload` all snapshot before and after and notify on the difference. A change under a row that is already losing tells a watcher nothing true.
 7. **An absent port means "not wired", never "broken".** No `shell` leaves the shell lane empty; no `remote` leaves both server lanes empty. Only `env` is required, because a stage and a platform are what the registry's rules are judged against.
@@ -70,7 +70,7 @@ flowchart TD
     React["react/<br/><i>useConfigValue · useConfigSnapshot</i>"]:::resl
 
     Registry["ConfigRegistry<br/><i>merge · findPolicyViolations</i>"]:::decl
-    Modules["registry/ × 12<br/><i>85 ConfigEntry declarations</i>"]:::decl
+    Modules["registry/ × 12<br/><i>86 ConfigEntry declarations</i>"]:::decl
 
     Resolver["ConfigResolver<br/><i>folds 6 rows into one value</i>"]:::resl
     Policy["ConfigLanePolicy<br/><i>order · canSupply · writersFor</i>"]:::resl

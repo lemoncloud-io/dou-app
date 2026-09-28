@@ -35,13 +35,13 @@ Permanent app settings are no longer one `usePreferenceStore` — they moved to 
 registry keys (`ui.*`). `app/stores/` keeps only the parts that have nothing to do with where a
 value is stored:
 
-- `preferenceKeys.ts` — the `Theme` and `ChannelSortMethod` types, `DEFAULT_CHANNEL_SORT`,
-  `CLOUD_PROMO_DISMISS_TTL_MS`, `MAX_RECENT_SEARCHES`.
+- `preferenceKeys.ts` — the `Theme`, `ChannelSortMethod` and `HomeSectionId` types,
+  `DEFAULT_CHANNEL_SORT`, `CLOUD_PROMO_DISMISS_TTL_MS`, `MAX_RECENT_SEARCHES`.
 - `preferenceParsers.ts` — defensive parse/normalize functions for the `type: 'json'` keys
-  (`channelSort`, `recentSearches`, `cloudPromoDismissedAt`) plus `parseThemeBridgeValue` for the
-  legacy native theme envelope. `@chatic/config` only validates that a `json`-typed value is
-  parseable JSON; it has no notion of what shape a "channel sort map" should have, so that
-  product-shape validation lives here.
+  (`channelSort`, `homeSectionsCollapsed`, `recentSearches`, `cloudPromoDismissedAt`) plus
+  `parseThemeBridgeValue` for the legacy native theme envelope. `@chatic/config` only validates
+  that a `json`-typed value is parseable JSON; it has no notion of what shape a "channel sort map"
+  should have, so that product-shape validation lives here.
 
 The per-place pin and order primitives moved further out, to
 [`@chatic/shared`](../../../../libs/shared/README.md)'s `libs/shared/src/preferences/` — not to
@@ -62,6 +62,7 @@ this folder — because desktop-web needs to read the exact same record apps/web
 | `ui.channelSort`            | `channelSort`                         | `useChannelSort` (`app/hooks`)                               |
 | `ui.pinnedChannels`         | `pinnedChannels`                      | `usePinnedChannels` (`@chatic/shared`)                       |
 | `ui.channelOrder`           | — (new registry key, no legacy field) | `useChannelOrder` (`@chatic/shared`)                         |
+| `ui.homeSectionsCollapsed`  | — (new registry key, no legacy field) | `useHomeSections` (`features/home/hooks`)                    |
 | `ui.recentSearches`         | `recentSearches`                      | `useRecentSearches` (`features/search/hooks`)                |
 | `ui.dismissedUpdateVersion` | `dismissedUpdateVersion`              | `useAppUpdatePrompt` (`features/appUpdate/hooks`)            |
 | `ui.cloudPromoDismissedAt`  | `cloudPromoDismissedAt`               | `useCloudPromo` (`features/home/hooks`)                      |

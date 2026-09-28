@@ -1,6 +1,6 @@
 import { isPlaceScopeKey } from '@chatic/shared';
 
-import type { ChannelSortMethod, Theme } from './preferenceKeys';
+import type { ChannelSortMethod, HomeSectionId, Theme } from './preferenceKeys';
 
 // ---------------------------------------------------------------------------
 // Defensive parsers for the `json`-typed `ui.*` config keys.
@@ -54,6 +54,23 @@ export const parseInviteIds = (raw: string): string[] => {
     } catch {
         return [];
     }
+};
+
+const HOME_SECTION_IDS: readonly HomeSectionId[] = ['places', 'channels', 'cloudDm'];
+
+/**
+ * The record stores the sections a person folded shut, not the open ones, so the default — every
+ * section open — needs no entry. A corrupt value therefore degrades to "all open", the state home
+ * had before this was remembered. Unknown ids and anything other than `true` are dropped, so a
+ * retired section id cannot linger in the record.
+ */
+export const normalizeHomeSectionsCollapsed = (value: unknown): Partial<Record<HomeSectionId, true>> => {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+    const result: Partial<Record<HomeSectionId, true>> = {};
+    for (const [id, collapsed] of Object.entries(value)) {
+        if (collapsed === true && HOME_SECTION_IDS.includes(id as HomeSectionId)) result[id as HomeSectionId] = true;
+    }
+    return result;
 };
 
 /**

@@ -60,10 +60,11 @@ jest.mock('@chatic/ui-kit/components/ui/dropdown-menu', () => ({
 
 jest.mock('@chatic/web-ui-kit', () => ({
     Badge: ({ children }: any) => <span>{children}</span>,
-    CollapsibleSection: ({ actions, children, count }: any) => (
+    CollapsibleSection: ({ actions, children, count, open, onOpenChange }: any) => (
         // `count` is surfaced as an attribute, not text: the rows under test already render bare
         // numbers (member counts, unread badges), so a text node would collide with them.
-        <section data-count={count ?? ''}>
+        <section data-count={count ?? ''} data-open={open === undefined ? '' : String(open)}>
+            <button data-testid="section-toggle" onClick={() => onOpenChange?.(!open)} />
             {actions}
             {children}
         </section>
@@ -729,5 +730,37 @@ describe('ChannelList 빈 상태 / 로딩', () => {
         const { container } = render(<ChannelList channels={[makeChannel({ id: 'c1' })]} isLoading={false} />);
 
         expect(container.querySelector('section')).toHaveAttribute('data-count', '1');
+    });
+});
+
+describe('ChannelList expanded state', () => {
+    it('hands the host-held fold to the section', () => {
+        const { container } = render(
+            <ChannelList channels={[makeChannel({ id: 'c1' })]} isLoading={false} open={false} />
+        );
+
+        expect(container.querySelector('section')).toHaveAttribute('data-open', 'false');
+    });
+
+    it('reports a toggle back to the host', () => {
+        const onOpenChange = jest.fn();
+        render(
+            <ChannelList
+                channels={[makeChannel({ id: 'c1' })]}
+                isLoading={false}
+                open={false}
+                onOpenChange={onOpenChange}
+            />
+        );
+
+        fireEvent.click(screen.getByTestId('section-toggle'));
+
+        expect(onOpenChange).toHaveBeenCalledWith(true);
+    });
+
+    it('leaves the section uncontrolled when the host passes nothing', () => {
+        const { container } = render(<ChannelList channels={[makeChannel({ id: 'c1' })]} isLoading={false} />);
+
+        expect(container.querySelector('section')).toHaveAttribute('data-open', '');
     });
 });

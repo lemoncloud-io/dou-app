@@ -107,9 +107,26 @@ jest.mock('../components', () => ({
     // The page renders this twice on a cloud — the place's rooms, and the cloud 1:1 section, which
     // is a list and not a create surface. The button follows `onCreateGroup` so the stub says the
     // same thing the real popover does: no handler, no entry. `title` tells the two apart.
-    ChannelList: ({ isPro, onCreateGroup, title }: { isPro?: boolean; onCreateGroup?: () => void; title?: string }) => (
-        <div data-testid={title ? 'cloud-dm-list' : 'channel-list'} data-is-pro={String(isPro)}>
+    ChannelList: ({
+        isPro,
+        onCreateGroup,
+        title,
+        open,
+        onOpenChange,
+    }: {
+        isPro?: boolean;
+        onCreateGroup?: () => void;
+        title?: string;
+        open?: boolean;
+        onOpenChange?: (open: boolean) => void;
+    }) => (
+        <div
+            data-testid={title ? 'cloud-dm-list' : 'channel-list'}
+            data-is-pro={String(isPro)}
+            data-open={String(open)}
+        >
             {onCreateGroup && <button data-testid="create-group" onClick={onCreateGroup} />}
+            <button data-testid={title ? 'cloud-dm-toggle' : 'channel-toggle'} onClick={() => onOpenChange?.(!open)} />
         </div>
     ),
     CloudPromoBanner: ({ onAddCloud }: { onAddCloud?: () => void }) => (
@@ -120,9 +137,18 @@ jest.mock('../components', () => ({
     CreatePlaceDialog: ({ open }: { open: boolean }) => (open ? <div data-testid="create-place-dialog" /> : null),
     InviteDialog: () => null,
     // Surfaces the "+" so the place-cap branch can be driven from the page, as a user would.
-    PlaceList: ({ onCreatePlace }: { onCreatePlace: () => void }) => (
-        <div data-testid="place-list">
+    PlaceList: ({
+        onCreatePlace,
+        open,
+        onOpenChange,
+    }: {
+        onCreatePlace: () => void;
+        open?: boolean;
+        onOpenChange?: (open: boolean) => void;
+    }) => (
+        <div data-testid="place-list" data-open={String(open)}>
             <button data-testid="add-place" onClick={onCreatePlace} />
+            <button data-testid="place-toggle" onClick={() => onOpenChange?.(!open)} />
         </div>
     ),
     // Mirrors the props back out: the cap dialog's two actions are wired here, in the page.
@@ -160,8 +186,13 @@ const useHomePlaces = jest.fn(() => ({ places, isLoading: isPlacesLoading }));
 const useSwitchPlace = jest.fn(() => ({ selectedPlaceId, switchPlace: jest.fn(), isSwitching: isSwitchingPlace }));
 const requestAddCloudMock = jest.fn();
 
+// Folded sections, as the stored record reports them. Mutable so a test can start with one folded.
+let collapsedSections: Record<string, true> = {};
+const setSectionOpenMock = jest.fn();
+
 jest.mock('../hooks', () => ({
     useAddCloudFlow: () => ({ requestAddCloud: requestAddCloudMock }),
+    useHomeSections: () => ({ isOpen: (id: string) => !collapsedSections[id], setOpen: setSectionOpenMock }),
     useHomePlaces: (...args: unknown[]) => useHomePlaces(...(args as [])),
     useSwitchPlace: (...args: unknown[]) => useSwitchPlace(...(args as [])),
 }));
@@ -192,6 +223,7 @@ beforeEach(() => {
     selectedSiteId = 'site-1';
     membership = { isValid: false };
     isMembershipLoading = false;
+    collapsedSections = {};
 });
 
 describe('HomePage — relay mode', () => {
@@ -261,6 +293,38 @@ describe('HomePage — cloud mode', () => {
         render(<HomePage />);
 
         expect(screen.getByTestId('header')).toHaveAttribute('data-kind', 'cloud');
+    });
+});
+
+// The fold of each section comes from the stored record, not from the section itself — that is
+// what lets it survive leaving home. Each of the three sections must read and write its own id:
+// the place rooms and the cloud 1:1s are the same component, so a shared id would fold both.
+describe('HomePage — section folds', () => {
+    beforeEach(() => {
+        selectedCloudId = 'cloud-1';
+    });
+
+    it('opens each section from its own stored entry', () => {
+        collapsedSections = { channels: true };
+        render(<HomePage />);
+
+        expect(screen.getByTestId('place-list')).toHaveAttribute('data-open', 'true');
+        expect(screen.getByTestId('channel-list')).toHaveAttribute('data-open', 'false');
+        expect(screen.getByTestId('cloud-dm-list')).toHaveAttribute('data-open', 'true');
+    });
+
+    it('writes a toggle under the id of the section that was toggled', () => {
+        render(<HomePage />);
+
+        fireEvent.click(screen.getByTestId('place-toggle'));
+        fireEvent.click(screen.getByTestId('channel-toggle'));
+        fireEvent.click(screen.getByTestId('cloud-dm-toggle'));
+
+        expect(setSectionOpenMock.mock.calls).toEqual([
+            ['places', false],
+            ['channels', false],
+            ['cloudDm', false],
+        ]);
     });
 });
 

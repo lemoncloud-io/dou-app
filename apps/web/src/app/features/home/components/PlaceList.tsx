@@ -19,6 +19,9 @@ interface PlaceListProps {
     isInvitedCloud?: boolean;
     /** Owner-only: shows the "add place" row (hidden for invited users). */
     canAddPlace?: boolean;
+    /** Controlled expanded state — the host remembers it. Omit to let the section hold its own. */
+    open?: boolean;
+    onOpenChange?: (open: boolean) => void;
 }
 
 /**
@@ -36,6 +39,8 @@ export const PlaceList = ({
     onCreatePlace,
     isInvitedCloud,
     canAddPlace,
+    open,
+    onOpenChange,
 }: PlaceListProps) => {
     const { t } = useTranslation();
     // Exclude relay subscription rows (stereo === 'place'); they are not selectable places.
@@ -50,7 +55,9 @@ export const PlaceList = ({
     // we don't have. The pulse is offset per row so the placeholder reads as a wave, not a blink.
     if (isLoading) {
         return (
-            <CollapsibleSection title={t('homePage.places')}>
+            // Both branches forward `open`: the host holds the fold, so the skeleton has to show
+            // the same state the loaded list will.
+            <CollapsibleSection title={t('homePage.places')} open={open} onOpenChange={onOpenChange}>
                 <div role="status" aria-label={t('placeList.loading', '플레이스를 불러오는 중이에요')}>
                     {Array.from({ length: 2 }).map((_, i) => (
                         <div
@@ -71,7 +78,7 @@ export const PlaceList = ({
     }
 
     return (
-        <CollapsibleSection title={t('homePage.places')} count={places.length}>
+        <CollapsibleSection title={t('homePage.places')} count={places.length} open={open} onOpenChange={onOpenChange}>
             {places.map(place => (
                 <PlaceItem
                     key={place.id}

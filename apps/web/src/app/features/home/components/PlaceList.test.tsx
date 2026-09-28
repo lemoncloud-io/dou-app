@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom';
 
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 
 import { PlaceList } from './PlaceList';
 
@@ -14,7 +14,12 @@ jest.mock('@chatic/app-runtime', () => ({
 }));
 
 jest.mock('@chatic/web-ui-kit', () => ({
-    CollapsibleSection: ({ children, count }: any) => <section data-count={count ?? ''}>{children}</section>,
+    CollapsibleSection: ({ children, count, open, onOpenChange }: any) => (
+        <section data-count={count ?? ''} data-open={open === undefined ? '' : String(open)}>
+            <button data-testid="section-toggle" onClick={() => onOpenChange?.(!open)} />
+            {children}
+        </section>
+    ),
     IconPlus: () => <i />,
     ImageAvatar: ({ src }: any) => <img alt="" src={src} />,
     ListRow: ({ leading, title, subtitle, onClick, disabled }: any) => (
@@ -69,5 +74,68 @@ describe('PlaceList 로딩 / 전환 표시', () => {
 
         expect(screen.getByRole('img', { name: 'placeList.selected' })).toBeInTheDocument();
         expect(screen.queryByRole('img', { name: 'placeList.switching' })).not.toBeInTheDocument();
+    });
+});
+
+describe('PlaceList expanded state', () => {
+    it('hands the host-held fold to the section on the skeleton and on the loaded list alike', () => {
+        // Both branches must forward `open` — a skeleton that ignored it would show the section
+        // expanded while the stored record says it is folded.
+        const { container, rerender } = render(
+            <PlaceList places={[]} selectedPlaceId={null} isLoading onSelectPlace={jest.fn()} open={false} />
+        );
+        expect(container.querySelector('section')).toHaveAttribute('data-open', 'false');
+
+        rerender(
+            <PlaceList
+                places={[makePlace({ id: 'p1' })]}
+                selectedPlaceId="p1"
+                isLoading={false}
+                onSelectPlace={jest.fn()}
+                open={false}
+            />
+        );
+        expect(container.querySelector('section')).toHaveAttribute('data-open', 'false');
+    });
+
+    it('reports a toggle back to the host on the skeleton and on the loaded list alike', () => {
+        const onOpenChange = jest.fn();
+        const { rerender } = render(
+            <PlaceList
+                places={[]}
+                selectedPlaceId={null}
+                isLoading
+                onSelectPlace={jest.fn()}
+                open
+                onOpenChange={onOpenChange}
+            />
+        );
+        fireEvent.click(screen.getByTestId('section-toggle'));
+
+        rerender(
+            <PlaceList
+                places={[makePlace({ id: 'p1' })]}
+                selectedPlaceId="p1"
+                isLoading={false}
+                onSelectPlace={jest.fn()}
+                open
+                onOpenChange={onOpenChange}
+            />
+        );
+        fireEvent.click(screen.getByTestId('section-toggle'));
+
+        expect(onOpenChange.mock.calls).toEqual([[false], [false]]);
+    });
+
+    it('leaves the section uncontrolled when the host passes nothing', () => {
+        const { container } = render(
+            <PlaceList
+                places={[makePlace({ id: 'p1' })]}
+                selectedPlaceId="p1"
+                isLoading={false}
+                onSelectPlace={jest.fn()}
+            />
+        );
+        expect(container.querySelector('section')).toHaveAttribute('data-open', '');
     });
 });

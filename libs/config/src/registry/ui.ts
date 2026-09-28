@@ -7,9 +7,10 @@ import type { ConfigRegistryModule } from '../types';
  * of what its localStorage key stored, which needed a comment to warn readers. This key's name
  * matches what it holds.
  *
- * `channelSort`/`pinnedChannels`/`recentSearches` are `'internal'` on purpose even though a person
- * changes them — the place they change is a sort picker, a pin gesture, a search box, not a
- * settings screen, so a generic settings UI must not render a row for them.
+ * `channelSort`/`pinnedChannels`/`homeSectionsCollapsed`/`recentSearches` are `'internal'` on purpose
+ * even though a person changes them — the place they change is a sort picker, a pin gesture, a
+ * section header, a search box, not a settings screen, so a generic settings UI must not render a
+ * row for them.
  */
 export const uiModule: ConfigRegistryModule = {
     'ui.theme': {
@@ -79,6 +80,15 @@ export const uiModule: ConfigRegistryModule = {
     'ui.channelOrder': {
         title: '채널 표시 순서',
         description: '장소별 사이드바 채널·DM 표시 순서 (드래그로 변경).',
+        type: 'json',
+        defaultValue: {},
+        surface: 'internal',
+        writableBy: ['local'],
+        persist: 'local',
+    },
+    'ui.homeSectionsCollapsed': {
+        title: '홈 섹션 접힘 상태',
+        description: '홈 화면에서 접어 둔 섹션(플레이스·채팅방·1:1) 목록.',
         type: 'json',
         defaultValue: {},
         surface: 'internal',
