@@ -80,18 +80,25 @@ quote the request it failed on.
 
 `ChatRepository` owns the row. The sequence only reports its outcome.
 
-| Method                                                             | What it does                                                                                      |
-| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------- |
-| `createPendingImageChat({ channelId, parentId?, localThumbUrls })` | writes the optimistic row, one `{ localStatus: 'sending', localThumbUrl }` slot per image         |
-| `createPendingImageChat({ …, pendingId })`                         | re-arms that same row for a retry: `sending` again, not a second row                              |
-| `sendPendingImageChat(pendingId, { uploadIds })`                   | sends the message and swaps the server's row in, the same swap `sendChat` does. Throws on failure |
-| `failPendingImageChat(pendingId)`                                  | marks the row and each slot failed. Leaves a deleted row deleted                                  |
-| `listPendingImageChats(channelId)`                                 | the channel's unsent rows that hold pending slots                                                 |
+| Method                                                             | What it does                                                                                                                                                    |
+| ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `createPendingImageChat({ channelId, parentId?, localThumbUrls })` | writes the optimistic row, one `{ localStatus: 'sending', localThumbUrl }` slot per image                                                                       |
+| `createPendingImageChat({ …, pendingId })`                         | re-arms that same row for a retry: `sending` again, not a second row                                                                                            |
+| `sendPendingImageChat(pendingId, { uploadIds })`                   | sends the message, swaps the server's row in the way `sendChat` does, then reads it back once with `chat.get` for the image addresses. Throws if the send fails |
+| `failPendingImageChat(pendingId)`                                  | marks the row and each slot failed. Leaves a deleted row deleted                                                                                                |
+| `listPendingImageChats(channelId)`                                 | the channel's unsent rows that hold pending slots                                                                                                               |
 
 - **A pending row keeps the scope it was written in.** A send takes long enough for a cloud switch,
   so the repository remembers each row's scope and reads, fails and sends it there. A send whose
   active cloud is no longer the row's throws instead of posting the uploads to the wrong cloud. A
   re-arm of a row that was deleted meanwhile throws too, rather than recreating it without a channel.
+- **A sent message is read back once.** `chat.send`'s answer names the uploads but not where to fetch
+  them: its `upload$$` is `{ id, status, stereo }`. The sender gets no broadcast of its own message
+  that could fill the addresses in, which was measured on dev. `chat.get` answers `orgUrl` and
+  `thumbUrl`, so the confirmed row reads itself back and the images are there when the send resolves.
+  A failed read-back leaves the send's answer in place, since the message went out regardless, and
+  the images appear the next time the room reads its feed. Note that `chat.get` omits an empty
+  `content` instead of answering `''`.
 - **Local slots use local names.** `PendingUploadSlot` is `{ localStatus, localThumbUrl }`, never
   the server's `status` / `error` / `url` / `thumbnail`. The server's `'failed'` is terminal and a
   local `'failed'` can be retried, and a reader that met the same name would take one for the other.

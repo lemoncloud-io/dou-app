@@ -18,7 +18,8 @@ keeps the picked files for as long as a retry could still need them.
 2. **The sequence runs** on ports the hook binds: `prepare` is `prepareImage(file, CHAT_ATTACHMENT)`,
    `start` / `complete` / `send` are the chat repository's `startUploads` / `completeUploads` /
    `sendPendingImageChat(pendingId, …)`, and `put` is the shell's sender (below).
-3. **Sent** — the repository has already swapped in the server's row. The hook lets the files go and
+3. **Sent** — the repository has already swapped in the server's row and read it back once for the
+   image addresses, which the send's own answer does not carry. The hook lets the files go and
    revokes the previews.
 4. **Failed** — the row is marked failed (`chat.failPendingImageChat`), and the files stay in memory
    so `retry(pendingId)` can send the same pictures again on the same row. `canRetry` turns true only

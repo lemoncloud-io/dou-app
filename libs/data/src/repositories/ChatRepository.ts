@@ -2,6 +2,7 @@ import type { ChatFeedInput } from '@lemoncloud/chatic-sockets-api';
 // `-lib`'s send input is the one that carries `uploadIds` (see ChatSocketDataSource).
 import type { ChatSendInput } from '@lemoncloud/chatic-sockets-lib';
 import type { ChatQueryOptions } from '@chatic/app-messages';
+import { logger } from '@chatic/bridges';
 import type { DomainChat, DomainLastChat, DomainListResult } from '../domain';
 import type { IChatLocalDataSource } from '../local/data-sources';
 import type {
@@ -253,7 +254,33 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
         const remote = await this.chatSocketDataSource.sendChat(payload, normalizedContext);
         const sent = await this.replaceOptimisticChat(pendingId, remote, requestContext);
         this.pendingImageScopes.delete(pendingId);
-        return sent;
+        return this.readBackImageChat(sent, requestContext);
+    }
+
+    /**
+     * `chat.send`'s answer names the uploads but not where to fetch them — its `upload$$` is
+     * `{ id, status, stereo }`, and the sender gets no broadcast of its own message to fill the gap
+     * (measured on dev). `chat.get` answers the signed addresses, so the confirmed row reads itself
+     * back once. The message is sent either way: if the read fails, the row keeps the send's answer
+     * and the images appear the next time the room reads its feed.
+     */
+    private async readBackImageChat(sent: DomainChat, requestContext: DataContext): Promise<DomainChat> {
+        if (!sent.id) return sent;
+        try {
+            const read = await this.chatSocketDataSource.getChat(
+                { id: sent.id },
+                this.getNormalizedContext(requestContext)
+            );
+            const confirmed: DomainChat = { ...read, tempId: sent.tempId, isPending: false, isFailed: false };
+            await this.chatLocalDataSource.cacheWrite(confirmed, requestContext);
+            return confirmed;
+        } catch (error) {
+            logger.warn('CHAT', '[ChatRepository] could not read back a sent image message', {
+                chatId: sent.id,
+                error: (error as Error)?.name,
+            });
+            return sent;
+        }
     }
 
     public async failPendingImageChat(pendingId: string): Promise<void> {

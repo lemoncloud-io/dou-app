@@ -383,6 +383,46 @@ describe('ChatRepository', () => {
             expect(await chatLocalDataSource.cacheRead('ch-1:7')).toMatchObject({ chatNo: 7 });
         });
 
+        it('reads the sent message back once, because the send answer carries no image address', async () => {
+            const { repository, chatSocketDataSource, chatLocalDataSource } = createPendingRepository();
+            const id = await repository.createPendingImageChat({ channelId: 'ch-1', localThumbUrls: ['blob:a'] });
+            chatSocketDataSource.sendChat.mockResolvedValue({
+                id: 'ch-1:7',
+                channelId: 'ch-1',
+                chatNo: 7,
+                upload$$: [{ id: 'up-1', status: 'stored', stereo: 'image' }],
+            });
+            chatSocketDataSource.getChat.mockResolvedValue({
+                id: 'ch-1:7',
+                channelId: 'ch-1',
+                chatNo: 7,
+                upload$$: [
+                    { id: 'up-1', status: 'stored', stereo: 'image', orgUrl: 'https://o', thumbUrl: 'https://t' },
+                ],
+            });
+
+            const sent = await repository.sendPendingImageChat(id, { uploadIds: ['up-1'] });
+
+            expect(chatSocketDataSource.getChat).toHaveBeenCalledWith({ id: 'ch-1:7' }, expect.anything());
+            expect(sent).toMatchObject({ id: 'ch-1:7', tempId: id, isPending: false });
+            expect((await chatLocalDataSource.cacheRead('ch-1:7'))?.upload$$).toEqual([
+                { id: 'up-1', status: 'stored', stereo: 'image', orgUrl: 'https://o', thumbUrl: 'https://t' },
+            ]);
+        });
+
+        it('still counts the message as sent when the read-back fails', async () => {
+            const { repository, chatSocketDataSource, chatLocalDataSource } = createPendingRepository();
+            const id = await repository.createPendingImageChat({ channelId: 'ch-1', localThumbUrls: ['blob:a'] });
+            chatSocketDataSource.sendChat.mockResolvedValue({ id: 'ch-1:8', channelId: 'ch-1', chatNo: 8 });
+            chatSocketDataSource.getChat.mockRejectedValue(new Error('timeout'));
+
+            await expect(repository.sendPendingImageChat(id, { uploadIds: ['up-1'] })).resolves.toMatchObject({
+                id: 'ch-1:8',
+            });
+            expect(await chatLocalDataSource.cacheRead(id)).toBeNull();
+            expect(await chatLocalDataSource.cacheRead('ch-1:8')).toMatchObject({ chatNo: 8, isFailed: false });
+        });
+
         it('keeps a thread reply in its thread when sending', async () => {
             const { repository, chatSocketDataSource } = createPendingRepository();
             const id = await repository.createPendingImageChat({

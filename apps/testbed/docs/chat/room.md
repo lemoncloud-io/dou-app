@@ -52,8 +52,11 @@ Measured on dev, 2026-09-28, in a desktop browser:
   `{ status: 'failed', error: '415 UNSUPPORTED - …' }` with no id and no ticket, and the message goes
   out with the one stored image.
 - **`chat.send`'s own answer carries no image URL**: its `upload$$` is `{ id, status, stereo }`.
-  `chat.feed` answers `orgUrl` and `thumbUrl` (signed, short-lived). The tiles therefore show "no url
-  yet" until the room reads the feed again.
+  The sender gets no `chat` broadcast of its own message, only a `channel.sync` signal, and
+  `channel.get`'s `lastChat$` has no addresses either. `chat.get` and `chat.feed` answer `orgUrl` and
+  `thumbUrl` (signed, short-lived). So `sendPendingImageChat` reads the sent message back once, and a
+  new image message shows its thumbnails without the room reloading. Before that read-back, the tiles
+  showed "no url yet".
 
 ## Related
 
