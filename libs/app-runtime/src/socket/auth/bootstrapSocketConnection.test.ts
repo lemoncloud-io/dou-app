@@ -2,13 +2,21 @@ import { authIdRegistry } from './authIdRegistry';
 import type { AuthIdReseedTarget } from './authIdRegistry';
 import { bootstrapSocketConnection } from './bootstrapSocketConnection';
 import type { ISocketManager, SocketBindingConfig } from '../types';
+import { RELAY_SLOT } from '../utils/slotKey';
 import type { SocketSessionDelegate } from './types';
 
 jest.mock('@chatic/bridges', () => ({
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
 }));
 
-const CONFIG: SocketBindingConfig = { url: 'wss://example.test/socket', deviceId: 'device-1', wssType: 'relay' };
+const RELAY = RELAY_SLOT;
+
+const CONFIG: SocketBindingConfig = {
+    url: 'wss://example.test/socket',
+    deviceId: 'device-1',
+    wssType: 'relay',
+    cid: 'default',
+};
 
 type AuthRegisterOptions = Parameters<AuthIdReseedTarget['register']>[0];
 
@@ -114,7 +122,7 @@ describe('bootstrapSocketConnection', () => {
         const client = makeClient(auth);
         const manager = makeManager(client, order);
 
-        await bootstrapSocketConnection({ manager, kind: 'relay', config: CONFIG, delegate: makeDelegate() });
+        await bootstrapSocketConnection({ manager, config: CONFIG, delegate: makeDelegate() });
 
         // register seeds the token, stop() deactivates so the SDK's connect handler cannot auto-send,
         // and only then do we connect. No start() (no auth.update) until device.save:ok arrives.
@@ -131,7 +139,7 @@ describe('bootstrapSocketConnection', () => {
         const client = makeClient(auth);
         const manager = makeManager(client, order);
 
-        await bootstrapSocketConnection({ manager, kind: 'relay', config: CONFIG, delegate: makeDelegate() });
+        await bootstrapSocketConnection({ manager, config: CONFIG, delegate: makeDelegate() });
         expect(auth.start).not.toHaveBeenCalled();
 
         client.emitMessage('device.save:ok');
@@ -145,7 +153,7 @@ describe('bootstrapSocketConnection', () => {
         const client = makeClient(auth);
         const manager = makeManager(client, []);
 
-        await bootstrapSocketConnection({ manager, kind: 'relay', config: CONFIG, delegate: makeDelegate() });
+        await bootstrapSocketConnection({ manager, config: CONFIG, delegate: makeDelegate() });
 
         client.emitMessage('device.save:error');
         client.emitMessage('auth.update:ok');
@@ -159,7 +167,7 @@ describe('bootstrapSocketConnection', () => {
         const client = makeClient(auth);
         const manager = makeManager(client, order);
 
-        await bootstrapSocketConnection({ manager, kind: 'relay', config: CONFIG, delegate: makeDelegate() });
+        await bootstrapSocketConnection({ manager, config: CONFIG, delegate: makeDelegate() });
 
         client.emitMessage('device.save:ok');
         expect(auth.start).toHaveBeenCalledTimes(1);
@@ -177,7 +185,7 @@ describe('bootstrapSocketConnection', () => {
         const client = makeClient(auth);
         const manager = makeManager(client, []);
 
-        await bootstrapSocketConnection({ manager, kind: 'relay', config: CONFIG, delegate: makeDelegate() });
+        await bootstrapSocketConnection({ manager, config: CONFIG, delegate: makeDelegate() });
         expect(auth.stop).toHaveBeenCalledTimes(1); // setup
 
         client.emitState('connected');
@@ -194,17 +202,17 @@ describe('bootstrapSocketConnection', () => {
         const manager = makeManager(client, []);
         const delegate = makeDelegate();
 
-        await bootstrapSocketConnection({ manager, kind: 'relay', config: CONFIG, delegate });
+        await bootstrapSocketConnection({ manager, config: CONFIG, delegate });
 
         auth.emitAuthState('authenticated');
-        expect(manager.setAuthenticated).toHaveBeenCalledWith('relay', true);
+        expect(manager.setAuthenticated).toHaveBeenCalledWith(RELAY, true);
 
         auth.emitAuthState('failed');
-        expect(manager.setAuthenticated).toHaveBeenCalledWith('relay', false);
+        expect(manager.setAuthenticated).toHaveBeenCalledWith(RELAY, false);
         expect(delegate.onAuthExpired).not.toHaveBeenCalled();
 
         auth.emitAuthState('expired');
-        expect(manager.setAuthenticated).toHaveBeenCalledWith('relay', false);
+        expect(manager.setAuthenticated).toHaveBeenCalledWith(RELAY, false);
         expect(delegate.onAuthExpired).toHaveBeenCalledTimes(1);
         expect(delegate.onAuthExpired).toHaveBeenCalledWith('relay');
     });
@@ -215,7 +223,7 @@ describe('bootstrapSocketConnection', () => {
         const manager = makeManager(client, []);
         const delegate = makeDelegate();
 
-        await bootstrapSocketConnection({ manager, kind: 'relay', config: CONFIG, delegate });
+        await bootstrapSocketConnection({ manager, config: CONFIG, delegate });
 
         const view = { Token: { identityToken: 'fresh' } };
         auth.emitTokenRefresh(view);
@@ -233,7 +241,7 @@ describe('bootstrapSocketConnection', () => {
         const failure = new Error('.AccessKeyId (string) is required!');
         const delegate = makeDelegate({ commitRefreshedToken: jest.fn().mockRejectedValue(failure) });
 
-        await bootstrapSocketConnection({ manager, kind: 'relay', config: CONFIG, delegate });
+        await bootstrapSocketConnection({ manager, config: CONFIG, delegate });
 
         auth.emitTokenRefresh({ Token: {} });
         // The catch is attached to the returned promise, so let the rejection settle.
@@ -253,7 +261,7 @@ describe('bootstrapSocketConnection', () => {
         const manager = makeManager(client, []);
         const delegate = makeDelegate({ commitRefreshedToken: jest.fn(() => undefined) });
 
-        await bootstrapSocketConnection({ manager, kind: 'relay', config: CONFIG, delegate });
+        await bootstrapSocketConnection({ manager, config: CONFIG, delegate });
 
         expect(() => auth.emitTokenRefresh({ Token: {} })).not.toThrow();
         expect(delegate.commitRefreshedToken).toHaveBeenCalled();
@@ -273,7 +281,7 @@ describe('bootstrapSocketConnection', () => {
             .mockResolvedValueOnce({ token: 'tok', authId: 'aid' })
             .mockResolvedValueOnce({ token: 'tok-2', authId: 'rotated-aid' });
 
-        await bootstrapSocketConnection({ manager, kind: 'relay', config: CONFIG, delegate });
+        await bootstrapSocketConnection({ manager, config: CONFIG, delegate });
         auth.emitTokenRefresh({ Token: {} });
         await flush();
 
@@ -281,7 +289,7 @@ describe('bootstrapSocketConnection', () => {
         expect(auth.register).toHaveBeenLastCalledWith(
             expect.objectContaining({ token: 'tok-2', authId: 'rotated-aid' })
         );
-        expect(authIdRegistry.get('relay')).toBe('rotated-aid');
+        expect(authIdRegistry.get(RELAY)).toBe('rotated-aid');
         // The socket is connected, so the gate stays open — only the seed changed, no handshake.
         expect(auth.stop).toHaveBeenCalledTimes(1); // the boot's own gate close, nothing more
     });
@@ -292,7 +300,7 @@ describe('bootstrapSocketConnection', () => {
         const manager = makeManager(client, []);
         const delegate = makeDelegate();
 
-        await bootstrapSocketConnection({ manager, kind: 'relay', config: CONFIG, delegate });
+        await bootstrapSocketConnection({ manager, config: CONFIG, delegate });
         auth.emitTokenRefresh({ Token: {} });
         await flush();
 
@@ -312,12 +320,12 @@ describe('bootstrapSocketConnection', () => {
             .mockResolvedValueOnce({ token: 'tok', authId: 'aid' })
             .mockResolvedValueOnce({ token: 'tok-2', authId: 'rotated-aid' });
 
-        await bootstrapSocketConnection({ manager, kind: 'relay', config: CONFIG, delegate });
+        await bootstrapSocketConnection({ manager, config: CONFIG, delegate });
         auth.emitTokenRefresh({ Token: {} });
         await flush();
 
         expect(auth.register).toHaveBeenCalledTimes(1);
-        expect(authIdRegistry.get('relay')).toBe('aid');
+        expect(authIdRegistry.get(RELAY)).toBe('aid');
     });
 
     it('re-closes the gate when the re-sync registers on a DISCONNECTED socket', async () => {
@@ -329,7 +337,7 @@ describe('bootstrapSocketConnection', () => {
             .mockResolvedValueOnce({ token: 'tok', authId: 'aid' })
             .mockResolvedValueOnce({ token: 'tok-2', authId: 'rotated-aid' });
 
-        await bootstrapSocketConnection({ manager, kind: 'relay', config: CONFIG, delegate });
+        await bootstrapSocketConnection({ manager, config: CONFIG, delegate });
         auth.emitTokenRefresh({ Token: {} });
         await flush();
 
@@ -344,7 +352,7 @@ describe('bootstrapSocketConnection', () => {
         const manager = makeManager(client, []);
         const delegate = makeDelegate();
 
-        await bootstrapSocketConnection({ manager, kind: 'relay', config: CONFIG, delegate });
+        await bootstrapSocketConnection({ manager, config: CONFIG, delegate });
 
         const registeredSign = auth.register.mock.calls[0][0].sign;
         await registeredSign('sdk-token', { target: 'uid@sid' });
@@ -358,7 +366,6 @@ describe('bootstrapSocketConnection', () => {
 
         const cleanup = await bootstrapSocketConnection({
             manager,
-            kind: 'relay',
             config: CONFIG,
             delegate: makeDelegate(),
         });
@@ -377,7 +384,7 @@ describe('bootstrapSocketConnection', () => {
         const manager = makeManager(client, order);
         const delegate = makeDelegate({ getAuthRegistration: jest.fn().mockResolvedValue(null) });
 
-        await bootstrapSocketConnection({ manager, kind: 'relay', config: CONFIG, delegate });
+        await bootstrapSocketConnection({ manager, config: CONFIG, delegate });
 
         expect(auth.register).not.toHaveBeenCalled();
         expect(auth.stop).not.toHaveBeenCalled();
@@ -397,7 +404,7 @@ describe('bootstrapSocketConnection', () => {
             const manager = makeManager(client, []);
             const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(1_000_000);
 
-            await bootstrapSocketConnection({ manager, kind: 'relay', config: CONFIG, delegate: makeDelegate() });
+            await bootstrapSocketConnection({ manager, config: CONFIG, delegate: makeDelegate() });
 
             auth.state = 'expired';
             client.emitMessage('device.save:ok');
@@ -426,7 +433,7 @@ describe('bootstrapSocketConnection', () => {
             const manager = makeManager(client, []);
             const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(1_000_000);
 
-            await bootstrapSocketConnection({ manager, kind: 'relay', config: CONFIG, delegate: makeDelegate() });
+            await bootstrapSocketConnection({ manager, config: CONFIG, delegate: makeDelegate() });
 
             auth.state = 'expired';
             client.emitMessage('device.save:ok'); // consumes the immediate resume
@@ -448,7 +455,7 @@ describe('bootstrapSocketConnection', () => {
             const manager = makeManager(client, []);
             jest.spyOn(Date, 'now').mockReturnValue(1_000_000);
 
-            await bootstrapSocketConnection({ manager, kind: 'relay', config: CONFIG, delegate: makeDelegate() });
+            await bootstrapSocketConnection({ manager, config: CONFIG, delegate: makeDelegate() });
 
             auth.state = 'pending';
             client.emitMessage('device.save:ok');
@@ -464,7 +471,7 @@ describe('bootstrapSocketConnection', () => {
         const manager = makeManager(client, order);
         const delegate = makeDelegate();
 
-        const cleanup = await bootstrapSocketConnection({ manager, kind: 'relay', config: CONFIG, delegate });
+        const cleanup = await bootstrapSocketConnection({ manager, config: CONFIG, delegate });
 
         expect(order).toEqual(['connect']);
         expect(delegate.getAuthRegistration).not.toHaveBeenCalled();

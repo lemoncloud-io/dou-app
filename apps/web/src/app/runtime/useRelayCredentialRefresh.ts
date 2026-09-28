@@ -49,7 +49,7 @@ export const useRelayCredentialRefresh = (): void => {
     // Gated on the socket being up: with no live socket `check` cannot reach the refresh owner, so
     // it would only log a failure. The rising edge above covers that case once the socket returns
     // (useSocketWakeRecovery).
-    const isRelayVerified = runtime.connection.useKindVerified('relay');
+    const isRelayVerified = runtime.connection.useSlotVerified(runtime.connection.RELAY_SLOT);
     useAppForeground(() => {
         if (!isRelayVerified) return;
         void check();

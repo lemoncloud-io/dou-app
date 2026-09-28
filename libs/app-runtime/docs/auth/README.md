@@ -136,16 +136,18 @@ itself needs neither a socket nor a store.
 
 ## Booting a slot
 
-[`bootstrapSocketConnection({ manager, kind, config, delegate })`](../../src/socket/auth/bootstrapSocketConnection.ts)
+[`bootstrapSocketConnection({ manager, config, delegate })`](../../src/socket/auth/bootstrapSocketConnection.ts)
 is an async function that returns its own cleanup. `SocketBinder` calls it per slot whenever that
-slot's config changes. The order is the contract:
+slot's config changes. The slot is `key = slotKeyOf(config.cid)`; the delegate is still addressed by
+the server kind, `kindOf(key)`, because there is one relay credential and one cloud credential. The
+order is the contract:
 
-1. `manager.ensure(config, kind)` — creates the client, which attaches the controller. A slot with no `auth` logs an error, connects anyway, and returns a no-op cleanup.
-2. Subscribe `onAuthState` → `manager.setAuthenticated(kind, state === 'authenticated')`; `'authenticated'` resets the resume throttle; `'expired'` calls `delegate.onAuthExpired?.(kind)`.
+1. `manager.ensure(config)` — creates the client, which attaches the controller. A slot with no `auth` logs an error, connects anyway, and returns a no-op cleanup.
+2. Subscribe `onAuthState` → `manager.setAuthenticated(key, state === 'authenticated')`; `'authenticated'` resets the resume throttle; `'expired'` calls `delegate.onAuthExpired?.(kind)`.
 3. Subscribe `onTokenRefresh` → `delegate.commitRefreshedToken(kind, view)`, then re-read the registration and hand it to the `authId` registry ([signing.md](./signing.md#the-authid-registry)).
 4. `delegate.getAuthRegistration(kind)` → `auth.register({ token, authId, sign })`, then **`gate.stop()` immediately** — before connecting.
 5. Subscribe `client.onMessage` for `device.save:ok`, which calls `gate.start()`; and `client.onState` for `closed` / `closing` / `idle`, which calls `gate.stop()` again.
-6. `manager.connect(kind)`.
+6. `manager.connect(key)`.
 
 **Why the gate exists.** The backend refuses `auth.update` on a connection with no registered device,
 and the SDK sends `device.save` and `auth.update` from two independent `connected` listeners with
@@ -175,7 +177,7 @@ it, a terminally expired slot retries its handshake on every reconnect.
 The SDK's bare `register` swaps the token silently on an active controller and does not re-send
 `auth.update`, so the old identity survives.
 [`reauthenticateActiveSocket`](../../src/socket/auth/reauthenticateActiveSocket.ts) is what corrects
-that. It always addresses `manager.getClient(kind)`, never the active facade.
+that. It always addresses the slot it is given — `manager.getClient(slot)` — never the active facade.
 
 - **The no-op guard comes first.** If `registration.token === auth.token`, nothing changed — it only re-syncs the `authId` and returns. Without it, the SDK's own refresh writeback lands in the store and bounces straight back as a re-authentication, and the loop never settles.
 - When the identity really changed it optionally re-points the slot's bound cid, then — if the slot was verified — fires `auth.logout()` fire-and-forget to revoke the old backend session **and forces `setAuthenticated(kind, false)`**. That deliberate dip is what makes verification-gated consumers re-anchor on the new user.

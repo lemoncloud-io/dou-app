@@ -5,7 +5,8 @@ import type { ICredentialFreshness } from '../../session/auth/credentialFreshnes
 import { cloudStore, relayStore } from '../../session/store/stores';
 import { SDK_REFRESH_CYCLE_MS } from '../constants';
 import { getSocketManager } from '../runtime';
-import type { ISocketManager, SocketKind } from '../types';
+import type { ISocketManager, SlotKey, SocketKind } from '../types';
+import { kindOf } from '../utils/slotKey';
 
 /**
  * What the runtime should DO about one socket kind's authentication, as a single named value
@@ -51,7 +52,7 @@ export interface AuthSignals {
     /** This server has a token in the store. */
     readonly hasToken: boolean;
     /**
-     * `SocketManager.isKindVerified(kind)` — authenticated AND connected, scoped to the CURRENT
+     * `SocketManager.isSlotVerified(key)` — authenticated AND connected, scoped to the CURRENT
      * connection. This is the one flag that tracks the live connection: the SDK controller's own
      * state survives a transport drop, so right after a reconnect it still reads `authenticated`
      * from the connection that just died.
@@ -141,7 +142,7 @@ export const needsSocketKick = (status: AuthStatus): boolean => status === 'hand
 const DEFAULT_MARGIN_MS = SDK_REFRESH_CYCLE_MS;
 
 export interface AuthSignalDeps {
-    manager?: Pick<ISocketManager, 'getClient' | 'isKindVerified'>;
+    manager?: Pick<ISocketManager, 'getClient' | 'isSlotVerified'>;
     freshness?: Pick<ICredentialFreshness, 'timeToExpiry'>;
     /** Overrides {@link DEFAULT_MARGIN_MS}; a caller with its own policy passes its own. */
     marginMs?: number;
@@ -155,15 +156,18 @@ export interface AuthSignalDeps {
 }
 
 /** Collects {@link AuthSignals} for one slot from the stores, the manager and the SDK controller. */
-const readAuthSignals = (kind: SocketKind, deps: AuthSignalDeps = {}): AuthSignals => {
+const readAuthSignals = (key: SlotKey, deps: AuthSignalDeps = {}): AuthSignals => {
     const manager = deps.manager ?? getSocketManager();
     const freshness = deps.freshness ?? credentialFreshness;
+    // The credential inputs are still one per server kind — there is one cloud session at a time —
+    // while the connection inputs are read off the slot itself.
+    const kind = kindOf(key);
     const identityToken = kind === 'cloud' ? cloudStore.getIdentityToken() : relayStore.getIdentityToken();
 
     return {
         hasToken: !!identityToken,
-        verifiedOnThisConnection: manager.isKindVerified(kind),
-        controller: manager.getClient(kind)?.auth?.state ?? null,
+        verifiedOnThisConnection: manager.isSlotVerified(key),
+        controller: manager.getClient(key)?.auth?.state ?? null,
         credentialMs: freshness.timeToExpiry(kind),
         marginMs: deps.marginMs ?? DEFAULT_MARGIN_MS,
         storedSessionExpired: deps.storedSessionExpired ?? null,
@@ -171,17 +175,17 @@ const readAuthSignals = (kind: SocketKind, deps: AuthSignalDeps = {}): AuthSigna
 };
 
 /** The one call sites use: collect, then derive. */
-export const getAuthStatus = (kind: SocketKind, deps: AuthSignalDeps = {}): AuthStatus =>
-    deriveAuthStatus(readAuthSignals(kind, deps));
+export const getAuthStatus = (key: SlotKey, deps: AuthSignalDeps = {}): AuthStatus =>
+    deriveAuthStatus(readAuthSignals(key, deps));
 
 /** {@link getAuthStatus} plus the inputs it used — for logs and the debug overlay. */
-export const getAuthSnapshot = (kind: SocketKind, deps: AuthSignalDeps = {}): SocketAuthSnapshot => {
+export const getAuthSnapshot = (key: SlotKey, deps: AuthSignalDeps = {}): SocketAuthSnapshot => {
     const manager = deps.manager ?? getSocketManager();
-    const signals = readAuthSignals(kind, deps);
+    const signals = readAuthSignals(key, deps);
     return {
         ...signals,
-        kind,
+        kind: kindOf(key),
         status: deriveAuthStatus(signals),
-        transport: manager.getClient(kind)?.state ?? null,
+        transport: manager.getClient(key)?.state ?? null,
     };
 };

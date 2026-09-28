@@ -4,6 +4,7 @@ import { logger } from '@chatic/bridges';
 import { relaySession } from '../../session/auth/relaySession';
 
 import { getSocketManager } from '../runtime';
+import { RELAY_SLOT } from '../utils/slotKey';
 import { reauthenticateActiveSocket } from './reauthenticateActiveSocket';
 import { createReauthDelegate } from './reauthDelegate';
 
@@ -58,9 +59,9 @@ export const applySessionToken = async ($token: unknown, options?: ApplySessionT
     await relaySession.loginByToken(view);
 
     const manager = getSocketManager();
-    await reauthenticateActiveSocket({ manager, delegate: createReauthDelegate(), kind: 'relay' });
+    await reauthenticateActiveSocket({ manager, delegate: createReauthDelegate(), slot: RELAY_SLOT });
 
-    const auth = manager.getClient('relay')?.auth;
+    const auth = manager.getClient(RELAY_SLOT)?.auth;
     if (!auth) {
         // No relay slot yet (socket not booted). The committed token is the store SSoT, so the next
         // bootstrap registers the new identity — nothing to wait for on a live connection.

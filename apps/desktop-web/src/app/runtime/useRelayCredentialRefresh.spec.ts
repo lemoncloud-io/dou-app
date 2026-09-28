@@ -13,7 +13,7 @@ import { renderHook } from '@testing-library/react';
  */
 const mockCheck = vi.fn();
 const mockGuard = vi.fn(() => ({ check: mockCheck }));
-const mockKindVerified = vi.fn(() => true);
+const mockSlotVerified = vi.fn(() => true);
 
 vi.mock('@chatic/app-runtime', () => ({
     runtime: {
@@ -21,7 +21,8 @@ vi.mock('@chatic/app-runtime', () => ({
             useSessionStalenessGuard: (...args: unknown[]) => mockGuard(...(args as [])),
         },
         connection: {
-            useKindVerified: (...args: unknown[]) => mockKindVerified(...(args as [])),
+            RELAY_SLOT: 'default',
+            useSlotVerified: (...args: unknown[]) => mockSlotVerified(...(args as [])),
         },
     },
 }));
@@ -41,7 +42,7 @@ const emitVisibility = (state: DocumentVisibilityState) => {
 
 beforeEach(() => {
     vi.clearAllMocks();
-    mockKindVerified.mockReturnValue(true);
+    mockSlotVerified.mockReturnValue(true);
 });
 
 describe('useRelayCredentialRefresh — desktop-web 정책', () => {
@@ -63,7 +64,7 @@ describe('useRelayCredentialRefresh — desktop-web 정책', () => {
 
     // Without a socket, check can't reach the refresh owner and just leaves a warning — waking from sleep is exactly that state.
     it('소켓이 검증되지 않았으면 가시성 복귀에 검사하지 않는다', () => {
-        mockKindVerified.mockReturnValue(false);
+        mockSlotVerified.mockReturnValue(false);
         render();
 
         emitVisibility('visible');

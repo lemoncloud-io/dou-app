@@ -3,7 +3,8 @@ import { useCallback, useEffect, useRef } from 'react';
 import { logger } from '@chatic/bridges';
 import { hasStoredRelaySession, isStoredSessionExpired } from '../../../http/transport';
 
-import { useKindVerified } from '../../../connection/hooks/useKindVerified';
+import { useSlotVerified } from '../../../connection/hooks/useSlotVerified';
+import { RELAY_SLOT } from '../../../socket/utils/slotKey';
 import { SDK_REFRESH_CYCLE_MS } from '../../../socket/constants';
 import { canRefreshThroughSocket, getAuthStatus } from '../../../socket/auth/authStatus';
 import { credentialRenewers } from '../../../socket/auth/renewers';
@@ -201,7 +202,7 @@ export const useSessionStalenessGuard = (policy: SessionStalenessPolicy = {}): {
             // sessions: the SDK keep-alive needs ~40-80s to notice a half-open socket and
             // reconnect, while three 30s ticks tear down at 90s — the teardown usually won that
             // race. Only a refusal from a socket that WAS able to ask counts.
-            const status = getAuthStatus('relay', { storedSessionExpired: expired });
+            const status = getAuthStatus(RELAY_SLOT, { storedSessionExpired: expired });
             if (!canRefreshThroughSocket(status)) {
                 logger.warn('SESSION', '[stalenessGuard] relay socket cannot carry a refresh — not counted', {
                     data: { status },
@@ -238,7 +239,7 @@ export const useSessionStalenessGuard = (policy: SessionStalenessPolicy = {}): {
         return () => document.removeEventListener('visibilitychange', onVisibilityChange);
     }, [enabled, checkOnVisible, check]);
 
-    const isRelayVerified = useKindVerified('relay');
+    const isRelayVerified = useSlotVerified(RELAY_SLOT);
     const prevVerified = useRef(false);
     useEffect(() => {
         const becameVerified = !prevVerified.current && isRelayVerified;

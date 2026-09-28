@@ -58,7 +58,7 @@ target.
 Each entry is tagged with the `cid` and `uid` it was registered under, and both are checked before it
 starts:
 
-- **cid** — the cloud the **session has selected**, which is the partition the plan writes into — not the active client's `boundCid`. A target only starts on a client whose `boundCid` matches it, on registration or on a replay. A socket that outlived its cloud must not resume the previous cloud's polling, and a socket that has not caught up with a switch must not start the next one's. A switch pre-applies the selection before the incoming slot is active, so the home screen renders the incoming cloud's cached places and registers their targets while the outgoing socket is still the active one. Tagged with that socket's cid, a cloud place ran `place.get` on the relay — which answers `404 not found @doGet(sites/…)`, since the relay has no such site — and never ran on its own cloud. Tagged with the selection, it waits and starts on the replay that follows the slot change.
+- **cid** — the cloud the **session has selected**, which is the partition the plan writes into — not the cloud the active client's slot serves (`getBoundCid`, the slot's key). A target only starts on a client whose slot serves that cloud, on registration or on a replay. A socket that outlived its cloud must not resume the previous cloud's polling, and a socket that has not caught up with a switch must not start the next one's. A switch pre-applies the selection before the incoming slot is active, so the home screen renders the incoming cloud's cached places and registers their targets while the outgoing socket is still the active one. Tagged with that socket's cid, a cloud place ran `place.get` on the relay — which answers `404 not found @doGet(sites/…)`, since the relay has no such site — and never ran on its own cloud. Tagged with the selection, it waits and starts on the replay that follows the slot change.
 - **uid** — an account change **retires** the previous account's targets rather than merely refusing to restart them. Guest-to-social promotion re-authenticates the _same_ socket, so no client swap happens and nothing else notices; the running targets keep polling ids built from the guest's uid and the server answers each with `403 not allowed to read join`. Waiting for the hook to unmount is not enough either, because the grace below holds for 30 seconds. The retirement is immediate and bypasses the grace on purpose — the grace exists to survive a screen transition re-registering the _same_ target, and after an account change the ids are different ones. The mismatch warning is logged once per instance, because a poll-rate log is a flood.
 
 `UNREGISTER_GRACE_MS` is **30 seconds**. A screen transition unregisters the old screen's target and
@@ -87,7 +87,10 @@ deliberately **no `onRemove`**: chat history is kept. Every other plan spreads
 everything.
 
 **Every callback is wrapped by a cross-cloud guard.** A frame whose data context disagrees with the
-socket's `boundCid` is dropped before it reaches a repository, and the drop is counted by the
+cloud its slot serves is dropped before it reaches a repository. Each slot's plans are built with that
+slot's own key as the cloud to judge against — not by asking which slot is active, which gives the same
+answer today (targets only run on the active slot) and stops giving it the moment a runtime can hold
+targets without being active, and the drop is counted by the
 observation aggregator rather than logged per frame. Without it, a socket that outlived its cloud
 writes the previous cloud's rows into the current cloud's partition and the screen flickers between
 two places.
@@ -177,5 +180,5 @@ matter whether a message arrived by push or by page.
 ## Further reading
 
 - [plans.md](./plans.md) — what the SDK scheduler underneath does, and the behaviours only its source shows
-- [docs/socket/](../socket/README.md) — `subscribeSlotClients`, the ordering guarantee, and `boundCid`
+- [docs/socket/](../socket/README.md) — `subscribeSlotClients`, the ordering guarantee, and slot keys
 - [`libs/data`](../../../data/README.md) — the repositories every plan callback writes through, and the scope guards the cross-cloud filter uses

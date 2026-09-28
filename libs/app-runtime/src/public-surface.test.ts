@@ -65,13 +65,14 @@ const GROUPS: Record<string, readonly string[]> = {
     ],
     // Hosts + socket state reads + wake recovery.
     connection: [
+        'RELAY_SLOT',
         'RuntimeAuthHost',
         'RuntimeConnectionHost',
         'getSocketManager',
         'recoverUnverifiedSockets',
         'useConnectivity',
-        'useKindVerified',
         'useRuntimeSocketState',
+        'useSlotVerified',
     ],
     // Repository · cache tier · outbox.
     data: [

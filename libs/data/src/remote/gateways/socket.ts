@@ -41,10 +41,12 @@ export type DeviceSocketDomainGateway = Pick<DeviceGateway, 'save' | 'read' | 's
 /**
  * Where a routed request is sent, chosen by the CALLER (not baked into the domain):
  * - `active`: the currently active slot (cloud when a cloud is active, else relay) — the default.
- * - `relay` / `cloud`: that specific slot regardless of which is active.
- * See app-runtime socket/kind-scoped-routing.md.
+ * - `relay`: the relay's slot regardless of which is active.
+ *
+ * There is no `cloud` route. "The cloud slot" named a role — whichever cloud happened to be committed —
+ * not an address, and no caller ever used it.
  */
-export type SocketRoute = 'active' | 'relay' | 'cloud';
+export type SocketRoute = 'active' | 'relay';
 
 /** The same gateway bound once per route, so a data source can pick a destination at call time. */
 export type RoutedGateway<G> = Record<SocketRoute, G>;

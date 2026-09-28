@@ -21,8 +21,8 @@ jest.mock('../../../socket/auth/authStatus', () => ({
     // of the truth table it reads.
     canRefreshThroughSocket: (status: string) => status === 'verified' || status === 'stale',
 }));
-jest.mock('../../../connection/hooks/useKindVerified', () => ({
-    useKindVerified: (...a: unknown[]) => mockVerified(...a),
+jest.mock('../../../connection/hooks/useSlotVerified', () => ({
+    useSlotVerified: (...a: unknown[]) => mockVerified(...a),
 }));
 jest.mock('@chatic/bridges', () => ({
     logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },

@@ -64,7 +64,7 @@ const accountFieldsOf = (view: UserView | undefined): Record<string, unknown> =>
  * what makes it visible: patching the token IS the update path.
  */
 export const useMyUser = (): MyUser | null => {
-    const isRelayVerified = runtime.connection.useKindVerified('relay');
+    const isRelayVerified = runtime.connection.useSlotVerified(runtime.connection.RELAY_SLOT);
     // Re-read per session signal. The session store drops its cached context on every notify and
     // rebuilds a new object, so this identity change is the refresh trigger.
     const session = runtime.session.useGlobalSession();

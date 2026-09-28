@@ -2,7 +2,8 @@ import { logger } from '@chatic/bridges';
 import { relaySession, type LogoutOptions } from '../../session/auth/relaySession';
 
 import { getSocketManager } from '../runtime';
-import type { SocketKind } from '../types';
+import type { SlotKey } from '../types';
+import { kindOf } from '../utils/slotKey';
 
 /**
  * Best-effort socket `auth.logout()` for one slot — FIRE-AND-FORGET. It dispatches the logout frame
@@ -10,14 +11,14 @@ import type { SocketKind } from '../types';
  * controller, but the server ack is NOT awaited: on a wedged/half-open socket that ack can hang to
  * the 30s request timeout, and it must never block the local teardown + redirect.
  */
-export const notifySocketLogout = (kind: SocketKind): void => {
-    const auth = getSocketManager().getClient(kind)?.auth;
+export const notifySocketLogout = (slot: SlotKey): void => {
+    const auth = getSocketManager().getClient(slot)?.auth;
     if (!auth) return;
     // logout() is best-effort and does not reject, but the promise is guarded regardless.
     void Promise.resolve(auth.logout()).catch(error =>
         logger.warn('SOCKET', '[logoutSession] socket auth.logout failed (local teardown already proceeded)', {
             error,
-            data: { kind },
+            data: { kind: kindOf(slot), cid: slot },
         })
     );
 };
@@ -35,8 +36,8 @@ export const notifySocketLogout = (kind: SocketKind): void => {
  *     clients down afterwards.
  */
 export const logoutSession = async (options?: LogoutOptions): Promise<void> => {
-    notifySocketLogout('relay');
-    notifySocketLogout('cloud');
+    // Every bound slot hears it: each server holds its own session for this device.
+    for (const slot of getSocketManager().getSlotKeys()) notifySocketLogout(slot);
 
     await relaySession.clearAndRedirect(options);
 };

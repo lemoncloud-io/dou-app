@@ -4,6 +4,7 @@ import type { ClientSocketV2 } from '@lemoncloud/chatic-sockets-lib';
 import { applySessionToken } from './applySessionToken';
 import { SocketManager } from '../SocketManager';
 import { getSocketManager } from '../runtime';
+import { RELAY_SLOT } from '../utils/slotKey';
 
 jest.mock('@chatic/bridges', () => ({
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
@@ -132,9 +133,9 @@ const makeFakeRelaySocket = (order: string[]) => {
 const bootRelayManager = (client: ClientSocketV2) => {
     const manager = new SocketManager();
     mockedCreate.mockReturnValue(client);
-    manager.ensure({ url: 'wss://relay.example.com', deviceId: 'device-1', wssType: 'relay' }, 'relay');
+    manager.ensure({ url: 'wss://relay.example.com', deviceId: 'device-1', wssType: 'relay', cid: 'default' });
     // Mirror what bootstrapSocketConnection's onAuthState wiring does once the guest handshake ends.
-    manager.setAuthenticated('relay', true);
+    manager.setAuthenticated(RELAY_SLOT, true);
     mockedGetSocketManager.mockReturnValue(manager);
     return manager;
 };
@@ -151,7 +152,7 @@ describe('applySessionToken — verify-hash-alias $token을 relay 세션·소켓
         const order: string[] = [];
         const { client } = makeFakeRelaySocket(order);
         const manager = bootRelayManager(client);
-        const relay = manager.getScopedClient('relay');
+        const relay = manager.getScopedClient(RELAY_SLOT);
 
         // BEFORE: the device-user identity is rejected with the wire-shaped 403 (the status prefix
         // is what apps/web getSocketErrorCode reads — never the message wording).
@@ -202,9 +203,8 @@ describe('applySessionToken — verify-hash-alias $token을 relay 세션·소켓
     it('relay 슬롯이 아직 없으면 커밋까지만 하고 resolve한다 (다음 부트가 새 토큰으로 register)', async () => {
         const manager = {
             getClient: jest.fn(() => null),
-            isKindVerified: jest.fn(() => false),
+            isSlotVerified: jest.fn(() => false),
             setAuthenticated: jest.fn(),
-            rebindCid: jest.fn(),
         };
         mockedGetSocketManager.mockReturnValue(manager as never);
 
@@ -258,7 +258,7 @@ describe('applySessionToken — verify-hash-alias $token을 relay 세션·소켓
         expect(auth.token).toBe(GUEST_IDENTITY);
         // The would-be next call really would have failed, which is what the reject prevents.
         await expect(
-            manager.getScopedClient('relay').request('invite.create', { phone: '01012345678', name: '친구' })
+            manager.getScopedClient(RELAY_SLOT).request('invite.create', { phone: '01012345678', name: '친구' })
         ).rejects.toThrow(/^403/);
     });
 

@@ -22,7 +22,8 @@ export type { ConnectivityStatus } from './hooks/useConnectivity';
 // verified" independently of which slot is active. Both moved here from the dissolved `runtime/`
 // module (see data/index.ts's header) — they were always connection concepts.
 export { useRuntimeSocketState } from './hooks/useRuntimeSocketState';
-export { useKindVerified } from './hooks/useKindVerified';
+export { useSlotVerified } from './hooks/useSlotVerified';
+export { RELAY_SLOT } from '../socket/utils/slotKey';
 
 // Foreground/wake kick for wedged sockets — apps call it on their own foreground signal (apps/web
 // `useSocketWakeRecovery`; desktop-web keeps its local variant). See 2026-08 session audit §7 Phase 1.

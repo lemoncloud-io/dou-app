@@ -18,9 +18,9 @@ import { runtime } from '@chatic/app-runtime';
  * app-level version work, so this gateway only ever moves data in and out of that token.
  *
  * Built once and reused: `getScopedClient` resolves its slot lazily on every call, so the instance
- * survives relay slot teardown/rebuild (app-runtime socket/kind-scoped-routing.md). It THROWS when
- * no relay slot is bound — callers must gate on `useKindVerified('relay')` (or
- * `waitUntilKindVerified`) rather than firing hopefully, same as `useRelayInvites`.
+ * survives relay slot teardown/rebuild (app-runtime docs/socket). It THROWS when
+ * no relay slot is bound — callers must gate on `useSlotVerified(RELAY_SLOT)` (or
+ * `waitUntilSlotVerified`) rather than firing hopefully, same as `useRelayInvites`.
  *
  * The `as any` on the scoped client mirrors socketFactory: `ScopedSocketClient` is the request/send
  * subset the gateways actually use, but the factory's parameter is typed as the full client.
@@ -29,7 +29,9 @@ let cachedGateway: ReturnType<typeof createUserGateway> | null = null;
 
 export const getRelayAccountGateway = (): ReturnType<typeof createUserGateway> => {
     if (!cachedGateway) {
-        cachedGateway = createUserGateway(runtime.connection.getSocketManager().getScopedClient('relay') as any);
+        cachedGateway = createUserGateway(
+            runtime.connection.getSocketManager().getScopedClient(runtime.connection.RELAY_SLOT) as any
+        );
     }
     return cachedGateway;
 };

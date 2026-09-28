@@ -147,7 +147,7 @@ What works instead is app-level and touches no cache:
   into the stored token, and patching the token **is** the update path: every reader sees it at once
   and the next cold start seeds from it.
 - **Gating** — the scoped client throws rather than falling back when no relay slot is bound, so
-  callers must wait on `useKindVerified('relay')`. Firing before the relay handshake is what
+  callers must wait on `useSlotVerified(RELAY_SLOT)`. Firing before the relay handshake is what
   produced `503 SOCKET NOT CONNECTED` elsewhere in the app.
 
 The one-shot `user.profile` refresh exists to catch an edit made on another device; it is pinned and
@@ -214,4 +214,4 @@ What those cover, and what they cannot:
 - [`@chatic/data`](../../../../../libs/data/docs/local/README.md#scope-and-cache-slots) — the scope
   and cache-slot model this document depends on.
 - [`@chatic/app-runtime`](../../../../../libs/app-runtime/README.md) — the session store, the relay
-  token, and kind-scoped socket routing.
+  token, and slot-pinned socket routing.

@@ -24,7 +24,8 @@ jest.mock('@chatic/app-runtime', () => ({
             useRuntimeRepositories: jest.fn(),
         },
         connection: {
-            useKindVerified: jest.fn(),
+            RELAY_SLOT: 'default',
+            useSlotVerified: jest.fn(),
             getSocketManager: jest.fn(),
         },
     },
@@ -39,8 +40,8 @@ const reject = jest.fn();
 // Cache observer: never emits by default (empty local cache) — a test that wants a cache-first
 // render sets a different mock implementation for the individual case.
 const observeList = jest.fn(() => () => undefined);
-// The one-shot relay gate a caller-driven refetch waits on (SocketManager.waitUntilKindVerified).
-const waitUntilKindVerified = jest.fn(async () => false);
+// The one-shot relay gate a caller-driven refetch waits on (SocketManager.waitUntilSlotVerified).
+const waitUntilSlotVerified = jest.fn(async () => false);
 
 /** Mirrors the app's QueryClient defaults (app.tsx) — `staleTime: Infinity` is load-bearing below. */
 const createAppQueryClient = () =>
@@ -72,9 +73,9 @@ beforeEach(() => {
     (runtime.data.useRuntimeRepositories as jest.Mock).mockReturnValue({
         invite: { list, create, get, accept, cancel, reject, observeList },
     });
-    (runtime.connection.useKindVerified as jest.Mock).mockReturnValue(true); // relay verified by default in these tests
-    waitUntilKindVerified.mockResolvedValue(false);
-    (runtime.connection.getSocketManager as jest.Mock).mockReturnValue({ waitUntilKindVerified });
+    (runtime.connection.useSlotVerified as jest.Mock).mockReturnValue(true); // relay verified by default in these tests
+    waitUntilSlotVerified.mockResolvedValue(false);
+    (runtime.connection.getSocketManager as jest.Mock).mockReturnValue({ waitUntilSlotVerified });
     queryClient = createAppQueryClient();
     focusManager.setFocused(undefined);
 });
@@ -127,7 +128,7 @@ describe('useRelayInvites', () => {
     // all, so it fired on mount and raced the relay handshake — surfacing as `503 SOCKET NOT
     // CONNECTED - relay.request(invite.list)` in production.
     it('relay가 아직 verified가 아니면 조회하지 않는다', () => {
-        (runtime.connection.useKindVerified as jest.Mock).mockReturnValue(false);
+        (runtime.connection.useSlotVerified as jest.Mock).mockReturnValue(false);
 
         const { result } = renderHook(() => useRelayInvites(undefined, REMOTE), { wrapper });
 
@@ -141,7 +142,7 @@ describe('useRelayInvites', () => {
     // the gate applied as-is.
     it('pollIntervalMs 폴링은 relay 게이트를 지킨다', async () => {
         jest.useFakeTimers();
-        (runtime.connection.useKindVerified as jest.Mock).mockReturnValue(false);
+        (runtime.connection.useSlotVerified as jest.Mock).mockReturnValue(false);
 
         const { rerender } = renderHook(() => useRelayInvites(undefined, { pollIntervalMs: 30_000 }), { wrapper });
         await act(async () => {
@@ -149,7 +150,7 @@ describe('useRelayInvites', () => {
         });
         expect(list).not.toHaveBeenCalled();
 
-        (runtime.connection.useKindVerified as jest.Mock).mockReturnValue(true);
+        (runtime.connection.useSlotVerified as jest.Mock).mockReturnValue(true);
         rerender();
         await waitFor(() => expect(list).toHaveBeenCalledTimes(1));
 
@@ -174,11 +175,11 @@ describe('useRelayInvites', () => {
     });
 
     it('relay verified가 false→true로 바뀌는 순간 조회한다', async () => {
-        (runtime.connection.useKindVerified as jest.Mock).mockReturnValue(false);
+        (runtime.connection.useSlotVerified as jest.Mock).mockReturnValue(false);
         const { result, rerender } = renderHook(() => useRelayInvites(undefined, REMOTE), { wrapper });
         expect(list).not.toHaveBeenCalled();
 
-        (runtime.connection.useKindVerified as jest.Mock).mockReturnValue(true);
+        (runtime.connection.useSlotVerified as jest.Mock).mockReturnValue(true);
         rerender();
 
         await waitFor(() => expect(list).toHaveBeenCalledTimes(1));
@@ -284,7 +285,7 @@ describe('useRelayInvites — 기본은 캐시 전용', () => {
         const { result } = renderHook(() => useRelayInvites(), { wrapper });
 
         // It doesn't fire because of an absent intent, not a gate — relay is in the verified state.
-        expect(runtime.connection.useKindVerified).toHaveBeenCalledWith('relay');
+        expect(runtime.connection.useSlotVerified).toHaveBeenCalledWith('default');
         await act(async () => undefined);
         expect(list).not.toHaveBeenCalled();
         expect(result.current.isLoading).toBe(false); // and it's not stuck in a spinner either
@@ -489,22 +490,22 @@ describe('useRelayInviteMutations', () => {
 // `401 UNAUTHORIZED - not authenticated @invite.list` (2 hits per tap, since retry:1).
 describe('useRelayInvites — 호출자 refetch도 relay 게이트를 지킨다', () => {
     it('미인증이면 슬롯을 기다리고, 끝내 안 되면 소켓을 건드리지 않는다', async () => {
-        (runtime.connection.useKindVerified as jest.Mock).mockReturnValue(false);
-        waitUntilKindVerified.mockResolvedValue(false);
+        (runtime.connection.useSlotVerified as jest.Mock).mockReturnValue(false);
+        waitUntilSlotVerified.mockResolvedValue(false);
 
         const { result } = renderHook(() => useRelayInvites(), { wrapper });
 
         const answer = await act(async () => result.current.refetch());
 
-        expect(waitUntilKindVerified).toHaveBeenCalledWith('relay', 3_000);
+        expect(waitUntilSlotVerified).toHaveBeenCalledWith('default', 3_000);
         expect(list).not.toHaveBeenCalled();
         // Answer with what's on hand — resolveInviteCode only reads the single `data` field.
         expect(answer).toEqual({ data: undefined });
     });
 
     it('기다리는 동안 relay가 인증되면 그때 조회한다', async () => {
-        (runtime.connection.useKindVerified as jest.Mock).mockReturnValue(false);
-        waitUntilKindVerified.mockResolvedValue(true);
+        (runtime.connection.useSlotVerified as jest.Mock).mockReturnValue(false);
+        waitUntilSlotVerified.mockResolvedValue(true);
         list.mockResolvedValue([{ id: 'invite-1', code: 'c0de' }]);
 
         const { result } = renderHook(() => useRelayInvites(), { wrapper });
@@ -517,7 +518,7 @@ describe('useRelayInvites — 호출자 refetch도 relay 게이트를 지킨다'
     });
 
     it('이미 인증돼 있으면 기다리지 않고 바로 조회한다', async () => {
-        (runtime.connection.useKindVerified as jest.Mock).mockReturnValue(true);
+        (runtime.connection.useSlotVerified as jest.Mock).mockReturnValue(true);
 
         // As the default (cache-only) consumer, there's no query on mount — refetch() is the only
         // packet, and the exact TanStack v5 property that it fires even on a disabled query is what
@@ -527,7 +528,7 @@ describe('useRelayInvites — 호출자 refetch도 relay 게이트를 지킨다'
 
         await act(async () => result.current.refetch());
 
-        expect(waitUntilKindVerified).not.toHaveBeenCalled();
+        expect(waitUntilSlotVerified).not.toHaveBeenCalled();
         expect(list).toHaveBeenCalledTimes(1);
     });
 });

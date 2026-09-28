@@ -1,6 +1,7 @@
 import { logoutSession } from './logoutSession';
 import { relaySession } from '../../session/auth/relaySession';
 import { getSocketManager } from '../runtime';
+import { RELAY_SLOT, slotKeyOf } from '../utils/slotKey';
 
 jest.mock('@chatic/bridges', () => ({
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
@@ -17,12 +18,23 @@ jest.mock('../runtime', () => ({
 const mockedLogoutRelay = relaySession.clearAndRedirect as jest.Mock;
 const mockedGetManager = getSocketManager as jest.MockedFunction<typeof getSocketManager>;
 
-/** Manager whose getClient(kind) resolves a per-kind auth stub (null when that slot is absent). */
-const managerWith = (byKind: { relay?: unknown; cloud?: unknown }) =>
+const CLOUD = slotKeyOf('cloud-1');
+
+/**
+ * Manager whose getClient(slot)/getSlotKeys() resolve from a per-slot auth stub (relay/cloud keys
+ * only — no slot bound when the corresponding value is absent).
+ */
+const managerWith = (bySlot: { relay?: unknown; cloud?: unknown }) =>
     ({
-        getClient: jest.fn((kind: 'relay' | 'cloud') => {
-            const auth = byKind[kind];
+        getClient: jest.fn((slot: string) => {
+            const auth = slot === RELAY_SLOT ? bySlot.relay : slot === CLOUD ? bySlot.cloud : undefined;
             return auth ? { auth } : null;
+        }),
+        getSlotKeys: jest.fn(() => {
+            const keys: string[] = [];
+            if (bySlot.relay) keys.push(RELAY_SLOT);
+            if (bySlot.cloud) keys.push(CLOUD);
+            return keys;
         }),
     }) as never;
 
@@ -46,7 +58,7 @@ describe('logoutSession', () => {
         expect(order).toEqual(['auth.logout', 'local.teardown']);
     });
 
-    it('notifies BOTH the relay and cloud sockets (a relay logout ends everything, §8-6)', async () => {
+    it('notifies every bound slot (a relay logout ends everything, §8-6)', async () => {
         const relayLogout = jest.fn().mockResolvedValue(undefined);
         const cloudLogout = jest.fn().mockResolvedValue(undefined);
         mockedGetManager.mockReturnValue(

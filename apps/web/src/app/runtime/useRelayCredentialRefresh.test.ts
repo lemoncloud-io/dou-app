@@ -19,7 +19,8 @@ jest.mock('@chatic/app-runtime', () => ({
             useSessionStalenessGuard: (...args: unknown[]) => mockGuard(...(args as [])),
         },
         connection: {
-            useKindVerified: () => relayVerified,
+            RELAY_SLOT: 'default',
+            useSlotVerified: () => relayVerified,
         },
     },
 }));

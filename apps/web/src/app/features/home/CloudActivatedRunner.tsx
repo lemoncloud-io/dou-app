@@ -61,7 +61,7 @@ export const CloudActivatedRunner = (): null => {
         () =>
             runtime.connection
                 .getSocketManager()
-                .onSlotType<CloudActivatedEvent>('relay', CLOUD_ACTIVATED_EVENT, ({ data }) => {
+                .onSlotType<CloudActivatedEvent>(runtime.connection.RELAY_SLOT, CLOUD_ACTIVATED_EVENT, ({ data }) => {
                     void queryClient.invalidateQueries({ queryKey: runtime.data.cloudsKeys.all });
 
                     if (!i18n.exists(TITLE_KEY)) return;

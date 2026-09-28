@@ -9,7 +9,7 @@ const resolveChannel = jest.fn();
 const setPendingChannel = jest.fn();
 const navigate = jest.fn();
 const toast = jest.fn();
-const waitUntilKindVerified = jest.fn();
+const waitUntilSlotVerified = jest.fn();
 const isPlaceProfileAbsent = jest.fn();
 let mockSid: string | null = 'site-1';
 /** A deeplink usually lands in a fresh device session, so guest is the default here. */
@@ -21,7 +21,8 @@ jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k
 jest.mock('@chatic/app-runtime', () => ({
     runtime: {
         connection: {
-            getSocketManager: () => ({ waitUntilKindVerified }),
+            RELAY_SLOT: 'default',
+            getSocketManager: () => ({ waitUntilSlotVerified }),
         },
         data: {
             // The flow only hands this to isPlaceProfileAbsent, which is mocked — an opaque token is enough.
@@ -81,7 +82,7 @@ const mount = () => renderHook(() => useRelayInviteFlow(CODE));
 
 beforeEach(() => {
     jest.clearAllMocks();
-    waitUntilKindVerified.mockResolvedValue(true);
+    waitUntilSlotVerified.mockResolvedValue(true);
     getInvite.mockResolvedValue(view());
     acceptInvite.mockResolvedValue(view({ state: 'accepted' }));
     rejectInvite.mockResolvedValue(view({ state: 'rejected' }));
@@ -142,7 +143,7 @@ describe('useRelayInviteFlow — relay 핸드셰이크 게이트', () => {
     /** Pins the handshake open so a test can assert nothing was sent while it is pending. */
     const holdHandshake = () => {
         let release: (verified: boolean) => void = () => undefined;
-        waitUntilKindVerified.mockReturnValue(
+        waitUntilSlotVerified.mockReturnValue(
             new Promise<boolean>(resolve => {
                 release = resolve;
             })
@@ -155,7 +156,7 @@ describe('useRelayInviteFlow — relay 핸드셰이크 게이트', () => {
         const { result } = mount();
 
         // Reproduces a cold boot: nothing must go out before the handshake finishes.
-        await waitFor(() => expect(waitUntilKindVerified).toHaveBeenCalledWith('relay', 10_000));
+        await waitFor(() => expect(waitUntilSlotVerified).toHaveBeenCalledWith('default', 10_000));
         expect(getInvite).not.toHaveBeenCalled();
         expect(result.current.phase).toBe('loading');
 
@@ -167,12 +168,12 @@ describe('useRelayInviteFlow — relay 핸드셰이크 게이트', () => {
         mount();
 
         // If a cloud session is up, active is cloud — gating on waitUntilVerified would not wait for relay.
-        await waitFor(() => expect(waitUntilKindVerified).toHaveBeenCalled());
-        expect(waitUntilKindVerified.mock.calls[0][0]).toBe('relay');
+        await waitFor(() => expect(waitUntilSlotVerified).toHaveBeenCalled());
+        expect(waitUntilSlotVerified.mock.calls[0][0]).toBe('default');
     });
 
     it('핸드셰이크가 타임아웃해도 조회는 시도한다 (best-effort)', async () => {
-        waitUntilKindVerified.mockResolvedValue(false);
+        waitUntilSlotVerified.mockResolvedValue(false);
         const { result } = mount();
 
         await waitFor(() => expect(result.current.phase).toBe('review'));

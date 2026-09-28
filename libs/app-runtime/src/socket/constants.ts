@@ -41,7 +41,7 @@ export const AUTH_OPTIONS = { refreshRatio: 0.8, maxFailures: 3, refreshInterval
  */
 export const SDK_REFRESH_CYCLE_MS = AUTH_OPTIONS.refreshIntervalMs;
 
-/** Default upper bound for waitUntilVerified/waitUntilKindVerified when a caller does not pass one. */
+/** Default upper bound for waitUntilVerified/waitUntilSlotVerified when a caller does not pass one. */
 export const DEFAULT_VERIFY_TIMEOUT_MS = 10_000;
 
 /**

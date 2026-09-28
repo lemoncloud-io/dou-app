@@ -1,4 +1,6 @@
 import { cloudSession } from '../../session/auth/cloudSession';
+import { getCommittedCloudId } from '../../session/store';
+import { slotKeyOf } from '../utils/slotKey';
 
 import { notifySocketLogout } from './logoutSession';
 
@@ -13,6 +15,8 @@ import { notifySocketLogout } from './logoutSession';
  *     removes the cloud slot and SocketBinder tears the cloud client down — relay stays connected.
  */
 export const logoutCloudSession = async (): Promise<void> => {
-    notifySocketLogout('cloud');
+    // The slot to notify is the committed cloud's — the one whose token the socket authenticated with.
+    const committed = getCommittedCloudId();
+    if (committed) notifySocketLogout(slotKeyOf(committed));
     cloudSession.clearStores();
 };

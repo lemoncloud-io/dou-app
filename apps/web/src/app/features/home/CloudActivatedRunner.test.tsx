@@ -10,7 +10,7 @@ jest.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({ invalidateQ
 jest.mock('@chatic/app-runtime', () => ({
     runtime: {
         data: { cloudsKeys: { all: ['clouds'] } },
-        connection: { getSocketManager: jest.fn() },
+        connection: { RELAY_SLOT: 'default', getSocketManager: jest.fn() },
     },
 }));
 // Echo keys so assertions target the key. `t` is here for the CARD (it translates its own "now"
@@ -56,7 +56,7 @@ describe('CloudActivatedRunner', () => {
     it('relay 슬롯에 cloud.activated를 구독한다', () => {
         mount();
 
-        expect(onSlotType).toHaveBeenCalledWith('relay', 'cloud.activated', expect.any(Function));
+        expect(onSlotType).toHaveBeenCalledWith('default', 'cloud.activated', expect.any(Function));
     });
 
     it('언마운트 시 구독을 해지한다', () => {

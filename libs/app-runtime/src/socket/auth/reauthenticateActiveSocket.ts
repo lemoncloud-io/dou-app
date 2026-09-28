@@ -3,20 +3,15 @@ import { logger } from '@chatic/bridges';
 import { authIdRegistry } from './authIdRegistry';
 
 import type { AuthActivationGate } from './bootstrapSocketConnection';
-import type { ISocketManager, SocketKind } from '../types';
+import type { ISocketManager, SlotKey } from '../types';
+import { kindOf } from '../utils/slotKey';
 import type { ReauthDelegate } from './types';
 
 export interface ReauthenticateActiveSocketArgs {
     manager: ISocketManager;
     delegate: ReauthDelegate;
-    /** The server kind whose identity changed — used to seed/sign the re-register and target the slot. */
-    kind: SocketKind;
-    /**
-     * The slot's current cache cid. A same-wss cloud switch (§8-4) changes only the cid (url stays),
-     * so SocketBinder never reboots and boundCid would stay frozen on the previous cloud — we re-point
-     * it here so cache attribution follows the switch. Omitted/undefined leaves boundCid untouched.
-     */
-    cid?: string | null;
+    /** The slot whose identity changed — it is re-registered, and its kind seeds and signs the handshake. */
+    slot: SlotKey;
 }
 
 /**
@@ -43,12 +38,12 @@ export interface ReauthenticateActiveSocketArgs {
 export const reauthenticateActiveSocket = async ({
     manager,
     delegate,
-    kind,
-    cid,
+    slot,
 }: ReauthenticateActiveSocketArgs): Promise<void> => {
+    const kind = kindOf(slot);
     // Target the slot for THIS kind, not the global active slot: a relay identity change must re-auth
     // the relay client even while a cloud slot is the active one (getClient() would return cloud).
-    const client = manager.getClient(kind);
+    const client = manager.getClient(slot);
     const auth = client?.auth;
     if (!auth) {
         return;
@@ -79,7 +74,7 @@ export const reauthenticateActiveSocket = async ({
     // state that makes every later refresh 403 with `invalid sign`. Correct that field alone here
     // (authIdRegistry), and leave the identity path untouched.
     if (registration.token === auth.token) {
-        if (authIdRegistry.resync(kind, auth, registration, sign)) {
+        if (authIdRegistry.resync(slot, auth, registration, sign)) {
             closeGateIfDisconnected();
         }
         return;
@@ -87,19 +82,13 @@ export const reauthenticateActiveSocket = async ({
 
     logger.info('SOCKET', '[reauthenticateActiveSocket] identity changed, re-authenticating');
 
-    // Re-point cache attribution BEFORE the handshake: a same-wss cloud switch keeps the socket but
-    // moves clouds, so boundCid must follow now (frames arriving during re-auth attribute correctly).
-    if (cid !== undefined) {
-        manager.rebindCid(kind, cid);
-    }
-
     // Revoke the PREVIOUS session only on a LIVE (verified) socket, checked PER-KIND (the active
     // snapshot reflects a different slot when this is a background relay re-auth). auth.logout on a
     // disconnected socket 503s and is pointless; register() below runs UNCONDITIONALLY, so even when
     // we skip the revoke the new identity is stored and applied on the next handshake — the
     // token-change edge is never dropped (a transient disconnect coinciding with a guest→social
     // promotion must not leave the socket on the old identity).
-    const wasVerified = manager.isKindVerified(kind);
+    const wasVerified = manager.isSlotVerified(slot);
     if (wasVerified) {
         // Fire-and-forget: logout() dispatches the frame synchronously (logout-before-update wire order)
         // and flips the controller inactive so register() resumes immediately; we do NOT await the ack.
@@ -112,12 +101,12 @@ export const reauthenticateActiveSocket = async ({
     // re-anchor the promoted user's lists (restores the old markUnverified() behaviour). setAuthenticated
     // only surfaces when `kind` is the active slot, so a background relay re-auth is unaffected.
     if (wasVerified) {
-        manager.setAuthenticated(kind, false);
+        manager.setAuthenticated(slot, false);
     }
 
     auth.register({ token: registration.token, authId: registration.authId, sign });
     // Mirror what the controller now signs with, so a later writeback can tell drift from a match.
-    authIdRegistry.record(kind, registration.authId);
+    authIdRegistry.record(slot, registration.authId);
 
     // register() on an inactive controller re-activates it. On a LIVE connection that fires
     // auth.update right here — in order, since device.save:ok already ran for this connection. But

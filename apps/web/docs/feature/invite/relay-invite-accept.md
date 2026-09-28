@@ -88,7 +88,7 @@ this flow mounts. Firing early fails with something `resolveNotice` cannot map �
 bound, `503 SOCKET NOT CONNECTED`, `401 UNAUTHORIZED` — and the reader gets a useless `generic`
 dialog on a perfectly good invitation.
 
-So both the entry read and `advance()` first await `waitUntilKindVerified('relay', 10s)`.
+So both the entry read and `advance()` first await `waitUntilSlotVerified(RELAY_SLOT, 10s)`.
 **Kind-pinned, not `waitUntilVerified`**: the latter tracks the _active_ slot, which is the cloud
 whenever a cloud session is up, and would wave a relay request through mid-handshake. The wait is
 best-effort — a timeout proceeds anyway, so a genuinely broken socket surfaces the server's own
