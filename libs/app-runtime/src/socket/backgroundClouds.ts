@@ -63,6 +63,18 @@ export const usableBackgroundEntryOf = (cid: string): CachedCloudTokens | null =
     return entry?.delegationToken?.wss && entry.cloudToken?.Token?.identityToken ? entry : null;
 };
 
+/**
+ * Whether dropping `cid`'s slot would end a session the account still has: the cloud is still in the
+ * app's list and its cached tokens are still good to sign with. That is the one case in which a slot
+ * going away should tell its server `auth.logout` — the cloud was pushed past the cap, not left. A
+ * cloud the account is no longer in, or whose session already expired, has nothing to sign off from.
+ *
+ * `SocketBinder` asks it for every cloud slot it tears down, and `logoutCloudSession` asks the
+ * opposite, so exactly one of the two notifies a cloud the user walks out of.
+ */
+export const hasLiveJoinedSession = (cid: string): boolean =>
+    joined.includes(cid) && usableBackgroundEntryOf(cid) != null;
+
 type Listener = () => void;
 
 let joined: readonly string[] = [];

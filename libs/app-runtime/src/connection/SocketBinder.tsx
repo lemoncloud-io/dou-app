@@ -6,7 +6,10 @@ import { getSocketManager } from '../socket/runtime';
 import { getSyncManager } from '../socket/sync/runtime';
 import { bootstrapSocketConnection } from '../socket';
 import type { ISocketManager, SlotKey, SocketBindingConfig, SocketSessionDelegate } from '../socket';
-import { kindOf, slotKeyOf } from '../socket/utils/slotKey';
+// Concrete paths, not the ../socket barrel: connection tests intercept the barrel to stub bootstrap.
+import { notifySocketLogout } from '../socket/auth/logoutSession';
+import { hasLiveJoinedSession } from '../socket/backgroundClouds';
+import { RELAY_SLOT, kindOf, slotKeyOf } from '../socket/utils/slotKey';
 import type { RuntimeSocketSlots } from './types';
 import { socketRebootKey } from './utils/socketRebootKey';
 
@@ -83,6 +86,12 @@ const detach = (booted: BootedSlot): void => {
  * Step 3 reads the MANAGER's slots, not only the ones this binder remembers booting. The remembered
  * set is cleared on unmount (see below), so a remount that asks for fewer slots would otherwise leave
  * the missing ones bound with nothing left to tear them down.
+ *
+ * A cloud slot torn down while its session is still good — the cloud is still in the app's list, so
+ * it was pushed past the cap rather than left — is told `auth.logout` first, while its client is
+ * still alive. Every other teardown has nothing to sign off from (a cloud no longer joined, a session
+ * already expired) or has been signed off already (a relay logout notifies every slot itself, and
+ * with no relay slot desired none is notified here).
  */
 const reconcileSlots = (
     manager: ISocketManager,
@@ -121,6 +130,12 @@ const reconcileSlots = (
     }
 
     manager.setActiveSlot(desired.active);
+
+    const relayKept = desired.configs.has(RELAY_SLOT);
+    for (const key of manager.getSlotKeys()) {
+        if (desired.configs.has(key) || !relayKept || kindOf(key) !== 'cloud') continue;
+        if (hasLiveJoinedSession(key)) notifySocketLogout(key, manager);
+    }
 
     for (const [key, current] of [...booted]) {
         if (desired.configs.has(key)) continue;

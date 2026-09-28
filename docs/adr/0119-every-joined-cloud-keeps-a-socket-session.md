@@ -55,9 +55,12 @@ bound slots — deciding which one the app is looking at. What was left was to b
    margin-blind instead of re-issuing, so the committed store holds exactly what the socket registered
    and signs with. The binder then only moves the pointer: nothing reconnects.
 5. **Leaving a cloud is not signing out of it.** `clearSession` no longer clears the per-cloud token
-   cache, so going home keeps the cloud as a background slot; `logoutCloudSession` sends that socket
-   `auth.logout` only when the cloud will not be kept. A committed cloud's terminal expiry drops its
-   own cached tokens and no one else's. The relay logout is the one place every cloud's tokens go.
+   cache, so going home keeps the cloud as a background slot, and its socket is not told
+   `auth.logout`. A slot that is torn down while its session is still good — the cloud still joined,
+   pushed past the cap — is signed off first, by the binder, as it goes; `logoutCloudSession` signs
+   off only a cloud that is no longer joined or whose tokens are gone, so no socket hears it twice. A
+   committed cloud's terminal expiry drops its own cached tokens and no one else's. The relay logout
+   is the one place every cloud's tokens go.
 6. **The reconciler is keyed on the active slot as well as the slot set.** A switch between two kept
    clouds changes neither the set nor any reboot key.
 

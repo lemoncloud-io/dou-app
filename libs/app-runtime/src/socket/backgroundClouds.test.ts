@@ -1,9 +1,17 @@
 import {
     MAX_BACKGROUND_CLOUDS,
     backgroundClouds,
+    hasLiveJoinedSession,
     resetBackgroundClouds,
     selectBackgroundClouds,
 } from './backgroundClouds';
+
+const mockPeekCached = jest.fn((_cid: string): unknown => null);
+jest.mock('../session/store/stores', () => ({
+    cloudStore: { peekCachedCloudTokens: (cid: string) => mockPeekCached(cid) },
+}));
+
+const liveEntry = { delegationToken: { wss: 'wss://a' }, cloudToken: { Token: { identityToken: 'token' } } };
 
 describe('selectBackgroundClouds', () => {
     it('keeps every joined cloud except relay and the committed one', () => {
@@ -116,5 +124,33 @@ describe('backgroundClouds store', () => {
         backgroundClouds.invalidate();
 
         expect(listener).not.toHaveBeenCalled();
+    });
+});
+
+describe('hasLiveJoinedSession', () => {
+    beforeEach(() => {
+        resetBackgroundClouds();
+        mockPeekCached.mockReturnValue(null);
+    });
+
+    it('is true for a joined cloud with a usable cached entry', () => {
+        backgroundClouds.setJoined(['a']);
+        mockPeekCached.mockReturnValue(liveEntry);
+
+        expect(hasLiveJoinedSession('a')).toBe(true);
+    });
+
+    it('is false for a cloud the app no longer lists, whatever is cached', () => {
+        mockPeekCached.mockReturnValue(liveEntry);
+
+        expect(hasLiveJoinedSession('a')).toBe(false);
+    });
+
+    it('is false for a joined cloud whose cached tokens are gone or incomplete', () => {
+        backgroundClouds.setJoined(['a']);
+        expect(hasLiveJoinedSession('a')).toBe(false);
+
+        mockPeekCached.mockReturnValue({ ...liveEntry, delegationToken: {} });
+        expect(hasLiveJoinedSession('a')).toBe(false);
     });
 });

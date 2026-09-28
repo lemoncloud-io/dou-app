@@ -109,9 +109,9 @@ describe('logoutCloudSession', () => {
         expect(cloudLogout).toHaveBeenCalledTimes(1);
     });
 
-    it('logs out of a cloud the cap leaves out, even though the account still belongs to it', async () => {
-        // Six joined clouds, cloud-1 the least recent: with nothing committed the five kept are
-        // cloud-2..cloud-6, so cloud-1's socket is about to be torn down and is told so.
+    it('leaves a joined cloud past the cap to the binder — it signs off every cap-dropped slot', async () => {
+        // Six joined clouds, cloud-1 the least recent: it will be torn down, and SocketBinder says
+        // auth.logout as it does. Saying it here too would notify the same socket twice.
         backgroundClouds.setJoined(['cloud-1', 'cloud-2', 'cloud-3', 'cloud-4', 'cloud-5', 'cloud-6']);
         mockRecentClouds.mockReturnValue(['cloud-2', 'cloud-3', 'cloud-4', 'cloud-5', 'cloud-6', 'cloud-1']);
         const cloudLogout = jest.fn().mockResolvedValue(undefined);
@@ -119,6 +119,6 @@ describe('logoutCloudSession', () => {
 
         await logoutCloudSession();
 
-        expect(cloudLogout).toHaveBeenCalledTimes(1);
+        expect(cloudLogout).not.toHaveBeenCalled();
     });
 });

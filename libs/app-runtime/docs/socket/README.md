@@ -294,8 +294,15 @@ token issue per lifetime (two HTTP calls); the cap is what bounds that per devic
 
 **Moving between background and committed is the same slot.** Its key is the cloud and its reboot
 key `url|deviceId|wssType` does not change, so `ensure` reuses the client. Leaving a cloud for home
-leaves it bound too, which is why `logoutCloudSession` only sends that socket `auth.logout` when the
-cloud is about to be dropped — the policy says it will not be kept.
+leaves it bound too, so going home is not signing out.
+
+**A slot torn down with its session still good is signed off first.** When a cloud slot leaves the
+desired set while the relay stays, `SocketBinder` asks `hasLiveJoinedSession(cid)` — still in the
+app's list, cached tokens still usable — and, if so, sends that socket `auth.logout` before
+destroying it: the cloud was pushed past the cap, and its server should hear the session end rather
+than time it out. A cloud no longer joined, or whose session already expired, has nothing to sign
+off from; a relay logout has already notified every slot. `logoutCloudSession` covers exactly the
+opposite case for the cloud it leaves, so no socket is notified twice.
 
 The derivation re-runs when the session signals move and when the background store announces —
 the app's list changed, or a cloud's cached tokens were issued or dropped (the token cache announces

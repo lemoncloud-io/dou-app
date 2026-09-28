@@ -346,16 +346,16 @@ or registered. A second caller joins the exchange in flight instead.
 
 ## Ending a session
 
-| Entry                                     | What it does                                                                                                                                                           |
-| ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `logoutSession(options?)`                 | `auth.logout()` on **every bound** slot, then `relaySession.clearAndRedirect()`                                                                                        |
-| `logoutCloudSession()`                    | Back to relay. `auth.logout()` on the committed cloud's slot **only if that cloud will not stay in the background**, then `cloudSession.clearStores()`. Relay survives |
-| `RelayCredentialRenewer.onTerminalExpiry` | The confirmed-`expired` path above                                                                                                                                     |
-| `handleRevokedRelaySession(scope)`        | Immediate, once per page life                                                                                                                                          |
+| Entry                                     | What it does                                                                                                                                                                                                                                             |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `logoutSession(options?)`                 | `auth.logout()` on **every bound** slot, then `relaySession.clearAndRedirect()`                                                                                                                                                                          |
+| `logoutCloudSession()`                    | Back to relay. `auth.logout()` on the committed cloud's slot **only if it is no longer joined or its tokens are gone** (a joined cloud past the cap is signed off by `SocketBinder` as its slot goes), then `cloudSession.clearStores()`. Relay survives |
+| `RelayCredentialRenewer.onTerminalExpiry` | The confirmed-`expired` path above                                                                                                                                                                                                                       |
+| `handleRevokedRelaySession(scope)`        | Immediate, once per page life                                                                                                                                                                                                                            |
 
 The socket notice comes first and is fire-and-forget, so local teardown and redirect keep their
 timing. These two are the public names because they are the ones that notify a socket
-(`logoutCloudSession` only when the cloud it leaves will not be kept); the store-only halves live as
+(`logoutCloudSession` only for a cloud it leaves that has no session left to keep); the store-only halves live as
 methods (`clearAndRedirect`, `clearStores`) and have no global name at all.
 
 **A revoked session is the one auth failure nothing can renew.** The backend stamps it on logout and
