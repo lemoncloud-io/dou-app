@@ -148,7 +148,8 @@ describe('SocketManager error annotation', () => {
 
         const manager = new SocketManager();
         manager.ensure(onRelay(CONFIG));
-        manager.ensure(onCloud({ url: 'wss://cloud.test/socket', deviceId: 'device-1' })); // active = cloud
+        manager.ensure(onCloud({ url: 'wss://cloud.test/socket', deviceId: 'device-1' }));
+        manager.setActiveSlot(CLOUD); // active = cloud
 
         await expect(manager.getScopedClient(RELAY).request('invite.list')).rejects.toThrow(
             /- relay\.request\(invite\.list\)$/
@@ -387,7 +388,8 @@ describe('SocketManager waitUntilSlotVerified', () => {
         mockedCreate.mockReturnValue(makeClient());
         const manager = new SocketManager();
         manager.ensure(onRelay(CONFIG));
-        manager.ensure(onCloud(OTHER_CONFIG)); // cloud present → cloud is the ACTIVE slot
+        manager.ensure(onCloud(OTHER_CONFIG));
+        manager.setActiveSlot(CLOUD); // cloud is the ACTIVE slot
 
         const pending = manager.waitUntilSlotVerified(RELAY, 1000);
         // Verifying the active slot must not release a relay waiter — that is the whole point.
@@ -602,8 +604,10 @@ describe('SocketManager dual slots (active facade)', () => {
         expect(manager.getClient()).toBe(relay); // relay is the only slot → active
         expect(manager.getSnapshot().isVerified).toBe(true);
 
-        // Adding the cloud slot flips the active facade to cloud (not yet authenticated).
+        // Binding the cloud slot alone does not move the active facade — its owner points it there.
         manager.ensure(onCloud(CLOUD_CONFIG));
+        expect(manager.getClient()).toBe(relay);
+        manager.setActiveSlot(CLOUD); // active → cloud (not yet authenticated)
         expect(manager.getClient()).toBe(cloud);
         expect(manager.getSnapshot().isVerified).toBe(false);
         expect(manager.getBoundCid()).toBe('cloud-1'); // active slot's bound cloud
@@ -624,6 +628,7 @@ describe('SocketManager dual slots (active facade)', () => {
         const manager = new SocketManager();
         manager.ensure(onRelay(RELAY_CONFIG));
         manager.ensure(onCloud(CLOUD_CONFIG));
+        manager.setActiveSlot(CLOUD);
         expect(manager.getClient()).toBe(cloud);
 
         manager.destroy(CLOUD);
@@ -642,13 +647,14 @@ describe('SocketManager dual slots (active facade)', () => {
         manager.subscribeClient(client => seen.push(client)); // immediate: null (no slots yet)
 
         manager.ensure(onRelay(RELAY_CONFIG)); // active → relay
-        manager.ensure(onCloud(CLOUD_CONFIG)); // active → cloud
+        manager.ensure(onCloud(CLOUD_CONFIG)); // bound but not pointed at: no emission
+        manager.setActiveSlot(CLOUD); // active → cloud
         manager.destroy(CLOUD); // active → relay
 
         expect(seen).toEqual([null, relay, cloud, relay]);
     });
 
-    it("replaces one cloud's slot with another's in one step, so the active client never passes through relay", () => {
+    it('a cloud switch binds the next cloud, moves the pointer, then tears the old one down — never through relay', () => {
         const relay = makeClient();
         const cloudA = makeClient();
         const cloudB = makeClient();
@@ -657,15 +663,116 @@ describe('SocketManager dual slots (active facade)', () => {
         const seen: Array<unknown> = [];
         manager.ensure(RELAY_CONFIG);
         manager.ensure(CLOUD_CONFIG);
+        manager.setActiveSlot(CLOUD);
         manager.subscribeClient(client => seen.push(client));
+        const CLOUD_B = slotKeyOf('cloud-2');
 
+        // Binding cloud B leaves cloud A bound and active: the manager no longer caps cloud slots.
         manager.ensure({ ...CLOUD_CONFIG, url: 'wss://cloud-b.test/socket', cid: 'cloud-2' });
+        expect(cloudA.destroy).not.toHaveBeenCalled();
+        expect(manager.getSlotKeys()).toEqual([RELAY, CLOUD, CLOUD_B]);
+        expect(manager.getClient()).toBe(cloudA);
 
-        // At most one cloud slot: the outgoing cloud is torn down by the same call that binds the next.
+        manager.setActiveSlot(CLOUD_B);
+        manager.destroy(CLOUD);
+
         expect(cloudA.destroy).toHaveBeenCalledTimes(1);
-        expect(manager.getSlotKeys()).toEqual([RELAY, slotKeyOf('cloud-2')]);
+        expect(manager.getSlotKeys()).toEqual([RELAY, CLOUD_B]);
         expect(seen).toEqual([cloudA, cloudB]);
         expect(manager.getBoundCid()).toBe('cloud-2');
+    });
+
+    it('logs a switch as slot bound → active moved → slot torn down', () => {
+        mockedCreate.mockImplementation(() => makeClient());
+        const manager = new SocketManager();
+        manager.ensure(RELAY_CONFIG);
+        manager.ensure(CLOUD_CONFIG);
+        manager.setActiveSlot(CLOUD);
+        (logger.info as jest.Mock).mockClear();
+
+        manager.ensure({ ...CLOUD_CONFIG, url: 'wss://cloud-b.test/socket', cid: 'cloud-2' });
+        manager.setActiveSlot(slotKeyOf('cloud-2'));
+        manager.destroy(CLOUD);
+
+        const lines = (logger.info as jest.Mock).mock.calls.map(([, message, fields]) => [message, fields.data]);
+        expect(lines).toEqual([
+            ['[SocketManager] slot bound', { cid: 'cloud-2', kind: 'cloud' }],
+            ['[SocketManager] active moved', { from: 'cloud-1', cid: 'cloud-2', kind: 'cloud', connectCount: 0 }],
+            ['[SocketManager] slot torn down', { cid: 'cloud-1', kind: 'cloud', connectCount: 0 }],
+        ]);
+    });
+
+    it('honours a pointer set before its slot binds, and stands relay in while it is unbound', () => {
+        const relay = makeClient();
+        const cloud = makeClient();
+        mockedCreate.mockReturnValueOnce(relay).mockReturnValueOnce(cloud);
+        const manager = new SocketManager();
+        manager.ensure(RELAY_CONFIG);
+
+        manager.setActiveSlot(CLOUD);
+        expect(manager.getClient()).toBe(relay);
+        expect(manager.getBoundCid()).toBe('default');
+
+        manager.ensure(CLOUD_CONFIG);
+        expect(manager.getClient()).toBe(cloud);
+        expect(manager.getBoundCid()).toBe('cloud-1');
+    });
+
+    it('binding a slot nobody points at leaves the active facade and its listeners alone', () => {
+        const relay = makeClient();
+        mockedCreate.mockReturnValueOnce(relay).mockReturnValueOnce(makeClient());
+        const manager = new SocketManager();
+        manager.ensure(RELAY_CONFIG);
+        manager.setAuthenticated(RELAY, true);
+        const clients = jest.fn();
+        const states = jest.fn();
+        manager.subscribeClient(clients);
+        manager.subscribe(states);
+        clients.mockClear();
+        states.mockClear();
+
+        manager.ensure(CLOUD_CONFIG);
+
+        expect(manager.getClient()).toBe(relay);
+        expect(manager.getSnapshot().isVerified).toBe(true);
+        expect(clients).not.toHaveBeenCalled();
+        expect(states).not.toHaveBeenCalled();
+    });
+
+    it('rebuilding the active slot in place re-emits the replacement client', () => {
+        const first = makeClient();
+        const second = makeClient();
+        mockedCreate.mockReturnValueOnce(makeClient()).mockReturnValueOnce(first).mockReturnValueOnce(second);
+        const manager = new SocketManager();
+        manager.ensure(RELAY_CONFIG);
+        manager.ensure(CLOUD_CONFIG);
+        manager.setActiveSlot(CLOUD);
+        const seen: Array<unknown> = [];
+        manager.subscribeClient(client => seen.push(client));
+
+        manager.ensure({ ...CLOUD_CONFIG, deviceId: 'device-2' });
+
+        expect(first.destroy).toHaveBeenCalledTimes(1);
+        expect(seen).toEqual([first, second]);
+    });
+
+    it('destroying every slot clears the pointer, so a later cloud bind is not active by itself', () => {
+        const relay = makeClient();
+        mockedCreate
+            .mockReturnValueOnce(makeClient())
+            .mockReturnValueOnce(makeClient())
+            .mockReturnValueOnce(relay)
+            .mockReturnValueOnce(makeClient());
+        const manager = new SocketManager();
+        manager.ensure(RELAY_CONFIG);
+        manager.ensure(CLOUD_CONFIG);
+        manager.setActiveSlot(CLOUD);
+
+        manager.destroy();
+        manager.ensure(RELAY_CONFIG);
+        manager.ensure(CLOUD_CONFIG);
+
+        expect(manager.getClient()).toBe(relay);
     });
 
     it("forgets a torn-down slot's failure streak", () => {
@@ -703,6 +810,7 @@ describe('SocketManager dual slots (active facade)', () => {
 
         // The bound cloud IS the slot's key, so nothing can re-point it while the slot lives.
         manager.ensure(CLOUD_CONFIG);
+        manager.setActiveSlot(CLOUD);
         expect(manager.getBoundCid()).toBe('cloud-1');
 
         manager.destroy(CLOUD);
@@ -716,7 +824,8 @@ describe('SocketManager dual slots (active facade)', () => {
 
         const manager = new SocketManager();
         manager.ensure(onRelay(RELAY_CONFIG));
-        manager.ensure(onCloud(CLOUD_CONFIG)); // active facade → cloud
+        manager.ensure(onCloud(CLOUD_CONFIG));
+        manager.setActiveSlot(CLOUD); // active facade → cloud
 
         // Relay is authenticated + connected even though cloud is the active slot.
         manager.setAuthenticated(RELAY, true);
@@ -757,7 +866,8 @@ describe('SocketManager getScopedClient (slot-pinned routing)', () => {
 
         const manager = new SocketManager();
         manager.ensure(onRelay(RELAY_CONFIG));
-        manager.ensure(onCloud(CLOUD_CONFIG)); // active facade = cloud
+        manager.ensure(onCloud(CLOUD_CONFIG));
+        manager.setActiveSlot(CLOUD); // active facade = cloud
 
         const scoped = manager.getScopedClient(RELAY);
         const result = await scoped.request('device.update-remote', { muted: true });
@@ -801,7 +911,8 @@ describe('SocketManager getScopedClient (slot-pinned routing)', () => {
 
         const manager = new SocketManager();
         manager.ensure(onRelay(RELAY_CONFIG));
-        manager.ensure(onCloud(CLOUD_CONFIG)); // active facade = cloud
+        manager.ensure(onCloud(CLOUD_CONFIG));
+        manager.setActiveSlot(CLOUD); // active facade = cloud
 
         const listener = jest.fn();
         manager.onSlotType(RELAY, 'cloud.activated', listener);

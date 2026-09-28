@@ -82,9 +82,9 @@ export type SocketSlotClientListener = (key: SlotKey, client: ClientSocketV2 | n
 export type ScopedSocketClient = Pick<ISocketManager, 'request' | 'send' | 'onType'>;
 
 /**
- * Socket manager with an ACTIVE-FACADE interface: it holds a relay slot (always) and a cloud slot
- * (when a cloud is active), keyed by the cloud each one serves, but most methods operate on the
- * ACTIVE slot (the cloud slot when present, else relay) so consumers (SyncManager /
+ * Socket manager with an ACTIVE-FACADE interface: it holds a relay slot (always) and the slots of the
+ * clouds its owner binds, keyed by the cloud each one serves, but most methods operate on the
+ * ACTIVE slot (the one `setActiveSlot` names while it is bound, else relay) so consumers (SyncManager /
  * useRuntimeSocketState / gateways / the switch·logout·reauth helpers) stay socket-count-agnostic.
  * Slot lifecycle and the few things that must reach one specific server are addressed per `SlotKey`.
  */
@@ -97,6 +97,12 @@ export interface ISocketManager {
     /** Destroys one slot (`key`) or, when omitted, all slots. */
     destroy(key?: SlotKey): void;
     /**
+     * Points the active facade at slot `key` (`null` = relay). Honoured while that slot is bound;
+     * relay stands in otherwise. The binder calls it between binding an incoming slot and tearing
+     * down the outgoing one, so the active client never passes through relay on a cloud switch.
+     */
+    setActiveSlot(key: SlotKey | null): void;
+    /**
      * Mirrors the SDK AuthController's `authenticated` state for a specific slot. The ACTIVE slot's
      * `isVerified` is derived from this AND that slot being connected.
      */
@@ -104,7 +110,7 @@ export interface ISocketManager {
     /** The keys of every bound slot — for work that must reach each server, e.g. logout or wake recovery. */
     getSlotKeys(): SlotKey[];
 
-    // ── Request/push surface gateways bind to. Active-facade: cloud when present, else relay.
+    // ── Request/push surface gateways bind to. Active-facade: the slot setActiveSlot names, else relay.
     request<T = unknown>(type: string, data?: unknown, options?: { timeoutMs?: number }): Promise<T>;
     send<T = unknown>(type: string | SocketMessage<T>, data?: T): void;
     onType<T = unknown>(type: string, listener: (message: SocketMessage<T>) => void): () => void;
@@ -126,8 +132,7 @@ export interface ISocketManager {
     // ── Everything an observer reads or subscribes to — no lifecycle, no sending.
     /**
      * A specific slot's client when `key` is given (null if that slot is not bound), else the ACTIVE
-     * slot's client (cloud when present, else relay). The per-slot form backs logout, which must
-     * notify each server's own socket.
+     * slot's client. The per-slot form backs logout, which must notify each server's own socket.
      */
     getClient(key?: SlotKey): ClientSocketV2 | null;
     /**

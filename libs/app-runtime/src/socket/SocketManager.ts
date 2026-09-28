@@ -22,7 +22,7 @@ import type {
 import { AUTH_OPTIONS, DEFAULT_VERIFY_TIMEOUT_MS, INITIAL_SOCKET_STATE } from './constants';
 import { socketFailureReporter } from './socketFailureReporter';
 import { annotateSocketError } from './utils/annotateSocketError';
-import { kindOf, slotKeyOf } from './utils/slotKey';
+import { RELAY_SLOT, kindOf, slotKeyOf } from './utils/slotKey';
 
 /** A push subscription that must be re-bound whenever the active client is replaced. */
 type TypeListenerEntry = {
@@ -51,16 +51,17 @@ interface ClientEntry {
 }
 
 /**
- * SocketManager owns up to two ClientSocketV2 slots — the relay's (always-on) and one cloud's
- * (active-only) — keyed by the cloud each serves, and exposes an ACTIVE-FACADE: the observable state,
- * request/send/onType, and subscribeClient all track the ACTIVE slot (the cloud slot when present,
- * else relay). Slot lifecycle (ensure/connect/setAuthenticated/destroy) is per slot. Each SDK client
- * is fully independent; do NOT share a timerScheduler between them — the factory gives each its own.
+ * SocketManager owns ClientSocketV2 slots keyed by the cloud each serves — the relay's (always-on)
+ * and the committed cloud's — and exposes an ACTIVE-FACADE: the observable state, request/send/onType,
+ * and subscribeClient all track the ACTIVE slot. Slot lifecycle (ensure/connect/setAuthenticated/
+ * destroy) is per slot. Each SDK client is fully independent; do NOT share a timerScheduler between
+ * them — the factory gives each its own.
  *
- * **At most one cloud slot**, and that is enforced here rather than trusted: ensuring a slot for a
- * cloud while another cloud's slot is bound tears the old one down first, in the same call — exactly
- * what replacing the single `'cloud'` entry used to do when slots were keyed by kind. Holding more
- * than one cloud at a time is a separate change.
+ * **Which slot is active is a pointer the owner sets** (`setActiveSlot`), not something inferred
+ * from which slots happen to be bound. Inference only worked while there could be one cloud slot:
+ * "the cloud slot if any" stops naming anything the moment two exist, even for the instant a switch
+ * binds the incoming cloud before the outgoing one is torn down. The manager itself no longer limits
+ * how many cloud slots are bound; `SocketBinder` binds the ones the session asks for.
  */
 export class SocketManager implements ISocketManager {
     private readonly entries = new Map<SlotKey, ClientEntry>();
@@ -85,14 +86,19 @@ export class SocketManager implements ISocketManager {
     // slot: re-bound from notifySlotClient (the single choke point both ensure() and teardownEntry()
     // pass through) instead of from active-slot changes.
     private readonly slotTypeListeners = new Set<SlotTypeListenerEntry>();
+    // The slot the owner asked to be active (setActiveSlot). It may name a slot that is not bound
+    // yet — the effective active slot is derived from it on every read (getActiveKey).
+    private requestedActive: SlotKey | null = null;
+    // The effective active slot as of the last syncActive, so a move is logged once, when it happens.
+    private lastActiveKey: SlotKey | null = null;
 
     /**
      * Ensures the slot keyed by `config.cid` is bound to `config`. Reuses the slot when its config is
      * unchanged; otherwise tears it down and builds a fresh client. Returns that slot's client.
      *
-     * A cloud slot also replaces any OTHER cloud's slot (see the class note). Both teardowns happen
-     * before the new client is created and before the active facade is resynced, so observers see the
-     * active client go from the outgoing cloud straight to the incoming one — never through relay.
+     * Other slots are left alone, including another cloud's: a switch binds the incoming cloud here,
+     * moves the active pointer, and only then tears the outgoing one down, so the active client goes
+     * from one cloud straight to the other — never through relay.
      */
     public ensure(config: SocketBindingConfig): ClientSocketV2 {
         const key = slotKeyOf(config.cid);
@@ -111,11 +117,6 @@ export class SocketManager implements ISocketManager {
         if (existing) {
             this.teardownEntry(key);
         }
-        if (kindOf(key) === 'cloud') {
-            for (const other of [...this.entries.keys()]) {
-                if (other !== key && kindOf(other) === 'cloud') this.teardownEntry(other);
-            }
-        }
 
         const client = this.createClient(config);
         const entry: ClientEntry = {
@@ -128,6 +129,7 @@ export class SocketManager implements ISocketManager {
         };
         this.entries.set(key, entry);
         this.bindEntry(key, entry);
+        logger.info('SOCKET', '[SocketManager] slot bound', { data: { cid: key, kind: kindOf(key) } });
 
         // Slot notification BEFORE the active-facade sync: per-slot attachments (slot runtimes)
         // must exist by the time active-client listeners replay work onto them.
@@ -137,8 +139,21 @@ export class SocketManager implements ISocketManager {
     }
 
     /**
-     * A specific slot's client when `key` is given (null if unbound), else the ACTIVE slot's client
-     * (cloud when present, else relay). Logout uses the per-slot form to notify each server's socket.
+     * Points the active facade at slot `key`; `null` asks for relay. The effective active slot is
+     * `key` while it is bound and relay otherwise, so the pointer can be set before its slot binds
+     * and it is honoured the moment the slot appears.
+     *
+     * Always resyncs, even when the pointer does not move: the effective slot is derived, and a
+     * resync is how a derived change reaches the state and client listeners.
+     */
+    public setActiveSlot(key: SlotKey | null): void {
+        const prevActiveClient = this.getActiveClient();
+        this.requestedActive = key;
+        this.syncActive(prevActiveClient);
+    }
+
+    /**
+     * A specific slot's client when `key` is given (null if unbound), else the ACTIVE slot's client. Logout uses the per-slot form to notify each server's socket.
      */
     public getClient(key?: SlotKey): ClientSocketV2 | null {
         if (key) {
@@ -484,7 +499,11 @@ export class SocketManager implements ISocketManager {
         return this.requireActiveClient('disconnect()').disconnect(code, reason);
     }
 
-    /** Destroys one slot (`key`) or, when omitted, all slots, and resets state. */
+    /**
+     * Destroys one slot (`key`) or, when omitted, all slots, and resets state. Destroying the slot the
+     * active pointer names leaves the pointer in place — the facade falls back to relay until that
+     * slot is bound again or the owner points elsewhere. Destroying everything clears it.
+     */
     public destroy(key?: SlotKey): void {
         const prevActiveClient = this.getActiveClient();
         if (key) {
@@ -493,23 +512,17 @@ export class SocketManager implements ISocketManager {
             for (const key of [...this.entries.keys()]) {
                 this.teardownEntry(key);
             }
+            this.requestedActive = null;
         }
         this.syncActive(prevActiveClient);
     }
 
     // --- active-slot derivation -------------------------------------------------------------
 
-    /**
-     * The cloud slot when one exists (it is the sync/active socket), else relay's, else none. There is
-     * at most one cloud slot (`ensure` guarantees it), so "the" cloud slot is unambiguous.
-     */
+    /** The requested slot while it is bound, else relay's, else none. */
     private getActiveKey(): SlotKey | null {
-        let relay: SlotKey | null = null;
-        for (const key of this.entries.keys()) {
-            if (kindOf(key) === 'cloud') return key;
-            relay = key;
-        }
-        return relay;
+        if (this.requestedActive && this.entries.has(this.requestedActive)) return this.requestedActive;
+        return this.entries.has(RELAY_SLOT) ? RELAY_SLOT : null;
     }
 
     private getActiveEntry(): ClientEntry | null {
@@ -539,6 +552,19 @@ export class SocketManager implements ISocketManager {
      * client actually changed — re-binds owned onType subscriptions to it and notifies client listeners.
      */
     private syncActive(prevActiveClient: ClientSocketV2 | null): void {
+        const activeKey = this.getActiveKey();
+        if (activeKey !== this.lastActiveKey) {
+            const entry = activeKey ? this.entries.get(activeKey) : undefined;
+            logger.info('SOCKET', '[SocketManager] active moved', {
+                data: {
+                    from: this.lastActiveKey,
+                    cid: activeKey,
+                    kind: activeKey ? kindOf(activeKey) : null,
+                    connectCount: entry?.connectCount ?? null,
+                },
+            });
+            this.lastActiveKey = activeKey;
+        }
         this.setState(this.computeState(this.getActiveEntry()));
 
         const activeClient = this.getActiveClient();
@@ -700,6 +726,9 @@ export class SocketManager implements ISocketManager {
             });
         }
         this.entries.delete(key);
+        logger.info('SOCKET', '[SocketManager] slot torn down', {
+            data: { cid: key, kind, connectCount: entry.connectCount },
+        });
         // A streak describes one connection's absence; with the slot gone there is nothing left for it
         // to describe, and keeping it would let a later slot for the same cloud inherit the count.
         socketFailureReporter.forget(key);

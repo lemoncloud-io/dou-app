@@ -188,10 +188,10 @@ Two situations reach it, and only one is watched automatically:
 1. **Guest promoted to a social or email login.** The relay token is replaced while `url|deviceId|wssType` is unchanged, so `SocketBinder` does not reboot and `SocketReauthBinder` sees the slot's `identityToken` move.
 2. **A cloud token re-issued while staying in the same cloud.** No binder sees it — the cloud slot deliberately carries no `identityToken` — so `renewCloudSession` calls this function directly.
 
-**A cloud _switch_ is in neither list.** Two clouds never share a wss host, so a switch always changes
-the URL, the binder rebuilds the slot, and there is no live connection left to re-authenticate. That
-is an invariant rather than an observation, and `SocketBinder` raises an error if a switch ever
-arrives on the same wss — because the silent failure would be an old identity quietly staying put.
+**A cloud _switch_ is in neither list.** A switch commits a different cid, and the cid is the slot's
+key, so `SocketBinder` boots the incoming cloud as a new slot and tears the outgoing one down. There
+is no live connection left to re-authenticate — whether or not the two clouds share a wss host, which
+is why there is no longer a guard for that case.
 
 [`applySessionToken($token, options?)`](../../src/socket/auth/applySessionToken.ts) is the one
 app-facing entry to this path, used by phone verification: it commits the token view, re-authenticates

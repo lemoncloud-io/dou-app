@@ -1,9 +1,11 @@
+import { StrictMode } from 'react';
 import { render } from '@testing-library/react';
 
 import { SocketBinder } from './SocketBinder';
 import { bootstrapSocketConnection } from '../socket';
 import { getSocketManager } from '../socket/runtime';
-import type { SocketSessionDelegate } from '../socket';
+import type { SlotKey, SocketBindingConfig, SocketSessionDelegate } from '../socket';
+import type { RuntimeSocketSlots } from './types';
 import { RELAY_SLOT, slotKeyOf } from '../socket/utils/slotKey';
 
 import { logger } from '@chatic/bridges';
@@ -12,7 +14,6 @@ jest.mock('@chatic/bridges', () => ({
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
 }));
 
-const destroy = jest.fn();
 jest.mock('../socket/runtime', () => ({
     getSocketManager: jest.fn(),
 }));
@@ -33,97 +34,207 @@ const mockedGetManager = getSocketManager as jest.MockedFunction<typeof getSocke
 const delegate = { getAuthRegistration: jest.fn() } as unknown as SocketSessionDelegate;
 
 const relaySlot = { config: { url: 'wss://relay', deviceId: 'd', wssType: 'relay' as const, cid: 'default' } };
-const cloudSlot = { config: { url: 'wss://cloud', deviceId: 'd', wssType: 'cloud' as const, cid: 'my-cloud' } };
+const cloudA = { config: { url: 'wss://cloud-a', deviceId: 'd', wssType: 'cloud' as const, cid: 'cloud-a' } };
+const cloudB = { config: { url: 'wss://cloud-b', deviceId: 'd', wssType: 'cloud' as const, cid: 'cloud-b' } };
 
-describe('SocketBinder (dual slots)', () => {
+const A = slotKeyOf('cloud-a');
+const B = slotKeyOf('cloud-b');
+
+/**
+ * Just enough of SocketManager to observe the reconcile order: a slot counts as bound from the moment
+ * bootstrap is called, because the real bootstrap calls `ensure` before its first `await`.
+ */
+const makeManager = () => {
+    const bound = new Set<SlotKey>();
+    const log: string[] = [];
+    const manager = {
+        setActiveSlot: jest.fn((key: SlotKey | null) => log.push(`active ${key ?? 'relay'}`)),
+        destroy: jest.fn((key: SlotKey) => {
+            bound.delete(key);
+            log.push(`torn down ${key}`);
+        }),
+        getSlotKeys: jest.fn(() => [...bound]),
+    };
+    mockedBootstrap.mockImplementation(({ config }: { config: SocketBindingConfig }) => {
+        const key = slotKeyOf(config.cid);
+        bound.add(key);
+        log.push(`bound ${key}`);
+        return Promise.resolve(jest.fn());
+    });
+    return { manager, bound, log };
+};
+
+describe('SocketBinder (one reconciler for every slot)', () => {
+    let fake: ReturnType<typeof makeManager>;
+
     beforeEach(() => {
         jest.clearAllMocks();
-        mockedBootstrap.mockResolvedValue(jest.fn());
-        mockedGetManager.mockReturnValue({ destroy } as never);
+        fake = makeManager();
+        mockedGetManager.mockReturnValue(fake.manager as never);
     });
 
     const configsBooted = () => mockedBootstrap.mock.calls.map(call => call[0].config);
+    const renderBinder = (slots: RuntimeSocketSlots) => {
+        const view = render(<SocketBinder slots={slots} delegate={delegate} />);
+        return {
+            ...view,
+            rerender: (next: RuntimeSocketSlots) => view.rerender(<SocketBinder slots={next} delegate={delegate} />),
+        };
+    };
 
-    // Slots are now keyed by the cloud they serve, and the binder only destroys a slot it has
-    // actually booted (bootedSlotRef) — not "whichever kind is absent" as before. On a fresh mount
-    // with no cloud slot in props, the cloud role never booted anything, so there is nothing to tear
-    // down; the manager never held that slot in the first place, and the previous unconditional
-    // `destroy('cloud')` on mount was a no-op against it anyway. Assertion changed accordingly:
-    // "destroy called with 'cloud' / not called with 'relay'" no longer holds (destroy isn't called
-    // at all here) — replaced with the current, meaningful claim.
-    it('relay-only: boots relay; no cloud slot ever existed, so nothing is torn down', async () => {
-        render(<SocketBinder slots={{ relay: relaySlot }} delegate={delegate} />);
+    it('relay-only: boots relay, points the facade at relay, tears nothing down', () => {
+        renderBinder({ relay: relaySlot });
 
         expect(configsBooted()).toEqual([relaySlot.config]);
-        expect(destroy).not.toHaveBeenCalled();
+        expect(fake.manager.setActiveSlot).toHaveBeenCalledWith(null);
+        expect(fake.manager.destroy).not.toHaveBeenCalled();
     });
 
-    it('cloud active: boots BOTH relay and cloud independently', async () => {
-        render(<SocketBinder slots={{ relay: relaySlot, cloud: cloudSlot }} delegate={delegate} />);
+    it('cloud committed: boots relay and the cloud, then points the facade at the cloud', () => {
+        renderBinder({ relay: relaySlot, cloud: cloudA });
 
-        expect(configsBooted()).toEqual(expect.arrayContaining([relaySlot.config, cloudSlot.config]));
-        expect(mockedBootstrap).toHaveBeenCalledTimes(2);
-        expect(destroy).not.toHaveBeenCalled();
+        expect(fake.log).toEqual([`bound ${RELAY_SLOT}`, `bound ${A}`, `active ${A}`]);
     });
 
-    it('leaving a cloud tears down ONLY cloud; the relay slot is never rebooted', async () => {
-        const { rerender } = render(
-            <SocketBinder slots={{ relay: relaySlot, cloud: cloudSlot }} delegate={delegate} />
-        );
-        expect(mockedBootstrap).toHaveBeenCalledTimes(2);
-
+    it('a cloud switch reads bound B → active B → torn down A, and never reboots relay', () => {
+        const { rerender } = renderBinder({ relay: relaySlot, cloud: cloudA });
+        fake.log.length = 0;
         mockedBootstrap.mockClear();
-        rerender(<SocketBinder slots={{ relay: relaySlot }} delegate={delegate} />);
 
-        // relay's reboot key is unchanged → no re-bootstrap; only cloud is destroyed. Cloud DID boot
-        // above, so its slot key ('my-cloud') is the one torn down — relay's (RELAY_SLOT) never is.
-        expect(mockedBootstrap).not.toHaveBeenCalled();
-        expect(destroy).toHaveBeenCalledWith(slotKeyOf('my-cloud'));
-        expect(destroy).not.toHaveBeenCalledWith(RELAY_SLOT);
+        rerender({ relay: relaySlot, cloud: cloudB });
+
+        expect(fake.log).toEqual([`bound ${B}`, `active ${B}`, `torn down ${A}`]);
+        expect(configsBooted()).toEqual([cloudB.config]);
     });
 
-    describe('같은-wss 클라우드 전환 가드', () => {
-        // Invariant: clouds never share a wss host, so a switch always changes the URL. A violation
-        // is silent — the socket stays alive and keeps using the outgoing cloud's identity — which is
-        // why this case gets a name.
-        const sameWssOtherCloud = {
-            config: { url: 'wss://cloud', deviceId: 'd', wssType: 'cloud' as const, cid: 'other-cloud' },
-        };
+    // This used to be the one switch the binder could not do: the reboot key held, so the socket
+    // stayed up serving the outgoing cloud, and a dedicated guard reported it. With slots keyed by
+    // the cloud, B is a different slot whatever its URL.
+    it('a switch to a cloud on the same wss host is an ordinary switch — no error, B gets its own slot', () => {
+        const sameHostB = { config: { ...cloudB.config, url: cloudA.config.url } };
+        const { rerender } = renderBinder({ relay: relaySlot, cloud: cloudA });
+        fake.log.length = 0;
 
-        it('reboot 키가 그대로인데 커밋된 cid가 바뀌면 에러로 보고한다', () => {
-            const { rerender } = render(
-                <SocketBinder slots={{ relay: relaySlot, cloud: cloudSlot }} delegate={delegate} />
-            );
+        rerender({ relay: relaySlot, cloud: sameHostB });
 
-            rerender(<SocketBinder slots={{ relay: relaySlot, cloud: sameWssOtherCloud }} delegate={delegate} />);
+        expect(fake.log).toEqual([`bound ${B}`, `active ${B}`, `torn down ${A}`]);
+        expect(logger.error).not.toHaveBeenCalled();
+    });
 
-            expect(logger.error).toHaveBeenCalledWith(
-                'SOCKET',
-                expect.stringContaining('same-wss cloud switch'),
-                expect.objectContaining({ data: expect.objectContaining({ from: 'my-cloud', to: 'other-cloud' }) })
-            );
+    it('leaving a cloud points the facade back at relay before the cloud is torn down', () => {
+        const { rerender } = renderBinder({ relay: relaySlot, cloud: cloudA });
+        fake.log.length = 0;
+        mockedBootstrap.mockClear();
+
+        rerender({ relay: relaySlot });
+
+        expect(fake.log).toEqual(['active relay', `torn down ${A}`]);
+        expect(mockedBootstrap).not.toHaveBeenCalled();
+    });
+
+    it('a re-render with equal slots boots nothing', () => {
+        const { rerender } = renderBinder({ relay: relaySlot, cloud: cloudA });
+        mockedBootstrap.mockClear();
+
+        rerender({ relay: { ...relaySlot }, cloud: { config: { ...cloudA.config } } });
+
+        expect(mockedBootstrap).not.toHaveBeenCalled();
+        expect(fake.manager.destroy).not.toHaveBeenCalled();
+    });
+
+    it('a moved reboot key re-boots that slot alone and detaches its previous boot', async () => {
+        const firstCleanup = jest.fn();
+        mockedBootstrap.mockImplementationOnce(({ config }) => {
+            fake.bound.add(slotKeyOf(config.cid));
+            return Promise.resolve(jest.fn());
+        });
+        mockedBootstrap.mockImplementationOnce(({ config }) => {
+            fake.bound.add(slotKeyOf(config.cid));
+            return Promise.resolve(firstCleanup);
+        });
+        const { rerender } = renderBinder({ relay: relaySlot, cloud: cloudA });
+        await Promise.resolve();
+        mockedBootstrap.mockClear();
+
+        rerender({ relay: relaySlot, cloud: { config: { ...cloudA.config, url: 'wss://cloud-a-2' } } });
+
+        // Same slot, new URL: `ensure` inside bootstrap rebuilds the client, so nothing is destroyed.
+        expect(configsBooted()).toEqual([{ ...cloudA.config, url: 'wss://cloud-a-2' }]);
+        expect(firstCleanup).toHaveBeenCalledTimes(1);
+        expect(fake.manager.destroy).not.toHaveBeenCalled();
+    });
+
+    it('tears down a slot the manager holds even when this binder never booted it', () => {
+        // A remount forgets what the previous mount booted; the manager does not.
+        fake.bound.add(A);
+
+        renderBinder({ relay: relaySlot });
+
+        expect(fake.manager.destroy).toHaveBeenCalledWith(A);
+        expect(fake.manager.destroy).not.toHaveBeenCalledWith(RELAY_SLOT);
+    });
+
+    it('StrictMode: the first boot detaches itself, the second is kept, and no socket is destroyed', async () => {
+        const cleanups: jest.Mock[] = [];
+        mockedBootstrap.mockImplementation(({ config }) => {
+            fake.bound.add(slotKeyOf(config.cid));
+            const cleanup = jest.fn();
+            cleanups.push(cleanup);
+            return Promise.resolve(cleanup);
         });
 
-        it('URL이 바뀌는 정상 전환은 보고하지 않는다 — 그건 리부트 경로가 처리한다', () => {
-            const otherWss = {
-                config: { url: 'wss://cloud-2', deviceId: 'd', wssType: 'cloud' as const, cid: 'other-cloud' },
-            };
-            const { rerender } = render(
-                <SocketBinder slots={{ relay: relaySlot, cloud: cloudSlot }} delegate={delegate} />
-            );
+        const { unmount } = render(
+            <StrictMode>
+                <SocketBinder slots={{ relay: relaySlot, cloud: cloudA }} delegate={delegate} />
+            </StrictMode>
+        );
+        await Promise.resolve();
 
-            rerender(<SocketBinder slots={{ relay: relaySlot, cloud: otherWss }} delegate={delegate} />);
+        // Two mounts → two boots per slot. The first mount's boots resolve after it was unmounted.
+        expect(cleanups).toHaveLength(4);
+        expect(cleanups.slice(0, 2).map(c => c.mock.calls.length)).toEqual([1, 1]);
+        expect(cleanups.slice(2).map(c => c.mock.calls.length)).toEqual([0, 0]);
+        expect(fake.manager.destroy).not.toHaveBeenCalled();
+        expect(fake.manager.setActiveSlot).toHaveBeenLastCalledWith(A);
 
-            expect(logger.error).not.toHaveBeenCalled();
+        unmount();
+        expect(cleanups.slice(2).map(c => c.mock.calls.length)).toEqual([1, 1]);
+        expect(fake.manager.destroy).not.toHaveBeenCalled();
+    });
+
+    it('reports a failed bootstrap with the slot it was for', async () => {
+        mockedBootstrap.mockRejectedValueOnce(new Error('boom'));
+
+        renderBinder({ relay: relaySlot });
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(logger.error).toHaveBeenCalledWith(
+            'SOCKET',
+            '[SocketBinder] bootstrap failed',
+            expect.objectContaining({ data: { cid: 'default', kind: 'relay', active: false } })
+        );
+    });
+
+    it('forgets a failed boot, so the next reconcile retries it and the log says the pointer is stranded', async () => {
+        mockedBootstrap.mockImplementationOnce(({ config }) => {
+            fake.bound.add(slotKeyOf(config.cid));
+            return Promise.resolve(jest.fn());
         });
+        mockedBootstrap.mockRejectedValueOnce(new Error('a cloud config cannot bind the relay slot'));
+        const { rerender } = renderBinder({ relay: relaySlot, cloud: cloudA });
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(logger.error).toHaveBeenCalledWith(
+            'SOCKET',
+            '[SocketBinder] bootstrap failed',
+            expect.objectContaining({ data: { cid: 'cloud-a', kind: 'cloud', active: true } })
+        );
+        mockedBootstrap.mockClear();
 
-        it('슬롯이 켜지거나 꺼지는 것은 전환이 아니다', () => {
-            const { rerender } = render(<SocketBinder slots={{ relay: relaySlot }} delegate={delegate} />);
+        // Any later pass re-boots it — here the relay slot's device id moved.
+        rerender({ relay: { config: { ...relaySlot.config, deviceId: 'd2' } }, cloud: cloudA });
 
-            rerender(<SocketBinder slots={{ relay: relaySlot, cloud: cloudSlot }} delegate={delegate} />);
-            rerender(<SocketBinder slots={{ relay: relaySlot }} delegate={delegate} />);
-
-            expect(logger.error).not.toHaveBeenCalled();
-        });
+        expect(configsBooted()).toEqual(expect.arrayContaining([cloudA.config]));
     });
 });

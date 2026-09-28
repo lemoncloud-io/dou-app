@@ -75,10 +75,9 @@ describe('SocketReauthBinder', () => {
         // never does (a535055a) — it was making a path that's unreachable in production look
         // "supported".
         //
-        // The actual invariant is this: two clouds never share a wss host (confirmed 2026-09-02), so
-        // a switch always changes the URL, which moves the reboot key and makes SocketBinder rebuild
-        // the slot — there's no live connection left to reauthenticate. A broken invariant here is
-        // reported by SocketBinder's same-wss guard.
+        // The actual invariant is this: a switch commits a different cid, and the cid is the slot's
+        // key, so SocketBinder boots the incoming cloud as a new slot and tears the outgoing one down
+        // — there's no live connection left to reauthenticate, whatever the two clouds' wss hosts.
         const { rerender } = render(
             <SocketReauthBinder slots={withCloud('cloud-a-token', 'cloud-a')} delegate={delegate} />
         );
