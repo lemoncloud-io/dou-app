@@ -73,8 +73,9 @@ export const bootstrapSocketConnection = async ({
     config,
     delegate,
 }: BootstrapSocketConnectionArgs): Promise<() => void> => {
-    // Each slot is bootstrapped independently: ensure/connect/setAuthenticated address the slot's key,
-    // while the delegate — which still keeps one credential per server kind — is addressed by kind.
+    // Each slot is bootstrapped independently, and everything — ensure/connect/setAuthenticated AND
+    // the delegate that seeds, signs and writes back — is addressed by the slot's key, the cloud it
+    // serves. `kind` is kept for the logs only.
     const key = slotKeyOf(config.cid);
     const kind = kindOf(key);
     const client = manager.ensure(config);
@@ -108,12 +109,12 @@ export const bootstrapSocketConnection = async ({
                 resumeThrottle.reset();
             }
             if (state === 'expired') {
-                void delegate.onAuthExpired?.(kind);
+                void delegate.onAuthExpired?.(key);
             }
         })
     );
 
-    const sign = (token: string, ctx?: { target?: string }) => delegate.signAuth(kind, token, ctx?.target);
+    const sign = (token: string, ctx?: { target?: string }) => delegate.signAuth(key, token, ctx?.target);
 
     /**
      * Commit a refreshed token view, then re-align the controller with what the store now says.
@@ -132,25 +133,28 @@ export const bootstrapSocketConnection = async ({
      */
     const applyRefreshedToken = async (view: unknown): Promise<void> => {
         try {
-            await delegate.commitRefreshedToken(kind, view);
+            await delegate.commitRefreshedToken(key, view);
         } catch (error) {
             logger.error('SOCKET', '[bootstrapSocketConnection] token writeback failed', {
                 error,
-                data: { kind },
+                data: { kind, cid: key },
             });
             // The store still carries the PREVIOUS `$auth`, so there is nothing newer to re-sync to.
             return;
         }
 
         try {
-            const next = await delegate.getAuthRegistration(kind);
+            const next = await delegate.getAuthRegistration(key);
             if (next && authIdRegistry.resync(key, auth, next, sign) && client.state !== 'connected') {
                 // Same ordering rule as every other register(): a re-activated controller must not
                 // auto-send auth.update ahead of the next connection's device.save:ok.
                 gate.stop();
             }
         } catch (error) {
-            logger.warn('SOCKET', '[bootstrapSocketConnection] authId re-sync failed', { error, data: { kind } });
+            logger.warn('SOCKET', '[bootstrapSocketConnection] authId re-sync failed', {
+                error,
+                data: { kind, cid: key },
+            });
         }
     };
 
@@ -164,7 +168,7 @@ export const bootstrapSocketConnection = async ({
             // separately under NETWORK and signing rejections showed up as `... failed (403)`, while
             // the socket-side emission was invisible anywhere. The before/after comparison for Step 3
             // is counted by this one line.
-            logger.info('SOCKET', '[bootstrapSocketConnection] token refreshed', { data: { kind } });
+            logger.info('SOCKET', '[bootstrapSocketConnection] token refreshed', { data: { kind, cid: key } });
             // The writeback is what actually re-mints the HTTP/AWS signing material, and it is the
             // only step that can fail AFTER `requestRelaySessionRefresh` has already reported success
             // (this listener is what resolves it). Without a catch a rejected commit was an
@@ -180,7 +184,7 @@ export const bootstrapSocketConnection = async ({
     // prevents that. register() stores without firing (the controller is active from creation, so the
     // `!active` fast-path that would auto-send is skipped and we are not connected yet anyway); stop()
     // then deactivates so the imminent `connected` event does NOT auto-send `auth.update`.
-    const registration = await delegate.getAuthRegistration(kind);
+    const registration = await delegate.getAuthRegistration(key);
     if (registration) {
         auth.register({ token: registration.token, authId: registration.authId, sign });
         // Mirror the seeded authId so the writeback above can tell a rotation from a match.
@@ -207,7 +211,7 @@ export const bootstrapSocketConnection = async ({
                 }
                 if (auth.state === 'expired') {
                     logger.warn('SOCKET', '[bootstrapSocketConnection] resuming terminally-expired auth', {
-                        data: { kind },
+                        data: { kind, cid: key },
                     });
                 }
                 gate.start();
@@ -224,7 +228,9 @@ export const bootstrapSocketConnection = async ({
             })
         );
     } else {
-        logger.warn('SOCKET', '[bootstrapSocketConnection] no auth registration available — skipping register');
+        logger.warn('SOCKET', '[bootstrapSocketConnection] no auth registration available — skipping register', {
+            data: { kind, cid: key },
+        });
     }
 
     await manager.connect(key);

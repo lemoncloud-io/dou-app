@@ -5,6 +5,7 @@ import { logger } from '@chatic/bridges';
 import { getRepositories } from '../../data/runtime';
 import { cloudStore } from '../store/stores';
 import { rebuildSessionIdentity, sessionSignal } from '../store';
+import { recordCloudIdentity } from './cloudIdentity';
 import type { IAuthRepository } from '@chatic/data';
 
 /**
@@ -18,11 +19,11 @@ import type { IAuthRepository } from '@chatic/data';
  * is relay-only while the cloud counterpart (`useCloudCredentialGuard`) re-issues.
  *
  * Two callers with two different intents share the exchange below:
- *  - `switchCloudSession` (services.ts) — ENTERING a cloud. May replay the per-cloud cache, and owns
- *    the selection (cid/sid) bookkeeping around the exchange.
- *  - `reissueCommittedCloudTokens` (here) — the cloud we are ALREADY in, whose AWS credential is
- *    about to lapse. Never replays the cache (that is where the lapsing copy lives) and never touches
- *    the selection: the user has not navigated anywhere.
+ *  - `cloudSession.switchTo` — ENTERING a cloud. May replay the per-cloud cache, and owns the
+ *    selection (cid/sid) bookkeeping around the exchange.
+ *  - `reissueCloudTokens` (here) — a cloud whose socket session is already up and whose credential
+ *    is about to lapse. Never replays the cache (that is where the lapsing copy lives) and never
+ *    touches the selection: the user has not navigated anywhere.
  */
 const authRepository = (): IAuthRepository => getRepositories().auth;
 
@@ -55,41 +56,47 @@ export const issueCloudTokens = async (
     });
 
     cloudStore.setCachedCloudTokens(cloudId, { delegationToken, cloudToken });
+    recordCloudIdentity(cloudId, cloudToken);
     return { delegationToken, cloudToken };
 };
 
 /**
- * Re-issues the tokens of the cloud we are already COMMITTED to, leaving the selection untouched.
+ * Re-issues the tokens of `cloudId`, a cloud whose socket session is already up, leaving the
+ * selection untouched. The cache entry is overwritten in place, so there is no window in which the
+ * slot signing with the old token has nothing to sign from.
  *
- * "Committed" is read off the delegation token exactly as `getCommittedCloudId` does — the selected
- * cid flips optimistically at the start of a switch, and renewing the cloud a switch is still
- * reaching for would exchange against the wrong parent.
+ * Whether the result also lands in the session store is decided HERE, at write time, by whether
+ * `cloudId` is the committed cloud at that moment — read off the delegation token exactly as
+ * `getCommittedCloudId` does. The selected cid flips optimistically at the start of a switch, so it
+ * cannot be the judge; and a renewal that started while this cloud was committed can finish after a
+ * switch away, in which case the store now belongs to another cloud and only the cache is updated.
  *
- * Returns false when there is no committed cloud (nothing to renew). Throws when the exchange fails,
- * so the caller can decide whether that is worth retrying.
+ * Throws when the exchange fails, so the caller can decide whether that is worth retrying.
  */
-export const reissueCommittedCloudTokens = async (): Promise<boolean> => {
-    const cloudId = cloudStore.getDelegationToken()?.cloudId ?? null;
-    if (!cloudId) {
-        return false;
-    }
-
+export const reissueCloudTokens = async (cloudId: string): Promise<IssuedCloudTokens> => {
     // Cache bypassed on purpose: the entry was written by the very issue that is now lapsing, and its
     // own 60s margin would happily serve it back — a renewal that renews nothing.
-    const { delegationToken, cloudToken } = await issueCloudTokens(cloudId, { allowCache: false });
+    const issued = await issueCloudTokens(cloudId, { allowCache: false });
+
+    if (cloudStore.getDelegationToken()?.cloudId !== cloudId) {
+        logger.info('SESSION', '[cloudTokens] cloud tokens re-issued into the cache', { data: { cloudId } });
+        return issued;
+    }
 
     // One observable change (ADR-0076 decision 2): a renewal is not a cloud CHANGE, so observers must
     // not see a window where the delegation token moved but the cloud token had not.
     sessionSignal.batch(() => {
-        cloudStore.saveDelegationToken(delegationToken);
+        cloudStore.saveDelegationToken(issued.delegationToken);
         // Merge, mirroring switchCloudSession's same-cloud branch: a re-issue is not guaranteed to
         // carry every field the stored view holds (profile fields notably).
         const existing = cloudStore.getCloudToken();
-        cloudStore.saveCloudToken(existing ? ({ ...existing, ...cloudToken } as UserTokenView) : cloudToken);
+        cloudStore.saveCloudToken(
+            existing ? ({ ...existing, ...issued.cloudToken } as UserTokenView) : issued.cloudToken
+        );
 
         // Re-derive uid/identity from the freshly written token, same as every other commit path.
         rebuildSessionIdentity();
     });
     logger.info('SESSION', '[cloudTokens] committed cloud tokens re-issued', { data: { cloudId } });
-    return true;
+    return issued;
 };

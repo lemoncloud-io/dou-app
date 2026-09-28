@@ -11,8 +11,8 @@ import type { SocketSessionDelegate } from './types';
 
 /**
  * Builds the socket session delegate that bridges the SDK AuthController (wired by
- * bootstrapSocketConnection) to web-core's PER-SERVER auth helpers. Every method is keyed by the
- * socket's kind, so the relay and cloud sockets each seed/sign/write-back against their own server.
+ * bootstrapSocketConnection) to the session's PER-SERVER auth helpers. Every method is keyed by the
+ * socket's slot, so each slot seeds/signs/writes back against the cloud it serves.
  *
  * Module-level (not a hook) so non-React callers — recoverUnverifiedSockets — can build the same
  * delegate; the React side wraps it in useSocketSessionDelegate. Every member forwards to a
@@ -25,14 +25,14 @@ export const createSocketSessionDelegate = (): SocketSessionDelegate => ({
     // seed + sign live in `reauthDelegate.ts` — the re-auth path needs those two without the
     // renewer edge below, and this is the whole delegate built back up from that half.
     ...createReauthDelegate(),
-    // Routed by the socket's own kind (§6-6). The SDK AuthTokenView is not exported from the
+    // Routed by the socket's own slot (§6-6). The SDK AuthTokenView is not exported from the
     // package root; the session boundary casts it to its own UserTokenView here.
-    commitRefreshedToken: (kind, view) =>
+    commitRefreshedToken: (slot, view) =>
         sessionAuthAdapter.commitRefreshedToken(
-            kind,
+            slot,
             view as Parameters<typeof sessionAuthAdapter.commitRefreshedToken>[1]
         ),
-    // One line instead of a kind branch: the asymmetry (relay logs out, cloud only leaves the
-    // cloud) is now typed as two renewers rather than explained in a comment here.
-    onAuthExpired: kind => credentialRenewers[kind].onTerminalExpiry(),
+    // One line instead of a kind branch: the asymmetry (relay logs out, a cloud only loses that
+    // cloud) is typed as renewers rather than explained in a comment here.
+    onAuthExpired: slot => credentialRenewers.forSlot(slot).onTerminalExpiry(),
 });

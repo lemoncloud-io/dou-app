@@ -1,5 +1,7 @@
 import type { UserTokenView } from '@lemoncloud/chatic-backend-api';
 
+import { RELAY_CLOUD_ID } from '@chatic/data';
+
 import { sessionAuthAdapter } from './sessionAuthAdapter';
 
 const mockBuildCredentialsByToken = jest.fn();
@@ -7,9 +9,18 @@ const mockBuildCredentialsByToken = jest.fn();
 const mockGetDelegationToken = jest.fn();
 const mockSaveCloudToken = jest.fn();
 const mockGetCloudToken = jest.fn();
+/** The per-cloud read every cloud registration and signature goes through. */
+const mockGetCloudTokenOf = jest.fn();
+const mockPeekCachedCloudTokens = jest.fn();
 const mockSetCachedCloudTokens = jest.fn();
+const mockSetCloudIdentity = jest.fn();
 const mockGetSelectedSiteId = jest.fn();
 const mockGetIdentityToken = jest.fn();
+const mockRebuildSessionIdentity = jest.fn();
+
+/** The relay's key and one cloud's, as the socket layer passes them. */
+const RELAY = RELAY_CLOUD_ID;
+const CLOUD = 'cloud-1';
 
 const mockRelaySaveRelayToken = jest.fn();
 const mockRelayGetRelayToken = jest.fn();
@@ -64,8 +75,11 @@ jest.mock('../store/stores', () => ({
         getDelegationToken: (...args: unknown[]) => mockGetDelegationToken(...args),
         saveCloudToken: (...args: unknown[]) => mockSaveCloudToken(...args),
         getCloudToken: (...args: unknown[]) => mockGetCloudToken(...args),
+        getCloudTokenOf: (...args: unknown[]) => mockGetCloudTokenOf(...args),
         getCachedCloudTokens: jest.fn(),
+        peekCachedCloudTokens: (...args: unknown[]) => mockPeekCachedCloudTokens(...args),
         setCachedCloudTokens: (...args: unknown[]) => mockSetCachedCloudTokens(...args),
+        setCloudIdentity: (...args: unknown[]) => mockSetCloudIdentity(...args),
         saveSelectedCloudId: jest.fn(),
         getSelectedCloudId: jest.fn(),
         saveSelectedSiteId: jest.fn(),
@@ -97,7 +111,7 @@ jest.mock('../store', () => ({
     setSelectedSiteId: jest.fn(),
     getSelectedSiteId: (...args: unknown[]) => mockGetSelectedSiteId(...args),
     clearRelaySession: jest.fn(),
-    rebuildSessionIdentity: jest.fn(),
+    rebuildSessionIdentity: (...args: unknown[]) => mockRebuildSessionIdentity(...args),
     // The store announces KINDS now (ADR-0076 Decision 2). `mockNotifySessionStateChanged` stands for
     // `emit`, so the existing "was the session announced" assertions keep their meaning; `batch`
     // runs straight through because the collapsing is covered by signal.test.ts.
@@ -130,14 +144,14 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
         localStorage.clear();
     });
 
-    it('getServerAuthRegistration은 kind별로 authId를 시드한다 (relay: $auth.id, cloud: Token.authId)', async () => {
+    it('getAuthRegistration seeds the authId per server (relay: $auth.id, a cloud: Token.authId)', async () => {
         // relay branch: relay identity token + $auth.id (NOT getTokenSignature / Token.authId)
         mockRelayGetIdentityToken.mockReturnValue('relay-identity-token');
         mockRelayGetRelayToken.mockReturnValue({
             $auth: { id: 'relay-auth-id' },
             Token: { authId: 'http-id', accountId: 'relay-acct', identityId: 'relay-iid' },
         });
-        await expect(sessionAuthAdapter.getAuthRegistration('relay')).resolves.toEqual({
+        await expect(sessionAuthAdapter.getAuthRegistration(RELAY)).resolves.toEqual({
             token: 'relay-identity-token',
             authId: 'relay-auth-id',
             // Diagnostic-only companion — register() never reads it; the drift log does.
@@ -146,31 +160,44 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
 
         // cloud branch: authId from Token.authId (cloud tokens carry no $auth, so — unlike relay —
         // Token.authId is the socket-auth key). $auth is present in the mock to prove it is NOT used.
-        mockGetIdentityToken.mockReturnValue('cloud-identity-token');
-        mockGetCloudToken.mockReturnValue({
+        mockGetCloudTokenOf.mockReturnValue({
             $auth: { id: 'cloud-auth-id' },
-            Token: { authId: 'http-id', accountId: 'cloud-acct', identityId: 'cloud-iid' },
+            Token: {
+                authId: 'http-id',
+                accountId: 'cloud-acct',
+                identityId: 'cloud-iid',
+                identityToken: 'cloud-identity-token',
+            },
         });
-        await expect(sessionAuthAdapter.getAuthRegistration('cloud')).resolves.toEqual({
+        await expect(sessionAuthAdapter.getAuthRegistration(CLOUD)).resolves.toEqual({
             token: 'cloud-identity-token',
             authId: 'http-id',
             signing: { accountId: 'cloud-acct', identityId: 'cloud-iid' },
         });
+        // Read for THAT cloud — the committed one's store token is not consulted directly.
+        expect(mockGetCloudTokenOf).toHaveBeenCalledWith(CLOUD);
+        expect(mockGetCloudToken).not.toHaveBeenCalled();
 
         // the HTTP-path signature helper must NOT be consulted for socket registration
         expect(mockGetTokenSignature).not.toHaveBeenCalled();
-        // getActiveServerContext must NOT be consulted — routing is purely the kind arg
+        // getActiveServerContext must NOT be consulted — routing is purely the cloud id
         expect(mockGetActiveServerContext).not.toHaveBeenCalled();
     });
 
+    it('getAuthRegistration is null for a cloud with no token anywhere — register is deferred, not half-seeded', async () => {
+        mockGetCloudTokenOf.mockReturnValue(null);
+
+        await expect(sessionAuthAdapter.getAuthRegistration('cloud-9')).resolves.toBeNull();
+    });
+
     it('sessionAuthAdapter.signAuth(cloud)는 Token.authId를 HMAC 키로 서명하고 target은 서명을 바꾸지 않는다', async () => {
-        mockGetCloudToken.mockReturnValue({
+        mockGetCloudTokenOf.mockReturnValue({
             $auth: { id: 'cloud-auth-id' },
             Token: { authId: 'http-id', accountId: 'acct', identityId: 'ident', identityToken: 'jwt' },
         });
         mockCalcSignature.mockReturnValue('cloud-sig');
 
-        await sessionAuthAdapter.signAuth('cloud', 'uid@sid');
+        await sessionAuthAdapter.signAuth(CLOUD, 'uid@sid');
 
         // cloud signs with Token.authId (not $auth.id — cloud tokens have no $auth); accountId/identityId
         // also come from Token.
@@ -180,6 +207,13 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
             expect.any(String)
         );
         expect(mockGetActiveServerContext).not.toHaveBeenCalled();
+        expect(mockGetCloudTokenOf).toHaveBeenCalledWith(CLOUD);
+    });
+
+    it('signAuth for a cloud with no token throws rather than signing with blanks', async () => {
+        mockGetCloudTokenOf.mockReturnValue(null);
+
+        await expect(sessionAuthAdapter.signAuth(CLOUD)).rejects.toThrow('Missing cloud token fields');
     });
 
     it('sessionAuthAdapter.signAuth(relay)는 Token.authId가 아니라 $auth.id로 서명한다 (getTokenSignature 미사용)', async () => {
@@ -189,7 +223,7 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
         });
         mockCalcSignature.mockReturnValue('relay-sig');
 
-        const result = await sessionAuthAdapter.signAuth('relay');
+        const result = await sessionAuthAdapter.signAuth(RELAY);
 
         expect(mockCalcSignature).toHaveBeenCalledWith(
             { authId: 'relay-auth-id', accountId: 'r-acct', identityId: 'r-ident', identityToken: '' },
@@ -211,7 +245,7 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
         });
         mockCalcSignature.mockReturnValue('sig');
 
-        await sessionAuthAdapter.signAuth('relay');
+        await sessionAuthAdapter.signAuth(RELAY);
 
         expect(mockCalcSignature).toHaveBeenCalledWith(
             expect.objectContaining({ accountId: 'from-auth' }),
@@ -228,7 +262,7 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
         });
         mockCalcSignature.mockReturnValue('sig');
 
-        await sessionAuthAdapter.signAuth('relay');
+        await sessionAuthAdapter.signAuth(RELAY);
 
         expect(mockCalcSignature).toHaveBeenCalledWith(
             expect.objectContaining({ accountId: 'from-token' }),
@@ -246,7 +280,7 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
         });
         mockCalcSignature.mockReturnValue('sig');
 
-        await sessionAuthAdapter.signAuth('relay');
+        await sessionAuthAdapter.signAuth(RELAY);
 
         expect(mockLoggerWarn).toHaveBeenCalledWith(
             'AUTH',
@@ -267,7 +301,7 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
         });
         mockCalcSignature.mockReturnValue('sig');
 
-        await sessionAuthAdapter.signAuth('relay');
+        await sessionAuthAdapter.signAuth(RELAY);
 
         expect(mockLoggerWarn).not.toHaveBeenCalledWith(
             'AUTH',
@@ -279,7 +313,7 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
     it('sessionAuthAdapter.signAuth(relay)는 $auth.id가 없으면 던진다', async () => {
         mockRelayGetRelayToken.mockReturnValue({ Token: { accountId: 'a', identityId: 'i' } });
 
-        await expect(sessionAuthAdapter.signAuth('relay')).rejects.toThrow('Missing relay token fields');
+        await expect(sessionAuthAdapter.signAuth(RELAY)).rejects.toThrow('Missing relay token fields');
     });
 
     it('commitServerRefreshedToken(relay)는 view에 identityToken이 있으면 그대로 relay store에 쓴다 (§6-6)', async () => {
@@ -291,7 +325,7 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
             Token: { identityToken: 'fresh', credential: { AccessKeyId: 'k', SecretKey: 's' } },
         } as unknown as UserTokenView;
 
-        await sessionAuthAdapter.commitRefreshedToken('relay', view);
+        await sessionAuthAdapter.commitRefreshedToken(RELAY, view);
 
         // relay dual-write, no cloud store touched, and no dependence on the active context
         expect(mockBuildCredentialsByToken).toHaveBeenCalledWith(expect.objectContaining({ identityToken: 'fresh' }));
@@ -311,7 +345,7 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
             Token: { credential: { AccessKeyId: 'k', SecretKey: 's' } },
         } as unknown as UserTokenView;
 
-        await sessionAuthAdapter.commitRefreshedToken('relay', view);
+        await sessionAuthAdapter.commitRefreshedToken(RELAY, view);
 
         expect(mockRelaySaveRelayToken).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -337,7 +371,7 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
             Token: { credential: { AccessKeyId: 'k', SecretKey: 's' } },
         } as unknown as UserTokenView;
 
-        await sessionAuthAdapter.commitRefreshedToken('relay', view);
+        await sessionAuthAdapter.commitRefreshedToken(RELAY, view);
 
         expect(mockRelaySaveRelayToken).toHaveBeenCalledWith(
             expect.objectContaining({ Token: expect.objectContaining({ identityPoolId: 'pool-1' }) })
@@ -351,7 +385,7 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
         mockRelayGetRelayToken.mockReturnValue({ Token: { identityPoolId: 'old' } } as UserTokenView);
         const view = { Token: { identityToken: 't', identityPoolId: 'new' } } as unknown as UserTokenView;
 
-        await sessionAuthAdapter.commitRefreshedToken('relay', view);
+        await sessionAuthAdapter.commitRefreshedToken(RELAY, view);
 
         expect(mockRelaySaveRelayToken).toHaveBeenCalledWith(
             expect.objectContaining({ Token: expect.objectContaining({ identityPoolId: 'new' }) })
@@ -364,7 +398,7 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
         mockRelayGetRelayToken.mockReturnValue({ Token: { identityToken: 'kept' } } as UserTokenView);
         const view = { id: 'u', Token: { identityToken: 'fresh' } } as unknown as UserTokenView;
 
-        await sessionAuthAdapter.commitRefreshedToken('relay', view);
+        await sessionAuthAdapter.commitRefreshedToken(RELAY, view);
 
         expect(mockBuildCredentialsByToken).not.toHaveBeenCalled();
         expect(mockRelaySaveRelayToken).toHaveBeenCalledWith(
@@ -373,7 +407,7 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
         expect(mockLoggerWarn).toHaveBeenCalledWith(
             'AUTH',
             '[commitServerRefreshedToken] refresh view carried no AWS credential',
-            expect.objectContaining({ data: expect.objectContaining({ kind: 'relay' }) })
+            expect.objectContaining({ data: expect.objectContaining({ cid: RELAY }) })
         );
     });
 
@@ -388,7 +422,7 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
         } as unknown as UserTokenView);
         const view = { id: 'u', Token: { identityToken: 'fresh' } } as unknown as UserTokenView;
 
-        await sessionAuthAdapter.commitRefreshedToken('relay', view);
+        await sessionAuthAdapter.commitRefreshedToken(RELAY, view);
 
         expect(mockBuildCredentialsByToken).not.toHaveBeenCalled();
         expect(mockRelaySaveRelayToken).toHaveBeenCalledWith(
@@ -410,7 +444,7 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
             Token: { identityToken: 'fresh', accountId: 'acct', identityId: 'iid' },
         } as unknown as UserTokenView;
 
-        await sessionAuthAdapter.commitRefreshedToken('relay', view);
+        await sessionAuthAdapter.commitRefreshedToken(RELAY, view);
 
         expect(mockRelaySaveRelayToken).toHaveBeenCalledWith(expect.objectContaining({ $auth: { id: 'parent-auth' } }));
         expect(mockLoggerWarn).toHaveBeenCalledWith(
@@ -440,7 +474,7 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
             Token: { identityToken: 'fresh' },
         } as unknown as UserTokenView;
 
-        await sessionAuthAdapter.commitRefreshedToken('relay', view);
+        await sessionAuthAdapter.commitRefreshedToken(RELAY, view);
 
         expect(mockLoggerWarn).not.toHaveBeenCalledWith(
             'AUTH',
@@ -457,7 +491,7 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
             Token: { identityToken: 'fresh' },
         } as unknown as UserTokenView;
 
-        await sessionAuthAdapter.commitRefreshedToken('relay', view);
+        await sessionAuthAdapter.commitRefreshedToken(RELAY, view);
 
         expect(mockRelaySaveRelayToken).toHaveBeenCalledWith(expect.objectContaining({ $auth: { id: 'first-auth' } }));
         expect(mockLoggerWarn).not.toHaveBeenCalledWith(
@@ -471,44 +505,98 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
         mockRelayGetRelayToken.mockReturnValue(null);
         const view = { id: 'u', Token: { credential: { AccessKeyId: 'k' } } } as unknown as UserTokenView;
 
-        await sessionAuthAdapter.commitRefreshedToken('relay', view);
+        await sessionAuthAdapter.commitRefreshedToken(RELAY, view);
 
         // lemon throws on the missing SecretKey exactly as it does on a missing AccessKeyId.
         expect(mockBuildCredentialsByToken).not.toHaveBeenCalled();
         expect(mockRelaySaveRelayToken).toHaveBeenCalled();
     });
 
-    it('commitServerRefreshedToken(cloud) merges the cloud store (single write, no credential rebuild)', async () => {
-        mockGetCloudToken.mockReturnValue({ id: 'u', Token: { identityToken: 'old' } });
+    describe('commitRefreshedToken for a cloud — where it lands is decided at write time', () => {
+        const delegationToken = { cloudId: CLOUD, delegationToken: 'd', backend: 'https://c', wss: 'wss://c' };
         const view = { id: 'u', Token: { identityToken: 'new' } } as unknown as UserTokenView;
 
-        await sessionAuthAdapter.commitRefreshedToken('cloud', view);
+        it('the committed cloud: merges the store (single write, no credential rebuild) and re-derives identity', async () => {
+            mockGetDelegationToken.mockReturnValue(delegationToken);
+            mockGetCloudToken.mockReturnValue({ id: 'u', Token: { identityToken: 'old' } });
 
-        expect(mockSaveCloudToken).toHaveBeenCalledWith(expect.objectContaining({ Token: { identityToken: 'new' } }));
-        expect(mockBuildCredentialsByToken).not.toHaveBeenCalled();
-    });
+            await sessionAuthAdapter.commitRefreshedToken(CLOUD, view);
 
-    it('commitServerRefreshedToken(cloud)는 per-cloud 캐시도 같이 올린다 — 재입장이 갱신 전 자격증명을 되살리면 안 된다', async () => {
-        const delegationToken = { cloudId: 'cloud-1', delegationToken: 'd', backend: 'https://c', wss: 'wss://c' };
-        mockGetDelegationToken.mockReturnValue(delegationToken);
-        mockGetCloudToken.mockReturnValue({ id: 'u', Token: { identityToken: 'old' } });
-        const view = { id: 'u', Token: { identityToken: 'new' } } as unknown as UserTokenView;
-
-        await sessionAuthAdapter.commitRefreshedToken('cloud', view);
-
-        expect(mockSetCachedCloudTokens).toHaveBeenCalledWith('cloud-1', {
-            delegationToken,
-            cloudToken: expect.objectContaining({ Token: { identityToken: 'new' } }),
+            expect(mockSaveCloudToken).toHaveBeenCalledWith(
+                expect.objectContaining({ Token: { identityToken: 'new' } })
+            );
+            expect(mockBuildCredentialsByToken).not.toHaveBeenCalled();
+            expect(mockRebuildSessionIdentity).toHaveBeenCalled();
         });
-    });
 
-    it('commitServerRefreshedToken(cloud)는 delegation 토큰이 없으면 캐시를 건드리지 않는다', async () => {
-        mockGetDelegationToken.mockReturnValue(null);
+        it('the committed cloud: the per-cloud cache is levelled too — a re-entry must not revive the pre-refresh credential', async () => {
+            mockGetDelegationToken.mockReturnValue(delegationToken);
+            mockGetCloudToken.mockReturnValue({ id: 'u', Token: { identityToken: 'old' } });
 
-        await sessionAuthAdapter.commitRefreshedToken('cloud', {
-            Token: { identityToken: 'new' },
-        } as unknown as UserTokenView);
+            await sessionAuthAdapter.commitRefreshedToken(CLOUD, view);
 
-        expect(mockSetCachedCloudTokens).not.toHaveBeenCalled();
+            expect(mockSetCachedCloudTokens).toHaveBeenCalledWith(CLOUD, {
+                delegationToken,
+                cloudToken: expect.objectContaining({ Token: { identityToken: 'new' } }),
+            });
+        });
+
+        it('records the uid the refreshed token names for that cloud', async () => {
+            mockGetDelegationToken.mockReturnValue(delegationToken);
+            mockGetCloudToken.mockReturnValue({ uid: 'uid-1', Token: { identityToken: 'old' } });
+
+            await sessionAuthAdapter.commitRefreshedToken(CLOUD, view);
+
+            expect(mockSetCloudIdentity).toHaveBeenCalledWith(CLOUD, { uid: 'uid-1' });
+        });
+
+        // The core of "auth per cloud": a refresh on a socket that serves a cloud the user is not in.
+        it('a NON-committed cloud: merges into its cache entry only — store, identity and signal untouched', async () => {
+            mockGetDelegationToken.mockReturnValue({ ...delegationToken, cloudId: 'other-cloud' });
+            const cachedDelegation = { ...delegationToken, cloudId: CLOUD };
+            mockPeekCachedCloudTokens.mockReturnValue({
+                delegationToken: cachedDelegation,
+                cloudToken: { uid: 'uid-in-cloud-1', name: 'kept', Token: { identityToken: 'old' } },
+            });
+
+            await sessionAuthAdapter.commitRefreshedToken(CLOUD, view);
+
+            expect(mockPeekCachedCloudTokens).toHaveBeenCalledWith(CLOUD);
+            expect(mockSetCachedCloudTokens).toHaveBeenCalledWith(CLOUD, {
+                delegationToken: cachedDelegation,
+                // A shallow merge over the cached view, so a slim refresh view keeps the profile fields.
+                cloudToken: expect.objectContaining({ name: 'kept', Token: { identityToken: 'new' } }),
+            });
+            expect(mockSetCloudIdentity).toHaveBeenCalledWith(CLOUD, { uid: 'uid-in-cloud-1' });
+            expect(mockSaveCloudToken).not.toHaveBeenCalled();
+            expect(mockRebuildSessionIdentity).not.toHaveBeenCalled();
+            expect(mockNotifySessionStateChanged).not.toHaveBeenCalled();
+        });
+
+        it('a NON-committed cloud with no cache entry: warns and writes nothing', async () => {
+            mockGetDelegationToken.mockReturnValue({ ...delegationToken, cloudId: 'other-cloud' });
+            mockPeekCachedCloudTokens.mockReturnValue(null);
+
+            await sessionAuthAdapter.commitRefreshedToken(CLOUD, view);
+
+            expect(mockSetCachedCloudTokens).not.toHaveBeenCalled();
+            expect(mockSaveCloudToken).not.toHaveBeenCalled();
+            expect(mockLoggerWarn).toHaveBeenCalledWith('AUTH', expect.stringContaining('writeback dropped'), {
+                data: { cid: CLOUD },
+            });
+        });
+
+        it('with no committed cloud at all, a cloud writeback is a cache write, never a store write', async () => {
+            mockGetDelegationToken.mockReturnValue(null);
+            mockPeekCachedCloudTokens.mockReturnValue({
+                delegationToken: { ...delegationToken, cloudId: CLOUD },
+                cloudToken: { id: 'u', Token: { identityToken: 'old' } },
+            });
+
+            await sessionAuthAdapter.commitRefreshedToken(CLOUD, view);
+
+            expect(mockSetCachedCloudTokens).toHaveBeenCalledWith(CLOUD, expect.anything());
+            expect(mockSaveCloudToken).not.toHaveBeenCalled();
+        });
     });
 });

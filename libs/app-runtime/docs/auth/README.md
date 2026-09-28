@@ -1,10 +1,16 @@
-# auth — staying authenticated on two sockets
+# auth — staying authenticated on every socket
 
-Two sockets authenticate independently, each with its own SDK `AuthController`, and everything the
+Each socket slot authenticates independently, with its own SDK `AuthController`, and everything the
 app signs — socket packets and HTTP requests alike — depends on the credential those loops keep
 fresh. This layer is the wiring around them: what gets registered and when, how the answer "is this
 slot authenticated" is computed, what renews a lapsing credential, and what ends a session that
 cannot be renewed.
+
+Everything here is addressed by the **slot** — the cloud the socket serves, the relay's being
+`RELAY_CLOUD_ID` — and never by "the cloud" as a role. There is one relay credential, and one cloud
+credential _per cloud_: the committed cloud's lives in the session store, every other cloud's in the
+per-cloud token cache, and `cloudStore.getCloudTokenOf(cid)` answers for either. That is what lets a
+slot for a cloud the user is not looking at seed, sign, refresh and renew on its own (ADR-0117).
 
 It is spread across three folders on purpose, and the split follows dependency direction rather than
 subject: `socket/auth/` holds the wiring and the policy (17 source files, 14 tests), `session/auth/`
@@ -17,10 +23,10 @@ because `socket/auth → session` is an existing edge and the reverse is not; pu
 
 | Concern                                                                              | Owner                                                                       |
 | ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------- |
-| The current token (SSoT), refresh cadence, reconnect re-auth, backoff, serialization | **SDK `AuthController`**, one per client per kind                           |
+| The current token (SSoT), refresh cadence, reconnect re-auth, backoff, serialization | **SDK `AuthController`**, one per client per slot                           |
 | Boot sequencing, subscription wiring, same-connection re-auth                        | `socket/auth/` — plain functions, no controller class                       |
 | The login token, the `authId`, the HMAC signature, the refresh writeback             | `session/` through `SocketSessionDelegate`                                  |
-| When to renew, and what to do when renewal is impossible                             | `ICredentialRenewer` + the two guards                                       |
+| When to renew, and what to do when renewal is impossible                             | `ICredentialRenewer` (relay, and one per cloud) + the two guards            |
 | The signature formula, and the backend refresh endpoint                              | `libs/auth-sign` and the server. The SDK forwards both without reading them |
 
 **Nothing in this package calls a refresh endpoint and nothing builds an `auth.update` packet.**
@@ -138,14 +144,14 @@ itself needs neither a socket nor a store.
 
 [`bootstrapSocketConnection({ manager, config, delegate })`](../../src/socket/auth/bootstrapSocketConnection.ts)
 is an async function that returns its own cleanup. `SocketBinder` calls it per slot whenever that
-slot's config changes. The slot is `key = slotKeyOf(config.cid)`; the delegate is still addressed by
-the server kind, `kindOf(key)`, because there is one relay credential and one cloud credential. The
-order is the contract:
+slot's config changes. The slot is `key = slotKeyOf(config.cid)`, and the delegate is addressed by
+that same key — it seeds, signs and writes back for the cloud the slot serves. `kindOf(key)` appears
+only in the log lines. The order is the contract:
 
 1. `manager.ensure(config)` — creates the client, which attaches the controller. A slot with no `auth` logs an error, connects anyway, and returns a no-op cleanup.
-2. Subscribe `onAuthState` → `manager.setAuthenticated(key, state === 'authenticated')`; `'authenticated'` resets the resume throttle; `'expired'` calls `delegate.onAuthExpired?.(kind)`.
-3. Subscribe `onTokenRefresh` → `delegate.commitRefreshedToken(kind, view)`, then re-read the registration and hand it to the `authId` registry ([signing.md](./signing.md#the-authid-registry)).
-4. `delegate.getAuthRegistration(kind)` → `auth.register({ token, authId, sign })`, then **`gate.stop()` immediately** — before connecting.
+2. Subscribe `onAuthState` → `manager.setAuthenticated(key, state === 'authenticated')`; `'authenticated'` resets the resume throttle; `'expired'` calls `delegate.onAuthExpired?.(key)`.
+3. Subscribe `onTokenRefresh` → `delegate.commitRefreshedToken(key, view)`, then re-read the registration and hand it to the `authId` registry ([signing.md](./signing.md#the-authid-registry)).
+4. `delegate.getAuthRegistration(key)` → `auth.register({ token, authId, sign })`, then **`gate.stop()` immediately** — before connecting.
 5. Subscribe `client.onMessage` for `device.save:ok`, which calls `gate.start()`; and `client.onState` for `closed` / `closing` / `idle`, which calls `gate.stop()` again.
 6. `manager.connect(key)`.
 
@@ -180,13 +186,13 @@ The SDK's bare `register` swaps the token silently on an active controller and d
 that. It always addresses the slot it is given — `manager.getClient(slot)` — never the active facade.
 
 - **The no-op guard comes first.** If `registration.token === auth.token`, nothing changed — it only re-syncs the `authId` and returns. Without it, the SDK's own refresh writeback lands in the store and bounces straight back as a re-authentication, and the loop never settles.
-- When the identity really changed it optionally re-points the slot's bound cid, then — if the slot was verified — fires `auth.logout()` fire-and-forget to revoke the old backend session **and forces `setAuthenticated(kind, false)`**. That deliberate dip is what makes verification-gated consumers re-anchor on the new user.
+- When the identity really changed — and the slot was verified — it fires `auth.logout()` fire-and-forget to revoke the old backend session **and forces `setAuthenticated(slot, false)`**. That deliberate dip is what makes verification-gated consumers re-anchor on the new user.
 - Then it registers unconditionally. `logout → register` is the SDK's resume path for re-sending `auth.update` on a live connection. If the client is not connected it closes the gate again, so the `device.save:ok` ordering holds on the next connect.
 
 Two situations reach it, and only one is watched automatically:
 
 1. **Guest promoted to a social or email login.** The relay token is replaced while `url|deviceId|wssType` is unchanged, so `SocketBinder` does not reboot and `SocketReauthBinder` sees the slot's `identityToken` move.
-2. **A cloud token re-issued while staying in the same cloud.** No binder sees it — the cloud slot deliberately carries no `identityToken` — so `renewCloudSession` calls this function directly.
+2. **A cloud token re-issued for a cloud whose slot is up.** No binder sees it — a cloud slot deliberately carries no `identityToken`, and a non-committed cloud's writeback emits no session signal at all — so `renewCloudSession(cid)` calls this function directly, on that cloud's slot.
 
 **A cloud _switch_ is in neither list.** A switch commits a different cid, and the cid is the slot's
 key, so `SocketBinder` boots the incoming cloud as a new slot and tears the outgoing one down. There
@@ -199,25 +205,28 @@ the relay slot, and waits up to 10s for `auth.ready()`, then asserts `auth.token
 new identity token. It **throws** when `$token.$auth.id` is missing, because relay registration is
 impossible without it and failing at the source beats failing on every later refresh.
 
-## Renewal: two strategies, two classes
+## Renewal: two strategies, one renewer per server
 
 ```ts
 interface ICredentialRenewer {
-    readonly owner: CredentialOwner;
+    readonly cid: string; // the relay's is RELAY_CLOUD_ID
     timeToExpiry(now?: number): number | null;
     renew(): Promise<boolean>;
     onTerminalExpiry(): Promise<void> | void;
 }
 ```
 
-|                    | relay                                           | cloud                                              |
-| ------------------ | ----------------------------------------------- | -------------------------------------------------- |
-| The token's parent | none — a login is the only issuer               | the relay identity, via `delegate-cloud`           |
-| Renewal            | **refresh** through the socket's own controller | **re-issue** — `delegate-cloud` + `exchange-token` |
-| With no socket     | impossible; waiting is the only option          | fine, as long as relay is alive                    |
-| On terminal expiry | the session is over — log out                   | leave the cloud; relay survives                    |
+|                    | relay                                           | a cloud                                                                       |
+| ------------------ | ----------------------------------------------- | ----------------------------------------------------------------------------- |
+| The token's parent | none — a login is the only issuer               | the relay identity, via `delegate-cloud`                                      |
+| Renewal            | **refresh** through the socket's own controller | **re-issue** — `delegate-cloud` + `exchange-token`                            |
+| With no socket     | impossible; waiting is the only option          | fine, as long as relay is alive                                               |
+| On terminal expiry | the session is over — log out                   | committed: leave the cloud; any other: drop its cached tokens. Relay survives |
 
-`credentialRenewers` is a `Record<SocketKind, ICredentialRenewer>` of exactly those two.
+`credentialRenewers.relay` is the one relay renewer; `credentialRenewers.forSlot(key)` answers it for
+the relay slot and a `CloudCredentialRenewer(cid)` for a cloud — one instance per cloud, memoised,
+because the single-flight behind `renew()` has to be per cloud too. Two clouds renew side by side;
+one cloud's timer and foreground trigger collapse onto one exchange.
 
 **Relay `renew()`** is [`requestRelaySessionRefresh()`](../../src/socket/auth/requestRelaySessionRefresh.ts),
 the single entry point for "make the relay credential fresh". It reads the snapshot, returns `false`
@@ -239,13 +248,20 @@ exist — the first resume after a reconnect, a foreground `recoverUnverifiedSoc
 and repeated `expired` reports join one verdict through a `Coalescer`. Only then does it call
 `relaySession.clearAndRedirect()`.
 
-**Cloud `renew()`** is [`renewCloudSession()`](../../src/socket/auth/renewCloudSession.ts):
-`reissueCommittedCloudTokens()` — keyed on the **committed** cloud, cache bypassed — then
-`reauthenticateActiveSocket({ kind: 'cloud' })`. **Re-registering the socket is not optional.**
-Without it the SDK keeps resending the expired token, burns `maxFailures`, and `onAuthExpired` throws
-the user out of the cloud — the HTTP problem gets fixed and the place is lost anyway. Cloud
-`onTerminalExpiry()` is one synchronous `cloudSession.clearStores()`: losing a cloud is recoverable
-by walking back in, so it is not a teardown signal.
+**A cloud's `renew()`** is [`renewCloudSession(cid)`](../../src/socket/auth/renewCloudSession.ts):
+`reissueCloudTokens(cid)` — cache bypassed — then `reauthenticateActiveSocket` on that cloud's slot.
+**Re-registering the socket is not optional.** Without it the SDK keeps resending the expired token,
+burns `maxFailures`, and `onAuthExpired` drops the cloud — the HTTP problem gets fixed and the place
+is lost anyway. Where the re-issued tokens land is decided inside `reissueCloudTokens`, at write time,
+by whether `cid` is the committed cloud then: the session store (plus the cache) if it is, the cache
+alone if it is not. A renewal that started while a cloud was committed and finishes after a switch
+away therefore cannot hand the new cloud the old one's token.
+
+**A cloud's `onTerminalExpiry()`** asks the same question. For the committed cloud it is one
+synchronous `cloudSession.clearStores()`: losing a cloud is recoverable by walking back in, so it is
+not a teardown signal. For any other cloud it drops that cloud's cached tokens and nothing else — the
+store describes the committed cloud and must not be cleared for one the user is not even in. The
+cloud identity map keeps that cloud's uid either way.
 
 ## The two guards
 
@@ -276,10 +292,16 @@ failure never counts toward teardown — a credential that is still valid is not
 died.
 
 **[`useCloudCredentialGuard(policy)`](../../src/session/hooks/app/useCloudCredentialGuard.ts) does not
-poll.** It derives a deadline from the credential's own `Expiration` minus a margin and sleeps until
-then, waking at most every 5 minutes because a suspended tab serves long timers late. The margin is
-`SDK_REFRESH_CYCLE_MS`, and that is diagnosis rather than tuning: a healthy cloud socket re-mints
-every cycle, so being under the margin at all _is_ the evidence the socket is not keeping up.
+poll.** It derives a deadline from each credential's own `Expiration` minus a margin and sleeps until
+the earliest of them, waking at most every 5 minutes because a suspended tab serves long timers late.
+The margin is `SDK_REFRESH_CYCLE_MS`, and that is diagnosis rather than tuning: a healthy cloud
+socket re-mints every cycle, so being under the margin at all _is_ the evidence the socket is not
+keeping up.
+
+It guards **every cloud slot**: the committed cloud (whose slot may not be bound yet — the device id
+can arrive after the tokens) and every cloud the manager has a slot for, each through its own
+renewer, so one cloud's failed exchange never delays another's. Today that set is one cloud; the
+shape is what a background slot needs.
 
 The gap it closes was real. A cloud credential lives about an hour, and the only thing that re-minted
 it mid-session was the cloud socket's refresh writeback. While that socket was down — sleep, a
@@ -289,12 +311,12 @@ showed up in sessions that sat still.
 
 ## Ending a session
 
-| Entry                                     | What it does                                                                         |
-| ----------------------------------------- | ------------------------------------------------------------------------------------ |
-| `logoutSession(options?)`                 | `auth.logout()` on **both** slots, then `relaySession.clearAndRedirect()`            |
-| `logoutCloudSession()`                    | `auth.logout()` on the cloud slot, then `cloudSession.clearStores()`. Relay survives |
-| `RelayCredentialRenewer.onTerminalExpiry` | The confirmed-`expired` path above                                                   |
-| `handleRevokedRelaySession(scope)`        | Immediate, once per page life                                                        |
+| Entry                                     | What it does                                                                                     |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `logoutSession(options?)`                 | `auth.logout()` on **every bound** slot, then `relaySession.clearAndRedirect()`                  |
+| `logoutCloudSession()`                    | `auth.logout()` on the committed cloud's slot, then `cloudSession.clearStores()`. Relay survives |
+| `RelayCredentialRenewer.onTerminalExpiry` | The confirmed-`expired` path above                                                               |
+| `handleRevokedRelaySession(scope)`        | Immediate, once per page life                                                                    |
 
 The socket notice comes first and is fire-and-forget, so local teardown and redirect keep their
 timing. These two are the public names precisely because they notify; the store-only halves live as
@@ -333,6 +355,8 @@ Concurrent calls share one pass through a `Coalescer`.
 - **Do not give the relay guard a `kind` option**, and do not point the cloud guard at a refresh. The two recover by different means and each has a hook that says so.
 - **Do not act on the first `expired`.** Offline and stuck look identical at that moment, and one of them costs the user their session.
 - **Do not restate `5 * 60_000`.** Read `SDK_REFRESH_CYCLE_MS`, so changing the cadence moves all three margins with it.
+- **Do not address auth by kind.** `'relay'`/`'cloud'` name a role, and the role `cloud` names one cloud only when one is committed. Pass the slot key; the kind is `kindOf(key)` when a log needs it.
+- **Do not write a non-committed cloud's refresh into the session store.** The store is the committed cloud's; `commitRefreshedToken` decides where a writeback lands when it runs, and the cache is the only right answer for any other cloud.
 
 ## Notes for implementers and tests
 
@@ -341,10 +365,11 @@ Concurrent calls share one pass through a `Coalescer`.
 - `deriveAuthStatus` is pure and its test is a truth table. If you change a branch, change the table — it is the drawing above in executable form.
 - The terminal-expiry confirmation uses real waits. Inject `wait` and `readStatus` through `RelayExpiryDeps` rather than reaching for fake timers across a `Coalescer`.
 - Five of the seventeen files are deliberately off `socket/auth/index.ts`: `authStatus.ts`, `renewers.ts`, `authIdRegistry.ts`, `reauthDelegate.ts` and `revokedSession.ts`. In-package callers import them by concrete path, which is what keeps the barrel free of the cycle `sessionDelegate → renewers → renewCloudSession → sessionDelegate`. `reauthDelegate.ts` exists only to hold the seed-and-sign half of the delegate outside that ring.
+- The per-cloud paths — a registration, a signature, a writeback, a renewal or a terminal expiry for a cloud that is not committed — have no caller in a running app until something binds such a slot. They are proved by the unit tests of `sessionAuthAdapter`, `cloudTokens`, `renewers`, `renewCloudSession`, `useCloudCredentialGuard` and `cloudStore`; a change there is a change to a contract the next steps build on.
 
 ## Further reading
 
-- [signing.md](./signing.md) — the per-kind `authId`, the signature, the writeback, and the `authId` registry
+- [signing.md](./signing.md) — the per-server `authId`, the signature, the writeback, and the `authId` registry
 - [docs/socket/](../socket/README.md) — the slots these controllers sit on, and the binders that call this wiring
 - [docs/session/](../session/README.md) — where the registration material and the writeback land
 - [docs/http/](../http/README.md) — the staleness port that asks this layer whether a signature can be trusted

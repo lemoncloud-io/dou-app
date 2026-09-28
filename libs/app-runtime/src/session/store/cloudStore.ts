@@ -18,11 +18,22 @@ const CLOUD_TOKEN_CACHE_KEY = 'chatic-cloud-token-cache';
 // Skip a cached cloud token whose AWS credential expires within this margin — the fresh token is
 // re-issued instead so the socket never connects with a credential about to lapse.
 const CLOUD_TOKEN_CACHE_MARGIN_MS = 60_000;
+// Which uid this account has in each cloud, kept past the token that carried it. A cloud token
+// expires within about an hour, but the cid+uid the local cache partitions under does not change
+// with the token — so a reader that wants another cloud's partition (its unread count, its sync
+// cursor) needs the uid without needing a live token. Recorded whenever a cloud token is issued or
+// written back; cleared only with the whole session, because a different account has different uids.
+const CLOUD_IDENTITIES_KEY = 'chatic-cloud-identities';
 
 /** A cloud's delegation + user token, cached by cloudId for fast re-switch. */
 export interface CachedCloudTokens {
     delegationToken: CloudDelegationTokenView;
     cloudToken: UserTokenView;
+}
+
+/** What this account is inside one cloud — the half of the cache key that outlives the token. */
+export interface CloudIdentity {
+    uid: string;
 }
 
 /**
@@ -36,7 +47,26 @@ export interface ICloudStore {
     getCloudToken(): UserTokenView | null;
     /** Cached tokens for `cloudId` when still valid (credential not within the expiry margin), else null. */
     getCachedCloudTokens(cloudId: string): CachedCloudTokens | null;
+    /**
+     * Cached tokens for `cloudId` exactly as stored — no expiry margin, nothing dropped. For signing:
+     * a socket that registered with this token keeps signing with it until it is renewed, and a
+     * margin-checked read that deleted the entry would leave that socket with nothing to sign from.
+     */
+    peekCachedCloudTokens(cloudId: string): CachedCloudTokens | null;
     setCachedCloudTokens(cloudId: string, tokens: CachedCloudTokens): void;
+    /** Forgets one cloud's cached tokens. The other clouds' entries, and the identities, stay. */
+    dropCachedCloudTokens(cloudId: string): void;
+    /**
+     * The token the socket serving `cloudId` authenticates with: the store's own token while that cloud
+     * is the committed one, otherwise the cached copy (margin-blind). Null when neither exists.
+     */
+    getCloudTokenOf(cloudId: string): UserTokenView | null;
+    getCloudIdentity(cloudId: string): CloudIdentity | null;
+    setCloudIdentity(cloudId: string, identity: CloudIdentity): void;
+    /** Every recorded cloud identity, keyed by cloud id. */
+    getCloudIdentities(): Record<string, CloudIdentity>;
+    /** Forgets every cloud identity — the account is changing, and its uids change with it. */
+    clearCloudIdentities(): void;
     saveSelectedCloudId(cloudId: string): void;
     getSelectedCloudId(): string | null;
     saveSelectedSiteId(siteId: string): void;
@@ -53,6 +83,7 @@ class CloudStore implements ICloudStore {
     private readonly delegation: JsonSlot<CloudDelegationTokenView>;
     private readonly token: JsonSlot<UserTokenView>;
     private readonly cache: JsonSlot<Record<string, CachedCloudTokens>>;
+    private readonly identities: JsonSlot<Record<string, CloudIdentity>>;
 
     constructor(
         private readonly storage: StorageLike,
@@ -61,6 +92,7 @@ class CloudStore implements ICloudStore {
         this.delegation = new JsonSlot(storage, CLOUD_DELEGATION_TOKEN_KEY);
         this.token = new JsonSlot(storage, CLOUD_TOKEN_KEY);
         this.cache = new JsonSlot(storage, CLOUD_TOKEN_CACHE_KEY);
+        this.identities = new JsonSlot(storage, CLOUD_IDENTITIES_KEY);
     }
 
     saveDelegationToken(token: CloudDelegationTokenView): void {
@@ -96,12 +128,54 @@ class CloudStore implements ICloudStore {
         return entry;
     }
 
+    peekCachedCloudTokens(cloudId: string): CachedCloudTokens | null {
+        return this.cache.read()?.[cloudId] ?? null;
+    }
+
     setCachedCloudTokens(cloudId: string, tokens: CachedCloudTokens): void {
         // No signal: this is a pure cache write, not session state. The kinds regulation
         // (ADR-0076 Decision 2) names this the one legitimate exception, and the name says so.
         const map = this.cache.read() ?? {};
         map[cloudId] = tokens;
         this.cache.write(map);
+    }
+
+    dropCachedCloudTokens(cloudId: string): void {
+        // No signal, for the same reason as `setCachedCloudTokens`.
+        const map = this.cache.read();
+        if (!map || !(cloudId in map)) return;
+        delete map[cloudId];
+        this.cache.write(map);
+    }
+
+    getCloudTokenOf(cloudId: string): UserTokenView | null {
+        // The committed cloud's token is the store's own, not the cache's copy: the two are written
+        // level on every commit and writeback, but the store is the one the session derives from.
+        if (this.getDelegationToken()?.cloudId === cloudId) return this.getCloudToken();
+        return this.peekCachedCloudTokens(cloudId)?.cloudToken ?? null;
+    }
+
+    getCloudIdentity(cloudId: string): CloudIdentity | null {
+        return this.identities.read()?.[cloudId] ?? null;
+    }
+
+    setCloudIdentity(cloudId: string, identity: CloudIdentity): void {
+        // No signal: nothing derives from this map yet, and a uid moves only with a new account,
+        // which announces itself through the relay token.
+        const map = this.identities.read() ?? {};
+        if (map[cloudId]?.uid === identity.uid) return;
+        map[cloudId] = identity;
+        this.identities.write(map);
+    }
+
+    getCloudIdentities(): Record<string, CloudIdentity> {
+        // A copy: the slot memoises the parsed object, and a caller mutating it would corrupt what
+        // the next read (and `setCloudIdentity`'s no-op guard) sees.
+        return { ...(this.identities.read() ?? {}) };
+    }
+
+    clearCloudIdentities(): void {
+        this.identities.clear();
     }
 
     saveSelectedCloudId(cloudId: string): void {
@@ -137,6 +211,9 @@ class CloudStore implements ICloudStore {
             this.storage.remove(CLOUD_SELECTED_PLACE_KEY);
             this.storage.remove(CLOUD_INVITED_BUNDLES_KEY);
             this.cache.clear();
+            // The identities stay: leaving a cloud does not change who this account is inside it, and
+            // the other clouds' partitions are still readable by their uid. `clearCloudIdentities` is
+            // the account-level teardown's call.
             this.signal.emit('cloud:token');
             this.signal.emit('selection');
         });

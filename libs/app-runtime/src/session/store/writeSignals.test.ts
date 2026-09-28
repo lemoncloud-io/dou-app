@@ -143,6 +143,28 @@ describe('세션 스토어 — 통지하지 않는 쓰기', () => {
         expect(mockEmitted).toEqual([]);
     });
 
+    it('dropCachedCloudTokens is the cache too — nothing is emitted', () => {
+        cloudStore.setCachedCloudTokens('cloud-1', { cloudToken: TOKEN, delegationToken: TOKEN } as never);
+        mockEmitted.length = 0;
+
+        cloudStore.dropCachedCloudTokens('cloud-1');
+
+        expect(cloudStore.peekCachedCloudTokens('cloud-1')).toBeNull();
+        expect(mockEmitted).toEqual([]);
+    });
+
+    /**
+     * The cloud identity map is derived state nobody subscribes to yet: a uid moves only with a new
+     * account, and that announces itself through the relay token. If a reader ever needs to react to
+     * it, the emit belongs here — with a kind — not in the reader.
+     */
+    it('setCloudIdentity and clearCloudIdentities emit nothing', () => {
+        cloudStore.setCloudIdentity('cloud-1', { uid: 'u1' });
+        cloudStore.clearCloudIdentities();
+
+        expect(mockEmitted).toEqual([]);
+    });
+
     it('읽기는 통지하지 않는다 — 만료된 캐시 항목을 스스로 지우는 읽기까지', () => {
         // Seed an expired entry and getCachedCloudTokens deletes it right there (it writes). Even so
         // there must be no notification: no state actually moved, and the expiry was already an
@@ -184,7 +206,11 @@ describe('세션 스토어 — 쓰기 인구조사', () => {
     it('표가 세 스토어의 쓰기 메서드를 전부 덮는다', () => {
         const covered = new Set(
             WRITES.map(entry => entry.name.replace(/\(null\)$/, '')).concat([
-                'cloudStore.setCachedCloudTokens', // covered by the exception suite above
+                // Covered by the exception suite above: the token cache and the identity map.
+                'cloudStore.setCachedCloudTokens',
+                'cloudStore.dropCachedCloudTokens',
+                'cloudStore.setCloudIdentity',
+                'cloudStore.clearCloudIdentities',
             ])
         );
 

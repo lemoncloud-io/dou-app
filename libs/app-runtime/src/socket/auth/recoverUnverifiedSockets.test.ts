@@ -22,7 +22,7 @@ jest.mock('../../session', () => new Proxy({}, { get: () => jest.fn() }));
 // the safe direction.
 jest.mock('../../session/store/stores', () => ({
     relayStore: { getIdentityToken: () => 'relay-idt' },
-    cloudStore: { getIdentityToken: () => 'cloud-idt' },
+    cloudStore: { getCloudTokenOf: () => ({ Token: { identityToken: 'cloud-idt' } }) },
 }));
 jest.mock('../../session/auth/credentialFreshness', () => ({
     credentialFreshness: { timeToExpiry: () => 30 * 60_000, isStale: () => false },
@@ -148,7 +148,7 @@ describe('recoverUnverifiedSockets', () => {
         expect(cloud.disconnect).not.toHaveBeenCalled();
     });
 
-    it('routes the re-seeded sign callback through the delegate with the slot kind', async () => {
+    it('routes the re-seeded sign callback through the delegate with the slot key', async () => {
         const order: string[] = [];
         const relay = makeClient('relay', order, { authState: 'expired' });
         const delegate = makeDelegate({ token: 'tok', authId: 'aid' });
@@ -157,7 +157,7 @@ describe('recoverUnverifiedSockets', () => {
 
         const registeredSign = relay.auth.register.mock.calls[0][0].sign;
         await registeredSign('sdk-token', { target: 'uid@sid' });
-        expect(delegate.signAuth).toHaveBeenCalledWith('relay', 'sdk-token', 'uid@sid');
+        expect(delegate.signAuth).toHaveBeenCalledWith(RELAY, 'sdk-token', 'uid@sid');
     });
 
     it('coalesces concurrent calls onto the in-flight run', async () => {

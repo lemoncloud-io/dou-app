@@ -1,3 +1,5 @@
+import { RELAY_CLOUD_ID } from '@chatic/data';
+
 import { webTransport } from './transport';
 
 import { createHttpManager } from './HttpManager';
@@ -19,7 +21,7 @@ import type { CredentialStalenessPort } from './HttpManager';
  * and `oauth`/`iap` sign with relay's credential because those hosts have none of their own — so the
  * route argument is accepted (the port is route-keyed) and answered from one owner. That mapping is
  * the whole reason this adapter exists rather than handing `credentialFreshness` straight to the
- * manager: the two speak different keys on purpose (see `CredentialOwner`).
+ * manager: the two speak different keys on purpose — routes here, the issuing server's cloud id there.
  *
  * Every read goes through the session on each call, never through a field captured at construction:
  * a credential rotation (relogin, refresh writeback) has to land on the very next request without
@@ -29,7 +31,7 @@ class SessionCredentialAdapter implements CredentialStalenessPort {
     constructor(private readonly freshness: ICredentialFreshness) {}
 
     isStale(_route: HttpRoute): boolean {
-        return this.freshness.isStale('relay');
+        return this.freshness.isStale(RELAY_CLOUD_ID);
     }
 
     /**

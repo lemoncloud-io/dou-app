@@ -1,27 +1,29 @@
-import type { SocketKind } from '../types';
+import type { SlotKey } from '../types';
 import type { AuthRegistration } from '../../session/auth/sessionAuthAdapter';
 
 /**
- * Bridges the SDK AuthController to web-core. Owned by app-runtime
- * (connection/hooks/useSocketSessionDelegate), which wires it to web-core's per-server helpers. EVERY
- * method is keyed by the socket's `kind` so relay and cloud sockets, which bootstrap independently,
- * each seed/sign/write-back/expire against their OWN server — never the global active one
- * (multi-socket-design.md §6-6, §7).
+ * Bridges the SDK AuthController to the session. Owned by app-runtime
+ * (connection/hooks/useSocketSessionDelegate), which wires it to the session's per-server helpers.
+ * EVERY method is keyed by the socket's slot — the cloud it serves — so slots that bootstrap
+ * independently each seed/sign/write-back/expire against their OWN server, never the global active
+ * one (multi-socket-design.md §6-6, §7). It used to be keyed by kind (`relay | cloud`), which could
+ * name only one cloud: the committed one. The key is a `SlotKey`, so a `'relay'`/`'cloud'` literal
+ * cannot slip through as an address.
  *
- * - `getAuthRegistration(kind)` seeds `register({ token, authId })` for that server.
- * - `signAuth(kind, token, target?)` backs the SDK stateless sign callback (`target` is the switch selector).
- * - `commitRefreshedToken(kind, view)` writes an SDK-refreshed token back into that server's store —
- *   so a refresh arriving during a switch/teardown lands in the correct store. The view is the SDK
- *   `AuthTokenView`, typed here as `unknown` because that type is not exported from the SDK package
- *   root — the web-core boundary casts it to its own `UserTokenView`.
- * - `onAuthExpired(kind)` runs teardown when a socket reaches the terminal `expired` state (relay vs
+ * - `getAuthRegistration(slot)` seeds `register({ token, authId })` for that server.
+ * - `signAuth(slot, token, target?)` backs the SDK stateless sign callback (`target` is the switch selector).
+ * - `commitRefreshedToken(slot, view)` writes an SDK-refreshed token back where that server's material
+ *   lives — so a refresh arriving during a switch/teardown lands in the correct place. The view is the
+ *   SDK `AuthTokenView`, typed here as `unknown` because that type is not exported from the SDK
+ *   package root — the session boundary casts it to its own `UserTokenView`.
+ * - `onAuthExpired(slot)` runs teardown when a socket reaches the terminal `expired` state (relay and a
  *   cloud escalate differently — §6-10).
  */
 export interface SocketSessionDelegate {
-    getAuthRegistration(kind: SocketKind): Promise<AuthRegistration | null>;
-    signAuth(kind: SocketKind, token: string, target?: string): Promise<{ signature: string; current: string }>;
-    commitRefreshedToken(kind: SocketKind, view: unknown): Promise<void> | void;
-    onAuthExpired?(kind: SocketKind): Promise<void> | void;
+    getAuthRegistration(slot: SlotKey): Promise<AuthRegistration | null>;
+    signAuth(slot: SlotKey, token: string, target?: string): Promise<{ signature: string; current: string }>;
+    commitRefreshedToken(slot: SlotKey, view: unknown): Promise<void> | void;
+    onAuthExpired?(slot: SlotKey): Promise<void> | void;
 }
 
 /**
