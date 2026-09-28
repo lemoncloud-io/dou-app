@@ -48,7 +48,7 @@ import {
 } from '../components';
 import { getCloudDisplayName } from '../components/cloud-session';
 import { divergenceReporter } from '../../../runtime/logging/divergenceReporter';
-import { useAddCloudFlow, useHomePlaces, useSwitchPlace } from '../hooks';
+import { useAddCloudFlow, useHomePlaces, useHomeSections, useSwitchPlace } from '../hooks';
 import {
     useCachedCloudNames,
     useChatSyncRegistration,
@@ -279,6 +279,9 @@ export const HomePage = () => {
     // screen or the desktop favorites star). Pinned rows float above the chosen sort order.
     const { pinnedIds } = usePinnedChannels(placeScope);
     const pinnedChannelIds = useMemo(() => new Set(pinnedIds), [pinnedIds]);
+    // Which sections are folded. App-wide, unlike sort and pins: it is about how home is used, so
+    // it holds across clouds and places, and survives leaving home and relaunching.
+    const homeSections = useHomeSections();
     const { toast } = useToast();
 
     // Invite flow tail: the accept pipeline lands here and stashes the invited channel, then we open
@@ -465,6 +468,8 @@ export const HomePage = () => {
                         onCreatePlace={handleCreatePlace}
                         isInvitedCloud={isInvitedCloud}
                         canAddPlace={canAddPlace}
+                        open={homeSections.isOpen('places')}
+                        onOpenChange={open => homeSections.setOpen('places', open)}
                     />
                 )}
 
@@ -501,6 +506,8 @@ export const HomePage = () => {
                         }
                         sentInvites={isDefaultCloud ? sentInvites : []}
                         onSelectInvite={inviteId => navigate(ROUTES.invite.waiting(inviteId))}
+                        open={homeSections.isOpen('channels')}
+                        onOpenChange={open => homeSections.setOpen('channels', open)}
                     />
                 ) : !isPlacesLoading && !isSwitching ? (
                     // No place is active in this cloud (none to auto-select) — guide the user to
@@ -542,6 +549,8 @@ export const HomePage = () => {
                         emptyLabel={t('cloudDm.section.empty')}
                         sortMethod={channelSortMethod}
                         sentInvites={[]}
+                        open={homeSections.isOpen('cloudDm')}
+                        onOpenChange={open => homeSections.setOpen('cloudDm', open)}
                     />
                 )}
 

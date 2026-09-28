@@ -101,8 +101,8 @@ irrelevant.
 **Non-`dev` keys are exempt because the lock guards QA levers, not people.** The lock exists to stop
 a QA override of a developer-facing default from taking effect in a stranger's PROD build. It was
 never meant to stop the app persisting a routine action — pinning a channel, muting push, picking a
-theme. Six keys are `writableBy: ['local']` and nothing else; without this exemption all six would be
-permanently dead on PROD, since they have no other writer to fall back to. `surface` already draws
+theme. Eight non-`dev` keys are `writableBy: ['local']` and nothing else; without this exemption all
+eight would be permanently dead on PROD, since they have no other writer to fall back to. `surface` already draws
 that line, so the gate reads it rather than inventing a second one.
 
 ### Where the unlock itself comes from

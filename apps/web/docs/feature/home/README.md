@@ -28,8 +28,10 @@ What it owns of each is the entry point and nothing behind it.
 1. **Assemble from `@chatic/web-ui-kit`.** Header, avatars, badges, rows, sections and sheets come
    from the kit. A colour hex or an icon written directly into a home component is the violation; a
    missing primitive is added to the kit and then used.
-2. **The host owns state.** Kit components are stateless. Collapsed sections, open dropdowns and the
-   selected row are held by `HomePage` or by the list that renders them.
+2. **The host owns state.** Kit components hold no product state. Open dropdowns and the selected
+   row are held by `HomePage` or by the list that renders them. A `CollapsibleSection` can keep its
+   own open/closed fallback, but home does not rely on it: `HomePage` controls every section from a
+   stored record — see [Folded sections](#folded-sections).
 3. **One active place.** Selecting a place switches the backend active site and the Chat section
    follows it. Channels of several places are never fetched at once.
 4. **Relay hides places, it does not disconnect them.** The relay has exactly one place and it is
@@ -119,6 +121,25 @@ initials, since `CloudView` carries no image field, beside the cloud name — re
 first and the relay catalog second, so a rename shows immediately. On a cold start with neither, the
 header shows a loading placeholder rather than a nameless circle. The Place section lists the cloud's
 places, the selected one carrying a badge and the others a dot when they have unread.
+
+## Folded sections
+
+Places, Chat Rooms and the cloud 1:1 section each fold independently, and the fold is remembered.
+`useHomeSections` reads and writes the `ui.homeSectionsCollapsed` config key (`persist: 'local'`),
+and `HomePage` passes each list a controlled `open`/`onOpenChange` under its own id — `places`,
+`channels`, `cloudDm`. The place rooms and the cloud 1:1s are the same `ChannelList`, so the id is
+what keeps folding one from folding the other.
+
+It is not left to `CollapsibleSection`'s own state because that state lives only as long as the
+section is mounted, and in ordinary use it is not: a reload, leaving home and coming back, and a
+switch between relay and a cloud (which mounts or drops the Place and cloud 1:1 sections) each start
+it over. So does a cold cloud switch, where the Chat section gives way to the loading state until a
+place is selected. The skeleton-to-list swap inside the Place section is not one of these — both
+render the same section, so React keeps it — but both branches still forward `open`.
+
+The record is **app-wide**, not per cloud or place like sort and pins — folding Chat Rooms says how
+a person uses home, not something about one place. It stores the folded ids only, so an absent or
+corrupt record means everything open, which is the default it always had.
 
 ## Switching
 
