@@ -2,6 +2,12 @@
 
 ## [2026-09-28] - No version updates
 
+### Bug Fixes
+
+- (web/home) fall back from a stored place once the list prunes it, not while it is uncached
+
+## [2026-09-28] - No version updates
+
 ### Features
 
 - (app-runtime) key socket auth by the slot's cloud, not the server kind (ADR-0117)
