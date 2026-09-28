@@ -6,3 +6,4 @@ export * from './remote/gateways';
 export * from './remote/socket-data-sources';
 export * from './remote/http-data-sources';
 export * from './repositories';
+export * from './uploads';

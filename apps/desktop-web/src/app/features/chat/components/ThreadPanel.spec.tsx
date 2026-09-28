@@ -118,8 +118,8 @@ describe('ThreadPanel', () => {
         expect(screen.getByRole('heading', { name: 'Error report' })).toBeTruthy();
     });
 
-    // Same renderer, and `blocks$` (server field) outranks `content` JSON — priority:
-    // knowledge#319 SPEC.md §6-1. `MessageList.spec` asserts the same thing through
+    // Same renderer, and `blocks$` (server field) outranks `content` JSON. `MessageList.spec`
+    // asserts the same thing through
     // the feed; this pins that the thread panel does not grow a second reader.
     it('draws a blocks$ reply ahead of its content', () => {
         messages = [
@@ -129,7 +129,7 @@ describe('ThreadPanel', () => {
                 content: WEBHOOK_SEND_ERROR_REPORT.content,
                 blocks$: [...WEBHOOK_BLOCKS_ERROR_REPORT],
                 // Pins buildMessageRows' `stereo === 'system'` branch: a webhook chat is a
-                // user bubble, not a system notice (knowledge#319 SPEC 6-3).
+                // user bubble, not a system notice.
                 stereo: WEBHOOK_SEND_ERROR_REPORT.stereo,
             } as Partial<DomainChat>),
         ];

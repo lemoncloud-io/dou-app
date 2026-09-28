@@ -21,6 +21,8 @@ import type { ICloudSocketDataSource } from './CloudSocketDataSource';
 import { CloudSocketDataSource } from './CloudSocketDataSource';
 import type { IProfileSocketDataSource } from './ProfileSocketDataSource';
 import { ProfileSocketDataSource } from './ProfileSocketDataSource';
+import type { IUploadSocketDataSource } from './UploadSocketDataSource';
+import { UploadSocketDataSource } from './UploadSocketDataSource';
 
 export * from './AuthSocketDataSource';
 export * from './ChannelSocketDataSource';
@@ -33,6 +35,7 @@ export * from './DeviceSocketDataSource';
 export * from './ConnectionSocketDataSource';
 export * from './CloudSocketDataSource';
 export * from './ProfileSocketDataSource';
+export * from './UploadSocketDataSource';
 
 export interface SocketDataSources {
     auth: IAuthSocketDataSource;
@@ -46,6 +49,7 @@ export interface SocketDataSources {
     connection: IConnectionSocketDataSource;
     cloud: ICloudSocketDataSource;
     profile: IProfileSocketDataSource;
+    upload: IUploadSocketDataSource;
 }
 
 /**
@@ -63,4 +67,5 @@ export const createSocketDataSources = ({ gateways }: { gateways: SocketGatewayB
     connection: new ConnectionSocketDataSource(gateways.connection),
     cloud: new CloudSocketDataSource(gateways.cloud),
     profile: new ProfileSocketDataSource(gateways.profile),
+    upload: new UploadSocketDataSource(gateways.upload),
 });

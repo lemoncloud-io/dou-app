@@ -1,15 +1,15 @@
 # remote/socket — the socket axis
 
-> Status: Live · Last updated: 2026-09-23 · Shared contract in the [remote README](./README.md) · Canonical code: [gateways/socket.ts](../../src/remote/gateways/socket.ts) · [socket-data-sources/](../../src/remote/socket-data-sources/)
+> Status: Live · Last updated: 2026-09-28 · Shared contract in the [remote README](./README.md) · Canonical code: [gateways/socket.ts](../../src/remote/gateways/socket.ts) · [socket-data-sources/](../../src/remote/socket-data-sources/)
 
-The remote axis that uses socket transport. It has 11 domains. For the HTTP axis see [http.md](./http.md).
+The remote axis that uses socket transport. It has 12 domains. For the HTTP axis see [http.md](./http.md).
 
 ## Layout
 
 ```text
 remote/
   gateways/socket.ts       SocketGatewayBundle + per-domain Pick<>
-  socket-data-sources/     11 SocketDataSources + createSocketDataSources
+  socket-data-sources/     12 SocketDataSources + createSocketDataSources
 ```
 
 Bundle keys are **app-side domain names**, not wire module names. Just as `join` folds in `chat.read`, and
@@ -35,6 +35,7 @@ type from them. Some domains bundle several source gateways (`join`, `place`, `u
 | `CloudSocketDomainGateway`      | `Pick<CloudGateway, 'update' \| 'get'>`                                                                                       | `CloudSocketDataSource`      |
 | `ProfileSocketDomainGateway`    | `Pick<ProfileGateway, 'get' \| 'getMine' \| 'set' \| 'sync'>`                                                                 | `ProfileSocketDataSource`    |
 | `ConnectionSocketDomainGateway` | `Pick<DomainGateway, 'request'>`                                                                                              | `ConnectionSocketDataSource` |
+| `UploadSocketDomainGateway`     | `Pick<UploadGateway, 'start' \| 'complete'>`                                                                                  | `UploadSocketDataSource`     |
 
 Design points:
 
@@ -44,6 +45,25 @@ Design points:
 - **User** includes the account profile (`user.profile`). The site (place) profile is a separate domain, owned entirely by `ProfileSocketDomainGateway`.
 - **Auth**'s `linkAccount` is the unified account-proof packet: phone/email/social × link/login × send/resend/verify/confirm in one. Three things are left out of it, all deliberately → [where absence is the contract](#where-absence-is-the-contract).
 - **Connection**'s bundle key is `connection` while its wire module is `sockets` (action `sockets/find-connection`).
+- **Upload** exposes `start` / `complete` only → [upload](#upload).
+- **Chat's `send` takes `-lib`'s `ChatSendInput`.** `@lemoncloud/chatic-sockets-api` and `-lib` both export a type of that name, and only `-lib`'s carries `uploadIds`. Importing the `-api` one still compiles — it just drops attachments from every caller's type — so `ChatSocketDataSource` and `ChatRepository` import it from `-lib` on purpose.
+
+### Upload
+
+`upload.start` declares the slots of an image message and answers one ticket per slot — a presigned
+PUT for the original and, when a thumbnail was declared, one for it. `upload.complete` settles the
+slots, failed transfers included, and answers each upload's final status. `upload.read` is left out:
+it is owner-only, and `complete` already says everything the send sequence needs.
+
+Two things differ from every other data source here:
+
+- **It maps nothing and caches nothing.** A ticket holds signed URLs, which must not be stored, and
+  the message row — not the upload — is what a screen renders. `ChatRepository.startUploads` /
+  `completeUploads` pass it straight through.
+- **It checks the answer's shape.** The SDK's upload response types resolve to `any` under the
+  current `lemon-model` pin, so `UploadSocketDataSource` runs each answer through the guard in
+  `uploads/types.ts`. A malformed answer rejects the operation — see
+  [the response mirror](../uploads/README.md#the-response-mirror).
 
 ### Where absence is the contract
 

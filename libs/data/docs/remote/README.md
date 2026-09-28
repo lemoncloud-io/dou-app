@@ -1,6 +1,6 @@
 # remote — outbound server calls
 
-> Status: Live · Last updated: 2026-09-14 · Overview in the [lib README](../../README.md) · Canonical code: [gateways/](../../src/remote/gateways/) · Per-axis detail in [socket.md](./socket.md) · [http.md](./http.md)
+> Status: Live · Last updated: 2026-09-28 · Overview in the [lib README](../../README.md) · Canonical code: [gateways/](../../src/remote/gateways/) · Per-axis detail in [socket.md](./socket.md) · [http.md](./http.md)
 
 The remote layer handles **outbound server calls** and nothing else. It is a thin gateway wrapper; it
 knows nothing about the socket connection's lifecycle, reconnection, or sync timing.
@@ -19,7 +19,7 @@ remote/
     http.ts                HttpGatewayBundle + per-domain Pick<>
     index.ts               barrel
     __mocks__/             createMockSocketGateways (socket axis only)
-  socket-data-sources/     11 SocketDataSources + createSocketDataSources
+  socket-data-sources/     12 SocketDataSources + createSocketDataSources
   http-data-sources/       5 HttpDataSources + createHttpDataSources
 ```
 
@@ -28,8 +28,8 @@ The two are deliberately symmetric. What one axis does, the other does in the sa
 |                     | Socket axis                              | HTTP axis                              |
 | ------------------- | ---------------------------------------- | -------------------------------------- |
 | Gateway types       | `gateways/socket.ts`                     | `gateways/http.ts`                     |
-| Bundle              | `SocketGatewayBundle` (11 domains)       | `HttpGatewayBundle` (5 domains)        |
-| Data sources        | `socket-data-sources/` (11)              | `http-data-sources/` (5)               |
+| Bundle              | `SocketGatewayBundle` (12 domains)       | `HttpGatewayBundle` (5 domains)        |
+| Data sources        | `socket-data-sources/` (12)              | `http-data-sources/` (5)               |
 | Factory             | `createSocketDataSources({ gateways })`  | `createHttpDataSources({ gateways })`  |
 | Composition root    | app-runtime `factories/socketFactory.ts` | app-runtime `factories/httpFactory.ts` |
 | Types come from     | `@lemoncloud/chatic-sockets-lib`         | `@chatic/http`                         |
@@ -38,7 +38,7 @@ The two are deliberately symmetric. What one axis does, the other does in the sa
 
 | Document                 | What it covers                                                                                |
 | ------------------------ | --------------------------------------------------------------------------------------------- |
-| [socket.md](./socket.md) | 11 gateway mappings, where absence is the contract, routing (`RoutedGateway`), request limits |
+| [socket.md](./socket.md) | 12 gateway mappings, where absence is the contract, routing (`RoutedGateway`), request limits |
 | [http.md](./http.md)     | 5 gateway Picks, why it holds no cache, the admin console surface, the report lane            |
 
 ## The shared contract

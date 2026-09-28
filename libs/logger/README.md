@@ -30,8 +30,7 @@ into Crashlytics belongs to `apps/mobile`. This package decides what an entry _i
 and what leaves it.
 
 It is also not the trigger catalogue. Which situations deserve a log line, at which level and under
-which tag, is decided outside the repo, in the knowledge vault
-(`projects/@lemoncloud-io/dou-app/log-collection/triggers.md`). `KNOWN_LOG_TAGS` mirrors that table
+which tag, is decided outside the repo, in the trigger catalogue. `KNOWN_LOG_TAGS` mirrors that table
 so a call site can be checked against it — see [docs/entries/](./docs/entries/README.md#tags).
 
 ## Design principles
@@ -60,7 +59,7 @@ scheduler, and the structured-observation discriminator and the foreign-drop agg
 and host wiring (`apps/web`, `apps/mobile`), the web→native relay and the `AppLogInfo` codec
 (`libs/bridges`), the bridge message types (`libs/app-messages`), Crashlytics and the native logger
 modules (`apps/mobile`), the admin console that reads the stored logs (`apps/admin-v2`), performance
-traces (`libs/perf`), and the trigger catalogue itself (knowledge vault).
+traces (`libs/perf`), and the trigger catalogue itself (kept outside the repo).
 
 ## Structure
 
