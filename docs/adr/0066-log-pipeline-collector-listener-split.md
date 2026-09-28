@@ -580,7 +580,7 @@ phrase "implemented separately," but leaves identical code duplicated twice. Not
   listener uses this as-is, a loop runs: `storage failure → log published → hub → storer listener → storage
 failure`. Today's direct `createMMKV()` call happens (intentionally or not) to avoid this loop. **Reuse the @mmkv
   module, but give it an instance that doesn't log on the log path** — failures go to `console` only. This is the
-  storage-path version of the same rule as vault catalog §prohibition 4 ("never call `logger` on the send path").
+  storage-path version of the trigger catalogue's rule "never call `logger` on the send path".
 - **The `libs/logger` → `apps/web` direction reverses.** As the uploader moves into logger, the wiring that injects
   the source and `send` grows. Accepted as the cost of having one composition point.
 - **Documentation debt.** `libs/logger/docs/architecture.md` went Live in `e1bb4376`, and this ADR invalidates a

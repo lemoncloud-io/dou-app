@@ -8,8 +8,8 @@
 produce it, the bridge carries it without rewriting it, and the server stores it. This document is
 what the shape means and what a call site is allowed to put in it.
 
-It is not the list of situations that deserve an entry. That catalogue is canonical in the knowledge
-vault (`projects/@lemoncloud-io/dou-app/log-collection/triggers.md`); what lives here is the shape
+It is not the list of situations that deserve an entry. That catalogue is canonical outside this
+repo; what lives here is the shape
 the catalogue's rows are written in.
 
 ## Layout
@@ -140,7 +140,7 @@ still suggests them.
 | Storage             | `CACHE` `STORAGE` `SQLITE` `PREFERENCE` `LOG_BUFFER`                                                                                                      |
 | Native capabilities | `WEBVIEW` `NOTIFICATION` `PUSH_EVENT` `DEEPLINK` `UPLOAD` `FILE` `DEVICE` `PERMISSION` `CLIPBOARD` `SMS` `OAUTH` `APP_ICON` `VERSION` `FIREBASE` `UNFURL` |
 
-**This constant mirrors the catalogue and is not itself the source of truth.** When the vault table
+**This constant mirrors the catalogue and is not itself the source of truth.** When the catalogue
 changes, this follows — never the other way round. `isKnownLogTag` answers whether a string is on the
 list, for diagnostics and tests; it is never a runtime gate.
 

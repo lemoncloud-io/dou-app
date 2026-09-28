@@ -14,7 +14,7 @@ which splits into **websocket if connected, push otherwise.**
 | Push      | —                                                 | `type: 'cloud'` · `title_loc_key: 'push_cloud_activate_title'` · `title_loc_args: [name \|\| id]` · `data: { cid, uid }`. No `loc_key`, `link`, or `channel_id` |
 | Websocket | `type: 'cloud.activated'` · `subject: cloud:<id>` | `data: { id, name }`                                                                                                                                            |
 
-The canonical spec lives in vault's `dou-app/push-payload`, confirmed by the app team. The server
+The canonical spec is kept outside this repo and was confirmed by the app team. The server
 does not change this spec. But **the app has not yet adopted that confirmed spec**, so if the
 server deploys first, notifications break or misbehave. Gaps found by inspecting the code:
 
@@ -185,6 +185,5 @@ push tap (decision 3).
 ## References
 
 - Server spec — `chatic-backend-api/specs/cloud-ready-push` (high-levels, SPEC, PLAN)
-- Canonical spec — vault `dou-app/push-payload`
 - App push architecture — [apps/mobile/docs/push.md](../../apps/mobile/docs/push/README.md)
 - Cross-cloud push mark — [ADR-0056](0056-place-cloud-unread-dot-from-cache-and-push.md)
