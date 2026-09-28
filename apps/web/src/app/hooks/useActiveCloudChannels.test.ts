@@ -26,11 +26,13 @@ const observeListMock = jest.fn();
 
 const channel = (id: string, sid: string): DomainChannel => ({ id, sid }) as unknown as DomainChannel;
 
-// Wire observeList to immediately emit the given rows and return a disposer spy.
+// Wire observeList to immediately emit the given rows and return a disposer spy. Each row is stamped
+// with the cid of the scope it was observed under, as a cache row of that partition carries, unless
+// the case gives it one of its own.
 const emit = (rows: DomainChannel[]) => {
     const dispose = jest.fn();
-    observeListMock.mockImplementation((_query, cb) => {
-        cb({ list: rows });
+    observeListMock.mockImplementation((_query, cb, scope?: { cid?: string }) => {
+        cb({ list: rows.map(row => ({ cid: scope?.cid, ...row })) });
         return dispose;
     });
     return dispose;
@@ -52,6 +54,29 @@ beforeEach(() => {
 });
 
 describe('useActiveCloudChannelsSource — 클라우드 전체 채널 구독', () => {
+    it("never hands out the previous cloud's rows, not even in the render where the selection moves", () => {
+        // Each rendered row registers its channel's sync target under the selected cloud, whose
+        // socket — with a background session per cloud — is already up for the stale ids.
+        emit([channel('a1', 's1')]);
+        const seen: Array<{ ids: string[]; isLoaded: boolean }> = [];
+        const { rerender } = renderHook(() => {
+            const result = useActiveCloudChannelsSource();
+            seen.push({ ids: result.channels.map(c => c.id), isLoaded: result.isLoaded });
+            return result;
+        });
+        expect(seen.at(-1)?.ids).toEqual(['a1']);
+        const before = seen.length;
+
+        setSelection('cloud-B');
+        emit([]);
+        rerender();
+
+        const afterSwitch = seen.slice(before);
+        expect(afterSwitch.length).toBeGreaterThan(0);
+        expect(afterSwitch.every(render => !render.ids.includes('a1'))).toBe(true);
+        expect(afterSwitch.every(render => !render.isLoaded)).toBe(true);
+    });
+
     it('빈 sid로 클라우드 전체 채널을 구독하고 {cid, uid} 스코프로 고정한다', () => {
         emit([channel('c1', 's1'), channel('c2', 's2')]);
 

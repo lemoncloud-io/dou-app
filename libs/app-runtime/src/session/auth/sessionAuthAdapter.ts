@@ -263,10 +263,9 @@ class SessionAuthAdapter implements ISessionAuthAdapter {
         // committed cloud and must not move for a refresh that belongs to another one.
         const cached = cloudStore.peekCachedCloudTokens(cid);
         if (!cached) {
-            // The slot registered from this entry, so it is gone because the cloud was dropped
-            // (terminal expiry, a cloud logout) — or because leaving the COMMITTED cloud cleared the
-            // whole cache, which `clearSession` still does today. Say so; there is nothing to merge
-            // into, and the slot re-registers from a fresh issue on its next renewal.
+            // The slot registered from this entry, so it is gone because the cloud was dropped —
+            // its terminal expiry, or the account's logout. Say so; there is nothing to merge into,
+            // and the slot re-registers from a fresh issue on its next renewal.
             logger.warn(
                 'AUTH',
                 '[commitRefreshedToken] no cached tokens for a non-committed cloud — writeback dropped',

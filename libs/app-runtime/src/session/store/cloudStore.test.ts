@@ -116,13 +116,10 @@ describe('cloudStore — cloud identities', () => {
 
     it('survives clearSession — leaving a cloud is not a change of account', () => {
         cloudStore.setCloudIdentity('cloud-1', { uid: 'u1' });
-        cloudStore.setCachedCloudTokens('cloud-1', tokens('one'));
 
         cloudStore.clearSession();
 
         expect(cloudStore.getCloudIdentity('cloud-1')).toEqual({ uid: 'u1' });
-        // The token cache does go with the session, as before.
-        expect(cloudStore.peekCachedCloudTokens('cloud-1')).toBeNull();
     });
 
     it('clearCloudIdentities forgets every cloud', () => {
@@ -140,5 +137,79 @@ describe('cloudStore — cloud identities', () => {
         cloudStore.setCloudIdentity('cloud-1', { uid: 'u1' });
 
         expect(mockSets.length).toBe(writesBefore);
+    });
+});
+
+describe("cloudStore — leaving the committed cloud keeps every cloud's cached tokens", () => {
+    it('clearSession leaves the per-cloud cache in place', () => {
+        // The clouds other than the committed one keep background socket sessions that sign from
+        // this cache; clearing it on leaving one cloud would strand every one of them.
+        cloudStore.setCachedCloudTokens('cloud-1', tokens('one'));
+        cloudStore.setCachedCloudTokens('cloud-2', tokens('two'));
+
+        cloudStore.clearSession();
+
+        expect(cloudStore.peekCachedCloudTokens('cloud-1')?.cloudToken.Token?.identityToken).toBe('one');
+        expect(cloudStore.peekCachedCloudTokens('cloud-2')?.cloudToken.Token?.identityToken).toBe('two');
+    });
+
+    it('clearCachedCloudTokens forgets every cloud', () => {
+        cloudStore.setCachedCloudTokens('cloud-1', tokens('one'));
+        cloudStore.setCachedCloudTokens('cloud-2', tokens('two'));
+
+        cloudStore.clearCachedCloudTokens();
+
+        expect(cloudStore.peekCachedCloudTokens('cloud-1')).toBeNull();
+        expect(cloudStore.peekCachedCloudTokens('cloud-2')).toBeNull();
+    });
+});
+
+describe('cloudStore — recently entered clouds', () => {
+    it('is empty before any cloud is entered', () => {
+        expect(cloudStore.getRecentClouds()).toEqual([]);
+    });
+
+    it('puts the latest cloud first and moves a re-entered one to the front', () => {
+        cloudStore.recordCloudUse('cloud-1');
+        cloudStore.recordCloudUse('cloud-2');
+        cloudStore.recordCloudUse('cloud-1');
+
+        expect(cloudStore.getRecentClouds()).toEqual(['cloud-1', 'cloud-2']);
+    });
+
+    it('does not rewrite storage when the cloud is already the most recent', () => {
+        cloudStore.recordCloudUse('cloud-1');
+        const writesBefore = mockSets.length;
+
+        cloudStore.recordCloudUse('cloud-1');
+
+        expect(mockSets.length).toBe(writesBefore);
+    });
+
+    it('keeps at most 20 clouds, dropping the oldest', () => {
+        for (let i = 0; i < 25; i += 1) cloudStore.recordCloudUse(`cloud-${i}`);
+
+        const recent = cloudStore.getRecentClouds();
+        expect(recent).toHaveLength(20);
+        expect(recent[0]).toBe('cloud-24');
+        expect(recent).not.toContain('cloud-4');
+    });
+
+    it('survives clearSession and goes with clearRecentClouds', () => {
+        cloudStore.recordCloudUse('cloud-1');
+
+        cloudStore.clearSession();
+        expect(cloudStore.getRecentClouds()).toEqual(['cloud-1']);
+
+        cloudStore.clearRecentClouds();
+        expect(cloudStore.getRecentClouds()).toEqual([]);
+    });
+
+    it('hands out a copy, so a caller cannot corrupt the stored list', () => {
+        cloudStore.recordCloudUse('cloud-1');
+
+        cloudStore.getRecentClouds().push('cloud-x');
+
+        expect(cloudStore.getRecentClouds()).toEqual(['cloud-1']);
     });
 });

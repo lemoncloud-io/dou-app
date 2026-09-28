@@ -50,6 +50,8 @@ jest.mock('../socket/runtime', () => {
 });
 // Sync has its own creation point now (socket/sync/runtime.ts); SocketBinder reaches it directly.
 jest.mock('../socket/sync/runtime', () => ({ getSyncManager: jest.fn() }));
+// Background clouds' token preparation has its own tests; the host's job here is only the sockets.
+jest.mock('./hooks/useBackgroundCloudTokens', () => ({ useBackgroundCloudTokens: jest.fn() }));
 
 // SPREAD the real module: `useRelaySessionKeepAlive` (mounted by this host, from its concrete path)
 // reaches `useSessionAuth` → `subscribeSessionSignal` + `getSessionAuthSnapshot`, which live here. A

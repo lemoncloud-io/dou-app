@@ -1,6 +1,7 @@
 import { logoutCloudSession } from './logoutCloudSession';
 import { cloudSession } from '../../session/auth/cloudSession';
 import { getCommittedCloudId } from '../../session/store';
+import { backgroundClouds, resetBackgroundClouds } from '../backgroundClouds';
 import { getSocketManager } from '../runtime';
 import { RELAY_SLOT } from '../utils/slotKey';
 
@@ -14,6 +15,19 @@ jest.mock('../../session/auth/cloudSession', () => ({
 
 jest.mock('../../session/store', () => ({
     getCommittedCloudId: jest.fn(),
+}));
+
+const mockRecentClouds = jest.fn((): string[] => []);
+/** Every cloud has a complete cached entry unless a case says otherwise. */
+const mockPeekCached = jest.fn((_cid: string): unknown => ({
+    delegationToken: { wss: 'wss://cloud' },
+    cloudToken: { Token: { identityToken: 'token' } },
+}));
+jest.mock('../../session/store/stores', () => ({
+    cloudStore: {
+        getRecentClouds: () => mockRecentClouds(),
+        peekCachedCloudTokens: (cid: string) => mockPeekCached(cid),
+    },
 }));
 
 jest.mock('../runtime', () => ({
@@ -36,6 +50,8 @@ const managerWith = (bySlot: { relay?: unknown; cloud?: unknown }) =>
 describe('logoutCloudSession', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        resetBackgroundClouds();
+        mockRecentClouds.mockReturnValue([]);
         mockedGetCommittedCloudId.mockReturnValue('cloud-1');
     });
 
@@ -69,5 +85,40 @@ describe('logoutCloudSession', () => {
 
         expect(cloudLogout).not.toHaveBeenCalled();
         expect(mockedLogoutCloud).toHaveBeenCalledTimes(1);
+    });
+
+    it('does NOT log out of a cloud that stays a background session — leaving is not signing out', async () => {
+        backgroundClouds.setJoined(['cloud-1', 'cloud-2']);
+        const cloudLogout = jest.fn().mockResolvedValue(undefined);
+        mockedGetManager.mockReturnValue(managerWith({ cloud: { logout: cloudLogout } }));
+
+        await logoutCloudSession();
+
+        expect(cloudLogout).not.toHaveBeenCalled();
+        expect(mockedLogoutCloud).toHaveBeenCalledTimes(1);
+    });
+
+    it('logs out of a kept cloud whose cached entry its slot could not sign from — it will be torn down', async () => {
+        backgroundClouds.setJoined(['cloud-1']);
+        mockPeekCached.mockReturnValueOnce(null);
+        const cloudLogout = jest.fn().mockResolvedValue(undefined);
+        mockedGetManager.mockReturnValue(managerWith({ cloud: { logout: cloudLogout } }));
+
+        await logoutCloudSession();
+
+        expect(cloudLogout).toHaveBeenCalledTimes(1);
+    });
+
+    it('logs out of a cloud the cap leaves out, even though the account still belongs to it', async () => {
+        // Six joined clouds, cloud-1 the least recent: with nothing committed the five kept are
+        // cloud-2..cloud-6, so cloud-1's socket is about to be torn down and is told so.
+        backgroundClouds.setJoined(['cloud-1', 'cloud-2', 'cloud-3', 'cloud-4', 'cloud-5', 'cloud-6']);
+        mockRecentClouds.mockReturnValue(['cloud-2', 'cloud-3', 'cloud-4', 'cloud-5', 'cloud-6', 'cloud-1']);
+        const cloudLogout = jest.fn().mockResolvedValue(undefined);
+        mockedGetManager.mockReturnValue(managerWith({ cloud: { logout: cloudLogout } }));
+
+        await logoutCloudSession();
+
+        expect(cloudLogout).toHaveBeenCalledTimes(1);
     });
 });

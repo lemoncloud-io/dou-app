@@ -1089,3 +1089,45 @@ describe('SocketManager 재연결 진단 (ADR-0099)', () => {
         expect(() => new SocketManager().ensure(onRelay(CONFIG))).not.toThrow();
     });
 });
+
+describe('SocketManager slot statuses', () => {
+    beforeEach(() => {
+        mockedCreate.mockReset();
+    });
+
+    it('lists every bound slot, relay first, with the active one marked and its reconnects counted', () => {
+        const relay = makeClient();
+        const cloudA = makeClient({ state: 'idle' } as never);
+        const cloudB = makeClient();
+        // In the order the slots are ensured below.
+        mockedCreate.mockReturnValueOnce(cloudA).mockReturnValueOnce(cloudB).mockReturnValueOnce(relay);
+        const manager = new SocketManager();
+        manager.ensure(onCloud({ url: 'wss://a', deviceId: 'device-1', wssType: 'cloud' }));
+        manager.ensure({ url: 'wss://b', deviceId: 'device-1', wssType: 'cloud', cid: 'cloud-2' });
+        manager.ensure(onRelay(CONFIG));
+        manager.setActiveSlot(CLOUD);
+        // cloud-2 connects twice; only relay is authenticated.
+        const emitB = cloudB.onState.mock.calls[0][0] as (event: { next: string }) => void;
+        emitB({ next: 'connected' });
+        emitB({ next: 'closed' });
+        emitB({ next: 'connected' });
+        manager.setAuthenticated(RELAY, true);
+
+        const statuses = manager.getSlotStatuses();
+
+        expect(statuses[0]).toEqual(
+            expect.objectContaining({ key: RELAY, kind: 'relay', active: false, verified: true })
+        );
+        expect(statuses.slice(1)).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({ key: CLOUD, kind: 'cloud', active: true, state: 'idle', verified: false }),
+                expect.objectContaining({ key: 'cloud-2', active: false, state: 'connected', connectCount: 2 }),
+            ])
+        );
+        expect(statuses).toHaveLength(3);
+    });
+
+    it('is empty with nothing bound', () => {
+        expect(new SocketManager().getSlotStatuses()).toEqual([]);
+    });
+});

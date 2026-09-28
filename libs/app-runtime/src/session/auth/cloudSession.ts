@@ -20,9 +20,20 @@ import { issueCloudTokens } from './cloudTokens';
  * The token exchange itself stays in `./cloudTokens` — it is shared with the renewal path, which
  * enters through `socket/auth/renewCloudSession` rather than through this class.
  */
+export interface SwitchCloudOptions {
+    /**
+     * `cloudId` already has a socket session up — a background slot. The switch then commits the
+     * cached tokens that socket registered with, as they are, instead of re-issuing ones about to
+     * lapse: the socket keeps signing with whatever the committed store holds, and a token it never
+     * registered would not sign for it. Renewing a lapsing one stays the credential guard's job,
+     * which re-registers the socket as it re-issues.
+     */
+    hasLiveSlot?: boolean;
+}
+
 export interface ICloudSession {
     /** Enters `cloudId`: optimistic cid pre-apply, token exchange, commit. Rolls back on failure. */
-    switchTo(cloudId: string): Promise<CloudSessionSnapshot>;
+    switchTo(cloudId: string, options?: SwitchCloudOptions): Promise<CloudSessionSnapshot>;
     /** Clears the cloud stores, keeping relay. NOT the app-facing logout — see the method doc. */
     clearStores(): void;
     /** Moves (or rolls back) the selected site. */
@@ -48,7 +59,7 @@ class CloudSession implements ICloudSession {
      * in `applySelectedSite`). Tokens are persisted only on success, so a failed exchange rolls
      * cid/sid back to the previous cloud and the previous cloud's tokens stay valid.
      */
-    async switchTo(cloudId: string): Promise<CloudSessionSnapshot> {
+    async switchTo(cloudId: string, { hasLiveSlot = false }: SwitchCloudOptions = {}): Promise<CloudSessionSnapshot> {
         const previousCloudId = cloudStore.getSelectedCloudId();
         const previousSiteId = cloudStore.getSelectedSiteId();
         const isCloudChange = previousCloudId !== cloudId;
@@ -67,9 +78,9 @@ class CloudSession implements ICloudSession {
             // reads immediately on a re-switch (multi-socket-design.md perf: cloud-switch cache warmth).
             // The exchange itself lives in `./cloudTokens`, shared with the renewal path that re-issues
             // the cloud we are already in (which passes allowCache: false — see that module).
-            const { delegationToken: cloudDelegationToken, cloudToken: userToken } = await issueCloudTokens(cloudId, {
-                allowCache: true,
-            });
+            const live = hasLiveSlot ? cloudStore.peekCachedCloudTokens(cloudId) : null;
+            const { delegationToken: cloudDelegationToken, cloudToken: userToken } =
+                live ?? (await issueCloudTokens(cloudId, { allowCache: true }));
 
             // The commit is ONE observable change (ADR-0076 decision 2). Before this batch the success path
             // fired the session signal eight times, so seven inconsistent intermediate states were
@@ -84,6 +95,9 @@ class CloudSession implements ICloudSession {
                     existingToken ? ({ ...existingToken, ...userToken } as typeof userToken) : userToken
                 );
                 cloudStore.saveSelectedCloudId(cloudId);
+                // The order background socket sessions are kept in when there are more clouds than
+                // the cap allows (see socket/backgroundClouds).
+                cloudStore.recordCloudUse(cloudId);
 
                 // Cloud token is saved above; rebuild identity so uid re-derives from the now-active
                 // cloud. The selected cloud id is NOT re-applied here: `saveSelectedCloudId` above

@@ -12,6 +12,17 @@ jest.mock('../../../auth/cloudSession', () => ({
     cloudSession: { switchTo: (...args: unknown[]) => mockSwitchCloudSession(...args) },
 }));
 
+const mockSlotKeys = jest.fn((): string[] => []);
+jest.mock('../../../../socket/runtime', () => ({
+    getSocketManager: () => ({ getSlotKeys: () => mockSlotKeys() }),
+}));
+
+const mockTimeToExpiry = jest.fn((): number | null => 60 * 60_000);
+const mockRenew = jest.fn(async () => true);
+jest.mock('../../../../socket/auth/renewers', () => ({
+    credentialRenewers: { forSlot: () => ({ timeToExpiry: () => mockTimeToExpiry(), renew: () => mockRenew() }) },
+}));
+
 const { useSwitchCloudSession } = require('./useSwitchCloudSession');
 
 const createWrapper = () => {
@@ -26,6 +37,8 @@ describe('useSwitchCloudSession', () => {
         jest.clearAllMocks();
         resetPerfMetrics();
         mockSwitchCloudSession.mockResolvedValue({ cloudId: 'cloud-1' });
+        mockSlotKeys.mockReturnValue([]);
+        mockTimeToExpiry.mockReturnValue(60 * 60_000);
     });
 
     afterEach(() => resetPerfMetrics());
@@ -34,7 +47,36 @@ describe('useSwitchCloudSession', () => {
         const { result } = renderHook(() => useSwitchCloudSession(), { wrapper: createWrapper() });
 
         await expect(result.current.switchCloud('cloud-1')).resolves.toEqual({ cloudId: 'cloud-1' });
-        expect(mockSwitchCloudSession).toHaveBeenCalledWith('cloud-1');
+        expect(mockSwitchCloudSession).toHaveBeenCalledWith('cloud-1', { hasLiveSlot: false });
+    });
+
+    it('tells the service when the target cloud already has a socket slot bound', async () => {
+        mockSlotKeys.mockReturnValue(['default', 'cloud-1']);
+        const { result } = renderHook(() => useSwitchCloudSession(), { wrapper: createWrapper() });
+
+        await result.current.switchCloud('cloud-1');
+
+        expect(mockSwitchCloudSession).toHaveBeenCalledWith('cloud-1', { hasLiveSlot: true });
+        expect(mockRenew).not.toHaveBeenCalled();
+    });
+
+    it('renews at once after landing on a live slot whose token ran low — e.g. after sleep', async () => {
+        mockSlotKeys.mockReturnValue(['default', 'cloud-1']);
+        mockTimeToExpiry.mockReturnValue(60_000);
+        const { result } = renderHook(() => useSwitchCloudSession(), { wrapper: createWrapper() });
+
+        await result.current.switchCloud('cloud-1');
+
+        expect(mockRenew).toHaveBeenCalledTimes(1);
+    });
+
+    it('leaves a switch without a live slot to its own fresh exchange', async () => {
+        mockTimeToExpiry.mockReturnValue(60_000);
+        const { result } = renderHook(() => useSwitchCloudSession(), { wrapper: createWrapper() });
+
+        await result.current.switchCloud('cloud-1');
+
+        expect(mockRenew).not.toHaveBeenCalled();
     });
 
     it('성공한 전환을 cloud-switch 지표 한 건으로 보고한다', async () => {

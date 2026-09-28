@@ -3,6 +3,7 @@ import { useCallback } from 'react';
 import { runtime } from '@chatic/app-runtime';
 
 import { CopyButton } from '../../components/CopyButton';
+import { useSlotStatuses } from '../../hooks/useSlotStatuses';
 import { Row } from '../../components/Row';
 import { Section } from '../../components/Section';
 
@@ -16,17 +17,29 @@ export const StateScreen = () => {
     // docblock), and a mismatch shows up as "push goes to the wrong install" — so read them here.
     const { deviceId, firebaseInstallationId } = runtime.session.useDynamicDeviceId();
     const { relay, cloud, identity, activeServer } = session;
+    // Every socket slot, not only the active one: background clouds hold their own connections, and
+    // a reconnect storm on one of them never reaches `socketState`.
+    const slots = useSlotStatuses();
 
     // Copied as JSON, not as the rendered rows: this gets pasted into an issue, where the shape
     // matters more than the layout. Built at click time — these stores move while the panel is open.
     const snapshot = useCallback(
         () =>
             JSON.stringify(
-                { isInitialized, isAuthenticated, deviceId, firebaseInstallationId, facts, session, socketState },
+                {
+                    isInitialized,
+                    isAuthenticated,
+                    deviceId,
+                    firebaseInstallationId,
+                    facts,
+                    session,
+                    socketState,
+                    slots,
+                },
                 null,
                 2
             ),
-        [isInitialized, isAuthenticated, deviceId, firebaseInstallationId, facts, session, socketState]
+        [isInitialized, isAuthenticated, deviceId, firebaseInstallationId, facts, session, socketState, slots]
     );
 
     return (
@@ -82,6 +95,16 @@ export const StateScreen = () => {
                 <Row label="isConnected" value={String(socketState.isConnected)} />
                 <Row label="isVerified" value={String(socketState.isVerified)} />
                 <Row label="connectionId" value={socketState.connectionId} />
+            </Section>
+
+            <Section title={`Socket slots (${slots.length})`}>
+                {slots.map(slot => (
+                    <Row
+                        key={slot.key}
+                        label={`${slot.active ? '▶ ' : ''}${slot.kind}`}
+                        value={`${slot.key} · ${slot.state} · ${slot.verified ? 'verified' : 'unverified'} · connects ${slot.connectCount}`}
+                    />
+                ))}
             </Section>
         </div>
     );

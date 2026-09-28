@@ -24,6 +24,12 @@ const CLOUD_TOKEN_CACHE_MARGIN_MS = 60_000;
 // cursor) needs the uid without needing a live token. Recorded whenever a cloud token is issued or
 // written back; cleared only with the whole session, because a different account has different uids.
 const CLOUD_IDENTITIES_KEY = 'chatic-cloud-identities';
+// The clouds this account has entered, most recent first. It orders which clouds keep a background
+// socket session when there are more of them than the cap allows, so it has to survive a reload —
+// and it is account state, cleared with the identities above.
+const CLOUD_RECENT_KEY = 'chatic-recent-clouds';
+// Long enough to cover every cloud that could plausibly hold a background slot, several times over.
+const CLOUD_RECENT_LIMIT = 20;
 
 /** A cloud's delegation + user token, cached by cloudId for fast re-switch. */
 export interface CachedCloudTokens {
@@ -56,6 +62,8 @@ export interface ICloudStore {
     setCachedCloudTokens(cloudId: string, tokens: CachedCloudTokens): void;
     /** Forgets one cloud's cached tokens. The other clouds' entries, and the identities, stay. */
     dropCachedCloudTokens(cloudId: string): void;
+    /** Forgets every cloud's cached tokens — the account is ending, not one cloud. */
+    clearCachedCloudTokens(): void;
     /**
      * The token the socket serving `cloudId` authenticates with: the store's own token while that cloud
      * is the committed one, otherwise the cached copy (margin-blind). Null when neither exists.
@@ -67,6 +75,12 @@ export interface ICloudStore {
     getCloudIdentities(): Record<string, CloudIdentity>;
     /** Forgets every cloud identity — the account is changing, and its uids change with it. */
     clearCloudIdentities(): void;
+    /** Moves `cloudId` to the front of the recently entered clouds. */
+    recordCloudUse(cloudId: string): void;
+    /** The clouds this account has entered, most recent first. */
+    getRecentClouds(): string[];
+    /** Forgets the recently entered clouds — account state, like the identities. */
+    clearRecentClouds(): void;
     saveSelectedCloudId(cloudId: string): void;
     getSelectedCloudId(): string | null;
     saveSelectedSiteId(siteId: string): void;
@@ -84,6 +98,7 @@ class CloudStore implements ICloudStore {
     private readonly token: JsonSlot<UserTokenView>;
     private readonly cache: JsonSlot<Record<string, CachedCloudTokens>>;
     private readonly identities: JsonSlot<Record<string, CloudIdentity>>;
+    private readonly recent: JsonSlot<string[]>;
 
     constructor(
         private readonly storage: StorageLike,
@@ -93,6 +108,7 @@ class CloudStore implements ICloudStore {
         this.token = new JsonSlot(storage, CLOUD_TOKEN_KEY);
         this.cache = new JsonSlot(storage, CLOUD_TOKEN_CACHE_KEY);
         this.identities = new JsonSlot(storage, CLOUD_IDENTITIES_KEY);
+        this.recent = new JsonSlot(storage, CLOUD_RECENT_KEY);
     }
 
     saveDelegationToken(token: CloudDelegationTokenView): void {
@@ -148,6 +164,11 @@ class CloudStore implements ICloudStore {
         this.cache.write(map);
     }
 
+    clearCachedCloudTokens(): void {
+        // No signal, for the same reason as `setCachedCloudTokens`.
+        this.cache.clear();
+    }
+
     getCloudTokenOf(cloudId: string): UserTokenView | null {
         // The committed cloud's token is the store's own, not the cache's copy: the two are written
         // level on every commit and writeback, but the store is the one the session derives from.
@@ -176,6 +197,23 @@ class CloudStore implements ICloudStore {
 
     clearCloudIdentities(): void {
         this.identities.clear();
+    }
+
+    recordCloudUse(cloudId: string): void {
+        // No signal: this is written inside the commit batch of a switch, which already announces the
+        // change every reader of this list re-derives on.
+        const current = this.recent.read() ?? [];
+        if (current[0] === cloudId) return;
+        this.recent.write([cloudId, ...current.filter(id => id !== cloudId)].slice(0, CLOUD_RECENT_LIMIT));
+    }
+
+    getRecentClouds(): string[] {
+        // A copy, for the same reason as `getCloudIdentities`.
+        return [...(this.recent.read() ?? [])];
+    }
+
+    clearRecentClouds(): void {
+        this.recent.clear();
     }
 
     saveSelectedCloudId(cloudId: string): void {
@@ -210,10 +248,11 @@ class CloudStore implements ICloudStore {
             this.storage.remove(CLOUD_SELECTED_CLOUD_KEY);
             this.storage.remove(CLOUD_SELECTED_PLACE_KEY);
             this.storage.remove(CLOUD_INVITED_BUNDLES_KEY);
-            this.cache.clear();
-            // The identities stay: leaving a cloud does not change who this account is inside it, and
-            // the other clouds' partitions are still readable by their uid. `clearCloudIdentities` is
-            // the account-level teardown's call.
+            // The per-cloud token cache stays, and so do the identities: leaving the committed cloud
+            // does not end this account's session in any other cloud. Those clouds keep background
+            // socket sessions that sign from the cache, and the one just left usually becomes one of
+            // them. `clearCachedCloudTokens` and `clearCloudIdentities` are the account-level
+            // teardown's calls.
             this.signal.emit('cloud:token');
             this.signal.emit('selection');
         });

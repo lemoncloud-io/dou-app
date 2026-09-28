@@ -19,12 +19,12 @@ export interface SocketReauthBinderProps {
  * That happens on relay (guest→social/email promotion swaps the relay token while url/deviceId/
  * wssType hold), and it must fire even while a cloud slot is the ACTIVE socket (§6-7).
  *
- * It cannot happen on cloud: **every cloud switch changes the slot**. Slots are keyed by the cloud
- * they serve, so SocketBinder boots the incoming cloud as a new slot — `bootstrapSocketConnection`
- * registers its identity from scratch — and tears the outgoing one down. There is no surviving
- * connection to re-authenticate, whether or not the two clouds share a wss host. The cloud entry that
- * used to sit in this list was therefore inert: the cloud slot deliberately carries no
- * `identityToken` (a535055a), so the token comparison below could never move for it.
+ * It cannot happen on cloud. Slots are keyed by the cloud they serve, so a switch either boots the
+ * incoming cloud as a new slot — `bootstrapSocketConnection` registers its identity from scratch — or
+ * lands on that cloud's background slot, and then commits the very tokens that slot registered with
+ * (`cloudSession.switchTo`'s `hasLiveSlot`). Neither leaves an identity change on a live connection.
+ * The cloud entry that used to sit in this list was therefore inert: no cloud slot carries an
+ * `identityToken`, so the token comparison below could never move for it.
  *
  * A cloud token re-issued WITHOUT a switch keeps the same slot and is invisible here for the same
  * reason; `renewCloudSession` re-registers it explicitly. `reauthenticateActiveSocket` already

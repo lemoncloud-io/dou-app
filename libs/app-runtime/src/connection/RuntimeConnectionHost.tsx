@@ -7,6 +7,7 @@ import { useRelaySessionInit } from '../session/hooks/app/useRelaySessionInit';
 import { useRelaySessionKeepAlive } from '../session/hooks/app/useRelaySessionKeepAlive';
 import { SocketBinder } from './SocketBinder';
 import { SocketReauthBinder } from './SocketReauthBinder';
+import { useBackgroundCloudTokens } from './hooks/useBackgroundCloudTokens';
 import { useSocketSessionDelegate } from './hooks/useSocketSessionDelegate';
 import { useRuntimeSocketSlots } from './hooks/useRuntimeSocketSlots';
 import type { RuntimeSocketSlots } from './types';
@@ -55,6 +56,9 @@ const ConnectionHost = ({
     const derivedSlots = useRuntimeSocketSlots();
     const activeSlots = slots ?? derivedSlots;
     useRelaySessionKeepAlive(guestKeepAlive);
+    // Background clouds' tokens are prepared from the derived relay slot, not an injected one: an
+    // override is for tests and hosts that bind their own slots, which have nothing to prepare.
+    useBackgroundCloudTokens(!!derivedSlots.relay && !slots);
 
     if (!isSessionReady) {
         return null;

@@ -132,6 +132,58 @@ describe('SocketBinder (one reconciler for every slot)', () => {
         expect(mockedBootstrap).not.toHaveBeenCalled();
     });
 
+    describe('background slots', () => {
+        const cloudC = { config: { url: 'wss://cloud-c', deviceId: 'd', wssType: 'cloud' as const, cid: 'cloud-c' } };
+        const C = slotKeyOf('cloud-c');
+
+        it('boots every background cloud beside the committed one, and keeps the facade on the committed', () => {
+            renderBinder({ relay: relaySlot, cloud: cloudA, background: [cloudB, cloudC] });
+
+            expect(fake.log).toEqual([`bound ${RELAY_SLOT}`, `bound ${B}`, `bound ${C}`, `bound ${A}`, `active ${A}`]);
+        });
+
+        it('A→B with B in the background moves the pointer only: nothing bound, nothing torn down', () => {
+            const { rerender } = renderBinder({ relay: relaySlot, cloud: cloudA, background: [cloudB] });
+            fake.log.length = 0;
+            mockedBootstrap.mockClear();
+
+            // After the commit, A is the background one and B the committed one — same keys, same configs.
+            rerender({ relay: relaySlot, cloud: cloudB, background: [cloudA] });
+
+            expect(fake.log).toEqual([`active ${B}`]);
+            expect(mockedBootstrap).not.toHaveBeenCalled();
+            expect(fake.manager.destroy).not.toHaveBeenCalled();
+        });
+
+        it('going home keeps a background cloud bound and moves the facade to relay', () => {
+            const { rerender } = renderBinder({ relay: relaySlot, cloud: cloudA });
+            fake.log.length = 0;
+            mockedBootstrap.mockClear();
+
+            rerender({ relay: relaySlot, background: [cloudA] });
+
+            expect(fake.log).toEqual(['active relay']);
+            expect(mockedBootstrap).not.toHaveBeenCalled();
+        });
+
+        it('a cloud dropped from the background list is torn down', () => {
+            const { rerender } = renderBinder({ relay: relaySlot, background: [cloudA, cloudB] });
+            fake.log.length = 0;
+
+            rerender({ relay: relaySlot, background: [cloudB] });
+
+            expect(fake.log).toEqual(['active relay', `torn down ${A}`]);
+        });
+
+        it('should both name one cloud, the committed config is the one that binds', () => {
+            const stale = { config: { ...cloudA.config, url: 'wss://stale' } };
+
+            renderBinder({ relay: relaySlot, cloud: cloudA, background: [stale] });
+
+            expect(configsBooted()).toEqual([relaySlot.config, cloudA.config]);
+        });
+    });
+
     it('a re-render with equal slots boots nothing', () => {
         const { rerender } = renderBinder({ relay: relaySlot, cloud: cloudA });
         mockedBootstrap.mockClear();

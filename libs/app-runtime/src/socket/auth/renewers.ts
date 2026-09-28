@@ -9,6 +9,7 @@ import { relaySession } from '../../session/auth/relaySession';
 import { cloudStore } from '../../session/store/stores';
 import { getCommittedCloudId } from '../../session/store';
 import type { SlotKey } from '../types';
+import { backgroundClouds } from '../backgroundClouds';
 import { getAuthStatus } from './authStatus';
 import { kindOf, RELAY_SLOT } from '../utils/slotKey';
 import { renewCloudSession } from './renewCloudSession';
@@ -240,23 +241,29 @@ export class CloudCredentialRenewer implements ICredentialRenewer {
     }
 
     /**
-     * A cloud's expiry never costs the relay: it stays the baseline and re-entry re-issues. For the
-     * committed cloud the cost is the session store (the user is dropped back to relay) — and,
-     * today, the whole per-cloud token cache with it, because `clearSession` does not yet know which
-     * other clouds have a live slot; keeping those entries is the change that binds such slots. For
-     * any other cloud only its own cached tokens go — the store belongs to the committed cloud and
-     * must not be cleared for a cloud the user is not even in. The identity map keeps every cloud's
-     * uid either way, so their cache partitions stay readable.
+     * A cloud's expiry never costs the relay: it stays the baseline and re-entry re-issues. Either way
+     * this cloud's own cached tokens go — they are the ones that expired. For the committed cloud the
+     * session store goes too (the user is dropped back to relay); for any other cloud the store is
+     * left alone, because it belongs to the committed cloud. Every other cloud's cached tokens stay:
+     * those clouds keep background socket sessions that sign from them. The identity map keeps every
+     * cloud's uid either way, so their cache partitions stay readable.
+     *
+     * The drop announces nothing (the cache has no signal), so the background slots are told to
+     * re-derive: without that, a background slot whose tokens are gone would stay bound, retrying an
+     * expired token, and would never be re-issued a fresh one.
      */
     onTerminalExpiry(): void {
+        cloudStore.dropCachedCloudTokens(this.cid);
         if (getCommittedCloudId() === this.cid) {
             cloudSession.clearStores();
-            return;
+        } else {
+            logger.warn('SOCKET', '[cloudRenewer] non-committed cloud auth expired — its cached tokens are dropped', {
+                data: { cid: this.cid },
+            });
         }
-        cloudStore.dropCachedCloudTokens(this.cid);
-        logger.warn('SOCKET', '[cloudRenewer] non-committed cloud auth expired — its cached tokens are dropped', {
-            data: { cid: this.cid },
-        });
+        // `noteExpired` re-derives the slots and makes the preparer back off before re-issuing, so a
+        // cloud that keeps refusing its socket is not torn down and re-booted in a loop.
+        backgroundClouds.noteExpired(this.cid);
     }
 }
 

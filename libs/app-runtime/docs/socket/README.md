@@ -1,8 +1,10 @@
 # socket — slots behind one facade
 
 `SocketManager` holds one `ClientSocketV2` client per slot: **relay**, on whenever a relay token
-exists, and **cloud**, on only while a cloud session is active. The manager sets no limit on cloud
-slots; the binder asks for one, and holds two only for the length of a switch. Almost everything that talks to a
+exists; the **committed cloud**, on only while a cloud session is active; and a **background** slot
+for every other cloud the account belongs to, up to five. The manager sets no limit on cloud slots —
+how many there are is the binder's input, and which clouds get one is a policy of its own
+([Background slots](#background-slots)). Almost everything that talks to a
 socket does not care which — gateways, sync and the UI address an **active facade** that resolves to
 the slot its owner points it at (`setActiveSlot`) — the committed cloud's, when there is one — and to
 relay otherwise. Only slot lifecycle, and the handful of things that must reach one specific server,
@@ -14,24 +16,27 @@ covered here because the two halves only make sense together.
 ## Layout
 
 ```text
-socket/                              34 source files, 23 tests
-├── SocketManager.ts   838 lines   the class. Nothing else is exported from this file
-├── types.ts                       SlotKey · SocketKind · SocketBindingConfig · SocketState · ISocketManager
+socket/                              36 source files, 26 tests
+├── SocketManager.ts   853 lines   the class. Nothing else is exported from this file
+├── types.ts                       SlotKey · SocketKind · SocketBindingConfig · SocketState · SlotStatus · ISocketManager
 ├── constants.ts                   AUTH_OPTIONS · SDK_REFRESH_CYCLE_MS · DEFAULT_VERIFY_TIMEOUT_MS · INITIAL_SOCKET_STATE
 ├── runtime.ts                     getSocketManager — the one creation point
 ├── socketFailureReporter.ts       classifies and reports rejected requests
+├── backgroundClouds.ts            the app's cloud list · selectBackgroundClouds · MAX_BACKGROUND_CLOUDS
 ├── utils/                         slotKey (slotKeyOf · RELAY_SLOT · kindOf) · annotateSocketError · getSocketErrorCode
-├── auth/          17 files        → docs/auth/
+├── auth/          18 files        → docs/auth/
 └── sync/           8 files        → docs/sync/
 
-connection/                          11 source files
+connection/                          14 source files
 ├── RuntimeConnectionHost.tsx      both hosts — one component, one switch
 ├── SocketBinder.tsx               reconciles the slots and the active pointer
 ├── SocketReauthBinder.tsx         re-authenticates a slot whose identity changed
 ├── types.ts                       RuntimeSocketSlot · RuntimeSocketSlots
 ├── utils/socketRebootKey.ts       the identity key both binders must agree on
+├── utils/backgroundSlots.ts       the live reads behind background slots
 └── hooks/                         useRuntimeSocketSlots · useSocketSessionDelegate ·
-                                   useRuntimeSocketState · useSlotVerified · useConnectivity
+                                   useRuntimeSocketState · useSlotVerified · useConnectivity ·
+                                   useBackgroundClouds · useBackgroundCloudTokens
 ```
 
 `socket/types.ts` has **zero value exports**, which is not an accident: `socket/index.ts` does
@@ -60,19 +65,19 @@ immediately with `503 SOCKET NOT CONNECTED`. Gating is the caller's job, through
 
 ### One interface, four concerns
 
-`ISocketManager` is a single interface with 25 members, grouped by comment banners rather than split
+`ISocketManager` is a single interface with 26 members, grouped by comment banners rather than split
 into four types. The split was tried and withdrawn: four interfaces were exported and recomposed on
 the next line, and not one gateway ever declared the narrow slice it used — which made it a new
 public surface with zero consumers, exactly the category the barrel cleanup exists to remove. When a
 narrow type is genuinely needed, the repo's habit is a `Pick` at the point of use, the way
 `ScopedSocketClient` and `ActiveScope`'s `BoundCidSource` do it.
 
-| Concern                                    | Members                                                                                                                                                                                                 |
-| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Slot lifecycle** — addressed per slot    | `ensure` · `connect` · `destroy` · `setActiveSlot` · `setAuthenticated` · `getSlotKeys`                                                                                                                 |
-| **Request and push** — active facade       | `request` · `send` · `onType` · `onSlotType` · `onMessage` · `onState` · `onError` · `disconnect`                                                                                                       |
-| **Observation** — no lifecycle, no sending | `getClient` · `getScopedClient` · `getSnapshot` · `subscribe` · `subscribeClient` · `subscribeSlotClients` · `waitUntilVerified` · `waitUntilSlotVerified` · `isSlotVerified` · `subscribeSlotVerified` |
-| **Cache attribution**                      | `getBoundCid`                                                                                                                                                                                           |
+| Concern                                    | Members                                                                                                                                                                                                                     |
+| ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Slot lifecycle** — addressed per slot    | `ensure` · `connect` · `destroy` · `setActiveSlot` · `setAuthenticated` · `getSlotKeys`                                                                                                                                     |
+| **Request and push** — active facade       | `request` · `send` · `onType` · `onSlotType` · `onMessage` · `onState` · `onError` · `disconnect`                                                                                                                           |
+| **Observation** — no lifecycle, no sending | `getClient` · `getScopedClient` · `getSnapshot` · `subscribe` · `subscribeClient` · `subscribeSlotClients` · `waitUntilVerified` · `waitUntilSlotVerified` · `isSlotVerified` · `subscribeSlotVerified` · `getSlotStatuses` |
+| **Cache attribution**                      | `getBoundCid`                                                                                                                                                                                                               |
 
 ### A slot is keyed by the cloud it serves
 
@@ -106,7 +111,7 @@ destroys it and builds a new client. Two rules hold there:
 
 - **It touches no other slot.** Binding cloud B leaves cloud A's slot bound and, if A is active,
   active. The manager does not limit how many cloud slots exist; the binder asks for the ones the
-  session needs, which today is one.
+  session needs — the committed cloud's and the background ones.
 - **A config cannot claim the other server.** A config whose `wssType` disagrees with `kindOf(cid)`
   throws. The case it exists for is a cloud config that fell back to the relay's cid, which would
   otherwise replace the relay socket with a cloud one. `useRuntimeSocketSlots` no longer produces
@@ -123,15 +128,16 @@ still re-emits the replacement client to `subscribeClient`.
 
 The active slot used to be inferred — "the cloud slot if one is bound, else relay". That only named
 something while there could be at most one cloud slot, which `ensure` enforced by tearing the other
-cloud down inside the same call. Making it a pointer lets a switch hold both clouds for the length of
-one reconcile pass: the binder binds B, points the facade at B, and only then tears A down. The active
-client goes from A straight to B, never through relay, and A's slot — with its sync runtime and the
-targets on it — stays alive until the binder tears it down.
+cloud down inside the same call. Making it a pointer is what lets several clouds hold a slot at all:
+the facade follows the committed cloud, and every other bound cloud slot is simply not pointed at.
+The active client goes from A straight to B, never through relay.
 
 Three log lines trace it, all `info` under `SOCKET`, each with `{ cid, kind }`: `slot bound`,
 `active moved` (with `from` and the new slot's `connectCount`) and `slot torn down` (with the
-`connectCount` it reached). A switch reads `slot bound B → active moved B → slot torn down A`; a
-reconnect storm or a relay socket rebuilt by accident shows up as a line that should not be there.
+`connectCount` it reached). A switch between two kept clouds reads `active moved B` and nothing else;
+a switch to a cloud with no slot yet reads `slot bound B → active moved B`, followed by
+`slot torn down A` only when A is not kept in the background. A reconnect storm or a relay socket
+rebuilt by accident shows up as a line that should not be there.
 
 `getBoundCid()` reports the **active** slot's key. Because it is the key, it is fixed for the slot's
 whole life: a switch flips the cache cid optimistically while the outgoing cloud's socket is still
@@ -250,7 +256,8 @@ the safeguard.
 
 [`useRuntimeSocketSlots()`](../../src/connection/hooks/useRuntimeSocketSlots.ts) subscribes to exactly
 three signal kinds — `relay:token`, `cloud:token`, `selection` — and reads the matching narrow
-snapshot. **Both have to be narrowed together**: subscribing to a subset while reading the full
+snapshot, plus the background store's version, which moves the background slots only
+([Background slots](#background-slots)). **Both have to be narrowed together**: subscribing to a subset while reading the full
 context renders values from signals nobody is listening to. `identity` is excluded deliberately; boot
 alone emits it twice and every login adds one, each of which used to re-render this hook and hand
 both binders a new-but-equal slots object.
@@ -259,8 +266,44 @@ Four rules produce the result:
 
 - **Each slot is gated on its own server having a token.** The relay wss is a static env value that exists before login, so gating on the URL alone would boot a socket with nothing to authenticate with. Login turns a slot on; logout turns it off.
 - **`identityToken` rides beside `config`, not inside it.** `SocketBinder`'s reboot key reads only `config`, so a token refresh leaves the config stable and the socket alive, while `SocketReauthBinder` watches this field per slot.
-- **The cloud slot carries no `identityToken` at all.** Every cloud switch commits a different cid, and the cid is the slot's key, so the incoming cloud gets a new slot and the outgoing one is torn down — there is no live connection to re-authenticate, whether or not the two clouds share a wss host. A cloud token re-issued _without_ a switch is therefore invisible to both binders, and `renewCloudSession` re-registers explicitly.
+- **No cloud slot carries an `identityToken`, committed or background.** A switch lands either on a cloud with no slot, which registers from scratch when it boots, or on a background slot whose own registered tokens the switch commits unchanged ([docs/auth/](../auth/README.md)) — either way there is no identity change on a live connection to watch for. A cloud token re-issued _without_ a switch is therefore invisible to both binders, and `renewCloudSession` re-registers explicitly.
 - **The cloud slot's cid is the committed cloud**, read from the delegation token — not the selected one, which flips at the start of a switch. Using the selected value made the config describe two clouds at once during the optimistic window: the target's cid next to the outgoing cloud's URL and token.
+
+### Background slots
+
+Every cloud the account belongs to keeps a socket session while the user is somewhere else — another
+cloud, or home. A write addressed to a cloud then has a live socket to go to whichever cloud is on
+screen, and switching back to a kept cloud costs no reconnect and no token exchange. What these slots
+do NOT do yet is receive: they have no sync targets, so a background cloud's cache stays as it was
+until it is entered.
+
+The pieces, and who owns each:
+
+| Piece                                                                     | Owner                              | Does                                                                                                                               |
+| ------------------------------------------------------------------------- | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `connection.useBackgroundClouds(cids)`                                    | the app (`BackgroundCloudsRunner`) | hands over membership — the owned catalog plus the invited-cloud cache — which only the app can see                                |
+| [`selectBackgroundClouds`](../../src/socket/backgroundClouds.ts)          | runtime                            | drops relay and the committed cloud, orders the rest by recent use (`cloudStore.getRecentClouds`, then the app's order), caps at 5 |
+| [`BackgroundCloudTokens`](../../src/socket/auth/backgroundCloudTokens.ts) | runtime                            | issues a cloud's tokens before its slot boots ([docs/auth/](../auth/README.md))                                                    |
+| [`readyBackgroundConfigs`](../../src/connection/utils/backgroundSlots.ts) | runtime                            | one `cloud` config per selected cloud whose cached entry is ready, URL from the cached delegation token                            |
+| `SocketBinder`                                                            | runtime                            | binds them beside relay and the committed cloud; never makes one active                                                            |
+
+**The cap is five** — the largest subscription tier's allowance of owned clouds, so an account that
+only owns clouds never reaches it. Invited clouds are not bounded by any plan; past five in total,
+the cap keeps the clouds entered most recently. Each background session costs one socket and a
+token issue per lifetime (two HTTP calls); the cap is what bounds that per device.
+
+**Moving between background and committed is the same slot.** Its key is the cloud and its reboot
+key `url|deviceId|wssType` does not change, so `ensure` reuses the client. Leaving a cloud for home
+leaves it bound too, which is why `logoutCloudSession` only sends that socket `auth.logout` when the
+cloud is about to be dropped — the policy says it will not be kept.
+
+The derivation re-runs when the session signals move and when the background store announces —
+the app's list changed, or a cloud's cached tokens were issued or dropped (the token cache announces
+nothing on its own, so the preparer and the cloud renewer call `backgroundClouds.invalidate()`).
+
+The debug overlay's State screen lists every bound slot through `getSlotStatuses()` — key, kind,
+whether it is active, transport state, verified, and `connectCount` — because a background slot's
+reconnects never reach the active `SocketState`.
 
 ### The two binders
 
@@ -278,10 +321,16 @@ so the two cannot drift), and runs three steps in a fixed order:
    only from what this binder remembers booting, because a remount starts with an empty memory.
 
 Step 1 is finished by the time step 2 runs because `bootstrapSocketConnection` calls `ensure` before
-its first `await`, and B cannot connect before A is torn down for the same reason: `connect` comes
-after that `await`. So a switch never has two clouds holding a connection, even for a frame. That holds
-on the auth path, which is every real client; the defensive branch for a client without an auth
-controller connects without awaiting first.
+its first `await`, so the pointer never names a slot that has not been created.
+
+The effect's key carries the desired **active** slot too, on its own. A switch between two clouds
+that both hold a slot — one committed, one in the background — leaves every slot key and reboot key
+where it was; only which of them is active moves. Keyed on the slot set alone, that switch never
+re-ran the reconcile and the facade stayed on the cloud the user had left.
+
+Several clouds hold connections at once, by design, from the same device id. That is a change: until
+background slots, step 1 was also what kept a switch from ever having two clouds connected — B's
+`connect` came after the `await`, and A was gone by then.
 
 A bootstrap that fails is forgotten, so the next reconcile tries that slot again. Until it binds, the
 pointer names an unbound slot and the facade stays on relay; the binder logs that alongside the
