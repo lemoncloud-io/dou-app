@@ -151,15 +151,15 @@ describe('MessageList', () => {
         expect(screen.queryByText(payload)).toBeNull();
     });
 
-    // `blocks$` (server field) outranks the `content` JSON fallback above — priority:
-    // knowledge#319 SPEC.md §6-1. Fixture is the server's own sample payload
+    // `blocks$` (server field) outranks the `content` JSON fallback above. Fixture is the
+    // server's own sample payload
     // (resolveChatBlocks.spec.ts uses the same two files).
     it('draws blocks$ ahead of content — header, sections and context all reach the DOM', () => {
         const withBlocksField = {
             ...message(1, 'ada', WEBHOOK_SEND_ERROR_REPORT.content),
             blocks$: [...WEBHOOK_BLOCKS_ERROR_REPORT],
             // Pins buildMessageRows' `stereo === 'system'` branch: a webhook chat is a
-            // user bubble, not a system notice (knowledge#319 SPEC 6-3).
+            // user bubble, not a system notice.
             stereo: WEBHOOK_SEND_ERROR_REPORT.stereo,
         } as DomainChat;
 
@@ -196,7 +196,7 @@ describe('MessageList', () => {
             ...message(1, 'me', WEBHOOK_SEND_ERROR_REPORT.content),
             blocks$: [...WEBHOOK_BLOCKS_ERROR_REPORT],
             // Pins buildMessageRows' `stereo === 'system'` branch: a webhook chat is a
-            // user bubble, not a system notice (knowledge#319 SPEC 6-3).
+            // user bubble, not a system notice.
             stereo: WEBHOOK_SEND_ERROR_REPORT.stereo,
         } as DomainChat;
 

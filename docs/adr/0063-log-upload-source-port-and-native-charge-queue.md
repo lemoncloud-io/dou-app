@@ -8,7 +8,7 @@
 
 ADR-0097 **explicitly excluded the periodic log upload pipeline from scope** ("a follow-up track. Needs backend
 alignment"). That follow-up track has since been implemented — the `POST /hello/report-bulk` route is live — and its
-design of record has lived in a vault lane outside this repo the whole time. This ADR brings the **client structure
+design of record has lived outside this repo the whole time. This ADR brings the **client structure
 decision** from that track into the repo.
 
 The 2026-08-21 audit confirmed three defects in the webview-to-native log capture path.
@@ -234,9 +234,7 @@ bleeding from ② without waiting for an app deploy. **The gate lifts** once thi
 
 ## Related
 
-- The detailed execution plan and server contract responses for this track live outside the repo, in the knowledge
-  vault lane (`projects/@lemoncloud-io/dou-app/log-collection`). As of 2026-08-21 that lane is on the vault branch
-  `feat/2026-08-13-dou-log-collection-lane` and **has not been merged.** This ADR brings only the client structure
-  decision from that lane into the repo.
-- Server-side record of truth: vault `projects/@lemoncloud-io/chatic-backend-api/log-batch-ingest`.
+- The detailed execution plan and server contract responses for this track live outside the repo. As of 2026-08-21
+  that plan **was not final.** This ADR brings only the client structure decision into the repo.
+- The server side keeps its own record of the batch ingest contract.
   </content>

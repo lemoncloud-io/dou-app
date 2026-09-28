@@ -1,6 +1,6 @@
 {
   "name": "@chatic/source",
-  "version": "0.66.2",
+  "version": "0.67.0",
   "license": "Apache-2.0",
   "scripts": {
     "clean:cache": "(rm -rf ./node_modules/.vite ./node_modules/.cache || true) && (rm -rf ./.nx || true)",
@@ -128,9 +128,9 @@
     "@lemoncloud/chatic-backend-api": "^0.26.810",
     "@lemoncloud/chatic-iap-api": "^1.26.121",
     "@lemoncloud/chatic-pushes-api": "^0.26.124",
-    "@lemoncloud/chatic-socials-api": "^0.26.810",
+    "@lemoncloud/chatic-socials-api": "^0.26.902",
     "@lemoncloud/chatic-sockets-api": "0.26.813",
-    "@lemoncloud/chatic-sockets-lib": "0.5.2",
+    "@lemoncloud/chatic-sockets-lib": "0.5.4",
     "@lemoncloud/lemon-web-core": "^1.5.0",
     "@lemoncloud/react-page-transition": "1.0.0",
     "@lexical/code-core": "^0.45.0",
@@ -168,6 +168,7 @@
     "@react-native-firebase/firestore": "23.8.8",
     "@react-native-firebase/installations": "23.8.8",
     "@react-native-firebase/messaging": "^24.0.0",
+    "@react-native-firebase/perf": "24.0.0",
     "@react-native/new-app-screen": "~0.83.0",
     "@react-navigation/native": "^7.1.26",
     "@react-navigation/native-stack": "^7.9.0",

@@ -8,6 +8,8 @@ import { useSiteSwitch } from '../../runtime/useSiteSwitch';
 import { pendingNavigationStore } from './pendingNavigationStore';
 import { resolvePushNavigation } from './resolvePushNavigation';
 import { useHandlePushNavigation } from './useHandlePushNavigation';
+import { configurePerfTraces, resetPerfTraces } from '@chatic/perf';
+import { roomOpenTrace } from '../../runtime/perf';
 
 // The invited-cloud recovery step added to usePushNavigate pulls three more app-runtime exports.
 // runtime.boot.isNativeApp must be present and falsy: an undefined stub throws inside the switch block, which
@@ -52,7 +54,13 @@ const logoutCloudSession = jest.fn();
 const waitUntilVerified = jest.fn();
 const unregister = jest.fn();
 
-type NavigationMessage = { data: { path: string; replace?: boolean } };
+type NavigationMessage = {
+    data: {
+        path: string;
+        replace?: boolean;
+        perfTrace?: { id: string; startedAt: number; entry: 'push_tap' | 'deeplink'; coldStart: boolean };
+    };
+};
 let captured: ((message: NavigationMessage) => Promise<void>) | undefined;
 
 const setResolved = (value: { target: string; cid: string | null; sid: string | null; chatId?: string | null }) =>
@@ -537,6 +545,68 @@ describe('useHandlePushNavigation', () => {
             await invoke();
 
             expect(navigate.mock.calls).toEqual([[ROOM]]);
+        });
+    });
+    describe('room-open trace', () => {
+        const backend = { start: jest.fn(), stop: jest.fn() };
+
+        beforeEach(() => {
+            roomOpenTrace.reset();
+            configurePerfTraces(backend);
+        });
+
+        afterEach(() => resetPerfTraces());
+
+        const finish = () => {
+            const trace = roomOpenTrace.claim('roomA');
+            trace?.stop();
+            return backend.stop.mock.calls[0]?.[0];
+        };
+
+        it('carries on the trace the native tap started, marking where the handler took over', async () => {
+            setResolved({ target: '/channels/roomA/room', cid: null, sid: null });
+            renderHook(() => useHandlePushNavigation());
+
+            await captured!({
+                data: {
+                    path: '/channels/roomA/room',
+                    perfTrace: { id: 'native-1', startedAt: Date.now() - 500, entry: 'push_tap', coldStart: true },
+                },
+            });
+
+            // Adopted, not started again.
+            expect(backend.start).not.toHaveBeenCalled();
+            const result = finish();
+            expect(result).toMatchObject({ id: 'native-1', attributes: { entry: 'push_tap', start: 'cold' } });
+            expect(result.metrics.handler).toBeGreaterThanOrEqual(500);
+        });
+
+        it('starts its own trace for an app build that sends none', async () => {
+            setResolved({ target: '/channels/roomA/room', cid: null, sid: null });
+
+            await invoke('/channels/roomA/room');
+
+            expect(backend.start).toHaveBeenCalledTimes(1);
+            expect(finish()).toMatchObject({ attributes: { entry: 'navigate' } });
+        });
+
+        it('records which switch ran and when it finished', async () => {
+            setSelection('c1', 's1');
+            setResolved({ target: '/channels/roomA/room', cid: 'c2', sid: 's1' });
+
+            await invoke('/channels/roomA/room');
+
+            const result = finish();
+            expect(result.attributes).toMatchObject({ switch: 'cloud' });
+            expect(result.metrics).toHaveProperty('switch_done');
+        });
+
+        it('starts nothing for a navigation that does not open a room', async () => {
+            setResolved({ target: '/mypage', cid: null, sid: null });
+
+            await invoke('/mypage');
+
+            expect(backend.start).not.toHaveBeenCalled();
         });
     });
 });

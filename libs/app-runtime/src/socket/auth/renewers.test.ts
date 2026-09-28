@@ -4,6 +4,7 @@ import { RelayCredentialRenewer, credentialRenewers } from './renewers';
 import { cloudSession } from '../../session/auth/cloudSession';
 import { cloudStore } from '../../session/store/stores';
 import { getCommittedCloudId } from '../../session/store';
+import { backgroundClouds } from '../backgroundClouds';
 import { RELAY_SLOT, slotKeyOf } from '../utils/slotKey';
 
 jest.mock('@chatic/bridges', () => ({
@@ -19,6 +20,7 @@ jest.mock('../../session/auth/relaySession', () => ({
     relaySession: { clearAndRedirect: jest.fn().mockResolvedValue(undefined) },
 }));
 jest.mock('../../session/auth/credentialFreshness', () => ({ credentialFreshness: { timeToExpiry: jest.fn() } }));
+jest.mock('../backgroundClouds', () => ({ backgroundClouds: { noteExpired: jest.fn() } }));
 jest.mock('./authStatus', () => ({ getAuthStatus: jest.fn() }));
 jest.mock('./renewCloudSession', () => ({ renewCloudSession: jest.fn() }));
 jest.mock('./requestRelaySessionRefresh', () => ({ requestRelaySessionRefresh: jest.fn() }));
@@ -186,7 +188,9 @@ describe('CloudCredentialRenewer — terminal expiry', () => {
         credentialRenewers.forSlot(slotKeyOf('cloud-1')).onTerminalExpiry();
 
         expect(cloudSession.clearStores).toHaveBeenCalledTimes(1);
-        expect(cloudStore.dropCachedCloudTokens).not.toHaveBeenCalled();
+        // Only its own entry: the other clouds' background sessions sign from theirs.
+        expect(cloudStore.dropCachedCloudTokens).toHaveBeenCalledTimes(1);
+        expect(cloudStore.dropCachedCloudTokens).toHaveBeenCalledWith('cloud-1');
     });
 
     it('drops only its own cached tokens when it is NOT the committed cloud — the store is another cloud’s', () => {
@@ -196,6 +200,16 @@ describe('CloudCredentialRenewer — terminal expiry', () => {
 
         expect(cloudStore.dropCachedCloudTokens).toHaveBeenCalledWith('cloud-2');
         expect(cloudSession.clearStores).not.toHaveBeenCalled();
+    });
+
+    it('notes the expiry for the background slots, committed or not — the cache drop announces nothing', () => {
+        (getCommittedCloudId as jest.Mock).mockReturnValue('cloud-1');
+
+        credentialRenewers.forSlot(slotKeyOf('cloud-2')).onTerminalExpiry();
+        expect(backgroundClouds.noteExpired).toHaveBeenLastCalledWith('cloud-2');
+
+        credentialRenewers.forSlot(slotKeyOf('cloud-1')).onTerminalExpiry();
+        expect(backgroundClouds.noteExpired).toHaveBeenLastCalledWith('cloud-1');
     });
 
     it('asks which cloud is committed at expiry time, not at construction', () => {

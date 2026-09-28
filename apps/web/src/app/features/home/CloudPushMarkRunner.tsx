@@ -9,6 +9,7 @@ import { appBridge } from '../../bridge/appBridge';
 import { useOnBackgroundStatusChanged, useOnReceiveNotification } from '../../bridge/useHandleAppMessage';
 import { extractPushCloudHint } from '../../utils/resolveInAppPushRoute';
 import { useInvitedClouds } from '../../hooks';
+import { useJoinedCloudIds } from '../../hooks/useJoinedCloudIds';
 import { useCloudPushMarkStore } from './stores/useCloudPushMarkStore';
 import { RELAY_CLOUD_ID, resolvePushCloudId } from './utils/resolvePushCloudId';
 
@@ -48,12 +49,8 @@ export const CloudPushMarkRunner = (): null => {
 
     // Every cloud the account might belong to — owned + invited + relay. Deliberately not narrowed
     // to "other than active": resolution doesn't know which cloud is active, `apply` below does.
-    const cids = useMemo(() => {
-        const ids = new Set<string>([RELAY_CLOUD_ID]);
-        for (const cloud of ownedClouds) if (cloud.id) ids.add(cloud.id);
-        for (const cloud of invitedClouds) if (cloud.id) ids.add(cloud.id);
-        return [...ids];
-    }, [ownedClouds, invitedClouds]);
+    const joinedCloudIds = useJoinedCloudIds(ownedClouds, invitedClouds);
+    const cids = useMemo(() => [RELAY_CLOUD_ID, ...joinedCloudIds], [joinedCloudIds]);
     // Joined so the callback only changes identity on membership changes, not on every render's
     // new array/Set.
     const cidsKey = cids.join(',');

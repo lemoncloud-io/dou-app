@@ -78,7 +78,7 @@ const buildRepositories = (
             localDataSources.chat,
             context
         ),
-        chat: new ChatRepository(socketDataSources.chat, localDataSources.chat, context),
+        chat: new ChatRepository(socketDataSources.chat, localDataSources.chat, context, socketDataSources.upload),
         cloud: new CloudRepository(socketDataSources.cloud, localDataSources.cloud, context, httpDataSources?.cloud),
         device: new DeviceRepository(socketDataSources.device, context),
         invite: new InviteRepository(socketDataSources.invite, localDataSources.invite, context),

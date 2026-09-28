@@ -11,9 +11,7 @@ option is calling the backend directly.
 
 ### The backend is already ready
 
-`chatic-backend-api`'s `feature/subscription-admin` has been merged into develop (`250ee59`) and deployed
-as `v0.26.811a`. The design and contract of record live in the vault at
-`projects/@lemoncloud-io/chatic-backend-api/specs/subscription-admin/` (README, high-levels, SPEC, plans).
+The backend's subscription admin work has been merged and deployed as `v0.26.811a`. The design and contract of record are kept outside this repo.
 
 | Endpoint                                   | What it does                         | Status                                   |
 | ------------------------------------------ | ------------------------------------ | ---------------------------------------- |

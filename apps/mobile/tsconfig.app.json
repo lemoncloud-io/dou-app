@@ -35,13 +35,16 @@
             "path": "../../libs/device-utils/tsconfig.lib.json"
         },
         {
-            "path": "../../libs/logger/tsconfig.lib.json"
+            "path": "../../libs/perf/tsconfig.lib.json"
         },
         {
             "path": "../../libs/shared/tsconfig.lib.json"
         },
         {
             "path": "../../libs/app-messages/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/logger/tsconfig.lib.json"
         }
     ]
 }

@@ -37,7 +37,7 @@ makes no difference.
 
 **In** — domain models and mappers, local data sources and the stream engine, the `CacheStorage` port,
 socket and HTTP gateway types (`Pick<>`) and their data sources, 13 repository facades, the
-`DataContext` contract.
+`DataContext` contract, and the image send sequence (`uploads/`) with its ports and response mirror.
 
 **Out** — the socket transport runtime (`@lemoncloud/chatic-sockets-lib`), storage engine
 implementations (`@chatic/db`'s `IndexedDBAdapter`, `NativeDBAdapter`, `ChatQueryExecutor`), the HTTP
@@ -59,7 +59,7 @@ flowchart TD
 
     Repo["Repository × 13<br/><i>data facade</i>"]:::repo
     Local["LocalDataSource × 9<br/><i>stores snapshots · emits streams</i>"]:::local
-    Remote["SocketDataSource × 11<br/>HttpDataSource × 5"]:::remote
+    Remote["SocketDataSource × 12<br/>HttpDataSource × 5"]:::remote
     Domain["domain<br/><i>models · mappers</i>"]:::domain
 
     DB["@chatic/db<br/><i>storage engine</i>"]:::ext
@@ -104,7 +104,7 @@ sequenceDiagram
 
 ```text
 libs/data/src/
-├── index.ts          public barrel (8 lines of export *)
+├── index.ts          public barrel (9 lines of export *)
 ├── domain/           domain models + mappers + shared predicates (chat preview, join window, message edit)
 ├── local/
 │   ├── data-sources/ 9 per-domain LocalDataSources + the BaseLocalDataSource stream engine
@@ -112,9 +112,10 @@ libs/data/src/
 │   └── stableHash.ts scope key hash
 ├── remote/
 │   ├── gateways/     socket.ts · http.ts — Pick<> only the capabilities a domain uses
-│   ├── socket-data-sources/  11 sources + factory
+│   ├── socket-data-sources/  12 sources + factory
 │   └── http-data-sources/    5 sources + factory
-└── repositories/     13 facades + BaseRepository + DataContext + scopeGuards
+├── repositories/     13 facades + BaseRepository + DataContext + scopeGuards
+└── uploads/          sendImageMessage + its ports, the upload response mirror and its guard
 ```
 
 Two file names hide what they hold: `BaseRepository` and `DataContext` live in
@@ -144,7 +145,7 @@ await getRepositories().report.uploadLogBatch(body);
 
 Three rules hold.
 
-1. **The only things to import from `@chatic/data` are types** (`DomainChat`, `DataContext`, …). The runtime surface is the repository, and paths inside the barrel stay closed.
+1. **Import types, and pure functions that hold no data of their own** (`DomainChat`, `DataContext`, …; the shared predicates `isInJoinWindow` / `isMessageEdited`; `sendImageMessage`, which runs only on the ports its caller binds). Anything that reaches storage or the network is reached through a repository, and paths inside the barrel stay closed.
 2. **Read through `observe*` and nothing else.** Rendering what `refresh*` returns breaks principle 1.
 3. **`refresh*` and `cache*` belong to the sync orchestrator.** A UI calling them directly can collide with sync timing. Where it is necessary, call them only from a user-event path.
 
@@ -221,7 +222,18 @@ response. So two mechanisms are needed together (ADR-0067).
 - **Display gate** `isInJoinWindow(chat, joinedNo)` — applies the server's own rule (`chatNo > joinedNo`) at the place the cache is read. When `joinedNo` is absent it hides nothing, and when `chatNo` is falsy it lets the row through (so an optimistic send does not disappear).
 - **Purge** — fires on two explicit signals only: a successful self-leave, and the removal of my own join row. It is never attached to inference-based cleanup. Deleting chat cannot be undone.
 
-### 6. Reading an HTTP-only domain
+### 6. Sending an image message
+
+The screen hands over picked files. The app writes a pending row first
+(`chat.createPendingImageChat`), because the photos take seconds to prepare and upload and the
+message has to be on screen meanwhile. Then `sendImageMessage` runs prepare → `upload.start` → PUT →
+`upload.complete` → `chat.send`. It runs on ports the app binds: the repository's `startUploads` /
+`completeUploads` / `sendPendingImageChat`, the shell's PUT sender, and the image preparer. It
+depends on none of them directly, so the retry and failure rules are tested with fakes. Whatever
+reached `stored` is sent. When nothing did, the row is marked failed and the same files can be
+retried on the same row. The full rules → [docs/uploads/](./docs/uploads/README.md).
+
+### 7. Reading an HTTP-only domain
 
 Three domains have no subscribable local cache — `report`, `subscription`, and the catalogue read on
 `cloud`. They do not write to local. The cache semantics belong to a react-query adapter on the
@@ -233,10 +245,11 @@ consumer side.
 | -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | [docs/local/](./docs/local/README.md)                          | Storing, reading and emitting streams. The stream model, scope and cache slots, chat cursors, cache clear         |
 | [docs/remote/](./docs/remote/README.md)                        | The contract both outbound axes share. Axis symmetry, how to call and wire, how to add a call, **naming history** |
-| [docs/remote/socket.md](./docs/remote/socket.md)               | The socket axis. 11 gateway mappings, where absence is the contract, routing, client-side request limits          |
+| [docs/remote/socket.md](./docs/remote/socket.md)               | The socket axis. 12 gateway mappings, where absence is the contract, routing, client-side request limits          |
 | [docs/remote/http.md](./docs/remote/http.md)                   | The HTTP axis. 5 gateway Picks, why it holds no cache, the admin console surface, the report lane                 |
 | [docs/repositories/](./docs/repositories/README.md)            | The data facade. Three contracts, context and scope, wiring, cache clear rules, leaving and rejoining             |
 | [docs/repositories/domains.md](./docs/repositories/domains.md) | The 13-domain method catalogue (a document you look things up in)                                                 |
+| [docs/uploads/](./docs/uploads/README.md)                      | Sending images as one message. The sequence, what counts as failure, the response mirror, pending image rows      |
 
 ## How to verify
 
@@ -247,7 +260,7 @@ npx jest --config libs/data/jest.config.js
 
 - Type checking must be `tsc -b`. Inside `libs/data`, `tsc --noEmit` checks zero files and succeeds.
 - **`tsconfig.json` covers both projects**, because its `references` name `tsconfig.lib.json` and `tsconfig.spec.json`. That matters: the lib config excludes `*.test.ts` and `__mocks__/**`, and jest does not type check at all — the base sets `isolatedModules`, so ts-jest transpiles. Without the spec project a broken test fixture (a mock missing an action, say) surfaces only as `… is not a function` at runtime. `nx typecheck @chatic/data` runs the same thing, plus every dependency's own typecheck, and all of it is green.
-- All 25 data sources have a matching test, and 12 of the 13 repositories do — `SyncMetaRepository` is the one without. The commands above are what answer this, not this sentence.
+- All 26 data sources have a matching test, and 12 of the 13 repositories do — `SyncMetaRepository` is the one without. The commands above are what answer this, not this sentence.
 - Downstream check: a changed barrel identifier reaches eight projects — `apps/web`, `apps/desktop-web`,
   `libs/app-runtime`, `apps/testbed`, `libs/db`, `libs/block-kit`, `apps/admin-v2` and `@chatic/mobile`.
   `.github/workflows/verify.yml` type checks every one of them except `apps/desktop-web` and

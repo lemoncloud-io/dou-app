@@ -19,8 +19,10 @@ export interface RuntimeSocketSlot {
 }
 
 /**
- * Dual sockets: relay is always-on (once a relay token exists), cloud is present only while a cloud
- * session is active. SocketBinder reconciles every slot and the active pointer in one pass.
+ * Relay is always-on (once a relay token exists), cloud is present only while a cloud session is
+ * committed, and `background` holds one slot for each other cloud the account belongs to, up to the
+ * cap (`socket/backgroundClouds`). SocketBinder reconciles every slot and the active pointer in one
+ * pass; only `cloud` is ever made active.
  *
  * This used to be `RuntimeBinding` and carried a second field, `context: DataContext` — the cache
  * scope. No production code read it: `deriveSelectedContext` derives that formula and consumers read
@@ -30,4 +32,6 @@ export interface RuntimeSocketSlot {
 export interface RuntimeSocketSlots {
     relay?: RuntimeSocketSlot;
     cloud?: RuntimeSocketSlot;
+    /** Optional so a host injecting slots (tests, `RuntimeHostProps.slots`) can leave it out. */
+    background?: RuntimeSocketSlot[];
 }

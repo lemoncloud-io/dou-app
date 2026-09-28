@@ -3,34 +3,20 @@ import { useMemo, useSyncExternalStore } from 'react';
 import { logger } from '@chatic/bridges';
 import { RELAY_CLOUD_ID } from '@chatic/data';
 
+import { backgroundClouds } from '../../socket/backgroundClouds';
 import { useDynamicDeviceId } from '../../session/hooks/app/useDynamicDeviceId';
 // Off the session barrel (ADR-0076 Decision 6): the committed cloud id and the narrowed slot snapshot
 // are runtime-internal.
-import { getCommittedCloudId, getSocketSlotContext, sessionSignal } from '../../session/store';
-import type { SessionSignalKind } from '../../session/store';
+import { getCommittedCloudId, getSocketSlotContext } from '../../session/store';
 
 import type { RuntimeSocketSlots } from '../types';
+import { readyBackgroundConfigs } from '../utils/backgroundSlots';
+import { subscribeSlotSignals } from '../utils/slotSignals';
 
 /**
- * The slices the slots are derived from — deliberately NOT `identity` (ADR-0076 E5).
- *
- * Every input below moves on one of these three: relay `wss`/`identityToken` on `relay:token`,
- * `cloud.isActive`/`wss`/`identityToken` and the committed cloud id on `cloud:token`, and the
- * selected cloud on `selection`. Identity has its own signal and fires without any of them — boot
- * alone emits it twice (`setSessionIdentityState`) and every login adds one, each of which used to
- * re-render this hook and hand both binders a new-but-equal slots object.
- *
- * The matching narrow snapshot (`getSocketSlotContext`) is what keeps this honest: subscribing to a
- * subset while READING the full context would render stale values silently.
- */
-const SLOT_SIGNALS: readonly SessionSignalKind[] = ['relay:token', 'cloud:token', 'selection'];
-
-/** Stable reference — `useSyncExternalStore` re-subscribes whenever this identity changes. */
-const subscribeSlotSignals = (listener: () => void): (() => void) => sessionSignal.subscribe(SLOT_SIGNALS, listener);
-
-/**
- * Derives the two socket slots from the live session. This is the whole job — it used to ALSO derive
- * the cache scope (`{cid, sid, uid}`) and hand it back as `RuntimeBinding.context`, which no
+ * Derives the socket slots from the live session: relay, the committed cloud, and a background slot
+ * for each other cloud the account belongs to (`socket/backgroundClouds` decides which). This is
+ * the whole job — it used to ALSO derive the cache scope (`{cid, sid, uid}`) and hand it back as `RuntimeBinding.context`, which no
  * production code read: `deriveSelectedContext` owns that formula now and consumers READ it from the
  * store instead of receiving a pushed copy (ADR-0070 Decision 7 · ADR-0076 Decision 1). The duplicate was
  * character-for-character identical, so the two could only ever agree or silently disagree.
@@ -41,6 +27,12 @@ const subscribeSlotSignals = (listener: () => void): (() => void) => sessionSign
 export const useRuntimeSocketSlots = (): RuntimeSocketSlots => {
     const { deviceId } = useDynamicDeviceId();
     const session = useSyncExternalStore(subscribeSlotSignals, getSocketSlotContext, getSocketSlotContext);
+    // The app's cloud list and the per-cloud token cache move outside the session signals.
+    const backgroundVersion = useSyncExternalStore(
+        backgroundClouds.subscribe,
+        backgroundClouds.getVersion,
+        backgroundClouds.getVersion
+    );
 
     return useMemo(() => {
         const { relay, cloud } = session;
@@ -50,11 +42,11 @@ export const useRuntimeSocketSlots = (): RuntimeSocketSlots => {
         // carried as a sibling of `config` (NOT inside it): SocketBinder's reboot key reads only
         // `config`, so a token refresh leaves the config stable and does not reboot the socket, while
         // SocketReauthBinder watches this per-slot `identityToken` to re-authenticate in place on a
-        // same-connection identity swap (guest→social). The CLOUD slot carries no identityToken
-        // (a535055a): every cloud switch commits a different cid, and the cid is the slot's key, so
-        // SocketBinder boots the incoming cloud as a new slot and tears the outgoing one down —
-        // there is no live connection left to re-authenticate. Login (null→token) turns a slot on,
-        // logout off. (§6-3, §6-7)
+        // same-connection identity swap (guest→social). The CLOUD slot carries no identityToken:
+        // the cid is the slot's key, so a switch either boots the incoming cloud as a new
+        // slot or lands on its background slot and commits the tokens that slot registered with —
+        // either way there is no identity change on a live connection. Login (null→token) turns a
+        // slot on, logout off.
         const relaySlot =
             deviceId && relay.wss && relay.identityToken
                 ? {
@@ -94,6 +86,15 @@ export const useRuntimeSocketSlots = (): RuntimeSocketSlots => {
                   }
                 : undefined;
 
-        return { relay: relaySlot, cloud: cloudSlot };
-    }, [deviceId, session]);
+        // Background slots ride on the relay session: their tokens are minted from it
+        // (`delegate-cloud` is relay-signed), and a relay logout ends every cloud with it. Like the
+        // cloud slot, a background slot carries no identityToken — its cloud's credential guard
+        // re-registers it on renewal, so SocketReauthBinder has nothing to watch.
+        const background = deviceId && relaySlot ? readyBackgroundConfigs(deviceId).map(config => ({ config })) : [];
+
+        return { relay: relaySlot, cloud: cloudSlot, background };
+        // `backgroundVersion` is not read in the body; it is the dependency that re-runs this when
+        // the cloud list or the token cache moved.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [deviceId, session, backgroundVersion]);
 };

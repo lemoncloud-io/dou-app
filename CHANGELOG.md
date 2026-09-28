@@ -1,5 +1,38 @@
 # Changelog
 
+## [2026-09-28] - root@0.67.0, @chatic/web@0.53.0
+
+### Features
+
+- (data) read an image message back once it is sent, for its image addresses
+- (testbed) send images from the chat room and log every step of the upload
+- (web) send images through the shell's own PUT, and fail the rows a reload leaves behind
+- (data,app-messages,app-runtime) send picked images as one message over a PUT port
+
+### Documentation
+
+- (adr,block-kit) drop other repositories' paths, branches and commits
+- (adr,logger) drop private document paths from the docs
+- (logger,block-kit,desktop-web) drop private document paths and PR numbers from comments
+- (adr) an image send runs in the data layer, over a PUT port (ADR-0121)
+
+### Chores
+
+- (deps) bump chatic-sockets-lib to 0.5.4 and chatic-socials-api to 0.26.902
+
+## [2026-09-28] - No version updates
+
+### Features
+
+- (perf,mobile,web) record traces in Firebase Performance and time room opens (ADR-0120)
+
+## [2026-09-28] - No version updates
+
+### Features
+
+- (app-runtime) sign off a cloud slot pushed past the cap before tearing it down
+- (app-runtime,web,desktop-web) keep a socket session open for every joined cloud (ADR-0119)
+
 ## [2026-09-28] - No version updates
 
 ### Features

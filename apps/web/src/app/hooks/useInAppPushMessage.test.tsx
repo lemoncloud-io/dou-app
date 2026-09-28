@@ -5,6 +5,7 @@ import { runtime } from '@chatic/app-runtime';
 
 import { useOnReceiveNotification, usePushNavigate } from '../bridge';
 import { useInAppPushMessage } from './useInAppPushMessage';
+import { roomOpenTrace } from '../runtime/perf';
 
 jest.mock('sonner', () => ({ toast: { custom: jest.fn(), dismiss: jest.fn() } }));
 // The banner card translates its "now" label; echo keys so assertions target the key.
@@ -158,6 +159,17 @@ describe('useInAppPushMessage', () => {
 
         expect(toastDismiss).toHaveBeenCalledWith('in-app-push-message');
         expect(navigateToPush).toHaveBeenCalledWith('/channels/abc/room?cid=c1');
+    });
+
+    it('begins a push_banner room-open trace for the room the banner opens', () => {
+        roomOpenTrace.reset();
+        invoke({ title: 'T', body: 'B', data: { link: '/channels/abc/room', channelId: 'abc' } });
+
+        renderToastContent();
+        screen.getByRole('button').click();
+
+        const trace = roomOpenTrace.claim('abc');
+        expect(trace?.name).toBe('chat_room_open');
     });
 
     it('라우팅 정보가 없는 푸시는 표시만 하고 클릭 동작이 없다', () => {

@@ -4,6 +4,7 @@ import type {
     JoinView,
     ProfileDisplay,
     ProfileView,
+    UploadView,
     UserView,
 } from '@lemoncloud/chatic-socials-api';
 import type { CloudView, MyInviteView, MySiteView } from '@lemoncloud/chatic-backend-api';
@@ -106,9 +107,23 @@ export type CacheChannelView = ChannelView &
         lastActivityAt?: number;
     };
 
+/**
+ * One image slot of a message that has not been sent yet. Local names only — never the server's
+ * `status` / `error` / `url` / `thumbnail` — because the server's `'failed'` is terminal while a
+ * local `'failed'` can be retried, and a reader that met the same name would take one for the other.
+ * The shell stores the row as-is, so this needs nothing from it.
+ */
+export type PendingUploadSlot = {
+    localStatus: 'sending' | 'failed';
+    /** An object URL for this page only; it dies with the page and is never sent anywhere. */
+    localThumbUrl: string;
+};
+
 /** Chat message view (includes send status and domain fields) */
-export type CacheChatView = ChatView &
+export type CacheChatView = Omit<ChatView, 'upload$$'> &
     CacheViewBase & {
+        /** Server uploads once sent; pending slots while an image message is still on its way. */
+        upload$$?: (UploadView | PendingUploadSlot)[];
         id: string;
         cid: string;
         channelId: string;

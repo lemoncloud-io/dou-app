@@ -8,8 +8,8 @@
 produce it, the bridge carries it without rewriting it, and the server stores it. This document is
 what the shape means and what a call site is allowed to put in it.
 
-It is not the list of situations that deserve an entry. That catalogue is canonical in the knowledge
-vault (`projects/@lemoncloud-io/dou-app/log-collection/triggers.md`); what lives here is the shape
+It is not the list of situations that deserve an entry. That catalogue is canonical outside this
+repo; what lives here is the shape
 the catalogue's rows are written in.
 
 ## Layout
@@ -107,7 +107,7 @@ gains a `route: undefined` it never had.
 what each listener does with it, not whether it is published.
 
 - **`debug` lives exactly where someone is watching.** In a release build nothing can read it — the console is not running and Crashlytics discards it — so the store does not accept it either. In every other build it is a first-class citizen: printed, relayed, stored, and visible in the debug monitor. The decision comes from one host flag (`import.meta.env.DEV` on the web, `__DEV__` in the app), so console, relay and storage cannot disagree about what "this build is being watched" means.
-- **`info` is for things worth seeing on the server even when nothing failed.** Performance metrics are `info` (see [docs/perf/](../perf/README.md)), and so are the shape observations.
+- **`info` is for things worth seeing on the server even when nothing failed.** Performance traces that fall back to the log pipeline are `info` (see [`@chatic/perf`](../../../perf/README.md)), and so are the shape observations.
 - **`warn` and `error` are what the admin console filters on.** The server hoists `level`, `runId`, `uid`, `sid` and `cid` out of the entry to make them queryable, and those plus a date range are the whole set of axes. Not tag, not message, not a value inside the payload — which is why a verdict the client took has to land on the level it wants to be findable under.
 
 A call site that fires on every request or every frame does not use `warn`. See
@@ -140,7 +140,7 @@ still suggests them.
 | Storage             | `CACHE` `STORAGE` `SQLITE` `PREFERENCE` `LOG_BUFFER`                                                                                                      |
 | Native capabilities | `WEBVIEW` `NOTIFICATION` `PUSH_EVENT` `DEEPLINK` `UPLOAD` `FILE` `DEVICE` `PERMISSION` `CLIPBOARD` `SMS` `OAUTH` `APP_ICON` `VERSION` `FIREBASE` `UNFURL` |
 
-**This constant mirrors the catalogue and is not itself the source of truth.** When the vault table
+**This constant mirrors the catalogue and is not itself the source of truth.** When the catalogue
 changes, this follows — never the other way round. `isKnownLogTag` answers whether a string is on the
 list, for diagnostics and tests; it is never a runtime gate.
 

@@ -8,6 +8,7 @@ import { useInterval } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { runtime } from '@chatic/app-runtime';
 import { useCloudSessionCatalog } from '../../../hooks/useCloudCatalog';
+import { useJoinedCloudIds } from '../../../hooks/useJoinedCloudIds';
 
 import { BottomSheet, CollapsibleSection, Divider } from '@chatic/web-ui-kit';
 
@@ -94,12 +95,8 @@ export const CloudSessionSheet = ({
     // while away. Filtered to clouds actually in this account's catalog (owned + invited + relay)
     // and never the active one, so a stale/foreign mark can't paint a dot nothing else corroborates.
     const badged = useCloudPushMarkStore(s => s.badged);
-    const catalogCloudIds = useMemo(() => {
-        const ids = new Set<string>([RELAY_CLOUD_ID]);
-        for (const cloud of catalogClouds) if (cloud.id) ids.add(cloud.id);
-        for (const cloud of invitedClouds) if (cloud.id) ids.add(cloud.id);
-        return ids;
-    }, [catalogClouds, invitedClouds]);
+    const joinedCloudIds = useJoinedCloudIds(catalogClouds, invitedClouds);
+    const catalogCloudIds = useMemo(() => new Set<string>([RELAY_CLOUD_ID, ...joinedCloudIds]), [joinedCloudIds]);
     const isBadged = (cloudId: string) =>
         cloudId !== selectedCloudId && catalogCloudIds.has(cloudId) && !!badged[cloudId];
 

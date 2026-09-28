@@ -165,6 +165,26 @@ describe('세션 스토어 — 통지하지 않는 쓰기', () => {
         expect(mockEmitted).toEqual([]);
     });
 
+    it('clearCachedCloudTokens is the cache too — nothing is emitted', () => {
+        cloudStore.setCachedCloudTokens('cloud-1', { cloudToken: TOKEN, delegationToken: TOKEN } as never);
+        mockEmitted.length = 0;
+
+        cloudStore.clearCachedCloudTokens();
+
+        expect(mockEmitted).toEqual([]);
+    });
+
+    /**
+     * The recent-cloud order is written inside a switch's commit batch, which already announces
+     * `cloud:token` + `selection`; everything that reads the order re-derives on those.
+     */
+    it('recordCloudUse and clearRecentClouds emit nothing', () => {
+        cloudStore.recordCloudUse('cloud-1');
+        cloudStore.clearRecentClouds();
+
+        expect(mockEmitted).toEqual([]);
+    });
+
     it('읽기는 통지하지 않는다 — 만료된 캐시 항목을 스스로 지우는 읽기까지', () => {
         // Seed an expired entry and getCachedCloudTokens deletes it right there (it writes). Even so
         // there must be no notification: no state actually moved, and the expiry was already an
@@ -206,11 +226,14 @@ describe('세션 스토어 — 쓰기 인구조사', () => {
     it('표가 세 스토어의 쓰기 메서드를 전부 덮는다', () => {
         const covered = new Set(
             WRITES.map(entry => entry.name.replace(/\(null\)$/, '')).concat([
-                // Covered by the exception suite above: the token cache and the identity map.
+                // Covered by the exception suite above: the token cache, the identity map and the recent order.
                 'cloudStore.setCachedCloudTokens',
                 'cloudStore.dropCachedCloudTokens',
                 'cloudStore.setCloudIdentity',
                 'cloudStore.clearCloudIdentities',
+                'cloudStore.clearCachedCloudTokens',
+                'cloudStore.recordCloudUse',
+                'cloudStore.clearRecentClouds',
             ])
         );
 

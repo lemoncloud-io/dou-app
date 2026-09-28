@@ -1,5 +1,6 @@
-import { reportPerfMetric } from '@chatic/logger';
+import { startPerfTrace } from '@chatic/perf';
 import type { BootRecord, BootType, NativeBootMarkKey, SendBootMetricsPayload } from '@chatic/app-messages';
+import type { PerfTrace } from '@chatic/perf';
 
 import type { IKeyValueStorage } from '../../database';
 import type { ILogService } from '../log';
@@ -49,6 +50,12 @@ export class BootMetricsService implements IBootMetricsService {
     private contentProcessReloadCount = 0;
     private lastForegroundResumeMs: number | null = null;
 
+    /**
+     * The Firebase `boot` trace for the current session. Started with the baseline and replaced
+     * with it, so Firebase's own duration runs over the same span as `totalMs`.
+     */
+    private bootTrace: PerfTrace;
+
     constructor(
         private readonly logService: ILogService,
         private readonly storage: IKeyValueStorage,
@@ -56,6 +63,7 @@ export class BootMetricsService implements IBootMetricsService {
         private readonly now: () => number = Date.now
     ) {
         this.baselineAtMs = this.now();
+        this.bootTrace = startPerfTrace('boot');
     }
 
     public mark(key: NativeBootMarkKey): void {
@@ -64,6 +72,7 @@ export class BootMetricsService implements IBootMetricsService {
         this.marks[key] = this.now() - this.baselineAtMs;
 
         if (key === 'web-app-ready') {
+            this.stopBootTrace();
             // Give the web snapshot a grace window, then persist either way.
             if (this.webMetrics) void this.finalize();
             else this.finalizeTimer = setTimeout(() => void this.finalize(), WEB_METRICS_TIMEOUT_MS);
@@ -81,6 +90,10 @@ export class BootMetricsService implements IBootMetricsService {
         this.webMetrics = null;
         this.finalized = false;
         this.type = 'reload';
+        // The previous session's trace is left unstopped when it never reached WebAppReady, which
+        // Firebase treats as never having happened: an aborted boot is kept in the ring buffer
+        // above, but it is not a sample of how long boot takes.
+        this.bootTrace = startPerfTrace('boot');
     }
 
     public attachWebMetrics(payload: SendBootMetricsPayload): void {
@@ -137,34 +150,26 @@ export class BootMetricsService implements IBootMetricsService {
         } catch (e) {
             this.logService.error('PERF', 'Failed to persist boot record', e as Error);
         }
-
-        this.reportBootMetric(record);
     }
 
     /**
-     * Emits the boot number as a structured metric entry (ADR-0071).
+     * Closes the `boot` trace at WebAppReady — the endpoint the 1.5s target is defined on.
      *
-     * Alongside the human line above rather than replacing it: that line is
-     * already shipping and already read, and the two have different jobs — one
-     * is a sentence someone scans in the log monitor, this is a payload a script
-     * parses. It only leaves sampled runs, so the cost is one extra entry in
-     * roughly one launch out of ten.
+     * At the mark, not at `finalize`: finalizing waits up to five seconds more for the web
+     * snapshot, and Firebase would count that wait as boot. The human line in `finalize` is
+     * untouched; the two have different readers.
      *
-     * Outside the try/catch on purpose. A storage failure does not invalidate
-     * the measurement, and `reportPerfMetric` must not be mistaken for part of
-     * what the catch above is protecting.
+     * `boot_type` rides along because a reload session re-baselines on a WebView content-process
+     * crash — a different measurement, and one that lands disproportionately on memory-pressured
+     * devices. The target is the cold number; without the attribute the two could not be told
+     * apart in the console.
      */
-    private reportBootMetric(record: BootRecord): void {
-        // A session that never reached WebAppReady has no boot duration to
-        // report. It is still persisted — an aborted boot is worth keeping — but
-        // it is not a sample of "how long boot takes".
-        if (record.totalMs == null) return;
-
-        // `bootType` rides along because a reload session re-baselines on a
-        // WebView content-process crash — a different measurement, and one that
-        // lands disproportionately on memory-pressured devices. The 1.5s budget
-        // is the cold number; without this key the two would be indistinguishable
-        // once they reach the server.
-        reportPerfMetric('boot', record.totalMs, { marks: record.native, bootType: record.type });
+    private stopBootTrace(): void {
+        this.bootTrace.putAttribute('boot_type', this.type);
+        for (const [key, ms] of Object.entries(this.marks)) {
+            // Firebase metric names allow no dashes, so the mark keys are rewritten for the trace.
+            if (ms != null) this.bootTrace.putMetric(key.replace(/-/g, '_'), ms);
+        }
+        this.bootTrace.stop();
     }
 }

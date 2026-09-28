@@ -8,10 +8,11 @@ A document belongs here if it is about inspecting the app rather than being part
 panel's own screens, its unlock gate and its catalog are a feature and are documented as one in
 [`../feature/debug/`](../feature/debug/README.md); this category covers the boundary around it.
 
-| Document | Owns |
-| --- | --- |
-| [logging.md](./logging.md) | How this app wires `@chatic/logger` — boot order, the upload queue, and global error detection |
-| [debug-panel.md](./debug-panel.md) | What the panel may ask the native shell to do, and what stays on each side of the bridge |
+| Document                           | Owns                                                                                           |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------- |
+| [logging.md](./logging.md)         | How this app wires `@chatic/logger` — boot order, the upload queue, and global error detection |
+| [debug-panel.md](./debug-panel.md) | What the panel may ask the native shell to do, and what stays on each side of the bridge       |
+| [performance.md](./performance.md) | Where the web's performance traces are recorded, and the `chat_room_open` trace end to end     |
 
 The web is the only debug surface in the product: `apps/mobile` renders no debug screen of its own
 and only answers the commands this panel sends.

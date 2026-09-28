@@ -4,3 +4,4 @@ export * from './useDebugOperation';
 export * from './useDebugUnlock';
 export * from './usePushRegistration';
 export * from './useReceivedPushLog';
+export * from './useSlotStatuses';

@@ -1,7 +1,7 @@
 import type { PlaceSocketDomainGateway } from '../gateways';
 import type { UserMySiteInput } from '@lemoncloud/chatic-sockets-api';
 import type { MySiteView } from '@lemoncloud/chatic-backend-api';
-import type { ListResult } from '@lemoncloud/chatic-socials-api/dist/cores/types';
+import type { ListResult } from '@lemoncloud/chatic-backend-api/dist/cores/types';
 import type { DomainListResult, DomainPlace } from '../../domain';
 import { createDomainListResult, toDomainPlace } from '../../domain';
 import type { DataContext } from '../../repositories/types';

@@ -6,7 +6,7 @@ import type { KnownBlock } from '@chatic/block-kit';
  * Four, not the ten the design mocks list. `Tag`, `Button`, `Image` and `Icon`
  * have no block behind them: the server folds an attachment's colour into an
  * emoji rather than a chip, there is no endpoint for a button press to reach,
- * and images are outside the server's scope (knowledge#319 SPEC §3.3, E7). A
+ * and images are outside the server's scope. A
  * palette entry that produced something a channel cannot draw would make the
  * preview a promise the product does not keep.
  *

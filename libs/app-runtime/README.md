@@ -21,7 +21,7 @@ grep -rn "@chatic/app-runtime/" --include='*.ts' --include='*.tsx' apps libs | g
 
 Four apps consume it and nothing else does — `apps/web`, `apps/desktop-web`, `apps/admin-v2`,
 `apps/testbed`. The surface itself is locked symbol by symbol by
-[`src/public-surface.test.ts`](./src/public-surface.test.ts): 66 value exports across the seven
+[`src/public-surface.test.ts`](./src/public-surface.test.ts): 67 value exports across the seven
 groups, and a test that fails if an eighth group appears or a symbol moves between them.
 
 This lib is the **composition root, not an engine**. It builds and wires; the engines it assembles
@@ -50,7 +50,8 @@ the HMAC signer (`libs/auth-sign`) and the logging core ([`libs/logger`](../logg
 ## Scope
 
 **In** — the session store and its signal, the login/logout/switch use cases, the scope owner, the
-React session surface, the socket manager and its two slots, socket authentication wiring and
+React session surface, the socket manager and its slots (relay, the committed cloud, and a background slot per other
+joined cloud), socket authentication wiring and
 credential renewal, the sync manager and the app's sync plans, the HTTP manager and its route
 endpoints, the repository graph and cache-storage routing, the offline chat outbox, device-token
 registration, the user issue report and the log-batch upload, and the boot call that wires them.
@@ -135,7 +136,7 @@ sequenceDiagram
     App->>App: initAppRuntime({ data })
     App->>Host: mount
     Host->>Host: useRelaySessionInit — gate the subtree
-    Host->>Host: useRuntimeSocketSlots — derive relay/cloud slots
+    Host->>Host: useRuntimeSocketSlots — derive relay, cloud and background slots
     Host->>B: slots + per-slot delegate
     B->>M: bootstrapSocketConnection({ manager, config, delegate })
     M->>A: ensure(config) — slot keyed by config.cid, attaches AUTH_OPTIONS
@@ -238,8 +239,9 @@ apps/*/src/main.tsx
        └─ <RuntimeConnectionHost>
             ├─ useRelaySessionInit()      gate: renders null until the session is ready
             ├─ useSocketSessionDelegate() per-slot seed · sign · writeback
-            ├─ useRuntimeSocketSlots()    session → { relay?, cloud? } slot configs
+            ├─ useRuntimeSocketSlots()    session → { relay?, cloud?, background[] } slot configs
             ├─ useRelaySessionKeepAlive() guest login when no session exists (host-dependent)
+            ├─ useBackgroundCloudTokens() issues a background cloud's tokens before its slot boots
             ├─ <SocketBinder>             reconciles every slot + the active pointer; calls getSyncManager() first
             └─ <SocketReauthBinder>       re-auths a slot whose identity token changed
 ```
@@ -286,9 +288,12 @@ cid-scoped cache observers re-subscribe to the target at once. The token exchang
 `sessionSignal.batch()` — subscribers see one notification, not eight, and a failed switch rolls
 back inside the batch so it is never observed at all. `committed` moves only on success; `bound`
 says where the socket actually is. The committed cid is the cloud slot's key, so the commit hands
-`SocketBinder` a different slot, not a changed one. Its one reconcile pass binds the target's slot,
-points the active facade at it, and only then tears the outgoing cloud's slot down — the log reads
-`slot bound` → `active moved` → `slot torn down`, and the relay slot is untouched throughout.
+`SocketBinder` a different slot, not a changed one. When the target already holds a background slot
+— every cloud the account belongs to does, up to five — the switch commits the tokens that slot
+registered with instead of exchanging new ones, and the reconcile pass only moves the pointer: the
+log reads `active moved`, nothing reconnects, and the cloud just left stays up as a background slot.
+A target without one is bound fresh, the pointer moves, and a left cloud that is not kept is torn
+down — `slot bound` → `active moved` → `slot torn down`. The relay slot is untouched throughout.
 
 ### 4. A guest signs in
 
@@ -345,7 +350,7 @@ cd libs/app-runtime && npx eslint src             # flat config — run it from 
 
 - Type checking must be `tsc -b`. Inside `libs/app-runtime`, `tsconfig.json` is a solution file (`files: []`, `include: []`), so `tsc --noEmit` checks zero files and exits 0. `tsc -b tsconfig.json` builds what that file references — the lib project, and the spec project when it is on the reference list. `tsc -b tsconfig.lib.json` checks only the lib.
 - Jest does not type check: the base sets `isolatedModules`, so ts-jest transpiles. A fixture that has drifted from the type it imitates surfaces as `… is not a function` at runtime unless the spec project is checked too.
-- Four tests are gates rather than unit tests, and they fail for reasons a reviewer will not expect: `public-surface.test.ts` (the 64 symbols and their groups), `refreshAbsence.test.ts` and `authUpdateAbsence.test.ts` (they walk `src/**` for a string), `importCycleAbsence.test.ts` (it rebuilds the import graph), and `hookPlacement.test.ts` (every exported `use*` sits in a `hooks/` folder).
+- Four tests are gates rather than unit tests, and they fail for reasons a reviewer will not expect: `public-surface.test.ts` (the 67 symbols and their groups), `refreshAbsence.test.ts` and `authUpdateAbsence.test.ts` (they walk `src/**` for a string), `importCycleAbsence.test.ts` (it rebuilds the import graph), and `hookPlacement.test.ts` (every exported `use*` sits in a `hooks/` folder).
 - Do not run `yarn install` in a worktree. Node resolution walks up to the parent repo's `node_modules`, so the binaries are already reachable; installing here rewrites `apps/mobile/ios/Podfile.lock` and a leftover symlink poisons the parent on the next install.
 - `.github/workflows/verify.yml` runs `lint`, `typecheck` and `test` for this project on every pull request, so a red gate here is a red CI.
 - Downstream: a changed barrel symbol reaches `apps/web`, `apps/desktop-web`, `apps/admin-v2`, `apps/testbed` and `libs/data`. That workflow excludes `desktop-web` from `typecheck` (a long-standing error baseline) and `web` from `test` (7 failures of 2720), so those two are the ones to run by hand.

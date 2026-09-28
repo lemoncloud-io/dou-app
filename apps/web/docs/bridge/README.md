@@ -1,6 +1,6 @@
 # bridge — the app-side seam over `@chatic/bridges`
 
-> Scope: `apps/web/src/app/bridge/` (21 files). The transport itself — `webClient`, readiness
+> Scope: `apps/web/src/app/bridge/` (23 files). The transport itself — `webClient`, readiness
 > polling, timeouts, the message vocabulary — is [`@chatic/bridges`](../../../../libs/bridges/README.md);
 > this document covers only the wrapper this app builds on top of it.
 
@@ -16,10 +16,10 @@ This document is also the index for the category. Two subjects are large enough 
 file, and both are bridge code rather than feature code — there is no `features/notifications/`
 folder:
 
-| Document | Owns |
-| --- | --- |
-| [push-navigation.md](./push-navigation.md) | Where a tapped push lands — path handover, session state, and the back stack |
-| [device-token.md](./device-token.md) | The shell adapter that hands a push token to `runtime.push`, and its native mirror |
+| Document                                   | Owns                                                                               |
+| ------------------------------------------ | ---------------------------------------------------------------------------------- |
+| [push-navigation.md](./push-navigation.md) | Where a tapped push lands — path handover, session state, and the back stack       |
+| [device-token.md](./device-token.md)       | The shell adapter that hands a push token to `runtime.push`, and its native mirror |
 
 ## Outbound: `appBridge`
 
@@ -45,6 +45,16 @@ push-only: a request/response exchange goes through `appBridge`, never through o
 store, and `useAppForeground` for dismissing the native resume overlay. A feature-local push (e.g. a
 purchase result inside `useSubscriptionIap`) subscribes directly with its own `useOn*` hook instead
 of routing through this component.
+
+## File transfers: `shellUpload`
+
+`shellUpload.ts` picks the PUT an image message uses and owns the one per-page native transfer
+registry behind it: `getShellPut()` returns the native sender inside the app and the page's own
+`xhrPut` in a browser, and `syncShellTransfers()` catches up with transfers the shell finished while
+the page was away. The senders themselves live in `runtime/upload/` and take the bridge they talk
+through as an argument, so this file stays the only place that hands them `webClient`. The first
+`NOT_FOUND` from a shell built before the transfer module switches the page to `xhrPut` for good.
+Its consumer and the rest of the story → [feature/channels/image-send.md](../feature/channels/image-send.md).
 
 ## Foreground detection
 

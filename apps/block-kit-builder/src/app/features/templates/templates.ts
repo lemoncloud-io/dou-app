@@ -11,7 +11,7 @@ interface BuilderTemplate {
 /**
  * Status reads as an emoji in the header, not a coloured chip: that is what the
  * server does with an attachment's colour, and a chip would be a shape no message
- * can carry (knowledge#319 SPEC §3.3).
+ * can carry.
  *
  * The error the server sends today puts its whole JSON payload in one running
  * paragraph, which is why an error report is the hardest of these to read in a

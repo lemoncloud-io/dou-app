@@ -3492,12 +3492,12 @@
   dependencies:
     lemon-model "^1.1.1"
 
-"@lemoncloud/chatic-socials-api@^0.26.810":
-  version "0.26.810"
-  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-socials-api/-/chatic-socials-api-0.26.810.tgz#6d8cfd5d478737c51efa488bd9f6ac61c99d2e6a"
-  integrity sha512-cbsid3d2dxhoHpl15ZPrXAe6ub2aKbm0DOcW0NE1e/IGOk+FdJzM6aKfZq8N+c4hLIxQE/dJT+TNmnbVqMY80Q==
+"@lemoncloud/chatic-socials-api@^0.26.902":
+  version "0.26.902"
+  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-socials-api/-/chatic-socials-api-0.26.902.tgz#f3f724c9473427177391caea2abd848d2356c13b"
+  integrity sha512-nE9mKA9exyTX1GgM28LFWJ46pDoXu8NmQj/K+SLid+CmxwfAUxPB7xZ/HzpvwPZwu2tn02etFOJl9adFACf05g==
   dependencies:
-    lemon-model "^1.1.1"
+    lemon-model "^1.5.0"
 
 "@lemoncloud/chatic-sockets-api@*":
   version "0.26.127"
@@ -3513,10 +3513,10 @@
   dependencies:
     lemon-model "^1.2.2"
 
-"@lemoncloud/chatic-sockets-lib@0.5.2":
-  version "0.5.2"
-  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-sockets-lib/-/chatic-sockets-lib-0.5.2.tgz#8875c234983ccc091d4f6e03d2557d866b265e05"
-  integrity sha512-4otCRmzvZ4PkbVY0QFI++h4mQOctZdXuF7Bwj4a6t81YMbZ7y1Iq1oT0llH/qq/LlvVWq4P5xpy2QOiirvvAGQ==
+"@lemoncloud/chatic-sockets-lib@0.5.4":
+  version "0.5.4"
+  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-sockets-lib/-/chatic-sockets-lib-0.5.4.tgz#fc63a3838b92284c3c35f5406a6298552c5d1a14"
+  integrity sha512-KwM6FrTPVf+if7aKi6agde9i8Ra8Do7akL+plvrOuakbqPSVqVpFb2K31nq//AM80khpo5Z/gYMLSHXkAyYheg==
 
 "@lemoncloud/lemon-boards-api@^2.25.109":
   version "2.25.608"
@@ -5928,6 +5928,11 @@
   version "24.0.0"
   resolved "https://registry.yarnpkg.com/@react-native-firebase/messaging/-/messaging-24.0.0.tgz#185cd1d9f343fd6a2f077de05def34977fe63103"
   integrity sha512-rODaV83e8mR+Y9EPDblfSpy4rM+alriiq5306RyzPryhsyu+guj4fhGwZpESWwhmk9fKjsnshv++aFA50xFjhg==
+
+"@react-native-firebase/perf@*", "@react-native-firebase/perf@24.0.0":
+  version "24.0.0"
+  resolved "https://registry.yarnpkg.com/@react-native-firebase/perf/-/perf-24.0.0.tgz#569594893c1ec80ac16d6dc94aeee145e8e6c8f1"
+  integrity sha512-Sad85xBo/KFZz9xJHxT7KamgDs0Wa59xEzugJzEJdsJgjKek5Lb4kr7m4z1sCJurswUppEiPAYRPQIBCPWiaew==
 
 "@react-native-google-signin/google-signin@*":
   version "16.1.2"
@@ -15126,7 +15131,7 @@ lazy-val@^1.0.5:
   resolved "https://registry.yarnpkg.com/lazy-val/-/lazy-val-1.0.5.tgz#6cf3b9f5bc31cee7ee3e369c0832b7583dcd923d"
   integrity sha512-0/BnGCCfyUMkBpeDgWihanIAF9JmZhHBgUhEqzvf+adhNGLoP6TaiI5oF8oyb3I45P+PcnrqihSf01M0l0G5+Q==
 
-lemon-model@1.2.2, lemon-model@^1.0.3, lemon-model@^1.0.5, lemon-model@^1.1.1, lemon-model@^1.2.2:
+lemon-model@1.2.2, lemon-model@^1.0.3, lemon-model@^1.0.5, lemon-model@^1.1.1, lemon-model@^1.2.2, lemon-model@^1.5.0:
   version "1.2.2"
   resolved "https://registry.yarnpkg.com/lemon-model/-/lemon-model-1.2.2.tgz#4e19238d5e2c7c957ce5f31dee26e922d6b1c056"
   integrity sha512-VMwcZ5eI4AmY4vzdW7MUbHfTcvDeaknrUKAMVv1kif4m6QmqCMFXJij0k9/blWonjoM8wtYschBYItPTA7lCHQ==

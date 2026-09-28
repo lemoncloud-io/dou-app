@@ -1,12 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { deeplinkService, logger, notificationService } from '../../services';
+// A leaf module: deeplinkUtils reaches react-native-config, which a unit test cannot load.
+import { isChannelRoomPath } from '../../services/deeplinks/isChannelRoomPath';
 import type { NativeRouteState, PushNavigationData } from '../../services/deeplinks/deeplinkUtils';
 // Imported from the leaf module, not the navigation barrel: the barrel re-exports RootNavigator,
 // which pulls the whole navigator graph (and @react-navigation's ESM) into anything that only needs
 // the ref. That is the coupling navigationRef.ts was split out to avoid.
 import { navigationRef } from '../../features/core/navigation/navigationRef';
 import type { IAppBridgeHost } from '@chatic/bridges';
+import type { HandedOverPerfTrace } from '@chatic/app-messages';
+import { startPerfTrace } from '@chatic/perf';
 
 // Delay before lifting the cold-start splash after the WebView reports load: keeps the "home" frame
 // hidden until the buffered OnNavigate has applied, avoiding a flash on cold-start deep links.
@@ -63,13 +67,28 @@ export const useDeepLinkNavigation = (bridge: IAppBridgeHost | undefined): UseDe
         let disposed = false;
 
         // Emit a WEBVIEW_URL-relative path to the web. Shared by every inbound navigation source.
-        const emitNavigate = (path: string) => {
+        const emitNavigate = (path: string, perfTrace?: HandedOverPerfTrace) => {
             logger.info('DEEPLINK', `[useDeepLinkNavigation] OnNavigate → ${path}`);
             bridge.pushEvent<'OnNavigate'>({
                 type: 'OnNavigate',
                 success: true,
-                data: { path, replace: false },
+                data: { path, replace: false, ...(perfTrace ? { perfTrace } : {}) },
             });
+        };
+
+        // Opens the room-open trace as soon as the tap reaches JS, so it covers what the user waits
+        // through from there — the WebView handshake, the router gate, a switch — and not only what
+        // the web can see. On a cold start that is after this runtime and the WebView have come up;
+        // the launch before it is the `boot` trace's. The web adopts the trace by id and stops it
+        // when the room draws. Only a room navigation starts one: nothing else would ever stop it.
+        const handOverRoomOpenTrace = (
+            path: string,
+            entry: HandedOverPerfTrace['entry'],
+            coldStart: boolean
+        ): HandedOverPerfTrace | undefined => {
+            if (!isChannelRoomPath(path)) return undefined;
+            const trace = startPerfTrace('chat_room_open');
+            return { id: trace.id, startedAt: Date.now(), entry, coldStart };
         };
 
         // Keep the splash up for a cold-start redirect. If the WebView already loaded, the splash
@@ -109,7 +128,7 @@ export const useDeepLinkNavigation = (bridge: IAppBridgeHost | undefined): UseDe
                 return;
             }
             if (isColdStart) markColdStartRedirect();
-            emitNavigate(resolution.path);
+            emitNavigate(resolution.path, handOverRoomOpenTrace(resolution.path, 'deeplink', isColdStart));
         };
 
         // Notification tap → relative path (cid/sid merged). A null path just foregrounds the app.
@@ -135,7 +154,7 @@ export const useDeepLinkNavigation = (bridge: IAppBridgeHost | undefined): UseDe
                 return;
             }
             if (isColdStart) markColdStartRedirect();
-            emitNavigate(path);
+            emitNavigate(path, handOverRoomOpenTrace(path, 'push_tap', isColdStart));
         };
 
         // --- Cold start capture (app launched by a deep link or a notification tap) ---

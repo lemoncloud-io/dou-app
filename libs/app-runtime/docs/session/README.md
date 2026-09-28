@@ -57,11 +57,11 @@ Each store is a class taking `(storage, signal)` in its constructor — so a tes
 fake storage — and each is exported only as a singleton alongside its `I*Store` interface. The
 implementation classes are not exported.
 
-| Store           | Interface        | Keys                                                                                                                                                                                                |
-| --------------- | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `relayStore`    | `IRelayStore`    | `chatic-relay-token` · `chatic-relay-selected-site-id`                                                                                                                                              |
-| `cloudStore`    | `ICloudStore`    | `chatic-cloud-delegation-token` · `chatic-cloud-token` · `chatic-selected-cloud-id` · `chatic-selected-place-id` · `chatic-invited-clouds` · `chatic-cloud-token-cache` · `chatic-cloud-identities` |
-| `identityStore` | `IIdentityStore` | `chatic-delegator-id` · `chatic-device-id`                                                                                                                                                          |
+| Store           | Interface        | Keys                                                                                                                                                                                                                         |
+| --------------- | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `relayStore`    | `IRelayStore`    | `chatic-relay-token` · `chatic-relay-selected-site-id`                                                                                                                                                                       |
+| `cloudStore`    | `ICloudStore`    | `chatic-cloud-delegation-token` · `chatic-cloud-token` · `chatic-selected-cloud-id` · `chatic-selected-place-id` · `chatic-invited-clouds` · `chatic-cloud-token-cache` · `chatic-cloud-identities` · `chatic-recent-clouds` |
+| `identityStore` | `IIdentityStore` | `chatic-delegator-id` · `chatic-device-id`                                                                                                                                                                                   |
 
 The keys stay in the file of the store that reads and writes them rather than moving to a shared
 `constants.ts`: a storage key is that class's persistence contract, and nothing else may touch it.
@@ -74,11 +74,18 @@ off the store.
 token while `cid` is committed and the cache entry otherwise; `peekCachedCloudTokens(cid)` reads the
 cache with no expiry margin (the served read, `getCachedCloudTokens`, deletes what it refuses to
 serve, and a socket still signing with that token must not lose it); `dropCachedCloudTokens(cid)`
-forgets one cloud's entry. The identity map — `getCloudIdentity` · `setCloudIdentity` ·
-`getCloudIdentities` · `clearCloudIdentities` — records which uid this account has in each cloud and
-outlives the tokens: `clearSession` keeps it (leaving a cloud is not a change of account), and only
-`relaySession.clearAndRedirect` clears it. It is what a reader of another cloud's cache partition
-addresses that partition by.
+forgets one cloud's entry and `clearCachedCloudTokens()` every cloud's. The identity map —
+`getCloudIdentity` · `setCloudIdentity` · `getCloudIdentities` · `clearCloudIdentities` — records
+which uid this account has in each cloud and outlives the tokens. It is what a reader of another
+cloud's cache partition addresses that partition by. The recent-cloud order — `recordCloudUse` ·
+`getRecentClouds` · `clearRecentClouds`, most recent first, at most 20 — is written by every
+successful switch and decides which clouds keep a background socket session when there are more of
+them than the cap ([docs/socket/](../socket/README.md#background-slots)).
+
+**Leaving the committed cloud is not the end of the account**, so `clearSession` clears the committed
+session and the selection and keeps all three of those: the token cache (the other clouds' background
+sessions sign from it, and the cloud just left usually becomes one of them), the identities and the
+recent order. Only `relaySession.clearAndRedirect` clears them.
 
 [`jsonSlot.ts`](../../src/session/store/jsonSlot.ts) is what each token slot is built on. It
 memoizes by raw string, so re-reading an unchanged token reuses the parse — building the relay
@@ -96,23 +103,27 @@ arriving while a cloud session is active must not re-derive cloud-scoped consume
 **Every write emits its kind.** This is the table
 [`store/writeSignals.test.ts`](../../src/session/store/writeSignals.test.ts) locks:
 
-| Write                                                                            | Emits                                        |
-| -------------------------------------------------------------------------------- | -------------------------------------------- |
-| `relayStore.saveRelayToken` · `clearToken`                                       | `relay:token`                                |
-| `cloudStore.saveDelegationToken` · `saveCloudToken`                              | `cloud:token`                                |
-| `relayStore.saveSelectedSiteId` · `clearSelectedSite`                            | `selection`                                  |
-| `cloudStore.saveSelectedCloudId` · `saveSelectedSiteId` · `clearSelectedSite`    | `selection`                                  |
-| `cloudStore.clearSession`                                                        | `cloud:token` + `selection`, in one batch    |
-| `identityStore.setDelegatorId` · `setDeviceId`                                   | `identity`                                   |
-| `setSessionAuthenticated` · `setSessionIdentityState` · `markSessionInitialized` | `identity`                                   |
-| `rebuildSessionIdentity`                                                         | `identity`, **only when the identity moved** |
-| `clearRelaySession`                                                              | `relay:token` + `identity`, in one batch     |
-| `cloudStore.setCachedCloudTokens` · `dropCachedCloudTokens`                      | **nothing**                                  |
-| `cloudStore.setCloudIdentity` · `clearCloudIdentities`                           | **nothing**                                  |
+| Write                                                                                  | Emits                                        |
+| -------------------------------------------------------------------------------------- | -------------------------------------------- |
+| `relayStore.saveRelayToken` · `clearToken`                                             | `relay:token`                                |
+| `cloudStore.saveDelegationToken` · `saveCloudToken`                                    | `cloud:token`                                |
+| `relayStore.saveSelectedSiteId` · `clearSelectedSite`                                  | `selection`                                  |
+| `cloudStore.saveSelectedCloudId` · `saveSelectedSiteId` · `clearSelectedSite`          | `selection`                                  |
+| `cloudStore.clearSession`                                                              | `cloud:token` + `selection`, in one batch    |
+| `identityStore.setDelegatorId` · `setDeviceId`                                         | `identity`                                   |
+| `setSessionAuthenticated` · `setSessionIdentityState` · `markSessionInitialized`       | `identity`                                   |
+| `rebuildSessionIdentity`                                                               | `identity`, **only when the identity moved** |
+| `clearRelaySession`                                                                    | `relay:token` + `identity`, in one batch     |
+| `cloudStore.setCachedCloudTokens` · `dropCachedCloudTokens` · `clearCachedCloudTokens` | **nothing**                                  |
+| `cloudStore.setCloudIdentity` · `clearCloudIdentities`                                 | **nothing**                                  |
+| `cloudStore.recordCloudUse` · `clearRecentClouds`                                      | **nothing**                                  |
 
-The last two rows are the legitimate exceptions and their names say so: the per-cloud token cache
-and the identity map change no observable session state — nothing derives from either, and a uid
-moves only with a new account, which announces itself through the relay token. `rebuildSessionIdentity` is the one gated writer — it compares
+The last three rows are the legitimate exceptions and their names say so: the per-cloud token cache,
+the identity map and the recent order change no observable session state. A uid moves only with a
+new account, which announces itself through the relay token, and the recent order is written inside
+a switch's commit batch, which already announces `cloud:token` + `selection`. The background socket
+slots do derive from the token cache; they are told through their own store
+(`backgroundClouds.invalidate`), not a session signal. `rebuildSessionIdentity` is the one gated writer — it compares
 five fields (`userId`, `delegatorId`, `isInitialized`, `isAuthenticated`, `error`) and stays silent
 when none moved, because it is called after every token writeback.
 
@@ -188,13 +199,16 @@ Two more are plain functions because they are shared by two callers with differe
 Entering a cloud may replay a cached exchange; renewing in place must not, because the cached copy is
 the one that is expiring. For the same reason a cloud writeback refreshes the cache too — a cache
 left behind the live token makes the _next_ entry restore a credential that was already replaced.
+An exchange runs **once per cloud at a time**: a call that finds one in flight for the same cloud
+joins it, so a switch, the background-slot preparer and a renewal can never leave the cache and what
+the cloud's socket registered with holding different tokens.
 `reissueCloudTokens` decides at write time whether the result also lands in the session store: it
 does when `cloudId` is the committed cloud at that moment, and stays in the cache otherwise. Both
 record the cloud's uid through [`cloudIdentity.ts`](../../src/session/auth/cloudIdentity.ts), a
 module of its own so the writeback path can record it without reaching the data runtime.
 
-`relaySession.clearAndRedirect()` clears both relay and cloud stores, the cloud identity map, and
-redirects to `/?logout=1`.
+`relaySession.clearAndRedirect()` clears both relay and cloud stores, the per-cloud token cache, the
+cloud identity map and the recent-cloud order, and redirects to `/?logout=1`.
 It performs no server-side logout; notifying the sockets is
 [`logoutSession`](../auth/README.md)'s job, one layer up. `logoutStorageSweeper.sweep()` is the other
 half of that flag: on the next document load it wipes the `@`-prefixed storage namespace, preserving

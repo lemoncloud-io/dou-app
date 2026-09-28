@@ -181,13 +181,13 @@ apps/web/src/
 └── app/
     ├── app.tsx         provider assembly only — no session logic
     ├── routes/         12 files: three route tables, the ROUTES builder, entry gates
-    ├── runtime/        53 files: RuntimeConnectionHost wiring, background runners, log wiring
-    ├── features/       589 files across 13 feature groups
+    ├── runtime/        66 files: RuntimeConnectionHost wiring, background runners, log and perf-trace wiring, PUT senders
+    ├── features/       615 files across 13 feature groups
     ├── hooks/          71 files: hooks shared by more than one feature
     ├── ui/             39 files: components/, layouts/, hooks/
     ├── utils/          30 files: pure helpers
     ├── navigation/     14 files: the history stack — entry rules, depth, and the back judgement
-    ├── bridge/         21 files: the single native ↔ web seam
+    ├── bridge/         23 files: the single native ↔ web seam
     ├── stores/         8 files: global client state and preference keys
     └── config/         7 files: the @chatic/config port adapters for this build
 ```
@@ -198,7 +198,7 @@ Files you cannot guess from the name:
   here, grouped by page type rather than by feature.
 - `app/routes/index.tsx` — the `Router` itself: it picks `privateRoutes` or `publicRoutes` from
   `runtime.session.useSessionAuth()` and blocks render until the session is initialized.
-- `app/runtime/AppRuntime.tsx` — mounts `runtime.connection.RuntimeConnectionHost` and seven
+- `app/runtime/AppRuntime.tsx` — mounts `runtime.connection.RuntimeConnectionHost` and eight
   background runners inside it.
 - `app/runtime/useSiteSwitch.ts` — the place (site) switch. The cloud switch lives under
   `features/home`.
@@ -298,7 +298,7 @@ main.tsx
         ├── AppUpdatePromptHost
         ├── app/runtime/AppRuntime.tsx
         │   └── runtime.connection.RuntimeConnectionHost   (gates until the session is ready)
-        │       ├── background runners × 7
+        │       ├── background runners × 8
         │       └── app/routes                             (Router → public | private + common)
         └── DebugOverlayHost
 ```

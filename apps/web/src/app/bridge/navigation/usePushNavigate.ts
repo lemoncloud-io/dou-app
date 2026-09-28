@@ -9,6 +9,7 @@ import { useSiteSwitch } from '../../runtime/useSiteSwitch';
 import { useStackNavigate } from '../../navigation';
 import { resolvePushNavigation } from './resolvePushNavigation';
 import { resolveThreadTarget } from './resolveThreadTarget';
+import { channelIdOfRoomPath, roomOpenTrace } from '../../runtime/perf';
 
 /** Upper bound for awaiting the socket handshake before a push-driven cloud/site switch. */
 const HANDSHAKE_WAIT_TIMEOUT_MS = 10_000;
@@ -177,6 +178,13 @@ export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
                 if (chatId) await hopToThread(chatId);
             };
 
+            // A room-open trace begun by whoever called this (a tap, a banner) learns what the switch
+            // cost: which kind ran, and when it was done. Peeked, not claimed — the room ends it.
+            const roomTrace = roomOpenTrace.peek(channelIdOfRoomPath(target));
+            if (needsSwitch) {
+                roomTrace?.putAttribute('switch', needsRelayReturn ? 'relay' : needsCloudSwitch ? 'cloud' : 'site');
+            }
+
             try {
                 if (needsSwitch) {
                     // Gate the switch on the base handshake so we do not switch over a half-open socket.
@@ -204,6 +212,7 @@ export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
                     if (needsRelayReturn) await logoutCloudSession();
                     if (cid && needsCloudSwitch) await switchCloud(cid);
                     if (sid && needsSiteSwitch) await switchSite(sid);
+                    roomTrace?.mark('switch_done');
                 }
                 await land();
             } catch (error) {

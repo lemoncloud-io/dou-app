@@ -25,6 +25,10 @@ export { useRuntimeSocketState } from './hooks/useRuntimeSocketState';
 export { useSlotVerified } from './hooks/useSlotVerified';
 export { RELAY_SLOT } from '../socket/utils/slotKey';
 
+// The clouds that keep a socket session in the background. The app hands over membership; the cap
+// and the order are the runtime's (`socket/backgroundClouds`).
+export { useBackgroundClouds } from './hooks/useBackgroundClouds';
+
 // Foreground/wake kick for wedged sockets — apps call it on their own foreground signal (apps/web
 // `useSocketWakeRecovery`; desktop-web keeps its local variant). See 2026-08 session audit §7 Phase 1.
 export { recoverUnverifiedSockets } from '../socket/auth/recoverUnverifiedSockets';
@@ -35,4 +39,4 @@ export type { RequestRelaySessionRefreshDeps } from '../socket/auth/requestRelay
 
 // The manager handle — for a debug/lab surface that drives the socket directly.
 export { getSocketManager } from '../socket/runtime';
-export type { ISocketManager } from '../socket/types';
+export type { ISocketManager, SlotStatus } from '../socket/types';

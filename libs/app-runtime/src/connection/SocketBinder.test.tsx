@@ -28,6 +28,15 @@ jest.mock('../socket', () => ({
     bootstrapSocketConnection: jest.fn(),
 }));
 
+const mockHasLiveJoinedSession = jest.fn((_cid: string) => false);
+jest.mock('../socket/backgroundClouds', () => ({
+    hasLiveJoinedSession: (cid: string) => mockHasLiveJoinedSession(cid),
+}));
+const mockNotifySocketLogout = jest.fn();
+jest.mock('../socket/auth/logoutSession', () => ({
+    notifySocketLogout: (...args: unknown[]) => mockNotifySocketLogout(...args),
+}));
+
 const mockedBootstrap = bootstrapSocketConnection as jest.MockedFunction<typeof bootstrapSocketConnection>;
 const mockedGetManager = getSocketManager as jest.MockedFunction<typeof getSocketManager>;
 
@@ -53,6 +62,7 @@ const makeManager = () => {
             bound.delete(key);
             log.push(`torn down ${key}`);
         }),
+        getClient: jest.fn(() => null),
         getSlotKeys: jest.fn(() => [...bound]),
     };
     mockedBootstrap.mockImplementation(({ config }: { config: SocketBindingConfig }) => {
@@ -69,6 +79,8 @@ describe('SocketBinder (one reconciler for every slot)', () => {
 
     beforeEach(() => {
         jest.clearAllMocks();
+        mockHasLiveJoinedSession.mockReturnValue(false);
+        mockNotifySocketLogout.mockImplementation((key: SlotKey) => fake.log.push(`signed off ${key}`));
         fake = makeManager();
         mockedGetManager.mockReturnValue(fake.manager as never);
     });
@@ -130,6 +142,87 @@ describe('SocketBinder (one reconciler for every slot)', () => {
 
         expect(fake.log).toEqual(['active relay', `torn down ${A}`]);
         expect(mockedBootstrap).not.toHaveBeenCalled();
+    });
+
+    describe('background slots', () => {
+        const cloudC = { config: { url: 'wss://cloud-c', deviceId: 'd', wssType: 'cloud' as const, cid: 'cloud-c' } };
+        const C = slotKeyOf('cloud-c');
+
+        it('boots every background cloud beside the committed one, and keeps the facade on the committed', () => {
+            renderBinder({ relay: relaySlot, cloud: cloudA, background: [cloudB, cloudC] });
+
+            expect(fake.log).toEqual([`bound ${RELAY_SLOT}`, `bound ${B}`, `bound ${C}`, `bound ${A}`, `active ${A}`]);
+        });
+
+        it('A→B with B in the background moves the pointer only: nothing bound, nothing torn down', () => {
+            const { rerender } = renderBinder({ relay: relaySlot, cloud: cloudA, background: [cloudB] });
+            fake.log.length = 0;
+            mockedBootstrap.mockClear();
+
+            // After the commit, A is the background one and B the committed one — same keys, same configs.
+            rerender({ relay: relaySlot, cloud: cloudB, background: [cloudA] });
+
+            expect(fake.log).toEqual([`active ${B}`]);
+            expect(mockedBootstrap).not.toHaveBeenCalled();
+            expect(fake.manager.destroy).not.toHaveBeenCalled();
+        });
+
+        it('going home keeps a background cloud bound and moves the facade to relay', () => {
+            const { rerender } = renderBinder({ relay: relaySlot, cloud: cloudA });
+            fake.log.length = 0;
+            mockedBootstrap.mockClear();
+
+            rerender({ relay: relaySlot, background: [cloudA] });
+
+            expect(fake.log).toEqual(['active relay']);
+            expect(mockedBootstrap).not.toHaveBeenCalled();
+        });
+
+        it('a cloud dropped from the background list is torn down', () => {
+            const { rerender } = renderBinder({ relay: relaySlot, background: [cloudA, cloudB] });
+            fake.log.length = 0;
+
+            rerender({ relay: relaySlot, background: [cloudB] });
+
+            expect(fake.log).toEqual(['active relay', `torn down ${A}`]);
+        });
+
+        it('signs a cloud off before tearing it down when it still has a live session — pushed past the cap', () => {
+            mockHasLiveJoinedSession.mockImplementation(cid => cid === 'cloud-a');
+            const { rerender } = renderBinder({ relay: relaySlot, background: [cloudA, cloudB] });
+            fake.log.length = 0;
+
+            rerender({ relay: relaySlot, background: [cloudB] });
+
+            expect(fake.log).toEqual(['active relay', `signed off ${A}`, `torn down ${A}`]);
+            expect(mockNotifySocketLogout).toHaveBeenCalledWith(A, fake.manager);
+        });
+
+        it('tears down without signing off a cloud that has no live session — left, or already expired', () => {
+            const { rerender } = renderBinder({ relay: relaySlot, background: [cloudA] });
+            fake.log.length = 0;
+
+            rerender({ relay: relaySlot });
+
+            expect(fake.log).toEqual(['active relay', `torn down ${A}`]);
+        });
+
+        it('signs nothing off when the relay goes too — the account logout already notified every slot', () => {
+            mockHasLiveJoinedSession.mockReturnValue(true);
+            const { rerender } = renderBinder({ relay: relaySlot, background: [cloudA] });
+
+            rerender({});
+
+            expect(mockNotifySocketLogout).not.toHaveBeenCalled();
+        });
+
+        it('should both name one cloud, the committed config is the one that binds', () => {
+            const stale = { config: { ...cloudA.config, url: 'wss://stale' } };
+
+            renderBinder({ relay: relaySlot, cloud: cloudA, background: [stale] });
+
+            expect(configsBooted()).toEqual([relaySlot.config, cloudA.config]);
+        });
     });
 
     it('a re-render with equal slots boots nothing', () => {

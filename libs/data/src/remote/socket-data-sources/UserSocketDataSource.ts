@@ -1,5 +1,5 @@
 import type { ChannelUsersSyncView, UserView } from '@lemoncloud/chatic-socials-api';
-import type { ListResult } from '@lemoncloud/chatic-socials-api/dist/cores/types';
+import type { ListResult } from '@lemoncloud/chatic-backend-api/dist/cores/types';
 import type { MyInviteView, MySiteView, UserProfile$ } from '@lemoncloud/chatic-backend-api';
 import type { DomainJoin, DomainListResult, DomainPlace, DomainUser } from '../../domain';
 import { createDomainListResult, toDomainJoinFromUser, toDomainPlace, toDomainUser } from '../../domain';

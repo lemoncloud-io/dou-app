@@ -82,6 +82,42 @@ beforeEach(() => {
 });
 
 describe('issueCloudTokens', () => {
+    it('joins an exchange already in flight for the same cloud instead of starting a second one', async () => {
+        // A switch and the background preparer can ask for one cloud at once; two exchanges would
+        // leave the cache and whatever the loser committed or registered disagreeing.
+        let finish: (value: unknown) => void = () => undefined;
+        mockDelegateCloud.mockReturnValue(new Promise(resolve => (finish = resolve)));
+
+        const first = issueCloudTokens('cloud-1', { allowCache: false });
+        const second = issueCloudTokens('cloud-1', { allowCache: true });
+        finish(delegation());
+
+        const [a, b] = await Promise.all([first, second]);
+        expect(mockDelegateCloud).toHaveBeenCalledTimes(1);
+        expect(mockExchangeToken).toHaveBeenCalledTimes(1);
+        expect(b).toBe(a);
+    });
+
+    it('runs exchanges for different clouds side by side', async () => {
+        mockDelegateCloud.mockImplementation(async (cid: string) => delegation(cid));
+
+        await Promise.all([
+            issueCloudTokens('cloud-1', { allowCache: false }),
+            issueCloudTokens('cloud-2', { allowCache: false }),
+        ]);
+
+        expect(mockDelegateCloud).toHaveBeenCalledTimes(2);
+    });
+
+    it('starts a fresh exchange once the previous one settled, even after a failure', async () => {
+        mockDelegateCloud.mockRejectedValueOnce(new Error('delegate failed'));
+
+        await expect(issueCloudTokens('cloud-1', { allowCache: false })).rejects.toThrow('delegate failed');
+        await issueCloudTokens('cloud-1', { allowCache: false });
+
+        expect(mockDelegateCloud).toHaveBeenCalledTimes(2);
+    });
+
     it('캐시를 허용하면 유효한 캐시로 두 번의 HTTP 교환을 건너뛴다', async () => {
         mockGetCachedCloudTokens.mockReturnValue({
             delegationToken: delegation(),

@@ -66,6 +66,22 @@ export interface SocketState {
     connectionId: string | null;
 }
 
+/**
+ * One bound slot as a debug surface lists it — every slot, whichever is active. Read-only telemetry:
+ * nothing may branch on it, which is why it is a snapshot and not a subscription.
+ */
+export interface SlotStatus {
+    key: SlotKey;
+    kind: SocketKind;
+    /** Whether the active facade currently resolves to this slot. */
+    active: boolean;
+    state: ClientSocketState;
+    /** Authenticated AND connected — the same test as `isSlotVerified`. */
+    verified: boolean;
+    /** `connected` transitions since the slot was bound; above 1 means it has reconnected. */
+    connectCount: number;
+}
+
 export type SocketStateListener = (state: SocketState) => void;
 
 export type SocketClientListener = (client: ClientSocketV2 | null) => void;
@@ -176,6 +192,8 @@ export interface ISocketManager {
      * connect/disconnect — not just the first time, like the one-shot wait does.
      */
     subscribeSlotVerified(key: SlotKey, listener: (verified: boolean) => void): () => void;
+    /** Every bound slot's status, relay first — for a debug surface, not for gating anything. */
+    getSlotStatuses(): SlotStatus[];
 
     // ── The cache-attribution observation `ActiveScope` needs.
     /** The cloud id the ACTIVE slot serves — its key — or null before the first bind. */

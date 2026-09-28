@@ -14,6 +14,7 @@ import type {
     ScopedSocketClient,
     SocketBindingConfig,
     SlotKey,
+    SlotStatus,
     SocketClientListener,
     SocketSlotClientListener,
     SocketState,
@@ -254,6 +255,20 @@ export class SocketManager implements ISocketManager {
         const entry = this.entries.get(key);
         if (!entry) return false;
         return entry.authenticated && entry.connState === 'connected';
+    }
+
+    public getSlotStatuses(): SlotStatus[] {
+        const active = this.getActiveKey();
+        return [...this.entries]
+            .map(([key, entry]) => ({
+                key,
+                kind: kindOf(key),
+                active: key === active,
+                state: entry.connState,
+                verified: entry.authenticated && entry.connState === 'connected',
+                connectCount: entry.connectCount,
+            }))
+            .sort((a, b) => (a.kind === b.kind ? 0 : a.kind === 'relay' ? -1 : 1));
     }
 
     /** Subscribes to ACTIVE-slot state changes. Fires immediately with the current snapshot. */

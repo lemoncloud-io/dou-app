@@ -13,7 +13,7 @@ per-cloud token cache, and `cloudStore.getCloudTokenOf(cid)` answers for either.
 slot for a cloud the user is not looking at seed, sign, refresh and renew on its own (ADR-0117).
 
 It is spread across three folders on purpose, and the split follows dependency direction rather than
-subject: `socket/auth/` holds the wiring and the policy (17 source files, 14 tests), `session/auth/`
+subject: `socket/auth/` holds the wiring and the policy (18 source files, 15 tests), `session/auth/`
 holds the material it reads and writes ([docs/session/](../session/README.md)), and the two guards
 that _trigger_ renewal are React hooks in `session/hooks/app/`. The renewers live with the socket
 because `socket/auth → session` is an existing edge and the reverse is not; putting them under
@@ -194,10 +194,14 @@ Two situations reach it, and only one is watched automatically:
 1. **Guest promoted to a social or email login.** The relay token is replaced while `url|deviceId|wssType` is unchanged, so `SocketBinder` does not reboot and `SocketReauthBinder` sees the slot's `identityToken` move.
 2. **A cloud token re-issued for a cloud whose slot is up.** No binder sees it — a cloud slot deliberately carries no `identityToken`, and a non-committed cloud's writeback emits no session signal at all — so `renewCloudSession(cid)` calls this function directly, on that cloud's slot.
 
-**A cloud _switch_ is in neither list.** A switch commits a different cid, and the cid is the slot's
-key, so `SocketBinder` boots the incoming cloud as a new slot and tears the outgoing one down. There
-is no live connection left to re-authenticate — whether or not the two clouds share a wss host, which
-is why there is no longer a guard for that case.
+**A cloud _switch_ is in neither list.** The cid is the slot's key, so a switch either lands on a
+cloud with no slot — `SocketBinder` boots it fresh and it registers from scratch — or on a cloud whose
+background slot is already up. In the second case the switch commits **the tokens that slot
+registered with**, as they are: `useSwitchCloudSession` tells `cloudSession.switchTo` the slot is
+live, and the switch reads the cache margin-blind instead of re-issuing a token it would otherwise
+consider too close to expiry. The committed store then holds exactly what the socket signs with, so
+there is nothing to re-authenticate either way. A lapsing token on that slot is the credential
+guard's to renew, and the guard re-registers as it re-issues.
 
 [`applySessionToken($token, options?)`](../../src/socket/auth/applySessionToken.ts) is the one
 app-facing entry to this path, used by phone verification: it commits the token view, re-authenticates
@@ -257,11 +261,14 @@ by whether `cid` is the committed cloud then: the session store (plus the cache)
 alone if it is not. A renewal that started while a cloud was committed and finishes after a switch
 away therefore cannot hand the new cloud the old one's token.
 
-**A cloud's `onTerminalExpiry()`** asks the same question. For the committed cloud it is one
-synchronous `cloudSession.clearStores()`: losing a cloud is recoverable by walking back in, so it is
-not a teardown signal. For any other cloud it drops that cloud's cached tokens and nothing else — the
-store describes the committed cloud and must not be cleared for one the user is not even in. The
-cloud identity map keeps that cloud's uid either way.
+**A cloud's `onTerminalExpiry()`** drops that cloud's cached tokens — they are the ones that expired
+— and, for the committed cloud only, also runs `cloudSession.clearStores()`: losing a cloud is
+recoverable by walking back in, so it is not a teardown signal. For any other cloud the store is left
+alone, because it describes the committed cloud. No other cloud's cached tokens are touched: those
+clouds keep background sessions that sign from them. The cloud identity map keeps every uid either
+way. The drop announces nothing, so the renewer calls `backgroundClouds.invalidate()` to make the slots
+re-derive — without it, a background slot whose tokens are gone would stay bound on an expired
+token, and nothing would issue it a fresh one.
 
 ## The two guards
 
@@ -299,9 +306,10 @@ socket re-mints every cycle, so being under the margin at all _is_ the evidence 
 keeping up.
 
 It guards **every cloud slot**: the committed cloud (whose slot may not be bound yet — the device id
-can arrive after the tokens) and every cloud the manager has a slot for, each through its own
-renewer, so one cloud's failed exchange never delays another's. Today that set is one cloud; the
-shape is what a background slot needs.
+can arrive after the tokens) and every cloud the manager has a slot for — every background cloud
+included — each through its own renewer, so one cloud's failed exchange never delays another's. A
+background slot lives through many refresh cycles, and while its socket is down nothing else
+re-mints its credential, so for those clouds this guard is what catches a lapse.
 
 The gap it closes was real. A cloud credential lives about an hour, and the only thing that re-minted
 it mid-session was the cloud socket's refresh writeback. While that socket was down — sleep, a
@@ -309,17 +317,45 @@ dropped link, a long stay in one place — nobody even _measured_ the credential
 every cloud-signed request 403'd. Re-entering a cloud hid it, because a switch re-issues, so it only
 showed up in sessions that sat still.
 
+## Tokens for a background slot, before it boots
+
+A background slot signs with its cloud's cached entry, so that entry has two owners, split by whether
+the slot is bound, and never both at once:
+
+- **Not bound yet** — [`BackgroundCloudTokens`](../../src/socket/auth/backgroundCloudTokens.ts),
+  driven from the connection host. It issues (`delegate-cloud` + `exchange-token`, cache bypassed)
+  when the entry is missing or has less than one refresh cycle left, and the slot is derived only once
+  `isBackgroundCloudReady` says the entry is good. Booting on a nearly lapsed entry and re-issuing
+  under it would leave the socket registered with one token and signing with another.
+- **Bound** — the credential guard above, whose renewal re-registers the socket in the same step.
+  The preparer never touches a bound cloud.
+
+A failed issue backs off per cloud — 60 seconds, doubling, capped at 15 minutes — and an offline
+device does not spend an attempt. The usual causes are a dropped link and a relay credential being
+refreshed; a cloud the account was removed from would otherwise be retried every minute forever.
+Two outcomes that are not rejections back off the same way, because retrying them at once would
+loop: an issue that lands but still leaves the cloud unusable (no `wss`, or a credential already
+inside the margin), and a cloud whose socket session just expired terminally
+(`backgroundClouds.noteExpired`, from the renewer). Every cloud token is minted from the relay
+identity, so nothing is prepared without a relay session.
+
+The split rests on one more rule, in `issueCloudTokens`: **a cloud's exchange runs once at a time.**
+A switch, the preparer and a renewal can ask for the same cloud together, and two exchanges would
+each write the cache, the later one winning while the earlier one's tokens may already be committed
+or registered. A second caller joins the exchange in flight instead.
+
 ## Ending a session
 
-| Entry                                     | What it does                                                                                     |
-| ----------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `logoutSession(options?)`                 | `auth.logout()` on **every bound** slot, then `relaySession.clearAndRedirect()`                  |
-| `logoutCloudSession()`                    | `auth.logout()` on the committed cloud's slot, then `cloudSession.clearStores()`. Relay survives |
-| `RelayCredentialRenewer.onTerminalExpiry` | The confirmed-`expired` path above                                                               |
-| `handleRevokedRelaySession(scope)`        | Immediate, once per page life                                                                    |
+| Entry                                     | What it does                                                                                                                                                                                                                                             |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `logoutSession(options?)`                 | `auth.logout()` on **every bound** slot, then `relaySession.clearAndRedirect()`                                                                                                                                                                          |
+| `logoutCloudSession()`                    | Back to relay. `auth.logout()` on the committed cloud's slot **only if it is no longer joined or its tokens are gone** (a joined cloud past the cap is signed off by `SocketBinder` as its slot goes), then `cloudSession.clearStores()`. Relay survives |
+| `RelayCredentialRenewer.onTerminalExpiry` | The confirmed-`expired` path above                                                                                                                                                                                                                       |
+| `handleRevokedRelaySession(scope)`        | Immediate, once per page life                                                                                                                                                                                                                            |
 
 The socket notice comes first and is fire-and-forget, so local teardown and redirect keep their
-timing. These two are the public names precisely because they notify; the store-only halves live as
+timing. These two are the public names because they are the ones that notify a socket
+(`logoutCloudSession` only for a cloud it leaves that has no session left to keep); the store-only halves live as
 methods (`clearAndRedirect`, `clearStores`) and have no global name at all.
 
 **A revoked session is the one auth failure nothing can renew.** The backend stamps it on logout and

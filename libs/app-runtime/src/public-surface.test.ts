@@ -63,13 +63,14 @@ const GROUPS: Record<string, readonly string[]> = {
         'useSwitchCloudSession',
         'useVerifyAlias',
     ],
-    // Hosts + socket state reads + wake recovery.
+    // Hosts + socket state reads + wake recovery + the background-cloud list.
     connection: [
         'RELAY_SLOT',
         'RuntimeAuthHost',
         'RuntimeConnectionHost',
         'getSocketManager',
         'recoverUnverifiedSockets',
+        'useBackgroundClouds',
         'useConnectivity',
         'useRuntimeSocketState',
         'useSlotVerified',

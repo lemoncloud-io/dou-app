@@ -1,4 +1,4 @@
-import { perfNow, reportPerfMetric } from '@chatic/bridges';
+import { startPerfTrace } from '@chatic/perf';
 import { cloudSession } from '../../session/auth/cloudSession';
 import { getGlobalSessionContext, getSelectedSiteId } from '../../session/store';
 
@@ -17,12 +17,12 @@ import { handleRevokedRelaySession, isRevokedSessionError } from './revokedSessi
  * server rejection / not-connected) the optimistic sid is rolled back to the previous site; the
  * committed token is untouched on failure, so the previous session stays intact.
  *
- * This is also where the `site-switch` budget is measured (ADR-0071), rather than in the mutation
- * wrapper one level up: the no-op return below would otherwise contribute a stream of ~0ms samples
- * and deflate the p95. Everything past that guard is real work, and since this function IS the
- * mutation's `mutationFn`, "until the mutation resolves" still describes the endpoint exactly.
- * Failures are reported too (`ok: false`) — a switch slow enough to fail is precisely the sample
- * the tail is made of.
+ * This is also where the `site_switch` trace is taken, rather than in the mutation wrapper one level
+ * up: the no-op return below would otherwise contribute a stream of ~0ms samples and deflate the
+ * p95. Everything past that guard is real work, and since this function IS the mutation's
+ * `mutationFn`, "until the mutation resolves" still describes the endpoint exactly. Failures are
+ * recorded too (`outcome: error`) — a switch slow enough to fail is precisely the sample the tail is
+ * made of.
  */
 export const switchSite = async (siteId: string): Promise<void> => {
     const prevSiteId = getSelectedSiteId();
@@ -35,7 +35,7 @@ export const switchSite = async (siteId: string): Promise<void> => {
         throw new Error('[switchSiteViaSocket] no active user id for site switch');
     }
 
-    const startedAt = perfNow();
+    const trace = startPerfTrace('site_switch');
 
     // Optimistic pre-apply (also the rollback target below).
     cloudSession.applySelectedSite(siteId);
@@ -51,11 +51,13 @@ export const switchSite = async (siteId: string): Promise<void> => {
             throw new Error('[switchSiteViaSocket] socket auth controller unavailable');
         }
         await auth.switch(`${uid}@${siteId}`);
-        reportPerfMetric('site-switch', perfNow() - startedAt, { ok: true });
+        trace.putAttribute('outcome', 'ok');
+        trace.stop();
     } catch (error) {
         // Roll the optimistic sid back to the previous site; the committed token was never changed.
         cloudSession.applySelectedSite(prevSiteId);
-        reportPerfMetric('site-switch', perfNow() - startedAt, { ok: false });
+        trace.putAttribute('outcome', 'error');
+        trace.stop();
         // `auth.switch` is the ONLY surface that carries the server's revoked-session rejection to us
         // (`AuthSwitchError.cause`; refresh and signed HTTP both lose it — see `revokedSession`). A
         // revoked session cannot be switched, refreshed or delegated from, so this rejection is the

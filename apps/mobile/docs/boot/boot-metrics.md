@@ -34,6 +34,31 @@ they line up for reading side by side.
    `web: null`.
 4. The record is prepended to MMKV key `bootMetrics.records`, capped at the newest **50**.
 
+## The Firebase `boot` trace
+
+The same span is also recorded as a Firebase Performance trace named `boot`, through
+[`@chatic/perf`](../../../../libs/perf/README.md). This is what the 1.5-second target (judged at p95)
+is watched on.
+
+- **It opens in the constructor, with the baseline.** Firebase times the trace itself, so its duration
+  covers the same span as `totalMs`. The Firebase backend is configured in `DependencyProvider`
+  immediately before this service is constructed. A trace is recorded on the backend configured when
+  it starts, so the order matters.
+- **It stops at `web-app-ready`, not when the record finalizes.** Finalizing can wait five more
+  seconds for the web snapshot, and Firebase would count that wait as boot.
+- **It carries each reached milestone as a metric** (`provider_ready`, `app_mount`, and so on, since
+  Firebase metric names allow no dashes). It also carries `boot_type` = `cold` / `reload`. The target
+  is the cold number. A reload re-baselines on a content-process crash, and it happens most on
+  memory-pressured devices, so the two must be told apart before the tail is read.
+- **A session that never reaches `web-app-ready` leaves its trace unstopped.** Firebase does not
+  record it. It is still persisted in the ring buffer above, because an aborted boot is worth keeping
+  on the device, but it is not a sample of how long boot takes.
+- **Every run is recorded.** The log-pipeline metric this replaced was sampled one run in ten,
+  because it competed with diagnostic logs for the upload queue. Firebase traces do not.
+
+The `Boot record persisted (…)` log line is unchanged. It is a sentence for whoever scans the log
+monitor, and the trace does not replace it.
+
 ## Boot types
 
 | Type     | Meaning                                                                                                                                                                                                                                    |

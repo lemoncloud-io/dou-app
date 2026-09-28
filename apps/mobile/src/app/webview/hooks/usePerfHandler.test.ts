@@ -1,7 +1,7 @@
 import { renderHook } from '@testing-library/react';
 
 import { usePerfHandler } from './usePerfHandler';
-import { bootMetricsService } from '../../services';
+import { bootMetricsService, perfTraceBackend } from '../../services';
 
 jest.mock('../../services', () => ({
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
@@ -12,6 +12,7 @@ jest.mock('../../services', () => ({
         getContentProcessReloadCount: jest.fn(() => 0),
         getLastForegroundResumeMs: jest.fn(() => null),
     },
+    perfTraceBackend: { start: jest.fn(), stop: jest.fn() },
 }));
 
 jest.mock('../../stores', () => ({
@@ -92,5 +93,51 @@ describe('usePerfHandler — 부팅 기록 읽기/비우기 (ADR-0080 결정 11)
         const response = await result.current.handleClearBootRecords({ type: 'ClearBootRecords', data: {} } as never);
 
         expect(response).toMatchObject({ success: false, error: { code: 'BOOT_RECORDS_ERROR' } });
+    });
+});
+
+describe('usePerfHandler — perf traces', () => {
+    beforeEach(() => jest.clearAllMocks());
+
+    it('opens a native trace under the id and name the web sent', async () => {
+        const { result } = renderHook(() => usePerfHandler());
+
+        const response = await result.current.handleStartPerfTrace({
+            type: 'StartPerfTrace',
+            data: { id: 't-1', name: 'chat_room_open' },
+        } as never);
+
+        expect(perfTraceBackend.start).toHaveBeenCalledWith({ id: 't-1', name: 'chat_room_open' });
+        expect(response).toEqual({ type: 'OnStartPerfTrace', success: true, data: {} });
+    });
+
+    it('closes the trace with the attributes and metrics the web collected', async () => {
+        const { result } = renderHook(() => usePerfHandler());
+
+        const response = await result.current.handleStopPerfTrace({
+            type: 'StopPerfTrace',
+            data: { id: 't-1', name: 'chat_room_open', attributes: { entry: 'list' }, metrics: { mount: 90 } },
+        } as never);
+
+        expect(perfTraceBackend.stop).toHaveBeenCalledWith(
+            expect.objectContaining({ id: 't-1', attributes: { entry: 'list' }, metrics: { mount: 90 } })
+        );
+        expect(response).toEqual({ type: 'OnStopPerfTrace', success: true, data: {} });
+    });
+
+    it('ignores a trace name outside the known set', async () => {
+        const { result } = renderHook(() => usePerfHandler());
+
+        await result.current.handleStartPerfTrace({
+            type: 'StartPerfTrace',
+            data: { id: 't-1', name: 'made_up' },
+        } as never);
+        await result.current.handleStopPerfTrace({
+            type: 'StopPerfTrace',
+            data: { id: 't-1', name: 'made_up', attributes: {}, metrics: {} },
+        } as never);
+
+        expect(perfTraceBackend.start).not.toHaveBeenCalled();
+        expect(perfTraceBackend.stop).not.toHaveBeenCalled();
     });
 });

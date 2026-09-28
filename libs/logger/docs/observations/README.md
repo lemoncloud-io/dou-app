@@ -172,4 +172,4 @@ burst that stops abruptly loses its final tally — the cost of keeping the time
 
 - [docs/entries/](../entries/README.md) — levels, tags, and the third argument these payloads ride in
 - [docs/upload/](../upload/README.md#the-drop-order) — why the queue's losses need a third party to report them
-- [docs/perf/](../perf/README.md) — the sibling class of measurement entries, which uses its own record shape rather than this discriminator
+- [`@chatic/perf`](../../../perf/README.md) — the sibling class of measurement entries, which uses its own record shape rather than this discriminator

@@ -37,11 +37,14 @@ is framed, what the reply payload looks like, or how a native screen renders —
 `provider.ts` is a singleton `DependencyProvider` with two constructions:
 
 - **Eager**, built in the constructor, for anything the cold-start path reads before the first
-  render: `logService`, `logUploadQueueService`, `keyValueStorage`, `bootMetricsService`,
-  `notificationService`, `pushEventManager`, `deeplinkManager`, `deeplinkService`,
-  `firebaseCrashlyticsService`, `pendingReportQueueService`. `logService` is constructed first —
-  most other services take it as their first constructor argument — and `bootMetricsService` right
-  after, so its boot-timeline baseline sits as close to JS entry as possible.
+  render: `logService`, `logUploadQueueService`, `keyValueStorage`, `perfTraceBackend`,
+  `bootMetricsService`, `notificationService`, `pushEventManager`, `deeplinkManager`,
+  `deeplinkService`, `firebaseCrashlyticsService`, `pendingReportQueueService`. `logService` is
+  constructed first, because most other services take it as their first constructor argument.
+  `perfTraceBackend` (Firebase Performance, see [`@chatic/perf`](../../../../libs/perf/README.md))
+  comes next and is installed as the process trace backend, because the boot service opens its trace
+  in its constructor. `bootMetricsService` follows right after, so its boot-timeline baseline sits as
+  close to JS entry as possible.
 - **Lazy**, behind a memoized getter, for everything else: `sqliteDatabase` and the SQLite-backed
   data sources, `cacheCrudService`, `cacheSearchService`, `testRecordService`,
   `deviceService`, `clipboardService`, `smsService`, `permissionService`, `oauthService`,

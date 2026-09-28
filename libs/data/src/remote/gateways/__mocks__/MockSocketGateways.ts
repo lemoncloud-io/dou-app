@@ -91,4 +91,8 @@ export const createMockSocketGateways = (): MockSocketGatewayBundle => ({
         set: jest.fn(),
         sync: jest.fn(),
     },
+    upload: {
+        start: jest.fn(),
+        complete: jest.fn(),
+    },
 });

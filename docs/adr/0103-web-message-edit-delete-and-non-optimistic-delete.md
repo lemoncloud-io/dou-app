@@ -80,7 +80,7 @@ that an edited message is marked — does not hold today for the reader it is me
 Left as is for now, and **not decided**: a client-side timestamp would assert an edit time the
 server never gave, and re-fetching after every edit doubles the wait on the one operation this
 design deliberately makes the user sit through — and would not help the peer at all, which is the
-side that matters. The open question is recorded in the vault lane, not here.
+side that matters. The open question is tracked outside this repo.
 
 The weakness this section was written for is a different one, and also real: this detects _the row
 was written again_, not _a person changed the text_. Any future server-side write to a chat row — a moderation flag, a pin, a counter

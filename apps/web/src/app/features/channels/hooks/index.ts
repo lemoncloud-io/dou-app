@@ -26,3 +26,4 @@ export * from './useCloudDmCandidates';
 export * from './useUserRecords';
 export * from './useCloudDmChannels';
 export * from './useMessageEditing';
+export * from './useRoomOpenTrace';
