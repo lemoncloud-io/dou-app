@@ -354,7 +354,12 @@ extension TransferSessionOwner: URLSessionDataDelegate {
         if let error {
             core.failure(id, code: .network, message: error.localizedDescription)
         } else if let response = task.response as? HTTPURLResponse {
-            core.progress(id, bytes: task.countOfBytesSent)
+            core.progress(id, bytes: TransferCore.sentBytesAtCompletion(
+                countSent: task.countOfBytesSent,
+                countExpected: task.countOfBytesExpectedToSend,
+                fraction: task.progress.fractionCompleted,
+                declared: core.declaredBytes(id)
+            ))
             core.response(id, status: response.statusCode, body: body)
         } else {
             core.failure(id, code: .network, message: "no HTTP response")

@@ -127,6 +127,21 @@ final class TransferCore {
         }
     }
 
+    /// The bytes a finished task sent. A background session sometimes hands over a finished task
+    /// with both byte counters at 0 even though the server received the whole body; its progress
+    /// fraction is then the only figure left, so it is applied to the declared length. Counters that
+    /// report anything are trusted as they are — the fraction can lag behind them.
+    static func sentBytesAtCompletion(countSent: Int64, countExpected: Int64, fraction: Double, declared: Int64) -> Int64 {
+        if countSent > 0 || countExpected > 0 { return max(countSent, 0) }
+        guard declared > 0, fraction.isFinite, fraction > 0 else { return 0 }
+        return Int64((Double(declared) * min(fraction, 1)).rounded(.down))
+    }
+
+    /// The declared length of a transfer the core holds, or 0 when it is unknown.
+    func declaredBytes(_ transferId: String) -> Int64 {
+        entries[transferId]?.totalBytes ?? 0
+    }
+
     /// Registers the transfer and emits its first `running` event straight away, so the web learns
     /// it was accepted without waiting for the first progress tick.
     func start(_ request: TransferRequest) throws {

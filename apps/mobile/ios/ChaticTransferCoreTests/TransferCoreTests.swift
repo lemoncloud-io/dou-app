@@ -552,6 +552,25 @@ final class TransferCoreTests: XCTestCase {
         }
     }
 
+    func test_sentBytesAtCompletion_trustsCounters_andFallsBackToTheFractionOnlyWhenBothAreEmpty() {
+        // Counters report the body: taken as they are, even when the fraction lags at 0.
+        XCTAssertEqual(TransferCore.sentBytesAtCompletion(countSent: 1_048_576, countExpected: 1_048_576, fraction: 0, declared: 1_048_576), 1_048_576)
+        // Both counters empty, progress complete: the case seen from a real background session.
+        XCTAssertEqual(TransferCore.sentBytesAtCompletion(countSent: 0, countExpected: 0, fraction: 1, declared: 1_048_576), 1_048_576)
+        XCTAssertEqual(TransferCore.sentBytesAtCompletion(countSent: 0, countExpected: 0, fraction: 0.5, declared: 1_001), 500)
+        // A counter that is known and zero stays zero; nothing to fall back to stays zero.
+        XCTAssertEqual(TransferCore.sentBytesAtCompletion(countSent: 0, countExpected: 1_000, fraction: 1, declared: 1_000), 0)
+        XCTAssertEqual(TransferCore.sentBytesAtCompletion(countSent: 0, countExpected: 0, fraction: 1, declared: 0), 0)
+        XCTAssertEqual(TransferCore.sentBytesAtCompletion(countSent: 0, countExpected: 0, fraction: .nan, declared: 10), 0)
+        XCTAssertEqual(TransferCore.sentBytesAtCompletion(countSent: 0, countExpected: 0, fraction: 3, declared: 10), 10)
+    }
+
+    func test_declaredBytes_isTheStartLength_orZeroWhenUnknown() {
+        start("a", length: 4_096)
+        XCTAssertEqual(core.declaredBytes("a"), 4_096)
+        XCTAssertEqual(core.declaredBytes("ghost"), 0)
+    }
+
     func test_progress_equalToStoredThrottledValue_emitsNothing() {
         start("a", length: 1_000)
         clock += 50

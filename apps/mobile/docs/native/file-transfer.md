@@ -101,6 +101,8 @@ cases and keep identical behaviour.
   results, the owner recreates the session and restores running transfers from the session's tasks.
   The session's total-time limit is left at the 7-day default: it measures the whole transfer, so a
   shorter one would cut slow but healthy large uploads.
+  A finished task sometimes arrives with both byte counters at 0 although the server received the
+  whole body; the task's progress fraction, applied to the declared length, is then used instead.
 
 Two differences between the platforms are allowed, both forced by where the OS takes over. A caller
 handles each the same way on either platform, so neither needs a platform branch.
@@ -151,7 +153,12 @@ may still be reading the file after the WebView is gone.
 - A new core rule gets its test on both platforms under the same `U` number, or a new number on both.
 - End to end on an emulator or simulator: start `node scripts/upload-test-server.js`, forward the
   port on Android (`adb reverse tcp:8080 tcp:8080`), open the debug panel's Upload test screen and pick
-  a scenario: `ok`, `expired` (403 + `AccessDenied`), `exists` (412), `slow`, `drop`.
+  a scenario: `ok`, `expired` (403 + `AccessDenied`), `exists` (412), `slow`, `drop`. The screen
+  targets port 8080 on whatever host the page was loaded from.
+- On a real device, the WebView and the test server are reached over the LAN: build with
+  `VITE_WEBVIEW_BASE_URL` set to the machine's LAN address in the local `.env`, serve the web with
+  `--host 0.0.0.0`, and allow the app's local-network prompt on the phone. The iOS 26
+  continued-processing task only runs on a device; the simulator refuses it.
 - The test server does not check signatures. A real presigned URL (MinIO or a dev bucket) is the only
   way to confirm the header filter keeps the signature valid.
 
