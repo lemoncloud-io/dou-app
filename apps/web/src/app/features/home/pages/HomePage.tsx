@@ -309,7 +309,7 @@ export const HomePage = () => {
     useEffect(() => {
         if (!isDialogOpen || hasActivePlace) return;
         setIsDialogOpen(false);
-        toast({ title: t('homePage.selectPlaceFirst', '플레이스를 먼저 선택해주세요') });
+        toast({ title: t('homePage.selectPlaceFirst') });
     }, [isDialogOpen, hasActivePlace, toast, t]);
 
     const handleCreatePlace = () => {
@@ -343,7 +343,7 @@ export const HomePage = () => {
         // render without a selected place, so this is not reachable from the UI today; it is here
         // because the fallback makes "no place" silently succeed instead of failing loudly.
         if (!hasActivePlace) {
-            toast({ title: t('homePage.selectPlaceFirst', '플레이스를 먼저 선택해주세요') });
+            toast({ title: t('homePage.selectPlaceFirst') });
             return;
         }
         if (!isDevBuild() && channels.length >= MAX_CHANNELS_PER_PLACE) {
@@ -383,7 +383,7 @@ export const HomePage = () => {
             <DropdownMenuTrigger asChild>
                 <button
                     type="button"
-                    aria-label={t('homePage.profile', '프로필')}
+                    aria-label={t('homePage.profile')}
                     className="flex size-9 items-center justify-center"
                 >
                     <ProfileAvatar src={displayImageUrl} size={36} />
@@ -399,7 +399,7 @@ export const HomePage = () => {
                     <span className="min-w-0 flex-1 truncate font-semibold text-foreground">{displayName}</span>
                     <button
                         type="button"
-                        aria-label={t('homePage.menuClose', '닫기')}
+                        aria-label={t('homePage.menuClose')}
                         onClick={() => setIsProfileMenuOpen(false)}
                         className="flex size-[18px] shrink-0 items-center justify-center text-foreground"
                     >
@@ -411,7 +411,7 @@ export const HomePage = () => {
                     onClick={() => selectedSiteId && navigateFromMenu(ROUTES.place.settings(selectedSiteId))}
                     className="cursor-pointer px-4 py-2 text-base font-semibold"
                 >
-                    {t('homePage.menuPlaceSettings', '플레이스 설정')}
+                    {t('homePage.menuPlaceSettings')}
                 </DropdownMenuItem>
                 {/* A readout, not a control: the header pill is the one place that routes to
                     subscription, so this stays a non-interactive span outside the menu items. */}
@@ -432,16 +432,16 @@ export const HomePage = () => {
                 planTier={planTier}
                 onPlanClick={() => navigate(ROUTES.subscription.root)}
                 loading={isCloudHeaderLoading}
-                loadingLabel={t('homePage.loadingCloud', '클라우드를 불러오는 중이에요')}
+                loadingLabel={t('homePage.loadingCloud')}
                 onSearch={handleSearch}
-                searchLabel={t('homePage.search', '검색')}
+                searchLabel={t('homePage.search')}
                 // The cloud-switch entry is always available — even a plain guest can open the sheet
                 // to reach DoU Home, view invited clouds, or add a cloud (subscribe).
                 onSwitcher={() => setIsCloudSessionOpen(true)}
                 switcherDot={switcherDot}
-                switcherLabel={t('homePage.switchCloud', '클라우드 전환')}
+                switcherLabel={t('homePage.switchCloud')}
                 avatar={profileMenu}
-                profileLabel={t('homePage.profile', '프로필')}
+                profileLabel={t('homePage.profile')}
             />
 
             {/* Place + Chat scroll together under the fixed header (accordion sections). Trailing
@@ -512,10 +512,7 @@ export const HomePage = () => {
                 ) : !isPlacesLoading && !isSwitching ? (
                     // No place is active in this cloud (none to auto-select) — guide the user to
                     // connect to a place before a channel list can show.
-                    <EmptyState
-                        title={t('homePage.noPlaceTitle', '접속한 플레이스가 없어요')}
-                        description={t('homePage.noPlaceDescription', '플레이스에 접속해 대화를 시작해보세요')}
-                    />
+                    <EmptyState title={t('homePage.noPlaceTitle')} description={t('homePage.noPlaceDescription')} />
                 ) : (
                     // Which place to show is still unresolved, so there is no channel list for this
                     // slot yet. It used to render nothing at all, and on a cold cloud that is the
@@ -527,7 +524,7 @@ export const HomePage = () => {
                         className="flex flex-col items-center justify-center gap-3 px-4 py-16 text-description"
                     >
                         <Loader2 aria-hidden className="size-7 animate-spin" />
-                        <p className="text-sm">{t('homePage.loadingCloud', '클라우드를 불러오는 중이에요')}</p>
+                        <p className="text-sm">{t('homePage.loadingCloud')}</p>
                     </div>
                 )}
 

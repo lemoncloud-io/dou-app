@@ -12,19 +12,15 @@ export const RecentSearchList = ({ keywords, onSelect, onRemove, onClearAll }: R
     const { t } = useTranslation();
 
     if (keywords.length === 0) {
-        return (
-            <p className="px-4 py-10 text-center text-sm text-description">
-                {t('search.noHistory', '검색 내역이 없습니다.')}
-            </p>
-        );
+        return <p className="px-4 py-10 text-center text-sm text-description">{t('search.noHistory')}</p>;
     }
 
     return (
         <div>
             <div className="flex items-center justify-between px-4 py-2">
-                <span className="text-xs font-medium text-description">{t('search.recent', '최근 검색')}</span>
+                <span className="text-xs font-medium text-description">{t('search.recent')}</span>
                 <button type="button" onClick={onClearAll} className="text-xs text-description underline">
-                    {t('search.clearAll', '전체 삭제')}
+                    {t('search.clearAll')}
                 </button>
             </div>
             <ul>
@@ -39,7 +35,7 @@ export const RecentSearchList = ({ keywords, onSelect, onRemove, onClearAll }: R
                         </button>
                         <button
                             type="button"
-                            aria-label={t('search.removeRecent', '검색어 삭제')}
+                            aria-label={t('search.removeRecent')}
                             onClick={() => onRemove(keyword)}
                             className="shrink-0 p-1 text-description"
                         >

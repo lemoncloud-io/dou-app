@@ -72,8 +72,8 @@ export const MessageCodeBlock = ({ code, lang }: MessageCodeBlockProps) => {
             lang={lang}
             copied={copied}
             onCopy={handleCopy}
-            copyLabel={t('chat.room.copyCode', { defaultValue: '복사' })}
-            copiedLabel={t('chat.room.codeCopied', { defaultValue: '복사됨' })}
+            copyLabel={t('chat.room.copyCode')}
+            copiedLabel={t('chat.room.codeCopied')}
             buttonProps={{ onPointerDown: stopGesture, onContextMenu: stopGesture }}
         />
     );

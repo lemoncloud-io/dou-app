@@ -32,11 +32,11 @@ export const buildInviteEntryParams = (search: string): URLSearchParams => {
     const hasAddress = !!backendParam || !!api || !!stage;
     const isRelay = source.has('relay') || !hasAddress;
 
-    if (!code) throw new Error('입력 링크에 code 파라미터가 없습니다.');
+    if (!code) throw new Error('Input link is missing the code parameter.');
     // Cloud form only: a ready-made `backend` makes api/stage moot; otherwise both are needed to compose.
     if (!isRelay && !backendParam) {
-        if (!api) throw new Error('입력 링크에 api 또는 backend 파라미터가 없습니다.');
-        if (!stage) throw new Error('입력 링크에 stage 파라미터가 없습니다.');
+        if (!api) throw new Error('Input link is missing the api or backend parameter.');
+        if (!stage) throw new Error('Input link is missing the stage parameter.');
     }
 
     const params = new URLSearchParams();

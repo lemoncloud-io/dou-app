@@ -117,7 +117,7 @@ export const useMessageJump = ({
         // tell the user rather than leaving them on an unrelated scroll position silently.
         if (!hasMore || progressRef.current.pages >= MAX_JUMP_PAGES) {
             progressRef.current.done = true;
-            toast({ title: t('search.messageJumpFailed', '메시지를 찾을 수 없어요.') });
+            toast({ title: t('search.messageJumpFailed') });
             clear();
         }
     }, [target, channelId, messages, hasMore, isLoadingMore, loadMore, loadUntil, containerRef, clear, t, joinedNo]);

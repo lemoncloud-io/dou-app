@@ -23,7 +23,7 @@ export const MessageBubble = ({
     variant = 'other',
     children,
     onExpand,
-    expandLabel = '전체보기',
+    expandLabel = 'View all',
     className,
 }: MessageBubbleProps) => {
     const mine = variant === 'mine';

@@ -41,7 +41,9 @@
     },
     "settings": {
         "theme": "Theme",
-        "language": "Language"
+        "language": "Language",
+        "saveFailedTitle": "Failed to save settings",
+        "saveFailedDescription": "Failed to write to the app ({{key}}). Please try again."
     },
     "home": {
         "welcome": "Welcome",
@@ -736,7 +738,11 @@
             "deleteMessageTitle": "Delete this message?",
             "deleteMessageDescription": "This can't be undone, and the message is removed for everyone in the conversation.",
             "deleteMessageConfirm": "Delete",
-            "deleteMessageFailed": "Couldn't delete that message. Please try again."
+            "deleteMessageFailed": "Couldn't delete that message. Please try again.",
+            "codeBlock": {
+                "expand": "View more ({{count}} lines)",
+                "collapse": "View less"
+            }
         },
         "settings": {
             "title": "Room Settings",
@@ -1247,7 +1253,25 @@
     "onboarding": {
         "prev": "Previous",
         "next": "Next",
-        "done": "Done"
+        "done": "Done",
+        "steps": {
+            "privateCommunity": {
+                "title": "Private Community",
+                "description": "Create up to {{maxPlaces}} spaces and {{maxChannels}} chat rooms\nto talk with the people you need"
+            },
+            "safeSpace": {
+                "title": "Safe Chat Space",
+                "description": "Chat safely with friends\nwho received the invite link."
+            },
+            "groupCommunication": {
+                "title": "Group Communication",
+                "description": "With up to 100 members, enjoy more focused\nconversations and active participation."
+            },
+            "memoSpace": {
+                "title": "Personal Memo Space",
+                "description": "Organize tasks and quick notes\nin your private memo space."
+            }
+        }
     },
     "settingsDialog": {
         "title": "Settings",
@@ -1384,7 +1408,48 @@
         "confirm": "OK"
     },
     "error": {
-        "unknownError": "An unknown error occurred"
+        "unknownError": "An unknown error occurred",
+        "screen": {
+            "network": {
+                "title": "Connection Error",
+                "description": "Cannot connect to the server. Please check your internet connection.",
+                "primaryAction": "Try Again",
+                "secondaryAction": "Refresh"
+            },
+            "auth": {
+                "title": "Authentication Error",
+                "description": "Your session has expired. Please log in again.",
+                "primaryAction": "Log In",
+                "secondaryAction": "Go Home"
+            },
+            "server": {
+                "title": "Server Error",
+                "description": "A server problem occurred. Please try again shortly.",
+                "primaryAction": "Try Again",
+                "secondaryAction": "Go Home"
+            },
+            "client": {
+                "title": "Request Error",
+                "description": "There is a problem with the request. Please try again.",
+                "primaryAction": "Try Again",
+                "secondaryAction": "Go Home"
+            },
+            "unknown": {
+                "title": "An Error Occurred",
+                "description": "An unexpected error occurred.",
+                "primaryAction": "Try Again",
+                "secondaryAction": "Go Home"
+            },
+            "notFound": {
+                "title": "Page Not Found",
+                "description": "The page you requested does not exist or has been moved.",
+                "primaryAction": "Go Home",
+                "secondaryAction": "Previous Page"
+            },
+            "details": "View details",
+            "retrying": "Retrying...",
+            "toLogin": "Go to login"
+        }
     },
     "phoneVerify": {
         "socialFirstTitle": "Already have an account? Sign in with social first",

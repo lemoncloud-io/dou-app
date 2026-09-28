@@ -58,7 +58,7 @@ export const useSearchNavigate = () => {
                         cid,
                         sid,
                     });
-                    toast({ title: t('search.navigateFailed', '이동할 수 없어요. 잠시 후 다시 시도해주세요.') });
+                    toast({ title: t('search.navigateFailed') });
                 }
                 return verified;
             };
@@ -79,7 +79,7 @@ export const useSearchNavigate = () => {
                 // switch this is a second entry alongside the session service's — accepted, because
                 // this one carries the user-facing outcome (the result they clicked never opened).
                 logger.error('SEARCH', 'navigate to search result failed', { error, data: { cid, sid } });
-                toast({ title: t('search.navigateFailed', '이동할 수 없어요. 잠시 후 다시 시도해주세요.') });
+                toast({ title: t('search.navigateFailed') });
             } finally {
                 inFlightRef.current = false;
             }

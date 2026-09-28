@@ -42,7 +42,7 @@ export const DouHomeItem = ({ isSelected, isDisabled, hasUnread, onSelect }: Dou
                 label's min-content width. */}
             <span className="flex min-w-0 flex-1 items-center gap-[6px]">
                 <span className="truncate text-left text-[15px] font-medium leading-[1.19] tracking-[-0.02em] text-foreground">
-                    {t('cloudSessionSheet.douHome', '두유 홈')}
+                    {t('cloudSessionSheet.douHome')}
                 </span>
                 {hasUnread && <CloudUnreadBadge />}
             </span>

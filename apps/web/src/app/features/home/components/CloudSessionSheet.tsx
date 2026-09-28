@@ -240,7 +240,7 @@ export const CloudSessionSheet = ({
                 onOpenChange={open => !open && handleClose()}
                 title={t('cloudSessionSheet.title')}
                 onClose={handleClose}
-                closeLabel={t('cloudSessionSheet.close', '닫기')}
+                closeLabel={t('cloudSessionSheet.close')}
                 // Fixed height (spec 1): the sheet always opens at its maximum height (matching the
                 // BottomSheet's max-h-[90vh] cap) regardless of list length — default height IS the
                 // max height, so it never grows/shrinks with content.

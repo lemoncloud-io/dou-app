@@ -5,7 +5,7 @@ import { AlertTriangle, Home, RefreshCw, ServerCrash, ShieldOff, WifiOff } from 
 import { Logo } from '@chatic/assets';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
-import { ERROR_MESSAGES } from '../consts';
+import { useErrorScreenText } from './useErrorScreenText';
 
 import type { ComponentType, ReactNode } from 'react';
 import type { FallbackProps } from 'react-error-boundary';
@@ -24,6 +24,10 @@ const ERROR_ICONS: Record<ErrorType, ReactNode> = {
     unknown: <AlertTriangle className="h-8 w-8 text-muted-foreground" />,
 };
 
+// The Korean substrings stay: the `Error` this classifies isn't always ours, and a Korean-speaking
+// backend can pass its message straight through as `error.message`. Bare English words such as
+// `token`, `server` or `request` are deliberately not matched — they turn up in ordinary crashes
+// ("reading 'accessToken'", "Unexpected token '<'") and would send a plain bug to the login screen.
 const inferErrorType = (error: Error): ErrorType => {
     const message = error.message.toLowerCase();
 
@@ -60,7 +64,7 @@ export const ErrorFallback: ComponentType<ErrorFallbackProps> = ({ error, resetE
     const [isRetrying, setIsRetrying] = useState(false);
 
     const resolvedErrorType = errorType ?? inferErrorType(error);
-    const messages = ERROR_MESSAGES[resolvedErrorType];
+    const messages = useErrorScreenText(resolvedErrorType);
     const icon = ERROR_ICONS[resolvedErrorType];
 
     useEffect(() => {
@@ -110,7 +114,7 @@ export const ErrorFallback: ComponentType<ErrorFallbackProps> = ({ error, resetE
             {/* Error Detail (collapsible) */}
             <details className="mb-8 w-full max-w-[320px]">
                 <summary className="cursor-pointer text-center text-[12px] text-muted-foreground hover:text-foreground">
-                    상세 정보 보기
+                    {messages.details}
                 </summary>
                 <div className="mt-2 rounded-lg border border-border bg-muted/50 p-3">
                     <pre className="max-h-24 overflow-auto whitespace-pre-wrap break-words text-[11px] leading-[1.5] text-muted-foreground">
@@ -127,7 +131,7 @@ export const ErrorFallback: ComponentType<ErrorFallbackProps> = ({ error, resetE
                     className="h-[50px] w-full rounded-full bg-[#B0EA10] text-[16px] font-semibold text-[#222325] hover:bg-[#9DD00E] disabled:bg-muted disabled:text-muted-foreground"
                 >
                     <RefreshCw className={`mr-2 h-4 w-4 ${isRetrying ? 'animate-spin' : ''}`} />
-                    {isRetrying ? '재시도 중...' : messages.primaryAction}
+                    {isRetrying ? messages.retrying : messages.primaryAction}
                 </Button>
                 <Button
                     variant="ghost"
@@ -135,7 +139,7 @@ export const ErrorFallback: ComponentType<ErrorFallbackProps> = ({ error, resetE
                     className="h-[44px] w-full rounded-full text-[14px] font-medium text-muted-foreground hover:text-foreground"
                 >
                     <Home className="mr-2 h-4 w-4" />
-                    {resolvedErrorType === 'auth' ? '로그인 페이지로' : messages.secondaryAction}
+                    {resolvedErrorType === 'auth' ? messages.toLogin : messages.secondaryAction}
                 </Button>
             </div>
         </div>

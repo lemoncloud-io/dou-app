@@ -4,15 +4,20 @@
 // apps/web/src/app/utils/errors.ts + the extractErrorMessage impl from
 // libs/web-core/src/transport/error.ts).
 
+import i18next from 'i18next';
+
 /** Coerce an unknown thrown value into a real Error instance. */
 export const toError = (e: unknown): Error => (e instanceof Error ? e : new Error(String(e)));
 
-const DEFAULT_ERROR_MESSAGE = '알 수 없는 오류가 발생했습니다';
+// Read at call time, not module load: i18next.t must run after the desktop-web
+// i18n bundle (see src/i18n.ts) has initialized, and the active language can
+// change while this module stays loaded.
+const defaultErrorMessage = (): string => i18next.t('errors.unknown');
 
 // `any` is deliberate: error shapes are heterogeneous (Error | axios | string | api payload).
 export const extractErrorMessage = (error: any): string => {
     if (!error) {
-        return DEFAULT_ERROR_MESSAGE;
+        return defaultErrorMessage();
     }
 
     if (error.message) {
@@ -40,7 +45,7 @@ export const extractErrorMessage = (error: any): string => {
         }
     }
 
-    return DEFAULT_ERROR_MESSAGE;
+    return defaultErrorMessage();
 };
 
 /** What a backend failure means, as far as its wire text says. */

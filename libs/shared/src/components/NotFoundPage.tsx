@@ -5,11 +5,10 @@ import { ArrowLeft, Home } from 'lucide-react';
 
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
-import { ERROR_MESSAGES } from '../consts';
-
-const messages = ERROR_MESSAGES.notFound;
+import { useErrorScreenText } from './useErrorScreenText';
 
 export const NotFoundPage = (): JSX.Element => {
+    const messages = useErrorScreenText('notFound');
     const navigate = useNavigate();
     const containerRef = useRef<HTMLDivElement>(null);
 

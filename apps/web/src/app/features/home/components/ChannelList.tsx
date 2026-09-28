@@ -380,7 +380,7 @@ export const ChannelList = ({
                 <DropdownMenuTrigger asChild>
                     <button
                         type="button"
-                        aria-label={t('channelList.createChat', '채팅 만들기')}
+                        aria-label={t('channelList.createChat')}
                         className="flex size-6 items-center justify-center text-foreground"
                     >
                         <IconChatAdd className="size-[18px]" />
@@ -402,7 +402,7 @@ export const ChannelList = ({
                             onClick={onCreateOneOnOne}
                             className="cursor-pointer whitespace-nowrap rounded-[10px] px-3 py-2.5 text-[14px] font-medium leading-4 tracking-[-0.14px]"
                         >
-                            {t('channelList.createDirect', '1:1 대화')}
+                            {t('channelList.createDirect')}
                         </DropdownMenuItem>
                     )}
                     {showGroupCreate && (
@@ -412,7 +412,7 @@ export const ChannelList = ({
                         >
                             {/* The design leaves no slack in this row (label + badge fill it exactly), so the
                             label must not wrap. */}
-                            <span className="whitespace-nowrap">{t('channelList.createGroup', '그룹 방 만들기')}</span>
+                            <span className="whitespace-nowrap">{t('channelList.createGroup')}</span>
                             {!isPro && <SubscriptionBadge tier="pro" size="xs" />}
                         </DropdownMenuItem>
                     )}
@@ -424,7 +424,7 @@ export const ChannelList = ({
         // While the list is still loading, the count is not "0" — it is unknown. Showing 0 next to
         // a skeleton claims an answer we don't have yet, so the number is withheld until it lands.
         <CollapsibleSection
-            title={title ?? t('homePage.channels', '채팅방')}
+            title={title ?? t('homePage.channels')}
             count={isLoading ? undefined : channels.length}
             actions={createMenu}
             open={open}
