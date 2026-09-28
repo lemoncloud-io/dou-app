@@ -15,8 +15,8 @@ interface ChatFields {
 const chat = (fields: ChatFields) => ({ id: 'C1:1', channelId: 'C1', chatNo: 1, ...fields });
 
 describe('resolveChatBlocks', () => {
-    // Tracer bullet: the server fixture is the client contract (knowledge#319
-    // SPEC.md §6-9) — header 1 + section 2 + context 1, read from `blocks$`.
+    // Tracer bullet: the server fixture is the client contract — header 1 +
+    // section 2 + context 1, read from `blocks$`.
     it('reads the server fixture from blocks$ — header 1, section 2, context 1', () => {
         const result = resolveChatBlocks(
             chat({

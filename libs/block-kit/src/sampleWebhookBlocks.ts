@@ -1,8 +1,7 @@
 /**
  * The reference webhook message, byte-for-byte -- copied via `gh api` from
  * `chatic-socials-api@feat/webhook-message-blocks` `sample/chats/`, not
- * hand-typed (SPEC.md Sec.3.5, Sec.6-9: knowledge#319
- * projects/@lemoncloud-io/chatic-socials-api/webhook-message-blocks/SPEC.md).
+ * hand-typed.
  *
  * `WEBHOOK_SEND_ERROR_REPORT` is the request body a webhook sender posts
  * (`webhook-send-error-report.json`); `WEBHOOK_BLOCKS_ERROR_REPORT` is the
