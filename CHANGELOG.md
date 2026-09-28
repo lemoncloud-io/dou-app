@@ -4,6 +4,12 @@
 
 ### Refactor
 
+- (app-runtime) point the active socket slot explicitly, not by what is bound (ADR-0116)
+
+## [2026-09-28] - No version updates
+
+### Refactor
+
 - (app-runtime,data,web,desktop-web) key socket slots by cloud id, not by role (ADR-0115)
 
 ## [2026-09-28] - No version updates
